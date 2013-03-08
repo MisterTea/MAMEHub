@@ -1,0 +1,248 @@
+package com.mamehub.client;
+
+import java.awt.Desktop;
+import java.awt.Window;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URL;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.mamehub.client.net.RpcEngine;
+import com.mamehub.client.utility.ClientDatabaseEngine;
+import com.mamehub.thrift.ApplicationSettings;
+import com.mamehub.thrift.OperatingSystem;
+import com.mamehub.thrift.PlayerProfile;
+
+public class Utils {
+	static final org.slf4j.Logger logger = LoggerFactory.getLogger(Utils.class);
+
+	public static Set<Window> windows = new HashSet<Window>();
+	private static ClientDatabaseEngine auditDatabaseEngine;
+	private static ClientDatabaseEngine applicationDatabaseEngine;
+	
+	public static final int AUDIT_DATABASE_VERSION = 6;
+	public static final int APPLICATION_DATABASE_VERSION = 4;
+	
+	private static PlayerProfile playerProfile = null;
+
+	public static PlayerProfile getPlayerProfile(RpcEngine rpcEngine) {
+		if (playerProfile == null) {
+			playerProfile = rpcEngine.getMyProfile();
+		}
+		return playerProfile;
+	}
+	
+	public static void commitProfile(RpcEngine rpcEngine) {
+		rpcEngine.updateProfile(playerProfile);
+	}
+
+	public static void openWebpage(URI uri) {
+		try {
+			Desktop.getDesktop().browse(uri);
+		} catch(UnsupportedOperationException e) {
+			try {
+				Runtime.getRuntime().exec("xdg-open " + uri.toString());
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static String fileToString(File iniFile) throws IOException {
+		StringBuilder sb = new StringBuilder((int)iniFile.length());
+		
+		String line;
+		BufferedReader reader = null;
+		try {
+			reader = new BufferedReader(new FileReader(iniFile));
+			
+			while(true) {
+				line = reader.readLine();
+				if(line == null) {
+					break;
+				}
+				if(sb.length()>0) {
+					sb.append('\n');
+				}
+				sb.append(line);
+			}
+			
+			return sb.toString();
+		} finally {
+			if(reader != null) {
+				reader.close();
+			}
+		}
+	}
+	
+	public static synchronized ClientDatabaseEngine getAuditDatabaseEngine() {
+		String dbDirectory = "./";//System.getProperty( "user.home" );
+		if(Utils.auditDatabaseEngine==null) {
+			try {
+				boolean inMemory = false;
+				Utils.auditDatabaseEngine = new ClientDatabaseEngine(dbDirectory, "MAMEHubAuditDB" + AUDIT_DATABASE_VERSION,false,inMemory);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		return Utils.auditDatabaseEngine;
+	}
+
+	public static synchronized ClientDatabaseEngine getApplicationDatabaseEngine() {
+		String dbDirectory = "./";//System.getProperty( "user.home" );
+		if(Utils.applicationDatabaseEngine==null) {
+			try {
+				boolean inMemory = false;
+				Utils.applicationDatabaseEngine = new ClientDatabaseEngine(dbDirectory, "MAMEHubAppDB" + APPLICATION_DATABASE_VERSION,false,inMemory);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		return Utils.applicationDatabaseEngine;
+	}
+	
+	public static void shutdownDatabaseEngine() {
+		Utils.auditDatabaseEngine.database.close();
+	}
+	
+	public static boolean isWindows() {
+		 
+		String os = System.getProperty("os.name").toLowerCase();
+		// windows
+		return (os.indexOf("win") >= 0);
+ 
+	}
+ 
+	public static boolean isMac() {
+ 
+		String os = System.getProperty("os.name").toLowerCase();
+		// Mac
+		return (os.indexOf("mac") >= 0);
+ 
+	}
+ 
+	public static boolean isUnix() {
+ 
+		String os = System.getProperty("os.name").toLowerCase();
+		// linux or unix
+		return (os.indexOf("nix") >= 0 || os.indexOf("nux") >= 0);
+ 
+	}
+	
+	@SuppressWarnings("rawtypes")
+	public static void flushAllLogs()
+	{
+	    try
+	    {
+	        Set<FileAppender> flushedFileAppenders = new HashSet<FileAppender>();
+	        Enumeration currentLoggers = LogManager.getLoggerRepository().getCurrentLoggers();
+	        while(currentLoggers.hasMoreElements())
+	        {
+	            Object nextLogger = currentLoggers.nextElement();
+	            if(nextLogger instanceof Logger)
+	            {
+	                Logger currentLogger = (Logger) nextLogger;
+	                Enumeration allAppenders = currentLogger.getAllAppenders();
+	                while(allAppenders.hasMoreElements())
+	                {
+	                    Object nextElement = allAppenders.nextElement();
+	                    if(nextElement instanceof FileAppender)
+	                    {
+	                        FileAppender fileAppender = (FileAppender) nextElement;
+	                        if(!flushedFileAppenders.contains(fileAppender) && !fileAppender.getImmediateFlush())
+	                        {
+	                            flushedFileAppenders.add(fileAppender);
+	                            //log.info("Appender "+fileAppender.getName()+" is not doing immediateFlush ");
+	                            fileAppender.setImmediateFlush(true);
+	                            currentLogger.info("FLUSH");
+	                            fileAppender.setImmediateFlush(false);
+	                        }
+	                        else
+	                        {
+	                            //log.info("fileAppender"+fileAppender.getName()+" is doing immediateFlush");
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	    }
+	    catch(RuntimeException e)
+	    {
+	    	logger.error("Failed flushing logs",e);
+	    }
+	}
+
+	public static void removeWindow(Window window) {
+		windows.remove(window);
+		if(windows.isEmpty()) {
+			logger.info("No windows left, exiting");
+			System.exit(0);
+		}
+	}
+
+	public static ApplicationSettings getApplicationSettings() {
+		ApplicationSettings as = Utils.getApplicationDatabaseEngine().getOrCreateHashMap(ApplicationSettings.class, "1").get("1");
+		if(as == null) {
+			as = new ApplicationSettings();
+		}
+		return as;
+	}
+
+	public static void putApplicationSettings(
+			ApplicationSettings as) {
+		Utils.getApplicationDatabaseEngine().getOrCreateHashMap(ApplicationSettings.class, "1").put("1", as);
+		Utils.getApplicationDatabaseEngine().commit();
+	}
+
+	public static String osToShortOS(OperatingSystem operatingSystem) {
+		switch(operatingSystem){
+		case WINDOWS:
+			return "WIN";
+		case LINUX:
+			return "LNX";
+		case MAC:
+			return "MAC";
+		default:
+			throw new RuntimeException("UNKNOWN OS");
+		}
+	}
+	
+	public static synchronized URL getResource(Class<?> classIn, String suffix) {
+		URL u = classIn.getResource(suffix);
+		if (u == null) {
+			u = classIn.getResource("/data" + suffix);
+		}
+		if (u == null) {
+			throw new RuntimeException("Could not find resource: " + suffix);
+		}
+		return u;
+	}
+
+	public static <K,V> void stagedClear(Map<K, V> map,
+			ClientDatabaseEngine databaseEngine) {
+		Set<K> keys = new HashSet<K>();
+		keys.addAll(map.keySet());
+		int count=0;
+		for(K key : keys) {
+			map.remove(key);
+			count++;
+			if(count%1000==0) {
+				databaseEngine.commit();
+			}
+		}
+		databaseEngine.commit();
+	}
+}

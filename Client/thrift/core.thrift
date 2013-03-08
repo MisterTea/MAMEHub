@@ -1,0 +1,241 @@
+namespace * com.mamehub.thrift
+
+const i32 MAMEHUB_VERSION = 6
+
+enum MR
+{
+	MISSING_FILES,
+	BAD_FILES,
+	MISSING_CLONE,
+	MISSING_PARENT,
+}
+
+struct RomInfo
+{
+	1:string id,
+    2:string cloneRom,
+    3:string parentRom,
+    4:string filename,
+    5:string description,
+    6:string romName,
+    7:MR missingReason,
+    8:string chdFilename;
+    9:string system,
+}
+
+struct FileInfo {
+	1:string id, //Also the path
+	2:bool bad,
+	3:string crc32,
+	4:i64 length,
+	5:map<string,string> contentsCrc32 = {},
+	6:string chdname,
+}
+
+struct MediaType
+{
+	1:string mediaName,
+	2:list<string> extensions,
+}
+
+enum ChatStatus {
+     ONLINE,
+     QUIET,
+     AWAY,
+}
+
+enum OperatingSystem {
+	WINDOWS,
+	LINUX,
+	MAC,
+}
+
+struct PlayerStatus {
+	1:ChatStatus chatStatus,
+	2:OperatingSystem operatingSystem,
+}
+
+struct Player
+{
+	1:string id,
+	2:string name,
+	3:string ipAddress,
+	4:i32 port = 6805,
+	5:bool loggedIn = true,
+	6:bool moderator = false,
+	7:string inGame = "",
+    8:bool portsOpen = false,
+    //9:string emailAddress = "",
+    //10:string status,
+    11:PlayerStatus status,
+}
+
+struct PlayerRomProfile
+{
+	1:string romId,
+	2:i32 stars = 0,
+	3:string note
+}
+
+struct PlayerProfile
+{
+    1:string id,
+    2:map<string, PlayerRomProfile> romProfiles = {};
+}
+
+struct ApplicationSettings
+{
+    1:string id = "1",
+
+    // Chat Settings
+    2:bool chatAudio = true,
+    3:ChatStatus chatStatus = ChatStatus.ONLINE,
+
+    // Login Settings
+    4:string lastInternalLoginId = "",
+    
+    5:bool allowUploading = true,
+}
+
+struct PlayerInternalPassword
+{
+	1:string id,
+	2:string password,
+    3:string emailAddress = "",
+    4:string facbeookId,
+    5:string googleId,
+}
+
+struct Game
+{
+	1:string id,
+	10:string system,
+	2:string rom,
+	4:bool locked = false,
+	5:i64 startTime,
+	6:i64 endTime = 0,
+	7:string hostPlayerId,
+	8:string hostPlayerIpAddress,
+	9:i32 hostPlayerPort,
+}
+
+struct ArchivedGame
+{
+	1:string id,
+	2:Game game
+}
+
+
+struct UserSession
+{
+    1:string id,
+    2:string userId,
+    3:i64 createTime,
+    4:map<string, string> data,
+    5:i64 expirationTime = 0,
+}
+
+struct Message
+{
+	1:i64 timestamp,
+	2:string sourceId,
+	3:string chat,
+	7:Player playerChanged,
+	8:Game gameChanged,
+}
+
+struct MessageQueue
+{
+	1:string id,
+	2:list<Message> messages = [],
+	3:i32 endIndex;
+}
+
+struct PlayerServerData {
+	1:string id,
+	//2: Obsolete
+	3:i64 lastAccessTime,
+}
+
+struct RomPointer {
+	1:string system = "",
+	2:string rom
+}
+
+struct FileRequest
+{
+	1:string requestRom,
+	2:string requestSystem,
+    3:i64 byteOffset = 0,
+    4:i32 chunkSize = 16384,
+}
+
+enum FileResponseCode
+{
+	OK,
+	EOF,
+	ERROR,
+}
+
+struct PeerFileInfo
+{
+	1:string filename = "",
+	2:i64 length = 0,
+}
+
+struct FileResponse
+{
+	1:string dataHex,
+	2:FileResponseCode code,
+}
+
+struct ServerState
+{
+    1:map<string,Player> loggedInPlayers,
+    2:map<string,Game> games,
+}
+
+struct PeerState
+{
+	1:bool canConnect = false,
+	2:i32 ping = -1,
+	3:map<string, set<string>> downloadableRoms = {},
+	4:i64 lastCheckTime = 0,
+}
+
+struct SystemRomPair
+{
+	1:string system,
+	2:string rom,
+}
+
+struct FileNameLocationPair
+{
+	1:string filename,
+	2:string location,
+}
+
+struct PlayerFeedback
+{
+	1:string id,
+	2:string comment,
+	3:string log,
+	4:string playerId,
+}
+	
+struct DownloadableRomState
+{
+	1:map<string, set<string>> roms = {},
+	2:bool stale = false
+}
+
+struct IpRangeData
+{
+	1:i64 ipStart,
+	2:i64 ipEnd,
+	3:string countryCode2,
+	4:string countryCode3,
+	5:string countryName,
+}
+
+
