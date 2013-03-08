@@ -15,6 +15,6 @@ The MAMEHub Client uses [Maven](http://maven.apache.org/).  To build the client,
 
     mvn package
 
-Mavne will automatically download the dependencies and build MAMEHub.  Then to run your client, run this command:
+Maven will automatically download the dependencies and build MAMEHub.  Then to run your client, run this command:
 
     java -jar target/MAMEHubClient-0.0.1-SNAPSHOT.jar
