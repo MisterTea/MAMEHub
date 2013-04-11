@@ -49,7 +49,7 @@ public class RpcEngine implements Runnable {
 	//public static String HOSTNAME = "localhost";
 	//public static String HOSTNAME = "ucfpawn.dyndns.info";
 	public static String HOSTNAME = "10ghost.net";
-	public static String PORT = "8123";
+	public static String PORT = "8080";
 	
 	public interface NetworkHandler {
 		public void handleMessage(Message message);

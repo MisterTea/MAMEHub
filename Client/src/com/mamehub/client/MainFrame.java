@@ -101,7 +101,8 @@ import com.mamehub.thrift.PlayerStatus;
 import com.mamehub.thrift.RomInfo;
 import com.mamehub.thrift.ServerState;
 
-public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, EmulatorHandler, PeerMonitorListener {
+public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
+		EmulatorHandler, PeerMonitorListener {
 	private static final long serialVersionUID = 1L;
 	final Logger logger = LoggerFactory.getLogger(MainFrame.class);
 
@@ -119,7 +120,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 	private JTextArea chatTextArea;
 	final JTabbedPane mainTabbedPane;
 
-	private Map<String,Player> knownPlayers = new HashMap<String,Player>();
+	private Map<String, Player> knownPlayers = new HashMap<String, Player>();
 	private Map<String, Game> knownGames = new HashMap<String, Game>();
 	private DefaultTableModel gameTableModel;
 
@@ -157,32 +158,37 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 		public void update() {
 			cells.clear();
-			for(Player player : knownPlayers.values()) {
-				if(player.loggedIn==false)
+			for (Player player : knownPlayers.values()) {
+				if (player.loggedIn == false)
 					continue;
 
 				List<Object> row = new ArrayList<Object>();
 				row.add(player.name);
 
-				row.add(player.status==null?"":player.status.chatStatus);
-				row.add(player.status==null?"":Utils.osToShortOS(player.status.operatingSystem));
-				
-				IpRangeData range = ipCountryFetcher.getRangeData(player.ipAddress);
-				if(range != null && !range.countryCode2.equalsIgnoreCase("ZZ")) {
+				row.add(player.status == null ? "" : player.status.chatStatus);
+				row.add(player.status == null ? "" : Utils
+						.osToShortOS(player.status.operatingSystem));
+
+				IpRangeData range = ipCountryFetcher
+						.getRangeData(player.ipAddress);
+				if (range != null && !range.countryCode2.equalsIgnoreCase("ZZ")) {
 					row.add(range.countryCode3);
-					URL flagUrl = Utils.getResource(MainFrame.class, "/images/flags/"+range.countryCode2.toLowerCase()+".png");
-					if(flagUrl != null) {
+					URL flagUrl = Utils.getResource(MainFrame.class,
+							"/images/flags/" + range.countryCode2.toLowerCase()
+									+ ".png");
+					if (flagUrl != null) {
 						row.add(new ImageIcon(flagUrl));
 					} else {
 						row.add(null);
 					}
 				} else {
 					row.add("UNK");
-					row.add(new ImageIcon(Utils.getResource(MainFrame.class, "/images/flags/us.png")));
+					row.add(new ImageIcon(Utils.getResource(MainFrame.class,
+							"/images/flags/us.png")));
 				}
 
 				PeerState ps = peerMonitor.getPeer(player);
-				if(ps != null && ps.ping>=0) {
+				if (ps != null && ps.ping >= 0) {
 					row.add(String.valueOf(ps.ping));
 				} else {
 					row.add("---");
@@ -204,7 +210,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 		@Override
 		public Class<? extends Object> getColumnClass(int c) {
-			switch(c) {
+			switch (c) {
 			case 0:
 			case 1:
 			case 2:
@@ -219,7 +225,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 		@Override
 		public String getColumnName(int col) {
-			switch(col) {
+			switch (col) {
 			case 0:
 				return "Name";
 			case 1:
@@ -255,9 +261,12 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 		public List<List<Object>> rows = new ArrayList<List<Object>>();
 		public List<RomInfo> rowRomMap = new ArrayList<RomInfo>();
-		Icon noErrorsIcon = new ImageIcon(Utils.getResource(MainFrame.class, "/images/emblem-default.png"));
-		Icon downloadIcon = new ImageIcon(Utils.getResource(MainFrame.class, "/images/emblem-downloads.png"));
-		Icon errorsIcon = new ImageIcon(Utils.getResource(MainFrame.class, "/images/emblem-unreadable-2.png"));
+		Icon noErrorsIcon = new ImageIcon(Utils.getResource(MainFrame.class,
+				"/images/emblem-default.png"));
+		Icon downloadIcon = new ImageIcon(Utils.getResource(MainFrame.class,
+				"/images/emblem-downloads.png"));
+		Icon errorsIcon = new ImageIcon(Utils.getResource(MainFrame.class,
+				"/images/emblem-unreadable-2.png"));
 
 		public GameListModel() {
 			super();
@@ -279,7 +288,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 		@Override
 		public Class<? extends Object> getColumnClass(int c) {
-			switch(c) {
+			switch (c) {
 			case 0:
 				return Integer.class;
 			case 1:
@@ -294,7 +303,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 		@Override
 		public String getColumnName(int col) {
-			switch(col) {
+			switch (col) {
 			case 0:
 				return "ID";
 			case 1:
@@ -312,10 +321,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 		@Override
 		public Object getValueAt(int r, int c) {
-			if(c==0) {
+			if (c == 0) {
 				return new Integer(r);
 			}
-			return rows.get(r).get(c-1);
+			return rows.get(r).get(c - 1);
 		}
 
 		@Override
@@ -323,56 +332,66 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 			return false;
 		}
 
-		public List<Object> romInfoToRow(RomInfo romInfo, PlayerProfile playerProfile) {
-			PlayerRomProfile playerRomProfile = playerProfile.romProfiles.get(romInfo.id);
-			
+		public List<Object> romInfoToRow(RomInfo romInfo,
+				PlayerProfile playerProfile) {
+			PlayerRomProfile playerRomProfile = playerProfile.romProfiles
+					.get(romInfo.id);
+
 			String machine = romInfo.system;
 			List<Object> retval = new ArrayList<Object>();
-			if(romInfo.missingReason == null) {
+			if (romInfo.missingReason == null) {
 				retval.add(noErrorsIcon);
-			} else if(cloudRoms.containsKey(machine) && cloudRoms.get(machine).contains(romInfo.romName)) {
+			} else if (cloudRoms.containsKey(machine)
+					&& cloudRoms.get(machine).contains(romInfo.romName)) {
 				retval.add(downloadIcon);
 			} else {
 				retval.add(errorsIcon);
 			}
-			if(romInfo.description == null) {
+			if (romInfo.description == null) {
 				retval.add(romInfo.romName);
 			} else {
 				retval.add(romInfo.description);
 			}
 			retval.add(machine);
-			
-			if(playerRomProfile != null) {
+
+			if (playerRomProfile != null) {
 				retval.add(String.valueOf(playerRomProfile.stars));
 			} else {
 				retval.add("---");
 			}
-			
+
 			return retval;
 		}
 	}
-	
+
 	/**
 	 * Create the frame.
-	 * @param rpcThread 
-	 * @param rpcEngine 
-	 * @throws IOException 
-	 * @throws TException 
-	 * @throws NotAuthorizedException 
+	 * 
+	 * @param rpcThread
+	 * @param rpcEngine
+	 * @throws IOException
+	 * @throws TException
+	 * @throws NotAuthorizedException
 	 */
-	@SuppressWarnings("restriction") // Needed for mac-specific setup
-	public MainFrame(final RpcEngine rpcEngine, final ClientHttpServer clientHttpServer) throws IOException, NotAuthorizedException, TException {
+	@SuppressWarnings("restriction")
+	// Needed for mac-specific setup
+	public MainFrame(final RpcEngine rpcEngine,
+			final ClientHttpServer clientHttpServer) throws IOException,
+			NotAuthorizedException, TException {
 		URL u = Utils.getResource(MainFrame.class, "/MAMEHub.png");
 		System.out.println(u);
 		BufferedImage bi = ImageIO.read(u);
-		System.out.println("BUFFERED IMAGE: " + bi.getWidth() + " " + bi.getHeight());
+		System.out.println("BUFFERED IMAGE: " + bi.getWidth() + " "
+				+ bi.getHeight());
 		this.setIconImage(bi);
-		if(OSValidator.isMac()) {
-			com.apple.eawt.Application macApp = com.apple.eawt.Application.getApplication();
+		if (OSValidator.isMac()) {
+			com.apple.eawt.Application macApp = com.apple.eawt.Application
+					.getApplication();
 			macApp.setDockIconImage(bi);
 		}
 
-		ipCountryFetcher = new IpCountryFetcher(Utils.getResource(MainFrame.class, "/IpToCountry.csv"));
+		ipCountryFetcher = new IpCountryFetcher(Utils.getResource(
+				MainFrame.class, "/IpToCountry.csv"));
 		this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		Utils.windows.add(this);
 		logger.info("Adding mainframe window");
@@ -384,18 +403,17 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 			public void windowClosed(WindowEvent arg0) {
 				mameHubEngine.cancelAudit();
 				logger.info("Removing mainframe window");
-				if(rpcEngine!=null && !rpcEngine.finished) {
+				if (rpcEngine != null && !rpcEngine.finished) {
 					rpcEngine.logout();
 				}
 				Utils.windows.remove(MainFrame.this);
-				if(Utils.windows.isEmpty()) {
+				if (Utils.windows.isEmpty()) {
 					logger.info("No windows left");
 					System.exit(0);
 				}
 			}
 		});
 		this.rpcEngine = rpcEngine;
-		peerMonitor = new PeerMonitor(this);
 
 		rpcEngine.setMessageHandler(this);
 
@@ -403,7 +421,6 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
-
 
 		contentPane.setLayout(new BorderLayout(0, 0));
 
@@ -417,62 +434,58 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		panel_3.setLayout(new BoxLayout(panel_3, BoxLayout.X_AXIS));
 
 		gameListModel = new GameListModel();
-		gameTableModel = new FirstColumnEditableTableModel(new String[]{"Join", "Host Name", "Player Names", "Machine", "Rom"}, 0);
-		downloadsTableModel = new FirstColumnEditableTableModel(new String[]{"Cancel", "File Name", "Percent Complete"}, 0);
+		gameTableModel = new FirstColumnEditableTableModel(new String[] {
+				"Join", "Host Name", "Player Names", "Machine", "Rom" }, 0);
+		downloadsTableModel = new FirstColumnEditableTableModel(new String[] {
+				"Cancel", "File Name", "Percent Complete" }, 0);
 
 		mainTabbedPane = new JTabbedPane(JTabbedPane.TOP);
 		panel_3.add(mainTabbedPane);
 
 		hostGamePanel = new JPanel();
-		mainTabbedPane.addTab("Host Game", null, hostGamePanel, null);
+		mainTabbedPane.addTab("Games", null, hostGamePanel, null);
+
+		hostGamePanel.setLayout(new BorderLayout(0, 0));
 
 		joinGameTable = new JTable(gameTableModel);
 		joinGameTable.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mousePressed(MouseEvent e){
+			public void mousePressed(MouseEvent e) {
 				if (e.isPopupTrigger())
 					doPop(e);
 			}
 
 			@Override
-			public void mouseReleased(MouseEvent e){
+			public void mouseReleased(MouseEvent e) {
 				if (e.isPopupTrigger())
 					doPop(e);
 			}
 
-			private void doPop(MouseEvent e){
+			private void doPop(MouseEvent e) {
 				JoinGameListPopup menu = new JoinGameListPopup();
 				menu.show(e.getComponent(), e.getX(), e.getY());
 			}
 		});
 		joinGameTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		JScrollPane joinGameTablePanel = new JScrollPane(joinGameTable);
-		mainTabbedPane.addTab("Join Game", null, joinGameTablePanel, null);
+		joinGameTablePanel.setPreferredSize(new Dimension(454, 100));
+		joinGameTablePanel.setSize(new Dimension(200, 0));
+		hostGamePanel.add(joinGameTablePanel, BorderLayout.NORTH);
 		joinGameTable.setMinimumSize(new Dimension(150, 23));
+
 		updateJoinGameList();
 
-		Action joinGame = new AbstractAction()
-		{
+		Action joinGame = new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 
-			public void actionPerformed(ActionEvent e)
-			{
-				int modelRow = Integer.valueOf( e.getActionCommand() );
+			public void actionPerformed(ActionEvent e) {
+				int modelRow = Integer.valueOf(e.getActionCommand());
 				joinGameTable.setRowSelectionInterval(modelRow, modelRow);
 				joinSelectedGame();
 			}
 		};
 
 		ButtonColumn buttonColumn = new ButtonColumn(joinGameTable, joinGame, 0);
-		buttonColumn.setMnemonic(KeyEvent.VK_J);
-
-		hostGamePanel.setLayout(new BorderLayout(0, 0));
-
-		JScrollPane scrollPane3 = new JScrollPane(systemTree);
-		scrollPane3.setMinimumSize(new Dimension(200, 23));
-		scrollPane3.setPreferredSize(new Dimension(200, 384));
-		scrollPane3.setMaximumSize(new Dimension(200, 32767));
-		hostGamePanel.add(scrollPane3, BorderLayout.WEST);
 
 		JPanel panel_1 = new JPanel();
 		hostGamePanel.add(panel_1, BorderLayout.CENTER);
@@ -482,27 +495,35 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 			List<JMenuItem> stars = new ArrayList<JMenuItem>();
 
-			public HostGameListPopup(){
-				for(int a=0;a<5;a++) {
-					final int starCount = a+1;
-					final JMenuItem mi = new JMenuItem("Rate "+(a+1)+" Star" + (a==0?"":"s"));
+			public HostGameListPopup() {
+				for (int a = 0; a < 5; a++) {
+					final int starCount = a + 1;
+					final JMenuItem mi = new JMenuItem("Rate " + (a + 1)
+							+ " Star" + (a == 0 ? "" : "s"));
 					stars.add(mi);
 					add(mi);
 					mi.addActionListener(new ActionListener() {
 
 						@Override
 						public void actionPerformed(ActionEvent arg0) {
-							RomInfo gameRomInfo = gameListModel.rowRomMap.get(gameTable.getSelectedRow());
-							System.out.println("Giving " + gameRomInfo + " " + starCount + " STARS");
-							PlayerProfile playerProfile = Utils.getPlayerProfile(rpcEngine);
-							playerProfile.romProfiles.put(gameRomInfo.id, new PlayerRomProfile(gameRomInfo.id, starCount, null));
+							RomInfo gameRomInfo = gameListModel.rowRomMap
+									.get(gameTable.getSelectedRow());
+							System.out.println("Giving " + gameRomInfo + " "
+									+ starCount + " STARS");
+							PlayerProfile playerProfile = Utils
+									.getPlayerProfile(rpcEngine);
+							playerProfile.romProfiles.put(gameRomInfo.id,
+									new PlayerRomProfile(gameRomInfo.id,
+											starCount, null));
 							Utils.commitProfile(rpcEngine);
-							updateGameTree(gameListModel, mameHubEngine.gameAuditor);
-						}});
+							updateGameTree(gameListModel,
+									mameHubEngine.gameAuditor);
+						}
+					});
 				}
 			}
 		}
-		
+
 		gameTable = new JTable(gameListModel);
 		gameTable.setAutoCreateRowSorter(true);
 		gameTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
@@ -514,55 +535,66 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		gameTable.addMouseListener(new MouseAdapter() {
 
 			@Override
-			public void mousePressed(MouseEvent e){
+			public void mousePressed(MouseEvent e) {
 				if (e.isPopupTrigger())
 					doPop(e);
 			}
 
 			@Override
-			public void mouseReleased(MouseEvent e){
+			public void mouseReleased(MouseEvent e) {
 				if (e.isPopupTrigger())
 					doPop(e);
 			}
 
-			private void doPop(MouseEvent e){
+			private void doPop(MouseEvent e) {
 				HostGameListPopup menu = new HostGameListPopup();
 				menu.show(e.getComponent(), e.getX(), e.getY());
 			}
-			
+
 			@Override
 			public void mouseClicked(MouseEvent me) {
-				if(gameTable.getSelectedRow()==-1) {
+				if (gameTable.getSelectedRow() == -1) {
 					return;
 				}
-				int originalRow = gameTable.convertRowIndexToModel(gameTable.getSelectedRow());
+				int originalRow = gameTable.convertRowIndexToModel(gameTable
+						.getSelectedRow());
 				RomInfo gameRomInfo = gameListModel.rowRomMap.get(originalRow);
 				String systemName = gameRomInfo.system;
-				if(gameRomInfo != null && me.getButton() == MouseEvent.BUTTON1) {
+				if (gameRomInfo != null && me.getButton() == MouseEvent.BUTTON1) {
 					// We clicked on a arcade rom or cart
-					if(lastTreeItemClickTime + 1000 > System.currentTimeMillis()) {
-						//We double clicked
+					if (lastTreeItemClickTime + 1000 > System
+							.currentTimeMillis()) {
+						// We double clicked
 						logger.info("DOUBLE CLICKED ON TREE");
-						if(!readyToEnterGame()) {
+						if (!readyToEnterGame()) {
 						} else {
 							try {
-								logger.info("Got system " + systemName + " and rom " + gameRomInfo + "(" + originalRow + ")");
+								logger.info("Got system " + systemName
+										+ " and rom " + gameRomInfo + "("
+										+ originalRow + ")");
 
-								if(gameRomInfo.missingReason != null) {
+								if (gameRomInfo.missingReason != null) {
 									logger.info("Trying to download");
-									// This is a game we don't own, start the download process
+									// This is a game we don't own, start the
+									// download process
 									tryToDownload(systemName, gameRomInfo);
 								} else if (mameHubEngine.isGameRunning()) {
-									JOptionPane.showMessageDialog(MainFrame.this, "There is already a game in progress.  Please close that game before starting a new one.");
+									JOptionPane
+											.showMessageDialog(
+													MainFrame.this,
+													"There is already a game in progress.  Please close that game before starting a new one.");
 								} else {
-									rpcEngine.hostGame(systemName, gameRomInfo.romName,null);
+									rpcEngine.hostGame(systemName,
+											gameRomInfo.romName, null);
 									boolean success = mameHubEngine.launchGame(
 											rpcEngine.getMyself().name,
-											systemName,
-											gameRomInfo.filename,
+											systemName, gameRomInfo.filename,
 											true, null, 6805, 6805);
-									if(!success) {
-										JOptionPane.showMessageDialog(MainFrame.this, "There is already a game in progress.  Please close that game before starting a new one.");
+									if (!success) {
+										JOptionPane
+												.showMessageDialog(
+														MainFrame.this,
+														"There is already a game in progress.  Please close that game before starting a new one.");
 									}
 								}
 							} catch (IOException e1) {
@@ -590,74 +622,79 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		panel_6.add(lblNewLabel, BorderLayout.WEST);
 
 		gameSearchTextBox = new JTextField();
-		gameSearchTextBox.getDocument().addDocumentListener(new DocumentListener() {
-			public synchronized void changedUpdate(DocumentEvent e) {
-				updateSearch();
-			}
+		gameSearchTextBox.getDocument().addDocumentListener(
+				new DocumentListener() {
+					public synchronized void changedUpdate(DocumentEvent e) {
+						updateSearch();
+					}
 
-			@Override
-			public synchronized void insertUpdate(DocumentEvent arg0) {
-				updateSearch();
-			}
+					@Override
+					public synchronized void insertUpdate(DocumentEvent arg0) {
+						updateSearch();
+					}
 
-			@Override
-			public synchronized void removeUpdate(DocumentEvent arg0) {
-				updateSearch();
-			}
+					@Override
+					public synchronized void removeUpdate(DocumentEvent arg0) {
+						updateSearch();
+					}
 
-			private void updateSearch() {
-				if(gameSearchTextBox.getText().length()==0) {
-					searchResults.clear();
-					updateGameTree(gameListModel, mameHubEngine.gameAuditor);
-					return;
-				}
+					private void updateSearch() {
+						if (gameSearchTextBox.getText().length() == 0) {
+							searchResults.clear();
+							updateGameTree(gameListModel,
+									mameHubEngine.gameAuditor);
+							return;
+						}
 
-				logger.info("Searching for " + gameSearchTextBox.getText());
-				List<RomQueryResult> result = mameHubEngine.gameAuditor.queryRoms(
-						gameSearchTextBox.getText(),
-						cloudRoms);
-				searchResults.clear();
-				int a=0;
-				for(RomQueryResult rqr : result) {
-					if(a<10) logger.info("" + result.size());
-					if(a<10) logger.info("GOT RESULT " + rqr.score + " "  + rqr.romInfo);
-					searchResults.add(rqr.romInfo);
-					a++;
-				}
-				logger.info("Game Tree Updating");
-				updateGameTree(gameListModel, mameHubEngine.gameAuditor);
-				logger.info("Game Tree Updated");
-			}
-		});
+						logger.info("Searching for "
+								+ gameSearchTextBox.getText());
+						List<RomQueryResult> result = mameHubEngine.gameAuditor
+								.queryRoms(gameSearchTextBox.getText(),
+										cloudRoms);
+						searchResults.clear();
+						int a = 0;
+						for (RomQueryResult rqr : result) {
+							if (a < 10)
+								logger.info("" + result.size());
+							if (a < 10)
+								logger.info("GOT RESULT " + rqr.score + " "
+										+ rqr.romInfo);
+							searchResults.add(rqr.romInfo);
+							a++;
+						}
+						logger.info("Game Tree Updating");
+						updateGameTree(gameListModel, mameHubEngine.gameAuditor);
+						logger.info("Game Tree Updated");
+					}
+				});
 		panel_6.add(gameSearchTextBox, BorderLayout.CENTER);
 		gameSearchTextBox.setColumns(10);
 
 		downloadsTable = new JTable(downloadsTableModel);
 		downloadsTable.setMinimumSize(new Dimension(150, 23));
-		
-		Action cancelDownload = new AbstractAction()
-		{
+
+		Action cancelDownload = new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 
-			public void actionPerformed(ActionEvent e)
-			{
-				int modelRow = Integer.valueOf( e.getActionCommand() );
+			public void actionPerformed(ActionEvent e) {
+				int modelRow = Integer.valueOf(e.getActionCommand());
 				downloadTableRowDownloadStateMap.get(modelRow).cancel = true;
 			}
 		};
 
-		ButtonColumn buttonColumn2 = new ButtonColumn(downloadsTable, cancelDownload, 0);
-		
+		ButtonColumn buttonColumn2 = new ButtonColumn(downloadsTable,
+				cancelDownload, 0);
+
 		downloadsPanel = new JScrollPane(downloadsTable);
 		mainTabbedPane.addTab("Downloads", null, downloadsPanel, null);
-		
+
 		JPanel panel_4 = new JPanel();
 		splitPane.setRightComponent(panel_4);
 		GridBagLayout gbl_panel_4 = new GridBagLayout();
-		gbl_panel_4.columnWidths = new int[]{206, 300, 0};
-		gbl_panel_4.rowHeights = new int[]{146, 0};
-		gbl_panel_4.columnWeights = new double[]{1.0, 0.0, Double.MIN_VALUE};
-		gbl_panel_4.rowWeights = new double[]{1.0, Double.MIN_VALUE};
+		gbl_panel_4.columnWidths = new int[] { 206, 300, 0 };
+		gbl_panel_4.rowHeights = new int[] { 146, 0 };
+		gbl_panel_4.columnWeights = new double[] { 1.0, 0.0, Double.MIN_VALUE };
+		gbl_panel_4.rowWeights = new double[] { 1.0, Double.MIN_VALUE };
 		panel_4.setLayout(gbl_panel_4);
 
 		JPanel panel = new JPanel();
@@ -677,10 +714,12 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		// We will manually handle advancing chat window
 		DefaultCaret caret = (DefaultCaret) chatTextArea.getCaret();
 		caret.setUpdatePolicy(DefaultCaret.NEVER_UPDATE);
-		
+
 		chatScroll = new JScrollPane(chatTextArea);
-		chatScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-		chatScroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+		chatScroll
+				.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+		chatScroll
+				.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		panel.add(chatScroll);
 
 		JPanel panel_2 = new JPanel();
@@ -693,32 +732,42 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		chatTextField.addKeyListener(new KeyAdapter() {
 			@Override
 			public void keyTyped(KeyEvent arg0) {
-				if(arg0.getKeyChar()=='\n') {
-					rpcEngine.broadcastMessage(new Message().setChat(chatTextField.getText()));
+				if (arg0.getKeyChar() == '\n') {
+					rpcEngine.broadcastMessage(new Message()
+							.setChat(chatTextField.getText()));
 					chatTextField.setText("");
-				} else if(arg0.getKeyChar() == '\t') {
+				} else if (arg0.getKeyChar() == '\t') {
 					String tokens[] = chatTextField.getText().split("\\s+");
-					if(tokens.length==0) {
+					if (tokens.length == 0) {
 						return;
 					}
-					String lastToken = tokens[tokens.length-1];
+					String lastToken = tokens[tokens.length - 1];
 					Player match = null;
-					for(Player p : knownPlayers.values()) {
-						if(p.name.toLowerCase().startsWith(lastToken.toLowerCase())) {
-							if(match != null) {
-								//return;
+					for (Player p : knownPlayers.values()) {
+						if (p.name.toLowerCase().startsWith(
+								lastToken.toLowerCase())) {
+							if (match != null) {
+								// return;
 							}
 							match = p;
 						}
 					}
-					if(match != null) {
-						// Erase the last token down to the first whitespace and then add the match
-						while(chatTextField.getText().length()>0 &&
-								chatTextField.getText().charAt(chatTextField.getText().length()-1) != ' ') {
-							chatTextField.setText(chatTextField.getText().substring(0,chatTextField.getText().length()-1));
+					if (match != null) {
+						// Erase the last token down to the first whitespace and
+						// then add the match
+						while (chatTextField.getText().length() > 0
+								&& chatTextField.getText().charAt(
+										chatTextField.getText().length() - 1) != ' ') {
+							chatTextField
+									.setText(chatTextField.getText()
+											.substring(
+													0,
+													chatTextField.getText()
+															.length() - 1));
 						}
-						if(chatTextField.getText().length()>0) {
-							chatTextField.setText(chatTextField.getText() + match.name);
+						if (chatTextField.getText().length() > 0) {
+							chatTextField.setText(chatTextField.getText()
+									+ match.name);
 						} else {
 							chatTextField.setText(match.name);
 						}
@@ -733,7 +782,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		chatStatusComboBox = new JComboBox();
 		chatStatusComboBox.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				ChatStatus newChatStatus = (ChatStatus)chatStatusComboBox.getSelectedItem();
+				ChatStatus newChatStatus = (ChatStatus) chatStatusComboBox
+						.getSelectedItem();
 				System.out.println("CHAT STATUS CHANGED: " + newChatStatus);
 				ApplicationSettings as = Utils.getApplicationSettings();
 				as.chatStatus = newChatStatus;
@@ -741,8 +791,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 				updatePlayerStatus();
 			}
 		});
-		chatStatusComboBox.setModel(new DefaultComboBoxModel(ChatStatus.values()));
-		chatStatusComboBox.setSelectedItem(Utils.getApplicationSettings().chatStatus);
+		chatStatusComboBox.setModel(new DefaultComboBoxModel(ChatStatus
+				.values()));
+		chatStatusComboBox
+				.setSelectedItem(Utils.getApplicationSettings().chatStatus);
 		panel_2.add(chatStatusComboBox, BorderLayout.EAST);
 
 		JPanel panel_5 = new JPanel();
@@ -765,7 +817,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		playerTable.getColumnModel().getColumn(4).setPreferredWidth(50);
 		playerTable.getColumnModel().getColumn(5).setPreferredWidth(50);
 		JScrollPane scrollPane = new JScrollPane(playerTable);
-		scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+		scrollPane
+				.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		panel_5.add(scrollPane, BorderLayout.CENTER);
 
 		JMenuBar menuBar = new JMenuBar();
@@ -788,7 +841,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		JMenuItem mntmSettings = new JMenuItem("Settings");
 		mntmSettings.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				new UpdateSettingsDialog(MainFrame.this, rpcEngine).setVisible(true);
+				new UpdateSettingsDialog(MainFrame.this, rpcEngine)
+						.setVisible(true);
 			}
 		});
 		mnEdit.add(mntmSettings);
@@ -796,7 +850,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		JMenuItem mntmUpdateProfile = new JMenuItem("Profile");
 		mntmUpdateProfile.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				new UpdateProfileDialog(MainFrame.this, rpcEngine).setVisible(true);
+				new UpdateProfileDialog(MainFrame.this, rpcEngine)
+						.setVisible(true);
 			}
 		});
 		mnEdit.add(mntmUpdateProfile);
@@ -804,12 +859,15 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		JMenu mnConnection = new JMenu("Connection");
 		menuBar.add(mnConnection);
 
-		JMenuItem checkForwardedPortMenuitem = new JMenuItem("Check Port Forwarding");
+		JMenuItem checkForwardedPortMenuitem = new JMenuItem(
+				"Check Port Forwarding");
 		checkForwardedPortMenuitem.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				try {
-					Utils.openWebpage(new URI("http://portchecker.net/udp.php?p=6805"));
-					Utils.openWebpage(new URI("http://www.whatsmyip.org/port-scanner"));
+					Utils.openWebpage(new URI(
+							"http://portchecker.net/udp.php?p=6805"));
+					Utils.openWebpage(new URI(
+							"http://www.whatsmyip.org/port-scanner"));
 				} catch (URISyntaxException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -852,16 +910,18 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		});
 		mnAudit.add(mntmRescanFolders);
 
-		ServerState serverState = rpcEngine.getServerState();
-		knownPlayers.putAll(serverState.loggedInPlayers);
-		peerMonitor.insertAll(serverState.loggedInPlayers.values());
-		knownGames.putAll(serverState.games);
-		playerTableModel.update();
-
 		statusLabel = new JLabel("Welcome to MAMEHub!");
 		contentPane.add(statusLabel, BorderLayout.SOUTH);
 
 		mameHubEngine = new MameHubEngine(this, this);
+		peerMonitor = new PeerMonitor(this, mameHubEngine);
+
+		ServerState serverState = rpcEngine.getServerState();
+		knownPlayers.putAll(serverState.loggedInPlayers);
+		knownGames.putAll(serverState.games);
+		peerMonitor.insertAll(serverState.loggedInPlayers.values());
+		playerTableModel.update();
+
 		rpcEngine.startThread();
 
 		updateJoinGameList();
@@ -875,7 +935,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 				MainFrame.this.repaint();
 				MainFrame.this.setAlwaysOnTop(false);
 			}
-		});		
+		});
 
 		MainFrame.this.validate();
 		MainFrame.this.toFront();
@@ -885,14 +945,17 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 	}
 
 	protected void updatePlayerStatus() {
-		ChatStatus newChatStatus = (ChatStatus)chatStatusComboBox.getSelectedItem();
-		rpcEngine.updateStatus(new PlayerStatus(newChatStatus, OSValidator.getOperatingSystemStatus()));
+		ChatStatus newChatStatus = (ChatStatus) chatStatusComboBox
+				.getSelectedItem();
+		rpcEngine.updateStatus(new PlayerStatus(newChatStatus, OSValidator
+				.getOperatingSystemStatus()));
 	}
 
 	protected void joinSelectedGame() {
-		if(!readyToEnterGame()) {
-			JOptionPane.showMessageDialog(MainFrame.this, "You cannot enter a game now.");
-		} else if(joinGameTable.getSelectedRow()>=0) {
+		if (!readyToEnterGame()) {
+			JOptionPane.showMessageDialog(MainFrame.this,
+					"You cannot enter a game now.");
+		} else if (joinGameTable.getSelectedRow() >= 0) {
 			Game game = joinGameList.get(joinGameTable.getSelectedRow());
 
 			try {
@@ -900,7 +963,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 				RomInfo systemRomInfo = null;
 				RomInfo gameRomInfo = null;
 
-				if(system.equalsIgnoreCase("arcade")) {
+				if (system.equalsIgnoreCase("arcade")) {
 					systemRomInfo = null;
 					gameRomInfo = mameHubEngine.getMameRomInfo(game.rom);
 				} else {
@@ -911,35 +974,44 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 					System.out.println("GAME ROM INFO " + gameRomInfo);
 				}
 
-				if(systemRomInfo!=null && systemRomInfo.missingReason!=null) {
+				if (systemRomInfo != null
+						&& systemRomInfo.missingReason != null) {
 					// This is a bios we don't own, start the download process
 					tryToDownload(system, gameRomInfo);
 					return;
 				}
 
-				if(gameRomInfo.missingReason != null) {
+				if (gameRomInfo.missingReason != null) {
 					// This is a game we don't own, start the download process
 					tryToDownload(system, gameRomInfo);
 					return;
 				}
 
 				if (mameHubEngine.isGameRunning()) {
-					JOptionPane.showMessageDialog(MainFrame.this, "There is already a game in progress.  Please close that game before starting a new one.");
+					JOptionPane
+							.showMessageDialog(
+									MainFrame.this,
+									"There is already a game in progress.  Please close that game before starting a new one.");
 				} else {
 					logger.info("ROM INFO: " + gameRomInfo);
 					String errorMessage = rpcEngine.joinGame(game.id);
 					logger.info("GAME INFO: " + game);
-					if(errorMessage.length()==0) {
+					if (errorMessage.length() == 0) {
 						boolean success = mameHubEngine.launchGame(
-								rpcEngine.getMyself().name,
-								game.system,
-								gameRomInfo.filename,
-								false, game.hostPlayerIpAddress, 6805, game.hostPlayerPort);
-						if(!success) {
-							JOptionPane.showMessageDialog(MainFrame.this, "There is already a game in progress.  Please close that game before starting a new one.");
+								rpcEngine.getMyself().name, game.system,
+								gameRomInfo.filename, false,
+								game.hostPlayerIpAddress, 6805,
+								game.hostPlayerPort);
+						if (!success) {
+							JOptionPane
+									.showMessageDialog(
+											MainFrame.this,
+											"There is already a game in progress.  Please close that game before starting a new one.");
 						}
 					} else {
-						JOptionPane.showMessageDialog(MainFrame.this, "Could not join game (reason: " + errorMessage + ")");
+						JOptionPane.showMessageDialog(MainFrame.this,
+								"Could not join game (reason: " + errorMessage
+										+ ")");
 					}
 				}
 			} catch (IOException e1) {
@@ -949,54 +1021,62 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 	}
 
 	protected boolean readyToEnterGame() {
-		if(mameHubEngine.isAuditing()) {
-			JOptionPane.showMessageDialog(MainFrame.this, "Please wait until audit is finished");
+		if (mameHubEngine.isAuditing()) {
+			JOptionPane.showMessageDialog(MainFrame.this,
+					"Please wait until audit is finished");
 			return false;
 		}
 		return true;
 	}
 
 	protected void tryToDownload(String systemName, RomInfo gameRomInfo) {
-		if(JOptionPane.showConfirmDialog(MainFrame.this, "Are you legally entitled to own this ROM?",
-				"Consent box.", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+		if (JOptionPane.showConfirmDialog(MainFrame.this,
+				"Are you legally entitled to own this ROM?", "Consent box.",
+				JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
 			return;
 		}
-		
+
 		RomInfo romInfo = mameHubEngine.getMessRomInfo(systemName);
-		if(romInfo != null && romInfo.missingReason != null) {
+		if (romInfo != null && romInfo.missingReason != null) {
 			// This is a bios we don't own, start the download process
 			Set<String> romsNeeded = new HashSet<String>();
 			romsNeeded.add(romInfo.romName);
-			boolean requestGranted = peerMonitor.requestRoms("Bios", romsNeeded, null);
+			boolean requestGranted = peerMonitor.requestRoms("Bios",
+					romsNeeded, null);
 			mainTabbedPane.setSelectedIndex(2);
-			if(requestGranted) {
-				JOptionPane.showMessageDialog(MainFrame.this, "Downloading BIOS from peers. YOU MUST RESCAN FOLDERS AFTER DOWNLOAD IS COMPLETE.");
+			if (requestGranted) {
+				JOptionPane.showMessageDialog(MainFrame.this,
+						"Downloading BIOS from peers.");
 			} else {
-				JOptionPane.showMessageDialog(MainFrame.this, "Server could not find peers with BIOS.");
+				JOptionPane.showMessageDialog(MainFrame.this,
+						"Server could not find peers with BIOS.");
 			}
 			return;
 		}
 
 		Set<String> romsNeeded = new HashSet<String>();
 		romsNeeded.add(gameRomInfo.romName);
-		if(gameRomInfo.parentRom != null) {
+		if (gameRomInfo.parentRom != null) {
 			romsNeeded.add(gameRomInfo.parentRom);
 		}
-		if(gameRomInfo.cloneRom != null) {
+		if (gameRomInfo.cloneRom != null) {
 			romsNeeded.add(gameRomInfo.cloneRom);
 		}
 		String chdName = null;
-		if(gameRomInfo.chdFilename != null) {
+		if (gameRomInfo.chdFilename != null) {
 			chdName = gameRomInfo.id;
 		}
 		logger.info("Reqeusting roms: " + romsNeeded);
-		boolean requestGranted = peerMonitor.requestRoms(systemName, romsNeeded, chdName);
+		boolean requestGranted = peerMonitor.requestRoms(systemName,
+				romsNeeded, chdName);
 		mainTabbedPane.setSelectedIndex(2);
 		logger.info("Request granted: " + requestGranted);
-		if(requestGranted) {
-			JOptionPane.showMessageDialog(MainFrame.this, "Downloading rom from peers. YOU MUST RESCAN FOLDERS AFTER DOWNLOAD IS COMPLETE.");
+		if (requestGranted) {
+			JOptionPane.showMessageDialog(MainFrame.this,
+					"Downloading rom from peers.");
 		} else {
-			JOptionPane.showMessageDialog(MainFrame.this, "Server could not find peers with roms.");
+			JOptionPane.showMessageDialog(MainFrame.this,
+					"Server could not find peers with roms.");
 		}
 	}
 
@@ -1009,31 +1089,31 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 				Map<String, Set<String>> romList = new HashMap<String, Set<String>>();
 
 				Set<String> arcadeRoms = new HashSet<String>();
-				for(Map.Entry<String, RomInfo> entry : 
-					gameAuditor.getMameRomInfoMap().entrySet()) {
-					if(entry.getValue().missingReason == null) {
-						//logger.info("Adding arcade game " + entry.getKey());
+				for (Map.Entry<String, RomInfo> entry : gameAuditor
+						.getMameRomInfoMap().entrySet()) {
+					if (entry.getValue().missingReason == null) {
+						// logger.info("Adding arcade game " + entry.getKey());
 						arcadeRoms.add(entry.getKey());
 					}
 				}
 				romList.put("Arcade", arcadeRoms);
 
 				Set<String> biosRoms = new HashSet<String>();
-				for(Map.Entry<String, RomInfo> entry : 
-					gameAuditor.getMessRomInfoMap().entrySet()) {
-					if(entry.getValue().missingReason == null) {
-						//logger.info("Adding console bios " + entry.getKey());
+				for (Map.Entry<String, RomInfo> entry : gameAuditor
+						.getMessRomInfoMap().entrySet()) {
+					if (entry.getValue().missingReason == null) {
+						// logger.info("Adding console bios " + entry.getKey());
 						biosRoms.add(entry.getKey());
 					}
 				}
 				romList.put("Bios", biosRoms);
 
-				for(String system : gameAuditor.getMessRomInfoMap().keySet()) {
+				for (String system : gameAuditor.getMessRomInfoMap().keySet()) {
 					Set<String> ownedRomNames = new HashSet<String>();
-					for(Map.Entry<String, RomInfo> entry : 
-						gameAuditor.getSystemRomInfoMap(system).entrySet()) {
-						if(entry.getValue().missingReason == null) {
-							//logger.info("Adding cart " + entry.getKey());
+					for (Map.Entry<String, RomInfo> entry : gameAuditor
+							.getSystemRomInfoMap(system).entrySet()) {
+						if (entry.getValue().missingReason == null) {
+							// logger.info("Adding cart " + entry.getKey());
 							ownedRomNames.add(entry.getKey());
 						}
 					}
@@ -1042,24 +1122,24 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 				MameHubClientRpcImpl.updateRoms(romList);
 
-				//updateSystemTree(gameAuditor);
+				// updateSystemTree(gameAuditor);
 				updateGameTree(gameListModel, gameAuditor);
 				statusLabel.setText("Audit finished!");
 			}
-			
+
 		});
 	}
 
 	private void updateGameTree(GameListModel model, GameAuditor gameAuditor) {
-		//logger.info("Updating game tree");
+		// logger.info("Updating game tree");
 		model.rowRomMap.clear();
 		model.rows.clear();
-		
+
 		PlayerProfile playerProfile = Utils.getPlayerProfile(rpcEngine);
-		
-		if(!gameSearchTextBox.getText().isEmpty()) {
+
+		if (!gameSearchTextBox.getText().isEmpty()) {
 			// Add items in search relevance order
-			for(RomInfo romInfo : searchResults) {
+			for (RomInfo romInfo : searchResults) {
 				model.rowRomMap.add(romInfo);
 				model.rows.add(model.romInfoToRow(romInfo, playerProfile));
 			}
@@ -1067,25 +1147,30 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 			Map<String, RomInfo> gamesFound = new TreeMap<String, RomInfo>();
 			Map<String, RomInfo> gamesCloud = new TreeMap<String, RomInfo>();
 			Map<String, RomInfo> gamesMissing = new TreeMap<String, RomInfo>();
-			for(Map.Entry<String, RomInfo> entry : gameAuditor.getMameRomInfoMap().entrySet()) {
+			for (Map.Entry<String, RomInfo> entry : gameAuditor
+					.getMameRomInfoMap().entrySet()) {
 				RomInfo romInfo = entry.getValue();
-				if(romInfo.missingReason == null) {
+				if (romInfo.missingReason == null) {
 					gamesFound.put(romInfo.description, romInfo);
-				} else if(cloudRoms.containsKey("Arcade") && cloudRoms.get("Arcade").contains(romInfo.romName)) {
+				} else if (cloudRoms.containsKey("Arcade")
+						&& cloudRoms.get("Arcade").contains(romInfo.romName)) {
 					gamesCloud.put(romInfo.description, romInfo);
 				} else {
 					gamesMissing.put(romInfo.description, romInfo);
 				}
 			}
-			for(Map.Entry<String, RomInfo> messRomEntry : gameAuditor.getMessRomInfoMap().entrySet()) {
+			for (Map.Entry<String, RomInfo> messRomEntry : gameAuditor
+					.getMessRomInfoMap().entrySet()) {
 				String system = messRomEntry.getKey();
-				for(Map.Entry<String, RomInfo> cartEntry : gameAuditor.getSystemRomInfoMap(system).entrySet()) {
+				for (Map.Entry<String, RomInfo> cartEntry : gameAuditor
+						.getSystemRomInfoMap(system).entrySet()) {
 					String cartName = cartEntry.getKey();
 					RomInfo cartRomInfo = cartEntry.getValue();
-	
-					if(cartRomInfo.missingReason == null) {
+
+					if (cartRomInfo.missingReason == null) {
 						gamesFound.put(cartName, cartRomInfo);
-					} else if(cloudRoms.containsKey(system) && cloudRoms.get(system).contains(cartName)) {
+					} else if (cloudRoms.containsKey(system)
+							&& cloudRoms.get(system).contains(cartName)) {
 						gamesCloud.put(cartName, cartRomInfo);
 					} else {
 						gamesMissing.put(cartName, cartRomInfo);
@@ -1093,20 +1178,19 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 				}
 			}
 			// Add items in alphabetical order
-			for(RomInfo romInfo : gamesFound.values()) {
+			for (RomInfo romInfo : gamesFound.values()) {
 				model.rowRomMap.add(romInfo);
 				model.rows.add(model.romInfoToRow(romInfo, playerProfile));
 			}
-			for(RomInfo romInfo : gamesCloud.values()) {
+			for (RomInfo romInfo : gamesCloud.values()) {
 				model.rowRomMap.add(romInfo);
 				model.rows.add(model.romInfoToRow(romInfo, playerProfile));
 			}
 			/*
-			for(RomInfo romInfo : gamesMissing.values()) {
-				model.rowRomMap.add(romInfo);
-				model.rows.add(model.romInfoToRow(romInfo));
-			}
-			*/
+			 * for(RomInfo romInfo : gamesMissing.values()) {
+			 * model.rowRomMap.add(romInfo);
+			 * model.rows.add(model.romInfoToRow(romInfo)); }
+			 */
 		}
 
 		model.fireTableDataChanged();
@@ -1124,64 +1208,81 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 			@Override
 			public void run() {
 
-				//logger.info("GOT MESSAGE: " + message);
-				if(message.chat != null) {
+				// logger.info("GOT MESSAGE: " + message);
+				if (message.chat != null) {
 					Player player = getPlayer(message.sourceId);
 					String playerName = "(Unknown)";
-					if(player != null) {
+					if (player != null) {
 						playerName = player.name;
 					}
-					addChat(message.timestamp, "<"+playerName+"> " + message.chat);
-					if(getChatStatus() == ChatStatus.ONLINE) {
+					addChat(message.timestamp, "<" + playerName + "> "
+							+ message.chat);
+					if (getChatStatus() == ChatStatus.ONLINE) {
 						SoundEngine.instance.playSoundIfNotActive("ding");
 					}
 				}
-				if(message.playerChanged != null) {
-					Player oldPlayer = knownPlayers.get(message.playerChanged.id);
+				if (message.playerChanged != null) {
+					Player oldPlayer = knownPlayers
+							.get(message.playerChanged.id);
 					Player newPlayer = message.playerChanged;
-					if(oldPlayer == null || oldPlayer.loggedIn==false) {
-						addChat(message.timestamp, "*"+message.playerChanged.name+" joins");
-						if(getChatStatus() == ChatStatus.ONLINE) {
+					if (oldPlayer == null || oldPlayer.loggedIn == false) {
+						addChat(message.timestamp, "*"
+								+ message.playerChanged.name + " joins");
+						if (getChatStatus() == ChatStatus.ONLINE) {
 							SoundEngine.instance.playSound("playerjoin");
 						}
 						peerMonitor.insertPeer(message.playerChanged);
-					} else if(oldPlayer != null && message.playerChanged.loggedIn==false) {
-						addChat(message.timestamp, "*"+message.playerChanged.name+" leaves");
+					} else if (oldPlayer != null
+							&& message.playerChanged.loggedIn == false) {
+						addChat(message.timestamp, "*"
+								+ message.playerChanged.name + " leaves");
 						peerMonitor.removePeer(message.playerChanged);
 					} else {
-						if(oldPlayer.inGame == null && newPlayer.inGame != null && knownGames.containsKey(newPlayer.inGame)) {
+						if (oldPlayer.inGame == null
+								&& newPlayer.inGame != null
+								&& knownGames.containsKey(newPlayer.inGame)) {
 							Game game = knownGames.get(newPlayer.inGame);
-							if(game != null) {
-								Player host = knownPlayers.get(game.hostPlayerId);
-								if(host != null) {
-									addChat(message.timestamp, "*"+message.playerChanged.name+" joins " + host.name + "'s game of " + getGameDescription(game));
+							if (game != null) {
+								Player host = knownPlayers
+										.get(game.hostPlayerId);
+								if (host != null) {
+									addChat(message.timestamp, "*"
+											+ message.playerChanged.name
+											+ " joins " + host.name
+											+ "'s game of "
+											+ getGameDescription(game));
 								}
 							}
 						}
 						peerMonitor.updatePeer(message.playerChanged);
 					}
 
-					knownPlayers.put(message.playerChanged.id, message.playerChanged);
+					knownPlayers.put(message.playerChanged.id,
+							message.playerChanged);
 					playerTableModel.update();
 					playerTableModel.fireTableDataChanged();
 					updateJoinGameList();
 					logger.info("PLAYER CHANGED");
 				}
-				if(message.gameChanged != null) {
-					for(Game game : knownGames.values()) {
-						if(game.id.equals(message.gameChanged.id)) {
+				if (message.gameChanged != null) {
+					for (Game game : knownGames.values()) {
+						if (game.id.equals(message.gameChanged.id)) {
 							knownGames.remove(game);
 							break;
 						}
 					}
-					if(message.gameChanged.endTime>0) {
-						addChat(message.timestamp, "*"+getGameDescription(message.gameChanged)+" has stopped");
-						if(getChatStatus() == ChatStatus.ONLINE) {
+					if (message.gameChanged.endTime > 0) {
+						addChat(message.timestamp, "*"
+								+ getGameDescription(message.gameChanged)
+								+ " has stopped");
+						if (getChatStatus() == ChatStatus.ONLINE) {
 							SoundEngine.instance.playSound("gamestop");
 						}
 					} else {
-						addChat(message.timestamp, "*"+getGameDescription(message.gameChanged)+" has started");
-						if(getChatStatus() == ChatStatus.ONLINE) {
+						addChat(message.timestamp, "*"
+								+ getGameDescription(message.gameChanged)
+								+ " has started");
+						if (getChatStatus() == ChatStatus.ONLINE) {
 							SoundEngine.instance.playSound("gamestart");
 						}
 					}
@@ -1194,45 +1295,48 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 	}
 
 	protected ChatStatus getChatStatus() {
-		return (ChatStatus)chatStatusComboBox.getSelectedItem();
+		return (ChatStatus) chatStatusComboBox.getSelectedItem();
 	}
 
 	private void updateJoinGameList() {
 		gameTableModel.setRowCount(0);
 		joinGameList.clear();
-		for(Game game : knownGames.values()) {
-			if(game.endTime>0) {
+		for (Game game : knownGames.values()) {
+			if (game.endTime > 0) {
 				continue;
 			}
-			
+
 			Player hostPlayer = knownPlayers.get(game.hostPlayerId);
 			String playerName = game.hostPlayerId;
-			if(hostPlayer == null) {
+			if (hostPlayer == null) {
 				continue;
 			}
-			
+
 			joinGameList.add(game);
 			playerName = hostPlayer.name;
 			String romname = getGameDescription(game);
-			
+
 			String playersInGame = "";
-			for(Player player : knownPlayers.values()) {
-				if(player.inGame != null && player.inGame.equals(game.id) && player != hostPlayer) {
-					if(playersInGame.length()>0) {
+			for (Player player : knownPlayers.values()) {
+				if (player.inGame != null && player.inGame.equals(game.id)
+						&& player != hostPlayer) {
+					if (playersInGame.length() > 0) {
 						playersInGame += ", ";
 					}
 					playersInGame += player.name;
 				}
 			}
-			gameTableModel.addRow( new String[]{"Click to Join", playerName, playersInGame, game.system, romname} );
+			gameTableModel.addRow(new String[] { "Click to Join", playerName,
+					playersInGame, game.system, romname });
 		}
 		gameTableModel.fireTableDataChanged();
 		joinGameTable.revalidate();
-		logger.info("UPDATED WITH " + knownGames.size() + " (" + gameTableModel.getRowCount() + ") VALUES");
+		logger.info("UPDATED WITH " + knownGames.size() + " ("
+				+ gameTableModel.getRowCount() + ") VALUES");
 	}
 
 	private String getGameDescription(Game game) {
-		if(game.system.equalsIgnoreCase("Arcade")) {
+		if (game.system.equalsIgnoreCase("Arcade")) {
 			if (mameHubEngine.getMameRomInfo(game.rom) != null) {
 				return mameHubEngine.getMameRomInfo(game.rom).description;
 			} else {
@@ -1244,7 +1348,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 	}
 
 	private Player getPlayer(String sourceId) {
-		if(knownPlayers.containsKey(sourceId)) {
+		if (knownPlayers.containsKey(sourceId)) {
 			return knownPlayers.get(sourceId);
 		} else {
 			Player player = rpcEngine.getPlayer(sourceId);
@@ -1257,35 +1361,39 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 	public void gameFinished(int returnCode, final File outputFile) {
 		logger.info("LEAVING GAME");
 		rpcEngine.leaveGame();
-		
+
 		java.awt.EventQueue.invokeLater(new Runnable() {
 			@Override
 			public void run() {
-				if(giveFeedback) {
-					String result = (String)JOptionPane.showInputDialog(
-			                MainFrame.this,
-			                "If you have any feedback, please enter it here.  Thanks!",
-			                "Customized Dialog",
-			                JOptionPane.PLAIN_MESSAGE,
-			                null,
-			                null,
-			                "");
-					if(result != null && result.length()>0) {
+				if (giveFeedback) {
+					String result = (String) JOptionPane
+							.showInputDialog(
+									MainFrame.this,
+									"If you have any feedback, please enter it here.  Thanks!",
+									"Customized Dialog",
+									JOptionPane.PLAIN_MESSAGE, null, null, "");
+					if (result != null && result.length() > 0) {
 						try {
-							rpcEngine.postUserFeedback(result,Utils.fileToString(outputFile));
+							rpcEngine.postUserFeedback(result,
+									Utils.fileToString(outputFile));
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
 					}
 					giveFeedback = false;
 				}
-				
-				if(outputFile != null && outputFile.exists()) {
+
+				if (outputFile != null && outputFile.exists()) {
 					try {
-						if(Utils.isWindows()) {
+						if (Utils.isWindows()) {
 							Runtime runtime = Runtime.getRuntime();
-							logger.info("Running: " + "C:\\Windows\\write.exe \"" + outputFile.getCanonicalPath().replace("/", "\\") + "\"");
-							runtime.exec("C:\\Windows\\write.exe \"" + outputFile.getCanonicalPath().replace("/", "\\") + "\"");
+							logger.info("Running: "
+									+ "C:\\Windows\\write.exe \""
+									+ outputFile.getCanonicalPath().replace(
+											"/", "\\") + "\"");
+							runtime.exec("C:\\Windows\\write.exe \""
+									+ outputFile.getCanonicalPath().replace(
+											"/", "\\") + "\"");
 						} else {
 							java.awt.Desktop.getDesktop().edit(outputFile);
 						}
@@ -1299,14 +1407,15 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 	}
 
 	private void shutdownRpcEngine() {
-		if(rpcEngine != null) {
+		if (rpcEngine != null) {
 			rpcEngine.finished = true;
 		}
 	}
 
 	@Override
 	public void handleSessionExpired() {
-		if(dying) return;
+		if (dying)
+			return;
 		dying = true;
 		shutdownRpcEngine();
 		java.awt.EventQueue.invokeLater(new Runnable() {
@@ -1317,7 +1426,9 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 				try {
 					introDialog = new LoginDialog(clientHttpServer);
 					introDialog.setVisible(true);
-					JOptionPane.showMessageDialog(introDialog, "Your session has expired or the server has restarted, please re-login");
+					JOptionPane
+							.showMessageDialog(introDialog,
+									"Your session has expired or the server has restarted, please re-login");
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
@@ -1329,14 +1440,16 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 	@Override
 	public void handleException(Exception e) {
-		if(dying) return;
+		if (dying)
+			return;
 		dying = true;
 		shutdownRpcEngine();
 		e.printStackTrace();
 		try {
-			BufferedWriter bw = new BufferedWriter(new FileWriter("ErrorLog.txt"));
+			BufferedWriter bw = new BufferedWriter(new FileWriter(
+					"ErrorLog.txt"));
 			bw.write(e.getMessage() + "\n");
-			for(StackTraceElement element : e.getStackTrace()) {
+			for (StackTraceElement element : e.getStackTrace()) {
 				bw.write(element.toString() + "\n");
 			}
 			bw.close();
@@ -1352,7 +1465,9 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 				try {
 					introDialog = new LoginDialog(clientHttpServer);
 					introDialog.setVisible(true);
-					JOptionPane.showMessageDialog(introDialog, "An exception has occurred and has been logged. Returning to login screen");
+					JOptionPane
+							.showMessageDialog(introDialog,
+									"An exception has occurred and has been logged. Returning to login screen");
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
@@ -1364,7 +1479,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 	@Override
 	public void handleServerDown(Exception e) {
-		if(dying) return;
+		if (dying)
+			return;
 		dying = true;
 		shutdownRpcEngine();
 		e.printStackTrace();
@@ -1376,7 +1492,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 				try {
 					introDialog = new LoginDialog(clientHttpServer);
 					introDialog.setVisible(true);
-					JOptionPane.showMessageDialog(introDialog, "The server hiccupped or is down, please try to login again or check the blog for details.");
+					JOptionPane
+							.showMessageDialog(
+									introDialog,
+									"The server hiccupped or is down, please try to login again or check the blog for details.");
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
@@ -1393,11 +1512,11 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 			@Override
 			public void run() {
 				cloudRoms = downloadableRoms;
-				if(mameHubEngine.isAuditing()) {
+				if (mameHubEngine.isAuditing()) {
 					// Audit in progress
 					return;
 				}
-				//updateSystemTree(mameHubEngine.gameAuditor);
+				// updateSystemTree(mameHubEngine.gameAuditor);
 				updateGameTree(gameListModel, mameHubEngine.gameAuditor);
 			}
 		});
@@ -1413,7 +1532,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 		try {
 			StringWriter sw = new StringWriter();
 			sw.write(e.getMessage() + "\n");
-			for(StackTraceElement element : e.getStackTrace()) {
+			for (StackTraceElement element : e.getStackTrace()) {
 				sw.write(element.toString() + "\n");
 			}
 			sw.close();
@@ -1429,17 +1548,17 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 		JMenuItem joinGame;
 
-		public JoinGameListPopup(){
+		public JoinGameListPopup() {
 			joinGame = new JMenuItem("Join Game");
 			add(joinGame);
 
-			//...for each JMenuItem instance:
+			// ...for each JMenuItem instance:
 			joinGame.addActionListener(this);
 		}
 
 		@Override
 		public void actionPerformed(ActionEvent arg0) {
-			if(arg0.getSource()==joinGame) {
+			if (arg0.getSource() == joinGame) {
 				joinSelectedGame();
 			}
 		}
@@ -1454,7 +1573,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 		@Override
 		public boolean isCellEditable(int row, int col) {
-			return col==0;
+			return col == 0;
 		}
 	}
 
@@ -1464,27 +1583,30 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 
 			@Override
 			public void run() {
-				if(playerTableModel != null) {
+				if (playerTableModel != null) {
 					playerTableModel.update();
 					playerTableModel.fireTableDataChanged();
 				}
 			}
-			
+
 		});
 	}
 
 	@Override
-	public void updateDownloads(final Map<RomDownloadState, String> downloadStatus) {
+	public void updateDownloads(
+			final Map<RomDownloadState, String> downloadStatus) {
 		java.awt.EventQueue.invokeLater(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				downloadsTableModel.setRowCount(0);
 				downloadTableRowDownloadStateMap.clear();
-				int r=0;
-				for(Map.Entry<RomDownloadState, String> ds : downloadStatus.entrySet()) {
+				int r = 0;
+				for (Map.Entry<RomDownloadState, String> ds : downloadStatus
+						.entrySet()) {
 					RomDownloadState state = ds.getKey();
-					downloadsTableModel.addRow( new String[]{"Cancel", state.fileInfo.filename, ds.getValue()} );
+					downloadsTableModel.addRow(new String[] { "Cancel",
+							state.fileInfo.filename, ds.getValue() });
 					downloadTableRowDownloadStateMap.put(r, state);
 					r++;
 				}
@@ -1493,39 +1615,39 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler, E
 			}
 		});
 	}
-	
+
 	private synchronized void addChat(Long timestamp, String line) {
 		boolean atBottom = isAtBottom(chatScroll);
-		
+
 		Calendar calendar = new GregorianCalendar();
-		if(timestamp == null) {
+		if (timestamp == null) {
 			timestamp = System.currentTimeMillis();
 		}
 		calendar.setTimeInMillis(timestamp);
 		String hours = String.format("%02d", calendar.get(Calendar.HOUR));
 		String minutes = String.format("%02d", calendar.get(Calendar.MINUTE));
 		String seconds = String.format("%02d", calendar.get(Calendar.SECOND));
-		chatTextArea.append("["+hours + ":" + minutes +":" + seconds + "] " + line + "\n");
-		
-		if(atBottom) {
+		chatTextArea.append("[" + hours + ":" + minutes + ":" + seconds + "] "
+				+ line + "\n");
+
+		if (atBottom) {
 			scrollToBottom(chatTextArea);
 		}
 	}
 
 	private static boolean isAtBottom(JScrollPane scrollPane) {
-	    // Is the last line of text the last line of text visible?
-	    Adjustable sb = scrollPane.getVerticalScrollBar();
+		// Is the last line of text the last line of text visible?
+		Adjustable sb = scrollPane.getVerticalScrollBar();
 
-	    int val = sb.getValue();
-	    int lowest = val + sb.getVisibleAmount();
-	    int maxVal = sb.getMaximum();
+		int val = sb.getValue();
+		int lowest = val + sb.getVisibleAmount();
+		int maxVal = sb.getMaximum();
 
-	    boolean atBottom = (maxVal <= (lowest+50));
-	    return atBottom;
+		boolean atBottom = (maxVal <= (lowest + 50));
+		return atBottom;
 	}
 
-
 	private static void scrollToBottom(JTextArea chatArea) {
-	    chatArea.setCaretPosition(chatArea.getDocument().getLength());
+		chatArea.setCaretPosition(chatArea.getDocument().getLength());
 	}
 }

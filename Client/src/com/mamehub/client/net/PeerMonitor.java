@@ -30,6 +30,7 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mamehub.client.MameHubEngine;
 import com.mamehub.client.Utils;
 import com.mamehub.client.utility.HexStringInputStream;
 import com.mamehub.rpc.MameHubClientRpc;
@@ -132,7 +133,7 @@ public class PeerMonitor implements Runnable {
 							chunkSize *= 2;
 						}
 						hsis.close();
-						updateUI();
+						updateUI(false);
 						Thread.sleep(500);
 					}
 					outputStream.close();
@@ -177,7 +178,7 @@ public class PeerMonitor implements Runnable {
 					if (transferFailed)
 						continue; // Try another host
 					finished = true;
-					updateUI();
+					updateUI(true);
 					return;
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -189,11 +190,12 @@ public class PeerMonitor implements Runnable {
 			}
 			logger.info("FAILED TO GET " + systemRomPair);
 			failed = true;
-			updateUI();
+			updateUI(false);
 		}
 
-		private void updateUI() {
+		private void updateUI(boolean justFinished) {
 			synchronized (PeerMonitor.this) {
+				boolean allDone = true;
 				Map<RomDownloadState, String> downloadState = new HashMap<RomDownloadState, String>();
 				for (RomDownloadState state : requests.values()) {
 					String value = String.valueOf(state.getPercentComplete());
@@ -201,10 +203,15 @@ public class PeerMonitor implements Runnable {
 						value = "FAILED";
 					} else if (state.finished) {
 						value = "FINISHED";
+					} else {
+						allDone = false;
 					}
 					downloadState.put(state, value);
 				}
 				listener.updateDownloads(downloadState);
+				if (allDone && justFinished) {
+					mameHubEngine.startAudit(true);
+				}
 			}
 		}
 
@@ -220,6 +227,7 @@ public class PeerMonitor implements Runnable {
 	private Thread thread;
 	private PeerMonitorListener listener;
 	private boolean gotNewRoms;
+	private MameHubEngine mameHubEngine;
 
 	public interface PeerMonitorListener {
 		public void statesUpdated();
@@ -229,8 +237,9 @@ public class PeerMonitor implements Runnable {
 		public void updateDownloads(Map<RomDownloadState, String> downloadStatus);
 	}
 
-	public PeerMonitor(PeerMonitorListener listener) {
+	public PeerMonitor(PeerMonitorListener listener, MameHubEngine mameHubEngine) {
 		this.listener = listener;
+		this.mameHubEngine = mameHubEngine;
 		thread = new Thread(this);
 		thread.start();
 	}
@@ -272,15 +281,20 @@ public class PeerMonitor implements Runnable {
 		try {
 			while (true) {
 				gotNewRoms = false;
+				Set<Player> currentPlayers;
 				synchronized (ipStateMap) {
-					for (Entry<Player, PeerState> entry : ipStateMap.entrySet()) {
-						Player player = entry.getKey();
-						PeerState peerState = entry.getValue();
-
-						// logger.info("CHECKING " + player);
-						updatePeerData(player, peerState);
-						Thread.sleep(100);
+					currentPlayers = new HashSet<Player>(ipStateMap.keySet());
+				}
+				for (Player player : currentPlayers) {
+					PeerState peerState = ipStateMap.get(player);
+					if( peerState == null) {
+						// This player was deleted for some reason.
+						continue;
 					}
+
+					// logger.info("CHECKING " + player);
+					updatePeerData(player, peerState);
+					Thread.sleep(100);
 				}
 				listener.statesUpdated();
 				if (gotNewRoms) {
