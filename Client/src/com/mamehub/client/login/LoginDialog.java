@@ -82,10 +82,6 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 		URL u = Utils.getResource(LoginDialog.class, "/MAMEHub.png");
 		BufferedImage bi = ImageIO.read(u);
 		this.setIconImage(bi);
-		if(OSValidator.isMac()) {
-			com.apple.eawt.Application macApp = com.apple.eawt.Application.getApplication();
-			macApp.setDockIconImage(bi);
-		}
 		
 		udpReflectionServer = new UDPReflectionServer();
 		
