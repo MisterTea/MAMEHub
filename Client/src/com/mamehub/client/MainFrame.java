@@ -384,11 +384,6 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		System.out.println("BUFFERED IMAGE: " + bi.getWidth() + " "
 				+ bi.getHeight());
 		this.setIconImage(bi);
-		if (OSValidator.isMac()) {
-			com.apple.eawt.Application macApp = com.apple.eawt.Application
-					.getApplication();
-			macApp.setDockIconImage(bi);
-		}
 
 		ipCountryFetcher = new IpCountryFetcher(Utils.getResource(
 				MainFrame.class, "/IpToCountry.csv"));
