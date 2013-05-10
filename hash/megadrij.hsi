@@ -1,0 +1,1144 @@
+<hashfile>
+
+	<!-- [megadrij] hash - based on GoodGen 3.00 from Cowering's GoodTools -->
+	<!-- created by Jaku on January 7th, 2012 for use with MAMEHub -->
+	<!-- You have 1133 of 5871 known Sega Genesis/Mega Drive/32X ROMS (V3.00) -->
+	<!-- Greets to the current MAMEHub Test Crew: Krusty, Jaku, Prinygod, BigBangBlitz. Guest Starring: Valnar22 -->
+	<!-- note: These are (J) and (Ch) Genesis ROMs only. All BIOS were removed. Look for 32X ROMs in 32x.hsi -->
+	<!-- for the exclusive use of MESS.  Keep this notice intact if editing this file  -->
+
+	<hash crc32="aeb4b262" sha1="7e0de7011a60a1462dc48594f3caa956ff942281" name="007 Shitou (J) [!]" />
+	<hash crc32="537f04b6" sha1="fd978f7f643311de21de17ed7ed1e7c737b518ee" name="16 Ton (SN) (J) [!]" />
+	<hash crc32="3d45de4f" sha1="d0d0aaad68978fd15c5857773141ae639de1abc7" name="A Ressha de Gyoukou MD (J) [!]" />
+	<hash crc32="8c2039c9" sha1="5c84fced6b6e333469cd324826a9422435d6bab4" name="A Ressha de Gyoukou MD (J) [h1C]" />
+	<hash crc32="4dcb7c09" sha1="c0a1ef3fb9335e7e894cce9dba2a952951f038cf" name="A Ressha de Gyoukou MD (J) [h2C]" />
+	<hash crc32="065f6021" sha1="fcc4b27aaaea0439fb256f40fb79c823d90a9d88" name="Aah! Harimanada (J) [!]" />
+	<hash crc32="72088df2" sha1="b3384a07c47646a9ecbad5a0b8f6965f0540b683" name="Aah! Harimanada (J) [b1]" />
+	<hash crc32="e0d5e18a" sha1="842430c0465d810576e75851023929fec873580d" name="Advanced Daisenryaku (J) (REV01) [!]" />
+	<hash crc32="75a91be6" sha1="b3245272c0ab59b9dcfe679c811a0664f27c13dc" name="Advanced Daisenryaku (J) (REV01) [b1]" />
+	<hash crc32="ee3c9c8a" sha1="9e2ae0e7562b286ecaed3fd3bf29e333f5f71ccc" name="Advanced Daisenryaku (J) (REV01) [h1C]" />
+	<hash crc32="31013703" sha1="9f72af3120e56f0c3f52e8a492013474bce5ba42" name="Advanced Daisenryaku (J) (REV01) [h2C]" />
+	<hash crc32="50625642" sha1="b36cf048545f18289b2395a9415e8c1a1ae98fff" name="Advanced Daisenryaku (J) (REV01) [h3C]" />
+	<hash crc32="06653575" sha1="587a3fe85a51a795dd32542d042ba44347c7a572" name="Advanced Daisenryaku (J) (REV01) [T+Chi]" />
+	<hash crc32="7f371a29" sha1="4c7d6833b776331b31295116c984f76b98c3053b" name="Advanced Daisenryaku (J) (REV01) [T+Eng65%_NebelwurferHQ]" />
+	<hash crc32="1f8a3652" sha1="6c31f722fa0bc854d4ac3c01e3570c90e91122d7" name="Advanced Daisenryaku (J) (REV01) [T-Eng40%_NebelwurferHQ]" />
+	<hash crc32="c469e4ca" sha1="03979287a2bebb5d720bcbc5adba2166596cf937" name="Advanced Daisenryaku (J) (REV01) [T-Eng60%_NebelwurferHQ]" />
+	<hash crc32="a00da987" sha1="64d1964c3b6293f521427d3d83e4defe363cc129" name="Aero Blasters (J) [!]" />
+	<hash crc32="36e3c421" sha1="786e00cb5671696c604659abd6a72ed80d2578f6" name="Aero Blasters (J) [b1+C]" />
+	<hash crc32="f8fb73b9" sha1="f6a8887239fecba658f7793f04434ba7192bcca4" name="Aero Blasters (J) [b1]" />
+	<hash crc32="f7826641" sha1="d12c3ef00c99f07ee27fd4de1e2c39598f77ff20" name="Aero Blasters (J) [p1+C]" />
+	<hash crc32="4a5789b6" sha1="7e0a809b42f9191c571e489cf0782daf29e8438a" name="Aero Blasters (J) [p1]" />
+	<hash crc32="4ff37e66" sha1="8f1e6a3e83094e5d0e237d6a1ffcc87171595ea5" name="After Burner II (J) [!]" />
+	<hash crc32="e8fc1f30" sha1="076dd9873a0173fafc3784bf21d830a449eab1fb" name="After Burner II (J) [h1C]" />
+	<hash crc32="9aea1d27" sha1="bd7369af6d855127918cdba7581adcd1d46b53db" name="After Burner II (J) [p1][!]" />
+	<hash crc32="e6e23111" sha1="0f2c60d9b1207cb1bd87fb894fe53419af34ea10" name="After Burner II (J) [p2][!]" />
+	<hash crc32="9e2d5b91" sha1="540460e95f6a82256ca2a16f347a7b6524f3053f" name="Air Diver (J) [!]" />
+	<hash crc32="f74ca900" sha1="e0fe22ea823ee04b97b4df55cd242c726c8cfaf2" name="Air Diver (J) [p1+1C]" />
+	<hash crc32="468c1757" sha1="fdd5c9fb80a9596a80bd15b4b44c50cd29dbf2ee" name="Air Diver (J) [p1+2C]" />
+	<hash crc32="5f84b7e8" sha1="d4b175ee6db310cc6af3027b11742052a3df20de" name="Air Diver (J) [p1+3C]" />
+	<hash crc32="7d224bf0" sha1="a93e9f378cb830f49781931facd00a7c053b54b3" name="Air Diver (J) [p1+4C]" />
+	<hash crc32="25d3110b" sha1="4394800fc0ef2b3220a9a18a773e5290bfc7b3be" name="Air Diver (J) [p1+5C]" />
+	<hash crc32="c54072d2" sha1="2ef98ea802d52bc84dbc19175ab6614ae27681fd" name="Air Diver (J) [p1][!]" />
+	<hash crc32="b3db0c71" sha1="b4e5752453cb3e4b3f6cb4fd9ad6473b4b8addd4" name="Air Management - Oozora ni Kakeru (J) [c][!]" />
+	<hash crc32="4582817b" sha1="6ed89fc3302023bc95c2bba0d45fe1d30e1c5d86" name="Air Management II - Kouku Ou wo Mezase (J) [!]" />
+	<hash crc32="8a5ed856" sha1="0bd83099edd3938a0f127ed399cb01046e36ac32" name="Alex Kidd in the Enchanted Castle (J) [!]" />
+	<hash crc32="0045d567" sha1="4e76f6c50ac7ce58574b7a50e9b115c34b34c3d6" name="Alex Kidd in the Enchanted Castle (J) [h1C]" />
+	<hash crc32="90fa1539" sha1="8f6eb584ed9487b8504fbc21d86783f58e6c9cd6" name="Alien Soldier (J) [!]" />
+	<hash crc32="9da134fc" sha1="7f63059df647c63bb4d31b35771c9a99fbb706a2" name="Alien Soldier (J) [b1+1C]" />
+	<hash crc32="2ea028cb" sha1="60d9a0bae492bf98a1fc35061c14f0a5dae6e817" name="Alien Soldier (J) [b1+2C]" />
+	<hash crc32="679c63eb" sha1="fa64d7f8d935b23696f50bb8b59c276db13d153b" name="Alien Soldier (J) [b1+3C]" />
+	<hash crc32="bbed4edb" sha1="e9d87284cb17bbe9fb9c00fb9057b0a00eab465a" name="Alien Soldier (J) [b1]" />
+	<hash crc32="a5b21bef" sha1="69fb324024d188db7fba73daa370cb69a8a85fbc" name="Alien Soldier (J) [b2]" />
+	<hash crc32="a8e93a2a" sha1="1cfbce99e04937d6666a480b58c0d35d353cc3a6" name="Alien Soldier (J) [f1]" />
+	<hash crc32="626afbfe" sha1="1f7b1a0a68bff1815e206422bcfb96ccedd36fcb" name="Alien Soldier (J) [f2]" />
+	<hash crc32="69851c74" sha1="831ea5d65cbd44b5fabf2aadc4734e3988144c4b" name="Alien Soldier (J) [p1][!]" />
+	<hash crc32="b4d260ee" sha1="8c9a72edd4a9ae56011b13f1fa4e531fc6d03846" name="Alien Soldier (J) [T+Ita]" />
+	<hash crc32="dc56bead" sha1="308d62fa7d51a7d70b080d9915b65a759847244d" name="Alien Soldier (J) [t1]" />
+	<hash crc32="3fc17e3f" sha1="4378e41ad958cc7993ad6200ab2a8050b48bf38b" name="Alien Soldier (J) [t2]" />
+	<hash crc32="f0294b33" sha1="7ab8a74397ccf58c4b48b364fca0933fb7d6135d" name="Alien Soldier (J) [t3]" />
+	<hash crc32="4d476722" sha1="04cf02a0004f2eba16af781dd55b946176bb9dbf" name="Alisia Dragoon (J) [!]" />
+	<hash crc32="10be1d93" sha1="0de0f798f636285da2b4d248f9894bf975b45304" name="Aoki Ookami to Shiroki Meshika - Genchou Hishi (J) [!]" />
+	<hash crc32="8ab0f4d0" sha1="14054deec6c53709991ed382c868f0eaa26c9333" name="Aoki Ookami to Shiroki Meshika - Genchou Hishi (J) [b1]" />
+	<hash crc32="41c5fb4f" sha1="8e1a9a9f9ba50bca0a377bd8f795b7c9c1275815" name="Arcus Odyssey (J) [!]" />
+	<hash crc32="d49f8444" sha1="5d2ca55704b7fe8d83fa7564fb1efc62834d3148" name="Arrow Flash (J) [!]" />
+	<hash crc32="660f23a6" sha1="6f9e123eb51335bd854562ad61b50fe44c9a7884" name="Arrow Flash (J) [h1C]" />
+	<hash crc32="ad80b23b" sha1="63da7bcd872ccc0acc2cb435bc62eabd186d8804" name="Arrow Flash (J) [h2C]" />
+	<hash crc32="7e106b60" sha1="a5ab97e702b972a97d8a65cf8d11c3ceb468df80" name="Arrow Flash (J) [p1][!]" />
+	<hash crc32="81a2c800" sha1="332886d9fe7823092fed6530781269b60f24d792" name="Assault Suits Leynos (J) [!]" />
+	<hash crc32="01278f1c" sha1="026d78be4549e3cfac64c08ebd2e43f634f5aa49" name="Assault Suits Leynos (J) [h1C]" />
+	<hash crc32="3c7727f7" sha1="bc4675ce4e8460d4749352ee0d7f934d7e46dc5e" name="Assault Suits Leynos (J) [h2C]" />
+	<hash crc32="e833067e" sha1="9bed099693c27a6575b394bdd150efb7cc53c5c6" name="Atomic Robo-Kid (J) [c][!]" />
+	<hash crc32="d32f2612" sha1="5b72ab730163088fcbad9050f021f49a1c3e3605" name="Atomic Robo-Kid (J) [h1C]" />
+	<hash crc32="895ecb5c" sha1="4a9539282ec50c7d31476f1fcfe1819386008bf3" name="Atomic Robo-Kid (J) [h2C]" />
+	<hash crc32="b5f893d1" sha1="ebda729b05b0635c628683d97a3e1168f3f1515d" name="Atomic Robo-Kid (J) [p1]" />
+	<hash crc32="975693ce" sha1="5378af243fb6f592f1e1cd17e3722e2c5e807e72" name="Bad Omen (J) [c][!]" />
+	<hash crc32="60420cdd" sha1="1262ab67875ee5b189aa2814bfd7d405f72e20d7" name="Bad Omen (J) [f1]" />
+	<hash crc32="9d23c72e" sha1="6b5e76233b769b1c98477885ec182c977c2221d6" name="Bad Omen (J) [p1+1C]" />
+	<hash crc32="8b462317" sha1="731126c5b1b7640d29a082865ba951d9fddffbb6" name="Bad Omen (J) [p1+2C]" />
+	<hash crc32="4e46d238" sha1="ee940efcda5c7ce5d8a285b86d79e029b94b5cfc" name="Bad Omen (J) [p1+3C]" />
+	<hash crc32="20f628d9" sha1="dd135d224ee3a4079b75d6f00496c77461087026" name="Bad Omen (J) [p1+4C]" />
+	<hash crc32="62c2a4b9" sha1="4df10c91f37a0802033153d0d0bf0a9ee6c9632e" name="Bad Omen (J) [p1]" />
+	<hash crc32="da1db58a" sha1="3b80feb1b99e2679d65f267ae83cd6b3ac22f91b" name="Bad Omen (J) [p2]" />
+	<hash crc32="d4c99844" sha1="74b77f1a063a8ad0e0f5cdc1916373254f7cb81a" name="Bahamut Senki (J) [b1]" />
+	<hash crc32="b1e268da" sha1="cee49b613298e060d938de523dfcbb27e790b5af" name="Bahamut Senki (J) [c][!]" />
+	<hash crc32="f023f4ed" sha1="5bf6803dcf0caf2dbe4298f884b4fbeece29fac7" name="Bahamut Senki (J) [h1C]" />
+	<hash crc32="4df86d17" sha1="9a3acb1a772fd234662716c9b528703f2e48f8bb" name="Bare Knuckle III (Beta) [b1]" />
+	<hash crc32="81369814" sha1="d75d880d5abe978898bdf7e4cde1da45f5180197" name="Bare Knuckle III (Beta) [f1]" />
+	<hash crc32="edf989e2" sha1="560de7f172ede044b94dd21729557bab597f3a8e" name="Bare Knuckle III (Beta) [h1C]" />
+	<hash crc32="e7ff99db" sha1="1d75372571ce970545f6ce63977cea9fa811e23f" name="Bare Knuckle III (Beta)" />
+	<hash crc32="5d09236f" sha1="b9b2b4a98a9d8f4c49aa1e5395e2279339517fdb" name="Bare Knuckle III (J) [!]" />
+	<hash crc32="a55e4372" sha1="3720d95b5e81482094d8d39006c863bc7d66ff5b" name="Bare Knuckle III (J) [b1]" />
+	<hash crc32="5f258c6f" sha1="591ca6274a94098b2618110881aa2180389f55b2" name="Bare Knuckle III (J) [b2]" />
+	<hash crc32="93617824" sha1="5a285f447a4381820e9dc4c6e2ac1c3d0f06c411" name="Bare Knuckle III (J) [h1C]" />
+	<hash crc32="468ea395" sha1="75d0d3683e96dbfbcbe3d7fd5501f8ae701503ae" name="Bare Knuckle III (J) [p1]" />
+	<hash crc32="879759a5" sha1="3c4b7ecf379934c8cb1a3b8db257ac828b7dd73f" name="Barver Battle Saga - The Space Fighter (Ch) [a1]" />
+	<hash crc32="d37a37c6" sha1="6d49a0db7687ccad3441f47fbc483c87cd6eab53" name="Barver Battle Saga - The Space Fighter (Ch)" />
+	<hash crc32="76e2a07a" sha1="44c5d4f7430d3bd8d6cdac03c71fd9b3d219a215" name="Barver Battle Saga - The Space Fighter (V0.9) (Ch)" />
+	<hash crc32="d7b4febf" sha1="7f96c72cc7bbdb4a7847d1058f5a751b2dc00ab5" name="Batman (J) [!]" />
+	<hash crc32="68acedd7" sha1="3264babb5d71165852bea7409eeec114e544a883" name="Batman (J) [b1]" />
+	<hash crc32="6a611148" sha1="b08f0c9b4f67e2a2217145e8273a7b4d5d17d4b1" name="Batman (J) [h1C]" />
+	<hash crc32="34682bea" sha1="c5b730dbcbae6b37eb4c03751cb450159e9fa161" name="Batman (J) [h2C]" />
+	<hash crc32="4aa03e4e" sha1="84db25ff7a0d2db6afddcfe4cdc7c26e20d0dd72" name="Battle Golfer Yui (J) [c][!]" />
+	<hash crc32="d3f3a575" sha1="20ecd846712aa696e099625b68a5fd2cfc19ba26" name="Battle Golfer Yui (J) [h1C]" />
+	<hash crc32="2eacc1d4" sha1="30de8b565515cbb6d4ab7ac338e3ee49a607162b" name="Battle Golfer Yui (J) [h2C]" />
+	<hash crc32="a76c4a29" sha1="9886dd39cfd8fe505860fc4d0119aacec7484a4e" name="Battle Mania (J) [!]" />
+	<hash crc32="1ab9a5de" sha1="5d090621b134576fcf72c5585cc9ff2206bc06e6" name="Battle Mania (J) [h1C]" />
+	<hash crc32="07d4dc52" sha1="f849d050ca562d5b124da7e922540417697230e5" name="Battle Mania - Dai Gin Jou (J) [b1]" />
+	<hash crc32="7f0beec5" sha1="f2fec2ce18c0393486c242df2a4bc851a3cba9ba" name="Battle Mania - Dai Gin Jou (J) [b2]" />
+	<hash crc32="312fa0f2" sha1="fbcf7e899ff964f52ade160793d6cb22bf68375c" name="Battle Mania - Dai Gin Jou (J) [c][!]" />
+	<hash crc32="7dd62a63" sha1="a3415ad57a6b02839c022db2189d7c7761e4db9f" name="Battle Mania - Dai Gin Jou (J) [f1+1C]" />
+	<hash crc32="bb9918a5" sha1="585c1287a7895e88940ff569f7c66cfcae8aa663" name="Battle Mania - Dai Gin Jou (J) [f1]" />
+	<hash crc32="b88dfaa2" sha1="b2eeeb112d43ad1d4e599b36e00d34b2d0db87f3" name="Battle Mania - Dai Gin Jou (J) [f2+1C]" />
+	<hash crc32="cef82e30" sha1="cf02100adcdad1662a07ec7e49af39828d24e90b" name="Battle Mania - Dai Gin Jou (J) [f2]" />
+	<hash crc32="49fbf25e" sha1="5a99bfd2703ea1ac2d94c06f1d2354e7ebff05d1" name="Battle Mania - Dai Gin Jou (J) [p1][!]" />
+	<hash crc32="4646c694" sha1="b504a09e3283716f0f9b0464ea9c20cd40110408" name="Beast Warriors (J) [!]" />
+	<hash crc32="5e246938" sha1="7565b0b19fb830ded5e90399f552c14c2aacdeb8" name="Bishoujo Senshi Sailor Moon (J) [!]" />
+	<hash crc32="82c7cdea" sha1="f45700f5fa9459b1e6530acc21f1a8a5bd0f25df" name="Bishoujo Senshi Sailor Moon (J) [b1]" />
+	<hash crc32="34620a5d" sha1="afc35505dc7518eafbeaa423d5c118e47c3364da" name="Bishoujo Senshi Sailor Moon (J) [f1+1C]" />
+	<hash crc32="43f197f7" sha1="1f8cc7bc10957493e8913d3b8ff177d94db036fc" name="Bishoujo Senshi Sailor Moon (J) [f1+2C]" />
+	<hash crc32="528cc764" sha1="e2264b56b96a73e7b48cbd10b01330562d2119c4" name="Bishoujo Senshi Sailor Moon (J) [f1+3C]" />
+	<hash crc32="3dd848b5" sha1="6c92140099e60957f853433a5d32effefe76784d" name="Bishoujo Senshi Sailor Moon (J) [f1+4C]" />
+	<hash crc32="be9960ce" sha1="b3a29d1d583bb31c06a1749c59058bc83ef66679" name="Bishoujo Senshi Sailor Moon (J) [f1]" />
+	<hash crc32="085d17b7" sha1="7d2d6f637daa1c12d90d41937a2aa645b16ad7a4" name="Bishoujo Senshi Sailor Moon (J) [f2]" />
+	<hash crc32="7222ebb3" sha1="0be0d4d3e192beb4106c0a95c1fb0aec952c3917" name="Blue Almanac (J) [!]" />
+	<hash crc32="4596b6ec" sha1="97e8887314c1db942907361fb19737a1f4e7ac2e" name="Blue Almanac (J) [h1C]" />
+	<hash crc32="bbd22459" sha1="d5f603f16ebc245e24590bd885875909880d4141" name="Blue Almanac (J) [h2C]" />
+	<hash crc32="ccf52828" sha1="57599254461bf05ac0822c42e0bb223a68d4cd71" name="Boogie Woogie Bowling (J) [!]" />
+	<hash crc32="0c1deb47" sha1="8849253262f545fbaf6140bfa5ca67a3caac9a80" name="Burning Force (J) [!]" />
+	<hash crc32="b1c804b0" sha1="241d473bc267dd780ee1dd583416298072d265a9" name="Burning Force (J) [h1C]" />
+	<hash crc32="69c000f5" sha1="7ad6b10558cd635bea409668753490c1d5b119ea" name="Caesar no Yabo (J) [T+Chi]" />
+	<hash crc32="d977b73d" sha1="eec41cebefe643f3046330734bc8a80791f6577b" name="Caesar no Yabo (J) [T+Chi][h1C]" />
+	<hash crc32="69796e93" sha1="4a5b9169262caf81fb7ae76fc3835107769f28a1" name="Caesar no Yabo (J)" />
+	<hash crc32="4f327b3a" sha1="cdb2f47bde3ff412c7b1f560637f2ccec023980f" name="Caesar no Yabo II (J)" />
+	<hash crc32="7416449c" sha1="432ef055c202647ddadeab292f85813cba14c590" name="Captain America and the Avengers (Beta) [b1]" />
+	<hash crc32="685741d5" sha1="d43fe9e3823d35cd72d092a23803703eafc29cde" name="Captain America and the Avengers (Beta) [b2]" />
+	<hash crc32="baac59c0" sha1="af8271c0c99637413006bdd8c66a7b5412e0ebd7" name="Captain America and the Avengers (Beta)" />
+	<hash crc32="52a5f821" sha1="66604dcf0006d5366d8553ac6212cf7592096434" name="Censor C64 Picture Demo (PD) [h2C]" />
+	<hash crc32="11f670f1" sha1="1e34960e140d3807172d015fd3101ae7651faad9" name="Censor C64 Picture Demo (PD)" />
+	<hash crc32="50217c80" sha1="237ff4041f3e8ce5047f06f695fb55dca51354b8" name="Chameleon Kid (J) [!]" />
+	<hash crc32="b2fe74d8" sha1="ac1ae7b38f6498472bc4f072726a4ca069e41204" name="Chelnov (J) [!]" />
+	<hash crc32="8f7c06bc" sha1="323accc0ac152073dcb33ca5891c1eeef8ddb48f" name="Chibi Maruko-Chan - Wakuwaku Shopping (J) [b1+C]" />
+	<hash crc32="9fa5c9c0" sha1="4e42049291590d6c5dde4264f11ff13c0254bbb0" name="Chibi Maruko-Chan - Wakuwaku Shopping (J) [b1]" />
+	<hash crc32="718d8345" sha1="2f5d027ceb73ab73c519bcab5d3461f9d96a1028" name="Chibi Maruko-Chan - Wakuwaku Shopping (J) [b2]" />
+	<hash crc32="91a144b8" sha1="39d4da607d020bd20063c34b0a617a5e6cb7c5aa" name="Chibi Maruko-Chan - Wakuwaku Shopping (J) [c][!]" />
+	<hash crc32="06918c17" sha1="77191eaee3775a425147ae7140ddf6ed3b6b41d2" name="Chiki Chiki Boys (J) [!]" />
+	<hash crc32="906feb75" sha1="d31c93c8f1a29f421b1c0a69644f329386ed90e7" name="Chiki Chiki Boys (J) [h1C]" />
+	<hash crc32="b6263bdf" sha1="f9ddb670cac523fccf7e10a67a7b0f61910ceefc" name="Chiki Chiki Boys (J) [h2C]" />
+	<hash crc32="6d8c2206" sha1="af2fd89dc7fb4ac0647c09edff462c7ae92dc771" name="Chou Yakyuu Miracle Nine (J) [!]" />
+	<hash crc32="bfd24be8" sha1="e9217b089ade7f7b9566233e7bff66ba363ad6cb" name="Chuck II - Son of Chuck (J) [!]" />
+	<hash crc32="cd07462f" sha1="2e850c2b737098b9926ac0fc9b8b2116fc5aa48a" name="Columns III - Taiketsu! Columns World (J) [!]" />
+	<hash crc32="88198120" sha1="b588a541c2566d306655d3907d8d913cfa4f68ce" name="Columns III - Taiketsu! Columns World (J) [b1]" />
+	<hash crc32="7a6027b8" sha1="44f8c2a102971d0afcb0d9bd9081ccf51ff830a9" name="Comix Zone (J) [!]" />
+	<hash crc32="ea57b668" sha1="7040e96c053f29c75cf0524ddb168a83d0fb526f" name="Conquering the World III (Ch-Simple)" />
+	<hash crc32="b23c4166" sha1="534bf8f951ee30d47df18202246245b998c0eced" name="Conquering the World III (Ch-Trad)" />
+	<hash crc32="2ab26380" sha1="0a9d263490497c85d7010979765c48f98d9927bd" name="Contra - The Hard Corps (J) [!]" />
+	<hash crc32="1e4135fa" sha1="2cb3b5e559bb40ea3d9c14efcf4d79780f529046" name="Contra - The Hard Corps (J) [f1+1C]" />
+	<hash crc32="dd784cc6" sha1="18cf729d8c8cb9ce7ef4e2b5ce279a767ba5ff06" name="Contra - The Hard Corps (J) [f1+2C]" />
+	<hash crc32="ce914c4e" sha1="16d03b37852a63fcb7d52105cc671ec558d9a2b9" name="Contra - The Hard Corps (J) [f1+3C]" />
+	<hash crc32="a1c5c39f" sha1="8d8c84ba18e88fd76292075610ad03e19d4b6bc4" name="Contra - The Hard Corps (J) [f1]" />
+	<hash crc32="93c78b15" sha1="4442e0e65f86ffd3bd0dce14e44856ddb59ed70c" name="Contra - The Hard Corps (J) [f2+C]" />
+	<hash crc32="fa11bdf0" sha1="bdda1ccb0c76cbfdf4c7c3933892930be11a6775" name="Contra - The Hard Corps (J) [f2]" />
+	<hash crc32="ed133b56" sha1="a03fc5d6af193e1d4bb1feccb05ce40657eca9b4" name="Contra - The Hard Corps (J) [f3]" />
+	<hash crc32="eddb4eb4" sha1="d48a559683e106b5452ddf6b625ea260dfdc0030" name="Contra - The Hard Corps (J) [h1C]" />
+	<hash crc32="8eee5895" sha1="53207f9342b4ee08c1142b6c6027a955c6d42e66" name="Contra - The Hard Corps (J) [T+Chi_Phanteam]" />
+	<hash crc32="8ccd66e6" sha1="81ae596dd2284d73c7c99a96b4cfc717e2989569" name="Contra - The Hard Corps (J) [T-Chi_Phanteam]" />
+	<hash crc32="8a0c7938" sha1="a6da30ab43fddba94442e8d802254d811af058aa" name="Contra - The Hard Corps (J) [t1]" />
+	<hash crc32="d83465e6" sha1="104f55160687a7912dfb3669e5ad801f27df425d" name="Contra - The Hard Corps (J) [t2]" />
+	<hash crc32="538aaa5d" sha1="1082c89920699dbc6f6672c9b0519b3d0f626ba5" name="Crack Down (J) [!]" />
+	<hash crc32="97dac6b0" sha1="aa71076e6c0aa841866039f406fc4ad2e61b0104" name="Crack Down (J) [p1][!]" />
+	<hash crc32="97fc42d2" sha1="46214898990ebc5e74413a53f7304ad466875fbe" name="Crayon Shin-Chan - Arashi o Yobu Sono Ko (J) [!]" />
+	<hash crc32="aefab9ff" sha1="133865190b39fa94bef104125640dc17058f5ffe" name="Crayon Shin-Chan - Arashi o Yobu Sono Ko (J) [h1C]" />
+	<hash crc32="affb4b00" sha1="9122ef0e920133449266cf437a87a110e0343425" name="Crude Buster (J) [!]" />
+	<hash crc32="e92c39a7" sha1="0edb08385d7ca8694d5171573d9768ff6d1ab551" name="Crude Buster (J) [b1]" />
+	<hash crc32="641ace30" sha1="112f66d01124a4d09db2b47b1e56ba8dde3bae0c" name="Crude Buster (J) [h1C]" />
+	<hash crc32="bf5529cb" sha1="18fd8ae60b2d81967c7734089b473949df34f586" name="Crude Buster (J) [h2C]" />
+	<hash crc32="514c53e2" sha1="1ceb4370dacaa8e3ab4b8beb6ff008db269d0387" name="Crue Ball (J) [!]" />
+	<hash crc32="4aba1d6a" sha1="c45b6da77021d57df6a9cb511cc93a5bf83ecf1c" name="Crying - Asia Seimei Sensou (J) [!]" />
+	<hash crc32="00f532a1" sha1="d5414685343a8323ea3a3e3b8bef863a605be053" name="Crying - Asia Seimei Sensou (J) [h1C]" />
+	<hash crc32="0069bfad" sha1="78d038003a3a60f4f35496a3b1608ac1e498c9e8" name="Crying - Asia Seimei Sensou (J) [h2C]" />
+	<hash crc32="a4fbf9a9" sha1="978780d9575022450d415591f32e1118c7fac5ad" name="Curse (J) [!]" />
+	<hash crc32="29fff262" sha1="d81324c8236fce4b1fa5c4fda366c146dbfdaf6b" name="Curse (J) [h1C]" />
+	<hash crc32="e6b499d0" sha1="2bd7ea9b39ee8afbedc925fdbf0cae6d0641c384" name="Curse (J) [h2C]" />
+	<hash crc32="13795dca" sha1="4e3f222c7333d39fc5452b37aebc14fa09ff8d5e" name="Cuty Suzuki no Ringside Angel (J) [!]" />
+	<hash crc32="77202f91" sha1="65069830ad2f2033da1b86ccec2b4605c4a27c5d" name="Cuty Suzuki no Ringside Angel (J) [b1]" />
+	<hash crc32="ea37779d" sha1="9f9ea2188f983f264789b6fcb9ea050586fec94e" name="Cuty Suzuki no Ringside Angel (J) [h1C]" />
+	<hash crc32="f29acd40" sha1="2895c949a56afc03e127387841f902b02be9bef0" name="Cuty Suzuki no Ringside Angel (J) [h2C]" />
+	<hash crc32="4602584f" sha1="da0246a063e6f70933e251b9ae84587fe620d4f0" name="Dahna - Megami Tanjou (J) [!]" />
+	<hash crc32="59b9ae5f" sha1="b32478abe0c9cd211a2918ea386485c088e61347" name="Dahna - Megami Tanjou (J) [b1]" />
+	<hash crc32="05cc7369" sha1="9f205fc916df523ec84e0defbd0f1400a495cf8a" name="Dai Konsen (J) [!]" />
+	<hash crc32="5659f379" sha1="a08a5764dc8651d31ef72466028cfb87fb6dd166" name="Dai Makaimura (J) [!]" />
+	<hash crc32="ac9e733f" sha1="b2f1a0591d203403464e698e4a8aa105eb44f434" name="Dai Makaimura (J) [o1]" />
+	<hash crc32="5a652458" sha1="a4552b23079b161da9ad47ac7cb9c4ecb3731967" name="Daikoukai Jidai (J) [c][!]" />
+	<hash crc32="d417c7bd" sha1="da56ccde1d2fc7752c3e654c1d57d08f326837ef" name="Daikoukai Jidai II (J) [h1C]" />
+	<hash crc32="75b4a604" sha1="4be2f966bbb1b945fdf7f10943b1fff496edace0" name="Daikoukai Jidai II (J) [T+Chi]" />
+	<hash crc32="5171a4e4" sha1="324e3063d96d3077d155e56acd40e65fceb1cab9" name="Daikoukai Jidai II (J) [T+Chi_Simple]" />
+	<hash crc32="e040f0da" sha1="74f61092067d82127cae3306d5a66d3efe946bc3" name="Daikoukai Jidai II (J)" />
+	<hash crc32="a2990031" sha1="32b2b1de0947fb713787020679efacffd29ec04e" name="Dangerous Seed (J) [!]" />
+	<hash crc32="6aa8aff3" sha1="cfe8ca662128876f41f584400c5e534091119f82" name="Dangerous Seed (J) [h1C]" />
+	<hash crc32="5feab78b" sha1="6576bca60d34cfff25fa89cd59368cf6a18b3ac1" name="Dangerous Seed (J) [h2C]" />
+	<hash crc32="3e0b9cd8" sha1="b8fb68128a6dde749b6ef64d808835df8495c8d0" name="Dangerous Seed (J) [p1][!]" />
+	<hash crc32="0140ab58" sha1="5824936a1a8696d8363431f31293d4a1a1d0b69b" name="Darius II (J) [a1]" />
+	<hash crc32="25dfe62a" sha1="93593e4014e13db90fedc1903a402c6f7d885a2f" name="Darius II (J) [c][!]" />
+	<hash crc32="8f5a5cd0" sha1="d00cd62e26c67195a06890afaa3b446da6cd2d4a" name="Darius II (J) [h1C]" />
+	<hash crc32="7a33b0cb" sha1="e9decc48451aba62d949a7710e466e1d041a2210" name="Darwin 4081 (J) [!]" />
+	<hash crc32="faa89b13" sha1="a43ac0d92a2f4d1b52e64c2c4a16140d3f763c0d" name="Darwin 4081 (J) [h1C]" />
+	<hash crc32="f14a14d4" sha1="4ad0f9765ec55285fa1d2d1021a0816d328714c6" name="Darwin 4081 (J) [h2C]" />
+	<hash crc32="c7e65f3c" sha1="80eb31bacbe41858ae705d1adcdc319fc959806d" name="Darwin 4081 (J) [h3C]" />
+	<hash crc32="56164b00" sha1="eeac902df31240c246afe2b97a5b25104dd9f0e5" name="David Robinson Basketball (J) [!]" />
+	<hash crc32="4c4caad8" sha1="58d447ecd6a6af9845cdd90ac3df0b5503535117" name="Devil Crash MD (J) [!]" />
+	<hash crc32="6fe42f24" sha1="2ef40cd1d0edfeaabb34706103b8dd164cc81dd5" name="Devil Crash MD (J) [h1C]" />
+	<hash crc32="f199452f" sha1="2333ab413f2d6d32939d1e2f307264e5e0a13945" name="Devil Crash MD (J) [h2C]" />
+	<hash crc32="8aed2671" sha1="0f00e31f6c8c4ff1cbb2bd666b3bb6e2f2347d0e" name="Devil Crash MD (J) [p1][!]" />
+	<hash crc32="bd090c67" sha1="4509c10ab263175c605111c72c6c63c57321046a" name="Devil's Course 3-D Golf (J) [!]" />
+	<hash crc32="81f939de" sha1="4bee752cd2205d60b9d3c7a58e0e90a4837522de" name="Dino Land (J) [!]" />
+	<hash crc32="fb5aacf0" sha1="43753dafd0b816c39aca87fc0788e598fb4bb4f3" name="Disney's Aladdin (J) [!]" />
+	<hash crc32="202abaa8" sha1="c66b2e00b8a9172a76f5e699730c7d88740b5dd7" name="DJ Boy (J) [!]" />
+	<hash crc32="3b2a096d" sha1="480621d5b670062cf17f8f642ee66096fcd8fb18" name="DJ Boy (J) [h1C]" />
+	<hash crc32="86ffe69a" sha1="1b61e0207142405f36af38dbc7e8e04c8894eefe" name="DJ Boy (J) [h2C]" />
+	<hash crc32="516dfb59" sha1="41345e588ba8925e73a4e07106ca53a7ed62991f" name="DJ Boy (J) [p1]" />
+	<hash crc32="0053bfd6" sha1="37bc8429a6259582b840e219a2cf412cea5fc873" name="Doki Doki Penguin Land MD (SN) (J) [!]" />
+	<hash crc32="eeed1130" sha1="aa92c04afd6b1916fcc6c64285d8dffe0b2b895f" name="Doraemon - Yume Dorobouto 7 Nin No Gozansu (J) [!]" />
+	<hash crc32="163de15f" sha1="75a19d13eae3550e7c40e9075f894043f245667d" name="Doraemon - Yume Dorobouto 7 Nin No Gozansu (J) [b1]" />
+	<hash crc32="bb3d3c6b" sha1="60bb797c0260f181295170000e32a80463728b3d" name="Doraemon - Yume Dorobouto 7 Nin No Gozansu (J) [f1]" />
+	<hash crc32="00ce8a49" sha1="1ec800c2d64c95fb81a1d0e9b470962f51bc2a00" name="Doraemon - Yume Dorobouto 7 Nin No Gozansu (J) [f2]" />
+	<hash crc32="bd19ccd6" sha1="07cd1e71ca1628ae7d6921264976d716aa39dc80" name="Doraemon - Yume Dorobouto 7 Nin No Gozansu (J) [hI+C]" />
+	<hash crc32="4158d854" sha1="a079224bafd3ffd9098a01c8990df888b475cfac" name="Doraemon - Yume Dorobouto 7 Nin No Gozansu (J) [hI]" />
+	<hash crc32="a8bfdbd6" sha1="68dc151ada307ed0ed34f98873e0be5f65f1b573" name="Double Dragon 2 - The Revenge (J) [!]" />
+	<hash crc32="156a3421" sha1="bd95fc5e9356389a742f88ebd9c3d7f61d8ad531" name="Double Dragon 2 - The Revenge (J) [h1C]" />
+	<hash crc32="af8f3371" sha1="dc6336dfbbe76c24ada735009d0d667ce27843f6" name="Dragon Ball Z - Buyuu Retsuden (J) [!]" />
+	<hash crc32="5dc0a04b" sha1="36b9719992f84e866fac4942a89c27172e8c8c65" name="Dragon Ball Z - Buyuu Retsuden (J) [b1]" />
+	<hash crc32="cb6ec4ed" sha1="96224c3ead50f8a1982ae2d91a724947a1547d3f" name="Dragon Ball Z - Buyuu Retsuden (J) [b2]" />
+	<hash crc32="cd53eab6" sha1="7617a6af6c4df43d18bc9f921ede9794638c2c6f" name="Dragon Ball Z - Buyuu Retsuden (J) [b3]" />
+	<hash crc32="5db0c886" sha1="43638a1096d03a67e2ebf82850c16ffbf79eae7e" name="Dragon Ball Z - Buyuu Retsuden (J) [f1+1C]" />
+	<hash crc32="9e7dcfaf" sha1="da99348982d9d80a6232bdb1c3c3e88b648453fd" name="Dragon Ball Z - Buyuu Retsuden (J) [f1+2C]" />
+	<hash crc32="f129407e" sha1="8618bdd7c30a3083489ec93b1561eedaf2beb9d8" name="Dragon Ball Z - Buyuu Retsuden (J) [f1+3C]" />
+	<hash crc32="c9d5dfe3" sha1="481ceaf94e612b8938816bfd8cc89e05837090ad" name="Dragon Ball Z - Buyuu Retsuden (J) [f1]" />
+	<hash crc32="4ca63c7d" sha1="49a46e3b53dad60041c98a4da50971b9047fed52" name="Dragon Ball Z - Buyuu Retsuden (J) [f2]" />
+	<hash crc32="01bc1604" sha1="f67c9139bbc93f171e274a5cd3fba66480cd8244" name="Dragon Slayer - The Legend of Heroes (J) [!]" />
+	<hash crc32="bee8feea" sha1="2d77acd0939608f19e3a57c258f273fca86c1661" name="Dragon Slayer - The Legend of Heroes (J) [f1]" />
+	<hash crc32="af50faad" sha1="a96216fb867f032498d64ffb1fa1ff6ef9d1faf3" name="Dragon Slayer - The Legend of Heroes (J) [h1C]" />
+	<hash crc32="46924dc3" sha1="79b6201301acb5d9e9c56dcf65a9bcf9d9a931ab" name="Dragon Slayer II - The Legend of Heroes (J) [!]" />
+	<hash crc32="58c4b877" sha1="337fbae4aa7fbe848c390fa1fed931f27a2e4086" name="Dragon Slayer II - The Legend of Heroes (J) [h1C]" />
+	<hash crc32="81f0c3cf" sha1="b5a2a3b0b65058614d24853c525505b709f00851" name="Dragon's Eye - Shanghai 3 (J) [!]" />
+	<hash crc32="aae9bf31" sha1="2e18d90cc18fed808352364013f4b303ae5f95a5" name="Dragon's Eye - Shanghai 3 (J) [b1]" />
+	<hash crc32="a229dad5" sha1="a8a9ce03cd9f4a5fb7c2a680ba1745288c026004" name="Dragon's Eye - Shanghai 3 (J) [h1C]" />
+	<hash crc32="5c6674cf" sha1="0074fa6420dd60d3e3f18dbaf3787fe14b74290e" name="Dragon's Eye - Shanghai 3 (J) [h2C]" />
+	<hash crc32="becd95af" sha1="cbf4d32cf77a91c85bdc52bbef706728db6fb385" name="Dragon's Eye - Shanghai 3 (J) [p1][!]" />
+	<hash crc32="1ea07af2" sha1="9652b8ed0e36ee17ef6c0b007ca3ad237c13a7a0" name="Draxos (J) [!]" />
+	<hash crc32="e2e21b72" sha1="48b36852b31f74d33e00b33df04ae1e9e9b0cb1c" name="Dream Team USA (J) [!]" />
+	<hash crc32="86bbace8" sha1="e4cc231e6e022e0491647e3361c6b2e1e3195c7e" name="Dyna Brothers (J) (REV01) [h1C]" />
+	<hash crc32="360c1b20" sha1="7e57c6fd5c20e356f9c967dbf168db53574eda84" name="Dyna Brothers (J) (REV01)" />
+	<hash crc32="47e0a64e" sha1="0d6c3d9eb0cb9a56ab91b7507b09473b078e773c" name="Dyna Brothers 2 (J) [!]" />
+	<hash crc32="ac27e4b6" sha1="a8dfe56c74691458c3542ef8124644bd0f638ac4" name="Dyna Brothers 2 (J) [b1]" />
+	<hash crc32="b6412cc5" sha1="d2c75fdacc7466b385af3e51de2baf5cec69512f" name="Dyna Brothers 2 (J) [h1C]" />
+	<hash crc32="c35a4910" sha1="fd26d4c4825fff79d11a6cd700fde58be9d30c66" name="Dynamite Headdy (Beta) [hI]" />
+	<hash crc32="7a0fdeb1" sha1="a2b3ad27f8be13224c4e24bd91bd54742a25295e" name="Dynamite Headdy (Beta) [hI][o1]" />
+	<hash crc32="5c25e934" sha1="9889510234dd8771fd14c4022710028c5928d152" name="Dynamite Headdy (Beta)" />
+	<hash crc32="d03cdb53" sha1="02727a217e654f3cdf5a3fcd33b2f38d404a467d" name="Dynamite Headdy (J) [c][!]" />
+	<hash crc32="35d0f3e0" sha1="be97941bf683f95cf76b64050fdec6b986143361" name="Dynamite Headdy (J) [f1]" />
+	<hash crc32="b2749c48" sha1="47a5587dd778d8d82dadb43470110387f72862f5" name="Dynamite Headdy (J) [f2]" />
+	<hash crc32="9c0c44d5" sha1="bd8d458259d112de8c3f540a33253e6f37cc7117" name="Dynamite Headdy (J) [h1C]" />
+	<hash crc32="623020b2" sha1="60074d62be6f1225e2f4756f79792c2f08947063" name="Dynamite Headdy (J) [t1]" />
+	<hash crc32="cc045aa0" sha1="857da89bdbbe59fa301c0850ce83332e627efee2" name="Dynamite Headdy (J) [t2]" />
+	<hash crc32="062d439c" sha1="0ca535d0e0d430c67e413ab904ef867516ce9fad" name="ECCO - The Tides of Time (J) [!]" />
+	<hash crc32="8f976150" sha1="13b27c53a13054930a14adcbf68611ffb310ef18" name="ECCO - The Tides of Time (J) [b1]" />
+	<hash crc32="6df415ba" sha1="304c31d5df52e213158c2e048e95ff402e6c257e" name="ECCO - The Tides of Time (J) [f1+C]" />
+	<hash crc32="785d2bd5" sha1="a735361aea1e3d3808ec6a9d048caf27e486ba49" name="ECCO - The Tides of Time (J) [f1]" />
+	<hash crc32="797af163" sha1="617dab62248c4dcebe72d3add16590afa2de8f37" name="ECCO - The Tides of Time (J) [f2]" />
+	<hash crc32="e45e12c4" sha1="d383068f662a05caca3dbf3317dc830f914286fe" name="ECCO - The Tides of Time (J) [f3]" />
+	<hash crc32="90d8ef8d" sha1="2598eda76a06bd23000b2c36b593a2534101cdd5" name="ECCO - The Tides of Time (J) [p1][!]" />
+	<hash crc32="39be322b" sha1="2be4f8c7f08d6378a6709662e60bce07896b194c" name="ECCO - The Tides of Time (J) [t1]" />
+	<hash crc32="6520304d" sha1="1440fb5821ebb08048f73a0a71ac22e0cdbcf394" name="ECCO The Dolphin (J) [!]" />
+	<hash crc32="6091c36e" sha1="564ffd2a40b9bebe30587182a644050de474aa5a" name="El Viento (J) [!]" />
+	<hash crc32="92fa18ce" sha1="5a41af952fe6f12c6b712933b68a791051152f88" name="El Viento (J) [b1]" />
+	<hash crc32="27929cc7" sha1="4f96370c595b7b389f0622a03c6b80bee7a7cb49" name="El Viento (J) [f1]" />
+	<hash crc32="5f553e29" sha1="6cbe2cd607aa9850306970a8a61cb9fa82445293" name="Elemental Master (J) [!]" />
+	<hash crc32="a6ad23f0" sha1="e9f20bce49d289ae8db60aa8362c8e7ee3effbd7" name="Elemental Master (J) [b1]" />
+	<hash crc32="716732cd" sha1="131166b93a3c2d2218dd80c56cc6432c6de6ecf1" name="Elemental Master (J) [f1]" />
+	<hash crc32="e025d5f1" sha1="7b9785b13b6c4c98586c3376c554c787cba711d7" name="Elemental Master (J) [p1][!]" />
+	<hash crc32="48467542" sha1="53b418bde065011e161e703dd7c175aa48a04fe5" name="Eliminate Down (J) [!]" />
+	<hash crc32="4552b2ef" sha1="b47ede681af44f2ac58ce612a7c58d507e25994b" name="Eliminate Down (J) [b1]" />
+	<hash crc32="27888ecc" sha1="793466ffc9c8497e041c0f4bfaac3c6c8488ab79" name="Eliminate Down (J) [b2]" />
+	<hash crc32="ef680f1f" sha1="d29c98bd5fd9f8fb8f6c6b860cb18444cb4804e5" name="Eliminate Down (J) [t1]" />
+	<hash crc32="87b636a2" sha1="353f7d136a2c464ee976402b4620b0a42b8b7267" name="ESWAT Cyber Police (J) [!]" />
+	<hash crc32="c629cd2e" sha1="d3481c11961ebc8300d2d550b44b02b3b92ca038" name="ESWAT Cyber Police (J) [b1]" />
+	<hash crc32="e70d0708" sha1="6d9867b8f4e8a6d582daaf7ef1d4bafd0098bb71" name="ESWAT Cyber Police (J) [p1]" />
+	<hash crc32="66aa3c64" sha1="1b115e64e138ca045acfe64e2337fc68172be576" name="Eternal Champions (J) [c][!]" />
+	<hash crc32="b0416c60" sha1="d382f977ea3071f133a947ceb3528904e72f9bc9" name="Europa Sensen (J) [!]" />
+	<hash crc32="47ec8eaa" sha1="07298f94410d22653f02a041231eeb5a8860b5f9" name="Europa Sensen (J) [h1C]" />
+	<hash crc32="53d5fd55" sha1="fe54c91e7ee47ce73e30f66c82b1ae17107fdbc3" name="Europa Sensen (J) [T+Chi]" />
+	<hash crc32="349bb68d" sha1="0006f55e826148cff9e717b582a39a04adf100df" name="Ex-Ranza (J) [!]" />
+	<hash crc32="25c7fe31" sha1="03a69c2c7f134c3af0e6caf959b781396dc935f3" name="Ex-Ranza (J) [h1C]" />
+	<hash crc32="ea6e421a" sha1="ded62d63676664c5b9e8a38e36ce1d2659d1c8d6" name="F-117 Stealth - Operation Night Storm (J) [!]" />
+	<hash crc32="fb55c785" sha1="a6d0cf179d40ab7844d2a9f8a412a320a0639eec" name="F-22 Interceptor - Advanced Tactical Fighter (J) [!]" />
+	<hash crc32="5d30befb" sha1="2efb8d46163e785a57421e726991328024ecd2a7" name="F1 Circus MD (J) [!]" />
+	<hash crc32="1bb3602f" sha1="27ca5200fd5922c77a1dbf34eb898ce1a152e4cf" name="F1 Circus MD (J) [b1]" />
+	<hash crc32="561475d2" sha1="4792145a9c2f4db53e0915a552b9b81b1afbc1a7" name="F1 Circus MD (J) [h1C]" />
+	<hash crc32="93be47cf" sha1="e108342d53e1542d572d2e45524efbfe9d5dc964" name="F1 Grand Prix - Nakajima Satoru (J) [!]" />
+	<hash crc32="35d3483a" sha1="165666520b9152a80cfe9e99fea16f67fa50d3e4" name="F1 Grand Prix - Nakajima Satoru (J) [h1C]" />
+	<hash crc32="4b87be1a" sha1="f724d603a70f475dfa94d159dc1c1400c55609a1" name="F1 Grand Prix - Nakajima Satoru (J) [h2C]" />
+	<hash crc32="24f87987" sha1="1a61809b4637ba48d193d29a5c25d72ab2c6d72d" name="F1 Hero MD (J) [c][!]" />
+	<hash crc32="254bd115" sha1="e4d3eeb8be5fc48f8db4d260f82b61fe5b5ddf10" name="F1 Hero MD (J) [h1C]" />
+	<hash crc32="8774bc79" sha1="ad5456259890bcb32098f82f14a1d5355af83f7e" name="F1 Super License - Nakajima Satoru (J) [!]" />
+	<hash crc32="bb43f0de" sha1="837a19b4b821076f1cd01d53d90b4553a0252340" name="Fastest 1 (J) [!]" />
+	<hash crc32="ab2ccb4a" sha1="23bce5ea8e2ac4906c96de2e453bb1729a1b81ba" name="Fastest 1 (J) [f1+1C]" />
+	<hash crc32="2e077644" sha1="b08353b034a30ac7f2f27cf2a6bd2c4defc5e30a" name="Fastest 1 (J) [f1+2C]" />
+	<hash crc32="b850d85a" sha1="ddd53d7dc8155d5dac01ea9b9cf105a9410e6073" name="Fastest 1 (J) [f1]" />
+	<hash crc32="389ab739" sha1="9613699fbdc40bede60aeb19825e1a2418bc49a0" name="Fastest 1 (J) [h1C]" />
+	<hash crc32="a055663e" sha1="696c395b945b9ba64351df6141aef0224eb61f84" name="Fatman (J) [b1]" />
+	<hash crc32="7867da3a" sha1="9c2791e44f1ff236cbab742c2942defc7b378e2c" name="Fatman (J) [c][!]" />
+	<hash crc32="1e501a37" sha1="eb124705fcef756e1ad5a6b10630b14beba4c650" name="Fatman (J) [h1C]" />
+	<hash crc32="a6cc8faa" sha1="6f5f28ff29376b7f2c5fba6ab4acf7b4d237bdb7" name="Fatman (J) [h2C]" />
+	<hash crc32="be58da10" sha1="b9beb984380a5f3054640eb6608e31fc9a8d70a0" name="Fatman (J) [h3C]" />
+	<hash crc32="d038d5ec" sha1="3e674dcfbaef848db9d4b3f3c37350f1a2e2b8a4" name="Fatman (J) [o1]" />
+	<hash crc32="6a382b60" sha1="7a6e06846a94df2df2417d6509e398c29354dc68" name="Fengshen Yingjiechuan (Ch)" />
+	<hash crc32="39be80ec" sha1="f944a8314d615ef58f0207e5760767fb417cbeb9" name="Fighting Masters (J) [!]" />
+	<hash crc32="be0bfef0" sha1="86cc60056dede522f0ef471f503a88040cd0f215" name="Final Blow (J) [b1]" />
+	<hash crc32="48ad505d" sha1="610c3136e6ddccc41ab216affd07034fa46341a8" name="Final Blow (J) [c][!]" />
+	<hash crc32="e5fe30f9" sha1="278359f7c3c76d2a10725784e04cb4d9c5a76078" name="Final Blow (J) [h1C]" />
+	<hash crc32="aa7f3056" sha1="c708ed7fd47a5983353ba593bffb0dbd2f781aaf" name="Final Blow (J) [p1]" />
+	<hash crc32="eb7e36c3" sha1="6daa07738b8f62659f2a3be01d3adc8557b879c5" name="Fire Mustang (J) [c][!]" />
+	<hash crc32="1e7f5444" sha1="e9b18cf2380ae7afad13232a42570cd0e8c69dc4" name="Fire Mustang (J) [f1]" />
+	<hash crc32="695689a2" sha1="044c8b4bdc7f1048d4287a2716af8547a5b52c93" name="Fire Mustang (J) [h1C]" />
+	<hash crc32="a18c65bd" sha1="a4413636e9dccf6639b3e4e72f4a4c8ad3a73a75" name="Fire Mustang (J) [h2C]" />
+	<hash crc32="56abd934" sha1="76f9b2fb39e8805f8033439c4e175f1fefd9a051" name="Fire Mustang (J) [h3C]" />
+	<hash crc32="24408c73" sha1="7f41afbf62d83424067f872a5dfe2c0f0ec40052" name="Fire Pro Wrestling Gaiden (J) [c][!]" />
+	<hash crc32="0c6ee7cd" sha1="f815cfc2b856b659518e33e21d4be6e6e243bcdd" name="Fire Pro Wrestling Gaiden (J) [h1C]" />
+	<hash crc32="b790e3b4" sha1="5082180974a125b5f9c01c96410c0fdbfb707d2b" name="Flashback - The Quest for Identity (J) [!]" />
+	<hash crc32="920a3031" sha1="a3dc66bb5b35916a188b2ef4b6b783f3c5ffc03c" name="Flintstones, The (J) [c][!]" />
+	<hash crc32="4762062a" sha1="bbcd26d5d1f1422051467aacaa835e1f38383f64" name="Fushigi no Umi no Nadia (J) [c][!]" />
+	<hash crc32="e6d6d160" sha1="4d89c0daa8bd2d048c906c4dff4bfd8156809ab6" name="Fushigi no Umi no Nadia (J) [h1C]" />
+	<hash crc32="9745d6d9" sha1="961c645c50bf476a71c729b4774b28b2e334ec69" name="Fushigi no Umi no Nadia (J) [h2C]" />
+	<hash crc32="8641a2ab" sha1="a5017e44b5f470e0499f4a9b494385c567632864" name="Gain Ground (J) [!]" />
+	<hash crc32="05650b7a" sha1="42814f8921f42c023c1fff433a2e9399aaff5d2e" name="Gambler Jiko Chuushinha - Katayama Masayuki no Mahjong Doujou (J) [!]" />
+	<hash crc32="156f790f" sha1="c2f535fb5a0476640df33c193909ceeaaf9f298a" name="Gambler Jiko Chuushinha - Katayama Masayuki no Mahjong Doujou (J) [h1C]" />
+	<hash crc32="cdad7e6b" sha1="31c66bd13abf4ae8271c09ec5286a0ee0289dbbc" name="Game no Kanzume Otokuyou (J) [!]" />
+	<hash crc32="bf3e3fa4" sha1="b9eb37dbc77d0c6919ad78e587fa4c3403e9e9af" name="Garou Densetsu - Shukumei no Tatakai (J) [!]" />
+	<hash crc32="7c594e1a" sha1="ffa5f831ac933052a44001c2cde97a3e0ac78ae0" name="Garou Densetsu - Shukumei no Tatakai (J) [o1]" />
+	<hash crc32="2af4427f" sha1="08eadaf6177d884b8e1fb66c5949850f10c5d77c" name="Garou Densetsu 2 - Arata-naru Tatakai (J) [c][!]" />
+	<hash crc32="f9872055" sha1="30208982dd1f50634943d894e7458a556127f8e4" name="Gauntlet (J) [!]" />
+	<hash crc32="42cf9b5b" sha1="529d88f96eb7082bfbc00be3f42a1b2e365c34b7" name="Gley Lancer (J) [!]" />
+	<hash crc32="3616eb92" sha1="4d64c12e2e17a8d93b0a326fdd5ca3a0adb4aacd" name="Gley Lancer (J) [h1C]" />
+	<hash crc32="fe4f84bc" sha1="9bc66de6abc0dee1d2dbf5055bcc1e2afb7b707d" name="Gley Lancer (J) [p1][!]" />
+	<hash crc32="e4f50206" sha1="804fd783c6fb7c226fbe4b227ed5c665d668ff57" name="Gods (J) [!]" />
+	<hash crc32="c7862ea3" sha1="cd9ecc1df4e01d69af9bebcf45bbd944f1b17f9f" name="Golden Axe III (J) [!]" />
+	<hash crc32="18237926" sha1="efc4a87cf05dd8ab7774eaf765b089b05dd969f2" name="Golden Axe III (J) [f1+1C]" />
+	<hash crc32="d74a259b" sha1="388eb82d5bce9df5f89a0fb1fabcad74473b5c0a" name="Golden Axe III (J) [f1+2C]" />
+	<hash crc32="d26634c3" sha1="4ec9ed007f75bd1f4087378fa9919e9505204c5b" name="Golden Axe III (J) [f1]" />
+	<hash crc32="5c378b49" sha1="f0024ebe185a8b2219df00dd0adb502ad5faadfd" name="Golden Axe III (J) [f2]" />
+	<hash crc32="65f4d556" sha1="a602f49de6f006b9cd210049496098dc01a1ca10" name="Golden Axe III (J) [h1C]" />
+	<hash crc32="582e7c55" sha1="a6dc4b73dd3ab38d6c40d2f203567cbd5aeac09d" name="Golden Axe III (J) [h2C]" />
+	<hash crc32="b944c74c" sha1="15bf151dfd652b27e81b9829d29cf08baf1f83f4" name="Golden Axe III (J) [p1][!]" />
+	<hash crc32="44f6a48f" sha1="a52ec2c6f7a384a8c08e5d09c378e60cd3918846" name="Golden Axe III (J) [p2][!]" />
+	<hash crc32="30cf37d0" sha1="f51c4332235a9545b86a7b121ba30644c33be098" name="Grand Slam Tennis (J) [!]" />
+	<hash crc32="4f9901f7" sha1="a3ef88dfb273aea26fd2135e35d86454c6596fc6" name="Grand Slam Tennis (J) [h1C]" />
+	<hash crc32="7ef8b162" sha1="1d5fe812df75e0dc1ff379c563058e078b839a09" name="Greatest Heavyweights of the Ring (J) [c][!]" />
+	<hash crc32="38f6e99d" sha1="284449ea0fce5bc4b1615176732035fe602002a1" name="Greatest Heavyweights of the Ring (J) [f1]" />
+	<hash crc32="e7f13253" sha1="6e9b2d3489aa252abe628ffb6f3ac33dc68645a1" name="Greatest Heavyweights of the Ring (J) [h1C]" />
+	<hash crc32="1cfd0383" sha1="64ae3ef9d063d21b290849809902c221f6ab10d5" name="Gunstar Heroes (J) [!]" />
+	<hash crc32="6f90b502" sha1="a8d7f502d877b0ea3ff2431c94001e9d5dd84868" name="Gunstar Heroes (Sample) (J) [!]" />
+	<hash crc32="0429683f" sha1="9fdd29a2ed66366495929ceb721c5bd4a9cf58e7" name="Gunstar Heroes (Sample) (J) [b1]" />
+	<hash crc32="1b69241f" sha1="9b99b109f5f1f221f08672a7c4752a94067b62b0" name="Gynoug (J) [!]" />
+	<hash crc32="dda91064" sha1="b8add57ca87855ec4846d61b1bbc4fc07edbca76" name="Gynoug (J) [b1]" />
+	<hash crc32="84d7736d" sha1="e022a380519396a5da1e353ee0849ed5b6921e0b" name="Gynoug (J) [f1]" />
+	<hash crc32="1acbe608" sha1="198e243cc21e4aea97e2c6aca376cb2ae70bc1c9" name="Heavy Unit (J) [!]" />
+	<hash crc32="de99c450" sha1="aa9d228b1e191b061f8a479461741e7a558213fb" name="Heavy Unit (J) [b1]" />
+	<hash crc32="acfc8638" sha1="7e5da4b1945ceaaa212f6297be20436b059b1db3" name="Heavy Unit (J) [h1C]" />
+	<hash crc32="deac27cc" sha1="a37938c59629716ecab38bd53fac80adb35977db" name="Heavy Unit (J) [h2C]" />
+	<hash crc32="1a644217" sha1="8a60531932f086194626b35e35eccd544dbef02c" name="Heavy Unit (J) [h3C]" />
+	<hash crc32="3d1d196b" sha1="56de246c59def4241c58d818d374c54585e33666" name="Heavy Unit (J) [p1]" />
+	<hash crc32="fbfdf47a" sha1="a993366540232c1dc39d8876b89627ef2abcd8e3" name="Heavy Unit (J) [p2]" />
+	<hash crc32="8e5e13ba" sha1="17bbf3da65757cad3c7ff82c094e54cc68fd2f73" name="Hellfire (J) [!]" />
+	<hash crc32="bf97aeb1" sha1="cd0d8c7d0ee013bb4714d63d39f35eabf597df9c" name="Hellfire (J) [b1+1C]" />
+	<hash crc32="5fdb779e" sha1="f7243f1b00f69aa2eb2dcd05b895332ce03c7861" name="Hellfire (J) [b1+2C]" />
+	<hash crc32="e20e9869" sha1="3fb3740240f6350fbbe9131fc4cd34d09583688a" name="Hellfire (J) [b1]" />
+	<hash crc32="6c30ef29" sha1="b8164db57d3e82ced7d7eb851c4ca350718d50fc" name="Hellfire (J) [p1][!]" />
+	<hash crc32="4cf676b3" sha1="851be7abad64a4fb05e4c51ce26fbe5efe12ea42" name="Herzog Zwei (J) [!]" />
+	<hash crc32="829cd1c2" sha1="0ff53830a360e45695174668c31cac726b4aff9b" name="Herzog Zwei (J) [h1C]" />
+	<hash crc32="f49c3a86" sha1="d865b01e58a269400de369fc1fbb3b3e84e1add0" name="High School Soccer - Kunio Kun (J) [!]" />
+	<hash crc32="e790dc58" sha1="ff5854a1568eaa9045cd32ea158e032bbeda7870" name="High School Soccer - Kunio Kun (J) [h1C]" />
+	<hash crc32="1b6585e7" sha1="7d489e1087a0816e2091261f6550f42a61474915" name="Hokuto no Ken (J) [!]" />
+	<hash crc32="a892dde0" sha1="bcce0fe60324f95513aed43e4adca090e7055802" name="Hokuto no Ken (J) [b1]" />
+	<hash crc32="2c48395d" sha1="784781194171c462196de05d82f9a975c01aa7a4" name="Hokuto no Ken (J) [p1+1C]" />
+	<hash crc32="eb1813c0" sha1="0bb9959ecad9e9a4bc4038bc4245221dc0b8558b" name="Hokuto no Ken (J) [p1+2C]" />
+	<hash crc32="919dd6aa" sha1="90dda339c51a8daf781ce9f9c244f1c8b13be13b" name="Hokuto no Ken (J) [p1]" />
+	<hash crc32="630f07c6" sha1="ebdf20fd8aaeb3c7ec97302089b3330265118cf0" name="Honoo no Toukyuuji Dodge Danpei (J) [!]" />
+	<hash crc32="77662fb0" sha1="6386c8f6cc625f0218406e3c81b11f4abfc0a837" name="Honoo no Toukyuuji Dodge Danpei (J) [b1]" />
+	<hash crc32="b6dc3629" sha1="1a4fd781ecbea428eaed81c71f0c40d459b68455" name="Honoo no Toukyuuji Dodge Danpei (J) [f1+1C]" />
+	<hash crc32="808445ec" sha1="bea784d494e428ea95597f49be3ca73f5c535b6c" name="Honoo no Toukyuuji Dodge Danpei (J) [f1+2C]" />
+	<hash crc32="68ce8f2c" sha1="e701a48a2a797792c8b3ae8e56567152e250d9f2" name="Honoo no Toukyuuji Dodge Danpei (J) [f1+3C]" />
+	<hash crc32="3d51aa1b" sha1="b67c58000d254079ca829b6e52fd65eeea84fe6c" name="Honoo no Toukyuuji Dodge Danpei (J) [f1+4C]" />
+	<hash crc32="41d0b546" sha1="76b84d2e0654b4a1b56526fda1841dcca7bfa8db" name="Honoo no Toukyuuji Dodge Danpei (J) [f1]" />
+	<hash crc32="04f02687" sha1="b6e72b69a22869f966c52e7d58d146bc48b5eb84" name="Hybrid Front, The (J) (Prototype) [!]" />
+	<hash crc32="a1f1cfe7" sha1="ed592c78ef60d91a6c5723d11cd553d3798524e1" name="Hybrid Front, The (J) [!]" />
+	<hash crc32="72253bdb" sha1="32a73559f84dbab5460bfd1e266acfc8f4391ae4" name="Hyokkori Hyoutanjima (J) [c][!]" />
+	<hash crc32="1b6da83f" sha1="600ff0b3de2be376ca846771d3e328157e3aed5e" name="Hyokkori Hyoutanjima (J) [h1C]" />
+	<hash crc32="5baf53d7" sha1="ef5c13926ee6eb32593b9e750ec342b98f48d1ef" name="Hyper Dunk - The Playoff Edition (J) [!]" />
+	<hash crc32="83bb2799" sha1="b2c5c78084b988de1873c89eedfa984124404c0c" name="Hyper Marbles (SN) (J) [!]" />
+	<hash crc32="cb9ee238" sha1="c79935fdeb680a1a2e76db1aef2c6897e6ee8e4d" name="I Love Mickey &amp; Donald - Fushigi na Magic Box (J)" />
+	<hash crc32="ce8333c6" sha1="0679162757f375751a677fd05195c9248abc84f0" name="I Love Mickey Mouse - Fushigi no Oshiro Dai Bouken (J) [!]" />
+	<hash crc32="02f9df64" sha1="2bd3debddba09fcb8199797b8502f0ceff3bedf9" name="I Love Mickey Mouse - Fushigi no Oshiro Dai Bouken (J) [h1C]" />
+	<hash crc32="a173afff" sha1="f4f1a88b7ee5b2e6affd693e5c77aed3f392a5ab" name="I Love Mickey Mouse - Fushigi no Oshiro Dai Bouken (J) [p1][!]" />
+	<hash crc32="7bdec762" sha1="2e43ea1870dd3352e3c153373507554d97d51edf" name="Ichidant R (J) [!]" />
+	<hash crc32="40f540ba" sha1="669590b9e078e7b6759e542b87fddc145403247b" name="Ichidant R (J) [f1+1C]" />
+	<hash crc32="074893d2" sha1="ed7ea5f5d748a8fb351b2ae34410801453f6e52d" name="Ichidant R (J) [f1+2C]" />
+	<hash crc32="6b5564ba" sha1="2a6d1d1ce64ecc5c38d3938e254b424fec8bc97b" name="Ichidant R (J) [f1+3C]" />
+	<hash crc32="3353146c" sha1="9be241e4f0cc4dcb0722ad3b6e7072dc4fc774ff" name="Ichidant R (J) [f1]" />
+	<hash crc32="c99fad92" sha1="f36d088c37bbdcf473615b23e1cb21c0b70d8f05" name="Immortal, The (J) [!]" />
+	<hash crc32="9625c434" sha1="204351b97aff579853cdba646b427ea299b1eddf" name="Insector X (J) [!]" />
+	<hash crc32="2bf02bc3" sha1="4b0a8347af7b65fddfe1c730547f6d107c70e8e1" name="Insector X (J) [h1C]" />
+	<hash crc32="dfa43977" sha1="d305b8095e9a6b91e962d1eecb795dd427204f66" name="Insector X (J) [p1]" />
+	<hash crc32="453c405e" sha1="c28d8dac0f5582c3c2754342605764ee6e5b8af3" name="J. League Champion Soccer (J) [!]" />
+	<hash crc32="e04cd95d" sha1="4cb5631ca572cc63c19a5553856529cb25df0585" name="J. League Champion Soccer (J) [h1C]" />
+	<hash crc32="6e2ea7a1" sha1="11853acf0613185bc2c0e19cce12229eee4bdb48" name="J. League Champion Soccer (J) [h2C]" />
+	<hash crc32="f8e9afa9" sha1="e23bbb74a08e789727d9c455f9d81347e7f78309" name="J. League Champion Soccer (J) [h3C]" />
+	<hash crc32="ec229156" sha1="d3dcc24e50373234988061d3ef56c16d28e580ad" name="J. League Pro Striker (J) (REV00) [c][!]" />
+	<hash crc32="f5c7d812" sha1="866c9d9d0cbe012a20a89fdef2cc8d0ec0d848be" name="J. League Pro Striker (J) (REV00) [h1C]" />
+	<hash crc32="72adf9eb" sha1="a3dc5eeb49bc85369a4a5539c9e1d3e0d56ae2c2" name="J. League Pro Striker (J) (REV00) [h2C]" />
+	<hash crc32="bdc8504f" sha1="2f22081994e2f8e2b6227fa600cdc0b45a63339a" name="J. League Pro Striker (J) (REV00) [h3C]" />
+	<hash crc32="2d5b7a11" sha1="1e437182fab2980156b101a53623c3c2f27c3a6c" name="J. League Pro Striker (J) (REV03) [c][!]" />
+	<hash crc32="0abed379" sha1="7cfd8c9119d0565ee9a7708dc46bb34dd3258e37" name="J. League Pro Striker - Perfect Edition (J) [c][!]" />
+	<hash crc32="9fe71002" sha1="924f1ae3d90bec7326a5531cd1d598cdeba30d36" name="J. League Pro Striker 2 (J) [!]" />
+	<hash crc32="bf474533" sha1="3e204030b3ce7bf1dd523a2bc4719368ec33e0a8" name="J. League Pro Striker 2 (J) [b1]" />
+	<hash crc32="9ca89c3e" sha1="6277c470803b020ae6619b5a62fb4da7c5ef9ce0" name="J. League Pro Striker 2 (J) [f1]" />
+	<hash crc32="e35e25fb" sha1="74e4a3ac4b93e25ace6ec8c3818e0df2390cffa2" name="J. League Pro Striker Final Stage (J) [c][!]" />
+	<hash crc32="98794702" sha1="fa7d4e77fd98eb1fc9f8e1d66269bf86881c695d" name="James Pond II - Codename RoboCod (J) [!]" />
+	<hash crc32="7011e8eb" sha1="620ecac6c340e617bbde922bf742a9e6d7f8d786" name="Janou Touryumon (J) [!]" />
+	<hash crc32="b5ef97c6" sha1="4f307e0146e944fbbd4537f5cdc5da136204fc9b" name="Janou Touryumon (J) [a1][!]" />
+	<hash crc32="c2472d72" sha1="1ab512ceaab24ddefd594b998b74d6e5ec74c70b" name="Janou Touryumon (J) [a1][f1]" />
+	<hash crc32="8a1b19ad" sha1="8e109961a89e1366c83808fb0bb33333f88a82b7" name="Jantei Monogatari (J) [!]" />
+	<hash crc32="88cef18e" sha1="fb0076af5e27fc42fde94fad2f16245e67cdac0d" name="Jantei Monogatari (J) [b1+C]" />
+	<hash crc32="1fc7d433" sha1="040e07bb9207dd481e5e68a575d3bb8302fbda18" name="Jantei Monogatari (J) [b1]" />
+	<hash crc32="2cf6926c" sha1="52fbcf9902a4a3f70aeb9c3df31019e07e679ea8" name="Jewel Master (J) [c][!]" />
+	<hash crc32="869c8100" sha1="7b2a69d7f71c23a8fc3515c5a61067505aa38a14" name="Jewel Master (J) [h1C]" />
+	<hash crc32="0460611c" sha1="c4cf3681d86861a823fa3e7ffe0cd451fbafcee6" name="John Madden Football (J) [!]" />
+	<hash crc32="8837e896" sha1="769d7ed746ccbec0bcbe271f81767ffcccd36cea" name="Jordan vs Bird - Super One-on-One (J) [!]" />
+	<hash crc32="d09b1ef1" sha1="1a94cde6392d385271797a6b21ad0eaad920a8da" name="JuJu Densetsu (J) [!]" />
+	<hash crc32="d27e5f52" sha1="4a848d7d7142443b69f1a7b7063e0d5560464e4d" name="JuJu Densetsu (J) [h1C]" />
+	<hash crc32="5bbde6c2" sha1="659960ffc7cc7f19876a0f98a73ff83cbddc1b49" name="JuJu Densetsu (J) [h2C]" />
+	<hash crc32="6d4ef106" sha1="73aaa506ef327691af8c999249d7dc84888f7216" name="JuJu Densetsu (J) [h3C]" />
+	<hash crc32="7f10bdd7" sha1="daddaa047691a3b801a18b7ef96d8afcc6adb3c3" name="JuJu Densetsu (J) [p1][!]" />
+	<hash crc32="f0263690" sha1="9c56035a17c415589255fc1f17eeeb0977bc6282" name="JuJu Densetsu (J) [T+Por_FjM]" />
+	<hash crc32="ba7a870b" sha1="e35c554c52ce31de837c0e73bf2014720657f4d5" name="Jungle Strike (J) [!]" />
+	<hash crc32="f8eb09eb" sha1="f8e3e1abda017b2babeb6dc818625f437b1edd72" name="Jungle Strike (J) [b1]" />
+	<hash crc32="622f8e5e" sha1="87a46d6d1ab814ab46c8fa452bae5096c58b3105" name="Jungle Strike (J) [b2]" />
+	<hash crc32="18718c2f" sha1="5eb76f940fd4343c390c2d41cfd7244860641080" name="Junkers High (Beta) [b1]" />
+	<hash crc32="07ad7935" sha1="4b75d3f053ca61e4543ce7ca7ac7b3b0466cb7fd" name="Junkers High (Beta) [b2]" />
+	<hash crc32="59ab7a39" sha1="6f45f387c89cbd81755d3d4eab957a9c6255d489" name="Junkers High (Beta) [b3]" />
+	<hash crc32="afd6a48a" sha1="19d97b32bce87d99b0a63cc0872eaa511995b858" name="Junkers High (Beta) [f1]" />
+	<hash crc32="8a82f348" sha1="87d2e362c7c039ac833ce47df4208793cf968249" name="Junkers High (Beta) [f1][h1C]" />
+	<hash crc32="06225c24" sha1="81695ac0461c150b13ae50200882f50de34aba08" name="Junkers High (Beta) [hI+1C]" />
+	<hash crc32="c0b922c2" sha1="8e5b81572aac9c7f4ad12a4c3e518158d70fa69c" name="Junkers High (Beta) [hI]" />
+	<hash crc32="23534949" sha1="81a9b6d29878b4e9313a887b5349c12846b9d77f" name="Junkers High (Beta)" />
+	<hash crc32="ec8e5783" sha1="d5d0e2ed4c00435ec4a343583bb399b07927de21" name="Jurassic Park (J) [!]" />
+	<hash crc32="1b7c96c0" sha1="bf5782b6f25dcf2bd1ff987e2821441c77da3c5d" name="Juu-Ou-Ki (J) (REV00) [c][!]" />
+	<hash crc32="b2233e87" sha1="d0713d6da20145fe9e13b56a103fce23bc6051d7" name="Juu-Ou-Ki (J) (REV01) [!]" />
+	<hash crc32="391866a1" sha1="9424e8b759609004748dd6cd4779f917211264ae" name="Ka-Ge-Ki (J) [!]" />
+	<hash crc32="a39507cc" sha1="376121d7c0088f1df78c107e978329f7149241d5" name="Ka-Ge-Ki (J) [b1]" />
+	<hash crc32="9bdc230c" sha1="c3f74c01e8124d5d08f817ff6e0c9416545b8302" name="Kick Boxing, The (J) [!]" />
+	<hash crc32="21dbb69d" sha1="cabd42d2edd333871269a7bc03a68f6765d254ce" name="Killing Game Show, The (J)" />
+	<hash crc32="ffe7b3c7" sha1="92bfb3548ebff18eedebe07751bf2170f95780d7" name="King Colossus (J) [!]" />
+	<hash crc32="3a15d521" sha1="b9e512a0ff99a8ee8324c7a960a89c1152002855" name="King Colossus (J) [b1]" />
+	<hash crc32="19175745" sha1="ed30b88d8b86f32774bc4b3d8a85112100766afd" name="King Colossus (J) [h1C]" />
+	<hash crc32="2cfc9f61" sha1="62bea17b1e9152bde2355deb98347a802518d08d" name="King Salmon - The Big Catch (J) [c][!]" />
+	<hash crc32="22e1f04a" sha1="2884f79b8f717fc9e244dac0fb441bdc44c68203" name="Kishi Densetsu (J) [!]" />
+	<hash crc32="0c600263" sha1="76cc934a57c358916a1b8ad0b5479f3db5b30457" name="Kishi Densetsu (J) [b1]" />
+	<hash crc32="1a766f3c" sha1="e3b5f259edd82a7440718fcf9195743611317549" name="Kishi Densetsu (J) [b2]" />
+	<hash crc32="caa21b16" sha1="0a310ab921c11baaf72dcbcd45c721f9872278f5" name="Kishi Densetsu (J) [b3]" />
+	<hash crc32="e91c6b2d" sha1="89c7bec518299c47d86020c130e312f587f10c87" name="Kishi Densetsu (J) [T+Eng20%_Gaijin_Productions]" />
+	<hash crc32="1afcc1da" sha1="f084f7a3851161523ab7e9cffb2f729563c17643" name="Klax (J) [c][!]" />
+	<hash crc32="30a213cb" sha1="dc6d63a4c047436d053f1465fb5924494ffdee53" name="Klax (J) [h1C]" />
+	<hash crc32="755d0b8a" sha1="7ff88050ae9b2f12afe80432781ba25aa3a15e1c" name="Koutetsu Teikoku (J) [!]" />
+	<hash crc32="02af1ce1" sha1="5f41cac889ffe247571fea385b624478f225de3f" name="Koutetsu Teikoku (J) [b1]" />
+	<hash crc32="4af2cf18" sha1="59e76725a01765e3bcead597f80746b3bc7de182" name="Koutetsu Teikoku (J) [h1C]" />
+	<hash crc32="affd56bc" sha1="d48ed88269b4ea4c62a85f8607658f9ce566590c" name="Kujaku Ou 2 (J) [!]" />
+	<hash crc32="b92734ed" sha1="13f18f419a7a09efe30c96d84d233adc1d623499" name="Kujaku Ou 2 (J) [o1]" />
+	<hash crc32="8e3c67ce" sha1="c85cfa8bd54ec7d030611ff0ef3272b862828521" name="Kujaku Ou 2 (J) [o2]" />
+	<hash crc32="db5ddd58" sha1="4c933c092882dc1451a30f8a371b77478cfc7a55" name="Kujaku Ou 2 (J) [p1]" />
+	<hash crc32="348a47d4" sha1="fd8ecce0fc652f3803eebc7af7c6bacb10acbe8f" name="Kujaku Ou 2 (J) [p2]" />
+	<hash crc32="38970b3b" sha1="e7eee02b04a998c030f183362f295cd134adfaf9" name="Kujaku Ou 2 (J) [t1+C]" />
+	<hash crc32="65ad4d71" sha1="4e47cfd1651994a18e6bf6c300980439974aba4f" name="Kujaku Ou 2 (J) [t1]" />
+	<hash crc32="83b6b6ba" sha1="54d257ad1f941fdb39f6f7b2a3a168eb30ebd9ff" name="Kuuga - Operation Vapor Trail (J) [!]" />
+	<hash crc32="fe4609f7" sha1="0a03cbd873def3e0af58e6a3c26a4b482cdb3896" name="Kuuga - Operation Vapor Trail (J) [b1]" />
+	<hash crc32="08f0566b" sha1="a1a79063d16d159b3c1ca1f1b3cdf5aeff291983" name="Kuuga - Operation Vapor Trail (J) [h1C]" />
+	<hash crc32="91ab3fc2" sha1="45ddfc6d0226e3dcea7f9faf8425871a33ae385b" name="Kyuukai Douchuuki (J) [b1]" />
+	<hash crc32="de48dce3" sha1="40e771ace8f89e40d3315be698aa68effd617c5c" name="Kyuukai Douchuuki (J) [c][!]" />
+	<hash crc32="5ecbfe78" sha1="c7ca2379718a3fd288f2acbbd179f7e50d0a8b5a" name="Kyuukai Douchuuki (J) [h1C]" />
+	<hash crc32="61276d21" sha1="cbe207732c6ce5e5e5846e44847ce902315f2bc3" name="Kyuukyou Tiger (J) [!]" />
+	<hash crc32="3c60b833" sha1="ff6e74e8d9d3cb68a45ed97c498ff6030301d34c" name="Kyuukyou Tiger (J) [h1C]" />
+	<hash crc32="1f796afc" sha1="7c50b4df39d256014a25c93b1c25a256214a7bf1" name="Kyuukyou Tiger (J) [o1]" />
+	<hash crc32="585fccaa" sha1="578f824b6d12fd11b8902fc5414215d6a9d03e6c" name="Kyuukyou Tiger (J) [o2]" />
+	<hash crc32="a6d7e02d" sha1="513732ae1c5a40276959967bbf4775fce1c83a7e" name="Labyrinth of Death (SN) (J) [!]" />
+	<hash crc32="60d4cedb" sha1="cdbc7cd9ceb181cad9e49b641ff717072546f0d9" name="Landstalker - Koutei no Zaihou (J) [!]" />
+	<hash crc32="d0dd7dde" sha1="f15816284cfcc062cde377489c377e5d902c7a88" name="Landstalker - Koutei no Zaihou (J) [b1]" />
+	<hash crc32="cf32c66a" sha1="ab32888f2a529c8a777c13605592ca71fab34412" name="Landstalker - The Treasures of King Nole (Beta) [b1]" />
+	<hash crc32="70483d03" sha1="dfca19397479852584d4ac6fcbe27412f9bc1af0" name="Landstalker - The Treasures of King Nole (Beta)" />
+	<hash crc32="b6ea5016" sha1="cc67c5a3b91e706b495eb561a95a038fff72b5da" name="Langrisser (J) [!]" />
+	<hash crc32="6aa24dfb" sha1="42b730c4cd281859482b0b14e44e175b65644922" name="Langrisser (J) [h1C]" />
+	<hash crc32="7f891dfc" sha1="4bbc2502784a61eedf45eca5303dc68062964ff4" name="Langrisser II (J) (REV00) [!]" />
+	<hash crc32="c969f590" sha1="b88c1816865cea108aace47ae4034450b0fa1f3f" name="Langrisser II (J) (REV00) [T+Chi]" />
+	<hash crc32="8178f4bd" sha1="28b83a551e8a2073a736be2739d83734cfb74ed7" name="Langrisser II (J) (REV00) [T+Chi][b1]" />
+	<hash crc32="4e863a6a" sha1="22fd20336d739d8b2a483063d9e119bfe9ce6f48" name="Langrisser II (J) (REV01) [h1C]" />
+	<hash crc32="833438be" sha1="e562c644cd2e73a6ec9b9854e37713b4c60ed340" name="Langrisser II (J) (REV01) [h2C]" />
+	<hash crc32="ced8d20b" sha1="a2b8431c67e841324011b0509998852d00584567" name="Langrisser II (J) (REV01) [h3C]" />
+	<hash crc32="a18c5dda" sha1="6d70236bee5e132716baecce526a4b11f843a6bb" name="Langrisser II (J) (REV01) [h4C]" />
+	<hash crc32="3f02618e" sha1="fa136b234688f120a4c5df719a29d0fcc231b23e" name="Langrisser II (J) (REV01) [T+ChiV06]" />
+	<hash crc32="bf795626" sha1="a4cf9d54eca23423c5a85f028af73e6180dbee3e" name="Langrisser II (J) (REV01) [T+ChiV06][a1]" />
+	<hash crc32="298b1c7a" sha1="2c7460a62b9672776ddaa478f089b284e0e0726b" name="Langrisser II (J) (REV01) [T+Eng100%_HiryuuHonyaku&amp;NoPrgress]" />
+	<hash crc32="e7b65311" sha1="49b82aa7b9968db5001b711ad045914a2767fc57" name="Langrisser II (J) (REV01) [T-Eng]" />
+	<hash crc32="0caa0593" sha1="4ba6591dfd85aa75ffe8dc21137a9291aa7f5603" name="Langrisser II (J) (REV01)" />
+	<hash crc32="4967c9f9" sha1="167944091348c89ce43dfa4854f8a51ed7276dde" name="Langrisser II (J) (REV02) [!]" />
+	<hash crc32="f25f1e49" sha1="14245fccf4d7e5d1dd4ad5f426507516e71e3a06" name="Lethal Enforcers (J) [!]" />
+	<hash crc32="224ff103" sha1="4e98a59fbd25db9fa9a05c84ecfa79154dd49d12" name="LHX Attack Chopper (J) [!]" />
+	<hash crc32="23d2c58e" sha1="7aa5656154fa7280038ec07b0eb682ed4e5b3508" name="LHX Attack Chopper (J) [b1]" />
+	<hash crc32="237076a4" sha1="2b8c0931c33c143d41ef7cff6a8dbb9b8351d613" name="Light Crusader (J) [!]" />
+	<hash crc32="9d30e8e2" sha1="38774269643b6215a91c18e86b9def93079ac174" name="Light Crusader (J) [f1+C]" />
+	<hash crc32="9ce2190f" sha1="d665fdebf5b79ad42ca3b88cb93f85d757c43bb7" name="Light Crusader (J) [f1]" />
+	<hash crc32="6d0cbcb2" sha1="0f018f95b4933bb5b3b3a91cee8b9a8ecb376942" name="Light Crusader (K) [!]" />
+	<hash crc32="238bf5db" sha1="9b5c71d70de132c8ba6f2adfdeba43077f76ac3e" name="Lord Monarch (J) [!]" />
+	<hash crc32="63d9f2a6" sha1="f8932a9cf5d8399c3936008df9365ca6340690d4" name="Lord Monarch (J) [b1]" />
+	<hash crc32="9e7e023c" sha1="b91b9d06ab37bb358ff973e32effdac5720aaf3a" name="Lord Monarch (J) [h1C]" />
+	<hash crc32="c8e9d339" sha1="4003bb040501bf0e09f2516699f4f20030ae757c" name="Lord Monarch (J) [h2C]" />
+	<hash crc32="dd82c401" sha1="143456600e44f543796cf6ade77830115a8f2f99" name="Madou Monogatari I (J) [!]" />
+	<hash crc32="8950382f" sha1="1e66b95cd090520a65f0bdf50da3b418e1af5de3" name="Madou Monogatari I (J) [b1]" />
+	<hash crc32="0251a498" sha1="b9b13ea496236b8746ecb7a89e58d621ebd15c82" name="Madou Monogatari I (J) [b2]" />
+	<hash crc32="385f807c" sha1="d812d5e65666fc4b61c8f01a8fec4a9b3d15a34c" name="Madou Monogatari I (J) [b3]" />
+	<hash crc32="97b267b5" sha1="e235e0ce99da91ce089eaacbb499dc4cb9010eb1" name="Madou Monogatari I (J) [b4]" />
+	<hash crc32="95e3a405" sha1="32ab82945d392831a798e79f0d14dee7e7bc72fd" name="Madou Monogatari I (J) [b5]" />
+	<hash crc32="c04d701b" sha1="4bfe9b585982c95cb5beab02104942e218d32b97" name="Madou Monogatari I (J) [h1C]" />
+	<hash crc32="e43e853d" sha1="1a741125a80ba9207c74a32e5b21dbb347c3c34a" name="Magical Hat no Buttobi Turbo! Daibouken (J) [!]" />
+	<hash crc32="39ec5a77" sha1="052641f6f5e6a4e8f5a9649da6e3d869849ae827" name="Magical Hat no Buttobi Turbo! Daibouken (J) [b1]" />
+	<hash crc32="3fe23aeb" sha1="a56302a6c549c27b62d9efb4f180811a9b11cd4b" name="Magical Hat no Buttobi Turbo! Daibouken (J) [b2]" />
+	<hash crc32="ab177fad" sha1="777784f5eddec5f033b6bdf0874be044ab071877" name="Magical Hat no Buttobi Turbo! Daibouken (J) [h1C]" />
+	<hash crc32="d0388c3a" sha1="9bd86c016098f3ecae4c5accceea65e636ac3a61" name="Magical Hat no Buttobi Turbo! Daibouken (J) [h2C]" />
+	<hash crc32="f11060a5" sha1="208f1d83bb410f9cc5e5308942b83c0e84f64294" name="Magical Taruruuto-Kun (J) [!]" />
+	<hash crc32="7656ea0e" sha1="3503b7ab011b70a835182d1aede3c3129955c481" name="Magical Taruruuto-Kun (J) [b1]" />
+	<hash crc32="10f45375" sha1="6181a2f6043afeddd305c729cf31e5ee75680295" name="Magical Taruruuto-Kun (J) [b2]" />
+	<hash crc32="1ccbc782" sha1="7fd5866347067e6111739833595278e192d275fb" name="Mahjong Cop Ryuu - Shiro Ookami no Yabou (J) [!]" />
+	<hash crc32="32c2eba2" sha1="3cbfc885c8f66b430257584d36c07f5ffa0b0779" name="Mahjong Cop Ryuu - Shiro Ookami no Yabou (J) [h1C]" />
+	<hash crc32="4e4a9493" sha1="f7bbff892e7898895a65a818c5342ee86134a5cc" name="Mahjong Cop Ryuu - Shiro Ookami no Yabou (J) [h2C]" />
+	<hash crc32="2ba6da36" sha1="a9cb960c0ed46acd3d7a92d8a369cf209ab618ae" name="Mahjong Cop Ryuu - Shiro Ookami no Yabou (J) [p1][!]" />
+	<hash crc32="10bb359b" sha1="5c8c600ca7468871b0ef301fd82a1909aa8b3b10" name="Mamono Hunter Yohko - Makai Kara no Tenkosei (J) [!]" />
+	<hash crc32="7bb64d38" sha1="5d37bb5f2834219808b8288151b674bab7e8f901" name="Mamono Hunter Yohko - Makai Kara no Tenkosei (J) [b1]" />
+	<hash crc32="3eee9151" sha1="38c316bed63dda61d48b0b48c82bb8729b1286a5" name="Mamono Hunter Yohko - Makai Kara no Tenkosei (J) [h1C]" />
+	<hash crc32="ce9bb556" sha1="7bb32193c06010c157de41b5b20000aea1dcc60a" name="Mamono Hunter Yohko - Makai Kara no Tenkosei (J) [h2C]" />
+	<hash crc32="8892c7a4" sha1="cacba7b8693be47f2e376d49a2e464b12831eef1" name="Mamono Hunter Yohko - Makai Kara no Tenkosei (J) [p1][!]" />
+	<hash crc32="9f2c7935" sha1="770f99b57d122ff198fa398965e604cbbee3d617" name="Mamono Hunter Yohko - Makai Kara no Tenkosei (J) [t1+C]" />
+	<hash crc32="06283468" sha1="55e3ed2ea8bef5ba617d1e01117a12b4938f5902" name="Mamono Hunter Yohko - Makai Kara no Tenkosei (J) [t1]" />
+	<hash crc32="ba65c72f" sha1="5839fb6f7e1d093be6c7ba58611d690914f9d81f" name="Mamono Hunter Yohko - Makai Kara no Tenkosei (J) [t2]" />
+	<hash crc32="6d2b7170" sha1="173bb2c412532b311a4ec6effe2a01d5675c0151" name="Maou Renjishi (J) [b1]" />
+	<hash crc32="24a7f28c" sha1="56253adf20d420233722d428170a646262be226f" name="Maou Renjishi (J) [c][!]" />
+	<hash crc32="d8ab8d88" sha1="c4619bfdde0ef9c6c7abdcf7d37ecca273a7a3d0" name="Maou Renjishi (J) [h1C]" />
+	<hash crc32="10d4a7be" sha1="b781e385f705342da82a01e387380b6704dadc47" name="Maou Renjishi (J) [h2C]" />
+	<hash crc32="4fb56265" sha1="35bc8a063b4f86f6e500f84b36a90d24d57e5a0c" name="Maou Renjishi (J) [p1+C]" />
+	<hash crc32="a46479b4" sha1="6331e06f53c8068f50940217294ec5801de992cc" name="Maou Renjishi (J) [p1][!]" />
+	<hash crc32="5d162d21" sha1="2f7ef2f956d62373dcd5f3808e7501e3660c0658" name="Marvel Land (J) [!]" />
+	<hash crc32="d51ee8c2" sha1="ca62d376be5cc7b944bbe9b5f2610f8bb55a2fed" name="Master of Monsters (J) [!]" />
+	<hash crc32="12ad6178" sha1="574da95ab171b12546daa56dc28761c6bcc4a5fc" name="Master of Weapon (J) [!]" />
+	<hash crc32="af788e8f" sha1="96294bb1660843a8f41f94c5e37ad0c5d72b2e9e" name="Master of Weapon (J) [h1C]" />
+	<hash crc32="f027f83a" sha1="7e51f78e3948278e7dfd5b4068d6d906a9821403" name="Master of Weapon (J) [h2C]" />
+	<hash crc32="b804a105" sha1="31bc44b019310e18174eb5e1a6d8e7d351103e4e" name="Maten Densetsu (J) [!]" />
+	<hash crc32="d378b6a7" sha1="40797c859da6880f77ca94e48545d29fa9d67ffc" name="Mazin Saga (Beta) [hI+C]" />
+	<hash crc32="2de2a16a" sha1="c5a9dc5948e3a43b67389f5e6d096bfdb1e7cb79" name="Mazin Saga (Beta) [hI]" />
+	<hash crc32="36459b59" sha1="3509fdf8bd0a589c216a5032eef0c09a51c7a578" name="Mazin Saga (Beta)" />
+	<hash crc32="45b3a34b" sha1="bcaf2820f22d4a7bcf6324f288698192996875bd" name="Mazin Saga (J) [!]" />
+	<hash crc32="febcfd06" sha1="aee7fd6a08ec22f42159b188f23406cbe3229f3d" name="McDonald's Treasure Land Adventure (J) [!]" />
+	<hash crc32="581ba06b" sha1="ae2385fe69dcf3a64cde8e4681f559536d6bf59b" name="McDonald's Treasure Land Adventure (J) [p1][!]" />
+	<hash crc32="08ece367" sha1="d353e673bd332aa71370fa541e6fd26d918b5a2b" name="Mega Anser (J) (REV01) [!]" />
+	<hash crc32="a60d8619" sha1="66e391c69dfbe7329654550ebf4464b4f426c5a0" name="Mega Lo Mania (J) [!]" />
+	<hash crc32="9d4b447a" sha1="3f82b2f028345b6fc84801fa38d70475645d6aa2" name="Mega Q - The Party Quiz Game (J) [!]" />
+	<hash crc32="6a02495b" sha1="125d4080ed1615074c6d370734a06968a2fc926c" name="Mega Q - The Party Quiz Game (J) [h1C]" />
+	<hash crc32="6240f579" sha1="1822905930f5f3627e9f9109760205e617295fda" name="Megapanel (J) [c][!]" />
+	<hash crc32="55713f14" sha1="43cf2123f6f7477e9dbebff29d02b91467d2ad4c" name="Megapanel (J) [h1C]" />
+	<hash crc32="a0837741" sha1="9e611f2a70fb2505a661d0906b535c484db99d0b" name="MegaTraX (J) [c][!]" />
+	<hash crc32="6ff7556f" sha1="1b34cd889e91d2c43c69e6805e6e3872ad4f4a06" name="MegaTraX (J) [h1C]" />
+	<hash crc32="d222ba98" sha1="8c8aa34ac17742128f77dd2ab5c2cb35f0cb1331" name="MegaTraX (J) [h2C]" />
+	<hash crc32="69048a0f" sha1="8b5b354aeb681912abc9bee8d54f6c083959ac2f" name="Metal Fangs (J) [b1+C]" />
+	<hash crc32="02c7d3c7" sha1="58d17ecb41a60c800d0569729b248dd67e6a7cc5" name="Metal Fangs (J) [b1]" />
+	<hash crc32="a8df1c4c" sha1="489e81d2ac81810d571829e8466374f242e81621" name="Metal Fangs (J) [c][!]" />
+	<hash crc32="75dd0abe" sha1="f0c9f9db69fed28f2c69fea152bee8e35b7de5c6" name="Metal Fangs (J) [hIR]" />
+	<hash crc32="151a6b43" sha1="dd468057692ef2ba265fa2e705f12c2c4edff70c" name="Metal Fangs (J) [p1][b1]" />
+	<hash crc32="23180cf7" sha1="afe3e1c9267e2a7f0bec5e3e951307ebea7f0b04" name="Mickey Mania - Timeless Adventures of Mickey Mouse (J) [!]" />
+	<hash crc32="5aa0f3a0" sha1="0341c231c268b61add922c5c3bf5ab2f9dfbf88f" name="Mickey Mouse - Minnie's Magical Adventure 2 (J) [!]" />
+	<hash crc32="8f3f6e4d" sha1="b11db9fde0955c8aa0ae2d1a234d3295eda75d12" name="Midnight Resistance (J) [!]" />
+	<hash crc32="bd89fd09" sha1="dea227a41a5ba28f8c8ea75cba12965bbc5ff8da" name="Minato no Toreijia (J) [!]" />
+	<hash crc32="c70f69c6" sha1="ef880d671d8b19c8b3412a64243c206b6dd95a99" name="Minato no Toreijia (J) [b1]" />
+	<hash crc32="36a3aaa4" sha1="46ba5e8775a2223fe5056f54555d9caa7d04f4e1" name="Monster World IV (J) [!]" />
+	<hash crc32="425f6673" sha1="68cea880bea22048eb60eb74c30fa8d207b7d92a" name="Monster World IV (J) [b1]" />
+	<hash crc32="9d8d9228" sha1="066db2f70f52118fff2f4e5a76e9953e6176c95a" name="Monster World IV (J) [b2]" />
+	<hash crc32="41b72d2d" sha1="eb125fef303e246c663d0f23712a5e5168ee9e80" name="Monster World IV (J) [b3]" />
+	<hash crc32="46652ec0" sha1="b9701328f13ca2df14b1bf48ec11b41d378a1089" name="Monster World IV (J) [b4]" />
+	<hash crc32="cbde8d45" sha1="11dda44294b0817ac936ddf87aae44a36985e8a1" name="Monster World IV (J) [f1+1C]" />
+	<hash crc32="17911104" sha1="c42e6d28c420c1834b122c03bd006a105cfca6ca" name="Monster World IV (J) [f1+2C]" />
+	<hash crc32="78c59ed5" sha1="fd0010a0be5fe7dfdbae0eb6426d1abf68a4c086" name="Monster World IV (J) [f1]" />
+	<hash crc32="13c9f7df" sha1="9b494c054800da7206f2e7bb4ecc2e2e89fe4421" name="Monster World IV (J) [f1][T-Eng_DeJap+Demiforce]" />
+	<hash crc32="798b6003" sha1="77856977f491821bbc30239119f5bc8c76a17a85" name="Monster World IV (J) [f2]" />
+	<hash crc32="3b0918d7" sha1="0802dd5e90825d613df25986ac5925afe2f902f6" name="Monster World IV (J) [f2][T-Eng_DeJap+Demiforce]" />
+	<hash crc32="f51935fa" sha1="930e3482ec330b3985bfc4e5775021464941f98c" name="Monster World IV (J) [f3]" />
+	<hash crc32="59f72575" sha1="f57a7d39a65d99eaf16241de5e24827743707822" name="Monster World IV (J) [h1C]" />
+	<hash crc32="140f6da7" sha1="9ace4f764fa9f66aad11c52dd7e5f3a2a6cabb03" name="Monster World IV (J) [T+Eng1.02_DeJap+Demiforce]" />
+	<hash crc32="9c3547d2" sha1="4c320a393f5ab943bd3919f1181e140a535b714e" name="Monster World IV (J) [T+Fre]" />
+	<hash crc32="32fb4c7f" sha1="35910c20ff610072da75f56364e68e6e6e8e3e1e" name="Monster World IV (J) [T-Eng_DeJap+Demiforce]" />
+	<hash crc32="8fde18ab" sha1="71d363186b9ee023fd2ae1fb9f518c59bf7b8bee" name="Musha Aleste - Full Metal Fighter Ellinor (J) [!]" />
+	<hash crc32="d2e1ae46" sha1="f130ff92e5c847bb96ec0e3c0c04ec59874bebc5" name="Musha Aleste - Full Metal Fighter Ellinor (J) [h1C]" />
+	<hash crc32="edbcb00c" sha1="6e227fec00423ba433b4f0f5447e258dd9fe3f9a" name="Musha Aleste - Full Metal Fighter Ellinor (J) [p1][!]" />
+	<hash crc32="6cb345ae" sha1="3b80df5db39f85c6960dd9e3ee257e287d645549" name="Musha Aleste - Full Metal Fighter Ellinor (J) [p2][!]" />
+	<hash crc32="2a97e6af" sha1="ce68da5d70dddc0291b09b1e5790739ef6ac0748" name="Mutant League Football (J) [!]" />
+	<hash crc32="a6c6305a" sha1="2a88b2e1ecf115fa6246397d829448b755a5385e" name="NBA Jam (J) [!]" />
+	<hash crc32="4565ce1f" sha1="77a048094269fbf5cf9f0ad02ea781ba3bcbecf3" name="NBA Playoff - Bulls vs Blazers (J) [!]" />
+	<hash crc32="eae8c000" sha1="66a25cf2d7ddf17dde137e29381202f48456d173" name="NBA Playoff - Bulls vs Blazers (J) [f1+C]" />
+	<hash crc32="942bfec4" sha1="8593b9100da9bcb196cb9bec5252cbb20db2e803" name="NBA Playoff - Bulls vs Blazers (J) [f1]" />
+	<hash crc32="eea19bce" sha1="99c91fe3a5401e84e7b3fd2218dcb3aeaf10db74" name="NBA Pro Basketball '94 (J) [!]" />
+	<hash crc32="4416ce39" sha1="003b01282aff14ccea9390551aba5ac4a9e53825" name="NBA Pro Basketball - Bulls vs Lakers (J) [!]" />
+	<hash crc32="8c602374" sha1="338a0df858bf0bc448cecb2204c8572a211d6a7e" name="NBA Pro Basketball - Bulls vs Lakers (J) [b1]" />
+	<hash crc32="d2a9bf92" sha1="d023f9fc5d7c7f2873a5bf79f6035111b78cdd5d" name="New 3D Golf Simulation Harukanaru Augusta (J) [!]" />
+	<hash crc32="1c77ad21" sha1="07b75c12667c6c5620aa9143b4c5f35b76b15418" name="New Zealand Story, The (J) [!]" />
+	<hash crc32="b5b81b97" sha1="0898f3ee1fa11ca29820aeb2907f47fdea053a5e" name="New Zealand Story, The (J) [b1]" />
+	<hash crc32="c4568738" sha1="d262e07df0237361d0124fb14117d58e83261a9e" name="New Zealand Story, The (J) [h1C]" />
+	<hash crc32="a1a242d6" sha1="55621dcebb0fb497eb02677e66bdd196e6533a12" name="New Zealand Story, The (J) [h2C]" />
+	<hash crc32="e490dc4a" sha1="a530a93d124ccecfbf54f0534b6d3269026e5988" name="NFL Football '94 Starring Joe Montana (J) [!]" />
+	<hash crc32="c3655a59" sha1="d29f7e70feae3b4f1b423026b7a124514ee48dcf" name="Nikkan Sports Pro Yakyuu Van (J) [!]" />
+	<hash crc32="a8d828a0" sha1="9cc3419ca7ecaf0d106aa896ffc0266c7145fff7" name="Ninja Burai Densetsu (J) [!]" />
+	<hash crc32="4325bfe2" sha1="d0316b4326d1216d6adfd51d74c899db9722e007" name="Ninja Burai Densetsu (J) [f1+1C]" />
+	<hash crc32="413bf484" sha1="c7e03155a8f2276d4a300985a5a68e7f6630b2d2" name="Ninja Burai Densetsu (J) [f1+2C]" />
+	<hash crc32="54e059c8" sha1="76f9d69d207d72735b8c48a18a3399e8e17ffbfd" name="Ninja Burai Densetsu (J) [f1]" />
+	<hash crc32="30bf8637" sha1="1ed50cae48405ec8ad9257df3d445521e60636d8" name="Nobunaga no Yabou - Bushou Fuuunsoku (J) [!]" />
+	<hash crc32="68afa924" sha1="8f37a88a030ffe683124e56fb34e138ed8256601" name="Nobunaga no Yabou - Bushou Fuuunsoku (J) [f1]" />
+	<hash crc32="4a61e6cf" sha1="0efb3bcb959fc415ec6eaa01a3b30e7d406fc3d9" name="Nobunaga no Yabou - Bushou Fuuunsoku (J) [h1C]" />
+	<hash crc32="1381b313" sha1="a1f64afbf3bcdc85b61bce96454105128ca6746a" name="Nobunaga no Yabou - Zenkokuban (J) [!]" />
+	<hash crc32="96c01fc6" sha1="9246a29b25e276dc1f7edfae87229549cf87d92e" name="Nobunaga no Yabou Haouden - Lord of Darkness (J) [!]" />
+	<hash crc32="0a0993cf" sha1="1301b837831890aaf7ed263880e7ef3f339e1f06" name="Nobunaga no Yabou Haouden - Lord of Darkness (J) [T+Chi]" />
+	<hash crc32="e9c925b8" sha1="ce640bb979fcb285729b58de4da421c5493ef5e2" name="Olympic Gold - Barcelona 92 (J) (M8) [c][!]" />
+	<hash crc32="654a4684" sha1="aa2fc21eaa833640eaf882d66ca6ceb4f8adabcf" name="Olympic Winter Games - Lillehammer 94 (J) [c][!]" />
+	<hash crc32="25b7a822" sha1="5594f209075c0844b4d554d8bdf22a106677e335" name="Osomatsu-kun - Hachamecha Gekijou (J) [b1]" />
+	<hash crc32="2453350c" sha1="bf82cb1c4d2144bd0e0d45629f346988cc4cc5b2" name="Osomatsu-kun - Hachamecha Gekijou (J) [c][!]" />
+	<hash crc32="fac75a18" sha1="ca24ed0bb46717b2079420ee7bf6a9aa682b2e0f" name="Osomatsu-kun - Hachamecha Gekijou (J) [h1C]" />
+	<hash crc32="b2557df3" sha1="a50c3162ec16147ef5f16f5a36217837e05110f6" name="Osomatsu-kun - Hachamecha Gekijou (J) [o1]" />
+	<hash crc32="6d9ac9d4" sha1="4c59c50e220380993df672c2857fb64278579615" name="Osomatsu-kun - Hachamecha Gekijou (J) [o1][h1C]" />
+	<hash crc32="96428747" sha1="7415310eebe3f7d8d94c2bf448fec33853f56780" name="Osomatsu-kun - Hachamecha Gekijou (J) [o2]" />
+	<hash crc32="ee7d9f4a" sha1="a94c96ffb53080b2c098be86e715f1dc727be07d" name="OutRun (J) [!]" />
+	<hash crc32="2846965d" sha1="3e66106e796f5a6f293b54b05570f34b5551a9f9" name="OutRun (J) [b1]" />
+	<hash crc32="966bb695" sha1="f66acbf6a38b418492520ff0f30321ee65a7ad84" name="OutRun (J) [h1C]" />
+	<hash crc32="2204ef44" sha1="3388b938a82615e10e1b3f8ace9ead293a2d2943" name="OutRun (J) [p1]" />
+	<hash crc32="0eac7440" sha1="3b26b50f4194408cccd3fb9484ac83b97e94e67f" name="OutRun 2019 (J) [!]" />
+	<hash crc32="e164a09f" sha1="4225162ed3cf51e16bfe800ae74a9b026f5dee56" name="OutRunners (J) [!]" />
+	<hash crc32="8a29a554" sha1="298dfc4f75636e256ec51f4b70172b8d71b35bc8" name="OutRunners (J) [f1+1C]" />
+	<hash crc32="435b81f5" sha1="d37914cfe63833bb51e1363ad1f912138b4039b3" name="OutRunners (J) [f1+2C]" />
+	<hash crc32="25305e63" sha1="0954d260271d88eee9efa808babdc2975e937bdb" name="OutRunners (J) [f1]" />
+	<hash crc32="e7830e3e" sha1="b46ad98a61c64b922d31973e80571759e07c10c5" name="OutRunners (J) [f2]" />
+	<hash crc32="17bcd15d" sha1="d66a67d00be359f7c3642b18722a92e5ac656424" name="OutRunners (J) [p1][!]" />
+	<hash crc32="9d137e7f" sha1="84c3395c6dc123737d9da94e0392f3f30be59182" name="Pachinko Canyon (J) [!]" />
+	<hash crc32="3d8147e6" sha1="a768f64f394d4185f99da300517521091b6f0de5" name="Paddle Fighter (SN) (J) [!]" />
+	<hash crc32="9e57d92e" sha1="63d9b71cfe0b7aaa6913ae06c1f2547d6d2aae5c" name="Panorama Cotton (J) [c][!]" />
+	<hash crc32="8d20f7fc" sha1="f8a8dccb9b7e687594e5f055171f47b43258490f" name="Panorama Cotton (J) [h1C]" />
+	<hash crc32="e14250ae" sha1="3384e238edaf8b2f6950cd1660864599e476d29f" name="Paperboy (J) [!]" />
+	<hash crc32="21a0e749" sha1="5595422530e6891042a4a005d11b79af7f09fe9b" name="Patlabor (J) [c][!]" />
+	<hash crc32="5559a1c3" sha1="c0da230e0c4cbf787619f71134768dec8cfec972" name="Patlabor (J) [h1C]" />
+	<hash crc32="96ed2e5d" sha1="dee8430f4f15b4d04e1e3c0cc9d7d7f55ca1ad7b" name="Pebble Beach no Hatou (J) [!]" />
+	<hash crc32="d1e2324b" sha1="c88c30d9e1fb6fb3a8aadde047158a3683bb6b1a" name="Pengo (J) [!]" />
+	<hash crc32="b190b368" sha1="f598cc3adbd06b667a8c0e5536f619bfbdc515c5" name="Pengo (J) [h1C]" />
+	<hash crc32="c05b7a4a" sha1="a5896f2f019530929194a6d80828d18b859b9174" name="PGA Tour Golf II (J) [!]" />
+	<hash crc32="cf6733c9" sha1="1e7783db64feaa40ef473f68059007424d0ab715" name="PGA Tour Golf II (J) [o1]" />
+	<hash crc32="f0bfad42" sha1="9d330d5e395b7caae11fae92f71d259b8391904b" name="Phantasy Star - The End of the Millenium (J) [!]" />
+	<hash crc32="ca4b1eed" sha1="79bace31e5da94f6deb052145b4f0b8229cb98a8" name="Phantasy Star - The End of the Millenium (J) [h1C]" />
+	<hash crc32="2db413ed" sha1="7d1011c002e23bd9f77cb6dc6bf19eb064c8208a" name="Phantasy Star - The End of the Millenium (J) [h2C]" />
+	<hash crc32="7c2cb8ed" sha1="eb46089db18bfb365a39fdf8ec3fc44a094d8c39" name="Phantasy Star - The End of the Millenium (J) [h3C]" />
+	<hash crc32="78ba95d6" sha1="14b97b071d4841bf78f7e17dc986c5e4dea27560" name="Phantasy Star - The End of the Millenium (J) [T+Chi1.1]" />
+	<hash crc32="c74edff8" sha1="cc25460790bda3eee1c25eb41679868f5f2e2a25" name="Phantasy Star - The End of the Millenium (J) [T-Chi]" />
+	<hash crc32="4b8cfeb2" sha1="5080cf8f80180986c5801773c41fb8cd22c48207" name="Phantasy Star - The End of the Millenium (J) [T-Chi][a1]" />
+	<hash crc32="6c6ba10f" sha1="1752e115c8c2042f7d48bcfc6b7af1398be28a74" name="Phantasy Star - The End of the Millenium (J) [T-Chi][a2]" />
+	<hash crc32="fd24aef5" sha1="e11fe4d7340eede799c362fc85670fb4c37fe972" name="Phantasy Star - The End of the Millenium (J) [T-Chi][a3]" />
+	<hash crc32="228f37ef" sha1="a21a8e7c92ef409859ee9561d942c1f871806d2a" name="Phantasy Star - The End of the Millenium (J) [T-Chi][a4]" />
+	<hash crc32="bec8eb5a" sha1="fc186c681e110723b4be5590f242c73d5004c8a7" name="Phantasy Star II (J) [!]" />
+	<hash crc32="fd550878" sha1="e8645d470939324245405d7b3fe3a8e62692dbf3" name="Phantasy Star II (J) [b1]" />
+	<hash crc32="d1c9f70a" sha1="2a146833088b53d7ea173c9f7039698d6047ae9b" name="Phantasy Star II (J) [h1C]" />
+	<hash crc32="8fd1ce9c" sha1="285c08bbb00e6ef05e1d100e03da3e10308ff381" name="Phantasy Star II (J) [o1][b1]" />
+	<hash crc32="a394c88a" sha1="799cf258f971f6ee08abf4a8c6b34f053811bf90" name="Phantasy Star II (J) [o1][h1C]" />
+	<hash crc32="7434bc51" sha1="583352fd135ac52aaca6694c34f1a841ef4d32ad" name="Phantasy Star II (J) [o1][h2C]" />
+	<hash crc32="04d73028" sha1="fe90b90e6f15a106c17af7b8e4a372eaf1e98faf" name="Phantasy Star II (J) [o1][h3C]" />
+	<hash crc32="fafa5b6f" sha1="cf93d2d5eafc72b9de7aaa6d35b81a813862d9b7" name="Phantasy Star II - Anne's Adventure (SN) (J) [!]" />
+	<hash crc32="c13f5d1b" sha1="b69a7ae9130c2b886907a4734d058abf2c7ffcf8" name="Phantasy Star II - Anne's Adventure (SN) (J) [h1C]" />
+	<hash crc32="1a076f83" sha1="abc5a7ac58aefc055ed8ca5fd0f7c802ab3e1ad5" name="Phantasy Star II - Huey's Adventure (SN) (J) [!]" />
+	<hash crc32="21c269f7" sha1="475586ac44884c0a5d86bfb2ec1168614294cc58" name="Phantasy Star II - Huey's Adventure (SN) (J) [h1C]" />
+	<hash crc32="c334f308" sha1="f2bd41741add13e8551250cf6afeb746e8cea316" name="Phantasy Star II - Kinds's Adventure (SN) (J) [!]" />
+	<hash crc32="349a4b78" sha1="ccd9ee77b9c06d8b03bd1334c01c668aebe60f07" name="Phantasy Star II - Kinds's Adventure (SN) (J) [h1C]" />
+	<hash crc32="0f5f4d0c" sha1="5e27431e36f2c466a0b08ad522387d12b4dd2e87" name="Phantasy Star II - Kinds's Adventure (SN) (J) [h2C]" />
+	<hash crc32="1f83beb2" sha1="114f37a287b51664e52ba483f07911a660f9e7df" name="Phantasy Star II - Shilka's Adventure (SN) (J) [!]" />
+	<hash crc32="2446b8c6" sha1="72c06455e2a2733773c0c273a77084392ae5d4b4" name="Phantasy Star II - Shilka's Adventure (SN) (J) [h1C]" />
+	<hash crc32="6c48c06f" sha1="68b0f8e73dea5dca1b6ac8c0e12bc1d9761edf32" name="Phantasy Star III - Toki no Keishousha (J) [!]" />
+	<hash crc32="7d81eccb" sha1="5a6b04bcd11b8e1c3dbd4a66d6dc0049fe0a5e77" name="Phantasy Star III - Toki no Keishousha (J) [o1]" />
+	<hash crc32="443a7053" sha1="f8fb332557c8f268f8a5097b2f8208502fc954d8" name="Phelios (J) [b1]" />
+	<hash crc32="94596174" sha1="9834c9963debebb6ee80ffac4191ff260b85e511" name="Phelios (J) [c][!]" />
+	<hash crc32="be7a321d" sha1="3fc9886fb42613230477941e12d7a9eb33897cc5" name="Phelios (J) [h1C]" />
+	<hash crc32="9bb5c855" sha1="a3560c51f9fbe4b9da2a03f2d3db41cd42c35795" name="Phelios (J) [p1][!]" />
+	<hash crc32="3930226a" sha1="a1b3d5a2e811458ef1a3000245b8ff9d60961f20" name="Phelios (J) [p2][!]" />
+	<hash crc32="00eedb3a" sha1="26237b333db4a4c6770297fa5e655ea95840d5d9" name="Pioneer LaserActive BIOS V1.02 (J)" />
+	<hash crc32="97c26818" sha1="9abd1806c6e921a6df0f71361aee8024d5c3f049" name="Populous (J) [!]" />
+	<hash crc32="b41b77cf" sha1="d371e339c5d85b69c34007dc514c1adb524dac2a" name="Power Athlete (J) [!]" />
+	<hash crc32="abe9c415" sha1="db6b2046e8b6373f141e8c5db68450f2db377dd8" name="Power Instinct (J) [!]" />
+	<hash crc32="5acaf620" sha1="f36fab54d19c2f6d348bef3b317d3ca961465eb5" name="Power Instinct (J) [b1]" />
+	<hash crc32="308227dd" sha1="6bd85fa77e724c22f08ce151eb1da2edf4750818" name="Power Instinct (J) [h1C]" />
+	<hash crc32="65819f5e" sha1="839c2fdf096e59026fcc6211dbb229ed7366d1fe" name="Power Instinct (J) [h2C]" />
+	<hash crc32="5cc42114" sha1="a2ef273f34269d59f7fa7cd4c598e461b15f3099" name="Power Instinct (J) [h3C]" />
+	<hash crc32="553289b3" sha1="f0a48f25d87f7a6d17ff76f5e29ea7be2d430ce4" name="Power Monger (J) [!]" />
+	<hash crc32="9c1bf7c2" sha1="ec1802b7c3817c7500ed40174d3b8ac98c84bdfe" name="Power Monger (J) [o1]" />
+	<hash crc32="cf27c857" sha1="068c24fea694a08aa5476505fb76770631d18e1a" name="Pretty Girl Mahjongg (Ch) [h1C]" />
+	<hash crc32="fb7f2dc0" sha1="92e82c4d0d812df469083af6200b3c04ba45af7c" name="Pretty Girl Mahjongg (Ch) [h2C]" />
+	<hash crc32="69f24500" sha1="0b4f63b8de2dcc4359a26c3ff21f910f206b6110" name="Pretty Girl Mahjongg (Ch)" />
+	<hash crc32="9dcdc894" sha1="40166e9c2b40f35ba7d7cf5d07865c824c323757" name="Pro Hockey (J) [!]" />
+	<hash crc32="8ba7e6c5" sha1="274d98e0c04caed378f1dd489dc3741b9ad13a88" name="Psy-O-Blade Moving Adventure (J) [!]" />
+	<hash crc32="2c96d7de" sha1="8d8dddafcdb6eb0ccbb47a6cfb45a7048c3d6ec2" name="Psy-O-Blade Moving Adventure (J) [h1C]" />
+	<hash crc32="f74486bf" sha1="5616aaf98affc5b0cc757fc62dd438a0a0119ace" name="Psy-O-Blade Moving Adventure (J) [o1]" />
+	<hash crc32="00e5aa25" sha1="ecf8ec4fbd4a0f57e1d0e980c00c5b38e89f9595" name="Pulseman (J) [b1]" />
+	<hash crc32="138a104e" sha1="5fd76a5f80e4684b5f9d445ddb893679985684e6" name="Pulseman (J) [c][!]" />
+	<hash crc32="d0783963" sha1="578904eee56b4334b0bf300dbe80cdad98bddc28" name="Pulseman (J) [f1]" />
+	<hash crc32="bf2cb6b2" sha1="31b7d751141935c2cfccf44bf3028cde15570bfd" name="Pulseman (J) [h1C]" />
+	<hash crc32="3833433a" sha1="29367e4b9ae0fee2d689fdec55533880ebe472f0" name="Pulseman (J) [p1][!]" />
+	<hash crc32="20f168a6" sha1="345af8995cf9d88f7c4d8cfd81c8ccd45e6478fc" name="Putter Golf (SN) (J) [!]" />
+	<hash crc32="7f26614e" sha1="02656b5707cf9452d4cf48378ffd3a95dc84e9c5" name="Puyo Puyo (J) [!]" />
+	<hash crc32="9f9a5796" sha1="ab0c261da0c149668e1e27314efd5761763a6de7" name="Puyo Puyo (J) [b1]" />
+	<hash crc32="c948a65c" sha1="3a3ccbdc7015d99d29e67caf1096a79e1aa5e9f5" name="Puyo Puyo (J) [b2]" />
+	<hash crc32="bfc4e585" sha1="1b8bd42af7190a461ed3659e9d28f7dcad400ccd" name="Puyo Puyo (J) [b3]" />
+	<hash crc32="fe310ce5" sha1="68b65207da6161600ed27407c8e05643311ef9d8" name="Puyo Puyo (J) [h1C]" />
+	<hash crc32="51ad7797" sha1="b9fd6e14f446a16927b54de0234bcd981a86488f" name="Puyo Puyo Tsu (J) (REV00) [!]" />
+	<hash crc32="25b7b2aa" sha1="d9c0edaadf66f215565a9dd4178313581fec811c" name="Puyo Puyo Tsu (J) (REV01) [!]" />
+	<hash crc32="306d839e" sha1="e32382b419d63186dc4f5521045cae2145cb7975" name="Pyramid Magic (SN) (J) [!]" />
+	<hash crc32="c9ddac72" sha1="b74feb0b7f5f6eaac72f0895b51a8f8421dcb768" name="Pyramid Magic II (SN) (J) [!]" />
+	<hash crc32="8329820a" sha1="c386a1fc6cf5d0d6f0d2eba0b2ddda649143da67" name="Pyramid Magic III (SN) (J) [!]" />
+	<hash crc32="153a3afa" sha1="010a336bedc1022846f3498693cd6b5218a05b4c" name="Pyramid Magic Special (SN) (J) [!]" />
+	<hash crc32="6a3f5ae2" sha1="e0df9f3cb64beb3ea921653eccdd45aca6abc0aa" name="Ragnacenty (J) [!]" />
+	<hash crc32="ed8ceda7" sha1="9a96f5f7d389f2cb31a0fbf75a9160ad68c70fe5" name="Ragnacenty (J) [f1+C]" />
+	<hash crc32="11297e9b" sha1="9bd74c69fd142681bcfb1db02f0977302ee648d8" name="Ragnacenty (J) [f1]" />
+	<hash crc32="f52816b8" sha1="1c2bc8e6e5d811f660800edf6c4481af4d775da5" name="Ragnacenty (J) [h1C]" />
+	<hash crc32="c74dcb35" sha1="e35fcc88e37d1691cd2572967e1ae193fcd303eb" name="Rainbow Islands - The Story of Bubble Bobble 2 (J) [c][!]" />
+	<hash crc32="2028b2ba" sha1="14b7bc6d3a9ee9e3a73761a75e514856a0a159e4" name="Rainbow Islands - The Story of Bubble Bobble 2 (J) [p1+1C]" />
+	<hash crc32="0780a8ae" sha1="ee47445f97bc427678ae3ba8e6dfb742d37c7de2" name="Rainbow Islands - The Story of Bubble Bobble 2 (J) [p1+2C]" />
+	<hash crc32="63debf73" sha1="e9247be271bb0523e82045cc2a64d51fb7d7523b" name="Rainbow Islands - The Story of Bubble Bobble 2 (J) [p1+3C]" />
+	<hash crc32="3750d53b" sha1="4ee91f6cd8a76619fa5ef813d24875a2d6ab5e51" name="Rainbow Islands - The Story of Bubble Bobble 2 (J) [p1]" />
+	<hash crc32="d8210080" sha1="6e409ae331e1255beb19ac00544ce26909b95e27" name="Rainbow Islands - The Story of Bubble Bobble 2 (J) [p2]" />
+	<hash crc32="a9a0083d" sha1="7c431e26226b99d09d61c4dc64131b2d81ae870e" name="Ransei no Hasha (J) [!]" />
+	<hash crc32="ebacfb5a" sha1="e7bd8367ae962af48a2e937bf6ced253f428b03d" name="Rastan Saga II (J) [!]" />
+	<hash crc32="23765e3f" sha1="ea582bbc637ed1f3eaf89b4b36f730b847c5746a" name="Rastan Saga II (J) [b1]" />
+	<hash crc32="2e515f82" sha1="a07e4d56c9842e1177df9016fb9478060dc4c1c6" name="Rent A Hero (J) [!]" />
+	<hash crc32="08cf5403" sha1="d0f5c526edb15a9d09bb4c99eb1c536fda5d5780" name="Rent A Hero (J) [h1C]" />
+	<hash crc32="3b8af2ce" sha1="886e8f62cd2c80ba5388cb8929d1680e381220a9" name="Rent A Hero (J) [h2C]" />
+	<hash crc32="5c16d7b6" sha1="40b6d78647a49e98eb173ec3e8d0fac0fb938913" name="Rent A Hero (J) [T+Eng]" />
+	<hash crc32="d64109fa" sha1="e6e14140458bcb5ec747838a5d1525c00d411c4f" name="Rent A Hero (J) [T+Eng][h1C]" />
+	<hash crc32="ce464f0e" sha1="a4dd8dc0b673afe7372ba9c05c8d6090302dcf4e" name="Ristar - The Shooting Star (J) [!]" />
+	<hash crc32="a0015440" sha1="7127e76ea33512d14cd78e6cac72ff8578454e1e" name="Road Blasters (J) [!]" />
+	<hash crc32="9a5723b6" sha1="d89d7707cd4f30eef1fd2fd7e322d760ba8d6786" name="Road Rash II (J) [!]" />
+	<hash crc32="d1c8c1c5" sha1="76d33c8549cd86cb1a4d17ac6eb8dd47c2f07d03" name="Rocket Knight Adventures (J) [!]" />
+	<hash crc32="615bbd2e" sha1="91aa41148bd6d8c9d5036646b5a2d6b924ff9091" name="Rocket Knight Adventures (J) [b1]" />
+	<hash crc32="d18acc45" sha1="27306b2ac3b1ebbbac9939378d8e8ade57223439" name="Rocket Knight Adventures (J) [b2]" />
+	<hash crc32="34c3f3e6" sha1="12e47ca9a1ecae911ab9c3e4cd79b352931db818" name="Rocket Knight Adventures (J) [b3]" />
+	<hash crc32="4e369d1a" sha1="5c569fbb2fd99b872706ba5891ea75ac06f269bf" name="Rocket Knight Adventures (J) [f1]" />
+	<hash crc32="fe0814c8" sha1="02ddd1cae42ffc422f5c65a59aaba17aace133ab" name="Rocket Knight Adventures (J) [f2]" />
+	<hash crc32="9d243f95" sha1="a10e1f2e2535b88766f2994cbc2aeb4c986f586f" name="Rocket Knight Adventures (J) [f3]" />
+	<hash crc32="85c956ef" sha1="a435ac53589a29dbb655662c942daab425d3f6bd" name="Rockman Megaworld (J) [!]" />
+	<hash crc32="4d87235e" sha1="4dfcf5c07106f6db4d8b7e73a053bb46a21686c3" name="Rockman Megaworld (J) [a1][!]" />
+	<hash crc32="c28247f5" sha1="bc802c54babaf4fb7d0d773e1e971f63eda391f4" name="Rockman Megaworld (J) [b1]" />
+	<hash crc32="2290354c" sha1="1c6fb73fb07b66d4e7307ca0c9cce970b89dfb3b" name="Rockman Megaworld (J) [f1]" />
+	<hash crc32="e24d9381" sha1="58115af6876dd770304e1315ad8c6fa109646e16" name="Rockman Megaworld (J) [f2]" />
+	<hash crc32="1479e9d6" sha1="d41dcb4bc3cbb9a21438b70b8859ef4b9d956764" name="Rockman Megaworld (J) [h1C]" />
+	<hash crc32="8fb95b71" sha1="5fd037714e7c552398314d7f91c64523b2bf5232" name="Rockman Megaworld (J) [p1][!]" />
+	<hash crc32="965b2628" sha1="6e15ce792fbe01b918b197deea320f953aa989cc" name="Rolling Thunder 2 (J) [c][!]" />
+	<hash crc32="5646f919" sha1="0cf2bcfa9690c83d7f08be485cdba2f95fab5d04" name="Rolling Thunder 2 (J) [p1+1C]" />
+	<hash crc32="c5c2e0d5" sha1="9db59df634dbc2330892b38b65fd9370fce81ef1" name="Rolling Thunder 2 (J) [p1+2C]" />
+	<hash crc32="39b6eda9" sha1="9432a77b3cd5686b5a341715ba9e325ef7fcefe1" name="Rolling Thunder 2 (J) [p1]" />
+	<hash crc32="47747729" sha1="116647cdcfe7df7f402a7dbe4355de9faeb960a8" name="Rolling Thunder 2 (J) [p1][b1]" />
+	<hash crc32="cd7e53d0" sha1="1a3333983f40dd242ad86187e50d1abed68d5ae9" name="Romance of the Three Kingdoms Part 5 (Ch)" />
+	<hash crc32="0e0107f1" sha1="914f684f085927257020ffaa1ca536ec057e1603" name="Royal Blood (J) [!]" />
+	<hash crc32="a934d1cf" sha1="504c78cde9287a40b5fb25761def459ee8998bc1" name="Royal Blood (J) [b1]" />
+	<hash crc32="0894d8fb" sha1="25a0322db3b82e3da6f1dab550b3e52f21be6b58" name="Runark (J) [!]" />
+	<hash crc32="bf9d357b" sha1="95f9da9e08c6bc654ec031be99a9ffe5642c261c" name="Runark (J) [b1]" />
+	<hash crc32="2a942a38" sha1="ed41dc91484f2cc0a21d8863bfa75a637ca32798" name="Runark (J) [p1][!]" />
+	<hash crc32="054cf5f6" sha1="c4adc3fc6e1130f64440c7dc2673b239f1523626" name="Ryuuko no Ken (J) [!]" />
+	<hash crc32="b659e75f" sha1="37ff94771febd7bfdd1f4ba98866ff12bf30b4d1" name="Ryuuko no Ken (J) [b1]" />
+	<hash crc32="18d81842" sha1="78dda479a43e8b4652f15242056372e8d1dfe4df" name="Ryuuko no Ken (J) [b2]" />
+	<hash crc32="87c1374d" sha1="f84d4d62b675c9a4cda71525830099ffecc6248b" name="Ryuuko no Ken (J) [b3]" />
+	<hash crc32="40ee5e11" sha1="41f96d86b314d3886497e129cff9d9bc62f5124b" name="Ryuuko no Ken (J) [f1+1C]" />
+	<hash crc32="532ad890" sha1="4c5ae593b05017fc939bba508159cbc521060cd9" name="Ryuuko no Ken (J) [f1+2C]" />
+	<hash crc32="227716db" sha1="2721ff1f173782b8ab94732cd8b89d9a6a5b198f" name="Ryuuko no Ken (J) [f1+3C]" />
+	<hash crc32="2fbad1c0" sha1="f00d208cedc4564b2c80dd6bb8367e358ed079ba" name="Ryuuko no Ken (J) [f1+4C]" />
+	<hash crc32="0ae5dd8b" sha1="e26ac75dcf9702b4d10ecf7b03daef14053cdb42" name="Ryuuko no Ken (J) [f1]" />
+	<hash crc32="3960a00f" sha1="e1e2bbbaf3e64c62fa695d1d1ee3496826951d13" name="Saint Sword (J) [c][!]" />
+	<hash crc32="2c1fee8b" sha1="a33d3438973da6a8af8fbfcbde1af032857e06c9" name="Saint Sword (J) [p1+C]" />
+	<hash crc32="9429023c" sha1="456408a964cfbcc48becf43ee4c8335a5e49c1e4" name="Saint Sword (J) [p1][!]" />
+	<hash crc32="77bbd841" sha1="b0d2552c5aae75dbe2d63600c0dbd64868c2f2c5" name="Same! Same! Same! (J) [!]" />
+	<hash crc32="ca2f94b4" sha1="f3444a0821304aa3f81a128807e631b3dc94072c" name="Same! Same! Same! (J) [f1]" />
+	<hash crc32="da01c911" sha1="c843999a838f161502ccb7e9d1c88033a91f9616" name="Same! Same! Same! (J) [h1C]" />
+	<hash crc32="0ea2ae36" sha1="54a54996035b220ce72aa7e725f99860e3cd66a0" name="Samurai Spirits (J) [!]" />
+	<hash crc32="578c78c4" sha1="34a95bed5bc24efac1a5d2cf4897e3356b9b5f70" name="Samurai Spirits (J) [f1+C]" />
+	<hash crc32="62a9290a" sha1="5329c6fed6b4530ed626cf071eba00c7740d1b14" name="Samurai Spirits (J) [f1]" />
+	<hash crc32="437ba326" sha1="d9a912caacaa476a890564f62b6ce9cc8f60496e" name="Sangokushi II (J) [!]" />
+	<hash crc32="bf7cebe7" sha1="939f0de873b13e26370ca3e05e650488d9be169e" name="Sangokushi II (J) [T+Chi]" />
+	<hash crc32="a8de6aea" sha1="c85d03a6bcfeccc66ea3fa3cbda006c83576815f" name="Sangokushi III (J) [!]" />
+	<hash crc32="6dc6950c" sha1="d2a2f5e757353f9336e7e06cab790ec51e3cde82" name="Sangokushi III (J) [b1+1C]" />
+	<hash crc32="09b04d3b" sha1="02711a037ffec02f8e2962b8c311e8e992d36e70" name="Sangokushi III (J) [b1+2C]" />
+	<hash crc32="8bfaec53" sha1="58240b631020c842f8a83cb48a566ca87a34afef" name="Sangokushi III (J) [b1]" />
+	<hash crc32="6a0afe74" sha1="45e004df7c26bf15d2c9e3616e2422791dd1f759" name="Sangokushi III (J) [b2]" />
+	<hash crc32="6758f68e" sha1="82028a783647eceb0e7513632412730c226946a1" name="Sangokushi III (J) [b3]" />
+	<hash crc32="bfd47800" sha1="4721f69770976ee50461ae45ad22a878179e0b97" name="Sangokushi III (J) [T+Chi]" />
+	<hash crc32="f4291ca3" sha1="71b58b11d78669553e516d9a04c8b78b97302884" name="Sangokushi III (J) [T-Chi]" />
+	<hash crc32="8c6146fe" sha1="4417c355e3f386eda4d65984b2cba9fab8e05b98" name="Sangokushi Retsuden (Ch) [h1C]" />
+	<hash crc32="f555b7a7" sha1="b44b2aef0b10684b73bc8932d41e9a19b9dce872" name="Sangokushi Retsuden (Ch) [h2C]" />
+	<hash crc32="3b5cc398" sha1="7aaa0cc1dafaa14e6d62d6c1dbd462e69617bf7e" name="Sangokushi Retsuden (Ch)" />
+	<hash crc32="0f56785a" sha1="9b79f91060e68b9f6f48c8a5f38bc9873d03c4a9" name="Sangokushi Retsuden - Ransei no Eiyuu Tachi (J) [!]" />
+	<hash crc32="0cd09d31" sha1="6e4bb7fb1a0f642d72cf58376bf2637e0ac6ef50" name="Shadow of the Beast (J) [!]" />
+	<hash crc32="3b290dec" sha1="7797c27609f8b539e5056a287c221a42162e9a6e" name="Shadow of the Beast (J) [b1]" />
+	<hash crc32="d32199f7" sha1="e28bb51227abcc71aaf18d445d3651054247c662" name="Shadowrun (J) [!]" />
+	<hash crc32="5f3f0646" sha1="c8394c4066b86e2bfb01dc905c38f3547c5cbcdf" name="Shadowrun (J) [b1]" />
+	<hash crc32="5ea0c97d" sha1="34add3f084636d671b48e77a771329f23f8083cd" name="Shi Kin Joh (J) [!]" />
+	<hash crc32="fe06687a" sha1="f29f835e7c595be9320262e7e4941e63d36df8cf" name="Shi Kin Joh (J) [h1C]" />
+	<hash crc32="732590eb" sha1="118ad09a52877ee249b511113a27a447720445e7" name="Shi Kin Joh (J) [h2C]" />
+	<hash crc32="77b5b10b" sha1="40265aae1b43f004434194038d32ca6b4841707d" name="Shin Changsegi - Ragnacenty (K) [!]" />
+	<hash crc32="496af51c" sha1="c09ff5bcee1a29a48c65be4ad584708b85ca549b" name="Shining and the Darkness (J) [!]" />
+	<hash crc32="82bdbcae" sha1="d69e3d0b55eaf77cbe658005a90f3d8bd4e5f985" name="Shining and the Darkness (J) [f1]" />
+	<hash crc32="2c3b3c87" sha1="532905d0494f4b03ab18853ba7a04aec6088700c" name="Shining and the Darkness (J) [h1C]" />
+	<hash crc32="9178f977" sha1="50f71ecd055578d6c53d0ed83e91c71a40c74c68" name="Shining and the Darkness (J) [h2C]" />
+	<hash crc32="d27fa705" sha1="419416f5ee8bdc9406e595974ddbd4080062091f" name="Shining and the Darkness (J) [h3C]" />
+	<hash crc32="c7a40a49" sha1="0e383dc6c0c97bff92814ef30e620435d4e1364d" name="Shining and the Darkness (J) [h4C]" />
+	<hash crc32="9378fbcd" sha1="ef8afbdc9af931d9da34d72efc8a76f0d5f4379d" name="Shining Force - The Legacy of Great Intention (J) [!]" />
+	<hash crc32="3662a371" sha1="30d845f303844de3dd2b279c020fc4d9ae32ee78" name="Shining Force - The Legacy of Great Intention (J) [o1]" />
+	<hash crc32="0288f3e1" sha1="8e1f1a510af4d43716d9ee34d47becf907dec147" name="Shining Force II - Inishie no Fuuin (J) [!]" />
+	<hash crc32="258f8145" sha1="c733a433af741bf4e468231c9df3b8a823e3164d" name="Shining Force II - Inishie no Fuuin (J) [b1]" />
+	<hash crc32="19f0d8f3" sha1="fca30f8322b7d749bc698da87c6ad414ad0a74e5" name="Shining Force II - Inishie no Fuuin (J) [b2]" />
+	<hash crc32="661b71ff" sha1="717031dafd90b7edff67c9649f3cda2b75961e65" name="Shining Force II - Inishie no Fuuin (J) [b3]" />
+	<hash crc32="c0fdde00" sha1="fa85f9bddff01d91082409e24e2ad8adc4fec2be" name="Shining Force II - Inishie no Fuuin (J) [f1+C]" />
+	<hash crc32="b9d378cb" sha1="d7de584fd34109e107017e3435a28da210768e19" name="Shining Force II - Inishie no Fuuin (J) [f1]" />
+	<hash crc32="95a85464" sha1="fe4b53d80dc04245d272debf99cb7bcbb59fee87" name="Shining Force II - Inishie no Fuuin (J) [T+Chi1.3_Ken]" />
+	<hash crc32="7e729693" sha1="7bc3be0753b4ba8bbab2f5096e0efa0c0884dd98" name="Shiten Myooh (J) [c][!]" />
+	<hash crc32="eb120fc3" sha1="b5bd533518fdd37ff3589f993d7d5013c31a09e0" name="Shiten Myooh (J) [h1C]" />
+	<hash crc32="f548f6e5" sha1="0fa9eab621bfcd899897e7778cbeb47e3043a6e7" name="Shiten Myooh (J) [h2C]" />
+	<hash crc32="16f2f240" sha1="1b5927d1ead6093bfde8c175ca82be39b66796a6" name="Shiten Myooh (J) [p1]" />
+	<hash crc32="4148f816" sha1="097fc6e7b7d9152f538d973a1837c09b711bf9d2" name="Shogi no Hoshi (J) [!]" />
+	<hash crc32="bacd0954" sha1="a7c719a2346ff81bdace479fbf8ea0b36ee6623d" name="Shogi no Hoshi (J) [b1]" />
+	<hash crc32="ddcffb99" sha1="aef763fce29ff033e27092756c451fe7e61ab11a" name="Shogi no Hoshi (J) [b2]" />
+	<hash crc32="e19da6e5" sha1="22b58751fe7320c53a49e7c2c3e72b0500192d58" name="Shura no Mon (J) [!]" />
+	<hash crc32="cdf5678f" sha1="7161a12c2a477cff8e29fa51403eea12c03180c7" name="Slam Dunk - Shikyou Gekitotsu! (J) [!]" />
+	<hash crc32="2ebb641a" sha1="5083c6a586ea37d0404d5a5a0356a312dd5e9bad" name="Slam Dunk - Shikyou Gekitotsu! (J) [f1+C]" />
+	<hash crc32="532789fc" sha1="cddbefc205d623f298a33d9a375c6edf9d541bcc" name="Slam Dunk - Shikyou Gekitotsu! (J) [f1]" />
+	<hash crc32="7e650669" sha1="279b53304b3f58697684a1c7f2eebe93ed46396d" name="Slam Dunk - Shikyou Gekitotsu! (J) [h1C]" />
+	<hash crc32="7c877df3" sha1="7a5fe71fbc9dce6ef8172cf9cf97903153070f8b" name="Slam Dunk - Shikyou Gekitotsu! (J) [h2C]" />
+	<hash crc32="a049be50" sha1="fe738eeb3c597110c5ddaec160d34c6fb8806ced" name="Slam Dunk - Shikyou Gekitotsu! (J) [h3C]" />
+	<hash crc32="89253739" sha1="b946a043eef54e45360bf8db2460b1ea638e88f3" name="Slam Dunk - Shikyou Gekitotsu! (J) [T+Chi1.0_Bearteam]" />
+	<hash crc32="caba9a60" sha1="539f4eed85b61e1e5042b2cf0f321db1fa83ecf4" name="Slap Fight (J) [b1]" />
+	<hash crc32="d6695695" sha1="3cb992c70b4a5880a3e5f89211f29fe90486c0e0" name="Slap Fight (J) [c][!]" />
+	<hash crc32="0f791f37" sha1="5f95b4a5b7be2b1d68985894d370e7dd0d78c6c1" name="Slap Fight (J) [h1C]" />
+	<hash crc32="02743661" sha1="035d655c1060a49a7c7cb51ac412d54762954a8a" name="Slap Fight (J) [h2C]" />
+	<hash crc32="e7a13869" sha1="dfcc1b0d04e354fa3f086ffe9c566364e7f5cba7" name="Slap Fight (J) [h3C]" />
+	<hash crc32="bfcea8ff" sha1="c01f84ab70ab4d6a62ee1d55399ea17cbd352c1b" name="Slap Fight (J) [h4C]" />
+	<hash crc32="047267b3" sha1="5625c1be77a226bfc3c552d9dda843eb8e9d47c6" name="Slap Fight (J) [hI+C]" />
+	<hash crc32="bf1cb935" sha1="37012603763ecbf90c1a486b37b727c950390249" name="Slap Fight (J) [hI]" />
+	<hash crc32="3df8312a" sha1="7daacacc8a4cf0f232fda9ddff756c3f04bf7977" name="Slap Fight (J) [hIR]" />
+	<hash crc32="11b56228" sha1="27caf554f48d2e3c9c6745f32dbff231eca66744" name="Snow Bros. - Nick &amp; Tom (J) [c][!]" />
+	<hash crc32="7645f21f" sha1="49880a57e7bdcf9f7a6d81402ab95c7ec246bc80" name="Snow Bros. - Nick &amp; Tom (J) [h1C]" />
+	<hash crc32="a102d5e0" sha1="6975c37a6f9c287aa02d1b09844da77ba43380c8" name="Snow Bros. - Nick &amp; Tom (J) [h2C]" />
+	<hash crc32="40f4aacc" sha1="4f5341f3cd0b648c2116593b3f706b634a7e0128" name="Sokoban (J) [!]" />
+	<hash crc32="3eb8ce5b" sha1="2b039544fb28de83387dd593edda3f7b702194d9" name="Sokoban (J) [b1]" />
+	<hash crc32="e9ba7300" sha1="4774643040554fd4fdad5cacc5023d0786e01308" name="Sokoban (J) [h1C]" />
+	<hash crc32="43797455" sha1="963f13f74d648c573ced103b2803d15d0a2742e8" name="Soleil (Beta)" />
+	<hash crc32="62d8a0e7" sha1="be70d4246be49c0301a1402bd93f28c58b558a8d" name="Sonic Eraser (SN) (J) [!]" />
+	<hash crc32="26d9bc32" sha1="df18c6e6fe0b5498b6b0c201de92cdcdd86d68df" name="Sonic Eraser (SN) (J) [T+Eng_Derrick Sobodash]" />
+	<hash crc32="acd08ce8" sha1="43b2fdac9c747d6f6a629347c589599074408cd9" name="Sonic Spinball (J) [!]" />
+	<hash crc32="f4951d1f" sha1="7b98b21b7274233e962132bc22a7ccdf548c0ddb" name="Sonic The Hedgehog 3 (J) [!]" />
+	<hash crc32="944135ca" sha1="16394aebece9d03f43505eab0827889e1c61857f" name="Sorcer Kingdom (J) [c][!]" />
+	<hash crc32="a209e9be" sha1="2f4635cf042dd8c9ac5b9f82f049e256af0dda70" name="Sorcer Kingdom (J) [h1C]" />
+	<hash crc32="a143a8c5" sha1="cbd7f0693a0d127138977da7cdf5a7f9440dfd43" name="Sorcerian (J) [!]" />
+	<hash crc32="bde176b4" sha1="1bbfec0679f0943cde65a6678c3a7c082d45f3f1" name="Sorcerian (J) [h1C]" />
+	<hash crc32="d25f6aff" sha1="d25aeaeff99f54354c2286e54eab4f18b636c0a0" name="Sorcerian (J) [T+Eng10%_NaflignsEgo]" />
+	<hash crc32="e9310d3b" sha1="2d0e4423e28d7175fc27a9c5b1cb86f1d5cedd3e" name="Space Funky B.O.B. (J) [!]" />
+	<hash crc32="edc0fb28" sha1="5836fbe907610ff15286911457049933b7cdd49c" name="Space Harrier II (J) [!]" />
+	<hash crc32="22adbd66" sha1="d15830fd1070960d1696c1a9d48c9f7db3aa89e4" name="Space Invaders 90 (J) [c][!]" />
+	<hash crc32="dba630bf" sha1="cd916e81e28151f6607f854133473810783074b2" name="Space Invaders 90 (J) [h1C]" />
+	<hash crc32="e74f38e1" sha1="cfac87039ce56f6f488071e8118135495b64d6f2" name="Space Invaders 90 (J) [h2C]" />
+	<hash crc32="ff3b0a66" sha1="0a4ce6e722d8f96294fd92505f48e38c9554fb63" name="Space Invaders 90 (J) [h3C]" />
+	<hash crc32="1aaffd79" sha1="6f92173275e1a46bb26eaddd47d6b33ef09f01f8" name="Space Invaders 90 (J) [p1][!]" />
+	<hash crc32="914ec662" sha1="49e813e108751d502bfb242551b40121c71c5442" name="Sparkster (J) [!]" />
+	<hash crc32="897107f1" sha1="3aeb9b2adf7baca82646ddd6a119e8b60251d11e" name="Sparkster (J) [p1][!]" />
+	<hash crc32="ed68373a" sha1="a42fc3b2a4f4c2db2f598244c2b137862b8e79ad" name="Splatterhouse Part 3 (J) [a1]" />
+	<hash crc32="f4f9f001" sha1="c85b64d2fa052b4f6657ab7b70f507eb0d86dad8" name="Splatterhouse Part 3 (J) [b1+C]" />
+	<hash crc32="97058e7e" sha1="fff47db7af381c3137fb0d72c75865910755afb3" name="Splatterhouse Part 3 (J) [b1]" />
+	<hash crc32="d41e9b62" sha1="c6410976d9170f0774ff91e6b4a2a481fa1431c2" name="Splatterhouse Part 3 (J) [b1][T+Spa099_bokudono]" />
+	<hash crc32="42478b15" sha1="7a8eb4b4d524a4c07970b689a4d6d4b953ea28cb" name="Splatterhouse Part 3 (J) [b2]" />
+	<hash crc32="ae732226" sha1="93d9a292d81f0a1bfaa1f8f0739bd56efa72d0e2" name="Splatterhouse Part 3 (J) [b2][T+Spa099_bokudono]" />
+	<hash crc32="31b83d22" sha1="1fcb8adfdb19cb772adabac14e78c560d4f2e718" name="Splatterhouse Part 3 (J) [c][!]" />
+	<hash crc32="72a3283e" sha1="4d8ca321c0b5aa4a59b23b82aef127340d60abc9" name="Splatterhouse Part 3 (J) [T+Spa099_bokudono]" />
+	<hash crc32="2b75b52f" sha1="cb099ecde141beffdfed6bb7f1d3dc6340da81d1" name="Star Cruiser (J) [!]" />
+	<hash crc32="18458c65" sha1="fac9265d3ca3a2af0ba6c903b646e0d426a37365" name="Star Cruiser (J) [h1C]" />
+	<hash crc32="04f388e6" sha1="93c51ec9fcc56d858642018905b3defc17442c26" name="Steel Talons (J) [!]" />
+	<hash crc32="0b440fed" sha1="fe06ea2d7fcccecce337a535ae683c31aae4a637" name="Stormlord (J) [!]" />
+	<hash crc32="16aabe7e" sha1="04c491af6252835d4557928814c9da157f8ad363" name="Stormlord (J) [h1C]" />
+	<hash crc32="4f39783c" sha1="54296f5cf1917c568bb29b0086641c282b8884bd" name="Story of Thor, The - A Successor of The Light (J) [!]" />
+	<hash crc32="9dc8c71f" sha1="2b0bf82fe20e0196a4adcce0ea742399b6c43eea" name="Story of Thor, The - A Successor of The Light (J) [b1]" />
+	<hash crc32="14878a73" sha1="e3577a10b285379a0fee4cfd37dbabece86ed0a1" name="Story of Thor, The - A Successor of The Light (J) [b2]" />
+	<hash crc32="b5e69280" sha1="2d5c195e4d9745d254aea182be60098b64483dc1" name="Story of Thor, The - A Successor of The Light (J) [f1]" />
+	<hash crc32="ede01802" sha1="ba2cb2c1954a255caedd6372ba7ef53e3830a808" name="Story of Thor, The - A Successor of The Light (J) [f2]" />
+	<hash crc32="3ca3fcd7" sha1="8f5b55c5ddc12951a16c2fa175b374040fd28dae" name="Story of Thor, The - A Successor of The Light (J) [T+Chi_1.00_Madcell]" />
+	<hash crc32="f4465f5c" sha1="ef059d909a6dab1eddd52edd006c585a902a0b13" name="Story of Thor, The - A Successor of The Light (J) [T+Chi_Simple]" />
+	<hash crc32="0e4890a0" sha1="ddce6f31307ade4d73d46662d105d6e40849afe4" name="Story of Thor, The - A Successor of The Light (J) [T-Chi_Simple]" />
+	<hash crc32="5adb5a84" sha1="9c2f4ad547cd8ec9f17138a24e03464c0c54c2e6" name="Story of Thor, The - A Successor of The Light (J) [T-Chi_Trad_Madcell]" />
+	<hash crc32="ebc50afc" sha1="f06794fcb3544354b7a2140a8a2cd06f89a8234c" name="Story of Thor, The - A Successor of The Light (J) [T-Chi_Trad_Madcell][a1]" />
+	<hash crc32="63eff271" sha1="f9379e4cf79a91a1546d9505a4f74807ae1c070c" name="Story of Thor, The - A Successor of The Light (K) [h1C]" />
+	<hash crc32="bafe65db" sha1="4db1dfb78122aa3862000b8503411c1b4d2e9621" name="Story of Thor, The - A Successor of The Light (K) [h2C]" />
+	<hash crc32="ee1603c5" sha1="e0a43fb3d6da940b1fda449753bffae637a802cd" name="Story of Thor, The - A Successor of The Light (K)" />
+	<hash crc32="2e487ee3" sha1="0d624f1a34014ead022dd8d5df1134a88eca69bb" name="Street Fighter II' Plus - Champion Edition (J) [!]" />
+	<hash crc32="f293886a" sha1="2c0fc9fd04290a9cce0ceb6afc7111c8095eacb1" name="Street Fighter II' Plus - Champion Edition (J) [b1]" />
+	<hash crc32="e48b287e" sha1="57c0138a1ba4132734c054c2d55376da4064e92b" name="Street Fighter II' Plus - Champion Edition (J) [b2]" />
+	<hash crc32="62a60123" sha1="9134f2a2521a5ccbca1daee3d5e485c797a47f7e" name="Street Fighter II' Plus - Champion Edition (J) [b3]" />
+	<hash crc32="84a6bbb5" sha1="c05610fc31513b1060fa5736127845badf97c863" name="Street Fighter II' Plus - Champion Edition (J) [f1+1C]" />
+	<hash crc32="4acee0fe" sha1="883c0088add3c109585e06f6f235da24636f4f81" name="Street Fighter II' Plus - Champion Edition (J) [f1+2C]" />
+	<hash crc32="1e39c426" sha1="c23e2410ae0099861c996d2b8ffdfa36dc54ca3d" name="Street Fighter II' Plus - Champion Edition (J) [f1]" />
+	<hash crc32="ee1d03d1" sha1="0e63e0a54bd61fc9ba0211321610c8fced413c04" name="Street Fighter II' Plus - Champion Edition (J) [f2]" />
+	<hash crc32="659e7a14" sha1="84c6bb3813c28be072eee6ac8ef14f114ca26e8c" name="Street Fighter II' Plus - Champion Edition (J) [p1][!]" />
+	<hash crc32="859173f2" sha1="4198030057a1a0479b382fc2d69cfe32a523fa32" name="Strider Hiryuu (J) [!]" />
+	<hash crc32="c2a37f53" sha1="13e3efef8d7850bf492176762d1ca92db7ca6d65" name="Strider Hiryuu (J) [f1]" />
+	<hash crc32="2150a2e4" sha1="412e36a191f4ba16b74dc358e1134f5fa9b8b778" name="Strider Hiryuu (J) [h1C]" />
+	<hash crc32="b67a5802" sha1="0f254db98f1e2200cbfb7484b5eee02d2a9513e0" name="Strider Hiryuu (J) [h2C]" />
+	<hash crc32="7638ea91" sha1="e4e25a7a9a583be0dd8e7aa0f1ab3e96b2180bc6" name="Sub-Terrania (J) [!]" />
+	<hash crc32="fa451982" sha1="d24a3d23c9f12eebfbd233fdaab91c4acc362962" name="Super Airwolf (J) [!]" />
+	<hash crc32="06c8e047" sha1="77a0fc05c0932f42e461296aaf4bb5085e5f4377" name="Super Airwolf (J) [p1][!]" />
+	<hash crc32="9a98efa1" sha1="284843d2d84922731ad36ef09c4894283455caae" name="Super Airwolf (J) [p2][!]" />
+	<hash crc32="6bc742f3" sha1="4005c5acec92da0828c0a5d688ebd54c52894b7e" name="Super Airwolf (J) [p3][!]" />
+	<hash crc32="2bbee127" sha1="3d00178aecd7611c7e4ad09ea07e8436de6a5375" name="Super Baseball 2020 (J) [!]" />
+	<hash crc32="d50a166f" sha1="56d9366b50cea65b16ed621b9a5bf355ef89e6b5" name="Super Daisenryaku (J) (REV00) [!]" />
+	<hash crc32="b7aaceaa" sha1="e1fa67ed5fa1caa6f6ea4870ad5fa92410895489" name="Super Daisenryaku (J) (REV00) [h1C]" />
+	<hash crc32="8f0b41b3" sha1="158bb587abca2101854fbb475d3e1293efb90732" name="Super Daisenryaku (J) (REV00) [h2C]" />
+	<hash crc32="ac274f0e" sha1="d7222ff6d85e4f1c28c0778e336d2c32561101f6" name="Super Daisenryaku (J) (REV00) [p1]" />
+	<hash crc32="11c46a83" sha1="9eebb036bff4a21987782fd4e0b2eccc913731bf" name="Super Daisenryaku (J) (REV02) [b1]" />
+	<hash crc32="767780d7" sha1="14dc8568205f3b1b89ce14b9412541ce4ae47f91" name="Super Fantasy Zone (J) [!]" />
+	<hash crc32="bea9c1c3" sha1="095915a4c751c6742da02c5adb0297a20b51111c" name="Super Fantasy Zone (J) [b1]" />
+	<hash crc32="ab2c52b0" sha1="0598e452e3d42b5e714bf5b32834000607483813" name="Super HQ (J) [!]" />
+	<hash crc32="8ac35f98" sha1="ef4aa3259ba9baf82913d0c6fef24634cfcaf917" name="Super HQ (J) [h1C]" />
+	<hash crc32="f8aa9885" sha1="e6aee24b4cfee1fd7b0227aa53b1cc1151bf8606" name="Super HQ (J) [h2C]" />
+	<hash crc32="599be386" sha1="76bceb5915f3546c68c1fdb5fb0e205cd56a3fe6" name="Super Hydlide (J) [c][!]" />
+	<hash crc32="e055de0f" sha1="4552565045bf3689cc529258634a505f1e9a1a00" name="Super Hydlide (J) [h1C]" />
+	<hash crc32="ea13cb1d" sha1="9e975ba4c396617ff9535d51d0929f6d592478fc" name="Super League (J) [!]" />
+	<hash crc32="634774aa" sha1="10b87c5338dc4ba0cdba899c15c0b94da930ce4a" name="Super League (J) [h1C]" />
+	<hash crc32="52f284e0" sha1="0f38e87d38896b3f32d89256e6c076f2c174732b" name="Super League (J) [h2C]" />
+	<hash crc32="e407130f" sha1="19a8b26f7389bb790d8d3a7e550281b55c104c66" name="Super League (J) [p1]" />
+	<hash crc32="a948ab7e" sha1="9d446471b8fe37b08dc7c4a99de22de9d56a1d16" name="Super League 91 (J) [!]" />
+	<hash crc32="ea1a1124" sha1="36993bc5079285fad7f3eb01763cbc7e10e22b64" name="Super League 91 (J) [h1C]" />
+	<hash crc32="c414165b" sha1="29653bfca36b10f7079fb83df9804a6ae6f9f411" name="Super League 91 (J) [h2C]" />
+	<hash crc32="088ba825" sha1="662a87d679066aad0638b2ffb01c807d9f376121" name="Super Masters Golf (J) [!]" />
+	<hash crc32="c0d0135a" sha1="5ed7710d49d242bae2982c6e2a37059ff21b0abc" name="Super Masters Golf (J) [h1C]" />
+	<hash crc32="4346e11a" sha1="c86725780027ef9783cb7884c8770cc030b0cd0d" name="Super Real Basketball (J) [c][!]" />
+	<hash crc32="60b70813" sha1="4241840c557e35739842cd1828605731c5a99480" name="Super Real Basketball (J) [h1C]" />
+	<hash crc32="5b412816" sha1="e3dbe326aa93320d405c561c306fc3954ab8ea7c" name="Super Shinobi II, The (J) [!]" />
+	<hash crc32="fe26c3f2" sha1="812f270d8c5c924111567d72a204d00fae367b7d" name="Super Shinobi II, The (J) [f1]" />
+	<hash crc32="b554b1ce" sha1="be24d0a5bc106e855190e3734d87081fffc2b1da" name="Super Street Fighter II - The New Challengers (J) [b1+C]" />
+	<hash crc32="d324c3b0" sha1="1885a085136fba40a5a7de631834f441ac6ec0b4" name="Super Street Fighter II - The New Challengers (J) [b1]" />
+	<hash crc32="d8eeb2bd" sha1="24c8634f59a481118f8350125fa6e00d33e04c95" name="Super Street Fighter II - The New Challengers (J) [c][!]" />
+	<hash crc32="f807839a" sha1="53451a48f288f882cd0dfb8679a74360e5087e80" name="Super Volleyball (J) [p1][!]" />
+	<hash crc32="e2ee8ad2" sha1="461260a04beeee86d7480bb0b3eccace064c6b87" name="Super Volleyball (J) [x]" />
+	<hash crc32="65ac1d2b" sha1="9f14cd11cfa499cdd58248de81db30f9308326e5" name="Surging Aura (J) [!]" />
+	<hash crc32="c9083db6" sha1="44e3a1183af759c3017b68bf4914cdc61aa82536" name="Surging Aura (J) [f1+C]" />
+	<hash crc32="4bbf5756" sha1="6a607ae21b3679db96ba25215f0a9ab572627876" name="Surging Aura (J) [f1]" />
+	<hash crc32="4651566b" sha1="5dcc0a7b5b33f5c8ac0a99d4608d7a54f7312621" name="Surging Aura (J) [f2]" />
+	<hash crc32="bf42778f" sha1="689aefbe80d690da052d892bc5840ab69f1943e6" name="Surging Aura (J) [h1C]" />
+	<hash crc32="58edb3f3" sha1="9c17187e3eb0842c5300f69616a58baa86b769e7" name="Sword of Sodan (J) [!]" />
+	<hash crc32="e400dfc3" sha1="697fb165051179a2bbca77c8cfd0c929e334f8c1" name="Sword of Vermilion (J) [c][!]" />
+	<hash crc32="14935241" sha1="05f405dd857bbd8f1f3567044030f2b3b501e900" name="Sword of Vermilion (J) [o1]" />
+	<hash crc32="09fbb30e" sha1="67358048fc9bc93d8835af852bc437124e015a61" name="Taiga Drama Taiheiki (J) [!]" />
+	<hash crc32="f96fe15b" sha1="a96d6492d4e89687d970bc010eb0b93ee2481a44" name="Taikou Risshiden (J) [!]" />
+	<hash crc32="c8db75e4" sha1="9979352b064343157a78a4da0498524321cf8ef4" name="Taikou Risshiden (J) [b1]" />
+	<hash crc32="9b911d61" sha1="c6f5c851a3532a3d414f5f289c3e9a00c940fbb5" name="Taikou Risshiden (J) [o1]" />
+	<hash crc32="c49f65be" sha1="e28bb9ea694ceb87fb12d131a3295e282e29350c" name="Taikou Risshiden (J) [o1][h1C]" />
+	<hash crc32="d2d2d437" sha1="2bf6965ee883a70b4f0842e9efa17c5e20b5cb47" name="Tanto R (J) [!]" />
+	<hash crc32="dfc8c8d4" sha1="c9626175d7355069834db84fb4acd8cbcf4891b0" name="Tanto R (J) [h1C]" />
+	<hash crc32="00ed3e5a" sha1="6d678fc47d7ec8f86ade03b8bad555660f2c7070" name="Tanto R (J) [h2C]" />
+	<hash crc32="73599ab5" sha1="6011f72ce9aa06a16bb437d72f0be131784c43a7" name="Tanto R (J) [h3C]" />
+	<hash crc32="bd865be6" sha1="a45839550a21d5d9fd9f47170cbf77a9345051b6" name="Tanto R (J) [h4C]" />
+	<hash crc32="e9a54eed" sha1="d365d22d9076e98966eb12fdb1d93c3c101f519e" name="Task Force Harrier EX (J) [!]" />
+	<hash crc32="83b444f1" sha1="8e1dfb742a3c686dc01290aa9f9d4703d084857e" name="Tecmo Cup (J) [h1C]" />
+	<hash crc32="e0930929" sha1="16415308b1d45c13650a25adc8ad1ef7059c11e3" name="Tecmo Cup (J) [h2C]" />
+	<hash crc32="e889e218" sha1="e78f42104c66f49e0492e65c64354baac599369e" name="Tecmo Cup (J) [p1][!]" />
+	<hash crc32="947ce670" sha1="2af02cd2ef38d9971f7d50f317555f5b87cea3bf" name="Tecmo Cup (J) [T+Spa]" />
+	<hash crc32="88fdd060" sha1="67e9261097e1ed9c8d7d11fd45a7c7e04ac1145f" name="Tecmo Cup (J) [x]" />
+	<hash crc32="90c6e20c" sha1="477880e7976ac0f7203fddabba4a6e8799aa604d" name="Tecmo Super Bowl (J) [!]" />
+	<hash crc32="32fb633d" sha1="cb9e8cc1651b719054f05e1e1a9e0fbbc3876ebd" name="Tecmo Super Bowl II SE (J) [!]" />
+	<hash crc32="79f33eb6" sha1="07f160e6eb7e358f54e4fdabfc95bb5525c57fc9" name="Tecmo Super NBA Basketball (J) [!]" />
+	<hash crc32="5e93c8b0" sha1="ebab8f8b4f25aae44900d266c674621db2a831d9" name="Tecmo World Cup '92 (J) [!]" />
+	<hash crc32="a9ed9aac" sha1="268d946fc97f0e6eb6e5616c585690616e5a08b3" name="Tecmo World Cup '92 (J) [b1]" />
+	<hash crc32="9e8ca807" sha1="ac762593007db4b3e079b9142a866c288c4a88e3" name="Tecmo World Cup '92 (J) [h1C]" />
+	<hash crc32="fc3d1f3d" sha1="8bf389dd0c32cdcaad102fae0fb35ddcaffa2a53" name="Tecmo World Cup '92 (J) [h2C]" />
+	<hash crc32="45c596d3" sha1="b99afc2215b5f0b0f3b32ea9f2b256609230a05f" name="Tecmo World Cup '92 (J) [h3C]" />
+	<hash crc32="985321d3" sha1="aa9f95221cd6d3a1acd22660375ca58294cbde87" name="Tecmo World Cup '92 (J) [h4C]" />
+	<hash crc32="04fae970" sha1="51b834c7cf6df7cb85841bbdd1c2b3ff156b618f" name="Tecmo World Cup '92 (J) [p1][!]" />
+	<hash crc32="1675cad0" sha1="d065589f4727450333c6b95525e2475e5d8fc112" name="Tecmo World Cup '92 (J) [p2][!]" />
+	<hash crc32="1b003498" sha1="f64556be092a13de8eaacc78dd630ac9d7bb75ee" name="Teenage Mutant Ninja Turtles - Return of the Shredder (J) [!]" />
+	<hash crc32="61631127" sha1="e2ac79c8b9aded808fa4bfdc14ce3feb73bf72f9" name="Teenage Mutant Ninja Turtles - Return of the Shredder (J) [f1]" />
+	<hash crc32="a7279c8c" sha1="78c829188c7abab4d5e34816566b6c7bdaa0e472" name="Teenage Mutant Ninja Turtles - Return of the Shredder (J) [h1C]" />
+	<hash crc32="8843f2c9" sha1="5be86d03abdb49b824104e9bbf0ac80023e4908c" name="Teenage Mutant Ninja Turtles - Tournament Fighters (J) [!]" />
+	<hash crc32="9b08e4e4" sha1="adc4c03636dbd8ca5449a8a66c6a7b7ef281893a" name="Teitoku no Ketsudan (J) [c][!]" />
+	<hash crc32="b6946c4e" sha1="06c588c7cde3d6ba9b1ac2bb5ff2416ac202aafa" name="Teitoku no Ketsudan (J) [hI+C]" />
+	<hash crc32="11aaec23" sha1="36ad99b8fda4dd8be7f5468b2e5ec392a3d72f2e" name="Teitoku no Ketsudan (J) [hI]" />
+	<hash crc32="44817e92" sha1="8edaec4944c4b9d876601ee5f8921247a5ffe057" name="Tel Tel Mahjong (J) [c][!]" />
+	<hash crc32="47ff8626" sha1="21a88b1a81c184b2057b62734544597969ca29f3" name="Tel Tel Mahjong (J) [h1C]" />
+	<hash crc32="4e82d68c" sha1="645a7287d27d769bb16512411ac47ba4b65774f9" name="Tel Tel Mahjong (J) [h2C]" />
+	<hash crc32="54cf8c29" sha1="2924ed0b4266edddbb981f97acb93bbdf90494e6" name="Tel Tel Stadium (J) [!]" />
+	<hash crc32="b861a2a9" sha1="2da9f278a413c50626d1627310c8e60e5e5025d1" name="Tel Tel Stadium (J) [h1C]" />
+	<hash crc32="5bface7d" sha1="f64e4820e98acf6cc79007536f772e1892a34157" name="Tel Tel Stadium (J) [h2C]" />
+	<hash crc32="4ce90db0" sha1="2f2b559c5855e34500e43fb5cc8aff04dd72eb56" name="Tetris (J) [!]" />
+	<hash crc32="5c82b968" sha1="73a63dece2192d31683c2267cc9d4479536bc134" name="Tetris (J) [b1]" />
+	<hash crc32="eb8cdc78" sha1="eec57be2757951e3166ab1642b1bf615ac42e7e9" name="Tetris (J) [p1][!]" />
+	<hash crc32="bd785a87" sha1="388e0ba4edb3021607424f167a74bd3822f8a299" name="Tetris (J) [p2][!]" />
+	<hash crc32="f55d06d8" sha1="84aa1874eee5e5e6d4d3021b9a3efa0968ca6f73" name="Tetris (J) [p2][o1]" />
+	<hash crc32="6ef59e00" sha1="4d683b5fd2757addcf672af8c4806b74d6b00477" name="Tetris (J) [p2][o2]" />
+	<hash crc32="b0d2f05b" sha1="039ace9029c79d69615fb7686d3d93c01b5489c7" name="Tetris (J) [p3][!]" />
+	<hash crc32="a1570aad" sha1="43d39978aa0e7e78de4f7ae3f6c5612b225caa28" name="Tetris (J) [p4][!]" />
+	<hash crc32="e75ec3e0" sha1="44b173b74225e5b562cdf3982926a051f05ed98e" name="Thunder Force II MD (J) [!]" />
+	<hash crc32="6d5e5dc1" sha1="ad7b1340e228fa5707bcf637d858a48b310082fe" name="Thunder Force II MD (J) [h1C]" />
+	<hash crc32="8d606480" sha1="44be21dead3b55f21762a7c5cf640eec0a1769d9" name="Thunder Force IV (J) [!]" />
+	<hash crc32="b02e00d0" sha1="e88d3e5cd74cd35034ca228a40d89c858ea11eab" name="Thunder Force IV (J) [f1]" />
+	<hash crc32="fd1338d0" sha1="2b9f8cf899747911913c5a419151fe36da9a2a9e" name="Thunder Force IV (J) [f2]" />
+	<hash crc32="09f1ac52" sha1="f316796d0140929c525c75764d8c4f15e39af5cf" name="Thunder Force IV (J) [f3]" />
+	<hash crc32="b5457c9f" sha1="3e7225ea966ea7cb926cb472892e182713dc9431" name="Thunder Force IV (J) [t1+1C]" />
+	<hash crc32="31e43b96" sha1="0092cbee204f80dff57e332cd7bd29c801033567" name="Thunder Force IV (J) [t1+2C]" />
+	<hash crc32="02ad64fb" sha1="e96b1ed9ca0edc02dafe0b3b3676c28cdbb007c4" name="Thunder Force IV (J) [t1+3C]" />
+	<hash crc32="81538c5e" sha1="73ecd2a3aff0803262334d8cbefd1088add6b87f" name="Thunder Force IV (J) [t1]" />
+	<hash crc32="b16ab041" sha1="a228fa801350223cbacbc12e0ebbeb6bb7a7d74c" name="Thunder Force IV (J) [t2+C]" />
+	<hash crc32="eb0c1edb" sha1="852fda8512ae44f81c9c07279c125a7c08f5d079" name="Thunder Force IV (J) [t2]" />
+	<hash crc32="3d9d9e07" sha1="17ca2fe9e66b82470b2cb0f8d5cee419520811a4" name="Thunder Force IV (J) [t3]" />
+	<hash crc32="eca6cffa" sha1="4e6dc58327bdbb5d0d885b3cecf89fe139b32532" name="Thunder Fox (J) [c][!]" />
+	<hash crc32="61e458c3" sha1="f58c522bd0629833d3943ef4091c3c349c134879" name="Tiger Hunter Hero Novel (Ch)" />
+	<hash crc32="7eba7a5c" sha1="c9358fb57314be5792af5e97748f7b886a7194d2" name="Time Dominator 1st (J) [!]" />
+	<hash crc32="7ff5529f" sha1="02cf05687a7f3f8177b2aff0a0cfbd5c490e557d" name="Todd's Adventures in Slime World (J) [!]" />
+	<hash crc32="90c94552" sha1="4ef23439db85358912ca77f8a998e3df4838bb46" name="Todd's Adventures in Slime World (J) [h1C]" />
+	<hash crc32="7a588f4b" sha1="85e8d0a4fac591b25b77c35680ac4175976f251b" name="Toejam &amp; Earl (J) (REV02) [!]" />
+	<hash crc32="e1b36850" sha1="141af8fd1e5b4ba5118a384771b0d75f40af312f" name="Toejam &amp; Earl in Panic on Funkotron (J) [!]" />
+	<hash crc32="62bad606" sha1="1663289933b37526e4e07a6ee7fcd5e6cc2b489a" name="Top Pro Golf (J) [!]" />
+	<hash crc32="6b88bc9d" sha1="c8b864a10c03b24f39bb7ddcd99577e4041d19c6" name="Top Pro Golf (J) [b1+1C]" />
+	<hash crc32="7d3286c6" sha1="192044a82ec6d70e3816e933831e1f40464dc461" name="Top Pro Golf (J) [b1+2C]" />
+	<hash crc32="dc4aac01" sha1="dfa96a682234b94f1664ab6f72a24f8450f5b153" name="Top Pro Golf (J) [b1+3C]" />
+	<hash crc32="8959dc3f" sha1="6eee78339f7650e215e6a3571ba9cdbaa866397e" name="Top Pro Golf (J) [b1]" />
+	<hash crc32="b8ce98b3" sha1="95a8918c98420fdfd59a4cb0be8fd5ec69d3593e" name="Top Pro Golf 2 (J) [!]" />
+	<hash crc32="d757f924" sha1="5377e96b4cb14038675c41d165f1d92ae067cd9b" name="Twinkle Tale (J) [!]" />
+	<hash crc32="67e04eec" sha1="bacfb1545fe197224dfa5285d6edf3f4c418b5f5" name="Twinkle Tale (J) [h1C]" />
+	<hash crc32="c94b35c8" sha1="af0a779309fedbba096a0a5480c299646f9d9df9" name="Twinkle Tale (J) [h2C]" />
+	<hash crc32="066dd70c" sha1="e1403b17d3aaa1bd18a39671a7c60f96bd854db2" name="Uchu Senkan Gomora (J) [b1]" />
+	<hash crc32="e201a4d3" sha1="d5bfb5fe16e6849412dc5dd30cda823d768105df" name="Uchu Senkan Gomora (J) [b2]" />
+	<hash crc32="c511e8d2" sha1="4e1d77cc1bf081e42abfd1c489fbd0073f0236af" name="Uchu Senkan Gomora (J) [c][!]" />
+	<hash crc32="38127b68" sha1="7c9a97b0b276954b77e44562b70b8dad99995304" name="Uchu Senkan Gomora (J) [h1C]" />
+	<hash crc32="2e2cb910" sha1="2dc717fab027a248496b4a1af6d2ecd9bc14259e" name="Uchu Senkan Gomora (J) [h2C]" />
+	<hash crc32="b32ca316" sha1="3e6a34bebe5f41b853f36f22d8d15ec3ba74dd2f" name="Uchu Senkan Gomora (J) [h3C]" />
+	<hash crc32="7e02638c" sha1="a37e562c03c26cf6ade456e9855bed0b28b94ac9" name="Uchu Senkan Gomora (J) [h4C]" />
+	<hash crc32="a33994d7" sha1="8169594967fde94043b9ef8a619ae36e5b5b8a5f" name="Uchu Senkan Gomora (J) [p1][!]" />
+	<hash crc32="c5f91880" sha1="4885d2b7c4c25bbd50bed89366a3a77e8f520911" name="Uchu Senkan Gomora (J) [p2+C]" />
+	<hash crc32="37835866" sha1="6ec8f7ef1809b309a5207ee0a5bc5abc220c1e64" name="Uchu Senkan Gomora (J) [p2]" />
+	<hash crc32="83b4d5fb" sha1="7af1b66555c636664a73ca2091ef92ac800dc5d8" name="Ultraman (J) [!]" />
+	<hash crc32="fe5565e8" sha1="00a1d99056f5c3957da21be8f55c4576e62f3acc" name="Ultraman (J) [h1C]" />
+	<hash crc32="fb3ca1e6" sha1="cb9f248bfd19b16ed8a11639a73a6e90fa7ee79e" name="Undead Line (J) [!]" />
+	<hash crc32="ae35ae2e" sha1="883d8cdb9bef06f0ad645ca3b248db7d9994cff8" name="Undead Line (J) [h1C]" />
+	<hash crc32="4b8b162e" sha1="dc253745578a1cc97ff7ffc6a680b016d8d96a7e" name="Undead Line (J) [h2C]" />
+	<hash crc32="15b8b69d" sha1="3350467dbec66a0ceab0f46e57cdb92b4d715e06" name="Undead Line (J) [h3C]" />
+	<hash crc32="dfacb9ff" sha1="4283bb9aec05098b9f6b1739e1b02c1bb1f8242f" name="Unknown Chinese Game 1 (Ch)" />
+	<hash crc32="2b7758b5" sha1="c3692c345cc3b7e108e50b167733a7f5db3b3b5c" name="Unknown Chinese Game 2 (Ch)" />
+	<hash crc32="a7255ba8" sha1="1d59864916be04640a117082c62453c09bcbf8b8" name="Uzu Keobukseon (K) [!]" />
+	<hash crc32="ad9d0ec0" sha1="ca344521cb5015d142bdbce0eb44cea050b8e86b" name="V-Five (J) [!]" />
+	<hash crc32="24431625" sha1="06208a19ca5f2b25bef7c972ec175d4aff235a77" name="Valis (J) [!]" />
+	<hash crc32="b49e4ab7" sha1="e03c4a02016ef63c4f7b30320bd43e0e0760c960" name="Valis (J) [b1]" />
+	<hash crc32="a282cd07" sha1="abf1c9807b143b3714ac0230d07e749090b050c0" name="Valis (J) [b2]" />
+	<hash crc32="4d49a166" sha1="640c3d4f341c8a9b19e5deafae33e7742f109e2d" name="Valis III (J) [!]" />
+	<hash crc32="1aef72ea" sha1="4b4509936a75cb9b3b6fbf75b617be475cb99ffd" name="Valis SD (J) [!]" />
+	<hash crc32="ea9fd367" sha1="0fccd88910d1e5e71560bc87803deee59abd7646" name="Valis SD (J) [h1C]" />
+	<hash crc32="91b57d2b" sha1="3e709bd27577056abbbd6735021eaffd90caa140" name="Vampire Killer (J) [!]" />
+	<hash crc32="d3ddcdc6" sha1="acd3e9792b9b132f49ccc5f113e65bbeb0d9ea3c" name="Vampire Killer (J) [f1]" />
+	<hash crc32="ebe97dd5" sha1="da9ab5bf53019a6e4239a1c6aa413d4f24988f07" name="Vampire Killer (J) [h1C]" />
+	<hash crc32="2102cae3" sha1="73025047e4e549b32970775fc186a03ff456e578" name="Vampire Killer (J) [h2C]" />
+	<hash crc32="bafc375f" sha1="420780933e34da0f9b2a22b6bbb0739e363aab3a" name="Verytex (J) [c][!]" />
+	<hash crc32="4fa1c989" sha1="828a9c5eafd1d5455dd09ab4a9f16fb6c5e701d4" name="Verytex (J) [h1C]" />
+	<hash crc32="d37b2575" sha1="6c5fd11d6d477392640e3cabde98c2910fee57ca" name="Verytex (J) [h2C]" />
+	<hash crc32="b87e62b3" sha1="6adedfb8c0324522551203c7a1937a4da7f3092c" name="Verytex (J) [p1]" />
+	<hash crc32="53a293b5" sha1="0ad38a3ab1cc99edac72184f8ae420e13df5cac6" name="Virtua Racing (J) [!]" />
+	<hash crc32="6567ef38" sha1="7583931c4a64280a24c10f9140ffe424ce4d90a7" name="Visual Scene Sega-CD Image (J) [b1]" />
+	<hash crc32="3afa2d7b" sha1="460037301df0d67947bd17eddb38a3011896cb43" name="Vixen 357 (J) [!]" />
+	<hash crc32="431003bb" sha1="dc869818f776801104464b3d4b80a7aee3d490b7" name="Vixen 357 (J) [b1]" />
+	<hash crc32="cf70927a" sha1="d20f64d3f97dfd049b2205eaf9892fb2547d0636" name="Vixen 357 (J) [h1C]" />
+	<hash crc32="8a4d9ab3" sha1="7ce35ab061af24dd160106df1af9a67eb17147ab" name="Vixen 357 (J) [h2C]" />
+	<hash crc32="b0c5e3f7" sha1="7de808400f64dd0e4f468049fff7d29212ea0215" name="Volfied (J) [!]" />
+	<hash crc32="fd035c43" sha1="c1f79fc190bfe7ec86d65e02b27fbd6e6db3a445" name="Volfied (J) [h1C]" />
+	<hash crc32="eff6bd6c" sha1="8b0c88e3bd33529856d0ca9dda62208e3a1b236e" name="Volfied (J) [p1]" />
+	<hash crc32="cbe2c1f6" sha1="5d78c5cf3a514275a7df6d9fdbd708584b42e697" name="Waialae no Kiseki (J) [!]" />
+	<hash crc32="ec63618e" sha1="318baf39f8bccbc19ec567dbc32533e683ed83f4" name="Waialae no Kiseki (J) [o1]" />
+	<hash crc32="a08863ba" sha1="0cd9f6e26d62e84d915f8a28ab11e9f42577aa5e" name="Wani Wani World (J) [b1]" />
+	<hash crc32="56f0dbb2" sha1="4cbe0ad0dbd70fd54432d6ae52d185c39c45260e" name="Wani Wani World (J) [c][!]" />
+	<hash crc32="618e2d1f" sha1="800baca4a507dc0570ad86c771009a502b8095e2" name="Wani Wani World (J) [h1C]" />
+	<hash crc32="80f1035c" sha1="28844399b73628a3507ca38e855d0afe24c59f4b" name="Wardner no Mori Special (J) [!]" />
+	<hash crc32="ba4e3a4c" sha1="014d412502d859cb3cf19e8ddf63184cdd3bdb75" name="Wardner no Mori Special (J) [h1C]" />
+	<hash crc32="dd9e688d" sha1="b62f49215d9bb8c88452d8a767c33ff50fa961a4" name="Wardner no Mori Special (J) [h2C]" />
+	<hash crc32="8084b4d1" sha1="c7aac47bd0ecd6018ec1f1f4b42e53f27e318b15" name="Whip Rush 2222 AD (J) [!]" />
+	<hash crc32="45a50f96" sha1="1582f159e1969ff0541319a9bd7e6f7a53505d01" name="Wonder Boy V - Monster World III (J) [!]" />
+	<hash crc32="7db783f2" sha1="a8f60bf6077e5d53074031b0a2c6a01007df1865" name="Wonder Boy V - Monster World III (J) [b1]" />
+	<hash crc32="f6a08220" sha1="0142ac143a679fd27d5836c9ed4646874cfef409" name="Wonder Boy V - Monster World III (J) [b2]" />
+	<hash crc32="bf75d5f8" sha1="3e85425471ff3d245e364a9a0df293b45280f297" name="Wonder Boy V - Monster World III (J) [f1+C]" />
+	<hash crc32="fff72a7d" sha1="5c04e1001f3323f71261554d05f6f3a0891bb1e4" name="Wonder Boy V - Monster World III (J) [f1]" />
+	<hash crc32="c72fe279" sha1="dcd561bb457ab06a51c4ea9da17197a89eeaf921" name="Wonder Boy V - Monster World III (J) [f1][o1]" />
+	<hash crc32="e07c56f6" sha1="3c329f13c3943ee6951bba6d10d81a66d722f3c9" name="Wonder Boy V - Monster World III (J) [h1C]" />
+	<hash crc32="ae08c8d1" sha1="019f5eeba6a88eee6e343427aa5bcfe067221bfe" name="Wonder Boy V - Monster World III (J) [o2+C]" />
+	<hash crc32="f661ed3c" sha1="6a77d4f93064299f25eaf0f100231efd46382190" name="Wonder Boy V - Monster World III (J) [o2]" />
+	<hash crc32="1c2dfd3b" sha1="9219fac3148c50607a5cec7e8a7a87feff9a1d21" name="Wonder Boy V - Monster World III (J) [p1]" />
+	<hash crc32="9350e754" sha1="57b97d9ddecfa2e9a75c4a05cd2b7e821210155a" name="Wonder Library (J) [!]" />
+	<hash crc32="56e3ceff" sha1="0c806b701069ae72b6cfd19b7b65a123192cff23" name="World Heroes (J) [!]" />
+	<hash crc32="d2777b38" sha1="a58b9ceb3fef639920940a6fe28b3dcdda8d18f2" name="Wrestleball (J) [b1]" />
+	<hash crc32="d563e07f" sha1="bb6e6cd4f80ad69265b8c0d16b7581c629fd1770" name="Wrestleball (J) [c][!]" />
+	<hash crc32="68b60f88" sha1="dd8cc26d1119e1a7ab1bcd6792ffa1e4f86de9ac" name="Wrestleball (J) [h1C]" />
+	<hash crc32="622e9820" sha1="d3d28676a1741734073c88f92626208d0e0b85b6" name="Wrestleball (J) [p1]" />
+	<hash crc32="ab22d002" sha1="5c700cd69964645f80a852d308d0f0de22d88f83" name="X Dazedly Ray (J) [!]" />
+	<hash crc32="60c6848d" sha1="8b9c657e32166f193c6a7fb2e75dce15df8f67d8" name="X Dazedly Ray (J) [b1+C]" />
+	<hash crc32="891405c4" sha1="893ea495a4129d10add132a5d474f8329d9e187f" name="X Dazedly Ray (J) [b1]" />
+	<hash crc32="e13594e7" sha1="1b92f036d8222cece997210614baa8a9275dd572" name="X Dazedly Ray (J) [b2]" />
+	<hash crc32="c185c819" sha1="9673b519c16883c146924c347ec6764281fa3a57" name="X-Band Modem BIOS - Game Toshokan (J) [!]" />
+	<hash crc32="c439e9e4" sha1="08efbeaf9d1217cefbdd788295e3622cd19cf966" name="X-Band Modem BIOS - Game Toshokan (J) [o1]" />
+	<hash crc32="da5a4bfe" sha1="75f8003a6388814c1880347882b244549da62158" name="Xin Qi Gai Wang Zi (Ch) [a1]" />
+	<hash crc32="dd2f38b5" sha1="4a7494d8601149f43ba7e3595a0b2340cde2e9ba" name="Xin Qi Gai Wang Zi (Ch)" />
+	<hash crc32="880bf311" sha1="14ef77cbf6c023365e168f54456d5486679292ef" name="XZR (J) [!]" />
+	<hash crc32="d396e085" sha1="8bd3ee08aa119a8dda3cc54d05b0cfe0d5cab95f" name="XZR (J) [b1]" />
+	<hash crc32="fba90dc4" sha1="624b097faab8ea3e9567f971b0b66e9d5d0064d0" name="Ya-Se Chuan Shuo (Ch) [f1]" />
+	<hash crc32="359cb75a" sha1="975eef4e012f85cac62b7a9ebb40348460ea5536" name="Ya-Se Chuan Shuo (Ch) [f2]" />
+	<hash crc32="095b9a15" sha1="8fe0806427e123717ba20478ab1410c25fa942e6" name="Ya-Se Chuan Shuo (Ch)" />
+	<hash crc32="6604a79e" sha1="6fcc3102fc22b42049e6eae9a1c30c8a7f022d14" name="Yang Warrior Family, The (Ch)" />
+	<hash crc32="52da4e76" sha1="28dc01d5dde8d569bae3fafce2af55ee9b836454" name="Ys III - Wanderers from Ys (J) [!]" />
+	<hash crc32="71ceac6f" sha1="89a70d374a3f3e2dc5b430e6d444bea243193b74" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [!]" />
+	<hash crc32="a9d89d5d" sha1="598bedd06895ebd894e2798b63107c3aef1de8b0" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [b1]" />
+	<hash crc32="9075c723" sha1="6155158f07ab31b7e42a0e8da475f379e158fd04" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [b2]" />
+	<hash crc32="20b8d690" sha1="6df8c9032833b05c9c343f1a6a902eda3c634c6c" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [b3]" />
+	<hash crc32="e0c24dc7" sha1="05900e46e5cd0d102f4b653b9889ce348033e5ad" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [f1+C]" />
+	<hash crc32="0b1ee641" sha1="cfe0bfd17c7fa4a6db39cf57225ebabf35c3ed38" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [f1]" />
+	<hash crc32="3916f5ff" sha1="9ca3923a6aec9881c618b193ba1ebd6640af773a" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [f1][o1]" />
+	<hash crc32="05e3ffcc" sha1="34bae5cfb11a3822ede4b59ba0b45acb400ee24b" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [p1]" />
+	<hash crc32="3affa6cc" sha1="8e9ade3a6421699b8be92b30cff4dfb480dad18b" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [T+Chi]" />
+	<hash crc32="c4c19e66" sha1="557df56d7a9dde91640c8debe5513bb24ba66d55" name="Yuu Yuu Hakusho - Makyou Toitsusen (J) [T-Chi]" />
+	<hash crc32="7dc98176" sha1="274b86709b509852ca004ceaa244f3ae1d455c50" name="Yuu Yuu Hakusho Gaiden (J) [!]" />
+	<hash crc32="b91cd68a" sha1="440c334f63ab829a27585c3bcf9d8f643be519bd" name="Yuu Yuu Hakusho Gaiden (J) [b1]" />
+	<hash crc32="ca45be70" sha1="439382f9f8419d8d6bddebaf82986b80dc5224c1" name="Yuu Yuu Hakusho Gaiden (J) [b2]" />
+	<hash crc32="637fe8f3" sha1="f1ea9a88233b76e3df32526be0b64fb653c13b7d" name="Zan Yasha Enbuden (J) [!]" />
+	<hash crc32="ebadedb7" sha1="552ed8ede980f22385e01f473e89b8c329c7b9d0" name="Zan Yasha Enbuden (J) [f1]" />
+	<hash crc32="3dabc1b9" sha1="d47369e182c60945b16de50ec9b59f21d82bae92" name="Zero Wing (J) [b1]" />
+	<hash crc32="8080a58a" sha1="dc8299d0ff2cbebc41f5b1f401e90df10e34ff6d" name="Zero Wing (J) [b2]" />
+	<hash crc32="6ff11741" sha1="1c7dfc74f269776bd03c82eb6b402a5dccecf0e7" name="Zero Wing (J) [f1]" />
+	<hash crc32="7218212f" sha1="ade5454d651f70e8eb748f98afa56b246ae32a6d" name="Zero Wing (J) [T+Chi1.0_Bearteam]" />
+	<hash crc32="7e203d2b" sha1="fad499e21ac55a3b8513110dc1f6e3f6cdeca8dd" name="Zero Wing (J)" />
+	<hash crc32="1a761e67" sha1="0cf2e2a7f00fb3d7a1a6424152693138ece586f1" name="Zou! Zou! Zou! Rescue Daisenryaku (J) [!]" />
+	
+</hashfile>

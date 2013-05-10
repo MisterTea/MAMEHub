@@ -1,0 +1,14 @@
+<hashfile>
+
+	<!-- [sgx] hash based on sgx.xml from MESS 0.143 -->
+	<!-- created by Krusty on September 13th, 2011 for use with MAMEHub -->
+	<!-- You have 5 of 5 known NEC Supergrafx cartridges sets -->
+	<!-- for the exclusive use of MESS.  Keep this notice intact if editing this file  -->
+
+	<hash crc32="8c4588e2" name="1941 - counter attack (japan)" />
+	<hash crc32="4c2126b0" name="aldynes (japan)" />
+	<hash crc32="3b13af61" name="battle ace (japan)" />
+	<hash crc32="b486a8ed" name="daimakai mura (japan)" />
+	<hash crc32="1f041166" name="madou ou granzort (japan)" />
+
+</hashfile>

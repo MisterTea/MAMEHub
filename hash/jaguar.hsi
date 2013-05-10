@@ -1,0 +1,68 @@
+<hashfile>
+
+	<!-- [jaguar] hash based on svision.xml from MESS 0.143 -->
+	<!-- created by Krusty on September 26th, 2011 for use with MAMEHub -->
+	<!-- You have 59 of 59 known Atari Jaguar cartridges sets -->
+	<!-- for the exclusive use of MESS.  Keep this notice intact if editing this file  -->
+
+	<hash crc32="237d5643" name="air cars" />
+	<hash crc32="dc187f82" name="alien vs predator (world)" />
+	<hash crc32="e28756de" name="atari karts (world)" />
+	<hash crc32="cd5bf827" name="attack of the mutant penguins (world)" />
+	<hash crc32="67f9ab3a" name="battle sphere gold (world)" />
+	<hash crc32="bcb1a4bf" name="brutal sports football (world)" />
+	<hash crc32="2e17d5da" name="bubsy in fractured furry tales (world)" />
+	<hash crc32="bda405c6" name="cannon fodder (world)" />
+	<hash crc32="fa7775ae" name="checkered flag (world)" />
+	<hash crc32="eee8d61d" name="club drive (world)" />
+	<hash crc32="bde67498" name="cybermorph (world) (rev 1)" />
+	<hash crc32="ecf854e7" name="cybermorph (world) (rev 2)" />
+	<hash crc32="27594c6a" name="defender 2000 (world)" />
+	<hash crc32="5e2cdbc0" name="doom (world)" />
+	<hash crc32="348e6449" name="double dragon v - the shadow falls (world)" />
+	<hash crc32="8fea5ab0" name="dragon - the bruce lee story (world)" />
+	<hash crc32="0ec5369d" name="evolution - dino dudes (world)" />
+	<hash crc32="3615af6a" name="fever pitch soccer (world) (en,fr,de,es,it)" />
+	<hash crc32="c6c7ba62" name="fight for life (world) (alt)" />
+	<hash crc32="b14c4753" name="fight for life (world)" />
+	<hash crc32="de55dcc7" name="flashback - the quest for identity (world) (en,fr)" />
+	<hash crc32="fae31dd0" name="flip out! (world)" />
+	<hash crc32="4899628f" name="hover strike (world)" />
+	<hash crc32="f0360db3" name="hyper force (world)" />
+	<hash crc32="97eb4651" name="i-war (world)" />
+	<hash crc32="08f15576" name="iron soldier (world) (v1.04)" />
+	<hash crc32="d6c19e34" name="iron soldier 2 (world)" />
+	<hash crc32="0957a072" name="kasumi ninja (world)" />
+	<hash crc32="da9c4162" name="missile command 3d (world)" />
+	<hash crc32="0ac83d77" name="nba jam t.e. (world)" />
+	<hash crc32="5cff14ab" name="pinball fantasies (world)" />
+	<hash crc32="817a2273" name="pitfall - the mayan adventure (world)" />
+	<hash crc32="1660f070" name="power drive rally (world)" />
+	<hash crc32="a56d0798" name="protector - special edition (world)" />
+	<hash crc32="0509c85e" name="raiden (world)" />
+	<hash crc32="a9f8a00e" name="rayman (world)" />
+	<hash crc32="5b6bb205" name="ruiner pinball (world)" />
+	<hash crc32="5a101212" name="sensible soccer - international edition (world)" />
+	<hash crc32="3c044941" name="skyhammer (world)" />
+	<hash crc32="42a13ec5" name="soccer kid (world)" />
+	<hash crc32="53df6440" name="space war 2000 (world)" />
+	<hash crc32="6f8b2547" name="super burnout (world)" />
+	<hash crc32="ec22f572" name="supercross 3d (world)" />
+	<hash crc32="58272540" name="syndicate (world)" />
+	<hash crc32="6b2b95ad" name="tempest 2000 (world)" />
+	<hash crc32="47ebc158" name="theme park (world)" />
+	<hash crc32="c654681b" name="total carnage (world)" />
+	<hash crc32="caf33bd6" name="towers ii (world)" />
+	<hash crc32="1e451446" name="trevor mcfur in the crescent galaxy (world)" />
+	<hash crc32="38a130ed" name="troy aikman nfl football (world)" />
+	<hash crc32="a27823d8" name="ultra vortek (world) (v0.94) (beta)" />
+	<hash crc32="0f6a1c2c" name="ultra vortek (world)" />
+	<hash crc32="c9608717" name="val d'isere skiing and snowboarding (world)" />
+	<hash crc32="14915f20" name="white men can't jump (world)" />
+	<hash crc32="e91bd644" name="wolfenstein 3d (world)" />
+	<hash crc32="6eb774eb" name="worms (world)" />
+	<hash crc32="61c7eec0" name="zero 5 (world)" />
+	<hash crc32="8975f48b" name="zool 2 (world)" />
+	<hash crc32="c5562581" name="zoop! (world)" />
+
+</hashfile>

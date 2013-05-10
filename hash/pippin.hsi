@@ -1,0 +1,97 @@
+<hashfile>
+
+	<!-- [pippin] hash based on pippin.xml from MESS 0.143 -->
+	<!-- created by Krusty on September 13th, 2011 for use with MAMEHub -->
+	<!-- You have 86 of 86 known Pippin CD-ROM list sets -->
+	<!-- for the exclusive use of MESS.  Keep this notice intact if editing this file  -->
+	
+	<hash crc32="ca2bfbcb" name="[cd-rom] actiondesigner ultraman tiga (jpn)" />
+	<hash crc32="a86f093b" name="[cd-rom] ai shogi (jpn)" />
+	<hash crc32="85a8d493" name="[cd-rom] anpanman no aiueo-n! (jpn)" />
+	<hash crc32="1b06dc84" name="[cd-rom] animedesigner - dragonball z (jpn)" />
+	<hash crc32="cfd70f14" name="[cd-rom] anpanman to asobou! 1 (jpn)" />
+	<hash crc32="4882fb7f" name="[cd-rom] anpanman to asobou! 2 (jpn)" />
+	<hash crc32="67adf8ce" name="[cd-rom] @card sd gundam gaiden (jpn)" />
+	<hash crc32="eb01c17e" name="[cd-rom] atmark town (jpn, ver. 1.0)" />
+	<hash crc32="0c7400c5" name="[cd-rom] atmark town (jpn, ver. 2.0)" />
+	<hash crc32="262c1902" name="[cd-rom] atmark town (jpn, ver. 1.0, alt)" />
+	<hash crc32="b8a88e97" name="[cd-rom] @world basics (usa)" />
+	<hash crc32="539500bf" name="[cd-rom] @world online suite browser (usa)" />
+	<hash crc32="a6e50b00" name="[cd-rom] @world browser (usa, prototype)" />
+	<hash crc32="a0838335" name="[cd-rom] pippin title cd-rom catalog: vol. i: 1996.3 (jpn)" />
+	<hash crc32="6b3aae67" name="[cd-rom] pippin title cd-rom catalog: vol. i: 1996.3 (jpn, alt)" />
+	<hash crc32="724f42eb" name="[cd-rom] chisato moritaka cd-rom watarase bashi (jpn)" />
+	<hash crc32="2074358d" name="[cd-rom] circus! (jpn)" />
+	<hash crc32="600dd076" name="[cd-rom] compton's interactive encyclopedia (usa)" />
+	<hash crc32="ed0763ce" name="[cd-rom] dazzeloids (jpn)" />
+	<hash crc32="7a1425ed" name="[cd-rom] egword pure (jpn, ver. 1.0)" />
+	<hash crc32="015d1899" name="[cd-rom] funky funny aliens (jpn)" />
+	<hash crc32="2edf7a3e" name="[cd-rom] fortullia (jpn)" />
+	<hash crc32="bc2c71ee" name="[cd-rom] franky online (jpn)" />
+	<hash crc32="26ced478" name="[cd-rom] franky online (jpn, alt)" />
+	<hash crc32="5423b26b" name="[cd-rom] gadget (jpn)" />
+	<hash crc32="eb4eddb0" name="[cd-rom] gakko no kowai uwasa: hanako-san ga kita!! (jpn)" />
+	<hash crc32="831626c7" name="[cd-rom] gundam tactics: mobility fleet0079 (jpn)" />
+	<hash crc32="0c5b2f32" name="[cd-rom] gundam tactics: mobility fleet0079 (jpn, alt)" />
+	<hash crc32="c3fe91ee" name="[cd-rom] gundam virtual modeler light (jpn)" />
+	<hash crc32="751a8299" name="[cd-rom] gundam 0079 - the war for earth (jpn)" />
+	<hash crc32="dfabf19b" name="[cd-rom] 1995.1.17 hanshin daishinsai (jpn)" />
+	<hash crc32="909b8c10" name="[cd-rom] internet kit (jpn)" />
+	<hash crc32="489b192c" name="[cd-rom] internet kit (jpn, ver. 2.0)" />
+	<hash crc32="9d95b90a" name="[cd-rom] kids box (jpn)" />
+	<hash crc32="9e277f9f" name="[cd-rom] l-zone (jpn)" />
+	<hash crc32="f74fe354" name="[cd-rom] mac bin 38 (jpn)" />
+	<hash crc32="dfccd971" name="[cd-rom] mac bin 40 a (jpn)" />
+	<hash crc32="f3a2aa98" name="[cd-rom] mac bin 40 b (jpn)" />
+	<hash crc32="02ea9023" name="[cd-rom] macintosh on pippin (usa)" />
+	<hash crc32="9edd7bd3" name="[cd-rom] mobile suit gundam: zion dukedom military-file (jpn)" />
+	<hash crc32="dfbbfa32" name="[cd-rom] mobile suit gundam: white base (jpn)" />
+	<hash crc32="a283a1f7" name="[cd-rom] music island: vol. 1 (prokofiev peter &amp; the wolf) (jpn)" />
+	<hash crc32="72dd8f0e" name="[cd-rom] music island: vol. 2 (tchaikovsky the nutcracker) (jpn)" />
+	<hash crc32="ef8d43b3" name="[cd-rom] music island: vol. 3 (vivaldi the four seasons) (jpn)" />
+	<hash crc32="d0a0fc1c" name="[cd-rom] music island: vol. 4 (saint-saens carnival of the animals) (jpn)" />
+	<hash crc32="7c599c3a" name="[cd-rom] pippin navigator cd (jpn)" />
+	<hash crc32="a0d7be6b" name="[cd-rom] pippin navigator cd (jpn, ver. 1.1)" />
+	<hash crc32="5e4da9c3" name="[cd-rom] nemurenu yoru no chiisana ohanashi (jpn)" />
+	<hash crc32="87ab8f9a" name="[cd-rom] pippin network cd (jpn)" />
+	<hash crc32="bfce9d95" name="[cd-rom] pippin network cd (jpn, ver. 2.0)" />
+	<hash crc32="99dc16fd" name="[cd-rom] pippin network cd (jpn, ver. 2.1)" />
+	<hash crc32="b4c080aa" name="[cd-rom] pease (jpn)" />
+	<hash crc32="8479b184" name="[cd-rom] pease turbo (jpn)" />
+	<hash crc32="0c99b4ce" name="[cd-rom] post de card light (jpn, ver. 3.0)" />
+	<hash crc32="15aa0f00" name="[cd-rom] power rangers zeo vs. the machine empire (usa)" />
+	<hash crc32="23d56401" name="[cd-rom] racing days (jpn)" />
+	<hash crc32="b880bdcb" name="[cd-rom] sd gundam wars (jpn)" />
+	<hash crc32="955c74fd" name="[cd-rom] pippin software develepment kit (1996.11)" />
+	<hash crc32="11635388" name="[cd-rom] sd ultraman no chyousen! meiro island (jpn)" />
+	<hash crc32="fcb591a5" name="[cd-rom] seesawc 1 - my favorite things - sukinamonodake eitango 120 (jpn)" />
+	<hash crc32="defc9b85" name="[cd-rom] seesawc 2 - my favorite places - sukinatokorode eitango 400 (jpn)" />
+	<hash crc32="30f7631b" name="[cd-rom] shichisokusen (jpn)" />
+	<hash crc32="b3065ec8" name="[cd-rom] shockwave: invasion earth 2019 (jpn)" />
+	<hash crc32="10c257c2" name="[cd-rom] super marathon (usa)" />
+	<hash crc32="a74f8a1a" name="[cd-rom] super marathon (usa, alt)" />
+	<hash crc32="c29cda51" name="[cd-rom] tamagotchi cd-rom (jpn)" />
+	<hash crc32="5a503e95" name="[cd-rom] t-break (jpn)" />
+	<hash crc32="2f14dcd6" name="[cd-rom] hashitte asobou! kikansha thomas (jpn)" />
+	<hash crc32="633054e4" name="[cd-rom] tropic island (jpn)" />
+	<hash crc32="4dc4c239" name="[cd-rom] tunin' glue (jpn)" />
+	<hash crc32="18463b63" name="[cd-rom] tv works - word paint mail (jpn, ver. 1.0)" />
+	<hash crc32="87854151" name="[cd-rom] tv works (jpn, ver. 2.0)" />
+	<hash crc32="203428ce" name="[cd-rom] tv works (jpn, ver. 2.1)" />
+	<hash crc32="68f7dec2" name="[cd-rom] tv works (usa, ver. 3.0)" />
+	<hash crc32="760ce2bb" name="[cd-rom] tv works (jpn, ver. pop)" />
+	<hash crc32="fa12c2d5" name="[cd-rom] ultraman: the digital board game (jpn)" />
+	<hash crc32="67d6b099" name="[cd-rom] ultraman: the digital board game (jpn, alt)" />
+	<hash crc32="59180ac1" name="[cd-rom] ultraman quiz king (jpn)" />
+	<hash crc32="b93e0889" name="[cd-rom] victorian park cd1 (jpn)" />
+	<hash crc32="435f5fb6" name="[cd-rom] victorian park cd2 (jpn)" />
+	<hash crc32="9ea31c8b" name="[cd-rom] webviewer with microsoft internet explorer 3.0 for macintosh (jpn)" />
+	<hash crc32="8fb84bbd" name="[cd-rom] yellow brick road i (jpn)" />
+	<hash crc32="d3eb22ec" name="[cd-rom] yellow brick road ii cd1 (jpn)" />
+	<hash crc32="2de4ec6d" name="[cd-rom] yellow brick road ii cd2 (jpn)" />
+	<hash crc32="a1c0708a" name="[cd-rom] yellows - akira gomi photographs (jpn)" />
+	<hash crc32="e6e4e6cc" name="[cd-rom] yellows 2.0 - tokyo 1993 akira gomi photographs (jpn)" />
+	<hash crc32="5efb170a" name="[cd-rom] yoku mite goran (jpn)" />
+	<hash crc32="72a5cfe0" name="[cd-rom] zukkoke sanningumi: drama satsujinjiken (jpn)" />
+
+</hashfile>
