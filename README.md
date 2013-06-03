@@ -29,7 +29,7 @@ The MAMEHub Emulator is a fork of MAME that adds a fully-connected peer-to-peer 
 
 1. Install sdl using a package manager
 2. Open a terminal and go to the MAMEHub/Emulator directory
-3. run make -j8 NOWERROR=1
+3. run make -j8 NOWERROR=1 TARGET=ume
 4. You should now have a csume or csume64 file which is the emulator binary.
 
 ### Windows
