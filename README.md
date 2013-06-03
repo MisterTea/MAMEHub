@@ -9,6 +9,36 @@ MAMEHub is the world's biggest arcade & living room in one: a massive library of
 
 When it comes to code, MAMEHub is two things:  A fork of MAME & MESS that supports Netplay (coming to github soon), and a client/server interface that allows players from around the word to meet and play games (server coming soon).
 
+Building the MAMEHub Emulator
+-----------------------------
+The MAMEHub Emulator is a fork of MAME that adds a fully-connected peer-to-peer networking layer.  Building MAMEHub should be the same as building MAME, but for completeness, here are some instructions on a per-OS basis.
+
+### Mac OS/X
+
+1. Download SDL from http://libsdl.org/
+2. Open terminal, go to the SDL directory
+3. run ./configure --prefix=SDL_INSTALL_DIRECTORY  (replace with an empty directory name)
+4. run make install
+5. In the same terminal, go to the MAMEHub/Emulator directory
+6. run export PATH=SDL_INSTALL_DIRECTORY/bin:$PATH
+7. run export MACOSX_DEPLOYMENT_TARGET=10.5
+8. run make -j8 MACOSX_USE_LIBSDL=1 PTR64=1 NOWERROR=1 TARGET=ume PROFILER=1 SYMBOLS=1 OPTIMIZE=3 CC=/usr/bin/clang LD=/usr/bin/clang++ AR=/usr/bin/ar
+9. You should now have a csume64 file which is the emulator binary.
+
+### Linux
+
+1. Install sdl using a package manager
+2. Open a terminal and go to the MAMEHub/Emulator directory
+3. run make -j8 NOWERROR=1
+4. You should now have a csume or csume64 file which is the emulator binary.
+
+### Windows
+
+1. Download the mamedev tools from http://www.mamedev.org/tools/
+2. Follow the instructions on that page up to the make command
+3. Replace make command with make -j8 NOWERROR=1 TARGET=ume
+4. You should now have a csume.exe which is the emulator binary
+
 Building the MAMEHub Client
 ---------------------------
 The MAMEHub Client uses [Maven](http://maven.apache.org/).  To build the client, go to the Client/ directory and run this command in the client directory:
