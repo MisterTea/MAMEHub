@@ -1309,9 +1309,19 @@ void render_target::compute_minimum_size(INT32 &minwidth, INT32 &minheight)
 		maxyscale = 480.0f;
 	}
 
+	// Make sure it's reasonably big
+        if(maxxscale < 640.0f && maxyscale < 480.0f) {
+	  float minScale = MIN(640.0f/maxxscale, 480.0f/maxyscale);
+	  maxxscale *= minScale;
+	  maxyscale *= minScale;
+	}
 	// round up
 	minwidth = render_round_nearest(maxxscale);
 	minheight = render_round_nearest(maxyscale);
+
+	// Make sure it's divisible by 16
+        minwidth = ((minwidth>>4)<<4);
+        minheight = ((minheight>>4)<<4);
 }
 
 
@@ -1425,7 +1435,7 @@ render_primitive_list &render_target::get_primitives()
 	}
 
 	// process the UI if we are the UI target
-	if (is_ui_target())
+	if (1) //JJG: Put the UI on every target
 	{
 		// compute the transform for the UI
 		object_transform ui_xform;

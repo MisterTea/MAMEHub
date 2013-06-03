@@ -183,6 +183,9 @@ public:
 	template<typename _ItemType>
 	void save_pointer(_ItemType *value, const char *valname, UINT32 count, int index = 0) { save_pointer("global", NULL, index, value, valname, count); }
 
+    void doPreSave();
+    void doPostLoad();
+    
 	// file processing
 	static save_error check_file(running_machine &machine, emu_file &file, const char *gamename, void (CLIB_DECL *errormsg)(const char *fmt, ...));
 	save_error write_file(emu_file &file);
@@ -205,8 +208,8 @@ private:
 		state_callback *next() const { return m_next; }
 
 		// state
-		state_callback *    m_next;                 // pointer to next entry
-		save_prepost_delegate m_func;               // delegate
+		state_callback *	m_next;					// pointer to next entry
+		save_prepost_delegate m_func;				// delegate
 	};
 
 	class state_entry
@@ -222,22 +225,22 @@ private:
 		void flip_data();
 
 		// state
-		state_entry *       m_next;                 // pointer to next entry
-		void *              m_data;                 // pointer to the memory to save/restore
-		astring             m_name;                 // full name
-		UINT8               m_typesize;             // size of the raw data type
-		UINT32              m_typecount;            // number of items
-		UINT32              m_offset;               // offset within the final structure
+		state_entry *		m_next;					// pointer to next entry
+		void *				m_data;					// pointer to the memory to save/restore
+		astring				m_name;					// full name
+		UINT8				m_typesize;				// size of the raw data type
+		UINT32				m_typecount;			// number of items
+		UINT32				m_offset;				// offset within the final structure
 	};
 
 	// internal state
-	running_machine &       m_machine;              // reference to our machine
-	bool                    m_reg_allowed;          // are registrations allowed?
-	int                     m_illegal_regs;         // number of illegal registrations
+	running_machine &		m_machine;				// reference to our machine
+	bool					m_reg_allowed;			// are registrations allowed?
+	int						m_illegal_regs;			// number of illegal registrations
 
-	simple_list<state_entry> m_entry_list;          // list of reigstered entries
-	simple_list<state_callback> m_presave_list;     // list of pre-save functions
-	simple_list<state_callback> m_postload_list;    // list of post-load functions
+	simple_list<state_entry> m_entry_list;			// list of reigstered entries
+	simple_list<state_callback> m_presave_list;		// list of pre-save functions
+	simple_list<state_callback> m_postload_list;	// list of post-load functions
 };
 
 
@@ -337,4 +340,4 @@ inline void save_manager::save_item(const char *module, const char *tag, int ind
 }
 
 
-#endif  /* __SAVE_H__ */
+#endif	/* __SAVE_H__ */

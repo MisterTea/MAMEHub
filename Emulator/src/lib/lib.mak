@@ -23,6 +23,48 @@ OBJDIRS += \
 	$(LIBOBJ)/libflac \
 	$(LIBOBJ)/lib7z \
 	$(LIBOBJ)/portmidi \
+    $(LIBOBJ)/protobuf \
+    $(LIBOBJ)/protobuf/google \
+    $(LIBOBJ)/protobuf/google/protobuf \
+    $(LIBOBJ)/protobuf/google/protobuf/io \
+    $(LIBOBJ)/protobuf/google/protobuf/stubs \
+	$(LIBOBJ)/RakNet \
+	$(LIBOBJ)/boost_thread \
+	$(LIBOBJ)/boost_thread/libs \
+	$(LIBOBJ)/boost_thread/libs/thread \
+	$(LIBOBJ)/boost_thread/libs/thread/pthread \
+	$(LIBOBJ)/boost_thread/libs/thread/win32 \
+	$(LIBOBJ)/webm \
+	$(LIBOBJ)/webm/libmkv \
+	$(LIBOBJ)/webm/ogg \
+	$(LIBOBJ)/webm/vorbis \
+	$(LIBOBJ)/webm/vp8 \
+	$(LIBOBJ)/webm/vp8/common \
+	$(LIBOBJ)/webm/vp8/common/arm \
+	$(LIBOBJ)/webm/vp8/common/arm/neon \
+	$(LIBOBJ)/webm/vp8/common/generic \
+	$(LIBOBJ)/webm/vp8/common/x86 \
+	$(LIBOBJ)/webm/vp8/decoder \
+	$(LIBOBJ)/webm/vp8/decoder/arm \
+	$(LIBOBJ)/webm/vp8/decoder/arm/armv6 \
+	$(LIBOBJ)/webm/vp8/decoder/arm/neon \
+	$(LIBOBJ)/webm/vp8/decoder/generic \
+	$(LIBOBJ)/webm/vp8/decoder/x86 \
+	$(LIBOBJ)/webm/vp8/encoder \
+	$(LIBOBJ)/webm/vp8/encoder/arm \
+	$(LIBOBJ)/webm/vp8/encoder/arm/neon \
+	$(LIBOBJ)/webm/vp8/encoder/generic \
+	$(LIBOBJ)/webm/vp8/encoder/ppc \
+	$(LIBOBJ)/webm/vp8/encoder/x86 \
+	$(LIBOBJ)/webm/vpx \
+	$(LIBOBJ)/webm/vpx/src \
+	$(LIBOBJ)/webm/vpx_mem \
+	$(LIBOBJ)/webm/vpx_mem/memory_manager \
+	$(LIBOBJ)/webm/vpx_ports \
+	$(LIBOBJ)/webm/vpx_scale \
+	$(LIBOBJ)/webm/vpx_scale/generic \
+	$(LIBOBJ)/webm/libwebm \
+
 
 
 #-------------------------------------------------
@@ -63,7 +105,405 @@ UTILOBJS = \
 
 $(OBJ)/libutil.a: $(UTILOBJS)
 
+PROTOBUFOBJS = \
+	$(LIBOBJ)/protobuf/google/protobuf/descriptor.o\
+	$(LIBOBJ)/protobuf/google/protobuf/descriptor.pb.o\
+	$(LIBOBJ)/protobuf/google/protobuf/descriptor_database.o\
+	$(LIBOBJ)/protobuf/google/protobuf/dynamic_message.o\
+	$(LIBOBJ)/protobuf/google/protobuf/extension_set.o\
+	$(LIBOBJ)/protobuf/google/protobuf/extension_set_heavy.o\
+	$(LIBOBJ)/protobuf/google/protobuf/generated_message_reflection.o\
+	$(LIBOBJ)/protobuf/google/protobuf/generated_message_util.o\
+	$(LIBOBJ)/protobuf/google/protobuf/message.o\
+	$(LIBOBJ)/protobuf/google/protobuf/message_lite.o\
+	$(LIBOBJ)/protobuf/google/protobuf/reflection_ops.o\
+	$(LIBOBJ)/protobuf/google/protobuf/repeated_field.o\
+	$(LIBOBJ)/protobuf/google/protobuf/service.o\
+	$(LIBOBJ)/protobuf/google/protobuf/text_format.o\
+	$(LIBOBJ)/protobuf/google/protobuf/unknown_field_set.o\
+	$(LIBOBJ)/protobuf/google/protobuf/wire_format.o\
+	$(LIBOBJ)/protobuf/google/protobuf/wire_format_lite.o\
+\
+	$(LIBOBJ)/protobuf/google/protobuf/io/coded_stream.o\
+	$(LIBOBJ)/protobuf/google/protobuf/io/lzma_protobuf_stream.o\
+	$(LIBOBJ)/protobuf/google/protobuf/io/gzip_stream.o\
+	$(LIBOBJ)/protobuf/google/protobuf/io/printer.o\
+	$(LIBOBJ)/protobuf/google/protobuf/io/tokenizer.o\
+	$(LIBOBJ)/protobuf/google/protobuf/io/zero_copy_stream.o\
+	$(LIBOBJ)/protobuf/google/protobuf/io/zero_copy_stream_impl.o\
+	$(LIBOBJ)/protobuf/google/protobuf/io/zero_copy_stream_impl_lite.o\
+\
+	$(LIBOBJ)/protobuf/google/protobuf/stubs/common.o\
+	$(LIBOBJ)/protobuf/google/protobuf/stubs/once.o\
+	$(LIBOBJ)/protobuf/google/protobuf/stubs/structurally_valid.o\
+	$(LIBOBJ)/protobuf/google/protobuf/stubs/strutil.o\
+	$(LIBOBJ)/protobuf/google/protobuf/stubs/substitute.o\
 
+
+$(OBJ)/libprotobuf.a: $(PROTOBUFOBJS)
+
+$(LIBOBJ)/protobuf/google/protobuf/%.o: $(LIBSRC)/protobuf/google/protobuf/%.cc | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+$(LIBOBJ)/protobuf/google/protobuf/io/%.o: $(LIBSRC)/protobuf/google/protobuf/io/%.cc | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+$(LIBOBJ)/protobuf/google/protobuf/stubs/%.o: $(LIBSRC)/protobuf/google/protobuf/stubs/%.cc | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+#$(LIBOBJ)/webm/libmkv/WebMElement.o \
+#$(LIBOBJ)/webm/vp8/encoder/ssim.o \
+
+WEBMARMOBJS = \
+$(LIBOBJ)/webm/vp8/common/arm/arm_systemdependent.o \
+$(LIBOBJ)/webm/vp8/common/arm/bilinearfilter_arm.o \
+$(LIBOBJ)/webm/vp8/common/arm/filter_arm.o \
+$(LIBOBJ)/webm/vp8/common/arm/loopfilter_arm.o \
+$(LIBOBJ)/webm/vp8/common/arm/neon/recon_neon.o \
+$(LIBOBJ)/webm/vp8/common/arm/reconintra_arm.o \
+$(LIBOBJ)/webm/vpx_ports/arm_cpudetect.o \
+$(LIBOBJ)/webm/vp8/decoder/arm/arm_dsystemdependent.o \
+$(LIBOBJ)/webm/vp8/decoder/arm/armv6/idct_blk_v6.o \
+$(LIBOBJ)/webm/vp8/decoder/arm/dequantize_arm.o \
+$(LIBOBJ)/webm/vp8/decoder/arm/neon/idct_blk_neon.o \
+$(LIBOBJ)/webm/vp8/encoder/arm/arm_csystemdependent.o \
+$(LIBOBJ)/webm/vp8/encoder/arm/boolhuff_arm.o \
+$(LIBOBJ)/webm/vp8/encoder/arm/dct_arm.o \
+$(LIBOBJ)/webm/vp8/encoder/arm/neon/picklpf_arm.o \
+$(LIBOBJ)/webm/vp8/encoder/arm/quantize_arm.o \
+$(LIBOBJ)/webm/vp8/encoder/arm/variance_arm.o \
+$(LIBOBJ)/webm/vpx_scale/arm/neon/yv12extend_arm.o \
+$(LIBOBJ)/webm/vpx_scale/arm/scalesystemdependent.o \
+
+WEBMPPCOBJS = \
+$(LIBOBJ)/webm/vp8/common/ppc/loopfilter_altivec.o \
+$(LIBOBJ)/webm/vp8/common/ppc/systemdependent.o \
+$(LIBOBJ)/webm/vp8/encoder/ppc/csystemdependent.o \
+
+WEBMWIN32OBJS = \
+$(LIBOBJ)/webm/vpx_scale/win32/scaleopt.o \
+$(LIBOBJ)/webm/vpx_scale/win32/scalesystemdependent.o \
+
+WEBMX86ASMOBJS = \
+$(LIBOBJ)/webm/vp8/common/x86/idctllm_mmx.o \
+$(LIBOBJ)/webm/vp8/common/x86/iwalsh_mmx.o \
+$(LIBOBJ)/webm/vp8/common/x86/recon_mmx.o \
+$(LIBOBJ)/webm/vp8/common/x86/subpixel_mmx.o \
+$(LIBOBJ)/webm/vp8/common/x86/loopfilter_mmx.o \
+$(LIBOBJ)/webm/vp8/common/x86/idctllm_sse2.o \
+$(LIBOBJ)/webm/vp8/common/x86/recon_sse2.o \
+$(LIBOBJ)/webm/vp8/common/x86/subpixel_sse2.o \
+$(LIBOBJ)/webm/vp8/common/x86/loopfilter_sse2.o \
+$(LIBOBJ)/webm/vp8/common/x86/iwalsh_sse2.o \
+$(LIBOBJ)/webm/vp8/common/x86/subpixel_ssse3.o \
+$(LIBOBJ)/webm/vp8/common/x86/postproc_mmx.o \
+$(LIBOBJ)/webm/vp8/common/x86/postproc_sse2.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/variance_impl_mmx.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/sad_mmx.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/dct_mmx.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/subtract_mmx.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/dct_sse2.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/variance_impl_sse2.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/sad_sse2.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/fwalsh_sse2.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/quantize_sse2.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/subtract_sse2.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/temporal_filter_apply_sse2.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/sad_sse3.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/sad_ssse3.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/variance_impl_ssse3.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/quantize_ssse3.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/sad_sse4.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/quantize_sse4.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/quantize_mmx.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/encodeopt.o \
+$(LIBOBJ)/webm/vp8/decoder/x86/dequantize_mmx.o \
+$(LIBOBJ)/webm/vpx_ports/emms.o \
+$(LIBOBJ)/webm/vpx_ports/x86_abi_support.o \
+
+WEBMOBJS = \
+$(LIBOBJ)/webm/libmkv/EbmlWriter.o \
+$(LIBOBJ)/webm/ogg/bitwise.o \
+$(LIBOBJ)/webm/ogg/framing.o \
+$(LIBOBJ)/webm/RGB2YV12.o \
+$(LIBOBJ)/webm/tools_common.o \
+$(LIBOBJ)/webm/vorbis/analysis.o \
+$(LIBOBJ)/webm/vorbis/barkmel.o \
+$(LIBOBJ)/webm/vorbis/bitrate.o \
+$(LIBOBJ)/webm/vorbis/block.o \
+$(LIBOBJ)/webm/vorbis/codebook.o \
+$(LIBOBJ)/webm/vorbis/envelope.o \
+$(LIBOBJ)/webm/vorbis/floor0.o \
+$(LIBOBJ)/webm/vorbis/floor1.o \
+$(LIBOBJ)/webm/vorbis/info.o \
+$(LIBOBJ)/webm/vorbis/lookup.o \
+$(LIBOBJ)/webm/vorbis/lpc.o \
+$(LIBOBJ)/webm/vorbis/lsp.o \
+$(LIBOBJ)/webm/vorbis/mapping0.o \
+$(LIBOBJ)/webm/vorbis/mdct.o \
+$(LIBOBJ)/webm/vorbis/psy.o \
+$(LIBOBJ)/webm/vorbis/registry.o \
+$(LIBOBJ)/webm/vorbis/res0.o \
+$(LIBOBJ)/webm/vorbis/sharedbook.o \
+$(LIBOBJ)/webm/vorbis/smallft.o \
+$(LIBOBJ)/webm/vorbis/synthesis.o \
+$(LIBOBJ)/webm/vorbis/tone.o \
+$(LIBOBJ)/webm/vorbis/vorbisenc.o \
+$(LIBOBJ)/webm/vorbis/vorbisfile.o \
+$(LIBOBJ)/webm/vorbis/window.o \
+$(LIBOBJ)/webm/vp8/common/alloccommon.o \
+$(LIBOBJ)/webm/vp8/common/asm_com_offsets.o \
+$(LIBOBJ)/webm/vp8/common/blockd.o \
+$(LIBOBJ)/webm/vp8/common/context.o \
+$(LIBOBJ)/webm/vp8/common/debugmodes.o \
+$(LIBOBJ)/webm/vp8/common/entropy.o \
+$(LIBOBJ)/webm/vp8/common/entropymode.o \
+$(LIBOBJ)/webm/vp8/common/entropymv.o \
+$(LIBOBJ)/webm/vp8/common/extend.o \
+$(LIBOBJ)/webm/vp8/common/filter.o \
+$(LIBOBJ)/webm/vp8/common/findnearmv.o \
+$(LIBOBJ)/webm/vp8/common/generic/systemdependent.o \
+$(LIBOBJ)/webm/vp8/common/idctllm.o \
+$(LIBOBJ)/webm/vp8/common/invtrans.o \
+$(LIBOBJ)/webm/vp8/common/loopfilter.o \
+$(LIBOBJ)/webm/vp8/common/loopfilter_filters.o \
+$(LIBOBJ)/webm/vp8/common/mbpitch.o \
+$(LIBOBJ)/webm/vp8/common/modecont.o \
+$(LIBOBJ)/webm/vp8/common/modecontext.o \
+$(LIBOBJ)/webm/vp8/common/postproc.o \
+$(LIBOBJ)/webm/vp8/common/quant_common.o \
+$(LIBOBJ)/webm/vp8/common/recon.o \
+$(LIBOBJ)/webm/vp8/common/reconinter.o \
+$(LIBOBJ)/webm/vp8/common/reconintra.o \
+$(LIBOBJ)/webm/vp8/common/reconintra4x4.o \
+$(LIBOBJ)/webm/vp8/common/setupintrarecon.o \
+$(LIBOBJ)/webm/vp8/common/swapyv12buffer.o \
+$(LIBOBJ)/webm/vp8/common/textblit.o \
+$(LIBOBJ)/webm/vp8/common/treecoder.o \
+$(LIBOBJ)/webm/vp8/common/x86/loopfilter_x86.o \
+$(LIBOBJ)/webm/vp8/common/x86/recon_wrapper_sse2.o \
+$(LIBOBJ)/webm/vp8/common/x86/vp8_asm_stubs.o \
+$(LIBOBJ)/webm/vp8/common/x86/x86_systemdependent.o \
+$(LIBOBJ)/webm/vp8/decoder/asm_dec_offsets.o \
+$(LIBOBJ)/webm/vp8/decoder/dboolhuff.o \
+$(LIBOBJ)/webm/vp8/decoder/decodemv.o \
+$(LIBOBJ)/webm/vp8/decoder/decodframe.o \
+$(LIBOBJ)/webm/vp8/decoder/dequantize.o \
+$(LIBOBJ)/webm/vp8/decoder/detokenize.o \
+$(LIBOBJ)/webm/vp8/decoder/generic/dsystemdependent.o \
+$(LIBOBJ)/webm/vp8/decoder/idct_blk.o \
+$(LIBOBJ)/webm/vp8/decoder/onyxd_if.o \
+$(LIBOBJ)/webm/vp8/decoder/reconintra_mt.o \
+$(LIBOBJ)/webm/vp8/decoder/threading.o \
+$(LIBOBJ)/webm/vp8/decoder/x86/idct_blk_mmx.o \
+$(LIBOBJ)/webm/vp8/decoder/x86/idct_blk_sse2.o \
+$(LIBOBJ)/webm/vp8/decoder/x86/x86_dsystemdependent.o \
+$(LIBOBJ)/webm/vp8/encoder/asm_enc_offsets.o \
+$(LIBOBJ)/webm/vp8/encoder/bitstream.o \
+$(LIBOBJ)/webm/vp8/encoder/boolhuff.o \
+$(LIBOBJ)/webm/vp8/encoder/dct.o \
+$(LIBOBJ)/webm/vp8/encoder/encodeframe.o \
+$(LIBOBJ)/webm/vp8/encoder/encodeintra.o \
+$(LIBOBJ)/webm/vp8/encoder/encodemb.o \
+$(LIBOBJ)/webm/vp8/encoder/encodemv.o \
+$(LIBOBJ)/webm/vp8/encoder/ethreading.o \
+$(LIBOBJ)/webm/vp8/encoder/firstpass.o \
+$(LIBOBJ)/webm/vp8/encoder/generic/csystemdependent.o \
+$(LIBOBJ)/webm/vp8/encoder/lookahead.o \
+$(LIBOBJ)/webm/vp8/encoder/mcomp.o \
+$(LIBOBJ)/webm/vp8/encoder/modecosts.o \
+$(LIBOBJ)/webm/vp8/encoder/onyx_if.o \
+$(LIBOBJ)/webm/vp8/encoder/pickinter.o \
+$(LIBOBJ)/webm/vp8/encoder/picklpf.o \
+$(LIBOBJ)/webm/vp8/encoder/psnr.o \
+$(LIBOBJ)/webm/vp8/encoder/quantize.o \
+$(LIBOBJ)/webm/vp8/encoder/ratectrl.o \
+$(LIBOBJ)/webm/vp8/encoder/rdopt.o \
+$(LIBOBJ)/webm/vp8/encoder/sad_c.o \
+$(LIBOBJ)/webm/vp8/encoder/segmentation.o \
+$(LIBOBJ)/webm/vp8/encoder/temporal_filter.o \
+$(LIBOBJ)/webm/vp8/encoder/tokenize.o \
+$(LIBOBJ)/webm/vp8/encoder/treewriter.o \
+$(LIBOBJ)/webm/vp8/encoder/variance_c.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/variance_mmx.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/variance_sse2.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/variance_ssse3.o \
+$(LIBOBJ)/webm/vp8/encoder/x86/x86_csystemdependent.o \
+$(LIBOBJ)/webm/vp8/vp8_cx_iface.o \
+$(LIBOBJ)/webm/vp8/vp8_dx_iface.o \
+$(LIBOBJ)/webm/vpx/src/vpx_codec.o \
+$(LIBOBJ)/webm/vpx/src/vpx_decoder.o \
+$(LIBOBJ)/webm/vpx/src/vpx_decoder_compat.o \
+$(LIBOBJ)/webm/vpx/src/vpx_encoder.o \
+$(LIBOBJ)/webm/vpx/src/vpx_image.o \
+$(LIBOBJ)/webm/vpx_mem/memory_manager/hmm_alloc.o \
+$(LIBOBJ)/webm/vpx_mem/memory_manager/hmm_base.o \
+$(LIBOBJ)/webm/vpx_mem/memory_manager/hmm_dflt_abort.o \
+$(LIBOBJ)/webm/vpx_mem/memory_manager/hmm_grow.o \
+$(LIBOBJ)/webm/vpx_mem/memory_manager/hmm_largest.o \
+$(LIBOBJ)/webm/vpx_mem/memory_manager/hmm_resize.o \
+$(LIBOBJ)/webm/vpx_mem/memory_manager/hmm_shrink.o \
+$(LIBOBJ)/webm/vpx_mem/memory_manager/hmm_true.o \
+$(LIBOBJ)/webm/vpx_mem/vpx_mem.o \
+$(LIBOBJ)/webm/vpx_mem/vpx_mem_tracker.o \
+$(LIBOBJ)/webm/vpx_ports/x86_cpuid.o \
+$(LIBOBJ)/webm/vpx_scale/generic/gen_scalers.o \
+$(LIBOBJ)/webm/vpx_scale/generic/scalesystemdependent.o \
+$(LIBOBJ)/webm/vpx_scale/generic/vpxscale.o \
+$(LIBOBJ)/webm/vpx_scale/generic/yv12config.o \
+$(LIBOBJ)/webm/vpx_scale/generic/yv12extend.o \
+$(LIBOBJ)/webm/WebMEncoder.o \
+$(LIBOBJ)/webm/libwebm/mkvmuxer.o \
+$(LIBOBJ)/webm/libwebm/mkvmuxerutil.o \
+$(LIBOBJ)/webm/libwebm/mkvparser.o \
+$(LIBOBJ)/webm/libwebm/mkvreader.o \
+$(LIBOBJ)/webm/libwebm/mkvwriter.o \
+
+$(OBJ)/libwebm.a: $(WEBMOBJS) $(WEBMX86ASMOBJS)
+
+ifeq ($(TARGETOS),macosx)
+$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+	@echo Compiling ASM FILE $<...
+	yasm -f macho64 $(INCPATH) -o $@ $<
+endif
+ifeq ($(TARGETOS),linux)
+ifeq ($(PTR64),1)
+$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+	@echo Compiling ASM FILE $<...
+	yasm -f elf64 $(INCPATH) -o $@ $<
+else
+$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+	@echo Compiling ASM FILE $<...
+	yasm -f elf32 $(INCPATH) -o $@ $<
+endif
+endif
+ifeq ($(TARGETOS),win32)
+$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+	@echo Compiling ASM FILE $<...
+	yasm -f win32 $(INCPATH) -o $@ $<
+endif
+
+$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.c | $(OSPREBUILD)
+	@echo Compiling C FILE $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -c $< -o $@
+
+$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.cpp | $(OSPREBUILD)
+	@echo Compiling CPLUSPLUS FILE $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
+RAKNETOBJS = \
+$(LIBOBJ)/RakNet/BitStream.o \
+$(LIBOBJ)/RakNet/CCRakNetSlidingWindow.o \
+$(LIBOBJ)/RakNet/CCRakNetUDT.o \
+$(LIBOBJ)/RakNet/CheckSum.o \
+$(LIBOBJ)/RakNet/CommandParserInterface.o \
+$(LIBOBJ)/RakNet/ConnectionGraph2.o \
+$(LIBOBJ)/RakNet/ConsoleServer.o \
+$(LIBOBJ)/RakNet/DataCompressor.o \
+$(LIBOBJ)/RakNet/DirectoryDeltaTransfer.o \
+$(LIBOBJ)/RakNet/DS_BytePool.o \
+$(LIBOBJ)/RakNet/DS_ByteQueue.o \
+$(LIBOBJ)/RakNet/DS_HuffmanEncodingTree.o \
+$(LIBOBJ)/RakNet/DS_Table.o \
+$(LIBOBJ)/RakNet/EmailSender.o \
+$(LIBOBJ)/RakNet/EncodeClassName.o \
+$(LIBOBJ)/RakNet/EpochTimeToString.o \
+$(LIBOBJ)/RakNet/FileList.o \
+$(LIBOBJ)/RakNet/FileListTransfer.o \
+$(LIBOBJ)/RakNet/FileOperations.o \
+$(LIBOBJ)/RakNet/FormatString.o \
+$(LIBOBJ)/RakNet/FullyConnectedMesh2.o \
+$(LIBOBJ)/RakNet/Getche.o \
+$(LIBOBJ)/RakNet/Gets.o \
+$(LIBOBJ)/RakNet/GetTime.o \
+$(LIBOBJ)/RakNet/gettimeofday.o \
+$(LIBOBJ)/RakNet/GridSectorizer.o \
+$(LIBOBJ)/RakNet/HTTPConnection.o \
+$(LIBOBJ)/RakNet/IncrementalReadInterface.o \
+$(LIBOBJ)/RakNet/Itoa.o \
+$(LIBOBJ)/RakNet/LinuxStrings.o \
+$(LIBOBJ)/RakNet/LogCommandParser.o \
+$(LIBOBJ)/RakNet/MessageFilter.o \
+$(LIBOBJ)/RakNet/NatPunchthroughClient.o \
+$(LIBOBJ)/RakNet/NatPunchthroughServer.o \
+$(LIBOBJ)/RakNet/NatTypeDetectionClient.o \
+$(LIBOBJ)/RakNet/NatTypeDetectionCommon.o \
+$(LIBOBJ)/RakNet/NatTypeDetectionServer.o \
+$(LIBOBJ)/RakNet/NetworkIDManager.o \
+$(LIBOBJ)/RakNet/NetworkIDObject.o \
+$(LIBOBJ)/RakNet/PacketConsoleLogger.o \
+$(LIBOBJ)/RakNet/PacketFileLogger.o \
+$(LIBOBJ)/RakNet/PacketizedTCP.o \
+$(LIBOBJ)/RakNet/PacketLogger.o \
+$(LIBOBJ)/RakNet/PacketOutputWindowLogger.o \
+$(LIBOBJ)/RakNet/PluginInterface2.o \
+$(LIBOBJ)/RakNet/RakMemoryOverride.o \
+$(LIBOBJ)/RakNet/RakNetCommandParser.o \
+$(LIBOBJ)/RakNet/RakNetSocket.o \
+$(LIBOBJ)/RakNet/RakNetStatistics.o \
+$(LIBOBJ)/RakNet/RakNetTransport2.o \
+$(LIBOBJ)/RakNet/RakNetTypes.o \
+$(LIBOBJ)/RakNet/RakPeer.o \
+$(LIBOBJ)/RakNet/RakSleep.o \
+$(LIBOBJ)/RakNet/RakString.o \
+$(LIBOBJ)/RakNet/RakThread.o \
+$(LIBOBJ)/RakNet/Rand.o \
+$(LIBOBJ)/RakNet/rdlmalloc.o \
+$(LIBOBJ)/RakNet/ReadyEvent.o \
+$(LIBOBJ)/RakNet/ReliabilityLayer.o \
+$(LIBOBJ)/RakNet/ReplicaManager3.o \
+$(LIBOBJ)/RakNet/Router2.o \
+$(LIBOBJ)/RakNet/RPC4Plugin.o \
+$(LIBOBJ)/RakNet/SecureHandshake.o \
+$(LIBOBJ)/RakNet/SendToThread.o \
+$(LIBOBJ)/RakNet/SHA1.o \
+$(LIBOBJ)/RakNet/SignaledEvent.o \
+$(LIBOBJ)/RakNet/SimpleMutex.o \
+$(LIBOBJ)/RakNet/SocketLayer.o \
+$(LIBOBJ)/RakNet/StringCompressor.o \
+$(LIBOBJ)/RakNet/StringTable.o \
+$(LIBOBJ)/RakNet/SuperFastHash.o \
+$(LIBOBJ)/RakNet/TableSerializer.o \
+$(LIBOBJ)/RakNet/TCPInterface.o \
+$(LIBOBJ)/RakNet/TeamBalancer.o \
+$(LIBOBJ)/RakNet/TelnetTransport.o \
+$(LIBOBJ)/RakNet/ThreadsafePacketLogger.o \
+$(LIBOBJ)/RakNet/UDPForwarder.o \
+$(LIBOBJ)/RakNet/UDPProxyClient.o \
+$(LIBOBJ)/RakNet/UDPProxyCoordinator.o \
+$(LIBOBJ)/RakNet/UDPProxyServer.o \
+$(LIBOBJ)/RakNet/VariableDeltaSerializer.o \
+$(LIBOBJ)/RakNet/VariableListDeltaTracker.o \
+$(LIBOBJ)/RakNet/VariadicSQLParser.o \
+$(LIBOBJ)/RakNet/WSAStartupSingleton.o \
+$(LIBOBJ)/RakNet/_FindFirst.o
+
+$(OBJ)/libraknet.a: $(RAKNETOBJS)
+
+$(LIBOBJ)/RakNet/%.o: $(LIBSRC)/RakNet/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
+BOOSTTHREADWINDOWSOBJS = \
+$(LIBOBJ)/boost_thread/libs/thread/win32/tss_dll.o \
+$(LIBOBJ)/boost_thread/libs/thread/win32/tss_pe.o \
+$(LIBOBJ)/boost_thread/libs/thread/win32/thread.o
+
+BOOSTTHREADPOSIXOBJS = \
+$(LIBOBJ)/boost_thread/libs/thread/pthread/once.o \
+$(LIBOBJ)/boost_thread/libs/thread/pthread/thread.o
+
+$(OBJ)/libboostthreadwindows.a: $(BOOSTTHREADWINDOWSOBJS)
+
+$(OBJ)/libboostthreadposix.a: $(BOOSTTHREADPOSIXOBJS)
+
+$(LIBOBJ)/boost_thread/libs/thread/pthread/%.o: $(LIBSRC)/boost_thread/libs/thread/pthread/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
+$(LIBOBJ)/boost_thread/libs/thread/win32/%.o: $(LIBSRC)/boost_thread/libs/thread/win32/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
 
 #-------------------------------------------------
 # expat library objects
@@ -87,110 +527,110 @@ $(LIBOBJ)/expat/%.o: $(LIBSRC)/expat/%.c | $(OSPREBUILD)
 #-------------------------------------------------
 
 FORMATSOBJS = \
-	$(LIBOBJ)/formats/cassimg.o     \
-	$(LIBOBJ)/formats/flopimg.o     \
-	$(LIBOBJ)/formats/imageutl.o    \
-	$(LIBOBJ)/formats/ioprocs.o     \
-	$(LIBOBJ)/formats/basicdsk.o    \
-	$(LIBOBJ)/formats/a26_cas.o     \
+	$(LIBOBJ)/formats/cassimg.o 	\
+	$(LIBOBJ)/formats/flopimg.o		\
+	$(LIBOBJ)/formats/imageutl.o	\
+	$(LIBOBJ)/formats/ioprocs.o		\
+	$(LIBOBJ)/formats/basicdsk.o	\
+	$(LIBOBJ)/formats/a26_cas.o		\
 	$(LIBOBJ)/formats/a5105_dsk.o   \
-	$(LIBOBJ)/formats/ace_tap.o     \
-	$(LIBOBJ)/formats/adam_cas.o    \
+	$(LIBOBJ)/formats/ace_tap.o		\
+	$(LIBOBJ)/formats/adam_cas.o	\
 	$(LIBOBJ)/formats/adam_dsk.o    \
-	$(LIBOBJ)/formats/ami_dsk.o     \
-	$(LIBOBJ)/formats/ap2_dsk.o     \
-	$(LIBOBJ)/formats/apf_apt.o     \
-	$(LIBOBJ)/formats/apridisk.o    \
+	$(LIBOBJ)/formats/ami_dsk.o		\
+	$(LIBOBJ)/formats/ap2_dsk.o		\
+	$(LIBOBJ)/formats/apf_apt.o		\
+	$(LIBOBJ)/formats/apridisk.o	\
 	$(LIBOBJ)/formats/apollo_dsk.o  \
-	$(LIBOBJ)/formats/ap_dsk35.o    \
-	$(LIBOBJ)/formats/atari_dsk.o   \
-	$(LIBOBJ)/formats/atarist_dsk.o \
-	$(LIBOBJ)/formats/atom_tap.o    \
+	$(LIBOBJ)/formats/ap_dsk35.o	\
+	$(LIBOBJ)/formats/atari_dsk.o	\
+	$(LIBOBJ)/formats/atarist_dsk.o	\
+	$(LIBOBJ)/formats/atom_tap.o	\
 	$(LIBOBJ)/formats/bw2_dsk.o \
 	$(LIBOBJ)/formats/bw12_dsk.o    \
-	$(LIBOBJ)/formats/cbm_tap.o     \
-	$(LIBOBJ)/formats/cgen_cas.o    \
-	$(LIBOBJ)/formats/coco_cas.o    \
-	$(LIBOBJ)/formats/coco_dsk.o    \
-	$(LIBOBJ)/formats/comx35_dsk.o  \
-	$(LIBOBJ)/formats/coupedsk.o    \
-	$(LIBOBJ)/formats/cpis_dsk.o    \
-	$(LIBOBJ)/formats/cqm_dsk.o     \
-	$(LIBOBJ)/formats/csw_cas.o     \
-	$(LIBOBJ)/formats/d64_dsk.o     \
-	$(LIBOBJ)/formats/d81_dsk.o     \
-	$(LIBOBJ)/formats/d88_dsk.o     \
-	$(LIBOBJ)/formats/dfi_dsk.o     \
-	$(LIBOBJ)/formats/dim_dsk.o     \
-	$(LIBOBJ)/formats/dsk_dsk.o     \
+	$(LIBOBJ)/formats/cbm_tap.o		\
+	$(LIBOBJ)/formats/cgen_cas.o	\
+	$(LIBOBJ)/formats/coco_cas.o	\
+	$(LIBOBJ)/formats/coco_dsk.o	\
+	$(LIBOBJ)/formats/comx35_dsk.o	\
+	$(LIBOBJ)/formats/coupedsk.o	\
+	$(LIBOBJ)/formats/cpis_dsk.o	\
+	$(LIBOBJ)/formats/cqm_dsk.o		\
+	$(LIBOBJ)/formats/csw_cas.o		\
+	$(LIBOBJ)/formats/d64_dsk.o		\
+	$(LIBOBJ)/formats/d81_dsk.o		\
+	$(LIBOBJ)/formats/d88_dsk.o		\
+	$(LIBOBJ)/formats/dfi_dsk.o		\
+	$(LIBOBJ)/formats/dim_dsk.o		\
+	$(LIBOBJ)/formats/dsk_dsk.o		\
 	$(LIBOBJ)/formats/esq8_dsk.o    \
 	$(LIBOBJ)/formats/esq16_dsk.o   \
-	$(LIBOBJ)/formats/fdi_dsk.o     \
-	$(LIBOBJ)/formats/fm7_cas.o     \
-	$(LIBOBJ)/formats/fmsx_cas.o    \
-	$(LIBOBJ)/formats/g64_dsk.o     \
-	$(LIBOBJ)/formats/gtp_cas.o     \
-	$(LIBOBJ)/formats/hect_dsk.o    \
-	$(LIBOBJ)/formats/hect_tap.o    \
+	$(LIBOBJ)/formats/fdi_dsk.o		\
+	$(LIBOBJ)/formats/fm7_cas.o		\
+	$(LIBOBJ)/formats/fmsx_cas.o	\
+	$(LIBOBJ)/formats/g64_dsk.o		\
+	$(LIBOBJ)/formats/gtp_cas.o		\
+	$(LIBOBJ)/formats/hect_dsk.o	\
+	$(LIBOBJ)/formats/hect_tap.o	\
 	$(LIBOBJ)/formats/iq151_dsk.o   \
-	$(LIBOBJ)/formats/imd_dsk.o     \
-	$(LIBOBJ)/formats/ipf_dsk.o     \
-	$(LIBOBJ)/formats/kc_cas.o      \
+	$(LIBOBJ)/formats/imd_dsk.o		\
+	$(LIBOBJ)/formats/ipf_dsk.o		\
+	$(LIBOBJ)/formats/kc_cas.o		\
 	$(LIBOBJ)/formats/kc85_dsk.o    \
-	$(LIBOBJ)/formats/kim1_cas.o    \
-	$(LIBOBJ)/formats/lviv_lvt.o    \
+	$(LIBOBJ)/formats/kim1_cas.o	\
+	$(LIBOBJ)/formats/lviv_lvt.o	\
 	$(LIBOBJ)/formats/m20_dsk.o \
 	$(LIBOBJ)/formats/m5_dsk.o      \
 	$(LIBOBJ)/formats/mm_dsk.o      \
-	$(LIBOBJ)/formats/msx_dsk.o     \
-	$(LIBOBJ)/formats/mfi_dsk.o     \
-	$(LIBOBJ)/formats/mz_cas.o      \
+	$(LIBOBJ)/formats/msx_dsk.o		\
+	$(LIBOBJ)/formats/mfi_dsk.o		\
+	$(LIBOBJ)/formats/mz_cas.o		\
 	$(LIBOBJ)/formats/nanos_dsk.o   \
-	$(LIBOBJ)/formats/nes_dsk.o     \
-	$(LIBOBJ)/formats/orao_cas.o    \
-	$(LIBOBJ)/formats/oric_dsk.o    \
-	$(LIBOBJ)/formats/oric_tap.o    \
-	$(LIBOBJ)/formats/p6001_cas.o   \
-	$(LIBOBJ)/formats/pasti_dsk.o   \
-	$(LIBOBJ)/formats/pc_dsk.o      \
+	$(LIBOBJ)/formats/nes_dsk.o		\
+	$(LIBOBJ)/formats/orao_cas.o	\
+	$(LIBOBJ)/formats/oric_dsk.o	\
+	$(LIBOBJ)/formats/oric_tap.o	\
+	$(LIBOBJ)/formats/p6001_cas.o	\
+	$(LIBOBJ)/formats/pasti_dsk.o	\
+	$(LIBOBJ)/formats/pc_dsk.o		\
 	$(LIBOBJ)/formats/pc98fdi_dsk.o \
-	$(LIBOBJ)/formats/pmd_cas.o     \
-	$(LIBOBJ)/formats/primoptp.o    \
+	$(LIBOBJ)/formats/pmd_cas.o		\
+	$(LIBOBJ)/formats/primoptp.o	\
 	$(LIBOBJ)/formats/pyldin_dsk.o  \
-	$(LIBOBJ)/formats/rk_cas.o      \
+	$(LIBOBJ)/formats/rk_cas.o		\
 	$(LIBOBJ)/formats/sc3000_bit.o  \
 	$(LIBOBJ)/formats/sf7000_dsk.o  \
-	$(LIBOBJ)/formats/smx_dsk.o     \
-	$(LIBOBJ)/formats/sorc_dsk.o    \
-	$(LIBOBJ)/formats/sord_cas.o    \
-	$(LIBOBJ)/formats/st_dsk.o      \
-	$(LIBOBJ)/formats/svi_cas.o     \
-	$(LIBOBJ)/formats/svi_dsk.o     \
-	$(LIBOBJ)/formats/td0_dsk.o     \
-	$(LIBOBJ)/formats/thom_cas.o    \
-	$(LIBOBJ)/formats/thom_dsk.o    \
-	$(LIBOBJ)/formats/ti99_dsk.o    \
+	$(LIBOBJ)/formats/smx_dsk.o		\
+	$(LIBOBJ)/formats/sorc_dsk.o	\
+	$(LIBOBJ)/formats/sord_cas.o	\
+	$(LIBOBJ)/formats/st_dsk.o		\
+	$(LIBOBJ)/formats/svi_cas.o		\
+	$(LIBOBJ)/formats/svi_dsk.o		\
+	$(LIBOBJ)/formats/td0_dsk.o		\
+	$(LIBOBJ)/formats/thom_cas.o	\
+	$(LIBOBJ)/formats/thom_dsk.o	\
+	$(LIBOBJ)/formats/ti99_dsk.o	\
 	$(LIBOBJ)/formats/tiki100_dsk.o \
-	$(LIBOBJ)/formats/trd_dsk.o     \
-	$(LIBOBJ)/formats/trs_cas.o     \
-	$(LIBOBJ)/formats/trs_dsk.o     \
+	$(LIBOBJ)/formats/trd_dsk.o		\
+	$(LIBOBJ)/formats/trs_cas.o		\
+	$(LIBOBJ)/formats/trs_dsk.o		\
 	$(LIBOBJ)/formats/tvc_cas.o     \
 	$(LIBOBJ)/formats/tvc_dsk.o     \
-	$(LIBOBJ)/formats/tzx_cas.o     \
-	$(LIBOBJ)/formats/uef_cas.o     \
+	$(LIBOBJ)/formats/tzx_cas.o		\
+	$(LIBOBJ)/formats/uef_cas.o		\
 	$(LIBOBJ)/formats/upd765_dsk.o  \
-	$(LIBOBJ)/formats/vg5k_cas.o    \
-	$(LIBOBJ)/formats/vt_cas.o      \
-	$(LIBOBJ)/formats/vt_dsk.o      \
-	$(LIBOBJ)/formats/vtech1_dsk.o  \
-	$(LIBOBJ)/formats/wavfile.o     \
+	$(LIBOBJ)/formats/vg5k_cas.o	\
+	$(LIBOBJ)/formats/vt_cas.o		\
+	$(LIBOBJ)/formats/vt_dsk.o		\
+	$(LIBOBJ)/formats/vtech1_dsk.o	\
+	$(LIBOBJ)/formats/wavfile.o		\
 	$(LIBOBJ)/formats/wd177x_dsk.o  \
-	$(LIBOBJ)/formats/x07_cas.o     \
-	$(LIBOBJ)/formats/x1_tap.o      \
+	$(LIBOBJ)/formats/x07_cas.o		\
+	$(LIBOBJ)/formats/x1_tap.o		\
 	$(LIBOBJ)/formats/xdf_dsk.o     \
-	$(LIBOBJ)/formats/z80ne_dsk.o   \
-	$(LIBOBJ)/formats/zx81_p.o      \
-	$(LIBOBJ)/formats/hxcmfm_dsk.o  \
+	$(LIBOBJ)/formats/z80ne_dsk.o	\
+	$(LIBOBJ)/formats/zx81_p.o		\
+	$(LIBOBJ)/formats/hxcmfm_dsk.o	\
 
 $(OBJ)/libformats.a: $(FORMATSOBJS)
 
@@ -232,8 +672,8 @@ SOFTFLOAT_MACROS = $(LIBSRC)/softfloat/softfloat/bits64/softfloat-macros
 
 SOFTFLOATOBJS = \
 	$(LIBOBJ)/softfloat/softfloat.o \
-	$(LIBOBJ)/softfloat/fsincos.o \
-	$(LIBOBJ)/softfloat/fyl2x.o
+    $(LIBOBJ)/softfloat/fsincos.o \
+    $(LIBOBJ)/softfloat/fyl2x.o
 
 $(OBJ)/libsoftfloat.a: $(SOFTFLOATOBJS)
 
@@ -368,6 +808,7 @@ LIB7ZOBJS = \
 	$(LIBOBJ)/lib7z/Ppmd7.o \
 	$(LIBOBJ)/lib7z/Ppmd7Dec.o \
 	$(LIBOBJ)/lib7z/7zStream.o \
+	$(LIBOBJ)/lib7z/Sha256.o \
 
 $(OBJ)/lib7z.a: $(LIB7ZOBJS)
 

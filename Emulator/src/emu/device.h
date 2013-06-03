@@ -104,7 +104,9 @@ class machine_config;
 class emu_timer;
 struct input_device_default;
 
-
+#ifdef WIN32
+#undef interface
+#endif
 
 // exception classes
 class device_missing_dependencies : public emu_exception { };

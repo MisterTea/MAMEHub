@@ -72,6 +72,9 @@
 
 ***************************************************************************/
 
+#include "NSM_Server.h"
+#include "NSM_Client.h"
+
 #include "emu.h"
 #include "emuopts.h"
 #include "osdepend.h"
@@ -178,6 +181,19 @@ int mame_execute(emu_options &options, osd_interface &osd)
 		// create the machine configuration
 		machine_config config(*system, options);
 
+		//Set up client/server as appropriate
+		if(options.client())
+		  {
+		    deleteGlobalClient();
+		    createGlobalClient(options.username());
+		  }
+		else if(options.server())
+		  {
+		    deleteGlobalServer();
+		    createGlobalServer(options.username(),(unsigned short)options.port());
+		    netServer->setSyncTransferTime(options.syncTransferSeconds());
+		  }
+
 		// create the machine structure and driver
 		running_machine machine(config, osd, started_empty);
 
@@ -189,6 +205,9 @@ int mame_execute(emu_options &options, osd_interface &osd)
 		// run the machine
 		error = machine.run(firstrun);
 		firstrun = false;
+
+		deleteGlobalClient();
+		deleteGlobalServer();
 
 		// check the state of the machine
 		if (machine.new_driver_pending())
@@ -265,6 +284,8 @@ void mame_printf_error(const char *format, ...)
 	va_start(argptr, format);
 	output_cb[OUTPUT_CHANNEL_ERROR](format, argptr);
 	va_end(argptr);
+	fflush(stdout);
+	fflush(stderr);
 }
 
 
@@ -281,6 +302,8 @@ void mame_printf_warning(const char *format, ...)
 	va_start(argptr, format);
 	output_cb[OUTPUT_CHANNEL_WARNING](format, argptr);
 	va_end(argptr);
+	fflush(stdout);
+	fflush(stderr);
 }
 
 
@@ -297,6 +320,8 @@ void mame_printf_info(const char *format, ...)
 	va_start(argptr, format);
 	output_cb[OUTPUT_CHANNEL_INFO](format, argptr);
 	va_end(argptr);
+	fflush(stdout);
+	fflush(stderr);
 }
 
 
@@ -317,6 +342,8 @@ void mame_printf_verbose(const char *format, ...)
 	va_start(argptr, format);
 	output_cb[OUTPUT_CHANNEL_VERBOSE](format, argptr);
 	va_end(argptr);
+	fflush(stdout);
+	fflush(stderr);
 }
 
 
@@ -333,6 +360,8 @@ void mame_printf_debug(const char *format, ...)
 	va_start(argptr, format);
 	output_cb[OUTPUT_CHANNEL_DEBUG](format, argptr);
 	va_end(argptr);
+	fflush(stdout);
+	fflush(stderr);
 }
 
 
@@ -350,6 +379,8 @@ void mame_printf_log(const char *format, ...)
 	va_start(argptr, format);
 	output_cb[OUTPUT_CHANNEL_LOG])(format, argptr);
 	va_end(argptr);
+	fflush(stdout);
+	fflush(stderr);
 }
 #endif
 

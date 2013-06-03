@@ -354,6 +354,11 @@ void sdl_osd_interface::set_mastervolume(int _attenuation)
 	attenuation = _attenuation;
 }
 
+void sdl_osd_interface::pauseAudio(bool pause)
+{
+    SDL_PauseAudio((int)pause);
+}
+
 //============================================================
 //  sdl_callback
 //============================================================

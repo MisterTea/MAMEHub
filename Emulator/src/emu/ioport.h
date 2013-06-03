@@ -46,8 +46,11 @@
 #ifndef __INPTPORT_H__
 #define __INPTPORT_H__
 
+#include <vector>
+
 #include <time.h>
 
+#include "nsm.pb.h"
 
 //**************************************************************************
 //  CONSTANTS
@@ -749,7 +752,7 @@ public:
 	const char *token() const { return m_token; }
 	const char *name() const { return m_name; }
 	input_seq &defseq(input_seq_type seqtype = SEQ_TYPE_STANDARD) { return m_defseq[seqtype]; }
-	const input_seq &seq(input_seq_type seqtype = SEQ_TYPE_STANDARD) const { return m_seq[seqtype]; }
+	const input_seq &seq(bool checkMapping, input_seq_type seqtype = SEQ_TYPE_STANDARD) const { if(checkMapping) { printf("OOPS!!! CALLED SEQ WITH CHECK MAPPING\n"); exit(1); } return m_seq[seqtype]; }
 
 	// setters
 	void configure_osd(const char *token, const char *name);
@@ -1053,7 +1056,7 @@ public:
 	UINT8 impulse() const { return m_impulse; }
 	const char *name() const;
 	const char *specific_name() const { return m_name; }
-	const input_seq &seq(input_seq_type seqtype = SEQ_TYPE_STANDARD) const;
+	const input_seq &seq(bool checkMapping, input_seq_type seqtype = SEQ_TYPE_STANDARD) const;
 	const input_seq &defseq(input_seq_type seqtype = SEQ_TYPE_STANDARD) const;
 	const input_seq &defseq_unresolved(input_seq_type seqtype = SEQ_TYPE_STANDARD) const { return m_seq[seqtype]; }
 	bool has_dynamic_read() const { return !m_read.isnull(); }
@@ -1263,6 +1266,13 @@ public:
 	INT32 frame_interpolate(INT32 oldval, INT32 newval);
 	ioport_type token_to_input_type(const char *string, int &player) const;
 	const char *input_type_to_token(astring &string, ioport_type type, int player);
+
+    void processNetworkBuffer(nsm::PeerInputData *inputData,int peerID);
+    void pollForDataAfter(int player, attotime curtime, bool printDebug);
+    void pollForPeerCatchup(bool printDebug);
+    std::vector<nsm::InputState*> fetch_remote_inputs(attotime curtime);
+    void store_local_port(ioport_port &port, nsm::InputPort *inputPort);
+    void merge_ports(ioport_port &port, const std::vector<nsm::InputState*> &remoteInputStates, int portIndex);
 
 private:
 	// internal helpers

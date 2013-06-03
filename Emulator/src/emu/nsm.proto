@@ -1,0 +1,52 @@
+package nsm;
+
+message Attotime {
+        required int32 seconds = 1 [default = 0];
+        required int64 attoseconds = 2 [default = 0];
+}
+
+message AnalogPort {
+        required int32 accum = 1;
+        required int32 previous = 2;
+        required int32 sensitivity = 3;
+        required bool reverse = 4;
+}
+
+message InputPort {
+        required uint32 defvalue = 1;
+        required uint32 digital = 2;
+        repeated AnalogPort analogPorts = 3;
+}
+
+message InputState {
+        repeated InputPort ports = 1;
+        repeated int32 players = 2 [packed=true];
+}
+
+message PeerInputData {
+        required int32 counter = 1;
+        required Attotime time = 2;
+
+        enum PeerInputType {
+             INPUT = 0;
+             CHAT = 1;
+             FORCE_VALUE = 2;
+        }
+
+        required PeerInputType inputType = 3;
+
+        optional InputState inputState = 4;
+        optional bytes inputBuffer = 5;
+}
+
+message PeerInputDataList {
+        repeated PeerInputData input_data = 1;
+        required int32 peer_id = 2;
+}
+
+message InitialSync {
+        optional uint32 checksum = 1;
+        repeated bytes initial_block = 2;
+        repeated PeerInputDataList peer_data = 3;
+        repeated bytes nvram = 4;
+}

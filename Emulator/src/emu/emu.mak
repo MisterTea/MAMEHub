@@ -44,6 +44,10 @@ OBJDIRS += \
 #-------------------------------------------------
 
 EMUOBJS = \
+	$(EMUOBJ)/NSM_Common.o \
+	$(EMUOBJ)/NSM_Server.o \
+	$(EMUOBJ)/NSM_Client.o \
+	$(EMUOBJ)/nsm.pb.o \
 	$(EMUOBJ)/hashfile.o \
 	$(EMUOBJ)/addrmap.o \
 	$(EMUOBJ)/attotime.o \

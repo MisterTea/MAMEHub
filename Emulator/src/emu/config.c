@@ -253,7 +253,18 @@ static int config_load_xml(running_machine &machine, emu_file &file, int which_t
 
 		/* loop over all registrants and call their load function */
 		for (type = typelist; type; type = type->next)
+		{
+			//JJG: Only load input cfgs.
+            if(machine.options().server() || machine.options().client())
+            {
+                if(strcmp(type->name,"input")!=0)
+                {
+                    //printf("SKIPPING CFG TYPE %s\n",type->name);
+                    continue;
+                }
+            }
 			type->load(which_type, xml_get_sibling(systemnode->child, type->name));
+		}
 		count++;
 	}
 

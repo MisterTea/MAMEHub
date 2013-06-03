@@ -195,6 +195,17 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_RAMSIZE ";ram",                             NULL,        OPTION_STRING,     "size of RAM (if supported by driver)" },
 	{ OPTION_CONFIRM_QUIT,                               "0",         OPTION_BOOLEAN,    "display confirm quit screen on exit" },
 	{ OPTION_UI_MOUSE,                                   "0",         OPTION_BOOLEAN,    "display ui mouse cursor" },
+
+    // net options
+	{ "username",               "Player",         OPTION_STRING,    "Username for displaying network info" },
+	{ "server",               "0",         OPTION_BOOLEAN,    "Is this a server in the network" },
+	{ "client",               "0",         OPTION_BOOLEAN,    "Is this a client in the network" },
+	{ "hostname",               "127.0.0.1",         OPTION_STRING,    "hostname of server to connect to" },
+	{ "port",               "5805",         OPTION_INTEGER,    "port of server to connect to" },
+	{ "selfport",               "5805",         OPTION_INTEGER,    "local port for other peers to connect to" },
+	{ "secondsbetweensync",               "30",         OPTION_INTEGER,    "Number of seconds to wait between syncs" },
+	{ "synctransferseconds",               "10",         OPTION_INTEGER,    "Number of seconds to spend transfering the sync" },
+
 	{ NULL }
 };
 
@@ -381,10 +392,10 @@ bool emu_options::parse_slot_devices(int argc, char *argv[], astring &error_stri
 	int num = 0;
 	do {
 		num = options_count();
-		update_slot_options();
-		while (add_slot_options(false));
+	update_slot_options();
+	while (add_slot_options(false));
 		add_device_options(false);
-		result = core_options::parse_command_line(argc, argv, OPTION_PRIORITY_CMDLINE, error_string);
+	result = core_options::parse_command_line(argc, argv, OPTION_PRIORITY_CMDLINE, error_string);
 	} while(num != options_count());
 
 	return result;
@@ -519,8 +530,8 @@ void emu_options::set_system_name(const char *name)
 		int num = 0;
 		do {
 			num = options_count();
-			update_slot_options();
-			while (add_slot_options(false));
+		update_slot_options();
+		while (add_slot_options(false));
 			add_device_options(false);
 		} while(num != options_count());
 	}

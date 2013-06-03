@@ -17,6 +17,11 @@
 #include "config.h"
 #include "ui.h"
 
+#include "NSM_Common.h"
+
+#ifdef WIN32
+#undef interface
+#endif
 
 #define LOG_LOAD 0
 #define LOG(x) do { if (LOG_LOAD) debugload x; } while(0)
@@ -1118,24 +1123,27 @@ int open_disk_image(emu_options &options, const game_driver *gamedrv, const rom_
 static chd_error open_disk_diff(emu_options &options, const rom_entry *romp, chd_file &source, chd_file &diff_chd)
 {
 	astring fname(ROM_GETNAME(romp), ".dif");
+        emu_file diff_file(options.diff_directory(), OPEN_FLAG_READ | OPEN_FLAG_WRITE);
 
-	/* try to open the diff */
-	LOG(("Opening differencing image file: %s\n", fname.cstr()));
-	emu_file diff_file(options.diff_directory(), OPEN_FLAG_READ | OPEN_FLAG_WRITE);
-	file_error filerr = diff_file.open(fname);
-	if (filerr == FILERR_NONE)
-	{
-		astring fullpath(diff_file.fullpath());
-		diff_file.close();
+    //JJG: Don't use chd diffs in netplay
+    if(!netCommon) {
+        /* try to open the diff */
+        LOG(("Opening differencing image file: %s\n", fname.cstr()));
+        file_error filerr = diff_file.open(fname);
+        if (filerr == FILERR_NONE)
+        {
+            astring fullpath(diff_file.fullpath());
+            diff_file.close();
 
-		LOG(("Opening differencing image file: %s\n", fullpath.cstr()));
-		return diff_chd.open(fullpath, true, &source);
-	}
+            LOG(("Opening differencing image file: %s\n", fullpath.cstr()));
+            return diff_chd.open(fullpath, true, &source);
+        }
+    }
 
 	/* didn't work; try creating it instead */
 	LOG(("Creating differencing image: %s\n", fname.cstr()));
 	diff_file.set_openflags(OPEN_FLAG_READ | OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
-	filerr = diff_file.open(fname);
+	file_error filerr = diff_file.open(fname);
 	if (filerr == FILERR_NONE)
 	{
 		astring fullpath(diff_file.fullpath());

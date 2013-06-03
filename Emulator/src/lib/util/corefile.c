@@ -147,6 +147,7 @@ INLINE int is_directory_separator(char c)
     return an error code
 -------------------------------------------------*/
 
+char CORE_SEARCH_PATH[4096] = "";
 file_error core_fopen(const char *filename, UINT32 openflags, core_file **file)
 {
 	file_error filerr = FILERR_NOT_FOUND;
@@ -160,6 +161,42 @@ file_error core_fopen(const char *filename, UINT32 openflags, core_file **file)
 	/* attempt to open the file */
 	filerr = osd_open(filename, openflags, &(*file)->file, &(*file)->length);
 	(*file)->openflags = openflags;
+
+	/* handle errors and return */
+	if (filerr != FILERR_NONE)
+	{
+
+        //JJG: Try all dirs in core search path first
+        int istart=0;
+        for(int a=0;a<strlen(CORE_SEARCH_PATH);a++)
+        {
+            if(a-istart==0)
+                continue;
+            if(CORE_SEARCH_PATH[a]==';' || a+1==strlen(CORE_SEARCH_PATH))
+            {
+                if(a+1==strlen(CORE_SEARCH_PATH)) a++; //No semicolon to skip
+
+                char newpath[4906];
+                memcpy(newpath,CORE_SEARCH_PATH+istart,a-istart);
+                newpath[a-istart] = '/';
+                strcpy(newpath+(a-istart+1),filename);
+
+                /* attempt to open the file */
+                filerr = osd_open(newpath, openflags, &(*file)->file, &(*file)->length);
+                (*file)->openflags = openflags;
+
+                /* handle errors and return */
+                if (filerr != FILERR_NONE)
+                {
+                    istart = a+1;
+                }
+                else
+                {
+                    return filerr;
+                }
+            }
+        }
+	}
 
 	/* handle errors and return */
 	if (filerr != FILERR_NONE)

@@ -85,7 +85,21 @@ enum
 
 #define SLIDER_NOCHANGE     0x12345678
 
+class ChatLog
+{
+ public:
+  int playerID;
+  time_t timeReceived;
+  astring message;
 
+  ChatLog(int _playerID,time_t _timeReceived,const astring &_message)
+    :
+  playerID(_playerID),
+    timeReceived(_timeReceived),
+    message(_message)
+    {
+    }
+};
 
 /***************************************************************************
     TYPE DEFINITIONS

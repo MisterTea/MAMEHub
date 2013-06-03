@@ -51,6 +51,9 @@
 
 ***************************************************************************/
 
+#include "NSM_Common.h"
+
+
 #include "emu.h"
 
 #include <zlib.h>
@@ -216,6 +219,8 @@ void save_manager::save_memory(const char *module, const char *tag, UINT32 index
 
 	// insert us into the list
 	m_entry_list.insert_after(*auto_alloc(machine(), state_entry(val, totalname, valsize, valcount)), insert_after);
+
+	if(netCommon) netCommon->createMemoryBlock((unsigned char*)val,valsize*valcount);
 }
 
 
@@ -249,6 +254,13 @@ save_error save_manager::check_file(running_machine &machine, emu_file &file, co
 //-------------------------------------------------
 //  read_file - read the data from a file
 //-------------------------------------------------
+
+void save_manager::doPostLoad()
+{
+	// call the post-load functions
+	for (state_callback *func = m_postload_list.first(); func != NULL; func = func->next())
+		func->m_func();
+}
 
 save_error save_manager::read_file(emu_file &file)
 {
@@ -295,6 +307,15 @@ save_error save_manager::read_file(emu_file &file)
 //-------------------------------------------------
 //  write_file - writes the data to a file
 //-------------------------------------------------
+
+void save_manager::doPreSave()
+{
+	printf("DOING PRE SAVE\n");
+
+	// call the pre-save functions
+	for (state_callback *func = m_presave_list.first(); func != NULL; func = func->next())
+		func->m_func();
+}
 
 save_error save_manager::write_file(emu_file &file)
 {

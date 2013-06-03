@@ -33,7 +33,7 @@ char *utf8_from_astring(const CHAR *astring)
 
 	// convert "ANSI code page" string to UTF-16
 	char_count = MultiByteToWideChar(CP_ACP, 0, astring, -1, NULL, 0);
-	wstring = (WCHAR *)alloca(char_count * sizeof(*wstring));
+	wstring = (WCHAR *)osd_malloc(char_count * sizeof(*wstring));
 	MultiByteToWideChar(CP_ACP, 0, astring, -1, wstring, char_count);
 
 	// convert UTF-16 to MAME string (UTF-8)
@@ -42,6 +42,7 @@ char *utf8_from_astring(const CHAR *astring)
 	if (result != NULL)
 		WideCharToMultiByte(CP_UTF8, 0, wstring, -1, result, char_count, NULL, NULL);
 
+	osd_free(wstring);
 	return result;
 }
 

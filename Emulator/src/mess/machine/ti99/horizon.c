@@ -249,7 +249,7 @@ void horizon_ramdisk_device::crureadz(offs_t offset, UINT8 *value)
 	return;
 }
 
-void horizon_ramdisk_device::setbit(int& page, int pattern, bool set)
+void horizon_ramdisk_device::set_bit(int& page, int pattern, bool set)
 {
 	if (set)
 	{
@@ -279,11 +279,11 @@ void horizon_ramdisk_device::cruwrite(offs_t offset, UINT8 data)
 			break;
 		case 1:
 			// Swap the lines so that the access with RAMBO is consistent
-			if (!m_rambo_mode) setbit(m_page, 0x0002, data!=0);
+			if (!m_rambo_mode) set_bit(m_page, 0x0002, data!=0);
 			break;
 		case 2:
 			// Swap the lines so that the access with RAMBO is consistent
-			if (!m_rambo_mode) setbit(m_page, 0x0001, data!=0);
+			if (!m_rambo_mode) set_bit(m_page, 0x0001, data!=0);
 			break;
 		case 3:
 		case 4:
@@ -292,7 +292,7 @@ void horizon_ramdisk_device::cruwrite(offs_t offset, UINT8 data)
 		case 7:
 		case 8:
 		case 9:
-			setbit(m_page, 0x0001 << (bit-1), data!=0);
+			set_bit(m_page, 0x0001 << (bit-1), data!=0);
 			break;
 		case 14:
 			break;
@@ -307,7 +307,7 @@ void horizon_ramdisk_device::cruwrite(offs_t offset, UINT8 data)
 		default:   // bits 10-13
 			if (bit != split_bit || !m_split_mode)
 			{
-				if (bit <= split_bit) setbit(m_page, 0x0200<<(bit-10), data!=0);
+				if (bit <= split_bit) set_bit(m_page, 0x0200<<(bit-10), data!=0);
 			}
 			break;
 		}
@@ -317,13 +317,13 @@ void horizon_ramdisk_device::cruwrite(offs_t offset, UINT8 data)
 			if (m_timode)
 			{
 				// In TI mode, switch between both RAMDisks using the CRU address
-				setbit(m_page, splitpagebit, ((offset & 0xff00)==m_cru_phoenix));
+				set_bit(m_page, splitpagebit, ((offset & 0xff00)==m_cru_phoenix));
 			}
 			else
 			{
 				// In Geneve mode, switch between both RAMdisks by
 				// using the bit number of the last CRU access
-				setbit(m_page, splitpagebit, (bit>7));
+				set_bit(m_page, splitpagebit, (bit>7));
 			}
 		}
 	}

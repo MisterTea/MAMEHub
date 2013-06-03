@@ -784,7 +784,7 @@ void ui_menu_input_specific::populate()
 					item->seqtype = seqtype;
 					if(pollingitem && pollingref == field && pollingseq == seqtype)
 						pollingitem = item;
-					item->seq = field->seq(seqtype);
+					item->seq = field->seq(false, seqtype);
 					item->defseq = &field->defseq(seqtype);
 					item->sortorder = sortorder + suborder[seqtype];
 					item->type = field->is_analog() ? (INPUT_TYPE_ANALOG + seqtype) : INPUT_TYPE_DIGITAL;

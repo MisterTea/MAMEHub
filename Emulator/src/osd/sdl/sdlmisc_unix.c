@@ -64,3 +64,4 @@ void osd_break_into_debugger(const char *message)
 	printf("Ignoring MAME exception: %s\n", message);
 	#endif
 }
+

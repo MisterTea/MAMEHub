@@ -153,7 +153,7 @@ endif
 #-------------------------------------------------
 
 # uncomment and specify prefix to be added to the name
-# PREFIX =
+PREFIX = cs
 
 # uncomment and specify suffix to be added to the name
 # SUFFIX =
@@ -396,6 +396,20 @@ endif
 ifeq ($(TARGETOS),os2)
 DEFS = -DCRLF=3
 endif
+#Define _USE_MATH_DEFINES for M_PI
+DEFS += -D_USE_MATH_DEFINES
+
+#Defines for boost
+DEFS += -DBOOST_THREAD_BUILD_LIB -DBOOST_ALL_NO_LIB
+
+#Define HAVE_CONFIG_H for vorbis
+DEFS += -DHAVE_CONFIG_H
+
+#Define _RAKNET_LIB for RakNet
+DEFS += -D_RAKNET_LIB
+
+# define NO_MEM_TRACKING for csmame
+DEFS += -DNO_MEM_TRACKING
 
 # map the INLINE to something digestible by GCC
 DEFS += -DINLINE="static inline"
@@ -531,11 +545,32 @@ INCPATH += \
 	-I$(OBJ)/emu \
 	-I$(OBJ)/emu/layout \
 	-I$(SRC)/lib/util \
+	-I$(SRC)/lib/boost_thread \
+	-I$(SRC)/lib/webm \
+	-I$(SRC)/lib/webm/vorbis \
+	-I$(SRC)/lib/webm/vp8/common \
+	-I$(SRC)/lib/webm/vpx_mem/memory_manager/include \
+	-I$(SRC)/lib/webm/vpx_scale/include/generic \
+	-I$(SRC)/lib/protobuf \
 	-I$(SRC)/lib \
 	-I$(SRC)/osd \
 	-I$(SRC)/osd/$(OSD) \
 
+ifeq ($(TARGETOS),macosx)
+INCPATH += -I$(SRC)/lib/webm/osx_config
+endif
 
+ifeq ($(TARGETOS),linux)
+ifeq ($(PTR64),1)
+INCPATH += -I$(SRC)/lib/webm/unix64_config
+else
+INCPATH += -I$(SRC)/lib/webm/unix_config
+endif
+endif
+
+ifeq ($(TARGETOS),win32)
+INCPATH += -I$(SRC)/lib/webm/mingw_config
+endif
 
 #-------------------------------------------------
 # archiving flags
@@ -674,6 +709,27 @@ LIBS += -lportmidi
 MIDI_LIB =
 endif
 
+# add protobuf library
+INCPATH += -I$(SRC)/lib/protobuf
+PROTOBUF = $(OBJ)/libprotobuf.a
+
+# add WebM library
+INCPATH += -I$(SRC)/lib/webm
+WEBM = $(OBJ)/libwebm.a
+
+# add RakNet library
+INCPATH += -I$(SRC)/lib/RakNet
+RAKNET = $(OBJ)/libraknet.a
+
+# add boost thread library
+INCPATH += -I$(SRC)/lib/boost_thread
+ifeq ($(TARGETOS),win32)
+BOOST_THREAD = $(OBJ)/libboostthreadwindows.a
+else
+BOOST_THREAD = $(OBJ)/libboostthreadposix.a
+endif
+
+
 #-------------------------------------------------
 # 'default' target needs to go here, before the 
 # include files which define additional targets
@@ -776,10 +832,14 @@ $(sort $(OBJDIRS)):
 
 ifndef EXECUTABLE_DEFINED
 
-$(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBCPU) $(LIBEMU) $(LIBDASM) $(LIBSOUND) $(LIBUTIL) $(EXPAT) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(7Z_LIB) $(FORMATS_LIB) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
+$(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBCPU) $(LIBEMU) $(LIBDASM) $(LIBSOUND) $(LIBUTIL) $(EXPAT) $(BOOST_THREAD) $(RAKNET) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(7Z_LIB) $(FORMATS_LIB) $(WEBM) $(PROTOBUF) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
 	$(CC) $(CDEFS) $(CFLAGS) -c $(SRC)/version.c -o $(VERSIONOBJ)
 	@echo Linking $@...
+ifeq ($(TARGETOS),win32)
+	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) $^ $(LIBS) -lIphlpapi -lws2_32 -o $@
+else
 	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) $^ $(LIBS) -o $@
+endif
 ifeq ($(TARGETOS),win32)
 ifdef SYMBOLS
 ifndef MSVC_BUILD

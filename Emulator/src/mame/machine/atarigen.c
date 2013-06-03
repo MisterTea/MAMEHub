@@ -432,7 +432,7 @@ READ32_MEMBER(atarigen_state::eeprom_upper32_r)
 inline void atarigen_state::slapstic_update_bank(int bank)
 {
 	// if the bank has changed, copy the memory; Pit Fighter needs this
-	if (bank != m_slapstic_bank)
+	if (m_slapstic && bank != m_slapstic_bank)
 	{
 		// bank 0 comes from the copy we made earlier
 		if (bank == 0)

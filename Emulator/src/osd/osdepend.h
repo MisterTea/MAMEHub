@@ -82,6 +82,7 @@ public:
 	// audio overridables
 	virtual void update_audio_stream(const INT16 *buffer, int samples_this_frame);
 	virtual void set_mastervolume(int attenuation);
+	virtual void pauseAudio(bool pause)=0;
 
 	// input overridables
 	virtual void customize_input_type_list(simple_list<input_type_entry> &typelist);
@@ -96,8 +97,8 @@ public:
 
 private:
 	// internal state
-	running_machine *   m_machine;
+	running_machine *	m_machine;
 };
 
 
-#endif  /* __OSDEPEND_H__ */
+#endif	/* __OSDEPEND_H__ */

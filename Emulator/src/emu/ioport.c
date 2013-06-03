@@ -119,6 +119,14 @@
 
 ***************************************************************************/
 
+#include <map>
+#include <vector>
+#include <string>
+#include <iomanip>
+
+#include "NSM_Server.h"
+#include "NSM_Client.h"
+
 #include "emu.h"
 #include "emuopts.h"
 #include "config.h"
@@ -131,17 +139,24 @@
 #include <ctype.h>
 #include <time.h>
 
+#include <boost/circular_buffer.hpp>
+
+using namespace std;
+using namespace nsm;
+
+using boost::circular_buffer;
+
 // temporary: set this to 1 to enable the originally defined behavior that
 // a field specified via PORT_MODIFY which intersects a previously-defined
 // field completely wipes out the previous definition
-#define INPUT_PORT_OVERRIDE_FULLY_NUKES_PREVIOUS    1
+#define INPUT_PORT_OVERRIDE_FULLY_NUKES_PREVIOUS	1
 
 
 //**************************************************************************
 //  DEBUGGING
 //**************************************************************************
 
-#define LOG_NATURAL_KEYBOARD    0
+#define LOG_NATURAL_KEYBOARD	0
 
 
 
@@ -192,46 +207,46 @@ private:
 	INT32 apply_inverse_sensitivity(INT32 value) const;
 
 	// internal state
-	analog_field *      m_next;                 // link to the next analog state for this port
-	ioport_field &      m_field;                // pointer to the input field referenced
+	analog_field *		m_next;					// link to the next analog state for this port
+	ioport_field &		m_field;				// pointer to the input field referenced
 
 	// adjusted values (right-justified and tweaked)
-	UINT8               m_shift;                // shift to align final value in the port
-	INT32               m_adjdefvalue;          // adjusted default value from the config
-	INT32               m_adjmin;               // adjusted minimum value from the config
-	INT32               m_adjmax;               // adjusted maximum value from the config
+	UINT8				m_shift;				// shift to align final value in the port
+	INT32				m_adjdefvalue;			// adjusted default value from the config
+	INT32				m_adjmin;				// adjusted minimum value from the config
+	INT32				m_adjmax;				// adjusted maximum value from the config
 
 	// live values of configurable parameters
-	INT32               m_sensitivity;          // current live sensitivity (100=normal)
-	bool                m_reverse;              // current live reverse flag
-	INT32               m_delta;                // current live delta to apply each frame a digital inc/dec key is pressed
-	INT32               m_centerdelta;          // current live delta to apply each frame no digital inputs are pressed
+	INT32				m_sensitivity;			// current live sensitivity (100=normal)
+	bool				m_reverse;				// current live reverse flag
+	INT32				m_delta;				// current live delta to apply each frame a digital inc/dec key is pressed
+	INT32				m_centerdelta;			// current live delta to apply each frame no digital inputs are pressed
 
 	// live analog value tracking
-	INT32               m_accum;                // accumulated value (including relative adjustments)
-	INT32               m_previous;             // previous adjusted value
-	INT32               m_previousanalog;       // previous analog value
+	INT32				m_accum;				// accumulated value (including relative adjustments)
+	INT32				m_previous;				// previous adjusted value
+	INT32				m_previousanalog;		// previous analog value
 
 	// parameters for modifying live values
-	INT32               m_minimum;              // minimum adjusted value
-	INT32               m_maximum;              // maximum adjusted value
-	INT32               m_center;               // center adjusted value for autocentering
-	INT32               m_reverse_val;          // value where we subtract from to reverse directions
+	INT32				m_minimum;				// minimum adjusted value
+	INT32				m_maximum;				// maximum adjusted value
+	INT32				m_center;				// center adjusted value for autocentering
+	INT32				m_reverse_val;			// value where we subtract from to reverse directions
 
 	// scaling factors
-	INT64               m_scalepos;             // scale factor to apply to positive adjusted values
-	INT64               m_scaleneg;             // scale factor to apply to negative adjusted values
-	INT64               m_keyscalepos;          // scale factor to apply to the key delta field when pos
-	INT64               m_keyscaleneg;          // scale factor to apply to the key delta field when neg
-	INT64               m_positionalscale;      // scale factor to divide a joystick into positions
+	INT64				m_scalepos;				// scale factor to apply to positive adjusted values
+	INT64				m_scaleneg;				// scale factor to apply to negative adjusted values
+	INT64				m_keyscalepos;			// scale factor to apply to the key delta field when pos
+	INT64				m_keyscaleneg;			// scale factor to apply to the key delta field when neg
+	INT64				m_positionalscale;		// scale factor to divide a joystick into positions
 
 	// misc flags
-	bool                m_absolute;             // is this an absolute or relative input?
-	bool                m_wraps;                // does the control wrap around?
-	bool                m_autocenter;           // autocenter this input?
-	bool                m_single_scale;         // scale joystick differently if default is between min/max
-	bool                m_interpolate;          // should we do linear interpolation for mid-frame reads?
-	bool                m_lastdigital;          // was the last modification caused by a digital form?
+	bool				m_absolute;				// is this an absolute or relative input?
+	bool				m_wraps;				// does the control wrap around?
+	bool				m_autocenter;			// autocenter this input?
+	bool				m_single_scale;			// scale joystick differently if default is between min/max
+	bool				m_interpolate;			// should we do linear interpolation for mid-frame reads?
+	bool				m_lastdigital;			// was the last modification caused by a digital form?
 };
 
 
@@ -254,10 +269,10 @@ public:
 
 private:
 	// internal state
-	dynamic_field *         m_next;             // linked list of info for this port
-	ioport_field &          m_field;            // reference to the input field
-	UINT8                   m_shift;            // shift to apply to the final result
-	ioport_value            m_oldval;           // last value
+	dynamic_field *			m_next;				// linked list of info for this port
+	ioport_field &			m_field;			// reference to the input field
+	UINT8					m_shift;			// shift to apply to the final result
+	ioport_value			m_oldval;			// last value
 };
 
 
@@ -268,14 +283,14 @@ struct ioport_field_live
 	ioport_field_live(ioport_field &field, analog_field *analog);
 
 	// public state
-	analog_field *          analog;             // pointer to live analog data if this is an analog field
-	digital_joystick *      joystick;           // pointer to digital joystick information
-	input_seq               seq[SEQ_TYPE_TOTAL];// currently configured input sequences
-	ioport_value            value;              // current value of this port
-	UINT8                   impulse;            // counter for impulse controls
-	bool                    last;               // were we pressed last time?
-	digital_joystick::direction_t joydir;       // digital joystick direction index
-	astring                 name;               // overridden name
+	analog_field *			analog;				// pointer to live analog data if this is an analog field
+	digital_joystick *		joystick;			// pointer to digital joystick information
+	input_seq				seq[SEQ_TYPE_TOTAL];// currently configured input sequences
+	ioport_value			value;				// current value of this port
+	UINT8					impulse;			// counter for impulse controls
+	bool					last;				// were we pressed last time?
+	digital_joystick::direction_t joydir;		// digital joystick direction index
+	astring					name;				// overridden name
 };
 
 
@@ -286,12 +301,12 @@ struct ioport_port_live
 	ioport_port_live(ioport_port &port);
 
 	// public state
-	simple_list<analog_field> analoglist;       // list of analog port info
-	simple_list<dynamic_field> readlist;        // list of dynamic read fields
-	simple_list<dynamic_field> writelist;       // list of dynamic write fields
-	ioport_value            defvalue;           // combined default value across the port
-	ioport_value            digital;            // current value from all digital inputs
-	ioport_value            outputvalue;        // current value for outputs
+	simple_list<analog_field> analoglist;		// list of analog port info
+	simple_list<dynamic_field> readlist;		// list of dynamic read fields
+	simple_list<dynamic_field> writelist;		// list of dynamic write fields
+	ioport_value			defvalue;			// combined default value across the port
+	ioport_value			digital;			// current value from all digital inputs
+	ioport_value			outputvalue;		// current value for outputs
 };
 
 
@@ -300,7 +315,7 @@ struct char_info
 {
 	unicode_char ch;
 	const char *name;
-	const char *alternate;  // alternative string, in UTF-8
+	const char *alternate;	// alternative string, in UTF-8
 
 	static const char_info *find(unicode_char target);
 };
@@ -355,296 +370,296 @@ static const char *const seqtypestrings[] = { "standard", "increment", "decremen
 // master character info table
 static const char_info charinfo[] =
 {
-	{ 0x0008,                   "Backspace",    NULL },     // Backspace
-	{ 0x0009,                   "Tab",          "    " },   // Tab
-	{ 0x000c,                   "Clear",        NULL },     // Clear
-	{ 0x000d,                   "Enter",        NULL },     // Enter
-	{ 0x001a,                   "Esc",          NULL },     // Esc
-	{ 0x0020,                   "Space",        " " },      // Space
-	{ 0x0061,                   NULL,           "A" },      // a
-	{ 0x0062,                   NULL,           "B" },      // b
-	{ 0x0063,                   NULL,           "C" },      // c
-	{ 0x0064,                   NULL,           "D" },      // d
-	{ 0x0065,                   NULL,           "E" },      // e
-	{ 0x0066,                   NULL,           "F" },      // f
-	{ 0x0067,                   NULL,           "G" },      // g
-	{ 0x0068,                   NULL,           "H" },      // h
-	{ 0x0069,                   NULL,           "I" },      // i
-	{ 0x006a,                   NULL,           "J" },      // j
-	{ 0x006b,                   NULL,           "K" },      // k
-	{ 0x006c,                   NULL,           "L" },      // l
-	{ 0x006d,                   NULL,           "M" },      // m
-	{ 0x006e,                   NULL,           "N" },      // n
-	{ 0x006f,                   NULL,           "O" },      // o
-	{ 0x0070,                   NULL,           "P" },      // p
-	{ 0x0071,                   NULL,           "Q" },      // q
-	{ 0x0072,                   NULL,           "R" },      // r
-	{ 0x0073,                   NULL,           "S" },      // s
-	{ 0x0074,                   NULL,           "T" },      // t
-	{ 0x0075,                   NULL,           "U" },      // u
-	{ 0x0076,                   NULL,           "V" },      // v
-	{ 0x0077,                   NULL,           "W" },      // w
-	{ 0x0078,                   NULL,           "X" },      // x
-	{ 0x0079,                   NULL,           "Y" },      // y
-	{ 0x007a,                   NULL,           "Z" },      // z
-	{ 0x00a0,                   NULL,           " " },      // non breaking space
-	{ 0x00a1,                   NULL,           "!" },      // inverted exclaimation mark
-	{ 0x00a6,                   NULL,           "|" },      // broken bar
-	{ 0x00a9,                   NULL,           "(c)" },    // copyright sign
-	{ 0x00ab,                   NULL,           "<<" },     // left pointing double angle
-	{ 0x00ae,                   NULL,           "(r)" },    // registered sign
-	{ 0x00bb,                   NULL,           ">>" },     // right pointing double angle
-	{ 0x00bc,                   NULL,           "1/4" },    // vulgar fraction one quarter
-	{ 0x00bd,                   NULL,           "1/2" },    // vulgar fraction one half
-	{ 0x00be,                   NULL,           "3/4" },    // vulgar fraction three quarters
-	{ 0x00bf,                   NULL,           "?" },      // inverted question mark
-	{ 0x00c0,                   NULL,           "A" },      // 'A' grave
-	{ 0x00c1,                   NULL,           "A" },      // 'A' acute
-	{ 0x00c2,                   NULL,           "A" },      // 'A' circumflex
-	{ 0x00c3,                   NULL,           "A" },      // 'A' tilde
-	{ 0x00c4,                   NULL,           "A" },      // 'A' diaeresis
-	{ 0x00c5,                   NULL,           "A" },      // 'A' ring above
-	{ 0x00c6,                   NULL,           "AE" },     // 'AE' ligature
-	{ 0x00c7,                   NULL,           "C" },      // 'C' cedilla
-	{ 0x00c8,                   NULL,           "E" },      // 'E' grave
-	{ 0x00c9,                   NULL,           "E" },      // 'E' acute
-	{ 0x00ca,                   NULL,           "E" },      // 'E' circumflex
-	{ 0x00cb,                   NULL,           "E" },      // 'E' diaeresis
-	{ 0x00cc,                   NULL,           "I" },      // 'I' grave
-	{ 0x00cd,                   NULL,           "I" },      // 'I' acute
-	{ 0x00ce,                   NULL,           "I" },      // 'I' circumflex
-	{ 0x00cf,                   NULL,           "I" },      // 'I' diaeresis
-	{ 0x00d0,                   NULL,           "D" },      // 'ETH'
-	{ 0x00d1,                   NULL,           "N" },      // 'N' tilde
-	{ 0x00d2,                   NULL,           "O" },      // 'O' grave
-	{ 0x00d3,                   NULL,           "O" },      // 'O' acute
-	{ 0x00d4,                   NULL,           "O" },      // 'O' circumflex
-	{ 0x00d5,                   NULL,           "O" },      // 'O' tilde
-	{ 0x00d6,                   NULL,           "O" },      // 'O' diaeresis
-	{ 0x00d7,                   NULL,           "X" },      // multiplication sign
-	{ 0x00d8,                   NULL,           "O" },      // 'O' stroke
-	{ 0x00d9,                   NULL,           "U" },      // 'U' grave
-	{ 0x00da,                   NULL,           "U" },      // 'U' acute
-	{ 0x00db,                   NULL,           "U" },      // 'U' circumflex
-	{ 0x00dc,                   NULL,           "U" },      // 'U' diaeresis
-	{ 0x00dd,                   NULL,           "Y" },      // 'Y' acute
-	{ 0x00df,                   NULL,           "SS" },     // sharp S
-	{ 0x00e0,                   NULL,           "a" },      // 'a' grave
-	{ 0x00e1,                   NULL,           "a" },      // 'a' acute
-	{ 0x00e2,                   NULL,           "a" },      // 'a' circumflex
-	{ 0x00e3,                   NULL,           "a" },      // 'a' tilde
-	{ 0x00e4,                   NULL,           "a" },      // 'a' diaeresis
-	{ 0x00e5,                   NULL,           "a" },      // 'a' ring above
-	{ 0x00e6,                   NULL,           "ae" },     // 'ae' ligature
-	{ 0x00e7,                   NULL,           "c" },      // 'c' cedilla
-	{ 0x00e8,                   NULL,           "e" },      // 'e' grave
-	{ 0x00e9,                   NULL,           "e" },      // 'e' acute
-	{ 0x00ea,                   NULL,           "e" },      // 'e' circumflex
-	{ 0x00eb,                   NULL,           "e" },      // 'e' diaeresis
-	{ 0x00ec,                   NULL,           "i" },      // 'i' grave
-	{ 0x00ed,                   NULL,           "i" },      // 'i' acute
-	{ 0x00ee,                   NULL,           "i" },      // 'i' circumflex
-	{ 0x00ef,                   NULL,           "i" },      // 'i' diaeresis
-	{ 0x00f0,                   NULL,           "d" },      // 'eth'
-	{ 0x00f1,                   NULL,           "n" },      // 'n' tilde
-	{ 0x00f2,                   NULL,           "o" },      // 'o' grave
-	{ 0x00f3,                   NULL,           "o" },      // 'o' acute
-	{ 0x00f4,                   NULL,           "o" },      // 'o' circumflex
-	{ 0x00f5,                   NULL,           "o" },      // 'o' tilde
-	{ 0x00f6,                   NULL,           "o" },      // 'o' diaeresis
-	{ 0x00f8,                   NULL,           "o" },      // 'o' stroke
-	{ 0x00f9,                   NULL,           "u" },      // 'u' grave
-	{ 0x00fa,                   NULL,           "u" },      // 'u' acute
-	{ 0x00fb,                   NULL,           "u" },      // 'u' circumflex
-	{ 0x00fc,                   NULL,           "u" },      // 'u' diaeresis
-	{ 0x00fd,                   NULL,           "y" },      // 'y' acute
-	{ 0x00ff,                   NULL,           "y" },      // 'y' diaeresis
-	{ 0x2010,                   NULL,           "-" },      // hyphen
-	{ 0x2011,                   NULL,           "-" },      // non-breaking hyphen
-	{ 0x2012,                   NULL,           "-" },      // figure dash
-	{ 0x2013,                   NULL,           "-" },      // en dash
-	{ 0x2014,                   NULL,           "-" },      // em dash
-	{ 0x2015,                   NULL,           "-" },      // horizontal dash
-	{ 0x2018,                   NULL,           "\'" },     // left single quotation mark
-	{ 0x2019,                   NULL,           "\'" },     // right single quotation mark
-	{ 0x201a,                   NULL,           "\'" },     // single low quotation mark
-	{ 0x201b,                   NULL,           "\'" },     // single high reversed quotation mark
-	{ 0x201c,                   NULL,           "\"" },     // left double quotation mark
-	{ 0x201d,                   NULL,           "\"" },     // right double quotation mark
-	{ 0x201e,                   NULL,           "\"" },     // double low quotation mark
-	{ 0x201f,                   NULL,           "\"" },     // double high reversed quotation mark
-	{ 0x2024,                   NULL,           "." },      // one dot leader
-	{ 0x2025,                   NULL,           ".." },     // two dot leader
-	{ 0x2026,                   NULL,           "..." },    // horizontal ellipsis
-	{ 0x2047,                   NULL,           "??" },     // double question mark
-	{ 0x2048,                   NULL,           "?!" },     // question exclamation mark
-	{ 0x2049,                   NULL,           "!?" },     // exclamation question mark
-	{ 0xff01,                   NULL,           "!" },      // fullwidth exclamation point
-	{ 0xff02,                   NULL,           "\"" },     // fullwidth quotation mark
-	{ 0xff03,                   NULL,           "#" },      // fullwidth number sign
-	{ 0xff04,                   NULL,           "$" },      // fullwidth dollar sign
-	{ 0xff05,                   NULL,           "%" },      // fullwidth percent sign
-	{ 0xff06,                   NULL,           "&" },      // fullwidth ampersand
-	{ 0xff07,                   NULL,           "\'" },     // fullwidth apostrophe
-	{ 0xff08,                   NULL,           "(" },      // fullwidth left parenthesis
-	{ 0xff09,                   NULL,           ")" },      // fullwidth right parenthesis
-	{ 0xff0a,                   NULL,           "*" },      // fullwidth asterisk
-	{ 0xff0b,                   NULL,           "+" },      // fullwidth plus
-	{ 0xff0c,                   NULL,           "," },      // fullwidth comma
-	{ 0xff0d,                   NULL,           "-" },      // fullwidth minus
-	{ 0xff0e,                   NULL,           "." },      // fullwidth period
-	{ 0xff0f,                   NULL,           "/" },      // fullwidth slash
-	{ 0xff10,                   NULL,           "0" },      // fullwidth zero
-	{ 0xff11,                   NULL,           "1" },      // fullwidth one
-	{ 0xff12,                   NULL,           "2" },      // fullwidth two
-	{ 0xff13,                   NULL,           "3" },      // fullwidth three
-	{ 0xff14,                   NULL,           "4" },      // fullwidth four
-	{ 0xff15,                   NULL,           "5" },      // fullwidth five
-	{ 0xff16,                   NULL,           "6" },      // fullwidth six
-	{ 0xff17,                   NULL,           "7" },      // fullwidth seven
-	{ 0xff18,                   NULL,           "8" },      // fullwidth eight
-	{ 0xff19,                   NULL,           "9" },      // fullwidth nine
-	{ 0xff1a,                   NULL,           ":" },      // fullwidth colon
-	{ 0xff1b,                   NULL,           ";" },      // fullwidth semicolon
-	{ 0xff1c,                   NULL,           "<" },      // fullwidth less than sign
-	{ 0xff1d,                   NULL,           "=" },      // fullwidth equals sign
-	{ 0xff1e,                   NULL,           ">" },      // fullwidth greater than sign
-	{ 0xff1f,                   NULL,           "?" },      // fullwidth question mark
-	{ 0xff20,                   NULL,           "@" },      // fullwidth at sign
-	{ 0xff21,                   NULL,           "A" },      // fullwidth 'A'
-	{ 0xff22,                   NULL,           "B" },      // fullwidth 'B'
-	{ 0xff23,                   NULL,           "C" },      // fullwidth 'C'
-	{ 0xff24,                   NULL,           "D" },      // fullwidth 'D'
-	{ 0xff25,                   NULL,           "E" },      // fullwidth 'E'
-	{ 0xff26,                   NULL,           "F" },      // fullwidth 'F'
-	{ 0xff27,                   NULL,           "G" },      // fullwidth 'G'
-	{ 0xff28,                   NULL,           "H" },      // fullwidth 'H'
-	{ 0xff29,                   NULL,           "I" },      // fullwidth 'I'
-	{ 0xff2a,                   NULL,           "J" },      // fullwidth 'J'
-	{ 0xff2b,                   NULL,           "K" },      // fullwidth 'K'
-	{ 0xff2c,                   NULL,           "L" },      // fullwidth 'L'
-	{ 0xff2d,                   NULL,           "M" },      // fullwidth 'M'
-	{ 0xff2e,                   NULL,           "N" },      // fullwidth 'N'
-	{ 0xff2f,                   NULL,           "O" },      // fullwidth 'O'
-	{ 0xff30,                   NULL,           "P" },      // fullwidth 'P'
-	{ 0xff31,                   NULL,           "Q" },      // fullwidth 'Q'
-	{ 0xff32,                   NULL,           "R" },      // fullwidth 'R'
-	{ 0xff33,                   NULL,           "S" },      // fullwidth 'S'
-	{ 0xff34,                   NULL,           "T" },      // fullwidth 'T'
-	{ 0xff35,                   NULL,           "U" },      // fullwidth 'U'
-	{ 0xff36,                   NULL,           "V" },      // fullwidth 'V'
-	{ 0xff37,                   NULL,           "W" },      // fullwidth 'W'
-	{ 0xff38,                   NULL,           "X" },      // fullwidth 'X'
-	{ 0xff39,                   NULL,           "Y" },      // fullwidth 'Y'
-	{ 0xff3a,                   NULL,           "Z" },      // fullwidth 'Z'
-	{ 0xff3b,                   NULL,           "[" },      // fullwidth left bracket
-	{ 0xff3c,                   NULL,           "\\" },     // fullwidth backslash
-	{ 0xff3d,                   NULL,           "]" },      // fullwidth right bracket
-	{ 0xff3e,                   NULL,           "^" },      // fullwidth caret
-	{ 0xff3f,                   NULL,           "_" },      // fullwidth underscore
-	{ 0xff40,                   NULL,           "`" },      // fullwidth backquote
-	{ 0xff41,                   NULL,           "a" },      // fullwidth 'a'
-	{ 0xff42,                   NULL,           "b" },      // fullwidth 'b'
-	{ 0xff43,                   NULL,           "c" },      // fullwidth 'c'
-	{ 0xff44,                   NULL,           "d" },      // fullwidth 'd'
-	{ 0xff45,                   NULL,           "e" },      // fullwidth 'e'
-	{ 0xff46,                   NULL,           "f" },      // fullwidth 'f'
-	{ 0xff47,                   NULL,           "g" },      // fullwidth 'g'
-	{ 0xff48,                   NULL,           "h" },      // fullwidth 'h'
-	{ 0xff49,                   NULL,           "i" },      // fullwidth 'i'
-	{ 0xff4a,                   NULL,           "j" },      // fullwidth 'j'
-	{ 0xff4b,                   NULL,           "k" },      // fullwidth 'k'
-	{ 0xff4c,                   NULL,           "l" },      // fullwidth 'l'
-	{ 0xff4d,                   NULL,           "m" },      // fullwidth 'm'
-	{ 0xff4e,                   NULL,           "n" },      // fullwidth 'n'
-	{ 0xff4f,                   NULL,           "o" },      // fullwidth 'o'
-	{ 0xff50,                   NULL,           "p" },      // fullwidth 'p'
-	{ 0xff51,                   NULL,           "q" },      // fullwidth 'q'
-	{ 0xff52,                   NULL,           "r" },      // fullwidth 'r'
-	{ 0xff53,                   NULL,           "s" },      // fullwidth 's'
-	{ 0xff54,                   NULL,           "t" },      // fullwidth 't'
-	{ 0xff55,                   NULL,           "u" },      // fullwidth 'u'
-	{ 0xff56,                   NULL,           "v" },      // fullwidth 'v'
-	{ 0xff57,                   NULL,           "w" },      // fullwidth 'w'
-	{ 0xff58,                   NULL,           "x" },      // fullwidth 'x'
-	{ 0xff59,                   NULL,           "y" },      // fullwidth 'y'
-	{ 0xff5a,                   NULL,           "z" },      // fullwidth 'z'
-	{ 0xff5b,                   NULL,           "{" },      // fullwidth left brace
-	{ 0xff5c,                   NULL,           "|" },      // fullwidth vertical bar
-	{ 0xff5d,                   NULL,           "}" },      // fullwidth right brace
-	{ 0xff5e,                   NULL,           "~" },      // fullwidth tilde
-	{ 0xff5f,                   NULL,           "((" },     // fullwidth double left parenthesis
-	{ 0xff60,                   NULL,           "))" },     // fullwidth double right parenthesis
-	{ 0xffe0,                   NULL,           "\xC2\xA2" },       // fullwidth cent sign
-	{ 0xffe1,                   NULL,           "\xC2\xA3" },       // fullwidth pound sign
-	{ 0xffe4,                   NULL,           "\xC2\xA4" },       // fullwidth broken bar
-	{ 0xffe5,                   NULL,           "\xC2\xA5" },       // fullwidth yen sign
-	{ 0xffe6,                   NULL,           "\xE2\x82\xA9" },   // fullwidth won sign
-	{ 0xffe9,                   NULL,           "\xE2\x86\x90" },   // fullwidth left arrow
-	{ 0xffea,                   NULL,           "\xE2\x86\x91" },   // fullwidth up arrow
-	{ 0xffeb,                   NULL,           "\xE2\x86\x92" },   // fullwidth right arrow
-	{ 0xffec,                   NULL,           "\xE2\x86\x93" },   // fullwidth down arrow
-	{ 0xffed,                   NULL,           "\xE2\x96\xAA" },   // fullwidth solid box
-	{ 0xffee,                   NULL,           "\xE2\x97\xA6" },   // fullwidth open circle
-	{ UCHAR_SHIFT_1,            "Shift",        NULL },     // Shift key
-	{ UCHAR_SHIFT_2,            "Ctrl",         NULL },     // Ctrl key
-	{ UCHAR_MAMEKEY(F1),        "F1",           NULL },     // F1 function key
-	{ UCHAR_MAMEKEY(F2),        "F2",           NULL },     // F2 function key
-	{ UCHAR_MAMEKEY(F3),        "F3",           NULL },     // F3 function key
-	{ UCHAR_MAMEKEY(F4),        "F4",           NULL },     // F4 function key
-	{ UCHAR_MAMEKEY(F5),        "F5",           NULL },     // F5 function key
-	{ UCHAR_MAMEKEY(F6),        "F6",           NULL },     // F6 function key
-	{ UCHAR_MAMEKEY(F7),        "F7",           NULL },     // F7 function key
-	{ UCHAR_MAMEKEY(F8),        "F8",           NULL },     // F8 function key
-	{ UCHAR_MAMEKEY(F9),        "F9",           NULL },     // F9 function key
-	{ UCHAR_MAMEKEY(F10),       "F10",          NULL },     // F10 function key
-	{ UCHAR_MAMEKEY(F11),       "F11",          NULL },     // F11 function key
-	{ UCHAR_MAMEKEY(F12),       "F12",          NULL },     // F12 function key
-	{ UCHAR_MAMEKEY(F13),       "F13",          NULL },     // F13 function key
-	{ UCHAR_MAMEKEY(F14),       "F14",          NULL },     // F14 function key
-	{ UCHAR_MAMEKEY(F15),       "F15",          NULL },     // F15 function key
-	{ UCHAR_MAMEKEY(ESC),       "Esc",          "\033" },   // Esc key
-	{ UCHAR_MAMEKEY(INSERT),    "Insert",       NULL },     // Insert key
-	{ UCHAR_MAMEKEY(DEL),       "Delete",       "\010" },   // Delete key
-	{ UCHAR_MAMEKEY(HOME),      "Home",         "\014" },   // Home key
-	{ UCHAR_MAMEKEY(END),       "End",          NULL },     // End key
-	{ UCHAR_MAMEKEY(PGUP),      "Page Up",      NULL },     // Page Up key
-	{ UCHAR_MAMEKEY(PGDN),      "Page Down",    NULL },     // Page Down key
-	{ UCHAR_MAMEKEY(LEFT),      "Cursor Left",  NULL },     // Cursor Left
-	{ UCHAR_MAMEKEY(RIGHT),     "Cursor Right", NULL },     // Cursor Right
-	{ UCHAR_MAMEKEY(UP),        "Cursor Up",    NULL },     // Cursor Up
-	{ UCHAR_MAMEKEY(DOWN),      "Cursor Down",  NULL },     // Cursor Down
-	{ UCHAR_MAMEKEY(0_PAD),     "Keypad 0",     NULL },     // 0 on the numeric keypad
-	{ UCHAR_MAMEKEY(1_PAD),     "Keypad 1",     NULL },     // 1 on the numeric keypad
-	{ UCHAR_MAMEKEY(2_PAD),     "Keypad 2",     NULL },     // 2 on the numeric keypad
-	{ UCHAR_MAMEKEY(3_PAD),     "Keypad 3",     NULL },     // 3 on the numeric keypad
-	{ UCHAR_MAMEKEY(4_PAD),     "Keypad 4",     NULL },     // 4 on the numeric keypad
-	{ UCHAR_MAMEKEY(5_PAD),     "Keypad 5",     NULL },     // 5 on the numeric keypad
-	{ UCHAR_MAMEKEY(6_PAD),     "Keypad 6",     NULL },     // 6 on the numeric keypad
-	{ UCHAR_MAMEKEY(7_PAD),     "Keypad 7",     NULL },     // 7 on the numeric keypad
-	{ UCHAR_MAMEKEY(8_PAD),     "Keypad 8",     NULL },     // 8 on the numeric keypad
-	{ UCHAR_MAMEKEY(9_PAD),     "Keypad 9",     NULL },     // 9 on the numeric keypad
-	{ UCHAR_MAMEKEY(SLASH_PAD), "Keypad /",     NULL },     // / on the numeric keypad
-	{ UCHAR_MAMEKEY(ASTERISK),  "Keypad *",     NULL },     // * on the numeric keypad
-	{ UCHAR_MAMEKEY(MINUS_PAD), "Keypad -",     NULL },     // - on the numeric Keypad
-	{ UCHAR_MAMEKEY(PLUS_PAD),  "Keypad +",     NULL },     // + on the numeric Keypad
-	{ UCHAR_MAMEKEY(DEL_PAD),   "Keypad .",     NULL },     // . on the numeric keypad
-	{ UCHAR_MAMEKEY(ENTER_PAD), "Keypad Enter", NULL },     // Enter on the numeric keypad
-	{ UCHAR_MAMEKEY(PRTSCR),    "Print Screen", NULL },     // Print Screen key
-	{ UCHAR_MAMEKEY(PAUSE),     "Pause",        NULL },     // Pause key
-	{ UCHAR_MAMEKEY(LSHIFT),    "Left Shift",   NULL },     // Left Shift key
-	{ UCHAR_MAMEKEY(RSHIFT),    "Right Shift",  NULL },     // Right Shift key
-	{ UCHAR_MAMEKEY(LCONTROL),  "Left Ctrl",    NULL },     // Left Control key
-	{ UCHAR_MAMEKEY(RCONTROL),  "Right Ctrl",   NULL },     // Right Control key
-	{ UCHAR_MAMEKEY(LALT),      "Left Alt",     NULL },     // Left Alt key
-	{ UCHAR_MAMEKEY(RALT),      "Right Alt",    NULL },     // Right Alt key
-	{ UCHAR_MAMEKEY(SCRLOCK),   "Scroll Lock",  NULL },     // Scroll Lock key
-	{ UCHAR_MAMEKEY(NUMLOCK),   "Num Lock",     NULL },     // Num Lock key
-	{ UCHAR_MAMEKEY(CAPSLOCK),  "Caps Lock",    NULL },     // Caps Lock key
-	{ UCHAR_MAMEKEY(LWIN),      "Left Win",     NULL },     // Left Win key
-	{ UCHAR_MAMEKEY(RWIN),      "Right Win",    NULL },     // Right Win key
-	{ UCHAR_MAMEKEY(MENU),      "Menu",         NULL },     // Menu key
-	{ UCHAR_MAMEKEY(CANCEL),    "Break",        NULL }      // Break/Pause key
+	{ 0x0008,					"Backspace",	NULL },		// Backspace
+	{ 0x0009,					"Tab",			"    " },	// Tab
+	{ 0x000c,					"Clear",		NULL },		// Clear
+	{ 0x000d,					"Enter",		NULL },		// Enter
+	{ 0x001a,					"Esc",			NULL },		// Esc
+	{ 0x0020,					"Space",		" " },		// Space
+	{ 0x0061,					NULL,			"A" },		// a
+	{ 0x0062,					NULL,			"B" },		// b
+	{ 0x0063,					NULL,			"C" },		// c
+	{ 0x0064,					NULL,			"D" },		// d
+	{ 0x0065,					NULL,			"E" },		// e
+	{ 0x0066,					NULL,			"F" },		// f
+	{ 0x0067,					NULL,			"G" },		// g
+	{ 0x0068,					NULL,			"H" },		// h
+	{ 0x0069,					NULL,			"I" },		// i
+	{ 0x006a,					NULL,			"J" },		// j
+	{ 0x006b,					NULL,			"K" },		// k
+	{ 0x006c,					NULL,			"L" },		// l
+	{ 0x006d,					NULL,			"M" },		// m
+	{ 0x006e,					NULL,			"N" },		// n
+	{ 0x006f,					NULL,			"O" },		// o
+	{ 0x0070,					NULL,			"P" },		// p
+	{ 0x0071,					NULL,			"Q" },		// q
+	{ 0x0072,					NULL,			"R" },		// r
+	{ 0x0073,					NULL,			"S" },		// s
+	{ 0x0074,					NULL,			"T" },		// t
+	{ 0x0075,					NULL,			"U" },		// u
+	{ 0x0076,					NULL,			"V" },		// v
+	{ 0x0077,					NULL,			"W" },		// w
+	{ 0x0078,					NULL,			"X" },		// x
+	{ 0x0079,					NULL,			"Y" },		// y
+	{ 0x007a,					NULL,			"Z" },		// z
+	{ 0x00a0,					NULL,			" " },		// non breaking space
+	{ 0x00a1,					NULL,			"!" },		// inverted exclaimation mark
+	{ 0x00a6,					NULL,			"|" },		// broken bar
+	{ 0x00a9,					NULL,			"(c)" },	// copyright sign
+	{ 0x00ab,					NULL,			"<<" },		// left pointing double angle
+	{ 0x00ae,					NULL,			"(r)" },	// registered sign
+	{ 0x00bb,					NULL,			">>" },		// right pointing double angle
+	{ 0x00bc,					NULL,			"1/4" },	// vulgar fraction one quarter
+	{ 0x00bd,					NULL,			"1/2" },	// vulgar fraction one half
+	{ 0x00be,					NULL,			"3/4" },	// vulgar fraction three quarters
+	{ 0x00bf,					NULL,			"?" },		// inverted question mark
+	{ 0x00c0,					NULL,			"A" },		// 'A' grave
+	{ 0x00c1,					NULL,			"A" },		// 'A' acute
+	{ 0x00c2,					NULL,			"A" },		// 'A' circumflex
+	{ 0x00c3,					NULL,			"A" },		// 'A' tilde
+	{ 0x00c4,					NULL,			"A" },		// 'A' diaeresis
+	{ 0x00c5,					NULL,			"A" },		// 'A' ring above
+	{ 0x00c6,					NULL,			"AE" },		// 'AE' ligature
+	{ 0x00c7,					NULL,			"C" },		// 'C' cedilla
+	{ 0x00c8,					NULL,			"E" },		// 'E' grave
+	{ 0x00c9,					NULL,			"E" },		// 'E' acute
+	{ 0x00ca,					NULL,			"E" },		// 'E' circumflex
+	{ 0x00cb,					NULL,			"E" },		// 'E' diaeresis
+	{ 0x00cc,					NULL,			"I" },		// 'I' grave
+	{ 0x00cd,					NULL,			"I" },		// 'I' acute
+	{ 0x00ce,					NULL,			"I" },		// 'I' circumflex
+	{ 0x00cf,					NULL,			"I" },		// 'I' diaeresis
+	{ 0x00d0,					NULL,			"D" },		// 'ETH'
+	{ 0x00d1,					NULL,			"N" },		// 'N' tilde
+	{ 0x00d2,					NULL,			"O" },		// 'O' grave
+	{ 0x00d3,					NULL,			"O" },		// 'O' acute
+	{ 0x00d4,					NULL,			"O" },		// 'O' circumflex
+	{ 0x00d5,					NULL,			"O" },		// 'O' tilde
+	{ 0x00d6,					NULL,			"O" },		// 'O' diaeresis
+	{ 0x00d7,					NULL,			"X" },		// multiplication sign
+	{ 0x00d8,					NULL,			"O" },		// 'O' stroke
+	{ 0x00d9,					NULL,			"U" },		// 'U' grave
+	{ 0x00da,					NULL,			"U" },		// 'U' acute
+	{ 0x00db,					NULL,			"U" },		// 'U' circumflex
+	{ 0x00dc,					NULL,			"U" },		// 'U' diaeresis
+	{ 0x00dd,					NULL,			"Y" },		// 'Y' acute
+	{ 0x00df,					NULL,			"SS" },		// sharp S
+	{ 0x00e0,					NULL,			"a" },		// 'a' grave
+	{ 0x00e1,					NULL,			"a" },		// 'a' acute
+	{ 0x00e2,					NULL,			"a" },		// 'a' circumflex
+	{ 0x00e3,					NULL,			"a" },		// 'a' tilde
+	{ 0x00e4,					NULL,			"a" },		// 'a' diaeresis
+	{ 0x00e5,					NULL,			"a" },		// 'a' ring above
+	{ 0x00e6,					NULL,			"ae" },		// 'ae' ligature
+	{ 0x00e7,					NULL,			"c" },		// 'c' cedilla
+	{ 0x00e8,					NULL,			"e" },		// 'e' grave
+	{ 0x00e9,					NULL,			"e" },		// 'e' acute
+	{ 0x00ea,					NULL,			"e" },		// 'e' circumflex
+	{ 0x00eb,					NULL,			"e" },		// 'e' diaeresis
+	{ 0x00ec,					NULL,			"i" },		// 'i' grave
+	{ 0x00ed,					NULL,			"i" },		// 'i' acute
+	{ 0x00ee,					NULL,			"i" },		// 'i' circumflex
+	{ 0x00ef,					NULL,			"i" },		// 'i' diaeresis
+	{ 0x00f0,					NULL,			"d" },		// 'eth'
+	{ 0x00f1,					NULL,			"n" },		// 'n' tilde
+	{ 0x00f2,					NULL,			"o" },		// 'o' grave
+	{ 0x00f3,					NULL,			"o" },		// 'o' acute
+	{ 0x00f4,					NULL,			"o" },		// 'o' circumflex
+	{ 0x00f5,					NULL,			"o" },		// 'o' tilde
+	{ 0x00f6,					NULL,			"o" },		// 'o' diaeresis
+	{ 0x00f8,					NULL,			"o" },		// 'o' stroke
+	{ 0x00f9,					NULL,			"u" },		// 'u' grave
+	{ 0x00fa,					NULL,			"u" },		// 'u' acute
+	{ 0x00fb,					NULL,			"u" },		// 'u' circumflex
+	{ 0x00fc,					NULL,			"u" },		// 'u' diaeresis
+	{ 0x00fd,					NULL,			"y" },		// 'y' acute
+	{ 0x00ff,					NULL,			"y" },		// 'y' diaeresis
+	{ 0x2010,					NULL,			"-" },		// hyphen
+	{ 0x2011,					NULL,			"-" },		// non-breaking hyphen
+	{ 0x2012,					NULL,			"-" },		// figure dash
+	{ 0x2013,					NULL,			"-" },		// en dash
+	{ 0x2014,					NULL,			"-" },		// em dash
+	{ 0x2015,					NULL,			"-" },		// horizontal dash
+	{ 0x2018,					NULL,			"\'" },		// left single quotation mark
+	{ 0x2019,					NULL,			"\'" },		// right single quotation mark
+	{ 0x201a,					NULL,			"\'" },		// single low quotation mark
+	{ 0x201b,					NULL,			"\'" },		// single high reversed quotation mark
+	{ 0x201c,					NULL,			"\"" },		// left double quotation mark
+	{ 0x201d,					NULL,			"\"" },		// right double quotation mark
+	{ 0x201e,					NULL,			"\"" },		// double low quotation mark
+	{ 0x201f,					NULL,			"\"" },		// double high reversed quotation mark
+	{ 0x2024,					NULL,			"." },		// one dot leader
+	{ 0x2025,					NULL,			".." },		// two dot leader
+	{ 0x2026,					NULL,			"..." },	// horizontal ellipsis
+	{ 0x2047,					NULL,			"??" },		// double question mark
+	{ 0x2048,					NULL,			"?!" },		// question exclamation mark
+	{ 0x2049,					NULL,			"!?" },		// exclamation question mark
+	{ 0xff01,					NULL,			"!" },		// fullwidth exclamation point
+	{ 0xff02,					NULL,			"\"" },		// fullwidth quotation mark
+	{ 0xff03,					NULL,			"#" },		// fullwidth number sign
+	{ 0xff04,					NULL,			"$" },		// fullwidth dollar sign
+	{ 0xff05,					NULL,			"%" },		// fullwidth percent sign
+	{ 0xff06,					NULL,			"&" },		// fullwidth ampersand
+	{ 0xff07,					NULL,			"\'" },		// fullwidth apostrophe
+	{ 0xff08,					NULL,			"(" },		// fullwidth left parenthesis
+	{ 0xff09,					NULL,			")" },		// fullwidth right parenthesis
+	{ 0xff0a,					NULL,			"*" },		// fullwidth asterisk
+	{ 0xff0b,					NULL,			"+" },		// fullwidth plus
+	{ 0xff0c,					NULL,			"," },		// fullwidth comma
+	{ 0xff0d,					NULL,			"-" },		// fullwidth minus
+	{ 0xff0e,					NULL,			"." },		// fullwidth period
+	{ 0xff0f,					NULL,			"/" },		// fullwidth slash
+	{ 0xff10,					NULL,			"0" },		// fullwidth zero
+	{ 0xff11,					NULL,			"1" },		// fullwidth one
+	{ 0xff12,					NULL,			"2" },		// fullwidth two
+	{ 0xff13,					NULL,			"3" },		// fullwidth three
+	{ 0xff14,					NULL,			"4" },		// fullwidth four
+	{ 0xff15,					NULL,			"5" },		// fullwidth five
+	{ 0xff16,					NULL,			"6" },		// fullwidth six
+	{ 0xff17,					NULL,			"7" },		// fullwidth seven
+	{ 0xff18,					NULL,			"8" },		// fullwidth eight
+	{ 0xff19,					NULL,			"9" },		// fullwidth nine
+	{ 0xff1a,					NULL,			":" },		// fullwidth colon
+	{ 0xff1b,					NULL,			";" },		// fullwidth semicolon
+	{ 0xff1c,					NULL,			"<" },		// fullwidth less than sign
+	{ 0xff1d,					NULL,			"=" },		// fullwidth equals sign
+	{ 0xff1e,					NULL,			">" },		// fullwidth greater than sign
+	{ 0xff1f,					NULL,			"?" },		// fullwidth question mark
+	{ 0xff20,					NULL,			"@" },		// fullwidth at sign
+	{ 0xff21,					NULL,			"A" },		// fullwidth 'A'
+	{ 0xff22,					NULL,			"B" },		// fullwidth 'B'
+	{ 0xff23,					NULL,			"C" },		// fullwidth 'C'
+	{ 0xff24,					NULL,			"D" },		// fullwidth 'D'
+	{ 0xff25,					NULL,			"E" },		// fullwidth 'E'
+	{ 0xff26,					NULL,			"F" },		// fullwidth 'F'
+	{ 0xff27,					NULL,			"G" },		// fullwidth 'G'
+	{ 0xff28,					NULL,			"H" },		// fullwidth 'H'
+	{ 0xff29,					NULL,			"I" },		// fullwidth 'I'
+	{ 0xff2a,					NULL,			"J" },		// fullwidth 'J'
+	{ 0xff2b,					NULL,			"K" },		// fullwidth 'K'
+	{ 0xff2c,					NULL,			"L" },		// fullwidth 'L'
+	{ 0xff2d,					NULL,			"M" },		// fullwidth 'M'
+	{ 0xff2e,					NULL,			"N" },		// fullwidth 'N'
+	{ 0xff2f,					NULL,			"O" },		// fullwidth 'O'
+	{ 0xff30,					NULL,			"P" },		// fullwidth 'P'
+	{ 0xff31,					NULL,			"Q" },		// fullwidth 'Q'
+	{ 0xff32,					NULL,			"R" },		// fullwidth 'R'
+	{ 0xff33,					NULL,			"S" },		// fullwidth 'S'
+	{ 0xff34,					NULL,			"T" },		// fullwidth 'T'
+	{ 0xff35,					NULL,			"U" },		// fullwidth 'U'
+	{ 0xff36,					NULL,			"V" },		// fullwidth 'V'
+	{ 0xff37,					NULL,			"W" },		// fullwidth 'W'
+	{ 0xff38,					NULL,			"X" },		// fullwidth 'X'
+	{ 0xff39,					NULL,			"Y" },		// fullwidth 'Y'
+	{ 0xff3a,					NULL,			"Z" },		// fullwidth 'Z'
+	{ 0xff3b,					NULL,			"[" },		// fullwidth left bracket
+	{ 0xff3c,					NULL,			"\\" },		// fullwidth backslash
+	{ 0xff3d,					NULL,			"]"	},		// fullwidth right bracket
+	{ 0xff3e,					NULL,			"^" },		// fullwidth caret
+	{ 0xff3f,					NULL,			"_" },		// fullwidth underscore
+	{ 0xff40,					NULL,			"`" },		// fullwidth backquote
+	{ 0xff41,					NULL,			"a" },		// fullwidth 'a'
+	{ 0xff42,					NULL,			"b" },		// fullwidth 'b'
+	{ 0xff43,					NULL,			"c" },		// fullwidth 'c'
+	{ 0xff44,					NULL,			"d" },		// fullwidth 'd'
+	{ 0xff45,					NULL,			"e" },		// fullwidth 'e'
+	{ 0xff46,					NULL,			"f" },		// fullwidth 'f'
+	{ 0xff47,					NULL,			"g" },		// fullwidth 'g'
+	{ 0xff48,					NULL,			"h" },		// fullwidth 'h'
+	{ 0xff49,					NULL,			"i" },		// fullwidth 'i'
+	{ 0xff4a,					NULL,			"j" },		// fullwidth 'j'
+	{ 0xff4b,					NULL,			"k" },		// fullwidth 'k'
+	{ 0xff4c,					NULL,			"l" },		// fullwidth 'l'
+	{ 0xff4d,					NULL,			"m" },		// fullwidth 'm'
+	{ 0xff4e,					NULL,			"n" },		// fullwidth 'n'
+	{ 0xff4f,					NULL,			"o" },		// fullwidth 'o'
+	{ 0xff50,					NULL,			"p" },		// fullwidth 'p'
+	{ 0xff51,					NULL,			"q" },		// fullwidth 'q'
+	{ 0xff52,					NULL,			"r" },		// fullwidth 'r'
+	{ 0xff53,					NULL,			"s" },		// fullwidth 's'
+	{ 0xff54,					NULL,			"t" },		// fullwidth 't'
+	{ 0xff55,					NULL,			"u" },		// fullwidth 'u'
+	{ 0xff56,					NULL,			"v" },		// fullwidth 'v'
+	{ 0xff57,					NULL,			"w" },		// fullwidth 'w'
+	{ 0xff58,					NULL,			"x" },		// fullwidth 'x'
+	{ 0xff59,					NULL,			"y" },		// fullwidth 'y'
+	{ 0xff5a,					NULL,			"z" },		// fullwidth 'z'
+	{ 0xff5b,					NULL,			"{" },		// fullwidth left brace
+	{ 0xff5c,					NULL,			"|" },		// fullwidth vertical bar
+	{ 0xff5d,					NULL,			"}" },		// fullwidth right brace
+	{ 0xff5e,					NULL,			"~" },		// fullwidth tilde
+	{ 0xff5f,					NULL,			"((" },		// fullwidth double left parenthesis
+	{ 0xff60,					NULL,			"))" },		// fullwidth double right parenthesis
+	{ 0xffe0,					NULL,			"\xC2\xA2" },		// fullwidth cent sign
+	{ 0xffe1,					NULL,			"\xC2\xA3" },		// fullwidth pound sign
+	{ 0xffe4,					NULL,			"\xC2\xA4" },		// fullwidth broken bar
+	{ 0xffe5,					NULL,			"\xC2\xA5" },		// fullwidth yen sign
+	{ 0xffe6,					NULL,			"\xE2\x82\xA9" },	// fullwidth won sign
+	{ 0xffe9,					NULL,			"\xE2\x86\x90" },	// fullwidth left arrow
+	{ 0xffea,					NULL,			"\xE2\x86\x91" },	// fullwidth up arrow
+	{ 0xffeb,					NULL,			"\xE2\x86\x92" },	// fullwidth right arrow
+	{ 0xffec,					NULL,			"\xE2\x86\x93" },	// fullwidth down arrow
+	{ 0xffed,					NULL,			"\xE2\x96\xAA" },	// fullwidth solid box
+	{ 0xffee,					NULL,			"\xE2\x97\xA6" },	// fullwidth open circle
+	{ UCHAR_SHIFT_1,			"Shift",		NULL },		// Shift key
+	{ UCHAR_SHIFT_2,			"Ctrl",			NULL },		// Ctrl key
+	{ UCHAR_MAMEKEY(F1),		"F1",			NULL },		// F1 function key
+	{ UCHAR_MAMEKEY(F2),		"F2",			NULL },		// F2 function key
+	{ UCHAR_MAMEKEY(F3),		"F3",			NULL },		// F3 function key
+	{ UCHAR_MAMEKEY(F4),		"F4",			NULL },		// F4 function key
+	{ UCHAR_MAMEKEY(F5),		"F5",			NULL },		// F5 function key
+	{ UCHAR_MAMEKEY(F6),		"F6",			NULL },		// F6 function key
+	{ UCHAR_MAMEKEY(F7),		"F7",			NULL },		// F7 function key
+	{ UCHAR_MAMEKEY(F8),		"F8",			NULL },		// F8 function key
+	{ UCHAR_MAMEKEY(F9),		"F9",			NULL },		// F9 function key
+	{ UCHAR_MAMEKEY(F10),		"F10",			NULL },		// F10 function key
+	{ UCHAR_MAMEKEY(F11),		"F11",			NULL },		// F11 function key
+	{ UCHAR_MAMEKEY(F12),		"F12",			NULL },		// F12 function key
+	{ UCHAR_MAMEKEY(F13),		"F13",			NULL },		// F13 function key
+	{ UCHAR_MAMEKEY(F14),		"F14",			NULL },		// F14 function key
+	{ UCHAR_MAMEKEY(F15),		"F15",			NULL },		// F15 function key
+	{ UCHAR_MAMEKEY(ESC),		"Esc",			"\033" },	// Esc key
+	{ UCHAR_MAMEKEY(INSERT),	"Insert",		NULL },		// Insert key
+	{ UCHAR_MAMEKEY(DEL),		"Delete",		"\010" },	// Delete key
+	{ UCHAR_MAMEKEY(HOME),		"Home",			"\014" },	// Home key
+	{ UCHAR_MAMEKEY(END),		"End",			NULL },		// End key
+	{ UCHAR_MAMEKEY(PGUP),		"Page Up",		NULL },		// Page Up key
+	{ UCHAR_MAMEKEY(PGDN),		"Page Down",	NULL },		// Page Down key
+	{ UCHAR_MAMEKEY(LEFT),		"Cursor Left",	NULL },		// Cursor Left
+	{ UCHAR_MAMEKEY(RIGHT),		"Cursor Right",	NULL },		// Cursor Right
+	{ UCHAR_MAMEKEY(UP),		"Cursor Up",	NULL },		// Cursor Up
+	{ UCHAR_MAMEKEY(DOWN),		"Cursor Down",	NULL },		// Cursor Down
+	{ UCHAR_MAMEKEY(0_PAD),		"Keypad 0",		NULL },		// 0 on the numeric keypad
+	{ UCHAR_MAMEKEY(1_PAD),		"Keypad 1",		NULL },		// 1 on the numeric keypad
+	{ UCHAR_MAMEKEY(2_PAD),		"Keypad 2",		NULL },		// 2 on the numeric keypad
+	{ UCHAR_MAMEKEY(3_PAD),		"Keypad 3",		NULL },		// 3 on the numeric keypad
+	{ UCHAR_MAMEKEY(4_PAD),		"Keypad 4",		NULL },		// 4 on the numeric keypad
+	{ UCHAR_MAMEKEY(5_PAD),		"Keypad 5",		NULL },		// 5 on the numeric keypad
+	{ UCHAR_MAMEKEY(6_PAD),		"Keypad 6",		NULL },		// 6 on the numeric keypad
+	{ UCHAR_MAMEKEY(7_PAD),		"Keypad 7",		NULL },		// 7 on the numeric keypad
+	{ UCHAR_MAMEKEY(8_PAD),		"Keypad 8",		NULL },		// 8 on the numeric keypad
+	{ UCHAR_MAMEKEY(9_PAD),		"Keypad 9",		NULL },		// 9 on the numeric keypad
+	{ UCHAR_MAMEKEY(SLASH_PAD),	"Keypad /",		NULL },		// / on the numeric keypad
+	{ UCHAR_MAMEKEY(ASTERISK),	"Keypad *",		NULL },		// * on the numeric keypad
+	{ UCHAR_MAMEKEY(MINUS_PAD),	"Keypad -",		NULL },		// - on the numeric Keypad
+	{ UCHAR_MAMEKEY(PLUS_PAD),	"Keypad +",		NULL },		// + on the numeric Keypad
+	{ UCHAR_MAMEKEY(DEL_PAD),	"Keypad .",		NULL },		// . on the numeric keypad
+	{ UCHAR_MAMEKEY(ENTER_PAD),	"Keypad Enter",	NULL },		// Enter on the numeric keypad
+	{ UCHAR_MAMEKEY(PRTSCR),	"Print Screen",	NULL },		// Print Screen key
+	{ UCHAR_MAMEKEY(PAUSE),		"Pause",		NULL },		// Pause key
+	{ UCHAR_MAMEKEY(LSHIFT),	"Left Shift",	NULL },		// Left Shift key
+	{ UCHAR_MAMEKEY(RSHIFT),	"Right Shift",	NULL },		// Right Shift key
+	{ UCHAR_MAMEKEY(LCONTROL),	"Left Ctrl",	NULL },		// Left Control key
+	{ UCHAR_MAMEKEY(RCONTROL),	"Right Ctrl",	NULL },		// Right Control key
+	{ UCHAR_MAMEKEY(LALT),		"Left Alt",		NULL },		// Left Alt key
+	{ UCHAR_MAMEKEY(RALT),		"Right Alt",	NULL },		// Right Alt key
+	{ UCHAR_MAMEKEY(SCRLOCK),	"Scroll Lock",	NULL },		// Scroll Lock key
+	{ UCHAR_MAMEKEY(NUMLOCK),	"Num Lock",		NULL },		// Num Lock key
+	{ UCHAR_MAMEKEY(CAPSLOCK),	"Caps Lock",	NULL },		// Caps Lock key
+	{ UCHAR_MAMEKEY(LWIN),		"Left Win",		NULL },		// Left Win key
+	{ UCHAR_MAMEKEY(RWIN),		"Right Win",	NULL },		// Right Win key
+	{ UCHAR_MAMEKEY(MENU),		"Menu",			NULL },		// Menu key
+	{ UCHAR_MAMEKEY(CANCEL),	"Break",		NULL }		// Break/Pause key
 };
 
 
@@ -833,22 +848,22 @@ void ioport_list::append(device_t &device, astring &errorbuf)
 
 input_type_entry::input_type_entry(ioport_type type, ioport_group group, int player, const char *token, const char *name, input_seq standard)
 	: m_next(NULL),
-		m_type(type),
-		m_group(group),
-		m_player(player),
-		m_token(token),
-		m_name(name)
+	  m_type(type),
+	  m_group(group),
+	  m_player(player),
+	  m_token(token),
+	  m_name(name)
 {
 	m_defseq[SEQ_TYPE_STANDARD] = m_seq[SEQ_TYPE_STANDARD] = standard;
 }
 
 input_type_entry::input_type_entry(ioport_type type, ioport_group group, int player, const char *token, const char *name, input_seq standard, input_seq decrement, input_seq increment)
 	: m_next(NULL),
-		m_type(type),
-		m_group(group),
-		m_player(player),
-		m_token(token),
-		m_name(name)
+	  m_type(type),
+	  m_group(group),
+	  m_player(player),
+	  m_token(token),
+	  m_name(name)
 {
 	m_defseq[SEQ_TYPE_STANDARD] = m_seq[SEQ_TYPE_STANDARD] = standard;
 	m_defseq[SEQ_TYPE_INCREMENT] = m_seq[SEQ_TYPE_INCREMENT] = increment;
@@ -879,10 +894,10 @@ void input_type_entry::configure_osd(const char *token, const char *name)
 
 digital_joystick::digital_joystick(int player, int number)
 	: m_player(player),
-		m_number(number),
-		m_current(0),
-		m_current4way(0),
-		m_previous(0)
+	  m_number(number),
+	  m_current(0),
+	  m_current4way(0),
+	  m_previous(0)
 {
 }
 
@@ -984,12 +999,12 @@ void digital_joystick::frame_update()
 
 natural_keyboard::natural_keyboard(running_machine &machine)
 	: m_machine(machine),
-		m_bufbegin(0),
-		m_bufend(0),
-		m_status_keydown(false),
-		m_last_cr(false),
-		m_timer(NULL),
-		m_current_rate(attotime::zero)
+	  m_bufbegin(0),
+	  m_bufend(0),
+	  m_status_keydown(false),
+	  m_last_cr(false),
+	  m_timer(NULL),
+	  m_current_rate(attotime::zero)
 {
 	m_queue_chars = ioport_queue_chars_delegate();
 	m_accept_char = ioport_accept_char_delegate();
@@ -1147,34 +1162,34 @@ void natural_keyboard::post_coded(const char *text, size_t length, attotime rate
 		unicode_char code;
 	} codes[] =
 	{
-		{ "BACKSPACE",  8 },
-		{ "BS",         8 },
-		{ "BKSP",       8 },
-		{ "DEL",        UCHAR_MAMEKEY(DEL) },
-		{ "DELETE",     UCHAR_MAMEKEY(DEL) },
-		{ "END",        UCHAR_MAMEKEY(END) },
-		{ "ENTER",      13 },
-		{ "ESC",        '\033' },
-		{ "HOME",       UCHAR_MAMEKEY(HOME) },
-		{ "INS",        UCHAR_MAMEKEY(INSERT) },
-		{ "INSERT",     UCHAR_MAMEKEY(INSERT) },
-		{ "PGDN",       UCHAR_MAMEKEY(PGDN) },
-		{ "PGUP",       UCHAR_MAMEKEY(PGUP) },
-		{ "SPACE",      32 },
-		{ "TAB",        9 },
-		{ "F1",         UCHAR_MAMEKEY(F1) },
-		{ "F2",         UCHAR_MAMEKEY(F2) },
-		{ "F3",         UCHAR_MAMEKEY(F3) },
-		{ "F4",         UCHAR_MAMEKEY(F4) },
-		{ "F5",         UCHAR_MAMEKEY(F5) },
-		{ "F6",         UCHAR_MAMEKEY(F6) },
-		{ "F7",         UCHAR_MAMEKEY(F7) },
-		{ "F8",         UCHAR_MAMEKEY(F8) },
-		{ "F9",         UCHAR_MAMEKEY(F9) },
-		{ "F10",        UCHAR_MAMEKEY(F10) },
-		{ "F11",        UCHAR_MAMEKEY(F11) },
-		{ "F12",        UCHAR_MAMEKEY(F12) },
-		{ "QUOTE",      '\"' }
+		{ "BACKSPACE",	8 },
+		{ "BS",			8 },
+		{ "BKSP",		8 },
+		{ "DEL",		UCHAR_MAMEKEY(DEL) },
+		{ "DELETE",		UCHAR_MAMEKEY(DEL) },
+		{ "END",		UCHAR_MAMEKEY(END) },
+		{ "ENTER",		13 },
+		{ "ESC",		'\033' },
+		{ "HOME",		UCHAR_MAMEKEY(HOME) },
+		{ "INS",		UCHAR_MAMEKEY(INSERT) },
+		{ "INSERT",		UCHAR_MAMEKEY(INSERT) },
+		{ "PGDN",		UCHAR_MAMEKEY(PGDN) },
+		{ "PGUP",		UCHAR_MAMEKEY(PGUP) },
+		{ "SPACE",		32 },
+		{ "TAB",		9 },
+		{ "F1",			UCHAR_MAMEKEY(F1) },
+		{ "F2",			UCHAR_MAMEKEY(F2) },
+		{ "F3",			UCHAR_MAMEKEY(F3) },
+		{ "F4",			UCHAR_MAMEKEY(F4) },
+		{ "F5",			UCHAR_MAMEKEY(F5) },
+		{ "F6",			UCHAR_MAMEKEY(F6) },
+		{ "F7",			UCHAR_MAMEKEY(F7) },
+		{ "F8",			UCHAR_MAMEKEY(F8) },
+		{ "F9",			UCHAR_MAMEKEY(F9) },
+		{ "F10",		UCHAR_MAMEKEY(F10) },
+		{ "F11",		UCHAR_MAMEKEY(F11) },
+		{ "F12",		UCHAR_MAMEKEY(F12) },
+		{ "QUOTE",		'\"' }
 	};
 
 	// set the fixed rate
@@ -1398,10 +1413,10 @@ const char *natural_keyboard::unicode_to_string(astring &buffer, unicode_char ch
 	switch (ch)
 	{
 		// check some magic values
-		case '\0':  buffer.cpy("\\0");      break;
-		case '\r':  buffer.cpy("\\r");      break;
-		case '\n':  buffer.cpy("\\n");      break;
-		case '\t':  buffer.cpy("\\t");      break;
+		case '\0':	buffer.cpy("\\0");		break;
+		case '\r':	buffer.cpy("\\r");		break;
+		case '\n':	buffer.cpy("\\n");		break;
+		case '\t':	buffer.cpy("\\t");		break;
 
 		default:
 			// seven bit ASCII is easy
@@ -1572,13 +1587,13 @@ bool ioport_condition::eval(device_t &device) const
 	ioport_value condvalue = device.ioport(m_tag)->read();
 	switch (m_condition)
 	{
-		case ALWAYS:            return true;
-		case EQUALS:            return ((condvalue & m_mask) == m_value);
-		case NOTEQUALS:         return ((condvalue & m_mask) != m_value);
-		case GREATERTHAN:       return ((condvalue & m_mask) > m_value);
-		case NOTGREATERTHAN:    return ((condvalue & m_mask) <= m_value);
-		case LESSTHAN:          return ((condvalue & m_mask) < m_value);
-		case NOTLESSTHAN:       return ((condvalue & m_mask) >= m_value);
+		case ALWAYS:			return true;
+		case EQUALS:			return ((condvalue & m_mask) == m_value);
+		case NOTEQUALS:			return ((condvalue & m_mask) != m_value);
+		case GREATERTHAN:		return ((condvalue & m_mask) > m_value);
+		case NOTGREATERTHAN:	return ((condvalue & m_mask) <= m_value);
+		case LESSTHAN:			return ((condvalue & m_mask) < m_value);
+		case NOTLESSTHAN:		return ((condvalue & m_mask) >= m_value);
 	}
 	return true;
 }
@@ -1595,9 +1610,9 @@ bool ioport_condition::eval(device_t &device) const
 
 ioport_setting::ioport_setting(ioport_field &field, ioport_value _value, const char *_name)
 	: m_next(NULL),
-		m_field(field),
-		m_value(_value),
-		m_name(_name)
+	  m_field(field),
+	  m_value(_value),
+	  m_name(_name)
 {
 }
 
@@ -1613,9 +1628,9 @@ ioport_setting::ioport_setting(ioport_field &field, ioport_value _value, const c
 
 ioport_diplocation::ioport_diplocation(const char *name, UINT8 swnum, bool invert)
 	: m_next(NULL),
-		m_name(name),
-		m_number(swnum),
-		m_invert(invert)
+	  m_name(name),
+	  m_number(swnum),
+	  m_invert(invert)
 {
 }
 
@@ -1631,30 +1646,30 @@ ioport_diplocation::ioport_diplocation(const char *name, UINT8 swnum, bool inver
 
 ioport_field::ioport_field(ioport_port &port, ioport_type type, ioport_value defvalue, ioport_value maskbits, const char *name)
 	: m_next(NULL),
-		m_port(port),
-		m_live(NULL),
-		m_modcount(port.modcount()),
-		m_mask(maskbits),
-		m_defvalue(defvalue & maskbits),
-		m_type(type),
-		m_player(0),
-		m_flags(0),
-		m_impulse(0),
-		m_name(name),
-		m_read_param(NULL),
-		m_write_param(NULL),
-		m_min(0),
-		m_max(maskbits),
-		m_sensitivity(0),
-		m_delta(0),
-		m_centerdelta(0),
-		m_crosshair_axis(CROSSHAIR_AXIS_NONE),
-		m_crosshair_scale(1.0),
-		m_crosshair_offset(0),
-		m_crosshair_altaxis(0),
-		m_full_turn_count(0),
-		m_remap_table(NULL),
-		m_way(0)
+	  m_port(port),
+	  m_live(NULL),
+	  m_modcount(port.modcount()),
+	  m_mask(maskbits),
+	  m_defvalue(defvalue & maskbits),
+	  m_type(type),
+	  m_player(0),
+	  m_flags(0),
+	  m_impulse(0),
+	  m_name(name),
+	  m_read_param(NULL),
+	  m_write_param(NULL),
+	  m_min(0),
+	  m_max(maskbits),
+	  m_sensitivity(0),
+	  m_delta(0),
+	  m_centerdelta(0),
+	  m_crosshair_axis(CROSSHAIR_AXIS_NONE),
+	  m_crosshair_scale(1.0),
+	  m_crosshair_offset(0),
+	  m_crosshair_altaxis(0),
+	  m_full_turn_count(0),
+	  m_remap_table(NULL),
+	  m_way(0)
 {
 	// reset sequences and chars
 	for (input_seq_type seqtype = SEQ_TYPE_STANDARD; seqtype < SEQ_TYPE_TOTAL; seqtype++)
@@ -1709,9 +1724,49 @@ const char *ioport_field::name() const
 //  seq - return the live input sequence for the
 //  given input field
 //-------------------------------------------------
+map<const ioport_field*,const ioport_field*> playerFieldMap[MAX_PLAYERS];
 
-const input_seq &ioport_field::seq(input_seq_type seqtype) const
+const input_seq &ioport_field::seq(bool checkMapping, input_seq_type seqtype) const
 {
+  if(checkMapping && netCommon && netCommon->getSelfPeerID()>0) {
+    int player = netCommon->getSelfPeerID()-1;
+
+    ioport_type typeToMap = type();
+    int playerToMap = this->player();
+        
+    if(typeToMap >= IPT_START1 && typeToMap <= IPT_START8) {
+      typeToMap = IPT_START1;
+      playerToMap = type() - IPT_START1;
+    }
+    if(typeToMap >= IPT_COIN1 && typeToMap <= IPT_COIN12) {
+      typeToMap = IPT_COIN1;
+      playerToMap = type() - IPT_COIN1;
+    }
+    if(typeToMap >= IPT_SERVICE1 && typeToMap <= IPT_SERVICE4) {
+      typeToMap = IPT_SERVICE1;
+      playerToMap = type() - IPT_SERVICE1;
+    }
+    if(typeToMap >= IPT_TILT1 && typeToMap <= IPT_TILT4) {
+      typeToMap = IPT_TILT1;
+      playerToMap = type() - IPT_TILT1;
+    }
+        
+    map<const ioport_field*,const ioport_field*>::iterator it = playerFieldMap[0].find(this);
+        
+    if(it != playerFieldMap[0].end()) {
+      if(player != playerToMap) {
+        // We shouldn't be controlling this player
+        return input_seq::empty_seq;
+      }
+      //cout << "MAPPING " << name() << " TO " << it->second->name() << endl;
+      return it->second->seq(false, seqtype);
+    } else if(name()) {
+      //cout << "FOUND NO MAP FOR " << name() << endl;
+    } else {
+      //cout << "FOUND NO MAP FOR UNKNOWN INPUT" << endl;
+    }
+  }
+
 	// if no live state, return default
 	if (m_live == NULL)
 		return defseq(seqtype);
@@ -1857,7 +1912,7 @@ void ioport_field::get_user_settings(user_settings &settings)
 
 	// copy the basics
 	for (input_seq_type seqtype = SEQ_TYPE_STANDARD; seqtype < SEQ_TYPE_TOTAL; seqtype++)
-		settings.seq[seqtype] = seq(seqtype);
+    settings.seq[seqtype] = seq(false, seqtype);
 
 	// if there's a list of settings or we're an adjuster, copy the current value
 	if (first_setting() != NULL || m_type == IPT_ADJUSTER)
@@ -2068,7 +2123,7 @@ void ioport_field::frame_update(ioport_value &result, bool mouse_down)
 		return;
 
 	// if the state changed, look for switch down/switch up
-	bool curstate = mouse_down || machine().input().seq_pressed(seq());
+    bool curstate = mouse_down || machine().input().seq_pressed(seq(true));
 	bool changed = false;
 	if (curstate != m_live->last)
 	{
@@ -2311,11 +2366,11 @@ void ioport_field::init_live_state(analog_field *analog)
 
 ioport_field_live::ioport_field_live(ioport_field &field, analog_field *analog)
 	: analog(analog),
-		joystick(NULL),
-		value(field.defvalue()),
-		impulse(0),
-		last(0),
-		joydir(digital_joystick::JOYDIR_COUNT)
+	  joystick(NULL),
+	  value(field.defvalue()),
+	  impulse(0),
+	  last(0),
+	  joydir(digital_joystick::JOYDIR_COUNT)
 {
 	// fill in the basic values
 	for (input_seq_type seqtype = SEQ_TYPE_STANDARD; seqtype < SEQ_TYPE_TOTAL; seqtype++)
@@ -2362,11 +2417,11 @@ ioport_field_live::ioport_field_live(ioport_field &field, analog_field *analog)
 
 ioport_port::ioport_port(device_t &owner, const char *tag)
 	: m_next(NULL),
-		m_device(owner),
-		m_tag(tag),
-		m_modcount(0),
-		m_active(0),
-		m_live(NULL)
+	  m_device(owner),
+	  m_tag(tag),
+	  m_modcount(0),
+	  m_active(0),
+	  m_live(NULL)
 {
 }
 
@@ -2572,8 +2627,8 @@ void ioport_port::init_live_state()
 
 ioport_port_live::ioport_port_live(ioport_port &port)
 	: defvalue(0),
-		digital(0),
-		outputvalue(0)
+	  digital(0),
+	  outputvalue(0)
 {
 	// iterate over fields
 	for (ioport_field *field = port.first_field(); field != NULL; field = field->next())
@@ -2608,14 +2663,14 @@ ioport_port_live::ioport_port_live(ioport_port &port)
 
 ioport_manager::ioport_manager(running_machine &machine)
 	: m_machine(machine),
-		m_safe_to_read(false),
-		m_natkeyboard(machine),
-		m_last_frame_time(attotime::zero),
-		m_last_delta_nsec(0),
-		m_record_file(machine.options().input_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS),
-		m_playback_file(machine.options().input_directory(), OPEN_FLAG_READ),
-		m_playback_accumulated_speed(0),
-		m_playback_accumulated_frames(0)
+	  m_safe_to_read(false),
+	  m_natkeyboard(machine),
+	  m_last_frame_time(attotime::zero),
+	  m_last_delta_nsec(0),
+	  m_record_file(machine.options().input_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS),
+	  m_playback_file(machine.options().input_directory(), OPEN_FLAG_READ),
+	  m_playback_accumulated_speed(0),
+	  m_playback_accumulated_frames(0)
 {
 	memset(m_type_to_entry, 0, sizeof(m_type_to_entry));
 }
@@ -2626,8 +2681,14 @@ ioport_manager::ioport_manager(running_machine &machine)
 //  create live state information
 //-------------------------------------------------
 
+circular_buffer<std::pair<attotime,InputState> > playerInputData[MAX_PLAYERS];
+
 time_t ioport_manager::initialize()
 {
+  for(int a=0;a<MAX_PLAYERS;a++) {
+    playerInputData[a].set_capacity(30000);
+  }
+
 	// add an exit callback and a frame callback
 	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(ioport_manager::exit), this));
 	machine().add_notifier(MACHINE_NOTIFY_FRAME, machine_notify_delegate(FUNC(ioport_manager::frame_update_callback), this));
@@ -2693,6 +2754,75 @@ time_t ioport_manager::initialize()
 	m_natkeyboard.initialize();
 	// register callbacks for when we load configurations
 	config_register(machine(), "input", config_saveload_delegate(FUNC(ioport_manager::load_config), this), config_saveload_delegate(FUNC(ioport_manager::save_config), this));
+
+  // Set up player X->player Y maps
+  for (ioport_port *portFrom = first_port(); portFrom != NULL; portFrom = portFrom->next()) {
+    for (ioport_field *fieldFrom = portFrom->first_field(); fieldFrom != NULL; fieldFrom = fieldFrom->next()) {
+      int fromPlayer = fieldFrom->player();
+      ioport_type fromType = fieldFrom->type();
+
+      if(fromType >= IPT_START1 && fromType <= IPT_START8) {
+        fromPlayer = (fromType - IPT_START1);
+        fromType = IPT_START1;
+      }
+      if(fromType >= IPT_COIN1 && fromType <= IPT_COIN12) {
+        fromPlayer = (fromType - IPT_COIN1);
+        fromType = IPT_COIN1;
+      }
+      if(fromType >= IPT_SERVICE1 && fromType <= IPT_SERVICE4) {
+        fromPlayer = (fromType - IPT_SERVICE1);
+        fromType = IPT_SERVICE1;
+      }
+      if(fromType >= IPT_TILT1 && fromType <= IPT_TILT4) {
+        fromPlayer = (fromType - IPT_TILT1);
+        fromType = IPT_TILT1;
+      }
+
+      if(fromType<IPT_START1) {
+        continue; // Don't map these psuedo-inputs
+      }
+
+      for (ioport_port *portTo = first_port(); portTo != NULL; portTo = portTo->next()) {
+        for (ioport_field *fieldTo = portTo->first_field(); fieldTo != NULL; fieldTo = fieldTo->next()) {
+          if(fieldFrom == fieldTo)
+            continue;
+
+          int toPlayer = fieldTo->player();
+          ioport_type toType = fieldTo->type();
+
+          if(toType >= IPT_START1 && toType <= IPT_START8) {
+            toPlayer = (toType - IPT_START1);
+            toType = IPT_START1;
+          }
+          if(toType >= IPT_COIN1 && toType <= IPT_COIN12) {
+            toPlayer = (toType - IPT_COIN1);
+            toType = IPT_COIN1;
+          }
+          if(toType >= IPT_SERVICE1 && toType <= IPT_SERVICE4) {
+            toPlayer = (toType - IPT_SERVICE1);
+            toType = IPT_SERVICE1;
+          }
+          if(toType >= IPT_TILT1 && toType <= IPT_TILT4) {
+            toPlayer = (toType - IPT_TILT1);
+            toType = IPT_TILT1;
+          }
+
+          if(fromType == toType) {
+            if(fromPlayer == toPlayer) {
+              if(fieldFrom->name() && fieldTo->name()) {
+                cout << "UH O, FOUND THE SAME EXACT INPUT FIELDS: " << fieldFrom->name() << " AND " << fieldTo->name() << endl;
+              }
+            } else {
+              playerFieldMap[toPlayer][fieldFrom] = fieldTo;
+              // If you map to a field, map that field to itself.  This tells is that P1_Left is P1_left for P1 (and non-player inputs like SERVICE don't map to any player)
+              playerFieldMap[toPlayer][fieldTo] = fieldTo;
+            }
+          }
+        }
+      }
+    }
+  }
+    
 
 	// open playback and record files if specified
 	time_t basetime = playback_init();
@@ -2840,7 +2970,7 @@ const input_seq &ioport_manager::type_seq(ioport_type type, int player, input_se
 	// if we have a machine, use the live state and quick lookup
 	input_type_entry *entry = m_type_to_entry[type][player];
 	if (entry != NULL)
-		return entry->seq(seqtype);
+    return entry->seq(false, seqtype);
 
 	// if we find nothing, return an empty sequence
 	return input_seq::empty_seq;
@@ -3010,9 +3140,20 @@ void ioport_manager::frame_update_callback()
 //  per-frame input port updating
 //-------------------------------------------------
 
+attotime lastFutureInputTime(0,0);
+int baseDelayFromPing = 50;
+extern attotime mostRecentSentReport;
+
 void ioport_manager::frame_update()
 {
+  //cout << "UPDATING FRAME\n";
 g_profiler.start(PROFILER_INPUT);
+
+  if(netServer)
+  {
+    //This line is here because it needs to run at about 60hz
+    netServer->popSyncQueue();
+  }
 
 	// record/playback information about the current frame
 	attotime curtime = machine().time();
@@ -3050,23 +3191,390 @@ g_profiler.start(PROFILER_INPUT);
 		}
 	}
 
+    nsm::InputState inputState;
 	// loop over all input ports
+    vector<nsm::InputState*> remoteInputStates;
+
+    if(curtime.seconds>0 && netCommon) {
+        remoteInputStates = fetch_remote_inputs(curtime);
+    }
+
+    int portIndex=0;
 	for (ioport_port *port = first_port(); port != NULL; port = port->next())
 	{
 		port->frame_update(mouse_field);
 
-		// handle playback/record
-		playback_port(*port);
-		record_port(*port);
+        if(netCommon) {
+          // store local inputs in buffer for broadcast
+          nsm::InputPort *inputPort = inputState.add_ports();
+          store_local_port(*port, inputPort);
+
+        } else {
+          // handle playback
+          playback_port(*port);
+        }
+
+        if(netCommon) {
+          merge_ports(*port, remoteInputStates, portIndex);
+        }
+
+        // handle record
+        record_port(*port);
 
 		// call device line write handlers
 		ioport_value newvalue = port->read();
 		for (dynamic_field *dynfield = port->live().writelist.first(); dynfield != NULL; dynfield = dynfield->next())
 			if (dynfield->field().type() != IPT_OUTPUT)
 				dynfield->write(newvalue);
+
+        portIndex++;
 	}
 
+  for(int a=0;a<MAX_PLAYERS;a++) {
+    if(netServer) {
+      if(a==0 || netServer->hasPeerWithID(a+1)==false) {
+        inputState.add_players(a);
+      }
+    } else if(netClient) {
+      if(a == netClient->getSelfPeerID()-1) {
+        inputState.add_players(a);
+      }
+    }
+  }
+
+  //cout << "MOST RECENT SENT REPORT " << mostRecentSentReport.seconds << "." << mostRecentSentReport.attoseconds << endl;
+  if(netCommon && (curtime.seconds>0 || curtime.attoseconds>0)) {
+    // Calculate the time that the new inputs will take effect
+    int delayFromPing=baseDelayFromPing;
+    if(netCommon)
+    {
+      delayFromPing = max(delayFromPing,min(600,baseDelayFromPing + netCommon->getLargestPing()/2));
+    }
+    attoseconds_t attosecondsToLead = ATTOSECONDS_PER_MILLISECOND*delayFromPing;
+    attotime futureInputTime = curtime + attotime(0,attosecondsToLead);
+    if(futureInputTime <= mostRecentSentReport) {
+      // We haven't caught up with the server yet, don't send.
+    } else if(futureInputTime < lastFutureInputTime) {
+      // This input would occur in the past, ignore it.
+    } else {
+      lastFutureInputTime = futureInputTime;
+
+      netCommon->sendInputs(futureInputTime, PeerInputData::INPUT, inputState);
+    }
+  }
+
 g_profiler.stop();
+  //cout << "FINISHED UPDATING FRAME\n";
+}
+
+extern list< ChatLog > chatLogs;
+
+void ioport_manager::processNetworkBuffer(PeerInputData *inputData,int peerID)
+{
+  if(inputData != NULL)
+  {
+    if(inputData->inputtype() == PeerInputData::INPUT)
+    {
+      //printf("GOT INPUT\n");
+      attotime tmptime(inputData->time().seconds(), inputData->time().attoseconds());
+      for(int a=0;a<inputData->inputstate().players_size();a++) {
+        int player = inputData->inputstate().players(a);
+        //cout << "Peer " << peerID << " has input for player " << inputData->inputstate().players(a) << " at time " << tmptime.seconds << "." << tmptime.attoseconds << endl;
+        circular_buffer<pair<attotime,InputState> > &onePlayerInputData = playerInputData[inputData->inputstate().players(a)];
+        if(onePlayerInputData.empty()) {
+          onePlayerInputData.insert(onePlayerInputData.begin(),pair<attotime,InputState>(tmptime,inputData->inputstate()));
+        } else {
+          for(circular_buffer<pair<attotime,InputState> >::reverse_iterator it = onePlayerInputData.rbegin();
+              it != onePlayerInputData.rend();
+              it++) {
+            //cout << "IN INPUT LOOP\n";
+            if(it->first < tmptime) {
+              onePlayerInputData.insert(
+                it.base(), // NOTE: base() returns the iterator 1 position in the past
+                pair<attotime,InputState>(tmptime,inputData->inputstate()));
+              break;
+            } else if(it->first == tmptime) {
+              //TODO: If two peers send inputs at the same time for the same player, break ties with peer id.
+              break;
+            } else if(it == onePlayerInputData.rend()) {
+              onePlayerInputData.insert(
+                onePlayerInputData.begin(),
+                pair<attotime,InputState>(tmptime,inputData->inputstate()));
+              break;
+            }
+          }
+        }
+      }
+    }
+    else if(inputData->inputtype() == PeerInputData::CHAT)
+    {
+      string buffer = inputData->inputbuffer();
+      cout << "GOT CHAT " << buffer << endl;
+      char buf[4096];
+      sprintf(buf,"%s: %s",netCommon->getPeerNameFromID(peerID).c_str(),buffer.c_str());
+      astring chatAString = astring(buf);
+      //Figure out the index of who spoke and send that
+      chatLogs.push_back(ChatLog(peerID,time(NULL),chatAString));
+    }
+    else if(inputData->inputtype() == PeerInputData::FORCE_VALUE)
+    {
+      const string &buffer = inputData->inputbuffer();
+      cout << "FORCING VALUE\n";
+      int blockIndex,memoryStart,memorySize,value;
+      unsigned char ramRegion,memoryMask;
+      memcpy(&ramRegion,&buffer[0]+1,sizeof(int));
+      memcpy(&blockIndex,&buffer[0]+2,sizeof(int));
+      memcpy(&memoryStart,&buffer[0]+6,sizeof(int));
+      memcpy(&memorySize,&buffer[0]+10,sizeof(int));
+      memcpy(&memoryMask,&buffer[0]+14,sizeof(unsigned char));
+      memcpy(&value,&buffer[0]+15,sizeof(int));
+      // New force
+      netCommon->forceLocation(BlockValueLocation(ramRegion,blockIndex,memoryStart,memorySize,memoryMask),value);
+      ui_popup_time(3, "Server created new cheat");
+    }
+    else
+    {
+      printf("UNKNOWN INPUT BUFFER PACKET!!!\n");
+    }
+  }
+  else
+  {
+    //break;
+  }
+}
+
+bool waitingForClientCatchup = false;
+int framesSinceDelayCheck = 0;
+
+void ioport_manager::pollForPeerCatchup(bool printDebug) {
+  attotime curtime = machine().time();
+  bool thisIsBadFrame=false;
+  bool gotStale = false;
+  while(true) {
+        
+    pair<int,attotime> peerTimePair = netCommon->getOldestPeerInputTime();
+    if(peerTimePair.first == -1 || peerTimePair.second > curtime) {
+      if(waitingForClientCatchup) {
+        waitingForClientCatchup=false;
+        machine().osd().pauseAudio(false);
+      }
+      if(printDebug)
+        cout << "Peer " << peerTimePair.first << " is caught up with " << peerTimePair.second.seconds << "." << peerTimePair.second.attoseconds << endl;
+            
+      if(framesSinceDelayCheck>=60 && netServer && !waitingForClientCatchup) {
+        cout << "Decreasing base delay from " << baseDelayFromPing;
+        baseDelayFromPing = max(50,baseDelayFromPing-20);
+        framesSinceDelayCheck=0;
+        cout << " to " << baseDelayFromPing << endl;
+        netServer->sendBaseDelay(baseDelayFromPing);
+      }
+            
+      break;
+    }
+        
+    if(!thisIsBadFrame && netServer && framesSinceDelayCheck>=30 && !waitingForClientCatchup) {
+      cout << "Increasing base delay from " << baseDelayFromPing;
+      baseDelayFromPing = min(210,baseDelayFromPing+20);
+      thisIsBadFrame=true;
+      framesSinceDelayCheck = 0;
+      cout << " to " << baseDelayFromPing << endl;
+      netServer->sendBaseDelay(baseDelayFromPing);
+    }
+        
+    if(printDebug && !gotStale) {
+      gotStale = true;
+      cout << "Peer " << peerTimePair.first << " is stale with last input at " << peerTimePair.second.seconds << "." << peerTimePair.second.attoseconds << endl;
+    }
+    if(peerTimePair.second.seconds+2 < curtime.seconds) {
+      waitingForClientCatchup=true;
+      machine().osd().pauseAudio(true);
+    }
+    ui_update_and_render(machine(), &machine().render().ui_container());
+    machine().osd().update(false);
+        
+    if(netCommon) {
+      if(!netCommon->update(&(machine()))) {
+        cout << "NETWORK FAILED\n";
+        ::exit(1);
+      }
+    }
+        
+    if(netCommon->hasPeerWithID(peerTimePair.first)==false) {
+      //The peer we were waiting on is gone.
+      continue;
+    }
+        
+    PeerInputData peerInput = netCommon->popInput(peerTimePair.first);
+        
+    if (peerInput.has_time()) {
+      processNetworkBuffer(&peerInput, peerTimePair.first);
+    }
+        
+    osd_sleep(0);
+  }
+}
+
+void ioport_manager::pollForDataAfter(int player, attotime curtime, bool printDebug) {
+  bool gotStale=false;
+  while(playerInputData[player].empty() || playerInputData[player].rbegin()->first <= curtime) {
+        
+    if(printDebug && !gotStale) {
+      gotStale = true;
+      cout << "PLAYER " << player << " is stale with last input before " << curtime.seconds << "." << curtime.attoseconds << endl;
+    }
+        
+    bool gotInput = false;
+    vector<int> peerIDs;
+    if(netCommon) netCommon->getPeerIDs(peerIDs);
+        
+    for(int a=0; a<(int)peerIDs.size(); a++)
+    {
+      int peerID = peerIDs[a];
+      PeerInputData peerInput = netCommon->popInput(peerID);
+            
+      if (peerInput.has_time()) {
+        processNetworkBuffer(&peerInput, peerID);
+        gotInput=true;
+      } 
+    }
+        
+    if(!gotInput)
+    {
+      cout << "MISSING INPUT DATA FOR PLAYER " << player << " AT " << curtime.seconds << "." << curtime.attoseconds << endl;
+      //throw emu_fatalerror("MISSING INPUT DATA FOR PLAYER");
+      break;
+    }
+        
+    osd_sleep(0);
+  }
+
+  if(printDebug)
+    cout << "PLAYER " << player << " is up to date with last input at " << playerInputData[player].rbegin()->first.seconds << "." << playerInputData[player].rbegin()->first.attoseconds << endl;
+}
+
+std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curtime) {
+  vector<nsm::InputState*> retval;
+
+  static time_t realtime = time(NULL);
+  bool printDebug=false;
+  if(printDebug || realtime != time(NULL))
+  {
+    printDebug=true;
+    realtime = time(NULL);
+  }
+    
+  framesSinceDelayCheck++;
+  pollForPeerCatchup(printDebug);
+
+  for(int player=0;player<MAX_PLAYERS;player++) {
+    // Poll for new player input data
+
+    // Note we have to do this first or it will invalidate the iterators we assign further down
+    pollForDataAfter(player, curtime, printDebug);
+  }
+
+  for(int player=0;player<MAX_PLAYERS;player++) {
+    circular_buffer<std::pair<attotime,InputState> >::reverse_iterator it = playerInputData[player].rbegin();
+    circular_buffer<std::pair<attotime,InputState> >::reverse_iterator itold = playerInputData[player].rbegin();
+
+    while(true)
+    {
+      if(it==playerInputData[player].rend())
+      {
+        throw emu_fatalerror("OOPS");
+      }
+      else if(it->first<=curtime)
+      {
+        if(it==itold)
+        {
+          //throw emu_fatalerror("OOPS");
+
+          // This can happen for a few frames aftersomeone disconnects but before hte server takes over.
+          retval.push_back(NULL);
+        } else {
+          retval.push_back(&(itold->second));
+          break;
+        }
+      }
+
+      itold = it;
+      it++;
+    }
+  }
+
+  return retval;
+}
+
+void ioport_manager::store_local_port(ioport_port &port, nsm::InputPort *inputPort)
+{
+  // read the default value and the digital state
+  inputPort->set_defvalue(port.live().defvalue);
+  inputPort->set_digital(port.live().digital);
+
+  // loop over analog ports and save their data
+  for (analog_field *analog = port.live().analoglist.first(); analog != NULL; analog = analog->next())
+  {
+    nsm::AnalogPort *analogPort = inputPort->add_analogports();
+        
+    analogPort->set_accum(analog->m_accum);
+    analogPort->set_previous(analog->m_previous);
+    analogPort->set_sensitivity(analog->m_sensitivity);
+    analogPort->set_reverse(analog->m_reverse);
+  }
+}
+
+void ioport_manager::merge_ports(ioport_port &port, const std::vector<nsm::InputState*> &remoteInputStates, int portIndex)
+{
+  // read the default value and the digital state
+  port.live().defvalue = 0;
+  port.live().digital = 0;
+
+  // loop over analog ports and save their data
+  for (analog_field *analog = port.live().analoglist.first(); analog != NULL; analog = analog->next())
+  {
+    // read current and previous values
+    analog->m_accum = 0;
+    analog->m_previous = 0;
+  }
+
+  attotime curtime = machine().time();
+  if(curtime.seconds>0) {
+    // loop over analog ports and save their data
+    for (analog_field *analog = port.live().analoglist.first(); analog != NULL; analog = analog->next())
+    {
+      // read configuration information
+      analog->m_sensitivity = 0;
+      analog->m_reverse = 0;
+    }
+
+    for(int a=0;a<MAX_PLAYERS;a++) {
+      if(remoteInputStates[a] == NULL)
+        continue;
+
+      const InputPort &inputPort = remoteInputStates[a]->ports(portIndex);
+
+      // read the default value and the digital state
+      port.live().defvalue |= inputPort.defvalue();
+      port.live().digital |= inputPort.digital();
+
+      // loop over analog ports and save their data
+      int analogIndex=0;
+      for (analog_field *analog = port.live().analoglist.first(); analog != NULL; analog = analog->next())
+      {
+        const AnalogPort &analogPort = inputPort.analogports(analogIndex);
+
+        // read current and previous values
+        analog->m_accum = analogPort.accum();
+        analog->m_previous = analogPort.previous();
+
+        // read configuration information
+        analog->m_sensitivity = analogPort.sensitivity();
+        analog->m_reverse = analogPort.reverse();
+
+        analogIndex++;
+      }
+    }
+  }
 }
 
 
@@ -3507,11 +4015,11 @@ time_t ioport_manager::playback_init()
 	// read the header and verify that it is a modern version; if not, print an error
 	UINT8 header[INP_HEADER_SIZE];
 	if (m_playback_file.read(header, sizeof(header)) != sizeof(header))
-		fatalerror("Input file is corrupt or invalid (missing header)\n");
+		fatalerror("Input file is corrupt or invalid (missing header)");
 	if (memcmp(header, "MAMEINP\0", 8) != 0)
-		fatalerror("Input file invalid or in an older, unsupported format\n");
+		fatalerror("Input file invalid or in an older, unsupported format");
 	if (header[0x10] != INP_HEADER_MAJVERSION)
-		fatalerror("Input file format version mismatch\n");
+		fatalerror("Input file format version mismatch");
 
 	// output info to console
 	mame_printf_info("Input file: %s\n", filename);
@@ -3753,11 +4261,11 @@ void ioport_manager::record_port(ioport_port &port)
 
 ioport_configurer::ioport_configurer(device_t &owner, ioport_list &portlist, astring &errorbuf)
 	: m_owner(owner),
-		m_portlist(portlist),
-		m_errorbuf(errorbuf),
-		m_curport(NULL),
-		m_curfield(NULL),
-		m_cursetting(NULL)
+	  m_portlist(portlist),
+	  m_errorbuf(errorbuf),
+	  m_curport(NULL),
+	  m_curfield(NULL),
+	  m_cursetting(NULL)
 {
 }
 
@@ -3975,9 +4483,9 @@ const char_info *char_info::find(unicode_char target)
 
 dynamic_field::dynamic_field(ioport_field &field)
 	: m_next(NULL),
-		m_field(field),
-		m_shift(0),
-		m_oldval(field.defvalue())
+	  m_field(field),
+	  m_shift(0),
+	  m_oldval(field.defvalue())
 {
 	// fill in the data
 	for (ioport_value mask = field.mask(); !(mask & 1); mask >>= 1)
@@ -4033,33 +4541,33 @@ void dynamic_field::write(ioport_value newval)
 
 analog_field::analog_field(ioport_field &field)
 	: m_next(NULL),
-		m_field(field),
-		m_shift(0),
-		m_adjdefvalue(field.defvalue() & field.mask()),
-		m_adjmin(field.minval() & field.mask()),
-		m_adjmax(field.maxval() & field.mask()),
-		m_sensitivity(field.sensitivity()),
-		m_reverse(field.analog_reverse()),
-		m_delta(field.delta()),
-		m_centerdelta(field.centerdelta()),
-		m_accum(0),
-		m_previous(0),
-		m_previousanalog(0),
-		m_minimum(INPUT_ABSOLUTE_MIN),
-		m_maximum(INPUT_ABSOLUTE_MAX),
-		m_center(0),
-		m_reverse_val(0),
-		m_scalepos(0),
-		m_scaleneg(0),
-		m_keyscalepos(0),
-		m_keyscaleneg(0),
-		m_positionalscale(0),
-		m_absolute(false),
-		m_wraps(false),
-		m_autocenter(false),
-		m_single_scale(false),
-		m_interpolate(false),
-		m_lastdigital(false)
+	  m_field(field),
+	  m_shift(0),
+	  m_adjdefvalue(field.defvalue() & field.mask()),
+	  m_adjmin(field.minval() & field.mask()),
+	  m_adjmax(field.maxval() & field.mask()),
+	  m_sensitivity(field.sensitivity()),
+	  m_reverse(field.analog_reverse()),
+	  m_delta(field.delta()),
+	  m_centerdelta(field.centerdelta()),
+	  m_accum(0),
+	  m_previous(0),
+	  m_previousanalog(0),
+	  m_minimum(INPUT_ABSOLUTE_MIN),
+	  m_maximum(INPUT_ABSOLUTE_MAX),
+	  m_center(0),
+	  m_reverse_val(0),
+	  m_scalepos(0),
+	  m_scaleneg(0),
+	  m_keyscalepos(0),
+	  m_keyscaleneg(0),
+	  m_positionalscale(0),
+	  m_absolute(false),
+	  m_wraps(false),
+	  m_autocenter(false),
+	  m_single_scale(false),
+	  m_interpolate(false),
+	  m_lastdigital(false)
 {
 	// compute the shift amount and number of bits
 	for (ioport_value mask = field.mask(); !(mask & 1); mask >>= 1)
@@ -4130,7 +4638,7 @@ analog_field::analog_field(ioport_field &field)
 			break;
 
 		default:
-			fatalerror("Unknown analog port type -- don't know if it is absolute or not\n");
+			fatalerror("Unknown analog port type -- don't know if it is absolute or not");
 			break;
 	}
 
@@ -4586,3 +5094,5 @@ int validate_natural_keyboard_statics(void)
     return error;
 }
 */
+
+

@@ -1771,6 +1771,7 @@ static device_info *rawinput_device_create(running_machine &machine, device_info
 	// determine the length of the device name, allocate it, and fetch it
 	if ((*get_rawinput_device_info)(device->hDevice, RIDI_DEVICENAME, NULL, &name_length) != 0)
 		goto error;
+	name_length *= 16; //JJG: FIX FOR FUCKED UP MINGW DIRECTX
 	tname = global_alloc_array(TCHAR, name_length);
 	if ((*get_rawinput_device_info)(device->hDevice, RIDI_DEVICENAME, tname, &name_length) == -1)
 		goto error;

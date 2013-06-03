@@ -143,12 +143,18 @@ resource_pool &global_resource_pool()
 void *malloc_file_line(size_t size, const char *file, int line)
 {
 	// allocate the memory and fail if we can't
+#ifdef NO_MEM_TRACKING
+	void *result = malloc(size); // We have no way of knowing when to use osd_malloc, so don't use it.
+#else
 	void *result = osd_malloc(size);
+#endif
 	if (result == NULL)
 		return NULL;
 
+#ifndef NO_MEM_TRACKING
 	// add a new entry
 	memory_entry::allocate(size, result, file, line);
+#endif
 
 #ifdef MAME_DEBUG
 	// randomize the memory
@@ -167,13 +173,19 @@ void *malloc_file_line(size_t size, const char *file, int line)
 
 void *malloc_array_file_line(size_t size, const char *file, int line)
 {
+#ifdef NO_MEM_TRACKING
+	void *result = malloc(size); // We have no way of knowing when to use osd_malloc, so don't use it.
+#else
 	// allocate the memory and fail if we can't
 	void *result = osd_malloc_array(size);
+#endif
 	if (result == NULL)
 		return NULL;
 
+#ifndef NO_MEM_TRACKING
 	// add a new entry
 	memory_entry::allocate(size, result, file, line);
+#endif
 
 #ifdef MAME_DEBUG
 	// randomize the memory
@@ -201,8 +213,12 @@ void free_file_line(void *memory, const char *file, int line)
 	// warn about untracked frees
 	if (entry == NULL)
 	{
+#ifdef NO_MEM_TRACKING
+		free(memory);
+#else
 		fprintf(stderr, "Error: attempt to free untracked memory in %s(%d)!\n", file, line);
 		osd_break_into_debugger("Error: attempt to free untracked memory");
+#endif
 		return;
 	}
 
@@ -292,6 +308,7 @@ void resource_pool::add(resource_pool_item &item)
 	item.m_next = m_hash[hashval];
 	m_hash[hashval] = &item;
 
+#ifndef NO_MEM_TRACKING
 	// fetch the ID of this item's pointer; some implementations put hidden data
 	// before, so if we don't find it, check 4 bytes ahead
 	memory_entry *entry = memory_entry::find(item.m_ptr);
@@ -329,6 +346,7 @@ void resource_pool::add(resource_pool_item &item)
 		item.m_ordered_prev = NULL;
 		m_ordered_head = &item;
 	}
+#endif
 
 	osd_lock_release(m_listlock);
 }

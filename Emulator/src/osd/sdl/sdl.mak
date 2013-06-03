@@ -67,6 +67,9 @@ USE_DISPATCH_GL = 1
 # uncomment the next line to specify where you have installed
 # SDL. Equivalent to the ./configure --prefix=<path>
 # SDL_INSTALL_ROOT = /usr/local/sdl13
+ifeq ($(TARGETOS),win32)
+SDL_INSTALL_ROOT = /c/Libraries/SDL-1.2.14/out_mingw32
+endif
 
 # uncomment and change the next line to build the gtk debugger for win32
 # Get what you need here: http://www.gtk.org/download-windows.html
@@ -242,6 +245,7 @@ endif
 
 ifeq ($(TARGETOS),macosx)
 BASE_TARGETOS = unix
+CCOMFLAGS += -mmacosx-version-min=10.5
 DEFS += -DSDLMAME_UNIX -DSDLMAME_MACOSX -DSDLMAME_DARWIN
 
 ifndef NO_USE_MIDI
@@ -261,7 +265,7 @@ NO_USE_XINPUT = 1
 ifdef BIGENDIAN
 ifdef SYMBOLS
 CCOMFLAGS += -mlong-branch
-endif   # SYMBOLS
+endif	# SYMBOLS
 ifeq ($(PTR64),1)
 CCOMFLAGS += -arch ppc64
 LDFLAGS += -arch ppc64
@@ -270,7 +274,7 @@ CCOMFLAGS += -arch ppc
 LDFLAGS += -arch ppc
 endif
 $(OBJ)/emu/cpu/tms57002/tms57002.o : CCOMFLAGS += -O0
-else    # BIGENDIAN
+else	# BIGENDIAN
 ifeq ($(PTR64),1)
 CCOMFLAGS += -arch x86_64
 LDFLAGS += -arch x86_64
@@ -278,7 +282,7 @@ else
 CCOMFLAGS += -m32 -arch i386
 LDFLAGS += -m32 -arch i386
 endif
-endif   # BIGENDIAN
+endif	# BIGENDIAN
 
 endif
 
@@ -369,13 +373,13 @@ OBJDIRS += $(SDLOBJ)
 #-------------------------------------------------
 
 OSDCOREOBJS = \
-	$(SDLOBJ)/strconv.o \
-	$(SDLOBJ)/sdldir.o  \
-	$(SDLOBJ)/sdlfile.o     \
-	$(SDLOBJ)/sdlptty_$(BASE_TARGETOS).o    \
-	$(SDLOBJ)/sdlsocket.o   \
-	$(SDLOBJ)/sdlmisc_$(BASE_TARGETOS).o    \
-	$(SDLOBJ)/sdlos_$(SDLOS_TARGETOS).o \
+	$(SDLOBJ)/strconv.o	\
+	$(SDLOBJ)/sdldir.o	\
+	$(SDLOBJ)/sdlfile.o 	\
+	$(SDLOBJ)/sdlptty_$(BASE_TARGETOS).o	\
+	$(SDLOBJ)/sdlsocket.o	\
+	$(SDLOBJ)/sdlmisc_$(BASE_TARGETOS).o	\
+	$(SDLOBJ)/sdlos_$(SDLOS_TARGETOS).o	\
 	$(SDLOBJ)/sdlsync_$(SYNC_IMPLEMENTATION).o     \
 	$(SDLOBJ)/sdlwork.o
 
@@ -463,6 +467,9 @@ ifeq ($(TARGETOS),macosx)
 OSDCOREOBJS += $(SDLOBJ)/osxutils.o
 SDLOS_TARGETOS = macosx
 
+#JJG: Add macports root
+INCPATH += -I/opt/local/include
+
 ifndef MACOSX_USE_LIBSDL
 # Compile using framework (compile using libSDL is the exception)
 LIBS += -framework SDL -framework Cocoa -framework OpenGL -lpthread
@@ -475,7 +482,7 @@ else
 INCPATH += `sdl-config --cflags | sed 's:/SDL::'`
 CCOMFLAGS += -DNO_SDL_GLEXT
 # Remove libSDLmain, as its symbols conflict with SDLMain_tmpl.m
-LIBS += `sdl-config --libs | sed 's/-lSDLmain//'` -lpthread
+LIBS += `sdl-config --static-libs | sed 's/-lSDLmain//'` -lpthread
 DEFS += -DMACOSX_USE_LIBSDL
 endif   # MACOSX_USE_LIBSDL
 
@@ -518,8 +525,7 @@ endif
 
 INCPATH += `$(SDL_CONFIG) --cflags  | sed -e 's:/SDL[2]*::' -e 's:\(-D[^ ]*\)::g'`
 CCOMFLAGS += `$(SDL_CONFIG) --cflags  | sed -e 's:/SDL[2]*::' -e 's:\(-I[^ ]*\)::g'`
-
-LIBS += `$(SDL_CONFIG) --libs`
+LIBS += -lm `$(SDL_CONFIG) --static-libs`
 
 ifeq ($(SDL_LIBVER),sdl2)
 ifdef SDL_INSTALL_ROOT
@@ -532,9 +538,9 @@ INCPATH += `pkg-config --cflags fontconfig`
 LIBS += `pkg-config --libs fontconfig`
 
 ifeq ($(SDL_LIBVER),sdl2)
-LIBS += -lSDL2_ttf
+LIBS += -lSDL2_ttf -lutil
 else
-LIBS += -lSDL_ttf
+LIBS += -lSDL_ttf -lutil
 endif
 
 # libs that Haiku doesn't want but are mandatory on *IX
@@ -604,7 +610,7 @@ endif
 LIBS += -lSDL.dll
 LIBS += -luser32 -lgdi32 -lddraw -ldsound -ldxguid -lwinmm -ladvapi32 -lcomctl32 -lshlwapi
 
-endif   # Win32
+endif	# Win32
 
 #-------------------------------------------------
 # OS/2
@@ -613,7 +619,7 @@ endif   # Win32
 ifeq ($(BASE_TARGETOS),os2)
 
 INCPATH += `sdl-config --cflags`
-LIBS += `sdl-config --libs`
+LIBS += `sdl-config --static-libs`
 
 endif # OS2
 

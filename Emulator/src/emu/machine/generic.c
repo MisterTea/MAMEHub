@@ -9,11 +9,12 @@
 
 *********************************************************************/
 
+#include "NSM_Common.h"
+
 #include "emu.h"
 #include "emuopts.h"
 #include "config.h"
-
-
+#include "ui.h"
 
 /***************************************************************************
     FUNCTION PROTOTYPES
@@ -280,7 +281,7 @@ void coin_lockout_global_w(running_machine &machine, int on)
     NVRAM depending of selected BIOS
 -------------------------------------------------*/
 
-static astring &nvram_filename(astring &result, device_t &device)
+astring &nvram_filename(astring &result, device_t &device)
 {
 	running_machine &machine = device.machine();
 
@@ -303,13 +304,48 @@ static astring &nvram_filename(astring &result, device_t &device)
     nvram_load - load a system's NVRAM
 -------------------------------------------------*/
 
-void nvram_load(running_machine &machine)
-{
+extern Common *netCommon;
+
+int nvram_size(running_machine &machine) {
+	int retval=0;
 	if (machine.config().m_nvram_handler != NULL)
 	{
 		astring filename;
 		emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
-		if (file.open(nvram_filename(filename, machine.root_device()), ".nv") == FILERR_NONE)
+		if (file.open(nvram_filename(filename, machine.root_device()),".nv") == FILERR_NONE)
+		{
+			retval += file.size();
+		}
+	}
+
+	nvram_interface_iterator iter(machine.root_device());
+	for (device_nvram_interface *nvram = iter.first(); nvram != NULL; nvram = iter.next())
+		{
+			astring filename;
+			emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
+			if (file.open(nvram_filename(filename, nvram->device())) == FILERR_NONE)
+			{
+				retval += file.size();
+			}
+		}
+	return retval;
+}
+
+void nvram_load(running_machine &machine)
+{
+	int overrideNVram = 0;
+	if(netCommon) {
+          if(nvram_size(machine)>=32*1024*1024) {
+            overrideNVram=1;
+            ui_popup_time(3, "The NVRAM for this game is too big, not loading NVRAM.");
+          }
+	}
+
+	if (machine.config().m_nvram_handler != NULL)
+	{
+		astring filename;
+		emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
+		if (!overrideNVram && file.open(nvram_filename(filename, machine.root_device()), ".nv") == FILERR_NONE)
 		{
 			(*machine.config().m_nvram_handler)(machine, &file, FALSE);
 			file.close();
@@ -327,8 +363,17 @@ void nvram_load(running_machine &machine)
 		emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
 		if (file.open(nvram_filename(filename, nvram->device())) == FILERR_NONE)
 		{
+			astring filename;
+			emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
+			if (!overrideNVram && file.open(nvram_filename(filename, nvram->device())) == FILERR_NONE)
+		{
 			nvram->nvram_load(file);
 			file.close();
+		}
+		else
+			{
+				nvram->nvram_reset();
+			}
 		}
 		else
 			nvram->nvram_reset();
@@ -342,6 +387,17 @@ void nvram_load(running_machine &machine)
 
 void nvram_save(running_machine &machine)
 {
+  static bool first=true;
+	if(netCommon) {
+          if(nvram_size(machine)>=32*1024*1024) {
+            if(first) {
+              ui_popup_time(3, "The NVRAM for this game is too big, not saving NVRAM.");
+              first = false;
+            }
+            return;
+          }
+	}
+
 	if (machine.config().m_nvram_handler != NULL)
 	{
 		astring filename;

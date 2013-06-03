@@ -9,6 +9,9 @@
 
 *********************************************************************/
 
+#include "NSM_Client.h"
+#include "NSM_Server.h"
+
 #include "emu.h"
 #include "emuopts.h"
 #include "video/vector.h"
@@ -22,6 +25,8 @@
 #include "uigfx.h"
 #include <ctype.h>
 
+using namespace std;
+using namespace nsm;
 
 /***************************************************************************
     CONSTANTS
@@ -197,19 +202,19 @@ INLINE int is_breakable_char(unicode_char ch)
 		return TRUE;
 
 	/* In the following character sets, any character is breakable:
-	    Hiragana (3040-309F)
-	    Katakana (30A0-30FF)
-	    Bopomofo (3100-312F)
-	    Hangul Compatibility Jamo (3130-318F)
-	    Kanbun (3190-319F)
-	    Bopomofo Extended (31A0-31BF)
-	    CJK Strokes (31C0-31EF)
-	    Katakana Phonetic Extensions (31F0-31FF)
-	    Enclosed CJK Letters and Months (3200-32FF)
-	    CJK Compatibility (3300-33FF)
-	    CJK Unified Ideographs Extension A (3400-4DBF)
-	    Yijing Hexagram Symbols (4DC0-4DFF)
-	    CJK Unified Ideographs (4E00-9FFF) */
+        Hiragana (3040-309F)
+        Katakana (30A0-30FF)
+        Bopomofo (3100-312F)
+        Hangul Compatibility Jamo (3130-318F)
+        Kanbun (3190-319F)
+        Bopomofo Extended (31A0-31BF)
+        CJK Strokes (31C0-31EF)
+        Katakana Phonetic Extensions (31F0-31FF)
+        Enclosed CJK Letters and Months (3200-32FF)
+        CJK Compatibility (3300-33FF)
+        CJK Unified Ideographs Extension A (3400-4DBF)
+        Yijing Hexagram Symbols (4DC0-4DFF)
+        CJK Unified Ideographs (4E00-9FFF) */
 	if (ch >= 0x3040 && ch <= 0x9fff)
 		return TRUE;
 
@@ -318,8 +323,8 @@ int ui_display_startup_screens(running_machine &machine, int first_time, int sho
 	int state;
 
 	/* disable everything if we are using -str for 300 or fewer seconds, or if we're the empty driver,
-	   or if we are debugging */
-	if (!first_time || (str > 0 && str < 60*5) || &machine.system() == &GAME_NAME(___empty) || (machine.debug_flags & DEBUG_FLAG_ENABLED) != 0)
+       or if we are debugging */
+	if (netCommon || !first_time || (str > 0 && str < 60*5) || &machine.system() == &GAME_NAME(___empty) || (machine.debug_flags & DEBUG_FLAG_ENABLED) != 0)
 		show_gameinfo = show_warnings = show_disclaimer = FALSE;
 
 	/* initialize the on-screen display system */
@@ -406,6 +411,14 @@ void ui_set_startup_text(running_machine &machine, const char *text, int force)
     render it; called by video.c
 -------------------------------------------------*/
 
+list< ChatLog > chatLogs;
+vector<char> chatString;
+int chatEnabled=false;
+int statsVisible=true;
+
+extern int initialSyncPercentComplete;
+
+extern bool waitingForClientCatchup;
 void ui_update_and_render(running_machine &machine, render_container *container)
 {
 	/* always start clean */
@@ -452,6 +465,136 @@ void ui_update_and_render(running_machine &machine, render_container *container)
 		}
 	}
 
+	attotime curtime = machine.time();
+	if(waitingForClientCatchup)
+	{
+        char buf[4096];
+        sprintf(buf,"A new client is joining, please wait...");
+        ui_draw_text_box(container,buf,JUSTIFY_CENTER,0.5f,0.5f,MAKE_ARGB(255,0,0,128));
+	}
+	else if(
+        (!netClient && machine.options().client()) ||
+        (netClient && netClient->isInitComplete()==false)
+        )
+    {
+        ui_draw_text_box(container,"Please wait for server to send entire game RAM...",JUSTIFY_CENTER,0.5f,0.5f,MAKE_ARGB(255,0,0,128));
+        ui_draw_text_box(container,"This could take several minutes depending on your connection and rom chosen...",JUSTIFY_CENTER,0.5f,0.6f,MAKE_ARGB(255,0,0,128));
+        ui_draw_text_box(container,"Once the initial sync is complete, you may just hear game audio for a few minutes, please be patient",JUSTIFY_CENTER,0.5f,0.7f,MAKE_ARGB(255,0,0,128));
+        char buf[4096];
+        sprintf(buf,"%0.2f%% Complete (Could be over 100 for large roms)...",float(initialSyncPercentComplete)/10.0f);
+        ui_draw_text_box(container,buf,JUSTIFY_CENTER,0.5f,0.8f,MAKE_ARGB(255,0,0,128));
+	}
+
+	if(statsVisible)
+	{
+        if(netCommon)
+        {
+            string allLatencyString;
+            for(int a=0;a<netCommon->getNumPeers();a++)
+            {
+                if(netCommon->getPeerID(a)==netCommon->getSelfPeerID() || netCommon->getPeerID(a)==0)
+                    continue;
+                allLatencyString += netCommon->getLatencyString(netCommon->getPeerID(a)) + string("\n");
+            }
+            ui_draw_text_box(container,allLatencyString.c_str(),JUSTIFY_CENTER,0.9f,0.1f,MAKE_ARGB(255,0,0,128));
+            ui_draw_text_box(container,netCommon->getStatisticsString().c_str(),JUSTIFY_CENTER,0.1f,0.1f,MAKE_ARGB(255,0,0,128));
+        }
+	}
+
+	time_t curRealTime = time(NULL);
+	for(
+	    list<ChatLog>::iterator it = chatLogs.begin();
+	    it != chatLogs.end();
+	    )
+    {
+	    if(it->timeReceived+8<curRealTime)
+        {
+            list<ChatLog>::iterator it2 = it;
+            it++;
+            chatLogs.erase(it2);
+        }
+        else {
+            it++;
+        }
+
+    }
+
+	while(chatLogs.size()>5)
+    {
+	    chatLogs.erase(chatLogs.begin());
+    }
+
+	int chatIndex=0;
+	static const rgb_t chatColors[] =
+        {
+            MAKE_ARGB(192,255,255,255),
+            MAKE_ARGB(192,255,0,0),
+            MAKE_ARGB(192,0,128,0),
+            MAKE_ARGB(192,0,0,255),
+            MAKE_ARGB(192,128,128,0),
+            MAKE_ARGB(192,128,0,128),
+            MAKE_ARGB(192,0,128,128),
+            MAKE_ARGB(192,0,0,0),
+            MAKE_ARGB(192,128,128,128),
+            MAKE_ARGB(192,128,128,255),
+            MAKE_ARGB(192,128,255,128),
+            MAKE_ARGB(192,255,255,128),
+            MAKE_ARGB(192,128,255,128),
+            MAKE_ARGB(192,255,128,128),
+        };
+	for(
+	    list<ChatLog>::iterator it = chatLogs.begin();
+	    it != chatLogs.end();
+	    it++
+	    )
+    {
+        /*
+          float totalWidth,totalHeight;
+          ui_draw_text_full(
+          container,
+          it->message.cstr(),
+          0.1,
+          0.6+0.1*chatIndex,
+          0.8,
+          JUSTIFY_LEFT,
+          1,
+          1,
+          chatColors[it->playerID],
+          MAKE_ARGB(255,0,0,0),
+          &totalWidth,
+          &totalHeight
+          );
+        */
+        //
+        ui_draw_text_box(
+            container,
+            it->message.cstr(),
+            JUSTIFY_CENTER,
+            0.5,
+            0.7+0.06*chatIndex,
+            chatColors[it->playerID]
+            );
+        //
+        chatIndex++;
+    }
+	if(chatEnabled)
+	{
+		string promptString("Chat: _");
+		if(chatString.size())
+		{
+            promptString = string("Chat: ")+string(&chatString[0],chatString.size())
+                + string("_");
+		}
+
+		ui_draw_text_box(
+            container,
+            promptString.c_str(),
+            JUSTIFY_CENTER,
+            0.5f,
+            0.8f,
+            MAKE_ARGB(255,0,0,0)
+            );
+	}
 	/* cancel takes us back to the ingame handler */
 	if (ui_handler_param == UI_HANDLER_CANCEL)
 		ui_set_handler(handler_ingame, 0);
@@ -643,7 +786,7 @@ void ui_draw_text_full(render_container *container, const char *origs, float x, 
 			s += scharcount;
 
 			/* if we hit any non-space breakable character, remember the location and width
-			   *with* the breakable character */
+               *with* the breakable character */
 			if (schar != ' ' && is_breakable_char(schar) && curwidth <= wrapwidth)
 			{
 				lastbreak = s;
@@ -816,9 +959,9 @@ void ui_draw_text_box(render_container *container, const char *text, int justify
 
 	/* add a box around that */
 	ui_draw_outlined_box(container, target_x - UI_BOX_LR_BORDER,
-						target_y - UI_BOX_TB_BORDER,
-						target_x + target_width + UI_BOX_LR_BORDER,
-						target_y + target_height + UI_BOX_TB_BORDER, backcolor);
+					 target_y - UI_BOX_TB_BORDER,
+					 target_x + target_width + UI_BOX_LR_BORDER,
+					 target_y + target_height + UI_BOX_TB_BORDER, backcolor);
 	ui_draw_text_full(container, text, target_x, target_y, target_width + 0.00001f,
 				justify, WRAP_WORD, DRAW_NORMAL, UI_TEXT_COLOR, UI_TEXT_BG_COLOR, NULL, NULL);
 }
@@ -930,7 +1073,7 @@ void ui_show_mouse(bool status)
 
 int ui_is_menu_active(void)
 {
-	return (ui_handler_callback == ui_menu::ui_handler);
+	return (ui_handler_callback == ui_menu::ui_handler) || chatEnabled;
 }
 
 
@@ -960,7 +1103,7 @@ static astring &disclaimer_string(running_machine &machine, astring &string)
 
 static astring &warnings_string(running_machine &machine, astring &string)
 {
-#define WARNING_FLAGS ( GAME_NOT_WORKING | \
+#define WARNING_FLAGS (	GAME_NOT_WORKING | \
 						GAME_UNEMULATED_PROTECTION | \
 						GAME_MECHANICAL | \
 						GAME_WRONG_COLORS | \
@@ -1036,13 +1179,13 @@ static astring &warnings_string(running_machine &machine, astring &string)
 				string.cat("\nTHIS ");
 				string.cat(emulator_info::get_capgamenoun());
 				string.cat(" DOESN'T WORK. The emulation for this game is not yet complete. "
-						"There is nothing you can do to fix this problem except wait for the developers to improve the emulation.\n");
+					 "There is nothing you can do to fix this problem except wait for the developers to improve the emulation.\n");
 			}
 			if (machine.system().flags & GAME_MECHANICAL) {
 				string.cat("\nCertain elements of this ");
 				string.cat(emulator_info::get_gamenoun());
 				string.cat(" cannot be emulated as it requires actual physical interaction or consists of mechanical devices. "
-						"It is not possible to fully play this ");
+					 "It is not possible to fully play this ");
 				string.cat(emulator_info::get_gamenoun());
 				string.cat(".\n");
 			}
@@ -1391,6 +1534,13 @@ static UINT32 handler_ingame(running_machine &machine, render_container *contain
 	/* determine if we should disable the rest of the UI */
 	int ui_disabled = (machine.ioport().has_keyboard() && !machine.ui_active());
 
+	if(chatEnabled==false)
+	{
+
+        if(machine.input().code_pressed_once(KEYCODE_N))
+        {
+            statsVisible = !statsVisible;
+        }
 	/* is ScrLk UI toggling applicable here? */
 	if (machine.ioport().has_keyboard())
 	{
@@ -1511,7 +1661,7 @@ static UINT32 handler_ingame(running_machine &machine, render_container *contain
 	{
 		if (!machine.video().is_recording())
 		{
-			machine.video().begin_recording(NULL, video_manager::MF_MNG);
+                machine.video().begin_recording(NULL, video_manager::MF_WEBM);
 			popmessage("REC START");
 		}
 		else
@@ -1567,6 +1717,98 @@ static UINT32 handler_ingame(running_machine &machine, render_container *contain
 	}
 	else
 		machine.video().set_fastforward(false);
+	}
+
+	if(!ui_disabled)
+	{
+		//handle chat input
+		ui_event event;
+
+		/* loop while we have interesting events */
+		while (ui_input_pop_event(machine, &event))
+		{
+			/* if this was a UI_EVENT_CHAR event, post it */
+			if (event.event_type == UI_EVENT_CHAR)
+			{
+				if(!chatEnabled && (event.ch=='T' || event.ch=='t'))
+				{
+					chatEnabled=true;
+					chatString.clear();
+				}
+				else if(chatEnabled)
+				{
+					if(event.ch==13)
+					{
+						if(chatString.size())
+						{
+                            static vector<BlockValueLocation> locationsToIntersect;
+                            if(chatString[0]=='/') {
+                                //This is a command
+                                if(chatString.size()>1 && chatString[1]>='1' && chatString[1]<='9') {
+                                    // TODO: Player swap
+                                } else if(netServer && string(&chatString[0],chatString.size()) == string("/lock")) {
+                                    netServer->setBlockNewClients(!netServer->isBlockNewClients());
+                                    if(netServer->isBlockNewClients())
+                                        ui_popup_time(3, "Game is locked and new clients cannot join.");
+                                    else
+                                        ui_popup_time(3, "Game is unlocked, new clients can join.");
+                                } else if(netServer && string(&chatString[0],5) == string("/find")) {
+                                    chatString.push_back(0);
+                                    vector<BlockValueLocation> locations;
+                                    //TODO: Fix forces
+                                    //if(netServer) locations = netServer->getLocationsWithValue(atoi(&chatString[6]),locationsToIntersect,machine.getRawMemoryRegions());
+                                    for(int a=0;a<locations.size() && a<100;a++)
+                                    {
+                                        cout << locations[a].blockIndex << ' ' << locations[a].memoryStart << ' ' << locations[a].memorySize << endl;
+                                    }
+                                    locationsToIntersect = locations;
+                                    ui_popup_time(3, "Captured %d locations",(int)locationsToIntersect.size());
+                                } else if(netServer && string(&chatString[0],6) == string("/force")) {
+                                    for(int a=0;a<locationsToIntersect.size();a++) {
+                                        //netServer->forceLocation(locationsToIntersect[a],atoi(&chatString[7]));
+                                        string s = "00000000000000000";
+                                        int value = atoi(&chatString[7]);
+                                        s[0] = 2; //TODO: Don't need to set this anymore
+                                        memcpy(&(s[1]),&(locationsToIntersect[a].ramRegion),sizeof(int));
+                                        memcpy(&(s[2]),&(locationsToIntersect[a].blockIndex),sizeof(int));
+                                        memcpy(&(s[6]),&(locationsToIntersect[a].memoryStart),sizeof(int));
+                                        memcpy(&(s[10]),&(locationsToIntersect[a].memorySize),sizeof(int));
+                                        memcpy(&(s[14]),&(locationsToIntersect[a].memoryMask),sizeof(unsigned char));
+                                        memcpy(&(s[15]),&(value),sizeof(int));
+                                        attotime curtime = machine.time();
+                                        netServer->sendInputs(curtime, PeerInputData::FORCE_VALUE,s);
+                                    }
+                                    locationsToIntersect.clear();
+                                } else if(netServer && string(&chatString[0],6) == string("/clear")) {
+                                    locationsToIntersect.clear();
+                                }
+                            } else {
+                                chatString.push_back(0);
+                                //Send chat
+                                printf("SENDING CHAT %s\n",&chatString[0]);
+                                if(netCommon)
+                                {
+                                    attotime curtime = machine.time();
+                                    netCommon->sendInputs(curtime, PeerInputData::CHAT,string(&chatString[0],chatString.size()));
+                                }
+                            }
+                            chatString.clear();
+						}
+						chatEnabled=false;
+					}
+					else if(event.ch==127 || event.ch==8)
+					{
+                        if(chatString.size())
+                            chatString.pop_back();
+					}
+					else
+					{
+						chatString.push_back(event.ch);
+					}
+				}
+			}
+		}
+	}
 
 	return 0;
 }

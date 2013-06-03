@@ -97,6 +97,9 @@
 
 ***************************************************************************/
 
+#include "NSM_Server.h"
+#include "NSM_Client.h"
+
 #include "emu.h"
 #include "emuopts.h"
 #include "osdepend.h"
@@ -113,7 +116,8 @@
 
 #include <time.h>
 
-
+using namespace std;
+using namespace nsm;
 
 //**************************************************************************
 //  GLOBAL VARIABLES
@@ -134,49 +138,50 @@ static char giant_string_buffer[65536] = { 0 };
 
 running_machine::running_machine(const machine_config &_config, osd_interface &osd, bool exit_to_game_select)
 	: firstcpu(NULL),
-		primary_screen(NULL),
-		palette(NULL),
-		pens(NULL),
-		colortable(NULL),
-		shadow_table(NULL),
-		debug_flags(0),
-		palette_data(NULL),
-		romload_data(NULL),
-		ui_input_data(NULL),
-		debugcpu_data(NULL),
-		generic_machine_data(NULL),
+	  primary_screen(NULL),
+	  palette(NULL),
+	  pens(NULL),
+	  colortable(NULL),
+	  shadow_table(NULL),
+	  debug_flags(0),
+	  palette_data(NULL),
+	  romload_data(NULL),
+	  ui_input_data(NULL),
+	  debugcpu_data(NULL),
+	  generic_machine_data(NULL),
 
-		m_config(_config),
-		m_system(_config.gamedrv()),
-		m_osd(osd),
-		m_cheat(NULL),
-		m_render(NULL),
-		m_input(NULL),
-		m_sound(NULL),
-		m_video(NULL),
-		m_tilemap(NULL),
-		m_debug_view(NULL),
-		m_current_phase(MACHINE_PHASE_PREINIT),
-		m_paused(false),
-		m_hard_reset_pending(false),
-		m_exit_pending(false),
-		m_exit_to_game_select(exit_to_game_select),
-		m_new_driver_pending(NULL),
-		m_soft_reset_timer(NULL),
-		m_rand_seed(0x9d14abd7),
+	  m_config(_config),
+	  m_system(_config.gamedrv()),
+	  m_osd(osd),
+	  m_cheat(NULL),
+	  m_render(NULL),
+	  m_input(NULL),
+	  m_sound(NULL),
+	  m_video(NULL),
+	  m_tilemap(NULL),
+	  m_debug_view(NULL),
+	  m_current_phase(MACHINE_PHASE_PREINIT),
+	  m_paused(false),
+	  m_hard_reset_pending(false),
+	  m_exit_pending(false),
+	  m_exit_to_game_select(exit_to_game_select),
+	  m_new_driver_pending(NULL),
+	  m_soft_reset_timer(NULL),
+	  m_rand_seed(0x9d14abd7),
 		m_ui_active(_config.options().ui_active()),
-		m_basename(_config.gamedrv().name),
-		m_sample_rate(_config.options().sample_rate()),
-		m_logfile(NULL),
-		m_saveload_schedule(SLS_NONE),
-		m_saveload_schedule_time(attotime::zero),
-		m_saveload_searchpath(NULL),
-		m_logerror_list(m_respool),
+	  m_basename(_config.gamedrv().name),
+	  m_sample_rate(_config.options().sample_rate()),
+	  m_logfile(NULL),
+	  m_saveload_schedule(SLS_NONE),
+	  m_saveload_schedule_time(attotime::zero),
+	  m_saveload_searchpath(NULL),
+	  m_logerror_list(m_respool),
+      m_watchdog_enabled(false),
 
-		m_save(*this),
-		m_memory(*this),
-		m_ioport(*this),
-		m_scheduler(*this)
+	  m_save(*this),
+	  m_memory(*this),
+	  m_ioport(*this),
+	  m_scheduler(*this)
 {
 	memset(gfx, 0, sizeof(gfx));
 	memset(&m_base_time, 0, sizeof(m_base_time));
@@ -257,15 +262,29 @@ void running_machine::start()
 	m_video = auto_alloc(*this, video_manager(*this));
 	ui_init(*this);
 
+  if(options().server()||options().client())
+  {
+    // Make the base time a constant for MAMEHub consistency
+    m_base_time = 946080000ULL;
+  }
+  else
+  {
 	// initialize the base time (needed for doing record/playback)
 	::time(&m_base_time);
+  }
 
 	// initialize the input system and input ports for the game
 	// this must be done before memory_init in order to allow specifying
 	// callbacks based on input port tags
 	time_t newbase = m_ioport.initialize();
+  if(options().server() || options().client())
+  {
+  }
+  else
+  {
 	if (newbase != 0)
 		m_base_time = newbase;
+  }
 
 	// intialize UI input
 	ui_input_init(*this);
@@ -344,6 +363,8 @@ device_t &running_machine::add_dynamic_device(device_t &owner, device_type type,
 	return *device;
 }
 
+extern char CORE_SEARCH_PATH[4096];
+extern int doCatchup;
 
 //-------------------------------------------------
 //  run - execute the machine
@@ -351,10 +372,21 @@ device_t &running_machine::add_dynamic_device(device_t &owner, device_type type,
 
 int running_machine::run(bool firstrun)
 {
+  // JJG: Guarantee reproducability of floating point across architectures
+#ifdef _MSC_VER
+  _controlfp(_PC_24, _MCW_PC);
+#ifdef WIN32
+  _controlfp(_RC_NEAR, _MCW_RC);
+#endif
+#endif
+
+  //JJG: Add media path to mess search path
+  strcpy(CORE_SEARCH_PATH,options().media_path());
+
 	int error = MAMERR_NONE;
 
 	// use try/catch for deep error recovery
-	try
+  //try
 	{
 		// move to the init phase
 		m_current_phase = MACHINE_PHASE_INIT;
@@ -373,6 +405,62 @@ int running_machine::run(bool firstrun)
 
 		// load the configuration settings and NVRAM
 		bool settingsloaded = config_load_settings(*this);
+    //After loading config but before loading nvram, initialize the network
+    if(netServer)
+    {
+      if((system().flags & GAME_SUPPORTS_SAVE) == 0)
+      {
+        ui_popup_time(10, "This game does not have complete save state support, desyncs may not be resolved correctly.");
+      }
+      //else //JJG: Even if save state support isn't complete, we should try to sync what we can.
+      {
+        netServer->setSecondsBetweenSync(options().secondsBetweenSync());
+      }
+    }
+    if(netClient)
+    {
+      if((system().flags & GAME_SUPPORTS_SAVE) == 0)
+      {
+        ui_popup_time(10, "This game does not have complete save state support, desyncs may not be resolved correctly.");
+      }
+      else
+      {
+        //Client gets their secondsBetweenSync from server
+      }
+    }
+
+    if(netServer)
+    {
+      if(!netServer->initializeConnection())
+      {
+        return MAMERR_NETWORK;
+      }
+      netServer->sync();
+    }
+
+
+    if(netClient)
+    {
+      /* specify the filename to save or load */
+      //set_saveload_filename(machine, "1");
+      //handle_load(machine);
+      //if(netClient->getSecondsBetweenSync())
+      //doPreSave(this);
+      bool retval = netClient->initializeConnection(
+        (unsigned short)options().selfport(),
+        options().hostname(),
+        (unsigned short)options().port(),
+        this
+        );
+      printf("LOADED CLIENT\n");
+      cout << "RAND/TIME AT INITIAL SYNC: " << m_rand_seed << ' ' << m_base_time << endl;
+      if(!retval)
+      {
+        exit(MAMERR_NETWORK);
+      }
+      //if(netClient->getSecondsBetweenSync())
+      //doPostLoad(this);
+    }
 		nvram_load(*this);
 		sound().ui_mute(false);
 
@@ -381,11 +469,13 @@ int running_machine::run(bool firstrun)
 
 		// perform a soft reset -- this takes us to the running phase
 		soft_reset();
+    printf("SOFT RESET FINISHED\n");
 
 		// run the CPUs until a reset or exit
 		m_hard_reset_pending = false;
 		while ((!m_hard_reset_pending && !m_exit_pending) || m_saveload_schedule != SLS_NONE)
 		{
+      //printf("IN MAIN LOOP\n");
 			g_profiler.start(PROFILER_EXTRA);
 
 			// execute CPUs if not paused
@@ -396,6 +486,106 @@ int running_machine::run(bool firstrun)
 			else
 				m_video->frame_update();
 
+      attotime timeNow = time();
+      static int lastSyncSecond = 0;
+      //printf("EMULATION FINSIHED\n");
+
+      {
+        if(
+          netServer &&
+          lastSyncSecond != timeNow.seconds &&
+          netServer->getSecondsBetweenSync()>0 &&
+          (timeNow.seconds%netServer->getSecondsBetweenSync())==0
+          )
+        {
+          lastSyncSecond = timeNow.seconds;
+          printf("SERVER SYNC AT TIME: %d\n",int(::time(NULL)));
+          if (!m_scheduler.can_save())
+          {
+            printf("ANONYMOUS TIMER! COULD NOT DO FULL SYNC\n");
+          }
+          else
+          {
+            m_save.doPreSave();
+            netServer->sync();
+            //nvram_save(*this);
+            cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << timeNow.seconds << '.' << timeNow.attoseconds << endl;
+            m_save.doPostLoad();
+          }
+        }
+        static int firstTimeAtSecond=0;
+        if(timeNow.seconds>10 && netClient && !firstTimeAtSecond && netClient->getSecondsBetweenSync()) {
+          if (!m_scheduler.can_save()) {
+            cout << "CANT RESYNC\n";
+          } else {
+            if(doCatchup==1)
+              cout << "RESYNCING FOR CATCHUP\n";
+            firstTimeAtSecond = 1;
+            if(doCatchup) {
+              netClient->revert(this);
+            }
+          }
+        }
+        if(
+          netClient &&
+          lastSyncSecond != timeNow.seconds &&
+          netClient->getSecondsBetweenSync()>0 &&
+          (timeNow.seconds%netClient->getSecondsBetweenSync())==0
+          )
+        {
+          lastSyncSecond = timeNow.seconds;
+          if (!m_scheduler.can_save())
+          {
+            printf("ANONYMOUS TIMER! THIS COULD BE BAD (BUT HOPEFULLY ISN'T)\n");
+          }
+          else
+          {
+            //The client should update sync check just in case the server didn't have an anon timer
+            m_save.doPreSave();
+            netClient->updateSyncCheck();
+            cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << timeNow.seconds << '.' << timeNow.attoseconds << endl;
+            m_save.doPostLoad();
+          }
+        }
+
+        static clock_t lastSyncTime=clock();
+        if(netCommon)
+        {
+          //printf("IN NET LOOP\n");
+          lastSyncTime = clock();
+          //TODO: Fix forces
+          //netCommon->updateForces(getRawMemoryRegions());
+          if(netServer)
+          {
+            netServer->update(this);
+
+
+          }
+          if(netClient)
+          {
+            //printf("IN CLIENT LOOP\n");
+            pair<bool,bool> survivedAndGotSync;
+            survivedAndGotSync.first = netClient->update(this);
+            //printf("CLIENT UPDATED\n");
+            if(survivedAndGotSync.first==false)
+            {
+              m_exit_pending = true;
+              break;
+            }
+
+            bool gotSync = netClient->sync(this);
+            if(gotSync)
+            {
+              if (!m_scheduler.can_save())
+              {
+                printf("ANONYMOUS TIMER! THIS COULD BE BAD (BUT HOPEFULLY ISN'T)\n");
+              }
+              cout << "GOT SYNC FROM SERVER\n";
+              cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << m_base_time << endl;
+            }
+          }
+        }
+      }
 			// handle save/load
 			if (m_saveload_schedule != SLS_NONE)
 				handle_saveload();
@@ -411,6 +601,7 @@ int running_machine::run(bool firstrun)
 		nvram_save(*this);
 		config_save_settings(*this);
 	}
+  /*
 	catch (emu_fatalerror &fatal)
 	{
 		mame_printf_error("%s\n", fatal.string());
@@ -438,6 +629,7 @@ int running_machine::run(bool firstrun)
 		mame_printf_error("Caught unhandled %s exception: %s\n", typeid(ex).name(), ex.what());
 		error = MAMERR_FATALERROR;
 	}
+  */
 
 	// make sure our phase is set properly before cleaning up,
 	// in case we got here via exception
@@ -590,6 +782,11 @@ void running_machine::schedule_load(const char *filename)
 
 void running_machine::pause()
 {
+  if(netCommon)
+  {
+    //Can't pause during netplay
+    return;
+  }
 	// ignore if nothing has changed
 	if (m_paused)
 		return;
@@ -719,7 +916,7 @@ UINT32 running_machine::rand()
 	m_rand_seed = 1664525 * m_rand_seed + 1013904223;
 
 	// return rotated by 16 bits; the low bits have a short period
-	// and are frequently used
+    // and are frequently used
 	return (m_rand_seed >> 16) | (m_rand_seed << 16);
 }
 
@@ -1048,7 +1245,7 @@ void running_machine::postload_all_devices()
 
 running_machine::notifier_callback_item::notifier_callback_item(machine_notify_delegate func)
 	: m_next(NULL),
-		m_func(func)
+	  m_func(func)
 {
 }
 
@@ -1059,7 +1256,7 @@ running_machine::notifier_callback_item::notifier_callback_item(machine_notify_d
 
 running_machine::logerror_callback_item::logerror_callback_item(logerror_callback func)
 	: m_next(NULL),
-		m_func(func)
+	  m_func(func)
 {
 }
 
@@ -1085,6 +1282,7 @@ system_time::system_time()
 
 void system_time::set(time_t t)
 {
+  //cout << "SETTING SECONDS TO : " << t << endl;
 	time = t;
 	local_time.set(*localtime(&t));
 	utc_time.set(*gmtime(&t));
@@ -1098,13 +1296,31 @@ void system_time::set(time_t t)
 
 void system_time::full_time::set(struct tm &t)
 {
-	second  = t.tm_sec;
-	minute  = t.tm_min;
-	hour    = t.tm_hour;
-	mday    = t.tm_mday;
-	month   = t.tm_mon;
-	year    = t.tm_year + 1900;
-	weekday = t.tm_wday;
-	day     = t.tm_yday;
-	is_dst  = t.tm_isdst;
+  //JJG: Force clock to 1/1/2000.  It's hard to get a machine reference here.
+  //if(machine().options().server() || machine().options().client())
+  if(true)
+  {
+    second	= 0;
+    minute	= 0;
+    hour	= 0;
+    mday	= 0;
+    month	= 0;
+    year	= 2000;
+    weekday	= 6;
+    day		= 0;
+    is_dst	= 0;
+  }
+  else
+{
+	second	= t.tm_sec;
+	minute	= t.tm_min;
+	hour	= t.tm_hour;
+	mday	= t.tm_mday;
+	month	= t.tm_mon;
+	year	= t.tm_year + 1900;
+	weekday	= t.tm_wday;
+	day		= t.tm_yday;
+	is_dst	= t.tm_isdst;
+  }
+  //cout << "SETTING TIME TO : " << int(second) << ',' << int(minute) << ',' << int(hour) << ',' << int(mday) << ',' << int(month) << ',' << int(year) << ',' << int(weekday) << ',' << int(day) << ',' << int(is_dst) << endl;
 }
