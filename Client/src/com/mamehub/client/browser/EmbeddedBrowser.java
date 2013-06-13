@@ -14,6 +14,7 @@ import java.awt.event.WindowListener;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.WindowConstants;
 
 import com.mamehub.client.Utils;
 
@@ -49,7 +50,7 @@ public class EmbeddedBrowser extends JFrame {
 
 	public EmbeddedBrowser(final String url) {
 		super(url);
-		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		getContentPane().add(new EmbeddedBrowserPanel(url), BorderLayout.CENTER);
 		setSize(800, 600);
 		setLocationByPlatform(true);

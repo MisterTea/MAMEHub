@@ -2,6 +2,7 @@ package com.mamehub.client;
 
 import java.awt.Adjustable;
 import java.awt.BorderLayout;
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.GridBagConstraints;
@@ -42,7 +43,6 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JComboBox;
-import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -60,6 +60,8 @@ import javax.swing.JTextField;
 import javax.swing.JTree;
 import javax.swing.ListSelectionModel;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingConstants;
+import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -71,6 +73,7 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mamehub.client.Main.ProcessKiller;
 import com.mamehub.client.MameHubEngine.EmulatorHandler;
 import com.mamehub.client.audit.DirectorySelector;
 import com.mamehub.client.audit.GameAuditor;
@@ -100,6 +103,7 @@ import com.mamehub.thrift.PlayerRomProfile;
 import com.mamehub.thrift.PlayerStatus;
 import com.mamehub.thrift.RomInfo;
 import com.mamehub.thrift.ServerState;
+import javax.swing.JButton;
 
 public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		EmulatorHandler, PeerMonitorListener {
@@ -146,6 +150,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 	private List<Game> joinGameList = new ArrayList<Game>();
 	private GameListModel gameListModel;
 	private JTable gameTable;
+	private JButton btnArrangeAGame;
 
 	public class PlayerTableModel extends AbstractTableModel {
 		private static final long serialVersionUID = 1320567054920404367L;
@@ -257,7 +262,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 	public class GameListModel extends AbstractTableModel {
 		private static final long serialVersionUID = 1L;
 
-		protected static final int MACHINE_COLUMN = 3;
+		protected static final int MACHINE_COLUMN = 2;
 
 		public List<List<Object>> rows = new ArrayList<List<Object>>();
 		public List<RomInfo> rowRomMap = new ArrayList<RomInfo>();
@@ -278,7 +283,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		@Override
 		public int getColumnCount() {
-			return 5;
+			return 4;
 		}
 
 		@Override
@@ -290,12 +295,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		public Class<? extends Object> getColumnClass(int c) {
 			switch (c) {
 			case 0:
-				return Integer.class;
-			case 1:
 				return Icon.class;
-			case 2:
+			case 1:
 			case MACHINE_COLUMN:
-			case 4:
+			case 3:
 				return String.class;
 			}
 			throw new RuntimeException("OOPS");
@@ -305,14 +308,12 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		public String getColumnName(int col) {
 			switch (col) {
 			case 0:
-				return "ID";
-			case 1:
 				return "Status";
-			case 2:
+			case 1:
 				return "Name";
 			case MACHINE_COLUMN:
 				return "Machine";
-			case 4:
+			case 3:
 				return "Rating";
 			default:
 				throw new RuntimeException("Tried to get an invalid column");
@@ -321,10 +322,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		@Override
 		public Object getValueAt(int r, int c) {
-			if (c == 0) {
-				return new Integer(r);
-			}
-			return rows.get(r).get(c - 1);
+			return rows.get(r).get(c);
 		}
 
 		@Override
@@ -387,7 +385,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		ipCountryFetcher = new IpCountryFetcher(Utils.getResource(
 				MainFrame.class, "/IpToCountry.csv"));
-		this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		this.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		Utils.windows.add(this);
 		logger.info("Adding mainframe window");
 
@@ -434,7 +432,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		downloadsTableModel = new FirstColumnEditableTableModel(new String[] {
 				"Cancel", "File Name", "Percent Complete" }, 0);
 
-		mainTabbedPane = new JTabbedPane(JTabbedPane.TOP);
+		mainTabbedPane = new JTabbedPane(SwingConstants.TOP);
 		panel_3.add(mainTabbedPane);
 
 		hostGamePanel = new JPanel();
@@ -473,6 +471,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		Action joinGame = new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 
+			@Override
 			public void actionPerformed(ActionEvent e) {
 				int modelRow = Integer.valueOf(e.getActionCommand());
 				joinGameTable.setRowSelectionInterval(modelRow, modelRow);
@@ -501,8 +500,11 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 						@Override
 						public void actionPerformed(ActionEvent arg0) {
+							int originalRow = gameTable
+									.convertRowIndexToModel(gameTable
+											.getSelectedRow());
 							RomInfo gameRomInfo = gameListModel.rowRomMap
-									.get(gameTable.getSelectedRow());
+									.get(originalRow);
 							System.out.println("Giving " + gameRomInfo + " "
 									+ starCount + " STARS");
 							PlayerProfile playerProfile = Utils
@@ -524,9 +526,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		gameTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 		gameTable.setFillsViewportHeight(true);
 		gameTable.getColumnModel().getColumn(0).setMaxWidth(50);
-		gameTable.getColumnModel().getColumn(1).setMaxWidth(50);
+		gameTable.getColumnModel().getColumn(2).setMaxWidth(100);
 		gameTable.getColumnModel().getColumn(3).setMaxWidth(100);
-		gameTable.getColumnModel().getColumn(4).setMaxWidth(100);
 		gameTable.addMouseListener(new MouseAdapter() {
 
 			@Override
@@ -619,6 +620,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		gameSearchTextBox = new JTextField();
 		gameSearchTextBox.getDocument().addDocumentListener(
 				new DocumentListener() {
+					@Override
 					public synchronized void changedUpdate(DocumentEvent e) {
 						updateSearch();
 					}
@@ -665,12 +667,31 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		panel_6.add(gameSearchTextBox, BorderLayout.CENTER);
 		gameSearchTextBox.setColumns(10);
 
+		btnArrangeAGame = new JButton("Arrange a Game");
+		btnArrangeAGame.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				try {
+					Desktop.getDesktop()
+							.browse(new URI(
+									"http://forum.mamehub.info/viewforum.php?f=3&sid=95709e528cac9e8b431bd1acb2cf667d"));
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (URISyntaxException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		});
+		panel_6.add(btnArrangeAGame, BorderLayout.EAST);
+
 		downloadsTable = new JTable(downloadsTableModel);
 		downloadsTable.setMinimumSize(new Dimension(150, 23));
 
 		Action cancelDownload = new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 
+			@Override
 			public void actionPerformed(ActionEvent e) {
 				int modelRow = Integer.valueOf(e.getActionCommand());
 				downloadTableRowDownloadStateMap.get(modelRow).cancel = true;
@@ -776,6 +797,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		chatStatusComboBox = new JComboBox();
 		chatStatusComboBox.addActionListener(new ActionListener() {
+			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				ChatStatus newChatStatus = (ChatStatus) chatStatusComboBox
 						.getSelectedItem();
@@ -822,8 +844,29 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		JMenu mnFile = new JMenu("File");
 		menuBar.add(mnFile);
 
+		if (Utils.isWindows()) {
+			JMenuItem mntmLaunchMumble = new JMenuItem("Launch Mumble");
+			mntmLaunchMumble.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					try {
+						Process mumbleProcess;
+						mumbleProcess = Runtime
+								.getRuntime()
+								.exec("..\\MumblePortable\\MumblePortable.exe mumble://ucfpawn.dyndns.info:64738/?version=1.2.2");
+						Runtime.getRuntime().addShutdownHook(
+								new Thread(new ProcessKiller(mumbleProcess)));
+					} catch (IOException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+				}
+			});
+			mnFile.add(mntmLaunchMumble);
+		}
+
 		JMenuItem mntmExit = new JMenuItem("Exit");
 		mntmExit.addActionListener(new ActionListener() {
+			@Override
 			public void actionPerformed(ActionEvent e) {
 				MainFrame.this.dispose();
 			}
@@ -835,6 +878,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		JMenuItem mntmSettings = new JMenuItem("Settings");
 		mntmSettings.addActionListener(new ActionListener() {
+			@Override
 			public void actionPerformed(ActionEvent e) {
 				new UpdateSettingsDialog(MainFrame.this, rpcEngine)
 						.setVisible(true);
@@ -844,6 +888,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		JMenuItem mntmUpdateProfile = new JMenuItem("Profile");
 		mntmUpdateProfile.addActionListener(new ActionListener() {
+			@Override
 			public void actionPerformed(ActionEvent e) {
 				new UpdateProfileDialog(MainFrame.this, rpcEngine)
 						.setVisible(true);
@@ -857,6 +902,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		JMenuItem checkForwardedPortMenuitem = new JMenuItem(
 				"Check Port Forwarding");
 		checkForwardedPortMenuitem.addActionListener(new ActionListener() {
+			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				try {
 					Utils.openWebpage(new URI(
@@ -873,6 +919,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		JMenuItem mntmTestPing = new JMenuItem("Test Ping");
 		mntmTestPing.addActionListener(new ActionListener() {
+			@Override
 			public void actionPerformed(ActionEvent arg0) {
 				try {
 					Utils.openWebpage(new URI("http://www.pingtest.net/"));
@@ -889,9 +936,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		JMenuItem mntmSelectFolders = new JMenuItem("Select Folders");
 		mntmSelectFolders.addActionListener(new ActionListener() {
+			@Override
 			public void actionPerformed(ActionEvent e) {
 				DirectorySelector ds = new DirectorySelector();
-				ds.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+				ds.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 				ds.setVisible(true);
 			}
 		});
@@ -899,11 +947,42 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		JMenuItem mntmRescanFolders = new JMenuItem("Rescan Folders");
 		mntmRescanFolders.addActionListener(new ActionListener() {
+			@Override
 			public void actionPerformed(ActionEvent e) {
 				mameHubEngine.startAudit(true);
 			}
 		});
 		mnAudit.add(mntmRescanFolders);
+
+		JMenu mnHelp = new JMenu("Help");
+		menuBar.add(mnHelp);
+
+		JMenuItem mntmFileABug = new JMenuItem("File a Bug");
+		mntmFileABug.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				try {
+					Utils.openWebpage(new URI(
+							"https://github.com/MisterTea/MAMEHub/issues"));
+				} catch (URISyntaxException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		});
+		mnHelp.add(mntmFileABug);
+
+		JMenuItem mntmForum = new JMenuItem("Forum");
+		mntmForum.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				try {
+					Utils.openWebpage(new URI("http://forum.mamehub.info"));
+				} catch (URISyntaxException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		});
+		mnHelp.add(mntmForum);
 
 		statusLabel = new JLabel("Welcome to MAMEHub!");
 		contentPane.add(statusLabel, BorderLayout.SOUTH);
@@ -928,7 +1007,6 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 				MainFrame.this.toFront();
 				MainFrame.this.requestFocus();
 				MainFrame.this.repaint();
-				MainFrame.this.setAlwaysOnTop(false);
 			}
 		});
 
@@ -936,7 +1014,6 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		MainFrame.this.toFront();
 		MainFrame.this.requestFocus();
 		MainFrame.this.repaint();
-		MainFrame.this.setAlwaysOnTop(true);
 	}
 
 	protected void updatePlayerStatus() {
@@ -1221,16 +1298,20 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 							.get(message.playerChanged.id);
 					Player newPlayer = message.playerChanged;
 					if (oldPlayer == null || oldPlayer.loggedIn == false) {
-						addChat(message.timestamp, "*"
-								+ message.playerChanged.name + " joins");
+						/*
+						 * addChat(message.timestamp, "*" +
+						 * message.playerChanged.name + " joins");
+						 */
 						if (getChatStatus() == ChatStatus.ONLINE) {
 							SoundEngine.instance.playSound("playerjoin");
 						}
 						peerMonitor.insertPeer(message.playerChanged);
 					} else if (oldPlayer != null
 							&& message.playerChanged.loggedIn == false) {
-						addChat(message.timestamp, "*"
-								+ message.playerChanged.name + " leaves");
+						/*
+						 * addChat(message.timestamp, "*" +
+						 * message.playerChanged.name + " leaves");
+						 */
 						peerMonitor.removePeer(message.playerChanged);
 					} else {
 						if (oldPlayer.inGame == null
@@ -1241,11 +1322,12 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 								Player host = knownPlayers
 										.get(game.hostPlayerId);
 								if (host != null) {
-									addChat(message.timestamp, "*"
-											+ message.playerChanged.name
-											+ " joins " + host.name
-											+ "'s game of "
-											+ getGameDescription(game));
+									/*
+									 * addChat(message.timestamp, "*" +
+									 * message.playerChanged.name + " joins " +
+									 * host.name + "'s game of " +
+									 * getGameDescription(game));
+									 */
 								}
 							}
 						}
@@ -1267,16 +1349,20 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 						}
 					}
 					if (message.gameChanged.endTime > 0) {
-						addChat(message.timestamp, "*"
-								+ getGameDescription(message.gameChanged)
-								+ " has stopped");
+						/*
+						 * addChat(message.timestamp, "*" +
+						 * getGameDescription(message.gameChanged) +
+						 * " has stopped");
+						 */
 						if (getChatStatus() == ChatStatus.ONLINE) {
 							SoundEngine.instance.playSound("gamestop");
 						}
 					} else {
-						addChat(message.timestamp, "*"
-								+ getGameDescription(message.gameChanged)
-								+ " has started");
+						/*
+						 * addChat(message.timestamp, "*" +
+						 * getGameDescription(message.gameChanged) +
+						 * " has started");
+						 */
 						if (getChatStatus() == ChatStatus.ONLINE) {
 							SoundEngine.instance.playSound("gamestart");
 						}

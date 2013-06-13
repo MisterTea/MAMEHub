@@ -16,6 +16,7 @@ import javax.swing.JPasswordField;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 
 import com.mamehub.client.net.RpcEngine;
@@ -42,7 +43,7 @@ public class UpdateProfileDialog extends JDialog {
 	public static void main(String[] args) {
 		try {
 			UpdateProfileDialog dialog = new UpdateProfileDialog(null, null);
-			dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+			dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			dialog.setVisible(true);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -54,14 +55,14 @@ public class UpdateProfileDialog extends JDialog {
 	 */
 	public UpdateProfileDialog(JFrame parent, final RpcEngine rpcEngine) {
 		super(parent, true);
-		this.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+		this.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		setBounds(100, 100, 400, 400);
 		getContentPane().setLayout(new BorderLayout());
 		contentPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
 		getContentPane().add(contentPanel, BorderLayout.CENTER);
 		contentPanel.setLayout(new GridLayout(1, 0, 0, 0));
 		{
-			JTabbedPane tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+			JTabbedPane tabbedPane = new JTabbedPane(SwingConstants.TOP);
 			contentPanel.add(tabbedPane);
 			{
 				JPanel panel = new JPanel();
@@ -127,6 +128,7 @@ public class UpdateProfileDialog extends JDialog {
 			{
 				JButton okButton = new JButton("OK");
 				okButton.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent e) {
 						if(newPasswordOnce.getText().length()>0) {
 							if(!newPasswordOnce.getText().equals(newPasswordTwice.getText())) {
@@ -156,6 +158,7 @@ public class UpdateProfileDialog extends JDialog {
 			{
 				JButton cancelButton = new JButton("Cancel");
 				cancelButton.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent e) {
 						UpdateProfileDialog.this.dispose();
 					}

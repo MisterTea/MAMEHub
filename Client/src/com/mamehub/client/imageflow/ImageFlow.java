@@ -53,13 +53,11 @@ import java.awt.font.FontRenderContext;
 import java.awt.font.TextLayout;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 import javax.swing.event.*;
@@ -178,7 +176,7 @@ public class ImageFlow extends JPanel {
 
     @Override
     public Dimension getPreferredSize() {
-        return new Dimension(displayWidth * 5, (int) (displayHeight * 3));
+        return new Dimension(displayWidth * 5, displayHeight * 3);
     }
 
     @Override
@@ -620,7 +618,8 @@ public class ImageFlow extends JPanel {
             }
         }
 
-        public void run() {
+        @Override
+		public void run() {
             /*
             avatarsText.add("Black Eyed Peas");
             avatarsText.add("Coldplay");
@@ -666,7 +665,8 @@ public class ImageFlow extends JPanel {
             textAlphaLevel = 0.0f;
         }
 
-        public void actionPerformed(ActionEvent e) {
+        @Override
+		public void actionPerformed(ActionEvent e) {
             if (start == 0) {
                 start = System.currentTimeMillis();
             }
@@ -704,7 +704,8 @@ public class ImageFlow extends JPanel {
             this.zOrder = zOrder;
         }
 
-        public int compareTo(Object o) {
+        @Override
+		public int compareTo(Object o) {
             double zOrder2 = ((DrawableAvatar) o).zOrder;
             if (zOrder < zOrder2) {
                 return -1;
@@ -744,7 +745,8 @@ public class ImageFlow extends JPanel {
     }
 
     private class MouseWheelScroller implements MouseWheelListener {
-        public void mouseWheelMoved(MouseWheelEvent e) {
+        @Override
+		public void mouseWheelMoved(MouseWheelEvent e) {
             int increment = e.getWheelRotation();
             scrollAndAnimateBy(increment);
         }
@@ -821,7 +823,8 @@ public class ImageFlow extends JPanel {
             this.start = System.currentTimeMillis();
         }
 
-        public void actionPerformed(ActionEvent e) {
+        @Override
+		public void actionPerformed(ActionEvent e) {
             long elapsed = System.currentTimeMillis() - start;
             if (elapsed < ANIM_SCROLL_DELAY / 2.0) {
                 textAlphaLevel = (float) (1.0 - 2.0 * (elapsed / ANIM_SCROLL_DELAY));

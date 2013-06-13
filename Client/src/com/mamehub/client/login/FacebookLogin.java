@@ -28,6 +28,7 @@ public class FacebookLogin extends Thread {
 		this.callback = callback;
 	}
 
+	@Override
 	public void run() {
 		try {
 			// Build the authentication URL for the user to fill out
@@ -37,6 +38,7 @@ public class FacebookLogin extends Thread {
 			    "&state=" + rpcEngine.token;
 			// Open an external browser to login to your application
 			javax.swing.SwingUtilities.invokeLater(new Runnable() {
+				@Override
 				public void run() {
 					try {
 						Desktop.getDesktop().browse(new URI(url));
@@ -65,6 +67,7 @@ public class FacebookLogin extends Thread {
 			}
 			
 			javax.swing.SwingUtilities.invokeLater(new Runnable() {
+				@Override
 				public void run() {
 					callback.facebookLoginComplete();
 				}

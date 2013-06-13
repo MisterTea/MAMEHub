@@ -31,7 +31,7 @@ public class Utils {
 	private static ClientDatabaseEngine auditDatabaseEngine;
 	private static ClientDatabaseEngine applicationDatabaseEngine;
 	
-	public static final int AUDIT_DATABASE_VERSION = 6;
+	public static final int AUDIT_DATABASE_VERSION = 7;
 	public static final int APPLICATION_DATABASE_VERSION = 4;
 	
 	private static PlayerProfile playerProfile = null;
@@ -244,5 +244,16 @@ public class Utils {
 			}
 		}
 		databaseEngine.commit();
+	}
+
+	public static void dumpMemoryUsage() {
+		System.out
+		.println("MEMORY USAGE: "
+				+ (Runtime.getRuntime().freeMemory() / 1024 / 1024)
+				+ " / "
+				+ (Runtime.getRuntime().maxMemory() / 1024 / 1024)
+				+ "     ("
+				+ (((float) Runtime.getRuntime().freeMemory()) * 100.0 / Runtime
+						.getRuntime().maxMemory()) + ")");
 	}
 }

@@ -1,8 +1,6 @@
 package com.mamehub.client.upnp;
 
 import java.net.InetAddress;
-import java.util.Iterator;
-
 import org.teleal.cling.DefaultUpnpServiceConfiguration;
 import org.teleal.cling.UpnpService;
 import org.teleal.cling.UpnpServiceImpl;
@@ -59,64 +57,74 @@ public class PortOpener implements Runnable {
 
 	}
 	
+	@Override
 	public void run() {
         // UPnP discovery is asynchronous, we need a callback
         RegistryListener registryListener = new RegistryListener() {
 
-            public void remoteDeviceDiscoveryStarted(Registry registry,
+            @Override
+			public void remoteDeviceDiscoveryStarted(Registry registry,
                                                      RemoteDevice device) {
-                logger.info(
+                logger.debug(
                         "Discovery started: " + device.getDisplayString()
                 );
             }
 
-            public void remoteDeviceDiscoveryFailed(Registry registry,
+            @Override
+			public void remoteDeviceDiscoveryFailed(Registry registry,
                                                     RemoteDevice device,
                                                     Exception ex) {
-                logger.info(
+                logger.debug(
                         "Discovery failed: " + device.getDisplayString() + " => " + ex
                 );
             }
 
-            public void remoteDeviceAdded(Registry registry, RemoteDevice device) {
+            @Override
+			public void remoteDeviceAdded(Registry registry, RemoteDevice device) {
                 logger.info(
                         "Remote device available: " + device.getDisplayString()
                 );
                 
             }
 
-            public void remoteDeviceUpdated(Registry registry, RemoteDevice device) {
-                logger.info(
+            @Override
+			public void remoteDeviceUpdated(Registry registry, RemoteDevice device) {
+                logger.debug(
                         "Remote device updated: " + device.getDisplayString()
                 );
             }
 
-            public void remoteDeviceRemoved(Registry registry, RemoteDevice device) {
+            @Override
+			public void remoteDeviceRemoved(Registry registry, RemoteDevice device) {
                 logger.info(
                         "Remote device removed: " + device.getDisplayString()
                 );
             }
 
-            public void localDeviceAdded(Registry registry, LocalDevice device) {
+            @Override
+			public void localDeviceAdded(Registry registry, LocalDevice device) {
                 logger.info(
                         "Local device added: " + device.getDisplayString()
                 );
             }
 
-            public void localDeviceRemoved(Registry registry, LocalDevice device) {
+            @Override
+			public void localDeviceRemoved(Registry registry, LocalDevice device) {
                 logger.info(
                         "Local device removed: " + device.getDisplayString()
                 );
             }
 
-            public void beforeShutdown(Registry registry) {
+            @Override
+			public void beforeShutdown(Registry registry) {
                 logger.info(
                         "Before shutdown, the registry has devices: "
                         + registry.getDevices().size()
                 );
             }
 
-            public void afterShutdown() {
+            @Override
+			public void afterShutdown() {
                 logger.info("Shutdown of registry complete!");
 
             }

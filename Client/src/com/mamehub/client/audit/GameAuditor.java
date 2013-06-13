@@ -119,7 +119,7 @@ public class GameAuditor implements Runnable {
 	}
 
 	private void scan() throws Exception {
-		List<File> paths = new IniParser(new File("mame.ini")).getRomPaths();
+		List<File> paths = new IniParser().getRomPaths();
 		hashScanner = new HashScanner(handler, hashEntryMap, chdMap);
 		hashScanner.scan(paths);
 		hashScanner = null;

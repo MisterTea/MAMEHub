@@ -29,11 +29,7 @@ import java.awt.HeadlessException;
 
 import javax.swing.*;
 import java.io.File;
-import java.util.*;
 import java.awt.*;
-import java.awt.event.*;
-
-import javax.swing.event.*;
 
 public class MainTest extends JFrame
 {
@@ -87,7 +83,8 @@ public class MainTest extends JFrame
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 MainTest tester = new MainTest();
                 tester.setVisible(true);
             }

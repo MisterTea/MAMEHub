@@ -23,9 +23,6 @@ import java.awt.*;
 import java.awt.image.*;
 import java.awt.geom.*;
 
-import javax.imageio.*;
-import java.io.*;
-
 public class CrystalCaseFactory {
     private static CrystalCaseFactory instance = null;
 
@@ -67,8 +64,8 @@ public class CrystalCaseFactory {
             scale = (float) IMAGE_HEIGHT / (float) height;
         }
 
-        int scaledWidth = (int) ((float) width * scale);
-        int scaledHeight = (int) ((float) height * scale);
+        int scaledWidth = (int) (width * scale);
+        int scaledHeight = (int) (height * scale);
 
         int x = (IMAGE_WIDTH  - scaledWidth) / 2;
         int y = (IMAGE_HEIGHT  - scaledHeight) / 2;

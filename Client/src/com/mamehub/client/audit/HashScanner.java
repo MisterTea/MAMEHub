@@ -12,12 +12,15 @@ import java.util.Formatter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
@@ -41,6 +44,8 @@ public class HashScanner {
 	int total=0;
 	private ConcurrentMap<String, ArrayList<FileNameLocationPair>> hashEntryMap;
 	private ConcurrentMap<String, String> chdMap;
+
+	private LinkedList<Future<?>> hasherFutures = new LinkedList<Future<?>>();
 	
 	public HashScanner(GameAuditor.AuditHandler handler, ConcurrentMap<String, ArrayList<FileNameLocationPair>> hashEntryMap, ConcurrentMap<String, String> chdMap) {
 		this.handler = handler;
@@ -68,7 +73,7 @@ public class HashScanner {
 					//logger.info("Skipping: " + file.getAbsolutePath());
 					return;
 				}
-				//logger.info("HASHING: " + onlyChds + " " + file);
+				//logger.info("HASHING: " + file);
 				
 				if(file.getName().endsWith(".zip")) {
 					if(onlyChds) {
@@ -353,7 +358,15 @@ public class HashScanner {
             		walk( f, true );
             }
             else {
-    			threadPool.submit(new Hasher(f, onlyChds));
+            	Hasher h = new Hasher(f, onlyChds);
+        		hasherFutures.add(threadPool.submit(h));
+            	if (hasherFutures.size() > 100) {
+                	try {
+						hasherFutures.poll().get();
+					} catch (Exception e) {
+						throw new IOException(e);
+					}
+            	}
     			total++;
             }
         }

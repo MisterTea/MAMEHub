@@ -22,6 +22,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
+import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 
 import org.slf4j.Logger;
@@ -35,7 +36,6 @@ import com.mamehub.client.login.GoogleLogin.GoogleLoginCallback;
 import com.mamehub.client.net.RpcEngine;
 import com.mamehub.client.server.ClientHttpServer;
 import com.mamehub.client.server.UDPReflectionServer;
-import com.mamehub.client.utility.OSValidator;
 import com.mamehub.thrift.ApplicationSettings;
 import com.mamehub.thrift.Player;
 
@@ -88,7 +88,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 		rpcEngine = new RpcEngine();
 		logger.info("Adding intro dialog");
 		Utils.windows.add(this);
-		setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+		setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		
 		addWindowListener(new WindowAdapter() {
 			@Override
@@ -129,6 +129,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 				facebookLoginButton = new JButton("Login");
 				panel.add(facebookLoginButton);
 				facebookLoginButton.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent e) {
 						RpcEngine.PingResponse pr = rpcEngine.ping();
 						if(pr == RpcEngine.PingResponse.SERVER_DOWN) {
@@ -164,6 +165,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 			{
 				googleLoginButton = new JButton("Login");
 				googleLoginButton.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent arg0) {
 						RpcEngine.PingResponse pr = rpcEngine.ping();
 						if(pr == RpcEngine.PingResponse.SERVER_DOWN) {
@@ -207,6 +209,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 				btnCancelLogin = new JButton("Cancel Login");
 				panel.add(btnCancelLogin);
 				btnCancelLogin.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent e) {
 						cancelLogin();
 					}
@@ -224,6 +227,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 			newAccountButton = new JButton("Create a New Account");
 			newAccountButton.setAlignmentX(Component.CENTER_ALIGNMENT);
 			newAccountButton.addActionListener(new ActionListener() {
+				@Override
 				public void actionPerformed(ActionEvent arg0) {
 					RpcEngine.PingResponse pr = rpcEngine.ping();
 					if(pr == RpcEngine.PingResponse.SERVER_DOWN) {
@@ -281,6 +285,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 			{
 				manualLoginButton = new JButton("Login");
 				manualLoginButton.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent e) {
 						RpcEngine.PingResponse pr = rpcEngine.ping();
 						if(pr == RpcEngine.PingResponse.SERVER_DOWN) {
@@ -317,6 +322,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 			{
 				forgotPasswordButton = new JButton("Email Password Reminder");
 				forgotPasswordButton.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent arg0) {
 						RpcEngine.PingResponse pr = rpcEngine.ping();
 						if(pr == RpcEngine.PingResponse.SERVER_DOWN) {

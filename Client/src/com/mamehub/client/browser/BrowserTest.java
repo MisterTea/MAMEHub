@@ -41,7 +41,8 @@ public BrowserTest() {
     JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 4));
     JCheckBox menuBarCheckBox = new JCheckBox("Menu Bar", webBrowser.isMenuBarVisible());
     menuBarCheckBox.addItemListener(new ItemListener() {
-      public void itemStateChanged(ItemEvent e) {
+      @Override
+	public void itemStateChanged(ItemEvent e) {
         webBrowser.setMenuBarVisible(e.getStateChange() == ItemEvent.SELECTED);
       }
     });
@@ -54,7 +55,8 @@ public BrowserTest() {
     UIUtils.setPreferredLookAndFeel();
     NativeInterface.open();
     SwingUtilities.invokeLater(new Runnable() {
-      public void run() {
+      @Override
+	public void run() {
         JFrame frame = new JFrame("DJ Native Swing Test");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.getContentPane().add(new BrowserTest(), BorderLayout.CENTER);

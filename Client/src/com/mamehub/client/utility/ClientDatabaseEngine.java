@@ -112,11 +112,13 @@ public class ClientDatabaseEngine {
 
         }
 
-        public void serialize(DataOutput out, String obj) throws IOException {
+        @Override
+		public void serialize(DataOutput out, String obj) throws IOException {
             out.writeUTF(obj);
         }
 
-        public String deserialize(DataInput in) throws IOException, ClassNotFoundException {
+        @Override
+		public String deserialize(DataInput in) throws IOException, ClassNotFoundException {
             return in.readUTF();
         }
     }
@@ -146,9 +148,8 @@ public class ClientDatabaseEngine {
 			dbMaker = DBMaker.openFile(dbFileName);
 		}
 		//dbMaker.closeOnExit();
-		//dbMaker.disableCache();
 		//dbMaker.disableTransactions();
-		//dbMaker.enableSoftCache();
+		dbMaker.enableSoftCache();
 		//dbMaker.disableCache();
 		//dbMaker.enableHardCache();
 		database = dbMaker.make();

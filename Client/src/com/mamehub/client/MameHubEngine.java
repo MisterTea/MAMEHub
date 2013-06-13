@@ -93,33 +93,17 @@ public class MameHubEngine implements Runnable {
 		}
 		
 		List<String> cmdList = new ArrayList<String>();
-		if(cartFileName == null) { // MAME Rom
-			if(new File("./csmame64").exists() || new File("./csmame64.exe").exists()) {
-				if(OSValidator.isWindows()) {
-					cmdList.add("csmame64");
-				} else {
-					cmdList.add("./csmame64");
-				}
+		if(new File("./csume64").exists() || new File("./csume64.exe").exists()) {
+			if(OSValidator.isWindows()) {
+				cmdList.add("csume64");
 			} else {
-				if(OSValidator.isWindows()) {
-					cmdList.add("csmame");
-				} else {
-					cmdList.add("./csmame");
-				}
+				cmdList.add("./csume64");
 			}
-		} else { // MESS System
-			if(new File("./csmame64").exists() || new File("./csmame64.exe").exists()) {
-				if(OSValidator.isWindows()) {
-					cmdList.add("csmess64");
-				} else {
-					cmdList.add("./csmess64");
-				}
+		} else {
+			if(OSValidator.isWindows()) {
+				cmdList.add("csume");
 			} else {
-				if(OSValidator.isWindows()) {
-					cmdList.add("csmess");
-				} else {
-					cmdList.add("./csmess");
-				}
+				cmdList.add("./csume");
 			}
 		}
 		cmdList.add("\"" + romFileName + "\"");

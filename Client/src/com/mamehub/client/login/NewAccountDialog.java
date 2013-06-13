@@ -15,6 +15,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 
 import org.apache.commons.validator.routines.EmailValidator;
@@ -37,7 +38,7 @@ public class NewAccountDialog extends JDialog {
 	public static void main(String[] args) {
 		try {
 			NewAccountDialog dialog = new NewAccountDialog(null, null);
-			dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+			dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			dialog.setVisible(true);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -112,6 +113,7 @@ public class NewAccountDialog extends JDialog {
 			{
 				JButton okButton = new JButton("OK");
 				okButton.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent e) {
 						RpcEngine.PingResponse pr = rpcEngine.ping();
 						if(pr == RpcEngine.PingResponse.SERVER_DOWN) {
@@ -160,6 +162,7 @@ public class NewAccountDialog extends JDialog {
 			{
 				JButton cancelButton = new JButton("Cancel");
 				cancelButton.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent arg0) {
 						NewAccountDialog.this.dispose();
 					}

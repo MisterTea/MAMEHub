@@ -109,7 +109,7 @@ public class CartParser extends DefaultHandler {
 				//logger.info("Got cart: " + romInfo);
 			roms.put(romInfo.romName, romInfo);
 			count++;
-			if(count%1000==0) {
+			if(count%100==0) {
 				Utils.getAuditDatabaseEngine().commit();
 			}
 		}

@@ -5,7 +5,6 @@ import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-
 import javax.swing.AbstractListModel;
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -13,6 +12,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.ListSelectionModel;
+import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 
 import org.slf4j.Logger;
@@ -31,7 +31,7 @@ public class DirectorySelector extends JDialog {
 	public static void main(String[] args) {
 		try {
 			DirectorySelector dialog = new DirectorySelector();
-			dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+			dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			dialog.setVisible(true);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -43,13 +43,15 @@ public class DirectorySelector extends JDialog {
 		IniParser iniParser;
 
 		public FileNameModel() {
-			iniParser = new IniParser(new File("mame.ini"));
+			iniParser = new IniParser();
 		}
 		
+		@Override
 		public int getSize() {
 			return iniParser.getRomPaths().size();
 		}
 		
+		@Override
 		public Object getElementAt(int index) {
 			return iniParser.getRomPaths().get(index);
 		}
@@ -78,6 +80,7 @@ public class DirectorySelector extends JDialog {
 			{
 				JButton addDirectory = new JButton("Add Directory");
 				addDirectory.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent arg0) {
 						JFileChooser chooser = new JFileChooser("./");
 						chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY);
@@ -85,8 +88,7 @@ public class DirectorySelector extends JDialog {
 						if(retval == JFileChooser.APPROVE_OPTION) {
 							File file = chooser.getSelectedFile();
 							logger.info("ADDING PATH: " + file);
-							new IniParser(new File("mame.ini")).addRomPath(file);
-							new IniParser(new File("mess.ini")).addRomPath(file);
+							new IniParser().addRomPath(file);
 							directoryList.setModel(new FileNameModel());
 						}
 					}
@@ -96,10 +98,10 @@ public class DirectorySelector extends JDialog {
 			{
 				JButton removeSelectedDirectory = new JButton("Remove Selected Directory");
 				removeSelectedDirectory.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent e) {
 						File f = (File)directoryList.getSelectedValue();
-						new IniParser(new File("mame.ini")).removeRomPath(f);
-						new IniParser(new File("mess.ini")).removeRomPath(f);
+						new IniParser().removeRomPath(f);
 						directoryList.setModel(new FileNameModel());
 					}
 				});
@@ -109,6 +111,7 @@ public class DirectorySelector extends JDialog {
 			{
 				JButton exitButton = new JButton("Exit");
 				exitButton.addActionListener(new ActionListener() {
+					@Override
 					public void actionPerformed(ActionEvent e) {
 						DirectorySelector.this.dispose();
 					}

@@ -17,8 +17,8 @@ public class IniParser {
 
 	private File iniFile;
 
-	public IniParser(File iniFile) {
-		this.iniFile = iniFile;
+	public IniParser() {
+		this.iniFile = new File("ume.ini");
 	}
 	
 	public List<File> getRomPaths() {
@@ -54,6 +54,9 @@ public class IniParser {
 			String iniString = iniData.substring(rompathIndex + "rompath".length()); // Start after 'rompath'
 			iniString = iniString.substring(0, iniString.indexOf("\n")).trim(); // End at end of line
 			logger.info("INI STRING: " + iniString);
+			if (iniString.isEmpty()) {
+				throw new IOException("Could not find inistring");
+			}
 			
 			String newIniString = "";
 			boolean first=true;

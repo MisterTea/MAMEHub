@@ -15,7 +15,8 @@ public class StackLayout implements LayoutManager2 {
 
     private List<Component> components = new LinkedList<Component>();
 
-    public void addLayoutComponent(Component comp, Object constraints) {
+    @Override
+	public void addLayoutComponent(Component comp, Object constraints) {
         synchronized (comp.getTreeLock()) {
             if (BOTTOM.equals(constraints)) {
                 components.add(0, comp);
@@ -27,28 +28,34 @@ public class StackLayout implements LayoutManager2 {
         }
     }
 
-    public void addLayoutComponent(String name, Component comp) {
+    @Override
+	public void addLayoutComponent(String name, Component comp) {
         addLayoutComponent(comp, TOP);
     }
 
-    public void removeLayoutComponent(Component comp) {
+    @Override
+	public void removeLayoutComponent(Component comp) {
         synchronized (comp.getTreeLock()) {
             components.remove(comp);
         }
     }
 
-    public float getLayoutAlignmentX(Container target) {
+    @Override
+	public float getLayoutAlignmentX(Container target) {
         return 0.5f;
     }
 
-    public float getLayoutAlignmentY(Container target) {
+    @Override
+	public float getLayoutAlignmentY(Container target) {
         return 0.5f;
     }
 
-    public void invalidateLayout(Container target) {
+    @Override
+	public void invalidateLayout(Container target) {
     }
 
-    public Dimension preferredLayoutSize(Container parent) {
+    @Override
+	public Dimension preferredLayoutSize(Container parent) {
         synchronized (parent.getTreeLock()) {
             int width = 0;
             int height = 0;
@@ -67,7 +74,8 @@ public class StackLayout implements LayoutManager2 {
         }
     }
 
-    public Dimension minimumLayoutSize(Container parent) {
+    @Override
+	public Dimension minimumLayoutSize(Container parent) {
         synchronized (parent.getTreeLock()) {
             int width = 0;
             int height = 0;
@@ -86,12 +94,14 @@ public class StackLayout implements LayoutManager2 {
         }
     }
 
-    public Dimension maximumLayoutSize(Container target) {
+    @Override
+	public Dimension maximumLayoutSize(Container target) {
         return new Dimension(Integer.MAX_VALUE,
                              Integer.MAX_VALUE);
     }
 
-    public void layoutContainer(Container parent) {
+    @Override
+	public void layoutContainer(Container parent) {
         synchronized (parent.getTreeLock()) {
             int width = parent.getWidth();
             int height = parent.getHeight();
