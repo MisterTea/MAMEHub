@@ -87,7 +87,7 @@ public class MameHubClientRpcImpl implements MameHubClientRpc.Iface {
 
 	@Override
 	public PeerFileInfo getFileInfo(String system, String romName) throws TException {
-		if(!canStartNewUpload()) {
+		if(!canUpload()) {
 			return new PeerFileInfo();
 		}
 		File f = getFile(system, romName);

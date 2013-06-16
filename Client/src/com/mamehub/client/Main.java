@@ -51,6 +51,15 @@ public class Main {
 			}
 		}
 	}
+	
+	public static class DJKiller implements Runnable {
+
+		@Override
+		public void run() {
+			NativeInterface.close();
+		}
+		
+	}
 
 	/**
 	 * Launch the application.
@@ -106,6 +115,9 @@ public class Main {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		
+		Runtime.getRuntime().addShutdownHook(
+				new Thread(new DJKiller()));
 
 		NativeInterface.runEventPump();
 	}

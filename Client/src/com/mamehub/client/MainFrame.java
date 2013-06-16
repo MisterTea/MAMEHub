@@ -573,7 +573,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 									logger.info("Trying to download");
 									// This is a game we don't own, start the
 									// download process
-									tryToDownload(systemName, gameRomInfo);
+									tryToDownload(systemName, gameRomInfo, null);
 								} else if (mameHubEngine.isGameRunning()) {
 									JOptionPane
 											.showMessageDialog(
@@ -1049,13 +1049,13 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 				if (systemRomInfo != null
 						&& systemRomInfo.missingReason != null) {
 					// This is a bios we don't own, start the download process
-					tryToDownload(system, gameRomInfo);
+					tryToDownload(system, gameRomInfo, knownPlayers.get(game.hostPlayerId));
 					return;
 				}
 
 				if (gameRomInfo.missingReason != null) {
 					// This is a game we don't own, start the download process
-					tryToDownload(system, gameRomInfo);
+					tryToDownload(system, gameRomInfo, knownPlayers.get(game.hostPlayerId));
 					return;
 				}
 
@@ -1101,7 +1101,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		return true;
 	}
 
-	protected void tryToDownload(String systemName, RomInfo gameRomInfo) {
+	protected void tryToDownload(String systemName, RomInfo gameRomInfo, Player fallbackPlayer) {
 		if (JOptionPane.showConfirmDialog(MainFrame.this,
 				"Are you legally entitled to own this ROM?", "Consent box.",
 				JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
@@ -1114,8 +1114,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			Set<String> romsNeeded = new HashSet<String>();
 			romsNeeded.add(romInfo.romName);
 			boolean requestGranted = peerMonitor.requestRoms("Bios",
-					romsNeeded, null);
-			mainTabbedPane.setSelectedIndex(2);
+					romsNeeded, null, fallbackPlayer);
+			mainTabbedPane.setSelectedIndex(1);
 			if (requestGranted) {
 				JOptionPane.showMessageDialog(MainFrame.this,
 						"Downloading BIOS from peers.");
@@ -1138,10 +1138,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		if (gameRomInfo.chdFilename != null) {
 			chdName = gameRomInfo.id;
 		}
-		logger.info("Reqeusting roms: " + romsNeeded);
+		logger.info("Requesting roms: " + romsNeeded);
 		boolean requestGranted = peerMonitor.requestRoms(systemName,
-				romsNeeded, chdName);
-		mainTabbedPane.setSelectedIndex(2);
+				romsNeeded, chdName, fallbackPlayer);
+		mainTabbedPane.setSelectedIndex(1);
 		logger.info("Request granted: " + requestGranted);
 		if (requestGranted) {
 			JOptionPane.showMessageDialog(MainFrame.this,

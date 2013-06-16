@@ -36,6 +36,8 @@ public class CartParser extends DefaultHandler implements Runnable {
 	private ConcurrentMap<String, String> chdMap;
 	private int count = 0;
 
+	private boolean debug;
+
 	public CartParser(String systemName, File xmlFile,
 			Map<String, ArrayList<FileNameLocationPair>> hashEntryMap,
 			Map<String, RomInfo> roms, ConcurrentMap<String, String> chdMap) {
@@ -79,6 +81,11 @@ public class CartParser extends DefaultHandler implements Runnable {
 
 			// String sha1 = attributes.getValue("sha1");
 			String crc32 = attributes.getValue("crc32");
+			if (crc32.equalsIgnoreCase("7976248c")) {
+				debug = true;
+			} else {
+				debug = false;
+			}
 			String cartName = attributes.getValue("name");
 
 			List<FileNameLocationPair> hashEntry = hashEntryMap.get(crc32);
@@ -108,11 +115,16 @@ public class CartParser extends DefaultHandler implements Runnable {
 				romInfo.missingReason = MR.MISSING_FILES;
 			}
 			romInfo.system = systemName;
-			// if(romInfo.missingReason == null)
-			// logger.info("Got cart: " + romInfo);
-			roms.put(romInfo.romName, romInfo);
+			//if(romInfo.missingReason == null)
+				//logger.info("Got cart: " + romInfo);
+
+			// Some of the hsi files are dirty and have carts with duplicate
+			// names. If there is a collision, pick one with no errors
+			if (!roms.containsKey(romInfo.romName) || romInfo.missingReason == null) {
+				roms.put(romInfo.romName, romInfo);
+			}
 			count++;
-			if (count % 100 == 0) {
+			if (count % 1000 == 0) {
 				Utils.getAuditDatabaseEngine().commit();
 			}
 		}

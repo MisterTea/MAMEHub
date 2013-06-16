@@ -70,6 +70,8 @@ public class HashScanner {
 				numProcessed++;
 				if(numProcessed%100==0) {
 					handler.updateAuditStatus("AUDIT ( "+numProcessed+" / " + total + " ): Hashing: " + file.getName());
+				}
+				if(numProcessed%5000==0) {
 					Utils.getAuditDatabaseEngine().commit();
 				}
 			}
@@ -79,7 +81,7 @@ public class HashScanner {
 				previousFileInfo = scanData.get(file.getAbsolutePath());
 				if(previousFileInfo != null && previousFileInfo.length == file.length()) {
 					// Already scanned and same length, no need to re-scan
-					//logger.info("Skipping: " + file.getAbsolutePath());
+					logger.info("Skipping: " + previousFileInfo);
 					return;
 				}
 				//logger.info("HASHING: " + file);
@@ -127,19 +129,21 @@ public class HashScanner {
 						}
 					}
 				} else {
-					if(file.getName().endsWith(".chd")) {
+					if(file.getName().endsWith(".chd") && onlyChds) {
 						FileInfo newFileInfo;
 						// The chdname is the filename minus ".chd"
 						newFileInfo = new FileInfo().setId(file.getAbsolutePath()).setBad(false).setChdname(file.getName().substring(0,file.getName().length()-4))
 								.setLength(file.length());
 						scanData.put(file.getAbsolutePath(), newFileInfo);
 						chdMap.put(newFileInfo.chdname, file.getAbsolutePath());
-					} else if(!onlyChds) {
+					} else {
 						FileInfo newFileInfo;
 						try {
+							String crc = crc32Sum(new FileInputStream(file));
+							//logger.info(file.getAbsolutePath() + " : " + file.getName() + " : " + crc);
 							newFileInfo = new FileInfo(file.getAbsolutePath(), false,
 									//shaSum(new FileInputStream(file)),
-									crc32Sum(new FileInputStream(file)),
+									crc,
 									file.length(), null, null);
 							scanData.put(file.getAbsolutePath(), newFileInfo);
 							addToHashEntryMap(hashEntryMap, newFileInfo.crc32, new FileNameLocationPair(file.getAbsolutePath(), file.getAbsolutePath()));

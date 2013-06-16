@@ -382,7 +382,7 @@ public class PeerMonitor implements Runnable {
 	}
 
 	public boolean requestRoms(String system, Set<String> romsNeeded,
-			String chdName) {
+			String chdName, Player fallbackPlayer) {
 		Map<String, Set<Player>> romPlayerMap = new HashMap<String, Set<Player>>();
 		for (String romNeeded : romsNeeded) {
 			romPlayerMap.put(romNeeded, new HashSet<Player>());
@@ -399,7 +399,11 @@ public class PeerMonitor implements Runnable {
 			}
 			}
 			if (romPlayerMap.get(romNeeded).isEmpty()) {
-				return false;
+				if (fallbackPlayer == null) {
+					return false;
+				} else {
+					romPlayerMap.get(romNeeded).add(fallbackPlayer);
+				}
 			}
 		}
 

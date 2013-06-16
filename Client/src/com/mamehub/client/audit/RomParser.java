@@ -249,7 +249,7 @@ public class RomParser extends DefaultHandler {
 				logger.info("ROM INFO: " + romInfo);
 			roms.put(romInfo.romName, romInfo);
 			count++;
-			if (count % 100 == 0) {
+			if (count % 5000 == 0) {
 				Utils.getAuditDatabaseEngine().commit();
 			}
 			if (!romInfo.softwareLists.isEmpty()) {

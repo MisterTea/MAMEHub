@@ -239,7 +239,7 @@ public class Utils {
 		for(K key : keys) {
 			map.remove(key);
 			count++;
-			if(count%1000==0) {
+			if(count%5000==0) {
 				databaseEngine.commit();
 			}
 		}
