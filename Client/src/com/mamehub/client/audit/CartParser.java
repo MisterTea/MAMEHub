@@ -23,97 +23,100 @@ import com.mamehub.thrift.FileNameLocationPair;
 import com.mamehub.thrift.MR;
 import com.mamehub.thrift.RomInfo;
 
-public class CartParser extends DefaultHandler {
+public class CartParser extends DefaultHandler implements Runnable {
 	final Logger logger = LoggerFactory.getLogger(CartParser.class);
 
 	private String systemName;
 	private File xmlFile;
-	
+
 	private Map<String, ArrayList<FileNameLocationPair>> hashEntryMap;
-	
+
 	private Map<String, RomInfo> roms;
 
 	private ConcurrentMap<String, String> chdMap;
-	private int count=0;
-	
-	public CartParser(String systemName, File xmlFile) {
-		this.systemName = systemName;
-		if(!systemName.equals(systemName.toLowerCase())) {
-			throw new RuntimeException("System names must be lower case");
-		}
-		this.xmlFile = xmlFile;
-		logger.info("Parsing carts for system: " + systemName + " (" + xmlFile.getName() + ")");
-	}
+	private int count = 0;
 
-	void process(Map<String, ArrayList<FileNameLocationPair>> hashEntryMap, Map<String, RomInfo> roms,
-			ConcurrentMap<String, String> chdMap) throws IOException {
+	public CartParser(String systemName, File xmlFile,
+			Map<String, ArrayList<FileNameLocationPair>> hashEntryMap,
+			Map<String, RomInfo> roms, ConcurrentMap<String, String> chdMap) {
+		this.systemName = systemName;
 		this.hashEntryMap = hashEntryMap;
 		this.roms = roms;
 		this.chdMap = chdMap;
-		
-		SAXParserFactory factory = SAXParserFactory.newInstance();
-		SAXParser saxParser = null;
-		try {
-			saxParser = factory.newSAXParser();
-			saxParser.parse(new FileInputStream(xmlFile), this);
-		} catch (ParserConfigurationException e) {
-			throw new IOException(e);
-		} catch (SAXException e) {
-			throw new IOException(e);
+		if (!systemName.equals(systemName.toLowerCase())) {
+			throw new RuntimeException("System names must be lower case");
 		}
-		
+		this.xmlFile = xmlFile;
+		logger.info("Parsing carts for system: " + systemName + " ("
+				+ xmlFile.getName() + ")");
+	}
+
+	@Override
+	public void run() {
+		try {
+			SAXParserFactory factory = SAXParserFactory.newInstance();
+			SAXParser saxParser = null;
+			try {
+				saxParser = factory.newSAXParser();
+				saxParser.parse(new FileInputStream(xmlFile), this);
+			} catch (ParserConfigurationException e) {
+				throw new IOException(e);
+			} catch (SAXException e) {
+				throw new IOException(e);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 		this.hashEntryMap = null;
 		this.roms = null;
 	}
-	
+
 	@Override
 	public void startElement(String uri, String localName, String qName,
 			Attributes attributes) throws SAXException {
-		if(qName.equals("hash")) {
+		if (qName.equals("hash")) {
 
-			//String sha1 = attributes.getValue("sha1");
+			// String sha1 = attributes.getValue("sha1");
 			String crc32 = attributes.getValue("crc32");
 			String cartName = attributes.getValue("name");
-			
+
 			List<FileNameLocationPair> hashEntry = hashEntryMap.get(crc32);
-			
+
 			RomInfo romInfo = new RomInfo();
-			if(systemName.contains(":")) {
+			if (systemName.contains(":")) {
 				throw new RuntimeException("Colons not allowed in system names");
 			}
 			romInfo.id = systemName + ":" + cartName;
 			romInfo.romName = cartName;
-			if(hashEntry != null) {
-				if(hashEntry.size() > 1) {
+			if (hashEntry != null) {
+				if (hashEntry.size() > 1) {
 					/*
-					logger.info("Found multiple entries for " + cartName + ":");
-					logger.info("***");
-					for(String s : hashEntry) {
-						logger.info(s);
-					}
-					logger.info("***");
-					*/
+					 * logger.info("Found multiple entries for " + cartName +
+					 * ":"); logger.info("***"); for(String s : hashEntry) {
+					 * logger.info(s); } logger.info("***");
+					 */
 					romInfo.filename = hashEntry.iterator().next().location;
-				} else if(!hashEntry.isEmpty()) {
+				} else if (!hashEntry.isEmpty()) {
 					romInfo.filename = hashEntry.iterator().next().location;
 				} else {
 					romInfo.missingReason = MR.MISSING_FILES;
 				}
-			} else if(chdMap.containsKey(cartName)) {
+			} else if (chdMap.containsKey(cartName)) {
 				romInfo.filename = chdMap.get(cartName);
 			} else {
 				romInfo.missingReason = MR.MISSING_FILES;
 			}
 			romInfo.system = systemName;
-			//if(romInfo.missingReason == null)
-				//logger.info("Got cart: " + romInfo);
+			// if(romInfo.missingReason == null)
+			// logger.info("Got cart: " + romInfo);
 			roms.put(romInfo.romName, romInfo);
 			count++;
-			if(count%100==0) {
+			if (count % 100 == 0) {
 				Utils.getAuditDatabaseEngine().commit();
 			}
 		}
-		//logger.info("Start Element :" + qName);
+		// logger.info("Start Element :" + qName);
 	}
 
 }

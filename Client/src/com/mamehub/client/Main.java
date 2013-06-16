@@ -2,7 +2,9 @@ package com.mamehub.client;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.util.logging.LogManager;
 
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
@@ -65,11 +67,21 @@ public class Main {
 			SecurityException, IllegalAccessException,
 			InvocationTargetException, NoSuchMethodException,
 			ClassNotFoundException, IOException {
+		final InputStream inputStream = Main.class
+				.getResourceAsStream("/log.properties");
+		try {
+			LogManager.getLogManager().readConfiguration(inputStream);
+		} catch (final IOException e) {
+			java.util.logging.Logger.getAnonymousLogger().severe(
+					"Could not load default logging.properties file");
+			java.util.logging.Logger.getAnonymousLogger().severe(e.getMessage());
+		}
+
 		new SwtLoader();
 		new CommandLineFlags(args);
 		new SoundEngine();
 
-		//new Thread(new MemoryReporter()).start();
+		// new Thread(new MemoryReporter()).start();
 
 		Class<?> c = Class.forName("org.eclipse.swt.widgets.Display");
 		c.getMethod("setAppName", String.class).invoke(null, "MAMEHub");

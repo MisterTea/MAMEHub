@@ -22,7 +22,7 @@ public class MediaCommandFetcher {
 	Map<String, TreeMap<String, ArrayList<String>>> media;
 	
 	public MediaCommandFetcher(URL url) throws IOException {
-		media = Utils.getApplicationDatabaseEngine().getOrCreatePrimitiveHashMap("MediaCommands");
+		media = Utils.getApplicationDatabaseEngine().getOrCreatePrimitiveMap("MediaCommands");
 		media.clear();
 		BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
 		

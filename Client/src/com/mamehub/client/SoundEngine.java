@@ -7,9 +7,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
+import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineEvent;
 import javax.sound.sampled.LineListener;
 
@@ -41,18 +43,28 @@ public class SoundEngine implements LineListener {
 	}
 
 	public void playSound(String filename) {
+		if (Utils.isUnix()) {
+			// java sound has issues on linux
+			return;
+		}
 		try {
 			AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new ByteArrayInputStream(soundFileMap.get(filename)));
-			Clip clip = AudioSystem.getClip();
+			AudioFormat format = audioInputStream.getFormat();
+			DataLine.Info info = new DataLine.Info(Clip.class, format);
+			Clip clip = (Clip)AudioSystem.getLine(info);
 			clip.open(audioInputStream);
 			clip.start();
 			clip.addLineListener(this);
 		} catch (Exception e) {
-			throw new RuntimeException(e);
+			e.printStackTrace();
 		}
 	}
 
 	public void playSoundIfNotActive(String filename) {
+		if (Utils.isUnix()) {
+			// java sound has issues on linux
+			return;
+		}
 		if(timeSinceLastBeep+1000*60*15 <= System.currentTimeMillis() && // Only play non-active sounds every 15 minutes minimum.
 			KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusedWindow() == null && !mameHubEngine.isGameRunning()) {
 			playSound(filename);

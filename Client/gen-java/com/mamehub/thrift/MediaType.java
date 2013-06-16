@@ -424,13 +424,13 @@ public class MediaType implements org.apache.thrift.TBase<MediaType, MediaType._
           case 2: // EXTENSIONS
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list10 = iprot.readListBegin();
-                struct.extensions = new ArrayList<String>(_list10.size);
-                for (int _i11 = 0; _i11 < _list10.size; ++_i11)
+                org.apache.thrift.protocol.TList _list18 = iprot.readListBegin();
+                struct.extensions = new ArrayList<String>(_list18.size);
+                for (int _i19 = 0; _i19 < _list18.size; ++_i19)
                 {
-                  String _elem12; // optional
-                  _elem12 = iprot.readString();
-                  struct.extensions.add(_elem12);
+                  String _elem20; // optional
+                  _elem20 = iprot.readString();
+                  struct.extensions.add(_elem20);
                 }
                 iprot.readListEnd();
               }
@@ -463,9 +463,9 @@ public class MediaType implements org.apache.thrift.TBase<MediaType, MediaType._
         oprot.writeFieldBegin(EXTENSIONS_FIELD_DESC);
         {
           oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, struct.extensions.size()));
-          for (String _iter13 : struct.extensions)
+          for (String _iter21 : struct.extensions)
           {
-            oprot.writeString(_iter13);
+            oprot.writeString(_iter21);
           }
           oprot.writeListEnd();
         }
@@ -502,9 +502,9 @@ public class MediaType implements org.apache.thrift.TBase<MediaType, MediaType._
       if (struct.isSetExtensions()) {
         {
           oprot.writeI32(struct.extensions.size());
-          for (String _iter14 : struct.extensions)
+          for (String _iter22 : struct.extensions)
           {
-            oprot.writeString(_iter14);
+            oprot.writeString(_iter22);
           }
         }
       }
@@ -520,13 +520,13 @@ public class MediaType implements org.apache.thrift.TBase<MediaType, MediaType._
       }
       if (incoming.get(1)) {
         {
-          org.apache.thrift.protocol.TList _list15 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-          struct.extensions = new ArrayList<String>(_list15.size);
-          for (int _i16 = 0; _i16 < _list15.size; ++_i16)
+          org.apache.thrift.protocol.TList _list23 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+          struct.extensions = new ArrayList<String>(_list23.size);
+          for (int _i24 = 0; _i24 < _list23.size; ++_i24)
           {
-            String _elem17; // optional
-            _elem17 = iprot.readString();
-            struct.extensions.add(_elem17);
+            String _elem25; // optional
+            _elem25 = iprot.readString();
+            struct.extensions.add(_elem25);
           }
         }
         struct.setExtensionsIsSet(true);

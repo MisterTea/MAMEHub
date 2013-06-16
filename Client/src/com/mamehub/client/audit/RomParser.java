@@ -38,7 +38,7 @@ public class RomParser extends DefaultHandler {
 	private int romsWithNoHash;
 	private Set<String> possibleEntries;
 
-	private ConcurrentMap<String, ArrayList<FileNameLocationPair>> hashEntryMap;
+	private Map<String, ArrayList<FileNameLocationPair>> hashEntryMap;
 	private ConcurrentMap<String, RomInfo> roms;
 	private boolean allowZeroFileRoms;
 	private ConcurrentMap<String, String> chdMap;
@@ -57,13 +57,13 @@ public class RomParser extends DefaultHandler {
 	}
 
 	void process(
-			ConcurrentMap<String, ArrayList<FileNameLocationPair>> hashEntryMap,
+			Map<String, ArrayList<FileNameLocationPair>> hashEntryMap2,
 			ConcurrentMap<String, String> chdMap,
 			ConcurrentMap<String, RomInfo> roms, boolean allowZeroFileRoms,
 			boolean matchFileName, boolean mess) throws IOException {
 		this.roms = roms;
 		this.matchFileName = matchFileName;
-		this.hashEntryMap = hashEntryMap;
+		this.hashEntryMap = hashEntryMap2;
 		this.chdMap = chdMap;
 		this.allowZeroFileRoms = allowZeroFileRoms;
 		this.baseName = mess ? "B" : "A";

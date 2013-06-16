@@ -354,7 +354,7 @@ public class PeerMonitor implements Runnable {
 					gotNewRoms = true;
 					peerState.downloadableRoms = Utils
 							.getApplicationDatabaseEngine()
-							.getOrCreatePrimitiveHashMap(
+							.getOrCreatePrimitiveMap(
 									"DownloadableRoms" + player.id);
 					peerState.downloadableRoms.clear();
 					peerState.downloadableRoms.putAll(romState.roms);

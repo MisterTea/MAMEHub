@@ -1,6 +1,6 @@
 namespace * com.mamehub.thrift
 
-const i32 MAMEHUB_VERSION = 6
+const i32 MAMEHUB_VERSION = 7
 
 enum MR
 {
@@ -8,6 +8,12 @@ enum MR
 	BAD_FILES,
 	MISSING_CLONE,
 	MISSING_PARENT,
+}
+
+struct SoftwareList
+{
+	1:string name,
+	2:string filter,
 }
 
 struct RomInfo
@@ -21,6 +27,7 @@ struct RomInfo
     7:MR missingReason,
     8:string chdFilename;
     9:string system,
+    10:list<SoftwareList> softwareLists = [];
 }
 
 struct FileInfo {

@@ -31,8 +31,8 @@ public class Utils {
 	private static ClientDatabaseEngine auditDatabaseEngine;
 	private static ClientDatabaseEngine applicationDatabaseEngine;
 	
-	public static final int AUDIT_DATABASE_VERSION = 7;
-	public static final int APPLICATION_DATABASE_VERSION = 4;
+	public static final int AUDIT_DATABASE_VERSION = 9;
+	public static final int APPLICATION_DATABASE_VERSION = 6;
 	
 	private static PlayerProfile playerProfile = null;
 
@@ -194,7 +194,7 @@ public class Utils {
 	}
 
 	public static ApplicationSettings getApplicationSettings() {
-		ApplicationSettings as = Utils.getApplicationDatabaseEngine().getOrCreateHashMap(ApplicationSettings.class, "1").get("1");
+		ApplicationSettings as = Utils.getApplicationDatabaseEngine().getOrCreateMap(ApplicationSettings.class, "1").get("1");
 		if(as == null) {
 			as = new ApplicationSettings();
 		}
@@ -203,7 +203,7 @@ public class Utils {
 
 	public static void putApplicationSettings(
 			ApplicationSettings as) {
-		Utils.getApplicationDatabaseEngine().getOrCreateHashMap(ApplicationSettings.class, "1").put("1", as);
+		Utils.getApplicationDatabaseEngine().getOrCreateMap(ApplicationSettings.class, "1").put("1", as);
 		Utils.getApplicationDatabaseEngine().commit();
 	}
 

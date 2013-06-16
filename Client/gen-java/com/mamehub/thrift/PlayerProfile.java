@@ -432,16 +432,16 @@ public class PlayerProfile implements org.apache.thrift.TBase<PlayerProfile, Pla
           case 2: // ROM_PROFILES
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map18 = iprot.readMapBegin();
-                struct.romProfiles = new HashMap<String,PlayerRomProfile>(2*_map18.size);
-                for (int _i19 = 0; _i19 < _map18.size; ++_i19)
+                org.apache.thrift.protocol.TMap _map26 = iprot.readMapBegin();
+                struct.romProfiles = new HashMap<String,PlayerRomProfile>(2*_map26.size);
+                for (int _i27 = 0; _i27 < _map26.size; ++_i27)
                 {
-                  String _key20; // required
-                  PlayerRomProfile _val21; // required
-                  _key20 = iprot.readString();
-                  _val21 = new PlayerRomProfile();
-                  _val21.read(iprot);
-                  struct.romProfiles.put(_key20, _val21);
+                  String _key28; // required
+                  PlayerRomProfile _val29; // required
+                  _key28 = iprot.readString();
+                  _val29 = new PlayerRomProfile();
+                  _val29.read(iprot);
+                  struct.romProfiles.put(_key28, _val29);
                 }
                 iprot.readMapEnd();
               }
@@ -474,10 +474,10 @@ public class PlayerProfile implements org.apache.thrift.TBase<PlayerProfile, Pla
         oprot.writeFieldBegin(ROM_PROFILES_FIELD_DESC);
         {
           oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, struct.romProfiles.size()));
-          for (Map.Entry<String, PlayerRomProfile> _iter22 : struct.romProfiles.entrySet())
+          for (Map.Entry<String, PlayerRomProfile> _iter30 : struct.romProfiles.entrySet())
           {
-            oprot.writeString(_iter22.getKey());
-            _iter22.getValue().write(oprot);
+            oprot.writeString(_iter30.getKey());
+            _iter30.getValue().write(oprot);
           }
           oprot.writeMapEnd();
         }
@@ -514,10 +514,10 @@ public class PlayerProfile implements org.apache.thrift.TBase<PlayerProfile, Pla
       if (struct.isSetRomProfiles()) {
         {
           oprot.writeI32(struct.romProfiles.size());
-          for (Map.Entry<String, PlayerRomProfile> _iter23 : struct.romProfiles.entrySet())
+          for (Map.Entry<String, PlayerRomProfile> _iter31 : struct.romProfiles.entrySet())
           {
-            oprot.writeString(_iter23.getKey());
-            _iter23.getValue().write(oprot);
+            oprot.writeString(_iter31.getKey());
+            _iter31.getValue().write(oprot);
           }
         }
       }
@@ -533,16 +533,16 @@ public class PlayerProfile implements org.apache.thrift.TBase<PlayerProfile, Pla
       }
       if (incoming.get(1)) {
         {
-          org.apache.thrift.protocol.TMap _map24 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-          struct.romProfiles = new HashMap<String,PlayerRomProfile>(2*_map24.size);
-          for (int _i25 = 0; _i25 < _map24.size; ++_i25)
+          org.apache.thrift.protocol.TMap _map32 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+          struct.romProfiles = new HashMap<String,PlayerRomProfile>(2*_map32.size);
+          for (int _i33 = 0; _i33 < _map32.size; ++_i33)
           {
-            String _key26; // required
-            PlayerRomProfile _val27; // required
-            _key26 = iprot.readString();
-            _val27 = new PlayerRomProfile();
-            _val27.read(iprot);
-            struct.romProfiles.put(_key26, _val27);
+            String _key34; // required
+            PlayerRomProfile _val35; // required
+            _key34 = iprot.readString();
+            _val35 = new PlayerRomProfile();
+            _val35.read(iprot);
+            struct.romProfiles.put(_key34, _val35);
           }
         }
         struct.setRomProfilesIsSet(true);

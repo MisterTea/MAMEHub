@@ -430,25 +430,25 @@ public class DownloadableRomState implements org.apache.thrift.TBase<Downloadabl
           case 1: // ROMS
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map84 = iprot.readMapBegin();
-                struct.roms = new HashMap<String,Set<String>>(2*_map84.size);
-                for (int _i85 = 0; _i85 < _map84.size; ++_i85)
+                org.apache.thrift.protocol.TMap _map92 = iprot.readMapBegin();
+                struct.roms = new HashMap<String,Set<String>>(2*_map92.size);
+                for (int _i93 = 0; _i93 < _map92.size; ++_i93)
                 {
-                  String _key86; // required
-                  Set<String> _val87; // required
-                  _key86 = iprot.readString();
+                  String _key94; // required
+                  Set<String> _val95; // required
+                  _key94 = iprot.readString();
                   {
-                    org.apache.thrift.protocol.TSet _set88 = iprot.readSetBegin();
-                    _val87 = new HashSet<String>(2*_set88.size);
-                    for (int _i89 = 0; _i89 < _set88.size; ++_i89)
+                    org.apache.thrift.protocol.TSet _set96 = iprot.readSetBegin();
+                    _val95 = new HashSet<String>(2*_set96.size);
+                    for (int _i97 = 0; _i97 < _set96.size; ++_i97)
                     {
-                      String _elem90; // optional
-                      _elem90 = iprot.readString();
-                      _val87.add(_elem90);
+                      String _elem98; // optional
+                      _elem98 = iprot.readString();
+                      _val95.add(_elem98);
                     }
                     iprot.readSetEnd();
                   }
-                  struct.roms.put(_key86, _val87);
+                  struct.roms.put(_key94, _val95);
                 }
                 iprot.readMapEnd();
               }
@@ -484,14 +484,14 @@ public class DownloadableRomState implements org.apache.thrift.TBase<Downloadabl
         oprot.writeFieldBegin(ROMS_FIELD_DESC);
         {
           oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.SET, struct.roms.size()));
-          for (Map.Entry<String, Set<String>> _iter91 : struct.roms.entrySet())
+          for (Map.Entry<String, Set<String>> _iter99 : struct.roms.entrySet())
           {
-            oprot.writeString(_iter91.getKey());
+            oprot.writeString(_iter99.getKey());
             {
-              oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, _iter91.getValue().size()));
-              for (String _iter92 : _iter91.getValue())
+              oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, _iter99.getValue().size()));
+              for (String _iter100 : _iter99.getValue())
               {
-                oprot.writeString(_iter92);
+                oprot.writeString(_iter100);
               }
               oprot.writeSetEnd();
             }
@@ -531,14 +531,14 @@ public class DownloadableRomState implements org.apache.thrift.TBase<Downloadabl
       if (struct.isSetRoms()) {
         {
           oprot.writeI32(struct.roms.size());
-          for (Map.Entry<String, Set<String>> _iter93 : struct.roms.entrySet())
+          for (Map.Entry<String, Set<String>> _iter101 : struct.roms.entrySet())
           {
-            oprot.writeString(_iter93.getKey());
+            oprot.writeString(_iter101.getKey());
             {
-              oprot.writeI32(_iter93.getValue().size());
-              for (String _iter94 : _iter93.getValue())
+              oprot.writeI32(_iter101.getValue().size());
+              for (String _iter102 : _iter101.getValue())
               {
-                oprot.writeString(_iter94);
+                oprot.writeString(_iter102);
               }
             }
           }
@@ -555,24 +555,24 @@ public class DownloadableRomState implements org.apache.thrift.TBase<Downloadabl
       BitSet incoming = iprot.readBitSet(2);
       if (incoming.get(0)) {
         {
-          org.apache.thrift.protocol.TMap _map95 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.SET, iprot.readI32());
-          struct.roms = new HashMap<String,Set<String>>(2*_map95.size);
-          for (int _i96 = 0; _i96 < _map95.size; ++_i96)
+          org.apache.thrift.protocol.TMap _map103 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.SET, iprot.readI32());
+          struct.roms = new HashMap<String,Set<String>>(2*_map103.size);
+          for (int _i104 = 0; _i104 < _map103.size; ++_i104)
           {
-            String _key97; // required
-            Set<String> _val98; // required
-            _key97 = iprot.readString();
+            String _key105; // required
+            Set<String> _val106; // required
+            _key105 = iprot.readString();
             {
-              org.apache.thrift.protocol.TSet _set99 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-              _val98 = new HashSet<String>(2*_set99.size);
-              for (int _i100 = 0; _i100 < _set99.size; ++_i100)
+              org.apache.thrift.protocol.TSet _set107 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+              _val106 = new HashSet<String>(2*_set107.size);
+              for (int _i108 = 0; _i108 < _set107.size; ++_i108)
               {
-                String _elem101; // optional
-                _elem101 = iprot.readString();
-                _val98.add(_elem101);
+                String _elem109; // optional
+                _elem109 = iprot.readString();
+                _val106.add(_elem109);
               }
             }
-            struct.roms.put(_key97, _val98);
+            struct.roms.put(_key105, _val106);
           }
         }
         struct.setRomsIsSet(true);

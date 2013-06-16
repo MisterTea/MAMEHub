@@ -16,6 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -45,11 +46,11 @@ public class HashScanner {
 	private ConcurrentMap<String, ArrayList<FileNameLocationPair>> hashEntryMap;
 	private ConcurrentMap<String, String> chdMap;
 
-	private LinkedList<Future<?>> hasherFutures = new LinkedList<Future<?>>();
+	private ConcurrentLinkedQueue<Future<?>> hasherFutures = new ConcurrentLinkedQueue<Future<?>>();
 	
 	public HashScanner(GameAuditor.AuditHandler handler, ConcurrentMap<String, ArrayList<FileNameLocationPair>> hashEntryMap, ConcurrentMap<String, String> chdMap) {
 		this.handler = handler;
-		scanData = Utils.getAuditDatabaseEngine().getOrCreateHashMap(FileInfo.class, "RomHash");
+		scanData = Utils.getAuditDatabaseEngine().getOrCreateMap(FileInfo.class, "RomHash");
 		this.hashEntryMap = hashEntryMap;
 		this.chdMap = chdMap;
 	}
@@ -65,6 +66,14 @@ public class HashScanner {
 
 		@Override
 		public void run() {
+			synchronized(numProcessed) {
+				numProcessed++;
+				if(numProcessed%100==0) {
+					handler.updateAuditStatus("AUDIT ( "+numProcessed+" / " + total + " ): Hashing: " + file.getName());
+					Utils.getAuditDatabaseEngine().commit();
+				}
+			}
+			
 			try {
 				FileInfo previousFileInfo = null;
 				previousFileInfo = scanData.get(file.getAbsolutePath());
@@ -139,14 +148,6 @@ public class HashScanner {
 							e.printStackTrace();
 							return;
 						}
-					}
-				}
-	
-				synchronized(numProcessed) {
-					numProcessed++;
-					if(numProcessed%100==0) {
-						handler.updateAuditStatus("AUDIT ( "+numProcessed+" / " + total + " ): Hashing: " + file.getName());
-						Utils.getAuditDatabaseEngine().commit();
 					}
 				}
 			} catch(Exception e) {
@@ -322,7 +323,6 @@ public class HashScanner {
 	    }
 
 		logger.info("Finished scanning");
-		Utils.getAuditDatabaseEngine().database.clearCache();
 		Utils.getAuditDatabaseEngine().commit();
 		logger.info("Committed all changes");
 		handler.updateAuditStatus("AUDIT: Done Scanning.  Matching ROMs...");
@@ -360,7 +360,7 @@ public class HashScanner {
             else {
             	Hasher h = new Hasher(f, onlyChds);
         		hasherFutures.add(threadPool.submit(h));
-            	if (hasherFutures.size() > 100) {
+            	while (hasherFutures.size() > 100) {
                 	try {
 						hasherFutures.poll().get();
 					} catch (Exception e) {

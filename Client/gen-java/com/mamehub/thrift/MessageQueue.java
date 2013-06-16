@@ -504,14 +504,14 @@ public class MessageQueue implements org.apache.thrift.TBase<MessageQueue, Messa
           case 2: // MESSAGES
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list38 = iprot.readListBegin();
-                struct.messages = new ArrayList<Message>(_list38.size);
-                for (int _i39 = 0; _i39 < _list38.size; ++_i39)
+                org.apache.thrift.protocol.TList _list46 = iprot.readListBegin();
+                struct.messages = new ArrayList<Message>(_list46.size);
+                for (int _i47 = 0; _i47 < _list46.size; ++_i47)
                 {
-                  Message _elem40; // optional
-                  _elem40 = new Message();
-                  _elem40.read(iprot);
-                  struct.messages.add(_elem40);
+                  Message _elem48; // optional
+                  _elem48 = new Message();
+                  _elem48.read(iprot);
+                  struct.messages.add(_elem48);
                 }
                 iprot.readListEnd();
               }
@@ -552,9 +552,9 @@ public class MessageQueue implements org.apache.thrift.TBase<MessageQueue, Messa
         oprot.writeFieldBegin(MESSAGES_FIELD_DESC);
         {
           oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.messages.size()));
-          for (Message _iter41 : struct.messages)
+          for (Message _iter49 : struct.messages)
           {
-            _iter41.write(oprot);
+            _iter49.write(oprot);
           }
           oprot.writeListEnd();
         }
@@ -597,9 +597,9 @@ public class MessageQueue implements org.apache.thrift.TBase<MessageQueue, Messa
       if (struct.isSetMessages()) {
         {
           oprot.writeI32(struct.messages.size());
-          for (Message _iter42 : struct.messages)
+          for (Message _iter50 : struct.messages)
           {
-            _iter42.write(oprot);
+            _iter50.write(oprot);
           }
         }
       }
@@ -618,14 +618,14 @@ public class MessageQueue implements org.apache.thrift.TBase<MessageQueue, Messa
       }
       if (incoming.get(1)) {
         {
-          org.apache.thrift.protocol.TList _list43 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-          struct.messages = new ArrayList<Message>(_list43.size);
-          for (int _i44 = 0; _i44 < _list43.size; ++_i44)
+          org.apache.thrift.protocol.TList _list51 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+          struct.messages = new ArrayList<Message>(_list51.size);
+          for (int _i52 = 0; _i52 < _list51.size; ++_i52)
           {
-            Message _elem45; // optional
-            _elem45 = new Message();
-            _elem45.read(iprot);
-            struct.messages.add(_elem45);
+            Message _elem53; // optional
+            _elem53 = new Message();
+            _elem53.read(iprot);
+            struct.messages.add(_elem53);
           }
         }
         struct.setMessagesIsSet(true);

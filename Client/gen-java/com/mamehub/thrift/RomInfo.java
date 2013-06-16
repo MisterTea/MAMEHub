@@ -42,6 +42,7 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
   private static final org.apache.thrift.protocol.TField MISSING_REASON_FIELD_DESC = new org.apache.thrift.protocol.TField("missingReason", org.apache.thrift.protocol.TType.I32, (short)7);
   private static final org.apache.thrift.protocol.TField CHD_FILENAME_FIELD_DESC = new org.apache.thrift.protocol.TField("chdFilename", org.apache.thrift.protocol.TType.STRING, (short)8);
   private static final org.apache.thrift.protocol.TField SYSTEM_FIELD_DESC = new org.apache.thrift.protocol.TField("system", org.apache.thrift.protocol.TType.STRING, (short)9);
+  private static final org.apache.thrift.protocol.TField SOFTWARE_LISTS_FIELD_DESC = new org.apache.thrift.protocol.TField("softwareLists", org.apache.thrift.protocol.TType.LIST, (short)10);
 
   private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
   static {
@@ -62,6 +63,7 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
   public MR missingReason; // required
   public String chdFilename; // required
   public String system; // required
+  public List<SoftwareList> softwareLists; // required
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -77,7 +79,8 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
      */
     MISSING_REASON((short)7, "missingReason"),
     CHD_FILENAME((short)8, "chdFilename"),
-    SYSTEM((short)9, "system");
+    SYSTEM((short)9, "system"),
+    SOFTWARE_LISTS((short)10, "softwareLists");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -110,6 +113,8 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
           return CHD_FILENAME;
         case 9: // SYSTEM
           return SYSTEM;
+        case 10: // SOFTWARE_LISTS
+          return SOFTWARE_LISTS;
         default:
           return null;
       }
@@ -171,11 +176,16 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
     tmpMap.put(_Fields.SYSTEM, new org.apache.thrift.meta_data.FieldMetaData("system", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+    tmpMap.put(_Fields.SOFTWARE_LISTS, new org.apache.thrift.meta_data.FieldMetaData("softwareLists", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
+            new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, SoftwareList.class))));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(RomInfo.class, metaDataMap);
   }
 
   public RomInfo() {
+    this.softwareLists = new ArrayList<SoftwareList>();
+
   }
 
   public RomInfo(
@@ -187,7 +197,8 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
     String romName,
     MR missingReason,
     String chdFilename,
-    String system)
+    String system,
+    List<SoftwareList> softwareLists)
   {
     this();
     this.id = id;
@@ -199,6 +210,7 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
     this.missingReason = missingReason;
     this.chdFilename = chdFilename;
     this.system = system;
+    this.softwareLists = softwareLists;
   }
 
   /**
@@ -232,6 +244,13 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
     if (other.isSetSystem()) {
       this.system = other.system;
     }
+    if (other.isSetSoftwareLists()) {
+      List<SoftwareList> __this__softwareLists = new ArrayList<SoftwareList>();
+      for (SoftwareList other_element : other.softwareLists) {
+        __this__softwareLists.add(new SoftwareList(other_element));
+      }
+      this.softwareLists = __this__softwareLists;
+    }
   }
 
   public RomInfo deepCopy() {
@@ -249,6 +268,8 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
     this.missingReason = null;
     this.chdFilename = null;
     this.system = null;
+    this.softwareLists = new ArrayList<SoftwareList>();
+
   }
 
   public String getId() {
@@ -475,6 +496,45 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
     }
   }
 
+  public int getSoftwareListsSize() {
+    return (this.softwareLists == null) ? 0 : this.softwareLists.size();
+  }
+
+  public java.util.Iterator<SoftwareList> getSoftwareListsIterator() {
+    return (this.softwareLists == null) ? null : this.softwareLists.iterator();
+  }
+
+  public void addToSoftwareLists(SoftwareList elem) {
+    if (this.softwareLists == null) {
+      this.softwareLists = new ArrayList<SoftwareList>();
+    }
+    this.softwareLists.add(elem);
+  }
+
+  public List<SoftwareList> getSoftwareLists() {
+    return this.softwareLists;
+  }
+
+  public RomInfo setSoftwareLists(List<SoftwareList> softwareLists) {
+    this.softwareLists = softwareLists;
+    return this;
+  }
+
+  public void unsetSoftwareLists() {
+    this.softwareLists = null;
+  }
+
+  /** Returns true if field softwareLists is set (has been assigned a value) and false otherwise */
+  public boolean isSetSoftwareLists() {
+    return this.softwareLists != null;
+  }
+
+  public void setSoftwareListsIsSet(boolean value) {
+    if (!value) {
+      this.softwareLists = null;
+    }
+  }
+
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
     case ID:
@@ -549,6 +609,14 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
       }
       break;
 
+    case SOFTWARE_LISTS:
+      if (value == null) {
+        unsetSoftwareLists();
+      } else {
+        setSoftwareLists((List<SoftwareList>)value);
+      }
+      break;
+
     }
   }
 
@@ -581,6 +649,9 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
     case SYSTEM:
       return getSystem();
 
+    case SOFTWARE_LISTS:
+      return getSoftwareLists();
+
     }
     throw new IllegalStateException();
   }
@@ -610,6 +681,8 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
       return isSetChdFilename();
     case SYSTEM:
       return isSetSystem();
+    case SOFTWARE_LISTS:
+      return isSetSoftwareLists();
     }
     throw new IllegalStateException();
   }
@@ -705,6 +778,15 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
       if (!(this_present_system && that_present_system))
         return false;
       if (!this.system.equals(that.system))
+        return false;
+    }
+
+    boolean this_present_softwareLists = true && this.isSetSoftwareLists();
+    boolean that_present_softwareLists = true && that.isSetSoftwareLists();
+    if (this_present_softwareLists || that_present_softwareLists) {
+      if (!(this_present_softwareLists && that_present_softwareLists))
+        return false;
+      if (!this.softwareLists.equals(that.softwareLists))
         return false;
     }
 
@@ -814,6 +896,16 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
         return lastComparison;
       }
     }
+    lastComparison = Boolean.valueOf(isSetSoftwareLists()).compareTo(typedOther.isSetSoftwareLists());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetSoftwareLists()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.softwareLists, typedOther.softwareLists);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
     return 0;
   }
 
@@ -903,6 +995,14 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
       sb.append("null");
     } else {
       sb.append(this.system);
+    }
+    first = false;
+    if (!first) sb.append(", ");
+    sb.append("softwareLists:");
+    if (this.softwareLists == null) {
+      sb.append("null");
+    } else {
+      sb.append(this.softwareLists);
     }
     first = false;
     sb.append(")");
@@ -1020,6 +1120,25 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
+          case 10: // SOFTWARE_LISTS
+            if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
+              {
+                org.apache.thrift.protocol.TList _list0 = iprot.readListBegin();
+                struct.softwareLists = new ArrayList<SoftwareList>(_list0.size);
+                for (int _i1 = 0; _i1 < _list0.size; ++_i1)
+                {
+                  SoftwareList _elem2; // optional
+                  _elem2 = new SoftwareList();
+                  _elem2.read(iprot);
+                  struct.softwareLists.add(_elem2);
+                }
+                iprot.readListEnd();
+              }
+              struct.setSoftwareListsIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
           default:
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
         }
@@ -1080,6 +1199,18 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
         oprot.writeString(struct.system);
         oprot.writeFieldEnd();
       }
+      if (struct.softwareLists != null) {
+        oprot.writeFieldBegin(SOFTWARE_LISTS_FIELD_DESC);
+        {
+          oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.softwareLists.size()));
+          for (SoftwareList _iter3 : struct.softwareLists)
+          {
+            _iter3.write(oprot);
+          }
+          oprot.writeListEnd();
+        }
+        oprot.writeFieldEnd();
+      }
       oprot.writeFieldStop();
       oprot.writeStructEnd();
     }
@@ -1125,7 +1256,10 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
       if (struct.isSetSystem()) {
         optionals.set(8);
       }
-      oprot.writeBitSet(optionals, 9);
+      if (struct.isSetSoftwareLists()) {
+        optionals.set(9);
+      }
+      oprot.writeBitSet(optionals, 10);
       if (struct.isSetId()) {
         oprot.writeString(struct.id);
       }
@@ -1153,12 +1287,21 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
       if (struct.isSetSystem()) {
         oprot.writeString(struct.system);
       }
+      if (struct.isSetSoftwareLists()) {
+        {
+          oprot.writeI32(struct.softwareLists.size());
+          for (SoftwareList _iter4 : struct.softwareLists)
+          {
+            _iter4.write(oprot);
+          }
+        }
+      }
     }
 
     @Override
     public void read(org.apache.thrift.protocol.TProtocol prot, RomInfo struct) throws org.apache.thrift.TException {
       TTupleProtocol iprot = (TTupleProtocol) prot;
-      BitSet incoming = iprot.readBitSet(9);
+      BitSet incoming = iprot.readBitSet(10);
       if (incoming.get(0)) {
         struct.id = iprot.readString();
         struct.setIdIsSet(true);
@@ -1194,6 +1337,20 @@ public class RomInfo implements org.apache.thrift.TBase<RomInfo, RomInfo._Fields
       if (incoming.get(8)) {
         struct.system = iprot.readString();
         struct.setSystemIsSet(true);
+      }
+      if (incoming.get(9)) {
+        {
+          org.apache.thrift.protocol.TList _list5 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+          struct.softwareLists = new ArrayList<SoftwareList>(_list5.size);
+          for (int _i6 = 0; _i6 < _list5.size; ++_i6)
+          {
+            SoftwareList _elem7; // optional
+            _elem7 = new SoftwareList();
+            _elem7.read(iprot);
+            struct.softwareLists.add(_elem7);
+          }
+        }
+        struct.setSoftwareListsIsSet(true);
       }
     }
   }

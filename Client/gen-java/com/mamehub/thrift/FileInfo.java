@@ -760,15 +760,15 @@ public class FileInfo implements org.apache.thrift.TBase<FileInfo, FileInfo._Fie
           case 5: // CONTENTS_CRC32
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map0 = iprot.readMapBegin();
-                struct.contentsCrc32 = new HashMap<String,String>(2*_map0.size);
-                for (int _i1 = 0; _i1 < _map0.size; ++_i1)
+                org.apache.thrift.protocol.TMap _map8 = iprot.readMapBegin();
+                struct.contentsCrc32 = new HashMap<String,String>(2*_map8.size);
+                for (int _i9 = 0; _i9 < _map8.size; ++_i9)
                 {
-                  String _key2; // required
-                  String _val3; // required
-                  _key2 = iprot.readString();
-                  _val3 = iprot.readString();
-                  struct.contentsCrc32.put(_key2, _val3);
+                  String _key10; // required
+                  String _val11; // required
+                  _key10 = iprot.readString();
+                  _val11 = iprot.readString();
+                  struct.contentsCrc32.put(_key10, _val11);
                 }
                 iprot.readMapEnd();
               }
@@ -820,10 +820,10 @@ public class FileInfo implements org.apache.thrift.TBase<FileInfo, FileInfo._Fie
         oprot.writeFieldBegin(CONTENTS_CRC32_FIELD_DESC);
         {
           oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, struct.contentsCrc32.size()));
-          for (Map.Entry<String, String> _iter4 : struct.contentsCrc32.entrySet())
+          for (Map.Entry<String, String> _iter12 : struct.contentsCrc32.entrySet())
           {
-            oprot.writeString(_iter4.getKey());
-            oprot.writeString(_iter4.getValue());
+            oprot.writeString(_iter12.getKey());
+            oprot.writeString(_iter12.getValue());
           }
           oprot.writeMapEnd();
         }
@@ -886,10 +886,10 @@ public class FileInfo implements org.apache.thrift.TBase<FileInfo, FileInfo._Fie
       if (struct.isSetContentsCrc32()) {
         {
           oprot.writeI32(struct.contentsCrc32.size());
-          for (Map.Entry<String, String> _iter5 : struct.contentsCrc32.entrySet())
+          for (Map.Entry<String, String> _iter13 : struct.contentsCrc32.entrySet())
           {
-            oprot.writeString(_iter5.getKey());
-            oprot.writeString(_iter5.getValue());
+            oprot.writeString(_iter13.getKey());
+            oprot.writeString(_iter13.getValue());
           }
         }
       }
@@ -920,15 +920,15 @@ public class FileInfo implements org.apache.thrift.TBase<FileInfo, FileInfo._Fie
       }
       if (incoming.get(4)) {
         {
-          org.apache.thrift.protocol.TMap _map6 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-          struct.contentsCrc32 = new HashMap<String,String>(2*_map6.size);
-          for (int _i7 = 0; _i7 < _map6.size; ++_i7)
+          org.apache.thrift.protocol.TMap _map14 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+          struct.contentsCrc32 = new HashMap<String,String>(2*_map14.size);
+          for (int _i15 = 0; _i15 < _map14.size; ++_i15)
           {
-            String _key8; // required
-            String _val9; // required
-            _key8 = iprot.readString();
-            _val9 = iprot.readString();
-            struct.contentsCrc32.put(_key8, _val9);
+            String _key16; // required
+            String _val17; // required
+            _key16 = iprot.readString();
+            _val17 = iprot.readString();
+            struct.contentsCrc32.put(_key16, _val17);
           }
         }
         struct.setContentsCrc32IsSet(true);

@@ -596,25 +596,25 @@ public class PeerState implements org.apache.thrift.TBase<PeerState, PeerState._
           case 3: // DOWNLOADABLE_ROMS
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map66 = iprot.readMapBegin();
-                struct.downloadableRoms = new HashMap<String,Set<String>>(2*_map66.size);
-                for (int _i67 = 0; _i67 < _map66.size; ++_i67)
+                org.apache.thrift.protocol.TMap _map74 = iprot.readMapBegin();
+                struct.downloadableRoms = new HashMap<String,Set<String>>(2*_map74.size);
+                for (int _i75 = 0; _i75 < _map74.size; ++_i75)
                 {
-                  String _key68; // required
-                  Set<String> _val69; // required
-                  _key68 = iprot.readString();
+                  String _key76; // required
+                  Set<String> _val77; // required
+                  _key76 = iprot.readString();
                   {
-                    org.apache.thrift.protocol.TSet _set70 = iprot.readSetBegin();
-                    _val69 = new HashSet<String>(2*_set70.size);
-                    for (int _i71 = 0; _i71 < _set70.size; ++_i71)
+                    org.apache.thrift.protocol.TSet _set78 = iprot.readSetBegin();
+                    _val77 = new HashSet<String>(2*_set78.size);
+                    for (int _i79 = 0; _i79 < _set78.size; ++_i79)
                     {
-                      String _elem72; // optional
-                      _elem72 = iprot.readString();
-                      _val69.add(_elem72);
+                      String _elem80; // optional
+                      _elem80 = iprot.readString();
+                      _val77.add(_elem80);
                     }
                     iprot.readSetEnd();
                   }
-                  struct.downloadableRoms.put(_key68, _val69);
+                  struct.downloadableRoms.put(_key76, _val77);
                 }
                 iprot.readMapEnd();
               }
@@ -656,14 +656,14 @@ public class PeerState implements org.apache.thrift.TBase<PeerState, PeerState._
         oprot.writeFieldBegin(DOWNLOADABLE_ROMS_FIELD_DESC);
         {
           oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.SET, struct.downloadableRoms.size()));
-          for (Map.Entry<String, Set<String>> _iter73 : struct.downloadableRoms.entrySet())
+          for (Map.Entry<String, Set<String>> _iter81 : struct.downloadableRoms.entrySet())
           {
-            oprot.writeString(_iter73.getKey());
+            oprot.writeString(_iter81.getKey());
             {
-              oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, _iter73.getValue().size()));
-              for (String _iter74 : _iter73.getValue())
+              oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, _iter81.getValue().size()));
+              for (String _iter82 : _iter81.getValue())
               {
-                oprot.writeString(_iter74);
+                oprot.writeString(_iter82);
               }
               oprot.writeSetEnd();
             }
@@ -715,14 +715,14 @@ public class PeerState implements org.apache.thrift.TBase<PeerState, PeerState._
       if (struct.isSetDownloadableRoms()) {
         {
           oprot.writeI32(struct.downloadableRoms.size());
-          for (Map.Entry<String, Set<String>> _iter75 : struct.downloadableRoms.entrySet())
+          for (Map.Entry<String, Set<String>> _iter83 : struct.downloadableRoms.entrySet())
           {
-            oprot.writeString(_iter75.getKey());
+            oprot.writeString(_iter83.getKey());
             {
-              oprot.writeI32(_iter75.getValue().size());
-              for (String _iter76 : _iter75.getValue())
+              oprot.writeI32(_iter83.getValue().size());
+              for (String _iter84 : _iter83.getValue())
               {
-                oprot.writeString(_iter76);
+                oprot.writeString(_iter84);
               }
             }
           }
@@ -747,24 +747,24 @@ public class PeerState implements org.apache.thrift.TBase<PeerState, PeerState._
       }
       if (incoming.get(2)) {
         {
-          org.apache.thrift.protocol.TMap _map77 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.SET, iprot.readI32());
-          struct.downloadableRoms = new HashMap<String,Set<String>>(2*_map77.size);
-          for (int _i78 = 0; _i78 < _map77.size; ++_i78)
+          org.apache.thrift.protocol.TMap _map85 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.SET, iprot.readI32());
+          struct.downloadableRoms = new HashMap<String,Set<String>>(2*_map85.size);
+          for (int _i86 = 0; _i86 < _map85.size; ++_i86)
           {
-            String _key79; // required
-            Set<String> _val80; // required
-            _key79 = iprot.readString();
+            String _key87; // required
+            Set<String> _val88; // required
+            _key87 = iprot.readString();
             {
-              org.apache.thrift.protocol.TSet _set81 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-              _val80 = new HashSet<String>(2*_set81.size);
-              for (int _i82 = 0; _i82 < _set81.size; ++_i82)
+              org.apache.thrift.protocol.TSet _set89 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+              _val88 = new HashSet<String>(2*_set89.size);
+              for (int _i90 = 0; _i90 < _set89.size; ++_i90)
               {
-                String _elem83; // optional
-                _elem83 = iprot.readString();
-                _val80.add(_elem83);
+                String _elem91; // optional
+                _elem91 = iprot.readString();
+                _val88.add(_elem91);
               }
             }
-            struct.downloadableRoms.put(_key79, _val80);
+            struct.downloadableRoms.put(_key87, _val88);
           }
         }
         struct.setDownloadableRomsIsSet(true);

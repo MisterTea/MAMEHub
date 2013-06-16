@@ -146,7 +146,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 	private ClientHttpServer clientHttpServer;
 	private boolean dying = false;
 	private JTable downloadsTable;
-	protected boolean giveFeedback = true;
+	protected boolean giveFeedback = false;
 	private List<Game> joinGameList = new ArrayList<Game>();
 	private GameListModel gameListModel;
 	private JTable gameTable;
@@ -770,7 +770,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					}
 					if (match != null) {
 						// Erase the last token down to the first whitespace and
-						// then add the match
+						// then add the match and a colon
 						while (chatTextField.getText().length() > 0
 								&& chatTextField.getText().charAt(
 										chatTextField.getText().length() - 1) != ' ') {
@@ -783,9 +783,9 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 						}
 						if (chatTextField.getText().length() > 0) {
 							chatTextField.setText(chatTextField.getText()
-									+ match.name);
+									+ match.name + ": ");
 						} else {
-							chatTextField.setText(match.name);
+							chatTextField.setText(match.name + ": ");
 						}
 					}
 				}
@@ -1290,7 +1290,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					addChat(message.timestamp, "<" + playerName + "> "
 							+ message.chat);
 					if (getChatStatus() == ChatStatus.ONLINE) {
-						SoundEngine.instance.playSoundIfNotActive("ding");
+						//SoundEngine.instance.playSoundIfNotActive("ding");
+					}
+					if (message.chat.contains(rpcEngine.getMyself().name + ":")) {
+						SoundEngine.instance.playSound("ding");
 					}
 				}
 				if (message.playerChanged != null) {
@@ -1604,8 +1607,13 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 	}
 
 	@Override
-	public synchronized void updateAuditStatus(String status) {
-		statusLabel.setText(status);
+	public synchronized void updateAuditStatus(final String status) {
+		EventQueue.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				statusLabel.setText(status);
+			}
+		});
 	}
 
 	@Override

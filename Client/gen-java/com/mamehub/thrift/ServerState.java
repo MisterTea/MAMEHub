@@ -446,16 +446,16 @@ public class ServerState implements org.apache.thrift.TBase<ServerState, ServerS
           case 1: // LOGGED_IN_PLAYERS
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map46 = iprot.readMapBegin();
-                struct.loggedInPlayers = new HashMap<String,Player>(2*_map46.size);
-                for (int _i47 = 0; _i47 < _map46.size; ++_i47)
+                org.apache.thrift.protocol.TMap _map54 = iprot.readMapBegin();
+                struct.loggedInPlayers = new HashMap<String,Player>(2*_map54.size);
+                for (int _i55 = 0; _i55 < _map54.size; ++_i55)
                 {
-                  String _key48; // required
-                  Player _val49; // required
-                  _key48 = iprot.readString();
-                  _val49 = new Player();
-                  _val49.read(iprot);
-                  struct.loggedInPlayers.put(_key48, _val49);
+                  String _key56; // required
+                  Player _val57; // required
+                  _key56 = iprot.readString();
+                  _val57 = new Player();
+                  _val57.read(iprot);
+                  struct.loggedInPlayers.put(_key56, _val57);
                 }
                 iprot.readMapEnd();
               }
@@ -467,16 +467,16 @@ public class ServerState implements org.apache.thrift.TBase<ServerState, ServerS
           case 2: // GAMES
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map50 = iprot.readMapBegin();
-                struct.games = new HashMap<String,Game>(2*_map50.size);
-                for (int _i51 = 0; _i51 < _map50.size; ++_i51)
+                org.apache.thrift.protocol.TMap _map58 = iprot.readMapBegin();
+                struct.games = new HashMap<String,Game>(2*_map58.size);
+                for (int _i59 = 0; _i59 < _map58.size; ++_i59)
                 {
-                  String _key52; // required
-                  Game _val53; // required
-                  _key52 = iprot.readString();
-                  _val53 = new Game();
-                  _val53.read(iprot);
-                  struct.games.put(_key52, _val53);
+                  String _key60; // required
+                  Game _val61; // required
+                  _key60 = iprot.readString();
+                  _val61 = new Game();
+                  _val61.read(iprot);
+                  struct.games.put(_key60, _val61);
                 }
                 iprot.readMapEnd();
               }
@@ -504,10 +504,10 @@ public class ServerState implements org.apache.thrift.TBase<ServerState, ServerS
         oprot.writeFieldBegin(LOGGED_IN_PLAYERS_FIELD_DESC);
         {
           oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, struct.loggedInPlayers.size()));
-          for (Map.Entry<String, Player> _iter54 : struct.loggedInPlayers.entrySet())
+          for (Map.Entry<String, Player> _iter62 : struct.loggedInPlayers.entrySet())
           {
-            oprot.writeString(_iter54.getKey());
-            _iter54.getValue().write(oprot);
+            oprot.writeString(_iter62.getKey());
+            _iter62.getValue().write(oprot);
           }
           oprot.writeMapEnd();
         }
@@ -517,10 +517,10 @@ public class ServerState implements org.apache.thrift.TBase<ServerState, ServerS
         oprot.writeFieldBegin(GAMES_FIELD_DESC);
         {
           oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, struct.games.size()));
-          for (Map.Entry<String, Game> _iter55 : struct.games.entrySet())
+          for (Map.Entry<String, Game> _iter63 : struct.games.entrySet())
           {
-            oprot.writeString(_iter55.getKey());
-            _iter55.getValue().write(oprot);
+            oprot.writeString(_iter63.getKey());
+            _iter63.getValue().write(oprot);
           }
           oprot.writeMapEnd();
         }
@@ -554,20 +554,20 @@ public class ServerState implements org.apache.thrift.TBase<ServerState, ServerS
       if (struct.isSetLoggedInPlayers()) {
         {
           oprot.writeI32(struct.loggedInPlayers.size());
-          for (Map.Entry<String, Player> _iter56 : struct.loggedInPlayers.entrySet())
+          for (Map.Entry<String, Player> _iter64 : struct.loggedInPlayers.entrySet())
           {
-            oprot.writeString(_iter56.getKey());
-            _iter56.getValue().write(oprot);
+            oprot.writeString(_iter64.getKey());
+            _iter64.getValue().write(oprot);
           }
         }
       }
       if (struct.isSetGames()) {
         {
           oprot.writeI32(struct.games.size());
-          for (Map.Entry<String, Game> _iter57 : struct.games.entrySet())
+          for (Map.Entry<String, Game> _iter65 : struct.games.entrySet())
           {
-            oprot.writeString(_iter57.getKey());
-            _iter57.getValue().write(oprot);
+            oprot.writeString(_iter65.getKey());
+            _iter65.getValue().write(oprot);
           }
         }
       }
@@ -579,32 +579,32 @@ public class ServerState implements org.apache.thrift.TBase<ServerState, ServerS
       BitSet incoming = iprot.readBitSet(2);
       if (incoming.get(0)) {
         {
-          org.apache.thrift.protocol.TMap _map58 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-          struct.loggedInPlayers = new HashMap<String,Player>(2*_map58.size);
-          for (int _i59 = 0; _i59 < _map58.size; ++_i59)
+          org.apache.thrift.protocol.TMap _map66 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+          struct.loggedInPlayers = new HashMap<String,Player>(2*_map66.size);
+          for (int _i67 = 0; _i67 < _map66.size; ++_i67)
           {
-            String _key60; // required
-            Player _val61; // required
-            _key60 = iprot.readString();
-            _val61 = new Player();
-            _val61.read(iprot);
-            struct.loggedInPlayers.put(_key60, _val61);
+            String _key68; // required
+            Player _val69; // required
+            _key68 = iprot.readString();
+            _val69 = new Player();
+            _val69.read(iprot);
+            struct.loggedInPlayers.put(_key68, _val69);
           }
         }
         struct.setLoggedInPlayersIsSet(true);
       }
       if (incoming.get(1)) {
         {
-          org.apache.thrift.protocol.TMap _map62 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-          struct.games = new HashMap<String,Game>(2*_map62.size);
-          for (int _i63 = 0; _i63 < _map62.size; ++_i63)
+          org.apache.thrift.protocol.TMap _map70 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+          struct.games = new HashMap<String,Game>(2*_map70.size);
+          for (int _i71 = 0; _i71 < _map70.size; ++_i71)
           {
-            String _key64; // required
-            Game _val65; // required
-            _key64 = iprot.readString();
-            _val65 = new Game();
-            _val65.read(iprot);
-            struct.games.put(_key64, _val65);
+            String _key72; // required
+            Game _val73; // required
+            _key72 = iprot.readString();
+            _val73 = new Game();
+            _val73.read(iprot);
+            struct.games.put(_key72, _val73);
           }
         }
         struct.setGamesIsSet(true);
