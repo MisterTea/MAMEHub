@@ -38,6 +38,7 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
   private static final org.apache.thrift.protocol.TField CHAT_STATUS_FIELD_DESC = new org.apache.thrift.protocol.TField("chatStatus", org.apache.thrift.protocol.TType.I32, (short)3);
   private static final org.apache.thrift.protocol.TField LAST_INTERNAL_LOGIN_ID_FIELD_DESC = new org.apache.thrift.protocol.TField("lastInternalLoginId", org.apache.thrift.protocol.TType.STRING, (short)4);
   private static final org.apache.thrift.protocol.TField ALLOW_UPLOADING_FIELD_DESC = new org.apache.thrift.protocol.TField("allowUploading", org.apache.thrift.protocol.TType.BOOL, (short)5);
+  private static final org.apache.thrift.protocol.TField SHOW_EMULATOR_LOG_FIELD_DESC = new org.apache.thrift.protocol.TField("showEmulatorLog", org.apache.thrift.protocol.TType.BOOL, (short)6);
 
   private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
   static {
@@ -54,6 +55,7 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
   public ChatStatus chatStatus; // required
   public String lastInternalLoginId; // required
   public boolean allowUploading; // required
+  public boolean showEmulatorLog; // required
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -65,7 +67,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
      */
     CHAT_STATUS((short)3, "chatStatus"),
     LAST_INTERNAL_LOGIN_ID((short)4, "lastInternalLoginId"),
-    ALLOW_UPLOADING((short)5, "allowUploading");
+    ALLOW_UPLOADING((short)5, "allowUploading"),
+    SHOW_EMULATOR_LOG((short)6, "showEmulatorLog");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -90,6 +93,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
           return LAST_INTERNAL_LOGIN_ID;
         case 5: // ALLOW_UPLOADING
           return ALLOW_UPLOADING;
+        case 6: // SHOW_EMULATOR_LOG
+          return SHOW_EMULATOR_LOG;
         default:
           return null;
       }
@@ -132,6 +137,7 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
   // isset id assignments
   private static final int __CHATAUDIO_ISSET_ID = 0;
   private static final int __ALLOWUPLOADING_ISSET_ID = 1;
+  private static final int __SHOWEMULATORLOG_ISSET_ID = 2;
   private byte __isset_bitfield = 0;
   public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
   static {
@@ -145,6 +151,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     tmpMap.put(_Fields.LAST_INTERNAL_LOGIN_ID, new org.apache.thrift.meta_data.FieldMetaData("lastInternalLoginId", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
     tmpMap.put(_Fields.ALLOW_UPLOADING, new org.apache.thrift.meta_data.FieldMetaData("allowUploading", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.BOOL)));
+    tmpMap.put(_Fields.SHOW_EMULATOR_LOG, new org.apache.thrift.meta_data.FieldMetaData("showEmulatorLog", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.BOOL)));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(ApplicationSettings.class, metaDataMap);
@@ -161,6 +169,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
 
     this.allowUploading = true;
 
+    this.showEmulatorLog = false;
+
   }
 
   public ApplicationSettings(
@@ -168,7 +178,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     boolean chatAudio,
     ChatStatus chatStatus,
     String lastInternalLoginId,
-    boolean allowUploading)
+    boolean allowUploading,
+    boolean showEmulatorLog)
   {
     this();
     this.id = id;
@@ -178,6 +189,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     this.lastInternalLoginId = lastInternalLoginId;
     this.allowUploading = allowUploading;
     setAllowUploadingIsSet(true);
+    this.showEmulatorLog = showEmulatorLog;
+    setShowEmulatorLogIsSet(true);
   }
 
   /**
@@ -196,6 +209,7 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       this.lastInternalLoginId = other.lastInternalLoginId;
     }
     this.allowUploading = other.allowUploading;
+    this.showEmulatorLog = other.showEmulatorLog;
   }
 
   public ApplicationSettings deepCopy() {
@@ -213,6 +227,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     this.lastInternalLoginId = "";
 
     this.allowUploading = true;
+
+    this.showEmulatorLog = false;
 
   }
 
@@ -342,6 +358,29 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __ALLOWUPLOADING_ISSET_ID, value);
   }
 
+  public boolean isShowEmulatorLog() {
+    return this.showEmulatorLog;
+  }
+
+  public ApplicationSettings setShowEmulatorLog(boolean showEmulatorLog) {
+    this.showEmulatorLog = showEmulatorLog;
+    setShowEmulatorLogIsSet(true);
+    return this;
+  }
+
+  public void unsetShowEmulatorLog() {
+    __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __SHOWEMULATORLOG_ISSET_ID);
+  }
+
+  /** Returns true if field showEmulatorLog is set (has been assigned a value) and false otherwise */
+  public boolean isSetShowEmulatorLog() {
+    return EncodingUtils.testBit(__isset_bitfield, __SHOWEMULATORLOG_ISSET_ID);
+  }
+
+  public void setShowEmulatorLogIsSet(boolean value) {
+    __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __SHOWEMULATORLOG_ISSET_ID, value);
+  }
+
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
     case ID:
@@ -384,6 +423,14 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       }
       break;
 
+    case SHOW_EMULATOR_LOG:
+      if (value == null) {
+        unsetShowEmulatorLog();
+      } else {
+        setShowEmulatorLog((Boolean)value);
+      }
+      break;
+
     }
   }
 
@@ -403,6 +450,9 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
 
     case ALLOW_UPLOADING:
       return Boolean.valueOf(isAllowUploading());
+
+    case SHOW_EMULATOR_LOG:
+      return Boolean.valueOf(isShowEmulatorLog());
 
     }
     throw new IllegalStateException();
@@ -425,6 +475,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       return isSetLastInternalLoginId();
     case ALLOW_UPLOADING:
       return isSetAllowUploading();
+    case SHOW_EMULATOR_LOG:
+      return isSetShowEmulatorLog();
     }
     throw new IllegalStateException();
   }
@@ -484,6 +536,15 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       if (!(this_present_allowUploading && that_present_allowUploading))
         return false;
       if (this.allowUploading != that.allowUploading)
+        return false;
+    }
+
+    boolean this_present_showEmulatorLog = true;
+    boolean that_present_showEmulatorLog = true;
+    if (this_present_showEmulatorLog || that_present_showEmulatorLog) {
+      if (!(this_present_showEmulatorLog && that_present_showEmulatorLog))
+        return false;
+      if (this.showEmulatorLog != that.showEmulatorLog)
         return false;
     }
 
@@ -553,6 +614,16 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
         return lastComparison;
       }
     }
+    lastComparison = Boolean.valueOf(isSetShowEmulatorLog()).compareTo(typedOther.isSetShowEmulatorLog());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetShowEmulatorLog()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.showEmulatorLog, typedOther.showEmulatorLog);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
     return 0;
   }
 
@@ -603,6 +674,10 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     if (!first) sb.append(", ");
     sb.append("allowUploading:");
     sb.append(this.allowUploading);
+    first = false;
+    if (!first) sb.append(", ");
+    sb.append("showEmulatorLog:");
+    sb.append(this.showEmulatorLog);
     first = false;
     sb.append(")");
     return sb.toString();
@@ -689,6 +764,14 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
+          case 6: // SHOW_EMULATOR_LOG
+            if (schemeField.type == org.apache.thrift.protocol.TType.BOOL) {
+              struct.showEmulatorLog = iprot.readBool();
+              struct.setShowEmulatorLogIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
           default:
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
         }
@@ -725,6 +808,9 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       oprot.writeFieldBegin(ALLOW_UPLOADING_FIELD_DESC);
       oprot.writeBool(struct.allowUploading);
       oprot.writeFieldEnd();
+      oprot.writeFieldBegin(SHOW_EMULATOR_LOG_FIELD_DESC);
+      oprot.writeBool(struct.showEmulatorLog);
+      oprot.writeFieldEnd();
       oprot.writeFieldStop();
       oprot.writeStructEnd();
     }
@@ -758,7 +844,10 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       if (struct.isSetAllowUploading()) {
         optionals.set(4);
       }
-      oprot.writeBitSet(optionals, 5);
+      if (struct.isSetShowEmulatorLog()) {
+        optionals.set(5);
+      }
+      oprot.writeBitSet(optionals, 6);
       if (struct.isSetId()) {
         oprot.writeString(struct.id);
       }
@@ -774,12 +863,15 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       if (struct.isSetAllowUploading()) {
         oprot.writeBool(struct.allowUploading);
       }
+      if (struct.isSetShowEmulatorLog()) {
+        oprot.writeBool(struct.showEmulatorLog);
+      }
     }
 
     @Override
     public void read(org.apache.thrift.protocol.TProtocol prot, ApplicationSettings struct) throws org.apache.thrift.TException {
       TTupleProtocol iprot = (TTupleProtocol) prot;
-      BitSet incoming = iprot.readBitSet(5);
+      BitSet incoming = iprot.readBitSet(6);
       if (incoming.get(0)) {
         struct.id = iprot.readString();
         struct.setIdIsSet(true);
@@ -799,6 +891,10 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       if (incoming.get(4)) {
         struct.allowUploading = iprot.readBool();
         struct.setAllowUploadingIsSet(true);
+      }
+      if (incoming.get(5)) {
+        struct.showEmulatorLog = iprot.readBool();
+        struct.setShowEmulatorLogIsSet(true);
       }
     }
   }

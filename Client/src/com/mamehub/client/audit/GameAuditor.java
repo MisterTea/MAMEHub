@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -220,6 +221,7 @@ public class GameAuditor implements Runnable {
 
 	private void updateCache() throws IOException {
 		handler.updateAuditStatus("AUDIT: Updating cache");
+		FileUtils.deleteDirectory(indexDir);
 		indexDir.mkdir();
 		Map<String, TreeMap<String, String>> romSystemNameIdMap = Utils
 				.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
@@ -375,6 +377,10 @@ public class GameAuditor implements Runnable {
 
 	public List<RomQueryResult> queryRoms(String inputQuery,
 			Map<String, Set<String>> cloudRoms) {
+		if (isAuditing()) {
+			return new ArrayList<RomQueryResult>();
+		}
+		
 		try {
 			Directory dir = FSDirectory.open(indexDir);
 			IndexReader reader = DirectoryReader.open(dir);

@@ -66,7 +66,7 @@ public class SoundEngine implements LineListener {
 			return;
 		}
 		if(timeSinceLastBeep+1000*60*15 <= System.currentTimeMillis() && // Only play non-active sounds every 15 minutes minimum.
-			KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusedWindow() == null && !mameHubEngine.isGameRunning()) {
+			Utils.windowIsInactive(mameHubEngine)) {
 			playSound(filename);
 			timeSinceLastBeep = System.currentTimeMillis();
 		}

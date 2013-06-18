@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -19,7 +20,7 @@ import com.mamehub.client.Utils;
 public class MediaCommandFetcher {
 	final Logger logger = LoggerFactory.getLogger(MediaCommandFetcher.class);
 
-	Map<String, TreeMap<String, ArrayList<String>>> media;
+	ConcurrentMap<String, TreeMap<String, ArrayList<String>>> media;
 	
 	public MediaCommandFetcher(URL url) throws IOException {
 		media = Utils.getApplicationDatabaseEngine().getOrCreatePrimitiveMap("MediaCommands");

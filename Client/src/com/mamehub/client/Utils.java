@@ -1,6 +1,7 @@
 package com.mamehub.client;
 
 import java.awt.Desktop;
+import java.awt.KeyboardFocusManager;
 import java.awt.Window;
 import java.io.BufferedReader;
 import java.io.File;
@@ -255,5 +256,9 @@ public class Utils {
 				+ "     ("
 				+ (((float) Runtime.getRuntime().freeMemory()) * 100.0 / Runtime
 						.getRuntime().maxMemory()) + ")");
+	}
+
+	public static boolean windowIsInactive(MameHubEngine mameHubEngine) {
+		return KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusedWindow() == null && !mameHubEngine.isGameRunning();
 	}
 }

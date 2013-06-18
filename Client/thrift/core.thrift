@@ -102,6 +102,7 @@ struct ApplicationSettings
     4:string lastInternalLoginId = "",
     
     5:bool allowUploading = true,
+    6:bool showEmulatorLog = false,
 }
 
 struct PlayerInternalPassword

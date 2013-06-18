@@ -13,6 +13,9 @@ public class TestJoystick {
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		String path = System.getProperty("java.library.path");
+		System.out.println(path);
+		
 		Controller[] ca = ControllerEnvironment.getDefaultEnvironment().getControllers();
 		List<Controller> joysticks = new ArrayList<Controller>();
 
@@ -31,13 +34,17 @@ public class TestJoystick {
         
         while(true) {
         	for(Controller c : joysticks) {
-        		c.poll();
+        		if(!c.poll()) {
+        			break;
+        		}
         		Component[] components = c.getComponents();
         		for(Component component : components) {
+    				System.out.println(component.getName() + " " + component.getIdentifier().getName() + " " + component.getPollData());
         			if(component.isAnalog()) {
         			} else {
         			}
         		}
+        		System.out.println("***");
         	}
         }
 	}

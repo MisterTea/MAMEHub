@@ -26,6 +26,7 @@ public class UpdateSettingsDialog extends JDialog {
 	private JLabel lblUsername;
 	private JCheckBox chckbxAudioNotifications;
 	private JCheckBox checkBoxAllowUploading;
+	private JCheckBox checkBoxShowEmulatorLog;
 
 	/**
 	 * Launch the application.
@@ -81,6 +82,15 @@ public class UpdateSettingsDialog extends JDialog {
 						checkBoxAllowUploading.setSelected(true);
 						panel_1.add(checkBoxAllowUploading);
 					}
+					{
+						JLabel label = new JLabel("");
+						label.setHorizontalAlignment(SwingConstants.RIGHT);
+						panel_1.add(label);
+					}
+					{
+						checkBoxShowEmulatorLog = new JCheckBox("Show Emulator Log");
+						panel_1.add(checkBoxShowEmulatorLog);
+					}
 				}
 			}
 			}
@@ -121,12 +131,14 @@ public class UpdateSettingsDialog extends JDialog {
 		ApplicationSettings as = Utils.getApplicationSettings();
 		chckbxAudioNotifications.setSelected(as.chatAudio);
 		checkBoxAllowUploading.setSelected(as.allowUploading);
+		checkBoxShowEmulatorLog.setSelected(as.showEmulatorLog);
 	}
 
 	protected ApplicationSettings getNewApplicationSettings() {
 		ApplicationSettings as = Utils.getApplicationSettings();
 		as.chatAudio = chckbxAudioNotifications.isSelected();
 		as.allowUploading = checkBoxAllowUploading.isSelected();
+		as.showEmulatorLog = checkBoxShowEmulatorLog.isSelected();
 		return as;
 	}
 

@@ -394,7 +394,13 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosed(WindowEvent arg0) {
-				mameHubEngine.cancelAudit();
+				if (mameHubEngine.isAuditing()) {
+					JOptionPane.showMessageDialog(MainFrame.this,
+							"You are in the middle of a game audit.  MAMEHub will now try to cancel the audit.  This may take a few minutes.  You will get another popup once the audit has been cancelled.");
+					mameHubEngine.cancelAudit();
+					JOptionPane.showMessageDialog(MainFrame.this,
+							"The audit has been cancelled.  Make sure you run a new audit when you re-enter MAMEHub by going to Audit -> Rescan Folders from the top menubar.");
+				}
 				logger.info("Removing mainframe window");
 				if (rpcEngine != null && !rpcEngine.finished) {
 					rpcEngine.logout();
@@ -971,6 +977,20 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		});
 		mnHelp.add(mntmFileABug);
 
+		JMenuItem mntmFileAFeature = new JMenuItem("File a Feature Request");
+		mntmFileAFeature.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				try {
+					Utils.openWebpage(new URI(
+							"https://github.com/MisterTea/MAMEHub/issues"));
+				} catch (URISyntaxException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		});
+		mnHelp.add(mntmFileAFeature);
+		
 		JMenuItem mntmForum = new JMenuItem("Forum");
 		mntmForum.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -983,6 +1003,23 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			}
 		});
 		mnHelp.add(mntmForum);
+
+		JMenu mnDonate = new JMenu("MAMEHub ROCKS!!!");
+		menuBar.add(mnDonate);
+
+		JMenuItem mntmDonate = new JMenuItem("Donate");
+		mntmDonate.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				try {
+					Utils.openWebpage(new URI(
+							"https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=MY6Y9SC5JCFTS&lc=US&item_name=MAMEHub&item_number=mamehub&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHosted"));
+				} catch (URISyntaxException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		});
+		mnDonate.add(mntmDonate);
 
 		statusLabel = new JLabel("Welcome to MAMEHub!");
 		contentPane.add(statusLabel, BorderLayout.SOUTH);
@@ -1049,13 +1086,15 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 				if (systemRomInfo != null
 						&& systemRomInfo.missingReason != null) {
 					// This is a bios we don't own, start the download process
-					tryToDownload(system, gameRomInfo, knownPlayers.get(game.hostPlayerId));
+					tryToDownload(system, gameRomInfo,
+							knownPlayers.get(game.hostPlayerId));
 					return;
 				}
 
 				if (gameRomInfo.missingReason != null) {
 					// This is a game we don't own, start the download process
-					tryToDownload(system, gameRomInfo, knownPlayers.get(game.hostPlayerId));
+					tryToDownload(system, gameRomInfo,
+							knownPlayers.get(game.hostPlayerId));
 					return;
 				}
 
@@ -1101,7 +1140,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		return true;
 	}
 
-	protected void tryToDownload(String systemName, RomInfo gameRomInfo, Player fallbackPlayer) {
+	protected void tryToDownload(String systemName, RomInfo gameRomInfo,
+			Player fallbackPlayer) {
 		if (JOptionPane.showConfirmDialog(MainFrame.this,
 				"Are you legally entitled to own this ROM?", "Consent box.",
 				JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
@@ -1212,6 +1252,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		if (!gameSearchTextBox.getText().isEmpty()) {
 			// Add items in search relevance order
 			for (RomInfo romInfo : searchResults) {
+				if (!romInfo.softwareLists.isEmpty()) {
+					// Don't add systems.
+					continue;
+				}
 				model.rowRomMap.add(romInfo);
 				model.rows.add(model.romInfoToRow(romInfo, playerProfile));
 			}
@@ -1222,6 +1266,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			for (Map.Entry<String, RomInfo> entry : gameAuditor
 					.getMameRomInfoMap().entrySet()) {
 				RomInfo romInfo = entry.getValue();
+				if (!romInfo.softwareLists.isEmpty()) {
+					// Don't add systems.
+					continue;
+				}
 				if (romInfo.missingReason == null) {
 					gamesFound.put(romInfo.description, romInfo);
 				} else if (cloudRoms.containsKey("Arcade")
@@ -1290,7 +1338,18 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					addChat(message.timestamp, "<" + playerName + "> "
 							+ message.chat);
 					if (getChatStatus() == ChatStatus.ONLINE) {
-						//SoundEngine.instance.playSoundIfNotActive("ding");
+						// SoundEngine.instance.playSoundIfNotActive("ding");
+						if (Utils.windowIsInactive(mameHubEngine)) {
+							String chatPiece = message.chat;
+							if (chatPiece.length() > 50) {
+								chatPiece = chatPiece.substring(0, 47) + "...";
+							}
+							new NotifyFrame(
+									"MAMEHub Chat",
+									String.format(
+											"<html><body><font size='4' color='red'>%s</font><font size='4'>: %s</font></body></html>",
+											playerName, chatPiece));
+						}
 					}
 					if (message.chat.contains(rpcEngine.getMyself().name + ":")) {
 						SoundEngine.instance.playSound("ding");
@@ -1366,6 +1425,13 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 						 * getGameDescription(message.gameChanged) +
 						 * " has started");
 						 */
+						if (Utils.windowIsInactive(mameHubEngine)) {
+							new NotifyFrame(
+									"MAMEHub Game Started",
+									String.format(
+											"<html><body><font size='4'>%s has started.</font></body></html>",
+											getGameDescription(message.gameChanged)));
+						}
 						if (getChatStatus() == ChatStatus.ONLINE) {
 							SoundEngine.instance.playSound("gamestart");
 						}
@@ -1467,7 +1533,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					giveFeedback = false;
 				}
 
-				if (outputFile != null && outputFile.exists()) {
+				if (outputFile != null && outputFile.exists()
+						&& Utils.getApplicationSettings().showEmulatorLog) {
 					try {
 						if (Utils.isWindows()) {
 							Runtime runtime = Runtime.getRuntime();
