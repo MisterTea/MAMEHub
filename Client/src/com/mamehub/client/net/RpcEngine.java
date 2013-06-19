@@ -25,6 +25,7 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mamehub.client.Utils;
 import com.mamehub.rpc.MameHubRpc;
 import com.mamehub.rpc.NotAuthorizedException;
 import com.mamehub.thrift.Message;
@@ -199,6 +200,7 @@ public class RpcEngine implements Runnable {
 			networkHandler.handleSessionExpired();
 			finished = true;
 		} catch (TException e) {
+			e.printStackTrace();
 			networkHandler.handleException(e);
 			finished = true;
 		}
@@ -305,6 +307,7 @@ public class RpcEngine implements Runnable {
 			e.printStackTrace();
 		}
 		token = null;
+		finished = true;
 	}
 
 	public synchronized void hostGame(String system, String romName, String cartName) {
@@ -408,8 +411,13 @@ public class RpcEngine implements Runnable {
 	        		return errorMessage;
 	        	}
 	        }
+	        
+	        gameClient.setPorts(token, Utils.getApplicationSettings().basePort, Utils.getApplicationSettings().secondaryPort);
+	        
 	        return "";
 		} catch(IOException e) {
+			return e.getMessage();
+		} catch(TException e) {
 			return e.getMessage();
 		}
 	}

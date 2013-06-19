@@ -199,6 +199,10 @@ public class Utils {
 		if(as == null) {
 			as = new ApplicationSettings();
 		}
+		if (as.basePort==0) {
+			as.basePort = 6805;
+			as.secondaryPort = 6806;
+		}
 		return as;
 	}
 

@@ -32,6 +32,6 @@ import org.slf4j.LoggerFactory;
 
 public class coreConstants {
 
-  public static final int MAMEHUB_VERSION = 7;
+  public static final int MAMEHUB_VERSION = 8;
 
 }

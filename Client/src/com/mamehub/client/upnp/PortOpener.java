@@ -43,6 +43,8 @@ public class PortOpener implements Runnable {
 
 	final Logger logger = LoggerFactory.getLogger(PortOpener.class);
 	UpnpService upnpService;
+	private int input_port_1;
+	private int input_port_2;
 
 	public class MyUpnpServiceConfiguration extends
 			DefaultUpnpServiceConfiguration {
@@ -60,6 +62,11 @@ public class PortOpener implements Runnable {
 					networkAddressFactory.getStreamListenPort()));
 		}
 
+	}
+
+	public PortOpener(int input_port_1, int input_port_2) {
+		this.input_port_1 = input_port_1;
+		this.input_port_2 = input_port_2;
 	}
 
 	@Override
@@ -125,11 +132,6 @@ public class PortOpener implements Runnable {
 			}
 		};
 
-		// This will create necessary network resources for UPnP right away
-		logger.info("Starting Cling...");
-		upnpService = new UpnpServiceImpl(new MyUpnpServiceConfiguration(),
-				registryListener);
-
 		// Get internal IP address
 		String ipAddress = null;
 		try {
@@ -157,28 +159,28 @@ public class PortOpener implements Runnable {
 			throw new RuntimeException(se);
 		}
 
-		int port1 = 6805;
-		int port2 = 6806;
-		PortMapping tcpMapping = new PortMapping(port1, ipAddress,
-				PortMapping.Protocol.TCP, "MAMEHub TCP Port Mapping 1");
-		upnpService.getRegistry().addListener(
-				new PortMappingListener(tcpMapping));
-		PortMapping tcpMapping2 = new PortMapping(port2, ipAddress,
-				PortMapping.Protocol.TCP, "MAMEHub TCP Port Mapping 2");
-		upnpService.getRegistry().addListener(
-				new PortMappingListener(tcpMapping2));
-		PortMapping udpMapping = new PortMapping(port1, ipAddress,
-				PortMapping.Protocol.UDP, "MAMEHub UDP Port Mapping 1");
-		upnpService.getRegistry().addListener(
-				new PortMappingListener(udpMapping));
-		PortMapping udpMapping2 = new PortMapping(port2, ipAddress,
-				PortMapping.Protocol.UDP, "MAMEHub UDP Port Mapping 2");
-		upnpService.getRegistry().addListener(
-				new PortMappingListener(udpMapping2));
+		int port1 = input_port_1;
+		int port2 = input_port_2;
+		logger.info("FORWARDING PORTS: " + input_port_1 + " AND "
+				+ input_port_2);
+		PortMapping[] mappings = {
+				new PortMapping(port1, ipAddress, PortMapping.Protocol.TCP,
+						"MAMEHub TCP Port Mapping 1"),
+				new PortMapping(port2, ipAddress, PortMapping.Protocol.TCP,
+						"MAMEHub TCP Port Mapping 2"),
+				new PortMapping(port1, ipAddress, PortMapping.Protocol.UDP,
+						"MAMEHub UDP Port Mapping 1"),
+				new PortMapping(port2, ipAddress, PortMapping.Protocol.UDP,
+						"MAMEHub UDP Port Mapping 2") };
+
+		// This will create necessary network resources for UPnP right away
+		logger.info("Starting Cling...");
+		upnpService = new UpnpServiceImpl(registryListener,
+				new PortMappingListener(mappings));
 
 		// Send a search message to all devices and services, they should
 		// respond soon
-		upnpService.getControlPoint().search(new STAllHeader());
+		upnpService.getControlPoint().search();
 
 		// Exit cling when closing the app
 		Runtime.getRuntime().addShutdownHook(

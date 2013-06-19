@@ -17,8 +17,8 @@ import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 
-import com.mamehub.client.net.RpcEngine;
 import com.mamehub.thrift.ApplicationSettings;
+import javax.swing.JTextField;
 
 public class UpdateSettingsDialog extends JDialog {
 	private static final long serialVersionUID = 1L;
@@ -27,13 +27,15 @@ public class UpdateSettingsDialog extends JDialog {
 	private JCheckBox chckbxAudioNotifications;
 	private JCheckBox checkBoxAllowUploading;
 	private JCheckBox checkBoxShowEmulatorLog;
+	private JTextField basePort;
+	private JTextField secondaryPort;
 
 	/**
 	 * Launch the application.
 	 */
 	public static void main(String[] args) {
 		try {
-			UpdateSettingsDialog dialog = new UpdateSettingsDialog(null, null);
+			UpdateSettingsDialog dialog = new UpdateSettingsDialog(null);
 			dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			dialog.setVisible(true);
 		} catch (Exception e) {
@@ -44,7 +46,7 @@ public class UpdateSettingsDialog extends JDialog {
 	/**
 	 * Create the dialog.
 	 */
-	public UpdateSettingsDialog(JFrame parent, final RpcEngine rpcEngine) {
+	public UpdateSettingsDialog(JFrame parent) {
 		super(parent, true);
 		this.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		setBounds(100, 100, 400, 400);
@@ -57,7 +59,7 @@ public class UpdateSettingsDialog extends JDialog {
 			contentPanel.add(tabbedPane);
 			{
 				JPanel panel = new JPanel();
-				tabbedPane.addTab("Chat", null, panel, null);
+				tabbedPane.addTab("Settings", null, panel, null);
 				panel.setLayout(new BorderLayout(0, 0));
 				{
 					JPanel panel_1 = new JPanel();
@@ -90,6 +92,26 @@ public class UpdateSettingsDialog extends JDialog {
 					{
 						checkBoxShowEmulatorLog = new JCheckBox("Show Emulator Log");
 						panel_1.add(checkBoxShowEmulatorLog);
+					}
+					{
+						JLabel lblBasePort = new JLabel("Main Port");
+						lblBasePort.setHorizontalAlignment(SwingConstants.RIGHT);
+						panel_1.add(lblBasePort);
+					}
+					{
+						basePort = new JTextField();
+						panel_1.add(basePort);
+						basePort.setColumns(10);
+					}
+					{
+						JLabel lblSecondaryPort = new JLabel("Status Port");
+						lblSecondaryPort.setHorizontalAlignment(SwingConstants.RIGHT);
+						panel_1.add(lblSecondaryPort);
+					}
+					{
+						secondaryPort = new JTextField();
+						secondaryPort.setColumns(10);
+						panel_1.add(secondaryPort);
 					}
 				}
 			}
@@ -125,6 +147,8 @@ public class UpdateSettingsDialog extends JDialog {
 		}
 		
 		loadFromApplicationSettings();
+		
+		setVisible(true);
 	}
 
 	private void loadFromApplicationSettings() {
@@ -132,6 +156,8 @@ public class UpdateSettingsDialog extends JDialog {
 		chckbxAudioNotifications.setSelected(as.chatAudio);
 		checkBoxAllowUploading.setSelected(as.allowUploading);
 		checkBoxShowEmulatorLog.setSelected(as.showEmulatorLog);
+		basePort.setText(""+as.basePort);
+		secondaryPort.setText(""+as.secondaryPort);
 	}
 
 	protected ApplicationSettings getNewApplicationSettings() {
@@ -139,6 +165,8 @@ public class UpdateSettingsDialog extends JDialog {
 		as.chatAudio = chckbxAudioNotifications.isSelected();
 		as.allowUploading = checkBoxAllowUploading.isSelected();
 		as.showEmulatorLog = checkBoxShowEmulatorLog.isSelected();
+		as.basePort = Integer.parseInt(basePort.getText());
+		as.secondaryPort = Integer.parseInt(secondaryPort.getText());
 		return as;
 	}
 

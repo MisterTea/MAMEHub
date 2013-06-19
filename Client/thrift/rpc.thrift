@@ -47,6 +47,8 @@ service MameHubRpc
     void updateStatus(1:string token, 2:core.PlayerStatus status) throws (1:NotAuthorizedException e),
     
     void postUserFeedback(1:string token, 2:string comment, 3:string log) throws (1:NotAuthorizedException e),
+    
+    void setPorts(1:string token, 2:i32 basePort, 3:i32 secondaryPort) throws (1:NotAuthorizedException e),
 }
 
 

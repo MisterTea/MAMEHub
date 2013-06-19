@@ -7,9 +7,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Logger;
 
 import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.mamehub.client.MameHubEngine;
 import com.mamehub.client.Utils;
@@ -22,7 +23,7 @@ import com.mamehub.thrift.FileResponseCode;
 import com.mamehub.thrift.PeerFileInfo;
 
 public class MameHubClientRpcImpl implements MameHubClientRpc.Iface {
-	private final static Logger logger = Logger.getLogger(MameHubClientRpcImpl.class.getName());
+	final Logger logger = LoggerFactory.getLogger(MameHubClientRpcImpl.class);
 	private static long lastRomUpdateTime = 0L;
 	private static Map<String, Set<String>> downloadableRoms = null;
 	public static MameHubEngine mameHubEngine;

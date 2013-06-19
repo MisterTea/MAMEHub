@@ -107,9 +107,9 @@ public class Main {
 		new File("mess.ini").delete();
 
 		try {
-			portOpenerThread = new Thread(new PortOpener());
+			portOpenerThread = new Thread(new PortOpener(Utils.getApplicationSettings().basePort, Utils.getApplicationSettings().secondaryPort));
 			portOpenerThread.start();
-			ClientHttpServer clientHttpServer = new ClientHttpServer();
+			ClientHttpServer clientHttpServer = new ClientHttpServer(Utils.getApplicationSettings().basePort);
 			LoginDialog dialog = new LoginDialog(clientHttpServer);
 			dialog.setVisible(true);
 		} catch (Exception e) {

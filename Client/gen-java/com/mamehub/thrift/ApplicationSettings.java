@@ -39,6 +39,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
   private static final org.apache.thrift.protocol.TField LAST_INTERNAL_LOGIN_ID_FIELD_DESC = new org.apache.thrift.protocol.TField("lastInternalLoginId", org.apache.thrift.protocol.TType.STRING, (short)4);
   private static final org.apache.thrift.protocol.TField ALLOW_UPLOADING_FIELD_DESC = new org.apache.thrift.protocol.TField("allowUploading", org.apache.thrift.protocol.TType.BOOL, (short)5);
   private static final org.apache.thrift.protocol.TField SHOW_EMULATOR_LOG_FIELD_DESC = new org.apache.thrift.protocol.TField("showEmulatorLog", org.apache.thrift.protocol.TType.BOOL, (short)6);
+  private static final org.apache.thrift.protocol.TField BASE_PORT_FIELD_DESC = new org.apache.thrift.protocol.TField("basePort", org.apache.thrift.protocol.TType.I32, (short)7);
+  private static final org.apache.thrift.protocol.TField SECONDARY_PORT_FIELD_DESC = new org.apache.thrift.protocol.TField("secondaryPort", org.apache.thrift.protocol.TType.I32, (short)8);
 
   private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
   static {
@@ -56,6 +58,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
   public String lastInternalLoginId; // required
   public boolean allowUploading; // required
   public boolean showEmulatorLog; // required
+  public int basePort; // required
+  public int secondaryPort; // required
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -68,7 +72,9 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     CHAT_STATUS((short)3, "chatStatus"),
     LAST_INTERNAL_LOGIN_ID((short)4, "lastInternalLoginId"),
     ALLOW_UPLOADING((short)5, "allowUploading"),
-    SHOW_EMULATOR_LOG((short)6, "showEmulatorLog");
+    SHOW_EMULATOR_LOG((short)6, "showEmulatorLog"),
+    BASE_PORT((short)7, "basePort"),
+    SECONDARY_PORT((short)8, "secondaryPort");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -95,6 +101,10 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
           return ALLOW_UPLOADING;
         case 6: // SHOW_EMULATOR_LOG
           return SHOW_EMULATOR_LOG;
+        case 7: // BASE_PORT
+          return BASE_PORT;
+        case 8: // SECONDARY_PORT
+          return SECONDARY_PORT;
         default:
           return null;
       }
@@ -138,6 +148,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
   private static final int __CHATAUDIO_ISSET_ID = 0;
   private static final int __ALLOWUPLOADING_ISSET_ID = 1;
   private static final int __SHOWEMULATORLOG_ISSET_ID = 2;
+  private static final int __BASEPORT_ISSET_ID = 3;
+  private static final int __SECONDARYPORT_ISSET_ID = 4;
   private byte __isset_bitfield = 0;
   public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
   static {
@@ -154,6 +166,10 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.BOOL)));
     tmpMap.put(_Fields.SHOW_EMULATOR_LOG, new org.apache.thrift.meta_data.FieldMetaData("showEmulatorLog", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.BOOL)));
+    tmpMap.put(_Fields.BASE_PORT, new org.apache.thrift.meta_data.FieldMetaData("basePort", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
+    tmpMap.put(_Fields.SECONDARY_PORT, new org.apache.thrift.meta_data.FieldMetaData("secondaryPort", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(ApplicationSettings.class, metaDataMap);
   }
@@ -171,6 +187,10 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
 
     this.showEmulatorLog = false;
 
+    this.basePort = 6805;
+
+    this.secondaryPort = 6806;
+
   }
 
   public ApplicationSettings(
@@ -179,7 +199,9 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     ChatStatus chatStatus,
     String lastInternalLoginId,
     boolean allowUploading,
-    boolean showEmulatorLog)
+    boolean showEmulatorLog,
+    int basePort,
+    int secondaryPort)
   {
     this();
     this.id = id;
@@ -191,6 +213,10 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     setAllowUploadingIsSet(true);
     this.showEmulatorLog = showEmulatorLog;
     setShowEmulatorLogIsSet(true);
+    this.basePort = basePort;
+    setBasePortIsSet(true);
+    this.secondaryPort = secondaryPort;
+    setSecondaryPortIsSet(true);
   }
 
   /**
@@ -210,6 +236,8 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     }
     this.allowUploading = other.allowUploading;
     this.showEmulatorLog = other.showEmulatorLog;
+    this.basePort = other.basePort;
+    this.secondaryPort = other.secondaryPort;
   }
 
   public ApplicationSettings deepCopy() {
@@ -229,6 +257,10 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     this.allowUploading = true;
 
     this.showEmulatorLog = false;
+
+    this.basePort = 6805;
+
+    this.secondaryPort = 6806;
 
   }
 
@@ -381,6 +413,52 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __SHOWEMULATORLOG_ISSET_ID, value);
   }
 
+  public int getBasePort() {
+    return this.basePort;
+  }
+
+  public ApplicationSettings setBasePort(int basePort) {
+    this.basePort = basePort;
+    setBasePortIsSet(true);
+    return this;
+  }
+
+  public void unsetBasePort() {
+    __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __BASEPORT_ISSET_ID);
+  }
+
+  /** Returns true if field basePort is set (has been assigned a value) and false otherwise */
+  public boolean isSetBasePort() {
+    return EncodingUtils.testBit(__isset_bitfield, __BASEPORT_ISSET_ID);
+  }
+
+  public void setBasePortIsSet(boolean value) {
+    __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __BASEPORT_ISSET_ID, value);
+  }
+
+  public int getSecondaryPort() {
+    return this.secondaryPort;
+  }
+
+  public ApplicationSettings setSecondaryPort(int secondaryPort) {
+    this.secondaryPort = secondaryPort;
+    setSecondaryPortIsSet(true);
+    return this;
+  }
+
+  public void unsetSecondaryPort() {
+    __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __SECONDARYPORT_ISSET_ID);
+  }
+
+  /** Returns true if field secondaryPort is set (has been assigned a value) and false otherwise */
+  public boolean isSetSecondaryPort() {
+    return EncodingUtils.testBit(__isset_bitfield, __SECONDARYPORT_ISSET_ID);
+  }
+
+  public void setSecondaryPortIsSet(boolean value) {
+    __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __SECONDARYPORT_ISSET_ID, value);
+  }
+
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
     case ID:
@@ -431,6 +509,22 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       }
       break;
 
+    case BASE_PORT:
+      if (value == null) {
+        unsetBasePort();
+      } else {
+        setBasePort((Integer)value);
+      }
+      break;
+
+    case SECONDARY_PORT:
+      if (value == null) {
+        unsetSecondaryPort();
+      } else {
+        setSecondaryPort((Integer)value);
+      }
+      break;
+
     }
   }
 
@@ -453,6 +547,12 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
 
     case SHOW_EMULATOR_LOG:
       return Boolean.valueOf(isShowEmulatorLog());
+
+    case BASE_PORT:
+      return Integer.valueOf(getBasePort());
+
+    case SECONDARY_PORT:
+      return Integer.valueOf(getSecondaryPort());
 
     }
     throw new IllegalStateException();
@@ -477,6 +577,10 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       return isSetAllowUploading();
     case SHOW_EMULATOR_LOG:
       return isSetShowEmulatorLog();
+    case BASE_PORT:
+      return isSetBasePort();
+    case SECONDARY_PORT:
+      return isSetSecondaryPort();
     }
     throw new IllegalStateException();
   }
@@ -545,6 +649,24 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       if (!(this_present_showEmulatorLog && that_present_showEmulatorLog))
         return false;
       if (this.showEmulatorLog != that.showEmulatorLog)
+        return false;
+    }
+
+    boolean this_present_basePort = true;
+    boolean that_present_basePort = true;
+    if (this_present_basePort || that_present_basePort) {
+      if (!(this_present_basePort && that_present_basePort))
+        return false;
+      if (this.basePort != that.basePort)
+        return false;
+    }
+
+    boolean this_present_secondaryPort = true;
+    boolean that_present_secondaryPort = true;
+    if (this_present_secondaryPort || that_present_secondaryPort) {
+      if (!(this_present_secondaryPort && that_present_secondaryPort))
+        return false;
+      if (this.secondaryPort != that.secondaryPort)
         return false;
     }
 
@@ -624,6 +746,26 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
         return lastComparison;
       }
     }
+    lastComparison = Boolean.valueOf(isSetBasePort()).compareTo(typedOther.isSetBasePort());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetBasePort()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.basePort, typedOther.basePort);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
+    lastComparison = Boolean.valueOf(isSetSecondaryPort()).compareTo(typedOther.isSetSecondaryPort());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetSecondaryPort()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.secondaryPort, typedOther.secondaryPort);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
     return 0;
   }
 
@@ -678,6 +820,14 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
     if (!first) sb.append(", ");
     sb.append("showEmulatorLog:");
     sb.append(this.showEmulatorLog);
+    first = false;
+    if (!first) sb.append(", ");
+    sb.append("basePort:");
+    sb.append(this.basePort);
+    first = false;
+    if (!first) sb.append(", ");
+    sb.append("secondaryPort:");
+    sb.append(this.secondaryPort);
     first = false;
     sb.append(")");
     return sb.toString();
@@ -772,6 +922,22 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
+          case 7: // BASE_PORT
+            if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+              struct.basePort = iprot.readI32();
+              struct.setBasePortIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
+          case 8: // SECONDARY_PORT
+            if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+              struct.secondaryPort = iprot.readI32();
+              struct.setSecondaryPortIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
           default:
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
         }
@@ -811,6 +977,12 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       oprot.writeFieldBegin(SHOW_EMULATOR_LOG_FIELD_DESC);
       oprot.writeBool(struct.showEmulatorLog);
       oprot.writeFieldEnd();
+      oprot.writeFieldBegin(BASE_PORT_FIELD_DESC);
+      oprot.writeI32(struct.basePort);
+      oprot.writeFieldEnd();
+      oprot.writeFieldBegin(SECONDARY_PORT_FIELD_DESC);
+      oprot.writeI32(struct.secondaryPort);
+      oprot.writeFieldEnd();
       oprot.writeFieldStop();
       oprot.writeStructEnd();
     }
@@ -847,7 +1019,13 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       if (struct.isSetShowEmulatorLog()) {
         optionals.set(5);
       }
-      oprot.writeBitSet(optionals, 6);
+      if (struct.isSetBasePort()) {
+        optionals.set(6);
+      }
+      if (struct.isSetSecondaryPort()) {
+        optionals.set(7);
+      }
+      oprot.writeBitSet(optionals, 8);
       if (struct.isSetId()) {
         oprot.writeString(struct.id);
       }
@@ -866,12 +1044,18 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       if (struct.isSetShowEmulatorLog()) {
         oprot.writeBool(struct.showEmulatorLog);
       }
+      if (struct.isSetBasePort()) {
+        oprot.writeI32(struct.basePort);
+      }
+      if (struct.isSetSecondaryPort()) {
+        oprot.writeI32(struct.secondaryPort);
+      }
     }
 
     @Override
     public void read(org.apache.thrift.protocol.TProtocol prot, ApplicationSettings struct) throws org.apache.thrift.TException {
       TTupleProtocol iprot = (TTupleProtocol) prot;
-      BitSet incoming = iprot.readBitSet(6);
+      BitSet incoming = iprot.readBitSet(8);
       if (incoming.get(0)) {
         struct.id = iprot.readString();
         struct.setIdIsSet(true);
@@ -895,6 +1079,14 @@ public class ApplicationSettings implements org.apache.thrift.TBase<ApplicationS
       if (incoming.get(5)) {
         struct.showEmulatorLog = iprot.readBool();
         struct.setShowEmulatorLogIsSet(true);
+      }
+      if (incoming.get(6)) {
+        struct.basePort = iprot.readI32();
+        struct.setBasePortIsSet(true);
+      }
+      if (incoming.get(7)) {
+        struct.secondaryPort = iprot.readI32();
+        struct.setSecondaryPortIsSet(true);
       }
     }
   }

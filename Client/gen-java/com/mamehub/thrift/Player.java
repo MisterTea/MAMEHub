@@ -36,12 +36,13 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
   private static final org.apache.thrift.protocol.TField ID_FIELD_DESC = new org.apache.thrift.protocol.TField("id", org.apache.thrift.protocol.TType.STRING, (short)1);
   private static final org.apache.thrift.protocol.TField NAME_FIELD_DESC = new org.apache.thrift.protocol.TField("name", org.apache.thrift.protocol.TType.STRING, (short)2);
   private static final org.apache.thrift.protocol.TField IP_ADDRESS_FIELD_DESC = new org.apache.thrift.protocol.TField("ipAddress", org.apache.thrift.protocol.TType.STRING, (short)3);
-  private static final org.apache.thrift.protocol.TField PORT_FIELD_DESC = new org.apache.thrift.protocol.TField("port", org.apache.thrift.protocol.TType.I32, (short)4);
   private static final org.apache.thrift.protocol.TField LOGGED_IN_FIELD_DESC = new org.apache.thrift.protocol.TField("loggedIn", org.apache.thrift.protocol.TType.BOOL, (short)5);
   private static final org.apache.thrift.protocol.TField MODERATOR_FIELD_DESC = new org.apache.thrift.protocol.TField("moderator", org.apache.thrift.protocol.TType.BOOL, (short)6);
   private static final org.apache.thrift.protocol.TField IN_GAME_FIELD_DESC = new org.apache.thrift.protocol.TField("inGame", org.apache.thrift.protocol.TType.STRING, (short)7);
   private static final org.apache.thrift.protocol.TField PORTS_OPEN_FIELD_DESC = new org.apache.thrift.protocol.TField("portsOpen", org.apache.thrift.protocol.TType.BOOL, (short)8);
   private static final org.apache.thrift.protocol.TField STATUS_FIELD_DESC = new org.apache.thrift.protocol.TField("status", org.apache.thrift.protocol.TType.STRUCT, (short)11);
+  private static final org.apache.thrift.protocol.TField BASE_PORT_FIELD_DESC = new org.apache.thrift.protocol.TField("basePort", org.apache.thrift.protocol.TType.I32, (short)12);
+  private static final org.apache.thrift.protocol.TField SECONDARY_PORT_FIELD_DESC = new org.apache.thrift.protocol.TField("secondaryPort", org.apache.thrift.protocol.TType.I32, (short)13);
 
   private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
   static {
@@ -52,24 +53,26 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
   public String id; // required
   public String name; // required
   public String ipAddress; // required
-  public int port; // required
   public boolean loggedIn; // required
   public boolean moderator; // required
   public String inGame; // required
   public boolean portsOpen; // required
   public PlayerStatus status; // required
+  public int basePort; // required
+  public int secondaryPort; // required
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
     ID((short)1, "id"),
     NAME((short)2, "name"),
     IP_ADDRESS((short)3, "ipAddress"),
-    PORT((short)4, "port"),
     LOGGED_IN((short)5, "loggedIn"),
     MODERATOR((short)6, "moderator"),
     IN_GAME((short)7, "inGame"),
     PORTS_OPEN((short)8, "portsOpen"),
-    STATUS((short)11, "status");
+    STATUS((short)11, "status"),
+    BASE_PORT((short)12, "basePort"),
+    SECONDARY_PORT((short)13, "secondaryPort");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -90,8 +93,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
           return NAME;
         case 3: // IP_ADDRESS
           return IP_ADDRESS;
-        case 4: // PORT
-          return PORT;
         case 5: // LOGGED_IN
           return LOGGED_IN;
         case 6: // MODERATOR
@@ -102,6 +103,10 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
           return PORTS_OPEN;
         case 11: // STATUS
           return STATUS;
+        case 12: // BASE_PORT
+          return BASE_PORT;
+        case 13: // SECONDARY_PORT
+          return SECONDARY_PORT;
         default:
           return null;
       }
@@ -142,10 +147,11 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
   }
 
   // isset id assignments
-  private static final int __PORT_ISSET_ID = 0;
-  private static final int __LOGGEDIN_ISSET_ID = 1;
-  private static final int __MODERATOR_ISSET_ID = 2;
-  private static final int __PORTSOPEN_ISSET_ID = 3;
+  private static final int __LOGGEDIN_ISSET_ID = 0;
+  private static final int __MODERATOR_ISSET_ID = 1;
+  private static final int __PORTSOPEN_ISSET_ID = 2;
+  private static final int __BASEPORT_ISSET_ID = 3;
+  private static final int __SECONDARYPORT_ISSET_ID = 4;
   private byte __isset_bitfield = 0;
   public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
   static {
@@ -156,8 +162,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
     tmpMap.put(_Fields.IP_ADDRESS, new org.apache.thrift.meta_data.FieldMetaData("ipAddress", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
-    tmpMap.put(_Fields.PORT, new org.apache.thrift.meta_data.FieldMetaData("port", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
     tmpMap.put(_Fields.LOGGED_IN, new org.apache.thrift.meta_data.FieldMetaData("loggedIn", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.BOOL)));
     tmpMap.put(_Fields.MODERATOR, new org.apache.thrift.meta_data.FieldMetaData("moderator", org.apache.thrift.TFieldRequirementType.DEFAULT, 
@@ -168,13 +172,15 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.BOOL)));
     tmpMap.put(_Fields.STATUS, new org.apache.thrift.meta_data.FieldMetaData("status", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, PlayerStatus.class)));
+    tmpMap.put(_Fields.BASE_PORT, new org.apache.thrift.meta_data.FieldMetaData("basePort", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
+    tmpMap.put(_Fields.SECONDARY_PORT, new org.apache.thrift.meta_data.FieldMetaData("secondaryPort", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(Player.class, metaDataMap);
   }
 
   public Player() {
-    this.port = 6805;
-
     this.loggedIn = true;
 
     this.moderator = false;
@@ -183,25 +189,28 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
 
     this.portsOpen = false;
 
+    this.basePort = 6805;
+
+    this.secondaryPort = 6806;
+
   }
 
   public Player(
     String id,
     String name,
     String ipAddress,
-    int port,
     boolean loggedIn,
     boolean moderator,
     String inGame,
     boolean portsOpen,
-    PlayerStatus status)
+    PlayerStatus status,
+    int basePort,
+    int secondaryPort)
   {
     this();
     this.id = id;
     this.name = name;
     this.ipAddress = ipAddress;
-    this.port = port;
-    setPortIsSet(true);
     this.loggedIn = loggedIn;
     setLoggedInIsSet(true);
     this.moderator = moderator;
@@ -210,6 +219,10 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     this.portsOpen = portsOpen;
     setPortsOpenIsSet(true);
     this.status = status;
+    this.basePort = basePort;
+    setBasePortIsSet(true);
+    this.secondaryPort = secondaryPort;
+    setSecondaryPortIsSet(true);
   }
 
   /**
@@ -226,7 +239,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     if (other.isSetIpAddress()) {
       this.ipAddress = other.ipAddress;
     }
-    this.port = other.port;
     this.loggedIn = other.loggedIn;
     this.moderator = other.moderator;
     if (other.isSetInGame()) {
@@ -236,6 +248,8 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     if (other.isSetStatus()) {
       this.status = new PlayerStatus(other.status);
     }
+    this.basePort = other.basePort;
+    this.secondaryPort = other.secondaryPort;
   }
 
   public Player deepCopy() {
@@ -247,8 +261,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     this.id = null;
     this.name = null;
     this.ipAddress = null;
-    this.port = 6805;
-
     this.loggedIn = true;
 
     this.moderator = false;
@@ -258,6 +270,10 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     this.portsOpen = false;
 
     this.status = null;
+    this.basePort = 6805;
+
+    this.secondaryPort = 6806;
+
   }
 
   public String getId() {
@@ -330,29 +346,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     if (!value) {
       this.ipAddress = null;
     }
-  }
-
-  public int getPort() {
-    return this.port;
-  }
-
-  public Player setPort(int port) {
-    this.port = port;
-    setPortIsSet(true);
-    return this;
-  }
-
-  public void unsetPort() {
-    __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __PORT_ISSET_ID);
-  }
-
-  /** Returns true if field port is set (has been assigned a value) and false otherwise */
-  public boolean isSetPort() {
-    return EncodingUtils.testBit(__isset_bitfield, __PORT_ISSET_ID);
-  }
-
-  public void setPortIsSet(boolean value) {
-    __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __PORT_ISSET_ID, value);
   }
 
   public boolean isLoggedIn() {
@@ -472,6 +465,52 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     }
   }
 
+  public int getBasePort() {
+    return this.basePort;
+  }
+
+  public Player setBasePort(int basePort) {
+    this.basePort = basePort;
+    setBasePortIsSet(true);
+    return this;
+  }
+
+  public void unsetBasePort() {
+    __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __BASEPORT_ISSET_ID);
+  }
+
+  /** Returns true if field basePort is set (has been assigned a value) and false otherwise */
+  public boolean isSetBasePort() {
+    return EncodingUtils.testBit(__isset_bitfield, __BASEPORT_ISSET_ID);
+  }
+
+  public void setBasePortIsSet(boolean value) {
+    __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __BASEPORT_ISSET_ID, value);
+  }
+
+  public int getSecondaryPort() {
+    return this.secondaryPort;
+  }
+
+  public Player setSecondaryPort(int secondaryPort) {
+    this.secondaryPort = secondaryPort;
+    setSecondaryPortIsSet(true);
+    return this;
+  }
+
+  public void unsetSecondaryPort() {
+    __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __SECONDARYPORT_ISSET_ID);
+  }
+
+  /** Returns true if field secondaryPort is set (has been assigned a value) and false otherwise */
+  public boolean isSetSecondaryPort() {
+    return EncodingUtils.testBit(__isset_bitfield, __SECONDARYPORT_ISSET_ID);
+  }
+
+  public void setSecondaryPortIsSet(boolean value) {
+    __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __SECONDARYPORT_ISSET_ID, value);
+  }
+
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
     case ID:
@@ -495,14 +534,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
         unsetIpAddress();
       } else {
         setIpAddress((String)value);
-      }
-      break;
-
-    case PORT:
-      if (value == null) {
-        unsetPort();
-      } else {
-        setPort((Integer)value);
       }
       break;
 
@@ -546,6 +577,22 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
       }
       break;
 
+    case BASE_PORT:
+      if (value == null) {
+        unsetBasePort();
+      } else {
+        setBasePort((Integer)value);
+      }
+      break;
+
+    case SECONDARY_PORT:
+      if (value == null) {
+        unsetSecondaryPort();
+      } else {
+        setSecondaryPort((Integer)value);
+      }
+      break;
+
     }
   }
 
@@ -559,9 +606,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
 
     case IP_ADDRESS:
       return getIpAddress();
-
-    case PORT:
-      return Integer.valueOf(getPort());
 
     case LOGGED_IN:
       return Boolean.valueOf(isLoggedIn());
@@ -577,6 +621,12 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
 
     case STATUS:
       return getStatus();
+
+    case BASE_PORT:
+      return Integer.valueOf(getBasePort());
+
+    case SECONDARY_PORT:
+      return Integer.valueOf(getSecondaryPort());
 
     }
     throw new IllegalStateException();
@@ -595,8 +645,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
       return isSetName();
     case IP_ADDRESS:
       return isSetIpAddress();
-    case PORT:
-      return isSetPort();
     case LOGGED_IN:
       return isSetLoggedIn();
     case MODERATOR:
@@ -607,6 +655,10 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
       return isSetPortsOpen();
     case STATUS:
       return isSetStatus();
+    case BASE_PORT:
+      return isSetBasePort();
+    case SECONDARY_PORT:
+      return isSetSecondaryPort();
     }
     throw new IllegalStateException();
   }
@@ -648,15 +700,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
       if (!(this_present_ipAddress && that_present_ipAddress))
         return false;
       if (!this.ipAddress.equals(that.ipAddress))
-        return false;
-    }
-
-    boolean this_present_port = true;
-    boolean that_present_port = true;
-    if (this_present_port || that_present_port) {
-      if (!(this_present_port && that_present_port))
-        return false;
-      if (this.port != that.port)
         return false;
     }
 
@@ -705,6 +748,24 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
         return false;
     }
 
+    boolean this_present_basePort = true;
+    boolean that_present_basePort = true;
+    if (this_present_basePort || that_present_basePort) {
+      if (!(this_present_basePort && that_present_basePort))
+        return false;
+      if (this.basePort != that.basePort)
+        return false;
+    }
+
+    boolean this_present_secondaryPort = true;
+    boolean that_present_secondaryPort = true;
+    if (this_present_secondaryPort || that_present_secondaryPort) {
+      if (!(this_present_secondaryPort && that_present_secondaryPort))
+        return false;
+      if (this.secondaryPort != that.secondaryPort)
+        return false;
+    }
+
     return true;
   }
 
@@ -747,16 +808,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     }
     if (isSetIpAddress()) {
       lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.ipAddress, typedOther.ipAddress);
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-    }
-    lastComparison = Boolean.valueOf(isSetPort()).compareTo(typedOther.isSetPort());
-    if (lastComparison != 0) {
-      return lastComparison;
-    }
-    if (isSetPort()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.port, typedOther.port);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -811,6 +862,26 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
         return lastComparison;
       }
     }
+    lastComparison = Boolean.valueOf(isSetBasePort()).compareTo(typedOther.isSetBasePort());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetBasePort()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.basePort, typedOther.basePort);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
+    lastComparison = Boolean.valueOf(isSetSecondaryPort()).compareTo(typedOther.isSetSecondaryPort());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetSecondaryPort()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.secondaryPort, typedOther.secondaryPort);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
     return 0;
   }
 
@@ -855,10 +926,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     }
     first = false;
     if (!first) sb.append(", ");
-    sb.append("port:");
-    sb.append(this.port);
-    first = false;
-    if (!first) sb.append(", ");
     sb.append("loggedIn:");
     sb.append(this.loggedIn);
     first = false;
@@ -885,6 +952,14 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
     } else {
       sb.append(this.status);
     }
+    first = false;
+    if (!first) sb.append(", ");
+    sb.append("basePort:");
+    sb.append(this.basePort);
+    first = false;
+    if (!first) sb.append(", ");
+    sb.append("secondaryPort:");
+    sb.append(this.secondaryPort);
     first = false;
     sb.append(")");
     return sb.toString();
@@ -958,14 +1033,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
-          case 4: // PORT
-            if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
-              struct.port = iprot.readI32();
-              struct.setPortIsSet(true);
-            } else { 
-              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
-            }
-            break;
           case 5: // LOGGED_IN
             if (schemeField.type == org.apache.thrift.protocol.TType.BOOL) {
               struct.loggedIn = iprot.readBool();
@@ -1007,6 +1074,22 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
+          case 12: // BASE_PORT
+            if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+              struct.basePort = iprot.readI32();
+              struct.setBasePortIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
+          case 13: // SECONDARY_PORT
+            if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+              struct.secondaryPort = iprot.readI32();
+              struct.setSecondaryPortIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
           default:
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
         }
@@ -1037,9 +1120,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
         oprot.writeString(struct.ipAddress);
         oprot.writeFieldEnd();
       }
-      oprot.writeFieldBegin(PORT_FIELD_DESC);
-      oprot.writeI32(struct.port);
-      oprot.writeFieldEnd();
       oprot.writeFieldBegin(LOGGED_IN_FIELD_DESC);
       oprot.writeBool(struct.loggedIn);
       oprot.writeFieldEnd();
@@ -1059,6 +1139,12 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
         struct.status.write(oprot);
         oprot.writeFieldEnd();
       }
+      oprot.writeFieldBegin(BASE_PORT_FIELD_DESC);
+      oprot.writeI32(struct.basePort);
+      oprot.writeFieldEnd();
+      oprot.writeFieldBegin(SECONDARY_PORT_FIELD_DESC);
+      oprot.writeI32(struct.secondaryPort);
+      oprot.writeFieldEnd();
       oprot.writeFieldStop();
       oprot.writeStructEnd();
     }
@@ -1086,25 +1172,28 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
       if (struct.isSetIpAddress()) {
         optionals.set(2);
       }
-      if (struct.isSetPort()) {
+      if (struct.isSetLoggedIn()) {
         optionals.set(3);
       }
-      if (struct.isSetLoggedIn()) {
+      if (struct.isSetModerator()) {
         optionals.set(4);
       }
-      if (struct.isSetModerator()) {
+      if (struct.isSetInGame()) {
         optionals.set(5);
       }
-      if (struct.isSetInGame()) {
+      if (struct.isSetPortsOpen()) {
         optionals.set(6);
       }
-      if (struct.isSetPortsOpen()) {
+      if (struct.isSetStatus()) {
         optionals.set(7);
       }
-      if (struct.isSetStatus()) {
+      if (struct.isSetBasePort()) {
         optionals.set(8);
       }
-      oprot.writeBitSet(optionals, 9);
+      if (struct.isSetSecondaryPort()) {
+        optionals.set(9);
+      }
+      oprot.writeBitSet(optionals, 10);
       if (struct.isSetId()) {
         oprot.writeString(struct.id);
       }
@@ -1113,9 +1202,6 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
       }
       if (struct.isSetIpAddress()) {
         oprot.writeString(struct.ipAddress);
-      }
-      if (struct.isSetPort()) {
-        oprot.writeI32(struct.port);
       }
       if (struct.isSetLoggedIn()) {
         oprot.writeBool(struct.loggedIn);
@@ -1132,12 +1218,18 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
       if (struct.isSetStatus()) {
         struct.status.write(oprot);
       }
+      if (struct.isSetBasePort()) {
+        oprot.writeI32(struct.basePort);
+      }
+      if (struct.isSetSecondaryPort()) {
+        oprot.writeI32(struct.secondaryPort);
+      }
     }
 
     @Override
     public void read(org.apache.thrift.protocol.TProtocol prot, Player struct) throws org.apache.thrift.TException {
       TTupleProtocol iprot = (TTupleProtocol) prot;
-      BitSet incoming = iprot.readBitSet(9);
+      BitSet incoming = iprot.readBitSet(10);
       if (incoming.get(0)) {
         struct.id = iprot.readString();
         struct.setIdIsSet(true);
@@ -1151,29 +1243,33 @@ public class Player implements org.apache.thrift.TBase<Player, Player._Fields>, 
         struct.setIpAddressIsSet(true);
       }
       if (incoming.get(3)) {
-        struct.port = iprot.readI32();
-        struct.setPortIsSet(true);
-      }
-      if (incoming.get(4)) {
         struct.loggedIn = iprot.readBool();
         struct.setLoggedInIsSet(true);
       }
-      if (incoming.get(5)) {
+      if (incoming.get(4)) {
         struct.moderator = iprot.readBool();
         struct.setModeratorIsSet(true);
       }
-      if (incoming.get(6)) {
+      if (incoming.get(5)) {
         struct.inGame = iprot.readString();
         struct.setInGameIsSet(true);
       }
-      if (incoming.get(7)) {
+      if (incoming.get(6)) {
         struct.portsOpen = iprot.readBool();
         struct.setPortsOpenIsSet(true);
       }
-      if (incoming.get(8)) {
+      if (incoming.get(7)) {
         struct.status = new PlayerStatus();
         struct.status.read(iprot);
         struct.setStatusIsSet(true);
+      }
+      if (incoming.get(8)) {
+        struct.basePort = iprot.readI32();
+        struct.setBasePortIsSet(true);
+      }
+      if (incoming.get(9)) {
+        struct.secondaryPort = iprot.readI32();
+        struct.setSecondaryPortIsSet(true);
       }
     }
   }

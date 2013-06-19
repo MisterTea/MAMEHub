@@ -586,12 +586,13 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 													MainFrame.this,
 													"There is already a game in progress.  Please close that game before starting a new one.");
 								} else {
+									Player myself = rpcEngine.getMyself();
 									rpcEngine.hostGame(systemName,
 											gameRomInfo.romName, null);
 									boolean success = mameHubEngine.launchGame(
-											rpcEngine.getMyself().name,
+											myself.name,
 											systemName, gameRomInfo.filename,
-											true, null, 6805, 6805);
+											true, null, myself.basePort, myself.basePort);
 									if (!success) {
 										JOptionPane
 												.showMessageDialog(
@@ -886,8 +887,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		mntmSettings.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				new UpdateSettingsDialog(MainFrame.this, rpcEngine)
-						.setVisible(true);
+				new UpdateSettingsDialog(MainFrame.this);
 			}
 		});
 		mnEdit.add(mntmSettings);
@@ -912,7 +912,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			public void actionPerformed(ActionEvent arg0) {
 				try {
 					Utils.openWebpage(new URI(
-							"http://portchecker.net/udp.php?p=6805"));
+							"http://portchecker.net/udp.php?p=" + rpcEngine.getMyself().basePort));
 					Utils.openWebpage(new URI(
 							"http://www.whatsmyip.org/port-scanner"));
 				} catch (URISyntaxException e) {
@@ -1108,10 +1108,11 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					String errorMessage = rpcEngine.joinGame(game.id);
 					logger.info("GAME INFO: " + game);
 					if (errorMessage.length() == 0) {
+						Player myself = rpcEngine.getMyself();
 						boolean success = mameHubEngine.launchGame(
-								rpcEngine.getMyself().name, game.system,
+								myself.name, game.system,
 								gameRomInfo.filename, false,
-								game.hostPlayerIpAddress, 6805,
+								game.hostPlayerIpAddress, myself.basePort,
 								game.hostPlayerPort);
 						if (!success) {
 							JOptionPane

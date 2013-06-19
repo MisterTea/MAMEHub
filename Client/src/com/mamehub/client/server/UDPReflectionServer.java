@@ -16,9 +16,9 @@ public class UDPReflectionServer {
 	private Thread serverThread;
 	private boolean finished = false;
 
-	public UDPReflectionServer() {
+	public UDPReflectionServer(int port) {
 		try {
-			final DatagramSocket serverSocket = new DatagramSocket(6805);
+			final DatagramSocket serverSocket = new DatagramSocket(port);
 			serverSocket.setSoTimeout(2000);
 			serverThread = new Thread(new Runnable(){
 				@Override
@@ -73,9 +73,5 @@ public class UDPReflectionServer {
 		} catch (InterruptedException e) {
 			throw new RuntimeException("OOPS");
 		}
-	}
-	
-	public static void main(String args[]) {
-		new UDPReflectionServer();
 	}
 }

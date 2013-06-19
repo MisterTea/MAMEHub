@@ -79,7 +79,7 @@ public class PeerMonitor implements Runnable {
 							httpParams);
 
 					gameTransport = new THttpClient("http://"
-							+ player.ipAddress + ":" + player.port
+							+ player.ipAddress + ":" + player.basePort
 							+ "/mamehubclient", client);
 					gameTransport.open();
 					TJSONProtocol gameProtocol = new TJSONProtocol(
@@ -273,7 +273,7 @@ public class PeerMonitor implements Runnable {
 
 	private Player stripPlayer(Player peer) {
 		return new Player().setId(peer.id).setIpAddress(peer.ipAddress)
-				.setPort(peer.port).setPortsOpen(peer.portsOpen);
+				.setBasePort(peer.basePort).setSecondaryPort(peer.secondaryPort).setPortsOpen(peer.portsOpen);
 	}
 
 	@Override
@@ -334,7 +334,7 @@ public class PeerMonitor implements Runnable {
 			DefaultHttpClient client = new ContentEncodingHttpClient(httpParams);
 
 			gameTransport = new THttpClient("http://" + player.ipAddress + ":"
-					+ player.port + "/mamehubclient", client);
+					+ player.basePort + "/mamehubclient", client);
 			gameTransport.open();
 			TJSONProtocol gameProtocol = new TJSONProtocol(gameTransport);
 			MameHubClientRpc.Client gameClient = new MameHubClientRpc.Client(

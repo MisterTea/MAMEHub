@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.mamehub.client.Main;
 import com.mamehub.client.MainFrame;
+import com.mamehub.client.UpdateSettingsDialog;
 import com.mamehub.client.Utils;
 import com.mamehub.client.login.FacebookLogin.FacebookLoginCallback;
 import com.mamehub.client.login.GoogleLogin.GoogleLoginCallback;
@@ -71,6 +72,8 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 	private JLabel lblNewLabel_1;
 	private JButton forgotPasswordButton;
 	private JLabel lblOrCreateA;
+	private JPanel panel_2;
+	private JButton btnUpdateSettings;
 	
 	/**
 	 * Create the dialog.
@@ -83,7 +86,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 		BufferedImage bi = ImageIO.read(u);
 		this.setIconImage(bi);
 		
-		udpReflectionServer = new UDPReflectionServer();
+		udpReflectionServer = new UDPReflectionServer(Utils.getApplicationSettings().basePort);
 		
 		rpcEngine = new RpcEngine();
 		logger.info("Adding intro dialog");
@@ -319,8 +322,25 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 				}
 				internalAccountPanel.add(manualLoginButton);
 			}
+		}
+		
+		ApplicationSettings as = Utils.getApplicationSettings();
+		usernameTextField.setText(as.lastInternalLoginId);
+		{
+			panel_2 = new JPanel();
+			contentPanel.add(panel_2);
+			{
+				btnUpdateSettings = new JButton("Update Settings");
+				btnUpdateSettings.addActionListener(new ActionListener() {
+					public void actionPerformed(ActionEvent e) {
+						new UpdateSettingsDialog(LoginDialog.this);
+					}
+				});
+				panel_2.add(btnUpdateSettings);
+			}
 			{
 				forgotPasswordButton = new JButton("Email Password Reminder");
+				panel_2.add(forgotPasswordButton);
 				forgotPasswordButton.addActionListener(new ActionListener() {
 					@Override
 					public void actionPerformed(ActionEvent arg0) {
@@ -347,12 +367,8 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 					}
 				});
 				forgotPasswordButton.setAlignmentX(0.5f);
-				contentPanel.add(forgotPasswordButton);
 			}
 		}
-		
-		ApplicationSettings as = Utils.getApplicationSettings();
-		usernameTextField.setText(as.lastInternalLoginId);
 	}
 
 	protected void cancelLogin() {
@@ -384,7 +400,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 			
 			Player myself = rpcEngine.getMyself();
 			if(!myself.portsOpen) {
-				JOptionPane.showMessageDialog(mainFrame, "MAMEHub has detected that you don't have port 6805 open (both TCP & UDP are required).\nAs a result, you cannot play networked games or transfer data with other players.\nSee http://portforward.com/ for details.");
+				JOptionPane.showMessageDialog(mainFrame, "MAMEHub has detected that you don't have port "+myself.basePort+" open (both TCP & UDP are required).\nAs a result, you cannot play networked games or transfer data with other players.\nSee http://portforward.com/ for details.");
 			}
 			
 			return;

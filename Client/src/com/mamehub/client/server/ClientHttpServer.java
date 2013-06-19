@@ -13,9 +13,9 @@ import org.eclipse.jetty.servlets.GzipFilter;
 public class ClientHttpServer {
 	private Thread httpServerThread;
 
-	public ClientHttpServer() {
+	public ClientHttpServer(int port) {
 		System.out.println("Creating server...");
-        final Server server = new Server(6805);
+        final Server server = new Server(port);
  
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
@@ -60,15 +60,6 @@ public class ClientHttpServer {
 		httpServerThread.interrupt();
 		try {
 			httpServerThread.join();
-		} catch (InterruptedException e) {
-			throw new RuntimeException("A thread was interrupted at a bad time");
-		}
-	}
-	
-	public static void main(String args[]) {
-		ClientHttpServer server = new ClientHttpServer();
-        try {
-			server.join();
 		} catch (InterruptedException e) {
 			throw new RuntimeException("A thread was interrupted at a bad time");
 		}

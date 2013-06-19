@@ -1,6 +1,6 @@
 namespace * com.mamehub.thrift
 
-const i32 MAMEHUB_VERSION = 7
+const i32 MAMEHUB_VERSION = 8
 
 enum MR
 {
@@ -68,7 +68,7 @@ struct Player
 	1:string id,
 	2:string name,
 	3:string ipAddress,
-	4:i32 port = 6805,
+	//4:i32 port = 6805,
 	5:bool loggedIn = true,
 	6:bool moderator = false,
 	7:string inGame = "",
@@ -76,6 +76,8 @@ struct Player
     //9:string emailAddress = "",
     //10:string status,
     11:PlayerStatus status,
+    12:i32 basePort = 6805,
+    13:i32 secondaryPort = 6806,
 }
 
 struct PlayerRomProfile
@@ -104,6 +106,9 @@ struct ApplicationSettings
     
     5:bool allowUploading = true,
     6:bool showEmulatorLog = false,
+    
+    7:i32 basePort = 6805,
+    8:i32 secondaryPort = 6806,
 }
 
 struct PlayerInternalPassword
