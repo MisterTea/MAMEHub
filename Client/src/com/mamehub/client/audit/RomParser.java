@@ -84,10 +84,11 @@ public class RomParser extends DefaultHandler {
 		} catch (SAXException e) {
 			throw new IOException(e);
 		}
+		Utils.getAuditDatabaseEngine().commit();
 
 		for (Map.Entry<String, RomInfo> entry : roms.entrySet()) {
 			RomInfo romInfo = entry.getValue();
-			if (romInfo.cloneRom != null && !roms.containsKey(romInfo.cloneRom)) {
+			if (romInfo.cloneRom != null && roms.get(romInfo.cloneRom).missingReason != null) {
 				romInfo.missingReason = MR.MISSING_CLONE;
 			} else if (romInfo.parentRom != null
 					&& !roms.containsKey(romInfo.parentRom)) {

@@ -38,13 +38,16 @@ public class CartParser extends DefaultHandler implements Runnable {
 
 	private boolean debug;
 
+	private boolean missingSystem;
+
 	public CartParser(String systemName, File xmlFile,
 			Map<String, ArrayList<FileNameLocationPair>> hashEntryMap,
-			Map<String, RomInfo> roms, ConcurrentMap<String, String> chdMap) {
+			Map<String, RomInfo> roms, ConcurrentMap<String, String> chdMap, boolean missingSystem) {
 		this.systemName = systemName;
 		this.hashEntryMap = hashEntryMap;
 		this.roms = roms;
 		this.chdMap = chdMap;
+		this.missingSystem = missingSystem;
 		if (!systemName.equals(systemName.toLowerCase())) {
 			throw new RuntimeException("System names must be lower case");
 		}
@@ -115,6 +118,9 @@ public class CartParser extends DefaultHandler implements Runnable {
 				romInfo.missingReason = MR.MISSING_FILES;
 			}
 			romInfo.system = systemName;
+			if (missingSystem) {
+				romInfo.missingReason = MR.MISSING_SYSTEM;
+			}
 			//if(romInfo.missingReason == null)
 				//logger.info("Got cart: " + romInfo);
 

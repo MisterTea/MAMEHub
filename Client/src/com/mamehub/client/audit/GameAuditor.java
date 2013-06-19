@@ -80,14 +80,14 @@ public class GameAuditor implements Runnable {
 	public GameAuditor(AuditHandler ah) throws IOException {
 		GameAuditor.abort = false;
 		this.handler = ah;
-		
+
 		indexDir = new File("AuditIndex" + Utils.AUDIT_DATABASE_VERSION);
 
 		runScanner = true;
 		scanData = Utils.getAuditDatabaseEngine().getOrCreateMap(
 				FileInfo.class, "RomHash");
-		hashEntryMap = Utils.getAuditDatabaseEngine()
-				.getOrCreatePrimitiveMap("HashEntryMap2");
+		hashEntryMap = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
+				"HashEntryMap2");
 		chdMap = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
 				"ChdMap");
 
@@ -121,6 +121,7 @@ public class GameAuditor implements Runnable {
 				updateCache();
 			}
 		} catch (Exception e) {
+			logger.error("Audit error!", e);
 			GameAuditor.abort = true;
 			if (handler != null) {
 				handler.auditError(new IOException(e));
@@ -170,15 +171,15 @@ public class GameAuditor implements Runnable {
 				if (GameAuditor.abort) {
 					return;
 				}
+				boolean missingSystem = false;
 				if (messRoms.get(system).isSetMissingReason()) {
-					// Don't parse carts if missing bios
-					continue;
+					missingSystem = true;
 				}
 				File file = new File("../hash/" + system + ".hsi");
 				if (file.exists()) {
 					Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
-					futures.add(threadPool.submit(new CartParser(system, file, inMemoryHashEntryMap,
-							systemCarts, chdMap)));
+					futures.add(threadPool.submit(new CartParser(system, file,
+							inMemoryHashEntryMap, systemCarts, chdMap, missingSystem)));
 					if (!systems.isEmpty()) {
 						systems += ", ";
 					}
@@ -191,11 +192,10 @@ public class GameAuditor implements Runnable {
 				messRoms.remove(systemToRemove);
 			}
 			while (!futures.isEmpty()) {
-				handler.updateAuditStatus("AUDIT: Parsing carts for "
-						+ systems);
+				handler.updateAuditStatus("AUDIT: Parsing carts for " + systems);
 				futures.poll().get();
 				if (!futures.isEmpty())
-					systems = systems.substring(systems.indexOf(',')+1);
+					systems = systems.substring(systems.indexOf(',') + 1);
 			}
 			threadPool.shutdown();
 			if (!threadPool.awaitTermination(1, TimeUnit.HOURS)) {
@@ -220,14 +220,10 @@ public class GameAuditor implements Runnable {
 	}
 
 	private void updateCache() throws IOException {
-		handler.updateAuditStatus("AUDIT: Updating cache");
+		handler.updateAuditStatus("AUDIT: Deleting old index");
 		FileUtils.deleteDirectory(indexDir);
 		indexDir.mkdir();
-		Map<String, TreeMap<String, String>> romSystemNameIdMap = Utils
-				.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
-						"RomSystemNameIdMap");
-		Utils.stagedClear(romSystemNameIdMap, Utils.getAuditDatabaseEngine());
-
+		handler.updateAuditStatus("AUDIT: Creating new index");
 		Directory dir = FSDirectory.open(indexDir);
 		IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40,
 				analyzer);
@@ -246,49 +242,24 @@ public class GameAuditor implements Runnable {
 		IndexWriter writer = new IndexWriter(dir, iwc);
 
 		{
-			TreeMap<String, String> romNameIdMap = new TreeMap<String, String>();
+			handler.updateAuditStatus("AUDIT: Indexing Arcade roms");
 			for (RomInfo ri : mameRoms.values()) {
-				// System.out.println("Adding " + ri);
-				romNameIdMap.put(ri.description, ri.romName);
+				addIndexEntry(writer, "Arcade", ri.description, ri.romName);
 			}
-			// System.out.println("Saving " + "Arcade");
-			romSystemNameIdMap.put("arcade", romNameIdMap);
-			Utils.getAuditDatabaseEngine().commit();
 		}
 
 		for (String system : messRoms.keySet()) {
+			handler.updateAuditStatus("AUDIT: Indexing " + system);
 			File file = new File("../hash/" + system + ".hsi");
 			if (file.exists()) {
-				TreeMap<String, String> romNameIdMap = new TreeMap<String, String>();
 				Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
 				for (RomInfo ri : systemCarts.values()) {
-					// System.out.println("Adding " + ri);
-					romNameIdMap.put(ri.romName, ri.romName);
+					addIndexEntry(writer, system, ri.romName, ri.romName);
 				}
-				// System.out.println("Saving " + system);
-				romSystemNameIdMap.put(system, romNameIdMap);
-				Utils.getAuditDatabaseEngine().commit();
 			}
 		}
 
-		for (String system : romSystemNameIdMap.keySet()) {
-			for (Map.Entry<String, String> entry : romSystemNameIdMap.get(
-					system).entrySet()) {
-				Document doc = new Document();
-
-				doc.add(new StringField("Machine", system, Field.Store.YES));
-				doc.add(new StringField("gameDescription", entry.getKey(),
-						Field.Store.YES));
-				doc.add(new TextField("gameDescriptionLowerCase", entry
-						.getKey().toLowerCase().replace("'", ""),
-						Field.Store.YES));
-				doc.add(new StringField("gameName", entry.getValue(),
-						Field.Store.YES));
-
-				writer.updateDocument(new Term("gameName", entry.getValue()),
-						doc);
-			}
-		}
+		handler.updateAuditStatus("AUDIT: Merging index.");
 
 		// NOTE: if you want to maximize search performance,
 		// you can optionally call forceMerge here. This can be
@@ -298,7 +269,21 @@ public class GameAuditor implements Runnable {
 		//
 		writer.forceMerge(1);
 
+		handler.updateAuditStatus("AUDIT: Closing index.");
 		writer.close();
+	}
+
+	private void addIndexEntry(IndexWriter writer, String system,
+			String description, String shortName) throws IOException {
+		Document doc = new Document();
+
+		doc.add(new StringField("Machine", system, Field.Store.YES));
+		doc.add(new StringField("gameDescription", description, Field.Store.YES));
+		doc.add(new TextField("gameDescriptionLowerCase", description
+				.toLowerCase().replace("'", ""), Field.Store.YES));
+		doc.add(new StringField("gameName", shortName, Field.Store.YES));
+
+		writer.updateDocument(new Term("gameName", shortName), doc);
 	}
 
 	public String getSystemForRom(String romId) {
@@ -380,7 +365,7 @@ public class GameAuditor implements Runnable {
 		if (isAuditing()) {
 			return new ArrayList<RomQueryResult>();
 		}
-		
+
 		try {
 			Directory dir = FSDirectory.open(indexDir);
 			IndexReader reader = DirectoryReader.open(dir);
@@ -431,13 +416,12 @@ public class GameAuditor implements Runnable {
 				String romid = searcher.doc(scoreDoc.doc).getField("gameName")
 						.stringValue();
 				RomInfo romInfo = null;
-				if (system.equals("arcade")) {
+				if (system.toLowerCase().equals("arcade")) {
 					romInfo = getMameRomInfoMap().get(romid);
 				} else {
 					romInfo = getSystemRomInfoMap(system).get(romid);
 				}
-				// System.out.println(system + " : " + romid + " : " + romInfo +
-				// " " + cloudRoms.containsKey(romInfo.system));
+				//System.out.println(system + " : " + romid + " : " + romInfo);
 				if (romInfo.missingReason != null
 						&& (cloudRoms == null
 								|| !cloudRoms.containsKey(romInfo.system) || !cloudRoms
@@ -469,7 +453,8 @@ public class GameAuditor implements Runnable {
 			 */
 
 			return queryResult;
-		} catch (Exception e) {
+		} catch (IOException e) {
+			logger.error("Query Roms error", e);
 			throw new RuntimeException(e);
 		}
 	}

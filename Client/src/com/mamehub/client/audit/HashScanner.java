@@ -81,7 +81,7 @@ public class HashScanner {
 				previousFileInfo = scanData.get(file.getAbsolutePath());
 				if(previousFileInfo != null && previousFileInfo.length == file.length()) {
 					// Already scanned and same length, no need to re-scan
-					logger.info("Skipping: " + previousFileInfo);
+					//logger.info("Skipping: " + previousFileInfo);
 					return;
 				}
 				//logger.info("HASHING: " + file);

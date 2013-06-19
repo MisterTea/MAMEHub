@@ -1143,7 +1143,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 	protected void tryToDownload(String systemName, RomInfo gameRomInfo,
 			Player fallbackPlayer) {
 		if (JOptionPane.showConfirmDialog(MainFrame.this,
-				"Are you legally entitled to own this ROM?", "Consent box.",
+				"Are you legally entitled to own this ROM and/or the machine BIOS?", "Consent box.",
 				JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
 			return;
 		}
@@ -1158,7 +1158,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			mainTabbedPane.setSelectedIndex(1);
 			if (requestGranted) {
 				JOptionPane.showMessageDialog(MainFrame.this,
-						"Downloading BIOS from peers.");
+						"Downloading BIOS from peers.  Once audit is complete, you will have to download the game if you don't already have it.");
 			} else {
 				JOptionPane.showMessageDialog(MainFrame.this,
 						"Server could not find peers with BIOS.");
@@ -1365,7 +1365,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 						 * message.playerChanged.name + " joins");
 						 */
 						if (getChatStatus() == ChatStatus.ONLINE) {
-							SoundEngine.instance.playSound("playerjoin");
+							//SoundEngine.instance.playSound("playerjoin");
 						}
 						peerMonitor.insertPeer(message.playerChanged);
 					} else if (oldPlayer != null
@@ -1417,7 +1417,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 						 * " has stopped");
 						 */
 						if (getChatStatus() == ChatStatus.ONLINE) {
-							SoundEngine.instance.playSound("gamestop");
+							//SoundEngine.instance.playSound("gamestop");
 						}
 					} else {
 						/*
@@ -1433,7 +1433,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 											getGameDescription(message.gameChanged)));
 						}
 						if (getChatStatus() == ChatStatus.ONLINE) {
-							SoundEngine.instance.playSound("gamestart");
+							//SoundEngine.instance.playSound("gamestart");
 						}
 					}
 					knownGames.put(message.gameChanged.id, message.gameChanged);

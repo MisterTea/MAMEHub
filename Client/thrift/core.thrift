@@ -8,6 +8,7 @@ enum MR
 	BAD_FILES,
 	MISSING_CLONE,
 	MISSING_PARENT,
+	MISSING_SYSTEM,
 }
 
 struct SoftwareList

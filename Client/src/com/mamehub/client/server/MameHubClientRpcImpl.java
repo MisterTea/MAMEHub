@@ -102,6 +102,7 @@ public class MameHubClientRpcImpl implements MameHubClientRpc.Iface {
 		sentFileChunkTime = System.currentTimeMillis();
 		FileInputStream fis = null;
 		try {
+			System.out.println("Sending file chunk...");
 			File file = getFile(request.requestSystem,request.requestRom);
 			logger.info("Sending chunk of file " + file);
 			fis = new FileInputStream(file);
