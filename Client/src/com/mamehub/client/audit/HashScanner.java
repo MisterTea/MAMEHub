@@ -259,7 +259,6 @@ public class HashScanner {
 			    while(iter2.hasNext()) {
 			    	FileNameLocationPair fnlp = iter2.next();
 			    	if(filePathsToRemove.contains(fnlp.location)) {
-			    		iter2.remove();
 			    		removedOne=true;
 			    	}
 			    }

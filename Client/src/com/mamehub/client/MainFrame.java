@@ -42,7 +42,9 @@ import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JEditorPane;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -55,24 +57,37 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JTree;
 import javax.swing.ListSelectionModel;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.event.HyperlinkEvent;
+import javax.swing.event.HyperlinkListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
+import javax.swing.text.html.HTMLDocument;
+import javax.swing.text.html.HTMLEditorKit;
+import javax.swing.text.html.StyleSheet;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.thrift.TException;
+import org.joda.time.DateTime;
+import org.joda.time.Days;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.Gson;
 import com.mamehub.client.Main.ProcessKiller;
 import com.mamehub.client.MameHubEngine.EmulatorHandler;
 import com.mamehub.client.audit.DirectorySelector;
@@ -93,6 +108,7 @@ import com.mamehub.client.utility.OSValidator;
 import com.mamehub.rpc.NotAuthorizedException;
 import com.mamehub.thrift.ApplicationSettings;
 import com.mamehub.thrift.ChatStatus;
+import com.mamehub.thrift.CommitData;
 import com.mamehub.thrift.Game;
 import com.mamehub.thrift.IpRangeData;
 import com.mamehub.thrift.Message;
@@ -103,7 +119,6 @@ import com.mamehub.thrift.PlayerRomProfile;
 import com.mamehub.thrift.PlayerStatus;
 import com.mamehub.thrift.RomInfo;
 import com.mamehub.thrift.ServerState;
-import javax.swing.JButton;
 
 public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		EmulatorHandler, PeerMonitorListener {
@@ -121,10 +136,11 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 	protected long lastSystemTreeItemClickTime = 0L;
 	MameHubEngine mameHubEngine;
 	PeerMonitor peerMonitor;
-	private JTextArea chatTextArea;
+	private JEditorPane chatTextArea;
 	final JTabbedPane mainTabbedPane;
 
-	private Map<String, Player> knownPlayers = new HashMap<String, Player>();
+	public static Map<String, Player> knownPlayers;
+	public static String myPlayerId;
 	private Map<String, Game> knownGames = new HashMap<String, Game>();
 	private DefaultTableModel gameTableModel;
 
@@ -151,6 +167,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 	private GameListModel gameListModel;
 	private JTable gameTable;
 	private JButton btnArrangeAGame;
+	private HTMLEditorKit chatTextKit;
+	private HTMLDocument chatTextDocument;
 
 	public class PlayerTableModel extends AbstractTableModel {
 		private static final long serialVersionUID = 1320567054920404367L;
@@ -376,6 +394,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 	public MainFrame(final RpcEngine rpcEngine,
 			final ClientHttpServer clientHttpServer) throws IOException,
 			NotAuthorizedException, TException {
+		knownPlayers = new HashMap<String, Player>();
+		myPlayerId = rpcEngine.getMyself().id;
 		URL u = Utils.getResource(MainFrame.class, "/MAMEHub.png");
 		System.out.println(u);
 		BufferedImage bi = ImageIO.read(u);
@@ -395,11 +415,15 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			@Override
 			public void windowClosed(WindowEvent arg0) {
 				if (mameHubEngine.isAuditing()) {
-					JOptionPane.showMessageDialog(MainFrame.this,
-							"You are in the middle of a game audit.  MAMEHub will now try to cancel the audit.  This may take a few minutes.  You will get another popup once the audit has been cancelled.");
+					JOptionPane
+							.showMessageDialog(
+									MainFrame.this,
+									"You are in the middle of a game audit.  MAMEHub will now try to cancel the audit.  This may take a few minutes.  You will get another popup once the audit has been cancelled.");
 					mameHubEngine.cancelAudit();
-					JOptionPane.showMessageDialog(MainFrame.this,
-							"The audit has been cancelled.  Make sure you run a new audit when you re-enter MAMEHub by going to Audit -> Rescan Folders from the top menubar.");
+					JOptionPane
+							.showMessageDialog(
+									MainFrame.this,
+									"The audit has been cancelled.  Make sure you run a new audit when you re-enter MAMEHub by going to Audit -> Rescan Folders from the top menubar.");
 				}
 				logger.info("Removing mainframe window");
 				if (rpcEngine != null && !rpcEngine.finished) {
@@ -590,9 +614,9 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 									rpcEngine.hostGame(systemName,
 											gameRomInfo.romName, null);
 									boolean success = mameHubEngine.launchGame(
-											myself.name,
-											systemName, gameRomInfo.filename,
-											true, null, myself.basePort, myself.basePort);
+											myself.name, systemName,
+											gameRomInfo.filename, true, null,
+											myself.basePort, myself.basePort);
 									if (!success) {
 										JOptionPane
 												.showMessageDialog(
@@ -729,11 +753,80 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		panel_4.add(panel, gbc_panel);
 		panel.setLayout(new BorderLayout(0, 0));
 
-		chatTextArea = new JTextArea();
+		chatTextArea = new JEditorPane();
+		// chatTextArea.setContentType("text/html");
+
+		chatTextArea.addHyperlinkListener(new HyperlinkListener() {
+
+			@Override
+			public void hyperlinkUpdate(HyperlinkEvent hyperlinkEvent) {
+				HyperlinkEvent.EventType type = hyperlinkEvent.getEventType();
+				final URL url = hyperlinkEvent.getURL();
+				if (type == HyperlinkEvent.EventType.ENTERED) {
+					System.out.println("URL: " + url);
+				} else if (type == HyperlinkEvent.EventType.ACTIVATED) {
+					System.out.println("Activated");
+					SwingUtilities.invokeLater(new Runnable() {
+						public void run() {
+							Utils.openWebpage(url);
+						}
+					});
+				}
+			}
+		});
 		chatTextArea.setEditable(false);
-		chatTextArea.setWrapStyleWord(true);
-		chatTextArea.setLineWrap(true);
-		chatTextArea.setText("Welcome to MAMEHub!\n");
+		chatTextKit = new HTMLEditorKit();
+
+		chatTextDocument = (HTMLDocument) chatTextKit.createDefaultDocument();
+		StyleSheet styleSheet = chatTextKit.getStyleSheet();
+		styleSheet.addRule("p {margin:0;}");
+
+		chatTextArea.setEditorKit(chatTextKit);
+		chatTextArea.setDocument(chatTextDocument);
+		try {
+			chatTextKit.insertHTML(chatTextDocument,
+					chatTextDocument.getLength(), rpcEngine.getMOTD(), 0, 0,
+					null);
+		} catch (BadLocationException e2) {
+			throw new RuntimeException(e2);
+		}
+
+		try {
+			chatTextKit.insertHTML(chatTextDocument,
+					chatTextDocument.getLength(),
+					"<b>Changes in the past week</b>",
+					0,
+					0, null);
+			String recentChangesJson = IOUtils.toString(new URI(
+					"https://api.github.com/repos/MisterTea/MAMEHub/commits"));
+
+			CommitData[] data = new Gson().fromJson(recentChangesJson,
+					CommitData[].class);
+			ArrayUtils.reverse(data);
+			for (CommitData cd : data) {
+				DateTimeFormatter parser2 = ISODateTimeFormat
+						.dateTimeNoMillis();
+				String jtdate = cd.commit.author.date;
+				DateTime date = parser2.parseDateTime(jtdate);
+
+				if (Days.daysBetween(date.toDateMidnight(),
+						DateTime.now().toDateMidnight()).getDays() < 7) {
+					chatTextKit.insertHTML(chatTextDocument,
+							chatTextDocument.getLength(),
+									("(" + date.toString("MM-dd") + "): " + cd.commit.message),
+									0, 0, null);
+				}
+			}
+		} catch (URISyntaxException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		} catch (IOException e3) {
+			e3.printStackTrace();
+		} catch (BadLocationException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
 		// We will manually handle advancing chat window
 		DefaultCaret caret = (DefaultCaret) chatTextArea.getCaret();
 		caret.setUpdatePolicy(DefaultCaret.NEVER_UPDATE);
@@ -767,8 +860,9 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					String lastToken = tokens[tokens.length - 1];
 					Player match = null;
 					for (Player p : knownPlayers.values()) {
-						if (p.name.toLowerCase().startsWith(
-								lastToken.toLowerCase())) {
+						if (p.loggedIn
+								&& p.name.toLowerCase().startsWith(
+										lastToken.toLowerCase())) {
 							if (match != null) {
 								// return;
 							}
@@ -912,7 +1006,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			public void actionPerformed(ActionEvent arg0) {
 				try {
 					Utils.openWebpage(new URI(
-							"http://portchecker.net/udp.php?p=" + rpcEngine.getMyself().basePort));
+							"http://portchecker.net/udp.php?p="
+									+ rpcEngine.getMyself().basePort));
 					Utils.openWebpage(new URI(
 							"http://www.whatsmyip.org/port-scanner"));
 				} catch (URISyntaxException e) {
@@ -990,7 +1085,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			}
 		});
 		mnHelp.add(mntmFileAFeature);
-		
+
 		JMenuItem mntmForum = new JMenuItem("Forum");
 		mntmForum.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -1109,9 +1204,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					logger.info("GAME INFO: " + game);
 					if (errorMessage.length() == 0) {
 						Player myself = rpcEngine.getMyself();
-						boolean success = mameHubEngine.launchGame(
-								myself.name, game.system,
-								gameRomInfo.filename, false,
+						boolean success = mameHubEngine.launchGame(myself.name,
+								game.system, gameRomInfo.filename, false,
 								game.hostPlayerIpAddress, myself.basePort,
 								game.hostPlayerPort);
 						if (!success) {
@@ -1143,9 +1237,11 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 	protected void tryToDownload(String systemName, RomInfo gameRomInfo,
 			Player fallbackPlayer) {
-		if (JOptionPane.showConfirmDialog(MainFrame.this,
-				"Are you legally entitled to own this ROM and/or the machine BIOS?", "Consent box.",
-				JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
+		if (JOptionPane
+				.showConfirmDialog(
+						MainFrame.this,
+						"Are you legally entitled to own this ROM and/or the machine BIOS?",
+						"Consent box.", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
 			return;
 		}
 
@@ -1154,12 +1250,20 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			// This is a bios we don't own, start the download process
 			Set<String> romsNeeded = new HashSet<String>();
 			romsNeeded.add(romInfo.romName);
+			if (romInfo.cloneRom != null) {
+				romsNeeded.add(romInfo.cloneRom);
+			}
+			if (romInfo.parentRom != null) {
+				romsNeeded.add(romInfo.parentRom);
+			}
 			boolean requestGranted = peerMonitor.requestRoms("Bios",
 					romsNeeded, null, fallbackPlayer);
 			mainTabbedPane.setSelectedIndex(1);
 			if (requestGranted) {
-				JOptionPane.showMessageDialog(MainFrame.this,
-						"Downloading BIOS from peers.  Once audit is complete, you will have to download the game if you don't already have it.");
+				JOptionPane
+						.showMessageDialog(
+								MainFrame.this,
+								"Downloading BIOS from peers.  Once audit is complete, you will have to download the game if you don't already have it.");
 			} else {
 				JOptionPane.showMessageDialog(MainFrame.this,
 						"Server could not find peers with BIOS.");
@@ -1366,7 +1470,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 						 * message.playerChanged.name + " joins");
 						 */
 						if (getChatStatus() == ChatStatus.ONLINE) {
-							//SoundEngine.instance.playSound("playerjoin");
+							// SoundEngine.instance.playSound("playerjoin");
 						}
 						peerMonitor.insertPeer(message.playerChanged);
 					} else if (oldPlayer != null
@@ -1418,7 +1522,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 						 * " has stopped");
 						 */
 						if (getChatStatus() == ChatStatus.ONLINE) {
-							//SoundEngine.instance.playSound("gamestop");
+							// SoundEngine.instance.playSound("gamestop");
 						}
 					} else {
 						/*
@@ -1434,7 +1538,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 											getGameDescription(message.gameChanged)));
 						}
 						if (getChatStatus() == ChatStatus.ONLINE) {
-							//SoundEngine.instance.playSound("gamestart");
+							// SoundEngine.instance.playSound("gamestart");
 						}
 					}
 					knownGames.put(message.gameChanged.id, message.gameChanged);
@@ -1762,6 +1866,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 				for (Map.Entry<RomDownloadState, String> ds : downloadStatus
 						.entrySet()) {
 					RomDownloadState state = ds.getKey();
+					if (state.fileInfo == null) {
+						// The fileinfo isn't ready yet.
+						continue;
+					}
 					downloadsTableModel.addRow(new String[] { "Cancel",
 							state.fileInfo.filename, ds.getValue() });
 					downloadTableRowDownloadStateMap.put(r, state);
@@ -1784,8 +1892,15 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		String hours = String.format("%02d", calendar.get(Calendar.HOUR));
 		String minutes = String.format("%02d", calendar.get(Calendar.MINUTE));
 		String seconds = String.format("%02d", calendar.get(Calendar.SECOND));
-		chatTextArea.append("[" + hours + ":" + minutes + ":" + seconds + "] "
-				+ line + "\n");
+		try {
+			chatTextKit.insertHTML(
+					chatTextDocument,
+					chatTextDocument.getLength(),
+					Utils.markdownToHtml("\\[" + hours + ":" + minutes + ":"
+							+ seconds + "\\] " + line), 0, 0, null);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 
 		if (atBottom) {
 			scrollToBottom(chatTextArea);
@@ -1804,7 +1919,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		return atBottom;
 	}
 
-	private static void scrollToBottom(JTextArea chatArea) {
-		chatArea.setCaretPosition(chatArea.getDocument().getLength());
+	private static void scrollToBottom(JEditorPane chatTextArea2) {
+		chatTextArea2.setCaretPosition(chatTextArea2.getDocument().getLength());
 	}
 }

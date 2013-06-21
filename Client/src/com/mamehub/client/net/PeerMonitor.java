@@ -24,12 +24,13 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
+import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TJSONProtocol;
 import org.apache.thrift.transport.THttpClient;
-import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mamehub.client.MainFrame;
 import com.mamehub.client.MameHubEngine;
 import com.mamehub.client.Utils;
 import com.mamehub.client.utility.HexStringInputStream;
@@ -67,7 +68,8 @@ public class PeerMonitor implements Runnable {
 		@Override
 		public void run() {
 			for (Player player : playersWithRom) {
-				logger.info("TRYING TO GET " + systemRomPair + " FROM "
+				fileInfo = null;
+				logger.debug("TRYING TO GET " + systemRomPair + " FROM "
 						+ player);
 				THttpClient gameTransport = null;
 				try {
@@ -90,7 +92,7 @@ public class PeerMonitor implements Runnable {
 					fileInfo = gameClient.getFileInfo(systemRomPair.system,
 							systemRomPair.rom);
 					if (fileInfo.length == 0) {
-						logger.info("Could not get from " + player.name);
+						logger.debug("Could not get from " + player.name);
 						continue;
 					}
 					File file = new File("../roms/" + fileInfo.filename);
@@ -115,7 +117,7 @@ public class PeerMonitor implements Runnable {
 								fr.dataHex);
 						while (true) {
 							int bytesRead = hsis.read(b);
-							logger.info("BYTES READ: " + bytesRead);
+							logger.debug("BYTES READ: " + bytesRead);
 							if (bytesRead < 0)
 								break;
 							offset += bytesRead;
@@ -188,7 +190,7 @@ public class PeerMonitor implements Runnable {
 					}
 				}
 			}
-			logger.info("FAILED TO GET " + systemRomPair);
+			logger.debug("FAILED TO GET " + systemRomPair);
 			failed = true;
 			updateUI(false);
 		}
@@ -222,7 +224,7 @@ public class PeerMonitor implements Runnable {
 		}
 	}
 
-	private ConcurrentMap<Player, PeerState> ipStateMap = new ConcurrentHashMap<Player, PeerState>();
+	private ConcurrentMap<String, PeerState> idStateMap = new ConcurrentHashMap<String, PeerState>();
 	private ConcurrentMap<SystemRomPair, RomDownloadState> requests = new ConcurrentHashMap<SystemRomPair, RomDownloadState>();
 	private Thread thread;
 	private PeerMonitorListener listener;
@@ -245,13 +247,13 @@ public class PeerMonitor implements Runnable {
 	}
 
 	public boolean containsPeer(Player peer) {
-		return ipStateMap.containsKey(stripPlayer(peer));
+		return idStateMap.containsKey(peer.id);
 	}
 
 	public void insertPeer(Player peer) {
-		synchronized (ipStateMap) {
+		synchronized (idStateMap) {
 			// Just pull out the parts of the player we care about
-			ipStateMap.put(stripPlayer(peer), new PeerState());
+			idStateMap.put(peer.id, new PeerState());
 		}
 	}
 
@@ -262,18 +264,13 @@ public class PeerMonitor implements Runnable {
 	}
 
 	public PeerState getPeer(Player player) {
-		return ipStateMap.get(stripPlayer(player));
+		return idStateMap.get(player.id);
 	}
 
 	public void removePeer(Player peer) {
-		synchronized (ipStateMap) {
-			ipStateMap.remove(stripPlayer(peer));
+		synchronized (idStateMap) {
+			idStateMap.remove(peer.id);
 		}
-	}
-
-	private Player stripPlayer(Player peer) {
-		return new Player().setId(peer.id).setIpAddress(peer.ipAddress)
-				.setBasePort(peer.basePort).setSecondaryPort(peer.secondaryPort).setPortsOpen(peer.portsOpen);
 	}
 
 	@Override
@@ -281,26 +278,27 @@ public class PeerMonitor implements Runnable {
 		try {
 			while (true) {
 				gotNewRoms = false;
-				Set<Player> currentPlayers;
-				synchronized (ipStateMap) {
-					currentPlayers = new HashSet<Player>(ipStateMap.keySet());
+				Set<String> currentPlayers;
+				synchronized (idStateMap) {
+					currentPlayers = new HashSet<String>(idStateMap.keySet());
 				}
-				for (Player player : currentPlayers) {
-					PeerState peerState = ipStateMap.get(player);
-					if( peerState == null) {
+				for (String playerId : currentPlayers) {
+					Player player = MainFrame.knownPlayers.get(playerId);
+					PeerState peerState = idStateMap.get(playerId);
+					if (peerState == null) {
 						// This player was deleted for some reason.
 						continue;
 					}
 
-					// logger.info("CHECKING " + player);
+					logger.debug("CHECKING " + player);
 					updatePeerData(player, peerState);
 					Thread.sleep(100);
 				}
 				listener.statesUpdated();
 				if (gotNewRoms) {
-					synchronized (ipStateMap) {
+					synchronized (idStateMap) {
 						Map<String, Set<String>> combinedCloud = new HashMap<String, Set<String>>();
-						for (PeerState ps : ipStateMap.values()) {
+						for (PeerState ps : idStateMap.values()) {
 							for (Entry<String, Set<String>> entry : ps.downloadableRoms
 									.entrySet()) {
 								if (!combinedCloud.containsKey(entry.getKey())) {
@@ -326,6 +324,10 @@ public class PeerMonitor implements Runnable {
 	}
 
 	public void updatePeerData(Player player, PeerState peerState) {
+		if (player.id.equals(MainFrame.myPlayerId)) {
+			// Don't try to connect to yourself
+			return;
+		}
 		THttpClient gameTransport = null;
 		try {
 			// set the connection timeout value to 3 seconds (3000 milliseconds)
@@ -341,6 +343,7 @@ public class PeerMonitor implements Runnable {
 					gameProtocol);
 			long curtime = System.currentTimeMillis();
 			if (gameClient.ping()) {
+				logger.debug("Setting ping for " + player);
 				peerState.ping = (int) (System.currentTimeMillis() - curtime);
 
 				// Hack to account for http overhead
@@ -348,8 +351,8 @@ public class PeerMonitor implements Runnable {
 
 				DownloadableRomState romState = gameClient
 						.getDownloadableRoms(peerState.lastCheckTime);
-				// logger.info("ROM STATE: " + romState.roms.size() + " " +
-				// romState.stale);
+				logger.debug("ROM STATE: " + romState.roms.size() + " "
+						+ romState.stale);
 				if (romState.stale == false) {
 					gotNewRoms = true;
 					peerState.downloadableRoms = Utils
@@ -362,12 +365,15 @@ public class PeerMonitor implements Runnable {
 					Utils.getApplicationDatabaseEngine().commit();
 				}
 			} else {
+				logger.error("Could not ping " + player + "!!!");
 				throw new RuntimeException("OOPS");
 			}
-		} catch (TTransportException tte) {
+		} catch (TException tte) {
+			if (player.portsOpen) {
+				logger.warn("WARNING: Could not reach " + player.id
+						+ " even though ports were open.");
+			}
 			// We couldn't get through the client's firewall
-			peerState.ping = -1;
-		} catch (Exception e) {
 			peerState.ping = -1;
 		} finally {
 			if (gameTransport != null) {
@@ -386,17 +392,18 @@ public class PeerMonitor implements Runnable {
 		Map<String, Set<Player>> romPlayerMap = new HashMap<String, Set<Player>>();
 		for (String romNeeded : romsNeeded) {
 			romPlayerMap.put(romNeeded, new HashSet<Player>());
-			synchronized (ipStateMap) {
-			for (Entry<Player, PeerState> entry : ipStateMap.entrySet()) {
-				Player p = entry.getKey();
-				PeerState ps = entry.getValue();
-				// logger.info(ps.toString() + " " + system + " " +
-				// ps.downloadableRoms.containsKey(system));
-				if (ps.downloadableRoms.containsKey(system)
-						&& ps.downloadableRoms.get(system).contains(romNeeded)) {
-					romPlayerMap.get(romNeeded).add(p);
+			synchronized (idStateMap) {
+				for (Entry<String, PeerState> entry : idStateMap.entrySet()) {
+					Player p = MainFrame.knownPlayers.get(entry.getKey());
+					PeerState ps = entry.getValue();
+					logger.debug(ps.toString() + " " + system + " "
+							+ ps.downloadableRoms.containsKey(system));
+					if (ps.downloadableRoms.containsKey(system)
+							&& ps.downloadableRoms.get(system).contains(
+									romNeeded)) {
+						romPlayerMap.get(romNeeded).add(p);
+					}
 				}
-			}
 			}
 			if (romPlayerMap.get(romNeeded).isEmpty()) {
 				if (fallbackPlayer == null) {

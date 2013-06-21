@@ -47,20 +47,21 @@ public class RpcEngine implements Runnable {
 	private Thread rpcEngineThread;
 	public Set<RomPointer> favoriteRoms;
 
-	//public static String HOSTNAME = "localhost";
-	//public static String HOSTNAME = "ucfpawn.dyndns.info";
+	// public static String HOSTNAME = "localhost";
+	// public static String HOSTNAME = "ucfpawn.dyndns.info";
 	public static String HOSTNAME = "10ghost.net";
 	public static String PORT = "8080";
-	
+
 	public interface NetworkHandler {
 		public void handleMessage(Message message);
-		
+
 		public void handleSessionExpired();
-		
+
 		public void handleServerDown(Exception e);
-		
+
 		public void handleException(Exception e);
 	}
+
 	private NetworkHandler networkHandler;
 
 	public volatile boolean finished = false;
@@ -69,7 +70,7 @@ public class RpcEngine implements Runnable {
 	private DefaultHttpClient httpClient;
 
 	private int lastMessageIndex = 0;
-	
+
 	class PrivateMessageContainer {
 		public String targetId;
 		public Message message;
@@ -81,11 +82,10 @@ public class RpcEngine implements Runnable {
 	}
 
 	private ConcurrentLinkedQueue<Message> messagesToBroadcast = new ConcurrentLinkedQueue<Message>();;
-	private ConcurrentLinkedQueue<PrivateMessageContainer> privateMessagesToSend =
-			new ConcurrentLinkedQueue<PrivateMessageContainer>();
+	private ConcurrentLinkedQueue<PrivateMessageContainer> privateMessagesToSend = new ConcurrentLinkedQueue<PrivateMessageContainer>();
 
-	private int failCount=0;
-	
+	private int failCount = 0;
+
 	public class RpcEngineShutdownHook implements Runnable {
 
 		@Override
@@ -93,19 +93,22 @@ public class RpcEngine implements Runnable {
 			logger.info("LOGGING OUT");
 			logout();
 		}
-		
+
 	}
-	
+
 	public RpcEngine() throws IOException {
-		this.token = generateString(new Random(System.currentTimeMillis()), "123456789qwertyuiopasdfghjklzxcvbnm", 16);
+		this.token = generateString(new Random(System.currentTimeMillis()),
+				"123456789qwertyuiopasdfghjklzxcvbnm", 16);
 
 		try {
-		    final HttpParams httpParams = new BasicHttpParams();
-		    httpClient = new ContentEncodingHttpClient(httpParams);
+			final HttpParams httpParams = new BasicHttpParams();
+			httpClient = new ContentEncodingHttpClient(httpParams);
 			// set the connection timeout value to 3 seconds (3000 milliseconds)
-			HttpConnectionParams.setConnectionTimeout(httpClient.getParams(), 3000);
-		    
-			gameTransport = new THttpClient("http://"+HOSTNAME+":"+PORT+"/MAMEHubServer/mamehub", httpClient);
+			HttpConnectionParams.setConnectionTimeout(httpClient.getParams(),
+					3000);
+
+			gameTransport = new THttpClient("http://" + HOSTNAME + ":" + PORT
+					+ "/MAMEHubServer/mamehub", httpClient);
 			gameTransport.setConnectTimeout(10000);
 			gameTransport.setReadTimeout(10000);
 			gameTransport.open();
@@ -115,83 +118,90 @@ public class RpcEngine implements Runnable {
 			throw new IOException(e);
 		}
 	}
-	
-	public static String generateString(Random rng, String characters, int length)
-	{
-	    char[] text = new char[length];
-	    for (int i = 0; i < length; i++)
-	    {
-	        text[i] = characters.charAt(rng.nextInt(characters.length()));
-	    }
-	    return new String(text);
+
+	public static String generateString(Random rng, String characters,
+			int length) {
+		char[] text = new char[length];
+		for (int i = 0; i < length; i++) {
+			text[i] = characters.charAt(rng.nextInt(characters.length()));
+		}
+		return new String(text);
 	}
-	
-	public synchronized void startThread() throws NotAuthorizedException, TException {
+
+	public synchronized void startThread() throws NotAuthorizedException,
+			TException {
 		favoriteRoms = gameClient.getFavorites();
 		rpcEngineThread = new Thread(this);
 		rpcEngineThread.start();
 	}
-	
+
 	@Override
 	public void run() {
 		rpcShutdownThread = new Thread(new RpcEngineShutdownHook());
 		Runtime.getRuntime().addShutdownHook(rpcShutdownThread);
-		
+
 		try {
-		while(finished == false) {
-			try {
-				Thread.sleep(500);
-				synchronized (this) {
-					while(!messagesToBroadcast.isEmpty()) {
-						gameClient.broadcastMessage(token, messagesToBroadcast.poll());
-					}
-					while(!privateMessagesToSend.isEmpty()) {
-						PrivateMessageContainer pmc = privateMessagesToSend.poll();
-						gameClient.sendMessage(token, pmc.targetId, pmc.message);
-					}
-				}
-				
+			while (finished == false) {
 				try {
-					while(finished == false) {
-						List<Message> messages = null;
-						synchronized (this) {
-							if(token == null) {
-								finished=true;
+					Thread.sleep(500);
+					synchronized (this) {
+						while (!messagesToBroadcast.isEmpty()) {
+							gameClient.broadcastMessage(token,
+									messagesToBroadcast.peek());
+							messagesToBroadcast.poll();
+						}
+						while (!privateMessagesToSend.isEmpty()) {
+							PrivateMessageContainer pmc = privateMessagesToSend
+									.peek();
+							privateMessagesToSend.poll();
+							gameClient.sendMessage(token, pmc.targetId,
+									pmc.message);
+						}
+					}
+
+					try {
+						while (finished == false) {
+							List<Message> messages = null;
+							synchronized (this) {
+								if (token == null) {
+									finished = true;
+									break;
+								}
+								MessageQueue mq = gameClient.getMessages(token,
+										lastMessageIndex);
+								messages = mq.messages;
+								lastMessageIndex = mq.endIndex;
+							}
+							if (messages != null && !messages.isEmpty()) {
+								for (Message message : messages) {
+									networkHandler.handleMessage(message);
+								}
+							} else {
 								break;
 							}
-							MessageQueue mq = gameClient.getMessages(token, lastMessageIndex);
-							messages = mq.messages;
-							lastMessageIndex = mq.endIndex;
 						}
-						if(messages != null && !messages.isEmpty()) {
-							for(Message message : messages) {
-								networkHandler.handleMessage(message);
-							}
+						failCount = 0;
+					} catch (TTransportException e) {
+						failCount++;
+						logger.error(failCount + ") GOT A TRANSPORT ERROR: "
+								+ e);
+						if (failCount >= 10) {
+							throw e;
 						} else {
-							break;
+							Thread.sleep(3 * 1000);
 						}
 					}
-					failCount=0;
-				} catch(TTransportException e) {
-					failCount++;
-					logger.error(failCount + ") GOT A TRANSPORT ERROR: " + e);
-					if(failCount>=10) {
-						throw e;
-					} else {
-						Thread.sleep(3*1000);
+
+					if (finished) {
+						break;
 					}
+
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-				
-				if(finished) {
-					break;
-				}
-				
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
-		}
-		} catch(TTransportException e) {
+		} catch (TTransportException e) {
 			e.printStackTrace();
 			networkHandler.handleServerDown(e);
 			finished = true;
@@ -204,11 +214,12 @@ public class RpcEngine implements Runnable {
 			networkHandler.handleException(e);
 			finished = true;
 		}
-		
+
 		try {
 			Runtime.getRuntime().removeShutdownHook(rpcShutdownThread);
 		} catch (IllegalStateException e) {
-			// Ignore the error from removing the hook if we are already shutting down
+			// Ignore the error from removing the hook if we are already
+			// shutting down
 		}
 		logger.info("RPC ENGINE TERMINATED");
 	}
@@ -216,19 +227,19 @@ public class RpcEngine implements Runnable {
 	public synchronized boolean checkExternalAuth() {
 		try {
 			Player player = gameClient.getMyself(token);
-			if(player.id == null) {
+			if (player.id == null) {
 				player = null;
 			} else {
 				// Now would be a good time to send any error logs
 				File errorFile = new File("ErrorLog.txt");
-				if(errorFile.exists()) {
+				if (errorFile.exists()) {
 					BufferedReader reader = null;
 					try {
 						String s = "";
 						reader = new BufferedReader(new FileReader(errorFile));
-						while(true) {
+						while (true) {
 							String line = reader.readLine();
-							if(line == null) {
+							if (line == null) {
 								break;
 							}
 							s += line + "\n";
@@ -239,7 +250,7 @@ public class RpcEngine implements Runnable {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
-					} catch(IOException e) {
+					} catch (IOException e) {
 						e.printStackTrace();
 					} finally {
 						if (reader != null) {
@@ -263,7 +274,7 @@ public class RpcEngine implements Runnable {
 	public void setMessageHandler(NetworkHandler messageHandler) {
 		this.networkHandler = messageHandler;
 	}
-	
+
 	public void broadcastMessage(Message message) {
 		messagesToBroadcast.add(message);
 	}
@@ -296,13 +307,13 @@ public class RpcEngine implements Runnable {
 
 	public synchronized void logout() {
 		try {
-			if(token != null && !finished) {
+			if (token != null && !finished) {
 				gameClient.logout(token);
 			}
 		} catch (NotAuthorizedException e) {
 			// Silently fail if you can't log out
 			e.printStackTrace();
-		} catch(TException e) {
+		} catch (TException e) {
 			// Silently fail if you can't log out
 			e.printStackTrace();
 		}
@@ -310,7 +321,8 @@ public class RpcEngine implements Runnable {
 		finished = true;
 	}
 
-	public synchronized void hostGame(String system, String romName, String cartName) {
+	public synchronized void hostGame(String system, String romName,
+			String cartName) {
 		try {
 			gameClient.hostGame(token, system, romName, cartName);
 		} catch (NotAuthorizedException e) {
@@ -333,7 +345,7 @@ public class RpcEngine implements Runnable {
 			networkHandler.handleException(e);
 		}
 	}
-	
+
 	public synchronized String joinGame(String gameId) {
 		try {
 			return gameClient.joinGame(token, gameId);
@@ -350,30 +362,29 @@ public class RpcEngine implements Runnable {
 	public synchronized Player getMyself() {
 		try {
 			Player p = gameClient.getMyself(token);
-			if(p != null) {
+			if (p != null) {
 				logger.info("GOT MYSELF: " + p);
 			}
 			return p;
 		} catch (TException e) {
-			//getMyself is used to verify login, so don't throw here
+			// getMyself is used to verify login, so don't throw here
 		}
 		return null;
 	}
 
 	public void sendPrivateMessage(String targetId, Message message) {
-		privateMessagesToSend.add(new PrivateMessageContainer(targetId, message));
+		privateMessagesToSend
+				.add(new PrivateMessageContainer(targetId, message));
 	}
-	
+
 	public enum PingResponse {
-		OK,
-		CLIENT_TOO_OLD,
-		SERVER_DOWN
+		OK, CLIENT_TOO_OLD, SERVER_DOWN
 	}
-	
+
 	public synchronized PingResponse ping() {
 		try {
 			int ping = gameClient.ping();
-			if(ping > coreConstants.MAMEHUB_VERSION) {
+			if (ping > coreConstants.MAMEHUB_VERSION) {
 				return PingResponse.CLIENT_TOO_OLD;
 			} else {
 				return PingResponse.OK;
@@ -388,79 +399,80 @@ public class RpcEngine implements Runnable {
 
 	public synchronized String login(String username, String password) {
 		HttpClient loginClient = new DefaultHttpClient();
-		
+
 		try {
-			String url = "http://"+HOSTNAME+":"+PORT+"/MAMEHubServer/internallogin?"
-					+"token="+token
-					+"&username="+username
-					+"&password="+password;
-					
-	        HttpGet httpget = new HttpGet(url);
-	
-	        logger.info("executing login request ");
-	
-	        // Create a response handler
-	        HttpResponse loginResponse = loginClient.execute(httpget);
-			
-	        if(loginResponse.getStatusLine().getStatusCode() != 200) {
-	        	String errorMessage = convertStreamToString(loginResponse.getEntity().getContent());
-	        	if(errorMessage.length() > 100) {
-	        		logger.info("ERROR LOGGING IN: " + errorMessage);
-	        		return "Server is down";
-	        	} else {
-	        		return errorMessage;
-	        	}
-	        }
-	        
-	        gameClient.setPorts(token, Utils.getApplicationSettings().basePort, Utils.getApplicationSettings().secondaryPort);
-	        
-	        return "";
-		} catch(IOException e) {
+			String url = "http://" + HOSTNAME + ":" + PORT
+					+ "/MAMEHubServer/internallogin?" + "token=" + token
+					+ "&username=" + username + "&password=" + password;
+
+			HttpGet httpget = new HttpGet(url);
+
+			logger.info("executing login request ");
+
+			// Create a response handler
+			HttpResponse loginResponse = loginClient.execute(httpget);
+
+			if (loginResponse.getStatusLine().getStatusCode() != 200) {
+				String errorMessage = convertStreamToString(loginResponse
+						.getEntity().getContent());
+				if (errorMessage.length() > 100) {
+					logger.info("ERROR LOGGING IN: " + errorMessage);
+					return "Server is down";
+				} else {
+					return errorMessage;
+				}
+			}
+
+			gameClient.setPorts(token, Utils.getApplicationSettings().basePort,
+					Utils.getApplicationSettings().secondaryPort);
+
+			return "";
+		} catch (IOException e) {
 			return e.getMessage();
-		} catch(TException e) {
+		} catch (TException e) {
 			return e.getMessage();
 		}
 	}
 
-	public synchronized String newAccount(String email, String username, String password) {
+	public synchronized String newAccount(String email, String username,
+			String password) {
 		HttpClient loginClient = new DefaultHttpClient();
-		
+
 		try {
-			String url = "http://"+HOSTNAME+":"+PORT+"/MAMEHubServer/internallogin?"
-					+"token="+token
-					+"&email="+email
-					+"&username="+username
-					+"&password="+password
-				    +"&newaccount=yes";
-					
-	        HttpGet httpget = new HttpGet(url);
-	
-	        logger.info("executing login request ");
-	
-	        // Create a response handler
-	        HttpResponse loginResponse = loginClient.execute(httpget);
-			
-	        if(loginResponse.getStatusLine().getStatusCode() != 200) {
-	        	String errorMessage = convertStreamToString(loginResponse.getEntity().getContent());
-	        	if(errorMessage.length() > 100) {
-	        		logger.info("ERROR LOGGING IN: " + errorMessage);
-	        		return "Server is down";
-	        	} else {
-	        		return errorMessage;
-	        	}
-	        }
-	        return "";
-		} catch(IOException e) {
+			String url = "http://" + HOSTNAME + ":" + PORT
+					+ "/MAMEHubServer/internallogin?" + "token=" + token
+					+ "&email=" + email + "&username=" + username
+					+ "&password=" + password + "&newaccount=yes";
+
+			HttpGet httpget = new HttpGet(url);
+
+			logger.info("executing login request ");
+
+			// Create a response handler
+			HttpResponse loginResponse = loginClient.execute(httpget);
+
+			if (loginResponse.getStatusLine().getStatusCode() != 200) {
+				String errorMessage = convertStreamToString(loginResponse
+						.getEntity().getContent());
+				if (errorMessage.length() > 100) {
+					logger.info("ERROR LOGGING IN: " + errorMessage);
+					return "Server is down";
+				} else {
+					return errorMessage;
+				}
+			}
+			return "";
+		} catch (IOException e) {
 			return e.getMessage();
 		}
 	}
 
 	private String convertStreamToString(java.io.InputStream is) {
-	    try {
-	        return new java.util.Scanner(is).useDelimiter("\\A").next();
-	    } catch (java.util.NoSuchElementException e) {
-	        return "";
-	    }
+		try {
+			return new java.util.Scanner(is).useDelimiter("\\A").next();
+		} catch (java.util.NoSuchElementException e) {
+			return "";
+		}
 	}
 
 	public synchronized void sendError(String string) {
@@ -472,7 +484,8 @@ public class RpcEngine implements Runnable {
 		}
 	}
 
-	public synchronized boolean changePassword(String oldPassword, String newPassword) {
+	public synchronized boolean changePassword(String oldPassword,
+			String newPassword) {
 		try {
 			return gameClient.changePassword(token, oldPassword, newPassword);
 		} catch (TTransportException e) {
@@ -514,7 +527,7 @@ public class RpcEngine implements Runnable {
 	public synchronized PlayerProfile getMyProfile() {
 		return getProfile(getMyself().id);
 	}
-	
+
 	public synchronized PlayerProfile getProfile(String playerId) {
 		try {
 			return gameClient.getPlayerProfile(token, playerId);
@@ -527,7 +540,7 @@ public class RpcEngine implements Runnable {
 		}
 		return null;
 	}
-	
+
 	public synchronized void updateProfile(PlayerProfile newProfile) {
 		try {
 			gameClient.updateProfile(token, newProfile);
@@ -558,5 +571,18 @@ public class RpcEngine implements Runnable {
 		} catch (TException e) {
 			networkHandler.handleException(e);
 		}
+	}
+
+	public synchronized String getMOTD() {
+		try {
+			return gameClient.getMOTD();
+		} catch (TTransportException e) {
+			networkHandler.handleServerDown(e);
+		} catch (NotAuthorizedException e) {
+			networkHandler.handleSessionExpired();
+		} catch (TException e) {
+			networkHandler.handleException(e);
+		}
+		return "";
 	}
 }

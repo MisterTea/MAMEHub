@@ -178,6 +178,7 @@ public class GameAuditor implements Runnable {
 				File file = new File("../hash/" + system + ".hsi");
 				if (file.exists()) {
 					Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
+					systemCarts.clear();
 					futures.add(threadPool.submit(new CartParser(system, file,
 							inMemoryHashEntryMap, systemCarts, chdMap, missingSystem)));
 					if (!systems.isEmpty()) {
@@ -366,9 +367,10 @@ public class GameAuditor implements Runnable {
 			return new ArrayList<RomQueryResult>();
 		}
 
+		IndexReader reader = null;
 		try {
 			Directory dir = FSDirectory.open(indexDir);
-			IndexReader reader = DirectoryReader.open(dir);
+			reader = DirectoryReader.open(dir);
 			IndexSearcher searcher = new IndexSearcher(reader);
 
 			QueryParser parser = new QueryParser(Version.LUCENE_40,
@@ -456,6 +458,14 @@ public class GameAuditor implements Runnable {
 		} catch (IOException e) {
 			logger.error("Query Roms error", e);
 			throw new RuntimeException(e);
+		} finally {
+			if (reader != null) {
+				try {
+					reader.close();
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
 		}
 	}
 }

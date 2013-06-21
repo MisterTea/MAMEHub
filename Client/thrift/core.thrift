@@ -252,4 +252,20 @@ struct IpRangeData
 	5:string countryName,
 }
 
+struct CommitAuthor {
+	1:string name,
+	2:string email,
+	3:string date,
+}
+
+struct Commit
+{
+	1:string message,
+	2:CommitAuthor author,
+}
+
+struct CommitData
+{
+	1:Commit commit,
+}
 
