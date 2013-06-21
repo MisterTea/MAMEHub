@@ -9,8 +9,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 
@@ -22,7 +20,6 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.mapdb.Serializer;
-import org.mapdb.BTreeKeySerializer;
 
 public class ClientDatabaseEngine {
 	public static class ObjectSerializer<T> implements Serializer<T>, Serializable {
@@ -144,9 +141,10 @@ public class ClientDatabaseEngine {
 		}
 		//dbMaker.closeOnExit();
 		//dbMaker.disableTransactions();
-		dbMaker.cacheSoftRefEnable();
+		// dbMaker.cacheSoftRefEnable();
 		//dbMaker.disableCache();
 		//dbMaker.enableHardCache();
+		// dbMaker.asyncWriteDisable();
 		database = dbMaker.make();
 	}
 	

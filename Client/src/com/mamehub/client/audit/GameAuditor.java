@@ -3,13 +3,13 @@ package com.mamehub.client.audit;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
@@ -167,6 +167,12 @@ public class GameAuditor implements Runnable {
 			Set<String> systemsToRemove = new HashSet<String>();
 			String systems = "";
 			Queue<Future<?>> futures = new LinkedList<Future<?>>();
+			Map<String, ConcurrentMap<String, RomInfo>> systemRomMaps = new HashMap<String, ConcurrentMap<String, RomInfo>>();
+			for (String system : messRoms.keySet()) {
+				// Ensure that the maps exist before trying to create them in a
+				// thread-unsafe environment
+				systemRomMaps.put(system, getSystemRomInfoMap(system));
+			}
 			for (String system : messRoms.keySet()) {
 				if (GameAuditor.abort) {
 					return;
@@ -177,10 +183,12 @@ public class GameAuditor implements Runnable {
 				}
 				File file = new File("../hash/" + system + ".hsi");
 				if (file.exists()) {
-					Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
+					Map<String, RomInfo> systemCarts = systemRomMaps
+							.get(system);
 					systemCarts.clear();
 					futures.add(threadPool.submit(new CartParser(system, file,
-							inMemoryHashEntryMap, systemCarts, chdMap, missingSystem)));
+							inMemoryHashEntryMap, systemCarts, chdMap,
+							missingSystem)));
 					if (!systems.isEmpty()) {
 						systems += ", ";
 					}
@@ -205,6 +213,7 @@ public class GameAuditor implements Runnable {
 			Utils.getAuditDatabaseEngine().commit();
 
 		} catch (Exception e) {
+			logger.error("AUDIT EXCEPTION", e);
 			// Delete the database just in case
 			try {
 				Utils.getAuditDatabaseEngine().close();
@@ -423,7 +432,7 @@ public class GameAuditor implements Runnable {
 				} else {
 					romInfo = getSystemRomInfoMap(system).get(romid);
 				}
-				//System.out.println(system + " : " + romid + " : " + romInfo);
+				// System.out.println(system + " : " + romid + " : " + romInfo);
 				if (romInfo.missingReason != null
 						&& (cloudRoms == null
 								|| !cloudRoms.containsKey(romInfo.system) || !cloudRoms

@@ -19,6 +19,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.mamehub.client.Utils;
+import com.mamehub.client.utility.ClientDatabaseEngine;
 import com.mamehub.thrift.FileNameLocationPair;
 import com.mamehub.thrift.MR;
 import com.mamehub.thrift.RomInfo;
@@ -42,7 +43,8 @@ public class CartParser extends DefaultHandler implements Runnable {
 
 	public CartParser(String systemName, File xmlFile,
 			Map<String, ArrayList<FileNameLocationPair>> hashEntryMap,
-			Map<String, RomInfo> roms, ConcurrentMap<String, String> chdMap, boolean missingSystem) {
+			Map<String, RomInfo> roms, ConcurrentMap<String, String> chdMap,
+			boolean missingSystem) {
 		this.systemName = systemName;
 		this.hashEntryMap = hashEntryMap;
 		this.roms = roms;
@@ -121,17 +123,21 @@ public class CartParser extends DefaultHandler implements Runnable {
 			if (missingSystem) {
 				romInfo.missingReason = MR.MISSING_SYSTEM;
 			}
-			//if(romInfo.missingReason == null)
-				//logger.info("Got cart: " + romInfo);
+			// if(romInfo.missingReason == null)
+			// logger.info("Got cart: " + romInfo);
 
-			// Some of the hsi files are dirty and have carts with duplicate
-			// names. If there is a collision, pick one with no errors
-			if (!roms.containsKey(romInfo.romName) || romInfo.missingReason == null) {
-				roms.put(romInfo.romName, romInfo);
-			}
-			count++;
-			if (count % 1000 == 0) {
-				Utils.getAuditDatabaseEngine().commit();
+			ClientDatabaseEngine auditEngine = Utils.getAuditDatabaseEngine();
+			synchronized (auditEngine) {
+				// Some of the hsi files are dirty and have carts with duplicate
+				// names. If there is a collision, pick one with no errors
+				if (!roms.containsKey(romInfo.romName)
+						|| romInfo.missingReason == null) {
+					roms.put(romInfo.romName, romInfo);
+				}
+				count++;
+				if (count % 1000 == 0) {
+					auditEngine.database.commit();
+				}
 			}
 		}
 		// logger.info("Start Element :" + qName);
