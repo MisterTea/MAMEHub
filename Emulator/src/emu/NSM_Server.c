@@ -27,6 +27,19 @@
 #include "google/protobuf/io/lzma_protobuf_stream.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 
+#include "gen-cpp/MameHubRpc.h"
+#include <protocol/TJSONProtocol.h>
+#include <server/TSimpleServer.h>
+#include <transport/TServerSocket.h>
+#include <transport/TTransportUtils.h>
+
+using boost::shared_ptr;
+
+using namespace apache::thrift;
+using namespace apache::thrift::protocol;
+using namespace apache::thrift::transport;
+using namespace apache::thrift::server;
+
 using namespace std;
 using namespace nsm;
 using namespace google::protobuf::io;
@@ -65,20 +78,57 @@ int syncBufferSize = INITIAL_BUFFER_SIZE;
 unsigned char *uncompressedBuffer = (unsigned char*)malloc(INITIAL_BUFFER_SIZE);
 int uncompressedBufferSize = INITIAL_BUFFER_SIZE;
 
+class MameHubServerHandler : public MameHubRpcIf {
+ public:
+  MameHubServerHandler() {
+  }
+
+  void getStatus(Status& status) {
+    PlayerStatus playerStatus;
+    playerStatus.name = "Digitalghost";
+    status.playerStatus.push_back(playerStatus);
+  }
+};
+
+void MameHubServerProcessor::operator()() {
+shared_ptr<MameHubServerHandler> handler(new MameHubServerHandler());
+shared_ptr<TProcessor> processor(new MameHubRpcProcessor(handler));
+shared_ptr<TServerTransport> serverTransport(new TServerSocket(port_));
+shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+shared_ptr<TProtocolFactory> protocolFactory(new TJSONProtocolFactory());
+
+server_.reset(new TSimpleServer(processor,
+                                  serverTransport,
+                                  transportFactory,
+                                  protocolFactory));
+server_->serve();
+}
+
+void MameHubServerProcessor::stop() {
+  server_->stop();
+}
+
 Server::Server(string username,int _port)
   :
-  Common(username),
+Common(username),
   syncOverride(false),
   port(_port),
   maxPeerID(10),
-  blockNewClients(false)
-{
+  blockNewClients(false),
+  mameHubServerProcessor(_port + 1) {
   rakInterface = RakNet::RakPeerInterface::GetInstance();
 
   syncCount=0;
 
   upsertPeer(rakInterface->GetMyGUID(),1,username,attotime(1,0));
   selfPeerID = 1;
+
+  serverThread = boost::thread(mameHubServerProcessor);
+}
+
+Server::~Server() {
+  mameHubServerProcessor.stop();
+  serverThread.join();
 }
 
 void Server::shutdown()

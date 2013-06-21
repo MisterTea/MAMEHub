@@ -362,10 +362,10 @@ bool LzmaOutputStream::Flush() {
   
   wire.WriteRaw(&mBuffer[0], (uint32) dst_length);
   GOOGLE_LOG(INFO) << "LZMA: Wrote a packet\n"
-  << "\t  Raw size: " << mPacketSize << "\n"
-  << "\tCompressed: " << dst_length << "\n"
+  << "\t  Raw size: " << int(mPacketSize) << "\n"
+  << "\tCompressed: " << int(dst_length) << "\n"
   << "\t   SHA-256: " << computed_sha256 << "\n"
-  << "\tProperties: " << mPropsEncoded.size() << "\n"
+  << "\tProperties: " << int(mPropsEncoded.size()) << "\n"
   ;
 
   mPacketSize = 0;

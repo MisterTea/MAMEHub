@@ -23,6 +23,11 @@ OBJDIRS += \
 	$(LIBOBJ)/libflac \
 	$(LIBOBJ)/lib7z \
 	$(LIBOBJ)/portmidi \
+    $(LIBOBJ)/thrift \
+    $(LIBOBJ)/thrift/transport \
+    $(LIBOBJ)/thrift/protocol \
+    $(LIBOBJ)/thrift/server \
+    $(LIBOBJ)/thrift/windows \
     $(LIBOBJ)/protobuf \
     $(LIBOBJ)/protobuf/google \
     $(LIBOBJ)/protobuf/google/protobuf \
@@ -151,8 +156,63 @@ $(LIBOBJ)/protobuf/google/protobuf/io/%.o: $(LIBSRC)/protobuf/google/protobuf/io
 $(LIBOBJ)/protobuf/google/protobuf/stubs/%.o: $(LIBSRC)/protobuf/google/protobuf/stubs/%.cc | $(OSPREBUILD)
 	@echo Compiling $<...
 	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) -c $< -o $@
-#$(LIBOBJ)/webm/libmkv/WebMElement.o \
-#$(LIBOBJ)/webm/vp8/encoder/ssim.o \
+
+THRIFTOBJS = \
+	$(LIBOBJ)/thrift/TApplicationException.o\
+	$(LIBOBJ)/thrift/Thrift.o\
+	$(LIBOBJ)/thrift/VirtualProfiling.o\
+\
+	$(LIBOBJ)/thrift/transport/TBufferTransports.o\
+	$(LIBOBJ)/thrift/transport/TFDTransport.o\
+	$(LIBOBJ)/thrift/transport/TFileTransport.o\
+	$(LIBOBJ)/thrift/transport/THttpClient.o\
+	$(LIBOBJ)/thrift/transport/THttpServer.o\
+	$(LIBOBJ)/thrift/transport/THttpTransport.o\
+	$(LIBOBJ)/thrift/transport/TServerSocket.o\
+	$(LIBOBJ)/thrift/transport/TSimpleFileTransport.o\
+	$(LIBOBJ)/thrift/transport/TSocket.o\
+	$(LIBOBJ)/thrift/transport/TSocketPool.o\
+	$(LIBOBJ)/thrift/transport/TTransportException.o\
+	$(LIBOBJ)/thrift/transport/TTransportUtils.o\
+	$(LIBOBJ)/thrift/transport/TZlibTransport.o\
+\
+	$(LIBOBJ)/thrift/protocol/TBase64Utils.o\
+	$(LIBOBJ)/thrift/protocol/TJSONProtocol.o\
+\
+	$(LIBOBJ)/thrift/server/TServer.o\
+	$(LIBOBJ)/thrift/server/TSimpleServer.o\
+\
+
+ifeq ($(TARGETOS),win32)
+THRIFTOBJS += \
+	$(LIBOBJ)/thrift/windows/WinFcntl.o\
+	$(LIBOBJ)/thrift/windows/TWinsockSingleton.o\
+	$(LIBOBJ)/thrift/windows/SocketPair.o\
+
+endif
+
+$(OBJ)/libthrift.a: $(THRIFTOBJS)
+
+$(LIBOBJ)/thrift/%.o: $(LIBSRC)/thrift/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
+$(LIBOBJ)/thrift/transport/%.o: $(LIBSRC)/thrift/transport/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
+$(LIBOBJ)/thrift/protocol/%.o: $(LIBSRC)/thrift/protocol/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
+$(LIBOBJ)/thrift/server/%.o: $(LIBSRC)/thrift/server/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
+$(LIBOBJ)/thrift/windows/%.o: $(LIBSRC)/thrift/windows/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
 
 WEBMARMOBJS = \
 $(LIBOBJ)/webm/vp8/common/arm/arm_systemdependent.o \
@@ -378,9 +438,15 @@ $(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
 endif
 endif
 ifeq ($(TARGETOS),win32)
+ifeq ($(PTR64),1)
+$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+	@echo Compiling ASM FILE $<...
+	yasm -f x64 $(INCPATH) -o $@ $<
+else
 $(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
 	@echo Compiling ASM FILE $<...
 	yasm -f win32 $(INCPATH) -o $@ $<
+endif
 endif
 
 $(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.c | $(OSPREBUILD)

@@ -86,7 +86,7 @@ RakNet::TimeUS GetTimeUS_Windows( void )
 		HANDLE mProc = GetCurrentProcess();
 
 		// Get the current Affinity
-#if _MSC_VER >= 1400 && defined (_M_X64)
+#ifdef PTR64
 		GetProcessAffinityMask(mProc, (PDWORD_PTR)&mProcMask, (PDWORD_PTR)&mSysMask);
 #else
 		GetProcessAffinityMask(mProc, &mProcMask, &mSysMask);

@@ -552,6 +552,7 @@ INCPATH += \
 	-I$(SRC)/lib/webm/vpx_mem/memory_manager/include \
 	-I$(SRC)/lib/webm/vpx_scale/include/generic \
 	-I$(SRC)/lib/protobuf \
+	-I$(SRC)/lib/thrift \
 	-I$(SRC)/lib \
 	-I$(SRC)/osd \
 	-I$(SRC)/osd/$(OSD) \
@@ -569,7 +570,11 @@ endif
 endif
 
 ifeq ($(TARGETOS),win32)
+ifeq ($(PTR64),1)
+INCPATH += -I$(SRC)/lib/webm/mingw64_config
+else
 INCPATH += -I$(SRC)/lib/webm/mingw_config
+endif
 endif
 
 #-------------------------------------------------
@@ -713,6 +718,10 @@ endif
 INCPATH += -I$(SRC)/lib/protobuf
 PROTOBUF = $(OBJ)/libprotobuf.a
 
+# add thrift library
+INCPATH += -I$(SRC)/lib/thrift
+THRIFT = $(OBJ)/libthrift.a
+
 # add WebM library
 INCPATH += -I$(SRC)/lib/webm
 WEBM = $(OBJ)/libwebm.a
@@ -832,7 +841,7 @@ $(sort $(OBJDIRS)):
 
 ifndef EXECUTABLE_DEFINED
 
-$(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBCPU) $(LIBEMU) $(LIBDASM) $(LIBSOUND) $(LIBUTIL) $(EXPAT) $(BOOST_THREAD) $(RAKNET) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(7Z_LIB) $(FORMATS_LIB) $(WEBM) $(PROTOBUF) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
+$(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBCPU) $(LIBEMU) $(LIBDASM) $(LIBSOUND) $(LIBUTIL) $(EXPAT) $(BOOST_THREAD) $(RAKNET) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(FORMATS_LIB) $(WEBM) $(PROTOBUF) $(THRIFT) $(7Z_LIB) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
 	$(CC) $(CDEFS) $(CFLAGS) -c $(SRC)/version.c -o $(VERSIONOBJ)
 	@echo Linking $@...
 ifeq ($(TARGETOS),win32)

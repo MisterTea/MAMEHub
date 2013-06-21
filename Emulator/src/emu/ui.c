@@ -1746,6 +1746,7 @@ static UINT32 handler_ingame(running_machine &machine, render_container *contain
                                 //This is a command
                                 if(chatString.size()>1 && chatString[1]>='1' && chatString[1]<='9') {
                                     // TODO: Player swap
+                                  netCommon->setPlayer(chatString[1]-'1');
                                 } else if(netServer && string(&chatString[0],chatString.size()) == string("/lock")) {
                                     netServer->setBlockNewClients(!netServer->isBlockNewClients());
                                     if(netServer->isBlockNewClients())

@@ -34,6 +34,16 @@ using namespace google::protobuf::io;
 
 Client *netClient=NULL;
 
+#include "gen-cpp/MameHubRpc.h"
+
+#include <transport/TSocket.h>
+#include <transport/TBufferTransports.h>
+#include <protocol/TJSONProtocol.h>
+
+using namespace apache::thrift;
+using namespace apache::thrift::protocol;
+using namespace apache::thrift::transport;
+
 Client *createGlobalClient(string _username)
 {
     netClient = new Client(_username);
@@ -191,6 +201,22 @@ int doCatchup=0;
 
 bool Client::initializeConnection(unsigned short selfPort,const char *hostname,unsigned short port,running_machine *machine)
 {
+
+  /*
+  boost::shared_ptr<TSocket> socket(new TSocket("localhost", port + 1));
+  boost::shared_ptr<TTransport> transport(new TBufferedTransport(socket));
+  boost::shared_ptr<TProtocol> protocol(new TJSONProtocol(transport));
+
+  MameHubRpcClient client(protocol);
+  transport->open();
+  Status status;
+  client.getStatus(status);
+  cout << status.playerStatus[0].name << " <<<<< NAME" << endl;
+  transport->close();
+  exit(1);
+  */
+
+
     RakNet::SocketDescriptor socketDescriptor(0,0);
     socketDescriptor.port = selfPort;
     printf("Client running on port %d\n",selfPort);
@@ -315,6 +341,8 @@ bool Client::initializeConnection(unsigned short selfPort,const char *hostname,u
             {
                 //This is me, set my own ID and name
                 selfPeerID = peerID;
+                // Default player index is in order of join.
+                player = selfPeerID - 1;
                 mostRecentSentReport = startTime;
                 cout << "CLIENT STARTED AT TIME: " << startTime.seconds << "." << startTime.attoseconds << endl;
             }

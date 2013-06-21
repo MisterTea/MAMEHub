@@ -179,6 +179,12 @@ ATTR_FORCE_INLINE inline void *operator new[](std::size_t size, const char *file
 	return result;
 }
 
+ATTR_FORCE_INLINE inline void operator delete(void *ptr, const char *file, int line)
+{
+	if (ptr != NULL)
+		free_file_line(ptr, file, line);
+}
+
 ATTR_FORCE_INLINE inline void operator delete(void *ptr, const char *file, int line, const zeromem_t &)
 {
 	if (ptr != NULL)

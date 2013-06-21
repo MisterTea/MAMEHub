@@ -31,6 +31,7 @@ OBJDIRS += \
 	$(EMUOBJ)/layout \
 	$(EMUOBJ)/imagedev \
 	$(EMUOBJ)/video \
+	$(EMUOBJ)/gen-cpp \
 
 OSDSRC = $(SRC)/osd
 OSDOBJ = $(OBJ)/osd
@@ -48,6 +49,11 @@ EMUOBJS = \
 	$(EMUOBJ)/NSM_Server.o \
 	$(EMUOBJ)/NSM_Client.o \
 	$(EMUOBJ)/nsm.pb.o \
+	$(EMUOBJ)/gen-cpp/MameHubRpc.o \
+	$(EMUOBJ)/gen-cpp/core_constants.o \
+	$(EMUOBJ)/gen-cpp/core_types.o \
+	$(EMUOBJ)/gen-cpp/rpc_constants.o \
+	$(EMUOBJ)/gen-cpp/rpc_types.o \
 	$(EMUOBJ)/hashfile.o \
 	$(EMUOBJ)/addrmap.o \
 	$(EMUOBJ)/attotime.o \

@@ -127,12 +127,12 @@ extern unsigned char GetPacketIdentifier(RakNet::Packet *p);
 extern unsigned char *GetPacketData(RakNet::Packet *p);
 extern int GetPacketSize(RakNet::Packet *p);
 
-Common::Common(string _username)
-:
+Common::Common(string _username) :
 secondsBetweenSync(0),
-    globalInputCounter(0),
-    selfPeerID(0),
-    username(_username)
+  globalInputCounter(0),
+  selfPeerID(0),
+  username(_username),
+  player(0)
 {
     if(username.length()>16)
     {
@@ -160,6 +160,9 @@ secondsBetweenSync(0),
 	    cout << "ERROR INITIALIZING ZLIB\n";
 	    exit(1);
     }
+}
+
+Common::~Common() {
 }
 
 extern int baseDelayFromPing;
@@ -233,7 +236,7 @@ std::string Common::doInflate(const unsigned char *inputString, int length) {
     } else {
       printf("GOT OK\n");
       if(inputStream.avail_out==0) {
-	printf("NEED TO RESIZE BUFFER %d %d %d %d\n", writeIndex, v.size()+chunkSize, inputStream.avail_in, inputStream.avail_out);
+	printf("NEED TO RESIZE BUFFER %d %ld %d %d\n", writeIndex, v.size()+chunkSize, inputStream.avail_in, inputStream.avail_out);
 	v.resize(v.size()+chunkSize, '\0');
 	writeIndex += chunkSize;
 	inputStream.next_out = (Bytef*)(&(v[writeIndex]));

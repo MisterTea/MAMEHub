@@ -12,53 +12,51 @@ class running_machine;
 
 class Client : public Common
 {
-protected:
+ protected:
 
-	std::vector<MemoryBlock> syncCheckBlocks;
-    std::vector<unsigned char> incomingMsg;
+  std::vector<MemoryBlock> syncCheckBlocks;
+  std::vector<unsigned char> incomingMsg;
 
-    bool initComplete;
+  bool initComplete;
 
-	unsigned char *syncPtr;
+  unsigned char *syncPtr;
 
-	bool firstResync;
+  bool firstResync;
 
-	std::vector<unsigned char> initialSyncBuffer;
+  std::vector<unsigned char> initialSyncBuffer;
 
-    RakNet::TimeUS timeBeforeSync;
+  RakNet::TimeUS timeBeforeSync;
 
-public:
-    Client() {}
+ public:
+  Client(std::string _username);
 
-	Client(std::string _username);
+  void shutdown();
 
-    void shutdown();
+  MemoryBlock createMemoryBlock(int size);
 
-	MemoryBlock createMemoryBlock(int size);
+  std::vector<MemoryBlock> createMemoryBlock(unsigned char* ptr,int size);
 
-	std::vector<MemoryBlock> createMemoryBlock(unsigned char* ptr,int size);
+  bool initializeConnection(unsigned short selfPort,const char *hostname,unsigned short port,running_machine *machine);
 
-	bool initializeConnection(unsigned short selfPort,const char *hostname,unsigned short port,running_machine *machine);
+  void updateSyncCheck();
 
-	void updateSyncCheck();
+  bool sync(running_machine *machine);
 
-    bool sync(running_machine *machine);
+  void revert(running_machine *machine);
 
-    void revert(running_machine *machine);
+  bool update(running_machine *machine);
 
-    bool update(running_machine *machine);
+  void loadInitialData(unsigned char *data,int size,running_machine *machine);
 
-    void loadInitialData(unsigned char *data,int size,running_machine *machine);
+  bool resync(unsigned char *data,int size,running_machine *machine);
 
-    bool resync(unsigned char *data,int size,running_machine *machine);
+  void checkMatch(Server *server);
 
-	void checkMatch(Server *server);
+  inline bool isInitComplete()
+  {
+    return initComplete;
+  }
 
-    inline bool isInitComplete()
-    {
-	    return initComplete;
-    }
-
-    int getNumSessions();
+  int getNumSessions();
 
 };

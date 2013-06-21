@@ -152,7 +152,7 @@ int cli_frontend::execute(int argc, char **argv)
 {
 	// wrap the core execution in a try/catch to field all fatal errors
 	m_result = MAMERR_NONE;
-	try
+	//try
 	{
 		// first parse options to be able to get software from it
 		astring option_errors;
@@ -255,7 +255,7 @@ int cli_frontend::execute(int argc, char **argv)
 			m_result = mame_execute(m_options, m_osd);
 		}
 	}
-
+    /*
 	// handle exceptions of various types
 	catch (emu_fatalerror &fatal)
 	{
@@ -297,6 +297,7 @@ int cli_frontend::execute(int argc, char **argv)
 		fprintf(stderr, "Caught unhandled exception\n");
 		m_result = MAMERR_FATALERROR;
 	}
+    */
 
 	return m_result;
 }
