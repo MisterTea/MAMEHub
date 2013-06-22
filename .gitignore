@@ -1,3 +1,9 @@
+# Scripts & Config
+Client/deployServer.sh
+Client/genThrift.sh
+Client/pushNewJarAllOS.sh
+Client/ume.ini
+
 *.class
 target
 
