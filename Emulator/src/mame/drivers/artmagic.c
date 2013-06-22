@@ -45,8 +45,8 @@
 static void update_irq_state(running_machine &machine)
 {
 	artmagic_state *state = machine.driver_data<artmagic_state>();
-	machine.device("maincpu")->execute().set_input_line(4, state->m_tms_irq  ? ASSERT_LINE : CLEAR_LINE);
-	machine.device("maincpu")->execute().set_input_line(5, state->m_hack_irq ? ASSERT_LINE : CLEAR_LINE);
+	state->m_maincpu->set_input_line(4, state->m_tms_irq  ? ASSERT_LINE : CLEAR_LINE);
+	state->m_maincpu->set_input_line(5, state->m_hack_irq ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -67,15 +67,15 @@ static void m68k_gen_int(device_t *device, int state)
 
 void artmagic_state::machine_start()
 {
-	state_save_register_global(machine(), m_tms_irq);
-	state_save_register_global(machine(), m_hack_irq);
-	state_save_register_global(machine(), m_prot_input_index);
-	state_save_register_global(machine(), m_prot_output_index);
-	state_save_register_global(machine(), m_prot_output_bit);
-	state_save_register_global(machine(), m_prot_bit_index);
-	state_save_register_global(machine(), m_prot_save);
-	state_save_register_global_array(machine(), m_prot_input);
-	state_save_register_global_array(machine(), m_prot_output);
+	save_item(NAME(m_tms_irq));
+	save_item(NAME(m_hack_irq));
+	save_item(NAME(m_prot_input_index));
+	save_item(NAME(m_prot_output_index));
+	save_item(NAME(m_prot_output_bit));
+	save_item(NAME(m_prot_bit_index));
+	save_item(NAME(m_prot_save));
+	save_item(NAME(m_prot_input));
+	save_item(NAME(m_prot_output));
 }
 
 void artmagic_state::machine_reset()
@@ -118,8 +118,7 @@ WRITE16_MEMBER(artmagic_state::control_w)
 	/* OKI banking here */
 	if (offset == 0)
 	{
-		okim6295_device *oki = machine().device<okim6295_device>("oki");
-		oki->set_bank_base((((data >> 4) & 1) * 0x40000) % oki->region()->bytes());
+		m_oki->set_bank_base((((data >> 4) & 1) * 0x40000) % m_oki->region()->bytes());
 	}
 
 	logerror("%06X:control_w(%d) = %04X\n", space.device().safe_pc(), offset, data);
@@ -133,11 +132,19 @@ WRITE16_MEMBER(artmagic_state::control_w)
  *
  *************************************/
 
-TIMER_CALLBACK_MEMBER(artmagic_state::irq_off)
+void artmagic_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_hack_irq = 0;
-	update_irq_state(machine());
+	switch (id)
+	{
+	case TIMER_IRQ_OFF:
+		m_hack_irq = 0;
+		update_irq_state(machine());
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in artmagic_state::device_timer");
+	}
 }
+
 
 READ16_MEMBER(artmagic_state::ultennis_hack_r)
 {
@@ -147,7 +154,7 @@ READ16_MEMBER(artmagic_state::ultennis_hack_r)
 	{
 		m_hack_irq = 1;
 		update_irq_state(machine());
-		machine().scheduler().timer_set(attotime::from_usec(1), timer_expired_delegate(FUNC(artmagic_state::irq_off),this));
+		timer_set(attotime::from_usec(1), TIMER_IRQ_OFF);
 	}
 	return ioport("300000")->read();
 }
@@ -503,7 +510,7 @@ static ADDRESS_MAP_START( tms_map, AS_PROGRAM, 16, artmagic_state )
 	AM_RANGE(0x00000000, 0x001fffff) AM_RAM AM_SHARE("vram0")
 	AM_RANGE(0x00400000, 0x005fffff) AM_RAM AM_SHARE("vram1")
 	AM_RANGE(0x00800000, 0x0080007f) AM_READWRITE(artmagic_blitter_r, artmagic_blitter_w)
-	AM_RANGE(0x00c00000, 0x00c000ff) AM_DEVREADWRITE8_LEGACY("tlc34076", tlc34076_r, tlc34076_w, 0x00ff)
+	AM_RANGE(0x00c00000, 0x00c000ff) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)
 	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
 	AM_RANGE(0xffe00000, 0xffffffff) AM_RAM
 ADDRESS_MAP_END
@@ -513,7 +520,7 @@ static ADDRESS_MAP_START( stonebal_tms_map, AS_PROGRAM, 16, artmagic_state )
 	AM_RANGE(0x00000000, 0x001fffff) AM_RAM AM_SHARE("vram0")
 	AM_RANGE(0x00400000, 0x005fffff) AM_RAM AM_SHARE("vram1")
 	AM_RANGE(0x00800000, 0x0080007f) AM_READWRITE(artmagic_blitter_r, artmagic_blitter_w)
-	AM_RANGE(0x00c00000, 0x00c000ff) AM_DEVREADWRITE8_LEGACY("tlc34076", tlc34076_r, tlc34076_w, 0x00ff)
+	AM_RANGE(0x00c00000, 0x00c000ff) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)
 	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
 	AM_RANGE(0xffc00000, 0xffffffff) AM_RAM
 ADDRESS_MAP_END
@@ -844,7 +851,7 @@ static MACHINE_CONFIG_START( artmagic, artmagic_state )
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	/* video hardware */
-	MCFG_TLC34076_ADD("tlc34076", tlc34076_6_bit_intf)
+	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
 
 
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1163,7 +1170,7 @@ DRIVER_INIT_MEMBER(artmagic_state,ultennis)
 	m_protection_handler = ultennis_protection;
 
 	/* additional (protection?) hack */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x300000, 0x300001, read16_delegate(FUNC(artmagic_state::ultennis_hack_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x300000, 0x300001, read16_delegate(FUNC(artmagic_state::ultennis_hack_r),this));
 }
 
 

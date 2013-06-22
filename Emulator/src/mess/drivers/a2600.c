@@ -49,11 +49,13 @@ class a2600_state : public driver_device
 {
 public:
 	a2600_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_riot_ram(*this, "riot_ram")
-		, m_joy1(*this, CONTROL1_TAG)
-		, m_joy2(*this, CONTROL2_TAG)
-		{ }
+		: driver_device(mconfig, type, tag),
+		m_riot_ram(*this, "riot_ram"),
+		m_banking_mode(0xff),
+		m_joy1(*this, CONTROL1_TAG),
+		m_joy2(*this, CONTROL2_TAG) ,
+		m_maincpu(*this, "maincpu"),
+		m_cassette(*this, "cassette") { }
 
 	dpc_t m_dpc;
 	memory_region* m_extra_RAM;
@@ -128,6 +130,7 @@ public:
 	DECLARE_WRITE8_MEMBER(switch_B_w);
 	DECLARE_WRITE_LINE_MEMBER(irq_callback);
 	DECLARE_READ8_MEMBER(riot_input_port_8_r);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( a2600_cart );
 
 protected:
 	required_device<vcs_control_port_device> m_joy1;
@@ -151,12 +154,28 @@ protected:
 	void install_banks(int count, unsigned init);
 
 	UINT8   *m_cart;
+	int detect_modeDC();
+	int detect_modef6();
+	int detect_mode3E();
+	int detect_modeSS();
+	int detect_modeFE();
+	int detect_modeE0();
+	int detect_modeCV();
+	int detect_modeFV();
+	int detect_modeJVP();
+	int detect_modeE7();
+	int detect_modeUA();
+	int detect_8K_mode3F();
+	int detect_32K_mode3F();
+	int detect_super_chip();
+	unsigned long detect_2600controllers();
+	required_device<cpu_device> m_maincpu;
+	required_device<cassette_image_device> m_cassette;
 };
 
 
 
-#define CART machine.root_device().memregion("user1")->base()
-#define CART_MEMBER machine().root_device().memregion("user1")->base()
+#define CART machine().root_device().memregion("user1")->base()
 
 #define MASTER_CLOCK_NTSC   3579545
 #define MASTER_CLOCK_PAL    3546894
@@ -189,16 +208,15 @@ enum
 
 static const UINT16 supported_screen_heights[4] = { 262, 312, 328, 342 };
 
-static int detect_modeDC(running_machine &machine)
+int a2600_state::detect_modeDC()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,numfound = 0;
 	// signature is also in 'video reflex'.. maybe figure out that controller port someday...
 	static const unsigned char signature[3] = { 0x8d, 0xf0, 0xff };
-	if (state->m_cart_size == 0x10000)
+	if (m_cart_size == 0x10000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - sizeof signature; i++)
+		for (i = 0; i < m_cart_size - sizeof signature; i++)
 		{
 			if (!memcmp(&cart[i], signature,sizeof signature))
 			{
@@ -210,15 +228,14 @@ static int detect_modeDC(running_machine &machine)
 	return 0;
 }
 
-static int detect_modef6(running_machine &machine)
+int a2600_state::detect_modef6()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i, numfound = 0;
 	static const unsigned char signature[3] = { 0x8d, 0xf6, 0xff };
-	if (state->m_cart_size == 0x4000)
+	if (m_cart_size == 0x4000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - sizeof signature; i++)
+		for (i = 0; i < m_cart_size - sizeof signature; i++)
 		{
 			if (!memcmp(&cart[i], signature, sizeof signature))
 			{
@@ -230,19 +247,18 @@ static int detect_modef6(running_machine &machine)
 	return 0;
 }
 
-static int detect_mode3E(running_machine &machine)
+int a2600_state::detect_mode3E()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	// this one is a little hacky.. looks for STY $3e, which is unique to
 	// 'not boulderdash', but is the only example i have (cow)
 	// Would have used STA $3e, but 'Alien' and 'Star Raiders' do that for unknown reasons
 
 	int i,numfound = 0;
 	static const unsigned char signature[3] = { 0x84, 0x3e, 0x9d };
-	if (state->m_cart_size == 0x0800 || state->m_cart_size == 0x1000)
+	if (m_cart_size == 0x0800 || m_cart_size == 0x1000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - sizeof signature; i++)
+		for (i = 0; i < m_cart_size - sizeof signature; i++)
 		{
 			if (!memcmp(&cart[i], signature,sizeof signature))
 			{
@@ -254,15 +270,14 @@ static int detect_mode3E(running_machine &machine)
 	return 0;
 }
 
-static int detect_modeSS(running_machine &machine)
+int a2600_state::detect_modeSS()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,numfound = 0;
 	static const unsigned char signature[5] = { 0xbd, 0xe5, 0xff, 0x95, 0x81 };
-	if (state->m_cart_size == 0x0800 || state->m_cart_size == 0x1000)
+	if (m_cart_size == 0x0800 || m_cart_size == 0x1000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - sizeof signature; i++)
+		for (i = 0; i < m_cart_size - sizeof signature; i++)
 		{
 			if (!memcmp(&cart[i], signature,sizeof signature))
 			{
@@ -274,9 +289,8 @@ static int detect_modeSS(running_machine &machine)
 	return 0;
 }
 
-static int detect_modeFE(running_machine &machine)
+int a2600_state::detect_modeFE()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,j,numfound = 0;
 	static const unsigned char signatures[][5] =  {
 									{ 0x20, 0x00, 0xd0, 0xc6, 0xc5 },
@@ -284,10 +298,10 @@ static int detect_modeFE(running_machine &machine)
 									{ 0xd0, 0xfb, 0x20, 0x73, 0xfe },
 									{ 0x20, 0x00, 0xf0, 0x84, 0xd6 }
 	};
-	if (state->m_cart_size == 0x2000)
+	if (m_cart_size == 0x2000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
+		for (i = 0; i < m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
 		{
 			for (j = 0; j < (sizeof signatures/sizeof signatures[0]) && !numfound; j++)
 			{
@@ -302,9 +316,8 @@ static int detect_modeFE(running_machine &machine)
 	return 0;
 }
 
-static int detect_modeE0(running_machine &machine)
+int a2600_state::detect_modeE0()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,j,numfound = 0;
 	static const unsigned char signatures[][3] =  {
 									{ 0x8d, 0xe0, 0x1f },
@@ -314,10 +327,10 @@ static int detect_modeE0(running_machine &machine)
 									{ 0xad, 0xed, 0xff },
 									{ 0xad, 0xf3, 0xbf }
 	};
-	if (state->m_cart_size == 0x2000)
+	if (m_cart_size == 0x2000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
+		for (i = 0; i < m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
 		{
 			for (j = 0; j < (sizeof signatures/sizeof signatures[0]) && !numfound; j++)
 			{
@@ -332,18 +345,17 @@ static int detect_modeE0(running_machine &machine)
 	return 0;
 }
 
-static int detect_modeCV(running_machine &machine)
+int a2600_state::detect_modeCV()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,j,numfound = 0;
 	static const unsigned char signatures[][3] = {
 									{ 0x9d, 0xff, 0xf3 },
 									{ 0x99, 0x00, 0xf4 }
 	};
-	if (state->m_cart_size == 0x0800 || state->m_cart_size == 0x1000)
+	if (m_cart_size == 0x0800 || m_cart_size == 0x1000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
+		for (i = 0; i < m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
 		{
 			for (j = 0; j < (sizeof signatures/sizeof signatures[0]) && !numfound; j++)
 			{
@@ -358,17 +370,16 @@ static int detect_modeCV(running_machine &machine)
 	return 0;
 }
 
-static int detect_modeFV(running_machine &machine)
+int a2600_state::detect_modeFV()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,j,numfound = 0;
 	static const unsigned char signatures[][3] = {
 									{ 0x2c, 0xd0, 0xff }
 	};
-	if (state->m_cart_size == 0x2000)
+	if (m_cart_size == 0x2000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
+		for (i = 0; i < m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
 		{
 			for (j = 0; j < (sizeof signatures/sizeof signatures[0]) && !numfound; j++)
 			{
@@ -378,24 +389,23 @@ static int detect_modeFV(running_machine &machine)
 				}
 			}
 		}
-		state->m_FVlocked = 0;
+		m_FVlocked = 0;
 	}
 	if (numfound) return 1;
 	return 0;
 }
 
-static int detect_modeJVP(running_machine &machine)
+int a2600_state::detect_modeJVP()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,j,numfound = 0;
 	static const unsigned char signatures[][4] = {
 									{ 0x2c, 0xc0, 0xef, 0x60 },
 									{ 0x8d, 0xa0, 0x0f, 0xf0 }
 	};
-	if (state->m_cart_size == 0x4000 || state->m_cart_size == 0x2000)
+	if (m_cart_size == 0x4000 || m_cart_size == 0x2000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
+		for (i = 0; i < m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
 		{
 			for (j = 0; j < (sizeof signatures/sizeof signatures[0]) && !numfound; j++)
 			{
@@ -410,18 +420,17 @@ static int detect_modeJVP(running_machine &machine)
 	return 0;
 }
 
-static int detect_modeE7(running_machine &machine)
+int a2600_state::detect_modeE7()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,j,numfound = 0;
 	static const unsigned char signatures[][3] = {
 									{ 0xad, 0xe5, 0xff },
 									{ 0x8d, 0xe7, 0xff }
 	};
-	if (state->m_cart_size == 0x2000 || state->m_cart_size == 0x4000)
+	if (m_cart_size == 0x2000 || m_cart_size == 0x4000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
+		for (i = 0; i < m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
 		{
 			for (j = 0; j < (sizeof signatures/sizeof signatures[0]) && !numfound; j++)
 			{
@@ -436,15 +445,14 @@ static int detect_modeE7(running_machine &machine)
 	return 0;
 }
 
-static int detect_modeUA(running_machine &machine)
+int a2600_state::detect_modeUA()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,numfound = 0;
 	static const unsigned char signature[3] = { 0x8d, 0x40, 0x02 };
-	if (state->m_cart_size == 0x2000)
+	if (m_cart_size == 0x2000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - sizeof signature; i++)
+		for (i = 0; i < m_cart_size - sizeof signature; i++)
 		{
 			if (!memcmp(&cart[i], signature,sizeof signature))
 			{
@@ -456,17 +464,16 @@ static int detect_modeUA(running_machine &machine)
 	return 0;
 }
 
-static int detect_8K_mode3F(running_machine &machine)
+int a2600_state::detect_8K_mode3F()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,numfound = 0;
 	static const unsigned char signature1[4] = { 0xa9, 0x01, 0x85, 0x3f };
 	static const unsigned char signature2[4] = { 0xa9, 0x02, 0x85, 0x3f };
 	// have to look for two signatures because 'not boulderdash' gives false positive otherwise
-	if (state->m_cart_size == 0x2000)
+	if (m_cart_size == 0x2000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - sizeof signature1; i++)
+		for (i = 0; i < m_cart_size - sizeof signature1; i++)
 		{
 			if (!memcmp(&cart[i], signature1,sizeof signature1))
 			{
@@ -482,15 +489,14 @@ static int detect_8K_mode3F(running_machine &machine)
 	return 0;
 }
 
-static int detect_32K_mode3F(running_machine &machine)
+int a2600_state::detect_32K_mode3F()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,numfound = 0;
 	static const unsigned char signature[4] = { 0xa9, 0x0e, 0x85, 0x3f };
-	if (state->m_cart_size >= 0x8000)
+	if (m_cart_size >= 0x8000)
 	{
 		UINT8 *cart = CART;
-		for (i = 0; i < state->m_cart_size - sizeof signature; i++)
+		for (i = 0; i < m_cart_size - sizeof signature; i++)
 		{
 			if (!memcmp(&cart[i], signature,sizeof signature))
 			{
@@ -502,9 +508,8 @@ static int detect_32K_mode3F(running_machine &machine)
 	return 0;
 }
 
-static int detect_super_chip(running_machine &machine)
+int a2600_state::detect_super_chip()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 	int i,j;
 	UINT8 *cart = CART;
 	static const unsigned char signatures[][5] = {
@@ -512,9 +517,9 @@ static int detect_super_chip(running_machine &machine)
 									{ 0xae, 0xf6, 0xff, 0x4c, 0x00 } // off the wall
 	};
 
-	if (state->m_cart_size == 0x4000)
+	if (m_cart_size == 0x4000)
 	{
-		for (i = 0; i < state->m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
+		for (i = 0; i < m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
 		{
 			for (j = 0; j < (sizeof signatures/sizeof signatures[0]); j++)
 			{
@@ -525,7 +530,7 @@ static int detect_super_chip(running_machine &machine)
 			}
 		}
 	}
-	for (i = 0x1000; i < state->m_cart_size; i += 0x1000)
+	for (i = 0x1000; i < m_cart_size; i += 0x1000)
 	{
 		if (memcmp(cart, cart + i, 0x100))
 		{
@@ -542,25 +547,16 @@ static int detect_super_chip(running_machine &machine)
 }
 
 
-static DEVICE_START( a2600_cart )
+DEVICE_IMAGE_LOAD_MEMBER( a2600_state, a2600_cart )
 {
-	a2600_state *state = device->machine().driver_data<a2600_state>();
-	state->m_banking_mode = 0xff;
-}
-
-
-static DEVICE_IMAGE_LOAD( a2600_cart )
-{
-	a2600_state *state = image.device().machine().driver_data<a2600_state>();
-	running_machine &machine = image.device().machine();
-	UINT8 *cart = CART;
+	UINT8 *cart = memregion("user1")->base();
 
 	if (image.software_entry() == NULL)
-		state->m_cart_size = image.length();
+		m_cart_size = image.length();
 	else
-		state->m_cart_size = image.get_software_region_length("rom");
+		m_cart_size = image.get_software_region_length("rom");
 
-	switch (state->m_cart_size)
+	switch (m_cart_size)
 	{
 	case 0x00800:
 	case 0x01000:
@@ -579,17 +575,17 @@ static DEVICE_IMAGE_LOAD( a2600_cart )
 		return 1; /* unsupported image format */
 	}
 
-	state->m_current_bank = 0;
+	m_current_bank = 0;
 
 	if (image.software_entry() == NULL)
 	{
-		image.fread(cart, state->m_cart_size);
+		image.fread(cart, m_cart_size);
 	}
 	else
 	{
-		memcpy(cart, image.get_software_region("rom"), state->m_cart_size);
+		memcpy(cart, image.get_software_region("rom"), m_cart_size);
 
-		const char *mapper = software_part_get_feature((software_part*)image.part_entry(), "mapper");
+		const char *mapper = image.get_feature("mapper");
 
 		if ( mapper != NULL )
 		{
@@ -616,21 +612,21 @@ static DEVICE_IMAGE_LOAD( a2600_cart )
 				{ "8in1",  mode8in1 },
 			};
 
-			for (int i = 0; i < ARRAY_LENGTH(mapper_types) && state->m_banking_mode == 0xff; i++)
+			for (int i = 0; i < ARRAY_LENGTH(mapper_types) && m_banking_mode == 0xff; i++)
 			{
 				if (!mame_stricmp(mapper, mapper_types[i].mapper_name))
 				{
-					state->m_banking_mode = mapper_types[i].mapper_type;
+					m_banking_mode = mapper_types[i].mapper_type;
 				}
 			}
 		}
 	}
 
-	if (!(state->m_cart_size == 0x4000 && detect_modef6(image.device().machine())))
+	if (!(m_cart_size == 0x4000 && detect_modef6()))
 	{
-		while (state->m_cart_size > 0x00800)
+		while (m_cart_size > 0x00800)
 		{
-			if (!memcmp(cart, &cart[state->m_cart_size/2],state->m_cart_size/2)) state->m_cart_size /= 2;
+			if (!memcmp(cart, &cart[m_cart_size/2],m_cart_size/2)) m_cart_size /= 2;
 			else break;
 		}
 	}
@@ -723,7 +719,7 @@ void a2600_state::mode3E_RAM_switch(UINT16 offset, UINT8 data)
 
 void a2600_state::modeFV_switch(UINT16 offset, UINT8 data)
 {
-	if (!m_FVlocked && ( machine().device("maincpu")->safe_pc() & 0x1F00 ) == 0x1F00 )
+	if (!m_FVlocked && ( m_maincpu->pc() & 0x1F00 ) == 0x1F00 )
 	{
 		m_FVlocked = 1;
 		m_current_bank = m_current_bank ^ 0x01;
@@ -741,7 +737,7 @@ void a2600_state::modeJVP_switch(UINT16 offset, UINT8 data)
 		m_current_bank ^= 1;
 		break;
 	default:
-		printf("%04X: write to unknown mapper address %02X\n", machine().device("maincpu")->safe_pc(), 0xfa0 + offset );
+		printf("%04X: write to unknown mapper address %02X\n", m_maincpu->pc(), 0xfa0 + offset );
 		break;
 	}
 	m_bank_base[1] = m_cart + 0x1000 * m_current_bank;
@@ -882,7 +878,7 @@ DIRECT_UPDATE_MEMBER(a2600_state::modeF6_opbase)
 	{
 		if ( ! direct.space().debugger_access() )
 		{
-			modeF6_switch_w(machine().device("maincpu")->memory().space(AS_PROGRAM), ( address & 0x1FFF ) - 0x1FF6, 0 );
+			modeF6_switch_w(m_maincpu->space(AS_PROGRAM), ( address & 0x1FFF ) - 0x1FF6, 0 );
 		}
 	}
 	return address;
@@ -898,11 +894,11 @@ READ8_MEMBER(a2600_state::modeSS_r)
 		return data;
 	}
 
-	//logerror("%04X: read from modeSS area offset = %04X\n", machine().device("maincpu")->safe_pc(), offset);
+	//logerror("%04X: read from modeSS area offset = %04X\n", m_maincpu->pc(), offset);
 	/* Check for control register "write" */
 	if ( offset == 0xFF8 )
 	{
-		//logerror("%04X: write to modeSS control register data = %02X\n", machine().device("maincpu")->safe_pc(), m_modeSS_byte);
+		//logerror("%04X: write to modeSS control register data = %02X\n", m_maincpu->pc(), m_modeSS_byte);
 		m_modeSS_write_enabled = m_modeSS_byte & 0x02;
 		m_modeSS_write_delay = m_modeSS_byte >> 5;
 		switch ( m_modeSS_byte & 0x1C )
@@ -956,8 +952,8 @@ READ8_MEMBER(a2600_state::modeSS_r)
 	else if ( offset == 0xFF9 )
 	{
 		/* Cassette port read */
-		double tap_val = machine().device<cassette_image_device>(CASSETTE_TAG)->input();
-		//logerror("%04X: Cassette port read, tap_val = %f\n", machine().device("maincpu")->safe_pc(), tap_val);
+		double tap_val = m_cassette->input();
+		//logerror("%04X: Cassette port read, tap_val = %f\n", m_maincpu->pc(), tap_val);
 		if ( tap_val < 0 )
 		{
 			data = 0x00;
@@ -980,11 +976,11 @@ READ8_MEMBER(a2600_state::modeSS_r)
 				m_modeSS_diff_adjust += 1;
 			}
 
-			int diff = machine().device<cpu_device>("maincpu")->total_cycles() - m_modeSS_byte_started;
-			//logerror("%04X: offset = %04X, %d\n", machine().device("maincpu")->safe_pc(), offset, diff);
+			int diff = m_maincpu->total_cycles() - m_modeSS_byte_started;
+			//logerror("%04X: offset = %04X, %d\n", m_maincpu->pc(), offset, diff);
 			if ( diff - m_modeSS_diff_adjust == 5 )
 			{
-				//logerror("%04X: RAM write offset = %04X, data = %02X\n", machine().device("maincpu")->safe_pc(), offset, m_modeSS_byte );
+				//logerror("%04X: RAM write offset = %04X, data = %02X\n", m_maincpu->pc(), offset, m_modeSS_byte );
 				if ( offset & 0x800 )
 				{
 					if ( m_modeSS_high_ram_enabled )
@@ -1002,7 +998,7 @@ READ8_MEMBER(a2600_state::modeSS_r)
 			else if ( offset < 0x0100 )
 			{
 				m_modeSS_byte = offset;
-				m_modeSS_byte_started = machine().device<cpu_device>("maincpu")->total_cycles();
+				m_modeSS_byte_started = m_maincpu->total_cycles();
 				m_modeSS_diff_adjust = 0;
 			}
 			m_modeSS_last_address = offset;
@@ -1010,7 +1006,7 @@ READ8_MEMBER(a2600_state::modeSS_r)
 		else if ( offset < 0x0100 )
 		{
 			m_modeSS_byte = offset;
-			m_modeSS_byte_started = machine().device<cpu_device>("maincpu")->total_cycles();
+			m_modeSS_byte_started = m_maincpu->total_cycles();
 			m_modeSS_last_address = offset;
 			m_modeSS_diff_adjust = 0;
 		}
@@ -1078,7 +1074,7 @@ READ8_MEMBER(a2600_state::modeDPC_r)
 	UINT8   data_fetcher = offset & 0x07;
 	UINT8   data = 0xFF;
 
-	logerror("%04X: Read from DPC offset $%02X\n", machine().device("maincpu")->safe_pc(), offset);
+	logerror("%04X: Read from DPC offset $%02X\n", m_maincpu->pc(), offset);
 	if ( offset < 0x08 )
 	{
 		switch( offset & 0x06 )
@@ -1185,13 +1181,13 @@ WRITE8_MEMBER(a2600_state::modeDPC_w)
 		m_dpc.movamt = data;
 		break;
 	case 0x28:          /* Not used */
-		logerror("%04X: Write to unused DPC register $%02X, data $%02X\n", machine().device("maincpu")->safe_pc(), offset, data);
+		logerror("%04X: Write to unused DPC register $%02X, data $%02X\n", m_maincpu->pc(), offset, data);
 		break;
 	case 0x30:          /* Random number generator reset */
 		m_dpc.shift_reg = 0;
 		break;
 	case 0x38:          /* Not used */
-		logerror("%04X: Write to unused DPC register $%02X, data $%02X\n", machine().device("maincpu")->safe_pc(), offset, data);
+		logerror("%04X: Write to unused DPC register $%02X, data $%02X\n", m_maincpu->pc(), offset, data);
 		break;
 	}
 }
@@ -1214,16 +1210,16 @@ DIRECT_UPDATE_MEMBER(a2600_state::modeFE_opbase_handler)
 	/* Still cheating a bit here by looking bit 13 of the address..., but the high byte of the
 	   cpu should be the last byte that was on the data bus and so should determine the bank
 	   we should switch in. */
-	m_bank_base[1] = memregion("user1")->base() + 0x1000 * ( ( machine().device("maincpu")->safe_pc() & 0x2000 ) ? 0 : 1 );
+	m_bank_base[1] = memregion("user1")->base() + 0x1000 * ( ( m_maincpu->pc() & 0x2000 ) ? 0 : 1 );
 	membank("bank1")->set_base(m_bank_base[1] );
 	/* and restore old opbase handler */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).set_direct_update_handler(m_FE_old_opbase_handler);
+	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(m_FE_old_opbase_handler);
 	return address;
 }
 
 void a2600_state::modeFE_switch(UINT16 offset, UINT8 data)
 {
-	address_space& space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& space = m_maincpu->space(AS_PROGRAM);
 	/* Retrieve last byte read by the cpu (for this mapping scheme this
 	   should be the last byte that was on the data bus
 	*/
@@ -1269,10 +1265,10 @@ WRITE8_MEMBER(a2600_state::switch_A_w)
 	/* Right controller port */
 	m_joy2->joy_w( data & 0x0f );
 
-//  switch( machine().root_device().ioport("CONTROLLERS")->read() % CATEGORY_SELECT )
+//  switch( ioport("CONTROLLERS")->read() % CATEGORY_SELECT )
 //  {
 //  case 0x0a:  /* KidVid voice module */
-//      machine().device<cassette_image_device>(CASSETTE_TAG)->change_state(( data & 0x02 ) ? (cassette_state)CASSETTE_MOTOR_DISABLED : (cassette_state)(CASSETTE_MOTOR_ENABLED | CASSETTE_PLAY), (cassette_state)CASSETTE_MOTOR_DISABLED );
+//      m_cassette->change_state(( data & 0x02 ) ? (cassette_state)CASSETTE_MOTOR_DISABLED : (cassette_state)(CASSETTE_MOTOR_ENABLED | CASSETTE_PLAY), (cassette_state)CASSETTE_MOTOR_DISABLED );
 //      break;
 //  }
 }
@@ -1300,7 +1296,7 @@ WRITE_LINE_MEMBER(a2600_state::irq_callback)
 
 READ8_MEMBER(a2600_state::riot_input_port_8_r)
 {
-	return machine().root_device().ioport("SWB")->read();
+	return ioport("SWB")->read();
 }
 
 static const riot6532_interface r6532_interface =
@@ -1327,7 +1323,7 @@ void a2600_state::install_banks(int count, unsigned init)
 			"bank4",
 		};
 
-		machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(
+		m_maincpu->space(AS_PROGRAM).install_read_bank(
 			0x1000 + (i + 0) * 0x1000 / count - 0,
 			0x1000 + (i + 1) * 0x1000 / count - 1, handler[i]);
 
@@ -1374,9 +1370,9 @@ READ8_MEMBER(a2600_state::a2600_get_databus_contents)
 {
 	UINT16  last_address, prev_address;
 	UINT8   last_byte, prev_byte;
-	address_space& prog_space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
 
-	last_address = machine().device("maincpu")->safe_pc() - 1;
+	last_address = m_maincpu->pc() - 1;
 	if ( ! ( last_address & 0x1080 ) )
 	{
 		return offset;
@@ -1465,16 +1461,15 @@ MACHINE_START_MEMBER(a2600_state,a2600)
 	memset( m_riot_ram, 0x00, 0x80 );
 	m_current_reset_bank_counter = 0xFF;
 	m_dpc.oscillator = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(a2600_state::modeDPC_timer_callback),this));
-	m_cart = CART_MEMBER;
+	m_cart = CART;
 	m_modeSS_last_address = 0;
 }
 
 
 #ifdef UNUSED_FUNCTIONS
 // try to detect 2600 controller setup. returns 32bits with left/right controller info
-static unsigned long detect_2600controllers(running_machine &machine)
+unsigned a2600_state::long detect_2600controllers()
 {
-	a2600_state *state = machine.driver_data<a2600_state>();
 #define JOYS 0x001
 #define PADD 0x002
 #define KEYP 0x004
@@ -1520,10 +1515,10 @@ static unsigned long detect_2600controllers(running_machine &machine)
 	// it can be fixed here with a new signature (note that the Coleco Gemini has this setup also)
 	left = JOYS+PADD; right = JOYS+PADD;
 	// default for bad dumps and roms too large to have special controllers
-	if ((state->m_cart_size > 0x4000) || (state->m_cart_size & 0x7ff)) return (left << 16) + right;
+	if ((m_cart_size > 0x4000) || (m_cart_size & 0x7ff)) return (left << 16) + right;
 
 	cart = CART;
-	for (i = 0; i < state->m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
+	for (i = 0; i < m_cart_size - (sizeof signatures/sizeof signatures[0]); i++)
 	{
 		for (j = 0; j < (sizeof signatures/sizeof signatures[0]); j++)
 		{
@@ -1553,25 +1548,25 @@ static unsigned long detect_2600controllers(running_machine &machine)
 
 void a2600_state::machine_reset()
 {
-	address_space& space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& space = m_maincpu->space(AS_PROGRAM);
 	int chip = 0xFF;
 	static const unsigned char snowwhite[] = { 0x10, 0xd0, 0xff, 0xff }; // Snow White Proto
 
 	m_current_reset_bank_counter++;
 
 	/* auto-detect bank mode */
-	if (m_banking_mode == 0xff) if (detect_modeDC(machine())) m_banking_mode = modeDC;
-	if (m_banking_mode == 0xff) if (detect_mode3E(machine())) m_banking_mode = mode3E;
-	if (m_banking_mode == 0xff) if (detect_modeFE(machine())) m_banking_mode = modeFE;
-	if (m_banking_mode == 0xff) if (detect_modeSS(machine())) m_banking_mode = modeSS;
-	if (m_banking_mode == 0xff) if (detect_modeE0(machine())) m_banking_mode = modeE0;
-	if (m_banking_mode == 0xff) if (detect_modeCV(machine())) m_banking_mode = modeCV;
-	if (m_banking_mode == 0xff) if (detect_modeFV(machine())) m_banking_mode = modeFV;
-	if (m_banking_mode == 0xff) if (detect_modeJVP(machine())) m_banking_mode = modeJVP;
-	if (m_banking_mode == 0xff) if (detect_modeUA(machine())) m_banking_mode = modeUA;
-	if (m_banking_mode == 0xff) if (detect_8K_mode3F(machine())) m_banking_mode = mode3F;
-	if (m_banking_mode == 0xff) if (detect_32K_mode3F(machine())) m_banking_mode = mode3F;
-	if (m_banking_mode == 0xff) if (detect_modeE7(machine())) m_banking_mode = modeE7;
+	if (m_banking_mode == 0xff) if (detect_modeDC()) m_banking_mode = modeDC;
+	if (m_banking_mode == 0xff) if (detect_mode3E()) m_banking_mode = mode3E;
+	if (m_banking_mode == 0xff) if (detect_modeFE()) m_banking_mode = modeFE;
+	if (m_banking_mode == 0xff) if (detect_modeSS()) m_banking_mode = modeSS;
+	if (m_banking_mode == 0xff) if (detect_modeE0()) m_banking_mode = modeE0;
+	if (m_banking_mode == 0xff) if (detect_modeCV()) m_banking_mode = modeCV;
+	if (m_banking_mode == 0xff) if (detect_modeFV()) m_banking_mode = modeFV;
+	if (m_banking_mode == 0xff) if (detect_modeJVP()) m_banking_mode = modeJVP;
+	if (m_banking_mode == 0xff) if (detect_modeUA()) m_banking_mode = modeUA;
+	if (m_banking_mode == 0xff) if (detect_8K_mode3F()) m_banking_mode = mode3F;
+	if (m_banking_mode == 0xff) if (detect_32K_mode3F()) m_banking_mode = mode3F;
+	if (m_banking_mode == 0xff) if (detect_modeE7()) m_banking_mode = modeE7;
 
 	if (m_banking_mode == 0xff)
 	{
@@ -1614,7 +1609,7 @@ void a2600_state::machine_reset()
 
 	if (m_cart_size == 0x2000 || m_cart_size == 0x4000 || m_cart_size == 0x8000)
 	{
-		chip = detect_super_chip(machine());
+		chip = detect_super_chip();
 	}
 
 	/* Super chip games:
@@ -1655,7 +1650,7 @@ void a2600_state::machine_reset()
 
 	case modeF8:
 		m_current_reset_bank_counter = 0;
-		if (!memcmp(&CART_MEMBER[0x1ffc],snowwhite,sizeof(snowwhite)))
+		if (!memcmp(&CART[0x1ffc],snowwhite,sizeof(snowwhite)))
 		{
 			install_banks(1, 0x0000);
 		}
@@ -1816,13 +1811,13 @@ void a2600_state::machine_reset()
 	case modeSS:
 		space.install_read_handler(0x1000, 0x1fff, read8_delegate(FUNC(a2600_state::modeSS_r),this));
 		m_bank_base[1] = m_extra_RAM->base() + 2 * 0x800;
-		m_bank_base[2] = CART_MEMBER;
+		m_bank_base[2] = CART;
 		membank("bank1")->set_base(m_bank_base[1] );
 		membank("bank2")->set_base(m_bank_base[2] );
 		m_modeSS_write_enabled = 0;
 		m_modeSS_byte_started = 0;
 		/* The Supercharger has no motor control so just enable it */
-		machine().device<cassette_image_device>(CASSETTE_TAG)->change_state(CASSETTE_MOTOR_ENABLED, CASSETTE_MOTOR_DISABLED );
+		m_cassette->change_state(CASSETTE_MOTOR_ENABLED, CASSETTE_MOTOR_DISABLED );
 		break;
 
 	case modeFV:
@@ -1849,8 +1844,8 @@ void a2600_state::machine_reset()
 		break;
 
 	case mode32in1:
-		membank("bank1")->set_base(CART_MEMBER + m_current_reset_bank_counter * 0x800 );
-		membank("bank2")->set_base(CART_MEMBER + m_current_reset_bank_counter * 0x800 );
+		membank("bank1")->set_base(CART + m_current_reset_bank_counter * 0x800 );
+		membank("bank2")->set_base(CART + m_current_reset_bank_counter * 0x800 );
 		break;
 
 	case modeJVP:
@@ -1886,7 +1881,7 @@ void a2600_state::machine_reset()
 	}
 
 	/* Banks may have changed, reset the cpu so it uses the correct reset vector */
-	machine().device("maincpu")->reset();
+	m_maincpu->reset();
 }
 
 
@@ -1922,8 +1917,7 @@ static MACHINE_CONFIG_FRAGMENT(a2600_cartslot)
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin,a26")
 	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_START(a2600_cart)
-	MCFG_CARTSLOT_LOAD(a2600_cart)
+	MCFG_CARTSLOT_LOAD(a2600_state,a2600_cart)
 	MCFG_CARTSLOT_INTERFACE("a2600_cart")
 
 	/* software lists */
@@ -1951,20 +1945,20 @@ static MACHINE_CONFIG_START( a2600, a2600_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("tia", TIA, MASTER_CLOCK_NTSC/114)
+	MCFG_SOUND_TIA_ADD("tia", MASTER_CLOCK_NTSC/114)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
 	MCFG_RIOT6532_ADD("riot", MASTER_CLOCK_NTSC / 3, r6532_interface)
 
-	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, "joy", NULL)
-	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, NULL, NULL)
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, "joy")
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, NULL)
 
 	MCFG_FRAGMENT_ADD(a2600_cartslot)
 	MCFG_SOFTWARE_LIST_FILTER("cart_list", "NTSC")
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, a2600_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", a2600_cassette_interface )
 MACHINE_CONFIG_END
 
 
@@ -1988,20 +1982,20 @@ static MACHINE_CONFIG_START( a2600p, a2600_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("tia", TIA, MASTER_CLOCK_PAL/114)
+	MCFG_SOUND_TIA_ADD("tia", MASTER_CLOCK_PAL/114)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
 	MCFG_RIOT6532_ADD("riot", MASTER_CLOCK_PAL / 3, r6532_interface)
 
-	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, "joy", NULL)
-	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, NULL, NULL)
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, "joy")
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, NULL)
 
 	MCFG_FRAGMENT_ADD(a2600_cartslot)
 	MCFG_SOFTWARE_LIST_FILTER("cart_list", "PAL")
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, a2600_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", a2600_cassette_interface )
 MACHINE_CONFIG_END
 
 

@@ -9,7 +9,7 @@
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "cpu/konami/konami.h" /* for the callback and the firq irq definition */
+#include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "video/konicdev.h"
 #include "sound/2151intf.h"
 #include "sound/k007232.h"
@@ -21,14 +21,12 @@ static KONAMI_SETLINES_CALLBACK( gbusters_banking );
 
 INTERRUPT_GEN_MEMBER(gbusters_state::gbusters_interrupt)
 {
-
 	if (k052109_is_irq_enabled(m_k052109))
 		device.execute().set_input_line(KONAMI_IRQ_LINE, HOLD_LINE);
 }
 
 READ8_MEMBER(gbusters_state::bankedram_r)
 {
-
 	if (m_palette_selected)
 		return m_generic_paletteram_8[offset];
 	else
@@ -37,7 +35,6 @@ READ8_MEMBER(gbusters_state::bankedram_r)
 
 WRITE8_MEMBER(gbusters_state::bankedram_w)
 {
-
 	if (m_palette_selected)
 		paletteram_xBBBBBGGGGGRRRRR_byte_be_w(space, offset, data);
 	else
@@ -46,7 +43,6 @@ WRITE8_MEMBER(gbusters_state::bankedram_w)
 
 WRITE8_MEMBER(gbusters_state::gbusters_1f98_w)
 {
-
 	/* bit 0 = enable char ROM reading through the video RAM */
 	k052109_set_rmrd_line(m_k052109, (data & 0x01) ? ASSERT_LINE : CLEAR_LINE);
 
@@ -62,7 +58,6 @@ WRITE8_MEMBER(gbusters_state::gbusters_1f98_w)
 
 WRITE8_MEMBER(gbusters_state::gbusters_coin_counter_w)
 {
-
 	/* bit 0 select palette RAM  or work RAM at 5800-5fff */
 	m_palette_selected = ~data & 0x01;
 
@@ -105,10 +100,9 @@ WRITE8_MEMBER(gbusters_state::gbusters_sh_irqtrigger_w)
 
 WRITE8_MEMBER(gbusters_state::gbusters_snd_bankswitch_w)
 {
-	device_t *device = machine().device("k007232");
 	int bank_B = BIT(data, 2);  /* ?? */
 	int bank_A = BIT(data, 0);      /* ?? */
-	k007232_set_bank(device, bank_A, bank_B );
+	k007232_set_bank(m_k007232, bank_A, bank_B );
 
 #if 0
 	{
@@ -122,7 +116,6 @@ WRITE8_MEMBER(gbusters_state::gbusters_snd_bankswitch_w)
 /* special handlers to combine 052109 & 051960 */
 READ8_MEMBER(gbusters_state::k052109_051960_r)
 {
-
 	if (k052109_get_rmrd_line(m_k052109) == CLEAR_LINE)
 	{
 		if (offset >= 0x3800 && offset < 0x3808)
@@ -138,7 +131,6 @@ READ8_MEMBER(gbusters_state::k052109_051960_r)
 
 WRITE8_MEMBER(gbusters_state::k052109_051960_w)
 {
-
 	if (offset >= 0x3800 && offset < 0x3808)
 		k051937_w(m_k051960, space, offset - 0x3800, data);
 	else if (offset < 0x3c00)
@@ -238,15 +230,15 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static void volume_callback( device_t *device, int v )
+WRITE8_MEMBER(gbusters_state::volume_callback)
 {
-	k007232_set_volume(device, 0, (v >> 4) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232, 1, 0, (data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_config =
 {
-	volume_callback /* external port callback */
+	DEVCB_DRIVER_MEMBER(gbusters_state,volume_callback) /* external port callback */
 };
 
 static const k052109_interface gbusters_k052109_intf =
@@ -274,12 +266,6 @@ void gbusters_state::machine_start()
 
 	m_generic_paletteram_8.allocate(0x800);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k052109 = machine().device("k052109");
-	m_k051960 = machine().device("k051960");
-	m_k007232 = machine().device("k007232");
-
 	save_item(NAME(m_palette_selected));
 	save_item(NAME(m_priority));
 }
@@ -288,7 +274,7 @@ void gbusters_state::machine_reset()
 {
 	UINT8 *RAM = memregion("maincpu")->base();
 
-	konami_configure_set_lines(machine().device("maincpu"), gbusters_banking);
+	konami_configure_set_lines(m_maincpu, gbusters_banking);
 
 	/* mirror address for banked ROM */
 	memcpy(&RAM[0x18000], &RAM[0x10000], 0x08000);

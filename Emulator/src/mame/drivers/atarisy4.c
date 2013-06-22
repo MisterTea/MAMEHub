@@ -24,9 +24,12 @@ class atarisy4_state : public driver_device
 {
 public:
 	atarisy4_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_m68k_ram(*this, "m68k_ram"),
-		m_screen_ram(*this, "screen_ram"){ }
+		m_screen_ram(*this, "screen_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_dsp0(*this, "dsp0"),
+		m_dsp1(*this, "dsp1") { }
 
 	UINT8 m_r_color_table[256];
 	UINT8 m_g_color_table[256];
@@ -60,6 +63,15 @@ public:
 	DECLARE_MACHINE_RESET(airrace);
 	UINT32 screen_update_atarisy4(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_int);
+	void image_mem_to_screen( bool clip);
+	void draw_polygon(UINT16 color);
+	void execute_gpu_command();
+	inline UINT8 hex_to_ascii(UINT8 in);
+	void load_ldafile(address_space &space, const UINT8 *file);
+	void load_hexfile(address_space &space, const UINT8 *file);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_dsp0;
+	optional_device<cpu_device> m_dsp1;
 };
 
 
@@ -207,7 +219,7 @@ INLINE UINT32 xy_to_screen_addr(UINT32 x, UINT32 y)
 	return (y * 4096) + offset + x;
 }
 
-static void image_mem_to_screen(atarisy4_state *state, bool clip)
+void atarisy4_state::image_mem_to_screen(bool clip)
 {
 	INT16 y = gpu.gr[1] - 0x200;
 	UINT16 h = gpu.gr[3];
@@ -230,14 +242,14 @@ static void image_mem_to_screen(atarisy4_state *state, bool clip)
 			{
 				if (x >= 0 && x <= 511)
 				{
-					UINT16 pix = state->m_screen_ram[xy_to_screen_addr(x,y) >> 1];
+					UINT16 pix = m_screen_ram[xy_to_screen_addr(x,y) >> 1];
 
 					if (x & 1)
 						pix = (pix & (0x00ff)) | gpu.idr << 8;
 					else
 						pix = (pix & (0xff00)) | gpu.idr;
 
-					state->m_screen_ram[xy_to_screen_addr(x,y) >> 1] = pix;
+					m_screen_ram[xy_to_screen_addr(x,y) >> 1] = pix;
 				}
 				++x;
 			}
@@ -266,17 +278,17 @@ static void draw_scanline(void *dest, INT32 scanline, const poly_extent *extent,
 	}
 }
 
-static void draw_polygon(atarisy4_state *state, UINT16 color)
+void atarisy4_state::draw_polygon(UINT16 color)
 {
 	int i;
 	rectangle clip;
 	poly_vertex v1, v2, v3;
-	poly_extra_data *extra = (poly_extra_data *)poly_get_extra_data(state->m_poly);
+	poly_extra_data *extra = (poly_extra_data *)poly_get_extra_data(m_poly);
 
 	clip.set(0, 511, 0, 511);
 
 	extra->color = color;
-	extra->screen_ram = state->m_screen_ram;
+	extra->screen_ram = m_screen_ram;
 
 	v1.x = gpu.points[0].x;
 	v1.y = gpu.points[0].y;
@@ -290,7 +302,7 @@ static void draw_polygon(atarisy4_state *state, UINT16 color)
 		v3.x = gpu.points[i].x;
 		v3.y = gpu.points[i].y;
 
-		poly_render_triangle(state->m_poly, 0, clip, draw_scanline, 1, &v1, &v2, &v3);
+		poly_render_triangle(m_poly, 0, clip, draw_scanline, 1, &v1, &v2, &v3);
 		v2 = v3;
 	}
 }
@@ -323,9 +335,8 @@ static void draw_polygon(atarisy4_state *state, UINT16 color)
     PFVR    0x2B    Polygon vector relative
     PFC     0x2C    Polygon close
 */
-void execute_gpu_command(running_machine &machine)
+void atarisy4_state::execute_gpu_command()
 {
-	atarisy4_state *state = machine.driver_data<atarisy4_state>();
 	switch (gpu.ecr)
 	{
 		case 0x04:
@@ -378,18 +389,18 @@ void execute_gpu_command(running_machine &machine)
 
 			for (i = 0; i < gpu.gr[3]; ++i)
 			{
-				UINT16 val = state->m_screen_ram[offset >> 1];
+				UINT16 val = m_screen_ram[offset >> 1];
 				val >>= (~offset & 1) << 3;
 
 				if (gpu.gr[4] & 0x10)
-					state->m_r_color_table[table_offs] = val;
+					m_r_color_table[table_offs] = val;
 				if (gpu.gr[4] & 0x20)
-					state->m_g_color_table[table_offs] = val;
+					m_g_color_table[table_offs] = val;
 				if (gpu.gr[4] & 0x40)
-					state->m_b_color_table[table_offs] = val;
+					m_b_color_table[table_offs] = val;
 
 				/* Update */
-				palette_set_color(machine, table_offs, MAKE_RGB(state->m_r_color_table[table_offs], state->m_g_color_table[table_offs], state->m_b_color_table[table_offs]));
+				palette_set_color(machine(), table_offs, MAKE_RGB(m_r_color_table[table_offs], m_g_color_table[table_offs], m_b_color_table[table_offs]));
 
 				++table_offs;
 				++offset;
@@ -399,12 +410,12 @@ void execute_gpu_command(running_machine &machine)
 		}
 		case 0x20:
 		{
-			image_mem_to_screen(state, false);
+			image_mem_to_screen(false);
 			break;
 		}
 		case 0x21:
 		{
-			image_mem_to_screen(state, true);
+			image_mem_to_screen(true);
 			break;
 		}
 		case 0x28:
@@ -439,8 +450,8 @@ void execute_gpu_command(running_machine &machine)
 		}
 		case 0x2c:
 		{
-			draw_polygon(state, gpu.gr[2]);
-			poly_wait(state->m_poly, "Normal");
+			draw_polygon(gpu.gr[2]);
+			poly_wait(m_poly, "Normal");
 			break;
 		}
 		default:
@@ -476,7 +487,7 @@ WRITE16_MEMBER(atarisy4_state::gpu_w)
 		case 0x17:
 		{
 			gpu.ecr = data;
-			execute_gpu_command(machine());
+			execute_gpu_command();
 			break;
 		}
 		case 0x1a:  gpu.far = data;     break;
@@ -485,7 +496,7 @@ WRITE16_MEMBER(atarisy4_state::gpu_w)
 			gpu.mcr = data;
 
 			if (~data & 0x08)
-				machine().device("maincpu")->execute().set_input_line(6, CLEAR_LINE);
+				m_maincpu->set_input_line(6, CLEAR_LINE);
 
 			break;
 		}
@@ -520,7 +531,7 @@ READ16_MEMBER(atarisy4_state::gpu_r)
 INTERRUPT_GEN_MEMBER(atarisy4_state::vblank_int)
 {
 	if (gpu.mcr & 0x08)
-		machine().device("maincpu")->execute().set_input_line(6, ASSERT_LINE);
+		m_maincpu->set_input_line(6, ASSERT_LINE);
 }
 
 
@@ -565,8 +576,8 @@ READ16_MEMBER(atarisy4_state::dsp0_status_r)
 
 WRITE16_MEMBER(atarisy4_state::dsp0_control_w)
 {
-	machine().device("dsp0")->execute().set_input_line(INPUT_LINE_RESET, data & 0x01 ? CLEAR_LINE : ASSERT_LINE);
-	machine().device("dsp0")->execute().set_input_line(0, data & 0x02 ? ASSERT_LINE : CLEAR_LINE);
+	m_dsp0->set_input_line(INPUT_LINE_RESET, data & 0x01 ? CLEAR_LINE : ASSERT_LINE);
+	m_dsp0->set_input_line(0, data & 0x02 ? ASSERT_LINE : CLEAR_LINE);
 
 	m_csr[0] = data;
 }
@@ -599,8 +610,8 @@ READ16_MEMBER(atarisy4_state::dsp1_status_r)
 
 WRITE16_MEMBER(atarisy4_state::dsp1_control_w)
 {
-	machine().device("dsp1")->execute().set_input_line(INPUT_LINE_RESET, data & 0x01 ? CLEAR_LINE : ASSERT_LINE);
-	machine().device("dsp1")->execute().set_input_line(0, data & 0x02 ? ASSERT_LINE : CLEAR_LINE);
+	m_dsp1->set_input_line(INPUT_LINE_RESET, data & 0x01 ? CLEAR_LINE : ASSERT_LINE);
+	m_dsp1->set_input_line(0, data & 0x02 ? ASSERT_LINE : CLEAR_LINE);
 
 	m_csr[1] = data;
 }
@@ -795,7 +806,7 @@ ROM_END
  *
  *************************************/
 
-INLINE UINT8 hex_to_ascii(UINT8 in)
+UINT8 atarisy4_state::hex_to_ascii(UINT8 in)
 {
 	if (in < 0x3a)
 		return in - 0x30;
@@ -805,7 +816,7 @@ INLINE UINT8 hex_to_ascii(UINT8 in)
 		return in;
 }
 
-void load_ldafile(address_space &space, const UINT8 *file)
+void atarisy4_state::load_ldafile(address_space &space, const UINT8 *file)
 {
 #define READ_CHAR()     file[i++]
 	int i = 0;
@@ -859,7 +870,7 @@ void load_ldafile(address_space &space, const UINT8 *file)
 }
 
 /* Load memory space with data from a Tektronix-Extended HEX file */
-void load_hexfile(address_space &space, const UINT8 *file)
+void atarisy4_state::load_hexfile(address_space &space, const UINT8 *file)
 {
 #define READ_HEX_CHAR()     hex_to_ascii(file[i++])
 
@@ -964,7 +975,7 @@ next_line:
 
 DRIVER_INIT_MEMBER(atarisy4_state,laststar)
 {
-	address_space &main = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &main = m_maincpu->space(AS_PROGRAM);
 
 	/* Allocate 16kB of shared RAM */
 	m_shared_ram[0] = auto_alloc_array_clear(machine(), UINT16, 0x2000);
@@ -976,7 +987,7 @@ DRIVER_INIT_MEMBER(atarisy4_state,laststar)
 	/* Set up the DSP */
 	membank("dsp0_bank0")->set_base(m_shared_ram[0]);
 	membank("dsp0_bank1")->set_base(&m_shared_ram[0][0x800]);
-	load_ldafile(machine().device("dsp0")->memory().space(AS_PROGRAM), memregion("dsp")->base());
+	load_ldafile(m_dsp0->space(AS_PROGRAM), memregion("dsp")->base());
 }
 
 DRIVER_INIT_MEMBER(atarisy4_state,airrace)
@@ -986,28 +997,28 @@ DRIVER_INIT_MEMBER(atarisy4_state,airrace)
 	m_shared_ram[1] = auto_alloc_array_clear(machine(), UINT16, 0x4000);
 
 	/* Populate RAM with data from the HEX files */
-	load_hexfile(machine().device("maincpu")->memory().space(AS_PROGRAM), memregion("code")->base());
+	load_hexfile(m_maincpu->space(AS_PROGRAM), memregion("code")->base());
 
 	/* Set up the first DSP */
 	membank("dsp0_bank0")->set_base(m_shared_ram[0]);
 	membank("dsp0_bank1")->set_base(&m_shared_ram[0][0x800]);
-	load_ldafile(machine().device("dsp0")->memory().space(AS_PROGRAM), memregion("dsp")->base());
+	load_ldafile(m_dsp0->space(AS_PROGRAM), memregion("dsp")->base());
 
 	/* Set up the second DSP */
 	membank("dsp1_bank0")->set_base(m_shared_ram[1]);
 	membank("dsp1_bank1")->set_base(&m_shared_ram[1][0x800]);
-	load_ldafile(machine().device("dsp1")->memory().space(AS_PROGRAM), memregion("dsp")->base());
+	load_ldafile(m_dsp1->space(AS_PROGRAM), memregion("dsp")->base());
 }
 
 void atarisy4_state::machine_reset()
 {
-	machine().device("dsp0")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp0->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 MACHINE_RESET_MEMBER(atarisy4_state,airrace)
 {
-	machine().device("dsp0")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
-	machine().device("dsp1")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp0->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp1->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 

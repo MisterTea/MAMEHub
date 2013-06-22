@@ -69,7 +69,7 @@ DIP locations verified for:
 
 WRITE8_MEMBER(bagman_state::bagman_ls259_w)
 {
-	device_t *device = machine().device("tmsprom");
+	tmsprom_device *tmsprom = machine().device<tmsprom_device>("tmsprom");
 	bagman_pal16r6_w(space, offset,data); /*this is just a simulation*/
 
 	if (m_ls259_buf[offset] != (data&1) )
@@ -81,16 +81,16 @@ WRITE8_MEMBER(bagman_state::bagman_ls259_w)
 		case 0:
 		case 1:
 		case 2:
-			tmsprom_bit_w(device, space, 0, 7 - ((m_ls259_buf[0]<<2) | (m_ls259_buf[1]<<1) | (m_ls259_buf[2]<<0)));
+			tmsprom->bit_w(space, 0, 7 - ((m_ls259_buf[0]<<2) | (m_ls259_buf[1]<<1) | (m_ls259_buf[2]<<0)));
 			break;
 		case 3:
-			tmsprom_enable_w(device, m_ls259_buf[offset]);
+			tmsprom->enable_w(m_ls259_buf[offset]);
 			break;
 		case 4:
-			tmsprom_rom_csq_w(device, space, 0, m_ls259_buf[offset]);
+			tmsprom->rom_csq_w(space, 0, m_ls259_buf[offset]);
 			break;
 		case 5:
-			tmsprom_rom_csq_w(device, space, 1, m_ls259_buf[offset]);
+			tmsprom->rom_csq_w(space, 1, m_ls259_buf[offset]);
 			break;
 		}
 	}
@@ -103,7 +103,6 @@ WRITE8_MEMBER(bagman_state::bagman_coin_counter_w)
 
 WRITE8_MEMBER(bagman_state::irq_mask_w)
 {
-
 	m_irq_mask = data & 1;
 }
 
@@ -114,7 +113,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, bagman_state )
 	AM_RANGE(0x9800, 0x9bff) AM_RAM_WRITE(bagman_colorram_w) AM_SHARE("colorram")
 	AM_RANGE(0x9c00, 0x9fff) AM_WRITENOP    /* written to, but unused */
 	AM_RANGE(0xa000, 0xa000) AM_READ(bagman_pal16r6_r)
-	//AM_RANGE(0xa800, 0xa805) AM_READ_LEGACY(bagman_ls259_r) /*just for debugging purposes*/
+	//AM_RANGE(0xa800, 0xa805) AM_READ(bagman_ls259_r) /*just for debugging purposes*/
 	AM_RANGE(0xa000, 0xa000) AM_WRITE(irq_mask_w)
 	AM_RANGE(0xa001, 0xa002) AM_WRITE(bagman_flipscreen_w)
 	AM_RANGE(0xa003, 0xa003) AM_WRITEONLY AM_SHARE("video_enable")
@@ -157,14 +156,14 @@ static ADDRESS_MAP_START( pickin_map, AS_PROGRAM, 8, bagman_state )
 	AM_RANGE(0xa007, 0xa007) AM_WRITENOP    /* ???? */
 
 	/* guess */
-	AM_RANGE(0xb000, 0xb000) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
-	AM_RANGE(0xb800, 0xb800) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r, ay8910_data_w)
+	AM_RANGE(0xb000, 0xb000) AM_DEVWRITE("ay2", ay8910_device, address_w)
+	AM_RANGE(0xb800, 0xb800) AM_DEVREADWRITE("ay2", ay8910_device, data_r, data_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( main_portmap, AS_IO, 8, bagman_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x08, 0x09) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0x0c, 0x0c) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0x08, 0x09) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0x0c, 0x0c) AM_DEVREAD("aysnd", ay8910_device, data_r)
 	//AM_RANGE(0x56, 0x56) AM_WRITENOP
 ADDRESS_MAP_END
 
@@ -445,8 +444,8 @@ static const tmsprom_interface prom_intf =
 	2,                              /* bit # of ctl8 line */
 	6,                              /* bit # of rom reset */
 	7,                              /* bit # of stop */
-	DEVCB_DEVICE_LINE("tms", tms5110_pdc_w),        /* tms pdc func */
-	DEVCB_DEVICE_HANDLER("tms", tms5110_ctl_w)      /* tms ctl func */
+	DEVCB_DEVICE_LINE_MEMBER("tms", tms5110_device, pdc_w),        /* tms pdc func */
+	DEVCB_DEVICE_MEMBER("tms", tms5110_device, ctl_w)      /* tms ctl func */
 };
 
 static const tms5110_interface bagman_tms5110_interface =
@@ -455,16 +454,15 @@ static const tms5110_interface bagman_tms5110_interface =
 	NULL,                                           /* function to be called when chip requests another bit */
 	NULL,                                           /* speech ROM load address callback */
 	/* new rom controller interface */
-	DEVCB_DEVICE_LINE("tmsprom", tmsprom_m0_w),     /* the M0 line */
+	DEVCB_DEVICE_LINE_MEMBER("tmsprom", tmsprom_device, m0_w),     /* the M0 line */
 	DEVCB_NULL,                                     /* the M1 line */
 	DEVCB_NULL,                                     /* Write to ADD1,2,4,8 - 4 address bits */
-	DEVCB_DEVICE_LINE("tmsprom", tmsprom_data_r),   /* Read one bit from ADD8/Data - voice data */
+	DEVCB_DEVICE_LINE_MEMBER("tmsprom", tmsprom_device, data_r),   /* Read one bit from ADD8/Data - voice data */
 	DEVCB_NULL                                      /* rom clock - Only used to drive the data lines */
 };
 
 INTERRUPT_GEN_MEMBER(bagman_state::vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }
@@ -689,6 +687,36 @@ ROM_START( bagnarda )
 	ROM_LOAD( "r9_b11.bin",   0x0000, 0x1000, CRC(2e0057ff) SHA1(33e3ffa6418f86864eb81e5e9bda4bf540c143a6) )
 	ROM_LOAD( "t9_b12.bin",   0x1000, 0x1000, CRC(b2120edd) SHA1(52b89dbcc749b084331fa82b13d0876e911fce52) )
 ROM_END
+
+ROM_START( bagnardi ) // based on bagnard set with mods for license text
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "bagnardi_05.e9",   0x0000, 0x1000, CRC(e0156191) SHA1(bb5f16d49fbe48f3bac118acd1fea51ec4bc5355) ) // == e9_b05.bin
+	ROM_LOAD( "bagnardi_06.f9",   0x1000, 0x1000, CRC(2e98c072) SHA1(d1f2341fc0c04f48615cb21a44736c83b7ded3ee) )
+	ROM_LOAD( "bagnardi_07.j9",   0x2000, 0x1000, CRC(698f17b3) SHA1(619498e9e06fcde0a1db67f4347e06c4fc669e6c) )
+	ROM_LOAD( "bagnardi_08.k9",   0x3000, 0x1000, CRC(f212e287) SHA1(8ed4b8e555239862eec2a2e7496054a9eda341ad) )
+	ROM_LOAD( "bagnardi_09.m9",   0x4000, 0x1000, CRC(4f0088ab) SHA1(a8009f5b8517ba4d84fbc483b199f2514f24eae8) ) // == bagnard.009
+	ROM_LOAD( "bagnardi_10.n9",   0x5000, 0x1000, CRC(423c54be) SHA1(f3ad41142441eb73bd17ea7cbdb7070f02c18cb8) )
+
+	ROM_REGION( 0x2000, "gfx1", 0 )
+	ROM_LOAD( "bagnardi_02.e1",   0x0000, 0x1000, CRC(4a0a6b55) SHA1(955f8bd4bd9b0fc3c6c359c25ba543ba26c04cbd) ) // == e1_b02.bin
+	ROM_LOAD( "bagnardi_04.j1",   0x1000, 0x1000, CRC(c680ef04) SHA1(79406bc786374abfcd9f548268c445b5c8d8858d) ) // == j1_b04.bin
+
+	ROM_REGION( 0x2000, "gfx2", 0 )
+	ROM_LOAD( "bagnardi_01.c1",  0x0000, 0x1000, CRC(060b044c) SHA1(3121f07adb661663a2303085eea1b662968f8f98) ) // == bagnard.001
+	ROM_LOAD( "bagnardi_03.f1",  0x1000, 0x1000, CRC(8043bc1a) SHA1(bd2f3dfe26cf8d987d9ecaa41eac4bdc4e16a692) ) // == bagnard.003
+
+	ROM_REGION( 0x0060, "proms", 0 )
+	ROM_LOAD( "p3.bin",       0x0000, 0x0020, CRC(2a855523) SHA1(91e032233fee397c90b7c1662934aca9e0671482) )
+	ROM_LOAD( "r3.bin",       0x0020, 0x0020, CRC(ae6f1019) SHA1(fd711882b670380cb4bd909c840ba06277b8fbe3) )
+
+	ROM_REGION( 0x0060, "5110ctrl", 0)
+	ROM_LOAD( "r6.bin",       0x0000, 0x0020, CRC(c58a4f6a) SHA1(35ef244b3e94032df2610aa594ea5670b91e1449) ) /*state machine driving TMS5110*/
+
+	ROM_REGION( 0x2000, "tmsprom", 0 ) /* data for the TMS5110 speech chip */
+	ROM_LOAD( "bagnardi_11.r9",   0x0000, 0x1000, CRC(2e0057ff) SHA1(33e3ffa6418f86864eb81e5e9bda4bf540c143a6) ) // == r9_b11.bin
+	ROM_LOAD( "bagnardi_12.t9",   0x1000, 0x1000, CRC(b2120edd) SHA1(52b89dbcc749b084331fa82b13d0876e911fce52) ) // == t9_b12.bin
+ROM_END
+
 
 ROM_START( bagmans )
 	ROM_REGION( 0x10000, "maincpu", 0 )
@@ -929,10 +957,9 @@ ROM_END
 
 DRIVER_INIT_MEMBER(bagman_state,bagman)
 {
-
 	/* Unmap video enable register, not available on earlier hardware revision(s)
 	   Bagman is supposed to have glitches during screen transitions */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).unmap_write(0xa003, 0xa003);
+	m_maincpu->space(AS_PROGRAM).unmap_write(0xa003, 0xa003);
 	*m_video_enable = 1;
 }
 
@@ -940,11 +967,15 @@ DRIVER_INIT_MEMBER(bagman_state,bagman)
 GAME( 1982, bagman,   0,       bagman,  bagman, bagman_state,  bagman,  ROT270, "Valadon Automation", "Bagman", 0 )
 GAME( 1982, bagnard,  bagman,  bagman,  bagman, bagman_state,  bagman,  ROT270, "Valadon Automation", "Le Bagnard (set 1)", 0 )
 GAME( 1982, bagnarda, bagman,  bagman,  bagman, bagman_state,  bagman,  ROT270, "Valadon Automation", "Le Bagnard (set 2)", 0 )
+GAME( 1982, bagnardi, bagman,  bagman,  bagman, bagman_state,  bagman,  ROT90,  "Valadon Automation (Itisa license)", "Le Bagnard (Itisa, Spain)", 0 )
 GAME( 1982, bagmans,  bagman,  bagman,  bagmans, bagman_state, bagman,  ROT270, "Valadon Automation (Stern Electronics license)", "Bagman (Stern Electronics, set 1)", 0 )
 GAME( 1982, bagmans2, bagman,  bagman,  bagman, bagman_state,  bagman,  ROT270, "Valadon Automation (Stern Electronics license)", "Bagman (Stern Electronics, set 2)", 0 )
 
 GAME( 1984, sbagman,  0,       bagman,  sbagman, driver_device, 0,       ROT270, "Valadon Automation", "Super Bagman", 0 )
 GAME( 1984, sbagmans, sbagman, bagman,  sbagman, driver_device, 0,       ROT270, "Valadon Automation (Stern Electronics license)", "Super Bagman (Stern Electronics)", 0 )
+
 GAME( 1983, pickin,   0,       pickin,  pickin, driver_device,  0,       ROT270, "Valadon Automation", "Pickin'", 0 )
-GAME( 1984, botanic,  0,       botanic, botanic, driver_device, 0,       ROT270, "Valadon Automation (Itisa license)", "Botanic", 0 )
+
+GAME( 1984, botanic,  0,       botanic, botanic, driver_device, 0,       ROT270, "Itisa (Valadon Automation license)", "Botanic (French)", 0 ) // the game was made by Itisa, there is a Spanish original (not yet dumped)
+
 GAME( 1984, squaitsa, 0,       squaitsa,squaitsa, driver_device,0,       ROT0,   "Itisa", "Squash (Itisa)", 0 )

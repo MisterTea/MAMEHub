@@ -99,6 +99,10 @@ v30mz_cpu_device::v30mz_cpu_device(const machine_config &mconfig, const char *ta
 	: cpu_device(mconfig, V30MZ, "V30MZ", tag, owner, clock)
 	, m_program_config("program", ENDIANNESS_LITTLE, 8, 20, 0)
 	, m_io_config("io", ENDIANNESS_LITTLE, 8, 16, 0)
+	, m_ip(0)
+	, m_TF(0)
+	, m_int_vector(0)
+	, m_pc(0)
 {
 	static const BREGS reg_name[8]={ AL, CL, DL, BL, AH, CH, DH, BH };
 
@@ -129,7 +133,6 @@ v30mz_cpu_device::v30mz_cpu_device(const machine_config &mconfig, const char *ta
 
 void v30mz_cpu_device::device_start()
 {
-	m_irq_callback = static_standard_irq_callback;
 	m_program = &space(AS_PROGRAM);
 	m_direct = &m_program->direct();
 	m_io = &space(AS_IO);
@@ -1242,7 +1245,7 @@ void v30mz_cpu_device::interrupt(int int_num)
 
 	if (int_num == -1)
 	{
-		int_num = m_irq_callback(this, 0);
+		int_num = standard_irq_callback(0);
 
 		m_irq_state = CLEAR_LINE;
 		m_pending_irq &= ~INT_IRQ;
@@ -1289,9 +1292,8 @@ void v30mz_cpu_device::execute_set_input( int inptnum, int state )
 
 offs_t v30mz_cpu_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options)
 {
-	extern int necv_dasm_one(char *buffer, UINT32 eip, const UINT8 *oprom, const nec_config *config);
-
-	return necv_dasm_one(buffer, pc, oprom, NULL);
+	extern CPU_DISASSEMBLE( nec );
+	return CPU_DISASSEMBLE_NAME(nec)(this, buffer, pc, oprom, opram, options);
 }
 
 

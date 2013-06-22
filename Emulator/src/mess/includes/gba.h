@@ -1,7 +1,10 @@
 #ifndef _GBA_H_
 #define _GBA_H_
 
+#include "audio/gb.h"
 #include "machine/intelfsh.h"
+#include "machine/gba_slot.h"
+#include "sound/dac.h"
 
 #define DISPSTAT_VBL            0x0001
 #define DISPSTAT_HBL            0x0002
@@ -120,36 +123,44 @@
 #define TILEOBJ_VFLIP           0x0800
 #define TILEOBJ_PALETTE         0xf000
 
-enum
-{
-	EEP_IDLE,
-	EEP_COMMAND,
-	EEP_ADDR,
-	EEP_AFTERADDR,
-	EEP_READ,
-	EEP_WRITE,
-	EEP_AFTERWRITE,
-	EEP_READFIRST
-};
-
 /* driver state */
 class gba_state : public driver_device
 {
 public:
 	gba_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
 		m_gba_pram(*this, "gba_pram"),
 		m_gba_vram(*this, "gba_vram"),
-		m_gba_oam(*this, "gba_oam") { }
+		m_gba_oam(*this, "gba_oam"),
+		m_ladac(*this, "direct_a_left"),
+		m_radac(*this, "direct_a_right"),
+		m_lbdac(*this, "direct_b_left"),
+		m_rbdac(*this, "direct_b_right"),
+		m_gbsound(*this, "custom"),
+		m_cartslot(*this, "cartslot"),
+		m_region_maincpu(*this, "maincpu"),
+		m_io_in0(*this, "IN0")
+	{ }
 
+	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT32> m_gba_pram;
 	required_shared_ptr<UINT32> m_gba_vram;
 	required_shared_ptr<UINT32> m_gba_oam;
+	required_device<dac_device> m_ladac;
+	required_device<dac_device> m_radac;
+	required_device<dac_device> m_lbdac;
+	required_device<dac_device> m_rbdac;
+	required_device<gameboy_sound_device> m_gbsound;
+	required_device<gba_cart_slot_device> m_cartslot;
 
+	void request_irq(UINT32 int_type);
+	void dma_exec(FPTR ch);
+	void audio_tick(int ref);
+
+	// video-related
 	virtual void video_start();
-
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-
 	bitmap_ind16 m_bitmap;
 
 	UINT32 m_DISPSTAT;
@@ -187,40 +198,35 @@ public:
 	INT32  m_gfxBG3X;
 	INT32  m_gfxBG3Y;
 
-
-
+	// DMA
+	emu_timer *m_dma_timer[4];
 	UINT32 m_dma_regs[16];
-	UINT32 m_dma_src[4], m_dma_dst[4], m_dma_cnt[4], m_dma_srcadd[4], m_dma_dstadd[4];
+	UINT32 m_dma_src[4];
+	UINT32 m_dma_dst[4];
+	UINT32 m_dma_cnt[4];
+	UINT32 m_dma_srcadd[4];
+	UINT32 m_dma_dstadd[4];
+
+	// Timers
 	UINT32 m_timer_regs[4];
 	UINT16 m_timer_reload[4];
 	int m_timer_recalc[4];
 
-	UINT32 m_gba_sram[0x10000/4];
-	UINT8 m_gba_eeprom[0x2000];
-	UINT32 m_flash_size;
-	UINT32 m_flash_mask;
-	intelfsh8_device *m_mFlashDev;
-	int m_eeprom_state, m_eeprom_command, m_eeprom_count, m_eeprom_addr, m_eeprom_bits, m_eeprom_addr_bits;
-	UINT8 m_eep_data;
-
-	/* nvram-specific for MESS */
-	UINT8 *m_nvptr;
-	UINT32 m_nvsize;
-	device_t *m_nvimage;
-
-	emu_timer *m_dma_timer[4], *m_tmr_timer[4], *m_irq_timer;
+	emu_timer *m_tmr_timer[4], *m_irq_timer;
 	emu_timer *m_scan_timer, *m_hbl_timer;
 
 	double m_timer_hz[4];
 
-	int m_fifo_a_ptr, m_fifo_b_ptr, m_fifo_a_in, m_fifo_b_in;
-	UINT8 m_fifo_a[20], m_fifo_b[20];
+	int m_fifo_a_ptr;
+	int m_fifo_b_ptr;
+	int m_fifo_a_in;
+	int m_fifo_b_in;
+	UINT8 m_fifo_a[20];
+	UINT8 m_fifo_b[20];
 	UINT32 m_xferscan[7][240+2048];
 
 	UINT32 m_bios_last_address;
 	int m_bios_protected;
-
-	int m_flash_battery_load;
 
 	DIRECT_UPDATE_MEMBER(gba_direct);
 	DECLARE_READ32_MEMBER(gba_io_r);
@@ -245,10 +251,25 @@ public:
 	TIMER_CALLBACK_MEMBER(handle_irq);
 	TIMER_CALLBACK_MEMBER(perform_hbl);
 	TIMER_CALLBACK_MEMBER(perform_scan);
+
+	// video related
+	void draw_scanline(int y);
+
+	void draw_roz_bitmap_scanline(UINT32 *scanline, int ypos, UINT32 enablemask, UINT32 ctrl, INT32 X, INT32 Y, INT32 PA, INT32 PB, INT32 PC, INT32 PD, INT32 *currentx, INT32 *currenty, int changed, int depth);
+	void draw_roz_scanline(UINT32 *scanline, int ypos, UINT32 enablemask, UINT32 ctrl, INT32 X, INT32 Y, INT32 PA, INT32 PB, INT32 PC, INT32 PD, INT32 *currentx, INT32 *currenty, int changed);
+	void draw_bg_scanline(UINT32 *scanline, int ypos, UINT32 enablemask, UINT32 ctrl, UINT32 hofs, UINT32 vofs);
+	void draw_gba_oam_window(UINT32 *scanline, int y);
+	void draw_gba_oam(UINT32 *scanline, int y);
+
+	inline int is_in_window(int x, int window);
+
+	inline void update_mask(UINT8* mask, int mode, int submode, UINT32* obj_win, UINT8 inwin0, UINT8 inwin1, UINT8 in0_mask, UINT8 in1_mask, UINT8 out_mask);
+	void draw_modes(int mode, int submode, int y, UINT32* line0, UINT32* line1, UINT32* line2, UINT32* line3, UINT32* lineOBJ, UINT32* lineOBJWin, UINT32* lineMix, int bpp);
+
+protected:
+	required_memory_region m_region_maincpu;
+	required_ioport m_io_in0;
 };
 
-/*----------- defined in video/gba.c -----------*/
-
-void gba_draw_scanline(running_machine &machine, int y);
 
 #endif

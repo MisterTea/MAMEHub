@@ -247,6 +247,9 @@ BUILD_MIDILIB = 1
 # uncomment next line to generate verbose build information
 # VERBOSE = 1
 
+# specify the sanitizer to use or leave empty to use none
+# SANITIZE = 
+
 # specify optimization level or leave commented to use the default
 # (default is OPTIMIZE = 3 normally, or OPTIMIZE = 0 with symbols)
 # OPTIMIZE = 3
@@ -518,6 +521,22 @@ COBJFLAGS += \
 CPPONLYFLAGS += \
 	-Woverloaded-virtual
 
+ifneq (,$(findstring clang,$(CC)))
+CCOMFLAGS += \
+	-Wno-cast-align \
+	-Wno-tautological-compare \
+	-Wno-constant-logical-operand \
+	-Wno-format-security \
+	-Wno-shift-count-overflow \
+	-Wno-self-assign-field
+endif
+
+ifdef SANITIZE
+CCOMFLAGS += -fsanitize=$(SANITIZE)
+ifneq (,$(findstring thread,$(SANITIZE)))
+CCOMFLAGS += -fPIE
+endif
+endif
 
 #-------------------------------------------------
 # include paths
@@ -584,6 +603,12 @@ ifdef MAP
 LDFLAGSEMULATOR += -Wl,-Map,$(FULLNAME).map
 endif
 
+ifdef SANITIZE
+LDFLAGS += -fsanitize=$(SANITIZE)
+ifneq (,$(findstring thread,$(SANITIZE)))
+LDFLAGS += -pie
+endif
+endif
 
 
 #-------------------------------------------------
@@ -603,6 +628,8 @@ LIBEMU = $(OBJ)/libemu.a
 LIBCPU = $(OBJ)/$(TARGET)/$(SUBTARGET)/libcpu.a
 LIBDASM = $(OBJ)/$(TARGET)/$(SUBTARGET)/libdasm.a
 LIBSOUND = $(OBJ)/$(TARGET)/$(SUBTARGET)/libsound.a
+LIBVIDEO = $(OBJ)/$(TARGET)/$(SUBTARGET)/libvideo.a
+LIBMACHINE = $(OBJ)/$(TARGET)/$(SUBTARGET)/libmachine.a
 LIBUTIL = $(OBJ)/libutil.a
 LIBOCORE = $(OBJ)/libocore.a
 LIBOSD = $(OBJ)/libosd.a
@@ -665,6 +692,9 @@ SOFTFLOAT = $(OBJ)/libsoftfloat.a
 # add formats emulation library
 FORMATS_LIB = $(OBJ)/libformats.a
 
+# add LUA library
+LUA_LIB = $(OBJ)/liblua.a
+
 # add PortMidi MIDI library
 ifeq ($(BUILD_MIDILIB),1)
 INCPATH += -I$(SRC)/lib/portmidi
@@ -672,6 +702,10 @@ MIDI_LIB = $(OBJ)/libportmidi.a
 else
 LIBS += -lportmidi
 MIDI_LIB =
+endif
+
+ifneq (,$(findstring clang,$(CC)))
+LIBS += -lstdc++ -lpthread
 endif
 
 #-------------------------------------------------
@@ -683,12 +717,7 @@ default: maketree buildtools emulator
 
 all: default tools
 
-# TODO: move to a .mak file in the regtests folder?
 tests: maketree jedutil$(EXE) chdman$(EXE)
-	@echo Running jedutil unittest
-	$(PYTHON) src/regtests/jedutil/jedtest.py
-	@echo Running chdman unittest
-	$(PYTHON) src/regtests/chdman/chdtest.py
 
 7Z_LIB = $(OBJ)/lib7z.a 
 
@@ -717,6 +746,7 @@ include $(SRC)/emu/emu.mak
 include $(SRC)/lib/lib.mak
 -include $(SRC)/osd/$(CROSS_BUILD_OSD)/build.mak
 include $(SRC)/tools/tools.mak
+include $(SRC)/regtests/regtests.mak
 
 # combine the various definitions to one
 CCOMFLAGS += $(INCPATH)
@@ -745,6 +775,10 @@ clean: $(OSDCLEAN)
 	$(RM) $(EMULATOR)
 	@echo Deleting $(TOOLS)...
 	$(RM) $(TOOLS)
+	@echo Deleting dependencies...
+	$(RM) depend_mame.mak
+	$(RM) depend_mess.mak
+	$(RM) depend_ume.mak
 ifdef MAP
 	@echo Deleting $(FULLNAME).map...
 	$(RM) $(FULLNAME).map
@@ -759,6 +793,8 @@ checkautodetect:
 	@echo PTR64=$(PTR64) 
 	@echo BIGENDIAN=$(BIGENDIAN) 
 	@echo UNAME="$(UNAME)"
+
+tests: $(REGTESTS)
 
 
 #-------------------------------------------------
@@ -776,7 +812,7 @@ $(sort $(OBJDIRS)):
 
 ifndef EXECUTABLE_DEFINED
 
-$(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBCPU) $(LIBEMU) $(LIBDASM) $(LIBSOUND) $(LIBUTIL) $(EXPAT) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(7Z_LIB) $(FORMATS_LIB) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
+$(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBCPU) $(LIBMACHINE) $(LIBEMU) $(LIBDASM) $(LIBSOUND) $(LIBVIDEO) $(LIBUTIL) $(EXPAT) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(7Z_LIB) $(FORMATS_LIB) $(LUA_LIB) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
 	$(CC) $(CDEFS) $(CFLAGS) -c $(SRC)/version.c -o $(VERSIONOBJ)
 	@echo Linking $@...
 	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) $^ $(LIBS) -o $@

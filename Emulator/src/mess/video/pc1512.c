@@ -390,7 +390,7 @@ int pc1512_state::get_display_mode(UINT8 mode)
 
 offs_t pc1512_state::get_char_rom_offset()
 {
-	return ((ioport("LK")->read() >> 5) & 0x03) << 11;
+	return ((m_lk->read() >> 5) & 0x03) << 11;
 }
 
 void pc1512_state::draw_alpha(bitmap_rgb32 &bitmap, const rectangle &cliprect, UINT16 ma, UINT8 ra, UINT16 y, UINT8 x_count, INT8 cursor_x, void *param)
@@ -421,7 +421,7 @@ void pc1512_state::draw_alpha(bitmap_rgb32 &bitmap, const rectangle &cliprect, U
 		}
 
 		offs_t addr = char_rom_offset | (code << 3) | (ra & 0x07);
-		UINT8 data = m_char_rom[addr & 0x1fff];
+		UINT8 data = m_char_rom->base()[addr & 0x1fff];
 
 		if ((column == cursor_x) && m_cursor)
 		{
@@ -526,9 +526,10 @@ static MC6845_UPDATE_ROW( pc1512_update_row )
 	}
 }
 
-static const mc6845_interface crtc_intf =
+static MC6845_INTERFACE( crtc_intf )
 {
 	SCREEN_TAG,
+	false,
 	8,
 	NULL,
 	pc1512_update_row,
@@ -547,9 +548,6 @@ static const mc6845_interface crtc_intf =
 
 void pc1512_state::video_start()
 {
-	// find memory regions
-	m_char_rom = memregion(AMS40041_TAG)->base();
-
 	// allocate memory
 	m_video_ram.allocate(0x10000);
 }

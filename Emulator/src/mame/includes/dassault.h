@@ -8,6 +8,7 @@
 #include "video/deco16ic.h"
 #include "video/decocomn.h"
 #include "video/bufsprite.h"
+#include "video/decospr.h"
 
 class dassault_state : public driver_device
 {
@@ -27,7 +28,10 @@ public:
 		m_pf4_rowscroll(*this, "pf4_rowscroll"),
 		m_ram(*this, "ram"),
 		m_shared_ram(*this, "shared_ram"),
-		m_ram2(*this, "ram2"){ }
+		m_ram2(*this, "ram2"),
+		m_sprgen1(*this, "spritegen1"),
+		m_sprgen2(*this, "spritegen2")
+	{ }
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
@@ -47,6 +51,9 @@ public:
 	required_shared_ptr<UINT16> m_shared_ram;
 	required_shared_ptr<UINT16> m_ram2;
 
+	optional_device<decospr_device> m_sprgen1;
+	optional_device<decospr_device> m_sprgen2;
+
 	DECLARE_READ16_MEMBER(dassault_control_r);
 	DECLARE_WRITE16_MEMBER(dassault_control_w);
 	DECLARE_READ16_MEMBER(dassault_sub_control_r);
@@ -60,4 +67,5 @@ public:
 	DECLARE_DRIVER_INIT(dassault);
 	virtual void video_start();
 	UINT32 screen_update_dassault(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void mixdassaultlayer(bitmap_rgb32 &bitmap, bitmap_ind16* sprite_bitmap, const rectangle &cliprect, UINT16 pri, UINT16 primask, UINT16 penbase, UINT8 alpha);
 };

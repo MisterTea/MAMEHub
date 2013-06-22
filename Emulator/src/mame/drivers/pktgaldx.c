@@ -59,15 +59,13 @@ bootleg todo:
 #include "video/deco16ic.h"
 #include "sound/okim6295.h"
 #include "includes/pktgaldx.h"
-#include "video/decospr.h"
 #include "video/decocomn.h"
 
 /**********************************************************************************/
 
 WRITE16_MEMBER(pktgaldx_state::pktgaldx_oki_bank_w)
 {
-	device_t *device = machine().device("oki2");
-	downcast<okim6295_device *>(device)->set_bank_base((data & 3) * 0x40000);
+	m_oki2->set_bank_base((data & 3) * 0x40000);
 }
 
 /**********************************************************************************/
@@ -316,10 +314,6 @@ static const deco16ic_interface pktgaldx_deco16ic_tilegen1_intf =
 
 void pktgaldx_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_deco_tilegen1 = machine().device("tilegen1");
-
 	decoprot_reset(machine());
 }
 

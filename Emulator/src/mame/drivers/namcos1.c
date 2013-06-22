@@ -352,7 +352,7 @@ C - uses sub board with support for player 3 and 4 controls
 
 WRITE8_MEMBER(namcos1_state::namcos1_sub_firq_w)
 {
-	machine().device("sub")->execute().set_input_line(M6809_FIRQ_LINE, ASSERT_LINE);
+	m_subcpu->set_input_line(M6809_FIRQ_LINE, ASSERT_LINE);
 }
 
 WRITE8_MEMBER(namcos1_state::irq_ack_w)
@@ -384,7 +384,7 @@ WRITE8_MEMBER(namcos1_state::namcos1_coin_w)
 static void namcos1_update_DACs(running_machine &machine)
 {
 	namcos1_state *state = machine.driver_data<namcos1_state>();
-	machine.device<dac_device>("dac")->write_signed16(0x8000 + (state->m_dac0_value * state->m_dac0_gain) + (state->m_dac1_value * state->m_dac1_gain));
+	state->m_dac->write_signed16(0x8000 + (state->m_dac0_value * state->m_dac0_gain) + (state->m_dac1_value * state->m_dac1_gain));
 }
 
 void namcos1_init_DACs(running_machine &machine)
@@ -818,14 +818,17 @@ static INPUT_PORTS_START( bakutotu )
 	PORT_INCLUDE( ns1 )
 
 	PORT_MODIFY( "DIPSW" )
+	PORT_DIPNAME( 0x40, 0x40, "Invincibility (Cheat)") PORT_DIPLOCATION("SW:2")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 	PORT_DIPNAME( 0x20, 0x20, "Show Coordinates" ) PORT_DIPLOCATION("SW:3")
 	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, "Level Selection" ) PORT_DIPLOCATION("SW:4")
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 	PORT_DIPNAME( 0x08, 0x08, "Sprite Viewer" ) PORT_DIPLOCATION("SW:5")
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "Invincibility (Cheat)") PORT_DIPLOCATION("SW:6")
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 	PORT_DIPNAME( 0x01, 0x01, "Freeze" ) PORT_DIPLOCATION("SW:8")
 	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )

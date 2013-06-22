@@ -6,7 +6,7 @@
 
 
 /* draws ROZ with linescroll OR columnscroll to 16-bit indexed bitmap */
-static void suprnova_draw_roz(bitmap_ind16 &bitmap, bitmap_ind8& bitmapflags, const rectangle &cliprect, tilemap_t *tmap, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, int wraparound, int columnscroll, UINT32* scrollram)
+void skns_state::suprnova_draw_roz(bitmap_ind16 &bitmap, bitmap_ind8& bitmapflags, const rectangle &cliprect, tilemap_t *tmap, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, int wraparound, int columnscroll, UINT32* scrollram)
 {
 	//bitmap_ind16 *destbitmap = bitmap;
 	bitmap_ind16 &srcbitmap = tmap->pixmap();
@@ -43,7 +43,6 @@ static void suprnova_draw_roz(bitmap_ind16 &bitmap, bitmap_ind8& bitmapflags, co
 		/* loop over rows */
 		while (sy <= ey)
 		{
-
 			/* initialize X counters */
 			x = sx;
 			cx = startx;
@@ -218,21 +217,20 @@ WRITE32_MEMBER(skns_state::skns_palette_ram_w)
 }
 
 
-static void palette_set_rgb_brightness (running_machine &machine, int offset, UINT8 brightness_r, UINT8 brightness_g, UINT8 brightness_b)
+void skns_state::palette_set_rgb_brightness (int offset, UINT8 brightness_r, UINT8 brightness_g, UINT8 brightness_b)
 {
-	skns_state *state = machine.driver_data<skns_state>();
 	int use_bright, r, g, b/*, alpha*/;
 
-	b = ((state->m_palette_ram[offset] >> 0  ) & 0x1f);
-	g = ((state->m_palette_ram[offset] >> 5  ) & 0x1f);
-	r = ((state->m_palette_ram[offset] >> 10  ) & 0x1f);
+	b = ((m_palette_ram[offset] >> 0  ) & 0x1f);
+	g = ((m_palette_ram[offset] >> 5  ) & 0x1f);
+	r = ((m_palette_ram[offset] >> 10  ) & 0x1f);
 
-	//alpha = ((state->m_palette_ram[offset] >> 15  ) & 0x1);
+	//alpha = ((m_palette_ram[offset] >> 15  ) & 0x1);
 
 	if(offset<(0x40*256)) { // 1st half is for Sprites
-		use_bright = state->m_use_spc_bright;
+		use_bright = m_use_spc_bright;
 	} else { // V3 bg's
-		use_bright = state->m_use_v3_bright;
+		use_bright = m_use_v3_bright;
 	}
 
 	if(use_bright) {
@@ -248,25 +246,24 @@ static void palette_set_rgb_brightness (running_machine &machine, int offset, UI
 		r <<= 3;
 	}
 
-	palette_set_color(machine,offset,MAKE_RGB(r,g,b));
+	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
 }
 
 
-static void palette_update(running_machine &machine)
+void skns_state::palette_update()
 {
-	skns_state *state = machine.driver_data<skns_state>();
 	int i;
 
-	if (state->m_palette_updated)
+	if (m_palette_updated)
 	{
-		if(state->m_spc_changed)
+		if(m_spc_changed)
 			for(i=0; i<=((0x40*256)-1); i++)
-				palette_set_rgb_brightness (machine, i, state->m_bright_spc_r, state->m_bright_spc_g, state->m_bright_spc_b);
+				palette_set_rgb_brightness (i, m_bright_spc_r, m_bright_spc_g, m_bright_spc_b);
 
-		if(state->m_v3_changed)
+		if(m_v3_changed)
 			for(i=(0x40*256); i<=((0x80*256)-1); i++)
-				palette_set_rgb_brightness (machine, i, state->m_bright_v3_r, state->m_bright_v3_g, state->m_bright_v3_b);
-		state->m_palette_updated =0;
+				palette_set_rgb_brightness (i, m_bright_v3_r, m_bright_v3_g, m_bright_v3_b);
+		m_palette_updated =0;
 	}
 }
 
@@ -348,7 +345,6 @@ WRITE32_MEMBER(skns_state::skns_v3_regs_w)
 
 void skns_state::video_start()
 {
-
 	m_spritegen = machine().device<sknsspr_device>("spritegen");
 
 	m_tilemap_A = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skns_state::get_tilemap_A_tile_info),this),TILEMAP_SCAN_ROWS,16,16,64, 64);
@@ -382,11 +378,10 @@ void skns_state::video_reset()
 	m_alt_enable_background = m_alt_enable_sprites = 1;
 }
 
-static void supernova_draw_a( running_machine &machine, bitmap_ind16 &bitmap, bitmap_ind8 &bitmap_flags, const rectangle &cliprect, int tran )
+void skns_state::supernova_draw_a( bitmap_ind16 &bitmap, bitmap_ind8 &bitmap_flags, const rectangle &cliprect, int tran )
 {
-	skns_state *state = machine.driver_data<skns_state>();
-	int enable_a  = (state->m_v3_regs[0x10/4] >> 0) & 0x0001;
-	int nowrap_a = (state->m_v3_regs[0x10/4] >> 0) & 0x0004;
+	int enable_a  = (m_v3_regs[0x10/4] >> 0) & 0x0001;
+	int nowrap_a = (m_v3_regs[0x10/4] >> 0) & 0x0004;
 
 
 	UINT32 startx,starty;
@@ -395,29 +390,28 @@ static void supernova_draw_a( running_machine &machine, bitmap_ind16 &bitmap, bi
 
 	//if(nowrap_a) printf("a\n");
 
-	if (enable_a && state->m_alt_enable_background)
+	if (enable_a && m_alt_enable_background)
 	{
-		startx = state->m_v3_regs[0x1c/4];
-		incyy  = state->m_v3_regs[0x30/4]&0x7ffff;
+		startx = m_v3_regs[0x1c/4];
+		incyy  = m_v3_regs[0x30/4]&0x7ffff;
 		if (incyy&0x40000) incyy = incyy-0x80000; // level 3 boss in sengekis
-		incyx  = state->m_v3_regs[0x2c/4];
-		starty = state->m_v3_regs[0x20/4];
-		incxy  = state->m_v3_regs[0x28/4];
-		incxx  = state->m_v3_regs[0x24/4]&0x7ffff;
+		incyx  = m_v3_regs[0x2c/4];
+		starty = m_v3_regs[0x20/4];
+		incxy  = m_v3_regs[0x28/4];
+		incxx  = m_v3_regs[0x24/4]&0x7ffff;
 		if (incxx&0x40000) incxx = incxx-0x80000;
 
-		columnscroll = (state->m_v3_regs[0x0c/4] >> 1) & 0x0001;
+		columnscroll = (m_v3_regs[0x0c/4] >> 1) & 0x0001;
 
-		suprnova_draw_roz(bitmap,bitmap_flags,cliprect, state->m_tilemap_A, startx << 8,starty << 8,    incxx << 8,incxy << 8,incyx << 8,incyy << 8, !nowrap_a, columnscroll, &state->m_v3slc_ram[0]);
-		//tilemap_copy_bitmap(bitmap, state->m_tilemap_bitmap_lower, state->m_tilemap_bitmapflags_lower);
+		suprnova_draw_roz(bitmap,bitmap_flags,cliprect, m_tilemap_A, startx << 8,starty << 8,    incxx << 8,incxy << 8,incyx << 8,incyy << 8, !nowrap_a, columnscroll, &m_v3slc_ram[0]);
+		//tilemap_copy_bitmap(bitmap, m_tilemap_bitmap_lower, m_tilemap_bitmapflags_lower);
 	}
 }
 
-static void supernova_draw_b( running_machine &machine, bitmap_ind16 &bitmap, bitmap_ind8 &bitmap_flags, const rectangle &cliprect, int tran )
+void skns_state::supernova_draw_b( bitmap_ind16 &bitmap, bitmap_ind8 &bitmap_flags, const rectangle &cliprect, int tran )
 {
-	skns_state *state = machine.driver_data<skns_state>();
-	int enable_b  = (state->m_v3_regs[0x34/4] >> 0) & 0x0001;
-	int nowrap_b = (state->m_v3_regs[0x34/4] >> 0) & 0x0004;
+	int enable_b  = (m_v3_regs[0x34/4] >> 0) & 0x0001;
+	int nowrap_b = (m_v3_regs[0x34/4] >> 0) & 0x0004;
 
 
 	UINT32 startx,starty;
@@ -426,18 +420,18 @@ static void supernova_draw_b( running_machine &machine, bitmap_ind16 &bitmap, bi
 
 	//if(nowrap_b) printf("b\n");
 
-	if (enable_b && state->m_alt_enable_background)
+	if (enable_b && m_alt_enable_background)
 	{
-		startx = state->m_v3_regs[0x40/4];
-		incyy  = state->m_v3_regs[0x54/4]&0x7ffff;
+		startx = m_v3_regs[0x40/4];
+		incyy  = m_v3_regs[0x54/4]&0x7ffff;
 		if (incyy&0x40000) incyy = incyy-0x80000;
-		incyx  = state->m_v3_regs[0x50/4];
-		starty = state->m_v3_regs[0x44/4];
-		incxy  = state->m_v3_regs[0x4c/4];
-		incxx  = state->m_v3_regs[0x48/4]&0x7ffff;
+		incyx  = m_v3_regs[0x50/4];
+		starty = m_v3_regs[0x44/4];
+		incxy  = m_v3_regs[0x4c/4];
+		incxx  = m_v3_regs[0x48/4]&0x7ffff;
 		if (incxx&0x40000) incxx = incxx-0x80000;
-		columnscroll = (state->m_v3_regs[0x0c/4] >> 9) & 0x0001; // selects column scroll or rowscroll
-		suprnova_draw_roz(bitmap,bitmap_flags, cliprect, state->m_tilemap_B, startx << 8,starty << 8,   incxx << 8,incxy << 8,incyx << 8,incyy << 8, !nowrap_b, columnscroll, &state->m_v3slc_ram[0x1000/4]);
+		columnscroll = (m_v3_regs[0x0c/4] >> 9) & 0x0001; // selects column scroll or rowscroll
+		suprnova_draw_roz(bitmap,bitmap_flags, cliprect, m_tilemap_B, startx << 8,starty << 8,   incxx << 8,incxy << 8,incyx << 8,incyy << 8, !nowrap_b, columnscroll, &m_v3slc_ram[0x1000/4]);
 
 		//popmessage("%08x %08x %08x %08x %08x %08x", startx, starty, incxx, incyy, incxy, incyx);
 
@@ -446,8 +440,7 @@ static void supernova_draw_b( running_machine &machine, bitmap_ind16 &bitmap, bi
 
 UINT32 skns_state::screen_update_skns(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-
-	palette_update(machine());
+	palette_update();
 
 	bitmap.fill(get_black_pen(machine()), cliprect);
 	m_tilemap_bitmap_lower.fill(0);
@@ -466,8 +459,8 @@ UINT32 skns_state::screen_update_skns(screen_device &screen, bitmap_rgb32 &bitma
 		//popmessage("pri %d %d\n", supernova_pri_a, supernova_pri_b);
 
 		/*if (!supernova_pri_b) { */
-		supernova_draw_b(machine(), m_tilemap_bitmap_lower, m_tilemap_bitmapflags_lower, cliprect,tran);// tran = 1;
-		supernova_draw_a(machine(), m_tilemap_bitmap_higher,m_tilemap_bitmapflags_higher,cliprect,tran);// tran = 1;
+		supernova_draw_b(m_tilemap_bitmap_lower, m_tilemap_bitmapflags_lower, cliprect,tran);// tran = 1;
+		supernova_draw_a(m_tilemap_bitmap_higher,m_tilemap_bitmapflags_higher,cliprect,tran);// tran = 1;
 
 		{
 			int x,y;
@@ -553,10 +546,8 @@ UINT32 skns_state::screen_update_skns(screen_device &screen, bitmap_rgb32 &bitma
 					// if the sprites are higher than the bg pixel
 					if (pri3 > bgpri)
 					{
-
 						if (pendata3&0xff)
 						{
-
 							UINT16 palvalue = m_palette_ram[pendata3];
 
 							coldat = clut[pendata3];
@@ -621,7 +612,7 @@ UINT32 skns_state::screen_update_skns(screen_device &screen, bitmap_rgb32 &bitma
 	m_sprite_bitmap.fill(0x0000, cliprect);
 
 	if (m_alt_enable_sprites)
-		m_spritegen->skns_draw_sprites(machine(), m_sprite_bitmap, cliprect, m_spriteram, m_spriteram.bytes(), machine().root_device().memregion("gfx1")->base(), machine().root_device().memregion ("gfx1")->bytes(), m_spc_regs );
+		m_spritegen->skns_draw_sprites(machine(), m_sprite_bitmap, cliprect, m_spriteram, m_spriteram.bytes(), memregion("gfx1")->base(), memregion ("gfx1")->bytes(), m_spc_regs );
 
 
 	return 0;
@@ -629,5 +620,4 @@ UINT32 skns_state::screen_update_skns(screen_device &screen, bitmap_rgb32 &bitma
 
 void skns_state::screen_eof_skns(screen_device &screen, bool state)
 {
-
 }

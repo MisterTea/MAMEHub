@@ -4,13 +4,14 @@ class sprint8_state : public driver_device
 {
 public:
 	sprint8_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
 		m_pos_h_ram(*this, "pos_h_ram"),
 		m_pos_v_ram(*this, "pos_v_ram"),
 		m_pos_d_ram(*this, "pos_d_ram"),
 		m_team(*this, "team"),
-		m_discrete(*this, "discrete"){ }
+		m_discrete(*this, "discrete"),
+		m_maincpu(*this, "maincpu") { }
 
 	int m_steer_dir[8];
 	int m_steer_flag[8];
@@ -45,6 +46,10 @@ public:
 	DECLARE_WRITE8_MEMBER(sprint8_screech_w);
 	DECLARE_WRITE8_MEMBER(sprint8_attract_w);
 	DECLARE_WRITE8_MEMBER(sprint8_motor_w);
+	void set_pens(sprint8_state *state, colortable_t *colortable);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void sprint8_set_collision(int n);
+	required_device<cpu_device> m_maincpu;
 };
 
 /*----------- defined in drivers/sprint8.c -----------*/

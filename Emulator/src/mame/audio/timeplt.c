@@ -118,7 +118,7 @@ static void filter_w( device_t *device, int data )
 	if (data & 2)
 		C +=  47000;    /*  47000pF = 0.047uF */
 
-	filter_rc_set_RC(device, FLT_RC_LOWPASS, 1000, 5100, 0, CAP_P(C));
+	dynamic_cast<filter_rc_device*>(device)->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 5100, 0, CAP_P(C));
 }
 
 
@@ -167,10 +167,10 @@ WRITE8_HANDLER( timeplt_sh_irqtrigger_w )
 static ADDRESS_MAP_START( timeplt_sound_map, AS_PROGRAM, 8, driver_device )
 	AM_RANGE(0x0000, 0x2fff) AM_ROM
 	AM_RANGE(0x3000, 0x33ff) AM_MIRROR(0x0c00) AM_RAM
-	AM_RANGE(0x4000, 0x4000) AM_MIRROR(0x0fff) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x5000, 0x5000) AM_MIRROR(0x0fff) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x6000, 0x6000) AM_MIRROR(0x0fff) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x7000, 0x7000) AM_MIRROR(0x0fff) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x4000, 0x4000) AM_MIRROR(0x0fff) AM_DEVREADWRITE("ay1", ay8910_device, data_r, data_w)
+	AM_RANGE(0x5000, 0x5000) AM_MIRROR(0x0fff) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x6000, 0x6000) AM_MIRROR(0x0fff) AM_DEVREADWRITE("ay2", ay8910_device, data_r, data_w)
+	AM_RANGE(0x7000, 0x7000) AM_MIRROR(0x0fff) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0x8000, 0xffff) AM_DEVWRITE_LEGACY("timeplt_audio", timeplt_filter_w)
 ADDRESS_MAP_END
 
@@ -179,10 +179,10 @@ static ADDRESS_MAP_START( locomotn_sound_map, AS_PROGRAM, 8, driver_device )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x2000, 0x23ff) AM_MIRROR(0x0c00) AM_RAM
 	AM_RANGE(0x3000, 0x3fff) AM_DEVWRITE_LEGACY("timeplt_audio", timeplt_filter_w)
-	AM_RANGE(0x4000, 0x4000) AM_MIRROR(0x0fff) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x5000, 0x5000) AM_MIRROR(0x0fff) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x6000, 0x6000) AM_MIRROR(0x0fff) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x7000, 0x7000) AM_MIRROR(0x0fff) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x4000, 0x4000) AM_MIRROR(0x0fff) AM_DEVREADWRITE("ay1", ay8910_device, data_r, data_w)
+	AM_RANGE(0x5000, 0x5000) AM_MIRROR(0x0fff) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x6000, 0x6000) AM_MIRROR(0x0fff) AM_DEVREADWRITE("ay2", ay8910_device, data_r, data_w)
+	AM_RANGE(0x7000, 0x7000) AM_MIRROR(0x0fff) AM_DEVWRITE("ay2", ay8910_device, address_w)
 ADDRESS_MAP_END
 
 
@@ -233,18 +233,18 @@ MACHINE_CONFIG_FRAGMENT( timeplt_sound )
 	MCFG_SOUND_ROUTE(1, "filter.1.1", 0.60)
 	MCFG_SOUND_ROUTE(2, "filter.1.2", 0.60)
 
-	MCFG_SOUND_ADD("filter.0.0", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter.0.0", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_ADD("filter.0.1", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter.0.1", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_ADD("filter.0.2", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter.0.2", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_SOUND_ADD("filter.1.0", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter.1.0", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_ADD("filter.1.1", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter.1.1", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_ADD("filter.1.2", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter.1.2", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

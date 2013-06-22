@@ -351,6 +351,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_dwarfd(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(dwarfd_interrupt);
+	void drawCrt( bitmap_rgb32 &bitmap,const rectangle &cliprect );
 };
 
 
@@ -393,7 +394,6 @@ enum
 
 WRITE8_MEMBER(dwarfd_state::i8275_preg_w)//param reg
 {
-
 	switch (m_i8275Command)
 	{
 		case I8275_COMMAND_RESET:
@@ -492,13 +492,11 @@ WRITE8_MEMBER(dwarfd_state::i8275_preg_w)//param reg
 
 		case I8275_COMMAND_START:
 		{
-
 		}
 		break;
 
 		case I8275_COMMAND_STOP:
 		{
-
 		}
 		break;
 
@@ -513,7 +511,6 @@ READ8_MEMBER(dwarfd_state::i8275_preg_r)//param reg
 
 WRITE8_MEMBER(dwarfd_state::i8275_creg_w)//comand reg
 {
-
 	switch (data>>5)
 	{
 		case 0:
@@ -557,7 +554,6 @@ READ8_MEMBER(dwarfd_state::i8275_sreg_r)//status
 
 READ8_MEMBER(dwarfd_state::dwarfd_ram_r)
 {
-
 	if (m_crt_access == 0)
 	{
 		return m_dw_ram[offset];
@@ -618,8 +614,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( io_map, AS_IO, 8, dwarfd_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x01, 0x01) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x01, 0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 
 	AM_RANGE(0x20, 0x20) AM_READWRITE(i8275_preg_r, i8275_preg_w)
 	AM_RANGE(0x21, 0x21) AM_READWRITE(i8275_sreg_r, i8275_creg_w)
@@ -788,9 +784,8 @@ void dwarfd_state::video_start()
 {
 }
 
-static void drawCrt( running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect )
+void dwarfd_state::drawCrt( bitmap_rgb32 &bitmap,const rectangle &cliprect )
 {
-	dwarfd_state *state = machine.driver_data<dwarfd_state>();
 	int x, y;
 	for (y = 0; y < maxy; y++)
 	{
@@ -809,7 +804,7 @@ static void drawCrt( running_machine &machine, bitmap_rgb32 &bitmap,const rectan
 			while (b == 0)
 			{
 				if (count < 0x8000)
-					tile = state->m_videobuf[count++];
+					tile = m_videobuf[count++];
 				else
 						return;
 
@@ -828,19 +823,19 @@ static void drawCrt( running_machine &machine, bitmap_rgb32 &bitmap,const rectan
 					}
 					if ((tile & 0xc0) == 0x80)
 					{
-						state->m_bank = (tile >> 2) & 3;
+						m_bank = (tile >> 2) & 3;
 					}
 					if ((tile & 0xc0) == 0xc0)
 					{
 						b = 1;
-						tile = machine.rand() & 0x7f;//(tile >> 2) & 0xf;
+						tile = machine().rand() & 0x7f;//(tile >> 2) & 0xf;
 					}
 				}
 				else
 					b = 1;
 			}
-			drawgfx_transpen(bitmap, cliprect, machine.gfx[0],
-				tile + (state->m_bank + bank2) * 128,
+			drawgfx_transpen(bitmap, cliprect, machine().gfx[0],
+				tile + (m_bank + bank2) * 128,
 				0,
 				0, 0,
 				x*8,y*8,0);
@@ -852,7 +847,7 @@ static void drawCrt( running_machine &machine, bitmap_rgb32 &bitmap,const rectan
 UINT32 dwarfd_state::screen_update_dwarfd(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	drawCrt(machine(), bitmap, cliprect);
+	drawCrt(bitmap, cliprect);
 	return 0;
 }
 
@@ -1022,7 +1017,6 @@ static const ay8910_interface ay8910_config =
 
 void dwarfd_state::machine_start()
 {
-
 	save_item(NAME(m_bank));
 	save_item(NAME(m_line));
 	save_item(NAME(m_idx));
@@ -1045,7 +1039,6 @@ void dwarfd_state::machine_start()
 
 void dwarfd_state::machine_reset()
 {
-
 	m_bank = 0;
 	m_line = 0;
 	m_idx = 0;
@@ -1304,7 +1297,7 @@ DRIVER_INIT_MEMBER(dwarfd_state,dwarfd)
 	}
 
 	/* use low bit as 'interpolation' bit */
-	src = machine().root_device().memregion("gfx2")->base();
+	src = memregion("gfx2")->base();
 	for (i = 0; i < 0x8000; i++)
 	{
 		if (src[i] & 0x10)
@@ -1335,12 +1328,12 @@ DRIVER_INIT_MEMBER(dwarfd_state,qc)
 	DRIVER_INIT_CALL(dwarfd);
 
 	// hacks for program to proceed
-	machine().root_device().memregion("maincpu")->base()[0x6564] = 0x00;
-	machine().root_device().memregion("maincpu")->base()[0x6565] = 0x00;
+	memregion("maincpu")->base()[0x6564] = 0x00;
+	memregion("maincpu")->base()[0x6565] = 0x00;
 
-	machine().root_device().memregion("maincpu")->base()[0x59b2] = 0x00;
-	machine().root_device().memregion("maincpu")->base()[0x59b3] = 0x00;
-	machine().root_device().memregion("maincpu")->base()[0x59b4] = 0x00;
+	memregion("maincpu")->base()[0x59b2] = 0x00;
+	memregion("maincpu")->base()[0x59b3] = 0x00;
+	memregion("maincpu")->base()[0x59b4] = 0x00;
 
 }
 

@@ -28,7 +28,7 @@ READ8_MEMBER( vector06_state::vector06_8255_portc_r )
 {
 	UINT8 ret = ioport("LINE8")->read();
 
-	if (m_cass->input() > 0)
+	if (m_cassette->input() > 0)
 		ret |= 0x10;
 
 	return ret;
@@ -130,7 +130,7 @@ INTERRUPT_GEN_MEMBER(vector06_state::vector06_interrupt)
 
 }
 
-static IRQ_CALLBACK( vector06_irq_callback )
+IRQ_CALLBACK_MEMBER(vector06_state::vector06_irq_callback)
 {
 	// Interupt is RST 7
 	return 0xff;
@@ -138,18 +138,18 @@ static IRQ_CALLBACK( vector06_irq_callback )
 
 TIMER_CALLBACK_MEMBER(vector06_state::reset_check_callback)
 {
-	UINT8 val = machine().root_device().ioport("RESET")->read();
+	UINT8 val = ioport("RESET")->read();
 
 	if (BIT(val, 0))
 	{
-		membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x10000);
-		machine().device("maincpu")->reset();
+		membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000);
+		m_maincpu->reset();
 	}
 
 	if (BIT(val, 1))
 	{
-		membank("bank1")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() + 0x0000);
-		machine().device("maincpu")->reset();
+		membank("bank1")->set_base(m_ram->pointer() + 0x0000);
+		m_maincpu->reset();
 	}
 }
 
@@ -168,18 +168,18 @@ void vector06_state::machine_start()
 
 void vector06_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(vector06_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(vector06_state::vector06_irq_callback),this));
 	space.install_read_bank (0x0000, 0x7fff, "bank1");
 	space.install_write_bank(0x0000, 0x7fff, "bank2");
 	space.install_read_bank (0x8000, 0xffff, "bank3");
 	space.install_write_bank(0x8000, 0xffff, "bank4");
 
 	membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000);
-	membank("bank2")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() + 0x0000);
-	membank("bank3")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() + 0x8000);
-	membank("bank4")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() + 0x8000);
+	membank("bank2")->set_base(m_ram->pointer() + 0x0000);
+	membank("bank3")->set_base(m_ram->pointer() + 0x8000);
+	membank("bank4")->set_base(m_ram->pointer() + 0x8000);
 
 	m_keyboard_mask = 0;
 	m_color_index = 0;

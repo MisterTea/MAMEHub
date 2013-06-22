@@ -9,7 +9,7 @@ Super Cross II (JPN Ver.)
 
 void sprcros2_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* allocate the colortable */
@@ -62,21 +62,18 @@ void sprcros2_state::palette_init()
 
 WRITE8_MEMBER(sprcros2_state::sprcros2_fgvideoram_w)
 {
-
 	m_fgvideoram[offset] = data;
 	m_fgtilemap->mark_tile_dirty(offset&0x3ff);
 }
 
 WRITE8_MEMBER(sprcros2_state::sprcros2_bgvideoram_w)
 {
-
 	m_bgvideoram[offset] = data;
 	m_bgtilemap->mark_tile_dirty(offset&0x3ff);
 }
 
 WRITE8_MEMBER(sprcros2_state::sprcros2_bgscrollx_w)
 {
-
 	if(m_port7&0x02)
 		m_bgtilemap->set_scrollx(0, 0x100-data);
 	else
@@ -85,7 +82,6 @@ WRITE8_MEMBER(sprcros2_state::sprcros2_bgscrollx_w)
 
 WRITE8_MEMBER(sprcros2_state::sprcros2_bgscrolly_w)
 {
-
 	m_bgtilemap->set_scrolly(0, data);
 }
 
@@ -133,23 +129,20 @@ TILE_GET_INFO_MEMBER(sprcros2_state::get_sprcros2_fgtile_info)
 
 void sprcros2_state::video_start()
 {
-
 	m_bgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sprcros2_state::get_sprcros2_bgtile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_fgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sprcros2_state::get_sprcros2_fgtile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	colortable_configure_tilemap_groups(machine().colortable, m_fgtilemap, machine().gfx[2], 0);
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect)
+void sprcros2_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
-	sprcros2_state *state = machine.driver_data<sprcros2_state>();
 	int offs,sx,sy,color,flipx,flipy;
 
-	for (offs = state->m_spriteram.bytes()-4; offs >= 0; offs -= 4)
+	for (offs = m_spriteram.bytes()-4; offs >= 0; offs -= 4)
 	{
-		if (state->m_spriteram[offs])
+		if (m_spriteram[offs])
 		{
-
 			//offs
 			//76543210
 			//x------- unused
@@ -164,13 +157,13 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const re
 			//offs+2   y pos
 			//offs+3   x pos
 
-			sx = ((state->m_spriteram[offs+3]+0x10)%0x100)-0x10;
-			sy = 225-(((state->m_spriteram[offs+2]+0x10)%0x100)-0x10);
-			color = (state->m_spriteram[offs+1]&0x38)>>3;
-			flipx = state->m_spriteram[offs+1]&0x02;
+			sx = ((m_spriteram[offs+3]+0x10)%0x100)-0x10;
+			sy = 225-(((m_spriteram[offs+2]+0x10)%0x100)-0x10);
+			color = (m_spriteram[offs+1]&0x38)>>3;
+			flipx = m_spriteram[offs+1]&0x02;
 			flipy = 0;
 
-			if (state->m_port7&0x02)
+			if (m_port7&0x02)
 			{
 				sx = 224-sx;
 				sy = 224-sy;
@@ -178,21 +171,20 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const re
 				flipy = !flipy;
 			}
 
-			drawgfx_transmask(bitmap,cliprect,machine.gfx[1],
-				state->m_spriteram[offs],
+			drawgfx_transmask(bitmap,cliprect,machine().gfx[1],
+				m_spriteram[offs],
 				color,
 				flipx,flipy,
 				sx,sy,
-				colortable_get_transpen_mask(machine.colortable, machine.gfx[1], color, 0));
+				colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 0));
 		}
 	}
 }
 
 UINT32 sprcros2_state::screen_update_sprcros2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bgtilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_fgtilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }

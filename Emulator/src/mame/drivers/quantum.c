@@ -56,12 +56,14 @@ class quantum_state : public driver_device
 {
 public:
 	quantum_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_READ16_MEMBER(trackball_r);
 	DECLARE_WRITE16_MEMBER(led_w);
 	DECLARE_READ8_MEMBER(input_1_r);
 	DECLARE_READ8_MEMBER(input_2_r);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -83,13 +85,13 @@ READ16_MEMBER(quantum_state::trackball_r)
 
 READ8_MEMBER(quantum_state::input_1_r)
 {
-	return (machine().root_device().ioport("DSW0")->read() << (7 - (offset - pokey_device::POT0_C))) & 0x80;
+	return (ioport("DSW0")->read() << (7 - (offset - pokey_device::POT0_C))) & 0x80;
 }
 
 
 READ8_MEMBER(quantum_state::input_2_r)
 {
-	return (machine().root_device().ioport("DSW1")->read() << (7 - (offset - pokey_device::POT0_C))) & 0x80;
+	return (ioport("DSW1")->read() << (7 - (offset - pokey_device::POT0_C))) & 0x80;
 }
 
 

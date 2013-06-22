@@ -168,7 +168,7 @@ static const floppy_interface pk8020_floppy_interface =
 	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(pk8020),
-	NULL,
+	"floppy_5_25",
 	NULL
 };
 
@@ -224,7 +224,7 @@ static MACHINE_CONFIG_START( pk8020, pk8020_state )
 	MCFG_I8255_ADD( "ppi8255_2", pk8020_ppi8255_interface_2 )
 	MCFG_I8255_ADD( "ppi8255_3", pk8020_ppi8255_interface_3 )
 	MCFG_PIT8253_ADD( "pit8253", pk8020_pit8253_intf )
-	MCFG_PIC8259_ADD( "pic8259", pk8020_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", WRITELINE(pk8020_state,pk8020_pic_set_int_line), VCC, NULL )
 	MCFG_I8251_ADD( "rs232", default_i8251_interface)
 	MCFG_I8251_ADD( "lan", default_i8251_interface)
 
@@ -232,12 +232,12 @@ static MACHINE_CONFIG_START( pk8020, pk8020_state )
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, pk8020_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", pk8020_cassette_interface )
 
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(pk8020_floppy_interface)
 	MCFG_SOFTWARE_LIST_ADD("flop_list","korvet_flop")

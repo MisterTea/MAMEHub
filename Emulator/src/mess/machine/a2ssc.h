@@ -11,7 +11,7 @@
 
 #include "emu.h"
 #include "machine/a2bus.h"
-#include "machine/6551acia.h"
+#include "machine/mos6551.h"
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -24,12 +24,16 @@ class a2bus_ssc_device:
 public:
 	// construction/destruction
 	a2bus_ssc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	a2bus_ssc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	a2bus_ssc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	// optional information overrides
 	virtual machine_config_constructor device_mconfig_additions() const;
 	virtual const rom_entry *device_rom_region() const;
 	virtual ioport_constructor device_input_ports() const;
+
+	required_ioport m_dsw1, m_dsw2;
+
+	DECLARE_WRITE_LINE_MEMBER( acia_irq_w );
 
 protected:
 	virtual void device_start();
@@ -40,7 +44,7 @@ protected:
 	virtual UINT8 read_cnxx(address_space &space, UINT8 offset);
 	virtual UINT8 read_c800(address_space &space, UINT16 offset);
 
-	required_device<acia6551_device> m_acia;
+	required_device<mos6551_device> m_acia;
 
 private:
 	UINT8 *m_rom;

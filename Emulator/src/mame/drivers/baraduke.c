@@ -155,7 +155,7 @@ WRITE8_MEMBER(baraduke_state::baraduke_lamps_w)
 
 WRITE8_MEMBER(baraduke_state::baraduke_irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -174,7 +174,6 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(baraduke_state::soundkludge_r)
 {
-
 	return ((m_counter++) >> 4) & 0xff;
 }
 
@@ -534,7 +533,7 @@ DRIVER_INIT_MEMBER(baraduke_state,baraduke)
 	int i;
 
 	/* unpack the third tile ROM */
-	rom = machine().root_device().memregion("gfx2")->base() + 0x8000;
+	rom = memregion("gfx2")->base() + 0x8000;
 	for (i = 0x2000;i < 0x4000;i++)
 	{
 		rom[i + 0x2000] = rom[i];

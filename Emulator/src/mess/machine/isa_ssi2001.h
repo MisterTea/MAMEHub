@@ -3,7 +3,7 @@
 
 #include "emu.h"
 #include "machine/isa.h"
-#include "sound/sid6581.h"
+#include "sound/mos6581.h"
 #include "machine/pc_joy.h"
 
 //*********************************************************************
@@ -23,13 +23,12 @@ public:
 	virtual machine_config_constructor device_mconfig_additions() const;
 
 	required_device<pc_joy_device> m_joy;
-	required_device<sid6581_device> m_sid;
+	required_device<mos6581_device> m_sid;
 
 protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete();
 };
 
 // device type definition

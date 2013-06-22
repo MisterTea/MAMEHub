@@ -7,10 +7,18 @@
 #include "sound/okim6295.h"
 #include "sound/2151intf.h"
 #include "video/konicdev.h"
+#include "machine/eeprom.h"
 
 class metro_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_KARATOUR_IRQ,
+		TIMER_MOUJA_IRQ,
+		TIMER_METRO_BLIT_DONE
+	};
+
 	metro_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
@@ -33,7 +41,8 @@ public:
 		m_videoregs(*this, "videoregs"),
 		m_screenctrl(*this, "screenctrl"),
 		m_input_sel(*this, "input_sel"),
-		m_k053936_ram(*this, "k053936_ram")
+		m_k053936_ram(*this, "k053936_ram"),
+		m_eeprom(*this, "eeprom")
 	{ }
 
 	/* devices */
@@ -60,6 +69,8 @@ public:
 	optional_shared_ptr<UINT16> m_screenctrl;
 	optional_shared_ptr<UINT16> m_input_sel;
 	optional_shared_ptr<UINT16> m_k053936_ram;
+
+	optional_device<eeprom_device> m_eeprom;
 
 
 	int         m_flip_screen;
@@ -176,6 +187,21 @@ public:
 	TIMER_CALLBACK_MEMBER(karatour_irq_callback);
 	TIMER_CALLBACK_MEMBER(mouja_irq_callback);
 	TIMER_CALLBACK_MEMBER(metro_blit_done);
+	void update_irq_state();
+	IRQ_CALLBACK_MEMBER(metro_irq_callback);
+	inline UINT8 get_tile_pix( UINT16 code, UINT8 x, UINT8 y, int big, UINT16 *pix );
+	inline void metro_vram_w( offs_t offset, UINT16 data, UINT16 mem_mask, int layer, UINT16 *vram );
+	void metro_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_layers( bitmap_ind16 &bitmap, const rectangle &cliprect, int pri, int layers_ctrl );
+	inline int blt_read( const UINT8 *ROM, const int offs );
+	void metro_common(  );
+	void draw_tilemap( bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 flags, UINT32 pcode,
+					int sx, int sy, int wx, int wy, int big, UINT16 *tilemapram, int layer );
+	DECLARE_WRITE_LINE_MEMBER(blzntrnd_irqhandler);
+	DECLARE_WRITE_LINE_MEMBER(ymf278b_interrupt);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 

@@ -2,11 +2,12 @@ class clshroad_state : public driver_device
 {
 public:
 	clshroad_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_vram_1(*this, "vram_1"),
 		m_vregs(*this, "vregs"),
-		m_vram_0(*this, "vram_0"){ }
+		m_vram_0(*this, "vram_0"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_spriteram;
 	required_shared_ptr<UINT8> m_vram_1;
@@ -31,4 +32,6 @@ public:
 	DECLARE_VIDEO_START(clshroad);
 	DECLARE_PALETTE_INIT(clshroad);
 	UINT32 screen_update_clshroad(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };

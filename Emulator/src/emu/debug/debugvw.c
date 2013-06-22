@@ -44,6 +44,7 @@
 #include "dvstate.h"
 #include "dvdisasm.h"
 #include "dvmemory.h"
+#include "dvbpoints.h"
 #include "debugcmd.h"
 #include "debugcpu.h"
 #include "debugcon.h"
@@ -429,6 +430,17 @@ void debug_view::view_char(int chval)
 }
 
 
+//-------------------------------------------------
+//  view_click - handle a mouse click within the
+//  current view
+//-------------------------------------------------
+
+void debug_view::view_click(const int button, const debug_view_xy& pos)
+{
+	// default does nothing
+}
+
+
 
 //**************************************************************************
 //  DEBUG VIEW MANAGER
@@ -488,6 +500,9 @@ debug_view *debug_view_manager::alloc_view(debug_view_type type, debug_view_osd_
 
 		case DVT_ALLOCS:
 //          return append(auto_alloc(machine(), debug_view_allocs(machine(), osdupdate, osdprivate)));
+
+		case DVT_BREAK_POINTS:
+			return append(auto_alloc(machine(), debug_view_breakpoints(machine(), osdupdate, osdprivate)));
 
 		default:
 			fatalerror("Attempt to create invalid debug view type %d\n", type);

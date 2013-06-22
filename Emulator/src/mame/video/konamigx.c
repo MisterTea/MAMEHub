@@ -1593,7 +1593,7 @@ void konamigx_mixer(running_machine &machine, bitmap_rgb32 &bitmap, const rectan
 					}
 					else
 					{
-						machine.device<k053250_t>("k053250_1")->draw(bitmap, cliprect, vcblk[4]<<l, 0, 0);
+						machine.device<k053250_device>("k053250_1")->draw(bitmap, cliprect, vcblk[4]<<l, 0, 0);
 					}
 				}
 				continue;
@@ -1655,7 +1655,7 @@ void konamigx_mixer(running_machine &machine, bitmap_rgb32 &bitmap, const rectan
 						}
 					}
 					else
-						machine.device<k053250_t>("k053250_2")->draw(bitmap, cliprect, vcblk[5]<<l, 0, 0);
+						machine.device<k053250_device>("k053250_2")->draw(bitmap, cliprect, vcblk[5]<<l, 0, 0);
 				}
 				continue;
 			}
@@ -1872,7 +1872,7 @@ WRITE32_MEMBER(konamigx_state::konamigx_type3_psac2_bank_w)
 TILE_GET_INFO_MEMBER(konamigx_state::get_gx_psac3_tile_info)
 	{
 	int tileno, colour, flip;
-	UINT8 *tmap = machine().root_device().memregion("gfx4")->base();
+	UINT8 *tmap = memregion("gfx4")->base();
 
 	int base_index = tile_index;
 
@@ -1893,7 +1893,7 @@ TILE_GET_INFO_MEMBER(konamigx_state::get_gx_psac3_tile_info)
 TILE_GET_INFO_MEMBER(konamigx_state::get_gx_psac3_alt_tile_info)
 	{
 	int tileno, colour, flip;
-	UINT8 *tmap = machine().root_device().memregion("gfx4")->base()+0x20000;
+	UINT8 *tmap = memregion("gfx4")->base()+0x20000;
 
 	int base_index = tile_index;
 
@@ -2030,7 +2030,7 @@ static void _gxcommoninitnosprites(running_machine &machine)
 		gx_tilebanks[i] = gx_oldbanks[i] = 0;
 	}
 
-	state_save_register_global_array(machine, gx_tilebanks);
+	machine.save().save_item(NAME(gx_tilebanks));
 
 	gx_tilemode = 0;
 
@@ -2477,7 +2477,6 @@ UINT32 konamigx_state::screen_update_konamigx(screen_device &screen, bitmap_rgb3
 			// make it flicker, to compare positioning
 			//if (screen.frame_number() & 1)
 			{
-
 				for (y=0;y<256;y++)
 				{
 					//UINT16* src = &gxtype1_roz_dstbitmap->pix16(y);
@@ -2549,14 +2548,12 @@ UINT32 konamigx_state::screen_update_konamigx_left(screen_device &screen, bitmap
 
 UINT32 konamigx_state::screen_update_konamigx_right(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-
 	if (konamigx_current_frame==1)
 	{
 		copybitmap(bitmap, *dualscreen_right_tempbitmap, 0, 0, 0, 0, cliprect);
 	}
 	else
 	{
-
 		int offset=0;
 
 		if (konamigx_palformat==1)

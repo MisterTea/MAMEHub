@@ -1350,10 +1350,10 @@ void K055673_vh_start(running_machine &machine, const char *gfx_memory_region, i
 	memset(K053246_regs, 0, 8);
 	memset(K053247_regs, 0, 32);
 
-	state_save_register_global_pointer(machine, K053247_ram, 0x800);
-	state_save_register_global_array(machine, K053246_regs);
-	state_save_register_global_array(machine, K053247_regs);
-	state_save_register_global(machine, K053246_OBJCHA_line);
+	machine.save().save_pointer(NAME(K053247_ram), 0x800);
+	machine.save().save_item(NAME(K053246_regs));
+	machine.save().save_item(NAME(K053247_regs));
+	machine.save().save_item(NAME(K053246_OBJCHA_line));
 }
 
 WRITE16_HANDLER( K053247_reg_word_w ) // write-only OBJSET2 registers (see p.43 table 6.1)
@@ -2193,16 +2193,16 @@ void K056832_vh_start(running_machine &machine, const char *gfx_memory_region, i
 	K056832_change_rambank();
 	K056832_change_rombank();
 
-	state_save_register_global_pointer(machine, K056832_videoram, 0x10000);
-	state_save_register_global_array(machine, K056832_regs);
-	state_save_register_global_array(machine, K056832_regsb);
-	state_save_register_global_array(machine, K056832_X);
-	state_save_register_global_array(machine, K056832_Y);
-	state_save_register_global_array(machine, K056832_W);
-	state_save_register_global_array(machine, K056832_H);
-	state_save_register_global_array(machine, K056832_dx);
-	state_save_register_global_array(machine, K056832_dy);
-	state_save_register_global_array(machine, K056832_LayerTileMode);
+	machine.save().save_pointer(NAME(K056832_videoram), 0x10000);
+	machine.save().save_item(NAME(K056832_regs));
+	machine.save().save_item(NAME(K056832_regsb));
+	machine.save().save_item(NAME(K056832_X));
+	machine.save().save_item(NAME(K056832_Y));
+	machine.save().save_item(NAME(K056832_W));
+	machine.save().save_item(NAME(K056832_H));
+	machine.save().save_item(NAME(K056832_dx));
+	machine.save().save_item(NAME(K056832_dy));
+	machine.save().save_item(NAME(K056832_LayerTileMode));
 
 	machine.save().register_postload(save_prepost_delegate(FUNC(K056832_postload), &machine));
 }
@@ -2565,13 +2565,11 @@ WRITE16_HANDLER( K056832_b_word_w )
 
 static int K056832_update_linemap(running_machine &machine, bitmap_rgb32 &bitmap, int page, int flags)
 {
-
 	if (K056832_PageTileMode[page]) return(0);
 	if (!K056832_linemap_enabled) return(1);
 
 
 	{
-
 		rectangle zerorect;
 		tilemap_t *tmap;
 		UINT32 *dirty;
@@ -2608,8 +2606,6 @@ static int K056832_update_linemap(running_machine &machine, bitmap_rgb32 &bitmap
 
         */
 		{
-
-
 			bitmap_ind16 *pixmap;
 
 			UINT8 code_transparent, code_opaque;
@@ -2641,8 +2637,6 @@ static int K056832_update_linemap(running_machine &machine, bitmap_rgb32 &bitmap
 
 			for (line=0; line<256; line++)
 			{
-
-
 				tile_data tileinfo = {0};
 
 				dst_ptr = &pixmap->pix16(line);
@@ -3009,7 +3003,7 @@ static UINT8 k55555_regs[128];
 
 void K055555_vh_start(running_machine &machine)
 {
-	state_save_register_global_array(machine, k55555_regs);
+	machine.save().save_item(NAME(k55555_regs));
 
 	memset(k55555_regs, 0, 64*sizeof(UINT8));
 }
@@ -3104,7 +3098,7 @@ void K054338_vh_start(running_machine &machine)
 	memset(K054338_shdRGB, 0, sizeof(int)*9);
 	K054338_alphainverted = 1;
 
-	state_save_register_global_array(machine, k54338_regs);
+	machine.save().save_item(NAME(k54338_regs));
 }
 
 WRITE16_HANDLER( K054338_word_w )

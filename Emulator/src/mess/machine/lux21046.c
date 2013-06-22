@@ -219,18 +219,39 @@ WRITE_LINE_MEMBER( luxor_55_21046_device::dma_int_w )
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, m_fdc_irq || m_dma_irq);
 }
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(luxor_55_21046_device::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(luxor_55_21046_device::memory_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.write_byte(offset, data);
+}
+
+READ8_MEMBER(luxor_55_21046_device::io_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(luxor_55_21046_device::io_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.write_byte(offset, data);
+}
 
 static Z80DMA_INTERFACE( dma_intf )
 {
 	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_HALT),
 	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, luxor_55_21046_device, dma_int_w),
 	DEVCB_NULL,
-	DEVCB_MEMORY_HANDLER(Z80_TAG, PROGRAM, memory_read_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, PROGRAM, memory_write_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_read_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_write_byte)
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, luxor_55_21046_device, memory_read_byte),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, luxor_55_21046_device, memory_write_byte),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, luxor_55_21046_device, io_read_byte),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, luxor_55_21046_device, io_write_byte),
 };
 
 
@@ -272,8 +293,8 @@ static MACHINE_CONFIG_FRAGMENT( luxor_55_21046 )
 	MCFG_Z80DMA_ADD(Z80DMA_TAG, XTAL_16MHz/4, dma_intf)
 	MCFG_FD1793x_ADD(SAB1793_TAG, XTAL_16MHz/8)
 
-	MCFG_FLOPPY_DRIVE_ADD(SAB1793_TAG":0", abc_floppies, "525dd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(SAB1793_TAG":1", abc_floppies, "525dd", NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(SAB1793_TAG":0", abc_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(SAB1793_TAG":1", abc_floppies, "525dd", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
 
 
@@ -379,7 +400,7 @@ ioport_constructor luxor_55_21046_device::device_input_ports() const
 //-------------------------------------------------
 
 luxor_55_21046_device::luxor_55_21046_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, LUXOR_55_21046, "Luxor 55 21046", tag, owner, clock),
+	: device_t(mconfig, LUXOR_55_21046, "Luxor 55 21046", tag, owner, clock, "lux21046", __FILE__),
 		device_abcbus_card_interface(mconfig, *this),
 		m_maincpu(*this, Z80_TAG),
 		m_dma(*this, Z80DMA_TAG),
@@ -418,12 +439,6 @@ void luxor_55_21046_device::device_start()
 	save_item(NAME(m_dma_irq));
 	save_item(NAME(m_busy));
 	save_item(NAME(m_force_busy));
-
-	// patch out sector skew table
-/*  UINT8 *rom = memregion(Z80_TAG)->base();
-
-    for (int i = 0; i < 16; i++)
-        rom[0x2dd3 + i] = i + 1;*/
 }
 
 
@@ -434,6 +449,7 @@ void luxor_55_21046_device::device_start()
 void luxor_55_21046_device::device_reset()
 {
 	m_cs = false;
+	m_data_in = 0;
 }
 
 
@@ -449,19 +465,6 @@ void luxor_55_21046_device::device_reset()
 void luxor_55_21046_device::abcbus_cs(UINT8 data)
 {
 	m_cs = (data == m_sw3->read());
-}
-
-
-//-------------------------------------------------
-//  abcbus_rst -
-//-------------------------------------------------
-
-void luxor_55_21046_device::abcbus_rst(int state)
-{
-	if (!state)
-	{
-		device_reset();
-	}
 }
 
 

@@ -60,6 +60,7 @@ public:
 	DECLARE_MACHINE_RESET(alg);
 	DECLARE_VIDEO_START(alg);
 	TIMER_CALLBACK_MEMBER(response_timer);
+	void alg_init();
 };
 
 
@@ -76,8 +77,8 @@ static int get_lightgun_pos(screen_device &screen, int player, int *x, int *y)
 {
 	const rectangle &visarea = screen.visible_area();
 
-	int xpos = screen.machine().root_device().ioport((player == 0) ? "GUN1X" : "GUN2X")->read_safe(0xffffffff);
-	int ypos = screen.machine().root_device().ioport((player == 0) ? "GUN1Y" : "GUN2Y")->read_safe(0xffffffff);
+	int xpos = screen.ioport((player == 0) ? "GUN1X" : "GUN2X")->read_safe(0xffffffff);
+	int ypos = screen.ioport((player == 0) ? "GUN1Y" : "GUN2Y")->read_safe(0xffffffff);
 
 	if (xpos == -1 || ypos == -1)
 		return FALSE;
@@ -115,6 +116,7 @@ VIDEO_START_MEMBER(alg_state,alg)
 
 MACHINE_START_MEMBER(alg_state,alg)
 {
+	MACHINE_START_CALL_MEMBER(amiga);
 
 	m_serial_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(alg_state::response_timer),this));
 	m_serial_timer_active = FALSE;
@@ -136,7 +138,6 @@ MACHINE_RESET_MEMBER(alg_state,alg)
 
 TIMER_CALLBACK_MEMBER(alg_state::response_timer)
 {
-
 	/* if we still have data to send, do it now */
 	if (m_laserdisc->data_available_r() == ASSERT_LINE)
 	{
@@ -212,7 +213,6 @@ CUSTOM_INPUT_MEMBER(alg_state::lightgun_pos_r)
 
 CUSTOM_INPUT_MEMBER(alg_state::lightgun_trigger_r)
 {
-
 	/* read the trigger control based on the input select */
 	return (ioport("TRIGGERS")->read() >> m_input_select) & 1;
 }
@@ -220,7 +220,6 @@ CUSTOM_INPUT_MEMBER(alg_state::lightgun_trigger_r)
 
 CUSTOM_INPUT_MEMBER(alg_state::lightgun_holster_r)
 {
-
 	/* read the holster control based on the input select */
 	return (ioport("TRIGGERS")->read() >> (2 + m_input_select)) & 1;
 }
@@ -236,7 +235,7 @@ CUSTOM_INPUT_MEMBER(alg_state::lightgun_holster_r)
 WRITE8_MEMBER(alg_state::alg_cia_0_porta_w)
 {
 	/* switch banks as appropriate */
-	machine().root_device().membank("bank1")->set_entry(data & 1);
+	m_bank1->set_entry(data & 1);
 
 	/* swap the write handlers between ROM and bank 1 based on the bit */
 	if ((data & 1) == 0)
@@ -251,7 +250,7 @@ WRITE8_MEMBER(alg_state::alg_cia_0_porta_w)
 
 READ8_MEMBER(alg_state::alg_cia_0_porta_r)
 {
-	return machine().root_device().ioport("FIRE")->read() | 0x3f;
+	return ioport("FIRE")->read() | 0x3f;
 }
 
 
@@ -292,9 +291,9 @@ WRITE8_MEMBER(alg_state::alg_cia_1_porta_w)
 static ADDRESS_MAP_START( main_map_r1, AS_PROGRAM, 16, alg_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x07ffff) AM_RAMBANK("bank1") AM_SHARE("chip_ram")
-	AM_RANGE(0xbfd000, 0xbfefff) AM_READWRITE_LEGACY(amiga_cia_r, amiga_cia_w)
-	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE_LEGACY(amiga_custom_r, amiga_custom_w) AM_SHARE("custom_regs")
-	AM_RANGE(0xe80000, 0xe8ffff) AM_READWRITE_LEGACY(amiga_autoconfig_r, amiga_autoconfig_w)
+	AM_RANGE(0xbfd000, 0xbfefff) AM_READWRITE(amiga_cia_r, amiga_cia_w)
+	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE(amiga_custom_r, amiga_custom_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xe80000, 0xe8ffff) AM_READWRITE(amiga_autoconfig_r, amiga_autoconfig_w)
 	AM_RANGE(0xfc0000, 0xffffff) AM_ROM AM_REGION("user1", 0)           /* System ROM */
 
 	AM_RANGE(0xf00000, 0xf1ffff) AM_ROM AM_REGION("user2", 0)           /* Custom ROM */
@@ -305,9 +304,9 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( main_map_r2, AS_PROGRAM, 16, alg_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x07ffff) AM_RAMBANK("bank1") AM_SHARE("chip_ram")
-	AM_RANGE(0xbfd000, 0xbfefff) AM_READWRITE_LEGACY(amiga_cia_r, amiga_cia_w)
-	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE_LEGACY(amiga_custom_r, amiga_custom_w) AM_SHARE("custom_regs")
-	AM_RANGE(0xe80000, 0xe8ffff) AM_READWRITE_LEGACY(amiga_autoconfig_r, amiga_autoconfig_w)
+	AM_RANGE(0xbfd000, 0xbfefff) AM_READWRITE(amiga_cia_r, amiga_cia_w)
+	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE(amiga_custom_r, amiga_custom_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xe80000, 0xe8ffff) AM_READWRITE(amiga_autoconfig_r, amiga_autoconfig_w)
 	AM_RANGE(0xfc0000, 0xffffff) AM_ROM AM_REGION("user1", 0)           /* System ROM */
 
 	AM_RANGE(0xf00000, 0xf3ffff) AM_ROM AM_REGION("user2", 0)           /* Custom ROM */
@@ -318,9 +317,9 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( main_map_picmatic, AS_PROGRAM, 16, alg_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x07ffff) AM_RAMBANK("bank1") AM_SHARE("chip_ram")
-	AM_RANGE(0xbfd000, 0xbfefff) AM_READWRITE_LEGACY(amiga_cia_r, amiga_cia_w)
-	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE_LEGACY(amiga_custom_r, amiga_custom_w) AM_SHARE("custom_regs")
-	AM_RANGE(0xe80000, 0xe8ffff) AM_READWRITE_LEGACY(amiga_autoconfig_r, amiga_autoconfig_w)
+	AM_RANGE(0xbfd000, 0xbfefff) AM_READWRITE(amiga_cia_r, amiga_cia_w)
+	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE(amiga_custom_r, amiga_custom_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xe80000, 0xe8ffff) AM_READWRITE(amiga_autoconfig_r, amiga_autoconfig_w)
 	AM_RANGE(0xfc0000, 0xffffff) AM_ROM AM_REGION("user1", 0)           /* System ROM */
 
 	AM_RANGE(0xf00000, 0xf1ffff) AM_ROM AM_REGION("user2", 0)           /* Custom ROM */
@@ -337,11 +336,11 @@ ADDRESS_MAP_END
 
 static INPUT_PORTS_START( alg )
 	PORT_START("JOY0DAT")   /* read by Amiga core */
-	PORT_BIT( 0x0303, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, alg_state,amiga_joystick_convert, "P1JOY")
+	PORT_BIT( 0x0303, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, alg_state,amiga_joystick_convert, 0)
 	PORT_BIT( 0xfcfc, IP_ACTIVE_HIGH, IPT_UNKNOWN )
 
 	PORT_START("JOY1DAT")   /* read by Amiga core */
-	PORT_BIT( 0x0303, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, alg_state,amiga_joystick_convert, "P2JOY")
+	PORT_BIT( 0x0303, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, alg_state,amiga_joystick_convert, 1)
 	PORT_BIT( 0xfcfc, IP_ACTIVE_HIGH, IPT_UNKNOWN )
 
 	PORT_START("POTGO")     /* read by Amiga core */
@@ -414,7 +413,7 @@ INPUT_PORTS_END
 
 static const legacy_mos6526_interface cia_0_intf =
 {
-	DEVCB_LINE(amiga_cia_0_irq),                                /* irq_func */
+	DEVCB_DRIVER_LINE_MEMBER(amiga_state,amiga_cia_0_irq),                                /* irq_func */
 	DEVCB_NULL, /* pc_func */
 	DEVCB_NULL,
 	DEVCB_NULL,
@@ -426,7 +425,7 @@ static const legacy_mos6526_interface cia_0_intf =
 
 static const legacy_mos6526_interface cia_1_intf =
 {
-	DEVCB_LINE(amiga_cia_1_irq),                                /* irq_func */
+	DEVCB_DRIVER_LINE_MEMBER(amiga_state,amiga_cia_1_irq),                                /* irq_func */
 	DEVCB_NULL, /* pc_func */
 	DEVCB_NULL,
 	DEVCB_NULL,
@@ -691,9 +690,8 @@ ROM_END
  *
  *************************************/
 
-static void alg_init(running_machine &machine)
+void alg_state::alg_init()
 {
-	alg_state *state = machine.driver_data<alg_state>();
 	static const amiga_machine_interface alg_intf =
 	{
 		ANGUS_CHIP_RAM_MASK,
@@ -705,11 +703,11 @@ static void alg_init(running_machine &machine)
 		NULL,
 		0
 	};
-	amiga_machine_config(machine, &alg_intf);
+	amiga_machine_config(machine(), &alg_intf);
 
 	/* set up memory */
-	state->membank("bank1")->configure_entry(0, state->m_chip_ram);
-	state->membank("bank1")->configure_entry(1, machine.root_device().memregion("user1")->base());
+	m_bank1->configure_entry(0, m_chip_ram);
+	m_bank1->configure_entry(1, memregion("user1")->base());
 }
 
 
@@ -722,8 +720,8 @@ static void alg_init(running_machine &machine)
 
 DRIVER_INIT_MEMBER(alg_state,palr1)
 {
-	UINT32 length = machine().root_device().memregion("user2")->bytes();
-	UINT8 *rom = machine().root_device().memregion("user2")->base();
+	UINT32 length = memregion("user2")->bytes();
+	UINT8 *rom = memregion("user2")->base();
 	UINT8 *original = auto_alloc_array(machine(), UINT8, length);
 	UINT32 srcaddr;
 
@@ -737,13 +735,13 @@ DRIVER_INIT_MEMBER(alg_state,palr1)
 	}
 	auto_free(machine(), original);
 
-	alg_init(machine());
+	alg_init();
 }
 
 DRIVER_INIT_MEMBER(alg_state,palr3)
 {
-	UINT32 length = machine().root_device().memregion("user2")->bytes();
-	UINT8 *rom = machine().root_device().memregion("user2")->base();
+	UINT32 length = memregion("user2")->bytes();
+	UINT8 *rom = memregion("user2")->base();
 	UINT8 *original = auto_alloc_array(machine(), UINT8, length);
 	UINT32 srcaddr;
 
@@ -756,13 +754,13 @@ DRIVER_INIT_MEMBER(alg_state,palr3)
 	}
 	auto_free(machine(), original);
 
-	alg_init(machine());
+	alg_init();
 }
 
 DRIVER_INIT_MEMBER(alg_state,palr6)
 {
-	UINT32 length = machine().root_device().memregion("user2")->bytes();
-	UINT8 *rom = machine().root_device().memregion("user2")->base();
+	UINT32 length = memregion("user2")->bytes();
+	UINT8 *rom = memregion("user2")->base();
 	UINT8 *original = auto_alloc_array(machine(), UINT8, length);
 	UINT32 srcaddr;
 
@@ -777,13 +775,13 @@ DRIVER_INIT_MEMBER(alg_state,palr6)
 	}
 	auto_free(machine(), original);
 
-	alg_init(machine());
+	alg_init();
 }
 
 DRIVER_INIT_MEMBER(alg_state,aplatoon)
 {
 	/* NOT DONE TODO FIGURE OUT THE RIGHT ORDER!!!! */
-	UINT8 *rom = machine().root_device().memregion("user2")->base();
+	UINT8 *rom = memregion("user2")->base();
 	UINT8 *decrypted = auto_alloc_array(machine(), UINT8, 0x40000);
 	int i;
 
@@ -797,12 +795,12 @@ DRIVER_INIT_MEMBER(alg_state,aplatoon)
 		memcpy(decrypted + i * 0x1000, rom + shuffle[i] * 0x1000, 0x1000);
 	memcpy(rom, decrypted, 0x40000);
 	logerror("decrypt done\n ");
-	alg_init(machine());
+	alg_init();
 }
 
 DRIVER_INIT_MEMBER(alg_state,none)
 {
-	alg_init(machine());
+	alg_init();
 }
 
 

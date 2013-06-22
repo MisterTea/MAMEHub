@@ -216,9 +216,7 @@ static const UINT8 sslam_snd_loop[8][19] =
 TIMER_CALLBACK_MEMBER(sslam_state::music_playback)
 {
 	int pattern = 0;
-	okim6295_device *device = machine().device<okim6295_device>("oki");
-
-	if ((device->read_status() & 0x08) == 0)
+	if ((m_oki->read_status() & 0x08) == 0)
 	{
 		m_bar += 1;
 		pattern = sslam_snd_loop[m_melody][m_bar];
@@ -229,8 +227,8 @@ TIMER_CALLBACK_MEMBER(sslam_state::music_playback)
 				pattern = sslam_snd_loop[m_melody][m_bar];
 			}
 			logerror("Changing bar in music track to pattern %02x\n",pattern);
-			device->write_command(0x80 | pattern);
-			device->write_command(0x81);
+			m_oki->write_command(0x80 | pattern);
+			m_oki->write_command(0x81);
 		}
 		else if (pattern == 0x00) {     /* Non-looped track. Stop playing it */
 			m_track = 0;
@@ -295,16 +293,14 @@ static void sslam_play(device_t *device, int track, int data)
 
 WRITE16_MEMBER(sslam_state::sslam_snd_w)
 {
-	device_t *device = machine().device("oki");
 	if (ACCESSING_BITS_0_7)
 	{
-
 		logerror("%s Writing %04x to Sound CPU\n",machine().describe_context(),data);
 		if (data >= 0x40) {
 			if (data == 0xfe) {
 				/* This should reset the sound MCU and stop audio playback, but here, it */
 				/* chops the first coin insert. So let's only stop any playing melodies. */
-				sslam_play(device, 1, (0x80 | 0x40));       /* Stop playing the melody */
+				sslam_play(m_oki, 1, (0x80 | 0x40));       /* Stop playing the melody */
 			}
 			else {
 				logerror("Unknown command (%02x) sent to the Sound controller\n",data);
@@ -324,13 +320,13 @@ WRITE16_MEMBER(sslam_state::sslam_snd_w)
 			else if (m_sound >= 0x70) {
 				/* These vocals are in bank 1, but a bug in the actual MCU doesn't set the bank */
 //              if (m_snd_bank != 1)
-//                  downcast<okim6295_device *>(device)->set_bank_base((1 * 0x40000));
+//                  m_oki->set_bank_base((1 * 0x40000));
 //              sslam_snd_bank = 1;
-				sslam_play(device, 0, m_sound);
+				sslam_play(m_oki, 0, m_sound);
 			}
 			else if (m_sound >= 0x69) {
 				if (m_snd_bank != 2)
-					downcast<okim6295_device *>(device)->set_bank_base(2 * 0x40000);
+					m_oki->set_bank_base(2 * 0x40000);
 				m_snd_bank = 2;
 				switch (m_sound)
 				{
@@ -339,18 +335,18 @@ WRITE16_MEMBER(sslam_state::sslam_snd_w)
 					case 0x6c:  m_melody = 7; break;
 					default:    m_melody = 0; m_bar = 0; break; /* Invalid */
 				}
-				sslam_play(device, m_melody, m_sound);
+				sslam_play(m_oki, m_melody, m_sound);
 			}
 			else if (m_sound >= 0x65) {
 				if (m_snd_bank != 1)
-					downcast<okim6295_device *>(device)->set_bank_base(1 * 0x40000);
+					m_oki->set_bank_base(1 * 0x40000);
 				m_snd_bank = 1;
 				m_melody = 4;
-				sslam_play(device, m_melody, m_sound);
+				sslam_play(m_oki, m_melody, m_sound);
 			}
 			else if (m_sound >= 0x60) {
 				if (m_snd_bank != 0)
-					downcast<okim6295_device *>(device)->set_bank_base(0 * 0x40000);
+					m_oki->set_bank_base(0 * 0x40000);
 				m_snd_bank = 0;
 				switch (m_sound)
 				{
@@ -359,10 +355,10 @@ WRITE16_MEMBER(sslam_state::sslam_snd_w)
 					case 0x64:  m_melody = 3; break;
 					default:    m_melody = 0; m_bar = 0; break; /* Invalid */
 				}
-				sslam_play(device, m_melody, m_sound);
+				sslam_play(m_oki, m_melody, m_sound);
 			}
 			else {
-				sslam_play(device, 0, m_sound);
+				sslam_play(m_oki, 0, m_sound);
 			}
 		}
 	}
@@ -373,7 +369,7 @@ WRITE16_MEMBER(sslam_state::sslam_snd_w)
 WRITE16_MEMBER(sslam_state::powerbls_sound_w)
 {
 	soundlatch_byte_w(space, 0, data & 0xff);
-	machine().device("audiocpu")->execute().set_input_line(MCS51_INT1_LINE, HOLD_LINE);
+	m_audiocpu->set_input_line(MCS51_INT1_LINE, HOLD_LINE);
 }
 
 /* Memory Maps */
@@ -434,7 +430,7 @@ READ8_MEMBER(sslam_state::playmark_snd_command_r)
 		data = soundlatch_byte_r(space,0);
 	}
 	else if ((m_oki_control & 0x38) == 0x28) {
-		data = (machine().device<okim6295_device>("oki")->read(space,0) & 0x0f);
+		data = (m_oki->read(space,0) & 0x0f);
 	}
 
 	return data;
@@ -442,13 +438,11 @@ READ8_MEMBER(sslam_state::playmark_snd_command_r)
 
 WRITE8_MEMBER(sslam_state::playmark_oki_w)
 {
-
 	m_oki_command = data;
 }
 
 WRITE8_MEMBER(sslam_state::playmark_snd_control_w)
 {
-
 	m_oki_control = data;
 
 	if (data & 3)
@@ -456,13 +450,13 @@ WRITE8_MEMBER(sslam_state::playmark_snd_control_w)
 		if (m_oki_bank != ((data & 3) - 1))
 		{
 			m_oki_bank = (data & 3) - 1;
-			machine().device<okim6295_device>("oki")->set_bank_base(0x40000 * m_oki_bank);
+			m_oki->set_bank_base(0x40000 * m_oki_bank);
 		}
 	}
 
 	if ((data & 0x38) == 0x18)
 	{
-		machine().device<okim6295_device>("oki")->write(space, 0, m_oki_command);
+		m_oki->write(space, 0, m_oki_command);
 	}
 
 //  !(data & 0x80) -> sound enable
@@ -930,7 +924,6 @@ DRIVER_INIT_MEMBER(sslam_state,sslam)
 
 DRIVER_INIT_MEMBER(sslam_state,powerbls)
 {
-
 	save_item(NAME(m_oki_control));
 	save_item(NAME(m_oki_command));
 	save_item(NAME(m_oki_bank));

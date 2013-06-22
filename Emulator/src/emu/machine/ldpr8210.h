@@ -51,11 +51,9 @@
 //**************************************************************************
 
 #define MCFG_LASERDISC_PR8210_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, PIONEER_PR8210, 0) \
-
+	MCFG_DEVICE_ADD(_tag, PIONEER_PR8210, 0)
 #define MCFG_LASERDISC_SIMUTREK_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, SIMUTREK_SPECIAL, 0) \
-
+	MCFG_DEVICE_ADD(_tag, SIMUTREK_SPECIAL, 0)
 
 
 //**************************************************************************
@@ -96,7 +94,7 @@ class pioneer_pr8210_device : public laserdisc_device
 public:
 	// construction/destruction
 	pioneer_pr8210_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	pioneer_pr8210_device(const machine_config &mconfig, device_type type, const char *name, const char *shortname, const char *tag, device_t *owner, UINT32 clock);
+	pioneer_pr8210_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	// input and output
 	void control_w(UINT8 data);

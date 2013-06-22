@@ -3,8 +3,9 @@
     drivers/esq1.c
 
     Ensoniq ESQ-1 Digital Wave Synthesizer
+    Ensoniq ESQ-M (rack-mount ESQ-1)
     Ensoniq SQ-80 Cross Wave Synthesizer
-    Driver by R. Belmont
+    Driver by R. Belmont and O. Galibert
 
     Map for ESQ-1 and ESQ-m:
     0000-1fff: OS RAM
@@ -36,6 +37,10 @@
     $68d8   -$20    Final DCA (ENV4)
     $68b8   -$40    Panning (PAN)
     $6878   -$80    Floppy (Motor/LED on - SQ-80 only)
+
+ESQ1: 8x CEM3379 VC Signal Processor Filter/Mix/VCA, 1x CEM3360 Dual VCA, 4x SSM2300
+SQ-80: 8x CEM3379 VC Signal Processor - Filter/Mix/VCA, 1x CEM3360 Dual VCA, 4x SSM2300
+
 
 If SEQRAM is mapped at 4000, DUART port 2 determines the 32KB "master bank" and ports 0 and 1
 determine which of the 4 8KB "sub banks" is visible.
@@ -109,21 +114,272 @@ NOTES:
     35 = MODES
     36 = SPLIT / LAYER
 
+
+    Analog filters (CEM3379):
+
+    The analog part is relatively simple.  The digital part outputs 8
+    voices, which are filtered, amplified, panned then summed
+    together.
+
+    The filtering stage is a 4-level lowpass filter with a loopback:
+
+
+             +-[+]-<-[*-1]--------------------------+
+             |  |                                   |
+             ^ [*r]                                 |
+             |  |                                   |
+             |  v                                   ^
+    input ---+-[+]--[LPF]---[LPF]---[LPF]---[LPF]---+--- output
+
+    All 4 LPFs are identical, with a transconductance G:
+
+    output = 1/(1+s/G)^4 * ( (1+r)*input - r*output)
+
+    or
+
+    output = input * (1+r)/((1+s/G)^4+r)
+
+    to which the usual z-transform can be applied (see votrax.c)
+
+    G is voltage controlled through the Vfreq input, with the formula (Vfreq in mV):
+
+         G = 6060*exp(Vfreq/28.5)
+
+    That gives a cutoff frequency (f=G/(2pi)) of 5Hz at 5mV, 964Hz at
+    28.5mV and 22686Hz at 90mV.  The resistor ladder between the DAC
+    and the input seem to map 0..255 into a range of -150.4mV to
+    +83.6mV.
+
+    The resonance is controlled through the Vq input pin, and is not
+    well defined.  Reading between the lines the control seems linear
+    and tops when then circuit is self-oscillation, at r=4.
+
+    The amplification is exponential for a control voltage between 0
+    to 0.2V from -100dB to -20dB, and then linear up to 5V at 0dB.  Or
+    in other words:
+         amp(Vca) = Vca < 0.2 ? 10**(-5+20*Vca) : Vca*0.1875 + 0.0625
+
+
+    Finally the panning is not very described.  What is clear is that
+    the control voltage at 2.5V gives a gain of -6dB, the max
+    attenuation at 0/5V is -100dB.  The doc also says the gain is
+    linear between 1V and 3.5V, which makes no sense since it's not
+    symmetrical, and logarithmic afterwards, probably meaning
+    exponential, otherwise the change between 0 and 1V would be
+    minimal.  So we're going to do some assumptions:
+        - 0-1V exponential from -100Db to -30dB
+        - 1V-2.5V linear from -30dB to -6dB
+        - 2.5V-5V is 1-amp at 2.5V-v
+
+    Note that this may be incorrect, maybe to sum of squares should be
+    constant, the half-point should be at -3dB and the linearity in dB
+    space.
+
+
 ***************************************************************************/
 
 #include "emu.h"
 #include "cpu/m6809/m6809.h"
 #include "sound/es5503.h"
-#include "machine/68681.h"
+#include "machine/n68681.h"
 #include "machine/wd_fdc.h"
 
-#include "machine/esqvfd.h"
+#include "machine/esqpanel.h"
+#include "machine/serial.h"
+#include "machine/midiinport.h"
+#include "machine/midioutport.h"
 
 #define WD1772_TAG      "wd1772"
 
-// QWERTYU = a few keys
-// top row 1-0 = the soft keys above and below the display (patch select)
-#define KEYBOARD_HACK   (1)
+class esq1_filters : public device_t,
+						public device_sound_interface
+{
+public:
+	// construction/destruction
+	esq1_filters(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	void set_vca(int channel, UINT8 value);
+	void set_vpan(int channel, UINT8 value);
+	void set_vq(int channel, UINT8 value);
+	void set_vfc(int channel, UINT8 value);
+
+protected:
+	// device-level overrides
+	virtual void device_start();
+
+	// device_sound_interface overrides
+	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
+
+private:
+	struct filter {
+		UINT8 vca, vpan, vq, vfc;
+		double amp, lamp, ramp;
+		double a[5], b[5];
+		double x[4], y[4];
+	};
+
+	filter filters[8];
+
+	sound_stream *stream;
+
+	void recalc_filter(filter &f);
+};
+
+static const device_type ESQ1_FILTERS = &device_creator<esq1_filters>;
+
+esq1_filters::esq1_filters(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: device_t(mconfig, ESQ1_FILTERS, "ESQ1 Filters stage", tag, owner, clock, "esq1-filters", __FILE__),
+		device_sound_interface(mconfig, *this)
+{
+}
+
+void esq1_filters::set_vca(int channel, UINT8 value)
+{
+	if(filters[channel].vca != value) {
+		stream->update();
+		filters[channel].vca = value;
+		recalc_filter(filters[channel]);
+	}
+}
+
+void esq1_filters::set_vpan(int channel, UINT8 value)
+{
+	if(filters[channel].vpan != value) {
+		stream->update();
+		filters[channel].vpan = value;
+		recalc_filter(filters[channel]);
+	}
+}
+
+void esq1_filters::set_vq(int channel, UINT8 value)
+{
+	if(filters[channel].vq != value) {
+		stream->update();
+		filters[channel].vq = value;
+		recalc_filter(filters[channel]);
+	}
+}
+
+void esq1_filters::set_vfc(int channel, UINT8 value)
+{
+	if(filters[channel].vfc != value) {
+		stream->update();
+		filters[channel].vfc = value;
+		recalc_filter(filters[channel]);
+	}
+}
+
+void esq1_filters::recalc_filter(filter &f)
+{
+	// Filtering stage
+	//   First let's establish the control values
+	//   Some tuning may be required
+
+	double vfc = -150.4 + (83.6+150.4)*f.vfc/255;
+	double r = 4.0*f.vq/255;
+
+
+	double g = 6060*exp(vfc/28.5);
+	double zc = g/tan(g/2/44100);
+
+/*  if(f.vfc) {
+        double ff = g/(2*M_PI);
+        double fzc = 2*M_PI*ff/tan(M_PI*ff/44100);
+        fprintf(stderr, "%02x f=%f zc=%f zc1=%f\n", f.vfc, g/(2*M_PI), zc, fzc);
+    }*/
+
+	double gzc = zc/g;
+	double gzc2 = gzc*gzc;
+	double gzc3 = gzc2*gzc;
+	double gzc4 = gzc3*gzc;
+	double r1 = 1+r;
+
+	f.a[0] = r1;
+	f.a[1] = 4*r1;
+	f.a[2] = 6*r1;
+	f.a[3] = 4*r1;
+	f.a[4] = r1;
+
+	f.b[0] =    r1 + 4*gzc + 6*gzc2 + 4*gzc3 + gzc4;
+	f.b[1] = 4*(r1 + 2*gzc          - 2*gzc3 - gzc4);
+	f.b[2] = 6*(r1         - 2*gzc2          + gzc4);
+	f.b[3] = 4*(r1 - 2*gzc          + 2*gzc3 - gzc4);
+	f.b[4] =    r1 - 4*gzc + 6*gzc2 - 4*gzc3 + gzc4;
+
+/*  if(f.vfc != 0)
+        for(int i=0; i<5; i++)
+            printf("a%d=%f\nb%d=%f\n",
+                   i, f.a[i], i, f.b[i]);*/
+
+	// Amplification stage
+	double vca = f.vca*(5.0/255.0);
+	f.amp = vca < 0.2 ? pow(10, -5+20*vca) : vca*0.1875 + 0.0625;
+
+	// Panning stage
+	//   Very approximative at best
+	//   Left/right unverified
+	double vpan = f.vpan*(5.0/255.0);
+	double vref = vpan > 2.5 ? 2.5 - vpan : vpan;
+	double pan_amp = vref < 1 ? pow(10, -5+3.5*vref) : vref*0.312 - 0.280;
+	if(vref < 2.5) {
+		f.lamp = pan_amp;
+		f.ramp = 1-pan_amp;
+	} else {
+		f.lamp = 1-pan_amp;
+		f.ramp = pan_amp;
+	}
+}
+
+void esq1_filters::device_start()
+{
+	stream = stream_alloc(8, 2, 44100);
+	memset(filters, 0, sizeof(filters));
+	for(int i=0; i<8; i++)
+		recalc_filter(filters[i]);
+}
+
+void esq1_filters::sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples)
+{
+/*  if(0) {
+        for(int i=0; i<8; i++)
+            fprintf(stderr, " [%02x %02x %02x %02x]",
+                    filters[i].vca,
+                    filters[i].vpan,
+                    filters[i].vq,
+                    filters[i].vfc);
+        fprintf(stderr, "\n");
+    }*/
+
+	for(int i=0; i<samples; i++) {
+		double l=0, r=0;
+		for(int j=0; j<8; j++) {
+			filter &f = filters[j];
+			double x = inputs[j][i];
+			double y = (x*f.a[0]
+						+ f.x[0]*f.a[1] + f.x[1]*f.a[2] + f.x[2]*f.a[3] + f.x[3]*f.a[4]
+						- f.y[0]*f.b[1] - f.y[1]*f.b[2] - f.y[2]*f.b[3] - f.y[3]*f.b[4]) / f.b[0];
+			memmove(f.x+1, f.x, 3*sizeof(double));
+			memmove(f.y+1, f.y, 3*sizeof(double));
+			f.x[0] = x;
+			f.y[0] = y;
+			y = y * f.amp;
+			l += y * f.lamp;
+			r += y * f.ramp;
+		}
+		static double maxl = 0;
+		if(l > maxl) {
+			maxl = l;
+//          fprintf(stderr, "%f\n", maxl);
+		}
+
+//      l *= 6553;
+//      r *= 6553;
+		l *= 2;
+		r *= 2;
+		outputs[0][i] = l < -32768 ? -32768 : l > 32767 ? 32767 : int(l);
+		outputs[1][i] = r < -32768 ? -32768 : r > 32767 ? 32767 : int(r);
+	}
+}
 
 class esq1_state : public driver_device
 {
@@ -132,20 +388,31 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_duart(*this, "duart"),
+		m_filters(*this, "filters"),
 		m_fdc(*this, WD1772_TAG),
-		m_vfd(*this, "vfd")
+		m_panel(*this, "panel"),
+		m_mdout(*this, "mdout")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
-	required_device<duart68681_device> m_duart;
+	required_device<duartn68681_device> m_duart;
+	required_device<esq1_filters> m_filters;
 	optional_device<wd1772_t> m_fdc;
-	optional_device<esq2x40_t> m_vfd;
+	optional_device<esqpanel2x40_device> m_panel;
+	optional_device<serial_port_device> m_mdout;
 
 	DECLARE_READ8_MEMBER(wd1772_r);
 	DECLARE_WRITE8_MEMBER(wd1772_w);
 	DECLARE_READ8_MEMBER(seqdosram_r);
 	DECLARE_WRITE8_MEMBER(seqdosram_w);
 	DECLARE_WRITE8_MEMBER(mapper_w);
+	DECLARE_WRITE8_MEMBER(analog_w);
+
+	DECLARE_WRITE_LINE_MEMBER(duart_irq_handler);
+	DECLARE_WRITE_LINE_MEMBER(duart_tx_a);
+	DECLARE_WRITE_LINE_MEMBER(duart_tx_b);
+	DECLARE_READ8_MEMBER(duart_input);
+	DECLARE_WRITE8_MEMBER(duart_output);
 
 	int m_mapper_state;
 	int m_seq_bank;
@@ -153,6 +420,8 @@ public:
 	UINT8 m_dosram[0x2000];
 	virtual void machine_reset();
 	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
+
+	void send_through_panel(UINT8 data);
 };
 
 
@@ -168,7 +437,7 @@ static UINT8 esq1_adc_read(device_t *device)
 void esq1_state::machine_reset()
 {
 	// set default OSROM banking
-	membank("osbank")->set_base(machine().root_device().memregion("osrom")->base() );
+	membank("osbank")->set_base(memregion("osrom")->base() );
 
 	m_mapper_state = 0;
 	m_seq_bank = 0;
@@ -189,6 +458,18 @@ WRITE8_MEMBER(esq1_state::mapper_w)
 	m_mapper_state = (data & 1) ^ 1;
 
 //    printf("mapper_state = %d\n", data ^ 1);
+}
+
+WRITE8_MEMBER(esq1_state::analog_w)
+{
+	if(!(offset & 8))
+		m_filters->set_vfc(offset & 7, data);
+	if(!(offset & 16))
+		m_filters->set_vq(offset & 7, data);
+	if(!(offset & 32))
+		m_filters->set_vpan(offset & 7, data);
+	if(!(offset & 64))
+		m_filters->set_vca(offset & 7, data);
 }
 
 READ8_MEMBER(esq1_state::seqdosram_r)
@@ -219,9 +500,8 @@ static ADDRESS_MAP_START( esq1_map, AS_PROGRAM, 8, esq1_state )
 	AM_RANGE(0x0000, 0x1fff) AM_RAM                 // OSRAM
 	AM_RANGE(0x4000, 0x5fff) AM_RAM                 // SEQRAM
 	AM_RANGE(0x6000, 0x63ff) AM_DEVREADWRITE("es5503", es5503_device, read, write)
-	AM_RANGE(0x6400, 0x640f) AM_DEVREADWRITE_LEGACY("duart", duart68681_r, duart68681_w)
-	AM_RANGE(0x6800, 0x68ff) AM_NOP
-
+	AM_RANGE(0x6400, 0x640f) AM_DEVREADWRITE("duart", duartn68681_device, read, write)
+	AM_RANGE(0x6800, 0x68ff) AM_WRITE(analog_w)
 	AM_RANGE(0x7000, 0x7fff) AM_ROMBANK("osbank")
 	AM_RANGE(0x8000, 0xffff) AM_ROM AM_REGION("osrom", 0x8000)  // OS "high" ROM is always mapped here
 ADDRESS_MAP_END
@@ -231,7 +511,8 @@ static ADDRESS_MAP_START( sq80_map, AS_PROGRAM, 8, esq1_state )
 	AM_RANGE(0x4000, 0x5fff) AM_RAM                 // SEQRAM
 //  AM_RANGE(0x4000, 0x5fff) AM_READWRITE(seqdosram_r, seqdosram_w)
 	AM_RANGE(0x6000, 0x63ff) AM_DEVREADWRITE("es5503", es5503_device, read, write)
-	AM_RANGE(0x6400, 0x640f) AM_DEVREADWRITE_LEGACY("duart", duart68681_r, duart68681_w)
+	AM_RANGE(0x6400, 0x640f) AM_DEVREADWRITE("duart", duartn68681_device, read, write)
+	AM_RANGE(0x6800, 0x68ff) AM_WRITE(analog_w)
 	AM_RANGE(0x6c00, 0x6dff) AM_WRITE(mapper_w)
 	AM_RANGE(0x6e00, 0x6fff) AM_READWRITE(wd1772_r, wd1772_w)
 	AM_RANGE(0x7000, 0x7fff) AM_ROMBANK("osbank")
@@ -253,109 +534,117 @@ ADDRESS_MAP_END
 // OP5 = metronome hi
 // OP6/7 = tape out
 
-static void duart_irq_handler(device_t *device, int state, UINT8 vector)
+WRITE_LINE_MEMBER(esq1_state::duart_irq_handler)
 {
-	device->machine().device("maincpu")->execute().set_input_line(0, state);
+	m_maincpu->set_input_line(M6809_IRQ_LINE, state);
 };
 
-static UINT8 duart_input(device_t *device)
+READ8_MEMBER(esq1_state::duart_input)
 {
 	return 0;
 }
 
-static void duart_output(device_t *device, UINT8 data)
+WRITE8_MEMBER(esq1_state::duart_output)
 {
 	int bank = ((data >> 1) & 0x7);
-	esq1_state *state = device->machine().driver_data<esq1_state>();
 //  printf("DP [%02x]: %d mlo %d mhi %d tape %d\n", data, data&1, (data>>4)&1, (data>>5)&1, (data>>6)&3);
 //  printf("[%02x] bank %d => offset %x (PC=%x)\n", data, bank, bank * 0x1000, device->machine().firstcpu->safe_pc());
-	state->membank("osbank")->set_base(state->memregion("osrom")->base() + (bank * 0x1000) );
+	membank("osbank")->set_base(memregion("osrom")->base() + (bank * 0x1000) );
 
-	state->m_seq_bank = (data & 0x8) ? 0x8000 : 0x0000;
-	state->m_seq_bank += ((data>>1) & 3) * 0x2000;
+	m_seq_bank = (data & 0x8) ? 0x8000 : 0x0000;
+	m_seq_bank += ((data>>1) & 3) * 0x2000;
 //    printf("seqram_bank = %x\n", state->m_seq_bank);
 }
 
-static void duart_tx(device_t *device, int channel, UINT8 data)
+// MIDI send
+WRITE_LINE_MEMBER(esq1_state::duart_tx_a)
 {
-	esq1_state *state = device->machine().driver_data<esq1_state>();
-
-	if (channel == 1)
-	{
-		#if 0
-		if ((data >= 0x20) && (data < 0x80))
-		{
-			printf("%c", data);
-		}
-		else
-		{
-			printf("[%02x]", data);
-		}
-		#endif
-		state->m_vfd->write_char(data);
-	}
+	m_mdout->tx(state);
 }
 
-#if KEYBOARD_HACK
+WRITE_LINE_MEMBER(esq1_state::duart_tx_b)
+{
+	m_panel->rx_w(state);
+}
+
+void esq1_state::send_through_panel(UINT8 data)
+{
+	m_panel->xmit_char(data);
+}
+
 INPUT_CHANGED_MEMBER(esq1_state::key_stroke)
 {
 	if (oldval == 0 && newval == 1)
 	{
-		duart68681_rx_data(m_duart, 1, (UINT8)(FPTR)param);
-		if ((UINT8)(FPTR)param >= 0x90)
-		{
-			duart68681_rx_data(m_duart, 1, (UINT8)(FPTR)0x00);
-		}
-		else
-		{
-			duart68681_rx_data(m_duart, 1, (UINT8)(FPTR)0x01);
-		}
+		send_through_panel((UINT8)(FPTR)param);
+		send_through_panel((UINT8)(FPTR)0x00);
 	}
 	else if (oldval == 1 && newval == 0)
 	{
-		duart68681_rx_data(m_duart, 1, (UINT8)(FPTR)param&0x7f);
-		if ((UINT8)(FPTR)param >= 0x90)
-		{
-			duart68681_rx_data(m_duart, 1, (UINT8)(FPTR)0x00);
-		}
-		else
-		{
-			duart68681_rx_data(m_duart, 1, (UINT8)(FPTR)0x01);
-		}
+		send_through_panel((UINT8)(FPTR)param&0x7f);
+		send_through_panel((UINT8)(FPTR)0x00);
 	}
 }
-#endif
 
-static const duart68681_config duart_config =
+static SLOT_INTERFACE_START(midiin_slot)
+	SLOT_INTERFACE("midiin", MIDIIN_PORT)
+SLOT_INTERFACE_END
+
+static const serial_port_interface midiin_intf =
 {
-	duart_irq_handler,
-	duart_tx,
-	duart_input,
-	duart_output,
+	DEVCB_DEVICE_LINE_MEMBER("duart", duartn68681_device, rx_a_w)   // route MIDI Tx send directly to 68681 channel A Rx
+};
+
+static SLOT_INTERFACE_START(midiout_slot)
+	SLOT_INTERFACE("midiout", MIDIOUT_PORT)
+SLOT_INTERFACE_END
+
+static const serial_port_interface midiout_intf =
+{
+	DEVCB_NULL  // midi out ports don't transmit inward
+};
+
+static const duartn68681_config duart_config =
+{
+	DEVCB_DRIVER_LINE_MEMBER(esq1_state, duart_irq_handler),
+	DEVCB_DRIVER_LINE_MEMBER(esq1_state, duart_tx_a),
+	DEVCB_DRIVER_LINE_MEMBER(esq1_state, duart_tx_b),
+	DEVCB_DRIVER_MEMBER(esq1_state, duart_input),
+	DEVCB_DRIVER_MEMBER(esq1_state, duart_output),
 
 	500000, 500000, // IP3, IP4
 	1000000, 1000000, // IP5, IP6
+};
+
+static const esqpanel_interface esqpanel_config =
+{
+	DEVCB_DEVICE_LINE_MEMBER("duart", duartn68681_device, rx_b_w)
 };
 
 static MACHINE_CONFIG_START( esq1, esq1_state )
 	MCFG_CPU_ADD("maincpu", M6809E, 4000000)    // how fast is it?
 	MCFG_CPU_PROGRAM_MAP(esq1_map)
 
-
-	MCFG_DUART68681_ADD("duart", 4000000, duart_config)
-
-	MCFG_ESQ2x40_ADD("vfd")
+	MCFG_DUARTN68681_ADD("duart", 4000000, duart_config)
+	MCFG_ESQPANEL2x40_ADD("panel", esqpanel_config)
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
-	MCFG_ES5503_ADD("es5503", 7000000, 8, esq1_doc_irq, esq1_adc_read)
+
+	MCFG_SOUND_ADD("filters", ESQ1_FILTERS, 0)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
-	MCFG_SOUND_ROUTE(2, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(3, "rspeaker", 1.0)
-	MCFG_SOUND_ROUTE(4, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(5, "rspeaker", 1.0)
-	MCFG_SOUND_ROUTE(6, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(7, "rspeaker", 1.0)
+
+	MCFG_ES5503_ADD("es5503", 7000000, 8, esq1_doc_irq, esq1_adc_read)
+	MCFG_SOUND_ROUTE_EX(0, "filters", 1.0, 0)
+	MCFG_SOUND_ROUTE_EX(1, "filters", 1.0, 1)
+	MCFG_SOUND_ROUTE_EX(2, "filters", 1.0, 2)
+	MCFG_SOUND_ROUTE_EX(3, "filters", 1.0, 3)
+	MCFG_SOUND_ROUTE_EX(4, "filters", 1.0, 4)
+	MCFG_SOUND_ROUTE_EX(5, "filters", 1.0, 5)
+	MCFG_SOUND_ROUTE_EX(6, "filters", 1.0, 6)
+	MCFG_SOUND_ROUTE_EX(7, "filters", 1.0, 7)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED(sq80, esq1)
@@ -366,37 +655,33 @@ static MACHINE_CONFIG_DERIVED(sq80, esq1)
 MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( esq1 )
-	#if KEYBOARD_HACK
 	PORT_START("KEY0")
-	PORT_BIT(0x0001, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_A)             PORT_CHAR('a') PORT_CHAR('A') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x80)
-	PORT_BIT(0x0002, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_S)             PORT_CHAR('s') PORT_CHAR('S') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x81)
-	PORT_BIT(0x0004, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_D)             PORT_CHAR('d') PORT_CHAR('D') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x82)
-	PORT_BIT(0x0008, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_F)             PORT_CHAR('f') PORT_CHAR('F') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x83)
-	PORT_BIT(0x0010, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_G)             PORT_CHAR('g') PORT_CHAR('G') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x84)
-	PORT_BIT(0x0020, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_H)             PORT_CHAR('h') PORT_CHAR('H') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x85)
-	PORT_BIT(0x0040, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_J)             PORT_CHAR('j') PORT_CHAR('J') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x86)
-	PORT_BIT(0x0080, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_K)             PORT_CHAR('k') PORT_CHAR('K') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x87)
-	PORT_BIT(0x0100, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_L)             PORT_CHAR('l') PORT_CHAR('L') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x88)
-	PORT_BIT(0x0200, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_Q)             PORT_CHAR('q') PORT_CHAR('Q') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x89)
-	PORT_BIT(0x0400, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_W)             PORT_CHAR('w') PORT_CHAR('W') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8a)
-	PORT_BIT(0x0800, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_E)             PORT_CHAR('e') PORT_CHAR('E') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8b)
-	PORT_BIT(0x1000, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_R)             PORT_CHAR('r') PORT_CHAR('R') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8c)
-	PORT_BIT(0x2000, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_T)             PORT_CHAR('t') PORT_CHAR('T') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8d)
-	PORT_BIT(0x4000, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_Y)             PORT_CHAR('y') PORT_CHAR('Y') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8e)
-	PORT_BIT(0x8000, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_U)             PORT_CHAR('u') PORT_CHAR('U') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8f)
+	PORT_BIT(0x0001, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_Q) PORT_CHAR('q') PORT_CHAR('Q') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x84) PORT_NAME("SEQ")
+	PORT_BIT(0x0002, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_W) PORT_CHAR('w') PORT_CHAR('W') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x85) PORT_NAME("CART A")
+	PORT_BIT(0x0004, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_E) PORT_CHAR('e') PORT_CHAR('E') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x86) PORT_NAME("CART B")
+	PORT_BIT(0x0008, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_R) PORT_CHAR('r') PORT_CHAR('R') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x87) PORT_NAME("INT")
+	PORT_BIT(0x0010, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_A) PORT_CHAR('a') PORT_CHAR('A') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x88) PORT_NAME("1 / SEQ 1")
+	PORT_BIT(0x0020, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_S) PORT_CHAR('s') PORT_CHAR('S') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x89) PORT_NAME("2 / SEQ 2")
+	PORT_BIT(0x0040, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_D) PORT_CHAR('d') PORT_CHAR('D') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8a) PORT_NAME("3 / SEQ 3")
+	PORT_BIT(0x0080, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_F) PORT_CHAR('f') PORT_CHAR('F') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8b) PORT_NAME("4 / SONG")
+	PORT_BIT(0x0100, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_G) PORT_CHAR('g') PORT_CHAR('Z') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8c) PORT_NAME("COMPARE")
+	PORT_BIT(0x0200, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_MINUS) PORT_CHAR('-') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8e) PORT_NAME("DATA DOWN")
+	PORT_BIT(0x0400, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('=') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8d) PORT_NAME("DATA UP")
+	PORT_BIT(0x0800, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_ENTER) PORT_CHAR('\r') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x8f) PORT_NAME("WRITE")
 
 	PORT_START("KEY1")
-	PORT_BIT(0x0001, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_1)             PORT_CHAR('1') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x90)
-	PORT_BIT(0x0002, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_2)             PORT_CHAR('2') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x91)
-	PORT_BIT(0x0004, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_3)             PORT_CHAR('3') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x92)
-	PORT_BIT(0x0008, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_4)             PORT_CHAR('4') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x93)
-	PORT_BIT(0x0010, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_5)             PORT_CHAR('5') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x99)
-	PORT_BIT(0x0020, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_6)             PORT_CHAR('6') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x94)
-	PORT_BIT(0x0040, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_7)             PORT_CHAR('7') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x95)
-	PORT_BIT(0x0080, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_8)             PORT_CHAR('8') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x96)
-	PORT_BIT(0x0100, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_9)             PORT_CHAR('9') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x97)
-	PORT_BIT(0x0200, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_0)             PORT_CHAR('0') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x98)
-	#endif
+	PORT_BIT(0x0001, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_1) PORT_CHAR('1') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x90) PORT_NAME("UPPER 1")
+	PORT_BIT(0x0002, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_2) PORT_CHAR('2') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x91) PORT_NAME("UPPER 2")
+	PORT_BIT(0x0004, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_3) PORT_CHAR('3') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x92) PORT_NAME("UPPER 3")
+	PORT_BIT(0x0008, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_4) PORT_CHAR('4') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x93) PORT_NAME("UPPER 4")
+	PORT_BIT(0x0010, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_5) PORT_CHAR('5') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x99) PORT_NAME("UPPER 5")
+	PORT_BIT(0x0020, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_6) PORT_CHAR('6') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x94) PORT_NAME("LOWER 1")
+	PORT_BIT(0x0040, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_7) PORT_CHAR('7') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x95) PORT_NAME("LOWER 2")
+	PORT_BIT(0x0080, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_8) PORT_CHAR('8') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x96) PORT_NAME("LOWER 3")
+	PORT_BIT(0x0100, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x97) PORT_NAME("LOWER 4")
+	PORT_BIT(0x0200, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_0) PORT_CHAR('0') PORT_CHANGED_MEMBER(DEVICE_SELF, esq1_state, key_stroke, 0x98) PORT_NAME("LOWER 5")
+
+
 INPUT_PORTS_END
 
 ROM_START( esq1 )
@@ -424,5 +709,16 @@ ROM_START( sq80 )
 	ROM_LOAD( "sq80_kpc_150.bin", 0x000000, 0x008000, CRC(8170b728) SHA1(3ad68bb03948e51b20d2e54309baa5c02a468f7c) )
 ROM_END
 
+ROM_START( esqm )
+	ROM_REGION(0x10000, "osrom", 0)
+		ROM_LOAD( "1355500157_d640_esq-m_oshi.u14", 0x8000, 0x008000, CRC(ea6a7bae) SHA1(2830f8c52dc443b4ca469dc190b33e2ff15b78e1) )
+
+	ROM_REGION(0x20000, "es5503", 0)
+	ROM_LOAD( "esq1wavlo.bin", 0x0000, 0x8000, CRC(4d04ac87) SHA1(867b51229b0a82c886bf3b216aa8893748236d8b) )
+	ROM_LOAD( "esq1wavhi.bin", 0x8000, 0x8000, CRC(94c554a3) SHA1(ed0318e5253637585559e8cf24c06d6115bd18f6) )
+ROM_END
+
+
 CONS( 1986, esq1, 0   , 0, esq1, esq1, driver_device, 0, "Ensoniq", "ESQ-1", GAME_NOT_WORKING )
+CONS( 1986, esqm, esq1, 0, esq1, esq1, driver_device, 0, "Ensoniq", "ESQ-M", GAME_NOT_WORKING )
 CONS( 1988, sq80, 0,    0, sq80, esq1, driver_device, 0, "Ensoniq", "SQ-80", GAME_NOT_WORKING )

@@ -23,6 +23,7 @@ OBJDIRS += \
 	$(LIBOBJ)/libflac \
 	$(LIBOBJ)/lib7z \
 	$(LIBOBJ)/portmidi \
+	$(LIBOBJ)/lua \
 
 
 #-------------------------------------------------
@@ -103,10 +104,13 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/apridisk.o    \
 	$(LIBOBJ)/formats/apollo_dsk.o  \
 	$(LIBOBJ)/formats/ap_dsk35.o    \
+	$(LIBOBJ)/formats/applix_dsk.o  \
+	$(LIBOBJ)/formats/asst128_dsk.o \
 	$(LIBOBJ)/formats/atari_dsk.o   \
 	$(LIBOBJ)/formats/atarist_dsk.o \
 	$(LIBOBJ)/formats/atom_tap.o    \
-	$(LIBOBJ)/formats/bw2_dsk.o \
+	$(LIBOBJ)/formats/bml3_dsk.o    \
+	$(LIBOBJ)/formats/bw2_dsk.o     \
 	$(LIBOBJ)/formats/bw12_dsk.o    \
 	$(LIBOBJ)/formats/cbm_tap.o     \
 	$(LIBOBJ)/formats/cgen_cas.o    \
@@ -118,11 +122,14 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/cqm_dsk.o     \
 	$(LIBOBJ)/formats/csw_cas.o     \
 	$(LIBOBJ)/formats/d64_dsk.o     \
+	$(LIBOBJ)/formats/d67_dsk.o     \
+	$(LIBOBJ)/formats/d80_dsk.o     \
 	$(LIBOBJ)/formats/d81_dsk.o     \
 	$(LIBOBJ)/formats/d88_dsk.o     \
 	$(LIBOBJ)/formats/dfi_dsk.o     \
 	$(LIBOBJ)/formats/dim_dsk.o     \
 	$(LIBOBJ)/formats/dsk_dsk.o     \
+	$(LIBOBJ)/formats/ep64_dsk.o    \
 	$(LIBOBJ)/formats/esq8_dsk.o    \
 	$(LIBOBJ)/formats/esq16_dsk.o   \
 	$(LIBOBJ)/formats/fdi_dsk.o     \
@@ -139,7 +146,7 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/kc85_dsk.o    \
 	$(LIBOBJ)/formats/kim1_cas.o    \
 	$(LIBOBJ)/formats/lviv_lvt.o    \
-	$(LIBOBJ)/formats/m20_dsk.o \
+	$(LIBOBJ)/formats/m20_dsk.o     \
 	$(LIBOBJ)/formats/m5_dsk.o      \
 	$(LIBOBJ)/formats/mm_dsk.o      \
 	$(LIBOBJ)/formats/msx_dsk.o     \
@@ -200,6 +207,10 @@ $(OBJ)/libformats.a: $(FORMATSOBJS)
 # zlib library objects
 #-------------------------------------------------
 
+ifdef DEBUG
+ZLIBOPTS=-Dverbose=-1
+endif
+
 ZLIBOBJS = \
 	$(LIBOBJ)/zlib/adler32.o \
 	$(LIBOBJ)/zlib/compress.o \
@@ -219,7 +230,7 @@ $(OBJ)/libz.a: $(ZLIBOBJS)
 
 $(LIBOBJ)/zlib/%.o: $(LIBSRC)/zlib/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) $(ZLIBOPTS) -c $< -o $@
 
 
 
@@ -421,3 +432,55 @@ $(LIBOBJ)/portmidi/%.o: $(LIBSRC)/portmidi/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
 	$(CC) $(CDEFS) $(PMOPTS) $(CCOMFLAGS) $(CONLYFLAGS) -I$(LIBSRC)/portmidi/ -c $< -o $@
 
+#-------------------------------------------------
+# LUA library objects
+#-------------------------------------------------
+
+LUAOBJS = \
+	$(LIBOBJ)/lua/lapi.o \
+	$(LIBOBJ)/lua/lcode.o \
+	$(LIBOBJ)/lua/lctype.o \
+	$(LIBOBJ)/lua/ldebug.o \
+	$(LIBOBJ)/lua/ldo.o \
+	$(LIBOBJ)/lua/ldump.o \
+	$(LIBOBJ)/lua/lfunc.o \
+	$(LIBOBJ)/lua/lgc.o \
+	$(LIBOBJ)/lua/llex.o \
+	$(LIBOBJ)/lua/lmem.o \
+	$(LIBOBJ)/lua/lobject.o \
+	$(LIBOBJ)/lua/lopcodes.o \
+	$(LIBOBJ)/lua/lparser.o \
+	$(LIBOBJ)/lua/lstate.o \
+	$(LIBOBJ)/lua/lstring.o \
+	$(LIBOBJ)/lua/ltable.o \
+	$(LIBOBJ)/lua/ltm.o \
+	$(LIBOBJ)/lua/lundump.o \
+	$(LIBOBJ)/lua/lvm.o \
+	$(LIBOBJ)/lua/lzio.o \
+	$(LIBOBJ)/lua/lauxlib.o \
+	$(LIBOBJ)/lua/lbaselib.o \
+	$(LIBOBJ)/lua/lbitlib.o \
+	$(LIBOBJ)/lua/lcorolib.o \
+	$(LIBOBJ)/lua/ldblib.o \
+	$(LIBOBJ)/lua/liolib.o \
+	$(LIBOBJ)/lua/lmathlib.o \
+	$(LIBOBJ)/lua/loslib.o \
+	$(LIBOBJ)/lua/lstrlib.o \
+	$(LIBOBJ)/lua/ltablib.o \
+	$(LIBOBJ)/lua/loadlib.o \
+	$(LIBOBJ)/lua/linit.o \
+
+$(OBJ)/liblua.a: $(LUAOBJS)
+
+LUA_FLAGS =
+ifeq ($(TARGETOS),linux)
+LUA_FLAGS += -DLUA_USE_POSIX
+endif
+
+ifeq ($(TARGETOS),macosx)
+LUA_FLAGS += -DLUA_USE_POSIX
+endif
+
+$(LIBOBJ)/lua/%.o: $(LIBSRC)/lua/%.c | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -DLUA_COMPAT_ALL $(LUA_FLAGS) -c $< -o $@

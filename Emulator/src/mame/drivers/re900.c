@@ -86,8 +86,9 @@ class re900_state : public driver_device
 {
 public:
 	re900_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_rom(*this, "rom"){ }
+		: driver_device(mconfig, type, tag),
+		m_rom(*this, "rom"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_rom;
 	UINT8 m_psg_pa;
@@ -105,6 +106,7 @@ public:
 	DECLARE_WRITE8_MEMBER(re_mux_port_B_w);
 	DECLARE_WRITE_LINE_MEMBER(vdp_interrupt);
 	DECLARE_DRIVER_INIT(re900);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -114,7 +116,7 @@ public:
 
 READ8_MEMBER(re900_state::re_psg_portA_r)
 {
-	if ((machine().root_device().ioport("IN0")->read() & 0x01) == 0)
+	if ((ioport("IN0")->read() & 0x01) == 0)
 	{
 		output_set_lamp_value(0,1);     // Operator Key ON
 	}
@@ -124,7 +126,7 @@ READ8_MEMBER(re900_state::re_psg_portA_r)
 		output_set_lamp_value(0,0);     // Operator Key OFF
 	}
 
-	return machine().root_device().ioport("IN0")->read();
+	return ioport("IN0")->read();
 }
 
 READ8_MEMBER(re900_state::re_psg_portB_r)
@@ -236,8 +238,8 @@ static ADDRESS_MAP_START( mem_io, AS_IO, 8, re900_state )
 	AM_RANGE(0xc000, 0xdfff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0xe000, 0xe000) AM_DEVWRITE("tms9128", tms9928a_device, vram_write)
 	AM_RANGE(0xe001, 0xe001) AM_DEVWRITE("tms9128", tms9928a_device, register_write)
-	AM_RANGE(0xe800, 0xe801) AM_DEVWRITE_LEGACY("ay_re900", ay8910_address_data_w)
-	AM_RANGE(0xe802, 0xe802) AM_DEVREAD_LEGACY("ay_re900", ay8910_r)
+	AM_RANGE(0xe800, 0xe801) AM_DEVWRITE("ay_re900", ay8910_device, address_data_w)
+	AM_RANGE(0xe802, 0xe802) AM_DEVREAD("ay_re900", ay8910_device, data_r)
 	AM_RANGE(0xe000, 0xefff) AM_WRITE(re900_watchdog_reset_w)
 	AM_RANGE(MCS51_PORT_P0, MCS51_PORT_P0) AM_WRITE(cpu_port_0_w)
 	AM_RANGE(MCS51_PORT_P2, MCS51_PORT_P2) AM_NOP
@@ -247,7 +249,7 @@ ADDRESS_MAP_END
 
 WRITE_LINE_MEMBER(re900_state::vdp_interrupt)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE );
+	m_maincpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE );
 }
 
 

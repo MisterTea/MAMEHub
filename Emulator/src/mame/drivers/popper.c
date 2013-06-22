@@ -146,7 +146,6 @@ READ8_MEMBER(popper_state::popper_soundcpu_nmi_r)
 
 WRITE8_MEMBER(popper_state::nmi_mask_w)
 {
-
 	m_nmi_mask = data & 1;
 }
 
@@ -182,11 +181,11 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( popper_sound_map, AS_PROGRAM, 8, popper_state )
 	AM_RANGE(0x0000, 0x0fff) AM_ROM
-	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
 	AM_RANGE(0x8002, 0x8002) AM_READNOP                 //?? all read once at startup and the
 	AM_RANGE(0x8002, 0x8002) AM_WRITENOP                //?? same writes as 0x8000 (mostly)
 	AM_RANGE(0x8003, 0x8003) AM_READNOP                 //?? result ignored, looks like part
-	AM_RANGE(0xa000, 0xa001) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0xa000, 0xa001) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 	AM_RANGE(0xa002, 0xa002) AM_READNOP                 //?? of AY8910 initialisation
 	AM_RANGE(0xa002, 0xa002) AM_WRITENOP                //?? same writes as 0xa000
 	AM_RANGE(0xd800, 0xdfff) AM_RAM AM_SHARE("share1")
@@ -312,9 +311,6 @@ GFXDECODE_END
 
 void popper_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_flipscreen));
 	save_item(NAME(m_e002));
 	save_item(NAME(m_gfx_bank));
@@ -322,7 +318,6 @@ void popper_state::machine_start()
 
 void popper_state::machine_reset()
 {
-
 	m_flipscreen = 0;
 	m_e002 = 0;
 	m_gfx_bank = 0;
@@ -330,7 +325,6 @@ void popper_state::machine_reset()
 
 INTERRUPT_GEN_MEMBER(popper_state::vblank_irq)
 {
-
 	if(m_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }

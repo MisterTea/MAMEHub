@@ -57,7 +57,7 @@ static ADDRESS_MAP_START(telestrat_mem, AS_PROGRAM, 8, oric_state )
 	AM_RANGE( 0x0000, 0x02ff) AM_RAM
 	AM_RANGE( 0x0300, 0x030f) AM_DEVREADWRITE("via6522_0", via6522_device, read, write)
 	AM_RANGE( 0x0310, 0x031b) AM_READWRITE(oric_microdisc_r, oric_microdisc_w )
-	AM_RANGE( 0x031c, 0x031f) AM_DEVREADWRITE("acia", acia6551_device, read, write)
+	AM_RANGE( 0x031c, 0x031f) AM_DEVREADWRITE("acia", mos6551_device, read, write)
 	AM_RANGE( 0x0320, 0x032f) AM_DEVREADWRITE("via6522_1", via6522_device, read, write)
 	AM_RANGE( 0x0400, 0xbfff) AM_RAM
 	AM_RANGE( 0xc000, 0xffff) AM_READ_BANK("bank1") AM_WRITE_BANK("bank2")
@@ -393,7 +393,7 @@ static MACHINE_CONFIG_START( oric, oric_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8912", AY8912, 1000000)
 	MCFG_SOUND_CONFIG(oric_ay_interface)
@@ -403,7 +403,7 @@ static MACHINE_CONFIG_START( oric, oric_state )
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", oric_centronics_config)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, oric_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", oric_cassette_interface )
 
 	/* via */
 	MCFG_VIA6522_ADD( "via6522_0", 1000000, oric_6522_interface )
@@ -425,7 +425,7 @@ static MACHINE_CONFIG_DERIVED( telstrat, oric )
 	MCFG_MACHINE_START_OVERRIDE(oric_state, telestrat )
 
 	/* acia */
-	MCFG_ACIA6551_ADD("acia")
+	MCFG_MOS6551_ADD("acia", XTAL_1_8432MHz, NULL)
 
 	/* via */
 	MCFG_VIA6522_ADD( "via6522_1", 1000000, telestrat_via2_interface )

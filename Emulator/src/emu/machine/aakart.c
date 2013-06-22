@@ -40,7 +40,6 @@ const device_type AAKART = &device_creator<aakart_device>;
 aakart_device::aakart_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, AAKART, "aakart", tag, owner, clock)
 {
-
 }
 
 
@@ -102,6 +101,7 @@ void aakart_device::device_reset()
 	m_status = STATUS_NORMAL;
 	m_new_command = 0;
 	m_rx = -1;
+	m_mouse_enable = 0;
 }
 
 //-------------------------------------------------

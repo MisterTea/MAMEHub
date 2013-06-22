@@ -2,13 +2,15 @@ class liberate_state : public driver_device
 {
 public:
 	liberate_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_paletteram(*this, "paletteram"),
 		m_bg_vram(*this, "bg_vram"),
 		m_colorram(*this, "colorram"),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
-		m_scratchram(*this, "scratchram"){ }
+		m_scratchram(*this, "scratchram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"){ }
 
 	optional_shared_ptr<UINT8> m_paletteram;
 	optional_shared_ptr<UINT8> m_bg_vram; /* prosport */
@@ -29,8 +31,8 @@ public:
 	tilemap_t *m_back_tilemap;
 	tilemap_t *m_fix_tilemap;
 
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_READ8_MEMBER(deco16_bank_r);
 	DECLARE_READ8_MEMBER(deco16_io_r);
 	DECLARE_WRITE8_MEMBER(deco16_bank_w);
@@ -69,4 +71,9 @@ public:
 	UINT32 screen_update_prosoccr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(deco16_interrupt);
 	INTERRUPT_GEN_MEMBER(prosport_interrupt);
+	void debug_print(bitmap_ind16 &bitmap);
+	void liberate_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void prosport_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void boomrang_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int pri );
+	void prosoccr_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 };

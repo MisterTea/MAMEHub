@@ -3,12 +3,20 @@
     The Main Event / Devastators
 
 *************************************************************************/
+#include "sound/upd7759.h"
+#include "sound/k007232.h"
 
 class mainevt_state : public driver_device
 {
 public:
 	mainevt_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_upd7759(*this, "upd"),
+		m_k007232(*this, "k007232"),
+		m_k052109(*this, "k052109"),
+		m_k051960(*this, "k051960") { }
 
 	/* memory pointers */
 //  UINT8 *    m_paletteram;    // currently this uses generic palette handling
@@ -22,12 +30,12 @@ public:
 	UINT8      m_sound_irq_mask;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_upd;
-	device_t *m_k007232;
-	device_t *m_k052109;
-	device_t *m_k051960;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<upd7759_device> m_upd7759;
+	required_device<k007232_device> m_k007232;
+	required_device<k052109_device> m_k052109;
+	required_device<k051960_device> m_k051960;
 	DECLARE_WRITE8_MEMBER(dv_nmienable_w);
 	DECLARE_WRITE8_MEMBER(mainevt_bankswitch_w);
 	DECLARE_WRITE8_MEMBER(mainevt_coin_w);
@@ -49,6 +57,7 @@ public:
 	INTERRUPT_GEN_MEMBER(dv_interrupt);
 	INTERRUPT_GEN_MEMBER(mainevt_sound_timer_irq);
 	INTERRUPT_GEN_MEMBER(devstors_sound_timer_irq);
+	DECLARE_WRITE8_MEMBER(volume_callback);
 };
 
 /*----------- defined in video/mainevt.c -----------*/

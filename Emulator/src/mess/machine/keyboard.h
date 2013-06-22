@@ -42,12 +42,22 @@ class generic_keyboard_device :
 	public keyboard_interface
 {
 public:
-	generic_keyboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	generic_keyboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	generic_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	virtual ioport_constructor device_input_ports() const;
 	virtual machine_config_constructor device_mconfig_additions() const;
 protected:
+	required_ioport m_io_kbd0;
+	required_ioport m_io_kbd1;
+	required_ioport m_io_kbd2;
+	required_ioport m_io_kbd3;
+	required_ioport m_io_kbd4;
+	required_ioport m_io_kbd5;
+	required_ioport m_io_kbd6;
+	required_ioport m_io_kbd7;
+	required_ioport m_io_kbdc;
+
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -55,7 +65,7 @@ protected:
 	virtual void send_key(UINT8 code) { m_keyboard_func(0, code); }
 	emu_timer *m_timer;
 private:
-	UINT8 keyboard_handler(UINT8 last_code, UINT8 *scan_line);
+	virtual UINT8 keyboard_handler(UINT8 last_code, UINT8 *scan_line);
 	UINT8 row_number(UINT8 code);
 	UINT8 m_last_code;
 	UINT8 m_scan_line;
@@ -73,6 +83,7 @@ class serial_keyboard_device :
 {
 public:
 	serial_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	serial_keyboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	DECLARE_WRITE_LINE_MEMBER(rx_w) { m_tbit = state; check_for_start(state); }
 	DECLARE_READ_LINE_MEMBER(tx_r);
@@ -93,6 +104,7 @@ private:
 	UINT8 m_curr_key;
 	bool m_key_valid;
 	devcb_resolved_write_line m_out_tx_func;
+	required_ioport m_io_term_frame;
 };
 
 extern const device_type SERIAL_KEYBOARD;

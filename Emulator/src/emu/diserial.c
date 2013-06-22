@@ -1,3 +1,4 @@
+
 /***************************************************************************
 
         Serial device interface
@@ -43,6 +44,10 @@ device_serial_interface::device_serial_interface(const machine_config &mconfig, 
 	m_rcv_baud = 0;
 	m_tra_flags = 0;
 	m_rcv_register_data = 0x8000;
+	m_rcv_bit_count = 0;
+	m_connection_state = 0;
+	m_rcv_flags = 0;
+	m_input_state = 0;
 }
 
 device_serial_interface::~device_serial_interface()
@@ -74,7 +79,7 @@ void device_serial_interface::set_tra_rate(int baud)
 	m_tra_clock->adjust(attotime::never);
 }
 
-void device_serial_interface::tra_timer(void *ptr, int param)
+void device_serial_interface::tra_clock()
 {
 	tra_callback();
 	if(is_transmit_register_empty())
@@ -84,7 +89,12 @@ void device_serial_interface::tra_timer(void *ptr, int param)
 	}
 }
 
-void device_serial_interface::rcv_timer(void *ptr, int param)
+void device_serial_interface::tra_timer(void *ptr, int param)
+{
+	tra_clock();
+}
+
+void device_serial_interface::rcv_clock()
 {
 	rcv_callback();
 	if(is_receive_register_full())
@@ -92,6 +102,11 @@ void device_serial_interface::rcv_timer(void *ptr, int param)
 		m_rcv_clock->adjust(attotime::never);
 		rcv_complete();
 	}
+}
+
+void device_serial_interface::rcv_timer(void *ptr, int param)
+{
+	rcv_clock();
 }
 
 void device_serial_interface::set_data_frame(int num_data_bits, int stop_bit_count, int parity_code)
@@ -194,6 +209,7 @@ void device_serial_interface::receive_register_extract()
 	receive_register_reset();
 
 	/* strip off stop bits and parity */
+	assert(m_rcv_bit_count >0 && m_rcv_bit_count <= 16);
 	data = m_rcv_register_data>>(16-m_rcv_bit_count);
 
 	/* mask off other bits so data byte has 0's in unused bits */
@@ -386,7 +402,6 @@ static UINT8 serial_connection_spin_bits(UINT8 input_status)
 
 void device_serial_interface::serial_connection_out()
 {
-
 	if (m_other_connection!=NULL)
 	{
 		UINT8 state_at_other_end = serial_connection_spin_bits(m_connection_state);

@@ -81,7 +81,8 @@ class ti990_10_state : public driver_device
 {
 public:
 	ti990_10_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu") { }
 
 	device_t *m_terminal;
 	DECLARE_DRIVER_INIT(ti990_10);
@@ -90,6 +91,8 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_ti990_10(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ti990_10_line_interrupt);
+	void idle_callback(int state);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -115,7 +118,7 @@ INTERRUPT_GEN_MEMBER(ti990_10_state::ti990_10_line_interrupt)
 }
 
 #ifdef UNUSED_FUNCTION
-static void idle_callback(int state)
+void ti990_10_state::idle_callback(int state)
 {
 }
 #endif
@@ -235,7 +238,7 @@ static MACHINE_CONFIG_START( ti990_10, ti990_10_state )
 
 	/* 911 VDT has a beep tone generator */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_FRAGMENT_ADD( ti990_hdc )
@@ -294,7 +297,7 @@ DRIVER_INIT_MEMBER(ti990_10_state,ti990_10)
 	/* load specific ti990/12 rom page */
 	const int page = 3;
 
-	memmove(machine().root_device().memregion("maincpu")->base()+0x1FFC00, machine().root_device().memregion("maincpu")->base()+0x1FFC00+(page*0x400), 0x400);
+	memmove(memregion("maincpu")->base()+0x1FFC00, memregion("maincpu")->base()+0x1FFC00+(page*0x400), 0x400);
 #endif
 	vdt911_init(machine());
 }

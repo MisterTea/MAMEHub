@@ -27,7 +27,7 @@
 
 PALETTE_INIT_MEMBER(snk_state,tnk3)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 	int num_colors = 0x400;
 
@@ -220,7 +220,6 @@ VIDEO_START_MEMBER(snk_state,snk_4bpp_shadow)
 
 VIDEO_START_MEMBER(snk_state,marvins)
 {
-
 	VIDEO_START_CALL_MEMBER(snk_3bpp_shadow);
 
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk_state::marvins_get_tx_tile_info),this), tilemap_mapper_delegate(FUNC(snk_state::marvins_tx_scan_cols),this), 8, 8, 36, 28);
@@ -242,7 +241,6 @@ VIDEO_START_MEMBER(snk_state,marvins)
 
 VIDEO_START_MEMBER(snk_state,jcross)
 {
-
 	VIDEO_START_CALL_MEMBER(snk_3bpp_shadow);
 
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk_state::marvins_get_tx_tile_info),this), tilemap_mapper_delegate(FUNC(snk_state::marvins_tx_scan_cols),this), 8, 8, 36, 28);
@@ -262,7 +260,6 @@ VIDEO_START_MEMBER(snk_state,jcross)
 
 VIDEO_START_MEMBER(snk_state,sgladiat)
 {
-
 	VIDEO_START_CALL_MEMBER(snk_3bpp_shadow);
 
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk_state::marvins_get_tx_tile_info),this), tilemap_mapper_delegate(FUNC(snk_state::marvins_tx_scan_cols),this), 8, 8, 36, 28);
@@ -282,7 +279,6 @@ VIDEO_START_MEMBER(snk_state,sgladiat)
 
 VIDEO_START_MEMBER(snk_state,hal21)
 {
-
 	VIDEO_START_CALL_MEMBER(jcross);
 
 	m_bg_tilemap->set_scrolldy(8, -32+256);
@@ -293,7 +289,6 @@ VIDEO_START_MEMBER(snk_state,hal21)
 
 VIDEO_START_MEMBER(snk_state,aso)
 {
-
 	VIDEO_START_CALL_MEMBER(jcross);
 
 	m_bg_tilemap->set_scrolldx(15+256, 24+256);
@@ -305,7 +300,6 @@ VIDEO_START_MEMBER(snk_state,aso)
 
 VIDEO_START_MEMBER(snk_state,tnk3)
 {
-
 	VIDEO_START_CALL_MEMBER(snk_3bpp_shadow);
 
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk_state::marvins_get_tx_tile_info),this), tilemap_mapper_delegate(FUNC(snk_state::marvins_tx_scan_cols),this), 8, 8, 36, 28);
@@ -324,7 +318,6 @@ VIDEO_START_MEMBER(snk_state,tnk3)
 
 VIDEO_START_MEMBER(snk_state,ikari)
 {
-
 	VIDEO_START_CALL_MEMBER(snk_3bpp_shadow);
 
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(snk_state::ikari_get_tx_tile_info),this), tilemap_mapper_delegate(FUNC(snk_state::marvins_tx_scan_cols),this),  8,  8, 36, 28);
@@ -364,7 +357,6 @@ VIDEO_START_MEMBER(snk_state,gwar)
 
 VIDEO_START_MEMBER(snk_state,psychos)
 {
-
 	VIDEO_START_CALL_MEMBER(gwar);
 	m_is_psychos = 1;
 }
@@ -379,28 +371,24 @@ VIDEO_START_MEMBER(snk_state,tdfever)
 
 WRITE8_MEMBER(snk_state::snk_tx_videoram_w)
 {
-
 	m_tx_videoram[offset] = data;
 	m_tx_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(snk_state::marvins_fg_videoram_w)
 {
-
 	m_fg_videoram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(snk_state::marvins_bg_videoram_w)
 {
-
 	m_bg_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(snk_state::snk_bg_videoram_w)
 {
-
 	m_bg_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset >> 1);
 }
@@ -408,62 +396,52 @@ WRITE8_MEMBER(snk_state::snk_bg_videoram_w)
 
 WRITE8_MEMBER(snk_state::snk_fg_scrollx_w)
 {
-
 	m_fg_scrollx = (m_fg_scrollx & ~0xff) | data;
 }
 
 WRITE8_MEMBER(snk_state::snk_fg_scrolly_w)
 {
-
 	m_fg_scrolly = (m_fg_scrolly & ~0xff) | data;
 }
 
 WRITE8_MEMBER(snk_state::snk_bg_scrollx_w)
 {
-
 	m_bg_scrollx = (m_bg_scrollx & ~0xff) | data;
 }
 
 WRITE8_MEMBER(snk_state::snk_bg_scrolly_w)
 {
-
 	m_bg_scrolly = (m_bg_scrolly & ~0xff) | data;
 }
 
 WRITE8_MEMBER(snk_state::snk_sp16_scrollx_w)
 {
-
 	m_sp16_scrollx = (m_sp16_scrollx & ~0xff) | data;
 }
 
 WRITE8_MEMBER(snk_state::snk_sp16_scrolly_w)
 {
-
 	m_sp16_scrolly = (m_sp16_scrolly & ~0xff) | data;
 }
 
 WRITE8_MEMBER(snk_state::snk_sp32_scrollx_w)
 {
-
 	m_sp32_scrollx = (m_sp32_scrollx & ~0xff) | data;
 }
 
 WRITE8_MEMBER(snk_state::snk_sp32_scrolly_w)
 {
-
 	m_sp32_scrolly = (m_sp32_scrolly & ~0xff) | data;
 }
 
 WRITE8_MEMBER(snk_state::snk_sprite_split_point_w)
 {
-
 	m_sprite_split_point = data;
 }
 
 
 WRITE8_MEMBER(snk_state::marvins_palette_bank_w)
 {
-
 	m_bg_tilemap->set_palette_offset(data & 0x70);
 	m_fg_tilemap->set_palette_offset((data & 0x07) << 4);
 }
@@ -477,7 +455,6 @@ WRITE8_MEMBER(snk_state::marvins_flipscreen_w)
 
 WRITE8_MEMBER(snk_state::sgladiat_flipscreen_w)
 {
-
 	flip_screen_set(data & 0x80);
 
 	m_bg_tilemap->set_palette_offset(((data & 0xf) ^ 8) << 4);
@@ -487,7 +464,6 @@ WRITE8_MEMBER(snk_state::sgladiat_flipscreen_w)
 
 WRITE8_MEMBER(snk_state::hal21_flipscreen_w)
 {
-
 	flip_screen_set(data & 0x80);
 
 	m_bg_tilemap->set_palette_offset(((data & 0xf) ^ 8) << 4);
@@ -502,7 +478,6 @@ WRITE8_MEMBER(snk_state::hal21_flipscreen_w)
 
 WRITE8_MEMBER(snk_state::marvins_scroll_msb_w)
 {
-
 	m_bg_scrollx =   (m_bg_scrollx   & 0xff) | ((data & 0x04) << 6);
 	m_fg_scrollx =   (m_fg_scrollx   & 0xff) | ((data & 0x02) << 7);
 	m_sp16_scrollx = (m_sp16_scrollx & 0xff) | ((data & 0x01) << 8);
@@ -510,7 +485,6 @@ WRITE8_MEMBER(snk_state::marvins_scroll_msb_w)
 
 WRITE8_MEMBER(snk_state::jcross_scroll_msb_w)
 {
-
 	m_bg_scrolly =   (m_bg_scrolly   & 0xff) | ((data & 0x10) << 4);
 	m_sp16_scrolly = (m_sp16_scrolly & 0xff) | ((data & 0x08) << 5);
 	m_bg_scrollx =   (m_bg_scrollx   & 0xff) | ((data & 0x02) << 7);
@@ -519,7 +493,6 @@ WRITE8_MEMBER(snk_state::jcross_scroll_msb_w)
 
 WRITE8_MEMBER(snk_state::sgladiat_scroll_msb_w)
 {
-
 	m_bg_scrollx =   (m_bg_scrollx   & 0xff) | ((data & 0x02) << 7);
 	m_sp16_scrollx = (m_sp16_scrollx & 0xff) | ((data & 0x01) << 8);
 }
@@ -578,7 +551,6 @@ WRITE8_MEMBER(snk_state::tnk3_videoattrs_w)
 
 WRITE8_MEMBER(snk_state::aso_bg_bank_w)
 {
-
 	m_bg_tilemap->set_palette_offset(((data & 0xf) ^ 8) << 4);
 	if (m_bg_tile_offset != ((data & 0x30) << 4))
 	{
@@ -589,14 +561,12 @@ WRITE8_MEMBER(snk_state::aso_bg_bank_w)
 
 WRITE8_MEMBER(snk_state::ikari_bg_scroll_msb_w)
 {
-
 	m_bg_scrollx = (m_bg_scrollx & 0xff) | ((data & 0x02) << 7);
 	m_bg_scrolly = (m_bg_scrolly & 0xff) | ((data & 0x01) << 8);
 }
 
 WRITE8_MEMBER(snk_state::ikari_sp_scroll_msb_w)
 {
-
 	m_sp32_scrollx = (m_sp32_scrollx & 0xff) | ((data & 0x20) << 3);
 	m_sp16_scrollx = (m_sp16_scrollx & 0xff) | ((data & 0x10) << 4);
 	m_sp32_scrolly = (m_sp32_scrolly & 0xff) | ((data & 0x08) << 5);
@@ -627,7 +597,6 @@ if (data != 0x20 && // normal
 
 WRITE8_MEMBER(snk_state::gwar_tx_bank_w)
 {
-
 	m_tx_tilemap->set_palette_offset((data & 0xf) << 4);
 	if (m_tx_tile_offset != ((data & 0x30) << 4))
 	{
@@ -641,7 +610,6 @@ WRITE8_MEMBER(snk_state::gwar_tx_bank_w)
 
 WRITE8_MEMBER(snk_state::gwar_videoattrs_w)
 {
-
 	flip_screen_set(data & 0x04);
 
 	m_sp32_scrollx = (m_sp32_scrollx & 0xff) | ((data & 0x80) << 1);
@@ -654,7 +622,6 @@ WRITE8_MEMBER(snk_state::gwar_videoattrs_w)
 
 WRITE8_MEMBER(snk_state::gwara_videoattrs_w)
 {
-
 	flip_screen_set(data & 0x10);
 
 	m_bg_scrollx =   (m_bg_scrollx   & 0xff) | ((data & 0x02) << 7);
@@ -663,7 +630,6 @@ WRITE8_MEMBER(snk_state::gwara_videoattrs_w)
 
 WRITE8_MEMBER(snk_state::gwara_sp_scroll_msb_w)
 {
-
 	m_sp32_scrollx = (m_sp32_scrollx & 0xff) | ((data & 0x20) << 3);
 	m_sp16_scrollx = (m_sp16_scrollx & 0xff) | ((data & 0x10) << 4);
 	m_sp32_scrolly = (m_sp32_scrolly & 0xff) | ((data & 0x08) << 5);
@@ -672,14 +638,12 @@ WRITE8_MEMBER(snk_state::gwara_sp_scroll_msb_w)
 
 WRITE8_MEMBER(snk_state::tdfever_sp_scroll_msb_w)
 {
-
 	m_sp32_scrolly = (m_sp32_scrolly & 0xff) | ((data & 0x80) << 1);
 	m_sp32_scrollx = (m_sp32_scrollx & 0xff) | ((data & 0x40) << 2);
 }
 
 WRITE8_MEMBER(snk_state::tdfever_spriteram_w)
 {
-
 	/*  partial updates avoid flickers in the fsoccer radar. */
 	if (offset < 0x80 && m_spriteram[offset] != data)
 	{
@@ -739,11 +703,10 @@ static void marvins_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,
 }
 
 
-static void tnk3_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, const int xscroll, const int yscroll)
+void snk_state::tnk3_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, const int xscroll, const int yscroll)
 {
-	snk_state *state = machine.driver_data<snk_state>();
-	UINT8 *spriteram = state->m_spriteram;
-	gfx_element *gfx = machine.gfx[2];
+	UINT8 *spriteram = m_spriteram;
+	gfx_element *gfx = machine().gfx[2];
 	const int size = gfx->width();
 	int tile_number, attributes, color, sx, sy;
 	int xflip,yflip;
@@ -755,7 +718,7 @@ static void tnk3_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, co
 	/* sgladiat and tnk3 have 512 tiles, bit 6 is bank and bit 5 is y-flip */
 	/* athena has 1024 tiles, bit 6 and bit 5 are bank */
 
-	for (offs = 0; offs < state->m_num_sprites*4; offs += 4)
+	for (offs = 0; offs < m_num_sprites*4; offs += 4)
 	{
 		tile_number = spriteram[offs+1];
 		attributes  = spriteram[offs+3];
@@ -781,7 +744,7 @@ static void tnk3_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, co
 			yflip = attributes & 0x20;
 		}
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sx = 89 - size - sx;    // this causes slight misalignment in tnk3 but is correct for athena and fitegolf
 			sy = 262 - size - sy;
@@ -790,16 +753,16 @@ static void tnk3_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, co
 		}
 
 		sx &= 0x1ff;
-		sy &= state->m_yscroll_mask;    // sgladiat apparently has only 256 pixels of vertical scrolling range
+		sy &= m_yscroll_mask;    // sgladiat apparently has only 256 pixels of vertical scrolling range
 		if (sx > 512-size) sx -= 512;
-		if (sy > (state->m_yscroll_mask+1)-size) sy -= (state->m_yscroll_mask+1);
+		if (sy > (m_yscroll_mask+1)-size) sy -= (m_yscroll_mask+1);
 
 		drawgfx_transtable(bitmap,cliprect,gfx,
 				tile_number,
 				color,
 				xflip,yflip,
 				sx,sy,
-				state->m_drawmode_table, machine.shadow_table);
+				m_drawmode_table, machine().shadow_table);
 	}
 }
 
@@ -942,7 +905,6 @@ static void tdfever_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,
 
 UINT32 snk_state::screen_update_marvins(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrollx(0, m_bg_scrollx);
 	m_bg_tilemap->set_scrolly(0, m_bg_scrolly);
 	m_fg_tilemap->set_scrollx(0, m_fg_scrollx);
@@ -960,12 +922,11 @@ UINT32 snk_state::screen_update_marvins(screen_device &screen, bitmap_ind16 &bit
 
 UINT32 snk_state::screen_update_tnk3(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrollx(0, m_bg_scrollx);
 	m_bg_tilemap->set_scrolly(0, m_bg_scrolly);
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	tnk3_draw_sprites(machine(), bitmap, cliprect, m_sp16_scrollx, m_sp16_scrolly);
+	tnk3_draw_sprites(bitmap, cliprect, m_sp16_scrollx, m_sp16_scrolly);
 	m_tx_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	return 0;
@@ -974,7 +935,6 @@ UINT32 snk_state::screen_update_tnk3(screen_device &screen, bitmap_ind16 &bitmap
 
 UINT32 snk_state::screen_update_ikari(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrollx(0, m_bg_scrollx);
 	m_bg_tilemap->set_scrolly(0, m_bg_scrolly);
 
@@ -991,7 +951,6 @@ UINT32 snk_state::screen_update_ikari(screen_device &screen, bitmap_ind16 &bitma
 
 UINT32 snk_state::screen_update_gwar(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrollx(0, m_bg_scrollx);
 	m_bg_tilemap->set_scrolly(0, m_bg_scrolly);
 
@@ -1009,7 +968,6 @@ UINT32 snk_state::screen_update_gwar(screen_device &screen, bitmap_ind16 &bitmap
 
 UINT32 snk_state::screen_update_tdfever(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrollx(0, m_bg_scrollx);
 	m_bg_tilemap->set_scrolly(0, m_bg_scrolly);
 

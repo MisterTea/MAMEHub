@@ -21,9 +21,12 @@ class ultrsprt_state : public driver_device
 {
 public:
 	ultrsprt_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram(*this, "vram"),
-		m_workram(*this, "workram"){ }
+		m_workram(*this, "workram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_k056800(*this, "k056800") { }
 
 	required_shared_ptr<UINT32> m_vram;
 	required_shared_ptr<UINT32> m_workram;
@@ -37,6 +40,9 @@ public:
 	virtual void machine_start();
 	UINT32 screen_update_ultrsprt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ultrsprt_vblank);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<k056800_device> m_k056800;
 };
 
 
@@ -99,17 +105,17 @@ CUSTOM_INPUT_MEMBER(ultrsprt_state::analog_ctrl_r)
 
 WRITE32_MEMBER(ultrsprt_state::int_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ1, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ1, CLEAR_LINE);
 }
 
 void ultrsprt_state::machine_start()
 {
 	/* set conservative DRC options */
-	ppcdrc_set_options(machine().device("maincpu"), PPCDRC_COMPATIBLE_OPTIONS);
+	ppcdrc_set_options(m_maincpu, PPCDRC_COMPATIBLE_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	ppcdrc_add_fastram(machine().device("maincpu"), 0x80000000, 0x8007ffff, FALSE, m_vram);
-	ppcdrc_add_fastram(machine().device("maincpu"), 0xff000000, 0xff01ffff, FALSE, m_workram);
+	ppcdrc_add_fastram(m_maincpu, 0x80000000, 0x8007ffff, FALSE, m_vram);
+	ppcdrc_add_fastram(m_maincpu, 0xff000000, 0xff01ffff, FALSE, m_workram);
 }
 
 
@@ -133,27 +139,24 @@ ADDRESS_MAP_END
 
 READ16_MEMBER(ultrsprt_state::K056800_68k_r)
 {
-	device_t *k056800 = machine().device("k056800");
 	UINT16 r = 0;
 
 	if (ACCESSING_BITS_8_15)
-		r |= k056800_sound_r(k056800, space, (offset*2)+0, 0xffff) << 8;
+		r |= k056800_sound_r(m_k056800, space, (offset*2)+0, 0xffff) << 8;
 
 	if (ACCESSING_BITS_0_7)
-		r |= k056800_sound_r(k056800, space, (offset*2)+1, 0xffff) << 0;
+		r |= k056800_sound_r(m_k056800, space, (offset*2)+1, 0xffff) << 0;
 
 	return r;
 }
 
 WRITE16_MEMBER(ultrsprt_state::K056800_68k_w)
 {
-	device_t *k056800 = machine().device("k056800");
-
 	if (ACCESSING_BITS_8_15)
-		k056800_sound_w(k056800, space, (offset*2)+0, (data >> 8) & 0xff, 0x00ff);
+		k056800_sound_w(m_k056800, space, (offset*2)+0, (data >> 8) & 0xff, 0x00ff);
 
 	if (ACCESSING_BITS_0_7)
-		k056800_sound_w(k056800, space, (offset*2)+1, (data >> 0) & 0xff, 0x00ff);
+		k056800_sound_w(m_k056800, space, (offset*2)+1, (data >> 0) & 0xff, 0x00ff);
 }
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 16, ultrsprt_state )
@@ -161,7 +164,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 16, ultrsprt_state )
 	AM_RANGE(0x00100000, 0x00101fff) AM_RAM
 	AM_RANGE(0x00200000, 0x00200007) AM_WRITE(K056800_68k_w)
 	AM_RANGE(0x00200008, 0x0020000f) AM_READ(K056800_68k_r)
-	AM_RANGE(0x00400000, 0x004002ff) AM_DEVREADWRITE8("konami", k054539_device, read, write, 0xffff)
+	AM_RANGE(0x00400000, 0x004002ff) AM_DEVREADWRITE8("k054539", k054539_device, read, write, 0xffff)
 ADDRESS_MAP_END
 
 /*****************************************************************************/
@@ -211,10 +214,11 @@ INTERRUPT_GEN_MEMBER(ultrsprt_state::ultrsprt_vblank)
 
 static void sound_irq_callback(running_machine &machine, int irq)
 {
+	ultrsprt_state *state = machine.driver_data<ultrsprt_state>();
 	if (irq == 0)
 		/*generic_pulse_irq_line(machine.device("audiocpu"), INPUT_LINE_IRQ5, 1)*/;
 	else
-		machine.device("audiocpu")->execute().set_input_line(INPUT_LINE_IRQ6, HOLD_LINE);
+		state->m_audiocpu->set_input_line(INPUT_LINE_IRQ6, HOLD_LINE);
 }
 
 static const k056800_interface ultrsprt_k056800_interface =
@@ -249,11 +253,11 @@ static MACHINE_CONFIG_START( ultrsprt, ultrsprt_state )
 	MCFG_PALETTE_LENGTH(8192)
 
 	/* sound hardware */
-	MCFG_K056800_ADD("k056800", ultrsprt_k056800_interface)
+	MCFG_K056800_ADD("k056800", ultrsprt_k056800_interface, XTAL_18_432MHz)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_K054539_ADD("konami", 48000, k054539_config)
+	MCFG_K054539_ADD("k054539", 48000, k054539_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -271,7 +275,7 @@ ROM_START( fiveside )
 	ROM_REGION(0x20000, "audiocpu", 0)      /* M68K program */
 	ROM_LOAD("479_a05.bin", 0x000000, 0x20000, CRC(251ae299) SHA1(5ffd74357e3c6ddb3a208c39a3b32b53fea90282))
 
-	ROM_REGION(0x100000, "konami", 0)   /* Sound roms */
+	ROM_REGION(0x100000, "k054539", 0)   /* Sound roms */
 	ROM_LOAD("479_a06.bin", 0x000000, 0x80000, CRC(8d6ac8a2) SHA1(7c4b8bd47cddc766cbdb6a486acc9221be55b579))
 	ROM_LOAD("479_a07.bin", 0x080000, 0x80000, CRC(75835df8) SHA1(105b95c16f2ce6902c2e4c9c2fd9f2f7a848c546))
 

@@ -54,9 +54,9 @@
 
 void cinemat_state::machine_start()
 {
-	state_save_register_global(machine(), m_coin_detected);
-	state_save_register_global(machine(), m_coin_last_reset);
-	state_save_register_global(machine(), m_mux_select);
+	save_item(NAME(m_coin_detected));
+	save_item(NAME(m_coin_last_reset));
+	save_item(NAME(m_mux_select));
 }
 
 
@@ -274,7 +274,7 @@ READ8_MEMBER(cinemat_state::qb3_frame_r)
 
 WRITE8_MEMBER(cinemat_state::qb3_ram_bank_w)
 {
-	membank("bank1")->set_entry(machine().device("maincpu")->state().state_int(CCPU_P) & 3);
+	membank("bank1")->set_entry(m_maincpu->state_int(CCPU_P) & 3);
 }
 
 
@@ -1157,8 +1157,7 @@ MACHINE_CONFIG_END
 	ROM_LOAD("prom.d14", 0x120, 0x020, CRC(9a05afbf) SHA1(5d806a42424942ba5ef0b70a1d629315b37f931b) ) \
 	ROM_LOAD("prom.c14", 0x140, 0x020, CRC(07492cda) SHA1(32df9148797c23f70db47b840139c40e046dd710) ) \
 	ROM_LOAD("prom.j14", 0x160, 0x020, CRC(a481ca71) SHA1(ce145d61686f600cc16b77febfd5c783bf8c13b0) ) \
-	ROM_LOAD("prom.e8",  0x180, 0x020, CRC(791ec9e1) SHA1(6f7fcce4aa3be9020595235568381588adaab88e) ) \
-
+	ROM_LOAD("prom.e8",  0x180, 0x020, CRC(791ec9e1) SHA1(6f7fcce4aa3be9020595235568381588adaab88e) )
 
 ROM_START( spacewar )
 	ROM_REGION( 0x1000, "maincpu", 0 )
@@ -1451,34 +1450,34 @@ ROM_END
 DRIVER_INIT_MEMBER(cinemat_state,speedfrk)
 {
 	m_gear = 0xe;
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x00, 0x03, read8_delegate(FUNC(cinemat_state::speedfrk_wheel_r),this));
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x04, 0x06, read8_delegate(FUNC(cinemat_state::speedfrk_gear_r),this));
+	m_maincpu->space(AS_IO).install_read_handler(0x00, 0x03, read8_delegate(FUNC(cinemat_state::speedfrk_wheel_r),this));
+	m_maincpu->space(AS_IO).install_read_handler(0x04, 0x06, read8_delegate(FUNC(cinemat_state::speedfrk_gear_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(cinemat_state,sundance)
 {
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x00, 0x0f, read8_delegate(FUNC(cinemat_state::sundance_inputs_r),this));
+	m_maincpu->space(AS_IO).install_read_handler(0x00, 0x0f, read8_delegate(FUNC(cinemat_state::sundance_inputs_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(cinemat_state,tailg)
 {
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x07, 0x07, write8_delegate(FUNC(cinemat_state::mux_select_w),this));
+	m_maincpu->space(AS_IO).install_write_handler(0x07, 0x07, write8_delegate(FUNC(cinemat_state::mux_select_w),this));
 }
 
 
 DRIVER_INIT_MEMBER(cinemat_state,boxingb)
 {
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x0c, 0x0f, read8_delegate(FUNC(cinemat_state::boxingb_dial_r),this));
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x07, 0x07, write8_delegate(FUNC(cinemat_state::mux_select_w),this));
+	m_maincpu->space(AS_IO).install_read_handler(0x0c, 0x0f, read8_delegate(FUNC(cinemat_state::boxingb_dial_r),this));
+	m_maincpu->space(AS_IO).install_write_handler(0x07, 0x07, write8_delegate(FUNC(cinemat_state::mux_select_w),this));
 }
 
 
 DRIVER_INIT_MEMBER(cinemat_state,qb3)
 {
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x0f, 0x0f, read8_delegate(FUNC(cinemat_state::qb3_frame_r),this));
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x00, 0x00, write8_delegate(FUNC(cinemat_state::qb3_ram_bank_w),this));
+	m_maincpu->space(AS_IO).install_read_handler(0x0f, 0x0f, read8_delegate(FUNC(cinemat_state::qb3_frame_r),this));
+	m_maincpu->space(AS_IO).install_write_handler(0x00, 0x00, write8_delegate(FUNC(cinemat_state::qb3_ram_bank_w),this));
 
 	membank("bank1")->configure_entries(0, 4, m_rambase, 0x100*2);
 }

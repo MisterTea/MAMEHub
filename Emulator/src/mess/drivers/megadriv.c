@@ -1,15 +1,69 @@
 
 #include "emu.h"
 #include "includes/megadriv.h"
+#include "machine/md_slot.h"
+#include "machine/md_rom.h"
+#include "machine/md_svp.h"
+#include "machine/md_sk.h"
+#include "machine/md_eeprom.h"
+#include "machine/md_jcart.h"
+#include "machine/md_stm95.h"
+
+#include "sound/sn76496.h"
+
+#include "imagedev/chd_cd.h"
+#include "imagedev/cartslot.h"
+
+#include "formats/imageutl.h"
+
+class md_cons_state : public md_base_state
+{
+public:
+	md_cons_state(const machine_config &mconfig, device_type type, const char *tag)
+	: md_base_state(mconfig, type, tag),
+	m_slotcart(*this, "mdslot")
+	{ }
+
+	ioport_port *m_io_ctrlr;
+	ioport_port *m_io_pad3b[4];
+	ioport_port *m_io_pad6b[2][4];
+
+	optional_device<md_cart_slot_device> m_slotcart;
+
+	DECLARE_DRIVER_INIT(mess_md_common);
+	DECLARE_DRIVER_INIT(genesis);
+	DECLARE_DRIVER_INIT(md_eur);
+	DECLARE_DRIVER_INIT(md_jpn);
+
+	READ8_MEMBER(mess_md_io_read_data_port);
+	WRITE16_MEMBER(mess_md_io_write_data_port);
+
+	DECLARE_MACHINE_START( md_common );     // setup ioport_port
+	DECLARE_MACHINE_START( ms_megadriv );   // setup ioport_port + install cartslot handlers
+	DECLARE_MACHINE_RESET( ms_megadriv );
+};
 
 class pico_state : public md_cons_state
 {
 public:
 	pico_state(const machine_config &mconfig, device_type type, const char *tag)
-	: md_cons_state(mconfig, type, tag) { }
+	: md_cons_state(mconfig, type, tag),
+	m_picocart(*this, "picoslot") { }
 
+	ioport_port *m_io_page;
+	ioport_port *m_io_pad;
+	ioport_port *m_io_penx;
+	ioport_port *m_io_peny;
+
+	optional_device<pico_cart_slot_device> m_picocart;
 	UINT8 m_page_register;
+
+	UINT16 pico_read_penpos(int pen);
+	DECLARE_READ16_MEMBER(pico_68k_io_read);
+	DECLARE_WRITE16_MEMBER(pico_68k_io_write);
+	DECLARE_MACHINE_START(pico);
 };
+
 
 /*************************************
  *
@@ -17,80 +71,25 @@ public:
  *
  *************************************/
 
-/* We need to always initialize 6 buttons pad */
-static TIMER_CALLBACK( mess_io_timeout_timer_callback )
-{
-	md_cons_state *state = machine.driver_data<md_cons_state>();
-	state->m_mess_io_stage[(int)(FPTR)ptr] = -1;
-}
-
-/* J-Cart controller port */
-WRITE16_HANDLER( jcart_ctrl_w )
-{
-	md_cons_state *state = space.machine().driver_data<md_cons_state>();
-	state->m_jcart_io_data[0] = (data & 1) << 6;
-	state->m_jcart_io_data[1] = (data & 1) << 6;
-}
-
-READ16_HANDLER( jcart_ctrl_r )
-{
-	md_cons_state *state = space.machine().driver_data<md_cons_state>();
-	UINT16 retdata = 0;
-	UINT8 joy[2];
-
-	if (state->m_jcart_io_data[0] & 0x40)
-	{
-		joy[0] = state->ioport("JCART3_3B")->read_safe(0);
-		joy[1] = state->ioport("JCART4_3B")->read_safe(0);
-		retdata = (state->m_jcart_io_data[0] & 0x40) | joy[0] | (joy[1] << 8);
-	}
-	else
-	{
-		joy[0] = ((state->ioport("JCART3_3B")->read_safe(0) & 0xc0) >> 2) |
-			(state->ioport("JCART3_3B")->read_safe(0) & 0x03);
-		joy[1] = ((state->ioport("JCART4_3B")->read_safe(0) & 0xc0) >> 2) |
-			(state->ioport("JCART4_3B")->read_safe(0) & 0x03);
-		retdata = (state->m_jcart_io_data[0] & 0x40) | joy[0] | (joy[1] << 8);
-	}
-	return retdata;
-}
-
-static void mess_init_6buttons_pad(running_machine &machine)
-{
-	md_cons_state *state = machine.driver_data<md_cons_state>();
-	int i;
-
-	for (i = 0; i < 3; i++)
-	{
-		state->m_mess_io_timeout[i] = machine.scheduler().timer_alloc(FUNC(mess_io_timeout_timer_callback), (void*)(FPTR)i);
-		state->m_mess_io_stage[i] = -1;
-	}
-}
-
 /* These overwrite the MAME ones in DRIVER_INIT */
 /* They're needed to give the users the choice between different controllers */
-static UINT8 mess_md_io_read_data_port(running_machine &machine, int portnum)
+READ8_MEMBER(md_cons_state::mess_md_io_read_data_port)
 {
-	md_cons_state *state = machine.driver_data<md_cons_state>();
-	static const char *const pad6names[2][4] = {
-		{ "PAD1_6B", "PAD2_6B", "UNUSED", "UNUSED" },
-		{ "EXTRA1", "EXTRA2", "UNUSED", "UNUSED" }
-	};
-	static const char *const pad3names[4] = { "PAD1_3B", "PAD2_3B", "UNUSED", "UNUSED" };
+	int portnum = offset;
 
 	UINT8 retdata;
 	int controller;
-	UINT8 helper_6b = (megadrive_io_ctrl_regs[portnum] & 0x3f) | 0xc0; // bits 6 & 7 always come from megadrive_io_data_regs
-	UINT8 helper_3b = (megadrive_io_ctrl_regs[portnum] & 0x7f) | 0x80; // bit 7 always comes from megadrive_io_data_regs
+	UINT8 helper_6b = (m_megadrive_io_ctrl_regs[portnum] & 0x3f) | 0xc0; // bits 6 & 7 always come from megadrive_io_data_regs
+	UINT8 helper_3b = (m_megadrive_io_ctrl_regs[portnum] & 0x7f) | 0x80; // bit 7 always comes from megadrive_io_data_regs
 
 	switch (portnum)
 	{
 		case 0:
-			controller = (machine.root_device().ioport("CTRLSEL")->read() & 0x0f);
+			controller = (m_io_ctrlr->read() & 0x0f);
 			break;
 
 		case 1:
-			controller = (machine.root_device().ioport("CTRLSEL")->read() & 0xf0);
+			controller = (m_io_ctrlr->read() & 0xf0);
 			break;
 
 		default:
@@ -101,42 +100,42 @@ static UINT8 mess_md_io_read_data_port(running_machine &machine, int portnum)
 	/* Are we using a 6 buttons Joypad? */
 	if (controller)
 	{
-		if (megadrive_io_data_regs[portnum] & 0x40)
+		if (m_megadrive_io_data_regs[portnum] & 0x40)
 		{
-			if (state->m_mess_io_stage[portnum] == 2)
+			if (m_io_stage[portnum] == 2)
 			{
 				/* here we read B, C & the additional buttons */
-				retdata = (megadrive_io_data_regs[portnum] & helper_6b) |
-							(((state->ioport(pad6names[0][portnum])->read_safe(0) & 0x30) |
-								(state->ioport(pad6names[1][portnum])->read_safe(0) & 0x0f)) & ~helper_6b);
+				retdata = (m_megadrive_io_data_regs[portnum] & helper_6b) |
+							(((m_io_pad6b[0][portnum]->read_safe(0) & 0x30) |
+								(m_io_pad6b[1][portnum]->read_safe(0) & 0x0f)) & ~helper_6b);
 			}
 			else
 			{
 				/* here we read B, C & the directional buttons */
-				retdata = (megadrive_io_data_regs[portnum] & helper_6b) |
-							((state->ioport(pad6names[0][portnum])->read_safe(0) & 0x3f) & ~helper_6b);
+				retdata = (m_megadrive_io_data_regs[portnum] & helper_6b) |
+							((m_io_pad6b[0][portnum]->read_safe(0) & 0x3f) & ~helper_6b);
 			}
 		}
 		else
 		{
-			if (state->m_mess_io_stage[portnum] == 1)
+			if (m_io_stage[portnum] == 1)
 			{
 				/* here we read ((Start & A) >> 2) | 0x00 */
-				retdata = (megadrive_io_data_regs[portnum] & helper_6b) |
-							(((state->ioport(pad6names[0][portnum])->read_safe(0) & 0xc0) >> 2) & ~helper_6b);
+				retdata = (m_megadrive_io_data_regs[portnum] & helper_6b) |
+							(((m_io_pad6b[0][portnum]->read_safe(0) & 0xc0) >> 2) & ~helper_6b);
 			}
-			else if (state->m_mess_io_stage[portnum]==2)
+			else if (m_io_stage[portnum]==2)
 			{
 				/* here we read ((Start & A) >> 2) | 0x0f */
-				retdata = (megadrive_io_data_regs[portnum] & helper_6b) |
-							((((state->ioport(pad6names[0][portnum])->read_safe(0) & 0xc0) >> 2) | 0x0f) & ~helper_6b);
+				retdata = (m_megadrive_io_data_regs[portnum] & helper_6b) |
+							((((m_io_pad6b[0][portnum]->read_safe(0) & 0xc0) >> 2) | 0x0f) & ~helper_6b);
 			}
 			else
 			{
 				/* here we read ((Start & A) >> 2) | Up and Down */
-				retdata = (megadrive_io_data_regs[portnum] & helper_6b) |
-							((((state->ioport(pad6names[0][portnum])->read_safe(0) & 0xc0) >> 2) |
-								(state->ioport(pad6names[0][portnum])->read_safe(0) & 0x03)) & ~helper_6b);
+				retdata = (m_megadrive_io_data_regs[portnum] & helper_6b) |
+							((((m_io_pad6b[0][portnum]->read_safe(0) & 0xc0) >> 2) |
+								(m_io_pad6b[0][portnum]->read_safe(0) & 0x03)) & ~helper_6b);
 			}
 		}
 
@@ -147,18 +146,27 @@ static UINT8 mess_md_io_read_data_port(running_machine &machine, int portnum)
 	/* Otherwise it's a 3 buttons Joypad */
 	else
 	{
-		if (megadrive_io_data_regs[portnum] & 0x40)
+		UINT8 svp_test = 0;
+		if (m_slotcart)
+			svp_test = m_slotcart->read_test();
+
+		// handle test input for SVP test
+		if (portnum == 0 && svp_test)
+		{
+			retdata = (m_megadrive_io_data_regs[0] & 0xc0);
+		}
+		else if (m_megadrive_io_data_regs[portnum] & 0x40)
 		{
 			/* here we read B, C & the directional buttons */
-			retdata = (megadrive_io_data_regs[portnum] & helper_3b) |
-						(((state->ioport(pad3names[portnum])->read_safe(0) & 0x3f) | 0x40) & ~helper_3b);
+			retdata = (m_megadrive_io_data_regs[portnum] & helper_3b) |
+						(((m_io_pad3b[portnum]->read_safe(0) & 0x3f) | 0x40) & ~helper_3b);
 		}
 		else
 		{
 			/* here we read ((Start & A) >> 2) | Up and Down */
-			retdata = (megadrive_io_data_regs[portnum] & helper_3b) |
-						((((state->ioport(pad3names[portnum])->read_safe(0) & 0xc0) >> 2) |
-							(state->ioport(pad3names[portnum])->read_safe(0) & 0x03) | 0x40) & ~helper_3b);
+			retdata = (m_megadrive_io_data_regs[portnum] & helper_3b) |
+						((((m_io_pad3b[portnum]->read_safe(0) & 0xc0) >> 2) |
+							(m_io_pad3b[portnum]->read_safe(0) & 0x03) | 0x40) & ~helper_3b);
 		}
 	}
 
@@ -166,19 +174,19 @@ static UINT8 mess_md_io_read_data_port(running_machine &machine, int portnum)
 }
 
 
-static void mess_md_io_write_data_port(running_machine &machine, int portnum, UINT16 data)
+WRITE16_MEMBER(md_cons_state::mess_md_io_write_data_port)
 {
-	md_cons_state *state = machine.driver_data<md_cons_state>();
+	int portnum = offset;
 	int controller;
 
 	switch (portnum)
 	{
 		case 0:
-			controller = (machine.root_device().ioport("CTRLSEL")->read() & 0x0f);
+			controller = (m_io_ctrlr->read() & 0x0f);
 			break;
 
 		case 1:
-			controller = (machine.root_device().ioport("CTRLSEL")->read() & 0xf0);
+			controller = (m_io_ctrlr->read() & 0xf0);
 			break;
 
 		default:
@@ -188,17 +196,17 @@ static void mess_md_io_write_data_port(running_machine &machine, int portnum, UI
 
 	if (controller)
 	{
-		if (megadrive_io_ctrl_regs[portnum] & 0x40)
+		if (m_megadrive_io_ctrl_regs[portnum] & 0x40)
 		{
-			if (((megadrive_io_data_regs[portnum] & 0x40) == 0x00) && ((data & 0x40) == 0x40))
+			if (((m_megadrive_io_data_regs[portnum] & 0x40) == 0x00) && ((data & 0x40) == 0x40))
 			{
-				state->m_mess_io_stage[portnum]++;
-				state->m_mess_io_timeout[portnum]->adjust(machine.device<cpu_device>("maincpu")->cycles_to_attotime(8192));
+				m_io_stage[portnum]++;
+				m_io_timeout[portnum]->adjust(m_maincpu->cycles_to_attotime(8192));
 			}
 
 		}
 	}
-	megadrive_io_data_regs[portnum] = data;
+	m_megadrive_io_data_regs[portnum] = data;
 	//mame_printf_debug("Writing IO Data Register #%d data %04x\n",portnum,data);
 }
 
@@ -226,10 +234,6 @@ static INPUT_PORTS_START( md )
 	PORT_CONFNAME( 0xf0, 0x00, "Player 2 Controller" )
 	PORT_CONFSETTING( 0x00, "Joystick 3 Buttons" )
 	PORT_CONFSETTING( 0x10, "Joystick 6 Buttons" )
-	PORT_CONFNAME( 0xf00, 0x00, "Player 3 Controller (J-Cart)" )
-	PORT_CONFSETTING( 0x00, "Joystick 3 Buttons" )
-	PORT_CONFNAME( 0xf000, 0x00, "Player 4 Controller (J-Cart)" )
-	PORT_CONFSETTING( 0x00, "Joystick 3 Buttons" )
 
 	PORT_START("PAD1_3B")       /* Joypad 1 (3 button + start) NOT READ DIRECTLY */
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x00)
@@ -250,26 +254,6 @@ static INPUT_PORTS_START( md )
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(2) PORT_NAME("P2 C") PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x00)
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_NAME("P2 A") PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x00)
 	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_START ) PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x00)
-
-	PORT_START("JCART3_3B")     /* Joypad 3 on J-Cart (3 button + start) */
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(3) PORT_CONDITION("CTRLSEL", 0xf00, EQUALS, 0x00)
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(3) PORT_CONDITION("CTRLSEL", 0xf00, EQUALS, 0x00)
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(3) PORT_CONDITION("CTRLSEL", 0xf00, EQUALS, 0x00)
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(3) PORT_CONDITION("CTRLSEL", 0xf00, EQUALS, 0x00)
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(3) PORT_NAME("P3 B") PORT_CONDITION("CTRLSEL", 0xf00, EQUALS, 0x00)
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(3) PORT_NAME("P3 C") PORT_CONDITION("CTRLSEL", 0xf00, EQUALS, 0x00)
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(3) PORT_NAME("P3 A") PORT_CONDITION("CTRLSEL", 0xf00, EQUALS, 0x00)
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_START ) PORT_PLAYER(3) PORT_CONDITION("CTRLSEL", 0xf00, EQUALS, 0x00)
-
-	PORT_START("JCART4_3B")     /* Joypad 4 on J-Cart (3 button + start) */
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(4) PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x00)
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(4) PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x00)
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(4) PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x00)
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(4) PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x00)
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(4) PORT_NAME("P4 B") PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x00)
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(4) PORT_NAME("P4 C") PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x00)
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(4) PORT_NAME("P4 A") PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x00)
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_START ) PORT_PLAYER(4) PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x00)
 
 	PORT_START("PAD1_6B")       /* Joypad 1 (6 button + start + mode) NOT READ DIRECTLY */
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x01)
@@ -315,57 +299,147 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static MACHINE_START( ms_megadriv )
+
+UINT16 vdp_get_word_from_68k_mem_console(running_machine &machine, UINT32 source, address_space & space68k)
 {
-	mess_init_6buttons_pad(machine);
-	MACHINE_START_CALL( md_sram );
+	md_cons_state *state = machine.driver_data<md_cons_state>();
+
+	if (source <= 0x3fffff)
+	{
+		if (state->m_slotcart->get_type() == SEGA_SVP)
+		{
+			source -= 2; // the SVP introduces some kind of DMA 'lag', which we have to compensate for, this is obvious even on gfx DMAd from ROM (the Speedometer)
+		}
+		return space68k.read_word(source);
+	}
+	else if ((source >= 0xe00000) && (source <= 0xffffff))
+		return space68k.read_word(source);
+	else
+	{
+		printf("DMA Read unmapped %06x\n",source);
+		return machine.rand();
+	}
 }
 
-static MACHINE_RESET( ms_megadriv )
+MACHINE_START_MEMBER(md_cons_state, md_common)
 {
-	MACHINE_RESET_CALL( megadriv );
+	static const char *const pad6names[2][4] = {
+		{ "PAD1_6B", "PAD2_6B", "UNUSED", "UNUSED" },
+		{ "EXTRA1", "EXTRA2", "UNUSED", "UNUSED" }
+	};
+	static const char *const pad3names[4] = { "PAD1_3B", "PAD2_3B", "UNUSED", "UNUSED" };
+
+	m_io_ctrlr = ioport("CTRLSEL");
+
+	for (int i = 0; i < 4; i++)
+	{
+		m_io_pad3b[i] = ioport(pad3names[i]);
+		m_io_pad6b[0][i] = ioport(pad6names[0][i]);
+		m_io_pad6b[1][i] = ioport(pad6names[1][i]);
+	}
+
+	// setup timers for 6 button pads
+	for (int i = 0; i < 3; i++)
+		m_io_timeout[i] = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(md_base_state::io_timeout_timer_callback),this), (void*)(FPTR)i);
 }
+
+MACHINE_START_MEMBER(md_cons_state, ms_megadriv)
+{
+	MACHINE_START_CALL_MEMBER( md_common );
+
+	vdp_get_word_from_68k_mem = vdp_get_word_from_68k_mem_console;
+
+	// for now m_cartslot is only in MD and not 32x and SegaCD
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7fffff, read16_delegate(FUNC(base_md_cart_slot_device::read),(base_md_cart_slot_device*)m_slotcart), write16_delegate(FUNC(base_md_cart_slot_device::write),(base_md_cart_slot_device*)m_slotcart));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa13000, 0xa130ff, read16_delegate(FUNC(base_md_cart_slot_device::read_a13),(base_md_cart_slot_device*)m_slotcart), write16_delegate(FUNC(base_md_cart_slot_device::write_a13),(base_md_cart_slot_device*)m_slotcart));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa15000, 0xa150ff, read16_delegate(FUNC(base_md_cart_slot_device::read_a15),(base_md_cart_slot_device*)m_slotcart), write16_delegate(FUNC(base_md_cart_slot_device::write_a15),(base_md_cart_slot_device*)m_slotcart));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xa14000, 0xa14003, write16_delegate(FUNC(base_md_cart_slot_device::write_tmss_bank),(base_md_cart_slot_device*)m_slotcart));
+}
+
+MACHINE_RESET_MEMBER(md_cons_state,ms_megadriv )
+{
+	m_maincpu->reset();
+	MACHINE_RESET_CALL_MEMBER( megadriv );
+}
+
+static SLOT_INTERFACE_START(md_cart)
+	SLOT_INTERFACE_INTERNAL("rom",  MD_STD_ROM)
+	SLOT_INTERFACE_INTERNAL("rom_svp",  MD_ROM_SVP)
+	SLOT_INTERFACE_INTERNAL("rom_sk",  MD_ROM_SK)
+// NVRAM handling
+	SLOT_INTERFACE_INTERNAL("rom_sram",  MD_ROM_SRAM)
+	SLOT_INTERFACE_INTERNAL("rom_sramsafe",  MD_ROM_SRAM)
+	SLOT_INTERFACE_INTERNAL("rom_fram",  MD_ROM_FRAM)
+	SLOT_INTERFACE_INTERNAL("rom_hardbl95", MD_ROM_SRAM)
+	SLOT_INTERFACE_INTERNAL("rom_xinqig",  MD_ROM_SRAM)
+	SLOT_INTERFACE_INTERNAL("rom_beggarp",  MD_ROM_BEGGARP)
+	SLOT_INTERFACE_INTERNAL("rom_wukong",  MD_ROM_WUKONG)
+// EEPROM handling (not supported fully yet)
+	SLOT_INTERFACE_INTERNAL("rom_eeprom",  MD_STD_EEPROM)
+	SLOT_INTERFACE_INTERNAL("rom_nbajam",  MD_EEPROM_NBAJAM)
+	SLOT_INTERFACE_INTERNAL("rom_nbajamte",  MD_EEPROM_NBAJAMTE)
+	SLOT_INTERFACE_INTERNAL("rom_nflqb96",  MD_EEPROM_NFLQB)
+	SLOT_INTERFACE_INTERNAL("rom_cslam",  MD_EEPROM_CSLAM)
+	SLOT_INTERFACE_INTERNAL("rom_nhlpa",  MD_EEPROM_NHLPA)
+	SLOT_INTERFACE_INTERNAL("rom_blara",  MD_EEPROM_BLARA)
+// J-Cart controller (Sampras Tennis)
+	SLOT_INTERFACE_INTERNAL("rom_jcart",  MD_JCART)
+// J-Cart controller + EEPROM handling (not supported fully yet)
+	SLOT_INTERFACE_INTERNAL("rom_codemast",  MD_SEPROM_CODEMAST)
+	SLOT_INTERFACE_INTERNAL("rom_mm96",  MD_SEPROM_MM96)
+// STM95 EEPROM
+	SLOT_INTERFACE_INTERNAL("rom_stm95",  MD_EEPROM_STM95)
+// CodeMasters 2-in-1 (reset based)
+	SLOT_INTERFACE_INTERNAL("rom_cm2in1",  MD_ROM_CM2IN1)
+// unique bankswitch
+	SLOT_INTERFACE_INTERNAL("rom_ssf2",  MD_ROM_SSF2)
+	SLOT_INTERFACE_INTERNAL("rom_radica",  MD_ROM_RADICA)
+// pirate mappers (protection and/or bankswitch)
+	SLOT_INTERFACE_INTERNAL("rom_16mj2",  MD_ROM_16MJ2)
+	SLOT_INTERFACE_INTERNAL("rom_bugs",  MD_ROM_BUGSLIFE)
+	SLOT_INTERFACE_INTERNAL("rom_chinf3",  MD_ROM_CHINF3)
+	SLOT_INTERFACE_INTERNAL("rom_elfwor",  MD_ROM_ELFWOR)
+	SLOT_INTERFACE_INTERNAL("rom_yasech",  MD_ROM_YASECH)
+	SLOT_INTERFACE_INTERNAL("rom_kof98",  MD_ROM_KOF98)
+	SLOT_INTERFACE_INTERNAL("rom_kof99",  MD_ROM_KOF99)
+	SLOT_INTERFACE_INTERNAL("rom_lion2",  MD_ROM_LION2)
+	SLOT_INTERFACE_INTERNAL("rom_lion3",  MD_ROM_LION3)
+	SLOT_INTERFACE_INTERNAL("rom_mcpir",  MD_ROM_MCPIR)
+	SLOT_INTERFACE_INTERNAL("rom_mjlov",  MD_ROM_MJLOV)
+	SLOT_INTERFACE_INTERNAL("rom_pokea",  MD_ROM_POKEA)
+	SLOT_INTERFACE_INTERNAL("rom_pokestad",  MD_ROM_POKESTAD)
+	SLOT_INTERFACE_INTERNAL("rom_realtec",  MD_ROM_REALTEC)
+	SLOT_INTERFACE_INTERNAL("rom_redcl",  MD_ROM_REDCL)
+	SLOT_INTERFACE_INTERNAL("rom_rx3",  MD_ROM_RX3)
+	SLOT_INTERFACE_INTERNAL("rom_sbubl",  MD_ROM_SBUBL)
+	SLOT_INTERFACE_INTERNAL("rom_smb",  MD_ROM_SMB)
+	SLOT_INTERFACE_INTERNAL("rom_smb2",  MD_ROM_SMB2)
+	SLOT_INTERFACE_INTERNAL("rom_smw64",  MD_ROM_SMW64)
+	SLOT_INTERFACE_INTERNAL("rom_smouse",  MD_ROM_SMOUSE)
+	SLOT_INTERFACE_INTERNAL("rom_soulb",  MD_ROM_SOULB)
+	SLOT_INTERFACE_INTERNAL("rom_squir",  MD_ROM_SQUIR)
+	SLOT_INTERFACE_INTERNAL("rom_tekkensp",  MD_ROM_TEKKENSP)
+	SLOT_INTERFACE_INTERNAL("rom_topf",  MD_ROM_TOPF)
+SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_START( ms_megadriv, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_ntsc )
-	MCFG_NVRAM_HANDLER_CLEAR()
 
-	MCFG_MACHINE_START( ms_megadriv )
-	MCFG_MACHINE_RESET( ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
 
-	MCFG_FRAGMENT_ADD( genesis_cartslot )
+	MCFG_MD_CARTRIDGE_ADD("mdslot", md_cart, NULL)
+	MCFG_SOFTWARE_LIST_ADD("cart_list","megadriv")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( ms_megadpal, md_cons_state )
 	MCFG_FRAGMENT_ADD( md_pal )
-	MCFG_NVRAM_HANDLER_CLEAR()
 
-	MCFG_MACHINE_START( ms_megadriv )
-	MCFG_MACHINE_RESET( ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE( md_cons_state, ms_megadriv )
+	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
 
-	MCFG_FRAGMENT_ADD( genesis_cartslot )
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_START( ms_megdsvp, mdsvp_state )
-	MCFG_FRAGMENT_ADD( md_ntsc )
-	MCFG_FRAGMENT_ADD( md_svp )
-	MCFG_NVRAM_HANDLER_CLEAR()
-
-	MCFG_MACHINE_START( ms_megadriv )
-	MCFG_MACHINE_RESET( ms_megadriv )
-
-	MCFG_FRAGMENT_ADD( genesis_cartslot )
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_START( ms_megdsvppal, mdsvp_state )
-	MCFG_FRAGMENT_ADD( md_pal )
-	MCFG_FRAGMENT_ADD( md_svp )
-	MCFG_NVRAM_HANDLER_CLEAR()
-
-	MCFG_MACHINE_START( ms_megadriv )
-	MCFG_MACHINE_RESET( ms_megadriv )
-
-	MCFG_FRAGMENT_ADD( genesis_cartslot )
+	MCFG_MD_CARTRIDGE_ADD("mdslot", md_cart, NULL)
+	MCFG_SOFTWARE_LIST_ADD("cart_list","megadriv")
 MACHINE_CONFIG_END
 
 
@@ -396,21 +470,6 @@ ROM_START(megadrij)
 ROM_END
 
 
-ROM_START(gensvp)
-	ROM_REGION(MD_CPU_REGION_SIZE, "maincpu", ROMREGION_ERASEFF)
-	ROM_REGION( 0x10000, "soundcpu", ROMREGION_ERASEFF)
-ROM_END
-
-ROM_START(mdsvp)
-	ROM_REGION(MD_CPU_REGION_SIZE, "maincpu", ROMREGION_ERASEFF)
-	ROM_REGION( 0x10000, "soundcpu", ROMREGION_ERASEFF)
-ROM_END
-
-ROM_START(mdsvpj)
-	ROM_REGION(MD_CPU_REGION_SIZE, "maincpu", ROMREGION_ERASEFF)
-	ROM_REGION( 0x10000, "soundcpu", ROMREGION_ERASEFF)
-ROM_END
-
 /*************************************
  *
  *  Driver initialization
@@ -419,60 +478,180 @@ ROM_END
 
 DRIVER_INIT_MEMBER(md_cons_state,mess_md_common)
 {
-	megadrive_io_read_data_port_ptr = mess_md_io_read_data_port;
-	megadrive_io_write_data_port_ptr = mess_md_io_write_data_port;
+	m_megadrive_io_read_data_port_ptr = read8_delegate(FUNC(md_cons_state::mess_md_io_read_data_port),this);
+	m_megadrive_io_write_data_port_ptr = write16_delegate(FUNC(md_cons_state::mess_md_io_write_data_port),this);
 }
 
 DRIVER_INIT_MEMBER(md_cons_state,genesis)
 {
 	DRIVER_INIT_CALL(megadriv);
 	DRIVER_INIT_CALL(mess_md_common);
-	megadrive_region_export = 1;
-	megadrive_region_pal = 0;
 }
 
 DRIVER_INIT_MEMBER(md_cons_state,md_eur)
 {
 	DRIVER_INIT_CALL(megadrie);
 	DRIVER_INIT_CALL(mess_md_common);
-	megadrive_region_export = 1;
-	megadrive_region_pal = 1;
 }
 
 DRIVER_INIT_MEMBER(md_cons_state,md_jpn)
 {
 	DRIVER_INIT_CALL(megadrij);
 	DRIVER_INIT_CALL(mess_md_common);
-	megadrive_region_export = 0;
-	megadrive_region_pal = 0;
 }
 
-/****************************************** SegaCD & 32X emulation ****************************************/
+/****************************************** 32X emulation ****************************************/
+
+static const sn76496_config psg_intf =
+{
+	DEVCB_NULL
+};
+
+// FIXME: non-softlist loading should keep using ROM_CART_LOAD in the ROM definitions,
+// once we better integrate softlist with the old loading procedures
+DEVICE_IMAGE_LOAD_MEMBER( md_base_state, _32x_cart )
+{
+	UINT32 length;
+	UINT8 *temp_copy;
+	UINT16 *ROM16;
+	UINT32 *ROM32;
+	int i;
+
+	if (image.software_entry() == NULL)
+	{
+		length = image.length();
+		temp_copy = auto_alloc_array(machine(), UINT8, length);
+		image.fread(temp_copy, length);
+	}
+	else
+	{
+		length = image.get_software_region_length("rom");
+		temp_copy = auto_alloc_array(machine(), UINT8, length);
+		memcpy(temp_copy, image.get_software_region("rom"), length);
+	}
+
+	/* Copy the cart image in the locations the driver expects */
+	// Notice that, by using pick_integer, we are sure the code works on both LE and BE machines
+	ROM16 = (UINT16 *) memregion("gamecart")->base();
+	for (i = 0; i < length; i += 2)
+		ROM16[i / 2] = pick_integer_be(temp_copy, i, 2);
+
+	ROM32 = (UINT32 *) memregion("gamecart_sh2")->base();
+	for (i = 0; i < length; i += 4)
+		ROM32[i / 4] = pick_integer_be(temp_copy, i, 4);
+
+	ROM16 = (UINT16 *) memregion("maincpu")->base();
+	for (i = 0x00; i < length; i += 2)
+		ROM16[i / 2] = pick_integer_be(temp_copy, i, 2);
+
+	auto_free(machine(), temp_copy);
+
+	return IMAGE_INIT_PASS;
+}
 
 
-static MACHINE_CONFIG_DERIVED( ms_32x, genesis_32x )
-	MCFG_FRAGMENT_ADD( _32x_cartslot )
-	MCFG_DEVICE_MODIFY("cart_list")
+static MACHINE_CONFIG_START( genesis_32x, md_cons_state )
+	MCFG_FRAGMENT_ADD( md_ntsc )
+
+	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
+	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+
+	MCFG_DEVICE_ADD("sega32x", SEGA_32X_NTSC, 0)
+
+	// we need to remove and re-add the sound system because the balance is different
+	// due to MAME / MESS having severe issues if the dac output is > 0.40? (sound is corrupted even if DAC is slient?!)
+	MCFG_DEVICE_REMOVE("ymsnd")
+	MCFG_DEVICE_REMOVE("snsnd")
+
+	MCFG_SOUND_ADD("ymsnd", YM2612, MASTER_CLOCK_NTSC/7)
+	MCFG_SOUND_ROUTE(0, "lspeaker", (0.50)/2)
+	MCFG_SOUND_ROUTE(1, "rspeaker", (0.50)/2)
+
+	/* sound hardware */
+	MCFG_SOUND_ADD("snsnd", SEGAPSG, MASTER_CLOCK_NTSC/15)
+	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", (0.25)/2)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", (0.25)/2)
+
+	MCFG_CARTSLOT_ADD("cart")
+	MCFG_CARTSLOT_EXTENSION_LIST("32x,bin")
+	MCFG_CARTSLOT_MANDATORY
+	MCFG_CARTSLOT_INTERFACE("_32x_cart")
+	MCFG_CARTSLOT_LOAD(md_base_state, _32x_cart)
+
+	MCFG_SOFTWARE_LIST_ADD("cart_list","32x")
 	MCFG_SOFTWARE_LIST_FILTER("cart_list","NTSC-U")
-
-	MCFG_NVRAM_HANDLER_CLEAR()
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( ms_32x_jpn, genesis_32x )
-	MCFG_FRAGMENT_ADD( _32x_cartslot )
-	MCFG_DEVICE_MODIFY("cart_list")
+
+static MACHINE_CONFIG_START( mdj_32x, md_cons_state )
+	MCFG_FRAGMENT_ADD( md_ntsc )
+
+	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
+	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+
+	MCFG_DEVICE_ADD("sega32x", SEGA_32X_NTSC, 0)
+
+	// we need to remove and re-add the sound system because the balance is different
+	// due to MAME / MESS having severe issues if the dac output is > 0.40? (sound is corrupted even if DAC is slient?!)
+	MCFG_DEVICE_REMOVE("ymsnd")
+	MCFG_DEVICE_REMOVE("snsnd")
+
+	MCFG_SOUND_ADD("ymsnd", YM2612, MASTER_CLOCK_NTSC/7)
+	MCFG_SOUND_ROUTE(0, "lspeaker", (0.50)/2)
+	MCFG_SOUND_ROUTE(1, "rspeaker", (0.50)/2)
+
+	/* sound hardware */
+	MCFG_SOUND_ADD("snsnd", SEGAPSG, MASTER_CLOCK_NTSC/15)
+	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", (0.25)/2)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", (0.25)/2)
+
+	MCFG_CARTSLOT_ADD("cart")
+	MCFG_CARTSLOT_EXTENSION_LIST("32x,bin")
+	MCFG_CARTSLOT_MANDATORY
+	MCFG_CARTSLOT_INTERFACE("_32x_cart")
+	MCFG_CARTSLOT_LOAD(md_base_state, _32x_cart)
+
+	MCFG_SOFTWARE_LIST_ADD("cart_list","32x")
 	MCFG_SOFTWARE_LIST_FILTER("cart_list","NTSC-J")
-
-	MCFG_NVRAM_HANDLER_CLEAR()
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( ms_32x_pal, genesis_32x_pal )
-	MCFG_FRAGMENT_ADD( _32x_cartslot )
-	MCFG_DEVICE_MODIFY("cart_list")
+
+static MACHINE_CONFIG_START( md_32x, md_cons_state )
+	MCFG_FRAGMENT_ADD( md_pal )
+
+	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
+	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+
+	MCFG_DEVICE_ADD("sega32x", SEGA_32X_PAL, 0)
+
+	// we need to remove and re-add the sound system because the balance is different
+	// due to MAME / MESS having severe issues if the dac output is > 0.40? (sound is corrupted even if DAC is slient?!)
+	MCFG_DEVICE_REMOVE("ymsnd")
+	MCFG_DEVICE_REMOVE("snsnd")
+
+	MCFG_SOUND_ADD("ymsnd", YM2612, MASTER_CLOCK_NTSC/7)
+	MCFG_SOUND_ROUTE(0, "lspeaker", (0.50)/2)
+	MCFG_SOUND_ROUTE(1, "rspeaker", (0.50)/2)
+
+	/* sound hardware */
+	MCFG_SOUND_ADD("snsnd", SEGAPSG, MASTER_CLOCK_NTSC/15)
+	MCFG_SOUND_CONFIG(psg_intf)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", (0.25)/2)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", (0.25)/2)
+
+	MCFG_CARTSLOT_ADD("cart")
+	MCFG_CARTSLOT_EXTENSION_LIST("32x,bin")
+	MCFG_CARTSLOT_MANDATORY
+	MCFG_CARTSLOT_INTERFACE("_32x_cart")
+	MCFG_CARTSLOT_LOAD(md_base_state, _32x_cart)
+
+	MCFG_SOFTWARE_LIST_ADD("cart_list","32x")
 	MCFG_SOFTWARE_LIST_FILTER("cart_list","PAL")
-
-	MCFG_NVRAM_HANDLER_CLEAR()
 MACHINE_CONFIG_END
+
+
 
 #define _32X_ROMS \
 	ROM_REGION16_BE( 0x400000, "gamecart", ROMREGION_ERASE00 ) /* 68000 Code */ \
@@ -489,8 +668,7 @@ MACHINE_CONFIG_END
 	ROM_SYSTEM_BIOS( 1, "sdk", "Mars Version 1.0 (early sdk)" ) \
 	ROMX_LOAD( "32x_m_bios_sdk.bin", 0x000000,  0x000800, BAD_DUMP CRC(c7102c53) SHA1(ed73a47f186b373b8eff765f84ef26c3d9ef6cb0), ROM_BIOS(2) ) \
 	ROM_REGION32_BE( 0x400000, "slave", 0 ) /* SH2 Code */ \
-	ROM_LOAD( "32x_s_bios.bin", 0x000000,  0x000400, CRC(bfda1fe5) SHA1(4103668c1bbd66c5e24558e73d4f3f92061a109a) ) \
-
+	ROM_LOAD( "32x_s_bios.bin", 0x000000,  0x000400, CRC(bfda1fe5) SHA1(4103668c1bbd66c5e24558e73d4f3f92061a109a) )
 
 ROM_START( 32x )
 	_32X_ROMS
@@ -503,6 +681,61 @@ ROM_END
 ROM_START( 32xj )
 	_32X_ROMS
 ROM_END
+
+
+/****************************************** SegaCD emulation ****************************************/
+
+struct cdrom_interface scd_cdrom =
+{
+	"scd_cdrom",
+	NULL
+};
+
+static MACHINE_CONFIG_START( genesis_scd, md_cons_state )
+	MCFG_FRAGMENT_ADD( md_ntsc )
+
+	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
+	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+
+	MCFG_DEVICE_ADD("segacd", SEGA_SEGACD_US, 0)
+	MCFG_CDROM_ADD( "cdrom",scd_cdrom )
+
+	MCFG_SOFTWARE_LIST_ADD("cd_list","segacd")
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_START( md_scd, md_cons_state )
+	MCFG_FRAGMENT_ADD( md_pal )
+
+	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
+	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+
+	MCFG_DEVICE_ADD("segacd", SEGA_SEGACD_EUROPE, 0)
+
+	MCFG_CDROM_ADD( "cdrom",scd_cdrom )
+
+	MCFG_SOFTWARE_LIST_ADD("cd_list","megacd")
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_START( mdj_scd, md_cons_state )
+	MCFG_FRAGMENT_ADD( md_ntsc )
+
+	MCFG_MACHINE_START_OVERRIDE( md_cons_state, md_common )
+	MCFG_MACHINE_RESET_OVERRIDE( md_cons_state, ms_megadriv )
+
+	MCFG_DEVICE_ADD("segacd", SEGA_SEGACD_JAPAN, 0)
+	MCFG_CDROM_ADD( "cdrom",scd_cdrom )
+
+	MCFG_SOFTWARE_LIST_ADD("cd_list","megacdj")
+MACHINE_CONFIG_END
+
+
+static MACHINE_CONFIG_DERIVED( genesis_32x_scd, genesis_32x )
+
+	MCFG_DEVICE_ADD("segacd", SEGA_SEGACD_US, 0)
+	//MCFG_QUANTUM_PERFECT_CPU("32x_master_sh2")
+MACHINE_CONFIG_END
+
+
 
 /* We need proper names for most of these BIOS ROMs! */
 ROM_START( segacd )
@@ -698,20 +931,20 @@ ROM_END
 #define PICO_PENX   1
 #define PICO_PENY   2
 
-static UINT16 pico_read_penpos(running_machine &machine, int pen)
+UINT16 pico_state::pico_read_penpos(int pen)
 {
 	UINT16 penpos = 0;
 
 	switch (pen)
 	{
 		case PICO_PENX:
-			penpos = machine.root_device().ioport("PENX")->read_safe(0);
+			penpos = m_io_penx->read_safe(0);
 			penpos |= 0x6;
 			penpos = penpos * 320 / 255;
 			penpos += 0x3d;
 			break;
 		case PICO_PENY:
-			penpos = machine.root_device().ioport("PENY")->read_safe(0);
+			penpos = m_io_peny->read_safe(0);
 			penpos |= 0x6;
 			penpos = penpos * 251 / 255;
 			penpos += 0x1fc;
@@ -721,18 +954,17 @@ static UINT16 pico_read_penpos(running_machine &machine, int pen)
 	return penpos;
 }
 
-static READ16_HANDLER( pico_68k_io_read )
+READ16_MEMBER(pico_state::pico_68k_io_read )
 {
-	pico_state *state = space.machine().driver_data<pico_state>();
 	UINT8 retdata = 0;
 
 	switch (offset)
 	{
 		case 0: /* Version register ?XX?????? where XX is 00 for japan, 01 for europe and 10 for USA*/
-			retdata = (megadrive_region_export << 6) | (megadrive_region_pal << 5);
+			retdata = (m_export << 6) | (m_pal << 5);
 			break;
 		case 1:
-			retdata = state->ioport("PAD")->read_safe(0);
+			retdata = m_io_pad->read_safe(0);
 			break;
 
 			/*
@@ -747,16 +979,16 @@ static READ16_HANDLER( pico_68k_io_read )
 			  0x2f8 - 0x3f3 (storyware)
 			*/
 		case 2:
-			retdata = pico_read_penpos(space.machine(), PICO_PENX) >> 8;
+			retdata = pico_read_penpos(PICO_PENX) >> 8;
 			break;
 		case 3:
-			retdata = pico_read_penpos(space.machine(), PICO_PENX) & 0x00ff;
+			retdata = pico_read_penpos(PICO_PENX) & 0x00ff;
 			break;
 		case 4:
-			retdata = pico_read_penpos(space.machine(), PICO_PENY) >> 8;
+			retdata = pico_read_penpos(PICO_PENY) >> 8;
 			break;
 		case 5:
-			retdata = pico_read_penpos(space.machine(), PICO_PENY) & 0x00ff;
+			retdata = pico_read_penpos(PICO_PENY) & 0x00ff;
 			break;
 		case 6:
 		/* Page register :
@@ -765,15 +997,15 @@ static READ16_HANDLER( pico_68k_io_read )
 		   either page 5 or page 6 is often unused.
 		*/
 			{
-				UINT8 tmp = state->ioport("PAGE")->read_safe(0);
-				if (tmp == 2 && state->m_page_register != 0x3f)
+				UINT8 tmp = m_io_page->read_safe(0);
+				if (tmp == 2 && m_page_register != 0x3f)
 				{
-					state->m_page_register <<= 1;
-					state->m_page_register |= 1;
+					m_page_register <<= 1;
+					m_page_register |= 1;
 				}
-				if (tmp == 1 && state->m_page_register != 0x00)
-					state->m_page_register >>= 1;
-				retdata = state->m_page_register;
+				if (tmp == 1 && m_page_register != 0x00)
+					m_page_register >>= 1;
+				retdata = m_page_register;
 				break;
 			}
 		case 7:
@@ -791,7 +1023,7 @@ static READ16_HANDLER( pico_68k_io_read )
 	return retdata | retdata << 8;
 }
 
-static WRITE16_HANDLER( pico_68k_io_write )
+WRITE16_MEMBER(pico_state::pico_68k_io_write )
 {
 	switch (offset)
 	{
@@ -801,7 +1033,7 @@ static WRITE16_HANDLER( pico_68k_io_write )
 static ADDRESS_MAP_START( pico_mem, AS_PROGRAM, 16, pico_state )
 	AM_RANGE(0x000000, 0x3fffff) AM_ROM
 
-	AM_RANGE(0x800000, 0x80001f) AM_READWRITE_LEGACY(pico_68k_io_read, pico_68k_io_write)
+	AM_RANGE(0x800000, 0x80001f) AM_READWRITE(pico_68k_io_read, pico_68k_io_write)
 
 	AM_RANGE(0xc00000, 0xc0001f) AM_DEVREADWRITE("gen_vdp", sega_genesis_vdp_device, megadriv_vdp_r,megadriv_vdp_w)
 	AM_RANGE(0xe00000, 0xe0ffff) AM_RAM AM_MIRROR(0x1f0000)
@@ -829,32 +1061,53 @@ static INPUT_PORTS_START( pico )
 INPUT_PORTS_END
 
 
+static SLOT_INTERFACE_START(pico_cart)
+	SLOT_INTERFACE_INTERNAL("rom",  MD_STD_ROM)
+	SLOT_INTERFACE_INTERNAL("rom_sram",  MD_ROM_SRAM)   // not sure these are needed...
+	SLOT_INTERFACE_INTERNAL("rom_sramsafe",  MD_ROM_SRAM)   // not sure these are needed...
+SLOT_INTERFACE_END
+
+MACHINE_START_MEMBER(pico_state,pico)
+{
+	m_io_page = ioport("PAGE");
+	m_io_pad = ioport("PAD");
+	m_io_penx = ioport("PENX");
+	m_io_peny = ioport("PENY");
+
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7fffff, read16_delegate(FUNC(base_md_cart_slot_device::read),(base_md_cart_slot_device*)m_picocart), write16_delegate(FUNC(base_md_cart_slot_device::write),(base_md_cart_slot_device*)m_picocart));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa13000, 0xa130ff, read16_delegate(FUNC(base_md_cart_slot_device::read_a13),(base_md_cart_slot_device*)m_picocart), write16_delegate(FUNC(base_md_cart_slot_device::write_a13),(base_md_cart_slot_device*)m_picocart));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa15000, 0xa150ff, read16_delegate(FUNC(base_md_cart_slot_device::read_a15),(base_md_cart_slot_device*)m_picocart), write16_delegate(FUNC(base_md_cart_slot_device::write_a15),(base_md_cart_slot_device*)m_picocart));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xa14000, 0xa14003, write16_delegate(FUNC(base_md_cart_slot_device::write_tmss_bank),(base_md_cart_slot_device*)m_picocart));
+}
+
 static MACHINE_CONFIG_START( pico, pico_state )
 	MCFG_FRAGMENT_ADD( md_ntsc )
-	MCFG_NVRAM_HANDLER_CLEAR()
 
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(pico_mem)
 
 	MCFG_DEVICE_REMOVE("genesis_snd_z80")
 
-	MCFG_MACHINE_RESET( ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE( pico_state, pico )
+	MCFG_MACHINE_RESET_OVERRIDE( pico_state, ms_megadriv )
 
-	MCFG_FRAGMENT_ADD( pico_cartslot )
+	MCFG_PICO_CARTRIDGE_ADD("picoslot", pico_cart, NULL)
+	MCFG_SOFTWARE_LIST_ADD("cart_list","pico")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( picopal, pico_state )
 	MCFG_FRAGMENT_ADD( md_pal )
-	MCFG_NVRAM_HANDLER_CLEAR()
 
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(pico_mem)
 
 	MCFG_DEVICE_REMOVE("genesis_snd_z80")
 
-	MCFG_MACHINE_RESET( ms_megadriv )
+	MCFG_MACHINE_START_OVERRIDE( pico_state, pico )
+	MCFG_MACHINE_RESET_OVERRIDE( pico_state, ms_megadriv )
 
-	MCFG_FRAGMENT_ADD( pico_cartslot )
+	MCFG_PICO_CARTRIDGE_ADD("picoslot", pico_cart, NULL)
+	MCFG_SOFTWARE_LIST_ADD("cart_list","pico")
 MACHINE_CONFIG_END
 
 
@@ -881,37 +1134,31 @@ ROM_END
 ***************************************************************************/
 
 /*    YEAR  NAME        PARENT     COMPAT  MACHINE          INPUT   INIT       COMPANY   FULLNAME */
-CONS( 1989, genesis,    0,         0,      ms_megadriv,     md, md_cons_state,     genesis,   "Sega",   "Genesis (USA, NTSC)", 0)
-CONS( 1990, megadriv,   genesis,   0,      ms_megadpal,     md, md_cons_state,     md_eur,    "Sega",   "Mega Drive (Europe, PAL)", 0)
-CONS( 1988, megadrij,   genesis,   0,      ms_megadriv,     md, md_cons_state,     md_jpn,    "Sega",   "Mega Drive (Japan, NTSC)", 0)
-
-// these should not exist, the SVP hardware is in the cart and should be installed dynamically when selected from the Software List
-// this however involves installing entire CPUs at run/load time and I don't think we can do that.
-CONS( 1993, gensvp,     genesis,   0,      ms_megdsvp,      md, md_cons_state,     genesis,   "Sega",   "Genesis (USA, NTSC, for SVP cart)", 0)
-CONS( 1990, mdsvp,      genesis,   0,      ms_megdsvppal,   md, md_cons_state,     md_eur,    "Sega",   "Mega Drive (Europe, PAL, for SVP cart)", 0)
-CONS( 1988, mdsvpj,     genesis,   0,      ms_megdsvp,      md, md_cons_state,     md_jpn,    "Sega",   "Mega Drive (Japan, NTSC, for SVP cart)", 0)
+CONS( 1989, genesis,    0,         0,      ms_megadriv,     md, md_cons_state,     genesis,   "Sega",   "Genesis (USA, NTSC)",  GAME_SUPPORTS_SAVE )
+CONS( 1990, megadriv,   genesis,   0,      ms_megadpal,     md, md_cons_state,     md_eur,    "Sega",   "Mega Drive (Europe, PAL)", GAME_SUPPORTS_SAVE )
+CONS( 1988, megadrij,   genesis,   0,      ms_megadriv,     md, md_cons_state,     md_jpn,    "Sega",   "Mega Drive (Japan, NTSC)", GAME_SUPPORTS_SAVE )
 
 // the 32X plugged in the cart slot, games plugged into the 32x.  Maybe it should be handled as an expansion device?
-CONS( 1994, 32x,        0,         0,      ms_32x,          md, md_cons_state,     genesis,   "Sega",   "Genesis with 32X (USA, NTSC)", GAME_NOT_WORKING )
-CONS( 1994, 32xe,       32x,       0,      ms_32x_pal,      md, md_cons_state,     md_eur,    "Sega",   "Mega Drive with 32X (Europe, PAL)", GAME_NOT_WORKING )
-CONS( 1994, 32xj,       32x,       0,      ms_32x_jpn,      md, md_cons_state,     md_jpn,    "Sega",   "Mega Drive with 32X (Japan, NTSC)", GAME_NOT_WORKING )
+CONS( 1994, 32x,        0,         0,      genesis_32x,     md, md_cons_state,     genesis,   "Sega",   "Genesis with 32X (USA, NTSC)", GAME_NOT_WORKING )
+CONS( 1994, 32xe,       32x,       0,      md_32x,          md, md_cons_state,     md_eur,    "Sega",   "Mega Drive with 32X (Europe, PAL)", GAME_NOT_WORKING )
+CONS( 1994, 32xj,       32x,       0,      mdj_32x,         md, md_cons_state,     md_jpn,    "Sega",   "Mega Drive with 32X (Japan, NTSC)", GAME_NOT_WORKING )
 
 // the SegaCD plugged into the expansion port..
-CONS( 1992, segacd,     0,         0,      genesis_scd_scd, md, md_cons_state,     genesis,   "Sega",   "Sega CD (USA, NTSC)", GAME_NOT_WORKING )
-CONS( 1993, megacd,     segacd,    0,      genesis_scd_mcd, md, md_cons_state,     md_eur,    "Sega",   "Mega-CD (Europe, PAL)", GAME_NOT_WORKING )
-CONS( 1991, megacdj,    segacd,    0,      genesis_scd_mcdj,md, md_cons_state,     md_jpn,    "Sega",   "Mega-CD (Japan, NTSC)", GAME_NOT_WORKING ) // this bios doesn't work with our ram interleave needed by a few games?!
-CONS( 1991, megacda,    segacd,    0,      genesis_scd_mcdj,md, md_cons_state,     md_eur,    "Sega",   "Mega-CD (Asia, PAL)", GAME_NOT_WORKING )
-CONS( 1993, segacd2,    0,         0,      genesis_scd_scd, md, md_cons_state,     genesis,   "Sega",   "Sega CD 2 (USA, NTSC)", GAME_NOT_WORKING )
-CONS( 1993, megacd2,    segacd2,   0,      genesis_scd_mcd, md, md_cons_state,     md_eur,    "Sega",   "Mega-CD 2 (Europe, PAL)", GAME_NOT_WORKING )
-CONS( 1993, megacd2j,   segacd2,   0,      genesis_scd_mcdj,md, md_cons_state,     md_jpn,    "Sega",   "Mega-CD 2 (Japan, NTSC)", GAME_NOT_WORKING )
+CONS( 1992, segacd,     0,         0,      genesis_scd,     md, md_cons_state,     genesis,   "Sega",   "Sega CD (USA, NTSC)", GAME_NOT_WORKING )
+CONS( 1993, megacd,     segacd,    0,      md_scd,          md, md_cons_state,     md_eur,    "Sega",   "Mega-CD (Europe, PAL)", GAME_NOT_WORKING )
+CONS( 1991, megacdj,    segacd,    0,      mdj_scd,         md, md_cons_state,     md_jpn,    "Sega",   "Mega-CD (Japan, NTSC)", GAME_NOT_WORKING ) // this bios doesn't work with our ram interleave needed by a few games?!
+CONS( 1991, megacda,    segacd,    0,      md_scd,          md, md_cons_state,     md_eur,    "Sega",   "Mega-CD (Asia, PAL)", GAME_NOT_WORKING )
+CONS( 1993, segacd2,    0,         0,      genesis_scd,     md, md_cons_state,     genesis,   "Sega",   "Sega CD 2 (USA, NTSC)", GAME_NOT_WORKING )
+CONS( 1993, megacd2,    segacd2,   0,      md_scd,          md, md_cons_state,     md_eur,    "Sega",   "Mega-CD 2 (Europe, PAL)", GAME_NOT_WORKING )
+CONS( 1993, megacd2j,   segacd2,   0,      mdj_scd,         md, md_cons_state,     md_jpn,    "Sega",   "Mega-CD 2 (Japan, NTSC)", GAME_NOT_WORKING )
 CONS( 1993, laseract,   0,         0,      genesis_scd,     md, md_cons_state,     genesis,   "Pioneer","LaserActive (USA, NTSC)", GAME_NOT_WORKING )
-CONS( 1993, laseractj,  laseract,  0,      genesis_scd,     md, md_cons_state,     md_jpn,    "Pioneer","LaserActive (Japan, NTSC)", GAME_NOT_WORKING )
+CONS( 1993, laseractj,  laseract,  0,      mdj_scd,         md, md_cons_state,     md_jpn,    "Pioneer","LaserActive (Japan, NTSC)", GAME_NOT_WORKING )
 CONS( 1993, xeye,       0,         0,      genesis_scd,     md, md_cons_state,     genesis,   "JVC",    "X'eye (USA, NTSC)", GAME_NOT_WORKING )
-CONS( 1992, wmega,      xeye,      0,      genesis_scd,     md, md_cons_state,     md_jpn,    "Sega",   "Wondermega (Japan, NTSC)", GAME_NOT_WORKING )
-CONS( 1993, wmegam2,    xeye,      0,      genesis_scd,     md, md_cons_state,     md_jpn,    "Victor", "Wondermega M2 (Japan, NTSC)", GAME_NOT_WORKING )
+CONS( 1992, wmega,      xeye,      0,      mdj_scd,         md, md_cons_state,     md_jpn,    "Sega",   "Wondermega (Japan, NTSC)", GAME_NOT_WORKING )
+CONS( 1993, wmegam2,    xeye,      0,      mdj_scd,         md, md_cons_state,     md_jpn,    "Victor", "Wondermega M2 (Japan, NTSC)", GAME_NOT_WORKING )
 CONS( 1994, cdx,        0,         0,      genesis_scd,     md, md_cons_state,     genesis,   "Sega",   "CDX (USA, NTSC)", GAME_NOT_WORKING )
-CONS( 1994, multmega,   cdx,       0,      genesis_scd,     md, md_cons_state,     md_eur,    "Sega",   "Multi-Mega (Europe, PAL)", GAME_NOT_WORKING )
-CONS( 1994, 32x_scd,    0,         0,      genesis_32x_scd, md, md_cons_state,     genesis,  "Sega",   "Sega CD (USA, NTSC, w/32X)", GAME_NOT_WORKING )
+CONS( 1994, multmega,   cdx,       0,      md_scd,          md, md_cons_state,     md_eur,    "Sega",   "Multi-Mega (Europe, PAL)", GAME_NOT_WORKING )
+CONS( 1994, 32x_scd,    0,         0,      genesis_32x_scd, md, md_cons_state,     genesis,   "Sega",   "Sega CD (USA, NTSC, w/32X)", GAME_NOT_WORKING )
 
 // this is a standalone system based on the md-like hardware (same vdp etc.)
 

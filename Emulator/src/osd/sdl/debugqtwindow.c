@@ -1,20 +1,26 @@
-#include <QtGui/QtGui>
-
-#include "emu.h"
-#include "debugger.h"
+#define NO_MEM_TRACKING
 
 #include "debugqtwindow.h"
 #include "debugqtlogwindow.h"
 #include "debugqtdasmwindow.h"
 #include "debugqtmemorywindow.h"
+#include "debugqtbreakpointswindow.h"
 
 bool WindowQt::s_refreshAll = false;
+bool WindowQt::s_hideAll = false;
 
+
+// Since all debug windows are intended to be top-level, this inherited
+// constructor is always called with a NULL parent.  The passed-in parent widget,
+// however, is often used to place each child window & the code to do this can
+// be found in most of the inherited classes.
 
 WindowQt::WindowQt(running_machine* machine, QWidget* parent) :
 	QMainWindow(parent),
 	m_machine(machine)
 {
+	setAttribute(Qt::WA_DeleteOnClose, true);
+
 	// The Debug menu bar
 	QAction* debugActOpenMemory = new QAction("New &Memory Window", this);
 	debugActOpenMemory->setShortcut(QKeySequence("Ctrl+M"));
@@ -27,6 +33,10 @@ WindowQt::WindowQt(running_machine* machine, QWidget* parent) :
 	QAction* debugActOpenLog = new QAction("New &Log Window", this);
 	debugActOpenLog->setShortcut(QKeySequence("Ctrl+L"));
 	connect(debugActOpenLog, SIGNAL(triggered()), this, SLOT(debugActOpenLog()));
+
+	QAction* debugActOpenPoints = new QAction("New &Breakpoints Window", this);
+	debugActOpenPoints->setShortcut(QKeySequence("Ctrl+B"));
+	connect(debugActOpenPoints, SIGNAL(triggered()), this, SLOT(debugActOpenPoints()));
 
 	QAction* dbgActRun = new QAction("Run", this);
 	dbgActRun->setShortcut(Qt::Key_F5);
@@ -81,8 +91,10 @@ WindowQt::WindowQt(running_machine* machine, QWidget* parent) :
 	debugMenu->addAction(debugActOpenMemory);
 	debugMenu->addAction(debugActOpenDasm);
 	debugMenu->addAction(debugActOpenLog);
+	debugMenu->addAction(debugActOpenPoints);
 	debugMenu->addSeparator();
 	debugMenu->addAction(dbgActRun);
+	debugMenu->addAction(dbgActRunAndHide);
 	debugMenu->addAction(dbgActRunToNextCpu);
 	debugMenu->addAction(dbgActRunNextInt);
 	debugMenu->addAction(dbgActRunNextVBlank);
@@ -98,6 +110,10 @@ WindowQt::WindowQt(running_machine* machine, QWidget* parent) :
 	debugMenu->addAction(dbgActQuit);
 }
 
+
+WindowQt::~WindowQt()
+{
+}
 
 void WindowQt::debugActOpenMemory()
 {
@@ -129,6 +145,16 @@ void WindowQt::debugActOpenLog()
 }
 
 
+void WindowQt::debugActOpenPoints()
+{
+	BreakpointsWindow* foo = new BreakpointsWindow(m_machine, this);
+	// A valiant effort, but it just doesn't wanna' hide behind the main window & not make a new toolbar icon
+	// foo->setWindowFlags(Qt::Dialog);
+	// foo->setWindowFlags(foo->windowFlags() & ~Qt::WindowStaysOnTopHint);
+	foo->show();
+}
+
+
 void WindowQt::debugActRun()
 {
 	debug_cpu_get_visible_cpu(*m_machine)->debug()->go();
@@ -137,7 +163,7 @@ void WindowQt::debugActRun()
 void WindowQt::debugActRunAndHide()
 {
 	debug_cpu_get_visible_cpu(*m_machine)->debug()->go();
-	// TODO: figure out hide
+	hideAll();
 }
 
 void WindowQt::debugActRunToNextCpu()
@@ -173,13 +199,12 @@ void WindowQt::debugActStepOut()
 void WindowQt::debugActSoftReset()
 {
 	m_machine->schedule_soft_reset();
+	debug_cpu_get_visible_cpu(*m_machine)->debug()->single_step();
 }
 
 void WindowQt::debugActHardReset()
 {
-	// TODO: Figure out segfault
 	m_machine->schedule_hard_reset();
-	debug_cpu_get_visible_cpu(*m_machine)->debug()->go();
 }
 
 void WindowQt::debugActClose()
@@ -190,5 +215,42 @@ void WindowQt::debugActClose()
 void WindowQt::debugActQuit()
 {
 	m_machine->schedule_exit();
-	qApp->closeAllWindows();
+}
+
+
+//=========================================================================
+//  WindowQtConfig
+//=========================================================================
+void WindowQtConfig::buildFromQWidget(QWidget* widget)
+{
+	m_position.setX(widget->geometry().topLeft().x());
+	m_position.setY(widget->geometry().topLeft().y());
+	m_size.setX(widget->size().width());
+	m_size.setY(widget->size().height());
+}
+
+
+void WindowQtConfig::applyToQWidget(QWidget* widget)
+{
+	widget->setGeometry(m_position.x(), m_position.y(), m_size.x(), m_size.y());
+}
+
+
+void WindowQtConfig::addToXmlDataNode(xml_data_node* node) const
+{
+	xml_set_attribute_int(node, "type", m_type);
+	xml_set_attribute_int(node, "position_x", m_position.x());
+	xml_set_attribute_int(node, "position_y", m_position.y());
+	xml_set_attribute_int(node, "size_x", m_size.x());
+	xml_set_attribute_int(node, "size_y", m_size.y());
+}
+
+
+void WindowQtConfig::recoverFromXmlNode(xml_data_node* node)
+{
+	m_size.setX(xml_get_attribute_int(node, "size_x", m_size.x()));
+	m_size.setY(xml_get_attribute_int(node, "size_y", m_size.y()));
+	m_position.setX(xml_get_attribute_int(node, "position_x", m_position.x()));
+	m_position.setY(xml_get_attribute_int(node, "position_y", m_position.y()));
+	m_type = (WindowQtConfig::WindowType)xml_get_attribute_int(node, "type", m_type);
 }

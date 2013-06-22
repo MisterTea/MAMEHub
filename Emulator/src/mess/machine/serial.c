@@ -21,8 +21,8 @@ serial_port_device::serial_port_device(const machine_config &mconfig, const char
 {
 }
 
-serial_port_device::serial_port_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock),
+serial_port_device::serial_port_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_slot_interface(mconfig, *this),
 		m_dev(NULL)
 {
@@ -69,7 +69,7 @@ device_rs232_port_interface::~device_rs232_port_interface()
 }
 
 rs232_port_device::rs232_port_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: serial_port_device(mconfig, RS232_PORT, "RS232 Port", tag, owner, clock)
+	: serial_port_device(mconfig, RS232_PORT, "RS232 Port", tag, owner, clock, "rs232", __FILE__)
 {
 }
 
@@ -133,3 +133,11 @@ WRITE_LINE_MEMBER( rs232_port_device::rts_w )
 		out_cts(state);
 	}
 }
+
+#include "machine/null_modem.h"
+#include "machine/terminal.h"
+
+SLOT_INTERFACE_START( default_rs232_devices )
+	SLOT_INTERFACE("serial_terminal", SERIAL_TERMINAL)
+	SLOT_INTERFACE("null_modem", NULL_MODEM)
+SLOT_INTERFACE_END

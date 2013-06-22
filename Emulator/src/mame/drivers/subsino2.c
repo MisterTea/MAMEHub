@@ -62,7 +62,6 @@ enum vram_t
 // Layers
 struct layer_t
 {
-
 	UINT8 *videorams[2];
 
 	UINT8 *scrollrams[2];
@@ -78,10 +77,12 @@ class subsino2_state : public driver_device
 {
 public:
 	subsino2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_outputs16(*this, "outputs16"),
 		m_outputs(*this, "outputs"),
-		m_am188em_regs(*this, "am188em_regs"){ }
+		m_am188em_regs(*this, "am188em_regs"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
 
 	UINT8 *m_hm86171_colorram;
 	layer_t m_layers[2];
@@ -169,6 +170,8 @@ public:
 	INTERRUPT_GEN_MEMBER(am188em_int0_irq);
 	TIMER_DEVICE_CALLBACK_MEMBER(am188em_timer2_irq);
 	TIMER_DEVICE_CALLBACK_MEMBER(h8_timer_irq);
+	required_device<cpu_device> m_maincpu;
+	optional_device<okim6295_device> m_oki;
 };
 
 
@@ -611,14 +614,14 @@ VIDEO_START_MEMBER(subsino2_state,subsino2)
 	m_ss9601_reelrects[2].set(0, 0, 0x10*8, 256-16-1);
 
 /*
-    state_save_register_global_pointer(machine(), m_ss9601_reelrams[VRAM_HI], 0x2000);
-    state_save_register_global_pointer(machine(), m_ss9601_reelrams[VRAM_LO], 0x2000);
+    save_pointer(NAME(m_ss9601_reelrams[VRAM_HI]), 0x2000);
+    save_pointer(NAME(m_ss9601_reelrams[VRAM_LO]), 0x2000);
 
-    state_save_register_global_pointer(machine(), m_layers[0].scrollrams[VRAM_HI], 0x200);
-    state_save_register_global_pointer(machine(), m_layers[0].scrollrams[VRAM_LO], 0x200);
+    save_pointer(NAME(m_layers[0].scrollrams[VRAM_HI]), 0x200);
+    save_pointer(NAME(m_layers[0].scrollrams[VRAM_LO]), 0x200);
 
-    state_save_register_global_pointer(machine(), m_layers[1].scrollrams[VRAM_HI], 0x200);
-    state_save_register_global_pointer(machine(), m_layers[1].scrollrams[VRAM_LO], 0x200);
+    save_pointer(NAME(m_layers[1].scrollrams[VRAM_HI]), 0x200);
+    save_pointer(NAME(m_layers[1].scrollrams[VRAM_LO]), 0x200);
 */
 }
 
@@ -818,18 +821,14 @@ READ8_MEMBER(subsino2_state::vblank_bit6_r)
 
 WRITE8_MEMBER(subsino2_state::oki_bank_bit0_w)
 {
-	device_t *device = machine().device("oki");
 	// it writes 0x32 or 0x33
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base((data & 1) * 0x40000);
+	m_oki->set_bank_base((data & 1) * 0x40000);
 }
 
 WRITE8_MEMBER(subsino2_state::oki_bank_bit4_w)
 {
-	device_t *device = machine().device("oki");
 	// it writes 0x23 or 0x33
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base(((data >> 4) & 1) * 0x40000);
+	m_oki->set_bank_base(((data >> 4) & 1) * 0x40000);
 }
 
 
@@ -875,7 +874,7 @@ INTERRUPT_GEN_MEMBER(subsino2_state::am188em_int0_irq)
 TIMER_DEVICE_CALLBACK_MEMBER(subsino2_state::am188em_timer2_irq)
 {
 	if ((m_am188em_regs[AM188EM_IMASK+0] & 0x01) == 0)  // TMR mask
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0x4c/4);
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0x4c/4);
 }
 
 /***************************************************************************
@@ -885,7 +884,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(subsino2_state::am188em_timer2_irq)
 // To be removed when cpu core is updated
 TIMER_DEVICE_CALLBACK_MEMBER(subsino2_state::h8_timer_irq)
 {
-	machine().device("maincpu")->execute().set_input_line(H8_METRO_TIMER_HACK, HOLD_LINE);
+	m_maincpu->set_input_line(H8_METRO_TIMER_HACK, HOLD_LINE);
 }
 
 
@@ -1233,7 +1232,7 @@ static ADDRESS_MAP_START( saklove_io, AS_IO, 8, subsino2_state )
 	AM_RANGE(0x0000, 0x0000) AM_WRITE(ss9601_scrollctrl_w )
 
 	AM_RANGE(0x0020, 0x0020) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x0040, 0x0041) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w )
+	AM_RANGE(0x0040, 0x0041) AM_DEVWRITE("ymsnd", ym3812_device, write)
 
 	AM_RANGE(0x0060, 0x0063) AM_WRITE(hm86171_colorram_w )
 
@@ -2380,7 +2379,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(subsino2_state,bishjan)
 {
-	UINT16 *rom = (UINT16*)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16*)memregion("maincpu")->base();
 
 	// patch serial protection test (it always enters test mode on boot otherwise)
 	rom[0x042EA/2] = 0x4008;
@@ -2444,7 +2443,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(subsino2_state,expcard)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	// patch protection test (it always enters test mode on boot otherwise)
 	rom[0xed4dc-0xc0000] = 0xeb;
@@ -2542,7 +2541,7 @@ DRIVER_INIT_MEMBER(subsino2_state,mtrain)
 	subsino_decrypt(machine(), crsbingo_bitswaps, crsbingo_xors, 0x8000);
 
 	// patch serial protection test (it always enters test mode on boot otherwise)
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 	rom[0x0cec] = 0x18;
 	rom[0xb037] = 0x18;
 
@@ -2596,7 +2595,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(subsino2_state,saklove)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	// patch serial protection test (it always enters test mode on boot otherwise)
 	rom[0x0e029] = 0xeb;
@@ -2656,7 +2655,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(subsino2_state,xplan)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	// patch protection test (it always enters test mode on boot otherwise)
 	rom[0xeded9-0xc0000] = 0xeb;
@@ -2716,7 +2715,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(subsino2_state,xtrain)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	// patch protection test (it always enters test mode on boot otherwise)
 	rom[0xe190f-0xc0000] = 0xeb;
@@ -2761,7 +2760,7 @@ DRIVER_INIT_MEMBER(subsino2_state,wtrnymph)
 	subsino_decrypt(machine(), victor5_bitswaps, victor5_xors, 0x8000);
 
 	// patch serial protection test (it always enters test mode on boot otherwise)
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 	rom[0x0d79] = 0x18;
 	rom[0xc1cf] = 0x18;
 	rom[0xc2a9] = 0x18;

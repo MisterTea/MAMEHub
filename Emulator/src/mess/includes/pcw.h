@@ -7,6 +7,9 @@
 #ifndef PCW_H_
 #define PCW_H_
 
+#include "machine/upd765.h"
+#include "machine/ram.h"
+#include "sound/beep.h"
 
 #define PCW_BORDER_HEIGHT 8
 #define PCW_BORDER_WIDTH 8
@@ -24,7 +27,13 @@ class pcw_state : public driver_device
 {
 public:
 	pcw_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+			m_maincpu(*this, "maincpu"),
+			m_screen(*this, "screen"),
+			m_fdc(*this, "upd765"),
+			m_ram(*this, RAM_TAG),
+			m_beeper(*this, "beeper")
+	{ }
 
 	int m_boot;
 	int m_system_status;
@@ -105,7 +114,23 @@ public:
 	TIMER_CALLBACK_MEMBER(setup_beep);
 	TIMER_DEVICE_CALLBACK_MEMBER(pcw_timer_interrupt);
 
+	DECLARE_FLOPPY_FORMATS( floppy_formats );
+
 	void pcw_fdc_interrupt(bool state);
+	required_device<cpu_device> m_maincpu;
+	required_device<screen_device> m_screen;
+	required_device<upd765a_device> m_fdc;
+	required_device<ram_device> m_ram;
+	required_device<beep_device> m_beeper;
+
+	inline void pcw_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT32 color);
+	void pcw_update_interrupt_counter();
+	void pcw_update_irqs();
+	void pcw_update_read_memory_block(int block, int bank);
+	void pcw_update_write_memory_block(int block, int bank);
+	void pcw_update_mem(int block, int data);
+	int pcw_get_sys_status();
+	void pcw_printer_fire_pins(UINT16 pins);
 };
 
 #endif /* PCW_H_ */

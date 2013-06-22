@@ -81,8 +81,8 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, _1943_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
 	AM_RANGE(0xc800, 0xc800) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0xe002, 0xe003) AM_DEVWRITE_LEGACY("ym2", ym2203_w)
+	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0xe002, 0xe003) AM_DEVWRITE("ym2", ym2203_device, write)
 ADDRESS_MAP_END
 
 /* Input Ports */
@@ -245,7 +245,6 @@ GFXDECODE_END
 
 void _1943_state::machine_reset()
 {
-
 	m_char_on = 0;
 	m_obj_on = 0;
 	m_bg1_on = 0;
@@ -639,8 +638,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(_1943_state,1943)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
 }
 
 READ8_MEMBER(_1943_state::_1943b_c007_r){ return 0; }
@@ -650,7 +649,7 @@ DRIVER_INIT_MEMBER(_1943_state,1943b)
 	DRIVER_INIT_CALL(1943);
 	//it expects 0x00 to be returned from the protection reads because the protection has been patched out.
 	//AM_RANGE(0xc007, 0xc007) AM_READ(c1943_protection_r)
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xc007, 0xc007, read8_delegate(FUNC(_1943_state::_1943b_c007_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xc007, 0xc007, read8_delegate(FUNC(_1943_state::_1943b_c007_r),this));
 
 }
 

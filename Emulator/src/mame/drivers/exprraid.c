@@ -232,7 +232,7 @@ READ8_MEMBER(exprraid_state::exprraid_protection_r)
 WRITE8_MEMBER(exprraid_state::sound_cpu_command_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	m_slave->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_slave->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 READ8_MEMBER(exprraid_state::vblank_r)
@@ -269,8 +269,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( slave_map, AS_PROGRAM, 8, exprraid_state )
 	AM_RANGE(0x0000, 0x1fff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0x4000, 0x4001) AM_DEVREADWRITE_LEGACY("ym2", ym3526_r, ym3526_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0x4000, 0x4001) AM_DEVREADWRITE("ym2", ym3526_device, read, write)
 	AM_RANGE(0x6000, 0x6000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -436,18 +436,12 @@ GFXDECODE_END
 /* handler called by the 3812 emulator when the internal timers cause an IRQ */
 WRITE_LINE_MEMBER(exprraid_state::irqhandler)
 {
-	m_slave->execute().set_input_line_and_vector(0, state, 0xff);
+	m_slave->set_input_line_and_vector(0, state, 0xff);
 }
-
-static const ym3526_interface ym3526_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(exprraid_state,irqhandler)
-};
 
 #if 0
 INTERRUPT_GEN_MEMBER(exprraid_state::exprraid_interrupt)
 {
-
 	if ((~ioport("IN2")->read()) & 0xc0)
 	{
 		if (m_coin == 0)
@@ -468,16 +462,11 @@ INTERRUPT_GEN_MEMBER(exprraid_state::exprraid_interrupt)
 
 void exprraid_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_slave = machine().device("slave");
-
 	save_item(NAME(m_bg_index));
 }
 
 void exprraid_state::machine_reset()
 {
-
 	m_bg_index[0] = 0;
 	m_bg_index[1] = 0;
 	m_bg_index[2] = 0;
@@ -515,7 +504,7 @@ static MACHINE_CONFIG_START( exprraid, exprraid_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
 	MCFG_SOUND_ADD("ym2", YM3526, 3600000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(WRITELINE(exprraid_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 
@@ -798,11 +787,11 @@ ROM_START( wexpressb3 )
 ROM_END
 
 
-static void exprraid_gfx_expand(running_machine &machine)
+void exprraid_state::exprraid_gfx_expand()
 {
 	/* Expand the background rom so we can use regular decode routines */
 
-	UINT8   *gfx = machine.root_device().memregion("gfx3")->base();
+	UINT8   *gfx = memregion("gfx3")->base();
 	int offs = 0x10000 - 0x1000;
 	int i;
 
@@ -821,7 +810,7 @@ static void exprraid_gfx_expand(running_machine &machine)
 
 DRIVER_INIT_MEMBER(exprraid_state,wexpressb)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	/* HACK: this set uses M6502 irq vectors but DECO CPU-16 opcodes??? */
 	rom[0xfff7] = rom[0xfffa];
@@ -833,24 +822,24 @@ DRIVER_INIT_MEMBER(exprraid_state,wexpressb)
 	rom[0xfff3] = rom[0xfffe];
 	rom[0xfff2] = rom[0xffff];
 
-	exprraid_gfx_expand(machine());
+	exprraid_gfx_expand();
 }
 
 DRIVER_INIT_MEMBER(exprraid_state,exprraid)
 {
-	exprraid_gfx_expand(machine());
+	exprraid_gfx_expand();
 }
 
 DRIVER_INIT_MEMBER(exprraid_state,wexpressb2)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x3800, 0x3800, read8_delegate(FUNC(exprraid_state::vblank_r),this));
-	exprraid_gfx_expand(machine());
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x3800, 0x3800, read8_delegate(FUNC(exprraid_state::vblank_r),this));
+	exprraid_gfx_expand();
 }
 
 DRIVER_INIT_MEMBER(exprraid_state,wexpressb3)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xFFC0, 0xFFC0, read8_delegate(FUNC(exprraid_state::vblank_r),this));
-	exprraid_gfx_expand(machine());
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xFFC0, 0xFFC0, read8_delegate(FUNC(exprraid_state::vblank_r),this));
+	exprraid_gfx_expand();
 }
 
 

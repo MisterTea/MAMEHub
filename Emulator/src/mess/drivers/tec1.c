@@ -82,17 +82,28 @@ class tec1_state : public driver_device
 public:
 	tec1_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_speaker(*this, SPEAKER_TAG),
-	m_cass(*this, CASSETTE_TAG),
-	m_wave(*this, WAVE_TAG),
-	m_key_pressed(0)
+		m_maincpu(*this, "maincpu"),
+		m_speaker(*this, "speaker"),
+		m_cass(*this, "cassette"),
+		m_wave(*this, WAVE_TAG),
+		m_key_pressed(0),
+		m_io_line0(*this, "LINE0"),
+		m_io_line1(*this, "LINE1"),
+		m_io_line2(*this, "LINE2"),
+		m_io_line3(*this, "LINE3"),
+		m_io_shift(*this, "SHIFT")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<speaker_sound_device> m_speaker;
 	optional_device<cassette_image_device> m_cass;
 	optional_device<wave_device> m_wave;
+	bool m_key_pressed;
+	required_ioport m_io_line0;
+	required_ioport m_io_line1;
+	required_ioport m_io_line2;
+	required_ioport m_io_line3;
+	required_ioport m_io_shift;
 	emu_timer *m_kbd_timer;
 	DECLARE_READ8_MEMBER( tec1_kbd_r );
 	DECLARE_READ8_MEMBER( latch_r );
@@ -104,7 +115,6 @@ public:
 	UINT8 m_digit;
 	UINT8 m_kbd_row;
 	UINT8 m_refresh[6];
-	bool m_key_pressed;
 	UINT8 tec1_convert_col_to_bin( UINT8 col, UINT8 row );
 	virtual void machine_reset();
 	virtual void machine_start();
@@ -145,7 +155,7 @@ WRITE8_MEMBER( tec1_state::tec1_digit_w )
     d1 address digit 3
     d0 address digit 4 */
 
-	speaker_level_w(m_speaker, BIT(data, 7));
+	m_speaker->level_w(BIT(data, 7));
 
 	m_digit = data & 0x3f;
 }
@@ -161,7 +171,7 @@ WRITE8_MEMBER( tec1_state::tecjmon_digit_w )
     d1 address digit 3
     d0 address digit 4 */
 
-	speaker_level_w(m_speaker, BIT(data, 7));
+	m_speaker->level_w(BIT(data, 7));
 	m_cass->output(BIT(data, 7) ? -1.0 : +1.0);
 	m_digit = data & 0x3f;
 }
@@ -187,8 +197,8 @@ READ8_MEMBER( tec1_state::latch_r )
 
 READ8_MEMBER( tec1_state::tec1_kbd_r )
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	return m_kbd | ioport("SHIFT")->read();
+	m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	return m_kbd | m_io_shift->read();
 }
 
 UINT8 tec1_state::tec1_convert_col_to_bin( UINT8 col, UINT8 row )
@@ -212,7 +222,6 @@ UINT8 tec1_state::tec1_convert_col_to_bin( UINT8 col, UINT8 row )
 
 TIMER_CALLBACK_MEMBER(tec1_state::tec1_kbd_callback)
 {
-	static const char *const keynames[] = { "LINE0", "LINE1", "LINE2", "LINE3" };
 	UINT8 i;
 
 	// Display the digits. Blank any digits that haven't been refreshed for a while.
@@ -236,19 +245,46 @@ TIMER_CALLBACK_MEMBER(tec1_state::tec1_kbd_callback)
 	}
 
 	// 74C923 4 by 5 key encoder.
-	// if previous key is still held, bail out
-	if (machine().root_device().ioport(keynames[m_kbd_row])->read())
-		if (tec1_convert_col_to_bin(machine().root_device().ioport(keynames[m_kbd_row])->read(), m_kbd_row) == m_kbd)
+
+	/* Look at old row */
+	if (m_kbd_row == 0)
+		i = m_io_line0->read();
+	else
+	if (m_kbd_row == 1)
+		i = m_io_line1->read();
+	else
+	if (m_kbd_row == 2)
+		i = m_io_line2->read();
+	else
+	if (m_kbd_row == 3)
+		i = m_io_line3->read();
+
+	/* if previous key is still held, bail out */
+	if (i)
+		if (tec1_convert_col_to_bin(i, m_kbd_row) == m_kbd)
 			return;
 
 	m_kbd_row++;
 	m_kbd_row &= 3;
 
+	/* Look at a new row */
+	if (m_kbd_row == 0)
+		i = m_io_line0->read();
+	else
+	if (m_kbd_row == 1)
+		i = m_io_line1->read();
+	else
+	if (m_kbd_row == 2)
+		i = m_io_line2->read();
+	else
+	if (m_kbd_row == 3)
+		i = m_io_line3->read();
+
 	/* see if a key pressed */
-	if (machine().root_device().ioport(keynames[m_kbd_row])->read())
+	if (i)
 	{
-		m_kbd = tec1_convert_col_to_bin(machine().root_device().ioport(keynames[m_kbd_row])->read(), m_kbd_row);
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, HOLD_LINE);
+		m_kbd = tec1_convert_col_to_bin(i, m_kbd_row);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, HOLD_LINE);
 		m_key_pressed = TRUE;
 	}
 	else
@@ -373,7 +409,7 @@ static MACHINE_CONFIG_START( tec1, tec1_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -388,13 +424,13 @@ static MACHINE_CONFIG_START( tecjmon, tec1_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* Devices */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 MACHINE_CONFIG_END
 
 

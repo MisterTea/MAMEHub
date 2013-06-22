@@ -14,9 +14,9 @@ void tatsumi_reset(running_machine &machine)
 	state->m_apache3_adc = 0;
 	state->m_apache3_rot_idx = 0;
 
-	state_save_register_global(machine, state->m_last_control);
-	state_save_register_global(machine, state->m_control_word);
-	state_save_register_global(machine, state->m_apache3_adc);
+	state->save_item(NAME(state->m_last_control));
+	state->save_item(NAME(state->m_control_word));
+	state->save_item(NAME(state->m_apache3_adc));
 }
 
 /******************************************************************************/
@@ -41,18 +41,18 @@ WRITE16_MEMBER(tatsumi_state::apache3_bank_w)
 	if (m_control_word & 0x7f00)
 	{
 		logerror("Unknown control Word: %04x\n",m_control_word);
-		machine().device("sub2")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE); // ?
+		m_subcpu2->set_input_line(INPUT_LINE_HALT, CLEAR_LINE); // ?
 	}
 
 	if (m_control_word & 0x10)
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	else
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 
 	if (m_control_word & 0x80)
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	else
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 
 	m_last_control=m_control_word;
 }
@@ -61,12 +61,12 @@ WRITE16_MEMBER(tatsumi_state::apache3_bank_w)
 // D0 = /GRDACC - Allow 68000 access to road pattern RAM
 WRITE16_MEMBER(tatsumi_state::apache3_z80_ctrl_w)
 {
-	machine().device("sub2")->execute().set_input_line(INPUT_LINE_HALT, data & 2 ? ASSERT_LINE : CLEAR_LINE);
+	m_subcpu2->set_input_line(INPUT_LINE_HALT, data & 2 ? ASSERT_LINE : CLEAR_LINE);
 }
 
 READ16_MEMBER(tatsumi_state::apache3_v30_v20_r)
 {
-	address_space &targetspace = machine().device("audiocpu")->memory().space(AS_PROGRAM);
+	address_space &targetspace = m_audiocpu->space(AS_PROGRAM);
 
 	/* Each V20 byte maps to a V30 word */
 	if ((m_control_word & 0xe0) == 0xe0)
@@ -82,7 +82,7 @@ READ16_MEMBER(tatsumi_state::apache3_v30_v20_r)
 
 WRITE16_MEMBER(tatsumi_state::apache3_v30_v20_w)
 {
-	address_space &targetspace = machine().device("audiocpu")->memory().space(AS_PROGRAM);
+	address_space &targetspace = m_audiocpu->space(AS_PROGRAM);
 
 	if ((m_control_word & 0xe0) != 0x80)
 		logerror("%08x: write unmapped v30 rom %08x\n", space.device().safe_pc(), offset);
@@ -142,7 +142,7 @@ WRITE16_MEMBER(tatsumi_state::apache3_rotate_w)
 
 READ16_MEMBER(tatsumi_state::roundup_v30_z80_r)
 {
-	address_space &targetspace = machine().device("audiocpu")->memory().space(AS_PROGRAM);
+	address_space &targetspace = m_audiocpu->space(AS_PROGRAM);
 
 	/* Each Z80 byte maps to a V30 word */
 	if (m_control_word & 0x20)
@@ -153,7 +153,7 @@ READ16_MEMBER(tatsumi_state::roundup_v30_z80_r)
 
 WRITE16_MEMBER(tatsumi_state::roundup_v30_z80_w)
 {
-	address_space &targetspace = machine().device("audiocpu")->memory().space(AS_PROGRAM);
+	address_space &targetspace = m_audiocpu->space(AS_PROGRAM);
 
 	/* Only 8 bits of the V30 data bus are connected - ignore writes to the other half */
 	if (ACCESSING_BITS_0_7)
@@ -171,14 +171,14 @@ WRITE16_MEMBER(tatsumi_state::roundup5_control_w)
 	COMBINE_DATA(&m_control_word);
 
 	if (m_control_word & 0x10)
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	else
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 
 	if (m_control_word & 0x4)
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	else
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 
 //  if (offset == 1 && (tatsumi_control_w & 0xfeff) != (last_bank & 0xfeff))
 //      logerror("%08x:  Changed bank to %04x (%d)\n", space.device().safe_pc(), tatsumi_control_w,offset);
@@ -204,7 +204,7 @@ WRITE16_MEMBER(tatsumi_state::roundup5_control_w)
 	*/
 
 	if ((m_control_word & 0x8) == 0 && !(m_last_control & 0x8))
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_IRQ4, ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_IRQ4, ASSERT_LINE);
 //  if (tatsumi_control_w&0x200)
 //      cpu_set_reset_line(1, CLEAR_LINE);
 //  else
@@ -237,7 +237,7 @@ WRITE16_MEMBER(tatsumi_state::roundup5_e0000_w)
 	*/
 
 	COMBINE_DATA(&m_roundup5_e0000_ram[offset]);
-	machine().device("sub")->execute().set_input_line(INPUT_LINE_IRQ4, CLEAR_LINE); // guess, probably wrong
+	m_subcpu->set_input_line(INPUT_LINE_IRQ4, CLEAR_LINE); // guess, probably wrong
 
 //  logerror("d_68k_e0000_w %06x %04x\n", space.device().safe_pc(), data);
 }
@@ -269,13 +269,13 @@ WRITE16_MEMBER(tatsumi_state::cyclwarr_control_w)
 	if ((m_control_word & 4) == 4 && (m_last_control & 4) == 0)
 	{
 //      logerror("68k 2 halt\n");
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	}
 
 	if ((m_control_word & 4) == 0 && (m_last_control & 4) == 4)
 	{
 //      logerror("68k 2 irq go\n");
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 	}
 
 
@@ -293,7 +293,7 @@ WRITE16_MEMBER(tatsumi_state::cyclwarr_control_w)
 
 READ16_MEMBER(tatsumi_state::tatsumi_v30_68000_r)
 {
-	const UINT16* rom=(UINT16*)machine().root_device().memregion("sub")->base();
+	const UINT16* rom=(UINT16*)memregion("sub")->base();
 
 logerror("%05X:68000_r(%04X),cw=%04X\n", space.device().safe_pc(), offset*2, m_control_word);
 	/* Read from 68k RAM */
@@ -350,7 +350,7 @@ READ8_MEMBER(tatsumi_state::tatsumi_hack_ym2151_r)
 // Mame really should emulate the OKI status reads even with Mame sound off.
 READ8_MEMBER(tatsumi_state::tatsumi_hack_oki_r)
 {
-	int r=downcast<okim6295_device *>(machine().device("oki"))->read(space,0);
+	int r=m_oki->read(space,0);
 
 	if (space.device().safe_pc()==0x2b70 || space.device().safe_pc()==0x2bb5
 		|| space.device().safe_pc()==0x2acc

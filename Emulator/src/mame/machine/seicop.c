@@ -1979,7 +1979,7 @@ WRITE16_HANDLER( copdxbl_0_w )
 		case (0x740/2):
 		{
 			state->soundlatch_byte_w(space, 0, data & 0xff);
-			space.machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE );
+			state->m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE );
 			break;
 		}
 	}
@@ -2022,8 +2022,7 @@ static UINT16 u1,u2;
 #define COP_CMD(_1_,_2_,_3_,_4_,_5_,_6_,_7_,_8_,_u1_,_u2_) \
 	(copd2_table[command+0] == _1_ && copd2_table[command+1] == _2_ && copd2_table[command+2] == _3_ && copd2_table[command+3] == _4_ && \
 	copd2_table[command+4] == _5_ && copd2_table[command+5] == _6_ && copd2_table[command+6] == _7_ && copd2_table[command+7] == _8_ && \
-	u1 == _u1_ && u2 == _u2_) \
-
+	u1 == _u1_ && u2 == _u2_)
 
 /*
 Godzilla 0x12c0 X = 0x21ed Y = 0x57da

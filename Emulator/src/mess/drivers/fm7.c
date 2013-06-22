@@ -52,11 +52,6 @@
 
 #include "includes/fm7.h"
 
-
-static void fm7_mmr_refresh(address_space&);
-
-
-
 /* key scancode conversion table
  * The FM-7 expects different scancodes when shift,ctrl or graph is held, or
  * when kana is active.
@@ -165,22 +160,51 @@ static const UINT16 fm7_key_list[0x60][7] =
 };
 
 
-static void main_irq_set_flag(running_machine &machine, UINT8 flag)
+void fm7_state::main_irq_set_flag(UINT8 flag)
 {
-	fm7_state *state = machine.driver_data<fm7_state>();
-	state->m_irq_flags |= flag;
+	m_irq_flags |= flag;
 
-	if(state->m_irq_flags != 0)
-		machine.device("maincpu")->execute().set_input_line(M6809_IRQ_LINE,ASSERT_LINE);
+	if(m_irq_flags != 0)
+		m_maincpu->set_input_line(M6809_IRQ_LINE,ASSERT_LINE);
 }
 
-static void main_irq_clear_flag(running_machine &machine, UINT8 flag)
+void fm7_state::main_irq_clear_flag(UINT8 flag)
 {
-	fm7_state *state = machine.driver_data<fm7_state>();
-	state->m_irq_flags &= ~flag;
+	m_irq_flags &= ~flag;
 
-	if(state->m_irq_flags == 0)
-		machine.device("maincpu")->execute().set_input_line(M6809_IRQ_LINE,CLEAR_LINE);
+	if(m_irq_flags == 0)
+		m_maincpu->set_input_line(M6809_IRQ_LINE,CLEAR_LINE);
+}
+
+
+void fm7_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_FM7_BEEPER_OFF:
+		fm7_beeper_off(ptr, param);
+		break;
+	case TIMER_FM77AV_ENCODER_ACK:
+		fm77av_encoder_ack(ptr, param);
+		break;
+	case TIMER_FM7_IRQ:
+		fm7_timer_irq(ptr, param);
+		break;
+	case TIMER_FM7_SUBTIMER_IRQ:
+		fm7_subtimer_irq(ptr, param);
+		break;
+	case TIMER_FM7_KEYBOARD_POLL:
+		fm7_keyboard_poll(ptr, param);
+		break;
+	case TIMER_FM77AV_ALU_TASK_END:
+		fm77av_alu_task_end(ptr, param);
+		break;
+	case TIMER_FM77AV_VSYNC:
+		fm77av_vsync(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in fm7_state::device_timer");
+	}
 }
 
 
@@ -226,9 +250,9 @@ READ8_MEMBER(fm7_state::fm7_irq_cause_r)
 	// Keyboard IRQ flag is cleared when the scancode is read from
 	// either keyboard data port (main CPU 0xfd01 or sub CPU 0xd401)
 	if(m_irq_flags & 0x04)
-		main_irq_clear_flag(machine(),IRQ_FLAG_TIMER);
+		main_irq_clear_flag(IRQ_FLAG_TIMER);
 	if(m_irq_flags & 0x02)
-		main_irq_clear_flag(machine(),IRQ_FLAG_PRINTER);
+		main_irq_clear_flag(IRQ_FLAG_PRINTER);
 
 	logerror("IRQ flags read: 0x%02x\n",ret);
 	return ret;
@@ -236,7 +260,7 @@ READ8_MEMBER(fm7_state::fm7_irq_cause_r)
 
 TIMER_CALLBACK_MEMBER(fm7_state::fm7_beeper_off)
 {
-	beep_set_state(machine().device(BEEPER_TAG),0);
+	m_beeper->set_state(0);
 	logerror("timed beeper off\n");
 }
 
@@ -246,25 +270,25 @@ WRITE8_MEMBER(fm7_state::fm7_beeper_w)
 
 	if(!m_speaker_active)  // speaker not active, disable all beeper sound
 	{
-		beep_set_state(machine().device(BEEPER_TAG),0);
+		m_beeper->set_state(0);
 		return;
 	}
 
 	if(data & 0x80)
 	{
 		if(m_speaker_active)
-			beep_set_state(machine().device(BEEPER_TAG),1);
+			m_beeper->set_state(1);
 	}
 	else
-		beep_set_state(machine().device(BEEPER_TAG),0);
+		m_beeper->set_state(0);
 
 	if(data & 0x40)
 	{
 		if(m_speaker_active)
 		{
-			beep_set_state(machine().device(BEEPER_TAG),1);
+			m_beeper->set_state(1);
 			logerror("timed beeper on\n");
-			machine().scheduler().timer_set(attotime::from_msec(205), timer_expired_delegate(FUNC(fm7_state::fm7_beeper_off),this));
+			timer_set(attotime::from_msec(205), TIMER_FM7_BEEPER_OFF);
 		}
 	}
 	logerror("beeper state: %02x\n",data);
@@ -279,9 +303,9 @@ READ8_MEMBER(fm7_state::fm7_sub_beeper_r)
 {
 	if(m_speaker_active)
 	{
-		beep_set_state(machine().device(BEEPER_TAG),1);
+		m_beeper->set_state(1);
 		logerror("timed beeper on\n");
-		machine().scheduler().timer_set(attotime::from_msec(205), timer_expired_delegate(FUNC(fm7_state::fm7_beeper_off),this));
+		timer_set(attotime::from_msec(205), TIMER_FM7_BEEPER_OFF);
 	}
 	return 0xff;
 }
@@ -506,7 +530,7 @@ READ8_MEMBER(fm7_state::fm7_keyboard_r)
 			ret |= 0x01; // 1 = 2MHz, 0 = 1.2MHz
 			return ret;
 		case 1:
-			main_irq_clear_flag(machine(),IRQ_FLAG_KEY);
+			main_irq_clear_flag(IRQ_FLAG_KEY);
 			return m_current_scancode & 0xff;
 		default:
 			return 0x00;
@@ -522,7 +546,7 @@ READ8_MEMBER(fm7_state::fm7_sub_keyboard_r)
 			ret = (m_current_scancode >> 1) & 0x80;
 			return ret;
 		case 1:
-			main_irq_clear_flag(machine(),IRQ_FLAG_KEY);
+			main_irq_clear_flag(IRQ_FLAG_KEY);
 			return m_current_scancode & 0xff;
 		default:
 			return 0x00;
@@ -713,7 +737,7 @@ WRITE8_MEMBER(fm7_state::fm77av_key_encoder_w)
 			fm77av_encoder_handle_command();
 
 		// wait 5us to set ACK flag
-		machine().scheduler().timer_set(attotime::from_usec(5), timer_expired_delegate(FUNC(fm7_state::fm77av_encoder_ack),this));
+		timer_set(attotime::from_usec(5), TIMER_FM77AV_ENCODER_ACK);
 
 		//logerror("ENC: write 0x%02x to data register, moved to pos %i\n",data,m_encoder.position);
 	}
@@ -729,7 +753,7 @@ READ8_MEMBER(fm7_state::fm7_cassette_printer_r)
 	// bit 1: printer error
 	// bit 0: printer busy
 	UINT8 ret = 0x00;
-	double data = (machine().device<cassette_image_device>(CASSETTE_TAG)->input());
+	double data = m_cassette->input();
 	centronics_device* centronics = machine().device<centronics_device>("lpt");
 	UINT8 pdata;
 	int x;
@@ -737,7 +761,7 @@ READ8_MEMBER(fm7_state::fm7_cassette_printer_r)
 	if(data > 0.03)
 		ret |= 0x80;
 
-	if(machine().device<cassette_image_device>(CASSETTE_TAG)->get_state() & CASSETTE_MOTOR_DISABLED)
+	if(m_cassette->get_state() & CASSETTE_MOTOR_DISABLED)
 		ret |= 0x80;  // cassette input is high when not in use.
 
 	ret |= 0x70;
@@ -784,9 +808,9 @@ WRITE8_MEMBER(fm7_state::fm7_cassette_printer_w)
 		// bit 1: cassette motor
 		// bit 0: cassette output
 			if((data & 0x01) != (m_cp_prev & 0x01))
-				machine().device<cassette_image_device>(CASSETTE_TAG)->output((data & 0x01) ? +1.0 : -1.0);
+				m_cassette->output((data & 0x01) ? +1.0 : -1.0);
 			if((data & 0x02) != (m_cp_prev & 0x02))
-				machine().device<cassette_image_device>(CASSETTE_TAG)->change_state((data & 0x02) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+				m_cassette->change_state((data & 0x02) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
 			centronics->strobe_w(!(data & 0x40));
 			m_cp_prev = data;
 			break;
@@ -818,60 +842,59 @@ READ8_MEMBER(fm7_state::fm77av_boot_mode_r)
  *  0xfd0e - data register
  *  AY I/O ports are not connected to anything.
  */
-static void fm7_update_psg(running_machine &machine)
+void fm7_state::fm7_update_psg()
 {
-	fm7_state *state = machine.driver_data<fm7_state>();
-	address_space &space = machine.device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	if(state->m_type == SYS_FM7)
+	if(m_type == SYS_FM7)
 	{
-		switch(state->m_psg_regsel)
+		switch(m_psg_regsel)
 		{
 			case 0x00:
 				// High impedance
 				break;
 			case 0x01:
 				// Data read
-				state->m_psg_data = ay8910_r(space.machine().device("psg"),space, 0);
+				m_psg_data = m_psg->data_r(space, 0);
 				break;
 			case 0x02:
 				// Data write
-				ay8910_data_w(space.machine().device("psg"),space, 0,state->m_psg_data);
+				m_psg->data_w(space, 0,m_psg_data);
 				break;
 			case 0x03:
 				// Address latch
-				ay8910_address_w(space.machine().device("psg"),space, 0,state->m_psg_data);
+				m_psg->address_w(space, 0,m_psg_data);
 				break;
 		}
 	}
 	else
 	{   // FM-77AV and later use a YM2203
-		switch(state->m_psg_regsel)
+		switch(m_psg_regsel)
 		{
 			case 0x00:
 				// High impedance
 				break;
 			case 0x01:
 				// Data read
-				state->m_psg_data = ym2203_r(space.machine().device("ym"),space, 1);
+				m_psg_data = m_ym->read(space, 1);
 				break;
 			case 0x02:
 				// Data write
-				ym2203_w(space.machine().device("ym"),space, 1,state->m_psg_data);
-				logerror("YM: data write 0x%02x\n",state->m_psg_data);
+				m_ym->write(space, 1,m_psg_data);
+				logerror("YM: data write 0x%02x\n",m_psg_data);
 				break;
 			case 0x03:
 				// Address latch
-				ym2203_w(space.machine().device("ym"),space, 0,state->m_psg_data);
-				logerror("YM: address latch 0x%02x\n",state->m_psg_data);
+				m_ym->write(space, 0,m_psg_data);
+				logerror("YM: address latch 0x%02x\n",m_psg_data);
 				break;
 			case 0x04:
 				// Status register
-				state->m_psg_data = ym2203_r(space.machine().device("ym"),space, 0);
+				m_psg_data = m_ym->read(space, 0);
 				break;
 			case 0x09:
 				// Joystick port read
-				state->m_psg_data = space.machine().root_device().ioport("joy1")->read();
+				m_psg_data = ioport("joy1")->read();
 				break;
 		}
 	}
@@ -885,25 +908,25 @@ READ8_MEMBER(fm7_state::fm7_psg_select_r)
 WRITE8_MEMBER(fm7_state::fm7_psg_select_w)
 {
 	m_psg_regsel = data & 0x03;
-	fm7_update_psg(machine());
+	fm7_update_psg();
 }
 
 WRITE8_MEMBER(fm7_state::fm77av_ym_select_w)
 {
 	m_psg_regsel = data & 0x0f;
-	fm7_update_psg(machine());
+	fm7_update_psg();
 }
 
 READ8_MEMBER(fm7_state::fm7_psg_data_r)
 {
-//  fm7_update_psg(machine());
+//  fm7_update_psg();
 	return m_psg_data;
 }
 
 WRITE8_MEMBER(fm7_state::fm7_psg_data_w)
 {
 	m_psg_data = data;
-//  fm7_update_psg(machine());
+//  fm7_update_psg();
 }
 
 WRITE8_MEMBER(fm7_state::fm77av_bootram_w)
@@ -940,12 +963,12 @@ READ8_MEMBER(fm7_state::fm7_fmirq_r)
 
 READ8_MEMBER(fm7_state::fm77av_joy_1_r)
 {
-	return machine().root_device().ioport("joy1")->read();
+	return ioport("joy1")->read();
 }
 
 READ8_MEMBER(fm7_state::fm77av_joy_2_r)
 {
-	return machine().root_device().ioport("joy2")->read();
+	return ioport("joy2")->read();
 }
 
 READ8_MEMBER(fm7_state::fm7_unknown_r)
@@ -982,10 +1005,10 @@ READ8_MEMBER(fm7_state::fm7_mmr_r)
 	return 0xff;
 }
 
-static void fm7_update_bank(address_space & space, int bank, UINT8 physical)
+void fm7_state::fm7_update_bank(address_space & space, int bank, UINT8 physical)
 {
 	fm7_state *state = space.machine().driver_data<fm7_state>();
-	UINT8* RAM = state->memregion("maincpu")->base();
+	UINT8* RAM = memregion("maincpu")->base();
 	UINT16 size = 0xfff;
 	char bank_name[10];
 
@@ -1035,7 +1058,7 @@ static void fm7_update_bank(address_space & space, int bank, UINT8 physical)
 				space.install_readwrite_handler(bank*0x1000,(bank*0x1000)+size,read8_delegate(FUNC(fm7_state::fm7_vramB_r),state),write8_delegate(FUNC(fm7_state::fm7_vramB_w),state));
 				break;
 		}
-//      state->membank(bank+1)->set_base(RAM+(physical<<12)-0x10000);
+//      membank(bank+1)->set_base(RAM+(physical<<12)-0x10000);
 		return;
 	}
 	if(physical == 0x1c)
@@ -1050,52 +1073,51 @@ static void fm7_update_bank(address_space & space, int bank, UINT8 physical)
 	}
 	if(physical == 0x35)
 	{
-		if(state->m_init_rom_en && (state->m_type == SYS_FM11 || state->m_type == SYS_FM16))
+		if(m_init_rom_en && (m_type == SYS_FM11 || m_type == SYS_FM16))
 		{
-			RAM = space.machine().root_device().memregion("init")->base();
+			RAM = memregion("init")->base();
 			space.install_read_bank(bank*0x1000,(bank*0x1000)+size,bank_name);
 			space.nop_write(bank*0x1000,(bank*0x1000)+size);
-			state->membank(bank_name)->set_base(RAM+(physical<<12)-0x35000);
+			membank(bank_name)->set_base(RAM+(physical<<12)-0x35000);
 			return;
 		}
 	}
 	if(physical == 0x36 || physical == 0x37)
 	{
-		if(state->m_init_rom_en && (state->m_type != SYS_FM11 && state->m_type != SYS_FM16))
+		if(m_init_rom_en && (m_type != SYS_FM11 && m_type != SYS_FM16))
 		{
-			RAM = space.machine().root_device().memregion("init")->base();
+			RAM = memregion("init")->base();
 			space.install_read_bank(bank*0x1000,(bank*0x1000)+size,bank_name);
 			space.nop_write(bank*0x1000,(bank*0x1000)+size);
-			state->membank(bank_name)->set_base(RAM+(physical<<12)-0x36000);
+			membank(bank_name)->set_base(RAM+(physical<<12)-0x36000);
 			return;
 		}
 	}
 	if(physical > 0x37 && physical <= 0x3f)
 	{
-		if(state->m_basic_rom_en && (state->m_type != SYS_FM11 && state->m_type != SYS_FM16))
+		if(m_basic_rom_en && (m_type != SYS_FM11 && m_type != SYS_FM16))
 		{
-			RAM = space.machine().root_device().memregion("fbasic")->base();
+			RAM = memregion("fbasic")->base();
 			space.install_read_bank(bank*0x1000,(bank*0x1000)+size,bank_name);
 			space.nop_write(bank*0x1000,(bank*0x1000)+size);
-			state->membank(bank_name)->set_base(RAM+(physical<<12)-0x38000);
+			membank(bank_name)->set_base(RAM+(physical<<12)-0x38000);
 			return;
 		}
 	}
 	space.install_readwrite_bank(bank*0x1000,(bank*0x1000)+size,bank_name);
-	state->membank(bank_name)->set_base(RAM+(physical<<12));
+	membank(bank_name)->set_base(RAM+(physical<<12));
 }
 
-static void fm7_mmr_refresh(address_space& space)
+void fm7_state::fm7_mmr_refresh(address_space& space)
 {
-	fm7_state *state = space.machine().driver_data<fm7_state>();
 	int x;
 	UINT16 window_addr;
-	UINT8* RAM = state->memregion("maincpu")->base();
+	UINT8* RAM = memregion("maincpu")->base();
 
-	if(state->m_mmr.enabled)
+	if(m_mmr.enabled)
 	{
 		for(x=0;x<16;x++)
-			fm7_update_bank(space,x,state->m_mmr.bank_addr[state->m_mmr.segment][x]);
+			fm7_update_bank(space,x,m_mmr.bank_addr[m_mmr.segment][x]);
 	}
 	else
 	{
@@ -1104,16 +1126,16 @@ static void fm7_mmr_refresh(address_space& space)
 			fm7_update_bank(space,x,0x30+x);
 	}
 
-	if(state->m_mmr.mode & 0x40)
+	if(m_mmr.mode & 0x40)
 	{
 		// Handle window offset - 0x7c00-0x7fff will show the area of extended
 		// memory (0x00000-0x0ffff) defined by the window address register
 		// 0x00 = 0x07c00, 0x04 = 0x08000 ... 0xff = 0x07400.
-		window_addr = ((state->m_mmr.window_offset << 8) + 0x7c00) & 0xffff;
+		window_addr = ((m_mmr.window_offset << 8) + 0x7c00) & 0xffff;
 //      if(window_addr < 0xfc00)
 		{
 			space.install_readwrite_bank(0x7c00,0x7fff,"bank24");
-			state->membank("bank24")->set_base(RAM+window_addr);
+			membank("bank24")->set_base(RAM+window_addr);
 		}
 	}
 }
@@ -1205,82 +1227,80 @@ TIMER_CALLBACK_MEMBER(fm7_state::fm7_timer_irq)
 {
 	if(m_irq_mask & IRQ_FLAG_TIMER)
 	{
-		main_irq_set_flag(machine(),IRQ_FLAG_TIMER);
+		main_irq_set_flag(IRQ_FLAG_TIMER);
 	}
 }
 
 TIMER_CALLBACK_MEMBER(fm7_state::fm7_subtimer_irq)
 {
 	if(m_video.nmi_mask == 0 && m_video.sub_halt == 0)
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_NMI,PULSE_LINE);
+		m_sub->set_input_line(INPUT_LINE_NMI,PULSE_LINE);
 }
 
 // When a key is pressed or released (in scan mode only), an IRQ is generated on the main CPU,
 // or an FIRQ on the sub CPU, if masked.  Both CPUs have ports to read keyboard data.
 // Scancodes are 9 bits in FM-7 mode, 8 bits in scan mode.
-static void key_press(running_machine &machine, UINT16 scancode)
+void fm7_state::key_press(UINT16 scancode)
 {
-	fm7_state *state = machine.driver_data<fm7_state>();
-	state->m_current_scancode = scancode;
+	m_current_scancode = scancode;
 
 	if(scancode == 0)
 		return;
 
-	if(state->m_irq_mask & IRQ_FLAG_KEY)
+	if(m_irq_mask & IRQ_FLAG_KEY)
 	{
-		main_irq_set_flag(machine,IRQ_FLAG_KEY);
+		main_irq_set_flag(IRQ_FLAG_KEY);
 	}
 	else
 	{
-		machine.device("sub")->execute().set_input_line(M6809_FIRQ_LINE,ASSERT_LINE);
+		m_sub->set_input_line(M6809_FIRQ_LINE,ASSERT_LINE);
 	}
 	logerror("KEY: sent scancode 0x%03x\n",scancode);
 }
 
-static void fm7_keyboard_poll_scan(running_machine &machine)
+void fm7_state::fm7_keyboard_poll_scan()
 {
-	fm7_state *state = machine.driver_data<fm7_state>();
 	static const char *const portnames[3] = { "key1","key2","key3" };
 	int bit = 0;
 	int x,y;
 	UINT32 keys;
-	UINT32 modifiers = machine.root_device().ioport("key_modifiers")->read();
+	UINT32 modifiers = ioport("key_modifiers")->read();
 	static const UINT16 modscancodes[6] = { 0x52, 0x53, 0x54, 0x55, 0x56, 0x5a };
 
 	for(x=0;x<3;x++)
 	{
-		keys = machine.root_device().ioport(portnames[x])->read();
+		keys = ioport(portnames[x])->read();
 
 		for(y=0;y<32;y++)  // loop through each bit in the port
 		{
-			if((keys & (1<<y)) != 0 && (state->m_key_data[x] & (1<<y)) == 0)
+			if((keys & (1<<y)) != 0 && (m_key_data[x] & (1<<y)) == 0)
 			{
-				key_press(machine,fm7_key_list[bit][6]); // key press
+				key_press(fm7_key_list[bit][6]); // key press
 			}
-			if((keys & (1<<y)) == 0 && (state->m_key_data[x] & (1<<y)) != 0)
+			if((keys & (1<<y)) == 0 && (m_key_data[x] & (1<<y)) != 0)
 			{
-				key_press(machine,fm7_key_list[bit][6] | 0x80); // key release
+				key_press(fm7_key_list[bit][6] | 0x80); // key release
 			}
 			bit++;
 		}
 
-		state->m_key_data[x] = keys;
+		m_key_data[x] = keys;
 	}
 	// check modifier keys
 	bit = 0;
 	for(y=0;x<7;x++)
 	{
-		if((modifiers & (1<<y)) != 0 && (state->m_mod_data & (1<<y)) == 0)
+		if((modifiers & (1<<y)) != 0 && (m_mod_data & (1<<y)) == 0)
 		{
-			key_press(machine,modscancodes[bit]); // key press
+			key_press(modscancodes[bit]); // key press
 		}
-		if((modifiers & (1<<y)) == 0 && (state->m_mod_data & (1<<y)) != 0)
+		if((modifiers & (1<<y)) == 0 && (m_mod_data & (1<<y)) != 0)
 		{
-			key_press(machine,modscancodes[bit] | 0x80); // key release
+			key_press(modscancodes[bit] | 0x80); // key release
 		}
 		bit++;
 	}
-	state->m_mod_data = modifiers;
+	m_mod_data = modifiers;
 }
 
 TIMER_CALLBACK_MEMBER(fm7_state::fm7_keyboard_poll)
@@ -1290,12 +1310,12 @@ TIMER_CALLBACK_MEMBER(fm7_state::fm7_keyboard_poll)
 	int bit = 0;
 	int mod = 0;
 	UINT32 keys;
-	UINT32 modifiers = machine().root_device().ioport("key_modifiers")->read();
+	UINT32 modifiers = ioport("key_modifiers")->read();
 
-	if(machine().root_device().ioport("key3")->read() & 0x40000)
+	if(ioport("key3")->read() & 0x40000)
 	{
 		m_break_flag = 1;
-		machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE,ASSERT_LINE);
+		m_maincpu->set_input_line(M6809_FIRQ_LINE,ASSERT_LINE);
 	}
 	else
 		m_break_flag = 0;
@@ -1303,7 +1323,7 @@ TIMER_CALLBACK_MEMBER(fm7_state::fm7_keyboard_poll)
 	if(m_key_scan_mode == KEY_MODE_SCAN)
 	{
 		// handle scancode mode
-		fm7_keyboard_poll_scan(machine());
+		fm7_keyboard_poll_scan();
 		return;
 	}
 
@@ -1321,13 +1341,13 @@ TIMER_CALLBACK_MEMBER(fm7_state::fm7_keyboard_poll)
 
 	for(x=0;x<3;x++)
 	{
-		keys = machine().root_device().ioport(portnames[x])->read();
+		keys = ioport(portnames[x])->read();
 
 		for(y=0;y<32;y++)  // loop through each bit in the port
 		{
 			if((keys & (1<<y)) != 0 && (m_key_data[x] & (1<<y)) == 0)
 			{
-				key_press(machine(),fm7_key_list[bit][mod]); // key press
+				key_press(fm7_key_list[bit][mod]); // key press
 			}
 			bit++;
 		}
@@ -1336,33 +1356,32 @@ TIMER_CALLBACK_MEMBER(fm7_state::fm7_keyboard_poll)
 	}
 }
 
-static IRQ_CALLBACK(fm7_irq_ack)
+IRQ_CALLBACK_MEMBER(fm7_state::fm7_irq_ack)
 {
 	if(irqline == M6809_FIRQ_LINE)
-		device->machine().device("maincpu")->execute().set_input_line(irqline,CLEAR_LINE);
+		m_maincpu->set_input_line(irqline,CLEAR_LINE);
 	return -1;
 }
 
-static IRQ_CALLBACK(fm7_sub_irq_ack)
+IRQ_CALLBACK_MEMBER(fm7_state::fm7_sub_irq_ack)
 {
-	device->machine().device("sub")->execute().set_input_line(irqline,CLEAR_LINE);
+	m_sub->set_input_line(irqline,CLEAR_LINE);
 	return -1;
 }
 
-static void fm77av_fmirq(device_t* device,int irq)
+WRITE_LINE_MEMBER(fm7_state::fm77av_fmirq)
 {
-	fm7_state *state = device->machine().driver_data<fm7_state>();
-	if(irq == 1)
+	if(state == 1)
 	{
 		// cannot be masked
-		main_irq_set_flag(device->machine(),IRQ_FLAG_OTHER);
-		state->m_fm77av_ym_irq = 1;
+		main_irq_set_flag(IRQ_FLAG_OTHER);
+		m_fm77av_ym_irq = 1;
 		logerror("YM: IRQ on\n");
 	}
 	else
 	{
-		main_irq_clear_flag(device->machine(),IRQ_FLAG_OTHER);
-		state->m_fm77av_ym_irq = 0;
+		main_irq_clear_flag(IRQ_FLAG_OTHER);
+		m_fm77av_ym_irq = 0;
 		logerror("YM: IRQ off\n");
 	}
 }
@@ -1828,12 +1847,12 @@ DRIVER_INIT_MEMBER(fm7_state,fm7)
 {
 //  m_shared_ram = auto_alloc_array(machine(),UINT8,0x80);
 	m_video_ram = auto_alloc_array(machine(),UINT8,0x18000);  // 2 pages on some systems
-	m_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(fm7_state::fm7_timer_irq),this));
-	m_subtimer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(fm7_state::fm7_subtimer_irq),this));
-	m_keyboard_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(fm7_state::fm7_keyboard_poll),this));
-	m_fm77av_vsync_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(fm7_state::fm77av_vsync),this));
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(fm7_irq_ack);
-	machine().device("sub")->execute().set_irq_acknowledge_callback(fm7_sub_irq_ack);
+	m_timer = timer_alloc(TIMER_FM7_IRQ);
+	m_subtimer = timer_alloc(TIMER_FM7_SUBTIMER_IRQ);
+	m_keyboard_timer = timer_alloc(TIMER_FM7_KEYBOARD_POLL);
+	m_fm77av_vsync_timer = timer_alloc(TIMER_FM77AV_VSYNC);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(fm7_state::fm7_irq_ack),this));
+	m_sub->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(fm7_state::fm7_sub_irq_ack),this));
 }
 
 MACHINE_START_MEMBER(fm7_state,fm7)
@@ -1848,14 +1867,14 @@ MACHINE_START_MEMBER(fm7_state,fm7)
 	memset(m_shared_ram,0xff,0x80);
 	m_type = SYS_FM7;
 
-	beep_set_frequency(machine().device(BEEPER_TAG),1200);
-	beep_set_state(machine().device(BEEPER_TAG),0);
+	m_beeper->set_frequency(1200);
+	m_beeper->set_state(0);
 }
 
 MACHINE_START_MEMBER(fm7_state,fm77av)
 {
-	UINT8* RAM = machine().root_device().memregion("maincpu")->base();
-	UINT8* ROM = machine().root_device().memregion("init")->base();
+	UINT8* RAM = memregion("maincpu")->base();
+	UINT8* ROM = memregion("init")->base();
 
 	memset(m_shared_ram,0xff,0x80);
 
@@ -1863,40 +1882,39 @@ MACHINE_START_MEMBER(fm7_state,fm77av)
 	memcpy(RAM+0x3fff0,ROM+0x1ff0,16);
 
 	m_video.subrom = 0;  // default sub CPU ROM is type C.
-	RAM = machine().root_device().memregion("subsyscg")->base();
+	RAM = memregion("subsyscg")->base();
 	membank("bank20")->set_base(RAM);
 	RAM = memregion("subsys_c")->base();
 	membank("bank21")->set_base(RAM+0x800);
 
 	m_type = SYS_FM77AV;
-	beep_set_frequency(machine().device(BEEPER_TAG),1200);
-	beep_set_state(machine().device(BEEPER_TAG),0);
+	m_beeper->set_frequency(1200);
+	m_beeper->set_state(0);
 }
 
 MACHINE_START_MEMBER(fm7_state,fm11)
 {
-	UINT8* RAM = machine().root_device().memregion("maincpu")->base();
+	UINT8* RAM = memregion("maincpu")->base();
 	UINT8* ROM = memregion("init")->base();
 
 	memset(m_shared_ram,0xff,0x80);
 	m_type = SYS_FM11;
-	beep_set_frequency(machine().device(BEEPER_TAG),1200);
-	beep_set_state(machine().device(BEEPER_TAG),0);
+	m_beeper->set_frequency(1200);
+	m_beeper->set_state(0);
 	// last part of Initiate ROM is visible at the end of RAM too (interrupt vectors)
 	memcpy(RAM+0x3fff0,ROM+0x0ff0,16);
 }
 
 MACHINE_START_MEMBER(fm7_state,fm16)
 {
-
 	m_type = SYS_FM16;
-	beep_set_frequency(machine().device(BEEPER_TAG),1200);
-	beep_set_state(machine().device(BEEPER_TAG),0);
+	m_beeper->set_frequency(1200);
+	m_beeper->set_state(0);
 }
 
 void fm7_state::machine_reset()
 {
-	UINT8* RAM = machine().root_device().memregion("maincpu")->base();
+	UINT8* RAM = memregion("maincpu")->base();
 	UINT8* ROM = memregion("init")->base();
 
 	m_timer->adjust(attotime::from_nsec(2034500),0,attotime::from_nsec(2034500));
@@ -1946,24 +1964,26 @@ void fm7_state::machine_reset()
 	// set boot mode (FM-7 only, AV and later has boot RAM instead)
 	if(m_type == SYS_FM7)
 	{
-		if(!(machine().root_device().ioport("DSW")->read() & 0x02))
+		if(!(ioport("DSW")->read() & 0x02))
 		{  // DOS mode
-			membank("bank17")->set_base(machine().root_device().memregion("dos")->base());
+			membank("bank17")->set_base(memregion("dos")->base());
 		}
 		else
 		{  // BASIC mode
-			membank("bank17")->set_base(machine().root_device().memregion("basic")->base());
+			membank("bank17")->set_base(memregion("basic")->base());
 		}
 	}
 	if(m_type == SYS_FM77AV || m_type == SYS_FM77AV40EX || m_type == SYS_FM11)
 	{
-		fm7_mmr_refresh(machine().device("maincpu")->memory().space(AS_PROGRAM));
+		fm7_mmr_refresh(m_maincpu->space(AS_PROGRAM));
 	}
 	if(m_type == SYS_FM11)
 	{
 		// Probably best to halt the 8088, I'm pretty sure it and the main 6809 should not be running at the same time
-		machine().device("x86")->execute().set_input_line(INPUT_LINE_HALT,ASSERT_LINE);
+		m_x86->set_input_line(INPUT_LINE_HALT,ASSERT_LINE);
 	}
+
+	memset(m_video_ram, 0, sizeof(UINT8) * 0x18000);
 }
 
 static const wd17xx_interface fm7_mb8877a_interface =
@@ -1984,17 +2004,14 @@ static const ay8910_interface fm7_psg_intf =
 	DEVCB_NULL                  /* portB write */
 };
 
-static const ym2203_interface fm7_ym_intf =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_DRIVER_MEMBER(fm7_state,fm77av_joy_1_r),
-		DEVCB_DRIVER_MEMBER(fm7_state,fm77av_joy_2_r),
-		DEVCB_NULL,                 /* portA write */
-		DEVCB_NULL                  /* portB write */
-	},
-	DEVCB_LINE(fm77av_fmirq)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_DRIVER_MEMBER(fm7_state,fm77av_joy_1_r),
+	DEVCB_DRIVER_MEMBER(fm7_state,fm77av_joy_2_r),
+	DEVCB_NULL,                 /* portA write */
+	DEVCB_NULL                  /* portB write */
 };
 
 static const cassette_interface fm7_cassette_interface =
@@ -2033,9 +2050,9 @@ static MACHINE_CONFIG_START( fm7, fm7_state )
 	MCFG_SOUND_ADD("psg", AY8910, XTAL_4_9152MHz / 4)
 	MCFG_SOUND_CONFIG(fm7_psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono", 1.00)
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono", 0.25)
 
 	MCFG_MACHINE_START_OVERRIDE(fm7_state,fm7)
@@ -2052,7 +2069,7 @@ static MACHINE_CONFIG_START( fm7, fm7_state )
 	MCFG_PALETTE_LENGTH(8)
 
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, fm7_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
 
 	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
 
@@ -2075,9 +2092,9 @@ static MACHINE_CONFIG_START( fm8, fm7_state )
 	MCFG_QUANTUM_PERFECT_CPU("sub")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.25)
 
 	MCFG_MACHINE_START_OVERRIDE(fm7_state,fm7)
@@ -2094,7 +2111,7 @@ static MACHINE_CONFIG_START( fm8, fm7_state )
 	MCFG_PALETTE_LENGTH(8)
 
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, fm7_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
 
 	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
 
@@ -2116,11 +2133,12 @@ static MACHINE_CONFIG_START( fm77av, fm7_state )
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ym", YM2203, XTAL_4_9152MHz / 4)
-	MCFG_SOUND_CONFIG(fm7_ym_intf)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(fm7_state, fm77av_fmirq))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",1.0)
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.25)
 
 	MCFG_MACHINE_START_OVERRIDE(fm7_state,fm77av)
@@ -2136,7 +2154,7 @@ static MACHINE_CONFIG_START( fm77av, fm7_state )
 	MCFG_PALETTE_LENGTH(8 + 4096)
 
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, fm7_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
 
 	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
 
@@ -2164,9 +2182,9 @@ static MACHINE_CONFIG_START( fm11, fm7_state )
 	MCFG_CPU_IO_MAP(fm11_x86_io)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.25)
 
 	MCFG_MACHINE_START_OVERRIDE(fm7_state,fm11)
@@ -2183,7 +2201,7 @@ static MACHINE_CONFIG_START( fm11, fm7_state )
 	MCFG_PALETTE_LENGTH(8)
 
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, fm7_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
 
 	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
 
@@ -2205,9 +2223,9 @@ static MACHINE_CONFIG_START( fm16beta, fm7_state )
 	MCFG_QUANTUM_PERFECT_CPU("sub")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.25)
 
 	MCFG_MACHINE_START_OVERRIDE(fm7_state,fm16)
@@ -2224,7 +2242,7 @@ static MACHINE_CONFIG_START( fm16beta, fm7_state )
 	MCFG_PALETTE_LENGTH(8)
 
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, fm7_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", fm7_cassette_interface)
 
 	MCFG_MB8877_ADD("fdc",fm7_mb8877a_interface)
 

@@ -2,7 +2,7 @@ class route16_state : public driver_device
 {
 public:
 	route16_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_sharedram(*this, "sharedram"),
 		m_videoram1(*this, "videoram1"),
 		m_videoram2(*this, "videoram2"){ }
@@ -31,4 +31,7 @@ public:
 	UINT32 screen_update_route16(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_stratvox(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_ttmahjng(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	pen_t route16_make_pen(UINT8 color);
+	pen_t ttmajng_make_pen(UINT8 color);
+	int video_update_stratvox_ttmahjng(bitmap_rgb32 &bitmap,const rectangle &cliprect,pen_t (route16_state::*make_pen)(UINT8));
 };

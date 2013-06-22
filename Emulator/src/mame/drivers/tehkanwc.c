@@ -98,9 +98,9 @@ TO DO :
 WRITE8_MEMBER(tehkanwc_state::sub_cpu_halt_w)
 {
 	if (data)
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 	else
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 
@@ -141,12 +141,19 @@ WRITE8_MEMBER(tehkanwc_state::tehkanwc_track_1_reset_w)
 WRITE8_MEMBER(tehkanwc_state::sound_command_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-TIMER_CALLBACK_MEMBER(tehkanwc_state::reset_callback)
+void tehkanwc_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+	switch (id)
+	{
+	case TIMER_RESET:
+		m_audiocpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in tehkanwc_state::device_timer");
+	}
 }
 
 WRITE8_MEMBER(tehkanwc_state::sound_answer_w)
@@ -155,7 +162,7 @@ WRITE8_MEMBER(tehkanwc_state::sound_answer_w)
 
 	/* in Gridiron, the sound CPU goes in a tight loop after the self test, */
 	/* probably waiting to be reset by a watchdog */
-	if (space.device().safe_pc() == 0x08bc) machine().scheduler().timer_set(attotime::from_seconds(1), timer_expired_delegate(FUNC(tehkanwc_state::reset_callback),this));
+	if (space.device().safe_pc() == 0x08bc) timer_set(attotime::from_seconds(1), TIMER_RESET);
 }
 
 
@@ -184,26 +191,23 @@ WRITE8_MEMBER(tehkanwc_state::tehkanwc_portB_w)
 
 WRITE8_MEMBER(tehkanwc_state::msm_reset_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device,data ? 0 : 1);
+	m_msm->reset_w(data ? 0 : 1);
 }
 
-static void tehkanwc_adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(tehkanwc_state::tehkanwc_adpcm_int)
 {
-	tehkanwc_state *state = device->machine().driver_data<tehkanwc_state>();
+	UINT8 *SAMPLES = memregion("adpcm")->base();
+	int msm_data = SAMPLES[m_msm_data_offs & 0x7fff];
 
-	UINT8 *SAMPLES = state->memregion("adpcm")->base();
-	int msm_data = SAMPLES[state->m_msm_data_offs & 0x7fff];
-
-	if (state->m_toggle == 0)
-		msm5205_data_w(device,(msm_data >> 4) & 0x0f);
+	if (m_toggle == 0)
+		m_msm->data_w((msm_data >> 4) & 0x0f);
 	else
 	{
-		msm5205_data_w(device,msm_data & 0x0f);
-		state->m_msm_data_offs++;
+		m_msm->data_w(msm_data & 0x0f);
+		m_msm_data_offs++;
 	}
 
-	state->m_toggle ^= 1;
+	m_toggle ^= 1;
 }
 
 /* End of MSM with counters emulation */
@@ -262,10 +266,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_port, AS_IO, 8, tehkanwc_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
-	AM_RANGE(0x02, 0x02) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
+	AM_RANGE(0x00, 0x00) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
+	AM_RANGE(0x02, 0x02) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 
@@ -633,7 +637,7 @@ static const ay8910_interface ay8910_interface_2 =
 
 static const msm5205_interface msm5205_config =
 {
-	tehkanwc_adpcm_int, /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(tehkanwc_state,tehkanwc_adpcm_int), /* interrupt function */
 	MSM5205_S48_4B      /* 8KHz               */
 };
 
@@ -703,7 +707,7 @@ DRIVER_INIT_MEMBER(tehkanwc_state,teedoff)
 	    023A: 00          nop
 	*/
 
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
 	ROM[0x0238] = 0x00;
 	ROM[0x0239] = 0x00;

@@ -70,7 +70,9 @@ enum iodevice_t
 	IO_CDROM,       /* 14 - optical CD-ROM disc */
 	IO_MAGTAPE,     /* 15 - Magentic tape */
 	IO_ROM,         /* 16 - Individual ROM image - the Amstrad CPC has a few applications that were sold on 16kB ROMs */
-	IO_COUNT        /* 17 - Total Number of IO_devices for searching */
+	IO_MIDIIN,      /* 17 - MIDI In port */
+	IO_MIDIOUT,     /* 18 - MIDI Out port */
+	IO_COUNT        /* 19 - Total Number of IO_devices for searching */
 };
 
 enum image_error_t
@@ -102,12 +104,16 @@ struct image_device_format
 	astring m_optspec;
 };
 
+
 class device_image_interface;
 struct feature_list;
 struct software_part;
 struct software_info;
 
 // device image interface function types
+typedef delegate<int (device_image_interface &)> device_image_load_delegate;
+typedef delegate<void (device_image_interface &)> device_image_func_delegate;
+// legacy
 typedef int (*device_image_load_func)(device_image_interface &image);
 typedef void (*device_image_unload_func)(device_image_interface &image);
 typedef void (*device_image_partialhash_func)(hash_collection &, const unsigned char *, unsigned long, const char *);
@@ -122,14 +128,26 @@ typedef void (*device_image_display_info_func)(device_image_interface &image);
 #define IMAGE_VERIFY_PASS   FALSE
 #define IMAGE_VERIFY_FAIL   TRUE
 
-#define DEVICE_IMAGE_LOAD_NAME(name)        device_load_##name
-#define DEVICE_IMAGE_LOAD(name)             int DEVICE_IMAGE_LOAD_NAME(name)(device_image_interface &image)
+#define DEVICE_IMAGE_LOAD_NAME_LEGACY(name)        device_load_##name
+#define DEVICE_IMAGE_LOAD_LEGACY(name)             int DEVICE_IMAGE_LOAD_NAME_LEGACY(name)(device_image_interface &image)
+#define DEVICE_IMAGE_UNLOAD_NAME_LEGACY(name)      device_unload_##name
+#define DEVICE_IMAGE_UNLOAD_LEGACY(name)           void DEVICE_IMAGE_UNLOAD_NAME_LEGACY(name)(device_image_interface &image)
+#define DEVICE_IMAGE_DISPLAY_INFO_NAME(name)       device_image_display_info_func##name
+#define DEVICE_IMAGE_DISPLAY_INFO(name)            void DEVICE_IMAGE_DISPLAY_INFO_NAME(name)(device_image_interface &image)
 
-#define DEVICE_IMAGE_UNLOAD_NAME(name)      device_unload_##name
-#define DEVICE_IMAGE_UNLOAD(name)           void DEVICE_IMAGE_UNLOAD_NAME(name)(device_image_interface &image)
 
-#define DEVICE_IMAGE_DISPLAY_INFO_NAME(name)     device_image_display_info_func##name
-#define DEVICE_IMAGE_DISPLAY_INFO(name)          void DEVICE_IMAGE_DISPLAY_INFO_NAME(name)(device_image_interface &image)
+#define DEVICE_IMAGE_LOAD_MEMBER_NAME(_name)           device_image_load_##_name
+#define DEVICE_IMAGE_LOAD_NAME(_class,_name)           _class::DEVICE_IMAGE_LOAD_MEMBER_NAME(_name)
+#define DECLARE_DEVICE_IMAGE_LOAD_MEMBER(_name)        int DEVICE_IMAGE_LOAD_MEMBER_NAME(_name)(device_image_interface &image)
+#define DEVICE_IMAGE_LOAD_MEMBER(_class,_name)         int DEVICE_IMAGE_LOAD_NAME(_class,_name)(device_image_interface &image)
+#define DEVICE_IMAGE_LOAD_DELEGATE(_class,_name)       device_image_load_delegate(&DEVICE_IMAGE_LOAD_NAME(_class,_name),#_class "::device_image_load_" #_name, downcast<_class *>(device->owner()))
+
+#define DEVICE_IMAGE_UNLOAD_MEMBER_NAME(_name)          device_image_unload_##_name
+#define DEVICE_IMAGE_UNLOAD_NAME(_class,_name)          _class::DEVICE_IMAGE_UNLOAD_MEMBER_NAME(_name)
+#define DECLARE_DEVICE_IMAGE_UNLOAD_MEMBER(_name)       void DEVICE_IMAGE_UNLOAD_MEMBER_NAME(_name)(device_image_interface &image)
+#define DEVICE_IMAGE_UNLOAD_MEMBER(_class,_name)        void DEVICE_IMAGE_UNLOAD_NAME(_class,_name)(device_image_interface &image)
+#define DEVICE_IMAGE_UNLOAD_DELEGATE(_class,_name)      device_image_func_delegate(&DEVICE_IMAGE_UNLOAD_NAME(_class,_name),#_class "::device_image_unload_" #_name, downcast<_class *>(device->owner()))
+
 
 // ======================> device_image_interface
 
@@ -154,6 +172,7 @@ public:
 	virtual void call_display() { }
 	virtual void call_display_info() { }
 	virtual device_image_partialhash_func get_partial_hash() const { return NULL; }
+	virtual bool core_opens_image_file() const { return TRUE; }
 	virtual iodevice_t image_type()  const = 0;
 	virtual bool is_readable()  const = 0;
 	virtual bool is_writeable() const = 0;

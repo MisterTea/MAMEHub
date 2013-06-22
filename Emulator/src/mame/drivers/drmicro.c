@@ -25,14 +25,12 @@ Quite similar to Appoooh
 
 INTERRUPT_GEN_MEMBER(drmicro_state::drmicro_interrupt)
 {
-
 	if (m_nmi_enable)
 			device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 WRITE8_MEMBER(drmicro_state::nmi_enable_w)
 {
-
 	m_nmi_enable = data & 1;
 	m_flipscreen = (data & 2) ? 1 : 0;
 	flip_screen_set(data & 2);
@@ -41,31 +39,30 @@ WRITE8_MEMBER(drmicro_state::nmi_enable_w)
 }
 
 
-static void pcm_w(device_t *device)
+WRITE_LINE_MEMBER(drmicro_state::pcm_w)
 {
-	drmicro_state *state = device->machine().driver_data<drmicro_state>();
-	UINT8 *PCM = state->memregion("adpcm")->base();
+	UINT8 *PCM = memregion("adpcm")->base();
 
-	int data = PCM[state->m_pcm_adr / 2];
+	int data = PCM[m_pcm_adr / 2];
 
 	if (data != 0x70) // ??
 	{
-		if (~state->m_pcm_adr & 1)
+		if (~m_pcm_adr & 1)
 			data >>= 4;
 
-		msm5205_data_w(device, data & 0x0f);
-		msm5205_reset_w(device, 0);
+		m_msm->data_w(data & 0x0f);
+		m_msm->reset_w(0);
 
-		state->m_pcm_adr = (state->m_pcm_adr + 1) & 0x7fff;
+		m_pcm_adr = (m_pcm_adr + 1) & 0x7fff;
 	}
 	else
-		msm5205_reset_w(device, 1);
+		m_msm->reset_w(1);
 }
 
 WRITE8_MEMBER(drmicro_state::pcm_set_w)
 {
 	m_pcm_adr = ((data & 0x3f) << 9);
-	pcm_w(m_msm);
+	pcm_w(1);
 }
 
 /*************************************
@@ -216,7 +213,7 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_config =
 {
-	pcm_w,          /* IRQ handler */
+	DEVCB_DRIVER_LINE_MEMBER(drmicro_state,pcm_w),          /* IRQ handler */
 	MSM5205_S64_4B  /* 6 KHz */
 };
 
@@ -239,9 +236,6 @@ static const sn76496_config psg_intf =
 
 void drmicro_state::machine_start()
 {
-
-	m_msm = machine().device("msm");
-
 	save_item(NAME(m_nmi_enable));
 	save_item(NAME(m_pcm_adr));
 	save_item(NAME(m_flipscreen));
@@ -249,7 +243,6 @@ void drmicro_state::machine_start()
 
 void drmicro_state::machine_reset()
 {
-
 	m_nmi_enable = 0;
 	m_pcm_adr = 0;
 	m_flipscreen = 0;

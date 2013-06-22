@@ -32,7 +32,7 @@ WRITE8_MEMBER(ksayakyu_state::ksayakyu_videoctrl_w)
 
 void ksayakyu_state::palette_init()
 {
-	const UINT8 *prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *prom = memregion("proms")->base();
 	int r, g, b, i;
 
 	for (i = 0; i < 0x100; i++)
@@ -47,8 +47,8 @@ void ksayakyu_state::palette_init()
 
 TILE_GET_INFO_MEMBER(ksayakyu_state::get_ksayakyu_tile_info)
 {
-	int code = machine().root_device().memregion("user1")->base()[tile_index];
-	int attr = machine().root_device().memregion("user1")->base()[tile_index + 0x2000];
+	int code = memregion("user1")->base()[tile_index];
+	int attr = memregion("user1")->base()[tile_index + 0x2000];
 	code += (attr & 3) << 8;
 	SET_TILE_INFO_MEMBER(1, code, ((attr >> 2) & 0x0f) * 2, (attr & 0x80) ? TILE_FLIPX : 0);
 }
@@ -78,11 +78,10 @@ TILE_GET_INFO_MEMBER(ksayakyu_state::get_text_tile_info)
 [3]
 */
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void ksayakyu_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	ksayakyu_state *state = machine.driver_data<ksayakyu_state>();
-	const UINT8 *source = state->m_spriteram + state->m_spriteram.bytes() - 4;
-	const UINT8 *finish = state->m_spriteram;
+	const UINT8 *source = m_spriteram + m_spriteram.bytes() - 4;
+	const UINT8 *finish = m_spriteram;
 
 	while (source>=finish) /* is order correct ? */
 	{
@@ -93,9 +92,9 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		int flipx = (tile & 0x80) ? 1 : 0;
 		int flipy = 0;
 
-		gfx_element *gfx = machine.gfx[2];
+		gfx_element *gfx = machine().gfx[2];
 
-		if (state->m_flipscreen)
+		if (m_flipscreen)
 		{
 			sx = 240 - sx;
 			sy = 240 - sy;
@@ -122,13 +121,12 @@ void ksayakyu_state::video_start()
 
 UINT32 ksayakyu_state::screen_update_ksayakyu(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(0, cliprect);
 
 	if (m_video_ctrl & 1)
 		m_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	m_textmap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }

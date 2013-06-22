@@ -21,10 +21,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(exedexes_state::exedexes_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xd7);   /* RST 10h - vblank */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xd7);   /* RST 10h - vblank */
 
 	if(scanline == 0) // unknown irq event
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xcf);   /* RST 08h */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xcf);   /* RST 08h */
 }
 
 
@@ -54,7 +54,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, exedexes_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x47ff) AM_RAM
 	AM_RANGE(0x6000, 0x6000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x8002, 0x8002) AM_DEVWRITE("sn1", sn76489_device, write)
 	AM_RANGE(0x8003, 0x8003) AM_DEVWRITE("sn2", sn76489_device, write)
 ADDRESS_MAP_END
@@ -207,7 +207,6 @@ static const sn76496_config psg_intf =
 
 void exedexes_state::machine_start()
 {
-
 	save_item(NAME(m_chon));
 	save_item(NAME(m_objon));
 	save_item(NAME(m_sc1on));
@@ -216,7 +215,6 @@ void exedexes_state::machine_start()
 
 void exedexes_state::machine_reset()
 {
-
 	m_chon = 0;
 	m_objon = 0;
 	m_sc1on = 0;

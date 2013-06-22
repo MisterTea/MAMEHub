@@ -139,12 +139,21 @@ Notes:
 class kinst_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_IRQ0_STOP
+	};
+
 	kinst_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_rambase(*this, "rambase"),
 		m_rambase2(*this, "rambase2"),
 		m_control(*this, "control"),
-		m_rombase(*this, "rombase"){ }
+		m_rombase(*this, "rombase"),
+		m_maincpu(*this, "maincpu"),
+		m_ide(*this, "ide" )
+	{
+	}
 
 	required_shared_ptr<UINT32> m_rambase;
 	required_shared_ptr<UINT32> m_rambase2;
@@ -165,7 +174,11 @@ public:
 	virtual void machine_reset();
 	UINT32 screen_update_kinst(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(irq0_start);
-	TIMER_CALLBACK_MEMBER(irq0_stop);
+	required_device<cpu_device> m_maincpu;
+	required_device<ide_controller_device> m_ide;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -184,12 +197,12 @@ public:
 void kinst_state::machine_start()
 {
 	/* set the fastest DRC options */
-	mips3drc_set_options(machine().device("maincpu"), MIPS3DRC_FASTEST_OPTIONS);
+	mips3drc_set_options(m_maincpu, MIPS3DRC_FASTEST_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	mips3drc_add_fastram(machine().device("maincpu"), 0x08000000, 0x087fffff, FALSE, m_rambase2);
-	mips3drc_add_fastram(machine().device("maincpu"), 0x00000000, 0x0007ffff, FALSE, m_rambase);
-	mips3drc_add_fastram(machine().device("maincpu"), 0x1fc00000, 0x1fc7ffff, TRUE,  m_rombase);
+	mips3drc_add_fastram(m_maincpu, 0x08000000, 0x087fffff, FALSE, m_rambase2);
+	mips3drc_add_fastram(m_maincpu, 0x00000000, 0x0007ffff, FALSE, m_rambase);
+	mips3drc_add_fastram(m_maincpu, 0x1fc00000, 0x1fc7ffff, TRUE,  m_rombase);
 }
 
 
@@ -202,8 +215,7 @@ void kinst_state::machine_start()
 
 void kinst_state::machine_reset()
 {
-	ide_controller_device *ide = (ide_controller_device *) machine().device("ide");
-	UINT8 *features = ide->ide_get_features(0);
+	UINT8 *features = m_ide->ide_get_features(0);
 
 	if (strncmp(machine().system().name, "kinst2", 6) != 0)
 	{
@@ -278,22 +290,29 @@ UINT32 kinst_state::screen_update_kinst(screen_device &screen, bitmap_ind16 &bit
  *
  *************************************/
 
-TIMER_CALLBACK_MEMBER(kinst_state::irq0_stop)
+void kinst_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	switch (id)
+	{
+	case TIMER_IRQ0_STOP:
+		m_maincpu->set_input_line(0, CLEAR_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in kinst_state::device_timer");
+	}
 }
 
 
 INTERRUPT_GEN_MEMBER(kinst_state::irq0_start)
 {
 	device.execute().set_input_line(0, ASSERT_LINE);
-	machine().scheduler().timer_set(attotime::from_usec(50), timer_expired_delegate(FUNC(kinst_state::irq0_stop),this));
+	timer_set(attotime::from_usec(50), TIMER_IRQ0_STOP);
 }
 
 
 WRITE_LINE_MEMBER(kinst_state::ide_interrupt)
 {
-	machine().device("maincpu")->execute().set_input_line(1, state);
+	m_maincpu->set_input_line(1, state);
 }
 
 
@@ -306,29 +325,25 @@ WRITE_LINE_MEMBER(kinst_state::ide_interrupt)
 
 READ32_MEMBER(kinst_state::kinst_ide_r)
 {
-	device_t *device = machine().device("ide");
-	return midway_ide_asic_r(device, space, offset / 2, mem_mask);
+	return m_ide->read_cs0(space, offset / 2, mem_mask);
 }
 
 
 WRITE32_MEMBER(kinst_state::kinst_ide_w)
 {
-	device_t *device = machine().device("ide");
-	midway_ide_asic_w(device, space, offset / 2, data, mem_mask);
+	m_ide->write_cs0(space, offset / 2, data, mem_mask);
 }
 
 
 READ32_MEMBER(kinst_state::kinst_ide_extra_r)
 {
-	device_t *device = machine().device("ide");
-	return ide_controller32_r(device, space, 0x3f6/4, 0x00ff0000) >> 16;
+	return m_ide->read_cs1(space, 6, 0xff);
 }
 
 
 WRITE32_MEMBER(kinst_state::kinst_ide_extra_w)
 {
-	device_t *device = machine().device("ide");
-	ide_controller32_w(device, space, 0x3f6/4, data << 16, 0x00ff0000);
+	m_ide->write_cs1(space, 6, data, 0xff);
 }
 
 
@@ -675,7 +690,7 @@ static MACHINE_CONFIG_START( kinst, kinst_state )
 
 
 	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF, kinst_state, ide_interrupt))
+	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(kinst_state, ide_interrupt))
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)

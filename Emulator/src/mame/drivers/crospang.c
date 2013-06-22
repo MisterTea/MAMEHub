@@ -36,7 +36,7 @@
 #include "sound/okim6295.h"
 #include "sound/3812intf.h"
 #include "includes/crospang.h"
-#include "video/decospr.h"
+
 
 WRITE16_MEMBER(crospang_state::crospang_soundlatch_w)
 {
@@ -98,7 +98,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( crospang_sound_io_map, AS_IO, 8, crospang_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r, ym3812_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 	AM_RANGE(0x02, 0x02) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x06, 0x06) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -315,30 +315,20 @@ static GFXDECODE_START( crospang )
 GFXDECODE_END
 
 
-static void irqhandler( device_t *device, int linestate )
+WRITE_LINE_MEMBER(crospang_state::irqhandler)
 {
-	crospang_state *state = device->machine().driver_data<crospang_state>();
-	state->m_audiocpu->set_input_line(0, linestate);
+	m_audiocpu->set_input_line(0, state);
 }
-
-static const ym3812_interface ym3812_config =
-{
-	irqhandler  /* IRQ Line */
-};
 
 
 void crospang_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_bestri_tilebank));
 
 }
 
 void crospang_state::machine_reset()
 {
-
 	m_bestri_tilebank = 0;
 
 }
@@ -378,7 +368,7 @@ static MACHINE_CONFIG_START( crospang, crospang_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, 14318180/4)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(crospang_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
@@ -555,10 +545,10 @@ ROM_START( bestri )
 ROM_END
 
 
-static void tumblepb_gfx1_rearrange(running_machine &machine)
+void crospang_state::tumblepb_gfx1_rearrange()
 {
-	UINT8 *rom = machine.root_device().memregion("gfx1")->base();
-	int len = machine.root_device().memregion("gfx1")->bytes();
+	UINT8 *rom = memregion("gfx1")->base();
+	int len = memregion("gfx1")->bytes();
 	int i;
 
 	/* gfx data is in the wrong order */
@@ -578,7 +568,7 @@ static void tumblepb_gfx1_rearrange(running_machine &machine)
 
 DRIVER_INIT_MEMBER(crospang_state,crospang)
 {
-	tumblepb_gfx1_rearrange(machine());
+	tumblepb_gfx1_rearrange();
 }
 
 GAME( 1998, crospang, 0, crospang, crospang, crospang_state, crospang, ROT0, "F2 System", "Cross Pang", GAME_SUPPORTS_SAVE )

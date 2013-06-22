@@ -124,8 +124,6 @@
 
 
 #include "emu.h"
-#include "cpu/m6502/m6502.h"
-#include "cpu/t11/t11.h"
 #include "includes/slapstic.h"
 #include "includes/atarisy2.h"
 #include "sound/tms5220.h"
@@ -141,16 +139,6 @@
 
 /*************************************
  *
- *  Prototypes
- *
- *************************************/
-
-static void bankselect_postload(running_machine &machine);
-
-
-
-/*************************************
- *
  *  Interrupt updating
  *
  *************************************/
@@ -158,24 +146,24 @@ static void bankselect_postload(running_machine &machine);
 void atarisy2_state::update_interrupts()
 {
 	if (m_video_int_state)
-		machine().device("maincpu")->execute().set_input_line(3, ASSERT_LINE);
+		m_maincpu->set_input_line(3, ASSERT_LINE);
 	else
-		machine().device("maincpu")->execute().set_input_line(3, CLEAR_LINE);
+		m_maincpu->set_input_line(3, CLEAR_LINE);
 
 	if (m_scanline_int_state)
-		machine().device("maincpu")->execute().set_input_line(2, ASSERT_LINE);
+		m_maincpu->set_input_line(2, ASSERT_LINE);
 	else
-		machine().device("maincpu")->execute().set_input_line(2, CLEAR_LINE);
+		m_maincpu->set_input_line(2, CLEAR_LINE);
 
 	if (m_p2portwr_state)
-		machine().device("maincpu")->execute().set_input_line(1, ASSERT_LINE);
+		m_maincpu->set_input_line(1, ASSERT_LINE);
 	else
-		machine().device("maincpu")->execute().set_input_line(1, CLEAR_LINE);
+		m_maincpu->set_input_line(1, CLEAR_LINE);
 
 	if (m_p2portrd_state)
-		machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 	else
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -193,7 +181,7 @@ void atarisy2_state::scanline_update(screen_device &screen, int scanline)
 		/* generate the 32V interrupt (IRQ 2) */
 		if ((scanline % 64) == 0)
 			if (m_interrupt_enable & 4)
-				scanline_int_gen(*subdevice("maincpu"));
+				scanline_int_gen(*m_maincpu);
 	}
 }
 
@@ -225,7 +213,6 @@ MACHINE_START_MEMBER(atarisy2_state,atarisy2)
 	save_item(NAME(m_which_adc));
 	save_item(NAME(m_p2portwr_state));
 	save_item(NAME(m_p2portrd_state));
-	machine().save().register_postload(save_prepost_delegate(FUNC(bankselect_postload), &machine()));
 	save_item(NAME(m_sound_reset_state));
 }
 
@@ -236,8 +223,7 @@ MACHINE_RESET_MEMBER(atarisy2_state,atarisy2)
 	slapstic_reset();
 	scanline_timer_reset(*machine().primary_screen, 64);
 
-	address_space &main = machine().device<t11_device>("maincpu")->space(AS_PROGRAM);
-	main.set_direct_update_handler(direct_update_delegate(FUNC(atarisy2_state::atarisy2_direct_handler), this));
+	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(atarisy2_state::atarisy2_direct_handler), this));
 
 	m_p2portwr_state = 0;
 	m_p2portrd_state = 0;
@@ -273,7 +259,7 @@ WRITE16_MEMBER(atarisy2_state::int1_ack_w)
 {
 	/* reset sound CPU */
 	if (ACCESSING_BITS_0_7)
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, (data & 1) ? ASSERT_LINE : CLEAR_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_RESET, (data & 1) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -325,18 +311,18 @@ WRITE16_MEMBER(atarisy2_state::bankselect_w)
 	COMBINE_DATA(&newword);
 	m_bankselect[offset] = newword;
 
-	base = &machine().root_device().memregion("maincpu")->base()[bankoffset[(newword >> 10) & 0x3f]];
+	base = &memregion("maincpu")->base()[bankoffset[(newword >> 10) & 0x3f]];
 	memcpy(offset ? m_rombank2 : m_rombank1, base, 0x2000);
 }
 
 
-static void bankselect_postload(running_machine &machine)
+void atarisy2_state::device_post_load()
 {
-	address_space &space = machine.device("maincpu")->memory().space(AS_PROGRAM);
-	atarisy2_state *state = machine.driver_data<atarisy2_state>();
+	atarigen_state::device_post_load();
 
-	state->bankselect_w(space, 0, state->m_bankselect[0], 0xffff);
-	state->bankselect_w(space, 1, state->m_bankselect[1], 0xffff);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	bankselect_w(space, 0, m_bankselect[0], 0xffff);
+	bankselect_w(space, 1, m_bankselect[1], 0xffff);
 }
 
 
@@ -364,7 +350,7 @@ READ8_MEMBER(atarisy2_state::switch_6502_r)
 
 	if (m_cpu_to_sound_ready) result |= 0x01;
 	if (m_sound_to_cpu_ready) result |= 0x02;
-	if ((m_has_tms5220) && (tms5220_readyq_r(machine().device("tms")) == 0))
+	if ((m_has_tms5220) && (machine().device<tms5220_device>("tms")->readyq_r() == 0))
 		result &= ~0x04;
 	if (!(ioport("1801")->read() & 0x80)) result |= 0x10;
 
@@ -374,11 +360,10 @@ READ8_MEMBER(atarisy2_state::switch_6502_r)
 
 WRITE8_MEMBER(atarisy2_state::switch_6502_w)
 {
-
 	if (m_has_tms5220)
 	{
 		data = 12 | ((data >> 5) & 1);
-		tms5220_set_frequency(machine().device("tms"), MASTER_CLOCK/4 / (16 - data) / 2);
+		machine().device<tms5220_device>("tms")->set_frequency(MASTER_CLOCK/4 / (16 - data) / 2);
 	}
 }
 
@@ -687,7 +672,6 @@ WRITE8_MEMBER(atarisy2_state::mixer_w)
 
 WRITE8_MEMBER(atarisy2_state::sound_reset_w)
 {
-
 	/* if no change, do nothing */
 	if ((data & 1) == m_sound_reset_state)
 		return;
@@ -752,7 +736,7 @@ WRITE8_MEMBER(atarisy2_state::tms5220_w)
 {
 	if (m_has_tms5220)
 	{
-		tms5220_data_w(machine().device("tms"), space, 0, data);
+		machine().device<tms5220_device>("tms")->data_w(space, 0, data);
 	}
 }
 
@@ -760,7 +744,7 @@ WRITE8_MEMBER(atarisy2_state::tms5220_strobe_w)
 {
 	if (m_has_tms5220)
 	{
-		tms5220_wsq_w(machine().device("tms"), 1-(offset & 1));
+		machine().device<tms5220_device>("tms")->wsq_w(1-(offset & 1));
 	}
 }
 
@@ -787,7 +771,7 @@ WRITE8_MEMBER(atarisy2_state::coincount_w)
 /* full memory map derived from schematics */
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, atarisy2_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x1000, 0x11ff) AM_MIRROR(0x0200) AM_RAM_WRITE_LEGACY(atarisy2_paletteram_w) AM_SHARE("paletteram")
+	AM_RANGE(0x1000, 0x11ff) AM_MIRROR(0x0200) AM_RAM_WRITE(paletteram_w) AM_SHARE("paletteram")
 	AM_RANGE(0x1400, 0x1403) AM_MIRROR(0x007c) AM_READWRITE(adc_r, bankselect_w) AM_SHARE("bankselect")
 	AM_RANGE(0x1480, 0x1487) AM_MIRROR(0x0078) AM_WRITE(adc_strobe_w)
 	AM_RANGE(0x1580, 0x1581) AM_MIRROR(0x001e) AM_WRITE(int0_ack_w)
@@ -796,14 +780,14 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, atarisy2_state )
 	AM_RANGE(0x15e0, 0x15e1) AM_MIRROR(0x001e) AM_WRITE(video_int_ack_w)
 	AM_RANGE(0x1600, 0x1601) AM_MIRROR(0x007e) AM_WRITE(int_enable_w)
 	AM_RANGE(0x1680, 0x1681) AM_MIRROR(0x007e) AM_WRITE8(sound_w, 0x00ff)
-	AM_RANGE(0x1700, 0x1701) AM_MIRROR(0x007e) AM_WRITE_LEGACY(atarisy2_xscroll_w) AM_SHARE("xscroll")
-	AM_RANGE(0x1780, 0x1781) AM_MIRROR(0x007e) AM_WRITE_LEGACY(atarisy2_yscroll_w) AM_SHARE("yscroll")
+	AM_RANGE(0x1700, 0x1701) AM_MIRROR(0x007e) AM_WRITE(xscroll_w) AM_SHARE("xscroll")
+	AM_RANGE(0x1780, 0x1781) AM_MIRROR(0x007e) AM_WRITE(yscroll_w) AM_SHARE("yscroll")
 	AM_RANGE(0x1800, 0x1801) AM_MIRROR(0x03fe) AM_READ(switch_r) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x1c00, 0x1c01) AM_MIRROR(0x03fe) AM_READ(sound_r)
-	AM_RANGE(0x2000, 0x3fff) AM_READWRITE_LEGACY(atarisy2_videoram_r, atarisy2_videoram_w)
+	AM_RANGE(0x2000, 0x3fff) AM_READWRITE(videoram_r, videoram_w)
 	AM_RANGE(0x4000, 0x5fff) AM_ROM AM_SHARE("rombank1")
 	AM_RANGE(0x6000, 0x7fff) AM_ROM AM_SHARE("rombank2")
-	AM_RANGE(0x8000, 0x81ff) AM_READWRITE_LEGACY(atarisy2_slapstic_r, atarisy2_slapstic_w) AM_SHARE("slapstic_base")
+	AM_RANGE(0x8000, 0x81ff) AM_READWRITE(slapstic_r, slapstic_w) AM_SHARE("slapstic_base")
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -3194,7 +3178,7 @@ DRIVER_INIT_MEMBER(atarisy2_state,paperboy)
 
 	m_pedal_count = 0;
 	m_has_tms5220 = 1;
-	tms5220_rsq_w(machine().device("tms"),  1); // /RS is tied high on sys2 hw
+	machine().device<tms5220_device>("tms")->rsq_w(1); // /RS is tied high on sys2 hw
 }
 
 
@@ -3207,7 +3191,7 @@ DRIVER_INIT_MEMBER(atarisy2_state,720)
 
 	m_pedal_count = -1;
 	m_has_tms5220 = 1;
-	tms5220_rsq_w(machine().device("tms"),  1); // /RS is tied high on sys2 hw
+	machine().device<tms5220_device>("tms")->rsq_w(1); // /RS is tied high on sys2 hw
 }
 
 
@@ -3245,12 +3229,11 @@ DRIVER_INIT_MEMBER(atarisy2_state,csprint)
 
 DRIVER_INIT_MEMBER(atarisy2_state,apb)
 {
-
 	slapstic_init(machine(), 110);
 
 	m_pedal_count = 2;
 	m_has_tms5220 = 1;
-	tms5220_rsq_w(machine().device("tms"),  1); // /RS is tied high on sys2 hw
+	machine().device<tms5220_device>("tms")->rsq_w(1); // /RS is tied high on sys2 hw
 }
 
 

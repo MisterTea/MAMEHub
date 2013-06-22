@@ -141,14 +141,14 @@ Current Problem(s) - in order of priority
 #include "sound/okim6295.h"
 #include "includes/raiden2.h"
 
-static UINT16 rps(running_machine &machine)
+UINT16 raiden2_state::rps()
 {
-	return machine.device("maincpu")->state().state_int(NEC_CS);
+	return m_maincpu->state_int(NEC_CS);
 }
 
-static UINT16 rpc(running_machine &machine)
+UINT16 raiden2_state::rpc()
 {
-	return machine.device("maincpu")->state().state_int(NEC_IP);
+	return m_maincpu->state_int(NEC_IP);
 }
 
 WRITE16_MEMBER(raiden2_state::cop_pgm_data_w)
@@ -300,7 +300,7 @@ WRITE16_MEMBER(raiden2_state::cop_pal_brightness_val_w)
 }
 
 /* RE from Seibu Cup Soccer bootleg */
-static const UINT8 fade_table(int v)
+const UINT8 raiden2_state::fade_table(int v)
 {
 	int low  = v & 0x001f;
 	int high = v & 0x03e0;
@@ -691,16 +691,16 @@ WRITE16_MEMBER(raiden2_state::cop_cmd_w)
 		break;
 
 	default:
-		logerror("pcall %04x (%04x:%04x) [%x %x %x %x]\n", data, rps(space.machine()), rpc(space.machine()), cop_regs[0], cop_regs[1], cop_regs[2], cop_regs[3]);
+		logerror("pcall %04x (%04x:%04x) [%x %x %x %x]\n", data, rps(), rpc(), cop_regs[0], cop_regs[1], cop_regs[2], cop_regs[3]);
 	}
 }
 
 //  case 0x6ca:
 //      logerror("select bank %d %04x\n", (data >> 15) & 1, data);
-//      space.machine().root_device().membank("bank1")->set_entry((data >> 15) & 1);
+//      space.membank("bank1")->set_entry((data >> 15) & 1);
 
 
-static void combine32(UINT32 *val, int offset, UINT16 data, UINT16 mem_mask)
+void raiden2_state::combine32(UINT32 *val, int offset, UINT16 data, UINT16 mem_mask)
 {
 	UINT16 *dest = (UINT16 *)val + BYTE_XOR_LE(offset);
 	COMBINE_DATA(dest);
@@ -928,7 +928,7 @@ WRITE16_MEMBER(raiden2_state::raidendx_cop_bank_2_w)
 
 		/* probably bit 3 is from 6c9 */
 		/* TODO: this doesn't work! */
-		space.machine().root_device().membank("mainbank")->set_entry(8 | (cop_bank & 0x7000) >> 12);
+		membank("mainbank")->set_entry(8 | (cop_bank & 0x7000) >> 12);
 	}
 }
 
@@ -1055,7 +1055,7 @@ static UINT16 sprcpt_flags2;
 static UINT32 sprcpt_val[2], sprcpt_flags1;
 static UINT32 sprcpt_data_1[0x100], sprcpt_data_2[0x40], sprcpt_data_3[6], sprcpt_data_4[4];
 
-static void sprcpt_init(void)
+void raiden2_state::sprcpt_init(void)
 {
 	memset(sprcpt_data_1, 0, sizeof(sprcpt_data_1));
 	memset(sprcpt_data_2, 0, sizeof(sprcpt_data_2));
@@ -1227,7 +1227,7 @@ WRITE16_MEMBER(raiden2_state::raiden2_bank_w)
 {
 	if(ACCESSING_BITS_8_15) {
 		logerror("select bank %d %04x\n", (data >> 15) & 1, data);
-		space.machine().root_device().membank("mainbank")->set_entry(!((data >> 15) & 1));
+		membank("mainbank")->set_entry(!((data >> 15) & 1));
 		prg_bank = ((data >> 15) & 1);
 	}
 }
@@ -1367,7 +1367,7 @@ WRITE16_MEMBER(raiden2_state::cop_sort_dma_trig_w)
 				{
 					case 2: xchg_flag = (vali > valj); break;
 					case 1: xchg_flag = (vali < valj); break;
-					default: xchg_flag = 0; printf("Warning: sort-DMA used with param %02x\n",cop_sort_param); break;
+					default: xchg_flag = 0; /* printf("Warning: sort-DMA used with param %02x\n",cop_sort_param); */ break;
 				}
 
 				if(xchg_flag)
@@ -3100,25 +3100,25 @@ ROM_END
 
 DRIVER_INIT_MEMBER(raiden2_state,raiden2)
 {
-	machine().root_device().membank("mainbank")->configure_entries(0, 2, machine().root_device().memregion("mainprg")->base(), 0x20000);
+	membank("mainbank")->configure_entries(0, 2, memregion("mainprg")->base(), 0x20000);
 	raiden2_decrypt_sprites(machine());
 }
 
 DRIVER_INIT_MEMBER(raiden2_state,raidendx)
 {
-	machine().root_device().membank("mainbank")->configure_entries(0, 0x10, machine().root_device().memregion("mainprg")->base(), 0x20000);
+	membank("mainbank")->configure_entries(0, 0x10, memregion("mainprg")->base(), 0x20000);
 	raiden2_decrypt_sprites(machine());
 }
 
 DRIVER_INIT_MEMBER(raiden2_state,xsedae)
 {
 	/* doesn't have banking */
-	//machine().root_device().membank("mainbank")->configure_entries(0, 2, machine().root_device().memregion("mainprg")->base(), 0x20000);
+	//membank("mainbank")->configure_entries(0, 2, memregion("mainprg")->base(), 0x20000);
 }
 
 DRIVER_INIT_MEMBER(raiden2_state,zeroteam)
 {
-	machine().root_device().membank("mainbank")->configure_entries(0, 2, machine().root_device().memregion("mainprg")->base(), 0x20000);
+	membank("mainbank")->configure_entries(0, 2, memregion("mainprg")->base(), 0x20000);
 	zeroteam_decrypt_sprites(machine());
 }
 

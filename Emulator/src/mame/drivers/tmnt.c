@@ -185,16 +185,14 @@ WRITE16_MEMBER(tmnt_state::tmnt_sound_command_w)
 
 READ8_MEMBER(tmnt_state::punkshot_sound_r)
 {
-	device_t *device = machine().device("k053260");
 	/* If the sound CPU is running, read the status, otherwise
 	   just make it pass the test */
-	return k053260_r(device, space, 2 + offset);
+	return m_k053260->k053260_r(space, 2 + offset);
 }
 
 WRITE8_MEMBER(tmnt_state::glfgreat_sound_w)
 {
-	device_t *device = machine().device("k053260");
-	k053260_w(device, space, offset, data);
+	m_k053260->k053260_w(space, offset, data);
 
 	if (offset)
 		m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
@@ -236,7 +234,7 @@ READ8_MEMBER(tmnt_state::tmnt_sres_r)
 WRITE8_MEMBER(tmnt_state::tmnt_sres_w)
 {
 	/* bit 1 resets the UPD7795C sound chip */
-	upd7759_reset_w(m_upd, data & 2);
+	upd7759_reset_w(m_upd7759, data & 2);
 
 	/* bit 2 plays the title music */
 	if (data & 0x04)
@@ -251,14 +249,12 @@ WRITE8_MEMBER(tmnt_state::tmnt_sres_w)
 
 WRITE8_MEMBER(tmnt_state::tmnt_upd_start_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_start_w(device, data & 1);
+	upd7759_start_w(m_upd7759, data & 1);
 }
 
 READ8_MEMBER(tmnt_state::tmnt_upd_busy_r)
 {
-	device_t *device = machine().device("upd");
-	return upd7759_busy_r(device) ? 1 : 0;
+	return upd7759_busy_r(m_upd7759) ? 1 : 0;
 }
 
 
@@ -296,24 +292,31 @@ static SAMPLES_START( tmnt_decode_sample )
 #if 0
 static int sound_nmi_enabled;
 
-static void sound_nmi_callback( int param )
+void tmnt_state::sound_nmi_callback( int param )
 {
-	machine.device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, ( sound_nmi_enabled ) ? CLEAR_LINE : ASSERT_LINE );
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, ( sound_nmi_enabled ) ? CLEAR_LINE : ASSERT_LINE );
 
 	sound_nmi_enabled = 0;
 }
 #endif
 
-TIMER_CALLBACK_MEMBER(tmnt_state::nmi_callback)
+void tmnt_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_NMI:
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in tmnt_state::device_timer");
+	}
 }
 
 WRITE8_MEMBER(tmnt_state::sound_arm_nmi_w)
 {
 //  sound_nmi_enabled = 1;
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	machine().scheduler().timer_set(attotime::from_usec(50), timer_expired_delegate(FUNC(tmnt_state::nmi_callback),this));  /* kludge until the K053260 is emulated correctly */
+	timer_set(attotime::from_usec(50), TIMER_NMI);  /* kludge until the K053260 is emulated correctly */
 }
 
 
@@ -614,7 +617,7 @@ static ADDRESS_MAP_START( punkshot_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0a0006, 0x0a0007) AM_READ_PORT("P1/P2")
 	AM_RANGE(0x0a0020, 0x0a0021) AM_WRITE(punkshot_0a0020_w)
 	AM_RANGE(0x0a0040, 0x0a0043) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x0a0040, 0x0a0041) AM_DEVWRITE8_LEGACY("k053260", k053260_w, 0x00ff)
+	AM_RANGE(0x0a0040, 0x0a0041) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x0a0060, 0x0a007f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
 	AM_RANGE(0x0a0080, 0x0a0081) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, punkshot_k052109_word_noA12_w)
@@ -636,7 +639,7 @@ static ADDRESS_MAP_START( lgtnfght_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0a0010, 0x0a0011) AM_READ_PORT("DSW3")
 	AM_RANGE(0x0a0018, 0x0a0019) AM_WRITE(lgtnfght_0a0018_w)
 	AM_RANGE(0x0a0020, 0x0a0023) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x0a0020, 0x0a0021) AM_DEVWRITE8_LEGACY("k053260", k053260_w, 0x00ff)
+	AM_RANGE(0x0a0020, 0x0a0021) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x0a0028, 0x0a0029) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x0b0000, 0x0b3fff) AM_READWRITE(k053245_scattered_word_r, k053245_scattered_word_w) AM_SHARE("spriteram")
 	AM_RANGE(0x0c0000, 0x0c001f) AM_READWRITE(k053244_word_noA1_r, k053244_word_noA1_w)
@@ -647,7 +650,6 @@ ADDRESS_MAP_END
 
 WRITE16_MEMBER(tmnt_state::ssriders_soundkludge_w)
 {
-
 	/* I think this is more than just a trigger */
 	m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
@@ -668,7 +670,7 @@ static ADDRESS_MAP_START( blswhstl_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x700300, 0x700301) AM_WRITE(blswhstl_700300_w)
 	AM_RANGE(0x700400, 0x700401) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x780600, 0x780603) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x780600, 0x780601) AM_DEVWRITE8_LEGACY("k053260", k053260_w, 0x00ff)
+	AM_RANGE(0x780600, 0x780601) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x780604, 0x780605) AM_WRITE(ssriders_soundkludge_w)
 	AM_RANGE(0x780700, 0x78071f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
 ADDRESS_MAP_END
@@ -743,36 +745,32 @@ ADDRESS_MAP_END
 
 
 #if 1
-INLINE UINT32 tmnt2_get_word( running_machine &machine, UINT32 addr )
+inline UINT32 tmnt_state::tmnt2_get_word( UINT32 addr )
 {
-	tmnt_state *state = machine.driver_data<tmnt_state>();
-
 	if (addr <= 0x07ffff / 2)
-		return(state->m_tmnt2_rom[addr]);
+		return(m_tmnt2_rom[addr]);
 	else if (addr >= 0x104000 / 2 && addr <= 0x107fff / 2)
-		return(state->m_sunset_104000[addr - 0x104000 / 2]);
+		return(m_sunset_104000[addr - 0x104000 / 2]);
 	else if (addr >= 0x180000 / 2 && addr <= 0x183fff / 2)
-		return(state->m_spriteram[addr - 0x180000 / 2]);
+		return(m_spriteram[addr - 0x180000 / 2]);
 	return 0;
 }
 
-static void tmnt2_put_word( address_space &space, UINT32 addr, UINT16 data )
+void tmnt_state::tmnt2_put_word( address_space &space, UINT32 addr, UINT16 data )
 {
-	tmnt_state *state = space.machine().driver_data<tmnt_state>();
-
 	UINT32 offs;
 	if (addr >= 0x180000 / 2 && addr <= 0x183fff / 2)
 	{
-		state->m_spriteram[addr - 0x180000 / 2] = data;
+		m_spriteram[addr - 0x180000 / 2] = data;
 		offs = addr - 0x180000 / 2;
 		if (!(offs & 0x0031))
 		{
 			offs = ((offs & 0x000e) >> 1) | ((offs & 0x1fc0) >> 3);
-			k053245_word_w(state->m_k053245, space, offs, data, 0xffff);
+			k053245_word_w(m_k053245, space, offs, data, 0xffff);
 		}
 	}
 	else if (addr >= 0x104000 / 2 && addr <= 0x107fff / 2)
-		state->m_sunset_104000[addr - 0x104000 / 2] = data;
+		m_sunset_104000[addr - 0x104000 / 2] = data;
 }
 
 WRITE16_MEMBER(tmnt_state::tmnt2_1c0800_w)
@@ -798,9 +796,9 @@ WRITE16_MEMBER(tmnt_state::tmnt2_1c0800_w)
 	zlock    = (mcu[8] & 0xff) == 0x0001;
 
 	for (i = 0; i < 4; i++)
-		src[i] = tmnt2_get_word(machine(), src_addr + i);
+		src[i] = tmnt2_get_word(src_addr + i);
 	for (i = 0; i < 24; i++) mod[i] =
-		tmnt2_get_word(machine(), mod_addr + i);
+		tmnt2_get_word(mod_addr + i);
 
 	code = src[0];          // code
 
@@ -911,7 +909,7 @@ WRITE16_MEMBER(tmnt_state::tmnt2_1c0800_w)
 		CellSrc = m_tmnt2_1c0800[0x00] | (m_tmnt2_1c0800[0x01] << 16 );
 //        if (CellDest >= 0x180000 && CellDest < 0x183fe0) {
 		CellVar -= 0x104000;
-		src = (UINT16 *)(machine().root_device().memregion("maincpu")->base() + CellSrc);
+		src = (UINT16 *)(memregion("maincpu")->base() + CellSrc);
 
 		CellVar >>= 1;
 
@@ -1001,7 +999,7 @@ static ADDRESS_MAP_START( tmnt2_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x1c0800, 0x1c081f) AM_WRITE(tmnt2_1c0800_w) AM_SHARE("tmnt2_1c0800")  /* protection device */
 	AM_RANGE(0x5a0000, 0x5a001f) AM_READWRITE(k053244_word_noA1_r, k053244_word_noA1_w)
 	AM_RANGE(0x5c0600, 0x5c0603) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x5c0600, 0x5c0601) AM_DEVWRITE8_LEGACY("k053260", k053260_w, 0x00ff)
+	AM_RANGE(0x5c0600, 0x5c0601) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x5c0604, 0x5c0605) AM_WRITE(ssriders_soundkludge_w)
 	AM_RANGE(0x5c0700, 0x5c071f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
 	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_word_r, k052109_word_w)
@@ -1027,7 +1025,7 @@ static ADDRESS_MAP_START( ssriders_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x1c0800, 0x1c0803) AM_WRITE(ssriders_protection_w)
 	AM_RANGE(0x5a0000, 0x5a001f) AM_READWRITE(k053244_word_noA1_r, k053244_word_noA1_w)
 	AM_RANGE(0x5c0600, 0x5c0603) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x5c0600, 0x5c0601) AM_DEVWRITE8_LEGACY("k053260", k053260_w, 0x00ff)
+	AM_RANGE(0x5c0600, 0x5c0601) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x5c0604, 0x5c0605) AM_WRITE(ssriders_soundkludge_w)
 	AM_RANGE(0x5c0700, 0x5c071f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
 	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_word_r, k052109_word_w)
@@ -1066,7 +1064,7 @@ static ADDRESS_MAP_START( thndrx2_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x200000, 0x200fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x300000, 0x30001f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
 	AM_RANGE(0x400000, 0x400003) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x400000, 0x400001) AM_DEVWRITE8_LEGACY("k053260", k053260_w, 0x00ff)
+	AM_RANGE(0x400000, 0x400001) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x500000, 0x50003f) AM_DEVREADWRITE_LEGACY("k054000", k054000_lsb_r, k054000_lsb_w)
 	AM_RANGE(0x500100, 0x500101) AM_WRITE(thndrx2_eeprom_w)
 	AM_RANGE(0x500200, 0x500201) AM_READ_PORT("P1/COINS")
@@ -1106,7 +1104,7 @@ static ADDRESS_MAP_START( punkshot_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(sound_arm_nmi_w)
-	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r, k053260_w)
+	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
 ADDRESS_MAP_END
 
 
@@ -1114,14 +1112,14 @@ static ADDRESS_MAP_START( lgtnfght_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xc000, 0xc02f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r, k053260_w)
+	AM_RANGE(0xc000, 0xc02f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( glfgreat_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
-	AM_RANGE(0xf800, 0xf82f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r, k053260_w)
+	AM_RANGE(0xf800, 0xf82f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
 	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(sound_arm_nmi_w)
 ADDRESS_MAP_END
 
@@ -1130,7 +1128,7 @@ static ADDRESS_MAP_START( ssriders_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0x0000, 0xefff) AM_ROM
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xfa00, 0xfa2f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r, k053260_w)
+	AM_RANGE(0xfa00, 0xfa2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
 	AM_RANGE(0xfc00, 0xfc00) AM_WRITE(sound_arm_nmi_w)
 ADDRESS_MAP_END
 
@@ -1140,18 +1138,18 @@ static ADDRESS_MAP_START( thndrx2_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf801) AM_MIRROR(0x0010) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(sound_arm_nmi_w)
-	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r, k053260_w)
+	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
 ADDRESS_MAP_END
 
 
 READ8_MEMBER(tmnt_state::k054539_ctrl_r)
 {
-	return machine().device<k054539_device>("k054539")->read(space, 0x200 + offset, 0xff);
+	return m_k054539->read(space, 0x200 + offset, 0xff);
 }
 
 WRITE8_MEMBER(tmnt_state::k054539_ctrl_w)
 {
-	machine().device<k054539_device>("k054539")->write(space, 0x200 + offset, data, 0xff);
+	m_k054539->write(space, 0x200 + offset, data, 0xff);
 }
 
 static ADDRESS_MAP_START( prmrsocr_audio_map, AS_PROGRAM, 8, tmnt_state )
@@ -2015,15 +2013,15 @@ static INPUT_PORTS_START( prmrsocr )
 INPUT_PORTS_END
 
 
-static void volume_callback(device_t *device, int v)
+WRITE8_MEMBER(tmnt_state::volume_callback)
 {
-	k007232_set_volume(device, 0, (v >> 4) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232, 1, 0, (data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_config =
 {
-	volume_callback /* external port callback */
+	DEVCB_DRIVER_MEMBER(tmnt_state,volume_callback) /* external port callback */
 };
 
 static const samples_interface tmnt_samples_interface =
@@ -2176,20 +2174,6 @@ static const k053936_interface prmrsocr_k053936_interface =
 
 MACHINE_START_MEMBER(tmnt_state,common)
 {
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k007232 = machine().device("k007232");
-	m_k053260 = machine().device("k053260");
-	m_k054539 = machine().device("k054539");
-	m_upd = machine().device("upd");
-	m_samples = machine().device<samples_device>("samples");
-	m_k052109 = machine().device("k052109");
-	m_k051960 = machine().device("k051960");
-	m_k053245 = machine().device("k053245");
-	m_k053251 = machine().device("k053251");
-	m_k053936 = machine().device("k053936");
-	m_k054000 = machine().device("k054000");
-
 	save_item(NAME(m_toggle));
 	save_item(NAME(m_last));
 	save_item(NAME(m_tmnt_soundlatch));
@@ -2303,8 +2287,8 @@ MACHINE_CONFIG_END
 MACHINE_RESET_MEMBER(tmnt_state,tmnt)
 {
 	/* the UPD7759 control flip-flops are cleared: /ST is 1, /RESET is 0 */
-	upd7759_start_w(m_upd, 0);
-	upd7759_reset_w(m_upd, 1);
+	upd7759_start_w(m_upd7759, 0);
+	upd7759_reset_w(m_upd7759, 1);
 }
 
 static MACHINE_CONFIG_START( tmnt, tmnt_state )
@@ -2396,7 +2380,7 @@ static MACHINE_CONFIG_START( punkshot, tmnt_state )
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 
-	MCFG_SOUND_ADD("k053260", K053260, XTAL_3_579545MHz)
+	MCFG_K053260_ADD("k053260", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -2439,7 +2423,7 @@ static MACHINE_CONFIG_START( lgtnfght, tmnt_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k053260", K053260, XTAL_3_579545MHz)
+	MCFG_K053260_ADD("k053260", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.70)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.70)
 MACHINE_CONFIG_END
@@ -2488,7 +2472,7 @@ static MACHINE_CONFIG_START( blswhstl, tmnt_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.70)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.70)
 
-	MCFG_SOUND_ADD("k053260", K053260, XTAL_3_579545MHz)
+	MCFG_K053260_ADD("k053260", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.50)   /* fixed inverted stereo channels */
 	MCFG_SOUND_ROUTE(1, "lspeaker", 0.50)
 MACHINE_CONFIG_END
@@ -2548,7 +2532,7 @@ static MACHINE_CONFIG_START( glfgreat, tmnt_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("k053260", K053260, XTAL_3_579545MHz)
+	MCFG_K053260_ADD("k053260", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -2570,8 +2554,8 @@ static const k054539_interface k054539_config =
 MACHINE_START_MEMBER(tmnt_state,prmrsocr)
 {
 	MACHINE_START_CALL_MEMBER(common);
-	UINT8 *ROM = machine().root_device().memregion("audiocpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("audiocpu")->base();
+	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
 }
 
 static MACHINE_CONFIG_START( prmrsocr, tmnt_state )
@@ -2664,7 +2648,7 @@ static MACHINE_CONFIG_START( tmnt2, tmnt_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k053260", K053260, XTAL_3_579545MHz)
+	MCFG_K053260_ADD("k053260", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 MACHINE_CONFIG_END
@@ -2711,7 +2695,7 @@ static MACHINE_CONFIG_START( ssriders, tmnt_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k053260", K053260, XTAL_3_579545MHz)
+	MCFG_K053260_ADD("k053260", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.70)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.70)
 MACHINE_CONFIG_END
@@ -2793,7 +2777,7 @@ static MACHINE_CONFIG_START( thndrx2, tmnt_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k053260", K053260, XTAL_3_579545MHz)
+	MCFG_K053260_ADD("k053260", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 MACHINE_CONFIG_END
@@ -4095,8 +4079,8 @@ DRIVER_INIT_MEMBER(tmnt_state,mia)
 	    be shuffled around because the ROMs are connected differently to the
 	    051962 custom IC.
 	*/
-	gfxdata = machine().root_device().memregion("gfx1")->base();
-	len = machine().root_device().memregion("gfx1")->bytes();
+	gfxdata = memregion("gfx1")->base();
+	len = memregion("gfx1")->bytes();
 	for (i = 0; i < len; i += 4)
 	{
 		for (j = 0; j < 4; j++)
@@ -4116,8 +4100,8 @@ DRIVER_INIT_MEMBER(tmnt_state,mia)
 	    be shuffled around because the ROMs are connected differently to the
 	    051937 custom IC.
 	*/
-	gfxdata = machine().root_device().memregion("gfx2")->base();
-	len = machine().root_device().memregion("gfx2")->bytes();
+	gfxdata = memregion("gfx2")->base();
+	len = memregion("gfx2")->bytes();
 	for (i = 0; i < len; i += 4)
 	{
 		for (j = 0; j < 4; j++)
@@ -4188,8 +4172,8 @@ DRIVER_INIT_MEMBER(tmnt_state,tmnt)
 	    be shuffled around because the ROMs are connected differently to the
 	    051962 custom IC.
 	*/
-	gfxdata = machine().root_device().memregion("gfx1")->base();
-	len = machine().root_device().memregion("gfx1")->bytes();
+	gfxdata = memregion("gfx1")->base();
+	len = memregion("gfx1")->bytes();
 	for (i = 0; i < len; i += 4)
 	{
 		for (j = 0; j < 4; j++)
@@ -4209,8 +4193,8 @@ DRIVER_INIT_MEMBER(tmnt_state,tmnt)
 	    be shuffled around because the ROMs are connected differently to the
 	    051937 custom IC.
 	*/
-	gfxdata = machine().root_device().memregion("gfx2")->base();
-	len = machine().root_device().memregion("gfx2")->bytes();
+	gfxdata = memregion("gfx2")->base();
+	len = memregion("gfx2")->bytes();
 	for (i = 0; i < len; i += 4)
 	{
 		for (j = 0; j < 4; j++)
@@ -4227,7 +4211,7 @@ DRIVER_INIT_MEMBER(tmnt_state,tmnt)
 
 	temp = auto_alloc_array(machine(), UINT8, len);
 	memcpy(temp, gfxdata, len);
-	code_conv_table = &machine().root_device().memregion("proms")->base()[0x0000];
+	code_conv_table = &memregion("proms")->base()[0x0000];
 	for (A = 0; A < len / 4; A++)
 	{
 #define CA0 0

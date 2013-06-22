@@ -120,7 +120,6 @@ WRITE8_MEMBER(sbowling_state::sbw_videoram_w)
 
 UINT32 sbowling_state::screen_update_sbowling(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(0x18, cliprect);
 	m_sb_tilemap->draw(bitmap, cliprect, 0, 0);
 	copybitmap_trans(bitmap, *m_tmpbitmap, 0, 0, 0, 0, cliprect, m_color_prom_address);
@@ -129,19 +128,16 @@ UINT32 sbowling_state::screen_update_sbowling(screen_device &screen, bitmap_ind1
 
 void sbowling_state::video_start()
 {
-
 	m_tmpbitmap = auto_bitmap_ind16_alloc(machine(),32*8,32*8);
 	m_sb_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sbowling_state::get_sb_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 WRITE8_MEMBER(sbowling_state::pix_shift_w)
 {
-
 	m_pix_sh = data;
 }
 WRITE8_MEMBER(sbowling_state::pix_data_w)
 {
-
 	m_pix[0] = m_pix[1];
 	m_pix[1] = data;
 }
@@ -215,7 +211,6 @@ WRITE8_MEMBER(sbowling_state::graph_control_w)
 
 READ8_MEMBER(sbowling_state::controls_r)
 {
-
 	if (m_sbw_system & 2)
 		return ioport("TRACKY")->read();
 	else
@@ -225,8 +220,8 @@ READ8_MEMBER(sbowling_state::controls_r)
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, sbowling_state )
 	AM_RANGE(0x0000, 0x2fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_RAM_WRITE(sbw_videoram_w) AM_SHARE("videoram")
-	AM_RANGE(0xf800, 0xf801) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0xf801, 0xf801) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0xf800, 0xf801) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0xf801, 0xf801) AM_DEVREAD("aysnd", ay8910_device, data_r)
 	AM_RANGE(0xfc00, 0xffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -343,7 +338,7 @@ GFXDECODE_END
 
 void sbowling_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	static const int resistances_rg[3] = { 470, 270, 100 };

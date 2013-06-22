@@ -26,7 +26,6 @@ Credits:
 #include "cpu/z80/z80.h"
 #include "sound/ay8910.h"
 #include "sound/samples.h"
-#include "video/tms9927.h"
 #include "includes/thief.h"
 
 #define MASTER_CLOCK    XTAL_20MHz
@@ -36,7 +35,7 @@ Credits:
 INTERRUPT_GEN_MEMBER(thief_state::thief_interrupt)
 {
 	/* SLAM switch causes an NMI if it's pressed */
-	if( (machine().root_device().ioport("P2")->read() & 0x10) == 0 )
+	if( (ioport("P2")->read() & 0x10) == 0 )
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	else
 		device.execute().set_input_line(0, HOLD_LINE);
@@ -59,12 +58,12 @@ enum
 	kTalkTrack, kCrashTrack
 };
 
-static void tape_set_audio( samples_device *samples, int track, int bOn )
+void thief_state::tape_set_audio( samples_device *samples, int track, int bOn )
 {
 	samples->set_volume(track, bOn ? 1.0 : 0.0 );
 }
 
-static void tape_set_motor( samples_device *samples, int bOn )
+void thief_state::tape_set_motor( samples_device *samples, int bOn )
 {
 	if( bOn )
 	{
@@ -100,7 +99,6 @@ WRITE8_MEMBER(thief_state::thief_input_select_w)
 
 WRITE8_MEMBER(thief_state::tape_control_w)
 {
-	device_t *device = machine().device("samples");
 	switch( data )
 	{
 	case 0x02: /* coin meter on */
@@ -113,27 +111,27 @@ WRITE8_MEMBER(thief_state::tape_control_w)
 		break;
 
 	case 0x08: /* talk track on */
-		tape_set_audio( downcast<samples_device *>(device), kTalkTrack, 1 );
+		tape_set_audio( m_samples, kTalkTrack, 1 );
 		break;
 
 	case 0x09: /* talk track off */
-		tape_set_audio( downcast<samples_device *>(device), kTalkTrack, 0 );
+		tape_set_audio( m_samples, kTalkTrack, 0 );
 		break;
 
 	case 0x0a: /* motor on */
-		tape_set_motor( downcast<samples_device *>(device), 1 );
+		tape_set_motor( m_samples, 1 );
 		break;
 
 	case 0x0b: /* motor off */
-		tape_set_motor( downcast<samples_device *>(device), 0 );
+		tape_set_motor( m_samples, 0 );
 		break;
 
 	case 0x0c: /* crash track on */
-		tape_set_audio( downcast<samples_device *>(device), kCrashTrack, 1 );
+		tape_set_audio( m_samples, kCrashTrack, 1 );
 		break;
 
 	case 0x0d: /* crash track off */
-		tape_set_audio( downcast<samples_device *>(device), kCrashTrack, 0 );
+		tape_set_audio( m_samples, kCrashTrack, 0 );
 		break;
 	}
 }
@@ -176,12 +174,12 @@ static ADDRESS_MAP_START( io_map, AS_IO, 8, thief_state )
 	AM_RANGE(0x30, 0x30) AM_WRITE(thief_input_select_w) /* 8255 */
 	AM_RANGE(0x31, 0x31) AM_READ(thief_io_r)    /* 8255 */
 	AM_RANGE(0x33, 0x33) AM_WRITE(tape_control_w)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x41, 0x41) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x42, 0x43) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x43, 0x43) AM_DEVREAD_LEGACY("ay2", ay8910_r)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x41, 0x41) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x42, 0x43) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x43, 0x43) AM_DEVREAD("ay2", ay8910_device, data_r)
 	AM_RANGE(0x50, 0x50) AM_WRITE(thief_color_plane_w)
-	AM_RANGE(0x60, 0x6f) AM_DEVREADWRITE_LEGACY("tms", tms9927_r, tms9927_w)
+	AM_RANGE(0x60, 0x6f) AM_DEVREADWRITE("tms", tms9927_device, read, write)
 	AM_RANGE(0x70, 0x7f) AM_WRITE(thief_color_map_w)
 ADDRESS_MAP_END
 
@@ -429,7 +427,8 @@ static const samples_interface natodef_samples_interface =
 static const tms9927_interface tms9927_intf =
 {
 	"screen",
-	8
+	8,
+	NULL
 };
 
 
@@ -634,8 +633,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(thief_state,thief)
 {
-	UINT8 *dest = machine().root_device().memregion( "maincpu" )->base();
-	const UINT8 *source = machine().root_device().memregion( "cpu1" )->base();
+	UINT8 *dest = memregion( "maincpu" )->base();
+	const UINT8 *source = memregion( "cpu1" )->base();
 
 	/* C8 is mapped (banked) in CPU1's address space; it contains Z80 code */
 	memcpy( &dest[0xe010], &source[0x290], 0x20 );

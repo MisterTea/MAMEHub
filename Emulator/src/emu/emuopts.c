@@ -95,6 +95,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_SNAPNAME,                                   "%g/%i",     OPTION_STRING,     "override of the default snapshot/movie naming; %g == gamename, %i == index" },
 	{ OPTION_SNAPSIZE,                                   "auto",      OPTION_STRING,     "specify snapshot/movie resolution (<width>x<height>) or 'auto' to use minimal size " },
 	{ OPTION_SNAPVIEW,                                   "internal",  OPTION_STRING,     "specify snapshot/movie view or 'internal' to use internal pixel-aspect views" },
+	{ OPTION_STATENAME,                                  "%g",        OPTION_STRING,     "override of the default state subfolder naming; %g == gamename" },
 	{ OPTION_BURNIN,                                     "0",         OPTION_BOOLEAN,    "create burn-in snapshots for each screen" },
 
 	// performance options
@@ -195,6 +196,9 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_RAMSIZE ";ram",                             NULL,        OPTION_STRING,     "size of RAM (if supported by driver)" },
 	{ OPTION_CONFIRM_QUIT,                               "0",         OPTION_BOOLEAN,    "display confirm quit screen on exit" },
 	{ OPTION_UI_MOUSE,                                   "0",         OPTION_BOOLEAN,    "display ui mouse cursor" },
+	{ OPTION_AUTOBOOT_COMMAND ";ab",                     NULL,        OPTION_STRING,     "command to execute after machine boot" },
+	{ OPTION_AUTOBOOT_DELAY,                             "2",         OPTION_INTEGER,    "timer delay in sec to trigger command execution on autoboot" },
+	{ OPTION_AUTOBOOT_SCRIPT ";script",                  NULL,        OPTION_STRING,     "lua script to execute after machine boot" },
 	{ NULL }
 };
 
@@ -249,12 +253,18 @@ bool emu_options::add_slot_options(bool isfirst)
 
 		// retrieve info about the device instance
 		if (!exists(slot->device().tag() + 1)) {
-
 			// add the option
 			entry[0].name = slot->device().tag() + 1;
 			entry[0].description = NULL;
 			entry[0].flags = OPTION_STRING | OPTION_FLAG_DEVICE;
 			entry[0].defvalue = (slot->get_slot_interfaces() != NULL) ? slot->get_default_card() : NULL;
+			if ( entry[0].defvalue )
+			{
+				if ( slot->is_internal_option( entry[0].defvalue ) )
+				{
+					entry[0].flags |= OPTION_FLAG_INTERNAL;
+				}
+			}
 			add_entries(entry, true);
 
 			added = true;
@@ -285,7 +295,11 @@ void emu_options::update_slot_options()
 		if (exists(slot->device().tag()+1)) {
 			if (slot->get_slot_interfaces() != NULL) {
 				const char *def = slot->get_default_card_software(config,*this);
-				if (def) set_default_value(slot->device().tag()+1,def);
+				if (def)
+				{
+					set_default_value(slot->device().tag()+1,def);
+					set_flag(slot->device().tag()+1, ~OPTION_FLAG_INTERNAL, slot->is_internal_option(def) ? OPTION_FLAG_INTERNAL : 0 );
+				}
 			}
 		}
 	}
@@ -475,6 +489,9 @@ void emu_options::parse_standard_inis(astring &error_string)
 	if (parent != -1)
 		parse_one_ini(driver_list::driver(parent).name, OPTION_PRIORITY_PARENT_INI, &error_string);
 	parse_one_ini(cursystem->name, OPTION_PRIORITY_DRIVER_INI, &error_string);
+
+	// Re-evaluate slot options after loading ini files
+	update_slot_options();
 }
 
 

@@ -53,7 +53,6 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "luxor_4105"; }
 
 	// device_abc1600bus_interface overrides
 	virtual void abc1600bus_cs(UINT8 data);
@@ -72,6 +71,8 @@ private:
 	abc1600bus_slot_device *m_slot;
 
 	required_device<scsicb_device> m_sasibus;
+	required_ioport m_1e;
+	required_ioport m_5e;
 
 	int m_cs;
 	UINT8 m_data;

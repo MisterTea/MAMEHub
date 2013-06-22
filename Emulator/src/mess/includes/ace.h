@@ -24,12 +24,13 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, Z80_TAG),
 			m_ppi(*this, I8255_TAG),
-			m_speaker(*this, SPEAKER_TAG),
-			m_cassette(*this, CASSETTE_TAG),
+			m_speaker(*this, "speaker"),
+			m_cassette(*this, "cassette"),
 			m_centronics(*this, CENTRONICS_TAG),
 			m_ram(*this, RAM_TAG),
-		m_video_ram(*this, "video_ram"),
-		m_char_ram(*this, "char_ram"){ }
+			m_sp0256(*this, SP0256AL2_TAG),
+			m_video_ram(*this, "video_ram"),
+			m_char_ram(*this, "char_ram"){ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<i8255_device> m_ppi;
@@ -37,6 +38,7 @@ public:
 	required_device<cassette_image_device> m_cassette;
 	required_device<centronics_device> m_centronics;
 	required_device<ram_device> m_ram;
+	required_device<sp0256_device> m_sp0256;
 
 	virtual void machine_start();
 
@@ -70,6 +72,7 @@ public:
 	DECLARE_WRITE8_MEMBER(pio_bc_w);
 	DECLARE_READ8_MEMBER(sby_r);
 	DECLARE_WRITE8_MEMBER(ald_w);
+	DECLARE_SNAPSHOT_LOAD_MEMBER( ace );
 };
 
 #endif /* ACE_H_ */

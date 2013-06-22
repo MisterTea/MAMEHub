@@ -8,11 +8,13 @@ class gaelco_state : public driver_device
 {
 public:
 	gaelco_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_vregs(*this, "vregs"),
 		m_spriteram(*this, "spriteram"),
-		m_screen(*this, "screen"){ }
+		m_screen(*this, "screen"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoram;
@@ -25,7 +27,7 @@ public:
 	tilemap_t      *m_tilemap[2];
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	optional_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE16_MEMBER(bigkarnk_sound_command_w);
 	DECLARE_WRITE16_MEMBER(bigkarnk_coin_w);
 	DECLARE_WRITE16_MEMBER(OKIM6295_bankswitch_w);
@@ -41,4 +43,6 @@ public:
 	DECLARE_VIDEO_START(maniacsq);
 	UINT32 screen_update_bigkarnk(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_maniacsq(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

@@ -90,6 +90,15 @@ do {                                            \
 		sh2_exception(sh2,message,irq);         \
 } while(0)
 
+/* fast RAM info */
+struct fast_ram_info
+{
+	offs_t              start;                      /* start of the RAM block */
+	offs_t              end;                        /* end of the RAM block */
+	UINT8               readonly;                   /* TRUE if read-only */
+	void *              base;                       /* base in memory where the RAM lives */
+};
+
 struct sh2_state
 {
 	UINT32  ppc;
@@ -137,6 +146,7 @@ struct sh2_state
 	emu_timer *timer;
 	emu_timer *dma_current_active_timer[2];
 	int     dma_timer_active[2];
+	UINT8  dma_irq[2];
 
 	int active_dma_incs[2];
 	int active_dma_incd[2];
@@ -145,6 +155,10 @@ struct sh2_state
 	UINT32 active_dma_src[2];
 	UINT32 active_dma_dst[2];
 	UINT32 active_dma_count[2];
+	UINT16 wtcnt;
+	UINT8 wtcsr;
+
+	UINT8 sleep_mode;
 
 	int     is_slave, cpu_type;
 	int  (*dma_callback_kludge)(device_t *device, UINT32 src, UINT32 dst, UINT32 data, int size);
@@ -181,6 +195,10 @@ struct sh2_state
 	uml::code_handle *  interrupt;              /* interrupt */
 	uml::code_handle *  nocode;                 /* nocode */
 	uml::code_handle *  out_of_cycles;              /* out of cycles exception handler */
+
+	/* fast RAM */
+	UINT32              fastram_select;
+	fast_ram_info       fastram[SH2_MAX_FASTRAM];
 #endif
 };
 

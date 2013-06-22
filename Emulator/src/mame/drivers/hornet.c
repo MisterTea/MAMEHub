@@ -331,13 +331,31 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_workram(*this, "workram"),
 			m_sharc_dataram0(*this, "sharc_dataram0"),
-			m_sharc_dataram1(*this, "sharc_dataram1") { }
+			m_sharc_dataram1(*this, "sharc_dataram1") ,
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_gn680(*this, "gn680"),
+		m_dsp(*this, "dsp"),
+		m_dsp2(*this, "dsp2"),
+		m_eeprom(*this, "eeprom"),
+		m_k037122_1(*this, "k037122_1"),
+		m_k037122_2(*this, "k037122_2" ),
+		m_adc12138(*this, "adc12138") { }
 
 	UINT8 m_led_reg0;
 	UINT8 m_led_reg1;
 	required_shared_ptr<UINT32> m_workram;
 	required_shared_ptr<UINT32> m_sharc_dataram0;
 	optional_shared_ptr<UINT32> m_sharc_dataram1;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_gn680;
+	required_device<cpu_device> m_dsp;
+	optional_device<cpu_device> m_dsp2;
+	required_device<eeprom_device> m_eeprom;
+	optional_device<k037122_device> m_k037122_1;
+	optional_device<k037122_device> m_k037122_2;
+	required_device<adc12138_device> m_adc12138;
 	UINT8 *m_jvs_sdata;
 	UINT32 m_jvs_sdata_ptr;
 	emu_timer *m_sound_irq_timer;
@@ -364,6 +382,8 @@ public:
 	DECLARE_WRITE32_MEMBER(dsp_dataram0_w);
 	DECLARE_READ32_MEMBER(dsp_dataram1_r);
 	DECLARE_WRITE32_MEMBER(dsp_dataram1_w);
+	DECLARE_WRITE_LINE_MEMBER(voodoo_vblank_0);
+	DECLARE_WRITE_LINE_MEMBER(voodoo_vblank_1);
 	DECLARE_DRIVER_INIT(hornet);
 	DECLARE_DRIVER_INIT(hornet_2board);
 	virtual void machine_start();
@@ -372,6 +392,9 @@ public:
 	UINT32 screen_update_hornet(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_hornet_2board(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(irq_off);
+	int jvs_encode_data(UINT8 *in, int length);
+	int jvs_decode_data(UINT8 *in, UINT8 *out, int length);
+	void jamma_jvs_cmd_exec();
 };
 
 
@@ -379,58 +402,57 @@ public:
 
 READ32_MEMBER(hornet_state::hornet_k037122_sram_r)
 {
-	device_t *k037122 = machine().device(get_cgboard_id() ? "k037122_2" : "k037122_1");
+	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
 	return k037122_sram_r(k037122, space, offset, mem_mask);
 }
 
 WRITE32_MEMBER(hornet_state::hornet_k037122_sram_w)
 {
-	device_t *k037122 = machine().device(get_cgboard_id() ? "k037122_2" : "k037122_1");
+	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
 	k037122_sram_w(k037122, space, offset, data, mem_mask);
 }
 
 
 READ32_MEMBER(hornet_state::hornet_k037122_char_r)
 {
-	device_t *k037122 = machine().device(get_cgboard_id() ? "k037122_2" : "k037122_1");
+	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
 	return k037122_char_r(k037122, space, offset, mem_mask);
 }
 
 WRITE32_MEMBER(hornet_state::hornet_k037122_char_w)
 {
-	device_t *k037122 = machine().device(get_cgboard_id() ? "k037122_2" : "k037122_1");
+	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
 	k037122_char_w(k037122, space, offset, data, mem_mask);
 }
 
 READ32_MEMBER(hornet_state::hornet_k037122_reg_r)
 {
-	device_t *k037122 = machine().device(get_cgboard_id() ? "k037122_2" : "k037122_1");
+	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
 	return k037122_reg_r(k037122, space, offset, mem_mask);
 }
 
 WRITE32_MEMBER(hornet_state::hornet_k037122_reg_w)
 {
-	device_t *k037122 = machine().device(get_cgboard_id() ? "k037122_2" : "k037122_1");
+	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
 	k037122_reg_w(k037122, space, offset, data, mem_mask);
 }
 
-static void voodoo_vblank_0(device_t *device, int param)
+WRITE_LINE_MEMBER(hornet_state::voodoo_vblank_0)
 {
-	device->machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, param);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, state);
 }
 
-static void voodoo_vblank_1(device_t *device, int param)
+WRITE_LINE_MEMBER(hornet_state::voodoo_vblank_1)
 {
 }
 
 UINT32 hornet_state::screen_update_hornet(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	device_t *voodoo = machine().device("voodoo0");
-	device_t *k037122 = machine().device("k037122_1");
 
 	voodoo_update(voodoo, bitmap, cliprect);
 
-	k037122_tile_draw(k037122, bitmap, cliprect);
+	k037122_tile_draw(m_k037122_1, bitmap, cliprect);
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
 	draw_7segment_led(bitmap, 9, 3, m_led_reg1);
@@ -441,21 +463,19 @@ UINT32 hornet_state::screen_update_hornet_2board(screen_device &screen, bitmap_r
 {
 	if (strcmp(screen.tag(), ":lscreen") == 0)
 	{
-		device_t *k037122 = machine().device("k037122_1");
 		device_t *voodoo = machine().device("voodoo0");
 		voodoo_update(voodoo, bitmap, cliprect);
 
 		/* TODO: tilemaps per screen */
-		k037122_tile_draw(k037122, bitmap, cliprect);
+		k037122_tile_draw(m_k037122_1, bitmap, cliprect);
 	}
 	else if (strcmp(screen.tag(), ":rscreen") == 0)
 	{
-		device_t *k037122 = machine().device("k037122_2");
 		device_t *voodoo = machine().device("voodoo1");
 		voodoo_update(voodoo, bitmap, cliprect);
 
 		/* TODO: tilemaps per screen */
-		k037122_tile_draw(k037122, bitmap, cliprect);
+		k037122_tile_draw(m_k037122_2, bitmap, cliprect);
 	}
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
@@ -469,9 +489,6 @@ READ8_MEMBER(hornet_state::sysreg_r)
 {
 	UINT8 r = 0;
 	static const char *const portnames[] = { "IN0", "IN1", "IN2" };
-	device_t *adc12138 = machine().device("adc12138");
-	eeprom_device *eeprom = machine().device<eeprom_device>("eeprom");
-
 	switch (offset)
 	{
 		case 0: /* I/O port 0 */
@@ -490,8 +507,8 @@ READ8_MEMBER(hornet_state::sysreg_r)
 			    0x02 = ADDOR (ADC DOR)
 			    0x01 = ADDO (ADC DO)
 			*/
-			r = 0xf0 | (eeprom->read_bit() << 3);
-			r |= adc1213x_do_r(adc12138, space, 0) | (adc1213x_eoc_r(adc12138, space, 0) << 2);
+			r = 0xf0 | (m_eeprom->read_bit() << 3);
+			r |= m_adc12138->do_r(space, 0) | (m_adc12138->eoc_r(space, 0) << 2);
 			break;
 
 		case 4: /* I/O port 4 - DIP switches */
@@ -503,8 +520,6 @@ READ8_MEMBER(hornet_state::sysreg_r)
 
 WRITE8_MEMBER(hornet_state::sysreg_w)
 {
-	device_t *adc12138 = machine().device("adc12138");
-
 	switch (offset)
 	{
 		case 0: /* LED Register 0 */
@@ -545,12 +560,12 @@ WRITE8_MEMBER(hornet_state::sysreg_w)
 			    0x02 = ADDI (ADC DI)
 			    0x01 = ADDSCLK (ADC SCLK)
 			*/
-			adc1213x_cs_w(adc12138, space, 0, (data >> 3) & 0x1);
-			adc1213x_conv_w(adc12138, space, 0, (data >> 2) & 0x1);
-			adc1213x_di_w(adc12138, space, 0, (data >> 1) & 0x1);
-			adc1213x_sclk_w(adc12138, space, 0, data & 0x1);
+			m_adc12138->cs_w(space, 0, (data >> 3) & 0x1);
+			m_adc12138->conv_w(space, 0, (data >> 2) & 0x1);
+			m_adc12138->di_w(space, 0, (data >> 1) & 0x1);
+			m_adc12138->sclk_w(space, 0, data & 0x1);
 
-			machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, (data & 0x80) ? CLEAR_LINE : ASSERT_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_RESET, (data & 0x80) ? CLEAR_LINE : ASSERT_LINE);
 			mame_printf_debug("System register 1 = %02X\n", data);
 			break;
 
@@ -585,9 +600,9 @@ WRITE8_MEMBER(hornet_state::sysreg_w)
 			    0x01 = EXRGB
 			*/
 			if (data & 0x80)
-				machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ1, CLEAR_LINE);
+				m_maincpu->set_input_line(INPUT_LINE_IRQ1, CLEAR_LINE);
 			if (data & 0x40)
-				machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+				m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 			set_cgboard_id((data >> 4) & 3);
 			break;
 	}
@@ -625,7 +640,7 @@ WRITE32_MEMBER(hornet_state::gun_w)
 	if (mem_mask == 0xffff0000)
 	{
 		m_gn680_latch = data>>16;
-		machine().device("gn680")->execute().set_input_line(M68K_IRQ_6, HOLD_LINE);
+		m_gn680->set_input_line(M68K_IRQ_6, HOLD_LINE);
 	}
 }
 
@@ -641,7 +656,7 @@ static ADDRESS_MAP_START( hornet_map, AS_PROGRAM, 32, hornet_state )
 	AM_RANGE(0x780c0000, 0x780c0003) AM_READWRITE_LEGACY(cgboard_dsp_comm_r_ppc, cgboard_dsp_comm_w_ppc)
 	AM_RANGE(0x7d000000, 0x7d00ffff) AM_READ8(sysreg_r, 0xffffffff)
 	AM_RANGE(0x7d010000, 0x7d01ffff) AM_WRITE8(sysreg_w, 0xffffffff)
-	AM_RANGE(0x7d020000, 0x7d021fff) AM_DEVREADWRITE8_LEGACY("m48t58", timekeeper_r, timekeeper_w, 0xffffffff)  /* M48T58Y RTC/NVRAM */
+	AM_RANGE(0x7d020000, 0x7d021fff) AM_DEVREADWRITE8("m48t58", timekeeper_device, read, write, 0xffffffff)  /* M48T58Y RTC/NVRAM */
 	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVREADWRITE_LEGACY("k056800", k056800_host_r, k056800_host_w)
 	AM_RANGE(0x7d042000, 0x7d043fff) AM_RAM             /* COMM BOARD 0 */
 	AM_RANGE(0x7d044000, 0x7d044007) AM_READ(comm0_unk_r)
@@ -658,7 +673,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_memmap, AS_PROGRAM, 16, hornet_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM     /* Work RAM */
-	AM_RANGE(0x200000, 0x200fff) AM_DEVREADWRITE_LEGACY("rfsnd", rf5c400_r, rf5c400_w)      /* Ricoh RF5C400 */
+	AM_RANGE(0x200000, 0x200fff) AM_DEVREADWRITE("rfsnd", rf5c400_device, rf5c400_r, rf5c400_w)      /* Ricoh RF5C400 */
 	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE_LEGACY("k056800", k056800_sound_r, k056800_sound_w)
 	AM_RANGE(0x480000, 0x480001) AM_WRITENOP
 	AM_RANGE(0x4c0000, 0x4c0001) AM_WRITENOP
@@ -676,7 +691,7 @@ WRITE16_MEMBER(hornet_state::gn680_sysctrl)
 
 READ16_MEMBER(hornet_state::gn680_latch_r)
 {
-	machine().device("gn680")->execute().set_input_line(M68K_IRQ_6, CLEAR_LINE);
+	m_gn680->set_input_line(M68K_IRQ_6, CLEAR_LINE);
 
 	return m_gn680_latch;
 }
@@ -889,33 +904,33 @@ void hornet_state::machine_start()
 	m_jvs_sdata = auto_alloc_array_clear(machine(), UINT8, 1024);
 
 	/* set conservative DRC options */
-	ppcdrc_set_options(machine().device("maincpu"), PPCDRC_COMPATIBLE_OPTIONS);
+	ppcdrc_set_options(m_maincpu, PPCDRC_COMPATIBLE_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	ppcdrc_add_fastram(machine().device("maincpu"), 0x00000000, 0x003fffff, FALSE, m_workram);
+	ppcdrc_add_fastram(m_maincpu, 0x00000000, 0x003fffff, FALSE, m_workram);
 
-	state_save_register_global(machine(), m_led_reg0);
-	state_save_register_global(machine(), m_led_reg1);
-	state_save_register_global_pointer(machine(), m_jvs_sdata, 1024);
-	state_save_register_global(machine(), m_jvs_sdata_ptr);
+	save_item(NAME(m_led_reg0));
+	save_item(NAME(m_led_reg1));
+	save_pointer(NAME(m_jvs_sdata), 1024);
+	save_item(NAME(m_jvs_sdata_ptr));
 
 	m_sound_irq_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(hornet_state::irq_off),this));
 }
 
 void hornet_state::machine_reset()
 {
-	UINT8 *usr3 = machine().root_device().memregion("user3")->base();
-	UINT8 *usr5 = machine().root_device().memregion("user5")->base();
+	UINT8 *usr3 = memregion("user3")->base();
+	UINT8 *usr5 = memregion("user5")->base();
 	if (usr3 != NULL)
 	{
-		machine().root_device().membank("bank1")->configure_entries(0, machine().root_device().memregion("user3")->bytes() / 0x10000, usr3, 0x10000);
-		machine().root_device().membank("bank1")->set_entry(0);
+		membank("bank1")->configure_entries(0, memregion("user3")->bytes() / 0x10000, usr3, 0x10000);
+		membank("bank1")->set_entry(0);
 	}
 
-	machine().device("dsp")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
 	if (usr5)
-		machine().root_device().membank("bank5")->set_base(usr5);
+		membank("bank5")->set_base(usr5);
 }
 
 static double adc12138_input_callback( device_t *device, UINT8 input )
@@ -936,7 +951,7 @@ static const adc12138_interface hornet_adc_interface = {
 
 TIMER_CALLBACK_MEMBER(hornet_state::irq_off)
 {
-	machine().device("audiocpu")->execute().set_input_line(param, CLEAR_LINE);
+	m_audiocpu->set_input_line(param, CLEAR_LINE);
 }
 
 static void sound_irq_callback( running_machine &machine, int irq )
@@ -944,8 +959,8 @@ static void sound_irq_callback( running_machine &machine, int irq )
 	hornet_state *state = machine.driver_data<hornet_state>();
 	int line = (irq == 0) ? INPUT_LINE_IRQ1 : INPUT_LINE_IRQ2;
 
-	machine.device("audiocpu")->execute().set_input_line(line, ASSERT_LINE);
-	state->m_sound_irq_timer->adjust(attotime::from_usec(1), line);
+	state->m_audiocpu->set_input_line(line, ASSERT_LINE);
+	state->m_sound_irq_timer->adjust(attotime::from_usec(5), line);
 }
 
 static const k056800_interface hornet_k056800_interface =
@@ -985,8 +1000,8 @@ static const voodoo_config hornet_voodoo_intf =
 	0,//                tmumem1;
 	"screen",//         screen;
 	"dsp",//            cputag;
-	voodoo_vblank_0,//  vblank;
-	NULL,//             stall;
+	DEVCB_DRIVER_LINE_MEMBER(hornet_state,voodoo_vblank_0),//  vblank;
+	DEVCB_NULL//             stall;
 };
 
 static MACHINE_CONFIG_START( hornet, hornet_state )
@@ -1023,11 +1038,11 @@ static MACHINE_CONFIG_START( hornet, hornet_state )
 
 	MCFG_K037122_ADD("k037122_1", hornet_k037122_intf)
 
-	MCFG_K056800_ADD("k056800", hornet_k056800_interface)
+	MCFG_K056800_ADD("k056800", hornet_k056800_interface, 64000000/4)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("rfsnd", RF5C400, 16934400)  // value from Guru readme, gives 44100 Hz sample rate
+	MCFG_RF5C400_ADD("rfsnd", 16934400)  // value from Guru readme, gives 44100 Hz sample rate
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
@@ -1039,21 +1054,21 @@ MACHINE_CONFIG_END
 
 MACHINE_RESET_MEMBER(hornet_state,hornet_2board)
 {
-	UINT8 *usr3 = machine().root_device().memregion("user3")->base();
-	UINT8 *usr5 = machine().root_device().memregion("user5")->base();
+	UINT8 *usr3 = memregion("user3")->base();
+	UINT8 *usr5 = memregion("user5")->base();
 
 	if (usr3 != NULL)
 	{
-		machine().root_device().membank("bank1")->configure_entries(0, machine().root_device().memregion("user3")->bytes() / 0x10000, usr3, 0x10000);
-		machine().root_device().membank("bank1")->set_entry(0);
+		membank("bank1")->configure_entries(0, memregion("user3")->bytes() / 0x10000, usr3, 0x10000);
+		membank("bank1")->set_entry(0);
 	}
-	machine().device("dsp")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
-	machine().device("dsp2")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp2->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
 	if (usr5)
 	{
-		machine().root_device().membank("bank5")->set_base(usr5);
-		machine().root_device().membank("bank6")->set_base(usr5);
+		membank("bank5")->set_base(usr5);
+		membank("bank6")->set_base(usr5);
 	}
 }
 
@@ -1064,8 +1079,8 @@ static const voodoo_config voodoo_l_intf =
 	0,//                tmumem1;
 	"lscreen",//        screen;
 	"dsp",//            cputag;
-	voodoo_vblank_0,//  vblank;
-	NULL,//             stall;
+	DEVCB_DRIVER_LINE_MEMBER(hornet_state,voodoo_vblank_0),//  vblank;
+	DEVCB_NULL//             stall;
 };
 
 static const voodoo_config voodoo_r_intf =
@@ -1075,8 +1090,8 @@ static const voodoo_config voodoo_r_intf =
 	0,//                tmumem1;
 	"rscreen",//        screen;
 	"dsp2",//           cputag;
-	voodoo_vblank_1,//  vblank;
-	NULL,//             stall;
+	DEVCB_DRIVER_LINE_MEMBER(hornet_state,voodoo_vblank_1),//  vblank;
+	DEVCB_NULL//             stall;
 };
 
 static MACHINE_CONFIG_DERIVED( hornet_2board, hornet )
@@ -1140,8 +1155,6 @@ MACHINE_CONFIG_END
 
 /*****************************************************************************/
 
-static void jamma_jvs_cmd_exec(running_machine &machine);
-
 static void jamma_jvs_w(device_t *device, UINT8 data)
 {
 	hornet_state *state = device->machine().driver_data<hornet_state>();
@@ -1151,10 +1164,10 @@ static void jamma_jvs_w(device_t *device, UINT8 data)
 	state->m_jvs_sdata_ptr++;
 
 	if (state->m_jvs_sdata_ptr >= 3 && state->m_jvs_sdata_ptr >= 3 + state->m_jvs_sdata[2])
-		jamma_jvs_cmd_exec(device->machine());
+		state->jamma_jvs_cmd_exec();
 }
 
-static int jvs_encode_data(running_machine &machine, UINT8 *in, int length)
+int hornet_state::jvs_encode_data(UINT8 *in, int length)
 {
 	int inptr = 0;
 	int sum = 0;
@@ -1165,25 +1178,25 @@ static int jvs_encode_data(running_machine &machine, UINT8 *in, int length)
 		if (b == 0xe0)
 		{
 			sum += 0xd0 + 0xdf;
-			ppc4xx_spu_receive_byte(machine.device("maincpu"), 0xd0);
-			ppc4xx_spu_receive_byte(machine.device("maincpu"), 0xdf);
+			ppc4xx_spu_receive_byte(m_maincpu, 0xd0);
+			ppc4xx_spu_receive_byte(m_maincpu, 0xdf);
 		}
 		else if (b == 0xd0)
 		{
 			sum += 0xd0 + 0xcf;
-			ppc4xx_spu_receive_byte(machine.device("maincpu"), 0xd0);
-			ppc4xx_spu_receive_byte(machine.device("maincpu"), 0xcf);
+			ppc4xx_spu_receive_byte(m_maincpu, 0xd0);
+			ppc4xx_spu_receive_byte(m_maincpu, 0xcf);
 		}
 		else
 		{
 			sum += b;
-			ppc4xx_spu_receive_byte(machine.device("maincpu"), b);
+			ppc4xx_spu_receive_byte(m_maincpu, b);
 		}
 	}
 	return sum;
 }
 
-static int jvs_decode_data(UINT8 *in, UINT8 *out, int length)
+int hornet_state::jvs_decode_data(UINT8 *in, UINT8 *out, int length)
 {
 	int outptr = 0;
 	int inptr = 0;
@@ -1205,9 +1218,8 @@ static int jvs_decode_data(UINT8 *in, UINT8 *out, int length)
 	return outptr;
 }
 
-static void jamma_jvs_cmd_exec(running_machine &machine)
+void hornet_state::jamma_jvs_cmd_exec()
 {
-	hornet_state *state = machine.driver_data<hornet_state>();
 	UINT8 byte_num;
 	UINT8 data[1024], rdata[1024];
 #if 0
@@ -1216,19 +1228,19 @@ static void jamma_jvs_cmd_exec(running_machine &machine)
 	int rdata_ptr;
 	int sum;
 
-//  sync = state->m_jvs_sdata[0];
-//  node = state->m_jvs_sdata[1];
-	byte_num = state->m_jvs_sdata[2];
+//  sync = m_jvs_sdata[0];
+//  node = m_jvs_sdata[1];
+	byte_num = m_jvs_sdata[2];
 
 #if 0
 	length =
 #endif
-		jvs_decode_data(&state->m_jvs_sdata[3], data, byte_num-1);
+		jvs_decode_data(&m_jvs_sdata[3], data, byte_num-1);
 #if 0
 	printf("jvs input data:\n");
 	for (i=0; i < byte_num; i++)
 	{
-		printf("%02X ", state->m_jvs_sdata[3+i]);
+		printf("%02X ", m_jvs_sdata[3+i]);
 	}
 	printf("\n");
 
@@ -1271,13 +1283,13 @@ static void jamma_jvs_cmd_exec(running_machine &machine)
 
 	// write jvs return data
 	sum = 0x00 + (rdata_ptr+1);
-	ppc4xx_spu_receive_byte(machine.device("maincpu"), 0xe0);           // sync
-	ppc4xx_spu_receive_byte(machine.device("maincpu"), 0x00);           // node
-	ppc4xx_spu_receive_byte(machine.device("maincpu"), rdata_ptr + 1);  // num of bytes
-	sum += jvs_encode_data(machine, rdata, rdata_ptr);
-	ppc4xx_spu_receive_byte(machine.device("maincpu"), sum - 1);        // checksum
+	ppc4xx_spu_receive_byte(m_maincpu, 0xe0);           // sync
+	ppc4xx_spu_receive_byte(m_maincpu, 0x00);           // node
+	ppc4xx_spu_receive_byte(m_maincpu, rdata_ptr + 1);  // num of bytes
+	sum += jvs_encode_data(rdata, rdata_ptr);
+	ppc4xx_spu_receive_byte(m_maincpu, sum - 1);        // checksum
 
-	state->m_jvs_sdata_ptr = 0;
+	m_jvs_sdata_ptr = 0;
 }
 
 /*****************************************************************************/
@@ -1290,7 +1302,7 @@ DRIVER_INIT_MEMBER(hornet_state,hornet)
 
 	m_led_reg0 = m_led_reg1 = 0x7f;
 
-	ppc4xx_spu_set_tx_handler(machine().device("maincpu"), jamma_jvs_w);
+	ppc4xx_spu_set_tx_handler(m_maincpu, jamma_jvs_w);
 }
 
 DRIVER_INIT_MEMBER(hornet_state,hornet_2board)
@@ -1301,7 +1313,7 @@ DRIVER_INIT_MEMBER(hornet_state,hornet_2board)
 
 	m_led_reg0 = m_led_reg1 = 0x7f;
 
-	ppc4xx_spu_set_tx_handler(machine().device("maincpu"), jamma_jvs_w);
+	ppc4xx_spu_set_tx_handler(m_maincpu, jamma_jvs_w);
 }
 
 /*****************************************************************************/

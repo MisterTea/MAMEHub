@@ -19,7 +19,7 @@
 
 void namcond1_state::machine_start()
 {
-	state_save_register_global(machine(), m_h8_irq5_enabled);
+	save_item(NAME(m_h8_irq5_enabled));
 }
 
 void namcond1_state::machine_reset()
@@ -46,7 +46,7 @@ void namcond1_state::machine_reset()
 	m_h8_irq5_enabled = 0;
 
 	// halt the MCU
-	machine().device("mcu")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_mcu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 // instance of the shared ram pointer
@@ -77,7 +77,6 @@ READ16_MEMBER(namcond1_state::namcond1_cuskey_r)
 
 WRITE16_MEMBER(namcond1_state::namcond1_shared_ram_w)
 {
-
 	switch( offset )
 	{
 		default :
@@ -94,7 +93,7 @@ WRITE16_MEMBER(namcond1_state::namcond1_cuskey_w)
 			// this is a kludge until we emulate the h8
 		if ((m_h8_irq5_enabled == 0) && (data != 0x0000))
 		{
-			machine().device("mcu")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+			m_mcu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 		}
 			m_h8_irq5_enabled = ( data != 0x0000 );
 			break;

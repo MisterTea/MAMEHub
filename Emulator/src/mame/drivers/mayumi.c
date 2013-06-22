@@ -19,10 +19,10 @@ class mayumi_state : public driver_device
 {
 public:
 	mayumi_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_i8255(*this, "i8255")
-		{ }
+		m_i8255(*this, "i8255"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -47,6 +47,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_mayumi(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(mayumi_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -89,7 +90,6 @@ UINT32 mayumi_state::screen_update_mayumi(screen_device &screen, bitmap_ind16 &b
 
 INTERRUPT_GEN_MEMBER(mayumi_state::mayumi_interrupt)
 {
-
 	if (m_int_enable)
 			device.execute().set_input_line(0, HOLD_LINE);
 }
@@ -129,7 +129,7 @@ static ADDRESS_MAP_START( mayumi_io_map, AS_IO, 8, mayumi_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x30, 0x30) AM_READ_PORT("IN0") AM_WRITE(bank_sel_w)
 	AM_RANGE(0xc0, 0xc3) AM_DEVREADWRITE("i8255", i8255_device, read, write)
-	AM_RANGE(0xd0, 0xd1) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0xd0, 0xd1) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 ADDRESS_MAP_END
 
 /*************************************
@@ -356,16 +356,13 @@ GFXDECODE_END
  *
  *************************************/
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW1"),
-		DEVCB_INPUT_PORT("DSW2"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_INPUT_PORT("DSW2"),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -388,7 +385,6 @@ void mayumi_state::machine_start()
 
 void mayumi_state::machine_reset()
 {
-
 	m_int_enable = 0;
 	m_input_sel = 0;
 }
@@ -421,7 +417,7 @@ static MACHINE_CONFIG_START( mayumi, mayumi_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MCLK/4)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)

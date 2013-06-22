@@ -1,11 +1,19 @@
-
+#include "machine/mb14241.h"
 
 class fgoal_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_INTERRUPT
+	};
+
 	fgoal_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_video_ram(*this, "video_ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_video_ram(*this, "video_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_mb14241(*this, "mb14241")
+		{ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_video_ram;
@@ -24,8 +32,8 @@ public:
 	int        m_prev_coin;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	device_t *m_mb14241;
+	required_device<cpu_device> m_maincpu;
+	required_device<mb14241_device> m_mb14241;
 	DECLARE_READ8_MEMBER(fgoal_analog_r);
 	DECLARE_READ8_MEMBER(fgoal_nmi_reset_r);
 	DECLARE_READ8_MEMBER(fgoal_irq_reset_r);
@@ -48,4 +56,9 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_fgoal(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
+	int intensity(int bits);
+	unsigned video_ram_address(  );
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

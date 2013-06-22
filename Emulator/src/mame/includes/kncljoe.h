@@ -8,10 +8,12 @@ class kncljoe_state : public driver_device
 {
 public:
 	kncljoe_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_scrollregs(*this, "scrollregs"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_soundcpu(*this, "soundcpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -29,7 +31,7 @@ public:
 	UINT8      m_port2;
 
 	/* devices */
-	cpu_device *m_soundcpu;
+	required_device<cpu_device> m_soundcpu;
 	DECLARE_WRITE8_MEMBER(sound_cmd_w);
 	DECLARE_WRITE8_MEMBER(sound_irq_ack_w);
 	DECLARE_WRITE8_MEMBER(kncljoe_videoram_w);
@@ -47,4 +49,6 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_kncljoe(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(sound_nmi);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

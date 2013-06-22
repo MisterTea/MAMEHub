@@ -87,22 +87,7 @@ TODO:
    epp/ecp modes in parallel port not supported yet
    so ui disabled */
 
-/* Core includes */
-#include "emu.h"
-#include "cpu/z80/z80.h"
 #include "includes/pcw16.h"
-
-/* Components */
-#include "machine/pc_lpt.h"     /* PC-Parallel Port */
-#include "machine/pckeybrd.h"   /* PC-AT keyboard */
-#include "machine/upd765.h"     /* FDC superio */
-#include "machine/ins8250.h"    /* pc com port */
-#include "sound/beep.h"         /* pcw/pcw16 beeper */
-#include "machine/intelfsh.h"
-
-/* Devices */
-#include "formats/pc_dsk.h"
-#include "machine/ram.h"
 
 // interrupt counter
 /* controls which bank of 2mb address space is paged into memory */
@@ -124,11 +109,11 @@ void pcw16_state::pcw16_refresh_ints()
 	/* any bits set excluding vsync */
 	if ((m_system_status & (~0x04))!=0)
 	{
-		machine().device("maincpu")->execute().set_input_line(0, HOLD_LINE);
+		m_maincpu->set_input_line(0, HOLD_LINE);
 	}
 	else
 	{
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 	}
 }
 
@@ -163,25 +148,21 @@ UINT8 pcw16_state::read_bank_data(UINT8 type, UINT16 offset)
 {
 	if(type & 0x80) // DRAM
 	{
-		UINT8* RAM = machine().device<ram_device>(RAM_TAG)->pointer();
-		return RAM[((type & 0x7f)*0x4000) + offset];
+		return m_ram->pointer()[((type & 0x7f)*0x4000) + offset];
 	}
 	else  // ROM / Flash
 	{
 		if(type < 4)
 		{
-			UINT8* ROM = memregion("maincpu")->base();
-			return ROM[((type & 0x03)*0x4000)+offset+0x10000];
+			return m_region_rom->base()[((type & 0x03)*0x4000)+offset+0x10000];
 		}
 		if(type < 0x40)  // first flash
 		{
-			intel_e28f008sa_device* flash = machine().device<intel_e28f008sa_device>("flash0");
-			return flash->read(((type & 0x3f)*0x4000)+offset);
+			return m_flash0->read(((type & 0x3f)*0x4000)+offset);
 		}
 		else  // second flash
 		{
-			intel_e28f008sa_device* flash = machine().device<intel_e28f008sa_device>("flash1");
-			return flash->read(((type & 0x3f)*0x4000)+offset);
+			return m_flash1->read(((type & 0x3f)*0x4000)+offset);
 		}
 	}
 }
@@ -190,8 +171,7 @@ void pcw16_state::write_bank_data(UINT8 type, UINT16 offset, UINT8 data)
 {
 	if(type & 0x80) // DRAM
 	{
-		UINT8* RAM = machine().device<ram_device>(RAM_TAG)->pointer();
-		RAM[((type & 0x7f)*0x4000) + offset] = data;
+		m_ram->pointer()[((type & 0x7f)*0x4000) + offset] = data;
 	}
 	else  // ROM / Flash
 	{
@@ -199,13 +179,11 @@ void pcw16_state::write_bank_data(UINT8 type, UINT16 offset, UINT8 data)
 			return;  // first four sectors are write protected
 		if(type < 0x40)  // first flash
 		{
-			intel_e28f008sa_device* flash = machine().device<intel_e28f008sa_device>("flash0");
-			flash->write(((type & 0x3f)*0x4000)+offset,data);
+			m_flash0->write(((type & 0x3f)*0x4000)+offset,data);
 		}
 		else  // second flash
 		{
-			intel_e28f008sa_device* flash = machine().device<intel_e28f008sa_device>("flash1");
-			flash->write(((type & 0x3f)*0x4000)+offset,data);
+			m_flash1->write(((type & 0x3f)*0x4000)+offset,data);
 		}
 	}
 }
@@ -412,7 +390,7 @@ int pcw16_state::pcw16_keyboard_can_transmit()
 
 #ifdef UNUSED_FUNCTION
 /* issue a begin byte transfer */
-static void pcw16_begin_byte_transfer(void)
+void ::pcw16_begin_byte_transfer(void)
 {
 }
 #endif
@@ -506,7 +484,6 @@ WRITE8_MEMBER(pcw16_state::pcw16_keyboard_control_w)
 			/* just cleared? */
 			if ((m_keyboard_state & PCW16_KEYBOARD_FORCE_KEYBOARD_CLOCK)==0)
 			{
-
 				/* write */
 				/* busy */
 				m_keyboard_state |= PCW16_KEYBOARD_BUSY_STATUS;
@@ -557,7 +534,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(pcw16_state::pcw16_keyboard_timer_callback)
 		}
 	}
 	// TODO: fix
-	subdevice<ns16550_device>("ns16550_2")->ri_w((machine().root_device().ioport("EXTRA")->read() & 0x040) ? 0 : 1);
+	m_uart2->ri_w((m_io_extra->read() & 0x040) ? 0 : 1);
 }
 
 
@@ -764,7 +741,7 @@ void pcw16_state::trigger_fdc_int()
 				{
 					/* I'll pulse it because if I used hold-line I'm not sure
 					it would clear - to be checked */
-					machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+					m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 				}
 			}
 		}
@@ -789,7 +766,7 @@ READ8_MEMBER(pcw16_state::pcw16_system_status_r)
 {
 //  logerror("system status r: \n");
 
-	return m_system_status | (ioport("EXTRA")->read() & 0x04);
+	return m_system_status | (m_io_extra->read() & 0x04);
 }
 
 READ8_MEMBER(pcw16_state::pcw16_timer_interrupt_counter_r)
@@ -810,7 +787,6 @@ READ8_MEMBER(pcw16_state::pcw16_timer_interrupt_counter_r)
 
 WRITE8_MEMBER(pcw16_state::pcw16_system_control_w)
 {
-	device_t *speaker = machine().device(BEEPER_TAG);
 	//logerror("0x0f8: function: %d\n",data);
 
 	/* lower 4 bits define function code */
@@ -852,28 +828,28 @@ WRITE8_MEMBER(pcw16_state::pcw16_system_control_w)
 		/* set terminal count */
 		case 0x05:
 		{
-			machine().device<pc_fdc_superio_device>("fdc")->tc_w(true);
+			m_fdc->tc_w(true);
 		}
 		break;
 
 		/* clear terminal count */
 		case 0x06:
 		{
-			machine().device<pc_fdc_superio_device>("fdc")->tc_w(false);
+			m_fdc->tc_w(false);
 		}
 		break;
 
 		/* bleeper on */
 		case 0x0b:
 		{
-						beep_set_state(speaker,1);
+			m_beeper->set_state(1);
 		}
 		break;
 
 		/* bleeper off */
 		case 0x0c:
 		{
-						beep_set_state(speaker,0);
+			m_beeper->set_state(0);
 		}
 		break;
 
@@ -1007,7 +983,7 @@ void pcw16_state::machine_reset()
 	/* initialise defaults */
 	m_fdc_int_code = 2;
 	/* clear terminal count */
-	machine().device<pc_fdc_superio_device>("fdc")->tc_w(false);
+	m_fdc->tc_w(false);
 	/* select first rom page */
 	m_banks[0] = 0;
 //  pcw16_update_memory(machine);
@@ -1029,19 +1005,17 @@ void pcw16_state::machine_reset()
 
 void pcw16_state::machine_start()
 {
-	device_t *speaker = machine().device(BEEPER_TAG);
 	m_system_status = 0;
 	m_interrupt_counter = 0;
 
-	machine().device<pc_fdc_superio_device>("fdc")
-		->setup_intrq_cb(pc_fdc_superio_device::line_cb(FUNC(pcw16_state::fdc_interrupt), this));
+	m_fdc->setup_intrq_cb(pc_fdc_superio_device::line_cb(FUNC(pcw16_state::fdc_interrupt), this));
 
 	/* initialise keyboard */
 	at_keyboard_init(machine(), AT_KEYBOARD_TYPE_AT);
 	at_keyboard_set_scan_code_set(3);
 
-	beep_set_state(speaker,0);
-	beep_set_frequency(speaker,3750);
+	m_beeper->set_state(0);
+	m_beeper->set_frequency(3750);
 }
 
 static INPUT_PORTS_START(pcw16)
@@ -1087,14 +1061,14 @@ static MACHINE_CONFIG_START( pcw16, pcw16_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	/* printer */
 	MCFG_PC_LPT_ADD("lpt", pcw16_lpt_config)
 	MCFG_PC_FDC_SUPERIO_ADD("fdc")
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", pcw16_floppies, "35hd", 0, pcw16_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", pcw16_floppies, "35hd", 0, pcw16_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", pcw16_floppies, "35hd", pcw16_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", pcw16_floppies, "35hd", pcw16_state::floppy_formats)
 
 	MCFG_SOFTWARE_LIST_ADD("disk_list","pcw16")
 
@@ -1127,4 +1101,4 @@ ROM_END
 
 
 /*     YEAR  NAME     PARENT    COMPAT  MACHINE    INPUT     INIT    COMPANY          FULLNAME */
-COMP( 1995, pcw16,    0,        0,      pcw16,     pcw16, driver_device,    0,      "Amstrad plc",   "PCW16", GAME_NOT_WORKING )
+COMP( 1995, pcw16,    0,        0,      pcw16,     pcw16, driver_device,    0,      "Amstrad plc",   "PcW16", GAME_NOT_WORKING )

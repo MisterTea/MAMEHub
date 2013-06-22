@@ -31,9 +31,8 @@ There are 63 stars in each set, 126 displayed at any one time
 
 */
 
-const struct star star_seed_tab[252]=
+struct galaga_state::star galaga_state::m_star_seed_tab[252]=
 {
-
 /* also shared by Bosconian */
 
 /* star set 0 */
@@ -326,7 +325,7 @@ const struct star star_seed_tab[252]=
 
 PALETTE_INIT_MEMBER(galaga_state,galaga)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	machine().colortable = colortable_alloc(machine(), 32+64);
@@ -453,14 +452,12 @@ VIDEO_START_MEMBER(galaga_state,galaga)
 
 WRITE8_MEMBER(galaga_state::galaga_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset & 0x3ff);
 }
 
 WRITE8_MEMBER(galaga_state::gatsbee_bank_w)
 {
-
 	m_galaga_gfxbank = data & 0x1;
 	m_fg_tilemap->mark_all_dirty();
 }
@@ -473,13 +470,11 @@ WRITE8_MEMBER(galaga_state::gatsbee_bank_w)
 
 ***************************************************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void galaga_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	galaga_state *state =  machine.driver_data<galaga_state>();
-
-	UINT8 *spriteram = state->m_galaga_ram1 + 0x380;
-	UINT8 *spriteram_2 = state->m_galaga_ram2 + 0x380;
-	UINT8 *spriteram_3 = state->m_galaga_ram3 + 0x380;
+	UINT8 *spriteram = m_galaga_ram1 + 0x380;
+	UINT8 *spriteram_2 = m_galaga_ram2 + 0x380;
+	UINT8 *spriteram_3 = m_galaga_ram3 + 0x380;
 	int offs;
 
 
@@ -503,7 +498,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		sy -= 16 * sizey;
 		sy = (sy & 0xff) - 32;  // fix wraparound
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			flipx ^= 1;
 			flipy ^= 1;
@@ -515,47 +510,46 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		{
 			for (x = 0;x <= sizex;x++)
 			{
-				drawgfx_transmask(bitmap,cliprect,machine.gfx[1],
+				drawgfx_transmask(bitmap,cliprect,machine().gfx[1],
 					sprite + gfx_offs[y ^ (sizey * flipy)][x ^ (sizex * flipx)],
 					color,
 					flipx,flipy,
 					sx + 16*x, sy + 16*y,
-					colortable_get_transpen_mask(machine.colortable, machine.gfx[1], color, 0x0f));
+					colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 0x0f));
 			}
 		}
 	}
 }
 
 
-static void draw_stars(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void galaga_state::draw_stars(bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	galaga_state *state =  machine.driver_data<galaga_state>();
 	/* draw the stars */
 
 	/* $a005 controls the stars ON/OFF */
-	if ( (state->m_galaga_starcontrol[5] & 1) == 1 )
+	if ( (m_galaga_starcontrol[5] & 1) == 1 )
 	{
 		int y_align = 112; /* 112 is a tweak to get alignment about perfect */
-		int x_align = state->flip_screen() ? 112 : 16;
+		int x_align = flip_screen() ? 112 : 16;
 
 		int star_cntr;
 		int set_a, set_b;
 
 		/* two sets of stars controlled by these bits */
-		set_a = (state->m_galaga_starcontrol[3] & 1);
-		set_b = (state->m_galaga_starcontrol[4] & 1) | 2;
+		set_a = (m_galaga_starcontrol[3] & 1);
+		set_b = (m_galaga_starcontrol[4] & 1) | 2;
 
 		for (star_cntr = 0;star_cntr < MAX_STARS ;star_cntr++)
 		{
 			int x,y;
 
-			if ( (set_a == star_seed_tab[star_cntr].set) || ( set_b == star_seed_tab[star_cntr].set) )
+			if ( (set_a == m_star_seed_tab[star_cntr].set) || ( set_b == m_star_seed_tab[star_cntr].set) )
 			{
-				x = (star_seed_tab[star_cntr].x + state->m_stars_scrollx) % 256 + x_align;
-				y = (y_align + star_seed_tab[star_cntr].y + state->m_stars_scrolly) % 256;
+				x = (m_star_seed_tab[star_cntr].x + m_stars_scrollx) % 256 + x_align;
+				y = (y_align + m_star_seed_tab[star_cntr].y + m_stars_scrolly) % 256;
 
 				if (cliprect.contains(x, y))
-					bitmap.pix16(y, x) = STARS_COLOR_BASE + star_seed_tab[ star_cntr ].col;
+					bitmap.pix16(y, x) = STARS_COLOR_BASE + m_star_seed_tab[ star_cntr ].col;
 			}
 
 		}
@@ -564,10 +558,9 @@ static void draw_stars(running_machine &machine, bitmap_ind16 &bitmap, const rec
 
 UINT32 galaga_state::screen_update_galaga(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	draw_stars(machine(),bitmap,cliprect);
-	draw_sprites(machine(),bitmap,cliprect);
+	draw_stars(bitmap,cliprect);
+	draw_sprites(bitmap,cliprect);
 	m_fg_tilemap->draw(bitmap, cliprect, 0,0);
 	return 0;
 }

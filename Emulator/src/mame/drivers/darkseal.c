@@ -20,7 +20,6 @@
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "includes/darkseal.h"
-#include "video/decospr.h"
 #include "video/deco16ic.h"
 
 /******************************************************************************/
@@ -33,7 +32,7 @@ WRITE16_MEMBER(darkseal_state::darkseal_control_w)
 		return;
 	case 8: /* Sound CPU write */
 		soundlatch_byte_w(space, 0, data & 0xff);
-		machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+		m_audiocpu->set_input_line(0, HOLD_LINE);
 		return;
 	case 0xa: /* IRQ Ack (VBL) */
 		return;
@@ -84,7 +83,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, darkseal_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
+	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
 	AM_RANGE(0x110000, 0x110001) AM_DEVREADWRITE("ym2", ym2151_device, read, write)
 	AM_RANGE(0x120000, 0x120001) AM_DEVREADWRITE("oki1", okim6295_device, read, write)
 	AM_RANGE(0x130000, 0x130001) AM_DEVREADWRITE("oki2", okim6295_device, read, write)
@@ -460,7 +459,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(darkseal_state,darkseal)
 {
-	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *RAM = memregion("maincpu")->base();
 	int i;
 
 	for (i=0x00000; i<0x80000; i++)

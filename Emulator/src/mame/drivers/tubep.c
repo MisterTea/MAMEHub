@@ -155,7 +155,7 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(tubep_state::main_cpu_irq_line_clear_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 	logerror("CPU#0 VBLANK int clear at scanline=%3i\n", m_curr_scanline);
 	return;
 }
@@ -191,7 +191,7 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(tubep_state::second_cpu_irq_line_clear_w)
 {
-	machine().device("slave")->execute().set_input_line(0, CLEAR_LINE);
+	m_slave->set_input_line(0, CLEAR_LINE);
 	logerror("CPU#1 VBLANK int clear at scanline=%3i\n", m_curr_scanline);
 	return;
 }
@@ -226,7 +226,7 @@ READ8_MEMBER(tubep_state::tubep_soundlatch_r)
 
 READ8_MEMBER(tubep_state::tubep_sound_irq_ack)
 {
-	machine().device("soundcpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_soundcpu->set_input_line(0, CLEAR_LINE);
 	return 0;
 }
 
@@ -246,12 +246,31 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tubep_sound_portmap, AS_IO, 8, tubep_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x04, 0x05) AM_DEVWRITE_LEGACY("ay3", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x04, 0x05) AM_DEVWRITE("ay3", ay8910_device, address_data_w)
 	AM_RANGE(0x06, 0x06) AM_READ(tubep_soundlatch_r)
 	AM_RANGE(0x07, 0x07) AM_WRITE(tubep_sound_unknown)
 ADDRESS_MAP_END
+
+
+void tubep_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_SPRITE:
+		m_mcu->set_input_line(0, ASSERT_LINE);
+		break;
+	case TIMER_TUBEP_SCANLINE:
+		tubep_scanline_callback(ptr, param);
+		break;
+	case TIMER_RJAMMER_SCANLINE:
+		rjammer_scanline_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in tubep_state::device_timer");
+	}
+}
 
 
 TIMER_CALLBACK_MEMBER(tubep_state::tubep_scanline_callback)
@@ -265,7 +284,7 @@ TIMER_CALLBACK_MEMBER(tubep_state::tubep_scanline_callback)
 	if (scanline == 240)
 	{
 		logerror("VBLANK CPU#0\n");
-		machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 	}
 
 
@@ -274,7 +293,7 @@ TIMER_CALLBACK_MEMBER(tubep_state::tubep_scanline_callback)
 	if (scanline == 16)
 	{
 		logerror("/VBLANK CPU#1\n");
-		machine().device("slave")->execute().set_input_line(0, ASSERT_LINE);
+		m_slave->set_input_line(0, ASSERT_LINE);
 	}
 
 
@@ -283,15 +302,15 @@ TIMER_CALLBACK_MEMBER(tubep_state::tubep_scanline_callback)
 	if (scanline == 16)
 	{
 		logerror("/nmi CPU#3\n");
-		tubep_vblank_end(machine()); /* switch buffered sprite RAM page */
-		machine().device("mcu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		tubep_vblank_end(); /* switch buffered sprite RAM page */
+		m_mcu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 	/* CPU #3 MS2010-A NMI */
 	/* deactivates at the start of VBLANK signal which happens at the beginning of scanline number 240*/
 	if (scanline == 240)
 	{
 		logerror("CPU#3 nmi clear\n");
-		machine().device("mcu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+		m_mcu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	}
 
 
@@ -299,7 +318,7 @@ TIMER_CALLBACK_MEMBER(tubep_state::tubep_scanline_callback)
 	/* activates whenever line V6 from video part goes lo->hi that is when the scanline becomes 64 and 192 */
 	if ((scanline == 64) || (scanline == 192))
 	{
-		machine().device("soundcpu")->execute().set_input_line(0, ASSERT_LINE); /* sound cpu interrupt (music tempo) */
+		m_soundcpu->set_input_line(0, ASSERT_LINE); /* sound cpu interrupt (music tempo) */
 	}
 
 
@@ -323,13 +342,12 @@ TIMER_CALLBACK_MEMBER(tubep_state::tubep_scanline_callback)
  *
  *************************************/
 
-static void tubep_setup_save_state(running_machine &machine)
+void tubep_state::tubep_setup_save_state()
 {
-	tubep_state *state = machine.driver_data<tubep_state>();
 	/* Set up save state */
-	state_save_register_global(machine, state->m_sound_latch);
-	state_save_register_global(machine, state->m_ls74);
-	state_save_register_global(machine, state->m_ls377);
+	save_item(NAME(m_sound_latch));
+	save_item(NAME(m_ls74));
+	save_item(NAME(m_ls377));
 }
 
 
@@ -337,9 +355,9 @@ static void tubep_setup_save_state(running_machine &machine)
 MACHINE_START_MEMBER(tubep_state,tubep)
 {
 	/* Create interrupt timer */
-	m_interrupt_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(tubep_state::tubep_scanline_callback),this));
+	m_interrupt_timer = timer_alloc(TIMER_TUBEP_SCANLINE);
 
-	tubep_setup_save_state(machine());
+	tubep_setup_save_state();
 }
 
 
@@ -393,7 +411,7 @@ WRITE8_MEMBER(tubep_state::rjammer_LS259_w)
 WRITE8_MEMBER(tubep_state::rjammer_soundlatch_w)
 {
 	m_sound_latch = data;
-	machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
@@ -447,7 +465,7 @@ TIMER_CALLBACK_MEMBER(tubep_state::rjammer_scanline_callback)
 	if (scanline == 240)
 	{
 		logerror("VBLANK CPU#0\n");
-		machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 	}
 
 
@@ -456,7 +474,7 @@ TIMER_CALLBACK_MEMBER(tubep_state::rjammer_scanline_callback)
 	if (scanline == 16)
 	{
 		logerror("/VBLANK CPU#1\n");
-		machine().device("slave")->execute().set_input_line(0, HOLD_LINE);
+		m_slave->set_input_line(0, HOLD_LINE);
 	}
 
 
@@ -465,15 +483,15 @@ TIMER_CALLBACK_MEMBER(tubep_state::rjammer_scanline_callback)
 	if (scanline == 16)
 	{
 		logerror("/nmi CPU#3\n");
-		tubep_vblank_end(machine()); /* switch buffered sprite RAM page */
-		machine().device("mcu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		tubep_vblank_end(); /* switch buffered sprite RAM page */
+		m_mcu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 	/* CPU #3 MS2010-A NMI */
 	/* deactivates at the start of VBLANK signal which happens at the beginning of scanline number 240*/
 	if (scanline == 240)
 	{
 		logerror("CPU#3 nmi clear\n");
-		machine().device("mcu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+		m_mcu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	}
 
 
@@ -481,7 +499,7 @@ TIMER_CALLBACK_MEMBER(tubep_state::rjammer_scanline_callback)
 	/* activates whenever line V6 from video part goes lo->hi that is when the scanline becomes 64 and 192 */
 	if ((scanline == 64) || (scanline == 192))
 	{
-		machine().device("soundcpu")->execute().set_input_line(0, ASSERT_LINE); /* sound cpu interrupt (music tempo) */
+		m_soundcpu->set_input_line(0, ASSERT_LINE); /* sound cpu interrupt (music tempo) */
 	}
 
 
@@ -500,9 +518,9 @@ TIMER_CALLBACK_MEMBER(tubep_state::rjammer_scanline_callback)
 MACHINE_START_MEMBER(tubep_state,rjammer)
 {
 	/* Create interrupt timer */
-	m_interrupt_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(tubep_state::rjammer_scanline_callback),this));
+	m_interrupt_timer = timer_alloc(TIMER_RJAMMER_SCANLINE);
 
-	tubep_setup_save_state(machine());
+	tubep_setup_save_state();
 }
 
 MACHINE_RESET_MEMBER(tubep_state,rjammer)
@@ -527,10 +545,9 @@ READ8_MEMBER(tubep_state::rjammer_soundlatch_r)
 
 WRITE8_MEMBER(tubep_state::rjammer_voice_startstop_w)
 {
-	device_t *device = machine().device("msm");
 	/* bit 0 of data selects voice start/stop (reset pin on MSM5205)*/
 	// 0 -stop; 1-start
-	msm5205_reset_w (device, (data&1)^1 );
+	m_msm->reset_w((data & 1)^1);
 
 	return;
 }
@@ -538,31 +555,29 @@ WRITE8_MEMBER(tubep_state::rjammer_voice_startstop_w)
 
 WRITE8_MEMBER(tubep_state::rjammer_voice_frequency_select_w)
 {
-	device_t *device = machine().device("msm");
 	/* bit 0 of data selects voice frequency on MSM5205 */
 	// 0 -4 KHz; 1- 8KHz
 	if (data & 1)
-		msm5205_playmode_w(device, MSM5205_S48_4B); /* 8 KHz */
+		m_msm->playmode_w(MSM5205_S48_4B); /* 8 KHz */
 	else
-		msm5205_playmode_w(device, MSM5205_S96_4B); /* 4 KHz */
+		m_msm->playmode_w(MSM5205_S96_4B); /* 4 KHz */
 
 	return;
 }
 
 
-static void rjammer_adpcm_vck (device_t *device)
+WRITE_LINE_MEMBER(tubep_state::rjammer_adpcm_vck)
 {
-	tubep_state *state = device->machine().driver_data<tubep_state>();
-	state->m_ls74 = (state->m_ls74 + 1) & 1;
+	m_ls74 = (m_ls74 + 1) & 1;
 
-	if (state->m_ls74 == 1)
+	if (m_ls74 == 1)
 	{
-		msm5205_data_w(device, (state->m_ls377 >> 0) & 15 );
-		device->machine().device("soundcpu")->execute().set_input_line(0, ASSERT_LINE );
+		m_msm->data_w((m_ls377 >> 0) & 15);
+		m_soundcpu->set_input_line(0, ASSERT_LINE);
 	}
 	else
 	{
-		msm5205_data_w(device, (state->m_ls377 >> 4) & 15 );
+		m_msm->data_w((m_ls377 >> 4) & 15);
 	}
 
 }
@@ -580,7 +595,7 @@ WRITE8_MEMBER(tubep_state::rjammer_voice_input_w)
 	        I do it here because this port (0x80) is first one accessed
 	        in the interrupt routine.
 	*/
-	machine().device("soundcpu")->execute().set_input_line(0, CLEAR_LINE );
+	m_soundcpu->set_input_line(0, CLEAR_LINE );
 	return;
 }
 
@@ -605,9 +620,9 @@ static ADDRESS_MAP_START( rjammer_sound_portmap, AS_IO, 8, tubep_state )
 	AM_RANGE(0x10, 0x10) AM_WRITE(rjammer_voice_startstop_w)
 	AM_RANGE(0x18, 0x18) AM_WRITE(rjammer_voice_frequency_select_w)
 	AM_RANGE(0x80, 0x80) AM_WRITE(rjammer_voice_input_w)
-	AM_RANGE(0x90, 0x91) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x92, 0x93) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x94, 0x95) AM_DEVWRITE_LEGACY("ay3", ay8910_address_data_w)
+	AM_RANGE(0x90, 0x91) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x92, 0x93) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x94, 0x95) AM_DEVWRITE("ay3", ay8910_device, address_data_w)
 	AM_RANGE(0x96, 0x96) AM_WRITE(rjammer_voice_intensity_control_w)
 ADDRESS_MAP_END
 
@@ -871,7 +886,7 @@ static const ay8910_interface ay8910_interface_3 =
 
 static const msm5205_interface msm5205_config =
 {
-	rjammer_adpcm_vck,          /* VCK function */
+	DEVCB_DRIVER_LINE_MEMBER(tubep_state,rjammer_adpcm_vck),          /* VCK function */
 	MSM5205_S48_4B              /* 8 KHz (changes at run time) */
 };
 

@@ -24,15 +24,14 @@ static void midxunit_dcs_output_full(running_machine &machine, int state);
  *
  *************************************/
 
-static void register_state_saving(running_machine &machine)
+void midxunit_state::register_state_saving()
 {
-	midxunit_state *state = machine.driver_data<midxunit_state>();
-	state_save_register_global(machine, state->m_cmos_write_enable);
-	state_save_register_global_array(machine, state->m_iodata);
-	state_save_register_global_array(machine, state->m_ioshuffle);
-	state_save_register_global(machine, state->m_analog_port);
-	state_save_register_global_array(machine, state->m_uart);
-	state_save_register_global(machine, state->m_security_bits);
+	save_item(NAME(m_cmos_write_enable));
+	save_item(NAME(m_iodata));
+	save_item(NAME(m_ioshuffle));
+	save_item(NAME(m_analog_port));
+	save_item(NAME(m_uart));
+	save_item(NAME(m_security_bits));
 }
 
 
@@ -170,7 +169,7 @@ static void midxunit_dcs_output_full(running_machine &machine, int state)
 	midxunit_state *drvstate = machine.driver_data<midxunit_state>();
 	/* only signal if not in loopback state */
 	if (drvstate->m_uart[1] != 0x66)
-		machine.device("maincpu")->execute().set_input_line(1, state ? ASSERT_LINE : CLEAR_LINE);
+		drvstate->m_maincpu->set_input_line(1, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -292,7 +291,7 @@ WRITE16_MEMBER(midxunit_state::midxunit_uart_w)
 DRIVER_INIT_MEMBER(midxunit_state,revx)
 {
 	/* register for state saving */
-	register_state_saving(machine());
+	register_state_saving();
 
 	/* init sound */
 	dcs_init(machine());

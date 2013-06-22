@@ -21,9 +21,11 @@ class chessmst_state : public driver_device
 public:
 	chessmst_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_speaker(*this, SPEAKER_TAG)
-		{ }
+			m_maincpu(*this, "maincpu"),
+			m_speaker(*this, "speaker")
+				{ }
 
+	required_device<cpu_device> m_maincpu;
 	required_device<speaker_sound_device> m_speaker;
 
 	UINT16 m_matrix;
@@ -195,7 +197,7 @@ WRITE8_MEMBER( chessmst_state::pio1_port_b_w )
 	m_matrix = (m_matrix & 0xff) | ((data & 0x01)<<8);
 	m_led_sel = (m_led_sel & 0xff) | ((data & 0x03)<<8);
 
-	speaker_level_w(m_speaker, BIT(data, 6));
+	m_speaker->level_w(BIT(data, 6));
 };
 
 READ8_MEMBER( chessmst_state::pio2_port_a_r )
@@ -269,7 +271,7 @@ static MACHINE_CONFIG_START( chessmst, chessmst_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */

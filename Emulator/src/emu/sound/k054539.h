@@ -11,8 +11,7 @@
 
 #define MCFG_K054539_ADD(_tag, _clock, _interface) \
 	MCFG_DEVICE_ADD(_tag, K054539, _clock) \
-	k054539_device::static_set_interface(*device, _interface); \
-
+	k054539_device::static_set_interface(*device, _interface);
 struct k054539_interface
 {
 	const char *rgnoverride;
@@ -71,6 +70,7 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
+	virtual void device_post_load();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 	// device_sound_interface overrides
@@ -109,7 +109,6 @@ private:
 	void keyon(int channel);
 	void keyoff(int channel);
 	void init_chip();
-	void reset_zones();
 };
 
 extern const device_type K054539;

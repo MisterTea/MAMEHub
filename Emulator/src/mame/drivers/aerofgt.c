@@ -113,19 +113,15 @@ WRITE8_MEMBER(aerofgt_state::aerofgt_sh_bankswitch_w)
 
 WRITE16_MEMBER(aerofgt_state::pspikesb_oki_banking_w)
 {
-	device_t *device = machine().device("oki");
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base(0x40000 * (data & 3));
+	m_oki->set_bank_base(0x40000 * (data & 3));
 }
 
 /*TODO: sound banking. */
 WRITE16_MEMBER(aerofgt_state::aerfboo2_okim6295_banking_w)
 {
-//  device_t *device = machine().device("oki");
 //  if(ACCESSING_BITS_8_15)
 //  {
-//      okim6295_device *oki = downcast<okim6295_device *>(device);
-//      oki->set_bank_base(0x40000 * ((data & 0xf00)>>8));
+//      m_oki->set_bank_base(0x40000 * ((data & 0xf00)>>8));
 //  }
 }
 
@@ -387,12 +383,12 @@ static ADDRESS_MAP_START( turbofrc_sound_portmap, AS_IO, 8, aerofgt_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(aerofgt_sh_bankswitch_w)
 	AM_RANGE(0x14, 0x14) AM_READ(soundlatch_byte_r) AM_WRITE(pending_command_clear_w)
-	AM_RANGE(0x18, 0x1b) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
+	AM_RANGE(0x18, 0x1b) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( aerofgt_sound_portmap, AS_IO, 8, aerofgt_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 	AM_RANGE(0x04, 0x04) AM_WRITE(aerofgt_sh_bankswitch_w)
 	AM_RANGE(0x08, 0x08) AM_WRITE(pending_command_clear_w)
 	AM_RANGE(0x0c, 0x0c) AM_READ(soundlatch_byte_r)
@@ -410,7 +406,7 @@ static ADDRESS_MAP_START( wbbc97_sound_map, AS_PROGRAM, 8, aerofgt_state )
 	AM_RANGE(0x0000, 0xefff) AM_ROM
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf800) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0xf810, 0xf811) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0xf810, 0xf811) AM_DEVWRITE("ymsnd", ym3812_device, write)
 	AM_RANGE(0xfc00, 0xfc00) AM_NOP
 	AM_RANGE(0xfc20, 0xfc20) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -1275,35 +1271,22 @@ static GFXDECODE_START( wbbc97 )
 	GFXDECODE_ENTRY( "gfx2", 0, wbbc97_spritelayout, 1024, 64 ) /* colors 1024-2047 in 4 banks */
 GFXDECODE_END
 
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(aerofgt_state::irqhandler)
 {
-	aerofgt_state *state = device->machine().driver_data<aerofgt_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	irqhandler
-};
-
-static const ym3812_interface ym3812_config =
-{
-	irqhandler  /* IRQ Line */
-};
 
 
 MACHINE_START_MEMBER(aerofgt_state,common)
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 	save_item(NAME(m_pending_command));
 }
 
 MACHINE_START_MEMBER(aerofgt_state,aerofgt)
 {
-	UINT8 *rom = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *rom = memregion("audiocpu")->base();
 
-	machine().root_device().membank("bank1")->configure_entries(0, 4, &rom[0x10000], 0x8000);
+	membank("bank1")->configure_entries(0, 4, &rom[0x10000], 0x8000);
 
 	MACHINE_START_CALL_MEMBER(common);
 }
@@ -1317,7 +1300,7 @@ MACHINE_RESET_MEMBER(aerofgt_state,aerofgt)
 {
 	MACHINE_RESET_CALL_MEMBER(common);
 
-	machine().root_device().membank("bank1")->set_entry(0); /* needed by spinlbrk */
+	membank("bank1")->set_entry(0); /* needed by spinlbrk */
 }
 
 static MACHINE_CONFIG_START( pspikes, aerofgt_state )
@@ -1357,7 +1340,7 @@ static MACHINE_CONFIG_START( pspikes, aerofgt_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(aerofgt_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -1501,7 +1484,7 @@ static MACHINE_CONFIG_START( karatblz, aerofgt_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_8MHz ) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(aerofgt_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -1548,7 +1531,7 @@ static MACHINE_CONFIG_START( spinlbrk, aerofgt_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_8MHz)  /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(aerofgt_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -1594,7 +1577,7 @@ static MACHINE_CONFIG_START( turbofrc, aerofgt_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_8MHz)  /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(aerofgt_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -1641,7 +1624,7 @@ static MACHINE_CONFIG_START( aerofgtb, aerofgt_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(aerofgt_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -1685,7 +1668,7 @@ static MACHINE_CONFIG_START( aerofgt, aerofgt_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_8MHz)  /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(aerofgt_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -1791,7 +1774,7 @@ static MACHINE_CONFIG_START( wbbc97, aerofgt_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, 3579545)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(aerofgt_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
@@ -1855,6 +1838,28 @@ ROM_START( pspikesk )
 	ROM_REGION( 0x0400, "plds", 0 )
 	ROM_LOAD( "peel18cv8-1101a-u15.53", 0x0000, 0x0155, CRC(c05e3bea) SHA1(b42e16f1f41ad9796ff3044c850d5331e7a0f91a) )
 	ROM_LOAD( "peel18cv8-1103-u112.76", 0x0200, 0x0155, CRC(786da44c) SHA1(02fd63083631abeced42714fb58a11b7d463285b) )
+ROM_END
+
+ROM_START( pspikesu )
+	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 code */
+	ROM_LOAD16_WORD_SWAP( "svolly91.73", 0x00000, 0x40000, CRC(bfbffcdb) SHA1(2bba99cb6d0cb2fbb3cd1242551dd7e2c6ebef50) )
+
+	ROM_REGION( 0x30000, "audiocpu", 0 )    /* 64k for the audio CPU + banks */
+	ROM_LOAD( "19",           0x00000, 0x20000, CRC(7e8ed6e5) SHA1(eeb1a1e1989fad8fc1e741928422efaec0598868) )
+	ROM_RELOAD(               0x10000, 0x20000 )
+
+	ROM_REGION( 0x080000, "gfx1", 0 )
+	ROM_LOAD( "g7h",          0x000000, 0x80000, CRC(74c23c3d) SHA1(c0ac57d1f05c42556f97154ce1a08f465948546b) )
+
+	ROM_REGION( 0x100000, "gfx2", 0 )
+	ROM_LOAD( "g7j",          0x000000, 0x80000, CRC(0b9e4739) SHA1(64b440a5026735aafe1a7cc2806fe0d78f4a6fba) )
+	ROM_LOAD( "g7l",          0x080000, 0x80000, CRC(943139ff) SHA1(59065f9c3b3a47159c5968df199bdcb1b4f51f29) )
+
+	ROM_REGION( 0x40000, "ymsnd.deltat", 0 ) /* sound samples */
+	ROM_LOAD( "a47",          0x00000, 0x40000, CRC(c6779dfa) SHA1(ea7adefdb0da02755428aac9a6f86c908fc11253) )
+
+	ROM_REGION( 0x100000, "ymsnd", 0 ) /* sound samples */
+	ROM_LOAD( "o5b",          0x000000, 0x100000, CRC(07d6cbac) SHA1(d3d5778dbaca7b6cdceae959d0847d56df7b5cc1) )
 ROM_END
 
 ROM_START( svolly91 )
@@ -1990,6 +1995,36 @@ ROM_START( spikes91 )
 	ROM_REGION( 0x1000, "user2", 0 ) /* ? */
 	ROM_LOAD( "ep910pc.ic7",   0x00000, 0x884, CRC(e7a3913a) SHA1(6f18f55ecdc94a416baecd16fe7c6698b1ec9d87) )
 ROM_END
+
+ROM_START( spikes91b ) // todo, check how this differs, only 1 of the 68k pair and the sprite lookup roms were different
+	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 code */
+	ROM_LOAD16_BYTE( "7(__spikes91b).ic2",    0x00001, 0x20000, CRC(46433a36) SHA1(a4df1bf710693779a9444f28c99591331765aada) )
+	ROM_LOAD16_BYTE( "8.ic3",    0x00000, 0x20000, CRC(9c488daa) SHA1(8336fec855786c6cc6a836d86b74e130d60013b7) )
+
+	ROM_REGION( 0x080000, "gfx1", 0 )
+	ROM_LOAD( "3.ic76",   0x00000, 0x20000, CRC(ab451eee) SHA1(439c5f46b4d8e66610417369bd0b2bf5568936cb) )
+	ROM_LOAD( "4.ic75",   0x20000, 0x20000, CRC(fe857bbd) SHA1(669151cf28f87cc494883dc537881d86887d08b9) )
+	ROM_LOAD( "5.ic74",   0x40000, 0x20000, CRC(d7fcd97c) SHA1(eb7c8ac111f5916350aae0ee3edc019207fef654) )
+	ROM_LOAD( "6.ic73",   0x60000, 0x20000, CRC(e6b9107f) SHA1(aaab2f2dfb85ee764091253c9a4ab89bc51d7518) )
+
+	ROM_REGION( 0x100000, "gfx2", ROMREGION_INVERT )
+	ROM_LOAD( "11.ic118",   0x00000, 0x40000, CRC(6e65b4b2) SHA1(5296e8095ec60f79a5cd3f9db829c7d491670282) )
+	ROM_LOAD( "12.ic119",   0x40000, 0x40000, CRC(60e0d3e0) SHA1(93efc58b03610e7f18ff076ac985428a446454f9) )
+	ROM_LOAD( "13.ic120",   0x80000, 0x40000, CRC(89213a8c) SHA1(8524d5c14669d9b03f1fe050c4318d4111bc8ef7) )
+	ROM_LOAD( "14.ic121",   0xc0000, 0x40000, CRC(468cbf5b) SHA1(60fbc2771e40f8de51a51891b8ddcc14e2b1e52c) )
+
+	ROM_REGION( 0x020000, "user1", 0 ) /* lookup tables for the sprites  */
+	ROM_LOAD( "10(__spikes91b).ic104",    0x00000, 0x8000, CRC(b6fe4e57) SHA1(6b62936ff9d0f39fd02c3db488d53bc035c2272d) )
+	ROM_LOAD( "9(__spikes91b).ic103 ",    0x10000, 0x8000, CRC(5479ed35) SHA1(ca26289318352901841fcdf26d9b43e797ac39b6) )
+
+	ROM_REGION( 0x20000, "cpu1", 0 ) /* Z80 Sound CPU + M5205 Samples */
+	ROM_LOAD( "1.ic140",   0x00000, 0x10000, CRC(e3065b1d) SHA1(c4a3a95ba7f43cdf1b0c574f41de06d007ad2bd8) )
+	ROM_LOAD( "2.ic141",   0x10000, 0x10000, CRC(5dd8bf22) SHA1(d1a12894fe8ca47e47b4a1e911cabf20dd41eda4) )
+
+	ROM_REGION( 0x1000, "user2", 0 ) /* ? */
+	ROM_LOAD( "ep910pc.ic7",   0x00000, 0x884, CRC(e7a3913a) SHA1(6f18f55ecdc94a416baecd16fe7c6698b1ec9d87) )
+ROM_END
+
 
 /* this is a bootleg / chinese hack of power spikes */
 
@@ -2505,9 +2540,11 @@ GAME( 1990, spinlbrkj,spinlbrk, spinlbrk, spinlbrk, driver_device, 0, ROT0,   "V
 
 GAME( 1991, pspikes,  0,        pspikes,  pspikes, driver_device,  0, ROT0,   "Video System Co.", "Power Spikes (World)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
 GAME( 1991, pspikesk, pspikes,  pspikes,  pspikes, driver_device,  0, ROT0,   "Video System Co.", "Power Spikes (Korea)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1991, pspikesu, pspikes,  pspikes,  pspikes, driver_device,  0, ROT0,   "Video System Co.", "Power Spikes (US)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
 GAME( 1991, svolly91, pspikes,  pspikes,  pspikes, driver_device,  0, ROT0,   "Video System Co.", "Super Volley '91 (Japan)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
 GAME( 1991, pspikesb, pspikes,  pspikesb, pspikesb, driver_device, 0, ROT0,   "bootleg",          "Power Spikes (bootleg)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
-GAME( 1991, spikes91, pspikes,  spikes91, pspikes, driver_device,  0, ROT0,   "bootleg",          "1991 Spikes (Italian bootleg)", GAME_SUPPORTS_SAVE | GAME_NO_SOUND | GAME_NO_COCKTAIL )
+GAME( 1991, spikes91, pspikes,  spikes91, pspikes, driver_device,  0, ROT0,   "bootleg",          "1991 Spikes (Italian bootleg, set 1)", GAME_SUPPORTS_SAVE | GAME_NO_SOUND | GAME_NO_COCKTAIL )
+GAME( 1991, spikes91b,pspikes,  spikes91, pspikes, driver_device,  0, ROT0,   "bootleg",          "1991 Spikes (Italian bootleg, set 2)", GAME_SUPPORTS_SAVE | GAME_NO_SOUND | GAME_NO_COCKTAIL )
 GAME( 1991, pspikesc, pspikes,  pspikesc, pspikesc, driver_device, 0, ROT0,   "bootleg",          "Power Spikes (China)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL | GAME_IMPERFECT_SOUND )
 GAME( 1997, wbbc97,   0,        wbbc97,   wbbc97, driver_device,   0, ROT0,   "Comad",            "Beach Festival World Championship 1997", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL ) // based on power spikes codebase
 

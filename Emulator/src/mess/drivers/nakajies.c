@@ -503,7 +503,7 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(nakajies_state::trigger_irq)
 {
-	UINT8 irqs = machine().root_device().ioport( "debug" )->read();
+	UINT8 irqs = ioport( "debug" )->read();
 
 	m_irq_active |= irqs;
 	nakajies_update_irqs(machine());
@@ -651,6 +651,7 @@ void nakajies_state::machine_reset()
 	{
 		m_bank[i] = 0;
 	}
+	memset(m_ram_base, 0, m_ram_size);
 	update_banks();
 }
 
@@ -677,7 +678,6 @@ UINT32 nakajies_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap
 
 TIMER_DEVICE_CALLBACK_MEMBER(nakajies_state::kb_timer)
 {
-
 	if (m_matrix > 0x09)
 	{
 		// reset the keyboard scan
@@ -753,7 +753,7 @@ static MACHINE_CONFIG_START( nakajies210, nakajies_state )
 
 	/* sound */
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD( SPEAKER_TAG, SPEAKER_SOUND, 0 )
+	MCFG_SOUND_ADD( "speaker", SPEAKER_SOUND, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
 	/* rtc */

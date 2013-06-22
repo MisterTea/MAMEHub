@@ -17,6 +17,7 @@
 #include "machine/abcbus.h"
 #include "machine/abc80kb.h"
 #include "machine/abc830.h"
+#include "machine/keyboard.h"
 #include "machine/ram.h"
 #include "machine/serial.h"
 #include "machine/z80pio.h"
@@ -66,11 +67,18 @@ public:
 			m_maincpu(*this, Z80_TAG),
 			m_pio(*this, Z80PIO_TAG),
 			m_psg(*this, SN76477_TAG),
-			m_cassette(*this, CASSETTE_TAG),
+			m_cassette(*this, "cassette"),
 			m_bus(*this, ABCBUS_TAG),
 			m_kb(*this, ABC80_KEYBOARD_TAG),
 			m_ram(*this, RAM_TAG),
 			m_rs232(*this, RS232_TAG),
+			m_rom(*this, Z80_TAG),
+			m_mmu_rom(*this, "mmu"),
+			m_char_rom(*this, "chargen"),
+			m_hsync_prom(*this, "hsync"),
+			m_vsync_prom(*this, "vsync"),
+			m_line_prom(*this, "line"),
+			m_attr_prom(*this, "attr"),
 			m_video_ram(*this, "video_ram"),
 			m_tape_in(1),
 			m_tape_in_latch(1)
@@ -84,6 +92,13 @@ public:
 	required_device<abc80_keyboard_device> m_kb;
 	required_device<ram_device> m_ram;
 	required_device<rs232_port_device> m_rs232;
+	required_memory_region m_rom;
+	required_memory_region m_mmu_rom;
+	required_memory_region m_char_rom;
+	required_memory_region m_hsync_prom;
+	required_memory_region m_vsync_prom;
+	required_memory_region m_line_prom;
+	required_memory_region m_attr_prom;
 	optional_shared_ptr<UINT8> m_video_ram;
 
 	enum
@@ -93,7 +108,6 @@ public:
 		TIMER_ID_BLINK,
 		TIMER_ID_VSYNC_ON,
 		TIMER_ID_VSYNC_OFF,
-		TIMER_ID_FAKE_KEYBOARD_SCAN,
 		TIMER_ID_FAKE_KEYBOARD_CLEAR
 	};
 
@@ -106,8 +120,6 @@ public:
 
 	void update_screen(bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	void scan_keyboard();
-
 	DECLARE_READ8_MEMBER( read );
 	DECLARE_WRITE8_MEMBER( write );
 
@@ -118,6 +130,7 @@ public:
 	DECLARE_WRITE8_MEMBER( pio_pb_w );
 
 	DECLARE_WRITE_LINE_MEMBER( keydown_w );
+	DECLARE_WRITE8_MEMBER( kbd_w );
 
 	// keyboard state
 	int m_key_data;
@@ -132,21 +145,12 @@ public:
 	int m_tape_in;
 	int m_tape_in_latch;
 
-	// memory regions
-	const UINT8 *m_mmu_rom;         // memory mapping ROM
-	const UINT8 *m_char_rom;        // character generator ROM
-	const UINT8 *m_hsync_prom;      // horizontal sync PROM
-	const UINT8 *m_vsync_prom;      // horizontal sync PROM
-	const UINT8 *m_line_prom;       // line address PROM
-	const UINT8 *m_attr_prom;       // character attribute PROM
-
 	// timers
 	emu_timer *m_pio_timer;
 	emu_timer *m_cassette_timer;
 	emu_timer *m_blink_timer;
 	emu_timer *m_vsync_on_timer;
 	emu_timer *m_vsync_off_timer;
-	emu_timer *m_kb_timer;
 };
 
 //----------- defined in video/abc80.c -----------

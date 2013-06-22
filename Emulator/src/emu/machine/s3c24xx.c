@@ -127,18 +127,18 @@ INLINE s3c24xx_t *get_token( device_t *device)
 
 static void s3c24xx_reset( device_t *device)
 {
-	device_t *cpu = device->machine().device("maincpu");
+	s3c24xx_t *s3c24xx = get_token( device );
 	verboselog( device->machine(), 1, "reset\n");
-	cpu->reset();
+	s3c24xx->m_cpu->reset();
 	device->reset();
 }
 
 INLINE int iface_core_pin_r( device_t *device, int pin)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->core.pin_r)
+	if (!s3c24xx->pin_r.isnull())
 	{
-		return (s3c24xx->iface->core.pin_r)( device, pin);
+		return (s3c24xx->pin_r)(pin);
 	}
 	else
 	{
@@ -301,7 +301,7 @@ static void s3c24xx_lcd_dma_init( device_t *device)
 static UINT32 s3c24xx_lcd_dma_read( device_t *device)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	address_space& space = device->machine().device( "maincpu")->memory().space( AS_PROGRAM);
+	address_space& space = m_cpu->memory().space( AS_PROGRAM);
 	UINT8 *vram, data[4];
 	vram = (UINT8 *)space.get_read_ptr( s3c24xx->lcd.vramaddr_cur);
 	for (int i = 0; i < 2; i++)
@@ -345,7 +345,7 @@ static UINT32 s3c24xx_lcd_dma_read( device_t *device)
 static UINT32 s3c24xx_lcd_dma_read( device_t *device)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	address_space& space = device->machine().device( "maincpu")->memory().space( AS_PROGRAM);
+	address_space& space = s3c24xx->m_cpu->memory().space( AS_PROGRAM);
 	UINT8 *vram, data[4];
 	vram = (UINT8 *)space.get_read_ptr( s3c24xx->lcd.vramaddr_cur);
 	for (int i = 0; i < 2; i++)
@@ -1138,13 +1138,13 @@ static WRITE32_DEVICE_HANDLER( s3c24xx_clkpow_w )
 		case S3C24XX_MPLLCON :
 		{
 			verboselog( device->machine(), 5, "CLKPOW - fclk %d hclk %d pclk %d\n", s3c24xx_get_fclk( device), s3c24xx_get_hclk( device), s3c24xx_get_pclk( device));
-			device->machine().device( "maincpu")->set_unscaled_clock(s3c24xx_get_fclk( device) * CLOCK_MULTIPLIER);
+			s3c24xx->m_cpu->set_unscaled_clock(s3c24xx_get_fclk( device) * CLOCK_MULTIPLIER);
 		}
 		break;
 		case S3C24XX_CLKSLOW :
 		{
 			verboselog( device->machine(), 5, "CLKPOW - fclk %d hclk %d pclk %d\n", s3c24xx_get_fclk( device), s3c24xx_get_hclk( device), s3c24xx_get_pclk( device));
-			device->machine().device( "maincpu")->set_unscaled_clock(s3c24xx_get_fclk( device) * CLOCK_MULTIPLIER);
+			s3c24xx->m_cpu->set_unscaled_clock(s3c24xx_get_fclk( device) * CLOCK_MULTIPLIER);
 		}
 		break;
 	}
@@ -1191,7 +1191,7 @@ static void s3c24xx_check_pending_irq( device_t *device)
 			if (s3c24xx->irq.line_irq != ASSERT_LINE)
 			{
 				verboselog( device->machine(), 5, "ARM7_IRQ_LINE -> ASSERT_LINE\n");
-				device->machine().device("maincpu")->execute().set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
+				s3c24xx->m_cpu->execute().set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
 				s3c24xx->irq.line_irq = ASSERT_LINE;
 			}
 		}
@@ -1201,7 +1201,7 @@ static void s3c24xx_check_pending_irq( device_t *device)
 			{
 				verboselog( device->machine(), 5, "srcpnd %08X intmsk %08X intmod %08X\n", s3c24xx->irq.regs.srcpnd, s3c24xx->irq.regs.intmsk, s3c24xx->irq.regs.intmod);
 				verboselog( device->machine(), 5, "ARM7_IRQ_LINE -> CLEAR_LINE\n");
-				device->machine().device("maincpu")->execute().set_input_line(ARM7_IRQ_LINE, CLEAR_LINE);
+				s3c24xx->m_cpu->execute().set_input_line(ARM7_IRQ_LINE, CLEAR_LINE);
 				s3c24xx->irq.line_irq = CLEAR_LINE;
 			}
 		}
@@ -1220,7 +1220,7 @@ static void s3c24xx_check_pending_irq( device_t *device)
 		if (s3c24xx->irq.line_fiq != ASSERT_LINE)
 		{
 			verboselog( device->machine(), 5, "ARM7_FIRQ_LINE -> ASSERT_LINE\n");
-			device->machine().device("maincpu")->execute().set_input_line(ARM7_FIRQ_LINE, ASSERT_LINE);
+			s3c24xx->m_cpu->execute().set_input_line(ARM7_FIRQ_LINE, ASSERT_LINE);
 			s3c24xx->irq.line_fiq = ASSERT_LINE;
 		}
 	}
@@ -1229,7 +1229,7 @@ static void s3c24xx_check_pending_irq( device_t *device)
 		if (s3c24xx->irq.line_fiq != CLEAR_LINE)
 		{
 			verboselog( device->machine(), 5, "ARM7_FIRQ_LINE -> CLEAR_LINE\n");
-			device->machine().device("maincpu")->execute().set_input_line(ARM7_FIRQ_LINE, CLEAR_LINE);
+			s3c24xx->m_cpu->execute().set_input_line(ARM7_FIRQ_LINE, CLEAR_LINE);
 			s3c24xx->irq.line_fiq = CLEAR_LINE;
 		}
 	}
@@ -1611,7 +1611,7 @@ static void s3c24xx_dma_trigger( device_t *device, int ch)
 	s3c24xx_t *s3c24xx = get_token( device);
 	s3c24xx_dma_regs_t *regs = &s3c24xx->dma[ch].regs;
 	UINT32 curr_tc, curr_src, curr_dst;
-	address_space &space = device->machine().device( "maincpu")->memory().space( AS_PROGRAM);
+	address_space &space = s3c24xx->m_cpu->memory().space( AS_PROGRAM);
 	int dsz, inc_src, inc_dst, servmode, tsz;
 	const UINT32 ch_int[] = { S3C24XX_INT_DMA0, S3C24XX_INT_DMA1, S3C24XX_INT_DMA2, S3C24XX_INT_DMA3};
 	verboselog( device->machine(), 5, "DMA %d trigger\n", ch);
@@ -1872,9 +1872,9 @@ static void s3c24xx_gpio_reset( device_t *device)
 INLINE UINT32 iface_gpio_port_r( device_t *device, int port, UINT32 mask)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->gpio.port_r)
+	if (!s3c24xx->port_r.isnull())
 	{
-		return (s3c24xx->iface->gpio.port_r)( device, port, mask);
+		return (s3c24xx->port_r)( port, mask);
 	}
 	else
 	{
@@ -1885,9 +1885,9 @@ INLINE UINT32 iface_gpio_port_r( device_t *device, int port, UINT32 mask)
 INLINE void iface_gpio_port_w( device_t *device, int port, UINT32 mask, UINT32 data)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->gpio.port_w)
+	if (!s3c24xx->port_w.isnull())
 	{
-		(s3c24xx->iface->gpio.port_w)( device, port, mask, data);
+		(s3c24xx->port_w)( port, data, mask );
 	}
 }
 
@@ -2437,27 +2437,27 @@ static void s3c24xx_iic_reset( device_t *device)
 INLINE void iface_i2c_scl_w( device_t *device, int state)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->i2c.scl_w)
+	if (!s3c24xx->scl_w.isnull())
 	{
-		(s3c24xx->iface->i2c.scl_w)( device, state);
+		(s3c24xx->scl_w)( state);
 	}
 }
 
 INLINE void iface_i2c_sda_w( device_t *device, int state)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->i2c.sda_w)
+	if (!s3c24xx->sda_w.isnull())
 	{
-		(s3c24xx->iface->i2c.sda_w)( device, state);
+		(s3c24xx->sda_w)(state);
 	}
 }
 
 INLINE int iface_i2c_sda_r( device_t *device)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->i2c.sda_r)
+	if (!s3c24xx->sda_r.isnull())
 	{
-		return (s3c24xx->iface->i2c.sda_r)( device);
+		return (s3c24xx->sda_r)();
 	}
 	else
 	{
@@ -2684,9 +2684,9 @@ static void s3c24xx_iis_reset( device_t *device)
 INLINE void iface_i2s_data_w( device_t *device, int ch, UINT16 data)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->i2s.data_w)
+	if (!s3c24xx->i2s_data_w.isnull())
 	{
-		(s3c24xx->iface->i2s.data_w)( device, device->machine().driver_data()->generic_space(), ch, data, 0);
+		(s3c24xx->i2s_data_w)( ch, data, 0);
 	}
 }
 
@@ -2940,7 +2940,7 @@ static void s3c24xx_adc_reset( device_t *device)
 static UINT32 iface_adc_data_r( device_t *device, int ch)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->adc.data_r)
+	if (!s3c24xx->adc_data_r.isnull())
 	{
 		int offs = ch;
 		#if defined(DEVICE_S3C2410) || defined(DEVICE_S3C2440)
@@ -2949,7 +2949,7 @@ static UINT32 iface_adc_data_r( device_t *device, int ch)
 			offs += 2;
 		}
 		#endif
-		return (s3c24xx->iface->adc.data_r)( device, device->machine().driver_data()->generic_space(), offs, 0);
+		return (s3c24xx->adc_data_r)(offs, 0);
 	}
 	else
 	{
@@ -3179,27 +3179,27 @@ static void s3c24xx_nand_reset( device_t *device)
 INLINE void iface_nand_command_w( device_t *device, UINT8 data)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->nand.command_w)
+	if (!s3c24xx->command_w.isnull())
 	{
-		(s3c24xx->iface->nand.command_w)( device, device->machine().driver_data()->generic_space(), 0, data, 0xff);
+		(s3c24xx->command_w)( 0, data, 0xff);
 	}
 }
 
 INLINE void iface_nand_address_w( device_t *device, UINT8 data)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->nand.address_w)
+	if (!s3c24xx->address_w.isnull())
 	{
-		(s3c24xx->iface->nand.address_w)( device, device->machine().driver_data()->generic_space(), 0, data, 0xff);
+		(s3c24xx->address_w)( 0, data, 0xff);
 	}
 }
 
 INLINE UINT8 iface_nand_data_r( device_t *device)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->nand.data_r)
+	if (!s3c24xx->nand_data_r.isnull())
 	{
-		return (s3c24xx->iface->nand.data_r)( device, device->machine().driver_data()->generic_space(), 0, 0xff);
+		return (s3c24xx->nand_data_r)( 0, 0xff);
 	}
 	else
 	{
@@ -3210,9 +3210,9 @@ INLINE UINT8 iface_nand_data_r( device_t *device)
 INLINE void iface_nand_data_w( device_t *device, UINT8 data)
 {
 	s3c24xx_t *s3c24xx = get_token( device);
-	if (s3c24xx->iface->nand.data_w)
+	if (!s3c24xx->nand_data_w.isnull())
 	{
-		(s3c24xx->iface->nand.data_w)( device, device->machine().driver_data()->generic_space(), 0, data, 0xff);
+		(s3c24xx->nand_data_w)(0, data, 0xff);
 	}
 }
 
@@ -3377,7 +3377,6 @@ static READ32_DEVICE_HANDLER( s3c24xx_nand_r )
 #if defined(DEVICE_S3C2440)
 		case S3C24XX_NFMECC0 :
 		{
-
 			data = (s3c24xx->nand.mecc[3] << 24) | (s3c24xx->nand.mecc[2] << 16) | (s3c24xx->nand.mecc[1] << 8) | (s3c24xx->nand.mecc[0] << 0);
 		}
 		break;
@@ -3680,8 +3679,26 @@ static DEVICE_RESET( s3c24xx )
 static DEVICE_START( s3c24xx )
 {
 	s3c24xx_t *s3c24xx = get_token( device);
+
+	s3c24xx->m_cpu = device->machine().device( "maincpu");
+
 	verboselog( device->machine(), 1, "s3c24xx device start\n");
 	s3c24xx->iface = (const s3c24xx_interface *)device->static_config();
+	s3c24xx->pin_r.resolve(s3c24xx->iface->core.pin_r, *device);
+	s3c24xx->pin_w.resolve(s3c24xx->iface->core.pin_w, *device);
+	s3c24xx->port_r.resolve(s3c24xx->iface->gpio.port_r, *device);
+	s3c24xx->port_w.resolve(s3c24xx->iface->gpio.port_w, *device);
+	s3c24xx->scl_w.resolve(s3c24xx->iface->i2c.scl_w, *device);
+	s3c24xx->sda_r.resolve(s3c24xx->iface->i2c.sda_r, *device);
+	s3c24xx->sda_w.resolve(s3c24xx->iface->i2c.sda_w, *device);
+	s3c24xx->adc_data_r.resolve(s3c24xx->iface->adc.data_r, *device);
+	s3c24xx->i2s_data_w.resolve(s3c24xx->iface->i2s.data_w, *device);
+	#if !defined(DEVICE_S3C2400)
+	s3c24xx->command_w.resolve(s3c24xx->iface->nand.command_w, *device);
+	s3c24xx->address_w.resolve(s3c24xx->iface->nand.address_w, *device);
+	s3c24xx->nand_data_r.resolve(s3c24xx->iface->nand.data_r, *device);
+	s3c24xx->nand_data_w.resolve(s3c24xx->iface->nand.data_w, *device);
+	#endif
 	for (int i = 0; i < 5; i++)
 	{
 		s3c24xx->pwm.timer[i] = device->machine().scheduler().timer_alloc( FUNC(s3c24xx_pwm_timer_exp), (void*)device);
@@ -3701,7 +3718,7 @@ static DEVICE_START( s3c24xx )
 	int om1 = iface_core_pin_r( device, S3C24XX_CORE_PIN_OM1);
 	if ((om0 == 0) && (om1 == 0))
 	{
-		address_space &space = device->machine().device( "maincpu")->memory().space( AS_PROGRAM);
+		address_space &space = s3c24xx->m_cpu->memory().space( AS_PROGRAM);
 		space.install_ram( 0x00000000, 0x00000fff, s3c24xx->steppingstone);
 		space.install_ram( 0x40000000, 0x40000fff, s3c24xx->steppingstone);
 	}

@@ -20,8 +20,8 @@ public:
 	// construction/destruction
 	ds2401_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	void write(bool line);
-	bool read();
+	DECLARE_WRITE_LINE_MEMBER( write );
+	DECLARE_READ_LINE_MEMBER( read );
 	UINT8 direct_read(int index);
 
 protected:
@@ -51,11 +51,11 @@ protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 	// internal state
-	int state, bit, shift;
-	UINT8 byte;
-	bool rx, tx;
-	UINT8 data[SIZE_DATA];
-	emu_timer *timer_main, *timer_reset;
+	int m_state, m_bit, m_shift;
+	UINT8 m_byte;
+	bool m_rx, m_tx;
+	UINT8 m_data[SIZE_DATA];
+	emu_timer *m_timer_main, *m_timer_reset;
 	attotime t_samp, t_rdv, t_rstl, t_pdh, t_pdl;
 
 private:

@@ -7,6 +7,9 @@
 #include "cpu/jaguar/jaguar.h"
 #include "machine/nvram.h"
 #include "sound/dac.h"
+#include "machine/eeprom.h"
+#include "machine/idectrl.h"
+#include "imagedev/snapquik.h"
 
 #ifndef ENABLE_SPEEDUP_HACKS
 #define ENABLE_SPEEDUP_HACKS 1
@@ -22,7 +25,7 @@ class jaguar_state : public driver_device
 public:
 	jaguar_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_main_cpu(*this, "maincpu"),
+			m_maincpu(*this, "maincpu"),
 			m_gpu(*this, "gpu"),
 			m_dsp(*this, "dsp"),
 			m_dac1(*this, "dac1"),
@@ -51,10 +54,14 @@ public:
 			m_main_gpu_wait(NULL),
 			m_joystick_data(0),
 			m_eeprom_bit_count(0),
-			m_protection_check(0) { }
+			m_protection_check(0) ,
+		m_eeprom(*this, "eeprom"),
+		m_ide(*this, "ide")
+	{
+	}
 
 	// devices
-	required_device<cpu_device> m_main_cpu;
+	required_device<cpu_device> m_maincpu;
 	required_device<jaguargpu_device> m_gpu;
 	required_device<jaguardsp_device> m_dsp;
 	required_device<dac_device> m_dac1;
@@ -204,6 +211,8 @@ public:
 	DECLARE_WRITE32_MEMBER( blitter_w );
 	DECLARE_READ16_MEMBER( tom_regs_r );
 	DECLARE_WRITE16_MEMBER( tom_regs_w );
+	DECLARE_READ32_MEMBER( vt83c461_r );
+	DECLARE_WRITE32_MEMBER( vt83c461_w );
 	DECLARE_READ32_MEMBER( cojag_gun_input_r );
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
@@ -214,7 +223,9 @@ public:
 	int quickload(device_image_interface &image, const char *file_type, int quickload_size);
 	void cart_start();
 	int cart_load(device_image_interface &image);
-
+	IRQ_CALLBACK_MEMBER(jaguar_irq_callback);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( jaguar_cart );
+	DECLARE_QUICKLOAD_LOAD_MEMBER( jaguar );
 protected:
 	// timer IDs
 	enum
@@ -310,4 +321,9 @@ protected:
 	void blitter_01800001_xxxxxx_xxxxxx(UINT32 command, UINT32 a1flags, UINT32 a2flags);
 	void blitter_x1800x01_xxxxxx_xxxxxx(UINT32 command, UINT32 a1flags, UINT32 a2flags);
 
+	emu_file *jaguar_nvram_fopen( UINT32 openflags);
+	void jaguar_nvram_load();
+	void jaguar_nvram_save();
+	optional_device<eeprom_device> m_eeprom;
+	optional_device<ide_controller_device> m_ide;
 };

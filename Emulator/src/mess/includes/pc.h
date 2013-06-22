@@ -14,22 +14,34 @@
 #include "machine/ser_mouse.h"
 #include "machine/pc_kbdc.h"
 #include "machine/upd765.h"
+#include "sound/speaker.h"
+#include "imagedev/cassette.h"
+#include "machine/ram.h"
+#include "machine/pic8259.h"
+#include "machine/pit8253.h"
 
 class pc_state : public driver_device
 {
 public:
 	pc_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_dma8237(*this, "dma8237")
-		, m_pc_kbdc(*this, "pc_kbdc")
-	{
-	}
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_pic8259(*this, "pic8259"),
+		m_dma8237(*this, "dma8237"),
+		m_pit8253(*this, "pit8253"),
+		m_pc_kbdc(*this, "pc_kbdc"),
+		m_speaker(*this, "speaker"),
+		m_cassette(*this, "cassette"),
+		m_ram(*this, RAM_TAG) { }
 
-	cpu_device *m_maincpu;
-	device_t *m_pic8259;
+	required_device<cpu_device> m_maincpu;
+	optional_device<pic8259_device> m_pic8259;
 	optional_device<am9517a_device> m_dma8237;
-	device_t *m_pit8253;
+	optional_device<pit8253_device> m_pit8253;
 	optional_device<pc_kbdc_device>  m_pc_kbdc;
+	optional_device<speaker_sound_device> m_speaker;
+	optional_device<cassette_image_device> m_cassette;
+	optional_device<ram_device> m_ram;
 
 	/* U73 is an LS74 - dual flip flop */
 	/* Q2 is set by OUT1 from the 8253 and goes to DRQ1 on the 8237 */
@@ -75,21 +87,14 @@ public:
 	DECLARE_READ8_MEMBER(unk_r);
 	DECLARE_READ8_MEMBER(ec1841_memboard_r);
 	DECLARE_WRITE8_MEMBER(ec1841_memboard_w);
-	DECLARE_DRIVER_INIT(europc);
 	DECLARE_DRIVER_INIT(mc1502);
 	DECLARE_DRIVER_INIT(bondwell);
 	DECLARE_DRIVER_INIT(pcjr);
 	DECLARE_DRIVER_INIT(pccga);
-	DECLARE_DRIVER_INIT(t1000hx);
-	DECLARE_DRIVER_INIT(ppc512);
-	DECLARE_DRIVER_INIT(pc200);
 	DECLARE_DRIVER_INIT(ibm5150);
 	DECLARE_DRIVER_INIT(pcmda);
-	DECLARE_DRIVER_INIT(pc1512);
-	DECLARE_DRIVER_INIT(pc1640);
 	DECLARE_MACHINE_START(pc);
 	DECLARE_MACHINE_RESET(pc);
-	DECLARE_MACHINE_RESET(tandy1000rl);
 	DECLARE_MACHINE_START(pcjr);
 	DECLARE_MACHINE_RESET(pcjr);
 	DECLARE_MACHINE_START(mc1502);
@@ -139,6 +144,7 @@ public:
 	DECLARE_WRITE8_MEMBER(pcjr_fdc_dor_w);
 	DECLARE_READ8_MEMBER(pcjx_port_1ff_r);
 	DECLARE_WRITE8_MEMBER(pcjx_port_1ff_w);
+	DECLARE_WRITE8_MEMBER(asst128_fdc_dor_w);
 	void pcjx_set_bank(int unk1, int unk2, int unk3);
 
 	void fdc_interrupt(bool state);
@@ -147,35 +153,53 @@ public:
 	void pc_eop_w(int channel, bool state);
 	void mc1502_fdc_irq_drq(bool state);
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
+	DECLARE_FLOPPY_FORMATS( asst128_formats );
+	IRQ_CALLBACK_MEMBER(pc_irq_callback);
+
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( pcjr_cartridge );
+	UINT8 pc_speaker_get_spk();
+	void pc_speaker_set_spkrdata(UINT8 data);
+	void pc_speaker_set_input(UINT8 data);
+	void pcjr_keyb_init();
+	void mess_init_pc_common(void (*set_keyb_int_func)(running_machine &, int));
+	void pc_rtc_init();
+
+	// turbo support
+	TIMER_CALLBACK_MEMBER(pc_turbo_callback);
+	void pc_turbo_setup(double off_speed, double on_speed);
+
+	int m_turbo_cur_val;
+	double m_turbo_off_speed;
+	double m_turbo_on_speed;
+
+	// keyboard
+	void init_pc_common(void (*set_keyb_int_func)(running_machine &, int));
+	TIMER_CALLBACK_MEMBER( pc_keyb_timer );
+	void pc_keyboard();
+	UINT8 pc_keyb_read();
+	void pc_keyb_set_clock(int on);
+	void pc_keyb_clear();
+	void (*m_pc_keyb_int_cb)(running_machine &, int);
+	emu_timer *m_pc_keyb_timer;
+	UINT8 m_pc_keyb_data;
+	int m_pc_keyb_on;
+	int m_pc_keyb_self_test;
 };
+
+void pc_set_keyb_int(running_machine &machine, int state);
 
 /*----------- defined in machine/pc.c -----------*/
 
 extern const struct am9517a_interface ibm5150_dma8237_config;
-extern const struct pit8253_config ibm5150_pit8253_config;
-extern const struct pit8253_config pcjr_pit8253_config;
-extern const struct pit8253_config mc1502_pit8253_config;
-extern const struct pic8259_interface ibm5150_pic8259_config;
-extern const struct pic8259_interface pcjr_pic8259_config;
+extern const struct pit8253_interface ibm5150_pit8253_config;
+extern const struct pit8253_interface pcjr_pit8253_config;
+extern const struct pit8253_interface mc1502_pit8253_config;
 extern const ins8250_interface ibm5150_com_interface[4];
 extern const rs232_port_interface ibm5150_serport_config[4];
-extern const i8255_interface ibm5150_ppi8255_interface;
 extern const i8255_interface ibm5160_ppi8255_interface;
 extern const i8255_interface pc_ppi8255_interface;
 extern const i8255_interface pcjr_ppi8255_interface;
 extern const i8255_interface mc1502_ppi8255_interface;
 extern const i8255_interface mc1502_ppi8255_interface_2;
-
-UINT8 pc_speaker_get_spk(running_machine &machine);
-void pc_speaker_set_spkrdata(running_machine &machine, UINT8 data);
-void pc_speaker_set_input(running_machine &machine, UINT8 data);
-
-void mess_init_pc_common( running_machine &machine, UINT32 flags, void (*set_keyb_int_func)(running_machine &, int), void (*set_hdc_int_func)(running_machine &,int,int));
-
-
-DEVICE_IMAGE_LOAD( pcjr_cartridge );
-
-void pc_rtc_init(running_machine &machine);
-
 
 #endif /* PC_H_ */

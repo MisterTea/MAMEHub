@@ -71,6 +71,7 @@ void wd_fdc_t::device_start()
 	t_sector = timer_alloc(TM_SECTOR);
 	dden = disable_mfm;
 	floppy = 0;
+	status = 0x00;
 
 	save_item(NAME(status));
 	save_item(NAME(command));
@@ -94,7 +95,7 @@ void wd_fdc_t::device_reset()
 	sub_state = IDLE;
 	cur_live.state = IDLE;
 	track = 0x00;
-	sector = 0x00;
+	sector = 0x01;
 	status = 0x00;
 	data = 0x00;
 	cmd_buffer = track_buffer = sector_buffer = -1;
@@ -106,6 +107,9 @@ void wd_fdc_t::device_reset()
 	hld = false;
 	intrq_cond = 0;
 	live_abort();
+
+	// restore
+	cmd_w(0x03);
 }
 
 void wd_fdc_t::set_floppy(floppy_image_device *_floppy)
@@ -199,11 +203,14 @@ void wd_fdc_t::device_timer(emu_timer &timer, device_timer_id id, int param, voi
 void wd_fdc_t::command_end()
 {
 	main_state = sub_state = IDLE;
-	status &= ~S_BUSY;
-	intrq = true;
 	motor_timeout = 0;
-	if(!intrq_cb.isnull())
-		intrq_cb(intrq);
+
+	if (!drq) {
+		status &= ~S_BUSY;
+		intrq = true;
+		if(!intrq_cb.isnull())
+			intrq_cb(intrq);
+	}
 }
 
 void wd_fdc_t::seek_start(int state)
@@ -996,8 +1003,10 @@ void wd_fdc_t::sector_w(UINT8 val)
 	if (inverted_bus) val ^= 0xff;
 
 	// No more than one write in flight
-	if(sector_buffer != -1)
-		return;
+	// C1581 accesses this register with an INC opcode,
+	// i.e. write old value, write new value, and the new value gets ignored by this
+	//if(sector_buffer != -1)
+	//  return;
 
 	sector_buffer = val;
 	delay_cycles(t_sector, dden ? delay_register_commit*2 : delay_register_commit);
@@ -1899,6 +1908,12 @@ void wd_fdc_t::drop_drq()
 		drq = false;
 		if(!drq_cb.isnull())
 			drq_cb(false);
+		if (main_state == IDLE) {
+			status &= ~S_BUSY;
+			intrq = true;
+			if(!intrq_cb.isnull())
+				intrq_cb(intrq);
+		}
 	}
 }
 

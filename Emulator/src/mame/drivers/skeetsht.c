@@ -2,7 +2,8 @@
 
     Dynamo Skeet Shot
 
-Notes: Pop Shot is a prototype sequal (or upgrade) to Skeet Shot
+    Notes:
+        Pop Shot is a prototype sequal (or upgrade) to Skeet Shot
 
 ***************************************************************************/
 
@@ -23,15 +24,20 @@ class skeetsht_state : public driver_device
 {
 public:
 	skeetsht_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_tms_vram(*this, "tms_vram"){ }
+		: driver_device(mconfig, type, tag),
+		m_tlc34076(*this, "tlc34076"),
+		m_tms_vram(*this, "tms_vram"),
+		m_68hc11(*this, "68hc11"),
+		m_ay(*this, "aysnd")
+	{
+	}
 
+	required_device<tlc34076_device> m_tlc34076;
 	required_shared_ptr<UINT16> m_tms_vram;
 	UINT8 m_porta_latch;
 	UINT8 m_ay_sel;
 	UINT8 m_lastdataw;
 	UINT16 m_lastdatar;
-	device_t *m_ay;
 	device_t *m_tms;
 	DECLARE_READ16_MEMBER(ramdac_r);
 	DECLARE_WRITE16_MEMBER(ramdac_w);
@@ -42,6 +48,8 @@ public:
 	DECLARE_WRITE8_MEMBER(ay8910_w);
 	virtual void machine_reset();
 	virtual void video_start();
+	required_device<cpu_device> m_68hc11;
+	required_device<ay8910_device> m_ay;
 };
 
 
@@ -53,8 +61,6 @@ public:
 
 void skeetsht_state::machine_reset()
 {
-
-	m_ay = machine().device("aysnd");
 	m_tms = machine().device("tms");
 }
 
@@ -72,7 +78,7 @@ void skeetsht_state::video_start()
 static void skeetsht_scanline_update(screen_device &screen, bitmap_rgb32 &bitmap, int scanline, const tms34010_display_params *params)
 {
 	skeetsht_state *state = screen.machine().driver_data<skeetsht_state>();
-	const rgb_t *const pens = tlc34076_get_pens(screen.machine().device("tlc34076"));
+	const rgb_t *const pens = state->m_tlc34076->get_pens();
 	UINT16 *vram = &state->m_tms_vram[(params->rowaddr << 8) & 0x3ff00];
 	UINT32 *dest = &bitmap.pix32(scanline);
 	int coladdr = params->coladdr;
@@ -93,7 +99,7 @@ READ16_MEMBER(skeetsht_state::ramdac_r)
 	if (offset & 8)
 		offset = (offset & ~8) | 4;
 
-	return tlc34076_r(machine().device("tlc34076"), space, offset);
+	return m_tlc34076->read(space, offset);
 }
 
 WRITE16_MEMBER(skeetsht_state::ramdac_w)
@@ -103,7 +109,7 @@ WRITE16_MEMBER(skeetsht_state::ramdac_w)
 	if (offset & 8)
 		offset = (offset & ~8) | 4;
 
-	tlc34076_w(machine().device("tlc34076"), space, offset, data);
+	m_tlc34076->write(space, offset, data);
 }
 
 
@@ -115,13 +121,13 @@ WRITE16_MEMBER(skeetsht_state::ramdac_w)
 
 static void skeetsht_tms_irq(device_t *device, int state)
 {
-	device->machine().device("68hc11")->execute().set_input_line(MC68HC11_IRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
+	skeetsht_state *drvstate = device->machine().driver_data<skeetsht_state>();
+	drvstate->m_68hc11->set_input_line(MC68HC11_IRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
 WRITE8_MEMBER(skeetsht_state::tms_w)
 {
-
 	if ((offset & 1) == 0)
 		m_lastdataw = data;
 	else
@@ -130,7 +136,6 @@ WRITE8_MEMBER(skeetsht_state::tms_w)
 
 READ8_MEMBER(skeetsht_state::tms_r)
 {
-
 	if ((offset & 1) == 0)
 		m_lastdatar = tms34010_host_r(m_tms, offset >> 1);
 
@@ -146,13 +151,11 @@ READ8_MEMBER(skeetsht_state::tms_r)
 
 READ8_MEMBER(skeetsht_state::hc11_porta_r)
 {
-
 	return m_porta_latch;
 }
 
 WRITE8_MEMBER(skeetsht_state::hc11_porta_w)
 {
-
 	if (!(data & 0x8) && (m_porta_latch & 8))
 		m_ay_sel = m_porta_latch & 0x10;
 
@@ -161,11 +164,10 @@ WRITE8_MEMBER(skeetsht_state::hc11_porta_w)
 
 WRITE8_MEMBER(skeetsht_state::ay8910_w)
 {
-
 	if (m_ay_sel)
-		ay8910_data_w(m_ay, space, 0, data);
+		m_ay->data_w(space, 0, data);
 	else
-		ay8910_address_w(m_ay, space, 0, data);
+		m_ay->address_w(space, 0, data);
 }
 
 
@@ -265,7 +267,7 @@ static MACHINE_CONFIG_START( skeetsht, skeetsht_state )
 	MCFG_CPU_PROGRAM_MAP(tms_program_map)
 
 
-	MCFG_TLC34076_ADD("tlc34076", tlc34076_6_bit_intf)
+	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(48000000 / 8, 156*4, 0, 100*4, 328, 0, 300) // FIXME

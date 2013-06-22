@@ -341,7 +341,7 @@ READ8_MEMBER(jackie_state::igs_irqack_r)
 
 WRITE8_MEMBER(jackie_state::igs_irqack_w)
 {
-//  machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+//  m_maincpu->set_input_line(0, CLEAR_LINE);
 	m_out[2] = data;
 	show_out();
 }
@@ -382,7 +382,7 @@ static ADDRESS_MAP_START( jackie_io_map, AS_IO, 8, jackie_state )
 	AM_RANGE(0x5090, 0x5090) AM_READ_PORT("BUTTONS1")
 	AM_RANGE(0x5091, 0x5091) AM_WRITE(jackie_lamps_w )
 	AM_RANGE(0x50a0, 0x50a0) AM_READ_PORT("BUTTONS2")
-	AM_RANGE(0x50b0, 0x50b1) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x50b0, 0x50b1) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0x50c0, 0x50c0) AM_READ(igs_irqack_r) AM_WRITE(igs_irqack_w)
 	AM_RANGE(0x6000, 0x60ff) AM_RAM_WRITE(bg_scroll_w ) AM_SHARE("bg_scroll")
 	AM_RANGE(0x6800, 0x69ff) AM_RAM_WRITE(jackie_reel1_ram_w )  AM_SHARE("reel1_ram")
@@ -540,9 +540,8 @@ GFXDECODE_END
 
 DRIVER_INIT_MEMBER(jackie_state,jackie)
 {
-
 	int A;
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	for (A = 0;A < 0xf000;A++)
 	{

@@ -16,10 +16,10 @@ struct irem_audio_state
 	UINT8                m_port1;
 	UINT8                m_port2;
 
-	device_t *m_ay1;
-	device_t *m_ay2;
-	device_t *m_adpcm1;
-	device_t *m_adpcm2;
+	ay8910_device *m_ay1;
+	ay8910_device *m_ay2;
+	msm5205_device *m_adpcm1;
+	msm5205_device *m_adpcm2;
 };
 
 INLINE irem_audio_state *get_safe_token( device_t *device )
@@ -43,10 +43,10 @@ static DEVICE_START( irem_audio )
 	irem_audio_state *state = get_safe_token(device);
 	running_machine &machine = device->machine();
 
-	state->m_adpcm1 = machine.device("msm1");
-	state->m_adpcm2 = machine.device("msm2");
-	state->m_ay1 = machine.device("ay1");
-	state->m_ay2 = machine.device("ay2");
+	state->m_adpcm1 = machine.device<msm5205_device>("msm1");
+	state->m_adpcm2 = machine.device<msm5205_device>("msm2");
+	state->m_ay1 = machine.device<ay8910_device>("ay1");
+	state->m_ay2 = machine.device<ay8910_device>("ay2");
 
 	device->save_item(NAME(state->m_port1));
 	device->save_item(NAME(state->m_port2));
@@ -98,17 +98,17 @@ static WRITE8_DEVICE_HANDLER( m6803_port2_w )
 		{
 			/* PSG 0 or 1? */
 			if (state->m_port2 & 0x08)
-				ay8910_address_w(state->m_ay1, space, 0, state->m_port1);
+				state->m_ay1->address_w(space, 0, state->m_port1);
 			if (state->m_port2 & 0x10)
-				ay8910_address_w(state->m_ay2, space, 0, state->m_port1);
+				state->m_ay2->address_w(space, 0, state->m_port1);
 		}
 		else
 		{
 			/* PSG 0 or 1? */
 			if (state->m_port2 & 0x08)
-				ay8910_data_w(state->m_ay1, space, 0, state->m_port1);
+				state->m_ay1->data_w(space, 0, state->m_port1);
 			if (state->m_port2 & 0x10)
-				ay8910_data_w(state->m_ay2, space, 0, state->m_port1);
+				state->m_ay2->data_w(space, 0, state->m_port1);
 		}
 	}
 	state->m_port2 = data;
@@ -128,9 +128,9 @@ static READ8_DEVICE_HANDLER( m6803_port1_r )
 
 	/* PSG 0 or 1? */
 	if (state->m_port2 & 0x08)
-		return ay8910_r(state->m_ay1, space, 0);
+		return state->m_ay1->data_r(space, 0);
 	if (state->m_port2 & 0x10)
-		return ay8910_r(state->m_ay2, space, 0);
+		return state->m_ay2->data_r(space, 0);
 	return 0xff;
 }
 
@@ -153,14 +153,14 @@ static WRITE8_DEVICE_HANDLER( ay8910_0_portb_w )
 	irem_audio_state *state = get_safe_token(device);
 
 	/* bits 2-4 select MSM5205 clock & 3b/4b playback mode */
-	msm5205_playmode_w(state->m_adpcm1, (data >> 2) & 7);
+	state->m_adpcm1->playmode_w((data >> 2) & 7);
 	if (state->m_adpcm2 != NULL)
-		msm5205_playmode_w(state->m_adpcm2, ((data >> 2) & 4) | 3); /* always in slave mode */
+		state->m_adpcm2->playmode_w(((data >> 2) & 4) | 3); /* always in slave mode */
 
 	/* bits 0 and 1 reset the two chips */
-	msm5205_reset_w(state->m_adpcm1, data & 1);
+	state->m_adpcm1->reset_w(data & 1);
 	if (state->m_adpcm2 != NULL)
-		msm5205_reset_w(state->m_adpcm2, data & 2);
+		state->m_adpcm2->reset_w(data & 2);
 }
 
 
@@ -191,12 +191,12 @@ static WRITE8_DEVICE_HANDLER( m52_adpcm_w )
 
 	if (offset & 1)
 	{
-		msm5205_data_w(state->m_adpcm1, data);
+		state->m_adpcm1->data_w(data);
 	}
 	if (offset & 2)
 	{
 		if (state->m_adpcm2 != NULL)
-			msm5205_data_w(state->m_adpcm2, data);
+			state->m_adpcm2->data_w(data);
 	}
 }
 
@@ -205,9 +205,9 @@ static WRITE8_DEVICE_HANDLER( m62_adpcm_w )
 {
 	irem_audio_state *state = get_safe_token(device);
 
-	device_t *adpcm = (offset & 1) ? state->m_adpcm2 : state->m_adpcm1;
+	msm5205_device *adpcm = (offset & 1) ? state->m_adpcm2 : state->m_adpcm1;
 	if (adpcm != NULL)
-		msm5205_data_w(adpcm, data);
+		adpcm->data_w(data);
 }
 
 
@@ -218,17 +218,17 @@ static WRITE8_DEVICE_HANDLER( m62_adpcm_w )
  *
  *************************************/
 
-static void adpcm_int(device_t *device)
+static void adpcm_int(device_t *device,int st)
 {
-	device_t *adpcm2 = device->machine().device("msm2");
+	msm5205_device *adpcm2 = device->machine().device<msm5205_device>("msm2");
 
 	device->machine().device("iremsound")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 
 	/* the first MSM5205 clocks the second */
 	if (adpcm2 != NULL)
 	{
-		msm5205_vclk_w(adpcm2, 1);
-		msm5205_vclk_w(adpcm2, 0);
+		adpcm2->vclk_w(1);
+		adpcm2->vclk_w(0);
 	}
 }
 
@@ -268,13 +268,13 @@ static const ay8910_interface irem_ay8910_interface_2 =
 
 static const msm5205_interface irem_msm5205_interface_1 =
 {
-	adpcm_int,          /* interrupt function */
+	DEVCB_LINE(adpcm_int),          /* interrupt function */
 	MSM5205_S96_4B      /* default to 4KHz, but can be changed at run time */
 };
 
 static const msm5205_interface irem_msm5205_interface_2 =
 {
-	0,              /* interrupt function */
+	DEVCB_NULL,              /* interrupt function */
 	MSM5205_SEX_4B      /* default to 4KHz, but can be changed at run time, slave */
 };
 

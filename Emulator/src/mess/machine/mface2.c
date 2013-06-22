@@ -26,7 +26,7 @@ CPC_EXPANSION_INTERFACE(sub_exp_intf)
 // device machine config
 static MACHINE_CONFIG_FRAGMENT( cpc_mface2 )
 	// pass-through
-	MCFG_CPC_EXPANSION_SLOT_ADD("exp",sub_exp_intf,cpc_exp_cards,NULL,NULL)
+	MCFG_CPC_EXPANSION_SLOT_ADD("exp",sub_exp_intf,cpc_exp_cards,NULL)
 MACHINE_CONFIG_END
 
 DIRECT_UPDATE_MEMBER( cpc_multiface2_device::amstrad_default )
@@ -314,7 +314,7 @@ ioport_constructor cpc_multiface2_device::device_input_ports() const
 //**************************************************************************
 
 cpc_multiface2_device::cpc_multiface2_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, CPC_MFACE2, "Multiface II", tag, owner, clock),
+	device_t(mconfig, CPC_MFACE2, "Multiface II", tag, owner, clock, "cpc_mf2", __FILE__),
 	device_cpc_expansion_card_interface(mconfig, *this)
 {
 }

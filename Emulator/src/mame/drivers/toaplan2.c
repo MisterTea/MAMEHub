@@ -353,7 +353,6 @@ To Do / Unknowns:
 #include "cpu/z80/z80.h"
 #include "cpu/z180/z180.h"
 #include "machine/eeprom.h"
-#include "machine/nmk112.h"
 #include "sound/2151intf.h"
 #include "sound/3812intf.h"
 #include "sound/okim6295.h"
@@ -369,10 +368,6 @@ To Do / Unknowns:
 
 MACHINE_START_MEMBER(toaplan2_state,toaplan2)
 {
-
-	m_main_cpu = machine().device("maincpu");
-	m_sub_cpu = machine().device("audiocpu");
-
 	save_item(NAME(m_mcu_data));
 	save_item(NAME(m_video_status));
 	save_item(NAME(m_old_p1_paddle_h));
@@ -385,26 +380,24 @@ static void toaplan2_reset(device_t *device)
 {
 	toaplan2_state *state = device->machine().driver_data<toaplan2_state>();
 
-	if (state->m_sub_cpu != NULL)
-		state->m_sub_cpu->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+	if (state->m_audiocpu != NULL)
+		state->m_audiocpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
 }
 
 
 MACHINE_RESET_MEMBER(toaplan2_state,toaplan2)
 {
-
 	m_mcu_data = 0x00;
 
 	// All games execute a RESET instruction on init, presumably to reset the sound CPU.
 	// This is important for games with common RAM; the RAM test will fail
 	// when leaving service mode if the sound CPU is not reset.
-	m68k_set_reset_callback(m_main_cpu, toaplan2_reset);
+	m68k_set_reset_callback(m_maincpu, toaplan2_reset);
 }
 
 
 MACHINE_RESET_MEMBER(toaplan2_state,ghox)
 {
-
 	MACHINE_RESET_CALL_MEMBER(toaplan2);
 	m_old_p1_paddle_h = 0;
 	m_old_p2_paddle_h = 0;
@@ -413,36 +406,33 @@ MACHINE_RESET_MEMBER(toaplan2_state,ghox)
 
 DRIVER_INIT_MEMBER(toaplan2_state,dogyuun)
 {
-
 	m_v25_reset_line = 0x20;
 }
 
 
 DRIVER_INIT_MEMBER(toaplan2_state,fixeight)
 {
-
 	m_v25_reset_line = 0x08;
 }
 
 
 DRIVER_INIT_MEMBER(toaplan2_state,fixeightbl)
 {
-	UINT8 *ROM = machine().root_device().memregion("oki")->base();
+	UINT8 *ROM = memregion("oki")->base();
 
-	machine().root_device().membank("bank1")->configure_entries(0, 5, &ROM[0x30000], 0x10000);
+	membank("bank1")->configure_entries(0, 5, &ROM[0x30000], 0x10000);
 }
 
 
 DRIVER_INIT_MEMBER(toaplan2_state,vfive)
 {
-
 	m_v25_reset_line = 0x10;
 }
 
 
 DRIVER_INIT_MEMBER(toaplan2_state,pipibibsbl)
 {
-	UINT16 *ROM = (UINT16 *)(machine().root_device().memregion("maincpu")->base());
+	UINT16 *ROM = (UINT16 *)(memregion("maincpu")->base());
 
 	for (int i = 0; i < (0x040000/2); i += 4)
 	{
@@ -456,10 +446,10 @@ DRIVER_INIT_MEMBER(toaplan2_state,pipibibsbl)
 
 DRIVER_INIT_MEMBER(toaplan2_state,bgaregga)
 {
-	UINT8 *Z80 = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *Z80 = memregion("audiocpu")->base();
 
 	// seems to only use banks 0x0a to 0x0f
-	machine().root_device().membank("bank1")->configure_entries(8, 8, Z80, 0x4000);
+	membank("bank1")->configure_entries(8, 8, Z80, 0x4000);
 }
 
 
@@ -474,7 +464,6 @@ DRIVER_INIT_MEMBER(toaplan2_state,batrider)
 
 DRIVER_INIT_MEMBER(toaplan2_state,bbakraid)
 {
-
 	m_sndirq_line = 2;
 }
 
@@ -483,23 +472,27 @@ DRIVER_INIT_MEMBER(toaplan2_state,bbakraid)
   Toaplan games
 ***************************************************************************/
 
-
-TIMER_CALLBACK_MEMBER(toaplan2_state::toaplan2_raise_irq)
+void toaplan2_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-
-	m_main_cpu->execute().set_input_line(param, HOLD_LINE);
+	switch (id)
+	{
+	case TIMER_RAISE_IRQ:
+		m_maincpu->set_input_line(param, HOLD_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in toaplan2_state::device_timer");
+	}
 }
 
-static void toaplan2_vblank_irq(running_machine &machine, int irq_line)
+void toaplan2_state::toaplan2_vblank_irq(int irq_line)
 {
-	toaplan2_state *state = machine.driver_data<toaplan2_state>();
 	// the IRQ appears to fire at line 0xe6
-	machine.scheduler().timer_set(machine.primary_screen->time_until_pos(0xe6), timer_expired_delegate(FUNC(toaplan2_state::toaplan2_raise_irq),state), irq_line);
+	timer_set(machine().primary_screen->time_until_pos(0xe6), TIMER_RAISE_IRQ, irq_line);
 }
 
-INTERRUPT_GEN_MEMBER(toaplan2_state::toaplan2_vblank_irq1){ toaplan2_vblank_irq(machine(), 1); }
-INTERRUPT_GEN_MEMBER(toaplan2_state::toaplan2_vblank_irq2){ toaplan2_vblank_irq(machine(), 2); }
-INTERRUPT_GEN_MEMBER(toaplan2_state::toaplan2_vblank_irq4){ toaplan2_vblank_irq(machine(), 4); }
+INTERRUPT_GEN_MEMBER(toaplan2_state::toaplan2_vblank_irq1){ toaplan2_vblank_irq(1); }
+INTERRUPT_GEN_MEMBER(toaplan2_state::toaplan2_vblank_irq2){ toaplan2_vblank_irq(2); }
+INTERRUPT_GEN_MEMBER(toaplan2_state::toaplan2_vblank_irq4){ toaplan2_vblank_irq(4); }
 
 
 READ16_MEMBER(toaplan2_state::video_count_r)
@@ -582,10 +575,9 @@ WRITE16_MEMBER(toaplan2_state::toaplan2_v25_coin_word_w)
 
 	if (ACCESSING_BITS_0_7)
 	{
-
 		toaplan2_coin_w(space, offset, data & 0x0f);
 
-		m_sub_cpu->execute().set_input_line(INPUT_LINE_RESET,  (data & m_v25_reset_line) ? CLEAR_LINE : ASSERT_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_RESET,  (data & m_v25_reset_line) ? CLEAR_LINE : ASSERT_LINE);
 	}
 	if (ACCESSING_BITS_8_15 && (data & 0xff00) )
 	{
@@ -599,7 +591,7 @@ WRITE16_MEMBER(toaplan2_state::shippumd_coin_word_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		toaplan2_coin_w(space, offset, data & 0xff);
-		machine().device<okim6295_device>("oki")->set_bank_base(((data & 0x10) >> 4) * 0x40000);
+		m_oki->set_bank_base(((data & 0x10) >> 4) * 0x40000);
 	}
 	if (ACCESSING_BITS_8_15 && (data & 0xff00) )
 	{
@@ -610,7 +602,6 @@ WRITE16_MEMBER(toaplan2_state::shippumd_coin_word_w)
 
 READ16_MEMBER(toaplan2_state::shared_ram_r)
 {
-
 	return m_shared_ram[offset];
 }
 
@@ -619,7 +610,6 @@ WRITE16_MEMBER(toaplan2_state::shared_ram_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-
 		m_shared_ram[offset] = data;
 	}
 }
@@ -632,7 +622,6 @@ WRITE16_MEMBER(toaplan2_state::toaplan2_hd647180_cpu_w)
 
 	if (ACCESSING_BITS_0_7)
 	{
-
 		m_mcu_data = data & 0xff;
 		logerror("PC:%08x Writing command (%04x) to secondary CPU shared port\n", space.device().safe_pcbase(), m_mcu_data);
 	}
@@ -641,7 +630,6 @@ WRITE16_MEMBER(toaplan2_state::toaplan2_hd647180_cpu_w)
 
 CUSTOM_INPUT_MEMBER(toaplan2_state::c2map_r)
 {
-
 	// For Teki Paki hardware
 	// bit 4 high signifies secondary CPU is ready
 	// bit 5 is tested low before V-Blank bit ???
@@ -747,7 +735,6 @@ WRITE16_MEMBER(toaplan2_state::ghox_shared_ram_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-
 		m_shared_ram16[offset] = data & 0xff;
 	}
 }
@@ -755,26 +742,23 @@ WRITE16_MEMBER(toaplan2_state::ghox_shared_ram_w)
 
 WRITE16_MEMBER(toaplan2_state::fixeight_subcpu_ctrl_w)
 {
-
-	m_sub_cpu->execute().set_input_line(INPUT_LINE_RESET, (data & m_v25_reset_line) ? CLEAR_LINE : ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, (data & m_v25_reset_line) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 
 WRITE16_MEMBER(toaplan2_state::oki_bankswitch_w)
 {
-	device_t *device = machine().device("oki");
 	if (ACCESSING_BITS_0_7)
 	{
-		downcast<okim6295_device *>(device)->set_bank_base((data & 1) * 0x40000);
+		m_oki->set_bank_base((data & 1) * 0x40000);
 	}
 }
 
 WRITE16_MEMBER(toaplan2_state::oki1_bankswitch_w)
 {
-	device_t *device = machine().device("oki1");
 	if (ACCESSING_BITS_0_7)
 	{
-		downcast<okim6295_device *>(device)->set_bank_base((data & 1) * 0x40000);
+		m_oki1->set_bank_base((data & 1) * 0x40000);
 	}
 }
 
@@ -853,10 +837,8 @@ WRITE8_MEMBER(toaplan2_state::raizing_z80_bankswitch_w)
 
 WRITE8_MEMBER(toaplan2_state::raizing_oki_bankswitch_w)
 {
-	nmk112_device *nmk112 = machine().device<nmk112_device>("nmk112");
-
-	nmk112_okibank_w(nmk112, space, offset,     data        & 0x0f);
-	nmk112_okibank_w(nmk112, space, offset + 1, (data >> 4) & 0x0f);
+	m_nmk112->okibank_w(space, offset, data & 0x0f);
+	m_nmk112->okibank_w(space, offset + 1, (data >> 4) & 0x0f);
 }
 
 
@@ -864,9 +846,8 @@ WRITE16_MEMBER(toaplan2_state::bgaregga_soundlatch_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-
 		soundlatch_byte_w(space, offset, data & 0xff);
-		m_sub_cpu->execute().set_input_line(0, HOLD_LINE);
+		m_audiocpu->set_input_line(0, HOLD_LINE);
 	}
 }
 
@@ -903,7 +884,6 @@ WRITE16_MEMBER(toaplan2_state::batrider_z80_busreq_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-
 		m_z80_busreq = (data & 0x01);   // see batrider_z80_busack_r above
 	}
 }
@@ -922,9 +902,8 @@ WRITE16_MEMBER(toaplan2_state::batrider_soundlatch_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-
 		soundlatch_byte_w(space, offset, data & 0xff);
-		m_sub_cpu->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 }
 
@@ -933,9 +912,8 @@ WRITE16_MEMBER(toaplan2_state::batrider_soundlatch2_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-
 		soundlatch2_byte_w(space, offset, data & 0xff);
-		m_sub_cpu->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 }
 
@@ -949,25 +927,22 @@ WRITE16_MEMBER(toaplan2_state::batrider_unknown_sound_w)
 
 WRITE16_MEMBER(toaplan2_state::batrider_clear_sndirq_w)
 {
-
 	// not sure whether this is correct
 	// the 68K writes here during the sound IRQ handler, and nowhere else...
-	m_main_cpu->execute().set_input_line(m_sndirq_line, CLEAR_LINE);
+	m_maincpu->set_input_line(m_sndirq_line, CLEAR_LINE);
 }
 
 
 WRITE8_MEMBER(toaplan2_state::batrider_sndirq_w)
 {
-
 	// if batrider_clear_sndirq_w() is correct, should this be ASSERT_LINE?
-	m_main_cpu->execute().set_input_line(m_sndirq_line, HOLD_LINE);
+	m_maincpu->set_input_line(m_sndirq_line, HOLD_LINE);
 }
 
 
 WRITE8_MEMBER(toaplan2_state::batrider_clear_nmi_w)
 {
-
-	m_sub_cpu->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
 
@@ -990,15 +965,13 @@ static const eeprom_interface bbakraid_93C66_intf =
 
 READ16_MEMBER(toaplan2_state::bbakraid_eeprom_r)
 {
-	eeprom_device *eeprom = machine().device<eeprom_device>("eeprom");
-
 	// Bit 0x01 returns the status of BUSAK from the Z80.
 	// BUSRQ is activated via bit 0x10 on the EEPROM write port.
 	// These accesses are made when the 68K wants to read the Z80
 	// ROM code. Failure to return the correct status incurrs a Sound Error.
 
 	int data;
-	data  = ((eeprom->read_bit() & 0x01) << 4);
+	data  = ((m_eeprom->read_bit() & 0x01) << 4);
 	data |= ((m_z80_busreq >> 4) & 0x01);   // Loop BUSRQ to BUSAK
 
 	return data;
@@ -1007,7 +980,6 @@ READ16_MEMBER(toaplan2_state::bbakraid_eeprom_r)
 
 WRITE16_MEMBER(toaplan2_state::bbakraid_eeprom_w)
 {
-
 	if (data & ~0x001f)
 		logerror("CPU #0 PC:%06X - Unknown EEPROM data being written %04X\n",space.device().safe_pc(),data);
 
@@ -1030,7 +1002,7 @@ static ADDRESS_MAP_START( tekipaki_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x020000, 0x03ffff) AM_ROM                     // extra for Whoopee
 	AM_RANGE(0x080000, 0x082fff) AM_RAM
 	AM_RANGE(0x0c0000, 0x0c0fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x140000, 0x14000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x140000, 0x14000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x180000, 0x180001) AM_READ_PORT("DSWA")
 	AM_RANGE(0x180010, 0x180011) AM_READ_PORT("DSWB")
 	AM_RANGE(0x180020, 0x180021) AM_READ_PORT("SYS")
@@ -1048,7 +1020,7 @@ static ADDRESS_MAP_START( ghox_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x080000, 0x083fff) AM_RAM
 	AM_RANGE(0x0c0000, 0x0c0fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x100000, 0x100001) AM_READ(ghox_p1_h_analog_r)
-	AM_RANGE(0x140000, 0x14000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x140000, 0x14000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x180000, 0x180001) AM_READWRITE(ghox_mcu_r, ghox_mcu_w)   // really part of shared RAM
 	AM_RANGE(0x180006, 0x180007) AM_READ_PORT("DSWA")
 	AM_RANGE(0x180008, 0x180009) AM_READ_PORT("DSWB")
@@ -1069,9 +1041,9 @@ static ADDRESS_MAP_START( dogyuun_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x200018, 0x200019) AM_READ_PORT("SYS")
 	AM_RANGE(0x20001c, 0x20001d) AM_WRITE(toaplan2_v25_coin_word_w) // Coin count/lock + v25 reset line
 	AM_RANGE(0x210000, 0x21ffff) AM_READWRITE(shared_ram_r, shared_ram_w )
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x500000, 0x50000d) AM_DEVREADWRITE_LEGACY("gp9001vdp1", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x500000, 0x50000d) AM_DEVREADWRITE("gp9001vdp1", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x700000, 0x700001) AM_READ(video_count_r)         // test bit 8
 ADDRESS_MAP_END
 
@@ -1084,7 +1056,7 @@ static ADDRESS_MAP_START( kbash_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x208014, 0x208015) AM_READ_PORT("IN2")
 	AM_RANGE(0x208018, 0x208019) AM_READ_PORT("SYS")
 	AM_RANGE(0x20801c, 0x20801d) AM_WRITE(toaplan2_coin_word_w)
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x700000, 0x700001) AM_READ(video_count_r)         // test bit 8
 ADDRESS_MAP_END
@@ -1106,7 +1078,7 @@ static ADDRESS_MAP_START( kbash2_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x200024, 0x200025) AM_DEVREADWRITE8("oki1", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x200028, 0x200029) AM_WRITE(oki1_bankswitch_w)
 	AM_RANGE(0x20002c, 0x20002d) AM_READ(video_count_r)
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 ADDRESS_MAP_END
 
@@ -1114,7 +1086,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( truxton2_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM
-	AM_RANGE(0x200000, 0x20000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x200000, 0x20000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x300000, 0x300fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x400000, 0x401fff) AM_RAM_WRITE(toaplan2_txvideoram16_w) AM_SHARE("txvideoram16")
 	AM_RANGE(0x402000, 0x4021ff) AM_RAM_WRITE(toaplan2_txvideoram16_offs_w) AM_SHARE("txvram_offs")
@@ -1139,7 +1111,7 @@ static ADDRESS_MAP_START( pipibibs_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x080000, 0x082fff) AM_RAM
 	AM_RANGE(0x0c0000, 0x0c0fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x140000, 0x14000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x140000, 0x14000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x190000, 0x190fff) AM_READWRITE(shared_ram_r, shared_ram_w)
 	AM_RANGE(0x19c01c, 0x19c01d) AM_WRITE(toaplan2_coin_word_w)
 	AM_RANGE(0x19c020, 0x19c021) AM_READ_PORT("DSWA")
@@ -1154,13 +1126,13 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( pipibibi_bootleg_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x080000, 0x082fff) AM_RAM
-	AM_RANGE(0x083000, 0x0837ff) AM_DEVREADWRITE_LEGACY("gp9001vdp0", pipibibi_bootleg_spriteram16_r, pipibibi_bootleg_spriteram16_w)   // SpriteRAM
+	AM_RANGE(0x083000, 0x0837ff) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, pipibibi_bootleg_spriteram16_r, pipibibi_bootleg_spriteram16_w)   // SpriteRAM
 	AM_RANGE(0x083800, 0x087fff) AM_RAM             // SpriteRAM (unused)
 	AM_RANGE(0x0c0000, 0x0c0fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x120000, 0x120fff) AM_RAM             // Copy of SpriteRAM ?
 //  AM_RANGE(0x13f000, 0x13f001) AM_WRITENOP        // ???
-	AM_RANGE(0x180000, 0x182fff) AM_DEVREADWRITE_LEGACY("gp9001vdp0", pipibibi_bootleg_videoram16_r, pipibibi_bootleg_videoram16_w) // TileRAM
-	AM_RANGE(0x188000, 0x18800f) AM_DEVWRITE_LEGACY("gp9001vdp0", pipibibi_bootleg_scroll_w)
+	AM_RANGE(0x180000, 0x182fff) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, pipibibi_bootleg_videoram16_r, pipibibi_bootleg_videoram16_w) // TileRAM
+	AM_RANGE(0x188000, 0x18800f) AM_DEVWRITE("gp9001vdp0", gp9001vdp_device, pipibibi_bootleg_scroll_w)
 	AM_RANGE(0x190002, 0x190003) AM_READ(shared_ram_r)  // Z80 ready ?
 	AM_RANGE(0x190010, 0x190011) AM_WRITE(shared_ram_w) // Z80 task to perform
 	AM_RANGE(0x19c01c, 0x19c01d) AM_WRITE(toaplan2_coin_word_w)
@@ -1182,7 +1154,7 @@ static ADDRESS_MAP_START( fixeight_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x200010, 0x200011) AM_READ_PORT("SYS")
 	AM_RANGE(0x20001c, 0x20001d) AM_WRITE(toaplan2_coin_word_w)
 	AM_RANGE(0x280000, 0x28ffff) AM_READWRITE(shared_ram_r, shared_ram_w )
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x500000, 0x501fff) AM_RAM_WRITE(toaplan2_txvideoram16_w) AM_SHARE("txvideoram16")
 	AM_RANGE(0x502000, 0x5021ff) AM_RAM_WRITE(toaplan2_txvideoram16_offs_w) AM_SHARE("txvram_offs")
@@ -1204,7 +1176,7 @@ static ADDRESS_MAP_START( fixeightbl_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x200014, 0x200015) AM_WRITE(fixeightbl_oki_bankswitch_w)  // Sound banking. Code at $4084c, $5070
 	AM_RANGE(0x200018, 0x200019) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x20001c, 0x20001d) AM_READ_PORT("DSWA")
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x500000, 0x501fff) AM_RAM_WRITE(toaplan2_txvideoram16_w) AM_SHARE("txvideoram16")
 	AM_RANGE(0x502000, 0x5021ff) AM_RAM_WRITE(toaplan2_txvideoram16_offs_w) AM_SHARE("txvram_offs")
@@ -1223,7 +1195,7 @@ static ADDRESS_MAP_START( vfive_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x200018, 0x200019) AM_READ_PORT("SYS")
 	AM_RANGE(0x20001c, 0x20001d) AM_WRITE(toaplan2_v25_coin_word_w) // Coin count/lock + v25 reset line
 	AM_RANGE(0x210000, 0x21ffff) AM_READWRITE(shared_ram_r, shared_ram_w )
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x700000, 0x700001) AM_READ(video_count_r)
 ADDRESS_MAP_END
@@ -1237,9 +1209,9 @@ static ADDRESS_MAP_START( batsugun_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x200018, 0x200019) AM_READ_PORT("SYS")
 	AM_RANGE(0x20001c, 0x20001d) AM_WRITE(toaplan2_v25_coin_word_w) // Coin count/lock + v25 reset line
 	AM_RANGE(0x210000, 0x21ffff) AM_READWRITE(shared_ram_r, shared_ram_w )
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x500000, 0x50000d) AM_DEVREADWRITE_LEGACY("gp9001vdp1", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x500000, 0x50000d) AM_DEVREADWRITE("gp9001vdp1", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x700000, 0x700001) AM_READ(video_count_r)
 ADDRESS_MAP_END
 
@@ -1247,7 +1219,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( snowbro2_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x500000, 0x500003) AM_DEVREADWRITE8("ymsnd", ym2151_device, read, write, 0x00ff)
 	AM_RANGE(0x600000, 0x600001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
@@ -1276,7 +1248,7 @@ static ADDRESS_MAP_START( mahoudai_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x21c030, 0x21c031) AM_READ_PORT("DSWB")
 	AM_RANGE(0x21c034, 0x21c035) AM_READ_PORT("JMPR")
 	AM_RANGE(0x21c03c, 0x21c03d) AM_READ(video_count_r)
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x401000, 0x4017ff) AM_RAM                         // Unused palette RAM
 	AM_RANGE(0x500000, 0x501fff) AM_RAM_WRITE(toaplan2_txvideoram16_w) AM_SHARE("txvideoram16")
@@ -1300,7 +1272,7 @@ static ADDRESS_MAP_START( shippumd_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x21c030, 0x21c031) AM_READ_PORT("DSWB")
 	AM_RANGE(0x21c034, 0x21c035) AM_READ_PORT("JMPR")
 	AM_RANGE(0x21c03c, 0x21c03d) AM_READ(video_count_r)
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x401000, 0x4017ff) AM_RAM                         // Unused palette RAM
 	AM_RANGE(0x500000, 0x501fff) AM_RAM_WRITE(toaplan2_txvideoram16_w) AM_SHARE("txvideoram16")
@@ -1323,7 +1295,7 @@ static ADDRESS_MAP_START( bgaregga_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x21c030, 0x21c031) AM_READ_PORT("DSWB")
 	AM_RANGE(0x21c034, 0x21c035) AM_READ_PORT("JMPR")
 	AM_RANGE(0x21c03c, 0x21c03d) AM_READ(video_count_r)
-	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_r, gp9001_vdp_w)
+	AM_RANGE(0x300000, 0x30000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_r, gp9001_vdp_w)
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x500000, 0x501fff) AM_RAM_WRITE(toaplan2_txvideoram16_w) AM_SHARE("txvideoram16")
 	AM_RANGE(0x502000, 0x5021ff) AM_RAM_WRITE(toaplan2_txvideoram16_offs_w) AM_SHARE("txvram_offs")
@@ -1344,7 +1316,7 @@ static ADDRESS_MAP_START( batrider_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x203400, 0x207fff) AM_RAM AM_SHARE("mainram16")
 	AM_RANGE(0x208000, 0x20ffff) AM_RAM
 	AM_RANGE(0x300000, 0x37ffff) AM_READ(batrider_z80rom_r)
-	AM_RANGE(0x400000, 0x40000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_alt_r, gp9001_vdp_alt_w)
+	AM_RANGE(0x400000, 0x40000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_alt_r, gp9001_vdp_alt_w)
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("IN")
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("SYS-DSW")
 	AM_RANGE(0x500004, 0x500005) AM_READ_PORT("DSW")
@@ -1374,7 +1346,7 @@ static ADDRESS_MAP_START( bbakraid_68k_mem, AS_PROGRAM, 16, toaplan2_state )
 	AM_RANGE(0x203400, 0x207fff) AM_RAM AM_SHARE("mainram16")
 	AM_RANGE(0x208000, 0x20ffff) AM_RAM
 	AM_RANGE(0x300000, 0x33ffff) AM_READ(batrider_z80rom_r)
-	AM_RANGE(0x400000, 0x40000d) AM_DEVREADWRITE_LEGACY("gp9001vdp0", gp9001_vdp_alt_r, gp9001_vdp_alt_w)
+	AM_RANGE(0x400000, 0x40000d) AM_DEVREADWRITE("gp9001vdp0", gp9001vdp_device, gp9001_vdp_alt_r, gp9001_vdp_alt_w)
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("IN")
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("SYS-DSW")
 	AM_RANGE(0x500004, 0x500005) AM_READ_PORT("DSW")
@@ -1398,7 +1370,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( pipibibs_sound_z80_mem, AS_PROGRAM, 8, toaplan2_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM AM_SHARE("shared_ram")
-	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r, ym3812_w)
+	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -1462,7 +1434,7 @@ static ADDRESS_MAP_START( bbakraid_sound_z80_port, AS_IO, 8, toaplan2_state )
 	AM_RANGE(0x46, 0x46) AM_WRITE(batrider_clear_nmi_w)
 	AM_RANGE(0x48, 0x48) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x4a, 0x4a) AM_READ(soundlatch2_byte_r)
-	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE_LEGACY("ymz", ymz280b_r, ymz280b_w)
+	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE("ymz", ymz280b_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -2997,30 +2969,17 @@ static GFXDECODE_START( fixeightbl )
 GFXDECODE_END
 
 
-static void irqhandler(device_t *device, int linestate)
+WRITE_LINE_MEMBER(toaplan2_state::irqhandler)
 {
-	toaplan2_state *state = device->machine().driver_data<toaplan2_state>();
-
-	if (state->m_sub_cpu != NULL)       // wouldn't tekipaki have problem without this? "mcu" is not generally added
-		state->m_sub_cpu->execute().set_input_line(0, linestate);
+	if (m_audiocpu != NULL)       // wouldn't tekipaki have problem without this? "mcu" is not generally added
+		m_audiocpu->set_input_line(0, state);
 }
 
-static const ym3812_interface ym3812_config =
-{
-	irqhandler
-};
-
-
-static void bbakraid_irqhandler(device_t *device, int state)
+WRITE_LINE_MEMBER(toaplan2_state::bbakraid_irqhandler)
 {
 	// Not used ???  Connected to a test pin (TP082)
 	logerror("YMZ280 is generating an interrupt. State=%08x\n",state);
 }
-
-static const ymz280b_interface ymz280b_config =
-{
-	bbakraid_irqhandler
-};
 
 
 static MACHINE_CONFIG_START( tekipaki, toaplan2_state )
@@ -3059,7 +3018,7 @@ static MACHINE_CONFIG_START( tekipaki, toaplan2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_27MHz/8)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(toaplan2_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -3363,7 +3322,7 @@ static MACHINE_CONFIG_START( pipibibs, toaplan2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_27MHz/8)           /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(toaplan2_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -3404,7 +3363,7 @@ static MACHINE_CONFIG_START( pipibibsbl, toaplan2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_27MHz/8)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(toaplan2_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -3878,7 +3837,7 @@ static MACHINE_CONFIG_START( bbakraid, toaplan2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_config)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(toaplan2_state, bbakraid_irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -4177,8 +4136,7 @@ ROM_END
 	ROM_REGION( 0x40000, "oki", 0 ) \
 	ROM_LOAD( "tp-026-2", 0x00000, 0x40000, CRC(85063f1f) SHA1(1bf4d77494de421c98f6273b9876e60d827a6826) ) \
 	ROM_REGION( 0x80, "eepromdumped", 0 ) \
-	ROM_LOAD16_WORD_SWAP( "93c45.u21", 0x00, 0x80, CRC(40d75df0) SHA1(a22f1cc74ce9bc9bfe53f48f6a43ab60e921052b) )\
-
+	ROM_LOAD16_WORD_SWAP( "93c45.u21", 0x00, 0x80, CRC(40d75df0) SHA1(a22f1cc74ce9bc9bfe53f48f6a43ab60e921052b) )
 // eeprom dumped can't be accepted by the code, but the values can't be a simple bad dump (not fixed bits and the values are present three times)
 // robiza's note: probably between sound cpu and EEPROM there's something that modify the values (PAL?)
 // we can get the eeprom with a value in [00004] address (1XXX dcba) -> then we need a different value in [00004] address (0XXX XXXX)

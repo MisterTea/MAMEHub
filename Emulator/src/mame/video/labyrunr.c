@@ -4,7 +4,7 @@
 
 void labyrunr_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int pal;
 
 	/* allocate the colortable */
@@ -41,18 +41,17 @@ void labyrunr_state::palette_init()
 }
 
 
-static void set_pens( running_machine &machine )
+void labyrunr_state::set_pens(  )
 {
-	labyrunr_state *state = machine.driver_data<labyrunr_state>();
 	int i;
 
 	for (i = 0x00; i < 0x100; i += 2)
 	{
-		UINT16 data = state->m_paletteram[i | 1] | (state->m_paletteram[i] << 8);
+		UINT16 data = m_paletteram[i | 1] | (m_paletteram[i] << 8);
 
 		rgb_t color = MAKE_RGB(pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
 
-		colortable_palette_set_color(machine.colortable, i >> 1, color);
+		colortable_palette_set_color(machine().colortable, i >> 1, color);
 	}
 }
 
@@ -131,7 +130,6 @@ TILE_GET_INFO_MEMBER(labyrunr_state::get_tile_info1)
 
 void labyrunr_state::video_start()
 {
-
 	m_layer0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(labyrunr_state::get_tile_info0),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_layer1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(labyrunr_state::get_tile_info1),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
@@ -182,7 +180,7 @@ UINT32 labyrunr_state::screen_update_labyrunr(screen_device &screen, bitmap_ind1
 	UINT8 ctrl_0 = k007121_ctrlram_r(m_k007121, space, 0);
 	rectangle finalclip0, finalclip1;
 
-	set_pens(machine());
+	set_pens();
 
 	machine().priority_bitmap.fill(0, cliprect);
 	bitmap.fill(get_black_pen(machine()), cliprect);

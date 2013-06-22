@@ -11,7 +11,6 @@
 #include "cpu/i8085/i8085.h"
 #include "imagedev/cassette.h"
 #include "machine/i8255.h"
-#include "machine/pit8253.h"
 #include "machine/wd_fdc.h"
 #include "machine/pic8259.h"
 #include "machine/i8251.h"
@@ -40,12 +39,11 @@ READ8_MEMBER(b2m_state::b2m_keyboard_r)
 }
 
 
-static void b2m_set_bank(running_machine &machine,int bank)
+void b2m_state::b2m_set_bank(int bank)
 {
 	UINT8 *rom;
-	b2m_state *state =  machine.driver_data<b2m_state>();
-	address_space &space = machine.device("maincpu")->memory().space(AS_PROGRAM);
-	UINT8 *ram = machine.device<ram_device>(RAM_TAG)->pointer();
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	UINT8 *ram = m_ram->pointer();
 
 	space.install_write_bank(0x0000, 0x27ff, "bank1");
 	space.install_write_bank(0x2800, 0x2fff, "bank2");
@@ -53,78 +51,78 @@ static void b2m_set_bank(running_machine &machine,int bank)
 	space.install_write_bank(0x7000, 0xdfff, "bank4");
 	space.install_write_bank(0xe000, 0xffff, "bank5");
 
-	rom = state->memregion("maincpu")->base();
+	rom = memregion("maincpu")->base();
 	switch(bank) {
 		case 0 :
 		case 1 :
 						space.unmap_write(0xe000, 0xffff);
 
-						state->membank("bank1")->set_base(ram);
-						state->membank("bank2")->set_base(ram + 0x2800);
-						state->membank("bank3")->set_base(ram + 0x3000);
-						state->membank("bank4")->set_base(ram + 0x7000);
-						state->membank("bank5")->set_base(rom + 0x10000);
+						membank("bank1")->set_base(ram);
+						membank("bank2")->set_base(ram + 0x2800);
+						membank("bank3")->set_base(ram + 0x3000);
+						membank("bank4")->set_base(ram + 0x7000);
+						membank("bank5")->set_base(rom + 0x10000);
 						break;
 #if 0
 		case 1 :
 						space.unmap_write(0x3000, 0x6fff);
 						space.unmap_write(0xe000, 0xffff);
 
-						state->membank("bank1")->set_base(ram);
-						state->membank("bank2")->set_base(ram + 0x2800);
-						state->membank("bank3")->set_base(rom + 0x12000);
-						state->membank("bank4")->set_base(rom + 0x16000);
-						state->membank("bank5")->set_base(rom + 0x10000);
+						membank("bank1")->set_base(ram);
+						membank("bank2")->set_base(ram + 0x2800);
+						membank("bank3")->set_base(rom + 0x12000);
+						membank("bank4")->set_base(rom + 0x16000);
+						membank("bank5")->set_base(rom + 0x10000);
 						break;
 #endif
 		case 2 :
 						space.unmap_write(0x2800, 0x2fff);
 						space.unmap_write(0xe000, 0xffff);
 
-						state->membank("bank1")->set_base(ram);
-						space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(b2m_state::b2m_keyboard_r),state));
-						state->membank("bank3")->set_base(ram + 0x10000);
-						state->membank("bank4")->set_base(ram + 0x7000);
-						state->membank("bank5")->set_base(rom + 0x10000);
+						membank("bank1")->set_base(ram);
+						space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(b2m_state::b2m_keyboard_r),this));
+						membank("bank3")->set_base(ram + 0x10000);
+						membank("bank4")->set_base(ram + 0x7000);
+						membank("bank5")->set_base(rom + 0x10000);
 						break;
 		case 3 :
 						space.unmap_write(0x2800, 0x2fff);
 						space.unmap_write(0xe000, 0xffff);
 
-						state->membank("bank1")->set_base(ram);
-						space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(b2m_state::b2m_keyboard_r),state));
-						state->membank("bank3")->set_base(ram + 0x14000);
-						state->membank("bank4")->set_base(ram + 0x7000);
-						state->membank("bank5")->set_base(rom + 0x10000);
+						membank("bank1")->set_base(ram);
+						space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(b2m_state::b2m_keyboard_r),this));
+						membank("bank3")->set_base(ram + 0x14000);
+						membank("bank4")->set_base(ram + 0x7000);
+						membank("bank5")->set_base(rom + 0x10000);
 						break;
 		case 4 :
 						space.unmap_write(0x2800, 0x2fff);
 						space.unmap_write(0xe000, 0xffff);
 
-						state->membank("bank1")->set_base(ram);
-						space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(b2m_state::b2m_keyboard_r),state));
-						state->membank("bank3")->set_base(ram + 0x18000);
-						state->membank("bank4")->set_base(ram + 0x7000);
-						state->membank("bank5")->set_base(rom + 0x10000);
+						membank("bank1")->set_base(ram);
+						space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(b2m_state::b2m_keyboard_r),this));
+						membank("bank3")->set_base(ram + 0x18000);
+						membank("bank4")->set_base(ram + 0x7000);
+						membank("bank5")->set_base(rom + 0x10000);
 
 						break;
 		case 5 :
 						space.unmap_write(0x2800, 0x2fff);
 						space.unmap_write(0xe000, 0xffff);
 
-						state->membank("bank1")->set_base(ram);
-						space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(b2m_state::b2m_keyboard_r),state));
-						state->membank("bank3")->set_base(ram + 0x1c000);
-						state->membank("bank4")->set_base(ram + 0x7000);
-						state->membank("bank5")->set_base(rom + 0x10000);
+						membank("bank1")->set_base(ram);
+						space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(b2m_state::b2m_keyboard_r),this));
+						membank("bank3")->set_base(ram + 0x1c000);
+						membank("bank4")->set_base(ram + 0x7000);
+						membank("bank5")->set_base(rom + 0x10000);
 
 						break;
 		case 6 :
-						state->membank("bank1")->set_base(ram);
-						state->membank("bank2")->set_base(ram + 0x2800);
-						state->membank("bank3")->set_base(ram + 0x3000);
-						state->membank("bank4")->set_base(ram + 0x7000);
-						state->membank("bank5")->set_base(ram + 0xe000);
+						membank("bank1")->set_base(ram);
+						membank("bank2")->set_base(ram + 0x2800);
+						membank("bank3")->set_base(ram + 0x3000);
+						membank("bank4")->set_base(ram + 0x7000);
+						membank("bank5")->set_base(ram + 0xe000);
 						break;
 		case 7 :
 						space.unmap_write(0x0000, 0x27ff);
@@ -133,11 +131,11 @@ static void b2m_set_bank(running_machine &machine,int bank)
 						space.unmap_write(0x7000, 0xdfff);
 						space.unmap_write(0xe000, 0xffff);
 
-						state->membank("bank1")->set_base(rom + 0x10000);
-						state->membank("bank2")->set_base(rom + 0x10000);
-						state->membank("bank3")->set_base(rom + 0x10000);
-						state->membank("bank4")->set_base(rom + 0x10000);
-						state->membank("bank5")->set_base(rom + 0x10000);
+						membank("bank1")->set_base(rom + 0x10000);
+						membank("bank2")->set_base(rom + 0x10000);
+						membank("bank3")->set_base(rom + 0x10000);
+						membank("bank4")->set_base(rom + 0x10000);
+						membank("bank5")->set_base(rom + 0x10000);
 						break;
 	}
 }
@@ -145,16 +143,16 @@ static void b2m_set_bank(running_machine &machine,int bank)
 
 WRITE_LINE_MEMBER(b2m_state::bm2_pit_out1)
 {
-	speaker_level_w(m_speaker, state);
+	m_speaker->level_w(state);
 }
 
-const struct pit8253_config b2m_pit8253_intf =
+const struct pit8253_interface b2m_pit8253_intf =
 {
 	{
 		{
 			0,
 			DEVCB_NULL,
-			DEVCB_DEVICE_LINE("pic8259", pic8259_ir1_w)
+			DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir1_w)
 		},
 		{
 			2000000,
@@ -164,7 +162,7 @@ const struct pit8253_config b2m_pit8253_intf =
 		{
 			2000000,
 			DEVCB_NULL,
-			DEVCB_DEVICE_LINE("pit8253", pit8253_clk0_w)
+			DEVCB_DEVICE_LINE_MEMBER("pit8253", pit8253_device, clk0_w)
 		}
 	}
 };
@@ -181,7 +179,7 @@ WRITE8_MEMBER(b2m_state::b2m_8255_portb_w)
 WRITE8_MEMBER(b2m_state::b2m_8255_portc_w)
 {
 	m_b2m_8255_portc = data;
-	b2m_set_bank(machine(), m_b2m_8255_portc & 7);
+	b2m_set_bank(m_b2m_8255_portc & 7);
 	m_b2m_video_page = (m_b2m_8255_portc >> 7) & 1;
 }
 
@@ -277,7 +275,7 @@ I8255A_INTERFACE( b2m_ppi8255_interface_3 )
 
 WRITE_LINE_MEMBER(b2m_state::b2m_pic_set_int_line)
 {
-	machine().device("maincpu")->execute().set_input_line(0, state ?  HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ?  HOLD_LINE : CLEAR_LINE);
 }
 
 /* Driver initialization */
@@ -288,7 +286,6 @@ DRIVER_INIT_MEMBER(b2m_state,b2m)
 
 WRITE8_MEMBER(b2m_state::b2m_palette_w)
 {
-
 	UINT8 b = (3 - ((data >> 6) & 3)) * 0x55;
 	UINT8 g = (3 - ((data >> 4) & 3)) * 0x55;
 	UINT8 r = (3 - ((data >> 2) & 3)) * 0x55;
@@ -319,16 +316,15 @@ READ8_MEMBER(b2m_state::b2m_localmachine_r)
 	return m_b2m_localmachine;
 }
 
-static void b2m_postload(b2m_state *state)
+void b2m_state::b2m_postload()
 {
-	b2m_set_bank(state->machine(), state->m_b2m_8255_portc & 7);
+	b2m_set_bank(m_b2m_8255_portc & 7);
 }
 
 void b2m_state::machine_start()
 {
-	m_pic = machine().device("pic8259");
+	m_pic = machine().device<pic8259_device>("pic8259");
 	m_fdc = machine().device<fd1793_t>("fd1793");
-	m_speaker = machine().device(SPEAKER_TAG);
 
 	m_fdc->setup_drq_cb(fd1793_t::line_cb(FUNC(b2m_state::b2m_fdc_drq), this));
 
@@ -345,27 +341,19 @@ void b2m_state::machine_start()
 	save_item(NAME(m_b2m_localmachine));
 	save_item(NAME(m_vblank_state));
 
-	machine().save().register_postload(save_prepost_delegate(FUNC(b2m_postload), this));
+	machine().save().register_postload(save_prepost_delegate(FUNC(b2m_state::b2m_postload), this));
 }
 
-static IRQ_CALLBACK(b2m_irq_callback)
+IRQ_CALLBACK_MEMBER(b2m_state::b2m_irq_callback)
 {
-	b2m_state *state = device->machine().driver_data<b2m_state>();
-	return pic8259_acknowledge(state->m_pic);
+	return m_pic->acknowledge();
 }
-
-const struct pic8259_interface b2m_pic8259_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(b2m_state,b2m_pic_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_NULL
-};
 
 INTERRUPT_GEN_MEMBER(b2m_state::b2m_vblank_interrupt)
 {
 	m_vblank_state++;
 	if (m_vblank_state>1) m_vblank_state=0;
-	pic8259_ir0_w(m_pic, m_vblank_state);
+	m_pic->ir0_w(m_vblank_state);
 }
 
 void b2m_state::machine_reset()
@@ -373,6 +361,6 @@ void b2m_state::machine_reset()
 	m_b2m_side = 0;
 	m_b2m_drive = 0;
 
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(b2m_irq_callback);
-	b2m_set_bank(machine(), 7);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(b2m_state::b2m_irq_callback),this));
+	b2m_set_bank(7);
 }

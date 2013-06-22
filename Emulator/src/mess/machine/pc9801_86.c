@@ -35,31 +35,27 @@ READ8_MEMBER(pc9801_86_device::opn_porta_r)
 
 WRITE8_MEMBER(pc9801_86_device::opn_portb_w){ m_joy_sel = data; }
 
-static void pc9801_sound_irq( device_t *device, int irq )
+WRITE_LINE_MEMBER(pc9801_86_device::pc9801_sound_irq)
 {
-//  pc9801_state *state = device->machine().driver_data<pc9801_state>();
-
 	/* TODO: seems to die very often */
-	pic8259_ir4_w(device->machine().device("pic8259_slave"), irq);
+	machine().device<pic8259_device>(":pic8259_slave")->ir4_w(state);
 }
 
-static const ym2608_interface pc98_ym2608_intf =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, pc9801_86_device,opn_porta_r),
-		DEVCB_NULL,//(pc9801_state,opn_portb_r),
-		DEVCB_NULL,//(pc9801_state,opn_porta_w),
-		DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, pc9801_86_device,opn_portb_w),
-	},
-	pc9801_sound_irq
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, pc9801_86_device,opn_porta_r),
+	DEVCB_NULL,//(pc9801_state,opn_portb_r),
+	DEVCB_NULL,//(pc9801_state,opn_porta_w),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, pc9801_86_device,opn_portb_w),
 };
 
 static MACHINE_CONFIG_FRAGMENT( pc9801_86_config )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("opna", YM2608, MAIN_CLOCK_X1*4) // unknown clock / divider
-	MCFG_SOUND_CONFIG(pc98_ym2608_intf)
+	MCFG_YM2608_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, pc9801_86_device, pc9801_sound_irq))
+	MCFG_YM2608_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 
@@ -127,11 +123,10 @@ ioport_constructor pc9801_86_device::device_input_ports() const
 //-------------------------------------------------
 
 pc9801_86_device::pc9801_86_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, PC9801_86, "pc9801_86", tag, owner, clock),
+	: device_t(mconfig, PC9801_86, "pc9801_86", tag, owner, clock, "pc9801_86", __FILE__),
 //      m_maincpu(*owner, "maincpu"),
 		m_opna(*this, "opna")
 {
-
 }
 
 
@@ -171,7 +166,6 @@ void pc9801_86_device::install_device(offs_t start, offs_t end, offs_t mask, off
 
 void pc9801_86_device::device_start()
 {
-
 }
 
 
@@ -196,7 +190,7 @@ void pc9801_86_device::device_reset()
 READ8_MEMBER(pc9801_86_device::pc9801_86_r)
 {
 	if((offset & 1) == 0)
-		return ym2608_r(m_opna, space, offset >> 1);
+		return m_opna->read(space, offset >> 1);
 	else // odd
 	{
 		printf("PC9801-86: Read to undefined port [%02x]\n",offset+0x188);
@@ -208,7 +202,7 @@ READ8_MEMBER(pc9801_86_device::pc9801_86_r)
 WRITE8_MEMBER(pc9801_86_device::pc9801_86_w)
 {
 	if((offset & 1) == 0)
-		ym2608_w(m_opna,space, offset >> 1,data);
+		m_opna->write(space, offset >> 1,data);
 	else // odd
 		printf("PC9801-86: Write to undefined port [%02x] %02x\n",offset+0x188,data);
 }

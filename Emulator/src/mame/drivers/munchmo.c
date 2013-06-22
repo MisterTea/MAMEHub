@@ -43,7 +43,6 @@ WRITE8_MEMBER(munchmo_state::mnchmobl_nmi_enable_w)
 /* trusted thru schematics, NMI and IRQ triggers at vblank, at the same time (!) */
 INTERRUPT_GEN_MEMBER(munchmo_state::mnchmobl_vblank_irq)
 {
-
 	if (m_nmi_enable)
 		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 
@@ -52,13 +51,11 @@ INTERRUPT_GEN_MEMBER(munchmo_state::mnchmobl_vblank_irq)
 
 INTERRUPT_GEN_MEMBER(munchmo_state::mnchmobl_sound_irq)
 {
-
 	device.execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 WRITE8_MEMBER(munchmo_state::mnchmobl_soundlatch_w)
 {
-
 	soundlatch_byte_w(space, 0, data);
 	m_audiocpu->set_input_line(0, HOLD_LINE );
 }
@@ -71,15 +68,15 @@ WRITE8_MEMBER(munchmo_state::sound_nmi_ack_w)
 
 READ8_MEMBER(munchmo_state::munchmo_ay1reset_r)
 {
-	device_t *device = machine().device("ay1");
-	ay8910_reset_w(device,space,0,0);
+	ay8910_device *ay8910 = machine().device<ay8910_device>("ay1");
+	ay8910->reset_w(space,0,0);
 	return 0;
 }
 
 READ8_MEMBER(munchmo_state::munchmo_ay2reset_r)
 {
-	device_t *device = machine().device("ay2");
-	ay8910_reset_w(device,space,0,0);
+	ay8910_device *ay8910 = machine().device<ay8910_device>("ay2");
+	ay8910->reset_w(space,0,0);
 	return 0;
 }
 /*************************************
@@ -116,12 +113,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, munchmo_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x2000, 0x3fff) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x4000, 0x4fff) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0x5000, 0x5fff) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x6000, 0x6fff) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
-	AM_RANGE(0x7000, 0x7fff) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
-	AM_RANGE(0x8000, 0x9fff) AM_READ(munchmo_ay1reset_r) AM_DEVWRITE_LEGACY("ay1",ay8910_reset_w)
-	AM_RANGE(0xa000, 0xbfff) AM_READ(munchmo_ay2reset_r) AM_DEVWRITE_LEGACY("ay2",ay8910_reset_w)
+	AM_RANGE(0x4000, 0x4fff) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0x5000, 0x5fff) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x6000, 0x6fff) AM_DEVWRITE("ay2", ay8910_device, data_w)
+	AM_RANGE(0x7000, 0x7fff) AM_DEVWRITE("ay2", ay8910_device, address_w)
+	AM_RANGE(0x8000, 0x9fff) AM_READ(munchmo_ay1reset_r) AM_DEVWRITE("ay1", ay8910_device, reset_w)
+	AM_RANGE(0xa000, 0xbfff) AM_READ(munchmo_ay2reset_r) AM_DEVWRITE("ay2", ay8910_device, reset_w)
 	AM_RANGE(0xc000, 0xdfff) AM_WRITE(sound_nmi_ack_w)
 	AM_RANGE(0xe000, 0xe7ff) AM_MIRROR(0x1800) AM_RAM // is mirror ok?
 ADDRESS_MAP_END
@@ -306,10 +303,6 @@ GFXDECODE_END
 
 void munchmo_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_palette_bank));
 	save_item(NAME(m_flipscreen));
 	save_item(NAME(m_nmi_enable));
@@ -317,7 +310,6 @@ void munchmo_state::machine_start()
 
 void munchmo_state::machine_reset()
 {
-
 	m_palette_bank = 0;
 	m_flipscreen = 0;
 	m_nmi_enable = 0;

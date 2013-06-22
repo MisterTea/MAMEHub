@@ -179,8 +179,10 @@ public:
 	bfm_sc2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_vfd0(*this, "vfd0"),
-			m_vfd1(*this, "vfd1")
-			{ }
+			m_vfd1(*this, "vfd1"),
+			m_maincpu(*this, "maincpu"),
+			m_upd7759(*this, "upd"),
+			m_adder2(*this, "adder2") { }
 
 	optional_device<bfm_bd1_t> m_vfd0;
 	optional_device<bfm_bd1_t> m_vfd1;
@@ -304,6 +306,20 @@ public:
 	DECLARE_MACHINE_START(sc2dmd);
 	DECLARE_MACHINE_RESET(dm01_init);
 	INTERRUPT_GEN_MEMBER(timer_irq);
+	void on_scorpion2_reset();
+	void Scorpion2_SetSwitchState(int strobe, int data, int state);
+	int Scorpion2_GetSwitchState(int strobe, int data);
+	void e2ram_reset();
+	int recAck(int changed, int data);
+	int read_e2ram();
+	int sc2_find_project_string( );
+	void sc2_common_init(int decrypt);
+	void adder2_common_init();
+	void sc2awp_common_init(int reels, int decrypt);
+	void sc2awpdmd_common_init(int reels, int decrypt);
+	required_device<cpu_device> m_maincpu;
+	required_device<upd7759_device> m_upd7759;
+	optional_device<cpu_device> m_adder2;
 };
 
 
@@ -319,11 +335,6 @@ public:
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
 
 #define MASTER_CLOCK        (XTAL_8MHz)
-
-// local prototypes ///////////////////////////////////////////////////////
-
-static int  read_e2ram(running_machine &machine);
-static void e2ram_reset(running_machine &machine);
 
 /*      INPUTS layout
 
@@ -347,98 +358,96 @@ static void e2ram_reset(running_machine &machine);
 // called if board is reset ///////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-static void on_scorpion2_reset(running_machine &machine)
+void bfm_sc2_state::on_scorpion2_reset()
 {
-	bfm_sc2_state *state = machine.driver_data<bfm_sc2_state>();
-	state->m_mmtr_latch        = 0;
-	state->m_triac_latch       = 0;
-	state->m_irq_status        = 0;
-	state->m_is_timer_enabled  = 1;
-	state->m_coin_inhibits     = 0;
-	state->m_irq_timer_stat    = 0;
-	state->m_expansion_latch   = 0;
-	state->m_global_volume     = 0;
-	state->m_volume_override   = 0;
-	state->m_triac_select      = 0;
-	state->m_pay_latch         = 0;
+	m_mmtr_latch        = 0;
+	m_triac_latch       = 0;
+	m_irq_status        = 0;
+	m_is_timer_enabled  = 1;
+	m_coin_inhibits     = 0;
+	m_irq_timer_stat    = 0;
+	m_expansion_latch   = 0;
+	m_global_volume     = 0;
+	m_volume_override   = 0;
+	m_triac_select      = 0;
+	m_pay_latch         = 0;
 
-	state->m_reel12_latch      = 0;
-	state->m_reel34_latch      = 0;
-	state->m_reel56_latch      = 0;
+	m_reel12_latch      = 0;
+	m_reel34_latch      = 0;
+	m_reel56_latch      = 0;
 
-	state->m_hopper_running    = 0;  // for video games
-	state->m_hopper_coin_sense = 0;
+	m_hopper_running    = 0;  // for video games
+	m_hopper_coin_sense = 0;
 
-	state->m_slide_states[0] = 0;
-	state->m_slide_states[1] = 0;
-	state->m_slide_states[2] = 0;
-	state->m_slide_states[3] = 0;
-	state->m_slide_states[4] = 0;
-	state->m_slide_states[5] = 0;
+	m_slide_states[0] = 0;
+	m_slide_states[1] = 0;
+	m_slide_states[2] = 0;
+	m_slide_states[3] = 0;
+	m_slide_states[4] = 0;
+	m_slide_states[5] = 0;
 
-	e2ram_reset(machine);
+	e2ram_reset();
 
-	machine.device("ymsnd")->reset();
+	machine().device("ymsnd")->reset();
 
 	// reset stepper motors /////////////////////////////////////////////////
 	{
 		int pattern =0, i;
 
-		for ( i = 0; i < state->m_reels; i++)
+		for ( i = 0; i < m_reels; i++)
 		{
 			stepper_reset_position(i);
 			if ( stepper_optic_state(i) ) pattern |= 1<<i;
 		}
 
-		state->m_optic_pattern = pattern;
+		m_optic_pattern = pattern;
 
 	}
 
-	state->m_locked        = 0;
+	m_locked        = 0;
 
 	// make sure no inputs are overidden ////////////////////////////////////
-	memset(state->m_input_override, 0, sizeof(state->m_input_override));
+	memset(m_input_override, 0, sizeof(m_input_override));
 
 	// init rom bank ////////////////////////////////////////////////////////
 
 	{
-		UINT8 *rom = machine.root_device().memregion("maincpu")->base();
+		UINT8 *rom = memregion("maincpu")->base();
 
-		state->membank("bank1")->configure_entries(0, 4, &rom[0x00000], 0x02000);
+		membank("bank1")->configure_entries(0, 4, &rom[0x00000], 0x02000);
 
-		state->membank("bank1")->set_entry(3);
+		membank("bank1")->set_entry(3);
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Scorpion2_SetSwitchState(running_machine &machine, int strobe, int data, int state)
+void bfm_sc2_state::Scorpion2_SetSwitchState(int strobe, int data, int state)
 {
-	bfm_sc2_state *drvstate = machine.driver_data<bfm_sc2_state>();
 	if ( strobe < 11 && data < 8 )
 	{
 		if ( strobe < 8 )
 		{
-			drvstate->m_input_override[strobe] |= (1<<data);
+			m_input_override[strobe] |= (1<<data);
 
-			if ( state ) drvstate->m_sc2_Inputs[strobe] |=  (1<<data);
-			else         drvstate->m_sc2_Inputs[strobe] &= ~(1<<data);
+			if ( state ) m_sc2_Inputs[strobe] |=  (1<<data);
+			else         m_sc2_Inputs[strobe] &= ~(1<<data);
 		}
 		else
 		{
 			if ( data > 2 )
 			{
-				drvstate->m_input_override[strobe-8+4] |= (1<<(data+2));
+				m_input_override[strobe-8+4] |= (1<<(data+2));
 
-				if ( state ) drvstate->m_sc2_Inputs[strobe-8+4] |=  (1<<(data+2));
-				else         drvstate->m_sc2_Inputs[strobe-8+4] &= ~(1<<(data+2));
+				if ( state ) m_sc2_Inputs[strobe-8+4] |=  (1<<(data+2));
+				else         m_sc2_Inputs[strobe-8+4] &= ~(1<<(data+2));
 			}
 			else
 			{
-				drvstate->m_input_override[strobe-8] |= (1<<(data+5));
+				m_input_override[strobe-8] |= (1<<(data+5));
 
-				if ( state ) drvstate->m_sc2_Inputs[strobe-8] |=  (1 << (data+5));
-				else         drvstate->m_sc2_Inputs[strobe-8] &= ~(1 << (data+5));
+				if ( state ) m_sc2_Inputs[strobe-8] |=  (1 << (data+5));
+				else         m_sc2_Inputs[strobe-8] &= ~(1 << (data+5));
 			}
 		}
 	}
@@ -446,26 +455,25 @@ void Scorpion2_SetSwitchState(running_machine &machine, int strobe, int data, in
 
 ///////////////////////////////////////////////////////////////////////////
 
-int Scorpion2_GetSwitchState(running_machine &machine, int strobe, int data)
+int bfm_sc2_state::Scorpion2_GetSwitchState(int strobe, int data)
 {
-	bfm_sc2_state *drvstate = machine.driver_data<bfm_sc2_state>();
 	int state = 0;
 
 	if ( strobe < 11 && data < 8 )
 	{
 		if ( strobe < 8 )
 		{
-			state = (drvstate->m_sc2_Inputs[strobe] & (1<<data) ) ? 1 : 0;
+			state = (m_sc2_Inputs[strobe] & (1<<data) ) ? 1 : 0;
 		}
 		else
 		{
 			if ( data > 2 )
 			{
-				state = (drvstate->m_sc2_Inputs[strobe-8+4] & (1<<(data+2)) ) ? 1 : 0;
+				state = (m_sc2_Inputs[strobe-8+4] & (1<<(data+2)) ) ? 1 : 0;
 			}
 			else
 			{
-				state = (drvstate->m_sc2_Inputs[strobe-8] & (1 << (data+5)) ) ? 1 : 0;
+				state = (m_sc2_Inputs[strobe-8] & (1 << (data+5)) ) ? 1 : 0;
 			}
 		}
 	}
@@ -499,7 +507,7 @@ INTERRUPT_GEN_MEMBER(bfm_sc2_state::timer_irq)
 		m_irq_timer_stat = 0x01;
 		m_irq_status     = 0x02;
 
-		generic_pulse_irq_line(device.execute(), M6809_IRQ_LINE, 1);
+		device.execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 	}
 }
 
@@ -610,7 +618,7 @@ WRITE8_MEMBER(bfm_sc2_state::mmtr_w)
 			MechMtr_update(i, data & (1 << i) );
 		}
 	}
-	if ( data & 0x1F ) machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, ASSERT_LINE );
+	if ( data & 0x1F ) m_maincpu->set_input_line(M6809_FIRQ_LINE, ASSERT_LINE );
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -687,12 +695,11 @@ WRITE8_MEMBER(bfm_sc2_state::volume_override_w)
 	if ( old != m_volume_override )
 	{
 		ym2413_device *ym = machine().device<ym2413_device>("ymsnd");
-		upd7759_device *upd = machine().device<upd7759_device>("upd");
 		float percent = m_volume_override? 1.0f : (32-m_global_volume)/32.0f;
 
 		ym->set_output_gain(0, percent);
 		ym->set_output_gain(1, percent);
-		upd->set_output_gain(0, percent);
+		m_upd7759->set_output_gain(0, percent);
 	}
 }
 
@@ -700,26 +707,24 @@ WRITE8_MEMBER(bfm_sc2_state::volume_override_w)
 
 WRITE8_MEMBER(bfm_sc2_state::nec_reset_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_start_w(device, 0);
-	upd7759_reset_w(device, data);
+	upd7759_start_w(m_upd7759, 0);
+	upd7759_reset_w(m_upd7759, data);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 WRITE8_MEMBER(bfm_sc2_state::nec_latch_w)
 {
-	device_t *device = machine().device("upd");
 	int bank = 0;
 
 	if ( data & 0x80 )         bank |= 0x01;
 	if ( m_expansion_latch & 2 ) bank |= 0x02;
 
-	upd7759_set_bank_base(device, bank*0x20000);
+	upd7759_set_bank_base(m_upd7759, bank*0x20000);
 
-	upd7759_port_w(device, space, 0, data&0x3F);    // setup sample
-	upd7759_start_w(device, 0);
-	upd7759_start_w(device, 1);
+	upd7759_port_w(m_upd7759, space, 0, data&0x3F);    // setup sample
+	upd7759_start_w(m_upd7759, 0);
+	upd7759_start_w(m_upd7759, 1);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -749,7 +754,7 @@ READ8_MEMBER(bfm_sc2_state::vfd_status_hop_r)// on video games, hopper inputs ar
 		}
 	}
 
-	if ( !upd7759_busy_r(machine().device("upd")) ) result |= 0x80;           // update sound busy input
+	if ( !upd7759_busy_r(m_upd7759) ) result |= 0x80;           // update sound busy input
 
 	return result;
 }
@@ -786,12 +791,11 @@ WRITE8_MEMBER(bfm_sc2_state::expansion_latch_w)
 
 			{
 				ym2413_device *ym = machine().device<ym2413_device>("ymsnd");
-				upd7759_device *upd = machine().device<upd7759_device>("upd");
 				float percent = m_volume_override ? 1.0f : (32-m_global_volume)/32.0f;
 
 				ym->set_output_gain(0, percent);
 				ym->set_output_gain(1, percent);
-				upd->set_output_gain(0, percent);
+				m_upd7759->set_output_gain(0, percent);
 			}
 		}
 	}
@@ -915,7 +919,7 @@ WRITE8_MEMBER(bfm_sc2_state::payout_triac_w)
 					{
 						int strobe = m_slide_pay_sensor[slide]>>4, data = m_slide_pay_sensor[slide]&0x0F;
 
-						Scorpion2_SetSwitchState(machine(), strobe, data, 0);
+						Scorpion2_SetSwitchState(strobe, data, 0);
 					}
 					m_slide_states[slide] = 1;
 				}
@@ -928,7 +932,7 @@ WRITE8_MEMBER(bfm_sc2_state::payout_triac_w)
 					{
 						int strobe = m_slide_pay_sensor[slide]>>4, data = m_slide_pay_sensor[slide]&0x0F;
 
-						Scorpion2_SetSwitchState(machine(), strobe, data, 1);
+						Scorpion2_SetSwitchState(strobe, data, 1);
 					}
 					m_slide_states[slide] = 0;
 				}
@@ -1026,7 +1030,7 @@ WRITE8_MEMBER(bfm_sc2_state::uart2data_w)
 WRITE8_MEMBER(bfm_sc2_state::vid_uart_tx_w)
 {
 	adder2_send(data);
-	machine().device("adder2")->execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE );
+	m_adder2->set_input_line(M6809_IRQ_LINE, HOLD_LINE );
 
 	LOG_SERIAL(("sadder  %02X  (%c)\n",data, data ));
 }
@@ -1063,7 +1067,7 @@ READ8_MEMBER(bfm_sc2_state::key_r)
 
 	if ( offset == 7 )
 	{
-		result = (result & 0xFE) | read_e2ram(machine());
+		result = (result & 0xFE) | read_e2ram();
 	}
 
 	return result;
@@ -1086,17 +1090,16 @@ on a simple two wire bus.
 #define SDA 0x02    //SDA pin (data)
 
 
-static void e2ram_reset(running_machine &machine)
+void bfm_sc2_state::e2ram_reset()
 {
-	bfm_sc2_state *state = machine.driver_data<bfm_sc2_state>();
-	state->m_e2reg   = 0;
-	state->m_e2state = 0;
-	state->m_e2address = 0;
-	state->m_e2rw    = 0;
-	state->m_e2data_pin = 0;
-	state->m_e2data  = (SDA|SCL);
-	state->m_e2dummywrite = 0;
-	state->m_e2data_to_read = 0;
+	m_e2reg   = 0;
+	m_e2state = 0;
+	m_e2address = 0;
+	m_e2rw    = 0;
+	m_e2data_pin = 0;
+	m_e2data  = (SDA|SCL);
+	m_e2dummywrite = 0;
+	m_e2data_to_read = 0;
 }
 
 int bfm_sc2_state::recdata(int changed, int data)
@@ -1131,7 +1134,7 @@ int bfm_sc2_state::recdata(int changed, int data)
 	return res;
 }
 
-static int recAck(int changed, int data)
+int bfm_sc2_state::recAck(int changed, int data)
 {
 	int result = 0;
 
@@ -1161,7 +1164,7 @@ READ8_MEMBER(bfm_sc2_state::vfd_status_r)
 
 	int result = m_optic_pattern;
 
-	if ( !upd7759_busy_r(machine().device("upd")) ) result |= 0x80;
+	if ( !upd7759_busy_r(m_upd7759) ) result |= 0x80;
 
 	if (machine().device("matrix"))
 		if ( BFM_dm01_busy() ) result |= 0x40;
@@ -1188,7 +1191,6 @@ WRITE8_MEMBER(bfm_sc2_state::vfd1_dmd_w)
 //
 WRITE8_MEMBER(bfm_sc2_state::e2ram_w)
 {
-
 	int changed, ack;
 
 	data ^= (SDA|SCL);  // invert signals
@@ -1394,12 +1396,11 @@ WRITE8_MEMBER(bfm_sc2_state::e2ram_w)
 	}
 }
 
-static int read_e2ram(running_machine &machine)
+int bfm_sc2_state::read_e2ram()
 {
-	bfm_sc2_state *state = machine.driver_data<bfm_sc2_state>();
-	LOG(("e2ram: r %d (%02X) \n", state->m_e2data_pin, state->m_e2data_to_read ));
+	LOG(("e2ram: r %d (%02X) \n", m_e2data_pin, m_e2data_to_read ));
 
-	return state->m_e2data_pin;
+	return m_e2data_pin;
 }
 
 
@@ -1408,10 +1409,9 @@ static int read_e2ram(running_machine &machine)
 
 MACHINE_RESET_MEMBER(bfm_sc2_state,init)
 {
-
 	// reset the board //////////////////////////////////////////////////////
 
-	on_scorpion2_reset(machine());
+	on_scorpion2_reset();
 	m_vfd0->reset();
 	m_vfd1->reset();
 
@@ -1463,7 +1463,7 @@ static ADDRESS_MAP_START( sc2_basemap, AS_PROGRAM, 8, bfm_sc2_state )
 	AM_RANGE(0x2A00, 0x2AFF) AM_WRITE(nec_latch_w)
 	AM_RANGE(0x2B00, 0x2BFF) AM_WRITE(nec_reset_w)
 	AM_RANGE(0x2C00, 0x2C00) AM_WRITE(unlock_w)                     /* custom chip unlock */
-	AM_RANGE(0x2D00, 0x2D01) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x2D00, 0x2D01) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0x2E00, 0x2E00) AM_WRITE(bankswitch_w)                 /* write bank (rom page select for 0x6000 - 0x7fff ) */
 	//AM_RANGE(0x2F00, 0x2F00) AM_WRITE(vfd2_data_w)                /* vfd2 data (not usually connected!)*/
 
@@ -2189,16 +2189,15 @@ MACHINE_CONFIG_END
 
 
 
-int sc2_find_project_string(running_machine &machine )
+int bfm_sc2_state::sc2_find_project_string( )
 {
 	// search for the project string to find the title (usually just at ff00)
 	char title_string[4][32] = { "PROJECT NUMBER", "PROJECT PR", "PROJECT ", "CASH ON THE NILE 2" };
-	UINT8 *src = machine.root_device().memregion( "maincpu" )->base();
-	int size = machine.root_device().memregion( "maincpu" )->bytes();
+	UINT8 *src = memregion( "maincpu" )->base();
+	int size = memregion( "maincpu" )->bytes();
 
 	for (int search=0;search<4;search++)
 	{
-
 		int strlength = strlen(title_string[search]);
 
 		for (int i=0;i<size-strlength;i++)
@@ -2219,7 +2218,6 @@ int sc2_find_project_string(running_machine &machine )
 
 			if (found!=0)
 			{
-
 				int end=0;
 				int count = 0;
 				int blankcount = 0;
@@ -2266,24 +2264,21 @@ int sc2_find_project_string(running_machine &machine )
 }
 
 
-static void sc2_common_init(running_machine &machine, int decrypt)
+void bfm_sc2_state::sc2_common_init(int decrypt)
 {
-	bfm_sc2_state *state = machine.driver_data<bfm_sc2_state>();
+	if (decrypt) bfm_decode_mainrom(machine(), "maincpu", m_codec_data);         // decode main rom
 
-	if (decrypt) bfm_decode_mainrom(machine, "maincpu", state->m_codec_data);         // decode main rom
-
-	memset(state->m_sc2_Inputs, 0, sizeof(state->m_sc2_Inputs));  // clear all inputs
+	memset(m_sc2_Inputs, 0, sizeof(m_sc2_Inputs));  // clear all inputs
 }
 
-static void adder2_common_init(running_machine &machine)
+void bfm_sc2_state::adder2_common_init()
 {
-	bfm_sc2_state *state = machine.driver_data<bfm_sc2_state>();
 	UINT8 *pal;
 
-	pal = state->memregion("proms")->base();
+	pal = memregion("proms")->base();
 	if ( pal )
 	{
-		memcpy(state->m_key, pal, 8);
+		memcpy(m_key, pal, 8);
 	}
 }
 
@@ -2291,18 +2286,18 @@ static void adder2_common_init(running_machine &machine)
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,quintoon)
 {
-	sc2_common_init(machine(), 1);
+	sc2_common_init( 1);
 	adder2_decode_char_roms(machine());
 	MechMtr_config(machine(),8);                    // setup mech meters
 
 	m_has_hopper = 0;
 
-	Scorpion2_SetSwitchState(machine(),3,0,1);  // tube1 level switch
-	Scorpion2_SetSwitchState(machine(),3,1,1);  // tube2 level switch
-	Scorpion2_SetSwitchState(machine(),3,2,1);  // tube3 level switch
+	Scorpion2_SetSwitchState(3,0,1);  // tube1 level switch
+	Scorpion2_SetSwitchState(3,1,1);  // tube2 level switch
+	Scorpion2_SetSwitchState(3,2,1);  // tube3 level switch
 
-	Scorpion2_SetSwitchState(machine(),5,2,1);
-	Scorpion2_SetSwitchState(machine(),6,4,1);
+	Scorpion2_SetSwitchState(5,2,1);
+	Scorpion2_SetSwitchState(6,4,1);
 
 	m_sc2_show_door   = 1;
 	m_sc2_door_state  = 0x41;
@@ -2312,15 +2307,15 @@ DRIVER_INIT_MEMBER(bfm_sc2_state,quintoon)
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,pyramid)
 {
-	sc2_common_init(machine(), 1);
+	sc2_common_init(1);
 	adder2_decode_char_roms(machine());         // decode GFX roms
-	adder2_common_init(machine());
+	adder2_common_init();
 
 	m_has_hopper = 1;
 
-	Scorpion2_SetSwitchState(machine(),3,0,1);  // tube1 level switch
-	Scorpion2_SetSwitchState(machine(),3,1,1);  // tube2 level switch
-	Scorpion2_SetSwitchState(machine(),3,2,1);  // tube3 level switch
+	Scorpion2_SetSwitchState(3,0,1);  // tube1 level switch
+	Scorpion2_SetSwitchState(3,1,1);  // tube2 level switch
+	Scorpion2_SetSwitchState(3,2,1);  // tube3 level switch
 
 	m_sc2_show_door   = 1;
 	m_sc2_door_state  = 0x41;
@@ -2329,9 +2324,9 @@ DRIVER_INIT_MEMBER(bfm_sc2_state,pyramid)
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,sltsbelg)
 {
-	sc2_common_init(machine(), 1);
+	sc2_common_init(1);
 	adder2_decode_char_roms(machine());         // decode GFX roms
-	adder2_common_init(machine());
+	adder2_common_init();
 
 	m_has_hopper = 1;
 
@@ -2343,15 +2338,15 @@ DRIVER_INIT_MEMBER(bfm_sc2_state,sltsbelg)
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,adder_dutch)
 {
-	sc2_common_init(machine(), 1);
+	sc2_common_init(1);
 	adder2_decode_char_roms(machine());         // decode GFX roms
-	adder2_common_init(machine());
+	adder2_common_init();
 
 	m_has_hopper = 0;
 
-	Scorpion2_SetSwitchState(machine(),3,0,1);  // tube1 level switch
-	Scorpion2_SetSwitchState(machine(),3,1,1);  // tube2 level switch
-	Scorpion2_SetSwitchState(machine(),3,2,1);  // tube3 level switch
+	Scorpion2_SetSwitchState(3,0,1);  // tube1 level switch
+	Scorpion2_SetSwitchState(3,1,1);  // tube2 level switch
+	Scorpion2_SetSwitchState(3,2,1);  // tube3 level switch
 
 	m_sc2_show_door   = 1;
 	m_sc2_door_state  = 0x41;
@@ -2361,15 +2356,15 @@ DRIVER_INIT_MEMBER(bfm_sc2_state,adder_dutch)
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,gldncrwn)
 {
-	sc2_common_init(machine(), 1);
+	sc2_common_init(1);
 	adder2_decode_char_roms(machine());         // decode GFX roms
-	adder2_common_init(machine());
+	adder2_common_init();
 
 	m_has_hopper = 0;
 
-	Scorpion2_SetSwitchState(machine(),3,0,1);  // tube1 level switch
-	Scorpion2_SetSwitchState(machine(),3,1,1);  // tube2 level switch
-	Scorpion2_SetSwitchState(machine(),3,2,1);  // tube3 level switch
+	Scorpion2_SetSwitchState(3,0,1);  // tube1 level switch
+	Scorpion2_SetSwitchState(3,1,1);  // tube2 level switch
+	Scorpion2_SetSwitchState(3,2,1);  // tube3 level switch
 
 	m_sc2_show_door   = 0;
 	m_sc2_door_state  = 0x41;
@@ -2666,7 +2661,8 @@ WRITE8_MEMBER(bfm_sc2_state::sc3_expansion_w)
 
 static void bfmdm01_busy(running_machine &machine, int state)
 {
-	Scorpion2_SetSwitchState(machine, 4,4, state?0:1);
+	bfm_sc2_state *drvstate = machine.driver_data<bfm_sc2_state>();
+	drvstate->Scorpion2_SetSwitchState(4,4, state?0:1);
 }
 
 static const bfmdm01_interface dm01_interface =
@@ -2677,8 +2673,7 @@ static const bfmdm01_interface dm01_interface =
 /* machine init (called only once) */
 MACHINE_RESET_MEMBER(bfm_sc2_state,awp_init)
 {
-
-	on_scorpion2_reset(machine());
+	on_scorpion2_reset();
 	m_vfd0->reset();
 	m_vfd1->reset();
 }
@@ -2686,7 +2681,7 @@ MACHINE_RESET_MEMBER(bfm_sc2_state,awp_init)
 
 MACHINE_RESET_MEMBER(bfm_sc2_state,dm01_init)
 {
-	on_scorpion2_reset(machine());
+	on_scorpion2_reset();
 }
 
 
@@ -3768,7 +3763,7 @@ WRITE8_MEMBER(bfm_sc2_state::dmd_reset_w)
 MACHINE_START_MEMBER(bfm_sc2_state,sc2dmd)
 {
 	MACHINE_START_CALL_MEMBER(bfm_sc2);
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	space.install_write_handler(0x2800, 0x2800, 0, 0, write8_delegate(FUNC(bfm_sc2_state::vfd1_dmd_w),this));
 	space.install_write_handler(0x2900, 0x2900, 0, 0, write8_delegate(FUNC(bfm_sc2_state::dmd_reset_w),this));
 }
@@ -3836,36 +3831,32 @@ static MACHINE_CONFIG_START( scorpion2_dm01, bfm_sc2_state )
 	MCFG_CPU_PERIODIC_INT(bfm_dm01_vbl, 1500 )          /* generate 1500 NMI's per second ?? what is the exact freq?? */
 MACHINE_CONFIG_END
 
-static void sc2awp_common_init(running_machine &machine,int reels, int decrypt)
+void bfm_sc2_state::sc2awp_common_init(int reels, int decrypt)
 {
-	bfm_sc2_state *state = machine.driver_data<bfm_sc2_state>();
-
 	int n;
-	sc2_common_init(machine, decrypt);
+	sc2_common_init(decrypt);
 	/* setup n default 96 half step reels */
 
-	state->m_reels=reels;
+	m_reels=reels;
 
 	for ( n = 0; n < reels; n++ )
 	{
-		stepper_config(machine, n, &starpoint_interface_48step);
+		stepper_config(machine(), n, &starpoint_interface_48step);
 	}
 }
 
-static void sc2awpdmd_common_init(running_machine &machine,int reels, int decrypt)
+void bfm_sc2_state::sc2awpdmd_common_init(int reels, int decrypt)
 {
-	bfm_sc2_state *state = machine.driver_data<bfm_sc2_state>();
-
 	int n;
-	BFM_dm01_config(machine, &dm01_interface);
-	sc2_common_init(machine, decrypt);
+	BFM_dm01_config(machine(), &dm01_interface);
+	sc2_common_init(decrypt);
 	/* setup n default 96 half step reels */
 
-	state->m_reels=reels;
+	m_reels=reels;
 
 	for ( n = 0; n < reels; n++ )
 	{
-		stepper_config(machine, n, &starpoint_interface_48step);
+		stepper_config(machine(), n, &starpoint_interface_48step);
 	}
 }
 
@@ -3873,22 +3864,22 @@ static void sc2awpdmd_common_init(running_machine &machine,int reels, int decryp
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,bbrkfst)
 {
-	sc2awp_common_init(machine(),5, 1);
+	sc2awp_common_init(5, 1);
 	MechMtr_config(machine(),8);
 
 	m_has_hopper = 0;
 
-	Scorpion2_SetSwitchState(machine(),4,0, 1);   /* GBP1 Low Level Switch */
-	Scorpion2_SetSwitchState(machine(),4,1, 1);   /* 20p Low Level Switch */
-	Scorpion2_SetSwitchState(machine(),4,2, 1);   /* Token Front Low Level Switch */
-	Scorpion2_SetSwitchState(machine(),4,3, 1);   /* Token Rear  Low Level Switch */
-	Scorpion2_SetSwitchState(machine(),4,4, 1);
-	Scorpion2_SetSwitchState(machine(),6,0, 0);
-	Scorpion2_SetSwitchState(machine(),6,1, 1);
-	Scorpion2_SetSwitchState(machine(),6,2, 0);
-	Scorpion2_SetSwitchState(machine(),6,3, 1);
+	Scorpion2_SetSwitchState(4,0, 1);   /* GBP1 Low Level Switch */
+	Scorpion2_SetSwitchState(4,1, 1);   /* 20p Low Level Switch */
+	Scorpion2_SetSwitchState(4,2, 1);   /* Token Front Low Level Switch */
+	Scorpion2_SetSwitchState(4,3, 1);   /* Token Rear  Low Level Switch */
+	Scorpion2_SetSwitchState(4,4, 1);
+	Scorpion2_SetSwitchState(6,0, 0);
+	Scorpion2_SetSwitchState(6,1, 1);
+	Scorpion2_SetSwitchState(6,2, 0);
+	Scorpion2_SetSwitchState(6,3, 1);
 
-	sc2_find_project_string(machine());
+	sc2_find_project_string();
 }
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,drwho_common)
@@ -3897,57 +3888,57 @@ DRIVER_INIT_MEMBER(bfm_sc2_state,drwho_common)
 
 	m_has_hopper = 0;
 
-	Scorpion2_SetSwitchState(machine(),4,0, 0);   /* GBP1 Low Level Switch */
-	Scorpion2_SetSwitchState(machine(),4,1, 0);   /* 20p Low Level Switch */
-	Scorpion2_SetSwitchState(machine(),4,2, 0);   /* Token Front Low Level Switch */
-	Scorpion2_SetSwitchState(machine(),4,3, 0);   /* Token Rear  Low Level Switch */
-	Scorpion2_SetSwitchState(machine(),7,0, 0);   /* GBP1 High Level Switch */
-	Scorpion2_SetSwitchState(machine(),7,1, 0);   /* 20P High Level Switch */
-	Scorpion2_SetSwitchState(machine(),7,2, 0);   /* Token Front High Level Switch */
-	Scorpion2_SetSwitchState(machine(),7,3, 0);   /* Token Rear High Level Switch */
+	Scorpion2_SetSwitchState(4,0, 0);   /* GBP1 Low Level Switch */
+	Scorpion2_SetSwitchState(4,1, 0);   /* 20p Low Level Switch */
+	Scorpion2_SetSwitchState(4,2, 0);   /* Token Front Low Level Switch */
+	Scorpion2_SetSwitchState(4,3, 0);   /* Token Rear  Low Level Switch */
+	Scorpion2_SetSwitchState(7,0, 0);   /* GBP1 High Level Switch */
+	Scorpion2_SetSwitchState(7,1, 0);   /* 20P High Level Switch */
+	Scorpion2_SetSwitchState(7,2, 0);   /* Token Front High Level Switch */
+	Scorpion2_SetSwitchState(7,3, 0);   /* Token Rear High Level Switch */
 
-	sc2_find_project_string(machine());
+	sc2_find_project_string();
 }
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,drwho)
 {
-	sc2awp_common_init(machine(),6, 1);
+	sc2awp_common_init(6, 1);
 	DRIVER_INIT_CALL(drwho_common);
 }
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,drwhon)
 {
-	sc2awp_common_init(machine(),4, 0);
+	sc2awp_common_init(4, 0);
 	DRIVER_INIT_CALL(drwho_common);
 }
 
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,focus)
 {
-	sc2awp_common_init(machine(),6, 1);
+	sc2awp_common_init(6, 1);
 	MechMtr_config(machine(),5);
-	sc2_find_project_string(machine());
+	sc2_find_project_string();
 }
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,cpeno1)
 {
-	sc2awpdmd_common_init(machine(),6, 1);
+	sc2awpdmd_common_init(6, 1);
 
 	MechMtr_config(machine(),5);
 
-	Scorpion2_SetSwitchState(machine(),3,3,1);  /*  5p play */
-	Scorpion2_SetSwitchState(machine(),3,4,1);  /* 20p play */
+	Scorpion2_SetSwitchState(3,3,1);  /*  5p play */
+	Scorpion2_SetSwitchState(3,4,1);  /* 20p play */
 
-	Scorpion2_SetSwitchState(machine(),4,0,1);  /* pay tube low (1 pound front) */
-	Scorpion2_SetSwitchState(machine(),4,1,1);  /* pay tube low (20p) */
-	Scorpion2_SetSwitchState(machine(),4,2,1);  /* pay tube low (?1 right) */
-	Scorpion2_SetSwitchState(machine(),4,3,1);  /* pay tube low (?1 left) */
+	Scorpion2_SetSwitchState(4,0,1);  /* pay tube low (1 pound front) */
+	Scorpion2_SetSwitchState(4,1,1);  /* pay tube low (20p) */
+	Scorpion2_SetSwitchState(4,2,1);  /* pay tube low (?1 right) */
+	Scorpion2_SetSwitchState(4,3,1);  /* pay tube low (?1 left) */
 
-	Scorpion2_SetSwitchState(machine(),5,0,1);  /* pay sensor (GBP1 front) */
-	Scorpion2_SetSwitchState(machine(),5,1,1);  /* pay sensor (20 p) */
-	Scorpion2_SetSwitchState(machine(),5,2,1);  /* pay sensor (1 right) */
-	Scorpion2_SetSwitchState(machine(),5,3,1);  /* pay sensor (?1 left) */
-	Scorpion2_SetSwitchState(machine(),5,4,1);  /* payout unit present */
+	Scorpion2_SetSwitchState(5,0,1);  /* pay sensor (GBP1 front) */
+	Scorpion2_SetSwitchState(5,1,1);  /* pay sensor (20 p) */
+	Scorpion2_SetSwitchState(5,2,1);  /* pay sensor (1 right) */
+	Scorpion2_SetSwitchState(5,3,1);  /* pay sensor (?1 left) */
+	Scorpion2_SetSwitchState(5,4,1);  /* payout unit present */
 
 	m_slide_pay_sensor[0] = 0x50;
 	m_slide_pay_sensor[1] = 0x51;
@@ -3956,149 +3947,137 @@ DRIVER_INIT_MEMBER(bfm_sc2_state,cpeno1)
 	m_slide_pay_sensor[4] = 0;
 	m_slide_pay_sensor[5] = 0;
 
-	Scorpion2_SetSwitchState(machine(),6,0,1);  /* ? percentage key */
-	Scorpion2_SetSwitchState(machine(),6,1,1);
-	Scorpion2_SetSwitchState(machine(),6,2,1);
-	Scorpion2_SetSwitchState(machine(),6,3,1);
-	Scorpion2_SetSwitchState(machine(),6,4,1);
+	Scorpion2_SetSwitchState(6,0,1);  /* ? percentage key */
+	Scorpion2_SetSwitchState(6,1,1);
+	Scorpion2_SetSwitchState(6,2,1);
+	Scorpion2_SetSwitchState(6,3,1);
+	Scorpion2_SetSwitchState(6,4,1);
 
-	Scorpion2_SetSwitchState(machine(),7,0,0);  /* GBP1 High Level Switch  */
-	Scorpion2_SetSwitchState(machine(),7,1,0);  /* 20P High Level Switch */
-	Scorpion2_SetSwitchState(machine(),7,2,0);  /* Token Front High Level Switch */
-	Scorpion2_SetSwitchState(machine(),7,3,0);  /* Token Rear High Level Switch */
+	Scorpion2_SetSwitchState(7,0,0);  /* GBP1 High Level Switch  */
+	Scorpion2_SetSwitchState(7,1,0);  /* 20P High Level Switch */
+	Scorpion2_SetSwitchState(7,2,0);  /* Token Front High Level Switch */
+	Scorpion2_SetSwitchState(7,3,0);  /* Token Rear High Level Switch */
 
 	m_sc2_show_door   = 1;
 	m_sc2_door_state  = 0x31;
 
 	m_has_hopper = 0;
-	sc2_find_project_string(machine());
+	sc2_find_project_string();
 }
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,ofah)
 {
-	sc2awpdmd_common_init(machine(),4, 1);
+	sc2awpdmd_common_init(4, 1);
 
-	Scorpion2_SetSwitchState(machine(),4,0,1);  /* pay tube low (1 pound front) */
-	Scorpion2_SetSwitchState(machine(),4,1,1);  /* pay tube low (20p) */
-	Scorpion2_SetSwitchState(machine(),4,2,1);  /* pay tube low (?1 right) */
-	Scorpion2_SetSwitchState(machine(),4,3,1);  /* pay tube low (?1 left) */
+	Scorpion2_SetSwitchState(4,0,1);  /* pay tube low (1 pound front) */
+	Scorpion2_SetSwitchState(4,1,1);  /* pay tube low (20p) */
+	Scorpion2_SetSwitchState(4,2,1);  /* pay tube low (?1 right) */
+	Scorpion2_SetSwitchState(4,3,1);  /* pay tube low (?1 left) */
 
-	Scorpion2_SetSwitchState(machine(),6,0,0);  /* ? percentage key */
-	Scorpion2_SetSwitchState(machine(),6,1,1);
-	Scorpion2_SetSwitchState(machine(),6,2,0);
-	Scorpion2_SetSwitchState(machine(),6,3,1);
+	Scorpion2_SetSwitchState(6,0,0);  /* ? percentage key */
+	Scorpion2_SetSwitchState(6,1,1);
+	Scorpion2_SetSwitchState(6,2,0);
+	Scorpion2_SetSwitchState(6,3,1);
 
 	MechMtr_config(machine(),3);
-	sc2_find_project_string(machine());
+	sc2_find_project_string();
 }
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,prom)
 {
-	sc2awpdmd_common_init(machine(),6, 1);
+	sc2awpdmd_common_init(6, 1);
 
-	Scorpion2_SetSwitchState(machine(),4,0,1);  /* pay tube low (1 pound front) */
-	Scorpion2_SetSwitchState(machine(),4,1,1);  /* pay tube low (20p) */
-	Scorpion2_SetSwitchState(machine(),4,2,1);  /* pay tube low (?1 right) */
-	Scorpion2_SetSwitchState(machine(),4,3,1);  /* pay tube low (?1 left) */
+	Scorpion2_SetSwitchState(4,0,1);  /* pay tube low (1 pound front) */
+	Scorpion2_SetSwitchState(4,1,1);  /* pay tube low (20p) */
+	Scorpion2_SetSwitchState(4,2,1);  /* pay tube low (?1 right) */
+	Scorpion2_SetSwitchState(4,3,1);  /* pay tube low (?1 left) */
 
-	Scorpion2_SetSwitchState(machine(),6,0,0);  /* ? percentage key */
-	Scorpion2_SetSwitchState(machine(),6,1,1);
-	Scorpion2_SetSwitchState(machine(),6,2,0);
-	Scorpion2_SetSwitchState(machine(),6,3,1);
+	Scorpion2_SetSwitchState(6,0,0);  /* ? percentage key */
+	Scorpion2_SetSwitchState(6,1,1);
+	Scorpion2_SetSwitchState(6,2,0);
+	Scorpion2_SetSwitchState(6,3,1);
 
 	MechMtr_config(machine(),3);
-	sc2_find_project_string(machine());
+	sc2_find_project_string();
 }
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,bfmcgslm)
 {
-	sc2awp_common_init(machine(),6, 1);
+	sc2awp_common_init(6, 1);
 	MechMtr_config(machine(),8);
 	m_has_hopper = 0;
-	sc2_find_project_string(machine());
+	sc2_find_project_string();
 }
 
 DRIVER_INIT_MEMBER(bfm_sc2_state,luvjub)
 {
-	sc2awpdmd_common_init(machine(),6, 1);
+	sc2awpdmd_common_init(6, 1);
 
 	MechMtr_config(machine(),8);
 	m_has_hopper = 0;
 
-	Scorpion2_SetSwitchState(machine(),3,0,1);
-	Scorpion2_SetSwitchState(machine(),3,1,1);
+	Scorpion2_SetSwitchState(3,0,1);
+	Scorpion2_SetSwitchState(3,1,1);
 
-	Scorpion2_SetSwitchState(machine(),4,0,1);
-	Scorpion2_SetSwitchState(machine(),4,1,1);
-	Scorpion2_SetSwitchState(machine(),4,2,1);
-	Scorpion2_SetSwitchState(machine(),4,3,1);
+	Scorpion2_SetSwitchState(4,0,1);
+	Scorpion2_SetSwitchState(4,1,1);
+	Scorpion2_SetSwitchState(4,2,1);
+	Scorpion2_SetSwitchState(4,3,1);
 
-	Scorpion2_SetSwitchState(machine(),6,0,1);
-	Scorpion2_SetSwitchState(machine(),6,1,1);
-	Scorpion2_SetSwitchState(machine(),6,2,1);
-	Scorpion2_SetSwitchState(machine(),6,3,0);
+	Scorpion2_SetSwitchState(6,0,1);
+	Scorpion2_SetSwitchState(6,1,1);
+	Scorpion2_SetSwitchState(6,2,1);
+	Scorpion2_SetSwitchState(6,3,0);
 
-	Scorpion2_SetSwitchState(machine(),7,0,0);
-	Scorpion2_SetSwitchState(machine(),7,1,0);
-	Scorpion2_SetSwitchState(machine(),7,2,0);
-	Scorpion2_SetSwitchState(machine(),7,3,0);
-	sc2_find_project_string(machine());
+	Scorpion2_SetSwitchState(7,0,0);
+	Scorpion2_SetSwitchState(7,1,0);
+	Scorpion2_SetSwitchState(7,2,0);
+	Scorpion2_SetSwitchState(7,3,0);
+	sc2_find_project_string();
 }
 
 
 //these differ by only two bytes, and with no obvious labelling, this has been a bit of a guess
 #define sc2_gslam_sound \
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "grandslamsnd.bin", 0x0000, 0x080000, CRC(e4af3787) SHA1(9aa40f7c4c4db3618b553505b02663c1d5f297c3) )\
-
+	ROM_LOAD( "grandslamsnd.bin", 0x0000, 0x080000, CRC(e4af3787) SHA1(9aa40f7c4c4db3618b553505b02663c1d5f297c3) )
 #define sc2_gslam_sound_alt \
 	ROM_REGION( 0x80000, "upd", 0 )\
 	ROM_LOAD( "gslamsndb.bin", 0x0000, 0x080000, CRC(c9dfb6f5) SHA1(6e529c210b26e7ce164cebbff8ec314c6fa8f7bf) )
 
 #define sc2_catms_sound\
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "catandmousesnd.bin", 0x0000, 0x080000, CRC(00d3b224) SHA1(5ae35a7bfa65e8343564e6f6a219bc674710fadc) )\
-
+	ROM_LOAD( "catandmousesnd.bin", 0x0000, 0x080000, CRC(00d3b224) SHA1(5ae35a7bfa65e8343564e6f6a219bc674710fadc) )
 #define sc2_gsclb_sound \
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "95004024.bin", 0x0000, 0x080000, CRC(e1a0323f) SHA1(a015d99c882962651869d8ec71a6c17a1cba687f) )\
-
+	ROM_LOAD( "95004024.bin", 0x0000, 0x080000, CRC(e1a0323f) SHA1(a015d99c882962651869d8ec71a6c17a1cba687f) )
 #define sc2_cpg_sound\
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "pharaohsgoldsnd.bin", 0x0000, 0x080000, CRC(7d67d53e) SHA1(159e0e9af1cfd6adc141daaa0f75d38af55218c3) )\
-
+	ROM_LOAD( "pharaohsgoldsnd.bin", 0x0000, 0x080000, CRC(7d67d53e) SHA1(159e0e9af1cfd6adc141daaa0f75d38af55218c3) )
 #define sc2_suprz_sound\
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "surprisesurprizesnd.bin", 0x0000, 0x01fedb, CRC(c0981343) SHA1(71278c3446cf204a31415dd2ed8f1de7f7a16645) )\
-
+	ROM_LOAD( "surprisesurprizesnd.bin", 0x0000, 0x01fedb, CRC(c0981343) SHA1(71278c3446cf204a31415dd2ed8f1de7f7a16645) )
 #define sc2_motd_sound\
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "modsndf.bin", 0x0000, 0x080000, CRC(088471f5) SHA1(49fb22daf04450186e9a83aee3312bb85ccf6842) )\
-
+	ROM_LOAD( "modsndf.bin", 0x0000, 0x080000, CRC(088471f5) SHA1(49fb22daf04450186e9a83aee3312bb85ccf6842) )
 #define sc2_easy_sound\
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "easy-money_snd.bin", 0x0000, 0x080000, CRC(56d224c5) SHA1(43b81a1a9a7d30ef7bfb2bbc61e3106faa927778) )\
-
+	ROM_LOAD( "easy-money_snd.bin", 0x0000, 0x080000, CRC(56d224c5) SHA1(43b81a1a9a7d30ef7bfb2bbc61e3106faa927778) )
 #define sc2_luvv_sound \
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD("snd.bin",      0x00000, 0x80000, CRC(19efac32) SHA1(26f901fc11f052a4d3cff67f8f61dcdd04f3dc22))\
-
+	ROM_LOAD("snd.bin",      0x00000, 0x80000, CRC(19efac32) SHA1(26f901fc11f052a4d3cff67f8f61dcdd04f3dc22))
 #define sc2_ofool_sound\
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "onlyfools_snd.bin", 0x0000, 0x080000, CRC(c073bb0c) SHA1(54b3df8c8d814af1fbb662834739a32a693fc7ee) )\
-
+	ROM_LOAD( "onlyfools_snd.bin", 0x0000, 0x080000, CRC(c073bb0c) SHA1(54b3df8c8d814af1fbb662834739a32a693fc7ee) )
 #define sc2_ofool_matrix\
 	ROM_REGION( 0x20000, "matrix", 0 )\
-	ROM_LOAD( "onlyfoolsnhorsesdotmatrix.bin", 0x0000, 0x010000, CRC(521611f7) SHA1(08cdc9f7434657151d90fcfd26ce4668477c2998) )\
-
+	ROM_LOAD( "onlyfoolsnhorsesdotmatrix.bin", 0x0000, 0x010000, CRC(521611f7) SHA1(08cdc9f7434657151d90fcfd26ce4668477c2998) )
 #define sc2_town_sound \
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "attsnd.bin", 0x0000, 0x040000, CRC(9b5327c8) SHA1(b9e5aeb3e9a6ece796e9164e425829d97c5f3a82) )\
-
+	ROM_LOAD( "attsnd.bin", 0x0000, 0x040000, CRC(9b5327c8) SHA1(b9e5aeb3e9a6ece796e9164e425829d97c5f3a82) )
 #define sc2_cpe_sound \
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD("cpe1_snd.bin",  0x00000, 0x80000, CRC(ca8a56bb) SHA1(36434dae4369f004fa5b4dd00eb6b1a965be60f9))\
-
+	ROM_LOAD("cpe1_snd.bin",  0x00000, 0x80000, CRC(ca8a56bb) SHA1(36434dae4369f004fa5b4dd00eb6b1a965be60f9))
 #define sc2_cpe_sound_alt1 \
 	ROM_REGION( 0x80000, "upd", 0 )\
 	ROM_LOAD( "pen1c_snd.bin", 0x0000, 0x080000, CRC(57f3d152) SHA1(f5ccd11042d54396352df149e85c4aa271342d49) )
@@ -4109,67 +4088,52 @@ DRIVER_INIT_MEMBER(bfm_sc2_state,luvjub)
 
 #define sc2_cops_sound \
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "copssnd.bin", 0x0000, 0x040000, CRC(4bebbc37) SHA1(10eb8542a9de35efc0f75b532c94e1b3e0d21e47) )\
-
+	ROM_LOAD( "copssnd.bin", 0x0000, 0x040000, CRC(4bebbc37) SHA1(10eb8542a9de35efc0f75b532c94e1b3e0d21e47) )
 #define sc2_copcl_sound\
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "club-cops-and-robbers-sound.bin", 0x0000, 0x040000, CRC(b5ba009d) SHA1(806b1d739fbf00b7e55ed0b8056440e47bfba87a) )\
-
+	ROM_LOAD( "club-cops-and-robbers-sound.bin", 0x0000, 0x040000, CRC(b5ba009d) SHA1(806b1d739fbf00b7e55ed0b8056440e47bfba87a) )
 //missing a sound rom - is it the same as the non-deluxe version?
 #define sc2_copdc_sound\
-	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-
+	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )
 //can't tell any difference between these audibly, could one have the 'ruder' samples dummied out in the code?
 //For now, I'm putting the first ROM with Bellfruit sets, and the second with Mazooma ones
 #define sc2_dels_sound\
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "dmsnd.bin", 0x0000, 0x080000, CRC(0a68550b) SHA1(82a4a8d2a754a59da553b3568df870107e33f978) )\
-
+	ROM_LOAD( "dmsnd.bin", 0x0000, 0x080000, CRC(0a68550b) SHA1(82a4a8d2a754a59da553b3568df870107e33f978) )
 #define sc2_dels_sound_alt\
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "delssnd.bin", 0x0000, 0x080000, CRC(cb298f06) SHA1(fdc857101ad15d58aeb7ffc4a489c3de9373fc80) )\
-
+	ROM_LOAD( "delssnd.bin", 0x0000, 0x080000, CRC(cb298f06) SHA1(fdc857101ad15d58aeb7ffc4a489c3de9373fc80) )
 #define sc2_wembl_sound \
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "wembley_sound.bin", 0x0000, 0x080000, CRC(5ce2fc50) SHA1(26533428582058f0cd618e3657f967bc64e551fc) )\
-
+	ROM_LOAD( "wembley_sound.bin", 0x0000, 0x080000, CRC(5ce2fc50) SHA1(26533428582058f0cd618e3657f967bc64e551fc) )
 #define sc2_prem_sound \
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "premclubsnd.bin", 0x0000, 0x080000, CRC(b20c74f1) SHA1(b43a79f8f59387ef777fffd07a39b7333811d464) )\
-
+	ROM_LOAD( "premclubsnd.bin", 0x0000, 0x080000, CRC(b20c74f1) SHA1(b43a79f8f59387ef777fffd07a39b7333811d464) )
 #define sc2_downt_sound \
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "dtownsnd.dat", 0x0000, 0x080000, CRC(a41b109b) SHA1(22470d731741521321d004fc56ff8217e506ef69) )\
-
+	ROM_LOAD( "dtownsnd.dat", 0x0000, 0x080000, CRC(a41b109b) SHA1(22470d731741521321d004fc56ff8217e506ef69) )
 #define sc2_goldr_sound\
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "gold_reserve_snd", 0x0000, 0x080000, CRC(e8e7ab7b) SHA1(ce43e8ffccc0421548c6683a72267b7e5f805db4) )\
-
+	ROM_LOAD( "gold_reserve_snd", 0x0000, 0x080000, CRC(e8e7ab7b) SHA1(ce43e8ffccc0421548c6683a72267b7e5f805db4) )
 #define sc2_hifly_sound\
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "hiflyersound.bin", 0x0000, 0x080000, CRC(acdef7dc) SHA1(c2cc219ca8f4a3e3cdcb1147ad49cd69adb3751b) )\
-
+	ROM_LOAD( "hiflyersound.bin", 0x0000, 0x080000, CRC(acdef7dc) SHA1(c2cc219ca8f4a3e3cdcb1147ad49cd69adb3751b) )
 #define sc2_inst_sound \
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "instantjackpotssnd.bin", 0x0000, 0x080000, CRC(ba922860) SHA1(7d84c7fa72b1fb567faccf8464e0fd859c76838d) )\
-
+	ROM_LOAD( "instantjackpotssnd.bin", 0x0000, 0x080000, CRC(ba922860) SHA1(7d84c7fa72b1fb567faccf8464e0fd859c76838d) )
 #define sc2_mam_sound\
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "mamsnd.bin", 0x0000, 0x080000, CRC(32537b18) SHA1(c26697162edde97ec999ed0459656edb85a01a50) )\
-
+	ROM_LOAD( "mamsnd.bin", 0x0000, 0x080000, CRC(32537b18) SHA1(c26697162edde97ec999ed0459656edb85a01a50) )
 //This was also in the non-club, so may be an alt set
 #define sc2_mamcl_sound \
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "cmamsnd.bin", 0x0000, 0x080000, CRC(9a80977a) SHA1(0a6dc9465efa9e3d12894daf88a2746e74409349))\
-
+	ROM_LOAD( "cmamsnd.bin", 0x0000, 0x080000, CRC(9a80977a) SHA1(0a6dc9465efa9e3d12894daf88a2746e74409349))
 #define sc2_showt_sound\
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "stspec", 0x0000, 0x080000, CRC(01e4a017) SHA1(f2f0cadf2334edf35db98af0dcb6d827c991f3f2) )\
-
+	ROM_LOAD( "stspec", 0x0000, 0x080000, CRC(01e4a017) SHA1(f2f0cadf2334edf35db98af0dcb6d827c991f3f2) )
 #define sc2_sstar_sound \
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "superstarsnd.bin", 0x0000, 0x080000, CRC(9a2609b5) SHA1(d29a5029e39cd44739682954f034f2d1f2e1cebf) )\
-
+	ROM_LOAD( "superstarsnd.bin", 0x0000, 0x080000, CRC(9a2609b5) SHA1(d29a5029e39cd44739682954f034f2d1f2e1cebf) )
 //missing
 #define sc2_wwcl_sound \
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
@@ -4178,42 +4142,35 @@ DRIVER_INIT_MEMBER(bfm_sc2_state,luvjub)
 //is this upd?
 #define sc2_dick_sound \
 	ROM_REGION( 0x100000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "global-spotted-dick_snd.bin", 0x0000, 0x100000, CRC(f2c66aab) SHA1(6fe94a193779c91711588365591cf42d197cb7b9) )\
-
+	ROM_LOAD( "global-spotted-dick_snd.bin", 0x0000, 0x100000, CRC(f2c66aab) SHA1(6fe94a193779c91711588365591cf42d197cb7b9) )
 
 //is this upd?
 #define sc2_pick_sound\
 	ROM_REGION( 0x200000, "upd", ROMREGION_ERASE00 )\
 	ROM_LOAD( "pickofthebunchsnd1.bin", 0x000000, 0x100000, CRC(f717b9c7) SHA1(06c90cc9779d475100926e986c742f0acffa0dc3) )\
-	ROM_LOAD( "pickofthebunchsnd2.bin", 0x100000, 0x100000, CRC(eaac3e67) SHA1(3aaed6514eeeb41c26f365789d8736908785b1c2) )\
-
+	ROM_LOAD( "pickofthebunchsnd2.bin", 0x100000, 0x100000, CRC(eaac3e67) SHA1(3aaed6514eeeb41c26f365789d8736908785b1c2) )
 //Is this upd?
 #define sc2_rock_sound \
 	ROM_REGION( 0x200000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "hbiyr_snd.bin", 0x0000, 0x100000, CRC(96cc0d54) SHA1(612f8c7f353bb847c1a28e2b76b64916d5b2d36a) )\
-
+	ROM_LOAD( "hbiyr_snd.bin", 0x0000, 0x100000, CRC(96cc0d54) SHA1(612f8c7f353bb847c1a28e2b76b64916d5b2d36a) )
 //this is a guess
 #define sc2_gcclb_sound\
 	ROM_REGION( 0x200000, "upd", ROMREGION_ERASE00 )\
 	ROM_LOAD( "gold_cas.snd", 0x0000, 0x080000, CRC(d93d39fb) SHA1(ce0c0c1430a6136ce39ffae018b009e629cbad61) )\
 	ROM_REGION( 0x80000, "altupd", 0 )/* looks bad */ \
-	ROM_LOAD( "95004065.p1", 0x0000, 0x080000, CRC(2670726b) SHA1(0f8045c68131191fceea5728e14c901d159bfb57) ) \
-
+	ROM_LOAD( "95004065.p1", 0x0000, 0x080000, CRC(2670726b) SHA1(0f8045c68131191fceea5728e14c901d159bfb57) )
 #define sc2_gcclb_matrix \
 	ROM_REGION( 0x20000, "matrix", 0 ) \
-	ROM_LOAD( "95000589.p1", 0x0000, 0x010000, CRC(36400074) SHA1(611b48650e59b52f661be2730afaef2e5772607c) ) \
-
+	ROM_LOAD( "95000589.p1", 0x0000, 0x010000, CRC(36400074) SHA1(611b48650e59b52f661be2730afaef2e5772607c) )
 
 // The below file also matches superstarsnd.bin
 #define sc2_cb7_sound \
 	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-	ROM_LOAD( "casinobar7_bfm_snd1.bin", 0x0000, 0x080000, CRC(9a2609b5) SHA1(d29a5029e39cd44739682954f034f2d1f2e1cebf) )\
-
+	ROM_LOAD( "casinobar7_bfm_snd1.bin", 0x0000, 0x080000, CRC(9a2609b5) SHA1(d29a5029e39cd44739682954f034f2d1f2e1cebf) )
 // The below file also matches football-club_mtx_ass.bin
 #define sc2_foot_matrix \
 	ROM_REGION( 0x20000, "matrix", 0 )\
-	ROM_LOAD( "95000590.p1", 0x0000, 0x010000, CRC(6b78de57) SHA1(84638836cdbfa6e4b3b76cd38e238d12bb312c53) )\
-
+	ROM_LOAD( "95000590.p1", 0x0000, 0x010000, CRC(6b78de57) SHA1(84638836cdbfa6e4b3b76cd38e238d12bb312c53) )
 ROM_START( sc2brkfs )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD("big-breakfast_std_ar_var_a.bin",  0x00000, 0x10000, CRC(5f016daa) SHA1(25ee10138bddf453588e3c458268533a88a51217) )
@@ -7434,8 +7391,7 @@ ROM_END
 /* was in an SC4 set, is it meant to link with the SC4 units? */
 ROM_START( sc2cb7p )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "95751960.p1", 0x0000, 0x010000, CRC(9f944d0c) SHA1(feb8fe4ce0a8f5c4a034aafec0f5aae29a834e8d) ) \
-
+	ROM_LOAD( "95751960.p1", 0x0000, 0x010000, CRC(9f944d0c) SHA1(feb8fe4ce0a8f5c4a034aafec0f5aae29a834e8d) )
 	sc2_cb7_sound
 ROM_END
 
@@ -8335,8 +8291,7 @@ GAME( 199?, sc2pe1g     , 0         ,  scorpion2        , drwho     , bfm_sc2_st
 // taken from the sc1 set, might be wrong here
 #define sc2_winst_sound \
 	ROM_REGION( 0x80000, "upd", 0 )\
-	ROM_LOAD( "winningstreaksnd.bin", 0x0000, 0x080000, CRC(ba30cb97) SHA1(e7f5ca36ca993ad14b3a348868e73d7ba02be7c5) )\
-
+	ROM_LOAD( "winningstreaksnd.bin", 0x0000, 0x080000, CRC(ba30cb97) SHA1(e7f5ca36ca993ad14b3a348868e73d7ba02be7c5) )
 ROM_START( sc2winstb )  ROM_REGION( 0x10000, "maincpu", 0 ) ROM_LOAD( "winning-streak_std_ac_var_8-10pnd_ass.bin",       0x00000, 0x10000, CRC(f2d16bd5) SHA1(bd6a9da9da24459b14917386c64ecbc46c8adfda) ) sc2_winst_sound ROM_END
 ROM_START( sc2winstbp ) ROM_REGION( 0x10000, "maincpu", 0 ) ROM_LOAD( "winning-streak_dat_ac_var_8-10pnd_ass.bin",       0x00000, 0x10000, CRC(351560f4) SHA1(b33c6bdeadeabbe5a4231b8bd5b134f9ea402133) ) sc2_winst_sound ROM_END
 ROM_START( sc2winst )   ROM_REGION( 0x10000, "maincpu", 0 ) ROM_LOAD( "winning-streak_std_ar_var_8pnd_ass.bin",          0x00000, 0x10000, CRC(d7a10aeb) SHA1(7346c83df7fd3de57a1b6f0ce498daabacb11491) ) sc2_winst_sound ROM_END
@@ -8373,8 +8328,7 @@ GAME( 198?, sc2winstfp      , sc2winst  , scorpion2         , drwho , bfm_sc2_st
 ********************************************************************************************************************************************************************************************************************/
 
 #define sc2_cexpl_sound \
-	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )\
-
+	ROM_REGION( 0x80000, "upd", ROMREGION_ERASE00 )
 ROM_START( sc2cexpl )  ROM_REGION( 0x10000, "maincpu", 0 ) ROM_LOAD( "cash_explosion_dat_ac_8_10pnd_20p_a.bin",  0x0000, 0x010000, CRC(1d155799) SHA1(4e76328a4d093d1f9c64c633c3558db2dce4e219) ) sc2_cexpl_sound ROM_END
 ROM_START( sc2cexpla ) ROM_REGION( 0x10000, "maincpu", 0 ) ROM_LOAD( "cash_explosion_dat_ac_var_8pnd_a.bin",     0x0000, 0x010000, CRC(4aa53121) SHA1(cf0510e224de62b837915d39c2fe3559cfe8c85f) ) sc2_cexpl_sound ROM_END
 ROM_START( sc2cexplb ) ROM_REGION( 0x10000, "maincpu", 0 ) ROM_LOAD( "cash_explosion_dat_wi_ac_10pnd_20p_a.bin", 0x0000, 0x010000, CRC(889eb206) SHA1(91b23a2cc475e68470d01976b88b9ea7aa0afed9) ) sc2_cexpl_sound ROM_END

@@ -340,7 +340,7 @@ WRITE8_MEMBER(ninjakd2_state::ninjakd2_bankselect_w)
 WRITE8_MEMBER(ninjakd2_state::ninjakd2_soundreset_w)
 {
 	// bit 4 resets sound CPU
-	machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_RESET, (data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu->set_input_line(INPUT_LINE_RESET, (data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
 
 	// bit 7 flips screen
 	flip_screen_set(data & 0x80);
@@ -458,8 +458,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ninjakd2_sound_io, AS_IO, 8, ninjakd2_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("2203.1", ym2203_w)
-	AM_RANGE(0x80, 0x81) AM_DEVWRITE_LEGACY("2203.2", ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("2203.1", ym2203_device, write)
+	AM_RANGE(0x80, 0x81) AM_DEVWRITE("2203.2", ym2203_device, write)
 ADDRESS_MAP_END
 
 
@@ -865,19 +865,16 @@ GFXDECODE_END
  *
  *************************************/
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(ninjakd2_state::irqhandler)
 {
-	device->machine().device("soundcpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 
@@ -908,9 +905,9 @@ void ninjakd2_state::machine_start()
 void ninjakd2_state::machine_reset()
 {
 	/* initialize main Z80 bank */
-	int num_banks = (machine().root_device().memregion("maincpu")->bytes() - 0x10000) / 0x4000;
-	machine().root_device().membank("bank1")->configure_entries(0, num_banks, machine().root_device().memregion("maincpu")->base() + 0x10000, 0x4000);
-	machine().root_device().membank("bank1")->set_entry(0);
+	int num_banks = (memregion("maincpu")->bytes() - 0x10000) / 0x4000;
+	membank("bank1")->configure_entries(0, num_banks, memregion("maincpu")->base() + 0x10000, 0x4000);
+	membank("bank1")->set_entry(0);
 
 	m_rom_bank_mask = num_banks - 1;
 }
@@ -957,7 +954,8 @@ static MACHINE_CONFIG_START( ninjakd2, ninjakd2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("2203.1", YM2203, MAIN_CLOCK_12/8)       /* verified */
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(ninjakd2_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.10)
 	MCFG_SOUND_ROUTE(1, "mono", 0.10)
 	MCFG_SOUND_ROUTE(2, "mono", 0.10)
@@ -1416,11 +1414,11 @@ by one place all the intervening bits.
 
 ******************************************************************************/
 
-static void lineswap_gfx_roms(running_machine &machine, const char *region, const int bit)
+void ninjakd2_state::lineswap_gfx_roms(const char *region, const int bit)
 {
-	const int length = machine.root_device().memregion(region)->bytes();
-	UINT8* const src = machine.root_device().memregion(region)->base();
-	UINT8* const temp = auto_alloc_array(machine, UINT8, length);
+	const int length = memregion(region)->bytes();
+	UINT8* const src = memregion(region)->base();
+	UINT8* const temp = auto_alloc_array(machine(), UINT8, length);
 	const int mask = (1 << (bit + 1)) - 1;
 
 	for (int sa = 0; sa < length; sa++)
@@ -1430,14 +1428,14 @@ static void lineswap_gfx_roms(running_machine &machine, const char *region, cons
 	}
 
 	memcpy(src, temp, length);
-	auto_free(machine, temp);
+	auto_free(machine(), temp);
 }
 
-static void gfx_unscramble(running_machine &machine)
+void ninjakd2_state::gfx_unscramble()
 {
-	lineswap_gfx_roms(machine, "gfx1", 13);     // fg tiles
-	lineswap_gfx_roms(machine, "gfx2", 14);     // sprites
-	lineswap_gfx_roms(machine, "gfx3", 14);     // bg tiles
+	lineswap_gfx_roms("gfx1", 13);     // fg tiles
+	lineswap_gfx_roms("gfx2", 14);     // sprites
+	lineswap_gfx_roms("gfx3", 14);     // bg tiles
 }
 
 
@@ -1445,20 +1443,20 @@ DRIVER_INIT_MEMBER(ninjakd2_state,ninjakd2)
 {
 	mc8123_decrypt_rom(machine(), "soundcpu", "user1", NULL, 0);
 
-	gfx_unscramble(machine());
+	gfx_unscramble();
 }
 
 DRIVER_INIT_MEMBER(ninjakd2_state,bootleg)
 {
-	address_space &space = machine().device("soundcpu")->memory().space(AS_PROGRAM);
-	space.set_decrypted_region(0x0000, 0x7fff, machine().root_device().memregion("soundcpu")->base() + 0x10000);
+	address_space &space = m_soundcpu->space(AS_PROGRAM);
+	space.set_decrypted_region(0x0000, 0x7fff, memregion("soundcpu")->base() + 0x10000);
 
-	gfx_unscramble(machine());
+	gfx_unscramble();
 }
 
 DRIVER_INIT_MEMBER(ninjakd2_state,mnight)
 {
-	gfx_unscramble(machine());
+	gfx_unscramble();
 }
 
 /*****************************************************************************/

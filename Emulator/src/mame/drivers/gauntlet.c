@@ -137,18 +137,18 @@
 
 void gauntlet_state::update_interrupts()
 {
-	subdevice("maincpu")->execute().set_input_line(4, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
-	subdevice("maincpu")->execute().set_input_line(6, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(4, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(6, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
 void gauntlet_state::scanline_update(screen_device &screen, int scanline)
 {
-	address_space &space = subdevice("audiocpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_audiocpu->space(AS_PROGRAM);
 
 	/* sound IRQ is on 32V */
 	if (scanline & 32)
-		m6502_irq_gen(*subdevice("audiocpu"));
+		m6502_irq_gen(m_audiocpu);
 	else
 		m6502_irq_ack_r(space, 0);
 }
@@ -202,13 +202,14 @@ WRITE16_MEMBER(gauntlet_state::sound_reset_w)
 
 		if ((oldword ^ m_sound_reset_val) & 1)
 		{
-			machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, (m_sound_reset_val & 1) ? CLEAR_LINE : ASSERT_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_RESET, (m_sound_reset_val & 1) ? CLEAR_LINE : ASSERT_LINE);
 			sound_cpu_reset();
 			if (m_sound_reset_val & 1)
 			{
 				machine().device("ymsnd")->reset();
-				machine().device("tms")->reset();
-				tms5220_set_frequency(machine().device("tms"), ATARI_CLOCK_14MHz/2 / 11);
+				tms5220_device *tms5220 = machine().device<tms5220_device>("tms");
+				tms5220->reset();
+				tms5220->set_frequency(ATARI_CLOCK_14MHz/2 / 11);
 				set_ym2151_volume(0);
 				set_pokey_volume(0);
 				set_tms5220_volume(0);
@@ -227,11 +228,12 @@ WRITE16_MEMBER(gauntlet_state::sound_reset_w)
 
 READ8_MEMBER(gauntlet_state::switch_6502_r)
 {
+	tms5220_device *tms5220 = machine().device<tms5220_device>("tms");
 	int temp = 0x30;
 
 	if (m_cpu_to_sound_ready) temp ^= 0x80;
 	if (m_sound_to_cpu_ready) temp ^= 0x40;
-	if (!tms5220_readyq_r(machine().device("tms"))) temp ^= 0x20;
+	if (!tms5220->readyq_r()) temp ^= 0x20;
 	if (!(ioport("803008")->read() & 0x0008)) temp ^= 0x10;
 
 	return temp;
@@ -246,7 +248,7 @@ READ8_MEMBER(gauntlet_state::switch_6502_r)
 
 WRITE8_MEMBER(gauntlet_state::sound_ctl_w)
 {
-	device_t *tms = machine().device("tms");
+	tms5220_device *tms5220 = machine().device<tms5220_device>("tms");
 	switch (offset & 7)
 	{
 		case 0: /* music reset, bit D7, low reset */
@@ -254,16 +256,16 @@ WRITE8_MEMBER(gauntlet_state::sound_ctl_w)
 			break;
 
 		case 1: /* speech write, bit D7, active low */
-			tms5220_wsq_w(tms, data >> 7);
+			tms5220->wsq_w(data >> 7);
 			break;
 
 		case 2: /* speech reset, bit D7, active low */
-			tms5220_rsq_w(tms, data >> 7);
+			tms5220->rsq_w(data >> 7);
 			break;
 
 		case 3: /* speech squeak, bit D7 */
 			data = 5 | ((data >> 6) & 2);
-			tms5220_set_frequency(tms, ATARI_CLOCK_14MHz/2 / (16 - data));
+			tms5220->set_frequency(ATARI_CLOCK_14MHz/2 / (16 - data));
 			break;
 	}
 }
@@ -317,11 +319,11 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, gauntlet_state )
 	AM_RANGE(0x900000, 0x901fff) AM_MIRROR(0x2c8000) AM_RAM_WRITE(playfield_w) AM_SHARE("playfield")
 	AM_RANGE(0x902000, 0x903fff) AM_MIRROR(0x2c8000) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
 	AM_RANGE(0x904000, 0x904fff) AM_MIRROR(0x2c8000) AM_RAM
-	AM_RANGE(0x905f6e, 0x905f6f) AM_MIRROR(0x2c8000) AM_RAM_WRITE_LEGACY(gauntlet_yscroll_w) AM_SHARE("yscroll")
+	AM_RANGE(0x905f6e, 0x905f6f) AM_MIRROR(0x2c8000) AM_RAM_WRITE(gauntlet_yscroll_w) AM_SHARE("yscroll")
 	AM_RANGE(0x905000, 0x905f7f) AM_MIRROR(0x2c8000) AM_RAM_WRITE(alpha_w) AM_SHARE("alpha")
 	AM_RANGE(0x905f80, 0x905fff) AM_MIRROR(0x2c8000) AM_READWRITE_LEGACY(atarimo_0_slipram_r, atarimo_0_slipram_w)
 	AM_RANGE(0x910000, 0x9107ff) AM_MIRROR(0x2cf800) AM_RAM_WRITE(paletteram_IIIIRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x930000, 0x930001) AM_MIRROR(0x2cfffe) AM_WRITE_LEGACY(gauntlet_xscroll_w) AM_SHARE("xscroll")
+	AM_RANGE(0x930000, 0x930001) AM_MIRROR(0x2cfffe) AM_WRITE(gauntlet_xscroll_w) AM_SHARE("xscroll")
 ADDRESS_MAP_END
 
 
@@ -342,7 +344,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, gauntlet_state )
 	AM_RANGE(0x1030, 0x103f) AM_MIRROR(0x27c0) AM_READWRITE(switch_6502_r, sound_ctl_w)
 	AM_RANGE(0x1800, 0x180f) AM_MIRROR(0x27c0) AM_DEVREADWRITE("pokey", pokey_device, read, write)
 	AM_RANGE(0x1810, 0x1811) AM_MIRROR(0x27ce) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0x1820, 0x182f) AM_MIRROR(0x27c0) AM_DEVWRITE_LEGACY("tms", tms5220_data_w)
+	AM_RANGE(0x1820, 0x182f) AM_MIRROR(0x27c0) AM_DEVWRITE("tms", tms5220_device, data_w)
 	AM_RANGE(0x1830, 0x183f) AM_MIRROR(0x27c0) AM_READWRITE(m6502_irq_ack_r, m6502_irq_ack_w)
 	AM_RANGE(0x4000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -1630,7 +1632,7 @@ void gauntlet_state::common_init(int slapstic, int vindctr2)
 {
 	UINT8 *rom = memregion("maincpu")->base();
 	m_eeprom_default = NULL;
-	slapstic_configure(*subdevice<cpu_device>("maincpu"), 0x038000, 0, slapstic);
+	slapstic_configure(*m_maincpu, 0x038000, 0, slapstic);
 
 	/* swap the top and bottom halves of the main CPU ROM images */
 	swap_memory(rom + 0x000000, rom + 0x008000, 0x8000);
@@ -1664,7 +1666,7 @@ DRIVER_INIT_MEMBER(gauntlet_state,gauntlet2)
 
 DRIVER_INIT_MEMBER(gauntlet_state,vindctr2)
 {
-	UINT8 *gfx2_base = machine().root_device().memregion("gfx2")->base();
+	UINT8 *gfx2_base = memregion("gfx2")->base();
 	UINT8 *data = auto_alloc_array(machine(), UINT8, 0x8000);
 	int i;
 

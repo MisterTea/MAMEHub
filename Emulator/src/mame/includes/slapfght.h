@@ -24,7 +24,10 @@ public:
 			m_slapfight_scrollx_lo(*this, "scrollx_lo"),
 			m_slapfight_scrollx_hi(*this, "scrollx_hi"),
 			m_slapfight_scrolly(*this, "scrolly"),
-			m_spriteram(*this, "spriteram") { }
+			m_spriteram(*this, "spriteram") ,
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_mcu(*this, "mcu") { }
 
 	int m_getstar_id;
 	required_shared_ptr<UINT8> m_slapfight_videoram;
@@ -127,6 +130,12 @@ public:
 	UINT32 screen_update_slapfight(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
 	INTERRUPT_GEN_MEMBER(getstar_interrupt);
+	void slapfght_log_vram();
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority_to_display );
+	void getstar_init(  );
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_mcu;
 };
 
 

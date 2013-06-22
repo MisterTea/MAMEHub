@@ -81,7 +81,9 @@ class gei_state : public driver_device
 {
 public:
 	gei_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_dac(*this, "dac") { }
 
 	virtual void video_start();
 
@@ -135,6 +137,8 @@ public:
 	virtual void palette_init();
 	DECLARE_PALETTE_INIT(quizvid);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	required_device<cpu_device> m_maincpu;
+	required_device<dac_device> m_dac;
 };
 
 
@@ -226,7 +230,7 @@ WRITE8_MEMBER(gei_state::sound_w)
 	m_nmi_mask = data & 0x40;
 
 	/* bit 7 goes directly to the sound amplifier */
-	machine().device<dac_device>("dac")->write_unsigned8(((data & 0x80) >> 7) * 255);
+	m_dac->write_unsigned8(((data & 0x80) >> 7) * 255);
 }
 
 WRITE8_MEMBER(gei_state::sound2_w)
@@ -243,7 +247,7 @@ WRITE8_MEMBER(gei_state::sound2_w)
 	set_led_status(machine(), 12,data & 0x20);
 
 	/* bit 7 goes directly to the sound amplifier */
-	machine().device<dac_device>("dac")->write(((data & 0x80) >> 7) * 255);
+	m_dac->write(((data & 0x80) >> 7) * 255);
 }
 
 WRITE8_MEMBER(gei_state::lamps2_w)
@@ -278,68 +282,68 @@ READ8_MEMBER(gei_state::portC_r)
 
 WRITE8_MEMBER(gei_state::banksel_main_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x8000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x8000);
 }
 WRITE8_MEMBER(gei_state::banksel_1_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x10000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000);
 }
 WRITE8_MEMBER(gei_state::banksel_2_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x18000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x18000);
 }
 WRITE8_MEMBER(gei_state::banksel_3_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x20000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x20000);
 }
 WRITE8_MEMBER(gei_state::banksel_4_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x28000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x28000);
 }
 WRITE8_MEMBER(gei_state::banksel_5_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x30000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x30000);
 }
 
 WRITE8_MEMBER(gei_state::banksel_1_1_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x10000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000);
 }
 WRITE8_MEMBER(gei_state::banksel_2_1_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x14000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x14000);
 }
 WRITE8_MEMBER(gei_state::banksel_3_1_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x18000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x18000);
 }
 WRITE8_MEMBER(gei_state::banksel_4_1_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x1c000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x1c000);
 }
 WRITE8_MEMBER(gei_state::banksel_5_1_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x20000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x20000);
 }
 WRITE8_MEMBER(gei_state::banksel_1_2_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x12000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x12000);
 }
 WRITE8_MEMBER(gei_state::banksel_2_2_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x16000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x16000);
 }
 WRITE8_MEMBER(gei_state::banksel_3_2_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x1a000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x1a000);
 }
 WRITE8_MEMBER(gei_state::banksel_4_2_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x1e000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x1e000);
 }
 WRITE8_MEMBER(gei_state::banksel_5_2_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x22000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x22000);
 }
 
 WRITE8_MEMBER(gei_state::geimulti_bank_w)
@@ -367,36 +371,36 @@ WRITE8_MEMBER(gei_state::geimulti_bank_w)
 	}
 
 	if (bank != -1)
-		membank("bank1")->set_base(machine().root_device().memregion("bank")->base() + bank*0x8000);
+		membank("bank1")->set_base(memregion("bank")->base() + bank*0x8000);
 }
 
 READ8_MEMBER(gei_state::banksel_1_r)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x10000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000);
 	return 0x03;
 };
 
 READ8_MEMBER(gei_state::banksel_2_r)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x18000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x18000);
 	return 0x03;
 }
 
 READ8_MEMBER(gei_state::banksel_3_r)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x20000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x20000);
 	return 0x03;
 }
 
 READ8_MEMBER(gei_state::banksel_4_r)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x28000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x28000);
 	return 0x03;
 }
 
 READ8_MEMBER(gei_state::banksel_5_r)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x30000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x30000);
 	return 0x03;
 }
 
@@ -610,11 +614,11 @@ static INPUT_PORTS_START(reelfun_standard)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("IN1")   /* IN1 */
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("1 Left A-Z")
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("2 Right A-Z")
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("3 Select Letter")
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_NAME("4 Start")
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_NAME("5 Solve Puzzle")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_CODE(KEYCODE_Z) PORT_NAME("1 Left A-Z")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_CODE(KEYCODE_X) PORT_NAME("2 Right A-Z")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_CODE(KEYCODE_C) PORT_NAME("3 Select Letter")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_CODE(KEYCODE_V) PORT_NAME("4 Start")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_CODE(KEYCODE_B) PORT_NAME("5 Solve Puzzle")
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -632,11 +636,11 @@ static INPUT_PORTS_START(trivia_standard)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("IN1")   /* IN1 */
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 )
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 )
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON4 )
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON5 )
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_CODE(KEYCODE_Z)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_CODE(KEYCODE_X)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_CODE(KEYCODE_C)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_CODE(KEYCODE_V)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_CODE(KEYCODE_B)
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -846,6 +850,36 @@ static INPUT_PORTS_START( findout )
 	PORT_DIPSETTING(    0x00, DEF_STR( Yes ) )
 
 	PORT_INCLUDE(reelfun_standard)
+INPUT_PORTS_END
+
+static INPUT_PORTS_START(sexappl)
+	PORT_START("DSWA")
+	PORT_DIPNAME( 0x07, 0x01, DEF_STR( Coinage ) )  PORT_DIPLOCATION("SW1:1,2,3")
+	PORT_DIPSETTING(    0x07, DEF_STR( 7C_1C ) )
+	PORT_DIPSETTING(    0x06, DEF_STR( 6C_1C ) )
+	PORT_DIPSETTING(    0x05, DEF_STR( 5C_1C ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(    0x03, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Free_Play ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:4")
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, "Orientation" )   PORT_DIPLOCATION("SW1:5")
+	PORT_DIPSETTING(    0x10, "Horizontal" )
+	PORT_DIPSETTING(    0x00, "Vertical" )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Cabinet ) )  PORT_DIPLOCATION("SW1:6")
+	PORT_DIPSETTING(    0x20, DEF_STR( Upright ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Cocktail ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:7") /* Shows Message #1 and "hangs" ??? */
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )  PORT_DIPLOCATION("SW1:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_INCLUDE(trivia_standard)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( gt103 )
@@ -1108,7 +1142,6 @@ static I8255A_INTERFACE( findout_ppi8255_1_intf )
 
 INTERRUPT_GEN_MEMBER(gei_state::vblank_irq)
 {
-
 	if(m_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -1694,8 +1727,8 @@ ROM_END
 ROM_START( gtsers12 )
 	ROM_REGION( 0x38000, "maincpu", 0 )
 	ROM_LOAD( "prog1_versionc",  0x00000, 0x4000, CRC(340246a4) SHA1(d655e1cf2b1e87a05e87ff6af4b794e6d54a2a52) )
-	ROM_LOAD( "new_science_2",   0x10000, 0x8000, CRC(3bd80fb8) SHA1(9a196595bc5dc6ed5ee5853786839ed4847fa436) ) /* Labeled as NEW SCNE 2* */
-	ROM_LOAD( "adult_sex_4",     0x18000, 0x8000, CRC(9c32730e) SHA1(9d060e49a4c1dd8d978619b1c357c9e8238e5c96) ) /* Labeled as ADULT SEX 4* */
+	ROM_LOAD( "new_science_2+",  0x10000, 0x8000, CRC(3bd80fb8) SHA1(9a196595bc5dc6ed5ee5853786839ed4847fa436) ) /* Labeled as NEW SCNE 2* */
+	ROM_LOAD( "adult_sex_4+",    0x18000, 0x8000, CRC(9c32730e) SHA1(9d060e49a4c1dd8d978619b1c357c9e8238e5c96) ) /* Labeled as ADULT SEX 4* */
 	ROM_LOAD( "cops_&_robbers",  0x20000, 0x8000, CRC(8b367c33) SHA1(013468157bf469c9cf138809fdc45b3ba60a423b) )
 	ROM_LOAD( "famous_quotes",   0x28000, 0x8000, CRC(0a27d8ae) SHA1(427e6ae25e47da7f7f7c3e92a37e330d711da90c) )
 	ROM_LOAD( "vices",           0x30000, 0x8000, CRC(e6069955) SHA1(68f7453f21a4ce1be912141bbe947fbd81d918a3) )
@@ -1727,7 +1760,7 @@ ROM_START( gt103a1 ) /* Need to verify which series these belong to */
 	ROM_REGION( 0x38000, "maincpu", 0 )
 	ROM_LOAD( "prog1_versiona",  0x00000, 0x4000, CRC(537d6566) SHA1(282a33e4a9fc54d34094393c00026bf31ccd6ab5) ) /* Currently unverified Series 13 and or alt ? roms */
 	ROM_LOAD( "history-geog",    0x10000, 0x8000, CRC(c9a70fc3) SHA1(4021e5d702844416e8c798ed0a57c9ecd20b1d4b) )
-	ROM_LOAD( "nfl_football",    0x18000, 0x8000, CRC(d676b7cd) SHA1(d652d2441adb500f7af526d110d0335ea453d75b) )
+	ROM_LOAD( "n.f.l._football", 0x18000, 0x8000, CRC(d676b7cd) SHA1(d652d2441adb500f7af526d110d0335ea453d75b) )
 	ROM_LOAD( "rock_music",      0x20000, 0x8000, CRC(7f11733a) SHA1(d4d0dee75518edf986cb1241ade45ccb4840f088) )
 	ROM_LOAD( "entertainment",   0x28000, 0x8000, CRC(07068c9f) SHA1(1aedc78d071281ec8b08488cd82655d41a77cf6b) )
 	ROM_LOAD( "horrors",         0x30000, 0x8000, CRC(5f7b262a) SHA1(047480d6bf5c6d0603d538b84c996bd226f07f77) )
@@ -1816,6 +1849,20 @@ ROM_START( quiz211 )
 	ROM_LOAD( "pal10l8cn.bin",   0x0000, 0x002c, CRC(86095226) SHA1(e7496efbd5ca240f0df2dfa5627402342c7f5384) )
 ROM_END
 
+ROM_START( sexappl )  /* TRIV3D PCB, stickered SEX APPL 6.02 5/92 */
+	ROM_REGION( 0x38000, "maincpu", 0 )
+	ROM_LOAD( "6.02_cont", 0x00000, 0x4000, CRC(63ad3593) SHA1(fd93a71b82ef04757d79485ca4c7e306b2983c76) )
+	ROM_LOAD( "6.02_kb",   0x08000, 0x2000, CRC(025a5c7e) SHA1(bc935fb5ac081d089f3f9991d04cdf3708fa35c6) )   /* banked */
+	ROM_LOAD( "hot_sex",   0x10000, 0x8000, CRC(f16b3363) SHA1(a05bb2ae6467cd28021321bb526ea2ae3da82361) )   /* banked ROMs for solution data */
+	ROM_LOAD( "wild_sex",  0x18000, 0x8000, CRC(f257a023) SHA1(9c72c18f1acd7b36033a20dd1c8fafc801a3d174) )
+	ROM_LOAD( "hard_sex",  0x20000, 0x8000, CRC(bdab9ac1) SHA1(e09a5276a5bd346e2b88dd8fa196f204267efe09) )
+	ROM_LOAD( "kinky_sex", 0x28000, 0x8000, CRC(6b4c016d) SHA1(7d0b8af7c5ef384412535ab3e2ed1eb7c4ecd824) )
+	ROM_LOAD( "adult_sex", 0x30000, 0x8000, CRC(05798340) SHA1(8db308bb725112327027a725b2c69299e6da1dad) )
+
+	ROM_REGION( 0x0800, "nvram", 0 )
+	ROM_LOAD( "sexappl.nvram",   0x0000, 0x0800, CRC(be65737c) SHA1(5b8a603a9ddecdad4aaef0b9e8ef373885b236c0) ) /* Defualts but with card dispenser OFF! */
+ROM_END
+
 /*
 GEI Multi Game System
 (c) 1992
@@ -1893,12 +1940,12 @@ ROM_END
 
 DRIVER_INIT_MEMBER(gei_state,setbank)
 {
-	machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x2000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x2000);
 }
 
 DRIVER_INIT_MEMBER(gei_state,geimulti)
 {
-	machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("bank")->base() + 0x0000);
+	membank("bank1")->set_base(memregion("bank")->base() + 0x0000);
 }
 
 GAME( 1982, jokpoker, 0,        gselect,  gselect, gei_state,  setbank, ROT0, "Greyhound Electronics", "Joker Poker (Version 16.03B)",            GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
@@ -1958,5 +2005,7 @@ GAME( 1986, suprpokrb,suprpokr, suprpokr, suprpokr, driver_device, 0,       ROT0
 
 GAME( 1991, quiz211,  0,        findout,  quiz, driver_device,     0,       ROT0, "Elettronolo",           "Quiz (Revision 2.11)",                    GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
-GAME( 1992, geimulti, 0,        geimulti, geimulti, gei_state, geimulti,ROT0, "Grayhound Electronics", "GEI Multi Game",                          GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1992, sprtauth, 0,        sprtauth, sprtauth, gei_state, geimulti,ROT0, "Classic Games",         "Sports Authority",                        GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1992, sexappl,  0,        findout,  sexappl, driver_device,  0,       ROT0, "Grayhound Electronics", "Sex Appeal (Version 6.02)",               GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+
+GAME( 1992, geimulti, 0,        geimulti, geimulti, gei_state, geimulti,    ROT0, "Grayhound Electronics", "GEI Multi Game",                          GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1992, sprtauth, 0,        sprtauth, sprtauth, gei_state, geimulti,    ROT0, "Classic Games",         "Sports Authority",                        GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )

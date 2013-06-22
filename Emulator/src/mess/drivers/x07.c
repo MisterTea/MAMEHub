@@ -333,8 +333,8 @@ void x07_state::t6834_cmd (UINT8 cmd)
 		break;
 	case 0x1c:  //UDC Init
 		{
-			memcpy(m_t6834_ram + 0x200, (UINT8*)machine().root_device().memregion("gfx1")->base() + 0x400, 0x100);
-			memcpy(m_t6834_ram + 0x300, (UINT8*)machine().root_device().memregion("gfx1")->base() + 0x700, 0x100);
+			memcpy(m_t6834_ram + 0x200, (UINT8*)memregion("gfx1")->base() + 0x400, 0x100);
+			memcpy(m_t6834_ram + 0x300, (UINT8*)memregion("gfx1")->base() + 0x700, 0x100);
 		}
 		break;
 
@@ -673,7 +673,6 @@ TIMER_CALLBACK_MEMBER(x07_state::cassette_tick)
 
 TIMER_CALLBACK_MEMBER(x07_state::cassette_poll)
 {
-
 	if ((m_cassette->get_state() & 0x03) == CASSETTE_PLAY)
 		cassette_load();
 	else if ((m_cassette->get_state() & 0x03) == CASSETTE_RECORD)
@@ -721,7 +720,6 @@ void x07_state::cassette_save()
 
 	if (m_cass_clk % 10 == 0)
 	{
-
 		if (m_bit_count < 4)
 		{
 			switch (m_bit_count & 3)
@@ -930,8 +928,8 @@ INPUT_CHANGED_MEMBER( x07_state::kb_func_keys )
 INPUT_CHANGED_MEMBER( x07_state::kb_keys )
 {
 	UINT8 modifier;
-	UINT8 a1 = field.machine().root_device().ioport("A1")->read();
-	UINT8 bz = field.machine().root_device().ioport("BZ")->read();
+	UINT8 a1 = ioport("A1")->read();
+	UINT8 bz = ioport("BZ")->read();
 	UINT8 keycode = (UINT8)(FPTR)param;
 
 	if (m_kb_on && !newval)
@@ -1036,16 +1034,14 @@ inline void x07_state::draw_udk()
 		}
 }
 
-static DEVICE_IMAGE_LOAD( x07_card )
+DEVICE_IMAGE_LOAD_MEMBER( x07_state, x07_card )
 {
-	running_machine &machine = image.device().machine();
-	x07_state *state = machine.driver_data<x07_state>();
-	address_space &space = state->m_maincpu->space( AS_PROGRAM );
-	UINT16 ram_size = state->m_ram->size();
+	address_space &space = m_maincpu->space( AS_PROGRAM );
+	UINT16 ram_size = m_ram->size();
 
 	if (image.software_entry() == NULL)
 	{
-		UINT8 *rom = machine.memory().region_alloc( "card", image.length(), 1, ENDIANNESS_LITTLE )->base();
+		UINT8 *rom = machine().memory().region_alloc( "card", image.length(), 1, ENDIANNESS_LITTLE )->base();
 		image.fread(rom, image.length());
 
 		space.install_ram(ram_size, ram_size + 0xfff);
@@ -1189,13 +1185,13 @@ WRITE8_MEMBER( x07_state::x07_io_w )
 #if(1)
 		if((data & 0x0e) == 0x0e)
 		{
-			beep_set_state(m_beep, 1);
-			beep_set_frequency(m_beep, 192000 / ((m_regs_w[2] | (m_regs_w[3] << 8)) & 0x0fff));
+			m_beep->set_state(1);
+			m_beep->set_frequency(192000 / ((m_regs_w[2] | (m_regs_w[3] << 8)) & 0x0fff));
 
 			m_beep_stop->adjust(attotime::from_msec(m_ram->pointer()[0x450] * 0x20));
 		}
 		else
-			beep_set_state(m_beep, 0);
+			m_beep->set_state(0);
 #endif
 		break;
 
@@ -1378,8 +1374,7 @@ TIMER_CALLBACK_MEMBER(x07_state::rstb_clear)
 
 TIMER_CALLBACK_MEMBER(x07_state::beep_stop)
 {
-
-	beep_set_state(m_beep, 0);
+	m_beep->set_state(0);
 }
 
 static const gfx_layout x07_charlayout =
@@ -1514,9 +1509,9 @@ static MACHINE_CONFIG_START( x07, x07_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD( BEEPER_TAG, BEEP, 0 )
+	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 0.50 )
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* printer */
@@ -1540,11 +1535,11 @@ static MACHINE_CONFIG_START( x07, x07_state )
 	MCFG_CARTSLOT_ADD("card")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom,bin")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(x07_card)
+	MCFG_CARTSLOT_LOAD(x07_state,x07_card)
 	MCFG_CARTSLOT_INTERFACE("x07_card")
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, x07_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", x07_cassette_interface )
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("card_list", "x07_card")

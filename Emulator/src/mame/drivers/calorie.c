@@ -87,9 +87,10 @@ class calorie_state : public driver_device
 {
 public:
 	calorie_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fg_ram(*this, "fg_ram"),
-		m_sprites(*this, "sprites"){ }
+		m_sprites(*this, "sprites"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_fg_ram;
@@ -113,6 +114,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_calorie(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -144,7 +146,6 @@ TILE_GET_INFO_MEMBER(calorie_state::get_fg_tile_info)
 
 void calorie_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(calorie_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 16, 16);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(calorie_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
@@ -271,10 +272,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( calorie_sound_io_map, AS_IO, 8, calorie_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x01, 0x01) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x10, 0x11) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x11, 0x11) AM_DEVREAD_LEGACY("ay2", ay8910_r)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x01, 0x01) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x10, 0x11) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x11, 0x11) AM_DEVREAD("ay2", ay8910_device, data_r)
 	// 3rd ?
 	AM_RANGE(0x00, 0xff) AM_WRITE(bogus_w)
 ADDRESS_MAP_END
@@ -426,13 +427,11 @@ GFXDECODE_END
 
 void calorie_state::machine_start()
 {
-
 	save_item(NAME(m_bg_bank));
 }
 
 void calorie_state::machine_reset()
 {
-
 	m_bg_bank = 0;
 }
 
@@ -554,8 +553,8 @@ DRIVER_INIT_MEMBER(calorie_state,calorie)
 
 DRIVER_INIT_MEMBER(calorie_state,calorieb)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
-	space.set_decrypted_region(0x0000, 0x7fff, machine().root_device().memregion("maincpu")->base() + 0x10000);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	space.set_decrypted_region(0x0000, 0x7fff, memregion("maincpu")->base() + 0x10000);
 }
 
 

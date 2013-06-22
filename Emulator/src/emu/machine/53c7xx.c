@@ -57,9 +57,12 @@ const device_type NCR53C7XX = &device_creator<ncr53c7xx_device>;
 //-------------------------------------------------
 
 ncr53c7xx_device::ncr53c7xx_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	:   nscsi_device(mconfig, NCR53C7XX, "53C7xx SCSI", tag, owner, clock),
+	:   nscsi_device(mconfig, NCR53C7XX, "53C7xx SCSI", tag, owner, clock, "ncr537xx", __FILE__),
 		device_execute_interface(mconfig, *this),
-		m_icount(0)
+		m_icount(0),
+		m_irq_handler(*this),
+		m_host_write(*this),
+		m_host_read(*this)
 {
 }
 
@@ -74,12 +77,51 @@ void ncr53c7xx_device::device_start()
 	m_icountptr = &m_icount;
 
 	// resolve line callbacks
-	m_out_irq_func.resolve(m_out_irq_cb, *this);
+	m_irq_handler.resolve_safe();
+	m_host_read.resolve_safe(0);
+	m_host_write.resolve_safe();
 
 	m_tm = timer_alloc(0);
 
 	// The SCRIPTS processor runs at ~2 MIPS so approximate this
 	set_unscaled_clock(2000000);
+
+	// savestate support
+	save_item(NAME(m_scntl));
+	save_item(NAME(m_sdid));
+	save_item(NAME(m_sien));
+	save_item(NAME(m_scid));
+	save_item(NAME(m_sxfer));
+	save_item(NAME(m_sodl));
+	save_item(NAME(m_socl));
+	save_item(NAME(m_sfbr));
+	save_item(NAME(m_sidl));
+	save_item(NAME(m_sbdl));
+	save_item(NAME(m_sbcl));
+	save_item(NAME(m_dstat));
+	save_item(NAME(m_sstat));
+	save_item(NAME(m_ctest));
+	save_item(NAME(m_temp));
+	save_item(NAME(m_dfifo));
+	save_item(NAME(m_istat));
+	save_item(NAME(m_dbc));
+	save_item(NAME(m_dcmd));
+	save_item(NAME(m_dnad));
+	save_item(NAME(m_dsp));
+	save_item(NAME(m_dsps));
+	save_item(NAME(m_dmode));
+	save_item(NAME(m_dien));
+	save_item(NAME(m_dwt));
+	save_item(NAME(m_dcntl));
+
+	// other state
+	save_item(NAME(m_scsi_state));
+	save_item(NAME(m_connected));
+	save_item(NAME(m_finished));
+	save_item(NAME(m_last_data));
+	save_item(NAME(m_xfr_phase));
+
+	save_item(NAME(m_scripts_state));
 }
 
 
@@ -127,33 +169,7 @@ void ncr53c7xx_device::device_reset()
 	set_scripts_state(SCRIPTS_IDLE);
 	set_scsi_state(IDLE);
 
-	m_out_irq_func(CLEAR_LINE);
-}
-
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void ncr53c7xx_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const NCR53C7XXinterface *intf = reinterpret_cast<const NCR53C7XXinterface *>(static_config());
-
-	if (intf != NULL)
-	{
-		*static_cast<NCR53C7XXinterface *>(this) = *intf;
-	}
-
-	// or initialize to defaults if none provided
-	else
-	{
-		memset(&m_out_irq_cb, 0, sizeof(m_out_irq_cb));
-	}
-
-	m_shortname = "ncr537xx";
+	m_irq_handler(CLEAR_LINE);
 }
 
 
@@ -635,8 +651,7 @@ void ncr53c7xx_device::update_irqs()
 	else
 		m_istat &= ~ISTAT_DIP;
 
-	if (!m_out_irq_func.isnull())
-		m_out_irq_func(m_istat ? ASSERT_LINE : CLEAR_LINE);
+	m_irq_handler(m_istat ? ASSERT_LINE : CLEAR_LINE);
 }
 
 //-------------------------------------------------
@@ -683,7 +698,7 @@ void ncr53c7xx_device::send_byte()
 
 	set_scsi_state( (m_scsi_state & STATE_MASK) | (SEND_WAIT_SETTLE << SUB_SHIFT) );
 
-	UINT32 data = host_r(machine(), false, m_dnad & ~3);
+	UINT32 data = m_host_read(m_dnad & ~3, 0xffffffff);
 	data = data >> ((m_dnad & 3) * 8) & 0xff;
 
 	++m_dnad;
@@ -1043,7 +1058,7 @@ void ncr53c7xx_device::step(bool timeout)
 
 				UINT32 shift = (8 * (m_dnad & 3));
 				UINT32 mem_mask = 0xff << shift;
-				host_w(machine(), false, m_dnad & ~3, data << shift, mem_mask);
+				m_host_write(m_dnad & ~3, data << shift, mem_mask);
 
 				++m_dnad;
 				--m_dbc;
@@ -1121,7 +1136,7 @@ void ncr53c7xx_device::execute_run()
 				m_finished = false;
 
 				// Fetch the instruction
-				UINT32 inst = host_r(machine(), false, m_dsp);
+				UINT32 inst = m_host_read(m_dsp, 0xffffffff);
 
 				m_dcmd = inst >> 24;
 				m_dbc = inst & 0xffffff;
@@ -1204,7 +1219,7 @@ void ncr53c7xx_device::scripts_decode_bm(void)
 		}
 	}
 
-	m_dnad = host_r(machine(), false, m_dsp + 4);
+	m_dnad = m_host_read(m_dsp + 4, 0xffffffff);
 	m_dsp += 8;
 }
 
@@ -1282,7 +1297,7 @@ void ncr53c7xx_device::scripts_decode_io(void)
 	}
 
 	// Set some additional registers
-	m_dnad = m_dsps = host_r(machine(), false, m_dsp + 4);
+	m_dnad = m_dsps = m_host_read(m_dsp + 4, 0xffffffff);
 	m_dsp += 8;
 }
 
@@ -1317,7 +1332,7 @@ void ncr53c7xx_device::scripts_decode_tc(void)
 			break;
 	}
 
-	m_dnad = m_dsps = host_r(machine(), false, m_dsp + 4);
+	m_dnad = m_dsps = m_host_read(m_dsp + 4, 0xffffffff);
 	m_dsp += 8;
 }
 
@@ -1376,7 +1391,7 @@ void ncr53c7xx_device::bm_i_wmov()
 
 			// Indirect addressing
 			if (m_dcmd & (1 << 5))
-				m_dnad = host_r(machine(), false, m_dnad);
+				m_dnad = m_host_read(m_dnad, 0xffffffff);
 
 			// Compare the phase bits
 			if ((scsi_bus->ctrl_r() & 7) == (m_dcmd & 7))

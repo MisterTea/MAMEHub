@@ -1,13 +1,20 @@
-#include "devlegcy.h"
+#include "audio/warpwarp.h"
 
 class warpwarp_state : public driver_device
 {
 public:
 	warpwarp_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_warpwarp_sound(*this, "warpwarp_custom"),
+		m_geebee_sound(*this, "geebee_custom"),
 		m_geebee_videoram(*this, "geebee_videoram"),
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram")
+		{ }
 
+	required_device<cpu_device> m_maincpu;
+	optional_device<warpwarp_sound_device> m_warpwarp_sound;
+	optional_device<geebee_sound_device> m_geebee_sound;
 	optional_shared_ptr<UINT8> m_geebee_videoram;
 	optional_shared_ptr<UINT8> m_videoram;
 	int m_geebee_bgw;
@@ -48,60 +55,6 @@ public:
 	DECLARE_PALETTE_INIT(navarone);
 	UINT32 screen_update_geebee(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	inline void geebee_plot(bitmap_ind16 &bitmap, const rectangle &cliprect, int x, int y, pen_t pen);
+	void draw_ball(bitmap_ind16 &bitmap, const rectangle &cliprect,pen_t pen);
 };
-
-
-DECLARE_WRITE8_DEVICE_HANDLER( geebee_sound_w );
-
-class geebee_sound_device : public device_t,
-									public device_sound_interface
-{
-public:
-	geebee_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	~geebee_sound_device() { global_free(m_token); }
-
-	// access to legacy token
-	void *token() const { assert(m_token != NULL); return m_token; }
-protected:
-	// device-level overrides
-	virtual void device_config_complete();
-	virtual void device_start();
-
-	// sound stream update overrides
-	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
-private:
-	// internal state
-	void *m_token;
-};
-
-extern const device_type GEEBEE;
-
-
-/*----------- defined in audio/warpwarp.c -----------*/
-
-DECLARE_WRITE8_DEVICE_HANDLER( warpwarp_sound_w );
-DECLARE_WRITE8_DEVICE_HANDLER( warpwarp_music1_w );
-DECLARE_WRITE8_DEVICE_HANDLER( warpwarp_music2_w );
-
-class warpwarp_sound_device : public device_t,
-									public device_sound_interface
-{
-public:
-	warpwarp_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	~warpwarp_sound_device() { global_free(m_token); }
-
-	// access to legacy token
-	void *token() const { assert(m_token != NULL); return m_token; }
-protected:
-	// device-level overrides
-	virtual void device_config_complete();
-	virtual void device_start();
-
-	// sound stream update overrides
-	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
-private:
-	// internal state
-	void *m_token;
-};
-
-extern const device_type WARPWARP;

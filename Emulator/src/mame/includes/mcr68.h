@@ -22,7 +22,8 @@ public:
 		m_turbo_chip_squeak(*this, "tcs"),
 		m_cvsd_sound(*this, "cvsd"),
 			m_videoram(*this, "videoram"),
-			m_spriteram(*this, "spriteram") { }
+			m_spriteram(*this, "spriteram") ,
+		m_maincpu(*this, "maincpu") { }
 
 	optional_device<midway_chip_squeak_deluxe_device> m_chip_squeak_deluxe;
 	optional_device<midway_sounds_good_device> m_sounds_good;
@@ -109,6 +110,14 @@ public:
 	DECLARE_WRITE8_MEMBER(zwackery_pia1_w);
 	DECLARE_WRITE_LINE_MEMBER(zwackery_ca2_w);
 	DECLARE_WRITE_LINE_MEMBER(zwackery_pia_irq);
+	void mcr68_update_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority);
+	void zwackery_update_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority);
+	void mcr68_common_init();
+	void update_mcr68_interrupts();
+	inline void update_interrupts();
+	void subtract_from_counter(int counter, int count);
+	void mcr68_common_init(int clip, int xoffset);
+	required_device<cpu_device> m_maincpu;
 };
 
 /*----------- defined in machine/mcr68.c -----------*/

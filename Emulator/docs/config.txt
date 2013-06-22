@@ -60,6 +60,9 @@ Tab       Toggles the configuration menu.
              Shift+Right - increase the value by 0.1x
              Alt+Right - increase the value by the smallest amount
 
+          If you are running with -debug, this key send a 'break'
+          in emulation.
+
 P         Pauses the game.
 
 Shift+P   While paused, advances to next frame.
@@ -71,6 +74,9 @@ F3        Resets the game.
 Shift+F3  Performs a "hard reset", which tears everything down and re-
           creates it from scratch. This is a more thorough and complete
           reset than an F3.
+
+LCtrl+F3  [SDL ONLY]
+          Toggle Uneven stretch.
 
 F4        Shows the game palette, decoded GFX, and any tilemaps. Use the
           Enter key to switch between the three modes (palette, graphics,
@@ -106,13 +112,26 @@ F4        Shows the game palette, decoded GFX, and any tilemaps. Use the
 
           Note: Not all games have decoded graphics and/or tilemaps.
 
+LCtrl+F4  [SDL ONLY]
+          Toggle Keepaspect ratio.
+
+LCtrl+F5  [SDL ONLY]
+          Toggle Filter.
+
+Alt+Ctrl+F5  [WINDOWS ONLY. NON SDL]
+          Toggle HLSL Post-Processing.
+
 F6        Toggle cheat mode (if started with "-cheat").
+
+LCtrl+F6  Decrease Prescaling.
 
 F7        Load a save state. You will be requested to press a key to
           determine which save state you wish to load. Note that the save
           state feature is not supported for a large number of drivers. If
           support is not enabled for a given driver, you will receive a
           warning when attempting to save or load.
+
+LCtrl+F7  Increase Prescaling.
 
 Shift+F7  Create a save state. Requires an additional keypress to identify
           the state, similar to the load option above.
@@ -127,13 +146,20 @@ F11       Toggles speed display.
 
 Shift+F11 Toggles internal profiler display (if compiled in).
 
+Alt+F11   Record HLSL Rendered Video.
+
 F12       Saves a screen snapshot.
 
-Insert    Fast forward. While held, runs the game with throttling disabled
+Alt+F12   Take HLSL Rendered Snapshot.
+
+Insert    [WINDOW ONLY, NON SDL]
+Page DN   [SDL ONLY]
+          Fast forward. While held, runs the game with throttling disabled
           and with the maximum frameskip.
 
-Escape    Exits emulator.
+Alt+ENTER Toggles between full-screen and windowed mode.
 
+Escape    Exits emulator.
 
 
 
@@ -287,11 +313,29 @@ of your command:
         or system.  Notice, this is simply a copy/paste of the .XML file which reside
         in the HASH folder which are allowed to be used.
 
+-verifysoftware [<gamename|wildcard>]
+
+	Checks for invalid or missing ROM images in your software lists. By default
+        all drivers that have valid ZIP files or directories in the rompath are verified;
+	however, you can limit this list by specifying a specific driver name or wildcard
+        after the -verifysoftware command.
+
 -getsoftlist [<gamename|wildcard>]
 
         Posts to screen a specific software list which matches with the gamename
         provided.
+
+-verifysoftlist [softwarelistname]
+
+	Checks a specified software list for missing ROM images if files exist for issued
+        softwarelistname.  By default, all drivers that have valid ZIP files or directories
+        in the rompath are verified;  however, you can limit this list by specifying a
+        specific softwarelistname (without .XML) after the -verifysoftlist command.
  
+-listmidi
+
+        Create a list of list available MIDI I/O devices for use with emulation.
+
         
 
 Configuration options
@@ -382,6 +426,7 @@ Core search path options
 	MAME will look for gamename\cross#.png and then cross#.png in the
 	specified crsshairpath, where # is the player number.  Failing that,
 	MAME will use built-in default crosshairs.
+
 
 
 Core Output Directory Options
@@ -525,10 +570,15 @@ Core state/playback options
 	find the next empty value for %i and use that for a filename. The
 	default is %g/%i, which creates a separate folder for each game,
 	and names the snapshots under it starting with 0000 and increasing
-	from there.  In the case of using different media, you can use the
-        %d_[media] indicator.  Replace [media] with the default media being
-        used.  In the example: 'mess nes megaman2u -snapname %g/%d_cart'
-        snapshots will then be placed in 'snaps\nes\megaman2u.png'
+	from there.  In addition to the above, for drivers using different 
+	media, like carts or floppy disks, you can also use the %d_[media] 
+	indicator.  Replace [media] with the media switch you want to use.
+	A few examples: if you use 'mame robby -snapname foo/%g%i' snapshots 
+	will be saved as 'snaps\foo\robby0000.png' , 'snaps\foo\robby0001.png'
+	and so on ; if you use 'mess nes -cart robby -snapname %g/%d_cart' 
+	snapshots will be saved as 'snaps\nes\robby.png' ; if you use 
+	'mess c64 -flop1 robby -snapname %g/%d_flop1/%i' snapshots will be 
+	saved as 'snaps\c64\robby\0000.png'.
 
 -snapsize <width>x<height>
 
@@ -553,6 +603,23 @@ Core state/playback options
 	"Native (15:14)" view even though it is not a perfect match.
 	<viewname> can also be 'auto', which selects the first view with all
 	screens present. The default value is 'internal'.
+
+-statename <name>
+
+	Describes how MAME should store save state files, relative to the
+	state_directory path. <name> is a string that provides a template that 
+	is used to generate a relative path. Two simple substitutions are 
+	provided: the / character represents the path separator on any target 
+	platform (even Windows); the string %g represents the driver name of 
+	the current game. The default is %g, which creates a separate folder for 
+	each game.  In addition to the above, for drivers using different 
+	media, like carts or floppy disks, you can also use the %d_[media] 
+	indicator.  Replace [media] with the media switch you want to use.
+	A few examples: if you use 'mame robby -statename foo/%g' save states 
+	will be stored inside 'sta\foo\robby\' ; if you use 'mess nes -cart 
+	robby -statename %g/%d_cart' save states will be stored inside 
+	'sta\nes\robby\' ; if you use 'mess c64 -flop1 robby -statename 
+	%g/%d_flop1' save states will be stored inside 'sta\c64\robby\'.
 
 -[no]burnin
 
@@ -980,10 +1047,11 @@ Core input options
 	The default is 0.85.
 
 -natural
-        Specific whether or not to use a natural keyboard or not.  This allows
-        you to start your game or system in "partial" keyboard emulation mode,
-        giving you the ability to use all normal UI keys.  The default is OFF,
-        (-nonatrual)
+
+        Allows user to specify whether or not to use a natural keyboard or not.
+        This allows you to start your game or system in a 'native' mode, depending
+        on your region,  allowing compatability for non-"QWERTY" style keyboards.
+        The default is OFF (-nonatrual)
 
 -joystick_contradictory
 
@@ -1101,3 +1169,18 @@ Core misc options
 
         Displays a mouse cursor when using the built-in UI for MAME.  The default
         is (-noui_mouse).
+
+-autoboot_command "<command>"
+
+        Command string to execute after machine boot (in quotes " ").  To issue
+        a quote to the emulation, use """ in the string.  Using \n will issue a
+        create a new line, issuing what was typed prior as a command.
+        Example:  -autoboot_command "load """$""",8,1\n"
+
+-autoboot_delay [n]
+
+        Timer delay (in seconds) to trigger command execution on autoboot.
+
+-autoboot_script / -script [filename.lua]
+
+        File containing scripting to execute after machine boot.

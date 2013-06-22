@@ -19,13 +19,21 @@
 class triplhnt_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_HIT
+	};
+
 	triplhnt_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_playfield_ram(*this, "playfield_ram"),
 		m_vpos_ram(*this, "vpos_ram"),
 		m_hpos_ram(*this, "hpos_ram"),
 		m_orga_ram(*this, "orga_ram"),
-		m_code_ram(*this, "code_ram"){ }
+		m_code_ram(*this, "code_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_discrete(*this, "discrete"),
+		m_samples(*this, "samples") { }
 
 	UINT8 m_cmos[16];
 	UINT8 m_da_latch;
@@ -51,7 +59,15 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_triplhnt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(triplhnt_hit_callback);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void triplhnt_set_collision(int code);
+	void triplhnt_update_misc(address_space &space, int offset);
+	required_device<cpu_device> m_maincpu;
+	required_device<discrete_device> m_discrete;
+	required_device<samples_device> m_samples;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 

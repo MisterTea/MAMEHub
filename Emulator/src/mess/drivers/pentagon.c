@@ -13,73 +13,90 @@ class pentagon_state : public spectrum_state
 {
 public:
 	pentagon_state(const machine_config &mconfig, device_type type, const char *tag)
-		: spectrum_state(mconfig, type, tag) { }
+		: spectrum_state(mconfig, type, tag)
+		, m_bank1(*this, "bank1")
+		, m_bank2(*this, "bank2")
+		, m_bank3(*this, "bank3")
+		, m_bank4(*this, "bank4")
+		, m_beta(*this, BETA_DISK_TAG)
+	{ }
 
 	DECLARE_DIRECT_UPDATE_MEMBER(pentagon_direct);
 	DECLARE_WRITE8_MEMBER(pentagon_port_7ffd_w);
 	DECLARE_MACHINE_RESET(pentagon);
+
+protected:
+	required_memory_bank m_bank1;
+	required_memory_bank m_bank2;
+	required_memory_bank m_bank3;
+	required_memory_bank m_bank4;
+	required_device<device_t> m_beta;
+private:
+	UINT8 *m_p_ram;
+	void pentagon_update_memory();
 };
 
 DIRECT_UPDATE_MEMBER(pentagon_state::pentagon_direct)
 {
-	device_t *beta = machine().device(BETA_DISK_TAG);
-	UINT16 pc = machine().device("maincpu")->safe_pcbase();
+	UINT16 pc = m_maincpu->pcbase();
 
-	if (beta->started() && betadisk_is_active(beta))
+	if (m_beta->started() && betadisk_is_active(m_beta) && (pc >= 0x4000))
 	{
-		if (pc >= 0x4000)
-		{
-			m_ROMSelection = ((m_port_7ffd_data>>4) & 0x01) ? 1 : 0;
-			betadisk_disable(beta);
-			membank("bank1")->set_base(memregion("maincpu")->base() + 0x010000 + (m_ROMSelection<<14));
-		}
-	} else if (((pc & 0xff00) == 0x3d00) && (m_ROMSelection==1))
+		m_ROMSelection = BIT(m_port_7ffd_data, 4);
+		betadisk_disable(m_beta);
+		m_bank1->set_base(&m_p_ram[0x10000 + (m_ROMSelection<<14)]);
+	}
+	else
+	if (((pc & 0xff00) == 0x3d00) && (m_ROMSelection==1))
 	{
 		m_ROMSelection = 3;
-		if (beta->started())
-			betadisk_enable(beta);
-
+		if (m_beta->started())
+			betadisk_enable(m_beta);
 	}
-	if(address<=0x3fff)
+
+	if (address<=0x3fff)
 	{
-		if (m_ROMSelection == 3) {
-			if (beta->started()) {
-				direct.explicit_configure(0x0000, 0x3fff, 0x3fff, machine().root_device().memregion("beta:beta")->base());
-				membank("bank1")->set_base(machine().root_device().memregion("beta:beta")->base());
+		if (m_ROMSelection == 3)
+		{
+			if (m_beta->started())
+			{
+				direct.explicit_configure(0x0000, 0x3fff, 0x3fff, memregion("beta:beta")->base());
+				m_bank1->set_base(memregion("beta:beta")->base());
 			}
-		} else {
-			direct.explicit_configure(0x0000, 0x3fff, 0x3fff, machine().root_device().memregion("maincpu")->base() + 0x010000 + (m_ROMSelection<<14));
-			membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x010000 + (m_ROMSelection<<14));
+		}
+		else
+		{
+			direct.explicit_configure(0x0000, 0x3fff, 0x3fff, &m_p_ram[0x10000 + (m_ROMSelection<<14)]);
+			m_bank1->set_base(&m_p_ram[0x10000 + (m_ROMSelection<<14)]);
 		}
 		return ~0;
 	}
+
 	return address;
 }
 
-static void pentagon_update_memory(running_machine &machine)
+void pentagon_state::pentagon_update_memory()
 {
-	spectrum_state *state = machine.driver_data<spectrum_state>();
-	device_t *beta = machine.device(BETA_DISK_TAG);
-	UINT8 *messram = machine.device<ram_device>(RAM_TAG)->pointer();
-	state->m_screen_location = messram + ((state->m_port_7ffd_data & 8) ? (7<<14) : (5<<14));
+	UINT8 *messram = m_ram->pointer();
 
-	state->membank("bank4")->set_base(messram + ((state->m_port_7ffd_data & 0x07) * 0x4000));
+	m_screen_location = messram + ((m_port_7ffd_data & 8) ? (7<<14) : (5<<14));
 
-	if (beta->started() && betadisk_is_active(beta) && !( state->m_port_7ffd_data & 0x10 ) )
+	m_bank4->set_base(messram + ((m_port_7ffd_data & 0x07) * 0x4000));
+
+	if (m_beta->started() && betadisk_is_active(m_beta) && !( m_port_7ffd_data & 0x10 ) )
 	{
 		/* GLUK */
-		if (strcmp(machine.system().name, "pent1024")==0) {
-			state->m_ROMSelection = 2;
-		} else {
-			state->m_ROMSelection = ((state->m_port_7ffd_data>>4) & 0x01) ;
-		}
+		if (strcmp(machine().system().name, "pent1024")==0)
+			m_ROMSelection = 2;
+		else
+			m_ROMSelection = BIT(m_port_7ffd_data, 4);
 	}
-	else {
+	else
 		/* ROM switching */
-		state->m_ROMSelection = ((state->m_port_7ffd_data>>4) & 0x01) ;
-	}
+		m_ROMSelection = BIT(m_port_7ffd_data, 4);
+
 	/* rom 0 is 128K rom, rom 1 is 48 BASIC */
-	state->membank("bank1")->set_base(machine.root_device().memregion("maincpu")->base() + 0x010000 + (state->m_ROMSelection<<14));
+	m_bank1->set_base(&m_p_ram[0x10000 + (m_ROMSelection<<14)]);
 }
 
 WRITE8_MEMBER(pentagon_state::pentagon_port_7ffd_w)
@@ -92,7 +109,7 @@ WRITE8_MEMBER(pentagon_state::pentagon_port_7ffd_w)
 	m_port_7ffd_data = data;
 
 	/* update memory */
-	pentagon_update_memory(machine());
+	pentagon_update_memory();
 }
 
 static ADDRESS_MAP_START (pentagon_io, AS_IO, 8, pentagon_state )
@@ -104,36 +121,37 @@ static ADDRESS_MAP_START (pentagon_io, AS_IO, 8, pentagon_state )
 	AM_RANGE(0x00fe, 0x00fe) AM_READWRITE(spectrum_port_fe_r,spectrum_port_fe_w) AM_MIRROR(0xff00) AM_MASK(0xffff)
 	AM_RANGE(0x00ff, 0x00ff) AM_DEVREADWRITE_LEGACY(BETA_DISK_TAG, betadisk_state_r, betadisk_param_w) AM_MIRROR(0xff00)
 	AM_RANGE(0x4000, 0x4000) AM_WRITE(pentagon_port_7ffd_w)  AM_MIRROR(0x3ffd)
-	AM_RANGE(0x8000, 0x8000) AM_DEVWRITE_LEGACY("ay8912", ay8910_data_w) AM_MIRROR(0x3ffd)
-	AM_RANGE(0xc000, 0xc000) AM_DEVREADWRITE_LEGACY("ay8912", ay8910_r, ay8910_address_w) AM_MIRROR(0x3ffd)
+	AM_RANGE(0x8000, 0x8000) AM_DEVWRITE("ay8912", ay8910_device, data_w) AM_MIRROR(0x3ffd)
+	AM_RANGE(0xc000, 0xc000) AM_DEVREADWRITE("ay8912", ay8910_device, data_r, address_w) AM_MIRROR(0x3ffd)
 ADDRESS_MAP_END
 
 MACHINE_RESET_MEMBER(pentagon_state,pentagon)
 {
-	UINT8 *messram = machine().device<ram_device>(RAM_TAG)->pointer();
-	device_t *beta = machine().device(BETA_DISK_TAG);
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	UINT8 *messram = m_ram->pointer();
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	m_p_ram = memregion("maincpu")->base();
 
 	space.install_read_bank(0x0000, 0x3fff, "bank1");
 	space.unmap_write(0x0000, 0x3fff);
 
-	if (beta->started())  {
-		betadisk_enable(beta);
-		betadisk_clear_status(beta);
+	if (m_beta->started())
+	{
+		betadisk_enable(m_beta);
+		betadisk_clear_status(m_beta);
 	}
 	space.set_direct_update_handler(direct_update_delegate(FUNC(pentagon_state::pentagon_direct), this));
 
 	memset(messram,0,128*1024);
 
 	/* Bank 5 is always in 0x4000 - 0x7fff */
-	membank("bank2")->set_base(messram + (5<<14));
+	m_bank2->set_base(messram + (5<<14));
 
 	/* Bank 2 is always in 0x8000 - 0xbfff */
-	membank("bank3")->set_base(messram + (2<<14));
+	m_bank3->set_base(messram + (2<<14));
 
 	m_port_7ffd_data = 0;
 	m_port_1ffd_data = -1;
-	pentagon_update_memory(machine());
+	pentagon_update_memory();
 }
 
 /* F4 Character Displayer */

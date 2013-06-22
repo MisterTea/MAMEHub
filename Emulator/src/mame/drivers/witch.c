@@ -229,12 +229,14 @@ class witch_state : public driver_device
 {
 public:
 	witch_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_gfx0_vram(*this, "gfx0_vram"),
 		m_gfx0_cram(*this, "gfx0_cram"),
 		m_gfx1_vram(*this, "gfx1_vram"),
 		m_gfx1_cram(*this, "gfx1_cram"),
-		m_sprite_ram(*this, "sprite_ram"){ }
+		m_sprite_ram(*this, "sprite_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub") { }
 
 	tilemap_t *m_gfx0a_tilemap;
 	tilemap_t *m_gfx0b_tilemap;
@@ -270,6 +272,9 @@ public:
 	UINT32 screen_update_witch(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(witch_main_interrupt);
 	INTERRUPT_GEN_MEMBER(witch_sub_interrupt);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 };
 
 
@@ -474,37 +479,31 @@ WRITE8_MEMBER(witch_state::yscroll_w)
 	m_scrolly=data;
 }
 
-static const ym2203_interface ym2203_interface_0 =
+static const ay8910_interface ay8910_config_1 =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("YM_PortA"),
-		DEVCB_INPUT_PORT("YM_PortB"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("YM_PortA"),
+	DEVCB_INPUT_PORT("YM_PortB"),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
-static const ym2203_interface ym2203_interface_1 =
+static const ay8910_interface ay8910_config_2 =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(witch_state,xscroll_w),
-		DEVCB_DRIVER_MEMBER(witch_state,yscroll_w)
-	},
-	DEVCB_NULL
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(witch_state,xscroll_w),
+	DEVCB_DRIVER_MEMBER(witch_state,yscroll_w)
 };
 
 static ADDRESS_MAP_START( map_main, AS_PROGRAM, 8, witch_state )
 	AM_RANGE(0x0000, UNBANKED_SIZE-1) AM_ROM
 	AM_RANGE(UNBANKED_SIZE, 0x7fff) AM_ROMBANK("bank1")
-	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0x8008, 0x8009) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r, ym2203_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0x8008, 0x8009) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
 	AM_RANGE(0xa000, 0xa00f) AM_READWRITE(read_a00x, write_a00x)
 	AM_RANGE(0xc000, 0xc3ff) AM_READWRITE(gfx0_vram_r, gfx0_vram_w) AM_SHARE("gfx0_vram")
 	AM_RANGE(0xc400, 0xc7ff) AM_READWRITE(gfx0_cram_r, gfx0_cram_w) AM_SHARE("gfx0_cram")
@@ -521,9 +520,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( map_sub, AS_PROGRAM, 8, witch_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0x8008, 0x8009) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r, ym2203_w)
-	AM_RANGE(0x8010, 0x8016) AM_READ(read_8010) AM_DEVWRITE_LEGACY("essnd", es8712_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0x8008, 0x8009) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
+	AM_RANGE(0x8010, 0x8016) AM_READ(read_8010) AM_DEVWRITE("essnd", es8712_device, es8712_w)
 	AM_RANGE(0xa000, 0xa00f) AM_READWRITE(read_a00x, write_a00x)
 	AM_RANGE(0xf000, 0xf0ff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0xf180, 0xffff) AM_RAM AM_SHARE("share2")
@@ -757,22 +756,19 @@ void witch_state::video_start()
 	m_gfx1_tilemap->set_palette_offset(0x200);
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void witch_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	witch_state *state = machine.driver_data<witch_state>();
 	int i,sx,sy,tileno,flags,color;
 	int flipx=0;
 	int flipy=0;
 
 	for(i=0;i<0x800;i+=0x20) {
-
-
-		sx     = state->m_sprite_ram[i+1];
+		sx     = m_sprite_ram[i+1];
 		if(sx!=0xF8) {
-			tileno = (state->m_sprite_ram[i]<<2)  | (( state->m_sprite_ram[i+0x800] & 0x07 ) << 10 );
+			tileno = (m_sprite_ram[i]<<2)  | (( m_sprite_ram[i+0x800] & 0x07 ) << 10 );
 
-			sy     = state->m_sprite_ram[i+2];
-			flags  = state->m_sprite_ram[i+3];
+			sy     = m_sprite_ram[i+2];
+			flags  = m_sprite_ram[i+3];
 
 			flipx  = (flags & 0x10 ) ? 1 : 0;
 			flipy  = (flags & 0x20 ) ? 1 : 0;
@@ -780,22 +776,22 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 			color  =  flags & 0x0f;
 
 
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 				tileno, color,
 				flipx, flipy,
 				sx+8*flipx,sy+8*flipy,0);
 
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 				tileno+1, color,
 				flipx, flipy,
 				sx+8-8*flipx,sy+8*flipy,0);
 
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 				tileno+2, color,
 				flipx, flipy,
 				sx+8*flipx,sy+8-8*flipy,0);
 
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 				tileno+3, color,
 				flipx, flipy,
 				sx+8-8*flipx,sy+8-8*flipy,0);
@@ -814,7 +810,7 @@ UINT32 witch_state::screen_update_witch(screen_device &screen, bitmap_ind16 &bit
 
 	m_gfx1_tilemap->draw(bitmap, cliprect, 0,0);
 	m_gfx0a_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_gfx0b_tilemap->draw(bitmap, cliprect, 0,0);
 	return 0;
 }
@@ -857,15 +853,15 @@ static MACHINE_CONFIG_START( witch, witch_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("essnd", ES8712, 8000) /* ?? */
+	MCFG_ES8712_ADD("essnd", 8000) /* ?? */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("ym1", YM2203, XTAL_12MHz / 8)   /* 1.5MHz?? */
-	MCFG_SOUND_CONFIG(ym2203_interface_0)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config_1)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
 	MCFG_SOUND_ADD("ym2", YM2203, XTAL_12MHz / 8)   /* 1.5MHz?? */
-	MCFG_SOUND_CONFIG(ym2203_interface_1)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
 MACHINE_CONFIG_END
@@ -940,7 +936,7 @@ DRIVER_INIT_MEMBER(witch_state,witch)
 	UINT8 *ROM = (UINT8 *)memregion("maincpu")->base();
 	membank("bank1")->set_base(&ROM[0x10000+UNBANKED_SIZE]);
 
-	machine().device("sub")->memory().space(AS_PROGRAM).install_read_handler(0x7000, 0x700f, read8_delegate(FUNC(witch_state::prot_read_700x), this));
+	m_subcpu->space(AS_PROGRAM).install_read_handler(0x7000, 0x700f, read8_delegate(FUNC(witch_state::prot_read_700x), this));
 	m_bank = -1;
 }
 

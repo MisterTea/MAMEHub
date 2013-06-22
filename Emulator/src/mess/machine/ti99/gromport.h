@@ -39,10 +39,10 @@ public:
 	void    cartridge_inserted();
 
 protected:
-	void device_start();
-	void device_reset();
-	void device_config_complete();
-	ioport_constructor device_input_ports() const;
+	virtual void device_start();
+	virtual void device_reset();
+	virtual void device_config_complete();
+	virtual ioport_constructor device_input_ports() const;
 
 private:
 	ti99_cartridge_connector_device*    m_connector;
@@ -56,7 +56,7 @@ SLOT_INTERFACE_EXTERN(gromport);
 #define MCFG_TI99_GROMPORT_ADD( _tag, _conf )   \
 	MCFG_DEVICE_ADD(_tag, GROMPORT, 0) \
 	MCFG_DEVICE_CONFIG(_conf)   \
-	MCFG_DEVICE_SLOT_INTERFACE(gromport, "single", NULL, false)
+	MCFG_DEVICE_SLOT_INTERFACE(gromport, "single", false)
 
 /****************************************************************************/
 
@@ -78,10 +78,10 @@ public:
 	void    set_slot(int i);
 
 protected:
-	void device_start() { };
-	void device_config_complete();
-	machine_config_constructor device_mconfig_additions() const;
-	const rom_entry* device_rom_region() const;
+	virtual void device_start() { };
+	virtual void device_config_complete();
+	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual const rom_entry* device_rom_region() const;
 
 	// Image handling: implementation of methods which are abstract in the parent
 	bool call_load();
@@ -132,7 +132,7 @@ public:
 	virtual void remove(int index) { };
 
 protected:
-	ti99_cartridge_connector_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	ti99_cartridge_connector_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	gromport_device*    m_gromport;
 };
 
@@ -150,10 +150,10 @@ public:
 	void cruwrite(offs_t offset, UINT8 data);
 
 protected:
-	void device_start() { };
-	void device_reset();
-	machine_config_constructor device_mconfig_additions() const;
-	void device_config_complete();
+	virtual void device_start() { };
+	virtual void device_reset();
+	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual void device_config_complete();
 
 private:
 	ti99_cartridge_device *m_cartridge;
@@ -182,16 +182,15 @@ public:
 	void remove(int index);
 
 protected:
-	void device_start();
-	void device_reset();
-	machine_config_constructor device_mconfig_additions() const;
-	ioport_constructor device_input_ports() const;
+	virtual void device_start();
+	virtual void device_reset();
+	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual ioport_constructor device_input_ports() const;
 
 private:
 	int     m_active_slot;
 	int     m_fixed_slot;
 	int     m_next_free_slot;
-	int     m_numcart;
 	ti99_cartridge_device*  m_cartridge[NUMBER_OF_CARTRIDGE_SLOTS];
 
 	void    set_slot(int slotnumber);
@@ -217,12 +216,12 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER( gk_changed );
 
 protected:
-	void device_start();
-	void device_reset();
+	virtual void device_start();
+	virtual void device_reset();
 
-	machine_config_constructor device_mconfig_additions() const;
-	const rom_entry* device_rom_region() const;
-	ioport_constructor device_input_ports() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual const rom_entry* device_rom_region() const;
+	virtual ioport_constructor device_input_ports() const;
 
 	// device_nvram_interface
 	void nvram_default();
@@ -276,7 +275,10 @@ protected:
 	UINT8*              m_rom_ptr;
 	UINT8*              m_rom2_ptr;
 	UINT8*              m_ram_ptr;
-
+	int                 m_rom_page;     // for some cartridge types
+	UINT8*              m_grom_ptr;     // for gromemu
+	int                 m_grom_address; // for gromemu
+	int                 m_ram_page;     // for super
 private:
 };
 
@@ -296,9 +298,6 @@ public:
 	~ti99_paged_cartridge() { };
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
-
-private:
-	int     m_rom_page;
 };
 
 /********************** Mini Memory ***********************************/
@@ -321,9 +320,6 @@ public:
 	DECLARE_WRITE8_MEMBER(write);
 	void    crureadz(offs_t offset, UINT8 *value);
 	void    cruwrite(offs_t offset, UINT8 data);
-
-private:
-	int     m_ram_page;
 };
 
 /************************* MBX  ***************************************/
@@ -334,8 +330,6 @@ public:
 	~ti99_mbx_cartridge() { };
 	DECLARE_READ8Z_MEMBER(readz);
 	DECLARE_WRITE8_MEMBER(write);
-private:
-	int     m_rom_page;
 };
 
 /********************** Paged 379i ************************************/
@@ -348,7 +342,6 @@ public:
 	DECLARE_WRITE8_MEMBER(write);
 private:
 	int     get_paged379i_bank(int rompage);
-	int     m_rom_page;
 };
 
 /********************** Paged CRU  ************************************/
@@ -361,8 +354,21 @@ public:
 	DECLARE_WRITE8_MEMBER(write);
 	void    crureadz(offs_t offset, UINT8 *value);
 	void    cruwrite(offs_t offset, UINT8 data);
+};
+
+/********************** GROM emulation cartridge  ************************************/
+
+class ti99_gromemu_cartridge : public ti99_cartridge_pcb
+{
+public:
+	ti99_gromemu_cartridge() {  m_grom_address = 0; }
+	~ti99_gromemu_cartridge() { };
+	DECLARE_READ8Z_MEMBER(readz);
+	DECLARE_WRITE8_MEMBER(write);
+	DECLARE_READ8Z_MEMBER(gromemureadz);
+	DECLARE_WRITE8_MEMBER(gromemuwrite);
 private:
-	int     m_rom_page;
+	bool    m_waddr_LSB;
 };
 
 
@@ -431,7 +437,7 @@ public:
 private:
 	emu_options&            m_options;      // need this to find the path to the nvram files
 	int                     m_type;
-	const char*             m_system_name;  // need this to find the path to the nvram files
+	//const char*             m_system_name;  // need this to find the path to the nvram files
 	tagged_list<rpk_socket> m_sockets;
 
 	void add_socket(const char* id, rpk_socket *newsock);

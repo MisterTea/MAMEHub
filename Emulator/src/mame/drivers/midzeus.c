@@ -31,7 +31,6 @@ The Grid         v1.2   10/18/2000
 #include "cpu/pic16c5x/pic16c5x.h"
 #include "includes/midzeus.h"
 #include "machine/midwayic.h"
-#include "machine/timekpr.h"
 #include "audio/dcs.h"
 #include "machine/nvram.h"
 
@@ -76,21 +75,20 @@ MACHINE_START_MEMBER(midzeus_state,midzeus)
 	gun_timer[0] = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(midzeus_state::invasn_gun_callback),this));
 	gun_timer[1] = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(midzeus_state::invasn_gun_callback),this));
 
-	state_save_register_global(machine(), gun_control);
-	state_save_register_global(machine(), gun_irq_state);
-	state_save_register_global_array(machine(), gun_x);
-	state_save_register_global_array(machine(), gun_y);
-	state_save_register_global(machine(), crusnexo_leds_select);
-	state_save_register_global(machine(), keypad_select);
+	save_item(NAME(gun_control));
+	save_item(NAME(gun_irq_state));
+	save_item(NAME(gun_x));
+	save_item(NAME(gun_y));
+	save_item(NAME(crusnexo_leds_select));
+	save_item(NAME(keypad_select));
 }
 
 
 MACHINE_RESET_MEMBER(midzeus_state,midzeus)
 {
-
-	memcpy(m_ram_base, machine().root_device().memregion("user1")->base(), 0x40000*4);
+	memcpy(m_ram_base, memregion("user1")->base(), 0x40000*4);
 	*m_ram_base <<= 1;
-	machine().device("maincpu")->reset();
+	m_maincpu->reset();
 
 	cmos_protected = TRUE;
 }
@@ -105,7 +103,7 @@ MACHINE_RESET_MEMBER(midzeus_state,midzeus)
 
 TIMER_CALLBACK_MEMBER(midzeus_state::display_irq_off)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(midzeus_state::display_irq)
@@ -154,16 +152,13 @@ WRITE32_MEMBER(midzeus_state::cmos_protect_w)
 
 READ32_MEMBER(midzeus_state::zeus2_timekeeper_r)
 {
-	device_t *device = machine().device("m48t35");
-	return timekeeper_r(device, space, offset) | 0xffffff00;
+	return m_m48t35->read(space, offset, 0xff) | 0xffffff00;
 }
-
 
 WRITE32_MEMBER(midzeus_state::zeus2_timekeeper_w)
 {
-	device_t *device = machine().device("m48t35");
 	if (bitlatch[2] && !cmos_protected)
-		timekeeper_w(device, space, offset, data);
+		m_m48t35->write(space, offset, data, 0xff);
 	else
 		logerror("%s:zeus2_timekeeper_w with bitlatch[2] = %d, cmos_protected = %d\n", machine().describe_context(), bitlatch[2], cmos_protected);
 	cmos_protected = TRUE;
@@ -478,11 +473,12 @@ WRITE32_MEMBER(midzeus_state::analog_w)
 
 static void update_gun_irq(running_machine &machine)
 {
+	midzeus_state *state = machine.driver_data<midzeus_state>();
 	/* low 2 bits of gun_control seem to enable IRQs */
 	if (gun_irq_state & gun_control & 0x03)
-		machine.device("maincpu")->execute().set_input_line(3, ASSERT_LINE);
+		state->m_maincpu->set_input_line(3, ASSERT_LINE);
 	else
-		machine.device("maincpu")->execute().set_input_line(3, CLEAR_LINE);
+		state->m_maincpu->set_input_line(3, CLEAR_LINE);
 }
 
 
@@ -1458,7 +1454,7 @@ DRIVER_INIT_MEMBER(midzeus_state,invasn)
 {
 	dcs2_init(machine(), 0, 0);
 	midway_ioasic_init(machine(), MIDWAY_IOASIC_STANDARD, 468/* or 488 */, 94, NULL);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x9c0000, 0x9c0000, read32_delegate(FUNC(midzeus_state::invasn_gun_r),this), write32_delegate(FUNC(midzeus_state::invasn_gun_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x9c0000, 0x9c0000, read32_delegate(FUNC(midzeus_state::invasn_gun_r),this), write32_delegate(FUNC(midzeus_state::invasn_gun_w),this));
 }
 
 
@@ -1466,9 +1462,9 @@ DRIVER_INIT_MEMBER(midzeus_state,crusnexo)
 {
 	dcs2_init(machine(), 0, 0);
 	midway_ioasic_init(machine(), MIDWAY_IOASIC_STANDARD, 472/* or 476,477,478,110 */, 99, NULL);
-	machine().root_device().membank("bank1")->configure_entries(0, 3, machine().root_device().memregion("user2")->base(), 0x400000*4);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x9b0004, 0x9b0007, read32_delegate(FUNC(midzeus_state::crusnexo_leds_r),this), write32_delegate(FUNC(midzeus_state::crusnexo_leds_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler    (0x8d0009, 0x8d000a, write32_delegate(FUNC(midzeus_state::keypad_select_w),this));
+	membank("bank1")->configure_entries(0, 3, memregion("user2")->base(), 0x400000*4);
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x9b0004, 0x9b0007, read32_delegate(FUNC(midzeus_state::crusnexo_leds_r),this), write32_delegate(FUNC(midzeus_state::crusnexo_leds_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler    (0x8d0009, 0x8d000a, write32_delegate(FUNC(midzeus_state::keypad_select_w),this));
 }
 
 
@@ -1476,7 +1472,7 @@ DRIVER_INIT_MEMBER(midzeus_state,thegrid)
 {
 	dcs2_init(machine(), 0, 0);
 	midway_ioasic_init(machine(), MIDWAY_IOASIC_STANDARD, 474/* or 491 */, 99, NULL);
-	machine().root_device().membank("bank1")->configure_entries(0, 3, machine().root_device().memregion("user2")->base(), 0x400000*4);
+	membank("bank1")->configure_entries(0, 3, memregion("user2")->base(), 0x400000*4);
 }
 
 

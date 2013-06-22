@@ -76,8 +76,9 @@ class guab_state : public driver_device
 {
 public:
 	guab_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_sn(*this, "snsnd") { }
+		: driver_device(mconfig, type, tag),
+		m_sn(*this, "snsnd") ,
+		m_maincpu(*this, "maincpu") { }
 
 	/* devices */
 	required_device<sn76489_device> m_sn;
@@ -100,6 +101,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_guab(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(fdc_data_callback);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -111,7 +113,7 @@ public:
 
 WRITE_LINE_MEMBER(guab_state::ptm_irq)
 {
-	machine().device("maincpu")->execute().set_input_line(INT_6840PTM, state);
+	m_maincpu->set_input_line(INT_6840PTM, state);
 }
 
 static const ptm6840_interface ptm_intf =
@@ -135,7 +137,8 @@ static const ptm6840_interface ptm_intf =
 
 static void tms_interrupt(running_machine &machine, int state)
 {
-	machine.device("maincpu")->execute().set_input_line(INT_TMS34061, state);
+	guab_state *drvstate = machine.driver_data<guab_state>();
+	drvstate->m_maincpu->set_input_line(INT_TMS34061, state);
 }
 
 static const struct tms34061_interface tms34061intf =
@@ -384,7 +387,7 @@ TIMER_CALLBACK_MEMBER(guab_state::fdc_data_callback)
 	}
 
 	fdc.status |= DATA_REQUEST;
-	machine().device("maincpu")->execute().set_input_line(INT_FLOPPYCTRL, ASSERT_LINE);
+	m_maincpu->set_input_line(INT_FLOPPYCTRL, ASSERT_LINE);
 }
 
 
@@ -479,7 +482,7 @@ WRITE16_MEMBER(guab_state::wd1770_w)
 															fdc.sector));
 
 					/* Trigger a DRQ interrupt on the CPU */
-					machine().device("maincpu")->execute().set_input_line(INT_FLOPPYCTRL, ASSERT_LINE);
+					m_maincpu->set_input_line(INT_FLOPPYCTRL, ASSERT_LINE);
 					fdc.status |= DATA_REQUEST;
 					break;
 				}
@@ -524,7 +527,7 @@ WRITE16_MEMBER(guab_state::wd1770_w)
 			fdc.data = data;
 
 			/* Clear the DRQ */
-			machine().device("maincpu")->execute().set_input_line(INT_FLOPPYCTRL, CLEAR_LINE);
+			m_maincpu->set_input_line(INT_FLOPPYCTRL, CLEAR_LINE);
 
 			/* Queue an event to write the data if write command was specified */
 			if (fdc.cmd & 0x20)
@@ -562,7 +565,7 @@ READ16_MEMBER(guab_state::wd1770_r)
 			retval = fdc.data;
 
 			/* Clear the DRQ */
-			machine().device("maincpu")->execute().set_input_line(INT_FLOPPYCTRL, CLEAR_LINE);
+			m_maincpu->set_input_line(INT_FLOPPYCTRL, CLEAR_LINE);
 			fdc.status &= ~DATA_REQUEST;
 			break;
 		}
@@ -608,7 +611,7 @@ INPUT_CHANGED_MEMBER(guab_state::coin_inserted)
 	if (newval == 0)
 	{
 		UINT32 credit;
-		address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+		address_space &space = m_maincpu->space(AS_PROGRAM);
 
 		/* Get the current credit value and add the new coin value */
 		credit = space.read_dword(0x8002c) + (UINT32)(FPTR)param;

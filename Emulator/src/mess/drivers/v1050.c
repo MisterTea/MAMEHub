@@ -95,6 +95,7 @@ Notes:
 
     TODO:
 
+    - floppy broken
     - write to banked RAM at 0x0000-0x1fff when ROM is active
     - real keyboard w/i8049
     - keyboard beeper (NE555 wired in strange mix of astable/monostable modes)
@@ -923,11 +924,11 @@ WRITE_LINE_MEMBER( v1050_state::sio_txrdy_w )
 
 static const i8251_interface sio_8251_intf =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
 	DEVCB_DRIVER_LINE_MEMBER(v1050_state, sio_rxrdy_w),
 	DEVCB_DRIVER_LINE_MEMBER(v1050_state, sio_txrdy_w),
 	DEVCB_NULL,
@@ -951,7 +952,8 @@ void v1050_state::update_fdc()
 }
 
 static SLOT_INTERFACE_START( v1050_floppies )
-	SLOT_INTERFACE( "525dd", FLOPPY_525_DD ) // Teac FD-55F
+	SLOT_INTERFACE( "525ssqd", FLOPPY_525_SSQD ) // Teac FD 55E-02-U
+	SLOT_INTERFACE( "525qd", FLOPPY_525_QD ) // Teac FD 55-FV-35-U
 SLOT_INTERFACE_END
 
 void v1050_state::fdc_intrq_w(bool state)
@@ -968,6 +970,19 @@ void v1050_state::fdc_drq_w(bool state)
 	update_fdc();
 }
 
+//-------------------------------------------------
+//  rs232_port_interface rs232_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
 /*
 static LEGACY_FLOPPY_OPTIONS_START( v1050 )
     LEGACY_FLOPPY_OPTION( v1050, "dsk", "Visual 1050 disk image", basicdsk_identify_default, basicdsk_construct_default, NULL,
@@ -981,15 +996,13 @@ LEGACY_FLOPPY_OPTIONS_END
 
 // Machine Initialization
 
-static IRQ_CALLBACK( v1050_int_ack )
+IRQ_CALLBACK_MEMBER(v1050_state::v1050_int_ack)
 {
-	v1050_state *state = device->machine().driver_data<v1050_state>();
-
-	UINT8 vector = 0xf0 | (state->m_pic->a_r() << 1);
+	UINT8 vector = 0xf0 | (m_pic->a_r() << 1);
 
 	//logerror("Interrupt Acknowledge Vector: %02x\n", vector);
 
-	state->m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 
 	return vector;
 }
@@ -1010,14 +1023,14 @@ void v1050_state::machine_start()
 	m_rtc->cs1_w(1);
 
 	// set CPU interrupt callback
-	m_maincpu->set_irq_acknowledge_callback(v1050_int_ack);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(v1050_state::v1050_int_ack),this));
 
 	// setup memory banking
-	UINT8 *ram = machine().device<ram_device>(RAM_TAG)->pointer();
+	UINT8 *ram = m_ram->pointer();
 
 	membank("bank1")->configure_entries(0, 2, ram, 0x10000);
 	membank("bank1")->configure_entry(2, ram + 0x1c000);
-	membank("bank1")->configure_entry(3, memregion(Z80_TAG)->base());
+	membank("bank1")->configure_entry(3, m_rom->base());
 
 	program.install_readwrite_bank(0x2000, 0x3fff, "bank2");
 	membank("bank2")->configure_entries(0, 2, ram + 0x2000, 0x10000);
@@ -1088,12 +1101,13 @@ static MACHINE_CONFIG_START( v1050, v1050_state )
 	MCFG_I8251_ADD(I8251A_KB_TAG, /*XTAL_16MHz/8,*/ kb_8251_intf)
 	MCFG_I8251_ADD(I8251A_SIO_TAG, /*XTAL_16MHz/8,*/ sio_8251_intf)
 	MCFG_MB8877x_ADD(MB8877_TAG, XTAL_16MHz/16)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":0", v1050_floppies, "525dd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":1", v1050_floppies, "525dd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":2", v1050_floppies, NULL,    NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":3", v1050_floppies, NULL,    NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":0", v1050_floppies, "525qd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":1", v1050_floppies, "525qd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":2", v1050_floppies, NULL,    floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":3", v1050_floppies, NULL,    floppy_image_device::default_floppy_formats)
 	MCFG_TIMER_DRIVER_ADD_PERIODIC(TIMER_KB_TAG, v1050_state, kb_8251_tick, attotime::from_hz((double)XTAL_16MHz/4/13/8))
 	MCFG_TIMER_DRIVER_ADD(TIMER_SIO_TAG, v1050_state, sio_8251_tick)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	// SASI bus
 	MCFG_SCSIBUS_ADD(SASIBUS_TAG)
@@ -1131,4 +1145,4 @@ ROM_END
 // System Drivers
 
 //    YEAR  NAME    PARENT  COMPAT  MACHINE INPUT   INIT    COMPANY                     FULLNAME        FLAGS
-COMP( 1983, v1050,  0,      0,      v1050,  v1050, driver_device,   0,      "Visual Technology Inc",    "Visual 1050",  GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE | GAME_NO_SOUND | GAME_IMPERFECT_KEYBOARD )
+COMP( 1983, v1050,  0,      0,      v1050,  v1050, driver_device,   0,      "Visual Technology Inc",    "Visual 1050", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE | GAME_NO_SOUND | GAME_IMPERFECT_KEYBOARD )

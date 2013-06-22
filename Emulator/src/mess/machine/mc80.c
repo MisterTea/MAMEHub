@@ -13,14 +13,14 @@
 /*                            Implementation for MC80.2x                     */
 /*****************************************************************************/
 
-static IRQ_CALLBACK( mc8020_irq_callback )
+IRQ_CALLBACK_MEMBER(mc80_state::mc8020_irq_callback)
 {
 	return 0x00;
 }
 
 MACHINE_RESET_MEMBER(mc80_state,mc8020)
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(mc8020_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mc80_state::mc8020_irq_callback),this));
 }
 
 WRITE_LINE_MEMBER( mc80_state::ctc_z0_w )
@@ -107,14 +107,14 @@ WRITE8_MEMBER( mc80_state::mc8030_eprom_prog_w )
 {
 }
 
-static IRQ_CALLBACK( mc8030_irq_callback )
+IRQ_CALLBACK_MEMBER(mc80_state::mc8030_irq_callback )
 {
 	return 0x20;
 }
 
 MACHINE_RESET_MEMBER(mc80_state,mc8030)
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(mc8030_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mc80_state::mc8030_irq_callback),this));
 }
 
 READ8_MEMBER( mc80_state::zve_port_a_r )
@@ -192,12 +192,23 @@ Z80CTC_INTERFACE( mc8030_asp_z80ctc_intf )
 };
 
 // SIO CH A in = keyboard; out = beeper; CH B = IFSS (??)
-const z80sio_interface mc8030_asp_z80sio_intf =
+Z80SIO_INTERFACE( mc8030_asp_z80sio_intf )
 {
-	DEVCB_NULL, /* interrupt handler */
-	DEVCB_NULL,         /* DTR changed handler */
-	DEVCB_NULL,         /* RTS changed handler */
-	DEVCB_NULL,         /* BREAK changed handler */
-	DEVCB_NULL,         /* transmit handler */
-	DEVCB_NULL          /* receive handler */
+	0, 0, 0, 0,
+
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_NULL
 };

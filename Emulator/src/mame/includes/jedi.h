@@ -28,7 +28,9 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_smoothing_table(*this, "smoothing_table"),
 		m_audio_comm_stat(*this, "audio_comm_stat"),
-		m_speech_data(*this, "speech_data") { }
+		m_speech_data(*this, "speech_data"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	required_shared_ptr<UINT8> m_nvram;
 
@@ -78,6 +80,12 @@ public:
 	DECLARE_VIDEO_START(jedi);
 	UINT32 screen_update_jedi(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(generate_interrupt);
+	void get_pens(pen_t *pens);
+	void do_pen_lookup(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void draw_background_and_text(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 
 /*----------- defined in audio/jedi.c -----------*/

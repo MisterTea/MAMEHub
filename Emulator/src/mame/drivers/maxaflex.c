@@ -26,7 +26,10 @@ class maxaflex_state : public driver_device
 {
 public:
 	maxaflex_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_mcu(*this, "mcu"),
+		m_speaker(*this, "speaker") { }
 
 	UINT8 m_portA_in;
 	UINT8 m_portA_out;
@@ -60,6 +63,10 @@ public:
 	DECLARE_DRIVER_INIT(a600xl);
 	DECLARE_MACHINE_RESET(supervisor_board);
 	TIMER_DEVICE_CALLBACK_MEMBER(mcu_timer_proc);
+	int atari_input_disabled();
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_mcu;
+	required_device<speaker_sound_device> m_speaker;
 };
 
 
@@ -87,7 +94,7 @@ READ8_MEMBER(maxaflex_state::mcu_portA_r)
 WRITE8_MEMBER(maxaflex_state::mcu_portA_w)
 {
 	m_portA_out = data;
-	speaker_level_w(machine().device("speaker"), data >> 7);
+	m_speaker->level_w(data >> 7);
 }
 
 /* Port B:
@@ -113,14 +120,14 @@ WRITE8_MEMBER(maxaflex_state::mcu_portB_w)
 
 	/* clear coin interrupt */
 	if (data & 0x04)
-		machine().device("mcu")->execute().set_input_line(M6805_IRQ_LINE, CLEAR_LINE );
+		m_mcu->set_input_line(M6805_IRQ_LINE, CLEAR_LINE );
 
 	/* AUDMUTE */
 	machine().sound().system_enable((data >> 5) & 1);
 
 	/* RES600 */
 	if (diff & 0x10)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_RESET, (data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_RESET, (data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
 
 	/* latch for lamps */
 	if ((diff & 0x40) && !(data & 0x40))
@@ -188,7 +195,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(maxaflex_state::mcu_timer_proc)
 		if ( (m_tcr & 0x40) == 0 )
 		{
 			//timer interrupt!
-			generic_pulse_irq_line(machine().device("mcu")->execute(), M68705_INT_TIMER, 1);
+			generic_pulse_irq_line(m_mcu, M68705_INT_TIMER, 1);
 		}
 	}
 }
@@ -260,13 +267,12 @@ MACHINE_RESET_MEMBER(maxaflex_state,supervisor_board)
 INPUT_CHANGED_MEMBER(maxaflex_state::coin_inserted)
 {
 	if (!newval)
-		machine().device("mcu")->execute().set_input_line(M6805_IRQ_LINE, HOLD_LINE );
+		m_mcu->set_input_line(M6805_IRQ_LINE, HOLD_LINE );
 }
 
-int atari_input_disabled(running_machine &machine)
+int maxaflex_state::atari_input_disabled()
 {
-	maxaflex_state *state = machine.driver_data<maxaflex_state>();
-	return (state->m_portB_out & 0x80) == 0x00;
+	return (m_portB_out & 0x80) == 0x00;
 }
 
 
@@ -373,12 +379,12 @@ static const pokey_interface pokey_config = {
 
 READ8_MEMBER(maxaflex_state::maxaflex_atari_pia_pa_r)
 {
-	return atari_input_disabled(machine()) ? 0xFF : machine().root_device().ioport("djoy_0_1")->read_safe(0);
+	return atari_input_disabled() ? 0xFF : ioport("djoy_0_1")->read_safe(0);
 }
 
 READ8_MEMBER(maxaflex_state::maxaflex_atari_pia_pb_r)
 {
-	return atari_input_disabled(machine()) ? 0xFF : machine().root_device().ioport("djoy_2_3")->read_safe(0);
+	return atari_input_disabled() ? 0xFF : ioport("djoy_2_3")->read_safe(0);
 }
 
 
@@ -508,7 +514,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(maxaflex_state,a600xl)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 	memcpy( rom + 0x5000, rom + 0xd000, 0x800 );
 }
 

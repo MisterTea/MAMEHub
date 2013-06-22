@@ -69,6 +69,24 @@ IC7 Panasonic MN1020819DA E68-01
 
 
 
+Power Shovel additional I/O PCB info
+====================================
+
+TMP95C063F
+OKI 6295 x 2 each with a 1.056MHz resonator
+
+6.2MHz OSC
+18.4320MHz OSC
+
+HIN239CB (+5v Powered RS-232 Transmitter/Receiver - 120kbps)
+LC321664AM-80 (1Meg (65536 words x 16bits) DRAM)
+74HC4040A (12-Stage Binary Ripple Counter)
+
+E74-07.IC6 & E74-08.IC8 are the OKI samples and are indentical
+E74-06.IC2 is the TMP95C063 program code.
+
+
+
 Rizing Ping Pong
 Taito 2002
 
@@ -548,12 +566,16 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_iocpu(*this, "iocpu"),
 		m_work_ram(*this, "work_ram"),
-		m_mbox_ram(*this, "mbox_ram") { }
+		m_mbox_ram(*this, "mbox_ram"),
+		m_ide(*this, "ide")
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_iocpu;
 	required_shared_ptr<UINT64> m_work_ram;
 	required_shared_ptr<UINT8>  m_mbox_ram;
+	required_device<ide_controller_device> m_ide;
 
 	DECLARE_READ64_MEMBER(ppc_common_r);
 	DECLARE_WRITE64_MEMBER(ppc_common_w);
@@ -591,6 +613,9 @@ public:
 
 	UINT8 m_rtcdata[8];
 
+	UINT16 ide_cs0_latch_r;
+	UINT16 ide_cs0_latch_w;
+	UINT16 ide_cs1_latch_w;
 
 
 	UINT32 m_reg105;
@@ -614,52 +639,58 @@ public:
 	DECLARE_READ8_MEMBER(tlcs_ide1_r);
 	DECLARE_WRITE8_MEMBER(tlcs_ide1_w);
 	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
+	void taitotz_exit();
+	void draw_tile(taitotz_state *state, UINT32 pos, UINT32 tile);
+	UINT32 video_mem_r(taitotz_state *state, UINT32 address);
+	void video_mem_w(taitotz_state *state, UINT32 address, UINT32 data);
+	UINT32 video_reg_r(taitotz_state *state, UINT32 reg);
+	void video_reg_w(taitotz_state *state, UINT32 reg, UINT32 data);
+	void init_taitotz_152();
+	void init_taitotz_111a();
 };
 
-
-static void taitotz_exit(running_machine &machine)
+/*
+void taitotz_state::taitotz_exit()
 {
-	/*
-	taitotz_state *state = machine.driver_data<taitotz_state>();
 
-	FILE *file;
-	int i;
 
-	file = fopen("screen_ram.bin","wb");
-	for (i=0; i < 0x200000; i++)
-	{
-	    fputc((UINT8)(state->m_screen_ram[i] >> 24), file);
-	    fputc((UINT8)(state->m_screen_ram[i] >> 16), file);
-	    fputc((UINT8)(state->m_screen_ram[i] >> 8), file);
-	    fputc((UINT8)(state->m_screen_ram[i] >> 0), file);
-	}
-	fclose(file);
+    FILE *file;
+    int i;
 
-	file = fopen("frame_ram.bin","wb");
-	for (i=0; i < 0x80000; i++)
-	{
-	    fputc((UINT8)(state->m_frame_ram[i] >> 24), file);
-	    fputc((UINT8)(state->m_frame_ram[i] >> 16), file);
-	    fputc((UINT8)(state->m_frame_ram[i] >> 8), file);
-	    fputc((UINT8)(state->m_frame_ram[i] >> 0), file);
-	}
-	fclose(file);
+    file = fopen("screen_ram.bin","wb");
+    for (i=0; i < 0x200000; i++)
+    {
+        fputc((UINT8)(m_screen_ram[i] >> 24), file);
+        fputc((UINT8)(m_screen_ram[i] >> 16), file);
+        fputc((UINT8)(m_screen_ram[i] >> 8), file);
+        fputc((UINT8)(m_screen_ram[i] >> 0), file);
+    }
+    fclose(file);
 
-	file = fopen("texture_ram.bin","wb");
-	for (i=0; i < 0x800000; i++)
-	{
-	    fputc((UINT8)(state->m_texture_ram[i] >> 24), file);
-	    fputc((UINT8)(state->m_texture_ram[i] >> 16), file);
-	    fputc((UINT8)(state->m_texture_ram[i] >> 8), file);
-	    fputc((UINT8)(state->m_texture_ram[i] >> 0), file);
-	}
-	fclose(file);
-	*/
+    file = fopen("frame_ram.bin","wb");
+    for (i=0; i < 0x80000; i++)
+    {
+        fputc((UINT8)(m_frame_ram[i] >> 24), file);
+        fputc((UINT8)(m_frame_ram[i] >> 16), file);
+        fputc((UINT8)(m_frame_ram[i] >> 8), file);
+        fputc((UINT8)(m_frame_ram[i] >> 0), file);
+    }
+    fclose(file);
+
+    file = fopen("texture_ram.bin","wb");
+    for (i=0; i < 0x800000; i++)
+    {
+        fputc((UINT8)(m_texture_ram[i] >> 24), file);
+        fputc((UINT8)(m_texture_ram[i] >> 16), file);
+        fputc((UINT8)(m_texture_ram[i] >> 8), file);
+        fputc((UINT8)(m_texture_ram[i] >> 0), file);
+    }
+    fclose(file);
+
 }
-
+*/
 void taitotz_state::video_start()
 {
-
 	int width = machine().primary_screen->width();
 	int height = machine().primary_screen->height();
 
@@ -670,7 +701,7 @@ void taitotz_state::video_start()
 	/* create renderer */
 	m_renderer = auto_alloc(machine(), taitotz_renderer(machine(), width, height, m_texture_ram));
 
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(taitotz_exit), &machine()));
+	//machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(taitotz_exit), &machine()));
 }
 
 static const float dot3_tex_table[32] =
@@ -1371,7 +1402,6 @@ void taitotz_renderer::render_displaylist(running_machine &machine, const rectan
 
 UINT32 taitotz_state::screen_update_taitotz(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(0x000000, cliprect);
 	m_renderer->set_fb(&bitmap);
 	m_renderer->render_displaylist(machine(), cliprect);
@@ -1398,7 +1428,7 @@ UINT32 taitotz_state::screen_update_taitotz(screen_device &screen, bitmap_rgb32 
 	return 0;
 }
 
-static void draw_tile(taitotz_state *state, UINT32 pos, UINT32 tile)
+void taitotz_state::draw_tile(taitotz_state *state, UINT32 pos, UINT32 tile)
 {
 	int tileu = (tile & 0x1f) * 16;
 	int tilev = ((tile >> 5)) * 16;
@@ -1406,8 +1436,8 @@ static void draw_tile(taitotz_state *state, UINT32 pos, UINT32 tile)
 	int tilex = (pos & 0x1f) * 16;
 	int tiley = ((pos >> 5) & 0x1f) * 16;
 
-	UINT16 *src_tile = (UINT16*)&state->m_screen_ram[0x180000];
-	UINT16 *dst = (UINT16*)&state->m_screen_ram[state->m_scr_base];
+	UINT16 *src_tile = (UINT16*)&m_screen_ram[0x180000];
+	UINT16 *dst = (UINT16*)&m_screen_ram[m_scr_base];
 
 	int v = tilev;
 
@@ -1440,19 +1470,19 @@ static void draw_tile(taitotz_state *state, UINT32 pos, UINT32 tile)
     batlgr2 into 0x9e0000
 */
 
-static UINT32 video_mem_r(taitotz_state *state, UINT32 address)
+UINT32 taitotz_state::video_mem_r(taitotz_state *state, UINT32 address)
 {
 	if (address >= 0x800000 && address < 0x1000000)
 	{
-		return state->m_screen_ram[address - 0x800000];
+		return m_screen_ram[address - 0x800000];
 	}
 	else if (address >= 0x1000000 && address < 0x1800000)
 	{
-		return state->m_texture_ram[address - 0x1000000];
+		return m_texture_ram[address - 0x1000000];
 	}
 	else if (address >= 0x1800000 && address < 0x1880000)
 	{
-		return state->m_frame_ram[address - 0x1800000];
+		return m_frame_ram[address - 0x1800000];
 	}
 	else
 	{
@@ -1461,19 +1491,19 @@ static UINT32 video_mem_r(taitotz_state *state, UINT32 address)
 	}
 }
 
-static void video_mem_w(taitotz_state *state, UINT32 address, UINT32 data)
+void taitotz_state::video_mem_w(taitotz_state *state, UINT32 address, UINT32 data)
 {
 	if (address >= 0x800000 && address < 0x1000000)
 	{
-		state->m_screen_ram[address - 0x800000] = data;
+		m_screen_ram[address - 0x800000] = data;
 	}
 	else if (address >= 0x1000000 && address < 0x1800000)
 	{
-		state->m_texture_ram[address - 0x1000000] = data;
+		m_texture_ram[address - 0x1000000] = data;
 	}
 	else if (address >= 0x1800000 && address < 0x1880000)
 	{
-		state->m_frame_ram[address - 0x1800000] = data;
+		m_frame_ram[address - 0x1800000] = data;
 	}
 	else
 	{
@@ -1481,7 +1511,7 @@ static void video_mem_w(taitotz_state *state, UINT32 address, UINT32 data)
 	}
 }
 
-static UINT32 video_reg_r(taitotz_state *state, UINT32 reg)
+UINT32 taitotz_state::video_reg_r(taitotz_state *state, UINT32 reg)
 {
 	switch ((reg >> 28) & 0xf)
 	{
@@ -1489,8 +1519,8 @@ static UINT32 video_reg_r(taitotz_state *state, UINT32 reg)
 		{
 			if (reg == 0x10000105)      // Gets spammed a lot. Probably a status register.
 			{
-				state->m_reg105 ^= 0xffffffff;
-				return state->m_reg105;
+				m_reg105 ^= 0xffffffff;
+				return m_reg105;
 			}
 
 			logerror("video_reg_r: reg: %08X\n", reg);
@@ -1505,7 +1535,7 @@ static UINT32 video_reg_r(taitotz_state *state, UINT32 reg)
 
 			if (subreg < 0x10)
 			{
-				return state->m_video_unk_reg[subreg];
+				return m_video_unk_reg[subreg];
 			}
 			break;
 		}
@@ -1544,7 +1574,7 @@ video_reg_w: r: 20000003 d: 019501AA
 video_reg_w: r: 20000004 d: 00000000
 */
 
-static void video_reg_w(taitotz_state *state, UINT32 reg, UINT32 data)
+void taitotz_state::video_reg_w(taitotz_state *state, UINT32 reg, UINT32 data)
 {
 	switch ((reg >> 28) & 0xf)
 	{
@@ -1565,7 +1595,7 @@ static void video_reg_w(taitotz_state *state, UINT32 reg, UINT32 data)
 			int subreg = reg & 0xfffffff;
 			if (subreg < 0x10)
 			{
-				state->m_video_unk_reg[subreg] = data;
+				m_video_unk_reg[subreg] = data;
 			}
 			logerror("video_reg_w: reg: %08X data: %08X\n", reg, data);
 			break;
@@ -1579,8 +1609,8 @@ static void video_reg_w(taitotz_state *state, UINT32 reg, UINT32 data)
 		}
 	case 0xb:       // RAM write?
 		{
-			video_mem_w(state, state->m_video_ram_ptr, data);
-			state->m_video_ram_ptr++;
+			video_mem_w(state, m_video_ram_ptr, data);
+			m_video_ram_ptr++;
 			break;
 		}
 	default:
@@ -1818,11 +1848,9 @@ WRITE64_MEMBER(taitotz_state::ieee1394_w)
 	//logerror("ieee1394_w: %08X, %08X%08X, %08X%08X\n", offset, (UINT32)(data >> 32), (UINT32)(data), (UINT32)(mem_mask >> 32), (UINT32)(mem_mask));
 	if (ACCESSING_BITS_32_63)
 	{
-
 	}
 	if (ACCESSING_BITS_0_31)
 	{
-
 	}
 }
 
@@ -1912,38 +1940,38 @@ WRITE64_MEMBER(taitotz_state::ppc_common_w)
 		{
 			m_io_share_ram[0xfff] = 0x0000;
 			m_io_share_ram[0xe00] = 0xffff;
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 		}
 		else if (m_io_share_ram[0xfff] == 0x4004 || m_io_share_ram[0xfff] == 0x4000)
 		{
 			m_io_share_ram[0xfff] = 0x0000;
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 		}
 		else if (m_io_share_ram[0xfff] == 0x7004)
 		{
 			// this command seems to turn off interrupts on TLCS...
 			m_io_share_ram[0xfff] = 0x0000;
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 		}
 		else
 		{
 			// normally just raise INT0 on TLCS and let it handle the command
-			machine().device("iocpu")->execute().set_input_line(TLCS900_INT0, ASSERT_LINE);
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+			m_iocpu->set_input_line(TLCS900_INT0, ASSERT_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 
 			// The PPC always goes to busy loop waiting for TLCS here, so we can free up the timeslice.
 			// Only do it for HDD access and backup RAM for now...
 			if (m_io_share_ram[0xfff] == 0x1010 || m_io_share_ram[0xfff] == 0x1020 ||
 				m_io_share_ram[0xfff] == 0x6000 || m_io_share_ram[0xfff] == 0x6010)
 			{
-				//machine().device("maincpu")->execute().spin_until_trigger(PPC_TLCS_COMM_TRIGGER);
-				machine().device("maincpu")->execute().spin_until_interrupt();
+				//m_maincpu->spin_until_trigger(PPC_TLCS_COMM_TRIGGER);
+				m_maincpu->spin_until_interrupt();
 			}
 
 			// pwrshovl sometimes writes commands during command handling... make sure that doesn't happen
 			if (m_io_share_ram[0xfff] == 0x0000)
 			{
-				machine().device("maincpu")->execute().spin_until_time(attotime::from_usec(50));
+				m_maincpu->spin_until_time(attotime::from_usec(50));
 			}
 
 			machine().scheduler().trigger(TLCS_PPC_COMM_TRIGGER);
@@ -2015,22 +2043,22 @@ WRITE8_MEMBER(taitotz_state::tlcs_common_w)
 		}
 #endif
 
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
-		machine().device("iocpu")->execute().set_input_line(TLCS900_INT0, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+		m_iocpu->set_input_line(TLCS900_INT0, CLEAR_LINE);
 
-		machine().device("iocpu")->execute().set_input_line(TLCS900_INT3, CLEAR_LINE);
+		m_iocpu->set_input_line(TLCS900_INT3, CLEAR_LINE);
 
 		// The PPC is now free to continue running
 		//machine().scheduler().trigger(PPC_TLCS_COMM_TRIGGER);
-		//machine().device("iocpu")->execute().yield();
+		//m_iocpu->yield();
 	}
 
 	if (offset == 0x1ffe)
 	{
 		if (m_io_share_ram[0xfff] == 0 && m_io_share_ram[0xffe] == 0x1012)
 		{
-			//machine().device("iocpu")->execute().spin_until_trigger(TLCS_PPC_COMM_TRIGGER);
-			machine().device("iocpu")->execute().yield();
+			//m_iocpu->spin_until_trigger(TLCS_PPC_COMM_TRIGGER);
+			m_iocpu->yield();
 			machine().scheduler().trigger(PPC_TLCS_COMM_TRIGGER);
 		}
 	}
@@ -2084,20 +2112,18 @@ WRITE8_MEMBER(taitotz_state::tlcs_rtc_w)
 
 READ8_MEMBER(taitotz_state::tlcs_ide0_r)
 {
-	device_t *device = machine().device("ide");
-	static UINT16 ide_reg_latch;
 	int reg = offset >> 1;
 
 	if (reg == 0)
 	{
 		if ((offset & 1) == 0)
 		{
-			ide_reg_latch = ide_bus_r(device, 0, reg);
-			return (ide_reg_latch & 0xff);
+			ide_cs0_latch_r = m_ide->read_cs0(space, reg, 0xffff);
+			return (ide_cs0_latch_r & 0xff);
 		}
 		else
 		{
-			return (ide_reg_latch >> 8) & 0xff;
+			return (ide_cs0_latch_r >> 8) & 0xff;
 		}
 	}
 	else
@@ -2105,7 +2131,7 @@ READ8_MEMBER(taitotz_state::tlcs_ide0_r)
 		if (offset & 1)
 			fatalerror("tlcs_ide0_r: %02X, odd offset\n", offset);
 
-		UINT8 d = ide_bus_r(device, 0, reg);
+		UINT8 d = m_ide->read_cs0(space, reg, 0xff);
 		if (reg == 7)
 			d &= ~0x2;      // Type Zero doesn't like the index bit. It's defined as vendor-specific, so it probably shouldn't be up...
 							// The status check explicitly checks for 0x50 (drive ready, seek complete).
@@ -2115,36 +2141,32 @@ READ8_MEMBER(taitotz_state::tlcs_ide0_r)
 
 WRITE8_MEMBER(taitotz_state::tlcs_ide0_w)
 {
-	device_t *device = machine().device("ide");
-	static UINT16 ide_reg_latch;
 	int reg = offset >> 1;
 
 	if (reg == 7 || reg == 0)
 	{
 		if ((offset & 1) == 0)
 		{
-			ide_reg_latch &= 0xff00;
-			ide_reg_latch |= data;
+			ide_cs0_latch_w &= 0xff00;
+			ide_cs0_latch_w |= data;
 		}
 		else
 		{
-			ide_reg_latch &= 0x00ff;
-			ide_reg_latch |= (UINT16)(data) << 8;
-			ide_bus_w(device, 0, reg, ide_reg_latch);
+			ide_cs0_latch_w &= 0x00ff;
+			ide_cs0_latch_w |= (UINT16)(data) << 8;
+			m_ide->write_cs0(space, reg, ide_cs0_latch_w, 0xffff);
 		}
 	}
 	else
 	{
 		if (offset & 1)
 			fatalerror("tlcs_ide0_w: %02X, %02X, odd offset\n", offset, data);
-		ide_bus_w(device, 0, reg, data);
+		m_ide->write_cs0(space, reg, data, 0xff);
 	}
 }
 
 READ8_MEMBER(taitotz_state::tlcs_ide1_r)
 {
-	device_t *device = machine().device("ide");
-	//static UINT16 ide_reg_latch;
 	int reg = offset >> 1;
 
 	if (reg != 6)
@@ -2152,7 +2174,7 @@ READ8_MEMBER(taitotz_state::tlcs_ide1_r)
 
 	if ((offset & 1) == 0)
 	{
-		UINT8 d = ide_bus_r(device, 1, reg);
+		UINT8 d = m_ide->read_cs1(space, reg, 0xff);
 		d &= ~0x2;      // Type Zero doesn't like the index bit. It's defined as vendor-specific, so it probably shouldn't be up...
 						// The status check explicitly checks for 0x50 (drive ready, seek complete).
 		return d;
@@ -2160,7 +2182,7 @@ READ8_MEMBER(taitotz_state::tlcs_ide1_r)
 	else
 	{
 		//fatalerror("tlcs_ide1_r: %02X, odd offset\n", offset);
-		UINT8 d = ide_bus_r(device, 1, reg);
+		UINT8 d = m_ide->read_cs1(space, reg, 0xff);
 		d &= ~0x2;
 		return d;
 	}
@@ -2168,8 +2190,6 @@ READ8_MEMBER(taitotz_state::tlcs_ide1_r)
 
 WRITE8_MEMBER(taitotz_state::tlcs_ide1_w)
 {
-	device_t *device = machine().device("ide");
-	static UINT16 ide_reg_latch;
 	int reg = offset >> 1;
 
 	if (reg != 6)
@@ -2177,14 +2197,14 @@ WRITE8_MEMBER(taitotz_state::tlcs_ide1_w)
 
 	if ((offset & 1) == 0)
 	{
-		ide_reg_latch &= 0xff00;
-		ide_reg_latch |= data;
+		ide_cs1_latch_w &= 0xff00;
+		ide_cs1_latch_w |= data;
 	}
 	else
 	{
-		ide_reg_latch &= 0x00ff;
-		ide_reg_latch |= (UINT16)(data) << 16;
-		ide_bus_w(device, 1, reg, ide_reg_latch);
+		ide_cs1_latch_w &= 0x00ff;
+		ide_cs1_latch_w |= (UINT16)(data) << 16;
+		m_ide->write_cs1(space, reg, ide_cs1_latch_w, 0xffff);
 	}
 }
 
@@ -2506,47 +2526,37 @@ static INPUT_PORTS_START( pwrshovl )
 INPUT_PORTS_END
 
 
-static void set_ide_drive_serial_number(device_t *device, int drive, const char *serial)
-{
-	ide_controller_device *ide = (ide_controller_device *) device;
-	UINT8 *ide_features = ide->ide_get_features(drive);
-
-	for (int i=0; i < 20; i++)
-	{
-		ide_features[10*2+(i^1)] = serial[i];
-	}
-}
-
-
 void taitotz_state::machine_reset()
 {
-	machine().device("ide")->reset();
-
 	if (m_hdd_serial_number != NULL)
 	{
-		set_ide_drive_serial_number(machine().device("ide"), 0, m_hdd_serial_number);
+		UINT8 *ide_features = m_ide->ide_get_features(0);
+
+		for (int i=0; i < 20; i++)
+		{
+			ide_features[10*2+(i^1)] = m_hdd_serial_number[i];
+		}
 	}
 }
 
 void taitotz_state::machine_start()
 {
-
 	/* set conservative DRC options */
-	ppcdrc_set_options(machine().device("maincpu"), PPCDRC_COMPATIBLE_OPTIONS);
+	ppcdrc_set_options(m_maincpu, PPCDRC_COMPATIBLE_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	ppcdrc_add_fastram(machine().device("maincpu"), 0x40000000, 0x40ffffff, FALSE, m_work_ram);
+	ppcdrc_add_fastram(m_maincpu, 0x40000000, 0x40ffffff, FALSE, m_work_ram);
 }
 
 
 INTERRUPT_GEN_MEMBER(taitotz_state::taitotz_vbi)
 {
-	machine().device("iocpu")->execute().set_input_line(TLCS900_INT3, ASSERT_LINE);
+	m_iocpu->set_input_line(TLCS900_INT3, ASSERT_LINE);
 }
 
 WRITE_LINE_MEMBER(taitotz_state::ide_interrupt)
 {
-	machine().device("iocpu")->execute().set_input_line(TLCS900_INT2, state);
+	m_iocpu->set_input_line(TLCS900_INT2, state);
 }
 
 static const powerpc_config ppc603e_config =
@@ -2581,7 +2591,7 @@ static MACHINE_CONFIG_START( taitotz, taitotz_state )
 	MCFG_QUANTUM_TIME(attotime::from_hz(120))
 
 	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF, taitotz_state, ide_interrupt))
+	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(taitotz_state, ide_interrupt))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
@@ -2601,17 +2611,17 @@ MACHINE_CONFIG_END
 
 
 // Init for BIOS v1.52
-static void init_taitotz_152(running_machine &machine)
+void taitotz_state::init_taitotz_152()
 {
-	UINT32 *rom = (UINT32*)machine.root_device().memregion("user1")->base();
+	UINT32 *rom = (UINT32*)memregion("user1")->base();
 	rom[(0x2c87c^4)/4] = 0x38600000;    // skip sound load timeout...
 //  rom[(0x2c620^4)/4] = 0x48000014;    // ID check skip (not needed with correct serial number)
 }
 
 // Init for BIOS 1.11a
-static void init_taitotz_111a(running_machine &machine)
+void taitotz_state::init_taitotz_111a()
 {
-	UINT32 *rom = (UINT32*)machine.root_device().memregion("user1")->base();
+	UINT32 *rom = (UINT32*)memregion("user1")->base();
 	rom[(0x2b748^4)/4] = 0x480000b8;    // skip sound load timeout
 }
 
@@ -2629,8 +2639,7 @@ static const char RAIZPIN_HDD_SERIAL[] =            // "691934013492        "
 
 DRIVER_INIT_MEMBER(taitotz_state,landhigh)
 {
-
-	init_taitotz_152(machine());
+	init_taitotz_152();
 
 	m_hdd_serial_number = LANDHIGH_HDD_SERIAL;
 
@@ -2641,8 +2650,7 @@ DRIVER_INIT_MEMBER(taitotz_state,landhigh)
 
 DRIVER_INIT_MEMBER(taitotz_state,batlgear)
 {
-
-	init_taitotz_111a(machine());
+	init_taitotz_111a();
 
 	// unknown, not used by BIOS 1.11a
 	m_hdd_serial_number = NULL;
@@ -2654,8 +2662,7 @@ DRIVER_INIT_MEMBER(taitotz_state,batlgear)
 
 DRIVER_INIT_MEMBER(taitotz_state,batlgr2)
 {
-
-	init_taitotz_152(machine());
+	init_taitotz_152();
 
 	m_hdd_serial_number = BATLGR2_HDD_SERIAL;
 
@@ -2666,8 +2673,7 @@ DRIVER_INIT_MEMBER(taitotz_state,batlgr2)
 
 DRIVER_INIT_MEMBER(taitotz_state,batlgr2a)
 {
-
-	init_taitotz_152(machine());
+	init_taitotz_152();
 
 	m_hdd_serial_number = BATLGR2A_HDD_SERIAL;
 
@@ -2678,8 +2684,7 @@ DRIVER_INIT_MEMBER(taitotz_state,batlgr2a)
 
 DRIVER_INIT_MEMBER(taitotz_state,pwrshovl)
 {
-
-	init_taitotz_111a(machine());
+	init_taitotz_111a();
 
 	// unknown, not used by BIOS 1.11a
 	m_hdd_serial_number = NULL;
@@ -2691,7 +2696,7 @@ DRIVER_INIT_MEMBER(taitotz_state,pwrshovl)
 
 DRIVER_INIT_MEMBER(taitotz_state,raizpin)
 {
-	init_taitotz_152(machine());
+	init_taitotz_152();
 
 	m_hdd_serial_number = RAIZPIN_HDD_SERIAL;
 
@@ -2792,11 +2797,20 @@ ROM_START( pwrshovl )
 	TAITOTZ_BIOS_V111A
 
 	ROM_REGION( 0x40000, "io_cpu", 0 )
-	ROM_LOAD16_BYTE( "e74-04.ic14",   0x000000, 0x020000, CRC(ef21a261) SHA1(7398826dbf48014b9c7e9454f978f3e419ebc64b) )
-	ROM_LOAD16_BYTE( "e74-05.ic15",   0x000001, 0x020000, CRC(2466217d) SHA1(dc814da3a1679cff001f179d3c1641af985a6490) )
+	ROM_LOAD16_BYTE( "e74-04++.ic14", 0x000000, 0x020000, CRC(ef21a261) SHA1(7398826dbf48014b9c7e9454f978f3e419ebc64b) ) // actually labeled E74-04**
+	ROM_LOAD16_BYTE( "e74-05++.ic15", 0x000001, 0x020000, CRC(2466217d) SHA1(dc814da3a1679cff001f179d3c1641af985a6490) ) // actually labeled E74-05**
 
 	ROM_REGION( 0x10000, "sound_cpu", 0 ) /* Internal ROM :( */
 	ROM_LOAD( "e68-01.ic7", 0x000000, 0x010000, NO_DUMP )
+
+	ROM_REGION( 0x20000, "io_cpu2", 0 ) // another TMP95C063F, not hooked up yet
+	ROM_LOAD( "e74-06.ic2", 0x000000, 0x020000, CRC(cd4a99d3) SHA1(ea280e05a68308c1c5f1fc0ee8a25b33923df635) ) // located on the I/O PCB
+
+	ROM_REGION( 0x20000, "oki1", 0 )
+	ROM_LOAD( "e74-07.ic6", 0x000000, 0x020000, CRC(ca5baccc) SHA1(4594b7a6232b912d698fff053f7e3f51d8e1bfb6) ) // located on the I/O PCB
+
+	ROM_REGION( 0x20000, "oki2", 0 )
+	ROM_LOAD( "e74-08.ic8", 0x000000, 0x020000, CRC(ca5baccc) SHA1(4594b7a6232b912d698fff053f7e3f51d8e1bfb6) ) // located on the I/O PCB
 
 	DISK_REGION( "drive_0" )
 	DISK_IMAGE( "pwrshovl", 0, SHA1(360f63b39f645851c513b4644fb40601b9ba1412) )

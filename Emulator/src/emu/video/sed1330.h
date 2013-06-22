@@ -56,7 +56,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "sed1330"; }
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -118,7 +117,7 @@ private:
 	int m_ov;                   // graphics mode layer composition
 
 	// devices
-	screen_device *m_screen;
+	//screen_device *m_screen;
 
 	// address space configurations
 	const address_space_config      m_space_config;

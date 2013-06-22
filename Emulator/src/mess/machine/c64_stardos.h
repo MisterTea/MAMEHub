@@ -35,11 +35,8 @@ public:
 	// optional information overrides
 	virtual ioport_constructor device_input_ports() const;
 
-	DECLARE_INPUT_CHANGED_MEMBER( reset );
-
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c64_stardos"; }
 	virtual void device_start();
 
 	// device_c64_expansion_card_interface overrides

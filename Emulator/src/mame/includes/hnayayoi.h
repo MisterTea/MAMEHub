@@ -3,12 +3,15 @@
     Hana Yayoi & other Dynax games (using 1st version of their blitter)
 
 *************************************************************************/
+#include "sound/msm5205.h"
 
 class hnayayoi_state : public driver_device
 {
 public:
 	hnayayoi_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu"),
+		m_msm(*this, "msm") { }
 
 	/* video-related */
 	UINT8      *m_pixmap[8];
@@ -37,4 +40,10 @@ public:
 	virtual void video_start();
 	DECLARE_VIDEO_START(untoucha);
 	UINT32 screen_update_hnayayoi(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void common_vh_start( int num_pixmaps );
+	void copy_pixel( int x, int y, int pen );
+	void draw_layer_interleaved( bitmap_ind16 &bitmap, const rectangle &cliprect, int left_pixmap, int right_pixmap, int palbase, int transp );
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
+	required_device<msm5205_device> m_msm;
 };

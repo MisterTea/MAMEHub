@@ -78,7 +78,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( main_portmap, AS_IO, 8, gundealr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -373,7 +373,6 @@ void gundealr_state::machine_start()
 
 void gundealr_state::machine_reset()
 {
-
 	m_flipscreen = 0;
 	m_scroll[0] = 0;
 	m_scroll[1] = 0;
@@ -386,21 +385,18 @@ TIMER_DEVICE_CALLBACK_MEMBER(gundealr_state::gundealr_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE,0xd7); /* RST 10h */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0xd7); /* RST 10h */
 	else if((scanline == 0) || (scanline == 120) ) //timer irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE,0xcf); /* RST 10h */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0xcf); /* RST 10h */
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -429,7 +425,7 @@ static MACHINE_CONFIG_START( gundealr, gundealr_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -492,9 +488,9 @@ TIMER_DEVICE_CALLBACK_MEMBER(gundealr_state::yamyam_mcu_sim)
 			break;
 	}
 
-	m_rambase[0x004] = machine().root_device().ioport("IN2")->read();
-	m_rambase[0x005] = machine().root_device().ioport("IN1")->read();
-	m_rambase[0x006] = machine().root_device().ioport("IN0")->read();
+	m_rambase[0x004] = ioport("IN2")->read();
+	m_rambase[0x005] = ioport("IN1")->read();
+	m_rambase[0x006] = ioport("IN0")->read();
 }
 
 static MACHINE_CONFIG_DERIVED( yamyam, gundealr )

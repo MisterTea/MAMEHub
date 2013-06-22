@@ -48,11 +48,11 @@ Memo:
 #include "includes/niyanpai.h"
 
 
-static void niyanpai_soundbank_w(running_machine &machine, int data)
+void niyanpai_state::niyanpai_soundbank_w(int data)
 {
-	UINT8 *SNDROM = machine.root_device().memregion("audiocpu")->base();
+	UINT8 *SNDROM = memregion("audiocpu")->base();
 
-	machine.root_device().membank("bank1")->set_base(&SNDROM[0x08000 + (0x8000 * (data & 0x03))]);
+	membank("bank1")->set_base(&SNDROM[0x08000 + (0x8000 * (data & 0x03))]);
 }
 
 READ8_MEMBER(niyanpai_state::niyanpai_sound_r)
@@ -109,13 +109,13 @@ WRITE8_MEMBER(niyanpai_state::tmpz84c011_pio_w)
 	switch (offset)
 	{
 		case 0:         /* PA_0 */
-			niyanpai_soundbank_w(machine(), data & 0x03);
+			niyanpai_soundbank_w(data & 0x03);
 			break;
 		case 1:         /* PB_0 */
-			machine().device<dac_device>("dac1")->write_unsigned8(data);
+			m_dac1->write_unsigned8(data);
 			break;
 		case 2:         /* PC_0 */
-			machine().device<dac_device>("dac2")->write_unsigned8(data);
+			m_dac2->write_unsigned8(data);
 			break;
 		case 3:         /* PD_0 */
 			break;
@@ -245,7 +245,7 @@ static Z80CTC_INTERFACE( ctc_intf )
 
 void niyanpai_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i;
 
 	// initialize TMPZ84C011 PIO
@@ -264,7 +264,7 @@ DRIVER_INIT_MEMBER(niyanpai_state,niyanpai)
 	SNDROM[0x0213] = 0x00;          // DI -> NOP
 
 	// initialize sound rom bank
-	niyanpai_soundbank_w(machine(), 0);
+	niyanpai_soundbank_w(0);
 
 	// initialize out coin flag (musobana)
 	m_musobana_outcoin_flag = 1;
@@ -308,7 +308,7 @@ READ16_MEMBER(niyanpai_state::musobana_inputport_0_r)
 
 CUSTOM_INPUT_MEMBER(niyanpai_state::musobana_outcoin_flag_r)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	// tmp68301_parallel_interface[0x05]
 	//  bit 0   coin counter
 	//  bit 2   motor on
@@ -505,7 +505,7 @@ static ADDRESS_MAP_START( niyanpai_sound_io_map, AS_IO, 8, niyanpai_state )
 	AM_RANGE(0x56, 0x56) AM_READWRITE(tmpz84c011_0_dir_pc_r, tmpz84c011_0_dir_pc_w)
 	AM_RANGE(0x34, 0x34) AM_READWRITE(tmpz84c011_0_dir_pd_r, tmpz84c011_0_dir_pd_w)
 	AM_RANGE(0x44, 0x44) AM_READWRITE(tmpz84c011_0_dir_pe_r, tmpz84c011_0_dir_pe_w)
-	AM_RANGE(0x80, 0x81) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ymsnd", ym3812_device, write)
 ADDRESS_MAP_END
 
 

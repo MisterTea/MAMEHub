@@ -8,7 +8,7 @@
 #include "cpu/z80/z80daisy.h"
 #include "machine/com8116.h"
 #include "machine/ram.h"
-#include "machine/terminal.h"
+#include "machine/serial.h"
 #include "machine/wd_fdc.h"
 #include "machine/z80ctc.h"
 #include "machine/z80dart.h"
@@ -23,7 +23,8 @@
 #define WD2793_TAG      "u27"
 #define BR1945_TAG      "u31"
 #define SCREEN_TAG      "screen"
-#define TERMINAL_TAG    "terminal"
+#define RS232_A_TAG     "rs232a"
+#define RS232_B_TAG     "rs232b"
 
 class super6_state : public driver_device
 {
@@ -40,7 +41,8 @@ public:
 			m_ram(*this, RAM_TAG),
 			m_floppy0(*this, WD2793_TAG":0"),
 			m_floppy1(*this, WD2793_TAG":1"),
-			m_terminal(*this, TERMINAL_TAG)
+			m_rom(*this, Z80_TAG),
+			m_j7(*this, "J7")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -53,7 +55,8 @@ public:
 	required_device<ram_device> m_ram;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
-	required_device<serial_terminal_device> m_terminal;
+	required_memory_region m_rom;
+	required_ioport m_j7;
 
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -76,6 +79,10 @@ public:
 	UINT8 m_bank1;
 	TIMER_DEVICE_CALLBACK_MEMBER(ctc_tick);
 	DECLARE_WRITE8_MEMBER(dummy_w);
+	DECLARE_READ8_MEMBER(memory_read_byte);
+	DECLARE_WRITE8_MEMBER(memory_write_byte);
+	DECLARE_READ8_MEMBER(io_read_byte);
+	DECLARE_WRITE8_MEMBER(io_write_byte);
 };
 
 #endif

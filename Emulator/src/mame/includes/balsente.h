@@ -42,7 +42,10 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
 		m_shrike_io(*this, "shrike_io"),
-		m_shrike_shared(*this, "shrike_shared"){ }
+		m_shrike_shared(*this, "shrike_shared"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_68k(*this, "68k") { }
 
 	required_device<timer_device> m_scanline_timer;
 
@@ -201,6 +204,16 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(balsente_interrupt_timer);
 	TIMER_DEVICE_CALLBACK_MEMBER(balsente_counter_callback);
 	TIMER_DEVICE_CALLBACK_MEMBER(balsente_clock_counter_0_ff);
+	void draw_one_sprite(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 *sprite);
+	void poly17_init();
+	void m6850_update_io();
+	void set_counter_0_ff(timer_device &timer, int newstate);
+	void update_grudge_steering();
+	void expand_roms(UINT8 cd_rom_mask);
+	inline void config_shooter_adc(UINT8 shooter, UINT8 adc_shift);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_68k;
 };
 
 

@@ -72,8 +72,8 @@ class bfmsys85_state : public driver_device
 public:
 	bfmsys85_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_vfd(*this, "vfd")
-		{ }
+			m_vfd(*this, "vfd"),
+			m_maincpu(*this, "maincpu") { }
 
 	optional_device<roc10937_t> m_vfd;
 	int m_mmtr_latch;
@@ -113,6 +113,8 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	INTERRUPT_GEN_MEMBER(timer_irq);
+	int b85_find_project_string( );
+	required_device<cpu_device> m_maincpu;
 };
 
 #define MASTER_CLOCK    (XTAL_4MHz)
@@ -186,7 +188,7 @@ INTERRUPT_GEN_MEMBER(bfmsys85_state::timer_irq)
 	if ( m_is_timer_enabled )
 	{
 		m_irq_status = 0x01 |0x02; //0xff;
-		generic_pulse_irq_line(device.execute(), M6809_IRQ_LINE, 1);
+		device.execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 	}
 }
 
@@ -245,7 +247,7 @@ WRITE8_MEMBER(bfmsys85_state::mmtr_w)
 	for (i=0; i<8; i++)
 	if ( changed & (1 << i) )   MechMtr_update(i, data & (1 << i) );
 
-	if ( data ) generic_pulse_irq_line(machine().device("maincpu")->execute(), M6809_FIRQ_LINE, 1);
+	if ( data ) m_maincpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
 }
 ///////////////////////////////////////////////////////////////////////////
 
@@ -392,9 +394,9 @@ static ADDRESS_MAP_START( memmap, AS_PROGRAM, 8, bfmsys85_state )
 	AM_RANGE(0x2A01, 0x2A01) AM_READWRITE(mux_ctrl_r,mux_ctrl_w)// mux status register
 	AM_RANGE(0x2E00, 0x2E00) AM_READ(irqlatch_r)        // irq latch ( MC6850 / timer )
 
-	AM_RANGE(0x3000, 0x3000) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
+	AM_RANGE(0x3000, 0x3000) AM_DEVWRITE("aysnd", ay8910_device, data_w)
 	AM_RANGE(0x3001, 0x3001) AM_READNOP //sound latch
-	AM_RANGE(0x3200, 0x3200) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x3200, 0x3200) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 
 	AM_RANGE(0x3402, 0x3402) AM_DEVWRITE("acia6850_0", acia6850_device, control_write)
 	AM_RANGE(0x3403, 0x3403) AM_DEVWRITE("acia6850_0", acia6850_device, data_write)
@@ -676,16 +678,15 @@ ROM_START( b85cb7p )
 ROM_END
 
 
-int b85_find_project_string(running_machine &machine )
+int bfmsys85_state::b85_find_project_string( )
 {
 	// search for the project string to find the title (usually just at ff00)
 	char title_string[7][32] = { "PROJECT NUMBER", "PROJECT PR", "PROJECT ", "CASH ON THE NILE 2", "PR6121", "CHINA TOWN\x0d\x0a", "PROJECTNUMBER" };
-	UINT8 *src = machine.root_device().memregion( "maincpu" )->base();
-	int size = machine.root_device().memregion( "maincpu" )->bytes();
+	UINT8 *src = memregion( "maincpu" )->base();
+	int size = memregion( "maincpu" )->bytes();
 
 	for (int search=0;search<7;search++)
 	{
-
 		int strlength = strlen(title_string[search]);
 
 		for (int i=0;i<size-strlength;i++)
@@ -706,7 +707,6 @@ int b85_find_project_string(running_machine &machine )
 
 			if (found!=0)
 			{
-
 				int end=0;
 				int count = 0;
 				int blankcount = 0;
@@ -756,12 +756,12 @@ int b85_find_project_string(running_machine &machine )
 DRIVER_INIT_MEMBER(bfmsys85_state,decode)
 {
 	bfm_decode_mainrom(machine(),"maincpu", m_codec_data);
-	b85_find_project_string(machine());
+	b85_find_project_string();
 }
 
 DRIVER_INIT_MEMBER(bfmsys85_state,nodecode)
 {
-	b85_find_project_string(machine());
+	b85_find_project_string();
 }
 
 // PROJECT NUMBER 5539  2P CASH EXPLOSION  GAME No 39-350-190 -   29-MAR-1989 11:45:25

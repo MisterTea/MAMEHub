@@ -34,13 +34,31 @@ static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
 ***************************************************************************/
 
 
-generic_keyboard_device::generic_keyboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock)
+generic_keyboard_device::generic_keyboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
+	, m_io_kbd0(*this, "TERM_LINE0")
+	, m_io_kbd1(*this, "TERM_LINE1")
+	, m_io_kbd2(*this, "TERM_LINE2")
+	, m_io_kbd3(*this, "TERM_LINE3")
+	, m_io_kbd4(*this, "TERM_LINE4")
+	, m_io_kbd5(*this, "TERM_LINE5")
+	, m_io_kbd6(*this, "TERM_LINE6")
+	, m_io_kbd7(*this, "TERM_LINE7")
+	, m_io_kbdc(*this, "TERM_LINEC")
 {
 }
 
 generic_keyboard_device::generic_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, GENERIC_KEYBOARD, "Generic Keyboard", tag, owner, clock)
+	, m_io_kbd0(*this, "TERM_LINE0")
+	, m_io_kbd1(*this, "TERM_LINE1")
+	, m_io_kbd2(*this, "TERM_LINE2")
+	, m_io_kbd3(*this, "TERM_LINE3")
+	, m_io_kbd4(*this, "TERM_LINE4")
+	, m_io_kbd5(*this, "TERM_LINE5")
+	, m_io_kbd6(*this, "TERM_LINE6")
+	, m_io_kbd7(*this, "TERM_LINE7")
+	, m_io_kbdc(*this, "TERM_LINEC")
 {
 }
 
@@ -60,17 +78,31 @@ UINT8 generic_keyboard_device::row_number(UINT8 code)
 
 UINT8 generic_keyboard_device::keyboard_handler(UINT8 last_code, UINT8 *scan_line)
 {
-	static const char *const keynames[] = { "TERM_LINE0", "TERM_LINE1", "TERM_LINE2", "TERM_LINE3", "TERM_LINE4", "TERM_LINE5", "TERM_LINE6", "TERM_LINE7" };
 	int i;
-	UINT8 code;
+	UINT8 code = 0;
 	UINT8 key_code = 0;
 	UINT8 retVal = 0;
-	UINT8 shift = BIT(ioport("TERM_LINEC")->read(), 1);
-	UINT8 caps  = BIT(ioport("TERM_LINEC")->read(), 2);
-	UINT8 ctrl  = BIT(ioport("TERM_LINEC")->read(), 0);
+	UINT8 shift = BIT(m_io_kbdc->read(), 1);
+	UINT8 caps  = BIT(m_io_kbdc->read(), 2);
+	UINT8 ctrl  = BIT(m_io_kbdc->read(), 0);
 	i = *scan_line;
 	{
-		code =  ioport(keynames[i])->read();
+		if (i == 0) code = m_io_kbd0->read();
+		else
+		if (i == 1) code = m_io_kbd1->read();
+		else
+		if (i == 2) code = m_io_kbd2->read();
+		else
+		if (i == 3) code = m_io_kbd3->read();
+		else
+		if (i == 4) code = m_io_kbd4->read();
+		else
+		if (i == 5) code = m_io_kbd5->read();
+		else
+		if (i == 6) code = m_io_kbd6->read();
+		else
+		if (i == 7) code = m_io_kbd7->read();
+
 		if (code != 0)
 		{
 			if (i==0 && shift==0) {
@@ -99,7 +131,7 @@ UINT8 generic_keyboard_device::keyboard_handler(UINT8 last_code, UINT8 *scan_lin
 			if (i>=2 && i<=4 && (shift ^ caps)==1 && ctrl==0) {
 				key_code = 0x40 + row_number(code) + (i-2)*8; // for big letters
 			}
-			if (i>=2 && i<=4 && ctrl==1) {
+			if (i>=2 && i<=5 && ctrl==1) {
 				key_code = 0x00 + row_number(code) + (i-2)*8; // for CTRL + letters
 			}
 			if (i==5 && shift==1 && ctrl==0) {
@@ -124,9 +156,7 @@ UINT8 generic_keyboard_device::keyboard_handler(UINT8 last_code, UINT8 *scan_lin
 					key_code = 0x60 + row_number(code) + (i-2)*8; // for DEL it is switched
 				}
 			}
-			if (i==5 && shift==1 && ctrl==1) {
-				key_code = 0x00 + row_number(code) + (i-2)*8; // for letters + ctrl
-			}
+
 			if (i==6) {
 				switch(row_number(code))
 				{
@@ -326,7 +356,7 @@ static INPUT_PORTS_START( generic_keyboard )
 
 	PORT_START("TERM_LINE7")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("Escape") PORT_CODE(KEYCODE_ESC) PORT_CHAR(UCHAR_MAMEKEY(ESC))
-	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("Backspace") PORT_CODE(KEYCODE_BACKSPACE)
+	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("Backspace") PORT_CODE(KEYCODE_BACKSPACE) PORT_CHAR(8)
 INPUT_PORTS_END
 
 ioport_constructor generic_keyboard_device::device_input_ports() const
@@ -340,6 +370,7 @@ static INPUT_PORTS_START(serial_keyboard)
 	PORT_INCLUDE(generic_keyboard)
 	PORT_START("TERM_FRAME")
 	PORT_CONFNAME(0x0f, 0x06, "Baud") PORT_CHANGED_MEMBER(DEVICE_SELF, serial_keyboard_device, update_frame, 0)
+	PORT_CONFSETTING( 0x0d, "110")
 	PORT_CONFSETTING( 0x00, "150")
 	PORT_CONFSETTING( 0x01, "300")
 	PORT_CONFSETTING( 0x02, "600")
@@ -356,6 +387,8 @@ static INPUT_PORTS_START(serial_keyboard)
 	PORT_CONFNAME(0x30, 0x00, "Format") PORT_CHANGED_MEMBER(DEVICE_SELF, serial_keyboard_device, update_frame, 0)
 	PORT_CONFSETTING( 0x00, "8N1")
 	PORT_CONFSETTING( 0x10, "7E1")
+	PORT_CONFSETTING( 0x20, "8N2")
+	PORT_CONFSETTING( 0x30, "8E1")
 INPUT_PORTS_END
 
 ioport_constructor serial_keyboard_device::device_input_ports() const
@@ -364,9 +397,18 @@ ioport_constructor serial_keyboard_device::device_input_ports() const
 }
 
 serial_keyboard_device::serial_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: generic_keyboard_device(mconfig, SERIAL_KEYBOARD, "Serial Keyboard", tag, owner, clock),
+	: generic_keyboard_device(mconfig, SERIAL_KEYBOARD, "Serial Keyboard", tag, owner, clock, "serial_keyboard", __FILE__),
 		device_serial_interface(mconfig, *this),
-		device_serial_port_interface(mconfig, *this)
+		device_serial_port_interface(mconfig, *this),
+		m_io_term_frame(*this, "TERM_FRAME")
+{
+}
+
+serial_keyboard_device::serial_keyboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: generic_keyboard_device(mconfig, type, name, tag, owner, clock, shortname, source),
+		device_serial_interface(mconfig, *this),
+		device_serial_port_interface(mconfig, *this),
+		m_io_term_frame(*this, "TERM_FRAME")
 {
 }
 
@@ -381,10 +423,9 @@ void serial_keyboard_device::device_config_complete()
 	{
 		memset(&m_out_tx_cb, 0, sizeof(m_out_tx_cb));
 	}
-	m_shortname = "serial_keyboard";
 }
 
-static int rates[] = {150, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 57600, 115200};
+static int rates[] = {150, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 57600, 115200, 110};
 
 void serial_keyboard_device::device_start()
 {
@@ -400,18 +441,7 @@ void serial_keyboard_device::device_start()
 
 INPUT_CHANGED_MEMBER(serial_keyboard_device::update_frame)
 {
-	set_tra_rate(rates[newval & 0x0f]);
-
-	switch(newval & 0x30)
-	{
-	case 0x10:
-		set_data_frame(7, 1, SERIAL_PARITY_EVEN);
-		break;
-	case 0x00:
-	default:
-		set_data_frame(8, 1, SERIAL_PARITY_NONE);
-		break;
-	}
+	reset();
 }
 
 void serial_keyboard_device::device_reset()
@@ -422,6 +452,26 @@ void serial_keyboard_device::device_reset()
 		m_owner->out_rx(m_rbit);
 	else
 		m_out_tx_func(m_rbit);
+
+	UINT8 val = m_io_term_frame->read();
+	set_tra_rate(rates[val & 0x0f]);
+
+	switch(val & 0x30)
+	{
+	case 0x10:
+		set_data_frame(7, 1, SERIAL_PARITY_EVEN);
+		break;
+	case 0x00:
+	default:
+		set_data_frame(8, 1, SERIAL_PARITY_NONE);
+		break;
+	case 0x20:
+		set_data_frame(8, 2, SERIAL_PARITY_NONE);
+		break;
+	case 0x30:
+		set_data_frame(8, 1, SERIAL_PARITY_EVEN);
+		break;
+	}
 }
 
 void serial_keyboard_device::send_key(UINT8 code)

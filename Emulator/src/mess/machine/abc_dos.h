@@ -37,11 +37,13 @@ public:
 protected:
 	// device-level overrides
 	virtual void device_start();
-	virtual void device_config_complete() { m_shortname = "abc_dos"; }
 
 	// device_abcbus_interface overrides
 	virtual void abcbus_cs(UINT8 data) { };
 	virtual UINT8 abcbus_xmemfl(offs_t offset);
+
+private:
+	required_memory_region m_rom;
 };
 
 

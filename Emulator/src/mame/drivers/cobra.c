@@ -395,7 +395,7 @@ public:
 	void gfx_write_reg(running_machine &machine, UINT64 data);
 
 	void display(bitmap_rgb32 *bitmap, const rectangle &cliprect);
-
+	inline rgb_t texture_fetch(UINT32 *texture, int u, int v, int width, int format);
 private:
 	bitmap_rgb32 *m_framebuffer;
 	bitmap_rgb32 *m_backbuffer;
@@ -500,7 +500,6 @@ const device_type COBRA_JVS = &device_creator<cobra_jvs>;
 cobra_jvs::cobra_jvs(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: jvs_device(mconfig, COBRA_JVS, "COBRA_JVS", tag, owner, clock)
 {
-
 }
 
 bool cobra_jvs::switches(UINT8 *&buf, UINT8 count_players, UINT8 bytes_per_switch)
@@ -608,13 +607,18 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_subcpu(*this, "subcpu"),
 		m_gfxcpu(*this, "gfxcpu"),
-		m_gfx_pagetable(*this, "pagetable")
-	{ }
+		m_gfx_pagetable(*this, "pagetable"),
+		m_k001604(*this, "k001604"),
+		m_ide(*this, "ide")
+	{
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
 	required_device<cpu_device> m_gfxcpu;
 	required_shared_ptr<UINT64> m_gfx_pagetable;
+	required_device<k001604_device> m_k001604;
+	required_device<ide_controller_device> m_ide;
 
 	DECLARE_READ64_MEMBER(main_comram_r);
 	DECLARE_WRITE64_MEMBER(main_comram_w);
@@ -635,10 +639,10 @@ public:
 	DECLARE_WRITE32_MEMBER(sub_config_w);
 	DECLARE_READ32_MEMBER(sub_mainbd_r);
 	DECLARE_WRITE32_MEMBER(sub_mainbd_w);
-	DECLARE_READ32_MEMBER(sub_ata0_r);
-	DECLARE_WRITE32_MEMBER(sub_ata0_w);
-	DECLARE_READ32_MEMBER(sub_ata1_r);
-	DECLARE_WRITE32_MEMBER(sub_ata1_w);
+	DECLARE_READ16_MEMBER(sub_ata0_r);
+	DECLARE_WRITE16_MEMBER(sub_ata0_w);
+	DECLARE_READ16_MEMBER(sub_ata1_r);
+	DECLARE_WRITE16_MEMBER(sub_ata1_w);
 	DECLARE_READ32_MEMBER(sub_psac2_r);
 	DECLARE_WRITE32_MEMBER(sub_psac2_w);
 	DECLARE_WRITE32_MEMBER(sub_psac_palette_w);
@@ -724,6 +728,8 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_cobra(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(cobra_vblank);
+	void cobra_video_exit();
+	int decode_debug_state_value(int v);
 };
 
 void cobra_renderer::render_color_scan(INT32 scanline, const extent_t &extent, const cobra_polydata &extradata, int threadid)
@@ -772,7 +778,7 @@ void cobra_renderer::render_color_scan(INT32 scanline, const extent_t &extent, c
 	}
 }
 
-INLINE rgb_t texture_fetch(UINT32 *texture, int u, int v, int width, int format)
+rgb_t cobra_renderer::texture_fetch(UINT32 *texture, int u, int v, int width, int format)
 {
 	UINT32 texel = texture[((v * width) + u) / 2];
 
@@ -983,16 +989,14 @@ void cobra_renderer::draw_line(const rectangle &visarea, vertex_t &v1, vertex_t 
 	}
 }
 
-static void cobra_video_exit(running_machine *machine)
+void cobra_state::cobra_video_exit()
 {
-	cobra_state *state = machine->driver_data<cobra_state>();
-	state->m_renderer->gfx_exit(*machine);
+	m_renderer->gfx_exit(machine());
 }
 
 void cobra_state::video_start()
 {
-
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(cobra_video_exit), &machine()));
+	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(cobra_state::cobra_video_exit), this));
 
 	m_renderer = auto_alloc(machine(), cobra_renderer(machine()));
 	m_renderer->gfx_init(machine());
@@ -1000,13 +1004,10 @@ void cobra_state::video_start()
 
 UINT32 cobra_state::screen_update_cobra(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-
 	if (m_has_psac)
 	{
-		device_t *k001604 = machine().device("k001604");
-
-		k001604_draw_back_layer(k001604, bitmap, cliprect);
-		k001604_draw_front_layer(k001604, bitmap, cliprect);
+		k001604_draw_back_layer(m_k001604, bitmap, cliprect);
+		k001604_draw_front_layer(m_k001604, bitmap, cliprect);
 	}
 
 	m_renderer->display(&bitmap, cliprect);
@@ -1023,7 +1024,7 @@ UINT32 cobra_state::screen_update_cobra(screen_device &screen, bitmap_rgb32 &bit
 
 /*****************************************************************************/
 
-static int decode_debug_state_value(int v)
+int cobra_state::decode_debug_state_value(int v)
 {
 	switch (v)
 	{
@@ -1235,17 +1236,17 @@ void cobra_state::m2sfifo_event_callback(cobra_fifo::EventType event)
 	{
 		case cobra_fifo::EVENT_EMPTY:
 		{
-			machine().device("subcpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+			m_subcpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 
 			// give sub cpu a bit more time to stabilize on the current fifo status
-			machine().device("maincpu")->execute().spin_until_time(attotime::from_usec(1));
+			m_maincpu->spin_until_time(attotime::from_usec(1));
 
 			if (m_m2s_int_enable & 0x80)
 			{
 				if (!m_m2s_int_mode)
 					m_main_int_active |= MAIN_INT_M2S;
 
-				machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+				m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 			}
 
 			// EXISR needs to update for the *next* instruction during FIFO tests
@@ -1280,12 +1281,10 @@ void cobra_state::s2mfifo_event_callback(cobra_fifo::EventType event)
 
 void cobra_state::gfxfifo_in_event_callback(cobra_fifo::EventType event)
 {
-
 }
 
 void cobra_state::gfxfifo_out_event_callback(cobra_fifo::EventType event)
 {
-
 }
 
 /*****************************************************************************/
@@ -1431,7 +1430,7 @@ WRITE64_MEMBER(cobra_state::main_fifo_w)
 		if (!m_m2s_int_mode)
 			m_main_int_active &= ~MAIN_INT_M2S;
 
-		space.machine().device("subcpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 
 		// EXISR needs to update for the *next* instruction during FIFO tests
 		// TODO: try to abort the timeslice before the next instruction?
@@ -1488,7 +1487,7 @@ WRITE64_MEMBER(cobra_state::main_fifo_w)
 		if ((m_vblank_enable & 0x80) == 0)
 		{
 			// clear the interrupt
-			space.machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 		}
 	}
 	if (ACCESSING_BITS_16_23)
@@ -1507,7 +1506,7 @@ WRITE64_MEMBER(cobra_state::main_fifo_w)
 			m_main_int_active &= ~MAIN_INT_S2M;
 
 			// clear the interrupt
-			space.machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 		}
 	}
 	if (ACCESSING_BITS_8_15)
@@ -1533,7 +1532,7 @@ WRITE64_MEMBER(cobra_state::main_fifo_w)
 			m_main_int_active &= ~MAIN_INT_M2S;
 
 			// clear the interrupt
-			space.machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 		}
 	}
 
@@ -1726,7 +1725,7 @@ WRITE32_MEMBER(cobra_state::sub_mainbd_w)
 		// fire off an interrupt if enabled
 		if (m_s2m_int_enable & 0x80)
 		{
-			space.machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 		}
 	}
 	if (ACCESSING_BITS_16_23)
@@ -1814,77 +1813,41 @@ READ32_MEMBER(cobra_state::sub_config_r)
 
 WRITE32_MEMBER(cobra_state::sub_config_w)
 {
-
 }
 
-READ32_MEMBER(cobra_state::sub_ata0_r)
+READ16_MEMBER(cobra_state::sub_ata0_r)
 {
-	device_t *device = machine().device("ide");
-	UINT32 r = 0;
+	mem_mask = ( mem_mask << 8 ) | ( mem_mask >> 8 );
 
-	if (ACCESSING_BITS_16_31)
-	{
-		UINT16 v = ide_bus_r(device, 0, (offset << 1) + 0);
-		r |= ((v << 8) | (v >> 8)) << 16;
-	}
-	if (ACCESSING_BITS_0_15)
-	{
-		UINT16 v = ide_bus_r(device, 0, (offset << 1) + 1);
-		r |= ((v << 8) | (v >> 8)) << 0;
-	}
+	UINT32 data = m_ide->read_cs0(space, offset, mem_mask);
+	data = ( data << 8 ) | ( data >> 8 );
 
-	return r;
+	return data;
 }
 
-WRITE32_MEMBER(cobra_state::sub_ata0_w)
+WRITE16_MEMBER(cobra_state::sub_ata0_w)
 {
-	device_t *device = machine().device("ide");
+	mem_mask = ( mem_mask << 8 ) | ( mem_mask >> 8 );
+	data = ( data << 8 ) | ( data >> 8 );
 
-	if (ACCESSING_BITS_16_31)
-	{
-		UINT16 d = ((data >> 24) & 0xff) | ((data >> 8) & 0xff00);
-		ide_bus_w(device, 0, (offset << 1) + 0, d);
-	}
-	if (ACCESSING_BITS_0_15)
-	{
-		UINT16 d = ((data >> 8) & 0xff) | ((data << 8) & 0xff00);
-		ide_bus_w(device, 0, (offset << 1) + 1, d);
-	}
+	m_ide->write_cs0(space, offset, data, mem_mask);
 }
 
-READ32_MEMBER(cobra_state::sub_ata1_r)
+READ16_MEMBER(cobra_state::sub_ata1_r)
 {
-	device_t *device = machine().device("ide");
-	UINT32 r = 0;
+	mem_mask = ( mem_mask << 8 ) | ( mem_mask >> 8 );
 
-	if (ACCESSING_BITS_16_31)
-	{
-		UINT16 v = ide_bus_r(device, 1, (offset << 1) + 0);
-		r |= ((v << 8) | (v >> 8)) << 16;
-	}
-	if (ACCESSING_BITS_0_15)
-	{
-		UINT16 v = ide_bus_r(device, 1, (offset << 1) + 1);
-		r |= ((v << 8) | (v >> 8)) << 0;
-	}
+	UINT32 data = m_ide->read_cs1(space, offset, mem_mask);
 
-	return r;
+	return ( data << 8 ) | ( data >> 8 );
 }
 
-WRITE32_MEMBER(cobra_state::sub_ata1_w)
+WRITE16_MEMBER(cobra_state::sub_ata1_w)
 {
-	device_t *device = machine().device("ide");
+	mem_mask = ( mem_mask << 8 ) | ( mem_mask >> 8 );
+	data = ( data << 8 ) | ( data >> 8 );
 
-	if (ACCESSING_BITS_16_31)
-	{
-		UINT16 d = ((data >> 24) & 0xff) | ((data >> 8) & 0xff00);
-		ide_bus_w(device, 1, (offset << 1) + 0, d);
-	}
-	if (ACCESSING_BITS_0_15)
-	{
-		UINT16 d = ((data >> 8) & 0xff) | ((data << 8) & 0xff00);
-		ide_bus_w(device, 1, (offset << 1) + 1, d);
-	}
+	m_ide->write_cs1(space, offset, data, mem_mask);
 }
 
 READ32_MEMBER(cobra_state::sub_comram_r)
@@ -1921,7 +1884,6 @@ READ32_MEMBER(cobra_state::sub_psac2_r)
 
 WRITE32_MEMBER(cobra_state::sub_psac2_w)
 {
-
 }
 
 static void sub_sound_dma_w(device_t *device, int width, UINT32 data)
@@ -1992,9 +1954,9 @@ static ADDRESS_MAP_START( cobra_sub_map, AS_PROGRAM, 32, cobra_state )
 	AM_RANGE(0x00000000, 0x003fffff) AM_MIRROR(0x80000000) AM_RAM                                           // Main RAM
 	AM_RANGE(0x70000000, 0x7003ffff) AM_MIRROR(0x80000000) AM_READWRITE(sub_comram_r, sub_comram_w)         // Double buffered shared RAM between Main and Sub
 //  AM_RANGE(0x78000000, 0x780000ff) AM_MIRROR(0x80000000) AM_NOP                                           // SCSI controller (unused)
-	AM_RANGE(0x78040000, 0x7804ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE16_LEGACY("rfsnd", rf5c400_r, rf5c400_w, 0xffffffff)
-	AM_RANGE(0x78080000, 0x7808000f) AM_MIRROR(0x80000000) AM_READWRITE(sub_ata0_r, sub_ata0_w)
-	AM_RANGE(0x780c0010, 0x780c001f) AM_MIRROR(0x80000000) AM_READWRITE(sub_ata1_r, sub_ata1_w)
+	AM_RANGE(0x78040000, 0x7804ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE16("rfsnd", rf5c400_device, rf5c400_r, rf5c400_w, 0xffffffff)
+	AM_RANGE(0x78080000, 0x7808000f) AM_MIRROR(0x80000000) AM_READWRITE16(sub_ata0_r, sub_ata0_w, 0xffffffff)
+	AM_RANGE(0x780c0010, 0x780c001f) AM_MIRROR(0x80000000) AM_READWRITE16(sub_ata1_r, sub_ata1_w, 0xffffffff)
 	AM_RANGE(0x78200000, 0x782000ff) AM_MIRROR(0x80000000) AM_DEVREADWRITE_LEGACY("k001604", k001604_reg_r, k001604_reg_w)              // PSAC registers
 	AM_RANGE(0x78210000, 0x78217fff) AM_MIRROR(0x80000000) AM_RAM_WRITE(sub_psac_palette_w) AM_SHARE("paletteram")                      // PSAC palette RAM
 	AM_RANGE(0x78220000, 0x7823ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE_LEGACY("k001604", k001604_tile_r, k001604_tile_w)            // PSAC tile RAM
@@ -2002,7 +1964,7 @@ static ADDRESS_MAP_START( cobra_sub_map, AS_PROGRAM, 32, cobra_state )
 	AM_RANGE(0x78280000, 0x7828000f) AM_MIRROR(0x80000000) AM_NOP                                           // ???
 	AM_RANGE(0x78300000, 0x7830000f) AM_MIRROR(0x80000000) AM_READWRITE(sub_psac2_r, sub_psac2_w)           // PSAC
 	AM_RANGE(0x7e000000, 0x7e000003) AM_MIRROR(0x80000000) AM_READWRITE(sub_unk7e_r, sub_debug_w)
-	AM_RANGE(0x7e040000, 0x7e041fff) AM_MIRROR(0x80000000) AM_DEVREADWRITE8_LEGACY("m48t58", timekeeper_r, timekeeper_w, 0xffffffff)    /* M48T58Y RTC/NVRAM */
+	AM_RANGE(0x7e040000, 0x7e041fff) AM_MIRROR(0x80000000) AM_DEVREADWRITE8("m48t58", timekeeper_device, read, write, 0xffffffff)    /* M48T58Y RTC/NVRAM */
 	AM_RANGE(0x7e180000, 0x7e180003) AM_MIRROR(0x80000000) AM_READWRITE(sub_unk1_r, sub_unk1_w)             // TMS57002?
 	AM_RANGE(0x7e200000, 0x7e200003) AM_MIRROR(0x80000000) AM_READWRITE(sub_config_r, sub_config_w)
 	AM_RANGE(0x7e280000, 0x7e28ffff) AM_MIRROR(0x80000000) AM_NOP                                           // LANC
@@ -3190,7 +3152,6 @@ WRITE_LINE_MEMBER(cobra_state::ide_interrupt)
 
 INTERRUPT_GEN_MEMBER(cobra_state::cobra_vblank)
 {
-
 	if (m_vblank_enable & 0x80)
 	{
 		device.execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
@@ -3202,8 +3163,7 @@ void cobra_state::machine_reset()
 {
 	m_sub_interrupt = 0xff;
 
-	ide_controller_device *ide = (ide_controller_device *) machine().device("ide");
-	UINT8 *ide_features = ide->ide_get_features(0);
+	UINT8 *ide_features = m_ide->ide_get_features(0);
 
 	// Cobra expects these settings or the BIOS fails
 	ide_features[51*2+0] = 0;           /* 51: PIO data transfer cycle timing mode */
@@ -3245,7 +3205,7 @@ static MACHINE_CONFIG_START( cobra, cobra_state )
 	MCFG_PCI_BUS_LEGACY_DEVICE(0, NULL, mpc106_pci_r, mpc106_pci_w)
 
 	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF, cobra_state, ide_interrupt))
+	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(cobra_state, ide_interrupt))
 
 	/* video hardware */
 
@@ -3258,7 +3218,7 @@ static MACHINE_CONFIG_START( cobra, cobra_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("rfsnd", RF5C400, XTAL_16_9344MHz)
+	MCFG_RF5C400_ADD("rfsnd", XTAL_16_9344MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
@@ -3283,7 +3243,6 @@ MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(cobra_state, cobra)
 {
-
 	m_gfxfifo_in  = auto_alloc(machine(),
 								cobra_fifo(machine(),
 								8192,
@@ -3343,7 +3302,7 @@ DRIVER_INIT_MEMBER(cobra_state,bujutsu)
 
 	// rom hacks for sub board...
 	{
-		UINT32 *rom = (UINT32*)machine().root_device().memregion("user2")->base();
+		UINT32 *rom = (UINT32*)memregion("user2")->base();
 
 		rom[0x62094 / 4] = 0x60000000;          // skip hardcheck()...
 	}
@@ -3354,7 +3313,7 @@ DRIVER_INIT_MEMBER(cobra_state,bujutsu)
 		int i;
 		UINT32 sum = 0;
 
-		UINT32 *rom = (UINT32*)machine().root_device().memregion("user3")->base();
+		UINT32 *rom = (UINT32*)memregion("user3")->base();
 
 		rom[(0x022d4^4) / 4] = 0x60000000;      // skip init_raster() for now ...
 
@@ -3375,7 +3334,7 @@ DRIVER_INIT_MEMBER(cobra_state,bujutsu)
 
 	// fill in M48T58 data for now...
 	{
-		UINT8 *rom = (UINT8*)machine().root_device().memregion("m48t58")->base();
+		UINT8 *rom = (UINT8*)memregion("m48t58")->base();
 		rom[0x00] = 0x47;       // G
 		rom[0x01] = 0x4e;       // N        // N = 2-player, Q = 1-player?
 		rom[0x02] = 0x36;       // 6
@@ -3425,7 +3384,7 @@ DRIVER_INIT_MEMBER(cobra_state,racjamdx)
 
 	// rom hacks for sub board...
 	{
-		UINT32 *rom = (UINT32*)machine().root_device().memregion("user2")->base();
+		UINT32 *rom = (UINT32*)memregion("user2")->base();
 
 		rom[0x62094 / 4] = 0x60000000;          // skip hardcheck()...
 		rom[0x62ddc / 4] = 0x60000000;          // skip lanc_hardcheck()
@@ -3451,7 +3410,7 @@ DRIVER_INIT_MEMBER(cobra_state,racjamdx)
 		int i;
 		UINT32 sum = 0;
 
-		UINT32 *rom = (UINT32*)machine().root_device().memregion("user3")->base();
+		UINT32 *rom = (UINT32*)memregion("user3")->base();
 
 		rom[(0x02448^4) / 4] = 0x60000000;      // skip init_raster() for now ...
 
@@ -3473,7 +3432,7 @@ DRIVER_INIT_MEMBER(cobra_state,racjamdx)
 
 	// fill in M48T58 data for now...
 	{
-		UINT8 *rom = (UINT8*)machine().root_device().memregion("m48t58")->base();
+		UINT8 *rom = (UINT8*)memregion("m48t58")->base();
 		rom[0x00] = 0x47;       // G
 		rom[0x01] = 0x59;       // Y
 		rom[0x02] = 0x36;       // 6

@@ -275,7 +275,7 @@ static void delayed_sound_1( running_machine &machine, int data )
 	{
 		if (data & ~state->m_prev_snd_data & 0x10)
 		{
-			spacefev_start_red_cannon(machine);
+			state->spacefev_start_red_cannon();
 		}
 
 		state->m_spacefev_red_screen = data & 0x08;
@@ -396,13 +396,13 @@ READ8_MEMBER(n8080_state::helifire_8035_p2_r)
 
 WRITE8_MEMBER(n8080_state::n8080_dac_w)
 {
-	machine().device<dac_device>("dac")->write_unsigned8(data & 0x80);
+	m_dac->write_unsigned8(data & 0x80);
 }
 
 
 WRITE8_MEMBER(n8080_state::helifire_dac_w)
 {
-	machine().device<dac_device>("dac")->write_unsigned8(data * m_helifire_dac_volume);
+	m_dac->write_unsigned8(data * m_helifire_dac_volume);
 }
 
 
@@ -457,7 +457,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(n8080_state::helifire_dac_volume_timer)
 
 MACHINE_START_MEMBER(n8080_state,spacefev_sound)
 {
-
 	m_sound_timer[0] = machine().scheduler().timer_alloc(FUNC(stop_mono_flop_callback));
 	m_sound_timer[1] = machine().scheduler().timer_alloc(FUNC(stop_mono_flop_callback));
 	m_sound_timer[2] = machine().scheduler().timer_alloc(FUNC(stop_mono_flop_callback));
@@ -487,7 +486,6 @@ MACHINE_RESET_MEMBER(n8080_state,spacefev_sound)
 
 MACHINE_START_MEMBER(n8080_state,sheriff_sound)
 {
-
 	m_sound_timer[0] = machine().scheduler().timer_alloc(FUNC(stop_mono_flop_callback));
 	m_sound_timer[1] = machine().scheduler().timer_alloc(FUNC(stop_mono_flop_callback));
 
@@ -515,7 +513,6 @@ MACHINE_RESET_MEMBER(n8080_state,sheriff_sound)
 
 MACHINE_START_MEMBER(n8080_state,helifire_sound)
 {
-
 	save_item(NAME(m_prev_snd_data));
 	save_item(NAME(m_prev_sound_pins));
 	save_item(NAME(m_curr_sound_pins));

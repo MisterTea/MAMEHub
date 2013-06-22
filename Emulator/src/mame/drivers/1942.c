@@ -79,10 +79,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(_1942_state::c1942_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xd7);   /* RST 10h - vblank */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xd7);   /* RST 10h - vblank */
 
 	if(scanline == 0) // unknown irq event, presumably vblank-in or a periodic one (writes to the soundlatch and drives freeze dip-switch)
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xcf);   /* RST 08h */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xcf);   /* RST 08h */
 }
 
 
@@ -109,8 +109,8 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, _1942_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x47ff) AM_RAM
 	AM_RANGE(0x6000, 0x6000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0xc000, 0xc001) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0xc000, 0xc001) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -238,16 +238,12 @@ GFXDECODE_END
 
 void _1942_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_palette_bank));
 	save_item(NAME(m_scroll));
 }
 
 void _1942_state::machine_reset()
 {
-
 	m_palette_bank = 0;
 	m_scroll[0] = 0;
 	m_scroll[1] = 0;
@@ -499,8 +495,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(_1942_state,1942)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 3, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 3, &ROM[0x10000], 0x4000);
 }
 
 

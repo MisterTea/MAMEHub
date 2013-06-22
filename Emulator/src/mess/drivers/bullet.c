@@ -48,10 +48,8 @@ Notes:
 
     TODO:
 
-    - revision F boot ROM dump
-    - wmb_org.imd does not load
+    - floppy broken
     - z80dart wait/ready
-    - floppy type dips
     - Winchester hard disk
     - revision E model
 
@@ -104,7 +102,7 @@ READ8_MEMBER( bullet_state::mreq_r )
 
 	if (!m_brom && !BIT(offset, 5))
 	{
-		data = memregion(Z80_TAG)->base()[offset & 0x1f];
+		data = m_rom->base()[offset & 0x1f];
 	}
 	else
 	{
@@ -201,24 +199,32 @@ WRITE8_MEMBER( bullet_state::exdsk_w )
 
 	*/
 
-	// drive select
-	m_floppy = NULL;
-
-	switch (data & 0x07)
+	if (BIT(data, 2))
 	{
-	// 5.25"
-	case 0: m_floppy = m_floppy0->get_device(); break;
-	case 1: m_floppy = m_floppy1->get_device(); break;
-	case 2: m_floppy = m_floppy2->get_device(); break;
-	case 3: m_floppy = m_floppy3->get_device(); break;
-	// 8"
-	case 4: m_floppy = m_floppy4->get_device(); break;
-	case 5: m_floppy = m_floppy5->get_device(); break;
-	case 6: m_floppy = m_floppy6->get_device(); break;
-	case 7: m_floppy = m_floppy7->get_device(); break;
+		m_exdsk_sw = true;
 	}
 
-	m_fdc->set_floppy(m_floppy);
+	if (m_exdsk_sw)
+	{
+		// drive select
+		m_floppy = NULL;
+
+		switch (data & 0x07)
+		{
+		// 5.25"
+		case 0: m_floppy = m_floppy0->get_device(); break;
+		case 1: m_floppy = m_floppy1->get_device(); break;
+		case 2: m_floppy = m_floppy2->get_device(); break;
+		case 3: m_floppy = m_floppy3->get_device(); break;
+		// 8"
+		case 4: m_floppy = m_floppy4->get_device(); break;
+		case 5: m_floppy = m_floppy5->get_device(); break;
+		case 6: m_floppy = m_floppy6->get_device(); break;
+		case 7: m_floppy = m_floppy7->get_device(); break;
+		}
+
+		m_fdc->set_floppy(m_floppy);
+	}
 
 	if (m_floppy)
 	{
@@ -281,11 +287,19 @@ WRITE8_MEMBER( bullet_state::hdcon_w )
 
 	*/
 
-	// FDC clock
-	m_fdc->set_unscaled_clock(BIT(data, 2) ? XTAL_16MHz/16 : XTAL_16MHz/8);
+	if (BIT(data, 4))
+	{
+		m_hdcon_sw = true;
+	}
 
-	// density select
-	m_fdc->dden_w(BIT(data, 3));
+	if (m_hdcon_sw)
+	{
+		// FDC clock
+		m_fdc->set_unscaled_clock(BIT(data, 2) ? XTAL_16MHz/8 : XTAL_16MHz/16);
+
+		// density select
+		m_fdc->dden_w(BIT(data, 3));
+	}
 }
 
 
@@ -313,11 +327,11 @@ READ8_MEMBER( bullet_state::info_r )
 	UINT8 data = 0;
 
 	// DIP switches
-	data |= ioport("SW1")->read() & 0x0f;
+	data |= m_sw1->read() & 0x0f;
 
 	// floppy
 	data |= m_fdc->hld_r() << 4;
-	data |= m_floppy ? m_floppy->dskchg_r() : 1;
+	data |= (m_floppy ? m_floppy->dskchg_r() : 1) << 5;
 	data |= m_fdc->intrq_r() << 6;
 	data |= m_fdc->drq_r() << 7;
 
@@ -345,7 +359,7 @@ READ8_MEMBER( bulletf_state::mreq_r )
 
 	if (!m_rome && !BIT(offset, 5))
 	{
-		data = memregion(Z80_TAG)->base()[offset & 0x1f];
+		data = m_rom->base()[offset & 0x1f];
 	}
 	else
 	{
@@ -565,7 +579,7 @@ READ8_MEMBER( bulletf_state::hwsts_r )
 	data |= m_centronics->busy_r();
 
 	// DIP switches
-	data |= ioport("SW1")->read() & 0x06;
+	data |= m_sw1->read() & 0x06;
 
 	// floppy
 	data |= (m_floppy ? m_floppy->twosid_r() : 1) << 3;
@@ -598,7 +612,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( bullet_io, AS_IO, 8, bullet_state )
 	ADDRESS_MAP_GLOBAL_MASK(0x1f)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY(Z80DART_TAG, z80dart_ba_cd_r, z80dart_ba_cd_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE(Z80DART_TAG, z80dart_device, ba_cd_r, ba_cd_w)
 	AM_RANGE(0x04, 0x07) AM_DEVREADWRITE(Z80PIO_TAG, z80pio_device, read, write)
 	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE(Z80CTC_TAG, z80ctc_device, read, write)
 	AM_RANGE(0x0c, 0x0c) AM_MIRROR(0x03) AM_READWRITE(win_r, wstrobe_w)
@@ -628,7 +642,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( bulletf_io, AS_IO, 8, bulletf_state )
 	ADDRESS_MAP_GLOBAL_MASK(0x3f)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY(Z80DART_TAG, z80dart_ba_cd_r, z80dart_ba_cd_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE(Z80DART_TAG, z80dart_device, ba_cd_r, ba_cd_w)
 	AM_RANGE(0x04, 0x07) AM_DEVREADWRITE(Z80PIO_TAG, z80pio_device, read, write)
 	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE(Z80CTC_TAG, z80ctc_device, read, write)
 	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE(MB8877_TAG, mb8877_t, read, write)
@@ -667,7 +681,7 @@ INPUT_PORTS_START( bullet )
 	PORT_DIPNAME( 0xf0, 0x50, "Floppy Type" ) PORT_DIPLOCATION("SW1:5,6,7,8")
 	PORT_DIPSETTING(    0xf0, "5.25\" SD" )
 	PORT_DIPSETTING(    0x50, "5.25\" DD" )
-	PORT_DIPSETTING(    0x60, "8\" SD" )
+	PORT_DIPSETTING(    0x90, "8\" SD" )
 	PORT_DIPSETTING(    0x00, "8\" DD" )
 INPUT_PORTS_END
 
@@ -720,17 +734,17 @@ TIMER_DEVICE_CALLBACK_MEMBER(bullet_state::ctc_tick)
 	m_ctc->trg2(0);
 }
 
-WRITE_LINE_MEMBER(bullet_state::dart_rxtxca_w)
+WRITE_LINE_MEMBER( bullet_state::dart_rxtxca_w )
 {
-	z80dart_txca_w(m_dart, state);
-	z80dart_rxca_w(m_dart, state);
+	m_dart->txca_w(state);
+	m_dart->rxca_w(state);
 }
 
 static Z80CTC_INTERFACE( ctc_intf )
 {
 	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),     // interrupt handler
 	DEVCB_DRIVER_LINE_MEMBER(bullet_state, dart_rxtxca_w),      // ZC/TO0 callback
-	DEVCB_DEVICE_LINE(Z80DART_TAG, z80dart_rxtxcb_w),   // ZC/TO1 callback
+	DEVCB_DEVICE_LINE_MEMBER(Z80DART_TAG, z80dart_device, rxtxcb_w),   // ZC/TO1 callback
 	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF, z80ctc_device, trg3)                          // ZC/TO2 callback
 };
 
@@ -755,17 +769,17 @@ static Z80DART_INTERFACE( dart_intf )
 {
 	0, 0, 0, 0,
 
-	DEVCB_DEVICE_LINE_MEMBER(TERMINAL_TAG, serial_terminal_device, tx_r),
-	DEVCB_DEVICE_LINE_MEMBER(TERMINAL_TAG, serial_terminal_device, rx_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
 	DEVCB_DRIVER_LINE_MEMBER(bullet_state, dartardy_w),
 	DEVCB_NULL,
 
-	DEVCB_LINE_VCC,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
 	DEVCB_DRIVER_LINE_MEMBER(bullet_state, dartbrdy_w),
 	DEVCB_NULL,
 
@@ -833,8 +847,18 @@ WRITE8_MEMBER( bullet_state::dma_mreq_w )
 	}
 }
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(bullet_state::io_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(bullet_state::io_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.write_byte(offset, data);
+}
+
 
 static Z80DMA_INTERFACE( dma_intf )
 {
@@ -843,8 +867,8 @@ static Z80DMA_INTERFACE( dma_intf )
 	DEVCB_NULL,
 	DEVCB_DRIVER_MEMBER(bullet_state, dma_mreq_r),
 	DEVCB_DRIVER_MEMBER(bullet_state, dma_mreq_w),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_read_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_write_byte)
+	DEVCB_DRIVER_MEMBER(bullet_state, io_read_byte),
+	DEVCB_DRIVER_MEMBER(bullet_state, io_write_byte)
 };
 
 
@@ -885,8 +909,8 @@ static Z80DMA_INTERFACE( bulletf_dma_intf )
 	DEVCB_NULL,
 	DEVCB_DRIVER_MEMBER(bulletf_state, dma_mreq_r),
 	DEVCB_DRIVER_MEMBER(bulletf_state, dma_mreq_w),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_read_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_write_byte)
+	DEVCB_DRIVER_MEMBER(bullet_state, io_read_byte),
+	DEVCB_DRIVER_MEMBER(bullet_state, io_write_byte)
 };
 
 
@@ -1029,14 +1053,15 @@ SLOT_INTERFACE_END
 static SLOT_INTERFACE_START( bullet_35_floppies )
 	SLOT_INTERFACE( "35dd", FLOPPY_35_DD )
 SLOT_INTERFACE_END
+
 void bullet_state::fdc_intrq_w(bool state)
 {
-	z80dart_dcda_w(m_dart, state);
+	m_dart->dcda_w(state);
 }
 
 void bulletf_state::fdc_intrq_w(bool state)
 {
-	z80dart_rib_w(m_dart, state);
+	m_dart->rib_w(state);
 }
 
 void bullet_state::fdc_drq_w(bool state)
@@ -1060,11 +1085,34 @@ WRITE_LINE_MEMBER( bulletf_state::req_w )
 
 
 //-------------------------------------------------
-//  serial_terminal_interface terminal_intf
+//  rs232_port_interface rs232a_intf
 //-------------------------------------------------
 
-static serial_terminal_interface terminal_intf =
+static DEVICE_INPUT_DEFAULTS_START( terminal )
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x06 ) // 9600
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x00 ) // 8N1
+DEVICE_INPUT_DEFAULTS_END
+
+static const rs232_port_interface rs232a_intf =
 {
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232b_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232b_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -1095,8 +1143,8 @@ static const z80_daisy_config daisy_chain[] =
 void bullet_state::machine_start()
 {
 	// floppy callbacks
-	m_fdc->setup_intrq_cb(mb8877_t::line_cb(FUNC(bullet_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(mb8877_t::line_cb(FUNC(bullet_state::fdc_drq_w), this));
+	m_fdc->setup_intrq_cb(wd_fdc_t::line_cb(FUNC(bullet_state::fdc_intrq_w), this));
+	m_fdc->setup_drq_cb(wd_fdc_t::line_cb(FUNC(bullet_state::fdc_drq_w), this));
 
 	// state saving
 	save_item(NAME(m_segst));
@@ -1119,8 +1167,8 @@ void bullet_state::machine_start()
 void bulletf_state::machine_start()
 {
 	// floppy callbacks
-	m_fdc->setup_intrq_cb(mb8877_t::line_cb(FUNC(bulletf_state::fdc_intrq_w), this));
-	m_fdc->setup_drq_cb(mb8877_t::line_cb(FUNC(bulletf_state::fdc_drq_w), this));
+	m_fdc->setup_intrq_cb(wd_fdc_t::line_cb(FUNC(bulletf_state::fdc_intrq_w), this));
+	m_fdc->setup_drq_cb(wd_fdc_t::line_cb(FUNC(bulletf_state::fdc_drq_w), this));
 
 	// state saving
 	save_item(NAME(m_fdrdy));
@@ -1146,6 +1194,32 @@ void bullet_state::machine_reset()
 	m_exdma = 0;
 	m_buf = 0;
 	update_dma_rdy();
+
+	// disable software control
+	m_exdsk_sw = false;
+	m_hdcon_sw = false;
+
+	UINT8 sw1 = m_sw1->read();
+	int mini = BIT(sw1, 6);
+	m_fdc->set_unscaled_clock(mini ? XTAL_16MHz/16 : XTAL_16MHz/8);
+	m_fdc->dden_w(BIT(sw1, 7));
+
+	if (mini)
+	{
+		m_floppy = m_floppy0->get_device();
+	}
+	else
+	{
+		m_floppy = m_floppy4->get_device();
+	}
+
+	m_fdc->set_floppy(m_floppy);
+
+	if (m_floppy)
+	{
+		m_floppy->ss_w(0);
+		m_floppy->mon_w(0);
+	}
 }
 
 
@@ -1165,6 +1239,7 @@ void bulletf_state::machine_reset()
 	m_wrdy = 0;
 	update_dma_rdy();
 }
+
 
 
 //**************************************************************************
@@ -1188,17 +1263,19 @@ static MACHINE_CONFIG_START( bullet, bullet_state )
 	MCFG_Z80DART_ADD(Z80DART_TAG, XTAL_16MHz/4, dart_intf)
 	MCFG_Z80DMA_ADD(Z80DMA_TAG, XTAL_16MHz/4, dma_intf)
 	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_16MHz/4, pio_intf)
-	MCFG_MB8877x_ADD(MB8877_TAG, XTAL_16MHz/8)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":0", bullet_525_floppies, "525qd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":1", bullet_525_floppies, NULL,    NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":2", bullet_525_floppies, NULL,    NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":3", bullet_525_floppies, NULL,    NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":4", bullet_8_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":5", bullet_8_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":6", bullet_8_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":7", bullet_8_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
+	MCFG_MB8877x_ADD(MB8877_TAG, XTAL_16MHz/16)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":0", bullet_525_floppies, "525qd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":1", bullet_525_floppies, NULL,    floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":2", bullet_525_floppies, NULL,    floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":3", bullet_525_floppies, NULL,    floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":4", bullet_8_floppies, NULL,      floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":5", bullet_8_floppies, NULL,      floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":6", bullet_8_floppies, NULL,      floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":7", bullet_8_floppies, NULL,      floppy_image_device::default_floppy_formats)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_SERIAL_TERMINAL_ADD(TERMINAL_TAG, terminal_intf, 4800)
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232b_intf, default_rs232_devices, "serial_terminal")
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232a_intf, default_rs232_devices, NULL)
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "wmbullet")
@@ -1226,19 +1303,21 @@ static MACHINE_CONFIG_START( bulletf, bulletf_state )
 	MCFG_Z80DART_ADD(Z80DART_TAG, XTAL_16MHz/4, dart_intf)
 	MCFG_Z80DMA_ADD(Z80DMA_TAG, XTAL_16MHz/4, dma_intf)
 	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_16MHz/4, bulletf_pio_intf)
-	MCFG_MB8877x_ADD(MB8877_TAG, XTAL_16MHz/8)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":0", bullet_525_floppies, "525qd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":1", bullet_525_floppies, NULL,    NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":2", bullet_525_floppies, NULL,    NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":3", bullet_525_floppies, NULL,    NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":4", bullet_8_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":5", bullet_8_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":6", bullet_8_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":7", bullet_8_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":8", bullet_35_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":9", bullet_35_floppies, NULL, NULL, floppy_image_device::default_floppy_formats)
+	MCFG_MB8877x_ADD(MB8877_TAG, XTAL_16MHz/16)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":0", bullet_525_floppies, "525qd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":1", bullet_525_floppies, NULL,    floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":2", bullet_525_floppies, NULL,    floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":3", bullet_525_floppies, NULL,    floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":4", bullet_8_floppies, NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":5", bullet_8_floppies, NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":6", bullet_8_floppies, NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":7", bullet_8_floppies, NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":8", bullet_35_floppies, NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8877_TAG":9", bullet_35_floppies, NULL, floppy_image_device::default_floppy_formats)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_SERIAL_TERMINAL_ADD(TERMINAL_TAG, terminal_intf, 4800)
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232b_intf, default_rs232_devices, "serial_terminal")
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232a_intf, default_rs232_devices, NULL)
 
 	MCFG_SCSIBUS_ADD(SCSIBUS_TAG)
 	MCFG_SCSIDEV_ADD(SCSIBUS_TAG ":harddisk0", SCSIHD, SCSI_ID_0)

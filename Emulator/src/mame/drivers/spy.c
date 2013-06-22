@@ -28,14 +28,12 @@
 
 INTERRUPT_GEN_MEMBER(spy_state::spy_interrupt)
 {
-
 	if (k052109_is_irq_enabled(m_k052109))
 		device.execute().set_input_line(0, HOLD_LINE);
 }
 
 READ8_MEMBER(spy_state::spy_bankedram1_r)
 {
-
 	if (m_rambank & 1)
 	{
 		return m_generic_paletteram_8[offset];
@@ -59,7 +57,6 @@ READ8_MEMBER(spy_state::spy_bankedram1_r)
 
 WRITE8_MEMBER(spy_state::spy_bankedram1_w)
 {
-
 	if (m_rambank & 1)
 	{
 		paletteram_xBBBBBGGGGGRRRRR_byte_be_w(space,offset,data);
@@ -163,40 +160,39 @@ WRITE8_MEMBER(spy_state::bankswitch_w)
 	membank("bank1")->set_entry(bank);
 }
 
-static void spy_collision( running_machine &machine )
+void spy_state::spy_collision(  )
 {
 #define MAX_SPRITES 64
 #define DEF_NEAR_PLANE 0x6400
 #define NEAR_PLANE_ZOOM 0x0100
 #define FAR_PLANE_ZOOM 0x0000
 
-	spy_state *state = machine.driver_data<spy_state>();
 	int op1, x1, w1, z1, d1, y1, h1;
 	int op2, x2, w2, z2, d2, y2, h2;
 	int mode, i, loopend, nearplane;
 
-	mode = state->m_pmcram[0x1];
-	op1 = state->m_pmcram[0x2];
+	mode = m_pmcram[0x1];
+	op1 = m_pmcram[0x2];
 	if (op1 == 1)
 	{
-		x1 = (state->m_pmcram[0x3] << 8) + state->m_pmcram[0x4];
-		w1 = (state->m_pmcram[0x5] << 8) + state->m_pmcram[0x6];
-		z1 = (state->m_pmcram[0x7] << 8) + state->m_pmcram[0x8];
-		d1 = (state->m_pmcram[0x9] << 8) + state->m_pmcram[0xa];
-		y1 = (state->m_pmcram[0xb] << 8) + state->m_pmcram[0xc];
-		h1 = (state->m_pmcram[0xd] << 8) + state->m_pmcram[0xe];
+		x1 = (m_pmcram[0x3] << 8) + m_pmcram[0x4];
+		w1 = (m_pmcram[0x5] << 8) + m_pmcram[0x6];
+		z1 = (m_pmcram[0x7] << 8) + m_pmcram[0x8];
+		d1 = (m_pmcram[0x9] << 8) + m_pmcram[0xa];
+		y1 = (m_pmcram[0xb] << 8) + m_pmcram[0xc];
+		h1 = (m_pmcram[0xd] << 8) + m_pmcram[0xe];
 
 		for (i = 16; i < 14 * MAX_SPRITES + 2; i += 14)
 		{
-			op2 = state->m_pmcram[i];
+			op2 = m_pmcram[i];
 			if (op2 || mode == 0x0c)
 			{
-				x2 = (state->m_pmcram[i + 0x1] << 8) + state->m_pmcram[i + 0x2];
-				w2 = (state->m_pmcram[i + 0x3] << 8) + state->m_pmcram[i + 0x4];
-				z2 = (state->m_pmcram[i + 0x5] << 8) + state->m_pmcram[i + 0x6];
-				d2 = (state->m_pmcram[i + 0x7] << 8) + state->m_pmcram[i + 0x8];
-				y2 = (state->m_pmcram[i + 0x9] << 8) + state->m_pmcram[i + 0xa];
-				h2 = (state->m_pmcram[i + 0xb] << 8) + state->m_pmcram[i + 0xc];
+				x2 = (m_pmcram[i + 0x1] << 8) + m_pmcram[i + 0x2];
+				w2 = (m_pmcram[i + 0x3] << 8) + m_pmcram[i + 0x4];
+				z2 = (m_pmcram[i + 0x5] << 8) + m_pmcram[i + 0x6];
+				d2 = (m_pmcram[i + 0x7] << 8) + m_pmcram[i + 0x8];
+				y2 = (m_pmcram[i + 0x9] << 8) + m_pmcram[i + 0xa];
+				h2 = (m_pmcram[i + 0xb] << 8) + m_pmcram[i + 0xc];
 /*
     The mad scientist's laser truck has both a high sprite center and a small height value.
     It has to be measured from the ground to detect correctly.
@@ -207,11 +203,11 @@ static void spy_collision( running_machine &machine )
 				// what other sprites fall into:
 				if ((abs(x1 - x2) < w1 + w2) && (abs(z1 - z2) < d1 + d2) && (abs(y1 - y2) < h1 + h2))
 				{
-					state->m_pmcram[0xf] = 0;
-					state->m_pmcram[i + 0xd] = 0;
+					m_pmcram[0xf] = 0;
+					m_pmcram[i + 0xd] = 0;
 				}
 				else
-					state->m_pmcram[i + 0xd] = 1;
+					m_pmcram[i + 0xd] = 1;
 			}
 		}
 	}
@@ -222,8 +218,8 @@ static void spy_collision( running_machine &machine )
     the scale factors from the PMCU code. Plugging 0 and 0x100 to the far and near planes seems
     to do the trick though.
 */
-		loopend = (state->m_pmcram[0] << 8) + state->m_pmcram[1];
-		nearplane = (state->m_pmcram[2] << 8) + state->m_pmcram[3];
+		loopend = (m_pmcram[0] << 8) + m_pmcram[1];
+		nearplane = (m_pmcram[2] << 8) + m_pmcram[3];
 
 		// fail safe
 		if (loopend > MAX_SPRITES)
@@ -235,20 +231,19 @@ static void spy_collision( running_machine &machine )
 
 		for (i = 4; i < loopend; i += 2)
 		{
-			op2 = (state->m_pmcram[i] << 8) + state->m_pmcram[i + 1];
+			op2 = (m_pmcram[i] << 8) + m_pmcram[i + 1];
 			op2 = (op2 * (NEAR_PLANE_ZOOM - FAR_PLANE_ZOOM)) / nearplane + FAR_PLANE_ZOOM;
-			state->m_pmcram[i] = op2 >> 8;
-			state->m_pmcram[i + 1] = op2 & 0xff;
+			m_pmcram[i] = op2 >> 8;
+			m_pmcram[i + 1] = op2 & 0xff;
 		}
 
-		memset(state->m_pmcram + loopend, 0, 0x800 - loopend); // clean up for next frame
+		memset(m_pmcram + loopend, 0, 0x800 - loopend); // clean up for next frame
 	}
 }
 
 
 WRITE8_MEMBER(spy_state::spy_3f90_w)
 {
-
 	/*********************************************************************
 	*
 	* Signals, from schematic:
@@ -321,7 +316,7 @@ WRITE8_MEMBER(spy_state::spy_3f90_w)
 				logerror("\n");
 			}
 		}
-		spy_collision(machine());
+		spy_collision();
 //ZT
 		m_maincpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
 	}
@@ -351,7 +346,6 @@ WRITE8_MEMBER(spy_state::sound_bank_w)
 
 READ8_MEMBER(spy_state::k052109_051960_r)
 {
-
 	if (k052109_get_rmrd_line(m_k052109) == CLEAR_LINE)
 	{
 		if (offset >= 0x3800 && offset < 0x3808)
@@ -367,7 +361,6 @@ READ8_MEMBER(spy_state::k052109_051960_r)
 
 WRITE8_MEMBER(spy_state::k052109_051960_w)
 {
-
 	if (offset >= 0x3800 && offset < 0x3808)
 		k051937_w(m_k051960, space, offset - 0x3800, data);
 	else if (offset < 0x3c00)
@@ -400,7 +393,7 @@ static ADDRESS_MAP_START( spy_sound_map, AS_PROGRAM, 8, spy_state )
 	AM_RANGE(0x9000, 0x9000) AM_WRITE(sound_bank_w)
 	AM_RANGE(0xa000, 0xa00d) AM_DEVREADWRITE_LEGACY("k007232_1", k007232_r, k007232_w)
 	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232_2", k007232_r, k007232_w)
-	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r,ym3812_w)
+	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 	AM_RANGE(0xd000, 0xd000) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
 
@@ -454,28 +447,32 @@ INPUT_PORTS_END
 
 
 
-static void volume_callback( device_t *device, int v )
+WRITE8_MEMBER(spy_state::volume_callback0)
 {
-	k007232_set_volume(device, 0, (v >> 4) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232_1, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232_1, 1, 0, (data & 0x0f) * 0x11);
 }
 
-static const k007232_interface spy_k007232_interface =
+static const k007232_interface spy_k007232_interface_1 =
 {
-	volume_callback
+	DEVCB_DRIVER_MEMBER(spy_state,volume_callback0)
 };
 
-
-static void irqhandler( device_t *device, int linestate )
+WRITE8_MEMBER(spy_state::volume_callback1)
 {
-	spy_state *state = device->machine().driver_data<spy_state>();
-	state->m_audiocpu->set_input_line(INPUT_LINE_NMI, linestate);
+	k007232_set_volume(m_k007232_2, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232_2, 1, 0, (data & 0x0f) * 0x11);
 }
 
-static const ym3812_interface ym3812_config =
+static const k007232_interface spy_k007232_interface_2 =
 {
-	irqhandler
+	DEVCB_DRIVER_MEMBER(spy_state,volume_callback1)
 };
+
+WRITE_LINE_MEMBER(spy_state::irqhandler)
+{
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, state);
+}
 
 
 static const k052109_interface spy_k052109_intf =
@@ -503,13 +500,6 @@ void spy_state::machine_start()
 	m_generic_paletteram_8.allocate(0x800);
 	memset(m_pmcram, 0, sizeof(m_pmcram));
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k052109 = machine().device("k052109");
-	m_k051960 = machine().device("k051960");
-	m_k007232_1 = machine().device("k007232_1");
-	m_k007232_2 = machine().device("k007232_2");
-
 	save_item(NAME(m_rambank));
 	save_item(NAME(m_pmcbank));
 	save_item(NAME(m_video_enable));
@@ -519,7 +509,6 @@ void spy_state::machine_start()
 
 void spy_state::machine_reset()
 {
-
 	m_rambank = 0;
 	m_pmcbank = 0;
 	m_video_enable = 0;
@@ -558,16 +547,16 @@ static MACHINE_CONFIG_START( spy, spy_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, 3579545)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(spy_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("k007232_1", K007232, 3579545)
-	MCFG_SOUND_CONFIG(spy_k007232_interface)
+	MCFG_SOUND_CONFIG(spy_k007232_interface_1)
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 
 	MCFG_SOUND_ADD("k007232_2", K007232, 3579545)
-	MCFG_SOUND_CONFIG(spy_k007232_interface)
+	MCFG_SOUND_CONFIG(spy_k007232_interface_2)
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 MACHINE_CONFIG_END

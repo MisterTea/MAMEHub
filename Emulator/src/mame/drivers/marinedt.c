@@ -101,8 +101,9 @@ class marinedt_state : public driver_device
 {
 public:
 	marinedt_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_tx_tileram(*this, "tx_tileram"){ }
+		: driver_device(mconfig, type, tag),
+		m_tx_tileram(*this, "tx_tileram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_tx_tileram;
@@ -153,19 +154,18 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_marinedt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
 WRITE8_MEMBER(marinedt_state::tx_tileram_w)
 {
-
 	m_tx_tileram[offset] = data;
 	m_tx_tilemap->mark_tile_dirty(offset);
 }
 
 READ8_MEMBER(marinedt_state::marinedt_port1_r)
 {
-
 	//might need to be reversed for cocktail stuff
 
 	/* x/y multiplexed */
@@ -451,7 +451,7 @@ GFXDECODE_END
 
 void marinedt_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i,r,b,g;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -623,7 +623,6 @@ UINT32 marinedt_state::screen_update_marinedt(screen_device &screen, bitmap_ind1
 
 void marinedt_state::machine_start()
 {
-
 	save_item(NAME(m_obj1_a));
 	save_item(NAME(m_obj1_x));
 	save_item(NAME(m_obj1_y));
@@ -646,7 +645,6 @@ void marinedt_state::machine_start()
 
 void marinedt_state::machine_reset()
 {
-
 	m_obj1_a = 0;
 	m_obj1_x = 0;
 	m_obj1_y = 0;

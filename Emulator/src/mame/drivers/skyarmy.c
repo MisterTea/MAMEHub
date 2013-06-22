@@ -33,11 +33,12 @@ class skyarmy_state : public driver_device
 {
 public:
 	skyarmy_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_spriteram(*this, "spriteram"),
-		m_scrollram(*this, "scrollram"){ }
+		m_scrollram(*this, "scrollram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -55,6 +56,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_skyarmy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(skyarmy_nmi_source);
+	required_device<cpu_device> m_maincpu;
 };
 
 WRITE8_MEMBER(skyarmy_state::skyarmy_flip_screen_x_w)
@@ -77,21 +79,19 @@ TILE_GET_INFO_MEMBER(skyarmy_state::get_skyarmy_tile_info)
 
 WRITE8_MEMBER(skyarmy_state::skyarmy_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(skyarmy_state::skyarmy_colorram_w)
 {
-
 	m_colorram[offset] = data;
 	m_tilemap->mark_tile_dirty(offset);
 }
 
 void skyarmy_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0;i < 32;i++)
@@ -120,7 +120,6 @@ void skyarmy_state::palette_init()
 
 void skyarmy_state::video_start()
 {
-
 	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skyarmy_state::get_skyarmy_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_tilemap->set_scroll_cols(32);
 }
@@ -158,14 +157,12 @@ UINT32 skyarmy_state::screen_update_skyarmy(screen_device &screen, bitmap_ind16 
 
 INTERRUPT_GEN_MEMBER(skyarmy_state::skyarmy_nmi_source)
 {
-
 	if(m_nmi) device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
 WRITE8_MEMBER(skyarmy_state::nmi_enable_w)
 {
-
 	m_nmi=data & 1;
 }
 
@@ -189,8 +186,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( skyarmy_io_map, AS_IO, 8, skyarmy_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x04, 0x05) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0x06, 0x06) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0x04, 0x05) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0x06, 0x06) AM_DEVREAD("aysnd", ay8910_device, data_r)
 ADDRESS_MAP_END
 
 

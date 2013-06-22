@@ -79,19 +79,19 @@ READ8_MEMBER(tsamurai_state::unknown_d938_r)
 WRITE8_MEMBER(tsamurai_state::sound_command1_w)
 {
 	m_sound_command1 = data;
-	machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE );
+	m_audiocpu->set_input_line(0, HOLD_LINE );
 }
 
 WRITE8_MEMBER(tsamurai_state::sound_command2_w)
 {
 	m_sound_command2 = data;
-	machine().device("audio2")->execute().set_input_line(0, HOLD_LINE );
+	m_audio2->set_input_line(0, HOLD_LINE );
 }
 
 WRITE8_MEMBER(tsamurai_state::sound_command3_w)
 {
 	m_sound_command3 = data;
-	machine().device("audio3")->execute().set_input_line(0, HOLD_LINE );
+	m_audio3->set_input_line(0, HOLD_LINE );
 }
 
 WRITE8_MEMBER(tsamurai_state::flip_screen_w)
@@ -175,7 +175,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( z80_io_map, AS_IO, 8, tsamurai_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( z80_m660_io_map, AS_IO, 8, tsamurai_state )
@@ -187,7 +187,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( vsgongf_audio_io_map, AS_IO, 8, tsamurai_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 READ8_MEMBER(tsamurai_state::sound_command1_r)
@@ -256,7 +256,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound3_m660_io_map, AS_IO, 8, tsamurai_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 /*******************************************************************************/
@@ -298,7 +298,7 @@ READ8_MEMBER(tsamurai_state::vsgongf_a100_r)
 WRITE8_MEMBER(tsamurai_state::vsgongf_sound_command_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static ADDRESS_MAP_START( vsgongf_map, AS_PROGRAM, 8, tsamurai_state )

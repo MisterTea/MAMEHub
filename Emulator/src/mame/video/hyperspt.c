@@ -31,7 +31,7 @@
 
 void hyperspt_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
 	static const int resistances_b[2] = { 470, 220 };
 	double rweights[3], gweights[3], bweights[2];
@@ -122,18 +122,16 @@ TILE_GET_INFO_MEMBER(hyperspt_state::get_bg_tile_info)
 
 void hyperspt_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(hyperspt_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 	m_bg_tilemap->set_scroll_rows(32);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void hyperspt_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	hyperspt_state *state = machine.driver_data<hyperspt_state>();
-	UINT8 *spriteram = state->m_spriteram;
+	UINT8 *spriteram = m_spriteram;
 	int offs;
 
-	for (offs = state->m_spriteram.bytes() - 4;offs >= 0;offs -= 4)
+	for (offs = m_spriteram.bytes() - 4;offs >= 0;offs -= 4)
 	{
 		int sx = spriteram[offs + 3];
 		int sy = 240 - spriteram[offs + 1];
@@ -142,32 +140,32 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		int flipx = ~spriteram[offs] & 0x40;
 		int flipy = spriteram[offs] & 0x80;
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sy = 240 - sy;
 			flipy = !flipy;
 		}
 
-		/* Note that this adjustment must be done AFTER handling state->flip_screen(), thus */
+		/* Note that this adjustment must be done AFTER handling flip_screen(), thus */
 		/* proving that this is a hardware related "feature" */
 
 		sy += 1;
 
 		drawgfx_transmask(bitmap,cliprect,
-			machine.gfx[0],
+			machine().gfx[0],
 			code, color,
 			flipx, flipy,
 			sx, sy,
-			colortable_get_transpen_mask(machine.colortable, machine.gfx[0], color, 0));
+			colortable_get_transpen_mask(machine().colortable, machine().gfx[0], color, 0));
 
 		/* redraw with wraparound */
 
 		drawgfx_transmask(bitmap,cliprect,
-			machine.gfx[0],
+			machine().gfx[0],
 			code, color,
 			flipx, flipy,
 			sx - 256, sy,
-			colortable_get_transpen_mask(machine.colortable, machine.gfx[0], color, 0));
+			colortable_get_transpen_mask(machine().colortable, machine().gfx[0], color, 0));
 	}
 }
 
@@ -183,7 +181,7 @@ UINT32 hyperspt_state::screen_update_hyperspt(screen_device &screen, bitmap_ind1
 	}
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }
 
@@ -199,7 +197,6 @@ TILE_GET_INFO_MEMBER(hyperspt_state::roadf_get_bg_tile_info)
 
 VIDEO_START_MEMBER(hyperspt_state,roadf)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(hyperspt_state::roadf_get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 	m_bg_tilemap->set_scroll_rows(32);
 }

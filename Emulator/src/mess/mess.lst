@@ -70,14 +70,6 @@ gbcolor   // Nintendo Game Boy Color Handheld
 gba       // Nintendo Game Boy Advance Handheld
 snes      // Nintendo Super Nintendo NTSC
 snespal   // Nintendo Super Nintendo PAL
-snessfx   // Nintendo Super Nintendo NTSC w/SuperFX CPU
-snespsfx  // Nintendo Super Nintendo PAL w/SuperFX CPU
-snesdsp   // Nintendo Super Nintendo NTSC w/DSP-x CPU
-snespdsp  // Nintendo Super Nintendo PAL w/DSP-x CPU
-snesst10  // Nintendo Super Nintendo NTSC w/ST-010 CPU
-snesst11  // Nintendo Super Nintendo NTSC w/ST-011 CPU
-snesst    // Nintendo Super Nintendo NTSC w/Sufami Turbo base cart
-snesbsx   // Nintendo Super Nintendo NTSC w/BS-X compatible cart
 n64       // Nintendo N64
 n64dd     // Nintendo N64 (64DD Attachment)
 pokemini  // Nintendo Pokemon Mini
@@ -106,9 +98,6 @@ smssdisp  // Sega Master System Store Display Unit
 
 megadrij  // 1988 Sega Mega Drive (Japan)
 genesis   // 1989 Sega Genesis (USA)
-gensvp  // 1993 Sega Genesis (USA w/SVP chip)
-mdsvp
-mdsvpj
 megadriv  // 1990 Sega Mega Drive (Europe)
 pico      // 1994 Sega Pico (Europe)
 picou    // 1994 Sega Pico (USA)
@@ -159,6 +148,7 @@ astrocdl    // Bally Home Library Computer
 astrocdw    // Bally Computer System (white case)
 
 // RCA
+microkit
 vip    // 1977 Cosmac VIP VP-711
 vp111    // 1977 Cosmac VIP VP-111
 studio2   // 1977 Studio II
@@ -175,6 +165,7 @@ d6800       // Dream 6800
 // Ensoniq
 enmirage    // 1985 Mirage Digital Multi-Sampler
 esq1        // 1986 ESQ-1 Digital Wave Synthesizer
+esqm        // 1986 ESQ-M rack-mount ESQ-1
 sq80        // 1988 SQ-80 Digital Wave Synthesizer
 eps         // 1988 EPS
 vfx         // 1989 VFX
@@ -310,6 +301,7 @@ wofch    // CPS Changer (Tenchi Wo Kurau II)
 
 // Magnavox
 odyssey2  // Magnavox Odyssey 2 - 1978-1983
+odyssey3  // Magnavox Odyssey 3 / Command Center (prototype)
 
 // Hartung, Watara, ...
 gmaster   // Hartung Gamemaster
@@ -356,6 +348,7 @@ d110
 acrnsys1  // 1979 Acorn System 1 (Microcomputer Kit)
 atom      // 1979 Acorn Atom
 atomeb  // 1979 Acorn Atom
+atombb  // 1979 Acorn Atom
 bbca      // 1981 BBC Micro Model A
 bbcb      // 1981 BBC Micro Model B
 bbcbp    // 198? BBC Micro Model B+ 64K
@@ -414,15 +407,15 @@ nc150    // 1992 NC150
 nc200    // 1993 NC200
 
 // Apollo
-dn3500     // Apollo Workstation DN3500 19" monochrome (1989)
-dsp3500    // Apollo Server DSP3500 (1989)
-dn3000     // Apollo Workstation DN3000 19" monochrome (1987)
-dsp3000    // Apollo Server DSP3000 (1987)
-dn3500_15i // Apollo Workstation DN3500 15" monochrome (1989)
-dn3000_15i // Apollo Workstation DN3000 15" monochrome (1988)
-dn5500     // Apollo Workstation DN5500 19" monochrome (1991)
-dsp5500    // Apollo Server DSP5500 (1991)
-dn5500_15i // Apollo Workstation DN5500 15" monochrome (1991)
+dn3500      // Apollo Workstation DN3500 15" Color (1989)
+dn3500_19i  // Apollo Workstation DN3500 19" Monochrome (1989)
+dsp3500     // Apollo Server DSP3500 (1989)
+dn3000      // Apollo Workstation DN3000 15" Color (1988)
+dn3000_19i  // Apollo Workstation DN3000 19" Monochrome (1987)
+dsp3000     // Apollo Server DSP3000 (1987)
+dn5500      // Apollo Workstation DN5500 15" Color (1991)
+dn5500_19i  // Apollo Workstation DN5500 19" Monochrome (1991)
+dsp5500     // Apollo Server DSP5500 (1991)
 
 // Apple
 apple1  // Jul 1976 Apple 1
@@ -576,30 +569,37 @@ sym1      // Synertek SYM-1
 aim65    // Rockwell AIM65
 aim65_40  // Rockwell AIM65/40
 
-pet2001   // PET 2001
-pet2001n  // PET 2001-N
-pet2001b  // PET 2001-B
-cbm30    // CBM 30xx
-cbm30b  // CBM 30xx (Business keyboard)
-cbm30nor  // CBM 30xx (Norway, Business keyboard)
-pet40on   // PET 40xx (Basic 4, no CRTC, Normal keyboard)
-pet40ob   // PET 40xx (Basic 4, no CRTC, Business keyboard)
-pet40n  // PET 40xx (Basic 4, CRTC 60Hz, 40 columns)
-pet40b  // PET 40xx (Basic 4, CRTC 60Hz, 80 columns)
-cbm40o  // CBM 40xx (Basic 4, no CRTC, Normal keyboard)
-cbm40ob   // CBM 40xx (Basic 4, no CRTC, Business keyboard)
-cbm40n  // CBM 40xx (Basic 4, CRTC 50Hz, 40 columns)
-cbm40b  // CBM 40xx (Basic 4, CRTC 50Hz, 80 columns)
-pet80    // PET 80xx (Basic 4, CRTC 60Hz, 80 columns)
-cbm80    // CBM 80xx (Basic 4, CRTC 50Hz, 80 columns)
-cbm80ger  // CBM 80xx (Germany, Basic 4, CRTC 50Hz, 80 cols)
-cbm80hun  // CBM 80xx (Hungary, Basic 4, CRTC 50Hz, 80 cols)
-cbm80swe  // CBM 80xx (Sweden, Basic 4, CRTC 50Hz, 80 cols)
-cbm8296   // CBM 8296 (Basic 4, CRTC 50Hz, 80 columns)
-cbm8296d  // CBM 8296D
-superpet  // SuperPET
-sp9000  // CBM SP9000 / MiniMainFrame 9000
-mmf9000s  // MiniMainFrame 9000 (Sweden)
+pet2001
+pet20018
+pet2001n
+pet2001n16
+pet2001n32
+cbm3008
+cbm3016
+cbm3032
+pet2001b
+pet2001b16
+pet2001b32
+cbm3032b
+pet4016
+pet4032
+cbm4016
+cbm4032
+pet4032b
+cbm4032b
+pet8032
+cbm8032
+cbm8032_de
+cbm8032_se
+superpet
+mmf9000
+mmf9000_se
+cbm8096
+cbm8296
+cbm8296ed
+cbm8296d
+cbm8296d_de
+cbm8296gd
 
 vic1001   // Commodore VIC-1001 (Japan)
 vic20    // Commodore VIC 20 (NTSC)
@@ -622,6 +622,7 @@ vip64    // Commodore VIP64 (SX64, PAL, Swedish)
 dx64    // Commodore DX-64 - Prototype
 c64c      // Commodore 64C (NTSC)
 c64cp   // Commodore 64C (PAL)
+c64c_es
 c64c_se
 c64g      // Commodore 64G (PAL)
 c64gs    // Commodore 64 Games System
@@ -639,6 +640,7 @@ b256hp  // Commodore B256HP
 bx256hp   // Commodore BX256HP
 cbm710  // Commodore CBM 710
 cbm720  // Commodore CBM 720
+cbm720_de
 cbm720_se  // Commodore CBM 720 (Sweden / Finland)
 cbm730
 p500      // Commodore P500 (proto, a.k.a. C128-40, PET-II)
@@ -691,6 +693,7 @@ px4p      // 1985 Epson PX-4+
 px8
 qx10
 ehx20
+ehx20e
 
 // IBM PC & Clones
 ibm5150   // 1981 IBM 5150
@@ -711,6 +714,8 @@ pcd     // Siemens PC-D
 olypeopl // Olympia People PC
 sx16    // Sanyo SX-16
 mbc16   // Sanyo MBC-16
+ataripc3
+ssam88s
 
 // PC Junior
 ibmpcjr   // 1984 IBM PC Jr
@@ -720,6 +725,7 @@ t1000sx   // 1987 Tandy 1000 SX (similiar to PCJr)
 t1000tx // 1987 Tandy 1000 TX
 t1000rl // 1989 Tandy 1000 RL
 t1000tl2 // 1989 Tandy 1000 TL/2
+t1000sl2 // 198? Tandy 1000 SL/2
 
 // XT
 ibm5160   // 1982 IBM XT 5160
@@ -740,6 +746,7 @@ xtvga    // 198? PC-XT (VGA, MF2 Keyboard)
 iskr1031
 iskr1030m
 iskr3104
+asst128
 ec1840
 ec1841
 ec1845
@@ -769,6 +776,8 @@ at  // 1987 AMI Bios and Diagnostics
 atvga    // 19?? AT VGA
 neat      // 1989 New Enhanced AT chipset, AMI BIOS
 at386    // 19?? IBM AT 386
+//at386sx // no bios for this currently
+ct386sx
 at486    // 19?? IBM AT 486
 ct486       // 1993? 486 with CS4031
 ficpio2 // 1995 FIC 486-PIO-2
@@ -882,7 +891,7 @@ ql_it    // 1984 Sinclair QL (Italy)
 ql_se    // 1984 Sinclair QL (Sweden)
 ql_dk    // 1984 Sinclair QL (Denmark)
 ql_gr    // 1984 Sinclair QL (Greece)
-//  tonto
+tonto
 //  megaopd
 
 // Sharp
@@ -917,6 +926,8 @@ mz80a       // 1982 Sharp MZ80A
 mz80b       // 1981 Sharp MZ80B
 mz2000  // 1981 Sharp MZ2000
 mz2200  // 1981 Sharp MZ2200
+
+mz3500  // 198? Sharp MZ3500
 
 mz6500  // 198? Sharp MZ6500
 
@@ -1115,6 +1126,8 @@ dgnalpha  // Dragon Alpha
 dgnbeta   // Dragon Beta
 tanodr64  // Tano Dragon 64 (NTSC)
 cp400    // Prologica CP400
+lzcolor64 // Digiponto LZ Color64
+mx1600  // Dynacom MX-1600
 mc10      // MC-10
 alice    // Matra & Hachette Ordinateur Alice
 alice32 // Matra & Hachette Alice 32
@@ -1153,9 +1166,11 @@ socrates  // 1988 Socrates Educational Video System (USA)
 socratfc  // 1988 Socrates SAITOUT (French Canada)
 profweis  // 1988 (Yeno) Proffesor Weiss-Alles (Germany)
 gl8008cx
-iq128_fr // 1997 Genius PC (France) / Genius IQ 128 (Germany)
-iq128
+iq128_fr // 1997 Genius PC (France)
+iq128    // 1997 Genius IQ 128 (Germany)
 iqtv512 // IQ TV512 (Germany)
+misterx // 1988 (Yeno) MisterX
+pc2000 // 1993 PreComputer 2000
 
 // Tangerine
 microtan  // 1979 Microtan 65
@@ -1189,6 +1204,7 @@ msx    // 1983 MSX
 ax170
 canonv10
 canonv20
+pv16
 dpc100  // 1984 MSX Korea
 dpc180  // 1984 MSX Korea
 dpc200  // 1984 MSX Korea
@@ -1386,7 +1402,6 @@ intvkbd   // 1981 - Mattel Intellivision Keyboard Component
 // (Test marketed, later recalled)
 intvecs   // 1983 - Mattel Intellivision ECS
 aquarius  // 1983 Aquarius
-aquarius_qd  // 1983 Aquarius w/ Quick Disk
 //  aquariu2  // 1984 Aquarius II
 juicebox
 
@@ -1854,8 +1869,9 @@ craft // Craft, by [lft]
 
 //********** To sort (mostly skeleton drivers) *****************************
 
-pc2000 // VTech PreComputer 2000
 a5105
+attache
+attachef
 bcs3
 bcs3a
 bcs3b
@@ -2000,8 +2016,7 @@ pro80
 pimps
 sage2
 zexall // zexall z80 test suite with kevtris' preloader/serial interface at 0000-00ff
-horizdd
-horizsd
+nshrz
 vector1
 tricep
 indiana
@@ -2029,7 +2044,7 @@ supracan
 scv
 scv_pal
 vii // Chintendo / KenSingTon / Jungle Soft / Siatronics Vii
-//vsmile
+vsmile
 walle
 zsbc3
 dms5000
@@ -2095,8 +2110,10 @@ cc10
 systec
 p112
 selz80
+dagz80
 mccpm
 casloopy
+fp200
 fp1100
 fp6000
 tim011
@@ -2182,6 +2199,7 @@ hpz80unk
 itt3030
 vax785
 ms0515
+ie15
 alphasma
 altos5
 merlin
@@ -2192,3 +2210,11 @@ modellot
 tim100
 pencil2
 br8641
+nectk85
+nd80z
+binbug
+dg680
+besta88
+ravens
+ravens2
+softbox

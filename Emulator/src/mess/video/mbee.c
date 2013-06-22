@@ -211,15 +211,26 @@ WRITE8_MEMBER ( mbee_state::mbeeppc_high_w )
 /* The direction keys are used by the pc85 menu. Do not know what uses the "insert" key. */
 void mbee_state::keyboard_matrix_r(int offs)
 {
-	char kbdrow[6];
 	UINT8 port = (offs >> 7) & 7;
 	UINT8 bit = (offs >> 4) & 7;
-	sprintf(kbdrow,"X%d",port);
-	UINT8 data = (ioport(kbdrow)->read() >> bit) & 1;
+	UINT8 data = 0;
+
+	switch ( port )
+	{
+		case 0: data = m_io_x0->read(); break;
+		case 1: data = m_io_x1->read(); break;
+		case 2: data = m_io_x2->read(); break;
+		case 3: data = m_io_x3->read(); break;
+		case 4: data = m_io_x4->read(); break;
+		case 5: data = m_io_x5->read(); break;
+		case 6: data = m_io_x6->read(); break;
+		case 7: data = m_io_x7->read(); break;
+	}
+	data  = ( data >> bit ) & 1;
 
 	if ((data | m_is_premium) == 0)
 	{
-		UINT8 extra = ioport("EXTRA")->read();
+		UINT8 extra = m_io_extra->read();
 
 		if( extra & 0x01 )  /* extra: cursor up */
 		{
@@ -361,24 +372,24 @@ WRITE8_MEMBER ( mbee_state::m6545_data_w )
 
 VIDEO_START_MEMBER(mbee_state,mbee)
 {
-	m_p_videoram = machine().root_device().memregion("videoram")->base();
+	m_p_videoram = memregion("videoram")->base();
 	m_p_gfxram = memregion("gfx")->base()+0x1000;
 	m_is_premium = 0;
 }
 
 VIDEO_START_MEMBER(mbee_state,mbeeic)
 {
-	m_p_videoram = machine().root_device().memregion("videoram")->base();
-	m_p_colorram = machine().root_device().memregion("colorram")->base();
+	m_p_videoram = memregion("videoram")->base();
+	m_p_colorram = memregion("colorram")->base();
 	m_p_gfxram = memregion("gfx")->base()+0x1000;
 	m_is_premium = 0;
 }
 
 VIDEO_START_MEMBER(mbee_state,mbeeppc)
 {
-	m_p_videoram = machine().root_device().memregion("videoram")->base();
-	m_p_colorram = machine().root_device().memregion("colorram")->base();
-	m_p_gfxram = machine().root_device().memregion("gfx")->base()+0x1000;
+	m_p_videoram = memregion("videoram")->base();
+	m_p_colorram = memregion("colorram")->base();
+	m_p_gfxram = memregion("gfx")->base()+0x1000;
 	m_p_attribram = memregion("attrib")->base();
 	m_is_premium = 1;
 }
@@ -552,7 +563,7 @@ MC6845_UPDATE_ROW( mbeeppc_update_row )
 
 PALETTE_INIT_MEMBER(mbee_state,mbeeic)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	UINT16 i;
 	UINT8 r, b, g, k;
 	UINT8 level[] = { 0, 0x80, 0xff, 0xff };    /* off, half, full intensity */
@@ -580,7 +591,7 @@ PALETTE_INIT_MEMBER(mbee_state,mbeeic)
 
 PALETTE_INIT_MEMBER(mbee_state,mbeepc85b)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	UINT16 i;
 	UINT8 r, b, g, k;
 	UINT8 level[] = { 0, 0x80, 0x80, 0xff };    /* off, half, full intensity */

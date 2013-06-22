@@ -3,7 +3,7 @@
 Taito Field Goal driver
 
     set #1 / orig Taito PCB / sticker "AFN00004" / Field Goal
-    set #2 / orig Taito PCB / sticker "MFN00001" / Field Goal (different)
+    set #2 / orig Taito PCB / sticker "MFN00001" / Field Goal
 
 Differences between these sets include
 
@@ -18,11 +18,10 @@ Differences between these sets include
 
 #include "emu.h"
 #include "cpu/m6800/m6800.h"
-#include "machine/mb14241.h"
 #include "includes/fgoal.h"
 
 
-static int intensity(int bits)
+int fgoal_state::intensity(int bits)
 {
 	int v = 0;
 
@@ -47,7 +46,7 @@ static int intensity(int bits)
 
 void fgoal_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* for B/W screens PCB can be jumpered to use lower half of PROM */
@@ -69,6 +68,19 @@ void fgoal_state::palette_init()
 }
 
 
+void fgoal_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_INTERRUPT:
+		interrupt_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in fgoal_state::device_timer");
+	}
+}
+
+
 TIMER_CALLBACK_MEMBER(fgoal_state::interrupt_callback)
 {
 	int scanline;
@@ -86,14 +98,13 @@ TIMER_CALLBACK_MEMBER(fgoal_state::interrupt_callback)
 	if (scanline > 256)
 		scanline = 0;
 
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(fgoal_state::interrupt_callback),this));
+	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_INTERRUPT);
 }
 
 
-static unsigned video_ram_address( running_machine &machine )
+unsigned fgoal_state::video_ram_address(  )
 {
-	fgoal_state *state = machine.driver_data<fgoal_state>();
-	return 0x4000 | (state->m_row << 5) | (state->m_col >> 3);
+	return 0x4000 | (m_row << 5) | (m_col >> 3);
 }
 
 
@@ -134,38 +145,36 @@ READ8_MEMBER(fgoal_state::fgoal_row_r)
 
 WRITE8_MEMBER(fgoal_state::fgoal_row_w)
 {
-
 	m_row = data;
-	mb14241_shift_data_w(m_mb14241, space, 0, 0);
+	m_mb14241->shift_data_w(space, 0, 0);
 }
 
 WRITE8_MEMBER(fgoal_state::fgoal_col_w)
 {
-
 	m_col = data;
-	mb14241_shift_count_w(m_mb14241, space, 0, data);
+	m_mb14241->shift_count_w(space, 0, data);
 }
 
 READ8_MEMBER(fgoal_state::fgoal_address_hi_r)
 {
-	return video_ram_address(machine()) >> 8;
+	return video_ram_address() >> 8;
 }
 
 READ8_MEMBER(fgoal_state::fgoal_address_lo_r)
 {
-	return video_ram_address(machine()) & 0xff;
+	return video_ram_address() & 0xff;
 }
 
 READ8_MEMBER(fgoal_state::fgoal_shifter_r)
 {
-	UINT8 v = mb14241_shift_result_r(m_mb14241, space, 0);
+	UINT8 v = m_mb14241->shift_result_r(space, 0);
 
 	return BITSWAP8(v, 7, 6, 5, 4, 3, 2, 1, 0);
 }
 
 READ8_MEMBER(fgoal_state::fgoal_shifter_reverse_r)
 {
-	UINT8 v = mb14241_shift_result_r(m_mb14241, space, 0);
+	UINT8 v = m_mb14241->shift_result_r(space, 0);
 
 	return BITSWAP8(v, 0, 1, 2, 3, 4, 5, 6, 7);
 }
@@ -215,7 +224,7 @@ static ADDRESS_MAP_START( cpu_map, AS_PROGRAM, 8, fgoal_state )
 	AM_RANGE(0x00f1, 0x00f1) AM_WRITE(fgoal_col_w)
 	AM_RANGE(0x00f2, 0x00f2) AM_WRITE(fgoal_row_w)
 	AM_RANGE(0x00f3, 0x00f3) AM_WRITE(fgoal_col_w)
-	AM_RANGE(0x00f4, 0x00f7) AM_DEVWRITE_LEGACY("mb14241", mb14241_shift_data_w)
+	AM_RANGE(0x00f4, 0x00f7) AM_DEVWRITE("mb14241", mb14241_device, shift_data_w)
 	AM_RANGE(0x00f8, 0x00fb) AM_WRITE(fgoal_sound1_w)
 	AM_RANGE(0x00fc, 0x00ff) AM_WRITE(fgoal_sound2_w)
 
@@ -329,10 +338,6 @@ GFXDECODE_END
 
 void fgoal_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_mb14241 = machine().device("mb14241");
-
 	save_item(NAME(m_xpos));
 	save_item(NAME(m_ypos));
 	save_item(NAME(m_current_color));
@@ -344,8 +349,7 @@ void fgoal_state::machine_start()
 
 void fgoal_state::machine_reset()
 {
-
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(0), timer_expired_delegate(FUNC(fgoal_state::interrupt_callback),this));
+	timer_set(machine().primary_screen->time_until_pos(0), TIMER_INTERRUPT);
 
 	m_xpos = 0;
 	m_ypos = 0;
@@ -428,5 +432,5 @@ ROM_START( fgoala )
 ROM_END
 
 
-GAME( 1979, fgoal,  0,     fgoal, fgoal, driver_device, 0, ROT90, "Taito", "Field Goal", GAME_NO_SOUND )
-GAME( 1979, fgoala, fgoal, fgoal, fgoal, driver_device, 0, ROT90, "Taito", "Field Goal (different)", GAME_NO_SOUND )
+GAME( 1979, fgoal,  0,     fgoal, fgoal, driver_device, 0, ROT90, "Taito", "Field Goal (set 1)", GAME_NO_SOUND )
+GAME( 1979, fgoala, fgoal, fgoal, fgoal, driver_device, 0, ROT90, "Taito", "Field Goal (set 2)", GAME_NO_SOUND )

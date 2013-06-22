@@ -1,13 +1,20 @@
+#include "sound/k054539.h"
 
 class xmen_state : public driver_device
 {
 public:
 	xmen_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_xmen6p_spriteramleft(*this, "spriteramleft"),
 		m_xmen6p_spriteramright(*this, "spriteramright"),
 		m_xmen6p_tilemapleft(*this, "tilemapleft"),
-		m_xmen6p_tilemapright(*this, "tilemapright"){ }
+		m_xmen6p_tilemapright(*this, "tilemapright"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_k054539(*this, "k054539"),
+		m_k052109(*this, "k052109"),
+		m_k053246(*this, "k053246"),
+		m_k053251(*this, "k053251") { }
 
 	/* memory pointers */
 //  UINT16 *   m_paletteram;    // currently this uses generic palette handling
@@ -31,14 +38,12 @@ public:
 	UINT8       m_vblank_irq_mask;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_k054539;
-	device_t *m_k052109;
-	device_t *m_k053246;
-	device_t *m_k053251;
-	device_t *m_lscreen;
-	device_t *m_rscreen;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<k054539_device> m_k054539;
+	required_device<k052109_device> m_k052109;
+	required_device<k053247_device> m_k053246;
+	required_device<k053251_device> m_k053251;
 	DECLARE_WRITE16_MEMBER(eeprom_w);
 	DECLARE_READ16_MEMBER(sound_status_r);
 	DECLARE_WRITE16_MEMBER(sound_cmd_w);
@@ -54,6 +59,7 @@ public:
 	UINT32 screen_update_xmen6p_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_xmen6p(screen_device &screen, bool state);
 	TIMER_DEVICE_CALLBACK_MEMBER(xmen_scanline);
+	void sound_reset_bank();
 };
 
 /*----------- defined in video/xmen.c -----------*/

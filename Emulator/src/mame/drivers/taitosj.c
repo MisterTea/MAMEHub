@@ -179,7 +179,7 @@ WRITE8_MEMBER(taitosj_state::taitosj_sndnmi_msk_w)
 WRITE8_MEMBER(taitosj_state::taitosj_soundcommand_w)
 {
 	soundlatch_byte_w(space,offset,data);
-	if (!m_sndnmi_disable) machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	if (!m_sndnmi_disable) m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
@@ -217,8 +217,8 @@ static ADDRESS_MAP_START( taitosj_main_nomcu_map, AS_PROGRAM, 8, taitosj_state )
 	AM_RANGE(0xd40b, 0xd40b) AM_MIRROR(0x00f0) AM_READ_PORT("IN2")
 	AM_RANGE(0xd40c, 0xd40c) AM_MIRROR(0x00f0) AM_READ_PORT("IN3")          /* Service */
 	AM_RANGE(0xd40d, 0xd40d) AM_MIRROR(0x00f0) AM_READ_PORT("IN4")
-	AM_RANGE(0xd40e, 0xd40f) AM_MIRROR(0x00f0) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0xd40f, 0xd40f) AM_MIRROR(0x00f0) AM_DEVREAD_LEGACY("ay1", ay8910_r)   /* DSW2 and DSW3 */
+	AM_RANGE(0xd40e, 0xd40f) AM_MIRROR(0x00f0) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0xd40f, 0xd40f) AM_MIRROR(0x00f0) AM_DEVREAD("ay1", ay8910_device, data_r)   /* DSW2 and DSW3 */
 	AM_RANGE(0xd500, 0xd505) AM_MIRROR(0x00f0) AM_WRITEONLY AM_SHARE("scroll")
 	AM_RANGE(0xd506, 0xd507) AM_MIRROR(0x00f0) AM_WRITEONLY AM_SHARE("colorbank")
 	AM_RANGE(0xd508, 0xd508) AM_MIRROR(0x00f0) AM_WRITE(taitosj_collision_reg_clear_w)
@@ -257,8 +257,8 @@ static ADDRESS_MAP_START( taitosj_main_mcu_map, AS_PROGRAM, 8, taitosj_state )
 	AM_RANGE(0xd40b, 0xd40b) AM_MIRROR(0x00f0) AM_READ_PORT("IN2")
 	AM_RANGE(0xd40c, 0xd40c) AM_MIRROR(0x00f0) AM_READ_PORT("IN3")          /* Service */
 	AM_RANGE(0xd40d, 0xd40d) AM_MIRROR(0x00f0) AM_READ_PORT("IN4")
-	AM_RANGE(0xd40e, 0xd40f) AM_MIRROR(0x00f0) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0xd40f, 0xd40f) AM_MIRROR(0x00f0) AM_DEVREAD_LEGACY("ay1", ay8910_r)   /* DSW2 and DSW3 */
+	AM_RANGE(0xd40e, 0xd40f) AM_MIRROR(0x00f0) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0xd40f, 0xd40f) AM_MIRROR(0x00f0) AM_DEVREAD("ay1", ay8910_device, data_r)   /* DSW2 and DSW3 */
 	AM_RANGE(0xd500, 0xd505) AM_MIRROR(0x00f0) AM_WRITEONLY AM_SHARE("scroll")
 	AM_RANGE(0xd506, 0xd507) AM_MIRROR(0x00f0) AM_WRITEONLY AM_SHARE("colorbank")
 	AM_RANGE(0xd508, 0xd508) AM_MIRROR(0x00f0) AM_WRITE(taitosj_collision_reg_clear_w)
@@ -322,8 +322,8 @@ static ADDRESS_MAP_START( kikstart_main_map, AS_PROGRAM, 8, taitosj_state )
 	AM_RANGE(0xd40b, 0xd40b) AM_MIRROR(0x00f0) AM_READ_PORT("IN2")
 	AM_RANGE(0xd40c, 0xd40c) AM_MIRROR(0x00f0) AM_READ_PORT("IN3")          /* Service */
 	AM_RANGE(0xd40d, 0xd40d) AM_MIRROR(0x00f0) AM_READ_PORT("IN4")
-	AM_RANGE(0xd40e, 0xd40f) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0xd40f, 0xd40f) AM_DEVREAD_LEGACY("ay1", ay8910_r) /* DSW2 and DSW3 */
+	AM_RANGE(0xd40e, 0xd40f) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0xd40f, 0xd40f) AM_DEVREAD("ay1", ay8910_device, data_r) /* DSW2 and DSW3 */
 	AM_RANGE(0xd508, 0xd508) AM_WRITE(taitosj_collision_reg_clear_w)
 	AM_RANGE(0xd509, 0xd50a) AM_WRITEONLY AM_SHARE("gfxpointer")
 	AM_RANGE(0xd50b, 0xd50b) AM_WRITE(taitosj_soundcommand_w)
@@ -338,12 +338,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( taitosj_audio_map, AS_PROGRAM, 8, taitosj_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x43ff) AM_RAM
-	AM_RANGE(0x4800, 0x4801) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x4801, 0x4801) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0x4802, 0x4803) AM_DEVWRITE_LEGACY("ay3", ay8910_address_data_w)
-	AM_RANGE(0x4803, 0x4803) AM_DEVREAD_LEGACY("ay3", ay8910_r)
-	AM_RANGE(0x4804, 0x4805) AM_DEVWRITE_LEGACY("ay4", ay8910_address_data_w)
-	AM_RANGE(0x4805, 0x4805) AM_DEVREAD_LEGACY("ay4", ay8910_r)
+	AM_RANGE(0x4800, 0x4801) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x4801, 0x4801) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0x4802, 0x4803) AM_DEVWRITE("ay3", ay8910_device, address_data_w)
+	AM_RANGE(0x4803, 0x4803) AM_DEVREAD("ay3", ay8910_device, data_r)
+	AM_RANGE(0x4804, 0x4805) AM_DEVWRITE("ay4", ay8910_device, address_data_w)
+	AM_RANGE(0x4805, 0x4805) AM_DEVREAD("ay4", ay8910_device, data_r)
 	AM_RANGE(0x5000, 0x5000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0xe000, 0xefff) AM_ROM /* space for diagnostic ROM */
 ADDRESS_MAP_END
@@ -1731,16 +1731,14 @@ static const UINT8 voltable[256] =
 
 WRITE8_MEMBER(taitosj_state::dac_out_w)
 {
-	dac_device *device = machine().device<dac_device>("dac");
 	m_dac_out = data - 0x80;
-	device->write_signed16(m_dac_out * m_dac_vol + 0x8000);
+	m_dac->write_signed16(m_dac_out * m_dac_vol + 0x8000);
 }
 
 WRITE8_MEMBER(taitosj_state::dac_vol_w)
 {
-	dac_device *device = machine().device<dac_device>("dac");
 	m_dac_vol = voltable[data];
-	device->write_signed16(m_dac_out * m_dac_vol + 0x8000);
+	m_dac->write_signed16(m_dac_out * m_dac_vol + 0x8000);
 }
 
 
@@ -2731,67 +2729,65 @@ ROM_START( kikstart )
 	ROM_LOAD( "pal16l8.28",   0x0000, 0x0104, NO_DUMP ) /* PAL is read protected */
 ROM_END
 
-static void reset_common(running_machine &machine)
+void taitosj_state::reset_common()
 {
-	taitosj_state *state = machine.driver_data<taitosj_state>();
-	state->m_sndnmi_disable = 1;
-	state->m_input_port_4_f0 = 0;
+	m_sndnmi_disable = 1;
+	m_input_port_4_f0 = 0;
 	/* start in 1st gear */
-	state->m_kikstart_gears[0] = 0x02;
-	state->m_kikstart_gears[1] = 0x02;
-	state->m_dac_out = 0;
-	state->m_dac_vol = 0;
+	m_kikstart_gears[0] = 0x02;
+	m_kikstart_gears[1] = 0x02;
+	m_dac_out = 0;
+	m_dac_vol = 0;
 }
 
-static void init_common(running_machine &machine)
+void taitosj_state::init_common()
 {
-	taitosj_state *state = machine.driver_data<taitosj_state>();
-	state->save_item(NAME(state->m_sndnmi_disable));
-	state->save_item(NAME(state->m_input_port_4_f0));
-	state->save_item(NAME(state->m_kikstart_gears));
-	state->save_item(NAME(state->m_dac_out));
-	state->save_item(NAME(state->m_dac_vol));
+	save_item(NAME(m_sndnmi_disable));
+	save_item(NAME(m_input_port_4_f0));
+	save_item(NAME(m_kikstart_gears));
+	save_item(NAME(m_dac_out));
+	save_item(NAME(m_dac_vol));
 
-	machine.add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(reset_common), &machine));
+	machine().add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(taitosj_state::reset_common), this));
 }
 
 DRIVER_INIT_MEMBER(taitosj_state,taitosj)
 {
-	init_common(machine());
+	init_common();
 }
 
 DRIVER_INIT_MEMBER(taitosj_state,spacecr)
 {
-	init_common(machine());
+	init_common();
 
 	/* install protection handler */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xd48b, 0xd48b, read8_delegate(FUNC(taitosj_state::spacecr_prot_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xd48b, 0xd48b, read8_delegate(FUNC(taitosj_state::spacecr_prot_r),this));
 }
 
 DRIVER_INIT_MEMBER(taitosj_state,alpine)
 {
-	init_common(machine());
+	init_common();
 
 	/* install protection handlers */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xd40b, 0xd40b, read8_delegate(FUNC(taitosj_state::alpine_port_2_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xd50f, 0xd50f, write8_delegate(FUNC(taitosj_state::alpine_protection_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xd40b, 0xd40b, read8_delegate(FUNC(taitosj_state::alpine_port_2_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xd50f, 0xd50f, write8_delegate(FUNC(taitosj_state::alpine_protection_w),this));
 }
 
 DRIVER_INIT_MEMBER(taitosj_state,alpinea)
 {
-	init_common(machine());
+	init_common();
 
 	/* install protection handlers */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xd40b, 0xd40b, read8_delegate(FUNC(taitosj_state::alpine_port_2_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xd50e, 0xd50e, write8_delegate(FUNC(taitosj_state::alpinea_bankswitch_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xd40b, 0xd40b, read8_delegate(FUNC(taitosj_state::alpine_port_2_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xd50e, 0xd50e, write8_delegate(FUNC(taitosj_state::alpinea_bankswitch_w),this));
 }
 
 DRIVER_INIT_MEMBER(taitosj_state,junglhbr)
 {
-	init_common(machine());
+	init_common();
 
 	/* inverter on bits 0 and 1 */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x9000, 0xbfff, write8_delegate(FUNC(taitosj_state::junglhbr_characterram_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x9000, 0xbfff, write8_delegate(FUNC(taitosj_state::junglhbr_characterram_w),this));
 }
 
 GAME( 1981, spaceskr, 0,        nomcu,    spaceskr, taitosj_state,   taitosj, ROT0,   "Taito Corporation", "Space Seeker", GAME_SUPPORTS_SAVE )

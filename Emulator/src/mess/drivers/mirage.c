@@ -134,7 +134,7 @@ UINT32 mirage_state::screen_update_mirage(screen_device &screen, bitmap_rgb32 &b
 void mirage_state::machine_reset()
 {
 	last_sndram_bank = 0;
-	membank("sndbank")->set_base(machine().root_device().memregion("es5503")->base() );
+	membank("sndbank")->set_base(memregion("es5503")->base() );
 }
 
 static ADDRESS_MAP_START( mirage_map, AS_PROGRAM, 8, mirage_state )
@@ -308,7 +308,7 @@ static MACHINE_CONFIG_START( mirage, mirage_state )
 	MCFG_ACIA6850_ADD("acia6850", mirage_acia6850_interface)
 
 	MCFG_WD1772x_ADD("wd1772", 8000000)
-	MCFG_FLOPPY_DRIVE_ADD("wd1772:0", ensoniq_floppies, "35dd", 0, mirage_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("wd1772:0", ensoniq_floppies, "35dd", mirage_state::floppy_formats)
 MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( mirage )
@@ -323,7 +323,6 @@ ROM_END
 
 DRIVER_INIT_MEMBER(mirage_state,mirage)
 {
-
 	floppy_connector *con = machine().device<floppy_connector>("wd1772:0");
 	floppy_image_device *floppy = con ? con->get_device() : 0;
 	if (floppy)

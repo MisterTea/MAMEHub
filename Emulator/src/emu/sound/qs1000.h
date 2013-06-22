@@ -59,7 +59,6 @@ class qs1000_device :   public device_t,
 						public device_memory_interface,
 						public qs1000_interface
 {
-
 public:
 	// construction/destruction
 	qs1000_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
@@ -70,8 +69,8 @@ public:
 
 protected:
 	// device-level overrides
-	const rom_entry *device_rom_region() const;
-	machine_config_constructor device_mconfig_additions() const;
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
@@ -83,6 +82,7 @@ protected:
 	// device_sound_interface overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
 
+	DECLARE_READ8_MEMBER( data_to_i8052 );
 public:
 	DECLARE_WRITE8_MEMBER( wave_w );
 

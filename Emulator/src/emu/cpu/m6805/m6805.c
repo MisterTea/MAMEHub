@@ -4,7 +4,7 @@
 
     References:
 
-        6809 Simulator V09, By L.C. Benschop, Eidnhoven The Netherlands.
+        6809 Simulator V09, By L.C. Benschop, Eindhoven The Netherlands.
 
         m6809: Portable 6809 emulator, DS (6809 code in MAME, derived from
             the 6809 Simulator V09)
@@ -538,7 +538,7 @@ UINT32 m6805_base_device::disasm_max_opcode_bytes() const
 offs_t m6805_base_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options)
 {
 	extern CPU_DISASSEMBLE( m6805 );
-	return cpu_disassemble_m6805(NULL, buffer, pc, oprom, opram, options);
+	return CPU_DISASSEMBLE_NAME(m6805)(this, buffer, pc, oprom, opram, options);
 }
 
 

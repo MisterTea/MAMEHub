@@ -38,19 +38,19 @@ Notes:
 
 WRITE8_MEMBER(retofinv_state::cpu1_reset_w)
 {
-	machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, data ? CLEAR_LINE : ASSERT_LINE);
+	m_subcpu->set_input_line(INPUT_LINE_RESET, data ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE8_MEMBER(retofinv_state::cpu2_reset_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, data ? CLEAR_LINE : ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, data ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE8_MEMBER(retofinv_state::mcu_reset_w)
 {
 	/* the bootlegs don't have a MCU, so make sure it's there before trying to reset it */
-	if (machine().device("68705") != NULL)
-		machine().device("68705")->execute().set_input_line(INPUT_LINE_RESET, data ? CLEAR_LINE : ASSERT_LINE);
+	if (m_68705 != NULL)
+		m_68705->set_input_line(INPUT_LINE_RESET, data ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE8_MEMBER(retofinv_state::cpu2_m6000_w)
@@ -66,21 +66,21 @@ READ8_MEMBER(retofinv_state::cpu0_mf800_r)
 WRITE8_MEMBER(retofinv_state::soundcommand_w)
 {
 		soundlatch_byte_w(space, 0, data);
-		machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+		m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 WRITE8_MEMBER(retofinv_state::irq0_ack_w)
 {
 	m_main_irq_mask = data & 1;
 	if (!m_main_irq_mask)
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(retofinv_state::irq1_ack_w)
 {
 	m_sub_irq_mask = data & 1;
 	if (!m_sub_irq_mask)
-		machine().device("sub")->execute().set_input_line(0, CLEAR_LINE);
+		m_subcpu->set_input_line(0, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(retofinv_state::coincounter_w)
@@ -330,14 +330,12 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(retofinv_state::main_vblank_irq)
 {
-
 	if(m_main_irq_mask)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(retofinv_state::sub_vblank_irq)
 {
-
 	if(m_sub_irq_mask)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }

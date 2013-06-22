@@ -491,11 +491,11 @@ static CPU_RESET( hc11 )
 	cpustate->tcnt = 0xffff;
 //  cpustate->por = 1; // for first timer overflow / compare stuff
 	cpustate->pr = 3; // timer prescale
+	cpustate->frc_base = 0;
 }
 
 static CPU_EXIT( hc11 )
 {
-
 }
 
 /*

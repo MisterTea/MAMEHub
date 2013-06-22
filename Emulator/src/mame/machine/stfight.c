@@ -38,7 +38,7 @@ Encryption PAL 16R4 on CPU board
 
 DRIVER_INIT_MEMBER(stfight_state,empcity)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *rom = memregion("maincpu")->base();
 	int A;
 
@@ -82,7 +82,7 @@ DRIVER_INIT_MEMBER(stfight_state,stfight)
 
 void stfight_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	m_adpcm_data_offs = m_adpcm_data_end = 0;
 	m_toggle = 0;
 	m_fm_data = 0;
@@ -109,17 +109,24 @@ WRITE8_MEMBER(stfight_state::stfight_bank_w)
  *      CPU 1 timed interrupt - 60Hz???
  */
 
-TIMER_CALLBACK_MEMBER(stfight_state::stfight_interrupt_1)
+void stfight_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	// Do a RST08
-	machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xcf);
+	switch (id)
+	{
+	case TIMER_STFIGHT_INTERRUPT_1:
+		// Do a RST08
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xcf);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in stfight_state::device_timer");
+	}
 }
 
 INTERRUPT_GEN_MEMBER(stfight_state::stfight_vb_interrupt)
 {
 	// Do a RST10
 	device.execute().set_input_line_and_vector(0, HOLD_LINE, 0xd7);
-	machine().scheduler().timer_set(attotime::from_hz(120), timer_expired_delegate(FUNC(stfight_state::stfight_interrupt_1),this));
+	timer_set(attotime::from_hz(120), TIMER_STFIGHT_INTERRUPT_1);
 }
 
 /*
@@ -186,28 +193,27 @@ static const int sampleLimits[] =
 	0x7200      // (end of samples)
 };
 
-void stfight_adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(stfight_state::stfight_adpcm_int)
 {
-	stfight_state *state = device->machine().driver_data<stfight_state>();
-	UINT8 *SAMPLES = state->memregion("adpcm")->base();
-	int adpcm_data = SAMPLES[state->m_adpcm_data_offs & 0x7fff];
+	UINT8 *SAMPLES = memregion("adpcm")->base();
+	int adpcm_data = SAMPLES[m_adpcm_data_offs & 0x7fff];
 
 	// finished playing sample?
-	if( state->m_adpcm_data_offs == state->m_adpcm_data_end )
+	if( m_adpcm_data_offs == m_adpcm_data_end )
 	{
-		msm5205_reset_w( device, 1 );
+		m_msm->reset_w(1);
 		return;
 	}
 
-	if( state->m_toggle == 0 )
-		msm5205_data_w( device, ( adpcm_data >> 4 ) & 0x0f );
+	if( m_toggle == 0 )
+		m_msm->data_w((adpcm_data >> 4) & 0x0f);
 	else
 	{
-		msm5205_data_w( device, adpcm_data & 0x0f );
-		state->m_adpcm_data_offs++;
+		m_msm->data_w(adpcm_data & 0x0f);
+		m_adpcm_data_offs++;
 	}
 
-	state->m_toggle ^= 1;
+	m_toggle ^= 1;
 }
 
 WRITE8_MEMBER(stfight_state::stfight_adpcm_control_w)
@@ -218,7 +224,7 @@ WRITE8_MEMBER(stfight_state::stfight_adpcm_control_w)
 		m_adpcm_data_end = sampleLimits[data+1];
 	}
 
-	msm5205_reset_w( machine().device("msm"), data & 0x08 ? 1 : 0 );
+	m_msm->reset_w(BIT(data, 3));
 }
 
 WRITE8_MEMBER(stfight_state::stfight_e800_w)

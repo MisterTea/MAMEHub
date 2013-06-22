@@ -79,7 +79,7 @@ public:
 static ADDRESS_MAP_START(interact_mem, AS_PROGRAM, 8, interact_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	/* Hardware address mapping*/
-/*  AM_RANGE(0x0800,0x0808) AM_WRITE_LEGACY(hector_switch_bank_w)// Bank management not udsed in BR machine*/
+/*  AM_RANGE(0x0800,0x0808) AM_WRITE(hector_switch_bank_w)// Bank management not udsed in BR machine*/
 	AM_RANGE(0x1000,0x1000) AM_WRITE(hector_color_a_w)  /* Color c0/c1*/
 	AM_RANGE(0x1800,0x1800) AM_WRITE(hector_color_b_w)  /* Color c2/c3*/
 	AM_RANGE(0x2000,0x2003) AM_WRITE(hector_sn_2000_w)  /* Sound*/
@@ -110,7 +110,7 @@ static const cassette_interface interact_cassette_interface =
 	hector_cassette_formats,
 	&interact_cassette_options,
 	(cassette_state)(CASSETTE_STOPPED | CASSETTE_MASK_SPEAKER),
-	NULL,
+	"interact_cass",
 	NULL
 };
 
@@ -122,19 +122,19 @@ DISCRETE_SOUND_END
 
 MACHINE_RESET_MEMBER(interact_state,interact)
 {
-	hector_reset(machine(), 0, 0);
+	hector_reset(0, 0);
 }
 
 MACHINE_START_MEMBER(interact_state,interact)
 {
-	hector_init(machine());
+	hector_init();
 }
 
 UINT32 interact_state::screen_update_interact(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	UINT8 *videoram = m_videoram;
 	screen.set_visible_area(0, 113, 0, 75);
-	hector_hr( machine(), bitmap, videoram,  77, 32);
+	hector_hr(bitmap, videoram,  77, 32);
 	return 0;
 }
 
@@ -161,7 +161,7 @@ static MACHINE_CONFIG_START( interact, interact_state )
 	MCFG_VIDEO_START_OVERRIDE(interact_state,hec2hrp)
 		/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)  /* Sound level for cassette, as it is in mono => output channel=0*/
 
 	MCFG_SOUND_ADD("sn76477", SN76477, 0)
@@ -172,7 +172,8 @@ static MACHINE_CONFIG_START( interact, interact_state )
 	MCFG_SOUND_CONFIG_DISCRETE( hec2hrp )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, interact_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", interact_cassette_interface )
+	MCFG_SOFTWARE_LIST_ADD("cass_list","interact")
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")
@@ -202,7 +203,7 @@ static MACHINE_CONFIG_START( hector1, interact_state )
 	MCFG_VIDEO_START_OVERRIDE(interact_state,hec2hrp)
 		/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)/* Sound level for cassette, as it is in mono => output channel=0*/
 
 	MCFG_SOUND_ADD("sn76477", SN76477, 0)
@@ -213,7 +214,7 @@ static MACHINE_CONFIG_START( hector1, interact_state )
 	MCFG_SOUND_CONFIG_DISCRETE( hec2hrp )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, interact_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", interact_cassette_interface )
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")

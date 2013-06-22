@@ -9,7 +9,7 @@
 
 void shootout_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 
@@ -67,35 +67,31 @@ TILE_GET_INFO_MEMBER(shootout_state::get_fg_tile_info)
 
 WRITE8_MEMBER(shootout_state::shootout_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_background->mark_tile_dirty(offset&0x3ff );
 }
 
 WRITE8_MEMBER(shootout_state::shootout_textram_w)
 {
-
 	m_textram[offset] = data;
 	m_foreground->mark_tile_dirty(offset&0x3ff );
 }
 
 void shootout_state::video_start()
 {
-
 	m_background = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(shootout_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_foreground = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(shootout_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_foreground->set_transparent_pen(0 );
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int bank_bits )
+void shootout_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int bank_bits )
 {
-	shootout_state *state = machine.driver_data<shootout_state>();
-	UINT8 *spriteram = state->m_spriteram;
-	gfx_element *gfx = machine.gfx[1];
+	UINT8 *spriteram = m_spriteram;
+	gfx_element *gfx = machine().gfx[1];
 	const UINT8 *source = spriteram+127*4;
 	int count;
 
-	state->m_bFlicker = !state->m_bFlicker;
+	m_bFlicker = !m_bFlicker;
 
 	for( count=0; count<128; count++ )
 	{
@@ -110,7 +106,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		    -------x    enable
 		*/
 		if ( attributes & 0x01 ){ /* visible */
-			if( state->m_bFlicker || (attributes&0x02)==0 ){
+			if( m_bFlicker || (attributes&0x02)==0 ){
 				int priority_mask = (attributes&0x08)?0x2:0;
 				int sx = (240 - source[2])&0xff;
 				int sy = (240 - source[0])&0xff;
@@ -119,7 +115,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 				int flipx = (attributes & 0x04);
 				int flipy = 0;
 
-				if (state->flip_screen()) {
+				if (flip_screen()) {
 					flipx = !flipx;
 					flipy = !flipy;
 				}
@@ -130,7 +126,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 					vx = sx;
 					vy = sy;
-					if (state->flip_screen()) {
+					if (flip_screen()) {
 						vx = 240 - vx;
 						vy = 240 - vy;
 					}
@@ -140,7 +136,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 						0 /*color*/,
 						flipx,flipy,
 						vx,vy,
-						machine.priority_bitmap,
+						machine().priority_bitmap,
 						priority_mask,0);
 
 					number++;
@@ -149,7 +145,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 				vx = sx;
 				vy = sy;
-				if (state->flip_screen()) {
+				if (flip_screen()) {
 					vx = 240 - vx;
 					vy = 240 - vy;
 				}
@@ -159,7 +155,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 						0 /*color*/,
 						flipx,flipy,
 						vx,vy,
-						machine.priority_bitmap,
+						machine().priority_bitmap,
 						priority_mask,0);
 			}
 		}
@@ -169,22 +165,20 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 UINT32 shootout_state::screen_update_shootout(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	machine().priority_bitmap.fill(0, cliprect);
 
 	m_background->draw(bitmap, cliprect, 0,0);
 	m_foreground->draw(bitmap, cliprect, 0,1);
-	draw_sprites(machine(), bitmap,cliprect,3/*bank bits */);
+	draw_sprites(bitmap,cliprect,3/*bank bits */);
 	return 0;
 }
 
 UINT32 shootout_state::screen_update_shootouj(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	machine().priority_bitmap.fill(0, cliprect);
 
 	m_background->draw(bitmap, cliprect, 0,0);
 	m_foreground->draw(bitmap, cliprect, 0,1);
-	draw_sprites(machine(), bitmap,cliprect,2/*bank bits*/);
+	draw_sprites(bitmap,cliprect,2/*bank bits*/);
 	return 0;
 }

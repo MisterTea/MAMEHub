@@ -42,19 +42,21 @@ class murogmbl_state : public driver_device
 {
 public:
 	murogmbl_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_video(*this, "video"){ }
+		: driver_device(mconfig, type, tag),
+		m_video(*this, "video"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_video;
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_murogmbl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
 void murogmbl_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
 	int i;
 
@@ -92,7 +94,6 @@ ADDRESS_MAP_END
 
 void murogmbl_state::video_start()
 {
-
 }
 
 UINT32 murogmbl_state::screen_update_murogmbl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)

@@ -24,9 +24,8 @@ struct kcc_header
 /* now type name that has appeared! */
 
 /* load snapshot */
-QUICKLOAD_LOAD(kc)
+QUICKLOAD_LOAD_MEMBER( kc_state,kc)
 {
-	kc_state *state = image.device().machine().driver_data<kc_state>();
 	UINT8 *data;
 	struct kcc_header *header;
 	int addr;
@@ -40,7 +39,7 @@ QUICKLOAD_LOAD(kc)
 	if (datasize != 0)
 	{
 		/* malloc memory for this data */
-		data = (UINT8 *)auto_alloc_array(image.device().machine(), UINT8, datasize);
+		data = (UINT8 *)auto_alloc_array(machine(), UINT8, datasize);
 
 		if (data != NULL)
 			image.fread( data, datasize);
@@ -61,7 +60,7 @@ QUICKLOAD_LOAD(kc)
 		datasize = image.length() - 128;
 	}
 
-	address_space &space = state->m_maincpu->space( AS_PROGRAM );
+	address_space &space = m_maincpu->space( AS_PROGRAM );
 
 	for (i=0; i<datasize; i++)
 		space.write_byte((addr+i) & 0xffff, data[i+128]);
@@ -69,10 +68,10 @@ QUICKLOAD_LOAD(kc)
 	if (execution_address != 0 && header->number_addresses >= 3 )
 	{
 		// if specified, jumps to the quickload start address
-		state->m_maincpu->set_pc(execution_address);
+		m_maincpu->set_pc(execution_address);
 	}
 
-	auto_free(image.device().machine(), data);
+	auto_free(machine(), data);
 
 	logerror("Snapshot loaded at: 0x%04x-0x%04x, execution address: 0x%04x\n", addr, addr + datasize - 1, execution_address);
 
@@ -212,7 +211,6 @@ void kc_state::update_cassette(int state)
 
 TIMER_CALLBACK_MEMBER(kc_state::kc_cassette_oneshot_timer)
 {
-
 	update_cassette(0);
 
 	m_cassette_oneshot_timer->reset();
@@ -222,7 +220,6 @@ TIMER_CALLBACK_MEMBER(kc_state::kc_cassette_oneshot_timer)
 // enabled only when cassette motor is on
 TIMER_CALLBACK_MEMBER(kc_state::kc_cassette_timer_callback)
 {
-
 	// read cassette data
 	int bit = (m_cassette->input() > 0.0038) ? 1 : 0;
 
@@ -741,7 +738,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(kc_state::kc_scanline)
 void kc_state::speaker_update()
 {
 	/* this might not be correct, the range might be logarithmic and not linear! */
-	speaker_level_w(m_speaker, m_k0_line ? (m_speaker_level | (m_k1_line ? 0x01 : 0)) : 0);
+	m_speaker->level_w(m_k0_line ? (m_speaker_level | (m_k1_line ? 0x01 : 0)) : 0);
 }
 
 /* keyboard callback */

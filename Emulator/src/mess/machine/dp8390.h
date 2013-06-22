@@ -26,14 +26,13 @@ class dp8390_device : public device_t,
 {
 public:
 	// construction/destruction
-	dp8390_device(const machine_config &mconfig, device_type type, const char* name, const char *tag, device_t *owner, UINT32 clock, float bandwidth);
+	dp8390_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, float bandwidth, const char *shortname, const char *source);
 
 	DECLARE_WRITE16_MEMBER( dp8390_w );
 	DECLARE_READ16_MEMBER( dp8390_r );
 	DECLARE_WRITE_LINE_MEMBER( dp8390_cs );
 	DECLARE_WRITE_LINE_MEMBER( dp8390_reset );
 	void recv_cb(UINT8 *buf, int len);
-	bool mcast_chk(const UINT8* buf, int len);
 
 protected:
 	// device-level overrides

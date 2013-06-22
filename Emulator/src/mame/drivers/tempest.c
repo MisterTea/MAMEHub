@@ -286,7 +286,12 @@ class tempest_state : public driver_device
 {
 public:
 	tempest_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_mathbox(*this, "mathbox") { }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<mathbox_device> m_mathbox;
 
 	UINT8 m_player_select;
 	DECLARE_WRITE8_MEMBER(wdclr_w);
@@ -324,7 +329,7 @@ void tempest_state::machine_start()
 
 WRITE8_MEMBER(tempest_state::wdclr_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 	machine().watchdog_reset();
 }
 
@@ -348,19 +353,19 @@ CUSTOM_INPUT_MEMBER(tempest_state::tempest_buttons_r)
 CUSTOM_INPUT_MEMBER(tempest_state::clock_r)
 {
 	/* Emulate the 3kHz source on bit 7 (divide 1.5MHz by 512) */
-	return (machine().device<cpu_device>("maincpu")->total_cycles() & 0x100) ? 1 : 0;
+	return (m_maincpu->total_cycles() & 0x100) ? 1 : 0;
 }
 
 
 READ8_MEMBER(tempest_state::input_port_1_bit_r)
 {
-	return (machine().root_device().ioport("IN1/DSW0")->read() & (1 << offset)) ? 0 : 228;
+	return (ioport("IN1/DSW0")->read() & (1 << offset)) ? 0 : 228;
 }
 
 
 READ8_MEMBER(tempest_state::input_port_2_bit_r)
 {
-	return (machine().root_device().ioport("IN2")->read() & (1 << offset)) ? 0 : 228;
+	return (ioport("IN2")->read() & (1 << offset)) ? 0 : 228;
 }
 
 
@@ -410,11 +415,11 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, tempest_state )
 	AM_RANGE(0x5000, 0x5000) AM_WRITE(wdclr_w)
 	AM_RANGE(0x5800, 0x5800) AM_WRITE_LEGACY(avgdvg_reset_w)
 	AM_RANGE(0x6000, 0x603f) AM_DEVWRITE("earom", atari_vg_earom_device, write)
-	AM_RANGE(0x6040, 0x6040) AM_DEVREAD_LEGACY("mathbox", mathbox_status_r) AM_DEVWRITE("earom", atari_vg_earom_device, ctrl_w)
+	AM_RANGE(0x6040, 0x6040) AM_DEVREAD("mathbox", mathbox_device, status_r) AM_DEVWRITE("earom", atari_vg_earom_device, ctrl_w)
 	AM_RANGE(0x6050, 0x6050) AM_DEVREAD("earom", atari_vg_earom_device, read)
-	AM_RANGE(0x6060, 0x6060) AM_DEVREAD_LEGACY("mathbox", mathbox_lo_r)
-	AM_RANGE(0x6070, 0x6070) AM_DEVREAD_LEGACY("mathbox", mathbox_hi_r)
-	AM_RANGE(0x6080, 0x609f) AM_DEVWRITE_LEGACY("mathbox", mathbox_go_w)
+	AM_RANGE(0x6060, 0x6060) AM_DEVREAD("mathbox", mathbox_device, lo_r)
+	AM_RANGE(0x6070, 0x6070) AM_DEVREAD("mathbox", mathbox_device, hi_r)
+	AM_RANGE(0x6080, 0x609f) AM_DEVWRITE("mathbox", mathbox_device, go_w)
 	AM_RANGE(0x60c0, 0x60cf) AM_DEVREADWRITE("pokey1", pokey_device, read, write)
 	AM_RANGE(0x60d0, 0x60df) AM_DEVREADWRITE("pokey2", pokey_device, read, write)
 	AM_RANGE(0x60e0, 0x60e0) AM_WRITE(tempest_led_w)

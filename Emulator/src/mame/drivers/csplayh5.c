@@ -32,7 +32,9 @@ public:
 	csplayh5_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
-		m_v9958(*this,"v9958")
+		m_v9958(*this,"v9958"),
+		m_dac1(*this, "dac1"),
+		m_dac2(*this, "dac2")
 		{ }
 
 	UINT16 m_mux_data;
@@ -81,6 +83,9 @@ public:
 	DECLARE_DRIVER_INIT(junai2);
 	virtual void machine_reset();
 	TIMER_DEVICE_CALLBACK_MEMBER(csplayh5_irq);
+	DECLARE_WRITE_LINE_MEMBER(csplayh5_vdp0_interrupt);
+	required_device<dac_device> m_dac1;
+	required_device<dac_device> m_dac2;
 };
 
 
@@ -95,7 +100,7 @@ public:
 #define MSX2_VISIBLE_XBORDER_PIXELS 8 * 2
 #define MSX2_VISIBLE_YBORDER_PIXELS 14 * 2
 
-static void csplayh5_vdp0_interrupt(device_t *, v99x8_device &device, int i)
+WRITE_LINE_MEMBER(csplayh5_state::csplayh5_vdp0_interrupt)
 {
 	/* this is not used as the v9938 interrupt callbacks are broken
 	   interrupts seem to be fired quite randomly */
@@ -234,10 +239,10 @@ WRITE8_MEMBER(csplayh5_state::tmpz84c011_pio_w)
 			csplayh5_soundbank_w(machine(), data & 0x03);
 			break;
 		case 1:         /* PB_0 */
-			machine().device<dac_device>("dac2")->DAC_WRITE(data);
+			m_dac2->DAC_WRITE(data);
 			break;
 		case 2:         /* PC_0 */
-			machine().device<dac_device>("dac1")->DAC_WRITE(data);
+			m_dac1->DAC_WRITE(data);
 			break;
 		case 3:         /* PD_0 */
 			break;
@@ -380,7 +385,7 @@ static ADDRESS_MAP_START( csplayh5_sound_io_map, AS_IO, 8, csplayh5_state )
 	AM_RANGE(0x56, 0x56) AM_READWRITE(tmpz84c011_0_dir_pc_r, tmpz84c011_0_dir_pc_w)
 	AM_RANGE(0x34, 0x34) AM_READWRITE(tmpz84c011_0_dir_pd_r, tmpz84c011_0_dir_pd_w)
 	AM_RANGE(0x44, 0x44) AM_READWRITE(tmpz84c011_0_dir_pe_r, tmpz84c011_0_dir_pe_w)
-	AM_RANGE(0x80, 0x81) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ymsnd", ym3812_device, write)
 ADDRESS_MAP_END
 
 
@@ -586,7 +591,7 @@ static Z80CTC_INTERFACE( ctc_intf )
 
 void csplayh5_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i;
 
 	// initialize TMPZ84C011 PIO
@@ -645,7 +650,7 @@ static MACHINE_CONFIG_START( csplayh5, csplayh5_state )
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 
 	MCFG_V9958_ADD("v9958", "screen", 0x20000)
-	MCFG_V99X8_INTERRUPT_CALLBACK_STATIC(csplayh5_vdp0_interrupt)
+	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(csplayh5_state, csplayh5_vdp0_interrupt))
 
 	MCFG_SCREEN_ADD("screen",RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)

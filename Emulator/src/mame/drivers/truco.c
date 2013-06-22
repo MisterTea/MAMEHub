@@ -238,7 +238,7 @@ WRITE8_MEMBER(truco_state::portb_w)
 {
 	if ((data & 0x80) | (data == 0))
 	{
-		machine().device<dac_device>("dac")->write_unsigned8(data & 0x80);  /* Isolated the bit for Delta-Sigma DAC */
+		m_dac->write_unsigned8(data & 0x80);  /* Isolated the bit for Delta-Sigma DAC */
 	}
 	else
 		logerror("Port B writes: %2x\n", data);
@@ -397,7 +397,7 @@ INTERRUPT_GEN_MEMBER(truco_state::truco_interrupt)
 	{
 		if ( m_trigger == 0 )
 		{
-			generic_pulse_irq_line(device.execute(), M6809_IRQ_LINE, 1);
+			device.execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 			m_trigger++;
 		}
 	} else
@@ -432,9 +432,10 @@ static const pia6821_interface pia0_intf =
 *              CRTC Interface              *
 *******************************************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	4,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */

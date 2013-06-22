@@ -27,8 +27,8 @@ public:
 	h8_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
-	//m_cass(*this, CASSETTE_TAG),
-	m_beep(*this, BEEPER_TAG)
+	//m_cass(*this, "cassette"),
+	m_beep(*this, "beeper")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -56,7 +56,7 @@ public:
 TIMER_DEVICE_CALLBACK_MEMBER(h8_state::h8_irq_pulse)
 {
 	if (m_irq_ctl & 1)
-		machine().device("maincpu")->execute().set_input_line_and_vector(INPUT_LINE_IRQ0, ASSERT_LINE, 0xcf);
+		m_maincpu->set_input_line_and_vector(INPUT_LINE_IRQ0, ASSERT_LINE, 0xcf);
 }
 
 READ8_MEMBER( h8_state::h8_f0_r )
@@ -102,9 +102,9 @@ WRITE8_MEMBER( h8_state::h8_f0_w )
 	if (m_digit) output_set_digit_value(m_digit, m_segment);
 
 	output_set_value("mon_led",(data & 0x20) ? 0 : 1);
-	beep_set_state(m_beep, (data & 0x80) ? 0 : 1);
+	m_beep->set_state((data & 0x80) ? 0 : 1);
 
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 	m_irq_ctl &= 0xf0;
 	if (data & 0x40) m_irq_ctl |= 1;
 	if (~data & 0x10) m_irq_ctl |= 2;
@@ -167,7 +167,7 @@ INPUT_PORTS_END
 
 void h8_state::machine_reset()
 {
-	beep_set_frequency(m_beep, H8_BEEP_FRQ);
+	m_beep->set_frequency(H8_BEEP_FRQ);
 	output_set_value("pwr_led", 0);
 	m_irq_ctl = 1;
 }
@@ -196,7 +196,7 @@ But, all of this can only occur if bit 5 of port F0 is low. */
 			c=m_ff_b^1; // from /Q of 2nd flipflop
 			m_ff_b=a; // from Q of 1st flipflop
 			if (c)
-				machine().device("maincpu")->execute().set_input_line_and_vector(INPUT_LINE_IRQ0, ASSERT_LINE, 0xd7);
+				m_maincpu->set_input_line_and_vector(INPUT_LINE_IRQ0, ASSERT_LINE, 0xd7);
 		}
 	}
 	else
@@ -232,7 +232,7 @@ static MACHINE_CONFIG_START( h8, h8_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 

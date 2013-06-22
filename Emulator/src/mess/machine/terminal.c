@@ -136,19 +136,23 @@ static const UINT8 terminal_font[256*16] =
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-generic_terminal_device::generic_terminal_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock)
+generic_terminal_device::generic_terminal_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+		m_io_term_frame(*this, "TERM_FRAME"),
+		m_io_term_conf(*this, "TERM_CONF")
 {
 }
 
 generic_terminal_device::generic_terminal_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, GENERIC_TERMINAL, "Generic Terminal", tag, owner, clock)
+	: device_t(mconfig, GENERIC_TERMINAL, "Generic Terminal", tag, owner, clock),
+		m_io_term_frame(*this, "TERM_FRAME"),
+		m_io_term_conf(*this, "TERM_CONF")
 {
 }
 
 void generic_terminal_device::scroll_line()
 {
-	memcpy(m_buffer,m_buffer+TERMINAL_WIDTH,(TERMINAL_HEIGHT-1)*TERMINAL_WIDTH);
+	memmove(m_buffer,m_buffer+TERMINAL_WIDTH,(TERMINAL_HEIGHT-1)*TERMINAL_WIDTH);
 	memset(m_buffer + TERMINAL_WIDTH*(TERMINAL_HEIGHT-1),0x20,TERMINAL_WIDTH);
 }
 
@@ -227,7 +231,7 @@ void generic_terminal_device::term_write(UINT8 data)
 ***************************************************************************/
 UINT32 generic_terminal_device::update(screen_device &device, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	UINT8 options = ioport("TERM_CONF")->read();
+	UINT8 options = m_io_term_conf->read();
 	UINT16 cursor = m_y_pos * TERMINAL_WIDTH + m_x_pos;
 	UINT8 y,ra,chr,gfx;
 	UINT16 sy=0,ma=0,x;
@@ -347,6 +351,7 @@ void generic_terminal_device::device_config_complete()
 void generic_terminal_device::device_reset()
 {
 	clear();
+	m_framecnt = 0;
 	//m_timer->adjust(attotime::from_hz(2400), 0, attotime::from_hz(2400));
 }
 
@@ -418,6 +423,7 @@ static INPUT_PORTS_START(serial_terminal)
 	PORT_INCLUDE(generic_terminal)
 	PORT_START("TERM_FRAME")
 	PORT_CONFNAME(0x0f, 0x06, "Baud") PORT_CHANGED_MEMBER(DEVICE_SELF, serial_terminal_device, update_frame, 0)
+	PORT_CONFSETTING( 0x0d, "110")
 	PORT_CONFSETTING( 0x00, "150")
 	PORT_CONFSETTING( 0x01, "300")
 	PORT_CONFSETTING( 0x02, "600")
@@ -434,6 +440,8 @@ static INPUT_PORTS_START(serial_terminal)
 	PORT_CONFNAME(0x30, 0x00, "Format") PORT_CHANGED_MEMBER(DEVICE_SELF, serial_terminal_device, update_frame, 0)
 	PORT_CONFSETTING( 0x00, "8N1")
 	PORT_CONFSETTING( 0x10, "7E1")
+	PORT_CONFSETTING( 0x20, "8N2")
+	PORT_CONFSETTING( 0x30, "8E1")
 INPUT_PORTS_END
 
 ioport_constructor serial_terminal_device::device_input_ports() const
@@ -442,7 +450,7 @@ ioport_constructor serial_terminal_device::device_input_ports() const
 }
 
 serial_terminal_device::serial_terminal_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: generic_terminal_device(mconfig, SERIAL_TERMINAL, "Serial Terminal", tag, owner, clock),
+	: generic_terminal_device(mconfig, SERIAL_TERMINAL, "Serial Terminal", tag, owner, clock, "serial_terminal", __FILE__),
 		device_serial_interface(mconfig, *this),
 		device_serial_port_interface(mconfig, *this)
 {
@@ -459,10 +467,9 @@ void serial_terminal_device::device_config_complete()
 	{
 		memset(&m_out_tx_cb, 0, sizeof(m_out_tx_cb));
 	}
-	m_shortname = "serial_terminal";
 }
 
-static int rates[] = {150, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 57600, 115200};
+static int rates[] = {150, 300, 600, 1200, 2400, 4800, 9600, 14400, 19200, 28800, 38400, 57600, 115200, 110};
 
 void serial_terminal_device::device_start()
 {
@@ -479,7 +486,19 @@ void serial_terminal_device::device_start()
 
 INPUT_CHANGED_MEMBER(serial_terminal_device::update_frame)
 {
-	UINT8 val = ioport("TERM_FRAME")->read();
+	device_reset();
+}
+
+void serial_terminal_device::device_reset()
+{
+	generic_terminal_device::device_reset();
+	m_rbit = 1;
+	if(m_slot)
+		m_owner->out_rx(m_rbit);
+	else
+		m_out_tx_func(m_rbit);
+
+	UINT8 val = m_io_term_frame->read();
 	set_tra_rate(rates[val & 0x0f]);
 	set_rcv_rate(rates[val & 0x0f]);
 
@@ -492,17 +511,13 @@ INPUT_CHANGED_MEMBER(serial_terminal_device::update_frame)
 	default:
 		set_data_frame(8, 1, SERIAL_PARITY_NONE);
 		break;
+	case 0x20:
+		set_data_frame(8, 2, SERIAL_PARITY_NONE);
+		break;
+	case 0x30:
+		set_data_frame(8, 1, SERIAL_PARITY_EVEN);
+		break;
 	}
-}
-
-void serial_terminal_device::device_reset()
-{
-	generic_terminal_device::device_reset();
-	m_rbit = 1;
-	if(m_slot)
-		m_owner->out_rx(m_rbit);
-	else
-		m_out_tx_func(m_rbit);
 }
 
 void serial_terminal_device::send_key(UINT8 code)

@@ -51,8 +51,10 @@ class chinsan_state : public driver_device
 {
 public:
 	chinsan_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_video(*this, "video"){ }
+		: driver_device(mconfig, type, tag),
+		m_video(*this, "video"),
+		m_maincpu(*this, "maincpu"),
+		m_adpcm(*this, "adpcm") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_video;
@@ -76,6 +78,9 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_chinsan(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(chin_adpcm_int);
+	required_device<cpu_device> m_maincpu;
+	required_device<msm5205_device> m_adpcm;
 };
 
 
@@ -87,7 +92,7 @@ public:
 
 void chinsan_state::palette_init()
 {
-	UINT8 *src = machine().root_device().memregion( "color_proms" )->base();
+	UINT8 *src = memregion( "color_proms" )->base();
 	int i;
 
 	for (i = 0; i < 0x100; i++)
@@ -142,22 +147,18 @@ WRITE8_MEMBER(chinsan_state::ym_port_w2)
 }
 
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW1"),
-		DEVCB_INPUT_PORT("DSW2"),
-		DEVCB_DRIVER_MEMBER(chinsan_state,ym_port_w1),
-		DEVCB_DRIVER_MEMBER(chinsan_state,ym_port_w2)
-	},
-	DEVCB_NULL
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_INPUT_PORT("DSW2"),
+	DEVCB_DRIVER_MEMBER(chinsan_state,ym_port_w1),
+	DEVCB_DRIVER_MEMBER(chinsan_state,ym_port_w2)
 };
 
 WRITE8_MEMBER(chinsan_state::chinsan_port00_w)
 {
-
 	m_port_select = data;
 
 	if (
@@ -174,7 +175,6 @@ WRITE8_MEMBER(chinsan_state::chinsan_port00_w)
 
 READ8_MEMBER(chinsan_state::chinsan_input_port_0_r)
 {
-
 	//return 0xff; // the inputs don't seem to work, so just return ff for now
 
 	switch (m_port_select)
@@ -206,7 +206,6 @@ READ8_MEMBER(chinsan_state::chinsan_input_port_0_r)
 
 READ8_MEMBER(chinsan_state::chinsan_input_port_1_r)
 {
-
 	switch (m_port_select)
 	{
 		/* i doubt these are both really the same.. */
@@ -236,10 +235,9 @@ READ8_MEMBER(chinsan_state::chinsan_input_port_1_r)
 
 WRITE8_MEMBER(chinsan_state::chin_adpcm_w)
 {
-	device_t *device = machine().device("adpcm");
 	m_adpcm_pos = (data & 0xff) * 0x100;
 	m_adpcm_idle = 0;
-	msm5205_reset_w(device, 0);
+	m_adpcm->reset_w(0);
 }
 
 /*************************************
@@ -260,7 +258,7 @@ static ADDRESS_MAP_START( chinsan_io, AS_IO, 8, chinsan_state )
 	AM_RANGE(0x00, 0x00) AM_WRITE(chinsan_port00_w)
 	AM_RANGE(0x01, 0x01) AM_READ(chinsan_input_port_0_r)
 	AM_RANGE(0x02, 0x02) AM_READ(chinsan_input_port_1_r)
-	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x20, 0x20) AM_WRITE(chin_adpcm_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(ctrl_w)   // ROM bank + unknown stuff (input mutliplex?)
 ADDRESS_MAP_END
@@ -538,35 +536,33 @@ GFXDECODE_END
  *
  *************************************/
 
-static void chin_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(chinsan_state::chin_adpcm_int)
 {
-	chinsan_state *state = device->machine().driver_data<chinsan_state>();
-
-	if (state->m_adpcm_pos >= 0x10000 || state->m_adpcm_idle)
+	if (m_adpcm_pos >= 0x10000 || m_adpcm_idle)
 	{
-		//state->m_adpcm_idle = 1;
-		msm5205_reset_w(device, 1);
-		state->m_trigger = 0;
+		//m_adpcm_idle = 1;
+		m_adpcm->reset_w(1);
+		m_trigger = 0;
 	}
 	else
 	{
-		UINT8 *ROM = device->machine().root_device().memregion("adpcm")->base();
+		UINT8 *ROM = memregion("adpcm")->base();
 
-		state->m_adpcm_data = ((state->m_trigger ? (ROM[state->m_adpcm_pos] & 0x0f) : (ROM[state->m_adpcm_pos] & 0xf0) >> 4));
-		msm5205_data_w(device, state->m_adpcm_data & 0xf);
-		state->m_trigger ^= 1;
-		if(state->m_trigger == 0)
+		m_adpcm_data = ((m_trigger ? (ROM[m_adpcm_pos] & 0x0f) : (ROM[m_adpcm_pos] & 0xf0) >> 4));
+		m_adpcm->data_w(m_adpcm_data & 0xf);
+		m_trigger ^= 1;
+		if(m_trigger == 0)
 		{
-			state->m_adpcm_pos++;
-			if ((ROM[state->m_adpcm_pos] & 0xff) == 0x70)
-				state->m_adpcm_idle = 1;
+			m_adpcm_pos++;
+			if ((ROM[m_adpcm_pos] & 0xff) == 0x70)
+				m_adpcm_idle = 1;
 		}
 	}
 }
 
 static const msm5205_interface msm5205_config =
 {
-	chin_adpcm_int, /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(chinsan_state,chin_adpcm_int), /* interrupt function */
 	MSM5205_S64_4B  /* 8kHz */
 };
 
@@ -578,7 +574,6 @@ static const msm5205_interface msm5205_config =
 
 void chinsan_state::machine_start()
 {
-
 	membank("bank1")->configure_entries(0, 4, memregion("maincpu")->base() + 0x10000, 0x4000);
 
 	save_item(NAME(m_adpcm_idle));
@@ -590,7 +585,6 @@ void chinsan_state::machine_start()
 
 void chinsan_state::machine_reset()
 {
-
 	m_adpcm_idle = 1;
 	m_port_select = 0;
 	m_adpcm_pos = 0;
@@ -624,7 +618,7 @@ static MACHINE_CONFIG_START( chinsan, chinsan_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000) /* ? Mhz */
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)

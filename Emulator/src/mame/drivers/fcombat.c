@@ -36,7 +36,6 @@ inputs + notes by stephh
 
 INPUT_CHANGED_MEMBER(fcombat_state::coin_inserted)
 {
-
 	/* coin insertion causes an NMI */
 	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
 }
@@ -105,7 +104,6 @@ READ8_MEMBER(fcombat_state::e300_r)
 
 WRITE8_MEMBER(fcombat_state::ee00_w)
 {
-
 }
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, fcombat_state )
@@ -133,12 +131,12 @@ static ADDRESS_MAP_START( audio_map, AS_PROGRAM, 8, fcombat_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x47ff) AM_RAM
 	AM_RANGE(0x6000, 0x6000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x8001, 0x8001) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x8002, 0x8003) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0xa002, 0xa003) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
-	AM_RANGE(0xc001, 0xc001) AM_DEVREAD_LEGACY("ay3", ay8910_r)
-	AM_RANGE(0xc002, 0xc003) AM_DEVWRITE_LEGACY("ay3", ay8910_data_address_w)
+	AM_RANGE(0x8001, 0x8001) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x8002, 0x8003) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0xa002, 0xa003) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
+	AM_RANGE(0xc001, 0xc001) AM_DEVREAD("ay3", ay8910_device, data_r)
+	AM_RANGE(0xc002, 0xc003) AM_DEVWRITE("ay3", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 
@@ -259,9 +257,6 @@ GFXDECODE_END
 
 void fcombat_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_cocktail_flip));
 	save_item(NAME(m_char_palette));
 	save_item(NAME(m_sprite_palette));
@@ -274,7 +269,6 @@ void fcombat_state::machine_start()
 
 void fcombat_state::machine_reset()
 {
-
 	m_cocktail_flip = 0;
 	m_char_palette = 0;
 	m_sprite_palette = 0;
@@ -333,8 +327,8 @@ DRIVER_INIT_MEMBER(fcombat_state,fcombat)
 
 	/* make a temporary copy of the character data */
 	src = temp;
-	dst = machine().root_device().memregion("gfx1")->base();
-	length = machine().root_device().memregion("gfx1")->bytes();
+	dst = memregion("gfx1")->base();
+	length = memregion("gfx1")->bytes();
 	memcpy(src, dst, length);
 
 	/* decode the characters */
@@ -351,8 +345,8 @@ DRIVER_INIT_MEMBER(fcombat_state,fcombat)
 
 	/* make a temporary copy of the sprite data */
 	src = temp;
-	dst = machine().root_device().memregion("gfx2")->base();
-	length = machine().root_device().memregion("gfx2")->bytes();
+	dst = memregion("gfx2")->base();
+	length = memregion("gfx2")->bytes();
 	memcpy(src, dst, length);
 
 	/* decode the sprites */
@@ -372,8 +366,8 @@ DRIVER_INIT_MEMBER(fcombat_state,fcombat)
 
 	/* make a temporary copy of the character data */
 	src = temp;
-	dst = machine().root_device().memregion("gfx3")->base();
-	length = machine().root_device().memregion("gfx3")->bytes();
+	dst = memregion("gfx3")->base();
+	length = memregion("gfx3")->bytes();
 	memcpy(src, dst, length);
 
 	/* decode the characters */
@@ -391,8 +385,8 @@ DRIVER_INIT_MEMBER(fcombat_state,fcombat)
 	}
 
 	src = temp;
-	dst = machine().root_device().memregion("user1")->base();
-	length = machine().root_device().memregion("user1")->bytes();
+	dst = memregion("user1")->base();
+	length = memregion("user1")->bytes();
 	memcpy(src, dst, length);
 
 	for (oldaddr = 0; oldaddr < 32; oldaddr++)
@@ -403,8 +397,8 @@ DRIVER_INIT_MEMBER(fcombat_state,fcombat)
 
 
 	src = temp;
-	dst = machine().root_device().memregion("user2")->base();
-	length = machine().root_device().memregion("user2")->bytes();
+	dst = memregion("user2")->base();
+	length = memregion("user2")->bytes();
 	memcpy(src, dst, length);
 
 	for (oldaddr = 0; oldaddr < 32; oldaddr++)

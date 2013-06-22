@@ -27,9 +27,10 @@ class cardline_state : public driver_device
 {
 public:
 	cardline_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu") { }
 
 	int m_video;
 	required_shared_ptr<UINT8> m_videoram;
@@ -42,6 +43,7 @@ public:
 	DECLARE_WRITE8_MEMBER(lamps_w);
 	virtual void palette_init();
 	UINT32 screen_update_cardline(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -187,7 +189,7 @@ GFXDECODE_END
 
 void cardline_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i,r,g,b,data;
 	int bit0,bit1,bit2;
 	for (i = 0;i < machine().total_colors();i++)

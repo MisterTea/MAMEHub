@@ -230,12 +230,17 @@ class nmg5_state : public driver_device
 {
 public:
 	nmg5_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_scroll_ram(*this, "scroll_ram"),
 		m_bg_videoram(*this, "bg_videoram"),
 		m_fg_videoram(*this, "fg_videoram"),
-		m_bitmap(*this, "bitmap"){ }
+		m_bitmap(*this, "bitmap"),
+		m_sprgen(*this, "spritegen"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_oki(*this, "oki")
+	{ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_spriteram;
@@ -243,6 +248,7 @@ public:
 	required_shared_ptr<UINT16> m_bg_videoram;
 	required_shared_ptr<UINT16> m_fg_videoram;
 	required_shared_ptr<UINT16> m_bitmap;
+	optional_device<decospr_device> m_sprgen;
 //  UINT16 *  m_paletteram;    // currently this uses generic palette handling
 
 	/* video-related */
@@ -256,8 +262,9 @@ public:
 	UINT8 m_gfx_bank;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_soundcpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	required_device<okim6295_device> m_oki;
 	DECLARE_WRITE16_MEMBER(fg_videoram_w);
 	DECLARE_WRITE16_MEMBER(bg_videoram_w);
 	DECLARE_WRITE16_MEMBER(nmg5_soundlatch_w);
@@ -276,6 +283,8 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_nmg5(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_bitmap( bitmap_ind16 &bitmap );
+	DECLARE_WRITE_LINE_MEMBER(soundirq);
 };
 
 
@@ -294,7 +303,6 @@ WRITE16_MEMBER(nmg5_state::bg_videoram_w)
 
 WRITE16_MEMBER(nmg5_state::nmg5_soundlatch_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xff);
@@ -314,7 +322,6 @@ WRITE16_MEMBER(nmg5_state::prot_w)
 
 WRITE16_MEMBER(nmg5_state::gfx_bank_w)
 {
-
 	if (m_gfx_bank != (data & 3))
 	{
 		m_gfx_bank = data & 3;
@@ -324,7 +331,6 @@ WRITE16_MEMBER(nmg5_state::gfx_bank_w)
 
 WRITE16_MEMBER(nmg5_state::priority_reg_w)
 {
-
 	m_priority_reg = data & 7;
 
 	if (m_priority_reg == 4 || m_priority_reg == 5 || m_priority_reg == 6)
@@ -333,8 +339,7 @@ WRITE16_MEMBER(nmg5_state::priority_reg_w)
 
 WRITE8_MEMBER(nmg5_state::oki_banking_w)
 {
-	device_t *device = machine().device("oki");
-	downcast<okim6295_device *>(device)->set_bank_base((data & 1) ? 0x40000 : 0);
+	m_oki->set_bank_base((data & 1) ? 0x40000 : 0);
 }
 
 /*******************************************************************
@@ -401,7 +406,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, nmg5_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(oki_banking_w)
-	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r, ym3812_w)
+	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 	AM_RANGE(0x18, 0x18) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x1c, 0x1c) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 ADDRESS_MAP_END
@@ -847,7 +852,6 @@ TILE_GET_INFO_MEMBER(nmg5_state::bg_get_tile_info){ SET_TILE_INFO_MEMBER(0, m_bg
 
 void nmg5_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(nmg5_state::bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(nmg5_state::fg_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 	m_fg_tilemap->set_transparent_pen(0);
@@ -855,9 +859,8 @@ void nmg5_state::video_start()
 
 
 
-static void draw_bitmap( running_machine &machine, bitmap_ind16 &bitmap )
+void nmg5_state::draw_bitmap( bitmap_ind16 &bitmap )
 {
-	nmg5_state *state = machine.driver_data<nmg5_state>();
 	int yyy = 256;
 	int xxx = 512 / 4;
 	UINT16 x, y, count;
@@ -870,13 +873,13 @@ static void draw_bitmap( running_machine &machine, bitmap_ind16 &bitmap )
 	{
 		for (x = 0; x < xxx; x++)
 		{
-			pix = (state->m_bitmap[count] & 0xf000) >> 12;
+			pix = (m_bitmap[count] & 0xf000) >> 12;
 			if (pix) bitmap.pix16(y + yoff, x * 4 + 0 + xoff) = pix + 0x300;
-			pix = (state->m_bitmap[count] & 0x0f00) >> 8;
+			pix = (m_bitmap[count] & 0x0f00) >> 8;
 			if (pix) bitmap.pix16(y + yoff, x * 4 + 1 + xoff) = pix + 0x300;
-			pix = (state->m_bitmap[count] & 0x00f0) >> 4;
+			pix = (m_bitmap[count] & 0x00f0) >> 4;
 			if (pix) bitmap.pix16(y + yoff, x * 4 + 2 + xoff) = pix + 0x300;
-			pix = (state->m_bitmap[count] & 0x000f) >> 0;
+			pix = (m_bitmap[count] & 0x000f) >> 0;
 			if (pix) bitmap.pix16(y + yoff, x * 4 + 3 + xoff) = pix + 0x300;
 
 			count++;
@@ -887,7 +890,6 @@ static void draw_bitmap( running_machine &machine, bitmap_ind16 &bitmap )
 
 UINT32 nmg5_state::screen_update_nmg5(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrolly(0, m_scroll_ram[3] + 9);
 	m_bg_tilemap->set_scrollx(0, m_scroll_ram[2] + 3);
 	m_fg_tilemap->set_scrolly(0, m_scroll_ram[1] + 9);
@@ -897,33 +899,33 @@ UINT32 nmg5_state::screen_update_nmg5(screen_device &screen, bitmap_ind16 &bitma
 
 	if (m_priority_reg == 0)
 	{
-		machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
+		m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
 		m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
-		draw_bitmap(machine(), bitmap);
+		draw_bitmap(bitmap);
 	}
 	else if (m_priority_reg == 1)
 	{
-		draw_bitmap(machine(), bitmap);
-		machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
+		draw_bitmap(bitmap);
+		m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
 		m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
 	}
 	else if (m_priority_reg == 2)
 	{
-		machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
-		draw_bitmap(machine(), bitmap);
+		m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
+		draw_bitmap(bitmap);
 		m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
 	}
 	else if (m_priority_reg == 3)
 	{
 		m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
-		machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
-		draw_bitmap(machine(), bitmap);
+		m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
+		draw_bitmap(bitmap);
 	}
 	else if (m_priority_reg == 7)
 	{
 		m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
-		draw_bitmap(machine(), bitmap);
-		machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
+		draw_bitmap(bitmap);
+		m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
 	}
 	return 0;
 }
@@ -973,23 +975,13 @@ static GFXDECODE_START( pclubys )
 GFXDECODE_END
 
 
-static void soundirq( device_t *device, int state )
+WRITE_LINE_MEMBER(nmg5_state::soundirq)
 {
-	nmg5_state *driver_state = device->machine().driver_data<nmg5_state>();
-	driver_state->m_soundcpu->set_input_line(0, state);
+	m_soundcpu->set_input_line(0, state);
 }
-
-static const ym3812_interface ym3812_intf =
-{
-	soundirq    /* IRQ Line */
-};
 
 void nmg5_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_soundcpu = machine().device<cpu_device>("soundcpu");
-
 	save_item(NAME(m_gfx_bank));
 	save_item(NAME(m_priority_reg));
 	save_item(NAME(m_input_data));
@@ -997,7 +989,6 @@ void nmg5_state::machine_start()
 
 void nmg5_state::machine_reset()
 {
-
 	/* some games don't set the priority register so it should be hard-coded to a normal layout */
 	m_priority_reg = 7;
 
@@ -1040,7 +1031,7 @@ static MACHINE_CONFIG_START( nmg5, nmg5_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, 4000000) /* 4MHz */
-	MCFG_SOUND_CONFIG(ym3812_intf)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(nmg5_state, soundirq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_OKIM6295_ADD("oki", 1000000 , OKIM6295_PIN7_HIGH)

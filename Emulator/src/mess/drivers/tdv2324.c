@@ -173,8 +173,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( tdv2324_sub_io, AS_IO, 8, tdv2324_state )
 	//ADDRESS_MAP_GLOBAL_MASK(0xff)
 	/* 20, 23, 30-36, 38, 3a, 3c, 3e, 60, 70 are written to */
-	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE_LEGACY(P8253_5_1_TAG, pit8253_r, pit8253_w)
-	AM_RANGE(0x30, 0x3f) AM_DEVREADWRITE_LEGACY(TMS9937NL_TAG, tms9927_r, tms9927_w) // TODO: this is supposed to be a 9937, which is not quite the same as 9927
+	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE(P8253_5_1_TAG, pit8253_device, read, write)
+	AM_RANGE(0x30, 0x3f) AM_DEVREADWRITE(TMS9937NL_TAG, tms9927_device, read, write) // TODO: this is supposed to be a 9937, which is not quite the same as 9927
 ADDRESS_MAP_END
 
 
@@ -230,7 +230,7 @@ void tdv2324_state::video_start()
 //  SCREEN_UPDATE_IND16( tdv2324 )
 //-------------------------------------------------
 
-UINT32 tdv2324_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+UINT32 tdv2324_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	return 0;
 }
@@ -268,22 +268,10 @@ static I8085_CONFIG( i8085_sub_intf )
 
 
 //-------------------------------------------------
-//  pic8259_interface pic_intf
-//-------------------------------------------------
-
-static const struct pic8259_interface pic_intf =
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
 //  pit8253_config pit0_intf
 //-------------------------------------------------
 
-static const struct pit8253_config pit0_intf =
+static const struct pit8253_interface pit0_intf =
 {
 	{
 		{
@@ -307,7 +295,7 @@ static const struct pit8253_config pit0_intf =
 //  pit8253_config pit1_intf
 //-------------------------------------------------
 
-static const struct pit8253_config pit1_intf =
+static const struct pit8253_interface pit1_intf =
 {
 	{
 		{
@@ -328,10 +316,10 @@ static const struct pit8253_config pit1_intf =
 
 
 //-------------------------------------------------
-//  Z80DART_INTERFACE( sio_intf )
+//  Z80SIO_INTERFACE( sio_intf )
 //-------------------------------------------------
 
-static Z80DART_INTERFACE( sio_intf )
+static Z80SIO_INTERFACE( sio_intf )
 {
 	0, 0, 0, 0,
 
@@ -411,13 +399,13 @@ static MACHINE_CONFIG_START( tdv2324, tdv2324_state )
 	MCFG_TMS9927_ADD(TMS9937NL_TAG, XTAL_25_39836MHz, vtac_intf)
 
 	// devices
-	MCFG_PIC8259_ADD(P8259A_TAG, pic_intf)
+	MCFG_PIC8259_ADD(P8259A_TAG, NULL, VCC, NULL)
 	MCFG_PIT8253_ADD(P8253_5_0_TAG, pit0_intf)
 	MCFG_PIT8253_ADD(P8253_5_1_TAG, pit1_intf)
 	MCFG_Z80SIO2_ADD(MK3887N4_TAG, 8000000/2, sio_intf)
 	MCFG_FD1797x_ADD(FD1797PL02_TAG, 8000000/4)
-	MCFG_FLOPPY_DRIVE_ADD(FD1797PL02_TAG":0", tdv2324_floppies, "8dsdd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(FD1797PL02_TAG":1", tdv2324_floppies, "8dsdd", NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(FD1797PL02_TAG":0", tdv2324_floppies, "8dsdd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(FD1797PL02_TAG":1", tdv2324_floppies, "8dsdd", floppy_image_device::default_floppy_formats)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

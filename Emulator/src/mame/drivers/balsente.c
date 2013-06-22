@@ -1230,27 +1230,27 @@ static MACHINE_CONFIG_START( balsente, balsente_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("cem1", CEM3394, 0)
+	MCFG_CEM3394_ADD("cem1", 0)
 	MCFG_SOUND_CONFIG(cem_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
-	MCFG_SOUND_ADD("cem2", CEM3394, 0)
+	MCFG_CEM3394_ADD("cem2", 0)
 	MCFG_SOUND_CONFIG(cem_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
-	MCFG_SOUND_ADD("cem3", CEM3394, 0)
+	MCFG_CEM3394_ADD("cem3", 0)
 	MCFG_SOUND_CONFIG(cem_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
-	MCFG_SOUND_ADD("cem4", CEM3394, 0)
+	MCFG_CEM3394_ADD("cem4", 0)
 	MCFG_SOUND_CONFIG(cem_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
-	MCFG_SOUND_ADD("cem5", CEM3394, 0)
+	MCFG_CEM3394_ADD("cem5", 0)
 	MCFG_SOUND_CONFIG(cem_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
-	MCFG_SOUND_ADD("cem6", CEM3394, 0)
+	MCFG_CEM3394_ADD("cem6", 0)
 	MCFG_SOUND_CONFIG(cem_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
@@ -1451,8 +1451,8 @@ ROM_START( stocker )
 	ROM_LOAD( "gr01.u6b", 0x00000, 0x4000, CRC(2e66ac35) SHA1(c65b4991a88f8359c85f904f66a7fe73330aface) )
 	ROM_LOAD( "gr23.u5b", 0x04000, 0x4000, CRC(6fa43631) SHA1(7000907b914bf851b09811e3736af8c02e1aeda9) )
 
-	ROM_REGION( 0x00001, "cart_pals", 0) /* PAL's located on the cartridge */
-	ROM_LOAD( "pal10l8.u1c", 0x0000, 0x0001, NO_DUMP ) /* PAL10L8CN */
+	ROM_REGION( 0x00100, "cart_pals", 0) /* PAL's located on the cartridge */
+	ROM_LOAD( "pal10l8.u1c.bin", 0x0000, 0x002c, CRC(b4f6b0b7) SHA1(5a439bfb02b4b2cbcbd9b009ccfce1d300a2435e) ) /* PAL10L8CN */
 
 	MOTHERBOARD_PALS
 ROM_END
@@ -1609,8 +1609,8 @@ ROM_START( triviabb )
 	ROM_LOAD( "gr23.u5b", 0x04000, 0x4000, CRC(89398700) SHA1(771ee04baa9a31d435a6234490105878713e7845) )
 	ROM_LOAD( "gr45.u4b", 0x08000, 0x4000, CRC(92fb6fb1) SHA1(1a322bd3cfacdf82d4fcc4b4d47f78a701411919) )
 
-	ROM_REGION( 0x00001, "cart_pals", 0) /* PAL's located on the cartridge */
-	ROM_LOAD( "pal10l8.u1c", 0x0000, 0x0001, NO_DUMP ) /* PAL10L8CN */
+	ROM_REGION( 0x00100, "cart_pals", 0) /* PAL's located on the cartridge */
+	ROM_LOAD( "pal10l8.u1d.bin", 0x0000, 0x002c, CRC(175a5168) SHA1(4f5e090a8ae1e35f9cb1b649ef1e1805f6f32284) ) /* PAL10L8CN */
 
 	MOTHERBOARD_PALS
 ROM_END
@@ -1650,8 +1650,8 @@ ROM_START( gimeabrk )
 	ROM_LOAD( "gr01.u6b", 0x00000, 0x4000, CRC(e3cdc476) SHA1(2f17c3f84767850d45192dfb507dd2716ecadc20) )
 	ROM_LOAD( "gr23.u5b", 0x04000, 0x4000, CRC(0555d9c0) SHA1(da0d1f207ad056b2d82a5ad6382372066883d161) )
 
-	ROM_REGION( 0x00001, "cart_pals", 0) /* PAL's located on the cartridge */
-	ROM_LOAD( "pal10l8.u1c", 0x0000, 0x0001, NO_DUMP ) /* PAL10L8CN */
+	ROM_REGION( 0x00100, "cart_pals", 0) /* PAL's located on the cartridge */
+	ROM_LOAD( "pal10l8.u1c.bin", 0x0000, 0x002c, CRC(b4f6b0b7) SHA1(5a439bfb02b4b2cbcbd9b009ccfce1d300a2435e) ) /* PAL10L8CN */
 
 	MOTHERBOARD_PALS
 ROM_END
@@ -1672,8 +1672,8 @@ ROM_START( minigolf )
 	ROM_LOAD( "gr23.u5b", 0x04000, 0x4000, CRC(3bf355ef) SHA1(691df25b35b00e21ad09d17a21fe98a353aa3dda) )
 	ROM_LOAD( "gr45.u4b", 0x08000, 0x4000, CRC(8eb14921) SHA1(fda8b8f8e801360310f7cb1aa4c6aea1fa0a4b25) )
 
-	ROM_REGION( 0x00001, "cart_pals", 0) /* PAL's located on the cartridge */
-	ROM_LOAD( "pal10l8.u1c", 0x0000, 0x0001, NO_DUMP ) /* PAL10L8CN */
+	ROM_REGION( 0x00100, "cart_pals", 0) /* PAL's located on the cartridge */
+	ROM_LOAD( "pal10l8.u1c", 0x0000, 0x002c, CRC(5cc09374) SHA1(07798579aeb1e2514034acea6555c0f81c48a41c) ) /* PAL10L8CN */
 
 	MOTHERBOARD_PALS
 ROM_END
@@ -1695,8 +1695,8 @@ ROM_START( minigolf2 )
 	ROM_LOAD( "gr23.u5b", 0x04000, 0x4000, CRC(3bf355ef) SHA1(691df25b35b00e21ad09d17a21fe98a353aa3dda) )
 	ROM_LOAD( "gr45.u4b", 0x08000, 0x4000, CRC(8eb14921) SHA1(fda8b8f8e801360310f7cb1aa4c6aea1fa0a4b25) )
 
-	ROM_REGION( 0x00001, "cart_pals", 0) /* PAL's located on the cartridge */
-	ROM_LOAD( "pal10l8.u1c", 0x0000, 0x0001, NO_DUMP ) /* PAL10L8CN */
+	ROM_REGION( 0x00100, "cart_pals", 0) /* PAL's located on the cartridge */
+	ROM_LOAD( "pal10l8.u1c", 0x0000, 0x002c, CRC(5cc09374) SHA1(07798579aeb1e2514034acea6555c0f81c48a41c) ) /* PAL10L8CN */
 
 	MOTHERBOARD_PALS
 ROM_END
@@ -1969,9 +1969,9 @@ ROM_START( rescraid )
 	ROM_LOAD( "gr 0.a5",   0x00000, 0x8000, CRC(e0dfc133) SHA1(0b120b4410098d8db26b5819043d4fe7c426b948) )
 	ROM_LOAD( "gr 4.a7",   0x08000, 0x8000, CRC(952ade30) SHA1(f065368f645616d6d84be469ba45a9afa8788eda) )
 
-	ROM_REGION( 0x00001, "pals", 0) /* PAL's */
+	ROM_REGION( 0x000100, "pals", 0) /* PAL's */
 	ROM_LOAD( "12 b.12b",  0x00000, 0x00001, NO_DUMP ) /* PAL16L8 */
-	ROM_LOAD( "11 b.11b",  0x00000, 0x00001, NO_DUMP ) /* PAL10L8 */
+	ROM_LOAD( "11b.11b.bin", 0x00000, 0x0002c, CRC(771eff5d) SHA1(4f008659f30bc9b0ec37e543ccafd7893e53d5a6) ) /* PAL10L8 */
 	ROM_LOAD( "4 c.4c",    0x00000, 0x00001, NO_DUMP ) /* PAL16R6 */
 	ROM_LOAD( "10 d.10d",  0x00000, 0x00001, NO_DUMP ) /* PAL16R6 */
 	ROM_LOAD( "16 e.16e",  0x00000, 0x00001, NO_DUMP ) /* PAL16R6 */
@@ -2067,17 +2067,17 @@ ROM_END
 #define EXPAND_NONE     0x3f
 #define SWAP_HALVES     0x80
 
-static void expand_roms(running_machine &machine, UINT8 cd_rom_mask)
+void balsente_state::expand_roms(UINT8 cd_rom_mask)
 {
 	/* load AB bank data from 0x10000-0x20000 */
 	/* load CD bank data from 0x20000-0x2e000 */
 	/* load EF           from 0x2e000-0x30000 */
 	/* ROM region must be 0x40000 total */
 
-	UINT8 *temp = auto_alloc_array(machine, UINT8, 0x20000);
+	UINT8 *temp = auto_alloc_array(machine(), UINT8, 0x20000);
 	{
-		UINT8 *rom = machine.root_device().memregion("maincpu")->base();
-		UINT32 len = machine.root_device().memregion("maincpu")->bytes();
+		UINT8 *rom = memregion("maincpu")->base();
+		UINT32 len = memregion("maincpu")->bytes();
 		UINT32 base;
 
 		for (base = 0x10000; base < len; base += 0x30000)
@@ -2129,84 +2129,83 @@ static void expand_roms(running_machine &machine, UINT8 cd_rom_mask)
 			memcpy(&rom[base + 0x00000], &ab_base[0x0000], 0x2000);
 		}
 
-		auto_free(machine, temp);
+		auto_free(machine(), temp);
 	}
 }
 
-INLINE void config_shooter_adc(running_machine &machine, UINT8 shooter, UINT8 adc_shift)
+inline void balsente_state::config_shooter_adc(UINT8 shooter, UINT8 adc_shift)
 {
-	balsente_state *state = machine.driver_data<balsente_state>();
-	state->m_shooter = shooter;
-	state->m_adc_shift = adc_shift;
+	m_shooter = shooter;
+	m_adc_shift = adc_shift;
 }
 
-DRIVER_INIT_MEMBER(balsente_state,sentetst)  { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 0 /* noanalog */); }
-DRIVER_INIT_MEMBER(balsente_state,cshift)    { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 0 /* noanalog */); }
-DRIVER_INIT_MEMBER(balsente_state,gghost)    { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 1); }
-DRIVER_INIT_MEMBER(balsente_state,hattrick)  { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 0 /* noanalog */); }
-DRIVER_INIT_MEMBER(balsente_state,otwalls)   { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 0); }
-DRIVER_INIT_MEMBER(balsente_state,snakepit)  { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 1); }
-DRIVER_INIT_MEMBER(balsente_state,snakjack)  { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 1); }
-DRIVER_INIT_MEMBER(balsente_state,stocker)   { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 0); }
-DRIVER_INIT_MEMBER(balsente_state,triviag1)  { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 0 /* noanalog */); }
+DRIVER_INIT_MEMBER(balsente_state,sentetst)  { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 0 /* noanalog */); }
+DRIVER_INIT_MEMBER(balsente_state,cshift)    { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 0 /* noanalog */); }
+DRIVER_INIT_MEMBER(balsente_state,gghost)    { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 1); }
+DRIVER_INIT_MEMBER(balsente_state,hattrick)  { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 0 /* noanalog */); }
+DRIVER_INIT_MEMBER(balsente_state,otwalls)   { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 0); }
+DRIVER_INIT_MEMBER(balsente_state,snakepit)  { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 1); }
+DRIVER_INIT_MEMBER(balsente_state,snakjack)  { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 1); }
+DRIVER_INIT_MEMBER(balsente_state,stocker)   { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 0); }
+DRIVER_INIT_MEMBER(balsente_state,triviag1)  { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 0 /* noanalog */); }
 DRIVER_INIT_MEMBER(balsente_state,triviag2)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 	memcpy(&rom[0x20000], &rom[0x28000], 0x4000);
 	memcpy(&rom[0x24000], &rom[0x28000], 0x4000);
-	expand_roms(machine(), EXPAND_NONE); config_shooter_adc(machine(), FALSE, 0 /* noanalog */);
+	expand_roms(EXPAND_NONE); config_shooter_adc(FALSE, 0 /* noanalog */);
 }
-DRIVER_INIT_MEMBER(balsente_state,triviaes)  { expand_roms(machine(), EXPAND_NONE | SWAP_HALVES); config_shooter_adc(machine(), FALSE, 0 /* noanalog */); }
-DRIVER_INIT_MEMBER(balsente_state,gimeabrk)  { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 1); }
-DRIVER_INIT_MEMBER(balsente_state,minigolf)  { expand_roms(machine(), EXPAND_NONE); config_shooter_adc(machine(), FALSE, 2); }
-DRIVER_INIT_MEMBER(balsente_state,minigolf2) { expand_roms(machine(), 0x0c);        config_shooter_adc(machine(), FALSE, 2); }
-DRIVER_INIT_MEMBER(balsente_state,toggle)    { expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 0 /* noanalog */); }
+DRIVER_INIT_MEMBER(balsente_state,triviaes)  { expand_roms(EXPAND_NONE | SWAP_HALVES); config_shooter_adc(FALSE, 0 /* noanalog */); }
+DRIVER_INIT_MEMBER(balsente_state,gimeabrk)  { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 1); }
+DRIVER_INIT_MEMBER(balsente_state,minigolf)  { expand_roms(EXPAND_NONE); config_shooter_adc(FALSE, 2); }
+DRIVER_INIT_MEMBER(balsente_state,minigolf2) { expand_roms(0x0c);        config_shooter_adc(FALSE, 2); }
+DRIVER_INIT_MEMBER(balsente_state,toggle)    { expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 0 /* noanalog */); }
 DRIVER_INIT_MEMBER(balsente_state,nametune)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	space.install_write_handler(0x9f00, 0x9f00, write8_delegate(FUNC(balsente_state::balsente_rombank2_select_w),this));
-	expand_roms(machine(), EXPAND_NONE | SWAP_HALVES); config_shooter_adc(machine(), FALSE, 0 /* noanalog */);
+	expand_roms(EXPAND_NONE | SWAP_HALVES); config_shooter_adc(FALSE, 0 /* noanalog */);
 }
 DRIVER_INIT_MEMBER(balsente_state,nstocker)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	space.install_write_handler(0x9f00, 0x9f00, write8_delegate(FUNC(balsente_state::balsente_rombank2_select_w),this));
-	expand_roms(machine(), EXPAND_NONE | SWAP_HALVES); config_shooter_adc(machine(), TRUE, 1);
+	expand_roms(EXPAND_NONE | SWAP_HALVES); config_shooter_adc(TRUE, 1);
 }
 DRIVER_INIT_MEMBER(balsente_state,sfootbal)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	space.install_write_handler(0x9f00, 0x9f00, write8_delegate(FUNC(balsente_state::balsente_rombank2_select_w),this));
-	expand_roms(machine(), EXPAND_ALL  | SWAP_HALVES); config_shooter_adc(machine(), FALSE, 0);
+	expand_roms(EXPAND_ALL  | SWAP_HALVES); config_shooter_adc(FALSE, 0);
 }
 DRIVER_INIT_MEMBER(balsente_state,spiker)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	space.install_readwrite_handler(0x9f80, 0x9f8f, read8_delegate(FUNC(balsente_state::spiker_expand_r),this), write8_delegate(FUNC(balsente_state::spiker_expand_w),this));
 	space.install_write_handler(0x9f00, 0x9f00, write8_delegate(FUNC(balsente_state::balsente_rombank2_select_w),this));
-	expand_roms(machine(), EXPAND_ALL  | SWAP_HALVES); config_shooter_adc(machine(), FALSE, 1);
+	expand_roms(EXPAND_ALL  | SWAP_HALVES); config_shooter_adc(FALSE, 1);
 }
 DRIVER_INIT_MEMBER(balsente_state,stompin)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	space.install_write_handler(0x9f00, 0x9f00, write8_delegate(FUNC(balsente_state::balsente_rombank2_select_w),this));
-	expand_roms(machine(), 0x0c | SWAP_HALVES); config_shooter_adc(machine(), FALSE, 32);
+	expand_roms(0x0c | SWAP_HALVES); config_shooter_adc(FALSE, 32);
 }
-DRIVER_INIT_MEMBER(balsente_state,rescraid)  { expand_roms(machine(), EXPAND_NONE); config_shooter_adc(machine(), FALSE, 0 /* noanalog */); }
+DRIVER_INIT_MEMBER(balsente_state,rescraid)  { expand_roms(EXPAND_NONE); config_shooter_adc(FALSE, 0 /* noanalog */); }
 DRIVER_INIT_MEMBER(balsente_state,grudge)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	space.install_read_handler(0x9400, 0x9400, read8_delegate(FUNC(balsente_state::grudge_steering_r),this));
-	expand_roms(machine(), EXPAND_NONE); config_shooter_adc(machine(), FALSE, 0);
+	expand_roms(EXPAND_NONE); config_shooter_adc(FALSE, 0);
 }
 DRIVER_INIT_MEMBER(balsente_state,shrike)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	space.install_readwrite_handler(0x9e00, 0x9fff, read8_delegate(FUNC(balsente_state::shrike_shared_6809_r),this), write8_delegate(FUNC(balsente_state::shrike_shared_6809_w),this));
 	space.install_write_handler(0x9e01, 0x9e01, write8_delegate(FUNC(balsente_state::shrike_sprite_select_w),this));
-	machine().device("68k")->memory().space(AS_PROGRAM).install_readwrite_handler(0x10000, 0x1001f, read16_delegate(FUNC(balsente_state::shrike_io_68k_r),this), write16_delegate(FUNC(balsente_state::shrike_io_68k_w),this));
+	m_68k->space(AS_PROGRAM).install_readwrite_handler(0x10000, 0x1001f, read16_delegate(FUNC(balsente_state::shrike_io_68k_r),this), write16_delegate(FUNC(balsente_state::shrike_io_68k_w),this));
 
-	expand_roms(machine(), EXPAND_ALL);  config_shooter_adc(machine(), FALSE, 32);
+	expand_roms(EXPAND_ALL);  config_shooter_adc(FALSE, 32);
 }
 
 
@@ -2234,7 +2233,7 @@ GAME( 1984, snakjack, 0,        balsente, snakjack, balsente_state, snakjack, RO
 /* Board: 006-8025-01-0B Rev B */
 GAMEL(1984, stocker,  0,        balsente, stocker, balsente_state,  stocker,  ROT0, "Bally/Sente",  "Stocker (3/19/85)", GAME_SUPPORTS_SAVE, layout_stocker ) // date from ROM chips
 GAME( 1985, gimeabrk, 0,        balsente, gimeabrk, balsente_state, gimeabrk, ROT0, "Bally/Sente",  "Gimme A Break (7/7/85)", GAME_SUPPORTS_SAVE )
-GAME( 1985, minigolf, 0,        balsente, minigolf, balsente_state, minigolf, ROT0, "Bally/Sente",  "Mini Golf (set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1985, minigolf, 0,        balsente, minigolf, balsente_state, minigolf, ROT0, "Bally/Sente",  "Mini Golf (11/25/85)", GAME_SUPPORTS_SAVE )
 GAME( 1985, minigolf2,minigolf, balsente, minigolf2, balsente_state,minigolf2,ROT0, "Bally/Sente",  "Mini Golf (10/8/85)", GAME_SUPPORTS_SAVE )
 GAME( 1984, triviabb, 0,        balsente, triviag1, balsente_state, triviag2, ROT0, "Bally/Sente",  "Trivial Pursuit (Baby Boomer Edition) (3/20/85)", GAME_SUPPORTS_SAVE )
 

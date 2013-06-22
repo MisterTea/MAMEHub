@@ -61,8 +61,10 @@ class progolf_state : public driver_device
 {
 public:
 	progolf_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_fbram(*this, "fbram"){ }
+		: driver_device(mconfig, type, tag),
+		m_fbram(*this, "fbram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu")  { }
 
 	UINT8 *m_videoram;
 	UINT8 m_char_pen;
@@ -86,7 +88,8 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_progolf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	INTERRUPT_GEN_MEMBER(progolf_interrupt);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 
 
@@ -203,12 +206,12 @@ WRITE8_MEMBER(progolf_state::progolf_flip_screen_w)
 WRITE8_MEMBER(progolf_state::audio_command_w)
 {
 	m_sound_cmd = data;
-	machine().device("audiocpu")->execute().set_input_line(0, ASSERT_LINE);
+	m_audiocpu->set_input_line(0, ASSERT_LINE);
 }
 
 READ8_MEMBER(progolf_state::audio_command_r)
 {
-	machine().device("audiocpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_audiocpu->set_input_line(0, CLEAR_LINE);
 	return m_sound_cmd;
 }
 
@@ -264,10 +267,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_cpu, AS_PROGRAM, 8, progolf_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x4000, 0x4fff) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x5000, 0x5fff) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x6000, 0x6fff) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x7000, 0x7fff) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x4000, 0x4fff) AM_DEVREADWRITE("ay1", ay8910_device, data_r, data_w)
+	AM_RANGE(0x5000, 0x5fff) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x6000, 0x6fff) AM_DEVREADWRITE("ay2", ay8910_device, data_r, data_w)
+	AM_RANGE(0x7000, 0x7fff) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0x8000, 0x8fff) AM_READ(audio_command_r) AM_WRITENOP //volume control?
 	AM_RANGE(0xf000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -275,7 +278,7 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(progolf_state::coin_inserted)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
 }
 
 /* verified from M6502 code */
@@ -369,15 +372,10 @@ static GFXDECODE_START( progolf )
 GFXDECODE_END
 
 
-//#ifdef UNUSED_FUNCTION
-INTERRUPT_GEN_MEMBER(progolf_state::progolf_interrupt)
-{
-}
-//#endif
-
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -392,7 +390,7 @@ static const mc6845_interface mc6845_intf =
 
 void progolf_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0;i < machine().total_colors();i++)
@@ -423,7 +421,6 @@ static MACHINE_CONFIG_START( progolf, progolf_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", DECO_222, 3000000/2) /* guess, 3 Mhz makes the game to behave worse? */
 	MCFG_CPU_PROGRAM_MAP(main_cpu)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", progolf_state,  progolf_interrupt)
 
 	MCFG_CPU_ADD("audiocpu", M6502, 500000)
 	MCFG_CPU_PROGRAM_MAP(sound_cpu)
@@ -457,7 +454,6 @@ static MACHINE_CONFIG_DERIVED( progolfa, progolf )
 	MCFG_DEVICE_REMOVE("maincpu") /* different encrypted cpu to progolf */
 	MCFG_CPU_ADD("maincpu", DECO_CPU6, 3000000/2) /* guess, 3 Mhz makes the game to behave worse? */
 	MCFG_CPU_PROGRAM_MAP(main_cpu)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", progolf_state,  progolf_interrupt)
 MACHINE_CONFIG_END
 
 

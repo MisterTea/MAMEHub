@@ -62,36 +62,6 @@ const device_type MINI_CHIEF = &device_creator<mini_chief_device>;
 
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void base_c1571_device::device_config_complete()
-{
-	switch (m_variant)
-	{
-	case TYPE_1570:
-		m_shortname = "c1570";
-		break;
-
-	default:
-	case TYPE_1571:
-		m_shortname = "c1571";
-		break;
-
-	case TYPE_1571CR:
-		m_shortname = "c1571cr";
-		break;
-
-	case TYPE_MINI_CHIEF:
-		m_shortname = "minichif";
-		break;
-	}
-}
-
-
-//-------------------------------------------------
 //  ROM( c1570 )
 //-------------------------------------------------
 
@@ -138,6 +108,9 @@ ROM_END
 ROM_START( minichief )
 	ROM_REGION( 0x8000, M6502_TAG, 0 )
 	ROM_LOAD( "ictdos710.u2", 0x0000, 0x8000, CRC(aaacf7e9) SHA1(c1296995238ef23f18e7fec70a144a0566a25a27) )
+
+	ROM_REGION( 0x2000, "wd1002a_wx1", 0 )
+	ROM_LOAD( "600693-001 type 5.u12", 0x0000, 0x2000, CRC(f3daf85f) SHA1(3bd29538832d3084cbddeec92593988772755283) )
 ROM_END
 
 
@@ -145,7 +118,7 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const rom_entry *base_c1571_device::device_rom_region() const
+const rom_entry *c1571_device::device_rom_region() const
 {
 	switch (m_variant)
 	{
@@ -169,7 +142,7 @@ const rom_entry *base_c1571_device::device_rom_region() const
 //  ADDRESS_MAP( c1571_mem )
 //-------------------------------------------------
 
-static ADDRESS_MAP_START( c1571_mem, AS_PROGRAM, 8, base_c1571_device )
+static ADDRESS_MAP_START( c1571_mem, AS_PROGRAM, 8, c1571_device )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
 	AM_RANGE(0x1800, 0x180f) AM_MIRROR(0x03f0) AM_DEVREADWRITE(M6522_0_TAG, via6522_device, read, write)
 	AM_RANGE(0x1c00, 0x1c0f) AM_MIRROR(0x03f0) AM_READWRITE(via1_r, via1_w)
@@ -199,14 +172,14 @@ ADDRESS_MAP_END
 //  via6522_interface via0_intf
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( base_c1571_device::via0_irq_w )
+WRITE_LINE_MEMBER( c1571_device::via0_irq_w )
 {
 	m_via0_irq = state;
 
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, (m_via0_irq || m_via1_irq || m_cia_irq) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-READ8_MEMBER( base_c1571_device::via0_pa_r )
+READ8_MEMBER( c1571_device::via0_pa_r )
 {
 	/*
 
@@ -234,7 +207,7 @@ READ8_MEMBER( base_c1571_device::via0_pa_r )
 	return data;
 }
 
-WRITE8_MEMBER( base_c1571_device::via0_pa_w )
+WRITE8_MEMBER( c1571_device::via0_pa_w )
 {
 	/*
 
@@ -316,7 +289,7 @@ WRITE8_MEMBER( c1571cr_device::via0_pa_w )
 	}
 }
 
-READ8_MEMBER( base_c1571_device::via0_pb_r )
+READ8_MEMBER( c1571_device::via0_pb_r )
 {
 	/*
 
@@ -350,7 +323,7 @@ READ8_MEMBER( base_c1571_device::via0_pb_r )
 	return data;
 }
 
-WRITE8_MEMBER( base_c1571_device::via0_pb_w )
+WRITE8_MEMBER( c1571_device::via0_pb_w )
 {
 	/*
 
@@ -408,42 +381,42 @@ WRITE8_MEMBER( c1571cr_device::via0_pb_w )
 	update_iec();
 }
 
-READ_LINE_MEMBER( base_c1571_device::atn_in_r )
+READ_LINE_MEMBER( c1571_device::atn_in_r )
 {
 	return !m_bus->atn_r();
 }
 
-READ_LINE_MEMBER( base_c1571_device::wprt_r )
+READ_LINE_MEMBER( c1571_device::wprt_r )
 {
 	return !floppy_wpt_r(m_image);
 }
 
 static const via6522_interface via0_intf =
 {
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via0_pa_r),
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via0_pb_r),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, atn_in_r),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via0_pa_r),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via0_pb_r),
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, atn_in_r),
 	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, wprt_r),
-	DEVCB_NULL,
-
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via0_pa_w),
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via0_pb_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, wprt_r),
 	DEVCB_NULL,
 
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via0_irq_w)
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via0_pa_w),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via0_pb_w),
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via0_irq_w)
 };
 
 static const via6522_interface c1571cr_via0_intf =
 {
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via0_pa_r),
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via0_pb_r),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, atn_in_r),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via0_pa_r),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via0_pb_r),
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, atn_in_r),
 	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, wprt_r),
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, wprt_r),
 	DEVCB_NULL,
 
 	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1571cr_device, via0_pa_w),
@@ -453,7 +426,7 @@ static const via6522_interface c1571cr_via0_intf =
 	DEVCB_NULL,
 	DEVCB_NULL,
 
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via0_irq_w)
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via0_irq_w)
 };
 
 
@@ -461,7 +434,7 @@ static const via6522_interface c1571cr_via0_intf =
 //  via6522_interface via1_intf
 //-------------------------------------------------
 
-READ8_MEMBER( base_c1571_device::via1_r )
+READ8_MEMBER( c1571_device::via1_r )
 {
 	UINT8 data = m_via1->read(space, offset);
 
@@ -471,7 +444,7 @@ READ8_MEMBER( base_c1571_device::via1_r )
 	return data;
 }
 
-WRITE8_MEMBER( base_c1571_device::via1_w )
+WRITE8_MEMBER( c1571_device::via1_w )
 {
 	m_via1->write(space, offset, data);
 
@@ -479,14 +452,14 @@ WRITE8_MEMBER( base_c1571_device::via1_w )
 	m_ga->ted_w(1);
 }
 
-WRITE_LINE_MEMBER( base_c1571_device::via1_irq_w )
+WRITE_LINE_MEMBER( c1571_device::via1_irq_w )
 {
 	m_via1_irq = state;
 
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, (m_via0_irq || m_via1_irq || m_cia_irq) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-READ8_MEMBER( base_c1571_device::via1_pb_r )
+READ8_MEMBER( c1571_device::via1_pb_r )
 {
 	/*
 
@@ -514,7 +487,7 @@ READ8_MEMBER( base_c1571_device::via1_pb_r )
 	return data;
 }
 
-WRITE8_MEMBER( base_c1571_device::via1_pb_w )
+WRITE8_MEMBER( c1571_device::via1_pb_w )
 {
 	/*
 
@@ -547,20 +520,20 @@ WRITE8_MEMBER( base_c1571_device::via1_pb_w )
 static const via6522_interface via1_intf =
 {
 	DEVCB_DEVICE_MEMBER(C64H156_TAG, c64h156_device, yb_r),
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via1_pb_r),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via1_pb_r),
 	DEVCB_DEVICE_LINE_MEMBER(C64H156_TAG, c64h156_device, byte_r),
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
 
 	DEVCB_DEVICE_MEMBER(C64H156_TAG, c64h156_device, yb_w),
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via1_pb_w),
+	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via1_pb_w),
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_DEVICE_LINE_MEMBER(C64H156_TAG, c64h156_device, soe_w),
 	DEVCB_DEVICE_LINE_MEMBER(C64H156_TAG, c64h156_device, oe_w),
 
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, via1_irq_w)
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, via1_irq_w)
 };
 
 
@@ -568,14 +541,14 @@ static const via6522_interface via1_intf =
 //  MOS6526_INTERFACE( cia_intf )
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( base_c1571_device::cia_irq_w )
+WRITE_LINE_MEMBER( c1571_device::cia_irq_w )
 {
 	m_cia_irq = state;
 
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, (m_via0_irq || m_via1_irq || m_cia_irq) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-WRITE_LINE_MEMBER( base_c1571_device::cia_pc_w )
+WRITE_LINE_MEMBER( c1571_device::cia_pc_w )
 {
 	if (m_other != NULL)
 	{
@@ -583,24 +556,24 @@ WRITE_LINE_MEMBER( base_c1571_device::cia_pc_w )
 	}
 }
 
-WRITE_LINE_MEMBER( base_c1571_device::cia_cnt_w )
+WRITE_LINE_MEMBER( c1571_device::cia_cnt_w )
 {
 	m_cnt_out = state;
 	update_iec();
 }
 
-WRITE_LINE_MEMBER( base_c1571_device::cia_sp_w )
+WRITE_LINE_MEMBER( c1571_device::cia_sp_w )
 {
 	m_sp_out = state;
 	update_iec();
 }
 
-READ8_MEMBER( base_c1571_device::cia_pb_r )
+READ8_MEMBER( c1571_device::cia_pb_r )
 {
 	return m_parallel_data;
 }
 
-WRITE8_MEMBER( base_c1571_device::cia_pb_w )
+WRITE8_MEMBER( c1571_device::cia_pb_w )
 {
 	if (m_other != NULL)
 	{
@@ -608,17 +581,6 @@ WRITE8_MEMBER( base_c1571_device::cia_pb_w )
 	}
 }
 
-static MOS6526_INTERFACE( cia_intf )
-{
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_irq_w),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_pc_w),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_cnt_w),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_sp_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_pb_r),
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_pb_w)
-};
 
 //-------------------------------------------------
 //  MOS6526_INTERFACE( mini_chief_cia_intf )
@@ -654,24 +616,12 @@ WRITE8_MEMBER( mini_chief_device::cia_pb_w )
 	*/
 }
 
-static MOS6526_INTERFACE( mini_chief_cia_intf )
-{
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_irq_w),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_pc_w),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_cnt_w),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, cia_sp_w),
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, mini_chief_device, cia_pa_r),
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, mini_chief_device, cia_pa_w),
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, mini_chief_device, cia_pb_w)
-};
-
 
 //-------------------------------------------------
 //  C64H156_INTERFACE( ga_intf )
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( base_c1571_device::byte_w )
+WRITE_LINE_MEMBER( c1571_device::byte_w )
 {
 	m_via1->write_ca1(state);
 	m_maincpu->set_input_line(M6502_SET_OVERFLOW, state);
@@ -681,7 +631,7 @@ static C64H156_INTERFACE( ga_intf )
 {
 	DEVCB_NULL,
 	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, byte_w)
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, byte_w)
 };
 
 
@@ -718,7 +668,7 @@ LEGACY_FLOPPY_OPTIONS_END
 //  floppy_interface c1571_floppy_interface
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( base_c1571_device::wpt_w )
+WRITE_LINE_MEMBER( c1571_device::wpt_w )
 {
 	m_via0->write_ca2(!state);
 }
@@ -728,7 +678,7 @@ static const floppy_interface c1571_floppy_interface =
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, wpt_w),
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, wpt_w),
 	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSDD,
 	LEGACY_FLOPPY_OPTIONS_NAME(c1571),
@@ -746,7 +696,7 @@ static const floppy_interface c1570_floppy_interface =
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, base_c1571_device, wpt_w),
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1571_device, wpt_w),
 	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_SSDD,
 	LEGACY_FLOPPY_OPTIONS_NAME(c1541),
@@ -791,11 +741,13 @@ static MACHINE_CONFIG_FRAGMENT( c1570 )
 
 	MCFG_VIA6522_ADD(M6522_0_TAG, XTAL_16MHz/16, via0_intf)
 	MCFG_VIA6522_ADD(M6522_1_TAG, XTAL_16MHz/16, via1_intf)
-	MCFG_MOS6526_ADD(M6526_TAG, XTAL_16MHz/16, 0, cia_intf)
+	MCFG_MOS6526_ADD(M6526_TAG, XTAL_16MHz/16, 0, WRITELINE(c1571_device, cia_irq_w))
+	MCFG_MOS6526_SERIAL_CALLBACKS(WRITELINE(c1571_device, cia_cnt_w), WRITELINE(c1571_device, cia_sp_w))
+	MCFG_MOS6526_PORT_B_CALLBACKS(READ8(c1571_device, cia_pb_r), WRITE8(c1571_device, cia_pb_w), WRITELINE(c1571_device, cia_pc_w))
 	MCFG_WD1770x_ADD(WD1770_TAG, XTAL_16MHz/2)
 
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, c1570_floppy_interface)
-	//MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", c1570_floppies, "525ssdd", 0, base_c1571_device::floppy_formats)
+	//MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", c1570_floppies, "525ssdd", 0, c1571_device::floppy_formats)
 	MCFG_64H156_ADD(C64H156_TAG, XTAL_16MHz, ga_intf)
 MACHINE_CONFIG_END
 
@@ -811,11 +763,13 @@ static MACHINE_CONFIG_FRAGMENT( c1571 )
 
 	MCFG_VIA6522_ADD(M6522_0_TAG, XTAL_16MHz/16, via0_intf)
 	MCFG_VIA6522_ADD(M6522_1_TAG, XTAL_16MHz/16, via1_intf)
-	MCFG_MOS6526_ADD(M6526_TAG, XTAL_16MHz/16, 0, cia_intf)
+	MCFG_MOS6526_ADD(M6526_TAG, XTAL_16MHz/16, 0, WRITELINE(c1571_device, cia_irq_w))
+	MCFG_MOS6526_SERIAL_CALLBACKS(WRITELINE(c1571_device, cia_cnt_w), WRITELINE(c1571_device, cia_sp_w))
+	MCFG_MOS6526_PORT_B_CALLBACKS(READ8(c1571_device, cia_pb_r), WRITE8(c1571_device, cia_pb_w), WRITELINE(c1571_device, cia_pc_w))
 	MCFG_WD1770x_ADD(WD1770_TAG, XTAL_16MHz/2)
 
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, c1571_floppy_interface)
-	//MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", c1571_floppies, "525dd", 0, base_c1571_device::floppy_formats)
+	//MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", c1571_floppies, "525dd", 0, c1571_device::floppy_formats)
 	MCFG_64H156_ADD(C64H156_TAG, XTAL_16MHz, ga_intf)
 MACHINE_CONFIG_END
 
@@ -831,11 +785,13 @@ static MACHINE_CONFIG_FRAGMENT( c1571cr )
 
 	MCFG_VIA6522_ADD(M6522_0_TAG, XTAL_16MHz/16, c1571cr_via0_intf)
 	MCFG_VIA6522_ADD(M6522_1_TAG, XTAL_16MHz/16, via1_intf)
-	MCFG_MOS5710_ADD(M5710_TAG, XTAL_16MHz/16, 0, cia_intf)
+
+	//MCFG_MOS5710_ADD(M5710_TAG, XTAL_16MHz/16, 0)
+
 	MCFG_WD1770x_ADD(WD1770_TAG, XTAL_16MHz/2)
 
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, c1571_floppy_interface)
-	//MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", c1571_floppies, "525dd", 0, base_c1571_device::floppy_formats)
+	//MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", c1571_floppies, "525dd", 0, c1571_device::floppy_formats)
 	MCFG_64H156_ADD(C64H156_TAG, XTAL_16MHz, ga_intf)
 MACHINE_CONFIG_END
 
@@ -851,15 +807,17 @@ static MACHINE_CONFIG_FRAGMENT( mini_chief )
 
 	MCFG_VIA6522_ADD(M6522_0_TAG, XTAL_16MHz/16, via0_intf)
 	MCFG_VIA6522_ADD(M6522_1_TAG, XTAL_16MHz/16, via1_intf)
-	MCFG_MOS6526_ADD(M6526_TAG, XTAL_16MHz/16, 0, mini_chief_cia_intf)
+	MCFG_MOS6526_ADD(M6526_TAG, XTAL_16MHz/16, 0, WRITELINE(c1571_device, cia_irq_w))
+	MCFG_MOS6526_SERIAL_CALLBACKS(WRITELINE(c1571_device, cia_cnt_w), WRITELINE(c1571_device, cia_sp_w))
+	MCFG_MOS6526_PORT_B_CALLBACKS(READ8(c1571_device, cia_pb_r), WRITE8(c1571_device, cia_pb_w), WRITELINE(c1571_device, cia_pc_w))
 	MCFG_WD1770x_ADD(WD1770_TAG, XTAL_16MHz/2)
 
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, c1571_floppy_interface)
-	//MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", c1571_floppies, "525dd", 0, base_c1571_device::floppy_formats)
+	//MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", c1571_floppies, "525dd", 0, c1571_device::floppy_formats)
 	MCFG_64H156_ADD(C64H156_TAG, XTAL_16MHz, ga_intf)
 
 	MCFG_ISA8_BUS_ADD(ISA_BUS_TAG, M6502_TAG, isabus_intf)
-	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa1", mini_chief_isa8_cards, NULL/*"wd1002a_wx1"*/, NULL, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa1", mini_chief_isa8_cards, NULL/*"wd1002a_wx1"*/, false)
 MACHINE_CONFIG_END
 
 
@@ -868,7 +826,7 @@ MACHINE_CONFIG_END
 //  machine configurations
 //-------------------------------------------------
 
-machine_config_constructor base_c1571_device::device_mconfig_additions() const
+machine_config_constructor c1571_device::device_mconfig_additions() const
 {
 	switch (m_variant)
 	{
@@ -894,11 +852,11 @@ machine_config_constructor base_c1571_device::device_mconfig_additions() const
 //**************************************************************************
 
 //-------------------------------------------------
-//  base_c1571_device - constructor
+//  c1571_device - constructor
 //-------------------------------------------------
 
-base_c1571_device::base_c1571_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant)
-	: device_t(mconfig, type, name, tag, owner, clock),
+c1571_device::c1571_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_cbm_iec_interface(mconfig, *this),
 		device_c64_floppy_parallel_interface(mconfig, *this),
 		m_maincpu(*this, M6502_TAG),
@@ -920,25 +878,38 @@ base_c1571_device::base_c1571_device(const machine_config &mconfig, device_type 
 {
 }
 
+c1571_device::c1571_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: device_t(mconfig, C1571, "C1571", tag, owner, clock, "c1571", __FILE__),
+		device_cbm_iec_interface(mconfig, *this),
+		device_c64_floppy_parallel_interface(mconfig, *this),
+		m_maincpu(*this, M6502_TAG),
+		m_via0(*this, M6522_0_TAG),
+		m_via1(*this, M6522_1_TAG),
+		m_cia(*this, M6526_TAG),
+		m_fdc(*this, WD1770_TAG),
+		m_ga(*this, C64H156_TAG),
+		m_image(*this, FLOPPY_0),
+		m_1_2mhz(0),
+		m_data_out(1),
+		m_ser_dir(0),
+		m_sp_out(1),
+		m_cnt_out(1),
+		m_via0_irq(CLEAR_LINE),
+		m_via1_irq(CLEAR_LINE),
+		m_cia_irq(CLEAR_LINE),
+		m_variant(TYPE_1571)
+		//m_floppy(*this, WD1770_TAG":0:525dd")
+{
+}
+
 
 //-------------------------------------------------
 //  c1570_device - constructor
 //-------------------------------------------------
 
 c1570_device::c1570_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: base_c1571_device(mconfig, C1570, "C1570", tag, owner, clock, TYPE_1570)
+	: c1571_device(mconfig, C1570, "C1570", tag, owner, clock, TYPE_1570, "c1570", __FILE__)
 		//m_floppy(*this, WD1770_TAG":0:525ssdd")
-{
-}
-
-
-//-------------------------------------------------
-//  c1571_device - constructor
-//-------------------------------------------------
-
-c1571_device::c1571_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: base_c1571_device(mconfig, C1571, "C1571", tag, owner, clock, TYPE_1571)
-		//m_floppy(*this, WD1770_TAG":0:525dd")
 {
 }
 
@@ -948,7 +919,7 @@ c1571_device::c1571_device(const machine_config &mconfig, const char *tag, devic
 //-------------------------------------------------
 
 c1571cr_device::c1571cr_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: base_c1571_device(mconfig, C1571CR, "C1571CR", tag, owner, clock, TYPE_1571CR)
+	: c1571_device(mconfig, C1571CR, "C1571CR", tag, owner, clock, TYPE_1571CR, "c1571cr", __FILE__)
 		//m_floppy(*this, WD1770_TAG":0:525dd")
 {
 }
@@ -959,7 +930,7 @@ c1571cr_device::c1571cr_device(const machine_config &mconfig, const char *tag, d
 //-------------------------------------------------
 
 mini_chief_device::mini_chief_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: base_c1571_device(mconfig, MINI_CHIEF, "ICT Mini Chief", tag, owner, clock, TYPE_MINI_CHIEF)
+	: c1571_device(mconfig, MINI_CHIEF, "ICT Mini Chief", tag, owner, clock, TYPE_MINI_CHIEF, "minichif", __FILE__)
 		//m_floppy(*this, WD1770_TAG":0:525dd")
 {
 }
@@ -969,7 +940,7 @@ mini_chief_device::mini_chief_device(const machine_config &mconfig, const char *
 //  device_start - device-specific startup
 //-------------------------------------------------
 
-void base_c1571_device::device_start()
+void c1571_device::device_start()
 {
 	// install image callbacks
 	m_ga->set_floppy(m_image);
@@ -991,7 +962,7 @@ void base_c1571_device::device_start()
 //  device_reset - device-specific reset
 //-------------------------------------------------
 
-void base_c1571_device::device_reset()
+void c1571_device::device_reset()
 {
 	m_maincpu->reset();
 
@@ -1013,7 +984,7 @@ void base_c1571_device::device_reset()
 //  cbm_iec_srq -
 //-------------------------------------------------
 
-void base_c1571_device::cbm_iec_srq(int state)
+void c1571_device::cbm_iec_srq(int state)
 {
 	update_iec();
 }
@@ -1023,7 +994,7 @@ void base_c1571_device::cbm_iec_srq(int state)
 //  cbm_iec_atn -
 //-------------------------------------------------
 
-void base_c1571_device::cbm_iec_atn(int state)
+void c1571_device::cbm_iec_atn(int state)
 {
 	update_iec();
 }
@@ -1033,7 +1004,7 @@ void base_c1571_device::cbm_iec_atn(int state)
 //  cbm_iec_data -
 //-------------------------------------------------
 
-void base_c1571_device::cbm_iec_data(int state)
+void c1571_device::cbm_iec_data(int state)
 {
 	update_iec();
 }
@@ -1043,7 +1014,7 @@ void base_c1571_device::cbm_iec_data(int state)
 //  cbm_iec_reset -
 //-------------------------------------------------
 
-void base_c1571_device::cbm_iec_reset(int state)
+void c1571_device::cbm_iec_reset(int state)
 {
 	if (!state)
 	{
@@ -1056,7 +1027,7 @@ void base_c1571_device::cbm_iec_reset(int state)
 //  parallel_data_w -
 //-------------------------------------------------
 
-void base_c1571_device::parallel_data_w(UINT8 data)
+void c1571_device::parallel_data_w(UINT8 data)
 {
 	m_parallel_data = data;
 }
@@ -1066,7 +1037,7 @@ void base_c1571_device::parallel_data_w(UINT8 data)
 //  parallel_strobe_w -
 //-------------------------------------------------
 
-void base_c1571_device::parallel_strobe_w(int state)
+void c1571_device::parallel_strobe_w(int state)
 {
 	m_cia->flag_w(state);
 }
@@ -1076,7 +1047,7 @@ void base_c1571_device::parallel_strobe_w(int state)
 //  update_iec -
 //-------------------------------------------------
 
-void base_c1571_device::update_iec()
+void c1571_device::update_iec()
 {
 	m_cia->cnt_w(m_ser_dir || m_bus->srq_r());
 	m_cia->sp_w(m_ser_dir || m_bus->data_r());

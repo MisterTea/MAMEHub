@@ -236,7 +236,6 @@ WRITE16_MEMBER(konamigx_state::K053990_martchmp_word_w)
 
 void konamigx_esc_alert(UINT32 *srcbase, int srcoffs, int count, int mode) // (WARNING: assumed big endianess)
 {
-
 // hand-filled but should be close
 static const UINT8 ztable[7][8] =
 {
@@ -290,7 +289,6 @@ static const UINT8 ptable[7][8] =
 	}
 	else
 	{
-
 #define EXTRACT_ODD         \
 if((data1=obj[0])&0x8000)   \
 {                           \
@@ -442,8 +440,8 @@ static UINT32 fantjour_dma[8];
 void fantjour_dma_install(running_machine &machine)
 {
 	konamigx_state *state = machine.driver_data<konamigx_state>();
-	state_save_register_global_array(machine, fantjour_dma);
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xdb0000, 0xdb001f, write32_delegate(FUNC(konamigx_state::fantjour_dma_w),state));
+	machine.save().save_item(NAME(fantjour_dma));
+	state->m_maincpu->space(AS_PROGRAM).install_write_handler(0xdb0000, 0xdb001f, write32_delegate(FUNC(konamigx_state::fantjour_dma_w),state));
 	memset(fantjour_dma, 0, sizeof(fantjour_dma));
 }
 

@@ -51,11 +51,16 @@ Expansion bus stuff:
 00022ba4 - init exp bus, write 17x 00 to the selection register to let all expansion devices determine their id on the bus.
 00022bd0 - write 0x8f to the selection register to determine if there are too many devices attached.
 
+(11-jan-2013)
+"Error, could not open cdrom device"
+- ARM finally uploads a program to DSPP, wants something back out of it (reads EO 0xee and unmasks DSPP irq).
+
 */
 
 #include "emu.h"
 #include "includes/3do.h"
 #include "cpu/arm7/arm7core.h"
+#include "debugger.h"
 
 #define VERBOSE         1
 #define LOG(x) do { if (VERBOSE) printf x; } while (0)
@@ -192,7 +197,7 @@ WRITE8_MEMBER(_3do_state::_3do_nvarea_w) { m_nvram[offset] = data; }
 READ32_MEMBER(_3do_state::_3do_slow2_r){
 	UINT32 data = 0;
 
-	logerror( "%08X: UNK_318 read offset = %08X\n", machine().device("maincpu")->safe_pc(), offset );
+	logerror( "%08X: UNK_318 read offset = %08X\n", m_maincpu->pc(), offset );
 
 	switch( offset ) {
 	case 0:     /* Boot ROM checks here and expects to read 1, 0, 1, 0 in the lowest bit */
@@ -206,14 +211,14 @@ READ32_MEMBER(_3do_state::_3do_slow2_r){
 
 WRITE32_MEMBER(_3do_state::_3do_slow2_w)
 {
-	logerror( "%08X: UNK_318 write offset = %08X, data = %08X, mask = %08X\n", machine().device("maincpu")->safe_pc(), offset, data, mem_mask );
+	logerror( "%08X: UNK_318 write offset = %08X, data = %08X, mask = %08X\n", m_maincpu->pc(), offset, data, mem_mask );
 
 	switch( offset )
 	{
 		case 0:     /* Boot ROM writes 03180000 here and then starts reading some things */
 		{
 			/* disable ROM overlay */
-			membank("bank1")->set_entry(0);
+			m_bank1->set_entry(0);
 		}
 		m_slow2.cg_input = m_slow2.cg_input << 1 | ( data & 0x00000001 );
 		m_slow2.cg_w_count ++;
@@ -225,20 +230,13 @@ WRITE32_MEMBER(_3do_state::_3do_slow2_w)
 }
 
 
-void _3do_slow2_init( running_machine &machine )
-{
-	_3do_state *state = machine.driver_data<_3do_state>();
-	state->m_slow2.cg_input = 0;
-	state->m_slow2.cg_output = 0x00000005 - 1;
-}
-
 
 READ32_MEMBER(_3do_state::_3do_svf_r)
 {
 	UINT32 addr = ( offset & ( 0x07fc / 4 ) ) << 9;
 	UINT32 *p = m_vram + addr;
 
-	logerror( "%08X: SVF read offset = %08X\n", machine().device("maincpu")->safe_pc(), offset*4 );
+	logerror( "%08X: SVF read offset = %08X\n", m_maincpu->pc(), offset*4 );
 
 	switch( offset & ( 0xE000 / 4 ) )
 	{
@@ -263,7 +261,7 @@ WRITE32_MEMBER(_3do_state::_3do_svf_w)
 	UINT32 addr = ( offset & ( 0x07fc / 4 ) ) << 9;
 	UINT32 *p = m_vram + addr;
 
-	logerror( "%08X: SVF write offset = %08X, data = %08X, mask = %08X\n", machine().device("maincpu")->safe_pc(), offset*4, data, mem_mask );
+	logerror( "%08X: SVF write offset = %08X, data = %08X, mask = %08X\n", m_maincpu->pc(), offset*4, data, mem_mask );
 
 	switch( offset & ( 0xe000 / 4 ) )
 	{
@@ -299,7 +297,7 @@ WRITE32_MEMBER(_3do_state::_3do_svf_w)
 
 
 READ32_MEMBER(_3do_state::_3do_madam_r){
-	logerror( "%08X: MADAM read offset = %08X\n", machine().device("maincpu")->safe_pc(), offset*4 );
+	logerror( "%08X: MADAM read offset = %08X\n", m_maincpu->pc(), offset*4 );
 
 	switch( offset ) {
 	case 0x0000/4:      /* 03300000 - Revision */
@@ -450,7 +448,7 @@ READ32_MEMBER(_3do_state::_3do_madam_r){
 	case 0x07f8/4:
 		return m_madam.mult_status;
 	default:
-		logerror( "%08X: unhandled MADAM read offset = %08X\n", machine().device("maincpu")->safe_pc(), offset*4 );
+		logerror( "%08X: unhandled MADAM read offset = %08X\n", m_maincpu->pc(), offset*4 );
 		break;
 	}
 	return 0;
@@ -458,16 +456,15 @@ READ32_MEMBER(_3do_state::_3do_madam_r){
 
 
 WRITE32_MEMBER(_3do_state::_3do_madam_w){
-
 	if(offset == 0)
 	{
 		if(data == 0x0a)
-			logerror( "%08X: MADAM write offset = %08X, data = %08X (\\n), mask = %08X\n", machine().device("maincpu")->safe_pc(), offset*4, data, mem_mask );
+			logerror( "%08X: MADAM write offset = %08X, data = %08X (\\n), mask = %08X\n", m_maincpu->pc(), offset*4, data, mem_mask );
 		else
-			logerror( "%08X: MADAM write offset = %08X, data = %08X (%c), mask = %08X\n", machine().device("maincpu")->safe_pc(), offset*4, data, data, mem_mask );
+			logerror( "%08X: MADAM write offset = %08X, data = %08X (%c), mask = %08X\n", m_maincpu->pc(), offset*4, data, data, mem_mask );
 	}
 	else
-		logerror( "%08X: MADAM write offset = %08X, data = %08X, mask = %08X\n", machine().device("maincpu")->safe_pc(), offset*4, data, mem_mask );
+		logerror( "%08X: MADAM write offset = %08X, data = %08X, mask = %08X\n", m_maincpu->pc(), offset*4, data, mem_mask );
 
 	switch( offset ) {
 	case 0x0000/4:
@@ -618,6 +615,7 @@ WRITE32_MEMBER(_3do_state::_3do_madam_w){
 	case 0x05d0/4: case 0x05d4/4: case 0x05d8/4: case 0x05dc/4:
 	case 0x05e0/4: case 0x05e4/4: case 0x05e8/4: case 0x05ec/4:
 	case 0x05f0/4: case 0x05f4/4: case 0x05f8/4: case 0x05fc/4:
+		printf("%08x %08x\n",offset*4,data);
 		m_madam.dma[(offset/4) & 0x1f][offset & 0x03] = data;
 		return;
 
@@ -643,19 +641,12 @@ WRITE32_MEMBER(_3do_state::_3do_madam_w){
 		break;
 
 	default:
-		logerror( "%08X: unhandled MADAM write offset = %08X, data = %08X, mask = %08X\n", machine().device("maincpu")->safe_pc(), offset*4, data, mem_mask );
+		logerror( "%08X: unhandled MADAM write offset = %08X, data = %08X, mask = %08X\n", m_maincpu->pc(), offset*4, data, mem_mask );
 		break;
 	}
 }
 
 
-void _3do_madam_init( running_machine &machine )
-{
-	_3do_state *state = machine.driver_data<_3do_state>();
-	memset( &state->m_madam, 0, sizeof(MADAM) );
-	state->m_madam.revision = 0x01020000;
-	state->m_madam.msysbits = 0x51;
-}
 
 
 READ32_MEMBER(_3do_state::_3do_clio_r)
@@ -664,14 +655,14 @@ READ32_MEMBER(_3do_state::_3do_clio_r)
 	{
 		if(offset != 0x200/4 && offset != 0x40/4 && offset != 0x44/4 && offset != 0x48/4 && offset != 0x4c/4 &&
 			offset != 0x118/4 && offset != 0x11c/4)
-		logerror( "%08X: CLIO read offset = %08X\n", machine().device("maincpu")->safe_pc(), offset * 4 );
+		logerror( "%08X: CLIO read offset = %08X\n", m_maincpu->pc(), offset * 4 );
 	}
 
 	/* TODO: for debug, to be removed once that we write the CPU core */
 	if(offset >= 0x3800/4 && offset <= 0x39ff/4)
 	{
 		UINT32 res = 0;
-		offset &= (0xff/4);
+		offset &= (0x1ff/4);
 		res = (m_dspp.EO[(offset<<1)+0] << 16);
 		res |= (m_dspp.EO[(offset<<1)+1] & 0xffff);
 		return res;
@@ -680,7 +671,7 @@ READ32_MEMBER(_3do_state::_3do_clio_r)
 	if(offset >= 0x3c00/4 && offset <= 0x3fff/4)
 	{
 		UINT16 res;
-		offset &= (0x1ff/4);
+		offset &= (0x3ff/4);
 		res = m_dspp.EO[offset] & 0xffff;
 		return res;
 	}
@@ -779,7 +770,7 @@ READ32_MEMBER(_3do_state::_3do_clio_r)
 
 	default:
 	if (!space.debugger_access())
-		logerror( "%08X: unhandled CLIO read offset = %08X\n", machine().device("maincpu")->safe_pc(), offset * 4 );
+		logerror( "%08X: unhandled CLIO read offset = %08X\n", m_maincpu->pc(), offset * 4 );
 		break;
 	}
 	return 0;
@@ -789,7 +780,7 @@ WRITE32_MEMBER(_3do_state::_3do_clio_w)
 {
 	if(offset != 0x200/4 && offset != 0x40/4 && offset != 0x44/4 && offset != 0x48/4 && offset != 0x4c/4 &&
 		offset != 0x118/4 && offset != 0x11c/4)
-		logerror( "%08X: CLIO write offset = %08X, data = %08X, mask = %08X\n", machine().device("maincpu")->safe_pc(), offset*4, data, mem_mask );
+		logerror( "%08X: CLIO write offset = %08X, data = %08X, mask = %08X\n", m_maincpu->pc(), offset*4, data, mem_mask );
 
 	/* TODO: for debug, to be removed once that we write the CPU core */
 	if(offset >= 0x1800/4 && offset <= 0x1fff/4)
@@ -809,7 +800,7 @@ WRITE32_MEMBER(_3do_state::_3do_clio_w)
 
 	if(offset >= 0x3000/4 && offset <= 0x31ff/4)
 	{
-		offset &= (0xff/4);
+		offset &= (0x1ff/4);
 		m_dspp.EI[(offset<<1)+0] = data >> 16;
 		m_dspp.EI[(offset<<1)+1] = data & 0xffff;
 		return;
@@ -817,7 +808,7 @@ WRITE32_MEMBER(_3do_state::_3do_clio_w)
 
 	if(offset >= 0x3400/4 && offset <= 0x37ff/4)
 	{
-		offset &= (0x1ff/4);
+		offset &= (0x3ff/4);
 		m_dspp.EI[offset] = data & 0xffff;
 		return;
 	}
@@ -949,6 +940,11 @@ WRITE32_MEMBER(_3do_state::_3do_clio_w)
 		m_clio.slack = data & 0x000003ff;
 		break;
 
+	case 0x0304/4:
+		if(data)
+			printf("DMA %08x\n",data);
+
+		break;
 
 	case 0x0308/4:
 		m_clio.dmareqdis = data;
@@ -1005,6 +1001,9 @@ WRITE32_MEMBER(_3do_state::_3do_clio_w)
 	*/
 	case 0x17fc/4:
 		/* TODO: DSPP enabled just before enabling DSPP irq! */
+		if(data & 1)
+			debugger_break(machine());
+
 		//printf("%08x\n",data);
 		break;
 
@@ -1017,28 +1016,9 @@ WRITE32_MEMBER(_3do_state::_3do_clio_w)
 		break;
 
 	default:
-		logerror( "%08X: unhandled CLIO write offset = %08X, data = %08X, mask = %08X\n", machine().device("maincpu")->safe_pc(), offset*4, data, mem_mask );
+		logerror( "%08X: unhandled CLIO write offset = %08X, data = %08X, mask = %08X\n", m_maincpu->pc(), offset*4, data, mem_mask );
 		break;
 	}
-}
-
-
-void _3do_clio_init( running_machine &machine, screen_device *screen )
-{
-	_3do_state *state = machine.driver_data<_3do_state>();
-	memset( &state->m_clio, 0, sizeof(CLIO) );
-	state->m_clio.screen = screen;
-	state->m_clio.revision = 0x02022000 /* 0x04000000 */;
-	state->m_clio.cstatbits = 0x01; /* bit 0 = reset of clio caused by power on */
-	state->m_clio.unclerev = 0x03800000;
-	state->m_clio.expctl = 0x80;    /* ARM has the expansion bus */
-	state->m_dspp.N = auto_alloc_array(machine, UINT16, 0x800 );
-	state->m_dspp.EI = auto_alloc_array(machine, UINT16, 0x200 );
-	state->m_dspp.EO = auto_alloc_array(machine, UINT16, 0x200 );
-
-	state_save_register_global_pointer(machine, state->m_dspp.N, 0x800);
-	state_save_register_global_pointer(machine, state->m_dspp.EI, 0x200);
-	state_save_register_global_pointer(machine, state->m_dspp.EO, 0x200);
 }
 
 
@@ -1102,4 +1082,43 @@ UINT32 _3do_state::screen_update__3do(screen_device &screen, bitmap_rgb32 &bitma
 	}
 
 	return 0;
+}
+
+/*
+ *
+ * Machine Inits
+ *
+ */
+
+void _3do_state::m_3do_madam_init( void )
+{
+	memset( &m_madam, 0, sizeof(MADAM) );
+	m_madam.revision = 0x01020000;
+	m_madam.msysbits = 0x51;
+}
+
+void _3do_state::m_3do_slow2_init( void )
+{
+	m_slow2.cg_input = 0;
+	m_slow2.cg_output = 0x00000005 - 1;
+}
+
+void _3do_state::m_3do_clio_init( screen_device *screen )
+{
+	memset( &m_clio, 0, sizeof(CLIO) );
+	m_clio.screen = screen;
+	m_clio.revision = 0x02022000 /* 0x04000000 */;
+	m_clio.unclerev = 0x03800000;
+	m_clio.expctl = 0x80;    /* ARM has the expansion bus */
+	m_dspp.N = auto_alloc_array(machine(), UINT16, 0x800 );
+	m_dspp.EI = auto_alloc_array(machine(), UINT16, 0x400 );
+	m_dspp.EO = auto_alloc_array(machine(), UINT16, 0x400 );
+
+	memset(m_dspp.N, 0, sizeof(UINT16) * 0x400);
+	memset(m_dspp.EI, 0, sizeof(UINT16) * 0x400);
+	memset(m_dspp.EO, 0, sizeof(UINT16) * 0x400);
+
+	save_pointer(NAME(m_dspp.N), 0x800);
+	save_pointer(NAME(m_dspp.EI), 0x400);
+	save_pointer(NAME(m_dspp.EO), 0x400);
 }

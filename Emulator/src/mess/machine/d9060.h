@@ -43,7 +43,6 @@
 class base_d9060_device :  public device_t,
 							public device_ieee488_interface
 {
-
 public:
 	enum
 	{
@@ -52,7 +51,7 @@ public:
 	};
 
 	// construction/destruction
-	base_d9060_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant);
+	base_d9060_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
 
 	// optional information overrides
 	virtual const rom_entry *device_rom_region() const;
@@ -77,7 +76,6 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete();
 
 	// device_ieee488_interface overrides
 	void ieee488_atn(int state);
@@ -97,6 +95,7 @@ private:
 	int m_rfdo;                         // not ready for data output
 	int m_daco;                         // not data accepted output
 	int m_atna;                         // attention acknowledge
+	int m_ifc;
 
 	// SASI bus
 	int m_enable;

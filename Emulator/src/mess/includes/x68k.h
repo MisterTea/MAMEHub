@@ -11,6 +11,8 @@
 
 #include "machine/rp5c15.h"
 #include "machine/upd765.h"
+#include "sound/okim6258.h"
+#include "machine/ram.h"
 
 #define MC68901_TAG     "mc68901"
 #define RP5C15_TAG      "rp5c15"
@@ -42,6 +44,27 @@ enum
 class x68k_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_MFP_UPDATE_IRQ,
+		TIMER_MFP_TIMER_A,
+		TIMER_MFP_TIMER_B,
+		TIMER_MFP_TIMER_C,
+		TIMER_MFP_TIMER_D,
+		TIMER_X68K_LED,
+		TIMER_X68K_KEYBOARD_POLL,
+		TIMER_X68K_SCC_ACK,
+		TIMER_MD_6BUTTON_PORT1_TIMEOUT,
+		TIMER_MD_6BUTTON_PORT2_TIMEOUT,
+		TIMER_X68K_BUS_ERROR,
+		TIMER_X68K_NET_IRQ,
+		TIMER_X68K_CRTC_OPERATION_END,
+		TIMER_X68K_HSYNC,
+		TIMER_X68K_CRTC_RASTER_END,
+		TIMER_X68K_CRTC_RASTER_IRQ,
+		TIMER_X68K_CRTC_VBLANK_IRQ,
+	};
+
 	x68k_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_mfpdev(*this, MC68901_TAG),
@@ -51,8 +74,10 @@ public:
 			m_gvram16(*this, "gvram16"),
 			m_tvram16(*this, "tvram16"),
 			m_gvram32(*this, "gvram32"),
-			m_tvram32(*this, "tvram32")
-	{ }
+			m_tvram32(*this, "tvram32"),
+		m_maincpu(*this, "maincpu"),
+		m_okim6258(*this, "okim6258"),
+		m_ram(*this, RAM_TAG) { }
 
 	required_device<mc68901_device> m_mfpdev;
 	required_device<rp5c15_device> m_rtc;
@@ -369,6 +394,8 @@ public:
 	DECLARE_READ32_MEMBER(x68k_gvram32_r);
 	DECLARE_WRITE32_MEMBER(x68k_tvram32_w);
 	DECLARE_READ32_MEMBER(x68k_tvram32_r);
+	IRQ_CALLBACK_MEMBER(x68k_int_ack);
+
 private:
 	inline void x68k_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT32 color);
 	void x68k_crtc_text_copy(int src, int dest);
@@ -377,6 +404,19 @@ private:
 	void x68k_draw_gfx_scanline(bitmap_ind16 &bitmap, rectangle cliprect, UINT8 priority);
 	void x68k_draw_gfx(bitmap_ind16 &bitmap,rectangle cliprect);
 	void x68k_draw_sprites(bitmap_ind16 &bitmap, int priority, rectangle cliprect);
+
+public:
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6258_device> m_okim6258;
+	required_device<ram_device> m_ram;
+	bitmap_ind16* x68k_get_gfx_page(int pri,int type);
+	attotime prescale(int val);
+	void mfp_trigger_irq(int irq);
+	void mfp_set_timer(int timer, unsigned char data);
+	void mfp_recv_data(int data);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 

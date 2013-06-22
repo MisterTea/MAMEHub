@@ -41,9 +41,9 @@ class maygay1b_state : public driver_device
 public:
 	maygay1b_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_vfd(*this, "vfd")
-	{
-
+			m_vfd(*this, "vfd"),
+		m_maincpu(*this, "maincpu"),
+		m_msm6376(*this, "msm6376") {
 		m_NMIENABLE = 0;
 	}
 
@@ -82,4 +82,8 @@ public:
 	DECLARE_DRIVER_INIT(m1);
 	virtual void machine_start();
 	virtual void machine_reset();
+	void update_outputs(i8279_state *chip, UINT16 which);
+	void m1_stepper_reset();
+	required_device<cpu_device> m_maincpu;
+	optional_device<okim6376_device> m_msm6376;
 };

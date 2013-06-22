@@ -39,7 +39,7 @@ J Clegg
 
 void travrusa_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* allocate the colortable */
@@ -115,7 +115,7 @@ void travrusa_state::palette_init()
 
 PALETTE_INIT_MEMBER(travrusa_state,shtrider)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* allocate the colortable */
@@ -221,7 +221,6 @@ TILE_GET_INFO_MEMBER(travrusa_state::get_tile_info)
 
 void travrusa_state::video_start()
 {
-
 	save_item(NAME(m_scrollx));
 
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(travrusa_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
@@ -247,27 +246,26 @@ WRITE8_MEMBER(travrusa_state::travrusa_videoram_w)
 }
 
 
-static void set_scroll( running_machine &machine )
+void travrusa_state::set_scroll(  )
 {
-	travrusa_state *state = machine.driver_data<travrusa_state>();
 	int i;
 
 	for (i = 0; i <= 2; i++)
-		state->m_bg_tilemap->set_scrollx(i, state->m_scrollx[0] + 256 * state->m_scrollx[1]);
+		m_bg_tilemap->set_scrollx(i, m_scrollx[0] + 256 * m_scrollx[1]);
 
-	state->m_bg_tilemap->set_scrollx(3, 0);
+	m_bg_tilemap->set_scrollx(3, 0);
 }
 
 WRITE8_MEMBER(travrusa_state::travrusa_scroll_x_low_w)
 {
 	m_scrollx[0] = data;
-	set_scroll(machine());
+	set_scroll();
 }
 
 WRITE8_MEMBER(travrusa_state::travrusa_scroll_x_high_w)
 {
 	m_scrollx[1] = data;
-	set_scroll(machine());
+	set_scroll();
 }
 
 
@@ -290,29 +288,28 @@ WRITE8_MEMBER(travrusa_state::travrusa_flipscreen_w)
 
 ***************************************************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect)
+void travrusa_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
-	travrusa_state *state = machine.driver_data<travrusa_state>();
 	int offs;
 	const rectangle spritevisiblearea(1*8, 31*8-1, 0*8, 24*8-1);
 	const rectangle spritevisibleareaflip(1*8, 31*8-1, 8*8, 32*8-1);
 	rectangle clip = cliprect;
-	if (state->flip_screen())
+	if (flip_screen())
 		clip &= spritevisibleareaflip;
 	else
 		clip &= spritevisiblearea;
 
 
-	for (offs = state->m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
+	for (offs = m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
 	{
-		int sx = ((state->m_spriteram[offs + 3] + 8) & 0xff) - 8;
-		int sy = 240 - state->m_spriteram[offs];
-		int code = state->m_spriteram[offs + 2];
-		int attr = state->m_spriteram[offs + 1];
+		int sx = ((m_spriteram[offs + 3] + 8) & 0xff) - 8;
+		int sy = 240 - m_spriteram[offs];
+		int code = m_spriteram[offs + 2];
+		int attr = m_spriteram[offs + 1];
 		int flipx = attr & 0x40;
 		int flipy = attr & 0x80;
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sx = 240 - sx;
 			sy = 240 - sy;
@@ -320,7 +317,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const re
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, clip, machine.gfx[1],
+		drawgfx_transpen(bitmap, clip, machine().gfx[1],
 				code,
 				attr & 0x0f,
 				flipx, flipy,
@@ -332,7 +329,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const re
 UINT32 travrusa_state::screen_update_travrusa(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
-	draw_sprites(machine(), bitmap,cliprect);
+	draw_sprites(bitmap,cliprect);
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);
 	return 0;
 }

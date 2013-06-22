@@ -645,6 +645,9 @@ READ16_MEMBER(model1_state::io_r)
 	if(offset < 0x8)
 		return ioport(analognames[offset])->read_safe(0x00);
 
+	if(offset == 0x0f)
+		return m_lamp_state;
+
 	if(offset < 0x10)
 	{
 		offset -= 0x8;
@@ -660,12 +663,14 @@ READ16_MEMBER(model1_state::io_r)
 WRITE16_MEMBER(model1_state::io_w)
 {
 	if(offset == 0x0f){
-		// tested in vf, swa, wingwar
+		// tested in vr, vf, swa, wingwar
 		set_led_status(machine(), 0, data & 0x4);   // START (1)
 		set_led_status(machine(), 1, data & 0x8);   // VIEW1 (START2 - VF)
 		set_led_status(machine(), 2, data & 0x10);  // VIEW2 (VIEW - SWA)
 		set_led_status(machine(), 3, data & 0x20);  // VIEW3
 		set_led_status(machine(), 4, data & 0x40);  // VIEW4
+		set_led_status(machine(), 5, data & 0x80);  // RACE LEADER
+		m_lamp_state = data;
 		return;
 	}
 	logerror("IOW: %02x %02x\n", offset, data);
@@ -681,7 +686,7 @@ WRITE16_MEMBER(model1_state::bank_w)
 	if(ACCESSING_BITS_0_7) {
 		switch(data & 0xf) {
 		case 0x1: // 100000-1fffff data roms banking
-			membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x1000000 + 0x100000*((data >> 4) & 0xf));
+			membank("bank1")->set_base(memregion("maincpu")->base() + 0x1000000 + 0x100000*((data >> 4) & 0xf));
 			logerror("BANK %x\n", 0x1000000 + 0x100000*((data >> 4) & 0xf));
 			break;
 		case 0x2: // 200000-2fffff data roms banking (unused, all known games have only one bank)
@@ -694,19 +699,17 @@ WRITE16_MEMBER(model1_state::bank_w)
 
 
 
-static void irq_raise(running_machine &machine, int level)
+void model1_state::irq_raise(int level)
 {
-	model1_state *state = machine.driver_data<model1_state>();
 	//  logerror("irq: raising %d\n", level);
 	//  irq_status |= (1 << level);
-	state->m_last_irq = level;
-	machine.device("maincpu")->execute().set_input_line(0, HOLD_LINE);
+	m_last_irq = level;
+	m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
-static IRQ_CALLBACK(irq_callback)
+IRQ_CALLBACK_MEMBER(model1_state::irq_callback)
 {
-	model1_state *state = device->machine().driver_data<model1_state>();
-	return state->m_last_irq;
+	return m_last_irq;
 }
 // vf
 // 1 = fe3ed4
@@ -722,10 +725,10 @@ static IRQ_CALLBACK(irq_callback)
 // 3 = ff54c
 // other = ff568/ff574
 
-static void irq_init(running_machine &machine)
+void model1_state::irq_init()
 {
-	machine.device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
-	machine.device("maincpu")->execute().set_irq_acknowledge_callback(irq_callback);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(model1_state::irq_callback),this));
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(model1_state::model1_interrupt)
@@ -734,16 +737,16 @@ TIMER_DEVICE_CALLBACK_MEMBER(model1_state::model1_interrupt)
 
 	if (scanline == 384)
 	{
-		irq_raise(machine(), 1);
+		irq_raise(1);
 	}
 	else if(scanline == 384/2)
 	{
-		irq_raise(machine(), m_sound_irq);
+		irq_raise(m_sound_irq);
 
 		// if the FIFO has something in it, signal the 68k too
 		if (m_fifo_rptr != m_fifo_wptr)
 		{
-			machine().device("audiocpu")->execute().set_input_line(2, HOLD_LINE);
+			m_audiocpu->set_input_line(2, HOLD_LINE);
 		}
 	}
 }
@@ -751,7 +754,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(model1_state::model1_interrupt)
 MACHINE_RESET_MEMBER(model1_state,model1)
 {
 	membank("bank1")->set_base(memregion("maincpu")->base() + 0x1000000);
-	irq_init(machine());
+	irq_init();
 	model1_tgp_reset(machine(), !strcmp(machine().system().name, "swa") || !strcmp(machine().system().name, "wingwar") || !strcmp(machine().system().name, "wingwaru") || !strcmp(machine().system().name, "wingwarj"));
 	if (!strcmp(machine().system().name, "swa"))
 	{
@@ -770,7 +773,7 @@ MACHINE_RESET_MEMBER(model1_state,model1)
 MACHINE_RESET_MEMBER(model1_state,model1_vr)
 {
 	membank("bank1")->set_base(memregion("maincpu")->base() + 0x1000000);
-	irq_init(machine());
+	irq_init();
 	model1_vr_tgp_reset(machine());
 	m_sound_irq = 3;
 
@@ -850,7 +853,7 @@ WRITE16_MEMBER(model1_state::mr2_w)
 
 READ16_MEMBER(model1_state::snd_68k_ready_r)
 {
-	int sr = machine().device("audiocpu")->state().state_int(M68K_SR);
+	int sr = m_audiocpu->state_int(M68K_SR);
 
 	if ((sr & 0x0700) > 0x0100)
 	{
@@ -890,7 +893,7 @@ WRITE16_MEMBER(model1_state::snd_latch_to_68k_w)
 	m_snd_cmd_state++;
 
 	// signal the 68000 that there's data waiting
-	machine().device("audiocpu")->execute().set_input_line(2, HOLD_LINE);
+	m_audiocpu->set_input_line(2, HOLD_LINE);
 	// give the 68k time to reply
 	space.device().execute().spin_until_time(attotime::from_usec(40));
 }
@@ -965,7 +968,7 @@ static ADDRESS_MAP_START( model1_vr_mem, AS_PROGRAM, 16, model1_state )
 	AM_RANGE(0x900000, 0x903fff) AM_RAM_WRITE(p_w) AM_SHARE("paletteram")
 	AM_RANGE(0x910000, 0x91bfff) AM_RAM  AM_SHARE("color_xlat")
 
-	AM_RANGE(0xc00000, 0xc0003f) AM_READ(io_r) AM_WRITENOP
+	AM_RANGE(0xc00000, 0xc0003f) AM_READWRITE(io_r, io_w)
 
 	AM_RANGE(0xc00040, 0xc00043) AM_READWRITE(network_ctl_r, network_ctl_w)
 
@@ -1035,7 +1038,7 @@ static ADDRESS_MAP_START( model1_snd, AS_PROGRAM, 16, model1_state )
 	AM_RANGE(0xc50000, 0xc50001) AM_WRITE(m1_snd_mpcm_bnk1_w )
 	AM_RANGE(0xc60000, 0xc60007) AM_DEVREADWRITE8_LEGACY("sega2", multipcm_r, multipcm_w, 0x00ff )
 	AM_RANGE(0xc70000, 0xc70001) AM_WRITE(m1_snd_mpcm_bnk2_w )
-	AM_RANGE(0xd00000, 0xd00007) AM_DEVREADWRITE8_LEGACY("ymsnd", ym3438_r, ym3438_w, 0x00ff )
+	AM_RANGE(0xd00000, 0xd00007) AM_DEVREADWRITE8("ymsnd", ym3438_device, read, write, 0x00ff )
 	AM_RANGE(0xf00000, 0xf0ffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -1197,8 +1200,7 @@ INPUT_PORTS_END
 	ROM_LOAD("opr14745.bin",   0x060000,  0x20000, CRC(4c934d96) SHA1(e3349ece0e47f684d61ad11bfea4a90602287350) ) \
 	ROM_LOAD("opr14746.bin",   0x080000,  0x20000, CRC(2a266cbd) SHA1(34e047a93459406c22acf4c25089d1a4955f94ca) ) \
 	ROM_LOAD("opr14747.bin",   0x0a0000,  0x20000, CRC(a4ad5e19) SHA1(7d7ec300eeb9a8de1590011e37108688c092f329) ) \
-	ROM_LOAD("opr14748.bin",   0x0c0000,  0x20000, CRC(4a532cb8) SHA1(23280ebbcd6b2bc8a8e643a2d07a58d6598301b8) ) \
-
+	ROM_LOAD("opr14748.bin",   0x0c0000,  0x20000, CRC(4a532cb8) SHA1(23280ebbcd6b2bc8a8e643a2d07a58d6598301b8) )
 
 ROM_START( vf )
 

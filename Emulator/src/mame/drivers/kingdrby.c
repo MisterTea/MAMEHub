@@ -78,10 +78,11 @@ class kingdrby_state : public driver_device
 {
 public:
 	kingdrby_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram(*this, "vram"),
 		m_attr(*this, "attr"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_soundcpu(*this, "soundcpu"){ }
 
 	UINT8 m_sound_cmd;
 	required_shared_ptr<UINT8> m_vram;
@@ -111,6 +112,8 @@ public:
 	DECLARE_PALETTE_INIT(kingdrby);
 	DECLARE_PALETTE_INIT(kingdrbb);
 	UINT32 screen_update_kingdrby(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_soundcpu;
 };
 
 
@@ -183,10 +186,9 @@ static const UINT8 hw_sprite[16] =
 	0x22, 0x22, 0x22, 0x22, 0x22, 0x11, 0x22, 0x22
 };
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void kingdrby_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	kingdrby_state *state = machine.driver_data<kingdrby_state>();
-	UINT8 *spriteram = state->m_spriteram;
+	UINT8 *spriteram = m_spriteram;
 	int count = 0;
 
 	/*sprites not fully understood.*/
@@ -217,13 +219,13 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		{
 			for(dy=0;dy<h;dy++)
 				for(dx=0;dx<w;dx++)
-					drawgfx_transpen(bitmap,cliprect,machine.gfx[0],spr_offs++,colour,1,0,((x+16*w)-(dx+1)*16),(y+dy*16),0);
+					drawgfx_transpen(bitmap,cliprect,machine().gfx[0],spr_offs++,colour,1,0,((x+16*w)-(dx+1)*16),(y+dy*16),0);
 		}
 		else
 		{
 			for(dy=0;dy<h;dy++)
 				for(dx=0;dx<w;dx++)
-					drawgfx_transpen(bitmap,cliprect,machine.gfx[0],spr_offs++,colour,0,0,(x+dx*16),(y+dy*16),0);
+					drawgfx_transpen(bitmap,cliprect,machine().gfx[0],spr_offs++,colour,0,0,(x+dx*16),(y+dy*16),0);
 		}
 	}
 }
@@ -243,7 +245,7 @@ UINT32 kingdrby_state::screen_update_kingdrby(screen_device &screen, bitmap_ind1
 
 	/*TILEMAP_DRAW_CATEGORY + TILEMAP_DRAW_OPAQUE doesn't suit well?*/
 	m_sc0_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(machine(),bitmap,cliprect);
+	draw_sprites(bitmap,cliprect);
 	m_sc1_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_CATEGORY(1),0);
 	m_sc0w_tilemap->draw(bitmap, clip, 0,0);
 
@@ -288,7 +290,7 @@ WRITE8_MEMBER(kingdrby_state::hopper_io_w)
 
 WRITE8_MEMBER(kingdrby_state::sound_cmd_w)
 {
-	machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	m_sound_cmd = data;
 	/* soundlatch is unneeded since we are already using perfect interleave. */
 	// soundlatch_byte_w(space,0, data);
@@ -315,8 +317,8 @@ READ8_MEMBER(kingdrby_state::key_matrix_r)
 	UINT16 p1_val,p2_val;
 	UINT8 p1_res,p2_res;
 
-	p1_val = machine().root_device().ioport("KEY_1P")->read();
-	p2_val = machine().root_device().ioport("KEY_2P")->read();
+	p1_val = ioport("KEY_1P")->read();
+	p2_val = ioport("KEY_2P")->read();
 
 	p1_res = 0;
 	p2_res = 0;
@@ -453,8 +455,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, kingdrby_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x40, 0x40) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x40, 0x40) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cowrace_sound_map, AS_PROGRAM, 8, kingdrby_state )
@@ -464,7 +466,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cowrace_sound_io, AS_IO, 8, kingdrby_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("aysnd", ym2203_w)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("aysnd", ym2203_device, write)
 ADDRESS_MAP_END
 
 
@@ -912,9 +914,10 @@ GFXDECODE_END
 *
 ***********************************************************************************************************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -942,22 +945,19 @@ static const ay8910_interface ay8910_config =
 	DEVCB_NULL /* discrete write? */
 };
 
-static const ym2203_interface cowrace_ym2203_interface =
+static const ay8910_interface cowrace_ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_DRIVER_MEMBER(kingdrby_state,sound_cmd_r),                                    // read A
-		DEVCB_DEVICE_MEMBER("oki", okim6295_device, read),          // read B
-		DEVCB_NULL,                                                 // write A
-		DEVCB_DEVICE_MEMBER("oki", okim6295_device, write)          // write B
-	},
-	DEVCB_NULL
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_DRIVER_MEMBER(kingdrby_state,sound_cmd_r),                                    // read A
+	DEVCB_DEVICE_MEMBER("oki", okim6295_device, read),          // read B
+	DEVCB_NULL,                                                 // write A
+	DEVCB_DEVICE_MEMBER("oki", okim6295_device, write)          // write B
 };
 
 PALETTE_INIT_MEMBER(kingdrby_state,kingdrby)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
 	int i;
 
@@ -983,8 +983,8 @@ PALETTE_INIT_MEMBER(kingdrby_state,kingdrby)
 
 PALETTE_INIT_MEMBER(kingdrby_state,kingdrbb)
 {
-	UINT8 *raw_prom = machine().root_device().memregion("raw_prom")->base();
-	UINT8 *prom = machine().root_device().memregion("proms")->base();
+	UINT8 *raw_prom = memregion("raw_prom")->base();
+	UINT8 *prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
 	int i;
 
@@ -1081,7 +1081,7 @@ static MACHINE_CONFIG_DERIVED( cowrace, kingdrbb )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_REPLACE("aysnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(cowrace_ym2203_interface)
+	MCFG_YM2203_AY8910_INTF(&cowrace_ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 

@@ -14,7 +14,7 @@ driver by Mirko Buffoni
 WRITE8_MEMBER(solomon_state::solomon_sh_command_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 /* this is checked on the title screen and when you reach certain scores in the game
@@ -40,7 +40,6 @@ READ8_MEMBER(solomon_state::solomon_0xe603_r)
 
 WRITE8_MEMBER(solomon_state::nmi_mask_w)
 {
-
 	m_nmi_mask = data & 1;
 }
 
@@ -75,9 +74,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_portmap, AS_IO, 8, solomon_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x10, 0x11) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x20, 0x21) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x30, 0x31) AM_DEVWRITE_LEGACY("ay3", ay8910_address_data_w)
+	AM_RANGE(0x10, 0x11) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x20, 0x21) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x30, 0x31) AM_DEVWRITE("ay3", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -195,7 +194,6 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(solomon_state::vblank_irq)
 {
-
 	if(m_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }

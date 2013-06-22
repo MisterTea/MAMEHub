@@ -80,10 +80,15 @@ class statriv2_state : public driver_device
 {
 public:
 	statriv2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_tms(*this, "tms"),
 		m_videoram(*this, "videoram"),
-		m_question_offset(*this, "question_offset"){ }
+		m_question_offset(*this, "question_offset")
+			{ }
 
+	required_device<cpu_device> m_maincpu;
+	required_device<tms9927_device> m_tms;
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t *m_tilemap;
 	required_shared_ptr<UINT8> m_question_offset;
@@ -195,7 +200,7 @@ WRITE8_MEMBER(statriv2_state::statriv2_videoram_w)
 
 UINT32 statriv2_state::screen_update_statriv2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	if (tms9927_screen_reset(machine().device("tms")))
+	if (m_tms->screen_reset())
 		bitmap.fill(get_black_pen(machine()), cliprect);
 	else
 		m_tilemap->draw(bitmap, cliprect, 0, 0);
@@ -307,18 +312,18 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( statriv2_io_map, AS_IO, 8, statriv2_state )
 	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
 	AM_RANGE(0x28, 0x2b) AM_READ(question_data_r) AM_WRITEONLY AM_SHARE("question_offset")
-	AM_RANGE(0xb0, 0xb1) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0xb1, 0xb1) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0xc0, 0xcf) AM_DEVREADWRITE_LEGACY("tms", tms9927_r, tms9927_w)
+	AM_RANGE(0xb0, 0xb1) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0xb1, 0xb1) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0xc0, 0xcf) AM_DEVREADWRITE("tms", tms9927_device, read, write)
 ADDRESS_MAP_END
 
 #ifdef UNUSED_CODE
 static ADDRESS_MAP_START( statusbj_io, AS_IO, 8, statriv2_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
-	AM_RANGE(0xb0, 0xb1) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0xb1, 0xb1) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0xc0, 0xcf) AM_DEVREADWRITE_LEGACY("tms", tms9927_r, tms9927_w)
+	AM_RANGE(0xb0, 0xb1) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0xb1, 0xb1) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0xc0, 0xcf) AM_DEVREADWRITE("tms", tms9927_device, read, write)
 ADDRESS_MAP_END
 #endif
 
@@ -585,7 +590,8 @@ GFXDECODE_END
 static const tms9927_interface tms9927_intf =
 {
 	"screen",
-	8
+	8,
+	NULL
 };
 
 
@@ -1101,8 +1107,8 @@ DRIVER_INIT_MEMBER(statriv2_state,addr_lmhe)
 	*                                                   *
 	\***************************************************/
 
-	UINT8 *qrom = machine().root_device().memregion("questions")->base();
-	UINT32 length = machine().root_device().memregion("questions")->bytes();
+	UINT8 *qrom = memregion("questions")->base();
+	UINT32 length = memregion("questions")->bytes();
 	UINT32 address;
 
 	for (address = 0; address < length; address++)
@@ -1128,7 +1134,7 @@ WRITE8_MEMBER(statriv2_state::laserdisc_io_w)
 
 DRIVER_INIT_MEMBER(statriv2_state,laserdisc)
 {
-	address_space &iospace = machine().device("maincpu")->memory().space(AS_IO);
+	address_space &iospace = m_maincpu->space(AS_IO);
 	iospace.install_readwrite_handler(0x28, 0x2b, read8_delegate(FUNC(statriv2_state::laserdisc_io_r), this), write8_delegate(FUNC(statriv2_state::laserdisc_io_w), this));
 }
 

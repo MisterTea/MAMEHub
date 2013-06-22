@@ -45,7 +45,6 @@ TILE_GET_INFO_MEMBER(f1gp_state::get_fg_tile_info)
 
 VIDEO_START_MEMBER(f1gp_state,f1gp)
 {
-
 	m_roz_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::f1gp_get_roz_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
@@ -60,7 +59,6 @@ VIDEO_START_MEMBER(f1gp_state,f1gp)
 
 VIDEO_START_MEMBER(f1gp_state,f1gpb)
 {
-
 	m_roz_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::f1gp_get_roz_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
@@ -93,7 +91,6 @@ UINT32 f1gp_state::f1gp_ol2_tile_callback( UINT32 code )
 
 VIDEO_START_MEMBER(f1gp_state,f1gp2)
 {
-
 	m_roz_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::f1gp2_get_roz_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 64, 64);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(f1gp_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
@@ -189,7 +186,6 @@ WRITE16_MEMBER(f1gp_state::f1gp2_gfxctrl_w)
 
 UINT32 f1gp_state::screen_update_f1gp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	machine().priority_bitmap.fill(0, cliprect);
 
 	k053936_zoom_draw(m_k053936, bitmap, cliprect, m_roz_tilemap, 0, 0, 1);
@@ -213,7 +209,6 @@ UINT32 f1gp_state::screen_update_f1gp(screen_device &screen, bitmap_ind16 &bitma
 
 UINT32 f1gp_state::screen_update_f1gp2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	if (m_gfxctrl & 4)  /* blank screen */
 		bitmap.fill(get_black_pen(machine()), cliprect);
 	else
@@ -251,14 +246,13 @@ UINT32 f1gp_state::screen_update_f1gp2(screen_device &screen, bitmap_ind16 &bitm
 ***************************************************************************/
 
 // BOOTLEG
-static void f1gpb_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect )
+void f1gp_state::f1gpb_draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect )
 {
-	f1gp_state *state = machine.driver_data<f1gp_state>();
-	UINT16 *spriteram = state->m_spriteram;
-	int attr_start, start_offset = state->m_spriteram.bytes() / 2 - 4;
+	UINT16 *spriteram = m_spriteram;
+	int attr_start, start_offset = m_spriteram.bytes() / 2 - 4;
 
 	// find the "end of list" to draw the sprites in reverse order
-	for (attr_start = 4; attr_start < state->m_spriteram.bytes() / 2; attr_start += 4)
+	for (attr_start = 4; attr_start < m_spriteram.bytes() / 2; attr_start += 4)
 	{
 		if (spriteram[attr_start + 3 - 4] == 0xffff) /* end of list marker */
 		{
@@ -283,7 +277,7 @@ static void f1gpb_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,c
 		if((spriteram[attr_start + 1] & 0x00f0) && (spriteram[attr_start + 1] & 0x00f0) != 0xc0)
 		{
 			printf("attr %X\n",spriteram[attr_start + 1] & 0x00f0);
-			code = machine.rand();
+			code = machine().rand();
 		}
 
 /*
@@ -300,21 +294,21 @@ static void f1gpb_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,c
 			gfx = 0;
 		}
 
-		pdrawgfx_transpen(bitmap,cliprect,machine.gfx[1 + gfx],
+		pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1 + gfx],
 			code,
 			color,
 			flipx,flipy,
 			x,y,
-			machine.priority_bitmap,
+			machine().priority_bitmap,
 			pri ? 0 : 0x2,15);
 
 		// wrap around x
-		pdrawgfx_transpen(bitmap,cliprect,machine.gfx[1 + gfx],
+		pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1 + gfx],
 			code,
 			color,
 			flipx,flipy,
 			x - 512,y,
-			machine.priority_bitmap,
+			machine().priority_bitmap,
 			pri ? 0 : 0x2,15);
 	}
 }
@@ -342,7 +336,7 @@ UINT32 f1gp_state::screen_update_f1gpb(screen_device &screen, bitmap_ind16 &bitm
 
 	m_fg_tilemap->draw(bitmap, cliprect, 0, 1);
 
-	f1gpb_draw_sprites(machine(), bitmap, cliprect);
+	f1gpb_draw_sprites(bitmap, cliprect);
 
 	return 0;
 }

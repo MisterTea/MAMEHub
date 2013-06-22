@@ -63,7 +63,6 @@ WRITE8_MEMBER(actfancr_state::actfancr_sound_w)
 
 WRITE8_MEMBER(actfancr_state::actfancr_buffer_spriteram_w)
 {
-
 	UINT8 *src = reinterpret_cast<UINT8 *>(memshare("spriteram")->ptr());
 	// copy to a 16-bit region for our sprite draw code too
 	for (int i=0;i<0x800/2;i++)
@@ -116,8 +115,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( dec0_s_map, AS_PROGRAM, 8, actfancr_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE_LEGACY("ym2", ym3812_w)
+	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ym2", ym3812_device, write)
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x3800, 0x3800) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x4000, 0xffff) AM_ROM
@@ -276,29 +275,19 @@ GFXDECODE_END
 
 /******************************************************************************/
 
-static void sound_irq(device_t *device, int linestate)
+WRITE_LINE_MEMBER(actfancr_state::sound_irq)
 {
-	actfancr_state *state = device->machine().driver_data<actfancr_state>();
-	state->m_audiocpu->set_input_line(0, linestate); /* IRQ */
+	m_audiocpu->set_input_line(0, state); /* IRQ */
 }
-
-static const ym3812_interface ym3812_config =
-{
-	sound_irq
-};
 
 /******************************************************************************/
 
 MACHINE_START_MEMBER(actfancr_state,actfancr)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 }
 
 MACHINE_START_MEMBER(actfancr_state,triothep)
 {
-
 	MACHINE_START_CALL_MEMBER(actfancr);
 
 	save_item(NAME(m_trio_control_select));
@@ -311,7 +300,6 @@ MACHINE_RESET_MEMBER(actfancr_state,actfancr)
 
 MACHINE_RESET_MEMBER(actfancr_state,triothep)
 {
-
 	MACHINE_RESET_CALL_MEMBER(actfancr);
 	m_trio_control_select = 0;
 }
@@ -361,7 +349,7 @@ static MACHINE_CONFIG_START( actfancr, actfancr_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.50)
 
 	MCFG_SOUND_ADD("ym2", YM3812, 3000000)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(actfancr_state, sound_irq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
 	MCFG_OKIM6295_ADD("oki", 1024188, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
@@ -411,7 +399,7 @@ static MACHINE_CONFIG_START( triothep, actfancr_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.50)
 
 	MCFG_SOUND_ADD("ym2", YM3812, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(actfancr_state, sound_irq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
 	MCFG_OKIM6295_ADD("oki", XTAL_1_056MHz, OKIM6295_PIN7_HIGH) /* verified on pcb */

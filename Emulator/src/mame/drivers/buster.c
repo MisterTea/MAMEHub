@@ -16,14 +16,16 @@ class buster_state : public driver_device
 {
 public:
 	buster_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_vram(*this, "vram"){ }
+		: driver_device(mconfig, type, tag),
+		m_vram(*this, "vram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_vram;
 	DECLARE_READ8_MEMBER(test_r);
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_buster(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -306,9 +308,10 @@ static GFXDECODE_START( buster )
 	GFXDECODE_ENTRY( "gfx1", 0, tiles8x8_layout, 0, 1 )
 GFXDECODE_END
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */

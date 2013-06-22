@@ -15,10 +15,12 @@ class drtomy_state : public driver_device
 {
 public:
 	drtomy_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram_fg(*this, "videorafg"),
 		m_videoram_bg(*this, "videorabg"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoram_fg;
@@ -41,6 +43,9 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_drtomy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki;
 };
 
 
@@ -78,22 +83,21 @@ TILE_GET_INFO_MEMBER(drtomy_state::get_tile_info_bg)
       3  | xxxxxxxx xxxxxx-- | sprite code
 */
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void drtomy_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	drtomy_state *state = machine.driver_data<drtomy_state>();
 	int i, x, y, ex, ey;
-	gfx_element *gfx = machine.gfx[0];
+	gfx_element *gfx = machine().gfx[0];
 
 	static const int x_offset[2] = {0x0, 0x2};
 	static const int y_offset[2] = {0x0, 0x1};
 
 	for (i = 3; i < 0x1000 / 2; i += 4)
 	{
-		int sx = state->m_spriteram[i + 2] & 0x01ff;
-		int sy = (240 - (state->m_spriteram[i] & 0x00ff)) & 0x00ff;
-		int number = state->m_spriteram[i + 3];
-		int color = (state->m_spriteram[i + 2] & 0x1e00) >> 9;
-		int attr = (state->m_spriteram[i] & 0xfe00) >> 9;
+		int sx = m_spriteram[i + 2] & 0x01ff;
+		int sy = (240 - (m_spriteram[i] & 0x00ff)) & 0x00ff;
+		int number = m_spriteram[i + 3];
+		int color = (m_spriteram[i + 2] & 0x1e00) >> 9;
+		int attr = (m_spriteram[i] & 0xfe00) >> 9;
 
 		int xflip = attr & 0x20;
 		int yflip = attr & 0x40;
@@ -111,7 +115,6 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		{
 			for (x = 0; x < spr_size; x++)
 			{
-
 				ex = xflip ? (spr_size - 1 - x) : x;
 				ey = yflip ? (spr_size - 1 - y) : y;
 
@@ -125,7 +128,6 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 void drtomy_state::video_start()
 {
-
 	m_tilemap_bg = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(drtomy_state::get_tile_info_bg),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 	m_tilemap_fg = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(drtomy_state::get_tile_info_fg),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 
@@ -134,10 +136,9 @@ void drtomy_state::video_start()
 
 UINT32 drtomy_state::screen_update_drtomy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_tilemap_bg->draw(bitmap, cliprect, 0, 0);
 	m_tilemap_fg->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }
 
@@ -155,12 +156,10 @@ WRITE16_MEMBER(drtomy_state::drtomy_vram_bg_w)
 
 WRITE16_MEMBER(drtomy_state::drtomy_okibank_w)
 {
-	device_t *device = machine().device("oki");
 	if (m_oki_bank != (data & 3))
 	{
 		m_oki_bank = data & 3;
-		okim6295_device *oki = downcast<okim6295_device *>(device);
-		oki->set_bank_base(m_oki_bank * 0x40000);
+		m_oki->set_bank_base(m_oki_bank * 0x40000);
 	}
 
 	/* unknown bit 2 -> (data & 4) */
@@ -285,13 +284,11 @@ INPUT_PORTS_END
 
 void drtomy_state::machine_start()
 {
-
 	save_item(NAME(m_oki_bank));
 }
 
 void drtomy_state::machine_reset()
 {
-
 	m_oki_bank = 0;
 }
 

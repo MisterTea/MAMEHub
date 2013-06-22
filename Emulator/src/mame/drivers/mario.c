@@ -101,16 +101,25 @@ write:
  *
  *************************************/
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(mario_state::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(mario_state::memory_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.write_byte(offset, data);
+}
 
 static Z80DMA_INTERFACE( mario_dma )
 {
 	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_HALT),
 	DEVCB_NULL,
 	DEVCB_NULL,
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_read_byte),
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_write_byte),
+	DEVCB_DRIVER_MEMBER(mario_state, memory_read_byte),
+	DEVCB_DRIVER_MEMBER(mario_state, memory_write_byte),
 	DEVCB_NULL,
 	DEVCB_NULL
 };
@@ -123,7 +132,6 @@ WRITE8_MEMBER(mario_state::mario_z80dma_rdy_w)
 
 WRITE8_MEMBER(mario_state::nmi_mask_w)
 {
-
 	m_nmi_mask = data & 1;
 }
 
@@ -325,7 +333,6 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(mario_state::vblank_irq)
 {
-
 	if(m_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }

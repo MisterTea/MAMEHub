@@ -15,7 +15,7 @@ const device_type I82439TX = &device_creator<i82439tx_device>;
 
 
 i82439tx_device::i82439tx_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: northbridge_device(mconfig, I82439TX, "Intel 82439TX", tag, owner, clock),
+		: northbridge_device(mconfig, I82439TX, "Intel 82439TX", tag, owner, clock, "i82439tx", __FILE__),
 		pci_device_interface( mconfig, *this )
 {
 }
@@ -273,7 +273,6 @@ void i82439tx_device::device_config_complete()
 		memset(&m_cputag, 0, sizeof(m_cputag));
 		memset(&m_rom_region, 0, sizeof(m_rom_region));
 	}
-	m_shortname = "i82439tx";
 }
 
 //-------------------------------------------------
@@ -313,6 +312,8 @@ void i82439tx_device::device_reset()
 	m_regs[0x05] = 0x00000002;
 	m_regs[0x06] = 0x00000000;
 	m_regs[0x07] = 0x00000000;
+
+	memset(m_bios_ram, 0, sizeof(m_bios_ram));
 
 	/* configure initial memory state */
 	i82439tx_configure_memory(0, 0xf0000, 0xfffff);

@@ -1,11 +1,14 @@
+#include "sound/dac.h"
 
 class n8080_state : public driver_device
 {
 public:
 	n8080_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu"),
+		m_dac(*this, "dac") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -39,7 +42,7 @@ public:
 	int m_inte;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_WRITE8_MEMBER(n8080_shift_bits_w);
 	DECLARE_WRITE8_MEMBER(n8080_shift_data_w);
 	DECLARE_READ8_MEMBER(n8080_shift_r);
@@ -86,10 +89,10 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(rst2_tick);
 	TIMER_DEVICE_CALLBACK_MEMBER(spacefev_vco_voltage_timer);
 	TIMER_DEVICE_CALLBACK_MEMBER(helifire_dac_volume_timer);
+	void spacefev_start_red_cannon(  );
+	void helifire_next_line(  );
+	required_device<dac_device> m_dac;
 };
-
-/*----------- defined in video/n8080.c -----------*/
-void spacefev_start_red_cannon(running_machine &machine);
 
 /*----------- defined in audio/n8080.c -----------*/
 

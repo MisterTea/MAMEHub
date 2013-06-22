@@ -26,6 +26,16 @@ TIMER_CALLBACK_MEMBER(irisha_state::irisha_key)
 
 void irisha_state::machine_start()
 {
+	static const char *const keynames[] = {
+		"LINE0", "LINE1", "LINE2", "LINE3", "LINE4",
+		"LINE5", "LINE6", "LINE7", "LINE8", "LINE9"
+	};
+
+	for ( int i = 0; i < 10; i++ )
+	{
+		m_io_ports[i] = ioport( keynames[i] );
+	}
+
 	machine().scheduler().timer_pulse(attotime::from_msec(30), timer_expired_delegate(FUNC(irisha_state::irisha_key),this));
 }
 
@@ -38,14 +48,9 @@ void irisha_state::update_speaker()
 {
 	int level = ((m_ppi_portc & 0x20) || (m_ppi_porta & 0x10) || !m_sg1_line) ? 1 : 0;
 
-	speaker_level_w(m_speaker, level);
+	m_speaker->level_w(level);
 }
 
-static const char *const keynames[] = {
-							"LINE0", "LINE1", "LINE2", "LINE3",
-							"LINE4", "LINE5", "LINE6", "LINE7",
-							"LINE8", "LINE9"
-};
 
 READ8_MEMBER(irisha_state::irisha_8255_portb_r)
 {
@@ -67,7 +72,7 @@ READ8_MEMBER(irisha_state::irisha_keyboard_r)
 {
 	UINT8 keycode;
 	if (m_keyboard_cnt!=0 && m_keyboard_cnt<11) {
-		keycode = ioport(keynames[m_keyboard_cnt-1])->read() ^ 0xff;
+		keycode = m_io_ports[m_keyboard_cnt-1]->read() ^ 0xff;
 	} else {
 		keycode = 0xff;
 	}
@@ -94,7 +99,7 @@ WRITE8_MEMBER(irisha_state::irisha_8255_portc_w)
 	//logerror("irisha_8255_portc_w %02x\n",data);
 
 	if (data & 0x40)
-		pit8253_gate2_w(m_pit, (BIT(m_ppi_porta,5) && !BIT(data,5)) ? 1 : 0);
+		m_pit->gate2_w((BIT(m_ppi_porta, 5) && !BIT(data, 5)) ? 1 : 0);
 
 	m_ppi_portc = data;
 
@@ -119,23 +124,16 @@ I8255A_INTERFACE( irisha_ppi8255_interface )
 
 WRITE_LINE_MEMBER(irisha_state::irisha_pic_set_int_line)
 {
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
 }
 
-const struct pic8259_interface irisha_pic8259_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(irisha_state,irisha_pic_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_NULL
-};
-
-const struct pit8253_config irisha_pit8253_intf =
+const struct pit8253_interface irisha_pit8253_intf =
 {
 	{
 		{
 			XTAL_16MHz / 9,
 			DEVCB_LINE_VCC,
-			DEVCB_DEVICE_LINE("pic8259", pic8259_ir0_w)
+			DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir0_w)
 		},
 		{
 			XTAL_16MHz / 9 / 8 / 8,

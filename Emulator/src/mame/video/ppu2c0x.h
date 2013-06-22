@@ -12,9 +12,6 @@
 #ifndef __PPU_2C03B_H__
 #define __PPU_2C03B_H__
 
-#include "devlegcy.h"
-
-
 ///*************************************************************************
 //  MACROS / CONSTANTS
 ///*************************************************************************
@@ -72,7 +69,7 @@ enum
 	PPU_VBLANK_LAST_SCANLINE_NTSC = 260,
 	PPU_VBLANK_LAST_SCANLINE_PAL  = 310
 
-	// Both the sacnline immediately before and immediately after VBLANK
+	// Both the scanline immediately before and immediately after VBLANK
 	// are non-rendering and non-vblank.
 };
 
@@ -87,39 +84,33 @@ enum
 	MCFG_DEVICE_CONFIG(_intrf)
 
 #define MCFG_PPU2C02_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C02, _intrf) \
-
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C02, _intrf)
 #define MCFG_PPU2C03B_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C03B, _intrf) \
-
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C03B, _intrf)
 #define MCFG_PPU2C04_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C04, _intrf) \
-
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C04, _intrf)
 #define MCFG_PPU2C07_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C07, _intrf) \
-
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C07, _intrf)
 #define MCFG_PPU2C05_01_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_01, _intrf) \
-
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_01, _intrf)
 #define MCFG_PPU2C05_02_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_02, _intrf) \
-
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_02, _intrf)
 #define MCFG_PPU2C05_03_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_03, _intrf) \
-
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_03, _intrf)
 #define MCFG_PPU2C05_04_ADD(_tag, _intrf)   \
-	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_04, _intrf) \
+	MCFG_PPU2C0X_ADD(_tag, PPU_2C05_04, _intrf)
 
+#define MCFG_PPU2C0X_SET_NMI( _class, _method) \
+	ppu2c0x_device::set_nmi_delegate(*device, ppu2c0x_nmi_delegate(&_class::_method, #_class "::" #_method, NULL, (_class *)0));
 
 ///*************************************************************************
 //  TYPE DEFINITIONS
 ///*************************************************************************
-
-// callback datatypes
-typedef void (*ppu2c0x_scanline_cb)( device_t *device, int scanline, int vblank, int blanked );
-typedef void (*ppu2c0x_hblank_cb)( device_t *device, int scanline, int vblank, int blanked );
-typedef void (*ppu2c0x_nmi_cb)( device_t *device, int *ppu_regs );
-typedef int  (*ppu2c0x_vidaccess_cb)( device_t *device, int address, int data );
+typedef device_delegate<void (int scanline, int vblank, int blanked)> ppu2c0x_scanline_delegate;
+typedef device_delegate<void (int scanline, int vblank, int blanked)> ppu2c0x_hblank_delegate;
+typedef device_delegate<void (int *ppu_regs)> ppu2c0x_nmi_delegate;
+typedef device_delegate<int (int address, int data)> ppu2c0x_vidaccess_delegate;
+typedef device_delegate<void (offs_t offset)> ppu2c0x_latch_delegate;
 
 
 // ======================> ppu2c0x_interface
@@ -131,7 +122,6 @@ struct ppu2c0x_interface
 	int               gfx_layout_number;        /* gfx layout number used by each chip */
 	int               color_base;               /* color base to use per ppu */
 	int               mirroring;                /* mirroring options (PPU_MIRROR_* flag) */
-	ppu2c0x_nmi_cb    nmi_handler;          /* NMI handler */
 };
 
 
@@ -175,13 +165,14 @@ public:
 	int get_colorbase() { return m_color_base; };
 	int get_current_scanline() { return m_scanline; };
 	int is_sprite_8x16() { return BIT(m_regs[0], 5); }; // MMC5 has to be able to check this
-	void set_scanline_callback( ppu2c0x_scanline_cb cb ) { if (cb != NULL) m_scanline_callback_proc = cb; };
-	void set_hblank_callback( ppu2c0x_scanline_cb cb ) { if (cb != NULL) m_hblank_callback_proc = cb; };
-	void set_vidaccess_callback( ppu2c0x_vidaccess_cb cb ) { if (cb != NULL) m_vidaccess_callback_proc = cb; };
+	void set_scanline_callback( ppu2c0x_scanline_delegate cb ) { m_scanline_callback_proc = cb; m_scanline_callback_proc.bind_relative_to(*owner()); };
+	void set_hblank_callback( ppu2c0x_hblank_delegate cb ) { m_hblank_callback_proc = cb; m_hblank_callback_proc.bind_relative_to(*owner()); };
+	void set_vidaccess_callback( ppu2c0x_vidaccess_delegate cb ) { m_vidaccess_callback_proc = cb; m_vidaccess_callback_proc.bind_relative_to(*owner()); };
+	static void set_nmi_delegate(device_t &device,ppu2c0x_nmi_delegate cb);
 	void set_scanlines_per_frame( int scanlines ) { m_scanlines_per_frame = scanlines; };
 
 	//27/12/2002 (HACK!)
-	void set_latch( void (*ppu_latch_t)( device_t *device, offs_t offset ) );
+	void set_latch( ppu2c0x_latch_delegate cb ) { m_latch = cb; m_latch.bind_relative_to(*owner()); };
 
 	//  void update_screen(bitmap_t &bitmap, const rectangle &cliprect);
 
@@ -192,10 +183,10 @@ public:
 	pen_t                       *m_colortable;          /* color table modified at run time */
 	pen_t                       *m_colortable_mono;     /* monochromatic color table modified at run time */
 	int                         m_scanline;         /* scanline count */
-	ppu2c0x_scanline_cb         m_scanline_callback_proc;   /* optional scanline callback */
-	ppu2c0x_hblank_cb           m_hblank_callback_proc; /* optional hblank callback */
-	ppu2c0x_vidaccess_cb        m_vidaccess_callback_proc;  /* optional video access callback */
-	ppu2c0x_nmi_cb              m_nmi_callback_proc;        /* nmi access callback from interface */
+	ppu2c0x_scanline_delegate   m_scanline_callback_proc;   /* optional scanline callback */
+	ppu2c0x_hblank_delegate     m_hblank_callback_proc; /* optional hblank callback */
+	ppu2c0x_vidaccess_delegate  m_vidaccess_callback_proc;  /* optional video access callback */
+	ppu2c0x_nmi_delegate        m_nmi_callback_proc;        /* nmi access callback from interface */
 	int                         m_regs[PPU_MAX_REG];        /* registers */
 	int                         m_refresh_data;         /* refresh-related */
 	int                         m_refresh_latch;        /* refresh-related */
@@ -213,7 +204,7 @@ public:
 	int                         m_scan_scale;           /* scan scale */
 	int                         m_scanlines_per_frame;  /* number of scanlines per frame */
 	int                         m_security_value;       /* 2C05 protection */
-	void (*m_latch)( device_t *device, offs_t offset );
+	ppu2c0x_latch_delegate      m_latch;
 
 	// timers
 	emu_timer                   *m_hblank_timer;        /* hblank period at end of each scanline */

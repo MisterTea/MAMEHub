@@ -36,6 +36,7 @@ public:
 	DECLARE_WRITE8_MEMBER(pc9801_118_w);
 	DECLARE_READ8_MEMBER(pc9801_118_ext_r);
 	DECLARE_WRITE8_MEMBER(pc9801_118_ext_w);
+	DECLARE_WRITE_LINE_MEMBER(pc9801_sound_irq);
 
 //  required_device<cpu_device>  m_maincpu;
 	required_device<ym2608_device>  m_opn3;
@@ -45,7 +46,6 @@ protected:
 	virtual void device_validity_check(validity_checker &valid) const;
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "pc9801_118"; }
 	void install_device(offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_delegate rhandler, write8_delegate whandler);
 
 private:

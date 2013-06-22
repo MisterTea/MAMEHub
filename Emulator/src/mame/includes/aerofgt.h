@@ -1,11 +1,12 @@
 #include "video/vsystem_spr.h"
 #include "video/vsystem_spr2.h"
+#include "sound/okim6295.h"
 
 class aerofgt_state : public driver_device
 {
 public:
 	aerofgt_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg1videoram(*this, "bg1videoram"),
 		m_bg2videoram(*this, "bg2videoram"),
 		m_rasterram(*this, "rasterram"),
@@ -16,8 +17,10 @@ public:
 		m_tx_tilemap_ram(*this, "tx_tilemap_ram"),
 		m_spr(*this, "vsystem_spr"),
 		m_spr_old(*this, "vsystem_spr_old"),
-		m_spr_old2(*this, "vsystem_spr_ol2")
-	{ }
+		m_spr_old2(*this, "vsystem_spr_ol2"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bg1videoram;
@@ -59,7 +62,7 @@ public:
 	int       m_pending_command;
 
 	/* other devices */
-	cpu_device *m_audiocpu;
+	optional_device<cpu_device> m_audiocpu;
 
 	/* handlers */
 	DECLARE_WRITE16_MEMBER(sound_command_w);
@@ -111,4 +114,14 @@ public:
 	UINT32 screen_update_aerfboot(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_aerfboo2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_wbbc97(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void aerofgt_register_state_globals(  );
+	void setbank( tilemap_t *tmap, int num, int bank );
+	void aerfboo2_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int chip, int chip_disabled_pri );
+	void pspikesb_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void spikes91_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void aerfboot_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void wbbc97_draw_bitmap( bitmap_rgb32 &bitmap );
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
+	optional_device<okim6295_device> m_oki;
 };

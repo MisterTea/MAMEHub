@@ -34,7 +34,7 @@ static MACHINE_CONFIG_FRAGMENT( cpc_rom )
 	MCFG_ROMSLOT_ADD("rom6")
 
 	// pass-through
-	MCFG_CPC_EXPANSION_SLOT_ADD("exp",sub_exp_intf,cpc_exp_cards,NULL,NULL)
+	MCFG_CPC_EXPANSION_SLOT_ADD("exp",sub_exp_intf,cpc_exp_cards,NULL)
 
 MACHINE_CONFIG_END
 
@@ -49,7 +49,7 @@ machine_config_constructor cpc_rom_device::device_mconfig_additions() const
 //**************************************************************************
 
 cpc_rom_device::cpc_rom_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, CPC_ROM, "ROM Box", tag, owner, clock),
+	device_t(mconfig, CPC_ROM, "ROM Box", tag, owner, clock, "cpc_rom", __FILE__),
 	device_cpc_expansion_card_interface(mconfig, *this)
 {
 }
@@ -84,7 +84,6 @@ rom_image_device::rom_image_device(const machine_config &mconfig, const char *ta
 	: device_t(mconfig, ROMSLOT, "ROM image", tag, owner, clock),
 		device_image_interface(mconfig, *this)
 {
-
 }
 
 //-------------------------------------------------

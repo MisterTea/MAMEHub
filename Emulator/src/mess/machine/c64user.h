@@ -43,14 +43,17 @@
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
 
-#define C64_USER_PORT_INTERFACE(_name) \
-	const c64_user_port_interface (_name) =
-
-
-#define MCFG_C64_USER_PORT_ADD(_tag, _config, _slot_intf, _def_slot, _def_inp) \
+#define MCFG_C64_USER_PORT_ADD(_tag, _slot_intf, _def_slot, _reset) \
 	MCFG_DEVICE_ADD(_tag, C64_USER_PORT, 0) \
-	MCFG_DEVICE_CONFIG(_config) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, false)
+	downcast<c64_user_port_device *>(device)->set_reset_callback(DEVCB2_##_reset); \
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
+
+
+#define MCFG_C64_USER_PORT_CIA1_CALLBACKS(_cnt, _sp) \
+	downcast<c64_user_port_device *>(device)->set_cia1_callbacks(DEVCB2_##_cnt, DEVCB2_##_sp);
+
+#define MCFG_C64_USER_PORT_CIA2_CALLBACKS(_cnt, _sp, _flag) \
+	downcast<c64_user_port_device *>(device)->set_cia2_callbacks(DEVCB2_##_cnt, DEVCB2_##_sp, DEVCB2_##_flag);
 
 
 
@@ -58,31 +61,29 @@
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> c64_user_port_interface
-
-struct c64_user_port_interface
-{
-	devcb_write_line    m_out_cnt1_cb;
-	devcb_write_line    m_out_sp1_cb;
-	devcb_write_line    m_out_cnt2_cb;
-	devcb_write_line    m_out_sp2_cb;
-	devcb_write_line    m_out_flag2_cb;
-	devcb_write_line    m_out_reset_cb;
-};
-
-
 // ======================> c64_user_port_device
 
 class device_c64_user_port_interface;
 
 class c64_user_port_device : public device_t,
-								public c64_user_port_interface,
 								public device_slot_interface
 {
 public:
 	// construction/destruction
 	c64_user_port_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	virtual ~c64_user_port_device();
+
+	template<class _reset> void set_reset_callback(_reset reset) { m_write_reset.set_callback(reset); }
+
+	template<class _cnt, class _sp> void set_cia1_callbacks(_cnt cnt, _sp sp) {
+		m_write_cnt1.set_callback(cnt);
+		m_write_sp1.set_callback(sp);
+	}
+
+	template<class _cnt, class _sp, class _flag> void set_cia2_callbacks(_cnt cnt, _sp sp, _flag flag) {
+		m_write_cnt2.set_callback(cnt);
+		m_write_sp2.set_callback(sp);
+		m_write_flag2.set_callback(flag);
+	}
 
 	// computer interface
 	DECLARE_READ8_MEMBER( pb_r );
@@ -90,31 +91,33 @@ public:
 	DECLARE_READ_LINE_MEMBER( pa2_r );
 	DECLARE_WRITE_LINE_MEMBER( pa2_w );
 	DECLARE_WRITE_LINE_MEMBER( pc2_w );
-	DECLARE_WRITE_LINE_MEMBER( port_reset_w );
+	DECLARE_WRITE_LINE_MEMBER( atn_w );
+	DECLARE_WRITE_LINE_MEMBER( cnt1_w );
+	DECLARE_WRITE_LINE_MEMBER( sp1_w );
+	DECLARE_WRITE_LINE_MEMBER( cnt2_w );
+	DECLARE_WRITE_LINE_MEMBER( sp2_w );
 
 	// cartridge interface
-	DECLARE_WRITE_LINE_MEMBER( sp1_w );
-	DECLARE_WRITE_LINE_MEMBER( cnt1_w );
-	DECLARE_WRITE_LINE_MEMBER( sp2_w );
-	DECLARE_WRITE_LINE_MEMBER( cnt2_w );
-	DECLARE_WRITE_LINE_MEMBER( flag2_w );
-	DECLARE_WRITE_LINE_MEMBER( atn_w );
-	DECLARE_WRITE_LINE_MEMBER( reset_w );
+	DECLARE_WRITE_LINE_MEMBER( cia_cnt1_w ) { m_write_cnt1(state); }
+	DECLARE_WRITE_LINE_MEMBER( cia_sp1_w ) { m_write_sp1(state); }
+	DECLARE_WRITE_LINE_MEMBER( cia_cnt2_w ) { m_write_cnt2(state); }
+	DECLARE_WRITE_LINE_MEMBER( cia_sp2_w ) { m_write_sp2(state); }
+	DECLARE_WRITE_LINE_MEMBER( cia_flag2_w ) { m_write_flag2(state); }
+	DECLARE_WRITE_LINE_MEMBER( reset_w ) { m_write_reset(state); }
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
 
-	devcb_resolved_write_line   m_out_cnt1_func;
-	devcb_resolved_write_line   m_out_sp1_func;
-	devcb_resolved_write_line   m_out_cnt2_func;
-	devcb_resolved_write_line   m_out_sp2_func;
-	devcb_resolved_write_line   m_out_flag2_func;
-	devcb_resolved_write_line   m_out_reset_func;
+	devcb2_write_line   m_write_cnt1;
+	devcb2_write_line   m_write_sp1;
+	devcb2_write_line   m_write_cnt2;
+	devcb2_write_line   m_write_sp2;
+	devcb2_write_line   m_write_flag2;
+	devcb2_write_line   m_write_reset;
 
-	device_c64_user_port_interface *m_cart;
+	device_c64_user_port_interface *m_card;
 };
 
 
@@ -139,9 +142,6 @@ public:
 	virtual void c64_cnt2_w(int state) { };
 	virtual void c64_sp2_w(int state) { };
 	virtual void c64_atn_w(int state) { };
-
-	// reset
-	virtual void c64_reset_w(int state) { };
 
 protected:
 	c64_user_port_device *m_slot;

@@ -163,7 +163,7 @@ INPUT_PORTS_END
 void icecold_state::machine_reset()
 {
 	// CH-C is used for generate a 30hz clock
-	ay8910_set_volume(m_ay8910_0, 2, 0);
+	m_ay8910_0->set_volume(2, 0);
 
 	m_rmotor = m_lmotor = 10;
 	m_sint = 0;
@@ -223,9 +223,9 @@ READ8_MEMBER( icecold_state::kbd_r )
 WRITE8_MEMBER( icecold_state::snd_ctrl_w )
 {
 	if (m_ay_ctrl & ~data & 0x04)
-		ay8910_data_address_w(m_ay8910_0, space, m_ay_ctrl & 0x01, m_sound_latch);
+		m_ay8910_0->data_address_w(space, m_ay_ctrl & 0x01, m_sound_latch);
 	if (m_ay_ctrl & ~data & 0x20)
-		ay8910_data_address_w(m_ay8910_1, space, (m_ay_ctrl>>3) & 0x01, m_sound_latch);
+		m_ay8910_1->data_address_w(space, (m_ay_ctrl>>3) & 0x01, m_sound_latch);
 
 	m_ay_ctrl = data;
 }
@@ -238,9 +238,9 @@ WRITE8_MEMBER( icecold_state::ay_w )
 READ8_MEMBER( icecold_state::ay_r )
 {
 	if (m_ay_ctrl & 0x02)
-		return ay8910_r(m_ay8910_0, space, 0);
+		return m_ay8910_0->data_r(space, 0);
 	if (m_ay_ctrl & 0x10)
-		return ay8910_r(m_ay8910_1, space, 0);
+		return m_ay8910_1->data_r(space, 0);
 
 	return 0;
 }
@@ -296,7 +296,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(icecold_state::icecold_sint_timer)
 
 TIMER_DEVICE_CALLBACK_MEMBER(icecold_state::icecold_motors_timer)
 {
-
 	// /MOTENBL is set high during reset for disable the motors control
 	if (m_motenbl == 0)
 	{

@@ -81,7 +81,7 @@ void generic_machine_init(running_machine &machine)
 	/* for memory cards, request save state and an exit callback */
 	if (machine.config().m_memcard_handler != NULL)
 	{
-		state_save_register_global(machine, state->memcard_inserted);
+		machine.save().save_item(NAME(state->memcard_inserted));
 		machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(memcard_eject), &machine));
 	}
 }
@@ -275,6 +275,22 @@ void coin_lockout_global_w(running_machine &machine, int on)
     NVRAM MANAGEMENT
 ***************************************************************************/
 
+static const char *image_parent_basename(device_t *device)
+{
+	running_machine &machine = device->machine();
+	device_t *dev = device;
+	while(dev != &machine.root_device())
+	{
+		device_image_interface *intf = NULL;
+		if (dev!=NULL && dev->interface(intf))
+		{
+			return intf->basename_noext();
+		}
+		dev = dev->owner();
+	}
+	return NULL;
+}
+
 /*-------------------------------------------------
     nvram_filename - returns filename of system's
     NVRAM depending of selected BIOS
@@ -292,6 +308,12 @@ static astring &nvram_filename(astring &result, device_t &device)
 	// device-based NVRAM gets its own name in a subdirectory
 	if (&device != &device.machine().root_device())
 	{
+		// add per software nvrams into one folder
+		const char *software = image_parent_basename(&device);
+		if (software!=NULL && strlen(software)>0)
+		{
+			result.cat('\\').cat(software);
+		}
 		astring tag(device.tag());
 		tag.del(0, 1).replacechr(':', '_');
 		result.cat('\\').cat(tag);

@@ -40,7 +40,7 @@ To do:
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "cpu/m6809/m6809.h"
 #include "cpu/m6502/m6502.h"
 #include "cpu/mcs51/mcs51.h"
@@ -74,7 +74,7 @@ void dec8_state::screen_eof_dec8(screen_device &screen, bool state)
 	// rising edge
 	if (state)
 	{
-		address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+		address_space &space = m_maincpu->space(AS_PROGRAM);
 		dec8_mxc06_karn_buffer_spriteram_w(space, 0, 0);
 	}
 }
@@ -132,22 +132,28 @@ READ8_MEMBER(dec8_state::gondo_player_2_r)
 *
 ***************************************************/
 
-TIMER_CALLBACK_MEMBER(dec8_state::dec8_i8751_timer_callback)
+void dec8_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	// The schematics show a clocked LS194 shift register (3A) is used to automatically
-	// clear the IRQ request.  The MCU does not clear it itself.
-	m_mcu->execute().set_input_line(MCS51_INT1_LINE, CLEAR_LINE);
+	switch (id)
+	{
+	case TIMER_DEC8_I8751:
+		// The schematics show a clocked LS194 shift register (3A) is used to automatically
+		// clear the IRQ request.  The MCU does not clear it itself.
+		m_mcu->set_input_line(MCS51_INT1_LINE, CLEAR_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in dec8_state::device_timer");
+	}
 }
 
 WRITE8_MEMBER(dec8_state::dec8_i8751_w)
 {
-
 	switch (offset)
 	{
 	case 0: /* High byte - SECIRQ is trigged on activating this latch */
 		m_i8751_value = (m_i8751_value & 0xff) | (data << 8);
-		m_mcu->execute().set_input_line(MCS51_INT1_LINE, ASSERT_LINE);
-		machine().scheduler().timer_set(m_mcu->clocks_to_attotime(64), timer_expired_delegate(FUNC(dec8_state::dec8_i8751_timer_callback),this)); // 64 clocks not confirmed
+		m_mcu->set_input_line(MCS51_INT1_LINE, ASSERT_LINE);
+		timer_set(m_mcu->clocks_to_attotime(64), TIMER_DEC8_I8751); // 64 clocks not confirmed
 		break;
 	case 1: /* Low byte */
 		m_i8751_value = (m_i8751_value & 0xff00) | data;
@@ -163,7 +169,6 @@ WRITE8_MEMBER(dec8_state::dec8_i8751_w)
 
 WRITE8_MEMBER(dec8_state::lastmisn_i8751_w)
 {
-
 	/* Japan coinage first, then World coinage - US coinage shall be the same as the Japan one */
 	int lneed1[2][4] = {{1, 1, 1, 2}, {1, 1, 1, 1}};   /* slot 1 : coins needed */
 	int lcred1[2][4] = {{1, 2, 3, 1}, {1, 2, 3, 5}};   /* slot 1 : credits awarded */
@@ -264,7 +269,6 @@ WRITE8_MEMBER(dec8_state::shackled_i8751_w)
 
 WRITE8_MEMBER(dec8_state::csilver_i8751_w)
 {
-
 	/* Japan coinage first, then World coinage - US coinage shall be the same as the Japan one */
 	int lneed1[2][4] = {{1, 1, 1, 2}, {1, 1, 1, 1}};   /* slot 1 : coins needed */
 	int lcred1[2][4] = {{1, 2, 3, 1}, {2, 3, 4, 6}};   /* slot 1 : credits awarded */
@@ -332,7 +336,6 @@ WRITE8_MEMBER(dec8_state::csilver_i8751_w)
 
 WRITE8_MEMBER(dec8_state::srdarwin_i8751_w)
 {
-
 	/* Japan coinage first, then World coinage - US coinage shall be the same as the Japan one */
 	int lneed1[2][4] = {{1, 1, 1, 2}, {1, 1, 1, 1}};   /* slot 1 : coins needed */
 	int lcred1[2][4] = {{1, 2, 3, 1}, {2, 3, 4, 6}};   /* slot 1 : credits awarded */
@@ -450,7 +453,6 @@ WRITE8_MEMBER(dec8_state::dec8_bank_w)
 /* Used by Ghostbusters, Meikyuu Hunter G & Gondomania */
 WRITE8_MEMBER(dec8_state::ghostb_bank_w)
 {
-
 	/* Bit 0: SECCLR - acknowledge interrupt from I8751
 	   Bit 1: NMI enable/disable
 	   Bit 2: Not connected according to schematics
@@ -483,21 +485,19 @@ WRITE8_MEMBER(dec8_state::dec8_sound_w)
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-static void csilver_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(dec8_state::csilver_adpcm_int)
 {
-	dec8_state *state = device->machine().driver_data<dec8_state>();
-	state->m_toggle ^= 1;
-	if (state->m_toggle)
-		state->m_audiocpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+	m_toggle ^= 1;
+	if (m_toggle)
+		m_audiocpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 
-	msm5205_data_w(device, state->m_msm5205next >> 4);
-	state->m_msm5205next <<= 4;
+	m_msm->data_w(m_msm5205next >> 4);
+	m_msm5205next <<= 4;
 }
 
 READ8_MEMBER(dec8_state::csilver_adpcm_reset_r)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device, 0);
+	m_msm->reset_w(0);
 	return 0;
 }
 
@@ -852,8 +852,8 @@ ADDRESS_MAP_END
 /* Used for Cobra Command, Maze Hunter, Super Real Darwin etc */
 static ADDRESS_MAP_START( dec8_s_map, AS_PROGRAM, 8, dec8_state )
 	AM_RANGE(0x0000, 0x05ff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE_LEGACY("ym2", ym3812_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE("ym2", ym3812_device, write)
 	AM_RANGE(0x6000, 0x6000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -861,8 +861,8 @@ ADDRESS_MAP_END
 /* Used by Gondomania, Psycho-Nics Oscar & Garyo Retsuden */
 static ADDRESS_MAP_START( oscar_s_map, AS_PROGRAM, 8, dec8_state )
 	AM_RANGE(0x0000, 0x05ff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE_LEGACY("ym2", ym3526_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE("ym2", ym3526_device, write)
 	AM_RANGE(0x6000, 0x6000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -870,8 +870,8 @@ ADDRESS_MAP_END
 /* Used by Last Mission, Shackled & Breywood */
 static ADDRESS_MAP_START( ym3526_s_map, AS_PROGRAM, 8, dec8_state )
 	AM_RANGE(0x0000, 0x05ff) AM_RAM
-	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE_LEGACY("ym2", ym3526_w)
+	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ym2", ym3526_device, write)
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -879,8 +879,8 @@ ADDRESS_MAP_END
 /* Captain Silver - same sound system as Pocket Gal */
 static ADDRESS_MAP_START( csilver_s_map, AS_PROGRAM, 8, dec8_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE_LEGACY("ym2", ym3526_w)
+	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ym2", ym3526_device, write)
 	AM_RANGE(0x1800, 0x1800) AM_WRITE(csilver_adpcm_data_w) /* ADPCM data for the MSM5205 chip */
 	AM_RANGE(0x2000, 0x2000) AM_WRITE(csilver_sound_bank_w)
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r)
@@ -905,7 +905,6 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(dec8_state::dec8_mcu_from_main_r)
 {
-
 	switch (offset)
 	{
 		case 0:
@@ -923,7 +922,6 @@ READ8_MEMBER(dec8_state::dec8_mcu_from_main_r)
 
 WRITE8_MEMBER(dec8_state::dec8_mcu_to_main_w)
 {
-
 	// Outputs P0 and P1 are latched
 	if (offset==0) m_i8751_port0=data;
 	else if (offset==1) m_i8751_port1=data;
@@ -1912,25 +1910,14 @@ GFXDECODE_END
 /******************************************************************************/
 
 /* handler called by the 3812 emulator when the internal timers cause an IRQ */
-static void irqhandler( device_t *device, int linestate )
+WRITE_LINE_MEMBER(dec8_state::irqhandler)
 {
-	dec8_state *state = device->machine().driver_data<dec8_state>();
-	state->m_audiocpu->set_input_line(0, linestate); /* M6502_IRQ_LINE */
+	m_audiocpu->set_input_line(0, state); /* M6502_IRQ_LINE */
 }
-
-static const ym3526_interface ym3526_config =
-{
-	DEVCB_CPU_INPUT_LINE("audiocpu", M6502_IRQ_LINE)
-};
-
-static const ym3812_interface ym3812_config =
-{
-	irqhandler
-};
 
 static const msm5205_interface msm5205_config =
 {
-	csilver_adpcm_int,  /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(dec8_state,csilver_adpcm_int),  /* interrupt function */
 	MSM5205_S48_4B      /* 8KHz            */
 };
 
@@ -1958,12 +1945,6 @@ INTERRUPT_GEN_MEMBER(dec8_state::oscar_interrupt)
 
 void dec8_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_mcu = machine().device("mcu");
-
 	save_item(NAME(m_latch));
 	save_item(NAME(m_nmi_enable));
 	save_item(NAME(m_i8751_port0));
@@ -2061,7 +2042,7 @@ static MACHINE_CONFIG_START( lastmisn, dec8_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ym2", YM3526, 3000000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6502_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -2110,7 +2091,7 @@ static MACHINE_CONFIG_START( shackled, dec8_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ym2", YM3526, 3000000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6502_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -2159,7 +2140,7 @@ static MACHINE_CONFIG_START( gondo, dec8_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ym2", YM3526, 3000000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6502_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -2208,7 +2189,7 @@ static MACHINE_CONFIG_START( garyoret, dec8_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ym2", YM3526, 3000000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6502_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -2261,7 +2242,7 @@ static MACHINE_CONFIG_START( ghostb, dec8_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ym2", YM3812, 3000000)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(dec8_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -2310,7 +2291,7 @@ static MACHINE_CONFIG_START( csilver, dec8_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ym2", YM3526, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6502_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_384kHz) /* verified on pcb */
@@ -2366,7 +2347,7 @@ static MACHINE_CONFIG_START( oscar, dec8_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ym2", YM3526, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6502_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -2408,7 +2389,7 @@ static MACHINE_CONFIG_START( srdarwin, dec8_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.20)
 
 	MCFG_SOUND_ADD("ym2", YM3812, 3000000)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(dec8_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -2459,7 +2440,7 @@ static MACHINE_CONFIG_START( cobracom, dec8_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.50)
 
 	MCFG_SOUND_ADD("ym2", YM3812, 3000000)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(dec8_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 
@@ -3524,84 +3505,84 @@ DRIVER_INIT_MEMBER(dec8_state,dec8)
 /* Below, I set up the correct number of banks depending on the "maincpu" region size */
 DRIVER_INIT_MEMBER(dec8_state,lastmisn)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 
 DRIVER_INIT_MEMBER(dec8_state,shackled)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 14, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 14, &ROM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 
 DRIVER_INIT_MEMBER(dec8_state,gondo)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 12, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 12, &ROM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 
 DRIVER_INIT_MEMBER(dec8_state,garyoret)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 16, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 16, &ROM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 
 DRIVER_INIT_MEMBER(dec8_state,ghostb)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	UINT8 *RAM = machine().root_device().memregion("proms")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
+	UINT8 *RAM = memregion("proms")->base();
 
 	/* Blank out unused garbage in colour prom to avoid colour overflow */
 	memset(RAM + 0x20, 0, 0xe0);
 
-	machine().root_device().membank("bank1")->configure_entries(0, 16, &ROM[0x10000], 0x4000);
+	membank("bank1")->configure_entries(0, 16, &ROM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 
 DRIVER_INIT_MEMBER(dec8_state,meikyuh)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	UINT8 *RAM = machine().root_device().memregion("proms")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
+	UINT8 *RAM = memregion("proms")->base();
 
 	/* Blank out unused garbage in colour prom to avoid colour overflow */
 	memset(RAM + 0x20, 0, 0xe0);
 
-	machine().root_device().membank("bank1")->configure_entries(0, 12, &ROM[0x10000], 0x4000);
+	membank("bank1")->configure_entries(0, 12, &ROM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 
 DRIVER_INIT_MEMBER(dec8_state,csilver)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	UINT8 *RAM = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
+	UINT8 *RAM = memregion("audiocpu")->base();
 
-	machine().root_device().membank("bank1")->configure_entries(0, 14, &ROM[0x10000], 0x4000);
-	machine().root_device().membank("bank3")->configure_entries(0, 2, &RAM[0x10000], 0x4000);
+	membank("bank1")->configure_entries(0, 14, &ROM[0x10000], 0x4000);
+	membank("bank3")->configure_entries(0, 2, &RAM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 
 DRIVER_INIT_MEMBER(dec8_state,oscar)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 
 DRIVER_INIT_MEMBER(dec8_state,srdarwin)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 6, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 6, &ROM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 
 DRIVER_INIT_MEMBER(dec8_state,cobracom)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
 	DRIVER_INIT_CALL(dec8);
 }
 

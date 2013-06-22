@@ -566,8 +566,9 @@ protected:
 	static delegate_generic_class *late_bind_helper(delegate_late_bind &object)
 	{
 		_FunctionClass *result = dynamic_cast<_FunctionClass *>(&object);
-		if (result == NULL)
+		if (result == NULL) {
 			throw binding_type_exception(typeid(_FunctionClass), typeid(object));
+		}
 		return reinterpret_cast<delegate_generic_class *>(result);
 	}
 

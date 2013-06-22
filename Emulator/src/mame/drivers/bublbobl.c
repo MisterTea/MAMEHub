@@ -306,8 +306,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, bublbobl_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
-	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE_LEGACY("ym2", ym3526_r, ym3526_w)
+	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ym2", ym3526_device, read, write)
 	AM_RANGE(0xb000, 0xb000) AM_READ(soundlatch_byte_r) AM_WRITE(bublbobl_sound_status_w)
 	AM_RANGE(0xb001, 0xb001) AM_WRITE(bublbobl_sh_nmi_enable_w) AM_READNOP
 	AM_RANGE(0xb002, 0xb002) AM_WRITE(bublbobl_sh_nmi_disable_w)
@@ -396,7 +396,7 @@ static ADDRESS_MAP_START( tokio_sound_map, AS_PROGRAM, 8, bublbobl_state )
 	AM_RANGE(0x9800, 0x9800) AM_READNOP // ???
 	AM_RANGE(0xa000, 0xa000) AM_WRITE(bublbobl_sh_nmi_disable_w)
 	AM_RANGE(0xa800, 0xa800) AM_WRITE(bublbobl_sh_nmi_enable_w)
-	AM_RANGE(0xb000, 0xb001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0xb000, 0xb001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0xe000, 0xffff) AM_ROM // space for diagnostic ROM?
 ADDRESS_MAP_END
 
@@ -696,20 +696,16 @@ GFXDECODE_END
  *************************************/
 
 // handler called by the 2203 emulator when the internal timers cause an IRQ
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(bublbobl_state::irqhandler)
 {
-	bublbobl_state *state = device->machine().driver_data<bublbobl_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 
@@ -722,12 +718,6 @@ static const ym2203_interface ym2203_config =
 
 MACHINE_START_MEMBER(bublbobl_state,common)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_mcu = machine().device("mcu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_slave = machine().device("slave");
-
 	save_item(NAME(m_sound_nmi_enable));
 	save_item(NAME(m_pending_nmi));
 	save_item(NAME(m_sound_status));
@@ -736,7 +726,6 @@ MACHINE_START_MEMBER(bublbobl_state,common)
 
 MACHINE_RESET_MEMBER(bublbobl_state,common)
 {
-
 	m_sound_nmi_enable = 0;
 	m_pending_nmi = 0;
 	m_sound_status = 0;
@@ -745,7 +734,6 @@ MACHINE_RESET_MEMBER(bublbobl_state,common)
 
 MACHINE_START_MEMBER(bublbobl_state,tokio)
 {
-
 	MACHINE_START_CALL_MEMBER(common);
 
 	save_item(NAME(m_tokio_prot_count));
@@ -753,7 +741,6 @@ MACHINE_START_MEMBER(bublbobl_state,tokio)
 
 MACHINE_RESET_MEMBER(bublbobl_state,tokio)
 {
-
 	MACHINE_RESET_CALL_MEMBER(common);
 
 	m_tokio_prot_count = 0;
@@ -790,7 +777,8 @@ static MACHINE_CONFIG_START( tokio, bublbobl_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MAIN_XTAL/8)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(bublbobl_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.08)
 	MCFG_SOUND_ROUTE(1, "mono", 0.08)
 	MCFG_SOUND_ROUTE(2, "mono", 0.08)
@@ -800,7 +788,6 @@ MACHINE_CONFIG_END
 
 MACHINE_START_MEMBER(bublbobl_state,bublbobl)
 {
-
 	MACHINE_START_CALL_MEMBER(common);
 
 	save_item(NAME(m_ddr1));
@@ -819,7 +806,6 @@ MACHINE_START_MEMBER(bublbobl_state,bublbobl)
 
 MACHINE_RESET_MEMBER(bublbobl_state,bublbobl)
 {
-
 	MACHINE_RESET_CALL_MEMBER(common);
 
 	m_ddr1 = 0;
@@ -871,7 +857,8 @@ static MACHINE_CONFIG_START( bublbobl, bublbobl_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, MAIN_XTAL/8)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(bublbobl_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ym2", YM3526, MAIN_XTAL/8)
@@ -881,7 +868,6 @@ MACHINE_CONFIG_END
 
 MACHINE_START_MEMBER(bublbobl_state,boblbobl)
 {
-
 	MACHINE_START_CALL_MEMBER(common);
 
 	save_item(NAME(m_ic43_a));
@@ -890,7 +876,6 @@ MACHINE_START_MEMBER(bublbobl_state,boblbobl)
 
 MACHINE_RESET_MEMBER(bublbobl_state,boblbobl)
 {
-
 	MACHINE_RESET_CALL_MEMBER(common);
 
 	m_ic43_a = 0;
@@ -912,7 +897,6 @@ MACHINE_CONFIG_END
 
 MACHINE_START_MEMBER(bublbobl_state,bub68705)
 {
-
 	MACHINE_START_CALL_MEMBER(common);
 
 	save_item(NAME(m_port_a_in));
@@ -927,7 +911,6 @@ MACHINE_START_MEMBER(bublbobl_state,bub68705)
 
 MACHINE_RESET_MEMBER(bublbobl_state,bub68705)
 {
-
 	MACHINE_RESET_CALL_MEMBER(common);
 
 	m_port_a_in = 0;
@@ -1541,16 +1524,15 @@ ROM_END
  *
  *************************************/
 
-static void configure_banks( running_machine& machine )
+void bublbobl_state::configure_banks(  )
 {
-	UINT8 *ROM = machine.root_device().memregion("maincpu")->base();
-	machine.root_device().membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
 }
 
 DRIVER_INIT_MEMBER(bublbobl_state,bublbobl)
 {
-
-	configure_banks(machine());
+	configure_banks();
 
 	/* we init this here, so that it does not conflict with tokio init, below */
 	m_video_enable = 0;
@@ -1558,7 +1540,7 @@ DRIVER_INIT_MEMBER(bublbobl_state,bublbobl)
 
 DRIVER_INIT_MEMBER(bublbobl_state,tokio)
 {
-	configure_banks(machine());
+	configure_banks();
 
 	/* preemptively enable video, the bit is not mapped for this game and */
 	/* I don't know if it even has it. */
@@ -1569,14 +1551,14 @@ DRIVER_INIT_MEMBER(bublbobl_state,tokiob)
 {
 	DRIVER_INIT_CALL(tokio);
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xfe00, 0xfe00, read8_delegate(FUNC(bublbobl_state::tokiob_mcu_r),this) );
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xfe00, 0xfe00, read8_delegate(FUNC(bublbobl_state::tokiob_mcu_r),this) );
 }
 
 DRIVER_INIT_MEMBER(bublbobl_state,dland)
 {
 	// rearrange gfx to original format
 	int i;
-	UINT8* src = machine().root_device().memregion("gfx1")->base();
+	UINT8* src = memregion("gfx1")->base();
 	for (i = 0; i < 0x40000; i++)
 		src[i] = BITSWAP8(src[i],7,6,5,4,0,1,2,3);
 

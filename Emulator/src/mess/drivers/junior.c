@@ -34,7 +34,8 @@ public:
 	junior_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_riot(*this, "riot")
-	{ }
+	,
+		m_maincpu(*this, "maincpu") { }
 
 	required_device<riot6532_device> m_riot;
 	DECLARE_READ8_MEMBER(junior_riot_a_r);
@@ -49,6 +50,7 @@ public:
 	virtual void machine_reset();
 	DECLARE_INPUT_CHANGED_MEMBER(junior_reset);
 	TIMER_DEVICE_CALLBACK_MEMBER(junior_update_leds);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -59,7 +61,7 @@ static ADDRESS_MAP_START(junior_mem, AS_PROGRAM, 8, junior_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x03ff) AM_RAM // 1K RAM
 	AM_RANGE(0x1a00, 0x1a7f) AM_RAM // 6532 RAM
-	AM_RANGE(0x1a80, 0x1aff) AM_DEVREADWRITE_LEGACY("riot", riot6532_r, riot6532_w)
+	AM_RANGE(0x1a80, 0x1aff) AM_DEVREADWRITE("riot", riot6532_device, read, write)
 	AM_RANGE(0x1c00, 0x1fff) AM_ROM // Monitor
 ADDRESS_MAP_END
 
@@ -141,7 +143,7 @@ READ8_MEMBER( junior_state::junior_riot_a_r )
 
 READ8_MEMBER( junior_state::junior_riot_b_r )
 {
-	if ( riot6532_portb_out_get(m_riot) & 0x20 )
+	if ( m_riot->portb_out_get() & 0x20 )
 		return 0xFF;
 
 	return 0x7F;
@@ -179,7 +181,7 @@ WRITE8_MEMBER( junior_state::junior_riot_b_w )
 
 WRITE_LINE_MEMBER( junior_state::junior_riot_irq )
 {
-	machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, state ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M6502_IRQ_LINE, state ? HOLD_LINE : CLEAR_LINE);
 }
 
 
@@ -209,8 +211,8 @@ TIMER_DEVICE_CALLBACK_MEMBER(junior_state::junior_update_leds)
 
 void junior_state::machine_start()
 {
-	state_save_register_item(machine(), "junior", NULL, 0, m_port_a );
-	state_save_register_item(machine(), "junior", NULL, 0, m_port_b );
+	save_item(NAME(m_port_a));
+	save_item(NAME(m_port_b));
 }
 
 

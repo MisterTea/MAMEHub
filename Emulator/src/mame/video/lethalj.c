@@ -20,15 +20,15 @@
  *
  *************************************/
 
-INLINE void get_crosshair_xy(running_machine &machine, int player, int *x, int *y)
+inline void lethalj_state::get_crosshair_xy(int player, int *x, int *y)
 {
 	static const char *const gunnames[] = { "LIGHT0_X", "LIGHT0_Y", "LIGHT1_X", "LIGHT1_Y" };
-	const rectangle &visarea = machine.primary_screen->visible_area();
+	const rectangle &visarea = machine().primary_screen->visible_area();
 	int width = visarea.width();
 	int height = visarea.height();
 
-	*x = ((machine.root_device().ioport(gunnames[player * 2])->read_safe(0x00) & 0xff) * width) / 255;
-	*y = ((machine.root_device().ioport(gunnames[1 + player * 2])->read_safe(0x00) & 0xff) * height) / 255;
+	*x = ((ioport(gunnames[player * 2])->read_safe(0x00) & 0xff) * width) / 255;
+	*y = ((ioport(gunnames[1 + player * 2])->read_safe(0x00) & 0xff) * height) / 255;
 }
 
 
@@ -49,7 +49,7 @@ READ16_MEMBER(lethalj_state::lethalj_gun_r)
 		case 4:
 		case 5:
 			/* latch the crosshair position */
-			get_crosshair_xy(machine(), offset - 4, &beamx, &beamy);
+			get_crosshair_xy(offset - 4, &beamx, &beamy);
 			m_gunx = beamx;
 			m_guny = beamy;
 			m_blank_palette = 1;
@@ -93,11 +93,17 @@ void lethalj_state::video_start()
  *
  *************************************/
 
-TIMER_CALLBACK_MEMBER(lethalj_state::gen_ext1_int)
+void lethalj_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_GEN_EXT1_INT:
+		m_maincpu->set_input_line(0, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in lethalj_state::device_timer");
+	}
 }
-
 
 
 void lethalj_state::do_blit()
@@ -152,12 +158,12 @@ WRITE16_MEMBER(lethalj_state::lethalj_blitter_w)
 		else
 			do_blit();
 
-		machine().scheduler().timer_set(attotime::from_hz(XTAL_32MHz) * ((m_blitter_data[5] + 1) * (m_blitter_data[7] + 1)), timer_expired_delegate(FUNC(lethalj_state::gen_ext1_int),this));
+		timer_set(attotime::from_hz(XTAL_32MHz) * ((m_blitter_data[5] + 1) * (m_blitter_data[7] + 1)), TIMER_GEN_EXT1_INT);
 	}
 
 	/* clear the IRQ on offset 0 */
 	else if (offset == 0)
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 

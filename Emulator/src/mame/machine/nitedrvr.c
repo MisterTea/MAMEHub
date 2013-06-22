@@ -18,13 +18,12 @@ because D6 and D7 are apparently checked at different times, and a
 change in-between can affect the direction you move.
 ***************************************************************************/
 
-static int nitedrvr_steering( running_machine &machine )
+int nitedrvr_state::nitedrvr_steering(  )
 {
-	nitedrvr_state *state = machine.driver_data<nitedrvr_state>();
-	int this_val = state->ioport("STEER")->read();
-	int delta = this_val - state->m_last_steering_val;
+	int this_val = ioport("STEER")->read();
+	int delta = this_val - m_last_steering_val;
 
-	state->m_last_steering_val = this_val;
+	m_last_steering_val = this_val;
 
 	if (delta > 128)
 		delta -= 256;
@@ -32,24 +31,24 @@ static int nitedrvr_steering( running_machine &machine )
 		delta += 256;
 
 	/* Divide by four to make our steering less sensitive */
-	state->m_steering_buf += (delta / 4);
+	m_steering_buf += (delta / 4);
 
-	if (state->m_steering_buf > 0)
+	if (m_steering_buf > 0)
 	{
-		state->m_steering_buf--;
-		state->m_steering_val = 0xc0;
+		m_steering_buf--;
+		m_steering_val = 0xc0;
 	}
-	else if (state->m_steering_buf < 0)
+	else if (m_steering_buf < 0)
 	{
-		state->m_steering_buf++;
-		state->m_steering_val = 0x80;
+		m_steering_buf++;
+		m_steering_val = 0x80;
 	}
 	else
 	{
-		state->m_steering_val = 0x00;
+		m_steering_val = 0x00;
 	}
 
-	return state->m_steering_val;
+	return m_steering_val;
 }
 
 /***************************************************************************
@@ -121,7 +120,7 @@ READ8_MEMBER(nitedrvr_state::nitedrvr_in0_r)
 			else
 				return 0x70;
 		case 0x03:                      /* Remap our steering */
-			return (ioport("DSW2")->read() | nitedrvr_steering(machine()));
+			return (ioport("DSW2")->read() | nitedrvr_steering());
 		default:
 			return 0xff;
 	}
@@ -208,7 +207,6 @@ D5 = SKID2
 
 WRITE8_MEMBER(nitedrvr_state::nitedrvr_out0_w)
 {
-
 	discrete_sound_w(m_discrete, space, NITEDRVR_MOTOR_DATA, data & 0x0f);  // Motor freq data
 	discrete_sound_w(m_discrete, space, NITEDRVR_SKID1_EN, data & 0x10);    // Skid1 enable
 	discrete_sound_w(m_discrete, space, NITEDRVR_SKID2_EN, data & 0x20);    // Skid2 enable
@@ -227,7 +225,6 @@ D5 = Spare (Not used)
 
 WRITE8_MEMBER(nitedrvr_state::nitedrvr_out1_w)
 {
-
 	set_led_status(machine(), 0, data & 0x10);
 
 	m_crash_en = data & 0x01;
@@ -275,9 +272,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(nitedrvr_state::nitedrvr_crash_toggle_callback)
 
 void nitedrvr_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_gear));
 	save_item(NAME(m_track));
 	save_item(NAME(m_steering_buf));
@@ -291,7 +285,6 @@ void nitedrvr_state::machine_start()
 
 void nitedrvr_state::machine_reset()
 {
-
 	m_gear = 1;
 	m_track = 0;
 	m_steering_buf = 0;

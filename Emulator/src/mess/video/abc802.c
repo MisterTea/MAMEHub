@@ -93,7 +93,7 @@ static MC6845_UPDATE_ROW( abc802_update_row )
 			address |= 0x800;
 		}
 
-		data = state->m_char_rom[(address + ra_latch) & 0xfff];
+		data = state->m_char_rom->base()[(address + ra_latch) & 0xfff];
 
 		if (data & ABC802_ATE)
 		{
@@ -179,7 +179,7 @@ WRITE_LINE_MEMBER( abc802_state::vs_w )
 	}
 
 	// signal _DEW to DART
-	m_dart->ri_w(1, !state);
+	m_dart->rib_w(!state);
 }
 
 
@@ -187,9 +187,10 @@ WRITE_LINE_MEMBER( abc802_state::vs_w )
 //  mc6845_interface crtc_intf
 //-------------------------------------------------
 
-static const mc6845_interface crtc_intf =
+static MC6845_INTERFACE( crtc_intf )
 {
 	SCREEN_TAG,
+	false,
 	ABC800_CHAR_WIDTH,
 	NULL,
 	abc802_update_row,
@@ -208,9 +209,6 @@ static const mc6845_interface crtc_intf =
 
 void abc802_state::video_start()
 {
-	// find memory regions
-	m_char_rom = memregion(MC6845_TAG)->base();
-
 	// register for state saving
 	save_item(NAME(m_flshclk_ctr));
 	save_item(NAME(m_flshclk));

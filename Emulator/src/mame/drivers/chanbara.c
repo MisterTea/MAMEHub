@@ -57,12 +57,13 @@ class chanbara_state : public driver_device
 {
 public:
 	chanbara_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_spriteram(*this, "spriteram"),
 		m_videoram2(*this, "videoram2"),
-		m_colorram2(*this, "colorram2"){ }
+		m_colorram2(*this, "colorram2"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -78,7 +79,7 @@ public:
 	UINT8    m_scrollhi;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_WRITE8_MEMBER(chanbara_videoram_w);
 	DECLARE_WRITE8_MEMBER(chanbara_colorram_w);
 	DECLARE_WRITE8_MEMBER(chanbara_videoram2_w);
@@ -93,12 +94,14 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_chanbara(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	DECLARE_WRITE_LINE_MEMBER(sound_irq);
 };
 
 
 void chanbara_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i, red, green, blue;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -113,28 +116,24 @@ void chanbara_state::palette_init()
 
 WRITE8_MEMBER(chanbara_state::chanbara_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(chanbara_state::chanbara_colorram_w)
 {
-
 	m_colorram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(chanbara_state::chanbara_videoram2_w)
 {
-
 	m_videoram2[offset] = data;
 	m_bg2_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(chanbara_state::chanbara_colorram2_w)
 {
-
 	m_colorram2[offset] = data;
 	m_bg2_tilemap->mark_tile_dirty(offset);
 }
@@ -163,45 +162,44 @@ void chanbara_state::video_start()
 	m_bg_tilemap->set_transparent_pen(0);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void chanbara_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	chanbara_state *state = machine.driver_data<chanbara_state>();
 	int offs;
 
 	for (offs = 0; offs < 0x80; offs += 4)
 	{
-		if (state->m_spriteram[offs + 0x80] & 0x80)
+		if (m_spriteram[offs + 0x80] & 0x80)
 		{
-			int attr = state->m_spriteram[offs + 0];
-			int code = state->m_spriteram[offs + 1];
-			int color = state->m_spriteram[offs + 0x80] & 0x1f;
+			int attr = m_spriteram[offs + 0];
+			int code = m_spriteram[offs + 1];
+			int color = m_spriteram[offs + 0x80] & 0x1f;
 			int flipx = 0;
 			int flipy = attr & 2;
-			int sx = 240 - state->m_spriteram[offs + 3];
-			int sy = 232 - state->m_spriteram[offs + 2];
+			int sx = 240 - m_spriteram[offs + 3];
+			int sy = 232 - m_spriteram[offs + 2];
 
 			sy+=16;
 
-			if (state->m_spriteram[offs + 0x80] & 0x10) code += 0x200;
-			if (state->m_spriteram[offs + 0x80] & 0x20) code += 0x400;
-			if (state->m_spriteram[offs + 0x80] & 0x40) code += 0x100;
+			if (m_spriteram[offs + 0x80] & 0x10) code += 0x200;
+			if (m_spriteram[offs + 0x80] & 0x20) code += 0x400;
+			if (m_spriteram[offs + 0x80] & 0x40) code += 0x100;
 
 			if (attr & 0x10)
 			{
 				if (!flipy)
 				{
-					drawgfx_transpen(bitmap, cliprect, machine.gfx[1], code, color, flipx, flipy, sx, sy-16, 0);
-					drawgfx_transpen(bitmap, cliprect, machine.gfx[1], code+1, color, flipx, flipy, sx, sy, 0);
+					drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, sx, sy-16, 0);
+					drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code+1, color, flipx, flipy, sx, sy, 0);
 				}
 				else
 				{
-					drawgfx_transpen(bitmap, cliprect, machine.gfx[1], code, color, flipx, flipy, sx, sy, 0);
-					drawgfx_transpen(bitmap, cliprect, machine.gfx[1], code+1, color, flipx, flipy, sx, sy-16, 0);
+					drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, sx, sy, 0);
+					drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code+1, color, flipx, flipy, sx, sy-16, 0);
 				}
 			}
 			else
 			{
-				drawgfx_transpen(bitmap, cliprect, machine.gfx[1], code, color, flipx, flipy, sx, sy, 0);
+				drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, sx, sy, 0);
 			}
 		}
 	}
@@ -209,10 +207,9 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 UINT32 chanbara_state::screen_update_chanbara(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg2_tilemap->set_scrolly(0, m_scroll | (m_scrollhi << 8));
 	m_bg2_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }
@@ -230,7 +227,7 @@ static ADDRESS_MAP_START( chanbara_map, AS_PROGRAM, 8, chanbara_state )
 	AM_RANGE(0x2001, 0x2001) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x2002, 0x2002) AM_READ_PORT("P2")
 	AM_RANGE(0x2003, 0x2003) AM_READ_PORT("P1")
-	AM_RANGE(0x3800, 0x3801) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x3800, 0x3801) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -366,39 +363,31 @@ WRITE8_MEMBER(chanbara_state::chanbara_ay_out_1_w)
 	//if (data & 0xf8)    printf("chanbara_ay_out_1_w unused bits set %02x\n", data & 0xf8);
 }
 
-static void sound_irq( device_t *device, int linestate )
+WRITE_LINE_MEMBER(chanbara_state::sound_irq)
 {
-	chanbara_state *state = device->machine().driver_data<chanbara_state>();
-	state->m_maincpu->set_input_line(0, linestate);
+	m_maincpu->set_input_line(0, state);
 }
 
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-			AY8910_LEGACY_OUTPUT,
-			AY8910_DEFAULT_LOADS,
-			DEVCB_NULL,
-			DEVCB_NULL,
-			DEVCB_DRIVER_MEMBER(chanbara_state,chanbara_ay_out_0_w),
-			DEVCB_DRIVER_MEMBER(chanbara_state,chanbara_ay_out_1_w),
-	},
-	DEVCB_LINE(sound_irq)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(chanbara_state,chanbara_ay_out_0_w),
+	DEVCB_DRIVER_MEMBER(chanbara_state,chanbara_ay_out_1_w),
 };
 
 
 void chanbara_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_scroll));
 	save_item(NAME(m_scrollhi));
 }
 
 void chanbara_state::machine_reset()
 {
-
 	m_scroll = 0;
 	m_scrollhi = 0;
 }
@@ -424,7 +413,8 @@ static MACHINE_CONFIG_START( chanbara, chanbara_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 12000000/8)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(chanbara_state, sound_irq))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -469,9 +459,9 @@ ROM_END
 
 DRIVER_INIT_MEMBER(chanbara_state,chanbara)
 {
-	UINT8   *src = machine().root_device().memregion("gfx4")->base();
-	UINT8   *dst = machine().root_device().memregion("gfx3")->base() + 0x4000;
-	UINT8   *bg = machine().root_device().memregion("user1")->base();
+	UINT8   *src = memregion("gfx4")->base();
+	UINT8   *dst = memregion("gfx3")->base() + 0x4000;
+	UINT8   *bg = memregion("user1")->base();
 
 	int i;
 	for (i = 0; i < 0x1000; i++)
@@ -482,7 +472,7 @@ DRIVER_INIT_MEMBER(chanbara_state,chanbara)
 		dst[i + 0x2000] = (src[i + 0x1000] & 0x0f) << 4;
 	}
 
-	machine().root_device().membank("bank1")->configure_entries(0, 2, &bg[0x0000], 0x4000);
+	membank("bank1")->configure_entries(0, 2, &bg[0x0000], 0x4000);
 }
 
 GAME( 1985, chanbara, 0,  chanbara, chanbara, chanbara_state, chanbara, ROT270, "Data East", "Chanbara", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )

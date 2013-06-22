@@ -22,7 +22,7 @@ Notes:
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "video/konicdev.h"
 #include "cpu/m6809/m6809.h"
 #include "sound/2151intf.h"
@@ -33,7 +33,6 @@ Notes:
 
 INTERRUPT_GEN_MEMBER(mainevt_state::mainevt_interrupt)
 {
-
 	if (k052109_is_irq_enabled(m_k052109))
 		irq0_line_hold(device);
 }
@@ -45,7 +44,6 @@ WRITE8_MEMBER(mainevt_state::dv_nmienable_w)
 
 INTERRUPT_GEN_MEMBER(mainevt_state::dv_interrupt)
 {
-
 	if (m_nmi_enable)
 		nmi_line_pulse(device);
 }
@@ -53,7 +51,6 @@ INTERRUPT_GEN_MEMBER(mainevt_state::dv_interrupt)
 
 WRITE8_MEMBER(mainevt_state::mainevt_bankswitch_w)
 {
-
 	/* bit 0-1 ROM bank select */
 	membank("bank1")->set_entry(data & 0x03);
 
@@ -85,22 +82,19 @@ WRITE8_MEMBER(mainevt_state::mainevt_sh_irqtrigger_w)
 
 READ8_MEMBER(mainevt_state::mainevt_sh_busy_r)
 {
-	device_t *device = machine().device("upd");
-	return upd7759_busy_r(device);
+	return upd7759_busy_r(m_upd7759);
 }
 
 WRITE8_MEMBER(mainevt_state::mainevt_sh_irqcontrol_w)
 {
-
-	upd7759_reset_w(m_upd, data & 2);
-	upd7759_start_w(m_upd, data & 1);
+	upd7759_reset_w(m_upd7759, data & 2);
+	upd7759_start_w(m_upd7759, data & 1);
 
 	m_sound_irq_mask = data & 4;
 }
 
 WRITE8_MEMBER(mainevt_state::devstor_sh_irqcontrol_w)
 {
-
 	m_sound_irq_mask = data & 4;
 }
 
@@ -116,12 +110,11 @@ WRITE8_MEMBER(mainevt_state::mainevt_sh_bankswitch_w)
 	k007232_set_bank(m_k007232, bank_A, bank_B);
 
 	/* bits 4-5 select the UPD7759 bank */
-	upd7759_set_bank_base(m_upd, ((data >> 4) & 0x03) * 0x20000);
+	upd7759_set_bank_base(m_upd7759, ((data >> 4) & 0x03) * 0x20000);
 }
 
 WRITE8_MEMBER(mainevt_state::dv_sh_bankswitch_w)
 {
-	device_t *device = machine().device("k007232");
 	int bank_A, bank_B;
 
 //logerror("CPU #1 PC: %04x bank switch = %02x\n",space.device().safe_pc(),data);
@@ -129,12 +122,11 @@ WRITE8_MEMBER(mainevt_state::dv_sh_bankswitch_w)
 	/* bits 0-3 select the 007232 banks */
 	bank_A = (data & 0x3);
 	bank_B = ((data >> 2) & 0x3);
-	k007232_set_bank(device, bank_A, bank_B);
+	k007232_set_bank(m_k007232, bank_A, bank_B);
 }
 
 READ8_MEMBER(mainevt_state::k052109_051960_r)
 {
-
 	if (k052109_get_rmrd_line(m_k052109) == CLEAR_LINE)
 	{
 		if (offset >= 0x3800 && offset < 0x3808)
@@ -150,7 +142,6 @@ READ8_MEMBER(mainevt_state::k052109_051960_r)
 
 WRITE8_MEMBER(mainevt_state::k052109_051960_w)
 {
-
 	if (offset >= 0x3800 && offset < 0x3808)
 		k051937_w(m_k051960, space, offset - 0x3800, data);
 	else if (offset < 0x3c00)
@@ -382,15 +373,15 @@ INPUT_PORTS_END
 
 /*****************************************************************************/
 
-static void volume_callback(device_t *device, int v)
+WRITE8_MEMBER(mainevt_state::volume_callback)
 {
-	k007232_set_volume(device, 0, (v >> 4) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232, 1, 0, (data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_config =
 {
-	volume_callback /* external port callback */
+	DEVCB_DRIVER_MEMBER(mainevt_state,volume_callback) /* external port callback */
 };
 
 static const k052109_interface mainevt_k052109_intf =
@@ -415,32 +406,22 @@ void mainevt_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x2000);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_upd = machine().device("upd");
-	m_k007232 = machine().device("k007232");
-	m_k052109 = machine().device("k052109");
-	m_k051960 = machine().device("k051960");
-
 	save_item(NAME(m_nmi_enable));
 }
 
 void mainevt_state::machine_reset()
 {
-
 	m_nmi_enable = 0;
 }
 
 INTERRUPT_GEN_MEMBER(mainevt_state::mainevt_sound_timer_irq)
 {
-
 	if(m_sound_irq_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(mainevt_state::devstors_sound_timer_irq)
 {
-
 	if(m_sound_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }

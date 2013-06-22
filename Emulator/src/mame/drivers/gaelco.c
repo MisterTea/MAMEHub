@@ -33,7 +33,6 @@ Year   Game                PCB            NOTES
 
 WRITE16_MEMBER(gaelco_state::bigkarnk_sound_command_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xff);
@@ -73,7 +72,6 @@ WRITE16_MEMBER(gaelco_state::OKIM6295_bankswitch_w)
 
 WRITE16_MEMBER(gaelco_state::gaelco_vram_encrypted_w)
 {
-
 	// mame_printf_debug("gaelco_vram_encrypted_w!!\n");
 	data = gaelco_decrypt(space, offset, data, 0x0f, 0x4228);
 	COMBINE_DATA(&m_videoram[offset]);
@@ -84,7 +82,6 @@ WRITE16_MEMBER(gaelco_state::gaelco_vram_encrypted_w)
 
 WRITE16_MEMBER(gaelco_state::gaelco_encrypted_w)
 {
-
 	// mame_printf_debug("gaelco_encrypted_w!!\n");
 	data = gaelco_decrypt(space, offset, data, 0x0f, 0x4228);
 	COMBINE_DATA(&m_screen[offset]);
@@ -94,7 +91,6 @@ WRITE16_MEMBER(gaelco_state::gaelco_encrypted_w)
 
 WRITE16_MEMBER(gaelco_state::thoop_vram_encrypted_w)
 {
-
 	// mame_printf_debug("gaelco_vram_encrypted_w!!\n");
 	data = gaelco_decrypt(space, offset, data, 0x0e, 0x4228);
 	COMBINE_DATA(&m_videoram[offset]);
@@ -104,7 +100,6 @@ WRITE16_MEMBER(gaelco_state::thoop_vram_encrypted_w)
 
 WRITE16_MEMBER(gaelco_state::thoop_encrypted_w)
 {
-
 	// mame_printf_debug("gaelco_encrypted_w!!\n");
 	data = gaelco_decrypt(space, offset, data, 0x0e, 0x4228);
 	COMBINE_DATA(&m_screen[offset]);
@@ -138,7 +133,7 @@ static ADDRESS_MAP_START( bigkarnk_snd_map, AS_PROGRAM, 8, gaelco_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM                                         /* RAM */
 	AM_RANGE(0x0800, 0x0801) AM_DEVREADWRITE("oki", okim6295_device, read, write)   /* OKI6295 */
 //  AM_RANGE(0x0900, 0x0900) AM_WRITENOP                                    /* enable sound output? */
-	AM_RANGE(0x0a00, 0x0a01) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r, ym3812_w)        /* YM3812 */
+	AM_RANGE(0x0a00, 0x0a01) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)        /* YM3812 */
 	AM_RANGE(0x0b00, 0x0b00) AM_READ(soundlatch_byte_r)                         /* Sound latch */
 	AM_RANGE(0x0c00, 0xffff) AM_ROM                                         /* ROM */
 ADDRESS_MAP_END
@@ -497,8 +492,6 @@ GFXDECODEINFO(0x100000,64)
 
 void gaelco_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 }
 
 static MACHINE_CONFIG_START( bigkarnk, gaelco_state )
@@ -737,11 +730,12 @@ ROM_START( biomtoya ) /* PCB - REF 922804/2 */
 	ROM_LOAD( "j10",    0x300000, 0x040000, CRC(8e3e96cc) SHA1(761009f3f32b18139e98f20a22c433b6a49d9168) )
 	ROM_CONTINUE(       0x380000, 0x040000 )
 
+	// using the same samples as the parent set causes bad sounds for most of the game
 	ROM_REGION( 0x140000, "oki", 0 )    /* ADPCM samples - sound chip is OKIM6295 */
-	ROM_LOAD( "c1", 0x000000, 0x080000, CRC(0f02de7e) SHA1(a8779370cc36290616794ff11eb3eebfdea5b1a9) )
+	ROM_LOAD( "c1", 0x000000, 0x080000, BAD_DUMP CRC(0f02de7e) SHA1(a8779370cc36290616794ff11eb3eebfdea5b1a9) )
 	/* 0x00000-0x2ffff is fixed, 0x30000-0x3ffff is bank switched from all the ROMs */
 	ROM_RELOAD(     0x040000, 0x080000 )
-	ROM_LOAD( "c3", 0x0c0000, 0x080000, CRC(914e4bbc) SHA1(ca82b7481621a119f05992ed093b963da70d748a) )
+	ROM_LOAD( "c3", 0x0c0000, 0x080000, BAD_DUMP CRC(914e4bbc) SHA1(ca82b7481621a119f05992ed093b963da70d748a) )
 ROM_END
 
 

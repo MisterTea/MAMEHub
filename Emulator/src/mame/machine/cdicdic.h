@@ -26,7 +26,7 @@ TODO:
 
 #include "emu.h"
 #include "cdrom.h"
-
+#include "sound/cdda.h"
 
 
 //**************************************************************************
@@ -34,11 +34,9 @@ TODO:
 //**************************************************************************
 
 #define MCFG_CDICDIC_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, MACHINE_CDICDIC, 0) \
-
+	MCFG_DEVICE_ADD(_tag, MACHINE_CDICDIC, 0)
 #define MCFG_CDICDIC_REPLACE(_tag) \
-	MCFG_DEVICE_REPLACE(_tag, MACHINE_CDICDIC, 0) \
-
+	MCFG_DEVICE_REPLACE(_tag, MACHINE_CDICDIC, 0)
 
 
 //**************************************************************************
@@ -61,16 +59,20 @@ public:
 	void register_write(const UINT32 offset, const UINT16 data, const UINT16 mem_mask);
 	UINT16 register_read(const UINT32 offset, const UINT16 mem_mask);
 
+	DECLARE_READ16_MEMBER( regs_r );
+	DECLARE_WRITE16_MEMBER( regs_w );
+	DECLARE_READ16_MEMBER( ram_r );
+	DECLARE_WRITE16_MEMBER( ram_w );
+
+
 protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_post_load() { }
-	virtual void device_clock_changed() { }
 
 	// internal callbacks
-	static TIMER_CALLBACK( audio_sample_trigger );
-	static TIMER_CALLBACK( trigger_readback_int );
+	TIMER_CALLBACK_MEMBER( audio_sample_trigger );
+	TIMER_CALLBACK_MEMBER( trigger_readback_int );
 
 private:
 	// internal state
@@ -101,9 +103,6 @@ private:
 	int m_xa_last[4];
 	UINT16 *m_ram;
 
-	void register_globals();
-	void init();
-
 	// static internal members
 	static void decode_xa_mono(INT32 *cdic_xa_last, const UINT8 *xa, INT16 *dp);
 	static void decode_xa_mono8(INT32 *cdic_xa_last, const UINT8 *xa, INT16 *dp);
@@ -118,20 +117,7 @@ private:
 	void decode_audio_sector(const UINT8 *xa, INT32 triggered);
 };
 
-
 // device type definition
 extern const device_type MACHINE_CDICDIC;
-
-
-
-//**************************************************************************
-//  READ/WRITE HANDLERS
-//**************************************************************************
-
-DECLARE_READ16_DEVICE_HANDLER( cdic_r );
-DECLARE_WRITE16_DEVICE_HANDLER( cdic_w );
-DECLARE_READ16_DEVICE_HANDLER( cdic_ram_r );
-DECLARE_WRITE16_DEVICE_HANDLER( cdic_ram_w );
-
 
 #endif // __CDICDIC_H__

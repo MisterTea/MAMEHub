@@ -101,16 +101,23 @@ PC5380-9651            5380-JY3306A           5380-N1045503A
  *
  *************************************/
 
-TIMER_CALLBACK_MEMBER(policetr_state::irq5_gen)
+void policetr_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(R3000_IRQ5, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_IRQ5_GEN:
+		m_maincpu->set_input_line(R3000_IRQ5, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in policetr_state::device_timer");
+	}
 }
 
 
 INTERRUPT_GEN_MEMBER(policetr_state::irq4_gen)
 {
 	device.execute().set_input_line(R3000_IRQ4, ASSERT_LINE);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(0), timer_expired_delegate(FUNC(policetr_state::irq5_gen),this));
+	timer_set(machine().primary_screen->time_until_pos(0), TIMER_IRQ5_GEN);
 }
 
 
@@ -137,10 +144,9 @@ WRITE32_MEMBER(policetr_state::control_w)
 	/* handle EEPROM I/O */
 	if (ACCESSING_BITS_16_23)
 	{
-		eeprom_device *eeprom = machine().device<eeprom_device>("eeprom");
-		eeprom->write_bit(data & 0x00800000);
-		eeprom->set_cs_line((data & 0x00200000) ? CLEAR_LINE : ASSERT_LINE);
-		eeprom->set_clock_line((data & 0x00400000) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->write_bit(data & 0x00800000);
+		m_eeprom->set_cs_line((data & 0x00200000) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_clock_line((data & 0x00400000) ? ASSERT_LINE : CLEAR_LINE);
 	}
 
 	/* toggling BSMT off then on causes a reset */
@@ -402,19 +408,11 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const r3000_cpu_core r3000_config =
-{
-	0,      /* 1 if we have an FPU, 0 otherwise */
-	4096,   /* code cache size */
-	4096    /* data cache size */
-};
-
-
 static MACHINE_CONFIG_START( policetr, policetr_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", R3000BE, MASTER_CLOCK/2)
-	MCFG_CPU_CONFIG(r3000_config)
+	MCFG_CPU_ADD("maincpu", R3041, MASTER_CLOCK/2)
+	MCFG_R3000_ENDIANNESS(ENDIANNESS_BIG)
 	MCFG_CPU_PROGRAM_MAP(policetr_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", policetr_state,  irq4_gen)
 
@@ -697,26 +695,26 @@ ROM_END
 
 DRIVER_INIT_MEMBER(policetr_state,policetr)
 {
-	m_speedup_data = machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x00000fc8, 0x00000fcb, write32_delegate(FUNC(policetr_state::speedup_w),this));
+	m_speedup_data = m_maincpu->space(AS_PROGRAM).install_write_handler(0x00000fc8, 0x00000fcb, write32_delegate(FUNC(policetr_state::speedup_w),this));
 	m_speedup_pc = 0x1fc028ac;
 }
 
 DRIVER_INIT_MEMBER(policetr_state,plctr13b)
 {
-	m_speedup_data = machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x00000fc8, 0x00000fcb, write32_delegate(FUNC(policetr_state::speedup_w),this));
+	m_speedup_data = m_maincpu->space(AS_PROGRAM).install_write_handler(0x00000fc8, 0x00000fcb, write32_delegate(FUNC(policetr_state::speedup_w),this));
 	m_speedup_pc = 0x1fc028bc;
 }
 
 
 DRIVER_INIT_MEMBER(policetr_state,sshooter)
 {
-	m_speedup_data = machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x00018fd8, 0x00018fdb, write32_delegate(FUNC(policetr_state::speedup_w),this));
+	m_speedup_data = m_maincpu->space(AS_PROGRAM).install_write_handler(0x00018fd8, 0x00018fdb, write32_delegate(FUNC(policetr_state::speedup_w),this));
 	m_speedup_pc = 0x1fc03470;
 }
 
 DRIVER_INIT_MEMBER(policetr_state,sshoot12)
 {
-	m_speedup_data = machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x00018fd8, 0x00018fdb, write32_delegate(FUNC(policetr_state::speedup_w),this));
+	m_speedup_data = m_maincpu->space(AS_PROGRAM).install_write_handler(0x00018fd8, 0x00018fdb, write32_delegate(FUNC(policetr_state::speedup_w),this));
 	m_speedup_pc = 0x1fc033e0;
 }
 

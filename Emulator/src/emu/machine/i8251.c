@@ -139,6 +139,13 @@ void i8251_device::update_rx_ready()
 
 void i8251_device::receive_clock()
 {
+	m_rxc++;
+
+	if (m_rxc == m_br_factor)
+		m_rxc = 0;
+	else
+		return;
+
 	/* receive enable? */
 	if (m_command & (1<<2))
 	{
@@ -165,10 +172,16 @@ void i8251_device::receive_clock()
 
 void i8251_device::transmit_clock()
 {
+	m_txc++;
+
+	if (m_txc == m_br_factor)
+		m_txc = 0;
+	else
+		return;
+
 	/* transmit enable? */
 	if (m_command & (1<<0))
 	{
-
 		/* transmit register full? */
 		if ((m_status & I8251_STATUS_TX_READY)==0)
 		{
@@ -305,6 +318,7 @@ void i8251_device::device_reset()
 
 	transmit_register_reset();
 	receive_register_reset();
+	m_flags = 0;
 	/* expecting mode byte */
 	m_flags |= I8251_EXPECTING_MODE;
 	/* not expecting a sync byte */
@@ -315,6 +329,9 @@ void i8251_device::device_reset()
 	m_status = I8251_STATUS_TX_EMPTY | I8251_STATUS_TX_READY;
 	m_mode_byte = 0;
 	m_command = 0;
+	m_data = 0;
+	m_rxc = m_txc = 0;
+	m_br_factor = 1;
 
 	/* update tx empty pin output */
 	update_tx_empty();
@@ -389,22 +406,26 @@ WRITE8_MEMBER(i8251_device::control_w)
 
 				LOG(("Character length: %d\n", (((data>>2) & 0x03)+5)));
 
+				int parity = SERIAL_PARITY_NONE;
+
 				if (data & (1<<4))
 				{
 					LOG(("enable parity checking\n"));
+
+					if (data & (1<<5))
+					{
+						LOG(("even parity\n"));
+						parity = SERIAL_PARITY_EVEN;
+					}
+					else
+					{
+						LOG(("odd parity\n"));
+						parity = SERIAL_PARITY_ODD;
+					}
 				}
 				else
 				{
 					LOG(("parity check disabled\n"));
-				}
-
-				if (data & (1<<5))
-				{
-					LOG(("even parity\n"));
-				}
-				else
-				{
-					LOG(("odd parity\n"));
 				}
 
 				{
@@ -445,7 +466,6 @@ WRITE8_MEMBER(i8251_device::control_w)
 				}
 
 				int word_length = ((data>>2) & 0x03)+5;
-				int parity = SERIAL_PARITY_NONE;
 				int stop_bit_count = 1;
 				switch ((data>>6) & 0x03)
 				{
@@ -459,6 +479,15 @@ WRITE8_MEMBER(i8251_device::control_w)
 						break;
 				}
 				set_data_frame(word_length,stop_bit_count,parity);
+
+				switch (data & 0x03)
+				{
+				case 1: m_br_factor = 1; break;
+				case 2: m_br_factor = 16; break;
+				case 3: m_br_factor = 64; break;
+				}
+
+				m_rxc = m_txc = 0;
 
 #if 0
 				/* data bits */
@@ -662,14 +691,16 @@ WRITE8_MEMBER(i8251_device::data_w)
 {
 	m_data = data;
 
-	logerror("write data: %02x\n",data);
+	//logerror("write data: %02x\n",data);
 
 	/* writing clears */
 	m_status &=~I8251_STATUS_TX_READY;
+	m_status &=~I8251_STATUS_TX_EMPTY;
 
 	/* if transmitter is active, then tx empty will be signalled */
 
 	update_tx_ready();
+	update_tx_empty();
 }
 
 
@@ -681,7 +712,7 @@ WRITE8_MEMBER(i8251_device::data_w)
 
 void i8251_device::receive_character(UINT8 ch)
 {
-	logerror("i8251 receive char: %02x\n",ch);
+	//logerror("i8251 receive char: %02x\n",ch);
 
 	m_data = ch;
 
@@ -703,7 +734,7 @@ void i8251_device::receive_character(UINT8 ch)
 
 READ8_MEMBER(i8251_device::data_r)
 {
-	logerror("read data: %02x, STATUS=%02x\n",m_data,m_status);
+	//logerror("read data: %02x, STATUS=%02x\n",m_data,m_status);
 	/* reading clears */
 	m_status &= ~I8251_STATUS_RX_READY;
 

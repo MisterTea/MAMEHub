@@ -43,10 +43,10 @@ void artmagic_state::video_start()
 	m_blitter_base = (UINT16 *)memregion("gfx1")->base();
 	m_blitter_mask = memregion("gfx1")->bytes()/2 - 1;
 
-	state_save_register_global_array(machine(), m_xor);
-	state_save_register_global(machine(), m_is_stoneball);
-	state_save_register_global_array(machine(), m_blitter_data);
-	state_save_register_global(machine(), m_blitter_page);
+	save_item(NAME(m_xor));
+	save_item(NAME(m_is_stoneball));
+	save_item(NAME(m_blitter_data));
+	save_item(NAME(m_blitter_page));
 }
 
 
@@ -341,7 +341,7 @@ void artmagic_scanline(screen_device &screen, bitmap_rgb32 &bitmap, int scanline
 	offs_t offset = (params->rowaddr << 12) & 0x7ff000;
 	UINT16 *vram = address_to_vram(state, &offset);
 	UINT32 *dest = &bitmap.pix32(scanline);
-	const rgb_t *pens = tlc34076_get_pens(screen.machine().device("tlc34076"));
+	const rgb_t *pens = state->m_tlc34076->get_pens();
 	int coladdr = params->coladdr << 1;
 	int x;
 

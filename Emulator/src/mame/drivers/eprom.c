@@ -39,12 +39,12 @@
 
 void eprom_state::update_interrupts()
 {
-	subdevice("maincpu")->execute().set_input_line(4, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(4, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
 
-	if (subdevice("extra") != NULL)
-		subdevice("extra")->execute().set_input_line(4, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
+	if (m_extra != NULL)
+		m_extra->set_input_line(4, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
 
-	subdevice("maincpu")->execute().set_input_line(6, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(6, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -94,14 +94,13 @@ READ16_MEMBER(eprom_state::adc_r)
 
 WRITE16_MEMBER(eprom_state::eprom_latch_w)
 {
-
-	if (ACCESSING_BITS_0_7 && (machine().device("extra") != NULL))
+	if (ACCESSING_BITS_0_7 && (m_extra != NULL))
 	{
 		/* bit 0: reset extra CPU */
 		if (data & 1)
-			machine().device("extra")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+			m_extra->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 		else
-			machine().device("extra")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+			m_extra->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
 		/* bits 1-4: screen intensity */
 		m_screen_intensity = (data & 0x1e) >> 1;
@@ -704,12 +703,11 @@ ROM_END
 
 DRIVER_INIT_MEMBER(eprom_state,eprom)
 {
-
 	atarijsa_init(machine(), "260010", 0x0002);
 
 	/* install CPU synchronization handlers */
-	m_sync_data = machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x16cc00, 0x16cc01, read16_delegate(FUNC(eprom_state::sync_r),this), write16_delegate(FUNC(eprom_state::sync_w),this));
-	m_sync_data = machine().device("extra")->memory().space(AS_PROGRAM).install_readwrite_handler(0x16cc00, 0x16cc01, read16_delegate(FUNC(eprom_state::sync_r),this), write16_delegate(FUNC(eprom_state::sync_w),this));
+	m_sync_data = m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x16cc00, 0x16cc01, read16_delegate(FUNC(eprom_state::sync_r),this), write16_delegate(FUNC(eprom_state::sync_w),this));
+	m_sync_data = m_extra->space(AS_PROGRAM).install_readwrite_handler(0x16cc00, 0x16cc01, read16_delegate(FUNC(eprom_state::sync_r),this), write16_delegate(FUNC(eprom_state::sync_w),this));
 }
 
 

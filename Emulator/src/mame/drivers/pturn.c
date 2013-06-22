@@ -83,9 +83,10 @@ class pturn_state : public driver_device
 {
 public:
 	pturn_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t *m_fgmap;
@@ -120,6 +121,7 @@ public:
 	UINT32 screen_update_pturn(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(pturn_sub_intgen);
 	INTERRUPT_GEN_MEMBER(pturn_main_intgen);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -351,8 +353,8 @@ static ADDRESS_MAP_START( sub_map, AS_PROGRAM, 8, pturn_state )
 	AM_RANGE(0x2000, 0x23ff) AM_RAM
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r) AM_WRITE(nmi_sub_enable_w)
 	AM_RANGE(0x4000, 0x4000) AM_RAM
-	AM_RANGE(0x5000, 0x5001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0x5000, 0x5001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 static const gfx_layout charlayout =
@@ -479,7 +481,7 @@ INTERRUPT_GEN_MEMBER(pturn_state::pturn_main_intgen)
 
 void pturn_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	soundlatch_clear_byte_w(space,0,0);
 }
 
@@ -555,8 +557,8 @@ ROM_END
 DRIVER_INIT_MEMBER(pturn_state,pturn)
 {
 	/*
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_read_handler(0xc0dd, 0xc0dd, FUNC(pturn_protection_r));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_read_handler(0xc0db, 0xc0db, FUNC(pturn_protection2_r));
+	m_maincpu->space(AS_PROGRAM).install_legacy_read_handler(0xc0dd, 0xc0dd, FUNC(pturn_protection_r));
+	m_maincpu->space(AS_PROGRAM).install_legacy_read_handler(0xc0db, 0xc0db, FUNC(pturn_protection2_r));
 	*/
 }
 

@@ -8,8 +8,9 @@ class hotstuff_state : public driver_device
 {
 public:
 	hotstuff_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_bitmapram(*this, "bitmapram"){ }
+		: driver_device(mconfig, type, tag),
+		m_bitmapram(*this, "bitmapram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_bitmapram;
 	struct
@@ -22,6 +23,7 @@ public:
 	DECLARE_WRITE8_MEMBER(ioboard_reg_w);
 	virtual void video_start();
 	UINT32 screen_update_hotstuff(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -102,7 +104,6 @@ WRITE8_MEMBER(hotstuff_state::ioboard_data_w)
 
 WRITE8_MEMBER(hotstuff_state::ioboard_reg_w)
 {
-
 	m_ioboard.index = data;
 	printf("REG %02x\n",data);
 }

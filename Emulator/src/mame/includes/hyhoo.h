@@ -1,9 +1,15 @@
 class hyhoo_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_BLITTER
+	};
+
 	hyhoo_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_clut(*this, "clut"){ }
+		: driver_device(mconfig, type, tag),
+		m_clut(*this, "clut"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_clut;
 	int m_blitter_destx;
@@ -24,5 +30,9 @@ public:
 	DECLARE_DRIVER_INIT(hyhoo);
 	virtual void video_start();
 	UINT32 screen_update_hyhoo(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(blitter_timer_callback);
+	void hyhoo_gfxdraw();
+	required_device<cpu_device> m_maincpu;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

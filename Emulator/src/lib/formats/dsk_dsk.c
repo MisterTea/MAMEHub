@@ -340,7 +340,7 @@ struct sector_header
 
 bool dsk_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 {
-	UINT8 header[100];
+	UINT8 header[0x100];
 	bool extendformat = FALSE;
 
 	int image_size = io_generic_size(io);
@@ -370,8 +370,17 @@ bool dsk_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 		int tmp = 0x100;
 		for (int i=0; i<tracks * heads; i++)
 		{
-			track_offsets[cnt] = tmp;
-			tmp += header[0x34 + i] << 8;
+			int length = header[0x34 + i] << 8;
+			if (length != 0)
+			{
+				track_offsets[cnt] = tmp;
+				tmp += length;
+			}
+			else
+			{
+				track_offsets[cnt] = image_size;
+			}
+
 			cnt += skip;
 		}
 	}
@@ -395,7 +404,10 @@ bool dsk_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 				sects[j].head        = sector.side;
 				sects[j].sector      = sector.sector_id;
 				sects[j].size        = sector.sector_size_code;
-				sects[j].actual_size = sector.data_length;
+				if(extendformat)
+					sects[j].actual_size = sector.data_length;
+				else
+					sects[j].actual_size = 128 << tr.sector_size_code;
 				sects[j].deleted     = sector.fdc_status_reg1 == 0xb2;
 				sects[j].bad_crc     = sector.fdc_status_reg1 == 0xb5;
 
@@ -416,7 +428,7 @@ bool dsk_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 			counter++;
 		}
 	}
-	return FALSE;
+	return true;
 }
 
 const floppy_format_type FLOPPY_DSK_FORMAT = &floppy_image_format_creator<dsk_format>;

@@ -321,13 +321,11 @@ static const eeprom_interface eeprom_interface_93C56 =
 
 WRITE32_MEMBER(psikyosh_state::psh_eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (ACCESSING_BITS_24_31)
 	{
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit((data & 0x20000000) ? 1 : 0);
-		eeprom->set_cs_line((data & 0x80000000) ? CLEAR_LINE : ASSERT_LINE);
-		eeprom->set_clock_line((data & 0x40000000) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->write_bit((data & 0x20000000) ? 1 : 0);
+		m_eeprom->set_cs_line((data & 0x80000000) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_clock_line((data & 0x40000000) ? ASSERT_LINE : CLEAR_LINE);
 
 		return;
 	}
@@ -339,7 +337,7 @@ READ32_MEMBER(psikyosh_state::psh_eeprom_r)
 {
 	if (ACCESSING_BITS_24_31)
 	{
-		return machine().root_device().ioport("JP4")->read();
+		return ioport("JP4")->read();
 	}
 
 	logerror("Unk EEPROM read mask %x\n", mem_mask);
@@ -524,7 +522,7 @@ static ADDRESS_MAP_START( ps3v1_map, AS_PROGRAM, 32, psikyosh_state )
 // rom mapping
 	AM_RANGE(0x04060000, 0x0407ffff) AM_ROMBANK("bank2") // data for rom tests (gfx) (Mirrored?)
 // sound chip
-	AM_RANGE(0x05000000, 0x05000007) AM_DEVREADWRITE8_LEGACY("ymf", ymf278b_r, ymf278b_w, 0xffffffff)
+	AM_RANGE(0x05000000, 0x05000007) AM_DEVREADWRITE8("ymf", ymf278b_device, read, write, 0xffffffff)
 // inputs/eeprom
 	AM_RANGE(0x05800000, 0x05800003) AM_READ_PORT("INPUTS")
 	AM_RANGE(0x05800004, 0x05800007) AM_READWRITE(psh_eeprom_r, psh_eeprom_w)
@@ -540,7 +538,7 @@ static ADDRESS_MAP_START( ps5_map, AS_PROGRAM, 32, psikyosh_state )
 	AM_RANGE(0x03000000, 0x03000003) AM_READ_PORT("INPUTS")
 	AM_RANGE(0x03000004, 0x03000007) AM_READWRITE(psh_eeprom_r, psh_eeprom_w)
 // sound chip
-	AM_RANGE(0x03100000, 0x03100007) AM_DEVREADWRITE8_LEGACY("ymf", ymf278b_r, ymf278b_w, 0xffffffff)
+	AM_RANGE(0x03100000, 0x03100007) AM_DEVREADWRITE8("ymf", ymf278b_device, read, write, 0xffffffff)
 // video chip
 	AM_RANGE(0x04000000, 0x04003fff) AM_RAM AM_SHARE("spriteram") // video banks0-7 (sprites and sprite list)
 	AM_RANGE(0x04004000, 0x0400ffff) AM_RAM AM_SHARE("bgram") // video banks 7-0x1f (backgrounds and other effects)
@@ -782,23 +780,14 @@ static INPUT_PORTS_START( mjgtaste )
 INPUT_PORTS_END
 
 
-static void irqhandler(device_t *device, int linestate)
+WRITE_LINE_MEMBER(psikyosh_state::irqhandler)
 {
-	psikyosh_state *state = device->machine().driver_data<psikyosh_state>();
-	state->m_maincpu->set_input_line(12, linestate ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(12, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ymf278b_interface ymf278b_config =
-{
-	irqhandler
-};
 
 
 void psikyosh_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	membank("bank2")->configure_entries(0, 0x1000, memregion("gfx1")->base(), 0x20000);
 }
 
@@ -833,7 +822,7 @@ static MACHINE_CONFIG_START( psikyo3v1, psikyosh_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymf", YMF278B, MASTER_CLOCK/2)
-	MCFG_SOUND_CONFIG(ymf278b_config)
+	MCFG_YMF278B_IRQ_HANDLER(WRITELINE(psikyosh_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -1206,60 +1195,60 @@ ROM_END
 
 DRIVER_INIT_MEMBER(psikyosh_state,soldivid)
 {
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,s1945ii)
 {
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,daraku)
 {
-	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->set_base(&RAM[0x100000]);
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	UINT8 *RAM = memregion("maincpu")->base();
+	membank("bank1")->set_base(&RAM[0x100000]);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,sbomberb)
 {
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,gunbird2)
 {
-	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->set_base(&RAM[0x100000]);
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	UINT8 *RAM = memregion("maincpu")->base();
+	membank("bank1")->set_base(&RAM[0x100000]);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,s1945iii)
 {
-	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->set_base(&RAM[0x100000]);
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	UINT8 *RAM = memregion("maincpu")->base();
+	membank("bank1")->set_base(&RAM[0x100000]);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,dragnblz)
 {
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,gnbarich)
 {
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,tgm2)
 {
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 }
 
 DRIVER_INIT_MEMBER(psikyosh_state,mjgtaste)
 {
-	sh2drc_set_options(machine().device("maincpu"), SH2DRC_FASTEST_OPTIONS);
+	sh2drc_set_options(m_maincpu, SH2DRC_FASTEST_OPTIONS);
 	/* needs to install mahjong controls too (can select joystick in test mode tho) */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x03000000, 0x03000003, read32_delegate(FUNC(psikyosh_state::mjgtaste_input_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x03000000, 0x03000003, read32_delegate(FUNC(psikyosh_state::mjgtaste_input_r),this));
 }
 
 

@@ -65,10 +65,11 @@ class pc100_state : public driver_device
 {
 public:
 	pc100_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_rtc(*this, "rtc"),
-		m_palram(*this, "palram")
-		{ }
+		m_palram(*this, "palram"),
+		m_maincpu(*this, "maincpu"),
+		m_beeper(*this, "beeper") { }
 
 	required_device<msm58321_device> m_rtc;
 	required_shared_ptr<UINT16> m_palram;
@@ -115,6 +116,9 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(pc100_100hz_irq);
 	TIMER_DEVICE_CALLBACK_MEMBER(pc100_50hz_irq);
 	TIMER_DEVICE_CALLBACK_MEMBER(pc100_10hz_irq);
+	IRQ_CALLBACK_MEMBER(pc100_irq_callback);
+	required_device<cpu_device> m_maincpu;
+	required_device<beep_device> m_beeper;
 };
 
 void pc100_state::video_start()
@@ -216,7 +220,7 @@ WRITE8_MEMBER( pc100_state::pc100_output_w )
 	if(offset == 0)
 	{
 		m_timer_mode = (data & 0x18) >> 3;
-		beep_set_state(machine().device(BEEPER_TAG),((data & 0x40) >> 6) ^ 1);
+		m_beeper->set_state(((data & 0x40) >> 6) ^ 1);
 		printf("%02x\n",data & 0xc0);
 	}
 }
@@ -283,7 +287,7 @@ WRITE8_MEMBER( pc100_state::pc100_crtc_data_w )
 /* everything is 8-bit bus wide */
 static ADDRESS_MAP_START(pc100_io, AS_IO, 16, pc100_state)
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE8_LEGACY("pic8259", pic8259_r, pic8259_w, 0x00ff) // i8259
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0x00ff) // i8259
 //  AM_RANGE(0x04, 0x07) i8237?
 	AM_RANGE(0x08, 0x0b) AM_DEVICE8("upd765", upd765a_device, map, 0x00ff ) // upd765
 	AM_RANGE(0x10, 0x17) AM_DEVREADWRITE8("ppi8255_1", i8255_device, read, write,0x00ff) // i8255 #1
@@ -399,49 +403,42 @@ static I8255A_INTERFACE( pc100_ppi8255_interface_2 )
 	DEVCB_DRIVER_MEMBER(pc100_state, crtc_bank_w)
 };
 
-static IRQ_CALLBACK(pc100_irq_callback)
+IRQ_CALLBACK_MEMBER(pc100_state::pc100_irq_callback)
 {
-	return pic8259_acknowledge( device->machine().device( "pic8259" ) );
+	return device.machine().device<pic8259_device>( "pic8259" )->acknowledge();
 }
 
 WRITE_LINE_MEMBER( pc100_state::pc100_set_int_line )
 {
 	//printf("%02x\n",interrupt);
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
 }
-
-static const struct pic8259_interface pc100_pic8259_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(pc100_state, pc100_set_int_line),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
 
 void pc100_state::machine_start()
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(pc100_irq_callback);
-	m_kanji_rom = (UINT16 *)(*machine().root_device().memregion("kanji"));
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(pc100_state::pc100_irq_callback),this));
+	m_kanji_rom = (UINT16 *)(*memregion("kanji"));
 	m_vram = (UINT16 *)(*memregion("vram"));
 }
 
 void pc100_state::machine_reset()
 {
-	beep_set_frequency(machine().device(BEEPER_TAG),2400);
-	beep_set_state(machine().device(BEEPER_TAG),0);
+	m_beeper->set_frequency(2400);
+	m_beeper->set_state(0);
 }
 
 INTERRUPT_GEN_MEMBER(pc100_state::pc100_vblank_irq)
 {
-	pic8259_ir4_w(machine().device("pic8259"), 0);
-	pic8259_ir4_w(machine().device("pic8259"), 1);
+	machine().device<pic8259_device>("pic8259")->ir4_w(0);
+	machine().device<pic8259_device>("pic8259")->ir4_w(1);
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(pc100_state::pc100_600hz_irq)
 {
 	if(m_timer_mode == 0)
 	{
-		pic8259_ir2_w(machine().device("pic8259"), 0);
-		pic8259_ir2_w(machine().device("pic8259"), 1);
+		machine().device<pic8259_device>("pic8259")->ir2_w(0);
+		machine().device<pic8259_device>("pic8259")->ir2_w(1);
 	}
 }
 
@@ -449,8 +446,8 @@ TIMER_DEVICE_CALLBACK_MEMBER(pc100_state::pc100_100hz_irq)
 {
 	if(m_timer_mode == 1)
 	{
-		pic8259_ir2_w(machine().device("pic8259"), 0);
-		pic8259_ir2_w(machine().device("pic8259"), 1);
+		machine().device<pic8259_device>("pic8259")->ir2_w(0);
+		machine().device<pic8259_device>("pic8259")->ir2_w(1);
 	}
 }
 
@@ -458,8 +455,8 @@ TIMER_DEVICE_CALLBACK_MEMBER(pc100_state::pc100_50hz_irq)
 {
 	if(m_timer_mode == 2)
 	{
-		pic8259_ir2_w(machine().device("pic8259"), 0);
-		pic8259_ir2_w(machine().device("pic8259"), 1);
+		machine().device<pic8259_device>("pic8259")->ir2_w(0);
+		machine().device<pic8259_device>("pic8259")->ir2_w(1);
 	}
 }
 
@@ -467,8 +464,8 @@ TIMER_DEVICE_CALLBACK_MEMBER(pc100_state::pc100_10hz_irq)
 {
 	if(m_timer_mode == 3)
 	{
-		pic8259_ir2_w(machine().device("pic8259"), 0);
-		pic8259_ir2_w(machine().device("pic8259"), 1);
+		machine().device<pic8259_device>("pic8259")->ir2_w(0);
+		machine().device<pic8259_device>("pic8259")->ir2_w(1);
 	}
 }
 
@@ -496,12 +493,12 @@ static MACHINE_CONFIG_START( pc100, pc100_state )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("10hz", pc100_state, pc100_10hz_irq, attotime::from_hz(MASTER_CLOCK/10))
 	MCFG_I8255_ADD( "ppi8255_1", pc100_ppi8255_interface_1 )
 	MCFG_I8255_ADD( "ppi8255_2", pc100_ppi8255_interface_2 )
-	MCFG_PIC8259_ADD( "pic8259", pc100_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", WRITELINE(pc100_state, pc100_set_int_line), GND, NULL )
 	MCFG_UPD765A_ADD("upd765", true, true)
 	MCFG_MSM58321_ADD("rtc", XTAL_32_768kHz, rtc_intf)
 
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", pc100_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", pc100_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", pc100_floppies, "525hd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", pc100_floppies, "525hd", floppy_image_device::default_floppy_formats)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -514,7 +511,7 @@ static MACHINE_CONFIG_START( pc100, pc100_state )
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
 MACHINE_CONFIG_END
 

@@ -38,7 +38,11 @@ class jangou_state : public driver_device
 {
 public:
 	jangou_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_cpu_0(*this, "cpu0"),
+		m_cpu_1(*this, "cpu1"),
+		m_nsc(*this, "nsc"),
+		m_msm(*this, "msm") { }
 
 	/* sound-related */
 	// Jangou CVSD Sound
@@ -55,10 +59,10 @@ public:
 	UINT8        m_z80_latch;
 
 	/* devices */
-	device_t *m_cpu_0;
-	device_t *m_cpu_1;
+	required_device<cpu_device> m_cpu_0;
+	optional_device<cpu_device> m_cpu_1;
 	device_t *m_cvsd;
-	device_t *m_nsc;
+	optional_device<cpu_device> m_nsc;
 
 	/* video-related */
 	UINT8        m_pen_data[0x10];
@@ -91,6 +95,10 @@ public:
 	DECLARE_MACHINE_RESET(common);
 	UINT32 screen_update_jangou(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(cvsd_bit_timer_callback);
+	UINT8 jangou_gfx_nibble( UINT16 niboffset );
+	void plot_jangou_gfx_pixel( UINT8 pix, int x, int y );
+	DECLARE_WRITE_LINE_MEMBER(jngolady_vclk_cb);
+	optional_device<msm5205_device> m_msm;
 };
 
 
@@ -103,7 +111,7 @@ public:
 /* guess: use the same resistor values as Crazy Climber (needs checking on the real HW) */
 void jangou_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
 	static const int resistances_b [2] = { 470, 220 };
 	double weights_rg[3], weights_b[2];
@@ -143,7 +151,6 @@ void jangou_state::palette_init()
 
 void jangou_state::video_start()
 {
-
 	save_item(NAME(m_blit_buffer));
 }
 
@@ -178,9 +185,9 @@ h [$16]
 w [$17]
 */
 
-static UINT8 jangou_gfx_nibble( running_machine &machine, UINT16 niboffset )
+UINT8 jangou_state::jangou_gfx_nibble( UINT16 niboffset )
 {
-	const UINT8 *const blit_rom = machine.root_device().memregion("gfx")->base();
+	const UINT8 *const blit_rom = memregion("gfx")->base();
 
 	if (niboffset & 1)
 		return (blit_rom[(niboffset >> 1) & 0xffff] & 0xf0) >> 4;
@@ -188,18 +195,17 @@ static UINT8 jangou_gfx_nibble( running_machine &machine, UINT16 niboffset )
 		return (blit_rom[(niboffset >> 1) & 0xffff] & 0x0f);
 }
 
-static void plot_jangou_gfx_pixel( running_machine &machine, UINT8 pix, int x, int y )
+void jangou_state::plot_jangou_gfx_pixel( UINT8 pix, int x, int y )
 {
-	jangou_state *state = machine.driver_data<jangou_state>();
 	if (y < 0 || y >= 512)
 		return;
 	if (x < 0 || x >= 512)
 		return;
 
 	if (x & 1)
-		state->m_blit_buffer[(y * 256) + (x >> 1)] = (state->m_blit_buffer[(y * 256) + (x >> 1)] & 0x0f) | ((pix << 4) & 0xf0);
+		m_blit_buffer[(y * 256) + (x >> 1)] = (m_blit_buffer[(y * 256) + (x >> 1)] & 0x0f) | ((pix << 4) & 0xf0);
 	else
-		state->m_blit_buffer[(y * 256) + (x >> 1)] = (state->m_blit_buffer[(y * 256) + (x >> 1)] & 0xf0) | (pix & 0x0f);
+		m_blit_buffer[(y * 256) + (x >> 1)] = (m_blit_buffer[(y * 256) + (x >> 1)] & 0xf0) | (pix & 0x0f);
 }
 
 WRITE8_MEMBER(jangou_state::blitter_process_w)
@@ -234,14 +240,14 @@ WRITE8_MEMBER(jangou_state::blitter_process_w)
 			{
 				int drawx = (x + xcount) & 0xff;
 				int drawy = (y + ycount) & 0xff;
-				UINT8 dat = jangou_gfx_nibble(machine(), src + count);
+				UINT8 dat = jangou_gfx_nibble(src + count);
 				UINT8 cur_pen_hi = m_pen_data[(dat & 0xf0) >> 4];
 				UINT8 cur_pen_lo = m_pen_data[(dat & 0x0f) >> 0];
 
 				dat = cur_pen_lo | (cur_pen_hi << 4);
 
 				if ((dat & 0xff) != 0)
-					plot_jangou_gfx_pixel(machine(), dat, drawx, drawy);
+					plot_jangou_gfx_pixel(dat, drawx, drawy);
 
 				if (!flipx)
 					count--;
@@ -255,7 +261,6 @@ WRITE8_MEMBER(jangou_state::blitter_process_w)
 /* What is the bit 5 (0x20) for?*/
 WRITE8_MEMBER(jangou_state::blit_vregs_w)
 {
-
 	//  printf("%02x %02x\n", offset, data);
 	m_pen_data[offset] = data & 0xf;
 }
@@ -296,12 +301,12 @@ READ8_MEMBER(jangou_state::input_mux_r)
 		case 0x20: return ioport("PL2_3")->read();
 	}
 
-	return machine().root_device().ioport("IN_NOMUX")->read();
+	return ioport("IN_NOMUX")->read();
 }
 
 READ8_MEMBER(jangou_state::input_system_r)
 {
-	return machine().root_device().ioport("SYSTEM")->read();
+	return ioport("SYSTEM")->read();
 }
 
 
@@ -314,12 +319,12 @@ READ8_MEMBER(jangou_state::input_system_r)
 WRITE8_MEMBER(jangou_state::sound_latch_w)
 {
 	soundlatch_byte_w(space, 0, data & 0xff);
-	m_cpu_1->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	m_cpu_1->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 READ8_MEMBER(jangou_state::sound_latch_r)
 {
-	m_cpu_1->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_cpu_1->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	return soundlatch_byte_r(space, 0);
 }
 
@@ -331,14 +336,13 @@ WRITE8_MEMBER(jangou_state::cvsd_w)
 
 TIMER_CALLBACK_MEMBER(jangou_state::cvsd_bit_timer_callback)
 {
-
 	/* Data is shifted out at the MSB */
 	hc55516_digit_w(m_cvsd, (m_cvsd_shiftreg >> 7) & 1);
 	m_cvsd_shiftreg <<= 1;
 
 	/* Trigger an IRQ for every 8 shifted bits */
 	if ((++m_cvsd_shift_cnt & 7) == 0)
-		m_cpu_1->execute().set_input_line(0, HOLD_LINE);
+		m_cpu_1->set_input_line(0, HOLD_LINE);
 }
 
 
@@ -348,19 +352,17 @@ WRITE8_MEMBER(jangou_state::adpcm_w)
 	m_adpcm_byte = data;
 }
 
-static void jngolady_vclk_cb( device_t *device )
+WRITE_LINE_MEMBER(jangou_state::jngolady_vclk_cb)
 {
-	jangou_state *state = device->machine().driver_data<jangou_state>();
-
-	if (state->m_msm5205_vclk_toggle == 0)
-		msm5205_data_w(device, state->m_adpcm_byte >> 4);
+	if (m_msm5205_vclk_toggle == 0)
+		m_msm->data_w(m_adpcm_byte >> 4);
 	else
 	{
-		msm5205_data_w(device, state->m_adpcm_byte & 0xf);
-		state->m_cpu_1->execute().set_input_line(0, HOLD_LINE);
+		m_msm->data_w(m_adpcm_byte & 0xf);
+		m_cpu_1->set_input_line(0, HOLD_LINE);
 	}
 
-	state->m_msm5205_vclk_toggle ^= 1;
+	m_msm5205_vclk_toggle ^= 1;
 }
 
 
@@ -377,8 +379,7 @@ READ8_MEMBER(jangou_state::master_com_r)
 
 WRITE8_MEMBER(jangou_state::master_com_w)
 {
-
-	m_nsc->execute().set_input_line(0, HOLD_LINE);
+	m_nsc->set_input_line(0, HOLD_LINE);
 	m_nsc_latch = data;
 }
 
@@ -405,8 +406,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cpu0_io, AS_IO, 8, jangou_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x01,0x01) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x02,0x03) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x01,0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x02,0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x10,0x10) AM_READ_PORT("DSW") //dsw + blitter busy flag
 	AM_RANGE(0x10,0x10) AM_WRITE(output_w)
 	AM_RANGE(0x11,0x11) AM_WRITE(mux_w)
@@ -476,8 +477,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cntrygrl_cpu0_io, AS_IO, 8, jangou_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x01,0x01) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x02,0x03) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x01,0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x02,0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x10,0x10) AM_READ_PORT("DSW") //dsw + blitter busy flag
 	AM_RANGE(0x10,0x10) AM_WRITE(output_w)
 	AM_RANGE(0x11,0x11) AM_WRITE(mux_w)
@@ -500,8 +501,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( roylcrdn_cpu0_io, AS_IO, 8, jangou_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x01,0x01) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x02,0x03) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x01,0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x02,0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x10,0x10) AM_READ_PORT("DSW")         /* DSW + blitter busy flag */
 	AM_RANGE(0x10,0x10) AM_WRITENOP                 /* Writes continuosly 0's in attract mode, and 1's in game */
 	AM_RANGE(0x11,0x11) AM_WRITE(mux_w)
@@ -898,7 +899,7 @@ static const ay8910_interface ay8910_config =
 
 static const msm5205_interface msm5205_config =
 {
-	jngolady_vclk_cb,
+	DEVCB_DRIVER_LINE_MEMBER(jangou_state,jngolady_vclk_cb),
 	MSM5205_S96_4B
 };
 
@@ -920,11 +921,7 @@ static SOUND_START( jangou )
 
 MACHINE_START_MEMBER(jangou_state,common)
 {
-
-	m_cpu_0 = machine().device("cpu0");
-	m_cpu_1 = machine().device("cpu1");
 	m_cvsd = machine().device("cvsd");
-	m_nsc = machine().device("nsc");
 
 	save_item(NAME(m_pen_data));
 	save_item(NAME(m_blit_data));
@@ -933,7 +930,6 @@ MACHINE_START_MEMBER(jangou_state,common)
 
 void jangou_state::machine_start()
 {
-
 	MACHINE_START_CALL_MEMBER(common);
 
 	save_item(NAME(m_cvsd_shiftreg));
@@ -942,7 +938,6 @@ void jangou_state::machine_start()
 
 MACHINE_START_MEMBER(jangou_state,jngolady)
 {
-
 	MACHINE_START_CALL_MEMBER(common);
 
 	save_item(NAME(m_adpcm_byte));
@@ -966,7 +961,6 @@ MACHINE_RESET_MEMBER(jangou_state,common)
 
 void jangou_state::machine_reset()
 {
-
 	MACHINE_RESET_CALL_MEMBER(common);
 
 	m_cvsd_shiftreg = 0;
@@ -975,7 +969,6 @@ void jangou_state::machine_reset()
 
 MACHINE_RESET_MEMBER(jangou_state,jngolady)
 {
-
 	MACHINE_RESET_CALL_MEMBER(common);
 
 	m_adpcm_byte = 0;
@@ -1363,14 +1356,14 @@ READ8_MEMBER(jangou_state::jngolady_rng_r)
 
 DRIVER_INIT_MEMBER(jangou_state,jngolady)
 {
-	machine().device("nsc")->memory().space(AS_PROGRAM).install_read_handler(0x08, 0x08, read8_delegate(FUNC(jangou_state::jngolady_rng_r),this) );
+	m_nsc->space(AS_PROGRAM).install_read_handler(0x08, 0x08, read8_delegate(FUNC(jangou_state::jngolady_rng_r),this) );
 }
 
 DRIVER_INIT_MEMBER(jangou_state,luckygrl)
 {
 	// this is WRONG
 	int A;
-	UINT8 *ROM = machine().root_device().memregion("cpu0")->base();
+	UINT8 *ROM = memregion("cpu0")->base();
 
 	unsigned char patn1[32] = {
 		0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0, 0x00, 0xA0,

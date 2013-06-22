@@ -30,12 +30,17 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_deco_tilegen1(*this, "tilegen1"),
-			m_oki2(*this, "oki2") { }
+			m_oki1(*this, "oki1"),
+			m_oki2(*this, "oki2"),
+			m_sprgen(*this, "spritegen")
+	{ }
 
 	/* devices */
 	required_device<arm_device> m_maincpu;
 	required_device<deco16ic_device> m_deco_tilegen1;
+	optional_device<okim6295_device> m_oki1;
 	optional_device<okim6295_device> m_oki2;
+	optional_device<decospr_device> m_sprgen;
 
 	/* memory */
 	UINT16   m_pf1_rowscroll[0x800/2];
@@ -56,6 +61,8 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_wcvol95(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(deco32_vbl_interrupt);
+	void descramble_sound( const char *tag );
+	DECLARE_WRITE_LINE_MEMBER(sound_irq_gen);
 };
 
 
@@ -81,7 +88,7 @@ UINT32 deco156_state::screen_update_wcvol95(screen_device &screen, bitmap_rgb32 
 	deco16ic_pf_update(m_deco_tilegen1, m_pf1_rowscroll, m_pf2_rowscroll);
 
 	deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-	machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x800);
+	m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x800);
 	deco16ic_tilemap_1_draw(m_deco_tilegen1, bitmap, cliprect, 0, 0);
 	return 0;
 }
@@ -99,9 +106,7 @@ WRITE32_MEMBER(deco156_state::hvysmsh_eeprom_w)
 
 WRITE32_MEMBER(deco156_state::hvysmsh_oki_0_bank_w)
 {
-	device_t *device = machine().device("oki1");
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base((data & 1) * 0x40000);
+	m_oki1->set_bank_base((data & 1) * 0x40000);
 }
 
 WRITE32_MEMBER(deco156_state::wcvol95_nonbuffered_palette_w)
@@ -165,7 +170,7 @@ static ADDRESS_MAP_START( wcvol95_map, AS_PROGRAM, 32, deco156_state )
 	AM_RANGE(0x160000, 0x161fff) AM_READWRITE(wcvol95_spriteram_r, wcvol95_spriteram_w)
 	AM_RANGE(0x170000, 0x170003) AM_NOP // Irq ack?
 	AM_RANGE(0x180000, 0x180fff) AM_RAM_WRITE(wcvol95_nonbuffered_palette_w) AM_SHARE("paletteram")
-	AM_RANGE(0x1a0000, 0x1a0007) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x000000ff)
+	AM_RANGE(0x1a0000, 0x1a0007) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x000000ff)
 ADDRESS_MAP_END
 
 
@@ -304,15 +309,10 @@ GFXDECODE_END
 
 /**********************************************************************************/
 
-static void sound_irq_gen(device_t *device, int state)
+WRITE_LINE_MEMBER(deco156_state::sound_irq_gen)
 {
 	logerror("sound irq\n");
 }
-
-static const ymz280b_interface ymz280b_intf =
-{
-	sound_irq_gen
-};
 
 INTERRUPT_GEN_MEMBER(deco156_state::deco32_vbl_interrupt)
 {
@@ -416,7 +416,7 @@ static MACHINE_CONFIG_START( wcvol95, deco156_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, 28000000 / 2)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(deco156_state, sound_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -614,11 +614,11 @@ ROM_END
 
 /**********************************************************************************/
 
-static void descramble_sound( running_machine &machine, const char *tag )
+void deco156_state::descramble_sound( const char *tag )
 {
-	UINT8 *rom = machine.root_device().memregion(tag)->base();
-	int length = machine.root_device().memregion(tag)->bytes();
-	UINT8 *buf1 = auto_alloc_array(machine, UINT8, length);
+	UINT8 *rom = memregion(tag)->base();
+	int length = memregion(tag)->bytes();
+	UINT8 *buf1 = auto_alloc_array(machine(), UINT8, length);
 	UINT32 x;
 
 	for (x = 0; x < length; x++)
@@ -637,21 +637,21 @@ static void descramble_sound( running_machine &machine, const char *tag )
 
 	memcpy(rom,buf1,length);
 
-	auto_free(machine, buf1);
+	auto_free(machine(), buf1);
 }
 
 DRIVER_INIT_MEMBER(deco156_state,hvysmsh)
 {
 	deco56_decrypt_gfx(machine(), "gfx1"); /* 141 */
 	deco156_decrypt(machine());
-	descramble_sound(machine(), "oki2");
+	descramble_sound("oki2");
 }
 
 DRIVER_INIT_MEMBER(deco156_state,wcvol95)
 {
 	deco56_decrypt_gfx(machine(), "gfx1"); /* 141 */
 	deco156_decrypt(machine());
-	descramble_sound(machine(), "ymz");
+	descramble_sound("ymz");
 }
 
 

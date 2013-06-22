@@ -87,7 +87,7 @@ class luckgrln_state : public driver_device
 {
 public:
 	luckgrln_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_reel1_ram(*this, "reel1_ram"),
 		m_reel1_attr(*this, "reel1_attr"),
 		m_reel1_scroll(*this, "reel1_scroll"),
@@ -102,7 +102,8 @@ public:
 		m_reel4_scroll(*this, "reel4_scroll"),
 		m_luck_vram1(*this, "luck_vram1"),
 		m_luck_vram2(*this, "luck_vram2"),
-		m_luck_vram3(*this, "luck_vram3"){ }
+		m_luck_vram3(*this, "luck_vram3"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_nmi_enable;
 	tilemap_t *m_reel1_tilemap;
@@ -152,6 +153,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_luckgrln(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(luckgrln_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -973,9 +975,10 @@ static GFXDECODE_START( luckgrln )
 	GFXDECODE_ENTRY( "reels", 0, tiles8x32_layout, 0, 64 )
 GFXDECODE_END
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -990,7 +993,7 @@ static const mc6845_interface mc6845_intf =
 INTERRUPT_GEN_MEMBER(luckgrln_state::luckgrln_irq)
 {
 	if(m_nmi_enable)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static MACHINE_CONFIG_START( luckgrln, luckgrln_state )
@@ -1026,7 +1029,7 @@ DRIVER_INIT_MEMBER(luckgrln_state,luckgrln)
 {
 	int i;
 	UINT8 x,v;
-	UINT8* rom = machine().root_device().memregion("rom_data")->base();
+	UINT8* rom = memregion("rom_data")->base();
 
 	for (i=0;i<0x20000;i++)
 	{
@@ -1053,7 +1056,7 @@ DRIVER_INIT_MEMBER(luckgrln_state,luckgrln)
 	#endif
 
 	// ??
-//  machine().root_device().membank("bank1")->set_base(&rom[0x010000]);
+//  membank("bank1")->set_base(&rom[0x010000]);
 }
 
 

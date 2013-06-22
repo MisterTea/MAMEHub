@@ -187,16 +187,16 @@ READ8_MEMBER( poly880_state::pio1_pb_r )
 
 	*/
 
-	UINT8 data = 0xf0 | (((m_cassette)->input() < +0.0) << 1);
+	UINT8 data = 0xf0 | ((m_cassette->input() < +0.0) << 1);
 	int i;
 
 	for (i = 0; i < 8; i++)
 	{
 		if (BIT(m_digit, i))
 		{
-			if (!BIT(ioport("KI1")->read(), i)) data &= ~0x10;
-			if (!BIT(ioport("KI2")->read(), i)) data &= ~0x20;
-			if (!BIT(ioport("KI3")->read(), i)) data &= ~0x80;
+			if (!BIT(m_ki1->read(), i)) data &= ~0x10;
+			if (!BIT(m_ki2->read(), i)) data &= ~0x20;
+			if (!BIT(m_ki3->read(), i)) data &= ~0x80;
 		}
 	}
 
@@ -290,7 +290,7 @@ static MACHINE_CONFIG_START( poly880, poly880_state )
 	MCFG_Z80PIO_ADD(Z80PIO1_TAG, XTAL_7_3728MHz/16, pio1_intf)
 	MCFG_Z80PIO_ADD(Z80PIO2_TAG, XTAL_7_3728MHz/16, pio2_intf)
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, poly880_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", poly880_cassette_interface)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

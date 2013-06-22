@@ -3,16 +3,16 @@
 #ifndef __ABC1600__
 #define __ABC1600__
 
-
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/ram.h"
 #include "machine/8530scc.h"
-#include "machine/abc99.h"
+#include "machine/abckb.h"
 #include "machine/abc1600_bus.h"
 #include "machine/e0516.h"
 #include "machine/lux4105.h"
 #include "machine/nmc9306.h"
+#include "machine/ram.h"
+#include "machine/serial.h"
 #include "machine/wd_fdc.h"
 #include "machine/z80dart.h"
 #include "machine/z80dma.h"
@@ -42,6 +42,8 @@
 #define BUS0X_TAG           "bus0x"
 #define BUS1_TAG            "bus1"
 #define BUS2_TAG            "bus2"
+#define RS232_A_TAG         "rs232a"
+#define RS232_B_TAG         "rs232b"
 
 
 
@@ -74,6 +76,10 @@ public:
 			m_bus0x(*this, BUS0X_TAG),
 			m_bus1(*this, BUS1_TAG),
 			m_bus2(*this, BUS2_TAG),
+			m_rom(*this, MC68008P8_TAG),
+			m_wrmsk_rom(*this, "wrmsk"),
+			m_shinf_rom(*this, "shinf"),
+			m_drmsk_rom(*this, "drmsk"),
 			m_segment_ram(*this, "segment_ram"),
 			m_page_ram(*this, "page_ram"),
 			m_video_ram(*this, "video_ram")
@@ -98,6 +104,10 @@ public:
 	required_device<abc1600bus_slot_device> m_bus0x;
 	required_device<abc1600bus_slot_device> m_bus1;
 	required_device<abc1600bus_slot_device> m_bus2;
+	required_memory_region m_rom;
+	required_memory_region m_wrmsk_rom;
+	required_memory_region m_shinf_rom;
+	required_memory_region m_drmsk_rom;
 	optional_shared_ptr<UINT8> m_segment_ram;
 	optional_shared_ptr<UINT16> m_page_ram;
 	optional_shared_ptr<UINT16> m_video_ram;
@@ -149,6 +159,8 @@ public:
 	DECLARE_WRITE8_MEMBER( cio_pc_w );
 
 	DECLARE_WRITE_LINE_MEMBER( nmi_w );
+
+	IRQ_CALLBACK_MEMBER( abc1600_int_ack );
 
 	void fdc_intrq_w(bool state);
 	void fdc_drq_w(bool state);
@@ -223,9 +235,6 @@ public:
 	int m_btce;                 // V.24 channel B external clock enable
 
 	// video
-	const UINT8 *m_wrmsk_rom;   // write mask ROM
-	const UINT8 *m_shinf_rom;   // shifter info ROM
-	const UINT8 *m_drmsk_rom;   // data read mask ROM
 	int m_endisp;               // enable display
 	int m_clocks_disabled;      // clocks disabled
 	UINT16 m_gmdi;              // video RAM data latch

@@ -18,7 +18,7 @@ public:
 	ti85_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
-			m_speaker(*this, SPEAKER_TAG),
+			m_speaker(*this, "speaker"),
 //        m_serial(*this, "tiserial"),
 			m_nvram(*this, "nvram")
 		{ }
@@ -103,14 +103,19 @@ public:
 	DECLARE_MACHINE_START(ti83p);
 	UINT32 screen_update_ti85(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(ti85_timer_callback);
+	void update_ti85_memory ();
+	void update_ti83p_memory ();
+	void update_ti86_memory ();
+	void ti8x_snapshot_setup_registers (UINT8 * data);
+	void ti85_setup_snapshot (UINT8 * data);
+	void ti86_setup_snapshot (UINT8 * data);
+	DECLARE_SNAPSHOT_LOAD_MEMBER( ti8x );
 };
 
 
 /*----------- defined in machine/ti85.c -----------*/
 NVRAM_HANDLER( ti83p );
 NVRAM_HANDLER( ti86 );
-
-SNAPSHOT_LOAD( ti8x );
 
 
 #endif /* TI85_H_ */

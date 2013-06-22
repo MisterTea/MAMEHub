@@ -228,6 +228,20 @@ IRQ line connected to CPU
  1000-FFFF | R | D D D D D D D D | ROM (can be bank switched by 0x850 in 8 banks of 64 k ) (NV)
 -----------+---+-----------------+--------------------------------------------------------------------------
 
+Additional Notes:
+
+Games from around the era of Road Hog and Chase Invaders had sufficient additional space to store three sets of reel
+start/stop sounds.
+
+To change between them, follow these instructions:
+
+1) Load the game.
+2) Open the cashbox door and insert the refill key.
+3) Use Hi/Lo to adjust volume
+4) Use Hold 1/2/3 to choose between "Default", "Standard" and "Alternative" sound sets
+5) Use Cancel/collect to test the sounds.
+6) To return to the game, remove the refill key and close the door
+
 TODO: - Distinguish door switches using manual
       - Complete stubs for hoppers (needs slightly better 68681 emulation, and new 'hoppers' device emulation)
       - It seems that the MPU4 core program relies on some degree of persistence when switching strobes and handling
@@ -277,7 +291,7 @@ static void lamp_extend_small(mpu4_state *state, int data)
 
 	lamp_ext_data = 0x1f - ((data & 0xf8) >> 3);//remove the mux lines from the data
 
-	if ((state->m_lamp_strobe_ext_persistence == 0))
+	if (state->m_lamp_strobe_ext_persistence == 0)
 	//One write to reset the drive lines, one with the data, one to clear the lines, so only the 2nd write does anything
 	//Once again, lamp persistences would take care of this, but we can't do that
 	{
@@ -462,15 +476,15 @@ MACHINE_RESET_MEMBER(mpu4_state,mpu4)
 
 		int numbanks = romsize / 0x10000;
 
-		membank("bank1")->configure_entries(0, 8, &rom[0x01000], 0x10000);
+		m_bank1->configure_entries(0, 8, &rom[0x01000], 0x10000);
 
 		// some Bwb games must default to the last bank, does anything not like this
 		// behavior?
 		// some Bwb games don't work anyway tho, they seem to dislike something else
 		// about the way the regular banking behaves, not related to the CB2 stuff
-		membank("bank1")->set_entry(numbanks-1);
+		m_bank1->set_entry(numbanks-1);
 
-		machine().device("maincpu")->reset();
+		m_maincpu->reset();
 	}
 }
 
@@ -489,12 +503,12 @@ WRITE_LINE_MEMBER(mpu4_state::cpu0_irq)
 
 	if (!m_link7a_connected) //7B = IRQ, 7A = FIRQ, both = NMI
 	{
-		machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
 		LOG(("6809 int%d \n", combined_state));
 	}
 	else
 	{
-		machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(M6809_FIRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
 		LOG(("6809 fint%d \n", combined_state));
 	}
 }
@@ -515,25 +529,24 @@ WRITE8_MEMBER(mpu4_state::bankswitch_w)
 
 	// m_pageset is never even set??
 	m_pageval = (data & 0x03);
-	membank("bank1")->set_entry((m_pageval + (m_pageset ? 4 : 0)) & 0x07);
+	m_bank1->set_entry((m_pageval + (m_pageset ? 4 : 0)) & 0x07);
 }
 
 
 READ8_MEMBER(mpu4_state::bankswitch_r)
 {
-	return membank("bank1")->entry();
+	return m_bank1->entry();
 }
 
 
 WRITE8_MEMBER(mpu4_state::bankset_w)
 {
-
 //  printf("bankset_w %02x\n", data);
 
 	// m_pageset is never even set??
 
 	m_pageval = (data - 2);//writes 2 and 3, to represent 0 and 1 - a hangover from the half page design?
-	membank("bank1")->set_entry((m_pageval + (m_pageset ? 4 : 0)) & 0x07);
+	m_bank1->set_entry((m_pageval + (m_pageset ? 4 : 0)) & 0x07);
 }
 
 
@@ -783,7 +796,7 @@ WRITE8_MEMBER(mpu4_state::pia_ic4_portb_w)
 
 READ8_MEMBER(mpu4_state::pia_ic4_portb_r)
 {
-	pia6821_device *pia = machine().device<pia6821_device>("pia_ic4");
+	pia6821_device *pia = m_pia4;
 	if ( m_serial_data )
 	{
 		m_ic4_input_b |=  0x80;
@@ -898,14 +911,14 @@ READ8_MEMBER(mpu4_state::pia_ic5_porta_r)
 	}
 	LOG(("%s: IC5 PIA Read of Port A (AUX1)\n",machine().describe_context()));
 
-	return machine().root_device().ioport("AUX1")->read()|m_aux1_input;
+	return m_aux1_port->read()|m_aux1_input;
 }
 
 WRITE8_MEMBER(mpu4_state::pia_ic5_porta_w)
 {
 	int i;
 	mpu4_state *state = machine().driver_data<mpu4_state>();
-	pia6821_device *pia_ic4 = machine().device<pia6821_device>("pia_ic4");
+	pia6821_device *pia_ic4 = m_pia4;
 	if (m_hopper == HOPPER_NONDUART_A)
 	{
 		//hopper1_drive_sensor(data&0x10);
@@ -1085,7 +1098,7 @@ READ8_MEMBER(mpu4_state::pia_ic5_portb_r)
 	coin_lockout_w(machine(), 1, (pia_ic5->b_output() & 0x02) );
 	coin_lockout_w(machine(), 2, (pia_ic5->b_output() & 0x04) );
 	coin_lockout_w(machine(), 3, (pia_ic5->b_output() & 0x08) );
-	return machine().root_device().ioport("AUX2")->read() | m_aux2_input;
+	return m_aux2_port->read() | m_aux2_input;
 }
 
 
@@ -1144,8 +1157,8 @@ static void update_ay(device_t *device, address_space &space)
 			case 0x02:
 			{/* CA2 = 0 CB2 = 1? : Write to selected PSG register and write data to Port A */
 				pia6821_device *pia_ic6 = device->machine().device<pia6821_device>("pia_ic6");
-				device_t *ay = device->machine().device("ay8913");
-				ay8910_data_w(ay, space, 0, pia_ic6->a_output());
+				ay8910_device *ay8910 = device->machine().device<ay8910_device>("ay8913");
+				ay8910->data_w(space, 0, pia_ic6->a_output());
 				LOG(("AY Chip Write \n"));
 				break;
 			}
@@ -1153,8 +1166,8 @@ static void update_ay(device_t *device, address_space &space)
 			{/* CA2 = 1 CB2 = 1? : The register will now be selected and the user can read from or write to it.
              The register will remain selected until another is chosen.*/
 				pia6821_device *pia_ic6 = device->machine().device<pia6821_device>("pia_ic6");
-				device_t *ay = device->machine().device("ay8913");
-				ay8910_address_w(ay, space, 0, pia_ic6->a_output());
+				ay8910_device *ay8910 = device->machine().device<ay8910_device>("ay8913");
+				ay8910->address_w(space, 0, pia_ic6->a_output());
 				LOG(("AY Chip Select \n"));
 				break;
 			}
@@ -1383,15 +1396,14 @@ static const pia6821_interface pia_ic7_intf =
 /* IC8, Inputs, TRIACS, alpha clock */
 READ8_MEMBER(mpu4_state::pia_ic8_porta_r)
 {
-	static const char *const portnames[] = { "ORANGE1", "ORANGE2", "BLACK1", "BLACK2", "ORANGE1", "ORANGE2", "DIL1", "DIL2" };
-	pia6821_device *pia_ic5 = machine().device<pia6821_device>("pia_ic5");
+	ioport_port * portnames[] = { m_orange1_port, m_orange2_port, m_black1_port, m_black2_port, m_orange1_port, m_orange2_port, m_dil1_port, m_dil2_port };
 
 	LOG_IC8(("%s: IC8 PIA Read of Port A (MUX input data)\n", machine().describe_context()));
 /* The orange inputs are polled twice as often as the black ones, for reasons of efficiency.
    This is achieved via connecting every input line to an AND gate, thus allowing two strobes
    to represent each orange input bank (strobes are active low). */
-	pia_ic5->cb1_w(machine().root_device().ioport("AUX2")->read() & 0x80);
-	return machine().root_device().ioport(portnames[m_input_strobe])->read();
+	m_pia5->cb1_w(m_aux2_port->read() & 0x80);
+	return (portnames[m_input_strobe])->read();
 }
 
 
@@ -1459,16 +1471,12 @@ static const pia6821_interface pia_ic8_intf =
 // Sampled sound card, using a PIA and PTM for timing and data handling
 WRITE8_MEMBER(mpu4_state::pia_gb_porta_w)
 {
-	device_t *msm6376 = machine().device("msm6376");
 	LOG_SS(("%s: GAMEBOARD: PIA Port A Set to %2x\n", machine().describe_context(),data));
-	okim6376_w(msm6376, space, 0, data);
+	okim6376_w(m_msm6376, space, 0, data);
 }
 
 WRITE8_MEMBER(mpu4_state::pia_gb_portb_w)
 {
-	device_t *msm6376 = machine().device("msm6376");
-	okim6376_device *msm = machine().device<okim6376_device>("msm6376");
-
 	int changed = m_expansion_latch^data;
 
 	LOG_SS(("%s: GAMEBOARD: PIA Port B Set to %2x\n", machine().describe_context(),data));
@@ -1488,17 +1496,16 @@ WRITE8_MEMBER(mpu4_state::pia_gb_portb_w)
 
 			{
 				float percent = (32-m_global_volume)/32.0;
-				msm->set_output_gain(0, percent);
-				msm->set_output_gain(1, percent);
+				m_msm6376->set_output_gain(0, percent);
+				m_msm6376->set_output_gain(1, percent);
 			}
 		}
 	}
-	okim6376_ch2_w(msm6376,data&0x02);
-	okim6376_st_w(msm6376,data&0x01);
+	okim6376_ch2_w(m_msm6376,data&0x02);
+	okim6376_st_w(m_msm6376,data&0x01);
 }
 READ8_MEMBER(mpu4_state::pia_gb_portb_r)
 {
-	device_t *msm6376 = machine().device("msm6376");
 	LOG_SS(("%s: GAMEBOARD: PIA Read of Port B\n",machine().describe_context()));
 	int data=0;
 	// b7 NAR - we can load another address into Channel 1
@@ -1507,10 +1514,10 @@ READ8_MEMBER(mpu4_state::pia_gb_portb_r)
 	// b4, 1 = Vol down, 0 = Vol up
 	//
 
-	if ( okim6376_nar_r(msm6376) ) data |= 0x80;
+	if ( okim6376_nar_r(m_msm6376) ) data |= 0x80;
 	else                           data &= ~0x80;
 
-	if ( okim6376_busy_r(msm6376) ) data |= 0x40;
+	if ( okim6376_busy_r(m_msm6376) ) data |= 0x40;
 	else                            data &= ~0x40;
 
 	return ( data | m_expansion_latch );
@@ -1530,7 +1537,7 @@ WRITE_LINE_MEMBER(mpu4_state::pia_gb_cb2_w)
 	{
 		//printf("pia_gb_cb2_w %d\n", state);
 		m_pageval = state;
-		membank("bank1")->set_entry((m_pageval + (m_pageset ? 4 : 0)) & 0x07);
+		m_bank1->set_entry((m_pageval + (m_pageset ? 4 : 0)) & 0x07);
 	}
 }
 
@@ -1590,7 +1597,6 @@ WRITE8_MEMBER(mpu4_state::ic3ss_w)
 {
 	device_t *ic3ss = machine().device("ptm_ic3ss");
 	downcast<ptm6840_device *>(ic3ss)->write(offset,data);
-	device_t *msm6376 = machine().device("msm6376");
 
 	if (offset == 3)
 	{
@@ -1613,7 +1619,7 @@ WRITE8_MEMBER(mpu4_state::ic3ss_w)
 
 	if (freq)
 	{
-		okim6376_set_frequency(msm6376, freq);
+		okim6376_set_frequency(m_msm6376, freq);
 	}
 }
 
@@ -1775,11 +1781,49 @@ INPUT_PORTS_START( mpu4 )
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_SPECIAL)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_SPECIAL)
 	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_SPECIAL)
-	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_COIN1) PORT_NAME("10p")PORT_IMPULSE(5)
-	PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_COIN2) PORT_NAME("20p")PORT_IMPULSE(5)
-	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_COIN3) PORT_NAME("50p")PORT_IMPULSE(5)
-	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_COIN4) PORT_NAME("100p")PORT_IMPULSE(5)
+	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_COIN1) PORT_NAME("10p")//PORT_IMPULSE(5)
+	PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_COIN2) PORT_NAME("20p")//PORT_IMPULSE(5)
+	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_COIN3) PORT_NAME("50p")//PORT_IMPULSE(5)
+	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_COIN4) PORT_NAME("100p")//PORT_IMPULSE(5)
 INPUT_PORTS_END
+
+
+INPUT_PORTS_START( mpu4_cw )
+//Inputs for CoinWorld games
+	PORT_INCLUDE( mpu4 )
+	PORT_MODIFY("DIL1")
+	PORT_DIPNAME( 0x01, 0x00, "Profile Type" ) PORT_DIPLOCATION("DIL1:01")
+	PORT_DIPSETTING(    0x00, "Bingo Profile" )
+	PORT_DIPSETTING(    0x01, "Arcade" )
+	PORT_DIPNAME( 0x02, 0x00, "Accept 2 GBP Coin?" ) PORT_DIPLOCATION("DIL1:02")
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Yes  ) )
+	PORT_DIPNAME( 0x0C, 0x00, "Jackpot" ) PORT_DIPLOCATION("DIL1:03,04")
+	PORT_DIPSETTING(    0x04, "15 GBP" )
+	PORT_DIPSETTING(    0x00, "10 GBP" )
+	PORT_DIPSETTING(    0x08, "5 GBP" )
+	PORT_DIPNAME( 0x10, 0x00, "Hold Mode" ) PORT_DIPLOCATION("DIL1:05")
+	PORT_DIPSETTING(    0x00, "Show Hints" )
+	PORT_DIPSETTING(    0x10, "Auto Hold" )
+	PORT_DIPNAME( 0x20, 0x00, "Coin Mech Type" ) PORT_DIPLOCATION("DIL1:05")
+	PORT_DIPSETTING(    0x00, "6 Coin" )
+	PORT_DIPSETTING(    0x20, "5 Coin" )
+	PORT_DIPNAME( 0x40, 0x00, "Reel Motor Type" ) PORT_DIPLOCATION("DIL1:05")
+	PORT_DIPSETTING(    0x00, "Slim motor" )
+	PORT_DIPSETTING(    0x40, "Fat motor" )
+	PORT_DIPNAME( 0x80, 0x00, "Payout Tube" ) PORT_DIPLOCATION("DIL1:05")
+	PORT_DIPSETTING(    0x00, "20p" )
+	PORT_DIPSETTING(    0x80, "10p" )
+
+	PORT_MODIFY("DIL2")
+	PORT_DIPNAME( 0x07, 0x00, "Stake Setting" )
+	PORT_DIPSETTING(    0x00, "Not fitted / 5p"  )
+	PORT_DIPSETTING(    0x01, "10p" )
+	PORT_DIPSETTING(    0x02, "20p" )
+	PORT_DIPSETTING(    0x03, "25p" )
+	PORT_DIPSETTING(    0x04, "30p" )
+	PORT_BIT(0xE0, IP_ACTIVE_HIGH, IPT_UNUSED)
+	INPUT_PORTS_END
 
 INPUT_PORTS_START( mpu4jackpot8tkn )
 	PORT_INCLUDE( mpu4 )
@@ -1994,10 +2038,10 @@ INPUT_PORTS_START( grtecp )
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_SPECIAL)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_SPECIAL)
 	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_SPECIAL)
-	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_COIN1) PORT_NAME("10p")PORT_IMPULSE(5)
-	PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_COIN2) PORT_NAME("20p")PORT_IMPULSE(5)
-	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_COIN3) PORT_NAME("50p")PORT_IMPULSE(5)
-	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_COIN4) PORT_NAME("100p")PORT_IMPULSE(5)
+	PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_COIN1) PORT_NAME("10p")//PORT_IMPULSE(5)
+	PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_COIN2) PORT_NAME("20p")//PORT_IMPULSE(5)
+	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_COIN3) PORT_NAME("50p")//PORT_IMPULSE(5)
+	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_COIN4) PORT_NAME("100p")//PORT_IMPULSE(5)
 INPUT_PORTS_END
 
 static const stepper_interface barcrest_reel_interface =
@@ -2067,6 +2111,10 @@ However, a final 8 byte row, that controls the lamp matrix is not tested - to da
 how this is generated, and currently trial and error is the only sensible method. It is noted that the default,
 of all 00, is sometimes the correct answer, particularly in non-Barcrest use of the CHR chip, though when used normally,
 there are again fixed call values.
+
+Apparently, just before the characteriser is checked bit 1 at 0x61DF is checked and if zero the characteriser
+check is bypassed. This may be something to look at for prototype ROMs and hacks.
+
 */
 
 
@@ -2253,7 +2301,6 @@ WRITE8_MEMBER(mpu4_state::bwb_characteriser_w)
 
 READ8_MEMBER(mpu4_state::bwb_characteriser_r)
 {
-
 	LOG_CHR(("Characteriser read offset %02X \n",offset));
 
 
@@ -2291,14 +2338,14 @@ READ8_MEMBER(mpu4_state::bwb_characteriser_r)
 
 WRITE8_MEMBER(mpu4_state::mpu4_ym2413_w)
 {
-	device_t *ym = machine().device("ym2413");
-	if (ym) ym2413_w(ym,space,offset,data);
+	ym2413_device *ym2413 = machine().device<ym2413_device>("ym2413");
+	if (ym2413) ym2413->write(space,offset,data);
 }
 
 READ8_MEMBER(mpu4_state::mpu4_ym2413_r)
 {
-//  device_t *ym = machine().device("ym2413");
-//  return ym2413_read(ym,offset);
+//  ym2413_device *ym2413 = machine().device<ym2413_device>("ym2413");
+//  if (ym2413) return ym2413->read(space,offset);
 	return 0xff;
 }
 
@@ -2334,6 +2381,7 @@ void mpu4_config_common(running_machine &machine)
 	mpu4_state *state = machine.driver_data<mpu4_state>();
 	state->m_ic24_timer = machine.scheduler().timer_alloc(FUNC(ic24_timeout));
 	state->m_lamp_strobe_ext_persistence = 0;
+
 	/* setup 8 mechanical meters */
 	MechMtr_config(machine,8);
 
@@ -2359,7 +2407,7 @@ MACHINE_START_MEMBER(mpu4_state,mod2)
 
 MACHINE_START_MEMBER(mpu4_state,mpu4yam)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	mpu4_config_common(machine());
 
 	m_link7a_connected=0;
@@ -2369,7 +2417,7 @@ MACHINE_START_MEMBER(mpu4_state,mpu4yam)
 
 MACHINE_START_MEMBER(mpu4_state,mpu4oki)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	mpu4_config_common(machine());
 
 	m_link7a_connected=0;
@@ -2379,7 +2427,7 @@ MACHINE_START_MEMBER(mpu4_state,mpu4oki)
 
 MACHINE_START_MEMBER(mpu4_state,mpu4bwb)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	mpu4_config_common(machine());
 
 	m_link7a_connected=0;
@@ -2588,10 +2636,10 @@ DRIVER_INIT_MEMBER(mpu4_state,m4default_alt)
 
 DRIVER_INIT_MEMBER(mpu4_state,m4default_big)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	DRIVER_INIT_CALL(m4default);
 
-	int size = machine().root_device().memregion( "maincpu" )->bytes();
+	int size = memregion( "maincpu" )->bytes();
 	if (size<=0x10000)
 	{
 		printf("extended banking selected on set <=0x10000 in size, ignoring");
@@ -2620,7 +2668,7 @@ WRITE8_MEMBER(mpu4_state::crystal_sound_w)
 
 DRIVER_INIT_MEMBER(mpu4_state,m_frkstn)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	DRIVER_INIT_CALL(m4default_big);
 	space.install_read_handler(0x0880, 0x0880, 0, 0, read8_delegate(FUNC(mpu4_state::crystal_sound_r),this));
 	space.install_write_handler(0x0881, 0x0881, 0, 0, write8_delegate(FUNC(mpu4_state::crystal_sound_w),this));
@@ -2651,13 +2699,13 @@ void descramble_crystal( UINT8* region, int start, int end, UINT8 extra_xor)
 DRIVER_INIT_MEMBER(mpu4_state,crystal)
 {
 	DRIVER_INIT_CALL(m_frkstn);
-	descramble_crystal(machine().root_device().memregion( "maincpu" )->base(), 0x0000, 0x10000, 0x00);
+	descramble_crystal(memregion( "maincpu" )->base(), 0x0000, 0x10000, 0x00);
 }
 
 DRIVER_INIT_MEMBER(mpu4_state,crystali)
 {
 	DRIVER_INIT_CALL(m_frkstn);
-	descramble_crystal(machine().root_device().memregion( "maincpu" )->base(), 0x0000, 0x10000, 0xff); // invert after decrypt?!
+	descramble_crystal(memregion( "maincpu" )->base(), 0x0000, 0x10000, 0xff); // invert after decrypt?!
 }
 
 /* generate a 50 Hz signal (based on an RC time) */
@@ -2667,7 +2715,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(mpu4_state::gen_50hz)
 	falling edges of the pulse are used means the timer actually gives a 100Hz
 	oscillating signal.*/
 	m_signal_50hz = m_signal_50hz?0:1;
-	machine().device<pia6821_device>("pia_ic4")->ca1_w(m_signal_50hz);  /* signal is connected to IC4 CA1 */
+	m_pia4->ca1_w(m_signal_50hz);  /* signal is connected to IC4 CA1 */
 
 	update_meters(this);//run at 100Hz to sync with PIAs
 }
@@ -2676,7 +2724,7 @@ static ADDRESS_MAP_START( mpu4_memmap, AS_PROGRAM, 8, mpu4_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0x0800, 0x0810) AM_READWRITE(characteriser_r,characteriser_w)
 	AM_RANGE(0x0850, 0x0850) AM_READWRITE(bankswitch_r,bankswitch_w)    /* write bank (rom page select) */
-/*  AM_RANGE(0x08e0, 0x08e7) AM_READWRITE_LEGACY(68681_duart_r,68681_duart_w) */ //Runs hoppers
+/*  AM_RANGE(0x08e0, 0x08e7) AM_READWRITE(68681_duart_r,68681_duart_w) */ //Runs hoppers
 	AM_RANGE(0x0900, 0x0907) AM_DEVREADWRITE("ptm_ic2", ptm6840_device, read, write)/* PTM6840 IC2 */
 	AM_RANGE(0x0a00, 0x0a03) AM_DEVREADWRITE("pia_ic3", pia6821_device, read, write)        /* PIA6821 IC3 */
 	AM_RANGE(0x0b00, 0x0b03) AM_DEVREADWRITE("pia_ic4", pia6821_device, read, write)        /* PIA6821 IC4 */

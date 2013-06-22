@@ -20,14 +20,13 @@
 const device_type C64_4TBA = &device_creator<c64_4tba_device>;
 
 
-INPUT_CHANGED_MEMBER( c64_4tba_device::fire3 )
-{
-	m_slot->sp2_w(newval);
-}
+//-------------------------------------------------
+//  INPUT_PORTS( c64_4tba )
+//-------------------------------------------------
 
-static INPUT_PORTS_START( c64_4player )
+static INPUT_PORTS_START( c64_4tba )
 	PORT_START("SP2")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1) PORT_CHANGED_MEMBER(DEVICE_SELF, c64_4tba_device, fire3, 0)
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1) PORT_WRITE_LINE_DEVICE_MEMBER(DEVICE_SELF_OWNER, c64_user_port_device, cia_sp2_w)
 
 	PORT_START("PB")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(1)
@@ -50,7 +49,7 @@ INPUT_PORTS_END
 
 ioport_constructor c64_4tba_device::device_input_ports() const
 {
-	return INPUT_PORTS_NAME( c64_4player );
+	return INPUT_PORTS_NAME( c64_4tba );
 }
 
 
@@ -64,8 +63,10 @@ ioport_constructor c64_4tba_device::device_input_ports() const
 //-------------------------------------------------
 
 c64_4tba_device::c64_4tba_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, C64_4TBA, "C64 Tie Break Adapter", tag, owner, clock),
-	device_c64_user_port_interface(mconfig, *this)
+	device_t(mconfig, C64_4TBA, "C64 Tie Break Adapter", tag, owner, clock, "c64_4tba", __FILE__),
+	device_c64_user_port_interface(mconfig, *this),
+	m_pb(*this, "PB"),
+	m_pa2(*this, "PA2")
 {
 }
 
@@ -85,7 +86,7 @@ void c64_4tba_device::device_start()
 
 UINT8 c64_4tba_device::c64_pb_r(address_space &space, offs_t offset)
 {
-	return ioport("PB")->read();
+	return m_pb->read();
 }
 
 
@@ -95,7 +96,7 @@ UINT8 c64_4tba_device::c64_pb_r(address_space &space, offs_t offset)
 
 int c64_4tba_device::c64_pa2_r()
 {
-	return BIT(ioport("PA2")->read(), 0);
+	return BIT(m_pa2->read(), 0);
 }
 
 
@@ -105,5 +106,5 @@ int c64_4tba_device::c64_pa2_r()
 
 void c64_4tba_device::c64_cnt1_w(int level)
 {
-	m_slot->cnt2_w(level);
+	m_slot->cia_cnt2_w(level);
 }

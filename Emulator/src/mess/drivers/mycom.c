@@ -68,7 +68,7 @@ public:
 	m_ppi0(*this, "ppi8255_0"),
 	m_ppi1(*this, "ppi8255_1"),
 	m_ppi2(*this, "ppi8255_2"),
-	m_cass(*this, CASSETTE_TAG),
+	m_cass(*this, "cassette"),
 	m_wave(*this, WAVE_TAG),
 	m_crtc(*this, "crtc"),
 	m_fdc(*this, "fdc"),
@@ -331,18 +331,19 @@ static GFXDECODE_START( mycom )
 	GFXDECODE_ENTRY( "chargen", 0x0000, mycom_charlayout, 0, 1 )
 GFXDECODE_END
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
-	8,      /* number of pixels per video memory address */
-	NULL,       /* before pixel update callback */
-	mycom_update_row,       /* row update callback */
-	NULL,       /* after pixel update callback */
-	DEVCB_NULL, /* callback for display state changes */
-	DEVCB_NULL, /* callback for cursor state changes */
-	DEVCB_NULL, /* HSYNC callback */
-	DEVCB_NULL, /* VSYNC callback */
-	NULL        /* update address callback */
+	"screen",           /* screen we are acting on */
+	false,              /* show border area */
+	8,                  /* number of pixels per video memory address */
+	NULL,               /* before pixel update callback */
+	mycom_update_row,   /* row update callback */
+	NULL,               /* after pixel update callback */
+	DEVCB_NULL,         /* callback for display state changes */
+	DEVCB_NULL,         /* callback for cursor state changes */
+	DEVCB_NULL,         /* HSYNC callback */
+	DEVCB_NULL,         /* VSYNC callback */
+	NULL                /* update address callback */
 };
 
 WRITE8_MEMBER( mycom_state::mycom_04_w )
@@ -422,7 +423,6 @@ WRITE8_MEMBER( mycom_state::mycom_0a_w )
 
 WRITE8_MEMBER(mycom_state::mycom_rtc_w)
 {
-
 	m_rtc->address_w(data & 0x0f);
 
 	m_rtc->hold_w(BIT(data, 4));
@@ -478,7 +478,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(mycom_state::mycom_kbd)
 	UINT8 x, y, scancode = 0;
 	UINT16 pressed[9];
 	char kbdrow[3];
-	UINT8 modifiers = machine().root_device().ioport("XX")->read();
+	UINT8 modifiers = ioport("XX")->read();
 	UINT8 shift_pressed = (modifiers & 2) >> 1;
 	m_keyb_press_flag = 0;
 
@@ -486,7 +486,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(mycom_state::mycom_kbd)
 	for (x = 0; x < 9; x++)
 	{
 		sprintf(kbdrow,"X%d",x);
-		pressed[x] = (machine().root_device().ioport(kbdrow)->read());
+		pressed[x] = (ioport(kbdrow)->read());
 	}
 
 	/* find what has changed */
@@ -607,7 +607,7 @@ static MACHINE_CONFIG_START( mycom, mycom_state )
 	MCFG_MC6845_ADD("crtc", MC6845, 1008000, mc6845_intf)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("sn1", SN76489, XTAL_10MHz / 4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.50)
@@ -615,7 +615,7 @@ static MACHINE_CONFIG_START( mycom, mycom_state )
 
 	/* Devices */
 	MCFG_MSM5832_ADD(MSM5832RS_TAG, XTAL_32_768kHz)
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 	MCFG_FD1771_ADD("fdc", wd1771_intf)
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(mycom_floppy_interface)
 

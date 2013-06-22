@@ -10,11 +10,12 @@ class ladybug_state : public driver_device
 {
 public:
 	ladybug_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_spriteram(*this, "spriteram"),
-		m_grid_data(*this, "grid_data"){ }
+		m_grid_data(*this, "grid_data"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -43,7 +44,7 @@ public:
 	UINT8      m_sraider_0x38;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_READ8_MEMBER(sraider_sound_low_r);
 	DECLARE_READ8_MEMBER(sraider_sound_high_r);
 	DECLARE_WRITE8_MEMBER(sraider_sound_low_w);
@@ -81,21 +82,22 @@ public:
 	UINT32 screen_update_redclash(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_sraider(screen_device &screen, bool state);
 	void screen_eof_redclash(screen_device &screen, bool state);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	DECLARE_WRITE8_MEMBER( redclash_videoram_w );
+	DECLARE_WRITE8_MEMBER( redclash_gfxbank_w );
+	DECLARE_WRITE8_MEMBER( redclash_flipscreen_w );
+
+	DECLARE_WRITE8_MEMBER( redclash_star0_w );
+	DECLARE_WRITE8_MEMBER( redclash_star1_w );
+	DECLARE_WRITE8_MEMBER( redclash_star2_w );
+	DECLARE_WRITE8_MEMBER( redclash_star_reset_w );
+	DECLARE_WRITE8_MEMBER( irqack_w );
+
+	/* sraider uses the zerohour star generator board */
+	void redclash_set_stars_enable(UINT8 on);
+	void redclash_update_stars_state();
+	void redclash_set_stars_speed(UINT8 speed);
+	void redclash_draw_stars(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 palette_offset, UINT8 sraider, UINT8 firstx, UINT8 lastx);
+	void redclash_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void redclash_draw_bullets( bitmap_ind16 &bitmap, const rectangle &cliprect );
 };
-
-/*----------- defined in video/redclash.c -----------*/
-
-DECLARE_WRITE8_HANDLER( redclash_videoram_w );
-DECLARE_WRITE8_HANDLER( redclash_gfxbank_w );
-DECLARE_WRITE8_HANDLER( redclash_flipscreen_w );
-
-DECLARE_WRITE8_HANDLER( redclash_star0_w );
-DECLARE_WRITE8_HANDLER( redclash_star1_w );
-DECLARE_WRITE8_HANDLER( redclash_star2_w );
-DECLARE_WRITE8_HANDLER( redclash_star_reset_w );
-
-/* sraider uses the zerohour star generator board */
-void redclash_set_stars_enable(running_machine &machine, UINT8 on);
-void redclash_update_stars_state(running_machine &machine);
-void redclash_set_stars_speed(running_machine &machine, UINT8 speed);
-void redclash_draw_stars(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 palette_offset, UINT8 sraider, UINT8 firstx, UINT8 lastx);

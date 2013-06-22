@@ -22,14 +22,12 @@
 
 INTERRUPT_GEN_MEMBER(bottom9_state::bottom9_interrupt)
 {
-
 	if (k052109_is_irq_enabled(m_k052109))
 		device.execute().set_input_line(0, HOLD_LINE);
 }
 
 READ8_MEMBER(bottom9_state::k052109_051960_r)
 {
-
 	if (k052109_get_rmrd_line(m_k052109) == CLEAR_LINE)
 	{
 		if (offset >= 0x3800 && offset < 0x3808)
@@ -45,7 +43,6 @@ READ8_MEMBER(bottom9_state::k052109_051960_r)
 
 WRITE8_MEMBER(bottom9_state::k052109_051960_w)
 {
-
 	if (offset >= 0x3800 && offset < 0x3808)
 		k051937_w(m_k051960, space, offset - 0x3800, data);
 	else if (offset < 0x3c00)
@@ -56,7 +53,6 @@ WRITE8_MEMBER(bottom9_state::k052109_051960_w)
 
 READ8_MEMBER(bottom9_state::bottom9_bankedram1_r)
 {
-
 	if (m_k052109_selected)
 		return k052109_051960_r(space, offset);
 	else
@@ -70,7 +66,6 @@ READ8_MEMBER(bottom9_state::bottom9_bankedram1_r)
 
 WRITE8_MEMBER(bottom9_state::bottom9_bankedram1_w)
 {
-
 	if (m_k052109_selected)
 		k052109_051960_w(space, offset, data);
 	else
@@ -79,7 +74,6 @@ WRITE8_MEMBER(bottom9_state::bottom9_bankedram1_w)
 
 READ8_MEMBER(bottom9_state::bottom9_bankedram2_r)
 {
-
 	if (m_k052109_selected)
 		return k052109_051960_r(space, offset + 0x2000);
 	else
@@ -88,7 +82,6 @@ READ8_MEMBER(bottom9_state::bottom9_bankedram2_r)
 
 WRITE8_MEMBER(bottom9_state::bottom9_bankedram2_w)
 {
-
 	if (m_k052109_selected)
 		k052109_051960_w(space, offset + 0x2000, data);
 	else
@@ -114,7 +107,6 @@ WRITE8_MEMBER(bottom9_state::bankswitch_w)
 
 WRITE8_MEMBER(bottom9_state::bottom9_1f90_w)
 {
-
 	/* bits 0/1 = coin counters */
 	coin_counter_w(machine(), 0, data & 0x01);
 	coin_counter_w(machine(), 1, data & 0x02);
@@ -269,26 +261,26 @@ INPUT_PORTS_END
 
 
 
-static void volume_callback0( device_t *device, int v )
+WRITE8_MEMBER(bottom9_state::volume_callback0)
 {
-	k007232_set_volume(device, 0, (v >> 4) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232_1, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232_1, 1, 0, (data & 0x0f) * 0x11);
 }
 
-static void volume_callback1( device_t *device, int v )
+WRITE8_MEMBER(bottom9_state::volume_callback1)
 {
-	k007232_set_volume(device, 0, (v >> 4) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232_2, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232_2, 1, 0, (data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_interface_1 =
 {
-	volume_callback0
+	DEVCB_DRIVER_MEMBER(bottom9_state,volume_callback0)
 };
 
 static const k007232_interface k007232_interface_2 =
 {
-	volume_callback1
+	DEVCB_DRIVER_MEMBER(bottom9_state,volume_callback1)
 };
 
 
@@ -323,14 +315,6 @@ void bottom9_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 12, &ROM[0x10000], 0x2000);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k052109 = machine().device("k052109");
-	m_k051960 = machine().device("k051960");
-	m_k051316 = machine().device("k051316");
-	m_k007232_1 = machine().device("k007232_1");
-	m_k007232_2 = machine().device("k007232_2");
-
 	save_item(NAME(m_video_enable));
 	save_item(NAME(m_zoomreadroms));
 	save_item(NAME(m_k052109_selected));
@@ -339,7 +323,6 @@ void bottom9_state::machine_start()
 
 void bottom9_state::machine_reset()
 {
-
 	m_video_enable = 0;
 	m_zoomreadroms = 0;
 	m_k052109_selected = 0;

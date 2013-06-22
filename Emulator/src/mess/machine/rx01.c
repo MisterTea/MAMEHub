@@ -91,6 +91,9 @@ void rx01_device::device_reset()
 		floppy_drive_set_controller(m_image[i], this);
 		floppy_drive_set_rpm(m_image[i], 360.);
 	}
+	m_rxes = 0;
+	m_rxcs = 0;
+	m_rxdb = 0;
 }
 
 //-------------------------------------------------

@@ -111,14 +111,14 @@ Note:   if MAME_DEBUG is defined, pressing Z or X with:
 
 ***************************************************************************/
 
-static void prepare_shadows(cischeat_state *state)
+void cischeat_state::prepare_shadows(cischeat_state *state)
 {
 	int i;
 	for (i = 0;i < 16;i++)
-		state->m_drawmode_table[i] = DRAWMODE_SOURCE;
+		m_drawmode_table[i] = DRAWMODE_SOURCE;
 
-	state->m_drawmode_table[ 0] = DRAWMODE_SHADOW;
-	state->m_drawmode_table[15] = DRAWMODE_NONE;
+	m_drawmode_table[ 0] = DRAWMODE_SHADOW;
+	m_drawmode_table[15] = DRAWMODE_NONE;
 }
 
 /**************************************************************************
@@ -129,22 +129,21 @@ static void prepare_shadows(cischeat_state *state)
 #define TILES_PER_PAGE_Y (0x20)
 #define TILES_PER_PAGE (TILES_PER_PAGE_X * TILES_PER_PAGE_Y)
 
-INLINE void scrollram_w(address_space &space, offs_t offset, UINT16 data, UINT16 mem_mask, int which)
+inline void cischeat_state::scrollram_w(address_space &space, offs_t offset, UINT16 data, UINT16 mem_mask, int which)
 {
-	cischeat_state *state = space.machine().driver_data<cischeat_state>();
-	COMBINE_DATA(&state->m_scrollram[which][offset]);
-	if (offset < 0x40000/2 && state->m_tmap[which])
+	COMBINE_DATA(&m_scrollram[which][offset]);
+	if (offset < 0x40000/2 && m_tmap[which])
 	{
-		if (state->m_scroll_flag[which] & 0x10) /* tiles are 8x8 */
+		if (m_scroll_flag[which] & 0x10) /* tiles are 8x8 */
 		{
-			state->m_tmap[which]->mark_tile_dirty(offset);
+			m_tmap[which]->mark_tile_dirty(offset);
 		}
 		else
 		{
-			state->m_tmap[which]->mark_tile_dirty(offset*4 + 0);
-			state->m_tmap[which]->mark_tile_dirty(offset*4 + 1);
-			state->m_tmap[which]->mark_tile_dirty(offset*4 + 2);
-			state->m_tmap[which]->mark_tile_dirty(offset*4 + 3);
+			m_tmap[which]->mark_tile_dirty(offset*4 + 0);
+			m_tmap[which]->mark_tile_dirty(offset*4 + 1);
+			m_tmap[which]->mark_tile_dirty(offset*4 + 2);
+			m_tmap[which]->mark_tile_dirty(offset*4 + 3);
 		}
 	}
 }
@@ -181,38 +180,37 @@ TILE_GET_INFO_MEMBER(cischeat_state::cischeat_get_scroll_tile_info_16x16)
 	SET_TILE_INFO_MEMBER(tmap, (code & 0xfff) * 4 + (tile_index & 3), code >> (16 - m_bits_per_color_code), 0);
 }
 
-static void create_tilemaps(running_machine &machine)
+void cischeat_state::create_tilemaps()
 {
-	cischeat_state *state = machine.driver_data<cischeat_state>();
 	int layer, i;
 
 	for (layer = 0; layer < 3; layer++)
 	{
 		/* 16x16 tilemaps */
-		state->m_tilemap[layer][0][0] = &machine.tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),state), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),state),
+		m_tilemap[layer][0][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
 									8,8, TILES_PER_PAGE_X * 16, TILES_PER_PAGE_Y * 2);
-		state->m_tilemap[layer][0][1] = &machine.tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),state), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),state),
+		m_tilemap[layer][0][1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
 									8,8, TILES_PER_PAGE_X * 8, TILES_PER_PAGE_Y * 4);
-		state->m_tilemap[layer][0][2] = &machine.tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),state), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),state),
+		m_tilemap[layer][0][2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
 									8,8, TILES_PER_PAGE_X * 4, TILES_PER_PAGE_Y * 8);
-		state->m_tilemap[layer][0][3] = &machine.tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),state), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),state),
+		m_tilemap[layer][0][3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_16x16),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_16x16),this),
 									8,8, TILES_PER_PAGE_X * 2, TILES_PER_PAGE_Y * 16);
 
 		/* 8x8 tilemaps */
-		state->m_tilemap[layer][1][0] = &machine.tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),state), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),state),
+		m_tilemap[layer][1][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
 									8,8, TILES_PER_PAGE_X * 8, TILES_PER_PAGE_Y * 1);
-		state->m_tilemap[layer][1][1] = &machine.tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),state), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),state),
+		m_tilemap[layer][1][1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
 									8,8, TILES_PER_PAGE_X * 4, TILES_PER_PAGE_Y * 2);
-		state->m_tilemap[layer][1][2] = &machine.tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),state), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),state),
+		m_tilemap[layer][1][2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
 									8,8, TILES_PER_PAGE_X * 4, TILES_PER_PAGE_Y * 2);
-		state->m_tilemap[layer][1][3] = &machine.tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),state), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),state),
+		m_tilemap[layer][1][3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cischeat_state::cischeat_get_scroll_tile_info_8x8),this), tilemap_mapper_delegate(FUNC(cischeat_state::cischeat_scan_8x8),this),
 									8,8, TILES_PER_PAGE_X * 2, TILES_PER_PAGE_Y * 4);
 
 		/* set user data and transparency */
 		for (i = 0; i < 8; i++)
 		{
-			state->m_tilemap[layer][i/4][i%4]->set_user_data((void *)(FPTR)layer);
-			state->m_tilemap[layer][i/4][i%4]->set_transparent_pen(15);
+			m_tilemap[layer][i/4][i%4]->set_user_data((void *)(FPTR)layer);
+			m_tilemap[layer][i/4][i%4]->set_transparent_pen(15);
 		}
 	}
 }
@@ -234,7 +232,7 @@ VIDEO_START_MEMBER(cischeat_state,cischeat)
 
 	m_spriteram = &m_ram[0x8000/2];
 
-	create_tilemaps(machine());
+	create_tilemaps();
 	m_tmap[0] = m_tilemap[0][0][0];
 	m_tmap[1] = m_tilemap[1][0][0];
 	m_tmap[2] = m_tilemap[2][0][0];
@@ -258,7 +256,6 @@ VIDEO_START_MEMBER(cischeat_state,cischeat)
 /* 16 colour codes for the tiles */
 VIDEO_START_MEMBER(cischeat_state,f1gpstar)
 {
-
 	VIDEO_START_CALL_MEMBER(cischeat);
 
 	m_bits_per_color_code = 4;
@@ -373,9 +370,9 @@ WRITE16_MEMBER(cischeat_state::bigrun_vregs_w)
 		case 0x2208/2   : break;    // watchdog reset
 
 		/* Not sure about this one.. */
-		case 0x2308/2   :   machine().device("cpu2")->execute().set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
-							machine().device("cpu3")->execute().set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
-							machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_RESET, (new_data & 1) ? ASSERT_LINE : CLEAR_LINE );
+		case 0x2308/2   :   m_cpu2->set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
+							m_cpu3->set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
+							m_soundcpu->set_input_line(INPUT_LINE_RESET, (new_data & 1) ? ASSERT_LINE : CLEAR_LINE );
 							break;
 
 		default: SHOW_WRITE_ERROR("vreg %04X <- %04X",offset*2,data);
@@ -461,13 +458,13 @@ WRITE16_MEMBER(cischeat_state::cischeat_vregs_w)
 
 		case 0x2300/2   :   /* Sound CPU: reads latch during int 4, and stores command */
 							soundlatch_word_w(space, 0, new_data, 0xffff);
-							machine().device("soundcpu")->execute().set_input_line(4, HOLD_LINE);
+							m_soundcpu->set_input_line(4, HOLD_LINE);
 							break;
 
 		/* Not sure about this one.. */
-		case 0x2308/2   :   machine().device("cpu2")->execute().set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
-							machine().device("cpu3")->execute().set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
-							machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_RESET, (new_data & 1) ? ASSERT_LINE : CLEAR_LINE );
+		case 0x2308/2   :   m_cpu2->set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
+							m_cpu3->set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
+							m_soundcpu->set_input_line(INPUT_LINE_RESET, (new_data & 1) ? ASSERT_LINE : CLEAR_LINE );
 							break;
 
 		default: SHOW_WRITE_ERROR("vreg %04X <- %04X",offset*2,data);
@@ -576,7 +573,7 @@ CPU #0 PC 00235C : Warning, vreg 0006 <- 0000
 
 		/* Usually written in sequence, but not always */
 		case 0x0008/2   :   soundlatch_word_w(space, 0, new_data, 0xffff);  break;
-		case 0x0018/2   :   machine().device("soundcpu")->execute().set_input_line(4, HOLD_LINE);   break;
+		case 0x0018/2   :   m_soundcpu->set_input_line(4, HOLD_LINE);   break;
 
 		case 0x0010/2   :   break;
 
@@ -596,9 +593,9 @@ CPU #0 PC 00235C : Warning, vreg 0006 <- 0000
 		case 0x2208/2   : break;    // watchdog reset
 
 		/* Not sure about this one. Values: $10 then 0, $7 then 0 */
-		case 0x2308/2   :   machine().device("cpu2")->execute().set_input_line(INPUT_LINE_RESET, (new_data & 1) ? ASSERT_LINE : CLEAR_LINE );
-							machine().device("cpu3")->execute().set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
-							machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_RESET, (new_data & 4) ? ASSERT_LINE : CLEAR_LINE );
+		case 0x2308/2   :   m_cpu2->set_input_line(INPUT_LINE_RESET, (new_data & 1) ? ASSERT_LINE : CLEAR_LINE );
+							m_cpu3->set_input_line(INPUT_LINE_RESET, (new_data & 2) ? ASSERT_LINE : CLEAR_LINE );
+							m_soundcpu->set_input_line(INPUT_LINE_RESET, (new_data & 4) ? ASSERT_LINE : CLEAR_LINE );
 							break;
 
 		default:        SHOW_WRITE_ERROR("vreg %04X <- %04X",offset*2,data);
@@ -619,9 +616,9 @@ WRITE16_MEMBER(cischeat_state::f1gpstr2_vregs_w)
 			if (ACCESSING_BITS_0_7)
 			{
 				if((old_data & 4) && ((new_data & 4) == 0))
-					machine().device("cpu5")->execute().set_input_line(4, HOLD_LINE);
+					m_cpu5->set_input_line(4, HOLD_LINE);
 				if((old_data & 2) && ((new_data & 2) == 0))
-					machine().device("cpu5")->execute().set_input_line(2, HOLD_LINE);
+					m_cpu5->set_input_line(2, HOLD_LINE);
 			}
 			break;
 
@@ -701,16 +698,15 @@ WRITE16_MEMBER(cischeat_state::scudhamm_vregs_w)
 /*  Draw the road in the given bitmap. The priority1 and priority2 parameters
     specify the range of lines to draw  */
 
-static void cischeat_draw_road(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int road_num, int priority1, int priority2, int transparency)
+void cischeat_state::cischeat_draw_road(bitmap_ind16 &bitmap, const rectangle &cliprect, int road_num, int priority1, int priority2, int transparency)
 {
-	cischeat_state *state = machine.driver_data<cischeat_state>();
 	int curr_code,sx,sy;
 	int min_priority, max_priority;
 
 	rectangle rect      =   cliprect;
-	gfx_element *gfx        =   machine.gfx[(road_num & 1)?5:4];
+	gfx_element *gfx        =   machine().gfx[(road_num & 1)?5:4];
 
-	UINT16 *roadram         =   state->m_roadram[road_num & 1];
+	UINT16 *roadram         =   m_roadram[road_num & 1];
 
 	int min_y = rect.min_y;
 	int max_y = rect.max_y;
@@ -791,17 +787,16 @@ static void cischeat_draw_road(running_machine &machine, bitmap_ind16 &bitmap, c
 /*  Draw the road in the given bitmap. The priority1 and priority2 parameters
     specify the range of lines to draw  */
 
-static void f1gpstar_draw_road(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int road_num, int priority1, int priority2, int transparency)
+void cischeat_state::f1gpstar_draw_road(bitmap_ind16 &bitmap, const rectangle &cliprect, int road_num, int priority1, int priority2, int transparency)
 {
-	cischeat_state *state = machine.driver_data<cischeat_state>();
 	int sx,sy;
 	int xstart;
 	int min_priority, max_priority;
 
 	rectangle rect      =   cliprect;
-	gfx_element *gfx        =   machine.gfx[(road_num & 1)?5:4];
+	gfx_element *gfx        =   machine().gfx[(road_num & 1)?5:4];
 
-	UINT16 *roadram         =   state->m_roadram[road_num & 1];
+	UINT16 *roadram         =   m_roadram[road_num & 1];
 
 	int min_y = rect.min_y;
 	int max_y = rect.max_y;
@@ -907,16 +902,15 @@ static void f1gpstar_draw_road(running_machine &machine, bitmap_ind16 &bitmap, c
     sprites whose priority nibble is between 0 and 15 and whose
     colour code's high bit is set.  */
 
-static void cischeat_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap , const rectangle &cliprect, int priority1, int priority2)
+void cischeat_state::cischeat_draw_sprites(bitmap_ind16 &bitmap , const rectangle &cliprect, int priority1, int priority2)
 {
-	cischeat_state *state = machine.driver_data<cischeat_state>();
 	int x, sx, flipx, xzoom, xscale, xdim, xnum, xstart, xend, xinc;
 	int y, sy, flipy, yzoom, yscale, ydim, ynum, ystart, yend, yinc;
 	int code, attr, color, size, shadow;
 
 	int min_priority, max_priority, high_sprites;
 
-	UINT16      *source =   state->m_spriteram;
+	UINT16      *source =   m_spriteram;
 	const UINT16    *finish =   source + 0x1000/2;
 
 
@@ -953,7 +947,7 @@ static void cischeat_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap
 
 		/* dimension of a tile after zoom */
 #ifdef MAME_DEBUG
-		if ( machine.input().code_pressed(KEYCODE_Z) && machine.input().code_pressed(KEYCODE_M) )
+		if ( machine().input().code_pressed(KEYCODE_Z) && machine().input().code_pressed(KEYCODE_M) )
 		{
 			xdim    =   16 << 16;
 			ydim    =   16 << 16;
@@ -984,7 +978,7 @@ static void cischeat_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap
 			continue;
 
 #ifdef MAME_DEBUG
-if ( (state->m_debugsprites) && ( ((attr & 0x0300)>>8) != (state->m_debugsprites-1) ) ) { continue; };
+if ( (m_debugsprites) && ( ((attr & 0x0300)>>8) != (m_debugsprites-1) ) ) { continue; };
 #endif
 
 		xscale = xdim / 16;
@@ -1003,23 +997,23 @@ if ( (state->m_debugsprites) && ( ((attr & 0x0300)>>8) != (state->m_debugsprites
 		if (flipy)  { ystart = ynum-1;  yend = -1;    yinc = -1; }
 		else        { ystart = 0;       yend = ynum;  yinc = +1; }
 
-		state->m_drawmode_table[ 0] = shadow ? DRAWMODE_SHADOW : DRAWMODE_SOURCE;
+		m_drawmode_table[ 0] = shadow ? DRAWMODE_SHADOW : DRAWMODE_SOURCE;
 
 		for (y = ystart; y != yend; y += yinc)
 		{
 			for (x = xstart; x != xend; x += xinc)
 			{
-				drawgfxzoom_transtable(bitmap,cliprect,machine.gfx[3],
+				drawgfxzoom_transtable(bitmap,cliprect,machine().gfx[3],
 							code++,
 							color,
 							flipx,flipy,
 							(sx + x * xdim) / 0x10000, (sy + y * ydim) / 0x10000,
-							xscale, yscale, state->m_drawmode_table, machine.shadow_table);
+							xscale, yscale, m_drawmode_table, machine().shadow_table);
 			}
 		}
 #ifdef MAME_DEBUG
 #if 0
-if (machine.input().code_pressed(KEYCODE_X))
+if (machine().input().code_pressed(KEYCODE_X))
 {   /* Display some info on each sprite */
 	sprintf(buf, "%04x",attr);
 	ui_draw_text(buf, sx>>16, sy>>16);
@@ -1063,16 +1057,15 @@ if (machine.input().code_pressed(KEYCODE_X))
 
 ***************************************************************************/
 
-static void bigrun_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap , const rectangle &cliprect, int priority1, int priority2)
+void cischeat_state::bigrun_draw_sprites(bitmap_ind16 &bitmap , const rectangle &cliprect, int priority1, int priority2)
 {
-	cischeat_state *state = machine.driver_data<cischeat_state>();
 	int x, sx, flipx, xzoom, xscale, xdim, xnum, xstart, xend, xinc;
 	int y, sy, flipy, yzoom, yscale, ydim, ynum, ystart, yend, yinc;
 	int code, attr, color, size, shadow;
 
 	int min_priority, max_priority, high_sprites;
 
-	UINT16      *source =   state->m_spriteram;
+	UINT16      *source =   m_spriteram;
 	const UINT16    *finish =   source + 0x1000/2;
 
 	/* Move the priority values in place */
@@ -1110,7 +1103,7 @@ static void bigrun_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap ,
 
 		/* dimension of a tile after zoom */
 #ifdef MAME_DEBUG
-		if ( machine.input().code_pressed(KEYCODE_Z) && machine.input().code_pressed(KEYCODE_M) )
+		if ( machine().input().code_pressed(KEYCODE_Z) && machine().input().code_pressed(KEYCODE_M) )
 		{
 			xdim    =   16 << 16;
 			ydim    =   16 << 16;
@@ -1139,7 +1132,7 @@ static void bigrun_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap ,
 			continue;
 
 #ifdef MAME_DEBUG
-if ( (state->m_debugsprites) && ( ((attr & 0x0300)>>8) != (state->m_debugsprites-1) ) ) { continue; };
+if ( (m_debugsprites) && ( ((attr & 0x0300)>>8) != (m_debugsprites-1) ) ) { continue; };
 #endif
 
 		xscale = xdim / 16;
@@ -1158,23 +1151,23 @@ if ( (state->m_debugsprites) && ( ((attr & 0x0300)>>8) != (state->m_debugsprites
 		if (flipy)  { ystart = ynum-1;  yend = -1;    yinc = -1; }
 		else        { ystart = 0;       yend = ynum;  yinc = +1; }
 
-		state->m_drawmode_table[ 0] = shadow ? DRAWMODE_SHADOW : DRAWMODE_SOURCE;
+		m_drawmode_table[ 0] = shadow ? DRAWMODE_SHADOW : DRAWMODE_SOURCE;
 
 		for (y = ystart; y != yend; y += yinc)
 		{
 			for (x = xstart; x != xend; x += xinc)
 			{
-				drawgfxzoom_transtable(bitmap,cliprect,machine.gfx[3],
+				drawgfxzoom_transtable(bitmap,cliprect,machine().gfx[3],
 							code++,
 							color,
 							flipx,flipy,
 							(sx + x * xdim) / 0x10000, (sy + y * ydim) / 0x10000,
-							xscale, yscale, state->m_drawmode_table, machine.shadow_table);
+							xscale, yscale, m_drawmode_table, machine().shadow_table);
 			}
 		}
 #ifdef MAME_DEBUG
 #if 0
-if (machine.input().code_pressed(KEYCODE_X))
+if (machine().input().code_pressed(KEYCODE_X))
 {   /* Display some info on each sprite */
 	sprintf(buf, "%04x",attr);
 	ui_draw_text(buf, sx>>16, sy>>16);
@@ -1254,8 +1247,8 @@ UINT32 cischeat_state::screen_update_bigrun(screen_device &screen, bitmap_ind16 
 
 	for (i = 7; i >= 4; i--)
 	{                                           /* bitmap, road, min_priority, max_priority, transparency */
-		if (m_active_layers & 0x10) cischeat_draw_road(machine(),bitmap,cliprect,0,i,i,FALSE);
-		if (m_active_layers & 0x20) cischeat_draw_road(machine(),bitmap,cliprect,1,i,i,TRUE);
+		if (m_active_layers & 0x10) cischeat_draw_road(bitmap,cliprect,0,i,i,FALSE);
+		if (m_active_layers & 0x20) cischeat_draw_road(bitmap,cliprect,1,i,i,TRUE);
 	}
 
 	flag = 0;
@@ -1264,11 +1257,11 @@ UINT32 cischeat_state::screen_update_bigrun(screen_device &screen, bitmap_ind16 
 
 	for (i = 3; i >= 0; i--)
 	{                                           /* bitmap, road, min_priority, max_priority, transparency */
-		if (m_active_layers & 0x10) cischeat_draw_road(machine(),bitmap,cliprect,0,i,i,TRUE);
-		if (m_active_layers & 0x20) cischeat_draw_road(machine(),bitmap,cliprect,1,i,i,TRUE);
+		if (m_active_layers & 0x10) cischeat_draw_road(bitmap,cliprect,0,i,i,TRUE);
+		if (m_active_layers & 0x20) cischeat_draw_road(bitmap,cliprect,1,i,i,TRUE);
 	}
 
-	if (m_active_layers & 0x08) bigrun_draw_sprites(machine(),bitmap,cliprect,15,0);
+	if (m_active_layers & 0x08) bigrun_draw_sprites(bitmap,cliprect,15,0);
 
 	cischeat_tmap_DRAW(2)
 
@@ -1306,25 +1299,25 @@ UINT32 cischeat_state::screen_update_cischeat(screen_device &screen, bitmap_ind1
 	bitmap.fill(0, cliprect);
 
 										/* bitmap, road, priority, transparency */
-	if (m_active_layers & 0x10) cischeat_draw_road(machine(),bitmap,cliprect,0,7,5,FALSE);
-	if (m_active_layers & 0x20) cischeat_draw_road(machine(),bitmap,cliprect,1,7,5,TRUE);
+	if (m_active_layers & 0x10) cischeat_draw_road(bitmap,cliprect,0,7,5,FALSE);
+	if (m_active_layers & 0x20) cischeat_draw_road(bitmap,cliprect,1,7,5,TRUE);
 
 	flag = 0;
 	cischeat_tmap_DRAW(0)
 //  else bitmap.fill(0, cliprect);
 	cischeat_tmap_DRAW(1)
 
-	if (m_active_layers & 0x08) cischeat_draw_sprites(machine(),bitmap,cliprect,15,3);
-	if (m_active_layers & 0x10) cischeat_draw_road(machine(),bitmap,cliprect,0,4,1,TRUE);
-	if (m_active_layers & 0x20) cischeat_draw_road(machine(),bitmap,cliprect,1,4,1,TRUE);
-	if (m_active_layers & 0x08) cischeat_draw_sprites(machine(),bitmap,cliprect,2,2);
-	if (m_active_layers & 0x10) cischeat_draw_road(machine(),bitmap,cliprect,0,0,0,TRUE);
-	if (m_active_layers & 0x20) cischeat_draw_road(machine(),bitmap,cliprect,1,0,0,TRUE);
-	if (m_active_layers & 0x08) cischeat_draw_sprites(machine(),bitmap,cliprect,1,0);
+	if (m_active_layers & 0x08) cischeat_draw_sprites(bitmap,cliprect,15,3);
+	if (m_active_layers & 0x10) cischeat_draw_road(bitmap,cliprect,0,4,1,TRUE);
+	if (m_active_layers & 0x20) cischeat_draw_road(bitmap,cliprect,1,4,1,TRUE);
+	if (m_active_layers & 0x08) cischeat_draw_sprites(bitmap,cliprect,2,2);
+	if (m_active_layers & 0x10) cischeat_draw_road(bitmap,cliprect,0,0,0,TRUE);
+	if (m_active_layers & 0x20) cischeat_draw_road(bitmap,cliprect,1,0,0,TRUE);
+	if (m_active_layers & 0x08) cischeat_draw_sprites(bitmap,cliprect,1,0);
 	cischeat_tmap_DRAW(2)
 
 	/* for the map screen */
-	if (m_active_layers & 0x08) cischeat_draw_sprites(machine(),bitmap,cliprect,0+16,0+16);
+	if (m_active_layers & 0x08) cischeat_draw_sprites(bitmap,cliprect,0+16,0+16);
 
 
 	m_active_layers = active_layers1;
@@ -1364,8 +1357,8 @@ UINT32 cischeat_state::screen_update_f1gpstar(screen_device &screen, bitmap_ind1
 /*  1: clouds 5, grad 7, road 0     2: clouds 5, grad 7, road 0, tunnel roof 0 */
 
 	/* road 1!! 0!! */                  /* bitmap, road, min_priority, max_priority, transparency */
-	if (m_active_layers & 0x20) f1gpstar_draw_road(machine(),bitmap,cliprect,1,6,7,TRUE);
-	if (m_active_layers & 0x10) f1gpstar_draw_road(machine(),bitmap,cliprect,0,6,7,TRUE);
+	if (m_active_layers & 0x20) f1gpstar_draw_road(bitmap,cliprect,1,6,7,TRUE);
+	if (m_active_layers & 0x10) f1gpstar_draw_road(bitmap,cliprect,0,6,7,TRUE);
 
 	flag = 0;
 	cischeat_tmap_DRAW(0)
@@ -1373,18 +1366,18 @@ UINT32 cischeat_state::screen_update_f1gpstar(screen_device &screen, bitmap_ind1
 	cischeat_tmap_DRAW(1)
 
 	/* road 1!! 0!! */                  /* bitmap, road, min_priority, max_priority, transparency */
-	if (m_active_layers & 0x20) f1gpstar_draw_road(machine(),bitmap,cliprect,1,1,5,TRUE);
-	if (m_active_layers & 0x10) f1gpstar_draw_road(machine(),bitmap,cliprect,0,1,5,TRUE);
+	if (m_active_layers & 0x20) f1gpstar_draw_road(bitmap,cliprect,1,1,5,TRUE);
+	if (m_active_layers & 0x10) f1gpstar_draw_road(bitmap,cliprect,0,1,5,TRUE);
 
-	if (m_active_layers & 0x08) cischeat_draw_sprites(machine(),bitmap,cliprect,15,2);
+	if (m_active_layers & 0x08) cischeat_draw_sprites(bitmap,cliprect,15,2);
 
 	/* road 1!! 0!! */                  /* bitmap, road, min_priority, max_priority, transparency */
-	if (m_active_layers & 0x20) f1gpstar_draw_road(machine(),bitmap,cliprect,1,0,0,TRUE);
-	if (m_active_layers & 0x10) f1gpstar_draw_road(machine(),bitmap,cliprect,0,0,0,TRUE);
+	if (m_active_layers & 0x20) f1gpstar_draw_road(bitmap,cliprect,1,0,0,TRUE);
+	if (m_active_layers & 0x10) f1gpstar_draw_road(bitmap,cliprect,0,0,0,TRUE);
 
-	if (m_active_layers & 0x08) cischeat_draw_sprites(machine(),bitmap,cliprect,1,1);
+	if (m_active_layers & 0x08) cischeat_draw_sprites(bitmap,cliprect,1,1);
 	cischeat_tmap_DRAW(2)
-	if (m_active_layers & 0x08) cischeat_draw_sprites(machine(),bitmap,cliprect,0,0);
+	if (m_active_layers & 0x08) cischeat_draw_sprites(bitmap,cliprect,0,0);
 
 
 	m_active_layers = active_layers1;
@@ -1419,7 +1412,7 @@ if ( machine().input().code_pressed(KEYCODE_Z) || machine().input().code_pressed
 	if (msk != 0) m_active_layers &= msk;
 #if 1
 	{
-		address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+		address_space &space = m_maincpu->space(AS_PROGRAM);
 
 		popmessage("Cmd: %04X Pos:%04X Lim:%04X Inp:%04X",
 							m_scudhamm_motor_command,
@@ -1440,7 +1433,7 @@ if ( machine().input().code_pressed(KEYCODE_Z) || machine().input().code_pressed
 	flag = 0;
 	cischeat_tmap_DRAW(0)
 	// no layer 1
-	if (m_active_layers & 0x08) cischeat_draw_sprites(machine(),bitmap,cliprect,0,15);
+	if (m_active_layers & 0x08) cischeat_draw_sprites(bitmap,cliprect,0,15);
 	cischeat_tmap_DRAW(2)
 
 	m_active_layers = active_layers1;

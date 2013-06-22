@@ -16,9 +16,9 @@ class merlin_state : public driver_device
 {
 public:
 	merlin_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_speaker(*this, "speaker")
-	{ }
+		: driver_device(mconfig, type, tag),
+			m_speaker(*this, "speaker") ,
+		m_maincpu(*this, "maincpu") { }
 
 	virtual void machine_start();
 
@@ -31,6 +31,7 @@ public:
 protected:
 	UINT16  m_o;
 	UINT16  m_r;
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -136,7 +137,7 @@ WRITE16_MEMBER(merlin_state::write_o)
 
 	m_o = data;
 
-	speaker_level_w( m_speaker, m_o & 0x70 );
+	m_speaker->level_w(m_o & 0x70);
 }
 
 

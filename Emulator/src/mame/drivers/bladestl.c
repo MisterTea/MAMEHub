@@ -28,7 +28,7 @@
 
 #include "emu.h"
 #include "cpu/m6809/m6809.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "sound/2203intf.h"
 #include "sound/upd7759.h"
 #include "video/konicdev.h"
@@ -41,10 +41,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(bladestl_state::bladestl_scanline)
 	int scanline = param;
 
 	if(scanline == 240 && k007342_is_int_enabled(m_k007342)) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line(HD6309_FIRQ_LINE, HOLD_LINE);
+		m_maincpu->set_input_line(HD6309_FIRQ_LINE, HOLD_LINE);
 
 	if(scanline == 0) // vblank-in or timer irq
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 /*************************************
@@ -67,7 +67,6 @@ READ8_MEMBER(bladestl_state::trackball_r)
 
 WRITE8_MEMBER(bladestl_state::bladestl_bankswitch_w)
 {
-
 	/* bits 0 & 1 = coin counters */
 	coin_counter_w(machine(), 0,data & 0x01);
 	coin_counter_w(machine(), 1,data & 0x02);
@@ -88,7 +87,6 @@ WRITE8_MEMBER(bladestl_state::bladestl_bankswitch_w)
 
 WRITE8_MEMBER(bladestl_state::bladestl_sh_irqtrigger_w)
 {
-
 	soundlatch_byte_w(space, offset, data);
 	m_audiocpu->set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 	//logerror("(sound) write %02x\n", data);
@@ -96,22 +94,19 @@ WRITE8_MEMBER(bladestl_state::bladestl_sh_irqtrigger_w)
 
 WRITE8_MEMBER(bladestl_state::bladestl_port_B_w)
 {
-	device_t *device = machine().device("upd");
 	/* bit 1, 2 unknown */
-	upd7759_set_bank_base(device, ((data & 0x38) >> 3) * 0x20000);
+	upd7759_set_bank_base(m_upd7759, ((data & 0x38) >> 3) * 0x20000);
 }
 
 READ8_MEMBER(bladestl_state::bladestl_speech_busy_r)
 {
-	device_t *device = machine().device("upd");
-	return upd7759_busy_r(device) ? 1 : 0;
+	return upd7759_busy_r(m_upd7759) ? 1 : 0;
 }
 
 WRITE8_MEMBER(bladestl_state::bladestl_speech_ctrl_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_reset_w(device, data & 1);
-	upd7759_start_w(device, data & 2);
+	upd7759_reset_w(m_upd7759, data & 1);
+	upd7759_start_w(m_upd7759, data & 2);
 }
 
 /*************************************
@@ -144,7 +139,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, bladestl_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x1000, 0x1001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)    /* YM2203 */
+	AM_RANGE(0x1000, 0x1001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)    /* YM2203 */
 	AM_RANGE(0x3000, 0x3000) AM_WRITE(bladestl_speech_ctrl_w)   /* UPD7759 */
 	AM_RANGE(0x4000, 0x4000) AM_READ(bladestl_speech_busy_r)    /* UPD7759 */
 	AM_RANGE(0x5000, 0x5000) AM_WRITENOP                                /* ??? */
@@ -276,17 +271,14 @@ GFXDECODE_END
  *
  *************************************/
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DEVICE_HANDLER("upd", upd7759_port_w),
-		DEVCB_DRIVER_MEMBER(bladestl_state,bladestl_port_B_w)
-	},
-	DEVCB_NULL
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DEVICE_HANDLER("upd", upd7759_port_w),
+	DEVCB_DRIVER_MEMBER(bladestl_state,bladestl_port_B_w)
 };
 
 static const k007342_interface bladestl_k007342_intf =
@@ -305,10 +297,6 @@ void bladestl_state::machine_start()
 	UINT8 *ROM = memregion("maincpu")->base();
 
 	membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x2000);
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k007342 = machine().device("k007342");
-	m_k007420 = machine().device("k007420");
 
 	save_item(NAME(m_spritebank));
 	save_item(NAME(m_layer_colorbase));
@@ -364,7 +352,7 @@ static MACHINE_CONFIG_START( bladestl, bladestl_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3579545)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.45)
 MACHINE_CONFIG_END
 

@@ -8,19 +8,6 @@
 #include "includes/turbo.h"
 #include "video/resnet.h"
 
-
-
-struct sprite_info
-{
-	UINT16  ve;                 /* VE0-15 signals for this row */
-	UINT8   lst;                /* LST0-7 signals for this row */
-	UINT32  latched[8];         /* latched pixel data */
-	UINT8   plb[8];             /* latched PLB state */
-	UINT32  offset[8];          /* current offset for this row */
-	UINT32  frac[8];            /* leftover fraction */
-	UINT32  step[8];            /* stepping value */
-};
-
 static const UINT32 sprite_expand[16] =
 {
 	0x00000000, 0x00000001, 0x00000100, 0x00000101,
@@ -173,7 +160,6 @@ TILE_GET_INFO_MEMBER(turbo_state::get_fg_tile_info)
 
 VIDEO_START_MEMBER(turbo_state,turbo)
 {
-
 	/* initialize the foreground tilemap */
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(turbo_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
 }
@@ -181,7 +167,6 @@ VIDEO_START_MEMBER(turbo_state,turbo)
 
 VIDEO_START_MEMBER(turbo_state,buckrog)
 {
-
 	/* initialize the foreground tilemap */
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(turbo_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 32,32);
 
@@ -222,7 +207,7 @@ WRITE8_MEMBER(turbo_state::buckrog_bitmap_w)
  *
  *************************************/
 
-INLINE UINT32 sprite_xscale(UINT8 dacinput, double vr1, double vr2, double cext)
+inline UINT32 turbo_state::sprite_xscale(UINT8 dacinput, double vr1, double vr2, double cext)
 {
 	/* compute the effective pixel clock for this sprite */
 	/* thanks to Frank Palazzolo for figuring out this logic */
@@ -277,9 +262,9 @@ INLINE UINT32 sprite_xscale(UINT8 dacinput, double vr1, double vr2, double cext)
  *
  *************************************/
 
-static void turbo_prepare_sprites(running_machine &machine, turbo_state *state, UINT8 y, sprite_info *info)
+void turbo_state::turbo_prepare_sprites(UINT8 y, sprite_info *info)
 {
-	const UINT8 *pr1119 = machine.root_device().memregion("proms")->base() + 0x200;
+	const UINT8 *pr1119 = memregion("proms")->base() + 0x200;
 	int sprnum;
 
 	/* initialize the line enable signals to 0 */
@@ -289,7 +274,7 @@ static void turbo_prepare_sprites(running_machine &machine, turbo_state *state, 
 	/* compute the sprite information, which was done on the previous scanline during HBLANK */
 	for (sprnum = 0; sprnum < 16; sprnum++)
 	{
-		UINT8 *rambase = &state->m_spriteram[sprnum * 0x10];
+		UINT8 *rambase = &m_spriteram[sprnum * 0x10];
 		int level = sprnum & 7;
 		UINT8 clo, chi;
 		UINT32 sum;
@@ -337,13 +322,13 @@ static void turbo_prepare_sprites(running_machine &machine, turbo_state *state, 
 			        VR1 = 310 Ohm
 			        VR2 = 910 Ohm
 			*/
-			info->step[level] = sprite_xscale(xscale, 1.0e3 * machine.root_device().ioport("VR1")->read() / 100.0, 1.0e3 * machine.root_device().ioport("VR2")->read() / 100.0, 100e-12);
+			info->step[level] = sprite_xscale(xscale, 1.0e3 * ioport("VR1")->read() / 100.0, 1.0e3 * ioport("VR2")->read() / 100.0, 100e-12);
 		}
 	}
 }
 
 
-static UINT32 turbo_get_sprite_bits(const UINT8 *sprite_gfxdata, UINT8 road, sprite_info *sprinfo)
+UINT32 turbo_state::turbo_get_sprite_bits(const UINT8 *sprite_gfxdata, UINT8 road, sprite_info *sprinfo)
 {
 	UINT8 sprlive = sprinfo->lst;
 	UINT32 sprdata = 0;
@@ -400,7 +385,7 @@ static UINT32 turbo_get_sprite_bits(const UINT8 *sprite_gfxdata, UINT8 road, spr
 UINT32 turbo_state::screen_update_turbo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap_ind16 &fgpixmap = m_fg_tilemap->pixmap();
-	const UINT8 *road_gfxdata = machine().root_device().memregion("gfx3")->base();
+	const UINT8 *road_gfxdata = memregion("gfx3")->base();
 	const UINT8 *prom_base = memregion("proms")->base();
 	const UINT8 *pr1114 = prom_base + 0x000;
 	const UINT8 *pr1115 = prom_base + 0x020;
@@ -429,7 +414,7 @@ UINT32 turbo_state::screen_update_turbo(screen_device &screen, bitmap_ind16 &bit
 
 		/* compute the sprite information; we use y-1 since this info was computed during HBLANK */
 		/* on the previous scanline */
-		turbo_prepare_sprites(machine(), this, y, &sprinfo);
+		turbo_prepare_sprites(y, &sprinfo);
 
 		/* loop over columns */
 		for (x = 0; x <= cliprect.max_x; x += TURBO_X_SCALE)
@@ -634,9 +619,9 @@ UINT32 turbo_state::screen_update_turbo(screen_device &screen, bitmap_ind16 &bit
 
 */
 
-static void subroc3d_prepare_sprites(running_machine &machine, turbo_state *state, UINT8 y, sprite_info *info)
+void turbo_state::subroc3d_prepare_sprites(UINT8 y, sprite_info *info)
 {
-	const UINT8 *pr1449 = machine.root_device().memregion("proms")->base() + 0x300;
+	const UINT8 *pr1449 = memregion("proms")->base() + 0x300;
 	int sprnum;
 
 	/* initialize the line enable signals to 0 */
@@ -646,7 +631,7 @@ static void subroc3d_prepare_sprites(running_machine &machine, turbo_state *stat
 	/* compute the sprite information, which was done on the previous scanline during HBLANK */
 	for (sprnum = 0; sprnum < 16; sprnum++)
 	{
-		UINT8 *rambase = &state->m_spriteram[sprnum * 8];
+		UINT8 *rambase = &m_spriteram[sprnum * 8];
 		int level = sprnum & 7;
 		UINT8 clo, chi;
 		UINT32 sum;
@@ -694,7 +679,7 @@ static void subroc3d_prepare_sprites(running_machine &machine, turbo_state *stat
 }
 
 
-static UINT32 subroc3d_get_sprite_bits(const UINT8 *sprite_gfxdata, sprite_info *sprinfo, UINT8 *plb)
+UINT32 turbo_state::subroc3d_get_sprite_bits(const UINT8 *sprite_gfxdata, sprite_info *sprinfo, UINT8 *plb)
 {
 	/* see logic on each sprite:
 	    END = (CDA == 1 && (CDA ^ CDB) == 0 && (CDC ^ CDD) == 0)
@@ -769,7 +754,7 @@ UINT32 turbo_state::screen_update_subroc3d(screen_device &screen, bitmap_ind16 &
 
 		/* compute the sprite information; we use y-1 since this info was computed during HBLANK */
 		/* on the previous scanline */
-		subroc3d_prepare_sprites(machine(), this, y, &sprinfo);
+		subroc3d_prepare_sprites(y, &sprinfo);
 
 		/* loop over columns */
 		for (x = 0; x <= cliprect.max_x; x += TURBO_X_SCALE)
@@ -851,9 +836,9 @@ UINT32 turbo_state::screen_update_subroc3d(screen_device &screen, bitmap_ind16 &
  *
  *************************************/
 
-static void buckrog_prepare_sprites(running_machine &machine, turbo_state *state, UINT8 y, sprite_info *info)
+void turbo_state::buckrog_prepare_sprites(UINT8 y, sprite_info *info)
 {
-	const UINT8 *pr5196 = machine.root_device().memregion("proms")->base() + 0x100;
+	const UINT8 *pr5196 = memregion("proms")->base() + 0x100;
 	int sprnum;
 
 	/* initialize the line enable signals to 0 */
@@ -863,7 +848,7 @@ static void buckrog_prepare_sprites(running_machine &machine, turbo_state *state
 	/* compute the sprite information, which was done on the previous scanline during HBLANK */
 	for (sprnum = 0; sprnum < 16; sprnum++)
 	{
-		UINT8 *rambase = &state->m_spriteram[sprnum * 8];
+		UINT8 *rambase = &m_spriteram[sprnum * 8];
 		int level = sprnum & 7;
 		UINT8 clo, chi;
 		UINT32 sum;
@@ -912,7 +897,7 @@ static void buckrog_prepare_sprites(running_machine &machine, turbo_state *state
 }
 
 
-static UINT32 buckrog_get_sprite_bits(const UINT8 *sprite_gfxdata, sprite_info *sprinfo, UINT8 *plb)
+UINT32 turbo_state::buckrog_get_sprite_bits(const UINT8 *sprite_gfxdata, sprite_info *sprinfo, UINT8 *plb)
 {
 	/* see logic on each sprite:
 	    END = (CDA == 1 && (CDA ^ CDB) == 0 && (CDC ^ CDD) == 0)
@@ -971,7 +956,7 @@ static UINT32 buckrog_get_sprite_bits(const UINT8 *sprite_gfxdata, sprite_info *
 UINT32 turbo_state::screen_update_buckrog(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap_ind16 &fgpixmap = m_fg_tilemap->pixmap();
-	const UINT8 *bgcolor = machine().root_device().memregion("gfx3")->base();
+	const UINT8 *bgcolor = memregion("gfx3")->base();
 	const UINT8 *prom_base = memregion("proms")->base();
 	const UINT8 *pr5194 = prom_base + 0x000;
 	const UINT8 *pr5198 = prom_base + 0x500;
@@ -987,7 +972,7 @@ UINT32 turbo_state::screen_update_buckrog(screen_device &screen, bitmap_ind16 &b
 
 		/* compute the sprite information; we use y-1 since this info was computed during HBLANK */
 		/* on the previous scanline */
-		buckrog_prepare_sprites(machine(), this, y, &sprinfo);
+		buckrog_prepare_sprites(y, &sprinfo);
 
 		/* loop over columns */
 		for (x = 0; x <= cliprect.max_x; x += TURBO_X_SCALE)

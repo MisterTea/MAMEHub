@@ -417,11 +417,11 @@ READ8_MEMBER( adam_state::mreq_r )
 	{
 		if (offset < 0x6000)
 		{
-			data = m_boot_rom[offset];
+			data = m_boot_rom->base()[offset];
 		}
 		else
 		{
-			data = m_boot_rom[(eos_enable << 13) + offset];
+			data = m_boot_rom->base()[(eos_enable << 13) + offset];
 		}
 	}
 
@@ -430,7 +430,7 @@ READ8_MEMBER( adam_state::mreq_r )
 		switch (offset >> 13)
 		{
 		case 0: // U2
-			data = m_os7_rom[offset];
+			data = m_os7_rom->base()[offset];
 			break;
 
 		case 1: break;
@@ -440,7 +440,7 @@ READ8_MEMBER( adam_state::mreq_r )
 		case 5: // CS2
 		case 6: // CS3
 		case 7: // CS4
-			data = m_cart_rom[offset & 0x7fff];
+			data = m_cart_rom->base()[offset & 0x7fff];
 			break;
 		}
 	}
@@ -1059,11 +1059,6 @@ static ADAM_EXPANSION_SLOT_INTERFACE( slot3_intf )
 
 void adam_state::machine_start()
 {
-	// find memory regions
-	m_boot_rom = memregion("boot")->base();
-	m_os7_rom = memregion("os7")->base();
-	m_cart_rom = memregion("cart")->base();
-
 	// state saving
 	save_item(NAME(m_mioc));
 	save_item(NAME(m_game));
@@ -1144,30 +1139,30 @@ static MACHINE_CONFIG_START( adam, adam_state )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("paddles", adam_state, paddle_tick, attotime::from_msec(20))
 
 	MCFG_ADAMNET_BUS_ADD()
-	MCFG_ADAMNET_SLOT_ADD("net1", adamnet_devices, "kb", NULL)
-	MCFG_ADAMNET_SLOT_ADD("net2", adamnet_devices, "prn", NULL)
-	MCFG_ADAMNET_SLOT_ADD("net3", adamnet_devices, "ddp", NULL)
-	MCFG_ADAMNET_SLOT_ADD("net4", adamnet_devices, "fdc", NULL)
-	MCFG_ADAMNET_SLOT_ADD("net5", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net6", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net7", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net8", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net9", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net10", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net11", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net12", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net13", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net14", adamnet_devices, NULL, NULL)
-	MCFG_ADAMNET_SLOT_ADD("net15", adamnet_devices, NULL, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net1", adamnet_devices, "kb")
+	MCFG_ADAMNET_SLOT_ADD("net2", adamnet_devices, "prn")
+	MCFG_ADAMNET_SLOT_ADD("net3", adamnet_devices, "ddp")
+	MCFG_ADAMNET_SLOT_ADD("net4", adamnet_devices, "fdc")
+	MCFG_ADAMNET_SLOT_ADD("net5", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net6", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net7", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net8", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net9", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net10", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net11", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net12", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net13", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net14", adamnet_devices, NULL)
+	MCFG_ADAMNET_SLOT_ADD("net15", adamnet_devices, NULL)
 
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom,col,bin")
 	MCFG_CARTSLOT_NOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("coleco_cart")
 
-	MCFG_ADAM_EXPANSION_SLOT_ADD(ADAM_LEFT_EXPANSION_SLOT_TAG, XTAL_7_15909MHz/2, slot1_intf, adam_slot1_devices, "adamlink", NULL)
-	MCFG_ADAM_EXPANSION_SLOT_ADD(ADAM_CENTER_EXPANSION_SLOT_TAG, XTAL_7_15909MHz/2, slot2_intf, adam_slot2_devices, NULL, NULL)
-	MCFG_ADAM_EXPANSION_SLOT_ADD(ADAM_RIGHT_EXPANSION_SLOT_TAG, XTAL_7_15909MHz/2, slot3_intf, adam_slot3_devices, "ram", NULL)
+	MCFG_ADAM_EXPANSION_SLOT_ADD(ADAM_LEFT_EXPANSION_SLOT_TAG, XTAL_7_15909MHz/2, slot1_intf, adam_slot1_devices, "adamlink")
+	MCFG_ADAM_EXPANSION_SLOT_ADD(ADAM_CENTER_EXPANSION_SLOT_TAG, XTAL_7_15909MHz/2, slot2_intf, adam_slot2_devices, NULL)
+	MCFG_ADAM_EXPANSION_SLOT_ADD(ADAM_RIGHT_EXPANSION_SLOT_TAG, XTAL_7_15909MHz/2, slot3_intf, adam_slot3_devices, "ram")
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

@@ -8,11 +8,14 @@ class toaplan1_state : public driver_device
 {
 public:
 	toaplan1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_colorram1(*this, "colorram1"),
 		m_colorram2(*this, "colorram2"),
 		m_sharedram(*this, "sharedram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_dsp(*this, "dsp") { }
 
 	int m_unk_reset_port;
 	required_shared_ptr<UINT16> m_colorram1;
@@ -144,6 +147,26 @@ public:
 	void screen_eof_toaplan1(screen_device &screen, bool state);
 	void screen_eof_samesame(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(toaplan1_interrupt);
+	void rallybik_flipscreen();
+	void toaplan1_flipscreen();
+	void demonwld_restore_dsp();
+	void toaplan1_create_tilemaps();
+	void toaplan1_paletteram_alloc();
+	void toaplan1_vram_alloc();
+	void toaplan1_spritevram_alloc();
+	void toaplan1_set_scrolls();
+	void register_common();
+	void toaplan1_log_vram();
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void rallybik_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority );
+	void demonwld_dsp(int enable);
+	void toaplan1_driver_savestate();
+	void demonwld_driver_savestate();
+	void vimana_driver_savestate();
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_dsp;
 };
 
 

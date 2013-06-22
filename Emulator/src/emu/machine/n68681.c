@@ -63,7 +63,7 @@ MACHINE_CONFIG_END
 //**************************************************************************
 
 duartn68681_device::duartn68681_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, DUARTN68681, "DUART 68681 (new)", tag, owner, clock),
+	: device_t(mconfig, DUARTN68681, "DUART 68681 (new)", tag, owner, clock, "dun68681", __FILE__),
 	m_chanA(*this, CHANA_TAG),
 	m_chanB(*this, CHANB_TAG)
 {
@@ -120,8 +120,6 @@ void duartn68681_device::device_reset()
 
 void duartn68681_device::device_config_complete()
 {
-	m_shortname = "dun68681";
-
 	// inherit a copy of the static data
 	const duartn68681_config *intf = reinterpret_cast<const duartn68681_config *>(static_config());
 	if (intf != NULL)
@@ -375,8 +373,8 @@ WRITE8_MEMBER( duartn68681_device::write )
 				}
 			}
 
-			m_chanA->write_chan_reg(1, data);
-			m_chanB->write_chan_reg(1, data);
+			m_chanA->ACR_updated();
+			m_chanB->ACR_updated();
 			m_chanA->update_interrupts(); // need to add ACR checking for IP delta ints
 			m_chanB->update_interrupts();
 			update_interrupts();
@@ -492,7 +490,12 @@ void duartn68681_device::set_ISR_bits(int mask)
 
 duart68681_channel::duart68681_channel(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, DUART68681CHANNEL, "DUART 68681 channel", tag, owner, clock),
-	device_serial_interface(mconfig, *this)
+	device_serial_interface(mconfig, *this),
+	MR1(0),
+	MR2(0),
+	SR(0),
+	rx_fifo_num(0),
+	tx_enabled(0)
 {
 }
 
@@ -527,6 +530,7 @@ void duart68681_channel::device_reset()
 	write_CR(0x40); // reset errors
 
 	tx_baud_rate = rx_baud_rate = 0;
+	CSR = 0;
 }
 
 // serial device virtual overrides
@@ -540,7 +544,7 @@ void duart68681_channel::rcv_complete()
 	{
 		if ( rx_fifo_num >= MC68681_RX_FIFO_SIZE )
 		{
-			LOG(( "68681: FIFO overflow\n" ));
+			logerror("68681: FIFO overflow\n");
 			SR |= STATUS_OVERRUN_ERROR;
 			return;
 		}
@@ -751,7 +755,7 @@ void duart68681_channel::write_chan_reg(int reg, UINT8 data)
 		CSR = data;
 		tx_baud_rate = m_uart->calc_baud(m_ch, data & 0xf);
 		rx_baud_rate = m_uart->calc_baud(m_ch, (data>>4) & 0xf);
-//      printf("ch %d Tx baud %d Rx baud %d\n", m_ch, tx_baud_rate, rx_baud_rate);
+		//printf("ch %d CSR %02x Tx baud %d Rx baud %d\n", m_ch, data, tx_baud_rate, rx_baud_rate);
 		set_rcv_rate(rx_baud_rate);
 		set_tra_rate(tx_baud_rate);
 		break;
@@ -834,7 +838,7 @@ void duart68681_channel::recalc_framing()
 			break;
 	}
 
-//  printf("ch %d MR1 %02x MR2 %02x => %d bits / char, %d stop bits, parity %d\n", m_ch, MR1, MR2, (MR1 & 3)+5, stopbits, parity);
+	//printf("ch %d MR1 %02x MR2 %02x => %d bits / char, %d stop bits, parity %d\n", m_ch, MR1, MR2, (MR1 & 3)+5, stopbits, parity);
 
 	set_data_frame((MR1 & 3)+5, stopbits, parity);
 }
@@ -971,3 +975,8 @@ void duart68681_channel::write_TX(UINT8 data)
 
 	update_interrupts();
 };
+
+void duart68681_channel::ACR_updated()
+{
+	write_chan_reg(1, CSR);
+}

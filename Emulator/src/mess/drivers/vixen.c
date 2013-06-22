@@ -233,11 +233,13 @@ READ8_MEMBER( vixen_state::port3_r )
 
 	*/
 
-	UINT8 data = 0xff;
+	UINT8 data = 0xfc;
 
-	// TODO ring indicator
+	// ring indicator
+	data |= m_rs232->ri_r();
 
-	// TODO data carrier detect
+	// data carrier detect
+	data |= m_rs232->dcd_r() << 1;
 
 	return data;
 }
@@ -291,7 +293,7 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 INPUT_PORTS_START( vixen )
-	PORT_START("ROW0")
+	PORT_START("Y0")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD )
@@ -301,7 +303,7 @@ INPUT_PORTS_START( vixen )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD )
 
-	PORT_START("ROW1")
+	PORT_START("Y1")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD )
@@ -311,7 +313,7 @@ INPUT_PORTS_START( vixen )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD )
 
-	PORT_START("ROW2")
+	PORT_START("Y2")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD )
@@ -321,7 +323,7 @@ INPUT_PORTS_START( vixen )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD )
 
-	PORT_START("ROW3")
+	PORT_START("Y3")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD )
@@ -331,7 +333,7 @@ INPUT_PORTS_START( vixen )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD )
 
-	PORT_START("ROW4")
+	PORT_START("Y4")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD )
@@ -341,7 +343,7 @@ INPUT_PORTS_START( vixen )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD )
 
-	PORT_START("ROW5")
+	PORT_START("Y5")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD )
@@ -351,7 +353,7 @@ INPUT_PORTS_START( vixen )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD )
 
-	PORT_START("ROW6")
+	PORT_START("Y6")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD )
@@ -361,7 +363,7 @@ INPUT_PORTS_START( vixen )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD )
 
-	PORT_START("ROW7")
+	PORT_START("Y7")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD )
@@ -398,15 +400,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(vixen_state::vsync_tick)
 
 void vixen_state::video_start()
 {
-	// find memory regions
-	m_sync_rom = memregion("video")->base();
-	m_char_rom = memregion("chargen")->base();
-
 	// register for state saving
 	save_item(NAME(m_alt));
 	save_item(NAME(m_256));
 	save_item(NAME(m_vsync));
-	save_pointer(NAME(m_video_ram.target()), 0x1000);
 }
 
 
@@ -423,7 +420,7 @@ UINT32 vixen_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, c
 			for (int chadr = 0; chadr < 128; chadr++)
 			{
 				UINT16 sync_addr = (txadr << 7) | chadr;
-				UINT8 sync_data = m_sync_rom[sync_addr];
+				UINT8 sync_data = m_sync_rom->base()[sync_addr];
 				int blank = BIT(sync_data, 4);
 				/*
 				int clrchadr = BIT(sync_data, 7);
@@ -453,7 +450,7 @@ UINT32 vixen_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, c
 					reverse = BIT(video_data, 7);
 				}
 
-				UINT8 char_data = m_char_rom[char_addr];
+				UINT8 char_data = m_char_rom->base()[char_addr];
 
 				for (int x = 0; x < 8; x++)
 				{
@@ -498,14 +495,14 @@ READ8_MEMBER( vixen_state::i8155_pa_r )
 {
 	UINT8 data = 0xff;
 
-	if (!BIT(m_col, 0)) data &= ioport("ROW0")->read();
-	if (!BIT(m_col, 1)) data &= ioport("ROW1")->read();
-	if (!BIT(m_col, 2)) data &= ioport("ROW2")->read();
-	if (!BIT(m_col, 3)) data &= ioport("ROW3")->read();
-	if (!BIT(m_col, 4)) data &= ioport("ROW4")->read();
-	if (!BIT(m_col, 5)) data &= ioport("ROW5")->read();
-	if (!BIT(m_col, 6)) data &= ioport("ROW6")->read();
-	if (!BIT(m_col, 7)) data &= ioport("ROW7")->read();
+	if (!BIT(m_col, 0)) data &= m_y0->read();
+	if (!BIT(m_col, 1)) data &= m_y1->read();
+	if (!BIT(m_col, 2)) data &= m_y2->read();
+	if (!BIT(m_col, 3)) data &= m_y3->read();
+	if (!BIT(m_col, 4)) data &= m_y4->read();
+	if (!BIT(m_col, 5)) data &= m_y5->read();
+	if (!BIT(m_col, 6)) data &= m_y6->read();
+	if (!BIT(m_col, 7)) data &= m_y7->read();
 
 	return data;
 }
@@ -675,11 +672,11 @@ WRITE_LINE_MEMBER( vixen_state::txrdy_w )
 
 static const i8251_interface usart_intf =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
 	DEVCB_DRIVER_LINE_MEMBER(vixen_state, rxrdy_w),
 	DEVCB_DRIVER_LINE_MEMBER(vixen_state, txrdy_w),
 	DEVCB_NULL,
@@ -703,18 +700,6 @@ WRITE_LINE_MEMBER( vixen_state::atn_w )
 	update_interrupt();
 }
 
-static IEEE488_INTERFACE( ieee488_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(vixen_state, srq_w),
-	DEVCB_DRIVER_LINE_MEMBER(vixen_state, atn_w),
-	DEVCB_NULL
-};
-
 static SLOT_INTERFACE_START( vixen_floppies )
 	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
 SLOT_INTERFACE_END
@@ -726,16 +711,30 @@ void vixen_state::fdc_intrq_w(bool state)
 }
 
 
+//-------------------------------------------------
+//  rs232_port_interface rs232_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
+
 
 //**************************************************************************
 //  MACHINE INITIALIZATION
 //**************************************************************************
 
 //-------------------------------------------------
-//  IRQ_CALLBACK( vixen )
+//  IRQ_CALLBACK_MEMBER( vixen_int_ack )
 //-------------------------------------------------
 
-static IRQ_CALLBACK( vixen_int_ack )
+IRQ_CALLBACK_MEMBER(vixen_state::vixen_int_ack)
 {
 	// D0 is pulled low
 	return 0xfe;
@@ -749,19 +748,19 @@ static IRQ_CALLBACK( vixen_int_ack )
 void vixen_state::machine_start()
 {
 	// interrupt callback
-	m_maincpu->set_irq_acknowledge_callback(vixen_int_ack);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(vixen_state::vixen_int_ack),this));
 
 	// configure memory banking
 	UINT8 *ram = m_ram->pointer();
 
 	membank("bank1")->configure_entry(0, ram);
-	membank("bank1")->configure_entry(1, memregion(Z8400A_TAG)->base());
+	membank("bank1")->configure_entry(1, m_rom->base());
 
 	membank("bank2")->configure_entry(0, ram);
 	membank("bank2")->configure_entry(1, m_video_ram);
 
 	membank("bank3")->configure_entry(0, m_video_ram);
-	membank("bank3")->configure_entry(1, memregion(Z8400A_TAG)->base());
+	membank("bank3")->configure_entry(1, m_rom->base());
 
 	membank("bank4")->configure_entry(0, m_video_ram);
 
@@ -834,9 +833,12 @@ static MACHINE_CONFIG_START( vixen, vixen_state )
 	MCFG_I8155_ADD(P8155H_IO_TAG, XTAL_23_9616MHz/6, io_i8155_intf)
 	MCFG_I8251_ADD(P8251A_TAG, usart_intf)
 	MCFG_FD1797x_ADD(FDC1797_TAG, XTAL_23_9616MHz/24)
-	MCFG_FLOPPY_DRIVE_ADD(FDC1797_TAG":0", vixen_floppies, "525dd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(FDC1797_TAG":1", vixen_floppies, "525dd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_IEEE488_BUS_ADD(ieee488_intf)
+	MCFG_FLOPPY_DRIVE_ADD(FDC1797_TAG":0", vixen_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(FDC1797_TAG":1", vixen_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_IEEE488_BUS_ADD()
+	MCFG_IEEE488_SRQ_CALLBACK(WRITELINE(vixen_state, srq_w))
+	MCFG_IEEE488_ATN_CALLBACK(WRITELINE(vixen_state, atn_w))
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("disk_list", "vixen")
@@ -894,7 +896,7 @@ DIRECT_UPDATE_MEMBER(vixen_state::vixen_direct_update_handler)
 			m_reset = 0;
 		}
 
-		direct.explicit_configure(0xf000, 0xffff, 0xfff, machine().root_device().memregion(Z8400A_TAG)->base());
+		direct.explicit_configure(0xf000, 0xffff, 0xfff, m_rom->base());
 
 		return ~0;
 	}
@@ -904,8 +906,7 @@ DIRECT_UPDATE_MEMBER(vixen_state::vixen_direct_update_handler)
 
 DRIVER_INIT_MEMBER(vixen_state,vixen)
 {
-	address_space &program = machine().device<cpu_device>(Z8400A_TAG)->space(AS_PROGRAM);
-	program.set_direct_update_handler(direct_update_delegate(FUNC(vixen_state::vixen_direct_update_handler), this));
+	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(vixen_state::vixen_direct_update_handler), this));
 }
 
 

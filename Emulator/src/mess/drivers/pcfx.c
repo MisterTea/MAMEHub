@@ -23,11 +23,15 @@ struct pcfx_pad_t
 class pcfx_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_PAD_FUNC
+	};
+
 	pcfx_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		, m_maincpu(*this, "maincpu")
-		, m_huc6261(*this, "huc6261")
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_huc6261(*this, "huc6261") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<huc6261_device> m_huc6261;
@@ -61,6 +65,9 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( irq14_w );
 	DECLARE_WRITE_LINE_MEMBER( irq15_w );
 	TIMER_CALLBACK_MEMBER(pad_func);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -111,22 +118,34 @@ READ16_MEMBER( pcfx_state::pad_r )
 		if(((offset<<1) & 0x02) == 0)
 		{
 			m_pad.status[port_type] &= ~8; // clear latch on LSB read according to docs
-			//set_irq_line(11, 0);
+			set_irq_line(11, 0);
 		}
 	}
 
 	return res;
 }
 
+void pcfx_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_PAD_FUNC:
+		pad_func(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in pcfx_state::device_timer");
+	}
+}
+
 TIMER_CALLBACK_MEMBER(pcfx_state::pad_func)
 {
 	const char *const padnames[] = { "P1", "P2" };
 
-	m_pad.latch[param] = machine().root_device().ioport(padnames[param])->read();
+	m_pad.latch[param] = ioport(padnames[param])->read();
 	m_pad.status[param] |= 8;
 	m_pad.ctrl[param] &= ~1; // ack TX line
 	// TODO: pad IRQ
-//  set_irq_line(11, 1);
+	set_irq_line(11, 1);
 }
 
 WRITE16_MEMBER( pcfx_state::pad_w )
@@ -143,7 +162,7 @@ WRITE16_MEMBER( pcfx_state::pad_w )
 		*/
 		if(data & 1 && (!(m_pad.ctrl[port_type] & 1)))
 		{
-			machine().scheduler().timer_set(attotime::from_msec(1), timer_expired_delegate(FUNC(pcfx_state::pad_func),this), port_type); // TODO: time
+			timer_set(attotime::from_msec(1), TIMER_PAD_FUNC, port_type); // TODO: time
 		}
 
 		m_pad.ctrl[port_type] = data & 7;

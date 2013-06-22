@@ -325,10 +325,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( audio_map, AS_PROGRAM, 8, btime_state )
 	AM_RANGE(0x0000, 0x03ff) AM_MIRROR(0x1c00) AM_RAM AM_SHARE("audio_rambase")
-	AM_RANGE(0x2000, 0x3fff) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0x4000, 0x5fff) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x6000, 0x7fff) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
-	AM_RANGE(0x8000, 0x9fff) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x2000, 0x3fff) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0x4000, 0x5fff) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x6000, 0x7fff) AM_DEVWRITE("ay2", ay8910_device, data_w)
+	AM_RANGE(0x8000, 0x9fff) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0xa000, 0xbfff) AM_READ(audio_command_r)
 	AM_RANGE(0xc000, 0xdfff) AM_WRITE(audio_nmi_enable_w)
 	AM_RANGE(0xe000, 0xefff) AM_MIRROR(0x1000) AM_ROM
@@ -336,10 +336,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( disco_audio_map, AS_PROGRAM, 8, btime_state )
 	AM_RANGE(0x0000, 0x03ff) AM_RAM
-	AM_RANGE(0x4000, 0x4fff) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0x5000, 0x5fff) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x6000, 0x6fff) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
-	AM_RANGE(0x7000, 0x7fff) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x4000, 0x4fff) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0x5000, 0x5fff) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x6000, 0x6fff) AM_DEVWRITE("ay2", ay8910_device, data_w)
+	AM_RANGE(0x7000, 0x7fff) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0x8000, 0x8fff) AM_READ(soundlatch_byte_r) AM_WRITENOP /* ack ? */
 	AM_RANGE(0xf000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -899,6 +899,15 @@ static INPUT_PORTS_START( bnj )
 	PORT_DIPUNKNOWN_DIPLOC( 0x80, 0x80, "7D:8" )    /* it should be OFF according to the manual */
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( caractn2 ) /* 2/3 Lives Dip changes in this set */
+		PORT_INCLUDE( bnj )
+
+		PORT_MODIFY("DSW2")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Lives ) ) PORT_DIPLOCATION("7D:1")
+	PORT_DIPSETTING(    0x01, "2" )
+	PORT_DIPSETTING(    0x00, "3" )
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( disco )
 	PORT_START("P1")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_4WAY
@@ -1240,9 +1249,6 @@ DISCRETE_SOUND_END
 
 MACHINE_START_MEMBER(btime_state,btime)
 {
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_btime_palette));
 	save_item(NAME(m_bnj_scroll1));
 	save_item(NAME(m_bnj_scroll2));
@@ -1676,21 +1682,21 @@ ROM_END
 
 ROM_START( wtennis )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "tx",           0xc000, 0x0800, CRC(fd343474) SHA1(1e1fd3f20ce1c7533767344f924029c8c62139a1) )
-	ROM_LOAD( "t4",           0xd000, 0x1000, CRC(e465d82c) SHA1(c357dcf17539150425574985afa559db2e6ab834) )
-	ROM_LOAD( "t3",           0xe000, 0x1000, CRC(8f090eab) SHA1(baeef8ee05010bf44cf8865a22911f3d458df1b0) )
-	ROM_LOAD( "t2",           0xf000, 0x1000, CRC(d2f9dd30) SHA1(1faa088806e8627b5e561d8b99054d295045dcfb) )
+	ROM_LOAD( "ten14.h4",     0xc000, 0x1000, CRC(f7b27303) SHA1(043476429bcc8def412f77d1f79a01586d984bfc) )
+	ROM_LOAD( "ten4.d4",      0xd000, 0x1000, CRC(e465d82c) SHA1(c357dcf17539150425574985afa559db2e6ab834) ) // was t4
+	ROM_LOAD( "ten3.c4",      0xe000, 0x1000, CRC(8f090eab) SHA1(baeef8ee05010bf44cf8865a22911f3d458df1b0) ) // was t3
+	ROM_LOAD( "ten2.a4",      0xf000, 0x1000, CRC(d2f9dd30) SHA1(1faa088806e8627b5e561d8b99054d295045dcfb) ) // was t2
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
-	ROM_LOAD( "t1",           0xe000, 0x1000, CRC(40737ea7) SHA1(27e8474028385574035d3982f9c576bb9bb3facd) ) /* starts at 0000, not f000; 0000-01ff is RAM */
+	ROM_LOAD( "ten1.h1",      0xe000, 0x1000, CRC(40737ea7) SHA1(27e8474028385574035d3982f9c576bb9bb3facd) ) /* was t1 - starts at 0000, not f000; 0000-01ff is RAM */
 
 	ROM_REGION( 0x6000, "gfx1", 0 )
-	ROM_LOAD( "t7",           0x0000, 0x1000, CRC(aa935169) SHA1(965f41a9fcf35ac7c899e79acd0a85ab588d5831) )
-	ROM_LOAD( "t10",          0x1000, 0x1000, CRC(746be927) SHA1(a3361384437ac7c494fde92953c5aa5e3c104644) )
-	ROM_LOAD( "t6",           0x2000, 0x1000, CRC(4fb8565d) SHA1(6de865e41dcba45190af0753baebf5ab66e4eeb4) )
-	ROM_LOAD( "t9",           0x3000, 0x1000, CRC(4893286d) SHA1(f2c330286272b8d334b887bc4dd9608158249fc3) )
-	ROM_LOAD( "t5",           0x4000, 0x1000, CRC(ea1efa5d) SHA1(dd8ef1991d74778e6844a669e6de649e1130ec79) )
-	ROM_LOAD( "t8",           0x5000, 0x1000, CRC(542ace7b) SHA1(b1423d39302ad7d98c9223d8b1d6d062b7676dd9) )
+	ROM_LOAD( "ten7.l11",     0x0000, 0x1000, CRC(aa935169) SHA1(965f41a9fcf35ac7c899e79acd0a85ab588d5831) ) // was t7
+	ROM_LOAD( "ten10.m11",    0x1000, 0x1000, CRC(746be927) SHA1(a3361384437ac7c494fde92953c5aa5e3c104644) ) // was t10
+	ROM_LOAD( "ten6.l13",     0x2000, 0x1000, CRC(4fb8565d) SHA1(6de865e41dcba45190af0753baebf5ab66e4eeb4) ) // was t6
+	ROM_LOAD( "ten9.m13",     0x3000, 0x1000, CRC(4893286d) SHA1(f2c330286272b8d334b887bc4dd9608158249fc3) ) // was t9
+	ROM_LOAD( "ten5.l14",     0x4000, 0x1000, CRC(ea1efa5d) SHA1(dd8ef1991d74778e6844a669e6de649e1130ec79) ) // was t5
+	ROM_LOAD( "ten8.m14",     0x5000, 0x1000, CRC(542ace7b) SHA1(b1423d39302ad7d98c9223d8b1d6d062b7676dd9) ) // was t8
 
 	ROM_REGION( 0x0040, "proms", 0 )
 	ROM_LOAD( "mb7051.m5",    0x0000, 0x0020, CRC(f051cb28) SHA1(6aebccd38ba7887caff248c8acddb8e14526f1e7) )    /* palette */
@@ -1798,6 +1804,33 @@ ROM_START( caractn )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	/* a000-bfff space for the service ROM */
 	ROM_LOAD( "c7.12c",  0xc000, 0x2000, CRC(b5279c70) SHA1(5fb1c50040dc4e9444aed440e2c3cf4c79b72311) )
+	ROM_LOAD( "c6.12d",  0xe000, 0x2000, CRC(1d6957c4) SHA1(bd30f00187e56eef9adcc167dd752a3bb616454c) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "c5.6c",   0xe000, 0x1000, CRC(8c02f662) SHA1(1279d564e65fd3ccac25b1f9fbb40d910de2b544) )
+
+	ROM_REGION( 0x6000, "gfx1", 0 )
+	ROM_LOAD( "c0.4e",   0x0000, 0x2000, CRC(bf3ea732) SHA1(d98970b2dda8c3435506656909e5e3aa70d45652) )
+	ROM_LOAD( "c1.4f",   0x2000, 0x2000, CRC(9789f639) SHA1(77a4d494698718c052fa1967242a0e4fa263b6ad) )
+	ROM_LOAD( "c2.4h",   0x4000, 0x2000, CRC(51dcc111) SHA1(9753d682ba2f4fb4d3b14783ac35ad214bf788b5) )
+
+	ROM_REGION( 0x2000, "gfx2", 0 )
+	ROM_LOAD( "c3.10e",  0x0000, 0x1000, CRC(f4e9eb49) SHA1(b356512d2ebd4e2005e76496b434e5ecebadb251) )
+	ROM_LOAD( "c4.10f",  0x1000, 0x1000, CRC(a9ffacb4) SHA1(49d5f9c0b695f474197fbb761bacc065b6b5808a) )
+
+	ROM_REGION( 0x0040, "proms", 0 )
+	ROM_LOAD( "tbp18s030.11a",   0x0000, 0x020, CRC(318d25b9) SHA1(9a82619c94f5911d01ddf6b85f7e30cdc6f1d0a3) )  /* palette */
+	ROM_LOAD( "tbp18s030.cpu",   0x0020, 0x020, CRC(6b0c2942) SHA1(7d25acc753923b265792fc78f8fc70175c0e0ec2) )  /* RAS/CAS logic - not used */
+
+	ROM_REGION( 0x0140, "plds", 0 )
+	ROM_LOAD( "pal10l8.10k",   0x0000, 0x002c, CRC(dc72a65f) SHA1(d61c149d4df93a2074debf7c5e46557c6b06d10d) )
+	ROM_LOAD( "pal16r4a.2d",   0x0030, 0x0104, CRC(fd1f3aa2) SHA1(67f1e74fcfc0e2301204ed58b8c6e35d4866a344) )
+ROM_END
+
+ROM_START( caractn2 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	/* a000-bfff space for the service ROM */
+	ROM_LOAD( "7.c12",   0xc000, 0x2000, CRC(406086aa) SHA1(711d547eeb73044930fb1fd15060dbd1e85339d6) ) /* 2 bytes difference, Lives DIP 2/3 instead of 3/5 */
 	ROM_LOAD( "c6.12d",  0xe000, 0x2000, CRC(1d6957c4) SHA1(bd30f00187e56eef9adcc167dd752a3bb616454c) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
@@ -1970,7 +2003,7 @@ DRIVER_INIT_MEMBER(btime_state,disco)
 
 DRIVER_INIT_MEMBER(btime_state,cookrace)
 {
-	machine().device("audiocpu")->memory().space(AS_PROGRAM).install_read_bank(0x0200, 0x0fff, "bank10");
+	m_audiocpu->space(AS_PROGRAM).install_read_bank(0x0200, 0x0fff, "bank10");
 	membank("bank10")->set_base(memregion("audiocpu")->base() + 0xe200);
 	m_audio_nmi_enable_type = AUDIO_ENABLE_DIRECT;
 }
@@ -1983,9 +2016,9 @@ DRIVER_INIT_MEMBER(btime_state,protennb)
 
 DRIVER_INIT_MEMBER(btime_state,wtennis)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xc15f, 0xc15f, read8_delegate(FUNC(btime_state::wtennis_reset_hack_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xc15f, 0xc15f, read8_delegate(FUNC(btime_state::wtennis_reset_hack_r),this));
 
-	machine().device("audiocpu")->memory().space(AS_PROGRAM).install_read_bank(0x0200, 0x0fff, "bank10");
+	m_audiocpu->space(AS_PROGRAM).install_read_bank(0x0200, 0x0fff, "bank10");
 	membank("bank10")->set_base(memregion("audiocpu")->base() + 0xe200);
 	m_audio_nmi_enable_type = AUDIO_ENABLE_AY8910;
 }
@@ -2008,7 +2041,8 @@ GAME( 1982, mmonkey,  0,       mmonkey,  mmonkey, btime_state,  lnc,      ROT270
 GAME( 1982, brubber,  0,       bnj,      bnj, btime_state,      bnj,      ROT270, "Data East", "Burnin' Rubber", GAME_SUPPORTS_SAVE )
 GAME( 1982, bnj,      brubber, bnj,      bnj, btime_state,      bnj,      ROT270, "Data East USA", "Bump 'n' Jump", GAME_SUPPORTS_SAVE )
 GAME( 1982, bnjm,     brubber, bnj,      bnj, btime_state,      bnj,      ROT270, "Data East USA (Bally Midway license)", "Bump 'n' Jump (Midway)", GAME_SUPPORTS_SAVE )
-GAME( 1982, caractn,  brubber, bnj,      bnj, btime_state,      bnj,      ROT270, "bootleg", "Car Action", GAME_SUPPORTS_SAVE )
+GAME( 1982, caractn,  brubber, bnj,      bnj, btime_state,      bnj,      ROT270, "bootleg", "Car Action (set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1982, caractn2, brubber, bnj,      caractn2, btime_state, bnj,      ROT270, "bootleg", "Car Action (set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1982, zoar,     0,       zoar,     zoar, btime_state,     zoar,     ROT270, "Data East USA", "Zoar", GAME_SUPPORTS_SAVE )
 GAME( 1982, disco,    0,       disco,    disco, btime_state,    disco,    ROT270, "Data East", "Disco No.1", GAME_SUPPORTS_SAVE )
 GAME( 1982, discof,   disco,   disco,    disco, btime_state,    disco,    ROT270, "Data East", "Disco No.1 (Rev.F)", GAME_SUPPORTS_SAVE )

@@ -220,11 +220,14 @@ WRITE8_MEMBER( dragon_alpha_state::ff20_write )
 
 WRITE8_MEMBER( dragon_alpha_state::pia2_pa_w )
 {
+	UINT8 ddr = ~m_pia_2->port_b_z_mask();
+
 	/* If bit 2 of the pia2 ddra is 1 then this pin is an output so use it */
 	/* to control the paging of the boot and basic roms */
 	/* Otherwise it set as an input, with an internal pull-up so it should */
 	/* always be high (enabling boot rom) */
 	/* PIA FIXME if (pia_get_ddr_a(2) & 0x04) */
+	if(ddr & 0x04)
 	{
 		page_rom(data & 0x04 ? true : false);   /* bit 2 controls boot or basic rom */
 	}
@@ -236,13 +239,13 @@ WRITE8_MEMBER( dragon_alpha_state::pia2_pa_w )
 		case 0x00:      /* Inactive, do nothing */
 			break;
 		case 0x01:      /* Write to selected port */
-			ay8910_data_w(m_ay8912, space, 0, m_pia_2->b_output());
+			m_ay8912->data_w(space, 0, m_pia_2->b_output());
 			break;
 		case 0x02:      /* Read from selected port */
-			m_pia_2->portb_w(ay8910_r(m_ay8912, space, 0));
+			m_pia_2->portb_w(m_ay8912->data_r(space, 0));
 			break;
 		case 0x03:      /* Select port to write to */
-			ay8910_address_w(m_ay8912, space, 0, m_pia_2->b_output());
+			m_ay8912->address_w(space, 0, m_pia_2->b_output());
 			break;
 	}
 }

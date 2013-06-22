@@ -1,11 +1,34 @@
+#include "video/taitoic.h"
+#include "machine/taitoio.h"
 
 class taitob_state : public driver_device
 {
 public:
+	enum
+	{
+		RSAGA2_INTERRUPT2,
+		CRIMEC_INTERRUPT3,
+		HITICE_INTERRUPT6,
+		RAMBO3_INTERRUPT1,
+		PBOBBLE_INTERRUPT5,
+		VIOFIGHT_INTERRUPT1,
+		MASTERW_INTERRUPT4,
+		SILENTD_INTERRUPT4,
+		SELFEENA_INTERRUPT4,
+		SBM_INTERRUPT5,
+		REALPUNC_INTERRUPT3
+	};
+
 	taitob_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
-		m_pixelram(*this, "pixelram"){ }
+		m_pixelram(*this, "pixelram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_tc0180vcu(*this, "tc0180vcu"),
+		m_tc0640fio(*this, "tc0640fio"),
+		m_tc0220ioc(*this, "tc0220ioc"),
+		m_tc0510nio(*this, "tc0510nio") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_spriteram;
@@ -30,13 +53,14 @@ public:
 	UINT16        m_realpunc_video_ctrl;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	device_t *m_mb87078;
 	device_t *m_ym;
-	device_t *m_tc0180vcu;
-	device_t *m_tc0640fio;
-	device_t *m_tc0220ioc;
+	required_device<tc0180vcu_device> m_tc0180vcu;
+	optional_device<tc0640fio_device> m_tc0640fio;
+	optional_device<tc0220ioc_device> m_tc0220ioc;
+	optional_device<tc0510nio_device> m_tc0510nio;
 	DECLARE_WRITE8_MEMBER(bankswitch_w);
 	DECLARE_READ16_MEMBER(tracky1_hi_r);
 	DECLARE_READ16_MEMBER(tracky1_lo_r);
@@ -84,15 +108,13 @@ public:
 	INTERRUPT_GEN_MEMBER(selfeena_interrupt);
 	INTERRUPT_GEN_MEMBER(sbm_interrupt);
 	INTERRUPT_GEN_MEMBER(realpunc_interrupt);
-	TIMER_CALLBACK_MEMBER(rsaga2_interrupt2);
-	TIMER_CALLBACK_MEMBER(crimec_interrupt3);
-	TIMER_CALLBACK_MEMBER(hitice_interrupt6);
-	TIMER_CALLBACK_MEMBER(rambo3_interrupt1);
-	TIMER_CALLBACK_MEMBER(pbobble_interrupt5);
-	TIMER_CALLBACK_MEMBER(viofight_interrupt1);
-	TIMER_CALLBACK_MEMBER(masterw_interrupt4);
-	TIMER_CALLBACK_MEMBER(silentd_interrupt4);
-	TIMER_CALLBACK_MEMBER(selfeena_interrupt4);
-	TIMER_CALLBACK_MEMBER(sbm_interrupt5);
-	TIMER_CALLBACK_MEMBER(realpunc_interrupt3);
+	void hitice_clear_pixel_bitmap(  );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_framebuffer( bitmap_ind16 &bitmap, const rectangle &cliprect, int priority );
+	void ryujin_patch(void);
+	void sbm_patch(void);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

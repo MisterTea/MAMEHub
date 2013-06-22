@@ -376,7 +376,8 @@ am9517a_device::am9517a_device(const machine_config &mconfig, const char *tag, d
 		device_execute_interface(mconfig, *this),
 		m_icount(0),
 		m_hack(0),
-		m_ready(1)
+		m_ready(1),
+		m_command(0)
 {
 }
 
@@ -432,10 +433,27 @@ void am9517a_device::device_start()
 		m_channel[i].m_in_ior_func.resolve(m_in_ior_cb[i], *this);
 		m_channel[i].m_out_iow_func.resolve(m_out_iow_cb[i], *this);
 		m_channel[i].m_out_dack_func.resolve(m_out_dack_cb[i], *this);
+		m_channel[i].m_address = 0;
+		m_channel[i].m_count = 0;
+		m_channel[i].m_base_address = 0;
+		m_channel[i].m_base_count = 0;
+		m_channel[i].m_mode = 0;
 	}
 
 	// state saving
+	save_item(NAME(m_msb));
+	save_item(NAME(m_hreq));
+	save_item(NAME(m_hack));
+	save_item(NAME(m_ready));
+	save_item(NAME(m_eop));
 	save_item(NAME(m_state));
+	save_item(NAME(m_current_channel));
+	save_item(NAME(m_last_channel));
+	save_item(NAME(m_command));
+	save_item(NAME(m_mask));
+	save_item(NAME(m_status));
+	save_item(NAME(m_temp));
+	save_item(NAME(m_request));
 }
 
 
@@ -454,6 +472,8 @@ void am9517a_device::device_reset()
 	m_msb = 0;
 	m_current_channel = -1;
 	m_last_channel = 3;
+	m_hreq = -1;
+	m_eop = 0;
 
 	set_hreq(0);
 	set_eop(ASSERT_LINE);

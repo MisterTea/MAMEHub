@@ -117,53 +117,49 @@ READ8_MEMBER(tnzs_state::arknoid2_sh_f000_r)
 }
 
 
-static void mcu_reset( running_machine &machine )
+void tnzs_state::mcu_reset(  )
 {
-	tnzs_state *state = machine.driver_data<tnzs_state>();
-
-	state->m_mcu_initializing = 3;
-	state->m_mcu_coinage_init = 0;
-	state->m_mcu_coinage[0] = 1;
-	state->m_mcu_coinage[1] = 1;
-	state->m_mcu_coinage[2] = 1;
-	state->m_mcu_coinage[3] = 1;
-	state->m_mcu_coins_a = 0;
-	state->m_mcu_coins_b = 0;
-	state->m_mcu_credits = 0;
-	state->m_mcu_reportcoin = 0;
-	state->m_mcu_command = 0;
+	m_mcu_initializing = 3;
+	m_mcu_coinage_init = 0;
+	m_mcu_coinage[0] = 1;
+	m_mcu_coinage[1] = 1;
+	m_mcu_coinage[2] = 1;
+	m_mcu_coinage[3] = 1;
+	m_mcu_coins_a = 0;
+	m_mcu_coins_b = 0;
+	m_mcu_credits = 0;
+	m_mcu_reportcoin = 0;
+	m_mcu_command = 0;
 }
 
-static void mcu_handle_coins( running_machine &machine, int coin )
+void tnzs_state::mcu_handle_coins( int coin )
 {
-	tnzs_state *state = machine.driver_data<tnzs_state>();
-
 	/* The coin inputs and coin counters are managed by the i8742 mcu. */
 	/* Here we simulate it. */
 	/* Credits are limited to 9, so more coins should be rejected */
 	/* Coin/Play settings must also be taken into consideration */
 
 	if (coin & 0x08)    /* tilt */
-		state->m_mcu_reportcoin = coin;
-	else if (coin && coin != state->m_insertcoin)
+		m_mcu_reportcoin = coin;
+	else if (coin && coin != m_insertcoin)
 	{
 		if (coin & 0x01)    /* coin A */
 		{
 //          logerror("Coin dropped into slot A\n");
-			coin_counter_w(machine,0,1); coin_counter_w(machine,0,0); /* Count slot A */
-			state->m_mcu_coins_a++;
-			if (state->m_mcu_coins_a >= state->m_mcu_coinage[0])
+			coin_counter_w(machine(),0,1); coin_counter_w(machine(),0,0); /* Count slot A */
+			m_mcu_coins_a++;
+			if (m_mcu_coins_a >= m_mcu_coinage[0])
 			{
-				state->m_mcu_coins_a -= state->m_mcu_coinage[0];
-				state->m_mcu_credits += state->m_mcu_coinage[1];
-				if (state->m_mcu_credits >= 9)
+				m_mcu_coins_a -= m_mcu_coinage[0];
+				m_mcu_credits += m_mcu_coinage[1];
+				if (m_mcu_credits >= 9)
 				{
-					state->m_mcu_credits = 9;
-					coin_lockout_global_w(machine, 1); /* Lock all coin slots */
+					m_mcu_credits = 9;
+					coin_lockout_global_w(machine(), 1); /* Lock all coin slots */
 				}
 				else
 				{
-					coin_lockout_global_w(machine, 0); /* Unlock all coin slots */
+					coin_lockout_global_w(machine(), 0); /* Unlock all coin slots */
 				}
 			}
 		}
@@ -171,20 +167,20 @@ static void mcu_handle_coins( running_machine &machine, int coin )
 		if (coin & 0x02)    /* coin B */
 		{
 //          logerror("Coin dropped into slot B\n");
-			coin_counter_w(machine,1,1); coin_counter_w(machine,1,0); /* Count slot B */
-			state->m_mcu_coins_b++;
-			if (state->m_mcu_coins_b >= state->m_mcu_coinage[2])
+			coin_counter_w(machine(),1,1); coin_counter_w(machine(),1,0); /* Count slot B */
+			m_mcu_coins_b++;
+			if (m_mcu_coins_b >= m_mcu_coinage[2])
 			{
-				state->m_mcu_coins_b -= state->m_mcu_coinage[2];
-				state->m_mcu_credits += state->m_mcu_coinage[3];
-				if (state->m_mcu_credits >= 9)
+				m_mcu_coins_b -= m_mcu_coinage[2];
+				m_mcu_credits += m_mcu_coinage[3];
+				if (m_mcu_credits >= 9)
 				{
-					state->m_mcu_credits = 9;
-					coin_lockout_global_w(machine, 1); /* Lock all coin slots */
+					m_mcu_credits = 9;
+					coin_lockout_global_w(machine(), 1); /* Lock all coin slots */
 				}
 				else
 				{
-					coin_lockout_global_w(machine, 0); /* Unlock all coin slots */
+					coin_lockout_global_w(machine(), 0); /* Unlock all coin slots */
 				}
 			}
 		}
@@ -192,19 +188,19 @@ static void mcu_handle_coins( running_machine &machine, int coin )
 		if (coin & 0x04)    /* service */
 		{
 //          logerror("Coin dropped into service slot C\n");
-			state->m_mcu_credits++;
+			m_mcu_credits++;
 		}
 
-		state->m_mcu_reportcoin = coin;
+		m_mcu_reportcoin = coin;
 	}
 	else
 	{
-		if (state->m_mcu_credits < 9)
-			coin_lockout_global_w(machine, 0); /* Unlock all coin slots */
+		if (m_mcu_credits < 9)
+			coin_lockout_global_w(machine(), 0); /* Unlock all coin slots */
 
-		state->m_mcu_reportcoin = 0;
+		m_mcu_reportcoin = 0;
 	}
-	state->m_insertcoin = coin;
+	m_insertcoin = coin;
 }
 
 
@@ -528,7 +524,7 @@ DRIVER_INIT_MEMBER(tnzs_state,drtoppel)
 	m_mcu_type = MCU_DRTOPPEL;
 
 	/* drtoppel writes to the palette RAM area even if it has PROMs! We have to patch it out. */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0xf800, 0xfbff);
+	m_maincpu->space(AS_PROGRAM).nop_write(0xf800, 0xfbff);
 }
 
 DRIVER_INIT_MEMBER(tnzs_state,chukatai)
@@ -540,7 +536,7 @@ DRIVER_INIT_MEMBER(tnzs_state,tnzs)
 {
 	m_mcu_type = MCU_TNZS;
 	/* we need to install a kludge to avoid problems with a bug in the original code */
-//  machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_write_handler(0xef10, 0xef10, FUNC(tnzs_sync_kludge_w));
+//  m_maincpu->space(AS_PROGRAM).install_legacy_write_handler(0xef10, 0xef10, FUNC(tnzs_sync_kludge_w));
 }
 
 DRIVER_INIT_MEMBER(tnzs_state,tnzsb)
@@ -548,7 +544,7 @@ DRIVER_INIT_MEMBER(tnzs_state,tnzsb)
 	m_mcu_type = MCU_NONE_TNZSB;
 
 	/* we need to install a kludge to avoid problems with a bug in the original code */
-//  machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_write_handler(0xef10, 0xef10, FUNC(tnzs_sync_kludge_w));
+//  m_maincpu->space(AS_PROGRAM).install_legacy_write_handler(0xef10, 0xef10, FUNC(tnzs_sync_kludge_w));
 }
 
 DRIVER_INIT_MEMBER(tnzs_state,kabukiz)
@@ -564,9 +560,9 @@ DRIVER_INIT_MEMBER(tnzs_state,insectx)
 	m_mcu_type = MCU_NONE_INSECTX;
 
 	/* this game has no mcu, replace the handler with plain input port handlers */
-	machine().device("sub")->memory().space(AS_PROGRAM).install_read_port(0xc000, 0xc000, "IN0" );
-	machine().device("sub")->memory().space(AS_PROGRAM).install_read_port(0xc001, 0xc001, "IN1" );
-	machine().device("sub")->memory().space(AS_PROGRAM).install_read_port(0xc002, 0xc002, "IN2" );
+	m_subcpu->space(AS_PROGRAM).install_read_port(0xc000, 0xc000, "IN0" );
+	m_subcpu->space(AS_PROGRAM).install_read_port(0xc001, 0xc001, "IN1" );
+	m_subcpu->space(AS_PROGRAM).install_read_port(0xc002, 0xc002, "IN2" );
 }
 
 DRIVER_INIT_MEMBER(tnzs_state,kageki)
@@ -629,7 +625,7 @@ INTERRUPT_GEN_MEMBER(tnzs_state::arknoid2_interrupt)
 			coin |= ((ioport("COIN2")->read() & 1) << 1);
 			coin |= ((ioport("IN2")->read() & 3) << 2);
 			coin ^= 0x0c;
-			mcu_handle_coins(machine(), coin);
+			mcu_handle_coins(coin);
 			break;
 		default:
 			break;
@@ -647,7 +643,7 @@ MACHINE_RESET_MEMBER(tnzs_state,tnzs)
 		case MCU_EXTRMATN:
 		case MCU_DRTOPPEL:
 		case MCU_PLUMPOP:
-			mcu_reset(machine());
+			mcu_reset();
 			break;
 		default:
 			break;
@@ -662,29 +658,24 @@ MACHINE_RESET_MEMBER(tnzs_state,tnzs)
 
 MACHINE_RESET_MEMBER(tnzs_state,jpopnics)
 {
-
 	m_screenflip = 0;
 	m_mcu_type = -1;
 }
 
-static void tnzs_postload(running_machine &machine)
+void tnzs_state::tnzs_postload()
 {
-	tnzs_state *state = machine.driver_data<tnzs_state>();
-	state->membank("subbank")->set_entry(state->m_bank2);
+	membank("subbank")->set_entry(m_bank2);
 }
 
 
 MACHINE_START_MEMBER(tnzs_state,jpopnics)
 {
 	UINT8 *SUB = memregion("sub")->base();
-	m_ROM = machine().root_device().memregion("maincpu")->base();
+	m_ROM = memregion("maincpu")->base();
 	m_bankedram = auto_alloc_array(machine(), UINT8, 0x8000); // 2 banks of 0x4000
 
 	membank("subbank")->configure_entries(0, 4, &SUB[0x08000], 0x2000);
 	membank("subbank")->set_entry(m_bank2);
-
-	m_subcpu = machine().device<cpu_device>("sub");
-	m_mcu = NULL;
 
 	m_bank1 = 2;
 	m_bank2 = 0;
@@ -694,16 +685,12 @@ MACHINE_START_MEMBER(tnzs_state,jpopnics)
 	save_item(NAME(m_bank1));
 	save_item(NAME(m_bank2));
 
-	machine().save().register_postload(save_prepost_delegate(FUNC(tnzs_postload), &machine()));
+	machine().save().register_postload(save_prepost_delegate(FUNC(tnzs_state::tnzs_postload), this));
 }
 
 MACHINE_START_MEMBER(tnzs_state,tnzs)
 {
-
 	MACHINE_START_CALL_MEMBER( jpopnics );
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_mcu = machine().device("mcu");
 
 	save_item(NAME(m_kageki_csport_sel));
 	save_item(NAME(m_input_select));
@@ -723,7 +710,6 @@ MACHINE_START_MEMBER(tnzs_state,tnzs)
 
 WRITE8_MEMBER(tnzs_state::tnzs_ramrom_bankswitch_w)
 {
-
 //  logerror("PC %04x: writing %02x to bankswitch\n", space.device().safe_pc(),data);
 
 	/* bit 4 resets the second CPU */
@@ -748,7 +734,7 @@ WRITE8_MEMBER(tnzs_state::tnzs_bankswitch1_w)
 				if (data & 0x04)
 				{
 					if (m_mcu != NULL && m_mcu->type() == I8742)
-						m_mcu->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+						m_mcu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
 				}
 				/* Coin count and lockout is handled by the i8742 */
 				break;
@@ -776,7 +762,7 @@ WRITE8_MEMBER(tnzs_state::tnzs_bankswitch1_w)
 		case MCU_PLUMPOP:
 				/* bit 2 resets the mcu */
 				if (data & 0x04)
-					mcu_reset(machine());
+					mcu_reset();
 				break;
 		default:
 				break;

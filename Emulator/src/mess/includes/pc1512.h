@@ -3,7 +3,6 @@
 #ifndef __PC1512__
 #define __PC1512__
 
-
 #include "emu.h"
 #include "cpu/i86/i86.h"
 #include "cpu/mcs48/mcs48.h"
@@ -19,6 +18,7 @@
 #include "machine/pc1512kb.h"
 #include "machine/pc_fdc.h"
 #include "machine/ram.h"
+#include "machine/serial.h"
 #include "sound/speaker.h"
 #include "video/mc6845.h"
 
@@ -36,6 +36,7 @@
 #define SPEAKER_TAG     "speaker"
 #define ISA_BUS_TAG     "isa"
 #define SCREEN_TAG      "screen"
+#define RS232_TAG       "rs232"
 
 class pc1512_state : public driver_device
 {
@@ -57,7 +58,9 @@ public:
 			m_floppy0(*this, PC_FDC_XT_TAG ":0:525dd" ),
 			m_floppy1(*this, PC_FDC_XT_TAG ":1:525dd" ),
 			m_bus(*this, ISA_BUS_TAG),
+			m_char_rom(*this, AMS40041_TAG),
 			m_video_ram(*this, "video_ram"),
+			m_lk(*this, "LK"),
 			m_pit1(0),
 			m_pit2(0),
 			m_status1(0),
@@ -93,7 +96,9 @@ public:
 	required_device<floppy_image_device> m_floppy0;
 	optional_device<floppy_image_device> m_floppy1;
 	required_device<isa8_device> m_bus;
+	optional_memory_region m_char_rom;
 	optional_shared_ptr<UINT8> m_video_ram;
+	required_ioport m_lk;
 
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -134,8 +139,6 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( pit1_w );
 	DECLARE_WRITE_LINE_MEMBER( pit2_w );
 	DECLARE_WRITE_LINE_MEMBER( ack_w );
-	DECLARE_WRITE_LINE_MEMBER( fdc_int_w );
-	DECLARE_WRITE_LINE_MEMBER( fdc_drq_w );
 	DECLARE_WRITE_LINE_MEMBER( hrq_w );
 	DECLARE_WRITE_LINE_MEMBER( eop_w );
 	DECLARE_READ8_MEMBER( memr_r );
@@ -156,6 +159,9 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER( mouse_x_changed );
 	DECLARE_INPUT_CHANGED_MEMBER( mouse_y_changed );
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
+	IRQ_CALLBACK_MEMBER(pc1512_irq_callback);
+	void fdc_int_w(bool state);
+	void fdc_drq_w(bool state);
 
 	// system status register
 	int m_pit1;
@@ -196,7 +202,6 @@ public:
 	UINT8 m_printer_control;
 
 	// video state
-	const UINT8 *m_char_rom;
 	int m_toggle;
 	int m_lpen;
 	int m_blink;
@@ -210,7 +215,6 @@ public:
 
 	// sound state
 	int m_speaker_drive;
-	UINT32 screen_update_pc1512(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 };
 
 class pc1640_state : public pc1512_state
@@ -218,6 +222,7 @@ class pc1640_state : public pc1512_state
 public:
 	pc1640_state(const machine_config &mconfig, device_type type, const char *tag)
 		: pc1512_state(mconfig, type, tag),
+			m_sw(*this, "SW"),
 			m_opt(0)
 	{ }
 
@@ -234,7 +239,9 @@ public:
 	DECLARE_READ8_MEMBER( iga_r );
 	DECLARE_WRITE8_MEMBER( iga_w );
 	DECLARE_READ8_MEMBER( printer_r );
-	DECLARE_READ8_MEMBER( io_unmapped_r );
+
+	required_ioport m_sw;
+
 
 	// video state
 	int m_opt;
@@ -248,8 +255,6 @@ public:
 	UINT8 m_crtcar;         // CRT controller address register
 	UINT8 m_crtcdr[32];     // CRT controller data registers
 	UINT8 m_plr;            // Plantronics mode register
-
-	bool test_unmapped;     // Temporary for io_r/unmapped_r combination
 };
 
 // ---------- defined in video/pc1512.c ----------

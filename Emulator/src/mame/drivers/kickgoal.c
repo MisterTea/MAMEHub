@@ -116,7 +116,7 @@ Hollywood Action
 //static int kickgoal_melody;
 //static int kickgoal_snd_bank;
 
-static void kickgoal_play(okim6295_device *oki, int melody, int data)
+void ::kickgoal_play(okim6295_device *oki, int melody, int data)
 {
 	int status = oki->read(0);
 
@@ -124,12 +124,12 @@ static void kickgoal_play(okim6295_device *oki, int melody, int data)
 	if (kickgoal_sound == 0) popmessage("Unknown sound command %02x",kickgoal_sound);
 
 	if (melody) {
-		if (state->m_melody != kickgoal_sound) {
-			state->m_melody      = kickgoal_sound;
-			state->m_melody_loop = kickgoal_sound;
+		if (m_melody != kickgoal_sound) {
+			m_melody      = kickgoal_sound;
+			m_melody_loop = kickgoal_sound;
 			if (status & 0x08)
 				oki->write(0,0x40);
-			oki->write(0,(0x80 | state->m_melody));
+			oki->write(0,(0x80 | m_melody));
 			oki->write(0,0x81);
 		}
 	}
@@ -151,14 +151,12 @@ static void kickgoal_play(okim6295_device *oki, int melody, int data)
 
 WRITE16_MEMBER(kickgoal_state::kickgoal_snd_w)
 {
-	device_t *device = machine().device("oki");
-	okim6295_device *oki = downcast<okim6295_device *>(device);
 	if (ACCESSING_BITS_0_7)
 	{
 		logerror("PC:%06x Writing %04x to Sound CPU\n",space.device().safe_pcbase(),data);
 		if (data >= 0x40) {
 			if (data == 0xfe) {
-				oki->write(0,0x40); /* Stop playing the melody */
+				m_oki->write(0,0x40); /* Stop playing the melody */
 				m_melody      = 0x00;
 				m_melody_loop = 0x00;
 			}
@@ -167,37 +165,37 @@ WRITE16_MEMBER(kickgoal_state::kickgoal_snd_w)
 			}
 		}
 		else if (data == 0) {
-			oki->write(0,0x38);     /* Stop playing effects */
+			m_oki->write(0,0x38);     /* Stop playing effects */
 		}
 		else {
 			kickgoal_sound = kickgoal_cmd_snd[data];
 
 			if (kickgoal_sound >= 0x70) {
 				if (kickgoal_snd_bank != 1)
-					oki->set_bank_base((1 * 0x40000));
+					m_oki->set_bank_base((1 * 0x40000));
 				kickgoal_snd_bank = 1;
-				kickgoal_play(oki, 0, data);
+				kickgoal_play(m_oki, 0, data);
 			}
 			else if (kickgoal_sound >= 0x69) {
 				if (kickgoal_snd_bank != 2)
-					oki->set_bank_base((2 * 0x40000));
+					m_oki->set_bank_base((2 * 0x40000));
 				kickgoal_snd_bank = 2;
-				kickgoal_play(oki, 4, data);
+				kickgoal_play(m_oki, 4, data);
 			}
 			else if (kickgoal_sound >= 0x65) {
 				if (kickgoal_snd_bank != 1)
-					oki->set_bank_base((1 * 0x40000));
+					m_oki->set_bank_base((1 * 0x40000));
 				kickgoal_snd_bank = 1;
-				kickgoal_play(oki, 4, data);
+				kickgoal_play(m_oki, 4, data);
 			}
 			else if (kickgoal_sound >= 0x60) {
 				kickgoal_snd_bank = 0;
-					oki->set_bank_base(device, (0 * 0x40000));
+					m_oki->set_bank_base(device, (0 * 0x40000));
 				kickgoal_snd_bank = 0;
-				kickgoal_play(oki, 4, data);
+				kickgoal_play(m_oki, 4, data);
 			}
 			else {
-				kickgoal_play(oki, 0, data);
+				kickgoal_play(m_oki, 0, data);
 			}
 		}
 	}
@@ -206,21 +204,19 @@ WRITE16_MEMBER(kickgoal_state::kickgoal_snd_w)
 
 WRITE16_MEMBER(kickgoal_state::actionhw_snd_w)
 {
-	device_t *device = machine().device("oki");
 	logerror("%s: Writing %04x to Sound CPU - mask %04x\n",machine().describe_context(),data,mem_mask);
 
 	if (!ACCESSING_BITS_0_7)
 		data >>= 8;
 
-	okim6295_device *oki = downcast<okim6295_device *>(device);
 	switch (data)
 	{
-		case 0xfc:  oki->set_bank_base((0 * 0x40000)); break;
-		case 0xfd:  oki->set_bank_base((2 * 0x40000)); break;
-		case 0xfe:  oki->set_bank_base((1 * 0x40000)); break;
-		case 0xff:  oki->set_bank_base((3 * 0x40000)); break;
+		case 0xfc:  m_oki->set_bank_base((0 * 0x40000)); break;
+		case 0xfd:  m_oki->set_bank_base((2 * 0x40000)); break;
+		case 0xfe:  m_oki->set_bank_base((1 * 0x40000)); break;
+		case 0xff:  m_oki->set_bank_base((3 * 0x40000)); break;
 		case 0x78:
-				oki->write_command(data);
+				m_oki->write_command(data);
 				m_snd_sam[0] = 00; m_snd_sam[1]= 00; m_snd_sam[2] = 00; m_snd_sam[3] = 00;
 				break;
 		default:
@@ -229,44 +225,44 @@ WRITE16_MEMBER(kickgoal_state::actionhw_snd_w)
 					if ((data & 0x80) && (m_snd_sam[3] != m_snd_new))
 					{
 						logerror("About to play sample %02x at vol %02x\n", m_snd_new, data);
-						if ((oki->read_status() & 0x08) != 0x08)
+						if ((m_oki->read_status() & 0x08) != 0x08)
 						{
 							logerror("Playing sample %02x at vol %02x\n", m_snd_new, data);
-							oki->write_command(m_snd_new);
-							oki->write_command(data);
+							m_oki->write_command(m_snd_new);
+							m_oki->write_command(data);
 						}
 						m_snd_new = 00;
 					}
 					if ((data & 0x40) && (m_snd_sam[2] != m_snd_new))
 					{
 						logerror("About to play sample %02x at vol %02x\n", m_snd_new, data);
-						if ((oki->read_status() & 0x04) != 0x04)
+						if ((m_oki->read_status() & 0x04) != 0x04)
 						{
 							logerror("Playing sample %02x at vol %02x\n", m_snd_new, data);
-							oki->write_command(m_snd_new);
-							oki->write_command(data);
+							m_oki->write_command(m_snd_new);
+							m_oki->write_command(data);
 						}
 						m_snd_new = 00;
 					}
 					if ((data & 0x20) && (m_snd_sam[1] != m_snd_new))
 					{
 						logerror("About to play sample %02x at vol %02x\n", m_snd_new, data);
-						if ((oki->read_status() & 0x02) != 0x02)
+						if ((m_oki->read_status() & 0x02) != 0x02)
 						{
 							logerror("Playing sample %02x at vol %02x\n", m_snd_new, data);
-							oki->write_command(m_snd_new);
-							oki->write_command(data);
+							m_oki->write_command(m_snd_new);
+							m_oki->write_command(data);
 						}
 						m_snd_new = 00;
 					}
 					if ((data & 0x10) && (m_snd_sam[0] != m_snd_new))
 					{
 						logerror("About to play sample %02x at vol %02x\n", m_snd_new, data);
-						if ((oki->read_status() & 0x01) != 0x01)
+						if ((m_oki->read_status() & 0x01) != 0x01)
 						{
 							logerror("Playing sample %02x at vol %02x\n", m_snd_new, data);
-							oki->write_command(m_snd_new);
-							oki->write_command(data);
+							m_oki->write_command(m_snd_new);
+							m_oki->write_command(data);
 						}
 						m_snd_new = 00;
 					}
@@ -281,7 +277,7 @@ WRITE16_MEMBER(kickgoal_state::actionhw_snd_w)
 				else /* Turn a channel off */
 				{
 					logerror("Turning channel %02x off\n", data);
-					oki->write_command(data);
+					m_oki->write_command(data);
 					if (data & 0x40) m_snd_sam[3] = 00;
 					if (data & 0x20) m_snd_sam[2] = 00;
 					if (data & 0x10) m_snd_sam[1] = 00;
@@ -295,7 +291,6 @@ WRITE16_MEMBER(kickgoal_state::actionhw_snd_w)
 
 INTERRUPT_GEN_MEMBER(kickgoal_state::kickgoal_interrupt)
 {
-
 	if ((m_adpcm->read_status() & 0x08) == 0)
 	{
 		switch(m_melody_loop)
@@ -619,7 +614,6 @@ GFXDECODE_END
 
 void kickgoal_state::machine_start()
 {
-
 	save_item(NAME(m_snd_sam));
 	save_item(NAME(m_melody_loop));
 	save_item(NAME(m_snd_new));
@@ -630,7 +624,6 @@ void kickgoal_state::machine_start()
 
 void kickgoal_state::machine_reset()
 {
-
 	m_melody_loop = 0;
 	m_snd_new = 0;
 	m_snd_sam[0] = 0;
@@ -778,7 +771,7 @@ ROM_END
 DRIVER_INIT_MEMBER(kickgoal_state,kickgoal)
 {
 #if 0 /* we should find a real fix instead  */
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 
 	/* fix "bug" that prevents game from writing to EEPROM */
 	rom[0x12b0/2] = 0x0001;

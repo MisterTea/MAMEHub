@@ -41,8 +41,6 @@
  *
  *************************************/
 
-static IRQ_CALLBACK( irq_callback );
-
 class rastersp_state : public driver_device
 {
 public:
@@ -115,6 +113,8 @@ public:
 	DECLARE_WRITE32_MEMBER(dsp_486_int_w);
 	DECLARE_READ32_MEMBER(dsp_speedup_r);
 	DECLARE_WRITE32_MEMBER(dsp_speedup_w);
+	DECLARE_READ32_MEMBER(ncr53c700_read);
+	DECLARE_WRITE32_MEMBER(ncr53c700_write);
 	DECLARE_WRITE_LINE_MEMBER(scsi_irq);
 
 	TIMER_DEVICE_CALLBACK_MEMBER(tms_timer1);
@@ -133,7 +133,7 @@ public:
 	UINT32  screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void    update_irq(UINT32 which, UINT32 state);
 	void    upload_palette(UINT32 word1, UINT32 word2);
-
+	IRQ_CALLBACK_MEMBER(irq_callback);
 protected:
 	// driver_device overrides
 	virtual void machine_reset();
@@ -151,19 +151,19 @@ protected:
 
 void rastersp_state::machine_start()
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(rastersp_state::irq_callback),this));
 
 	m_nvram8 = auto_alloc_array(machine(), UINT8, NVRAM_SIZE);
 
 	m_palette = auto_alloc_array(machine(), UINT16, 0x8000);
 
-	machine().root_device().membank("bank1")->set_base(m_dram);
-	machine().root_device().membank("bank2")->set_base(&m_dram[0x10000/4]);
-	machine().root_device().membank("bank3")->set_base(&m_dram[0x300000/4]);
+	membank("bank1")->set_base(m_dram);
+	membank("bank2")->set_base(&m_dram[0x10000/4]);
+	membank("bank3")->set_base(&m_dram[0x300000/4]);
 
 #if USE_SPEEDUP_HACK
-	machine().device("dsp")->memory().space(AS_PROGRAM).install_read_handler(0x809923, 0x809923, read32_delegate(FUNC(rastersp_state::dsp_speedup_r), this));
-	machine().device("dsp")->memory().space(AS_PROGRAM).install_write_handler(0x809923, 0x809923, write32_delegate(FUNC(rastersp_state::dsp_speedup_w), this));
+	m_dsp->space(AS_PROGRAM).install_read_handler(0x809923, 0x809923, read32_delegate(FUNC(rastersp_state::dsp_speedup_r), this));
+	m_dsp->space(AS_PROGRAM).install_write_handler(0x809923, 0x809923, write32_delegate(FUNC(rastersp_state::dsp_speedup_w), this));
 #endif
 }
 
@@ -358,29 +358,27 @@ UINT32 rastersp_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap
  *
  *************************************/
 
-static IRQ_CALLBACK( irq_callback )
+IRQ_CALLBACK_MEMBER(rastersp_state::irq_callback)
 {
-	rastersp_state *state = device->machine().driver_data<rastersp_state>();
-
 	UINT8 vector = 0;
 
-	if (state->m_irq_status & (1 << rastersp_state::IRQ_SCSI))
+	if (m_irq_status & (1 << IRQ_SCSI))
 	{
 		vector = 11;
 	}
-	else if (state->m_irq_status & (1 << rastersp_state::IRQ_DSP))
+	else if (m_irq_status & (1 << IRQ_DSP))
 	{
-		state->update_irq(rastersp_state::IRQ_DSP, CLEAR_LINE);
+		update_irq(IRQ_DSP, CLEAR_LINE);
 		vector = 12;
 	}
-	else if (state->m_irq_status & (1 << rastersp_state::IRQ_VBLANK))
+	else if (m_irq_status & (1 << IRQ_VBLANK))
 	{
-		state->update_irq(rastersp_state::IRQ_VBLANK, CLEAR_LINE);
+		update_irq(IRQ_VBLANK, CLEAR_LINE);
 		vector = 13;
 	}
 	else
 	{
-		fatalerror("Unknown x86 IRQ (m_irq_status = %x)", state->m_irq_status);
+		fatalerror("Unknown x86 IRQ (m_irq_status = %x)", m_irq_status);
 	}
 
 	return vector;
@@ -550,7 +548,6 @@ TIMER_DEVICE_CALLBACK_MEMBER( rastersp_state::tms_tx_timer )
 
 TIMER_DEVICE_CALLBACK_MEMBER( rastersp_state::tms_timer1 )
 {
-
 }
 
 
@@ -646,7 +643,6 @@ WRITE32_MEMBER( rastersp_state::dsp_unk_w )
 
 WRITE32_MEMBER( rastersp_state::dsp_486_int_w )
 {
-
 	update_irq(IRQ_DSP, ASSERT_LINE);
 }
 
@@ -837,22 +833,23 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static UINT32 ncr53c700_r(running_machine &machine, bool io, offs_t addr)
+READ32_MEMBER(rastersp_state::ncr53c700_read)
 {
-	return machine.device("maincpu")->memory().space(io ? AS_IO : AS_PROGRAM).read_dword(addr);
+	return m_maincpu->space(AS_PROGRAM).read_dword(offset, mem_mask);
 }
 
-static void ncr53c700_w(running_machine &machine, bool io, offs_t addr, UINT32 data, UINT32 mem_mask)
+WRITE32_MEMBER(rastersp_state::ncr53c700_write)
 {
-	machine.device("maincpu")->memory().space(io ? AS_IO : AS_PROGRAM).write_dword(addr, data, mem_mask);
+	m_maincpu->space(AS_PROGRAM).write_dword(offset, data, mem_mask);
 }
 
-static const struct NCR53C7XXinterface ncr53c700_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(rastersp_state, scsi_irq),
-	&ncr53c700_r,
-	&ncr53c700_w,
-};
+static MACHINE_CONFIG_FRAGMENT( ncr53c700 )
+	MCFG_DEVICE_MODIFY(DEVICE_SELF)
+	MCFG_DEVICE_CLOCK(66000000)
+	MCFG_NCR53C7XX_IRQ_HANDLER(DEVWRITELINE(":", rastersp_state, scsi_irq))
+	MCFG_NCR53C7XX_HOST_READ(DEVREAD32(":", rastersp_state, ncr53c700_read))
+	MCFG_NCR53C7XX_HOST_WRITE(DEVWRITE32(":", rastersp_state, ncr53c700_write))
+MACHINE_CONFIG_END
 
 static SLOT_INTERFACE_START( rastersp_scsi_devices )
 	SLOT_INTERFACE("harddisk", NSCSI_HARDDISK)
@@ -897,8 +894,9 @@ static MACHINE_CONFIG_START( rastersp, rastersp_state )
 	MCFG_NVRAM_HANDLER(rastersp)
 
 	MCFG_NSCSI_BUS_ADD("scsibus")
-	MCFG_NSCSI_ADD("scsibus:0", rastersp_scsi_devices, "harddisk", 0, 0, 0, true)
-	MCFG_NSCSI_ADD("scsibus:7", rastersp_scsi_devices, "ncr53c700", 0, &ncr53c700_intf, 66000000, true)
+	MCFG_NSCSI_ADD("scsibus:0", rastersp_scsi_devices, "harddisk", true)
+	MCFG_NSCSI_ADD("scsibus:7", rastersp_scsi_devices, "ncr53c700", true)
+	MCFG_DEVICE_CARD_MACHINE_CONFIG("ncr53c700", ncr53c700)
 
 	/* Video */
 	MCFG_SCREEN_ADD("screen", RASTER)

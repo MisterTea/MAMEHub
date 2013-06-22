@@ -19,7 +19,6 @@ Tomasz Slanina
 
 READ8_MEMBER(changela_state::mcu_r)
 {
-
 	//mame_printf_debug("Z80 MCU  R = %x\n", m_mcu_out);
 	return m_mcu_out;
 }
@@ -216,8 +215,8 @@ static ADDRESS_MAP_START( changela_map, AS_PROGRAM, 8, changela_state )
 	AM_RANGE(0xca00, 0xca00) AM_WRITE(changela_slope_rom_addr_hi_w)
 	AM_RANGE(0xcb00, 0xcb00) AM_WRITE(changela_slope_rom_addr_lo_w)
 
-	AM_RANGE(0xd000, 0xd001) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r, ay8910_address_data_w)
-	AM_RANGE(0xd010, 0xd011) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r, ay8910_address_data_w)
+	AM_RANGE(0xd000, 0xd001) AM_DEVREADWRITE("ay1", ay8910_device, data_r, address_data_w)
+	AM_RANGE(0xd010, 0xd011) AM_DEVREADWRITE("ay2", ay8910_device, data_r, address_data_w)
 
 	/* LS259 - U44 */
 	AM_RANGE(0xd020, 0xd020) AM_WRITE(changela_collision_reset_0)
@@ -407,22 +406,18 @@ TIMER_DEVICE_CALLBACK_MEMBER(changela_state::changela_scanline)
 	int scanline = param;
 
 	if(scanline == 256) // vblank irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE,0xdf);
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0xdf);
 	else if(((scanline % 64) == 0)) // timer irq, 3 times per given vblank field
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE,0xcf);
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0xcf);
 }
 
 INTERRUPT_GEN_MEMBER(changela_state::chl_mcu_irq)
 {
-
-	generic_pulse_irq_line(m_mcu->execute(), 0, 1);
+	generic_pulse_irq_line(m_mcu, 0, 1);
 }
 
 void changela_state::machine_start()
 {
-
-	m_mcu = machine().device("mcu");
-
 	/* video */
 	save_item(NAME(m_slopeROM_bank));
 	save_item(NAME(m_tree_en));
@@ -461,7 +456,6 @@ void changela_state::machine_start()
 
 void changela_state::machine_reset()
 {
-
 	/* video */
 	m_slopeROM_bank = 0;
 	m_tree_en = 0;

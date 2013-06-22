@@ -161,9 +161,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( compis_io, AS_IO, 16, compis_state )
 	AM_RANGE( 0x0000, 0x0007) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xff00)
-	AM_RANGE( 0x0080, 0x0087) AM_DEVREADWRITE8_LEGACY("pit8253", pit8253_r, pit8253_w, 0xffff)
-	AM_RANGE( 0x0100, 0x011b) AM_DEVREADWRITE8_LEGACY("mm58274c", mm58274c_r, mm58274c_w, 0xffff)
-	AM_RANGE( 0x0280, 0x0283) AM_DEVREADWRITE8_LEGACY("pic8259_master", pic8259_r, pic8259_w, 0xffff) /* 80150/80130 */
+	AM_RANGE( 0x0080, 0x0087) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
+	AM_RANGE( 0x0100, 0x011b) AM_DEVREADWRITE8("mm58274c", mm58274c_device, read, write, 0xffff)
+	AM_RANGE( 0x0280, 0x0283) AM_DEVREADWRITE8("pic8259_master", pic8259_device, read, write, 0xffff) /* 80150/80130 */
 	//AM_RANGE( 0x0288, 0x028f) AM_DEVREADWRITE_LEGACY("pit8254", compis_osp_pit_r, compis_osp_pit_w ) /* PIT 8254 (80150/80130)  */
 	AM_RANGE( 0x0310, 0x031f) AM_READWRITE( compis_usart_r, compis_usart_w )    /* USART 8251 Keyboard      */
 	AM_RANGE( 0x0330, 0x0333) AM_DEVREADWRITE8("upd7220", upd7220_device, read, write, 0x00ff) /* GDC 82720 PCS6:6     */
@@ -328,7 +328,7 @@ static INPUT_PORTS_START (compis)
 INPUT_PORTS_END
 
 
-static const unsigned i86_address_mask = 0x000fffff;
+//static const unsigned i86_address_mask = 0x000fffff;
 
 static const mm58274c_interface compis_mm58274c_interface =
 {
@@ -351,7 +351,7 @@ static MACHINE_CONFIG_START( compis, compis_state )
 	MCFG_CPU_PROGRAM_MAP(compis_mem)
 	MCFG_CPU_IO_MAP(compis_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", compis_state,  compis_vblank_int)
-	MCFG_CPU_CONFIG(i86_address_mask)
+	//MCFG_CPU_CONFIG(i86_address_mask)
 
 	//MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
@@ -373,16 +373,16 @@ static MACHINE_CONFIG_START( compis, compis_state )
 	/* Devices */
 	MCFG_PIT8253_ADD( "pit8253", compis_pit8253_config )
 	MCFG_PIT8254_ADD( "pit8254", compis_pit8254_config )
-	MCFG_PIC8259_ADD( "pic8259_master", compis_pic8259_master_config )
-	MCFG_PIC8259_ADD( "pic8259_slave", compis_pic8259_slave_config )
+	MCFG_PIC8259_ADD( "pic8259_master", WRITELINE(compis_state, compis_pic8259_master_set_int_line), VCC, READ8(compis_state, get_slave_ack) )
+	MCFG_PIC8259_ADD( "pic8259_slave", WRITELINE(compis_state, compis_pic8259_slave_set_int_line), GND, NULL )
 	MCFG_I8255_ADD( "ppi8255", compis_ppi_interface )
 	MCFG_UPD7220_ADD("upd7220", XTAL_4_433619MHz/2, hgdc_intf, upd7220_map) //unknown clock
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
 	MCFG_I8251_ADD("uart", compis_usart_interface)
 	MCFG_MM58274C_ADD("mm58274c", compis_mm58274c_interface)
 	MCFG_I8272A_ADD("i8272a", true)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", floppy_image_device::default_floppy_formats)
 	MCFG_COMPIS_KEYBOARD_ADD()
 
 	/* software lists */
@@ -395,7 +395,7 @@ static MACHINE_CONFIG_START( compis2, compis_state )
 	MCFG_CPU_PROGRAM_MAP(compis_mem)
 	MCFG_CPU_IO_MAP(compis_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", compis_state,  compis_vblank_int)
-	MCFG_CPU_CONFIG(i86_address_mask)
+	//MCFG_CPU_CONFIG(i86_address_mask)
 
 	//MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
@@ -413,16 +413,16 @@ static MACHINE_CONFIG_START( compis2, compis_state )
 	/* Devices */
 	MCFG_PIT8253_ADD( "pit8253", compis_pit8253_config )
 	MCFG_PIT8254_ADD( "pit8254", compis_pit8254_config )
-	MCFG_PIC8259_ADD( "pic8259_master", compis_pic8259_master_config )
-	MCFG_PIC8259_ADD( "pic8259_slave", compis_pic8259_slave_config )
+	MCFG_PIC8259_ADD( "pic8259_master", WRITELINE(compis_state, compis_pic8259_master_set_int_line), VCC, READ8(compis_state, get_slave_ack) )
+	MCFG_PIC8259_ADD( "pic8259_slave", WRITELINE(compis_state, compis_pic8259_slave_set_int_line), GND, NULL )
 	MCFG_I8255_ADD( "ppi8255", compis_ppi_interface )
 	MCFG_UPD7220_ADD("upd7220", XTAL_4_433619MHz/2, hgdc_intf, upd7220_map) //unknown clock
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
 	MCFG_I8251_ADD("uart", compis_usart_interface)
 	MCFG_MM58274C_ADD("mm58274c", compis_mm58274c_interface)
 	MCFG_I8272A_ADD("i8272a", true)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", floppy_image_device::default_floppy_formats)
 	MCFG_COMPIS_KEYBOARD_ADD()
 
 	/* software lists */

@@ -21,7 +21,9 @@ class spc1000_state : public driver_device
 public:
 	spc1000_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_vdg(*this, "mc6847") {}
+			m_vdg(*this, "mc6847") ,
+			m_maincpu(*this, "maincpu"),
+			m_ram(*this, RAM_TAG) {}
 
 	required_device<mc6847_base_device> m_vdg;
 	UINT8 m_IPLK;
@@ -42,6 +44,8 @@ public:
 	DECLARE_WRITE8_MEMBER(spc1000_gmode_w);
 	DECLARE_READ8_MEMBER(spc1000_gmode_r);
 	DECLARE_READ8_MEMBER(spc1000_mc6847_videoram_r);
+	required_device<cpu_device> m_maincpu;
+	required_device<ram_device> m_ram;
 };
 
 
@@ -60,7 +64,7 @@ WRITE8_MEMBER(spc1000_state::spc1000_iplk_w)
 		membank("bank1")->set_base(mem);
 		membank("bank3")->set_base(mem);
 	} else {
-		UINT8 *ram = machine().device<ram_device>(RAM_TAG)->pointer();
+		UINT8 *ram = m_ram->pointer();
 		membank("bank1")->set_base(ram);
 		membank("bank3")->set_base(ram + 0x8000);
 	}
@@ -74,7 +78,7 @@ READ8_MEMBER(spc1000_state::spc1000_iplk_r)
 		membank("bank1")->set_base(mem);
 		membank("bank3")->set_base(mem);
 	} else {
-		UINT8 *ram = machine().device<ram_device>(RAM_TAG)->pointer();
+		UINT8 *ram = m_ram->pointer();
 		membank("bank1")->set_base(ram);
 		membank("bank3")->set_base(ram + 0x8000);
 	}
@@ -124,8 +128,8 @@ static ADDRESS_MAP_START( spc1000_io , AS_IO, 8, spc1000_state )
 	AM_RANGE(0x2000, 0x3fff) AM_READWRITE(spc1000_gmode_r, spc1000_gmode_w)
 	AM_RANGE(0x8000, 0x8009) AM_READ(spc1000_keyboard_r)
 	AM_RANGE(0xA000, 0xA000) AM_READWRITE(spc1000_iplk_r, spc1000_iplk_w)
-	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE_LEGACY("ay8910", ay8910_address_w)
-	AM_RANGE(0x4001, 0x4001) AM_DEVREADWRITE_LEGACY("ay8910", ay8910_r, ay8910_data_w)
+	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE("ay8910", ay8910_device, address_w)
+	AM_RANGE(0x4001, 0x4001) AM_DEVREADWRITE("ay8910", ay8910_device, data_r, data_w)
 ADDRESS_MAP_END
 
 /* Input ports */
@@ -225,9 +229,9 @@ INPUT_PORTS_END
 
 void spc1000_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *mem = memregion("maincpu")->base();
-	UINT8 *ram = machine().device<ram_device>(RAM_TAG)->pointer();
+	UINT8 *ram = m_ram->pointer();
 
 	space.install_read_bank(0x0000, 0x7fff, "bank1");
 	space.install_read_bank(0x8000, 0xffff, "bank3");
@@ -312,10 +316,10 @@ static MACHINE_CONFIG_START( spc1000, spc1000_state )
 	MCFG_SOUND_ADD("ay8910", AY8910, XTAL_4MHz / 1)
 	MCFG_SOUND_CONFIG(spc1000_ay_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, spc1000_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", spc1000_cassette_interface )
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

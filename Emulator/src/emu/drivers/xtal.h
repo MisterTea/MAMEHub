@@ -76,8 +76,8 @@ enum
 	XTAL_5_911MHz       = 5911000,      /* Philips Videopac Plus G7400 */
 	XTAL_5_9904MHz      = 5990400,      /* Luxor ABC 800 keyboard (Keytronic custom part #48-300-008 is equivalent) */
 	XTAL_6MHz           = 6000000,      /* American Poker II */
+	XTAL_6_144MHz       = 6144000,      /* Used on Alpha Denshi early 80's games sound board and Casio FP-200 main CPU */
 	XTAL_6_5MHz         = 6500000,      /* Jupiter Ace */
-	XTAL_6_144MHz       = 6144000,      /* Used on Alpha Denshi early 80's games sound board */
 	XTAL_7MHz           = 7000000,      /* Jaleco Mega System PCBs */
 	XTAL_7_15909MHz     = 7159090,      /* Blood Bros (2x NTSC subcarrier) */
 	XTAL_7_3728MHz      = 7372800,
@@ -130,12 +130,13 @@ enum
 	XTAL_15_36MHz       = 15360000,     /* Visual 1050 */
 	XTAL_15_468MHz      = 15468480,     /* Bank Panic h/w, Sega G80 */
 	XTAL_16MHz          = 16000000,     /* Extremely common, used on 100's of PCBs */
-	XTAL_16_9344MHz     = 16934400,     /* Usually used to drive 90's Yamaha OPL/FM chips */
+	XTAL_16_384MHz      = 16384000,
+	XTAL_16_9344MHz     = 16934400,     /* Usually used to drive 90's Yamaha OPL/FM chips (44100 * 384) */
 	XTAL_17_36MHz       = 17360000,     /* OMTI Series 10 SCSI controller */
 	XTAL_17_73447MHz    = 17734470,     /* (~4x PAL subcarrier) */
 	XTAL_17_734472MHz   = 17734472,     /* actually ~4x PAL subcarrier */
 	XTAL_18MHz          = 18000000,     /* S.A.R, Ikari Warriors 3 */
-	XTAL_18_432MHz      = 18432000,     /* Extremely common, used on 100's of PCBs */
+	XTAL_18_432MHz      = 18432000,     /* Extremely common, used on 100's of PCBs (48000 * 384) */
 	XTAL_18_720MHz      = 18720000,     /* Nokia MikroMikko 1 */
 	XTAL_19_6MHz        = 19600000,     /* Universal Mr. Do - Model 8021 PCB */
 	XTAL_19_6608MHz     = 19660800,     /* Euro League (bootleg), labeled as "UKI 19.6608 20PF" */
@@ -172,6 +173,7 @@ enum
 	XTAL_28_63636MHz    = 28636363,     /* Later Leland games and Atari GT, Amiga NTSC, Raiden2 h/w (8x NTSC subcarrier)*/
 	XTAL_30MHz          = 30000000,     /* Impera Magic Card */
 	XTAL_30_4761MHz     = 30476100,     /* Taito JC */
+	XTAL_30_8MHz        = 30800000,     /* 15IE-00-013 */
 	XTAL_32MHz          = 32000000,
 	XTAL_32_22MHz       = 32220000,     /* Typically used on 90's Data East PCBs */
 	XTAL_32_5304MHz     = 32530400,     /* Seta 2 */
@@ -188,7 +190,7 @@ enum
 	XTAL_45MHz          = 45000000,     /* Eolith with Hyperstone CPUs */
 	XTAL_45_158MHz      = 45158000,     /* Sega Model 2A video board, Model 3 CPU board */
 	XTAL_45_6192Mhz     = 45619200,     /* DEC VK100 */
-	XTAL_48MHz          = 48000000,     /* Williams/Midway Y/Z-unit system */
+	XTAL_48MHz          = 48000000,     /* Williams/Midway Y/Z-unit system / SSV board */
 	XTAL_48_66MHz       = 48660000,     /* Zaxxon */
 	XTAL_49_152MHz      = 49152000,     /* Used on some Namco PCBs, Baraduke h/w, System 21, Super System 22  */
 	XTAL_50MHz          = 50000000,     /* Williams/Midway T/W/V-unit system */

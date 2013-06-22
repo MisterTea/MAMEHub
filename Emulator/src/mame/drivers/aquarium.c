@@ -44,7 +44,6 @@ Notes:
 
 READ16_MEMBER(aquarium_state::aquarium_coins_r)
 {
-
 	int data;
 	data = (ioport("SYSTEM")->read() & 0x7fff);
 	data |= m_aquarium_snd_ack;
@@ -71,7 +70,7 @@ WRITE8_MEMBER(aquarium_state::aquarium_z80_bank_w)
 	membank("bank1")->set_entry(data & 0x07);
 }
 
-static UINT8 aquarium_snd_bitswap( UINT8 scrambled_data )
+UINT8 aquarium_state::aquarium_snd_bitswap( UINT8 scrambled_data )
 {
 	UINT8 data = 0;
 
@@ -89,15 +88,13 @@ static UINT8 aquarium_snd_bitswap( UINT8 scrambled_data )
 
 READ8_MEMBER(aquarium_state::aquarium_oki_r)
 {
-	okim6295_device *oki = machine().device<okim6295_device>("oki");
-	return aquarium_snd_bitswap(oki->read(space, offset));
+	return aquarium_snd_bitswap(m_oki->read(space, offset));
 }
 
 WRITE8_MEMBER(aquarium_state::aquarium_oki_w)
 {
 	logerror("%s:Writing %04x to the OKI M6295\n", machine().describe_context(), aquarium_snd_bitswap(data));
-	okim6295_device *oki = machine().device<okim6295_device>("oki");
-	oki->write(space, offset, (aquarium_snd_bitswap(data)));
+	m_oki->write(space, offset, (aquarium_snd_bitswap(data)));
 }
 
 
@@ -239,13 +236,13 @@ static const gfx_layout tilelayout =
 
 DRIVER_INIT_MEMBER(aquarium_state,aquarium)
 {
-	UINT8 *Z80 = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *Z80 = memregion("audiocpu")->base();
 
 	/* The BG tiles are 5bpp, this rearranges the data from
 	   the roms containing the 1bpp data so we can decode it
 	   correctly */
-	UINT8 *DAT2 = machine().root_device().memregion("gfx1")->base() + 0x080000;
-	UINT8 *DAT = machine().root_device().memregion("user1")->base();
+	UINT8 *DAT2 = memregion("gfx1")->base() + 0x080000;
+	UINT8 *DAT = memregion("user1")->base();
 	int len = 0x0200000;
 
 	for (len = 0; len < 0x020000; len++)
@@ -260,8 +257,8 @@ DRIVER_INIT_MEMBER(aquarium_state,aquarium)
 		DAT2[len * 4 + 2] |= (DAT[len] & 0x01) << 3;
 	}
 
-	DAT2 = machine().root_device().memregion("gfx4")->base() + 0x080000;
-	DAT = machine().root_device().memregion("user2")->base();
+	DAT2 = memregion("gfx4")->base() + 0x080000;
+	DAT = memregion("user2")->base();
 
 	for (len = 0; len < 0x020000; len++)
 	{
@@ -276,8 +273,8 @@ DRIVER_INIT_MEMBER(aquarium_state,aquarium)
 	}
 
 	/* configure and set up the sound bank */
-	machine().root_device().membank("bank1")->configure_entries(0, 7, &Z80[0x18000], 0x8000);
-	machine().root_device().membank("bank1")->set_entry(1);
+	membank("bank1")->configure_entries(0, 7, &Z80[0x18000], 0x8000);
+	membank("bank1")->set_entry(1);
 }
 
 
@@ -290,9 +287,6 @@ GFXDECODE_END
 
 void aquarium_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_aquarium_snd_ack));
 }
 

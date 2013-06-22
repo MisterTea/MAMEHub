@@ -5,8 +5,7 @@
 
 #include "emu.h"
 #include "cpu/m6502/m6510.h"
-#include "formats/cbm_snqk.h"
-#include "includes/cbm.h"
+#include "machine/cbm_snqk.h"
 #include "machine/c64exp.h"
 #include "machine/c64user.h"
 #include "machine/cbmiec.h"
@@ -17,7 +16,7 @@
 #include "machine/ram.h"
 #include "machine/vcsctrl.h"
 #include "sound/dac.h"
-#include "sound/sid6581.h"
+#include "sound/mos6581.h"
 #include "video/mos6566.h"
 
 #define M6510_TAG       "u7"
@@ -49,25 +48,36 @@ public:
 			m_user(*this, C64_USER_PORT_TAG),
 			m_ram(*this, RAM_TAG),
 			m_cassette(*this, PET_DATASSETTE_PORT_TAG),
+			m_basic(*this, "basic"),
+			m_kernal(*this, "kernal"),
+			m_charom(*this, "charom"),
+			m_color_ram(*this, "color_ram"),
+			m_row0(*this, "ROW0"),
+			m_row1(*this, "ROW1"),
+			m_row2(*this, "ROW2"),
+			m_row3(*this, "ROW3"),
+			m_row4(*this, "ROW4"),
+			m_row5(*this, "ROW5"),
+			m_row6(*this, "ROW6"),
+			m_row7(*this, "ROW7"),
+			m_restore(*this, "RESTORE"),
+			m_lock(*this, "LOCK"),
 			m_loram(1),
 			m_hiram(1),
 			m_charen(1),
-			m_color_ram(*this, "color_ram"),
 			m_va14(1),
 			m_va15(1),
 			m_cia1_irq(CLEAR_LINE),
 			m_cia2_irq(CLEAR_LINE),
 			m_vic_irq(CLEAR_LINE),
 			m_exp_irq(CLEAR_LINE),
-			m_exp_nmi(CLEAR_LINE),
-			m_cass_rd(1),
-			m_iec_srq(1)
+			m_exp_nmi(CLEAR_LINE)
 	{ }
 
 	required_device<m6510_device> m_maincpu;
 	required_device<pls100_device> m_pla;
 	required_device<mos6566_device> m_vic;
-	required_device<sid6581_device> m_sid;
+	required_device<mos6581_device> m_sid;
 	required_device<mos6526_device> m_cia1;
 	required_device<mos6526_device> m_cia2;
 	optional_device<cbm_iec_device> m_iec;
@@ -77,6 +87,20 @@ public:
 	required_device<c64_user_port_device> m_user;
 	required_device<ram_device> m_ram;
 	optional_device<pet_datassette_port_device> m_cassette;
+	optional_memory_region m_basic;
+	required_memory_region m_kernal;
+	required_memory_region m_charom;
+	optional_shared_ptr<UINT8> m_color_ram;
+	optional_ioport m_row0;
+	optional_ioport m_row1;
+	optional_ioport m_row2;
+	optional_ioport m_row3;
+	optional_ioport m_row4;
+	optional_ioport m_row5;
+	optional_ioport m_row6;
+	optional_ioport m_row7;
+	optional_ioport m_restore;
+	optional_ioport m_lock;
 
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -89,7 +113,6 @@ public:
 	DECLARE_READ8_MEMBER( read );
 	DECLARE_WRITE8_MEMBER( write );
 
-	INTERRUPT_GEN_MEMBER( frame_interrupt );
 	DECLARE_READ8_MEMBER( vic_videoram_r );
 	DECLARE_READ8_MEMBER( vic_colorram_r );
 	DECLARE_WRITE_LINE_MEMBER( vic_irq_w );
@@ -109,27 +132,19 @@ public:
 	DECLARE_READ8_MEMBER( cpu_r );
 	DECLARE_WRITE8_MEMBER( cpu_w );
 
-	DECLARE_WRITE_LINE_MEMBER( tape_read_w );
-
-	DECLARE_WRITE_LINE_MEMBER( iec_srq_w );
-
-	DECLARE_READ8_MEMBER( exp_dma_r );
-	DECLARE_WRITE8_MEMBER( exp_dma_w );
 	DECLARE_WRITE_LINE_MEMBER( exp_irq_w );
 	DECLARE_WRITE_LINE_MEMBER( exp_nmi_w );
 	DECLARE_WRITE_LINE_MEMBER( exp_dma_w );
 	DECLARE_WRITE_LINE_MEMBER( exp_reset_w );
 
+	DECLARE_QUICKLOAD_LOAD_MEMBER( cbm_c64 );
+
 	// memory state
 	int m_loram;
 	int m_hiram;
 	int m_charen;
-	UINT8 *m_basic;
-	UINT8 *m_kernal;
-	UINT8 *m_charom;
 
 	// video state
-	optional_shared_ptr<UINT8> m_color_ram;
 	int m_va14;
 	int m_va15;
 
@@ -140,8 +155,6 @@ public:
 	int m_exp_irq;
 	int m_exp_nmi;
 	int m_exp_dma;
-	int m_cass_rd;
-	int m_iec_srq;
 };
 
 
@@ -163,8 +176,6 @@ public:
 	c64c_state(const machine_config &mconfig, device_type type, const char *tag)
 		: c64_state(mconfig, type, tag)
 	{ }
-
-	virtual void machine_start();
 };
 
 
@@ -175,10 +186,11 @@ public:
 		: c64c_state(mconfig, type, tag)
 	{ }
 
-	virtual void machine_start();
-
 	DECLARE_READ8_MEMBER( cpu_r );
 	DECLARE_WRITE8_MEMBER( cpu_w );
+
+	DECLARE_READ8_MEMBER( cia1_pa_r );
+	DECLARE_READ8_MEMBER( cia1_pb_r );
 };
 
 

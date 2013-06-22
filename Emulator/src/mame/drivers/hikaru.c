@@ -19,7 +19,7 @@ Planet Harriers             (C) Sega, 2001
 
 ! - denotes secured but not fully dumped yet
 * - denotes not dumped yet. If you can help with the remaining undumped games,
-    please contact http://guru.mameworld.info/ or http://mamedev.org/
+    please contact http://members.iinet.net.au/~lantra9jp1/gurudumps/ or http://mamedev.org/
 
 The Sega Hikaru system comprises the following PCBs.....
 Main board     - 2 known versions exists. They're mostly the same. It contains many thin BGAs,
@@ -391,15 +391,15 @@ class hikaru_state : public driver_device
 {
 public:
 	hikaru_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-	{ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 	virtual void video_start();
 	UINT32 screen_update_hikaru(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 void hikaru_state::video_start()
 {
-
 }
 
 UINT32 hikaru_state::screen_update_hikaru(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -524,8 +524,7 @@ MACHINE_CONFIG_END
 	ROM_SYSTEM_BIOS( 1, "bios1", "epr23400" ) \
 	ROM_LOAD16_WORD_SWAP_BIOS( 1, "epr-23400.ic94",   0x000000, 0x200000, CRC(3d557104) SHA1(d39879f5a1acbd54ad8ee4fbd412f870c9ff4aa5) ) \
 	ROM_SYSTEM_BIOS( 2, "bios2", "epr21904" ) \
-	ROM_LOAD16_WORD_SWAP_BIOS( 1, "epr-21904.ic94",   0x000000, 0x200000, CRC(d96298b6) SHA1(d10d837bc7d68eb7125c34beffe21a91305627b0) ) \
-
+	ROM_LOAD16_WORD_SWAP_BIOS( 1, "epr-21904.ic94",   0x000000, 0x200000, CRC(d96298b6) SHA1(d10d837bc7d68eb7125c34beffe21a91305627b0) )
 // bios 0 is SAMURAI boot rom 0.96 / 2000/8/10
 // bios 1 is SAMURAI boot rom 0.92 / 1999/7/2
 // bios 2 is SAMURAI boot rom 0.84 / 1999/7/22
@@ -666,14 +665,38 @@ ROM_START( braveff )
 	ROM_LOAD32_WORD( "epr-21994.ic29", 0x000000, 0x200000, CRC(31b0a754) SHA1(b49c998a15fbc790b780ed6665a56681d4edd369) )
 	ROM_LOAD32_WORD( "epr-21995.ic30", 0x000002, 0x200000, CRC(bcccb56b) SHA1(6e7a69934e5b47495ae8e90c57759573bc519d24) )
 	ROM_LOAD32_WORD( "epr-21996.ic31", 0x400000, 0x200000, CRC(a8f88e17) SHA1(dbbd2a73335c740bcf2ff9680c575841af29b340) )
-	ROM_LOAD32_WORD( "epr-21997.ic32", 0x400002, 0x200000, CRC(4b24fa1b) SHA1(53c330f7e7ce8cb67f67db3ee9068a77aeb33747) )
+	ROM_LOAD32_WORD( "epr-21997.ic32", 0x400002, 0x200000, CRC(36641a7f) SHA1(37931bde1ddebef61fa6d8caca3cb67328fd0b90) )
 	ROM_LOAD32_WORD( "epr-21998.ic33", 0x800000, 0x200000, CRC(bd1df696) SHA1(fd937894763fab5cb50f33c40f8047e0d3adc93b) )
 	ROM_LOAD32_WORD( "epr-21999.ic34", 0x800002, 0x200000, CRC(9425eee0) SHA1(0f6a23163022bbd7ec54dd638094f3e317a87919) )
 	/* ic35 unpopulated */
 	/* ic36 unpopulated */
 
 	/* ROM board using 64M SOP44 MASKROM */
-	ROM_REGION( 0x10000000, "user2", ROMREGION_ERASE00)
+	ROM_REGION( 0xc000000, "user2", ROMREGION_ERASE00)
+	ROM_LOAD( "mpr-22000.ic37",  0x0000000, 0x800000, CRC(53d641d6) SHA1(f47d7c77d0e36c4ec3b7171fd7a017f9f58ca5a0) )
+	ROM_LOAD( "mpr-22001.ic38",  0x0800000, 0x800000, CRC(234bc48f) SHA1(177c46884de0ba4bac1f9b778f99c905410a9345) )
+	ROM_LOAD( "mpr-22002.ic39",  0x1000000, 0x800000, CRC(d8f3aa9e) SHA1(f73208034fdd51fed086e912cb8580d2270122b6) )
+	ROM_LOAD( "mpr-22003.ic40",  0x1800000, 0x800000, CRC(2560fe98) SHA1(9bb5ffb6212ec6aa3f92e437eb424141f3b15e43) )
+	ROM_LOAD( "mpr-22004.ic41",  0x2000000, 0x800000, CRC(4e24d71d) SHA1(503344dd8cdd8e65ec7c801b0efae83b3f1f9ae2) )
+	ROM_LOAD( "mpr-22005.ic42",  0x2800000, 0x800000, CRC(2b96c97f) SHA1(707070c85f4b044236694daa13970c241b242d4d) )
+	ROM_LOAD( "mpr-22006.ic43",  0x3000000, 0x800000, CRC(f793a3ba) SHA1(80acd1d4f71cafd7328ff9b9ce30e5169b8f4f8c) )
+	ROM_LOAD( "mpr-22007.ic44",  0x3800000, 0x800000, CRC(62616e31) SHA1(dbe0d4b8fc085ed97884c105fd527af5cd8fbe79) )
+	ROM_LOAD( "mpr-22008.ic45",  0x4000000, 0x800000, CRC(e6905de8) SHA1(6bb4e43b1394788add15f0b78ccd5ab14f86516c) )
+	ROM_LOAD( "mpr-22009.ic46",  0x4800000, 0x800000, CRC(c37dfa5c) SHA1(5a3a5f2eb5a13831e36ca215147ec3c9740c50fc) )
+	ROM_LOAD( "mpr-22010.ic47",  0x5000000, 0x800000, CRC(b570b46c) SHA1(6e512fd1a2c8835f6aee307865b42d57ddf90ef5) )
+	ROM_LOAD( "mpr-22011.ic48",  0x5800000, 0x800000, CRC(d1f5fb58) SHA1(08a1282e00bda52d8d938225c65f67d22abfea05) )
+	ROM_LOAD( "mpr-22012.ic49",  0x6000000, 0x800000, CRC(3ab79029) SHA1(d4708446ba700d5f7c89827c80177ad2d1c0b222) )
+	ROM_LOAD( "mpr-22013.ic50",  0x6800000, 0x800000, CRC(42d8d00b) SHA1(ddce3c95258d8cf51792f2115f89ca658ffe97b6) )
+	ROM_LOAD( "mpr-22014.ic51",  0x7000000, 0x800000, CRC(0f49c00f) SHA1(877c654268edc9526ae3e21e21e3ecca706f300b) )
+	ROM_LOAD( "mpr-22015.ic52",  0x7800000, 0x800000, CRC(d3696e61) SHA1(247161c99c7061b8f391543af1812764a82399cb) )
+	ROM_LOAD( "mpr-22016.ic53s", 0x8000000, 0x800000, CRC(c1015e00) SHA1(f2ce2009d4f4f0f3cbfcce7a36fab2c54e738b07) )
+	ROM_LOAD( "mpr-22017.ic54s", 0x8800000, 0x800000, CRC(222a7cb0) SHA1(9f98ae3f13f85fae4596b671ea508b07c2116ab6) )
+	ROM_LOAD( "mpr-22018.ic55s", 0x9000000, 0x800000, CRC(f160e115) SHA1(ecf7f9f58fce6bff220568972ba7763537c9d7d7) )
+	ROM_LOAD( "mpr-22019.ic56s", 0x9800000, 0x800000, CRC(468b2f10) SHA1(f3fc0af7d4dd3f30ba84e684f3d9c217730564bb) )
+	ROM_LOAD( "mpr-22020.ic57s", 0xa000000, 0x800000, CRC(0c018d8a) SHA1(0447d7ad64061cca4c1231733e660ba51de5a216) )
+	ROM_LOAD( "mpr-22021.ic58s", 0xa800000, 0x800000, CRC(43b08604) SHA1(681142d8b95b2f9664d70b23262a64938774d4e3) )
+	ROM_LOAD( "mpr-22022.ic59s", 0xb000000, 0x800000, CRC(abd3d888) SHA1(9654c3a38feab46b4983a602831fb29cccdd0526) )
+	ROM_LOAD( "mpr-22023.ic60s", 0xb800000, 0x800000, CRC(07f00869) SHA1(92282d09d72d3e65a91128e06bb0d4426bb90be5) )
 ROM_END
 
 ROM_START( sgnascar )
@@ -698,7 +721,7 @@ ROM_START( sgnascar )
 	ROM_LOAD( "mpr-23481.ic28", 0x9000000, 0x1000000, CRC(27b8eb7d) SHA1(087b1ed13a3e2a0dbda82c454243214784429d24) )
 	ROM_LOAD( "mpr-23478.ic29", 0xa000000, 0x1000000, CRC(1fac431c) SHA1(2e3903c8cfd55d414555a1d23ba3a97c335991b3) )
 	ROM_LOAD( "mpr-23482.ic30", 0xb000000, 0x1000000, CRC(2e9a0420) SHA1(376d5f0b8274d741a702dc08da50ea5679991740) )
-	ROM_LOAD( "mpr-23479.ic31", 0xc000000, 0x1000000, CRC(22e07a60) SHA1(22f50af81c0b457ed550fde696126f882a25b0a8) )
+	ROM_LOAD( "mpr-23479.ic31", 0xc000000, 0x1000000, CRC(9704e393) SHA1(0cb1403f4a268def3ce88db42e55d89ca913e2a0) )
 	ROM_LOAD( "mpr-23483.ic32", 0xd000000, 0x1000000, CRC(c37adebe) SHA1(e84f6d2cc364c743f7f3b73d8c8d0271952bb093) )
 	ROM_LOAD( "mpr-23480.ic33", 0xe000000, 0x1000000, CRC(f517b8b3) SHA1(c04740adb612473c4c9f8186e7e93d2f73d1bb1a) )
 	ROM_LOAD( "mpr-23484.ic34", 0xf000000, 0x1000000, CRC(2ebe1aa1) SHA1(16b39f7422da1a334dde27169c2949e1d95bddb3) )

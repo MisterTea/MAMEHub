@@ -65,8 +65,8 @@ static ADDRESS_MAP_START( survival_memory_map, AS_PROGRAM, 8, phoenix_state )
 	AM_RANGE(0x4000, 0x4fff) AM_READ_BANK("bank1") AM_WRITE(phoenix_videoram_w) /* 2 pages selected by bit 0 of the video register */
 	AM_RANGE(0x5000, 0x53ff) AM_WRITE(phoenix_videoreg_w)
 	AM_RANGE(0x5800, 0x5bff) AM_WRITE(phoenix_scroll_w)
-	AM_RANGE(0x6800, 0x68ff) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
-	AM_RANGE(0x6900, 0x69ff) AM_DEVREADWRITE_LEGACY("aysnd", ay8910_r, ay8910_data_w)
+	AM_RANGE(0x6800, 0x68ff) AM_DEVWRITE("aysnd", ay8910_device, address_w)
+	AM_RANGE(0x6900, 0x69ff) AM_DEVREADWRITE("aysnd", ay8910_device, data_r, data_w)
 	AM_RANGE(0x7000, 0x73ff) AM_READ(survival_input_port_0_r)               /* IN0 or IN1 */
 	AM_RANGE(0x7800, 0x7bff) AM_READ_PORT("DSW0")                           /* DSW */
 ADDRESS_MAP_END
@@ -446,7 +446,7 @@ static const ay8910_interface survival_ay8910_interface =
 
 MACHINE_RESET_MEMBER(phoenix_state,phoenix)
 {
-	machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x4000);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x4000);
 }
 
 
@@ -472,7 +472,7 @@ static MACHINE_CONFIG_START( phoenix, phoenix_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("tms",  TMS36XX, 372)
+	MCFG_TMS36XX_ADD("tms",  372)
 	MCFG_SOUND_CONFIG(phoenix_tms36xx_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
@@ -497,7 +497,7 @@ static MACHINE_CONFIG_DERIVED( pleiads, phoenix )
 	MCFG_PALETTE_INIT_OVERRIDE(phoenix_state,pleiads)
 
 	/* sound hardware */
-	MCFG_SOUND_REPLACE("tms", TMS36XX, 247)
+	MCFG_TMS36XX_REPLACE("tms", 247)
 	MCFG_SOUND_CONFIG(pleiads_tms36xx_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
@@ -957,6 +957,33 @@ ROM_START( fenix )
 	ROM_LOAD( "mmi6301.ic41",   0x0100, 0x0100, CRC(e176b768) SHA1(e2184dd495ed579f10b6da0b78379e02d7a6229f) )  /* palette high bits */
 ROM_END
 
+
+
+ROM_START( avefenix )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "4101-8516.rom",   0x0000, 0x0800, CRC(5bc2e2fe) SHA1(4d625a3bd423cc1329a6311b87683cb7c0a9374f) )
+	ROM_LOAD( "4102-2716.rom",   0x0800, 0x0800, CRC(dcf2cc3e) SHA1(adffb23ffab4f23d9da40a23e92aa08446d3dc7d) )
+	ROM_LOAD( "4103-8516.rom",   0x1000, 0x0800, CRC(cbbb8839) SHA1(b7f449374cac111081559e39646f973e7e99fd64) )
+	ROM_LOAD( "4104-8516.rom",   0x1800, 0x0800, CRC(8380a581) SHA1(1b56f3e44de93d12008a049c2c71fc23627299e0) )
+	ROM_LOAD( "4105-8516.rom",   0x2000, 0x0800, CRC(cfa8cb51) SHA1(79a7de61927a602bd06d87a1314276929e613cd3) )
+	ROM_LOAD( "4106-8516.rom",   0x2800, 0x0800, CRC(ac5e9ec1) SHA1(0402e5241d99759d804291998efd43f37ce99917) )
+	ROM_LOAD( "4107-8516.rom",   0x3000, 0x0800, CRC(2eab35b4) SHA1(849bf8273317cc869bdd67e50c68399ee8ece81d) )
+	ROM_LOAD( "4108-8516.rom",   0x3800, 0x0800, CRC(f15c439d) SHA1(6b80276b4ddc9989adb2981f018d5c9c55b06430) )
+
+	ROM_REGION( 0x1000, "gfx1", 0 )
+	ROM_LOAD( "41011-8516.rom",      0x0000, 0x0800, CRC(3c7e623f) SHA1(e7ff5fc371664af44785c079e92eeb2d8530187b) )
+	ROM_LOAD( "41012-8516.rom",      0x0800, 0x0800, CRC(59916d3b) SHA1(71aec70a8e096ed1f0c2297b3ae7dca1b8ecc38d) )
+
+	ROM_REGION( 0x1000, "gfx2", 0 )
+	ROM_LOAD( "4109-8516.rom",   0x0000, 0x0800, CRC(53413e8f) SHA1(d772358505b973b10da840d204afb210c0c746ec) )
+	ROM_LOAD( "41010-8516.rom",   0x0800, 0x0800, CRC(0be2ba91) SHA1(af9243ee23377b632b9b7d0b84d341d06bf22480) )
+
+	ROM_REGION( 0x0200, "proms", 0 ) // NOT verified on this set
+	ROM_LOAD( "mmi6301.ic40",   0x0000, 0x0100, CRC(79350b25) SHA1(57411be4c1d89677f7919ae295446da90612c8a8) )  /* palette low bits */
+	ROM_LOAD( "mmi6301.ic41",   0x0100, 0x0100, CRC(e176b768) SHA1(e2184dd495ed579f10b6da0b78379e02d7a6229f) )  /* palette high bits */
+ROM_END
+
+
 ROM_START( griffon )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "griffon0.a5",  0x0000, 0x0800, CRC(c0f73929) SHA1(3cecf8341a5674165d2cae9b22ea5db26a9597de) )
@@ -1007,6 +1034,32 @@ ROM_START( nextfase )
 ROM_END
 
 
+
+ROM_START( phoenixs )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "ic45.1_a1",   0x0000, 0x0800, CRC(5b8c55a8) SHA1(839c1ca9766f730ec3accd48db70f6429a9c3362) )
+	ROM_LOAD( "ic46.2_a2",   0x0800, 0x0800, CRC(dbc942fa) SHA1(9fe224e6ced407289dfa571468259a021d942b7d) )
+	ROM_LOAD( "ic47.3_a3",   0x1000, 0x0800, CRC(cbbb8839) SHA1(b7f449374cac111081559e39646f973e7e99fd64) )
+	ROM_LOAD( "ic48.4_a4",   0x1800, 0x0800, CRC(25c8b83f) SHA1(1c47b6ad14560927ffd50217d489ff00f8276f23) )
+	ROM_LOAD( "ic49.5_a5",   0x2000, 0x0800, CRC(1a1ce0d0) SHA1(c2825eef5d461e16ca2172daff94b3751be2f4dc) )
+	ROM_LOAD( "ic50.6_a6",   0x2800, 0x0800, CRC(ac5e9ec1) SHA1(0402e5241d99759d804291998efd43f37ce99917) )
+	ROM_LOAD( "ic51.7_a7",   0x3000, 0x0800, CRC(2eab35b4) SHA1(849bf8273317cc869bdd67e50c68399ee8ece81d) )
+	ROM_LOAD( "ic52.8_a8",   0x3800, 0x0800, CRC(3657f69b) SHA1(2251efa057ad312d270016236a01932d2bb3a1be) )
+
+	ROM_REGION( 0x1000, "gfx1", 0 )
+	ROM_LOAD( "ic23.11_d3",      0x0000, 0x0800, CRC(3c7e623f) SHA1(e7ff5fc371664af44785c079e92eeb2d8530187b) )
+	ROM_LOAD( "ic24.12_d4",      0x0800, 0x0800, CRC(59916d3b) SHA1(71aec70a8e096ed1f0c2297b3ae7dca1b8ecc38d) )
+
+	ROM_REGION( 0x1000, "gfx2", 0 )
+	ROM_LOAD( "ic39.9_b3",   0x0000, 0x0800, CRC(14ccdf63) SHA1(42827f2150fae82523475428eaa9db3c824b94dd))
+	ROM_LOAD( "ic40.10_b4",  0x0800, 0x0800, CRC(eba42f0f) SHA1(378282cb2c4e10c23179ae3c605ae7bf691150f6) )
+
+	ROM_REGION( 0x0200, "proms", 0 )
+	ROM_LOAD( "mmi6301.ic40",   0x0000, 0x0100, CRC(79350b25) SHA1(57411be4c1d89677f7919ae295446da90612c8a8) )  /* palette low bits */
+	ROM_LOAD( "mmi6301.ic41",   0x0100, 0x0100, CRC(e176b768) SHA1(e2184dd495ed579f10b6da0b78379e02d7a6229f) )  /* palette high bits */
+ROM_END
+
+
 ROM_START( pleiads )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "ic47.r1",      0x0000, 0x0800, CRC(960212c8) SHA1(52a3232e99920805ce9e195b8a6338ae7044dd18) )
@@ -1033,14 +1086,14 @@ ROM_END
 
 ROM_START( pleiadsb2 )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "ic47.r1",      0x0000, 0x0800, CRC(fa98cb73) SHA1(d01138536e90a0a92d3e356fe354648e431a106c) )
+	ROM_LOAD( "ic47(__pleiadsb2).r1",      0x0000, 0x0800, CRC(fa98cb73) SHA1(d01138536e90a0a92d3e356fe354648e431a106c) )
 	ROM_LOAD( "ic48.r2",      0x0800, 0x0800, CRC(b254217c) SHA1(312a33cca09d5d2d18992f28eb051230a90db6e3) )
-	ROM_LOAD( "ic47.bin",     0x1000, 0x0800, CRC(0951829e) SHA1(03c0598dfe248ce14683ff18e59adb2e72731336) )
-	ROM_LOAD( "ic48.bin",     0x1800, 0x0800, CRC(4972f5ce) SHA1(9175cc924c335d01ee47f3771276cdc90028fcc5) )
+	ROM_LOAD( "ic47(__pleiadsb2).bin",     0x1000, 0x0800, CRC(0951829e) SHA1(03c0598dfe248ce14683ff18e59adb2e72731336) )
+	ROM_LOAD( "ic48(__pleiadsb2).bin",     0x1800, 0x0800, CRC(4972f5ce) SHA1(9175cc924c335d01ee47f3771276cdc90028fcc5) )
 	ROM_LOAD( "ic51.r5",      0x2000, 0x0800, CRC(49c629bc) SHA1(fd7937d0c114c8d9c1efaa9918ae3df2af41f032) )
 	ROM_LOAD( "ic50.bin",     0x2800, 0x0800, CRC(f1a8a00d) SHA1(5c183e3a73fa882ffec3cb9219fb5619e625591a) )
-	ROM_LOAD( "ic53.r7",      0x3000, 0x0800, CRC(037b319c) SHA1(2ff7a7777a63326e2abca2d1881df33a8e3f8561) )
-	ROM_LOAD( "ic52.bin",     0x3800, 0x0800, CRC(b3db08c2) SHA1(d5b1b77dcf2d76498f30d5f880635f5acfac7dfd) )
+	ROM_LOAD( "ic53(__pleiadsb2).r7",      0x3000, 0x0800, CRC(037b319c) SHA1(2ff7a7777a63326e2abca2d1881df33a8e3f8561) )
+	ROM_LOAD( "ic52(__pleiadsb2).bin",     0x3800, 0x0800, CRC(b3db08c2) SHA1(d5b1b77dcf2d76498f30d5f880635f5acfac7dfd) )
 
 	ROM_REGION( 0x1000, "gfx1", 0 )
 	ROM_LOAD( "ic23.bin",     0x0000, 0x0800, CRC(4e30f9e7) SHA1(da023a94725dc40107cd97e4decfd4dc0f9f00ee) )
@@ -1155,7 +1208,7 @@ ROM_END
 DRIVER_INIT_MEMBER(phoenix_state,condor)
 {
 	/* additional inputs for coinage */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port(0x5000, 0x5000, "DSW1");
+	m_maincpu->space(AS_PROGRAM).install_read_port(0x5000, 0x5000, "DSW1");
 }
 
 
@@ -1181,6 +1234,9 @@ GAME( 1980, fenix,    phoenix,  condor,   condor, phoenix_state,   condor,   ROT
 GAME( 1980, griffon,  phoenix,  condor,   condor, phoenix_state,   condor,   ROT90, "bootleg (Videotron)", "Griffon (bootleg of Phoenix)", GAME_SUPPORTS_SAVE )
 // nextfase is a spanish bootleg
 GAME( 1981, nextfase, phoenix,  phoenix,  nextfase, driver_device, 0,        ROT90, "bootleg (Petaco S.A.)", "Next Fase (bootleg of Phoenix)", GAME_SUPPORTS_SAVE )
+// as is this
+GAME( 1981, phoenixs, phoenix,  phoenix,  phoenix, driver_device,  0,        ROT90, "bootleg (Sonic)", "Phoenix (Spanish bootleg)", GAME_SUPPORTS_SAVE )
+GAME( 1980, avefenix, phoenix,  phoenix,  phoenix, driver_device,  0,        ROT90, "bootleg (Video Game)", "Ave Fenix (Spanish bootleg of Phoenix)", GAME_SUPPORTS_SAVE )
 
 GAME( 1981, pleiads,  0,        pleiads,  pleiads, driver_device,  0,        ROT90, "Tehkan", "Pleiads (Tehkan)", GAME_IMPERFECT_COLORS )
 GAME( 1981, pleiadsb2,pleiads,  pleiads,  pleiads, driver_device,  0,        ROT90, "bootleg (ESG)", "Pleiads (bootleg set 2)", GAME_SUPPORTS_SAVE )

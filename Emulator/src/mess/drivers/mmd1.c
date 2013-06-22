@@ -153,7 +153,8 @@ class mmd1_state : public driver_device
 {
 public:
 	mmd1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_WRITE8_MEMBER(mmd1_port0_w);
 	DECLARE_WRITE8_MEMBER(mmd1_port1_w);
@@ -171,6 +172,7 @@ public:
 	DECLARE_DRIVER_INIT(mmd2);
 	DECLARE_MACHINE_RESET(mmd1);
 	DECLARE_MACHINE_RESET(mmd2);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -464,7 +466,7 @@ DRIVER_INIT_MEMBER(mmd1_state,mmd2)
 We preset all banks here, so that bankswitching will incur no speed penalty.
 0000/0400 indicate ROMs, D800/DC00/E400 indicate RAM, 8000 is a dummy write area for ROM banks.
 */
-	UINT8 *p_ram = machine().root_device().memregion("maincpu")->base();
+	UINT8 *p_ram = memregion("maincpu")->base();
 	membank("bank1")->configure_entry(0, &p_ram[0x0000]);
 	membank("bank1")->configure_entry(1, &p_ram[0xd800]);
 	membank("bank1")->configure_entry(2, &p_ram[0x0c00]);

@@ -14,7 +14,7 @@
 #include "emu.h"
 #include "cpu/i86/i86.h"
 #include "video/mc6845.h"
-#include "machine/8237dma.h"
+#include "machine/am9517a.h"
 
 
 
@@ -22,8 +22,10 @@ class b16_state : public driver_device
 {
 public:
 	b16_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_vram(*this, "vram"){ }
+		: driver_device(mconfig, type, tag),
+		m_vram(*this, "vram"),
+		m_dma8237(*this, "8237dma"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 *m_char_rom;
 	required_shared_ptr<UINT16> m_vram;
@@ -35,14 +37,17 @@ public:
 	DECLARE_WRITE8_MEMBER(b16_6845_data_w);
 	DECLARE_READ8_MEMBER(unk_dev_r);
 	DECLARE_WRITE8_MEMBER(unk_dev_w);
+	DECLARE_READ8_MEMBER(memory_read_byte);
+	DECLARE_WRITE8_MEMBER(memory_write_byte);
 
 	virtual void video_start();
 	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	mc6845_device *m_mc6845;
-	i8237_device  *m_dma8237;
+	required_device<am9517a_device> m_dma8237;
 	virtual void machine_start();
 	virtual void machine_reset();
+	required_device<cpu_device> m_maincpu;
 };
 
 #define mc6845_h_char_total     (m_crtc_vreg[0])
@@ -237,8 +242,6 @@ GFXDECODE_END
 
 void b16_state::machine_start()
 {
-
-	m_dma8237 = machine().device<i8237_device>( "dma8237" );
 	m_mc6845 = machine().device<mc6845_device>("crtc");
 }
 
@@ -248,9 +251,10 @@ void b16_state::machine_reset()
 
 
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -262,15 +266,24 @@ static const mc6845_interface mc6845_intf =
 	NULL        /* update address callback */
 };
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(b16_state::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(b16_state::memory_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.write_byte(offset, data);
+}
 
 static I8237_INTERFACE( b16_dma8237_interface )
 {
 	DEVCB_NULL,
 	DEVCB_NULL,
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_read_byte),
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_write_byte),
+	DEVCB_DRIVER_MEMBER(b16_state, memory_read_byte),
+	DEVCB_DRIVER_MEMBER(b16_state, memory_write_byte),
 	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
 	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
 	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL }

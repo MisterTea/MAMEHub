@@ -129,21 +129,25 @@ static INPUT_PORTS_START( 3do )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 )
 INPUT_PORTS_END
 
+void _3do_state::machine_start()
+{
+	m_bank2->set_base(memregion("user1")->base());
+
+	/* configure overlay */
+	m_bank1->configure_entry(0, m_dram);
+	m_bank1->configure_entry(1, memregion("user1")->base());
+
+	m_3do_slow2_init();
+	m_3do_madam_init();
+	m_3do_clio_init( downcast<screen_device *>(machine().device("screen")));
+}
 
 void _3do_state::machine_reset()
 {
-	membank("bank2")->set_base(memregion("user1")->base());
-
-	/* configure overlay */
-	membank("bank1")->configure_entry(0, m_dram);
-	membank("bank1")->configure_entry(1, memregion("user1")->base());
-
 	/* start with overlay enabled */
-	membank("bank1")->set_entry(1);
+	m_bank1->set_entry(1);
 
-	_3do_slow2_init(machine());
-	_3do_madam_init(machine());
-	_3do_clio_init(machine(), downcast<screen_device *>(machine().device("screen")));
+	m_clio.cstatbits = 0x01; /* bit 0 = reset of clio caused by power on */
 }
 
 struct cdrom_interface _3do_cdrom =
@@ -265,9 +269,9 @@ ROM_END
 
 ***************************************************************************/
 
-/*    YEAR  NAME        PARENT  COMPAT  MACHINE     INPUT   INIT    COMPANY FULLNAME        FLAGS */
-CONS( 1991, 3do,        0,      0,      3do,        3do,    driver_device, 0,      "3DO",  "3DO (NTSC)",   GAME_NOT_WORKING | GAME_NO_SOUND )
-CONS( 1991, 3do_pal,    3do,    0,      3do_pal,    3do,    driver_device, 0,      "3DO",  "3DO (PAL)",    GAME_NOT_WORKING | GAME_NO_SOUND )
+/*    YEAR  NAME        PARENT  COMPAT  MACHINE     INPUT   INIT                   COMPANY             FULLNAME        FLAGS */
+CONS( 1991, 3do,        0,      0,      3do,        3do,    driver_device, 0,      "The 3DO Company",  "3DO (NTSC)",   GAME_NOT_WORKING | GAME_NO_SOUND )
+CONS( 1991, 3do_pal,    3do,    0,      3do_pal,    3do,    driver_device, 0,      "The 3DO Company",  "3DO (PAL)",    GAME_NOT_WORKING | GAME_NO_SOUND )
 
-GAME( 1991, 3dobios,    0,      3do,    3do, driver_device, 0, ROT0,     "3DO",  "3DO Bios",   GAME_NOT_WORKING | GAME_NO_SOUND | GAME_IS_BIOS_ROOT )
+GAME( 1991, 3dobios,    0,      3do,    3do, driver_device, 0, ROT0,     "The 3DO Company",  "3DO Bios",   GAME_NOT_WORKING | GAME_NO_SOUND | GAME_IS_BIOS_ROOT )
 GAME( 199?, orbatak,    3dobios,3do,    3do, driver_device, 0, ROT0,     "<unknown>", "Orbatak (prototype)", GAME_NOT_WORKING | GAME_NO_SOUND )

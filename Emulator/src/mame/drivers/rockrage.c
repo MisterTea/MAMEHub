@@ -49,7 +49,7 @@ Notes:
 
 #include "emu.h"
 #include "cpu/m6809/m6809.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "sound/2151intf.h"
 #include "sound/vlm5030.h"
 #include "video/konicdev.h"
@@ -241,17 +241,12 @@ void rockrage_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x2000);
 
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k007342 = machine().device("k007342");
-	m_k007420 = machine().device("k007420");
-
 	save_item(NAME(m_vreg));
 	save_item(NAME(m_layer_colorbase));
 }
 
 void rockrage_state::machine_reset()
 {
-
 	m_vreg = 0;
 	m_layer_colorbase[0] = 0x00;
 	m_layer_colorbase[1] = 0x10;

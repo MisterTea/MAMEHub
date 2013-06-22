@@ -19,7 +19,8 @@ public:
 	m_hgdc(*this, "upd7220"),
 	m_fdc(*this, "upd765")
 	,
-		m_video_ram(*this, "video_ram"){ }
+		m_video_ram(*this, "video_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_device<upd7220_device> m_hgdc;
 	required_device<upd765a_device> m_fdc;
@@ -30,6 +31,7 @@ public:
 	required_shared_ptr<UINT8> m_video_ram;
 	virtual void machine_reset();
 	virtual void video_start();
+	required_device<cpu_device> m_maincpu;
 };
 
 static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
@@ -157,8 +159,8 @@ static MACHINE_CONFIG_START( mz6500, mz6500_state )
 	/* Devices */
 	MCFG_UPD7220_ADD("upd7220", 8000000/6, hgdc_intf, upd7220_map) // unk clock
 	MCFG_UPD765A_ADD("upd765", true, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", mz6500_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", mz6500_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", mz6500_floppies, "525hd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", mz6500_floppies, "525hd", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
 
 /* ROM definition */

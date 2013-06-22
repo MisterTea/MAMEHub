@@ -98,13 +98,13 @@ WRITE8_MEMBER(ddribble_state::ddribble_vlm5030_ctrl_w)
 	vlm5030_set_rom(device, &SPEECH_ROM[data & 0x08 ? 0x10000 : 0]);
 
 	/* b2 : SSG-C rc filter enable */
-	filter_rc_set_RC(m_filter3, FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x04 ? CAP_N(150) : 0); /* YM2203-SSG-C */
+	dynamic_cast<filter_rc_device*>(m_filter3)->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x04 ? CAP_N(150) : 0); /* YM2203-SSG-C */
 
 	/* b1 : SSG-B rc filter enable */
-	filter_rc_set_RC(m_filter2, FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x02 ? CAP_N(150) : 0); /* YM2203-SSG-B */
+	dynamic_cast<filter_rc_device*>(m_filter2)->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x02 ? CAP_N(150) : 0); /* YM2203-SSG-B */
 
 	/* b0 : SSG-A rc filter enable */
-	filter_rc_set_RC(m_filter1, FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x01 ? CAP_N(150) : 0); /* YM2203-SSG-A */
+	dynamic_cast<filter_rc_device*>(m_filter1)->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 1000, data & 0x01 ? CAP_N(150) : 0); /* YM2203-SSG-A */
 }
 
 
@@ -138,7 +138,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cpu2_map, AS_PROGRAM, 8, ddribble_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM AM_SHARE("snd_sharedram")       /* shared RAM with CPU #1 */
-	AM_RANGE(0x1000, 0x1001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)    /* YM2203 */
+	AM_RANGE(0x1000, 0x1001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)    /* YM2203 */
 	AM_RANGE(0x3000, 0x3000) AM_DEVWRITE_LEGACY("vlm", vlm5030_data_w)          /* Speech data */
 	AM_RANGE(0x8000, 0xffff) AM_ROM                                     /* ROM */
 ADDRESS_MAP_END
@@ -223,16 +223,13 @@ static GFXDECODE_START( ddribble )
 	GFXDECODE_ENTRY( "gfx2", 0x40000, spritelayout,  64, 16 )   /* colors  0-15 but using lookup table */
 GFXDECODE_END
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(ddribble_state,ddribble_vlm5030_busy_r),
-		DEVCB_DRIVER_MEMBER(ddribble_state,ddribble_vlm5030_ctrl_w),
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(ddribble_state,ddribble_vlm5030_busy_r),
+	DEVCB_DRIVER_MEMBER(ddribble_state,ddribble_vlm5030_ctrl_w),
 	DEVCB_NULL
 };
 
@@ -310,7 +307,7 @@ static MACHINE_CONFIG_START( ddribble, ddribble_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_3_579545MHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "filter1", 0.25)
 	MCFG_SOUND_ROUTE(1, "filter2", 0.25)
 	MCFG_SOUND_ROUTE(2, "filter3", 0.25)
@@ -320,11 +317,11 @@ static MACHINE_CONFIG_START( ddribble, ddribble_state )
 	MCFG_SOUND_CONFIG(vlm5030_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_SOUND_ADD("filter1", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter1", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_ADD("filter2", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter2", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_ADD("filter3", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter3", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

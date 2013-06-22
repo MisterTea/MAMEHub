@@ -1,14 +1,36 @@
 #include "sound/samples.h"
+#include "sound/upd7759.h"
+#include "sound/k007232.h"
+#include "sound/k053260.h"
+#include "sound/k054539.h"
 
 class tmnt_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_NMI
+	};
+
 	tmnt_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_tmnt2_rom(*this, "tmnt2_rom"),
 		m_sunset_104000(*this, "sunset_104000"),
-		m_tmnt2_1c0800(*this, "tmnt2_1c0800"){ }
+		m_tmnt2_1c0800(*this, "tmnt2_1c0800"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_k007232(*this, "k007232"),
+		m_k053260(*this, "k053260"),
+		m_k054539(*this, "k054539"),
+		m_k052109(*this, "k052109"),
+		m_k051960(*this, "k051960"),
+		m_k053245(*this, "k053245"),
+		m_k053251(*this, "k053251"),
+		m_k053936(*this, "k053936"),
+		m_k054000(*this, "k054000"),
+		m_upd7759(*this, "upd"),
+		m_samples(*this, "samples"){ }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_spriteram;
@@ -47,19 +69,19 @@ public:
 	UINT16     m_cuebrick_nvram[0x400 * 0x20];  // 32k paged in a 1k window
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_k007232;
-	device_t *m_k053260;
-	device_t *m_k054539;
-	device_t *m_k052109;
-	device_t *m_k051960;
-	device_t *m_k053245;
-	device_t *m_k053251;
-	device_t *m_k053936;
-	device_t *m_k054000;
-	device_t *m_upd;
-	samples_device *m_samples;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<k007232_device> m_k007232;
+	optional_device<k053260_device> m_k053260;
+	optional_device<k054539_device> m_k054539;
+	required_device<k052109_device> m_k052109;
+	optional_device<k051960_device> m_k051960;
+	optional_device<k05324x_device> m_k053245;
+	optional_device<k053251_device> m_k053251;
+	optional_device<k053936_device> m_k053936;
+	optional_device<k054000_device> m_k054000;
+	optional_device<upd7759_device> m_upd7759;
+	optional_device<samples_device> m_samples;
 
 	/* memory buffers */
 	INT16      m_sampledata[0x40000];
@@ -144,7 +166,13 @@ public:
 	INTERRUPT_GEN_MEMBER(punkshot_interrupt);
 	INTERRUPT_GEN_MEMBER(lgtnfght_interrupt);
 	INTERRUPT_GEN_MEMBER(tmnt_vblank_irq);
-	TIMER_CALLBACK_MEMBER(nmi_callback);
+	void sound_nmi_callback( int param );
+	inline UINT32 tmnt2_get_word( UINT32 addr );
+	void tmnt2_put_word( address_space &space, UINT32 addr, UINT16 data );
+	DECLARE_WRITE8_MEMBER(volume_callback);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 

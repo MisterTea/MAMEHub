@@ -17,6 +17,11 @@ struct kay_kbd_t;
 class kaypro_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_FLOPPY
+	};
+
 	kaypro_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
@@ -27,7 +32,7 @@ public:
 	m_centronics(*this, "centronics"),
 	m_fdc(*this, "wd1793"),
 	m_crtc(*this, "crtc"),
-	m_beep(*this, BEEPER_TAG),
+	m_beep(*this, "beeper"),
 	m_p_videoram(*this, "p_videoram"){ }
 
 	required_device<cpu_device> m_maincpu;
@@ -79,10 +84,14 @@ public:
 	UINT32 screen_update_kaypro2x(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_omni2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(kay_kbd_interrupt);
-	TIMER_CALLBACK_MEMBER(kaypro_timer_callback);
 	DECLARE_WRITE_LINE_MEMBER(kaypro_interrupt);
 	DECLARE_READ8_MEMBER(kaypro_sio_r);
 	DECLARE_WRITE8_MEMBER(kaypro_sio_w);
+	DECLARE_QUICKLOAD_LOAD_MEMBER(kayproii );
+	DECLARE_QUICKLOAD_LOAD_MEMBER(kaypro2x );
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -102,10 +111,6 @@ extern const z80pio_interface kayproii_pio_s_intf;
 extern const z80pio_interface kaypro4_pio_s_intf;
 extern const z80sio_interface kaypro_sio_intf;
 extern const wd17xx_interface kaypro_wd1793_interface;
-
-
-QUICKLOAD_LOAD( kayproii );
-QUICKLOAD_LOAD( kaypro2x );
 
 /*----------- defined in video/kaypro.c -----------*/
 

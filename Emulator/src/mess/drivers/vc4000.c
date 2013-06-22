@@ -106,33 +106,31 @@ to work on the vc4000 as well. Procedure:
 
 #include "includes/vc4000.h"
 
-static QUICKLOAD_LOAD( vc4000 );
-
 READ8_MEMBER( vc4000_state::vc4000_key_r )
 {
 	UINT8 data=0;
 	switch(offset & 0x0f)
 	{
 	case 0x08:
-		data = ioport("KEYPAD1_1")->read();
+		data = m_keypad1_1->read();
 		break;
 	case 0x09:
-		data = ioport("KEYPAD1_2")->read();
+		data = m_keypad1_2->read();
 		break;
 	case 0x0a:
-		data = ioport("KEYPAD1_3")->read();
+		data = m_keypad1_3->read();
 		break;
 	case 0x0b:
-		data = ioport("PANEL")->read();
+		data = m_panel->read();
 		break;
 	case 0x0c:
-		data = ioport("KEYPAD2_1")->read();
+		data = m_keypad2_1->read();
 		break;
 	case 0x0d:
-		data = ioport("KEYPAD2_2")->read();
+		data = m_keypad2_2->read();
 		break;
 	case 0x0e:
-		data = ioport("KEYPAD2_3")->read();
+		data = m_keypad2_3->read();
 		break;
 	}
 	return data;
@@ -146,13 +144,13 @@ WRITE8_MEMBER( vc4000_state::vc4000_sound_ctl )
 // Write cassette - Address 0x1DFF
 WRITE8_MEMBER( vc4000_state::elektor_cass_w )
 {
-	m_cass->output(BIT(data, 7) ? -1.0 : +1.0);
+	m_cassette->output(BIT(data, 7) ? -1.0 : +1.0);
 }
 
 // Read cassette - Address 0x1DBF
 READ8_MEMBER( vc4000_state::elektor_cass_r )
 {
-	return (m_cass->input() > 0.03) ? 0xff : 0x7f;
+	return (m_cassette->input() > 0.03) ? 0xff : 0x7f;
 }
 
 static ADDRESS_MAP_START( vc4000_mem, AS_PROGRAM, 8, vc4000_state )
@@ -335,11 +333,9 @@ void vc4000_state::palette_init()
 	palette_set_colors(machine(), 0, vc4000_palette, ARRAY_LENGTH(vc4000_palette));
 }
 
-static DEVICE_IMAGE_LOAD( vc4000_cart )
+DEVICE_IMAGE_LOAD_MEMBER( vc4000_state, vc4000_cart )
 {
-	running_machine &machine = image.device().machine();
-	vc4000_state *state = machine.driver_data<vc4000_state>();
-	address_space &memspace = machine.device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &memspace = m_maincpu->space(AS_PROGRAM);
 	UINT32 size;
 
 	if (image.software_entry() == NULL)
@@ -353,34 +349,34 @@ static DEVICE_IMAGE_LOAD( vc4000_cart )
 	if (size > 0x1000)  /* 6k rom + 1k ram - Chess2 only */
 	{
 		memspace.install_read_bank(0x0800, 0x15ff, "bank1");    /* extra rom */
-		state->membank("bank1")->set_base(machine.root_device().memregion("maincpu")->base() + 0x1000);
+		membank("bank1")->set_base(memregion("maincpu")->base() + 0x1000);
 
 		memspace.install_readwrite_bank(0x1800, 0x1bff, "bank2");   /* ram */
-		state->membank("bank2")->set_base(machine.root_device().memregion("maincpu")->base() + 0x1800);
+		membank("bank2")->set_base(memregion("maincpu")->base() + 0x1800);
 	}
 	else if (size > 0x0800) /* some 4k roms have 1k of mirrored ram */
 	{
 		memspace.install_read_bank(0x0800, 0x0fff, "bank1");    /* extra rom */
-		state->membank("bank1")->set_base(machine.root_device().memregion("maincpu")->base() + 0x0800);
+		membank("bank1")->set_base(memregion("maincpu")->base() + 0x0800);
 
 		memspace.install_readwrite_bank(0x1000, 0x15ff, 0, 0x800, "bank2"); /* ram */
-		state->membank("bank2")->set_base(machine.root_device().memregion("maincpu")->base() + 0x1000);
+		membank("bank2")->set_base(memregion("maincpu")->base() + 0x1000);
 	}
 	else if (size == 0x0800)    /* 2k roms + 2k ram - Hobby Module(Radofin) and elektor TVGC*/
 	{
 		memspace.install_readwrite_bank(0x0800, 0x0fff, "bank1"); /* ram */
-		state->membank("bank1")->set_base(machine.root_device().memregion("maincpu")->base() + 0x0800);
+		membank("bank1")->set_base(memregion("maincpu")->base() + 0x0800);
 	}
 
 	if (size > 0)
 	{
 		if (image.software_entry() == NULL)
 		{
-			if (image.fread( machine.root_device().memregion("maincpu")->base(), size) != size)
+			if (image.fread(memregion("maincpu")->base(), size) != size)
 				return IMAGE_INIT_FAIL;
 		}
 		else
-			memcpy(machine.root_device().memregion("maincpu")->base(), image.get_software_region("rom"), size);
+			memcpy(memregion("maincpu")->base(), image.get_software_region("rom"), size);
 	}
 
 	return IMAGE_INIT_PASS;
@@ -410,14 +406,14 @@ static MACHINE_CONFIG_START( vc4000, vc4000_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* quickload */
-	MCFG_QUICKLOAD_ADD("quickload", vc4000, "pgm,tvc", 0)
+	MCFG_QUICKLOAD_ADD("quickload", vc4000_state, vc4000, "pgm,tvc", 0)
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom,bin")
 	MCFG_CARTSLOT_NOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("vc4000_cart")
-	MCFG_CARTSLOT_LOAD(vc4000_cart)
+	MCFG_CARTSLOT_LOAD(vc4000_state,vc4000_cart)
 
 	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","vc4000")
@@ -426,8 +422,8 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( elektor, vc4000 )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(elektor_mem)
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -528,15 +524,16 @@ ROM_START( elektor )
 	ROM_LOAD( "elektor.rom", 0x0000, 0x0800, CRC(e6ef1ee1) SHA1(6823b5a22582344016415f2a37f9f3a2dc75d2a7))
 ROM_END
 
-QUICKLOAD_LOAD(vc4000)
+QUICKLOAD_LOAD_MEMBER( vc4000_state,vc4000)
 {
-	address_space &space = image.device().machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i;
 	int quick_addr = 0x08c0;
 	int exec_addr;
 	int quick_length;
 	UINT8 *quick_data;
 	int read_;
+	int result = IMAGE_INIT_FAIL;
 
 	quick_length = image.length();
 	quick_data = (UINT8*)malloc(quick_length);
@@ -544,90 +541,93 @@ QUICKLOAD_LOAD(vc4000)
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot open file");
 		image.message(" Cannot open file");
-		return IMAGE_INIT_FAIL;
-	}
-
-	read_ = image.fread( quick_data, quick_length);
-	if (read_ != quick_length)
-	{
-		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot read the file");
-		image.message(" Cannot read the file");
-		return IMAGE_INIT_FAIL;
-	}
-
-	if (mame_stricmp(image.filetype(), "tvc")==0)
-	{
-		if (quick_data[0] != 2)
-		{
-			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Invalid header");
-			image.message(" Invalid header");
-			return IMAGE_INIT_FAIL;
-		}
-
-		quick_addr = quick_data[1] * 256 + quick_data[2];
-		exec_addr = quick_data[3] * 256 + quick_data[4];
-
-		space.write_byte(0x08be, quick_data[3]);
-		space.write_byte(0x08bf, quick_data[4]);
-
-		for (i = 0; i < quick_length - 5; i++)
-			if ((quick_addr + i) < 0x1600)
-				space.write_byte(i + quick_addr, quick_data[i+5]);
-
-		/* display a message about the loaded quickload */
-		image.message(" Quickload: size=%04X : start=%04X : end=%04X : exec=%04X",quick_length-5,quick_addr,quick_addr+quick_length-5,exec_addr);
-
-		// Start the quickload
-		image.device().machine().device("maincpu")->state().set_pc(exec_addr);
-		return IMAGE_INIT_PASS;
 	}
 	else
-	if (mame_stricmp(image.filetype(), "pgm")==0)
 	{
-		if (quick_data[0] != 0)
+		read_ = image.fread( quick_data, quick_length);
+		if (read_ != quick_length)
 		{
-			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Invalid header");
-			image.message(" Invalid header");
-			return IMAGE_INIT_FAIL;
+			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot read the file");
+			image.message(" Cannot read the file");
 		}
-
-		exec_addr = quick_data[1] * 256 + quick_data[2];
-
-		if (exec_addr >= quick_length)
+		else
 		{
-			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Exec address beyond end of file");
-			image.message(" Exec address beyond end of file");
-			return IMAGE_INIT_FAIL;
+			if (mame_stricmp(image.filetype(), "tvc")==0)
+			{
+				if (quick_data[0] != 2)
+				{
+					image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Invalid header");
+					image.message(" Invalid header");
+				}
+				else
+				{
+					quick_addr = quick_data[1] * 256 + quick_data[2];
+					exec_addr = quick_data[3] * 256 + quick_data[4];
+
+					space.write_byte(0x08be, quick_data[3]);
+					space.write_byte(0x08bf, quick_data[4]);
+
+					for (i = 0; i < quick_length - 5; i++)
+						if ((quick_addr + i) < 0x1600)
+							space.write_byte(i + quick_addr, quick_data[i+5]);
+
+					/* display a message about the loaded quickload */
+					image.message(" Quickload: size=%04X : start=%04X : end=%04X : exec=%04X",quick_length-5,quick_addr,quick_addr+quick_length-5,exec_addr);
+
+					// Start the quickload
+					m_maincpu->set_pc(exec_addr);
+					result = IMAGE_INIT_PASS;
+				}
+			}
+			else
+			if (mame_stricmp(image.filetype(), "pgm")==0)
+			{
+				if (quick_data[0] != 0)
+				{
+					image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Invalid header");
+					image.message(" Invalid header");
+				}
+				else
+				{
+					exec_addr = quick_data[1] * 256 + quick_data[2];
+
+					if (exec_addr >= quick_length)
+					{
+						image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Exec address beyond end of file");
+						image.message(" Exec address beyond end of file");
+					}
+					else
+					if (quick_length < 0x904)
+					{
+						image.seterror(IMAGE_ERROR_INVALIDIMAGE, "File too short");
+						image.message(" File too short");
+					}
+					else
+					// some programs store data in PVI memory and other random places. This is not supported.
+					if (quick_length > 0x1600)
+					{
+						image.seterror(IMAGE_ERROR_INVALIDIMAGE, "File too long");
+						image.message(" File too long");
+					}
+					else
+					{
+						for (i = quick_addr; i < quick_length; i++)
+							if (i < 0x1600)
+								space.write_byte(i, quick_data[i]);
+
+						/* display a message about the loaded quickload */
+						image.message(" Quickload: size=%04X : exec=%04X",quick_length,exec_addr);
+
+						// Start the quickload
+						m_maincpu->set_pc(exec_addr);
+						result = IMAGE_INIT_PASS;
+					}
+				}
+			}
 		}
-
-		if (quick_length < 0x904)
-		{
-			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "File too short");
-			image.message(" File too short");
-			return IMAGE_INIT_FAIL;
-		}
-
-		// some programs store data in PVI memory and other random places. This is not supported.
-		if (quick_length > 0x1600)
-		{
-			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "File too long");
-			image.message(" File too long");
-			return IMAGE_INIT_FAIL;
-		}
-
-		for (i = quick_addr; i < quick_length; i++)
-			if (i < 0x1600)
-				space.write_byte(i, quick_data[i]);
-
-		/* display a message about the loaded quickload */
-		image.message(" Quickload: size=%04X : exec=%04X",quick_length,exec_addr);
-
-		// Start the quickload
-		image.device().machine().device("maincpu")->state().set_pc(exec_addr);
-		return IMAGE_INIT_PASS;
+		free (quick_data);
 	}
-	else
-		return IMAGE_INIT_FAIL;
+	return result;
 }
 
 

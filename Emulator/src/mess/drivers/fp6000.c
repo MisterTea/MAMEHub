@@ -25,9 +25,10 @@ class fp6000_state : public driver_device
 {
 public:
 	fp6000_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_gvram(*this, "gvram"),
-		m_vram(*this, "vram"){ }
+		m_vram(*this, "vram"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 *m_char_rom;
 	required_shared_ptr<UINT16> m_gvram;
@@ -52,6 +53,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_fp6000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 void fp6000_state::video_start()
@@ -142,27 +144,23 @@ UINT32 fp6000_state::screen_update_fp6000(screen_device &screen, bitmap_ind16 &b
 
 READ8_MEMBER(fp6000_state::fp6000_pcg_r)
 {
-
 	return m_char_rom[offset];
 }
 
 WRITE8_MEMBER(fp6000_state::fp6000_pcg_w)
 {
-
 	m_char_rom[offset] = data;
 	machine().gfx[0]->mark_dirty(offset >> 4);
 }
 
 WRITE8_MEMBER(fp6000_state::fp6000_6845_address_w)
 {
-
 	m_crtc_index = data;
 	m_mc6845->address_w(space, offset, data);
 }
 
 WRITE8_MEMBER(fp6000_state::fp6000_6845_data_w)
 {
-
 	m_crtc_vreg[m_crtc_index] = data;
 	m_mc6845->register_w(space, offset, data);
 }
@@ -179,7 +177,6 @@ ADDRESS_MAP_END
 /* Hack until I understand what UART is this one ... */
 READ8_MEMBER(fp6000_state::fp6000_key_r)
 {
-
 	if(offset)
 	{
 		switch(m_key.cmd)
@@ -197,7 +194,6 @@ READ8_MEMBER(fp6000_state::fp6000_key_r)
 
 WRITE8_MEMBER(fp6000_state::fp6000_key_w)
 {
-
 	if(offset)
 		m_key.cmd = (data & 0xff) | (m_key.cmd << 8);
 	else
@@ -278,7 +274,6 @@ GFXDECODE_END
 
 void fp6000_state::machine_start()
 {
-
 	m_char_rom = memregion("pcg")->base();
 	m_mc6845 = machine().device<mc6845_device>("crtc");
 }
@@ -287,9 +282,10 @@ void fp6000_state::machine_reset()
 {
 }
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */

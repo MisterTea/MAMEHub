@@ -147,6 +147,7 @@ public:
 	DECLARE_WRITE8_MEMBER(wardner_ramrom_bank_sw);
 	DECLARE_READ8_MEMBER(wardner_bank_r);
 	DECLARE_DRIVER_INIT(wardner);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 };
 
 
@@ -229,7 +230,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, wardner_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r, ym3812_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -364,15 +365,10 @@ static const gfx_layout spritelayout =
 
 
 /* handler called by the 3812 emulator when the internal timers cause an IRQ */
-static void irqhandler(device_t *device, int linestate)
+WRITE_LINE_MEMBER(wardner_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, linestate);
+	m_audiocpu->set_input_line(0, state);
 }
-
-static const ym3812_interface ym3812_config =
-{
-	irqhandler
-};
 
 
 static GFXDECODE_START( wardner )
@@ -426,7 +422,7 @@ static MACHINE_CONFIG_START( wardner, wardner_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_14MHz/4)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(wardner_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -596,8 +592,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(wardner_state,wardner)
 {
-	m_ROM = machine().root_device().memregion("maincpu")->base();
-	twincobr_driver_savestate(machine());   /* Save-State stuff in src/machine/twincobr.c */
+	m_ROM = memregion("maincpu")->base();
+	twincobr_driver_savestate();   /* Save-State stuff in src/machine/twincobr.c */
 }
 
 

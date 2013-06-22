@@ -49,10 +49,11 @@
 #include "cpu/m68000/m68000.h"
 #include "cpu/psx/psx.h"
 #include "video/psx.h"
+#include "machine/am53cf96.h"
 #include "machine/eeprom.h"
+#include "machine/mb89371.h"
 #include "machine/scsibus.h"
 #include "machine/scsihd.h"
-#include "machine/am53cf96.h"
 #include "sound/k054539.h"
 
 class konamigq_state : public driver_device
@@ -60,7 +61,11 @@ class konamigq_state : public driver_device
 public:
 	konamigq_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_am53cf96(*this, "scsi:am53cf96"){ }
+		m_am53cf96(*this, "scsi:am53cf96"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu")
+	{
+	}
 
 	required_device<am53cf96_device> m_am53cf96;
 
@@ -68,13 +73,11 @@ public:
 	UINT8 m_sndtor3k[ 16 ];
 	UINT8 *m_p_n_pcmram;
 	UINT8 m_sector_buffer[ 512 ];
-	DECLARE_WRITE32_MEMBER(soundr3k_w);
-	DECLARE_READ32_MEMBER(soundr3k_r);
-	DECLARE_WRITE32_MEMBER(mb89371_w);
-	DECLARE_READ32_MEMBER(mb89371_r);
-	DECLARE_WRITE32_MEMBER(eeprom_w);
-	DECLARE_WRITE32_MEMBER(pcmram_w);
-	DECLARE_READ32_MEMBER(pcmram_r);
+	DECLARE_WRITE16_MEMBER(soundr3k_w);
+	DECLARE_READ16_MEMBER(soundr3k_r);
+	DECLARE_WRITE16_MEMBER(eeprom_w);
+	DECLARE_WRITE8_MEMBER(pcmram_w);
+	DECLARE_READ8_MEMBER(pcmram_r);
 	DECLARE_READ16_MEMBER(sndcomm68k_r);
 	DECLARE_WRITE16_MEMBER(sndcomm68k_w);
 	DECLARE_READ16_MEMBER(tms57002_data_word_r);
@@ -84,50 +87,32 @@ public:
 	DECLARE_DRIVER_INIT(konamigq);
 	DECLARE_MACHINE_START(konamigq);
 	DECLARE_MACHINE_RESET(konamigq);
+	void scsi_dma_read( UINT32 *p_n_psxram, UINT32 n_address, INT32 n_size );
+	void scsi_dma_write( UINT32 *p_n_psxram, UINT32 n_address, INT32 n_size );
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 };
 
 /* Sound */
 
-WRITE32_MEMBER(konamigq_state::soundr3k_w)
+WRITE16_MEMBER(konamigq_state::soundr3k_w)
 {
-	if( ACCESSING_BITS_16_31 )
+	m_sndto000[ offset ] = data;
+	if( offset == 7 )
 	{
-		m_sndto000[ ( offset << 1 ) + 1 ] = data >> 16;
-		if( offset == 3 )
-		{
-			machine().device("soundcpu")->execute().set_input_line(1, HOLD_LINE );
-		}
-	}
-	if( ACCESSING_BITS_0_15 )
-	{
-		m_sndto000[ offset << 1 ] = data;
+		m_soundcpu->set_input_line(1, HOLD_LINE );
 	}
 }
 
-READ32_MEMBER(konamigq_state::soundr3k_r)
+READ16_MEMBER(konamigq_state::soundr3k_r)
 {
-	UINT32 data;
-
-	data = ( m_sndtor3k[ ( offset << 1 ) + 1 ] << 16 ) | m_sndtor3k[ offset << 1 ];
-
 	/* hack to help the main program start up */
-	if( offset == 1 )
+	if( offset == 2 || offset == 3 )
 	{
-		data = 0;
+		return 0;
 	}
 
-	return data;
-}
-
-/* UART */
-
-WRITE32_MEMBER(konamigq_state::mb89371_w)
-{
-}
-
-READ32_MEMBER(konamigq_state::mb89371_r)
-{
-	return 0xffffffff;
+	return m_sndtor3k[ offset ];
 }
 
 /* EEPROM */
@@ -144,40 +129,32 @@ static const UINT16 konamigq_def_eeprom[64] =
 	0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa, 0xaaaa,
 };
 
-WRITE32_MEMBER(konamigq_state::eeprom_w)
+WRITE16_MEMBER(konamigq_state::eeprom_w)
 {
 	ioport("EEPROMOUT")->write(data & 0x07, 0xff);
-	machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_RESET, ( data & 0x40 ) ? CLEAR_LINE : ASSERT_LINE );
+	m_soundcpu->set_input_line(INPUT_LINE_RESET, ( data & 0x40 ) ? CLEAR_LINE : ASSERT_LINE );
 }
 
 
 /* PCM RAM */
 
-WRITE32_MEMBER(konamigq_state::pcmram_w)
+WRITE8_MEMBER(konamigq_state::pcmram_w)
 {
-	if( ACCESSING_BITS_0_7 )
-	{
-		m_p_n_pcmram[ offset << 1 ] = data;
-	}
-	if( ACCESSING_BITS_16_23 )
-	{
-		m_p_n_pcmram[ ( offset << 1 ) + 1 ] = data >> 16;
-	}
+	m_p_n_pcmram[ offset ] = data;
 }
 
-READ32_MEMBER(konamigq_state::pcmram_r)
+READ8_MEMBER(konamigq_state::pcmram_r)
 {
-	return ( m_p_n_pcmram[ ( offset << 1 ) + 1 ] << 16 ) | m_p_n_pcmram[ offset << 1 ];
+	return m_p_n_pcmram[ offset ];
 }
 
 /* Video */
 
 static ADDRESS_MAP_START( konamigq_map, AS_PROGRAM, 32, konamigq_state )
-	AM_RANGE(0x00000000, 0x003fffff) AM_RAM AM_SHARE("share1") /* ram */
 	AM_RANGE(0x1f000000, 0x1f00001f) AM_DEVREADWRITE8("scsi:am53cf96", am53cf96_device, read, write, 0x00ff00ff)
-	AM_RANGE(0x1f100000, 0x1f10000f) AM_WRITE(soundr3k_w)
-	AM_RANGE(0x1f100010, 0x1f10001f) AM_READ(soundr3k_r)
-	AM_RANGE(0x1f180000, 0x1f180003) AM_WRITE(eeprom_w)
+	AM_RANGE(0x1f100000, 0x1f10000f) AM_WRITE16(soundr3k_w, 0xffffffff)
+	AM_RANGE(0x1f100010, 0x1f10001f) AM_READ16(soundr3k_r, 0xffffffff)
+	AM_RANGE(0x1f180000, 0x1f180003) AM_WRITE16(eeprom_w, 0x0000ffff)
 	AM_RANGE(0x1f198000, 0x1f198003) AM_WRITENOP            /* cabinet lamps? */
 	AM_RANGE(0x1f1a0000, 0x1f1a0003) AM_WRITENOP            /* indicates gun trigger */
 	AM_RANGE(0x1f200000, 0x1f200003) AM_READ_PORT("GUNX1")
@@ -189,14 +166,9 @@ static ADDRESS_MAP_START( konamigq_map, AS_PROGRAM, 32, konamigq_state )
 	AM_RANGE(0x1f230000, 0x1f230003) AM_READ_PORT("P1_P2")
 	AM_RANGE(0x1f230004, 0x1f230007) AM_READ_PORT("P3_SERVICE")
 	AM_RANGE(0x1f238000, 0x1f238003) AM_READ_PORT("DSW")
-	AM_RANGE(0x1f300000, 0x1f5fffff) AM_READWRITE(pcmram_r, pcmram_w)
-	AM_RANGE(0x1f680000, 0x1f68001f) AM_READWRITE(mb89371_r, mb89371_w)
+	AM_RANGE(0x1f300000, 0x1f5fffff) AM_READWRITE8(pcmram_r, pcmram_w, 0x00ff00ff)
+	AM_RANGE(0x1f680000, 0x1f68001f) AM_DEVREADWRITE8("mb89371", mb89371_device, read, write, 0x00ff00ff)
 	AM_RANGE(0x1f780000, 0x1f780003) AM_WRITENOP /* watchdog? */
-	AM_RANGE(0x1fc00000, 0x1fc7ffff) AM_ROM AM_SHARE("share2") AM_REGION("user1", 0) /* bios */
-	AM_RANGE(0x80000000, 0x803fffff) AM_RAM AM_SHARE("share1") /* ram mirror */
-	AM_RANGE(0x9fc00000, 0x9fc7ffff) AM_ROM AM_SHARE("share2") /* bios mirror */
-	AM_RANGE(0xa0000000, 0xa03fffff) AM_RAM AM_SHARE("share1") /* ram mirror */
-	AM_RANGE(0xbfc00000, 0xbfc7ffff) AM_ROM AM_SHARE("share2") /* bios mirror */
 ADDRESS_MAP_END
 
 /* SOUND CPU */
@@ -233,8 +205,8 @@ WRITE16_MEMBER(konamigq_state::tms57002_control_word_w)
 static ADDRESS_MAP_START( konamigq_sound_map, AS_PROGRAM, 16, konamigq_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM
-	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("konami1", k054539_device, read, write, 0xff00)
-	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("konami2", k054539_device, read, write, 0x00ff)
+	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("k054539_1", k054539_device, read, write, 0xff00)
+	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("k054539_2", k054539_device, read, write, 0x00ff)
 	AM_RANGE(0x300000, 0x300001) AM_READWRITE(tms57002_data_word_r,tms57002_data_word_w)
 	AM_RANGE(0x400000, 0x40000f) AM_WRITE(sndcomm68k_w)
 	AM_RANGE(0x400010, 0x40001f) AM_READ(sndcomm68k_r)
@@ -250,23 +222,23 @@ static const k054539_interface k054539_config =
 
 /* SCSI */
 
-static void scsi_dma_read( konamigq_state *state, UINT32 *p_n_psxram, UINT32 n_address, INT32 n_size )
+void konamigq_state::scsi_dma_read( UINT32 *p_n_psxram, UINT32 n_address, INT32 n_size )
 {
-	UINT8 *sector_buffer = state->m_sector_buffer;
+	UINT8 *sector_buffer = m_sector_buffer;
 	int i;
 	int n_this;
 
 	while( n_size > 0 )
 	{
-		if( n_size > sizeof( state->m_sector_buffer ) / 4 )
+		if( n_size > sizeof( m_sector_buffer ) / 4 )
 		{
-			n_this = sizeof( state->m_sector_buffer ) / 4;
+			n_this = sizeof( m_sector_buffer ) / 4;
 		}
 		else
 		{
 			n_this = n_size;
 		}
-		state->m_am53cf96->dma_read_data( n_this * 4, sector_buffer );
+		m_am53cf96->dma_read_data( n_this * 4, sector_buffer );
 		n_size -= n_this;
 
 		i = 0;
@@ -284,7 +256,7 @@ static void scsi_dma_read( konamigq_state *state, UINT32 *p_n_psxram, UINT32 n_a
 	}
 }
 
-static void scsi_dma_write( konamigq_state *state, UINT32 *p_n_psxram, UINT32 n_address, INT32 n_size )
+void konamigq_state::scsi_dma_write( UINT32 *p_n_psxram, UINT32 n_address, INT32 n_size )
 {
 }
 
@@ -310,8 +282,11 @@ static MACHINE_CONFIG_START( konamigq, konamigq_state )
 	MCFG_CPU_ADD( "maincpu", CXD8530BQ, XTAL_67_7376MHz )
 	MCFG_CPU_PROGRAM_MAP( konamigq_map )
 
-	MCFG_PSX_DMA_CHANNEL_READ( "maincpu", 5, psx_dma_read_delegate( FUNC( scsi_dma_read ), (konamigq_state *) owner ) )
-	MCFG_PSX_DMA_CHANNEL_WRITE( "maincpu", 5, psx_dma_write_delegate( FUNC( scsi_dma_write ), (konamigq_state *) owner ) )
+	MCFG_RAM_MODIFY("maincpu:ram")
+	MCFG_RAM_DEFAULT_SIZE("4M")
+
+	MCFG_PSX_DMA_CHANNEL_READ( "maincpu", 5, psx_dma_read_delegate( FUNC( konamigq_state::scsi_dma_read ), (konamigq_state *) owner ) )
+	MCFG_PSX_DMA_CHANNEL_WRITE( "maincpu", 5, psx_dma_write_delegate( FUNC( konamigq_state::scsi_dma_write ), (konamigq_state *) owner ) )
 
 	MCFG_CPU_ADD( "soundcpu", M68000, 8000000 )
 	MCFG_CPU_PROGRAM_MAP( konamigq_sound_map)
@@ -319,6 +294,8 @@ static MACHINE_CONFIG_START( konamigq, konamigq_state )
 
 	MCFG_MACHINE_START_OVERRIDE(konamigq_state, konamigq )
 	MCFG_MACHINE_RESET_OVERRIDE(konamigq_state, konamigq )
+
+	MCFG_DEVICE_ADD("mb89371", MB89371, 0)
 	MCFG_EEPROM_93C46_ADD("eeprom")
 	MCFG_EEPROM_DATA(konamigq_def_eeprom, 128)
 
@@ -333,11 +310,11 @@ static MACHINE_CONFIG_START( konamigq, konamigq_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_K054539_ADD("konami1", 48000, k054539_config)
+	MCFG_K054539_ADD("k054539_1", 48000, k054539_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_K054539_ADD("konami2", 48000, k054539_config)
+	MCFG_K054539_ADD("k054539_2", 48000, k054539_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -433,7 +410,7 @@ ROM_START( cryptklr )
 	ROM_REGION( 0x400000, "shared", 0 )
 	ROM_LOAD( "420a02.3m",    0x000000, 0x080000, CRC(2169c3c4) SHA1(6d525f10385791e19eb1897d18f0bab319640162) )
 
-	ROM_REGION32_LE( 0x080000, "user1", 0 ) /* bios */
+	ROM_REGION32_LE( 0x080000, "maincpu:rom", 0 ) /* bios */
 	ROM_LOAD( "420b03.27p",   0x0000000, 0x080000, CRC(aab391b1) SHA1(bf9dc7c0c8168c22a4be266fe6a66d3738df916b) )
 
 	DISK_REGION( "scsi:disk" )

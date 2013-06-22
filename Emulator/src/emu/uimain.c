@@ -425,8 +425,11 @@ const char *ui_menu_slot_devices::slot_get_prev(device_slot_interface *slot)
 -------------------------------------------------*/
 const char *ui_menu_slot_devices::get_slot_device(device_slot_interface *slot)
 {
-	astring temp;
-	return machine().options().main_value(temp,slot->device().tag()+1);
+	int idx = slot_get_current_index(slot);
+	if (idx == -1)
+		return "";
+	else
+		return slot->get_slot_interfaces()[idx].name;
 }
 
 
@@ -462,7 +465,7 @@ void ui_menu_slot_devices::populate()
 		// do no display fixed slots
 		if (slot->fixed()) title = slot->get_default_card();
 		if (title==NULL) title = "";
-		item_append(slot->device().tag()+1, strcmp(title,"")==0 ? "------" : title, slot->fixed() ? 0 : (MENU_FLAG_LEFT_ARROW | MENU_FLAG_RIGHT_ARROW), (void *)slot);
+		item_append(slot->device().tag()+1, strcmp(title,"")==0 ? "------" : title, (slot->fixed() || slot->all_internal()) ? 0 : (MENU_FLAG_LEFT_ARROW | MENU_FLAG_RIGHT_ARROW), (void *)slot);
 	}
 	item_append(MENU_SEPARATOR_ITEM, NULL, 0, NULL);
 	item_append("Reset",  NULL, 0, NULL);

@@ -21,15 +21,13 @@
 		space.install_read_bank(_start, _end, _tag); \
 		space.unmap_write(_start, _end); \
 		m_bank_type[_bank] = TVC_ROM_BANK; \
-	} \
-
+	}
 #define TVC_INSTALL_RAM_BANK(_bank,_tag,_start,_end) \
 	if (m_bank_type[_bank] != TVC_RAM_BANK) \
 	{ \
 		space.install_readwrite_bank(_start, _end, _tag); \
 		m_bank_type[_bank] = TVC_RAM_BANK; \
-	} \
-
+	}
 void tvc_state::tvc_set_mem_page(UINT8 data)
 {
 	address_space &space = m_maincpu->space(AS_PROGRAM);
@@ -615,16 +613,15 @@ WRITE_LINE_MEMBER(tvc_state::tvc_centronics_ack)
 		m_centronics_ff = 1;
 }
 
-static QUICKLOAD_LOAD(tvc64)
+QUICKLOAD_LOAD_MEMBER( tvc_state,tvc64)
 {
-	running_machine &machine = image.device().machine();
 	UINT8 first_byte;
 
 	image.fread(&first_byte, 1);
 	if (first_byte == 0x11)
 	{
 		image.fseek(0x90, SEEK_SET);
-		image.fread(machine.device<ram_device>(RAM_TAG)->pointer() + 0x19ef, image.length() - 0x90);
+		image.fread(m_ram->pointer() + 0x19ef, image.length() - 0x90);
 		return IMAGE_INIT_PASS;
 	}
 	else
@@ -633,9 +630,11 @@ static QUICKLOAD_LOAD(tvc64)
 	}
 }
 
-static const mc6845_interface tvc_crtc6845_interface =
+
+static MC6845_INTERFACE( tvc_crtc6845_interface )
 {
 	"screen",
+	false,
 	8 /*?*/,
 	NULL,
 	tvc_update_row,
@@ -717,16 +716,16 @@ static MACHINE_CONFIG_START( tvc, tvc_state )
 	MCFG_CARTSLOT_INTERFACE("tvc_cart")
 
 	/* expansion interface */
-	MCFG_TVC64_EXPANSION_ADD("exp1", tvc_exp_interface, tvc_exp , NULL, NULL)
-	MCFG_TVC64_EXPANSION_ADD("exp2", tvc_exp_interface, tvc_exp , NULL, NULL)
-	MCFG_TVC64_EXPANSION_ADD("exp3", tvc_exp_interface, tvc_exp , NULL, NULL)
-	MCFG_TVC64_EXPANSION_ADD("exp4", tvc_exp_interface, tvc_exp , NULL, NULL)
+	MCFG_TVC64_EXPANSION_ADD("exp1", tvc_exp_interface, tvc_exp , NULL)
+	MCFG_TVC64_EXPANSION_ADD("exp2", tvc_exp_interface, tvc_exp , NULL)
+	MCFG_TVC64_EXPANSION_ADD("exp3", tvc_exp_interface, tvc_exp , NULL)
+	MCFG_TVC64_EXPANSION_ADD("exp4", tvc_exp_interface, tvc_exp , NULL)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, tvc_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", tvc_cassette_interface )
 
 	/* quickload */
-	MCFG_QUICKLOAD_ADD("quickload", tvc64, "cas", 6)
+	MCFG_QUICKLOAD_ADD("quickload", tvc_state, tvc64, "cas", 6)
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "tvc_cart")

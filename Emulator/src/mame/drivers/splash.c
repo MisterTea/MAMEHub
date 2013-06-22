@@ -54,7 +54,7 @@ WRITE16_MEMBER(splash_state::splash_sh_irqtrigger_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xff);
-		machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+		m_audiocpu->set_input_line(0, HOLD_LINE);
 	}
 }
 
@@ -63,7 +63,7 @@ WRITE16_MEMBER(splash_state::roldf_sh_irqtrigger_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xff);
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 
 	// give the z80 time to see it
@@ -107,16 +107,13 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(splash_state::splash_adpcm_data_w)
 {
-
 	m_adpcm_data = data;
 }
 
-static void splash_msm5205_int(device_t *device)
+WRITE_LINE_MEMBER(splash_state::splash_msm5205_int)
 {
-	splash_state *state = device->machine().driver_data<splash_state>();
-
-	msm5205_data_w(device, state->m_adpcm_data >> 4);
-	state->m_adpcm_data = (state->m_adpcm_data << 4) & 0xf0;
+	m_msm->data_w(m_adpcm_data >> 4);
+	m_adpcm_data = (m_adpcm_data << 4) & 0xf0;
 }
 
 static ADDRESS_MAP_START( splash_sound_map, AS_PROGRAM, 8, splash_state )
@@ -124,7 +121,7 @@ static ADDRESS_MAP_START( splash_sound_map, AS_PROGRAM, 8, splash_state )
 	AM_RANGE(0xd800, 0xd800) AM_WRITE(splash_adpcm_data_w)              /* ADPCM data for the MSM5205 chip */
 //  AM_RANGE(0xe000, 0xe000) AM_WRITENOP                                /* ??? */
 	AM_RANGE(0xe800, 0xe800) AM_READ(soundlatch_byte_r)                     /* Sound latch */
-	AM_RANGE(0xf000, 0xf001) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r,ym3812_w) /* YM3812 */
+	AM_RANGE(0xf000, 0xf001) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write) /* YM3812 */
 	AM_RANGE(0xf800, 0xffff) AM_RAM                                     /* RAM */
 ADDRESS_MAP_END
 
@@ -133,7 +130,6 @@ ADDRESS_MAP_END
 
 READ16_MEMBER(splash_state::roldfrog_bombs_r)
 {
-
 	m_ret ^= 0x100;
 	return m_ret;
 }
@@ -144,25 +140,23 @@ WRITE8_MEMBER(splash_state::sound_bank_w)
 }
 
 
-static void roldfrog_update_irq( running_machine &machine )
+void splash_state::roldfrog_update_irq(  )
 {
-	splash_state * state = machine.driver_data<splash_state>();
-	int irq = (state->m_sound_irq ? 0x08 : 0) | ((state->m_vblank_irq) ? 0x18 : 0);
-	machine.device("audiocpu")->execute().set_input_line_and_vector(0, irq ? ASSERT_LINE : CLEAR_LINE, 0xc7 | irq);
+	int irq = (m_sound_irq ? 0x08 : 0) | ((m_vblank_irq) ? 0x18 : 0);
+	m_audiocpu->set_input_line_and_vector(0, irq ? ASSERT_LINE : CLEAR_LINE, 0xc7 | irq);
 }
 
 WRITE8_MEMBER(splash_state::roldfrog_vblank_ack_w)
 {
 	m_vblank_irq = 0;
-	roldfrog_update_irq(machine());
+	roldfrog_update_irq();
 }
 
 
-static void ym_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(splash_state::ym_irq)
 {
-	splash_state * driver_state = device->machine().driver_data<splash_state>();
-	driver_state->m_sound_irq = state;
-	roldfrog_update_irq(device->machine());
+	m_sound_irq = state;
+	roldfrog_update_irq();
 }
 
 static ADDRESS_MAP_START( roldfrog_map, AS_PROGRAM, 16, splash_state )
@@ -200,7 +194,7 @@ READ8_MEMBER(splash_state::roldfrog_unk_r)
 
 static ADDRESS_MAP_START( roldfrog_sound_io_map, AS_IO, 8, splash_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x40, 0x40) AM_NOP
 	AM_RANGE(0x31, 0x31) AM_WRITE(sound_bank_w)
 	AM_RANGE(0x37, 0x37) AM_WRITE(roldfrog_vblank_ack_w )
@@ -223,7 +217,7 @@ WRITE16_MEMBER(splash_state::spr_write)
 WRITE16_MEMBER(splash_state::funystrp_sh_irqtrigger_w)
 {
 	soundlatch_byte_w(space, 0, data>>8);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static ADDRESS_MAP_START( funystrp_map, AS_PROGRAM, 16, splash_state )
@@ -293,7 +287,6 @@ ADDRESS_MAP_END
 
 MACHINE_RESET_MEMBER(splash_state,funystrp)
 {
-
 	m_adpcm_data = 0;
 	m_ret = 0x100;
 }
@@ -480,13 +473,12 @@ GFXDECODE_END
 
 static const msm5205_interface splash_msm5205_interface =
 {
-	splash_msm5205_int, /* IRQ handler */
+	DEVCB_DRIVER_LINE_MEMBER(splash_state,splash_msm5205_int), /* IRQ handler */
 	MSM5205_S48_4B      /* 8KHz */
 };
 
 MACHINE_RESET_MEMBER(splash_state,splash)
 {
-
 	m_adpcm_data = 0;
 	m_ret = 0x100;
 }
@@ -528,21 +520,18 @@ static MACHINE_CONFIG_START( splash, splash_state )
 MACHINE_CONFIG_END
 
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL,
-		DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(ym_irq)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL,
+	DEVCB_NULL, DEVCB_NULL
 };
 
 INTERRUPT_GEN_MEMBER(splash_state::roldfrog_interrupt)
 {
 	m_vblank_irq = 1;
-	roldfrog_update_irq(machine());
+	roldfrog_update_irq();
 }
 
 static MACHINE_CONFIG_START( roldfrog, splash_state )
@@ -576,54 +565,53 @@ static MACHINE_CONFIG_START( roldfrog, splash_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_24MHz / 8)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(splash_state, ym_irq))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 	MCFG_SOUND_ROUTE(2, "mono", 0.20)
 	MCFG_SOUND_ROUTE(3, "mono", 1.0)
 MACHINE_CONFIG_END
 
-static void adpcm_int1( device_t *device )
+WRITE_LINE_MEMBER(splash_state::adpcm_int1)
 {
-	splash_state *state = device->machine().driver_data<splash_state>();
-	if (state->m_snd_interrupt_enable1  || state->m_msm_toggle1 == 1)
+	if (m_snd_interrupt_enable1  || m_msm_toggle1 == 1)
 	{
-		msm5205_data_w(device, state->m_msm_data1 >> 4);
-		state->m_msm_data1 <<= 4;
-		state->m_msm_toggle1 ^= 1;
-		if (state->m_msm_toggle1 == 0)
+		m_msm1->data_w(m_msm_data1 >> 4);
+		m_msm_data1 <<= 4;
+		m_msm_toggle1 ^= 1;
+		if (m_msm_toggle1 == 0)
 		{
-			state->m_msm_source|=1;
-			device->machine().device("audiocpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0x38);
+			m_msm_source|=1;
+			m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0x38);
 		}
 	}
 }
 
-static void adpcm_int2( device_t *device )
+WRITE_LINE_MEMBER(splash_state::adpcm_int2)
 {
-	splash_state *state = device->machine().driver_data<splash_state>();
-	if (state->m_snd_interrupt_enable2 || state->m_msm_toggle2 == 1)
+	if (m_snd_interrupt_enable2 || m_msm_toggle2 == 1)
 	{
-		msm5205_data_w(device, state->m_msm_data2 >> 4);
-		state->m_msm_data2 <<= 4;
-		state->m_msm_toggle2 ^= 1;
-		if (state->m_msm_toggle2 == 0)
+		m_msm2->data_w(m_msm_data2 >> 4);
+		m_msm_data2 <<= 4;
+		m_msm_toggle2 ^= 1;
+		if (m_msm_toggle2 == 0)
 		{
-			state->m_msm_source|=2;
-			device->machine().device("audiocpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0x38);
+			m_msm_source|=2;
+			m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0x38);
 		}
 	}
 }
 
 static const msm5205_interface msm_interface1 =
 {
-	adpcm_int1,         /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(splash_state,adpcm_int1),         /* interrupt function */
 	MSM5205_S64_4B  /* 1 / 96 = 3906.25Hz playback  - guess */
 };
 
 static const msm5205_interface msm_interface2 =
 {
-	adpcm_int2,         /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(splash_state,adpcm_int2),         /* interrupt function */
 	MSM5205_S96_4B  /* 1 / 96 = 3906.25Hz playback  - guess */
 };
 
@@ -999,14 +987,12 @@ ROM_END
 
 DRIVER_INIT_MEMBER(splash_state,splash)
 {
-
 	m_bitmap_type = 0;
 	m_sprite_attr2_shift = 8;
 }
 
 DRIVER_INIT_MEMBER(splash_state,splash10)
 {
-
 	m_bitmap_type = 0;
 	m_sprite_attr2_shift = 0;
 }

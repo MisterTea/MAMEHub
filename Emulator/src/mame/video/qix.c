@@ -43,7 +43,6 @@ static MC6845_UPDATE_ROW( update_row );
 
 VIDEO_START_MEMBER(qix_state,qix)
 {
-
 	/* allocate memory for the full video RAM */
 	m_videoram.allocate(256 * 256);
 
@@ -63,7 +62,6 @@ VIDEO_START_MEMBER(qix_state,qix)
 
 WRITE_LINE_MEMBER(qix_state::display_enable_changed)
 {
-
 	/* on the rising edge, latch the scanline */
 	if (state)
 	{
@@ -85,7 +83,6 @@ WRITE_LINE_MEMBER(qix_state::display_enable_changed)
 
 WRITE8_MEMBER(qix_state::qix_flip_screen_w)
 {
-
 	m_flip = data;
 }
 
@@ -108,7 +105,6 @@ WRITE8_MEMBER(qix_state::qix_flip_screen_w)
 
 READ8_MEMBER(qix_state::qix_videoram_r)
 {
-
 	/* add in the upper bit of the address latch */
 	offset += (m_videoram_address[0] & 0x80) << 8;
 	return m_videoram[offset];
@@ -117,7 +113,6 @@ READ8_MEMBER(qix_state::qix_videoram_r)
 
 WRITE8_MEMBER(qix_state::qix_videoram_w)
 {
-
 	/* update the screen in case the game is writing "behind" the beam -
 	   Zookeeper likes to do this */
 	machine().primary_screen->update_now();
@@ -132,7 +127,6 @@ WRITE8_MEMBER(qix_state::qix_videoram_w)
 
 WRITE8_MEMBER(qix_state::slither_videoram_w)
 {
-
 	/* update the screen in case the game is writing "behind" the beam -
 	   Zookeeper likes to do this */
 	machine().primary_screen->update_now();
@@ -163,7 +157,6 @@ WRITE8_MEMBER(qix_state::slither_videoram_w)
 
 READ8_MEMBER(qix_state::qix_addresslatch_r)
 {
-
 	/* compute the value at the address latch */
 	offset = (m_videoram_address[0] << 8) | m_videoram_address[1];
 	return m_videoram[offset];
@@ -172,7 +165,6 @@ READ8_MEMBER(qix_state::qix_addresslatch_r)
 
 WRITE8_MEMBER(qix_state::qix_addresslatch_w)
 {
-
 	/* update the screen in case the game is writing "behind" the beam */
 	machine().primary_screen->update_now();
 
@@ -186,7 +178,6 @@ WRITE8_MEMBER(qix_state::qix_addresslatch_w)
 
 WRITE8_MEMBER(qix_state::slither_addresslatch_w)
 {
-
 	/* update the screen in case the game is writing "behind" the beam */
 	machine().primary_screen->update_now();
 
@@ -208,7 +199,6 @@ WRITE8_MEMBER(qix_state::slither_addresslatch_w)
 
 WRITE8_MEMBER(qix_state::qix_paletteram_w)
 {
-
 	UINT8 old_data = m_paletteram[offset];
 
 	/* set the palette RAM value */
@@ -223,7 +213,6 @@ WRITE8_MEMBER(qix_state::qix_paletteram_w)
 
 WRITE8_MEMBER(qix_state::qix_palettebank_w)
 {
-
 	/* set the bank value */
 	if (m_palette_bank != (data & 3))
 	{
@@ -236,7 +225,7 @@ WRITE8_MEMBER(qix_state::qix_palettebank_w)
 }
 
 
-static void get_pens(qix_state *state, pen_t *pens)
+void qix_state::get_pens( pen_t *pens)
 {
 	offs_t offs;
 
@@ -263,11 +252,11 @@ static void get_pens(qix_state *state, pen_t *pens)
 		0xff    /* value = 3, intensity = 3 */
 	};
 
-	for (offs = state->m_palette_bank << 8; offs < (state->m_palette_bank << 8) + NUM_PENS; offs++)
+	for (offs = m_palette_bank << 8; offs < (m_palette_bank << 8) + NUM_PENS; offs++)
 	{
 		int bits, intensity, r, g, b;
 
-		UINT8 data = state->m_paletteram[offs];
+		UINT8 data = m_paletteram[offs];
 
 		/* compute R, G, B from the table */
 		intensity = (data >> 0) & 0x03;
@@ -302,7 +291,7 @@ static MC6845_BEGIN_UPDATE( begin_update )
 #endif
 
 	/* create the pens */
-	get_pens(state, state->m_pens);
+	state->get_pens(state->m_pens);
 
 	return state->m_pens;
 }
@@ -393,9 +382,10 @@ ADDRESS_MAP_END
  *
  *************************************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",                           /* screen we are acting on */
+	false,                              /* show border area */
 	8,                                  /* number of pixels per video memory address */
 	begin_update,                       /* before pixel update callback */
 	update_row,                         /* row update callback */
@@ -408,16 +398,9 @@ static const mc6845_interface mc6845_intf =
 };
 
 
-static const m6809_config encryption_config =
-{
-	TRUE,       /* encrypt only the first byte in 10 xx and 11 xx opcodes */
-};
-
-
 MACHINE_CONFIG_FRAGMENT( qix_video )
 	MCFG_CPU_ADD("videocpu", M6809, MAIN_CLOCK_OSC/4/4) /* 1.25 MHz */
 	MCFG_CPU_PROGRAM_MAP(qix_video_map)
-	MCFG_CPU_CONFIG(encryption_config)  // for kram3
 
 	MCFG_VIDEO_START_OVERRIDE(qix_state,qix)
 

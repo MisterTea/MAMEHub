@@ -2,10 +2,12 @@ class pacland_state : public driver_device
 {
 public:
 	pacland_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_videoram2(*this, "videoram2"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_mcu(*this, "mcu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_videoram2;
@@ -40,4 +42,9 @@ public:
 	UINT32 screen_update_pacland(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(main_vblank_irq);
 	INTERRUPT_GEN_MEMBER(mcu_vblank_irq);
+	void switch_palette();
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int whichmask);
+	void draw_fg(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority );
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_mcu;
 };

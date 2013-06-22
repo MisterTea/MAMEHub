@@ -8,11 +8,12 @@ class citycon_state : public driver_device
 {
 public:
 	citycon_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_linecolor(*this, "linecolor"),
 		m_spriteram(*this, "spriteram"),
-		m_scroll(*this, "scroll"){ }
+		m_scroll(*this, "scroll"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -27,7 +28,7 @@ public:
 	int            m_bg_image;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_READ8_MEMBER(citycon_in_r);
 	DECLARE_READ8_MEMBER(citycon_irq_ack_r);
 	DECLARE_WRITE8_MEMBER(citycon_videoram_w);
@@ -41,4 +42,6 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_citycon(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	inline void changecolor_RRRRGGGGBBBBxxxx( int color, int indx );
 };

@@ -17,7 +17,7 @@ MACHINE_RESET_MEMBER(scramble_state,scramble)
 {
 	MACHINE_RESET_CALL_MEMBER(galaxold);
 
-	if (machine().device("audiocpu") != NULL)
+	if (m_audiocpu != NULL)
 		scramble_sh_init(machine());
 
 	m_security_2B_counter = 0;
@@ -25,7 +25,7 @@ MACHINE_RESET_MEMBER(scramble_state,scramble)
 
 MACHINE_RESET_MEMBER(scramble_state,explorer)
 {
-	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *RAM = memregion("maincpu")->base();
 	RAM[0x47ff] = 0; /* If not set, it doesn't reset after the 1st time */
 
 	MACHINE_RESET_CALL_MEMBER(galaxold);
@@ -56,7 +56,7 @@ WRITE8_MEMBER(scramble_state::scramble_protection_w)
 
 READ8_MEMBER(scramble_state::scramble_protection_r)
 {
-	switch (machine().device("maincpu")->safe_pc())
+	switch (m_maincpu->pc())
 	{
 	case 0x00a8: return 0xf0;
 	case 0x00be: return 0xb0;
@@ -73,18 +73,18 @@ READ8_MEMBER(scramble_state::scramble_protection_r)
 }
 
 
-static READ8_HANDLER( mariner_protection_1_r )
+READ8_MEMBER(scramble_state::mariner_protection_1_r )
 {
 	return 7;
 }
 
-static READ8_HANDLER( mariner_protection_2_r )
+READ8_MEMBER(scramble_state::mariner_protection_2_r )
 {
 	return 3;
 }
 
 
-READ8_HANDLER( triplep_pip_r )
+READ8_MEMBER(scramble_state::triplep_pip_r )
 {
 	logerror("PC %04x: triplep read port 2\n",space.device().safe_pc());
 	if (space.device().safe_pc() == 0x015a) return 0xff;
@@ -92,7 +92,7 @@ READ8_HANDLER( triplep_pip_r )
 	else return 0;
 }
 
-READ8_HANDLER( triplep_pap_r )
+READ8_MEMBER(scramble_state::triplep_pap_r )
 {
 	logerror("PC %04x: triplep read port 3\n",space.device().safe_pc());
 	if (space.device().safe_pc() == 0x015d) return 0x04;
@@ -101,48 +101,45 @@ READ8_HANDLER( triplep_pap_r )
 
 
 
-static void cavelon_banksw(running_machine &machine)
+void scramble_state::cavelon_banksw()
 {
-	scramble_state *state = machine.driver_data<scramble_state>();
 	/* any read/write access in the 0x8000-0xffff region causes a bank switch.
 	   Only the lower 0x2000 is switched but we switch the whole region
 	   to keep the CPU core happy at the boundaries */
 
-	state->m_cavelon_bank = !state->m_cavelon_bank;
-	state->membank("bank1")->set_entry(state->m_cavelon_bank);
+	m_cavelon_bank = !m_cavelon_bank;
+	membank("bank1")->set_entry(m_cavelon_bank);
 }
 
-static READ8_HANDLER( cavelon_banksw_r )
+READ8_MEMBER(scramble_state::cavelon_banksw_r )
 {
-	scramble_state *state = space.machine().driver_data<scramble_state>();
-	cavelon_banksw(space.machine());
+	cavelon_banksw();
 
 	if ((offset >= 0x0100) && (offset <= 0x0103))
-		return state->m_ppi8255_0->read(space, offset - 0x0100);
+		return m_ppi8255_0->read(space, offset - 0x0100);
 	else if ((offset >= 0x0200) && (offset <= 0x0203))
-		return state->m_ppi8255_1->read(space, offset - 0x0200);
+		return m_ppi8255_1->read(space, offset - 0x0200);
 
 	return 0xff;
 }
 
-static WRITE8_HANDLER( cavelon_banksw_w )
+WRITE8_MEMBER(scramble_state::cavelon_banksw_w )
 {
-	scramble_state *state = space.machine().driver_data<scramble_state>();
-	cavelon_banksw(space.machine());
+	cavelon_banksw();
 
 	if ((offset >= 0x0100) && (offset <= 0x0103))
-		state->m_ppi8255_0->write(space, offset - 0x0100, data);
+		m_ppi8255_0->write(space, offset - 0x0100, data);
 	else if ((offset >= 0x0200) && (offset <= 0x0203))
-		state->m_ppi8255_1->write(space, offset - 0x0200, data);
+		m_ppi8255_1->write(space, offset - 0x0200, data);
 }
 
 
-READ8_HANDLER( hunchbks_mirror_r )
+READ8_MEMBER(scramble_state::hunchbks_mirror_r )
 {
 	return space.read_byte(0x1000+offset);
 }
 
-WRITE8_HANDLER( hunchbks_mirror_w )
+WRITE8_MEMBER(scramble_state::hunchbks_mirror_w )
 {
 	space.write_byte(0x1000+offset,data);
 }
@@ -155,13 +152,13 @@ DRIVER_INIT_MEMBER(scramble_state,scramble_ppi)
 
 DRIVER_INIT_MEMBER(scramble_state,scobra)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xa803, 0xa803, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xa803, 0xa803, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
 }
 
 #ifdef UNUSED_FUNCTION
 DRIVER_INIT_MEMBER(scramble_state,atlantis)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_write_handler(0x6803, 0x6803, FUNC(scrambold_background_enable_w));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x6803, 0x6803, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
 }
 
 DRIVER_INIT_MEMBER(scramble_state,scramble)
@@ -172,14 +169,14 @@ DRIVER_INIT_MEMBER(scramble_state,scramble)
 
 DRIVER_INIT_MEMBER(scramble_state,stratgyx)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xb000, 0xb000, write8_delegate(FUNC(scramble_state::scrambold_background_green_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xb002, 0xb002, write8_delegate(FUNC(scramble_state::scrambold_background_blue_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xb00a, 0xb00a, write8_delegate(FUNC(scramble_state::scrambold_background_red_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xb000, 0xb000, write8_delegate(FUNC(scramble_state::scrambold_background_green_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xb002, 0xb002, write8_delegate(FUNC(scramble_state::scrambold_background_blue_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xb00a, 0xb00a, write8_delegate(FUNC(scramble_state::scrambold_background_red_w),this));
 }
 
 DRIVER_INIT_MEMBER(scramble_state,tazmani2)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xb002, 0xb002, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xb002, 0xb002, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
 }
 
 DRIVER_INIT_MEMBER(scramble_state,ckongs)
@@ -189,15 +186,15 @@ DRIVER_INIT_MEMBER(scramble_state,ckongs)
 DRIVER_INIT_MEMBER(scramble_state,mariner)
 {
 	/* extra ROM */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(0x5800, 0x67ff, "bank1");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).unmap_write(0x5800, 0x67ff);
-	machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x5800);
+	m_maincpu->space(AS_PROGRAM).install_read_bank(0x5800, 0x67ff, "bank1");
+	m_maincpu->space(AS_PROGRAM).unmap_write(0x5800, 0x67ff);
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x5800);
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_read_handler(0x9008, 0x9008, FUNC(mariner_protection_2_r));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_read_handler(0xb401, 0xb401, FUNC(mariner_protection_1_r));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x9008, 0x9008, read8_delegate(FUNC(scramble_state::mariner_protection_2_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xb401, 0xb401, read8_delegate(FUNC(scramble_state::mariner_protection_1_r),this));
 
 	/* ??? (it's NOT a background enable) */
-	/*machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0x6803, 0x6803);*/
+	/*m_maincpu->space(AS_PROGRAM).nop_write(0x6803, 0x6803);*/
 }
 
 #ifdef UNUSED_FUNCTION
@@ -207,12 +204,12 @@ DRIVER_INIT_MEMBER(scramble_state,frogger)
 	UINT8 *ROM;
 
 	/* the first ROM of the second CPU has data lines D0 and D1 swapped. Decode it. */
-	ROM = machine().root_device().memregion("audiocpu")->base();
+	ROM = memregion("audiocpu")->base();
 	for (A = 0;A < 0x0800;A++)
 		ROM[A] = BITSWAP8(ROM[A],7,6,5,4,3,2,0,1);
 
 	/* likewise, the 2nd gfx ROM has data lines D0 and D1 swapped. Decode it. */
-	ROM = machine().root_device().memregion("gfx1")->base();
+	ROM = memregion("gfx1")->base();
 	for (A = 0x0800;A < 0x1000;A++)
 		ROM[A] = BITSWAP8(ROM[A],7,6,5,4,3,2,0,1);
 }
@@ -223,7 +220,7 @@ DRIVER_INIT_MEMBER(scramble_state,froggers)
 	UINT8 *ROM;
 
 	/* the first ROM of the second CPU has data lines D0 and D1 swapped. Decode it. */
-	ROM = machine().root_device().memregion("audiocpu")->base();
+	ROM = memregion("audiocpu")->base();
 	for (A = 0;A < 0x0800;A++)
 		ROM[A] = BITSWAP8(ROM[A],7,6,5,4,3,2,0,1);
 }
@@ -241,7 +238,7 @@ DRIVER_INIT_MEMBER(scramble_state,devilfsh)
 	/* A2 -> A3 */
 	/* A3 -> A1 */
 
-	RAM = machine().root_device().memregion("maincpu")->base();
+	RAM = memregion("maincpu")->base();
 	for (i = 0; i < 0x10000; i += 16)
 	{
 		offs_t j;
@@ -267,7 +264,7 @@ DRIVER_INIT_MEMBER(scramble_state,hotshock)
 {
 	/* protection??? The game jumps into never-neverland here. I think
 	   it just expects a RET there */
-	machine().root_device().memregion("maincpu")->base()[0x2ef9] = 0xc9;
+	memregion("maincpu")->base()[0x2ef9] = 0xc9;
 }
 
 DRIVER_INIT_MEMBER(scramble_state,cavelon)
@@ -275,24 +272,24 @@ DRIVER_INIT_MEMBER(scramble_state,cavelon)
 	UINT8 *ROM = memregion("maincpu")->base();
 
 	/* banked ROM */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(0x0000, 0x3fff, "bank1");
+	m_maincpu->space(AS_PROGRAM).install_read_bank(0x0000, 0x3fff, "bank1");
 	membank("bank1")->configure_entries(0, 2, &ROM[0x00000], 0x10000);
-	cavelon_banksw(machine());
+	cavelon_banksw();
 
 	/* A15 switches memory banks */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_readwrite_handler(0x8000, 0xffff, FUNC(cavelon_banksw_r), FUNC(cavelon_banksw_w));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x8000, 0xffff, read8_delegate(FUNC(scramble_state::cavelon_banksw_r),this), write8_delegate(FUNC(scramble_state::cavelon_banksw_w),this));
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0x2000, 0x2000);  /* ??? */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0x3800, 0x3801);  /* looks suspicously like
+	m_maincpu->space(AS_PROGRAM).nop_write(0x2000, 0x2000);  /* ??? */
+	m_maincpu->space(AS_PROGRAM).nop_write(0x3800, 0x3801);  /* looks suspicously like
                                                                an AY8910, but not sure */
-	state_save_register_global(machine(), m_cavelon_bank);
+	save_item(NAME(m_cavelon_bank));
 }
 
 
 
 DRIVER_INIT_MEMBER(scramble_state,darkplnt)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xb00a, 0xb00a, write8_delegate(FUNC(scramble_state::darkplnt_bullet_color_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xb00a, 0xb00a, write8_delegate(FUNC(scramble_state::darkplnt_bullet_color_w),this));
 }
 
 DRIVER_INIT_MEMBER(scramble_state,mimonkey)
@@ -317,7 +314,7 @@ DRIVER_INIT_MEMBER(scramble_state,mimonkey)
 		{ 0x80,0x87,0x81,0x87,0x83,0x00,0x84,0x01,0x01,0x86,0x86,0x80,0x86,0x00,0x86,0x86 }
 	};
 
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 	int A, ctr = 0, line, col;
 
 	for( A = 0; A < 0x4000; A++ )
@@ -327,21 +324,21 @@ DRIVER_INIT_MEMBER(scramble_state,mimonkey)
 		ROM[A] = ROM[A] ^ xortable[line][col];
 		ctr++;
 	}
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xa804, 0xa804, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xa804, 0xa804, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
 }
 
 DRIVER_INIT_MEMBER(scramble_state,mimonsco)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xa804, 0xa804, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xa804, 0xa804, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
 }
 
 DRIVER_INIT_MEMBER(scramble_state,mimonscr)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x6804, 0x6804, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x6804, 0x6804, write8_delegate(FUNC(scramble_state::scrambold_background_enable_w),this));
 }
 
 
-INLINE int bit(int i,int n)
+inline int scramble_state::bit(int i,int n)
 {
 	return ((i >> n) & 1);
 }
@@ -362,8 +359,8 @@ DRIVER_INIT_MEMBER(scramble_state,anteater)
 	*   Optimizations done by Fabio Buffoni
 	*/
 
-	RAM = machine().root_device().memregion("gfx1")->base();
-	len = machine().root_device().memregion("gfx1")->bytes();
+	RAM = memregion("gfx1")->base();
+	len = memregion("gfx1")->bytes();
 
 	scratch = alloc_array_or_die(UINT8, len);
 
@@ -400,8 +397,8 @@ DRIVER_INIT_MEMBER(scramble_state,rescue)
 	*   Optimizations done by Fabio Buffoni
 	*/
 
-	RAM = machine().root_device().memregion("gfx1")->base();
-	len = machine().root_device().memregion("gfx1")->bytes();
+	RAM = memregion("gfx1")->base();
+	len = memregion("gfx1")->bytes();
 
 	scratch = auto_alloc_array(machine(), UINT8, len);
 
@@ -436,8 +433,8 @@ DRIVER_INIT_MEMBER(scramble_state,minefld)
 	*   Code To Decode Minefield by Mike Balfour and Nicola Salmoria
 	*/
 
-	RAM = machine().root_device().memregion("gfx1")->base();
-	len = machine().root_device().memregion("gfx1")->bytes();
+	RAM = memregion("gfx1")->base();
+	len = memregion("gfx1")->bytes();
 
 	scratch = auto_alloc_array(machine(), UINT8, len);
 
@@ -475,8 +472,8 @@ DRIVER_INIT_MEMBER(scramble_state,losttomb)
 	*   Optimizations done by Fabio Buffoni
 	*/
 
-	RAM = machine().root_device().memregion("gfx1")->base();
-	len = machine().root_device().memregion("gfx1")->bytes();
+	RAM = memregion("gfx1")->base();
+	len = memregion("gfx1")->bytes();
 
 	scratch = alloc_array_or_die(UINT8, len);
 
@@ -502,7 +499,7 @@ DRIVER_INIT_MEMBER(scramble_state,losttomb)
 DRIVER_INIT_MEMBER(scramble_state,hustler)
 {
 	offs_t A;
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 
 	for (A = 0;A < 0x4000;A++)
@@ -530,7 +527,7 @@ DRIVER_INIT_MEMBER(scramble_state,hustler)
 
 	/* the first ROM of the second CPU has data lines D0 and D1 swapped. Decode it. */
 	{
-		rom = machine().root_device().memregion("audiocpu")->base();
+		rom = memregion("audiocpu")->base();
 
 
 		for (A = 0;A < 0x0800;A++)
@@ -542,7 +539,7 @@ DRIVER_INIT_MEMBER(scramble_state,hustlerd)
 {
 	/* the first ROM of the second CPU has data lines D0 and D1 swapped. Decode it. */
 	offs_t A;
-	UINT8 *rom = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *rom = memregion("audiocpu")->base();
 
 
 	for (A = 0;A < 0x0800;A++)
@@ -552,7 +549,7 @@ DRIVER_INIT_MEMBER(scramble_state,hustlerd)
 DRIVER_INIT_MEMBER(scramble_state,billiard)
 {
 	offs_t A;
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 
 	for (A = 0;A < 0x4000;A++)
@@ -582,7 +579,7 @@ DRIVER_INIT_MEMBER(scramble_state,billiard)
 
 	/* the first ROM of the second CPU has data lines D0 and D1 swapped. Decode it. */
 	{
-		rom = machine().root_device().memregion("audiocpu")->base();
+		rom = memregion("audiocpu")->base();
 
 
 		for (A = 0;A < 0x0800;A++)
@@ -610,8 +607,8 @@ DRIVER_INIT_MEMBER(scramble_state,mrkougb)
 DRIVER_INIT_MEMBER(scramble_state,ad2083)
 {
 	UINT8 c;
-	int i, len = machine().root_device().memregion("maincpu")->bytes();
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	int i, len = memregion("maincpu")->bytes();
+	UINT8 *ROM = memregion("maincpu")->base();
 
 	for (i=0; i<len; i++)
 	{
@@ -675,7 +672,7 @@ WRITE8_MEMBER(scramble_state::harem_decrypt_rst_w)
 
 DRIVER_INIT_MEMBER(scramble_state,harem)
 {
-	UINT8 *ROM      =   machine().root_device().memregion("maincpu")->base() + 0x8000;
+	UINT8 *ROM      =   memregion("maincpu")->base() + 0x8000;
 	size_t size     =   0x2000;
 
 	UINT8 *data     =   m_harem_decrypted_data      = auto_alloc_array(machine(), UINT8, size * 3);

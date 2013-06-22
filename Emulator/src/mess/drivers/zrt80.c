@@ -25,12 +25,17 @@
 class zrt80_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_BEEP_OFF
+	};
+
 	zrt80_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
 	m_crtc(*this, "crtc"),
 	m_8250(*this, "ins8250"),
-	m_beep(*this, BEEPER_TAG),
+	m_beep(*this, "beeper"),
 	m_p_videoram(*this, "videoram"){ }
 
 	required_device<cpu_device> m_maincpu;
@@ -46,31 +51,42 @@ public:
 	const UINT8 *m_p_chargen;
 	virtual void machine_reset();
 	virtual void video_start();
-	TIMER_CALLBACK_MEMBER(zrt80_beepoff);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
+
 
 READ8_MEMBER( zrt80_state::zrt80_10_r )
 {
 	UINT8 ret = m_term_data;
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	return ret;
 }
 
-TIMER_CALLBACK_MEMBER(zrt80_state::zrt80_beepoff)
+void zrt80_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	beep_set_state(m_beep, 0);
+	switch (id)
+	{
+	case TIMER_BEEP_OFF:
+		m_beep->set_state(0);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in zrt80_state::device_timer");
+	}
 }
+
 
 WRITE8_MEMBER(zrt80_state::zrt80_30_w)
 {
-	machine().scheduler().timer_set(attotime::from_msec(100), timer_expired_delegate(FUNC(zrt80_state::zrt80_beepoff),this));
-	beep_set_state(m_beep, 1);
+	timer_set(attotime::from_msec(100), TIMER_BEEP_OFF);
+	m_beep->set_state(1);
 }
 
 WRITE8_MEMBER(zrt80_state::zrt80_38_w)
 {
-	machine().scheduler().timer_set(attotime::from_msec(400), timer_expired_delegate(FUNC(zrt80_state::zrt80_beepoff),this));
-	beep_set_state(m_beep, 1);
+	timer_set(attotime::from_msec(400), TIMER_BEEP_OFF);
+	m_beep->set_state(1);
 }
 
 static ADDRESS_MAP_START(zrt80_mem, AS_PROGRAM, 8, zrt80_state)
@@ -181,7 +197,7 @@ INPUT_PORTS_END
 
 void zrt80_state::machine_reset()
 {
-	beep_set_frequency(m_beep, 800);
+	m_beep->set_frequency(800);
 	m_term_data = 0;
 }
 
@@ -226,9 +242,11 @@ static MC6845_UPDATE_ROW( zrt80_update_row )
 	}
 }
 
-static const mc6845_interface zrt80_crtc6845_interface =
+
+static MC6845_INTERFACE( zrt80_crtc6845_interface )
 {
 	"screen",
+	false,
 	8 /*?*/,
 	NULL,
 	zrt80_update_row,
@@ -253,7 +271,7 @@ static const ins8250_interface zrt80_com_interface =
 WRITE8_MEMBER( zrt80_state::kbd_put )
 {
 	m_term_data = data;
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
@@ -299,7 +317,7 @@ static MACHINE_CONFIG_START( zrt80, zrt80_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */

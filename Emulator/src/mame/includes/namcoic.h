@@ -99,8 +99,7 @@ C102 - Controls CPU access to ROZ Memory Area.
 //**************************************************************************
 
 #define MCFG_NAMCO_C45_ROAD_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, NAMCO_C45_ROAD, 0) \
-
+	MCFG_DEVICE_ADD(_tag, NAMCO_C45_ROAD, 0)
 
 
 //**************************************************************************
@@ -160,10 +159,6 @@ extern const device_type NAMCO_C45_ROAD;
 
 void namco_tilemap_draw( bitmap_ind16 &bitmap, const rectangle &cliprect, int pri );
 void namco_tilemap_invalidate( void );
-DECLARE_WRITE16_HANDLER( namco_tilemapvideoram16_w );
-DECLARE_READ16_HANDLER( namco_tilemapvideoram16_r );
-DECLARE_WRITE16_HANDLER( namco_tilemapcontrol16_w );
-DECLARE_READ16_HANDLER( namco_tilemapcontrol16_r );
 
 DECLARE_READ32_HANDLER( namco_tilemapvideoram32_r );
 DECLARE_WRITE32_HANDLER( namco_tilemapvideoram32_w );

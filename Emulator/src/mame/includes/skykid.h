@@ -2,10 +2,12 @@ class skykid_state : public driver_device
 {
 public:
 	skykid_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_textram(*this, "textram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_mcu(*this, "mcu") { }
 
 	UINT8 m_inputport_selected;
 	required_shared_ptr<UINT8> m_videoram;
@@ -43,4 +45,7 @@ public:
 	UINT32 screen_update_skykid(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(main_vblank_irq);
 	INTERRUPT_GEN_MEMBER(mcu_vblank_irq);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_mcu;
 };

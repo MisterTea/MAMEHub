@@ -317,7 +317,7 @@ void info_xml_creator::output_one()
 	output_bios();
 	output_rom(m_drivlist.config().root_device());
 	output_device_roms();
-	output_sample();
+	output_sample(m_drivlist.config().root_device());
 	output_chips(m_drivlist.config().root_device(), "");
 	output_display(m_drivlist.config().root_device(), "");
 	output_sound(m_drivlist.config().root_device());
@@ -366,12 +366,14 @@ void info_xml_creator::output_one_device(device_t &device, const char *devtag)
 	// start to output info
 	fprintf(m_output, "\t<%s", emulator_info::get_xml_top());
 	fprintf(m_output, " name=\"%s\"", xml_normalize_string(device.shortname()));
+	fprintf(m_output, " sourcefile=\"%s\"", xml_normalize_string(device.source()));
 	fprintf(m_output, " isdevice=\"yes\"");
 	fprintf(m_output, " runnable=\"no\"");
 	fprintf(m_output, ">\n");
 	fprintf(m_output, "\t\t<description>%s</description>\n", xml_normalize_string(device.name()));
 
 	output_rom(device);
+	output_sample(device);
 	output_chips(device, devtag);
 	output_display(device, devtag);
 	if (has_speaker)
@@ -553,51 +555,55 @@ void info_xml_creator::output_rom(device_t &device)
 						}
 				}
 
+				astring output;
+
 				// opening tag
 				if (!is_disk)
-					fprintf(m_output, "\t\t<rom");
+					output.cat("\t\t<rom");
 				else
-					fprintf(m_output, "\t\t<disk");
+					output.cat("\t\t<disk");
 
 				// add name, merge, bios, and size tags */
 				if (name != NULL && name[0] != 0)
-					fprintf(m_output, " name=\"%s\"", xml_normalize_string(name));
+					output.catprintf(" name=\"%s\"", xml_normalize_string(name));
 				if (merge_name != NULL)
-					fprintf(m_output, " merge=\"%s\"", xml_normalize_string(merge_name));
+					output.catprintf(" merge=\"%s\"", xml_normalize_string(merge_name));
 				if (bios_name[0] != 0)
-					fprintf(m_output, " bios=\"%s\"", xml_normalize_string(bios_name));
+					output.catprintf(" bios=\"%s\"", xml_normalize_string(bios_name));
 				if (!is_disk)
-					fprintf(m_output, " size=\"%d\"", rom_file_size(rom));
+					output.catprintf(" size=\"%d\"", rom_file_size(rom));
 
 				// dump checksum information only if there is a known dump
 				if (!hashes.flag(hash_collection::FLAG_NO_DUMP))
 				{
 					// iterate over hash function types and print m_output their values
 					astring tempstr;
-					fprintf(m_output, " %s", hashes.attribute_string(tempstr));
+					output.catprintf(" %s", hashes.attribute_string(tempstr));
 				}
 				else
-					fprintf(m_output, " status=\"nodump\"");
+					output.cat(" status=\"nodump\"");
 
 				// append a region name
-				fprintf(m_output, " region=\"%s\"", ROMREGION_GETTAG(region));
+				output.catprintf(" region=\"%s\"", ROMREGION_GETTAG(region));
 
 				// for non-disk entries, print offset
 				if (!is_disk)
-					fprintf(m_output, " offset=\"%x\"", offset);
+					output.catprintf(" offset=\"%x\"", offset);
 
 				// for disk entries, add the disk index
 				else
 				{
-					fprintf(m_output, " index=\"%x\"", DISK_GETINDEX(rom));
-					fprintf(m_output, " writable=\"%s\"", DISK_ISREADONLY(rom) ? "no" : "yes");
+					output.catprintf(" index=\"%x\"", DISK_GETINDEX(rom));
+					output.catprintf(" writable=\"%s\"", DISK_ISREADONLY(rom) ? "no" : "yes");
 				}
 
 				// add optional flag
 				if ((!is_disk && ROM_ISOPTIONAL(rom)) || (is_disk && DISK_ISOPTIONAL(rom)))
-					fprintf(m_output, " optional=\"yes\"");
+					output.cat(" optional=\"yes\"");
 
-				fprintf(m_output, "/>\n");
+				output.cat("/>\n");
+
+				fprintf(m_output, "%s", output.cstr());
 			}
 		}
 }
@@ -608,15 +614,15 @@ void info_xml_creator::output_rom(device_t &device)
 //  samples referenced by a game_driver
 //-------------------------------------------------
 
-void info_xml_creator::output_sample()
+void info_xml_creator::output_sample(device_t &device)
 {
 	// iterate over sample devices
-	samples_device_iterator iter(m_drivlist.config().root_device());
-	for (samples_device *device = iter.first(); device != NULL; device = iter.next())
+	samples_device_iterator sampiter(device);
+	for (samples_device *samples = sampiter.first(); samples != NULL; samples = sampiter.next())
 	{
-		samples_iterator sampiter(*device);
+		samples_iterator iter(*samples);
 		tagmap_t<int> already_printed;
-		for (const char *samplename = sampiter.first(); samplename != NULL; samplename = sampiter.next())
+		for (const char *samplename = iter.first(); samplename != NULL; samplename = iter.next())
 		{
 			// filter out duplicates
 			if (already_printed.add(samplename, 1) == TMERR_DUPLICATE)
@@ -1092,27 +1098,24 @@ void info_xml_creator::output_switches(const ioport_list &portlist, const char *
 		for (ioport_field *field = port->first_field(); field != NULL; field = field->next())
 			if (field->type() == type)
 			{
+				astring output;
+
 				astring newtag(port->tag()), oldtag(":");
 				newtag.substr(newtag.find(oldtag.cat(root_tag)) + oldtag.len());
 
 				// output the switch name information
-				fprintf(m_output, "\t\t<%s name=\"%s\"", outertag, xml_normalize_string(field->name()));
-				fprintf(m_output, " tag=\"%s\"", xml_normalize_string(newtag));
-				fprintf(m_output, " mask=\"%u\"", field->mask());
-				fprintf(m_output, ">\n");
+				output.catprintf("\t\t<%s name=\"%s\" tag=\"%s\" mask=\"%u\">\n", outertag, xml_normalize_string(field->name()), xml_normalize_string(newtag), field->mask());
 
 				// loop over settings
 				for (ioport_setting *setting = field->first_setting(); setting != NULL; setting = setting->next())
 				{
-					fprintf(m_output, "\t\t\t<%s name=\"%s\"", innertag, xml_normalize_string(setting->name()));
-					fprintf(m_output, " value=\"%u\"", setting->value());
-					if (setting->value() == field->defvalue())
-						fprintf(m_output, " default=\"yes\"");
-					fprintf(m_output, "/>\n");
+					output.catprintf("\t\t\t<%s name=\"%s\" value=\"%u\"%s/>\n", innertag, xml_normalize_string(setting->name()), setting->value(), setting->value() == field->defvalue() ? " default=\"yes\"" : "");
 				}
 
 				// terminate the switch entry
-				fprintf(m_output, "\t\t</%s>\n", outertag);
+				output.catprintf("\t\t</%s>\n", outertag);
+
+				fprintf(m_output, "%s", output.cstr());
 			}
 }
 
@@ -1363,19 +1366,18 @@ const char *info_xml_creator::get_merge_name(const hash_collection &romhashes)
 	for (int clone_of = m_drivlist.find(m_drivlist.driver().parent); clone_of != -1; clone_of = m_drivlist.find(m_drivlist.driver(clone_of).parent))
 	{
 		// look in the parent's ROMs
-		device_iterator deviter(m_drivlist.config(clone_of, m_lookup_options).root_device());
-		for (device_t *device = deviter.first(); device != NULL; device = deviter.next())
-			for (const rom_entry *pregion = rom_first_region(*device); pregion != NULL; pregion = rom_next_region(pregion))
-				for (const rom_entry *prom = rom_first_file(pregion); prom != NULL; prom = rom_next_file(prom))
+		device_t *device = &m_drivlist.config(clone_of, m_lookup_options).root_device();
+		for (const rom_entry *pregion = rom_first_region(*device); pregion != NULL; pregion = rom_next_region(pregion))
+			for (const rom_entry *prom = rom_first_file(pregion); prom != NULL; prom = rom_next_file(prom))
+			{
+				hash_collection phashes(ROM_GETHASHDATA(prom));
+				if (!phashes.flag(hash_collection::FLAG_NO_DUMP) && romhashes == phashes)
 				{
-					hash_collection phashes(ROM_GETHASHDATA(prom));
-					if (!phashes.flag(hash_collection::FLAG_NO_DUMP) && romhashes == phashes)
-					{
-						// stop when we find a match
-						merge_name = ROM_GETNAME(prom);
-						break;
-					}
+					// stop when we find a match
+					merge_name = ROM_GETNAME(prom);
+					break;
 				}
+			}
 	}
 
 	return merge_name;

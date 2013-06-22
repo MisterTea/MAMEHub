@@ -103,13 +103,11 @@ CUSTOM_INPUT_MEMBER(cop01_state::mightguy_area_r)
 
 WRITE8_MEMBER(cop01_state::cop01_irq_ack_w)
 {
-
 	m_maincpu->set_input_line(0, CLEAR_LINE );
 }
 
 READ8_MEMBER(cop01_state::cop01_sound_irq_ack_w)
 {
-
 	m_audiocpu->set_input_line(0, CLEAR_LINE );
 	return 0;
 }
@@ -160,9 +158,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( audio_io_map, AS_IO, 8, cop01_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x04, 0x05) AM_DEVWRITE_LEGACY("ay3", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x04, 0x05) AM_DEVWRITE("ay3", ay8910_device, address_data_w)
 	AM_RANGE(0x06, 0x06) AM_READ(cop01_sound_command_r)
 ADDRESS_MAP_END
 
@@ -175,7 +173,7 @@ READ8_MEMBER(cop01_state::kludge)
 
 static ADDRESS_MAP_START( mightguy_audio_io_map, AS_IO, 8, cop01_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ymsnd", ym3526_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ymsnd", ym3526_device, write)
 	AM_RANGE(0x02, 0x02) AM_WRITENOP    /* 1412M2? */
 	AM_RANGE(0x03, 0x03) AM_WRITENOP    /* 1412M2? */
 	AM_RANGE(0x03, 0x03) AM_READ(kludge)    /* 1412M2? */
@@ -427,10 +425,6 @@ GFXDECODE_END
 
 void cop01_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_pulse));
 	save_item(NAME(m_timer));
 	save_item(NAME(m_vreg));
@@ -438,7 +432,6 @@ void cop01_state::machine_start()
 
 void cop01_state::machine_reset()
 {
-
 	m_pulse = 0;
 	m_timer = 0;
 	m_vreg[0] = 0;
@@ -644,7 +637,7 @@ DRIVER_INIT_MEMBER(cop01_state,mightguy)
 #if MIGHTGUY_HACK
 	/* This is a hack to fix the game code to get a fully working
 	   "Starting Area" fake Dip Switch */
-	UINT8 *RAM = (UINT8 *)machine().root_device().memregion("maincpu")->base();
+	UINT8 *RAM = (UINT8 *)memregion("maincpu")->base();
 	RAM[0x00e4] = 0x07; // rlca
 	RAM[0x00e5] = 0x07; // rlca
 	RAM[0x00e6] = 0x07; // rlca

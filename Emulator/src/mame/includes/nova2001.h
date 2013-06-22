@@ -2,10 +2,11 @@ class nova2001_state : public driver_device
 {
 public:
 	nova2001_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fg_videoram(*this, "fg_videoram"),
 		m_bg_videoram(*this, "bg_videoram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_ninjakun_io_a002_ctrl;
 	optional_shared_ptr<UINT8> m_fg_videoram;
@@ -44,4 +45,8 @@ public:
 	UINT32 screen_update_ninjakun(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_pkunwar(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_raiders5(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void nova2001_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void pkunwar_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void lineswap_gfx_roms(const char *region, const int bit);
+	required_device<cpu_device> m_maincpu;
 };

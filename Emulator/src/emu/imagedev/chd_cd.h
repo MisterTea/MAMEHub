@@ -31,6 +31,7 @@ class cdrom_image_device :  public device_t,
 public:
 	// construction/destruction
 	cdrom_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	cdrom_image_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	virtual ~cdrom_image_device();
 
 	// image-level overrides
@@ -74,6 +75,5 @@ extern const device_type CDROM;
 
 #define MCFG_CDROM_ADD(_tag, _config) \
 	MCFG_DEVICE_ADD(_tag, CDROM, 0) \
-	MCFG_DEVICE_CONFIG(_config) \
-
+	MCFG_DEVICE_CONFIG(_config)
 #endif /* CHD_CD_H */

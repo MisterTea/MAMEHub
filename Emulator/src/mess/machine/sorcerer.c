@@ -5,6 +5,7 @@
 *******************************************************************************/
 
 #include "includes/sorcerer.h"
+#include "machine/z80bin.h"
 
 #if SORCERER_USING_RS232
 
@@ -26,19 +27,28 @@ TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_serial_tc)
 #endif
 
 
-/* timer to read cassette waveforms */
-
-
-static cassette_image_device *cassette_device_image(running_machine &machine)
+void sorcerer_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	sorcerer_state *state = machine.driver_data<sorcerer_state>();
-	if (state->m_fe & 0x20)
-		return machine.device<cassette_image_device>(CASSETTE2_TAG);
-	else
-		return machine.device<cassette_image_device>(CASSETTE_TAG);
+	switch (id)
+	{
+	case TIMER_SERIAL:
+#if SORCERER_USING_RS232
+		sorcerer_serial_tc(ptr, param);
+#endif
+		break;
+	case TIMER_CASSETTE:
+		sorcerer_cassette_tc(ptr, param);
+		break;
+	case TIMER_RESET:
+		sorcerer_reset(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in sorcerer_state::device_timer");
+	}
 }
 
 
+/* timer to read cassette waveforms */
 
 TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_cassette_tc)
 {
@@ -52,14 +62,14 @@ TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_cassette_tc)
 
 			m_cass_data.input.length++;
 
-			cass_ws = ((cassette_device_image(machine()))->input() > +0.02) ? 1 : 0;
+			cass_ws = ((((m_fe & 0x20) ? m_cassette2 : m_cassette1))->input() > +0.02) ? 1 : 0;
 
 			if (cass_ws != m_cass_data.input.level)
 			{
 				m_cass_data.input.level = cass_ws;
 				m_cass_data.input.bit = ((m_cass_data.input.length < 0x6) || (m_cass_data.input.length > 0x20)) ? 1 : 0;
 				m_cass_data.input.length = 0;
-				ay31015_set_input_pin( m_uart, AY31015_SI, m_cass_data.input.bit );
+				m_uart->set_input_pin(AY31015_SI, m_cass_data.input.bit);
 			}
 
 			/* saving a tape - convert the serial stream from the uart, into 1200 and 2400 Hz frequencies.
@@ -68,7 +78,7 @@ TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_cassette_tc)
 			m_cass_data.output.length++;
 			if (!(m_cass_data.output.length & 0x1f))
 			{
-				cass_ws = ay31015_get_output_pin( m_uart, AY31015_SO );
+				cass_ws = m_uart->get_output_pin(AY31015_SO);
 				if (cass_ws != m_cass_data.output.bit)
 				{
 					m_cass_data.output.bit = cass_ws;
@@ -81,7 +91,7 @@ TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_cassette_tc)
 				if (!((m_cass_data.output.bit == 0) && (m_cass_data.output.length & 4)))
 				{
 					m_cass_data.output.level ^= 1;          // toggle output this, except on 2nd half of low bit
-					cassette_device_image(machine())->output(m_cass_data.output.level ? -1.0 : +1.0);
+					((m_fe & 0x20) ? m_cassette2 : m_cassette1)->output(m_cass_data.output.level ? -1.0 : +1.0);
 				}
 			}
 			return;
@@ -90,7 +100,7 @@ TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_cassette_tc)
 			/* loading a tape */
 			m_cass_data.input.length++;
 
-			cass_ws = ((cassette_device_image(machine()))->input() > +0.02) ? 1 : 0;
+			cass_ws = ((((m_fe & 0x20) ? m_cassette2 : m_cassette1))->input() > +0.02) ? 1 : 0;
 
 			if (cass_ws != m_cass_data.input.level || m_cass_data.input.length == 10)
 			{
@@ -100,7 +110,7 @@ TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_cassette_tc)
 					m_cass_data.input.length = 0;
 					m_cass_data.input.level = cass_ws;
 				}
-				ay31015_set_input_pin( m_uart, AY31015_SI, m_cass_data.input.bit );
+				m_uart->set_input_pin(AY31015_SI, m_cass_data.input.bit);
 			}
 
 			/* saving a tape - convert the serial stream from the uart, into 600 and 1200 Hz frequencies. */
@@ -108,7 +118,7 @@ TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_cassette_tc)
 			m_cass_data.output.length++;
 			if (!(m_cass_data.output.length & 7))
 			{
-				cass_ws = ay31015_get_output_pin( m_uart, AY31015_SO );
+				cass_ws = m_uart->get_output_pin(AY31015_SO);
 				if (cass_ws != m_cass_data.output.bit)
 				{
 					m_cass_data.output.bit = cass_ws;
@@ -121,7 +131,7 @@ TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_cassette_tc)
 				if (!((m_cass_data.output.bit == 0) && (m_cass_data.output.length & 8)))
 				{
 					m_cass_data.output.level ^= 1;          // toggle output this, except on 2nd half of low bit
-					cassette_device_image(machine())->output(m_cass_data.output.level ? -1.0 : +1.0);
+					((m_fe & 0x20) ? m_cassette2 : m_cassette1)->output(m_cass_data.output.level ? -1.0 : +1.0);
 				}
 			}
 			return;
@@ -137,7 +147,7 @@ TIMER_CALLBACK_MEMBER(sorcerer_state::sorcerer_reset)
 
 WRITE8_MEMBER(sorcerer_state::sorcerer_fc_w)
 {
-	ay31015_set_transmit_data( m_uart, data );
+	m_uart->set_transmit_data(data);
 }
 
 
@@ -145,13 +155,13 @@ WRITE8_MEMBER(sorcerer_state::sorcerer_fd_w)
 {
 	/* Translate data to control signals */
 
-	ay31015_set_input_pin( m_uart, AY31015_CS, 0 );
-	ay31015_set_input_pin( m_uart, AY31015_NB1, data & 1);
-	ay31015_set_input_pin( m_uart, AY31015_NB2, (BIT(data, 1)) ? 1 : 0 );
-	ay31015_set_input_pin( m_uart, AY31015_TSB, (BIT(data, 2)) ? 1 : 0 );
-	ay31015_set_input_pin( m_uart, AY31015_EPS, (BIT(data, 3)) ? 1 : 0 );
-	ay31015_set_input_pin( m_uart, AY31015_NP,  (BIT(data, 4)) ? 1 : 0 );
-	ay31015_set_input_pin( m_uart, AY31015_CS, 1 );
+	m_uart->set_input_pin(AY31015_CS, 0);
+	m_uart->set_input_pin(AY31015_NB1, BIT(data, 0));
+	m_uart->set_input_pin(AY31015_NB2, BIT(data, 1));
+	m_uart->set_input_pin(AY31015_TSB, BIT(data, 2));
+	m_uart->set_input_pin(AY31015_EPS, BIT(data, 3));
+	m_uart->set_input_pin(AY31015_NP,  BIT(data, 4));
+	m_uart->set_input_pin(AY31015_CS, 1);
 }
 
 WRITE8_MEMBER(sorcerer_state::sorcerer_fe_w)
@@ -175,18 +185,18 @@ WRITE8_MEMBER(sorcerer_state::sorcerer_fe_w)
 
 		bool sound = BIT(m_iop_config->read(), 3);
 
-		m_cass1->change_state(
+		m_cassette1->change_state(
 			(BIT(data,4) & sound) ? CASSETTE_SPEAKER_ENABLED : CASSETTE_SPEAKER_MUTED, CASSETTE_MASK_SPEAKER);
 
-		m_cass2->change_state(
+		m_cassette2->change_state(
 			(BIT(data,5) & sound) ? CASSETTE_SPEAKER_ENABLED : CASSETTE_SPEAKER_MUTED, CASSETTE_MASK_SPEAKER);
 
 		/* cassette 1 motor */
-		m_cass1->change_state(
+		m_cassette1->change_state(
 			(BIT(data,4)) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED, CASSETTE_MASK_MOTOR);
 
 		/* cassette 2 motor */
-		m_cass2->change_state(
+		m_cassette2->change_state(
 			(BIT(data,5)) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED, CASSETTE_MASK_MOTOR);
 
 		if (data & 0x30)
@@ -205,8 +215,8 @@ WRITE8_MEMBER(sorcerer_state::sorcerer_fe_w)
 	// bit 6 baud rate */
 	if (BIT(changed_bits, 6))
 	{
-		ay31015_set_receiver_clock( m_uart, (BIT(data, 6)) ? 19200.0 : 4800.0);
-		ay31015_set_transmitter_clock( m_uart, (BIT(data, 6)) ? 19200.0 : 4800.0);
+		m_uart->set_receiver_clock(BIT(data, 6) ? 19200.0 : 4800.0);
+		m_uart->set_transmitter_clock(BIT(data, 6) ? 19200.0 : 4800.0);
 	}
 }
 
@@ -236,9 +246,9 @@ WRITE8_MEMBER(sorcerer_state::sorcerer_ff_w)
 
 READ8_MEMBER(sorcerer_state::sorcerer_fc_r)
 {
-	UINT8 data = ay31015_get_received_data( m_uart );
-	ay31015_set_input_pin( m_uart, AY31015_RDAV, 0 );
-	ay31015_set_input_pin( m_uart, AY31015_RDAV, 1 );
+	UINT8 data = m_uart->get_received_data();
+	m_uart->set_input_pin(AY31015_RDAV, 0);
+	m_uart->set_input_pin(AY31015_RDAV, 1);
 	return data;
 }
 
@@ -247,13 +257,13 @@ READ8_MEMBER(sorcerer_state::sorcerer_fd_r)
 	/* set unused bits high */
 	UINT8 data = 0xe0;
 
-	ay31015_set_input_pin( m_uart, AY31015_SWE, 0 );
-	data |= ay31015_get_output_pin( m_uart, AY31015_TBMT ) ? 0x01 : 0;
-	data |= ay31015_get_output_pin( m_uart, AY31015_DAV  ) ? 0x02 : 0;
-	data |= ay31015_get_output_pin( m_uart, AY31015_OR   ) ? 0x04 : 0;
-	data |= ay31015_get_output_pin( m_uart, AY31015_FE   ) ? 0x08 : 0;
-	data |= ay31015_get_output_pin( m_uart, AY31015_PE   ) ? 0x10 : 0;
-	ay31015_set_input_pin( m_uart, AY31015_SWE, 1 );
+	m_uart->set_input_pin(AY31015_SWE, 0);
+	data |= m_uart->get_output_pin(AY31015_TBMT) ? 0x01 : 0;
+	data |= m_uart->get_output_pin(AY31015_DAV ) ? 0x02 : 0;
+	data |= m_uart->get_output_pin(AY31015_OR  ) ? 0x04 : 0;
+	data |= m_uart->get_output_pin(AY31015_FE  ) ? 0x08 : 0;
+	data |= m_uart->get_output_pin(AY31015_PE  ) ? 0x10 : 0;
+	m_uart->set_input_pin(AY31015_SWE, 1);
 
 	return data;
 }
@@ -299,11 +309,10 @@ READ8_MEMBER(sorcerer_state::sorcerer_ff_r)
  Snapshot Handling
 ******************************************************************************/
 
-SNAPSHOT_LOAD(sorcerer)
+SNAPSHOT_LOAD_MEMBER( sorcerer_state,sorcerer)
 {
-	device_t *cpu = image.device().machine().device("maincpu");
-	UINT8 *RAM = image.device().machine().root_device().memregion(cpu->tag())->base();
-	address_space &space = cpu->memory().space(AS_PROGRAM);
+	UINT8 *RAM = memregion(m_maincpu->tag())->base();
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 header[28];
 	unsigned char s_byte;
 
@@ -327,32 +336,32 @@ SNAPSHOT_LOAD(sorcerer)
 	image.fread( RAM+0xc000, 0x4000);
 
 	/* patch CPU registers */
-	cpu->state().set_state_int(Z80_I, header[0]);
-	cpu->state().set_state_int(Z80_HL2, header[1] | (header[2] << 8));
-	cpu->state().set_state_int(Z80_DE2, header[3] | (header[4] << 8));
-	cpu->state().set_state_int(Z80_BC2, header[5] | (header[6] << 8));
-	cpu->state().set_state_int(Z80_AF2, header[7] | (header[8] << 8));
-	cpu->state().set_state_int(Z80_HL, header[9] | (header[10] << 8));
-	cpu->state().set_state_int(Z80_DE, header[11] | (header[12] << 8));
-	cpu->state().set_state_int(Z80_BC, header[13] | (header[14] << 8));
-	cpu->state().set_state_int(Z80_IY, header[15] | (header[16] << 8));
-	cpu->state().set_state_int(Z80_IX, header[17] | (header[18] << 8));
-	cpu->state().set_state_int(Z80_IFF1, header[19]&2 ? 1 : 0);
-	cpu->state().set_state_int(Z80_IFF2, header[19]&4 ? 1 : 0);
-	cpu->state().set_state_int(Z80_R, header[20]);
-	cpu->state().set_state_int(Z80_AF, header[21] | (header[22] << 8));
-	cpu->state().set_state_int(STATE_GENSP, header[23] | (header[24] << 8));
-	cpu->state().set_state_int(Z80_IM, header[25]);
-	cpu->state().set_pc(header[26] | (header[27] << 8));
+	m_maincpu->set_state_int(Z80_I, header[0]);
+	m_maincpu->set_state_int(Z80_HL2, header[1] | (header[2] << 8));
+	m_maincpu->set_state_int(Z80_DE2, header[3] | (header[4] << 8));
+	m_maincpu->set_state_int(Z80_BC2, header[5] | (header[6] << 8));
+	m_maincpu->set_state_int(Z80_AF2, header[7] | (header[8] << 8));
+	m_maincpu->set_state_int(Z80_HL, header[9] | (header[10] << 8));
+	m_maincpu->set_state_int(Z80_DE, header[11] | (header[12] << 8));
+	m_maincpu->set_state_int(Z80_BC, header[13] | (header[14] << 8));
+	m_maincpu->set_state_int(Z80_IY, header[15] | (header[16] << 8));
+	m_maincpu->set_state_int(Z80_IX, header[17] | (header[18] << 8));
+	m_maincpu->set_state_int(Z80_IFF1, header[19]&2 ? 1 : 0);
+	m_maincpu->set_state_int(Z80_IFF2, header[19]&4 ? 1 : 0);
+	m_maincpu->set_state_int(Z80_R, header[20]);
+	m_maincpu->set_state_int(Z80_AF, header[21] | (header[22] << 8));
+	m_maincpu->set_state_int(STATE_GENSP, header[23] | (header[24] << 8));
+	m_maincpu->set_state_int(Z80_IM, header[25]);
+	m_maincpu->set_pc(header[26] | (header[27] << 8));
 
 	return IMAGE_INIT_PASS;
 }
 
 void sorcerer_state::machine_start()
 {
-	m_cassette_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sorcerer_state::sorcerer_cassette_tc),this));
+	m_cassette_timer = timer_alloc(TIMER_CASSETTE);
 #if SORCERER_USING_RS232
-	m_serial_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sorcerer_state::sorcerer_serial_tc),this));
+	m_serial_timer = timer_alloc(TIMER_SERIAL);
 #endif
 
 	UINT16 endmem = 0xbfff;
@@ -377,9 +386,9 @@ void sorcerer_state::machine_start()
 
 MACHINE_START_MEMBER(sorcerer_state,sorcererd)
 {
-	m_cassette_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sorcerer_state::sorcerer_cassette_tc),this));
+	m_cassette_timer = timer_alloc(TIMER_CASSETTE);
 #if SORCERER_USING_RS232
-	m_serial_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sorcerer_state::sorcerer_serial_tc),this));
+	m_serial_timer = timer_alloc(TIMER_SERIAL);
 #endif
 
 	UINT16 endmem = 0xbbff;
@@ -404,7 +413,7 @@ MACHINE_START_MEMBER(sorcerer_state,sorcererd)
 
 void sorcerer_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	/* Initialize cassette interface */
 	m_cass_data.output.length = 0;
@@ -416,5 +425,73 @@ void sorcerer_state::machine_reset()
 	sorcerer_fe_w(space, 0, 0, 0xff);
 
 	membank("boot")->set_entry(1);
-	machine().scheduler().timer_set(attotime::from_usec(10), timer_expired_delegate(FUNC(sorcerer_state::sorcerer_reset),this));
+	timer_set(attotime::from_usec(10), TIMER_RESET);
+}
+
+
+/*-------------------------------------------------
+    QUICKLOAD_LOAD_MEMBER( sorcerer_state, sorcerer )
+-------------------------------------------------*/
+
+QUICKLOAD_LOAD_MEMBER( sorcerer_state, sorcerer )
+{
+	UINT16 execute_address, start_address, end_address;
+	int autorun;
+	/* load the binary into memory */
+	if (z80bin_load_file(&image, file_type, &execute_address, &start_address, &end_address) == IMAGE_INIT_FAIL)
+		return IMAGE_INIT_FAIL;
+
+	/* is this file executable? */
+	if (execute_address != 0xffff)
+	{
+		/* check to see if autorun is on (I hate how this works) */
+		autorun = ioport("CONFIG")->read_safe(0xFF) & 1;
+
+		address_space &space = m_maincpu->space(AS_PROGRAM);
+
+		if ((execute_address >= 0xc000) && (execute_address <= 0xdfff) && (space.read_byte(0xdffa) != 0xc3))
+			return IMAGE_INIT_FAIL;     /* can't run a program if the cartridge isn't in */
+
+		/* Since Exidy Basic is by Microsoft, it needs some preprocessing before it can be run.
+		1. A start address of 01D5 indicates a basic program which needs its pointers fixed up.
+		2. If autorunning, jump to C689 (command processor), else jump to C3DD (READY prompt).
+		Important addresses:
+		    01D5 = start (load) address of a conventional basic program
+		    C858 = an autorun basic program will have this exec address on the tape
+		    C3DD = part of basic that displays READY and lets user enter input */
+
+		if ((start_address == 0x1d5) || (execute_address == 0xc858))
+		{
+			UINT8 i;
+			static const UINT8 data[]={
+				0xcd, 0x26, 0xc4,   // CALL C426    ;set up other pointers
+				0x21, 0xd4, 1,      // LD HL,01D4   ;start of program address (used by C689)
+				0x36, 0,        // LD (HL),00   ;make sure dummy end-of-line is there
+				0xc3, 0x89, 0xc6    // JP C689  ;run program
+			};
+
+			for (i = 0; i < ARRAY_LENGTH(data); i++)
+				space.write_byte(0xf01f + i, data[i]);
+
+			if (!autorun)
+				space.write_word(0xf028,0xc3dd);
+
+			/* tell BASIC where program ends */
+			space.write_byte(0x1b7, end_address & 0xff);
+			space.write_byte(0x1b8, (end_address >> 8) & 0xff);
+
+			if ((execute_address != 0xc858) && autorun)
+				space.write_word(0xf028, execute_address);
+
+			m_maincpu->set_pc(0xf01f);
+		}
+		else
+		{
+			if (autorun)
+				m_maincpu->set_pc(execute_address);
+		}
+
+	}
+
+	return IMAGE_INIT_PASS;
 }

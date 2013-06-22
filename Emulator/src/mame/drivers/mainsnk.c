@@ -114,10 +114,9 @@ cc_p14.j2 8192 0xedc6a1eb M5L2764k
 
 WRITE8_MEMBER(mainsnk_state::sound_command_w)
 {
-
 	m_sound_cpu_busy = 1;
 	soundlatch_byte_w(space, 0, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 READ8_MEMBER(mainsnk_state::sound_command_r)
@@ -127,14 +126,12 @@ READ8_MEMBER(mainsnk_state::sound_command_r)
 
 READ8_MEMBER(mainsnk_state::sound_ack_r)
 {
-
 	m_sound_cpu_busy = 0;
 	return 0xff;
 }
 
 CUSTOM_INPUT_MEMBER(mainsnk_state::mainsnk_sound_r)
 {
-
 	return (m_sound_cpu_busy) ? 0x01 : 0x00;
 }
 
@@ -161,9 +158,9 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, mainsnk_state )
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0xa000, 0xa000) AM_READ(sound_command_r)
 	AM_RANGE(0xc000, 0xc000) AM_READ(sound_ack_r)
-	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
+	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
 	AM_RANGE(0xe002, 0xe003) AM_WRITENOP    // ? always FFFF, snkwave leftover?
-	AM_RANGE(0xe008, 0xe009) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0xe008, 0xe009) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_portmap, AS_IO, 8, mainsnk_state )

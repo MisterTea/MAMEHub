@@ -49,8 +49,9 @@ class koikoi_state : public driver_device
 {
 public:
 	koikoi_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -74,6 +75,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_koikoi(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -94,7 +96,7 @@ TILE_GET_INFO_MEMBER(koikoi_state::get_tile_info)
 
 void koikoi_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* allocate the colortable */
@@ -163,7 +165,6 @@ WRITE8_MEMBER(koikoi_state::vram_w)
 
 READ8_MEMBER(koikoi_state::input_r)
 {
-
 	if (m_inputcnt < 0)
 		return 0;
 
@@ -236,8 +237,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( koikoi_io_map, AS_IO, 8, koikoi_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x02, 0x02) AM_WRITENOP //watchdog
-	AM_RANGE(0x03, 0x03) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x06, 0x07) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x03, 0x03) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x06, 0x07) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 /*************************************
@@ -340,7 +341,6 @@ static const ay8910_interface ay8910_config =
 
 void koikoi_state::machine_start()
 {
-
 	save_item(NAME(m_inputcnt));
 	save_item(NAME(m_inputval));
 	save_item(NAME(m_inputlen));

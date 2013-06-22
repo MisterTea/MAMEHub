@@ -20,7 +20,7 @@
 
 void gridlee_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -38,16 +38,15 @@ void gridlee_state::palette_init()
  *
  *************************************/
 
-static void expand_pixels(running_machine &machine)
+void gridlee_state::expand_pixels()
 {
-	gridlee_state *state = machine.driver_data<gridlee_state>();
-	UINT8 *videoram = state->m_videoram;
+	UINT8 *videoram = m_videoram;
 	int offset = 0;
 
 	for(offset = 0; offset < 0x77ff; offset++)
 	{
-		state->m_local_videoram[offset * 2 + 0] = videoram[offset] >> 4;
-		state->m_local_videoram[offset * 2 + 1] = videoram[offset] & 15;
+		m_local_videoram[offset * 2 + 0] = videoram[offset] >> 4;
+		m_local_videoram[offset * 2 + 1] = videoram[offset] & 15;
 	}
 }
 
@@ -67,9 +66,9 @@ void gridlee_state::video_start()
 	/* reset the palette */
 	m_palettebank_vis = 0;
 
-	state_save_register_global(machine(), m_cocktail_flip);
-	state_save_register_global(machine(), m_palettebank_vis);
-	machine().save().register_postload(save_prepost_delegate(FUNC(expand_pixels), &machine()));
+	save_item(NAME(m_cocktail_flip));
+	save_item(NAME(m_palettebank_vis));
+	machine().save().register_postload(save_prepost_delegate(FUNC(gridlee_state::expand_pixels), this));
 }
 
 
@@ -156,7 +155,7 @@ UINT32 gridlee_state::screen_update_gridlee(screen_device &screen, bitmap_ind16 
 	}
 
 	/* draw the sprite images */
-	gfx = machine().root_device().memregion("gfx1")->base();
+	gfx = memregion("gfx1")->base();
 	for (i = 0; i < 32; i++)
 	{
 		UINT8 *sprite = m_spriteram + i * 4;

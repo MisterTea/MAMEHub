@@ -62,7 +62,7 @@ const device_type V9938 = &device_creator<v9938_device>;
 const device_type V9958 = &device_creator<v9958_device>;
 
 v99x8_device::v99x8_device(const machine_config &mconfig, device_type type, const char *name, const char *shortname, const char *tag, device_t *owner, UINT32 clock)
-:   device_t(mconfig, type, name, shortname, tag, owner, clock),
+:   device_t(mconfig, type, name, tag, owner, clock, shortname, __FILE__),
 	device_memory_interface(mconfig, *this),
 	m_space_config("vram", ENDIANNESS_BIG, 8, 18),
 	m_model(0),
@@ -78,7 +78,7 @@ v99x8_device::v99x8_device(const machine_config &mconfig, device_type type, cons
 	m_address_latch(0),
 	m_vram_size(0),
 	m_int_state(0),
-	m_int_callback_device_name(NULL),
+	m_int_callback(*this),
 	m_scanline(0),
 	m_blink(0),
 	m_blink_count(0),
@@ -577,14 +577,6 @@ void v99x8_device::static_set_vram_size(device_t &device, UINT32 vram_size)
 	downcast<v99x8_device &>(device).m_vram_size = vram_size;
 }
 
-void v99x8_device::static_set_interrupt_callback(device_t &device, v99x8_interrupt_delegate callback, const char *device_name)
-{
-	v99x8_device &v99x8 = downcast<v99x8_device &>(device);
-	v99x8.m_int_callback = callback;
-	v99x8.m_int_callback_device_name = device_name;
-}
-
-
 /***************************************************************************
 
     Init/stop/reset/Interrupt functions
@@ -599,13 +591,7 @@ void v99x8_device::device_start()
 	if (!m_screen->started())
 		throw device_missing_dependencies();
 
-	if (!m_int_callback.isnull())
-	{
-		device_t *device = (m_int_callback_device_name != NULL) ? machine().device(m_int_callback_device_name) : NULL;
-		if (device != NULL)
-			m_int_callback.late_bind(*device);
-	}
-
+	m_int_callback.resolve_safe();
 	m_vdp_ops_count = 1;
 	m_vdp_engine = NULL;
 
@@ -805,7 +791,7 @@ void v99x8_device::check_int()
 	** called; because of this Mr. Ghost, Xevious and SD Snatcher don't
 	** run. As a patch it's called every scanline
 	*/
-	m_int_callback (*this, n);
+	m_int_callback(n);
 }
 
 /***************************************************************************
@@ -2272,7 +2258,6 @@ re-used here so that they have to be entered only once
 *************************************************************/
 #define pre_loop \
 while ((cnt-=delta) > 0) {
-
 	#define post_loop \
 }
 
@@ -2524,8 +2509,7 @@ void v99x8_device::srch_engine()
 
 	#define post_srch(MX) \
 	{ m_stat_reg[2]|=0x10; /* Border detected */ break; } \
-	if ((SX+=TX) & MX) { m_stat_reg[2] &= 0xEF; /* Border not detected */ break; } \
-
+	if ((SX+=TX) & MX) { m_stat_reg[2] &= 0xEF; /* Border not detected */ break; }
 	switch (m_mode) {
 	default:
 	case V9938_MODE_GRAPHIC4: pre_loop if ((VDPpoint5(MXD, SX, SY)==CL) ^ANX)  post_srch(256) post_loop
@@ -2761,7 +2745,6 @@ void v99x8_device::lmmm_engine()
 void v99x8_device::lmcm_engine()
 {
 	if ((m_stat_reg[2]&0x80)!=0x80) {
-
 		m_stat_reg[7]=m_cont_reg[44]=VDP_POINT(((m_mode >= 5) && (m_mode <= 8)) ? (m_mode-5) : 0, m_mmc.MXS, m_mmc.ASX, m_mmc.SY);
 		m_vdp_ops_count-=get_vdp_timing_value(lmmv_timing);
 		m_stat_reg[2]|=0x80;
@@ -2997,7 +2980,6 @@ void v99x8_device::ymmm_engine()
 void v99x8_device::hmmc_engine()
 {
 	if ((m_stat_reg[2]&0x80)!=0x80) {
-
 		m_vram_space->write_byte(VDP_VRMP(((m_mode >= 5) && (m_mode <= 8)) ? (m_mode-5) : 0, m_mmc.MXD, m_mmc.ADX, m_mmc.DY), m_cont_reg[44]);
 		m_vdp_ops_count -= get_vdp_timing_value(hmmv_timing);
 		m_stat_reg[2]|=0x80;

@@ -76,7 +76,7 @@ WRITE16_MEMBER(fantland_state::fantland_nmi_enable_16_w)
 WRITE8_MEMBER(fantland_state::fantland_soundlatch_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	m_audio_cpu->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 WRITE16_MEMBER(fantland_state::fantland_soundlatch_16_w)
@@ -307,27 +307,25 @@ ADDRESS_MAP_END
                            Born To Fight
 ***************************************************************************/
 
-static void borntofi_adpcm_start( device_t *device, int voice )
+void fantland_state::borntofi_adpcm_start( msm5205_device *device, int voice )
 {
-	fantland_state *state = device->machine().driver_data<fantland_state>();
-	msm5205_reset_w(device, 0);
-	state->m_adpcm_playing[voice] = 1;
-	state->m_adpcm_nibble[voice] = 0;
-//  logerror("%s: adpcm start = %06x, stop = %06x\n", device->machine().describe_context(), state->m_adpcm_addr[0][voice], state->m_adpcm_addr[1][voice]);
+	device->reset_w(0);
+	m_adpcm_playing[voice] = 1;
+	m_adpcm_nibble[voice] = 0;
+//  logerror("%s: adpcm start = %06x, stop = %06x\n", device->machine().describe_context(), m_adpcm_addr[0][voice], m_adpcm_addr[1][voice]);
 }
 
-static void borntofi_adpcm_stop( device_t *device, int voice )
+void fantland_state::borntofi_adpcm_stop( msm5205_device *device, int voice )
 {
-	fantland_state *state = device->machine().driver_data<fantland_state>();
-	msm5205_reset_w(device, 1);
-	state->m_adpcm_playing[voice] = 0;
+	device->reset_w(1);
+	m_adpcm_playing[voice] = 0;
 }
 
 WRITE8_MEMBER(fantland_state::borntofi_msm5205_w)
 {
 	int voice = offset / 8;
 	int reg = offset % 8;
-	device_t *msm;
+	msm5205_device *msm;
 
 	switch (voice)
 	{
@@ -358,21 +356,20 @@ WRITE8_MEMBER(fantland_state::borntofi_msm5205_w)
 	}
 }
 
-static void borntofi_adpcm_int( device_t *device, int voice )
+void fantland_state::borntofi_adpcm_int( msm5205_device *device, int voice )
 {
-	fantland_state *state = device->machine().driver_data<fantland_state>();
 	UINT8 *rom;
 	size_t len;
 	int start, stop;
 
-	if (!state->m_adpcm_playing[voice])
+	if (!m_adpcm_playing[voice])
 		return;
 
-	rom = state->memregion("adpcm")->base();
-	len = state->memregion("adpcm")->bytes() * 2;
+	rom = memregion("adpcm")->base();
+	len = memregion("adpcm")->bytes() * 2;
 
-	start = state->m_adpcm_addr[0][voice] + state->m_adpcm_nibble[voice];
-	stop = state->m_adpcm_addr[1][voice];
+	start = m_adpcm_addr[0][voice] + m_adpcm_nibble[voice];
+	stop = m_adpcm_addr[1][voice];
 
 	if (start >= len)
 	{
@@ -387,15 +384,15 @@ static void borntofi_adpcm_int( device_t *device, int voice )
 	}
 	else
 	{
-		msm5205_data_w(device, rom[start / 2] >> ((start & 1) * 4));
-		state->m_adpcm_nibble[voice]++;
+		device->data_w(rom[start / 2] >> ((start & 1) * 4));
+		m_adpcm_nibble[voice]++;
 	}
 }
 
-static void borntofi_adpcm_int_0(device_t *device) { borntofi_adpcm_int(device, 0); }
-static void borntofi_adpcm_int_1(device_t *device) { borntofi_adpcm_int(device, 1); }
-static void borntofi_adpcm_int_2(device_t *device) { borntofi_adpcm_int(device, 2); }
-static void borntofi_adpcm_int_3(device_t *device) { borntofi_adpcm_int(device, 3); }
+WRITE_LINE_MEMBER(fantland_state::borntofi_adpcm_int_0) { borntofi_adpcm_int(m_msm1, 0); }
+WRITE_LINE_MEMBER(fantland_state::borntofi_adpcm_int_1) { borntofi_adpcm_int(m_msm2, 1); }
+WRITE_LINE_MEMBER(fantland_state::borntofi_adpcm_int_2) { borntofi_adpcm_int(m_msm3, 2); }
+WRITE_LINE_MEMBER(fantland_state::borntofi_adpcm_int_3) { borntofi_adpcm_int(m_msm4, 3); }
 
 
 static ADDRESS_MAP_START( borntofi_sound_map, AS_PROGRAM, 8, fantland_state )
@@ -414,7 +411,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( wheelrun_sound_map, AS_PROGRAM, 8, fantland_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE_LEGACY("ymsnd", ym3526_r, ym3526_w )
+	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ymsnd", ym3526_device, read, write)
 
 	AM_RANGE(0xb000, 0xb000) AM_WRITENOP    // on a car crash / hit
 	AM_RANGE(0xc000, 0xc000) AM_WRITENOP    // ""
@@ -818,9 +815,6 @@ GFXDECODE_END
 
 MACHINE_START_MEMBER(fantland_state,fantland)
 {
-
-	m_audio_cpu = machine().device("audiocpu");
-
 	save_item(NAME(m_nmi_enable));
 }
 
@@ -884,7 +878,7 @@ MACHINE_CONFIG_END
 
 WRITE_LINE_MEMBER(fantland_state::galaxygn_sound_irq)
 {
-	m_audio_cpu->execute().set_input_line_and_vector(0, state ? ASSERT_LINE : CLEAR_LINE, 0x80/4);
+	m_audiocpu->set_input_line_and_vector(0, state ? ASSERT_LINE : CLEAR_LINE, 0x80/4);
 }
 
 static MACHINE_CONFIG_START( galaxygn, fantland_state )
@@ -926,34 +920,28 @@ MACHINE_CONFIG_END
 // OKI M5205 running at 384kHz [18.432/48]. Sample rate = 384000 / 48
 static const msm5205_interface msm5205_config_0 =
 {
-	borntofi_adpcm_int_0,   /* IRQ handler */
+	DEVCB_DRIVER_LINE_MEMBER(fantland_state,borntofi_adpcm_int_0),   /* IRQ handler */
 	MSM5205_S48_4B      /* 8 kHz, 4 Bits  */
 };
 static const msm5205_interface msm5205_config_1 =
 {
-	borntofi_adpcm_int_1,   /* IRQ handler */
+	DEVCB_DRIVER_LINE_MEMBER(fantland_state,borntofi_adpcm_int_1),   /* IRQ handler */
 	MSM5205_S48_4B      /* 8 kHz, 4 Bits  */
 };
 static const msm5205_interface msm5205_config_2 =
 {
-	borntofi_adpcm_int_2,   /* IRQ handler */
+	DEVCB_DRIVER_LINE_MEMBER(fantland_state,borntofi_adpcm_int_2),   /* IRQ handler */
 	MSM5205_S48_4B      /* 8 kHz, 4 Bits  */
 };
 static const msm5205_interface msm5205_config_3 =
 {
-	borntofi_adpcm_int_3,   /* IRQ handler */
+	DEVCB_DRIVER_LINE_MEMBER(fantland_state,borntofi_adpcm_int_3),   /* IRQ handler */
 	MSM5205_S48_4B      /* 8 kHz, 4 Bits  */
 };
 
 MACHINE_START_MEMBER(fantland_state,borntofi)
 {
-
 	MACHINE_START_CALL_MEMBER(fantland);
-
-	m_msm1 = machine().device("msm1");
-	m_msm2 = machine().device("msm2");
-	m_msm3 = machine().device("msm3");
-	m_msm4 = machine().device("msm4");
 
 	save_item(NAME(m_old_x));
 	save_item(NAME(m_old_y));
@@ -987,10 +975,10 @@ MACHINE_RESET_MEMBER(fantland_state,borntofi)
 		m_adpcm_nibble[i] = 0;
 	}
 
-	borntofi_adpcm_stop(machine().device("msm1"), 0);
-	borntofi_adpcm_stop(machine().device("msm2"), 1);
-	borntofi_adpcm_stop(machine().device("msm3"), 2);
-	borntofi_adpcm_stop(machine().device("msm4"), 3);
+	borntofi_adpcm_stop(m_msm1, 0);
+	borntofi_adpcm_stop(m_msm2, 1);
+	borntofi_adpcm_stop(m_msm3, 2);
+	borntofi_adpcm_stop(m_msm4, 3);
 }
 
 static MACHINE_CONFIG_START( borntofi, fantland_state )
@@ -1027,11 +1015,6 @@ static MACHINE_CONFIG_START( borntofi, fantland_state )
 MACHINE_CONFIG_END
 
 
-static const ym3526_interface wheelrun_ym3526_interface =
-{
-	DEVCB_CPU_INPUT_LINE("audiocpu", INPUT_LINE_IRQ0)
-};
-
 static MACHINE_CONFIG_START( wheelrun, fantland_state )
 
 	/* basic machine hardware */
@@ -1061,7 +1044,7 @@ static MACHINE_CONFIG_START( wheelrun, fantland_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3526, XTAL_14MHz/4)
-	MCFG_SOUND_CONFIG(wheelrun_ym3526_interface)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", z80_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

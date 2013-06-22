@@ -68,8 +68,8 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_pic(*this, "pic8259"),
-			m_speaker(*this, SPEAKER_TAG),
-			m_cassette(*this, CASSETTE_TAG)
+			m_speaker(*this, "speaker"),
+			m_cassette(*this, "cassette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -98,6 +98,7 @@ public:
 	INTERRUPT_GEN_MEMBER(iq151_vblank_interrupt);
 	DECLARE_INPUT_CHANGED_MEMBER(iq151_break);
 	TIMER_DEVICE_CALLBACK_MEMBER(cassette_timer);
+	IRQ_CALLBACK_MEMBER(iq151_irq_callback);
 };
 
 READ8_MEMBER(iq151_state::keyboard_row_r)
@@ -151,8 +152,7 @@ READ8_MEMBER(iq151_state::ppi_portc_r)
 
 WRITE8_MEMBER(iq151_state::ppi_portc_w)
 {
-	speaker_level_w(m_speaker, BIT(data, 3));
-
+	m_speaker->level_w(BIT(data, 3));
 	m_cassette_data = data;
 }
 
@@ -212,7 +212,7 @@ static ADDRESS_MAP_START(iq151_io, AS_IO, 8, iq151_state)
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE( 0x80, 0x80 ) AM_WRITE(boot_bank_w)
 	AM_RANGE( 0x84, 0x87 ) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
-	AM_RANGE( 0x88, 0x89 ) AM_DEVREADWRITE_LEGACY("pic8259", pic8259_r, pic8259_w )
+	AM_RANGE( 0x88, 0x89 ) AM_DEVREADWRITE("pic8259", pic8259_device, read, write)
 
 	AM_RANGE( 0x00, 0xff ) AM_READWRITE(cartslot_io_r, cartslot_io_w)
 ADDRESS_MAP_END
@@ -220,7 +220,7 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(iq151_state::iq151_break)
 {
-	pic8259_ir5_w(m_pic, newval & 1);
+	m_pic->ir5_w(newval & 1);
 }
 
 /* Input ports */
@@ -323,21 +323,17 @@ WRITE_LINE_MEMBER( iq151_state::pic_set_int_line )
 
 INTERRUPT_GEN_MEMBER(iq151_state::iq151_vblank_interrupt)
 {
-
-	pic8259_ir6_w(m_pic, m_vblank_irq_state & 1);
+	m_pic->ir6_w(m_vblank_irq_state & 1);
 	m_vblank_irq_state ^= 1;
 }
 
-static IRQ_CALLBACK(iq151_irq_callback)
+IRQ_CALLBACK_MEMBER(iq151_state::iq151_irq_callback)
 {
-	iq151_state *state = device->machine().driver_data<iq151_state>();
-
-	return pic8259_acknowledge(state->m_pic);
+	return m_pic->inta_r();
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(iq151_state::cassette_timer)
 {
-
 	m_cassette_clk ^= 1;
 
 	m_cassette->output((m_cassette_data & 1) ^ (m_cassette_clk & 1) ? +1 : -1);
@@ -345,12 +341,11 @@ TIMER_DEVICE_CALLBACK_MEMBER(iq151_state::cassette_timer)
 
 DRIVER_INIT_MEMBER(iq151_state,iq151)
 {
-
 	UINT8 *RAM = memregion("maincpu")->base();
 	membank("boot")->configure_entry(0, RAM + 0xf800);
 	membank("boot")->configure_entry(1, RAM + 0x0000);
 
-	m_maincpu->set_irq_acknowledge_callback(iq151_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(iq151_state::iq151_irq_callback),this));
 
 	// keep machine pointers to slots
 	m_carts[0] = machine().device<iq151cart_slot_device>("slot1");
@@ -378,14 +373,6 @@ UINT32 iq151_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, c
 	return 0;
 }
 
-
-const struct pic8259_interface iq151_pic8259_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(iq151_state, pic_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_NULL
-};
-
 static I8255_INTERFACE( iq151_ppi8255_intf )
 {
 	DEVCB_DRIVER_MEMBER(iq151_state, keyboard_row_r),
@@ -407,11 +394,11 @@ static const cassette_interface iq151_cassette_interface =
 
 static const iq151cart_interface iq151_cart_interface =
 {
-	DEVCB_DEVICE_LINE("pic8259", pic8259_ir0_w),
-	DEVCB_DEVICE_LINE("pic8259", pic8259_ir1_w),
-	DEVCB_DEVICE_LINE("pic8259", pic8259_ir2_w),
-	DEVCB_DEVICE_LINE("pic8259", pic8259_ir3_w),
-	DEVCB_DEVICE_LINE("pic8259", pic8259_ir4_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir0_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir1_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir2_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir3_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259", pic8259_device, ir4_w),
 	DEVCB_NULL
 };
 
@@ -449,22 +436,22 @@ static MACHINE_CONFIG_START( iq151, iq151_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_PIC8259_ADD("pic8259", iq151_pic8259_config)
+	MCFG_PIC8259_ADD("pic8259", WRITELINE(iq151_state, pic_set_int_line), VCC, NULL)
 
 	MCFG_I8255_ADD("ppi8255", iq151_ppi8255_intf)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, iq151_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", iq151_cassette_interface )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("cassette_timer", iq151_state, cassette_timer, attotime::from_hz(2000))
 
 	/* cartridge */
-	MCFG_IQ151_CARTRIDGE_ADD("slot1", iq151_cart_interface, iq151_cart, NULL, NULL)
-	MCFG_IQ151_CARTRIDGE_ADD("slot2", iq151_cart_interface, iq151_cart, NULL, NULL)
-	MCFG_IQ151_CARTRIDGE_ADD("slot3", iq151_cart_interface, iq151_cart, NULL, NULL)
-	MCFG_IQ151_CARTRIDGE_ADD("slot4", iq151_cart_interface, iq151_cart, NULL, NULL)
-	MCFG_IQ151_CARTRIDGE_ADD("slot5", iq151_cart_interface, iq151_cart, "video32", NULL)
+	MCFG_IQ151_CARTRIDGE_ADD("slot1", iq151_cart_interface, iq151_cart, NULL)
+	MCFG_IQ151_CARTRIDGE_ADD("slot2", iq151_cart_interface, iq151_cart, NULL)
+	MCFG_IQ151_CARTRIDGE_ADD("slot3", iq151_cart_interface, iq151_cart, NULL)
+	MCFG_IQ151_CARTRIDGE_ADD("slot4", iq151_cart_interface, iq151_cart, NULL)
+	MCFG_IQ151_CARTRIDGE_ADD("slot5", iq151_cart_interface, iq151_cart, "video32")
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "iq151_cart")

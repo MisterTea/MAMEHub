@@ -53,7 +53,7 @@ D000      Paddle Position and Interrupt Reset (where applicable)
 READ8_MEMBER(circus_state::circus_paddle_r)
 {
 	// also clears irq
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 	return ioport("PADDLE")->read();
 }
 
@@ -263,10 +263,6 @@ GFXDECODE_END
 ***************************************************************************/
 void circus_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_samples = machine().device<samples_device>("samples");
-
 	save_item(NAME(m_clown_x));
 	save_item(NAME(m_clown_y));
 	save_item(NAME(m_clown_z));
@@ -274,7 +270,6 @@ void circus_state::machine_start()
 
 void circus_state::machine_reset()
 {
-
 	m_clown_x = 0;
 	m_clown_y = 0;
 	m_clown_z = 0;
@@ -351,7 +346,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(circus_state::crash_scanline)
 	int scanline = param;
 
 	if(scanline == 256 || scanline == 0) // vblank-out / in irq
-		machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 }
 
 static MACHINE_CONFIG_START( crash, circus_state )

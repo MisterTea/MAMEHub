@@ -28,13 +28,13 @@ public:
 	m_maincpu(*this, "maincpu"),
 	m_ppi(*this, "ppi8255_0"),
 	m_crtc(*this, "crtc"),
-	m_beep(*this, BEEPER_TAG)
+	m_beeper(*this, "beeper")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<i8255_device> m_ppi;
 	required_device<mc6845_device> m_crtc;
-	required_device<beep_device> m_beep;
+	required_device<beep_device> m_beeper;
 	DECLARE_WRITE8_MEMBER(multi8_6845_w);
 	DECLARE_READ8_MEMBER(key_input_r);
 	DECLARE_READ8_MEMBER(key_status_r);
@@ -70,6 +70,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_multi8(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(keyboard_callback);
+	void multi8_draw_pixel(bitmap_ind16 &bitmap,int y,int x,UINT8 pen,UINT8 width);
 };
 
 #define mc6845_h_char_total     (m_crtc_vreg[0])
@@ -91,7 +92,6 @@ public:
 
 void multi8_state::video_start()
 {
-
 	m_keyb_press = m_keyb_press_flag = m_shift_press_flag = m_display_reg = 0;
 
 	for (m_bw_mode = 0; m_bw_mode < 8; m_bw_mode++)
@@ -102,9 +102,9 @@ void multi8_state::video_start()
 	m_p_chargen = memregion("chargen")->base();
 }
 
-static void multi8_draw_pixel(running_machine &machine, bitmap_ind16 &bitmap,int y,int x,UINT8 pen,UINT8 width)
+void multi8_state::multi8_draw_pixel(bitmap_ind16 &bitmap,int y,int x,UINT8 pen,UINT8 width)
 {
-	if(!machine.primary_screen->visible_area().contains(x, y))
+	if(!machine().primary_screen->visible_area().contains(x, y))
 		return;
 
 	if(width)
@@ -149,7 +149,7 @@ UINT32 multi8_state::screen_update_multi8(screen_device &screen, bitmap_ind16 &b
 				else
 					color = (pen_b) | (pen_r << 1) | (pen_g << 2);
 
-				multi8_draw_pixel(machine(),bitmap, y, x*8+xi,m_pen_clut[color], 0);
+				multi8_draw_pixel(bitmap, y, x*8+xi,m_pen_clut[color], 0);
 			}
 			count++;
 		}
@@ -177,7 +177,7 @@ UINT32 multi8_state::screen_update_multi8(screen_device &screen, bitmap_ind16 &b
 						pen = (m_p_chargen[tile*8+yi] >> (7-xi) & 1) ? color : 0;
 
 					if(pen)
-						multi8_draw_pixel(machine(),bitmap, y*mc6845_tile_height+yi, x*8+xi, pen, (m_display_reg & 0x40) == 0x00);
+						multi8_draw_pixel(bitmap, y*mc6845_tile_height+yi, x*8+xi, pen, (m_display_reg & 0x40) == 0x00);
 				}
 			}
 
@@ -202,7 +202,7 @@ UINT32 multi8_state::screen_update_multi8(screen_device &screen, bitmap_ind16 &b
 					for (yc=0; yc<(mc6845_tile_height-(mc6845_cursor_y_start & 7)); yc++)
 					{
 						for (xc=0; xc<8; xc++)
-							multi8_draw_pixel(machine(),bitmap, y*mc6845_tile_height+yc, x*8+xc,0x07,(m_display_reg & 0x40) == 0x00);
+							multi8_draw_pixel(bitmap, y*mc6845_tile_height+yc, x*8+xc,0x07,(m_display_reg & 0x40) == 0x00);
 
 					}
 				}
@@ -327,8 +327,8 @@ WRITE8_MEMBER( multi8_state::pal_w )
 	}
 }
 
-READ8_MEMBER(multi8_state::ay8912_0_r){ return ay8910_r(machine().device("aysnd"),space, 0); }
-READ8_MEMBER(multi8_state::ay8912_1_r){ return ay8910_r(machine().device("aysnd"),space, 1); }
+READ8_MEMBER(multi8_state::ay8912_0_r){ return machine().device<ay8910_device>("aysnd")->data_r(space, 0); }
+READ8_MEMBER(multi8_state::ay8912_1_r){ return machine().device<ay8910_device>("aysnd")->data_r(space, 1); }
 
 READ8_MEMBER( multi8_state::multi8_kanji_r )
 {
@@ -352,7 +352,7 @@ static ADDRESS_MAP_START(multi8_io, AS_IO, 8, multi8_state)
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ(key_input_r) AM_WRITENOP//keyboard
 	AM_RANGE(0x01, 0x01) AM_READ(key_status_r) AM_WRITENOP//keyboard
-	AM_RANGE(0x18, 0x19) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x18, 0x19) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x18, 0x18) AM_READ(ay8912_0_r)
 	AM_RANGE(0x1a, 0x1a) AM_READ(ay8912_1_r)
 	AM_RANGE(0x1c, 0x1d) AM_WRITE(multi8_6845_w)
@@ -487,7 +487,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(multi8_state::keyboard_callback)
 {
 	static const char *const portnames[3] = { "key1","key2","key3" };
 	int i,port_i,scancode;
-	UINT8 keymod = machine().root_device().ioport("key_modifiers")->read() & 0x1f;
+	UINT8 keymod = ioport("key_modifiers")->read() & 0x1f;
 	scancode = 0;
 
 	m_shift_press_flag = ((keymod & 0x02) >> 1);
@@ -496,7 +496,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(multi8_state::keyboard_callback)
 	{
 		for(i=0;i<32;i++)
 		{
-			if((machine().root_device().ioport(portnames[port_i])->read()>>i) & 1)
+			if((ioport(portnames[port_i])->read()>>i) & 1)
 			{
 				//key_flag = 1;
 				if(!m_shift_press_flag)  // shift not pressed
@@ -557,9 +557,11 @@ static GFXDECODE_START( multi8 )
 	GFXDECODE_ENTRY( "kanji",   0x0000, multi8_kanjilayout, 0, 1 )
 GFXDECODE_END
 
-static const mc6845_interface mc6845_intf =
+
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -627,34 +629,31 @@ static I8255_INTERFACE( ppi8255_intf_0 )
 
 WRITE8_MEMBER( multi8_state::ym2203_porta_w )
 {
-	beep_set_state(m_beep, (data & 0x08));
+	m_beeper->set_state((data & 0x08));
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(multi8_state, ym2203_porta_w ),
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(multi8_state, ym2203_porta_w ),
 	DEVCB_NULL
 };
 
 
 void multi8_state::machine_start()
 {
-	m_p_vram = machine().root_device().memregion("vram")->base();
-	m_p_wram = machine().root_device().memregion("wram")->base();
+	m_p_vram = memregion("vram")->base();
+	m_p_wram = memregion("wram")->base();
 	m_p_kanji = memregion("kanji")->base();
 }
 
 void multi8_state::machine_reset()
 {
-	beep_set_frequency(machine().device(BEEPER_TAG),1200); //guesswork
-	beep_set_state(machine().device(BEEPER_TAG),0);
+	m_beeper->set_frequency(1200); //guesswork
+	m_beeper->set_state(0);
 	m_mcu_init = 0;
 }
 
@@ -678,9 +677,9 @@ static MACHINE_CONFIG_START( multi8, multi8_state )
 	/* Audio */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("aysnd", AY8912, 1500000) //unknown clock / divider
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_SOUND_CONFIG(ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
 
 	/* Devices */

@@ -133,9 +133,6 @@
 // device type definition
 const device_type QS1000 = &device_creator<qs1000_device>;
 
-static int data_to_i8052(device_t *device);
-
-
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
@@ -183,7 +180,7 @@ ADDRESS_MAP_END
 //  qs1000_device - constructor
 //-------------------------------------------------
 qs1000_device::qs1000_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, QS1000, "QS1000", "qs1000", tag, owner, clock),
+	: device_t(mconfig, QS1000, "QS1000", tag, owner, clock, "qs1000", __FILE__),
 		device_sound_interface(mconfig, *this),
 		device_memory_interface(mconfig, *this),
 		m_space_config("samples", ENDIANNESS_LITTLE, 8, 24, 0, NULL),
@@ -191,7 +188,6 @@ qs1000_device::qs1000_device(const machine_config &mconfig, const char *tag, dev
 		m_direct(NULL),
 		m_cpu(*this, "cpu")
 {
-	m_shortname = "qs1000";
 	m_address_map[0] = *ADDRESS_MAP_NAME(qs1000);
 }
 
@@ -238,7 +234,7 @@ void qs1000_device::device_start()
 	m_p2_w_func.resolve(m_out_p2_cb, *this);
 	m_p3_w_func.resolve(m_out_p3_cb, *this);
 
-	i8051_set_serial_rx_callback(m_cpu, data_to_i8052);
+	i8051_set_serial_rx_callback(m_cpu, read8_delegate(FUNC(qs1000_device::data_to_i8052),this));
 
 	// TODO: register state for saving
 }
@@ -271,12 +267,9 @@ void qs1000_device::set_irq(int state)
 //  data_to_i8052 - called by the 8052 core to
 //  receive serial data
 //-------------------------------------------------
-static int data_to_i8052(device_t *device)
+READ8_MEMBER(qs1000_device::data_to_i8052)
 {
-	// Ugh
-	qs1000_device *qs1000 = device->machine().device<qs1000_device>("qs1000");
-
-	return qs1000->m_serial_data_in;
+	return m_serial_data_in;
 }
 
 
@@ -364,7 +357,6 @@ READ8_MEMBER( qs1000_device::p3_r )
 //-------------------------------------------------
 WRITE8_MEMBER( qs1000_device::p0_w )
 {
-
 }
 
 

@@ -59,8 +59,8 @@ DRIVER_INIT_MEMBER(nbmj8688_state,otonano)
 
 DRIVER_INIT_MEMBER(nbmj8688_state,mjcamera)
 {
-	UINT8 *rom = machine().root_device().memregion("voice")->base() + 0x20000;
-	UINT8 *prot = machine().root_device().memregion("user1")->base();
+	UINT8 *rom = memregion("voice")->base() + 0x20000;
+	UINT8 *prot = memregion("user1")->base();
 	int i;
 
 	/* this is one possible way to rearrange the protection ROM data to get the
@@ -79,7 +79,7 @@ DRIVER_INIT_MEMBER(nbmj8688_state,mjcamera)
 DRIVER_INIT_MEMBER(nbmj8688_state,kanatuen)
 {
 	/* uses the same protection data as mjcamer, but a different check */
-	UINT8 *rom = machine().root_device().memregion("voice")->base() + 0x30000;
+	UINT8 *rom = memregion("voice")->base() + 0x30000;
 
 	rom[0x0004] = 0x09;
 	rom[0x0103] = 0x0e;
@@ -93,7 +93,7 @@ DRIVER_INIT_MEMBER(nbmj8688_state,kyuhito)
 {
 #if 1
 	/* uses the same protection data as ????, but a different check */
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	rom[0x0149] = 0x00;
 	rom[0x014a] = 0x00;
@@ -105,8 +105,8 @@ DRIVER_INIT_MEMBER(nbmj8688_state,kyuhito)
 
 DRIVER_INIT_MEMBER(nbmj8688_state,idhimitu)
 {
-	UINT8 *rom = machine().root_device().memregion("voice")->base() + 0x20000;
-	UINT8 *prot = machine().root_device().memregion("user1")->base();
+	UINT8 *rom = memregion("voice")->base() + 0x20000;
+	UINT8 *prot = memregion("user1")->base();
 	int i;
 
 	/* this is one possible way to rearrange the protection ROM data to get the
@@ -130,8 +130,8 @@ DRIVER_INIT_MEMBER(nbmj8688_state,kaguya)
 
 DRIVER_INIT_MEMBER(nbmj8688_state,kaguya2)
 {
-	UINT8 *rom = machine().root_device().memregion("voice")->base() + 0x20000;
-	UINT8 *prot = machine().root_device().memregion("user1")->base();
+	UINT8 *rom = memregion("voice")->base() + 0x20000;
+	UINT8 *prot = memregion("user1")->base();
 	int i;
 
 	/* this is one possible way to rearrange the protection ROM data to get the
@@ -300,8 +300,8 @@ static ADDRESS_MAP_START( secolove_io_map, AS_IO, 8, nbmj8688_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x7f) AM_READ_LEGACY(nb1413m3_sndrom_r)
 	AM_RANGE(0x00, 0x00) AM_WRITE_LEGACY(nb1413m3_nmi_clock_w)
-	AM_RANGE(0x81, 0x81) AM_DEVREAD_LEGACY("psg", ay8910_r)
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("psg", ay8910_data_address_w)
+	AM_RANGE(0x81, 0x81) AM_DEVREAD("psg", ay8910_device, data_r)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("psg", ay8910_device, data_address_w)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0x90, 0x97) AM_WRITE(nbmj8688_blitter_w)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
@@ -326,7 +326,7 @@ static ADDRESS_MAP_START( barline_io_map, AS_IO, 8, nbmj8688_state )
 //  AM_RANGE(0x00, 0x7f) AM_READ_LEGACY(nb1413m3_sndrom_r)
 	AM_RANGE(0x00, 0x00) AM_WRITE_LEGACY(nb1413m3_sndrombank1_w)
 	AM_RANGE(0x70, 0x70) AM_WRITE_LEGACY(nb1413m3_nmi_clock_w)
-	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE_LEGACY("psg", ym3812_r,ym3812_w)
+	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE("psg", ym3812_device, read, write)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0x90, 0x97) AM_WRITE(nbmj8688_blitter_w)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
@@ -343,8 +343,8 @@ static ADDRESS_MAP_START( crystalg_io_map, AS_IO, 8, nbmj8688_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x7f) AM_READ_LEGACY(nb1413m3_sndrom_r)
 	AM_RANGE(0x00, 0x00) AM_WRITE_LEGACY(nb1413m3_nmi_clock_w)
-	AM_RANGE(0x81, 0x81) AM_DEVREAD_LEGACY("psg", ay8910_r)
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("psg", ay8910_data_address_w)
+	AM_RANGE(0x81, 0x81) AM_DEVREAD("psg", ay8910_device, data_r)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("psg", ay8910_device, data_address_w)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0x90, 0x97) AM_WRITE(nbmj8688_blitter_w)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
@@ -366,7 +366,7 @@ static ADDRESS_MAP_START( otonano_io_map, AS_IO, 8, nbmj8688_state )
 	AM_RANGE(0x20, 0x3f) AM_WRITE(nbmj8688_clut_w)
 	AM_RANGE(0x50, 0x50) AM_WRITE(mjsikaku_romsel_w)
 	AM_RANGE(0x70, 0x77) AM_WRITE(nbmj8688_blitter_w)
-	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE_LEGACY("psg", ym3812_r,ym3812_w)
+	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE("psg", ym3812_device, read, write)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
 	AM_RANGE(0xb0, 0xb0) AM_READWRITE_LEGACY(nb1413m3_inputport2_r,nb1413m3_sndrombank1_w)
@@ -385,8 +385,8 @@ static ADDRESS_MAP_START( kaguya_io_map, AS_IO, 8, nbmj8688_state )
 	AM_RANGE(0x20, 0x3f) AM_WRITE(nbmj8688_clut_w)
 	AM_RANGE(0x50, 0x50) AM_WRITE(mjsikaku_romsel_w)
 	AM_RANGE(0x70, 0x77) AM_WRITE(nbmj8688_blitter_w)
-	AM_RANGE(0x81, 0x81) AM_DEVREAD_LEGACY("psg", ay8910_r)
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("psg", ay8910_data_address_w)
+	AM_RANGE(0x81, 0x81) AM_DEVREAD("psg", ay8910_device, data_r)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("psg", ay8910_device, data_address_w)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
 	AM_RANGE(0xb0, 0xb0) AM_READWRITE_LEGACY(nb1413m3_inputport2_r,nb1413m3_sndrombank1_w)
@@ -406,8 +406,8 @@ static ADDRESS_MAP_START( iemoto_io_map, AS_IO, 8, nbmj8688_state )
 	AM_RANGE(0x20, 0x3f) AM_WRITE(nbmj8688_clut_w)
 	AM_RANGE(0x40, 0x47) AM_WRITE(nbmj8688_blitter_w)
 	AM_RANGE(0x50, 0x50) AM_WRITE(seiha_romsel_w)
-	AM_RANGE(0x81, 0x81) AM_DEVREAD_LEGACY("psg", ay8910_r)
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("psg", ay8910_data_address_w)
+	AM_RANGE(0x81, 0x81) AM_DEVREAD("psg", ay8910_device, data_r)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("psg", ay8910_device, data_address_w)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
 	AM_RANGE(0xb0, 0xb0) AM_READWRITE_LEGACY(nb1413m3_inputport2_r,nb1413m3_sndrombank1_w)
@@ -427,8 +427,8 @@ static ADDRESS_MAP_START( seiha_io_map, AS_IO, 8, nbmj8688_state )
 	AM_RANGE(0x10, 0x10) AM_WRITE_LEGACY(nb1413m3_sndrombank2_w)
 	AM_RANGE(0x20, 0x3f) AM_WRITE(nbmj8688_clut_w)
 	AM_RANGE(0x50, 0x50) AM_WRITE(seiha_romsel_w)
-	AM_RANGE(0x81, 0x81) AM_DEVREAD_LEGACY("psg", ay8910_r)
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("psg", ay8910_data_address_w)
+	AM_RANGE(0x81, 0x81) AM_DEVREAD("psg", ay8910_device, data_r)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("psg", ay8910_device, data_address_w)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0x90, 0x97) AM_WRITE(nbmj8688_blitter_w)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
@@ -447,8 +447,8 @@ static ADDRESS_MAP_START( mjgaiden_io_map, AS_IO, 8, nbmj8688_state )
 	AM_RANGE(0x00, 0x00) AM_WRITE_LEGACY(nb1413m3_nmi_clock_w)
 	AM_RANGE(0x20, 0x3f) AM_WRITE(nbmj8688_clut_w)
 	AM_RANGE(0x50, 0x50) AM_WRITE(mjsikaku_romsel_w)
-	AM_RANGE(0x81, 0x81) AM_DEVREAD_LEGACY("psg", ay8910_r)
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("psg", ay8910_data_address_w)
+	AM_RANGE(0x81, 0x81) AM_DEVREAD("psg", ay8910_device, data_r)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("psg", ay8910_device, data_address_w)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0x90, 0x97) AM_WRITE(nbmj8688_blitter_w)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
@@ -471,8 +471,8 @@ static ADDRESS_MAP_START( p16bit_LCD_io_map, AS_IO, 8, nbmj8688_state )
 	AM_RANGE(0x45, 0x45) AM_WRITE(nbmj8688_HD61830B_1_instr_w)
 	AM_RANGE(0x46, 0x46) AM_WRITE(nbmj8688_HD61830B_both_data_w)
 	AM_RANGE(0x47, 0x47) AM_WRITE(nbmj8688_HD61830B_both_instr_w)
-	AM_RANGE(0x81, 0x81) AM_DEVREAD_LEGACY("psg", ay8910_r)
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("psg", ay8910_data_address_w)
+	AM_RANGE(0x81, 0x81) AM_DEVREAD("psg", ay8910_device, data_r)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("psg", ay8910_device, data_address_w)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0x90, 0x97) AM_WRITE(nbmj8688_blitter_w)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
@@ -495,7 +495,7 @@ static ADDRESS_MAP_START( mjsikaku_io_map, AS_IO, 8, nbmj8688_state )
 	AM_RANGE(0x20, 0x3f) AM_WRITE(nbmj8688_clut_w)
 	AM_RANGE(0x50, 0x50) AM_WRITE(mjsikaku_romsel_w)
 	AM_RANGE(0x60, 0x67) AM_WRITE(nbmj8688_blitter_w)
-	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE_LEGACY("psg", ym3812_r, ym3812_w)
+	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE("psg", ym3812_device, read, write)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
 	AM_RANGE(0xb0, 0xb0) AM_READWRITE_LEGACY(nb1413m3_inputport2_r,nb1413m3_sndrombank1_w)
@@ -516,8 +516,8 @@ static ADDRESS_MAP_START( mmsikaku_io_map, AS_IO, 8, nbmj8688_state )
 	AM_RANGE(0x20, 0x3f) AM_WRITE(nbmj8688_clut_w)
 	AM_RANGE(0x40, 0x47) AM_WRITE(nbmj8688_blitter_w)
 	AM_RANGE(0x50, 0x50) AM_WRITE(mjsikaku_romsel_w)
-	AM_RANGE(0x81, 0x81) AM_DEVREAD_LEGACY("psg", ay8910_r)
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("psg", ay8910_data_address_w)
+	AM_RANGE(0x81, 0x81) AM_DEVREAD("psg", ay8910_device, data_r)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("psg", ay8910_device, data_address_w)
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
 	AM_RANGE(0xb0, 0xb0) AM_READWRITE_LEGACY(nb1413m3_inputport2_r,nb1413m3_sndrombank1_w)
@@ -2895,12 +2895,22 @@ static INPUT_PORTS_START( nightlov )
 INPUT_PORTS_END
 
 
+READ8_MEMBER(nbmj8688_state::dipsw1_r)
+{
+	return nb1413m3_dipsw1_r(space,offset);
+}
+
+READ8_MEMBER(nbmj8688_state::dipsw2_r)
+{
+	return nb1413m3_dipsw2_r(space,offset);
+}
+
 static const ay8910_interface ay8910_config =
 {
 	AY8910_LEGACY_OUTPUT,
 	AY8910_DEFAULT_LOADS,
-	DEVCB_MEMORY_HANDLER("maincpu", IO, nb1413m3_dipsw1_r),     // DIPSW-A read
-	DEVCB_MEMORY_HANDLER("maincpu", IO, nb1413m3_dipsw2_r),     // DIPSW-B read
+	DEVCB_DRIVER_MEMBER(nbmj8688_state, dipsw1_r),     // DIPSW-A read
+	DEVCB_DRIVER_MEMBER(nbmj8688_state, dipsw2_r),     // DIPSW-B read
 	DEVCB_NULL,
 	DEVCB_NULL
 };

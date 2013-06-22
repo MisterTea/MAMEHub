@@ -40,7 +40,9 @@ class tapatune_state : public driver_device
 public:
 	tapatune_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_videoram(*this, "videoram") {}
+			m_videoram(*this, "videoram") ,
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu") {}
 
 	UINT8   m_paletteram[0x300];
 	UINT16  m_palette_write_address;
@@ -73,11 +75,12 @@ public:
 	DECLARE_WRITE8_MEMBER(bsmt_reg_w);
 	DECLARE_WRITE_LINE_MEMBER(crtc_vsync);
 	virtual void video_start();
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 };
 
 WRITE16_MEMBER(tapatune_state::palette_w)
 {
-
 	//logerror("Palette write: offset = %02x, data = %04x, mask = %04x\n", offset, data, mem_mask );
 	switch(offset)
 	{
@@ -94,7 +97,6 @@ WRITE16_MEMBER(tapatune_state::palette_w)
 
 READ16_MEMBER(tapatune_state::read_from_z80)
 {
-
 	//logerror("Reading data from Z80: index = %02x, data = %02x\n", m_z80_to_68k_index, m_z80_to_68k_data );
 
 	switch( offset )
@@ -108,7 +110,6 @@ READ16_MEMBER(tapatune_state::read_from_z80)
 
 WRITE16_MEMBER(tapatune_state::write_to_z80)
 {
-
 	switch( offset )
 	{
 		case 0:
@@ -116,7 +117,7 @@ WRITE16_MEMBER(tapatune_state::write_to_z80)
 			//  logerror("Command to Z80: %04x\n", data);
 			m_68k_to_z80_index = data & 0xff;
 			m_68k_to_z80_data = (data >> 8) & 0xff;
-			machine().device("maincpu")->execute().set_input_line(3, CLEAR_LINE);
+			m_maincpu->set_input_line(3, CLEAR_LINE);
 			break;
 		case 1:
 			break;
@@ -125,7 +126,7 @@ WRITE16_MEMBER(tapatune_state::write_to_z80)
 
 READ16_MEMBER(tapatune_state::irq_ack_r)
 {
-	machine().device("maincpu")->execute().set_input_line(2, CLEAR_LINE);
+	m_maincpu->set_input_line(2, CLEAR_LINE);
 	return 0;
 }
 
@@ -145,7 +146,7 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(tapatune_state::sound_irq_clear)
 {
-	machine().device("soundcpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_soundcpu->set_input_line(0, CLEAR_LINE);
 	return 0;
 }
 
@@ -175,7 +176,7 @@ WRITE8_MEMBER(tapatune_state::write_data_to_68k)
 {
 	m_z80_to_68k_data = data;
 	//logerror("Writing data from Z80: index = %02x, data = %02x\n", m_z80_to_68k_index, m_z80_to_68k_data );
-	machine().device("maincpu")->execute().set_input_line(3, ASSERT_LINE);
+	m_maincpu->set_input_line(3, ASSERT_LINE);
 }
 
 READ8_MEMBER(tapatune_state::read_index_from_68k)
@@ -359,12 +360,13 @@ void tapatune_state::video_start()
 
 WRITE_LINE_MEMBER(tapatune_state::crtc_vsync)
 {
-	machine().device("maincpu")->execute().set_input_line(2, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(2, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const mc6845_interface h46505_intf =
+static MC6845_INTERFACE( h46505_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	5,          /* number of pixels per video memory address */
 	begin_update,/* before pixel update callback */
 	update_row, /* row update callback */

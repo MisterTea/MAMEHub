@@ -14,7 +14,7 @@
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "includes/cps1.h"  // needed for decoding functions only
+#include "machine/kabuki.h"  // needed for decoding functions only
 #include "includes/cbasebal.h"
 #include "machine/eeprom.h"
 #include "sound/okim6295.h"
@@ -29,7 +29,6 @@
 
 WRITE8_MEMBER(cbasebal_state::cbasebal_bankswitch_w)
 {
-
 	/* bits 0-4 select ROM bank */
 	//logerror("%04x: bankswitch %02x\n", space.device().safe_pc(), data);
 	membank("bank1")->set_entry(data & 0x1f);
@@ -43,7 +42,6 @@ WRITE8_MEMBER(cbasebal_state::cbasebal_bankswitch_w)
 
 READ8_MEMBER(cbasebal_state::bankedram_r)
 {
-
 	switch (m_rambank)
 	{
 	case 2:
@@ -61,7 +59,6 @@ READ8_MEMBER(cbasebal_state::bankedram_r)
 
 WRITE8_MEMBER(cbasebal_state::bankedram_w)
 {
-
 	switch (m_rambank)
 	{
 	case 2:
@@ -123,7 +120,7 @@ static ADDRESS_MAP_START( cbasebal_portmap, AS_IO, 8, cbasebal_state )
 	AM_RANGE(0x02, 0x02) AM_WRITE_PORT("IO_02")
 	AM_RANGE(0x03, 0x03) AM_WRITE_PORT("IO_03")
 	AM_RANGE(0x05, 0x05) AM_DEVWRITE("oki", okim6295_device, write)
-	AM_RANGE(0x06, 0x07) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x06, 0x07) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0x08, 0x09) AM_WRITE(cbasebal_scrollx_w)
 	AM_RANGE(0x0a, 0x0b) AM_WRITE(cbasebal_scrolly_w)
 	AM_RANGE(0x10, 0x10) AM_READ_PORT("P1")
@@ -241,7 +238,6 @@ GFXDECODE_END
 
 void cbasebal_state::machine_start()
 {
-
 	membank("bank1")->configure_entries(0, 32, memregion("maincpu")->base() + 0x10000, 0x4000);
 
 	save_item(NAME(m_rambank));
@@ -257,7 +253,6 @@ void cbasebal_state::machine_start()
 
 void cbasebal_state::machine_reset()
 {
-
 	m_rambank = 0;
 	m_tilebank = 0;
 	m_spritebank = 0;

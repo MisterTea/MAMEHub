@@ -84,7 +84,6 @@ video HW too.
 #include "includes/europc.h"
 #include "includes/tandy1t.h"
 
-#include "machine/pcshare.h"
 #include "includes/pc.h"
 
 #include "imagedev/flopdrv.h"
@@ -93,6 +92,7 @@ video HW too.
 #include "imagedev/cartslot.h"
 #include "formats/mfi_dsk.h"
 #include "formats/pc_dsk.h"
+#include "formats/asst128_dsk.h"
 
 #include "machine/am9517a.h"
 #include "sound/sn76496.h"
@@ -152,10 +152,10 @@ static ADDRESS_MAP_START( mc1502_map, AS_PROGRAM, 8, pc_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(mc1502_io, AS_IO, 8, pc_state )
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE_LEGACY("pic8259", pic8259_r, pic8259_w)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE("pic8259", pic8259_device, read, write)
 	AM_RANGE(0x0028, 0x0028) AM_DEVREADWRITE("upd8251", i8251_device, data_r, data_w)   // not working yet
 	AM_RANGE(0x0029, 0x0029) AM_DEVREADWRITE("upd8251", i8251_device, status_r, control_w)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE_LEGACY("pit8253", pit8253_r, pit8253_w)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE("pit8253", pit8253_device, read, write)
 	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
 	AM_RANGE(0x0068, 0x006B) AM_DEVREADWRITE("ppi8255n2", i8255_device, read, write)    // keyboard poll
 	AM_RANGE(0x0100, 0x0100) AM_READWRITE(mc1502_wd17xx_aux_r, mc1502_wd17xx_aux_w)
@@ -190,12 +190,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START(pc8_io, AS_IO, 8, pc_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x000f) AM_DEVREADWRITE("dma8237", am9517a_device, read, write)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE_LEGACY("pic8259", pic8259_r, pic8259_w)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE_LEGACY("pit8253", pit8253_r, pit8253_w)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE("pic8259", pic8259_device, read, write)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE("pit8253", pit8253_device, read, write)
 	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE(pc_page_r,            pc_page_w)
 	AM_RANGE(0x00a0, 0x00a0) AM_WRITE(pc_nmi_enable_w )
-	AM_RANGE(0x0200, 0x0207) AM_READWRITE_LEGACY(pc_JOY_r,              pc_JOY_w)
+	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE("pc_joy", pc_joy_device, joy_port_r, joy_port_w)
 	AM_RANGE(0x0240, 0x0257) AM_READWRITE(pc_rtc_r,             pc_rtc_w)
 	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE_LEGACY("lpt_2", pc_lpt_r, pc_lpt_w)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE("ins8250_3", ins8250_device, ins8250_r, ins8250_w)
@@ -215,13 +215,13 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START(pc16_io, AS_IO, 16, pc_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x000f) AM_DEVREADWRITE8("dma8237", am9517a_device, read, write, 0xffff)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8_LEGACY("pic8259", pic8259_r, pic8259_w, 0xffff)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8_LEGACY("pit8253", pit8253_r, pit8253_w, 0xffff)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0xffff)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
 	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xffff)
 	AM_RANGE(0x0070, 0x007f) AM_RAM // needed for Poisk-2
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r,               pc_page_w, 0xffff)
 	AM_RANGE(0x00a0, 0x00a1) AM_WRITE8(pc_nmi_enable_w, 0x00ff )
-	AM_RANGE(0x0200, 0x0207) AM_READWRITE8_LEGACY(pc_JOY_r, pc_JOY_w, 0xffff)
+	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x0240, 0x0257) AM_READWRITE8(pc_rtc_r,                pc_rtc_w, 0xffff)
 	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE8_LEGACY("lpt_2", pc_lpt_r, pc_lpt_w, 0xffff)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE8("ins8250_3", ins8250_device, ins8250_r, ins8250_w, 0xffff)
@@ -238,8 +238,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START(ec1841_io, AS_IO, 16, pc_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x000f) AM_DEVREADWRITE8("dma8237", am9517a_device, read, write, 0xffff)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8_LEGACY("pic8259", pic8259_r, pic8259_w, 0xffff)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8_LEGACY("pit8253", pit8253_r, pit8253_w, 0xffff)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0xffff)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
 	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xffff)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r,               pc_page_w, 0xffff)
 	AM_RANGE(0x00a0, 0x00a1) AM_WRITE8( pc_nmi_enable_w, 0x00ff )
@@ -259,8 +259,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START(iskr1031_io, AS_IO, 16, pc_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x000f) AM_DEVREADWRITE8("dma8237", am9517a_device, read, write, 0xffff)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8_LEGACY("pic8259", pic8259_r, pic8259_w, 0xffff)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8_LEGACY("pit8253", pit8253_r, pit8253_w, 0xffff)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0xffff)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
 	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xffff)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r,               pc_page_w, 0xffff)
 	AM_RANGE(0x00a0, 0x00a1) AM_WRITE8( pc_nmi_enable_w, 0x00ff )
@@ -275,6 +275,24 @@ static ADDRESS_MAP_START(iskr1031_io, AS_IO, 16, pc_state)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 ADDRESS_MAP_END
 
+static ADDRESS_MAP_START(asst128_io, AS_IO, 16, pc_state)
+	ADDRESS_MAP_UNMAP_HIGH
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0xffff)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
+	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xffff)
+	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r,               pc_page_w, 0xffff)
+	AM_RANGE(0x00a0, 0x00a1) AM_WRITE8( pc_nmi_enable_w, 0x00ff )
+//  AM_RANGE(0x0200, 0x0207) AM_READWRITE8_LEGACY(pc_JOY_r, pc_JOY_w, 0xffff)
+	AM_RANGE(0x0240, 0x0257) AM_READWRITE8(pc_rtc_r,                pc_rtc_w, 0xffff)
+//  AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE8("ins8250_3", ins8250_device, ins8250_r, ins8250_w, 0xffff)
+	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
+	AM_RANGE(0x0340, 0x0357) AM_NOP /* anonymous bios should not recogniced realtimeclock */
+	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
+//  AM_RANGE(0x03e8, 0x03ef) AM_DEVREADWRITE8("ins8250_2", ins8250_device, ins8250_r, ins8250_w, 0xffff)
+	AM_RANGE(0x03f2, 0x03f3) AM_WRITE8(asst128_fdc_dor_w, 0xffff)
+	AM_RANGE(0x03f4, 0x03f5) AM_DEVICE8("fdc:upd765", upd765a_device, map, 0xffff)
+	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
+ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ibm5550_map, AS_PROGRAM, 16, pc_state )
 	ADDRESS_MAP_UNMAP_HIGH
@@ -291,12 +309,12 @@ READ8_MEMBER(pc_state::unk_r)
 static ADDRESS_MAP_START(ibm5550_io, AS_IO, 16, pc_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x000f) AM_DEVREADWRITE8("dma8237", am9517a_device, read, write, 0xffff)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8_LEGACY("pic8259", pic8259_r, pic8259_w, 0xffff)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8_LEGACY("pit8253", pit8253_r, pit8253_w, 0xffff)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0xffff)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
 	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xffff)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r,               pc_page_w, 0xffff)
 	AM_RANGE(0x00a0, 0x00a1) AM_READWRITE8(unk_r, pc_nmi_enable_w, 0x00ff )
-	AM_RANGE(0x0200, 0x0207) AM_READWRITE8_LEGACY(pc_JOY_r, pc_JOY_w, 0xffff)
+	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x0240, 0x0257) AM_READWRITE8(pc_rtc_r,                pc_rtc_w, 0xffff)
 	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE8_LEGACY("lpt_2", pc_lpt_r, pc_lpt_w, 0xffff)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE8("ins8250_3", ins8250_device, ins8250_r, ins8250_w, 0xffff)
@@ -310,7 +328,7 @@ static ADDRESS_MAP_START(ibm5550_io, AS_IO, 16, pc_state )
 ADDRESS_MAP_END
 
 
-static ADDRESS_MAP_START( europc_map, AS_PROGRAM, 8, pc_state )
+static ADDRESS_MAP_START( europc_map, AS_PROGRAM, 8, europc_pc_state )
 	AM_RANGE(0x00000, 0x9ffff) AM_RAMBANK("bank10")
 	AM_RANGE(0xa0000, 0xaffff) AM_NOP
 	AM_RANGE(0xc0000, 0xc7fff) AM_NOP
@@ -321,16 +339,16 @@ ADDRESS_MAP_END
 
 
 
-static ADDRESS_MAP_START(europc_io, AS_IO, 8, pc_state )
+static ADDRESS_MAP_START(europc_io, AS_IO, 8, europc_pc_state )
 	AM_RANGE(0x0000, 0x000f) AM_DEVREADWRITE("dma8237", am9517a_device, read, write)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE_LEGACY("pic8259", pic8259_r, pic8259_w)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE_LEGACY("pit8253", pit8253_r, pit8253_w)
-	AM_RANGE(0x0060, 0x0063) AM_READWRITE_LEGACY(europc_pio_r,          europc_pio_w)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE("pic8259", pic8259_device, read, write)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE("pit8253", pit8253_device, read, write)
+	AM_RANGE(0x0060, 0x0063) AM_READWRITE(europc_pio_r,          europc_pio_w)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE(pc_page_r,            pc_page_w)
-	AM_RANGE(0x0200, 0x0207) AM_READWRITE_LEGACY(pc_JOY_r,              pc_JOY_w)
-	AM_RANGE(0x0250, 0x025f) AM_READWRITE_LEGACY(europc_jim_r,          europc_jim_w)
+	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE("pc_joy", pc_joy_device, joy_port_r, joy_port_w)
+	AM_RANGE(0x0250, 0x025f) AM_READWRITE(europc_jim_r,          europc_jim_w)
 	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE_LEGACY("lpt_2", pc_lpt_r, pc_lpt_w)
-	AM_RANGE(0x02e0, 0x02e0) AM_READ_LEGACY(europc_jim2_r)
+	AM_RANGE(0x02e0, 0x02e0) AM_READ(europc_jim2_r)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE("ins8250_3", ins8250_device, ins8250_r, ins8250_w)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE("ins8250_1", ins8250_device, ins8250_r, ins8250_w)
 	AM_RANGE(0x0378, 0x037b) AM_DEVREADWRITE_LEGACY("lpt_1", pc_lpt_r, pc_lpt_w)
@@ -342,7 +360,7 @@ ADDRESS_MAP_END
 
 
 
-static ADDRESS_MAP_START(tandy1000_map, AS_PROGRAM, 8, pc_state )
+static ADDRESS_MAP_START(tandy1000_map, AS_PROGRAM, 8, tandy_pc_state )
 	AM_RANGE(0x00000, 0x9ffff) AM_RAMBANK("bank10")
 	AM_RANGE(0xa0000, 0xaffff) AM_RAM
 	AM_RANGE(0xb0000, 0xb7fff) AM_NOP
@@ -355,16 +373,16 @@ ADDRESS_MAP_END
 
 
 
-static ADDRESS_MAP_START(tandy1000_io, AS_IO, 8, pc_state )
+static ADDRESS_MAP_START(tandy1000_io, AS_IO, 8, tandy_pc_state )
 	AM_RANGE(0x0000, 0x000f) AM_DEVREADWRITE("dma8237", am9517a_device, read, write)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE_LEGACY("pic8259", pic8259_r, pic8259_w)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE_LEGACY("pit8253", pit8253_r, pit8253_w)
-	AM_RANGE(0x0060, 0x0063) AM_READWRITE_LEGACY(tandy1000_pio_r,           tandy1000_pio_w)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE("pic8259", pic8259_device, read, write)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE("pit8253", pit8253_device, read, write)
+	AM_RANGE(0x0060, 0x0063) AM_READWRITE(tandy1000_pio_r,           tandy1000_pio_w)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE(pc_page_r,                pc_page_w)
 	AM_RANGE(0x00c0, 0x00c0) AM_DEVWRITE("sn76496", ncr7496_device, write)
-	AM_RANGE(0x0200, 0x0207) AM_READWRITE_LEGACY(pc_JOY_r,                  pc_JOY_w)
+	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE("pc_joy", pc_joy_device, joy_port_r, joy_port_w)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE("ins8250_1", ins8250_device, ins8250_r, ins8250_w)
-	AM_RANGE(0x0378, 0x037f) AM_READWRITE_LEGACY(pc_t1t_p37x_r,         pc_t1t_p37x_w)
+	AM_RANGE(0x0378, 0x037f) AM_READWRITE(pc_t1t_p37x_r,         pc_t1t_p37x_w)
 	AM_RANGE(0x03bc, 0x03be) AM_DEVREADWRITE_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE("fdc", pc_fdc_interface, map)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE("ins8250_0", ins8250_device, ins8250_r, ins8250_w)
@@ -379,31 +397,31 @@ static ADDRESS_MAP_START(tandy1000_16_map, AS_PROGRAM, 16, pc_state )
 	AM_RANGE(0xc0000, 0xc7fff) AM_NOP
 	AM_RANGE(0xc8000, 0xc9fff) AM_ROM
 	AM_RANGE(0xca000, 0xcffff) AM_NOP
-	AM_RANGE(0xe0000, 0xeffff) AM_ROMBANK("bank11")                     /* Banked part of the BIOS */
-	AM_RANGE(0xf0000, 0xfffff) AM_ROM AM_REGION("maincpu", 0x70000)
+	AM_RANGE(0xe0000, 0xeffff) AM_ROMBANK("biosbank")                     /* Banked part of the BIOS */
+	AM_RANGE(0xf0000, 0xfffff) AM_ROM AM_REGION( "romcs0", 0x70000 )
 ADDRESS_MAP_END
 
 
-
-static ADDRESS_MAP_START(tandy1000_16_io, AS_IO, 16, pc_state )
+static ADDRESS_MAP_START(tandy1000_16_io, AS_IO, 16, tandy_pc_state )
 	AM_RANGE(0x0000, 0x000f) AM_DEVREADWRITE8("dma8237", am9517a_device, read, write, 0xffff)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8_LEGACY("pic8259", pic8259_r, pic8259_w, 0xffff)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8_LEGACY("pit8253", pit8253_r, pit8253_w, 0xffff)
-	AM_RANGE(0x0060, 0x0063) AM_READWRITE8_LEGACY(tandy1000_pio_r,          tandy1000_pio_w, 0xffff)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0xffff)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
+	AM_RANGE(0x0060, 0x0063) AM_READWRITE8(tandy1000_pio_r,          tandy1000_pio_w, 0xffff)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r,               pc_page_w, 0xffff)
 	AM_RANGE(0x00c0, 0x00c1) AM_DEVWRITE8("sn76496",    ncr7496_device, write, 0xffff)
-	AM_RANGE(0x0200, 0x0207) AM_READWRITE8_LEGACY(pc_JOY_r,                 pc_JOY_w, 0xffff)
+	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
-	AM_RANGE(0x0378, 0x037f) AM_READWRITE8_LEGACY(pc_t1t_p37x_r,            pc_t1t_p37x_w, 0xffff)
+	AM_RANGE(0x0378, 0x037f) AM_READWRITE8(pc_t1t_p37x_r,            pc_t1t_p37x_w, 0xffff)
 	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_interface, map, 0xffff)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
-	AM_RANGE(0xffea, 0xffeb) AM_READWRITE8_LEGACY(tandy1000_bank_r, tandy1000_bank_w, 0xffff)
+	AM_RANGE(0xffea, 0xffeb) AM_READWRITE8(tandy1000_bank_r, tandy1000_bank_w, 0xffff)
 ADDRESS_MAP_END
 
 
 
-static ADDRESS_MAP_START(tandy1000_286_map, AS_PROGRAM, 16, pc_state )
+static ADDRESS_MAP_START(tandy1000_286_map, AS_PROGRAM, 16, tandy_pc_state )
+	ADDRESS_MAP_GLOBAL_MASK(0x000fffff)
 	AM_RANGE(0x00000, 0x9ffff) AM_RAMBANK("bank10")
 	AM_RANGE(0xa0000, 0xaffff) AM_RAM
 	AM_RANGE(0xb0000, 0xb7fff) AM_NOP
@@ -416,23 +434,23 @@ ADDRESS_MAP_END
 
 
 
-static ADDRESS_MAP_START(tandy1000_286_io, AS_IO, 16, pc_state )
+static ADDRESS_MAP_START(tandy1000_286_io, AS_IO, 16, tandy_pc_state )
 	AM_RANGE(0x0000, 0x000f) AM_DEVREADWRITE8("dma8237", am9517a_device, read, write, 0xffff)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8_LEGACY("pic8259", pic8259_r, pic8259_w, 0xffff)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8_LEGACY("pit8253", pit8253_r, pit8253_w, 0xffff)
-	AM_RANGE(0x0060, 0x0063) AM_READWRITE8_LEGACY(tandy1000_pio_r,         tandy1000_pio_w, 0xffff)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0xffff)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
+	AM_RANGE(0x0060, 0x0063) AM_READWRITE8(tandy1000_pio_r,         tandy1000_pio_w, 0xffff)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r,               pc_page_w, 0xffff)
 	AM_RANGE(0x00c0, 0x00c1) AM_DEVWRITE8("sn76496", ncr7496_device, write, 0xffff)
-	AM_RANGE(0x0200, 0x0207) AM_READWRITE8_LEGACY(pc_JOY_r,                    pc_JOY_w, 0xffff)
+	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
-	AM_RANGE(0x0378, 0x037f) AM_READWRITE8_LEGACY(pc_t1t_p37x_r,           pc_t1t_p37x_w, 0xffff)
+	AM_RANGE(0x0378, 0x037f) AM_READWRITE8(pc_t1t_p37x_r,           pc_t1t_p37x_w, 0xffff)
 	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_interface, map, 0xffff)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 ADDRESS_MAP_END
 
 
-static ADDRESS_MAP_START(ibmpcjr_map, AS_PROGRAM, 8, pc_state )
+static ADDRESS_MAP_START(ibmpcjr_map, AS_PROGRAM, 8, tandy_pc_state )
 	AM_RANGE(0x00000, 0x9ffff) AM_RAMBANK("bank10")
 	AM_RANGE(0xa0000, 0xaffff) AM_RAM
 	AM_RANGE(0xb0000, 0xb7fff) AM_NOP
@@ -446,18 +464,18 @@ static ADDRESS_MAP_START(ibmpcjr_map, AS_PROGRAM, 8, pc_state )
 ADDRESS_MAP_END
 
 
-static ADDRESS_MAP_START(ibmpcjr_io, AS_IO, 8, pc_state )
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE_LEGACY("pic8259", pic8259_r, pic8259_w)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE_LEGACY("pit8253", pit8253_r, pit8253_w)
+static ADDRESS_MAP_START(ibmpcjr_io, AS_IO, 8, tandy_pc_state )
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE("pic8259", pic8259_device, read, write)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE("pit8253", pit8253_device, read, write)
 	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE(pc_page_r,                pc_page_w)
 	AM_RANGE(0x00a0, 0x00a0) AM_READWRITE(pcjr_nmi_enable_r, pc_nmi_enable_w )
 	AM_RANGE(0x00c0, 0x00c0) AM_DEVWRITE("sn76496", sn76496_device, write)
 	AM_RANGE(0x00f2, 0x00f2) AM_WRITE(pcjr_fdc_dor_w)
 	AM_RANGE(0x00f4, 0x00f5) AM_DEVICE("upd765", upd765a_device, map)
-	AM_RANGE(0x0200, 0x0207) AM_READWRITE_LEGACY(pc_JOY_r,                  pc_JOY_w)
+	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE("pc_joy", pc_joy_device, joy_port_r, joy_port_w)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE("ins8250_1", ins8250_device, ins8250_r, ins8250_w)
-	AM_RANGE(0x0378, 0x037f) AM_READWRITE_LEGACY(pc_t1t_p37x_r,         pc_t1t_p37x_w)
+	AM_RANGE(0x0378, 0x037f) AM_READWRITE(pc_t1t_p37x_r,         pc_t1t_p37x_w)
 	AM_RANGE(0x03bc, 0x03be) AM_DEVREADWRITE_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE("ins8250_0", ins8250_device, ins8250_r, ins8250_w)
 ADDRESS_MAP_END
@@ -538,7 +556,6 @@ static INPUT_PORTS_START( pccga )
 	PORT_BIT( 0x02, 0x02,   IPT_UNUSED ) /* no turbo switch */
 	PORT_BIT( 0x01, 0x01,   IPT_UNUSED )
 
-	PORT_INCLUDE( pc_joystick )         /* IN15 - IN19 */
 	PORT_INCLUDE( pcvideo_cga )
 INPUT_PORTS_END
 
@@ -607,7 +624,6 @@ static INPUT_PORTS_START( pcega )
 	PORT_BIT( 0x02, 0x02,   IPT_UNUSED ) /* no turbo switch */
 	PORT_BIT( 0x01, 0x01,   IPT_UNUSED )
 
-	PORT_INCLUDE( pc_joystick )         /* IN15 - IN19 */
 	PORT_INCLUDE( pcvideo_cga )
 INPUT_PORTS_END
 
@@ -658,7 +674,6 @@ static INPUT_PORTS_START( europc )
 
 	EUROPC_KEYBOARD
 
-	PORT_INCLUDE( pc_joystick )         /* IN15 - IN19 */
 	PORT_INCLUDE( pcvideo_cga )
 INPUT_PORTS_END
 
@@ -730,7 +745,6 @@ static INPUT_PORTS_START( bondwell )
 	PORT_BIT( 0x01, 0x01,   IPT_UNUSED )
 
 //  PORT_INCLUDE( at_keyboard )     /* IN4 - IN11 */
-	PORT_INCLUDE( pc_joystick )         /* IN15 - IN19 */
 	PORT_INCLUDE( pcvideo_cga )
 INPUT_PORTS_END
 
@@ -770,7 +784,6 @@ static INPUT_PORTS_START( tandy1t )
 	PORT_BIT( 0x01, 0x01,   IPT_UNUSED )
 
 	PORT_INCLUDE( t1000_keyboard )
-	PORT_INCLUDE( pc_joystick )         /* IN15 - IN19 */
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( ibmpcjr )
@@ -868,9 +881,21 @@ FLOPPY_FORMATS_MEMBER( pc_state::floppy_formats )
 	FLOPPY_PC_FORMAT
 FLOPPY_FORMATS_END
 
+FLOPPY_FORMATS_MEMBER( pc_state::asst128_formats )
+	FLOPPY_ASST128_FORMAT
+FLOPPY_FORMATS_END
+
 static SLOT_INTERFACE_START( ibmpc_floppies )
 		SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
 		SLOT_INTERFACE( "35dd", FLOPPY_35_DD )
+SLOT_INTERFACE_END
+
+static SLOT_INTERFACE_START( asst128_floppies )
+		SLOT_INTERFACE( "525ssqd", FLOPPY_525_SSQD )
+SLOT_INTERFACE_END
+
+static SLOT_INTERFACE_START( mc1502_floppies )
+		SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
 SLOT_INTERFACE_END
 
 SLOT_INTERFACE_START(ibm5150_com)
@@ -969,7 +994,7 @@ static MACHINE_CONFIG_START( pccga, pc_state )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", ibm5160_ppi8255_interface )
 
@@ -977,10 +1002,10 @@ static MACHINE_CONFIG_START( pccga, pc_state )
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_2", ibm5150_com_interface[2], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_3", ibm5150_com_interface[3], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_cga )
@@ -988,22 +1013,23 @@ static MACHINE_CONFIG_START( pccga, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* keyboard */
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* printer */
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1036,23 +1062,24 @@ static const gfx_layout europc_16_charlayout =
 	8*16                    /* every char takes 16 bytes */
 };
 
+
 static GFXDECODE_START( europc )
 	GFXDECODE_ENTRY( "gfx1", 0x0000, europc_8_charlayout, 3, 1 )
 	GFXDECODE_ENTRY( "gfx1", 0x0800, europc_16_charlayout, 3, 1 )
 GFXDECODE_END
 
-static MACHINE_CONFIG_START( europc, pc_state )
+static MACHINE_CONFIG_START( europc, europc_pc_state )
 	/* basic machine hardware */
 	MCFG_CPU_PC(europc, europc, I8088, 4772720*2, pc_frame_interrupt)
 
-	MCFG_MACHINE_START_OVERRIDE(pc_state,pc)
-	MCFG_MACHINE_RESET_OVERRIDE(pc_state,pc)
+	MCFG_MACHINE_START_OVERRIDE(europc_pc_state,pc)
+	MCFG_MACHINE_RESET_OVERRIDE(europc_pc_state,pc)
 
 	MCFG_PIT8253_ADD( "pit8253", ibm5150_pit8253_config )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", pc_ppi8255_interface )
 
@@ -1060,10 +1087,11 @@ static MACHINE_CONFIG_START( europc, pc_state )
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_2", ibm5150_com_interface[2], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_3", ibm5150_com_interface[3], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL )
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_aga )
@@ -1071,7 +1099,7 @@ static MACHINE_CONFIG_START( europc, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_NVRAM_HANDLER( europc_rtc )
@@ -1083,8 +1111,8 @@ static MACHINE_CONFIG_START( europc, pc_state )
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1092,33 +1120,50 @@ static MACHINE_CONFIG_START( europc, pc_state )
 MACHINE_CONFIG_END
 
 
-static MACHINE_CONFIG_START( t1000hx, pc_state )
+static const gfx_layout t1000_charlayout =
+{
+	8, 16,
+	256,
+	1,
+	{ 0 },
+	{ 0, 1, 2, 3, 4, 5, 6, 7 },
+	{ 0, 2048, 4096, 6144, 8192, 10240, 12288, 14336, 16384, 18432, 20480, 22528, 24576, 26624, 28672, 30720 },
+	8
+};
+
+
+static GFXDECODE_START( t1000 )
+	GFXDECODE_ENTRY( "gfx1", 0x0000, t1000_charlayout, 3, 1 )
+GFXDECODE_END
+
+
+static MACHINE_CONFIG_START( t1000hx, tandy_pc_state )
 	/* basic machine hardware */
 	MCFG_CPU_PC(tandy1000, tandy1000, I8088, 8000000, pc_frame_interrupt)
 
-	MCFG_MACHINE_START_OVERRIDE(pc_state,pc)
+	MCFG_MACHINE_START_OVERRIDE(tandy_pc_state,pc)
 	MCFG_MACHINE_RESET_OVERRIDE(pc_state,pc)
 
 	MCFG_PIT8253_ADD( "pit8253", ibm5150_pit8253_config )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", pc_ppi8255_interface )
 
 	MCFG_INS8250_ADD( "ins8250_0", ibm5150_com_interface[0], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_t1000 )
-	MCFG_GFXDECODE(europc)
+	MCFG_GFXDECODE(t1000)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 	MCFG_SOUND_ADD("sn76496", NCR7496, XTAL_14_31818MHz/4)
 	MCFG_SOUND_CONFIG(psg_intf)
@@ -1130,10 +1175,11 @@ static MACHINE_CONFIG_START( t1000hx, pc_state )
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "35dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "35dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1142,36 +1188,36 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( t1000sx, t1000hx )
 	MCFG_DEVICE_REMOVE("fdc:0")
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_START( t1000_16, pc_state )
+static MACHINE_CONFIG_START( t1000_16, tandy_pc_state )
 	/* basic machine hardware */
 	MCFG_CPU_PC(tandy1000_16, tandy1000_16, I8086, XTAL_28_63636MHz / 3, pc_frame_interrupt)
 
-	MCFG_MACHINE_START_OVERRIDE(pc_state,pc)
-	MCFG_MACHINE_RESET_OVERRIDE(pc_state,tandy1000rl)
+	MCFG_MACHINE_START_OVERRIDE(tandy_pc_state,pc)
+	MCFG_MACHINE_RESET_OVERRIDE(tandy_pc_state,tandy1000rl)
 
 	MCFG_PIT8253_ADD( "pit8253", ibm5150_pit8253_config )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", pc_ppi8255_interface )
 
 	MCFG_INS8250_ADD( "ins8250_0", ibm5150_com_interface[0], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_t1000 )
-	MCFG_GFXDECODE(europc)
+	MCFG_GFXDECODE(t1000)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 	MCFG_SOUND_ADD("sn76496", NCR7496, XTAL_14_31818MHz/4)
 	MCFG_SOUND_CONFIG(psg_intf)
@@ -1183,9 +1229,10 @@ static MACHINE_CONFIG_START( t1000_16, pc_state )
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	MCFG_PC_FDC_XT_ADD("fdc")
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "35dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "35dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1193,7 +1240,13 @@ static MACHINE_CONFIG_START( t1000_16, pc_state )
 MACHINE_CONFIG_END
 
 
-static MACHINE_CONFIG_START( t1000_286, pc_state )
+static MACHINE_CONFIG_DERIVED( t1000_16_8, t1000_16 )
+	MCFG_CPU_MODIFY( "maincpu" )
+	MCFG_CPU_CLOCK( XTAL_24MHz / 3 )
+MACHINE_CONFIG_END
+
+
+static MACHINE_CONFIG_START( t1000_286, tandy_pc_state )
 	/* basic machine hardware */
 	MCFG_CPU_PC(tandy1000_286, tandy1000_286, I80286, XTAL_28_63636MHz / 2, pc_frame_interrupt)
 
@@ -1204,22 +1257,22 @@ static MACHINE_CONFIG_START( t1000_286, pc_state )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", pc_ppi8255_interface )
 
 	MCFG_INS8250_ADD( "ins8250_0", ibm5150_com_interface[0], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_t1000 )
-	MCFG_GFXDECODE(europc)
+	MCFG_GFXDECODE(t1000)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 	MCFG_SOUND_ADD("sn76496", NCR7496, XTAL_14_31818MHz/4)
 	MCFG_SOUND_CONFIG(psg_intf)
@@ -1231,9 +1284,10 @@ static MACHINE_CONFIG_START( t1000_286, pc_state )
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	MCFG_PC_FDC_XT_ADD("fdc")
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "35dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "35dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1263,7 +1317,7 @@ static const cassette_interface mc1502_cassette_interface =
 	NULL
 };
 
-static MACHINE_CONFIG_START( ibmpcjr, pc_state )
+static MACHINE_CONFIG_START( ibmpcjr, tandy_pc_state )
 	/* basic machine hardware */
 	MCFG_CPU_PC(ibmpcjr, ibmpcjr, I8088, 4900000, pcjr_frame_interrupt) /* TODO: Get correct cpu frequency, probably XTAL_14_31818MHz/3 */
 
@@ -1272,14 +1326,14 @@ static MACHINE_CONFIG_START( ibmpcjr, pc_state )
 
 	MCFG_PIT8253_ADD( "pit8253", pcjr_pit8253_config )
 
-	MCFG_PIC8259_ADD( "pic8259", pcjr_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", WRITELINE(pc_state,pcjr_pic8259_set_int_line), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", pcjr_ppi8255_interface )
 
 	MCFG_INS8250_ADD( "ins8250_0", ibm5150_com_interface[0], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_pcjr )
@@ -1287,7 +1341,7 @@ static MACHINE_CONFIG_START( ibmpcjr, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 	MCFG_SOUND_ADD("sn76496", SN76496, XTAL_14_31818MHz/4)
 	MCFG_SOUND_CONFIG(psg_intf)
@@ -1299,25 +1353,26 @@ static MACHINE_CONFIG_START( ibmpcjr, pc_state )
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, ibm5150_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", ibm5150_cassette_interface )
 
 	MCFG_UPD765A_ADD("upd765", false, false)
 
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart1")
 	MCFG_CARTSLOT_INTERFACE("ibmpcjr_cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("jrc")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(pcjr_cartridge)
+	MCFG_CARTSLOT_LOAD(pc_state,pcjr_cartridge)
 	MCFG_CARTSLOT_ADD("cart2")
 	MCFG_CARTSLOT_INTERFACE("ibmpcjr_cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("jrc")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(pcjr_cartridge)
+	MCFG_CARTSLOT_LOAD(pc_state,pcjr_cartridge)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1340,8 +1395,8 @@ static MACHINE_CONFIG_DERIVED( ibmpcjx, ibmpcjr )
 	MCFG_CPU_IO_MAP(ibmpcjx_io)
 
 	MCFG_DEVICE_REMOVE("upd765:0");
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", ibmpc_floppies, "35dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", ibmpc_floppies, "35dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", ibmpc_floppies, "35dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", ibmpc_floppies, "35dd", pc_state::floppy_formats)
 
 	MCFG_GFXDECODE(ibmpcjx)
 MACHINE_CONFIG_END
@@ -1360,7 +1415,7 @@ static MACHINE_CONFIG_START( mc1502, pc_state )
 
 	MCFG_PIT8253_ADD( "pit8253", mc1502_pit8253_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", mc1502_ppi8255_interface )       /* not complete */
 	MCFG_I8255_ADD( "ppi8255n2", mc1502_ppi8255_interface_2 )   /* not complete */
@@ -1373,18 +1428,21 @@ static MACHINE_CONFIG_START( mc1502, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* printer */
 //  MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)             /* TODO: non-standard */
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, mc1502_cassette_interface )    // has no motor control
+	MCFG_CASSETTE_ADD( "cassette", mc1502_cassette_interface )    // has no motor control
 
-	MCFG_FD1793x_ADD("vg93", XTAL_8MHz / 8) // clock?
-	MCFG_FLOPPY_DRIVE_ADD("fd0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FD1793x_ADD("vg93", XTAL_16MHz / 16)
+	MCFG_FLOPPY_DRIVE_ADD("fd0", mc1502_floppies, "525qd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd1", mc1502_floppies, "525qd", pc_state::floppy_formats)
+
+	MCFG_SOFTWARE_LIST_ADD("flop_list","mc1502_flop")
+//  MCFG_SOFTWARE_LIST_ADD("cass_list","mc1502_cass")
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1407,7 +1465,7 @@ static MACHINE_CONFIG_START( ec1841, pc_state )
 	// maybe XTAL_12_288MHz
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", ibm5160_ppi8255_interface )
 
@@ -1420,7 +1478,7 @@ static MACHINE_CONFIG_START( ec1841, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* printer */
@@ -1428,12 +1486,14 @@ static MACHINE_CONFIG_START( ec1841, pc_state )
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+
+	MCFG_SOFTWARE_LIST_ADD("flop_list","ec1841")
 
 	/* keyboard -- needs dump */
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* internal ram -- up to 4 banks of 512K */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1455,7 +1515,7 @@ static MACHINE_CONFIG_START( iskr1031, pc_state )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", ibm5160_ppi8255_interface )
 
@@ -1463,10 +1523,10 @@ static MACHINE_CONFIG_START( iskr1031, pc_state )
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_2", ibm5150_com_interface[2], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_3", ibm5150_com_interface[3], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_cga )
@@ -1474,12 +1534,12 @@ static MACHINE_CONFIG_START( iskr1031, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* keyboard */
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* printer */
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
@@ -1488,14 +1548,35 @@ static MACHINE_CONFIG_START( iskr1031, pc_state )
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("640K")
 MACHINE_CONFIG_END
 
+static MACHINE_CONFIG_DERIVED( asst128, iskr1031 )
+	MCFG_CPU_REPLACE("maincpu", I8086, 4772720)
+	MCFG_CPU_PROGRAM_MAP(iskr1031_map)
+	MCFG_CPU_IO_MAP(asst128_io)
+
+	MCFG_DEVICE_REMOVE("dma8237")
+	MCFG_DEVICE_REMOVE("fdc:0")
+	MCFG_DEVICE_REMOVE("fdc:1")
+	MCFG_DEVICE_REMOVE("pit8253")
+
+	MCFG_PIT8253_ADD( "pit8253", pcjr_pit8253_config )
+
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", asst128_floppies, "525ssqd", pc_state::asst128_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", asst128_floppies, "525ssqd", pc_state::asst128_formats)
+
+	MCFG_DEVICE_REMOVE(CGA_SCREEN_NAME)
+	MCFG_DEVICE_REMOVE(CGA_MC6845_NAME)
+
+	MCFG_FRAGMENT_ADD( pcvideo_mc1502 )
+	MCFG_GFXDECODE(ibmpcjr)
+MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( iskr3104, pc_state )
 	/* basic machine hardware */
@@ -1510,7 +1591,7 @@ static MACHINE_CONFIG_START( iskr3104, pc_state )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", ibm5160_ppi8255_interface )
 
@@ -1518,32 +1599,33 @@ static MACHINE_CONFIG_START( iskr3104, pc_state )
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_2", ibm5150_com_interface[2], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_3", ibm5150_com_interface[3], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL )
 
 	/* video hardware */
 //  MCFG_FRAGMENT_ADD( pcvideo_ega ) // Put this back after ISA are added to this driver
 	MCFG_FRAGMENT_ADD( pcvideo_cga )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* keyboard */
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* printer */
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1564,7 +1646,7 @@ static MACHINE_CONFIG_START( poisk2, pc_state )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", ibm5160_ppi8255_interface )
 
@@ -1572,10 +1654,10 @@ static MACHINE_CONFIG_START( poisk2, pc_state )
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_2", ibm5150_com_interface[2], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_3", ibm5150_com_interface[3], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_poisk2 )
@@ -1583,22 +1665,23 @@ static MACHINE_CONFIG_START( poisk2, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* keyboard */
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* printer */
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1618,7 +1701,7 @@ static MACHINE_CONFIG_START( zenith, pc_state )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", ibm5160_ppi8255_interface )
 
@@ -1626,10 +1709,10 @@ static MACHINE_CONFIG_START( zenith, pc_state )
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_2", ibm5150_com_interface[2], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_3", ibm5150_com_interface[3], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_cga )
@@ -1637,22 +1720,23 @@ static MACHINE_CONFIG_START( zenith, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* keyboard */
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* printer */
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1672,7 +1756,7 @@ static MACHINE_CONFIG_START( olivetti, pc_state )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", ibm5160_ppi8255_interface )
 
@@ -1680,10 +1764,10 @@ static MACHINE_CONFIG_START( olivetti, pc_state )
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_2", ibm5150_com_interface[2], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_3", ibm5150_com_interface[3], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_cga )
@@ -1691,22 +1775,23 @@ static MACHINE_CONFIG_START( olivetti, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* keyboard */
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* printer */
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1726,7 +1811,7 @@ static MACHINE_CONFIG_START( ibm5550, pc_state )
 
 	MCFG_I8237_ADD( "dma8237", XTAL_14_31818MHz/3, ibm5150_dma8237_config )
 
-	MCFG_PIC8259_ADD( "pic8259", ibm5150_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", INPUTLINE("maincpu", 0), VCC, NULL )
 
 	MCFG_I8255_ADD( "ppi8255", ibm5160_ppi8255_interface )
 
@@ -1734,10 +1819,10 @@ static MACHINE_CONFIG_START( ibm5550, pc_state )
 	MCFG_INS8250_ADD( "ins8250_1", ibm5150_com_interface[1], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_2", ibm5150_com_interface[2], XTAL_1_8432MHz )   /* TODO: Verify model */
 	MCFG_INS8250_ADD( "ins8250_3", ibm5150_com_interface[3], XTAL_1_8432MHz )   /* TODO: Verify model */
-	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL, NULL )
-	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL, NULL )
+	MCFG_RS232_PORT_ADD( "serport0", ibm5150_serport_config[0], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport1", ibm5150_serport_config[1], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport2", ibm5150_serport_config[2], ibm5150_com, NULL )
+	MCFG_RS232_PORT_ADD( "serport3", ibm5150_serport_config[3], ibm5150_com, NULL )
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_cga )
@@ -1745,22 +1830,23 @@ static MACHINE_CONFIG_START( ibm5550, pc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	/* keyboard */
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* printer */
 	MCFG_PC_LPT_ADD("lpt_0", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_1", pc_lpt_config)
 	MCFG_PC_LPT_ADD("lpt_2", pc_lpt_config)
+	MCFG_PC_JOY_ADD("pc_joy")
 
 	MCFG_PC_FDC_XT_ADD("fdc")
 
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", 0, pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", ibmpc_floppies, "525dd", pc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", ibmpc_floppies, "525dd", pc_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1896,16 +1982,16 @@ ROM_END
 
 #ifdef UNUSED_DEFINITION
 ROM_START( t1000 )
+	// Schematics displays 2 32KB ROMs at U9 and U10
 	ROM_REGION(0x100000,"maincpu", 0)
-	// partlist says it has 1 128kbyte rom
-	ROM_LOAD("t1000hx.e0", 0xe0000, 0x10000, CRC(61dbf242) SHA1(555b58d8aa8e0b0839259621c44b832d993beaef))  // not sure about this one
 	ROM_SYSTEM_BIOS( 0, "v010000", "v010000" )
 	ROMX_LOAD("v010000.f0", 0xf0000, 0x10000, NO_DUMP, ROM_BIOS(1))
 	ROM_SYSTEM_BIOS( 1, "v010100", "v010100" )
 	ROMX_LOAD("v010100.f0", 0xf0000, 0x10000, CRC(b6760881) SHA1(8275e4c48ac09cf36685db227434ca438aebe0b9), ROM_BIOS(2))
+
+	// Part of video array at u76?
 	ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+	ROM_LOAD("8079027.u76", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450)) // TODO: Verify location
 ROM_END
 
 ROM_START( t1000a )
@@ -1913,35 +1999,49 @@ ROM_START( t1000a )
 	// partlist says it has 1 128kbyte rom
 	ROM_LOAD("t1000hx.e0", 0xe0000, 0x10000, CRC(61dbf242) SHA1(555b58d8aa8e0b0839259621c44b832d993beaef))  // not sure about this one
 	ROM_LOAD("v010100.f0", 0xf0000, 0x10000, CRC(b6760881) SHA1(8275e4c48ac09cf36685db227434ca438aebe0b9))
+
 	ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+	ROM_LOAD("8079027.u25", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450)) // TODO: Verify location
 ROM_END
 
 ROM_START( t1000ex )
 	ROM_REGION(0x100000,"maincpu", 0)
-	// partlist says it has 1 128kbyte rom
+	// partlist says it has 1 128kb rom, schematics list a 32k x 8 rom
+	// "8040328.u17"
 	ROM_LOAD("t1000hx.e0", 0xe0000, 0x10000, CRC(61dbf242) SHA1(555b58d8aa8e0b0839259621c44b832d993beaef))  // not sure about this one
 	ROM_LOAD("v010200.f0", 0xf0000, 0x10000, CRC(0e016ecf) SHA1(2f5ac8921b7cba56b02122ef772f5f11bbf6d8a2))
+
+	// TODO: Add dump of the 8048 at u8 if it ever gets dumped
+	ROM_REGION(0x400, "kbdc", 0)
+	ROM_LOAD("8048.u8", 0x000, 0x400, NO_DUMP)
+
+	// Most likely part of big blue at u28
 	ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+	ROM_LOAD("8079027.u28", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450)) // TODO: Verify location
 ROM_END
 #endif
 
 ROM_START( t1000hx )
 	ROM_REGION(0x100000,"maincpu", 0)
-	// partlist says it has 1 128kbyte rom
-	ROM_LOAD("t1000hx.e0", 0xe0000, 0x10000, CRC(61dbf242) SHA1(555b58d8aa8e0b0839259621c44b832d993beaef))
-	ROM_LOAD("v020000.f0", 0xf0000, 0x10000, CRC(d37a1d5f) SHA1(5ec031c31a7967cc3fd53a535d81833e4a1c385e))
+	ROM_LOAD("v020000.u12", 0xe0000, 0x20000, CRC(6f3acd80) SHA1(976af8c04c3f6fde14d7047f6521d302bdc2d017)) // TODO: Rom label
+
+	// TODO: Add dump of the 8048 at u9 if it ever gets dumped
+	ROM_REGION(0x400, "kbdc", 0)
+	ROM_LOAD("8048.u9", 0x000, 0x400, NO_DUMP)
+
 	ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+	ROM_LOAD("8079027.u31", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450)) // TODO: Verify location, probably internal to "big blue" at u31
 ROM_END
 
 #ifdef UNUSED_DEFINITION
+// The T1000SL and T1000SL/2 only differ in amount of RAM installed and BIOS version (SL/2 has v01.04.04)
 ROM_START( t1000sl )
 	ROM_REGION(0x100000,"maincpu", 0)
+
+	// 8076312.hu1 - most likely v01.04.00
+	// 8075312.hu2
+
+
 	// partlist says it has 1 128kbyte rom
 	ROM_LOAD("t1000hx.e0", 0xe0000, 0x10000, CRC(61dbf242) SHA1(555b58d8aa8e0b0839259621c44b832d993beaef))  // not sure about this one
 	ROM_SYSTEM_BIOS( 0, "v010400", "v010400" )
@@ -1952,70 +2052,116 @@ ROM_START( t1000sl )
 	ROMX_LOAD("v010402.f0", 0xf0000, 0x10000, NO_DUMP, ROM_BIOS(3) )
 	ROM_SYSTEM_BIOS( 3, "v020001", "v020001" )
 	ROMX_LOAD("v020001.f0", 0xf0000, 0x10000, NO_DUMP, ROM_BIOS(4) )
+
 	ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+	ROM_LOAD("8079027.u25", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450))
 ROM_END
 
-ROM_START( t1000sl2 )
-	ROM_REGION(0x100000,"maincpu", 0)
-	// partlist says it has 1 128kbyte rom
-	ROM_LOAD("t1000hx.e0", 0xe0000, 0x10000, CRC(61dbf242) SHA1(555b58d8aa8e0b0839259621c44b832d993beaef))  // not sure about this one
-	ROM_LOAD("v010404.f0", 0xf0000, 0x10000, NO_DUMP )
-	ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+
+ROM_START( t1000tl )
+	ROM_REGIoN(0x100000, "maincpu", ROMREGION_ERASE00)
+
+	ROM_REGION(0x80000, "romcs0", 0)
+	// These 2 sets most likely have the same contents
+	// v01.04.00
+	// 8076323.u55 - Sharp - 256KB
+	// 8075323.u57 - Sharp - 256KB
+	// v01.04.00
+	// 8079025.u54 - Hitachi - 256KB
+	// 8079026.u56 - Hitachi - 256KB
+	ROM_REGION(0x80000, "romcs1", 0)
+
+	// 2x 128x8 eeprom?? @ u58 and u59 - not mentioned in parts list
+
+	ROM_REGION(0x80, "eeprom", 0)
+	ROM_LOAD("8040346_9346.u12", xxx ) // 64x16 eeprom
+
+	ROM_REGION(0x08000, "gfx1", 0)
+	ROM_LOAD("8079027.u24", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450))
 ROM_END
 #endif
 
+
 ROM_START( t1000sx )
 	ROM_REGION(0x100000,"maincpu", 0)
-	// partlist says it has 1 128kbyte rom
-	ROM_LOAD("t1000hx.e0", 0xe0000, 0x10000, CRC(61dbf242) SHA1(555b58d8aa8e0b0839259621c44b832d993beaef))  // not sure about this one
-	ROM_LOAD("v010200.f0", 0xf0000, 0x10000, CRC(0e016ecf) SHA1(2f5ac8921b7cba56b02122ef772f5f11bbf6d8a2))
+	ROM_LOAD("8040328.u41", 0xf8000, 0x8000, CRC(4e2b9f0b) SHA1(e79a9ed9e885736e30d9b135557f0e596ce5a70b))
+
+	// No character rom is listed in the schematics?
+	// But disabling it results in no text being printed
+	// Part of bigblue at u30??
 	ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+	ROM_LOAD("8079027.u30", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450)) // TODO: Verify location
 ROM_END
 
 
 ROM_START( t1000tx )
 	ROM_REGION(0x100000,"maincpu", 0)
-	/* There might be a second 32KB rom, but it seems to work fine with just this one */
-	ROM_LOAD("t1000tx.bin", 0xf8000, 0x8000, CRC(9b34765c) SHA1(0b07e87f6843393f7d4ca4634b832b0c0bec304e))
+	// There should be 2 32KBx8 ROMs, one for odd at u38, one for even at u39
+	// The machine already boots up with just this one rom
+	ROM_LOAD("t1000tx.bin", 0xf8000, 0x8000, BAD_DUMP CRC(9b34765c) SHA1(0b07e87f6843393f7d4ca4634b832b0c0bec304e))
 
+	// No character rom is listed in the schematics?
+	// It is most likely part of the big blue chip at u36
 	ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+	ROM_LOAD("8079027.u36", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450)) // TODO: Verify location
 ROM_END
 
 
 ROM_START( t1000rl )
-	ROM_REGION(0x100000,"maincpu", 0)
+	ROM_REGION(0x100000,"maincpu", ROMREGION_ERASE00)
 
+	// bankable ROM regions
+	ROM_REGION(0x80000, "romcs0", 0)
 	/* v2.0.0.1 */
 	/* Rom is labeled "(C) TANDY CORP. 1990 // 8079073 // LH534G70 JAPAN // 9034 D" */
 	ROM_LOAD("8079073.u23", 0x00000, 0x80000, CRC(6fab50f7) SHA1(2ccc02bee4c250dc1b7c17faef2590bc158860b0) )
+	ROM_REGION(0x80000, "romcs1", ROMREGION_ERASEFF)
 
 	ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
 	/* Character rom located at U3 w/label "8079027 // NCR // 609-2495004 // F841030 A9025" */
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+	ROM_LOAD("8079027.u3", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450)) // TODO: Verify location
 ROM_END
+
+
+ROM_START( t1000sl2 )
+	ROM_REGION(0x100000,"maincpu", ROMREGION_ERASE00)
+
+	// bankable ROM regions
+	ROM_REGION(0x80000, "romcs0", 0)
+	// v01.04.04 BIOS
+	ROM_LOAD16_BYTE("8079047.hu1", 0x00000, 0x40000, CRC(c773ec0e) SHA1(7deb71f14c2c418400b639d60066ab61b7e9df32))
+	ROM_LOAD16_BYTE("8079048.hu2", 0x00001, 0x40000, CRC(0f3e6586) SHA1(10f1a7204f69b82a18bc94a3010c9660aec0c802))
+	ROM_REGION(0x80000, "romcs1", ROMREGION_ERASEFF)
+
+	ROM_REGION(0x08000,"gfx1", 0)
+	ROM_LOAD("8079027.u25", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450))
+
+	ROM_REGION(0x80, "nmc9246n", 0)
+	ROM_LOAD("seeprom.bin", 0, 0x80, CRC(4fff41df) SHA1(41a7009694550c017996932beade608cff968f4a))
+ROM_END
+
 
 ROM_START( t1000tl2 )
 	ROM_REGION(0x100000, "maincpu", 0)
 	ROM_LOAD( "t10000tl2.bin", 0xf0000, 0x10000, CRC(e288f12c) SHA1(9d54ccf773cd7202c9906323f1b5a68b1b3a3a67))
 
-		ROM_REGION(0x08000,"gfx1", 0)
-	// expects 8x9 charset!
-	/* Character rom located at U3 w/label "8079027 // NCR // 609-2495004 // F841030 A9025" */
-	ROM_LOAD("50146", 0x00000, 0x02000, BAD_DUMP CRC(1305dcf5) SHA1(aca488a16ae4ff05a1f4d14574379ff49cd48343)) //taken from europc, 9th blank
+	ROM_REGION(0x08000,"gfx1", 0)
+	ROM_LOAD("8079027.u24", 0x00000, 0x04000, CRC(33d64a11) SHA1(b63da2a656b6c0a8a32f2be8bdcb51aed983a450)) // TODO: Verify location
 ROM_END
+
 
 ROM_START( dgone )
 	ROM_REGION(0x100000,"maincpu", 0)
 	ROM_LOAD( "dgone.bin",  0xf8000, 0x08000, CRC(2c38c86e) SHA1(c0f85a000d1d13cd354965689e925d677822549e))
+
+	/* IBM 1501981(CGA) and 1501985(MDA) Character rom */
+	ROM_REGION(0x2000,"gfx1", 0)
+	ROM_LOAD("5788005.u33", 0x00000, 0x2000, CRC(0bf56d70) SHA1(c2a8b10808bf51a3c123ba3eb1e9dd608231916f)) /* "AMI 8412PI // 5788005 // (C) IBM CORP. 1981 // KOREA" */
+ROM_END
+
+ROM_START( ssam88s )
+	ROM_REGION(0x100000,"maincpu", 0)
+	ROM_LOAD( "samsung_samtron_88s_vers_2.0a.bin",  0xf8000, 0x08000, CRC(d1252a91) SHA1(469d15b6ecd7b70234975dc12c6bda4212a66652))
 
 	/* IBM 1501981(CGA) and 1501985(MDA) Character rom */
 	ROM_REGION(0x2000,"gfx1", 0)
@@ -2055,6 +2201,7 @@ ROM_START( ec1840 )
 ROM_END
 
 ROM_START( ec1841 )
+	ROM_DEFAULT_BIOS("v2")
 	ROM_REGION16_LE(0x100000,"maincpu", 0)
 	ROM_SYSTEM_BIOS(0, "v1", "EC-1841.01")
 	ROMX_LOAD( "012-01-3107.bin", 0xfc000, 0x0800, CRC(77957396) SHA1(785f1dceb6e2b4618f5c5f0af15eb74a8c951448), ROM_SKIP(1) | ROM_BIOS(1))
@@ -2102,6 +2249,16 @@ ROM_START( ec1845 )
 	ROM_REGION(0x2000,"gfx1", ROMREGION_ERASE00)
 ROM_END
 
+ROM_START( asst128 )
+	ROM_REGION16_LE(0x100000,"maincpu", 0)
+	/* BASIC ROM taken from IBM 5150 and needs dumping */
+	ROM_LOAD( "basic-1.10.rom",    0xf6000, 0x8000, CRC(ebacb791) SHA1(07449ebca18f979b9ab748582b736e402f2bf940))
+	ROM_LOAD( "asf400-f600.bin",   0xf4000, 0x2000, CRC(e3bf22de) SHA1(d4319edc82c0015ca0adc6c8771e887659717e62))
+	ROM_LOAD( "asfc00-ff00.bin",   0xfc000, 0x4000, CRC(0cb6401c) SHA1(70c4da47700f9925fd04049f16d54610c743ed8b))
+	ROM_REGION(0x2000,"gfx1", ROMREGION_ERASE00)
+	ROM_COPY( "maincpu", 0xffa6e, 0x0800, 0x0400 )
+	ROM_COPY( "maincpu", 0xfc000, 0x0c00, 0x0400 )
+ROM_END
 
 ROM_START( mk88 )
 	ROM_REGION16_LE(0x100000,"maincpu", 0)
@@ -2301,6 +2458,17 @@ ROM_START( mbc16 )
 	ROM_LOAD("5788005.u33", 0x00000, 0x2000, CRC(0bf56d70) SHA1(c2a8b10808bf51a3c123ba3eb1e9dd608231916f)) /* "AMI 8412PI // 5788005 // (C) IBM CORP. 1981 // KOREA" */
 ROM_END
 
+ROM_START( ataripc3 )
+	ROM_REGION(0x100000,"maincpu", 0)
+	ROM_LOAD( "c101701-004 308.u61",0xf8000, 0x8000, CRC(929a2443) SHA1(8e98f3c9180c55b1f5521727779c016083d27960))
+
+	ROM_REGION(0x8000,"gfx1", 0)
+	ROM_LOAD("5788005.u33", 0x00000, 0x2000, BAD_DUMP CRC(0bf56d70) SHA1(c2a8b10808bf51a3c123ba3eb1e9dd608231916f)) // not the real character ROM
+
+	ROM_REGION(0x8000,"plds", 0)
+	ROM_LOAD( "c101681 6ffb.u60",0x000, 0x100, NO_DUMP ) // PAL20L10NC
+ROM_END
+
 /***************************************************************************
 
   Game driver(s)
@@ -2310,7 +2478,7 @@ ROM_END
 /*    YEAR  NAME        PARENT      COMPAT      MACHINE     INPUT       INIT        COMPANY            FULLNAME */
 COMP( 1984, dgone,      ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Data General", "Data General/One" , GAME_NOT_WORKING)/* CGA, 2x 3.5" disk drives */
 COMP( 1985, bw230,      ibm5150,    0,          pccga,      bondwell, pc_state,   bondwell,   "Bondwell Holding", "BW230 (PRO28 Series)", 0 )
-COMP( 1988, europc,     ibm5150,    0,          europc,     europc, pc_state,     europc,     "Schneider Rdf. AG", "EURO PC", GAME_NOT_WORKING)
+COMP( 1988, europc,     ibm5150,    0,          europc,     europc, europc_pc_state,     europc,     "Schneider Rdf. AG", "EURO PC", GAME_NOT_WORKING)
 COMP( 1984, compc1,     ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Commodore Business Machines", "Commodore PC-1" , GAME_NOT_WORKING)
 COMP( 1987, pc10iii,    ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Commodore Business Machines", "Commodore PC-10 III" , GAME_NOT_WORKING)
 
@@ -2319,15 +2487,17 @@ COMP( 1983, ibmpcjr,    ibm5150,    0,          ibmpcjr,    ibmpcjr,  pc_state, 
 COMP( 1985, ibmpcjx,    ibm5150,    0,          ibmpcjx,    ibmpcjr, pc_state,    pcjr,       "International Business Machines", "IBM PC JX", GAME_IMPERFECT_COLORS | GAME_NOT_WORKING)
 
 // tandy 1000
-COMP( 1987, t1000hx,    ibm5150,    0,          t1000hx,    tandy1t, pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 HX", 0)
-COMP( 1987, t1000sx,    ibm5150,    0,          t1000sx,    tandy1t, pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 SX", GAME_NOT_WORKING)
-COMP( 1987, t1000tx,    ibm5150,    0,          t1000_286,  tandy1t, pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 TX", 0)
-COMP( 1989, t1000rl,    ibm5150,    0,          t1000_16,   tandy1t, pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 RL", 0)
-COMP( 1989, t1000tl2,   ibm5150,    0,          t1000_286,  tandy1t, pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 TL/2", 0)
+COMP( 1987, t1000hx,    ibm5150,    0,          t1000hx,    tandy1t, tandy_pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 HX", 0)
+COMP( 1987, t1000sx,    ibm5150,    0,          t1000sx,    tandy1t, tandy_pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 SX", GAME_NOT_WORKING)
+COMP( 1987, t1000tx,    ibm5150,    0,          t1000_286,  tandy1t, tandy_pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 TX", 0)
+COMP( 1989, t1000rl,    ibm5150,    0,          t1000_16,   tandy1t, tandy_pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 RL", 0)
+COMP( 1989, t1000tl2,   ibm5150,    0,          t1000_286,  tandy1t, tandy_pc_state,    t1000hx,    "Tandy Radio Shack", "Tandy 1000 TL/2", 0)
+COMP( 1988, t1000sl2,   ibm5150,    0,          t1000_16_8, tandy1t, tandy_pc_state,    t1000sl,    "Tandy Radio Shack", "Tandy 1000 SL/2", GAME_NOT_WORKING)
 
 COMP( 1989, iskr1031,   ibm5150,    0,          iskr1031,   pccga, pc_state,      pccga,      "Schetmash", "Iskra 1031", GAME_NOT_WORKING)
 COMP( 1989, iskr1030m,  ibm5150,    0,          iskr1031,   pccga, pc_state,      pccga,      "Schetmash", "Iskra 1030M", GAME_NOT_WORKING)
 COMP( 1992, iskr3104,   ibm5150,    0,          iskr3104,   pcega, pc_state,      pccga,      "Schetmash", "Iskra 3104", GAME_NOT_WORKING)
+COMP( 198?, asst128,    ibm5150,    0,          asst128,    pccga, pc_state,      pccga,      "Schetmash", "Assistent 128", GAME_NOT_WORKING)
 COMP( 1987, ec1840,     ibm5150,    0,          iskr1031,   pccga, pc_state,      pccga,      "<unknown>", "EC-1840", GAME_NOT_WORKING)
 COMP( 1987, ec1841,     ibm5150,    0,          ec1841,     pccga, pc_state,      pccga,      "<unknown>", "EC-1841", GAME_NOT_WORKING)
 COMP( 1989, ec1845,     ibm5150,    0,          iskr1031,   pccga, pc_state,      pccga,      "<unknown>", "EC-1845", GAME_NOT_WORKING)
@@ -2338,6 +2508,7 @@ COMP( 1990, mc1702,     ibm5150,    0,          pccga,      pccga, pc_state,    
 COMP( 1989, mc1502,     ibm5150,    0,          mc1502,     mc1502, pc_state,     mc1502,     "NPO Microprocessor", "Elektronika MC-1502", GAME_NOT_WORKING | GAME_NO_SOUND)
 
 COMP( 1987, zdsupers,   ibm5150,    0,          zenith,     pccga, pc_state,      pccga,      "Zenith Data Systems", "SuperSport", 0)
+
 
 COMP( 1983, m24,        ibm5150,    0,          olivetti,   pccga, pc_state,      pccga,      "Olivetti", "M24", GAME_NOT_WORKING)
 COMP( 1987, m240,       ibm5150,    0,          olivetti,   pccga, pc_state,      pccga,      "Olivetti", "M240", GAME_NOT_WORKING)
@@ -2351,3 +2522,6 @@ COMP( 198?, pcd,        ibm5150,    0,          pccga,      pccga, pc_state,    
 COMP( 198?, olypeopl,   ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Olympia", "People PC", GAME_NOT_WORKING)
 COMP( 1988, sx16,       ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Sanyo", "SX-16", GAME_NOT_WORKING)
 COMP( 198?, mbc16,      ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Sanyo", "MBC-16" , GAME_NOT_WORKING)
+
+COMP( 198?, ataripc3,   ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Atari", "PC-3" , GAME_NOT_WORKING)
+COMP( 1989, ssam88s,    ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Samsung", "Samtron 88S" , GAME_NOT_WORKING)

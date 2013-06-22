@@ -34,7 +34,7 @@ static const res_net_decode_info tagteam_decode_info =
 
 void tagteam_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	rgb_t *rgb;
 
 	rgb = compute_res_net_all(machine(), color_prom, &tagteam_decode_info, &tagteam_net_info);
@@ -105,7 +105,6 @@ WRITE8_MEMBER(tagteam_state::tagteam_mirrorcolorram_w)
 
 WRITE8_MEMBER(tagteam_state::tagteam_control_w)
 {
-
 	// d0-3: color for blank screen, applies to h/v borders too
 	// (not implemented yet, and tagteam doesn't have a global screen on/off bit)
 
@@ -141,24 +140,23 @@ void tagteam_state::video_start()
 			8, 8, 32, 32);
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void tagteam_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	tagteam_state *state = machine.driver_data<tagteam_state>();
 	int offs;
 
 	for (offs = 0; offs < 0x20; offs += 4)
 	{
-		int spritebank = (state->m_videoram[offs] & 0x30) << 4;
-		int code = state->m_videoram[offs + 1] + 256 * spritebank;
-		int color = state->m_palettebank << 1 | 1;
-		int flipx = state->m_videoram[offs] & 0x04;
-		int flipy = state->m_videoram[offs] & 0x02;
-		int sx = 240 - state->m_videoram[offs + 3];
-		int sy = 240 - state->m_videoram[offs + 2];
+		int spritebank = (m_videoram[offs] & 0x30) << 4;
+		int code = m_videoram[offs + 1] + 256 * spritebank;
+		int color = m_palettebank << 1 | 1;
+		int flipx = m_videoram[offs] & 0x04;
+		int flipy = m_videoram[offs] & 0x02;
+		int sx = 240 - m_videoram[offs + 3];
+		int sy = 240 - m_videoram[offs + 2];
 
-		if (!(state->m_videoram[offs] & 0x01)) continue;
+		if (!(m_videoram[offs] & 0x01)) continue;
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sx = 240 - sx;
 			sy = 240 - sy;
@@ -167,19 +165,19 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		}
 
 		drawgfx_transpen(bitmap, cliprect,
-			machine.gfx[1],
+			machine().gfx[1],
 			code, color,
 			flipx, flipy,
 			sx, sy, 0);
 
 		/* Wrap around */
 
-		code = state->m_videoram[offs + 0x20] + 256 * spritebank;
-		color = state->m_palettebank;
-		sy += (state->flip_screen() ? -256 : 256);
+		code = m_videoram[offs + 0x20] + 256 * spritebank;
+		color = m_palettebank;
+		sy += (flip_screen() ? -256 : 256);
 
 		drawgfx_transpen(bitmap, cliprect,
-			machine.gfx[1],
+			machine().gfx[1],
 			code, color,
 			flipx, flipy,
 			sx, sy, 0);
@@ -189,6 +187,6 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 UINT32 tagteam_state::screen_update_tagteam(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }

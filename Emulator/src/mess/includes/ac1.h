@@ -14,9 +14,11 @@ class ac1_state : public driver_device
 {
 public:
 	ac1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_cassette(*this, "cassette"),
+		m_maincpu(*this, "maincpu") { }
 
-	cassette_image_device *m_cassette;
+	required_device<cassette_image_device> m_cassette;
 	DECLARE_DRIVER_INIT(ac1);
 	virtual void machine_reset();
 	virtual void video_start();
@@ -26,6 +28,7 @@ public:
 	DECLARE_READ8_MEMBER(ac1_port_a_r);
 	DECLARE_WRITE8_MEMBER(ac1_port_a_w);
 	DECLARE_WRITE8_MEMBER(ac1_port_b_w);
+	required_device<cpu_device> m_maincpu;
 };
 
 

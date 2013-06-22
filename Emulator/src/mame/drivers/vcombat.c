@@ -94,13 +94,18 @@ class vcombat_state : public driver_device
 {
 public:
 	vcombat_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
+		m_tlc34076(*this, "tlc34076"),
 		m_vid_0_shared_ram(*this, "vid_0_ram"),
 		m_vid_1_shared_ram(*this, "vid_1_ram"),
-		m_framebuffer_ctrl(*this, "fb_control"){ }
+		m_framebuffer_ctrl(*this, "fb_control"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_dac(*this, "dac") { }
 
 	UINT16* m_m68k_framebuffer[2];
 	UINT16* m_i860_framebuffer[2][2];
+	required_device<tlc34076_device> m_tlc34076;
 	required_shared_ptr<UINT16> m_vid_0_shared_ram;
 	required_shared_ptr<UINT16> m_vid_1_shared_ram;
 	required_shared_ptr<UINT16> m_framebuffer_ctrl;
@@ -126,13 +131,16 @@ public:
 	DECLARE_MACHINE_RESET(shadfgtr);
 	UINT32 screen_update_vcombat_main(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_vcombat_aux(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	required_device<dac_device> m_dac;
 };
 
 static UINT32 update_screen(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int index)
 {
 	vcombat_state *state = screen.machine().driver_data<vcombat_state>();
 	int y;
-	const rgb_t *const pens = tlc34076_get_pens(screen.machine().device("tlc34076"));
+	const rgb_t *const pens = state->m_tlc34076->get_pens();
 
 	UINT16 *m68k_buf = state->m_m68k_framebuffer[(*state->m_framebuffer_ctrl & 0x20) ? 1 : 0];
 	UINT16 *i860_buf = state->m_i860_framebuffer[index][0];
@@ -260,15 +268,15 @@ WRITE16_MEMBER(vcombat_state::wiggle_i860p1_pins_w)
 READ16_MEMBER(vcombat_state::main_irqiack_r)
 {
 	//fprintf(stderr, "M0: irq iack\n");
-	machine().device("maincpu")->execute().set_input_line(M68K_IRQ_1, CLEAR_LINE);
-	//machine().device("maincpu")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+	m_maincpu->set_input_line(M68K_IRQ_1, CLEAR_LINE);
+	//m_maincpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 	return 0;
 }
 
 READ16_MEMBER(vcombat_state::sound_resetmain_r)
 {
 	//fprintf(stderr, "M1: reset line to M0\n");
-	//machine().device("maincpu")->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+	//m_maincpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
 	return 0;
 }
 
@@ -333,9 +341,8 @@ WRITE16_MEMBER(vcombat_state::crtc_w)
 
 WRITE16_MEMBER(vcombat_state::vcombat_dac_w)
 {
-	dac_device *device = machine().device<dac_device>("dac");
 	INT16 newval = ((INT16)data - 0x6000) << 2;
-	device->write_signed16(newval + 0x8000);
+	m_dac->write_signed16(newval + 0x8000);
 }
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, vcombat_state )
@@ -368,7 +375,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, vcombat_state )
 	//AM_RANGE(0x703000, 0x703001)      /* Headset rotation axis? */
 	//AM_RANGE(0x704000, 0x704001)      /* Headset rotation axis? */
 
-	AM_RANGE(0x706000, 0x70601f) AM_DEVREADWRITE8_LEGACY("tlc34076", tlc34076_r, tlc34076_w, 0x00ff)
+	AM_RANGE(0x706000, 0x70601f) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)
 ADDRESS_MAP_END
 
 
@@ -561,12 +568,13 @@ INPUT_PORTS_END
 WRITE_LINE_MEMBER(vcombat_state::sound_update)
 {
 	/* Seems reasonable */
-	machine().device("soundcpu")->execute().set_input_line(M68K_IRQ_1, state ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu->set_input_line(M68K_IRQ_1, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",                   /* screen we are acting on */
+	false,                      /* show border area */
 	16,                         /* number of pixels per video memory address */
 	NULL,                       /* before pixel update callback */
 	NULL,                       /* row update callback */
@@ -606,7 +614,7 @@ static MACHINE_CONFIG_START( vcombat, vcombat_state )
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 #endif
 
-	MCFG_TLC34076_ADD("tlc34076", tlc34076_6_bit_intf)
+	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
 
 	/* Disabled for now as it can't handle multiple screens */
 //  MCFG_MC6845_ADD("crtc", MC6845, 6000000 / 16, mc6845_intf)
@@ -643,7 +651,7 @@ static MACHINE_CONFIG_START( shadfgtr, vcombat_state )
 	MCFG_NVRAM_ADD_0FILL("nvram")
 	MCFG_MACHINE_RESET_OVERRIDE(vcombat_state,shadfgtr)
 
-	MCFG_TLC34076_ADD("tlc34076", tlc34076_6_bit_intf)
+	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
 
 	MCFG_MC6845_ADD("crtc", MC6845, XTAL_20MHz / 4 / 16, mc6845_intf)
 

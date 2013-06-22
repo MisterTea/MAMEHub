@@ -38,7 +38,6 @@
     - Might & Magic: uses 0xe80-3 kanji ports, should be a good test case for that;
     - "newtype": trips a z80dma assert, worked around for now;
     - Saziri: doesn't re-initialize the tilemap attribute vram when you start a play, making it to have missing colors if you don't start a play in time;
-    - Shilver Ghost: changes the vertical visible area during scrolling, and that doesn't work too well with current mc6845 core.
     - Suikoden: shows a JP message error (DFJustin: "Problem with the disk device !! Please set a floppy disk properly and press the return key. Retrying.")
     - Super Billiards (X1 Pack 14): has a slight PCG timing bug, that happens randomly;
     - Trivia-Q: dunno what to do on the selection screen, missing inputs?
@@ -62,8 +61,8 @@
       0xff16 - 0xff17 start-up vector
       In theory, you can convert your tape / floppy games into ROM format easily, provided that you know what's the pinout of the
       cartridge slot and it doesn't exceed 64k (0x10000) of size.
-    - Gruppe: shows a random bitmap graphic then returns "program load error" ... it wants that the floppy has write protection enabled (btanb)
-    - Maidum: you need to load BOTH disk without write protection disabled, otherwise it refuses to run. (btanb)
+    - Gruppe: shows a random bitmap graphic then returns "program load error" ... it wants that the floppy has write protection enabled (!) (btanb)
+    - Maidum: you need to load BOTH disk with write protection disabled, otherwise it refuses to run. (btanb)
     - Marvelous: needs write protection disabled (btanb)
     - Chack'n Pop: to load this game, do a files command on the "Jodan Dos" prompt then move the cursor up at the "Chack'n Pop" file.
       Substitute bin with load and press enter. Finally, do a run once that it loaded correctly.
@@ -230,57 +229,57 @@ VIDEO_START_MEMBER(x1_state,x1)
 	m_pal_4096 = auto_alloc_array_clear(machine(), UINT8, 0x1000*3);
 }
 
-static void x1_draw_pixel(running_machine &machine, bitmap_rgb32 &bitmap,int y,int x,UINT16 pen,UINT8 width,UINT8 height)
+void x1_state::x1_draw_pixel(running_machine &machine, bitmap_rgb32 &bitmap,int y,int x,UINT16 pen,UINT8 width,UINT8 height)
 {
 	if(!machine.primary_screen->visible_area().contains(x, y))
 		return;
 
 	if(width && height)
 	{
-		bitmap.pix32(y+0, x+0) = machine.pens[pen];
-		bitmap.pix32(y+0, x+1) = machine.pens[pen];
-		bitmap.pix32(y+1, x+0) = machine.pens[pen];
-		bitmap.pix32(y+1, x+1) = machine.pens[pen];
+		bitmap.pix32(y+0+m_ystart, x+0+m_xstart) = machine.pens[pen];
+		bitmap.pix32(y+0+m_ystart, x+1+m_xstart) = machine.pens[pen];
+		bitmap.pix32(y+1+m_ystart, x+0+m_xstart) = machine.pens[pen];
+		bitmap.pix32(y+1+m_ystart, x+1+m_xstart) = machine.pens[pen];
 	}
 	else if(width)
 	{
-		bitmap.pix32(y, x+0) = machine.pens[pen];
-		bitmap.pix32(y, x+1) = machine.pens[pen];
+		bitmap.pix32(y+m_ystart, x+0+m_xstart) = machine.pens[pen];
+		bitmap.pix32(y+m_ystart, x+1+m_xstart) = machine.pens[pen];
 	}
 	else if(height)
 	{
-		bitmap.pix32(y+0, x) = machine.pens[pen];
-		bitmap.pix32(y+1, x) = machine.pens[pen];
+		bitmap.pix32(y+0+m_ystart, x+m_xstart) = machine.pens[pen];
+		bitmap.pix32(y+1+m_ystart, x+m_xstart) = machine.pens[pen];
 	}
 	else
-		bitmap.pix32(y, x) = machine.pens[pen];
+		bitmap.pix32(y+m_ystart, x+m_xstart) = machine.pens[pen];
 }
 
-#define mc6845_h_char_total     (state->m_crtc_vreg[0])
-#define mc6845_h_display        (state->m_crtc_vreg[1])
-#define mc6845_h_sync_pos       (state->m_crtc_vreg[2])
-#define mc6845_sync_width       (state->m_crtc_vreg[3])
-#define mc6845_v_char_total     (state->m_crtc_vreg[4])
-#define mc6845_v_total_adj      (state->m_crtc_vreg[5])
-#define mc6845_v_display        (state->m_crtc_vreg[6])
-#define mc6845_v_sync_pos       (state->m_crtc_vreg[7])
-#define mc6845_mode_ctrl        (state->m_crtc_vreg[8])
-#define mc6845_tile_height      (state->m_crtc_vreg[9]+1)
-#define mc6845_cursor_y_start   (state->m_crtc_vreg[0x0a])
-#define mc6845_cursor_y_end     (state->m_crtc_vreg[0x0b])
-#define mc6845_start_addr       (((state->m_crtc_vreg[0x0c]<<8) & 0x3f00) | (state->m_crtc_vreg[0x0d] & 0xff))
-#define mc6845_cursor_addr      (((state->m_crtc_vreg[0x0e]<<8) & 0x3f00) | (state->m_crtc_vreg[0x0f] & 0xff))
-#define mc6845_light_pen_addr   (((state->m_crtc_vreg[0x10]<<8) & 0x3f00) | (state->m_crtc_vreg[0x11] & 0xff))
-#define mc6845_update_addr      (((state->m_crtc_vreg[0x12]<<8) & 0x3f00) | (state->m_crtc_vreg[0x13] & 0xff))
+#define mc6845_h_char_total     (m_crtc_vreg[0])
+#define mc6845_h_display        (m_crtc_vreg[1])
+#define mc6845_h_sync_pos       (m_crtc_vreg[2])
+#define mc6845_sync_width       (m_crtc_vreg[3])
+#define mc6845_v_char_total     (m_crtc_vreg[4])
+#define mc6845_v_total_adj      (m_crtc_vreg[5])
+#define mc6845_v_display        (m_crtc_vreg[6])
+#define mc6845_v_sync_pos       (m_crtc_vreg[7])
+#define mc6845_mode_ctrl        (m_crtc_vreg[8])
+#define mc6845_tile_height      (m_crtc_vreg[9]+1)
+#define mc6845_cursor_y_start   (m_crtc_vreg[0x0a])
+#define mc6845_cursor_y_end     (m_crtc_vreg[0x0b])
+#define mc6845_start_addr       (((m_crtc_vreg[0x0c]<<8) & 0x3f00) | (m_crtc_vreg[0x0d] & 0xff))
+#define mc6845_cursor_addr      (((m_crtc_vreg[0x0e]<<8) & 0x3f00) | (m_crtc_vreg[0x0f] & 0xff))
+#define mc6845_light_pen_addr   (((m_crtc_vreg[0x10]<<8) & 0x3f00) | (m_crtc_vreg[0x11] & 0xff))
+#define mc6845_update_addr      (((m_crtc_vreg[0x12]<<8) & 0x3f00) | (m_crtc_vreg[0x13] & 0xff))
+
 
 /* adjust tile index when we are under double height condition */
-static UINT8 check_prev_height(running_machine &machine,int x,int y,int x_size)
+UINT8 x1_state::check_prev_height(running_machine &machine,int x,int y,int x_size)
 {
-	x1_state *state = machine.driver_data<x1_state>();
-	UINT8 prev_tile = state->m_tvram[(x+((y-1)*x_size)+mc6845_start_addr) & 0x7ff];
-	UINT8 cur_tile = state->m_tvram[(x+(y*x_size)+mc6845_start_addr) & 0x7ff];
-	UINT8 prev_attr = state->m_avram[(x+((y-1)*x_size)+mc6845_start_addr) & 0x7ff];
-	UINT8 cur_attr = state->m_avram[(x+(y*x_size)+mc6845_start_addr) & 0x7ff];
+	UINT8 prev_tile = m_tvram[(x+((y-1)*x_size)+mc6845_start_addr) & 0x7ff];
+	UINT8 cur_tile = m_tvram[(x+(y*x_size)+mc6845_start_addr) & 0x7ff];
+	UINT8 prev_attr = m_avram[(x+((y-1)*x_size)+mc6845_start_addr) & 0x7ff];
+	UINT8 cur_attr = m_avram[(x+(y*x_size)+mc6845_start_addr) & 0x7ff];
 
 	if(prev_tile == cur_tile && prev_attr == cur_attr)
 		return 8;
@@ -289,10 +288,9 @@ static UINT8 check_prev_height(running_machine &machine,int x,int y,int x_size)
 }
 
 /* Exoa II - Warroid: if double height isn't enabled on the first tile of the line then double height is disabled on everything else. */
-static UINT8 check_line_valid_height(running_machine &machine,int y,int x_size,int height)
+UINT8 x1_state::check_line_valid_height(running_machine &machine,int y,int x_size,int height)
 {
-	x1_state *state = machine.driver_data<x1_state>();
-	UINT8 line_attr = state->m_avram[(0+(y*x_size)+mc6845_start_addr) & 0x7ff];
+	UINT8 line_attr = m_avram[(0+(y*x_size)+mc6845_start_addr) & 0x7ff];
 
 	if((line_attr & 0x40) == 0)
 		return 0;
@@ -300,7 +298,7 @@ static UINT8 check_line_valid_height(running_machine &machine,int y,int x_size,i
 	return height;
 }
 
-static void draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect)
+void x1_state::draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect)
 {
 	/*
 	    attribute table:
@@ -318,7 +316,6 @@ static void draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const 
 	    ---- xxxx Kanji upper 4 bits
 	*/
 
-	x1_state *state = machine.driver_data<x1_state>();
 	int y,x,res_x,res_y;
 	UINT32 tile_offset;
 	UINT8 x_size,y_size;
@@ -336,26 +333,26 @@ static void draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const 
 	{
 		for (x=0;x<x_size;x++)
 		{
-			int tile = state->m_tvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff];
-			int color = state->m_avram[((x+y*x_size)+mc6845_start_addr) & 0x7ff] & 0x1f;
-			int width = BIT(state->m_avram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 7);
-			int height = BIT(state->m_avram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 6);
-			int pcg_bank = BIT(state->m_avram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 5);
-			UINT8 *gfx_data = machine.root_device().memregion(pcg_bank ? "pcg" : "cgrom")->base();
+			int tile = m_tvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff];
+			int color = m_avram[((x+y*x_size)+mc6845_start_addr) & 0x7ff] & 0x1f;
+			int width = BIT(m_avram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 7);
+			int height = BIT(m_avram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 6);
+			int pcg_bank = BIT(m_avram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 5);
+			UINT8 *gfx_data = pcg_bank ? m_pcg_ram : m_cg_rom; //machine.root_device().memregion(pcg_bank ? "pcg" : "cgrom")->base();
 			int knj_enable = 0;
 			int knj_side = 0;
 			int knj_bank = 0;
 			int knj_uline = 0;
-			if(state->m_is_turbo)
+			if(m_is_turbo)
 			{
-				knj_enable = BIT(state->m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 7);
-				knj_side = BIT(state->m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 6);
-				knj_uline = BIT(state->m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 5);
-				//knj_lv2 = BIT(state->m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 4);
-				knj_bank = state->m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff] & 0x0f;
+				knj_enable = BIT(m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 7);
+				knj_side = BIT(m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 6);
+				knj_uline = BIT(m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 5);
+				//knj_lv2 = BIT(m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff], 4);
+				knj_bank = m_kvram[((x+y*x_size)+mc6845_start_addr) & 0x7ff] & 0x0f;
 				if(knj_enable)
 				{
-					gfx_data = state->memregion("kanji")->base();
+					gfx_data = m_kanji_rom;
 					tile = ((tile + (knj_bank << 8)) << 1) + (knj_side & 1);
 				}
 			}
@@ -382,7 +379,7 @@ static void draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const 
 						if(knj_enable) //kanji select
 						{
 							tile_offset  = tile * 16;
-							tile_offset += (yi+dy*(state->m_scrn_reg.v400_mode+1)) >> (height+state->m_scrn_reg.v400_mode);
+							tile_offset += (yi+dy*(m_scrn_reg.v400_mode+1)) >> (height+m_scrn_reg.v400_mode);
 							pen[0] = gfx_data[tile_offset+0x0000]>>(7-xi) & (pen_mask & 1)>>0;
 							pen[1] = gfx_data[tile_offset+0x0000]>>(7-xi) & (pen_mask & 2)>>1;
 							pen[2] = gfx_data[tile_offset+0x0000]>>(7-xi) & (pen_mask & 4)>>2;
@@ -394,38 +391,38 @@ static void draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const 
 								pen[2] = (pen_mask & 4)>>2;
 							}
 
-							if((yi >= 16 && state->m_scrn_reg.v400_mode == 0) || (yi >= 32 && state->m_scrn_reg.v400_mode == 1))
+							if((yi >= 16 && m_scrn_reg.v400_mode == 0) || (yi >= 32 && m_scrn_reg.v400_mode == 1))
 								pen[0] = pen[1] = pen[2] = 0;
 						}
 						else if(pcg_bank) // PCG
 						{
 							tile_offset  = tile * 8;
-							tile_offset += (yi+dy*(state->m_scrn_reg.v400_mode+1)) >> (height+state->m_scrn_reg.v400_mode);
+							tile_offset += (yi+dy*(m_scrn_reg.v400_mode+1)) >> (height+m_scrn_reg.v400_mode);
 
 							pen[0] = gfx_data[tile_offset+0x0000]>>(7-xi) & (pen_mask & 1)>>0;
 							pen[1] = gfx_data[tile_offset+0x0800]>>(7-xi) & (pen_mask & 2)>>1;
 							pen[2] = gfx_data[tile_offset+0x1000]>>(7-xi) & (pen_mask & 4)>>2;
 
-							if((yi >= 8 && state->m_scrn_reg.v400_mode == 0) || (yi >= 16 && state->m_scrn_reg.v400_mode == 1))
+							if((yi >= 8 && m_scrn_reg.v400_mode == 0) || (yi >= 16 && m_scrn_reg.v400_mode == 1))
 								pen[0] = pen[1] = pen[2] = 0;
 						}
 						else
 						{
-							tile_offset  = tile * (8*(state->m_scrn_reg.ank_sel+1));
-							tile_offset += (yi+dy*(state->m_scrn_reg.v400_mode+1)) >> (height+state->m_scrn_reg.v400_mode);
+							tile_offset  = tile * (8*(m_scrn_reg.ank_sel+1));
+							tile_offset += (yi+dy*(m_scrn_reg.v400_mode+1)) >> (height+m_scrn_reg.v400_mode);
 
-							pen[0] = gfx_data[tile_offset+state->m_scrn_reg.ank_sel*0x0800]>>(7-xi) & (pen_mask & 1)>>0;
-							pen[1] = gfx_data[tile_offset+state->m_scrn_reg.ank_sel*0x0800]>>(7-xi) & (pen_mask & 2)>>1;
-							pen[2] = gfx_data[tile_offset+state->m_scrn_reg.ank_sel*0x0800]>>(7-xi) & (pen_mask & 4)>>2;
+							pen[0] = gfx_data[tile_offset+m_scrn_reg.ank_sel*0x0800]>>(7-xi) & (pen_mask & 1)>>0;
+							pen[1] = gfx_data[tile_offset+m_scrn_reg.ank_sel*0x0800]>>(7-xi) & (pen_mask & 2)>>1;
+							pen[2] = gfx_data[tile_offset+m_scrn_reg.ank_sel*0x0800]>>(7-xi) & (pen_mask & 4)>>2;
 
-							if(state->m_scrn_reg.ank_sel)
+							if(m_scrn_reg.ank_sel)
 							{
-								if((yi >= 16 && state->m_scrn_reg.v400_mode == 0) || (yi >= 32 && state->m_scrn_reg.v400_mode == 1))
+								if((yi >= 16 && m_scrn_reg.v400_mode == 0) || (yi >= 32 && m_scrn_reg.v400_mode == 1))
 									pen[0] = pen[1] = pen[2] = 0;
 							}
 							else
 							{
-								if((yi >=  8 && state->m_scrn_reg.v400_mode == 0) || (yi >= 16 && state->m_scrn_reg.v400_mode == 1))
+								if((yi >=  8 && m_scrn_reg.v400_mode == 0) || (yi >= 16 && m_scrn_reg.v400_mode == 1))
 									pen[0] = pen[1] = pen[2] = 0;
 							}
 						}
@@ -441,7 +438,7 @@ static void draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const 
 						if(color & 8) //revert the used color pen
 							pcg_pen^=7;
 
-						if((state->m_scrn_reg.blackclip & 8) && (color == (state->m_scrn_reg.blackclip & 7)))
+						if((m_scrn_reg.blackclip & 8) && (color == (m_scrn_reg.blackclip & 7)))
 							pcg_pen = 0; // clip the pen to black
 
 						res_x = x*8+xi*(width+1);
@@ -470,7 +467,7 @@ static void draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const 
  * of the bitmap.
  *
  */
-static int priority_mixer_pri(running_machine &machine,int color)
+int x1_state::priority_mixer_pri(int color)
 {
 	int pri_i,pri_mask_calc;
 
@@ -489,9 +486,8 @@ static int priority_mixer_pri(running_machine &machine,int color)
 	return pri_mask_calc;
 }
 
-static void draw_gfxbitmap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect, int plane,int pri)
+void x1_state::draw_gfxbitmap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect, int plane,int pri)
 {
-	x1_state *state = machine.driver_data<x1_state>();
 	int xi,yi,x,y;
 	int pen_r,pen_g,pen_b,color;
 	int pri_mask_val;
@@ -518,17 +514,17 @@ static void draw_gfxbitmap(running_machine &machine, bitmap_rgb32 &bitmap,const 
 				for(xi=0;xi<8;xi++)
 				{
 					gfx_offset = ((x+(y*x_size)) + mc6845_start_addr) & 0x7ff;
-					gfx_offset+= ((yi >> state->m_scrn_reg.v400_mode) * 0x800) & 0x3fff;
-					pen_b = (state->m_gfx_bitmap_ram[gfx_offset+0x0000+plane*0xc000]>>(7-xi)) & 1;
-					pen_r = (state->m_gfx_bitmap_ram[gfx_offset+0x4000+plane*0xc000]>>(7-xi)) & 1;
-					pen_g = (state->m_gfx_bitmap_ram[gfx_offset+0x8000+plane*0xc000]>>(7-xi)) & 1;
+					gfx_offset+= ((yi >> m_scrn_reg.v400_mode) * 0x800) & 0x3fff;
+					pen_b = (m_gfx_bitmap_ram[gfx_offset+0x0000+plane*0xc000]>>(7-xi)) & 1;
+					pen_r = (m_gfx_bitmap_ram[gfx_offset+0x4000+plane*0xc000]>>(7-xi)) & 1;
+					pen_g = (m_gfx_bitmap_ram[gfx_offset+0x8000+plane*0xc000]>>(7-xi)) & 1;
 
 					color =  (pen_g<<2 | pen_r<<1 | pen_b<<0) | 8;
 
-					pri_mask_val = priority_mixer_pri(machine,color);
+					pri_mask_val = priority_mixer_pri(color);
 					if(pri_mask_val & pri) continue;
 
-					if((color == 8 && state->m_scrn_reg.blackclip & 0x10) || (color == 9 && state->m_scrn_reg.blackclip & 0x20)) // bitmap color clip to black conditions
+					if((color == 8 && m_scrn_reg.blackclip & 0x10) || (color == 9 && m_scrn_reg.blackclip & 0x20)) // bitmap color clip to black conditions
 						color = 0;
 
 					if(y*(mc6845_tile_height)+yi < cliprect.min_y || y*(mc6845_tile_height)+yi > cliprect.max_y) // partial update TODO: optimize
@@ -543,8 +539,13 @@ static void draw_gfxbitmap(running_machine &machine, bitmap_rgb32 &bitmap,const 
 
 UINT32 x1_state::screen_update_x1(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(MAKE_ARGB(0xff,0x00,0x00,0x00), cliprect);
+
+	/* TODO: correct calculation thru mc6845 regs */
+	m_xstart = ((mc6845_h_char_total - mc6845_h_sync_pos) * 8) / 2;
+	m_ystart = ((mc6845_v_char_total - mc6845_v_sync_pos) * 8) / 2;
+
+//  popmessage("%d %d %d %d",mc6845_h_sync_pos,mc6845_v_sync_pos,mc6845_h_char_total,mc6845_v_char_total);
 
 	draw_gfxbitmap(machine(),bitmap,cliprect,m_scrn_reg.disp_bank,m_scrn_reg.pri);
 	draw_fgtilemap(machine(),bitmap,cliprect);
@@ -741,9 +742,8 @@ READ8_MEMBER( x1_state::x1_sub_io_r )
 	return ret;
 }
 
-static void cmt_command( running_machine &machine, UINT8 cmd )
+void x1_state::cmt_command( UINT8 cmd )
 {
-	x1_state *state = machine.driver_data<x1_state>();
 	// CMT deck control command (E9 xx)
 	// E9 00 - Eject
 	// E9 01 - Stop
@@ -757,47 +757,47 @@ static void cmt_command( running_machine &machine, UINT8 cmd )
 	APSS is a Sharp invention and stands for Automatic Program Search System, it scans the tape for silent parts that are bigger than 4 seconds.
 	It's basically used for audio tapes in order to jump over the next/previous "track".
 	*/
-	state->m_cmt_current_cmd = cmd;
+	m_cmt_current_cmd = cmd;
 
-	if(state->m_cass->get_image() == NULL) //avoid a crash if a disk game tries to access this
+	if(m_cassette->get_image() == NULL) //avoid a crash if a disk game tries to access this
 		return;
 
 	switch(cmd)
 	{
 		case 0x01:  // Stop
-			state->m_cass->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
-			state->m_cass->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
-			state->m_cmt_test = 1;
+			m_cassette->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+			m_cassette->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
+			m_cmt_test = 1;
 			popmessage("CMT: Stop");
 			break;
 		case 0x02:  // Play
-			state->m_cass->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
-			state->m_cass->change_state(CASSETTE_PLAY,CASSETTE_MASK_UISTATE);
+			m_cassette->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
+			m_cassette->change_state(CASSETTE_PLAY,CASSETTE_MASK_UISTATE);
 			popmessage("CMT: Play");
 			break;
 		case 0x03:  // Fast Forward
-			state->m_cass->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
-			state->m_cass->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
+			m_cassette->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+			m_cassette->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
 			popmessage("CMT: Fast Forward");
 			break;
 		case 0x04:  // Rewind
-			state->m_cass->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
-			state->m_cass->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
+			m_cassette->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+			m_cassette->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
 			popmessage("CMT: Rewind");
 			break;
 		case 0x05:  // APSS Fast Forward
-			state->m_cass->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
-			state->m_cass->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
+			m_cassette->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+			m_cassette->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
 			popmessage("CMT: APSS Fast Forward");
 			break;
 		case 0x06:  // APSS Rewind
-			state->m_cass->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
-			state->m_cass->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
+			m_cassette->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+			m_cassette->change_state(CASSETTE_STOPPED,CASSETTE_MASK_UISTATE);
 			popmessage("CMT: APSS Rewind");
 			break;
 		case 0x0a:  // Record
-			state->m_cass->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
-			state->m_cass->change_state(CASSETTE_RECORD,CASSETTE_MASK_UISTATE);
+			m_cassette->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
+			m_cassette->change_state(CASSETTE_RECORD,CASSETTE_MASK_UISTATE);
 			popmessage("CMT: Record");
 			break;
 		default:
@@ -808,22 +808,22 @@ static void cmt_command( running_machine &machine, UINT8 cmd )
 
 TIMER_DEVICE_CALLBACK_MEMBER(x1_state::x1_cmt_wind_timer)
 {
-	if(m_cass->get_image() == NULL) //avoid a crash if a disk game tries to access this
+	if(m_cassette->get_image() == NULL) //avoid a crash if a disk game tries to access this
 		return;
 
 	switch(m_cmt_current_cmd)
 	{
 		case 0x03:
 		case 0x05:  // Fast Forwarding tape
-			m_cass->seek(1,SEEK_CUR);
-			if(m_cass->get_position() >= m_cass->get_length())  // at end?
-				cmt_command(machine(),0x01);  // Stop tape
+			m_cassette->seek(1,SEEK_CUR);
+			if(m_cassette->get_position() >= m_cassette->get_length())  // at end?
+				cmt_command(0x01);  // Stop tape
 			break;
 		case 0x04:
 		case 0x06:  // Rewinding tape
-			m_cass->seek(-1,SEEK_CUR);
-			if(m_cass->get_position() <= 0) // at beginning?
-				cmt_command(machine(),0x01);  // Stop tape
+			m_cassette->seek(-1,SEEK_CUR);
+			if(m_cassette->get_position() <= 0) // at beginning?
+				cmt_command(0x01);  // Stop tape
 			break;
 	}
 }
@@ -846,7 +846,7 @@ WRITE8_MEMBER( x1_state::x1_sub_io_w )
 
 	if(m_sub_cmd == 0xe9)
 	{
-		cmt_command(machine(),data);
+		cmt_command(data);
 		data = 0;
 	}
 
@@ -920,7 +920,7 @@ WRITE8_MEMBER( x1_state::x1_sub_io_w )
 					// bit 1 = tape inserted
 					// bit 2 = record status (1=OK, 0=write protect)
 			m_sub_val[0] = 0x05;
-			if(m_cass->get_image() != NULL)
+			if(m_cassette->get_image() != NULL)
 				m_sub_val[0] |= 0x02;
 			m_sub_cmd_length = 1;
 			logerror("CMT: Command 0xEB received, returning 0x%02x.\n",m_sub_val[0]);
@@ -1118,7 +1118,7 @@ READ8_MEMBER( x1_state::x1_pcg_r )
 
 	if(addr == 0 && m_scrn_reg.pcg_mode) // Kanji ROM read, X1Turbo only
 	{
-		gfx_data = memregion("kanji")->base();
+		gfx_data = m_kanji_rom;
 		pcg_offset = (m_tvram[check_chr_addr()]+(m_kvram[check_chr_addr()]<<8)) & 0xfff;
 		pcg_offset*=0x20;
 		pcg_offset+=(offset & 0x0f);
@@ -1131,7 +1131,7 @@ READ8_MEMBER( x1_state::x1_pcg_r )
 		UINT8 y_char_size;
 
 		/* addr == 0 reads from the ANK rom */
-		gfx_data = memregion((addr == 0) ? "cgrom" : "pcg")->base();
+		gfx_data = addr == 0 ? m_cg_rom : m_pcg_ram;
 		y_char_size = ((m_crtc_vreg[9]+1) > 8) ? 8 : m_crtc_vreg[9]+1;
 		if(y_char_size == 0) { y_char_size = 1; }
 		pcg_offset = m_tvram[get_pcg_addr(m_crtc_vreg[1], y_char_size)]*8;
@@ -1146,7 +1146,6 @@ READ8_MEMBER( x1_state::x1_pcg_r )
 WRITE8_MEMBER( x1_state::x1_pcg_w )
 {
 	int addr,pcg_offset;
-	UINT8 *PCG_RAM = memregion("pcg")->base();
 
 	addr = (offset & 0x300) >> 8;
 
@@ -1162,11 +1161,11 @@ WRITE8_MEMBER( x1_state::x1_pcg_w )
 			pcg_offset = m_tvram[check_pcg_addr()]*8;
 			pcg_offset+= (offset & 0xe) >> 1;
 			pcg_offset+=((addr-1)*0x800);
-			PCG_RAM[pcg_offset] = data;
+			m_pcg_ram[pcg_offset] = data;
 
 			pcg_offset &= 0x7ff;
 
-			machine().gfx[1]->mark_dirty(pcg_offset >> 3);
+			machine().gfx[3]->mark_dirty(pcg_offset >> 3);
 		}
 		else // Compatible Mode
 		{
@@ -1179,11 +1178,11 @@ WRITE8_MEMBER( x1_state::x1_pcg_w )
 			pcg_offset+= machine().primary_screen->vpos() & (y_char_size-1);
 			pcg_offset+= ((addr-1)*0x800);
 
-			PCG_RAM[pcg_offset] = data;
+			m_pcg_ram[pcg_offset] = data;
 
 			pcg_offset &= 0x7ff;
 
-			machine().gfx[1]->mark_dirty(pcg_offset >> 3);
+			machine().gfx[3]->mark_dirty(pcg_offset >> 3);
 		}
 	}
 }
@@ -1424,7 +1423,7 @@ WRITE8_MEMBER( x1_state::x1turbo_gfxpal_w )
  *  FIXME: bit-wise this doesn't make any sense, I guess that it uses the lv 2 kanji roms
  *         Test cases for this port so far are Hyper Olympics '84 disk version and Might & Magic.
  */
-static UINT16 jis_convert(int kanji_addr)
+UINT16 x1_state::jis_convert(int kanji_addr)
 {
 	if(kanji_addr >= 0x0e00 && kanji_addr <= 0x0e9f) { kanji_addr -= 0x0e00; kanji_addr &= 0x0ff; return ((0x0e0) + (kanji_addr >> 3)) << 4; } // numbers
 	if(kanji_addr >= 0x0f00 && kanji_addr <= 0x109f) { kanji_addr -= 0x0f00; kanji_addr &= 0x1ff; return ((0x4c0) + (kanji_addr >> 3)) << 4; } // lower case chars
@@ -1441,10 +1440,9 @@ static UINT16 jis_convert(int kanji_addr)
 
 READ8_MEMBER( x1_state::x1_kanji_r )
 {
-	UINT8 *kanji_rom = memregion("kanji")->base();
 	UINT8 res;
 
-	res = kanji_rom[jis_convert(m_kanji_addr & 0xfff0)+(offset*0x10)+(m_kanji_addr & 0xf)];
+	res = m_kanji_rom[jis_convert(m_kanji_addr & 0xfff0)+(offset*0x10)+(m_kanji_addr & 0xf)];
 
 	if(offset == 1)
 		m_kanji_addr_latch++;
@@ -1484,7 +1482,6 @@ WRITE8_MEMBER( x1_state::x1_kanji_w )
 
 READ8_MEMBER( x1_state::x1_emm_r )
 {
-	UINT8 *emm_ram = memregion("emm")->base();
 	UINT8 res;
 
 	if(offset & ~3)
@@ -1500,7 +1497,7 @@ READ8_MEMBER( x1_state::x1_emm_r )
 
 	if(offset == 3)
 	{
-		res = emm_ram[m_emm_addr];
+		res = m_emm_ram[m_emm_addr];
 		m_emm_addr++;
 	}
 
@@ -1509,8 +1506,6 @@ READ8_MEMBER( x1_state::x1_emm_r )
 
 WRITE8_MEMBER( x1_state::x1_emm_w )
 {
-	UINT8 *emm_ram = memregion("emm")->base();
-
 	if(offset & ~3)
 	{
 		printf("Warning: write EMM BASIC area [%02x] %02x\n",offset & 0xff,data);
@@ -1523,7 +1518,7 @@ WRITE8_MEMBER( x1_state::x1_emm_w )
 		case 1: m_emm_addr = (m_emm_addr & 0xff00ff) | (data << 8);   break;
 		case 2: m_emm_addr = (m_emm_addr & 0x00ffff) | (data << 16);  break; //TODO: this has a max size limit, check exactly how much
 		case 3:
-			emm_ram[m_emm_addr] = data;
+			m_emm_ram[m_emm_addr] = data;
 			m_emm_addr++;
 			break;
 	}
@@ -1554,32 +1549,23 @@ WRITE8_MEMBER( x1_state::x1turbo_bank_w )
 /* TODO: waitstate penalties */
 READ8_MEMBER( x1_state::x1_mem_r )
 {
-	UINT8 *wram = memregion("wram")->base();
-
 	if((offset & 0x8000) == 0 && (m_ram_bank == 0))
 	{
-		UINT8 *ipl = memregion("ipl")->base();
-		return ipl[offset]; //ROM
+		return m_ipl_rom[offset]; //ROM
 	}
 
-	return wram[offset]; //RAM
+	return m_work_ram[offset]; //RAM
 }
 
 WRITE8_MEMBER( x1_state::x1_mem_w )
 {
-	UINT8 *wram = memregion("wram")->base();
-
-	wram[offset] = data; //RAM
+	m_work_ram[offset] = data; //RAM
 }
 
 READ8_MEMBER( x1_state::x1turbo_mem_r )
 {
 	if((m_ex_bank & 0x10) == 0)
-	{
-		UINT8 *wram = memregion("wram")->base();
-
-		return wram[offset+((m_ex_bank & 0xf)*0x10000)];
-	}
+		return m_work_ram[offset+((m_ex_bank & 0xf)*0x10000)];
 
 	return x1_mem_r(space,offset);
 }
@@ -1587,11 +1573,7 @@ READ8_MEMBER( x1_state::x1turbo_mem_r )
 WRITE8_MEMBER( x1_state::x1turbo_mem_w )
 {
 	if((m_ex_bank & 0x10) == 0)
-	{
-		UINT8 *wram = memregion("wram")->base();
-
-		wram[offset+((m_ex_bank & 0xf)*0x10000)] = data; //RAM
-	}
+		m_work_ram[offset+((m_ex_bank & 0xf)*0x10000)] = data; //RAM
 	else
 		x1_mem_w(space,offset,data);
 }
@@ -1614,7 +1596,7 @@ READ8_MEMBER( x1_state::x1_io_r )
 	else if(offset >= 0x1400 && offset <= 0x17ff)   { return x1_pcg_r(space, offset-0x1400); }
 	else if(offset >= 0x1900 && offset <= 0x19ff)   { return x1_sub_io_r(space, 0); }
 	else if(offset >= 0x1a00 && offset <= 0x1aff)   { return machine().device<i8255_device>("ppi8255_0")->read(space, (offset-0x1a00) & 3); }
-	else if(offset >= 0x1b00 && offset <= 0x1bff)   { return ay8910_r(machine().device("ay"), space, 0); }
+	else if(offset >= 0x1b00 && offset <= 0x1bff)   { return machine().device<ay8910_device>("ay")->data_r(space, 0); }
 //  else if(offset >= 0x1f80 && offset <= 0x1f8f)   { return z80dma_r(machine().device("dma"), 0); }
 //  else if(offset >= 0x1f90 && offset <= 0x1f91)   { return z80sio_c_r(machine().device("sio"), (offset-0x1f90) & 1); }
 //  else if(offset >= 0x1f92 && offset <= 0x1f93)   { return z80sio_d_r(machine().device("sio"), (offset-0x1f92) & 1); }
@@ -1650,8 +1632,8 @@ WRITE8_MEMBER( x1_state::x1_io_w )
 	else if(offset == 0x1800 || offset == 0x1801)   { x1_6845_w(space, offset-0x1800, data); }
 	else if(offset >= 0x1900 && offset <= 0x19ff)   { x1_sub_io_w(space, 0,data); }
 	else if(offset >= 0x1a00 && offset <= 0x1aff)   { machine().device<i8255_device>("ppi8255_0")->write(space, (offset-0x1a00) & 3,data); }
-	else if(offset >= 0x1b00 && offset <= 0x1bff)   { ay8910_data_w(machine().device("ay"), space, 0,data); }
-	else if(offset >= 0x1c00 && offset <= 0x1cff)   { ay8910_address_w(machine().device("ay"), space, 0,data); }
+	else if(offset >= 0x1b00 && offset <= 0x1bff)   { machine().device<ay8910_device>("ay")->data_w(space, 0,data); }
+	else if(offset >= 0x1c00 && offset <= 0x1cff)   { machine().device<ay8910_device>("ay")->address_w(space, 0,data); }
 	else if(offset >= 0x1d00 && offset <= 0x1dff)   { x1_rom_bank_1_w(space,0,data); }
 	else if(offset >= 0x1e00 && offset <= 0x1eff)   { x1_rom_bank_0_w(space,0,data); }
 //  else if(offset >= 0x1f80 && offset <= 0x1f8f)   { z80dma_w(machine().device("dma"), 0,data); }
@@ -1698,9 +1680,9 @@ READ8_MEMBER( x1_state::x1turbo_io_r )
 	else if(offset >= 0x1400 && offset <= 0x17ff)   { return x1_pcg_r(space, offset-0x1400); }
 	else if(offset >= 0x1900 && offset <= 0x19ff)   { return x1_sub_io_r(space, 0); }
 	else if(offset >= 0x1a00 && offset <= 0x1aff)   { return machine().device<i8255_device>("ppi8255_0")->read(space, (offset-0x1a00) & 3); }
-	else if(offset >= 0x1b00 && offset <= 0x1bff)   { return ay8910_r(machine().device("ay"), space, 0); }
+	else if(offset >= 0x1b00 && offset <= 0x1bff)   { return machine().device<ay8910_device>("ay")->data_r(space, 0); }
 	else if(offset >= 0x1f80 && offset <= 0x1f8f)   { return z80dma_r(machine().device("dma"), space, 0); }
-	else if(offset >= 0x1f90 && offset <= 0x1f93)   { return z80dart_ba_cd_r(machine().device("sio"), space, (offset-0x1f90) & 3); }
+	else if(offset >= 0x1f90 && offset <= 0x1f93)   { return machine().device<z80sio0_device>("sio")->ba_cd_r(space, (offset-0x1f90) & 3); }
 	else if(offset >= 0x1f98 && offset <= 0x1f9f)   { printf("Extended SIO/CTC read %04x\n",offset); return 0xff; }
 	else if(offset >= 0x1fa0 && offset <= 0x1fa3)   { return m_ctc->read(space,offset-0x1fa0); }
 	else if(offset >= 0x1fa8 && offset <= 0x1fab)   { return m_ctc->read(space,offset-0x1fa8); }
@@ -1748,12 +1730,12 @@ WRITE8_MEMBER( x1_state::x1turbo_io_w )
 	else if(offset == 0x1800 || offset == 0x1801)   { x1_6845_w(space, offset-0x1800, data); }
 	else if(offset >= 0x1900 && offset <= 0x19ff)   { x1_sub_io_w(space, 0,data); }
 	else if(offset >= 0x1a00 && offset <= 0x1aff)   { machine().device<i8255_device>("ppi8255_0")->write(space, (offset-0x1a00) & 3,data); }
-	else if(offset >= 0x1b00 && offset <= 0x1bff)   { ay8910_data_w(machine().device("ay"), space, 0,data); }
-	else if(offset >= 0x1c00 && offset <= 0x1cff)   { ay8910_address_w(machine().device("ay"), space, 0,data); }
+	else if(offset >= 0x1b00 && offset <= 0x1bff)   { machine().device<ay8910_device>("ay")->data_w(space, 0,data); }
+	else if(offset >= 0x1c00 && offset <= 0x1cff)   { machine().device<ay8910_device>("ay")->address_w(space, 0,data); }
 	else if(offset >= 0x1d00 && offset <= 0x1dff)   { x1_rom_bank_1_w(space,0,data); }
 	else if(offset >= 0x1e00 && offset <= 0x1eff)   { x1_rom_bank_0_w(space,0,data); }
 	else if(offset >= 0x1f80 && offset <= 0x1f8f)   { z80dma_w(machine().device("dma"), space, 0,data); }
-	else if(offset >= 0x1f90 && offset <= 0x1f93)   { z80dart_ba_cd_w(machine().device("sio"), space, (offset-0x1f90) & 3,data); }
+	else if(offset >= 0x1f90 && offset <= 0x1f93)   { machine().device<z80sio0_device>("sio")->ba_cd_w(space, (offset-0x1f90) & 3,data); }
 	else if(offset >= 0x1f98 && offset <= 0x1f9f)   { printf("Extended SIO/CTC write %04x %02x\n",offset,data); }
 	else if(offset >= 0x1fa0 && offset <= 0x1fa3)   { m_ctc->write(space,offset-0x1fa0,data); }
 	else if(offset >= 0x1fa8 && offset <= 0x1fab)   { m_ctc->write(space,offset-0x1fa8,data); }
@@ -1830,10 +1812,10 @@ READ8_MEMBER( x1_state::x1_portb_r )
 
 	res = m_ram_bank | m_sub_obf | m_vsync | m_vdisp;
 
-	if(m_cass->input() > 0.03)
+	if(m_cassette->input() > 0.03)
 		res |= 0x02;
 
-//  if(cassette_get_state(m_cass) & CASSETTE_MOTOR_DISABLED)
+//  if(cassette_get_state(m_cassette) & CASSETTE_MOTOR_DISABLED)
 //      res &= ~0x02;  // is zero if not playing
 
 	// CMT test bit is set low when the CMT Stop command is issued, and becomes
@@ -1885,7 +1867,7 @@ WRITE8_MEMBER( x1_state::x1_portc_w )
 	m_io_switch = data & 0x20;
 	m_io_sys = data & 0xff;
 
-	m_cass->output(BIT(data, 0) ? +1.0 : -1.0);
+	m_cassette->output(BIT(data, 0) ? +1.0 : -1.0);
 }
 
 static I8255A_INTERFACE( ppi8255_intf )
@@ -1898,9 +1880,10 @@ static I8255A_INTERFACE( ppi8255_intf )
 	DEVCB_DRIVER_MEMBER(x1_state, x1_portc_w)                       /* Port C write */
 };
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	true,       /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -1912,18 +1895,39 @@ static const mc6845_interface mc6845_intf =
 	NULL        /* update address callback */
 };
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(x1_state::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(x1_state::memory_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.write_byte(offset, data);
+}
+
+READ8_MEMBER(x1_state::io_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(x1_state::io_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.write_byte(offset, data);
+}
 
 static Z80DMA_INTERFACE( x1_dma )
 {
 	DEVCB_CPU_INPUT_LINE("x1_cpu", INPUT_LINE_HALT),
 	DEVCB_CPU_INPUT_LINE("x1_cpu", INPUT_LINE_IRQ0),
 	DEVCB_NULL,
-	DEVCB_MEMORY_HANDLER("x1_cpu", PROGRAM, memory_read_byte),
-	DEVCB_MEMORY_HANDLER("x1_cpu", PROGRAM, memory_write_byte),
-	DEVCB_MEMORY_HANDLER("x1_cpu", IO, memory_read_byte),
-	DEVCB_MEMORY_HANDLER("x1_cpu", IO, memory_write_byte)
+	DEVCB_DRIVER_MEMBER(x1_state, memory_read_byte),
+	DEVCB_DRIVER_MEMBER(x1_state, memory_write_byte),
+	DEVCB_DRIVER_MEMBER(x1_state, io_read_byte),
+	DEVCB_DRIVER_MEMBER(x1_state, io_write_byte)
 };
 
 /*************************************
@@ -1934,7 +1938,7 @@ static Z80DMA_INTERFACE( x1_dma )
 
 INPUT_CHANGED_MEMBER(x1_state::ipl_reset)
 {
-	m_x1_cpu->set_input_line(INPUT_LINE_RESET, newval ? CLEAR_LINE : ASSERT_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_RESET, newval ? CLEAR_LINE : ASSERT_LINE);
 
 	m_ram_bank = 0x00;
 	if(m_is_turbo) { m_ex_bank = 0x10; }
@@ -1944,7 +1948,7 @@ INPUT_CHANGED_MEMBER(x1_state::ipl_reset)
 /* Apparently most games doesn't support this (not even the Konami ones!), one that does is...177 :o */
 INPUT_CHANGED_MEMBER(x1_state::nmi_reset)
 {
-	m_x1_cpu->set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
 }
 
 INPUT_PORTS_START( x1 )
@@ -2239,17 +2243,6 @@ static const gfx_layout x1_chars_8x16 =
 	8*16
 };
 
-static const gfx_layout x1_pcg_8x8 =
-{
-	8,8,
-	RGN_FRAC(1,3),
-	3,
-	{ RGN_FRAC(2,3),RGN_FRAC(1,3),RGN_FRAC(0,3) },
-	{ 0, 1, 2, 3, 4, 5, 6, 7 },
-	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
-	8*8
-};
-
 static const gfx_layout x1_chars_16x16 =
 {
 	8,16,
@@ -2264,9 +2257,9 @@ static const gfx_layout x1_chars_16x16 =
 /* decoded for debugging purpose, this will be nuked in the end... */
 static GFXDECODE_START( x1 )
 	GFXDECODE_ENTRY( "cgrom",   0x00000, x1_chars_8x8,    0, 1 )
-	GFXDECODE_ENTRY( "pcg",     0x00000, x1_pcg_8x8,      0, 1 )
 	GFXDECODE_ENTRY( "font",    0x00000, x1_chars_8x16,   0, 1 )
 	GFXDECODE_ENTRY( "kanji",   0x00000, x1_chars_16x16,  0, 1 )
+//  GFXDECODE_ENTRY( "pcg",     0x00000, x1_pcg_8x8,      0, 1 )
 GFXDECODE_END
 
 /*************************************
@@ -2283,20 +2276,7 @@ static Z80CTC_INTERFACE( ctc_intf )
 	DEVCB_DEVICE_LINE_MEMBER("ctc", z80ctc_device, trg2),       // ZC/TO2 callback
 };
 
-#if 0
-static const z80sio_interface sio_intf =
-{
-	DEVCB_NULL,                 /* interrupt handler */
-	DEVCB_NULL,                 /* DTR changed handler */
-	DEVCB_NULL,                 /* RTS changed handler */
-	DEVCB_NULL,                 /* BREAK changed handler */
-	DEVCB_NULL,                 /* transmit handler */
-	DEVCB_NULL                  /* receive handler */
-};
-#endif
-
-
-static Z80DART_INTERFACE( sio_intf )
+static Z80SIO_INTERFACE( sio_intf )
 {
 	0, 0, 0, 0,
 
@@ -2374,35 +2354,34 @@ static const cassette_interface x1_cassette_interface =
  *************************************/
 
 #ifdef UNUSED_FUNCTION
-static IRQ_CALLBACK(x1_irq_callback)
+IRQ_CALLBACK_MEMBER(x1_state::x1_irq_callback)
 {
-	x1_state *state = device->machine().driver_data<x1_state>();
-	if(state->m_ctc_irq_flag != 0)
+	if(m_ctc_irq_flag != 0)
 	{
-		state->m_ctc_irq_flag = 0;
-		if(state->m_key_irq_flag == 0)  // if no other devices are pulling the IRQ line high
-			device->execute().set_input_line(0, CLEAR_LINE);
-		return state->m_irq_vector;
+		m_ctc_irq_flag = 0;
+		if(m_key_irq_flag == 0)  // if no other devices are pulling the IRQ line high
+			device.execute().set_input_line(0, CLEAR_LINE);
+		return m_irq_vector;
 	}
-	if(state->m_key_irq_flag != 0)
+	if(m_key_irq_flag != 0)
 	{
-		state->m_key_irq_flag = 0;
-		if(state->m_ctc_irq_flag == 0)  // if no other devices are pulling the IRQ line high
-			device->execute().set_input_line(0, CLEAR_LINE);
-		return state->m_key_irq_vector;
+		m_key_irq_flag = 0;
+		if(m_ctc_irq_flag == 0)  // if no other devices are pulling the IRQ line high
+			device.execute().set_input_line(0, CLEAR_LINE);
+		return m_key_irq_vector;
 	}
-	return state->m_irq_vector;
+	return m_irq_vector;
 }
 #endif
 
 TIMER_DEVICE_CALLBACK_MEMBER(x1_state::x1_keyboard_callback)
 {
-	address_space &space = machine().device("x1_cpu")->memory().space(AS_PROGRAM);
-	UINT32 key1 = machine().root_device().ioport("key1")->read();
-	UINT32 key2 = machine().root_device().ioport("key2")->read();
-	UINT32 key3 = machine().root_device().ioport("key3")->read();
-	UINT32 key4 = machine().root_device().ioport("tenkey")->read();
-	UINT32 f_key = machine().root_device().ioport("f_keys")->read();
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	UINT32 key1 = ioport("key1")->read();
+	UINT32 key2 = ioport("key2")->read();
+	UINT32 key3 = ioport("key3")->read();
+	UINT32 key4 = ioport("tenkey")->read();
+	UINT32 f_key = ioport("f_keys")->read();
 
 	if(m_key_irq_vector)
 	{
@@ -2415,7 +2394,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(x1_state::x1_keyboard_callback)
 			x1_sub_io_w(space,0,0xe6);
 			m_irq_vector = m_key_irq_vector;
 			m_key_irq_flag = 1;
-			machine().device("x1_cpu")->execute().set_input_line(0,ASSERT_LINE);
+			m_maincpu->set_input_line(0,ASSERT_LINE);
 			m_old_key1 = key1;
 			m_old_key2 = key2;
 			m_old_key3 = key3;
@@ -2454,27 +2433,26 @@ TIMER_CALLBACK_MEMBER(x1_state::x1_rtc_increment)
 
 MACHINE_RESET_MEMBER(x1_state,x1)
 {
-	//UINT8 *ROM = machine().root_device().memregion("x1_cpu")->base();
-	UINT8 *PCG_RAM = memregion("pcg")->base();
+	//UINT8 *ROM = memregion("x1_cpu")->base();
 	int i;
 
 	memset(m_gfx_bitmap_ram,0x00,0xc000*2);
 
 	for(i=0;i<0x1800;i++)
 	{
-		PCG_RAM[i] = 0;
-		machine().gfx[1]->mark_dirty(i >> 3);
+		m_pcg_ram[i] = 0;
+		machine().gfx[3]->mark_dirty(i >> 3);
 	}
 
 	m_is_turbo = 0;
 
 	m_io_bank_mode = 0;
 
-	//machine().device("x1_cpu")->execute().set_irq_acknowledge_callback(x1_irq_callback);
+	//m_x1_cpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(x1_state::x1_irq_callback),this));
 
 	m_cmt_current_cmd = 0;
 	m_cmt_test = 0;
-	m_cass->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+	m_cassette->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
 
 	m_key_irq_flag = m_ctc_irq_flag = 0;
 	m_sub_cmd = 0;
@@ -2506,6 +2484,17 @@ MACHINE_RESET_MEMBER(x1_state,x1turbo)
 	m_scrn_reg.blackclip = 0;
 }
 
+static const gfx_layout x1_pcg_8x8 =
+{
+	8,8,
+	0x100,
+	3,
+	{ 0x1000*8,0x800*8, 0 },
+	{ 0, 1, 2, 3, 4, 5, 6, 7 },
+	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8 },
+	8*8
+};
+
 MACHINE_START_MEMBER(x1_state,x1)
 {
 	/* set up RTC */
@@ -2523,6 +2512,19 @@ MACHINE_START_MEMBER(x1_state,x1)
 
 		m_rtc_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x1_state::x1_rtc_increment),this));
 	}
+
+	m_ipl_rom = memregion("ipl")->base();
+	m_work_ram = auto_alloc_array_clear(machine(), UINT8, 0x10000*0x10);
+	m_emm_ram = auto_alloc_array_clear(machine(), UINT8, 0x1000000);
+	m_pcg_ram = auto_alloc_array_clear(machine(), UINT8, 0x1800);
+	m_cg_rom = memregion("cgrom")->base();
+	m_kanji_rom = memregion("kanji")->base();
+
+	save_pointer(NAME(m_work_ram), 0x10000*0x10);
+	save_pointer(NAME(m_emm_ram), 0x1000000);
+	save_pointer(NAME(m_pcg_ram), 0x1800);
+
+	machine().gfx[3] = auto_alloc(machine(), gfx_element(machine(), x1_pcg_8x8, (UINT8 *)m_pcg_ram, 1, 0));
 }
 
 PALETTE_INIT_MEMBER(x1_state,x1)
@@ -2602,11 +2604,11 @@ static MACHINE_CONFIG_START( x1, x1_state )
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.5)
 	MCFG_SOUND_ROUTE(2, "rspeaker", 0.5)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.25)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.10)
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG,x1_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette",x1_cassette_interface)
 	MCFG_SOFTWARE_LIST_ADD("cass_list","x1_cass")
 
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(x1_floppy_interface)
@@ -2623,7 +2625,6 @@ static MACHINE_CONFIG_DERIVED( x1turbo, x1 )
 	MCFG_CPU_CONFIG(x1turbo_daisy)
 	MCFG_MACHINE_RESET_OVERRIDE(x1_state,x1turbo)
 
-//  MCFG_Z80SIO_ADD( "sio", MAIN_CLOCK/4 , sio_intf )
 	MCFG_Z80SIO0_ADD("sio", MAIN_CLOCK/4 , sio_intf )
 	MCFG_Z80DMA_ADD( "dma", MAIN_CLOCK/4 , x1_dma )
 
@@ -2642,19 +2643,11 @@ MACHINE_CONFIG_END
  *************************************/
 
 	ROM_START( x1 )
-	ROM_REGION( 0x10000, "x1_cpu", ROMREGION_ERASEFF )
-
 	ROM_REGION( 0x8000, "ipl", ROMREGION_ERASEFF )
 	ROM_LOAD( "ipl.x1", 0x0000, 0x1000, CRC(7b28d9de) SHA1(c4db9a6e99873808c8022afd1c50fef556a8b44d) )
 
-	ROM_REGION( 0x10000, "wram", ROMREGION_ERASE00 )
-
 	ROM_REGION(0x1000, "mcu", ROMREGION_ERASEFF) //MCU for the Keyboard, "sub cpu"
 	ROM_LOAD( "80c48", 0x0000, 0x1000, NO_DUMP )
-
-	ROM_REGION( 0x1000000, "emm", ROMREGION_ERASEFF )
-
-	ROM_REGION(0x1800, "pcg", ROMREGION_ERASEFF)
 
 	ROM_REGION(0x2000, "font", 0) //TODO: this contains 8x16 charset only, maybe it's possible that it derivates a 8x8 charset by skipping gfx lines?
 	ROM_LOAD( "ank.fnt", 0x0000, 0x2000, BAD_DUMP CRC(19689fbd) SHA1(0d4e072cd6195a24a1a9b68f1d37500caa60e599) )
@@ -2672,21 +2665,11 @@ MACHINE_CONFIG_END
 ROM_END
 
 ROM_START( x1turbo )
-	ROM_REGION( 0x10000, "x1_cpu", ROMREGION_ERASEFF )
-
 	ROM_REGION( 0x8000, "ipl", ROMREGION_ERASEFF )
 	ROM_LOAD( "ipl.x1t", 0x0000, 0x8000, CRC(2e8b767c) SHA1(44620f57a25f0bcac2b57ca2b0f1ebad3bf305d3) )
 
-	ROM_REGION( 0x10000*0x10, "wram", ROMREGION_ERASE00 )
-
 	ROM_REGION(0x1000, "mcu", ROMREGION_ERASEFF) //MCU for the Keyboard, "sub cpu"
 	ROM_LOAD( "80c48", 0x0000, 0x1000, NO_DUMP )
-
-	ROM_REGION( 0x1000000, "emm", ROMREGION_ERASEFF )
-
-	ROM_REGION( 0x10000*2, "bank_ram", ROMREGION_ERASEFF )
-
-	ROM_REGION(0x1800, "pcg", ROMREGION_ERASEFF)
 
 	ROM_REGION(0x2000, "font", 0) //TODO: this contains 8x16 charset only, maybe it's possible that it derivates a 8x8 charset by skipping gfx lines?
 	ROM_LOAD( "ank.fnt", 0x0000, 0x2000, CRC(19689fbd) SHA1(0d4e072cd6195a24a1a9b68f1d37500caa60e599) )
@@ -2708,19 +2691,11 @@ ROM_START( x1turbo )
 ROM_END
 
 ROM_START( x1turbo40 )
-	ROM_REGION( 0x10000, "x1_cpu", ROMREGION_ERASEFF )
-
 	ROM_REGION( 0x8000, "ipl", ROMREGION_ERASEFF )
 	ROM_LOAD( "ipl.bin", 0x0000, 0x8000, CRC(112f80a2) SHA1(646cc3fb5d2d24ff4caa5167b0892a4196e9f843) )
 
-	ROM_REGION( 0x10000*0x10, "wram", ROMREGION_ERASE00 )
-
 	ROM_REGION(0x1000, "mcu", ROMREGION_ERASEFF) //MCU for the Keyboard, "sub cpu"
 	ROM_LOAD( "80c48", 0x0000, 0x1000, NO_DUMP )
-
-	ROM_REGION(0x1800, "pcg", ROMREGION_ERASEFF)
-
-	ROM_REGION( 0x1000000, "emm", ROMREGION_ERASEFF )
 
 	ROM_REGION(0x2000, "font", 0) //TODO: this contains 8x16 charset only, maybe it's possible that it derivates a 8x8 charset by skipping gfx lines?
 	ROM_LOAD( "ank.fnt", 0x0000, 0x2000, CRC(19689fbd) SHA1(0d4e072cd6195a24a1a9b68f1d37500caa60e599) )
@@ -2746,8 +2721,8 @@ ROM_END
 DRIVER_INIT_MEMBER(x1_state,x1_kanji)
 {
 	UINT32 i,j,k,l;
-	UINT8 *kanji = machine().root_device().memregion("kanji")->base();
-	UINT8 *raw_kanji = machine().root_device().memregion("raw_kanji")->base();
+	UINT8 *kanji = memregion("kanji")->base();
+	UINT8 *raw_kanji = memregion("raw_kanji")->base();
 
 	k = 0;
 	for(l=0;l<2;l++)

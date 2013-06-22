@@ -115,11 +115,10 @@ ROM_END
 
 #endif
 
-DRIVER_INIT_MEMBER(md_cons_state,hshavoc)
+DRIVER_INIT_MEMBER(md_boot_state,hshavoc)
 {
-
 	int x;
-	UINT16 *src = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *src = (UINT16 *)memregion("maincpu")->base();
 
 	static const UINT16 typedat[16] = {
 		1,1,1,1, 1,1,1,1,
@@ -218,7 +217,7 @@ DRIVER_INIT_MEMBER(md_cons_state,hshavoc)
 */
 
 	{
-		address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+		address_space &space = m_maincpu->space(AS_PROGRAM);
 		space.nop_write(0x200000, 0x201fff);
 	}
 
@@ -228,5 +227,5 @@ DRIVER_INIT_MEMBER(md_cons_state,hshavoc)
 
 
 
-GAME( 1993, hshavoc,   0,        md_bootleg, hshavoc, md_cons_state, hshavoc, ROT0, "Data East",                  "High Seas Havoc",GAME_NOT_WORKING )
-//GAME( 1993, hshavoc2,  hshavoc,  md_bootleg, hshavoc, md_cons_state, genesis, ROT0, "Data East",                  "High Seas Havoc (Genesis ROM)",GAME_NOT_WORKING )
+GAME( 1993, hshavoc,   0,        md_bootleg, hshavoc, md_boot_state, hshavoc, ROT0, "Data East",                  "High Seas Havoc",GAME_NOT_WORKING )
+//GAME( 1993, hshavoc2,  hshavoc,  md_bootleg, hshavoc, md_havoc_state, genesis, ROT0, "Data East",                  "High Seas Havoc (Genesis ROM)",GAME_NOT_WORKING )

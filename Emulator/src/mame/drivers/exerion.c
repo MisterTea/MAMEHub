@@ -198,9 +198,9 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, exerion_state )
 	AM_RANGE(0xb000, 0xb000) AM_READ_PORT("DSW1")
 	AM_RANGE(0xc000, 0xc000) AM_WRITE(exerion_videoreg_w)
 	AM_RANGE(0xc800, 0xc800) AM_WRITE(soundlatch_byte_w)
-	AM_RANGE(0xd000, 0xd001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0xd800, 0xd801) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0xd802, 0xd802) AM_DEVREAD_LEGACY("ay2", ay8910_r)
+	AM_RANGE(0xd000, 0xd001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0xd800, 0xd801) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0xd802, 0xd802) AM_DEVREAD("ay2", ay8910_device, data_r)
 ADDRESS_MAP_END
 
 
@@ -379,9 +379,6 @@ static const ay8910_interface ay8910_config =
 
 void exerion_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_porta));
 	save_item(NAME(m_portb));
 	save_item(NAME(m_cocktail_flip));
@@ -550,8 +547,8 @@ DRIVER_INIT_MEMBER(exerion_state,exerion)
 
 	/* make a temporary copy of the character data */
 	src = temp;
-	dst = machine().root_device().memregion("gfx1")->base();
-	length = machine().root_device().memregion("gfx1")->bytes();
+	dst = memregion("gfx1")->base();
+	length = memregion("gfx1")->bytes();
 	memcpy(src, dst, length);
 
 	/* decode the characters */
@@ -568,8 +565,8 @@ DRIVER_INIT_MEMBER(exerion_state,exerion)
 
 	/* make a temporary copy of the sprite data */
 	src = temp;
-	dst = machine().root_device().memregion("gfx2")->base();
-	length = machine().root_device().memregion("gfx2")->bytes();
+	dst = memregion("gfx2")->base();
+	length = memregion("gfx2")->bytes();
 	memcpy(src, dst, length);
 
 	/* decode the sprites */
@@ -591,7 +588,7 @@ DRIVER_INIT_MEMBER(exerion_state,exerion)
 
 DRIVER_INIT_MEMBER(exerion_state,exerionb)
 {
-	UINT8 *ram = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ram = memregion("maincpu")->base();
 	int addr;
 
 	/* the program ROMs have data lines D1 and D2 swapped. Decode them. */

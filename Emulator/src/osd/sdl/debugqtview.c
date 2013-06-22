@@ -1,4 +1,4 @@
-#include <QtGui/QtGui>
+#define NO_MEM_TRACKING
 
 #include "debugqtview.h"
 
@@ -11,14 +11,27 @@ DebuggerView::DebuggerView(const debug_view_type& type,
 	m_view(NULL),
 	m_machine(machine)
 {
-	QFont viewFontRequest("Courier");
+	// I like setting the font per-view since it doesn't override the menuing fonts.
+	QFont viewFontRequest("Courier New");
 	viewFontRequest.setFixedPitch(true);
-	viewFontRequest.setPointSize(12);
+	viewFontRequest.setPointSize(11);
 	setFont(viewFontRequest);
 
 	m_view = m_machine->debug_view().alloc_view(type,
 												DebuggerView::debuggerViewUpdate,
 												this);
+
+	connect(verticalScrollBar(), SIGNAL(valueChanged(int)),
+			this, SLOT(verticalScrollSlot(int)));
+	connect(horizontalScrollBar(), SIGNAL(valueChanged(int)),
+			this, SLOT(horizontalScrollSlot(int)));
+}
+
+
+DebuggerView::~DebuggerView()
+{
+	if (m_machine && m_view)
+		m_machine->debug_view().free_view(*m_view);
 }
 
 
@@ -26,7 +39,7 @@ void DebuggerView::paintEvent(QPaintEvent* event)
 {
 	// Tell the MAME debug view how much real estate is available
 	QFontMetrics actualFont = fontMetrics();
-	const int fontWidth = MAX(1, actualFont.maxWidth());
+	const int fontWidth = MAX(1, actualFont.width('_'));
 	const int fontHeight = MAX(1, actualFont.height());
 	m_view->set_visible_size(debug_view_xy(width()/fontWidth, height()/fontHeight));
 
@@ -44,7 +57,6 @@ void DebuggerView::paintEvent(QPaintEvent* event)
 	{
 		verticalScrollBar()->setValue(scrollSize);
 	}
-	m_view->set_visible_position(debug_view_xy(0, verticalScrollBar()->value()));
 
 
 	// Draw the viewport widget
@@ -72,6 +84,10 @@ void DebuggerView::paintEvent(QPaintEvent* event)
 				QColor fgColor(0,0,0);
 				QColor bgColor(255,255,255);
 
+				if(textAttr & DCA_VISITED)
+				{
+					bgColor.setRgb(0xc6, 0xe2, 0xff);
+				}
 				if(textAttr & DCA_ANCILLARY)
 				{
 					bgColor.setRgb(0xe0, 0xe0, 0xe0);
@@ -83,6 +99,10 @@ void DebuggerView::paintEvent(QPaintEvent* event)
 				if(textAttr & DCA_CURRENT)
 				{
 					bgColor.setRgb(0xff, 0xff, 0x00);
+				}
+				if ((textAttr & DCA_SELECTED) && (textAttr & DCA_CURRENT))
+				{
+					bgColor.setRgb(0xff,0xc0,0x80);
 				}
 				if(textAttr & DCA_CHANGED)
 				{
@@ -108,10 +128,13 @@ void DebuggerView::paintEvent(QPaintEvent* event)
 				painter.setPen(QPen(fgColor));
 			}
 
+			// Your character is not guaranteed to take up the entire fontWidth x fontHeight, so fill before.
+			painter.fillRect(x*fontWidth, y*fontHeight, fontWidth, fontHeight, bgBrush);
+
 			// There is a touchy interplay between font height, drawing difference, visible position, etc
-			// To test, set the bgcolor to something crazy and see where stuff gets drawn
+			// Fonts don't get drawn "down and to the left" like boxes, so some wiggling is needed.
 			painter.drawText(x*fontWidth,
-								y*fontHeight + fontHeight,
+								(y*fontHeight + (fontHeight*0.80)),
 								QString(m_view->viewdata()[viewDataOffset].byte));
 			viewDataOffset++;
 		}
@@ -125,7 +148,7 @@ void DebuggerView::keyPressEvent(QKeyEvent* event)
 		return QWidget::keyPressEvent(event);
 
 	Qt::KeyboardModifiers keyMods = QApplication::keyboardModifiers();
-	bool ctrlDown = keyMods.testFlag(Qt::ControlModifier);
+	const bool ctrlDown = keyMods.testFlag(Qt::ControlModifier);
 
 	int keyPress = -1;
 	switch (event->key())
@@ -186,6 +209,41 @@ void DebuggerView::keyPressEvent(QKeyEvent* event)
 
 	viewport()->update();
 	update();
+}
+
+
+void DebuggerView::mousePressEvent(QMouseEvent* event)
+{
+	if (m_view == NULL)
+		return;
+
+	if (event->button() == Qt::LeftButton)
+	{
+		QFontMetrics actualFont = fontMetrics();
+		const int fontWidth = MAX(1, actualFont.width('_'));
+		const int fontHeight = MAX(1, actualFont.height());
+
+		debug_view_xy topLeft = m_view->visible_position();
+		debug_view_xy clickViewPosition;
+		clickViewPosition.x = topLeft.x + (event->x() / fontWidth);
+		clickViewPosition.y = topLeft.y + (event->y() / fontHeight);
+		m_view->process_click(DCK_LEFT_CLICK, clickViewPosition);
+
+		viewport()->update();
+		update();
+	}
+}
+
+
+void DebuggerView::verticalScrollSlot(int value)
+{
+	m_view->set_visible_position(debug_view_xy(horizontalScrollBar()->value(), value));
+}
+
+
+void DebuggerView::horizontalScrollSlot(int value)
+{
+	m_view->set_visible_position(debug_view_xy(value, verticalScrollBar()->value()));
 }
 
 

@@ -21,7 +21,6 @@ Year + Game           PCB    FM Sound  Chips                         Notes
 
 To do:
 
-- Protection emulation instead of patching the roms
 - lordgun: in the 3rd leg of the ship stage, sometimes part of a far jetboat is drawn above a nearer sub (both sprites).
   But this is correct considering both priorities and sprite list positions. Original game bug?
 - lordgun: wrong colors for tilemap 0 in the 2nd leg of the last stage (where some sprite priority bugs happen too)
@@ -50,124 +49,107 @@ Notes:
 
 /***************************************************************************
 
-    Code Decryption / Protection patches
-
-***************************************************************************/
-
-DRIVER_INIT_MEMBER(lordgun_state,lordgun)
-{
-	int i;
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
-
-	// Decryption
-
-	int rom_size = 0x100000;
-	for(i = 0; i < rom_size/2; i++)
-	{
-		UINT16 x = rom[i];
-
-		if((i & 0x0120) == 0x0100 || (i & 0x0a00) == 0x0800)
-			x ^= 0x0010;
-
-		rom[i] = x;
-	}
-}
-
-
-// From XingXing:
-DRIVER_INIT_MEMBER(lordgun_state,aliencha)
-{
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
-
-	// Protection
-
-	rom[0x0A558/2]  =   0x6012;     // 0A558  beq.s   $A56C
-	rom[0x0A8DC/2]  =   0x6012;     // 0A8DC  beq.s   $A8F0
-	rom[0x0AC92/2]  =   0x6012;     // 0AC92  beq.s   $ACA6
-	rom[0x124CC/2]  =   0x6012;     // 124CC  beq.s   $124E0
-	rom[0x12850/2]  =   0x6012;     // 12850  beq.s   $12864
-	rom[0x12C06/2]  =   0x6012;     // 12C06  beq.s   $12C1A
-	rom[0x1862A/2]  =   0x6012;     // 1862A  beq.s   $1863E
-	rom[0x189AE/2]  =   0x6012;     // 189AE  beq.s   $189C2
-	rom[0x18D64/2]  =   0x6012;     // 18D64  beq.s   $18D78
-	rom[0x230FC/2]  =   0x6012;     // 230FC  beq.s   $23110
-	rom[0x23480/2]  =   0x6012;     // 23480  beq.s   $23494
-	rom[0x23836/2]  =   0x6012;     // 23836  beq.s   $2384A
-	rom[0x2BD0E/2]  =   0x6012;     // 2BD0E  beq.s   $2BD22
-	rom[0x2C092/2]  =   0x6012;     // 2C092  beq.s   $2C0A6
-	rom[0x2C448/2]  =   0x6012;     // 2C448  beq.s   $2C45C
-}
-
-
-DRIVER_INIT_MEMBER(lordgun_state,alienchac)
-{
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
-
-	// Protection
-
-	rom[0x0A550/2]  =   0x6012;     // 0A558  beq.s   $A564
-	rom[0x0A8D4/2]  =   0x6012;     // 0A8D4  beq.s   $A8E8
-	rom[0x0AC8A/2]  =   0x6012;     // 0AC8A  beq.s   $AC9E
-	rom[0x124B8/2]  =   0x6012;     // 124B8  beq.s   $124CC
-	rom[0x1283C/2]  =   0x6012;     // 1283C  beq.s   $12850
-	rom[0x12BF2/2]  =   0x6012;     // 12BF2  beq.s   $12C06
-	rom[0x18616/2]  =   0x6012;     // 18616  beq.s   $1862A
-	rom[0x1899A/2]  =   0x6012;     // 1899A  beq.s   $189AE
-	rom[0x18D50/2]  =   0x6012;     // 18D50  beq.s   $18D64
-	rom[0x230E8/2]  =   0x6012;     // 230E8  beq.s   $230FC
-	rom[0x2346C/2]  =   0x6012;     // 2346C  beq.s   $23480
-	rom[0x23822/2]  =   0x6012;     // 23822  beq.s   $23822
-	rom[0x2BCFA/2]  =   0x6012;     // 2BCFA  beq.s   $2BD0E
-	rom[0x2C07E/2]  =   0x6012;     // 2C07E  beq.s   $2C092
-	rom[0x2C434/2]  =   0x6012;     // 2C434  beq.s   $2C448
-}
-
-
-/***************************************************************************
-
     Memory Maps - Main
 
 ***************************************************************************/
-
 
 WRITE16_MEMBER(lordgun_state::lordgun_protection_w)
 {
 	switch (offset & 0x60)
 	{
-		// The data written to offsets 0 - 1f is offset * 2
-		// Use this write to increment the counter.
-		case 0x00:
+		case 0x00/2: // increment counter
+		{
 			m_lordgun_protection_data++;
-		return;
+			m_lordgun_protection_data &= 0x1f;
 
-		case 0x20: // unused?
-		case 0x40: // protection results are read back from 40-5f.
-		return;
+			return;
+		}
 
-		case 0x60: // reset / init
+		case 0xc0/2: // reset protection device
+		{
 			m_lordgun_protection_data = 0;
-		return;
+
+			return;
+		}
 	}
 }
 
 READ16_MEMBER(lordgun_state::lordgun_protection_r)
 {
-	// Other offset ranges are not used?
-	if ((offset & 0x60) == 0x40)
+	switch (offset & 0x60)
 	{
-		// Check to see if counter meets various conditions.
-		// The results may not be 0010, but this is the only bit
-		// that is checked by the 68k.
-		if ((m_lordgun_protection_data & 0x11) == 0x01)
-			return 0x0010;
+		case 0x40/2: // bitswap and xor counter
+		{
+			UINT8 x = m_lordgun_protection_data;
 
-		if ((m_lordgun_protection_data & 0x06) == 0x02)
-			return 0x0010;
+			m_lordgun_protection_data  = ((( x >> 0) | ( x >> 1)) & 1) << 4;
+			m_lordgun_protection_data |=  ((~x >> 2) & 1) << 3;
+			m_lordgun_protection_data |= (((~x >> 4) | ( x >> 0)) & 1) << 2;
+			m_lordgun_protection_data |=  (( x >> 3) & 1) << 1;
+			m_lordgun_protection_data |= (((~x >> 0) | ( x >> 2)) & 1) << 0;
 
-		if ((m_lordgun_protection_data & 0x09) == 0x08)
-			return 0x0010;
+			return 0;
+		}
 
-		return 0;
+		case 0x80/2: // return value if conditions are met
+		{
+			if ((m_lordgun_protection_data & 0x11) == 0x01) return 0x10;
+			if ((m_lordgun_protection_data & 0x06) == 0x02) return 0x10;
+			if ((m_lordgun_protection_data & 0x09) == 0x08) return 0x10;
+
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
+WRITE16_MEMBER(lordgun_state::aliencha_protection_w)
+{
+	switch (offset & 0x60)
+	{
+		case 0xc0/2: // reset protection device
+		{
+			m_lordgun_protection_data = 0;
+
+			return;
+		}
+	}
+}
+
+READ16_MEMBER(lordgun_state::aliencha_protection_r)
+{
+	switch (offset & 0x60)
+	{
+		case 0x00/2: // de-increment counter
+		{
+			m_lordgun_protection_data--;
+			m_lordgun_protection_data &= 0x1f;
+
+			return 0;
+		}
+
+		case 0x40/2: // bitswap and xor counter
+		{
+			UINT8 x = m_lordgun_protection_data;
+
+			m_lordgun_protection_data  = (((x >> 3) ^ (x >> 2)) & 1) << 4;
+			m_lordgun_protection_data |= (((x >> 2) ^ (x >> 1)) & 1) << 3;
+			m_lordgun_protection_data |= (((x >> 1) ^ (x >> 0)) & 1) << 2;
+			m_lordgun_protection_data |= (((x >> 4) ^ (x >> 0)) & 1) << 1;
+			m_lordgun_protection_data |= (((x >> 4) ^ (x >> 3)) & 1) << 0;
+
+			return 0;
+		}
+
+		case 0x80/2: // return value if conditions are met
+		{
+			if ((m_lordgun_protection_data & 0x11) == 0x00) return 0x20;
+			if ((m_lordgun_protection_data & 0x06) != 0x06) return 0x20;
+			if ((m_lordgun_protection_data & 0x18) == 0x00) return 0x20;
+
+			return 0;
+		}
 	}
 
 	return 0;
@@ -175,7 +157,9 @@ READ16_MEMBER(lordgun_state::lordgun_protection_r)
 
 WRITE8_MEMBER(lordgun_state::fake_w)
 {
+//  popmessage("%02x",data);
 }
+
 WRITE8_MEMBER(lordgun_state::fake2_w)
 {
 //  popmessage("%02x",data);
@@ -183,7 +167,6 @@ WRITE8_MEMBER(lordgun_state::fake2_w)
 
 WRITE8_MEMBER(lordgun_state::lordgun_eeprom_w)
 {
-	eeprom_device *eeprom = machine().device<eeprom_device>("eeprom");
 	int i;
 
 	if (data & ~0xfd)
@@ -197,16 +180,16 @@ WRITE8_MEMBER(lordgun_state::lordgun_eeprom_w)
 	// Update light guns positions
 	for (i = 0; i < 2; i++)
 		if ( (data & (0x04 << i)) && !(m_old & (0x04 << i)) )
-			lordgun_update_gun(machine(), i);
+			lordgun_update_gun(i);
 
 	// latch the bit
-	eeprom->write_bit(data & 0x40);
+	m_eeprom->write_bit(data & 0x40);
 
 	// reset line asserted: reset.
-	eeprom->set_cs_line((data & 0x10) ? CLEAR_LINE : ASSERT_LINE );
+	m_eeprom->set_cs_line((data & 0x10) ? CLEAR_LINE : ASSERT_LINE );
 
 	// clock line asserted: write latch or select next bit to read
-	eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE );
+	m_eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE );
 
 	m_whitescreen = data & 0x80;
 
@@ -215,8 +198,6 @@ WRITE8_MEMBER(lordgun_state::lordgun_eeprom_w)
 
 WRITE8_MEMBER(lordgun_state::aliencha_eeprom_w)
 {
-	eeprom_device *eeprom = machine().device<eeprom_device>("eeprom");
-
 	if (~data & ~0xf8)
 	{
 //      popmessage("EE: %02x", data);
@@ -230,13 +211,13 @@ WRITE8_MEMBER(lordgun_state::aliencha_eeprom_w)
 	coin_counter_w(machine(), 1, data & 0x10);
 
 	// latch the bit
-	eeprom->write_bit(data & 0x80);
+	m_eeprom->write_bit(data & 0x80);
 
 	// reset line asserted: reset.
-	eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE );
+	m_eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE );
 
 	// clock line asserted: write latch or select next bit to read
-	eeprom->set_clock_line((data & 0x40) ? ASSERT_LINE : CLEAR_LINE );
+	m_eeprom->set_clock_line((data & 0x40) ? ASSERT_LINE : CLEAR_LINE );
 }
 
 
@@ -259,12 +240,10 @@ WRITE8_MEMBER(lordgun_state::aliencha_dip_w)
 	m_aliencha_dip_sel = data;
 }
 
-
 // Unknown, always equal to 7 in lordgun, aliencha.
 WRITE16_MEMBER(lordgun_state::lordgun_priority_w)
 {
 	COMBINE_DATA(&m_priority);
-//  popmessage("PR: %04x", data);
 }
 
 
@@ -288,13 +267,12 @@ READ16_MEMBER(lordgun_state::lordgun_gun_1_y_r)
 	return m_gun[1].hw_y;
 }
 
-
 WRITE16_MEMBER(lordgun_state::lordgun_soundlatch_w)
 {
 	if (ACCESSING_BITS_0_7)     soundlatch_byte_w (space, 0, (data >> 0) & 0xff);
 	if (ACCESSING_BITS_8_15)    soundlatch2_byte_w(space, 0, (data >> 8) & 0xff);
 
-	machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static ADDRESS_MAP_START( lordgun_map, AS_PROGRAM, 16, lordgun_state )
@@ -353,7 +331,7 @@ static ADDRESS_MAP_START( aliencha_map, AS_PROGRAM, 16, lordgun_state )
 	AM_RANGE(0x504000, 0x504001) AM_WRITE(lordgun_soundlatch_w)
 	AM_RANGE(0x506000, 0x506007) AM_DEVREADWRITE8("ppi8255_0", i8255_device, read, write, 0x00ff)
 	AM_RANGE(0x508000, 0x508007) AM_DEVREADWRITE8("ppi8255_1", i8255_device, read, write, 0x00ff)
-	AM_RANGE(0x50b900, 0x50b9ff) AM_RAM // protection
+	AM_RANGE(0x50b900, 0x50b9ff) AM_READWRITE(aliencha_protection_r, aliencha_protection_w)
 ADDRESS_MAP_END
 
 
@@ -370,14 +348,13 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(lordgun_state::lordgun_okibank_w)
 {
-	device_t *device = machine().device("oki");
-	downcast<okim6295_device *>(device)->set_bank_base((data & 2) ? 0x40000 : 0);
+	m_oki->set_bank_base((data & 2) ? 0x40000 : 0);
 	if (data & ~3)  logerror("%s: unknown okibank bits %02x\n", machine().describe_context(), data);
 //  popmessage("OKI %x", data);
 }
 
 static ADDRESS_MAP_START( lordgun_soundio_map, AS_IO, 8, lordgun_state )
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w )
+	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ymsnd", ym3812_device, write)
 	AM_RANGE(0x2000, 0x2000) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch2_byte_r )
 	AM_RANGE(0x4000, 0x4000) AM_READ(soundlatch_byte_r )
@@ -390,8 +367,8 @@ static ADDRESS_MAP_START( aliencha_soundio_map, AS_IO, 8, lordgun_state )
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch2_byte_r )
 	AM_RANGE(0x4000, 0x4000) AM_READ(soundlatch_byte_r )
 	AM_RANGE(0x5000, 0x5000) AM_WRITENOP    // writes 03 then 07 at end of NMI
-	AM_RANGE(0x7000, 0x7000) AM_DEVREAD_LEGACY("ymf", ymf278b_r)
-	AM_RANGE(0x7000, 0x7005) AM_DEVWRITE_LEGACY("ymf", ymf278b_w)
+	AM_RANGE(0x7000, 0x7000) AM_DEVREAD("ymf", ymf278b_device, read)
+	AM_RANGE(0x7000, 0x7005) AM_DEVWRITE("ymf", ymf278b_device, write)
 	AM_RANGE(0x7400, 0x7400) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x7800, 0x7800) AM_DEVREADWRITE("oki2", okim6295_device, read, write)
 ADDRESS_MAP_END
@@ -683,15 +660,10 @@ static I8255A_INTERFACE( aliencha_ppi8255_1_intf )
 };
 
 
-static void soundirq(device_t *device, int state)
+WRITE_LINE_MEMBER(lordgun_state::soundirq)
 {
-	device->machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_IRQ0, state);
+	m_soundcpu->set_input_line(INPUT_LINE_IRQ0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym3812_interface lordgun_ym3812_interface =
-{
-	soundirq
-};
 
 static MACHINE_CONFIG_START( lordgun, lordgun_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz / 2)
@@ -717,23 +689,17 @@ static MACHINE_CONFIG_START( lordgun, lordgun_state )
 	MCFG_GFXDECODE(lordgun)
 	MCFG_PALETTE_LENGTH(0x800 * 8)  // 0x800 real colors, repeated per priority level
 
-
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_3_579545MHz)
-	MCFG_SOUND_CONFIG(lordgun_ym3812_interface)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(lordgun_state, soundirq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_OKIM6295_ADD("oki", XTAL_20MHz / 20, OKIM6295_PIN7_HIGH)   // ? 5MHz can't be right!
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
-
-static const ymf278b_interface ymf278b_config =
-{
-	soundirq
-};
 
 static MACHINE_CONFIG_START( aliencha, lordgun_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_20MHz / 2)
@@ -759,12 +725,11 @@ static MACHINE_CONFIG_START( aliencha, lordgun_state )
 	MCFG_GFXDECODE(lordgun)
 	MCFG_PALETTE_LENGTH(0x800 * 8)  // 0x800 real colors, repeated per priority level
 
-
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymf", YMF278B, 26000000)            // ? 26MHz matches video (decrease for faster music tempo)
-	MCFG_SOUND_CONFIG(ymf278b_config)
+	MCFG_YMF278B_IRQ_HANDLER(WRITELINE(lordgun_state, soundirq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
 	MCFG_OKIM6295_ADD("oki", XTAL_20MHz / 20, OKIM6295_PIN7_HIGH)   // ? 5MHz can't be right
@@ -1074,10 +1039,33 @@ ROM_END
 
 /***************************************************************************
 
+    Code Decryption
+
+***************************************************************************/
+
+DRIVER_INIT_MEMBER(lordgun_state,lordgun)
+{
+	int i;
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
+	int rom_size = 0x100000;
+
+	for(i = 0; i < rom_size/2; i++)
+	{
+		UINT16 x = rom[i];
+
+		if((i & 0x0120) == 0x0100 || (i & 0x0a00) == 0x0800)
+			x ^= 0x0010;
+
+		rom[i] = x;
+	}
+}
+
+/***************************************************************************
+
     Game Drivers
 
 ***************************************************************************/
 
-GAME( 1994, lordgun,   0,        lordgun,  lordgun, lordgun_state,  lordgun,   ROT0, "IGS", "Lord of Gun (USA)",       GAME_IMPERFECT_GRAPHICS )
-GAME( 1994, aliencha,  0,        aliencha, aliencha, lordgun_state, aliencha,  ROT0, "IGS", "Alien Challenge (World)", GAME_UNEMULATED_PROTECTION )
-GAME( 1994, alienchac, aliencha, aliencha, aliencha, lordgun_state, alienchac, ROT0, "IGS", "Alien Challenge (China)", GAME_UNEMULATED_PROTECTION )
+GAME( 1994, lordgun,   0,        lordgun,  lordgun,  lordgun_state, lordgun,  ROT0, "IGS", "Lord of Gun (USA)",       GAME_IMPERFECT_GRAPHICS )
+GAME( 1994, aliencha,  0,        aliencha, aliencha, driver_device, 0,        ROT0, "IGS", "Alien Challenge (World)", 0 )
+GAME( 1994, alienchac, aliencha, aliencha, aliencha, driver_device, 0,        ROT0, "IGS", "Alien Challenge (China)", 0 )

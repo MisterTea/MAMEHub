@@ -107,6 +107,14 @@ void apollo_kbd_device::device_start()
 	m_tx_fifo.start(this);
 	m_keyboard_tty.start(this);
 
+	m_io_keyboard1 = machine().root_device().ioport("keyboard1");
+	m_io_keyboard2 = machine().root_device().ioport("keyboard2");
+	m_io_keyboard3 = machine().root_device().ioport("keyboard3");
+	m_io_keyboard4 = machine().root_device().ioport("keyboard4");
+	m_io_mouse1 = machine().root_device().ioport("mouse1");
+	m_io_mouse2 = machine().root_device().ioport("mouse2");
+	m_io_mouse3 = machine().root_device().ioport("mouse3");
+
 	m_timer = machine().scheduler().timer_alloc(FUNC(static_poll_callback), this);
 }
 
@@ -177,7 +185,7 @@ void apollo_kbd_device::beeper::start(apollo_kbd_device *device)
 {
 	m_device = device;
 	LOG2(("start apollo_kbd::beeper"));
-	m_beeper = m_device->machine().device("beep");
+	m_beeper = m_device->machine().device<beep_device>("beep");
 	m_timer = m_device->machine().scheduler().timer_alloc(FUNC(static_beeper_callback), this);
 }
 
@@ -189,15 +197,15 @@ void apollo_kbd_device::beeper::reset()
 
 void apollo_kbd_device::beeper::off()
 {
-	beep_set_state(m_beeper, 0);
+	m_beeper->set_state(0);
 }
 
 void apollo_kbd_device::beeper::on()
 {
 	if (keyboard_has_beeper())
 	{
-		beep_set_frequency(m_beeper, 1000);
-		beep_set_state(m_beeper, 1);
+		m_beeper->set_frequency(1000);
+		m_beeper->set_state(1);
 		m_timer->adjust( attotime::from_msec(10), 0, attotime::zero);
 	}
 }
@@ -215,7 +223,7 @@ void apollo_kbd_device::beeper::beeper_callback()
 
 TIMER_CALLBACK( apollo_kbd_device::beeper::static_beeper_callback )
 {
-	reinterpret_cast<beeper *> (ptr)->beeper_callback();
+	reinterpret_cast<beeper*>(ptr)->beeper_callback();
 }
 
 //**************************************************************************
@@ -247,13 +255,20 @@ void apollo_kbd_device::mouse::read_mouse()
 {
 	if (m_tx_pending > 0)
 	{
-		m_tx_pending -= 5;
+		m_tx_pending -= 5; // we will be called every 5ms
 	}
 	else
 	{
-		int b = m_device->machine().root_device().ioport("mouse1")->read();
-		int x = m_device->machine().root_device().ioport("mouse2")->read();
-		int y = m_device->machine().root_device().ioport("mouse3")->read();
+		int b = m_device->m_io_mouse1->read();
+		int x = m_device->m_io_mouse2->read();
+		int y = m_device->m_io_mouse3->read();
+
+		/* sign extend values < 0 */
+		if (x & 0x800)
+			x |= 0xfffff000;
+		if (y & 0x800)
+			y |= 0xfffff000;
+		y = -y;
 
 		if (m_last_b < 0)
 		{
@@ -263,19 +278,24 @@ void apollo_kbd_device::mouse::read_mouse()
 		}
 		else if (b != m_last_b || x != m_last_x || y != m_last_y)
 		{
-			int dx = x - m_last_x;
-			int dy = y - m_last_y;
 			UINT8 mouse_data[4];
 			int mouse_data_size;
 
-			LOG2(("read_mouse: b=%02x x=%04x y=%04x dx=%d dy=%d", b, x, y, dx, dy));
+			int dx = x - m_last_x;
+			int dy = y - m_last_y;
+
+			// slow down huge mouse movements
+			dx = dx > 50 ? 50 : dx < -50 ? -50 : dx;
+			dy = dy > 50 ? 50 : dy < -50 ? -50 : dy;
+
+			LOG2(("read_mouse: b=%02x x=%d y=%d dx=%d dy=%d", b, x, y, dx, dy));
 
 			if (m_device->m_mode == KBD_MODE_0_COMPATIBILITY)
 			{
 				mouse_data[0] = 0xdf;
 				mouse_data[1] = 0xf0 ^ b;
 				mouse_data[2] = dx;
-				mouse_data[3] = -dy;
+				mouse_data[3] = dy;
 				mouse_data_size = 4;
 			}
 			else
@@ -287,7 +307,7 @@ void apollo_kbd_device::mouse::read_mouse()
 
 				mouse_data[0] = 0xf0 ^ b;
 				mouse_data[1] = dx;
-				mouse_data[2] = -dy;
+				mouse_data[2] = dy;
 				mouse_data_size = 3;
 			}
 
@@ -295,10 +315,10 @@ void apollo_kbd_device::mouse::read_mouse()
 			{
 				// mouse data submitted; update current mouse state
 				m_last_b = b;
-				m_last_x = x;
-				m_last_y = y;
+				m_last_x += dx;
+				m_last_y += dy;
 			}
-			m_tx_pending = 100; // mouse data packet will take 50 ms
+			m_tx_pending = 100; // mouse data packet will take 40 ms
 		}
 	}
 }
@@ -427,8 +447,10 @@ TIMER_CALLBACK( apollo_kbd_device::tx_fifo::static_timer_callback )
 
 apollo_kbd_device::keyboard_tty::keyboard_tty() :
 	m_device(NULL),
+#if defined(KBD_TTY_NAME)
 	m_tty_name(NULL),
 	m_tty_fd(-1),
+#endif
 	m_connected(0)
 {
 }
@@ -854,7 +876,7 @@ void apollo_kbd_device::poll_callback()
 	}
 	scan_keyboard();
 
-	// Note: we omit extra traffic while keyboard is in Compatibitlit mode
+	// Note: we omit extra traffic while keyboard is in Compatibility mode
 	if (m_device->m_mode != KBD_MODE_0_COMPATIBILITY)
 	{
 		m_mouse.read_mouse();
@@ -867,7 +889,6 @@ TIMER_CALLBACK( apollo_kbd_device::static_poll_callback )
 }
 
 UINT16 apollo_kbd_device::m_code_table[] = {
-
 		/* Key   | Keycap      | Down | Up  |Unshifted|Shifted|Control|Caps Lock|Up Trans|Auto  */
 		/* Number| Legend      | Code | Code|Code     | Code  | Code  |Code     | Code   |Repeat*/
 
@@ -1178,9 +1199,9 @@ INPUT_PORTS_START( apollo_kbd )
 	PORT_BIT( 0x00000040, IP_ACTIVE_HIGH, IPT_BUTTON2) PORT_NAME("Center mouse button") PORT_CODE(MOUSECODE_BUTTON2)
 
 	PORT_START("mouse2")  // X-axis
-	PORT_BIT( 0xfff, 0x00, IPT_MOUSE_X) PORT_SENSITIVITY(100) PORT_KEYDELTA(0) PORT_PLAYER(1)
+	PORT_BIT( 0xfff, 0x00, IPT_MOUSE_X) PORT_SENSITIVITY(200) PORT_KEYDELTA(1) PORT_PLAYER(1) PORT_CODE_DEC(INPUT_CODE_INVALID) PORT_CODE_INC(INPUT_CODE_INVALID)
 
 	PORT_START("mouse3")  // Y-axis
-	PORT_BIT( 0xfff, 0x00, IPT_MOUSE_Y) PORT_SENSITIVITY(100) PORT_KEYDELTA(0) PORT_PLAYER(1)
+	PORT_BIT( 0xfff, 0x00, IPT_MOUSE_Y) PORT_SENSITIVITY(200) PORT_KEYDELTA(1) PORT_PLAYER(1) PORT_CODE_DEC(INPUT_CODE_INVALID) PORT_CODE_INC(INPUT_CODE_INVALID)
 
 INPUT_PORTS_END

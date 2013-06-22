@@ -51,7 +51,7 @@ WRITE8_MEMBER(megazone_state::megazone_port_b_w)
 			C += 220000;    /* 220000pF = 0.22uF */
 
 		data >>= 2;
-		filter_rc_set_RC(machine().device(fltname[i]),FLT_RC_LOWPASS,1000,2200,200,CAP_P(C));
+		dynamic_cast<filter_rc_device*>(machine().device(fltname[i]))->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 2200, 200, CAP_P(C));
 	}
 }
 
@@ -62,7 +62,6 @@ WRITE8_MEMBER(megazone_state::megazone_i8039_irq_w)
 
 WRITE8_MEMBER(megazone_state::i8039_irqen_and_status_w)
 {
-
 	if ((data & 0x80) == 0)
 		m_daccpu->set_input_line(0, CLEAR_LINE);
 	m_i8039_status = (data & 0x70) >> 4;
@@ -75,7 +74,6 @@ WRITE8_MEMBER(megazone_state::megazone_coin_counter_w)
 
 WRITE8_MEMBER(megazone_state::irq_mask_w)
 {
-
 	m_irq_mask = data & 1;
 }
 
@@ -113,9 +111,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( megazone_sound_io_map, AS_IO, 8, megazone_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
-	AM_RANGE(0x00, 0x02) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x02, 0x02) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
+	AM_RANGE(0x00, 0x00) AM_DEVWRITE("aysnd", ay8910_device, address_w)
+	AM_RANGE(0x00, 0x02) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x02, 0x02) AM_DEVWRITE("aysnd", ay8910_device, data_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( megazone_i8039_map, AS_PROGRAM, 8, megazone_state )
@@ -228,25 +226,18 @@ static const ay8910_interface ay8910_config =
 
 void megazone_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_daccpu = machine().device<cpu_device>("daccpu");
-
 	save_item(NAME(m_flipscreen));
 	save_item(NAME(m_i8039_status));
 }
 
 void megazone_state::machine_reset()
 {
-
 	m_flipscreen = 0;
 	m_i8039_status = 0;
 }
 
 INTERRUPT_GEN_MEMBER(megazone_state::vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }
@@ -294,11 +285,11 @@ static MACHINE_CONFIG_START( megazone, megazone_state )
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
-	MCFG_SOUND_ADD("filter.0.0", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter.0.0", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_ADD("filter.0.1", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter.0.1", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_ADD("filter.0.2", FILTER_RC, 0)
+	MCFG_FILTER_RC_ADD("filter.0.2", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -527,13 +518,8 @@ DRIVER_INIT_MEMBER(megazone_state,megazone)
 	konami1_decode(machine(), "maincpu");
 }
 
-/* these just display a Konami copyright, no logo */
-GAME( 1983, megazone, 0,         megazone, megazone, megazone_state, megazone, ROT90, "Konami",                       "Mega Zone (Konami set 1)", GAME_SUPPORTS_SAVE )
-GAME( 1983, megazonea, megazone, megazone, megazona, megazone_state, megazone, ROT90, "Konami",                       "Mega Zone (Konami set 2)", GAME_SUPPORTS_SAVE )
-
-/* these display Konami and Kosuka copyright, no logo */
-GAME( 1983, megazoneb, megazone, megazone, megazone, megazone_state, megazone, ROT90, "Konami / Kosuka",              "Mega Zone (Kosuka set 1)", GAME_SUPPORTS_SAVE )
-GAME( 1983, megazonec, megazone, megazone, megazone, megazone_state, megazone, ROT90, "Konami / Kosuka",              "Mega Zone (Kosuka set 2)", GAME_SUPPORTS_SAVE )
-
-/* this displays Konami and Kosuka copyright with a Konami / Interlogic logo */
-GAME( 1983, megazonei, megazone, megazone, megazone, megazone_state, megazone, ROT90, "Konami / Interlogic / Kosuka", "Mega Zone (Interlogic / Kosuka)", GAME_SUPPORTS_SAVE )
+GAME( 1983, megazone, 0,         megazone, megazone, megazone_state, megazone, ROT90, "Konami", "Mega Zone (Konami set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1983, megazonea, megazone, megazone, megazona, megazone_state, megazone, ROT90, "Konami", "Mega Zone (Konami set 2)", GAME_SUPPORTS_SAVE )
+GAME( 1983, megazoneb, megazone, megazone, megazone, megazone_state, megazone, ROT90, "Konami (Kosuka license)", "Mega Zone (Kosuka set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1983, megazonec, megazone, megazone, megazone, megazone_state, megazone, ROT90, "Konami (Kosuka license)", "Mega Zone (Kosuka set 2)", GAME_SUPPORTS_SAVE )
+GAME( 1983, megazonei, megazone, megazone, megazone, megazone_state, megazone, ROT90, "Konami (Interlogic license)", "Mega Zone (Interlogic)", GAME_SUPPORTS_SAVE )

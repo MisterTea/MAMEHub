@@ -19,20 +19,20 @@
 INPUT_CHANGED_MEMBER(madalien_state::coin_inserted)
 {
 	/* coin insertion causes an NMI */
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
 }
 
 
-INLINE UINT8 shift_common(running_machine &machine, UINT8 hi, UINT8 lo)
+inline UINT8 madalien_state::shift_common(UINT8 hi, UINT8 lo)
 {
-	const UINT8 *table = machine.root_device().memregion("user2")->base();
+	const UINT8 *table = memregion("user2")->base();
 
 	return table[((hi & 0x07) << 8) | lo];
 }
 
 READ8_MEMBER(madalien_state::shift_r)
 {
-	return shift_common(machine(), *m_shift_hi, *m_shift_lo);
+	return shift_common(*m_shift_hi, *m_shift_lo);
 }
 
 READ8_MEMBER(madalien_state::shift_rev_r)
@@ -40,7 +40,7 @@ READ8_MEMBER(madalien_state::shift_rev_r)
 	UINT8 hi = *m_shift_hi ^ 0x07;
 	UINT8 lo = BITSWAP8(*m_shift_lo,0,1,2,3,4,5,6,7);
 
-	UINT8 ret = shift_common(machine(), hi, lo);
+	UINT8 ret = shift_common(hi, lo);
 
 	return BITSWAP8(ret,7,0,1,2,3,4,5,6) & 0x7f;
 }
@@ -54,27 +54,25 @@ WRITE8_MEMBER(madalien_state::madalien_output_w)
 
 WRITE8_MEMBER(madalien_state::madalien_sound_command_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(0, ASSERT_LINE);
+	m_audiocpu->set_input_line(0, ASSERT_LINE);
 	soundlatch_byte_w(space, offset, data);
 }
 
 
 READ8_MEMBER(madalien_state::madalien_sound_command_r)
 {
-	machine().device("audiocpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_audiocpu->set_input_line(0, CLEAR_LINE);
 	return soundlatch_byte_r(space, offset);
 }
 
 
 WRITE8_MEMBER(madalien_state::madalien_portA_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, MADALIEN_8910_PORTA, data);
+	discrete_sound_w(m_discrete, space, MADALIEN_8910_PORTA, data);
 }
 WRITE8_MEMBER(madalien_state::madalien_portB_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, MADALIEN_8910_PORTB, data);
+	discrete_sound_w(m_discrete, space, MADALIEN_8910_PORTB, data);
 }
 
 
@@ -110,7 +108,7 @@ static ADDRESS_MAP_START( audio_map, AS_PROGRAM, 8, madalien_state )
 	AM_RANGE(0x0000, 0x03ff) AM_MIRROR(0x1c00) AM_RAM
 	AM_RANGE(0x6000, 0x6003) AM_MIRROR(0x1ffc) AM_RAM /* unknown device in an epoxy block, might be tilt detection */
 	AM_RANGE(0x8000, 0x8000) AM_MIRROR(0x1ffc) AM_READ(madalien_sound_command_r)
-	AM_RANGE(0x8000, 0x8001) AM_MIRROR(0x1ffc) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x8000, 0x8001) AM_MIRROR(0x1ffc) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x8002, 0x8002) AM_MIRROR(0x1ffc) AM_WRITE(soundlatch2_byte_w)
 	AM_RANGE(0xf800, 0xffff) AM_ROM
 ADDRESS_MAP_END

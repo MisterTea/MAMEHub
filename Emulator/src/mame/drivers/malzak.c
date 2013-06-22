@@ -152,7 +152,7 @@ WRITE8_MEMBER(malzak_state::port40_w)
 //  Bits 1-3 are all set high upon death, until the game continues
 //  Bit 6 is used only in Malzak II, and is set high after checking
 //        the selected version
-//  logerror("S2650 [0x%04x]: port 0x40 write: 0x%02x\n", machine().device("maincpu")->safe_pc(), data);
+//  logerror("S2650 [0x%04x]: port 0x40 write: 0x%02x\n", m_maincpu->safe_pc(), data);
 	membank("bank1")->set_entry((data & 0x40) >> 6);
 }
 
@@ -170,7 +170,6 @@ WRITE8_MEMBER(malzak_state::portc0_w)
 
 READ8_MEMBER(malzak_state::collision_r)
 {
-
 	// High 4 bits seem to refer to the row affected.
 	if(++m_collision_counter > 15)
 		m_collision_counter = 0;
@@ -331,7 +330,6 @@ static SAA5050_INTERFACE( malzac_saa5050_intf )
 
 void malzak_state::machine_start()
 {
-
 	membank("bank1")->configure_entries(0, 2, memregion("user2")->base(), 0x400);
 
 	m_s2636_0 = machine().device("s2636_0");
@@ -345,7 +343,6 @@ void malzak_state::machine_start()
 
 void malzak_state::machine_reset()
 {
-
 	memset(m_playfield_code, 0, 256 * sizeof(int));
 
 	m_malzak_x = 0;

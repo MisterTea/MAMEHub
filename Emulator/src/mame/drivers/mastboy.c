@@ -448,7 +448,9 @@ public:
 			m_nvram(*this, "nvram") ,
 		m_workram(*this, "workram"),
 		m_tileram(*this, "tileram"),
-		m_colram(*this, "colram"){ }
+		m_colram(*this, "colram"),
+		m_maincpu(*this, "maincpu"),
+		m_msm(*this, "msm") { }
 
 	required_shared_ptr<UINT8>  m_nvram;
 	required_shared_ptr<UINT8> m_workram;
@@ -480,6 +482,9 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_mastboy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(mastboy_interrupt);
+	DECLARE_WRITE_LINE_MEMBER(mastboy_adpcm_int);
+	required_device<cpu_device> m_maincpu;
+	required_device<msm5205_device> m_msm;
 };
 
 
@@ -636,30 +641,25 @@ WRITE8_MEMBER(mastboy_state::backupram_enable_w)
 
 WRITE8_MEMBER(mastboy_state::msm5205_mastboy_m5205_sambit0_w)
 {
-	device_t *adpcm = machine().device("msm");
-
 	m_m5205_sambit0 = data & 1;
-	msm5205_playmode_w(adpcm,  (1 << 2) | (m_m5205_sambit1 << 1) | (m_m5205_sambit0) );
+	m_msm->playmode_w((1 << 2) | (m_m5205_sambit1 << 1) | (m_m5205_sambit0) );
 
 	logerror("msm5205 samplerate bit 0, set to %02x\n",data);
 }
 
 WRITE8_MEMBER(mastboy_state::msm5205_mastboy_m5205_sambit1_w)
 {
-	device_t *adpcm = machine().device("msm");
-
 	m_m5205_sambit1 = data & 1;
 
-	msm5205_playmode_w(adpcm,  (1 << 2) | (m_m5205_sambit1 << 1) | (m_m5205_sambit0) );
+	m_msm->playmode_w((1 << 2) | (m_m5205_sambit1 << 1) | (m_m5205_sambit0) );
 
 	logerror("msm5205 samplerate bit 0, set to %02x\n",data);
 }
 
 WRITE8_MEMBER(mastboy_state::mastboy_msm5205_reset_w)
 {
-	device_t *device = machine().device("msm");
 	m_m5205_part = 0;
-	msm5205_reset_w(device,data&1);
+	m_msm->reset_w(data & 1);
 }
 
 WRITE8_MEMBER(mastboy_state::mastboy_msm5205_data_w)
@@ -667,21 +667,20 @@ WRITE8_MEMBER(mastboy_state::mastboy_msm5205_data_w)
 	m_m5205_next = data;
 }
 
-static void mastboy_adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(mastboy_state::mastboy_adpcm_int)
 {
-	mastboy_state *state = device->machine().driver_data<mastboy_state>();
-	msm5205_data_w(device, state->m_m5205_next);
-	state->m_m5205_next >>= 4;
+	m_msm->data_w(m_m5205_next);
+	m_m5205_next >>= 4;
 
-	state->m_m5205_part ^= 1;
-	if(!state->m_m5205_part)
-		device->machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_m5205_part ^= 1;
+	if(!m_m5205_part)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
 static const msm5205_interface msm5205_config =
 {
-	mastboy_adpcm_int,  /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(mastboy_state,mastboy_adpcm_int),  /* interrupt function */
 	MSM5205_SEX_4B      /* 4KHz 4-bit */
 };
 
@@ -691,7 +690,7 @@ WRITE8_MEMBER(mastboy_state::mastboy_irq0_ack_w)
 {
 	m_irq0_ack = data;
 	if ((data & 1) == 1)
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(mastboy_state::mastboy_interrupt)
@@ -722,8 +721,8 @@ static ADDRESS_MAP_START( mastboy_map, AS_PROGRAM, 8, mastboy_state )
 	AM_RANGE(0xff818, 0xff81f) AM_READ_PORT("DSW2")
 
 	AM_RANGE(0xff820, 0xff827) AM_WRITE(mastboy_bank_w)
-	AM_RANGE(0xff828, 0xff828) AM_DEVWRITE_LEGACY("saa", saa1099_data_w)
-	AM_RANGE(0xff829, 0xff829) AM_DEVWRITE_LEGACY("saa", saa1099_control_w)
+	AM_RANGE(0xff828, 0xff828) AM_DEVWRITE("saa", saa1099_device, saa1099_data_w)
+	AM_RANGE(0xff829, 0xff829) AM_DEVWRITE("saa", saa1099_device, saa1099_control_w)
 	AM_RANGE(0xff830, 0xff830) AM_WRITE(mastboy_msm5205_data_w)
 	AM_RANGE(0xff838, 0xff838) AM_WRITE(mastboy_irq0_ack_w)
 	AM_RANGE(0xff839, 0xff839) AM_WRITE(msm5205_mastboy_m5205_sambit0_w)
@@ -878,7 +877,7 @@ void mastboy_state::machine_reset()
 	memset( m_vram, 0x00, 0x10000);
 
 	m_m5205_part = 0;
-	msm5205_reset_w(machine().device("msm"),1);
+	m_msm->reset_w(1);
 	m_irq0_ack = 0;
 }
 
@@ -907,7 +906,7 @@ static MACHINE_CONFIG_START( mastboy, mastboy_state )
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("saa", SAA1099, 6000000 )
+	MCFG_SAA1099_ADD("saa", 6000000 )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)

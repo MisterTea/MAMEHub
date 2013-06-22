@@ -13,19 +13,6 @@
 #include "sound/dac.h"
 #include "sound/hc55516.h"
 
-
-/* older-Williams routines */
-static void williams_main_irq(device_t *device, int state);
-static void williams_main_firq(device_t *device, int state);
-static void williams_snd_irq(device_t *device, int state);
-static void williams_snd_irq_b(device_t *device, int state);
-
-/* newer-Williams routines */
-static void mysticm_main_irq(device_t *device, int state);
-static void tshoot_main_irq(device_t *device, int state);
-
-
-
 /*************************************
  *
  *  Generic old-Williams PIA interfaces
@@ -71,7 +58,7 @@ const pia6821_interface williams_pia_1_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_INPUT_PORT("IN2"), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_NULL, DEVCB_DRIVER_MEMBER(williams_state,williams_snd_cmd_w), DEVCB_NULL, DEVCB_NULL,
-	/*irqs   : A/B             */ DEVCB_LINE(williams_main_irq), DEVCB_LINE(williams_main_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq)
 };
 
 /* Generic PIA 2, maps to DAC data in and sound IRQs */
@@ -79,14 +66,14 @@ const pia6821_interface williams_snd_pia_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_DEVICE_MEMBER("wmsdac", dac_device, write_unsigned8), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	/*irqs   : A/B             */ DEVCB_LINE(williams_snd_irq), DEVCB_LINE(williams_snd_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq)
 };
 /* Same as above, but for second sound board */
 const pia6821_interface williams_snd_pia_b_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_DEVICE_MEMBER("wmsdac_b", dac_device, write_unsigned8), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	/*irqs   : A/B             */ DEVCB_LINE(williams_snd_irq_b), DEVCB_LINE(williams_snd_irq_b)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq_b), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq_b)
 };
 
 
@@ -110,7 +97,7 @@ const pia6821_interface sinistar_snd_pia_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_DEVICE_MEMBER("wmsdac", dac_device, write_unsigned8), DEVCB_NULL, DEVCB_DEVICE_LINE("cvsd", hc55516_digit_w), DEVCB_DEVICE_LINE("cvsd", hc55516_clock_w),
-	/*irqs   : A/B             */ DEVCB_LINE(williams_snd_irq), DEVCB_LINE(williams_snd_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq)
 };
 
 /* Special PIA 1 for PlayBall, doesn't set the high bits on sound commands */
@@ -118,7 +105,7 @@ const pia6821_interface playball_pia_1_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_INPUT_PORT("IN2"), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_NULL, DEVCB_DRIVER_MEMBER(williams_state,playball_snd_cmd_w), DEVCB_NULL, DEVCB_NULL,
-	/*irqs   : A/B             */ DEVCB_LINE(williams_main_irq), DEVCB_LINE(williams_main_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq)
 };
 
 /* Special PIA 1 for Blaster, to support two sound boards */
@@ -126,7 +113,7 @@ const pia6821_interface blaster_pia_1_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_INPUT_PORT("IN2"), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_NULL, DEVCB_DRIVER_MEMBER(williams_state,blaster_snd_cmd_w), DEVCB_NULL, DEVCB_NULL,
-	/*irqs   : A/B             */ DEVCB_LINE(williams_main_irq), DEVCB_LINE(williams_main_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq)
 };
 
 /* extra PIA 3 for Speed Ball */
@@ -158,7 +145,7 @@ const pia6821_interface williams2_pia_1_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_INPUT_PORT("IN2"), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_NULL, DEVCB_DRIVER_MEMBER(williams_state,williams2_snd_cmd_w), DEVCB_NULL, DEVCB_DEVICE_LINE_MEMBER("pia_2", pia6821_device, ca1_w),
-	/*irqs   : A/B             */ DEVCB_LINE(williams_main_irq), DEVCB_LINE(williams_main_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq)
 };
 
 /* Generic PIA 2, maps to DAC data in and sound IRQs */
@@ -166,7 +153,7 @@ const pia6821_interface williams2_snd_pia_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_DEVICE_MEMBER("pia_1", pia6821_device, portb_w), DEVCB_DEVICE_MEMBER("wmsdac", dac_device, write_unsigned8), DEVCB_DEVICE_LINE_MEMBER("pia_1", pia6821_device, cb1_w), DEVCB_NULL,
-	/*irqs   : A/B             */ DEVCB_LINE(williams_snd_irq), DEVCB_LINE(williams_snd_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq)
 };
 
 
@@ -182,7 +169,7 @@ const pia6821_interface mysticm_pia_0_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_INPUT_PORT("IN0"), DEVCB_INPUT_PORT("IN1"), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	/*irqs   : A/B             */ DEVCB_LINE(williams_main_firq), DEVCB_LINE(mysticm_main_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_firq), DEVCB_DRIVER_LINE_MEMBER(williams_state,mysticm_main_irq)
 };
 
 /* Mystic Marathon PIA 1 */
@@ -190,7 +177,7 @@ const pia6821_interface mysticm_pia_1_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_INPUT_PORT("IN2"), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_NULL, DEVCB_DRIVER_MEMBER(williams_state,williams2_snd_cmd_w), DEVCB_NULL, DEVCB_DEVICE_LINE_MEMBER("pia_2", pia6821_device, ca1_w),
-	/*irqs   : A/B             */ DEVCB_LINE(mysticm_main_irq), DEVCB_LINE(mysticm_main_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,mysticm_main_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,mysticm_main_irq)
 };
 
 /* Turkey Shoot PIA 0 */
@@ -198,7 +185,7 @@ const pia6821_interface tshoot_pia_0_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_DRIVER_MEMBER(williams_state,tshoot_input_port_0_3_r), DEVCB_INPUT_PORT("IN1"), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_NULL, DEVCB_DRIVER_MEMBER(williams_state,tshoot_lamp_w), DEVCB_DRIVER_MEMBER(williams_state,williams_port_select_w), DEVCB_NULL,
-	/*irqs   : A/B             */ DEVCB_LINE(tshoot_main_irq), DEVCB_LINE(tshoot_main_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,tshoot_main_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,tshoot_main_irq)
 };
 
 /* Turkey Shoot PIA 1 */
@@ -206,7 +193,7 @@ const pia6821_interface tshoot_pia_1_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_INPUT_PORT("IN2"), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_NULL, DEVCB_DRIVER_MEMBER(williams_state,williams2_snd_cmd_w), DEVCB_NULL, DEVCB_DEVICE_LINE_MEMBER("pia_2", pia6821_device, ca1_w),
-	/*irqs   : A/B             */ DEVCB_LINE(tshoot_main_irq), DEVCB_LINE(tshoot_main_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,tshoot_main_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,tshoot_main_irq)
 };
 
 /* Turkey Shoot PIA 2 */
@@ -214,7 +201,7 @@ const pia6821_interface tshoot_snd_pia_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_DEVICE_MEMBER("pia_1", pia6821_device, portb_w), DEVCB_DEVICE_MEMBER("wmsdac", dac_device, write_unsigned8), DEVCB_DEVICE_LINE_MEMBER("pia_1", pia6821_device, cb1_w), DEVCB_DRIVER_MEMBER(williams_state,tshoot_maxvol_w),
-	/*irqs   : A/B             */ DEVCB_LINE(williams_snd_irq), DEVCB_LINE(williams_snd_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_snd_irq)
 };
 
 /* Joust 2 PIA 1 */
@@ -222,7 +209,7 @@ const pia6821_interface joust2_pia_1_intf =
 {
 	/*inputs : A/B,CA/B1,CA/B2 */ DEVCB_INPUT_PORT("IN2"), DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 	/*outputs: A/B,CA/B2       */ DEVCB_NULL, DEVCB_DRIVER_MEMBER(joust2_state,joust2_snd_cmd_w), DEVCB_DRIVER_MEMBER(joust2_state,joust2_pia_3_cb1_w), DEVCB_DEVICE_LINE_MEMBER("pia_2", pia6821_device, ca1_w),
-	/*irqs   : A/B             */ DEVCB_LINE(williams_main_irq), DEVCB_LINE(williams_main_irq)
+	/*irqs   : A/B             */ DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq), DEVCB_DRIVER_LINE_MEMBER(williams_state,williams_main_irq)
 };
 
 
@@ -272,39 +259,39 @@ TIMER_DEVICE_CALLBACK_MEMBER(williams_state::williams_count240_callback)
 }
 
 
-static void williams_main_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(williams_state::williams_main_irq)
 {
-	pia6821_device *pia_1 = device->machine().device<pia6821_device>("pia_1");
+	pia6821_device *pia_1 = machine().device<pia6821_device>("pia_1");
 	int combined_state = pia_1->irq_a_state() | pia_1->irq_b_state();
 
 	/* IRQ to the main CPU */
-	device->machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
-static void williams_main_firq(device_t *device, int state)
+WRITE_LINE_MEMBER(williams_state::williams_main_firq)
 {
 	/* FIRQ to the main CPU */
-	device->machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
-static void williams_snd_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(williams_state::williams_snd_irq)
 {
-	pia6821_device *pia_2 = device->machine().device<pia6821_device>("pia_2");
+	pia6821_device *pia_2 = machine().device<pia6821_device>("pia_2");
 	int combined_state = pia_2->irq_a_state() | pia_2->irq_b_state();
 
 	/* IRQ to the sound CPU */
-	device->machine().device("soundcpu")->execute().set_input_line(M6800_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu->set_input_line(M6800_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
 }
 /* Same as above, but for second sound board */
-static void williams_snd_irq_b(device_t *device, int state)
+WRITE_LINE_MEMBER(williams_state::williams_snd_irq_b)
 {
-	pia6821_device *pia_2 = device->machine().device<pia6821_device>("pia_2b");
+	pia6821_device *pia_2 = machine().device<pia6821_device>("pia_2b");
 	int combined_state = pia_2->irq_a_state() | pia_2->irq_b_state();
 
 	/* IRQ to the sound CPU */
-	device->machine().device("soundcpu_b")->execute().set_input_line(M6800_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu_b->set_input_line(M6800_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -315,25 +302,25 @@ static void williams_snd_irq_b(device_t *device, int state)
  *
  *************************************/
 
-static void mysticm_main_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(williams_state::mysticm_main_irq)
 {
-	pia6821_device *pia_0 = device->machine().device<pia6821_device>("pia_0");
-	pia6821_device *pia_1 = device->machine().device<pia6821_device>("pia_1");
+	pia6821_device *pia_0 = machine().device<pia6821_device>("pia_0");
+	pia6821_device *pia_1 = machine().device<pia6821_device>("pia_1");
 	int combined_state = pia_0->irq_b_state() | pia_1->irq_a_state() | pia_1->irq_b_state();
 
 	/* IRQ to the main CPU */
-	device->machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
-static void tshoot_main_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(williams_state::tshoot_main_irq)
 {
-	pia6821_device *pia_0 = device->machine().device<pia6821_device>("pia_0");
-	pia6821_device *pia_1 = device->machine().device<pia6821_device>("pia_1");
+	pia6821_device *pia_0 = machine().device<pia6821_device>("pia_0");
+	pia6821_device *pia_1 = machine().device<pia6821_device>("pia_1");
 	int combined_state = pia_0->irq_a_state() | pia_0->irq_b_state() | pia_1->irq_a_state() | pia_1->irq_b_state();
 
 	/* IRQ to the main CPU */
-	device->machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -350,7 +337,7 @@ MACHINE_START_MEMBER(williams_state,williams_common)
 	membank("bank1")->configure_entry(0, m_videoram);
 	membank("bank1")->configure_entry(1, memregion("maincpu")->base() + 0x10000);
 
-	state_save_register_global(machine(), m_vram_bank);
+	save_item(NAME(m_vram_bank));
 }
 
 
@@ -433,11 +420,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(williams_state::williams2_endscreen_callback)
  *
  *************************************/
 
-static void williams2_postload(running_machine &machine)
+void williams_state::williams2_postload()
 {
-	williams_state *state = machine.driver_data<williams_state>();
-	address_space &space = machine.device("maincpu")->memory().space(AS_PROGRAM);
-	state->williams2_bank_select_w(space, 0, state->m_vram_bank);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	williams2_bank_select_w(space, 0, m_vram_bank);
 }
 
 
@@ -448,14 +434,14 @@ MACHINE_START_MEMBER(williams_state,williams2)
 	membank("bank1")->configure_entries(1, 4, memregion("maincpu")->base() + 0x10000, 0x10000);
 
 	/* register for save states */
-	state_save_register_global(machine(), m_vram_bank);
-	machine().save().register_postload(save_prepost_delegate(FUNC(williams2_postload), &machine()));
+	save_item(NAME(m_vram_bank));
+	machine().save().register_postload(save_prepost_delegate(FUNC(williams_state::williams2_postload), this));
 }
 
 
 MACHINE_RESET_MEMBER(williams_state,williams2)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	/* make sure our banking is reset */
 	williams2_bank_select_w(space, 0, 0);
@@ -629,7 +615,7 @@ CUSTOM_INPUT_MEMBER(williams_state::williams_mux_r)
 READ8_MEMBER(williams_state::williams_49way_port_0_r)
 {
 	static const UINT8 translate49[7] = { 0x0, 0x4, 0x6, 0x7, 0xb, 0x9, 0x8 };
-	return (translate49[machine().root_device().ioport("49WAYX")->read() >> 4] << 4) | translate49[machine().root_device().ioport("49WAYY")->read() >> 4];
+	return (translate49[ioport("49WAYX")->read() >> 4] << 4) | translate49[ioport("49WAYY")->read() >> 4];
 }
 
 
@@ -734,11 +720,10 @@ WRITE8_MEMBER(williams_state::williams2_7segment_w)
  *
  *************************************/
 
-static void defender_postload(running_machine &machine)
+void williams_state::defender_postload()
 {
-	williams_state *state = machine.driver_data<williams_state>();
-	address_space &space = machine.device("maincpu")->memory().space(AS_PROGRAM);
-	state->defender_bank_select_w(space, 0, state->m_vram_bank);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	defender_bank_select_w(space, 0, m_vram_bank);
 }
 
 
@@ -747,15 +732,15 @@ MACHINE_START_MEMBER(williams_state,defender)
 	MACHINE_START_CALL_MEMBER(williams_common);
 
 	/* configure the banking and make sure it is reset to 0 */
-	machine().root_device().membank("bank1")->configure_entries(0, 9, &machine().root_device().memregion("maincpu")->base()[0x10000], 0x1000);
+	membank("bank1")->configure_entries(0, 9, &memregion("maincpu")->base()[0x10000], 0x1000);
 
-	machine().save().register_postload(save_prepost_delegate(FUNC(defender_postload), &machine()));
+	machine().save().register_postload(save_prepost_delegate(FUNC(williams_state::defender_postload), this));
 }
 
 
 MACHINE_RESET_MEMBER(williams_state,defender)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	MACHINE_RESET_CALL_MEMBER(williams_common);
 
@@ -857,7 +842,7 @@ MACHINE_START_MEMBER(williams_state,blaster)
 	membank("bank2")->configure_entry(0, m_videoram + 0x4000);
 	membank("bank2")->configure_entries(1, 16, memregion("maincpu")->base() + 0x10000, 0x0000);
 
-	state_save_register_global(machine(), m_blaster_bank);
+	save_item(NAME(m_blaster_bank));
 }
 
 
@@ -867,11 +852,10 @@ MACHINE_RESET_MEMBER(williams_state,blaster)
 }
 
 
-INLINE void update_blaster_banking(running_machine &machine)
+inline void williams_state::update_blaster_banking()
 {
-	williams_state *state = machine.driver_data<williams_state>();
-	state->membank("bank1")->set_entry(state->m_vram_bank * (state->m_blaster_bank + 1));
-	state->membank("bank2")->set_entry(state->m_vram_bank * (state->m_blaster_bank + 1));
+	membank("bank1")->set_entry(m_vram_bank * (m_blaster_bank + 1));
+	membank("bank2")->set_entry(m_vram_bank * (m_blaster_bank + 1));
 }
 
 
@@ -879,7 +863,7 @@ WRITE8_MEMBER(williams_state::blaster_vram_select_w)
 {
 	/* VRAM/ROM banking from bit 0 */
 	m_vram_bank = data & 0x01;
-	update_blaster_banking(machine());
+	update_blaster_banking();
 
 	/* cocktail flip from bit 1 */
 	m_cocktail = data & 0x02;
@@ -892,7 +876,7 @@ WRITE8_MEMBER(williams_state::blaster_vram_select_w)
 WRITE8_MEMBER(williams_state::blaster_bank_select_w)
 {
 	m_blaster_bank = data & 15;
-	update_blaster_banking(machine());
+	update_blaster_banking();
 }
 
 
@@ -919,7 +903,7 @@ WRITE8_MEMBER(williams_state::lottofun_coin_lock_w)
 READ8_MEMBER(williams_state::tshoot_input_port_0_3_r)
 {
 	/* merge in the gun inputs with the standard data */
-	int data = machine().root_device().ioport("IN0")->read();
+	int data = ioport("IN0")->read();
 	int gun = (data & 0x3f) ^ ((data & 0x3f) >> 1);
 	return (data & 0xc0) | gun;
 
@@ -959,7 +943,7 @@ WRITE8_MEMBER(williams_state::tshoot_lamp_w)
 MACHINE_START_MEMBER(joust2_state,joust2)
 {
 	MACHINE_START_CALL_MEMBER(williams2);
-	state_save_register_global(machine(), m_joust2_current_sound_data);
+	save_item(NAME(m_joust2_current_sound_data));
 }
 
 

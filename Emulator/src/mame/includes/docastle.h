@@ -1,13 +1,16 @@
-
+#include "sound/msm5205.h"
 
 class docastle_state : public driver_device
 {
 public:
 	docastle_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_slave(*this, "slave"),
+		m_msm(*this, "msm"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -26,8 +29,10 @@ public:
 	UINT8    m_buffer1[9];
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_slave;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_slave;
+	optional_device<msm5205_device> m_msm;
+
 	DECLARE_READ8_MEMBER(docastle_shared0_r);
 	DECLARE_READ8_MEMBER(docastle_shared1_r);
 	DECLARE_WRITE8_MEMBER(docastle_shared0_w);
@@ -48,4 +53,7 @@ public:
 	virtual void palette_init();
 	DECLARE_VIDEO_START(dorunrun);
 	UINT32 screen_update_docastle(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void video_start_common( UINT32 tile_transmask );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	DECLARE_WRITE_LINE_MEMBER(idsoccer_adpcm_int);
 };

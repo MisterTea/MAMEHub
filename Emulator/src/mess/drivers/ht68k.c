@@ -75,12 +75,13 @@ void ht68k_state::machine_reset()
 
 	memcpy((UINT8*)m_p_ram.target(),user1,0x8000);
 
-	machine().device("maincpu")->reset();
+	m_maincpu->reset();
 }
 
 static void duart_irq_handler(device_t *device, int state, UINT8 vector)
 {
-	device->machine().device("maincpu")->execute().set_input_line_and_vector(M68K_IRQ_3, state, M68K_INT_ACK_AUTOVECTOR);
+	ht68k_state *drvstate = device->machine().driver_data<ht68k_state>();
+	drvstate->m_maincpu->set_input_line_and_vector(M68K_IRQ_3, state, M68K_INT_ACK_AUTOVECTOR);
 }
 
 static void duart_tx(device_t *device, int channel, UINT8 data)
@@ -148,10 +149,10 @@ static MACHINE_CONFIG_START( ht68k, ht68k_state )
 
 	MCFG_WD1770x_ADD("wd1770", XTAL_8MHz )
 
-	MCFG_FLOPPY_DRIVE_ADD("wd1770:0", ht68k_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("wd1770:1", ht68k_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("wd1770:2", ht68k_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("wd1770:3", ht68k_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("wd1770:0", ht68k_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("wd1770:1", ht68k_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("wd1770:2", ht68k_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("wd1770:3", ht68k_floppies, "525dd", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
 
 /* ROM definition */

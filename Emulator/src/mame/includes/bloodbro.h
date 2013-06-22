@@ -2,12 +2,13 @@ class bloodbro_state : public driver_device
 {
 public:
 	bloodbro_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_bgvideoram(*this, "bgvideoram"),
 		m_fgvideoram(*this, "fgvideoram"),
 		m_txvideoram(*this, "txvideoram"),
-		m_scroll(*this, "scroll"){ }
+		m_scroll(*this, "scroll"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_spriteram;
 	required_shared_ptr<UINT16> m_bgvideoram;
@@ -29,4 +30,7 @@ public:
 	UINT32 screen_update_bloodbro(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_weststry(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_skysmash(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void bloodbro_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void weststry_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };

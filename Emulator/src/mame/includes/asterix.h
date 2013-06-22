@@ -3,12 +3,24 @@
     Asterix
 
 *************************************************************************/
+#include "sound/k053260.h"
 
 class asterix_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_NMI
+	};
+
 	asterix_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_k053260(*this, "k053260"),
+		m_k056832(*this, "k056832"),
+		m_k053244(*this, "k053244"),
+		m_k053251(*this, "k053251") { }
 
 	/* memory pointers */
 //  UINT16 *    m_paletteram;    // currently this uses generic palette handling
@@ -26,12 +38,12 @@ public:
 	UINT16      m_prot[2];
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_k053260;
-	device_t *m_k056832;
-	device_t *m_k053244;
-	device_t *m_k053251;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<k053260_device> m_k053260;
+	required_device<k056832_device> m_k056832;
+	required_device<k05324x_device> m_k053244;
+	required_device<k053251_device> m_k053251;
 	DECLARE_READ16_MEMBER(control2_r);
 	DECLARE_WRITE16_MEMBER(control2_w);
 	DECLARE_WRITE8_MEMBER(sound_arm_nmi_w);
@@ -44,7 +56,9 @@ public:
 	virtual void machine_reset();
 	UINT32 screen_update_asterix(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(asterix_interrupt);
-	TIMER_CALLBACK_MEMBER(nmi_callback);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 /*----------- defined in video/asterix.c -----------*/

@@ -15,26 +15,15 @@
 
 
 static ADDRESS_MAP_START( at16_map, AS_PROGRAM, 16, at_state )
-	AM_RANGE(0x000000, 0x09ffff) AM_MIRROR(0xff000000) AM_RAMBANK("bank10")
+	AM_RANGE(0x000000, 0x09ffff) AM_RAMBANK("bank10")
 	AM_RANGE(0x0c0000, 0x0c7fff) AM_ROM
 	AM_RANGE(0x0c8000, 0x0cffff) AM_ROM
 	AM_RANGE(0x0d0000, 0x0effff) AM_RAM
 	AM_RANGE(0x0f0000, 0x0fffff) AM_ROM
-	AM_RANGE(0xff0000, 0xffffff) AM_ROM AM_REGION("maincpu", 0x0f0000)
-ADDRESS_MAP_END
-
-static ADDRESS_MAP_START( neat_map, AS_PROGRAM, 16, at_state )
-	AM_RANGE(0x000000, 0x09ffff) AM_MIRROR(0xff000000) AM_RAMBANK("bank10")
-	AM_RANGE(0x0c0000, 0x0c7fff) AM_ROM
-	AM_RANGE(0x0c8000, 0x0cffff) AM_ROM
-	AM_RANGE(0x0d0000, 0x0effff) AM_RAM
-	AM_RANGE(0x0f0000, 0x0fffff) AM_ROM
-	AM_RANGE(0x100000, 0xfeffff) AM_RAM
 	AM_RANGE(0xff0000, 0xffffff) AM_ROM AM_REGION("maincpu", 0x0f0000)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( at386_map, AS_PROGRAM, 32, at_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x00ffffff)
 	AM_RANGE(0x00000000, 0x0009ffff) AM_RAMBANK("bank10")
 	AM_RANGE(0x000a0000, 0x000bffff) AM_NOP
 	AM_RANGE(0x000c0000, 0x000c7fff) AM_ROM
@@ -42,7 +31,7 @@ static ADDRESS_MAP_START( at386_map, AS_PROGRAM, 32, at_state )
 	AM_RANGE(0x000d0000, 0x000effff) AM_ROM
 	AM_RANGE(0x000f0000, 0x000fffff) AM_ROM
 	AM_RANGE(0x00800000, 0x00800bff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x00ff0000, 0x00ffffff) AM_ROM AM_REGION("maincpu", 0x0f0000)
+	AM_RANGE(0xffff0000, 0xffffffff) AM_ROM AM_REGION("maincpu", 0x0f0000)
 ADDRESS_MAP_END
 
 // memory is mostly handled by the chipset
@@ -106,13 +95,13 @@ WRITE8_MEMBER( at_state::write_rtc )
 static ADDRESS_MAP_START( at16_io, AS_IO, 16, at_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE8("dma8237_1", am9517a_device, read, write, 0xffff)
-	AM_RANGE(0x0020, 0x003f) AM_DEVREADWRITE8_LEGACY("pic8259_master", pic8259_r, pic8259_w, 0xffff)
-	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8_LEGACY("pit8254", pit8253_r, pit8253_w, 0xffff)
+	AM_RANGE(0x0020, 0x003f) AM_DEVREADWRITE8("pic8259_master", pic8259_device, read, write, 0xffff)
+	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8("pit8254", pit8254_device, read, write, 0xffff)
 	AM_RANGE(0x0060, 0x0063) AM_READWRITE8(at_keybc_r, at_keybc_w, 0xffff)
 	AM_RANGE(0x0064, 0x0067) AM_DEVREADWRITE8("keybc", at_keyboard_controller_device, status_r, command_w, 0xffff)
 	AM_RANGE(0x0070, 0x007f) AM_DEVREAD8("rtc", mc146818_device, read, 0xffff) AM_WRITE8(write_rtc , 0xffff)
 	AM_RANGE(0x0080, 0x009f) AM_READWRITE8(at_page8_r, at_page8_w, 0xffff)
-	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8_LEGACY("pic8259_slave", pic8259_r, pic8259_w, 0xffff)
+	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8("pic8259_slave", pic8259_device, read, write, 0xffff)
 	AM_RANGE(0x00c0, 0x00df) AM_READWRITE8(at_dma8237_2_r, at_dma8237_2_w, 0xffff)
 ADDRESS_MAP_END
 
@@ -137,27 +126,27 @@ WRITE16_MEMBER( at_state::neat_chipset_w )
 static ADDRESS_MAP_START( neat_io, AS_IO, 16, at_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE8("dma8237_1", am9517a_device, read, write, 0xffff)
-	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8_LEGACY("pic8259_master", pic8259_r, pic8259_w, 0xffff)
+	AM_RANGE(0x0020, 0x0021) AM_DEVREADWRITE8("pic8259_master", pic8259_device, read, write, 0xffff)
 	AM_RANGE(0x0022, 0x0023) AM_READWRITE(neat_chipset_r, neat_chipset_w)
-	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8_LEGACY("pit8254", pit8253_r, pit8253_w, 0xffff)
+	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8("pit8254", pit8254_device, read, write, 0xffff)
 	AM_RANGE(0x0060, 0x0063) AM_READWRITE8(at_keybc_r, at_keybc_w, 0xffff)
 	AM_RANGE(0x0064, 0x0067) AM_DEVREADWRITE8("keybc", at_keyboard_controller_device, status_r, command_w, 0xffff)
 	AM_RANGE(0x0070, 0x007f) AM_DEVREADWRITE8("rtc", mc146818_device, read, write , 0xffff)
 	AM_RANGE(0x0080, 0x009f) AM_READWRITE8(at_page8_r, at_page8_w, 0xffff)
-	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8_LEGACY("pic8259_slave", pic8259_r, pic8259_w, 0xffff)
+	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8("pic8259_slave", pic8259_device, read, write, 0xffff)
 	AM_RANGE(0x00c0, 0x00df) AM_READWRITE8(at_dma8237_2_r, at_dma8237_2_w, 0xffff)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( at386_io, AS_IO, 32, at_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE8("dma8237_1", am9517a_device, read, write, 0xffffffff)
-	AM_RANGE(0x0020, 0x003f) AM_DEVREADWRITE8_LEGACY("pic8259_master", pic8259_r, pic8259_w, 0xffffffff)
-	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8_LEGACY("pit8254", pit8253_r, pit8253_w, 0xffffffff)
+	AM_RANGE(0x0020, 0x003f) AM_DEVREADWRITE8("pic8259_master", pic8259_device, read, write, 0xffffffff)
+	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8("pit8254", pit8254_device, read, write, 0xffffffff)
 	AM_RANGE(0x0060, 0x0063) AM_READWRITE8(at_keybc_r, at_keybc_w, 0xffff)
 	AM_RANGE(0x0064, 0x0067) AM_DEVREADWRITE8("keybc", at_keyboard_controller_device, status_r, command_w, 0xffff)
 	AM_RANGE(0x0070, 0x007f) AM_DEVREADWRITE8("rtc", mc146818_device, read, write , 0xffffffff)
 	AM_RANGE(0x0080, 0x009f) AM_READWRITE8(at_page8_r, at_page8_w, 0xffffffff)
-	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8_LEGACY("pic8259_slave", pic8259_r, pic8259_w, 0xffffffff)
+	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8("pic8259_slave", pic8259_device, read, write, 0xffffffff)
 	AM_RANGE(0x00c0, 0x00df) AM_READWRITE8(at_dma8237_2_r, at_dma8237_2_w, 0xffffffff)
 ADDRESS_MAP_END
 
@@ -165,10 +154,10 @@ ADDRESS_MAP_END
 READ32_MEMBER( at_state::ct486_chipset_r )
 {
 	if (ACCESSING_BITS_0_7)
-		return pic8259_r(m_pic8259_master, space, 0);
+		return m_pic8259_master->read(space, 0);
 
 	if (ACCESSING_BITS_8_15)
-		return pic8259_r(m_pic8259_master, space, 1) << 8;
+		return m_pic8259_master->read(space, 1) << 8;
 
 	if (ACCESSING_BITS_24_31)
 		return m_cs4031->data_r(space, 0, 0) << 24;
@@ -179,10 +168,10 @@ READ32_MEMBER( at_state::ct486_chipset_r )
 WRITE32_MEMBER( at_state::ct486_chipset_w )
 {
 	if (ACCESSING_BITS_0_7)
-		pic8259_w(m_pic8259_master, space, 0, data);
+		m_pic8259_master->write(space, 0, data);
 
 	if (ACCESSING_BITS_8_15)
-		pic8259_w(m_pic8259_master, space, 1, data >> 8);
+		m_pic8259_master->write(space, 1, data >> 8);
 
 	if (ACCESSING_BITS_16_23)
 		m_cs4031->address_w(space, 0, data >> 16, 0);
@@ -195,12 +184,12 @@ static ADDRESS_MAP_START( ct486_io, AS_IO, 32, at_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE8("dma8237_1", am9517a_device, read, write, 0xffffffff)
 	AM_RANGE(0x0020, 0x0023) AM_READWRITE(ct486_chipset_r, ct486_chipset_w)
-	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8_LEGACY("pit8254", pit8253_r, pit8253_w, 0xffffffff)
+	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8("pit8254", pit8254_device, read, write, 0xffffffff)
 	AM_RANGE(0x0060, 0x0063) AM_READWRITE8(at_keybc_r, at_keybc_w, 0xffff)
 	AM_RANGE(0x0064, 0x0067) AM_DEVREADWRITE8("keybc", at_keyboard_controller_device, status_r, command_w, 0xffff)
 	AM_RANGE(0x0070, 0x007f) AM_DEVREADWRITE8("rtc", mc146818_device, read, write , 0xffffffff)
 	AM_RANGE(0x0080, 0x009f) AM_READWRITE8(at_page8_r, at_page8_w, 0xffffffff)
-	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8_LEGACY("pic8259_slave", pic8259_r, pic8259_w, 0xffffffff)
+	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8("pic8259_slave", pic8259_device, read, write, 0xffffffff)
 	AM_RANGE(0x00c0, 0x00df) AM_READWRITE8(at_dma8237_2_r, at_dma8237_2_w, 0xffffffff)
 ADDRESS_MAP_END
 
@@ -213,19 +202,19 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( megapc_io, AS_IO, 32, at_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE8("dma8237_1", am9517a_device, read, write, 0xffffffff)
-	AM_RANGE(0x0020, 0x003f) AM_DEVREADWRITE8_LEGACY("pic8259_master", pic8259_r, pic8259_w, 0xffffffff)
-	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8_LEGACY("pit8254", pit8253_r, pit8253_w, 0xffffffff)
+	AM_RANGE(0x0020, 0x003f) AM_DEVREADWRITE8("pic8259_master", pic8259_device, read, write, 0xffffffff)
+	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8("pit8254", pit8254_device, read, write, 0xffffffff)
 	AM_RANGE(0x0060, 0x0063) AM_READWRITE8(at_keybc_r, at_keybc_w, 0xffff) // TODO: is this the correct type?
 	AM_RANGE(0x0064, 0x0067) AM_DEVREADWRITE8("keybc", at_keyboard_controller_device, status_r, command_w, 0xffff)
 	AM_RANGE(0x0070, 0x007f) AM_DEVREADWRITE8("rtc", mc146818_device, read, write , 0xffffffff)
 	AM_RANGE(0x0080, 0x009f) AM_READWRITE8(at_page8_r, at_page8_w, 0xffffffff)
-	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8_LEGACY("pic8259_slave", pic8259_r, pic8259_w, 0xffffffff)
+	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8("pic8259_slave", pic8259_device, read, write, 0xffffffff)
 	AM_RANGE(0x00c0, 0x00df) AM_READWRITE8(at_dma8237_2_r, at_dma8237_2_w, 0xffffffff)
 ADDRESS_MAP_END
 
 
 static INPUT_PORTS_START( atcga )
-	PORT_START("DSW0") /* IN1 */
+	PORT_START("DSW0")
 	PORT_DIPNAME( 0xc0, 0x40, "Number of floppy drives")
 	PORT_DIPSETTING(    0x00, "1" )
 	PORT_DIPSETTING(    0x40, "2" )
@@ -247,12 +236,10 @@ static INPUT_PORTS_START( atcga )
 	PORT_DIPNAME( 0x01, 0x01, "Floppy installed")
 	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( Yes ) )
-
-	PORT_INCLUDE( pcvideo_cga )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( atvga )
-	PORT_START("IN0") /* IN0 */
+	PORT_START("IN0")
 	PORT_DIPNAME( 0x08, 0x00, "VGA 1")
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
@@ -266,7 +253,7 @@ static INPUT_PORTS_START( atvga )
 	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
-	PORT_START("DSW0") /* IN1 */
+	PORT_START("DSW0")
 	PORT_DIPNAME( 0xc0, 0x40, "Number of floppy drives")
 	PORT_DIPSETTING(    0x00, "1" )
 	PORT_DIPSETTING(    0x40, "2" )
@@ -296,7 +283,7 @@ static const at_keyboard_controller_interface keyboard_controller_intf =
 {
 	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_RESET),
 	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_A20),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir1_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir1_w),
 	DEVCB_NULL,
 	DEVCB_DEVICE_LINE_MEMBER("pc_kbdc", pc_kbdc_device, clock_write_from_mb),
 	DEVCB_DEVICE_LINE_MEMBER("pc_kbdc", pc_kbdc_device, data_write_from_mb)
@@ -310,7 +297,7 @@ static const pc_kbdc_interface pc_kbdc_intf =
 
 WRITE_LINE_MEMBER( at_state::at_mc146818_irq )
 {
-	pic8259_ir0_w(m_pic8259_slave, (state) ? 0 : 1);
+	m_pic8259_slave->ir0_w((state) ? 0 : 1);
 }
 
 const struct mc146818_interface at_mc146818_config =
@@ -321,18 +308,18 @@ const struct mc146818_interface at_mc146818_config =
 static const isa16bus_interface isabus_intf =
 {
 	// interrupts
-	DEVCB_DEVICE_LINE("pic8259_slave",  pic8259_ir2_w), // in place of irq 2 on at irq 9 is used
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir3_w),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir4_w),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir5_w),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir6_w),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir7_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave",  pic8259_device, ir2_w), // in place of irq 2 on at irq 9 is used
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir3_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir4_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir5_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir6_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir7_w),
 
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir3_w),
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir4_w),
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir5_w),
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir6_w),
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir7_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir3_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir4_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir5_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir6_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir7_w),
 
 	// dma request
 	DEVCB_DEVICE_LINE_MEMBER("dma8237_1", am9517a_device, dreq0_w),
@@ -379,6 +366,8 @@ static SLOT_INTERFACE_START(pc_isa16_cards)
 	SLOT_INTERFACE("gus",ISA16_GUS)
 	SLOT_INTERFACE("sblaster_16", ISA16_SOUND_BLASTER_16)
 	SLOT_INTERFACE("svga_s3",ISA16_SVGA_S3)
+	SLOT_INTERFACE("s3virge",ISA16_S3VIRGE)
+	SLOT_INTERFACE("s3virgedx",ISA16_S3VIRGEDX)
 	SLOT_INTERFACE("gfxultra",ISA16_VGA_GFXULTRA)
 SLOT_INTERFACE_END
 
@@ -391,18 +380,18 @@ static MACHINE_CONFIG_FRAGMENT( at_motherboard )
 	MCFG_I8237_ADD( "dma8237_1", XTAL_14_31818MHz/3, at_dma8237_1_config )
 	MCFG_I8237_ADD( "dma8237_2", XTAL_14_31818MHz/3, at_dma8237_2_config )
 
-	MCFG_PIC8259_ADD( "pic8259_master", at_pic8259_master_config )
-	MCFG_PIC8259_ADD( "pic8259_slave", at_pic8259_slave_config )
+	MCFG_PIC8259_ADD( "pic8259_master", INPUTLINE("maincpu", 0), VCC, READ8(at_state, get_slave_ack) )
+	MCFG_PIC8259_ADD( "pic8259_slave", DEVWRITELINE("pic8259_master", pic8259_device, ir2_w), GND, NULL )
 
 	MCFG_AT_KEYBOARD_CONTROLLER_ADD("keybc", XTAL_12MHz, keyboard_controller_intf)
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_at_keyboards, STR_KBD_MICROSOFT_NATURAL, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_at_keyboards, STR_KBD_MICROSOFT_NATURAL)
 
 	MCFG_MC146818_IRQ_ADD( "rtc", MC146818_STANDARD, at_mc146818_config )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* video hardware */
@@ -420,10 +409,10 @@ static MACHINE_CONFIG_START( ibm5170, at_state )
 
 	MCFG_FRAGMENT_ADD( at_motherboard )
 	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
-	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "ega", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "fdc", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "ide", NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "ega", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "fdc", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "ide", false)
 
 	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("disk_list","ibm5170")
@@ -431,7 +420,7 @@ static MACHINE_CONFIG_START( ibm5170, at_state )
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1664K")
-	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,16M")
+	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,15M")
 MACHINE_CONFIG_END
 
 
@@ -457,16 +446,15 @@ static MACHINE_CONFIG_START( ibm5162, at_state )
 	MCFG_FRAGMENT_ADD( at_motherboard )
 
 	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
-	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "fdc", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "ide", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", NULL, false)
-
-	MCFG_FRAGMENT_ADD( pcvideo_cga )
+	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "fdc", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "ide", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "cga", false)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1664K")
-	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,16M")
+	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,15M")
 MACHINE_CONFIG_END
 
 
@@ -480,40 +468,39 @@ static MACHINE_CONFIG_START( ps2m30286, at_state )
 	MCFG_FRAGMENT_ADD( at_motherboard )
 
 	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
-	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "fdc", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "ide", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "svga_et4k", NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "fdc", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "ide", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "svga_et4k", false)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1664K")
-	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,16M")
+	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,15M")
 MACHINE_CONFIG_END
 
 
 static MACHINE_CONFIG_START( neat, at_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", I80286, 12000000)
-	MCFG_CPU_PROGRAM_MAP(neat_map)
+	MCFG_CPU_PROGRAM_MAP(at16_map)
 	MCFG_CPU_IO_MAP(neat_io)
 	MCFG_CPU_CONFIG(i286_address_mask)
 
 	MCFG_FRAGMENT_ADD( at_motherboard )
 
 	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
-	MCFG_ISA16_SLOT_ADD("isabus", "isa1", pc_isa16_cards, "fdc", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus", "isa2", pc_isa16_cards, "ide", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus", "isa3", pc_isa16_cards, "comat", NULL, false)
-
-	MCFG_FRAGMENT_ADD( pcvideo_cga )
+	MCFG_ISA16_SLOT_ADD("isabus", "isa1", pc_isa16_cards, "fdc", false)
+	MCFG_ISA16_SLOT_ADD("isabus", "isa2", pc_isa16_cards, "ide", false)
+	MCFG_ISA16_SLOT_ADD("isabus", "isa3", pc_isa16_cards, "comat", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "svga_et4k", false)
 
 	MCFG_CS8221_ADD("cs8221", "maincpu", "isa", "bios")
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1664K")
-	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,16M")
+	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,15M")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( atvga, at_state )
@@ -526,16 +513,16 @@ static MACHINE_CONFIG_START( atvga, at_state )
 	MCFG_FRAGMENT_ADD( at_motherboard )
 
 	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
-	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "fdcsmc", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "ide", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "ne2000", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa5", pc_isa16_cards, "svga_et4k", NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "fdcsmc", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "ide", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "ne2000", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa5", pc_isa16_cards, "svga_et4k", false)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1664K")
-	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,16M")
+	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,15M")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( xb42639, at_state )
@@ -548,15 +535,15 @@ static MACHINE_CONFIG_START( xb42639, at_state )
 	MCFG_FRAGMENT_ADD( at_motherboard )
 
 	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
-	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "fdc", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "ide", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "svga_et4k", NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "fdc", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "ide", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, "svga_et4k", false)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1664K")
-	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,16M")
+	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,15M")
 MACHINE_CONFIG_END
 
 //-------------------------------------------------
@@ -577,21 +564,22 @@ static MACHINE_CONFIG_START( at386, at_state )
 
 	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
 	// on board devices
-	MCFG_ISA16_SLOT_ADD("isabus","board1", pc_isa16_cards, "fdcsmc", NULL, true)
-	MCFG_ISA16_SLOT_ADD("isabus","board2", pc_isa16_cards, "comat", NULL, true)
-	MCFG_ISA16_SLOT_ADD("isabus","board3", pc_isa16_cards, "ide", NULL, true)
-	MCFG_ISA16_SLOT_ADD("isabus","board4", pc_isa16_cards, "lpt", NULL, true)
+	MCFG_ISA16_SLOT_ADD("isabus","board1", pc_isa16_cards, "fdcsmc", true)
+	MCFG_ISA16_SLOT_ADD("isabus","board2", pc_isa16_cards, "comat", true)
+	MCFG_ISA16_SLOT_ADD("isabus","board3", pc_isa16_cards, "ide", true)
+	MCFG_ISA16_SLOT_ADD("isabus","board4", pc_isa16_cards, "lpt", true)
 	// ISA cards
-	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "svga_et4k", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa5", pc_isa16_cards, "ide_cd", ide_2nd, false) //2nd-ary IDE
+	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "svga_et4k", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa5", pc_isa16_cards, "ide_cd", false) //2nd-ary IDE
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("ide_cd", ide_2nd)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1664K")
-	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,15M,16M,32M,64M")
+	MCFG_RAM_EXTRA_OPTIONS("2M,4M,8M,15M,16M,32M,64M,128M,256M")
 
 MACHINE_CONFIG_END
 
@@ -628,14 +616,14 @@ static MACHINE_CONFIG_START( k286i, at_state )
 
 	MCFG_FRAGMENT_ADD( at_motherboard )
 	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
-	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "cga", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "fdc", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa5", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa6", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa7", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD("isabus","isa8", pc_isa16_cards, NULL, NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa1", pc_isa16_cards, "cga", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa2", pc_isa16_cards, "fdc", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa3", pc_isa16_cards, "comat", false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa4", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa5", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa6", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa7", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD("isabus","isa8", pc_isa16_cards, NULL, false)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -664,17 +652,20 @@ static MACHINE_CONFIG_START( at586, at586_state )
 
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("4M")
-	MCFG_RAM_EXTRA_OPTIONS("1M,2M,8M,16M,32M,64M")
+	MCFG_RAM_EXTRA_OPTIONS("1M,2M,8M,16M,32M,64M,128M,256M")
 
 	MCFG_PCI_BUS_ADD("pcibus", 0)
-	MCFG_PCI_BUS_DEVICE("pcibus:0", pci_devices, "i82439tx", NULL, &tx_config, 0, true)
-	MCFG_PCI_BUS_DEVICE("pcibus:1", pci_devices, "i82371ab", NULL, NULL,       0, true)
+	MCFG_PCI_BUS_DEVICE("pcibus:0", pci_devices, "i82439tx", true)
+	MCFG_DEVICE_CARD_CONFIG("i82439tx", &tx_config)
 
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa1", pc_isa16_cards, "svga_et4k", NULL, false)
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa2", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa3", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa4", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa5", pc_isa16_cards, "ide_cd", ide_2nd, false) //2nd-ary IDE
+	MCFG_PCI_BUS_DEVICE("pcibus:1", pci_devices, "i82371ab", true)
+
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa1", pc_isa16_cards, "svga_et4k", false)
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa2", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa3", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa4", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371ab:isabus","isa5", pc_isa16_cards, "ide_cd", false) //2nd-ary IDE
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("ide_cd", ide_2nd)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( at586x3, at586_state )
@@ -687,20 +678,29 @@ static MACHINE_CONFIG_START( at586x3, at586_state )
 	MCFG_RAM_EXTRA_OPTIONS("1M,2M,8M,16M,32M,64M")
 
 	MCFG_PCI_BUS_ADD("pcibus", 0)
-	MCFG_PCI_BUS_DEVICE("pcibus:0", pci_devices, "i82439tx", NULL, &tx_config, 0, true)
-	MCFG_PCI_BUS_DEVICE("pcibus:1", pci_devices, "i82371sb", NULL, NULL,       0, true)
+	MCFG_PCI_BUS_DEVICE("pcibus:0", pci_devices, "i82439tx", true)
+	MCFG_DEVICE_CARD_CONFIG("i82439tx", &tx_config)
 
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa1", pc_isa16_cards, "svga_et4k", NULL, false)
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa2", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa3", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa4", pc_isa16_cards, NULL, NULL, false)
-	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa5", pc_isa16_cards, "ide_cd", ide_2nd, false) //2nd-ary IDE
+	MCFG_PCI_BUS_DEVICE("pcibus:1", pci_devices, "i82371sb", true)
+
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa1", pc_isa16_cards, "svga_et4k", false)
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa2", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa3", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa4", pc_isa16_cards, NULL, false)
+	MCFG_ISA16_SLOT_ADD(":pcibus:1:i82371sb:isabus","isa5", pc_isa16_cards, "ide_cd", false) //2nd-ary IDE
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("ide_cd", ide_2nd)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( c386sx16, at386 )
-	MCFG_CPU_REPLACE("maincpu", I386, 16000000)     /* 386SX */
-	MCFG_CPU_PROGRAM_MAP(at386_map)
-	MCFG_CPU_IO_MAP(at386_io)
+static MACHINE_CONFIG_DERIVED( at386sx, atvga )
+	MCFG_CPU_REPLACE("maincpu", I386SX, 16000000)     /* 386SX */
+	MCFG_CPU_PROGRAM_MAP(at16_map)
+	MCFG_CPU_IO_MAP(at16_io)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( ct386sx, neat )
+	MCFG_CPU_REPLACE("maincpu", I386SX, 16000000)
+	MCFG_CPU_PROGRAM_MAP(at16_map)
+	MCFG_CPU_IO_MAP(neat_io)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( megapc, at386 )
@@ -783,11 +783,6 @@ ROM_START( ec1849 )
 	ROM_LOAD16_BYTE( "cpu-card_27c256_016.rom", 0xf0001, 0x8000, CRC(bc3924d6) SHA1(596be415e6c2bc4ff30a187f146664531565712c))
 	ROM_LOAD16_BYTE( "video-card_573rf6( 2764)_040.rom", 0xc0001, 0x2000, CRC(a3ece315) SHA1(e800e11c3b1b6fcaf41bfb7d4058a9d34fdd2b3f))
 	ROM_LOAD16_BYTE( "video-card_573rf6( 2764)_041.rom", 0xc0000, 0x2000, CRC(b0a2ba7f) SHA1(c8160e8bc97cd391558f1dddd3fd3ec4a19d030c))
-
-	ROM_REGION(0x08100, "gfx1", 0)
-	ROM_LOAD("cga.chr",     0x00000, 0x01000, CRC(42009069) SHA1(ed08559ce2d7f97f68b9f540bddad5b6295294dd))
-
-	ROM_REGION(0x50000, "gfx2", ROMREGION_ERASE00)
 ROM_END
 
 ROM_START( ibm5170a )
@@ -818,10 +813,6 @@ ROM_START( ibm5162 ) //MB p/n 62x1168
 
 	ROM_LOAD16_BYTE("78x7460.u34", 0xf0000, 0x8000, CRC(1db4bd8f) SHA1(7be669fbb998d8b4626fefa7cd1208d3b2a88c31)) /* 78X7460 U34 // (C) IBM CORP // 1981-1986 */
 	ROM_LOAD16_BYTE("78x7461.u35", 0xf0001, 0x8000, CRC(be14b453) SHA1(ec7c10087dbd53f9c6d1174e8f14212e2aec1818)) /* 78X7461 U35 // (C) IBM CORP // 1981-1986 */
-
-	/* Character rom */
-	ROM_REGION(0x2000,"gfx1", 0)
-	ROM_LOAD("5788005.u33", 0x00000, 0x2000, CRC(0bf56d70) SHA1(c2a8b10808bf51a3c123ba3eb1e9dd608231916f))
 
 	/* Mainboard PALS */
 	ROM_REGION( 0x2000, "pals", 0 )
@@ -984,24 +975,24 @@ ROM_START( at )
 	ROMX_LOAD("at110387.0", 0xf0000, 0x8000, CRC(65ae1f97) SHA1(91a29c7deecf7a9afbba330e64e0eee9aafee4d1),ROM_SKIP(1) | ROM_BIOS(2) )
 	ROM_SYSTEM_BIOS(2, "ami206", "AMI C 206.1")  /*(Motherboard Manufacturer: Unknown.) (BIOS release date:: 15-10-1990)*/
 	ROMX_LOAD( "amic206.bin",    0xf0000, 0x10000,CRC(25a67c34) SHA1(91e9d8cdc2f1b40a601a23ceaff2189fd1245f3b), ROM_BIOS(3) )
-	ROM_SYSTEM_BIOS(3, "amic21", "AMI C 21.1") /* might be bad dump, doesn't start */
-	ROMX_LOAD( "amic21-1.bin",  0xf0001, 0x8000, CRC(5644ed38) SHA1(963555ec77845defc3b42b433280908e1797076e),ROM_SKIP(1) | ROM_BIOS(4) )
-	ROMX_LOAD( "amic21-2.bin",  0xf0000, 0x8000, CRC(8ffe7752) SHA1(68215f07a170ee7bdcb3e52b370d470af1741f7e),ROM_SKIP(1) | ROM_BIOS(4) )
+	ROM_SYSTEM_BIOS(3, "amic21", "AMI C 21.1") /* bad dump, checksum off by 8 in the lsb*/
+	ROMX_LOAD( "amic21-2.bin",  0xf0001, 0x8000, CRC(8ffe7752) SHA1(68215f07a170ee7bdcb3e52b370d470af1741f7e),ROM_SKIP(1) | ROM_BIOS(4) )
+	ROMX_LOAD( "amic21-1.bin",  0xf0000, 0x8000, CRC(5644ed38) SHA1(963555ec77845defc3b42b433280908e1797076e),ROM_SKIP(1) | ROM_BIOS(4) )
 	ROM_SYSTEM_BIOS(4, "ami101", "AMI HT 101.1") /* Quadtel Enhanced 286 Bios Version 3.04.02 */
 	ROMX_LOAD( "amiht-h.bin",   0xf0001, 0x8000, CRC(8022545f) SHA1(42541d4392ad00b0e064b3a8ccf2786d875c7c19),ROM_SKIP(1) | ROM_BIOS(5) )
 	ROMX_LOAD( "amiht-l.bin",   0xf0000, 0x8000, CRC(285f6b8f) SHA1(2fce4ec53b68c9a7580858e16c926dc907820872),ROM_SKIP(1) | ROM_BIOS(5) )
-	ROM_SYSTEM_BIOS(5, "ami121", "AMI HT 12.1") /* might be bad dump, doesn't start */
-	ROMX_LOAD( "ami2ev86.bin",  0xf0001, 0x8000, CRC(55deb5c2) SHA1(19ce1a7cc985b5895c585e39211475de2e3b0dd1),ROM_SKIP(1) | ROM_BIOS(6) )
-	ROMX_LOAD( "ami2od86.bin",  0xf0000, 0x8000, CRC(04a2cec4) SHA1(564d37a8b2c0f4d0e23cd1e280a09d47c9945da8),ROM_SKIP(1) | ROM_BIOS(6) )
-	ROM_SYSTEM_BIOS(6, "ami122", "AMI HT 12.2") /* might be bad dump, doesn't start */
-	ROMX_LOAD( "ami2ev89.bin",  0xf0001, 0x8000, CRC(705d36e0) SHA1(0c9cfb71ced4587f109b9b6dfc2a9c92302fdb99),ROM_SKIP(1) | ROM_BIOS(7) )
-	ROMX_LOAD( "ami2od89.bin",  0xf0000, 0x8000, CRC(7c81bbe8) SHA1(a2c7eca586f6e2e76b9101191e080a1f1cb8b833),ROM_SKIP(1) | ROM_BIOS(7) )
+	ROM_SYSTEM_BIOS(5, "ami121", "AMI HT 12.1")
+	ROMX_LOAD( "ami2od86.bin",  0xf0001, 0x8000, CRC(04a2cec4) SHA1(564d37a8b2c0f4d0e23cd1e280a09d47c9945da8),ROM_SKIP(1) | ROM_BIOS(6) )
+	ROMX_LOAD( "ami2ev86.bin",  0xf0000, 0x8000, CRC(55deb5c2) SHA1(19ce1a7cc985b5895c585e39211475de2e3b0dd1),ROM_SKIP(1) | ROM_BIOS(6) )
+	ROM_SYSTEM_BIOS(6, "ami122", "AMI HT 12.2")
+	ROMX_LOAD( "ami2od89.bin",  0xf0001, 0x8000, CRC(7c81bbe8) SHA1(a2c7eca586f6e2e76b9101191e080a1f1cb8b833),ROM_SKIP(1) | ROM_BIOS(7) )
+	ROMX_LOAD( "ami2ev89.bin",  0xf0000, 0x8000, CRC(705d36e0) SHA1(0c9cfb71ced4587f109b9b6dfc2a9c92302fdb99),ROM_SKIP(1) | ROM_BIOS(7) )
 	ROM_SYSTEM_BIOS(7, "ami123", "AMI HT 12.3") /*(Motherboard Manufacturer: Aquarius Systems USA Inc.) (BIOS release date:: 13-06-1990)*/
 	ROMX_LOAD( "ht12h.bin",     0xf0001, 0x8000, CRC(db8b471e) SHA1(7b5fa1c131061fa7719247db3e282f6d30226778),ROM_SKIP(1) | ROM_BIOS(8) )
 	ROMX_LOAD( "ht12l.bin",     0xf0000, 0x8000, CRC(74fd178a) SHA1(97c8283e574abbed962b701f3e8091fb82823b80),ROM_SKIP(1) | ROM_BIOS(8) )
-	ROM_SYSTEM_BIOS(8, "ami181", "AMI HT 18.1") /* might be bad dump, doesn't start */
+	ROM_SYSTEM_BIOS(8, "ami181", "AMI HT 18.1") /* not a bad dump, sets unknown probably chipset related registers at 0x1e8 before failing post */
 	ROMX_LOAD( "ht18.bin",     0xf0000, 0x10000, CRC(f65a6f9a) SHA1(7dfdf7d243f9f645165dc009c5097dd515f86fbb), ROM_BIOS(9) )
-	ROM_SYSTEM_BIOS(9, "amiht21", "AMI HT 21.1") /* might be bad dump, doesn't start */
+	ROM_SYSTEM_BIOS(9, "amiht21", "AMI HT 21.1") /* as above */
 	ROMX_LOAD( "ht21e.bin",    0xf0000, 0x10000, CRC(e80f7fed) SHA1(62d958d98c95e9e4d1b290a6c1054ae98770f276), ROM_BIOS(10) )
 	ROM_SYSTEM_BIOS(10, "amip1", "AMI P.1") /*(Motherboard Manufacturer: Unknown.) (BIOS release date:: 09-04-1990)*/
 	ROMX_LOAD( "poisk-h.bin",   0xf0001, 0x8000, CRC(83fd3f8c) SHA1(ca94850bbd949b97b11710629886b0ee69489a81),ROM_SKIP(1) | ROM_BIOS(11) )
@@ -1015,22 +1006,12 @@ ROM_START( at )
 	ROM_SYSTEM_BIOS(13, "aw303gs", "Award 303GS")
 	ROMX_LOAD( "aw303gs-hi.bin",  0xf8001, 0x4000, CRC(82392e18) SHA1(042453b7b29933a1b72301d21fcf8fa6b293c9c9), ROM_SKIP(1) | ROM_BIOS(14) )
 	ROMX_LOAD( "aw303gs-lo.bin",  0xf8000, 0x4000, CRC(a4cf8ba1) SHA1(b73e34be3b2754aaed1ac06471f4441fea06c67c), ROM_SKIP(1) | ROM_BIOS(14) )
-	/* Character rom */
-	ROM_REGION(0x2000,"gfx1", 0)
-	ROM_LOAD("5788005.u33", 0x00000, 0x2000, CRC(0bf56d70) SHA1(c2a8b10808bf51a3c123ba3eb1e9dd608231916f))
-
-	ROM_REGION(0x50000, "gfx2", ROMREGION_ERASE00)
 ROM_END
 
 ROM_START( cmdpc30 )
 	ROM_REGION(0x1000000,"maincpu", 0)
 	ROMX_LOAD( "commodore pc 30 iii even.bin", 0xf8000, 0x4000, CRC(36307aa9) SHA1(50237ffea703b867de426ab9ebc2af46bac1d0e1),ROM_SKIP(1))
 	ROMX_LOAD( "commodore pc 30 iii odd.bin",  0xf8001, 0x4000, CRC(41bae42d) SHA1(27d6ad9554be86359d44331f25591e3122a31519),ROM_SKIP(1))
-	/* Character rom */
-	ROM_REGION(0x2000,"gfx1", 0)
-	ROM_LOAD("5788005.u33", 0x00000, 0x2000, CRC(0bf56d70) SHA1(c2a8b10808bf51a3c123ba3eb1e9dd608231916f))
-
-	ROM_REGION(0x50000, "gfx2", ROMREGION_ERASE00)
 ROM_END
 
 ROM_START( atvga )
@@ -1041,24 +1022,24 @@ ROM_START( atvga )
 	ROMX_LOAD( "ami211.bin",     0xf0000, 0x10000,CRC(a0b5d269) SHA1(44db8227d35a09e39b93ed944f85dcddb0dd0d39), ROM_BIOS(2))
 	ROM_SYSTEM_BIOS(2, "ami206", "AMI C 206.1") /*(Motherboard Manufacturer: Unknown.) (BIOS release date:: 15-10-1990)*/
 	ROMX_LOAD( "amic206.bin",    0xf0000, 0x10000,CRC(25a67c34) SHA1(91e9d8cdc2f1b40a601a23ceaff2189fd1245f3b), ROM_BIOS(3) )
-	ROM_SYSTEM_BIOS(3, "amic21", "AMI C 21.1") /* might be bad dump, doesn't start */
-	ROMX_LOAD( "amic21-1.bin",  0xf0001, 0x8000, CRC(5644ed38) SHA1(963555ec77845defc3b42b433280908e1797076e),ROM_SKIP(1) | ROM_BIOS(4) )
-	ROMX_LOAD( "amic21-2.bin",  0xf0000, 0x8000, CRC(8ffe7752) SHA1(68215f07a170ee7bdcb3e52b370d470af1741f7e),ROM_SKIP(1) | ROM_BIOS(4) )
+	ROM_SYSTEM_BIOS(3, "amic21", "AMI C 21.1") /* bad dump, checksum off by 8 in the lsb*/
+	ROMX_LOAD( "amic21-2.bin",  0xf0001, 0x8000, CRC(8ffe7752) SHA1(68215f07a170ee7bdcb3e52b370d470af1741f7e),ROM_SKIP(1) | ROM_BIOS(4) )
+	ROMX_LOAD( "amic21-1.bin",  0xf0000, 0x8000, CRC(5644ed38) SHA1(963555ec77845defc3b42b433280908e1797076e),ROM_SKIP(1) | ROM_BIOS(4) )
 	ROM_SYSTEM_BIOS(4, "ami101", "AMI HT 101.1") /* Quadtel Enhanced 286 Bios Version 3.04.02 */
 	ROMX_LOAD( "amiht-h.bin",   0xf0001, 0x8000, CRC(8022545f) SHA1(42541d4392ad00b0e064b3a8ccf2786d875c7c19),ROM_SKIP(1) | ROM_BIOS(5) )
 	ROMX_LOAD( "amiht-l.bin",   0xf0000, 0x8000, CRC(285f6b8f) SHA1(2fce4ec53b68c9a7580858e16c926dc907820872),ROM_SKIP(1) | ROM_BIOS(5) )
-	ROM_SYSTEM_BIOS(5, "ami121", "AMI HT 12.1") /* might be bad dump, doesn't start */
-	ROMX_LOAD( "ami2ev86.bin",  0xf0001, 0x8000, CRC(55deb5c2) SHA1(19ce1a7cc985b5895c585e39211475de2e3b0dd1),ROM_SKIP(1) | ROM_BIOS(6) )
-	ROMX_LOAD( "ami2od86.bin",  0xf0000, 0x8000, CRC(04a2cec4) SHA1(564d37a8b2c0f4d0e23cd1e280a09d47c9945da8),ROM_SKIP(1) | ROM_BIOS(6) )
-	ROM_SYSTEM_BIOS(6, "ami122", "AMI HT 12.2") /* might be bad dump, doesn't start */
-	ROMX_LOAD( "ami2ev89.bin",  0xf0001, 0x8000, CRC(705d36e0) SHA1(0c9cfb71ced4587f109b9b6dfc2a9c92302fdb99),ROM_SKIP(1) | ROM_BIOS(7) )
-	ROMX_LOAD( "ami2od89.bin",  0xf0000, 0x8000, CRC(7c81bbe8) SHA1(a2c7eca586f6e2e76b9101191e080a1f1cb8b833),ROM_SKIP(1) | ROM_BIOS(7) )
+	ROM_SYSTEM_BIOS(5, "ami121", "AMI HT 12.1")
+	ROMX_LOAD( "ami2od86.bin",  0xf0001, 0x8000, CRC(04a2cec4) SHA1(564d37a8b2c0f4d0e23cd1e280a09d47c9945da8),ROM_SKIP(1) | ROM_BIOS(6) )
+	ROMX_LOAD( "ami2ev86.bin",  0xf0000, 0x8000, CRC(55deb5c2) SHA1(19ce1a7cc985b5895c585e39211475de2e3b0dd1),ROM_SKIP(1) | ROM_BIOS(6) )
+	ROM_SYSTEM_BIOS(6, "ami122", "AMI HT 12.2")
+	ROMX_LOAD( "ami2od89.bin",  0xf0001, 0x8000, CRC(7c81bbe8) SHA1(a2c7eca586f6e2e76b9101191e080a1f1cb8b833),ROM_SKIP(1) | ROM_BIOS(7) )
+	ROMX_LOAD( "ami2ev89.bin",  0xf0000, 0x8000, CRC(705d36e0) SHA1(0c9cfb71ced4587f109b9b6dfc2a9c92302fdb99),ROM_SKIP(1) | ROM_BIOS(7) )
 	ROM_SYSTEM_BIOS(7, "ami123", "AMI HT 12.3") /*(Motherboard Manufacturer: Aquarius Systems USA Inc.) (BIOS release date:: 13-06-1990)*/
 	ROMX_LOAD( "ht12h.bin",     0xf0001, 0x8000, CRC(db8b471e) SHA1(7b5fa1c131061fa7719247db3e282f6d30226778),ROM_SKIP(1) | ROM_BIOS(8) )
 	ROMX_LOAD( "ht12l.bin",     0xf0000, 0x8000, CRC(74fd178a) SHA1(97c8283e574abbed962b701f3e8091fb82823b80),ROM_SKIP(1) | ROM_BIOS(8) )
-	ROM_SYSTEM_BIOS(8, "ami181", "AMI HT 18.1") /* might be bad dump, doesn't start */
+	ROM_SYSTEM_BIOS(8, "ami181", "AMI HT 18.1") /* not a bad dump, sets unknown probably chipset related registers at 0x1e8 before failing post */
 	ROMX_LOAD( "ht18.bin",     0xf0000, 0x10000, CRC(f65a6f9a) SHA1(7dfdf7d243f9f645165dc009c5097dd515f86fbb), ROM_BIOS(9) )
-	ROM_SYSTEM_BIOS(9, "amiht21", "AMI HT 21.1") /* might be bad dump, doesn't start */
+	ROM_SYSTEM_BIOS(9, "amiht21", "AMI HT 21.1") /* as above */
 	ROMX_LOAD( "ht21e.bin",    0xf0000, 0x10000, CRC(e80f7fed) SHA1(62d958d98c95e9e4d1b290a6c1054ae98770f276), ROM_BIOS(10) )
 	ROM_SYSTEM_BIOS(10, "amip1", "AMI P.1") /*(Motherboard Manufacturer: Unknown.) (BIOS release date:: 09-04-1990)*/
 	ROMX_LOAD( "poisk-h.bin",   0xf0001, 0x8000, CRC(83fd3f8c) SHA1(ca94850bbd949b97b11710629886b0ee69489a81),ROM_SKIP(1) | ROM_BIOS(11) )
@@ -1119,14 +1100,16 @@ ROM_START( neat )
 	//ROM_RELOAD(0xff0000,0x8000)
 	ROM_LOAD16_BYTE("at030389.1", 0xf0001, 0x8000, CRC(4e90f294) SHA1(18c21fd8d7e959e2292a9afbbaf78310f9cad12f))
 	//ROM_RELOAD(0xff0001,0x8000)
-
-	/* Character rom */
-	ROM_REGION(0x2000,"gfx1", 0)
-	ROM_LOAD("5788005.u33", 0x00000, 0x2000, CRC(0bf56d70) SHA1(c2a8b10808bf51a3c123ba3eb1e9dd608231916f))
-
-	ROM_REGION(0x50000, "gfx2", ROMREGION_ERASE00)
 ROM_END
 
+ROM_START( ct386sx )
+	ROM_REGION(0x1000000,"maincpu", 0)
+	ROM_SYSTEM_BIOS(0, "neatsx", "NEATsx 386sx")
+	ROMX_LOAD("012l-u25.bin", 0xf0000, 0x8000, CRC(4AB1862D) SHA1(D4E8D0FF43731270478CA7671A129080FF350A4F),ROM_SKIP(1) | ROM_BIOS(1) )
+	ROMX_LOAD("012h-u24.bin", 0xf0001, 0x8000, CRC(17472521) SHA1(7588C148FE53D9DC4CB2D0AB6E0FD51A39BB5D1A),ROM_SKIP(1) | ROM_BIOS(1) )
+	ROM_FILL(0xfe2c9, 1, 0) // skip incompatible keyboard controller test
+	ROM_FILL(0xfe2cb, 1, 0xbb) // fix checksum
+ROM_END
 
 ROM_START( at386 )
 	ROM_REGION(0x1000000,"maincpu", 0)
@@ -1135,13 +1118,9 @@ ROM_START( at386 )
 	ROM_SYSTEM_BIOS(1, "at386", "unknown 386")  // This dump possibly comes from a MITAC INC 386 board, given that the original driver had it as manufacturer
 	ROMX_LOAD("at386.bin",  0xf0000, 0x10000, CRC(3df9732a) SHA1(def71567dee373dc67063f204ef44ffab9453ead), ROM_BIOS(2))
 	//ROM_RELOAD(0xff0000,0x10000)
-	ROM_SYSTEM_BIOS(2, "neatsx", "NEATsx 386sx")
-	ROMX_LOAD("012l-u25.bin", 0xf0000, 0x8000, CRC(4AB1862D) SHA1(D4E8D0FF43731270478CA7671A129080FF350A4F),ROM_SKIP(1) | ROM_BIOS(3) )
-	//ROM_RELOAD(0xff0000,0x8000)
-	ROMX_LOAD("012h-u24.bin", 0xf0001, 0x8000, CRC(17472521) SHA1(7588C148FE53D9DC4CB2D0AB6E0FD51A39BB5D1A),ROM_SKIP(1) | ROM_BIOS(3) )
-	//ROM_RELOAD(0xff0000,0x8000)
-	ROM_SYSTEM_BIOS(3, "amicg", "AMI CG")
-	ROMX_LOAD( "amicg.1",        0xf0000, 0x10000,CRC(8408965a) SHA1(9893d3ac851e01b06a68a67d3721df36ca2c96f5), ROM_BIOS(4) )
+
+	ROM_SYSTEM_BIOS(2, "amicg", "AMI CG")
+	ROMX_LOAD( "amicg.1",        0xf0000, 0x10000,CRC(8408965a) SHA1(9893d3ac851e01b06a68a67d3721df36ca2c96f5), ROM_BIOS(3) )
 ROM_END
 
 
@@ -1454,10 +1433,11 @@ COMP ( 198?, i8580111, ibm5170, 0,       at386,     atvga, at_state,      atvga,
 COMP ( 1987, at,       ibm5170, 0,       ibm5162,   atcga, at_state,      atcga,  "<generic>",  "PC/AT (CGA, MF2 Keyboard)", GAME_NOT_WORKING )
 COMP ( 1987, atvga,    ibm5170, 0,       atvga,     atvga, at_state,      atvga,  "<generic>",  "PC/AT (VGA, MF2 Keyboard)" , GAME_NOT_WORKING )
 COMP ( 1988, at386,    ibm5170, 0,       at386,     atvga, at_state,      atvga,  "<generic>",  "PC/AT 386 (VGA, MF2 Keyboard)", GAME_NOT_WORKING )
+COMP ( 1988, ct386sx,  ibm5170, 0,       ct386sx,   atvga, at_state,      atvga,  "<generic>",  "NEAT 386SX (VGA, MF2 Keyboard)", GAME_NOT_WORKING )
 COMP ( 1990, at486,    ibm5170, 0,       at486,     atvga, at_state,      atvga,  "<generic>",  "PC/AT 486 (VGA, MF2 Keyboard)", GAME_NOT_WORKING )
 COMP ( 1990, at586,    ibm5170, 0,       at586,     atvga, driver_device,      0,   "<generic>",  "PC/AT 586 (PIIX4)", GAME_NOT_WORKING )
 COMP ( 1990, at586x3,  ibm5170, 0,       at586x3,   atvga, driver_device,      0,       "<generic>",  "PC/AT 586 (PIIX3)", GAME_NOT_WORKING )
-COMP ( 1989, neat,     ibm5170, 0,       neat,      atcga, at_state,      atcga,  "<generic>",  "NEAT (CGA, MF2 Keyboard)", GAME_NOT_WORKING )
+COMP ( 1989, neat,     ibm5170, 0,       neat,      atvga, at_state,      atvga,  "<generic>",  "NEAT (VGA, MF2 Keyboard)", GAME_NOT_WORKING )
 COMP ( 1993, ct486,    ibm5170, 0,       ct486,     atvga, at_state,      atvga,  "<unknown>",  "PC/AT 486 with C&T chipset", GAME_NOT_WORKING )
 COMP ( 1993, ec1849,   ibm5170, 0,       ec1849,    atcga, at_state,      atcga,  "<unknown>",  "EC-1849", GAME_NOT_WORKING )
 COMP ( 1993, megapc,   ibm5170, 0,       megapc,    atvga, at_state,      atvga,  "Amstrad plc", "MegaPC", GAME_NOT_WORKING )
@@ -1483,9 +1463,9 @@ COMP ( 1989, xb42664,  ibm5170, 0,       at386,     atvga, at_state,      atvga,
 COMP ( 1990, xb42664a, ibm5170, 0,       at386,     atvga, at_state,      atvga,  "Apricot",  "Apricot XEN-S (Venus II Motherboard 386)" , GAME_NOT_WORKING )
 COMP ( 1993, apxena1,  ibm5170, 0,       at486,     atvga, at_state,      atvga,  "Apricot",  "Apricot XEN PC (A1 Motherboard)", GAME_NOT_WORKING )
 COMP ( 1993, apxenp2,  ibm5170, 0,       at486,     atvga, at_state,      atvga,  "Apricot",  "Apricot XEN PC (P2 Motherboard)", GAME_NOT_WORKING )
-COMP ( 1990, c386sx16, ibm5170, 0,       c386sx16,  atvga, at_state,      atvga,  "Commodore Business Machines", "Commodore 386SX-16", GAME_NOT_WORKING )
+COMP ( 1990, c386sx16, ibm5170, 0,       at386sx,   atvga, at_state,      atvga,  "Commodore Business Machines", "Commodore 386SX-16", GAME_NOT_WORKING )
 COMP ( 1988, cmdpc30,  ibm5170, 0,       ibm5162,   atcga, at_state,      atcga,  "Commodore Business Machines",  "PC 30 III", GAME_NOT_WORKING )
 COMP ( 1995, ficpio2,  ibm5170, 0,       at486,     atvga, at_state,      atvga,  "FIC", "486-PIO-2", GAME_NOT_WORKING )
 COMP ( 1997, ficvt503, ibm5170, 0,       at586,     atvga, driver_device,      0,      "FIC", "VT-503", GAME_NOT_WORKING )
 COMP ( 1985, k286i,    ibm5170, 0,       k286i,     atcga, at_state,      atcga,  "Kaypro",   "286i", GAME_NOT_WORKING )
-COMP ( 1991, t2000sx,  ibm5170, 0,       c386sx16,  atvga, at_state,      atvga,  "Toshiba",  "T2000SX", GAME_NOT_WORKING )
+COMP ( 1991, t2000sx,  ibm5170, 0,       at386sx,   atvga, at_state,      atvga,  "Toshiba",  "T2000SX", GAME_NOT_WORKING )

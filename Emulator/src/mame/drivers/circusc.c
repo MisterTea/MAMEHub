@@ -58,10 +58,6 @@ To enter service mode, keep 1&2 pressed on reset
 
 void circusc_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_dac = machine().device<dac_device>("dac");
-
 	save_item(NAME(m_sn_latch));
 }
 
@@ -102,7 +98,6 @@ WRITE8_MEMBER(circusc_state::circusc_coin_counter_w)
 
 WRITE8_MEMBER(circusc_state::circusc_sound_w)
 {
-
 	switch (offset & 7)
 	{
 		/* CS2 */
@@ -136,7 +131,6 @@ WRITE8_MEMBER(circusc_state::circusc_sound_w)
 
 WRITE8_MEMBER(circusc_state::irq_mask_w)
 {
-
 	m_irq_mask = data & 1;
 }
 
@@ -346,7 +340,6 @@ DISCRETE_SOUND_END
 
 INTERRUPT_GEN_MEMBER(circusc_state::vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }

@@ -182,7 +182,6 @@ TODO!
 #include "cpu/m68000/m68000.h"
 #include "machine/eeprom.h"
 #include "machine/mb87078.h"
-#include "machine/taitoio.h"
 #include "audio/taitosnd.h"
 #include "sound/2203intf.h"
 #include "sound/2610intf.h"
@@ -196,128 +195,112 @@ WRITE8_MEMBER(taitob_state::bankswitch_w)
 	membank("bank1")->set_entry((data - 1) & 3);
 }
 
-TIMER_CALLBACK_MEMBER(taitob_state::rsaga2_interrupt2)
+void taitob_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_maincpu->set_input_line(2, HOLD_LINE);
+	switch (id)
+	{
+	case RSAGA2_INTERRUPT2:
+		m_maincpu->set_input_line(2, HOLD_LINE);
+		break;
+	case CRIMEC_INTERRUPT3:
+		m_maincpu->set_input_line(3, HOLD_LINE);
+		break;
+	case HITICE_INTERRUPT6:
+		m_maincpu->set_input_line(6, HOLD_LINE);
+		break;
+	case RAMBO3_INTERRUPT1:
+		m_maincpu->set_input_line(1, HOLD_LINE);
+		break;
+	case PBOBBLE_INTERRUPT5:
+		m_maincpu->set_input_line(5, HOLD_LINE);
+		break;
+	case VIOFIGHT_INTERRUPT1:
+		m_maincpu->set_input_line(1, HOLD_LINE);
+		break;
+	case MASTERW_INTERRUPT4:
+		m_maincpu->set_input_line(4, HOLD_LINE);
+		break;
+	case SILENTD_INTERRUPT4:
+		m_maincpu->set_input_line(4, HOLD_LINE);
+		break;
+	case SELFEENA_INTERRUPT4:
+		m_maincpu->set_input_line(4, HOLD_LINE);
+		break;
+	case SBM_INTERRUPT5:
+		m_maincpu->set_input_line(5, HOLD_LINE);
+		break;
+	case REALPUNC_INTERRUPT3:
+		m_maincpu->set_input_line(3, HOLD_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in taitob_state::device_timer");
+	}
 }
+
 
 INTERRUPT_GEN_MEMBER(taitob_state::rastansaga2_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), timer_expired_delegate(FUNC(taitob_state::rsaga2_interrupt2),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), RSAGA2_INTERRUPT2);
 	device.execute().set_input_line(4, HOLD_LINE);
-}
-
-
-TIMER_CALLBACK_MEMBER(taitob_state::crimec_interrupt3)
-{
-	m_maincpu->set_input_line(3, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::crimec_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), timer_expired_delegate(FUNC(taitob_state::crimec_interrupt3),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), CRIMEC_INTERRUPT3);
 	device.execute().set_input_line(5, HOLD_LINE);
-}
-
-
-TIMER_CALLBACK_MEMBER(taitob_state::hitice_interrupt6)
-{
-	m_maincpu->set_input_line(6, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::hitice_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), timer_expired_delegate(FUNC(taitob_state::hitice_interrupt6),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), HITICE_INTERRUPT6);
 	device.execute().set_input_line(4, HOLD_LINE);
-}
-
-
-TIMER_CALLBACK_MEMBER(taitob_state::rambo3_interrupt1)
-{
-	m_maincpu->set_input_line(1, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::rambo3_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), timer_expired_delegate(FUNC(taitob_state::rambo3_interrupt1),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), RAMBO3_INTERRUPT1);
 	device.execute().set_input_line(6, HOLD_LINE);
-}
-
-
-TIMER_CALLBACK_MEMBER(taitob_state::pbobble_interrupt5)
-{
-	m_maincpu->set_input_line(5, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::pbobble_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), timer_expired_delegate(FUNC(taitob_state::pbobble_interrupt5),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), PBOBBLE_INTERRUPT5);
 	device.execute().set_input_line(3, HOLD_LINE);
-}
-
-TIMER_CALLBACK_MEMBER(taitob_state::viofight_interrupt1)
-{
-	m_maincpu->set_input_line(1, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::viofight_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), timer_expired_delegate(FUNC(taitob_state::viofight_interrupt1),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), VIOFIGHT_INTERRUPT1);
 	device.execute().set_input_line(4, HOLD_LINE);
-}
-
-TIMER_CALLBACK_MEMBER(taitob_state::masterw_interrupt4)
-{
-	m_maincpu->set_input_line(4, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::masterw_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), timer_expired_delegate(FUNC(taitob_state::masterw_interrupt4),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), MASTERW_INTERRUPT4);
 	device.execute().set_input_line(5, HOLD_LINE);
-}
-
-TIMER_CALLBACK_MEMBER(taitob_state::silentd_interrupt4)
-{
-	m_maincpu->set_input_line(4, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::silentd_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), timer_expired_delegate(FUNC(taitob_state::silentd_interrupt4),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), SILENTD_INTERRUPT4);
 	device.execute().set_input_line(6, HOLD_LINE);
-}
-
-TIMER_CALLBACK_MEMBER(taitob_state::selfeena_interrupt4)
-{
-	m_maincpu->set_input_line(4, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::selfeena_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), timer_expired_delegate(FUNC(taitob_state::selfeena_interrupt4),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(5000), SELFEENA_INTERRUPT4);
 	device.execute().set_input_line(6, HOLD_LINE);
-}
-
-TIMER_CALLBACK_MEMBER(taitob_state::sbm_interrupt5)//4
-{
-	m_maincpu->set_input_line(5, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::sbm_interrupt)//5
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(10000), timer_expired_delegate(FUNC(taitob_state::sbm_interrupt5),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(10000), SBM_INTERRUPT5);
 	device.execute().set_input_line(4, HOLD_LINE);
-}
-
-TIMER_CALLBACK_MEMBER(taitob_state::realpunc_interrupt3)//3
-{
-	m_maincpu->set_input_line(3, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(taitob_state::realpunc_interrupt)//2
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(10000), timer_expired_delegate(FUNC(taitob_state::realpunc_interrupt3),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(10000), REALPUNC_INTERRUPT3);
 	device.execute().set_input_line(2, HOLD_LINE);
 }
 
@@ -410,7 +393,6 @@ READ16_MEMBER(taitob_state::eep_latch_r)
 
 WRITE16_MEMBER(taitob_state::eeprom_w)
 {
-
 	COMBINE_DATA(&m_eep_latch);
 
 	if (ACCESSING_BITS_8_15)
@@ -449,7 +431,6 @@ READ16_MEMBER(taitob_state::player_34_coin_ctrl_r)
 
 WRITE16_MEMBER(taitob_state::player_34_coin_ctrl_w)
 {
-
 	COMBINE_DATA(&m_coin_word);
 
 	/* coin counters and lockout */
@@ -467,18 +448,18 @@ READ16_MEMBER(taitob_state::pbobble_input_bypass_r)
 			return ioport("COIN")->read() << 8;
 
 		default:
-			return tc0640fio_r(m_tc0640fio, space, offset) << 8;
+			return m_tc0640fio->read(space, offset) << 8;
 	}
 }
 
 WRITE16_MEMBER(taitob_state::spacedxo_tc0220ioc_w)
 {
 	if (ACCESSING_BITS_0_7)
-		tc0220ioc_w(m_tc0220ioc, space, offset, data & 0xff);
+		m_tc0220ioc->write(space, offset, data & 0xff);
 	else
 	{
 		/* &spacedxo also writes here - bug? */
-		tc0220ioc_w(m_tc0220ioc, space, offset, (data >> 8) & 0xff);
+		m_tc0220ioc->write(space, offset, (data >> 8) & 0xff);
 	}
 }
 
@@ -506,18 +487,18 @@ static ADDRESS_MAP_START( rastsag2_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x200000, 0x201fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x600000, 0x607fff) AM_RAM /* Main RAM */ /*ashura up to 603fff only*/
 	TC0180VCU_MEMRW( 0x400000 )
-	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
-	AM_RANGE(0xa00000, 0xa0000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0xff00)
+	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0xa00000, 0xa0000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0xff00)
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( crimec_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x200000, 0x20000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0xff00)
+	AM_RANGE(0x200000, 0x20000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0xff00)
 	TC0180VCU_MEMRW( 0x400000 )
-	AM_RANGE(0x600000, 0x600001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x600002, 0x600003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x600000, 0x600001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x600002, 0x600003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	AM_RANGE(0x800000, 0x801fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0xa00000, 0xa0ffff) AM_RAM /* Main RAM */
 ADDRESS_MAP_END
@@ -525,10 +506,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tetrist_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x200000, 0x200001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x200000, 0x200001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	TC0180VCU_MEMRW( 0x400000 )
-	AM_RANGE(0x600000, 0x60000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0xff00)
+	AM_RANGE(0x600000, 0x60000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0xff00)
 	AM_RANGE(0x800000, 0x807fff) AM_RAM /* Main RAM */
 	AM_RANGE(0xa00000, 0xa01fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
 ADDRESS_MAP_END
@@ -537,21 +518,21 @@ static ADDRESS_MAP_START( tetrista_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x200000, 0x201fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
 	TC0180VCU_MEMRW( 0x400000 )
-	AM_RANGE(0x600000, 0x600001) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_portreg_r, tc0220ioc_portreg_w, 0xff00)
-	AM_RANGE(0x600002, 0x600003) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_port_r, tc0220ioc_port_w, 0xff00)
+	AM_RANGE(0x600000, 0x600001) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, portreg_r, portreg_w, 0xff00)
+	AM_RANGE(0x600002, 0x600003) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, port_r, port_w, 0xff00)
 	AM_RANGE(0x800000, 0x803fff) AM_RAM /* Main RAM */
-	AM_RANGE(0xa00000, 0xa00001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0xa00002, 0xa00003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0xa00000, 0xa00001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0xa00002, 0xa00003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( hitice_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	TC0180VCU_MEMRW( 0x400000 )
-	AM_RANGE(0x600000, 0x60000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0xff00)
+	AM_RANGE(0x600000, 0x60000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0xff00)
 	AM_RANGE(0x610000, 0x610001) AM_READ_PORT("P3_P4")
-	AM_RANGE(0x700000, 0x700001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x700002, 0x700003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x700000, 0x700001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x700002, 0x700003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	AM_RANGE(0x800000, 0x803fff) AM_RAM /* Main RAM */
 	AM_RANGE(0xa00000, 0xa01fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0xb00000, 0xb7ffff) AM_RAM_WRITE(hitice_pixelram_w) AM_SHARE("pixelram")
@@ -563,10 +544,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( rambo3_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x200000, 0x200001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x200000, 0x200001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	TC0180VCU_MEMRW( 0x400000 )
-	AM_RANGE(0x600000, 0x60000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0xff00)
+	AM_RANGE(0x600000, 0x60000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0xff00)
 	AM_RANGE(0x600010, 0x600011) AM_READ(tracky1_lo_r) /*player 1*/
 	AM_RANGE(0x600012, 0x600013) AM_READ(tracky1_hi_r)
 	AM_RANGE(0x600014, 0x600015) AM_READ(trackx1_lo_r)
@@ -583,14 +564,14 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( pbobble_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	TC0180VCU_MEMRW( 0x400000 )
-	AM_RANGE(0x500000, 0x50000f) AM_READ(pbobble_input_bypass_r) AM_DEVWRITE_LEGACY("tc0640fio", tc0640fio_halfword_byteswap_w)
+	AM_RANGE(0x500000, 0x50000f) AM_READ(pbobble_input_bypass_r) AM_DEVWRITE("tc0640fio", tc0640fio_device, halfword_byteswap_w)
 	AM_RANGE(0x500024, 0x500025) AM_READ_PORT("P3_P4_A")        /* shown in service mode, game omits to read it */
 	AM_RANGE(0x500026, 0x500027) AM_READWRITE(eep_latch_r, eeprom_w)
 	AM_RANGE(0x500028, 0x500029) AM_WRITE(player_34_coin_ctrl_w)    /* simply locks coins 3&4 out */
 	AM_RANGE(0x50002e, 0x50002f) AM_READ_PORT("P3_P4_B")        /* shown in service mode, game omits to read it */
 	AM_RANGE(0x600000, 0x600003) AM_WRITE(gain_control_w)
-	AM_RANGE(0x700000, 0x700001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x700002, 0x700003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x700000, 0x700001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x700002, 0x700003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	AM_RANGE(0x800000, 0x801fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x900000, 0x90ffff) AM_RAM /* Main RAM */
 ADDRESS_MAP_END
@@ -599,23 +580,23 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( spacedx_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	TC0180VCU_MEMRW( 0x400000 )
-	AM_RANGE(0x500000, 0x50000f) AM_READ(pbobble_input_bypass_r) AM_DEVWRITE_LEGACY("tc0640fio", tc0640fio_halfword_byteswap_w)
+	AM_RANGE(0x500000, 0x50000f) AM_READ(pbobble_input_bypass_r) AM_DEVWRITE("tc0640fio", tc0640fio_device, halfword_byteswap_w)
 	AM_RANGE(0x500024, 0x500025) AM_READ_PORT("P3_P4_A")
 	AM_RANGE(0x500026, 0x500027) AM_READWRITE(eep_latch_r, eeprom_w)
 	AM_RANGE(0x500028, 0x500029) AM_WRITE(player_34_coin_ctrl_w)    /* simply locks coins 3&4 out */
 	AM_RANGE(0x50002e, 0x50002f) AM_READ_PORT("P3_P4_B")
 	AM_RANGE(0x600000, 0x600003) AM_WRITE(gain_control_w)
-	AM_RANGE(0x700000, 0x700001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x700002, 0x700003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x700000, 0x700001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x700002, 0x700003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	AM_RANGE(0x800000, 0x801fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x900000, 0x90ffff) AM_RAM /* Main RAM */
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( spacedxo_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x100002, 0x100003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
-	AM_RANGE(0x200000, 0x20000f) AM_DEVREAD8_LEGACY("tc0220ioc", tc0220ioc_r, 0x00ff) AM_WRITE(spacedxo_tc0220ioc_w)
+	AM_RANGE(0x100000, 0x100001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x100002, 0x100003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x200000, 0x20000f) AM_DEVREAD8("tc0220ioc", tc0220ioc_device, read, 0x00ff) AM_WRITE(spacedxo_tc0220ioc_w)
 	AM_RANGE(0x210000, 0x210001) AM_READ_PORT("IN3")
 	AM_RANGE(0x220000, 0x220001) AM_READ_PORT("IN4")
 	AM_RANGE(0x230000, 0x230001) AM_READ_PORT("IN5")
@@ -628,14 +609,14 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( qzshowby_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
-	AM_RANGE(0x200000, 0x20000f) AM_READ(pbobble_input_bypass_r) AM_DEVWRITE_LEGACY("tc0640fio", tc0640fio_halfword_byteswap_w)
+	AM_RANGE(0x200000, 0x20000f) AM_READ(pbobble_input_bypass_r) AM_DEVWRITE("tc0640fio", tc0640fio_device, halfword_byteswap_w)
 	AM_RANGE(0x200024, 0x200025) AM_READ_PORT("P3_P4_A")    /* player 3,4 start */
 	AM_RANGE(0x200026, 0x200027) AM_WRITE(eeprom_w)
 	AM_RANGE(0x200028, 0x200029) AM_READWRITE(player_34_coin_ctrl_r, player_34_coin_ctrl_w)
 	AM_RANGE(0x20002e, 0x20002f) AM_READ_PORT("P3_P4_B")    /* player 3,4 buttons */
 	TC0180VCU_MEMRW( 0x400000 )
-	AM_RANGE(0x600000, 0x600001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x600002, 0x600003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x600000, 0x600001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x600002, 0x600003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	AM_RANGE(0x700000, 0x700003) AM_WRITE(gain_control_w)
 	AM_RANGE(0x800000, 0x801fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x900000, 0x90ffff) AM_RAM /* Main RAM */
@@ -644,11 +625,11 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( viofight_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x200000, 0x200001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x200000, 0x200001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x200002, 0x200003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	TC0180VCU_MEMRW( 0x400000 )
 	AM_RANGE(0x600000, 0x601fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x800000, 0x80000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0xff00)
+	AM_RANGE(0x800000, 0x80000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0xff00)
 	AM_RANGE(0xa00000, 0xa03fff) AM_RAM /* Main RAM */
 ADDRESS_MAP_END
 
@@ -658,20 +639,20 @@ static ADDRESS_MAP_START( masterw_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x200000, 0x203fff) AM_RAM /* Main RAM */
 	TC0180VCU_MEMRW( 0x400000 )
 	AM_RANGE(0x600000, 0x601fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x800000, 0x800001) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_portreg_r, tc0220ioc_portreg_w, 0xff00)
-	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_port_r, tc0220ioc_port_w, 0xff00)
-	AM_RANGE(0xa00000, 0xa00001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0xa00002, 0xa00003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x800000, 0x800001) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, portreg_r, portreg_w, 0xff00)
+	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, port_r, port_w, 0xff00)
+	AM_RANGE(0xa00000, 0xa00001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0xa00002, 0xa00003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( silentd_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x100002, 0x100003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x100000, 0x100001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x100002, 0x100003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 //  AM_RANGE(0x10001a, 0x10001b) AM_READNOP // ??? read at $1e344
 //  AM_RANGE(0x10001c, 0x10001d) AM_READNOP // ??? read at $1e356
-	AM_RANGE(0x200000, 0x20000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0x00ff)
+	AM_RANGE(0x200000, 0x20000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0x00ff)
 	AM_RANGE(0x210000, 0x210001) AM_READ_PORT("IN3")
 	AM_RANGE(0x220000, 0x220001) AM_READ_PORT("IN4")
 	AM_RANGE(0x230000, 0x230001) AM_READ_PORT("IN5")
@@ -688,10 +669,10 @@ static ADDRESS_MAP_START( selfeena_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x100000, 0x103fff) AM_RAM /* Main RAM */
 	TC0180VCU_MEMRW( 0x200000 )
 	AM_RANGE(0x300000, 0x301fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x400000, 0x40000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0xff00)
-	AM_RANGE(0x410000, 0x41000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0xff00) /* mirror address - seems to be only used for coin control */
-	AM_RANGE(0x500000, 0x500001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x500002, 0x500003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x400000, 0x40000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0xff00)
+	AM_RANGE(0x410000, 0x41000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0xff00) /* mirror address - seems to be only used for coin control */
+	AM_RANGE(0x500000, 0x500001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x500002, 0x500003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 ADDRESS_MAP_END
 
 
@@ -699,9 +680,9 @@ static ADDRESS_MAP_START( sbm_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM /* Main RAM */
 	AM_RANGE(0x200000, 0x201fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE_LEGACY("tc0510nio", tc0510nio_halfword_wordswap_r, tc0510nio_halfword_wordswap_w)
-	AM_RANGE(0x320000, 0x320001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x320002, 0x320003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE("tc0510nio", tc0510nio_device, halfword_wordswap_r, halfword_wordswap_w)
+	AM_RANGE(0x320000, 0x320001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x320002, 0x320003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	TC0180VCU_MEMRW( 0x900000 )
 ADDRESS_MAP_END
 
@@ -710,35 +691,35 @@ static ADDRESS_MAP_START( realpunc_map, AS_PROGRAM, 16, taitob_state )
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM
 	AM_RANGE(0x110000, 0x12ffff) AM_RAM
 	AM_RANGE(0x130000, 0x13ffff) AM_RAM // Check me
-	AM_RANGE(0x180000, 0x18000f) AM_DEVREADWRITE_LEGACY("tc0510nio", tc0510nio_halfword_wordswap_r, tc0510nio_halfword_wordswap_w)
+	AM_RANGE(0x180000, 0x18000f) AM_DEVREADWRITE("tc0510nio", tc0510nio_device, halfword_wordswap_r, halfword_wordswap_w)
 	AM_RANGE(0x184000, 0x184001) AM_WRITE(realpunc_video_ctrl_w)
-	AM_RANGE(0x188000, 0x188001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x188002, 0x188003) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x188000, 0x188001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x188002, 0x188003) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_w, 0xff00)
 	AM_RANGE(0x18c000, 0x18c001) AM_WRITE(realpunc_output_w)
 	TC0180VCU_MEMRW( 0x200000 )
 	AM_RANGE(0x280000, 0x281fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBxxxx_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x300000, 0x300001) AM_DEVREADWRITE_LEGACY("hd63484", hd63484_status_r, hd63484_address_w)
 	AM_RANGE(0x300002, 0x300003) AM_DEVREADWRITE_LEGACY("hd63484", hd63484_data_r, hd63484_data_w)
-//  AM_RANGE(0x320000, 0x320001) AM_READ_LEGACY(SMH_NOP) // ?
-	AM_RANGE(0x320002, 0x320003) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_comm_w, 0xff00)
+//  AM_RANGE(0x320000, 0x320001) AM_NOP // ?
+	AM_RANGE(0x320002, 0x320003) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_w, 0xff00)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( masterw_sound_map, AS_PROGRAM, 8, taitob_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
-	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
-	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, taitob_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0xc000, 0xdfff) AM_RAM
-	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
-	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
+	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 	AM_RANGE(0xe400, 0xe403) AM_WRITENOP /* pan */
 	AM_RANGE(0xe600, 0xe600) AM_WRITENOP /* ? */
 	AM_RANGE(0xea00, 0xea00) AM_READNOP
@@ -751,10 +732,10 @@ static ADDRESS_MAP_START( viofight_sound_map, AS_PROGRAM, 8, taitob_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
-	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0xb000, 0xb001) AM_DEVREADWRITE("oki", okim6295_device, read, write)       /* yes, both addresses for the same chip */
-	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 ADDRESS_MAP_END
 
 
@@ -1892,28 +1873,19 @@ GFXDECODE_END
 
 
 /* handler called by the YM2610 emulator when the internal timers cause an IRQ */
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(taitob_state::irqhandler)
 {
-	taitob_state *state = device->machine().driver_data<taitob_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2610_interface ym2610_config =
+static const ay8910_interface ay8910_config =
 {
-	irqhandler
-};
-
-static const ym2203_interface ym2203_config =
-{
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(taitob_state, bankswitch_w),
-		DEVCB_NULL,
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(taitob_state, bankswitch_w),
+	DEVCB_NULL,
 };
 
 /*
@@ -2004,14 +1976,8 @@ static const tc0140syt_interface taitob_tc0140syt_intf =
 
 void taitob_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 	m_mb87078 = machine().device("mb87078");
 	m_ym = machine().device("ymsnd");
-	m_tc0180vcu = machine().device("tc0180vcu");
-	m_tc0640fio = machine().device("tc0640fio");
-	m_tc0220ioc = machine().device("tc0220ioc");
 
 	save_item(NAME(m_eep_latch));
 	save_item(NAME(m_coin_word));
@@ -2019,7 +1985,6 @@ void taitob_state::machine_start()
 
 void taitob_state::machine_reset()
 {
-
 	m_eep_latch = 0;
 	m_coin_word = 0;
 }
@@ -2059,7 +2024,7 @@ static MACHINE_CONFIG_START( rastsag2, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2103,7 +2068,7 @@ static MACHINE_CONFIG_START( ashura, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2147,7 +2112,7 @@ static MACHINE_CONFIG_START( crimec, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2191,7 +2156,7 @@ static MACHINE_CONFIG_START( tetrist, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2234,7 +2199,8 @@ static MACHINE_CONFIG_START( tetrista, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)
@@ -2279,7 +2245,8 @@ static MACHINE_CONFIG_START( hitice, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)
@@ -2327,7 +2294,7 @@ static MACHINE_CONFIG_START( rambo3p, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_16MHz/2)   /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2371,7 +2338,7 @@ static MACHINE_CONFIG_START( rambo3, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_16MHz/2)   /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2418,7 +2385,7 @@ static MACHINE_CONFIG_START( pbobble, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610B, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2466,7 +2433,7 @@ static MACHINE_CONFIG_START( spacedx, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2510,7 +2477,7 @@ static MACHINE_CONFIG_START( spacedxo, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2558,7 +2525,7 @@ static MACHINE_CONFIG_START( qzshowby, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610B, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2602,7 +2569,8 @@ static MACHINE_CONFIG_START( viofight, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)
@@ -2649,7 +2617,8 @@ static MACHINE_CONFIG_START( masterw, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)
@@ -2694,7 +2663,7 @@ static MACHINE_CONFIG_START( silentd, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2738,7 +2707,7 @@ static MACHINE_CONFIG_START( selfeena, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2747,9 +2716,9 @@ static MACHINE_CONFIG_START( selfeena, taitob_state )
 MACHINE_CONFIG_END
 
 #if 0
-static void ryujin_patch(void)
+void taitob_state::ryujin_patch(void)
 {
-	UINT16 *rom = (UINT16*)machine.root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16*)memregion("maincpu")->base();
 	rom[ 0x62/2 ] = 1;
 	//0 (already in rom) - Taito Corporation 1993
 	//1 - Taito America corp with blue FBI logo
@@ -2791,7 +2760,7 @@ static MACHINE_CONFIG_START( ryujin, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2800,9 +2769,9 @@ static MACHINE_CONFIG_START( ryujin, taitob_state )
 MACHINE_CONFIG_END
 
 #if 0
-static void sbm_patch(void)
+void taitob_state::sbm_patch(void)
 {
-	UINT16 *rom = (UINT16*)machine.root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16*)memregion("maincpu")->base();
 	rom[ 0x7ffff/2 ] = 2; //US version
 }
 #endif
@@ -2842,7 +2811,7 @@ static MACHINE_CONFIG_START( sbm, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610B, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -2894,7 +2863,7 @@ static MACHINE_CONFIG_START( realpunc, taitob_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610B, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -3656,7 +3625,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(taitob_state,taito_b)
 {
-	machine().root_device().membank("bank1")->configure_entries(0, 4, machine().root_device().memregion("audiocpu")->base() + 0x10000, 0x4000);
+	membank("bank1")->configure_entries(0, 4, memregion("audiocpu")->base() + 0x10000, 0x4000);
 }
 
 GAME( 1989, masterw,  0,       masterw,  masterw, taitob_state,  taito_b, ROT270, "Taito Corporation Japan", "Master of Weapon (World)", GAME_SUPPORTS_SAVE )

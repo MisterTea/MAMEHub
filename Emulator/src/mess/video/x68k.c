@@ -38,7 +38,7 @@ inline void x68k_state::x68k_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT
 	bitmap.pix16(y, x) = (UINT16)color;
 }
 /*
-static bitmap_ind16* x68k_get_gfx_page(int pri,int type)
+bitmap_ind16* ::x68k_get_gfx_page(int pri,int type)
 {
     if(type == GFX16)
     {
@@ -190,7 +190,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_hsync)
 				m_scanline_timer->adjust(hsync_time);
 				if(scan != 0)
 				{
-					if((machine().root_device().ioport("options")->read() & 0x04))
+					if((ioport("options")->read() & 0x04))
 					{
 						machine().primary_screen->update_partial(scan);
 					}
@@ -205,7 +205,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_hsync)
 				m_scanline_timer->adjust(hsync_time);
 				if(scan != 0)
 				{
-					if((machine().root_device().ioport("options")->read() & 0x04))
+					if((ioport("options")->read() & 0x04))
 					{
 						machine().primary_screen->update_partial(scan);
 					}
@@ -244,7 +244,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_hsync)
 			m_scanline_timer->adjust(hsync_time);
 			if(scan != 0)
 			{
-				if((machine().root_device().ioport("options")->read() & 0x04))
+				if((ioport("options")->read() & 0x04))
 				{
 					machine().primary_screen->update_partial(scan);
 				}
@@ -281,7 +281,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_crtc_raster_irq)
 		// end of HBlank period clears GPIP6 also?
 		end_time = machine().primary_screen->time_until_pos(scan,m_crtc.hend);
 		m_raster_irq->adjust(irq_time, scan);
-		machine().scheduler().timer_set(end_time, timer_expired_delegate(FUNC(x68k_state::x68k_crtc_raster_end),this));
+		timer_set(end_time, TIMER_X68K_CRTC_RASTER_END);
 		logerror("GPIP6: Raster triggered at line %i (%i)\n",scan,machine().primary_screen->vpos());
 	}
 }
@@ -440,7 +440,7 @@ WRITE16_MEMBER(x68k_state::x68k_crtc_w )
 		if(data & 0x08)  // text screen raster copy
 		{
 			x68k_crtc_text_copy((m_crtc.reg[22] & 0xff00) >> 8,(m_crtc.reg[22] & 0x00ff));
-			machine().scheduler().timer_set(attotime::from_msec(1), timer_expired_delegate(FUNC(x68k_state::x68k_crtc_operation_end),this), 0x02);  // time taken to do operation is a complete guess.
+			timer_set(attotime::from_msec(1), TIMER_X68K_CRTC_OPERATION_END, 0x02);  // time taken to do operation is a complete guess.
 		}
 		if(data & 0x02)  // high-speed graphic screen clear
 		{
@@ -448,11 +448,11 @@ WRITE16_MEMBER(x68k_state::x68k_crtc_w )
 				memset(m_gvram32,0,0x40000);
 			else
 				memset(m_gvram16,0,0x40000);
-			machine().scheduler().timer_set(attotime::from_msec(10), timer_expired_delegate(FUNC(x68k_state::x68k_crtc_operation_end),this), 0x02);  // time taken to do operation is a complete guess.
+			timer_set(attotime::from_msec(10), TIMER_X68K_CRTC_OPERATION_END, 0x02);  // time taken to do operation is a complete guess.
 		}
 		break;
 	}
-//  logerror("CRTC: [%08x] Wrote %04x to CRTC register %i\n",machine().device("maincpu")->safe_pc(),data,offset);
+//  logerror("CRTC: [%08x] Wrote %04x to CRTC register %i\n",m_maincpu->safe_pc(),data,offset);
 }
 
 READ16_MEMBER(x68k_state::x68k_crtc_r )
@@ -468,7 +468,7 @@ READ16_MEMBER(x68k_state::x68k_crtc_r )
 
 	if(offset < 24)
 	{
-//      logerror("CRTC: [%08x] Read %04x from CRTC register %i\n",machine().device("maincpu")->safe_pc(),m_crtc.reg[offset],offset);
+//      logerror("CRTC: [%08x] Read %04x from CRTC register %i\n",m_maincpu->safe_pc(),m_crtc.reg[offset],offset);
 		switch(offset)
 		{
 		case 9:
@@ -1117,7 +1117,7 @@ VIDEO_START_MEMBER(x68k_state,x68000)
 			break;
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	machine().gfx[gfx_index] = auto_alloc(machine(), gfx_element(machine(), x68k_pcg_8, machine().root_device().memregion("user1")->base(), 32, 0));
+	machine().gfx[gfx_index] = auto_alloc(machine(), gfx_element(machine(), x68k_pcg_8, memregion("user1")->base(), 32, 0));
 
 	gfx_index++;
 
@@ -1178,7 +1178,7 @@ UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_ind16 &bit
 		rect.max_y = cliprect.max_y;
 
 	// update tiles
-	//rom = machine().root_device().memregion("user1")->base();
+	//rom = memregion("user1")->base();
 	for(x=0;x<256;x++)
 	{
 		if(m_video.tile16_dirty[x] != 0)
@@ -1253,7 +1253,7 @@ UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_ind16 &bit
 		m_mfp.isra = 0;
 		m_mfp.isrb = 0;
 //      mfp_trigger_irq(MFP_IRQ_GPIP6);
-//      machine().device("maincpu")->execute().set_input_line_and_vector(6,ASSERT_LINE,0x43);
+//      m_maincpu->set_input_line_and_vector(6,ASSERT_LINE,0x43);
 	}
 	if(machine().input().code_pressed(KEYCODE_9))
 	{
@@ -1288,7 +1288,7 @@ UINT32 x68k_state::screen_update_x68000(screen_device &screen, bitmap_ind16 &bit
 //  popmessage("Graphic layer scroll - %i, %i - %i, %i - %i, %i - %i, %i",
 //      m_crtc.reg[12],m_crtc.reg[13],m_crtc.reg[14],m_crtc.reg[15],m_crtc.reg[16],m_crtc.reg[17],m_crtc.reg[18],m_crtc.reg[19]);
 //  popmessage("IOC IRQ status - %02x",m_ioc.irqstatus);
-//  popmessage("RAM: mouse data - %02x %02x %02x %02x",machine().device<ram_device>(RAM_TAG)->pointer()[0x931],machine().device<ram_device>(RAM_TAG)->pointer()[0x930],machine().device<ram_device>(RAM_TAG)->pointer()[0x933],machine().device<ram_device>(RAM_TAG)->pointer()[0x932]);
+//  popmessage("RAM: mouse data - %02x %02x %02x %02x",m_ram->pointer()[0x931],m_ram->pointer()[0x930],m_ram->pointer()[0x933],m_ram->pointer()[0x932]);
 #endif
 	return 0;
 }

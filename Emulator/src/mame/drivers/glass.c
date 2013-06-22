@@ -20,7 +20,6 @@ WRITE16_MEMBER(glass_state::clr_int_w)
 
 INTERRUPT_GEN_MEMBER(glass_state::glass_interrupt)
 {
-
 	if (m_cause_interrupt)
 	{
 		device.execute().set_input_line(6, HOLD_LINE);
@@ -171,7 +170,6 @@ INPUT_PORTS_END
 
 void glass_state::machine_start()
 {
-
 	save_item(NAME(m_cause_interrupt));
 	save_item(NAME(m_current_bit));
 	save_item(NAME(m_current_command));
@@ -286,15 +284,15 @@ ROM_END
 
 ***************************************************************************/
 
-static void glass_ROM16_split_gfx( running_machine &machine, const char *src_reg, const char *dst_reg, int start, int length, int dest1, int dest2 )
+void glass_state::glass_ROM16_split_gfx( const char *src_reg, const char *dst_reg, int start, int length, int dest1, int dest2 )
 {
 	int i;
 
 	/* get a pointer to the source data */
-	UINT8 *src = (UINT8 *)machine.root_device().memregion(src_reg)->base();
+	UINT8 *src = (UINT8 *)memregion(src_reg)->base();
 
 	/* get a pointer to the destination data */
-	UINT8 *dst = (UINT8 *)machine.root_device().memregion(dst_reg)->base();
+	UINT8 *dst = (UINT8 *)memregion(dst_reg)->base();
 
 	/* fill destination areas with the proper data */
 	for (i = 0; i < length / 2; i++)
@@ -406,13 +404,13 @@ DRIVER_INIT_MEMBER(glass_state,glass)
 	*/
 
 	/* split ROM H13 */
-	glass_ROM16_split_gfx(machine(), "gfx2", "gfx1", 0x0000000, 0x0200000, 0x0000000, 0x0100000);
+	glass_ROM16_split_gfx("gfx2", "gfx1", 0x0000000, 0x0200000, 0x0000000, 0x0100000);
 
 	/* split ROM H11 */
-	glass_ROM16_split_gfx(machine(), "gfx2", "gfx1", 0x0200000, 0x0200000, 0x0200000, 0x0300000);
+	glass_ROM16_split_gfx("gfx2", "gfx1", 0x0200000, 0x0200000, 0x0200000, 0x0300000);
 
 	/* install custom handler over RAM for protection */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xfec000, 0xfeffff, read16_delegate(FUNC(glass_state::glass_mainram_r), this), write16_delegate(FUNC(glass_state::glass_mainram_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xfec000, 0xfeffff, read16_delegate(FUNC(glass_state::glass_mainram_r), this), write16_delegate(FUNC(glass_state::glass_mainram_w),this));
 
 }
 

@@ -44,8 +44,8 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	void line_update();
-	int cart_load(device_image_interface &image);
 	UINT32 screen_update_uzebox(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(uzebox_cart);
 
 private:
 	int             m_vpos;
@@ -243,14 +243,15 @@ INPUT_PORTS_END
 void uzebox_state::line_update()
 {
 	UINT32 cycles = (UINT32)(m_maincpu->get_elapsed_cycles() - m_line_start_cycles) / 2;
+	rgb_t color = MAKE_RGB(pal3bit(m_port_c >> 0), pal3bit(m_port_c >> 3), pal2bit(m_port_c >> 6));
 
 	for (UINT32 x = m_line_pos_cycles; x < cycles; x++)
 	{
 		if (m_bitmap.cliprect().contains(x, m_vpos))
-			m_bitmap.pix32(m_vpos, x) = MAKE_RGB(pal3bit(m_port_c >> 0), pal3bit(m_port_c >> 3), pal2bit(m_port_c >> 6));
+			m_bitmap.pix32(m_vpos, x) = color;
 		if (!INTERLACED)
 			if (m_bitmap.cliprect().contains(x, m_vpos + 1))
-				m_bitmap.pix32(m_vpos + 1, x) = MAKE_RGB(pal3bit(m_port_c >> 0), pal3bit(m_port_c >> 3), pal2bit(m_port_c >> 6));
+				m_bitmap.pix32(m_vpos + 1, x) = color;
 	}
 
 	m_line_pos_cycles = cycles;
@@ -262,7 +263,7 @@ UINT32 uzebox_state::screen_update_uzebox(screen_device &screen, bitmap_rgb32 &b
 	return 0;
 }
 
-int uzebox_state::cart_load(device_image_interface &image)
+DEVICE_IMAGE_LOAD_MEMBER(uzebox_state,uzebox_cart)
 {
 	UINT8* rom = (UINT8*)(*memregion("maincpu"));
 
@@ -290,10 +291,6 @@ int uzebox_state::cart_load(device_image_interface &image)
 	return IMAGE_INIT_PASS;
 }
 
-static DEVICE_IMAGE_LOAD(uzebox_cart)
-{
-	return image.device().machine().driver_data<uzebox_state>()->cart_load(image);
-}
 
 /****************************************************\
 * Machine definition                                 *
@@ -329,7 +326,7 @@ static MACHINE_CONFIG_START( uzebox, uzebox_state )
 	MCFG_CARTSLOT_ADD("cart1")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin,uze")
 	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(uzebox_cart)
+	MCFG_CARTSLOT_LOAD(uzebox_state,uzebox_cart)
 	MCFG_CARTSLOT_INTERFACE("uzebox")
 	MCFG_SOFTWARE_LIST_ADD("eprom_list","uzebox")
 MACHINE_CONFIG_END

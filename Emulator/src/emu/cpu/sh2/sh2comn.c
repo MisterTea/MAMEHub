@@ -26,35 +26,43 @@ static const int div_tab[4] = { 3, 5, 7, 0 };
 
 INLINE UINT32 RL(sh2_state *sh2, offs_t A)
 {
-	if (A >= 0xe0000000)
+	if (A >= 0xe0000000) /* I/O */
 		return sh2_internal_r(*sh2->internal, (A & 0x1fc)>>2, 0xffffffff);
 
-	if (A >= 0xc0000000)
+	if (A >= 0xc0000000) /* Cache Data Array */
 		return sh2->program->read_dword(A);
 
-	if (A >= 0x40000000)
+	/*  0x60000000 Cache Address Data Array */
+
+	if (A >= 0x40000000) /* Cache Associative Purge Area */
 		return 0xa5a5a5a5;
 
+	/* 0x20000000 no Cache */
+	/* 0x00000000 read thru Cache if CE bit is 1 */
 	return sh2->program->read_dword(A & AM);
 }
 
 INLINE void WL(sh2_state *sh2, offs_t A, UINT32 V)
 {
-	if (A >= 0xe0000000)
+	if (A >= 0xe0000000) /* I/O */
 	{
 		sh2_internal_w(*sh2->internal, (A & 0x1fc)>>2, V, 0xffffffff);
 		return;
 	}
 
-	if (A >= 0xc0000000)
+	if (A >= 0xc0000000) /* Cache Data Array */
 	{
 		sh2->program->write_dword(A,V);
 		return;
 	}
 
-	if (A >= 0x40000000)
+	/*  0x60000000 Cache Address Data Array */
+
+	if (A >= 0x40000000) /* Cache Associative Purge Area */
 		return;
 
+	/* 0x20000000 no Cache */
+	/* 0x00000000 read thru Cache if CE bit is 1 */
 	sh2->program->write_dword(A & AM,V);
 }
 
@@ -191,8 +199,6 @@ void sh2_do_dma(sh2_state *sh2, int dma)
 
 	if (sh2->active_dma_count[dma] > 0)
 	{
-
-
 		// process current DMA
 		switch(sh2->active_dma_size[dma])
 		{
@@ -412,6 +418,7 @@ void sh2_do_dma(sh2_state *sh2, int dma)
 		LOG(("SH2.%s: DMA %d complete\n", sh2->device->tag(), dma));
 		sh2->m[0x63+4*dma] |= 2;
 		sh2->dma_timer_active[dma] = 0;
+		sh2->dma_irq[dma] |= 1;
 		sh2_recalc_irq(sh2);
 
 	}
@@ -432,7 +439,6 @@ static void sh2_dmac_check(sh2_state *sh2, int dma)
 	{
 		if(!sh2->dma_timer_active[dma] && !(sh2->m[0x63+4*dma] & 2))
 		{
-
 			sh2->active_dma_incd[dma] = (sh2->m[0x63+4*dma] >> 14) & 3;
 			sh2->active_dma_incs[dma] = (sh2->m[0x63+4*dma] >> 12) & 3;
 			sh2->active_dma_size[dma] = (sh2->m[0x63+4*dma] >> 10) & 3;
@@ -565,10 +571,51 @@ WRITE32_HANDLER( sh2_internal_w )
 
 		// Watchdog
 	case 0x20: // WTCNT, RSTCSR
+		if((sh2->m[0x20] & 0xff000000) == 0x5a000000)
+			sh2->wtcnt = (sh2->m[0x20] >> 16) & 0xff;
+
+		if((sh2->m[0x20] & 0xff000000) == 0xa5000000)
+		{
+			/*
+			WTCSR
+			x--- ---- Overflow in IT mode
+			-x-- ---- Timer mode (0: IT 1: watchdog)
+			--x- ---- Timer enable
+			---1 1---
+			---- -xxx Clock select
+			*/
+
+			sh2->wtcsr = (sh2->m[0x20] >> 16) & 0xff;
+		}
+
+		if((sh2->m[0x20] & 0x0000ff00) == 0x00005a00)
+		{
+			// -x-- ---- RSTE (1: resets wtcnt when overflows 0: no reset)
+			// --x- ---- RSTS (0: power-on reset 1: Manual reset)
+			// ...
+		}
+
+		if((sh2->m[0x20] & 0x0000ff00) == 0x0000a500)
+		{
+			// clear WOVF
+			// ...
+		}
+
+
+
 		break;
 
 		// Standby and cache
 	case 0x24: // SBYCR, CCR
+		/*
+		    CCR
+		    xx-- ---- ---- ---- Way 0/1
+		    ---x ---- ---- ---- Cache Purge (CP)
+		    ---- x--- ---- ---- Two-Way Mode (TW)
+		    ---- -x-- ---- ---- Data Replacement Disable (OD)
+		    ---- --x- ---- ---- Instruction Replacement Disable (ID)
+		    ---- ---x ---- ---- Cache Enable (CE)
+		*/
 		break;
 
 		// Interrupt vectors cont.
@@ -714,6 +761,12 @@ READ32_HANDLER( sh2_internal_r )
 	case 0x06: // ICR
 		return sh2->icr << 16;
 
+	case 0x20:
+		return (((sh2->wtcsr | 0x18) & 0xff) << 24)  | ((sh2->wtcnt & 0xff) << 16);
+
+	case 0x24: // SBYCR, CCR
+		return sh2->m[0x24] & ~0x3000; /* bit 4-5 of CCR are always zero */
+
 	case 0x38: // ICR, IPRA
 		return (sh2->m[0x38] & 0x7fffffff) | (sh2->nmi_line_state == ASSERT_LINE ? 0 : 0x80000000);
 
@@ -843,19 +896,20 @@ void sh2_recalc_irq(sh2_state *sh2)
 	}
 
 	// DMA irqs
-	if((sh2->m[0x63] & 6) == 6) {
+	if((sh2->m[0x63] & 6) == 6 && sh2->dma_irq[0]) {
 		level = (sh2->m[0x38] >> 8) & 15;
 		if(level > irq) {
 			irq = level;
-			vector = (sh2->m[0x68] >> 24) & 0x7f;
+			sh2->dma_irq[0] &= ~1;
+			vector = (sh2->m[0x68]) & 0x7f;
 		}
 	}
-
-	if((sh2->m[0x67] & 6) == 6) {
+	else if((sh2->m[0x67] & 6) == 6 && sh2->dma_irq[1]) {
 		level = (sh2->m[0x38] >> 8) & 15;
 		if(level > irq) {
 			irq = level;
-			vector = (sh2->m[0x6a] >> 24) & 0x7f;
+			sh2->dma_irq[1] &= ~1;
+			vector = (sh2->m[0x6a]) & 0x7f;
 		}
 	}
 
@@ -877,6 +931,8 @@ void sh2_exception(sh2_state *sh2, const char *message, int irqline)
 		if (sh2->internal_irq_level == irqline)
 		{
 			vector = sh2->internal_irq_vector;
+			/* avoid spurious irqs with this (TODO: needs a better fix) */
+			sh2->internal_irq_level = -1;
 			LOG(("SH-2 '%s' exception #%d (internal vector: $%x) after [%s]\n", sh2->device->tag(), irqline, vector, message));
 		}
 		else
@@ -927,6 +983,8 @@ void sh2_exception(sh2_state *sh2, const char *message, int irqline)
 	/* fetch PC */
 	sh2->pc = RL( sh2, sh2->vbr + vector * 4 );
 	#endif
+
+	if(sh2->sleep_mode == 1) { sh2->sleep_mode = 2; }
 }
 
 void sh2_common_init(sh2_state *sh2, legacy_cpu_device *device, device_irq_acknowledge_callback irqcallback)
@@ -1007,4 +1065,8 @@ void sh2_common_init(sh2_state *sh2, legacy_cpu_device *device, device_irq_ackno
 	device->save_item(NAME(sh2->internal_irq_level));
 	device->save_item(NAME(sh2->internal_irq_vector));
 	device->save_item(NAME(sh2->dma_timer_active));
+	device->save_item(NAME(sh2->dma_irq));
+	device->save_item(NAME(sh2->wtcnt));
+	device->save_item(NAME(sh2->wtcsr));
+	device->save_item(NAME(sh2->sleep_mode));
 }

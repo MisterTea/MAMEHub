@@ -15,20 +15,20 @@
 
 TIMER_CALLBACK_MEMBER(galaxy_state::gal_video)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int y, x;
 	if (m_interrupts_enabled == TRUE)
 	{
-		UINT8 *gfx = memregion("gfx1")->base();
+		UINT8 *gfx = m_region_gfx1->base();
 		UINT8 dat = (m_latch_value & 0x3c) >> 2;
 		if ((m_gal_cnt >= 48 * 2) && (m_gal_cnt < 48 * 210))  // display on screen just m_first 208 lines
 		{
 			UINT8 mode = (m_latch_value >> 1) & 1; // bit 2 latch represents mode
-			UINT16 addr = (machine().device("maincpu")->state().state_int(Z80_I) << 8) | machine().device("maincpu")->state().state_int(Z80_R) | ((m_latch_value & 0x80) ^ 0x80);
+			UINT16 addr = (m_maincpu->state_int(Z80_I) << 8) | m_maincpu->state_int(Z80_R) | ((m_latch_value & 0x80) ^ 0x80);
 			if (mode == 0)
 			{
 				// Text mode
-				if (m_first == 0 && (machine().device("maincpu")->state().state_int(Z80_R) & 0x1f) == 0)
+				if (m_first == 0 && (m_maincpu->state_int(Z80_R) & 0x1f) == 0)
 				{
 					// Due to a fact that on real processor latch value is set at
 					// the end of last cycle we need to skip dusplay of double
@@ -57,7 +57,7 @@ TIMER_CALLBACK_MEMBER(galaxy_state::gal_video)
 			}
 			else
 			{ // Graphics mode
-				if (m_first < 4 && (machine().device("maincpu")->state().state_int(Z80_R) & 0x1f) == 0)
+				if (m_first < 4 && (m_maincpu->state_int(Z80_R) & 0x1f) == 0)
 				{
 					// Due to a fact that on real processor latch value is set at
 					// the end of last cycle we need to skip dusplay of 4 times
@@ -102,11 +102,10 @@ TIMER_CALLBACK_MEMBER(galaxy_state::gal_video)
 	}
 }
 
-void galaxy_set_timer(running_machine &machine)
+void galaxy_state::galaxy_set_timer()
 {
-	galaxy_state *state = machine.driver_data<galaxy_state>();
-	state->m_gal_cnt = 0;
-	state->m_gal_video_timer->adjust(attotime::zero, 0, attotime::from_hz(6144000 / 8));
+	m_gal_cnt = 0;
+	m_gal_video_timer->adjust(attotime::zero, 0, attotime::from_hz(6144000 / 8));
 }
 
 void galaxy_state::video_start()

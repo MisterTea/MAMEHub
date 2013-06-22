@@ -33,7 +33,8 @@ public:
 	superdq_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_laserdisc(*this, "laserdisc") ,
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_device<pioneer_ldv1000_device> m_laserdisc;
 	UINT8 m_ld_in_latch;
@@ -53,6 +54,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_superdq(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(superdq_vblank);
+	required_device<cpu_device> m_maincpu;
 };
 
 TILE_GET_INFO_MEMBER(superdq_state::get_tile_info)
@@ -64,13 +66,11 @@ TILE_GET_INFO_MEMBER(superdq_state::get_tile_info)
 
 void superdq_state::video_start()
 {
-
 	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(superdq_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 UINT32 superdq_state::screen_update_superdq(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-
 	m_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	return 0;
@@ -86,7 +86,7 @@ UINT32 superdq_state::screen_update_superdq(screen_device &screen, bitmap_rgb32 
 
 void superdq_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 	static const int resistances[3] = { 820, 390, 200 };
 	double rweights[3], gweights[3], bweights[2];
@@ -126,7 +126,6 @@ void superdq_state::palette_init()
 
 void superdq_state::machine_reset()
 {
-
 	m_ld_in_latch = 0;
 	m_ld_out_latch = 0xff;
 	m_color_bank = 0;
@@ -134,7 +133,6 @@ void superdq_state::machine_reset()
 
 INTERRUPT_GEN_MEMBER(superdq_state::superdq_vblank)
 {
-
 	/* status is read when the STATUS line from the laserdisc
 	   toggles (600usec after the vblank). We could set up a
 	   timer to do that, but this works as well */
@@ -149,7 +147,6 @@ INTERRUPT_GEN_MEMBER(superdq_state::superdq_vblank)
 
 WRITE8_MEMBER(superdq_state::superdq_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_tilemap->mark_tile_dirty(offset);
 }
@@ -160,7 +157,7 @@ WRITE8_MEMBER(superdq_state::superdq_io_w)
 	static const UINT8 black_color_entries[] = {7,15,16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
 
 	if ( data & 0x40 ) /* bit 6 = irqack */
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 
 	coin_counter_w( machine(), 0, data & 0x08 );
 	coin_counter_w( machine(), 1, data & 0x04 );
@@ -185,13 +182,11 @@ WRITE8_MEMBER(superdq_state::superdq_io_w)
 
 READ8_MEMBER(superdq_state::superdq_ld_r)
 {
-
 	return m_ld_in_latch;
 }
 
 WRITE8_MEMBER(superdq_state::superdq_ld_w)
 {
-
 	m_ld_out_latch = data;
 }
 

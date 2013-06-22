@@ -278,6 +278,18 @@ $(CPUOBJ)/cubeqcpu/cubeqcpu.o:  $(CPUSRC)/cubeqcpu/cubeqcpu.c \
 								$(CPUSRC)/cubeqcpu/cubeqcpu.h
 
 
+#-------------------------------------------------
+# Ensoniq ES5510 ('ESP') DSP
+#-------------------------------------------------
+
+ifneq ($(filter ES5510,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/es5510
+CPUOBJS += $(CPUOBJ)/es5510/es5510.o
+endif
+
+$(CPUOBJ)/es5510.o: $(CPUSRC)/es5510/es5510.c \
+								$(CPUSRC)/es5510/es5510.h
+
 
 #-------------------------------------------------
 # Entertainment Sciences AM29116-based RIP
@@ -428,22 +440,6 @@ $(CPUOBJ)/g65816/g65816o3.o:    $(CPUSRC)/g65816/g65816o3.c \
 $(CPUOBJ)/g65816/g65816o4.o:    $(CPUSRC)/g65816/g65816o4.c \
 								$(G65816DEPS)
 
-
-
-#-------------------------------------------------
-# Hitachi 6309
-#-------------------------------------------------
-
-ifneq ($(filter HD6309,$(CPUS)),)
-OBJDIRS += $(CPUOBJ)/hd6309
-CPUOBJS += $(CPUOBJ)/hd6309/hd6309.o
-DASMOBJS += $(CPUOBJ)/hd6309/6309dasm.o
-endif
-
-$(CPUOBJ)/hd6309/hd6309.o:  $(CPUSRC)/hd6309/hd6309.c \
-							$(CPUSRC)/hd6309/hd6309.h \
-							$(CPUSRC)/hd6309/6309ops.c \
-							$(CPUSRC)/hd6309/6309tbl.c
 
 
 #-------------------------------------------------
@@ -614,6 +610,20 @@ $(CPUOBJ)/e132xs/e132xs.o:  $(CPUSRC)/e132xs/e132xs.c \
 							$(CPUSRC)/e132xs/e132xs.h \
 							$(CPUSRC)/e132xs/e132xsop.c
 
+
+
+#-------------------------------------------------
+# 15IE-00-013 CPU ("Microprogrammed Control Device")
+#-------------------------------------------------
+
+ifneq ($(filter IE15,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/ie15
+CPUOBJS += $(CPUOBJ)/ie15/ie15.o
+DASMOBJS += $(CPUOBJ)/ie15/ie15dasm.o
+endif
+
+$(CPUOBJ)/ie15/ie15.o:      $(CPUSRC)/ie15/ie15.c \
+							$(CPUSRC)/ie15/ie15.h
 
 
 #-------------------------------------------------
@@ -818,23 +828,6 @@ endif
 
 $(CPUOBJ)/i960/i960.o:  $(CPUSRC)/i960/i960.c \
 						$(CPUSRC)/i960/i960.h
-
-
-
-#-------------------------------------------------
-# Konami custom CPU (6809-based)
-#-------------------------------------------------
-
-ifneq ($(filter KONAMI,$(CPUS)),)
-OBJDIRS += $(CPUOBJ)/konami
-CPUOBJS += $(CPUOBJ)/konami/konami.o
-DASMOBJS += $(CPUOBJ)/konami/knmidasm.o
-endif
-
-$(CPUOBJ)/konami/konami.o:  $(CPUSRC)/konami/konami.c \
-							$(CPUSRC)/konami/konami.h \
-							$(CPUSRC)/konami/konamops.c \
-							$(CPUSRC)/konami/konamtbl.c
 
 
 
@@ -1055,7 +1048,10 @@ CPUOBJS += $(CPUOBJ)/m6502/deco16.o \
 			$(CPUOBJ)/m6502/m8502.o \
 			$(CPUOBJ)/m6502/n2a03.o \
 			$(CPUOBJ)/m6502/r65c02.o \
-			$(CPUOBJ)/m6502/m740.o
+			$(CPUOBJ)/m6502/m740.o \
+			$(CPUOBJ)/m6502/m3745x.o \
+			$(CPUOBJ)/m6502/m5074x.o \
+
 DASMOBJS +=
 endif
 
@@ -1135,6 +1131,12 @@ $(CPUOBJ)/m6502/m740.o:     $(CPUSRC)/m6502/m740.c \
 							$(CPUOBJ)/m6502/m740.inc \
 							$(CPUSRC)/m6502/m740.h \
 							$(CPUSRC)/m6502/m6502.h
+
+$(CPUOBJ)/m6502/m3745x.o:   $(CPUSRC)/m6502/m3745x.c \
+							$(CPUSRC)/m6502/m3745x.h
+
+$(CPUOBJ)/m6502/m5074x.o:   $(CPUSRC)/m6502/m5074x.c \
+							$(CPUSRC)/m6502/m5074x.h
 
 # rule to generate the C files
 $(CPUOBJ)/m6502/deco16.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/odeco16.lst $(CPUSRC)/m6502/ddeco16.lst
@@ -1216,14 +1218,39 @@ $(CPUOBJ)/m6805/m6805.o:    $(CPUSRC)/m6805/m6805.c \
 
 ifneq ($(filter M6809,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/m6809
-CPUOBJS += $(CPUOBJ)/m6809/m6809.o
-DASMOBJS += $(CPUOBJ)/m6809/6809dasm.o
+CPUOBJS += $(CPUOBJ)/m6809/m6809.o $(CPUOBJ)/m6809/hd6309.o $(CPUOBJ)/m6809/konami.o
+DASMOBJS += $(CPUOBJ)/m6809/6809dasm.o $(CPUOBJ)/m6809/6309dasm.o $(CPUOBJ)/m6809/knmidasm.o
 endif
 
 $(CPUOBJ)/m6809/m6809.o:    $(CPUSRC)/m6809/m6809.c \
 							$(CPUSRC)/m6809/m6809.h \
-							$(CPUSRC)/m6809/6809ops.c \
-							$(CPUSRC)/m6809/6809tbl.c
+							$(CPUSRC)/m6809/m6809inl.h \
+							$(CPUOBJ)/m6809/m6809.inc
+
+$(CPUOBJ)/m6809/hd6309.o:   $(CPUSRC)/m6809/hd6309.c \
+							$(CPUSRC)/m6809/hd6309.h \
+							$(CPUSRC)/m6809/m6809.h \
+							$(CPUSRC)/m6809/m6809inl.h \
+							$(CPUOBJ)/m6809/hd6309.inc
+
+
+$(CPUOBJ)/m6809/konami.o:   $(CPUSRC)/m6809/konami.c \
+							$(CPUSRC)/m6809/konami.h \
+							$(CPUSRC)/m6809/m6809.h \
+							$(CPUSRC)/m6809/m6809inl.h \
+							$(CPUOBJ)/m6809/konami.inc
+
+$(CPUOBJ)/m6809/m6809.inc:  $(CPUSRC)/m6809/m6809make.py $(CPUSRC)/m6809/m6809.ops $(CPUSRC)/m6809/base6x09.ops
+	@echo Generating m6809 source file...
+	$(PYTHON) $(CPUSRC)/m6809/m6809make.py $(CPUSRC)/m6809/m6809.ops > $@
+
+$(CPUOBJ)/m6809/hd6309.inc: $(CPUSRC)/m6809/m6809make.py $(CPUSRC)/m6809/hd6309.ops $(CPUSRC)/m6809/base6x09.ops
+	@echo Generating hd6309 source file...
+	$(PYTHON) $(CPUSRC)/m6809/m6809make.py $(CPUSRC)/m6809/hd6309.ops > $@
+
+$(CPUOBJ)/m6809/konami.inc: $(CPUSRC)/m6809/m6809make.py $(CPUSRC)/m6809/konami.ops $(CPUSRC)/m6809/base6x09.ops
+	@echo Generating konami source file...
+	$(PYTHON) $(CPUSRC)/m6809/m6809make.py $(CPUSRC)/m6809/konami.ops > $@
 
 
 
@@ -2070,3 +2097,15 @@ endif
 
 $(CPUOBJ)/lc8670/lc8670.o:  $(CPUSRC)/lc8670/lc8670.c \
 							$(CPUSRC)/lc8670/lc8670.h
+
+#-------------------------------------------------
+# Sega SCU DSP
+#-------------------------------------------------
+
+ifneq ($(filter SCUDSP,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/scudsp
+DASMOBJS += $(CPUOBJ)/scudsp/scudspdasm.o
+endif
+
+$(CPUOBJ)/scudsp/scudspdasm.o: CPUOBJS += $(CPUOBJ)/scudsp/scudspdasm.c
+

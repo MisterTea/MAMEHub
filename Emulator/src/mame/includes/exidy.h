@@ -22,8 +22,13 @@
 class exidy_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_COLLISION_IRQ
+	};
+
 	exidy_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_sprite1_xpos(*this, "sprite1_xpos"),
 		m_sprite1_ypos(*this, "sprite1_ypos"),
@@ -32,7 +37,8 @@ public:
 		m_spriteno(*this, "spriteno"),
 		m_sprite_enable(*this, "sprite_enable"),
 		m_color_latch(*this, "color_latch"),
-		m_characterram(*this, "characterram"){ }
+		m_characterram(*this, "characterram"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_last_dial;
 	required_shared_ptr<UINT8> m_videoram;
@@ -69,7 +75,18 @@ public:
 	DECLARE_MACHINE_START(teetert);
 	UINT32 screen_update_exidy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(exidy_vblank_interrupt);
-	TIMER_CALLBACK_MEMBER(collision_irq_callback);
+	void exidy_video_config(UINT8 _collision_mask, UINT8 _collision_invert, int _is_2bpp);
+	inline void latch_condition(int collision);
+	inline void set_1_color(int index, int which);
+	void set_colors();
+	void draw_background();
+	inline int sprite_1_enabled();
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void check_collision();
+	required_device<cpu_device> m_maincpu;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 /*----------- defined in video/exidy.c -----------*/

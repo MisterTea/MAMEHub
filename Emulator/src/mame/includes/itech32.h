@@ -18,7 +18,7 @@ class itech32_state : public driver_device
 {
 public:
 	itech32_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_main_ram(*this, "main_ram", 0),
 		m_nvram(*this, "nvram", 0),
 		m_video(*this, "video", 0),
@@ -26,7 +26,11 @@ public:
 		m_drivedge_zbuf_control(*this, "drivedge_zctl"),
 		m_tms1_boot(*this, "tms1_boot"),
 		m_tms1_ram(*this, "tms1_ram"),
-		m_tms2_ram(*this, "tms2_ram"){ }
+		m_tms2_ram(*this, "tms2_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_dsp1(*this, "dsp1"),
+		m_dsp2(*this, "dsp2") { }
 
 	optional_shared_ptr<UINT16> m_main_ram;
 	optional_shared_ptr<UINT16> m_nvram;
@@ -163,7 +167,28 @@ public:
 	INTERRUPT_GEN_MEMBER(generate_int1);
 	TIMER_CALLBACK_MEMBER(delayed_sound_data_w);
 	TIMER_CALLBACK_MEMBER(scanline_interrupt);
+	inline offs_t compute_safe_address(int x, int y);
+	inline void disable_clipping();
+	inline void enable_clipping();
+	void logblit(const char *tag);
+	void update_interrupts(int fast);
+	void draw_raw(UINT16 *base, UINT16 color);
+	void draw_raw_drivedge(UINT16 *base, UINT16 *zbase, UINT16 color);
+	inline void draw_rle_fast(UINT16 *base, UINT16 color);
+	inline void draw_rle_fast_xflip(UINT16 *base, UINT16 color);
+	inline void draw_rle_slow(UINT16 *base, UINT16 color);
+	void draw_rle(UINT16 *base, UINT16 color);
+	void shiftreg_clear(UINT16 *base, UINT16 *zbase);
+	void handle_video_command();
+	inline int determine_irq_state(int vint, int xint, int qint);
+	void itech32_update_interrupts(int vint, int xint, int qint);
+	void init_program_rom();
+	void init_sftm_common(int prot_addr);
+	void init_shuffle_bowl_common(int prot_addr);
+	void install_timekeeper();
+	void init_gt_common();
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	optional_device<cpu_device> m_dsp1;
+	optional_device<cpu_device> m_dsp2;
 };
-
-/*----------- defined in drivers/itech32.c -----------*/
-void itech32_update_interrupts(running_machine &machine, int vint, int xint, int qint);

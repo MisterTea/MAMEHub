@@ -6,7 +6,8 @@ class peyper_state : public driver_device
 {
 public:
 	peyper_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 irq_state;
 
@@ -21,6 +22,7 @@ public:
 	DECLARE_CUSTOM_INPUT_MEMBER(wolfman_replay_hs_r);
 	DECLARE_DRIVER_INIT(peyper);
 	virtual void machine_reset();
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -31,7 +33,6 @@ READ8_MEMBER(peyper_state::sw_r)
 
 WRITE8_MEMBER(peyper_state::col_w)
 {
-
 	if (data==0x90) display_block = 0;
 }
 
@@ -199,10 +200,10 @@ static ADDRESS_MAP_START( peyper_io, AS_IO, 8, peyper_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READWRITE(sw_r,disp_w)
 	AM_RANGE(0x01, 0x01) AM_WRITE(col_w)
-//  AM_RANGE(0x04, 0x04) AM_DEVWRITE_LEGACY("ay8910_0", ay8910_address_w)
-//  AM_RANGE(0x06, 0x06) AM_DEVWRITE_LEGACY("ay8910_0", ay8910_data_w)
-//  AM_RANGE(0x08, 0x08) AM_DEVWRITE_LEGACY("ay8910_1", ay8910_address_w)
-//  AM_RANGE(0x0a, 0x0a) AM_DEVWRITE_LEGACY("ay8910_1", ay8910_data_w)
+//  AM_RANGE(0x04, 0x04) AM_DEVWRITE_LEGACY("ay8910_0", ay8910_device, address_w)
+//  AM_RANGE(0x06, 0x06) AM_DEVWRITE_LEGACY("ay8910_0", ay8910_device, data_w)
+//  AM_RANGE(0x08, 0x08) AM_DEVWRITE_LEGACY("ay8910_1", ay8910_device, address_w)
+//  AM_RANGE(0x0a, 0x0a) AM_DEVWRITE_LEGACY("ay8910_1", ay8910_device, data_w)
 	AM_RANGE(0x0c, 0x0c) AM_WRITE(sol_w)
 	AM_RANGE(0x10, 0x18) AM_WRITE(lamp_w)
 	AM_RANGE(0x20, 0x20) AM_READ_PORT("DSW0")

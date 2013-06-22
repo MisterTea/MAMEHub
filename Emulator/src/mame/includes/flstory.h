@@ -1,13 +1,18 @@
+#include "sound/msm5232.h"
 
 class flstory_state : public driver_device
 {
 public:
 	flstory_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
 		m_scrlram(*this, "scrlram"),
-		m_workram(*this, "workram"){ }
+		m_workram(*this, "workram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_mcu(*this, "mcu"),
+		m_msm(*this, "msm"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -52,9 +57,10 @@ public:
 	int      m_mcu_select;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_mcu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_mcu;
+	required_device<msm5232_device> m_msm;
 
 	/* mcu */
 	UINT8 m_mcu_cmd;
@@ -118,4 +124,6 @@ public:
 	UINT32 screen_update_victnine(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_rumba(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(nmi_callback);
+	void flstory_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int pri );
+	void victnine_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 };

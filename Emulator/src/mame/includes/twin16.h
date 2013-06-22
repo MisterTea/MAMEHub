@@ -1,4 +1,6 @@
 #include "video/bufsprite.h"
+#include "sound/upd7759.h"
+#include "sound/k007232.h"
 
 class twin16_state : public driver_device
 {
@@ -9,7 +11,12 @@ public:
 		m_text_ram(*this, "text_ram"),
 		m_videoram(*this, "videoram"),
 		m_tile_gfx_ram(*this, "tile_gfx_ram"),
-		m_sprite_gfx_ram(*this, "sprite_gfx_ram"){ }
+		m_sprite_gfx_ram(*this, "sprite_gfx_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_k007232(*this, "k007232"),
+		m_upd7759(*this, "upd") { }
 
 	required_device<buffered_spriteram16_device> m_spriteram;
 	required_shared_ptr<UINT16> m_text_ram;
@@ -66,10 +73,16 @@ public:
 	INTERRUPT_GEN_MEMBER(CPUA_interrupt);
 	INTERRUPT_GEN_MEMBER(CPUB_interrupt);
 	TIMER_CALLBACK_MEMBER(twin16_sprite_tick);
+	int twin16_set_sprite_timer(  );
+	void twin16_spriteram_process(  );
+	void draw_sprites( bitmap_ind16 &bitmap );
+	void draw_layer( bitmap_ind16 &bitmap, int opaque );
+	int twin16_spriteram_process_enable(  );
+	void gfx_untangle(  );
+	DECLARE_WRITE8_MEMBER(volume_callback);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_subcpu;
+	required_device<k007232_device> m_k007232;
+	required_device<upd7759_device> m_upd7759;
 };
-
-/*----------- defined in drivers/twin16.c -----------*/
-int twin16_spriteram_process_enable( running_machine &machine );
-
-/*----------- defined in video/twin16.c -----------*/
-void twin16_spriteram_process( running_machine &machine );

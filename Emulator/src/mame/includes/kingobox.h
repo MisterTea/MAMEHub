@@ -8,13 +8,17 @@ class kingofb_state : public driver_device
 {
 public:
 	kingofb_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_scroll_y(*this, "scroll_y"),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_videoram2(*this, "videoram2"),
 		m_colorram2(*this, "colorram2"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_video_cpu(*this, "video"),
+		m_sprite_cpu(*this, "sprite"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_scroll_y;
@@ -33,9 +37,8 @@ public:
 	int        m_nmi_enable;
 
 	/* devices */
-	device_t *m_video_cpu;
-	device_t *m_sprite_cpu;
-	device_t *m_audio_cpu;
+	required_device<cpu_device> m_video_cpu;
+	required_device<cpu_device> m_sprite_cpu;
 	DECLARE_WRITE8_MEMBER(video_interrupt_w);
 	DECLARE_WRITE8_MEMBER(sprite_interrupt_w);
 	DECLARE_WRITE8_MEMBER(scroll_interrupt_w);
@@ -59,4 +62,11 @@ public:
 	UINT32 screen_update_kingofb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_ringking(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(kingofb_interrupt);
+	void palette_init_common( const UINT8 *color_prom, void (kingofb_state::*get_rgb_data)(const UINT8 *, int, int *, int *, int *) );
+	void kingofb_get_rgb_data( const UINT8 *color_prom, int i, int *r_data, int *g_data, int *b_data );
+	void ringking_get_rgb_data( const UINT8 *color_prom, int i, int *r_data, int *g_data, int *b_data );
+	void kingofb_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void ringking_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };

@@ -200,6 +200,82 @@ Notes:
 
 #include "includes/studio2.h"
 
+/***************************************************************************
+    PARAMETERS
+***************************************************************************/
+
+#define LOG 1
+
+#define ST2_BLOCK_SIZE 256
+
+/***************************************************************************
+    TYPE DEFINITIONS
+***************************************************************************/
+
+struct st2_header
+{
+	UINT8 header[4];            /* "RCA2" in ASCII code */
+	UINT8 blocks;               /* Total number of 256 byte blocks in file (including this one) */
+	UINT8 format;               /* Format Code (this is format number 1) */
+	UINT8 video;                /* If non-zero uses a special video driver, and programs cannot assume that it uses the standard Studio 2 one (top of screen at $0900+RB.0). A value of '1' here indicates the RAM is used normally, but scrolling is not (e.g. the top of the page is always at $900) */
+	UINT8 reserved0;
+	UINT8 author[2];            /* 2 byte ASCII code indicating the identity of the program coder */
+	UINT8 dumper[2];            /* 2 byte ASCII code indicating the identity of the ROM Source */
+	UINT8 reserved1[4];
+	UINT8 catalogue[10];        /* RCA Catalogue Code as ASCIIZ string. If a homebrew ROM, may contain any identifying code you wish */
+	UINT8 reserved2[6];
+	UINT8 title[32];            /* Cartridge Program Title as ASCIIZ string */
+	UINT8 page[64];             /* Contain the page addresses for each 256 byte block. The first byte at 64, contains the target address of the data at offset 256, the second byte contains the target address of the data at offset 512, and so on. Unused block bytes should be filled with $00 (an invalid page address). So, if byte 64 contains $1C, the ROM is paged into memory from $1C00-$1CFF */
+	UINT8 reserved3[128];
+};
+
+/***************************************************************************
+    IMPLEMENTATION
+***************************************************************************/
+
+/*-------------------------------------------------
+    DEVICE_IMAGE_LOAD_MEMBER( studio2_state, st2_cartslot_load )
+-------------------------------------------------*/
+
+DEVICE_IMAGE_LOAD_MEMBER( studio2_state, st2_cartslot_load )
+{
+	st2_header header;
+
+	/* check file size */
+	int filesize = image.length();
+
+	if (filesize <= ST2_BLOCK_SIZE) {
+		logerror("Error loading cartridge: Invalid ROM file: %s.\n", image.filename());
+		return IMAGE_INIT_FAIL;
+	}
+
+	/* read ST2 header */
+	if (image.fread( &header, ST2_BLOCK_SIZE) != ST2_BLOCK_SIZE) {
+		logerror("Error loading cartridge: Unable to read header from file: %s.\n", image.filename());
+		return IMAGE_INIT_FAIL;
+	}
+
+	if (LOG) logerror("ST2 Catalogue: %s\n", header.catalogue);
+	if (LOG) logerror("ST2 Title: %s\n", header.title);
+
+	/* read ST2 cartridge into memory */
+	for (int block = 0; block < (header.blocks - 1); block++)
+	{
+		UINT16 offset = header.page[block] << 8;
+		UINT8 *ptr = ((UINT8 *) memregion(CDP1802_TAG)->base()) + offset;
+
+		if (LOG) logerror("ST2 Reading block %u to %04x\n", block, offset);
+
+		if (image.fread( ptr, ST2_BLOCK_SIZE) != ST2_BLOCK_SIZE) {
+			logerror("Error loading cartridge: Unable to read contents from file: %s.\n", image.filename());
+			return IMAGE_INIT_FAIL;
+		}
+	}
+
+	return IMAGE_INIT_PASS;
+}
+
+
 /* Read/Write Handlers */
 
 WRITE8_MEMBER( studio2_state::keylatch_w )
@@ -301,15 +377,6 @@ INPUT_PORTS_END
 
 /* Video */
 
-static CDP1861_INTERFACE( studio2_cdp1861_intf )
-{
-	CDP1802_TAG,
-	SCREEN_TAG,
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1)
-};
-
 static const rgb_t VISICOM_PALETTE[] =
 {
 	MAKE_RGB(0x00, 0x80, 0x00),
@@ -333,44 +400,26 @@ READ_LINE_MEMBER( mpt02_state::gdata_r )
 	return BIT(m_color, 2);
 }
 
-static CDP1864_INTERFACE( mpt02_cdp1864_intf )
-{
-	CDP1802_TAG,
-	SCREEN_TAG,
-	CDP1864_INTERLACED,
-	DEVCB_DRIVER_LINE_MEMBER(mpt02_state, rdata_r),
-	DEVCB_DRIVER_LINE_MEMBER(mpt02_state, bdata_r),
-	DEVCB_DRIVER_LINE_MEMBER(mpt02_state, gdata_r),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1),
-	DEVCB_NULL,
-	RES_K(2.2), // unverified
-	RES_K(1),   // unverified
-	RES_K(5.1), // unverified
-	RES_K(4.7)  // unverified
-};
-
 /* CDP1802 Configuration */
 
 READ_LINE_MEMBER( studio2_state::clear_r )
 {
-	return BIT(ioport("CLEAR")->read(), 0);
+	return BIT(m_clear->read(), 0);
 }
 
 READ_LINE_MEMBER( studio2_state::ef3_r )
 {
-	return BIT(ioport("A")->read(), m_keylatch);
+	return BIT(m_a->read(), m_keylatch);
 }
 
 READ_LINE_MEMBER( studio2_state::ef4_r )
 {
-	return BIT(ioport("B")->read(), m_keylatch);
+	return BIT(m_b->read(), m_keylatch);
 }
 
 WRITE_LINE_MEMBER( studio2_state::q_w )
 {
-	beep_set_state(m_speaker, state);
+	m_beeper->set_state(state);
 }
 
 static COSMAC_INTERFACE( studio2_cosmac_intf )
@@ -433,16 +482,16 @@ void mpt02_state::machine_reset()
 	m_cti->reset();
 }
 
-DEVICE_IMAGE_LOAD( studio2_cart_load )
+DEVICE_IMAGE_LOAD_MEMBER( studio2_state, studio2_cart_load )
 {
 	if (image.software_entry() == NULL)
-		return device_load_st2_cartslot_load(image);
+		return DEVICE_IMAGE_LOAD_MEMBER_NAME(st2_cartslot_load)(image);
 	else
 	{
 		// WARNING: list code currently assume that cart mapping starts at 0x400.
 		// the five dumps currently available work like this, but the .st2 format
 		// allows for more freedom... how was the content of a real cart mapped?
-		UINT8 *ptr = ((UINT8 *) image.device().machine().root_device().memregion(CDP1802_TAG)->base()) + 0x400;
+		UINT8 *ptr = ((UINT8 *) memregion(CDP1802_TAG)->base()) + 0x400;
 		memcpy(ptr, image.get_software_region("rom"), image.get_software_region_length("rom"));
 		return IMAGE_INIT_PASS;
 	}
@@ -454,7 +503,7 @@ static MACHINE_CONFIG_FRAGMENT( studio2_cartslot )
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("st2,bin")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(studio2_cart_load)
+	MCFG_CARTSLOT_LOAD(studio2_state,studio2_cart_load)
 	MCFG_CARTSLOT_INTERFACE("studio2_cart")
 
 	/* software lists */
@@ -463,18 +512,18 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( studio2, studio2_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, 1760000) /* the real clock is derived from an oscillator circuit */
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, 1760000) /* the real clock is derived from an oscillator circuit */
 	MCFG_CPU_PROGRAM_MAP(studio2_map)
 	MCFG_CPU_IO_MAP(studio2_io_map)
 	MCFG_CPU_CONFIG(studio2_cosmac_intf)
 
 	/* video hardware */
 	MCFG_CDP1861_SCREEN_ADD(CDP1861_TAG, SCREEN_TAG, 1760000)
-	MCFG_CDP1861_ADD(CDP1861_TAG, 1760000, studio2_cdp1861_intf)
+	MCFG_CDP1861_ADD(CDP1861_TAG, SCREEN_TAG, 1760000, INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_FRAGMENT_ADD( studio2_cartslot )
@@ -482,18 +531,18 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( visicom, visicom_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, XTAL_3_579545MHz/2)
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, XTAL_3_579545MHz/2)
 	MCFG_CPU_PROGRAM_MAP(visicom_map)
 	MCFG_CPU_IO_MAP(visicom_io_map)
 	MCFG_CPU_CONFIG(studio2_cosmac_intf)
 
 	/* video hardware */
 	MCFG_CDP1861_SCREEN_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_579545MHz/2)
-	MCFG_CDP1861_ADD(CDP1861_TAG, XTAL_3_579545MHz/2/8, studio2_cdp1861_intf)
+	MCFG_CDP1861_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_579545MHz/2/8, INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_FRAGMENT_ADD( studio2_cartslot )
@@ -501,7 +550,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( mpt02, mpt02_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, CDP1864_CLOCK)
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, CDP1864_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(mpt02_map)
 	MCFG_CPU_IO_MAP(mpt02_io_map)
 	MCFG_CPU_CONFIG(mpt02_cosmac_intf)
@@ -512,10 +561,12 @@ static MACHINE_CONFIG_START( mpt02, mpt02_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	MCFG_CDP1864_ADD(CDP1864_TAG, CDP1864_CLOCK, mpt02_cdp1864_intf)
+	MCFG_CDP1864_ADD(CDP1864_TAG, SCREEN_TAG, CDP1864_CLOCK, GND, INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1), NULL, READLINE(mpt02_state, rdata_r), READLINE(mpt02_state, bdata_r), READLINE(mpt02_state, gdata_r))
+	MCFG_CDP1864_CHROMINANCE(RES_K(2.2), RES_K(1), RES_K(5.1), RES_K(4.7)) // unverified
+
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_FRAGMENT_ADD( studio2_cartslot )
@@ -551,16 +602,22 @@ ROM_END
 
 /* Driver Initialization */
 
-TIMER_CALLBACK_MEMBER(studio2_state::setup_beep)
+void studio2_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	device_t *speaker = machine().device(BEEPER_TAG);
-	beep_set_state(speaker, 0);
-	beep_set_frequency(speaker, 300);
+	switch (id)
+	{
+	case TIMER_SETUP_BEEP:
+		m_beeper->set_state(0);
+		m_beeper->set_frequency(300);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in studio2_state::device_timer");
+	}
 }
 
 DRIVER_INIT_MEMBER(studio2_state,studio2)
 {
-	machine().scheduler().timer_set(attotime::zero, timer_expired_delegate(FUNC(studio2_state::setup_beep),this));
+	timer_set(attotime::zero, TIMER_SETUP_BEEP);
 }
 
 /* Game Drivers */

@@ -61,10 +61,9 @@ Known Issues:
 
 
 
-int twin16_spriteram_process_enable( running_machine &machine )
+int twin16_state::twin16_spriteram_process_enable(  )
 {
-	twin16_state *state = machine.driver_data<twin16_state>();
-	return (state->m_CPUA_register & 0x40) == 0;
+	return (m_CPUA_register & 0x40) == 0;
 }
 
 /******************************************************************************************/
@@ -88,7 +87,7 @@ WRITE16_MEMBER(twin16_state::videoram16_w)
 
 READ16_MEMBER(twin16_state::extra_rom_r)
 {
-	return ((UINT16 *)machine().root_device().memregion("gfx3")->base())[offset];
+	return ((UINT16 *)memregion("gfx3")->base())[offset];
 }
 
 READ16_MEMBER(twin16_state::twin16_gfx_rom1_r)
@@ -122,13 +121,13 @@ WRITE16_MEMBER(twin16_state::twin16_CPUA_register_w)
 	if (m_CPUA_register != old)
 	{
 		if ((old & 0x08) == 0 && (m_CPUA_register & 0x08))
-			machine().device("audiocpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);
+			m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 
 		if ((old & 0x40) && (m_CPUA_register & 0x40) == 0)
-			twin16_spriteram_process(machine());
+			twin16_spriteram_process();
 
 		if ((old & 0x10) == 0 && (m_CPUA_register & 0x10))
-			machine().device("sub")->execute().set_input_line(M68K_IRQ_6, HOLD_LINE);
+			m_subcpu->set_input_line(M68K_IRQ_6, HOLD_LINE);
 
 		coin_counter_w(machine(), 0, m_CPUA_register & 0x01);
 		coin_counter_w(machine(), 1, m_CPUA_register & 0x02);
@@ -149,7 +148,7 @@ WRITE16_MEMBER(twin16_state::twin16_CPUB_register_w)
 	if( m_CPUB_register!=old )
 	{
 		if ((old & 0x01) == 0 && (m_CPUB_register & 0x01))
-			machine().device("maincpu")->execute().set_input_line(M68K_IRQ_6, HOLD_LINE);
+			m_maincpu->set_input_line(M68K_IRQ_6, HOLD_LINE);
 	}
 }
 
@@ -165,7 +164,7 @@ WRITE16_MEMBER(twin16_state::fround_CPU_register_w)
 	if (m_CPUA_register != old)
 	{
 		if ((old & 0x08) == 0 && (m_CPUA_register & 0x08))
-			machine().device("audiocpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);
+			m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 
 		coin_counter_w(machine(), 0, m_CPUA_register & 0x01);
 		coin_counter_w(machine(), 1, m_CPUA_register & 0x02);
@@ -190,20 +189,17 @@ READ16_MEMBER(twin16_state::twin16_input_r)
 
 READ8_MEMBER(twin16_state::twin16_upd_busy_r)
 {
-	device_t *device = machine().device("upd");
-	return upd7759_busy_r(device);
+	return upd7759_busy_r(m_upd7759);
 }
 
 WRITE8_MEMBER(twin16_state::twin16_upd_reset_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_reset_w(device, data & 2);
+	upd7759_reset_w(m_upd7759, data & 2);
 }
 
 WRITE8_MEMBER(twin16_state::twin16_upd_start_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_start_w(device, data & 1);
+	upd7759_start_w(m_upd7759, data & 1);
 }
 
 READ16_MEMBER(twin16_state::cuebrickj_nvram_r)
@@ -228,7 +224,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, twin16_state )
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9000) AM_WRITE(twin16_upd_reset_w)
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("konami", k007232_r, k007232_w)
+	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232", k007232_r, k007232_w)
 	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xd000, 0xd000) AM_DEVWRITE_LEGACY("upd", upd7759_port_w)
 	AM_RANGE(0xe000, 0xe000) AM_WRITE(twin16_upd_start_w)
@@ -672,15 +668,15 @@ GFXDECODE_END
 
 /* Sound Interfaces */
 
-static void volume_callback(device_t *device, int v)
+WRITE8_MEMBER(twin16_state::volume_callback)
 {
-	k007232_set_volume(device,0,(v >> 4) * 0x11,0);
-	k007232_set_volume(device,1,0,(v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232,0,(data >> 4) * 0x11,0);
+	k007232_set_volume(m_k007232,1,0,(data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_config =
 {
-	volume_callback /* external port callback */
+	DEVCB_DRIVER_MEMBER(twin16_state,volume_callback) /* external port callback */
 };
 
 /* Interrupt Generators */
@@ -708,12 +704,12 @@ MACHINE_START_MEMBER(twin16_state,twin16)
 	m_CPUB_register=0;
 
 	/* register for savestates */
-	state_save_register_global(machine(), m_CPUA_register);
-	state_save_register_global(machine(), m_CPUB_register);
+	save_item(NAME(m_CPUA_register));
+	save_item(NAME(m_CPUB_register));
 
-	state_save_register_global(machine(), m_sound_command);
-	state_save_register_global(machine(), m_cuebrickj_nvram_bank);
-	state_save_register_global_array(machine(), m_cuebrickj_nvram);
+	save_item(NAME(m_sound_command));
+	save_item(NAME(m_cuebrickj_nvram_bank));
+	save_item(NAME(m_cuebrickj_nvram));
 }
 
 static MACHINE_CONFIG_START( twin16, twin16_state )
@@ -758,7 +754,7 @@ static MACHINE_CONFIG_START( twin16, twin16_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("konami", K007232, 3579545)
+	MCFG_SOUND_ADD("k007232", K007232, 3579545)
 	MCFG_SOUND_CONFIG(k007232_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.12) // estimated with gradius2 OST
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.12)
@@ -812,7 +808,7 @@ static MACHINE_CONFIG_START( fround, twin16_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("konami", K007232, 3579545)
+	MCFG_SOUND_ADD("k007232", K007232, 3579545)
 	MCFG_SOUND_CONFIG(k007232_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.12)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.12)
@@ -866,7 +862,7 @@ ROM_START( devilw )
 	ROM_LOAD16_BYTE( "687_l11.10r", 0x00000, 0x10000, CRC(399deee8) SHA1(dcc65e95f28ae4e9b671e70ce0bd5ba0fe178506) )
 	ROM_LOAD16_BYTE( "687_l10.8r",  0x00001, 0x10000, CRC(117c91ee) SHA1(dcf8efb25fc73cff916b66b7bcfd3c1fb2556a53) )
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "687_i01.5a", 0x00000, 0x20000, CRC(d4992dfb) SHA1(c65bef07b6adb9ab6328d679595450945dbf6a88) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -902,7 +898,7 @@ ROM_START( majuu )
 	ROM_LOAD16_BYTE( "687_l11.10r", 0x00000, 0x10000, CRC(399deee8) SHA1(dcc65e95f28ae4e9b671e70ce0bd5ba0fe178506) )
 	ROM_LOAD16_BYTE( "687_l10.8r",  0x00001, 0x10000, CRC(117c91ee) SHA1(dcf8efb25fc73cff916b66b7bcfd3c1fb2556a53) )
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "687_i01.5a", 0x00000, 0x20000, CRC(d4992dfb) SHA1(c65bef07b6adb9ab6328d679595450945dbf6a88) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -938,7 +934,7 @@ ROM_START( darkadv )
 	ROM_LOAD16_BYTE( "687_l11.10r", 0x00000, 0x10000, CRC(399deee8) SHA1(dcc65e95f28ae4e9b671e70ce0bd5ba0fe178506) )
 	ROM_LOAD16_BYTE( "687_l10.8r",  0x00001, 0x10000, CRC(117c91ee) SHA1(dcf8efb25fc73cff916b66b7bcfd3c1fb2556a53) )
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "687_i01.5a", 0x00000, 0x20000, CRC(d4992dfb) SHA1(c65bef07b6adb9ab6328d679595450945dbf6a88) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -972,7 +968,7 @@ ROM_START( vulcan )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "785_f01.5a", 0x00000, 0x20000, CRC(a0d8d69e) SHA1(2994e5740b7c099d55fb162a363a26ef1995c756) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -1006,7 +1002,7 @@ ROM_START( vulcana )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "785_f01.5a", 0x00000, 0x20000, CRC(a0d8d69e) SHA1(2994e5740b7c099d55fb162a363a26ef1995c756) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -1040,7 +1036,7 @@ ROM_START( vulcanb )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "785_f01.5a", 0x00000, 0x20000, CRC(a0d8d69e) SHA1(2994e5740b7c099d55fb162a363a26ef1995c756) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -1079,7 +1075,7 @@ ROM_START( gradius2 )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "785_f01.5a", 0x00000, 0x20000, CRC(a0d8d69e) SHA1(2994e5740b7c099d55fb162a363a26ef1995c756) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -1113,7 +1109,7 @@ ROM_START( gradius2a )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "785_f01.5a", 0x00000, 0x20000, CRC(a0d8d69e) SHA1(2994e5740b7c099d55fb162a363a26ef1995c756) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -1147,7 +1143,7 @@ ROM_START( gradius2b )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "785_f01.5a", 0x00000, 0x20000, CRC(a0d8d69e) SHA1(2994e5740b7c099d55fb162a363a26ef1995c756) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -1171,7 +1167,7 @@ ROM_START( fround )
 	ROM_LOAD16_WORD("870c16.p15", 0x100000, 0x80000, CRC(41df6a1b) SHA1(32e0fdeb53628d18adde851e4496dd01ac6ec68f) )
 	ROM_LOAD16_WORD("870c15.p13", 0x180000, 0x80000, CRC(8c9281df) SHA1(5e3d80be414db108d5363d0ea1b74021ba942c33) )
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "870_c01.5a", 0x00000, 0x20000, CRC(6af96546) SHA1(63b49b28c0f2ef8f52bc4c5955ad6a633dd553cf) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -1195,7 +1191,7 @@ ROM_START( froundl )
 	ROM_LOAD16_WORD("870c16.p15", 0x100000, 0x80000, CRC(41df6a1b) SHA1(32e0fdeb53628d18adde851e4496dd01ac6ec68f) )
 	ROM_LOAD16_WORD("870c15.p13", 0x180000, 0x80000, CRC(8c9281df) SHA1(5e3d80be414db108d5363d0ea1b74021ba942c33) )
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "870_c01.5a", 0x00000, 0x20000, CRC(6af96546) SHA1(63b49b28c0f2ef8f52bc4c5955ad6a633dd553cf) )
 
 	ROM_REGION( 0x20000, "upd", 0 ) // samples
@@ -1225,7 +1221,7 @@ ROM_START( hpuncher )
 	ROM_LOAD16_WORD("870c15.p13", 0x100000, 0x80000, CRC(8c9281df) SHA1(5e3d80be414db108d5363d0ea1b74021ba942c33) )
 	ROM_LOAD16_WORD("870c16.p15", 0x180000, 0x80000, CRC(41df6a1b) SHA1(32e0fdeb53628d18adde851e4496dd01ac6ec68f) )
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD( "870_c01.5a", 0x00000, 0x20000, CRC(6af96546) SHA1(63b49b28c0f2ef8f52bc4c5955ad6a633dd553cf) )
 
 	ROM_REGION( 0x20000, "upd", 0 )     // samples
@@ -1257,7 +1253,7 @@ ROM_START( miaj )
 
 	ROM_REGION( 0x20000, "gfx3", ROMREGION_ERASE00 )    // tile data; mapped at 0x80000 on CPUB
 
-	ROM_REGION( 0x20000, "konami", 0 )  // samples
+	ROM_REGION( 0x20000, "k007232", 0 )  // samples
 	ROM_LOAD("808_d01.5a", 0x00000, 0x20000, CRC(fd4d37c0) SHA1(ef91c6e7bb57c27a9a51729fffd1bfe3e806fb61) )
 
 	ROM_REGION( 0x20000, "upd", ROMREGION_ERASE00 )     // samples
@@ -1289,7 +1285,7 @@ ROM_START( cuebrickj )
 	ROM_LOAD16_BYTE( "903_e11.10r", 0x00000, 0x10000, CRC(5c41faf8) SHA1(f9eee6a7b92d3b3aa4320747da6390310522a2cf) )
 	ROM_LOAD16_BYTE( "903_e10.8r",  0x00001, 0x10000, CRC(417576d4) SHA1(e84762743e3a1117b6ef7ea0b304877e4a719f75) )
 
-	ROM_REGION( 0x20000, "konami", ROMREGION_ERASE00 )  // samples
+	ROM_REGION( 0x20000, "k007232", ROMREGION_ERASE00 )  // samples
 	// unpopulated
 
 	ROM_REGION( 0x20000, "upd", ROMREGION_ERASE00 )     // samples
@@ -1298,39 +1294,38 @@ ROM_END
 
 /* Driver Initialization */
 
-static void gfx_untangle( running_machine &machine )
+void twin16_state::gfx_untangle(  )
 {
-	twin16_state *state = machine.driver_data<twin16_state>();
 	// sprite, tile data
 	int i;
-	UINT16 *temp = auto_alloc_array(machine, UINT16, 0x200000/2);
+	UINT16 *temp = auto_alloc_array(machine(), UINT16, 0x200000/2);
 
-	state->m_gfx_rom = (UINT16 *)state->memregion("gfx2")->base();
-	memcpy( temp, state->m_gfx_rom, 0x200000 );
+	m_gfx_rom = (UINT16 *)memregion("gfx2")->base();
+	memcpy( temp, m_gfx_rom, 0x200000 );
 
 	for( i=0; i<0x080000; i++ )
 	{
-		state->m_gfx_rom[i*2+0] = temp[i+0x080000];
-		state->m_gfx_rom[i*2+1] = temp[i];
+		m_gfx_rom[i*2+0] = temp[i+0x080000];
+		m_gfx_rom[i*2+1] = temp[i];
 	}
-	auto_free( machine, temp );
+	auto_free( machine(), temp );
 }
 
 DRIVER_INIT_MEMBER(twin16_state,twin16)
 {
-	gfx_untangle(machine());
+	gfx_untangle();
 	m_custom_video = 0;
 }
 
 DRIVER_INIT_MEMBER(twin16_state,fround)
 {
-	gfx_untangle(machine());
+	gfx_untangle();
 	m_custom_video = 1;
 }
 
 DRIVER_INIT_MEMBER(twin16_state,cuebrickj)
 {
-	gfx_untangle(machine());
+	gfx_untangle();
 
 	machine().device<nvram_device>("nvram")->set_base(m_cuebrickj_nvram, 0x400*0x20);
 }

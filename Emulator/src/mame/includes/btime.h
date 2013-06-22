@@ -18,7 +18,9 @@ public:
 		m_lnc_charbank(*this, "lnc_charbank"),
 		m_deco_charram(*this, "deco_charram"),
 		m_spriteram(*this, "spriteram"),
-		m_audio_rambase(*this, "audio_rambase")
+		m_audio_rambase(*this, "audio_rambase"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu")
 	{ }
 
 	/* memory pointers */
@@ -53,8 +55,8 @@ public:
 	int      m_protection_ret;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
 
 	DECLARE_WRITE8_MEMBER(audio_nmi_enable_w);
 	DECLARE_WRITE8_MEMBER(lnc_w);
@@ -116,4 +118,10 @@ public:
 	UINT32 screen_update_zoar(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_disco(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(audio_nmi_gen);
+	void draw_chars( bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 transparency, UINT8 color, int priority );
+	void draw_background( bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8* tmap, UINT8 color );
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 color,
+							UINT8 sprite_y_adjust, UINT8 sprite_y_adjust_flip_screen,
+							UINT8 *sprite_ram, offs_t interleave );
+
 };

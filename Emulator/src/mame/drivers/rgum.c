@@ -23,9 +23,10 @@ class rgum_state : public driver_device
 {
 public:
 	rgum_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram(*this, "vram"),
-		m_cram(*this, "cram"){ }
+		m_cram(*this, "cram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_vram;
 	required_shared_ptr<UINT8> m_cram;
@@ -33,6 +34,7 @@ public:
 	DECLARE_CUSTOM_INPUT_MEMBER(rgum_heartbeat_r);
 	virtual void video_start();
 	UINT32 screen_update_royalgum(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -68,8 +70,8 @@ static ADDRESS_MAP_START( rgum_map, AS_PROGRAM, 8, rgum_state )
 	AM_RANGE(0x0800, 0x0800) AM_DEVWRITE("crtc", mc6845_device, address_w)
 	AM_RANGE(0x0801, 0x0801) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w)
 
-	AM_RANGE(0x2000, 0x2000) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
-	AM_RANGE(0x2002, 0x2002) AM_DEVREADWRITE_LEGACY("aysnd", ay8910_r, ay8910_address_w)
+	AM_RANGE(0x2000, 0x2000) AM_DEVWRITE("aysnd", ay8910_device, data_w)
+	AM_RANGE(0x2002, 0x2002) AM_DEVREADWRITE("aysnd", ay8910_device, data_r, address_w)
 
 	AM_RANGE(0x2801, 0x2801) AM_READNOP //read but value discarded?
 	AM_RANGE(0x2803, 0x2803) AM_READNOP
@@ -85,7 +87,6 @@ ADDRESS_MAP_END
 
 CUSTOM_INPUT_MEMBER(rgum_state::rgum_heartbeat_r)
 {
-
 	m_hbeat ^= 1;
 
 	return m_hbeat;
@@ -229,9 +230,10 @@ static GFXDECODE_START( rgum )
 GFXDECODE_END
 
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */

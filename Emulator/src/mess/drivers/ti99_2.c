@@ -86,8 +86,9 @@ class ti99_2_state : public driver_device
 {
 public:
 	ti99_2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	int m_ROM_paged;
@@ -103,6 +104,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_ti99_2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ti99_2_vblank_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -119,14 +121,14 @@ DRIVER_INIT_MEMBER(ti99_2_state,ti99_2_32)
 	m_ROM_paged = 1;
 }
 
-#define TI99_2_32_ROMPAGE0 (machine().root_device().memregion("maincpu")->base()+0x4000)
-#define TI99_2_32_ROMPAGE1 (machine().root_device().memregion("maincpu")->base()+0x10000)
+#define TI99_2_32_ROMPAGE0 (memregion("maincpu")->base()+0x4000)
+#define TI99_2_32_ROMPAGE1 (memregion("maincpu")->base()+0x10000)
 
 void ti99_2_state::machine_reset()
 {
 	m_irq_state = ASSERT_LINE;
 	if (! m_ROM_paged)
-		membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base()+0x4000);
+		membank("bank1")->set_base(memregion("maincpu")->base()+0x4000);
 	else
 		membank("bank1")->set_base((memregion("maincpu")->base()+0x4000));
 }

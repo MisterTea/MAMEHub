@@ -10,6 +10,7 @@
 #include "machine/z80pio.h"
 #include "machine/z80sio.h"
 #include "audio/midway.h"
+#include "sound/samples.h"
 
 /* constants */
 #define MAIN_OSC_MCR_I      XTAL_19_968MHz
@@ -21,6 +22,7 @@ public:
 	mcr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
+		m_ipu(*this, "ipu"),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
 		m_ssio(*this, "ssio"),
@@ -29,12 +31,14 @@ public:
 		m_turbo_chip_squeak(*this, "tcs"),
 		m_squawk_n_talk(*this, "snt"),
 		m_dpoker_coin_in_timer(*this, "dp_coinin"),
-		m_dpoker_hopper_timer(*this, "dp_hopper")
+		m_dpoker_hopper_timer(*this, "dp_hopper"),
+		m_samples(*this, "samples")
 	{ }
 
 	// these should be required but can't because mcr68 shares with us
 	// once the sound boards are properly device-ified, fix this
 	optional_device<z80_device> m_maincpu;
+	optional_device<cpu_device> m_ipu;
 	optional_shared_ptr<UINT8> m_spriteram;
 	optional_shared_ptr<UINT8> m_videoram;
 
@@ -45,6 +49,7 @@ public:
 	optional_device<midway_squawk_n_talk_device> m_squawk_n_talk;
 	optional_device<timer_device> m_dpoker_coin_in_timer;
 	optional_device<timer_device> m_dpoker_hopper_timer;
+	optional_device<samples_device> m_samples;
 
 	DECLARE_WRITE8_MEMBER(mcr_control_port_w);
 	DECLARE_WRITE8_MEMBER(mcr_ipu_laserdisk_w);
@@ -109,6 +114,11 @@ public:
 	DECLARE_WRITE16_MEMBER(mcr_ipu_sio_transmit);
 	DECLARE_WRITE_LINE_MEMBER(ipu_ctc_interrupt);
 	DECLARE_WRITE8_MEMBER(ipu_break_changed);
+	void mcr_set_color(int index, int data);
+	void journey_set_color(int index, int data);
+	void render_sprites_91399(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void render_sprites_91464(bitmap_ind16 &bitmap, const rectangle &cliprect, int primask, int sprmask, int colormask);
+	void mcr_init(int cpuboard, int vidboard, int ssioboard);
 };
 
 /*----------- defined in machine/mcr.c -----------*/

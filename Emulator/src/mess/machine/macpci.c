@@ -13,7 +13,7 @@
 #include "machine/8530scc.h"
 #include "cpu/m68000/m68000.h"
 #include "machine/applefdc.h"
-#include "devices/sonydriv.h"
+#include "machine/sonydriv.h"
 #include "includes/macpci.h"
 #include "debug/debugcpu.h"
 #include "machine/ram.h"
@@ -26,8 +26,6 @@
 
 /* VIA1 Handlers */
 
-static void mac_via_irq(device_t *device, int state);
-
 const via6522_interface pcimac_via6522_intf =
 {
 	DEVCB_DRIVER_MEMBER(macpci_state,mac_via_in_a), DEVCB_DRIVER_MEMBER(macpci_state,mac_via_in_b),
@@ -36,10 +34,10 @@ const via6522_interface pcimac_via6522_intf =
 	DEVCB_DRIVER_MEMBER(macpci_state,mac_via_out_a), DEVCB_DRIVER_MEMBER(macpci_state,mac_via_out_b),
 	DEVCB_NULL, DEVCB_NULL,
 	DEVCB_NULL, DEVCB_DRIVER_MEMBER(macpci_state,mac_adb_via_out_cb2),
-	DEVCB_LINE(mac_via_irq)
+	DEVCB_DRIVER_LINE_MEMBER(macpci_state,mac_via_irq)
 };
 
-static void mac_via_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(macpci_state::mac_via_irq)
 {
 }
 
@@ -136,31 +134,29 @@ void macpci_state::machine_reset()
 
 	m_via_cycles = -256;    // for a 66 MHz PowerMac
 
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 WRITE_LINE_MEMBER(macpci_state::cuda_reset_w)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_RESET, state);
+	m_maincpu->set_input_line(INPUT_LINE_RESET, state);
 }
 
 WRITE_LINE_MEMBER(macpci_state::cuda_adb_linechange_w)
 {
 }
 
-static void mac_driver_init(running_machine &machine, model_t model)
+void macpci_state::mac_driver_init(model_t model)
 {
-	macpci_state *mac = machine.driver_data<macpci_state>();
+	m_model = model;
 
-	mac->m_model = model;
-
-	memset(mac->m_ram->pointer(), 0, mac->m_ram->size());
+	memset(m_ram->pointer(), 0, m_ram->size());
 }
 
 #define MAC_DRIVER_INIT(label, model)   \
 DRIVER_INIT_MEMBER(macpci_state,label)  \
 {   \
-	mac_driver_init(machine(), model ); \
+	mac_driver_init(model ); \
 }
 
 MAC_DRIVER_INIT(pippin, PCIMODEL_MAC_PIPPIN)

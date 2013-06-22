@@ -23,11 +23,21 @@ public:
 	beta_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, M6502_TAG),
-			m_speaker(*this, SPEAKER_TAG)
+			m_speaker(*this, "speaker"),
+			m_eprom(*this, EPROM_TAG),
+			m_q6(*this, "Q6"),
+			m_q7(*this, "Q7"),
+			m_q8(*this, "Q8"),
+			m_q9(*this, "Q9")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<speaker_sound_device> m_speaker;
+	required_memory_region m_eprom;
+	required_ioport m_q6;
+	required_ioport m_q7;
+	required_ioport m_q8;
+	required_ioport m_q9;
 
 	virtual void machine_start();
 
@@ -36,6 +46,8 @@ public:
 	DECLARE_READ8_MEMBER( riot_pb_r );
 	DECLARE_WRITE8_MEMBER( riot_pb_w );
 	DECLARE_INPUT_CHANGED_MEMBER( trigger_reset );
+
+	DECLARE_DEVICE_IMAGE_UNLOAD_MEMBER( beta_eprom );
 
 	/* EPROM state */
 	int m_eprom_oe;

@@ -101,8 +101,6 @@ static int subregwrite_count[0x100];
  *
  *************************************/
 
-static void exit_handler(running_machine &machine);
-
 static void zeus_register32_w(running_machine &machine, offs_t offset, UINT32 data, int logit);
 static void zeus_register_update(running_machine &machine, offs_t offset, UINT32 oldval, int logit);
 static void zeus_pointer_write(UINT8 which, UINT32 value);
@@ -272,7 +270,7 @@ VIDEO_START_MEMBER(midzeus_state,midzeus2)
 	poly = poly_alloc(machine(), 10000, sizeof(poly_extra_data), POLYFLAG_ALLOW_QUADS);
 
 	/* we need to cleanup on exit */
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(exit_handler), &machine()));
+	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(midzeus_state::exit_handler2), this));
 
 	zbase = 2.0f;
 	yoffs = 0;
@@ -282,21 +280,21 @@ VIDEO_START_MEMBER(midzeus_state,midzeus2)
 	int_timer = machine().scheduler().timer_alloc(FUNC(int_timer_callback));
 
 	/* save states */
-	state_save_register_global_pointer(machine(), waveram[0], WAVERAM0_WIDTH * WAVERAM0_HEIGHT * 8 / sizeof(waveram[0][0]));
-	state_save_register_global_pointer(machine(), waveram[1], WAVERAM1_WIDTH * WAVERAM1_HEIGHT * 12 / sizeof(waveram[1][0]));
-	state_save_register_global_array(machine(), zeus_fifo);
-	state_save_register_global(machine(), zeus_fifo_words);
-	state_save_register_global(machine(), zeus_cliprect.min_x);
-	state_save_register_global(machine(), zeus_cliprect.max_x);
-	state_save_register_global(machine(), zeus_cliprect.min_y);
-	state_save_register_global(machine(), zeus_cliprect.max_y);
-	state_save_register_global_2d_array(machine(), zeus_matrix);
-	state_save_register_global_array(machine(), zeus_point);
-	state_save_register_global(machine(), zeus_texbase);
+	save_pointer(NAME(waveram[0]), WAVERAM0_WIDTH * WAVERAM0_HEIGHT * 8 / sizeof(waveram[0][0]));
+	save_pointer(NAME(waveram[1]), WAVERAM1_WIDTH * WAVERAM1_HEIGHT * 12 / sizeof(waveram[1][0]));
+	save_item(NAME(zeus_fifo));
+	save_item(NAME(zeus_fifo_words));
+	save_item(NAME(zeus_cliprect.min_x));
+	save_item(NAME(zeus_cliprect.max_x));
+	save_item(NAME(zeus_cliprect.min_y));
+	save_item(NAME(zeus_cliprect.max_y));
+	save_item(NAME(zeus_matrix));
+	save_item(NAME(zeus_point));
+	save_item(NAME(zeus_texbase));
 }
 
 
-static void exit_handler(running_machine &machine)
+void midzeus_state::exit_handler2()
 {
 #if DUMP_WAVE_RAM
 	FILE *f = fopen("waveram.dmp", "w");

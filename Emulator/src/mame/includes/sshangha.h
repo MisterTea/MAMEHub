@@ -1,4 +1,5 @@
 #include "video/deco16ic.h"
+#include "video/decospr.h"
 
 class sshangha_state : public driver_device
 {
@@ -15,7 +16,11 @@ public:
 		m_tile_paletteram2(*this, "tile_palram2"),
 		m_sprite_paletteram2(*this, "sprite_palram2"),
 		m_tile_paletteram1(*this, "tile_palram1"),
-		m_prot_data(*this, "prot_data"){ }
+		m_prot_data(*this, "prot_data"),
+		m_sprgen1(*this, "spritegen1"),
+		m_sprgen2(*this, "spritegen2"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu")  { }
 
 	required_device<deco16ic_device> m_deco_tilegen1;
 	required_shared_ptr<UINT16> m_spriteram;
@@ -31,6 +36,10 @@ public:
 	required_shared_ptr<UINT16> m_tile_paletteram1;
 
 	optional_shared_ptr<UINT16> m_prot_data;
+
+	optional_device<decospr_device> m_sprgen1;
+	optional_device<decospr_device> m_sprgen2;
+
 	int m_video_control;
 
 
@@ -50,4 +59,8 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_sshangha(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	inline void sshangha_set_color_888(pen_t color, int rshift, int gshift, int bshift, UINT32 data);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };

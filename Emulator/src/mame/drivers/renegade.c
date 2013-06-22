@@ -259,7 +259,7 @@ WRITE8_MEMBER(renegade_state::adpcm_play_w)
 WRITE8_MEMBER(renegade_state::sound_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
+	m_audiocpu->set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 }
 
 /********************************************************************************************/
@@ -281,22 +281,21 @@ static const UINT8 kuniokun_xor_table[0x2a] =
 	0x68, 0x60
 };
 
-static void setbank(running_machine &machine)
+void renegade_state::setbank()
 {
-	renegade_state *state = machine.driver_data<renegade_state>();
-	UINT8 *RAM = state->memregion("maincpu")->base();
-	state->membank("bank1")->set_base(&RAM[state->m_bank ? 0x10000 : 0x4000]);
+	UINT8 *RAM = memregion("maincpu")->base();
+	membank("bank1")->set_base(&RAM[m_bank ? 0x10000 : 0x4000]);
 }
 
 void renegade_state::machine_start()
 {
-	state_save_register_global_array(machine(), m_mcu_buffer);
-	state_save_register_global(machine(), m_mcu_input_size);
-	state_save_register_global(machine(), m_mcu_output_byte);
-	state_save_register_global(machine(), m_mcu_key);
+	save_item(NAME(m_mcu_buffer));
+	save_item(NAME(m_mcu_input_size));
+	save_item(NAME(m_mcu_output_byte));
+	save_item(NAME(m_mcu_key));
 
-	state_save_register_global(machine(), m_bank);
-	machine().save().register_postload(save_prepost_delegate(FUNC(setbank), &machine()));
+	save_item(NAME(m_bank));
+	machine().save().register_postload(save_prepost_delegate(FUNC(renegade_state::setbank), this));
 }
 
 DRIVER_INIT_MEMBER(renegade_state,renegade)
@@ -311,12 +310,12 @@ DRIVER_INIT_MEMBER(renegade_state,kuniokun)
 	m_mcu_encrypt_table = kuniokun_xor_table;
 	m_mcu_encrypt_table_len = 0x2a;
 
-	machine().device<cpu_device>("mcu")->suspend(SUSPEND_REASON_DISABLE, 1);
+	m_mcu->suspend(SUSPEND_REASON_DISABLE, 1);
 }
 
 DRIVER_INIT_MEMBER(renegade_state,kuniokunb)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	/* Remove the MCU handlers */
 	space.unmap_readwrite(0x3804, 0x3804);
@@ -357,7 +356,7 @@ WRITE8_MEMBER(renegade_state::renegade_68705_port_b_w)
 		m_port_a_in = m_from_main;
 
 		if (m_main_sent)
-			machine().device("mcu")->execute().set_input_line(0, CLEAR_LINE);
+			m_mcu->set_input_line(0, CLEAR_LINE);
 
 		m_main_sent = 0;
 	}
@@ -414,7 +413,7 @@ READ8_MEMBER(renegade_state::mcu_reset_r)
 	}
 	else
 	{
-		machine().device("mcu")->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+		m_mcu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
 	}
 	return 0;
 }
@@ -444,7 +443,7 @@ WRITE8_MEMBER(renegade_state::mcu_w)
 	{
 		m_from_main = data;
 		m_main_sent = 1;
-		machine().device("mcu")->execute().set_input_line(0, ASSERT_LINE);
+		m_mcu->set_input_line(0, ASSERT_LINE);
 	}
 }
 
@@ -660,7 +659,7 @@ WRITE8_MEMBER(renegade_state::bankswitch_w)
 	if ((data & 1) != m_bank)
 	{
 		m_bank = data & 1;
-		setbank(machine());
+		setbank();
 	}
 }
 
@@ -706,7 +705,7 @@ static ADDRESS_MAP_START( renegade_sound_map, AS_PROGRAM, 8, renegade_state )
 	AM_RANGE(0x1000, 0x1000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x1800, 0x1800) AM_WRITENOP // this gets written the same values as 0x2000
 	AM_RANGE(0x2000, 0x2000) AM_WRITE(adpcm_play_w)
-	AM_RANGE(0x2800, 0x2801) AM_DEVREADWRITE_LEGACY("ymsnd", ym3526_r,ym3526_w)
+	AM_RANGE(0x2800, 0x2801) AM_DEVREADWRITE("ymsnd", ym3526_device, read, write)
 	AM_RANGE(0x3000, 0x3000) AM_WRITENOP /* adpcm related? stereo pan? */
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -719,8 +718,8 @@ static ADDRESS_MAP_START( renegade_mcu_map, AS_PROGRAM, 8, renegade_state )
 	AM_RANGE(0x0004, 0x0004) AM_WRITE(renegade_68705_ddr_a_w)
 	AM_RANGE(0x0005, 0x0005) AM_WRITE(renegade_68705_ddr_b_w)
 	AM_RANGE(0x0006, 0x0006) AM_WRITE(renegade_68705_ddr_c_w)
-//  AM_RANGE(0x0008, 0x0008) AM_READWRITE_LEGACY(m68705_tdr_r, m68705_tdr_w)
-//  AM_RANGE(0x0009, 0x0009) AM_READWRITE_LEGACY(m68705_tcr_r, m68705_tcr_w)
+//  AM_RANGE(0x0008, 0x0008) AM_READWRITE(m68705_tdr_r, m68705_tdr_w)
+//  AM_RANGE(0x0009, 0x0009) AM_READWRITE(m68705_tcr_r, m68705_tcr_w)
 	AM_RANGE(0x0010, 0x007f) AM_RAM
 	AM_RANGE(0x0080, 0x07ff) AM_ROM
 ADDRESS_MAP_END
@@ -916,16 +915,10 @@ static GFXDECODE_START( renegade )
 GFXDECODE_END
 
 
-static const ym3526_interface ym3526_config =
-{
-	DEVCB_CPU_INPUT_LINE("audiocpu", M6809_FIRQ_LINE)
-};
-
-
 void renegade_state::machine_reset()
 {
 	m_bank = 0;
-	setbank(machine());
+	setbank();
 }
 
 
@@ -959,7 +952,7 @@ static MACHINE_CONFIG_START( renegade, renegade_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3526, 12000000/4)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6809_device, firq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("adpcm", RENEGADE_ADPCM, 8000)

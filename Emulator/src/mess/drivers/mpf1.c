@@ -64,7 +64,7 @@ static ADDRESS_MAP_START( mpf1b_io_map, AS_IO, 8, mpf1_state )
 	AM_RANGE(0x00, 0x03) AM_MIRROR(0x3c) AM_DEVREADWRITE(I8255A_TAG, i8255_device, read, write)
 	AM_RANGE(0x40, 0x43) AM_MIRROR(0x3c) AM_DEVREADWRITE(Z80CTC_TAG, z80ctc_device, read, write)
 	AM_RANGE(0x80, 0x83) AM_MIRROR(0x3c) AM_DEVREADWRITE(Z80PIO_TAG, z80pio_device, read, write)
-	AM_RANGE(0xfe, 0xfe) AM_MIRROR(0x01) AM_DEVREADWRITE_LEGACY(TMS5220_TAG, tms5220_status_r, tms5220_data_w)
+	AM_RANGE(0xfe, 0xfe) AM_MIRROR(0x01) AM_DEVREADWRITE(TMS5220_TAG, tms5220_device, status_r, data_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mpf1p_io_map, AS_IO, 8, mpf1_state )
@@ -205,7 +205,6 @@ INPUT_PORTS_END
 
 TIMER_CALLBACK_MEMBER(mpf1_state::led_refresh)
 {
-
 	if (BIT(m_lednum, 5)) output_set_digit_value(0, param);
 	if (BIT(m_lednum, 4)) output_set_digit_value(1, param);
 	if (BIT(m_lednum, 3)) output_set_digit_value(2, param);
@@ -219,15 +218,15 @@ READ8_MEMBER( mpf1_state::ppi_pa_r )
 	UINT8 data = 0x7f;
 
 	/* bit 0 to 5, keyboard rows 0 to 5 */
-	if (!BIT(m_lednum, 0)) data &= ioport("PC0")->read();
-	if (!BIT(m_lednum, 1)) data &= ioport("PC1")->read();
-	if (!BIT(m_lednum, 2)) data &= ioport("PC2")->read();
-	if (!BIT(m_lednum, 3)) data &= ioport("PC3")->read();
-	if (!BIT(m_lednum, 4)) data &= ioport("PC4")->read();
-	if (!BIT(m_lednum, 5)) data &= ioport("PC5")->read();
+	if (!BIT(m_lednum, 0)) data &= m_pc0->read();
+	if (!BIT(m_lednum, 1)) data &= m_pc1->read();
+	if (!BIT(m_lednum, 2)) data &= m_pc2->read();
+	if (!BIT(m_lednum, 3)) data &= m_pc3->read();
+	if (!BIT(m_lednum, 4)) data &= m_pc4->read();
+	if (!BIT(m_lednum, 5)) data &= m_pc5->read();
 
 	/* bit 6, user key */
-	data &= ioport("SPECIAL")->read() & 1 ? 0xff : 0xbf;
+	data &= m_special->read() & 1 ? 0xff : 0xbf;
 
 	/* bit 7, tape input */
 	data |= ((m_cassette)->input() > 0 ? 1 : 0) << 7;
@@ -261,7 +260,7 @@ WRITE8_MEMBER( mpf1_state::ppi_pc_w )
 
 	/* bit 7, tape output, tone and led */
 	set_led_status(machine(), 0, !BIT(data, 7));
-	speaker_level_w(m_speaker, BIT(data, 7));
+	m_speaker->level_w(BIT(data, 7));
 	m_cassette->output( BIT(data, 7));
 }
 
@@ -318,19 +317,6 @@ static const cassette_interface mpf1_cassette_interface =
 	NULL
 };
 
-/* TMS5220 Interface */
-
-static const tms5220_interface mpf1_tms5220_intf =
-{
-	DEVCB_NULL,                 /* no IRQ callback */
-	DEVCB_NULL,                 /* no Ready callback */
-#if 1
-	spchroms_read,              /* speech ROM read handler */
-	spchroms_load_address,      /* speech ROM load address handler */
-	spchroms_read_and_branch    /* speech ROM read and branch handler */
-#endif
-};
-
 /* Machine Initialization */
 
 TIMER_DEVICE_CALLBACK_MEMBER(mpf1_state::check_halt_callback)
@@ -370,14 +356,14 @@ static MACHINE_CONFIG_START( mpf1, mpf1_state )
 	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_3_579545MHz/2, mpf1_pio_intf)
 	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_3_579545MHz/2, mpf1_ctc_intf)
 	MCFG_I8255A_ADD(I8255A_TAG, ppi8255_intf)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, mpf1_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", mpf1_cassette_interface)
 
 	/* video hardware */
 	MCFG_DEFAULT_LAYOUT(layout_mpf1)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("halt_timer", mpf1_state, check_halt_callback, attotime::from_hz(1))
@@ -394,18 +380,17 @@ static MACHINE_CONFIG_START( mpf1b, mpf1_state )
 	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_3_579545MHz/2, mpf1_pio_intf)
 	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_3_579545MHz/2, mpf1_ctc_intf)
 	MCFG_I8255A_ADD(I8255A_TAG, ppi8255_intf)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, mpf1_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", mpf1_cassette_interface)
 
 	/* video hardware */
 	MCFG_DEFAULT_LAYOUT(layout_mpf1b)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD(TMS5220_TAG, TMS5220, 680000L)
-	MCFG_SOUND_CONFIG(mpf1_tms5220_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("halt_timer", mpf1_state, check_halt_callback, attotime::from_hz(1))
@@ -425,11 +410,11 @@ static MACHINE_CONFIG_START( mpf1p, mpf1_state )
 	MCFG_Z80PIO_ADD(Z80PIO_TAG, 2500000, mpf1_pio_intf)
 	MCFG_Z80CTC_ADD(Z80CTC_TAG, 2500000, mpf1_ctc_intf)
 	MCFG_I8255A_ADD(I8255A_TAG, ppi8255_intf)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, mpf1_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", mpf1_cassette_interface)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("halt_timer", mpf1_state, check_halt_callback, attotime::from_hz(1))
@@ -475,7 +460,6 @@ DIRECT_UPDATE_MEMBER(mpf1_state::mpf1_direct_update_handler)
 
 DRIVER_INIT_MEMBER(mpf1_state,mpf1)
 {
-
 	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(mpf1_state::mpf1_direct_update_handler), this));
 }
 

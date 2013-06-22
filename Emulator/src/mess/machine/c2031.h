@@ -55,7 +55,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c2031"; }
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -75,6 +74,7 @@ protected:
 	int m_nrfd_out;             // not ready for data
 	int m_ndac_out;             // not data accepted
 	int m_atna;                 // attention acknowledge
+	int m_ifc;
 
 	// interrupts
 	int m_via0_irq;             // VIA #0 interrupt request

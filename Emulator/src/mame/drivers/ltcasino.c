@@ -22,9 +22,10 @@ class ltcasino_state : public driver_device
 {
 public:
 	ltcasino_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_tile_num_ram(*this, "tile_nuram"),
-		m_tile_atr_ram(*this, "tile_atr_ram"){ }
+		m_tile_atr_ram(*this, "tile_atr_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_tile_num_ram;
 	required_shared_ptr<UINT8> m_tile_atr_ram;
@@ -35,6 +36,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_ltcasino_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_ltcasino(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -86,9 +88,9 @@ static ADDRESS_MAP_START( ltcasino_map, AS_PROGRAM, 8, ltcasino_state )
 	AM_RANGE(0xec10, 0xec10) AM_READ_PORT("IN4")
 	AM_RANGE(0xec12, 0xec12) AM_READ_PORT("IN5")
 
-	AM_RANGE(0xec20, 0xec20) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0xec20, 0xec20) AM_DEVREAD("aysnd", ay8910_device, data_r)
 	AM_RANGE(0xec21, 0xec21) AM_READ_PORT("BUTTONS") //ltcasino -> pc: F3F3 (A in service) and F3FD (B in service)
-	AM_RANGE(0xec20, 0xec21) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0xec20, 0xec21) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0xec3e, 0xec3e) AM_READNOP //not used
 	AM_RANGE(0xec30, 0xec3f) AM_RAM
 	AM_RANGE(0xf000, 0xffff) AM_ROM
@@ -712,7 +714,7 @@ ROM_END
 DRIVER_INIT_MEMBER(ltcasino_state,mv4in1)
 {
 	int i;
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 	for(i=0;i<0x10000;i++)
 		rom[i]=BITSWAP8(rom[i],7,6,5,4,3,1,2,0);
 }

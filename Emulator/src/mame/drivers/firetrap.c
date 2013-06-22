@@ -309,7 +309,7 @@ WRITE8_MEMBER(firetrap_state::firetrap_sound_command_w)
 
 WRITE8_MEMBER(firetrap_state::firetrap_sound_2400_w)
 {
-	msm5205_reset_w(m_msm, ~data & 0x01);
+	m_msm->reset_w(~data & 0x01);
 	m_sound_irq_enable = data & 0x02;
 }
 
@@ -318,16 +318,14 @@ WRITE8_MEMBER(firetrap_state::firetrap_sound_bankselect_w)
 	membank("bank2")->set_entry(data & 0x01);
 }
 
-static void firetrap_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(firetrap_state::firetrap_adpcm_int)
 {
-	firetrap_state *state = device->machine().driver_data<firetrap_state>();
+	m_msm->data_w(m_msm5205next >> 4);
+	m_msm5205next <<= 4;
 
-	msm5205_data_w(device, state->m_msm5205next >> 4);
-	state->m_msm5205next <<= 4;
-
-	state->m_adpcm_toggle ^= 1;
-	if (state->m_sound_irq_enable && state->m_adpcm_toggle)
-		state->m_audiocpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+	m_adpcm_toggle ^= 1;
+	if (m_sound_irq_enable && m_adpcm_toggle)
+		m_audiocpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 }
 
 WRITE8_MEMBER(firetrap_state::firetrap_adpcm_data_w)
@@ -396,7 +394,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, firetrap_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE_LEGACY("ymsnd", ym3526_w)
+	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ymsnd", ym3526_device, write)
 	AM_RANGE(0x2000, 0x2000) AM_WRITE(firetrap_adpcm_data_w)    /* ADPCM data for the MSM5205 chip */
 	AM_RANGE(0x2400, 0x2400) AM_WRITE(firetrap_sound_2400_w)
 	AM_RANGE(0x2800, 0x2800) AM_WRITE(firetrap_sound_bankselect_w)
@@ -407,7 +405,6 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(firetrap_state::coin_inserted)
 {
-
 	/* coin insertion causes an IRQ */
 	if(newval)
 	{
@@ -577,13 +574,12 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_config =
 {
-	firetrap_adpcm_int, /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(firetrap_state,firetrap_adpcm_int), /* interrupt function */
 	MSM5205_S48_4B      /* 7.8125kHz          */
 };
 
 INTERRUPT_GEN_MEMBER(firetrap_state::firetrap_irq)
 {
-
 	if (m_nmi_enable)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -593,10 +589,6 @@ void firetrap_state::machine_start()
 {
 	UINT8 *MAIN = memregion("maincpu")->base();
 	UINT8 *SOUND = memregion("audiocpu")->base();
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_msm = machine().device("msm");
 
 	membank("bank1")->configure_entries(0, 4, &MAIN[0x10000], 0x4000);
 	membank("bank2")->configure_entries(0, 2, &SOUND[0x10000], 0x4000);

@@ -39,7 +39,7 @@ class pinkiri8_state : public driver_device
 {
 public:
 	pinkiri8_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_janshi_back_vram(*this, "back_vram"),
 		m_janshi_vram1(*this, "vram1"),
 		m_janshi_unk1(*this, "unk1"),
@@ -48,7 +48,8 @@ public:
 		m_janshi_vram2(*this, "vram2"),
 		m_janshi_paletteram(*this, "paletteram"),
 		m_janshi_paletteram2(*this, "paletteram2"),
-		m_janshi_crtc_regs(*this, "crtc_regs"){ }
+		m_janshi_crtc_regs(*this, "crtc_regs"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_janshi_back_vram;
 	required_shared_ptr<UINT8> m_janshi_vram1;
@@ -63,7 +64,7 @@ public:
 	int m_prev_writes;
 	UINT8 m_mux_data;
 	UINT8 m_prot_read_index;
-	UINT8 m_prot_char[6];
+	UINT8 m_prot_char[5];
 	UINT8 m_prot_index;
 	DECLARE_WRITE8_MEMBER(output_regs_w);
 	DECLARE_WRITE8_MEMBER(pinkiri8_vram_w);
@@ -77,6 +78,7 @@ public:
 	DECLARE_DRIVER_INIT(ronjan);
 	virtual void video_start();
 	UINT32 screen_update_pinkiri8(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -166,7 +168,6 @@ const address_space_config *janshi_vdp_device::memory_space_config(address_space
 
 void pinkiri8_state::video_start()
 {
-
 }
 
 /*
@@ -229,7 +230,6 @@ UINT32 pinkiri8_state::screen_update_pinkiri8(screen_device &screen, bitmap_ind1
 		count2=0;
 		for (i=0x00;i<0x40;i+=2)
 		{
-
 			printf("%02x, ", m_janshi_widthflags[i+1]);
 
 			count2++;
@@ -286,7 +286,6 @@ UINT32 pinkiri8_state::screen_update_pinkiri8(screen_device &screen, bitmap_ind1
 
 		for(i=(0x1000/4)-4;i>=0;i--)
 		{
-
 		/* vram 1 (video map 0xfc2000)
 
 		  tttt tttt | 00tt tttt | cccc c000 | xxxx xxxx |
@@ -425,7 +424,7 @@ ADDRESS_MAP_END
 WRITE8_MEMBER(pinkiri8_state::output_regs_w)
 {
 	if(data & 0x40)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	//data & 0x80 is probably NMI mask
 }
 
@@ -1224,15 +1223,16 @@ READ8_MEMBER(pinkiri8_state::ronjan_prot_r)
 
 WRITE8_MEMBER(pinkiri8_state::ronjan_prot_w)
 {
-
 	if(data == 0)
 	{
 		m_prot_index = 0;
 	}
 	else
 	{
-		m_prot_char[m_prot_index] = data;
-		m_prot_index++;
+		if(m_prot_index == 5)
+			return;
+
+		m_prot_char[m_prot_index++] = data;
 
 		if(m_prot_char[0] == 'E' && m_prot_char[1] == 'R' && m_prot_char[2] == 'R' && m_prot_char[3] == 'O' && m_prot_char[4] == 'R')
 			m_prot_read_index = 0;
@@ -1251,9 +1251,9 @@ READ8_MEMBER(pinkiri8_state::ronjan_patched_prot_r)
 
 DRIVER_INIT_MEMBER(pinkiri8_state,ronjan)
 {
-	machine().device("maincpu")->memory().space(AS_IO).install_readwrite_handler(0x90, 0x90, read8_delegate(FUNC(pinkiri8_state::ronjan_prot_r), this), write8_delegate(FUNC(pinkiri8_state::ronjan_prot_w), this));
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x66, 0x66, read8_delegate(FUNC(pinkiri8_state::ronjan_prot_status_r), this));
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x9f, 0x9f, read8_delegate(FUNC(pinkiri8_state::ronjan_patched_prot_r), this));
+	m_maincpu->space(AS_IO).install_readwrite_handler(0x90, 0x90, read8_delegate(FUNC(pinkiri8_state::ronjan_prot_r), this), write8_delegate(FUNC(pinkiri8_state::ronjan_prot_w), this));
+	m_maincpu->space(AS_IO).install_read_handler(0x66, 0x66, read8_delegate(FUNC(pinkiri8_state::ronjan_prot_status_r), this));
+	m_maincpu->space(AS_IO).install_read_handler(0x9f, 0x9f, read8_delegate(FUNC(pinkiri8_state::ronjan_patched_prot_r), this));
 }
 
 GAME( 1992,  janshi,    0,   pinkiri8, janshi, driver_device,    0,      ROT0, "Eagle",         "Janshi",          GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )

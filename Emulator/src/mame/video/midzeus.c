@@ -82,8 +82,6 @@ static int is_mk4b;
  *
  *************************************/
 
-static void exit_handler(running_machine &machine);
-
 static void zeus_pointer_w(UINT32 which, UINT32 data, int logit);
 static void zeus_register16_w(running_machine &machine, offs_t offset, UINT16 data, int logit);
 static void zeus_register32_w(running_machine &machine, offs_t offset, UINT32 data, int logit);
@@ -275,33 +273,33 @@ VIDEO_START_MEMBER(midzeus_state,midzeus)
 	poly = poly_alloc(machine(), 10000, sizeof(poly_extra_data), POLYFLAG_ALLOW_QUADS);
 
 	/* we need to cleanup on exit */
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(exit_handler), &machine()));
+	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(midzeus_state::exit_handler), this));
 
 	yoffs = 0;
 	texel_width = 256;
 	zeus_renderbase = waveram[1];
 
 	/* state saving */
-	state_save_register_global_array(machine(), zeus_fifo);
-	state_save_register_global(machine(), zeus_fifo_words);
-	state_save_register_global_2d_array(machine(), zeus_matrix);
-	state_save_register_global_array(machine(), zeus_point);
-	state_save_register_global_array(machine(), zeus_light);
-	state_save_register_global(machine(), zeus_palbase);
-	state_save_register_global(machine(), zeus_objdata);
-	state_save_register_global(machine(), zeus_cliprect.min_x);
-	state_save_register_global(machine(), zeus_cliprect.max_x);
-	state_save_register_global(machine(), zeus_cliprect.min_y);
-	state_save_register_global(machine(), zeus_cliprect.max_y);
-	state_save_register_global_pointer(machine(), waveram[0], WAVERAM0_WIDTH * WAVERAM0_HEIGHT * 8 / sizeof(waveram[0][0]));
-	state_save_register_global_pointer(machine(), waveram[1], WAVERAM1_WIDTH * WAVERAM1_HEIGHT * 8 / sizeof(waveram[1][0]));
+	save_item(NAME(zeus_fifo));
+	save_item(NAME(zeus_fifo_words));
+	save_item(NAME(zeus_matrix));
+	save_item(NAME(zeus_point));
+	save_item(NAME(zeus_light));
+	save_item(NAME(zeus_palbase));
+	save_item(NAME(zeus_objdata));
+	save_item(NAME(zeus_cliprect.min_x));
+	save_item(NAME(zeus_cliprect.max_x));
+	save_item(NAME(zeus_cliprect.min_y));
+	save_item(NAME(zeus_cliprect.max_y));
+	save_pointer(NAME(waveram[0]), WAVERAM0_WIDTH * WAVERAM0_HEIGHT * 8 / sizeof(waveram[0][0]));
+	save_pointer(NAME(waveram[1]), WAVERAM1_WIDTH * WAVERAM1_HEIGHT * 8 / sizeof(waveram[1][0]));
 
 	/* hack */
 	is_mk4b = strcmp(machine().system().name, "mk4b") == 0;
 }
 
 
-static void exit_handler(running_machine &machine)
+void midzeus_state::exit_handler()
 {
 #if DUMP_WAVE_RAM
 	FILE *f = fopen("waveram.dmp", "w");
@@ -681,9 +679,9 @@ static void zeus_register_update(running_machine &machine, offs_t offset)
 			    we simply assert immediately if this is enabled. invasn needs this for proper
 			    operations */
 			if (state->m_zeusbase[0x80] & 0x02000000)
-				machine.device("maincpu")->execute().set_input_line(2, ASSERT_LINE);
+				state->m_maincpu->set_input_line(2, ASSERT_LINE);
 			else
-				machine.device("maincpu")->execute().set_input_line(2, CLEAR_LINE);
+				state->m_maincpu->set_input_line(2, CLEAR_LINE);
 			break;
 
 		case 0x84:

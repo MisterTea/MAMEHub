@@ -533,7 +533,7 @@ UINT32 avt_state::screen_update_avt(screen_device &screen, bitmap_ind16 &bitmap,
 
 void avt_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 /*  prom bits
     7654 3210
     ---- ---x   Intensity?.
@@ -632,8 +632,8 @@ static ADDRESS_MAP_START( avt_portmap, AS_IO, 8, avt_state )
 //  AM_RANGE(0x08, 0x0b) unk, maybe IO
 //  AM_RANGE(0x08, 0x08)  AM_READ_PORT("IN2")
 //  AM_RANGE(0x09, 0x09)  AM_READ_PORT("IN3")
-	AM_RANGE(0x21, 0x21) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)     /* AY8910 data */
-	AM_RANGE(0x23, 0x23) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)      /* AY8910 control */
+	AM_RANGE(0x21, 0x21) AM_DEVWRITE("aysnd", ay8910_device, data_w)     /* AY8910 data */
+	AM_RANGE(0x23, 0x23) AM_DEVWRITE("aysnd", ay8910_device, address_w)      /* AY8910 control */
 	AM_RANGE(0x28, 0x28) AM_WRITE(avt_6845_address_w)
 	AM_RANGE(0x29, 0x29) AM_READWRITE(avt_6845_data_r,avt_6845_data_w)
 ADDRESS_MAP_END
@@ -847,9 +847,10 @@ GFXDECODE_END
 *              CRTC Interface              *
 *******************************************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -884,7 +885,6 @@ static const ay8910_interface ay8910_config =
 /* IM 2 */
 INTERRUPT_GEN_MEMBER(avt_state::avt_vblank_irq)
 {
-
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0x06);
 }
 

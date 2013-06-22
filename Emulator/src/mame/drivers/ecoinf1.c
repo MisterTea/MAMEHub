@@ -17,8 +17,10 @@ class ecoinf1_state : public driver_device
 {
 public:
 	ecoinf1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 	DECLARE_DRIVER_INIT(ecoinf1);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -352,7 +354,6 @@ ROM_END
 
 DRIVER_INIT_MEMBER(ecoinf1_state,ecoinf1)
 {
-
 }
 
 // all roms might really be for the same game, just in different cabinet styles

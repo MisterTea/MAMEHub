@@ -16,7 +16,7 @@ Knuckle Joe - (c) 1985 Taito Corporation
 
 void kncljoe_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* allocate the colortable */
@@ -152,7 +152,7 @@ WRITE8_MEMBER(kncljoe_state::kncljoe_control_w)
 	if (m_sprite_bank != i)
 	{
 		m_sprite_bank = i;
-		memset(machine().root_device().memregion("maincpu")->base() + 0xf100, 0, 0x180);
+		memset(memregion("maincpu")->base() + 0xf100, 0, 0x180);
 	}
 }
 
@@ -176,18 +176,17 @@ WRITE8_MEMBER(kncljoe_state::kncljoe_scroll_w)
 
 ***************************************************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void kncljoe_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	kncljoe_state *state = machine.driver_data<kncljoe_state>();
-	UINT8 *spriteram = state->m_spriteram;
+	UINT8 *spriteram = m_spriteram;
 	rectangle clip = cliprect;
-	gfx_element *gfx = machine.gfx[1 + state->m_sprite_bank];
+	gfx_element *gfx = machine().gfx[1 + m_sprite_bank];
 	int i, j;
 	static const int pribase[4]={0x0180, 0x0080, 0x0100, 0x0000};
-	const rectangle &visarea = machine.primary_screen->visible_area();
+	const rectangle &visarea = machine().primary_screen->visible_area();
 
 	/* score covers sprites */
-	if (state->m_flipscreen)
+	if (m_flipscreen)
 	{
 		if (clip.max_y > visarea.max_y - 64)
 			clip.max_y = visarea.max_y - 64;
@@ -215,7 +214,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 			if (attr & 0x20)
 				code += 256;
 
-			if (state->m_flipscreen)
+			if (m_flipscreen)
 			{
 				flipx = !flipx;
 				flipy = !flipy;
@@ -236,8 +235,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 UINT32 kncljoe_state::screen_update_kncljoe(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }

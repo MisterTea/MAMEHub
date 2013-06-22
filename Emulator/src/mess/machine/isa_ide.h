@@ -5,6 +5,7 @@
 
 #include "emu.h"
 #include "machine/isa.h"
+#include "machine/idectrl.h"
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -25,16 +26,19 @@ public:
 
 	bool is_primary() { return m_is_primary; }
 	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
-
+	DECLARE_ADDRESS_MAP(map, 16);
+	DECLARE_ADDRESS_MAP(alt_map, 8);
+	READ8_MEMBER(ide16_alt_r);
+	WRITE8_MEMBER(ide16_alt_w);
 protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "isa_ide"; }
 
 private:
 	// internal state
 	bool m_is_primary;
+	required_device<ide_controller_device> m_ide;
 };
 
 

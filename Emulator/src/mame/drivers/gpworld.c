@@ -47,12 +47,18 @@ Dumping Notes:
 class gpworld_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_IRQ_STOP
+	};
+
 	gpworld_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_laserdisc(*this, "laserdisc") ,
 		m_sprite_ram(*this, "sprite_ram"),
 		m_palette_ram(*this, "palette_ram"),
-		m_tile_ram(*this, "tile_ram"){ }
+		m_tile_ram(*this, "tile_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_nmi_enable;
 	UINT8 m_start_lamp;
@@ -73,7 +79,13 @@ public:
 	virtual void machine_start();
 	UINT32 screen_update_gpworld(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_callback_gpworld);
-	TIMER_CALLBACK_MEMBER(irq_stop);
+	void gpworld_draw_tiles(bitmap_rgb32 &bitmap,const rectangle &cliprect);
+	inline void draw_pixel(bitmap_rgb32 &bitmap,const rectangle &cliprect,int x,int y,int color,int flip);
+	void gpworld_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -85,9 +97,8 @@ public:
 
 
 /* VIDEO GOODS */
-static void gpworld_draw_tiles(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect)
+void gpworld_state::gpworld_draw_tiles(bitmap_rgb32 &bitmap,const rectangle &cliprect)
 {
-	gpworld_state *state = machine.driver_data<gpworld_state>();
 	UINT8 characterX, characterY;
 
 	/* Temporarily set to 64 wide to accommodate two screens */
@@ -97,13 +108,13 @@ static void gpworld_draw_tiles(running_machine &machine, bitmap_rgb32 &bitmap,co
 		{
 			int current_screen_character = (characterY*64) + characterX;
 
-			drawgfx_transpen(bitmap, cliprect, machine.gfx[0], state->m_tile_ram[current_screen_character],
+			drawgfx_transpen(bitmap, cliprect, machine().gfx[0], m_tile_ram[current_screen_character],
 					characterY, 0, 0, characterX*8, characterY*8, 0);
 		}
 	}
 }
 
-INLINE void draw_pixel(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect,int x,int y,int color,int flip)
+void gpworld_state::draw_pixel(bitmap_rgb32 &bitmap,const rectangle &cliprect,int x,int y,int color,int flip)
 {
 	if (flip)
 	{
@@ -112,12 +123,11 @@ INLINE void draw_pixel(running_machine &machine, bitmap_rgb32 &bitmap,const rect
 	}
 
 	if (cliprect.contains(x, y))
-		bitmap.pix32(y, x) = machine.pens[color];
+		bitmap.pix32(y, x) = machine().pens[color];
 }
 
-static void gpworld_draw_sprites(running_machine &machine, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+void gpworld_state::gpworld_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	gpworld_state *state = machine.driver_data<gpworld_state>();
 	const int SPR_Y_TOP     = 0;
 	const int SPR_Y_BOTTOM  = 1;
 	const int SPR_X_LO      = 2;
@@ -126,16 +136,16 @@ static void gpworld_draw_sprites(running_machine &machine, bitmap_rgb32 &bitmap,
 	const int SPR_SKIP_HI   = 5;
 	const int SPR_GFXOFS_LO = 6;
 	const int SPR_GFXOFS_HI = 7;
-	int flip = state->flip_screen();
+	int flip = flip_screen();
 
 	int i;
 
-	UINT8 *GFX = state->memregion("gfx2")->base();
+	UINT8 *GFX = memregion("gfx2")->base();
 
 	/* Heisted from Daphne which heisted it from MAME */
 	for (i = 0; i < 0x800; i += 8)
 	{
-		UINT8 *spr_reg = state->m_sprite_ram + i;
+		UINT8 *spr_reg = m_sprite_ram + i;
 
 		if (spr_reg[SPR_Y_BOTTOM] && spr_reg[SPR_X_LO] != 0xff)
 		{
@@ -203,10 +213,10 @@ static void gpworld_draw_sprites(running_machine &machine, bitmap_rgb32 &bitmap,
 					}
 
 					/* Daphne says "don't draw the pixel if it's black". */
-					draw_pixel(machine, bitmap,cliprect,x+0,y,palette_get_color(machine, pixel1 + (sprite_color*0x10 + 0x200)),flip);
-					draw_pixel(machine, bitmap,cliprect,x+1,y,palette_get_color(machine, pixel2 + (sprite_color*0x10 + 0x200)),flip);
-					draw_pixel(machine, bitmap,cliprect,x+2,y,palette_get_color(machine, pixel3 + (sprite_color*0x10 + 0x200)),flip);
-					draw_pixel(machine, bitmap,cliprect,x+3,y,palette_get_color(machine, pixel4 + (sprite_color*0x10 + 0x200)),flip);
+					draw_pixel(bitmap,cliprect,x+0,y,palette_get_color(machine(), pixel1 + (sprite_color*0x10 + 0x200)),flip);
+					draw_pixel(bitmap,cliprect,x+1,y,palette_get_color(machine(), pixel2 + (sprite_color*0x10 + 0x200)),flip);
+					draw_pixel(bitmap,cliprect,x+2,y,palette_get_color(machine(), pixel3 + (sprite_color*0x10 + 0x200)),flip);
+					draw_pixel(bitmap,cliprect,x+3,y,palette_get_color(machine(), pixel4 + (sprite_color*0x10 + 0x200)),flip);
 
 					x += 4;
 
@@ -230,8 +240,8 @@ UINT32 gpworld_state::screen_update_gpworld(screen_device &screen, bitmap_rgb32 
 {
 	bitmap.fill(0, cliprect);
 
-	gpworld_draw_tiles(machine(), bitmap, cliprect);
-	gpworld_draw_sprites(machine(), bitmap, cliprect);
+	gpworld_draw_tiles(bitmap, cliprect);
+	gpworld_draw_sprites(bitmap, cliprect);
 
 	return 0;
 }
@@ -305,9 +315,9 @@ static ADDRESS_MAP_START( mainmem, AS_PROGRAM, 8, gpworld_state )
 	AM_RANGE(0xc800,0xcfff) AM_RAM_WRITE(palette_write) AM_SHARE("palette_ram") /* The memory test reads at 0xc800 */
 	AM_RANGE(0xd000,0xd7ff) AM_RAM AM_SHARE("tile_ram")
 	AM_RANGE(0xd800,0xd800) AM_READWRITE(ldp_read,ldp_write)
-/*  AM_RANGE(0xd801,0xd801) AM_READ_LEGACY(???) */
+/*  AM_RANGE(0xd801,0xd801) AM_READ(???) */
 	AM_RANGE(0xda00,0xda00) AM_READ_PORT("INWHEEL") //8255 here....
-/*  AM_RANGE(0xda01,0xda01) AM_WRITE_LEGACY(???) */                 /* These inputs are interesting - there are writes and reads all over these addr's */
+/*  AM_RANGE(0xda01,0xda01) AM_WRITE(???) */                 /* These inputs are interesting - there are writes and reads all over these addr's */
 	AM_RANGE(0xda02,0xda02) AM_WRITE(brake_gas_write)               /*bit 0 select gas/brake input */
 	AM_RANGE(0xda20,0xda20) AM_READ(pedal_in)
 
@@ -426,9 +436,16 @@ static INPUT_PORTS_START( gpworld )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
 
-TIMER_CALLBACK_MEMBER(gpworld_state::irq_stop)
+void gpworld_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	switch (id)
+	{
+	case TIMER_IRQ_STOP:
+		m_maincpu->set_input_line(0, CLEAR_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in gpworld_state::device_timer");
+	}
 }
 
 INTERRUPT_GEN_MEMBER(gpworld_state::vblank_callback_gpworld)
@@ -443,7 +460,7 @@ INTERRUPT_GEN_MEMBER(gpworld_state::vblank_callback_gpworld)
 
 	/* The time the IRQ line stays high is set just long enough to happen after the NMI - hacky? */
 	device.execute().set_input_line(0, ASSERT_LINE);
-	machine().scheduler().timer_set(attotime::from_usec(100), timer_expired_delegate(FUNC(gpworld_state::irq_stop),this));
+	timer_set(attotime::from_usec(100), TIMER_IRQ_STOP);
 }
 
 static const gfx_layout gpworld_tile_layout =

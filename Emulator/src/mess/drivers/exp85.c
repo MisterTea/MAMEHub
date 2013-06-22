@@ -130,7 +130,7 @@ WRITE8_MEMBER( exp85_state::i8355_a_w )
 	m_tape_control = BIT(data, 0);
 
 	/* speaker output */
-	speaker_level_w(m_speaker, !BIT(data, 7));
+	m_speaker->level_w(!BIT(data, 7));
 }
 
 static I8355_INTERFACE( i8355_intf )
@@ -181,6 +181,11 @@ static I8085_CONFIG( exp85_i8085_config )
 
 /* Terminal Interface */
 
+static DEVICE_INPUT_DEFAULTS_START( terminal )
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x06 ) // 9600
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x10 ) // 7E1
+DEVICE_INPUT_DEFAULTS_END
+
 static const serial_terminal_interface terminal_intf =
 {
 	DEVCB_NULL
@@ -195,8 +200,8 @@ void exp85_state::machine_start()
 	/* setup memory banking */
 	program.install_read_bank(0x0000, 0x07ff, "bank1");
 	program.unmap_write(0x0000, 0x07ff);
-	membank("bank1")->configure_entry(0, memregion(I8085A_TAG)->base() + 0xf000);
-	membank("bank1")->configure_entry(1, memregion(I8085A_TAG)->base());
+	membank("bank1")->configure_entry(0, m_rom->base() + 0xf000);
+	membank("bank1")->configure_entry(1, m_rom->base());
 	membank("bank1")->set_entry(0);
 }
 
@@ -220,14 +225,15 @@ static MACHINE_CONFIG_START( exp85, exp85_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
 	MCFG_I8155_ADD(I8155_TAG, XTAL_6_144MHz/2, i8155_intf)
 	MCFG_I8355_ADD(I8355_TAG, XTAL_6_144MHz/2, i8355_intf)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, exp85_cassette_interface)
-	MCFG_SERIAL_TERMINAL_ADD(TERMINAL_TAG, terminal_intf,9600)
+	MCFG_CASSETTE_ADD("cassette", exp85_cassette_interface)
+	MCFG_SERIAL_TERMINAL_ADD(TERMINAL_TAG, terminal_intf, 9600)
+	MCFG_DEVICE_INPUT_DEFAULTS(terminal)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -260,4 +266,4 @@ ROM_END
 
 /* System Drivers */
 /*    YEAR  NAME    PARENT  COMPAT  MACHINE  INPUT   INIT    COMPANY         FULLNAME        FLAGS */
-COMP( 1979, exp85,  0,      0,      exp85,   exp85, driver_device,  0,    "Netronics",    "Explorer/85", GAME_NOT_WORKING )
+COMP( 1979, exp85,  0,      0,      exp85,   exp85, driver_device,  0,    "Netronics",    "Explorer/85", 0 )

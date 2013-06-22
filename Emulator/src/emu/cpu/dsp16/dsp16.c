@@ -56,7 +56,11 @@ dsp16_device::dsp16_device(const machine_config &mconfig, const char *tag, devic
 		m_c1(0),
 		m_c2(0),
 		m_sioc(0),
+		m_srta(0),
+		m_sdx(0),
 		m_pioc(0),
+		m_pdx0(0),
+		m_pdx1(0),
 		m_ppc(0),
 		m_cacheStart(CACHE_INVALID),
 		m_cacheEnd(CACHE_INVALID),
@@ -106,7 +110,11 @@ void dsp16_device::device_start()
 	state_add(DSP16_C1,       "C1",        m_c1);
 	state_add(DSP16_C2,       "C2",        m_c2);
 	state_add(DSP16_SIOC,     "SIOC",      m_sioc).formatstr("%16s");
-	state_add(DSP16_PIOC,     "PIOC",      m_pioc); //.formatstr("%16s");
+	state_add(DSP16_SRTA,     "SRTA",      m_srta);
+	state_add(DSP16_SDX,      "SDX",       m_sdx);
+	state_add(DSP16_PIOC,     "PIOC",      m_pioc);
+	state_add(DSP16_PDX0,     "PDX0",      m_pdx0);
+	state_add(DSP16_PDX1,     "PDX1",      m_pdx1);
 
 	// register our state for saving
 	save_item(NAME(m_i));
@@ -133,7 +141,11 @@ void dsp16_device::device_start()
 	save_item(NAME(m_c1));
 	save_item(NAME(m_c2));
 	save_item(NAME(m_sioc));
+	save_item(NAME(m_srta));
+	save_item(NAME(m_sdx));
 	save_item(NAME(m_pioc));
+	save_item(NAME(m_pdx0));
+	save_item(NAME(m_pdx1));
 	save_item(NAME(m_ppc));
 	save_item(NAME(m_cacheStart));
 	save_item(NAME(m_cacheEnd));
@@ -159,6 +171,7 @@ void dsp16_device::device_reset()
 	// Page 7-5
 	m_pc = 0x0000;
 	m_sioc = 0x0000;
+	// SRTA is unaltered by reset
 	m_pioc = 0x0008;
 	m_rb = 0x0000;
 	m_re = 0x0000;
@@ -238,7 +251,7 @@ UINT32 dsp16_device::disasm_max_opcode_bytes() const
 offs_t dsp16_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options)
 {
 	extern CPU_DISASSEMBLE( dsp16a );
-	return CPU_DISASSEMBLE_NAME(dsp16a)(NULL, buffer, pc, oprom, opram, 0);
+	return CPU_DISASSEMBLE_NAME(dsp16a)(this, buffer, pc, oprom, opram, options);
 }
 
 
@@ -309,6 +322,11 @@ void dsp16_device::execute_set_input(int inputnum, int state)
 
 void dsp16_device::execute_run()
 {
+	// HACK TO MAKE CPU DO NOTHING.
+	// REMOVE IF DEVELOPING CPU CORE.
+	m_icount = 0;
+	return;
+
 	do
 	{
 		// debugging

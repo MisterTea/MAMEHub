@@ -742,11 +742,11 @@ static ACIA6850_INTERFACE( bbc_acia6850_interface )
 {
 	0,
 	0,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DRIVER_LINE_MEMBER(bbc_state,bbc_rxd_r),
+	DEVCB_DRIVER_LINE_MEMBER(bbc_state,bbc_txd_w),
+	DEVCB_DRIVER_LINE_MEMBER(bbc_state,bbc_cts_r),
+	DEVCB_DRIVER_LINE_MEMBER(bbc_state,bbc_rts_w),
+	DEVCB_DRIVER_LINE_MEMBER(bbc_state,bbc_dcd_r),
 	DEVCB_DRIVER_LINE_MEMBER(bbc_state,bbcb_acia6850_irq_w)
 };
 
@@ -816,26 +816,35 @@ static SLOT_INTERFACE_START( econet_devices )
 	SLOT_INTERFACE("e01s", E01S)
 SLOT_INTERFACE_END
 
+static const rs232_port_interface rs232_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
 static MACHINE_CONFIG_FRAGMENT( bbc_cartslot )
 	MCFG_CARTSLOT_ADD("cart1")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(bbcb_cart)
+	MCFG_CARTSLOT_LOAD(bbc_state, bbcb_cart)
 
 	MCFG_CARTSLOT_ADD("cart2")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(bbcb_cart)
+	MCFG_CARTSLOT_LOAD(bbc_state, bbcb_cart)
 
 	MCFG_CARTSLOT_ADD("cart3")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(bbcb_cart)
+	MCFG_CARTSLOT_LOAD(bbc_state, bbcb_cart)
 
 	MCFG_CARTSLOT_ADD("cart4")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(bbcb_cart)
+	MCFG_CARTSLOT_LOAD(bbc_state, bbcb_cart)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( bbca, bbc_state )
@@ -871,13 +880,14 @@ static MACHINE_CONFIG_START( bbca, bbc_state )
 //  MCFG_SOUND_ADD("tms5220", TMS5220, tms5220_interface)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, bbc_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", bbc_cassette_interface )
 
 	/* software list */
 	MCFG_SOFTWARE_LIST_ADD("cass_ls_a","bbca_cass")
 
 	/* acia */
 	MCFG_ACIA6850_ADD("acia6850", bbc_acia6850_interface)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	/* devices */
 	MCFG_VIA6522_ADD("via6522_0", 1000000, bbcb_system_via)
@@ -969,7 +979,7 @@ static MACHINE_CONFIG_START( bbcm, bbc_state )
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", bbcb_centronics_config)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, bbc_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", bbc_cassette_interface )
 
 	/* software list */
 	MCFG_SOFTWARE_LIST_ADD("cass_ls_m","bbcm_cass")
@@ -978,6 +988,7 @@ static MACHINE_CONFIG_START( bbcm, bbc_state )
 
 	/* acia */
 	MCFG_ACIA6850_ADD("acia6850", bbc_acia6850_interface)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	/* devices */
 	MCFG_UPD7002_ADD("upd7002", bbc_uPD7002)
@@ -991,7 +1002,7 @@ static MACHINE_CONFIG_START( bbcm, bbc_state )
 
 	MCFG_MC6854_ADD("mc6854", adlc_intf)
 	MCFG_ECONET_ADD(econet_intf)
-	MCFG_ECONET_SLOT_ADD("econet254", 254, econet_devices, NULL, NULL)
+	MCFG_ECONET_SLOT_ADD("econet254", 254, econet_devices, NULL)
 MACHINE_CONFIG_END
 
 /*     YEAR  NAME      PARENT    COMPAT MACHINE   INPUT  INIT      COMPANY  FULLNAME */

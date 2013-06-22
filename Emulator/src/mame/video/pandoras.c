@@ -23,7 +23,7 @@
 
 void pandoras_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
 	static const int resistances_b [2] = { 470, 220 };
 	double rweights[3], gweights[3], bweights[2];
@@ -120,27 +120,23 @@ void pandoras_state::video_start()
 
 WRITE8_MEMBER(pandoras_state::pandoras_vram_w)
 {
-
 	m_layer0->mark_tile_dirty(offset);
 	m_videoram[offset] = data;
 }
 
 WRITE8_MEMBER(pandoras_state::pandoras_cram_w)
 {
-
 	m_layer0->mark_tile_dirty(offset);
 	m_colorram[offset] = data;
 }
 
 WRITE8_MEMBER(pandoras_state::pandoras_scrolly_w)
 {
-
 	m_layer0->set_scrolly(0, data);
 }
 
 WRITE8_MEMBER(pandoras_state::pandoras_flipscreen_w)
 {
-
 	m_flipscreen = data;
 	machine().tilemap().set_flip_all(m_flipscreen ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 }
@@ -151,7 +147,7 @@ WRITE8_MEMBER(pandoras_state::pandoras_flipscreen_w)
 
 ***************************************************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8* sr )
+void pandoras_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8* sr )
 {
 	int offs;
 
@@ -163,19 +159,19 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		int nflipx = sr[offs + 3] & 0x40;
 		int nflipy = sr[offs + 3] & 0x80;
 
-		drawgfx_transmask(bitmap,cliprect,machine.gfx[0],
+		drawgfx_transmask(bitmap,cliprect,machine().gfx[0],
 			sr[offs + 2],
 			color,
 			!nflipx,!nflipy,
 			sx,sy,
-			colortable_get_transpen_mask(machine.colortable, machine.gfx[0], color, 0));
+			colortable_get_transpen_mask(machine().colortable, machine().gfx[0], color, 0));
 	}
 }
 
 UINT32 pandoras_state::screen_update_pandoras(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_layer0->draw(bitmap, cliprect, 1 ,0);
-	draw_sprites(machine(), bitmap, cliprect, &m_spriteram[0x800] );
+	draw_sprites(bitmap, cliprect, &m_spriteram[0x800] );
 	m_layer0->draw(bitmap, cliprect, 0 ,0);
 	return 0;
 }

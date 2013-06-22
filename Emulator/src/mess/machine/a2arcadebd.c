@@ -69,21 +69,19 @@ machine_config_constructor a2bus_arcboard_device::device_mconfig_additions() con
 //**************************************************************************
 
 a2bus_arcboard_device::a2bus_arcboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, A2BUS_ARCADEBOARD, "Third Millenium Engineering Arcade Board", tag, owner, clock),
+	device_t(mconfig, A2BUS_ARCADEBOARD, "Third Millenium Engineering Arcade Board", tag, owner, clock, "a2arcbd", __FILE__),
 	device_a2bus_card_interface(mconfig, *this),
 	m_tms(*this, TMS_TAG),
 	m_ay(*this, AY_TAG)
 {
-	m_shortname = "a2arcbd";
 }
 
-a2bus_arcboard_device::a2bus_arcboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, type, name, tag, owner, clock),
+a2bus_arcboard_device::a2bus_arcboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 	device_a2bus_card_interface(mconfig, *this),
 	m_tms(*this, TMS_TAG),
 	m_ay(*this, AY_TAG)
 {
-	m_shortname = "a2arcbd";
 }
 
 //-------------------------------------------------
@@ -110,7 +108,7 @@ void a2bus_arcboard_device::device_reset()
     6 - AY data
 */
 
-	UINT8 a2bus_arcboard_device::read_c0nx(address_space &space, UINT8 offset)
+UINT8 a2bus_arcboard_device::read_c0nx(address_space &space, UINT8 offset)
 {
 	switch (offset)
 	{
@@ -121,7 +119,7 @@ void a2bus_arcboard_device::device_reset()
 			return m_tms->register_read(space, 0);
 
 		case 6:
-			return ay8910_r(m_ay, space, 0);
+			return m_ay->data_r(space, 0);
 	}
 
 	return 0xff;
@@ -140,11 +138,11 @@ void a2bus_arcboard_device::write_c0nx(address_space &space, UINT8 offset, UINT8
 			break;
 
 		case 5:
-			ay8910_address_w(m_ay, space, 0, data);
+			m_ay->address_w(space, 0, data);
 			break;
 
 		case 6:
-			ay8910_data_w(m_ay, space, 0, data);
+			m_ay->data_w(space, 0, data);
 			break;
 	}
 }

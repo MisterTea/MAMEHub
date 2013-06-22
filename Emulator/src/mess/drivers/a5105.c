@@ -39,14 +39,15 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_hgdc(*this, "upd7220"),
-			m_cass(*this, CASSETTE_TAG),
-			m_beep(*this, BEEPER_TAG),
+			m_cass(*this, "cassette"),
+			m_beep(*this, "beeper"),
 			m_fdc(*this, "upd765a"),
 			m_floppy0(*this, "upd765a:0"),
 			m_floppy1(*this, "upd765a:1"),
 			m_floppy2(*this, "upd765a:2"),
 			m_floppy3(*this, "upd765a:3"),
-			m_video_ram(*this, "video_ram")
+			m_video_ram(*this, "video_ram"),
+			m_ram(*this, RAM_TAG)
 		{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -71,7 +72,7 @@ public:
 	required_shared_ptr<UINT8> m_video_ram;
 	UINT8 *m_ram_base;
 	UINT8 *m_rom_base;
-	UINT8 *m_char_rom;
+	UINT8 *m_char_ram;
 	UINT16 m_pcg_addr;
 	UINT16 m_pcg_internal_addr;
 	UINT8 m_key_mux;
@@ -80,6 +81,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
+	required_device<ram_device> m_ram;
 };
 
 /* TODO */
@@ -117,7 +119,7 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 
 		for( yi = 0; yi < lr; yi++)
 		{
-			tile_data = state->m_char_rom[(tile*8+yi) & 0x7ff];
+			tile_data = state->m_char_ram[(tile*8+yi) & 0x7ff];
 
 			if(cursor_on && cursor_addr == addr+x && device->machine().primary_screen->frame_number() & 0x10)
 				tile_data^=0xff;
@@ -163,7 +165,7 @@ WRITE8_MEMBER( a5105_state::pcg_addr_w )
 
 WRITE8_MEMBER( a5105_state::pcg_val_w )
 {
-	m_char_rom[m_pcg_addr | m_pcg_internal_addr] = data;
+	m_char_ram[m_pcg_addr | m_pcg_internal_addr] = data;
 
 	machine().gfx[0]->mark_dirty(m_pcg_addr >> 3);
 
@@ -222,7 +224,7 @@ WRITE8_MEMBER( a5105_state::a5105_ab_w )
 		break;
 
 	case 6:
-		beep_set_state(m_beep, BIT(data, 0));
+		m_beep->set_state(BIT(data, 0));
 		break;
 	}
 }
@@ -276,7 +278,7 @@ WRITE8_MEMBER( a5105_state::a5105_memsel_w )
 			prog.unmap_write(0x4000, 0x4000);
 			break;
 		case 1:
-			membank("bank2")->set_base(machine().root_device().memregion("k5651")->base());
+			membank("bank2")->set_base(memregion("k5651")->base());
 			prog.install_read_bank(0x4000, 0x7fff, "bank2");
 			prog.unmap_write(0x4000, 0x4000);
 			break;
@@ -482,10 +484,10 @@ void a5105_state::machine_reset()
 {
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 	a5105_ab_w(space, 0, 9); // turn motor off
-	beep_set_frequency(m_beep, 500);
+	m_beep->set_frequency(500);
 
-	m_ram_base = (UINT8*)machine().device<ram_device>(RAM_TAG)->pointer();
-	m_rom_base = (UINT8*)machine().root_device().memregion("maincpu")->base();
+	m_ram_base = (UINT8*)m_ram->pointer();
+	m_rom_base = (UINT8*)memregion("maincpu")->base();
 
 	membank("bank1")->set_base(m_rom_base);
 	membank("bank2")->set_base(m_rom_base + 0x4000);
@@ -528,7 +530,7 @@ void a5105_state::palette_init()
 void a5105_state::video_start()
 {
 	// find memory regions
-	m_char_rom = memregion("pcg")->base();
+	m_char_ram = memregion("pcg")->base();
 }
 
 static UPD7220_INTERFACE( hgdc_intf )
@@ -599,9 +601,9 @@ static MACHINE_CONFIG_START( a5105, a5105_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
@@ -609,13 +611,13 @@ static MACHINE_CONFIG_START( a5105, a5105_state )
 	MCFG_Z80CTC_ADD( "z80ctc", XTAL_15MHz / 4, a5105_ctc_intf )
 	MCFG_Z80PIO_ADD( "z80pio", XTAL_15MHz / 4, a5105_pio_intf )
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 
 	MCFG_UPD765A_ADD("upd765a", true, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765a:0", a5105_floppies, "525qd", 0, a5105_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765a:1", a5105_floppies, "525qd", 0, a5105_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765a:2", a5105_floppies, "525qd", 0, a5105_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765a:3", a5105_floppies, "525qd", 0, a5105_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765a:0", a5105_floppies, "525qd", a5105_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765a:1", a5105_floppies, "525qd", a5105_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765a:2", a5105_floppies, "525qd", a5105_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765a:3", a5105_floppies, "525qd", a5105_state::floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

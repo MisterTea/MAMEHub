@@ -7,7 +7,7 @@
     THIS SYSTEM IS NOT EMULATED!!!
 
     68340 based system like MPU5/SC4?
-    used by JPM? + Others? Manufactuered by Heber Ltd.
+    used by JPM (Post SEGA buyout)? + Others? Manufactured by Heber Ltd.
 
     this seems very close to astrafr.c
     (although these contain more text)
@@ -208,7 +208,7 @@ READ32_MEMBER(pluto5_state::pluto5_mem_r)
 
 	switch ( cs )
 	{
-		case 1:
+		case 1:if (offset < 0x100000) // If reading beyond end of region, log error instead of crashing
 			return m_cpuregion[offset];
 
 		default:
@@ -835,18 +835,18 @@ extern void astra_addresslines( UINT16* src, size_t srcsize, int small );
 
 DRIVER_INIT_MEMBER(pluto5_state,hb)
 {
-	astra_addresslines( (UINT16*)machine().root_device().memregion( "maincpu" )->base(), machine().root_device().memregion( "maincpu" )->bytes(), 0 );
+	astra_addresslines( (UINT16*)memregion( "maincpu" )->base(), memregion( "maincpu" )->bytes(), 0 );
 
 	#if 0
 	{
-		UINT8* ROM = machine().root_device().memregion( "maincpu" )->base();
+		UINT8* ROM = memregion( "maincpu" )->base();
 		FILE *fp;
 		char filename[256];
 		sprintf(filename,"%s", machine().system().name);
 		fp=fopen(filename, "w+b");
 		if (fp)
 		{
-			fwrite(ROM,  machine().root_device().memregion( "maincpu" )->bytes(), 1, fp);
+			fwrite(ROM,  memregion( "maincpu" )->bytes(), 1, fp);
 			fclose(fp);
 		}
 	}

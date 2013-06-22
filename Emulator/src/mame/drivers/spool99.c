@@ -19,11 +19,11 @@ Notes:
  the ROM can be written only at the first 0x100 bytes on this HW.
 
 TODO:
--spool99: EEPROM barely hooked up,enough to let this to boot but it doesn't save settings at the
- moment;
+-spool99: EEPROM barely hooked up, enough to let this to boot but it doesn't save settings
+          at the moment;
 -spool99: An "input BAD" msg pops up at start-up,probably because there are inputs not yet hooked up.
 -spool99: Visible area might be wrong (384x240),but this doesn't even have a cross-hatch test,so I
- need a snapshot from the original thing...
+          need a snapshot from the original thing...
 
 ============================================================================================
 
@@ -98,10 +98,13 @@ class spool99_state : public driver_device
 {
 public:
 	spool99_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_main(*this, "mainram"),
 		m_vram(*this, "vram"),
-		m_cram(*this, "cram"){ }
+		m_cram(*this, "cram"),
+		m_maincpu(*this, "maincpu"),
+		m_eeprom(*this, "eeprom"),
+		m_oki(*this, "oki") { }
 
 	required_shared_ptr<UINT8> m_main;
 	required_shared_ptr<UINT8> m_vram;
@@ -118,6 +121,9 @@ public:
 	TILE_GET_INFO_MEMBER(get_spool99_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_spool99(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<eeprom_device> m_eeprom;
+	required_device<okim6295_device> m_oki;
 };
 
 TILE_GET_INFO_MEMBER(spool99_state::get_spool99_tile_info)
@@ -134,27 +140,23 @@ TILE_GET_INFO_MEMBER(spool99_state::get_spool99_tile_info)
 
 void spool99_state::video_start()
 {
-
 	m_sc0_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spool99_state::get_spool99_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 }
 
 UINT32 spool99_state::screen_update_spool99(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_sc0_tilemap->draw(bitmap, cliprect, 0,0);
 	return 0;
 }
 
 WRITE8_MEMBER(spool99_state::spool99_vram_w)
 {
-
 	m_vram[offset] = data;
 	m_sc0_tilemap->mark_tile_dirty(offset/2);
 }
 
 WRITE8_MEMBER(spool99_state::spool99_cram_w)
 {
-
 	m_cram[offset] = data;
 	m_sc0_tilemap->mark_tile_dirty(offset/2);
 }
@@ -184,8 +186,8 @@ READ8_MEMBER(spool99_state::spool99_io_r)
 			case 0xafe4: return ioport("SERVICE2")->read();//attract mode
 //          case 0xafe5: return 1;
 //          case 0xafe6: return 1;
-			case 0xafe7: return machine().device<eeprom_device>("eeprom")->read_bit();
-			case 0xaff8: return machine().device<okim6295_device>("oki")->read(space,0);
+			case 0xafe7: return m_eeprom->read_bit();
+			case 0xaff8: return m_oki->read(space,0);
 		}
 	}
 //  printf("%04x %d\n",offset+0xaf00,io_switch);
@@ -196,26 +198,20 @@ READ8_MEMBER(spool99_state::spool99_io_r)
 
 WRITE8_MEMBER(spool99_state::eeprom_resetline_w)
 {
-	device_t *device = machine().device("eeprom");
 	// reset line asserted: reset.
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->set_cs_line((data & 0x01) ? CLEAR_LINE : ASSERT_LINE );
+	m_eeprom->set_cs_line((data & 0x01) ? CLEAR_LINE : ASSERT_LINE );
 }
 
 WRITE8_MEMBER(spool99_state::eeprom_clockline_w)
 {
-	device_t *device = machine().device("eeprom");
 	// clock line asserted: write latch or select next bit to read
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->set_clock_line((data & 0x01) ? ASSERT_LINE : CLEAR_LINE );
+	m_eeprom->set_clock_line((data & 0x01) ? ASSERT_LINE : CLEAR_LINE );
 }
 
 WRITE8_MEMBER(spool99_state::eeprom_dataline_w)
 {
-	device_t *device = machine().device("eeprom");
 	// latch the bit
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->write_bit(data & 0x01);
+	m_eeprom->write_bit(data & 0x01);
 }
 
 static ADDRESS_MAP_START( spool99_map, AS_PROGRAM, 8, spool99_state )
@@ -249,13 +245,13 @@ READ8_MEMBER(spool99_state::vcarn_io_r)
 			case 0xa725: return ioport("HOLD3")->read();
 			case 0xa726: return ioport("HOLD4")->read();
 			case 0xa727: return ioport("HOLD2")->read();
-			case 0xa780: return machine().device<okim6295_device>("oki")->read(space,0);
+			case 0xa780: return m_oki->read(space,0);
 			case 0xa7a0: return ioport("HOLD1")->read();
 			case 0xa7a1: return ioport("HOLD5")->read();
 			case 0xa7a2: return ioport("START")->read();
 			case 0xa7a3: return ioport("BET")->read();//system 2
 
-			case 0xa7a7: return machine().device<eeprom_device>("eeprom")->read_bit();
+			case 0xa7a7: return m_eeprom->read_bit();
 
 		}
 	}
@@ -393,37 +389,60 @@ ROM_START( spool99 )
 	ROM_LOAD( "u32.bin", 0x00000, 0x40000, CRC(1b7aa54c) SHA1(87fc4da8d2a85bc3ce00d8f0f03fef0027e8454a) )
 
 	ROM_REGION( 0x080000, "gfx", 0 )
-	ROM_LOAD( "u15.bin", 0x000000, 0x80000, CRC(707f062f) SHA1(e237a03192d7ce79509418fd8811ecad14890739) )
+	ROM_LOAD( "u15.bin", 0x00000, 0x80000, CRC(707f062f) SHA1(e237a03192d7ce79509418fd8811ecad14890739) )
 ROM_END
 
 ROM_START( spool99a )
 	ROM_REGION( 0x40000, "maincpu", 0 ) // z80 code
-	ROM_LOAD( "u2.bin", 0x00000, 0x10000, CRC(488dd1bf) SHA1(7289b639fa56722d1f60d8c4bda566d726f8e00b) ) // first half empty!
-	ROM_CONTINUE( 0x00000, 0x10000) // 0x0000 - 0xafff used
+	ROM_LOAD( "sp99v.u2",   0x00000, 0x10000, CRC(ca6cf364) SHA1(1be82af26db6730e00c01581ac0bea2057c2f1c6) ) // first half empty!
+	ROM_CONTINUE(           0x00000, 0x10000) // 0x0000 - 0xafff used
+
+	ROM_REGION( 0x040000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "272001.u32", 0x00000, 0x40000, CRC(1b7aa54c) SHA1(87fc4da8d2a85bc3ce00d8f0f03fef0027e8454a) )
+
+	ROM_REGION( 0x080000, "gfx", 0 )
+	ROM_LOAD( "274001.u15", 0x00000, 0x80000, CRC(3d79f3df) SHA1(4ba2a09cba94889d29feca481667326da7757061) )
+ROM_END
+
+ROM_START( spool99b )
+	ROM_REGION( 0x40000, "maincpu", 0 ) // z80 code
+	ROM_LOAD( "u2.bin",  0x00000, 0x10000, CRC(488dd1bf) SHA1(7289b639fa56722d1f60d8c4bda566d726f8e00b) ) // first half empty!
+	ROM_CONTINUE(        0x00000, 0x10000) // 0x0000 - 0xafff used
 
 	ROM_REGION( 0x040000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "u32.bin", 0x00000, 0x40000, CRC(1b7aa54c) SHA1(87fc4da8d2a85bc3ce00d8f0f03fef0027e8454a) )
 
 	ROM_REGION( 0x080000, "gfx", 0 )
-	ROM_LOAD( "u15.bin", 0x000000, 0x80000, CRC(707f062f) SHA1(e237a03192d7ce79509418fd8811ecad14890739) )
+	ROM_LOAD( "u15.bin", 0x00000, 0x80000, CRC(707f062f) SHA1(e237a03192d7ce79509418fd8811ecad14890739) )
+ROM_END
+
+ROM_START( spool99c )
+	ROM_REGION( 0x40000, "maincpu", 0 ) // z80 code
+	ROM_LOAD( "u2_v26.bin",  0x00000, 0x10000, CRC(df8b561e) SHA1(bd2321e1154a45fc5abca15a37cb0b04023466bf) ) // first half empty!
+	ROM_CONTINUE(            0x00000, 0x10000) // 0x0000 - 0xafff used
+
+	ROM_REGION( 0x040000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "u32_v26.bin", 0x00000, 0x40000, CRC(1b7aa54c) SHA1(87fc4da8d2a85bc3ce00d8f0f03fef0027e8454a) )
+
+	ROM_REGION( 0x080000, "gfx", 0 )
+	ROM_LOAD( "u15_v26.bin", 0x00000, 0x80000, CRC(3d79f3df) SHA1(4ba2a09cba94889d29feca481667326da7757061) )
 ROM_END
 
 ROM_START( vcarn )
 	ROM_REGION( 0x40000, "maincpu", 0 ) // z80 code
-	ROM_LOAD( "3.u2", 0x00000, 0x10000, CRC(e7c33032) SHA1(e769c83b6d2b48e347ad6112b4379f6e16bcc6e0) ) // first half empty!
-	ROM_CONTINUE( 0x00000, 0x10000) // 0x0000 - 0xafff used
+	ROM_LOAD( "3.u2",  0x00000, 0x10000, CRC(e7c33032) SHA1(e769c83b6d2b48e347ad6112b4379f6e16bcc6e0) ) // first half empty!
+	ROM_CONTINUE(      0x00000, 0x10000) // 0x0000 - 0xafff used
 
 	ROM_REGION( 0x080000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "1.u32", 0x00000, 0x80000, CRC(8a0aa6b5) SHA1(dc39cb26607fabdcb3e74a60943cf88456172d09) )
 
 	ROM_REGION( 0x080000, "gfx", 0 )
-	ROM_LOAD( "2.u15", 0x000000, 0x80000, CRC(a647f378) SHA1(4c8a49afe8bd63d7e30242fb016fc76b38859ea8) )
+	ROM_LOAD( "2.u15", 0x00000, 0x80000, CRC(a647f378) SHA1(4c8a49afe8bd63d7e30242fb016fc76b38859ea8) )
 ROM_END
 
 
 DRIVER_INIT_MEMBER(spool99_state,spool99)
 {
-
 	UINT8 *ROM = memregion("maincpu")->base();
 //  vram = auto_alloc_array(machine(), UINT8, 0x2000);
 	memcpy(m_main, ROM, 0x100);
@@ -432,5 +451,7 @@ DRIVER_INIT_MEMBER(spool99_state,spool99)
 
 
 GAME( 1998, spool99,    0,        spool99,    spool99, spool99_state,    spool99, ROT0,  "Electronic Projects", "Super Pool 99 (Version 0.36)", 0 )
-GAME( 1998, spool99a,   spool99,  spool99,    spool99, spool99_state,    spool99, ROT0,  "Electronic Projects", "Super Pool 99 (Version 0.31)", 0 )
+GAME( 1998, spool99a,   spool99,  spool99,    spool99, spool99_state,    spool99, ROT0,  "Electronic Projects", "Super Pool 99 (Version 0.33)", 0 )
+GAME( 1998, spool99b,   spool99,  spool99,    spool99, spool99_state,    spool99, ROT0,  "Electronic Projects", "Super Pool 99 (Version 0.31)", 0 )
+GAME( 1998, spool99c,   spool99,  spool99,    spool99, spool99_state,    spool99, ROT0,  "Electronic Projects", "Super Pool 99 (Version 0.26)", 0 )
 GAME( 1998, vcarn,      0,        vcarn,      spool99, spool99_state,    spool99, ROT0,  "Electronic Projects", "Video Carnival 1999 / Super Royal Card (Version 0.11)", 0 ) //MAME screen says '98, PCB screen says '99?

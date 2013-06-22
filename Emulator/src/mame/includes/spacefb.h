@@ -3,7 +3,7 @@
     Space Firebird hardware
 
 ****************************************************************************/
-
+#include "sound/samples.h"
 /*
  *  SPACEFB_PIXEL_CLOCK clocks the star generator circuit.  The rest of
  *  the graphics use a clock half of SPACEFB_PIXEL_CLOCK, thus creating
@@ -28,8 +28,11 @@ class spacefb_state : public driver_device
 {
 public:
 	spacefb_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_samples(*this, "samples") { }
 
 	UINT8 m_sound_latch;
 	emu_timer *m_interrupt_timer;
@@ -51,6 +54,18 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_spacefb(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
+	inline void shift_star_generator(spacefb_state *state);
+	void get_starfield_pens(spacefb_state *state, pen_t *pens);
+	void draw_starfield(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void get_sprite_pens(pen_t *pens);
+	void draw_bullet(offs_t offs, pen_t pen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int flip);
+	void draw_sprite(offs_t offs, pen_t *pens, bitmap_rgb32 &bitmap, const rectangle &cliprect, int flip);
+	void draw_objects(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void create_interrupt_timer();
+	void start_interrupt_timer();
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<samples_device> m_samples;
 };
 
 /*----------- defined in audio/spacefb.c -----------*/

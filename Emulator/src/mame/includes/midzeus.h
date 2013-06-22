@@ -6,6 +6,8 @@
 
 #define MIDZEUS_VIDEO_CLOCK     XTAL_66_6667MHz
 
+#include "machine/timekpr.h"
+
 class midzeus_state : public driver_device
 {
 public:
@@ -15,13 +17,16 @@ public:
 			m_ram_base(*this, "ram_base"),
 			m_linkram(*this, "linkram"),
 			m_tms32031_control(*this, "tms32031_ctl"),
-			m_zeusbase(*this, "zeusbase") { }
+			m_zeusbase(*this, "zeusbase") ,
+		m_m48t35(*this, "m48t35"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT32> m_nvram;
 	required_shared_ptr<UINT32> m_ram_base;
 	optional_shared_ptr<UINT32> m_linkram;
 	required_shared_ptr<UINT32> m_tms32031_control;
 	required_shared_ptr<UINT32> m_zeusbase;
+	optional_device<timekeeper_device> m_m48t35;
 
 	DECLARE_WRITE32_MEMBER(cmos_w);
 	DECLARE_READ32_MEMBER(cmos_r);
@@ -61,6 +66,9 @@ public:
 	INTERRUPT_GEN_MEMBER(display_irq);
 	TIMER_CALLBACK_MEMBER(display_irq_off);
 	TIMER_CALLBACK_MEMBER(invasn_gun_callback);
+	void exit_handler();
+	void exit_handler2();
+	required_device<cpu_device> m_maincpu;
 };
 
 /*----------- defined in video/midzeus2.c -----------*/

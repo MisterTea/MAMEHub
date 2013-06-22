@@ -51,7 +51,6 @@ Note about version levels using Mutant Fighter as the example:
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "video/deco16ic.h"
-#include "video/decospr.h"
 #include "video/decocomn.h"
 
 WRITE16_MEMBER(cninja_state::cninja_sound_w)
@@ -76,7 +75,6 @@ READ16_MEMBER(cninja_state::cninja_irq_r)
 {
 	switch (offset)
 	{
-
 	case 1: /* Raster IRQ scanline position */
 		return m_scanline;
 
@@ -262,7 +260,7 @@ static ADDRESS_MAP_START( robocop2_map, AS_PROGRAM, 16, cninja_state )
 	AM_RANGE(0x15e000, 0x15e7ff) AM_RAM AM_SHARE("pf4_rowscroll")
 
 	AM_RANGE(0x180000, 0x1807ff) AM_RAM AM_SHARE("spriteram")
-//  AM_RANGE(0x18c000, 0x18c0ff) AM_WRITE_LEGACY(cninja_loopback_w) /* Protection writes */
+//  AM_RANGE(0x18c000, 0x18c0ff) AM_WRITE(cninja_loopback_w) /* Protection writes */
 	AM_RANGE(0x18c000, 0x18c7ff) AM_READ(robocop2_prot_r) /* Protection device */
 	AM_RANGE(0x18c064, 0x18c065) AM_WRITE(cninja_sound_w)
 	AM_RANGE(0x198000, 0x198001) AM_DEVWRITE("spriteram", buffered_spriteram16_device, write) /* DMA flag */
@@ -304,7 +302,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, cninja_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
+	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
 	AM_RANGE(0x110000, 0x110001) AM_DEVREADWRITE("ym2", ym2151_device, read, write)
 	AM_RANGE(0x120000, 0x120001) AM_DEVREADWRITE("oki1", okim6295_device, read, write)
 	AM_RANGE(0x130000, 0x130001) AM_DEVREADWRITE("oki2", okim6295_device, read, write)
@@ -2037,18 +2035,18 @@ ROM_END
 
 DRIVER_INIT_MEMBER(cninja_state,cninja)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x1bc0a8, 0x1bc0a9, write16_delegate(FUNC(cninja_state::cninja_sound_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x1bc0a8, 0x1bc0a9, write16_delegate(FUNC(cninja_state::cninja_sound_w),this));
 }
 
 DRIVER_INIT_MEMBER(cninja_state,stoneage)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x1bc0a8, 0x1bc0a9, write16_delegate(FUNC(cninja_state::stoneage_sound_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x1bc0a8, 0x1bc0a9, write16_delegate(FUNC(cninja_state::stoneage_sound_w),this));
 }
 
 DRIVER_INIT_MEMBER(cninja_state,mutantf)
 {
-	const UINT8 *src = machine().root_device().memregion("gfx2")->base();
-	UINT8 *dst = machine().root_device().memregion("gfx1")->base();
+	const UINT8 *src = memregion("gfx2")->base();
+	UINT8 *dst = memregion("gfx1")->base();
 
 	/* The 16x16 graphic has some 8x8 chars in it - decode them in GFX1 */
 	memcpy(dst + 0x50000, dst + 0x10000, 0x10000);

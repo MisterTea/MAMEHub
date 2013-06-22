@@ -100,39 +100,21 @@ READ_LINE_MEMBER( eti660_state::gdata_r )
 	return BIT(m_color, 2);
 }
 
-static CDP1864_INTERFACE( eti660_cdp1864_intf )
-{
-	CDP1802_TAG,
-	SCREEN_TAG,
-	CDP1864_INTERLACED,
-	DEVCB_DRIVER_LINE_MEMBER(eti660_state, rdata_r),
-	DEVCB_DRIVER_LINE_MEMBER(eti660_state, bdata_r),
-	DEVCB_DRIVER_LINE_MEMBER(eti660_state, gdata_r),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1),
-	DEVCB_NULL,
-	RES_K(2.2), /* R7 */
-	RES_K(1),   /* R5 */
-	RES_K(4.7), /* R6 */
-	RES_K(4.7)  /* R4 */
-};
-
 /* CDP1802 Interface */
 
 READ_LINE_MEMBER( eti660_state::clear_r )
 {
-	return BIT(ioport("SPECIAL")->read(), 0);
+	return BIT(m_special->read(), 0);
 }
 
 READ_LINE_MEMBER( eti660_state::ef2_r )
 {
-	return (m_cassette)->input() < 0;
+	return m_cassette->input() < 0;
 }
 
 READ_LINE_MEMBER( eti660_state::ef4_r )
 {
-	return BIT(ioport("SPECIAL")->read(), 1);
+	return BIT(m_special->read(), 1);
 }
 
 WRITE_LINE_MEMBER( eti660_state::q_w )
@@ -194,10 +176,10 @@ READ8_MEMBER( eti660_state::pia_pa_r )
 
 	UINT8 data = 0xf0;
 
-	if (!BIT(m_keylatch, 0)) data &= ioport("PA0")->read();
-	if (!BIT(m_keylatch, 1)) data &= ioport("PA1")->read();
-	if (!BIT(m_keylatch, 2)) data &= ioport("PA2")->read();
-	if (!BIT(m_keylatch, 3)) data &= ioport("PA3")->read();
+	if (!BIT(m_keylatch, 0)) data &= m_pa0->read();
+	if (!BIT(m_keylatch, 1)) data &= m_pa1->read();
+	if (!BIT(m_keylatch, 2)) data &= m_pa2->read();
+	if (!BIT(m_keylatch, 3)) data &= m_pa3->read();
 
 	return data;
 }
@@ -251,7 +233,7 @@ static const cassette_interface eti660_cassette_interface =
 
 static MACHINE_CONFIG_START( eti660, eti660_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, XTAL_8_867238MHz/5)
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, XTAL_8_867238MHz/5)
 	MCFG_CPU_PROGRAM_MAP(eti660_map)
 	MCFG_CPU_IO_MAP(eti660_io_map)
 	MCFG_CPU_CONFIG(eti660_config)
@@ -262,12 +244,13 @@ static MACHINE_CONFIG_START( eti660, eti660_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_CDP1864_ADD(CDP1864_TAG, XTAL_8_867238MHz/5, eti660_cdp1864_intf)
+	MCFG_CDP1864_ADD(CDP1864_TAG, SCREEN_TAG, XTAL_8_867238MHz/5, GND, INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1), NULL, READLINE(eti660_state, rdata_r), READLINE(eti660_state, bdata_r), READLINE(eti660_state, gdata_r))
+	MCFG_CDP1864_CHROMINANCE(RES_K(2.2), RES_K(1), RES_K(4.7), RES_K(4.7)) // R7, R5, R6, R4
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
 	MCFG_PIA6821_ADD(MC6821_TAG, eti660_mc6821_intf)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, eti660_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", eti660_cassette_interface)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

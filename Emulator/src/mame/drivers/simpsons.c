@@ -67,7 +67,7 @@ Custom ICs - 053260        - sound chip (QFP80)
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/konami/konami.h" /* for the callback and the firq irq definition */
+#include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "cpu/z80/z80.h"
 #include "video/konicdev.h"
 #include "machine/eeprom.h"
@@ -96,7 +96,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, simpsons_state )
 	AM_RANGE(0x1fc0, 0x1fc0) AM_WRITE(simpsons_coin_counter_w)
 	AM_RANGE(0x1fc2, 0x1fc2) AM_WRITE(simpsons_eeprom_w)
 	AM_RANGE(0x1fc4, 0x1fc4) AM_READ(simpsons_sound_interrupt_r)
-	AM_RANGE(0x1fc6, 0x1fc7) AM_READ(simpsons_sound_r) AM_DEVWRITE_LEGACY("k053260",k053260_w)
+	AM_RANGE(0x1fc6, 0x1fc7) AM_READ(simpsons_sound_r) AM_DEVWRITE("k053260", k053260_device, k053260_w)
 	AM_RANGE(0x1fc8, 0x1fc9) AM_DEVREAD_LEGACY("k053246", k053246_r)
 	AM_RANGE(0x1fca, 0x1fca) AM_READ(watchdog_reset_r)
 	AM_RANGE(0x2000, 0x3fff) AM_RAMBANK("bank4")
@@ -112,23 +112,35 @@ WRITE8_MEMBER(simpsons_state::z80_bankswitch_w)
 }
 
 #if 0
-static void sound_nmi_callback( running_machine &machine, int param )
+void simpsons_state::sound_nmi_callback( int param )
 {
-	simpsons_state *state = machine.driver_data<simpsons_state>();
-	state->m_audiocpu->set_input_line(INPUT_LINE_NMI, (state->m_nmi_enabled) ? CLEAR_LINE : ASSERT_LINE );
-	state->m_nmi_enabled = 0;
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, (m_nmi_enabled) ? CLEAR_LINE : ASSERT_LINE );
+	m_nmi_enabled = 0;
 }
 #endif
 
-TIMER_CALLBACK_MEMBER(simpsons_state::nmi_callback)
+
+void simpsons_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_NMI:
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		break;
+	case TIMER_DMAEND:
+		if (m_firq_enabled)
+			m_maincpu->set_input_line(KONAMI_FIRQ_LINE, HOLD_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in simpsons_state::device_timer");
+	}
 }
+
 
 WRITE8_MEMBER(simpsons_state::z80_arm_nmi_w)
 {
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	machine().scheduler().timer_set(attotime::from_usec(25), timer_expired_delegate(FUNC(simpsons_state::nmi_callback),this));  /* kludge until the K053260 is emulated correctly */
+	timer_set(attotime::from_usec(25), TIMER_NMI);  /* kludge until the K053260 is emulated correctly */
 }
 
 static ADDRESS_MAP_START( z80_map, AS_PROGRAM, 8, simpsons_state )
@@ -137,7 +149,7 @@ static ADDRESS_MAP_START( z80_map, AS_PROGRAM, 8, simpsons_state )
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(z80_arm_nmi_w)
-	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r, k053260_w)
+	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
 	AM_RANGE(0xfe00, 0xfe00) AM_WRITE(z80_bankswitch_w)
 ADDRESS_MAP_END
 
@@ -225,16 +237,15 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static void simpsons_objdma( running_machine &machine )
+void simpsons_state::simpsons_objdma(  )
 {
-	simpsons_state *state = machine.driver_data<simpsons_state>();
 	int counter, num_inactive;
 	UINT16 *src, *dst;
 
-	k053247_get_ram(state->m_k053246, &dst);
-	counter = k053247_get_dy(state->m_k053246);
+	k053247_get_ram(m_k053246, &dst);
+	counter = k053247_get_dy(m_k053246);
 
-	src = state->m_spriteram;
+	src = m_spriteram;
 	num_inactive = counter = 256;
 
 	do {
@@ -251,21 +262,13 @@ static void simpsons_objdma( running_machine &machine )
 	if (num_inactive) do { *dst = 0; dst += 8; } while (--num_inactive);
 }
 
-TIMER_CALLBACK_MEMBER(simpsons_state::dmaend_callback)
-{
-	if (m_firq_enabled)
-		m_maincpu->set_input_line(KONAMI_FIRQ_LINE, HOLD_LINE);
-}
-
-
 INTERRUPT_GEN_MEMBER(simpsons_state::simpsons_irq)
 {
-
 	if (k053246_is_irq_enabled(m_k053246))
 	{
-		simpsons_objdma(machine());
+		simpsons_objdma();
 		// 32+256us delay at 8MHz dotclock; artificially shortened since actual V-blank length is unknown
-		machine().scheduler().timer_set(attotime::from_usec(30), timer_expired_delegate(FUNC(simpsons_state::dmaend_callback),this));
+		timer_set(attotime::from_usec(30), TIMER_DMAEND);
 	}
 
 	if (k052109_is_irq_enabled(m_k052109))

@@ -147,15 +147,13 @@ WRITE8_MEMBER(skydiver_state::skydiver_nmion_w)
 
 INTERRUPT_GEN_MEMBER(skydiver_state::skydiver_interrupt)
 {
-	device_t *discrete = machine().device("discrete");
-
 	/* Convert range data to divide value and write to sound */
 	address_space &space = machine().firstcpu->space(AS_PROGRAM);
-	discrete_sound_w(discrete, space, SKYDIVER_RANGE_DATA, (0x01 << (~m_videoram[0x394] & 0x07)) & 0xff);   // Range 0-2
+	discrete_sound_w(m_discrete, space, SKYDIVER_RANGE_DATA, (0x01 << (~m_videoram[0x394] & 0x07)) & 0xff);   // Range 0-2
 
-	discrete_sound_w(discrete, space, SKYDIVER_RANGE3_EN,  m_videoram[0x394] & 0x08);       // Range 3 - note disable
-	discrete_sound_w(discrete, space, SKYDIVER_NOTE_DATA, ~m_videoram[0x395] & 0xff);       // Note - freq
-	discrete_sound_w(discrete, space, SKYDIVER_NOISE_DATA,  m_videoram[0x396] & 0x0f);  // NAM - Noise Amplitude
+	discrete_sound_w(m_discrete, space, SKYDIVER_RANGE3_EN,  m_videoram[0x394] & 0x08);       // Range 3 - note disable
+	discrete_sound_w(m_discrete, space, SKYDIVER_NOTE_DATA, ~m_videoram[0x395] & 0xff);       // Note - freq
+	discrete_sound_w(m_discrete, space, SKYDIVER_NOISE_DATA,  m_videoram[0x396] & 0x0f);  // NAM - Noise Amplitude
 
 	if (m_nmion)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
@@ -171,14 +169,12 @@ INTERRUPT_GEN_MEMBER(skydiver_state::skydiver_interrupt)
 
 WRITE8_MEMBER(skydiver_state::skydiver_sound_enable_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, SKYDIVER_SOUND_EN, offset);
+	discrete_sound_w(m_discrete, space, SKYDIVER_SOUND_EN, offset);
 }
 
 WRITE8_MEMBER(skydiver_state::skydiver_whistle_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, NODE_RELATIVE(SKYDIVER_WHISTLE1_EN, (offset >> 1)), offset & 0x01);
+	discrete_sound_w(m_discrete, space, NODE_RELATIVE(SKYDIVER_WHISTLE1_EN, (offset >> 1)), offset & 0x01);
 }
 
 
@@ -201,9 +197,9 @@ static ADDRESS_MAP_START( skydiver_map, AS_PROGRAM, 8, skydiver_state )
 	AM_RANGE(0x0808, 0x0809) AM_MIRROR(0x47f0) AM_WRITE(skydiver_lamp_y_w)
 	AM_RANGE(0x080a, 0x080b) AM_MIRROR(0x47f0) AM_WRITE(skydiver_lamp_d_w)
 	AM_RANGE(0x080c, 0x080d) AM_MIRROR(0x47f0) AM_WRITE(skydiver_sound_enable_w)
-	// AM_RANGE(0x1000, 0x1001) AM_MIRROR(0x47f0) AM_WRITE_LEGACY(skydiver_jump1_lamps_w)
+	// AM_RANGE(0x1000, 0x1001) AM_MIRROR(0x47f0) AM_WRITE(skydiver_jump1_lamps_w)
 	AM_RANGE(0x1002, 0x1003) AM_MIRROR(0x47f0) AM_WRITE(skydiver_coin_lockout_w)
-	// AM_RANGE(0x1006, 0x1007) AM_MIRROR(0x47f0) AM_WRITE_LEGACY(skydiver_jump2_lamps_w)
+	// AM_RANGE(0x1006, 0x1007) AM_MIRROR(0x47f0) AM_WRITE(skydiver_jump2_lamps_w)
 	AM_RANGE(0x1008, 0x100b) AM_MIRROR(0x47f0) AM_WRITE(skydiver_whistle_w)
 	AM_RANGE(0x100c, 0x100d) AM_MIRROR(0x47f0) AM_WRITE(skydiver_nmion_w)
 	AM_RANGE(0x100e, 0x100f) AM_MIRROR(0x47f0) AM_WRITE(skydiver_width_w)

@@ -9,14 +9,14 @@
 
 #include "emu.h"
 #include "emuopts.h"
-#include "formats/cbm_crt.h"
+#include "machine/cbm_crt.h"
 #include "formats/imageutl.h"
 #include "machine/vic10exp.h"
 
 
 
 //**************************************************************************
-//  GLOBAL VARIABLES
+//  DEVICE DEFINITIONS
 //**************************************************************************
 
 const device_type VIC10_EXPANSION_SLOT = &device_creator<vic10_expansion_slot_device>;
@@ -108,46 +108,12 @@ UINT8* device_vic10_expansion_card_interface::vic10_exram_pointer(running_machin
 vic10_expansion_slot_device::vic10_expansion_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
 		device_t(mconfig, VIC10_EXPANSION_SLOT, "VIC-10 expansion port", tag, owner, clock),
 		device_slot_interface(mconfig, *this),
-		device_image_interface(mconfig, *this)
+		device_image_interface(mconfig, *this),
+		m_write_irq(*this),
+		m_write_res(*this),
+		m_write_cnt(*this),
+		m_write_sp(*this)
 {
-}
-
-
-//-------------------------------------------------
-//  vic10_expansion_slot_device - destructor
-//-------------------------------------------------
-
-vic10_expansion_slot_device::~vic10_expansion_slot_device()
-{
-}
-
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void vic10_expansion_slot_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const vic10_expansion_slot_interface *intf = reinterpret_cast<const vic10_expansion_slot_interface *>(static_config());
-	if (intf != NULL)
-	{
-		*static_cast<vic10_expansion_slot_interface *>(this) = *intf;
-	}
-
-	// or initialize to defaults if none provided
-	else
-	{
-		memset(&m_out_irq_cb, 0, sizeof(m_out_irq_cb));
-		memset(&m_out_sp_cb, 0, sizeof(m_out_sp_cb));
-		memset(&m_out_cnt_cb, 0, sizeof(m_out_cnt_cb));
-		memset(&m_out_res_cb, 0, sizeof(m_out_res_cb));
-	}
-
-	// set brief and instance name
-	update_names();
 }
 
 
@@ -157,13 +123,13 @@ void vic10_expansion_slot_device::device_config_complete()
 
 void vic10_expansion_slot_device::device_start()
 {
-	m_cart = dynamic_cast<device_vic10_expansion_card_interface *>(get_card_device());
+	m_card = dynamic_cast<device_vic10_expansion_card_interface *>(get_card_device());
 
 	// resolve callbacks
-	m_out_irq_func.resolve(m_out_irq_cb, *this);
-	m_out_sp_func.resolve(m_out_sp_cb, *this);
-	m_out_cnt_func.resolve(m_out_cnt_cb, *this);
-	m_out_res_func.resolve(m_out_res_cb, *this);
+	m_write_irq.resolve_safe();
+	m_write_res.resolve_safe();
+	m_write_cnt.resolve_safe();
+	m_write_sp.resolve_safe();
 
 	// inherit bus clock
 	if (clock() == 0)
@@ -181,8 +147,10 @@ void vic10_expansion_slot_device::device_start()
 
 void vic10_expansion_slot_device::device_reset()
 {
-	res_w(ASSERT_LINE);
-	res_w(CLEAR_LINE);
+	if (get_card_device())
+	{
+		get_card_device()->reset();
+	}
 }
 
 
@@ -192,7 +160,7 @@ void vic10_expansion_slot_device::device_reset()
 
 bool vic10_expansion_slot_device::call_load()
 {
-	if (m_cart)
+	if (m_card)
 	{
 		size_t size = 0;
 
@@ -202,14 +170,14 @@ bool vic10_expansion_slot_device::call_load()
 
 			if (!mame_stricmp(filetype(), "80"))
 			{
-				fread(m_cart->vic10_lorom_pointer(machine(), 0x2000), 0x2000);
+				fread(m_card->vic10_lorom_pointer(machine(), 0x2000), 0x2000);
 
 				if (size == 0x4000)
 				{
-					fread(m_cart->vic10_uprom_pointer(machine(), 0x2000), 0x2000);
+					fread(m_card->vic10_uprom_pointer(machine(), 0x2000), 0x2000);
 				}
 			}
-			else if (!mame_stricmp(filetype(), "e0")) fread(m_cart->vic10_uprom_pointer(machine(), size), size);
+			else if (!mame_stricmp(filetype(), "e0")) fread(m_card->vic10_uprom_pointer(machine(), size), size);
 			else if (!mame_stricmp(filetype(), "crt"))
 			{
 				size_t roml_size = 0;
@@ -222,8 +190,8 @@ bool vic10_expansion_slot_device::call_load()
 					UINT8 *roml = NULL;
 					UINT8 *romh = NULL;
 
-					if (roml_size) roml = m_cart->vic10_lorom_pointer(machine(), roml_size);
-					if (romh_size) romh = m_cart->vic10_uprom_pointer(machine(), romh_size);
+					if (roml_size) roml = m_card->vic10_lorom_pointer(machine(), roml_size);
+					if (romh_size) romh = m_card->vic10_uprom_pointer(machine(), romh_size);
 
 					cbm_crt_read_data(m_file, roml, romh);
 				}
@@ -232,13 +200,13 @@ bool vic10_expansion_slot_device::call_load()
 		else
 		{
 			size = get_software_region_length("lorom");
-			if (size) memcpy(m_cart->vic10_lorom_pointer(machine(), size), get_software_region("lorom"), size);
+			if (size) memcpy(m_card->vic10_lorom_pointer(machine(), size), get_software_region("lorom"), size);
 
 			size = get_software_region_length("uprom");
-			if (size) memcpy(m_cart->vic10_uprom_pointer(machine(), size), get_software_region("uprom"), size);
+			if (size) memcpy(m_card->vic10_uprom_pointer(machine(), size), get_software_region("uprom"), size);
 
 			size = get_software_region_length("exram");
-			if (size) m_cart->vic10_exram_pointer(machine(), size);
+			if (size) m_card->vic10_exram_pointer(machine(), size);
 		}
 	}
 
@@ -284,9 +252,9 @@ const char * vic10_expansion_slot_device::get_default_card_software(const machin
 
 UINT8 vic10_expansion_slot_device::cd_r(address_space &space, offs_t offset, UINT8 data, int lorom, int uprom, int exram)
 {
-	if (m_cart != NULL)
+	if (m_card != NULL)
 	{
-		data = m_cart->vic10_cd_r(space, offset, data, lorom, uprom, exram);
+		data = m_card->vic10_cd_r(space, offset, data, lorom, uprom, exram);
 	}
 
 	return data;
@@ -299,17 +267,11 @@ UINT8 vic10_expansion_slot_device::cd_r(address_space &space, offs_t offset, UIN
 
 void vic10_expansion_slot_device::cd_w(address_space &space, offs_t offset, UINT8 data, int lorom, int uprom, int exram)
 {
-	if (m_cart != NULL)
+	if (m_card != NULL)
 	{
-		m_cart->vic10_cd_w(space, offset, data, lorom, uprom, exram);
+		m_card->vic10_cd_w(space, offset, data, lorom, uprom, exram);
 	}
 }
 
-WRITE_LINE_MEMBER( vic10_expansion_slot_device::port_res_w ) { if (m_cart != NULL) m_cart->vic10_res_w(state); }
-
-READ_LINE_MEMBER( vic10_expansion_slot_device::p0_r ) { int state = 0; if (m_cart != NULL) state = m_cart->vic10_p0_r(); return state; }
-WRITE_LINE_MEMBER( vic10_expansion_slot_device::p0_w ) { if (m_cart != NULL) m_cart->vic10_p0_w(state); }
-WRITE_LINE_MEMBER( vic10_expansion_slot_device::irq_w ) { m_out_irq_func(state); }
-WRITE_LINE_MEMBER( vic10_expansion_slot_device::sp_w ) { m_out_sp_func(state); if (m_cart != NULL) m_cart->vic10_sp_w(state); }
-WRITE_LINE_MEMBER( vic10_expansion_slot_device::cnt_w ) { m_out_cnt_func(state); if (m_cart != NULL) m_cart->vic10_cnt_w(state); }
-WRITE_LINE_MEMBER( vic10_expansion_slot_device::res_w ) { m_out_res_func(state); }
+READ_LINE_MEMBER( vic10_expansion_slot_device::p0_r ) { int state = 0; if (m_card != NULL) state = m_card->vic10_p0_r(); return state; }
+WRITE_LINE_MEMBER( vic10_expansion_slot_device::p0_w ) { if (m_card != NULL) m_card->vic10_p0_w(state); }

@@ -137,7 +137,7 @@ INLINE beezer_sound_state *get_safe_token(device_t *device)
 /*static WRITE_LINE_DEVICE_HANDLER( update_irq_state )
 {
     beezer_sound_state *sndstate = get_safe_token(device);
-    device->machine().device("audiocpu")->execute().set_input_line(M6809_IRQ_LINE, (sndstate->ptm_irq_state) ? ASSERT_LINE : CLEAR_LINE);
+    device->m_audiocpu->set_input_line(M6809_IRQ_LINE, (sndstate->ptm_irq_state) ? ASSERT_LINE : CLEAR_LINE);
 }*/
 
 
@@ -502,8 +502,8 @@ READ8_DEVICE_HANDLER( beezer_sh6840_r )
 		return 0;
 		/* offsets 2,4,6 read channel 0,1,2 MSBs and latch the LSB*/
 		case 2: case 4: case 6:
-		state->m_sh6840_LSB_latch = state->m_sh6840_timer[((offset<<1)-1)].counter.b.l;
-		return state->m_sh6840_timer[((offset<<1)-1)].counter.b.h;
+		state->m_sh6840_LSB_latch = state->m_sh6840_timer[((offset>>1)-1)].counter.b.l;
+		return state->m_sh6840_timer[((offset>>1)-1)].counter.b.h;
 		/* offsets 3,5,7 read the LSB latch*/
 		default: /* case 3,5,7 */
 		return state->m_sh6840_LSB_latch;

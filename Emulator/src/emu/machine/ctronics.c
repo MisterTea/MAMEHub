@@ -23,7 +23,6 @@ centronics_device::centronics_device(const machine_config &mconfig, const char *
 		device_slot_interface(mconfig, *this),
 		m_dev(NULL)
 {
-
 }
 
 //-------------------------------------------------
@@ -139,7 +138,7 @@ MACHINE_CONFIG_END
 //-------------------------------------------------
 
 centronics_printer_device::centronics_printer_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, CENTRONICS_PRINTER, "Centronics Printer", tag, owner, clock),
+	: device_t(mconfig, CENTRONICS_PRINTER, "Centronics Printer", tag, owner, clock, "centronics_printer", __FILE__),
 		device_centronics_peripheral_interface( mconfig, *this )
 {
 }
@@ -232,7 +231,6 @@ void centronics_printer_device::device_start()
 
 void centronics_printer_device::device_reset()
 {
-
 }
 
 /*-------------------------------------------------

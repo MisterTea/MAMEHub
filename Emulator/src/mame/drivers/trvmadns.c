@@ -69,9 +69,10 @@ class trvmadns_state : public driver_device
 {
 public:
 	trvmadns_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_gfxram(*this, "gfxram"),
-		m_tileram(*this, "tileram"){ }
+		m_tileram(*this, "tileram"),
+		m_maincpu(*this, "maincpu") { }
 
 	tilemap_t *m_bg_tilemap;
 	required_shared_ptr<UINT8> m_gfxram;
@@ -87,12 +88,12 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_trvmadns(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
 WRITE8_MEMBER(trvmadns_state::trvmadns_banking_w)
 {
-
 	UINT8 *rom;
 	int address = 0;
 
@@ -205,7 +206,7 @@ WRITE8_MEMBER(trvmadns_state::trvmadns_tileram_w)
 	{
 		if(space.device().safe_pcbase()==0x29e9)// || space.device().safe_pcbase()==0x1b3f) //29f5
 		{
-			machine().device("maincpu")->execute().set_input_line(0, HOLD_LINE);
+			m_maincpu->set_input_line(0, HOLD_LINE);
 		}
 //      else
 //          logerror("%x \n", space.device().safe_pcbase());
@@ -231,7 +232,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( io_map, AS_IO, 8, trvmadns_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x02, 0x02) AM_READ_PORT("IN0")
 	AM_RANGE(0x80, 0x80) AM_WRITE(trvmadns_banking_w)
 ADDRESS_MAP_END

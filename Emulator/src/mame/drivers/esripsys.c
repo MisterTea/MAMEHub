@@ -16,11 +16,10 @@
         To skip, hold down keypad '*' on reset.
         * Hold '*' during the game to access the operator menu.
 
-    To do:
-        * Confirm that occasional line drop outs do occur on real hardware.
-        14 sprites seems to be the maximum number that the RIP CPU can safely
-        process per line.
+    BTANB:
+        * Missing lines occur on real hardware.
 
+    To do:
         * Implement collision detection hardware (unused by Turbo Sub).
 
 ****************************************************************************/
@@ -31,7 +30,6 @@
 #include "machine/6840ptm.h"
 #include "machine/nvram.h"
 #include "sound/dac.h"
-#include "sound/tms5220.h"
 #include "includes/esripsys.h"
 
 
@@ -43,7 +41,7 @@
 
 WRITE_LINE_MEMBER(esripsys_state::ptm_irq)
 {
-	machine().device("sound_cpu")->execute().set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu->set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 static const ptm6840_interface ptm_intf =
@@ -111,14 +109,14 @@ WRITE8_MEMBER(esripsys_state::g_status_w)
 	bankaddress = 0x10000 + (data & 0x03) * 0x10000;
 	membank("bank1")->set_base(&rom[bankaddress]);
 
-	machine().device("frame_cpu")->execute().set_input_line(M6809_FIRQ_LINE, data & 0x10 ? CLEAR_LINE : ASSERT_LINE);
-	machine().device("frame_cpu")->execute().set_input_line(INPUT_LINE_NMI,  data & 0x80 ? CLEAR_LINE : ASSERT_LINE);
+	m_framecpu->set_input_line(M6809_FIRQ_LINE, data & 0x10 ? CLEAR_LINE : ASSERT_LINE);
+	m_framecpu->set_input_line(INPUT_LINE_NMI,  data & 0x80 ? CLEAR_LINE : ASSERT_LINE);
 
-	machine().device("video_cpu")->execute().set_input_line(INPUT_LINE_RESET, data & 0x40 ? CLEAR_LINE : ASSERT_LINE);
+	m_videocpu->set_input_line(INPUT_LINE_RESET, data & 0x40 ? CLEAR_LINE : ASSERT_LINE);
 
 	/* /VBLANK IRQ acknowledge */
 	if (!(data & 0x20))
-		machine().device("game_cpu")->execute().set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
+		m_gamecpu->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 }
 
 
@@ -346,7 +344,7 @@ WRITE8_MEMBER(esripsys_state::g_ioadd_w)
 			}
 			case 0x02:
 			{
-				machine().device("sound_cpu")->execute().set_input_line(INPUT_LINE_NMI, m_g_iodata & 4 ? CLEAR_LINE : ASSERT_LINE);
+				m_soundcpu->set_input_line(INPUT_LINE_NMI, m_g_iodata & 4 ? CLEAR_LINE : ASSERT_LINE);
 
 				if (!(m_g_to_s_latch2 & 1) && (m_g_iodata & 1))
 				{
@@ -354,7 +352,7 @@ WRITE8_MEMBER(esripsys_state::g_ioadd_w)
 					m_u56a = 1;
 
 					/*...causing a sound CPU /IRQ */
-					machine().device("sound_cpu")->execute().set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
+					m_soundcpu->set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
 				}
 
 				if (m_g_iodata & 2)
@@ -407,7 +405,7 @@ INPUT_CHANGED_MEMBER(esripsys_state::keypad_interrupt)
 	{
 		m_io_firq_status |= 2;
 		m_keypad_status |= 0x20;
-		machine().device("game_cpu")->execute().set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
+		m_gamecpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
 	}
 }
 
@@ -417,7 +415,7 @@ INPUT_CHANGED_MEMBER(esripsys_state::coin_interrupt)
 	{
 		m_io_firq_status |= 2;
 		m_coin_latch = ioport("COINS")->read() << 2;
-		machine().device("game_cpu")->execute().set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
+		m_gamecpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
 	}
 }
 
@@ -498,7 +496,7 @@ WRITE8_MEMBER(esripsys_state::s_200f_w)
 	if (m_s_to_g_latch2 & 0x40)
 	{
 		m_u56a = 0;
-		machine().device("sound_cpu")->execute().set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
+		m_soundcpu->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 	}
 
 	if (!(m_s_to_g_latch2 & 0x80) && (data & 0x80))
@@ -522,11 +520,10 @@ READ8_MEMBER(esripsys_state::tms5220_r)
 	if (offset == 0)
 	{
 		/* TMS5220 core returns status bits in D7-D6 */
-		device_t *tms = machine().device("tms5220nl");
-		UINT8 status = tms5220_status_r(tms, space, 0);
+		UINT8 status = m_tms->status_r(space, 0);
 
 		status = ((status & 0x80) >> 5) | ((status & 0x40) >> 5) | ((status & 0x20) >> 5);
-		return (tms5220_readyq_r(tms) << 7) | (tms5220_intq_r(tms) << 6) | status;
+		return (m_tms->readyq_r() << 7) | (m_tms->intq_r() << 6) | status;
 	}
 
 	return 0xff;
@@ -535,16 +532,15 @@ READ8_MEMBER(esripsys_state::tms5220_r)
 /* TODO: Implement correctly using the state PROM */
 WRITE8_MEMBER(esripsys_state::tms5220_w)
 {
-	device_t *tms = machine().device("tms5220nl");
 	if (offset == 0)
 	{
 		m_tms_data = data;
-		tms5220_data_w(tms, space, 0, m_tms_data);
+		m_tms->data_w(space, 0, m_tms_data);
 	}
 #if 0
 	if (offset == 1)
 	{
-		tms5220_data_w(tms, space, 0, m_tms_data);
+		m_tms->data_w(space, 0, m_tms_data);
 	}
 #endif
 }
@@ -559,7 +555,6 @@ WRITE8_MEMBER(esripsys_state::control_w)
 /* 10-bit MC3410CL DAC */
 WRITE8_MEMBER(esripsys_state::esripsys_dac_w)
 {
-	dac_device *device = machine().device<dac_device>("dac");
 	if (offset == 0)
 	{
 		m_dac_msb = data & 3;
@@ -572,7 +567,7 @@ WRITE8_MEMBER(esripsys_state::esripsys_dac_w)
 		    The 8-bit DAC modulates the 10-bit DAC.
 		    Shift down to prevent clipping.
 		*/
-		device->write_signed16((m_dac_vol * dac_data) >> 1);
+		m_dac->write_signed16((m_dac_vol * dac_data) >> 1);
 	}
 }
 
@@ -593,7 +588,7 @@ static ADDRESS_MAP_START( game_cpu_map, AS_PROGRAM, 8, esripsys_state )
 	AM_RANGE(0x0000, 0x3fff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x4000, 0x42ff) AM_RAM AM_SHARE("pal_ram")
 	AM_RANGE(0x4300, 0x4300) AM_WRITE(esripsys_bg_intensity_w)
-	AM_RANGE(0x4400, 0x47ff) AM_NOP /* Collision detection RAM */
+	AM_RANGE(0x4400, 0x47ff) AM_NOP // Collision detection RAM
 	AM_RANGE(0x4800, 0x4bff) AM_READWRITE(g_status_r, g_status_w)
 	AM_RANGE(0x4c00, 0x4fff) AM_READWRITE(g_iobus_r, g_iobus_w)
 	AM_RANGE(0x5000, 0x53ff) AM_WRITE(g_ioadd_w)
@@ -615,7 +610,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_cpu_map, AS_PROGRAM, 8, esripsys_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x0800, 0x0fff) AM_RAM /* Not installed on later PCBs */
+	AM_RANGE(0x0800, 0x0fff) AM_RAM // Not installed on later PCBs
 	AM_RANGE(0x2008, 0x2009) AM_READWRITE(tms5220_r, tms5220_w)
 	AM_RANGE(0x200a, 0x200b) AM_WRITE(esripsys_dac_w)
 	AM_RANGE(0x200c, 0x200c) AM_WRITE(volume_dac_w)
@@ -656,34 +651,34 @@ DRIVER_INIT_MEMBER(esripsys_state,esripsys)
 	membank("bank4")->set_base(&rom[0x8000]);
 
 	/* Register stuff for state saving */
-	state_save_register_global_pointer(machine(), m_fdt_a, FDT_RAM_SIZE);
-	state_save_register_global_pointer(machine(), m_fdt_b, FDT_RAM_SIZE);
-	state_save_register_global_pointer(machine(), m_cmos_ram, CMOS_RAM_SIZE);
+	save_pointer(NAME(m_fdt_a), FDT_RAM_SIZE);
+	save_pointer(NAME(m_fdt_b), FDT_RAM_SIZE);
+	save_pointer(NAME(m_cmos_ram), CMOS_RAM_SIZE);
 
-	state_save_register_global(machine(), m_g_iodata);
-	state_save_register_global(machine(), m_g_ioaddr);
-	state_save_register_global(machine(), m_coin_latch);
-	state_save_register_global(machine(), m_keypad_status);
-	state_save_register_global(machine(), m_g_status);
-	state_save_register_global(machine(), m_f_status);
-	state_save_register_global(machine(), m_io_firq_status);
-	state_save_register_global(machine(), m_cmos_ram_a2_0);
-	state_save_register_global(machine(), m_cmos_ram_a10_3);
+	save_item(NAME(m_g_iodata));
+	save_item(NAME(m_g_ioaddr));
+	save_item(NAME(m_coin_latch));
+	save_item(NAME(m_keypad_status));
+	save_item(NAME(m_g_status));
+	save_item(NAME(m_f_status));
+	save_item(NAME(m_io_firq_status));
+	save_item(NAME(m_cmos_ram_a2_0));
+	save_item(NAME(m_cmos_ram_a10_3));
 
-	state_save_register_global(machine(), m_u56a);
-	state_save_register_global(machine(), m_u56b);
-	state_save_register_global(machine(), m_g_to_s_latch1);
-	state_save_register_global(machine(), m_g_to_s_latch2);
-	state_save_register_global(machine(), m_s_to_g_latch1);
-	state_save_register_global(machine(), m_s_to_g_latch2);
-	state_save_register_global(machine(), m_dac_msb);
-	state_save_register_global(machine(), m_dac_vol);
-	state_save_register_global(machine(), m_tms_data);
+	save_item(NAME(m_u56a));
+	save_item(NAME(m_u56b));
+	save_item(NAME(m_g_to_s_latch1));
+	save_item(NAME(m_g_to_s_latch2));
+	save_item(NAME(m_s_to_g_latch1));
+	save_item(NAME(m_s_to_g_latch2));
+	save_item(NAME(m_dac_msb));
+	save_item(NAME(m_dac_vol));
+	save_item(NAME(m_tms_data));
 
 	m_fasel = 0;
 	m_fbsel = 1;
-	state_save_register_global(machine(), m_fasel);
-	state_save_register_global(machine(), m_fbsel);
+	save_item(NAME(m_fasel));
+	save_item(NAME(m_fbsel));
 }
 
 static const esrip_config rip_config =
@@ -699,6 +694,7 @@ static MACHINE_CONFIG_START( esripsys, esripsys_state )
 	MCFG_CPU_ADD("game_cpu", M6809E, XTAL_8MHz)
 	MCFG_CPU_PROGRAM_MAP(game_cpu_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", esripsys_state,  esripsys_vblank_irq)
+	MCFG_QUANTUM_PERFECT_CPU("game_cpu")
 
 	MCFG_CPU_ADD("frame_cpu", M6809E, XTAL_8MHz)
 	MCFG_CPU_PROGRAM_MAP(frame_cpu_map)

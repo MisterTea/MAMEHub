@@ -73,9 +73,7 @@ WRITE8_MEMBER(funybubl_state::funybubl_soundcommand_w)
 
 WRITE8_MEMBER(funybubl_state::funybubl_oki_bank_sw)
 {
-	device_t *device = machine().device("oki");
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base(((data & 1) * 0x40000));
+	m_oki->set_bank_base(((data & 1) * 0x40000));
 }
 
 
@@ -204,7 +202,6 @@ void funybubl_state::machine_start()
 {
 	UINT8 *ROM = memregion("maincpu")->base();
 
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 
 	save_item(NAME(m_banked_vram));
 

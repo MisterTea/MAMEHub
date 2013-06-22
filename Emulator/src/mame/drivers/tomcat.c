@@ -40,11 +40,13 @@ class tomcat_state : public driver_device
 {
 public:
 	tomcat_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_tms(*this, "tms"),
-		m_shared_ram(*this, "shared_ram"){ }
+		m_shared_ram(*this, "shared_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_dsp(*this, "dsp") { }
 
-	required_device<tms5220n_device> m_tms;
+	required_device<tms5220_device> m_tms;
 	int m_control_num;
 	required_shared_ptr<UINT16> m_shared_ram;
 	UINT8 m_nvram[0x800];
@@ -79,6 +81,8 @@ public:
 	DECLARE_WRITE8_MEMBER(tomcat_nvram_w);
 	DECLARE_WRITE8_MEMBER(soundlatches_w);
 	virtual void machine_start();
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_dsp;
 };
 
 
@@ -185,7 +189,7 @@ WRITE16_MEMBER(tomcat_state::tomcat_mresl_w)
 {
 	// 320 Reset Low         (Address Strobe)
 	// Reset TMS320
-	machine().device("dsp")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 WRITE16_MEMBER(tomcat_state::tomcat_mresh_w)
@@ -193,13 +197,13 @@ WRITE16_MEMBER(tomcat_state::tomcat_mresh_w)
 	// 320 Reset high        (Address Strobe)
 	// Release reset of TMS320
 	m_dsp_BIO = 0;
-	machine().device("dsp")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+	m_dsp->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 }
 
 WRITE16_MEMBER(tomcat_state::tomcat_irqclr_w)
 {
 	// Clear IRQ Latch          (Address Strobe)
-	machine().device("maincpu")->execute().set_input_line(1, CLEAR_LINE);
+	m_maincpu->set_input_line(1, CLEAR_LINE);
 }
 
 READ16_MEMBER(tomcat_state::tomcat_inputs2_r)
@@ -220,7 +224,7 @@ READ16_MEMBER(tomcat_state::tomcat_inputs2_r)
 READ16_MEMBER(tomcat_state::tomcat_320bio_r)
 {
 	m_dsp_BIO = 1;
-	machine().device<cpu_device>("maincpu")->suspend(SUSPEND_REASON_SPIN, 1);
+	m_maincpu->suspend(SUSPEND_REASON_SPIN, 1);
 	return 0;
 }
 
@@ -241,7 +245,7 @@ READ16_MEMBER(tomcat_state::dsp_BIO_r)
 		{
 			m_dsp_idle = 0;
 			m_dsp_BIO = 0;
-			machine().device<cpu_device>("maincpu")->resume(SUSPEND_REASON_SPIN );
+			m_maincpu->resume(SUSPEND_REASON_SPIN );
 			return 0;
 		}
 		else
@@ -302,7 +306,7 @@ static ADDRESS_MAP_START( tomcat_map, AS_PROGRAM, 16, tomcat_state )
 	AM_RANGE(0x800000, 0x803fff) AM_RAM AM_SHARE("vectorram")
 	AM_RANGE(0xffa000, 0xffbfff) AM_READWRITE(tomcat_shared_ram_r, tomcat_shared_ram_w)
 	AM_RANGE(0xffc000, 0xffcfff) AM_RAM
-	AM_RANGE(0xffd000, 0xffdfff) AM_DEVREADWRITE8_LEGACY("m48t02", timekeeper_r, timekeeper_w, 0xff00)
+	AM_RANGE(0xffd000, 0xffdfff) AM_DEVREADWRITE8("m48t02", timekeeper_device, read, write, 0xff00)
 	AM_RANGE(0xffd000, 0xffdfff) AM_READWRITE8(tomcat_nvram_r, tomcat_nvram_w, 0x00ff)
 ADDRESS_MAP_END
 
@@ -334,7 +338,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, tomcat_state )
 	AM_RANGE(0x3000, 0x30df) AM_WRITE(soundlatches_w)
 	AM_RANGE(0x30e0, 0x30e0) AM_NOP // COINRD Inputs: D7 = Coin L, D6 = Coin R, D5 = SOUNDFLAG
 	AM_RANGE(0x5000, 0x507f) AM_RAM // 6532 ram
-	AM_RANGE(0x5080, 0x509f) AM_DEVREADWRITE_LEGACY("riot", riot6532_r, riot6532_w)
+	AM_RANGE(0x5080, 0x509f) AM_DEVREADWRITE("riot", riot6532_device, read, write)
 	AM_RANGE(0x6000, 0x601f) AM_DEVREADWRITE("pokey1", pokey_device, read, write)
 	AM_RANGE(0x7000, 0x701f) AM_DEVREADWRITE("pokey2", pokey_device, read, write)
 	AM_RANGE(0x8000, 0xffff) AM_NOP // main sound program rom
@@ -396,11 +400,6 @@ static const riot6532_interface tomcat_riot6532_intf =
 	DEVCB_NULL  // connected to IRQ line of 6502
 };
 
-static const tms52xx_config tms_intf =
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( tomcat, tomcat_state )
 	MCFG_CPU_ADD("maincpu", M68010, XTAL_12MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(tomcat_map)
@@ -440,10 +439,9 @@ static MACHINE_CONFIG_START( tomcat, tomcat_state )
 	MCFG_POKEY_ADD("pokey2", XTAL_14_31818MHz / 8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.20)
 
-	MCFG_SOUND_ADD("tms", TMS5220N, 325000)
+	MCFG_SOUND_ADD("tms", TMS5220, 325000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
-	MCFG_SOUND_CONFIG(tms_intf)
 
 	MCFG_YM2151_ADD("ymsnd", XTAL_14_31818MHz / 4)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.60)

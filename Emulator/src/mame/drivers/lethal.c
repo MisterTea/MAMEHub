@@ -161,7 +161,7 @@ maybe some sprite placement issues
 #include "emu.h"
 #include "video/konicdev.h"
 #include "cpu/m6809/m6809.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "cpu/z80/z80.h"
 #include "machine/eeprom.h"
 #include "sound/k054539.h"
@@ -205,7 +205,6 @@ WRITE8_MEMBER(lethal_state::control2_w)
 
 INTERRUPT_GEN_MEMBER(lethal_state::lethalen_interrupt)
 {
-
 	if (k056832_is_irq_enabled(m_k056832, 0))
 		device.execute().set_input_line(HD6309_IRQ_LINE, HOLD_LINE);
 }
@@ -217,7 +216,7 @@ WRITE8_MEMBER(lethal_state::sound_cmd_w)
 
 WRITE8_MEMBER(lethal_state::sound_irq_w)
 {
-	m_audiocpu->set_input_line(0, HOLD_LINE);
+	m_soundcpu->set_input_line(0, HOLD_LINE);
 }
 
 READ8_MEMBER(lethal_state::sound_status_r)
@@ -228,7 +227,7 @@ READ8_MEMBER(lethal_state::sound_status_r)
 static void sound_nmi( device_t *device )
 {
 	lethal_state *state = device->machine().driver_data<lethal_state>();
-	state->m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	state->m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 WRITE8_MEMBER(lethal_state::le_bankswitch_w)
@@ -238,7 +237,6 @@ WRITE8_MEMBER(lethal_state::le_bankswitch_w)
 
 READ8_MEMBER(lethal_state::le_4800_r)
 {
-
 	if (m_cur_control2 & 0x10)  // RAM enable
 	{
 		return m_generic_paletteram_8[offset];
@@ -322,7 +320,6 @@ READ8_MEMBER(lethal_state::le_4800_r)
 
 WRITE8_MEMBER(lethal_state::le_4800_w)
 {
-
 	if (m_cur_control2 & 0x10)  // RAM enable
 	{
 		paletteram_xBBBBBGGGGGRRRRR_byte_be_w(space, offset, data);
@@ -584,13 +581,6 @@ void lethal_state::machine_start()
 
 	m_generic_paletteram_8.allocate(0x3800 + 0x02);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("soundcpu");
-	m_k054539 = machine().device("k054539");
-	m_k053244 = machine().device("k053244");
-	m_k056832 = machine().device("k056832");
-	m_k054000 = machine().device("k054000");
-
 	save_item(NAME(m_cur_control2));
 	save_item(NAME(m_sprite_colorbase));
 	save_item(NAME(m_layer_colorbase));
@@ -603,7 +593,7 @@ void lethal_state::machine_reset()
 
 	membank("bank2")->set_base(&prgrom[0x48000]);
 	/* force reset again to read proper reset vector */
-	machine().device("maincpu")->reset();
+	m_maincpu->reset();
 
 	for (i = 0; i < 4; i++)
 		m_layer_colorbase[i] = 0;

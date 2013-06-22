@@ -15,7 +15,9 @@ public:
 		m_videoram2(*this, "videoram2"),
 		m_colorram2(*this, "colorram2"),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_device<buffered_spriteram8_device> m_spriteram;
@@ -31,7 +33,7 @@ public:
 	UINT8 m_scroll_y[2];
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE8_MEMBER(commando_videoram_w);
 	DECLARE_WRITE8_MEMBER(commando_colorram_w);
 	DECLARE_WRITE8_MEMBER(commando_videoram2_w);
@@ -48,4 +50,6 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_commando(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(commando_interrupt);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

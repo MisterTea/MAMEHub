@@ -76,7 +76,7 @@ READ8_MEMBER( bw2_state::read )
 	{
 		if (!rom)
 		{
-			data = memregion(Z80_TAG)->base()[offset & 0x3fff];
+			data = m_rom->base()[offset & 0x3fff];
 		}
 
 		if (!vram)
@@ -211,8 +211,8 @@ static ADDRESS_MAP_START( bw2_io, AS_IO, 8, bw2_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE(I8255A_TAG, i8255_device, read, write)
-	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE_LEGACY(I8253_TAG, pit8253_r, pit8253_w)
-	AM_RANGE(0x20, 0x21) AM_DEVREADWRITE(MSM6255_TAG, msm6255_device, read, write)
+	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE(I8253_TAG, pit8253_device, read, write)
+	AM_RANGE(0x20, 0x21) AM_DEVICE(MSM6255_TAG, msm6255_device, map)
 	AM_RANGE(0x30, 0x3f) AM_DEVREADWRITE(BW2_EXPANSION_SLOT_TAG, bw2_expansion_slot_device, slot_r, slot_w)
 	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE(I8251_TAG, i8251_device, data_r, data_w)
 	AM_RANGE(0x41, 0x41) AM_DEVREADWRITE(I8251_TAG, i8251_device, status_r, control_w)
@@ -433,13 +433,20 @@ READ8_MEMBER( bw2_state::ppi_pb_r )
 
 	*/
 
-	static const char *const rownames[] = { "Y0", "Y1", "Y2", "Y3", "Y4", "Y5", "Y6", "Y7", "Y8", "Y9" };
-
 	UINT8 data = 0xff;
 
-	if (m_kb <= 9)
+	switch (m_kb)
 	{
-		data = ioport(rownames[m_kb])->read();
+	case 0: data = m_y0->read(); break;
+	case 1: data = m_y1->read(); break;
+	case 2: data = m_y2->read(); break;
+	case 3: data = m_y3->read(); break;
+	case 4: data = m_y4->read(); break;
+	case 5: data = m_y5->read(); break;
+	case 6: data = m_y6->read(); break;
+	case 7: data = m_y7->read(); break;
+	case 8: data = m_y8->read(); break;
+	case 9: data = m_y9->read(); break;
 	}
 
 	return data;
@@ -513,7 +520,7 @@ WRITE_LINE_MEMBER( bw2_state::mtron_w )
 	if (m_floppy) m_floppy->mon_w(m_mtron);
 }
 
-static const struct pit8253_config pit_intf =
+static const struct pit8253_interface pit_intf =
 {
 	{
 		{
@@ -524,7 +531,7 @@ static const struct pit8253_config pit_intf =
 		{
 			11000,      // LCD controller
 			DEVCB_LINE_VCC,
-			DEVCB_DEVICE_LINE(I8253_TAG, pit8253_clk2_w)
+			DEVCB_DEVICE_LINE_MEMBER(I8253_TAG, pit8253_device, clk2_w)
 		},
 		{
 			0,      // Floppy /MTRON
@@ -532,6 +539,24 @@ static const struct pit8253_config pit_intf =
 			DEVCB_DRIVER_LINE_MEMBER(bw2_state, mtron_w)
 		}
 	}
+};
+
+
+//-------------------------------------------------
+//  i8251_interface usart_intf
+//-------------------------------------------------
+
+static const i8251_interface usart_intf =
+{
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dsr_r),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
 };
 
 
@@ -571,9 +596,6 @@ SLOT_INTERFACE_END
 //-------------------------------------------------
 //  rs232_port_interface rs232_intf
 //-------------------------------------------------
-
-static SLOT_INTERFACE_START( rs232_devices )
-SLOT_INTERFACE_END
 
 static const rs232_port_interface rs232_intf =
 {
@@ -648,12 +670,12 @@ static MACHINE_CONFIG_START( bw2, bw2_state )
 	MCFG_I8255A_ADD(I8255A_TAG, ppi_intf)
 	MCFG_MSM6255_ADD(MSM6255_TAG, XTAL_16MHz, 0, SCREEN_TAG, lcdc_map)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_I8251_ADD(I8251_TAG, default_i8251_interface)
+	MCFG_I8251_ADD(I8251_TAG, usart_intf)
 	MCFG_WD2797x_ADD(WD2797_TAG, XTAL_16MHz/16)
-	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":0", bw2_floppies, "35dd", NULL, bw2_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":1", bw2_floppies, NULL,   NULL, bw2_state::floppy_formats)
-	MCFG_BW2_EXPANSION_SLOT_ADD(BW2_EXPANSION_SLOT_TAG, XTAL_16MHz, bw2_expansion_cards, NULL, NULL)
-	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, rs232_devices, NULL, NULL)
+	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":0", bw2_floppies, "35dd", bw2_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":1", bw2_floppies, NULL,   bw2_state::floppy_formats)
+	MCFG_BW2_EXPANSION_SLOT_ADD(BW2_EXPANSION_SLOT_TAG, XTAL_16MHz, bw2_expansion_cards, NULL)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	// software list
 	MCFG_SOFTWARE_LIST_ADD("flop_list","bw2")

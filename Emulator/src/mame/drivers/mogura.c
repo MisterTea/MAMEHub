@@ -9,9 +9,10 @@ class mogura_state : public driver_device
 {
 public:
 	mogura_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_gfxram(*this, "gfxram"),
-		m_tileram(*this, "tileram"){ }
+		m_tileram(*this, "tileram"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_gfxram;
@@ -21,7 +22,7 @@ public:
 	tilemap_t *m_tilemap;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	dac_device *m_dac1;
 	dac_device *m_dac2;
 	DECLARE_WRITE8_MEMBER(mogura_tileram_w);
@@ -37,7 +38,7 @@ public:
 
 void mogura_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i, j;
 
 	j = 0;
@@ -192,10 +193,6 @@ GFXDECODE_END
 
 void mogura_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_dac1 = machine().device<dac_device>("dac1");
-	m_dac2 = machine().device<dac_device>("dac2");
 }
 
 static MACHINE_CONFIG_START( mogura, mogura_state )

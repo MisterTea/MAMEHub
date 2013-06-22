@@ -3,19 +3,27 @@
     Sega G-80 raster hardware
 
 *************************************************************************/
-
+#include "sound/samples.h"
 #include "machine/segag80.h"
 #include "sound/sn76496.h"
 
 class segag80r_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_VBLANK_LATCH_CLEAR
+	};
+
 	segag80r_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_mainram(*this, "mainram"),
 		m_videoram(*this, "videoram"),
 		m_sn1(*this, "sn1"),
-		m_sn2(*this, "sn2"){ }
+		m_sn2(*this, "sn2"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_samples(*this, "samples") { }
 
 	required_shared_ptr<UINT8> m_mainram;
 	required_shared_ptr<UINT8> m_videoram;
@@ -101,7 +109,6 @@ public:
 	UINT32 screen_update_segag80r(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(segag80r_vblank_start);
 	INTERRUPT_GEN_MEMBER(sindbadm_vblank_start);
-	TIMER_CALLBACK_MEMBER(vblank_latch_clear);
 	DECLARE_WRITE8_MEMBER(sega005_sound_a_w);
 	DECLARE_WRITE8_MEMBER(sega005_sound_b_w);
 	DECLARE_WRITE8_MEMBER(monsterb_sound_a_w);
@@ -110,6 +117,22 @@ public:
 	DECLARE_WRITE8_MEMBER(n7751_command_w);
 	DECLARE_WRITE8_MEMBER(n7751_rom_control_w);
 	DECLARE_WRITE8_MEMBER(n7751_p2_w);
+	void vblank_latch_set();
+	void g80_set_palette_entry(int entry, UINT8 data);
+	void spaceod_bg_init_palette();
+	void draw_videoram(bitmap_ind16 &bitmap, const rectangle &cliprect, const UINT8 *transparent_pens);
+	void draw_background_spaceod(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_background_page_scroll(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_background_full_scroll(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	offs_t decrypt_offset(address_space &space, offs_t offset);
+	inline UINT8 demangle(UINT8 d7d6, UINT8 d5d4, UINT8 d3d2, UINT8 d1d0);
+	void monsterb_expand_gfx(const char *region);
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<samples_device> m_samples;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 

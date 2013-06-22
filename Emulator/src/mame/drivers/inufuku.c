@@ -176,7 +176,7 @@ static ADDRESS_MAP_START( inufuku_sound_io_map, AS_IO, 8, inufuku_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(inufuku_soundrombank_w)
 	AM_RANGE(0x04, 0x04) AM_READ(soundlatch_byte_r) AM_WRITE(pending_command_clear_w)
-	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
+	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 ADDRESS_MAP_END
 
 /******************************************************************************
@@ -320,16 +320,10 @@ GFXDECODE_END
 
 ******************************************************************************/
 
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(inufuku_state::irqhandler)
 {
-	inufuku_state *state = device->machine().driver_data<inufuku_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	irqhandler
-};
 
 
 /******************************************************************************
@@ -345,7 +339,6 @@ void inufuku_state::machine_start()
 	membank("bank1")->configure_entries(0, 4, &ROM[0x00000], 0x8000);
 	membank("bank1")->set_entry(0);
 
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 
 	save_item(NAME(m_pending_command));
 	save_item(NAME(m_bg_scrollx));
@@ -359,7 +352,6 @@ void inufuku_state::machine_start()
 
 void inufuku_state::machine_reset()
 {
-
 	m_pending_command = 1;
 	m_bg_scrollx = 0;
 	m_bg_scrolly = 0;
@@ -408,7 +400,7 @@ static MACHINE_CONFIG_START( inufuku, inufuku_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 32000000/4)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(inufuku_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.75)
 	MCFG_SOUND_ROUTE(2, "mono", 0.75)

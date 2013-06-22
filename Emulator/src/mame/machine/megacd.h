@@ -15,24 +15,21 @@
 #define CHECK_SCD_LV3_INTERRUPT \
 	if (lc89510_temp->get_segacd_irq_mask() & 0x08) \
 	{ \
-		machine().device(":segacd:segacd_68k")->execute().set_input_line(3, HOLD_LINE); \
-	} \
-
+		m_scdcpu->set_input_line(3, HOLD_LINE); \
+	}
 // from master
 #define CHECK_SCD_LV2_INTERRUPT \
 	if (lc89510_temp->get_segacd_irq_mask() & 0x04) \
 	{ \
-		machine.device(":segacd:segacd_68k")->execute().set_input_line(2, HOLD_LINE); \
-	} \
-
+		m_scdcpu->set_input_line(2, HOLD_LINE); \
+	}
 
 // gfx convert
 #define CHECK_SCD_LV1_INTERRUPT \
 	if (lc89510_temp->get_segacd_irq_mask() & 0x02) \
 	{ \
-		machine().device(":segacd:segacd_68k")->execute().set_input_line(1, HOLD_LINE); \
-	} \
-
+		m_scdcpu->set_input_line(1, HOLD_LINE); \
+	}
 
 #define SEGACD_IRQ3_TIMER_SPEED (attotime::from_nsec(segacd_irq3_timer_reg*30720))
 
@@ -59,24 +56,20 @@
 	16,16, \
 	SEGACD_NUM_TILES16, \
 	4, \
-	{ 0,1,2,3 }, \
-
+	{ 0,1,2,3 },
 #define _16x16_END \
 		8*128 \
-}; \
-
+};
 #define _32x32_START \
 { \
 	32,32, \
 	SEGACD_NUM_TILES32, \
 	4, \
-	{ 0,1,2,3 }, \
-
+	{ 0,1,2,3 },
 
 #define _32x32_END \
 	8*512 \
-}; \
-
+};
 
 
 #define _32x32_SEQUENCE_1 \
@@ -84,27 +77,23 @@
 	1024+8, 1024+12, 1024+0, 1024+4, 1024+24, 1024+28, 1024+16, 1024+20, \
 	2048+8, 2048+12, 2048+0, 2048+4, 2048+24, 2048+28, 2048+16, 2048+20, \
 	3072+8, 3072+12, 3072+0, 3072+4, 3072+24, 3072+28, 3072+16, 3072+20  \
-	}, \
-
+	},
 #define _32x32_SEQUENCE_1_FLIP \
 { 3072+20, 3072+16, 3072+28, 3072+24, 3072+4, 3072+0, 3072+12, 3072+8, \
 	2048+20, 2048+16, 2048+28, 2048+24, 2048+4, 2048+0, 2048+12, 2048+8, \
 	1024+20, 1024+16, 1024+28, 1024+24, 1024+4, 1024+0, 1024+12, 1024+8, \
-	20, 16, 28, 24, 4, 0, 12, 8}, \
-
+	20, 16, 28, 24, 4, 0, 12, 8},
 
 #define _32x32_SEQUENCE_2 \
 		{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32, \
 		8*32, 9*32, 10*32, 11*32, 12*32, 13*32, 14*32, 15*32, \
 		16*32,17*32,18*32,19*32,20*32,21*32,22*32,23*32, \
-		24*32,25*32, 26*32, 27*32, 28*32, 29*32, 30*32, 31*32}, \
-
+		24*32,25*32, 26*32, 27*32, 28*32, 29*32, 30*32, 31*32},
 #define _32x32_SEQUENCE_2_FLIP \
 { 31*32, 30*32, 29*32, 28*32, 27*32, 26*32, 25*32, 24*32, \
 	23*32, 22*32, 21*32, 20*32, 19*32, 18*32, 17*32, 16*32, \
 	15*32, 14*32, 13*32, 12*32, 11*32, 10*32, 9*32 , 8*32 , \
-	7*32 , 6*32 , 5*32 , 4*32 , 3*32 , 2*32 , 1*32 , 0*32}, \
-
+	7*32 , 6*32 , 5*32 , 4*32 , 3*32 , 2*32 , 1*32 , 0*32},
 
 /* 16x16 decodes */
 static const gfx_layout sega_16x16_r00_f0_layout =
@@ -204,12 +193,6 @@ _32x32_START
 	_32x32_SEQUENCE_1_FLIP
 _32x32_END
 
-extern UINT16 a12000_halt_reset_reg;
-
-
-
-
-
 
 
 class sega_segacd_device : public device_t
@@ -217,7 +200,7 @@ class sega_segacd_device : public device_t
 public:
 	sega_segacd_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock, device_type type);
 
-	cpu_device *_segacd_68k_cpu;
+	required_device<cpu_device> m_scdcpu;
 	lc89510_temp_device *lc89510_temp;
 
 	UINT16 *segacd_backupram;
@@ -270,16 +253,21 @@ public:
 
 	inline void write_pixel(running_machine& machine, UINT8 pix, int pixeloffset );
 	UINT16 segacd_1meg_mode_word_read(int offset, UINT16 mem_mask);
-	void segacd_1meg_mode_word_write(running_machine& machine, int offset, UINT16 data, UINT16 mem_mask, int use_pm);
+	void segacd_1meg_mode_word_write(int offset, UINT16 data, UINT16 mem_mask, int use_pm);
 
 	DECLARE_READ16_MEMBER( segacd_dmaaddr_r );
 	DECLARE_WRITE16_MEMBER( segacd_dmaaddr_w );
 	UINT16 m_dmaaddr;
 
+	UINT16 m_a12000_halt_reset_reg;
 
+	int m_framerate;
 
 	void segacd_mark_tiles_dirty(running_machine& machine, int offset);
 	int segacd_get_active_stampmap_tilemap(void);
+
+	// set some variables at start, depending on region (shall be moved to a device interface?)
+	void set_framerate(int rate) { m_framerate = rate; }
 
 	void SCD_GET_TILE_INFO_16x16_1x1( int& tile_region, int& tileno, int tile_index );
 	void SCD_GET_TILE_INFO_32x32_1x1( int& tile_region, int& tileno, int tile_index );
@@ -367,6 +355,7 @@ public:
 	WRITE16_MEMBER( segacd_font_color_w );
 	READ16_MEMBER( segacd_font_converted_r );
 	TIMER_DEVICE_CALLBACK_MEMBER( scd_dma_timer_callback );
+	IRQ_CALLBACK_MEMBER(segacd_sub_int_callback);
 
 	void SegaCD_CDC_Do_DMA( int &dmacount, UINT8 *CDC_BUFFER, UINT16 &dma_addrc, UINT16 &destination );
 	timer_device* scd_dma_timer;

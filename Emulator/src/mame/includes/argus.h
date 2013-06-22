@@ -2,7 +2,7 @@ class argus_state : public driver_device
 {
 public:
 	argus_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg0_scrollx(*this, "bg0_scrollx"),
 		m_bg0_scrolly(*this, "bg0_scrolly"),
 		m_bg1_scrollx(*this, "bg1_scrollx"),
@@ -11,7 +11,9 @@ public:
 		m_txram(*this, "txram"),
 		m_bg1ram(*this, "bg1ram"),
 		m_spriteram(*this, "spriteram"),
-		m_butasan_bg1ram(*this, "butasan_bg1ram"){ }
+		m_butasan_bg1ram(*this, "butasan_bg1ram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu")  { }
 
 	optional_shared_ptr<UINT8> m_bg0_scrollx;
 	optional_shared_ptr<UINT8> m_bg0_scrolly;
@@ -85,4 +87,18 @@ public:
 	UINT32 screen_update_butasan(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(argus_scanline);
 	TIMER_DEVICE_CALLBACK_MEMBER(butasan_scanline);
+	void reset_common();
+	void argus_write_dummy_rams(int dramoffs, int vromoffs);
+	void argus_change_palette(int color, int lo_offs, int hi_offs);
+	void argus_change_bg_palette(int color, int lo_offs, int hi_offs);
+	void bg_setting();
+	void argus_bg0_scroll_handle();
+	void argus_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect, int priority);
+	void valtric_draw_mosaic(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void valtric_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void butasan_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void butasan_log_vram();
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };

@@ -332,10 +332,9 @@ WRITE16_MEMBER(welltris_state::sound_command_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-
 		m_pending_command = 1;
 		soundlatch_byte_w(space, 0, data & 0xff);
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 }
 
@@ -346,7 +345,6 @@ CUSTOM_INPUT_MEMBER(welltris_state::pending_sound_r)
 
 WRITE8_MEMBER(welltris_state::pending_command_clear_w)
 {
-
 	m_pending_command = 0;
 }
 
@@ -384,7 +382,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_port_map, AS_IO, 8, welltris_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(welltris_sh_bankswitch_w)
-	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
+	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 	AM_RANGE(0x10, 0x10) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x18, 0x18) AM_WRITE(pending_command_clear_w)
 ADDRESS_MAP_END
@@ -673,15 +671,10 @@ GFXDECODE_END
 
 
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(welltris_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	irqhandler
-};
 
 
 
@@ -689,7 +682,7 @@ DRIVER_INIT_MEMBER(welltris_state,welltris)
 {
 #if WELLTRIS_4P_HACK
 	/* A Hack which shows 4 player mode in code which is disabled */
-	UINT16 *RAM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *RAM = (UINT16 *)memregion("maincpu")->base();
 	RAM[0xB91C/2] = 0x4e71;
 	RAM[0xB91E/2] = 0x4e71;
 #endif
@@ -697,7 +690,6 @@ DRIVER_INIT_MEMBER(welltris_state,welltris)
 
 DRIVER_INIT_MEMBER(welltris_state,quiz18k)
 {
-
 }
 
 
@@ -732,7 +724,7 @@ static MACHINE_CONFIG_START( welltris, welltris_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(welltris_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.75)
 	MCFG_SOUND_ROUTE(2, "mono", 0.75)

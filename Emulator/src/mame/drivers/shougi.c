@@ -91,8 +91,11 @@ class shougi_state : public driver_device
 {
 public:
 	shougi_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"),
+		m_mcu(*this, "mcu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	int m_nmi_enabled;
@@ -113,6 +116,9 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_shougi(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(shougi_vblank_nmi);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
+	required_device<cpu_device> m_mcu;
 };
 
 
@@ -136,7 +142,7 @@ public:
 
 void shougi_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 	static const int resistances_b[2]  = { 470, 220 };
 	static const int resistances_rg[3] = { 1000, 470, 220 };
@@ -248,40 +254,37 @@ WRITE8_MEMBER(shougi_state::shougi_watchdog_reset_w)
 WRITE8_MEMBER(shougi_state::shougi_mcu_halt_off_w)
 {
 	/* logerror("mcu HALT OFF"); */
-	machine().device("mcu")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+	m_mcu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(shougi_state::shougi_mcu_halt_on_w)
 {
 	/* logerror("mcu HALT ON"); */
-	machine().device("mcu")->execute().set_input_line(INPUT_LINE_HALT,ASSERT_LINE);
+	m_mcu->set_input_line(INPUT_LINE_HALT,ASSERT_LINE);
 }
 
 
 WRITE8_MEMBER(shougi_state::nmi_disable_and_clear_line_w)
 {
-
 	m_nmi_enabled = 0; /* disable NMIs */
 
 	/* NMI lines are tied together on both CPUs and connected to the LS74 /Q output */
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	machine().device("sub")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_subcpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(shougi_state::nmi_enable_w)
 {
-
 	m_nmi_enabled = 1; /* enable NMIs */
 }
 
 INTERRUPT_GEN_MEMBER(shougi_state::shougi_vblank_nmi)
 {
-
 	if ( m_nmi_enabled == 1 )
 	{
 		/* NMI lines are tied together on both CPUs and connected to the LS74 /Q output */
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 }
 
@@ -306,8 +309,8 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, shougi_state )
 
 	AM_RANGE(0x5000, 0x5000) AM_READ_PORT("P1")
 	AM_RANGE(0x5800, 0x5800) AM_READ_PORT("P2") AM_WRITE(shougi_watchdog_reset_w)   /* game won't boot if watchdog doesn't work */
-	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
-	AM_RANGE(0x6800, 0x6800) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
+	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE("aysnd", ay8910_device, address_w)
+	AM_RANGE(0x6800, 0x6800) AM_DEVWRITE("aysnd", ay8910_device, data_w)
 	AM_RANGE(0x7000, 0x73ff) AM_RAM AM_SHARE("share1") /* 2114 x 2 (0x400 x 4bit each) */
 	AM_RANGE(0x7800, 0x7bff) AM_RAM AM_SHARE("share2") /* 2114 x 2 (0x400 x 4bit each) */
 

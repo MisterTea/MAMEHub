@@ -8,7 +8,7 @@ class aeroboto_state : public driver_device
 {
 public:
 	aeroboto_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_mainram(*this, "mainram"),
 		m_videoram(*this, "videoram"),
 		m_hscroll(*this, "hscroll"),
@@ -17,7 +17,8 @@ public:
 		m_vscroll(*this, "vscroll"),
 		m_starx(*this, "starx"),
 		m_stary(*this, "stary"),
-		m_bgcolor(*this, "bgcolor"){ }
+		m_bgcolor(*this, "bgcolor"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_mainram;
@@ -60,4 +61,6 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_aeroboto(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(aeroboto_interrupt);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

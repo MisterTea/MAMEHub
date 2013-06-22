@@ -27,8 +27,9 @@ class toratora_state : public driver_device
 {
 public:
 	toratora_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -39,7 +40,7 @@ public:
 	UINT8      m_clear_tv;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	pia6821_device *m_pia_u1;
 	pia6821_device *m_pia_u2;
 	pia6821_device *m_pia_u3;
@@ -164,9 +165,9 @@ INTERRUPT_GEN_MEMBER(toratora_state::toratora_timer)
 		m_last = ioport("INPUT")->read() & 0x0f;
 		generic_pulse_irq_line(device.execute(), 0, 1);
 	}
-	m_pia_u1->set_a_input(machine().root_device().ioport("INPUT")->read() & 0x0f, 0);
-	m_pia_u1->ca1_w(machine().root_device().ioport("INPUT")->read() & 0x10);
-	m_pia_u1->ca2_w(machine().root_device().ioport("INPUT")->read() & 0x20);
+	m_pia_u1->set_a_input(ioport("INPUT")->read() & 0x0f, 0);
+	m_pia_u1->ca1_w(ioport("INPUT")->read() & 0x10);
+	m_pia_u1->ca2_w(ioport("INPUT")->read() & 0x20);
 }
 
 READ8_MEMBER(toratora_state::timer_r)
@@ -425,8 +426,6 @@ INPUT_PORTS_END
 
 void toratora_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
 	m_pia_u1 = machine().device<pia6821_device>("pia_u1");
 	m_pia_u2 = machine().device<pia6821_device>("pia_u2");
 	m_pia_u3 = machine().device<pia6821_device>("pia_u3");
@@ -438,7 +437,6 @@ void toratora_state::machine_start()
 
 void toratora_state::machine_reset()
 {
-
 	m_timer = 0xff;
 	m_last = 0;
 	m_clear_tv = 0;

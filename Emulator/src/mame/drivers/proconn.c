@@ -4,6 +4,21 @@
 
   what's the difference between the platforms, sound hardware?
 
+  Some early Proconn hardware was used for Maygay stuff, so this may be a bit of a mix.
+
+  Error codes:
+
+  ERROR 1   EPROM FAILED
+  ERROR 3   RAM CORRUPTION DETECTED (common on PC90 boards)
+  ERROR 10  RAM FAILURE
+  ERROR 20  METERS DISCONNECTED
+  ERROR 21  CASH IN METER FAIL
+  ERROR 22  CASH OUT METER FAIL
+  ERROR 25  REFILL METER FAIL
+  ERROR 30  REEL 1 FAIL
+  ERROR 31  REEL 2 FAIL
+  ERROR 32  REEL 3 FAIL
+  ERROR 99  SECURITY CARD MISSING OR FAILED, OR INCORRECT FOR PROGRAM
 */
 
 
@@ -37,8 +52,8 @@ public:
 
 	optional_device<roc10937_t> m_vfd;
 
-	DECLARE_WRITE8_MEMBER( ay_w0 ) { ay8910_address_data_w(m_ay, space, 0, data); }
-	DECLARE_WRITE8_MEMBER( ay_w1 ) { ay8910_address_data_w(m_ay, space, 1, data); }
+	DECLARE_WRITE8_MEMBER( ay_w0 ) { m_ay->address_data_w(space, 0, data); }
+	DECLARE_WRITE8_MEMBER( ay_w1 ) { m_ay->address_data_w(space, 1, data); }
 
 	DECLARE_WRITE8_MEMBER( ctc_w0 ) { m_z80ctc->write(space, 0, data); }
 	DECLARE_WRITE8_MEMBER( ctc_w1 ) { m_z80ctc->write(space, 1, data); }
@@ -75,7 +90,7 @@ public:
 	DECLARE_WRITE8_MEMBER( pio5_w2 ) { m_z80pio_5->write(space, 2, data); }
 	DECLARE_WRITE8_MEMBER( pio5_w3 ) { m_z80pio_5->write(space, 3, data); }
 
-	DECLARE_READ8_MEMBER( ay_r0 ) { return ay8910_r(m_ay, space, 0); }
+	DECLARE_READ8_MEMBER( ay_r0 ) { return m_ay->data_r(space, 0); }
 
 	DECLARE_READ8_MEMBER( ctc_r0 ) { return m_z80ctc->read(space, 0); }
 	DECLARE_READ8_MEMBER( ctc_r1 ) { return m_z80ctc->read(space, 1); }
@@ -313,7 +328,6 @@ static Z80CTC_INTERFACE( ctc_intf )
 
 WRITE16_MEMBER(proconn_state::serial_transmit)
 {
-
 //Don't like the look of this, should be a clock somewhere
 //  if (offset == 0)
 //      m_vfd->write_char( data );
@@ -697,8 +711,7 @@ ROM_END
 #define pr_batls_sound \
 	ROM_REGION( 0x80000, "snd", 0 )\
 	ROM_LOAD( "080snd1.bin", 0x0000, 0x020000, CRC(011170ab) SHA1(60a174c09261c2ee230c4194d918173b41f267de) )\
-	ROM_LOAD( "080snd2.bin", 0x020000, 0x020000, CRC(9189793b) SHA1(b47a3c214eb01595581f1e9d18c154560ee02ca1) )\
-
+	ROM_LOAD( "080snd2.bin", 0x020000, 0x020000, CRC(9189793b) SHA1(b47a3c214eb01595581f1e9d18c154560ee02ca1) )
 ROM_START( pr_batls )
 	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD( "batt72c", 0x0000, 0x010000, CRC(6c6ab1f1) SHA1(6e0663fcdfa1948d9d74b6df388d09fed73f0ed2) )
@@ -758,8 +771,7 @@ ROM_END
 #define pr_bulls_sound \
 	ROM_REGION( 0x80000, "snd", 0 )\
 	ROM_LOAD( "010snd1 316e.bin" , 0x0000, 0x020000, CRC(5e3cfdc6) SHA1(32db10e7bacc6a4728d8821e77789cf146e2a277) )\
-	ROM_LOAD( "010snd2 9e9a.bin" , 0x0000, 0x020000, CRC(496a9d51) SHA1(703631d3cb2e3c7fa676cb5a31903bf39ee6c44f) )\
-
+	ROM_LOAD( "010snd2 9e9a.bin" , 0x0000, 0x020000, CRC(496a9d51) SHA1(703631d3cb2e3c7fa676cb5a31903bf39ee6c44f) )
 
 ROM_START( pr_bulls )
 	ROM_REGION( 0x80000, "maincpu", 0 )
@@ -834,8 +846,7 @@ ROM_END
 #define pr_chico_sound\
 	ROM_REGION( 0x80000, "snd", 0 )\
 	ROM_LOAD( "006snd1.000", 0x0000, 0x020000, CRC(f906857a) SHA1(cfa47a3e887e6788c577d31bb567f7fbaaf0bbf3) )\
-	ROM_LOAD( "006snd2.000", 0x0000, 0x020000, CRC(8445d0ef) SHA1(fd2ecc96f74e99e8f5ea7c7772fbd451ce52e889) )\
-
+	ROM_LOAD( "006snd2.000", 0x0000, 0x020000, CRC(8445d0ef) SHA1(fd2ecc96f74e99e8f5ea7c7772fbd451ce52e889) )
 ROM_START( pr_chico )
 	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD( "006a20pn.810", 0x0000, 0x010000, CRC(c4b491b7) SHA1(7629857cf6f1f69fb9ccf82a290a491cf695d373) )
@@ -1045,9 +1056,16 @@ ROM_END
 ROM_START( pr_hit6 )
 	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD( "hit the six (27512)", 0x0000, 0x010000, CRC(6d4c2139) SHA1(8ee1316e644590d679646f52b7816a9634265737) )
+ROM_END
 
-	ROM_REGION( 0x80000, "altrevs", 0 )
+ROM_START( pr_hit6a )
+	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD( "hitthesix.bin", 0x0000, 0x010000, CRC(993990ff) SHA1(9ac16aaf52599a310498eb0ba6f40a763b01dc59) )
+ROM_END
+
+ROM_START( pr_hit6b )
+	ROM_REGION( 0x80000, "maincpu", 0 )
+	ROM_LOAD( "ht6902a10pn_300_ds_8515.bin", 0x0000, 0x010000, CRC(c212be54) SHA1(da28eea13fb04ae9fe93639df7566aaa44edcb86) )
 ROM_END
 
 ROM_START( pr_hotcs )
@@ -1164,6 +1182,7 @@ ROM_START( pr_sevab )
 
 	ROM_REGION( 0x80000, "altrevs", 0 )
 	ROM_LOAD( "7sab.bin", 0x0000, 0x010000, CRC(f7381284) SHA1(244c8981ce5080168eba117abc905f0a5339711b) )
+	ROM_LOAD( "7sabv.bin", 0x0000, 0x010000, CRC(2cd65671) SHA1(26051b37189d30997f2022686bd4dad562500ee7) )
 	ROM_LOAD( "7sabove.bin", 0x0000, 0x010000, CRC(b16f278f) SHA1(786c1ea1b701489c655c35c0bc83f35e70a9fe39) )
 	ROM_LOAD( "sevens_above", 0x0000, 0x010000, CRC(9cdfaa94) SHA1(a7063b4fc30a56f8b162ca8ef2651ada05758771) )
 ROM_END
@@ -1176,6 +1195,7 @@ ROM_START( pr_sevml )
 	ROM_LOAD( "sevenmelonsprocon5p(27256)", 0x0000, 0x008000, CRC(ebee9be6) SHA1(efd713852213a8dcf2bc302195acffee3f60da10) ) // looks like a bad dump
 	ROM_LOAD( "sevens&melons4-80(20ptube).bin", 0x0000, 0x010000, CRC(2d08a94a) SHA1(0e0bb7b830cfbf6696059f8af384880a8917dd9c) )
 	ROM_LOAD( "sevensandmelons.bin", 0x0000, 0x010000, CRC(e9942539) SHA1(4e782a0506c734e87871bfee815da84dbc7f6edb) )
+	ROM_LOAD( "7andmel.bin", 0x0000, 0x008000, CRC(109e6dff) SHA1(34f5b5d70d2607ef10698cee87fdd8c8267a0d5c) )
 ROM_END
 
 ROM_START( pr_theme )
@@ -1227,6 +1247,11 @@ ROM_END
 ROM_START( pr_whlft )
 	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD( "wof.bin", 0x0000, 0x010000, CRC(67f0e4ff) SHA1(dbabb3ffd057de8dce24e5b88dc399ac4a1564f7) )
+ROM_END
+
+ROM_START( pr_wnstk )
+	ROM_REGION( 0x80000, "maincpu", 0 )
+	ROM_LOAD( "cwrldwnstrk_v1_1.bin", 0x0000, 0x008000, CRC(5d701d88) SHA1(3e57faba4d549c00593736158840b80aed732451) )
 ROM_END
 
 ROM_START( pr_wldkn )
@@ -1347,7 +1372,9 @@ GAME( 199?, pr_gdft         ,0          ,proconn    ,proconn    , proconn_state,
 GAME( 199?, pr_happy        ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "Happy Days (Project) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
 GAME( 199?, pr_heato        ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "The Heat Is On (Project) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
 GAME( 199?, pr_hiclm        ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "Hi Climber (Project) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
-GAME( 199?, pr_hit6         ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "Hit The Six (Project) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
+GAME( 199?, pr_hit6         ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "Hit The Six (Project) (set 1) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
+GAME( 199?, pr_hit6a        ,pr_hit6    ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "Hit The Six (Project) (set 2) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
+GAME( 199?, pr_hit6b        ,pr_hit6    ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "Hit The Six (Project) (set 3) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
 GAME( 199?, pr_hotcs        ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "Hot Cash (Project) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
 GAME( 199?, pr_hotsp        ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "Hot Spots (Project) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
 GAME( 199?, pr_jkpt7        ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Project", "Jackpot 7's (Project) (PROCONN)",GAME_IS_SKELETON_MECHANICAL )
@@ -1409,4 +1436,5 @@ GAME( 199?, pr_gnuc         ,0          ,proconn    ,proconn    , proconn_state,
 GAME( 199?, pr_gnuca        ,pr_gnuc    ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Coinworld", "Golden Nugget (Version 1.2) (Coinworld)",GAME_IS_SKELETON_MECHANICAL )
 GAME( 199?, pr_magln        ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Coinworld", "Magic Lines (Version 2.1) (Coinworld)",GAME_IS_SKELETON_MECHANICAL )
 GAME( 199?, pr_maglna       ,pr_magln   ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Coinworld", "Magic Lines (Version 1.1) (Coinworld)",GAME_IS_SKELETON_MECHANICAL )
+GAME( 199?, pr_wnstk        ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Coinworld", "Winning Streak (Version 1.1) (Coinworld)",GAME_IS_SKELETON_MECHANICAL )
 GAME( 199?, pr_swop         ,0          ,proconn    ,proconn    , proconn_state,proconn ,ROT0   ,"Ace", "Swop It (Ace)",GAME_IS_SKELETON_MECHANICAL )

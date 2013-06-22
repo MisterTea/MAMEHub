@@ -56,7 +56,7 @@ static ADDRESS_MAP_START(specimx_mem, AS_PROGRAM, 8, special_state )
 	AM_RANGE( 0xffe0, 0xffe3 ) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
 	AM_RANGE( 0xffe4, 0xffe7 ) AM_RAM //external 8255
 	AM_RANGE( 0xffe8, 0xffeb ) AM_DEVREADWRITE("fd1793", fd1793_t, read, write)
-	AM_RANGE( 0xffec, 0xffef ) AM_DEVREADWRITE_LEGACY("pit8253", pit8253_r, pit8253_w)
+	AM_RANGE( 0xffec, 0xffef ) AM_DEVREADWRITE("pit8253", pit8253_device, read, write)
 	AM_RANGE( 0xfff0, 0xfff3 ) AM_READWRITE(specimx_disk_ctrl_r, specimx_disk_ctrl_w)
 	AM_RANGE( 0xfff8, 0xfff8 ) AM_READWRITE(specimx_video_color_r,specimx_video_color_w)
 	AM_RANGE( 0xfffc, 0xfffe ) AM_WRITE(specimx_select_bank)
@@ -408,13 +408,13 @@ static MACHINE_CONFIG_START( special, special_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* Devices */
 	MCFG_PIT8253_ADD( "pit8253", specimx_pit8253_intf )
 	MCFG_I8255_ADD( "ppi8255", specialist_ppi8255_interface )
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, special_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", special_cassette_interface )
 	MCFG_SOFTWARE_LIST_ADD("cass_list","special_cass")
 MACHINE_CONFIG_END
 
@@ -451,8 +451,8 @@ static MACHINE_CONFIG_DERIVED( specimx, special )
 	/* Devices */
 	MCFG_FD1793x_ADD("fd1793", XTAL_8MHz / 8)
 
-	MCFG_FLOPPY_DRIVE_ADD("fd0", specimx_floppies, "525qd", 0, special_state::specimx_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd1", specimx_floppies, "525qd", 0, special_state::specimx_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd0", specimx_floppies, "525qd", special_state::specimx_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd1", specimx_floppies, "525qd", special_state::specimx_floppy_formats)
 	MCFG_SOFTWARE_LIST_ADD("flop_list","special_flop")
 
 	/* internal ram */
@@ -483,16 +483,16 @@ static MACHINE_CONFIG_START( erik, special_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* Devices */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, special_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", special_cassette_interface )
 	MCFG_I8255_ADD( "ppi8255", specialist_ppi8255_interface )
 	MCFG_FD1793x_ADD("fd1793", XTAL_8MHz / 8)
 
-	MCFG_FLOPPY_DRIVE_ADD("fd0", specimx_floppies, "525qd", 0, special_state::specimx_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd1", specimx_floppies, "525qd", 0, special_state::specimx_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd0", specimx_floppies, "525qd", special_state::specimx_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd1", specimx_floppies, "525qd", special_state::specimx_floppy_formats)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -548,11 +548,11 @@ ROM_END
 
 ROM_START( specimx )
 	ROM_REGION( 0x20000, "maincpu", ROMREGION_ERASEFF )
-	ROM_SYSTEM_BIOS(0, "FOS", "ROM FOS")
+	ROM_SYSTEM_BIOS(0, "fos", "ROM FOS")
 	ROMX_LOAD( "specimx.rom", 0x10000, 0xb800,  CRC(DB68F9B1) SHA1(c79888449f8a605267ec3e10dcc8e6e6f43b3a95), ROM_BIOS(1))
-	ROM_SYSTEM_BIOS(1, "NC", "NC")
+	ROM_SYSTEM_BIOS(1, "nc", "NC")
 	ROMX_LOAD( "ncrdy.rom",   0x10000, 0x10000, CRC(5D04C522) SHA1(d7daa7fe14cd8e0c6f87fd6453ec3e94ea2c259f) ,ROM_BIOS(2))
-	ROM_SYSTEM_BIOS(2, "RAMFOS", "RAMFOS")
+	ROM_SYSTEM_BIOS(2, "ramfos", "RAMFOS")
 	ROMX_LOAD( "ramfos.rom",  0x10000, 0x3000, CRC(83e19df4) SHA1(20e5e53eb45729a24c1c7c63e114dbd14e3c4184) ,ROM_BIOS(3))
 ROM_END
 

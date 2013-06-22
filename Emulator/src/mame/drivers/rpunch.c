@@ -125,13 +125,13 @@
 WRITE_LINE_MEMBER(rpunch_state::ym2151_irq_gen)
 {
 	m_ym2151_irq = state;
-	subdevice("audiocpu")->execute().set_input_line(0, (m_ym2151_irq | m_sound_busy) ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, (m_ym2151_irq | m_sound_busy) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
 void rpunch_state::machine_reset()
 {
-	UINT8 *snd = machine().root_device().memregion("upd")->base();
+	UINT8 *snd = memregion("upd")->base();
 	memcpy(snd, snd + 0x20000, 0x20000);
 }
 
@@ -159,7 +159,7 @@ TIMER_CALLBACK_MEMBER(rpunch_state::sound_command_w_callback)
 {
 	m_sound_busy = 1;
 	m_sound_data = param;
-	machine().device("audiocpu")->execute().set_input_line(0, (m_ym2151_irq | m_sound_busy) ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, (m_ym2151_irq | m_sound_busy) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -173,7 +173,7 @@ WRITE16_MEMBER(rpunch_state::sound_command_w)
 READ8_MEMBER(rpunch_state::sound_command_r)
 {
 	m_sound_busy = 0;
-	machine().device("audiocpu")->execute().set_input_line(0, (m_ym2151_irq | m_sound_busy) ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, (m_ym2151_irq | m_sound_busy) ? ASSERT_LINE : CLEAR_LINE);
 	return m_sound_data;
 }
 
@@ -193,23 +193,21 @@ READ16_MEMBER(rpunch_state::sound_busy_r)
 
 WRITE8_MEMBER(rpunch_state::upd_control_w)
 {
-	device_t *device = machine().device("upd");
 	if ((data & 1) != m_upd_rom_bank)
 	{
 		UINT8 *snd = memregion("upd")->base();
 		m_upd_rom_bank = data & 1;
 		memcpy(snd, snd + 0x20000 * (m_upd_rom_bank + 1), 0x20000);
 	}
-	upd7759_reset_w(device, data >> 7);
+	upd7759_reset_w(m_upd7759, data >> 7);
 }
 
 
 WRITE8_MEMBER(rpunch_state::upd_data_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_port_w(device, space, 0, data);
-	upd7759_start_w(device, 0);
-	upd7759_start_w(device, 1);
+	upd7759_port_w(m_upd7759, space, 0, data);
+	upd7759_start_w(m_upd7759, 0);
+	upd7759_start_w(m_upd7759, 1);
 }
 
 
@@ -461,7 +459,7 @@ static const gfx_layout bootleg_sprite_layout =
 	32*32*2,
 };
 
-static GFXDECODE_START( spikes91a )
+static GFXDECODE_START( svolleybl )
 	GFXDECODE_ENTRY( "gfx1", 0, bootleg_tile_layout,   0, 16 )
 	GFXDECODE_ENTRY( "gfx2", 0, bootleg_tile_layout,   256, 16 )
 	GFXDECODE_ENTRY( "gfx3", 0, bootleg_sprite_layout,   0, 16*4 )
@@ -509,7 +507,7 @@ MACHINE_CONFIG_END
 
 
 // c+p of above for now, bootleg hw, things need verifying
-static MACHINE_CONFIG_START( spikes91a, rpunch_state )
+static MACHINE_CONFIG_START( svolleybl, rpunch_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M68000, MASTER_CLOCK/2)
@@ -526,7 +524,7 @@ static MACHINE_CONFIG_START( spikes91a, rpunch_state )
 	MCFG_SCREEN_VISIBLE_AREA(8, 303-8, 0, 223-8)
 	MCFG_SCREEN_UPDATE_DRIVER(rpunch_state, screen_update_rpunch)
 
-	MCFG_GFXDECODE(spikes91a)
+	MCFG_GFXDECODE(svolleybl)
 	MCFG_PALETTE_LENGTH(1024)
 
 
@@ -732,7 +730,7 @@ ROM_START( svolleyu )
 ROM_END
 
 
-ROM_START( spikes91a )
+ROM_START( svolleybl )
 	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 code */
 	ROM_LOAD16_BYTE( "4-prg.bin", 0x00001, 0x10000, CRC(eefaa208) SHA1(2a0417e170de3212f45be64719bb1eb0c6d33c59) )
 	ROM_LOAD16_BYTE( "6-prg.bin", 0x00000, 0x10000, CRC(da7d2e81) SHA1(ca78a661876ddbcb0e7599edcc819558afb76930) )
@@ -806,4 +804,4 @@ GAME( 1989, svolleyu, svolley,  rpunch,   svolley, rpunch_state,  svolley,  ROT0
 
 // video registers are changed, and there's some kind of RAM at 090xxx, possible a different sprite scheme for the bootleg (even if the original is intact)
 // the sound system seems to be ripped from the later Power Spikes (see aerofgt.c)
-GAME( 1991, spikes91a,svolley,  spikes91a,svolley, rpunch_state,  svolley,  ROT0, "bootleg",  "Super Volleyball (bootleg)", GAME_SUPPORTS_SAVE | GAME_NOT_WORKING | GAME_NO_SOUND | GAME_NO_COCKTAIL ) // aka 1991 Spikes?
+GAME( 1991, svolleybl,svolley,  svolleybl,svolley, rpunch_state,  svolley,  ROT0, "bootleg",  "Super Volleyball (bootleg)", GAME_SUPPORTS_SAVE | GAME_NOT_WORKING | GAME_NO_SOUND | GAME_NO_COCKTAIL ) // aka 1991 Spikes?

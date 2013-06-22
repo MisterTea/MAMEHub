@@ -565,15 +565,16 @@ ioport_constructor isa8_ega_device::device_input_ports() const
 //-------------------------------------------------
 
 isa8_ega_device::isa8_ega_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, ISA8_EGA, "IBM Enhanced Graphics Adapter", tag, owner, clock),
-		device_isa8_card_interface(mconfig, *this)
+		device_t(mconfig, ISA8_EGA, "IBM Enhanced Graphics Adapter", tag, owner, clock, "ega", __FILE__),
+		device_isa8_card_interface(mconfig, *this),
+		m_misc_output(0)
 {
-	m_shortname = "ega";
 }
 
-isa8_ega_device::isa8_ega_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, type, name, tag, owner, clock),
-		device_isa8_card_interface(mconfig, *this)
+isa8_ega_device::isa8_ega_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+		device_isa8_card_interface(mconfig, *this),
+		m_misc_output(0)
 {
 }
 
@@ -610,9 +611,13 @@ void isa8_ega_device::device_start()
 
 	m_videoram = m_vram->base();
 	m_plane[0] = m_videoram + 0x00000;
+	memset(m_plane[0], 0, sizeof(UINT8) * 0x10000);
 	m_plane[1] = m_videoram + 0x10000;
+	memset(m_plane[1], 0, sizeof(UINT8) * 0x10000);
 	m_plane[2] = m_videoram + 0x20000;
+	memset(m_plane[2], 0, sizeof(UINT8) * 0x10000);
 	m_plane[3] = m_videoram + 0x30000;
+	memset(m_plane[3], 0, sizeof(UINT8) * 0x10000);
 
 	m_crtc_ega = subdevice<crtc_ega_device>(EGA_CRTC_NAME);
 

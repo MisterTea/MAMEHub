@@ -10,7 +10,7 @@
 #include "includes/pcw.h"
 #include "machine/ram.h"
 
-INLINE void pcw_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT32 color)
+inline void pcw_state::pcw_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT32 color)
 {
 	bitmap.pix16(y, x) = (UINT16)color;
 }
@@ -92,14 +92,14 @@ UINT32 pcw_state::screen_update_pcw(screen_device &screen, bitmap_ind16 &bitmap,
 
 			x = PCW_BORDER_WIDTH;
 
-			roller_ram_ptr = machine().device<ram_device>(RAM_TAG)->pointer() + m_roller_ram_addr + roller_ram_offs;
+			roller_ram_ptr = m_ram->pointer() + m_roller_ram_addr + roller_ram_offs;
 
 			/* get line address */
 			/* b16-14 control which bank the line is to be found in, b13-3 the address in the bank (in 16-byte units), and b2-0 the offset. Thus a roller RAM address bbbxxxxxxxxxxxyyy indicates bank bbb, address 00xxxxxxxxxxx0yyy. */
 			line_data = ((unsigned char *)roller_ram_ptr)[0] | (((unsigned char *)roller_ram_ptr)[1]<<8);
 
 			/* calculate address of pixel data */
-			line_ptr = machine().device<ram_device>(RAM_TAG)->pointer() + ((line_data & 0x0e000)<<1) + ((line_data & 0x01ff8)<<1) + (line_data & 0x07);
+			line_ptr = m_ram->pointer() + ((line_data & 0x0e000)<<1) + ((line_data & 0x01ff8)<<1) + (line_data & 0x07);
 
 			for (by=0; by<90; by++)
 			{
@@ -167,7 +167,6 @@ UINT32 pcw_state::screen_update_pcw(screen_device &screen, bitmap_ind16 &bitmap,
 
 UINT32 pcw_state::screen_update_pcw_printer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	// printer output
 	INT32 feed;
 	rectangle rect(0, PCW_PRINTER_WIDTH - 1, 0, PCW_PRINTER_HEIGHT - 1);

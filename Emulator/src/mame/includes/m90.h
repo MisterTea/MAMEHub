@@ -2,9 +2,11 @@ class m90_state : public driver_device
 {
 public:
 	m90_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_video_data(*this, "video_data"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu") { }
 
 	required_shared_ptr<UINT16> m_video_data;
 	optional_shared_ptr<UINT16> m_spriteram;
@@ -48,4 +50,13 @@ public:
 	INTERRUPT_GEN_MEMBER(m90_interrupt);
 	INTERRUPT_GEN_MEMBER(dynablsb_interrupt);
 	INTERRUPT_GEN_MEMBER(bomblord_interrupt);
+	inline void get_tile_info(tile_data &tileinfo,int tile_index,int layer,int page_mask);
+	inline void bomblord_get_tile_info(tile_data &tileinfo,int tile_index,int layer);
+	inline void dynablsb_get_tile_info(tile_data &tileinfo,int tile_index,int layer);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void bomblord_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void dynablsb_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void markdirty(tilemap_t *tmap,int page,offs_t offset);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 };

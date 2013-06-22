@@ -1,3 +1,5 @@
+#include "sound/okim6295.h"
+
 /* This it the best way to allow game specific kludges until the system is fully understood */
 enum {
 	/* Early F3 class games, these are not cartridge games and system features may be different */
@@ -43,9 +45,17 @@ enum {
 class taito_f3_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_F3_INTERRUPT3
+	};
+
 	taito_f3_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_f3_ram(*this,"f3_ram") { }
+		m_f3_ram(*this,"f3_ram") ,
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_oki(*this, "oki") { }
 
 	UINT16 *m_videoram;
 	UINT16 *m_spriteram;
@@ -273,5 +283,10 @@ public:
 	UINT32 screen_update_f3(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void screen_eof_f3(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(f3_interrupt2);
-	TIMER_CALLBACK_MEMBER(f3_interrupt3);
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<okim6295_device> m_oki;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

@@ -10,12 +10,14 @@ public:
 	ninjakd2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
+		m_soundcpu(*this, "soundcpu"),
 		m_bg_videoram(*this, "bg_videoram"),
 		m_fg_videoram(*this, "fg_videoram"),
 		m_spriteram(*this, "spriteram")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 	optional_shared_ptr<UINT8> m_bg_videoram;
 	required_shared_ptr<UINT8> m_fg_videoram;
 	required_shared_ptr<UINT8> m_spriteram;
@@ -97,4 +99,12 @@ public:
 	UINT32 screen_update_omegaf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_ninjakd2(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(ninjakd2_interrupt);
+	void robokid_get_bg_tile_info( tile_data& tileinfo, tilemap_memory_index const tile_index, int const gfxnum, const UINT8* const videoram);
+	void bg_ctrl(int offset, int data, tilemap_t* tilemap);
+	void draw_sprites( bitmap_ind16 &bitmap);
+	void erase_sprites( bitmap_ind16 &bitmap);
+	void update_sprites();
+	void lineswap_gfx_roms(const char *region, const int bit);
+	void gfx_unscramble();
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 };

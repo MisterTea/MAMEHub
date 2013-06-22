@@ -1,13 +1,19 @@
+#include "sound/okim6295.h"
+#include "machine/eeprom.h"
+
 class unico_state : public driver_device
 {
 public:
 	unico_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram(*this, "vram"),
 		m_scroll(*this, "scroll"),
 		m_vram32(*this, "vram32"),
 		m_scroll32(*this, "scroll32"),
-		m_spriteram(*this, "spriteram", 0){ }
+		m_spriteram(*this, "spriteram", 0),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki"),
+		m_eeprom(*this, "eeprom") { }
 
 	optional_shared_ptr<UINT16> m_vram;
 	optional_shared_ptr<UINT16> m_scroll;
@@ -42,4 +48,9 @@ public:
 	DECLARE_VIDEO_START(zeropnt2);
 	UINT32 screen_update_unico(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_zeropnt2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void unico_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void zeropnt2_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	optional_device<okim6295_device> m_oki;
+	optional_device<eeprom_device> m_eeprom;
 };

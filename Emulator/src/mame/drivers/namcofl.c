@@ -187,11 +187,11 @@ WRITE32_MEMBER(namcofl_state::namcofl_sysreg_w)
 		if (data == 0)  // RAM at 00000000, ROM at 10000000
 		{
 			membank("bank1")->set_base(m_workram );
-			membank("bank2")->set_base(machine().root_device().memregion("maincpu")->base() );
+			membank("bank2")->set_base(memregion("maincpu")->base() );
 		}
 		else        // ROM at 00000000, RAM at 10000000
 		{
-			membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() );
+			membank("bank1")->set_base(memregion("maincpu")->base() );
 			membank("bank2")->set_base(m_workram );
 		}
 	}
@@ -524,14 +524,14 @@ GFXDECODE_END
 
 TIMER_CALLBACK_MEMBER(namcofl_state::network_interrupt_callback)
 {
-	machine().device("maincpu")->execute().set_input_line(I960_IRQ0, ASSERT_LINE);
+	m_maincpu->set_input_line(I960_IRQ0, ASSERT_LINE);
 	machine().scheduler().timer_set(machine().primary_screen->frame_period(), timer_expired_delegate(FUNC(namcofl_state::network_interrupt_callback),this));
 }
 
 
 TIMER_CALLBACK_MEMBER(namcofl_state::vblank_interrupt_callback)
 {
-	machine().device("maincpu")->execute().set_input_line(I960_IRQ2, ASSERT_LINE);
+	m_maincpu->set_input_line(I960_IRQ2, ASSERT_LINE);
 	machine().scheduler().timer_set(machine().primary_screen->frame_period(), timer_expired_delegate(FUNC(namcofl_state::vblank_interrupt_callback),this));
 }
 
@@ -539,7 +539,7 @@ TIMER_CALLBACK_MEMBER(namcofl_state::vblank_interrupt_callback)
 TIMER_CALLBACK_MEMBER(namcofl_state::raster_interrupt_callback)
 {
 	machine().primary_screen->update_partial(machine().primary_screen->vpos());
-	machine().device("maincpu")->execute().set_input_line(I960_IRQ1, ASSERT_LINE);
+	m_maincpu->set_input_line(I960_IRQ1, ASSERT_LINE);
 	m_raster_interrupt_timer->adjust(machine().primary_screen->frame_period());
 }
 

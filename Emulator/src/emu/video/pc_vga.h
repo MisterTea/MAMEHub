@@ -61,6 +61,7 @@ protected:
 	UINT8 gc_reg_read(UINT8 index);
 	void attribute_reg_write(UINT8 index, UINT8 data);
 	void gc_reg_write(UINT8 index,UINT8 data);
+	virtual UINT16 offset();
 private:
 	inline UINT8 rotate_right(UINT8 val);
 	inline UINT8 vga_logical_op(UINT8 data, UINT8 plane, UINT8 mask);
@@ -127,7 +128,7 @@ protected:
 			UINT32 start_addr_latch;
 	/**/    UINT8 protect_enable;
 	/**/    UINT8 bandwidth;
-	/**/    UINT8 offset;
+	/**/    UINT16 offset;
 	/**/    UINT8 word_mode;
 	/**/    UINT8 dw;
 	/**/    UINT8 div4;
@@ -277,6 +278,10 @@ public:
 	WRITE16_MEMBER(ibm8514_foremix_w);
 	READ16_MEMBER(ibm8514_pixel_xfer_r);
 	WRITE16_MEMBER(ibm8514_pixel_xfer_w);
+	READ16_MEMBER(ibm8514_read_mask_r);
+	WRITE16_MEMBER(ibm8514_read_mask_w);
+	READ16_MEMBER(ibm8514_write_mask_r);
+	WRITE16_MEMBER(ibm8514_write_mask_w);
 	void ibm8514_wait_draw();
 	struct
 	{
@@ -319,6 +324,9 @@ public:
 		UINT16 pixel_control;
 		UINT8 bus_size;
 		UINT8 multifunc_sel;
+		UINT16 multifunc_misc;
+		UINT32 read_mask;
+		UINT32 write_mask;
 
 		int state;
 		UINT8 wait_vector_len;
@@ -341,9 +349,9 @@ private:
 
 	vga_device* m_vga;  // for pass-through
 	astring m_vga_tag;  // pass-through device tag
-	UINT8* m_vram;  // the original 8514/A has it's own VRAM, but most VGA+8514 combination cards will have
+	//UINT8* m_vram;  // the original 8514/A has it's own VRAM, but most VGA+8514 combination cards will have
 					// only one set of VRAM, so this will only be needed in standalone 8514/A cards
-	UINT32 m_vramsize;
+	//UINT32 m_vramsize;
 };
 
 // device type definition
@@ -384,6 +392,10 @@ public:
 	WRITE16_MEMBER(mach8_scratch1_w);
 	READ16_MEMBER(mach8_config1_r);
 	READ16_MEMBER(mach8_config2_r);
+	READ16_MEMBER(mach8_sourcex_r);
+	READ16_MEMBER(mach8_sourcey_r);
+	WRITE16_MEMBER(mach8_ext_leftscissor_w);
+	WRITE16_MEMBER(mach8_ext_topscissor_w);
 protected:
 	virtual void device_start();
 	struct
@@ -431,6 +443,7 @@ private:
 	void tseng_crtc_reg_write(UINT8 index, UINT8 data);
 	UINT8 tseng_seq_reg_read(UINT8 index);
 	void tseng_seq_reg_write(UINT8 index, UINT8 data);
+	void tseng_attribute_reg_write(UINT8 index, UINT8 data);
 
 	struct
 	{
@@ -440,6 +453,8 @@ private:
 		UINT8 horz_overflow;
 		UINT8 aux_ctrl;
 		bool ext_reg_ena;
+		UINT8 misc1;
+		UINT8 misc2;
 	}et4k;
 
 };
@@ -494,6 +509,7 @@ public:
 	WRITE8_MEMBER(ati_port_ext_w);
 
 	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual UINT16 offset();
 
 	mach8_device* get_8514() { return m_8514; }
 protected:
@@ -519,6 +535,7 @@ class s3_vga_device :  public ati_vga_device
 public:
 	// construction/destruction
 	s3_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	s3_vga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
 
 	virtual READ8_MEMBER(port_03b0_r);
 	virtual WRITE8_MEMBER(port_03b0_w);
@@ -545,8 +562,15 @@ protected:
 		UINT8 reg_lock1;
 		UINT8 reg_lock2;
 		UINT8 enable_8514;
+		UINT8 enable_s3d;
+		UINT8 cr3a;
 		UINT8 cr42;
+		UINT8 cr43;
 		UINT8 cr53;
+		UINT8 id_high;
+		UINT8 id_low;
+		UINT8 revision;
+		UINT8 id_cr30;
 
 		// data for memory-mapped I/O
 		UINT16 mmio_9ae8;
@@ -566,6 +590,8 @@ protected:
 		UINT8 cursor_bg_ptr;
 		UINT8 extended_dac_ctrl;
 	} s3;
+	virtual UINT16 offset();
+
 private:
 	UINT8 s3_crtc_reg_read(UINT8 index);
 	void s3_define_video_mode(void);
@@ -575,7 +601,6 @@ private:
 
 // device type definition
 extern const device_type S3_VGA;
-
 
 // ======================> gamtor_vga_device
 
@@ -613,13 +638,28 @@ public:
 
 	virtual READ8_MEMBER(port_03c0_r);
 	virtual WRITE8_MEMBER(port_03c0_w);
+	virtual READ8_MEMBER(port_03b0_r);
+	virtual WRITE8_MEMBER(port_03b0_w);
+	virtual READ8_MEMBER(port_03d0_r);
+	virtual WRITE8_MEMBER(port_03d0_w);
+	virtual READ8_MEMBER(mem_r);
+	virtual WRITE8_MEMBER(mem_w);
 protected:
 	// device-level overrides
 	virtual void device_start();
+	virtual UINT16 offset();
+
+	UINT8 gc_mode_ext;
+	UINT8 gc_bank_0;
+	UINT8 gc_bank_1;
 private:
 	void cirrus_define_video_mode();
 	UINT8 cirrus_seq_reg_read(UINT8 index);
 	void cirrus_seq_reg_write(UINT8 index, UINT8 data);
+	UINT8 cirrus_gc_reg_read(UINT8 index);
+	void cirrus_gc_reg_write(UINT8 index, UINT8 data);
+	UINT8 cirrus_crtc_reg_read(UINT8 index);
+	void cirrus_crtc_reg_write(UINT8 index, UINT8 data);
 };
 
 // device type definition

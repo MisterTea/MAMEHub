@@ -144,7 +144,7 @@ static ADDRESS_MAP_START( st0016_mem, AS_PROGRAM, 8, speglsht_state )
 	AM_RANGE(0xd000, 0xdfff) AM_READ(st0016_sprite2_ram_r) AM_WRITE(st0016_sprite2_ram_w)
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM
 	AM_RANGE(0xe800, 0xe87f) AM_RAM
-	AM_RANGE(0xe900, 0xe9ff) AM_DEVREADWRITE_LEGACY("stsnd", st0016_snd_r, st0016_snd_w)
+	AM_RANGE(0xe900, 0xe9ff) AM_DEVREADWRITE("stsnd", st0016_device, st0016_snd_r, st0016_snd_w)
 	AM_RANGE(0xea00, 0xebff) AM_READ(st0016_palette_ram_r) AM_WRITE(st0016_palette_ram_w)
 	AM_RANGE(0xec00, 0xec1f) AM_READ(st0016_character_ram_r) AM_WRITE(st0016_character_ram_w)
 	AM_RANGE(0xf000, 0xffff) AM_RAM AM_SHARE("shared")
@@ -225,7 +225,7 @@ READ32_MEMBER(speglsht_state::cop_r)
 
 READ32_MEMBER(speglsht_state::irq_ack_clear)
 {
-	machine().device("sub")->execute().set_input_line(R3000_IRQ4, CLEAR_LINE);
+	m_subcpu->set_input_line(R3000_IRQ4, CLEAR_LINE);
 	return 0;
 }
 
@@ -326,13 +326,6 @@ static const st0016_interface st0016_config =
 	&st0016_charram
 };
 
-static const r3000_cpu_core r3000_config =
-{
-	0,
-	4096,   /* code cache size */
-	2048    /* data cache size */
-};
-
 MACHINE_RESET_MEMBER(speglsht_state,speglsht)
 {
 	memset(m_shared,0,0x1000);
@@ -393,8 +386,8 @@ static MACHINE_CONFIG_START( speglsht, speglsht_state )
 
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", speglsht_state,  irq0_line_hold)
 
-	MCFG_CPU_ADD("sub", R3000LE, 25000000)
-	MCFG_CPU_CONFIG(r3000_config)
+	MCFG_CPU_ADD("sub", R3051, 25000000)
+	MCFG_R3000_ENDIANNESS(ENDIANNESS_LITTLE)
 	MCFG_CPU_PROGRAM_MAP(speglsht_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", speglsht_state,  irq4_line_assert)
 
@@ -416,7 +409,7 @@ static MACHINE_CONFIG_START( speglsht, speglsht_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("stsnd", ST0016, 0)
+	MCFG_ST0016_ADD("stsnd", 0)
 	MCFG_SOUND_CONFIG(st0016_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)

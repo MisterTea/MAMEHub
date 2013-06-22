@@ -176,16 +176,12 @@ static const samples_interface gotya_samples_interface =
 
 void gotya_state::machine_start()
 {
-
-	m_samples = machine().device<samples_device>("samples");
-
 	save_item(NAME(m_scroll_bit_8));
 	save_item(NAME(m_theme_playing));
 }
 
 void gotya_state::machine_reset()
 {
-
 	m_scroll_bit_8 = 0;
 	m_theme_playing = 0;
 }

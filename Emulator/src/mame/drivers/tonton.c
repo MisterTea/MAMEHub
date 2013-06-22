@@ -33,7 +33,8 @@ class tonton_state : public driver_device
 public:
 	tonton_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_v9938(*this, "v9938") { }
+			m_v9938(*this, "v9938") ,
+		m_maincpu(*this, "maincpu") { }
 
 	required_device<v9938_device> m_v9938;
 	DECLARE_WRITE8_MEMBER(tonton_outport_w);
@@ -42,6 +43,8 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	TIMER_DEVICE_CALLBACK_MEMBER(tonton_interrupt);
+	DECLARE_WRITE_LINE_MEMBER(tonton_vdp0_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 #define MAIN_CLOCK      XTAL_21_4772MHz
@@ -65,9 +68,9 @@ public:
 *                Video Hardware                  *
 *************************************************/
 
-static void tonton_vdp0_interrupt(device_t *, v99x8_device &device, int i)
+WRITE_LINE_MEMBER(tonton_state::tonton_vdp0_interrupt)
 {
-	device.machine().device("maincpu")->execute().set_input_line(0, (i ? HOLD_LINE : CLEAR_LINE));
+	m_maincpu->set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
 }
 
 
@@ -107,8 +110,8 @@ static ADDRESS_MAP_START( tonton_io, AS_IO, 8, tonton_state )
 	AM_RANGE(0x02, 0x02) AM_READ_PORT("DSW1")
 	AM_RANGE(0x03, 0x03) AM_READ_PORT("DSW2")
 	AM_RANGE(0x88, 0x8b) AM_DEVREADWRITE( "v9938", v9938_device, read, write )
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0xa2, 0xa2) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0xa2, 0xa2) AM_DEVREAD("aysnd", ay8910_device, data_r)
 ADDRESS_MAP_END
 
 
@@ -268,7 +271,7 @@ static MACHINE_CONFIG_START( tonton, tonton_state )
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 
 	MCFG_V9938_ADD("v9938", "screen", VDP_MEM)
-	MCFG_V99X8_INTERRUPT_CALLBACK_STATIC(tonton_vdp0_interrupt)
+	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(tonton_state,tonton_vdp0_interrupt))
 
 	MCFG_SCREEN_ADD("screen",RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)

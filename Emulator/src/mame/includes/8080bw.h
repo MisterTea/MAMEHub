@@ -5,7 +5,8 @@
 ****************************************************************************/
 
 #include "includes/mw8080bw.h"
-
+#include "sound/speaker.h"
+#include "machine/eeprom.h"
 /* for games in 8080bw.c */
 #define CABINET_PORT_TAG                  "CAB"
 
@@ -17,14 +18,17 @@ public:
 		: mw8080bw_state(mconfig, type, tag),
 		m_schaser_effect_555_timer(*this, "schaser_sh_555"),
 		m_claybust_gun_on(*this, "claybust_gun"),
-		m_discrete(*this, "discrete")
+		m_discrete(*this, "discrete"),
+		m_speaker(*this, "speaker"),
+		m_eeprom(*this, "eeprom")
 	{ }
 
 	/* devices/memory pointers */
 	optional_device<timer_device> m_schaser_effect_555_timer;
 	optional_device<timer_device> m_claybust_gun_on;
 	optional_device<discrete_device> m_discrete;
-	device_t *m_speaker;
+	optional_device<speaker_sound_device> m_speaker;
+	optional_device<eeprom_device> m_eeprom;
 
 
 	/* misc game specific */
@@ -67,6 +71,9 @@ public:
 	DECLARE_WRITE8_MEMBER(ballbomb_sh_port_2_w);
 	DECLARE_WRITE8_MEMBER(indianbt_sh_port_1_w);
 	DECLARE_WRITE8_MEMBER(indianbt_sh_port_2_w);
+	DECLARE_WRITE8_MEMBER(indianbtbr_sh_port_1_w);
+	DECLARE_WRITE8_MEMBER(indianbtbr_sh_port_2_w);
+	DECLARE_READ8_MEMBER(indianbtbr_01_r);
 	DECLARE_WRITE8_MEMBER(schaser_sh_port_1_w);
 	DECLARE_WRITE8_MEMBER(schaser_sh_port_2_w);
 	DECLARE_WRITE8_MEMBER(rollingc_sh_port_w);
@@ -97,6 +104,7 @@ public:
 	DECLARE_DRIVER_INIT(invmulti);
 	DECLARE_DRIVER_INIT(spacecom);
 	DECLARE_DRIVER_INIT(vortex);
+	DECLARE_DRIVER_INIT(attackfc);
 
 	DECLARE_MACHINE_START(extra_8080bw);
 	DECLARE_MACHINE_START(schaser);
@@ -131,6 +139,14 @@ public:
 	DECLARE_WRITE8_MEMBER(polaris_sh_port_1_w);
 	DECLARE_WRITE8_MEMBER(polaris_sh_port_2_w);
 	DECLARE_WRITE8_MEMBER(polaris_sh_port_3_w);
+
+	void schaser_reinit_555_time_remain();
+	void invadpt2_get_pens( pen_t *pens );
+	void sflush_get_pens( pen_t *pens );
+	void cosmo_get_pens( pen_t *pens );
+	inline void set_pixel( bitmap_rgb32 &bitmap, UINT8 y, UINT8 x, pen_t *pens, UINT8 color );
+	inline void set_8_pixels( bitmap_rgb32 &bitmap, UINT8 y, UINT8 x, UINT8 data, pen_t *pens, UINT8 fore_color, UINT8 back_color );
+	void clear_extra_columns( bitmap_rgb32 &bitmap, pen_t *pens, UINT8 color );
 };
 
 

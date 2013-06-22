@@ -93,13 +93,12 @@ WRITE8_MEMBER(speedspn_state::speedspn_banked_rom_change)
 WRITE8_MEMBER(speedspn_state::speedspn_sound_w)
 {
 	soundlatch_byte_w(space, 1, data);
-	machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 WRITE8_MEMBER(speedspn_state::oki_banking_w)
 {
-	device_t *device = machine().device("oki");
-	downcast<okim6295_device *>(device)->set_bank_base(0x40000 * (data & 3));
+	m_oki->set_bank_base(0x40000 * (data & 3));
 }
 
 /*** MEMORY MAPS *************************************************************/

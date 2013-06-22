@@ -79,7 +79,7 @@ device_execute_interface::device_execute_interface(const machine_config &mconfig
 		m_timed_interrupt_period(attotime::zero),
 		m_is_octal(false),
 		m_nextexec(NULL),
-		m_driver_irq(0),
+		m_driver_irq_legacy(0),
 		m_timedint_timer(NULL),
 		m_profiler(PROFILER_IDLE),
 		m_icountptr(NULL),
@@ -263,7 +263,33 @@ void device_execute_interface::abort_timeslice()
 
 void device_execute_interface::set_irq_acknowledge_callback(device_irq_acknowledge_callback callback)
 {
+	m_driver_irq_legacy = callback;
+}
+
+
+//-------------------------------------------------
+//  set_irq_acknowledge_callback - install a driver-specific
+//  callback for IRQ acknowledge
+//-------------------------------------------------
+
+void device_execute_interface::set_irq_acknowledge_callback(device_irq_acknowledge_delegate callback)
+{
 	m_driver_irq = callback;
+	m_driver_irq_legacy = NULL;
+}
+
+
+//-------------------------------------------------
+//  suspend_resume_changed
+//-------------------------------------------------
+
+void device_execute_interface::suspend_resume_changed()
+{
+	// inform the scheduler
+	device().machine().scheduler().suspend_resume_changed();
+
+	// if we're active, synchronize
+	abort_timeslice();
 }
 
 
@@ -277,9 +303,7 @@ if (TEMPLOG) printf("suspend %s (%X)\n", device().tag(), reason);
 	// set the suspend reason and eat cycles flag
 	m_nextsuspend |= reason;
 	m_nexteatcycles = eatcycles;
-
-	// if we're active, synchronize
-	abort_timeslice();
+	suspend_resume_changed();
 }
 
 
@@ -293,9 +317,7 @@ void device_execute_interface::resume(UINT32 reason)
 if (TEMPLOG) printf("resume %s (%X)\n", device().tag(), reason);
 	// clear the suspend reason and eat cycles flag
 	m_nextsuspend &= ~reason;
-
-	// if we're active, synchronize
-	abort_timeslice();
+	suspend_resume_changed();
 }
 
 
@@ -512,7 +534,7 @@ void device_execute_interface::interface_pre_start()
 	// bind delegates
 	m_vblank_interrupt.bind_relative_to(device());
 	m_timed_interrupt.bind_relative_to(device());
-//  m_driver_irq.bind_relative_to(device());
+	m_driver_irq.bind_relative_to(device());
 
 	// fill in the initial states
 	execute_interface_iterator iter(device().machine().root_device());
@@ -653,8 +675,10 @@ int device_execute_interface::standard_irq_callback(int irqline)
 	LOG(("static_standard_irq_callback('%s', %d) $%04x\n", device().tag(), irqline, vector));
 
 	// if there's a driver callback, run it to get the vector
-	if (m_driver_irq != NULL)
-		vector = (*m_driver_irq)(&device(), irqline);
+	if (m_driver_irq_legacy != NULL)
+		vector = (*m_driver_irq_legacy)(&device(), irqline);
+	else if (!m_driver_irq.isnull())
+		vector = m_driver_irq(device(),irqline);
 
 	// notify the debugger
 	debugger_interrupt_hook(&device(), irqline);

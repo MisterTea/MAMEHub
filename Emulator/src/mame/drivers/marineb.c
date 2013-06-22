@@ -43,7 +43,6 @@ write
 
 void marineb_state::machine_reset()
 {
-
 	m_palette_bank = 0;
 	m_column_scroll = 0;
 	m_flipscreen_x = 0;
@@ -53,7 +52,6 @@ void marineb_state::machine_reset()
 
 MACHINE_RESET_MEMBER(marineb_state,springer)
 {
-
 	marineb_state::machine_reset();
 
 	m_marineb_active_low_flipscreen = 1;
@@ -61,16 +59,11 @@ MACHINE_RESET_MEMBER(marineb_state,springer)
 
 void marineb_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = NULL;
-
 	save_item(NAME(m_marineb_active_low_flipscreen));
 }
 
 WRITE8_MEMBER(marineb_state::irq_mask_w)
 {
-
 	m_irq_mask = data & 1;
 }
 
@@ -94,13 +87,13 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( marineb_io_map, AS_IO, 8, marineb_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x08, 0x09) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
+	AM_RANGE(0x08, 0x09) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( wanted_io_map, AS_IO, 8, marineb_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -525,14 +518,12 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(marineb_state::marineb_vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(marineb_state::wanted_vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }

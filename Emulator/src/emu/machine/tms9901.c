@@ -537,6 +537,8 @@ void tms9901_device::device_start(void)
 	}
 
 	m_interrupt.resolve(intf->interrupt_callback, *this);
+
+	m_clock_register = 0;
 }
 
 const device_type TMS9901 = &device_creator<tms9901_device>;

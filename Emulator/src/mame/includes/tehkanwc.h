@@ -1,12 +1,23 @@
+#include "sound/msm5205.h"
+
 class tehkanwc_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_RESET
+	};
+
 	tehkanwc_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_videoram2(*this, "videoram2"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_msm(*this, "msm") { }
 
 	int m_track0[2];
 	int m_track1[2];
@@ -47,5 +58,14 @@ public:
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_tehkanwc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(reset_callback);
+	void gridiron_draw_led(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 led,int player);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(tehkanwc_adpcm_int);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_subcpu;
+	required_device<msm5205_device> m_msm;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

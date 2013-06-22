@@ -96,7 +96,7 @@ public:
 	m_ppi(*this, PPI8255_TAG),
 	m_pic(*this, PIC8259_TAG),
 	m_fdc(*this, FDC_TAG),
-	m_speaker(*this, SPEAKER_TAG),
+	m_speaker(*this, "speaker"),
 	m_ram(*this, RAM_TAG)
 	{ }
 
@@ -158,6 +158,10 @@ public:
 	virtual void palette_init();
 	void screen_eof_mbc55x(screen_device &screen, bool state);
 	TIMER_CALLBACK_MEMBER(keyscan_callback);
+	IRQ_CALLBACK_MEMBER(mbc55x_irq_callback);
+	void keyboard_reset();
+	void scan_keyboard();
+	void set_ram_size();
 };
 
 /*----------- defined in drivers/mbc55x.c -----------*/
@@ -167,8 +171,7 @@ extern const unsigned char mbc55x_palette[SCREEN_NO_COLOURS][3];
 
 /*----------- defined in machine/mbc55x.c -----------*/
 
-extern const struct pit8253_config mbc55x_pit8253_config;
-extern const struct pic8259_interface mbc55x_pic8259_config;
+extern const struct pit8253_interface mbc55x_pit8253_config;
 extern const i8255_interface mbc55x_ppi8255_interface;
 extern const i8251_interface mbc55x_i8251a_interface;
 extern const i8251_interface mbc55x_i8251b_interface;

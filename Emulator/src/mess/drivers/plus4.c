@@ -4,7 +4,6 @@
 
     - cassette motor is turned on only for a moment while LOADing
     - c16 function ROM test fails
-    - clean up keyboard handling
     - clean up TED
     - dump PLA
     - T6721 speech chip
@@ -33,24 +32,11 @@
 #define BA4 BIT(offset, 4)
 
 
-enum
+
+QUICKLOAD_LOAD_MEMBER( plus4_state, cbm_c16 )
 {
-	CS0_BASIC = 0,
-	CS0_FUNCTION_LO,
-	CS0_C1_LOW,
-	CS0_C2_LOW
-};
-
-
-enum
-{
-	CS1_KERNAL = 0,
-	CS1_FUNCTION_HI,
-	CS1_C1_HIGH,
-	CS1_C2_HIGH
-};
-
-
+	return general_cbm_loadsnap(image, file_type, quickload_size, 0, cbm_quick_sethiaddress);
+}
 
 //**************************************************************************
 //  INTERRUPTS
@@ -71,7 +57,7 @@ void plus4_state::check_interrupts()
 //  MEMORY MANAGEMENT
 //**************************************************************************
 
-void plus4_state::bankswitch(offs_t offset, int phi0, int mux, int ras, int *scs, int *phi2, int *user, int *_6551, int *addr_clk, int *keyport, int *kernal, int *cs0, int *cs1)
+void plus4_state::bankswitch(offs_t offset, int phi0, int mux, int ras, int *scs, int *phi2, int *user, int *_6551, int *addr_clk, int *keyport, int *kernal)
 {
 	UINT16 i = ras << 15 | BA10 << 14 | BA11 << 13 | BA13 << 12 | BA9 << 11 | BA8 << 10 | BA14 << 9 | mux << 8 | BA12 << 7 | BA7 << 6 | BA6 << 5 | BA5 << 4 | BA4 << 3 | BA15 << 2 | phi0 << 1 | 1;
 /*  UINT8 data = m_pla->read(i);
@@ -137,9 +123,6 @@ void plus4_state::bankswitch(offs_t offset, int phi0, int mux, int ras, int *scs
 	*addr_clk = F4;
 	*keyport = F5;
 	*kernal = F6;
-
-	*cs0 = m_ted->cs0_r(offset);
-	*cs1 = m_ted->cs1_r(offset);
 }
 
 
@@ -147,16 +130,16 @@ void plus4_state::bankswitch(offs_t offset, int phi0, int mux, int ras, int *scs
 //  read_memory -
 //-------------------------------------------------
 
-UINT8 plus4_state::read_memory(address_space &space, offs_t offset, int ba, int scs, int phi2, int user, int _6551, int addr_clk, int keyport, int kernal, int cs0, int cs1)
+UINT8 plus4_state::read_memory(address_space &space, offs_t offset, int ba, int scs, int phi2, int user, int _6551, int addr_clk, int keyport, int kernal)
 {
-	UINT8 data = m_ted->bus_r();
-	int c1l = 1, c1h = 1, c2l = 1, c2h = 1;
+	int cs0 = 1, cs1 = 1, c1l = 1, c1h = 1, c2l = 1, c2h = 1;
+	UINT8 data = m_ted->read(space, offset, cs0, cs1);
 
 	//logerror("offset %04x user %u 6551 %u addr_clk %u keyport %u kernal %u cs0 %u cs1 %u\n", offset,user,_6551,addr_clk,keyport,kernal,cs0,cs1);
 
-	if (!scs && m_t6721)
+	if (!scs && m_vslsi)
 	{
-		data = t6721_speech_r(m_t6721, space, offset & 0x03);
+		data = m_vslsi->read(space, offset & 0x03);
 	}
 	else if (!user)
 	{
@@ -181,13 +164,13 @@ UINT8 plus4_state::read_memory(address_space &space, offs_t offset, int ba, int 
 		switch (m_addr & 0x03)
 		{
 		case CS0_BASIC:
-			data = m_kernal[offset & 0x7fff];
+			data = m_kernal->base()[offset & 0x7fff];
 			break;
 
 		case CS0_FUNCTION_LO:
 			if (m_function != NULL)
 			{
-				data = m_function[offset & 0x7fff];
+				data = m_function->base()[offset & 0x7fff];
 			}
 			break;
 
@@ -200,7 +183,7 @@ UINT8 plus4_state::read_memory(address_space &space, offs_t offset, int ba, int 
 
 			if (m_c2 != NULL)
 			{
-				data = m_c2[offset & 0x7fff];
+				data = m_c2->base()[offset & 0x7fff];
 			}
 			break;
 		}
@@ -209,20 +192,20 @@ UINT8 plus4_state::read_memory(address_space &space, offs_t offset, int ba, int 
 	{
 		if (kernal)
 		{
-			data = m_kernal[offset & 0x7fff];
+			data = m_kernal->base()[offset & 0x7fff];
 		}
 		else
 		{
 			switch ((m_addr >> 2) & 0x03)
 			{
 			case CS1_KERNAL:
-				data = m_kernal[offset & 0x7fff];
+				data = m_kernal->base()[offset & 0x7fff];
 				break;
 
 			case CS1_FUNCTION_HI:
 				if (m_function != NULL)
 				{
-					data = m_function[offset & 0x7fff];
+					data = m_function->base()[offset & 0x7fff];
 				}
 				break;
 
@@ -235,15 +218,11 @@ UINT8 plus4_state::read_memory(address_space &space, offs_t offset, int ba, int 
 
 				if (m_c2 != NULL)
 				{
-					data = m_c2[offset & 0x7fff];
+					data = m_c2->base()[offset & 0x7fff];
 				}
 				break;
 			}
 		}
-	}
-	else if (offset >= 0xff00 && offset < 0xff20)
-	{
-		data = m_ted->read(space, offset & 0x1f);
 	}
 	else if (offset < 0xfd00 || offset >= 0xff20)
 	{
@@ -261,11 +240,11 @@ UINT8 plus4_state::read_memory(address_space &space, offs_t offset, int ba, int 
 READ8_MEMBER( plus4_state::read )
 {
 	int phi0 = 1, mux = 0, ras = 0, ba = 1;
-	int scs, phi2, user, _6551, addr_clk, keyport, kernal, cs0, cs1;
+	int scs, phi2, user, _6551, addr_clk, keyport, kernal;
 
-	bankswitch(offset, phi0, mux, ras, &scs, &phi2, &user, &_6551, &addr_clk, &keyport, &kernal, &cs0, &cs1);
+	bankswitch(offset, phi0, mux, ras, &scs, &phi2, &user, &_6551, &addr_clk, &keyport, &kernal);
 
-	return read_memory(space, offset, ba, scs, phi2, user, _6551, addr_clk, keyport, kernal, cs0, cs1);
+	return read_memory(space, offset, ba, scs, phi2, user, _6551, addr_clk, keyport, kernal);
 }
 
 
@@ -275,17 +254,19 @@ READ8_MEMBER( plus4_state::read )
 
 WRITE8_MEMBER( plus4_state::write )
 {
-	int scs, phi2, user, _6551, addr_clk, keyport, kernal, cs0, cs1;
+	int scs, phi2, user, _6551, addr_clk, keyport, kernal;
 	int phi0 = 1, mux = 0, ras = 0, ba = 1;
-	int c1l = 1, c1h = 1, c2l = 1, c2h = 1;
+	int cs0 = 1, cs1 = 1, c1l = 1, c1h = 1, c2l = 1, c2h = 1;
 
-	bankswitch(offset, phi0, mux, ras, &scs, &phi2, &user, &_6551, &addr_clk, &keyport, &kernal, &cs0, &cs1);
+	bankswitch(offset, phi0, mux, ras, &scs, &phi2, &user, &_6551, &addr_clk, &keyport, &kernal);
+
+	m_ted->write(space, offset, data, cs0, cs1);
 
 	//logerror("write offset %04x data %02x user %u 6551 %u addr_clk %u keyport %u kernal %u cs0 %u cs1 %u\n", offset,data,user,_6551,addr_clk,keyport,kernal,cs0,cs1);
 
-	if (!scs && m_t6721)
+	if (!scs && m_vslsi)
 	{
-		t6721_speech_w(m_t6721, space, offset & 0x03, data);
+		m_vslsi->write(space, offset & 0x03, data);
 	}
 	else if (!user && m_spi_user)
 	{
@@ -303,18 +284,6 @@ WRITE8_MEMBER( plus4_state::write )
 	{
 		m_spi_kb->write(space, 0, data);
 	}
-	else if (offset >= 0xff00 && offset < 0xff20)
-	{
-		m_ted->write(space, offset & 0x1f, data);
-	}
-	else if (offset == 0xff3e)
-	{
-		m_ted->rom_switch_w(1);
-	}
-	else if (offset == 0xff3f)
-	{
-		m_ted->rom_switch_w(0);
-	}
 	else if (offset < 0xfd00 || offset >= 0xff20)
 	{
 		m_ram->pointer()[offset & m_ram->mask()] = data;
@@ -331,11 +300,11 @@ WRITE8_MEMBER( plus4_state::write )
 READ8_MEMBER( plus4_state::ted_videoram_r )
 {
 	int phi0 = 1, mux = 0, ras = 1, ba = 0;
-	int scs, phi2, user, _6551, addr_clk, keyport, kernal, cs0, cs1;
+	int scs, phi2, user, _6551, addr_clk, keyport, kernal;
 
-	bankswitch(offset, phi0, mux, ras, &scs, &phi2, &user, &_6551, &addr_clk, &keyport, &kernal, &cs0, &cs1);
+	bankswitch(offset, phi0, mux, ras, &scs, &phi2, &user, &_6551, &addr_clk, &keyport, &kernal);
 
-	return read_memory(space, offset, ba, scs, phi2, user, _6551, addr_clk, keyport, kernal, cs0, cs1);
+	return read_memory(space, offset, ba, scs, phi2, user, _6551, addr_clk, keyport, kernal);
 }
 
 
@@ -372,42 +341,89 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 static INPUT_PORTS_START( plus4 )
-	PORT_INCLUDE( common_cbm_keyboard )     /* ROW0 -> ROW7 */
+	PORT_START( "ROW0" )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("@") PORT_CODE(KEYCODE_OPENBRACE)              PORT_CHAR('@')
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F3)                                    PORT_CHAR(UCHAR_MAMEKEY(F3)) PORT_CHAR(UCHAR_MAMEKEY(F6))
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F2)                                    PORT_CHAR(UCHAR_MAMEKEY(F2)) PORT_CHAR(UCHAR_MAMEKEY(F5))
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F1)                                    PORT_CHAR(UCHAR_MAMEKEY(F1)) PORT_CHAR(UCHAR_MAMEKEY(F4))
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("HELP f7") PORT_CODE(KEYCODE_F4)               PORT_CHAR(UCHAR_MAMEKEY(F8)) PORT_CHAR(UCHAR_MAMEKEY(F7))
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_CLOSEBRACE)                            PORT_CHAR(0xA3)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Return") PORT_CODE(KEYCODE_ENTER)             PORT_CHAR(13)
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("INST DEL") PORT_CODE(KEYCODE_BACKSPACE)       PORT_CHAR(8) PORT_CHAR(UCHAR_MAMEKEY(INSERT))
 
-	PORT_MODIFY("ROW0")
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("@") PORT_CODE(KEYCODE_OPENBRACE)              PORT_CHAR('@')
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F3)                                    PORT_CHAR(UCHAR_MAMEKEY(F3)) PORT_CHAR(UCHAR_MAMEKEY(F6))
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F2)                                    PORT_CHAR(UCHAR_MAMEKEY(F2)) PORT_CHAR(UCHAR_MAMEKEY(F5))
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F1)                                    PORT_CHAR(UCHAR_MAMEKEY(F1)) PORT_CHAR(UCHAR_MAMEKEY(F4))
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("HELP f7") PORT_CODE(KEYCODE_F4)               PORT_CHAR(UCHAR_MAMEKEY(F8)) PORT_CHAR(UCHAR_MAMEKEY(F7))
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_CLOSEBRACE)                            PORT_CHAR(0xA3)
+	PORT_START( "ROW1" )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Shift (Left & Right)") PORT_CODE(KEYCODE_LSHIFT) PORT_CODE(KEYCODE_RSHIFT)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_E)         PORT_CHAR('E')
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_S)         PORT_CHAR('S')
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_Z)         PORT_CHAR('Z')
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_4)         PORT_CHAR('4') PORT_CHAR('$')
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_A)         PORT_CHAR('A')
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_W)         PORT_CHAR('W')
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_3)         PORT_CHAR('3') PORT_CHAR('#')
 
-	PORT_MODIFY("ROW1")
-	/* Both Shift keys were mapped to the same bit */
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Shift (Left & Right)") PORT_CODE(KEYCODE_LSHIFT) PORT_CODE(KEYCODE_RSHIFT)
+	PORT_START( "ROW2" )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_X)         PORT_CHAR('X')
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_T)         PORT_CHAR('T')
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F)         PORT_CHAR('F')
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_C)         PORT_CHAR('C')
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_6)         PORT_CHAR('6') PORT_CHAR('&')
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_D)         PORT_CHAR('D')
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_R)         PORT_CHAR('R')
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_5)         PORT_CHAR('5') PORT_CHAR('%')
 
-	PORT_MODIFY("ROW4")
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("0  \xE2\x86\x91") PORT_CODE(KEYCODE_0)        PORT_CHAR('0') PORT_CHAR(0x2191)
+	PORT_START( "ROW3" )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_V)         PORT_CHAR('V')
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_U)         PORT_CHAR('U')
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_H)         PORT_CHAR('H')
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_B)         PORT_CHAR('B')
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_8)         PORT_CHAR('8') PORT_CHAR('(')
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_G)         PORT_CHAR('G')
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_Y)         PORT_CHAR('Y')
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_7)         PORT_CHAR('7') PORT_CHAR('\'')
 
-	PORT_MODIFY("ROW5")
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_EQUALS)                                PORT_CHAR('-')
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_UP)                                    PORT_CHAR(UCHAR_MAMEKEY(UP))
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_DOWN)                                  PORT_CHAR(UCHAR_MAMEKEY(DOWN))
+	PORT_START( "ROW4" )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_N)         PORT_CHAR('N')
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_O)         PORT_CHAR('O')
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_K)         PORT_CHAR('K')
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_M)         PORT_CHAR('M')
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("0  \xE2\x86\x91") PORT_CODE(KEYCODE_0)        PORT_CHAR('0') PORT_CHAR(0x2191)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_J)         PORT_CHAR('J')
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_I)         PORT_CHAR('I')
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_9)         PORT_CHAR('9') PORT_CHAR(')')
 
-	PORT_MODIFY("ROW6")
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_MINUS)                                 PORT_CHAR('+')
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("=  Pi  \xE2\x86\x90") PORT_CODE(KEYCODE_BACKSLASH2)   PORT_CHAR('=') PORT_CHAR(0x03C0) PORT_CHAR(0x2190)
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_ESC)                                   PORT_CHAR(UCHAR_MAMEKEY(ESC))
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_RIGHT)                                 PORT_CHAR(UCHAR_MAMEKEY(RIGHT))
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_INSERT)                                PORT_CHAR('*')
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_LEFT)                                  PORT_CHAR(UCHAR_MAMEKEY(LEFT))
+	PORT_START( "ROW5" )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_COMMA)     PORT_CHAR(',') PORT_CHAR('<')
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_EQUALS)                                PORT_CHAR('-')
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_COLON)     PORT_CHAR(':') PORT_CHAR('[')
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_STOP)      PORT_CHAR('.') PORT_CHAR('>')
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_UP)                                    PORT_CHAR(UCHAR_MAMEKEY(UP))
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_L)         PORT_CHAR('L')
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_P)         PORT_CHAR('P')
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_DOWN)                                  PORT_CHAR(UCHAR_MAMEKEY(DOWN))
 
-	PORT_MODIFY("ROW7")
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Home Clear") PORT_CODE(KEYCODE_DEL)           PORT_CHAR(UCHAR_MAMEKEY(HOME))
+	PORT_START( "ROW6" )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_SLASH)                             PORT_CHAR('/') PORT_CHAR('?')
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_MINUS)                                 PORT_CHAR('+')
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("=  Pi  \xE2\x86\x90") PORT_CODE(KEYCODE_BACKSLASH2)   PORT_CHAR('=') PORT_CHAR(0x03C0) PORT_CHAR(0x2190)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_ESC)                                   PORT_CHAR(UCHAR_MAMEKEY(ESC))
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_RIGHT)                                 PORT_CHAR(UCHAR_MAMEKEY(RIGHT))
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_QUOTE)                             PORT_CHAR(';') PORT_CHAR(']')
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_INSERT)                                PORT_CHAR('*')
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_LEFT)                                  PORT_CHAR(UCHAR_MAMEKEY(LEFT))
 
-	PORT_INCLUDE( c16_special )             /* SPECIAL */
+	PORT_START( "ROW7" )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("RUN STOP") PORT_CODE(KEYCODE_HOME)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_Q)                                 PORT_CHAR('Q')
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("CBM") PORT_CODE(KEYCODE_LALT)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_SPACE)                             PORT_CHAR(' ')
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_2)                                 PORT_CHAR('2') PORT_CHAR('"')
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_TAB)                               PORT_CHAR(UCHAR_SHIFT_2)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Home Clear") PORT_CODE(KEYCODE_DEL)           PORT_CHAR(UCHAR_MAMEKEY(HOME))
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_1)                                 PORT_CHAR('1') PORT_CHAR('!')
 
-	PORT_INCLUDE( c16_controls )            /* CTRLSEL, JOY0, JOY1 */
+	PORT_START( "LOCK" )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("SHIFT LOCK") PORT_CODE(KEYCODE_CAPSLOCK) PORT_TOGGLE PORT_CHAR(UCHAR_MAMEKEY(CAPSLOCK))
+	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
 
 
@@ -419,19 +435,19 @@ static INPUT_PORTS_START( c16 )
 	PORT_INCLUDE( plus4 )
 
 	PORT_MODIFY( "ROW0" )
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_INSERT)                                PORT_CHAR(0xA3)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_INSERT)                                PORT_CHAR(0xA3)
 
 	PORT_MODIFY( "ROW5" )
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("-") PORT_CODE(KEYCODE_MINUS)                  PORT_CHAR('-')
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_BACKSLASH2)                            PORT_CHAR(UCHAR_MAMEKEY(UP))
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_PGUP)                                  PORT_CHAR(UCHAR_MAMEKEY(DOWN))
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("-") PORT_CODE(KEYCODE_MINUS)                  PORT_CHAR('-')
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_BACKSLASH2)                            PORT_CHAR(UCHAR_MAMEKEY(UP))
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_PGUP)                                  PORT_CHAR(UCHAR_MAMEKEY(DOWN))
 
 	PORT_MODIFY( "ROW6" )
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_CLOSEBRACE)                            PORT_CHAR('+')
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("=  Pi  \xE2\x86\x90") PORT_CODE(KEYCODE_PGDN) PORT_CHAR('=') PORT_CHAR(0x03C0) PORT_CHAR(0x2190)
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_EQUALS)                                PORT_CHAR(UCHAR_MAMEKEY(RIGHT))
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_BACKSLASH)                             PORT_CHAR('*')
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_CODE(KEYCODE_MINUS)                                 PORT_CHAR(UCHAR_MAMEKEY(LEFT))
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_CLOSEBRACE)                            PORT_CHAR('+')
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("=  Pi  \xE2\x86\x90") PORT_CODE(KEYCODE_PGDN) PORT_CHAR('=') PORT_CHAR(0x03C0) PORT_CHAR(0x2190)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_EQUALS)                                PORT_CHAR(UCHAR_MAMEKEY(RIGHT))
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_BACKSLASH)                             PORT_CHAR('*')
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_MINUS)                                 PORT_CHAR(UCHAR_MAMEKEY(LEFT))
 INPUT_PORTS_END
 
 
@@ -475,7 +491,7 @@ READ8_MEMBER( plus4_state::cpu_r )
 	return data;
 }
 
-READ8_MEMBER( plus4_state::c16_cpu_r )
+READ8_MEMBER( c16_state::cpu_r )
 {
 	/*
 
@@ -541,75 +557,10 @@ WRITE8_MEMBER( plus4_state::cpu_w )
 	m_cassette->write(!BIT(data, 1));
 }
 
+
 //-------------------------------------------------
 //  ted7360_interface ted_intf
 //-------------------------------------------------
-
-INTERRUPT_GEN_MEMBER(plus4_state::c16_raster_interrupt)
-{
-
-	m_ted->raster_interrupt_gen();
-}
-
-INTERRUPT_GEN_MEMBER(plus4_state::c16_frame_interrupt)
-{
-
-	int value, i;
-	static const char *const c16ports[] = { "ROW0", "ROW1", "ROW2", "ROW3", "ROW4", "ROW5", "ROW6", "ROW7" };
-
-	/* Lines 0-7 : common keyboard */
-	for (i = 0; i < 8; i++)
-	{
-		value = 0xff;
-		value &= ~machine().root_device().ioport(c16ports[i])->read();
-
-		/* Shift Lock is mapped on Left/Right Shift */
-		if ((i == 1) && (machine().root_device().ioport("SPECIAL")->read() & 0x80))
-			value &= ~0x80;
-
-		m_keyline[i] = value;
-	}
-
-	if (machine().root_device().ioport("CTRLSEL")->read() & 0x01)
-	{
-		value = 0xff;
-		if (machine().root_device().ioport("JOY0")->read() & 0x10)          /* Joypad1_Button */
-			{
-				if (machine().root_device().ioport("SPECIAL")->read() & 0x40)
-					value &= ~0x80;
-				else
-					value &= ~0x40;
-			}
-
-		value &= ~(machine().root_device().ioport("JOY0")->read() & 0x0f);  /* Other Inputs Joypad1 */
-
-		if (machine().root_device().ioport("SPECIAL")->read() & 0x40)
-			m_keyline[9] = value;
-		else
-			m_keyline[8] = value;
-	}
-
-	if (machine().root_device().ioport("CTRLSEL")->read() & 0x10)
-	{
-		value = 0xff;
-		if (machine().root_device().ioport("JOY1")->read() & 0x10)          /* Joypad2_Button */
-			{
-				if (machine().root_device().ioport("SPECIAL")->read() & 0x40)
-					value &= ~0x40;
-				else
-					value &= ~0x80;
-			}
-
-		value &= ~(machine().root_device().ioport("JOY1")->read() & 0x0f);  /* Other Inputs Joypad2 */
-
-		if (machine().root_device().ioport("SPECIAL")->read() & 0x40)
-			m_keyline[8] = value;
-		else
-			m_keyline[9] = value;
-	}
-
-	m_ted->frame_interrupt_gen();
-}
 
 WRITE_LINE_MEMBER( plus4_state::ted_irq_w )
 {
@@ -620,172 +571,80 @@ WRITE_LINE_MEMBER( plus4_state::ted_irq_w )
 
 READ8_MEMBER( plus4_state::ted_k_r )
 {
-	UINT8 value = 0xff;
-	int i;
+	/*
 
-	for (i = 0; i < 8; i++)
+	    bit     description
+
+	    0       JOY A0, JOY B0
+	    1       JOY A1, JOY B1
+	    2       JOY A2, JOY B2
+	    3       JOY A3, JOY B3
+	    4
+	    5
+	    6       BTN A
+	    7       BTN B
+
+	*/
+
+	UINT8 data = 0xff;
+
+	// joystick
+	if (!BIT(offset, 2))
 	{
-		if (!BIT(m_port6529, i))
-			value &= m_keyline[i];
+		UINT8 joy_a = m_joy1->joy_r();
+
+		data &= (0xf0 | (joy_a & 0x0f));
+		data &= ~(!BIT(joy_a, 5) << 6);
 	}
 
-	/* looks like joy 0 needs dataline2 low
-	 * and joy 1 needs dataline1 low
-	 * write to 0xff08 (value on databus) reloads latches */
-	if (!BIT(offset, 2))
-		value &= m_keyline[8];
-
 	if (!BIT(offset, 1))
-		value &= m_keyline[9];
+	{
+		UINT8 joy_b = m_joy2->joy_r();
 
-	return value;
+		data &= (0xf0 | (joy_b & 0x0f));
+		data &= ~(!BIT(joy_b, 5) << 7);
+	}
+
+	// keyboard
+	if (!BIT(m_kb, 7)) data &= m_row7->read();
+	if (!BIT(m_kb, 6)) data &= m_row6->read();
+	if (!BIT(m_kb, 5)) data &= m_row5->read();
+	if (!BIT(m_kb, 4)) data &= m_row4->read();
+	if (!BIT(m_kb, 3)) data &= m_row3->read();
+	if (!BIT(m_kb, 2)) data &= m_row2->read();
+	if (!BIT(m_kb, 1)) data &= m_row1->read() & m_lock->read();
+	if (!BIT(m_kb, 0)) data &= m_row0->read();
+
+	return data;
 }
 
-static MOS7360_INTERFACE( ted_intf )
-{
-	SCREEN_TAG,
-	MOS7501_TAG,
-	DEVCB_DRIVER_LINE_MEMBER(plus4_state, ted_irq_w),
-	DEVCB_DRIVER_MEMBER(plus4_state, ted_k_r)
-};
-
-
-//-------------------------------------------------
-//  MOS6529_INTERFACE( spi_user_intf )
-//-------------------------------------------------
-
-static MOS6529_INTERFACE( spi_user_intf )
-{
-	DEVCB_DEVICE_MEMBER(PLUS4_USER_PORT_TAG, plus4_user_port_device, p_r),
-	DEVCB_DEVICE_MEMBER(PLUS4_USER_PORT_TAG, plus4_user_port_device, p_w)
-};
 
 
 //-------------------------------------------------
 //  MOS6529_INTERFACE( spi_kb_intf )
 //-------------------------------------------------
 
-UINT8 plus4_state::read_keyboard(UINT8 databus)
-{
-	UINT8 value = 0xff;
-	int i;
-
-	for (i = 0; i < 8; i++)
-	{
-		if (!BIT(m_port6529, i))
-			value &= m_keyline[i];
-	}
-
-	/* looks like joy 0 needs dataline2 low
-	 * and joy 1 needs dataline1 low
-	 * write to 0xff08 (value on databus) reloads latches */
-	if (!BIT(databus, 2))
-		value &= m_keyline[8];
-
-	if (!BIT(databus, 1))
-		value &= m_keyline[9];
-
-	return value;
-}
-
-READ8_MEMBER( plus4_state::spi_kb_r )
-{
-	/*
-
-	    bit     description
-
-	    0
-	    1
-	    2
-	    3
-	    4
-	    5
-	    6
-	    7
-
-	*/
-
-	return m_port6529 & (read_keyboard (0xff /*databus */ ) | (m_port6529 ^ 0xff));
-}
-
 WRITE8_MEMBER( plus4_state::spi_kb_w )
 {
-	/*
-
-	    bit     description
-
-	    0
-	    1
-	    2
-	    3
-	    4
-	    5
-	    6
-	    7
-
-	*/
-
-	m_port6529 = data;
+	m_kb = data;
 }
 
-static MOS6529_INTERFACE( spi_kb_intf )
+
+//-------------------------------------------------
+//  MOS6551_INTERFACE( acia_intf )
+//-------------------------------------------------
+
+WRITE_LINE_MEMBER( plus4_state::acia_irq_w )
 {
-	DEVCB_DRIVER_MEMBER(plus4_state, spi_kb_r),
-	DEVCB_DRIVER_MEMBER(plus4_state, spi_kb_w)
-};
+	m_acia_irq = state;
 
-
-//-------------------------------------------------
-//  PET_DATASSETTE_PORT_INTERFACE( datassette_intf )
-//-------------------------------------------------
-
-static PET_DATASSETTE_PORT_INTERFACE( datassette_intf )
-{
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  CBM_IEC_INTERFACE( iec_intf )
-//-------------------------------------------------
-
-static CBM_IEC_INTERFACE( iec_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(PLUS4_USER_PORT_TAG, plus4_user_port_device, atn_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
-//  CBM_IEC_INTERFACE( c16_iec_intf )
-//-------------------------------------------------
-
-static CBM_IEC_INTERFACE( c16_iec_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
+	check_interrupts();
+}
 
 
 //-------------------------------------------------
 //  PLUS4_EXPANSION_INTERFACE( expansion_intf )
 //-------------------------------------------------
-
-READ8_MEMBER( plus4_state::exp_dma_r )
-{
-	return m_maincpu->space(AS_PROGRAM).read_byte(offset);
-}
-
-WRITE8_MEMBER( plus4_state::exp_dma_w )
-{
-	m_maincpu->space(AS_PROGRAM).write_byte(offset, data);
-}
 
 WRITE_LINE_MEMBER( plus4_state::exp_irq_w )
 {
@@ -793,14 +652,6 @@ WRITE_LINE_MEMBER( plus4_state::exp_irq_w )
 
 	check_interrupts();
 }
-
-static PLUS4_EXPANSION_INTERFACE( expansion_intf )
-{
-	DEVCB_DRIVER_MEMBER(plus4_state, exp_dma_r),
-	DEVCB_DRIVER_MEMBER(plus4_state, exp_dma_w),
-	DEVCB_DRIVER_LINE_MEMBER(plus4_state, exp_irq_w),
-	DEVCB_CPU_INPUT_LINE(MOS7501_TAG, INPUT_LINE_HALT)
-};
 
 
 
@@ -814,21 +665,6 @@ static PLUS4_EXPANSION_INTERFACE( expansion_intf )
 
 void plus4_state::machine_start()
 {
-	cbm_common_init();
-
-	// find memory regions
-	m_kernal = memregion("kernal")->base();
-
-	if (memregion("function") != NULL)
-	{
-		m_function = memregion("function")->base();
-	}
-
-	if (memregion("c2") != NULL)
-	{
-		m_c2 = memregion("c2")->base();
-	}
-
 	// initialize memory
 	UINT8 data = 0xff;
 
@@ -843,6 +679,7 @@ void plus4_state::machine_start()
 	save_item(NAME(m_ted_irq));
 	save_item(NAME(m_acia_irq));
 	save_item(NAME(m_exp_irq));
+	save_item(NAME(m_kb));
 }
 
 
@@ -869,11 +706,6 @@ void plus4_state::machine_reset()
 	}
 
 	m_addr = 0;
-
-	for (int i = 0; i < 10; i++)
-	{
-		m_keyline[i] = 0xff;
-	}
 }
 
 
@@ -892,25 +724,27 @@ static MACHINE_CONFIG_START( ntsc, plus4_state )
 	MCFG_CPU_PROGRAM_MAP(plus4_mem)
 	MCFG_M7501_PORT_CALLBACKS(READ8(plus4_state, cpu_r), WRITE8(plus4_state, cpu_w))
 	MCFG_M7501_PORT_PULLS(0x00, 0xc0)
-	MCFG_CPU_VBLANK_INT_DRIVER(SCREEN_TAG, plus4_state,  c16_frame_interrupt)
-	MCFG_CPU_PERIODIC_INT_DRIVER(plus4_state, c16_raster_interrupt,  TED7360_HRETRACERATE)
-	MCFG_QUANTUM_TIME(attotime::from_hz(60))
+	MCFG_QUANTUM_PERFECT_CPU(MOS7501_TAG)
 
 	// video and sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_MOS7360_ADD(MOS7360_TAG, SCREEN_TAG, XTAL_14_31818MHz/4, ted_intf, ted_videoram_map)
+	MCFG_MOS7360_ADD(MOS7360_TAG, SCREEN_TAG, MOS7501_TAG, XTAL_14_31818MHz/4, ted_videoram_map, WRITELINE(plus4_state, ted_irq_w), READ8(plus4_state, ted_k_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
 	MCFG_PLS100_ADD(PLA_TAG)
-	MCFG_ACIA6551_ADD(MOS6551_TAG)
-	MCFG_MOS6529_ADD(MOS6529_USER_TAG, spi_user_intf)
-	MCFG_MOS6529_ADD(MOS6529_KB_TAG, spi_kb_intf)
-	MCFG_QUICKLOAD_ADD("quickload", cbm_c16, "p00,prg", CBM_QUICKLOAD_DELAY_SECONDS)
-	MCFG_PET_DATASSETTE_PORT_ADD(PET_DATASSETTE_PORT_TAG, datassette_intf, plus4_datassette_devices, "c1531", NULL)
-	MCFG_CBM_IEC_ADD(iec_intf, NULL)
-	MCFG_PLUS4_EXPANSION_SLOT_ADD(PLUS4_EXPANSION_SLOT_TAG, XTAL_14_31818MHz/16, expansion_intf, plus4_expansion_cards, "c1551", NULL)
-	MCFG_PLUS4_USER_PORT_ADD(PLUS4_USER_PORT_TAG, plus4_user_port_cards, NULL, NULL)
+	MCFG_MOS6551_ADD(MOS6551_TAG, XTAL_1_8432MHz, WRITELINE(plus4_state, acia_irq_w))
+	MCFG_MOS6529_ADD(MOS6529_USER_TAG, DEVREAD8(PLUS4_USER_PORT_TAG, plus4_user_port_device, p_r), DEVWRITE8(PLUS4_USER_PORT_TAG, plus4_user_port_device, p_w))
+	MCFG_MOS6529_ADD(MOS6529_KB_TAG, CONSTANT(0xff), WRITE8(plus4_state, spi_kb_w))
+	MCFG_PET_DATASSETTE_PORT_ADD(PET_DATASSETTE_PORT_TAG, plus4_datassette_devices, "c1531", NULL)
+	MCFG_CBM_IEC_ADD(NULL)
+	MCFG_CBM_IEC_BUS_ATN_CALLBACK(DEVWRITELINE(PLUS4_USER_PORT_TAG, plus4_user_port_device, atn_w))
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, NULL)
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, "joy")
+	MCFG_PLUS4_EXPANSION_SLOT_ADD(PLUS4_EXPANSION_SLOT_TAG, XTAL_14_31818MHz/16, plus4_expansion_cards, "c1551", WRITELINE(plus4_state, exp_irq_w))
+	MCFG_PLUS4_EXPANSION_SLOT_DMA_CALLBACKS(READ8(plus4_state, read), WRITE8(plus4_state, write), INPUTLINE(MOS7501_TAG, INPUT_LINE_HALT))
+	MCFG_PLUS4_USER_PORT_ADD(PLUS4_USER_PORT_TAG, plus4_user_port_cards, NULL)
+	MCFG_QUICKLOAD_ADD("quickload", plus4_state, cbm_c16, "p00,prg", CBM_QUICKLOAD_DELAY_SECONDS)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -918,7 +752,11 @@ static MACHINE_CONFIG_START( ntsc, plus4_state )
 
 	// software list
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "plus4_cart")
-	MCFG_SOFTWARE_LIST_ADD("disk_list", "plus4_flop")
+	MCFG_SOFTWARE_LIST_ADD("cass_list", "plus4_cass")
+	MCFG_SOFTWARE_LIST_ADD("flop_list", "plus4_flop")
+	MCFG_SOFTWARE_LIST_FILTER("cart_list", "NTSC")
+	MCFG_SOFTWARE_LIST_FILTER("cass_list", "NTSC")
+	MCFG_SOFTWARE_LIST_FILTER("flop_list", "NTSC")
 MACHINE_CONFIG_END
 
 
@@ -932,25 +770,27 @@ static MACHINE_CONFIG_START( pal, plus4_state )
 	MCFG_CPU_PROGRAM_MAP(plus4_mem)
 	MCFG_M7501_PORT_CALLBACKS(READ8(plus4_state, cpu_r), WRITE8(plus4_state, cpu_w))
 	MCFG_M7501_PORT_PULLS(0x00, 0xc0)
-	MCFG_CPU_VBLANK_INT_DRIVER(SCREEN_TAG, plus4_state,  c16_frame_interrupt)
-	MCFG_CPU_PERIODIC_INT_DRIVER(plus4_state, c16_raster_interrupt,  TED7360_HRETRACERATE)
-	MCFG_QUANTUM_TIME(attotime::from_hz(60))
+	MCFG_QUANTUM_PERFECT_CPU(MOS7501_TAG)
 
 	// video and sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_MOS7360_ADD(MOS7360_TAG, SCREEN_TAG, XTAL_17_73447MHz/5, ted_intf, ted_videoram_map)
+	MCFG_MOS7360_ADD(MOS7360_TAG, SCREEN_TAG, MOS7501_TAG, XTAL_17_73447MHz/5, ted_videoram_map, WRITELINE(plus4_state, ted_irq_w), READ8(plus4_state, ted_k_r))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
 	MCFG_PLS100_ADD(PLA_TAG)
-	MCFG_ACIA6551_ADD(MOS6551_TAG)
-	MCFG_MOS6529_ADD(MOS6529_USER_TAG, spi_user_intf)
-	MCFG_MOS6529_ADD(MOS6529_KB_TAG, spi_kb_intf)
-	MCFG_QUICKLOAD_ADD("quickload", cbm_c16, "p00,prg", CBM_QUICKLOAD_DELAY_SECONDS)
-	MCFG_PET_DATASSETTE_PORT_ADD(PET_DATASSETTE_PORT_TAG, datassette_intf, plus4_datassette_devices, "c1531", NULL)
-	MCFG_CBM_IEC_ADD(iec_intf, NULL)
-	MCFG_PLUS4_EXPANSION_SLOT_ADD(PLUS4_EXPANSION_SLOT_TAG, XTAL_17_73447MHz/20, expansion_intf, plus4_expansion_cards, "c1551", NULL)
-	MCFG_PLUS4_USER_PORT_ADD(PLUS4_USER_PORT_TAG, plus4_user_port_cards, NULL, NULL)
+	MCFG_MOS6551_ADD(MOS6551_TAG, XTAL_1_8432MHz, WRITELINE(plus4_state, acia_irq_w))
+	MCFG_MOS6529_ADD(MOS6529_USER_TAG, DEVREAD8(PLUS4_USER_PORT_TAG, plus4_user_port_device, p_r), DEVWRITE8(PLUS4_USER_PORT_TAG, plus4_user_port_device, p_w))
+	MCFG_MOS6529_ADD(MOS6529_KB_TAG, CONSTANT(0xff), WRITE8(plus4_state, spi_kb_w))
+	MCFG_PET_DATASSETTE_PORT_ADD(PET_DATASSETTE_PORT_TAG, plus4_datassette_devices, "c1531", NULL)
+	MCFG_CBM_IEC_ADD(NULL)
+	MCFG_CBM_IEC_BUS_ATN_CALLBACK(DEVWRITELINE(PLUS4_USER_PORT_TAG, plus4_user_port_device, atn_w))
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, NULL)
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL2_TAG, vcs_control_port_devices, "joy")
+	MCFG_PLUS4_EXPANSION_SLOT_ADD(PLUS4_EXPANSION_SLOT_TAG, XTAL_17_73447MHz/20, plus4_expansion_cards, "c1551", WRITELINE(plus4_state, exp_irq_w))
+	MCFG_PLUS4_EXPANSION_SLOT_DMA_CALLBACKS(READ8(plus4_state, read), WRITE8(plus4_state, write), INPUTLINE(MOS7501_TAG, INPUT_LINE_HALT))
+	MCFG_PLUS4_USER_PORT_ADD(PLUS4_USER_PORT_TAG, plus4_user_port_cards, NULL)
+	MCFG_QUICKLOAD_ADD("quickload", plus4_state, cbm_c16, "p00,prg", CBM_QUICKLOAD_DELAY_SECONDS)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -958,7 +798,11 @@ static MACHINE_CONFIG_START( pal, plus4_state )
 
 	// software list
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "plus4_cart")
-	MCFG_SOFTWARE_LIST_ADD("disk_list", "plus4_flop")
+	MCFG_SOFTWARE_LIST_ADD("cass_list", "plus4_cass")
+	MCFG_SOFTWARE_LIST_ADD("flop_list", "plus4_flop")
+	MCFG_SOFTWARE_LIST_FILTER("cart_list", "PAL")
+	MCFG_SOFTWARE_LIST_FILTER("cass_list", "PAL")
+	MCFG_SOFTWARE_LIST_FILTER("flop_list", "PAL")
 MACHINE_CONFIG_END
 
 
@@ -966,9 +810,9 @@ MACHINE_CONFIG_END
 //  MACHINE_CONFIG( c16n )
 //-------------------------------------------------
 
-static MACHINE_CONFIG_DERIVED( c16n, ntsc )
+static MACHINE_CONFIG_DERIVED_CLASS( c16n, ntsc, c16_state )
 	MCFG_CPU_MODIFY(MOS7501_TAG)
-	MCFG_M7501_PORT_CALLBACKS(READ8(plus4_state, c16_cpu_r), WRITE8(plus4_state, cpu_w))
+	MCFG_M7501_PORT_CALLBACKS(READ8(c16_state, cpu_r), WRITE8(plus4_state, cpu_w))
 	MCFG_M7501_PORT_PULLS(0x00, 0xc0)
 
 	MCFG_DEVICE_REMOVE(MOS6551_TAG)
@@ -976,7 +820,7 @@ static MACHINE_CONFIG_DERIVED( c16n, ntsc )
 	MCFG_DEVICE_REMOVE(PLUS4_USER_PORT_TAG)
 
 	MCFG_DEVICE_MODIFY(CBM_IEC_TAG)
-	MCFG_DEVICE_CONFIG(c16_iec_intf)
+	MCFG_CBM_IEC_BUS_ATN_CALLBACK(NULL)
 
 	MCFG_DEVICE_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("16K")
@@ -988,9 +832,9 @@ MACHINE_CONFIG_END
 //  MACHINE_CONFIG( c16p )
 //-------------------------------------------------
 
-static MACHINE_CONFIG_DERIVED( c16p, pal )
+static MACHINE_CONFIG_DERIVED_CLASS( c16p, pal, c16_state )
 	MCFG_CPU_MODIFY(MOS7501_TAG)
-	MCFG_M7501_PORT_CALLBACKS(READ8(plus4_state, c16_cpu_r), WRITE8(plus4_state, cpu_w))
+	MCFG_M7501_PORT_CALLBACKS(READ8(c16_state, cpu_r), WRITE8(plus4_state, cpu_w))
 	MCFG_M7501_PORT_PULLS(0x00, 0xc0)
 
 	MCFG_DEVICE_REMOVE(MOS6551_TAG)
@@ -998,7 +842,7 @@ static MACHINE_CONFIG_DERIVED( c16p, pal )
 	MCFG_DEVICE_REMOVE(PLUS4_USER_PORT_TAG)
 
 	MCFG_DEVICE_MODIFY(CBM_IEC_TAG)
-	MCFG_DEVICE_CONFIG(c16_iec_intf)
+	MCFG_CBM_IEC_BUS_ATN_CALLBACK(NULL)
 
 	MCFG_DEVICE_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("16K")
@@ -1021,8 +865,10 @@ MACHINE_CONFIG_END
 //-------------------------------------------------
 
 static MACHINE_CONFIG_DERIVED( v364, ntsc )
-	MCFG_T6721_ADD(T6721_TAG)
-	//MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+	MCFG_SOUND_ADD(T6721A_TAG, T6721A, XTAL_640kHz)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+
+	MCFG_MOS8706_ADD(MOS8706_TAG, XTAL_14_31818MHz/16)
 MACHINE_CONFIG_END
 
 

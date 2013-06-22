@@ -24,7 +24,8 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_via(*this, "via"),
 			m_videoram(*this, "videoram")
-	{ }
+	,
+		m_maincpu(*this, "maincpu") { }
 
 	required_device<via6522_device> m_via;
 	required_shared_ptr<UINT8> m_videoram;
@@ -35,6 +36,7 @@ public:
 
 	UINT8 m_keydata;
 	virtual void machine_reset();
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -66,9 +68,11 @@ static MC6845_UPDATE_ROW( a6809_update_row )
 {
 }
 
-static const mc6845_interface a6809_crtc6845_interface =
+
+static MC6845_INTERFACE( a6809_crtc6845_interface )
 {
 	"screen",
+	false,
 	12 /*?*/,
 	NULL,
 	a6809_update_row,
@@ -88,7 +92,7 @@ READ8_MEMBER( a6809_state::videoram_r )
 static SAA5050_INTERFACE( a6809_saa5050_intf )
 {
 	DEVCB_DRIVER_MEMBER(a6809_state, videoram_r),
-	40, 25, 40  /* x, y, size */
+	40, 24, 40  /* x, y, size */
 };
 
 READ8_MEMBER( a6809_state::via_pb_r )

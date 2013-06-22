@@ -56,12 +56,19 @@ Usage of terminal:
 class okean240_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_OKEAN_BOOT
+	};
+
 	okean240_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_term_data(0),
 	m_j(0),
 	m_scroll(0),
-	m_p_videoram(*this, "p_videoram"){ }
+	m_p_videoram(*this, "p_videoram"),
+	m_io_modifiers(*this, "MODIFIERS"),
+	m_maincpu(*this, "maincpu") { }
 
 	DECLARE_READ8_MEMBER(okean240_kbd_status_r);
 	DECLARE_READ8_MEMBER(okean240a_kbd_status_r);
@@ -76,11 +83,18 @@ public:
 	UINT8 m_j;
 	UINT8 m_scroll;
 	required_shared_ptr<UINT8> m_p_videoram;
+	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
 	DECLARE_DRIVER_INIT(okean240);
 	UINT32 screen_update_okean240(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(okean240_boot);
+
+protected:
+	optional_ioport m_io_modifiers;
+	ioport_port *m_io_port[11];
+	required_device<cpu_device> m_maincpu;
+
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 // okean240 requires bit 4 to change
@@ -95,13 +109,11 @@ READ8_MEMBER( okean240_state::okean240_kbd_status_r )
 // see if a key is pressed and indicate status
 READ8_MEMBER( okean240_state::okean240a_kbd_status_r )
 {
-	char kbdrow[6];
 	UINT8 i,j;
 
 	for (i = 0; i < 11; i++)
 	{
-		sprintf(kbdrow,"X%X",i);
-		j = ioport(kbdrow)->read();
+		j = m_io_port[i]->read();
 		if (j)
 			return (machine().rand() & 0x10) | 2;
 	}
@@ -130,15 +142,13 @@ READ8_MEMBER( okean240_state::okean240_keyboard_r )
 
 READ8_MEMBER( okean240_state::okean240a_keyboard_r )
 {
-	char kbdrow[6];
 	UINT8 i,j;
 
 	if (offset == 0) // port 40 (get a column)
 	{
 		for (i = 0; i < 11; i++)
 		{
-			sprintf(kbdrow,"X%X",i);
-			j = ioport(kbdrow)->read();
+			j = m_io_port[i]->read();
 			if (j)
 			{
 				if (j==m_j) return 0;
@@ -152,14 +162,13 @@ READ8_MEMBER( okean240_state::okean240a_keyboard_r )
 	else
 	if (offset == 1) // port 41 bits 6&7 (modifier keys), and bit 1 (test rom status bit)
 	{
-		return (machine().rand() & 2) | ioport("MODIFIERS")->read();
+		return (machine().rand() & 2) | m_io_modifiers->read();
 	}
 	else // port 42 (get a row)
 	{
 		for (i = 0; i < 11; i++)
 		{
-			sprintf(kbdrow,"X%X",i);
-			if (ioport(kbdrow)->read() )
+			if (m_io_port[i]->read() )
 				return i;
 		}
 	}
@@ -356,15 +365,35 @@ static INPUT_PORTS_START( okean240a )
 INPUT_PORTS_END
 
 
-/* after the first 6 bytes have been read from ROM, switch the ram back in */
-TIMER_CALLBACK_MEMBER(okean240_state::okean240_boot)
+void okean240_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	membank("boot")->set_entry(0);
+	switch (id)
+	{
+	case TIMER_OKEAN_BOOT:
+		/* after the first 6 bytes have been read from ROM, switch the ram back in */
+		membank("boot")->set_entry(0);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in okean240_state::device_timer");
+	}
 }
+
+
+void okean240_state::machine_start()
+{
+	char kbdrow[6];
+
+	for (int i = 0; i < 11; i++)
+	{
+		sprintf(kbdrow,"X%X",i);
+		m_io_port[i] = ioport(kbdrow);
+	}
+}
+
 
 void okean240_state::machine_reset()
 {
-	machine().scheduler().timer_set(attotime::from_usec(10), timer_expired_delegate(FUNC(okean240_state::okean240_boot),this));
+	timer_set(attotime::from_usec(10), TIMER_OKEAN_BOOT);
 	membank("boot")->set_entry(1);
 	m_term_data = 0;
 	m_j = 0;

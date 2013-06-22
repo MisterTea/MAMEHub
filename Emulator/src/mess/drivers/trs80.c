@@ -554,7 +554,6 @@ static const cassette_interface trs80l2_cassette_interface =
 
 static const ay31015_config trs80_ay31015_config =
 {
-	AY_3_1015,
 	0.0,
 	0.0,
 	DEVCB_NULL,
@@ -597,13 +596,13 @@ static MACHINE_CONFIG_START( trs80, trs80_state )       // the original model I,
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( model1, trs80 )      // model I, level II
@@ -613,8 +612,8 @@ static MACHINE_CONFIG_DERIVED( model1, trs80 )      // model I, level II
 	MCFG_CPU_PERIODIC_INT_DRIVER(trs80_state, trs80_rtc_interrupt,  40)
 
 	/* devices */
-	MCFG_CASSETTE_MODIFY( CASSETTE_TAG, trs80l2_cassette_interface )
-	MCFG_QUICKLOAD_ADD("quickload", trs80_cmd, "cmd", 0.5)
+	MCFG_CASSETTE_MODIFY( "cassette", trs80l2_cassette_interface )
+	MCFG_QUICKLOAD_ADD("quickload", trs80_state, trs80_cmd, "cmd", 0.5)
 	MCFG_FD1793_ADD("wd179x", trs80_wd17xx_interface ) // should be FD1771 or FD1791 but inverted data lines are too tricky to fix now
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(trs80_floppy_interface)
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
@@ -900,7 +899,7 @@ DRIVER_INIT_MEMBER(trs80_state,lnw80)
 {
 	m_mode = 0;
 	m_model4 = 0;
-	m_p_gfxram = machine().root_device().memregion("gfx2")->base();
+	m_p_gfxram = memregion("gfx2")->base();
 	m_p_videoram.set_target(memregion("maincpu")->base()+0x4000,m_p_videoram.bytes());
 }
 

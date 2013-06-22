@@ -208,7 +208,7 @@ WRITE16_MEMBER(tecmosys_state::sound_w)
 	{
 		machine().scheduler().synchronize();
 		soundlatch_byte_w(space, 0x00, data & 0xff);
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 }
 
@@ -269,20 +269,16 @@ READ16_MEMBER(tecmosys_state::unk880000_r)
 
 READ16_MEMBER(tecmosys_state::eeprom_r)
 {
-	device_t *device = machine().device("eeprom");
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		return ((eeprom->read_bit() & 0x01) << 11);
+	return ((m_eeprom->read_bit() & 0x01) << 11);
 }
 
 WRITE16_MEMBER(tecmosys_state::eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	if ( ACCESSING_BITS_8_15 )
 	{
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x0800);
-		eeprom->set_cs_line((data & 0x0200) ? CLEAR_LINE : ASSERT_LINE );
-		eeprom->set_clock_line((data & 0x0400) ? CLEAR_LINE: ASSERT_LINE );
+		m_eeprom->write_bit(data & 0x0800);
+		m_eeprom->set_cs_line((data & 0x0200) ? CLEAR_LINE : ASSERT_LINE );
+		m_eeprom->set_clock_line((data & 0x0400) ? CLEAR_LINE: ASSERT_LINE );
 	}
 }
 
@@ -349,13 +345,13 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( io_map, AS_IO, 8, tecmosys_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY("ymf", ymf262_r, ymf262_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ymf", ymf262_device, read, write)
 	AM_RANGE(0x10, 0x10) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x20, 0x20) AM_WRITE(tecmosys_oki_bank_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(tecmosys_z80_bank_w)
 	AM_RANGE(0x40, 0x40) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x50, 0x50) AM_WRITE(soundlatch2_byte_w)
-	AM_RANGE(0x60, 0x61) AM_DEVREADWRITE_LEGACY("ymz", ymz280b_r, ymz280b_w)
+	AM_RANGE(0x60, 0x61) AM_DEVREADWRITE("ymz", ymz280b_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -436,16 +432,11 @@ GFXDECODE_END
 
 
 
-static void sound_irq(device_t *device, int irq)
+WRITE_LINE_MEMBER(tecmosys_state::sound_irq)
 {
 	/* IRQ */
-	device->machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ymf262_interface tecmosys_ymf262_interface =
-{
-	sound_irq       /* irq */
-};
 
 void tecmosys_state::machine_start()
 {
@@ -483,7 +474,7 @@ static MACHINE_CONFIG_START( deroon, tecmosys_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymf", YMF262, XTAL_14_31818MHz)
-	MCFG_SOUND_CONFIG(tecmosys_ymf262_interface)
+	MCFG_YMF262_IRQ_HANDLER(WRITELINE(tecmosys_state, sound_irq))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.00)
 	MCFG_SOUND_ROUTE(2, "lspeaker", 1.00)
@@ -628,10 +619,10 @@ ROM_START( tkdenshoa )
 	ROM_LOAD( "ae500w07.ad1", 0x080000, 0x080000, CRC(3734f92c) SHA1(048555b5aa89eaf983305c439ba08d32b4a1bb80) )
 ROM_END
 
-static void tecmosys_descramble(running_machine &machine)
+void tecmosys_state::tecmosys_descramble()
 {
-	UINT8 *gfxsrc  = machine.root_device().memregion( "gfx1" )->base();
-	size_t srcsize = machine.root_device().memregion( "gfx1" )->bytes();
+	UINT8 *gfxsrc  = memregion( "gfx1" )->base();
+	size_t srcsize = memregion( "gfx1" )->bytes();
 	int i;
 
 	for (i=0; i < srcsize; i+=4)
@@ -652,20 +643,20 @@ static void tecmosys_descramble(running_machine &machine)
 
 DRIVER_INIT_MEMBER(tecmosys_state,deroon)
 {
-	tecmosys_descramble(machine());
-	tecmosys_prot_init(machine(), 0); // machine/tecmosys.c
+	tecmosys_descramble();
+	tecmosys_prot_init(0); // machine/tecmosys.c
 }
 
 DRIVER_INIT_MEMBER(tecmosys_state,tkdensho)
 {
-	tecmosys_descramble(machine());
-	tecmosys_prot_init(machine(), 1);
+	tecmosys_descramble();
+	tecmosys_prot_init(1);
 }
 
 DRIVER_INIT_MEMBER(tecmosys_state,tkdensha)
 {
-	tecmosys_descramble(machine());
-	tecmosys_prot_init(machine(), 2);
+	tecmosys_descramble();
+	tecmosys_prot_init(2);
 }
 
 GAME( 1995, deroon,           0, deroon, deroon, tecmosys_state, deroon,     ROT0, "Tecmo", "Deroon DeroDero", 0 )

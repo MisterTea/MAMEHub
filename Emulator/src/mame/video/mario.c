@@ -64,7 +64,7 @@ static const res_net_info mario_net_info_std =
 ***************************************************************************/
 void mario_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	rgb_t   *rgb;
 
 	rgb = compute_res_net_all(machine(), color_prom, &mario_decode_info, &mario_net_info);
@@ -80,14 +80,12 @@ void mario_state::palette_init()
 
 WRITE8_MEMBER(mario_state::mario_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(mario_state::mario_gfxbank_w)
 {
-
 	if (m_gfx_bank != (data & 0x01))
 	{
 		m_gfx_bank = data & 0x01;
@@ -97,7 +95,6 @@ WRITE8_MEMBER(mario_state::mario_gfxbank_w)
 
 WRITE8_MEMBER(mario_state::mario_palettebank_w)
 {
-
 	if (m_palette_bank != (data & 0x01))
 	{
 		m_palette_bank = data & 0x01;
@@ -107,13 +104,11 @@ WRITE8_MEMBER(mario_state::mario_palettebank_w)
 
 WRITE8_MEMBER(mario_state::mario_scroll_w)
 {
-
 	m_gfx_scroll = data + 17;
 }
 
 WRITE8_MEMBER(mario_state::mario_flip_w)
 {
-
 	if (m_flip != (data & 0x01))
 	{
 		m_flip = data & 0x01;
@@ -137,7 +132,6 @@ TILE_GET_INFO_MEMBER(mario_state::get_bg_tile_info)
 
 void mario_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mario_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
 			8, 8, 32, 32);
 
@@ -155,47 +149,46 @@ void mario_state::video_start()
  * confirmed on mametests.org as being present on real PCB as well.
  */
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void mario_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	/* TODO: draw_sprites should adopt the scanline logic from dkong.c
 	 * The schematics have the same logic for sprite buffering.
 	 */
-	mario_state *state = machine.driver_data<mario_state>();
 	int offs;
 
-	for (offs = 0; offs < state->m_spriteram.bytes(); offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes(); offs += 4)
 	{
-		if (state->m_spriteram[offs])
+		if (m_spriteram[offs])
 		{
 			int x, y;
 
 			// from schematics ....
-			y = (state->m_spriteram[offs] + (state->m_flip ? 0xF7 : 0xF9) + 1) & 0xFF;
-			x = state->m_spriteram[offs+3];
+			y = (m_spriteram[offs] + (m_flip ? 0xF7 : 0xF9) + 1) & 0xFF;
+			x = m_spriteram[offs+3];
 			// sprite will be drawn if (y + scanline) & 0xF0 = 0xF0
 			y = 240 - y; /* logical screen position */
 
-			y = y ^ (state->m_flip ? 0xFF : 0x00); /* physical screen location */
-			x = x ^ (state->m_flip ? 0xFF : 0x00); /* physical screen location */
+			y = y ^ (m_flip ? 0xFF : 0x00); /* physical screen location */
+			x = x ^ (m_flip ? 0xFF : 0x00); /* physical screen location */
 
-			if (state->m_flip)
+			if (m_flip)
 			{
 				y -= 14;
 				x -= 7;
-				drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
-						state->m_spriteram[offs + 2],
-						(state->m_spriteram[offs + 1] & 0x0f) + 16 * state->m_palette_bank + 32 * state->m_monitor,
-						!(state->m_spriteram[offs + 1] & 0x80),!(state->m_spriteram[offs + 1] & 0x40),
+				drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_spriteram[offs + 2],
+						(m_spriteram[offs + 1] & 0x0f) + 16 * m_palette_bank + 32 * m_monitor,
+						!(m_spriteram[offs + 1] & 0x80),!(m_spriteram[offs + 1] & 0x40),
 						x, y,0);
 			}
 			else
 			{
 				y += 1;
 				x -= 8;
-				drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
-						state->m_spriteram[offs + 2],
-						(state->m_spriteram[offs + 1] & 0x0f) + 16 * state->m_palette_bank + 32 * state->m_monitor,
-						(state->m_spriteram[offs + 1] & 0x80),(state->m_spriteram[offs + 1] & 0x40),
+				drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
+						m_spriteram[offs + 2],
+						(m_spriteram[offs + 1] & 0x0f) + 16 * m_palette_bank + 32 * m_monitor,
+						(m_spriteram[offs + 1] & 0x80),(m_spriteram[offs + 1] & 0x40),
 						x, y,0);
 			}
 		}
@@ -206,7 +199,7 @@ UINT32 mario_state::screen_update_mario(screen_device &screen, bitmap_ind16 &bit
 {
 	int t;
 
-	t = machine().root_device().ioport("MONITOR")->read();
+	t = ioport("MONITOR")->read();
 	if (t != m_monitor)
 	{
 		m_monitor = t;
@@ -217,7 +210,7 @@ UINT32 mario_state::screen_update_mario(screen_device &screen, bitmap_ind16 &bit
 	m_bg_tilemap->set_scrolly(0, m_gfx_scroll - (m_flip ? 8 : 0));
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 
 	return 0;
 }

@@ -2,12 +2,13 @@ class popeye_state : public driver_device
 {
 public:
 	popeye_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_background_pos(*this, "background_pos"),
 		m_palettebank(*this, "palettebank"),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_prot0;
 	UINT8 m_prot1;
@@ -42,4 +43,9 @@ public:
 	DECLARE_PALETTE_INIT(popeyebl);
 	UINT32 screen_update_popeye(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(popeye_interrupt);
+	void convert_color_prom(const UINT8 *color_prom);
+	void set_background_palette(int bank);
+	void draw_background(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };

@@ -42,8 +42,9 @@ class dynadice_state : public driver_device
 {
 public:
 	dynadice_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -66,6 +67,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_dynadice(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -83,7 +85,7 @@ WRITE8_MEMBER(dynadice_state::sound_data_w)
 
 WRITE8_MEMBER(dynadice_state::sound_control_w)
 {
-	device_t *device = machine().device("aysnd");
+	ay8910_device *ay8910 = machine().device<ay8910_device>("aysnd");
 /*
     AY 3-8910 :
 
@@ -94,10 +96,10 @@ WRITE8_MEMBER(dynadice_state::sound_control_w)
 
 */
 	if ((data & 7) == 7)
-		ay8910_address_w(device, space, 0, m_ay_data);
+		ay8910->address_w(space, 0, m_ay_data);
 
 	if ((data & 7) == 6)
-		ay8910_data_w(device, space, 0, m_ay_data);
+		ay8910->data_w(space, 0, m_ay_data);
 }
 
 
@@ -206,7 +208,6 @@ TILE_GET_INFO_MEMBER(dynadice_state::get_tile_info)
 
 void dynadice_state::video_start()
 {
-
 	/* pacman - style videoram layout */
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dynadice_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_top_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dynadice_state::get_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 2, 32);
@@ -293,10 +294,10 @@ ROM_END
 DRIVER_INIT_MEMBER(dynadice_state,dynadice)
 {
 	int i, j;
-	UINT8 *usr1 = machine().root_device().memregion("user1")->base();
-	UINT8 *cpu2 = machine().root_device().memregion("audiocpu")->base();
-	UINT8 *gfx1 = machine().root_device().memregion("gfx1")->base();
-	UINT8 *gfx2 = machine().root_device().memregion("gfx2")->base();
+	UINT8 *usr1 = memregion("user1")->base();
+	UINT8 *cpu2 = memregion("audiocpu")->base();
+	UINT8 *gfx1 = memregion("gfx1")->base();
+	UINT8 *gfx2 = memregion("gfx2")->base();
 
 	cpu2[0x0b] = 0x23;  /* bug in game code  Dec HL -> Inc HL*/
 

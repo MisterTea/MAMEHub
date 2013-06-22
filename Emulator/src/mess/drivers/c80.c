@@ -2,8 +2,6 @@
 
     C-80
 
-    12/05/2009 Skeleton driver.
-
     Pasting:
         0-F : as is
         + (inc) : ^
@@ -109,9 +107,9 @@ READ8_MEMBER( c80_state::pio1_pa_r )
 	{
 		if (!BIT(m_keylatch, i))
 		{
-			if (!BIT(ioport("ROW0")->read(), i)) data &= ~0x01;
-			if (!BIT(ioport("ROW1")->read(), i)) data &= ~0x02;
-			if (!BIT(ioport("ROW2")->read(), i)) data &= ~0x04;
+			if (!BIT(m_row0->read(), i)) data &= ~0x01;
+			if (!BIT(m_row1->read(), i)) data &= ~0x02;
+			if (!BIT(m_row2->read(), i)) data &= ~0x04;
 		}
 	}
 
@@ -254,7 +252,7 @@ static MACHINE_CONFIG_START( c80, c80_state )
 	/* devices */
 	MCFG_Z80PIO_ADD(Z80PIO1_TAG, 2500000, pio1_intf)
 	MCFG_Z80PIO_ADD(Z80PIO2_TAG, 2500000, pio2_intf)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, c80_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", c80_cassette_interface)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

@@ -217,7 +217,9 @@ class maygayv1_state : public driver_device
 {
 public:
 	maygayv1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu") { }
 
 	int m_vsync_latch_preset;
 	UINT8 m_p1;
@@ -244,6 +246,10 @@ public:
 	UINT32 screen_update_maygayv1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_maygayv1(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(vsync_interrupt);
+	DECLARE_WRITE8_MEMBER(data_from_i8031);
+	DECLARE_READ8_MEMBER(data_to_i8031);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 };
 
 
@@ -292,7 +298,6 @@ READ16_MEMBER(maygayv1_state::i82716_r)
 
 void maygayv1_state::video_start()
 {
-
 }
 
 
@@ -678,7 +683,7 @@ WRITE16_MEMBER(maygayv1_state::vsync_int_ctrl)
 
 	// Active low
 	if (!(m_vsync_latch_preset))
-		machine().device("maincpu")->execute().set_input_line(3, CLEAR_LINE);
+		m_maincpu->set_input_line(3, CLEAR_LINE);
 }
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, maygayv1_state )
@@ -686,7 +691,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, maygayv1_state )
 	AM_RANGE(0x080000, 0x083fff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0x100000, 0x17ffff) AM_ROM AM_REGION("maincpu", 0x80000)
 	AM_RANGE(0x820000, 0x820003) AM_READWRITE(maygay_8279_r, maygay_8279_w)
-	AM_RANGE(0x800000, 0x800003) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0xff00 )
+	AM_RANGE(0x800000, 0x800003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0xff00)
 	AM_RANGE(0x860000, 0x86000d) AM_READWRITE(read_odd, write_odd)
 	AM_RANGE(0x86000e, 0x86000f) AM_WRITE(vsync_int_ctrl)
 	AM_RANGE(0x880000, 0x89ffff) AM_READWRITE(i82716_r, i82716_w)
@@ -935,8 +940,9 @@ INPUT_PORTS_END
 
 static void duart_irq_handler(device_t *device, int state, UINT8 vector)
 {
-	device->machine().device("maincpu")->execute().set_input_line_and_vector(5, state, vector);
-//  device->machine().device("maincpu")->execute().set_input_line(5, state ? ASSERT_LINE : CLEAR_LINE);
+	maygayv1_state *drvstate = device->machine().driver_data<maygayv1_state>();
+	drvstate->m_maincpu->set_input_line_and_vector(5, state, vector);
+//  drvstate->m_maincpu->set_input_line(5, state ? ASSERT_LINE : CLEAR_LINE);
 };
 
 
@@ -946,7 +952,7 @@ static void duart_tx(device_t *device, int channel, UINT8 data)
 	if (channel == 0)
 	{
 		state->m_d68681_val = data;
-		device->machine().device("soundcpu")->execute().set_input_line(MCS51_RX_LINE, ASSERT_LINE);  // ?
+		state->m_soundcpu->set_input_line(MCS51_RX_LINE, ASSERT_LINE);  // ?
 	}
 
 };
@@ -960,16 +966,14 @@ static const duart68681_config maygayv1_duart68681_config =
 };
 
 
-static int data_to_i8031(device_t *device)
+READ8_MEMBER(maygayv1_state::data_to_i8031)
 {
-	maygayv1_state *state = device->machine().driver_data<maygayv1_state>();
-	return state->m_d68681_val;
+	return m_d68681_val;
 }
 
-static void data_from_i8031(device_t *device, int data)
+WRITE8_MEMBER(maygayv1_state::data_from_i8031)
 {
-	maygayv1_state *state = device->machine().driver_data<maygayv1_state>();
-	duart68681_rx_data(state->m_duart68681, 0, data);
+	duart68681_rx_data(m_duart68681, 0, data);
 }
 
 READ8_MEMBER(maygayv1_state::b_read)
@@ -1008,12 +1012,12 @@ void maygayv1_state::machine_start()
 	i82716.dram = auto_alloc_array(machine(), UINT16, 0x80000/2);   // ???
 	i82716.line_buf = auto_alloc_array(machine(), UINT8, 512);
 
-	state_save_register_global_pointer(machine(), i82716.dram, 0x40000);
+	save_pointer(NAME(i82716.dram), 0x40000);
 
 //  duart_68681_init(DUART_CLOCK, duart_irq_handler, duart_tx);
 
-	i8051_set_serial_tx_callback(machine().device("soundcpu"), data_from_i8031);
-	i8051_set_serial_rx_callback(machine().device("soundcpu"), data_to_i8031);
+	i8051_set_serial_tx_callback(m_soundcpu, write8_delegate(FUNC(maygayv1_state::data_from_i8031),this));
+	i8051_set_serial_rx_callback(m_soundcpu, read8_delegate(FUNC(maygayv1_state::data_to_i8031),this));
 }
 
 void maygayv1_state::machine_reset()
@@ -1029,7 +1033,7 @@ void maygayv1_state::machine_reset()
 INTERRUPT_GEN_MEMBER(maygayv1_state::vsync_interrupt)
 {
 	if (m_vsync_latch_preset)
-		machine().device("maincpu")->execute().set_input_line(3, ASSERT_LINE);
+		m_maincpu->set_input_line(3, ASSERT_LINE);
 }
 
 
@@ -1236,14 +1240,12 @@ ROM_END
 	ROM_REGION( 0x10000, "soundcpu", 0 ) \
 	ROM_LOAD( "reels.bin", 0x00000, 0x10000, NO_DUMP ) \
 	ROM_REGION( 0x20000, "upd", 0 ) \
-	ROM_LOAD( "upd.bin", 0x00000, 0x20000, NO_DUMP ) \
-
+	ROM_LOAD( "upd.bin", 0x00000, 0x20000, NO_DUMP )
 #define MV1_MISSING_ROMSU1U4 \
 	ROM_LOAD16_BYTE( "u2.bin", 0x80000, 0x20000, NO_DUMP ) \
 	ROM_LOAD16_BYTE( "u1.bin", 0x80001, 0x20000, NO_DUMP ) \
 	ROM_LOAD16_BYTE( "u4.bin", 0xc0000, 0x20000, NO_DUMP ) \
-	ROM_LOAD16_BYTE( "u3.bin", 0xc0001, 0x20000, NO_DUMP ) \
-
+	ROM_LOAD16_BYTE( "u3.bin", 0xc0001, 0x20000, NO_DUMP )
 
 ROM_START( mv1bon )
 	ROM_REGION( 0x100000, "maincpu", 0 )

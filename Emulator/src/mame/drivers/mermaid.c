@@ -116,7 +116,6 @@ Stephh's notes (based on the games Z80 code and some tests) :
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "sound/ay8910.h"
 #include "sound/msm5205.h"
 #include "includes/mermaid.h"
 
@@ -124,20 +123,19 @@ Stephh's notes (based on the games Z80 code and some tests) :
 
 WRITE8_MEMBER(mermaid_state::mermaid_ay8910_write_port_w)
 {
-	if (m_ay8910_enable[0]) ay8910_data_w(m_ay1, space, offset, data);
-	if (m_ay8910_enable[1]) ay8910_data_w(m_ay2, space, offset, data);
+	if (m_ay8910_enable[0]) m_ay1->data_w(space, offset, data);
+	if (m_ay8910_enable[1]) m_ay2->data_w(space, offset, data);
 }
 
 WRITE8_MEMBER(mermaid_state::mermaid_ay8910_control_port_w)
 {
-	if (m_ay8910_enable[0]) ay8910_address_w(m_ay1, space, offset, data);
-	if (m_ay8910_enable[1]) ay8910_address_w(m_ay2, space, offset, data);
+	if (m_ay8910_enable[0]) m_ay1->address_w(space, offset, data);
+	if (m_ay8910_enable[1]) m_ay2->address_w(space, offset, data);
 }
 
 
 WRITE8_MEMBER(mermaid_state::nmi_mask_w)
 {
-
 	m_nmi_mask = data & 1;
 }
 
@@ -174,25 +172,22 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(mermaid_state::rougien_sample_rom_lo_w)
 {
-
 	m_adpcm_rom_sel = (data & 1) | (m_adpcm_rom_sel & 2);
 }
 
 WRITE8_MEMBER(mermaid_state::rougien_sample_rom_hi_w)
 {
-
 	m_adpcm_rom_sel = ((data & 1)<<1) | (m_adpcm_rom_sel & 1);
 }
 
 WRITE8_MEMBER(mermaid_state::rougien_sample_playback_w)
 {
-
 	if((m_adpcm_play_reg & 1) && ((data & 1) == 0))
 	{
 		m_adpcm_pos = m_adpcm_rom_sel*0x1000;
 		m_adpcm_end = m_adpcm_pos+0x1000;
 		m_adpcm_idle = 0;
-		msm5205_reset_w(machine().device("adpcm"), 0);
+		m_adpcm->reset_w(0);
 	}
 
 	m_adpcm_play_reg = data & 1;
@@ -364,11 +359,6 @@ GFXDECODE_END
 
 void mermaid_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_ay1 = machine().device("ay1");
-	m_ay2 = machine().device("ay2");
-
 	save_item(NAME(m_coll_bit0));
 	save_item(NAME(m_coll_bit1));
 	save_item(NAME(m_coll_bit2));
@@ -388,7 +378,6 @@ void mermaid_state::machine_start()
 
 void mermaid_state::machine_reset()
 {
-
 	m_coll_bit0 = 0;
 	m_coll_bit1 = 0;
 	m_coll_bit2 = 0;
@@ -403,30 +392,28 @@ void mermaid_state::machine_reset()
 }
 
 /* Similar to Jantotsu, apparently the HW has three ports that controls what kind of sample should be played. Every sample size is 0x1000. */
-static void rougien_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(mermaid_state::rougien_adpcm_int)
 {
-	mermaid_state *state = device->machine().driver_data<mermaid_state>();
+//  popmessage("%08x",m_adpcm_pos);
 
-//  popmessage("%08x",state->m_adpcm_pos);
-
-	if (state->m_adpcm_pos >= state->m_adpcm_end || state->m_adpcm_idle)
+	if (m_adpcm_pos >= m_adpcm_end || m_adpcm_idle)
 	{
-		//state->m_adpcm_idle = 1;
-		msm5205_reset_w(device, 1);
-		state->m_adpcm_trigger = 0;
+		//m_adpcm_idle = 1;
+		m_adpcm->reset_w(1);
+		m_adpcm_trigger = 0;
 	}
 	else
 	{
-		UINT8 *ROM = device->machine().root_device().memregion("adpcm")->base();
+		UINT8 *ROM = memregion("adpcm")->base();
 
-		state->m_adpcm_data = ((state->m_adpcm_trigger ? (ROM[state->m_adpcm_pos] & 0x0f) : (ROM[state->m_adpcm_pos] & 0xf0) >> 4));
-		msm5205_data_w(device, state->m_adpcm_data & 0xf);
-		state->m_adpcm_trigger ^= 1;
-		if (state->m_adpcm_trigger == 0)
+		m_adpcm_data = ((m_adpcm_trigger ? (ROM[m_adpcm_pos] & 0x0f) : (ROM[m_adpcm_pos] & 0xf0) >> 4));
+		m_adpcm->data_w(m_adpcm_data & 0xf);
+		m_adpcm_trigger ^= 1;
+		if (m_adpcm_trigger == 0)
 		{
-			state->m_adpcm_pos++;
-			//if ((ROM[state->m_adpcm_pos] & 0xff) == 0x70)
-			//  state->m_adpcm_idle = 1;
+			m_adpcm_pos++;
+			//if ((ROM[m_adpcm_pos] & 0xff) == 0x70)
+			//  m_adpcm_idle = 1;
 		}
 	}
 }
@@ -434,14 +421,13 @@ static void rougien_adpcm_int( device_t *device )
 
 static const msm5205_interface msm5205_config =
 {
-	rougien_adpcm_int,  /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(mermaid_state,rougien_adpcm_int),  /* interrupt function */
 	MSM5205_S96_4B
 };
 
 
 INTERRUPT_GEN_MEMBER(mermaid_state::vblank_irq)
 {
-
 	if(m_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }

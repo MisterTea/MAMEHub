@@ -147,8 +147,12 @@ static const z80_daisy_config kaypro2x_daisy_chain[] =
 	{ NULL }
 };
 
-static const mc6845_interface kaypro2x_crtc = {
+
+
+static MC6845_INTERFACE( kaypro2x_crtc )
+{
 	"screen",           /* name of screen */
+	false,
 	7,              /* number of dots per character */
 	NULL,
 	kaypro2x_update_row,        /* handler to display a scanline */
@@ -166,23 +170,6 @@ static const mc6845_interface kaypro2x_crtc = {
 //  downcast<z80sio_device *>(device)->tx_clock_in();
 //}
 
-static COM8116_INTERFACE( kayproii_brg_intf )
-{
-	DEVCB_NULL,     /* fX/4 output */
-	DEVCB_NULL, //  DEVCB_DEVICE_LINE("z80sio", rx_tx_a_w), z80sio implementation has no clock pin
-	DEVCB_NULL, // DEVCB_DEVICE_LINE("z80sio", rx_tx_b_w),
-	{ 101376, 67584, 46080, 37686, 33792, 16896, 8448, 4224, 2816, 2534, 2112, 1408, 1056, 704, 528, 264 },         /* receiver divisor ROM */
-	{ 101376, 67584, 46080, 37686, 33792, 16896, 8448, 4224, 2816, 2534, 2112, 1408, 1056, 704, 528, 264 },         /* transmitter divisor ROM */
-};
-
-static COM8116_INTERFACE( kaypro2x_brg_intf )
-{
-	DEVCB_NULL,     /* fX/4 output */
-	DEVCB_NULL,//DEVCB_DEVICE_LINE("z80sio", rx_tx_a_w),
-	DEVCB_NULL,//DEVCB_DEVICE_LINE("z80sio_2x", rx_tx_a_w),
-	{ 101376, 67584, 46080, 37686, 33792, 16896, 8448, 4224, 2816, 2534, 2112, 1408, 1056, 704, 528, 264 },         /* receiver divisor ROM */
-	{ 101376, 67584, 46080, 37686, 33792, 16896, 8448, 4224, 2816, 2534, 2112, 1408, 1056, 704, 528, 264 },         /* transmitter divisor ROM */
-};
 
 
 /***********************************************************
@@ -217,7 +204,7 @@ static const floppy_interface kayproii_floppy_interface =
 	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(kayproii),
-	NULL,
+	"floppy_5_25",
 	NULL
 };
 
@@ -230,7 +217,7 @@ static const floppy_interface kaypro2x_floppy_interface =
 	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_DSHD,
 	LEGACY_FLOPPY_OPTIONS_NAME(kaypro2x),
-	NULL,
+	"floppy_5_25",
 	NULL
 };
 
@@ -259,19 +246,20 @@ static MACHINE_CONFIG_START( kayproii, kaypro_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	/* devices */
-	MCFG_QUICKLOAD_ADD("quickload", kayproii, "com,cpm", 3)
+	MCFG_QUICKLOAD_ADD("quickload", kaypro_state, kayproii, "com,cpm", 3)
 	MCFG_FD1793_ADD("wd1793", kaypro_wd1793_interface )
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_COM8116_ADD("brg", XTAL_5_0688MHz, kayproii_brg_intf)  // WD1943, SMC8116
+	MCFG_COM8116_ADD("brg", XTAL_5_0688MHz, NULL, NULL, NULL)  // WD1943, SMC8116
 	MCFG_Z80PIO_ADD( "z80pio_g", 2500000, kayproii_pio_g_intf )
 	MCFG_Z80PIO_ADD( "z80pio_s", 2500000, kayproii_pio_s_intf )
 	MCFG_Z80SIO_ADD( "z80sio", 4800, kaypro_sio_intf )  /* start at 300 baud */
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(kayproii_floppy_interface)
+	MCFG_SOFTWARE_LIST_ADD("flop_list","kayproii")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( kaypro4, kayproii )
@@ -303,15 +291,15 @@ static MACHINE_CONFIG_START( kaypro2x, kaypro_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	/* devices */
 	MCFG_MC6845_ADD("crtc", MC6845, 2000000, kaypro2x_crtc) /* comes out of ULA - needs to be measured */
-	MCFG_QUICKLOAD_ADD("quickload", kaypro2x, "com,cpm", 3)
+	MCFG_QUICKLOAD_ADD("quickload", kaypro_state, kaypro2x, "com,cpm", 3)
 	MCFG_FD1793_ADD("wd1793", kaypro_wd1793_interface )
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_COM8116_ADD("brg", XTAL_5_0688MHz, kaypro2x_brg_intf)  // WD1943, SMC8116
+	MCFG_COM8116_ADD("brg", XTAL_5_0688MHz, NULL, NULL, NULL)  // WD1943, SMC8116
 	MCFG_Z80SIO_ADD( "z80sio", 4800, kaypro_sio_intf )
 	MCFG_Z80SIO_ADD( "z80sio_2x", 4800, kaypro_sio_intf )   /* extra sio for modem and printer */
 

@@ -69,7 +69,7 @@ ToDo:
 #include "formats/basicdsk.h"
 #include "imagedev/flopdrv.h"
 #include "machine/z80ctc.h"
-#include "machine/z80sio.h"
+#include "machine/z80dart.h"
 #include "machine/z80dma.h"
 #include "machine/wd17xx.h"
 #include "video/mc6845.h"
@@ -98,7 +98,7 @@ public:
 	m_floppy1(*this, FLOPPY_1),
 	m_floppy2(*this, FLOPPY_2),
 	m_floppy3(*this, FLOPPY_3),
-	m_beeper(*this, BEEPER_TAG)
+	m_beeper(*this, "beeper")
 	{ }
 
 	virtual void machine_start();
@@ -147,6 +147,10 @@ public:
 	DECLARE_DRIVER_INIT(bigbord2);
 	TIMER_DEVICE_CALLBACK_MEMBER(ctc_tick);
 	DECLARE_WRITE_LINE_MEMBER(bigbord2_interrupt);
+	DECLARE_READ8_MEMBER(memory_read_byte);
+	DECLARE_WRITE8_MEMBER(memory_write_byte);
+	DECLARE_READ8_MEMBER(io_read_byte);
+	DECLARE_WRITE8_MEMBER(io_write_byte);
 };
 
 /* Status port
@@ -211,18 +215,40 @@ static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
 /* Z80 DMA */
 
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(bigbord2_state::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(bigbord2_state::memory_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.write_byte(offset, data);
+}
+
+READ8_MEMBER(bigbord2_state::io_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(bigbord2_state::io_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.write_byte(offset, data);
+}
 
 static Z80DMA_INTERFACE( dma_intf )
 {
 	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_HALT), // actually BUSRQ
 	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_IRQ0),
 	DEVCB_NULL,
-	DEVCB_MEMORY_HANDLER(Z80_TAG, PROGRAM, memory_read_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, PROGRAM, memory_write_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_read_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_write_byte)
+	DEVCB_DRIVER_MEMBER(bigbord2_state, memory_read_byte),
+	DEVCB_DRIVER_MEMBER(bigbord2_state, memory_write_byte),
+	DEVCB_DRIVER_MEMBER(bigbord2_state, io_read_byte),
+	DEVCB_DRIVER_MEMBER(bigbord2_state, io_write_byte),
+
 };
 
 
@@ -285,7 +311,7 @@ WRITE8_MEMBER( bigbord2_state::portc8_w )
 			break;
 		case 7:
 			// beeper
-			beep_set_state(m_beeper, m_c8[7]);
+			m_beeper->set_state(m_c8[7]);
 			break;
 	}
 }
@@ -351,7 +377,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( bigbord2_io, AS_IO, 8, bigbord2_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x80, 0x83) AM_DEVREADWRITE(Z80SIO_TAG, z80sio_device, read_alt, write_alt)
+	AM_RANGE(0x80, 0x83) AM_DEVREADWRITE(Z80SIO_TAG, z80sio0_device, ba_cd_r, ba_cd_w)
 	//AM_RANGE(0x84, 0x87) AM_DEVREADWRITE(Z80CTCA_TAG, z80ctc_device, read, write) //has issues
 	AM_RANGE(0x88, 0x8b) AM_DEVREADWRITE(Z80CTCB_TAG, z80ctc_device, read, write)
 	AM_RANGE(0x8C, 0x8F) AM_DEVREADWRITE_LEGACY(Z80DMA_TAG, z80dma_r, z80dma_w)
@@ -391,17 +417,28 @@ INPUT_PORTS_END
 
 WRITE_LINE_MEMBER(bigbord2_state::bigbord2_interrupt)
 {
-	machine().device(Z80_TAG)->execute().set_input_line(0, state);
+	m_maincpu->set_input_line(0, state);
 }
 
-const z80sio_interface sio_intf =
+static Z80SIO_INTERFACE( sio_intf )
 {
-	DEVCB_DRIVER_LINE_MEMBER(bigbord2_state, bigbord2_interrupt),   /* interrupt handler */
-	DEVCB_NULL,         /* DTR changed handler */
-	DEVCB_NULL,         /* RTS changed handler */
-	DEVCB_NULL,         /* BREAK changed handler */
-	DEVCB_NULL,         /* transmit handler - which channel is this for? */
-	DEVCB_NULL          /* receive handler - which channel is this for? */
+	0, 0, 0, 0,
+
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_DRIVER_LINE_MEMBER(bigbord2_state, bigbord2_interrupt)
 };
 
 
@@ -409,7 +446,6 @@ const z80sio_interface sio_intf =
 
 TIMER_DEVICE_CALLBACK_MEMBER(bigbord2_state::ctc_tick)
 {
-
 	m_ctcb->trg0(1);
 	m_ctcb->trg1(1);
 	m_ctcb->trg0(0);
@@ -557,8 +593,8 @@ void bigbord2_state::machine_reset()
 	UINT8 i;
 	for (i = 0; i < 8; i++)
 		m_c8[i] = 0;
-	beep_set_state(m_beeper, 0);
-	beep_set_frequency(m_beeper, 950); // actual frequency is unknown
+	m_beeper->set_state(0);
+	m_beeper->set_frequency(950); // actual frequency is unknown
 	membank("bankr")->set_entry(0);
 	membank("bankv")->set_entry(0);
 	membank("banka")->set_entry(0);
@@ -663,8 +699,10 @@ MC6845_UPDATE_ROW( bigbord2_update_row )
 	}
 }
 
-static const mc6845_interface bigbord2_crtc = {
+static MC6845_INTERFACE( bigbord2_crtc )
+{
 	SCREEN_TAG,         /* name of screen */
+	false,
 	8,          /* number of dots per character */
 	NULL,
 	bigbord2_update_row,        /* handler to display a scanline */
@@ -701,7 +739,7 @@ static MACHINE_CONFIG_START( bigbord2, bigbord2_state )
 
 	/* devices */
 	MCFG_Z80DMA_ADD(Z80DMA_TAG, MAIN_CLOCK, dma_intf)
-	MCFG_Z80SIO_ADD(Z80SIO_TAG, MAIN_CLOCK, sio_intf)
+	MCFG_Z80SIO0_ADD(Z80SIO_TAG, MAIN_CLOCK, sio_intf)
 	MCFG_Z80CTC_ADD(Z80CTCA_TAG, MAIN_CLOCK, ctca_intf)
 	MCFG_Z80CTC_ADD(Z80CTCB_TAG, MAIN_CLOCK / 6, ctcb_intf)
 	MCFG_FD1793_ADD("fdc", fdc_intf)
@@ -711,7 +749,7 @@ static MACHINE_CONFIG_START( bigbord2, bigbord2_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 

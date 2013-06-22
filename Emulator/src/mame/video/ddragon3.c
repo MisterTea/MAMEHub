@@ -9,7 +9,6 @@
 
 WRITE16_MEMBER(ddragon3_state::ddragon3_scroll_w)
 {
-
 	switch (offset)
 	{
 		case 0: COMBINE_DATA(&m_fg_scrollx);    break;  // Scroll X, BG1
@@ -28,7 +27,6 @@ WRITE16_MEMBER(ddragon3_state::ddragon3_scroll_w)
 
 READ16_MEMBER(ddragon3_state::ddragon3_scroll_r)
 {
-
 	switch (offset)
 	{
 		case 0: return m_fg_scrollx;
@@ -76,7 +74,6 @@ TILE_GET_INFO_MEMBER(ddragon3_state::get_fg_tile_info)
 
 void ddragon3_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ddragon3_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ddragon3_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 
@@ -109,10 +106,9 @@ void ddragon3_state::video_start()
  *   6,7| unused
  */
 
-static void draw_sprites( running_machine& machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void ddragon3_state::draw_sprites(  bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	ddragon3_state *state = machine.driver_data<ddragon3_state>();
-	UINT16 *source = state->m_spriteram;
+	UINT16 *source = m_spriteram;
 	UINT16 *finish = source + 0x800;
 
 	while (source < finish)
@@ -135,7 +131,7 @@ static void draw_sprites( running_machine& machine, bitmap_ind16 &bitmap, const 
 			if (attr & 0x02) sy = 239 + (0x100 - sy); else sy = 240 - sy;
 			if (sx > 0x17f) sx = 0 - (0x200 - sx);
 
-			if (state->flip_screen())
+			if (flip_screen())
 			{
 				sx = 304 - sx;
 				sy = 224 - sy;
@@ -146,8 +142,8 @@ static void draw_sprites( running_machine& machine, bitmap_ind16 &bitmap, const 
 			for (i = 0; i <= height; i++)
 			{
 				drawgfx_transpen(bitmap, cliprect,
-					machine.gfx[1], code + i, color, flipx, flipy,
-					sx, sy + (state->flip_screen() ? (i * 16) : (-i * 16)), 0);
+					machine().gfx[1], code + i, color, flipx, flipy,
+					sx, sy + (flip_screen() ? (i * 16) : (-i * 16)), 0);
 			}
 		}
 
@@ -157,7 +153,6 @@ static void draw_sprites( running_machine& machine, bitmap_ind16 &bitmap, const 
 
 UINT32 ddragon3_state::screen_update_ddragon3(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrollx(0, m_bg_scrollx);
 	m_bg_tilemap->set_scrolly(0, m_bg_scrolly);
 	m_fg_tilemap->set_scrollx(0, m_fg_scrollx);
@@ -167,18 +162,18 @@ UINT32 ddragon3_state::screen_update_ddragon3(screen_device &screen, bitmap_ind1
 	{
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 		m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 	}
 	else if ((m_vreg & 0x60) == 0x60)
 	{
 		m_fg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 	}
 	else
 	{
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 		m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
 	}
 	return 0;
@@ -186,7 +181,6 @@ UINT32 ddragon3_state::screen_update_ddragon3(screen_device &screen, bitmap_ind1
 
 UINT32 ddragon3_state::screen_update_ctribe(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrollx(0, m_bg_scrollx);
 	m_bg_tilemap->set_scrolly(0, m_bg_scrolly);
 	m_fg_tilemap->set_scrollx(0, m_fg_scrollx);
@@ -195,14 +189,14 @@ UINT32 ddragon3_state::screen_update_ctribe(screen_device &screen, bitmap_ind16 
 	if(m_vreg & 8)
 	{
 		m_fg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 		m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 	}
 	else
 	{
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 		m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 	}
 	return 0;
 }

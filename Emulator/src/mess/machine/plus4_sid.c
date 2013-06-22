@@ -59,29 +59,17 @@ const rom_entry *plus4_sid_cartridge_device::device_rom_region() const
 
 
 //-------------------------------------------------
-//  sid6581_interface sid_intf
-//-------------------------------------------------
-
-static MOS6581_INTERFACE( sid_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
 //  MACHINE_CONFIG_FRAGMENT( plus4_sid )
 //-------------------------------------------------
 
 static MACHINE_CONFIG_FRAGMENT( plus4_sid )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(MOS8580_TAG, SID8580, XTAL_17_73447MHz/20)
-	MCFG_SOUND_CONFIG(sid_intf)
+	MCFG_SOUND_ADD(MOS8580_TAG, MOS8580, XTAL_17_73447MHz/20)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, NULL, NULL)
+	MCFG_VCS_CONTROL_PORT_ADD(CONTROL1_TAG, vcs_control_port_devices, NULL)
 MACHINE_CONFIG_END
 
 
@@ -106,7 +94,7 @@ machine_config_constructor plus4_sid_cartridge_device::device_mconfig_additions(
 //-------------------------------------------------
 
 plus4_sid_cartridge_device::plus4_sid_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, PLUS4_SID, "Plus/4 SID cartridge", tag, owner, clock),
+	device_t(mconfig, PLUS4_SID, "Plus/4 SID cartridge", tag, owner, clock, "plus4_sid", __FILE__),
 	device_plus4_expansion_card_interface(mconfig, *this),
 	m_sid(*this, MOS8580_TAG),
 	m_joy(*this, CONTROL1_TAG)

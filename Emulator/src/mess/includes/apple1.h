@@ -9,6 +9,8 @@
 
 #include "imagedev/snapquik.h"
 #include "machine/6821pia.h"
+#include "imagedev/cassette.h"
+#include "machine/ram.h"
 
 typedef short termchar_t;
 
@@ -31,7 +33,10 @@ class apple1_state : public driver_device
 {
 public:
 	apple1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_cassette(*this, "cassette"),
+		m_ram(*this, RAM_TAG) { }
 
 	int m_vh_clrscrn_pressed;
 	int m_kbd_data;
@@ -55,19 +60,35 @@ public:
 	DECLARE_READ8_MEMBER(apple1_pia0_kbdin);
 	DECLARE_WRITE8_MEMBER(apple1_pia0_dspout);
 	DECLARE_WRITE8_MEMBER(apple1_pia0_dsp_write_signal);
+	required_device<cpu_device> m_maincpu;
+	required_device<cassette_image_device> m_cassette;
+	void terminal_draw(bitmap_ind16 &dest, const rectangle &cliprect, terminal_t *terminal);
+	void verify_coords(terminal_t *terminal, int x, int y);
+	void terminal_putchar(terminal_t *terminal, int x, int y, int ch);
+	int terminal_getchar(terminal_t *terminal, int x, int y);
+	void terminal_putblank(terminal_t *terminal, int x, int y);
+	void terminal_dirtycursor(terminal_t *terminal);
+	void terminal_setcursor(terminal_t *terminal, int x, int y);
+	void terminal_hidecursor(terminal_t *terminal);
+	void terminal_showcursor(terminal_t *terminal);
+	void terminal_getcursor(terminal_t *terminal, int *x, int *y);
+	void terminal_fill(terminal_t *terminal, int val);
+	void terminal_clear(terminal_t *terminal);
+	void apple1_vh_dsp_w (int data);
+	void apple1_vh_dsp_clr ();
+	void apple1_vh_cursor_blink ();
+	int apple1_verify_header (UINT8 *data);
+	void cassette_toggle_output();
+	terminal_t *terminal_create(int gfx, int blank_char, int char_bits,int (*getcursorcode)(int original_code),int num_cols, int num_rows);
+	attotime apple1_vh_dsp_time_to_ready();
+	DECLARE_SNAPSHOT_LOAD_MEMBER( apple1 );
+	required_device<ram_device> m_ram;
 };
 
 
 /*----------- defined in machine/apple1.c -----------*/
 
 extern const pia6821_interface apple1_pia0;
-SNAPSHOT_LOAD( apple1 );
-
-/*----------- defined in video/apple1.c -----------*/
-void apple1_vh_dsp_w (running_machine &machine, int data);
-void apple1_vh_dsp_clr (running_machine &machine);
-attotime apple1_vh_dsp_time_to_ready (running_machine &machine);
-
 
 /*----------- defined in drivers/apple1.c -----------*/
 

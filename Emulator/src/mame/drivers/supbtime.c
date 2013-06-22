@@ -27,7 +27,6 @@ down hardware (it doesn't write any good sound data btw, mostly zeros).
 #include "sound/okim6295.h"
 #include "video/deco16ic.h"
 #include "includes/supbtime.h"
-#include "video/decospr.h"
 
 /******************************************************************************/
 
@@ -321,10 +320,6 @@ static const deco16ic_interface supbtime_deco16ic_tilegen1_intf =
 
 void supbtime_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_deco_tilegen1 = machine().device("tilegen1");
 }
 
 static MACHINE_CONFIG_START( supbtime, supbtime_state )

@@ -2,11 +2,13 @@ class deadang_state : public driver_device
 {
 public:
 	deadang_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
 		m_scroll_ram(*this, "scroll_ram"),
-		m_video_data(*this, "video_data"){ }
+		m_video_data(*this, "video_data"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub") { }
 
 	required_shared_ptr<UINT16> m_spriteram;
 	required_shared_ptr<UINT16> m_videoram;
@@ -35,4 +37,7 @@ public:
 	UINT32 screen_update_deadang(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(deadang_main_scanline);
 	TIMER_DEVICE_CALLBACK_MEMBER(deadang_sub_scanline);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 };

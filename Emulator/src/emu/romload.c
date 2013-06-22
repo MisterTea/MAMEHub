@@ -465,14 +465,12 @@ static void verify_length_and_hash(romload_private *romdata, const char *name, U
     messages about ROM loading to the user
 -------------------------------------------------*/
 
-static void display_loading_rom_message(romload_private *romdata, const char *name)
+static void display_loading_rom_message(romload_private *romdata, const char *name, bool from_list)
 {
 	char buffer[200];
 
-	// 2010-04, FP - FIXME: in MESS, load_software_part_region sometimes calls this with romstotalsize = 0!
-	// as a temp workaround, I added a check for romstotalsize !=0.
-	if (name != NULL && romdata->romstotalsize)
-		sprintf(buffer, "Loading (%d%%)", (UINT32)(100 * (UINT64)romdata->romsloadedsize / (UINT64)romdata->romstotalsize));
+	if (name != NULL)
+		sprintf(buffer, "Loading %s (%d%%)", from_list ? "Software" : emulator_info::get_capstartgamenoun(), (UINT32)(100 * (UINT64)romdata->romsloadedsize / (UINT64)romdata->romstotalsize));
 	else
 		sprintf(buffer, "Loading Complete");
 
@@ -485,10 +483,10 @@ static void display_loading_rom_message(romload_private *romdata, const char *na
     results of ROM loading
 -------------------------------------------------*/
 
-static void display_rom_load_results(romload_private *romdata)
+static void display_rom_load_results(romload_private *romdata, bool from_list)
 {
 	/* final status display */
-	display_loading_rom_message(romdata, NULL);
+	display_loading_rom_message(romdata, NULL, from_list);
 
 	/* if we had errors, they are fatal */
 	if (romdata->errors != 0)
@@ -555,14 +553,14 @@ static void region_post_process(romload_private *romdata, const char *rgntag, bo
     up the parent and loading by checksum
 -------------------------------------------------*/
 
-static int open_rom_file(romload_private *romdata, const char *regiontag, const rom_entry *romp, astring &tried_file_names)
+static int open_rom_file(romload_private *romdata, const char *regiontag, const rom_entry *romp, astring &tried_file_names, bool from_list)
 {
 	file_error filerr = FILERR_NOT_FOUND;
 	UINT32 romsize = rom_file_size(romp);
 	tried_file_names = "";
 
 	/* update status display */
-	display_loading_rom_message(romdata, ROM_GETNAME(romp));
+	display_loading_rom_message(romdata, ROM_GETNAME(romp), from_list);
 
 	/* extract CRC to use for searching */
 	UINT32 crc = 0;
@@ -868,7 +866,7 @@ static void copy_rom_data(romload_private *romdata, const rom_entry *romp)
     for a region
 -------------------------------------------------*/
 
-static void process_rom_entries(romload_private *romdata, const char *regiontag, const rom_entry *parent_region, const rom_entry *romp, device_t *device)
+static void process_rom_entries(romload_private *romdata, const char *regiontag, const rom_entry *parent_region, const rom_entry *romp, device_t *device, bool from_list)
 {
 	UINT32 lastflags = 0;
 
@@ -905,7 +903,7 @@ static void process_rom_entries(romload_private *romdata, const char *regiontag,
 			/* open the file if it is a non-BIOS or matches the current BIOS */
 			LOG(("Opening ROM file: %s\n", ROM_GETNAME(romp)));
 			astring tried_file_names;
-			if (!irrelevantbios && !open_rom_file(romdata, regiontag, romp, tried_file_names))
+			if (!irrelevantbios && !open_rom_file(romdata, regiontag, romp, tried_file_names, from_list))
 				handle_missing_file(romdata, romp, tried_file_names);
 
 			/* loop until we run out of reloads */
@@ -1323,6 +1321,10 @@ void load_software_part_region(device_t *device, char *swlist, char *swname, rom
 	romdata->errorstring.reset();
 	romdata->softwarningstring.reset();
 
+	romdata->romstotal = 0;
+	romdata->romstotalsize = 0;
+	romdata->romsloadedsize = 0;
+
 	if (software_get_support(device->machine().options(), swlist, swname) == SOFTWARE_SUPPORTED_PARTIAL)
 	{
 		romdata->errorstring.catprintf("WARNING: support for software %s (in list %s) is only partial\n", swname, swlist);
@@ -1376,21 +1378,29 @@ void load_software_part_region(device_t *device, char *swlist, char *swname, rom
 			fill_random(romdata->machine(), romdata->region->base(), romdata->region->bytes());
 #endif
 
+		/* update total number of roms */
+		for (const rom_entry *rom = rom_first_file(region); rom != NULL; rom = rom_next_file(rom))
+		{
+			romdata->romstotal++;
+			romdata->romstotalsize += rom_file_size(rom);
+		}
+
 		/* now process the entries in the region */
 		if (ROMREGION_ISROMDATA(region))
-			process_rom_entries(romdata, locationtag, region, region + 1, device);
+			process_rom_entries(romdata, locationtag, region, region + 1, device, TRUE);
 		else if (ROMREGION_ISDISKDATA(region))
 			process_disk_entries(romdata, core_strdup(regiontag.cstr()), region, region + 1, locationtag);
 	}
 
 	/* now go back and post-process all the regions */
-	for (region = start_region; region != NULL; region = rom_next_region(region)) {
+	for (region = start_region; region != NULL; region = rom_next_region(region))
+	{
 		device->subtag(regiontag, ROMREGION_GETTAG(region));
 		region_post_process(romdata, regiontag.cstr(), ROMREGION_ISINVERTED(region));
 	}
 
 	/* display the results and exit */
-	display_rom_load_results(romdata);
+	display_rom_load_results(romdata, TRUE);
 }
 
 
@@ -1442,7 +1452,7 @@ static void process_region_list(romload_private *romdata)
 #endif
 
 				/* now process the entries in the region */
-				process_rom_entries(romdata, device->shortname(), region, region + 1, device);
+				process_rom_entries(romdata, device->shortname(), region, region + 1, device, FALSE);
 			}
 			else if (ROMREGION_ISDISKDATA(region))
 				process_disk_entries(romdata, regiontag, region, region + 1, NULL);
@@ -1501,7 +1511,7 @@ void rom_init(running_machine &machine)
 	process_region_list(romdata);
 
 	/* display the results and exit */
-	display_rom_load_results(romdata);
+	display_rom_load_results(romdata, FALSE);
 }
 
 

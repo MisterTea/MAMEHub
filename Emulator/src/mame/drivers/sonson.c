@@ -99,8 +99,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, sonson_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0xe000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -227,15 +227,11 @@ GFXDECODE_END
 
 void sonson_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_last_irq));
 }
 
 void sonson_state::machine_reset()
 {
-
 	m_last_irq = 0;
 }
 

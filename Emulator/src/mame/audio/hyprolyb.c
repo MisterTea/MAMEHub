@@ -5,7 +5,7 @@
 
 struct hyprolyb_adpcm_state
 {
-	device_t *m_msm;
+	msm5205_device *m_msm;
 	address_space *m_space;
 	UINT8    m_adpcm_ready; // only bootlegs
 	UINT8    m_adpcm_busy;
@@ -25,7 +25,7 @@ static DEVICE_START( hyprolyb_adpcm )
 	hyprolyb_adpcm_state *state = get_safe_token(device);
 
 	state->m_space = &device->machine().device("audiocpu")->memory().space(AS_PROGRAM);
-	state->m_msm = device->machine().device("msm");
+	state->m_msm = device->machine().device<msm5205_device>("msm");
 	device->save_item(NAME(state->m_adpcm_ready));  // only bootlegs
 	device->save_item(NAME(state->m_adpcm_busy));
 	device->save_item(NAME(state->m_vck_ready));
@@ -60,7 +60,7 @@ static WRITE8_DEVICE_HANDLER( hyprolyb_msm_data_w )
 {
 	hyprolyb_adpcm_state *state = get_safe_token(device);
 
-	msm5205_data_w(state->m_msm, data);
+	state->m_msm->data_w(data);
 	state->m_adpcm_busy = ~data & 0x80;
 }
 
@@ -110,7 +110,7 @@ static ADDRESS_MAP_START( hyprolyb_adpcm_map, AS_PROGRAM, 8, driver_device )
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
-static void adpcm_vck_callback( device_t *device )
+static void adpcm_vck_callback( device_t *device, int st )
 {
 	device_t *adpcm = device->machine().device("hyprolyb_adpcm");
 	hyprolyb_adpcm_state *state = get_safe_token(adpcm);
@@ -120,7 +120,7 @@ static void adpcm_vck_callback( device_t *device )
 
 static const msm5205_interface hyprolyb_msm5205_config =
 {
-	adpcm_vck_callback, /* VCK function */
+	DEVCB_LINE(adpcm_vck_callback), /* VCK function */
 	MSM5205_S96_4B      /* 4 kHz */
 };
 

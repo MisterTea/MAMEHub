@@ -63,7 +63,7 @@
 
 PALETTE_INIT_MEMBER(pacman_state,pacman)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[3] = { 1000, 470, 220 };
 	double rweights[3], gweights[3], bweights[2];
 	int i;
@@ -147,21 +147,20 @@ TILE_GET_INFO_MEMBER(pacman_state::pacman_get_tile_info)
 
 ***************************************************************************/
 
-static void init_save_state(running_machine &machine)
+void pacman_state::init_save_state()
 {
-	pacman_state *state = machine.driver_data<pacman_state>();
-	state_save_register_global(machine, state->m_charbank);
-	state_save_register_global(machine, state->m_spritebank);
-	state_save_register_global(machine, state->m_palettebank);
-	state_save_register_global(machine, state->m_colortablebank);
-	state_save_register_global(machine, state->m_flipscreen);
-	state_save_register_global(machine, state->m_bgpriority);
+	save_item(NAME(m_charbank));
+	save_item(NAME(m_spritebank));
+	save_item(NAME(m_palettebank));
+	save_item(NAME(m_colortablebank));
+	save_item(NAME(m_flipscreen));
+	save_item(NAME(m_bgpriority));
 }
 
 
 VIDEO_START_MEMBER(pacman_state,pacman)
 {
-	init_save_state(machine());
+	init_save_state();
 
 	m_charbank = 0;
 	m_spritebank = 0;
@@ -183,7 +182,6 @@ VIDEO_START_MEMBER(pacman_state,pacman)
 
 VIDEO_START_MEMBER(pacman_state,birdiy)
 {
-
 	VIDEO_START_CALL_MEMBER( pacman );
 	m_xoffsethack = 0;
 	m_inv_spr = 1; // sprites are mirrored in X-axis compared to normal behaviour
@@ -317,7 +315,7 @@ UINT32 pacman_state::screen_update_pacman(screen_device &screen, bitmap_ind16 &b
 
 VIDEO_START_MEMBER(pacman_state,pengo)
 {
-	init_save_state(machine());
+	init_save_state();
 
 	m_charbank = 0;
 	m_spritebank = 0;
@@ -383,7 +381,7 @@ TILE_GET_INFO_MEMBER(pacman_state::s2650_get_tile_info)
 
 VIDEO_START_MEMBER(pacman_state,s2650games)
 {
-	init_save_state(machine());
+	init_save_state();
 
 	m_charbank = 0;
 	m_spritebank = 0;
@@ -526,33 +524,32 @@ TILE_GET_INFO_MEMBER(pacman_state::jrpacman_get_tile_info)
 	SET_TILE_INFO_MEMBER(0,code,attr,0);
 }
 
-static void jrpacman_mark_tile_dirty( running_machine &machine, int offset )
+void pacman_state::jrpacman_mark_tile_dirty( int offset )
 {
-	pacman_state *state = machine.driver_data<pacman_state>();
 	if( offset < 0x20 )
 	{
 		/* line color - mark whole line as dirty */
 		int i;
 		for( i = 2 * 0x20; i < 56 * 0x20; i += 0x20 )
 		{
-			state->m_bg_tilemap->mark_tile_dirty(offset + i );
+			m_bg_tilemap->mark_tile_dirty(offset + i );
 		}
 	}
 	else if (offset < 1792)
 	{
 		/* tiles for playfield */
-		state->m_bg_tilemap->mark_tile_dirty(offset );
+		m_bg_tilemap->mark_tile_dirty(offset );
 	}
 	else
 	{
 		/* tiles & colors for top and bottom two rows */
-		state->m_bg_tilemap->mark_tile_dirty(offset & ~0x80 );
+		m_bg_tilemap->mark_tile_dirty(offset & ~0x80 );
 	}
 }
 
 VIDEO_START_MEMBER(pacman_state,jrpacman)
 {
-	init_save_state(machine());
+	init_save_state();
 
 	m_charbank = 0;
 	m_spritebank = 0;
@@ -572,7 +569,7 @@ VIDEO_START_MEMBER(pacman_state,jrpacman)
 WRITE8_MEMBER(pacman_state::jrpacman_videoram_w)
 {
 	m_videoram[offset] = data;
-	jrpacman_mark_tile_dirty(machine(), offset);
+	jrpacman_mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(pacman_state::jrpacman_charbank_w)

@@ -1334,7 +1334,6 @@ void konami_sortlayers5( int *layer, int *pri )
 
 struct k007121_state
 {
-
 	UINT8    ctrlram[8];
 	int      flipscreen;
 };
@@ -3017,7 +3016,6 @@ WRITE8_DEVICE_HANDLER( k051937_w )
 
 	if (offset == 0)
 	{
-
 		//if (data & 0xc2) popmessage("051937 reg 00 = %02x",data);
 
 		/* bit 0 is IRQ enable */
@@ -7446,7 +7444,6 @@ static int k056832_update_linemap( device_t *device, _BitmapClass &bitmap, int p
 
         */
 		{
-
 			bitmap_ind16 *pixmap;
 			running_machine &machine = device->machine();
 
@@ -8205,7 +8202,6 @@ void k056832_device::device_config_complete()
 
 void k056832_device::device_start()
 {
-
 /* TODO: understand which elements MUST be init here (to keep correct layer
    associations) and which ones can can be init at RESET, if any */
 	k056832_state *k056832 = k056832_get_safe_token(this);
@@ -9961,7 +9957,6 @@ static void k001005_render_polygons( device_t *device )
 		}
 		else if (k001005->_3d_fifo[i] == 0x80000000)
 		{
-
 		}
 		else if ((k001005->_3d_fifo[i] & 0xffffff00) == 0x80000000)
 		{
@@ -10140,7 +10135,7 @@ struct k001604_state
 {
 	screen_device *screen;
 	tilemap_t        *layer_8x8[2];
-	tilemap_t        *layer_roz[2];
+	tilemap_t        *layer_roz;
 	int            gfx_index[2];
 
 	UINT32 *       tile_ram;
@@ -10149,6 +10144,8 @@ struct k001604_state
 
 	int            layer_size;
 	int            roz_size;
+	int            txt_mem_offset;
+	int            roz_mem_offset;
 };
 
 
@@ -10206,62 +10203,50 @@ we might simplify the code, by passing the whole TILEMAP_MAPPER as a callback in
 
 TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_8x8_0_size0)
 {
+	k001604_state *k001604 = k001604_get_safe_token(this);
+
 	/* logical (col,row) -> memory offset */
-	return (row * 128) + col;
+	return (row * 128) + col + k001604->txt_mem_offset;
 }
 
 TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_8x8_0_size1)
 {
+	k001604_state *k001604 = k001604_get_safe_token(this);
+
 	/* logical (col,row) -> memory offset */
-	return (row * 256) + col;
+	return (row * 256) + col + k001604->txt_mem_offset;
 }
 
 TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_8x8_1_size0)
 {
+	k001604_state *k001604 = k001604_get_safe_token(this);
+
 	/* logical (col,row) -> memory offset */
-	return (row * 128) + col + 64;
+	return (row * 128) + col + 64 + k001604->txt_mem_offset;
 }
 
 TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_8x8_1_size1)
 {
+	k001604_state *k001604 = k001604_get_safe_token(this);
+
 	/* logical (col,row) -> memory offset */
-	return (row * 256) + col + 64;
+	return (row * 256) + col + 64 + k001604->txt_mem_offset;
 }
 
-TILEMAP_MAPPER_MEMBER(k001604_device::slrasslt_scan_layer_8x8_0_size0)
+TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_roz_128)
 {
+	k001604_state *k001604 = k001604_get_safe_token(this);
+
 	/* logical (col,row) -> memory offset */
-	return (row * 128) + col + 16384;
+	return (row * 128) + col + k001604->roz_mem_offset;
 }
 
-TILEMAP_MAPPER_MEMBER(k001604_device::slrasslt_scan_layer_8x8_1_size0)
+TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_roz_256)
 {
-	/* logical (col,row) -> memory offset */
-	return (row * 128) + col + 64 + 16384;
-}
+	k001604_state *k001604 = k001604_get_safe_token(this);
 
-TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_roz_0_size0)
-{
 	/* logical (col,row) -> memory offset */
-	return (row * 128) + col;
-}
-
-TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_roz_0_size1)
-{
-	/* logical (col,row) -> memory offset */
-	return (row * 256) + col + 128;
-}
-
-TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_roz_1_size0)
-{
-	/* logical (col,row) -> memory offset */
-	return (row * 128) + col + 64;
-}
-
-TILEMAP_MAPPER_MEMBER(k001604_device::k001604_scan_layer_roz_1_size1)
-{
-	/* logical (col,row) -> memory offset */
-	return (row * 256) + col + 128 + 64;
+	return (row * 256) + col + 128 + k001604->roz_mem_offset;
 }
 
 TILE_GET_INFO_MEMBER(k001604_device::k001604_tile_info_layer_8x8)
@@ -10286,7 +10271,7 @@ TILE_GET_INFO_MEMBER(k001604_device::k001604_tile_info_layer_roz)
 	UINT32 val = k001604->tile_ram[tile_index];
 	int flags = 0;
 	int color = (val >> 17) & 0x1f;
-	int tile = val & 0x7ff;
+	int tile = k001604->roz_size ? (val & 0x7ff) : (val & 0x1fff);
 
 	if (val & 0x400000)
 		flags |= TILE_FLIPX;
@@ -10302,35 +10287,88 @@ TILE_GET_INFO_MEMBER(k001604_device::k001604_tile_info_layer_roz)
 void k001604_draw_back_layer( device_t *device, bitmap_rgb32 &bitmap, const rectangle &cliprect )
 {
 	k001604_state *k001604 = k001604_get_safe_token(device);
-	int layer;
-	int num_layers;
 	bitmap.fill(0, cliprect);
 
-	num_layers = k001604->layer_size ? 2 : 1;
+	if ((k001604->reg[0x60 / 4] & 0x40000000) == 0)
+		return;
 
-	for (layer = 0; layer < num_layers; layer++)
+	int tile_size = k001604->roz_size ? 16 : 8;
+
+	INT32 x  = (INT16)((k001604->reg[0x08] >> 16) & 0xffff);
+	INT32 y  = (INT16)((k001604->reg[0x08] >>  0) & 0xffff);
+	INT32 xx = (INT16)((k001604->reg[0x09] >>  0) & 0xffff);
+	INT32 xy = (INT16)((k001604->reg[0x09] >> 16) & 0xffff);
+	INT32 yx = (INT16)((k001604->reg[0x0a] >>  0) & 0xffff);
+	INT32 yy = (INT16)((k001604->reg[0x0a] >> 16) & 0xffff);
+
+	int pivotx = (INT16)((k001604->reg[0x00] >> 16) & 0xffff);
+	int pivoty = (INT16)((k001604->reg[0x00] >>  0) & 0xffff);
+
+	int startx  = ((x - pivotx) * 256) * 32;
+	int starty  = ((y - pivoty) * 256) * 32;
+	int incxx = (xx) * 32;
+	int incxy = (-xy) * 32;
+	int incyx = (-yx) * 32;
+	int incyy = (yy) * 32;
+
+	bitmap_ind16& pixmap = k001604->layer_roz->pixmap();
+
+	// extract start/end points
+	int sx = cliprect.min_x;
+	int sy = cliprect.min_y;
+	int ex = cliprect.max_x;
+	int ey = cliprect.max_y;
+
+	const rgb_t *clut = palette_entry_list_raw(bitmap.palette());
+
+	int window_x, window_y, window_xmask, window_ymask;
+
+	int layer_size = (k001604->reg[0x1b] >> 9) & 3;
+
+	if (k001604->roz_size)
+		window_x = ((k001604->reg[0x1b] >> 1) & 3) * 512;
+	else
+		window_x = ((k001604->reg[0x1b] >> 1) & 1) * 512;
+
+	window_y = 0;
+
+	switch (layer_size)
 	{
-		int reg = 0x08;
+		case 0: window_xmask = (128 * tile_size) - 1; break;
+		case 2: window_xmask = (64 * tile_size) - 1; break;
+		case 3: window_xmask = (32 * tile_size) - 1; break;
+		default: fatalerror("k001604_draw_back_layer(): layer_size %d\n", layer_size); break;
+	}
 
-		INT32 x  = (INT16)((k001604->reg[reg + 0] >> 16) & 0xffff);
-		INT32 y  = (INT16)((k001604->reg[reg + 0] >>  0) & 0xffff);
-		INT32 xx = (INT16)((k001604->reg[reg + 1] >>  0) & 0xffff);
-		INT32 xy = (INT16)((k001604->reg[reg + 1] >> 16) & 0xffff);
-		INT32 yx = (INT16)((k001604->reg[reg + 2] >>  0) & 0xffff);
-		INT32 yy = (INT16)((k001604->reg[reg + 2] >> 16) & 0xffff);
+	window_ymask = pixmap.height() - 1;
 
-		x  = (x + 320) * 256;
-		y  = (y + 208) * 256;
-//      xx = (xx);
-		xy = (-xy);
-		yx = (-yx);
-//      yy = (yy);
 
-		if ((k001604->reg[0x6c / 4] & (0x08 >> layer)) != 0)
+	// loop over rows
+	while (sy <= ey)
+	{
+		// initialize X counters
+		int x = sx;
+		UINT32 cx = startx;
+		UINT32 cy = starty;
+
+		UINT32 *dest = &bitmap.pix(sy, sx);
+
+		// loop over columns
+		while (x <= ex)
 		{
-			k001604->layer_roz[layer]->draw_roz(bitmap, cliprect,
-								x << 5, y << 5, xx << 5, xy << 5, yx << 5, yy << 5, 1, 0, 0);
+			*dest = clut[pixmap.pix16(((cy >> 16) & window_ymask) + window_y, ((cx >> 16) & window_xmask) + window_x)];
+
+			// advance in X
+			cx += incxx;
+			cy += incxy;
+			x++;
+			dest++;
 		}
+
+		// advance in Y
+		startx += incyx;
+		starty += incyy;
+		sy++;
 	}
 }
 
@@ -10415,13 +10453,9 @@ WRITE32_DEVICE_HANDLER( k001604_tile_w )
 		{
 			k001604->layer_8x8[1]->mark_tile_dirty(offset);
 		}
-		else if (x < 192)
-		{
-			k001604->layer_roz[0]->mark_tile_dirty(offset);
-		}
 		else
 		{
-			k001604->layer_roz[1]->mark_tile_dirty(offset);
+			k001604->layer_roz->mark_tile_dirty(offset);
 		}
 	}
 	else
@@ -10429,13 +10463,13 @@ WRITE32_DEVICE_HANDLER( k001604_tile_w )
 		if (x < 64)
 		{
 			k001604->layer_8x8[0]->mark_tile_dirty(offset);
-			k001604->layer_roz[0]->mark_tile_dirty(offset);
 		}
 		else
 		{
 			k001604->layer_8x8[1]->mark_tile_dirty(offset);
-			k001604->layer_roz[1]->mark_tile_dirty(offset);
 		}
+
+		k001604->layer_roz->mark_tile_dirty(offset);
 	}
 }
 
@@ -10513,6 +10547,9 @@ void k001604_device::device_start()
 	k001604->layer_size = intf->layer_size;     // 0 -> width = 128 tiles, 1 -> width = 256 tiles
 	k001604->roz_size = intf->roz_size;     // 0 -> 8x8, 1 -> 16x16
 
+	k001604->txt_mem_offset = intf->txt_mem_offset;
+	k001604->roz_mem_offset = intf->roz_mem_offset;
+
 	k001604->gfx_index[0] = intf->gfx_index_1;
 	k001604->gfx_index[1] = intf->gfx_index_2;
 
@@ -10522,29 +10559,20 @@ void k001604_device::device_start()
 
 	/* create tilemaps */
 	roz_tile_size = k001604->roz_size ? 16 : 8;
-	if (!intf->is_slrasslt)
+
+	if (k001604->layer_size)
 	{
-		if (k001604->layer_size)
-		{
-			k001604->layer_8x8[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_8x8_0_size1),this), 8, 8, 64, 64);
-			k001604->layer_8x8[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_8x8_1_size1),this), 8, 8, 64, 64);
-			k001604->layer_roz[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_roz_0_size1),this), roz_tile_size, roz_tile_size, 64, 64);
-			k001604->layer_roz[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_roz_1_size1),this), roz_tile_size, roz_tile_size, 64, 64);
-		}
-		else
-		{
-			k001604->layer_8x8[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_8x8_0_size0),this), 8, 8, 64, 64);
-			k001604->layer_8x8[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_8x8_1_size0),this), 8, 8, 64, 64);
-			k001604->layer_roz[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_roz_0_size0),this), roz_tile_size, roz_tile_size, 128, 64);
-			k001604->layer_roz[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_roz_1_size0),this), roz_tile_size, roz_tile_size, 64, 64);
-		}
+		k001604->layer_8x8[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_8x8_0_size1),this), 8, 8, 64, 64);
+		k001604->layer_8x8[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_8x8_1_size1),this), 8, 8, 64, 64);
+
+		k001604->layer_roz = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_roz_256),this), roz_tile_size, roz_tile_size, 128, 64);
 	}
-	else    /* slrasslt has shifted tilemaps (but only has k001604->layer_size =  0) */
+	else
 	{
-		k001604->layer_8x8[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::slrasslt_scan_layer_8x8_0_size0),this), 8, 8, 64, 64);
-		k001604->layer_8x8[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::slrasslt_scan_layer_8x8_1_size0),this), 8, 8, 64, 64);
-		k001604->layer_roz[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_roz_0_size0),this), roz_tile_size, roz_tile_size, 128, 64);
-		k001604->layer_roz[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_roz_1_size0),this), roz_tile_size, roz_tile_size, 64, 64);
+		k001604->layer_8x8[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_8x8_0_size0),this), 8, 8, 64, 64);
+		k001604->layer_8x8[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_8x8),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_8x8_1_size0),this), 8, 8, 64, 64);
+
+		k001604->layer_roz = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(k001604_device::k001604_tile_info_layer_roz),this), tilemap_mapper_delegate(FUNC(k001604_device::k001604_scan_layer_roz_128),this), roz_tile_size, roz_tile_size, 128, 64);
 	}
 
 	k001604->layer_8x8[0]->set_transparent_pen(0);

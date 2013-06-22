@@ -16,7 +16,7 @@
 VIDEO_START_MEMBER(apple2gs_state,apple2gs)
 {
 	m_bordercolor = 0;
-	apple2_video_start(machine(), m_slowmem, 0x20000, 0, 8);
+	apple2_video_start(m_slowmem, m_slowmem+0x10000, 0, 8);
 	m_legacy_gfx = auto_bitmap_ind16_alloc(machine(), 560, 192);
 
 	state_save_register_item(machine(), "BORDERCLR", NULL, 0, m_bordercolor);
@@ -114,7 +114,6 @@ UINT32 apple2gs_state::screen_update_apple2gs(screen_device &screen, bitmap_ind1
 		/* call legacy Apple II video rendering at scanline 0 to draw into the off-screen buffer */
 		if (beamy == 0)
 		{
-
 			// check if DHR should be monochrome 560x192
 			if (m_newvideo & 0x20)
 			{

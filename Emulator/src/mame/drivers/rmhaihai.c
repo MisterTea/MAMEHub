@@ -38,9 +38,11 @@ class rmhaihai_state : public driver_device
 {
 public:
 	rmhaihai_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_colorram(*this, "colorram"),
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_msm(*this, "msm") { }
 
 	int m_gfxbank;
 	required_shared_ptr<UINT8> m_colorram;
@@ -60,6 +62,8 @@ public:
 	virtual void video_start();
 	DECLARE_MACHINE_RESET(themj);
 	UINT32 screen_update_rmhaihai(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<msm5205_device> m_msm;
 };
 
 
@@ -163,10 +167,9 @@ READ8_MEMBER(rmhaihai_state::samples_r)
 
 WRITE8_MEMBER(rmhaihai_state::adpcm_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_data_w(device,data);         /* bit0..3  */
-	msm5205_reset_w(device,(data>>5)&1); /* bit 5    */
-	msm5205_vclk_w (device,(data>>4)&1); /* bit4     */
+	m_msm->data_w(data);         /* bit0..3  */
+	m_msm->reset_w(BIT(data, 5)); /* bit 5    */
+	m_msm->vclk_w(BIT(data, 4)); /* bit4     */
 }
 
 WRITE8_MEMBER(rmhaihai_state::ctrl_w)
@@ -194,7 +197,7 @@ logerror("banksw %d\n",bank);
 
 MACHINE_RESET_MEMBER(rmhaihai_state,themj)
 {
-	themj_rombank_w(machine().device("maincpu")->memory().space(AS_IO), 0, 0);
+	themj_rombank_w(m_maincpu->space(AS_IO), 0, 0);
 }
 
 
@@ -214,8 +217,8 @@ static ADDRESS_MAP_START( rmhaihai_io_map, AS_IO, 8, rmhaihai_state )
 	AM_RANGE(0x0000, 0x7fff) AM_READ(samples_r)
 	AM_RANGE(0x8000, 0x8000) AM_READ(keyboard_r) AM_WRITENOP    // ??
 	AM_RANGE(0x8001, 0x8001) AM_READNOP AM_WRITE(keyboard_w)    // ??
-	AM_RANGE(0x8020, 0x8020) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x8020, 0x8021) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x8020, 0x8020) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x8020, 0x8021) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x8040, 0x8040) AM_WRITE(adpcm_w)
 	AM_RANGE(0x8060, 0x8060) AM_WRITE(ctrl_w)
 	AM_RANGE(0x8080, 0x8080) AM_WRITENOP    // ??
@@ -237,8 +240,8 @@ static ADDRESS_MAP_START( themj_io_map, AS_IO, 8, rmhaihai_state )
 	AM_RANGE(0x0000, 0x7fff) AM_READ(samples_r)
 	AM_RANGE(0x8000, 0x8000) AM_READ(keyboard_r) AM_WRITENOP    // ??
 	AM_RANGE(0x8001, 0x8001) AM_READNOP AM_WRITE(keyboard_w)    // ??
-	AM_RANGE(0x8020, 0x8020) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x8020, 0x8021) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x8020, 0x8020) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x8020, 0x8021) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x8040, 0x8040) AM_WRITE(adpcm_w)
 	AM_RANGE(0x8060, 0x8060) AM_WRITE(ctrl_w)
 	AM_RANGE(0x8080, 0x8080) AM_WRITENOP    // ??
@@ -457,7 +460,7 @@ static const ay8910_interface ay8910_config =
 
 static const msm5205_interface msm5205_config =
 {
-	0,              /* interrupt function */
+	DEVCB_NULL,              /* interrupt function */
 	MSM5205_SEX_4B  /* vclk input mode    */
 };
 
@@ -667,8 +670,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(rmhaihai_state,rmhaihai)
 {
-	UINT8 *rom = machine().root_device().memregion("gfx1")->base();
-	int size = machine().root_device().memregion("gfx1")->bytes();
+	UINT8 *rom = memregion("gfx1")->base();
+	int size = memregion("gfx1")->bytes();
 	int a,b;
 
 	size /= 2;

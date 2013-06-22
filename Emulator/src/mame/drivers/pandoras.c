@@ -37,14 +37,12 @@ Boards:
 
 INTERRUPT_GEN_MEMBER(pandoras_state::pandoras_master_interrupt)
 {
-
 	if (m_irq_enable_a)
 		device.execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(pandoras_state::pandoras_slave_interrupt)
 {
-
 	if (m_irq_enable_b)
 		device.execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 }
@@ -87,7 +85,6 @@ WRITE8_MEMBER(pandoras_state::pandoras_int_control_w)
 
 WRITE8_MEMBER(pandoras_state::pandoras_cpua_irqtrigger_w)
 {
-
 	if (!m_firq_old_data_a && data)
 		m_maincpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
 
@@ -96,7 +93,6 @@ WRITE8_MEMBER(pandoras_state::pandoras_cpua_irqtrigger_w)
 
 WRITE8_MEMBER(pandoras_state::pandoras_cpub_irqtrigger_w)
 {
-
 	if (!m_firq_old_data_b && data)
 		m_subcpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
 
@@ -110,7 +106,6 @@ WRITE8_MEMBER(pandoras_state::pandoras_i8039_irqtrigger_w)
 
 WRITE8_MEMBER(pandoras_state::i8039_irqen_and_status_w)
 {
-
 	/* bit 7 enables IRQ */
 	if ((data & 0x80) == 0)
 		m_mcu->set_input_line(0, CLEAR_LINE);
@@ -163,9 +158,9 @@ static ADDRESS_MAP_START( pandoras_sound_map, AS_PROGRAM, 8, pandoras_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM                                                         /* ROM */
 	AM_RANGE(0x2000, 0x23ff) AM_RAM                                                         /* RAM */
 	AM_RANGE(0x4000, 0x4000) AM_READ(soundlatch_byte_r)                                         /* soundlatch_byte_r */
-	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)                          /* AY-8910 */
-	AM_RANGE(0x6001, 0x6001) AM_DEVREAD_LEGACY("aysnd", ay8910_r)                                   /* AY-8910 */
-	AM_RANGE(0x6002, 0x6002) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)                         /* AY-8910 */
+	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE("aysnd", ay8910_device, address_w)                          /* AY-8910 */
+	AM_RANGE(0x6001, 0x6001) AM_DEVREAD("aysnd", ay8910_device, data_r)                                   /* AY-8910 */
+	AM_RANGE(0x6002, 0x6002) AM_DEVWRITE("aysnd", ay8910_device, data_w)                         /* AY-8910 */
 	AM_RANGE(0x8000, 0x8000) AM_WRITE(pandoras_i8039_irqtrigger_w)                          /* cause INT on the 8039 */
 	AM_RANGE(0xa000, 0xa000) AM_WRITE(soundlatch2_byte_w)                                       /* sound command to the 8039 */
 ADDRESS_MAP_END
@@ -292,12 +287,6 @@ GFXDECODE_END
 
 void pandoras_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_mcu = machine().device<cpu_device>("mcu");
-
 	save_item(NAME(m_firq_old_data_a));
 	save_item(NAME(m_firq_old_data_b));
 	save_item(NAME(m_irq_enable_a));
@@ -307,7 +296,6 @@ void pandoras_state::machine_start()
 
 void pandoras_state::machine_reset()
 {
-
 	m_firq_old_data_a = 0;
 	m_firq_old_data_b = 0;
 	m_irq_enable_a = 0;

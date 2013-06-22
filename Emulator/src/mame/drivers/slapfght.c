@@ -392,24 +392,24 @@ static ADDRESS_MAP_START( perfrman_sound_map, AS_PROGRAM, 8, slapfght_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x8800, 0x880f) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x8810, 0x8fff) AM_RAMBANK("bank1") /* Shared RAM with main CPU */
-	AM_RANGE(0xa080, 0xa080) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0xa081, 0xa081) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0xa082, 0xa082) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0xa090, 0xa090) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
-	AM_RANGE(0xa091, 0xa091) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0xa092, 0xa092) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
+	AM_RANGE(0xa080, 0xa080) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0xa081, 0xa081) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0xa082, 0xa082) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0xa090, 0xa090) AM_DEVWRITE("ay2", ay8910_device, address_w)
+	AM_RANGE(0xa091, 0xa091) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0xa092, 0xa092) AM_DEVWRITE("ay2", ay8910_device, data_w)
 	AM_RANGE(0xa0e0, 0xa0e0) AM_WRITE(getstar_sh_intenable_w) /* maybe a0f0 also -LE */
 //  AM_RANGE(0xa0f0, 0xa0f0) AM_WRITENOP
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( slapfght_sound_map, AS_PROGRAM, 8, slapfght_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
-	AM_RANGE(0xa080, 0xa080) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0xa081, 0xa081) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0xa082, 0xa082) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0xa090, 0xa090) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
-	AM_RANGE(0xa091, 0xa091) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0xa092, 0xa092) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
+	AM_RANGE(0xa080, 0xa080) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0xa081, 0xa081) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0xa082, 0xa082) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0xa090, 0xa090) AM_DEVWRITE("ay2", ay8910_device, address_w)
+	AM_RANGE(0xa091, 0xa091) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0xa092, 0xa092) AM_DEVWRITE("ay2", ay8910_device, data_w)
 	AM_RANGE(0xa0e0, 0xa0e0) AM_WRITE(getstar_sh_intenable_w) /* maybe a0f0 also -LE */
 //  AM_RANGE(0xa0f0, 0xa0f0) AM_WRITENOP
 	AM_RANGE(0xc800, 0xc80f) AM_RAM AM_SHARE("share1")
@@ -736,7 +736,6 @@ static const ay8910_interface ay8910_interface_2 =
 
 INTERRUPT_GEN_MEMBER(slapfght_state::vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }
@@ -1739,12 +1738,12 @@ ROM_END
 
 DRIVER_INIT_MEMBER(slapfght_state,tigerh)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xe803, 0xe803, read8_delegate(FUNC(slapfght_state::tigerh_mcu_r),this), write8_delegate(FUNC(slapfght_state::tigerh_mcu_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xe803, 0xe803, read8_delegate(FUNC(slapfght_state::tigerh_mcu_r),this), write8_delegate(FUNC(slapfght_state::tigerh_mcu_w),this));
 }
 
 DRIVER_INIT_MEMBER(slapfght_state,tigerhb)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xe803, 0xe803, read8_delegate(FUNC(slapfght_state::tigerhb_e803_r),this), write8_delegate(FUNC(slapfght_state::tigerhb_e803_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xe803, 0xe803, read8_delegate(FUNC(slapfght_state::tigerhb_e803_r),this), write8_delegate(FUNC(slapfght_state::tigerhb_e803_w),this));
 }
 
 
@@ -1802,23 +1801,22 @@ READ8_MEMBER(slapfght_state::gtstarb1_port_0_read)
 	return 0;
 }
 
-static void getstar_init( running_machine &machine )
+void slapfght_state::getstar_init(  )
 {
-	slapfght_state *state = machine.driver_data<slapfght_state>();
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xe803, 0xe803, read8_delegate(FUNC(slapfght_state::getstar_e803_r),state), write8_delegate(FUNC(slapfght_state::getstar_e803_w),state));
-	machine.device("maincpu")->memory().space(AS_IO).install_read_handler(0x00, 0x00, read8_delegate(FUNC(slapfght_state::slapfight_port_00_r),state));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xe803, 0xe803, read8_delegate(FUNC(slapfght_state::getstar_e803_r),this), write8_delegate(FUNC(slapfght_state::getstar_e803_w),this));
+	m_maincpu->space(AS_IO).install_read_handler(0x00, 0x00, read8_delegate(FUNC(slapfght_state::slapfight_port_00_r),this));
 }
 
 DRIVER_INIT_MEMBER(slapfght_state,getstar)
 {
 	m_getstar_id = GETSTAR;
-	getstar_init(machine());
+	getstar_init();
 }
 
 DRIVER_INIT_MEMBER(slapfght_state,getstarj)
 {
 	m_getstar_id = GETSTARJ;
-	getstar_init(machine());
+	getstar_init();
 }
 
 DRIVER_INIT_MEMBER(slapfght_state,gtstarb1)
@@ -1826,10 +1824,10 @@ DRIVER_INIT_MEMBER(slapfght_state,gtstarb1)
 	UINT8 *ROM = memregion("maincpu")->base();
 
 	m_getstar_id = GTSTARB1;
-	getstar_init(machine());
+	getstar_init();
 
 	/* specific handlers for this bootleg */
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x0, 0x0, read8_delegate(FUNC(slapfght_state::gtstarb1_port_0_read),this));
+	m_maincpu->space(AS_IO).install_read_handler(0x0, 0x0, read8_delegate(FUNC(slapfght_state::gtstarb1_port_0_read),this));
 	/* requires this or it gets stuck with 'rom test' on screen */
 	/* it is possible the program roms are slighly corrupt like the gfx roms, or
 	   that the bootleg simply shouldn't execute the code due to the modified roms */
@@ -1840,18 +1838,18 @@ DRIVER_INIT_MEMBER(slapfght_state,gtstarb1)
 DRIVER_INIT_MEMBER(slapfght_state,gtstarb2)
 {
 	m_getstar_id = GTSTARB2;
-	getstar_init(machine());
+	getstar_init();
 }
 
 DRIVER_INIT_MEMBER(slapfght_state,slapfigh)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xe803, 0xe803, read8_delegate(FUNC(slapfght_state::slapfight_mcu_r),this), write8_delegate(FUNC(slapfght_state::slapfight_mcu_w),this));
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x00, 0x00, read8_delegate(FUNC(slapfght_state::slapfight_mcu_status_r),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xe803, 0xe803, read8_delegate(FUNC(slapfght_state::slapfight_mcu_r),this), write8_delegate(FUNC(slapfght_state::slapfight_mcu_w),this));
+	m_maincpu->space(AS_IO).install_read_handler(0x00, 0x00, read8_delegate(FUNC(slapfght_state::slapfight_mcu_status_r),this));
 }
 
 DRIVER_INIT_MEMBER(slapfght_state,perfrman)
 {
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x00, 0x00, read8_delegate(FUNC(slapfght_state::perfrman_port_00_r),this));
+	m_maincpu->space(AS_IO).install_read_handler(0x00, 0x00, read8_delegate(FUNC(slapfght_state::perfrman_port_00_r),this));
 }
 
 /*  ( YEAR  NAME        PARENT    MACHINE     INPUT     INIT      MONITOR  COMPANY    FULLNAME     FLAGS ) */

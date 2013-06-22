@@ -52,7 +52,8 @@ class ti990_4_state : public driver_device
 {
 public:
 	ti990_4_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu") { }
 
 	device_t *m_terminal;
 	DECLARE_WRITE8_MEMBER(rset_callback);
@@ -63,6 +64,8 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_ti990_4(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ti990_4_line_interrupt);
+	void idle_callback(int state);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -78,7 +81,6 @@ void ti990_4_state::machine_reset()
 
 INTERRUPT_GEN_MEMBER(ti990_4_state::ti990_4_line_interrupt)
 {
-
 #if VIDEO_911
 	vdt911_keyboard(m_terminal);
 #else
@@ -89,7 +91,7 @@ INTERRUPT_GEN_MEMBER(ti990_4_state::ti990_4_line_interrupt)
 }
 
 #ifdef UNUSED_FUNCTION
-static void idle_callback(int state)
+void ti990_4_state::idle_callback(int state)
 {
 }
 #endif
@@ -105,7 +107,7 @@ WRITE8_MEMBER(ti990_4_state::rset_callback)
 
 WRITE8_MEMBER(ti990_4_state::ckon_ckof_callback)
 {
-	device_t *maincpu = machine().device("maincpu");
+	device_t *maincpu = m_maincpu;
 	ti990_ckon_ckof_callback(maincpu, (offset & 0x1000) ? 1 : 0);
 }
 
@@ -132,7 +134,6 @@ static const vdt911_init_params_t vdt911_intf =
 
 void ti990_4_state::video_start()
 {
-
 	m_terminal = machine().device("vdt911");
 }
 
@@ -151,7 +152,6 @@ static const asr733_init_params_t asr733_intf =
 
 void ti990_4_state::video_start()
 {
-
 	m_terminal = machine().device("asr733");
 }
 
@@ -213,7 +213,7 @@ static ADDRESS_MAP_START(ti990_4_cru_map, AS_IO, 8, ti990_4_state )
 	AM_RANGE(0xff0, 0xfff) AM_WRITE_LEGACY(ti990_panel_write)
 
 	/* external instruction decoding */
-/*  AM_RANGE(0x2000, 0x2fff) AM_WRITE_LEGACY(idle_callback)*/
+/*  AM_RANGE(0x2000, 0x2fff) AM_WRITE(idle_callback)*/
 	AM_RANGE(0x3000, 0x3fff) AM_WRITE(rset_callback)
 	AM_RANGE(0x5000, 0x6fff) AM_WRITE(ckon_ckof_callback)
 	AM_RANGE(0x7000, 0x7fff) AM_WRITE(lrex_callback)
@@ -280,7 +280,7 @@ static MACHINE_CONFIG_START( ti990_4, ti990_4_state )
 #if VIDEO_911
 	/* 911 VDT has a beep tone generator */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 #endif
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(ti990_4_floppy_interface)

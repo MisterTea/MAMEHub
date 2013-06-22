@@ -16,7 +16,19 @@ class scv_state : public driver_device
 public:
 	scv_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_videoram(*this,"videoram")        { }
+		m_videoram(*this,"videoram"),
+		m_cart_rom_size(0),
+		m_cart_ram(NULL),
+		m_cart_ram_size(0),
+		m_maincpu(*this, "maincpu"),
+		m_upd1771c(*this, "upd1771c"),
+		m_pc0(*this, "PC0"),
+		m_bank0(*this, "bank0"),
+		m_bank1(*this, "bank1"),
+		m_bank2(*this, "bank2"),
+		m_bank3(*this, "bank3"),
+		m_bank4(*this, "bank4"),
+		m_charrom(*this, "charrom") { }
 
 	DECLARE_WRITE8_MEMBER(scv_porta_w);
 	DECLARE_READ8_MEMBER(scv_portb_r);
@@ -37,11 +49,36 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void palette_init();
+	void scv_postload();
 	UINT32 screen_update_scv(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(scv_vb_callback);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( scv_cart );
+
+protected:
+	enum
+	{
+		TIMER_VB
+	};
+
+	required_device<cpu_device> m_maincpu;
+	required_device<upd1771c_device> m_upd1771c;
+	required_ioport m_pc0;
+	required_memory_bank m_bank0;
+	required_memory_bank m_bank1;
+	required_memory_bank m_bank2;
+	required_memory_bank m_bank3;
+	required_memory_bank m_bank4;
+	required_memory_region m_charrom;
+
+	ioport_port *m_key[8];
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+
+	void scv_set_banks();
+	inline void plot_sprite_part( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 pat, UINT8 col, UINT8 screen_sprite_start_line );
+	inline void draw_sprite( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 tile_idx, UINT8 col, UINT8 left, UINT8 right, UINT8 top, UINT8 bottom, UINT8 clip_y, UINT8 screen_sprite_start_line );
+	inline void draw_text( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 *char_data, UINT8 fg, UINT8 bg );
+	inline void draw_semi_graph( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 data, UINT8 fg );
+	inline void draw_block_graph( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 col );
 };
-
-
 
 
 static ADDRESS_MAP_START( scv_mem, AS_PROGRAM, 8, scv_state )
@@ -49,7 +86,7 @@ static ADDRESS_MAP_START( scv_mem, AS_PROGRAM, 8, scv_state )
 
 	AM_RANGE( 0x2000, 0x3403 ) AM_RAM AM_SHARE("videoram")  /* VRAM + 4 registers */
 
-	AM_RANGE( 0x3600, 0x3600 ) AM_DEVWRITE_LEGACY("upd1771c", upd1771_w )
+	AM_RANGE( 0x3600, 0x3600 ) AM_DEVWRITE("upd1771c", upd1771c_device, write)
 
 	AM_RANGE( 0x8000, 0x9fff ) AM_ROMBANK("bank0")
 	AM_RANGE( 0xa000, 0xbfff ) AM_ROMBANK("bank1")
@@ -157,7 +194,9 @@ WRITE8_MEMBER( scv_state::scv_cart_ram_w )
 {
 	/* Check if cartridge ram is enabled */
 	if ( m_cart_ram_enabled )
+	{
 		m_cart_ram[offset] = data;
+	}
 }
 
 
@@ -167,7 +206,9 @@ WRITE8_MEMBER( scv_state::scv_cart_ram2_w )
 	if ( m_cart_ram_enabled )
 	{
 		if ( m_cart_ram_size > 0x1000 )
+		{
 			offset += 0x1000;
+		}
 
 		m_cart_ram[offset] = data;
 	}
@@ -184,29 +225,11 @@ READ8_MEMBER( scv_state::scv_portb_r )
 {
 	UINT8 data = 0xff;
 
-	if ( ! ( m_porta & 0x01 ) )
-		data &= ioport( "PA0" )->read();
-
-	if ( ! ( m_porta & 0x02 ) )
-		data &= ioport( "PA1" )->read();
-
-	if ( ! ( m_porta & 0x04 ) )
-		data &= ioport( "PA2" )->read();
-
-	if ( ! ( m_porta & 0x08 ) )
-		data &= ioport( "PA3" )->read();
-
-	if ( ! ( m_porta & 0x10 ) )
-		data &= ioport( "PA4" )->read();
-
-	if ( ! ( m_porta & 0x20 ) )
-		data &= ioport( "PA5" )->read();
-
-	if ( ! ( m_porta & 0x40 ) )
-		data &= ioport( "PA6" )->read();
-
-	if ( ! ( m_porta & 0x80 ) )
-		data &= ioport( "PA7" )->read();
+	for (int i = 0; i < 8; i++)
+	{
+		if (!BIT(m_porta, i))
+			data &= m_key[i]->read();
+	}
 
 	return data;
 }
@@ -216,78 +239,76 @@ READ8_MEMBER( scv_state::scv_portc_r )
 {
 	UINT8 data = m_portc;
 
-	data = ( data & 0xfe ) | ( ioport( "PC0" )->read() & 0x01 );
+	data = (data & 0xfe) | (m_pc0->read() & 0x01);
 
 	return data;
 }
 
 
-static void scv_set_banks( running_machine &machine )
+void scv_state::scv_set_banks()
 {
-	scv_state *state = machine.driver_data<scv_state>();
+	m_cart_ram_enabled = false;
 
-	state->m_cart_ram_enabled = false;
-
-	switch( state->m_cart_rom_size )
+	switch( m_cart_rom_size )
 	{
 	case 0:
 	case 0x2000:
-		state->membank( "bank0" )->set_base( state->m_cart_rom );
-		state->membank( "bank1" )->set_base( state->m_cart_rom );
-		state->membank( "bank2" )->set_base( state->m_cart_rom );
-		state->membank( "bank3" )->set_base( state->m_cart_rom );
-		state->membank( "bank4" )->set_base( state->m_cart_rom + 0x1000 );
+		m_bank0->set_base( m_cart_rom );
+		m_bank1->set_base( m_cart_rom );
+		m_bank2->set_base( m_cart_rom );
+		m_bank3->set_base( m_cart_rom );
+		m_bank4->set_base( m_cart_rom + 0x1000 );
 		break;
 	case 0x4000:
-		state->membank( "bank0" )->set_base( state->m_cart_rom );
-		state->membank( "bank1" )->set_base( state->m_cart_rom + 0x2000 );
-		state->membank( "bank2" )->set_base( state->m_cart_rom );
-		state->membank( "bank3" )->set_base( state->m_cart_rom + 0x2000 );
-		state->membank( "bank4" )->set_base( state->m_cart_rom + 0x3000 );
+		m_bank0->set_base( m_cart_rom );
+		m_bank1->set_base( m_cart_rom + 0x2000 );
+		m_bank2->set_base( m_cart_rom );
+		m_bank3->set_base( m_cart_rom + 0x2000 );
+		m_bank4->set_base( m_cart_rom + 0x3000 );
 		break;
 	case 0x8000:
-		state->membank( "bank0" )->set_base( state->m_cart_rom );
-		state->membank( "bank1" )->set_base( state->m_cart_rom + 0x2000 );
-		state->membank( "bank2" )->set_base( state->m_cart_rom + 0x4000 );
-		state->membank( "bank3" )->set_base( state->m_cart_rom + 0x6000 );
-		state->membank( "bank4" )->set_base( state->m_cart_rom + 0x7000 );
+		m_bank0->set_base( m_cart_rom );
+		m_bank1->set_base( m_cart_rom + 0x2000 );
+		m_bank2->set_base( m_cart_rom + 0x4000 );
+		m_bank3->set_base( m_cart_rom + 0x6000 );
+		m_bank4->set_base( m_cart_rom + 0x7000 );
 		break;
 	case 0x10000:
-		state->membank( "bank0" )->set_base( state->m_cart_rom + ( ( state->m_portc & 0x20 ) ? 0x8000 : 0 ) );
-		state->membank( "bank1" )->set_base( state->m_cart_rom + ( ( state->m_portc & 0x20 ) ? 0xa000 : 0x2000 ) );
-		state->membank( "bank2" )->set_base( state->m_cart_rom + ( ( state->m_portc & 0x20 ) ? 0xc000 : 0x4000 ) );
-		state->membank( "bank3" )->set_base( state->m_cart_rom + ( ( state->m_portc & 0x20 ) ? 0xe000 : 0x6000 ) );
-		state->membank( "bank4" )->set_base( state->m_cart_rom + ( ( state->m_portc & 0x20 ) ? 0xf000 : 0x7000 ) );
+		m_bank0->set_base( m_cart_rom + ( ( m_portc & 0x20 ) ? 0x8000 : 0 ) );
+		m_bank1->set_base( m_cart_rom + ( ( m_portc & 0x20 ) ? 0xa000 : 0x2000 ) );
+		m_bank2->set_base( m_cart_rom + ( ( m_portc & 0x20 ) ? 0xc000 : 0x4000 ) );
+		m_bank3->set_base( m_cart_rom + ( ( m_portc & 0x20 ) ? 0xe000 : 0x6000 ) );
+		m_bank4->set_base( m_cart_rom + ( ( m_portc & 0x20 ) ? 0xf000 : 0x7000 ) );
 		break;
 	case 0x20000:   /* Pole Position 2 */
-		int base = ( ( state->m_portc >> 5 ) & 0x03 ) * 0x8000 ;
-		state->membank( "bank0" )->set_base( state->m_cart_rom + base + 0 );
-		state->membank( "bank1" )->set_base( state->m_cart_rom + base + 0x2000 );
-		state->membank( "bank2" )->set_base( state->m_cart_rom + base + 0x4000 );
-		state->membank( "bank3" )->set_base( state->m_cart_rom + base + 0x6000 );
-		state->membank( "bank4" )->set_base( state->m_cart_rom + base + 0x7000 );
+		int base = ( ( m_portc >> 5 ) & 0x03 ) * 0x8000 ;
+		m_bank0->set_base( m_cart_rom + base + 0 );
+		m_bank1->set_base( m_cart_rom + base + 0x2000 );
+		m_bank2->set_base( m_cart_rom + base + 0x4000 );
+		m_bank3->set_base( m_cart_rom + base + 0x6000 );
+		m_bank4->set_base( m_cart_rom + base + 0x7000 );
 		/* On-cart RAM is enabled when PC6 is high */
-		if ( state->m_cart_ram && state->m_portc & 0x40 )
+		if ( m_cart_ram && m_portc & 0x40 )
 		{
-			state->m_cart_ram_enabled = true;
-			state->membank( "bank4" )->set_base( state->m_cart_ram );
+			m_cart_ram_enabled = true;
+			m_bank4->set_base( m_cart_ram );
 		}
 		break;
 	}
 
 	/* Check if cartridge RAM is available and should be enabled */
-	if ( state->m_cart_rom_size < 0x20000 && state->m_cart_ram && state->m_cart_ram_size && ( state->m_portc & 0x20 ) )
+	if ( m_cart_rom_size < 0x20000 && m_cart_ram && m_cart_ram_size && ( m_portc & 0x20 ) )
 	{
-		if ( state->m_cart_ram_size == 0x1000 )
+		if ( m_cart_ram_size == 0x1000 )
 		{
-			state->membank( "bank4" )->set_base( state->m_cart_ram );
+			m_bank4->set_base( m_cart_ram );
 		}
 		else
 		{
-			state->membank( "bank3" )->set_base( state->m_cart_ram );
-			state->membank( "bank4" )->set_base( state->m_cart_ram + 0x1000 );
+			m_bank3->set_base( m_cart_ram );
+			m_bank4->set_base( m_cart_ram + 0x1000 );
 		}
-		state->m_cart_ram_enabled = true;
+		m_cart_ram_enabled = true;
 	}
 
 }
@@ -295,37 +316,23 @@ static void scv_set_banks( running_machine &machine )
 
 WRITE8_MEMBER( scv_state::scv_portc_w )
 {
-	//logerror("%04x: scv_portc_w: data = 0x%02x\n", machine().device("maincpu")->safe_pc(), data );
+	//logerror("%04x: scv_portc_w: data = 0x%02x\n", m_maincpu->pc(), data );
 	m_portc = data;
 
-	scv_set_banks( machine() );
-	upd1771_pcm_w( machine().device( "upd1771c" ), m_portc & 0x08 );
+	scv_set_banks();
+	m_upd1771c->pcm_write(m_portc & 0x08);
 }
 
 
-static DEVICE_START( scv_cart )
+DEVICE_IMAGE_LOAD_MEMBER( scv_state, scv_cart )
 {
-	scv_state *state = device->machine().driver_data<scv_state>();
-
-	state->m_cart_rom = state->memregion( "cart" )->base();
-	state->m_cart_rom_size = 0;
-	state->m_cart_ram = NULL;
-	state->m_cart_ram_size = 0;
-
-	scv_set_banks( device->machine() );
-}
-
-
-static DEVICE_IMAGE_LOAD( scv_cart )
-{
-	scv_state *state = image.device().machine().driver_data<scv_state>();
+	UINT8 *cart = memregion( "cart" )->base();
 
 	if ( image.software_entry() == NULL )
 	{
-		UINT8 *cart = image.device().machine().root_device().memregion( "cart" )->base();
 		int size = image.length();
 
-		if ( size > state->memregion( "cart" )->bytes() )
+		if ( size > memregion( "cart" )->bytes() )
 		{
 			image.seterror( IMAGE_ERROR_UNSPECIFIED, "Unsupported cartridge size" );
 			return IMAGE_INIT_FAIL;
@@ -337,20 +344,19 @@ static DEVICE_IMAGE_LOAD( scv_cart )
 			return IMAGE_INIT_FAIL;
 		}
 
-		state->m_cart_rom = cart;
-		state->m_cart_rom_size = size;
-		state->m_cart_ram = NULL;
-		state->m_cart_ram_size = 0;
+		m_cart_rom_size = size;
 	}
 	else
 	{
-		state->m_cart_rom = image.get_software_region( "rom" );
-		state->m_cart_rom_size = image.get_software_region_length( "rom" );
-		state->m_cart_ram = image.get_software_region( "ram" );
-		state->m_cart_ram_size = image.get_software_region_length( "ram" );
+		m_cart_rom_size = image.get_software_region_length( "rom" );
+		memcpy( cart, image.get_software_region( "rom" ), m_cart_rom_size );
+		m_cart_ram_size = image.get_software_region_length( "ram" );
+		if ( m_cart_ram_size > 0 )
+		{
+			m_cart_ram = auto_alloc_array_clear( machine(), UINT8, m_cart_ram_size );
+			save_pointer(NAME(m_cart_ram), m_cart_ram_size);
+		}
 	}
-
-	scv_set_banks( image.device().machine() );
 
 	return IMAGE_INIT_PASS;
 }
@@ -408,25 +414,35 @@ void scv_state::palette_init()
 }
 
 
-TIMER_CALLBACK_MEMBER(scv_state::scv_vb_callback)
+void scv_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	int vpos = machine().primary_screen->vpos();
-
-	switch( vpos )
+	switch (id)
 	{
-	case 240:
-		machine().device("maincpu")->execute().set_input_line(UPD7810_INTF2, ASSERT_LINE);
-		break;
-	case 0:
-		machine().device("maincpu")->execute().set_input_line(UPD7810_INTF2, CLEAR_LINE);
-		break;
-	}
+		case TIMER_VB:
+			{
+				int vpos = machine().primary_screen->vpos();
 
-	m_vb_timer->adjust( machine().primary_screen->time_until_pos(( vpos + 1 ) % 262, 0 ) );
+				switch( vpos )
+				{
+				case 240:
+					m_maincpu->set_input_line(UPD7810_INTF2, ASSERT_LINE);
+					break;
+				case 0:
+					m_maincpu->set_input_line(UPD7810_INTF2, CLEAR_LINE);
+					break;
+				}
+
+				m_vb_timer->adjust(machine().primary_screen->time_until_pos((vpos + 1) % 262, 0));
+			}
+			break;
+
+		default:
+			assert_always(FALSE, "Unknown id in scv_state::device_timer");
+	}
 }
 
 
-INLINE void plot_sprite_part( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 pat, UINT8 col, UINT8 screen_sprite_start_line )
+inline void scv_state::plot_sprite_part( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 pat, UINT8 col, UINT8 screen_sprite_start_line )
 {
 	if ( x < 4 )
 	{
@@ -457,17 +473,17 @@ INLINE void plot_sprite_part( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 pat,
 }
 
 
-INLINE void draw_sprite( scv_state *state, bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 tile_idx, UINT8 col, UINT8 left, UINT8 right, UINT8 top, UINT8 bottom, UINT8 clip_y, UINT8 screen_sprite_start_line )
+inline void scv_state::draw_sprite( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 tile_idx, UINT8 col, UINT8 left, UINT8 right, UINT8 top, UINT8 bottom, UINT8 clip_y, UINT8 screen_sprite_start_line )
 {
 	int j;
 
 	y += clip_y * 2;
 	for ( j = clip_y * 4; j < 32; j += 4 )
 	{
-		UINT8 pat0 = state->m_videoram[ tile_idx * 32 + j + 0 ];
-		UINT8 pat1 = state->m_videoram[ tile_idx * 32 + j + 1 ];
-		UINT8 pat2 = state->m_videoram[ tile_idx * 32 + j + 2 ];
-		UINT8 pat3 = state->m_videoram[ tile_idx * 32 + j + 3 ];
+		UINT8 pat0 = m_videoram[ tile_idx * 32 + j + 0 ];
+		UINT8 pat1 = m_videoram[ tile_idx * 32 + j + 1 ];
+		UINT8 pat2 = m_videoram[ tile_idx * 32 + j + 2 ];
+		UINT8 pat3 = m_videoram[ tile_idx * 32 + j + 3 ];
 
 		if ( ( top && j < 16 ) || ( bottom && j >= 16 ) )
 		{
@@ -499,7 +515,7 @@ INLINE void draw_sprite( scv_state *state, bitmap_ind16 &bitmap, UINT8 x, UINT8 
 }
 
 
-INLINE void draw_text( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 *char_data, UINT8 fg, UINT8 bg )
+inline void scv_state::draw_text( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 *char_data, UINT8 fg, UINT8 bg )
 {
 	int i;
 
@@ -532,7 +548,7 @@ INLINE void draw_text( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 *char_data,
 }
 
 
-INLINE void draw_semi_graph( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 data, UINT8 fg )
+inline void scv_state::draw_semi_graph( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 data, UINT8 fg )
 {
 	int i;
 
@@ -549,7 +565,7 @@ INLINE void draw_semi_graph( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 data,
 }
 
 
-INLINE void draw_block_graph( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 col )
+inline void scv_state::draw_block_graph( bitmap_ind16 &bitmap, UINT8 x, UINT8 y, UINT8 col )
 {
 	int i;
 
@@ -611,7 +627,7 @@ UINT32 scv_state::screen_update_scv(screen_device &screen, bitmap_ind16 &bitmap,
 			if ( text_x && text_y )
 			{
 				/* Text mode */
-				UINT8 *char_data = memregion( "charrom" )->base() + ( d & 0x7f ) * 8;
+				UINT8 *char_data = m_charrom->base() + ( d & 0x7f ) * 8;
 				draw_text( bitmap, x * 8, y * 16, char_data, fg, bg );
 			}
 			else
@@ -707,31 +723,31 @@ UINT32 scv_state::screen_update_scv(screen_device &screen, bitmap_ind16 &bitmap,
 			if ( ( m_videoram[0x1400] & 0x20 ) && ( i & 0x20 ) )
 			{
 				/* 2 color sprite handling */
-				draw_sprite( this, bitmap, spr_x, spr_y, tile_idx, col, left, right, top, bottom, clip, screen_start_sprite_line );
+				draw_sprite( bitmap, spr_x, spr_y, tile_idx, col, left, right, top, bottom, clip, screen_start_sprite_line );
 				if ( x_32 || y_32 )
 				{
 					static const UINT8 spr_2col_lut0[16] = { 0, 15, 12, 13, 10, 11,  8, 9, 6, 7,  4,  5, 2, 3,  1,  1 };
 					static const UINT8 spr_2col_lut1[16] = { 0,  1,  8, 11,  2,  3, 10, 9, 4, 5, 12, 13, 6, 7, 14, 15 };
 
-					draw_sprite( this, bitmap, spr_x, spr_y, tile_idx ^ ( 8 * x_32 + y_32 ), ( i & 0x40 ) ? spr_2col_lut1[col] : spr_2col_lut0[col], left, right, top, bottom, clip, screen_start_sprite_line );
+					draw_sprite( bitmap, spr_x, spr_y, tile_idx ^ ( 8 * x_32 + y_32 ), ( i & 0x40 ) ? spr_2col_lut1[col] : spr_2col_lut0[col], left, right, top, bottom, clip, screen_start_sprite_line );
 				}
 			}
 			else
 			{
 				/* regular sprite handling */
-				draw_sprite( this, bitmap, spr_x, spr_y, tile_idx, col, left, right, top, bottom, clip, screen_start_sprite_line );
+				draw_sprite( bitmap, spr_x, spr_y, tile_idx, col, left, right, top, bottom, clip, screen_start_sprite_line );
 				if ( x_32 )
 				{
-					draw_sprite( this, bitmap, spr_x + 16, spr_y, tile_idx | 8, col, 1, 1, top, bottom, clip, screen_start_sprite_line );
+					draw_sprite( bitmap, spr_x + 16, spr_y, tile_idx | 8, col, 1, 1, top, bottom, clip, screen_start_sprite_line );
 				}
 
 				if ( y_32 )
 				{
 					clip = ( clip & 0x08 ) ? ( clip & 0x07 ) : 0;
-					draw_sprite( this, bitmap, spr_x, spr_y + 16, tile_idx | 1, col, left, right, 1, 1, clip, screen_start_sprite_line );
+					draw_sprite( bitmap, spr_x, spr_y + 16, tile_idx | 1, col, left, right, 1, 1, clip, screen_start_sprite_line );
 					if ( x_32 )
 					{
-						draw_sprite( this, bitmap, spr_x + 16, spr_y + 16, tile_idx | 9, col, 1, 1, 1, 1, clip, screen_start_sprite_line );
+						draw_sprite( bitmap, spr_x + 16, spr_y + 16, tile_idx | 9, col, 1, 1, 1, 1, clip, screen_start_sprite_line );
 					}
 				}
 			}
@@ -744,21 +760,39 @@ UINT32 scv_state::screen_update_scv(screen_device &screen, bitmap_ind16 &bitmap,
 
 WRITE_LINE_MEMBER( scv_state::scv_upd1771_ack_w )
 {
-	machine().device("maincpu")->execute().set_input_line(UPD7810_INTF1, (state) ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(UPD7810_INTF1, (state) ? ASSERT_LINE : CLEAR_LINE);
+}
+
+void scv_state::scv_postload()
+{
+	scv_set_banks();
 }
 
 
 void scv_state::machine_start()
 {
+	m_cart_rom = memregion( "cart" )->base();
+	m_vb_timer = timer_alloc(TIMER_VB);
 
-	m_vb_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(scv_state::scv_vb_callback),this));
+	for (int i = 0; i < 8; i++)
+	{
+		char str[4];
+		sprintf(str, "PA%i", i);
+		m_key[i] = ioport(str);
+	}
+
+	save_item(NAME(m_porta));
+	save_item(NAME(m_portc));
+	save_item(NAME(m_cart_ram_enabled));
+
+	machine().save().register_postload(save_prepost_delegate(FUNC(scv_state::scv_postload), this));
 }
 
 
 void scv_state::machine_reset()
 {
-
-	m_vb_timer->adjust( machine().primary_screen->time_until_pos(0, 0 ) );
+	m_vb_timer->adjust(machine().primary_screen->time_until_pos(0, 0));
+	scv_set_banks();
 }
 
 
@@ -811,8 +845,7 @@ static MACHINE_CONFIG_START( scv, scv_state )
 	MCFG_CARTSLOT_EXTENSION_LIST( "bin" )
 	MCFG_CARTSLOT_NOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("scv_cart")
-	MCFG_CARTSLOT_START( scv_cart )
-	MCFG_CARTSLOT_LOAD( scv_cart )
+	MCFG_CARTSLOT_LOAD( scv_state, scv_cart )
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","scv")
@@ -852,5 +885,5 @@ ROM_END
 
 
 /*    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT  INIT    COMPANY  FULLNAME                 FLAGS */
-CONS( 1984, scv,     0,      0,      scv,     scv, driver_device,   0,      "Epoch", "Super Cassette Vision", GAME_IMPERFECT_SOUND )
-CONS( 198?, scv_pal, scv,    0,      scv_pal, scv, driver_device,   0,      "Yeno",  "Super Cassette Vision (PAL)", GAME_IMPERFECT_SOUND )
+CONS( 1984, scv,     0,      0,      scv,     scv, driver_device,   0,      "Epoch", "Super Cassette Vision", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+CONS( 198?, scv_pal, scv,    0,      scv_pal, scv, driver_device,   0,      "Yeno",  "Super Cassette Vision (PAL)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )

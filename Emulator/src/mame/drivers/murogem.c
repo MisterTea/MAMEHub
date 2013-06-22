@@ -114,13 +114,17 @@ class murogem_state : public driver_device
 {
 public:
 	murogem_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_dac(*this, "dac") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	DECLARE_WRITE8_MEMBER(outport_w);
 	virtual void palette_init();
 	UINT32 screen_update_murogem(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<dac_device> m_dac;
 };
 
 
@@ -133,7 +137,7 @@ WRITE8_MEMBER(murogem_state::outport_w)
     7654 3210
     ---- x---   Sound DAC.
 */
-	machine().device<dac_device>("dac")->write_unsigned8(data & 0x08);
+	m_dac->write_unsigned8(data & 0x08);
 }
 
 
@@ -228,9 +232,10 @@ UINT32 murogem_state::screen_update_murogem(screen_device &screen, bitmap_ind16 
 	return 0;
 }
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */

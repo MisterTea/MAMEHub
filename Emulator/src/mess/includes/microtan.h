@@ -17,14 +17,22 @@
 
 #include "imagedev/snapquik.h"
 #include "machine/6522via.h"
-
+#include "imagedev/cassette.h"
 
 class microtan_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_READ_CASSETTE,
+		TIMER_PULSE_NMI
+	};
+
 	microtan_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_cassette(*this, "cassette") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	UINT8 m_chunky_graphics;
@@ -75,6 +83,23 @@ public:
 	DECLARE_WRITE8_MEMBER(via_1_out_b);
 	DECLARE_WRITE8_MEMBER(via_1_out_ca2);
 	DECLARE_WRITE8_MEMBER(via_1_out_cb2);
+	DECLARE_WRITE_LINE_MEMBER(via_0_irq);
+	DECLARE_WRITE_LINE_MEMBER(via_1_irq);
+	required_device<cpu_device> m_maincpu;
+	required_device<cassette_image_device> m_cassette;
+	UINT8 read_dsw();
+	void microtan_set_irq_line();
+	void store_key(int key);
+	int microtan_verify_snapshot(UINT8 *data, int size);
+	int parse_intel_hex(UINT8 *snapshot_buff, char *src);
+	int parse_zillion_hex(UINT8 *snapshot_buff, char *src);
+	void microtan_set_cpu_regs(const UINT8 *snapshot_buff, int base);
+	void microtan_snapshot_copy(UINT8 *snapshot_buff, int snapshot_size);
+	DECLARE_SNAPSHOT_LOAD_MEMBER( microtan );
+	DECLARE_QUICKLOAD_LOAD_MEMBER( microtan );
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -82,8 +107,4 @@ public:
 
 extern const via6522_interface microtan_via6522_0;
 extern const via6522_interface microtan_via6522_1;
-
-SNAPSHOT_LOAD( microtan );
-QUICKLOAD_LOAD( microtan_hexfile );
-
 #endif /* MICROTAN_H_ */

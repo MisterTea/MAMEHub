@@ -430,8 +430,8 @@ public:
 	amaticmg_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_attr(*this, "attr"),
-		m_vram(*this, "vram")
-		{ }
+		m_vram(*this, "vram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_attr;
 	required_shared_ptr<UINT8> m_vram;
@@ -455,6 +455,9 @@ public:
 	UINT32 screen_update_amaticmg(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_amaticmg2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(amaticmg2_irq);
+	void encf(UINT8 ciphertext, int address, UINT8 &plaintext, int &newaddress);
+	void decrypt(int key1, int key2);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -517,7 +520,7 @@ UINT32 amaticmg_state::screen_update_amaticmg2(screen_device &screen, bitmap_ind
 
 void amaticmg_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
 	int i;
 
@@ -544,11 +547,11 @@ void amaticmg_state::palette_init()
 
 PALETTE_INIT_MEMBER(amaticmg_state,amaticmg2)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int r, g, b;
 	int i;
 
-	for (i = 0; i < machine().root_device().memregion("proms")->bytes(); i+=2)
+	for (i = 0; i < memregion("proms")->bytes(); i+=2)
 	{
 		b = ((color_prom[1] & 0xf8) >> 3);
 		g = ((color_prom[0] & 0xc0) >> 6) | ((color_prom[1] & 0x7) << 2);
@@ -618,7 +621,7 @@ WRITE8_MEMBER(amaticmg_state::out_c_w)
 
 WRITE8_MEMBER( amaticmg_state::unk80_w )
 {
-//  machine().device<dac_device>("dac")->write_unsigned8(data & 0x01);       /* Sound DAC */
+//  m_dac->write_unsigned8(data & 0x01);       /* Sound DAC */
 }
 
 
@@ -641,7 +644,7 @@ static ADDRESS_MAP_START( amaticmg_portmap, AS_IO, 8, amaticmg_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)
 	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("ymsnd", ym3812_device, write)
 	AM_RANGE(0x60, 0x60) AM_DEVWRITE("crtc", mc6845_device, address_w)
 	AM_RANGE(0x61, 0x61) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w)
 	AM_RANGE(0x80, 0x80) AM_WRITE(unk80_w)
@@ -657,7 +660,7 @@ static ADDRESS_MAP_START( amaticmg2_portmap, AS_IO, 8, amaticmg_state )
 //  ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)
 	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("ymsnd", ym3812_device, write)
 	AM_RANGE(0x60, 0x60) AM_DEVWRITE("crtc", mc6845_device, address_w)                  // 0e for mg_iii_vger_3.64_v_8309
 	AM_RANGE(0x61, 0x61) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w) // 0f for mg_iii_vger_3.64_v_8309
 	AM_RANGE(0xc0, 0xc0) AM_WRITE(rombank_w)
@@ -785,23 +788,15 @@ static GFXDECODE_START( amaticmg2 )
 	GFXDECODE_ENTRY( "gfx1", 0x0000, charlayout_6bpp, 0, 0x10000/0x40 )
 GFXDECODE_END
 
-/************************************
-*          Sound Interface          *
-************************************/
-
-static const ym3812_interface ym3812_config =
-{
-	0
-};
-
 
 /************************************
 *          CRTC Interface           *
 ************************************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	4,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -845,14 +840,13 @@ static I8255A_INTERFACE( ppi8255_intf_1 )
 
 void amaticmg_state::machine_start()
 {
-	UINT8 *rombank = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rombank = memregion("maincpu")->base();
 
-	machine().root_device().membank("bank1")->configure_entries(0, 0x10, &rombank[0x8000], 0x4000);
+	membank("bank1")->configure_entries(0, 0x10, &rombank[0x8000], 0x4000);
 }
 
 void amaticmg_state::machine_reset()
 {
-
 	membank("bank1")->set_entry(0);
 	m_nmi_mask = 0;
 }
@@ -895,7 +889,6 @@ static MACHINE_CONFIG_START( amaticmg, amaticmg_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, SND_CLOCK)
-	MCFG_SOUND_CONFIG(ym3812_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 //  MCFG_DAC_ADD("dac")   /* Y3014B */
@@ -906,7 +899,6 @@ MACHINE_CONFIG_END
 
 INTERRUPT_GEN_MEMBER(amaticmg_state::amaticmg2_irq)
 {
-
 	if(m_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -1061,7 +1053,7 @@ ROM_END
 *       Driver Initialization       *
 ************************************/
 
-static void encf(UINT8 ciphertext, int address, UINT8 &plaintext, int &newaddress)
+void amaticmg_state::encf(UINT8 ciphertext, int address, UINT8 &plaintext, int &newaddress)
 {
 	int aux = address & 0xfff;
 	aux = aux ^ (aux>>6);
@@ -1075,14 +1067,14 @@ static void encf(UINT8 ciphertext, int address, UINT8 &plaintext, int &newaddres
 	newaddress = (address & ~0xfff) | aux;
 }
 
-static void decrypt(running_machine &machine, int key1, int key2)
+void amaticmg_state::decrypt(int key1, int key2)
 {
 	UINT8 plaintext;
 	int newaddress;
 
-	UINT8 *src = machine.root_device().memregion("mainprg")->base();
-	UINT8 *dest = machine.root_device().memregion("maincpu")->base();
-	int len = machine.root_device().memregion("mainprg")->bytes();
+	UINT8 *src = memregion("mainprg")->base();
+	UINT8 *dest = memregion("maincpu")->base();
+	int len = memregion("mainprg")->bytes();
 
 	for (int i = 0; i < len; i++)
 	{
@@ -1093,22 +1085,22 @@ static void decrypt(running_machine &machine, int key1, int key2)
 
 DRIVER_INIT_MEMBER(amaticmg_state,ama8000_1_x)
 {
-	decrypt(machine(), 0x4d1, 0xf5);
+	decrypt(0x4d1, 0xf5);
 }
 
 DRIVER_INIT_MEMBER(amaticmg_state,ama8000_2_i)
 {
-	decrypt(machine(), 0x436, 0x55);
+	decrypt(0x436, 0x55);
 }
 
 DRIVER_INIT_MEMBER(amaticmg_state,ama8000_2_v)
 {
-	decrypt(machine(), 0x703, 0xaf);
+	decrypt(0x703, 0xaf);
 }
 
 DRIVER_INIT_MEMBER(amaticmg_state,ama8000_3_o)
 {
-	decrypt(machine(), 0x56e, 0xa7);
+	decrypt(0x56e, 0xa7);
 }
 
 

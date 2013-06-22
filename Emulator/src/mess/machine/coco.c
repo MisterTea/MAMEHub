@@ -75,16 +75,37 @@ DAC and bitbanger values written should be reflected in the read.
 //**************************************************************************
 
 //-------------------------------------------------
+//  ctor
+//-------------------------------------------------
+
+coco_state::coco_state(const machine_config &mconfig, device_type type, const char *tag)
+	: driver_device(mconfig, type, tag),
+	m_maincpu(*this, MAINCPU_TAG),
+	m_pia_0(*this, PIA0_TAG),
+	m_pia_1(*this, PIA1_TAG),
+	m_dac(*this, DAC_TAG),
+	m_wave(*this, WAVE_TAG),
+	m_cococart(*this, CARTRIDGE_TAG),
+	m_ram(*this, RAM_TAG),
+	m_cassette(*this, "cassette"),
+	m_bitbanger(*this, BITBANGER_TAG),
+	m_vhd_0(*this, VHD0_TAG),
+	m_vhd_1(*this, VHD1_TAG)
+{
+}
+
+
+//-------------------------------------------------
 //  analog_port_start
 //-------------------------------------------------
 
 void coco_state::analog_port_start(analog_input_t *analog, const char *rx_tag, const char *ry_tag, const char *lx_tag, const char *ly_tag, const char *buttons_tag)
 {
-	analog->m_input[0][0] =  machine().root_device().ioport(rx_tag);
-	analog->m_input[0][1] =  machine().root_device().ioport(ry_tag);
-	analog->m_input[1][0] =  machine().root_device().ioport(lx_tag);
-	analog->m_input[1][1] =  machine().root_device().ioport(ly_tag);
-	analog->m_buttons =  machine().root_device().ioport(buttons_tag);
+	analog->m_input[0][0] =  ioport(rx_tag);
+	analog->m_input[0][1] =  ioport(ry_tag);
+	analog->m_input[1][0] =  ioport(lx_tag);
+	analog->m_input[1][1] =  ioport(ly_tag);
+	analog->m_buttons =  ioport(buttons_tag);
 }
 
 
@@ -103,7 +124,7 @@ void coco_state::device_start()
 	{
 		char name[32];
 		snprintf(name, sizeof(name) / sizeof(name[0]), "row%d", i);
-		m_keyboard[i] =  machine().root_device().ioport(name);
+		m_keyboard[i] =  ioport(name);
 	}
 
 	/* look up analog ports */
@@ -115,8 +136,8 @@ void coco_state::device_start()
 		DIECOM_LIGHTGUN_LX_TAG, DIECOM_LIGHTGUN_LY_TAG, DIECOM_LIGHTGUN_BUTTONS_TAG);
 
 	/* look up miscellaneous controls */
-	m_joystick_type_control =  machine().root_device().ioport(CTRL_SEL_TAG);
-	m_joystick_hires_control =  machine().root_device().ioport(HIRES_INTF_TAG);
+	m_joystick_type_control =  ioport(CTRL_SEL_TAG);
+	m_joystick_hires_control =  ioport(HIRES_INTF_TAG);
 
 	/* timers */
 	m_hiresjoy_transition_timer[0] = timer_alloc(TIMER_HIRES_JOYSTICK_X);
@@ -141,6 +162,9 @@ void coco_state::device_start()
 	{
 		m_maincpu->debug()->set_dasm_override(dasm_override);
 	}
+
+	// miscellaneous
+	m_in_floating_bus_read = false;
 }
 
 
@@ -233,27 +257,45 @@ void coco_state::device_timer(emu_timer &timer, device_timer_id id, int param, v
 
 UINT8 coco_state::floating_bus_read(void)
 {
-	UINT8 byte;
+	UINT8 result;
 
-	// set up the ability to read address spaces
-	address_space &program = m_maincpu->space(AS_PROGRAM);
+	// this method calls program.read_byte() - therefore we run the risk of a stack overflow if we don't check for
+	// a reentrant invocation
+	if (m_in_floating_bus_read)
+	{
+		// not sure what should really happen in this extremely degenerate scenario (the PC is probably
+		// in $FFxx never-never land), but I guess 0xFF is as good as anything.
+		result = 0xFF;
+	}
+	else
+	{
+		// prevent stack overflows
+		m_in_floating_bus_read = true;
 
-	// get the previous and current PC
-	UINT16 prev_pc = m_maincpu->pcbase();
-	UINT16 pc = m_maincpu->pc();
+		// set up the ability to read address spaces
+		address_space &program = m_maincpu->space(AS_PROGRAM);
 
-	// get the byte; and skip over header bytes
-	byte = program.read_byte(prev_pc);
-	if ((byte == 0x10) || (byte == 0x11))
-		byte = program.read_byte(++prev_pc);
+		// get the previous and current PC
+		UINT16 prev_pc = m_maincpu->pcbase();
+		UINT16 pc = m_maincpu->pc();
 
-	// check to see if the opcode specifies the indexed addressing mode, and the secondary byte
-	// specifies no-offset
-	bool is_nooffset_indexed = (((byte & 0xF0) == 0x60) || ((byte & 0xF0) == 0xA0) || ((byte & 0xF0) == 0xE0))
-		&& ((program.read_byte(prev_pc + 1) & 0xBF) == 0x84);
+		// get the byte; and skip over header bytes
+		UINT8 byte = program.read_byte(prev_pc);
+		if ((byte == 0x10) || (byte == 0x11))
+			byte = program.read_byte(++prev_pc);
 
-	// finally read the byte
-	return program.read_byte(is_nooffset_indexed ? pc : 0xFFFF);
+		// check to see if the opcode specifies the indexed addressing mode, and the secondary byte
+		// specifies no-offset
+		bool is_nooffset_indexed = (((byte & 0xF0) == 0x60) || ((byte & 0xF0) == 0xA0) || ((byte & 0xF0) == 0xE0))
+			&& ((program.read_byte(prev_pc + 1) & 0xBF) == 0x84);
+
+		// finally read the byte
+		result = program.read_byte(is_nooffset_indexed ? pc : 0xFFFF);
+
+		// we're done reading
+		m_in_floating_bus_read = false;
+	}
+	return result;
 }
 
 

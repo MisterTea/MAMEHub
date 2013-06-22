@@ -3,17 +3,24 @@
     Pocket Gal Deluxe
 
 *************************************************************************/
+#include "sound/okim6295.h"
+#include "video/decospr.h"
 
 class pktgaldx_state : public driver_device
 {
 public:
 	pktgaldx_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_pf1_rowscroll(*this, "pf1_rowscroll"),
 		m_pf2_rowscroll(*this, "pf2_rowscroll"),
 		m_spriteram(*this, "spriteram"),
 		m_pktgaldb_fgram(*this, "pktgaldb_fgram"),
-		m_pktgaldb_sprites(*this, "pktgaldb_spr"){ }
+		m_pktgaldb_sprites(*this, "pktgaldb_spr"),
+		m_sprgen(*this, "spritegen"),
+		m_maincpu(*this, "maincpu"),
+		m_oki2(*this, "oki2"),
+		m_deco_tilegen1(*this, "tilegen1")
+	{ }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_pf1_rowscroll;
@@ -23,10 +30,12 @@ public:
 
 	optional_shared_ptr<UINT16> m_pktgaldb_fgram;
 	optional_shared_ptr<UINT16> m_pktgaldb_sprites;
+	optional_device<decospr_device> m_sprgen;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	device_t *m_deco_tilegen1;
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki2;
+	optional_device<deco16ic_device> m_deco_tilegen1;
 	DECLARE_READ16_MEMBER(pckgaldx_unknown_r);
 	DECLARE_READ16_MEMBER(pckgaldx_protection_r);
 	DECLARE_WRITE16_MEMBER(pktgaldx_oki_bank_w);

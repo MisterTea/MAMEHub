@@ -46,7 +46,7 @@ for now. Even at 12 this slowdown still happens a little.
 WRITE16_MEMBER(toki_state::tokib_soundcommand16_w)
 {
 	soundlatch_byte_w(space, 0, data & 0xff);
-	machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 READ16_MEMBER(toki_state::pip16_r)
@@ -56,30 +56,27 @@ READ16_MEMBER(toki_state::pip16_r)
 
 
 
-static void toki_adpcm_int (device_t *device)
+WRITE_LINE_MEMBER(toki_state::toki_adpcm_int)
 {
-	toki_state *state = device->machine().driver_data<toki_state>();
+	m_msm->data_w(m_msm5205next);
+	m_msm5205next >>= 4;
 
-	msm5205_data_w (device, state->m_msm5205next);
-	state->m_msm5205next >>= 4;
-
-	state->m_toggle ^= 1;
-	if (state->m_toggle)
-		device->machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_toggle ^= 1;
+	if (m_toggle)
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 WRITE8_MEMBER(toki_state::toki_adpcm_control_w)
 {
-	device_t *device = machine().device("msm");
 	int bankaddress;
-	UINT8 *RAM = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *RAM = memregion("audiocpu")->base();
 
 
 	/* the code writes either 2 or 3 in the bottom two bits */
 	bankaddress = 0x10000 + (data & 0x01) * 0x4000;
-	machine().root_device().membank("bank1")->set_base(&RAM[bankaddress]);
+	membank("bank1")->set_base(&RAM[bankaddress]);
 
-	msm5205_reset_w(device,data & 0x08);
+	m_msm->reset_w(data & 0x08);
 }
 
 WRITE8_MEMBER(toki_state::toki_adpcm_data_w)
@@ -135,7 +132,7 @@ static ADDRESS_MAP_START( tokib_audio_map, AS_PROGRAM, 8, toki_state )
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
 	AM_RANGE(0xe000, 0xe000) AM_WRITE(toki_adpcm_control_w) /* MSM5205 + ROM bank */
 	AM_RANGE(0xe400, 0xe400) AM_WRITE(toki_adpcm_data_w)
-	AM_RANGE(0xec00, 0xec01) AM_MIRROR(0x0008) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r, ym3812_w)
+	AM_RANGE(0xec00, 0xec01) AM_MIRROR(0x0008) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf800) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -408,7 +405,7 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_config =
 {
-	toki_adpcm_int, /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(toki_state,toki_adpcm_int), /* interrupt function */
 	MSM5205_S96_4B  /* 4KHz               */
 };
 
@@ -787,7 +784,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(toki_state,toki)
 {
-	UINT8 *ROM = machine().root_device().memregion("oki")->base();
+	UINT8 *ROM = memregion("oki")->base();
 	UINT8 *buffer = auto_alloc_array(machine(), UINT8, 0x20000);
 	int i;
 
@@ -810,8 +807,8 @@ DRIVER_INIT_MEMBER(toki_state,tokib)
 	UINT8 *rom;
 
 	/* merge background tile graphics together */
-	len = machine().root_device().memregion("gfx3")->bytes();
-	rom = machine().root_device().memregion("gfx3")->base();
+	len = memregion("gfx3")->bytes();
+	rom = memregion("gfx3")->base();
 	for (offs = 0; offs < len; offs += 0x20000)
 	{
 		UINT8 *base = &rom[offs];
@@ -824,8 +821,8 @@ DRIVER_INIT_MEMBER(toki_state,tokib)
 			memcpy (&base[0x18000 + i * 0x800], &temp[0x1800 + i * 0x2000], 0x800);
 		}
 	}
-	len = machine().root_device().memregion("gfx4")->bytes();
-	rom = machine().root_device().memregion("gfx4")->base();
+	len = memregion("gfx4")->bytes();
+	rom = memregion("gfx4")->base();
 	for (offs = 0; offs < len; offs += 0x20000)
 	{
 		UINT8 *base = &rom[offs];
@@ -847,7 +844,7 @@ DRIVER_INIT_MEMBER(toki_state,jujuba)
 	/* Program ROMs are bitswapped */
 	{
 		int i;
-		UINT16 *prgrom = (UINT16*)machine().root_device().memregion("maincpu")->base();
+		UINT16 *prgrom = (UINT16*)memregion("maincpu")->base();
 
 		for (i = 0; i < 0x60000/2; i++)
 		{
@@ -860,9 +857,9 @@ DRIVER_INIT_MEMBER(toki_state,jujuba)
 
 	/* Decrypt data for z80 program */
 	{
-		address_space &space = machine().device("audiocpu")->memory().space(AS_PROGRAM);
+		address_space &space = m_audiocpu->space(AS_PROGRAM);
 		UINT8 *decrypt = auto_alloc_array(machine(), UINT8, 0x20000);
-		UINT8 *rom = machine().root_device().memregion("audiocpu")->base();
+		UINT8 *rom = memregion("audiocpu")->base();
 		int i;
 
 		memcpy(decrypt,rom,0x20000);
@@ -877,7 +874,7 @@ DRIVER_INIT_MEMBER(toki_state,jujuba)
 	}
 
 	{
-		UINT8 *ROM = machine().root_device().memregion("oki")->base();
+		UINT8 *ROM = memregion("oki")->base();
 		UINT8 *buffer = auto_alloc_array(machine(), UINT8, 0x20000);
 		int i;
 

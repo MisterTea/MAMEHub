@@ -12,14 +12,12 @@
 
 
 
-static void draw_sprites(running_machine& machine, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+void djmain_state::draw_sprites( bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	djmain_state *state = machine.driver_data<djmain_state>();
-	device_t *k055555 = machine.device("k055555");
 	int offs, pri_code;
 	int sortedlist[NUM_SPRITES];
 
-	machine.gfx[0]->set_colorbase(k055555_read_register(k055555, K55_PALBASE_SUB2) * 0x400);
+	machine().gfx[0]->set_colorbase(k055555_read_register(m_k055555, K55_PALBASE_SUB2) * 0x400);
 
 	for (offs = 0; offs < NUM_SPRITES; offs++)
 		sortedlist[offs] = -1;
@@ -27,12 +25,12 @@ static void draw_sprites(running_machine& machine, bitmap_rgb32 &bitmap, const r
 	/* prebuild a sorted table */
 	for (offs = 0; offs < NUM_SPRITES * 4; offs += 4)
 	{
-		if (state->m_obj_ram[offs] & 0x00008000)
+		if (m_obj_ram[offs] & 0x00008000)
 		{
-			if (state->m_obj_ram[offs] & 0x80000000)
+			if (m_obj_ram[offs] & 0x80000000)
 				continue;
 
-			pri_code = state->m_obj_ram[offs] & (NUM_SPRITES - 1);
+			pri_code = m_obj_ram[offs] & (NUM_SPRITES - 1);
 			sortedlist[pri_code] = offs;
 		}
 	}
@@ -53,16 +51,16 @@ static void draw_sprites(running_machine& machine, bitmap_rgb32 &bitmap, const r
 		offs = sortedlist[pri_code];
 		if (offs == -1) continue;
 
-		code = state->m_obj_ram[offs] >> 16;
-		flipx = (state->m_obj_ram[offs] >> 10) & 1;
-		flipy = (state->m_obj_ram[offs] >> 11) & 1;
-		size = sizetab[(state->m_obj_ram[offs] >> 8) & 3];
+		code = m_obj_ram[offs] >> 16;
+		flipx = (m_obj_ram[offs] >> 10) & 1;
+		flipy = (m_obj_ram[offs] >> 11) & 1;
+		size = sizetab[(m_obj_ram[offs] >> 8) & 3];
 
-		ox = (INT16)(state->m_obj_ram[offs + 1] & 0xffff);
-		oy = (INT16)(state->m_obj_ram[offs + 1] >> 16);
+		ox = (INT16)(m_obj_ram[offs + 1] & 0xffff);
+		oy = (INT16)(m_obj_ram[offs + 1] >> 16);
 
-		xscale = state->m_obj_ram[offs + 2] >> 16;
-		yscale = state->m_obj_ram[offs + 2] & 0xffff;
+		xscale = m_obj_ram[offs + 2] >> 16;
+		yscale = m_obj_ram[offs + 2] & 0xffff;
 
 		if (!xscale || !yscale)
 			continue;
@@ -72,7 +70,7 @@ static void draw_sprites(running_machine& machine, bitmap_rgb32 &bitmap, const r
 		ox -= (size * xscale) >> 13;
 		oy -= (size * yscale) >> 13;
 
-		color = (state->m_obj_ram[offs + 3] >> 16) & 15;
+		color = (m_obj_ram[offs + 3] >> 16) & 15;
 
 		for (x = 0; x < size; x++)
 			for (y = 0; y < size; y++)
@@ -98,7 +96,7 @@ static void draw_sprites(running_machine& machine, bitmap_rgb32 &bitmap, const r
 
 					drawgfxzoom_transpen(bitmap,
 								cliprect,
-								machine.gfx[0],
+								machine().gfx[0],
 								c,
 								color,
 								flipx,
@@ -116,7 +114,7 @@ static void draw_sprites(running_machine& machine, bitmap_rgb32 &bitmap, const r
 
 					drawgfx_transpen(bitmap,
 							cliprect,
-							machine.gfx[0],
+							machine().gfx[0],
 							c,
 							color,
 							flipx,
@@ -136,25 +134,21 @@ void djmain_tile_callback(running_machine& machine, int layer, int *code, int *c
 
 void djmain_state::video_start()
 {
-	device_t *k056832 = machine().device("k056832");
-
-	k056832_set_layer_offs(k056832, 0, -92, -27);
-	// k056832_set_layer_offs(k056832, 1, -87, -27);
-	k056832_set_layer_offs(k056832, 1, -88, -27);
+	k056832_set_layer_offs(m_k056832, 0, -92, -27);
+	// k056832_set_layer_offs(m_k056832, 1, -87, -27);
+	k056832_set_layer_offs(m_k056832, 1, -88, -27);
 }
 
 UINT32 djmain_state::screen_update_djmain(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	device_t *k056832 = machine().device("k056832");
-	device_t *k055555 = machine().device("k055555");
-	int enables = k055555_read_register(k055555, K55_INPUT_ENABLES);
+	int enables = k055555_read_register(m_k055555, K55_INPUT_ENABLES);
 	int pri[NUM_LAYERS + 1];
 	int order[NUM_LAYERS + 1];
 	int i, j;
 
 	for (i = 0; i < NUM_LAYERS; i++)
-		pri[i] = k055555_read_register(k055555, K55_PRIINP_0 + i * 3);
-	pri[i] = k055555_read_register(k055555, K55_PRIINP_10);
+		pri[i] = k055555_read_register(m_k055555, K55_PRIINP_0 + i * 3);
+	pri[i] = k055555_read_register(m_k055555, K55_PRIINP_10);
 
 	for (i = 0; i < NUM_LAYERS + 1; i++)
 		order[i] = i;
@@ -178,12 +172,12 @@ UINT32 djmain_state::screen_update_djmain(screen_device &screen, bitmap_rgb32 &b
 		if (layer == NUM_LAYERS)
 		{
 			if (enables & K55_INP_SUB2)
-				draw_sprites(machine(), bitmap, cliprect);
+				draw_sprites(bitmap, cliprect);
 		}
 		else
 		{
 			if (enables & (K55_INP_VRAM_A << layer))
-				k056832_tilemap_draw_dj(k056832, bitmap, cliprect, layer, 0, 1 << i);
+				k056832_tilemap_draw_dj(m_k056832, bitmap, cliprect, layer, 0, 1 << i);
 		}
 	}
 	return 0;

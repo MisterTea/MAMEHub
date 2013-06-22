@@ -1,4 +1,5 @@
 #include "video/bufsprite.h"
+#include "sound/msm5205.h"
 
 class toki_state : public driver_device
 {
@@ -9,7 +10,10 @@ public:
 		m_background1_videoram16(*this, "bg1_vram16"),
 		m_background2_videoram16(*this, "bg2_vram16"),
 		m_videoram(*this, "videoram"),
-		m_scrollram16(*this, "scrollram16"){ }
+		m_scrollram16(*this, "scrollram16"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_msm(*this, "msm") { }
 
 	required_device<buffered_spriteram16_device> m_spriteram;
 	required_shared_ptr<UINT16> m_background1_videoram16;
@@ -40,4 +44,10 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_toki(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_tokib(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void toki_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void tokib_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(toki_adpcm_int);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<msm5205_device> m_msm;
 };

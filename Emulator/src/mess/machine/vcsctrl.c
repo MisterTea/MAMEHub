@@ -53,8 +53,9 @@ device_vcs_control_port_interface::~device_vcs_control_port_interface()
 //-------------------------------------------------
 
 vcs_control_port_device::vcs_control_port_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, VCS_CONTROL_PORT, "Atari VCS control port", tag, owner, clock),
-		device_slot_interface(mconfig, *this)
+	device_t(mconfig, VCS_CONTROL_PORT, "Atari VCS control port", tag, owner, clock),
+	device_slot_interface(mconfig, *this),
+	m_trigger_handler(*this)
 {
 }
 
@@ -75,18 +76,27 @@ vcs_control_port_device::~vcs_control_port_device()
 void vcs_control_port_device::device_start()
 {
 	m_device = dynamic_cast<device_vcs_control_port_interface *>(get_card_device());
+
+	m_trigger_handler.resolve_safe();
 }
 
 
-UINT8 vcs_control_port_device::joy_r() { UINT8 data = 0xff; if (m_device != NULL) data = m_device->vcs_joy_r(); return data; }
+UINT8 vcs_control_port_device::joy_r() { UINT8 data = 0xff; if (exists()) data = m_device->vcs_joy_r(); return data; }
 READ8_MEMBER( vcs_control_port_device::joy_r ) { return joy_r(); }
-UINT8 vcs_control_port_device::pot_x_r() { UINT8 data = 0xff; if (m_device != NULL) data = m_device->vcs_pot_x_r(); return data; }
+UINT8 vcs_control_port_device::pot_x_r() { UINT8 data = 0xff; if (exists()) data = m_device->vcs_pot_x_r(); return data; }
 READ8_MEMBER( vcs_control_port_device::pot_x_r ) { return pot_x_r(); }
-UINT8 vcs_control_port_device::pot_y_r() { UINT8 data = 0xff; if (m_device != NULL) data = m_device->vcs_pot_y_r(); return data; }
+UINT8 vcs_control_port_device::pot_y_r() { UINT8 data = 0xff; if (exists()) data = m_device->vcs_pot_y_r(); return data; }
 READ8_MEMBER( vcs_control_port_device::pot_y_r ) { return pot_y_r(); }
-void vcs_control_port_device::joy_w( UINT8 data ) { if ( m_device != NULL ) m_device->vcs_joy_w( data ); }
+void vcs_control_port_device::joy_w( UINT8 data ) { if ( exists() ) m_device->vcs_joy_w( data ); }
 WRITE8_MEMBER( vcs_control_port_device::joy_w ) { joy_w(data); }
+bool vcs_control_port_device::exists() { return m_device != NULL; }
+bool vcs_control_port_device::has_pot_x() { return exists() && m_device->has_pot_x(); }
+bool vcs_control_port_device::has_pot_y() { return exists() && m_device->has_pot_y(); }
 
+void vcs_control_port_device::trigger_w(int state)
+{
+	m_trigger_handler(state);
+}
 
 //-------------------------------------------------
 //  SLOT_INTERFACE( vcs_control_port_devices )

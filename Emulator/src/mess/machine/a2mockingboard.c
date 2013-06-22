@@ -3,6 +3,7 @@
     a2mockingboard.c
 
     Implementation of the Sweet Micro Systems Mockingboard card
+    and friends.
 
 *********************************************************************/
 
@@ -20,6 +21,7 @@
 #define AY2_TAG "mockbd_ay2"
 #define AY3_TAG "mockbd_ay3"
 #define AY4_TAG "mockbd_ay4"
+#define E2P_TMS_TAG "tms5220"
 
 //**************************************************************************
 //  GLOBAL VARIABLES
@@ -27,6 +29,7 @@
 
 const device_type A2BUS_MOCKINGBOARD = &device_creator<a2bus_mockingboard_device>;
 const device_type A2BUS_PHASOR = &device_creator<a2bus_phasor_device>;
+const device_type A2BUS_ECHOPLUS = &device_creator<a2bus_echoplus_device>;
 
 static const ay8910_interface mockingboard_ay8910_interface =
 {
@@ -90,6 +93,23 @@ MACHINE_CONFIG_FRAGMENT( phasor )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker2", 1.0)
 MACHINE_CONFIG_END
 
+MACHINE_CONFIG_FRAGMENT( echoplus )
+	MCFG_VIA6522_ADD(VIA1_TAG, 1022727, mockingboard_via1_intf)
+	MCFG_VIA6522_ADD(VIA2_TAG, 1022727, mockingboard_via2_intf)
+
+	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+	MCFG_SOUND_ADD(AY1_TAG, AY8913, 1022727)
+	MCFG_SOUND_CONFIG(mockingboard_ay8910_interface)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
+	MCFG_SOUND_ADD(AY2_TAG, AY8913, 1022727)
+	MCFG_SOUND_CONFIG(mockingboard_ay8910_interface)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
+
+	MCFG_SPEAKER_STANDARD_MONO("echosp")
+	MCFG_SOUND_ADD(E2P_TMS_TAG, TMS5220, 720000)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "echosp", 1.0)
+MACHINE_CONFIG_END
+
 //-------------------------------------------------
 //  machine_config_additions - device-specific
 //  machine configurations
@@ -105,12 +125,17 @@ machine_config_constructor a2bus_phasor_device::device_mconfig_additions() const
 	return MACHINE_CONFIG_NAME( phasor );
 }
 
+machine_config_constructor a2bus_echoplus_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( echoplus );
+}
+
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
 
-a2bus_ayboard_device::a2bus_ayboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, type, name, tag, owner, clock),
+a2bus_ayboard_device::a2bus_ayboard_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 	device_a2bus_card_interface(mconfig, *this),
 	m_via1(*this, VIA1_TAG),
 	m_via2(*this, VIA2_TAG),
@@ -122,18 +147,24 @@ a2bus_ayboard_device::a2bus_ayboard_device(const machine_config &mconfig, device
 }
 
 a2bus_mockingboard_device::a2bus_mockingboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	a2bus_ayboard_device(mconfig, A2BUS_MOCKINGBOARD, "Sweet Micro Systems Mockingboard", tag, owner, clock)
+	a2bus_ayboard_device(mconfig, A2BUS_MOCKINGBOARD, "Sweet Micro Systems Mockingboard", tag, owner, clock, "a2mockbd", __FILE__)
 {
-	m_shortname = "a2mockbd";
 	m_isPhasor = false;
 	m_PhasorNative = false;
 }
 
 a2bus_phasor_device::a2bus_phasor_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	a2bus_ayboard_device(mconfig, A2BUS_PHASOR, "Applied Engineering Phasor", tag, owner, clock)
+	a2bus_ayboard_device(mconfig, A2BUS_PHASOR, "Applied Engineering Phasor", tag, owner, clock, "a2phasor", __FILE__)
 {
-	m_shortname = "a2phasor";
 	m_isPhasor = true;
+	m_PhasorNative = false;
+}
+
+a2bus_echoplus_device::a2bus_echoplus_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	a2bus_ayboard_device(mconfig, A2BUS_ECHOPLUS, "Street Electronics Echo Plus", tag, owner, clock, "a2echop", __FILE__),
+	m_tms(*this, E2P_TMS_TAG)
+{
+	m_isPhasor = false;
 	m_PhasorNative = false;
 }
 
@@ -156,7 +187,7 @@ void a2bus_ayboard_device::device_reset()
 }
 
 /*-------------------------------------------------
-    read_cnxx - called for reads from this card's c0nx space
+    read_cnxx - called for reads from this card's cnxx space
 -------------------------------------------------*/
 
 UINT8 a2bus_ayboard_device::read_cnxx(address_space &space, UINT8 offset)
@@ -300,10 +331,10 @@ WRITE8_MEMBER( a2bus_ayboard_device::via1_out_b )
 {
 	if (!(data & 4))
 	{
-		ay8910_reset_w(m_ay1, space, 0, 0);
+		m_ay1->reset_w(space, 0, 0);
 		if (m_isPhasor && m_PhasorNative)
 		{
-			ay8910_reset_w(m_ay2, space, 0, 0);
+			m_ay2->reset_w(space, 0, 0);
 		}
 	}
 	else
@@ -316,15 +347,15 @@ WRITE8_MEMBER( a2bus_ayboard_device::via1_out_b )
 					break;
 
 				case 1: // BDIR=0, BC1=1 (read PSG)
-					m_porta1 = ay8910_r(m_ay1, space, 0);
+					m_porta1 = m_ay1->data_r(space, 0);
 					break;
 
 				case 2: // BDIR=1, BC1=0 (write PSG)
-					ay8910_data_w(m_ay1, space, 0, m_porta1);
+					m_ay1->data_w(space, 0, m_porta1);
 					break;
 
 				case 3: // BDIR=1, BC1=1 (latch)
-					ay8910_address_w(m_ay1, space, 0, m_porta1);
+					m_ay1->address_w(space, 0, m_porta1);
 					break;
 			}
 		}
@@ -350,33 +381,33 @@ WRITE8_MEMBER( a2bus_ayboard_device::via1_out_b )
 				case 1: // BDIR=0, BC1=1 (read PSG)
 					if (chipSel & 1)
 					{
-						m_porta1 = ay8910_r(m_ay1, space, 0);
+						m_porta1 = m_ay1->data_r(space, 0);
 					}
 					if (chipSel & 2)
 					{
-						m_porta1 = ay8910_r(m_ay2, space, 0);
+						m_porta1 = m_ay2->data_r(space, 0);
 					}
 					break;
 
 				case 2: // BDIR=1, BC1=0 (write PSG)
 					if (chipSel & 1)
 					{
-						ay8910_data_w(m_ay1, space, 0, m_porta1);
+						m_ay1->data_w(space, 0, m_porta1);
 					}
 					if (chipSel & 2)
 					{
-						ay8910_data_w(m_ay2, space, 0, m_porta1);
+						m_ay2->data_w(space, 0, m_porta1);
 					}
 					break;
 
 				case 3: // BDIR=1, BC1=1 (latch)
 					if (chipSel & 1)
 					{
-						ay8910_address_w(m_ay1, space, 0, m_porta1);
+						m_ay1->address_w(space, 0, m_porta1);
 					}
 					if (chipSel & 2)
 					{
-						ay8910_address_w(m_ay2, space, 0, m_porta1);
+						m_ay2->address_w(space, 0, m_porta1);
 					}
 					break;
 			}
@@ -405,12 +436,12 @@ WRITE8_MEMBER( a2bus_ayboard_device::via2_out_b )
 	{
 		if (m_isPhasor && m_PhasorNative)
 		{
-			ay8910_reset_w(m_ay3, space, 0, 0);
-			ay8910_reset_w(m_ay4, space, 0, 0);
+			m_ay3->reset_w(space, 0, 0);
+			m_ay4->reset_w(space, 0, 0);
 		}
 		else
 		{
-			ay8910_reset_w(m_ay2, space, 0, 0);
+			m_ay2->reset_w(space, 0, 0);
 		}
 	}
 	else
@@ -423,15 +454,15 @@ WRITE8_MEMBER( a2bus_ayboard_device::via2_out_b )
 					break;
 
 				case 1: // BDIR=0, BC1=1 (read PSG)
-					m_porta2 = ay8910_r(m_ay2, space, 0);
+					m_porta2 = m_ay2->data_r(space, 0);
 					break;
 
 				case 2: // BDIR=1, BC1=0 (write PSG)
-					ay8910_data_w(m_ay2, space, 0, m_porta2);
+					m_ay2->data_w(space, 0, m_porta2);
 					break;
 
 				case 3: // BDIR=1, BC1=1 (latch)
-					ay8910_address_w(m_ay2, space, 0, m_porta2);
+					m_ay2->address_w(space, 0, m_porta2);
 					break;
 			}
 		}
@@ -457,33 +488,33 @@ WRITE8_MEMBER( a2bus_ayboard_device::via2_out_b )
 				case 1: // BDIR=0, BC1=1 (read PSG)
 					if (chipSel & 1)
 					{
-						m_porta2 = ay8910_r(m_ay3, space, 0);
+						m_porta2 = m_ay3->data_r(space, 0);
 					}
 					if (chipSel & 2)
 					{
-						m_porta2 = ay8910_r(m_ay4, space, 0);
+						m_porta2 = m_ay4->data_r(space, 0);
 					}
 					break;
 
 				case 2: // BDIR=1, BC1=0 (write PSG)
 					if (chipSel & 1)
 					{
-						ay8910_data_w(m_ay3, space, 0, m_porta2);
+						m_ay3->data_w(space, 0, m_porta2);
 					}
 					if (chipSel & 2)
 					{
-						ay8910_data_w(m_ay4, space, 0, m_porta2);
+						m_ay4->data_w(space, 0, m_porta2);
 					}
 					break;
 
 				case 3: // BDIR=1, BC1=1 (latch)
 					if (chipSel & 1)
 					{
-						ay8910_address_w(m_ay3, space, 0, m_porta2);
+						m_ay3->address_w(space, 0, m_porta2);
 					}
 					if (chipSel & 2)
 					{
-						ay8910_address_w(m_ay4, space, 0, m_porta2);
+						m_ay4->address_w(space, 0, m_porta2);
 					}
 					break;
 			}
@@ -506,5 +537,26 @@ void a2bus_ayboard_device::write_c0nx(address_space &space, UINT8 offset, UINT8 
 	if (m_isPhasor)
 	{
 		m_PhasorNative = (offset & 1) ? true : false;
+	}
+}
+
+UINT8 a2bus_echoplus_device::read_c0nx(address_space &space, UINT8 offset)
+{
+	switch (offset)
+	{
+		case 0:
+			return 0x1f | m_tms->status_r(space, 0);
+	}
+
+	return 0;
+}
+
+void a2bus_echoplus_device::write_c0nx(address_space &space, UINT8 offset, UINT8 data)
+{
+	switch (offset)
+	{
+		case 0:
+			m_tms->data_w(space, offset, data);
+			break;
 	}
 }

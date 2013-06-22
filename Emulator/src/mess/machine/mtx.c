@@ -57,7 +57,7 @@ READ8_MEMBER(mtx_state::mtx_strobe_r)
     by RAM in this mode.
 */
 
-static void bankswitch(running_machine &machine, UINT8 data)
+void mtx_state::bankswitch(UINT8 data)
 {
 	/*
 
@@ -73,16 +73,15 @@ static void bankswitch(running_machine &machine, UINT8 data)
 	    7       RELCPMH
 
 	*/
-	mtx_state *state = machine.driver_data<mtx_state>();
-	address_space &program = machine.device(Z80_TAG)->memory().space(AS_PROGRAM);
-	ram_device *messram = machine.device<ram_device>(RAM_TAG);
+	address_space &program = m_maincpu->space(AS_PROGRAM);
+	ram_device *messram = m_ram;
 
 //  UINT8 cbm_mode = data >> 7 & 0x01;
 	UINT8 rom_page = data >> 4 & 0x07;
 	UINT8 ram_page = data >> 0 & 0x0f;
 
 	/* set rom bank (switches between basic and assembler rom or cartridges) */
-	state->membank("bank2")->set_entry(rom_page);
+	membank("bank2")->set_entry(rom_page);
 
 	/* set ram bank, for invalid pages a nop-handler will be installed */
 	if (ram_page >= messram->size()/0x8000)
@@ -94,20 +93,20 @@ static void bankswitch(running_machine &machine, UINT8 data)
 	{
 		program.nop_readwrite(0x4000, 0x7fff);
 		program.install_readwrite_bank(0x8000, 0xbfff, "bank4");
-		state->membank("bank4")->set_entry(ram_page);
+		membank("bank4")->set_entry(ram_page);
 	}
 	else
 	{
 		program.install_readwrite_bank(0x4000, 0x7fff, "bank3");
 		program.install_readwrite_bank(0x8000, 0xbfff, "bank4");
-		state->membank("bank3")->set_entry(ram_page);
-		state->membank("bank4")->set_entry(ram_page);
+		membank("bank3")->set_entry(ram_page);
+		membank("bank4")->set_entry(ram_page);
 	}
 }
 
 WRITE8_MEMBER(mtx_state::mtx_bankswitch_w)
 {
-	bankswitch(machine(), data);
+	bankswitch(data);
 }
 
 /*-------------------------------------------------
@@ -135,7 +134,7 @@ WRITE8_MEMBER(mtx_state::mtx_sound_latch_w)
 
 WRITE8_MEMBER(mtx_state::mtx_cst_w)
 {
-	dynamic_cast<cassette_image_device *>(machine().device(CASSETTE_TAG))->output( BIT(data, 0) ? -1 : 1);
+	m_cassette->output( BIT(data, 0) ? -1 : 1);
 }
 
 /*-------------------------------------------------
@@ -324,9 +323,9 @@ WRITE8_MEMBER(mtx_state::hrx_attr_w)
     SNAPSHOT
 ***************************************************************************/
 
-SNAPSHOT_LOAD( mtx )
+SNAPSHOT_LOAD_MEMBER( mtx_state, mtx )
 {
-	address_space &program = image.device().machine().device(Z80_TAG)->memory().space(AS_PROGRAM);
+	address_space &program = m_maincpu->space(AS_PROGRAM);
 
 	UINT8 header[18];
 	UINT16 addr;
@@ -367,15 +366,10 @@ SNAPSHOT_LOAD( mtx )
 
 MACHINE_START_MEMBER(mtx_state,mtx512)
 {
-	ram_device *messram = machine().device<ram_device>(RAM_TAG);
-
-	/* find devices */
-	m_z80ctc = machine().device<z80ctc_device>(Z80CTC_TAG);
-	m_z80dart = machine().device(Z80DART_TAG);
-	m_cassette = machine().device<cassette_image_device>(CASSETTE_TAG);
+	ram_device *messram = m_ram;
 
 	/* configure memory */
-	membank("bank1")->set_base(machine().root_device().memregion("user1")->base());
+	membank("bank1")->set_base(memregion("user1")->base());
 	membank("bank2")->configure_entries(0, 8, memregion("user2")->base(), 0x2000);
 	membank("bank3")->configure_entries(0, messram->size()/0x4000/2, messram->pointer(), 0x4000);
 	membank("bank4")->configure_entries(0, messram->size()/0x4000/2, messram->pointer() + messram->size()/2, 0x4000);
@@ -388,5 +382,5 @@ MACHINE_START_MEMBER(mtx_state,mtx512)
 MACHINE_RESET_MEMBER(mtx_state,mtx512)
 {
 	/* bank switching */
-	bankswitch(machine(), 0);
+	bankswitch(0);
 }

@@ -20,9 +20,12 @@ void naomi_m2_board::device_start()
 {
 	naomi_board::device_start();
 
-	const UINT8 *key_data = machine().root_device().memregion(key_tag)->base();
+#if USE_NAOMICRYPT
+	key = get_naomi_key(machine());
+#else
+	const UINT8 *key_data = memregion(key_tag)->base();
 	key = (key_data[0] << 24) | (key_data[1] << 16) | (key_data[2] << 8) | key_data[3];
-
+#endif
 	ram = auto_alloc_array(machine(), UINT8, RAM_SIZE);
 	buffer = auto_alloc_array(machine(), UINT8, BUFFER_SIZE);
 	line_buffer = auto_alloc_array(machine(), UINT8, LINE_SIZE);
@@ -73,7 +76,6 @@ void naomi_m2_board::board_setup_address(UINT32 address, bool is_dma)
 void naomi_m2_board::board_get_buffer(UINT8 *&base, UINT32 &limit)
 {
 	if(rom_cur_address & 0x40000000) {
-
 		if(rom_cur_address == 0x4001fffe) {
 			if(!enc_ready)
 				enc_start();

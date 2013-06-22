@@ -16,8 +16,6 @@
 
 MACHINE_START_MEMBER(_8080bw_state,extra_8080bw_sh)
 {
-	m_speaker = machine().device("speaker");
-
 	save_item(NAME(m_port_1_last_extra));
 	save_item(NAME(m_port_2_last_extra));
 	save_item(NAME(m_port_3_last_extra));
@@ -110,7 +108,7 @@ WRITE8_MEMBER(_8080bw_state::spcewars_sh_port_w)
 	if (rising_bits & 0x04) m_samples->start(1, 1);     /* Base Hit */
 	if (rising_bits & 0x08) m_samples->start(2, 2);     /* Invader Hit */
 
-	speaker_level_w(m_speaker, (data & 0x10) ? 1 : 0);      /* Various bitstream tunes */
+	m_speaker->level_w(BIT(data, 4));      /* Various bitstream tunes */
 
 	m_port_1_last_extra = data;
 }
@@ -169,7 +167,7 @@ WRITE8_MEMBER(_8080bw_state::lrescue_sh_port_2_w)
 	if (rising_bits & 0x02) m_samples->start(1, 7);     /* Footstep low tone */
 	if (rising_bits & 0x04) m_samples->start(1, 4);     /* Bonus when counting men saved */
 
-	speaker_level_w(m_speaker, (data & 0x08) ? 1 : 0);      /* Bitstream tunes - endlevel and bonus1 */
+	m_speaker->level_w(BIT(data, 3));                   /* Bitstream tunes - endlevel and bonus1 */
 
 	if (rising_bits & 0x10) m_samples->start(3, 6);     /* Shooting Star and Rescue Ship sounds */
 	if ((~data & 0x10) && (m_port_2_last_extra & 0x10)) m_samples->stop(3); /* This makes the rescue ship sound beep on and off */
@@ -338,8 +336,6 @@ WRITE8_MEMBER(_8080bw_state::indianbt_sh_port_1_w)
 
 	machine().sound().system_enable(data & 0x20);
 
-	m_screen_red = data & 0x01;
-
 	m_port_1_last_extra = data;
 }
 
@@ -360,6 +356,31 @@ WRITE8_MEMBER(_8080bw_state::indianbt_sh_port_2_w)
 WRITE8_MEMBER(_8080bw_state::indianbt_sh_port_3_w)
 {
 	discrete_sound_w(m_discrete, space, INDIANBT_MUSIC_DATA, data);
+}
+
+WRITE8_MEMBER(_8080bw_state::indianbtbr_sh_port_1_w)
+{
+	UINT8 rising_bits = data & ~m_port_1_last_extra;
+
+	if (rising_bits & 0x01) m_samples->start(4, 7);     /* Lasso */
+	if (rising_bits & 0x04) m_samples->start(0, 1);     /* Shot Sound */
+	if (rising_bits & 0x08) m_samples->start(3, 2);     /* Hit */
+
+	machine().sound().system_enable(data & 0x20);
+
+	m_port_1_last_extra = data;
+}
+
+WRITE8_MEMBER(_8080bw_state::indianbtbr_sh_port_2_w)
+{
+	UINT8 rising_bits = data & ~m_port_2_last_extra;
+
+	if (rising_bits & 0x08) m_samples->start(2, 3);     /* Move */
+	if (rising_bits & 0x10) m_samples->start(3, 7);     /* Death */
+
+	m_flip_screen = BIT(data, 5) & ioport(CABINET_PORT_TAG)->read();
+
+	m_port_2_last_extra = data;
 }
 
 
@@ -703,7 +724,6 @@ WRITE8_MEMBER(_8080bw_state::polaris_sh_port_2_w)
 
 WRITE8_MEMBER(_8080bw_state::polaris_sh_port_3_w)
 {
-
 	coin_lockout_global_w(machine(), data & 0x04);  /* SX8 */
 
 	m_flip_screen = BIT(data, 5) & BIT(ioport("IN2")->read(), 2); /* SX11 */
@@ -972,11 +992,11 @@ TIMER_DEVICE_CALLBACK_MEMBER(_8080bw_state::schaser_effect_555_cb)
 }
 
 
-static void schaser_reinit_555_time_remain(_8080bw_state *state)
+void _8080bw_state::schaser_reinit_555_time_remain()
 {
-	address_space &space = state->m_maincpu->space(AS_PROGRAM);
-	state->m_schaser_effect_555_time_remain = attotime::from_double(state->m_schaser_effect_555_time_remain_savable);
-	state->schaser_sh_port_2_w(space, 0, state->m_port_2_last_extra);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	m_schaser_effect_555_time_remain = attotime::from_double(m_schaser_effect_555_time_remain_savable);
+	schaser_sh_port_2_w(space, 0, m_port_2_last_extra);
 }
 
 
@@ -986,13 +1006,13 @@ MACHINE_START_MEMBER(_8080bw_state,schaser_sh)
 	save_item(NAME(m_schaser_effect_555_is_low));
 	save_item(NAME(m_schaser_effect_555_time_remain_savable));
 	save_item(NAME(m_port_2_last_extra));
-	machine().save().register_postload(save_prepost_delegate(FUNC(schaser_reinit_555_time_remain), this));
+	machine().save().register_postload(save_prepost_delegate(FUNC(_8080bw_state::schaser_reinit_555_time_remain), this));
 }
 
 
 MACHINE_RESET_MEMBER(_8080bw_state,schaser_sh)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	m_schaser_effect_555_is_low = 0;
 	m_schaser_effect_555_timer->adjust(attotime::never);
@@ -1172,7 +1192,7 @@ WRITE8_MEMBER(_8080bw_state::schasercv_sh_port_1_w)
 
 WRITE8_MEMBER(_8080bw_state::schasercv_sh_port_2_w)
 {
-	speaker_level_w(m_speaker, (data & 0x01) ? 1 : 0);      /* End-of-Level */
+	m_speaker->level_w(BIT(data, 0));      /* End-of-Level */
 
 	machine().sound().system_enable(data & 0x10);
 

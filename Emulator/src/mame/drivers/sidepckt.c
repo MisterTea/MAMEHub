@@ -134,7 +134,7 @@ Stephh's notes (based on the games M6809 code and some tests) :
 WRITE8_MEMBER(sidepckt_state::sound_cpu_command_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 READ8_MEMBER(sidepckt_state::sidepckt_i8751_r)
@@ -148,7 +148,7 @@ WRITE8_MEMBER(sidepckt_state::sidepckt_i8751_w)
 	static const int table_2[]={0x8e,0x42,0xad,0x58,0xec,0x85,0xdd,0x4c,0xad,0x9f,0x00,0x4c,0x7e,0x42,0xa2,0xff};
 	static const int table_3[]={0xbd,0x73,0x80,0xbd,0x73,0xa7,0xbd,0x73,0xe0,0x7e,0x72,0x56,0xff,0xff,0xff,0xff};
 
-	machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, HOLD_LINE); /* i8751 triggers FIRQ on main cpu */
+	m_maincpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE); /* i8751 triggers FIRQ on main cpu */
 
 	/* This function takes multiple parameters */
 	if (m_in_math==1) {
@@ -188,7 +188,7 @@ WRITE8_MEMBER(sidepckt_state::sidepctj_i8751_w)
 	static const int table_2[]={0x8e,0x42,0xb2,0x58,0xec,0x85,0xdd,0x4c,0xad,0x9f,0x00,0x4c,0x7e,0x42,0xa7,0xff};
 	static const int table_3[]={0xbd,0x71,0xc8,0xbd,0x71,0xef,0xbd,0x72,0x28,0x7e,0x70,0x9e,0xff,0xff,0xff,0xff};
 
-	machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, HOLD_LINE); /* i8751 triggers FIRQ on main cpu */
+	m_maincpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE); /* i8751 triggers FIRQ on main cpu */
 
 	/* This function takes multiple parameters */
 	if (m_in_math==1) {
@@ -245,8 +245,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, sidepckt_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE_LEGACY("ym2", ym3526_w)
+	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE("ym2", ym3526_device, write)
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -378,12 +378,6 @@ static GFXDECODE_START( sidepckt )
 GFXDECODE_END
 
 
-static const ym3526_interface ym3526_config =
-{
-	DEVCB_CPU_INPUT_LINE("audiocpu", M6502_IRQ_LINE)
-};
-
-
 
 static MACHINE_CONFIG_START( sidepckt, sidepckt_state )
 
@@ -415,7 +409,7 @@ static MACHINE_CONFIG_START( sidepckt, sidepckt_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ym2", YM3526, 3000000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6502_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -502,14 +496,14 @@ ROM_END
 
 DRIVER_INIT_MEMBER(sidepckt_state,sidepckt)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x3014, 0x3014, read8_delegate(FUNC(sidepckt_state::sidepckt_i8751_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x3018, 0x3018, write8_delegate(FUNC(sidepckt_state::sidepckt_i8751_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x3014, 0x3014, read8_delegate(FUNC(sidepckt_state::sidepckt_i8751_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x3018, 0x3018, write8_delegate(FUNC(sidepckt_state::sidepckt_i8751_w),this));
 }
 
 DRIVER_INIT_MEMBER(sidepckt_state,sidepctj)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x3014, 0x3014, read8_delegate(FUNC(sidepckt_state::sidepckt_i8751_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x3018, 0x3018, write8_delegate(FUNC(sidepckt_state::sidepctj_i8751_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x3014, 0x3014, read8_delegate(FUNC(sidepckt_state::sidepckt_i8751_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x3018, 0x3018, write8_delegate(FUNC(sidepckt_state::sidepctj_i8751_w),this));
 }
 
 

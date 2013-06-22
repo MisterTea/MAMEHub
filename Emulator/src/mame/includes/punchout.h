@@ -2,7 +2,7 @@ class punchout_state : public driver_device
 {
 public:
 	punchout_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg_top_videoram(*this, "bg_top_videoram"),
 		m_spr1_ctrlram(*this, "spr1_ctrlram"),
 		m_spr2_ctrlram(*this, "spr2_ctrlram"),
@@ -10,7 +10,9 @@ public:
 		m_spr1_videoram(*this, "spr1_videoram"),
 		m_spr2_videoram(*this, "spr2_videoram"),
 		m_bg_bot_videoram(*this, "bg_bot_videoram"),
-		m_armwrest_fg_videoram(*this, "armwrest_fgram"){ }
+		m_armwrest_fg_videoram(*this, "armwrest_fgram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	int m_rp5c01_mode_sel;
 	int m_rp5c01_mem[16*4];
@@ -68,4 +70,11 @@ public:
 	UINT32 screen_update_armwrest_top(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_armwrest_bottom(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	void draw_big_sprite(bitmap_ind16 &bitmap, const rectangle &cliprect, int palette);
+	void armwrest_draw_big_sprite(bitmap_ind16 &bitmap, const rectangle &cliprect, int palette);
+	void drawbs2(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void punchout_copy_top_palette(int bank);
+	void punchout_copy_bot_palette(int bank);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };

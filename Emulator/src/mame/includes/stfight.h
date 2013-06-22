@@ -1,12 +1,21 @@
+#include "sound/msm5205.h"
+
 class stfight_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_STFIGHT_INTERRUPT_1
+	};
+
 	stfight_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_text_char_ram(*this, "text_char_ram"),
 		m_text_attr_ram(*this, "text_attr_ram"),
 		m_vh_latch_ram(*this, "vh_latch_ram"),
-		m_sprite_ram(*this, "sprite_ram"){ }
+		m_sprite_ram(*this, "sprite_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_msm(*this, "msm") { }
 
 	required_shared_ptr<UINT8> m_text_char_ram;
 	required_shared_ptr<UINT8> m_text_attr_ram;
@@ -47,9 +56,13 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_stfight(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(stfight_vb_interrupt);
-	TIMER_CALLBACK_MEMBER(stfight_interrupt_1);
 	DECLARE_WRITE8_MEMBER(stfight_adpcm_control_w);
-};
+	void set_pens();
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(stfight_adpcm_int);
+	required_device<cpu_device> m_maincpu;
+	required_device<msm5205_device> m_msm;
 
-/*----------- defined in machine/stfight.c -----------*/
-void stfight_adpcm_int(device_t *device);
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+};

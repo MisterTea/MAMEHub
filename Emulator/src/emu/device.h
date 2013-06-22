@@ -63,17 +63,13 @@
 
 // configure devices
 #define MCFG_DEVICE_CONFIG(_config) \
-	device_t::static_set_static_config(*device, &(_config)); \
-
+	device_t::static_set_static_config(*device, &(_config));
 #define MCFG_DEVICE_CONFIG_CLEAR() \
-	device_t::static_set_static_config(*device, NULL); \
-
+	device_t::static_set_static_config(*device, NULL);
 #define MCFG_DEVICE_CLOCK(_clock) \
-	device_t::static_set_clock(*device, _clock); \
-
+	device_t::static_set_clock(*device, _clock);
 #define MCFG_DEVICE_INPUT_DEFAULTS(_config) \
-	device_t::static_set_input_default(*device, DEVICE_INPUT_DEFAULTS_NAME(_config)); \
-
+	device_t::static_set_input_default(*device, DEVICE_INPUT_DEFAULTS_NAME(_config));
 
 // macros for defining read_line/write_line functions
 #define READ_LINE_DEVICE_HANDLER(name)      int  name(ATTR_UNUSED device_t *device)
@@ -149,8 +145,7 @@ class device_t : public delegate_late_bind
 
 protected:
 	// construction/destruction
-	device_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
-	device_t(const machine_config &mconfig, device_type type, const char *name, const char *shortname, const char *tag, device_t *owner, UINT32 clock);
+	device_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock,const char *shortname = "", const char *source = __FILE__);
 	virtual ~device_t();
 
 public:
@@ -162,6 +157,7 @@ public:
 	const char *name() const { return m_name; }
 	const char *shortname() const { return m_shortname; }
 	const char *searchpath() const { return m_searchpath; }
+	const char *source() const { return m_source; }
 	device_t *owner() const { return m_owner; }
 	device_t *next() const { return m_next; }
 	UINT32 configured_clock() const { return m_configured_clock; }
@@ -243,6 +239,7 @@ public:
 
 	void set_default_bios(UINT8 bios) { m_default_bios = bios; }
 	void set_system_bios(UINT8 bios) { m_system_bios = bios; }
+	bool findit(bool isvalidation = false);
 
 protected:
 	// internal helper classes (defined below)
@@ -302,6 +299,7 @@ protected:
 	astring                 m_name;                 // name of the device
 	astring                 m_shortname;            // short name of the device
 	astring                 m_searchpath;           // search path, used for media loading
+	astring                 m_source;               // device source file name
 
 	// device relationships
 	device_t *              m_owner;                // device that owns us
@@ -361,7 +359,7 @@ public:
 	virtual ~finder_base();
 
 	// getters
-	virtual bool findit() = 0;
+	virtual bool findit(bool isvalidation = false) = 0;
 
 protected:
 	// helpers
@@ -418,7 +416,7 @@ public:
 	operator _DeviceClass &() { assert(object_finder_base<_DeviceClass>::m_target != NULL); return *object_finder_base<_DeviceClass>::m_target; }
 
 	// finder
-	virtual bool findit()
+	virtual bool findit(bool isvalidation = false)
 	{
 		device_t *device = this->m_base.subdevice(this->m_tag);
 		this->m_target = dynamic_cast<_DeviceClass *>(device);
@@ -463,8 +461,9 @@ public:
 	operator memory_region &() { assert(object_finder_base<memory_region>::m_target != NULL); return *object_finder_base<memory_region>::m_target; }
 
 	// finder
-	virtual bool findit()
+	virtual bool findit(bool isvalidation = false)
 	{
+		if (isvalidation) return true;
 		m_target = m_base.memregion(m_tag);
 		return this->report_missing(m_target != NULL, "memory region", _Required);
 	}
@@ -500,8 +499,9 @@ public:
 	operator memory_bank &() { assert(object_finder_base<memory_bank>::m_target != NULL); return *object_finder_base<memory_bank>::m_target; }
 
 	// finder
-	virtual bool findit()
+	virtual bool findit(bool isvalidation = false)
 	{
+		if (isvalidation) return true;
 		m_target = m_base.membank(m_tag);
 		return this->report_missing(m_target != NULL, "memory bank", _Required);
 	}
@@ -537,8 +537,9 @@ public:
 	operator ioport_port &() { assert(object_finder_base<ioport_port>::m_target != NULL); return *object_finder_base<ioport_port>::m_target; }
 
 	// finder
-	virtual bool findit()
+	virtual bool findit(bool isvalidation = false)
 	{
+		if (isvalidation) return true;
 		m_target = m_base.ioport(m_tag);
 		return this->report_missing(m_target != NULL, "I/O port", _Required);
 	}
@@ -596,8 +597,9 @@ public:
 	}
 
 	// finder
-	virtual bool findit()
+	virtual bool findit(bool isvalidation = false)
 	{
+		if (isvalidation) return true;
 		this->m_target = reinterpret_cast<_PointerType *>(this->find_memory(m_width, m_bytes, _Required));
 		return this->report_missing(this->m_target != NULL, "shared pointer", _Required);
 	}

@@ -58,6 +58,8 @@
 #define VS71    0x0007000a
 #define VS2005  0x00080000
 #define VS2008  0x00090000
+#define VS2010  0x00100000
+#define VS2012  0x00110000
 
 
 
@@ -101,7 +103,7 @@ static const translation_info gcc_translate[] =
 	{ 0,        "-fomit-frame-pointer",     "" },
 	{ 0,        "-Werror",                  "/WX" },
 	//{ VS7,        "-Wall",                    "/Wall /W3 /wd4003 /wd4018 /wd4146 /wd4242 /wd4244 /wd4619 /wd4702 /wd4706 /wd4710 /wd4711 /wd4738 /wd4826" },
-	{ VS7,      "-Wall",                    "/Wall /W4 /wd4003 /wd4018 /wd4146 /wd4242 /wd4244 /wd4619 /wd4702 /wd4706 /wd4710 /wd4711 /wd4738 /wd4826 /wd4820 /wd4514 /wd4668 /wd4127 /wd4625 /wd4626 /wd4512 /wd4100 /wd4310 /wd4571 /wd4061 /wd4131 /wd4255 /wd4510 /wd4610 /wd4505 /wd4324 /wd4611 /wd4201 /wd4189 /wd4296 /wd4986 /wd4347" },
+	{ VS7,      "-Wall",                    "/Wall /W4 /wd4003 /wd4018 /wd4146 /wd4242 /wd4244 /wd4619 /wd4702 /wd4706 /wd4710 /wd4711 /wd4738 /wd4826 /wd4820 /wd4514 /wd4668 /wd4127 /wd4625 /wd4626 /wd4512 /wd4100 /wd4310 /wd4571 /wd4061 /wd4131 /wd4255 /wd4510 /wd4610 /wd4505 /wd4324 /wd4611 /wd4201 /wd4189 /wd4296 /wd4986 /wd4347 /wd4987" },
 	{ 0,        "-Wall",                    "/W0" },
 	{ VS7,      "-Wno-unused",              "/wd4100 /wd4101 /wd4102 /wd4505" },
 	{ 0,        "-Wno-sign-compare",        "/wd4365 /wd4389 /wd4245" },
@@ -117,6 +119,7 @@ static const translation_info gcc_translate[] =
 	{ VS71,     "-msse2",                   "/arch:SSE2" },
 	{ 0,        "-msse2",                   "" },
 	{ 0,        "-msse3",                   "" },
+	{ VS2010,   "-mavx",                    "/arch:AVX" },
 	{ 0,        "-mwindows",                "" },
 	{ 0,        "-mno-cygwin",              "" },
 	{ 0,        "-std=gnu89",               "" },
@@ -124,6 +127,7 @@ static const translation_info gcc_translate[] =
 	{ 0,        "-pipe",                    "" },
 	{ 0,        "-x",                       "" },
 	{ 0,        "c++",                      "" },
+	{ 0,        "-flto",                    "/GL" },
 	{ 0 }
 };
 
@@ -144,6 +148,7 @@ static const translation_info ld_translate[] =
 	{ 0,        "-static-libgcc",           "" },
 	{ 0,        "-static-libstdc++",            "" },
 	{ 0,        "-shared",                  "/dll" },
+	{ 0,        "-flto",                    "/LTCG" },
 	{ 0 }
 };
 

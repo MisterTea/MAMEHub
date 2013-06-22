@@ -451,11 +451,10 @@ WRITE_LINE_MEMBER(n8080_state::n8080_inte_callback)
 
 WRITE8_MEMBER(n8080_state::n8080_status_callback)
 {
-	device_t *device = machine().device("maincpu");
 	if (data & I8085_STATUS_INTA)
 	{
 		/* interrupt acknowledge */
-		device->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 	}
 }
 
@@ -469,9 +468,6 @@ static I8085_CONFIG( n8080_cpu_config )
 
 MACHINE_START_MEMBER(n8080_state,n8080)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_shift_data));
 	save_item(NAME(m_shift_bits));
 	save_item(NAME(m_inte));
@@ -498,7 +494,6 @@ MACHINE_START_MEMBER(n8080_state,helifire)
 
 MACHINE_RESET_MEMBER(n8080_state,n8080)
 {
-
 	m_shift_data = 0;
 	m_shift_bits = 0;
 	m_inte = 0;
@@ -506,7 +501,6 @@ MACHINE_RESET_MEMBER(n8080_state,n8080)
 
 MACHINE_RESET_MEMBER(n8080_state,spacefev)
 {
-
 	MACHINE_RESET_CALL_MEMBER(n8080);
 	MACHINE_RESET_CALL_MEMBER(spacefev_sound);
 
@@ -516,7 +510,6 @@ MACHINE_RESET_MEMBER(n8080_state,spacefev)
 
 MACHINE_RESET_MEMBER(n8080_state,sheriff)
 {
-
 	MACHINE_RESET_CALL_MEMBER(n8080);
 	MACHINE_RESET_CALL_MEMBER(sheriff_sound);
 
@@ -526,7 +519,6 @@ MACHINE_RESET_MEMBER(n8080_state,sheriff)
 
 MACHINE_RESET_MEMBER(n8080_state,helifire)
 {
-
 	MACHINE_RESET_CALL_MEMBER(n8080);
 	MACHINE_RESET_CALL_MEMBER(helifire_sound);
 

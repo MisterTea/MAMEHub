@@ -176,7 +176,8 @@ running_machine::running_machine(const machine_config &_config, osd_interface &o
 		m_save(*this),
 		m_memory(*this),
 		m_ioport(*this),
-		m_scheduler(*this)
+		m_scheduler(*this),
+		m_lua_engine(*this)
 {
 	memset(gfx, 0, sizeof(gfx));
 	memset(&m_base_time, 0, sizeof(m_base_time));
@@ -232,6 +233,18 @@ const char *running_machine::describe_context()
 	return m_context;
 }
 
+TIMER_CALLBACK_MEMBER(running_machine::autoboot_callback)
+{
+	if (strlen(options().autoboot_script())!=0) {
+		m_lua_engine.execute(options().autoboot_script());
+	}
+	if (strlen(options().autoboot_command())!=0) {
+		astring cmd = astring(options().autoboot_command());
+		cmd.replace("'","\\'");
+		astring val = astring("emu.keypost('",cmd,"')");
+		m_lua_engine.execute_string(val);
+	}
+}
 
 //-------------------------------------------------
 //  start - initialize the emulated machine
@@ -307,8 +320,8 @@ void running_machine::start()
 	add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(running_machine::reset_all_devices), this));
 	add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(running_machine::stop_all_devices), this));
 	save().register_presave(save_prepost_delegate(FUNC(running_machine::presave_all_devices), this));
-	save().register_postload(save_prepost_delegate(FUNC(running_machine::postload_all_devices), this));
 	start_all_devices();
+	save().register_postload(save_prepost_delegate(FUNC(running_machine::postload_all_devices), this));
 
 	// if we're coming in with a savegame request, process it now
 	const char *savegame = options().state();
@@ -321,6 +334,12 @@ void running_machine::start()
 
 	// set up the cheat engine
 	m_cheat = auto_alloc(*this, cheat_manager(*this));
+
+	// allocate autoboot timer
+	m_autoboot_timer = scheduler().timer_alloc(timer_expired_delegate(FUNC(running_machine::autoboot_callback), this));
+
+	// initialize lua
+	m_lua_engine.initialize();
 
 	// disallow save state registrations starting here
 	m_save.allow_registration(false);
@@ -526,6 +545,101 @@ void running_machine::schedule_new_driver(const game_driver &driver)
 
 
 //-------------------------------------------------
+//  get_statename - allow to specify a subfolder of
+//  the state directory for state loading/saving,
+//  very useful for MESS and consoles or computers
+//  where you can have separate folders for diff
+//  software
+//-------------------------------------------------
+
+astring running_machine::get_statename(const char *option)
+{
+	astring statename_str("");
+	if (option == NULL || option[0] == 0)
+		statename_str.cpy("%g");
+	else
+		statename_str.cpy(option);
+
+	// strip any extension in the provided statename
+	int index = statename_str.rchr(0, '.');
+	if (index != -1)
+		statename_str.substr(0, index);
+
+	// handle %d in the template (for image devices)
+	astring statename_dev("%d_");
+	int pos = statename_str.find(0, statename_dev);
+
+	if (pos != -1)
+	{
+		// if more %d are found, revert to default and ignore them all
+		if (statename_str.find(pos + 3, statename_dev) != -1)
+			statename_str.cpy("%g");
+		// else if there is a single %d, try to create the correct snapname
+		else
+		{
+			int name_found = 0;
+
+			// find length of the device name
+			int end1 = statename_str.find(pos + 3, "/");
+			int end2 = statename_str.find(pos + 3, "%");
+			int end = -1;
+
+			if ((end1 != -1) && (end2 != -1))
+				end = MIN(end1, end2);
+			else if (end1 != -1)
+				end = end1;
+			else if (end2 != -1)
+				end = end2;
+			else
+				end = statename_str.len();
+
+			if (end - pos < 3)
+				fatalerror("Something very wrong is going on!!!\n");
+
+			// copy the device name to an astring
+			astring devname_str;
+			devname_str.cpysubstr(statename_str, pos + 3, end - pos - 3);
+			//printf("check template: %s\n", devname_str.cstr());
+
+			// verify that there is such a device for this system
+			image_interface_iterator iter(root_device());
+			for (device_image_interface *image = iter.first(); image != NULL; image = iter.next())
+			{
+				// get the device name
+				astring tempdevname(image->brief_instance_name());
+				//printf("check device: %s\n", tempdevname.cstr());
+
+				if (devname_str.cmp(tempdevname) == 0)
+				{
+					// verify that such a device has an image mounted
+					if (image->basename_noext() != NULL)
+					{
+						astring filename(image->basename_noext());
+
+						// setup snapname and remove the %d_
+						statename_str.replace(0, devname_str, filename);
+						statename_str.del(pos, 3);
+						//printf("check image: %s\n", filename.cstr());
+
+						name_found = 1;
+					}
+				}
+			}
+
+			// or fallback to default
+			if (name_found == 0)
+				statename_str.cpy("%g");
+		}
+	}
+
+	// substitute path and gamename up front
+	statename_str.replace(0, "/", PATH_SEPARATOR);
+	statename_str.replace(0, "%g", basename());
+
+	return statename_str;
+}
+
+//-------------------------------------------------
 //  set_saveload_filename - specifies the filename
 //  for state loading/saving
 //-------------------------------------------------
@@ -541,7 +655,10 @@ void running_machine::set_saveload_filename(const char *filename)
 	else
 	{
 		m_saveload_searchpath = options().state_directory();
-		m_saveload_pending_file.cpy(basename()).cat(PATH_SEPARATOR).cat(filename).cat(".sta");
+		// take into account the statename option
+		const char *stateopt = options().state_name();
+		astring statename = get_statename(stateopt);
+		m_saveload_pending_file.cpy(statename.cstr()).cat(PATH_SEPARATOR).cat(filename).cat(".sta");
 	}
 }
 
@@ -566,6 +683,24 @@ void running_machine::schedule_save(const char *filename)
 
 
 //-------------------------------------------------
+//  immediate_save - save state.
+//-------------------------------------------------
+
+void running_machine::immediate_save(const char *filename)
+{
+	// specify the filename to save or load
+	set_saveload_filename(filename);
+
+	// set up some parameters for handle_saveload()
+	m_saveload_schedule = SLS_SAVE;
+	m_saveload_schedule_time = this->time();
+
+	// jump right into the save, anonymous timers can't hurt us!
+	handle_saveload();
+}
+
+
+//-------------------------------------------------
 //  schedule_load - schedule a load to occur as
 //  soon as possible
 //-------------------------------------------------
@@ -581,6 +716,24 @@ void running_machine::schedule_load(const char *filename)
 
 	// we can't be paused since we need to clear out anonymous timers
 	resume();
+}
+
+
+//-------------------------------------------------
+//  immediate_load - load state.
+//-------------------------------------------------
+
+void running_machine::immediate_load(const char *filename)
+{
+	// specify the filename to save or load
+	set_saveload_filename(filename);
+
+	// set up some parameters for handle_saveload()
+	m_saveload_schedule = SLS_LOAD;
+	m_saveload_schedule_time = this->time();
+
+	// jump right into the load, anonymous timers can't hurt us
+	handle_saveload();
 }
 
 
@@ -838,6 +991,9 @@ void running_machine::soft_reset(void *ptr, INT32 param)
 
 	// call all registered reset callbacks
 	call_notifiers(MACHINE_NOTIFY_RESET);
+
+	// setup autoboot if needed
+	m_autoboot_timer->adjust(attotime(options().autoboot_delay(),0),0);
 
 	// now we're running
 	m_current_phase = MACHINE_PHASE_RUNNING;

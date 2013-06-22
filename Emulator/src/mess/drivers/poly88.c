@@ -187,18 +187,18 @@ static MACHINE_CONFIG_START( poly88, poly88_state )
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, poly88_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", poly88_cassette_interface )
 
 	/* uart */
 	MCFG_I8251_ADD("uart", poly88_usart_interface)
 	MCFG_SERIAL_SOURCE_ADD("sercas")
 
 	/* snapshot */
-	MCFG_SNAPSHOT_ADD("snapshot", poly88, "img", 0)
+	MCFG_SNAPSHOT_ADD("snapshot", poly88_state, poly88, "img", 0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( poly8813, poly88 )

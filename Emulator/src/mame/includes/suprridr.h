@@ -8,10 +8,12 @@ class suprridr_state : public driver_device
 {
 public:
 	suprridr_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fgram(*this, "fgram"),
 		m_bgram(*this, "bgram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	UINT8 m_nmi_enable;
 	UINT8 m_sound_data;
@@ -43,6 +45,9 @@ public:
 	UINT32 screen_update_suprridr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(main_nmi_gen);
 	TIMER_CALLBACK_MEMBER(delayed_sound_w);
+	int suprridr_is_screen_flipped();
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 
 /*----------- defined in video/suprridr.c -----------*/

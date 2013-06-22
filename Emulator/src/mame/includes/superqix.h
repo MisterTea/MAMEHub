@@ -1,19 +1,25 @@
+#include "sound/samples.h"
+
 class superqix_state : public driver_device
 {
 public:
 	superqix_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
+		m_mcu(*this,"mcu"),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
 		m_bitmapram(*this, "bitmapram"),
-		m_bitmapram2(*this, "bitmapram2"){ }
+		m_bitmapram2(*this, "bitmapram2"),
+		m_samples(*this, "samples"){ }
 
 	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_mcu;
 	required_shared_ptr<UINT8> m_spriteram;
 	required_shared_ptr<UINT8> m_videoram;
 	optional_shared_ptr<UINT8> m_bitmapram;
 	optional_shared_ptr<UINT8> m_bitmapram2;
+	optional_device<samples_device> m_samples;
 
 	INT16 *m_samplebuf;
 	UINT8 m_port1;
@@ -83,4 +89,8 @@ public:
 	TIMER_CALLBACK_MEMBER(mcu_acknowledge_callback);
 	TIMER_CALLBACK_MEMBER(delayed_z80_mcu_w);
 	TIMER_CALLBACK_MEMBER(delayed_mcu_z80_w);
+	void pbillian_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void superqix_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	int read_dial(int player);
+	void machine_init_common();
 };

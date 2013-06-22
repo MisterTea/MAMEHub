@@ -8,6 +8,8 @@
     and http://www.vr32.de/modules/dokuwiki/doku.php?
 
     TODO:
+    - sound is way incomplete
+    - various timing issues (irq & events aren't known)
     - 3dtetris: missing gfxs on gameplay (writes to framebuffer)
     - boundh: game is way too fast
     - galactic: ball goes out of bounds sometimes?
@@ -17,8 +19,6 @@
     - redalarm: gameplay doesn't work
     - spaceinv: Taito logo only if you press the button, framebuffer?
     - spaceinv: missing shots
-    - telerobo: crashes if you die
-    - telerobo: hangs after winning first match;
     - vlab: doesn't boot (irq issue?)
     - wariolnd: brightness gets suddently darker during intro.
 
@@ -29,6 +29,35 @@
 #include "imagedev/cartslot.h"
 #include "audio/vboy.h"
 #include "vboy.lh"
+
+#define READ_BGMAP(bgoffs) m_bgmap[(bgoffs) & 0xffff]
+#define READ_WORLD(wldoffs)   READ_BGMAP((0x1d800 >> 1) + wldoffs)
+#define READ_COLTAB1(wldoffs) READ_BGMAP((0x1dc00 >> 1) + wldoffs)
+#define READ_COLTAB2(wldoffs) READ_BGMAP((0x1de00 >> 1) + wldoffs)
+#define READ_OBJECTS(wldoffs) READ_BGMAP((0x1e000 >> 1) + wldoffs)
+
+#define WRITE_OVR_TEMPDRAW_MAP(woffs, wdat) m_ovr_tempdraw_map[(woffs) & 0x3f] = wdat;
+#define READ_OVR_TEMPDRAW_MAP(roffs) m_ovr_tempdraw_map[(roffs) & 0x3f];
+
+#define READ_FONT(roffs) m_font[(roffs)&0x1ffff]
+
+// bit of magic here, we also write pre-flipped copies of the data to extra ram we've allocated
+// to simplify the draw loop (we can just pass the flip / unused bits as the upper character bits)
+// (all TILE words are in the format of ccxy -ttt tttt tttt
+//   where 'c' = palette, 'x/y' are flips, '-' is unused(?) and 't' is your basic tile number
+
+#define WRITE_FONT(woffs) \
+	COMBINE_DATA(&m_font[woffs]); /* normal */ \
+	UINT16 dat = m_font[woffs]; \
+	m_font[((woffs) + 0x4000)] = dat;     /* normal */ \
+	m_font[((woffs) + 0x8000) ^ 7] = dat; /* flip y */ \
+	m_font[((woffs) + 0xc000) ^ 7] = dat; /* flip y */ \
+	dat = BITSWAP16(dat,1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14);  \
+	m_font[((woffs) + 0x10000)] = dat;     /* flip x */ \
+	m_font[((woffs) + 0x14000)] = dat;     /* flip x */ \
+	m_font[((woffs) + 0x18000) ^ 7] = dat; /* flip x+y */ \
+	m_font[((woffs) + 0x1c000) ^ 7] = dat; /* flip x+y */
+
 
 /* FIXME: most if not all of these must be UINT8 */
 struct vboy_regs_t
@@ -41,7 +70,6 @@ struct vboy_regs_t
 
 struct vip_regs_t
 {
-
 	UINT16 INTPND;
 	UINT16 INTENB;
 	UINT16 DPSTTS;
@@ -76,7 +104,49 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maintimer(*this, "timer_main"),
 			m_maincpu(*this, "maincpu")
-			{ }
+	{
+		m_vip_regs.INTPND = 0;
+		m_vip_regs.INTENB = 0;
+		m_vip_regs.DPSTTS = 0;
+		m_vip_regs.DPCTRL = 0;
+		m_vip_regs.BRTA = 0;
+		m_vip_regs.BRTB = 0;
+		m_vip_regs.BRTC = 0;
+		m_vip_regs.REST = 0;
+		m_vip_regs.FRMCYC = 0;
+		m_vip_regs.CTA = 0;
+		m_vip_regs.XPSTTS = 0;
+		m_vip_regs.XPCTRL = 0;
+		m_vip_regs.VER = 0;
+		m_vip_regs.SPT[0] = 0;
+		m_vip_regs.SPT[1] = 0;
+		m_vip_regs.SPT[2] = 0;
+		m_vip_regs.SPT[3] = 0;
+		m_vip_regs.GPLT[0] = 0;
+		m_vip_regs.GPLT[1] = 0;
+		m_vip_regs.GPLT[2] = 0;
+		m_vip_regs.GPLT[3] = 0;
+		m_vip_regs.JPLT[0] = 0;
+		m_vip_regs.JPLT[1] = 0;
+		m_vip_regs.JPLT[2] = 0;
+		m_vip_regs.JPLT[3] = 0;
+		m_vip_regs.BKCOL = 0;
+
+		m_vboy_regs.lpc = 0;
+		m_vboy_regs.lpc2 = 0;
+		m_vboy_regs.lpt = 0;
+		m_vboy_regs.lpr = 0;
+		m_vboy_regs.khb = 0;
+		m_vboy_regs.klb = 0;
+		m_vboy_regs.thb = 0;
+		m_vboy_regs.tlb = 0;
+		m_vboy_regs.tcr = 0;
+		m_vboy_regs.wcr = 0;
+		m_vboy_regs.kcr = 0x80;
+
+		m_vboy_timer.count = 0;
+		m_vboy_timer.latch = 0;
+	}
 
 	required_device<timer_device> m_maintimer;
 	required_device<cpu_device> m_maincpu;
@@ -109,15 +179,10 @@ public:
 	UINT8 *m_l_frame_1;
 	UINT8 *m_r_frame_0;
 	UINT8 *m_r_frame_1;
-	UINT16 *m_world;
-	UINT16 *m_columntab1;
-	UINT16 *m_columntab2;
-	UINT16 *m_objects;
 	vboy_regs_t m_vboy_regs;
 	vip_regs_t m_vip_regs;
 	vboy_timer_t m_vboy_timer;
-	int *m_bg_map;
-	int *m_ovr_map;
+	INT32 *m_ovr_tempdraw_map;
 	UINT16 m_frame_count;
 	UINT8 m_displayfb;
 	UINT8 m_drawfb;
@@ -132,17 +197,14 @@ public:
 	DECLARE_READ32_MEMBER(sram_r);
 	DECLARE_WRITE32_MEMBER(sram_w);
 
-	void m_pcg_debug(UINT16 offset,UINT16 data,UINT16 mem_mask);
-
-	void put_obj(bitmap_ind16 &bitmap, int x, int y, UINT16 code, bool flipx, bool flipy, UINT8 pal);
-	void put_char(int x, int y, UINT16 code, bool flipx, bool flipy, UINT8 pal);
-	void fill_ovr_char(UINT16 code, bool flipx, bool flipy, UINT8 pal);
-	void fill_bg_map(int num, UINT16 scx, UINT16 scy);
-	void draw_bg_map(bitmap_ind16 &bitmap, UINT16 *vboy_paramtab, int mode, int gx, int gp, int gy, int mx, int mp, int my,int h, int w,
-											UINT16 x_mask, UINT16 y_mask, UINT8 ovr, bool right);
-	void draw_affine_map(bitmap_ind16 &bitmap, UINT16 *vboy_paramtab, int gx, int gp, int gy, int h, int w,
-												UINT16 x_mask, UINT16 y_mask, UINT8 ovr, bool right);
-	UINT8 display_world(int num, bitmap_ind16 &bitmap, bool right, int &cur_spt);
+	void put_obj(bitmap_ind16 &bitmap, const rectangle &cliprect, int x, int y, UINT16 code, UINT8 pal);
+	void fill_ovr_char(UINT16 code, UINT8 pal);
+	INT8 get_bg_map_pixel(int num, int xpos, int ypos);
+	void draw_bg_map(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT16 param_base, int mode, int gx, int gp, int gy, int mx, int mp, int my,int h, int w,
+											UINT16 x_mask, UINT16 y_mask, UINT8 ovr, bool right, int bg_map_num);
+	void draw_affine_map(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT16 param_base, int gx, int gp, int gy, int h, int w,
+												UINT16 x_mask, UINT16 y_mask, UINT8 ovr, bool right, int bg_map_num);
+	UINT8 display_world(int num, bitmap_ind16 &bitmap, const rectangle &cliprect, bool right, int &cur_spt);
 	void m_set_brightness(void);
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -154,6 +216,8 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(timer_pad_tick);
 	TIMER_DEVICE_CALLBACK_MEMBER(vboy_scanlineL);
 	TIMER_DEVICE_CALLBACK_MEMBER(vboy_scanlineR);
+	void vboy_machine_stop();
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(vboy_cart);
 };
 
 
@@ -162,8 +226,7 @@ void vboy_state::video_start()
 	//int i;
 
 	// Allocate memory for temporary screens
-	m_bg_map = auto_alloc_array_clear(machine(), int, 0x1000*0x1000);
-	m_ovr_map = auto_alloc_array_clear(machine(), int, 8*8);
+	m_ovr_tempdraw_map = auto_alloc_array_clear(machine(), INT32, 0x40);
 
 	// Allocate memory for framebuffers
 	m_l_frame_0 = auto_alloc_array_clear(machine(), UINT8, 0x6000);
@@ -171,47 +234,43 @@ void vboy_state::video_start()
 	m_r_frame_0 = auto_alloc_array_clear(machine(), UINT8, 0x6000);
 	m_r_frame_1 = auto_alloc_array_clear(machine(), UINT8, 0x6000);
 
-	m_font  = auto_alloc_array_clear(machine(), UINT16, 2048 * 8);
+	m_font  = auto_alloc_array_clear(machine(), UINT16, (0x8000 >> 1)*4 * 2);
 	m_bgmap = auto_alloc_array(machine(), UINT16, 0x20000 >> 1);
-	m_objects = m_bgmap + (0x1e000 >> 1);
-	m_columntab1 = m_bgmap + (0x1dc00 >> 1);
-	m_columntab2 = m_bgmap + (0x1de00 >> 1);
-	m_world = m_bgmap + (0x1d800 >> 1);
+	memset(m_bgmap, 0, sizeof(UINT16) * (0x20000 >> 1));
 }
 
-void vboy_state::put_obj(bitmap_ind16 &bitmap, int x, int y, UINT16 code, bool flipx, bool flipy, UINT8 pal)
+void vboy_state::put_obj(bitmap_ind16 &bitmap, const rectangle &cliprect, int x, int y, UINT16 code, UINT8 pal)
 {
 	UINT16 data;
 	UINT8 yi, xi, dat, col;
 
 	for (yi = 0; yi < 8; yi++)
 	{
-		if (!flipy)
-				data = m_font[code * 8 + yi];
-		else
-				data = m_font[code * 8 + (7-yi)];
+		data = READ_FONT(code * 8 + yi);
 
 		for (xi = 0; xi < 8; xi++)
 		{
 			int res_x,res_y;
 
-			if (!flipx)
-				dat = ((data >> (xi << 1)) & 0x03);
-			else
-				dat = ((data >> ((7-xi) << 1)) & 0x03);
+			dat = ((data >> (xi << 1)) & 0x03);
 
 			res_x = x + xi;
 			res_y = y + yi;
 
 			col = (pal >> (dat*2)) & 3;
 
-			if (dat && res_x < 384 && res_y < 224)
-				bitmap.pix16((res_y), (res_x)) = machine().pens[col];
+			if (dat)
+			{
+				if (cliprect.contains(res_x, res_y))
+					bitmap.pix16((res_y), (res_x)) = machine().pens[col];
+			}
 		}
 	}
 }
 
-void vboy_state::put_char(int x, int y, UINT16 code, bool flipx, bool flipy, UINT8 pal)
+
+
+void vboy_state::fill_ovr_char(UINT16 code, UINT8 pal)
 {
 	UINT16 data;
 	UINT8 yi, xi, dat;
@@ -219,129 +278,124 @@ void vboy_state::put_char(int x, int y, UINT16 code, bool flipx, bool flipy, UIN
 
 	for (yi = 0; yi < 8; yi++)
 	{
-		if (!flipy)
-				data = m_font[code * 8 + yi];
-		else
-				data = m_font[code * 8 + (7-yi)];
+		data = READ_FONT(code * 8 + yi);
 
 		for (xi = 0; xi < 8; xi++)
 		{
-			int res_x,res_y;
-
-			if (!flipx)
-				dat = ((data >> (xi << 1)) & 0x03);
-			else
-				dat = ((data >> ((7-xi) << 1)) & 0x03);
-
-			res_x = x + xi;
-			res_y = y + yi;
-
+			dat = ((data >> (xi << 1)) & 0x03);
 			col = (pal >> (dat*2)) & 3;
 
 			if(dat == 0)
 				col = -1;
 
-			m_bg_map[res_y*0x1000+res_x] = col;
+			WRITE_OVR_TEMPDRAW_MAP(yi*8+xi, col);
 		}
 	}
 }
 
-void vboy_state::fill_ovr_char(UINT16 code, bool flipx, bool flipy, UINT8 pal)
+inline INT8 vboy_state::get_bg_map_pixel(int num, int xpos, int ypos)
 {
-	UINT16 data;
-	UINT8 yi, xi, dat;
-	int col;
-
-	for (yi = 0; yi < 8; yi++)
-	{
-		if (!flipy)
-				data = m_font[code * 8 + yi];
-		else
-				data = m_font[code * 8 + (7-yi)];
-
-		for (xi = 0; xi < 8; xi++)
-		{
-			if (!flipx)
-				dat = ((data >> (xi << 1)) & 0x03);
-			else
-				dat = ((data >> ((7-xi) << 1)) & 0x03);
-
-			col = (pal >> (dat*2)) & 3;
-
-			if(dat == 0)
-				col = -1;
-
-			m_ovr_map[yi*8+xi] = col;
-		}
-	}
-}
-
-void vboy_state::fill_bg_map(int num, UINT16 scx, UINT16 scy)
-{
+//  g_profiler.start(PROFILER_USER1);
 	int x, y;
 	UINT8 stepx, stepy;
 
-	// Fill background map
-	for (y = 0; y < scy; y++)
+	y = ypos >>3;
+	x = xpos >>3;
+
+	stepx = (x & 0x1c0) >> 6;
+	stepy = ((y & 0x1c0) >> 6) * (stepx+1);
+	UINT16 val = READ_BGMAP((x & 0x3f) + (64 * (y & 0x3f)) + ((num + stepx + stepy) * 0x1000));
+	int pal = m_vip_regs.GPLT[(val >> 14) & 3];
+	int code = val & 0x3fff;
+
+	UINT16 data;
+	UINT8 yi, xi, dat;
+
+	yi = ypos & 7;
+	data = READ_FONT(code * 8 + yi);
+	xi = xpos & 7;
+	dat = ((data >> (xi << 1)) & 0x03);
+
+	if(dat == 0)
 	{
-		for (x = 0; x < scx; x++)
-		{
-			stepx = (x & 0x1c0) >> 6;
-			stepy = ((y & 0x1c0) >> 6) * (stepx+1);
-			UINT16 val = m_bgmap[(x & 0x3f) + (64 * (y & 0x3f)) + ((num + stepx + stepy) * 0x1000)];
-			put_char(x * 8, y * 8, val & 0x7ff, BIT(val,13), BIT(val,12), m_vip_regs.GPLT[(val >> 14) & 3]);
-		}
+		//g_profiler.stop();
+		return -1;
 	}
+	//  g_profiler.stop();
+	return (pal >> (dat*2)) & 3;
 }
 
-void vboy_state::draw_bg_map(bitmap_ind16 &bitmap, UINT16 *vboy_paramtab, int mode, int gx, int gp, int gy, int mx, int mp, int my, int h, int w,
-													UINT16 x_mask, UINT16 y_mask, UINT8 ovr, bool right)
+void vboy_state::draw_bg_map(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT16 param_base, int mode, int gx, int gp, int gy, int mx, int mp, int my, int h, int w,
+													UINT16 x_mask, UINT16 y_mask, UINT8 ovr, bool right, int bg_map_num)
 {
+//  g_profiler.start(PROFILER_USER2);
 	int x,y;
 
 	for(y=0;y<=h;y++)
 	{
+		INT32 y1 = (y+gy);
+
+		if ((y1 < cliprect.min_y) || (y1 > cliprect.max_y))
+			continue;
+
+		int src_y = y+my;
+
 		for(x=0;x<=w;x++)
 		{
-			int src_x,src_y;
-			INT32 y1 = (y+gy);
 			INT32 x1 = (x+gx);
-			int pix = 0;
 
 			x1 += right ? -gp : gp;
 
+			if ((x1 < cliprect.min_x) || (x1 > cliprect.max_x))
+				continue;
+
+			int src_x;
 			src_x = x+mx;
 			if (mode==1)
-				src_x += (INT16)vboy_paramtab[y*2+(right ^ 1)];
+				src_x += (INT16)READ_BGMAP(param_base + (y*2+(right ^ 1)));
 
-			src_y = y+my;
 			src_x += right ? -mp : mp;
 
-			if(ovr && (src_x > x_mask || src_y > y_mask || src_x < 0 || src_y < 0))
-				pix = m_ovr_map[(src_y & 7)*8+(src_x & 7)];
+
+			int pix = 0;
+			if(ovr)
+			{
+				if ((src_x > x_mask || src_y > y_mask || src_x < 0 || src_y < 0))
+				{
+					g_profiler.start(PROFILER_USER3);
+					pix = READ_OVR_TEMPDRAW_MAP((src_y & 7)*8+(src_x & 7));
+					g_profiler.stop();
+				}
+				else
+				{
+					pix = get_bg_map_pixel(bg_map_num, src_x & x_mask, src_y & y_mask);
+				}
+			}
 			else
-				pix = m_bg_map[(src_y & y_mask)*0x1000+(src_x & x_mask)];
+			{
+				pix = get_bg_map_pixel(bg_map_num, src_x & x_mask, src_y & y_mask);
+			}
 
 			if(pix != -1)
-				if (y1>=0 && y1<224)
-					if (x1>=0 && x1<384)
-						bitmap.pix16(y1, x1) = machine().pens[pix & 3];
+				bitmap.pix16(y1, x1) = machine().pens[pix & 3];
 		}
 	}
+//  g_profiler.stop();
 }
 
-void vboy_state::draw_affine_map(bitmap_ind16 &bitmap, UINT16 *vboy_paramtab, int gx, int gp, int gy, int h, int w,
-														UINT16 x_mask, UINT16 y_mask, UINT8 ovr, bool right)
+void vboy_state::draw_affine_map(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT16 param_base, int gx, int gp, int gy, int h, int w,
+														UINT16 x_mask, UINT16 y_mask, UINT8 ovr, bool right, int bg_map_num)
 {
+//  g_profiler.start(PROFILER_USER3);
 	int x,y;
 
 	for(y=0;y<=h;y++)
 	{
-		float h_skw = (INT16)vboy_paramtab[y*8+0] / 8.0;
-		float prlx = (INT16)vboy_paramtab[y*8+1] / 8.0;
-		float v_skw = (INT16)vboy_paramtab[y*8+2] / 8.0;
-		float h_scl = (INT16)vboy_paramtab[y*8+3] / 512.0;
-		float v_scl = (INT16)vboy_paramtab[y*8+4] / 512.0;
+		float h_skw = (INT16)READ_BGMAP(param_base + (y*8+0)) / 8.0;
+		float prlx = (INT16)READ_BGMAP(param_base + (y*8+1)) / 8.0;
+		float v_skw = (INT16)READ_BGMAP(param_base + (y*8+2)) / 8.0;
+		float h_scl = (INT16)READ_BGMAP(param_base + (y*8+3)) / 512.0;
+		float v_scl = (INT16)READ_BGMAP(param_base + (y*8+4)) / 512.0;
 
 		h_skw += right ? -prlx : prlx;
 
@@ -358,16 +412,20 @@ void vboy_state::draw_affine_map(bitmap_ind16 &bitmap, UINT16 *vboy_paramtab, in
 			src_y = (INT32)((v_skw) + (v_scl * x));
 
 			if(ovr && (src_y > y_mask || src_x > x_mask || src_x < 0 || src_y < 0))
-				pix = m_ovr_map[(src_y & 7)*8+(src_x & 7)];
+			{
+				pix = READ_OVR_TEMPDRAW_MAP((src_y & 7)*8+(src_x & 7));
+			}
 			else
-				pix = m_bg_map[(src_y & y_mask)*0x1000+(src_x & x_mask)];
+			{
+				pix = get_bg_map_pixel(bg_map_num, src_x & x_mask, src_y & y_mask);
+			}
 
 			if(pix != -1)
-				if (y1>=0 && y1<224)
-					if (x1>=0 && x1<384)
-						bitmap.pix16(y1, x1) = machine().pens[pix & 3];
+				if (cliprect.contains(x1, y1))
+					bitmap.pix16(y1, x1) = machine().pens[pix & 3];
 		}
 	}
+//  g_profiler.stop();
 }
 
 /*
@@ -382,10 +440,10 @@ x--- ---- ---- ---- [0] LON
 ---- ---- ---- xxxx     BGMAP_BASE
 */
 
-UINT8 vboy_state::display_world(int num, bitmap_ind16 &bitmap, bool right, int &cur_spt)
+UINT8 vboy_state::display_world(int num, bitmap_ind16 &bitmap, const rectangle &cliprect, bool right, int &cur_spt)
 {
 	num <<= 4;
-	UINT16 def = m_world[num];
+	UINT16 def = READ_WORLD(num);
 	UINT8 lon = (def >> 15) & 1;
 	UINT8 ron = (def >> 14) & 1;
 	UINT8 mode = (def >> 12) & 3;
@@ -393,21 +451,18 @@ UINT8 vboy_state::display_world(int num, bitmap_ind16 &bitmap, bool right, int &
 	UINT16 scy = 64 << ((def >> 8) & 3);
 	UINT8 ovr = (def >> 7) & 1;
 	UINT8 end = (def >> 6) & 1;
-	INT16 gx  = m_world[num+1];
-	INT16 gp  = m_world[num+2];
-	INT16 gy  = m_world[num+3];
-	INT16 mx  = m_world[num+4];
-	INT16 mp  = m_world[num+5];
-	INT16 my  = m_world[num+6];
-	UINT16 w  = m_world[num+7];
-	UINT16 h  = m_world[num+8];
-	UINT16 param_base = m_world[num+9] & 0xfff0;
-	UINT16 ovr_char = m_bgmap[m_world[num+10]];
+	INT16 gx  = READ_WORLD(num+1);
+	INT16 gp  = READ_WORLD(num+2);
+	INT16 gy  = READ_WORLD(num+3);
+	INT16 mx  = READ_WORLD(num+4);
+	INT16 mp  = READ_WORLD(num+5);
+	INT16 my  = READ_WORLD(num+6);
+	UINT16 w  = READ_WORLD(num+7);
+	UINT16 h  = READ_WORLD(num+8);
+	UINT16 param_base = READ_WORLD(num+9) & 0xfff0;
+	UINT16 ovr_char = READ_BGMAP(READ_WORLD(num+10));
 	UINT8 bg_map_num = def & 0x0f;
-	UINT16 *vboy_paramtab;
 	int i;
-
-	vboy_paramtab = m_bgmap + param_base;
 
 	if(end)
 		return 1;
@@ -415,35 +470,31 @@ UINT8 vboy_state::display_world(int num, bitmap_ind16 &bitmap, bool right, int &
 	if (mode < 2) // Normal / HBias Mode
 	{
 		if(ovr)
-			fill_ovr_char(ovr_char & 0x7ff,BIT(ovr_char,13), BIT(ovr_char,12), m_vip_regs.GPLT[(ovr_char >> 14) & 3]);
+			fill_ovr_char(ovr_char & 0x3fff, m_vip_regs.GPLT[(ovr_char >> 14) & 3]);
 
 		if (lon && (!right))
 		{
-			fill_bg_map(bg_map_num, scx, scy);
-			draw_bg_map(bitmap, vboy_paramtab, mode, gx, gp, gy, mx, mp, my, h,w, scx*8-1, scy*8-1, ovr, right);
+			draw_bg_map(bitmap, cliprect, param_base, mode, gx, gp, gy, mx, mp, my, h,w, scx*8-1, scy*8-1, ovr, right, bg_map_num);
 		}
 
 		if (ron && (right))
 		{
-			fill_bg_map(bg_map_num, scx, scy);
-			draw_bg_map(bitmap, vboy_paramtab, mode, gx, gp, gy, mx, mp, my, h,w, scx*8-1, scy*8-1, ovr, right);
+			draw_bg_map(bitmap, cliprect, param_base, mode, gx, gp, gy, mx, mp, my, h,w, scx*8-1, scy*8-1, ovr, right, bg_map_num);
 		}
 	}
 	else if (mode==2) // Affine Mode
 	{
 		if(ovr)
-			fill_ovr_char(ovr_char & 0x7ff,BIT(ovr_char,13), BIT(ovr_char,12), m_vip_regs.GPLT[(ovr_char >> 14) & 3]);
+			fill_ovr_char(ovr_char & 0x3fff, m_vip_regs.GPLT[(ovr_char >> 14) & 3]);
 
 		if (lon && (!right))
 		{
-			fill_bg_map(bg_map_num, scx, scy);
-			draw_affine_map(bitmap, vboy_paramtab, gx, gp, gy, h,w, scx*8-1, scy*8-1, ovr, right);
+			draw_affine_map(bitmap, cliprect, param_base, gx, gp, gy, h,w, scx*8-1, scy*8-1, ovr, right, bg_map_num);
 		}
 
 		if (ron && (right))
 		{
-			fill_bg_map(bg_map_num, scx, scy);
-			draw_affine_map(bitmap, vboy_paramtab, gx, gp, gy, h,w, scx*8-1, scy*8-1, ovr, right);
+			draw_affine_map(bitmap, cliprect, param_base, gx, gp, gy, h,w, scx*8-1, scy*8-1, ovr, right, bg_map_num);
 		}
 	}
 	else if (mode==3) // OBJ Mode
@@ -466,18 +517,18 @@ UINT8 vboy_state::display_world(int num, bitmap_ind16 &bitmap, bool right, int &
 		do
 		{
 			UINT16 start_ndx = i * 4;
-			INT16 jx = m_objects[start_ndx+0];
-			INT16 jp = m_objects[start_ndx+1] & 0x3fff;
-			INT16 jy = m_objects[start_ndx+2] & 0x1ff;
-			UINT16 val = m_objects[start_ndx+3];
-			UINT8 jlon = (m_objects[start_ndx+1] & 0x8000) >> 15;
-			UINT8 jron = (m_objects[start_ndx+1] & 0x4000) >> 14;
+			INT16 jx = READ_OBJECTS(start_ndx+0);
+			INT16 jp = READ_OBJECTS(start_ndx+1) & 0x3fff;
+			INT16 jy = READ_OBJECTS(start_ndx+2) & 0x1ff;
+			UINT16 val = READ_OBJECTS(start_ndx+3);
+			UINT8 jlon = (READ_OBJECTS(start_ndx+1) & 0x8000) >> 15;
+			UINT8 jron = (READ_OBJECTS(start_ndx+1) & 0x4000) >> 14;
 
 			if (!right && jlon)
-				put_obj(bitmap, (jx-jp) & 0x1ff, jy, val & 0x7ff, BIT(val,13), BIT(val,12), m_vip_regs.JPLT[(val>>14) & 3]);
+				put_obj(bitmap, cliprect, (jx-jp) & 0x1ff, jy, val & 0x3fff, m_vip_regs.JPLT[(val>>14) & 3]);
 
 			if(right && jron)
-				put_obj(bitmap, (jx+jp) & 0x1ff, jy, val & 0x7ff, BIT(val,13), BIT(val,12), m_vip_regs.JPLT[(val>>14) & 3]);
+				put_obj(bitmap, cliprect, (jx+jp) & 0x1ff, jy, val & 0x3fff, m_vip_regs.JPLT[(val>>14) & 3]);
 
 			i --;
 			i &= 0x3ff;
@@ -500,7 +551,7 @@ UINT32 vboy_state::screen_update_vboy_left(screen_device &screen, bitmap_ind16 &
 
 	cur_spt = 3;
 	for(int i=31; i>=0; i--)
-		if (display_world(i, bitmap, false, cur_spt)) break;
+		if (display_world(i, bitmap, cliprect, false, cur_spt)) break;
 
 	if(0)
 	{
@@ -536,7 +587,7 @@ UINT32 vboy_state::screen_update_vboy_right(screen_device &screen, bitmap_ind16 
 
 	cur_spt = 3;
 	for(int i=31; i>=0; i--)
-		if (display_world(i, bitmap, true, cur_spt)) break;
+		if (display_world(i, bitmap, cliprect, true, cur_spt)) break;
 
 	return 0;
 }
@@ -975,73 +1026,45 @@ WRITE16_MEMBER( vboy_state::vip_w )
 }
 
 
-void vboy_state::m_pcg_debug(UINT16 offset,UINT16 data,UINT16 mem_mask)
-{
-	UINT8 *pcg_ram = memregion("pcg")->base();
-	int i;
-
-	if(mem_mask & 0x00ff)
-		pcg_ram[(offset<<1)+1] = (data & 0x00ff);
-
-	if(mem_mask & 0xff00)
-		pcg_ram[(offset<<1)+0] = (data & 0xff00) >> 8;
-
-	machine().gfx[0]->mark_dirty(offset >> 4);
-	for(i=0;i<0x800;i++)
-		machine().gfx[0]->mark_dirty(i);
-
-}
 
 WRITE16_MEMBER( vboy_state::vboy_font0_w )
 {
-	m_font[offset] = data | (m_font[offset] & (mem_mask ^ 0xffff));
-
-	if(1)
-		m_pcg_debug(offset,data,mem_mask);
+	WRITE_FONT(offset);
 }
 
 WRITE16_MEMBER( vboy_state::vboy_font1_w )
 {
-	m_font[offset + 0x1000] = data | (m_font[offset + 0x1000] & (mem_mask ^ 0xffff));
-
-	if(1)
-		m_pcg_debug(offset+0x1000,data,mem_mask);
+	WRITE_FONT(offset+0x1000);
 }
 
 WRITE16_MEMBER( vboy_state::vboy_font2_w )
 {
-	m_font[offset + 0x2000] = data | (m_font[offset + 0x2000] & (mem_mask ^ 0xffff));
-
-	if(1)
-		m_pcg_debug(offset+0x2000,data,mem_mask);
+	WRITE_FONT(offset+0x2000);
 }
 
 WRITE16_MEMBER( vboy_state::vboy_font3_w )
 {
-	m_font[offset + 0x3000] = data | (m_font[offset + 0x3000] & (mem_mask ^ 0xffff));
-
-	if(1)
-		m_pcg_debug(offset+0x3000,data,mem_mask);
+	WRITE_FONT(offset+0x3000);
 }
 
 READ16_MEMBER( vboy_state::vboy_font0_r )
 {
-	return m_font[offset];
+	return READ_FONT(offset);
 }
 
 READ16_MEMBER( vboy_state::vboy_font1_r )
 {
-	return m_font[offset + 0x1000];
+	return READ_FONT(offset + 0x1000);
 }
 
 READ16_MEMBER( vboy_state::vboy_font2_r )
 {
-	return m_font[offset + 0x2000];
+	return READ_FONT(offset + 0x2000);
 }
 
 READ16_MEMBER( vboy_state::vboy_font3_r )
 {
-	return m_font[offset + 0x3000];
+	return READ_FONT(offset + 0x3000);
 }
 
 WRITE16_MEMBER( vboy_state::vboy_bgmap_w )
@@ -1137,36 +1160,32 @@ static INPUT_PORTS_START( vboy )
 	PORT_BIT( 0x0040, IP_ACTIVE_HIGH, IPT_JOYSTICKRIGHT_UP ) PORT_PLAYER(1)
 	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_BUTTON3 ) PORT_NAME("L") PORT_PLAYER(1) // Left button on back
 	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_BUTTON4 ) PORT_NAME("R") PORT_PLAYER(1) // Right button on back
-	PORT_BIT( 0x0008, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("B") PORT_PLAYER(1) // B button (Mario Clash Jump button)
-	PORT_BIT( 0x0004, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("A") PORT_PLAYER(1) // A button
+	PORT_BIT( 0x0008, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("B") PORT_PLAYER(1) // B button (Mario Clash Jump button)
+	PORT_BIT( 0x0004, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("A") PORT_PLAYER(1) // A button
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW,  IPT_UNUSED ) // Always 1
 	PORT_BIT( 0x0001, IP_ACTIVE_HIGH, IPT_UNUSED ) // Battery low
 INPUT_PORTS_END
 
-static void vboy_machine_stop(running_machine &machine)
+void vboy_state::vboy_machine_stop()
 {
-	vboy_state *state = machine.driver_data<vboy_state>();
-
 	// only do this if the cart loader detected some form of backup
-	if (state->m_nvptr != NULL)
+	if (m_nvptr != NULL)
 	{
-		device_image_interface *image = dynamic_cast<device_image_interface *>(state->m_nvimage);
-		image->battery_save(state->m_nvptr, 0x10000);
+		device_image_interface *image = dynamic_cast<device_image_interface *>(m_nvimage);
+		image->battery_save(m_nvptr, 0x10000);
 	}
 }
 
 void vboy_state::machine_start()
 {
-
 	/* add a hook for battery save */
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(vboy_machine_stop),&machine()));
+	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(vboy_state::vboy_machine_stop),this));
 
 //  m_vboy_sram = auto_alloc_array(machine(), UINT32, 0x10000/4);
 }
 
 void vboy_state::machine_reset()
 {
-
 	/* Initial values taken from Reality Boy, to be verified when emulation improves */
 	m_vboy_regs.lpc = 0x6d;
 	m_vboy_regs.lpc2 = 0xff;
@@ -1178,7 +1197,7 @@ void vboy_state::machine_reset()
 	m_vboy_regs.thb = 0xff;
 	m_vboy_regs.tcr = 0xe4;
 	m_vboy_regs.wcr = 0xfc;
-	m_vboy_regs.kcr = 0x4c;
+	m_vboy_regs.kcr = 0x4c | 0x80;
 	m_vip_regs.DPCTRL = 2; // ssquash relies on this at boot otherwise no frame_start irq is fired
 	m_displayfb = 0;
 	m_drawfb = 0;
@@ -1219,13 +1238,11 @@ void vboy_state::m_timer_tick()
 
 TIMER_DEVICE_CALLBACK_MEMBER(vboy_state::timer_main_tick)
 {
-
 	m_timer_tick();
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(vboy_state::timer_pad_tick)
 {
-
 	if((m_vboy_regs.kcr & 0x80) == 0)
 		m_maincpu->set_input_line(0, HOLD_LINE);
 }
@@ -1318,21 +1335,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(vboy_state::vboy_scanlineR)
 #endif
 
 
-static const gfx_layout vboy_pcg_8x8 =
-{
-	8,8,
-	RGN_FRAC(1,1),
-	2,
-	{ 0, 1 },
-	{ 7*2, 6*2, 5*2, 4*2, 3*2, 2*2, 1*2, 0*2 },
-	{ STEP8(0,8*2) },
-	8*8*2
-};
-
-/* decoded for debugging purpose, this will be nuked in the end... */
-static GFXDECODE_START( vboy )
-	GFXDECODE_ENTRY( "pcg",     0x00000, vboy_pcg_8x8,      0, 1 )
-GFXDECODE_END
 
 READ32_MEMBER(vboy_state::sram_r)
 {
@@ -1345,14 +1347,13 @@ WRITE32_MEMBER(vboy_state::sram_w)
 }
 
 
-static DEVICE_IMAGE_LOAD( vboy_cart )
+DEVICE_IMAGE_LOAD_MEMBER( vboy_state, vboy_cart )
 {
-	vboy_state *state = image.device().machine().driver_data<vboy_state>();
 	UINT32 chip = 0;
-	UINT8 *ROM = image.device().machine().root_device().memregion("cartridge")->base();
+	UINT8 *ROM = memregion("cartridge")->base();
 	UINT32 cart_size;
 
-	state->m_nvptr = (UINT8 *)NULL;
+	m_nvptr = (UINT8 *)NULL;
 	if (image.software_entry() == NULL)
 	{
 		cart_size = image.length();
@@ -1370,17 +1371,17 @@ static DEVICE_IMAGE_LOAD( vboy_cart )
 
 	if (chip)
 	{
-		state->m_nvptr = (UINT8 *)&state->m_vboy_sram;
+		m_nvptr = (UINT8 *)&m_vboy_sram;
 
-		image.device().machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x06000000, 0x0600ffff, read32_delegate(FUNC(vboy_state::sram_r),state));
-		image.device().machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x06000000, 0x0600ffff, write32_delegate(FUNC(vboy_state::sram_w),state));
+		m_maincpu->space(AS_PROGRAM).install_read_handler(0x06000000, 0x0600ffff, read32_delegate(FUNC(vboy_state::sram_r),this));
+		m_maincpu->space(AS_PROGRAM).install_write_handler(0x06000000, 0x0600ffff, write32_delegate(FUNC(vboy_state::sram_w),this));
 
-		image.battery_load(state->m_nvptr, 0x10000, 0x00);
-		state->m_nvimage = image;
+		image.battery_load(m_nvptr, 0x10000, 0x00);
+		m_nvimage = image;
 	}
 	else
 	{
-		state->m_nvimage = NULL;
+		m_nvimage = NULL;
 	}
 
 	return IMAGE_INIT_PASS;
@@ -1421,9 +1422,7 @@ static MACHINE_CONFIG_START( vboy, vboy_state )
 	MCFG_CARTSLOT_EXTENSION_LIST("vb,bin")
 	MCFG_CARTSLOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("vboy_cart")
-	MCFG_CARTSLOT_LOAD(vboy_cart)
-
-	MCFG_GFXDECODE(vboy)
+	MCFG_CARTSLOT_LOAD(vboy_state, vboy_cart)
 
 	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","vboy")
@@ -1438,8 +1437,6 @@ MACHINE_CONFIG_END
 /* ROM definition */
 ROM_START( vboy )
 	ROM_REGION( 0x2000000, "cartridge", ROMREGION_ERASEFF )
-
-	ROM_REGION( 0x8000, "pcg", ROMREGION_ERASE00 )
 ROM_END
 
 /* Driver */

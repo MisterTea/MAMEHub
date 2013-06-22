@@ -71,18 +71,21 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER( dma_int_w );
 
+	DECLARE_READ8_MEMBER(memory_read_byte);
+	DECLARE_WRITE8_MEMBER(memory_write_byte);
+	DECLARE_READ8_MEMBER(io_read_byte);
+	DECLARE_WRITE8_MEMBER(io_write_byte);
+
 	void fdc_intrq_w(bool state);
 	void fdc_drq_w(bool state);
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "lux21046"; }
 	virtual void device_start();
 	virtual void device_reset();
 
 	// device_abcbus_interface overrides
 	virtual void abcbus_cs(UINT8 data);
-	virtual void abcbus_rst(int state);
 	virtual UINT8 abcbus_inp();
 	virtual void abcbus_utp(UINT8 data);
 	virtual UINT8 abcbus_stat();

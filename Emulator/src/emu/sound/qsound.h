@@ -9,6 +9,8 @@
 #ifndef __QSOUND_H__
 #define __QSOUND_H__
 
+#include "cpu/dsp16/dsp16.h"
+
 #define QSOUND_CLOCK 4000000    /* default 4MHz clock */
 
 #define QSOUND_CLOCKDIV 166     /* Clock divider */
@@ -22,11 +24,9 @@ typedef stream_sample_t QSOUND_SAMPLE;
 //**************************************************************************
 
 #define MCFG_QSOUND_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, QSOUND, _clock) \
-
+	MCFG_DEVICE_ADD(_tag, QSOUND, _clock)
 #define MCFG_QSOUND_REPLACE(_tag, _clock) \
-	MCFG_DEVICE_REPLACE(_tag, QSOUND, _clock) \
-
+	MCFG_DEVICE_REPLACE(_tag, QSOUND, _clock)
 
 
 //**************************************************************************
@@ -65,6 +65,8 @@ public:
 
 protected:
 	// device-level overrides
+	const rom_entry *device_rom_region() const;
+	machine_config_constructor device_mconfig_additions() const;
 	virtual void device_start();
 	virtual void device_stop();
 
@@ -84,6 +86,7 @@ private:
 	QSOUND_CHANNEL m_channel[QSOUND_CHANNELS];
 	UINT32 m_sample_rom_length;
 	QSOUND_SRC_SAMPLE *m_sample_rom;    // Q sound sample ROM
+	dsp16_device *m_cpu;
 
 	int m_pan_table[33];    // Pan volume table
 	float m_frq_ratio;      // Frequency ratio

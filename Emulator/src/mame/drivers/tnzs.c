@@ -706,7 +706,6 @@ READ8_MEMBER(tnzs_state::kageki_csport_r)
 
 WRITE8_MEMBER(tnzs_state::kageki_csport_w)
 {
-	device_t *device = machine().device("samples");
 	char mess[80];
 
 	if (data > 0x3f)
@@ -716,17 +715,16 @@ WRITE8_MEMBER(tnzs_state::kageki_csport_w)
 	}
 	else
 	{
-		samples_device *samples = downcast<samples_device *>(device);
 		if (data > MAX_SAMPLES)
 		{
 			// stop samples
-			samples->stop(0);
+			m_samples->stop(0);
 			sprintf(mess, "VOICE:%02X STOP", data);
 		}
 		else
 		{
 			// play samples
-			samples->start_raw(0, m_sampledata[data], m_samplesize[data], 7000);
+			m_samples->start_raw(0, m_sampledata[data], m_samplesize[data], 7000);
 			sprintf(mess, "VOICE:%02X PLAY", data);
 		}
 	//  popmessage(mess);
@@ -737,15 +735,14 @@ WRITE8_MEMBER(tnzs_state::kabukiz_sound_bank_w)
 {
 	// to avoid the write when the sound chip is initialized
 	if (data != 0xff)
-		machine().root_device().membank("audiobank")->set_entry(data & 0x07);
+		membank("audiobank")->set_entry(data & 0x07);
 }
 
 WRITE8_MEMBER(tnzs_state::kabukiz_sample_w)
 {
-	dac_device *device = machine().device<dac_device>("dac");
 	// to avoid the write when the sound chip is initialized
 	if (data != 0xff)
-		device->write_unsigned8(data);
+		m_dac->write_unsigned8(data);
 }
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, tnzs_state )
@@ -782,7 +779,7 @@ static ADDRESS_MAP_START( sub_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("subbank")
 	AM_RANGE(0xa000, 0xa000) AM_WRITE(tnzs_bankswitch1_w)
-	AM_RANGE(0xb000, 0xb001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0xb000, 0xb001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0xc000, 0xc001) AM_READWRITE(tnzs_mcu_r, tnzs_mcu_w)   /* not present in insectx */
 	AM_RANGE(0xd000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xefff) AM_RAM AM_SHARE("share1")
@@ -795,7 +792,7 @@ static ADDRESS_MAP_START( kageki_sub_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("subbank")
 	AM_RANGE(0xa000, 0xa000) AM_WRITE(tnzs_bankswitch1_w)
-	AM_RANGE(0xb000, 0xb001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0xb000, 0xb001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0xc000, 0xc000) AM_READ_PORT("IN0")
 	AM_RANGE(0xc001, 0xc001) AM_READ_PORT("IN1")
 	AM_RANGE(0xc002, 0xc002) AM_READ_PORT("IN2")
@@ -855,7 +852,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tnzsb_io_map, AS_IO, 8, tnzs_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x02, 0x02) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
 
@@ -1551,61 +1548,49 @@ static GFXDECODE_START( insectx )
 GFXDECODE_END
 
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSWA"),
-		DEVCB_INPUT_PORT("DSWB"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSWA"),
+	DEVCB_INPUT_PORT("DSWB"),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
 
 /* handler called by the 2203 emulator when the internal timers cause an IRQ */
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(tnzs_state::irqhandler)
 {
-	tnzs_state *state = device->machine().driver_data<tnzs_state>();
-	state->m_audiocpu->set_input_line(INPUT_LINE_NMI, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface kageki_ym2203_interface =
+static const ay8910_interface kageki_ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_DRIVER_MEMBER(tnzs_state,kageki_csport_r),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(tnzs_state,kageki_csport_w)
-	},
-	DEVCB_NULL
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_DRIVER_MEMBER(tnzs_state,kageki_csport_r),
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(tnzs_state,kageki_csport_w)
 };
 
-static const ym2203_interface ym2203b_interface =
+
+static const ay8910_interface tnzsb_ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
-static const ym2203_interface kabukiz_ym2203_interface =
+static const ay8910_interface kabukiz_ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(tnzs_state,kabukiz_sound_bank_w),
-		DEVCB_DRIVER_MEMBER(tnzs_state,kabukiz_sample_w)
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(tnzs_state,kabukiz_sound_bank_w),
+	DEVCB_DRIVER_MEMBER(tnzs_state,kabukiz_sample_w)
 };
 
 static const samples_interface tnzs_samples_interface =
@@ -1651,7 +1636,7 @@ static MACHINE_CONFIG_START( arknoid2, tnzs_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1692,7 +1677,7 @@ static MACHINE_CONFIG_START( drtoppel, tnzs_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1735,7 +1720,7 @@ static MACHINE_CONFIG_START( tnzs, tnzs_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1774,7 +1759,7 @@ static MACHINE_CONFIG_START( insectx, tnzs_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
@@ -1813,7 +1798,7 @@ static MACHINE_CONFIG_START( kageki, tnzs_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(kageki_ym2203_interface)
+	MCFG_YM2203_AY8910_INTF(&kageki_ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -1862,7 +1847,8 @@ static MACHINE_CONFIG_START( tnzsb, tnzs_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2203b_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(tnzs_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&tnzsb_ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)
@@ -1880,7 +1866,7 @@ static MACHINE_CONFIG_DERIVED( kabukiz, tnzsb )
 	MCFG_CPU_PROGRAM_MAP(kabukiz_cpu2_map)
 
 	MCFG_SOUND_MODIFY("ymsnd")
-	MCFG_SOUND_CONFIG(kabukiz_ym2203_interface)
+	MCFG_YM2203_AY8910_INTF(&kabukiz_ay8910_config)
 
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)

@@ -33,15 +33,15 @@
 
 void skullxbo_state::update_interrupts()
 {
-	subdevice("maincpu")->execute().set_input_line(1, m_scanline_int_state ? ASSERT_LINE : CLEAR_LINE);
-	subdevice("maincpu")->execute().set_input_line(2, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
-	subdevice("maincpu")->execute().set_input_line(4, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(1, m_scanline_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(2, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(4, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
-TIMER_CALLBACK_MEMBER(skullxbo_state::irq_gen)
+TIMER_DEVICE_CALLBACK_MEMBER(skullxbo_state::scanline_timer)
 {
-	scanline_int_gen(*subdevice("maincpu"));
+	scanline_int_gen(m_maincpu);
 }
 
 
@@ -55,11 +55,11 @@ void skullxbo_state::scanline_update(screen_device &screen, int scanline)
 	{
 		int width = screen.width();
 		attotime period = screen.time_until_pos(screen.vpos() + 6, width * 0.9);
-		machine().scheduler().timer_set(period, timer_expired_delegate(FUNC(skullxbo_state::irq_gen), this));
+		m_scanline_timer->adjust(period);
 	}
 
 	/* update the playfield and motion objects */
-	skullxbo_scanline_update(machine(), scanline);
+	skullxbo_scanline_update(scanline);
 }
 
 
@@ -115,22 +115,22 @@ WRITE16_MEMBER(skullxbo_state::skullxbo_mobwr_w)
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, skullxbo_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0xff0000, 0xff07ff) AM_WRITE_LEGACY(skullxbo_mobmsb_w)
+	AM_RANGE(0xff0000, 0xff07ff) AM_WRITE(skullxbo_mobmsb_w)
 	AM_RANGE(0xff0800, 0xff0bff) AM_WRITE(skullxbo_halt_until_hblank_0_w)
 	AM_RANGE(0xff0c00, 0xff0fff) AM_WRITE(eeprom_enable_w)
 	AM_RANGE(0xff1000, 0xff13ff) AM_WRITE(video_int_ack_w)
 	AM_RANGE(0xff1400, 0xff17ff) AM_WRITE8(sound_w, 0x00ff)
 	AM_RANGE(0xff1800, 0xff1bff) AM_WRITE(sound_reset_w)
-	AM_RANGE(0xff1c00, 0xff1c7f) AM_WRITE_LEGACY(skullxbo_playfieldlatch_w)
-	AM_RANGE(0xff1c80, 0xff1cff) AM_WRITE_LEGACY(skullxbo_xscroll_w) AM_SHARE("xscroll")
+	AM_RANGE(0xff1c00, 0xff1c7f) AM_WRITE(skullxbo_playfieldlatch_w)
+	AM_RANGE(0xff1c80, 0xff1cff) AM_WRITE(skullxbo_xscroll_w) AM_SHARE("xscroll")
 	AM_RANGE(0xff1d00, 0xff1d7f) AM_WRITE(scanline_int_ack_w)
 	AM_RANGE(0xff1d80, 0xff1dff) AM_WRITE(watchdog_reset16_w)
-	AM_RANGE(0xff1e00, 0xff1e7f) AM_WRITE_LEGACY(skullxbo_playfieldlatch_w)
-	AM_RANGE(0xff1e80, 0xff1eff) AM_WRITE_LEGACY(skullxbo_xscroll_w)
+	AM_RANGE(0xff1e00, 0xff1e7f) AM_WRITE(skullxbo_playfieldlatch_w)
+	AM_RANGE(0xff1e80, 0xff1eff) AM_WRITE(skullxbo_xscroll_w)
 	AM_RANGE(0xff1f00, 0xff1f7f) AM_WRITE(scanline_int_ack_w)
 	AM_RANGE(0xff1f80, 0xff1fff) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
-	AM_RANGE(0xff4000, 0xff47ff) AM_WRITE_LEGACY(skullxbo_yscroll_w) AM_SHARE("yscroll")
+	AM_RANGE(0xff4000, 0xff47ff) AM_WRITE(skullxbo_yscroll_w) AM_SHARE("yscroll")
 	AM_RANGE(0xff4800, 0xff4fff) AM_WRITE(skullxbo_mobwr_w)
 	AM_RANGE(0xff6000, 0xff6fff) AM_WRITE(eeprom_w) AM_SHARE("eeprom")
 	AM_RANGE(0xff5000, 0xff5001) AM_READ8(sound_r, 0x00ff)
@@ -249,6 +249,7 @@ static MACHINE_CONFIG_START( skullxbo, skullxbo_state )
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", atarigen_state, video_int_gen)
 
+	MCFG_TIMER_DRIVER_ADD("scan_timer", skullxbo_state, scanline_timer)
 	MCFG_MACHINE_RESET_OVERRIDE(skullxbo_state,skullxbo)
 	MCFG_NVRAM_ADD_1FILL("eeprom")
 
@@ -607,7 +608,7 @@ ROM_END
 DRIVER_INIT_MEMBER(skullxbo_state,skullxbo)
 {
 	atarijsa_init(machine(), "FF5802", 0x0080);
-	memset(machine().root_device().memregion("gfx1")->base() + 0x170000, 0, 0x20000);
+	memset(memregion("gfx1")->base() + 0x170000, 0, 0x20000);
 }
 
 

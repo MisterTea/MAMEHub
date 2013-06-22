@@ -13,13 +13,17 @@
 #include "machine/wd_fdc.h"
 #include "sound/speaker.h"
 #include "sound/wave.h"
+#include "machine/ram.h"
 
 class b2m_state : public driver_device
 {
 public:
 	b2m_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_speaker(*this, "speaker"),
+		m_pit(*this, "pit8253"),
+		m_ram(*this, RAM_TAG) { }
 
 	UINT8 m_b2m_8255_porta;
 	UINT8 m_b2m_video_scroll;
@@ -36,11 +40,13 @@ public:
 	UINT8 m_b2m_localmachine;
 	UINT8 m_vblank_state;
 	required_device<cpu_device> m_maincpu;
+	required_device<speaker_sound_device> m_speaker;
+	required_device<pit8253_device> m_pit;
+	required_device<ram_device> m_ram;
 
 	/* devices */
 	fd1793_t *m_fdc;
-	device_t *m_pic;
-	device_t *m_speaker;
+	pic8259_device *m_pic;
 	DECLARE_READ8_MEMBER(b2m_keyboard_r);
 	DECLARE_WRITE8_MEMBER(b2m_palette_w);
 	DECLARE_READ8_MEMBER(b2m_palette_r);
@@ -65,12 +71,14 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(b2m_pic_set_int_line);
 	void b2m_fdc_drq(bool state);
 	DECLARE_FLOPPY_FORMATS( b2m_floppy_formats );
+	IRQ_CALLBACK_MEMBER(b2m_irq_callback);
+	void b2m_postload();
+	void b2m_set_bank(int bank);
 };
 
 /*----------- defined in machine/b2m.c -----------*/
 
-extern const struct pit8253_config b2m_pit8253_intf;
-extern const struct pic8259_interface b2m_pic8259_config;
+extern const struct pit8253_interface b2m_pit8253_intf;
 
 extern const i8255_interface b2m_ppi8255_interface_1;
 extern const i8255_interface b2m_ppi8255_interface_2;

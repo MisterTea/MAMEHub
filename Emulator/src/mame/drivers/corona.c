@@ -321,7 +321,9 @@ class corona_state : public driver_device
 {
 public:
 	corona_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu") { }
 
 	UINT8 m_blitter_x_reg;
 	UINT8 m_blitter_y_reg;
@@ -350,6 +352,8 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_winner(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_luckyrlt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 };
 
 
@@ -359,7 +363,7 @@ public:
 
 void corona_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int bit6, bit7, bit0, bit1, r, g, b;
 	int i;
 
@@ -491,12 +495,12 @@ UINT32 corona_state::screen_update_luckyrlt(screen_device &screen, bitmap_ind16 
 WRITE8_MEMBER(corona_state::sound_latch_w)
 {
 	soundlatch_byte_w(space, 0, data & 0xff);
-	machine().device("soundcpu")->execute().set_input_line(0, ASSERT_LINE);
+	m_soundcpu->set_input_line(0, ASSERT_LINE);
 }
 
 READ8_MEMBER(corona_state::sound_latch_r)
 {
-	machine().device("soundcpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_soundcpu->set_input_line(0, CLEAR_LINE);
 	return soundlatch_byte_r(space, 0);
 }
 
@@ -642,7 +646,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START(  winner81_sound_cpu_io_map, AS_IO, 8, corona_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ(sound_latch_r)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 /*  Winners Circle 1982
@@ -696,7 +700,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( winner82_sound_cpu_io_map, AS_IO, 8, corona_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ(sound_latch_r)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x02, 0x03) AM_WRITENOP    /* socket for another ay, inited but never played */
 ADDRESS_MAP_END
 
@@ -757,7 +761,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( re800_sound_cpu_io_map, AS_IO, 8, corona_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ(sound_latch_r)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -817,7 +821,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( luckyrlt_sound_cpu_io_map, AS_IO, 8, corona_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ(sound_latch_r)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 

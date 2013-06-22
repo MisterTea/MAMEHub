@@ -57,7 +57,8 @@ enum debug_view_type
 	DVT_MEMORY,
 	DVT_LOG,
 	DVT_TIMERS,
-	DVT_ALLOCS
+	DVT_ALLOCS,
+	DVT_BREAK_POINTS
 };
 
 
@@ -72,14 +73,15 @@ enum debug_view_notification
 
 
 // attribute bits for debug_view_char.attrib
-const UINT8 DCA_NORMAL      = 0x00;     // in Windows: black on white
-const UINT8 DCA_CHANGED     = 0x01;     // in Windows: red foreground
-const UINT8 DCA_SELECTED    = 0x02;     // in Windows: light red background
-const UINT8 DCA_INVALID     = 0x04;     // in Windows: dark blue foreground
-const UINT8 DCA_DISABLED    = 0x08;     // in Windows: darker foreground
-const UINT8 DCA_ANCILLARY   = 0x10;     // in Windows: grey background
-const UINT8 DCA_CURRENT     = 0x20;     // in Windows: yellow background
-const UINT8 DCA_COMMENT     = 0x40;     // in Windows: green foreground
+const UINT8 DCA_NORMAL      = 0x00;     // black on white
+const UINT8 DCA_CHANGED     = 0x01;     // red foreground
+const UINT8 DCA_SELECTED    = 0x02;     // light red background
+const UINT8 DCA_INVALID     = 0x04;     // dark blue foreground
+const UINT8 DCA_DISABLED    = 0x08;     // darker foreground
+const UINT8 DCA_ANCILLARY   = 0x10;     // grey background
+const UINT8 DCA_CURRENT     = 0x20;     // yellow background
+const UINT8 DCA_COMMENT     = 0x40;     // green foreground
+const UINT8 DCA_VISITED     = 0x80;     // light blue background
 
 
 // special characters that can be passed to process_char()
@@ -96,6 +98,11 @@ const int DCH_CTRLEND       = 10;       // ctrl+end
 const int DCH_CTRLRIGHT     = 11;       // ctrl+right
 const int DCH_CTRLLEFT      = 12;       // ctrl+left
 
+
+// special characters that can be passed to process_click()
+const int DCK_LEFT_CLICK    = 1;        // left instantaneous click
+const int DCK_RIGHT_CLICK   = 2;        // right instantaneous click
+const int DCK_MIDDLE_CLICK  = 3;        // middle instantaneous click
 
 
 //**************************************************************************
@@ -221,6 +228,7 @@ public:
 	void set_cursor_visible(bool visible = true);
 	void set_source(const debug_view_source &source);
 	void process_char(int character) { view_char(character); }
+	void process_click(int button, debug_view_xy pos) { view_click(button, pos); }
 
 protected:
 	// internal updating helpers
@@ -238,6 +246,7 @@ protected:
 	virtual void view_update() = 0;
 	virtual void view_notify(debug_view_notification type);
 	virtual void view_char(int chval);
+	virtual void view_click(const int button, const debug_view_xy& pos);
 
 protected:
 	// core view data

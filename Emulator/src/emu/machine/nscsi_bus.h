@@ -6,9 +6,9 @@
 #define MCFG_NSCSI_BUS_ADD(_tag)        \
 	MCFG_DEVICE_ADD(_tag, NSCSI_BUS, 0)
 
-#define MCFG_NSCSI_ADD(_tag, _slot_intf, _def_slot, _def_inp, _def_config, _def_clock, _fixed)  \
+#define MCFG_NSCSI_ADD(_tag, _slot_intf, _def_slot, _fixed) \
 	MCFG_DEVICE_ADD(_tag, NSCSI_CONNECTOR, 0)                   \
-	MCFG_DEVICE_SLOT_INTERFACE_FULL(_slot_intf, _def_slot, _def_inp, _def_config, _def_clock, _fixed)
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _fixed)
 
 class nscsi_device;
 
@@ -84,7 +84,7 @@ public:
 		S_PHASE_MASK     = S_MSG|S_CTL|S_INP,
 	};
 
-	nscsi_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	nscsi_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	void connect_to_bus(nscsi_bus_device *bus, int refid, int default_scsi_id);
 	virtual void scsi_ctrl_changed();
@@ -97,7 +97,7 @@ protected:
 class nscsi_full_device : public nscsi_device
 {
 public:
-	nscsi_full_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	nscsi_full_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	virtual void scsi_ctrl_changed();
 protected:

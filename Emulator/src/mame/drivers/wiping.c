@@ -54,18 +54,16 @@ READ8_MEMBER(wiping_state::ports_r)
 
 WRITE8_MEMBER(wiping_state::subcpu_reset_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE8_MEMBER(wiping_state::main_irq_mask_w)
 {
-
 	m_main_irq_mask = data & 1;
 }
 
 WRITE8_MEMBER(wiping_state::sound_irq_mask_w)
 {
-
 	m_sound_irq_mask = data & 1;
 }
 
@@ -264,14 +262,12 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(wiping_state::vblank_irq)
 {
-
 	if(m_main_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(wiping_state::sound_timer_irq)
 {
-
 	if(m_sound_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }

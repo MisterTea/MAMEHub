@@ -90,7 +90,7 @@ inline void c64_cpm_cartridge_device::update_signals()
 	if (m_enabled)
 	{
 		m_maincpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
-		machine().firstcpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_slot->dma_w(ASSERT_LINE);
 
 		if (m_reset)
 		{
@@ -102,7 +102,7 @@ inline void c64_cpm_cartridge_device::update_signals()
 	else
 	{
 		m_maincpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
-		machine().firstcpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_slot->dma_w(CLEAR_LINE);
 	}
 
 /*
@@ -131,7 +131,7 @@ inline void c64_cpm_cartridge_device::update_signals()
 //-------------------------------------------------
 
 c64_cpm_cartridge_device::c64_cpm_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, C64_CPM, "C64 CP/M cartridge", tag, owner, clock),
+	device_t(mconfig, C64_CPM, "C64 CP/M cartridge", tag, owner, clock, "c64_cpm", __FILE__),
 	device_c64_expansion_card_interface(mconfig, *this),
 	m_maincpu(*this, Z80_TAG),
 	m_enabled(0),
@@ -209,7 +209,7 @@ READ8_MEMBER( c64_cpm_cartridge_device::dma_r )
 	{
 		offs_t addr = (offset + 0x1000) & 0xffff;
 
-		data = m_slot->dma_cd_r(addr);
+		data = m_slot->dma_cd_r(space, addr);
 	}
 
 	return data;
@@ -226,6 +226,6 @@ WRITE8_MEMBER( c64_cpm_cartridge_device::dma_w )
 	{
 		offs_t addr = (offset + 0x1000) & 0xffff;
 
-		m_slot->dma_cd_w(addr, data);
+		m_slot->dma_cd_w(space, addr, data);
 	}
 }

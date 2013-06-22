@@ -14,6 +14,7 @@
 #include "machine/pit8253.h"
 #include "machine/pic8259.h"
 #include "machine/ram.h"
+#include "machine/serial.h"
 #include "machine/upd765.h"
 #include "machine/wangpcbus.h"
 #include "machine/wangpckb.h"
@@ -35,6 +36,7 @@
 #define SCN2661_TAG     "scn2661"
 #define UPD765_TAG      "upd765"
 #define CENTRONICS_TAG  "centronics"
+#define RS232_TAG       "rs232"
 
 class wangpc_state : public driver_device
 {
@@ -56,6 +58,7 @@ public:
 			m_centronics(*this, CENTRONICS_TAG),
 			m_kb(*this, WANGPC_KEYBOARD_TAG),
 			m_bus(*this, WANGPC_BUS_TAG),
+			m_sw(*this, "SW"),
 			m_timer2_irq(1),
 			m_acknlg(1),
 			m_dav(1),
@@ -89,6 +92,7 @@ public:
 	required_device<centronics_device> m_centronics;
 	required_device<wangpc_keyboard_device> m_kb;
 	required_device<wangpcbus_device> m_bus;
+	required_ioport m_sw;
 
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -163,6 +167,8 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( bus_irq2_w );
 
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
+
+	IRQ_CALLBACK_MEMBER(wangpc_irq_callback);
 
 	void fdc_irq(bool state);
 	void fdc_drq(bool state);

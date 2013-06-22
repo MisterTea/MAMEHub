@@ -18,8 +18,10 @@ class extrema_state : public driver_device
 {
 public:
 	extrema_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -63,8 +65,7 @@ ROM_END
 
 #define MISSING_DISK \
 	DISK_REGION( "ide" ) \
-	DISK_IMAGE( "extrema_hdd", 0, NO_DUMP ) \
-
+	DISK_IMAGE( "extrema_hdd", 0, NO_DUMP )
 
 ROM_START( adults )
 	ROM_REGION( 0x100000, "maincpu", 0 )

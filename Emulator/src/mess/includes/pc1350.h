@@ -10,45 +10,47 @@
 #define PC1350_H_
 
 #include "machine/nvram.h"
+#include "machine/ram.h"
 
-#define PC1350_CONTRAST (machine.root_device().ioport("DSW0")->read() & 0x07)
+#define PC1350_CONTRAST (ioport("DSW0")->read() & 0x07)
 
 
 class pc1350_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_POWER_UP
+	};
+
 	pc1350_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_ram(*this, RAM_TAG) { }
 
 	UINT8 m_outa;
 	UINT8 m_outb;
 	int m_power;
 	UINT8 m_reg[0x1000];
 	UINT32 screen_update_pc1350(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(pc1350_power_up);
+
+	DECLARE_WRITE8_MEMBER(pc1350_outa);
+	DECLARE_WRITE8_MEMBER(pc1350_outb);
+	DECLARE_WRITE8_MEMBER(pc1350_outc);
+
+	DECLARE_READ_LINE_MEMBER(pc1350_brk);
+	DECLARE_READ8_MEMBER(pc1350_ina);
+	DECLARE_READ8_MEMBER(pc1350_inb);
+	DECLARE_READ8_MEMBER(pc1350_lcd_read);
+	DECLARE_WRITE8_MEMBER(pc1350_lcd_write);
+	DECLARE_READ8_MEMBER(pc1350_keyboard_line_r);
+
+	virtual void machine_start();
+	required_device<cpu_device> m_maincpu;
+	required_device<ram_device> m_ram;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
-
-
-/*----------- defined in machine/pc1350.c -----------*/
-
-void pc1350_outa(device_t *device, int data);
-void pc1350_outb(device_t *device, int data);
-void pc1350_outc(device_t *device, int data);
-
-int pc1350_brk(device_t *device);
-int pc1350_ina(device_t *device);
-int pc1350_inb(device_t *device);
-
-MACHINE_START( pc1350 );
-
-
-/*----------- defined in video/pc1350.c -----------*/
-
-DECLARE_READ8_HANDLER(pc1350_lcd_read);
-DECLARE_WRITE8_HANDLER(pc1350_lcd_write);
-
-
-int pc1350_keyboard_line_r(running_machine &machine);
-
 
 #endif /* PC1350_H_ */

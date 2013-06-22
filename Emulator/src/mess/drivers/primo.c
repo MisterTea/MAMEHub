@@ -248,15 +248,6 @@ static const cassette_interface primo_cassette_interface =
 	NULL
 };
 
-static CBM_IEC_INTERFACE( cbm_iec_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( primoa32, primo_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD( "maincpu", Z80, 2500000 )
@@ -278,19 +269,19 @@ static MACHINE_CONFIG_START( primoa32, primo_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* snapshot/quickload */
-	MCFG_SNAPSHOT_ADD("snapshot", primo, "pss", 0)
-	MCFG_QUICKLOAD_ADD("quickload", primo, "pp", 0)
+	MCFG_SNAPSHOT_ADD("snapshot", primo_state, primo, "pss", 0)
+	MCFG_QUICKLOAD_ADD("quickload", primo_state, primo, "pp", 0)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, primo_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", primo_cassette_interface )
 
 	/* floppy from serial bus */
-	MCFG_CBM_IEC_ADD(cbm_iec_intf, NULL)
+	MCFG_CBM_IEC_ADD(NULL)
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart1")

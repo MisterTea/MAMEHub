@@ -51,7 +51,6 @@ Notes:
 
     TODO:
 
-    - COM8116 dividers are wrong
     - interrupts
     - configuration switches
     - PIA odd/even byte access
@@ -59,14 +58,6 @@ Notes:
 */
 
 
-#include "emu.h"
-#include "cpu/m68000/m68000.h"
-#include "machine/ram.h"
-#include "machine/6821pia.h"
-#include "machine/6840ptm.h"
-#include "machine/6850acia.h"
-#include "machine/com8116.h"
-#include "machine/terminal.h"
 #include "includes/ob68k1a.h"
 
 
@@ -81,8 +72,8 @@ Notes:
 
 WRITE8_MEMBER( ob68k1a_state::com8116_w )
 {
-	m_dbrg->stt_w(space, 0, data & 0x0f);
-//  m_dbrg->str_w(space, 0, data >> 4); // HACK for terminal
+	m_dbrg->stt_w(data & 0x0f);
+	m_dbrg->str_w(data >> 4);
 }
 
 
@@ -213,19 +204,20 @@ static const ptm6840_interface ptm_intf =
 	DEVCB_NULL
 };
 
+
 //-------------------------------------------------
 //  ACIA6850_INTERFACE( acia0_intf )
 //-------------------------------------------------
 
 static ACIA6850_INTERFACE( acia0_intf )
 {
-	9600*16, // HACK for terminal
-	9600*16, // HACK for terminal
-	DEVCB_DEVICE_LINE_MEMBER(TERMINAL_TAG, serial_terminal_device, tx_r),
-	DEVCB_DEVICE_LINE_MEMBER(TERMINAL_TAG, serial_terminal_device, rx_w),
-	DEVCB_LINE_GND, // HACK for terminal
-	DEVCB_NULL,
-	DEVCB_LINE_GND, // HACK for terminal
+	0,
+	0,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, cts_r),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dcd_r),
 	DEVCB_NULL
 };
 
@@ -238,11 +230,11 @@ static ACIA6850_INTERFACE( acia1_intf )
 {
 	0,
 	0,
-	DEVCB_LINE_VCC,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, cts_r),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dcd_r),
 	DEVCB_NULL,
 };
 
@@ -251,36 +243,43 @@ static ACIA6850_INTERFACE( acia1_intf )
 //  COM8116_INTERFACE( dbrg_intf )
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER(ob68k1a_state::rx_tx_0_w)
+WRITE_LINE_MEMBER( ob68k1a_state::rx_tx_0_w )
 {
-	device_t *device = machine().device(MC6850_0_TAG);
-	downcast<acia6850_device *>(device)->rx_clock_in();
-	downcast<acia6850_device *>(device)->tx_clock_in();
+	m_acia0->rx_clock_in();
+	m_acia0->tx_clock_in();
 }
 
-WRITE_LINE_MEMBER(ob68k1a_state::rx_tx_1_w)
+WRITE_LINE_MEMBER( ob68k1a_state::rx_tx_1_w )
 {
-	device_t *device = machine().device(MC6850_1_TAG);
-	downcast<acia6850_device *>(device)->rx_clock_in();
-	downcast<acia6850_device *>(device)->tx_clock_in();
+	m_acia1->rx_clock_in();
+	m_acia1->tx_clock_in();
 }
 
-static COM8116_INTERFACE( dbrg_intf )
+
+//-------------------------------------------------
+//  rs232_port_interface rs232a_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232a_intf =
 {
-	DEVCB_NULL,     /* fX/4 output */
-	DEVCB_DRIVER_LINE_MEMBER(ob68k1a_state,rx_tx_0_w),
-	DEVCB_DRIVER_LINE_MEMBER(ob68k1a_state,rx_tx_1_w),
-	{ 101376, 67584, 46080, 37686, 33792, 16896, 8448, 4224, 2816, 2534, 2112, 1408, 1056, 704, 528, 264 },         /* receiver divisor ROM */
-	{ 101376, 67584, 46080, 37686, 33792, 16896, 8448, 4224, 2816, 2534, 2112, 1408, 1056, 704, 528, 264 },         /* transmitter divisor ROM */
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
 };
 
 
 //-------------------------------------------------
-//  GENERIC_TERMINAL_INTERFACE( terminal_intf )
+//  rs232_port_interface rs232b_intf
 //-------------------------------------------------
 
-static serial_terminal_interface terminal_intf =
+static const rs232_port_interface rs232b_intf =
 {
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -314,19 +313,17 @@ void ob68k1a_state::machine_start()
 
 void ob68k1a_state::machine_reset()
 {
-	address_space &program = m_maincpu->space(AS_PROGRAM);
-
 	// initialize COM8116
-//  m_dbrg->stt_w(program, 0, 0x01);
-//  m_dbrg->str_w(program, 0, 0x01);
+	m_dbrg->stt_w(0x0e);
+	m_dbrg->str_w(0x0e);
 
 	// set reset vector
-	void *ram = program.get_write_ptr(0);
+	void *ram = m_maincpu->space(AS_PROGRAM).get_write_ptr(0);
 	UINT8 *rom = memregion(MC68000L10_TAG)->base();
 
 	memcpy(ram, rom, 8);
 
-	machine().firstcpu->reset();
+	m_maincpu->reset();
 }
 
 
@@ -350,8 +347,9 @@ static MACHINE_CONFIG_START( ob68k1a, ob68k1a_state )
 	MCFG_PTM6840_ADD(MC6840_TAG, ptm_intf)
 	MCFG_ACIA6850_ADD(MC6850_0_TAG, acia0_intf)
 	MCFG_ACIA6850_ADD(MC6850_1_TAG, acia1_intf)
-	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, dbrg_intf)
-	MCFG_SERIAL_TERMINAL_ADD(TERMINAL_TAG, terminal_intf, 9600)
+	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, NULL, WRITELINE(ob68k1a_state, rx_tx_0_w), WRITELINE(ob68k1a_state, rx_tx_1_w))
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, "serial_terminal")
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

@@ -61,8 +61,8 @@ public:
 			m_z80pio(*this, "z80pio"),
 			m_z80ctc(*this, "z80ctc"),
 			m_ram(*this, RAM_TAG),
-			m_speaker(*this, SPEAKER_TAG),
-			m_cassette(*this, CASSETTE_TAG)
+			m_speaker(*this, "speaker"),
+			m_cassette(*this, "cassette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -149,6 +149,8 @@ public:
 	TIMER_CALLBACK_MEMBER(kc_cassette_oneshot_timer);
 	TIMER_CALLBACK_MEMBER(kc_cassette_timer_callback);
 	TIMER_DEVICE_CALLBACK_MEMBER(kc_scanline);
+
+	DECLARE_QUICKLOAD_LOAD_MEMBER( kc );
 };
 
 
@@ -181,10 +183,5 @@ public:
 	UINT8               m_port_86_data;
 	UINT8 *             m_display_video_ram;
 };
-
-
-/*----------- defined in machine/kc.c -----------*/
-
-QUICKLOAD_LOAD( kc );
 
 #endif /* KC_H_ */

@@ -117,20 +117,19 @@ WRITE8_MEMBER(wc90b_state::wc90b_bankswitch1_w)
 WRITE8_MEMBER(wc90b_state::wc90b_sound_command_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 WRITE8_MEMBER(wc90b_state::adpcm_control_w)
 {
-	device_t *device = machine().device("msm");
 	int bankaddress;
-	UINT8 *ROM = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *ROM = memregion("audiocpu")->base();
 
 	/* the code writes either 2 or 3 in the bottom two bits */
 	bankaddress = 0x10000 + (data & 0x01) * 0x4000;
-	machine().root_device().membank("bank3")->set_base(&ROM[bankaddress]);
+	membank("bank3")->set_base(&ROM[bankaddress]);
 
-	msm5205_reset_w(device,data & 0x08);
+	m_msm->reset_w(data & 0x08);
 }
 
 WRITE8_MEMBER(wc90b_state::adpcm_data_w)
@@ -177,7 +176,7 @@ static ADDRESS_MAP_START( sound_cpu, AS_PROGRAM, 8, wc90b_state )
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank3")
 	AM_RANGE(0xe000, 0xe000) AM_WRITE(adpcm_control_w)
 	AM_RANGE(0xe400, 0xe400) AM_WRITE(adpcm_data_w)
-	AM_RANGE(0xe800, 0xe801) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0xe800, 0xe801) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf800) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -324,39 +323,34 @@ GFXDECODE_END
 
 
 /* handler called by the 2203 emulator when the internal timers cause an IRQ */
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(wc90b_state::irqhandler)
 {
 	/* NMI writes to MSM ports *only*! -AS */
-	//device->machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, irq ? ASSERT_LINE : CLEAR_LINE);
+	//m_audiocpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
-static void adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(wc90b_state::adpcm_int)
 {
-	wc90b_state *state = device->machine().driver_data<wc90b_state>();
-
-	state->m_toggle ^= 1;
-	if(state->m_toggle)
+	m_toggle ^= 1;
+	if(m_toggle)
 	{
-		msm5205_data_w(device, (state->m_msm5205next & 0xf0) >> 4);
-		device->machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_msm->data_w((m_msm5205next & 0xf0) >> 4);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 	else
-		msm5205_data_w(device, (state->m_msm5205next & 0x0f) >> 0);
+		m_msm->data_w((m_msm5205next & 0x0f) >> 0);
 }
 
 static const msm5205_interface msm5205_config =
 {
-	adpcm_int,      /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(wc90b_state,adpcm_int),      /* interrupt function */
 	MSM5205_S96_4B  /* 4KHz 4-bit */
 };
 
@@ -391,7 +385,8 @@ static MACHINE_CONFIG_START( wc90b, wc90b_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, YM2203_CLOCK)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(wc90b_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("msm", MSM5205, MSM5205_CLOCK)

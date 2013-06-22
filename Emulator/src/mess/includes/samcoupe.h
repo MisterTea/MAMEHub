@@ -12,6 +12,9 @@
 #define SAMCOUPE_H_
 
 #include "machine/wd_fdc.h"
+#include "sound/speaker.h"
+#include "imagedev/cassette.h"
+#include "machine/ram.h"
 
 /* screen dimensions */
 #define SAM_BLOCK           8
@@ -36,18 +39,28 @@
 class samcoupe_state :  public driver_device
 {
 public:
-	samcoupe_state(const machine_config &mconfig, device_type type, const char *tag)
-			: driver_device(mconfig, type, tag)
+	enum
 	{
-		sam_bank_read_ptr[0] = NULL;
-		sam_bank_write_ptr[0] = NULL;
-		sam_bank_read_ptr[1] = NULL;
-		sam_bank_write_ptr[1] = NULL;
-		sam_bank_read_ptr[2] = NULL;
-		sam_bank_write_ptr[2] = NULL;
-		sam_bank_read_ptr[3] = NULL;
-		sam_bank_write_ptr[3] = NULL;
-	}
+		TIMER_IRQ_OFF,
+		TIMER_MOUSE_RESET,
+		TIMER_VIDEO_UPDATE
+	};
+
+	samcoupe_state(const machine_config &mconfig, device_type type, const char *tag)
+			: driver_device(mconfig, type, tag),
+			m_maincpu(*this, "maincpu"),
+			m_speaker(*this, "speaker"),
+			m_cassette(*this, "cassette"),
+			m_ram(*this, RAM_TAG) {
+				sam_bank_read_ptr[0] = NULL;
+				sam_bank_write_ptr[0] = NULL;
+				sam_bank_read_ptr[1] = NULL;
+				sam_bank_write_ptr[1] = NULL;
+				sam_bank_read_ptr[2] = NULL;
+				sam_bank_write_ptr[2] = NULL;
+				sam_bank_read_ptr[3] = NULL;
+				sam_bank_write_ptr[3] = NULL;
+			}
 
 	virtual void video_start();
 
@@ -117,17 +130,23 @@ public:
 	UINT8* sam_bank_read_ptr[4];
 	UINT8* sam_bank_write_ptr[4];
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
+	required_device<cpu_device> m_maincpu;
+	required_device<speaker_sound_device> m_speaker;
+	required_device<cassette_image_device> m_cassette;
+	required_device<ram_device> m_ram;
+	void draw_mode4_line(int y, int hpos);
+	void draw_mode3_line(int y, int hpos);
+	void draw_mode12_block(bitmap_ind16 &bitmap, int vpos, int hpos, UINT8 mask);
+	void draw_mode2_line(int y, int hpos);
+	void draw_mode1_line(int y, int hpos);
+	void samcoupe_update_bank(address_space &space, int bank_num, UINT8 *memory, int is_readonly);
+	void samcoupe_install_ext_mem(address_space &space);
+	void samcoupe_update_memory(address_space &space);
+	UINT8 samcoupe_mouse_r();
+	void samcoupe_irq(UINT8 src);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
-
-
-/*----------- defined in drivers/samcoupe.c -----------*/
-
-void samcoupe_irq(device_t *device, UINT8 src);
-
-
-/*----------- defined in machine/samcoupe.c -----------*/
-
-void samcoupe_update_memory(address_space &space);
-UINT8 samcoupe_mouse_r(running_machine &machine);
 
 #endif /* SAMCOUPE_H_ */

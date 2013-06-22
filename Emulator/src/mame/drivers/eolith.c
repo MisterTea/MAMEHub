@@ -100,7 +100,7 @@
 #include "emu.h"
 #include "cpu/e132xs/e132xs.h"
 #include "cpu/mcs51/mcs51.h"
-#include "sound/qs1000.h"
+
 #include "machine/eeprom.h"
 #include "includes/eolith.h"
 #include "includes/eolithsp.h"
@@ -127,7 +127,7 @@ READ32_MEMBER(eolith_state::eolith_custom_r)
 	*/
 	eolith_speedup_read(space);
 
-	return (ioport("IN0")->read() & ~0x300) | (machine().rand() & 0x300);
+	return (m_in0->read() & ~0x300) | (machine().rand() & 0x300);
 }
 
 WRITE32_MEMBER(eolith_state::systemcontrol_w)
@@ -136,7 +136,7 @@ WRITE32_MEMBER(eolith_state::systemcontrol_w)
 	coin_counter_w(machine(), 0, data & m_coin_counter_bit);
 	set_led_status(machine(), 0, data & 1);
 
-	ioport("EEPROMOUT")->write(data, 0xff);
+	m_eepromoutport->write(data, 0xff);
 
 	// bit 0x100 and 0x040 ?
 }
@@ -144,8 +144,8 @@ WRITE32_MEMBER(eolith_state::systemcontrol_w)
 READ32_MEMBER(eolith_state::hidctch3_pen1_r)
 {
 	//320 x 240
-	int xpos = ioport("PEN_X_P1")->read();
-	int ypos = ioport("PEN_Y_P1")->read();
+	int xpos = m_penx1port->read();
+	int ypos = m_peny1port->read();
 
 	return xpos + (ypos*168*2);
 }
@@ -153,8 +153,8 @@ READ32_MEMBER(eolith_state::hidctch3_pen1_r)
 READ32_MEMBER(eolith_state::hidctch3_pen2_r)
 {
 	//320 x 240
-	int xpos = ioport("PEN_X_P2")->read();
-	int ypos = ioport("PEN_Y_P2")->read();
+	int xpos = m_penx2port->read();
+	int ypos = m_peny2port->read();
 
 	return xpos + (ypos*168*2);
 }
@@ -185,7 +185,7 @@ WRITE8_MEMBER( eolith_state::sound_p1_w )
 {
 	// .... xxxx - Data ROM bank (32kB)
 	// ...x .... - Unknown (Usually 1?)
-	membank("sound_bank")->set_entry(data & 0x0f);
+	m_sndbank->set_entry(data & 0x0f);
 }
 
 
@@ -216,7 +216,6 @@ READ8_MEMBER( eolith_state::qs1000_p1_r )
 
 WRITE8_MEMBER( eolith_state::qs1000_p1_w )
 {
-
 }
 
 
@@ -226,12 +225,10 @@ WRITE8_MEMBER( eolith_state::qs1000_p1_w )
  *
  *************************************/
 
-static void soundcpu_to_qs1000(device_t *device, int data)
+WRITE8_MEMBER(eolith_state::soundcpu_to_qs1000)
 {
-	qs1000_device *qs1000 = device->machine().device<qs1000_device>("qs1000");
-	qs1000->serial_in(data);
-
-	device->machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(250));
+	m_qs1000->serial_in(data);
+	machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(250));
 }
 
 
@@ -1472,19 +1469,18 @@ ROM_END
 
 MACHINE_RESET_MEMBER(eolith_state,eolith)
 {
-	machine().device("soundcpu")->execute().set_input_line(MCS51_INT1_LINE, ASSERT_LINE);
+	m_soundcpu->set_input_line(MCS51_INT1_LINE, ASSERT_LINE);
 }
 
 DRIVER_INIT_MEMBER(eolith_state,eolith)
 {
-
 	init_eolith_speedup(machine());
 
 	// Sound CPU -> QS1000 CPU serial link
-	i8051_set_serial_tx_callback(machine().device("soundcpu"), soundcpu_to_qs1000);
+	i8051_set_serial_tx_callback(m_soundcpu, write8_delegate(FUNC(eolith_state::soundcpu_to_qs1000),this));
 
 	// Configure the sound ROM banking
-	machine().root_device().membank("sound_bank")->configure_entries(0, 16, memregion("sounddata")->base(), 0x8000);
+	membank("sound_bank")->configure_entries(0, 16, memregion("sounddata")->base(), 0x8000);
 }
 
 DRIVER_INIT_MEMBER(eolith_state,landbrk)
@@ -1510,7 +1506,7 @@ DRIVER_INIT_MEMBER(eolith_state,landbrka)
 DRIVER_INIT_MEMBER(eolith_state,hidctch2)
 {
 	//it fails compares in memory like in landbrka
-	UINT32 *rombase = (UINT32*)machine().root_device().memregion("maincpu")->base();
+	UINT32 *rombase = (UINT32*)memregion("maincpu")->base();
 	rombase[0xbcc8/4] = (rombase[0xbcc8/4] & 0xffff) | 0x03000000; /* Change BR to NOP */
 
 	DRIVER_INIT_CALL(eolith);
@@ -1518,15 +1514,15 @@ DRIVER_INIT_MEMBER(eolith_state,hidctch2)
 
 DRIVER_INIT_MEMBER(eolith_state,hidctch3)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0xfc200000, 0xfc200003); // this generates pens vibration
+	m_maincpu->space(AS_PROGRAM).nop_write(0xfc200000, 0xfc200003); // this generates pens vibration
 
 	// It is not clear why the first reads are needed too
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xfce00000, 0xfce00003, read32_delegate(FUNC(eolith_state::hidctch3_pen1_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xfce80000, 0xfce80003, read32_delegate(FUNC(eolith_state::hidctch3_pen1_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xfce00000, 0xfce00003, read32_delegate(FUNC(eolith_state::hidctch3_pen1_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xfce80000, 0xfce80003, read32_delegate(FUNC(eolith_state::hidctch3_pen1_r),this));
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xfcf00000, 0xfcf00003, read32_delegate(FUNC(eolith_state::hidctch3_pen2_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xfcf80000, 0xfcf80003, read32_delegate(FUNC(eolith_state::hidctch3_pen2_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xfcf00000, 0xfcf00003, read32_delegate(FUNC(eolith_state::hidctch3_pen2_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xfcf80000, 0xfcf80003, read32_delegate(FUNC(eolith_state::hidctch3_pen2_r),this));
 
 	DRIVER_INIT_CALL(eolith);
 }

@@ -5,7 +5,7 @@
 
 #include "emu.h"
 #include "machine/cococart.h"
-#include "machine/6551acia.h"
+#include "machine/mos6551.h"
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -26,12 +26,11 @@ public:
 protected:
 		// device-level overrides
 		virtual void device_start();
-		virtual void device_config_complete() { m_shortname = "coco_232"; }
 		virtual DECLARE_READ8_MEMBER(read);
 		virtual DECLARE_WRITE8_MEMBER(write);
 private:
 		// internal state
-		required_device<acia6551_device> m_uart;
+		required_device<mos6551_device> m_uart;
 };
 
 

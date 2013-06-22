@@ -19,6 +19,9 @@
 #define INS8250_1_TAG   "6d"
 #define INS8250_2_TAG   "5d"
 #define INS8250_3_TAG   "4d"
+#define RS232_A_TAG     "rs232a"
+#define RS232_B_TAG     "rs232b"
+#define RS232_C_TAG     "rs232c"
 #define UPD1990C_TAG    "12a"
 
 
@@ -54,40 +57,17 @@ WRITE_LINE_MEMBER( s100_wunderbus_device::pic_int_w )
 	m_bus->int_w(state);
 }
 
-static struct pic8259_interface pic_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, s100_wunderbus_device, pic_int_w),
-	DEVCB_LINE_VCC,
-	DEVCB_NULL
-};
-
 
 //-------------------------------------------------
 //  ins8250_interface ace1_intf
 //-------------------------------------------------
-/*
-static INS8250_TRANSMIT( ace1_transmit )
-{
-    s100_wunderbus_device *wunderbus = downcast<s100_wunderbus_device *>(device->owner());
-
-    wunderbus->m_bus->terminal_transmit_w(data);
-}
-*/
-//-------------------------------------------------
-//  s100_terminal_w - terminal write
-//-------------------------------------------------
-
-void s100_wunderbus_device::s100_terminal_w(UINT8 data)
-{
-//  ins8250_receive(m_ace1, data);
-}
 
 static ins8250_interface ace1_intf =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir3_w),
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir3_w),
 	DEVCB_NULL,
 	DEVCB_NULL
 };
@@ -99,10 +79,10 @@ static ins8250_interface ace1_intf =
 
 static ins8250_interface ace2_intf =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir4_w),
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir4_w),
 	DEVCB_NULL,
 	DEVCB_NULL
 };
@@ -114,12 +94,59 @@ static ins8250_interface ace2_intf =
 
 static ins8250_interface ace3_intf =
 {
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir5_w),
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_C_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_C_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_C_TAG, rs232_port_device, rts_w),
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir5_w),
 	DEVCB_NULL,
 	DEVCB_NULL
+};
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232a_intf
+//-------------------------------------------------
+
+static DEVICE_INPUT_DEFAULTS_START( terminal )
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x0d ) // 110
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x20 ) // 8N2
+DEVICE_INPUT_DEFAULTS_END
+
+static const rs232_port_interface rs232a_intf =
+{
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_1_TAG, ins8250_uart_device, rx_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_1_TAG, ins8250_uart_device, dcd_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_1_TAG, ins8250_uart_device, dsr_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_1_TAG, ins8250_uart_device, ri_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_1_TAG, ins8250_uart_device, cts_w)
+};
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232b_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232b_intf =
+{
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_2_TAG, ins8250_uart_device, rx_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_2_TAG, ins8250_uart_device, dcd_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_2_TAG, ins8250_uart_device, dsr_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_2_TAG, ins8250_uart_device, ri_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_2_TAG, ins8250_uart_device, cts_w)
+};
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232c_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232c_intf =
+{
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_3_TAG, ins8250_uart_device, rx_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_3_TAG, ins8250_uart_device, dcd_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_3_TAG, ins8250_uart_device, dsr_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_3_TAG, ins8250_uart_device, ri_w),
+	DEVCB_DEVICE_LINE_MEMBER(INS8250_3_TAG, ins8250_uart_device, cts_w)
 };
 
 
@@ -132,15 +159,9 @@ WRITE_LINE_MEMBER( s100_wunderbus_device::rtc_tp_w )
 	if (state)
 	{
 		m_rtc_tp = state;
-		pic8259_ir7_w(m_pic, m_rtc_tp);
+		m_pic->ir7_w(m_rtc_tp);
 	}
 }
-
-static UPD1990A_INTERFACE( rtc_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, s100_wunderbus_device, rtc_tp_w)
-};
 
 
 //-------------------------------------------------
@@ -148,11 +169,15 @@ static UPD1990A_INTERFACE( rtc_intf )
 //-------------------------------------------------
 
 static MACHINE_CONFIG_FRAGMENT( s100_wunderbus )
-	MCFG_PIC8259_ADD(I8259A_TAG, pic_intf)
+	MCFG_PIC8259_ADD(I8259A_TAG, DEVWRITELINE(DEVICE_SELF, s100_wunderbus_device, pic_int_w), VCC, NULL)
 	MCFG_INS8250_ADD(INS8250_1_TAG, ace1_intf, XTAL_18_432MHz/10)
 	MCFG_INS8250_ADD(INS8250_2_TAG, ace2_intf, XTAL_18_432MHz/10)
 	MCFG_INS8250_ADD(INS8250_3_TAG, ace3_intf, XTAL_18_432MHz/10)
-	MCFG_UPD1990A_ADD(UPD1990C_TAG, XTAL_32_768kHz, rtc_intf)
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, "serial_terminal")
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
+	MCFG_RS232_PORT_ADD(RS232_C_TAG, rs232c_intf, default_rs232_devices, NULL)
+	MCFG_UPD1990A_ADD(UPD1990C_TAG, XTAL_32_768kHz, NULL, DEVWRITELINE(DEVICE_SELF, s100_wunderbus_device, rtc_tp_w))
 MACHINE_CONFIG_END
 
 
@@ -264,7 +289,7 @@ ioport_constructor s100_wunderbus_device::device_input_ports() const
 //-------------------------------------------------
 
 s100_wunderbus_device::s100_wunderbus_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, S100_WUNDERBUS, "Wunderbus I/O", tag, owner, clock),
+	device_t(mconfig, S100_WUNDERBUS, "Wunderbus I/O", tag, owner, clock, "s100_wunderbus", __FILE__),
 	device_s100_card_interface(mconfig, *this),
 	m_pic(*this, I8259A_TAG),
 	m_ace1(*this, INS8250_1_TAG),
@@ -301,7 +326,7 @@ void s100_wunderbus_device::device_reset()
 
 void s100_wunderbus_device::s100_vi0_w(int state)
 {
-	pic8259_ir0_w(m_pic, state);
+	m_pic->ir0_w(state);
 }
 
 
@@ -311,7 +336,7 @@ void s100_wunderbus_device::s100_vi0_w(int state)
 
 void s100_wunderbus_device::s100_vi1_w(int state)
 {
-	pic8259_ir1_w(m_pic, state);
+	m_pic->ir1_w(state);
 }
 
 
@@ -321,7 +346,7 @@ void s100_wunderbus_device::s100_vi1_w(int state)
 
 void s100_wunderbus_device::s100_vi2_w(int state)
 {
-	pic8259_ir2_w(m_pic, state);
+	m_pic->ir2_w(state);
 }
 
 
@@ -400,7 +425,7 @@ UINT8 s100_wunderbus_device::s100_sinp_r(address_space &space, offs_t offset)
 
 				// reset clock interrupt
 				m_rtc_tp = 0;
-				pic8259_ir7_w(m_pic, m_rtc_tp);
+				m_pic->ir7_w(m_rtc_tp);
 				break;
 
 			case 3: // Parallel data IN
@@ -408,7 +433,7 @@ UINT8 s100_wunderbus_device::s100_sinp_r(address_space &space, offs_t offset)
 
 			case 4: // 8259 0 register
 			case 5: // 8259 1 register
-				data = pic8259_r(m_pic, space, offset & 0x01);
+				data = m_pic->read(space, offset & 0x01);
 				break;
 
 			case 6: // not used
@@ -517,7 +542,7 @@ void s100_wunderbus_device::s100_sout_w(address_space &space, offs_t offset, UIN
 
 			case 4: // 8259 0 register
 			case 5: // 8259 1 register
-				pic8259_w(m_pic, space, offset & 0x01, data);
+				m_pic->write(space, offset & 0x01, data);
 				break;
 
 			case 6: // Par. port cntrl.

@@ -96,7 +96,7 @@ private:
 
 	screen_device *m_screen;
 	emu_timer *m_busy_timer;
-	address_space *m_data;
+	//address_space *m_data;
 
 	bool m_bf;                      // busy flag
 
@@ -118,6 +118,8 @@ private:
 
 	// address space configurations
 	const address_space_config      m_space_config;
+
+	required_memory_region m_region_hd61830;
 };
 
 

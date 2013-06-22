@@ -1,8 +1,11 @@
+#include "sound/okim6295.h"
+#include "machine/eeprom.h"
+
 class stlforce_state : public driver_device
 {
 public:
 	stlforce_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg_videoram(*this, "bg_videoram"),
 		m_mlow_videoram(*this, "mlow_videoram"),
 		m_mhigh_videoram(*this, "mhigh_videoram"),
@@ -11,7 +14,10 @@ public:
 		m_mlow_scrollram(*this, "mlow_scrollram"),
 		m_mhigh_scrollram(*this, "mhigh_scrollram"),
 		m_vidattrram(*this, "vidattrram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki"),
+		m_eeprom(*this, "eeprom") { }
 
 	tilemap_t *m_bg_tilemap;
 	tilemap_t *m_mlow_tilemap;
@@ -44,4 +50,8 @@ public:
 	TILE_GET_INFO_MEMBER(get_stlforce_tx_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_stlforce(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki;
+	required_device<eeprom_device> m_eeprom;
 };

@@ -8,7 +8,7 @@
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "cpu/konami/konami.h" /* for the callback and the firq irq definition */
+#include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "video/konicdev.h"
 #include "sound/2151intf.h"
 #include "sound/k053260.h"
@@ -27,7 +27,6 @@ INTERRUPT_GEN_MEMBER(parodius_state::parodius_interrupt)
 
 READ8_MEMBER(parodius_state::bankedram_r)
 {
-
 	if (m_videobank & 0x01)
 	{
 		if (m_videobank & 0x04)
@@ -41,7 +40,6 @@ READ8_MEMBER(parodius_state::bankedram_r)
 
 WRITE8_MEMBER(parodius_state::bankedram_w)
 {
-
 	if (m_videobank & 0x01)
 	{
 		if (m_videobank & 0x04)
@@ -55,7 +53,6 @@ WRITE8_MEMBER(parodius_state::bankedram_w)
 
 READ8_MEMBER(parodius_state::parodius_052109_053245_r)
 {
-
 	if (m_videobank & 0x02)
 		return k053245_r(m_k053245, space, offset);
 	else
@@ -64,7 +61,6 @@ READ8_MEMBER(parodius_state::parodius_052109_053245_r)
 
 WRITE8_MEMBER(parodius_state::parodius_052109_053245_w)
 {
-
 	if (m_videobank & 0x02)
 		k053245_w(m_k053245, space, offset, data);
 	else
@@ -73,7 +69,6 @@ WRITE8_MEMBER(parodius_state::parodius_052109_053245_w)
 
 WRITE8_MEMBER(parodius_state::parodius_videobank_w)
 {
-
 	if (m_videobank & 0xf8)
 		logerror("%04x: videobank = %02x\n",space.device().safe_pc(),data);
 
@@ -85,7 +80,6 @@ WRITE8_MEMBER(parodius_state::parodius_videobank_w)
 
 WRITE8_MEMBER(parodius_state::parodius_3fc0_w)
 {
-
 	if ((data & 0xf4) != 0x10)
 		logerror("%04x: 3fc0 = %02x\n",space.device().safe_pc(),data);
 
@@ -101,8 +95,7 @@ WRITE8_MEMBER(parodius_state::parodius_3fc0_w)
 
 READ8_MEMBER(parodius_state::parodius_sound_r)
 {
-	device_t *device = machine().device("k053260");
-	return k053260_r(device, space, 2 + offset);
+	return m_k053260->k053260_r(space, 2 + offset);
 }
 
 WRITE8_MEMBER(parodius_state::parodius_sh_irqtrigger_w)
@@ -112,25 +105,30 @@ WRITE8_MEMBER(parodius_state::parodius_sh_irqtrigger_w)
 
 #if 0
 
-static void sound_nmi_callback( running_machine &machine, int param )
+void parodius_state::sound_nmi_callback( int param )
 {
-	parodius_state *state = machine.driver_data<parodius_state>();
-	state->m_audiocpu->set_input_line(INPUT_LINE_NMI, ( state->m_nmi_enabled ) ? CLEAR_LINE : ASSERT_LINE );
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, ( m_nmi_enabled ) ? CLEAR_LINE : ASSERT_LINE );
 
 	nmi_enabled = 0;
 }
 #endif
 
-TIMER_CALLBACK_MEMBER(parodius_state::nmi_callback)
+void parodius_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_NMI:
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in parodius_state::device_timer");
+	}
 }
 
 WRITE8_MEMBER(parodius_state::sound_arm_nmi_w)
 {
-
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	machine().scheduler().timer_set(attotime::from_usec(50), timer_expired_delegate(FUNC(parodius_state::nmi_callback),this));  /* kludge until the K053260 is emulated correctly */
+	timer_set(attotime::from_usec(50), TIMER_NMI);  /* kludge until the K053260 is emulated correctly */
 }
 
 /********************************************/
@@ -148,7 +146,7 @@ static ADDRESS_MAP_START( parodius_map, AS_PROGRAM, 8, parodius_state )
 	AM_RANGE(0x3fc0, 0x3fc0) AM_READ(watchdog_reset_r) AM_WRITE(parodius_3fc0_w)
 	AM_RANGE(0x3fc4, 0x3fc4) AM_WRITE(parodius_videobank_w)
 	AM_RANGE(0x3fc8, 0x3fc8) AM_WRITE(parodius_sh_irqtrigger_w)
-	AM_RANGE(0x3fcc, 0x3fcd) AM_READ(parodius_sound_r) AM_DEVWRITE_LEGACY("k053260", k053260_w) /* K053260 */
+	AM_RANGE(0x3fcc, 0x3fcd) AM_READ(parodius_sound_r) AM_DEVWRITE("k053260", k053260_device, k053260_w) /* K053260 */
 	AM_RANGE(0x2000, 0x27ff) AM_READWRITE(parodius_052109_053245_r, parodius_052109_053245_w)
 	AM_RANGE(0x2000, 0x5fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_r, k052109_w)
 	AM_RANGE(0x6000, 0x9fff) AM_ROMBANK("bank1")            /* banked ROM */
@@ -160,7 +158,7 @@ static ADDRESS_MAP_START( parodius_sound_map, AS_PROGRAM, 8, parodius_state )
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf801) AM_DEVREADWRITE("ymsnd", ym2151_device,read,write)
 	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(sound_arm_nmi_w)
-	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r,k053260_w)
+	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
 ADDRESS_MAP_END
 
 
@@ -254,13 +252,6 @@ void parodius_state::machine_start()
 
 	m_generic_paletteram_8.allocate(0x1000);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k053260 = machine().device("k053260");
-	m_k053245 = machine().device("k053245");
-	m_k053251 = machine().device("k053251");
-	m_k052109 = machine().device("k052109");
-
 	save_item(NAME(m_videobank));
 	save_item(NAME(m_sprite_colorbase));
 	save_item(NAME(m_layer_colorbase));
@@ -271,7 +262,7 @@ void parodius_state::machine_reset()
 {
 	int i;
 
-	konami_configure_set_lines(machine().device("maincpu"), parodius_banking);
+	konami_configure_set_lines(m_maincpu, parodius_banking);
 
 	for (i = 0; i < 3; i++)
 	{
@@ -317,7 +308,7 @@ static MACHINE_CONFIG_START( parodius, parodius_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k053260", K053260, 3579545)
+	MCFG_K053260_ADD("k053260", 3579545)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.70)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.70)
 MACHINE_CONFIG_END

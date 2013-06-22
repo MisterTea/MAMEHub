@@ -28,6 +28,7 @@ public:
 	seta_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
+		m_audiocpu(*this, "audiocpu"),
 		m_subcpu(*this,"sub"),
 		m_sharedram(*this,"sharedram"),
 		m_workram(*this,"workram"),
@@ -43,6 +44,7 @@ public:
 		m_inttoote_700000(*this,"inttoote_700000") { }
 
 	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_subcpu;
 
 	optional_shared_ptr<UINT8> m_sharedram;
@@ -177,6 +179,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info_3);
 	DECLARE_VIDEO_START(seta_no_layers);
 	DECLARE_VIDEO_START(twineagl_1_layer);
+	DECLARE_VIDEO_START(setaroul_1_layer);
 	DECLARE_VIDEO_START(seta_1_layer);
 	DECLARE_MACHINE_RESET(calibr50);
 	DECLARE_PALETTE_INIT(usclssic);
@@ -209,7 +212,13 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(setaroul_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(crazyfgt_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(inttoote_interrupt);
+	void seta_coin_lockout_w(int data);
+	inline void twineagl_tile_info( tile_data &tileinfo, int tile_index, int offset );
+	inline void get_tile_info( tile_data &tileinfo, int tile_index, int layer, int offset );
+	void set_pens();
+	void usclssic_set_pens();
+	void draw_tilemap_palette_effect(bitmap_ind16 &bitmap, const rectangle &cliprect, tilemap_t *tilemap, int scrollx, int scrolly, int gfxnum, int flipscreen);
+	void seta_layers_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int sprite_bank_size, int sprite_setac );
+	void uPD71054_timer_init(  );
+	DECLARE_WRITE_LINE_MEMBER(utoukond_ym3438_interrupt);
 };
-
-/*----------- defined in video/seta.c -----------*/
-void seta_coin_lockout_w(running_machine &machine, int data);

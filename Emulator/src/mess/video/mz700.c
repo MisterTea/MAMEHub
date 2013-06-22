@@ -10,7 +10,6 @@
  ***************************************************************************/
 
 #include "emu.h"
-#include "machine/pit8253.h"
 #include "includes/mz700.h"
 
 
@@ -91,7 +90,6 @@ UINT32 mz_state::screen_update_mz800(screen_device &screen, bitmap_ind16 &bitmap
 	{
 		if (m_hires_mode)
 		{
-
 		}
 		else
 		{

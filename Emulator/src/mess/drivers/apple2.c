@@ -211,6 +211,11 @@ Apple 3.5 and Apple 5.25 drives - up to three devices
 #include "machine/laser128.h"
 #include "machine/a2echoii.h"
 #include "machine/a2arcadebd.h"
+#include "machine/a2midi.h"
+#include "machine/a2zipdrive.h"
+#include "machine/a2estd80col.h"
+#include "machine/a2eext80col.h"
+#include "machine/a2eramworks3.h"
 
 /***************************************************************************
     PARAMETERS
@@ -236,7 +241,7 @@ WRITE8_MEMBER(apple2_state::a2bus_nmi_w)
 WRITE8_MEMBER(apple2_state::a2bus_inh_w)
 {
 	m_inh_slot = data;
-	apple2_update_memory(machine());
+	apple2_update_memory();
 }
 
 /***************************************************************************
@@ -629,10 +634,16 @@ static SLOT_INTERFACE_START(apple2_cards)
 	SLOT_INTERFACE("vtc1", A2BUS_VTC1)    /* Unknown VideoTerm clone #1 */
 	SLOT_INTERFACE("vtc2", A2BUS_VTC2)    /* Unknown VideoTerm clone #2 */
 	SLOT_INTERFACE("arcbd", A2BUS_ARCADEBOARD)    /* Third Millenium Engineering Arcade Board */
-//    SLOT_INTERFACE("scsi", A2BUS_SCSI)  /* Apple II SCSI Card */
+	SLOT_INTERFACE("midi", A2BUS_MIDI)  /* Generic 6840+6850 MIDI board */
+	SLOT_INTERFACE("zipdrive", A2BUS_ZIPDRIVE)  /* ZIP Technologies IDE card */
+	SLOT_INTERFACE("echoiiplus", A2BUS_ECHOPLUS)    /* Street Electronics Echo Plus (Echo II + Mockingboard clone) */
+	SLOT_INTERFACE("scsi", A2BUS_SCSI)  /* Apple II SCSI Card */
 SLOT_INTERFACE_END
 
 static SLOT_INTERFACE_START(apple2eaux_cards)
+	SLOT_INTERFACE("std80", A2EAUX_STD80COL) /* Apple IIe Standard 80 Column Card */
+	SLOT_INTERFACE("ext80", A2EAUX_EXT80COL) /* Apple IIe Extended 80 Column Card */
+	SLOT_INTERFACE("rw3", A2EAUX_RAMWORKS3)  /* Applied Engineering RamWorks III */
 SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_START( apple2_common, apple2_state )
@@ -663,14 +674,14 @@ static MACHINE_CONFIG_START( apple2_common, apple2_state )
 
 	/* slot devices */
 	MCFG_A2BUS_BUS_ADD("a2bus", "maincpu", a2bus_intf)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl0", apple2_slot0_cards, "lang", NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl1", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl2", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl3", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl4", apple2_cards, "mockingboard", NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl5", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl6", apple2_cards, "diskii", NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl7", apple2_cards, NULL, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl0", apple2_slot0_cards, "lang")
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl1", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl2", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl3", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl4", apple2_cards, "mockingboard")
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl5", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl6", apple2_cards, "diskii")
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl7", apple2_cards, NULL)
 
 	MCFG_SOFTWARE_LIST_ADD("flop525_list","apple2")
 MACHINE_CONFIG_END
@@ -686,7 +697,7 @@ static MACHINE_CONFIG_DERIVED( apple2, apple2_common )
 	/* At the moment the RAM bank $C000-$FFFF is available only if you choose   */
 	/* default configuration: on real machine is present also in configurations */
 	/* with less memory, provided that the language card is installed           */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, apple2_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", apple2_cassette_interface )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( apple2p, apple2_common )
@@ -701,35 +712,36 @@ static MACHINE_CONFIG_DERIVED( apple2p, apple2_common )
 	/* At the moment the RAM bank $C000-$FFFF is available only if you choose   */
 	/* default configuration: on real machine is present also in configurations */
 	/* with less memory, provided that the language card is installed           */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, apple2_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", apple2_cassette_interface )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( apple2e, apple2_common )
+	MCFG_MACHINE_START_OVERRIDE(apple2_state,apple2e)
 	MCFG_VIDEO_START_OVERRIDE(apple2_state,apple2e)
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("128K")
 	MCFG_RAM_EXTRA_OPTIONS("64K")
 	MCFG_RAM_DEFAULT_VALUE(0x00)
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, apple2_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", apple2_cassette_interface )
 
 	// IIe and later have no physical slot 0, the "language card" is built into the motherboard
 	MCFG_A2BUS_SLOT_REMOVE("sl0")
 	MCFG_A2BUS_ONBOARD_ADD("a2bus", "sl0", A2BUS_LANG, NULL)
 
 	MCFG_A2EAUXSLOT_BUS_ADD(AUXSLOT_TAG, "maincpu", a2eauxbus_intf)
-	MCFG_A2EAUXSLOT_SLOT_ADD(AUXSLOT_TAG, "slaux", apple2eaux_cards, NULL, NULL)
+	MCFG_A2EAUXSLOT_SLOT_ADD(AUXSLOT_TAG, "aux", apple2eaux_cards, "ext80")   // default to an extended 80-column card
 
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( tk2000, apple2_common )
 	MCFG_MACHINE_START_OVERRIDE(apple2_state,tk2000)
-	MCFG_VIDEO_START_OVERRIDE(apple2_state,apple2e)
+	MCFG_VIDEO_START_OVERRIDE(apple2_state,apple2c)
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("64K")
 	MCFG_RAM_DEFAULT_VALUE(0x00)
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, apple2_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", apple2_cassette_interface )
 
 	// TK2000 doesn't have slots, and it doesn't emulate a language card
 	// C05A maps RAM from C100-FFFF, C05B maps ROM
@@ -741,9 +753,13 @@ static MACHINE_CONFIG_DERIVED( tk2000, apple2_common )
 	MCFG_A2BUS_SLOT_REMOVE("sl5")
 	MCFG_A2BUS_SLOT_REMOVE("sl6")
 	MCFG_A2BUS_SLOT_REMOVE("sl7")
+
+	MCFG_SOFTWARE_LIST_REMOVE("flop525_list")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mprof3, apple2e )
+	MCFG_MACHINE_START_OVERRIDE(apple2_state,apple2)
+	MCFG_VIDEO_START_OVERRIDE(apple2_state,apple2c)
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -759,6 +775,9 @@ static MACHINE_CONFIG_DERIVED( apple2ep, apple2e )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( apple2c, apple2ee )
+	MCFG_MACHINE_START_OVERRIDE(apple2_state,apple2)
+	MCFG_VIDEO_START_OVERRIDE(apple2_state,apple2c)
+
 	MCFG_A2BUS_SLOT_REMOVE("sl1")   // IIc has no slots, of course :)
 	MCFG_A2BUS_SLOT_REMOVE("sl2")
 	MCFG_A2BUS_SLOT_REMOVE("sl3")
@@ -768,10 +787,16 @@ static MACHINE_CONFIG_DERIVED( apple2c, apple2ee )
 	MCFG_A2BUS_SLOT_REMOVE("sl7")
 
 	// TODO: populate the IIc's other virtual slots with ONBOARD_ADD
+	MCFG_A2BUS_ONBOARD_ADD("a2bus", "sl1", A2BUS_SSC, NULL)
+	MCFG_A2BUS_ONBOARD_ADD("a2bus", "sl2", A2BUS_SSC, NULL)
 	MCFG_A2BUS_ONBOARD_ADD("a2bus", "sl6", A2BUS_DISKII, NULL)
 
-	MCFG_A2EAUXSLOT_SLOT_REMOVE("slaux")
+	MCFG_A2EAUXSLOT_SLOT_REMOVE("aux")
 	MCFG_A2EAUXSLOT_BUS_REMOVE(AUXSLOT_TAG)
+
+	MCFG_RAM_MODIFY(RAM_TAG)
+	MCFG_RAM_DEFAULT_SIZE("128K")
+	MCFG_RAM_EXTRA_OPTIONS("128K")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( apple2c_iwm, apple2c )
@@ -783,6 +808,8 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( laser128, apple2c )
 	MCFG_MACHINE_START_OVERRIDE(apple2_state,laser128)
 
+	MCFG_A2BUS_SLOT_REMOVE("sl1")
+	MCFG_A2BUS_SLOT_REMOVE("sl2")
 	MCFG_A2BUS_SLOT_REMOVE("sl6")
 
 	MCFG_A2BUS_ONBOARD_ADD("a2bus", "sl1", A2BUS_LASER128, NULL)

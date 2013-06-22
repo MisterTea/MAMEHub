@@ -94,8 +94,8 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, ginganin_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
 	AM_RANGE(0x0800, 0x0807) AM_DEVREADWRITE("6840ptm", ptm6840_device, read, write)
 	AM_RANGE(0x1800, 0x1800) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE_LEGACY("ymsnd", y8950_w)
-	AM_RANGE(0x2800, 0x2801) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE("ymsnd", y8950_device, write)
+	AM_RANGE(0x2800, 0x2801) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x4000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -228,16 +228,12 @@ GFXDECODE_END
 
 void ginganin_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_layers_ctrl));
 	save_item(NAME(m_flipscreen));
 }
 
 void ginganin_state::machine_reset()
 {
-
 	m_layers_ctrl = 0;
 	m_flipscreen = 0;
 }
@@ -245,7 +241,7 @@ void ginganin_state::machine_reset()
 
 WRITE8_MEMBER(ginganin_state::ptm_irq)
 {
-	machine().device("audiocpu")->execute().set_input_line(0, (data & 1) ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, (data & 1) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 static const ptm6840_interface ptm_intf =
@@ -375,7 +371,7 @@ DRIVER_INIT_MEMBER(ginganin_state,ginganin)
 	UINT16 *rom;
 
 	/* main cpu patches */
-	rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	rom = (UINT16 *)memregion("maincpu")->base();
 	/* avoid writes to rom getting to the log */
 	rom[0x408 / 2] = 0x6000;
 	rom[0x40a / 2] = 0x001c;
@@ -383,7 +379,7 @@ DRIVER_INIT_MEMBER(ginganin_state,ginganin)
 
 	/* sound cpu patches */
 	/* let's clear the RAM: ROM starts at 0x4000 */
-	memset(machine().root_device().memregion("audiocpu")->base(), 0, 0x800);
+	memset(memregion("audiocpu")->base(), 0, 0x800);
 }
 
 

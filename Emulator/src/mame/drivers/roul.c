@@ -71,7 +71,9 @@ class roul_state : public driver_device
 {
 public:
 	roul_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu") { }
 
 	UINT8 m_reg[0x10];
 	UINT8 *m_videobuf;
@@ -83,6 +85,8 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_roul(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 };
 
 
@@ -91,7 +95,7 @@ public:
 
 void roul_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int bit6, bit7, bit0, bit1, r, g, b;
 	int i;
 
@@ -171,7 +175,7 @@ WRITE8_MEMBER(roul_state::blitter_cmd_w)
 WRITE8_MEMBER(roul_state::sound_latch_w)
 {
 	soundlatch_byte_w(space, 0, data & 0xff);
-	machine().device("soundcpu")->execute().set_input_line(0, HOLD_LINE);
+	m_soundcpu->set_input_line(0, HOLD_LINE);
 }
 
 WRITE8_MEMBER(roul_state::ball_w)
@@ -207,7 +211,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_cpu_io_map, AS_IO, 8, roul_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 void roul_state::video_start()

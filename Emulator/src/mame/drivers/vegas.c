@@ -463,7 +463,8 @@ public:
 			m_timekeeper(*this, "timekeeper") ,
 		m_rambase(*this, "rambase"),
 		m_nile_regs(*this, "nile_regs"),
-		m_rombase(*this, "rombase"){ }
+		m_rombase(*this, "rombase"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_device<m48t37_device> m_timekeeper;
 	required_shared_ptr<UINT32> m_rambase;
@@ -489,6 +490,7 @@ public:
 	int m_dynamic_count;
 	dynamic_address m_dynamic[MAX_DYNAMIC_ADDRESSES];
 	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
+	DECLARE_WRITE_LINE_MEMBER(vblank_assert);
 	DECLARE_DRIVER_INIT(gauntleg);
 	DECLARE_DRIVER_INIT(cartfury);
 	DECLARE_DRIVER_INIT(tenthdeg);
@@ -504,19 +506,15 @@ public:
 	virtual void machine_reset();
 	UINT32 screen_update_vegas(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(nile_timer_callback);
+	void remap_dynamic_addresses();
+	void update_nile_irqs();
+	void update_sio_irqs();
+	inline void _add_dynamic_address(offs_t start, offs_t end, read32_space_func read, write32_space_func write, const char *rdname, const char *wrname);
+	inline void _add_dynamic_device_address(device_t *device, offs_t start, offs_t end, read32_device_func read, write32_device_func write, const char *rdname, const char *wrname);
+
+	void init_common(int ioasic, int serialnum);
+	required_device<cpu_device> m_maincpu;
 };
-
-
-
-/*************************************
- *
- *  Prototypes
- *
- *************************************/
-
-
-static void remap_dynamic_addresses(running_machine &machine);
-
 
 
 /*************************************
@@ -556,27 +554,27 @@ void vegas_state::machine_start()
 		m_dcs_idma_cs = 0;
 
 	/* set the fastest DRC options, but strict verification */
-	mips3drc_set_options(machine().device("maincpu"), MIPS3DRC_FASTEST_OPTIONS + MIPS3DRC_STRICT_VERIFY + MIPS3DRC_FLUSH_PC);
+	mips3drc_set_options(m_maincpu, MIPS3DRC_FASTEST_OPTIONS + MIPS3DRC_STRICT_VERIFY + MIPS3DRC_FLUSH_PC);
 
 	/* configure fast RAM regions for DRC */
-	mips3drc_add_fastram(machine().device("maincpu"), 0x00000000, m_rambase.bytes() - 1, FALSE, m_rambase);
-	mips3drc_add_fastram(machine().device("maincpu"), 0x1fc00000, 0x1fc7ffff, TRUE, m_rombase);
+	mips3drc_add_fastram(m_maincpu, 0x00000000, m_rambase.bytes() - 1, FALSE, m_rambase);
+	mips3drc_add_fastram(m_maincpu, 0x1fc00000, 0x1fc7ffff, TRUE, m_rombase);
 
 	/* register for save states */
-	state_save_register_global(machine(), m_nile_irq_state);
-	state_save_register_global(machine(), m_ide_irq_state);
-	state_save_register_global_array(machine(), m_pci_bridge_regs);
-	state_save_register_global_array(machine(), m_pci_ide_regs);
-	state_save_register_global_array(machine(), m_pci_3dfx_regs);
-	state_save_register_global(machine(), m_vblank_state);
-	state_save_register_global_array(machine(), m_sio_data);
-	state_save_register_global(machine(), m_sio_irq_clear);
-	state_save_register_global(machine(), m_sio_irq_enable);
-	state_save_register_global(machine(), m_sio_irq_state);
-	state_save_register_global(machine(), m_sio_led_state);
-	state_save_register_global(machine(), m_pending_analog_read);
-	state_save_register_global(machine(), m_cmos_unlocked);
-	machine().save().register_postload(save_prepost_delegate(FUNC(remap_dynamic_addresses), &machine()));
+	save_item(NAME(m_nile_irq_state));
+	save_item(NAME(m_ide_irq_state));
+	save_item(NAME(m_pci_bridge_regs));
+	save_item(NAME(m_pci_ide_regs));
+	save_item(NAME(m_pci_3dfx_regs));
+	save_item(NAME(m_vblank_state));
+	save_item(NAME(m_sio_data));
+	save_item(NAME(m_sio_irq_clear));
+	save_item(NAME(m_sio_irq_enable));
+	save_item(NAME(m_sio_irq_state));
+	save_item(NAME(m_sio_led_state));
+	save_item(NAME(m_pending_analog_read));
+	save_item(NAME(m_cmos_unlocked));
+	machine().save().register_postload(save_prepost_delegate(FUNC(vegas_state::remap_dynamic_addresses), this));
 }
 
 
@@ -620,13 +618,13 @@ static WRITE32_HANDLER( timekeeper_w )
 	if (state->m_cmos_unlocked)
 	{
 		if ((mem_mask & 0x000000ff) != 0)
-			state->m_timekeeper->write(offset * 4 + 0, data >> 0);
+			state->m_timekeeper->write(space, offset * 4 + 0, data >> 0, 0xff);
 		if ((mem_mask & 0x0000ff00) != 0)
-			state->m_timekeeper->write(offset * 4 + 1, data >> 8);
+			state->m_timekeeper->write(space, offset * 4 + 1, data >> 8, 0xff);
 		if ((mem_mask & 0x00ff0000) != 0)
-			state->m_timekeeper->write(offset * 4 + 2, data >> 16);
+			state->m_timekeeper->write(space, offset * 4 + 2, data >> 16, 0xff);
 		if ((mem_mask & 0xff000000) != 0)
-			state->m_timekeeper->write(offset * 4 + 3, data >> 24);
+			state->m_timekeeper->write(space, offset * 4 + 3, data >> 24, 0xff);
 		if (offset*4 >= 0x7ff0)
 			if (LOG_TIMEKEEPER) logerror("timekeeper_w(%04X & %08X) = %08X\n", offset*4, mem_mask, data);
 		state->m_cmos_unlocked = 0;
@@ -641,13 +639,13 @@ static READ32_HANDLER( timekeeper_r )
 	vegas_state *state = space.machine().driver_data<vegas_state>();
 	UINT32 result = 0xffffffff;
 	if ((mem_mask & 0x000000ff) != 0)
-		result = (result & ~0x000000ff) | (state->m_timekeeper->read(offset * 4 + 0) << 0);
+		result = (result & ~0x000000ff) | (state->m_timekeeper->read(space, offset * 4 + 0, 0xff) << 0);
 	if ((mem_mask & 0x0000ff00) != 0)
-		result = (result & ~0x0000ff00) | (state->m_timekeeper->read(offset * 4 + 1) << 8);
+		result = (result & ~0x0000ff00) | (state->m_timekeeper->read(space, offset * 4 + 1, 0xff) << 8);
 	if ((mem_mask & 0x00ff0000) != 0)
-		result = (result & ~0x00ff0000) | (state->m_timekeeper->read(offset * 4 + 2) << 16);
+		result = (result & ~0x00ff0000) | (state->m_timekeeper->read(space, offset * 4 + 2, 0xff) << 16);
 	if ((mem_mask & 0xff000000) != 0)
-		result = (result & ~0xff000000) | (state->m_timekeeper->read(offset * 4 + 3) << 24);
+		result = (result & ~0xff000000) | (state->m_timekeeper->read(space, offset * 4 + 3, 0xff) << 24);
 	if (offset*4 >= 0x7ff0)
 		if (LOG_TIMEKEEPER) logerror("timekeeper_r(%04X & %08X) = %08X\n", offset*4, mem_mask, result);
 	return result;
@@ -732,17 +730,17 @@ static WRITE32_HANDLER( pci_ide_w )
 	{
 		case 0x04:      /* address register */
 			state->m_pci_ide_regs[offset] &= 0xfffffff0;
-			remap_dynamic_addresses(space.machine());
+			state->remap_dynamic_addresses();
 			break;
 
 		case 0x05:      /* address register */
 			state->m_pci_ide_regs[offset] &= 0xfffffffc;
-			remap_dynamic_addresses(space.machine());
+			state->remap_dynamic_addresses();
 			break;
 
 		case 0x08:      /* address register */
 			state->m_pci_ide_regs[offset] &= 0xfffffff0;
-			remap_dynamic_addresses(space.machine());
+			state->remap_dynamic_addresses();
 			break;
 
 		case 0x14:      /* interrupt pending */
@@ -810,14 +808,14 @@ static WRITE32_HANDLER( pci_3dfx_w )
 				state->m_pci_3dfx_regs[offset] &= 0xff000000;
 			else
 				state->m_pci_3dfx_regs[offset] &= 0xfe000000;
-			remap_dynamic_addresses(space.machine());
+			state->remap_dynamic_addresses();
 			break;
 
 		case 0x05:      /* address register */
 			if (voodoo_type >= TYPE_VOODOO_BANSHEE)
 			{
 				state->m_pci_3dfx_regs[offset] &= 0xfe000000;
-				remap_dynamic_addresses(space.machine());
+				state->remap_dynamic_addresses();
 			}
 			break;
 
@@ -825,7 +823,7 @@ static WRITE32_HANDLER( pci_3dfx_w )
 			if (voodoo_type >= TYPE_VOODOO_BANSHEE)
 			{
 				state->m_pci_3dfx_regs[offset] &= 0xffffff00;
-				remap_dynamic_addresses(space.machine());
+				state->remap_dynamic_addresses();
 			}
 			break;
 
@@ -833,7 +831,7 @@ static WRITE32_HANDLER( pci_3dfx_w )
 			if (voodoo_type >= TYPE_VOODOO_BANSHEE)
 			{
 				state->m_pci_3dfx_regs[offset] &= 0xffff0000;
-				remap_dynamic_addresses(space.machine());
+				state->remap_dynamic_addresses();
 			}
 			break;
 
@@ -854,49 +852,48 @@ static WRITE32_HANDLER( pci_3dfx_w )
  *
  *************************************/
 
-static void update_nile_irqs(running_machine &machine)
+void vegas_state::update_nile_irqs()
 {
-	vegas_state *state = machine.driver_data<vegas_state>();
-	UINT32 intctll = state->m_nile_regs[NREG_INTCTRL+0];
-	UINT32 intctlh = state->m_nile_regs[NREG_INTCTRL+1];
+	UINT32 intctll = m_nile_regs[NREG_INTCTRL+0];
+	UINT32 intctlh = m_nile_regs[NREG_INTCTRL+1];
 	UINT8 irq[6];
 	int i;
 
 	/* check for UART transmit IRQ enable and synthsize one */
-	if (state->m_nile_regs[NREG_UARTIER] & 2)
-		state->m_nile_irq_state |= 0x0010;
+	if (m_nile_regs[NREG_UARTIER] & 2)
+		m_nile_irq_state |= 0x0010;
 	else
-		state->m_nile_irq_state &= ~0x0010;
+		m_nile_irq_state &= ~0x0010;
 
 	irq[0] = irq[1] = irq[2] = irq[3] = irq[4] = irq[5] = 0;
-	state->m_nile_regs[NREG_INTSTAT0+0] = 0;
-	state->m_nile_regs[NREG_INTSTAT0+1] = 0;
-	state->m_nile_regs[NREG_INTSTAT1+0] = 0;
-	state->m_nile_regs[NREG_INTSTAT1+1] = 0;
+	m_nile_regs[NREG_INTSTAT0+0] = 0;
+	m_nile_regs[NREG_INTSTAT0+1] = 0;
+	m_nile_regs[NREG_INTSTAT1+0] = 0;
+	m_nile_regs[NREG_INTSTAT1+1] = 0;
 
 	/* handle the lower interrupts */
 	for (i = 0; i < 8; i++)
-		if (state->m_nile_irq_state & (1 << i))
+		if (m_nile_irq_state & (1 << i))
 			if ((intctll >> (4*i+3)) & 1)
 			{
 				int vector = (intctll >> (4*i)) & 7;
 				if (vector < 6)
 				{
 					irq[vector] = 1;
-					state->m_nile_regs[NREG_INTSTAT0 + vector/2] |= 1 << (i + 16*(vector&1));
+					m_nile_regs[NREG_INTSTAT0 + vector/2] |= 1 << (i + 16*(vector&1));
 				}
 			}
 
 	/* handle the upper interrupts */
 	for (i = 0; i < 8; i++)
-		if (state->m_nile_irq_state & (1 << (i+8)))
+		if (m_nile_irq_state & (1 << (i+8)))
 			if ((intctlh >> (4*i+3)) & 1)
 			{
 				int vector = (intctlh >> (4*i)) & 7;
 				if (vector < 6)
 				{
 					irq[vector] = 1;
-					state->m_nile_regs[NREG_INTSTAT0 + vector/2] |= 1 << (i + 8 + 16*(vector&1));
+					m_nile_regs[NREG_INTSTAT0 + vector/2] |= 1 << (i + 8 + 16*(vector&1));
 				}
 			}
 
@@ -907,12 +904,12 @@ static void update_nile_irqs(running_machine &machine)
 		if (irq[i])
 		{
 			if (LOG_NILE_IRQS) logerror(" 1");
-			machine.device("maincpu")->execute().set_input_line(MIPS3_IRQ0 + i, ASSERT_LINE);
+			m_maincpu->set_input_line(MIPS3_IRQ0 + i, ASSERT_LINE);
 		}
 		else
 		{
 			if (LOG_NILE_IRQS) logerror(" 0");
-			machine.device("maincpu")->execute().set_input_line(MIPS3_IRQ0 + i, CLEAR_LINE);
+			m_maincpu->set_input_line(MIPS3_IRQ0 + i, CLEAR_LINE);
 		}
 	}
 	if (LOG_NILE_IRQS) logerror("\n");
@@ -940,7 +937,7 @@ TIMER_CALLBACK_MEMBER(vegas_state::nile_timer_callback)
 	if (which == 3)
 		m_nile_irq_state |= 1 << 5;
 
-	update_nile_irqs(machine());
+	update_nile_irqs();
 }
 
 
@@ -1084,21 +1081,21 @@ static WRITE32_HANDLER( nile_w )
 		case NREG_INTCTRL+1:    /* Interrupt control */
 			if (LOG_NILE) logerror("%08X:NILE WRITE: interrupt control(%03X) = %08X & %08X\n", space.device().safe_pc(), offset*4, data, mem_mask);
 			logit = 0;
-			update_nile_irqs(space.machine());
+			state->update_nile_irqs();
 			break;
 
 		case NREG_INTSTAT0+0:   /* Interrupt status 0 */
 		case NREG_INTSTAT0+1:   /* Interrupt status 0 */
 			if (LOG_NILE) logerror("%08X:NILE WRITE: interrupt status 0(%03X) = %08X & %08X\n", space.device().safe_pc(), offset*4, data, mem_mask);
 			logit = 0;
-			update_nile_irqs(space.machine());
+			state->update_nile_irqs();
 			break;
 
 		case NREG_INTSTAT1+0:   /* Interrupt status 1 */
 		case NREG_INTSTAT1+1:   /* Interrupt status 1 */
 			if (LOG_NILE) logerror("%08X:NILE WRITE: interrupt status 1/enable(%03X) = %08X & %08X\n", space.device().safe_pc(), offset*4, data, mem_mask);
 			logit = 0;
-			update_nile_irqs(space.machine());
+			state->update_nile_irqs();
 			break;
 
 		case NREG_INTCLR+0:     /* Interrupt clear */
@@ -1106,7 +1103,7 @@ static WRITE32_HANDLER( nile_w )
 			if (LOG_NILE) logerror("%08X:NILE WRITE: interrupt clear(%03X) = %08X & %08X\n", space.device().safe_pc(), offset*4, data, mem_mask);
 			logit = 0;
 			state->m_nile_irq_state &= ~(state->m_nile_regs[offset] & ~0xf00);
-			update_nile_irqs(space.machine());
+			state->update_nile_irqs();
 			break;
 
 		case NREG_INTPPES+0:    /* PCI Interrupt control */
@@ -1127,7 +1124,7 @@ static WRITE32_HANDLER( nile_w )
 
 		case NREG_PCIINIT1+0:   /* PCI master */
 			if (((olddata & 0xe) == 0xa) != ((state->m_nile_regs[offset] & 0xe) == 0xa))
-				remap_dynamic_addresses(space.machine());
+				state->remap_dynamic_addresses();
 			logit = 0;
 			break;
 
@@ -1181,7 +1178,7 @@ static WRITE32_HANDLER( nile_w )
 			logit = 0;
 			break;
 		case NREG_UARTIER:      /* serial interrupt enable */
-			update_nile_irqs(space.machine());
+			state->update_nile_irqs();
 			break;
 
 		case NREG_VID:
@@ -1215,7 +1212,7 @@ static WRITE32_HANDLER( nile_w )
 		case NREG_DCS8:
 		case NREG_PCIW0:
 		case NREG_PCIW1:
-			remap_dynamic_addresses(space.machine());
+			state->remap_dynamic_addresses();
 			break;
 	}
 
@@ -1238,7 +1235,7 @@ WRITE_LINE_MEMBER(vegas_state::ide_interrupt)
 		m_nile_irq_state |= 0x800;
 	else
 		m_nile_irq_state &= ~0x800;
-	update_nile_irqs(machine());
+	update_nile_irqs();
 }
 
 
@@ -1249,26 +1246,24 @@ WRITE_LINE_MEMBER(vegas_state::ide_interrupt)
  *
  *************************************/
 
-static void update_sio_irqs(running_machine &machine)
+void vegas_state::update_sio_irqs()
 {
-	vegas_state *state = machine.driver_data<vegas_state>();
-	if (state->m_sio_irq_state & state->m_sio_irq_enable)
-		state->m_nile_irq_state |= 0x400;
+	if (m_sio_irq_state & m_sio_irq_enable)
+		m_nile_irq_state |= 0x400;
 	else
-		state->m_nile_irq_state &= ~0x400;
-	update_nile_irqs(machine);
+		m_nile_irq_state &= ~0x400;
+	update_nile_irqs();
 }
 
 
-static void vblank_assert(device_t *device, int state)
+WRITE_LINE_MEMBER(vegas_state::vblank_assert)
 {
-	vegas_state *drvstate = device->machine().driver_data<vegas_state>();
-	if (!drvstate->m_vblank_state && state)
+	if (!m_vblank_state && state)
 	{
-		drvstate->m_sio_irq_state |= 0x20;
-		update_sio_irqs(device->machine());
+		m_sio_irq_state |= 0x20;
+		update_sio_irqs();
 	}
-	drvstate->m_vblank_state = state;
+	m_vblank_state = state;
 
 	/* if we have stalled DMA, restart */
 //  if (dma_pending_on_vblank[0]) { perform_dma(0); }
@@ -1285,7 +1280,7 @@ static void ioasic_irq(running_machine &machine, int state)
 		drvstate->m_sio_irq_state |= 0x04;
 	else
 		drvstate->m_sio_irq_state &= ~0x04;
-	update_sio_irqs(machine);
+	drvstate->update_sio_irqs();
 }
 
 
@@ -1296,7 +1291,7 @@ static void ethernet_interrupt(device_t *device, int state)
 		drvstate->m_sio_irq_state |= 0x10;
 	else
 		drvstate->m_sio_irq_state &= ~0x10;
-	update_sio_irqs(device->machine());
+	drvstate->update_sio_irqs();
 }
 
 
@@ -1325,7 +1320,7 @@ static WRITE32_HANDLER( sio_irq_clear_w )
 		if (!(data & 0x08))
 		{
 			state->m_sio_irq_state &= ~0x20;
-			update_sio_irqs(space.machine());
+			state->update_sio_irqs();
 		}
 	}
 }
@@ -1344,7 +1339,7 @@ static WRITE32_HANDLER( sio_irq_enable_w )
 	if (ACCESSING_BITS_0_7)
 	{
 		state->m_sio_irq_enable = data;
-		update_sio_irqs(space.machine());
+		state->update_sio_irqs();
 	}
 }
 
@@ -1463,25 +1458,65 @@ static WRITE32_HANDLER( asic_fifo_w )
 
 static READ32_DEVICE_HANDLER( ide_main_r )
 {
-	return ide_controller32_r(device, space, 0x1f0/4 + offset, mem_mask);
+	bus_master_ide_controller_device *ide = (bus_master_ide_controller_device *) device;
+
+	UINT32 data = 0;
+	if (ACCESSING_BITS_0_15)
+		data |= ide->read_cs0_pc(space, offset * 2, mem_mask);
+	if (ACCESSING_BITS_16_31)
+		data |= ide->read_cs0_pc(space, (offset * 2) + 1, mem_mask >> 16) << 16;
+
+	return data;
 }
 
 
 static WRITE32_DEVICE_HANDLER( ide_main_w )
 {
-	ide_controller32_w(device, space, 0x1f0/4 + offset, data, mem_mask);
+	bus_master_ide_controller_device *ide = (bus_master_ide_controller_device *) device;
+
+	if (ACCESSING_BITS_0_15)
+		ide->write_cs0_pc(space, offset * 2, data, mem_mask);
+	if (ACCESSING_BITS_16_31)
+		ide->write_cs0_pc(space, (offset * 2) + 1, data >> 16, mem_mask >> 16);
 }
 
 
 static READ32_DEVICE_HANDLER( ide_alt_r )
 {
-	return ide_controller32_r(device, space, 0x3f4/4 + offset, mem_mask);
+	bus_master_ide_controller_device *ide = (bus_master_ide_controller_device *) device;
+
+	UINT32 data = 0;
+	if (ACCESSING_BITS_0_15)
+		data |= ide->read_cs1_pc(space, (4/2) + (offset * 2), mem_mask);
+	if (ACCESSING_BITS_16_31)
+		data |= ide->read_cs1_pc(space, (4/2) + (offset * 2) + 1, mem_mask >> 16) << 16;
+
+	return data;
 }
 
 
 static WRITE32_DEVICE_HANDLER( ide_alt_w )
 {
-	ide_controller32_w(device, space, 0x3f4/4 + offset, data, mem_mask);
+	bus_master_ide_controller_device *ide = (bus_master_ide_controller_device *) device;
+
+	if (ACCESSING_BITS_0_15)
+		ide->write_cs1_pc(space, 6/2 + offset * 2, data, mem_mask);
+	if (ACCESSING_BITS_16_31)
+		ide->write_cs1_pc(space, 6/2 + (offset * 2) + 1, data >> 16, mem_mask >> 16);
+}
+
+
+static READ32_DEVICE_HANDLER( ide_bus_master32_r )
+{
+	bus_master_ide_controller_device *ide = (bus_master_ide_controller_device *) device;
+	return ide->ide_bus_master32_r(space, offset, mem_mask);
+}
+
+
+static WRITE32_DEVICE_HANDLER( ide_bus_master32_w )
+{
+	bus_master_ide_controller_device *ide = (bus_master_ide_controller_device *) device;
+	ide->ide_bus_master32_w(space, offset, data, mem_mask);
 }
 
 
@@ -1518,121 +1553,120 @@ static WRITE32_HANDLER( dcs3_fifo_full_w )
  *
  *************************************/
 
-#define add_dynamic_address(st,s,e,r,w)         _add_dynamic_address(st,s,e,r,w,#r,#w)
-#define add_dynamic_device_address(st,d,s,e,r,w)    _add_dynamic_device_address(st,d,s,e,r,w,#r,#w)
+#define add_dynamic_address(s,e,r,w)         _add_dynamic_address(s,e,r,w,#r,#w)
+#define add_dynamic_device_address(d,s,e,r,w)    _add_dynamic_device_address(d,s,e,r,w,#r,#w)
 
-INLINE void _add_dynamic_address(vegas_state *state, offs_t start, offs_t end, read32_space_func read, write32_space_func write, const char *rdname, const char *wrname)
+inline void vegas_state::_add_dynamic_address(offs_t start, offs_t end, read32_space_func read, write32_space_func write, const char *rdname, const char *wrname)
 {
-	dynamic_address *dynamic = state->m_dynamic;
-	dynamic[state->m_dynamic_count].start = start;
-	dynamic[state->m_dynamic_count].end = end;
-	dynamic[state->m_dynamic_count].mread = read;
-	dynamic[state->m_dynamic_count].mwrite = write;
-	dynamic[state->m_dynamic_count].dread = NULL;
-	dynamic[state->m_dynamic_count].dwrite = NULL;
-	dynamic[state->m_dynamic_count].device = NULL;
-	dynamic[state->m_dynamic_count].rdname = rdname;
-	dynamic[state->m_dynamic_count].wrname = wrname;
-	state->m_dynamic_count++;
+	dynamic_address *dynamic = m_dynamic;
+	dynamic[m_dynamic_count].start = start;
+	dynamic[m_dynamic_count].end = end;
+	dynamic[m_dynamic_count].mread = read;
+	dynamic[m_dynamic_count].mwrite = write;
+	dynamic[m_dynamic_count].dread = NULL;
+	dynamic[m_dynamic_count].dwrite = NULL;
+	dynamic[m_dynamic_count].device = NULL;
+	dynamic[m_dynamic_count].rdname = rdname;
+	dynamic[m_dynamic_count].wrname = wrname;
+	m_dynamic_count++;
 }
 
-INLINE void _add_dynamic_device_address(vegas_state *state, device_t *device, offs_t start, offs_t end, read32_device_func read, write32_device_func write, const char *rdname, const char *wrname)
+inline void vegas_state::_add_dynamic_device_address(device_t *device, offs_t start, offs_t end, read32_device_func read, write32_device_func write, const char *rdname, const char *wrname)
 {
-	dynamic_address *dynamic = state->m_dynamic;
-	dynamic[state->m_dynamic_count].start = start;
-	dynamic[state->m_dynamic_count].end = end;
-	dynamic[state->m_dynamic_count].mread = NULL;
-	dynamic[state->m_dynamic_count].mwrite = NULL;
-	dynamic[state->m_dynamic_count].dread = read;
-	dynamic[state->m_dynamic_count].dwrite = write;
-	dynamic[state->m_dynamic_count].device = device;
-	dynamic[state->m_dynamic_count].rdname = rdname;
-	dynamic[state->m_dynamic_count].wrname = wrname;
-	state->m_dynamic_count++;
+	dynamic_address *dynamic = m_dynamic;
+	dynamic[m_dynamic_count].start = start;
+	dynamic[m_dynamic_count].end = end;
+	dynamic[m_dynamic_count].mread = NULL;
+	dynamic[m_dynamic_count].mwrite = NULL;
+	dynamic[m_dynamic_count].dread = read;
+	dynamic[m_dynamic_count].dwrite = write;
+	dynamic[m_dynamic_count].device = device;
+	dynamic[m_dynamic_count].rdname = rdname;
+	dynamic[m_dynamic_count].wrname = wrname;
+	m_dynamic_count++;
 }
 
 
-static void remap_dynamic_addresses(running_machine &machine)
+void vegas_state::remap_dynamic_addresses()
 {
-	vegas_state *state = machine.driver_data<vegas_state>();
-	dynamic_address *dynamic = state->m_dynamic;
-	device_t *ethernet = machine.device("ethernet");
-	device_t *ide = machine.device("ide");
-	int voodoo_type = voodoo_get_type(state->m_voodoo);
+	dynamic_address *dynamic = m_dynamic;
+	device_t *ethernet = machine().device("ethernet");
+	device_t *ide = machine().device("ide");
+	int voodoo_type = voodoo_get_type(m_voodoo);
 	offs_t base;
 	int addr;
 
 	/* unmap everything we know about */
-	for (addr = 0; addr < state->m_dynamic_count; addr++)
-		machine.device("maincpu")->memory().space(AS_PROGRAM).unmap_readwrite(dynamic[addr].start, dynamic[addr].end);
+	for (addr = 0; addr < m_dynamic_count; addr++)
+		m_maincpu->space(AS_PROGRAM).unmap_readwrite(dynamic[addr].start, dynamic[addr].end);
 
 	/* the build the list of stuff */
-	state->m_dynamic_count = 0;
+	m_dynamic_count = 0;
 
 	/* DCS2 */
-	base = state->m_nile_regs[NREG_DCS2] & 0x1fffff00;
-	if (base >= state->m_rambase.bytes())
+	base = m_nile_regs[NREG_DCS2] & 0x1fffff00;
+	if (base >= m_rambase.bytes())
 	{
-		add_dynamic_address(state, base + 0x0000, base + 0x0003, sio_irq_clear_r, sio_irq_clear_w);
-		add_dynamic_address(state, base + 0x1000, base + 0x1003, sio_irq_enable_r, sio_irq_enable_w);
-		add_dynamic_address(state, base + 0x2000, base + 0x2003, sio_irq_cause_r, NULL);
-		add_dynamic_address(state, base + 0x3000, base + 0x3003, sio_irq_status_r, NULL);
-		add_dynamic_address(state, base + 0x4000, base + 0x4003, sio_led_r, sio_led_w);
-		add_dynamic_address(state, base + 0x5000, base + 0x5007, NOP_HANDLER, NULL);
-		add_dynamic_address(state, base + 0x6000, base + 0x6003, NULL, cmos_unlock_w);
-		add_dynamic_address(state, base + 0x7000, base + 0x7003, NULL, vegas_watchdog_w);
+		add_dynamic_address(base + 0x0000, base + 0x0003, sio_irq_clear_r, sio_irq_clear_w);
+		add_dynamic_address(base + 0x1000, base + 0x1003, sio_irq_enable_r, sio_irq_enable_w);
+		add_dynamic_address(base + 0x2000, base + 0x2003, sio_irq_cause_r, NULL);
+		add_dynamic_address(base + 0x3000, base + 0x3003, sio_irq_status_r, NULL);
+		add_dynamic_address(base + 0x4000, base + 0x4003, sio_led_r, sio_led_w);
+		add_dynamic_address(base + 0x5000, base + 0x5007, NOP_HANDLER, NULL);
+		add_dynamic_address(base + 0x6000, base + 0x6003, NULL, cmos_unlock_w);
+		add_dynamic_address(base + 0x7000, base + 0x7003, NULL, vegas_watchdog_w);
 	}
 
 	/* DCS3 */
-	base = state->m_nile_regs[NREG_DCS3] & 0x1fffff00;
-	if (base >= state->m_rambase.bytes())
-		add_dynamic_address(state, base + 0x0000, base + 0x0003, analog_port_r, analog_port_w);
+	base = m_nile_regs[NREG_DCS3] & 0x1fffff00;
+	if (base >= m_rambase.bytes())
+		add_dynamic_address(base + 0x0000, base + 0x0003, analog_port_r, analog_port_w);
 
 	/* DCS4 */
-	base = state->m_nile_regs[NREG_DCS4] & 0x1fffff00;
-	if (base >= state->m_rambase.bytes())
-		add_dynamic_address(state, base + 0x0000, base + 0x7fff, timekeeper_r, timekeeper_w);
+	base = m_nile_regs[NREG_DCS4] & 0x1fffff00;
+	if (base >= m_rambase.bytes())
+		add_dynamic_address(base + 0x0000, base + 0x7fff, timekeeper_r, timekeeper_w);
 
 	/* DCS5 */
-	base = state->m_nile_regs[NREG_DCS5] & 0x1fffff00;
-	if (base >= state->m_rambase.bytes())
-		add_dynamic_address(state, base + 0x0000, base + 0x0003, sio_r, sio_w);
+	base = m_nile_regs[NREG_DCS5] & 0x1fffff00;
+	if (base >= m_rambase.bytes())
+		add_dynamic_address(base + 0x0000, base + 0x0003, sio_r, sio_w);
 
 	/* DCS6 */
-	base = state->m_nile_regs[NREG_DCS6] & 0x1fffff00;
-	if (base >= state->m_rambase.bytes())
+	base = m_nile_regs[NREG_DCS6] & 0x1fffff00;
+	if (base >= m_rambase.bytes())
 	{
-		add_dynamic_address(state, base + 0x0000, base + 0x003f, midway_ioasic_packed_r, midway_ioasic_packed_w);
-		add_dynamic_address(state, base + 0x1000, base + 0x1003, NULL, asic_fifo_w);
-		if (state->m_dcs_idma_cs != 0)
-			add_dynamic_address(state, base + 0x3000, base + 0x3003, NULL, dcs3_fifo_full_w);
-		if (state->m_dcs_idma_cs == 6)
+		add_dynamic_address(base + 0x0000, base + 0x003f, midway_ioasic_packed_r, midway_ioasic_packed_w);
+		add_dynamic_address(base + 0x1000, base + 0x1003, NULL, asic_fifo_w);
+		if (m_dcs_idma_cs != 0)
+			add_dynamic_address(base + 0x3000, base + 0x3003, NULL, dcs3_fifo_full_w);
+		if (m_dcs_idma_cs == 6)
 		{
-			add_dynamic_address(state, base + 0x5000, base + 0x5003, NULL, dsio_idma_addr_w);
-			add_dynamic_address(state, base + 0x7000, base + 0x7003, dsio_idma_data_r, dsio_idma_data_w);
+			add_dynamic_address(base + 0x5000, base + 0x5003, NULL, dsio_idma_addr_w);
+			add_dynamic_address(base + 0x7000, base + 0x7003, dsio_idma_data_r, dsio_idma_data_w);
 		}
 	}
 
 	/* DCS7 */
-	base = state->m_nile_regs[NREG_DCS7] & 0x1fffff00;
-	if (base >= state->m_rambase.bytes())
+	base = m_nile_regs[NREG_DCS7] & 0x1fffff00;
+	if (base >= m_rambase.bytes())
 	{
-		add_dynamic_device_address(state, ethernet, base + 0x1000, base + 0x100f, ethernet_r, ethernet_w);
-		if (state->m_dcs_idma_cs == 7)
+		add_dynamic_device_address(ethernet, base + 0x1000, base + 0x100f, ethernet_r, ethernet_w);
+		if (m_dcs_idma_cs == 7)
 		{
-			add_dynamic_address(state, base + 0x5000, base + 0x5003, NULL, dsio_idma_addr_w);
-			add_dynamic_address(state, base + 0x7000, base + 0x7003, dsio_idma_data_r, dsio_idma_data_w);
+			add_dynamic_address(base + 0x5000, base + 0x5003, NULL, dsio_idma_addr_w);
+			add_dynamic_address(base + 0x7000, base + 0x7003, dsio_idma_data_r, dsio_idma_data_w);
 		}
 	}
 
 	/* PCI config space */
-	if ((state->m_nile_regs[NREG_PCIINIT1] & 0xe) == 0xa)
+	if ((m_nile_regs[NREG_PCIINIT1] & 0xe) == 0xa)
 	{
-		base = state->m_nile_regs[NREG_PCIW1] & 0x1fffff00;
-		if (base >= state->m_rambase.bytes())
+		base = m_nile_regs[NREG_PCIW1] & 0x1fffff00;
+		if (base >= m_rambase.bytes())
 		{
-			add_dynamic_address(state, base + (1 << (21 + 4)) + 0x0000, base + (1 << (21 + 4)) + 0x00ff, pci_3dfx_r, pci_3dfx_w);
-			add_dynamic_address(state, base + (1 << (21 + 5)) + 0x0000, base + (1 << (21 + 5)) + 0x00ff, pci_ide_r, pci_ide_w);
+			add_dynamic_address(base + (1 << (21 + 4)) + 0x0000, base + (1 << (21 + 4)) + 0x00ff, pci_3dfx_r, pci_3dfx_w);
+			add_dynamic_address(base + (1 << (21 + 5)) + 0x0000, base + (1 << (21 + 5)) + 0x00ff, pci_ide_r, pci_ide_w);
 		}
 	}
 
@@ -1640,48 +1674,48 @@ static void remap_dynamic_addresses(running_machine &machine)
 	else
 	{
 		/* IDE controller */
-		base = state->m_pci_ide_regs[0x04] & 0xfffffff0;
-		if (base >= state->m_rambase.bytes() && base < 0x20000000)
-			add_dynamic_device_address(state, ide, base + 0x0000, base + 0x000f, ide_main_r, ide_main_w);
+		base = m_pci_ide_regs[0x04] & 0xfffffff0;
+		if (base >= m_rambase.bytes() && base < 0x20000000)
+			add_dynamic_device_address(ide, base + 0x0000, base + 0x000f, ide_main_r, ide_main_w);
 
-		base = state->m_pci_ide_regs[0x05] & 0xfffffffc;
-		if (base >= state->m_rambase.bytes() && base < 0x20000000)
-			add_dynamic_device_address(state, ide, base + 0x0000, base + 0x0003, ide_alt_r, ide_alt_w);
+		base = m_pci_ide_regs[0x05] & 0xfffffffc;
+		if (base >= m_rambase.bytes() && base < 0x20000000)
+			add_dynamic_device_address(ide, base + 0x0000, base + 0x0003, ide_alt_r, ide_alt_w);
 
-		base = state->m_pci_ide_regs[0x08] & 0xfffffff0;
-		if (base >= state->m_rambase.bytes() && base < 0x20000000)
-			add_dynamic_device_address(state, ide, base + 0x0000, base + 0x0007, ide_bus_master32_r, ide_bus_master32_w);
+		base = m_pci_ide_regs[0x08] & 0xfffffff0;
+		if (base >= m_rambase.bytes() && base < 0x20000000)
+			add_dynamic_device_address(ide, base + 0x0000, base + 0x0007, ide_bus_master32_r, ide_bus_master32_w);
 
 		/* 3dfx card */
-		base = state->m_pci_3dfx_regs[0x04] & 0xfffffff0;
-		if (base >= state->m_rambase.bytes() && base < 0x20000000)
+		base = m_pci_3dfx_regs[0x04] & 0xfffffff0;
+		if (base >= m_rambase.bytes() && base < 0x20000000)
 		{
 			if (voodoo_type == TYPE_VOODOO_2)
-				add_dynamic_device_address(state, state->m_voodoo, base + 0x000000, base + 0xffffff, voodoo_r, voodoo_w);
+				add_dynamic_device_address(m_voodoo, base + 0x000000, base + 0xffffff, voodoo_r, voodoo_w);
 			else
-				add_dynamic_device_address(state, state->m_voodoo, base + 0x000000, base + 0x1ffffff, banshee_r, banshee_w);
+				add_dynamic_device_address(m_voodoo, base + 0x000000, base + 0x1ffffff, banshee_r, banshee_w);
 		}
 
 		if (voodoo_type >= TYPE_VOODOO_BANSHEE)
 		{
-			base = state->m_pci_3dfx_regs[0x05] & 0xfffffff0;
-			if (base >= state->m_rambase.bytes() && base < 0x20000000)
-				add_dynamic_device_address(state, state->m_voodoo, base + 0x0000000, base + 0x1ffffff, banshee_fb_r, banshee_fb_w);
+			base = m_pci_3dfx_regs[0x05] & 0xfffffff0;
+			if (base >= m_rambase.bytes() && base < 0x20000000)
+				add_dynamic_device_address(m_voodoo, base + 0x0000000, base + 0x1ffffff, banshee_fb_r, banshee_fb_w);
 
-			base = state->m_pci_3dfx_regs[0x06] & 0xfffffff0;
-			if (base >= state->m_rambase.bytes() && base < 0x20000000)
-				add_dynamic_device_address(state, state->m_voodoo, base + 0x0000000, base + 0x00000ff, banshee_io_r, banshee_io_w);
+			base = m_pci_3dfx_regs[0x06] & 0xfffffff0;
+			if (base >= m_rambase.bytes() && base < 0x20000000)
+				add_dynamic_device_address(m_voodoo, base + 0x0000000, base + 0x00000ff, banshee_io_r, banshee_io_w);
 
-			base = state->m_pci_3dfx_regs[0x0c] & 0xffff0000;
-			if (base >= state->m_rambase.bytes() && base < 0x20000000)
-				add_dynamic_device_address(state, state->m_voodoo, base + 0x0000000, base + 0x000ffff, banshee_rom_r, NULL);
+			base = m_pci_3dfx_regs[0x0c] & 0xffff0000;
+			if (base >= m_rambase.bytes() && base < 0x20000000)
+				add_dynamic_device_address(m_voodoo, base + 0x0000000, base + 0x000ffff, banshee_rom_r, NULL);
 		}
 	}
 
 	/* now remap everything */
 	if (LOG_DYNAMIC) logerror("remap_dynamic_addresses:\n");
-	address_space &space = machine.device<cpu_device>("maincpu")->space(AS_PROGRAM);
-	for (addr = 0; addr < state->m_dynamic_count; addr++)
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	for (addr = 0; addr < m_dynamic_count; addr++)
 	{
 		if (LOG_DYNAMIC) logerror("  installing: %08X-%08X %s,%s\n", dynamic[addr].start, dynamic[addr].end, dynamic[addr].rdname, dynamic[addr].wrname);
 
@@ -1698,8 +1732,8 @@ static void remap_dynamic_addresses(running_machine &machine)
 
 	if (LOG_DYNAMIC)
 	{
-		++state->m_count;
-		popmessage("Remaps = %d", state->m_count);
+		++m_count;
+		popmessage("Remaps = %d", m_count);
 	}
 }
 
@@ -2232,8 +2266,8 @@ static const voodoo_config voodoo_intf =
 	4,//                tmumem1;
 	"screen",//     screen;
 	"maincpu",//            cputag;
-	vblank_assert,//    vblank;
-	NULL,//             stall;
+	DEVCB_DRIVER_LINE_MEMBER(vegas_state,vblank_assert),//    vblank;
+	DEVCB_NULL//             stall;
 };
 
 static MACHINE_CONFIG_START( vegascore, vegas_state )
@@ -2245,9 +2279,9 @@ static MACHINE_CONFIG_START( vegascore, vegas_state )
 
 	MCFG_M48T37_ADD("timekeeper")
 
-	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF, vegas_state, ide_interrupt))
-	MCFG_IDE_CONTROLLER_BUS_MASTER("maincpu", AS_PROGRAM)
+	MCFG_BUS_MASTER_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
+	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(vegas_state, ide_interrupt))
+	MCFG_BUS_MASTER_IDE_CONTROLLER_SPACE("maincpu", AS_PROGRAM)
 
 	MCFG_SMC91C94_ADD("ethernet", ethernet_intf)
 
@@ -2290,8 +2324,8 @@ static const voodoo_config vegasban_voodoo_intf =
 	0,//                tmumem1;
 	"screen",//     screen;
 	"maincpu",//            cputag;
-	vblank_assert,//    vblank;
-	NULL,//             stall;
+	DEVCB_DRIVER_LINE_MEMBER(vegas_state,vblank_assert),//    vblank;
+	DEVCB_NULL//             stall;
 };
 static MACHINE_CONFIG_DERIVED( vegasban, vegascore )
 	MCFG_FRAGMENT_ADD(dcs2_audio_2104)
@@ -2485,10 +2519,10 @@ ROM_END
  *
  *************************************/
 
-static void init_common(running_machine &machine, int ioasic, int serialnum)
+void vegas_state::init_common(int ioasic, int serialnum)
 {
 	/* initialize the subsystems */
-	midway_ioasic_init(machine, ioasic, serialnum, 80, ioasic_irq);
+	midway_ioasic_init(machine(), ioasic, serialnum, 80, ioasic_irq);
 	midway_ioasic_set_auto_ack(1);
 }
 
@@ -2496,70 +2530,70 @@ static void init_common(running_machine &machine, int ioasic, int serialnum)
 DRIVER_INIT_MEMBER(vegas_state,gauntleg)
 {
 	dcs2_init(machine(), 4, 0x0b5d);
-	init_common(machine(), MIDWAY_IOASIC_CALSPEED, 340/* 340=39", 322=27", others? */);
+	init_common(MIDWAY_IOASIC_CALSPEED, 340/* 340=39", 322=27", others? */);
 
 	/* speedups */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x80015430, 0x8CC38060, 250);     /* confirmed */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x80015464, 0x3C09801E, 250);     /* confirmed */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x800C8918, 0x8FA2004C, 250);     /* confirmed */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x800C8890, 0x8FA20024, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x80015430, 0x8CC38060, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x80015464, 0x3C09801E, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x800C8918, 0x8FA2004C, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x800C8890, 0x8FA20024, 250);     /* confirmed */
 }
 
 
 DRIVER_INIT_MEMBER(vegas_state,gauntdl)
 {
 	dcs2_init(machine(), 4, 0x0b5d);
-	init_common(machine(), MIDWAY_IOASIC_GAUNTDL, 346/* 347, others? */);
+	init_common(MIDWAY_IOASIC_GAUNTDL, 346/* 347, others? */);
 
 	/* speedups */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x800158B8, 0x8CC3CC40, 250);     /* confirmed */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x800158EC, 0x3C0C8022, 250);     /* confirmed */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x800D40C0, 0x8FA2004C, 250);     /* confirmed */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x800D4038, 0x8FA20024, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x800158B8, 0x8CC3CC40, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x800158EC, 0x3C0C8022, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x800D40C0, 0x8FA2004C, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x800D4038, 0x8FA20024, 250);     /* confirmed */
 }
 
 
 DRIVER_INIT_MEMBER(vegas_state,warfa)
 {
 	dcs2_init(machine(), 4, 0x0b5d);
-	init_common(machine(), MIDWAY_IOASIC_MACE, 337/* others? */);
+	init_common(MIDWAY_IOASIC_MACE, 337/* others? */);
 
 	/* speedups */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x8009436C, 0x0C031663, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x8009436C, 0x0C031663, 250);     /* confirmed */
 }
 
 
 DRIVER_INIT_MEMBER(vegas_state,tenthdeg)
 {
 	dcs2_init(machine(), 4, 0x0afb);
-	init_common(machine(), MIDWAY_IOASIC_GAUNTDL, 330/* others? */);
+	init_common(MIDWAY_IOASIC_GAUNTDL, 330/* others? */);
 
 	/* speedups */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x80051CD8, 0x0C023C15, 250);     /* confirmed */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x8005E674, 0x3C028017, 250);     /* confirmed */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x8002DBCC, 0x8FA2002C, 250);     /* confirmed */
-	mips3drc_add_hotspot(machine().device("maincpu"), 0x80015930, 0x8FC20244, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x80051CD8, 0x0C023C15, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x8005E674, 0x3C028017, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x8002DBCC, 0x8FA2002C, 250);     /* confirmed */
+	mips3drc_add_hotspot(m_maincpu, 0x80015930, 0x8FC20244, 250);     /* confirmed */
 }
 
 
 DRIVER_INIT_MEMBER(vegas_state,roadburn)
 {
 	dcs2_init(machine(), 4, 0); /* no place to hook :-( */
-	init_common(machine(), MIDWAY_IOASIC_STANDARD, 325/* others? */);
+	init_common(MIDWAY_IOASIC_STANDARD, 325/* others? */);
 }
 
 
 DRIVER_INIT_MEMBER(vegas_state,nbashowt)
 {
 	dcs2_init(machine(), 4, 0);
-	init_common(machine(), MIDWAY_IOASIC_MACE, 528/* or 478 or 487 */);
+	init_common(MIDWAY_IOASIC_MACE, 528/* or 478 or 487 */);
 }
 
 
 DRIVER_INIT_MEMBER(vegas_state,nbanfl)
 {
 	dcs2_init(machine(), 4, 0);
-	init_common(machine(), MIDWAY_IOASIC_BLITZ99, 498/* or 478 or 487 */);
+	init_common(MIDWAY_IOASIC_BLITZ99, 498/* or 478 or 487 */);
 	/* NOT: MACE */
 }
 
@@ -2567,28 +2601,28 @@ DRIVER_INIT_MEMBER(vegas_state,nbanfl)
 DRIVER_INIT_MEMBER(vegas_state,sf2049)
 {
 	dcs2_init(machine(), 8, 0);
-	init_common(machine(), MIDWAY_IOASIC_STANDARD, 336/* others? */);
+	init_common(MIDWAY_IOASIC_STANDARD, 336/* others? */);
 }
 
 
 DRIVER_INIT_MEMBER(vegas_state,sf2049se)
 {
 	dcs2_init(machine(), 8, 0);
-	init_common(machine(), MIDWAY_IOASIC_SFRUSHRK, 336/* others? */);
+	init_common(MIDWAY_IOASIC_SFRUSHRK, 336/* others? */);
 }
 
 
 DRIVER_INIT_MEMBER(vegas_state,sf2049te)
 {
 	dcs2_init(machine(), 8, 0);
-	init_common(machine(), MIDWAY_IOASIC_SFRUSHRK, 348/* others? */);
+	init_common(MIDWAY_IOASIC_SFRUSHRK, 348/* others? */);
 }
 
 
 DRIVER_INIT_MEMBER(vegas_state,cartfury)
 {
 	dcs2_init(machine(), 4, 0);
-	init_common(machine(), MIDWAY_IOASIC_CARNEVIL, 495/* others? */);
+	init_common(MIDWAY_IOASIC_CARNEVIL, 495/* others? */);
 }
 
 
