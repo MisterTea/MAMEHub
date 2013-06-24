@@ -532,20 +532,25 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 						@Override
 						public void actionPerformed(ActionEvent arg0) {
-							int originalRow = gameTable
-									.convertRowIndexToModel(gameTable
-											.getSelectedRow());
-							RomInfo gameRomInfo = gameListModel.rowRomMap
-									.get(originalRow);
-							System.out.println("Giving " + gameRomInfo + " "
-									+ starCount + " STARS");
-							PlayerProfile playerProfile = Utils
-									.getPlayerProfile(rpcEngine);
-							playerProfile.romProfiles.put(gameRomInfo.id,
-									new PlayerRomProfile(gameRomInfo.id,
-											starCount, null));
-							Utils.commitProfile(rpcEngine);
-							updateGameTree(gameListModel);
+							try {
+								int originalRow = gameTable
+										.convertRowIndexToModel(gameTable
+												.getSelectedRow());
+								RomInfo gameRomInfo = gameListModel.rowRomMap
+										.get(originalRow);
+								logger.info("Giving " + gameRomInfo + " "
+										+ starCount + " STARS");
+								PlayerProfile playerProfile = Utils
+										.getPlayerProfile(rpcEngine);
+								playerProfile.romProfiles.put(gameRomInfo.id,
+										new PlayerRomProfile(gameRomInfo.id,
+												starCount, null));
+								Utils.commitProfile(rpcEngine);
+								updateGameTree(gameListModel);
+							} catch (Exception e) {
+								logger.error(
+										"Exception trying to assign rating", e);
+							}
 						}
 					});
 				}
@@ -650,6 +655,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		panel_6.add(lblNewLabel_1);
 
 		machineComboBox = new JComboBox<String>();
+		machineComboBox.addItem("All");
 		machineComboBox.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				updateGameList();
@@ -1373,11 +1379,12 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		if (!gameSearchTextBox.getText().isEmpty()) {
 			// Add items in search relevance order
 			for (RomInfo romInfo : searchResults) {
-				if (romInfo.system == null) {
+				if (!romInfo.softwareLists.isEmpty() || romInfo.system == null) {
 					// Don't add systems.
 					continue;
 				}
-				if (!machineComboBox.getSelectedItem().equals("All")
+				if (machineComboBox.getSelectedItem() != null
+						&& !machineComboBox.getSelectedItem().equals("All")
 						&& !machineComboBox.getSelectedItem().equals(
 								romInfo.system)) {
 					// Filter by machine
@@ -1393,11 +1400,12 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			for (Map.Entry<String, RomInfo> entry : mameHubEngine
 					.getMameRomInfoMap().entrySet()) {
 				RomInfo romInfo = entry.getValue();
-				if (romInfo.system == null) {
+				if (!romInfo.softwareLists.isEmpty() || romInfo.system == null) {
 					// Don't add systems.
 					continue;
 				}
-				if (!machineComboBox.getSelectedItem().equals("All")
+				if (machineComboBox.getSelectedItem() != null
+						&& !machineComboBox.getSelectedItem().equals("All")
 						&& !machineComboBox.getSelectedItem().equals(
 								romInfo.system)) {
 					// Filter by machine
@@ -1416,7 +1424,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			for (Map.Entry<String, RomInfo> messRomEntry : mameHubEngine
 					.getMessRomInfoMap().entrySet()) {
 				String system = messRomEntry.getKey();
-				if (!machineComboBox.getSelectedItem().equals("All")
+				if (machineComboBox.getSelectedItem() != null
+						&& !machineComboBox.getSelectedItem().equals("All")
 						&& !machineComboBox.getSelectedItem().equals(system)) {
 					// Filter by machine
 					continue;

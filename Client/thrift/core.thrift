@@ -9,6 +9,7 @@ enum MR
 	MISSING_CLONE,
 	MISSING_PARENT,
 	MISSING_SYSTEM,
+	MISSING_CHD,
 }
 
 struct SoftwareList
