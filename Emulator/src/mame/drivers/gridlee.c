@@ -87,10 +87,6 @@
 /* constants */
 #define FIRQ_SCANLINE 92
 
-
-/* local prototypes */
-static void poly17_init(running_machine &machine);
-
 /*************************************
  *
  *  Interrupt handling
@@ -99,7 +95,7 @@ static void poly17_init(running_machine &machine);
 
 TIMER_CALLBACK_MEMBER(gridlee_state::irq_off_tick)
 {
-	machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
+	m_maincpu->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 }
 
 
@@ -112,7 +108,7 @@ TIMER_CALLBACK_MEMBER(gridlee_state::irq_timer_tick)
 		m_irq_timer->adjust(machine().primary_screen->time_until_pos(param + 64), param + 64);
 
 	/* IRQ starts on scanline 0, 64, 128, etc. */
-	machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
+	m_maincpu->set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
 
 	/* it will turn off on the next HBLANK */
 	m_irq_off->adjust(machine().primary_screen->time_until_pos(param, GRIDLEE_HBSTART));
@@ -121,7 +117,7 @@ TIMER_CALLBACK_MEMBER(gridlee_state::irq_timer_tick)
 
 TIMER_CALLBACK_MEMBER(gridlee_state::firq_off_tick)
 {
-	machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, CLEAR_LINE);
+	m_maincpu->set_input_line(M6809_FIRQ_LINE, CLEAR_LINE);
 }
 
 
@@ -131,7 +127,7 @@ TIMER_CALLBACK_MEMBER(gridlee_state::firq_timer_tick)
 	m_firq_timer->adjust(machine().primary_screen->time_until_pos(FIRQ_SCANLINE));
 
 	/* IRQ starts on scanline FIRQ_SCANLINE? */
-	machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, ASSERT_LINE);
+	m_maincpu->set_input_line(M6809_FIRQ_LINE, ASSERT_LINE);
 
 	/* it will turn off on the next HBLANK */
 	m_firq_off->adjust(machine().primary_screen->time_until_pos(FIRQ_SCANLINE, GRIDLEE_HBSTART));
@@ -139,13 +135,11 @@ TIMER_CALLBACK_MEMBER(gridlee_state::firq_timer_tick)
 
 void gridlee_state::machine_start()
 {
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	/* create the polynomial tables */
-	poly17_init(machine());
+	poly17_init();
 
-	state_save_register_global_array(machine(), m_last_analog_input);
-	state_save_register_global_array(machine(), m_last_analog_output);
+	save_item(NAME(m_last_analog_input));
+	save_item(NAME(m_last_analog_output));
 
 	m_irq_off = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(gridlee_state::irq_off_tick),this));
 	m_irq_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(gridlee_state::irq_timer_tick),this));
@@ -221,15 +215,14 @@ READ8_MEMBER(gridlee_state::analog_port_r)
 #define POLY17_SHR  10
 #define POLY17_ADD  0x18000
 
-static void poly17_init(running_machine &machine)
+void gridlee_state::poly17_init()
 {
-	gridlee_state *state = machine.driver_data<gridlee_state>();
 	UINT32 i, x = 0;
 	UINT8 *p, *r;
 
 	/* allocate memory */
-	p = state->m_poly17 = auto_alloc_array(machine, UINT8, 2 * (POLY17_SIZE + 1));
-	r = state->m_rand17 = state->m_poly17 + POLY17_SIZE + 1;
+	p = m_poly17 = auto_alloc_array(machine(), UINT8, 2 * (POLY17_SIZE + 1));
+	r = m_rand17 = m_poly17 + POLY17_SIZE + 1;
 
 	/* generate the polynomial */
 	for (i = 0; i < POLY17_SIZE; i++)
@@ -316,7 +309,7 @@ static ADDRESS_MAP_START( cpu1_map, AS_PROGRAM, 8, gridlee_state )
 	AM_RANGE(0x9600, 0x9600) AM_READ_PORT("DSW")
 	AM_RANGE(0x9700, 0x9700) AM_READ_PORT("IN2") AM_WRITENOP
 	AM_RANGE(0x9820, 0x9820) AM_READ(random_num_r)
-	AM_RANGE(0x9828, 0x993f) AM_DEVWRITE_LEGACY("gridlee", gridlee_sound_w)
+	AM_RANGE(0x9828, 0x993f) AM_DEVWRITE("gridlee", gridlee_sound_device, gridlee_sound_w)
 	AM_RANGE(0x9c00, 0x9cff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0xa000, 0xffff) AM_ROM
 ADDRESS_MAP_END

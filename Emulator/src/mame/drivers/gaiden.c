@@ -138,7 +138,6 @@ Notes:
 
 WRITE16_MEMBER(gaiden_state::gaiden_sound_command_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 		soundlatch_byte_w(space, 0, data & 0xff);   /* Ninja Gaiden */
 	if (ACCESSING_BITS_8_15)
@@ -148,7 +147,6 @@ WRITE16_MEMBER(gaiden_state::gaiden_sound_command_w)
 
 WRITE16_MEMBER(gaiden_state::drgnbowl_sound_command_w)
 {
-
 	if (ACCESSING_BITS_8_15)
 	{
 		soundlatch_byte_w(space, 0, data >> 8);
@@ -164,7 +162,6 @@ WRITE16_MEMBER(gaiden_state::drgnbowl_sound_command_w)
 
 WRITE16_MEMBER(gaiden_state::wildfang_protection_w)
 {
-
 	if (ACCESSING_BITS_8_15)
 	{
 		static const int jumppoints[] =
@@ -291,7 +288,6 @@ static const int jumppoints_other[0x100] =
 
 MACHINE_RESET_MEMBER(gaiden_state,raiga)
 {
-
 	m_prot = 0;
 	m_jumpcode = 0;
 
@@ -310,8 +306,6 @@ MACHINE_RESET_MEMBER(gaiden_state,raiga)
 
 MACHINE_START_MEMBER(gaiden_state,raiga)
 {
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_prot));
 	save_item(NAME(m_jumpcode));
 
@@ -330,7 +324,6 @@ MACHINE_START_MEMBER(gaiden_state,raiga)
 
 WRITE16_MEMBER(gaiden_state::raiga_protection_w)
 {
-
 	if (ACCESSING_BITS_8_15)
 	{
 		data >>= 8;
@@ -435,8 +428,8 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, gaiden_state )
 	AM_RANGE(0xe000, 0xefff) AM_ROM /* raiga only */
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf800) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0xf810, 0xf811) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0xf820, 0xf821) AM_DEVWRITE_LEGACY("ym2", ym2203_w)
+	AM_RANGE(0xf810, 0xf811) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0xf820, 0xf821) AM_DEVWRITE("ym2", ym2203_device, write)
 	AM_RANGE(0xfc00, 0xfc00) AM_NOP /* ?? */
 	AM_RANGE(0xfc20, 0xfc20) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -743,20 +736,16 @@ static GFXDECODE_START( drgnbowl )
 GFXDECODE_END
 
 /* handler called by the 2203 emulator when the internal timers cause an IRQ */
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(gaiden_state::irqhandler)
 {
-	gaiden_state *state = device->machine().driver_data<gaiden_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 static MACHINE_CONFIG_START( shadoww, gaiden_state )
@@ -790,7 +779,8 @@ static MACHINE_CONFIG_START( shadoww, gaiden_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 4000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(gaiden_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -901,8 +891,8 @@ Others
 static ADDRESS_MAP_START( mastninj_sound_map, AS_PROGRAM, 8, gaiden_state )
 	AM_RANGE(0x0000, 0xdfff) AM_ROM
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
-	AM_RANGE(0xc400, 0xc401) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE_LEGACY("ym2", ym2203_w)
+	AM_RANGE(0xc400, 0xc401) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE("ym2", ym2203_device, write)
 //  AM_RANGE(0xfc00, 0xfc00) AM_NOP /* ?? */
 //  AM_RANGE(0xfc20, 0xfc20) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -962,7 +952,8 @@ static MACHINE_CONFIG_START( mastninj, gaiden_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 4000000) /* ?? MHz */
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(gaiden_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -1495,8 +1486,8 @@ DRIVER_INIT_MEMBER(gaiden_state,wildfang)
 
 	m_prot = 0;
 	m_jumpcode = 0;
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x07a006, 0x07a007, read16_delegate(FUNC(gaiden_state::wildfang_protection_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x07a804, 0x07a805, write16_delegate(FUNC(gaiden_state::wildfang_protection_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x07a006, 0x07a007, read16_delegate(FUNC(gaiden_state::wildfang_protection_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x07a804, 0x07a805, write16_delegate(FUNC(gaiden_state::wildfang_protection_w),this));
 }
 
 DRIVER_INIT_MEMBER(gaiden_state,raiga)
@@ -1507,16 +1498,16 @@ DRIVER_INIT_MEMBER(gaiden_state,raiga)
 
 	m_prot = 0;
 	m_jumpcode = 0;
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x07a006, 0x07a007, read16_delegate(FUNC(gaiden_state::raiga_protection_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x07a804, 0x07a805, write16_delegate(FUNC(gaiden_state::raiga_protection_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x07a006, 0x07a007, read16_delegate(FUNC(gaiden_state::raiga_protection_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x07a804, 0x07a805, write16_delegate(FUNC(gaiden_state::raiga_protection_w),this));
 }
 
-static void descramble_drgnbowl_gfx(running_machine &machine)
+void gaiden_state::descramble_drgnbowl_gfx()
 {
 	int i;
-	UINT8 *ROM = machine.root_device().memregion("maincpu")->base();
-	size_t size = machine.root_device().memregion("maincpu")->bytes();
-	UINT8 *buffer = auto_alloc_array(machine, UINT8, size);
+	UINT8 *ROM = memregion("maincpu")->base();
+	size_t size = memregion("maincpu")->bytes();
+	UINT8 *buffer = auto_alloc_array(machine(), UINT8, size);
 
 	memcpy(buffer, ROM, size);
 	for( i = 0; i < size; i++ )
@@ -1529,16 +1520,15 @@ static void descramble_drgnbowl_gfx(running_machine &machine)
 								3, 2, 1, 0)];
 	}
 
-	auto_free(machine, buffer);
+	auto_free(machine(), buffer);
 
-	ROM = machine.root_device().memregion("gfx2")->base();
-	size = machine.root_device().memregion("gfx2")->bytes();
-	buffer = auto_alloc_array(machine, UINT8, size);
+	ROM = memregion("gfx2")->base();
+	size = memregion("gfx2")->bytes();
+	buffer = auto_alloc_array(machine(), UINT8, size);
 
 	memcpy(buffer,ROM,size);
 	for( i = 0; i < size; i++ )
 	{
-
 		ROM[i] = buffer[BITSWAP24(i,23,22,21,20,
 									19,18,16,17,
 									15,14,13, 4,
@@ -1547,23 +1537,23 @@ static void descramble_drgnbowl_gfx(running_machine &machine)
 										5, 2, 1, 0)];
 	}
 
-	auto_free(machine, buffer);
+	auto_free(machine(), buffer);
 }
 
 DRIVER_INIT_MEMBER(gaiden_state,drgnbowl)
 {
 	m_raiga_jumppoints = jumppoints_00;
 
-	descramble_drgnbowl_gfx(machine());
+	descramble_drgnbowl_gfx();
 }
 
-static void descramble_mastninj_gfx(running_machine &machine, UINT8* src)
+void gaiden_state::descramble_mastninj_gfx(UINT8* src)
 {
 	UINT8 *buffer;
 	int len = 0x80000;
 
 	/*  rearrange gfx */
-	buffer = auto_alloc_array(machine, UINT8, len);
+	buffer = auto_alloc_array(machine(), UINT8, len);
 	{
 		int i;
 		for (i = 0;i < len; i++)
@@ -1577,10 +1567,10 @@ static void descramble_mastninj_gfx(running_machine &machine, UINT8* src)
 			3,2,1,0)];
 		}
 		memcpy(src, buffer, len);
-		auto_free(machine, buffer);
+		auto_free(machine(), buffer);
 	}
 
-	buffer = auto_alloc_array(machine, UINT8, len);
+	buffer = auto_alloc_array(machine(), UINT8, len);
 	{
 		int i;
 		for (i = 0; i < len; i++)
@@ -1594,15 +1584,15 @@ static void descramble_mastninj_gfx(running_machine &machine, UINT8* src)
 			3,2,1,0)];
 		}
 		memcpy(src, buffer, len);
-		auto_free(machine, buffer);
+		auto_free(machine(), buffer);
 	}
 }
 
 DRIVER_INIT_MEMBER(gaiden_state,mastninj)
 {
 	// rearrange the graphic roms into a format that MAME can decode
-	descramble_mastninj_gfx(machine(), machine().root_device().memregion("gfx2")->base());
-	descramble_mastninj_gfx(machine(), machine().root_device().memregion("gfx3")->base());
+	descramble_mastninj_gfx(memregion("gfx2")->base());
+	descramble_mastninj_gfx(memregion("gfx3")->base());
 	DRIVER_INIT_CALL(shadoww);
 }
 

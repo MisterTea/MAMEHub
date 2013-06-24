@@ -2,9 +2,15 @@ class vsnes_state : public driver_device
 {
 public:
 	vsnes_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"),
 		m_work_ram(*this, "work_ram"),
-		m_work_ram_1(*this, "work_ram_1"){ }
+		m_work_ram_1(*this, "work_ram_1")
+		{ }
+
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_subcpu;
 
 	required_shared_ptr<UINT8> m_work_ram;
 	optional_shared_ptr<UINT8> m_work_ram_1;
@@ -69,7 +75,8 @@ public:
 	DECLARE_WRITE8_MEMBER(mapper68_rom_banking);
 	DECLARE_WRITE8_MEMBER(set_bnglngby_irq_w);
 	DECLARE_READ8_MEMBER(set_bnglngby_irq_r);
-	DECLARE_WRITE8_MEMBER(vsdual_vrom_banking);
+	DECLARE_WRITE8_MEMBER(vsdual_vrom_banking_main);
+	DECLARE_WRITE8_MEMBER(vsdual_vrom_banking_sub);
 	void v_set_mirroring(int ppu, int mirroring);
 	DECLARE_READ8_MEMBER(psg1_4015_r);
 	DECLARE_WRITE8_MEMBER(psg1_4015_w);
@@ -101,6 +108,12 @@ public:
 	DECLARE_PALETTE_INIT(vsdual);
 	UINT32 screen_update_vsnes(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_vsnes_bottom(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void v_set_videorom_bank(  int start, int count, int vrom_start_bank );
+	void mapper4_set_prg(  );
+	void mapper4_set_chr(  );
+	void mapper4_irq( int scanline, int vblank, int blanked );
+	void ppu_irq_1(int *ppu_regs);
+	void ppu_irq_2(int *ppu_regs);
 };
 
 /*----------- defined in video/vsnes.c -----------*/

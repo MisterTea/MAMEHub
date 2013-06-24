@@ -12,6 +12,7 @@
 #include "machine/pit8253.h"
 #include "machine/pic8259.h"
 #include "machine/ram.h"
+#include "machine/serial.h"
 #include "machine/tandy2kb.h"
 #include "machine/upd765.h"
 #include "sound/speaker.h"
@@ -34,6 +35,7 @@
 #define WD1010_TAG      "u18"
 #define WD1100_11_TAG   "u12"
 #define CENTRONICS_TAG  "centronics"
+#define RS232_TAG       "rs232"
 
 class tandy2k_state : public driver_device
 {
@@ -51,7 +53,7 @@ public:
 			m_drb1(*this, CRT9212_1_TAG),
 			m_vac(*this, CRT9021B_TAG),
 			m_centronics(*this, CENTRONICS_TAG),
-			m_speaker(*this, SPEAKER_TAG),
+			m_speaker(*this, "speaker"),
 			m_ram(*this, RAM_TAG),
 			m_floppy0(*this, I8272A_TAG ":0:525qd"),
 			m_floppy1(*this, I8272A_TAG ":1:525qd"),

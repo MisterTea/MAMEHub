@@ -181,6 +181,9 @@ void tms99xx_device::device_start()
 	// set our instruction counter
 	m_icountptr = &m_icount;
 
+	m_state_any = 0;
+	PC = 0;
+
 	// add the states for the debugger
 	for (int i=0; i < 20; i++)
 	{
@@ -212,6 +215,9 @@ void tms99xx_device::device_reset()
 {
 	if (VERBOSE>3) LOG("tms99xx: Device reset\n");
 	m_reset = true;
+	m_check_ready = false;
+	m_wait_state = false;
+	ST = 0;
 }
 
 const char* tms99xx_device::s_statename[20] =
@@ -2577,7 +2583,8 @@ UINT32 tms99xx_device::disasm_max_opcode_bytes() const
 
 offs_t tms99xx_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options)
 {
-	return Dasm9900(buffer, pc, TMS9900_ID, oprom, opram);
+	extern CPU_DISASSEMBLE( tms9900 );
+	return CPU_DISASSEMBLE_NAME(tms9900)(this, buffer, pc, oprom, opram, options);
 }
 
 

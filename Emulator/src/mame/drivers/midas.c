@@ -61,8 +61,10 @@ class midas_state : public driver_device
 {
 public:
 	midas_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_gfxregs(*this, "gfxregs"){ }
+		: driver_device(mconfig, type, tag),
+		m_gfxregs(*this, "gfxregs"),
+		m_maincpu(*this, "maincpu"),
+		m_eeprom(*this, "eeprom") { }
 
 	UINT16 *m_gfxram;
 	required_shared_ptr<UINT16> m_gfxregs;
@@ -79,6 +81,10 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_midas(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(livequiz_irqhandler);
+	required_device<cpu_device> m_maincpu;
+	required_device<eeprom_device> m_eeprom;
 };
 
 
@@ -101,11 +107,10 @@ void midas_state::video_start()
 	m_tmap->set_transparent_pen(0);
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void midas_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	midas_state *state = machine.driver_data<midas_state>();
-	UINT16 *s       =   state->m_gfxram + 0x8000;
-	UINT16 *codes   =   state->m_gfxram;
+	UINT16 *s       =   m_gfxram + 0x8000;
+	UINT16 *codes   =   m_gfxram;
 
 	int sx_old = 0, sy_old = 0, ynum_old = 0, xzoom_old = 0;
 	int xdim, ydim, xscale, yscale;
@@ -175,7 +180,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 			UINT16 code     =   codes[y*2];
 			UINT16 attr     =   codes[y*2+1];
 
-			drawgfxzoom_transpen(   bitmap, cliprect, machine.gfx[0],
+			drawgfxzoom_transpen(   bitmap, cliprect, machine().gfx[0],
 							code,
 							attr >> 8,
 							attr & 1, attr & 2,
@@ -201,7 +206,7 @@ UINT32 midas_state::screen_update_midas(screen_device &screen, bitmap_ind16 &bit
 
 	bitmap.fill(4095, cliprect);
 
-	if (layers_ctrl & 2)    draw_sprites(machine(), bitmap,cliprect);
+	if (layers_ctrl & 2)    draw_sprites(bitmap,cliprect);
 	if (layers_ctrl & 1)    m_tmap->draw(bitmap, cliprect, 0, 0);
 
 	return 0;
@@ -209,18 +214,16 @@ UINT32 midas_state::screen_update_midas(screen_device &screen, bitmap_ind16 &bit
 
 WRITE16_MEMBER(midas_state::midas_eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (ACCESSING_BITS_0_7)
 	{
 		// latch the bit
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x04);
+		m_eeprom->write_bit(data & 0x04);
 
 		// reset line asserted: reset.
-		eeprom->set_cs_line((data & 0x01) ? CLEAR_LINE : ASSERT_LINE );
+		m_eeprom->set_cs_line((data & 0x01) ? CLEAR_LINE : ASSERT_LINE );
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line((data & 0x02) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->set_clock_line((data & 0x02) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 
@@ -285,7 +288,7 @@ static ADDRESS_MAP_START( livequiz_map, AS_PROGRAM, 16, midas_state )
 	AM_RANGE(0xb40000, 0xb40001) AM_READ(ret_ffff )
 	AM_RANGE(0xb60000, 0xb60001) AM_READ(ret_ffff )
 
-	AM_RANGE(0xb80008, 0xb8000b) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x00ff )
+	AM_RANGE(0xb80008, 0xb8000b) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x00ff )
 
 	AM_RANGE(0xba0000, 0xba0001) AM_READ_PORT("START3")
 	AM_RANGE(0xbc0000, 0xbc0001) AM_READ_PORT("PLAYER3")
@@ -364,7 +367,7 @@ static ADDRESS_MAP_START( hammer_map, AS_PROGRAM, 16, midas_state )
 	AM_RANGE(0xb40000, 0xb40001) AM_READ(ret_ffff )
 	AM_RANGE(0xb60000, 0xb60001) AM_READ(ret_ffff )
 
-	AM_RANGE(0xb80008, 0xb8000b) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x00ff )
+	AM_RANGE(0xb80008, 0xb8000b) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x00ff )
 
 	AM_RANGE(0xba0000, 0xba0001) AM_READ_PORT("IN1")
 	AM_RANGE(0xbc0000, 0xbc0001) AM_READ_PORT("HAMMER")
@@ -686,15 +689,10 @@ static INPUT_PORTS_START( hammer )
 INPUT_PORTS_END
 
 
-static void livequiz_irqhandler(device_t *device, int state)
+WRITE_LINE_MEMBER(midas_state::livequiz_irqhandler)
 {
 	logerror("YMZ280 is generating an interrupt. State=%08x\n",state);
 }
-
-static const ymz280b_interface ymz280b_config =
-{
-	livequiz_irqhandler
-};
 
 static MACHINE_CONFIG_START( livequiz, midas_state )
 
@@ -720,7 +718,7 @@ static MACHINE_CONFIG_START( livequiz, midas_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_config)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(midas_state, livequiz_irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.80)
 MACHINE_CONFIG_END
@@ -753,7 +751,7 @@ static MACHINE_CONFIG_START( hammer, midas_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_config)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(midas_state, livequiz_irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.80)
 MACHINE_CONFIG_END
@@ -870,7 +868,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(midas_state,livequiz)
 {
-	UINT16 *rom = (UINT16 *) machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *) memregion("maincpu")->base();
 
 	// PROTECTION CHECKS
 	rom[0x13345a/2] =   0x4e75;

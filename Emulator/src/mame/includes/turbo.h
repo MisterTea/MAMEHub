@@ -7,7 +7,7 @@
 #include "cpu/z80/z80.h"
 #include "machine/i8255.h"
 #include "sound/discrete.h"
-
+#include "sound/samples.h"
 /* sprites are scaled in the analog domain; to give a better */
 /* rendition of this, we scale in the X direction by this factor */
 #define TURBO_X_SCALE       2
@@ -28,7 +28,8 @@ public:
 		m_gfx1(*this, "gfx1"),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
-		m_sprite_position(*this, "spritepos")
+		m_sprite_position(*this, "spritepos"),
+		m_samples(*this, "samples")
 	{ }
 
 	/* device/memory pointers */
@@ -43,6 +44,8 @@ public:
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_spriteram;
 	required_shared_ptr<UINT8> m_sprite_position;
+
+	required_device<samples_device> m_samples;
 
 	UINT8 *     m_buckrog_bitmap_ram;
 
@@ -92,6 +95,17 @@ public:
 	UINT8       m_buckrog_myship;
 	int m_last_sound_a;
 
+	struct sprite_info
+	{
+		UINT16  ve;                 /* VE0-15 signals for this row */
+		UINT8   lst;                /* LST0-7 signals for this row */
+		UINT32  latched[8];         /* latched pixel data */
+		UINT8   plb[8];             /* latched PLB state */
+		UINT32  offset[8];          /* current offset for this row */
+		UINT32  frac[8];            /* leftover fraction */
+		UINT32  step[8];            /* stepping value */
+	};
+
 	DECLARE_WRITE8_MEMBER(scanlines_w);
 	DECLARE_WRITE8_MEMBER(digit_w);
 	DECLARE_READ8_MEMBER(turbo_collision_r);
@@ -140,6 +154,14 @@ public:
 	DECLARE_WRITE8_MEMBER(subroc3d_sound_c_w);
 	DECLARE_WRITE8_MEMBER(buckrog_sound_a_w);
 	DECLARE_WRITE8_MEMBER(buckrog_sound_b_w);
+	inline UINT32 sprite_xscale(UINT8 dacinput, double vr1, double vr2, double cext);
+	void turbo_prepare_sprites(UINT8 y, sprite_info *info);
+	UINT32 turbo_get_sprite_bits(const UINT8 *sprite_gfxdata, UINT8 road, sprite_info *sprinfo);
+	void subroc3d_prepare_sprites(UINT8 y, sprite_info *info);
+	UINT32 subroc3d_get_sprite_bits(const UINT8 *sprite_gfxdata, sprite_info *sprinfo, UINT8 *plb);
+	void buckrog_prepare_sprites(UINT8 y, sprite_info *info);
+	UINT32 buckrog_get_sprite_bits(const UINT8 *sprite_gfxdata, sprite_info *sprinfo, UINT8 *plb);
+	void turbo_rom_decode();
 };
 
 

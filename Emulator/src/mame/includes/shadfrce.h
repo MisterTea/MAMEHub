@@ -1,12 +1,17 @@
+#include "sound/okim6295.h"
+
 class shadfrce_state : public driver_device
 {
 public:
 	shadfrce_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fgvideoram(*this, "fgvideoram"),
 		m_bg0videoram(*this, "bg0videoram"),
 		m_bg1videoram(*this, "bg1videoram"),
-		m_spvideoram(*this, "spvideoram"){ }
+		m_spvideoram(*this, "spvideoram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_oki(*this, "oki") { }
 
 	tilemap_t *m_fgtilemap;
 	tilemap_t *m_bg0tilemap;
@@ -45,4 +50,8 @@ public:
 	UINT32 screen_update_shadfrce(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_shadfrce(screen_device &screen, bool state);
 	TIMER_DEVICE_CALLBACK_MEMBER(shadfrce_scanline);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<okim6295_device> m_oki;
 };

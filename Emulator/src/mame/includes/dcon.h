@@ -2,13 +2,14 @@ class dcon_state : public driver_device
 {
 public:
 	dcon_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_back_data(*this, "back_data"),
 		m_fore_data(*this, "fore_data"),
 		m_mid_data(*this, "mid_data"),
 		m_textram(*this, "textram"),
 		m_spriteram(*this, "spriteram"),
-		m_scroll_ram(*this, "scroll_ram"){ }
+		m_scroll_ram(*this, "scroll_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_back_data;
 	required_shared_ptr<UINT16> m_fore_data;
@@ -39,4 +40,6 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_dcon(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_sdgndmps(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };

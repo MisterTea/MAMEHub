@@ -126,7 +126,6 @@ INTERRUPT_GEN_MEMBER(polyplay_state::periodic_interrupt)
 
 INTERRUPT_GEN_MEMBER(polyplay_state::coin_interrupt)
 {
-
 	if (ioport("INPUT")->read() & 0x80)
 		m_last = 0;
 	else
@@ -344,7 +343,7 @@ ROM_END
 
 TIMER_DEVICE_CALLBACK_MEMBER(polyplay_state::polyplay_timer_callback)
 {
-	machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0x4c);
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0x4c);
 }
 
 /* game driver */

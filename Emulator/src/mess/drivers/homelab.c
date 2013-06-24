@@ -10,6 +10,7 @@
 
     ToDO:
     - HTP files should be a cassette format, not a quickload.
+    - Quickloads cause the emulated machine to hang or reboot.
     - homelab2 - cassette to fix.
                  Note that rom code 0x40-48 is meaningless garbage,
                  had to patch to stop it crashing. Need a new dump.
@@ -46,8 +47,8 @@ public:
 	homelab_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
-	m_speaker(*this, SPEAKER_TAG),
-	m_cass(*this, CASSETTE_TAG)
+	m_speaker(*this, "speaker"),
+	m_cass(*this, "cassette")
 	{ }
 
 	DECLARE_READ8_MEMBER(key_r);
@@ -74,6 +75,7 @@ public:
 	UINT32 screen_update_homelab2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_homelab3(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(homelab_frame);
+	DECLARE_QUICKLOAD_LOAD_MEMBER(homelab);
 };
 
 INTERRUPT_GEN_MEMBER(homelab_state::homelab_frame)
@@ -124,7 +126,6 @@ WRITE8_MEMBER( homelab_state::cass_w )
 
 MACHINE_RESET_MEMBER(homelab_state,homelab3)
 {
-
 }
 
 MACHINE_RESET_MEMBER(homelab_state,brailab4)
@@ -134,12 +135,10 @@ MACHINE_RESET_MEMBER(homelab_state,brailab4)
 
 WRITE8_MEMBER( homelab_state::port7f_w )
 {
-
 }
 
 WRITE8_MEMBER( homelab_state::portff_w )
 {
-
 }
 
 WRITE8_MEMBER( homelab_state::brailab4_port7f_w )
@@ -170,13 +169,13 @@ READ8_MEMBER( homelab_state::exxx_r )
 	else
 	if (offset == 0x80)
 	{
-		speaker_level_w(m_speaker, 0 );
+		m_speaker->level_w(0);
 		m_cass->output(-1.0);
 	}
 	else
 	if (offset == 0x02)
 	{
-		speaker_level_w(m_speaker, 1 );
+		m_speaker->level_w(1);
 		m_cass->output(+1.0);
 	}
 
@@ -231,7 +230,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START(brailab4_io, AS_IO, 8, homelab_state)
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE( 0xf8, 0xf9 ) AM_DEVREADWRITE_LEGACY("mea8000", mea8000_r,mea8000_w)
+	AM_RANGE( 0xf8, 0xf9 ) AM_DEVREADWRITE("mea8000", mea8000_device, read, write)
 	AM_RANGE( 0x7f, 0x7f ) AM_WRITE(brailab4_port7f_w)
 	AM_RANGE( 0xff, 0xff ) AM_WRITE(brailab4_portff_w)
 ADDRESS_MAP_END
@@ -644,9 +643,9 @@ GFXDECODE_END
 
 static const mea8000_interface brailab4_speech_intf = { "speech", DEVCB_NULL };
 
-static QUICKLOAD_LOAD(homelab)
+QUICKLOAD_LOAD_MEMBER( homelab_state,homelab)
 {
-	address_space &space = image.device().machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i=0;
 	UINT8 ch;
 	UINT16 quick_addr;
@@ -663,6 +662,7 @@ static QUICKLOAD_LOAD(homelab)
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot open file");
 		image.message(" Cannot open file");
+		free(quick_data);
 		return IMAGE_INIT_FAIL;
 	}
 
@@ -671,6 +671,7 @@ static QUICKLOAD_LOAD(homelab)
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot read the file");
 		image.message(" Cannot read the file");
+		free(quick_data);
 		return IMAGE_INIT_FAIL;
 	}
 
@@ -680,6 +681,7 @@ static QUICKLOAD_LOAD(homelab)
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Invalid header");
 		image.message(" Invalid header");
+		free(quick_data);
 		return IMAGE_INIT_FAIL;
 	}
 
@@ -689,6 +691,7 @@ static QUICKLOAD_LOAD(homelab)
 		{
 			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "File name too long");
 			image.message(" File name too long");
+			free(quick_data);
 			return IMAGE_INIT_FAIL;
 		}
 
@@ -702,6 +705,7 @@ static QUICKLOAD_LOAD(homelab)
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Unexpected EOF while getting file size");
 		image.message(" Unexpected EOF while getting file size");
+		free(quick_data);
 		return IMAGE_INIT_FAIL;
 	}
 
@@ -713,6 +717,7 @@ static QUICKLOAD_LOAD(homelab)
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "File too large");
 		image.message(" File too large");
+		free(quick_data);
 		return IMAGE_INIT_FAIL;
 	}
 
@@ -728,11 +733,13 @@ static QUICKLOAD_LOAD(homelab)
 			snprintf(message, ARRAY_LENGTH(message), "%s: Unexpected EOF while writing byte to %04X", pgmname, (unsigned) j);
 			image.seterror(IMAGE_ERROR_INVALIDIMAGE, message);
 			image.message("%s: Unexpected EOF while writing byte to %04X", pgmname, (unsigned) j);
+			free(quick_data);
 			return IMAGE_INIT_FAIL;
 		}
 		space.write_byte(j, ch);
 	}
 
+	free(quick_data);
 	return IMAGE_INIT_PASS;
 }
 
@@ -757,13 +764,13 @@ static MACHINE_CONFIG_START( homelab, homelab_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
-	MCFG_QUICKLOAD_ADD("quickload", homelab, "htp", 2)
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_QUICKLOAD_ADD("quickload", homelab_state, homelab, "htp", 2)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( homelab3, homelab_state )
@@ -787,13 +794,13 @@ static MACHINE_CONFIG_START( homelab3, homelab_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
-	MCFG_QUICKLOAD_ADD("quickload", homelab, "htp", 2)
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_QUICKLOAD_ADD("quickload", homelab_state, homelab, "htp", 2)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( brailab4, homelab_state )
@@ -817,16 +824,16 @@ static MACHINE_CONFIG_START( brailab4, homelab_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD ( "speech", DAC, 0 )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 	MCFG_MEA8000_ADD("mea8000", brailab4_speech_intf)
-	MCFG_QUICKLOAD_ADD("quickload", homelab, "htp", 18)
+	MCFG_QUICKLOAD_ADD("quickload", homelab_state, homelab, "htp", 18)
 MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(homelab_state,brailab4)

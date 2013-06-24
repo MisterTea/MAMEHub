@@ -5,12 +5,13 @@
 ***************************************************************************/
 
 #include "machine/eeprom.h"
+#include "video/decospr.h"
 
 class esd16_state : public driver_device
 {
 public:
 	esd16_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram_0(*this, "vram_0"),
 		m_vram_1(*this, "vram_1"),
 		m_scroll_0(*this, "scroll_0"),
@@ -18,8 +19,11 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_head_layersize(*this, "head_layersize"),
 		m_headpanic_platform_x(*this, "platform_x"),
-		m_headpanic_platform_y(*this, "platform_y")
-	{
+		m_headpanic_platform_y(*this, "platform_y"),
+		m_sprgen(*this, "spritegen"),
+		m_eeprom(*this, "eeprom"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") {
 		m_tilemap0_color = 0;
 		m_tilemap1_color = 0;
 	}
@@ -33,6 +37,7 @@ public:
 	required_shared_ptr<UINT16> m_head_layersize;
 	required_shared_ptr<UINT16> m_headpanic_platform_x;
 	required_shared_ptr<UINT16> m_headpanic_platform_y;
+	optional_device<decospr_device> m_sprgen;
 //  UINT16 *       m_paletteram;  // currently this uses generic palette handling
 
 	/* video-related */
@@ -44,8 +49,7 @@ public:
 	int           m_tilemap1_color;
 
 	/* devices */
-	device_t *m_audio_cpu;
-	eeprom_device *m_eeprom;
+	optional_device<eeprom_device> m_eeprom;
 	DECLARE_WRITE16_MEMBER(esd16_sound_command_w);
 	DECLARE_WRITE16_MEMBER(hedpanic_platform_w);
 	DECLARE_READ16_MEMBER(esd_eeprom_r);
@@ -64,4 +68,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_hedpanic(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	static UINT16 hedpanic_pri_callback(UINT16 x);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };

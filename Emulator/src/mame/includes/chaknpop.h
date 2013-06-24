@@ -7,11 +7,12 @@ class chaknpop_state : public driver_device
 {
 public:
 	chaknpop_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_mcu_ram(*this, "mcu_ram"),
 		m_tx_ram(*this, "tx_ram"),
 		m_attr_ram(*this, "attr_ram"),
-		m_spr_ram(*this, "spr_ram"){ }
+		m_spr_ram(*this, "spr_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_mcu_ram;
@@ -53,4 +54,9 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_chaknpop(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void tx_tilemap_mark_all_dirty();
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_bitmap( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void mcu_update_seed( UINT8 data );
+	required_device<cpu_device> m_maincpu;
 };

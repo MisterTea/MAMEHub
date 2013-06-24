@@ -30,16 +30,16 @@ gaelco3d_renderer::gaelco3d_renderer(gaelco3d_state &state)
 		m_screenbits(state.machine().primary_screen->width(), state.machine().primary_screen->height()),
 		m_zbuffer(state.machine().primary_screen->width(), state.machine().primary_screen->height()),
 		m_polygons(0),
-		m_texture_size(state.machine().root_device().memregion("gfx1")->bytes()),
-		m_texmask_size(state.machine().root_device().memregion("gfx2")->bytes() * 8),
+		m_texture_size(state.memregion("gfx1")->bytes()),
+		m_texmask_size(state.memregion("gfx2")->bytes() * 8),
 		m_texture(auto_alloc_array(state.machine(), UINT8, m_texture_size)),
 		m_texmask(auto_alloc_array(state.machine(), UINT8, m_texmask_size))
 {
-	state_save_register_global_bitmap(state.machine(), &m_screenbits);
-	state_save_register_global_bitmap(state.machine(), &m_zbuffer);
+	state.machine().save().save_item(NAME(m_screenbits));
+	state.machine().save().save_item(NAME(m_zbuffer));
 
 	/* first expand the pixel data */
-	UINT8 *src = state.machine().root_device().memregion("gfx1")->base();
+	UINT8 *src = state.memregion("gfx1")->base();
 	UINT8 *dst = m_texture;
 	for (int y = 0; y < m_texture_size/4096; y += 2)
 		for (int x = 0; x < 4096; x += 2)
@@ -51,7 +51,7 @@ gaelco3d_renderer::gaelco3d_renderer(gaelco3d_state &state)
 		}
 
 	/* then expand the mask data */
-	src = state.machine().root_device().memregion("gfx2")->base();
+	src = state.memregion("gfx2")->base();
 	dst = m_texmask;
 	for (int y = 0; y < m_texmask_size/4096; y++)
 		for (int x = 0; x < 4096; x++)
@@ -67,7 +67,6 @@ gaelco3d_renderer::gaelco3d_renderer(gaelco3d_state &state)
 
 void gaelco3d_state::video_start()
 {
-
 	m_poly = auto_alloc(machine(), gaelco3d_renderer(*this));
 
 	m_palette = auto_alloc_array(machine(), rgb_t, 32768);
@@ -75,11 +74,10 @@ void gaelco3d_state::video_start()
 
 	/* save states */
 
-	state_save_register_global_pointer(machine(), m_palette, 32768);
-	state_save_register_global_pointer(machine(), m_polydata_buffer, MAX_POLYDATA);
-	state_save_register_global(machine(), m_polydata_count);
-
-	state_save_register_global(machine(), m_lastscan);
+	save_pointer(NAME(m_palette), 32768);
+	save_pointer(NAME(m_polydata_buffer), MAX_POLYDATA);
+	save_item(NAME(m_polydata_count));
+	save_item(NAME(m_lastscan));
 }
 
 
@@ -347,16 +345,16 @@ void gaelco3d_renderer::render_alphablend(INT32 scanline, const extent_t &extent
  *
  *************************************/
 
-void gaelco3d_render(screen_device &screen)
+void gaelco3d_state::gaelco3d_render(screen_device &screen)
 {
 	gaelco3d_state *state = screen.machine().driver_data<gaelco3d_state>();
 	/* wait for any queued stuff to complete */
-	state->m_poly->wait("Time to render");
+	m_poly->wait("Time to render");
 
 #if DISPLAY_STATS
 {
 	int scan = screen.vpos();
-	popmessage("Polys = %4d  Timeleft = %3d", state->m_poly->polygons(), (state->m_lastscan < scan) ? (scan - state->m_lastscan) : (scan + (state->m_lastscan - screen.visible_area().max_y)));
+	popmessage("Polys = %4d  Timeleft = %3d", m_poly->polygons(), (m_lastscan < scan) ? (scan - m_lastscan) : (scan + (m_lastscan - screen.visible_area().max_y)));
 }
 #endif
 

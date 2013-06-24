@@ -102,7 +102,7 @@ WRITE8_MEMBER(wc90_state::wc90_bankswitch1_w)
 WRITE8_MEMBER(wc90_state::wc90_sound_command_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
@@ -154,7 +154,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, wc90_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
-	AM_RANGE(0xf800, 0xf803) AM_DEVREADWRITE_LEGACY("ymsnd", ym2608_r, ym2608_w)
+	AM_RANGE(0xf800, 0xf803) AM_DEVREADWRITE("ymsnd", ym2608_device, read, write)
 	AM_RANGE(0xfc00, 0xfc00) AM_READNOP /* ??? adpcm ??? */
 	AM_RANGE(0xfc10, 0xfc10) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -290,19 +290,16 @@ GFXDECODE_END
 
 
 /* handler called by the 2608 emulator when the internal timers cause an IRQ */
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(wc90_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2608_interface ym2608_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	irqhandler
+	AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 static MACHINE_CONFIG_START( wc90, wc90_state )
@@ -336,7 +333,8 @@ static MACHINE_CONFIG_START( wc90, wc90_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2608, XTAL_8MHz)  /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2608_config)
+	MCFG_YM2608_IRQ_HANDLER(WRITELINE(wc90_state, irqhandler))
+	MCFG_YM2608_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 	MCFG_SOUND_ROUTE(2, "mono", 1.0)

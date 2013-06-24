@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
-<softwarelist name="msx2_cart" description="MSX2 Cartridges">
+<softwarelist name="msx2_cart" description="MSX2 cartridges">
 
 <!--
 Information in this list was taken from sources like: the GOODTools, http://gigamix.jp/rom/rom.php
@@ -74,7 +74,7 @@ LZ93A13 (32 pin) - 8KB banks
 		</part>
 	</software>
 
-	<software name="arkanoi2">
+	<software name="arknoid2">
 		<description>Arkanoid 2 (Jpn)</description>
 		<year>1987</year>
 		<publisher>Nidecom</publisher>
@@ -160,20 +160,6 @@ LZ93A13 (32 pin) - 8KB banks
 				<rom name="lh532057" size="262144" crc="ae82a874" sha1="414fd2a22076f45502c2329b45bda9f8730dcaae" offset="0" />
 			</dataarea>
 			<dataarea name="sram" size="8192" >
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="borfes">
-		<description>Borfes to 5-nin no Akuma - An Adventure Story (Jpn)</description>
-		<year>1987</year>
-		<publisher>Xtal Soft</publisher>
-		<info name="alt_title" value="ボルフェスと5人の悪魔" />
-		<part name="cart" interface="msx_cart">
-			<feature name="pcb" value="TA-1M" />
-			<feature name="mapper" value="M60002-0125SP-16" />
-			<dataarea name="rom" size="131072">
-				<rom name="lh231066" size="131072" crc="e040e8a1" sha1="16c3ced0fb2e360bc7c43d372a0a30eb6bd3963d" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -711,23 +697,23 @@ LZ93A13 (32 pin) - 8KB banks
 	</software>
 
 <!--
-	<software name="jrmate">
-		<description>Jr. Mate (Jpn)</description>
-		<year></year>
-		<publisher>Panasoft</publisher>
-		<info name="alt_title" value="ジュニアメイト" />
-		<part name="cart" interface="msx_cart">
-			<feature name="pcb" value="JCI-N1S" />
-			<feature name="mapper" value="M60002-0115FP" />
-			<feature name="sram" value="D4464C-20L" />
-			<dataarea name="rom" size="">
-				<rom name="jr_mate_1_v1.0" size="131072" crc="" sha1="" offset="0" />
-				<rom name="jr_mate_2_v1.0" size="131072" crc="" sha1="" offset="0x20000" />
-				<!- Kanji rom ->
-				<rom name="tc531000p-6616" size="131072" crc="" sha1="" offset="0x40000" />
-			</dataarea>
-		</part>
-	</software>
+    <software name="jrmate">
+        <description>Jr. Mate (Jpn)</description>
+        <year></year>
+        <publisher>Panasoft</publisher>
+        <info name="alt_title" value="ジュニアメイト" />
+        <part name="cart" interface="msx_cart">
+            <feature name="pcb" value="JCI-N1S" />
+            <feature name="mapper" value="M60002-0115FP" />
+            <feature name="sram" value="D4464C-20L" />
+            <dataarea name="rom" size="">
+                <rom name="jr_mate_1_v1.0" size="131072" crc="" sha1="" offset="0" />
+                <rom name="jr_mate_2_v1.0" size="131072" crc="" sha1="" offset="0x20000" />
+                <!- Kanji rom ->
+                <rom name="tc531000p-6616" size="131072" crc="" sha1="" offset="0x40000" />
+            </dataarea>
+        </part>
+    </software>
 -->
 
 	<software name="kikikai">
@@ -793,20 +779,20 @@ LZ93A13 (32 pin) - 8KB banks
 	</software>
 
 <!--
-	<!- see http://msx.jpn.org/tagoo/s_check.cgi?LINE=1026 (disk version of this software?) ->
-	<software name="">
-		<description>Michelangelo 2 (Jpn)</description>
-		<year>1987</year>
-		<publisher></publisher>
-		<info name="alt_title" value="ミケランジェロⅡ" />
-		<part name="cart" interface="msx_cart">
-			<feature name="pcb" value="1M-8KB" />
-			<feature name="mapper" value="NEOS MR6401" />
-			<dataarea name="rom" size="131072">
-				<rom name="rp231024d" size="131072" crc="" sha1="" offset="0" />
-			</dataarea>
-		</part>
-	</software>
+    <!- see http://msx.jpn.org/tagoo/s_check.cgi?LINE=1026 (disk version of this software?) ->
+    <software name="">
+        <description>Michelangelo 2 (Jpn)</description>
+        <year>1987</year>
+        <publisher></publisher>
+        <info name="alt_title" value="ミケランジェロⅡ" />
+        <part name="cart" interface="msx_cart">
+            <feature name="pcb" value="1M-8KB" />
+            <feature name="mapper" value="NEOS MR6401" />
+            <dataarea name="rom" size="131072">
+                <rom name="rp231024d" size="131072" crc="" sha1="" offset="0" />
+            </dataarea>
+        </part>
+    </software>
 -->
 
 	<software name="mikkoku">
@@ -898,7 +884,7 @@ LZ93A13 (32 pin) - 8KB banks
 	</software>
 
 	<software name="ninjakun">
-		<description>Ninja Kun - Ashura no Shou (Jpn)</description>
+		<description>Ninja-kun - Ashura no Shou (Jpn)</description>
 		<year>1987</year>
 		<publisher>HAL Kenkyuujo</publisher>
 		<info name="alt_title" value="忍者くん 阿修羅の章" />
@@ -1182,6 +1168,7 @@ LZ93A13 (32 pin) - 8KB banks
 		<year>1987</year>
 		<publisher>Taito</publisher>
 		<info name="alt_title" value="スクランブルフォーメーション" />
+		<info name="usage" value="Requires a Japanese system" />
 		<part name="cart" interface="msx_cart">
 			<feature name="pcb" value="TA6228" />
 			<feature name="mapper" value="M60002-0125SP" />
@@ -1357,7 +1344,7 @@ LZ93A13 (32 pin) - 8KB banks
 		</part>
 	</software>
 
-	<software name="ultima">
+	<software name="ultima3">
 		<description>Ultima Exodus (Jpn)</description>
 		<year>1987</year>
 		<publisher>Pony Canyon</publisher>
@@ -1531,6 +1518,18 @@ LZ93A13 (32 pin) - 8KB banks
 		</part>
 	</software>
 
+	<software name="1942k" cloneof="1942">
+		<description>1942 (Kor)</description>
+		<year>1987</year>
+		<publisher>Zemina</publisher>
+		<part name="cart" interface="msx_cart">
+			<feature name="mapper" value="KONAMI" />
+			<dataarea name="rom" size="131072">
+				<rom name="1942-2.rom" size="131072" crc="d5d79f15" sha1="2fc15ef2c728a2472cfa3a34053e07f821dc18d4" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="acrojet">
 		<description>AcroJet (Jpn)</description>
 		<year>1988</year>
@@ -1557,6 +1556,20 @@ LZ93A13 (32 pin) - 8KB banks
 		</part>
 	</software>
 
+	<software name="alibaba">
+		<description>Ali Baba (Arab)</description>
+		<year>1989</year>
+		<publisher>Al Alamiah</publisher>
+		<info name="serial" value="L093" />
+		<info name="usage" value="Requires an Arabic MSX2" />
+		<part name="cart" interface="msx_cart">
+			<feature name="mapper" value="NOMAPPER" />
+			<dataarea name="rom" size="131072">
+				<rom name="ali baba (al-alamiah, 1989).rom" size="131072" crc="f5427547" sha1="f9e8cc6e47d5632e3b28500197f8e9187295c52b" offset="0x0000" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="amesoccr">
 		<description>American Soccer (Jpn)</description>
 		<year>1987</year>
@@ -1579,6 +1592,19 @@ LZ93A13 (32 pin) - 8KB banks
 			<feature name="mapper" value="M60002-0125SP-16" />
 			<dataarea name="rom" size="262144">
 				<rom name="han seimei senki andorogynus (japan) (alt 1).rom" size="262144" crc="eaf2bfcd" sha1="ae3c3c2c022f566d2e790aba193470d5826f36cf" status="baddump" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="arabpoet">
+		<description>Arab Poetry (Arab)</description>
+		<year>1989</year>
+		<publisher>Al Alamiah</publisher>
+		<info name="serial" value="A094" />
+		<part name="cart" interface="msx_cart">
+			<feature name="mapper" value="M60002-0125SP" />
+			<dataarea name="rom" size="131072">
+				<rom name="arab poetry (al alamiah, 1989).rom" size="131072" crc="36477f60" sha1="b20e02cbffef692c7aee6281eb36729ee1e928ef" offset="0x0000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2103,21 +2129,6 @@ LZ93A13 (32 pin) - 8KB banks
 		</part>
 	</software>
 
-	<!-- the Japanese text only works fine on Japanese machines, like hbf1 or hbf12 -->
-	<software name="janyu">
-		<description>Janyuu (Jpn)</description>
-		<year>1987</year>
-		<publisher>Technosoft</publisher>
-		<info name="alt_title" value="雀友" />
-		<info name="usage" value="Requires a Japanese system" />
-		<part name="cart" interface="msx_cart">
-			<feature name="mapper" value="NOMAPPER" />
-			<dataarea name="rom" size="32768">
-				<rom name="janyuu (japan).rom" size="32768" crc="c8ff3829" sha1="c6227431bfbc3aa921120ec3da7f6429a1a799a0" status="baddump" offset="0" />
-			</dataarea>
-		</part>
-	</software>
-
 	<software name="kempelen">
 		<description>Kempelen Chess (Jpn)</description>
 		<year>1988</year>
@@ -2316,15 +2327,16 @@ LZ93A13 (32 pin) - 8KB banks
 		</part>
 	</software>
 
-	<software name="mgear2ssd" cloneof="mgear2ss">
-		<description>Metal Gear 2 - Solid Snake (Demo) (Jpn)</description>
-		<year>1990</year>
+	<software name="mgearjvc" cloneof="mgear">
+		<description>Metal Gear (Jpn, Virtual Console)</description>
+		<year>2010</year>
 		<publisher>Konami</publisher>
-		<info name="alt_title" value="ソリッドスネークメタルギア2" />
+		<info name="alt_title" value="メタルギア" />
+		<info name="usage" value="Requires a Japanese system" />
 		<part name="cart" interface="msx_cart">
-			<feature name="mapper" value="KONAMI-SCC" />
-			<dataarea name="rom" size="131072">
-				<rom name="metal gear 2 - solid snake (japan) (demo).rom" size="131072" crc="dcee5080" sha1="21ac0ae7da47abf30986b479489134c79405f95d" status="baddump" offset="0" />
+			<feature name="mapper" value="KONAMI" />
+			<dataarea name="rom" size="262144">
+				<rom name="megarom.rom" size="262144" crc="ed46831f" sha1="6228aef9c26276b9ed4157d1c5b3912d27ee6ce5" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -2338,6 +2350,32 @@ LZ93A13 (32 pin) - 8KB banks
 			<feature name="mapper" value="KONAMI-SCC" />
 			<dataarea name="rom" size="524288">
 				<rom name="metal gear 2 - solid snake (japan).rom" size="524288" crc="18b1f34b" sha1="af567ea6e27912d6d5bf1c8e9bc18e9b393fd1ab" status="baddump" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="mgear2ssd" cloneof="mgear2ss">
+		<description>Metal Gear 2 - Solid Snake (Demo) (Jpn)</description>
+		<year>1990</year>
+		<publisher>Konami</publisher>
+		<info name="alt_title" value="ソリッドスネークメタルギア2" />
+		<part name="cart" interface="msx_cart">
+			<feature name="mapper" value="KONAMI-SCC" />
+			<dataarea name="rom" size="131072">
+				<rom name="metal gear 2 - solid snake (japan) (demo).rom" size="131072" crc="dcee5080" sha1="21ac0ae7da47abf30986b479489134c79405f95d" status="baddump" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="mgear2ssvc" cloneof="mgear2ss">
+		<description>Metal Gear 2 - Solid Snake (Jpn, Virtual Console)</description>
+		<year>2010</year>
+		<publisher>Konami</publisher>
+		<info name="alt_title" value="ソリッドスネークメタルギア2" />
+		<part name="cart" interface="msx_cart">
+			<feature name="mapper" value="KONAMI-SCC" />
+			<dataarea name="rom" size="524288">
+				<rom name="megarom.rom" size="524288" crc="a02a1669" sha1="d8cd8c87d720cf0bf52a7f432999979de5438bd5" status="baddump" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -2663,7 +2701,7 @@ LZ93A13 (32 pin) - 8KB banks
 		</part>
 	</software>
 
-	<software name="supldrun">
+	<software name="sloderun">
 		<description>Super Lode Runner (Jpn)</description>
 		<year>1987</year>
 		<publisher>Irem</publisher>
@@ -2858,6 +2896,18 @@ LZ93A13 (32 pin) - 8KB banks
 
 
 	<!-- Non-Games -->
+
+	<software name="testcart" supported="no">
+		<description>Service Test Cart MSX2 (Euro?)</description>
+		<year>19??</year>
+		<publisher>Philips</publisher>
+		<part name="cart" interface="msx_cart">
+			<feature name="mapper" value="NOMAPPER" />
+			<dataarea name="rom" size="16384">
+				<rom name="stcmsx2p.bin" size="16384" crc="4e4fbe2a" sha1="f29cef9d13d50d9e3158064c6bb381def6ff384d" offset="0x0000" />
+			</dataarea>
+		</part>
+	</software>
 
 	<software name="cheese2">
 		<description>Cheese 2 (Jpn)</description>

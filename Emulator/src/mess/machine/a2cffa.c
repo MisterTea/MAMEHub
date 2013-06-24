@@ -32,7 +32,7 @@ const device_type A2BUS_CFFA2_6502 = &device_creator<a2bus_cffa2_6502_device>;
 #define CFFA2_IDE_TAG     "cffa2_ide"
 
 MACHINE_CONFIG_FRAGMENT( cffa2 )
-	MCFG_IDE_CONTROLLER_ADD(CFFA2_IDE_TAG, ide_image_devices, "hdd", "hdd", false)
+	MCFG_IDE_CONTROLLER_ADD(CFFA2_IDE_TAG, ide_devices, "hdd", "hdd", false)
 MACHINE_CONFIG_END
 
 ROM_START( cffa2 )
@@ -78,25 +78,23 @@ const rom_entry *a2bus_cffa2_6502_device::device_rom_region() const
 //  LIVE DEVICE
 //**************************************************************************
 
-a2bus_cffa2000_device::a2bus_cffa2000_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, type, name, tag, owner, clock),
+a2bus_cffa2000_device::a2bus_cffa2000_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 	device_a2bus_card_interface(mconfig, *this),
 	m_ide(*this, CFFA2_IDE_TAG)
 {
 }
 
 a2bus_cffa2_device::a2bus_cffa2_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	a2bus_cffa2000_device(mconfig, A2BUS_CFFA2, "CFFA2000 Compact Flash (65C02 firmware, www.dreher.net)", tag, owner, clock),
+	a2bus_cffa2000_device(mconfig, A2BUS_CFFA2, "CFFA2000 Compact Flash (65C02 firmware, www.dreher.net)", tag, owner, clock, "a2cffa2", __FILE__),
 	device_nvram_interface(mconfig, *this)
 {
-	m_shortname = "a2cffa2";
 }
 
 a2bus_cffa2_6502_device::a2bus_cffa2_6502_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	a2bus_cffa2000_device(mconfig, A2BUS_CFFA2, "CFFA2000 Compact Flash (6502 firmware, www.dreher.net)", tag, owner, clock),
+	a2bus_cffa2000_device(mconfig, A2BUS_CFFA2, "CFFA2000 Compact Flash (6502 firmware, www.dreher.net)", tag, owner, clock, "a2cffa02", __FILE__),
 	device_nvram_interface(mconfig, *this)
 {
-	m_shortname = "a2cffa02";
 }
 
 //-------------------------------------------------
@@ -145,7 +143,7 @@ UINT8 a2bus_cffa2000_device::read_c0nx(address_space &space, UINT8 offset)
 			break;
 
 		case 8:
-			m_lastdata = ide_controller_r(m_ide, 0x1f0+offset-8, 2);
+			m_lastdata = m_ide->read_cs0(space, offset-8, 0xffff);
 			return m_lastdata & 0xff;
 
 		case 9:
@@ -155,7 +153,7 @@ UINT8 a2bus_cffa2000_device::read_c0nx(address_space &space, UINT8 offset)
 		case 0xd:
 		case 0xe:
 		case 0xf:
-			return ide_controller_r(m_ide, 0x1f0+offset-8, 1);
+			return m_ide->read_cs0(space, offset-8, 0xff);
 	}
 
 	return 0xff;
@@ -186,7 +184,7 @@ void a2bus_cffa2000_device::write_c0nx(address_space &space, UINT8 offset, UINT8
 		case 8:
 			m_lastdata &= 0xff00;
 			m_lastdata |= data;
-			ide_controller_w(m_ide, 0x1f0+offset-8, 2, m_lastdata);
+			m_ide->write_cs0(space, offset-8, m_lastdata, 0xffff);
 			break;
 
 		case 9:
@@ -196,7 +194,7 @@ void a2bus_cffa2000_device::write_c0nx(address_space &space, UINT8 offset, UINT8
 		case 0xd:
 		case 0xe:
 		case 0xf:
-			ide_controller_w(m_ide, 0x1f0+offset-8, 1, data);
+			m_ide->write_cs0(space, offset-8, data, 0xff);
 			break;
 	}
 }

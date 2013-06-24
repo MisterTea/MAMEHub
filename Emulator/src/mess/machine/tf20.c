@@ -9,6 +9,8 @@
     Copyright MESS Team.
     Visit http://mamedev.org for licensing and usage restrictions.
 
+    http://fjkraan.home.xs4all.nl/comp/tf20/index.html
+
 **********************************************************************/
 
 #include "tf20.h"
@@ -84,36 +86,27 @@ ioport_constructor epson_tf20_device::device_input_ports() const
 
 static UPD7201_INTERFACE( tf20_upd7201_intf )
 {
-	DEVCB_NULL,             /* interrupt: nc */
-	{
-		{
-			XTAL_CR2 / 128,     /* receive clock: 38400 baud (default) */
-			XTAL_CR2 / 128,     /* transmit clock: 38400 baud (default) */
-			DEVCB_NULL,         /* receive DRQ */
-			DEVCB_NULL,         /* transmit DRQ */
-			DEVCB_NULL,         /* receive data */
-			DEVCB_NULL,         /* transmit data */
-			DEVCB_NULL,         /* clear to send */
-			DEVCB_LINE_GND,     /* data carrier detect */
-			DEVCB_NULL,         /* ready to send */
-			DEVCB_NULL,         /* data terminal ready */
-			DEVCB_NULL,         /* wait */
-			DEVCB_NULL          /* sync output: nc */
-		}, {
-			XTAL_CR2 / 128,     /* receive clock: 38400 baud (default) */
-			XTAL_CR2 / 128,     /* transmit clock: 38400 baud (default) */
-			DEVCB_NULL,         /* receive DRQ: nc */
-			DEVCB_NULL,         /* transmit DRQ */
-			DEVCB_NULL,         /* receive data */
-			DEVCB_NULL,         /* transmit data */
-			DEVCB_LINE_GND,     /* clear to send */
-			DEVCB_LINE_GND,     /* data carrier detect */
-			DEVCB_NULL,         /* ready to send */
-			DEVCB_NULL,         /* data terminal ready: nc */
-			DEVCB_NULL,         /* wait */
-			DEVCB_NULL          /* sync output: nc */
-		}
-	}
+	XTAL_CR2 / 128, XTAL_CR2 / 128, XTAL_CR2 / 128, XTAL_CR2 / 128,
+
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
 };
 
 static SLOT_INTERFACE_START( tf20_floppies )
@@ -136,11 +129,11 @@ static MACHINE_CONFIG_FRAGMENT( tf20 )
 	MCFG_UPD765A_ADD("5a", true, true)
 
 	// floppy drives
-	MCFG_FLOPPY_DRIVE_ADD("5a:0", tf20_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("5a:1", tf20_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("5a:0", tf20_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("5a:1", tf20_floppies, "525dd", floppy_image_device::default_floppy_formats)
 
 	// serial interface to another device
-	MCFG_EPSON_SIO_ADD("sio")
+	MCFG_EPSON_SIO_ADD("sio", NULL)
 MACHINE_CONFIG_END
 
 machine_config_constructor epson_tf20_device::device_mconfig_additions() const
@@ -158,7 +151,7 @@ machine_config_constructor epson_tf20_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 epson_tf20_device::epson_tf20_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, EPSON_TF20, "EPSON TF-20 dual floppy drive", tag, owner, clock),
+	device_t(mconfig, EPSON_TF20, "EPSON TF-20 dual floppy drive", tag, owner, clock, "epson_tf20", __FILE__),
 	device_epson_sio_interface(mconfig, *this),
 	m_cpu(*this, "19b"),
 	m_ram(*this, "ram"),
@@ -182,7 +175,7 @@ void epson_tf20_device::device_start()
 	m_timer_serial = timer_alloc(0, NULL);
 	m_timer_tc = timer_alloc(1, NULL);
 
-	m_cpu->set_irq_acknowledge_callback(irq_callback);
+	m_cpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(epson_tf20_device::irq_callback),this));
 
 	m_fd0 = subdevice<floppy_connector>("5a:0")->get_device();
 	m_fd1 = subdevice<floppy_connector>("5a:1")->get_device();
@@ -237,7 +230,7 @@ void epson_tf20_device::device_timer(emu_timer &timer, device_timer_id id, int p
 //  irq vector callback
 //-------------------------------------------------
 
-IRQ_CALLBACK( epson_tf20_device::irq_callback )
+IRQ_CALLBACK_MEMBER( epson_tf20_device::irq_callback )
 {
 	return 0x00;
 }
@@ -260,7 +253,7 @@ void epson_tf20_device::fdc_irq(bool state)
 void epson_tf20_device::tx_w(int level)
 {
 	logerror("%s: tx_w(%d)\n", tag(), level);
-	m_mpsc->rxda_w(level);
+	//m_mpsc->rxda_w(level);
 }
 
 
@@ -282,7 +275,7 @@ void epson_tf20_device::pout_w(int level)
 int epson_tf20_device::rx_r()
 {
 	logerror("%s: rx_r\n", tag());
-	return m_mpsc->txda_r();
+	return 1;//m_mpsc->txda_r();
 }
 
 
@@ -293,7 +286,7 @@ int epson_tf20_device::rx_r()
 int epson_tf20_device::pin_r()
 {
 	logerror("%s: pin_r\n", tag());
-	return m_mpsc->dtra_r();
+	return 1;//m_mpsc->dtra_r();
 }
 
 

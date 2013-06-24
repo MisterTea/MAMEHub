@@ -32,7 +32,7 @@ public:
 	virtual bool is_writeable() const { return 0; }
 	virtual bool is_creatable() const { return 0; }
 	virtual bool must_be_loaded() const { return 0; }
-	virtual bool is_reset_on_load() const { return 0; }
+	virtual bool is_reset_on_load() const { return 1; }
 	virtual const char *image_interface() const { return "cpc_rom"; }
 	virtual const char *file_extensions() const { return "rom,bin"; }
 	virtual const option_guide *create_option_guide() const { return NULL; }
@@ -54,8 +54,7 @@ extern const device_type ROMSLOT;
 
 
 #define MCFG_ROMSLOT_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, ROMSLOT, 0) \
-
+	MCFG_DEVICE_ADD(_tag, ROMSLOT, 0)
 
 /*** ROM box device ***/
 
@@ -75,10 +74,9 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "cpc_rom"; }
 
 private:
-	cpc_expansion_slot_device *m_slot;
+	//cpc_expansion_slot_device *m_slot;
 
 	rom_image_device* m_rom[6];
 };

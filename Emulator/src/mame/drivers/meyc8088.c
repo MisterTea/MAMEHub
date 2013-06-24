@@ -40,12 +40,14 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
 		m_vram(*this, "vram"),
-		m_heartbeat(*this, "heartbeat")
+		m_heartbeat(*this, "heartbeat"),
+		m_dac(*this, "dac")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT8> m_vram;
 	required_device<timer_device> m_heartbeat;
+	required_device<dac_device> m_dac;
 
 	UINT8 m_status;
 	UINT8 m_common;
@@ -117,7 +119,7 @@ static const res_net_info meyc8088_net_info =
 
 void meyc8088_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	rgb_t *rgb;
 
 	rgb = compute_res_net_all(machine(), color_prom, &meyc8088_decode_info, &meyc8088_net_info);
@@ -276,7 +278,7 @@ WRITE8_MEMBER(meyc8088_state::meyc8088_common_w)
 
 WRITE_LINE_MEMBER(meyc8088_state::meyc8088_sound_out)
 {
-	machine().device<dac_device>("dac")->write_signed8(state ? 0x7f : 0);
+	m_dac->write_signed8(state ? 0x7f : 0);
 }
 
 

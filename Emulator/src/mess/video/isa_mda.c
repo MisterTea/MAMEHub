@@ -74,9 +74,11 @@ static GFXDECODE_START( pcmda )
 	GFXDECODE_ENTRY( "mda:gfx1", 0x1000, pc_8_charlayout, 1, 1 )
 GFXDECODE_END
 
-static const mc6845_interface mc6845_mda_intf =
+
+static MC6845_INTERFACE( mc6845_mda_intf )
 {
 	MDA_SCREEN_NAME, /* screen number */
+	false,              /* show border area */
 	9,                  /* number of pixels per video memory address */
 	NULL,               /* begin_update */
 	mda_update_row,     /* update_row */
@@ -154,17 +156,15 @@ const rom_entry *isa8_mda_device::device_rom_region() const
 //-------------------------------------------------
 
 isa8_mda_device::isa8_mda_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, ISA8_MDA, "IBM Monochrome Display and Printer Adapter", tag, owner, clock),
+		device_t(mconfig, ISA8_MDA, "IBM Monochrome Display and Printer Adapter", tag, owner, clock, "isa_ibm_mda", __FILE__),
 		device_isa8_card_interface(mconfig, *this)
 {
-	m_shortname = "isa_ibm_mda";
 }
 
-isa8_mda_device::isa8_mda_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, type, name, tag, owner, clock),
+isa8_mda_device::isa8_mda_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_isa8_card_interface(mconfig, *this)
 {
-	m_shortname = "isa_ibm_mda";
 }
 
 //-------------------------------------------------
@@ -496,9 +496,10 @@ allow this.
 The divder/pixels per 6845 clock is 9 for text mode and 16 for graphics mode.
 */
 
-static const mc6845_interface mc6845_hercules_intf =
+static MC6845_INTERFACE( mc6845_hercules_intf )
 {
 	HERCULES_SCREEN_NAME,   /* screen number */
+	false,                  /* show border area */
 	9,                      /* number of pixels per video memory address */
 	NULL,                   /* begin_update */
 	mda_update_row,         /* update_row */
@@ -567,9 +568,8 @@ const rom_entry *isa8_hercules_device::device_rom_region() const
 //-------------------------------------------------
 
 isa8_hercules_device::isa8_hercules_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		isa8_mda_device(mconfig, ISA8_HERCULES, "Hercules Graphics Card", tag, owner, clock)
+		isa8_mda_device(mconfig, ISA8_HERCULES, "Hercules Graphics Card", tag, owner, clock, "isa_hercules", __FILE__)
 {
-	m_shortname = "isa_hercules";
 }
 
 //-------------------------------------------------

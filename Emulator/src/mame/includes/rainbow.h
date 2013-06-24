@@ -3,13 +3,18 @@
     Rainbow Islands
 
 *************************************************************************/
+#include "video/taitoic.h"
 
 class rbisland_state : public driver_device
 {
 public:
 	rbisland_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_spriteram(*this, "spriteram"){ }
+		: driver_device(mconfig, type, tag),
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_pc080sn(*this, "pc080sn"),
+		m_pc090oj(*this, "pc090oj") { }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_spriteram;
@@ -28,10 +33,10 @@ public:
 	UINT8       m_current_bank;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_pc080sn;
-	device_t *m_pc090oj;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<pc080sn_device> m_pc080sn;
+	optional_device<pc090oj_device> m_pc090oj;
 	DECLARE_WRITE16_MEMBER(jumping_sound_w);
 	DECLARE_READ8_MEMBER(jumping_latch_r);
 	DECLARE_WRITE16_MEMBER(rbisland_cchip_ctrl_w);
@@ -50,6 +55,10 @@ public:
 	UINT32 screen_update_rainbow(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_jumping(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(cchip_timer);
+	void request_round_data(  );
+	void request_world_data(  );
+	void request_goalin_data(  );
+	void rbisland_cchip_init( int version );
 };
 
 /*----------- defined in machine/rainbow.c -----------*/

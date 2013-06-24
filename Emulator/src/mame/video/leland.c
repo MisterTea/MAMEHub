@@ -129,10 +129,9 @@ WRITE8_MEMBER(leland_state::leland_gfx_port_w)
  *
  *************************************/
 
-static void leland_video_addr_w(address_space &space, int offset, int data, int num)
+void leland_state::leland_video_addr_w(address_space &space, int offset, int data, int num)
 {
-	leland_state *drvstate = space.machine().driver_data<leland_state>();
-	struct vram_state_data *state = drvstate->m_vram_state + num;
+	struct vram_state_data *state = m_vram_state + num;
 
 	if (!offset)
 		state->m_addr = (state->m_addr & 0xfe00) | ((data << 1) & 0x01fe);
@@ -148,10 +147,9 @@ static void leland_video_addr_w(address_space &space, int offset, int data, int 
  *
  *************************************/
 
-static int leland_vram_port_r(address_space &space, int offset, int num)
+int leland_state::leland_vram_port_r(address_space &space, int offset, int num)
 {
-	leland_state *drvstate = space.machine().driver_data<leland_state>();
-	struct vram_state_data *state = drvstate->m_vram_state + num;
+	struct vram_state_data *state = m_vram_state + num;
 	int addr = state->m_addr;
 	int inc = (offset >> 2) & 2;
 	int ret;
@@ -159,18 +157,18 @@ static int leland_vram_port_r(address_space &space, int offset, int num)
 	switch (offset & 7)
 	{
 		case 3: /* read hi/lo (alternating) */
-			ret = drvstate->m_video_ram[addr];
+			ret = m_video_ram[addr];
 			addr += inc & (addr << 1);
 			addr ^= 1;
 			break;
 
 		case 5: /* read hi */
-			ret = drvstate->m_video_ram[addr | 1];
+			ret = m_video_ram[addr | 1];
 			addr += inc;
 			break;
 
 		case 6: /* read lo */
-			ret = drvstate->m_video_ram[addr & ~1];
+			ret = m_video_ram[addr & ~1];
 			addr += inc;
 			break;
 
@@ -196,11 +194,10 @@ static int leland_vram_port_r(address_space &space, int offset, int num)
  *
  *************************************/
 
-static void leland_vram_port_w(address_space &space, int offset, int data, int num)
+void leland_state::leland_vram_port_w(address_space &space, int offset, int data, int num)
 {
-	leland_state *drvstate = space.machine().driver_data<leland_state>();
-	UINT8 *video_ram = drvstate->m_video_ram;
-	struct vram_state_data *state = drvstate->m_vram_state + num;
+	UINT8 *video_ram = m_video_ram;
+	struct vram_state_data *state = m_vram_state + num;
 	int addr = state->m_addr;
 	int inc = (offset >> 2) & 2;
 	int trans = (offset >> 4) & num;
@@ -288,7 +285,7 @@ WRITE8_MEMBER(leland_state::leland_master_video_addr_w)
 
 TIMER_CALLBACK_MEMBER(leland_state::leland_delayed_mvram_w)
 {
-	address_space &space = machine().device("master")->memory().space(AS_PROGRAM);
+	address_space &space = m_master->space(AS_PROGRAM);
 
 	int num = (param >> 16) & 1;
 	int offset = (param >> 8) & 0xff;
@@ -387,8 +384,8 @@ UINT32 leland_state::screen_update_leland(screen_device &screen, bitmap_ind16 &b
 {
 	int y;
 
-	const UINT8 *bg_prom = machine().root_device().memregion("user1")->base();
-	const UINT8 *bg_gfx = machine().root_device().memregion("gfx1")->base();
+	const UINT8 *bg_prom = memregion("user1")->base();
+	const UINT8 *bg_gfx = memregion("gfx1")->base();
 	offs_t bg_gfx_bank_page_size = memregion("gfx1")->bytes() / 3;
 	offs_t char_bank = (((m_gfxbank >> 4) & 0x03) * 0x2000) & (bg_gfx_bank_page_size - 1);
 	offs_t prom_bank = ((m_gfxbank >> 3) & 0x01) * 0x2000;
@@ -455,7 +452,7 @@ UINT32 leland_state::screen_update_ataxx(screen_device &screen, bitmap_ind16 &bi
 {
 	int y;
 
-	const UINT8 *bg_gfx = machine().root_device().memregion("gfx1")->base();
+	const UINT8 *bg_gfx = memregion("gfx1")->base();
 	offs_t bg_gfx_bank_page_size = memregion("gfx1")->bytes() / 6;
 	offs_t bg_gfx_offs_mask = bg_gfx_bank_page_size - 1;
 

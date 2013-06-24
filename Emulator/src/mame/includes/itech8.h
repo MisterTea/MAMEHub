@@ -5,6 +5,7 @@
 
 **************************************************************************/
 
+#include "video/tlc34076.h"
 #include "video/tms34061.h"
 
 #define YBUFFER_COUNT   15
@@ -14,7 +15,13 @@ class itech8_state : public driver_device
 public:
 	itech8_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_visarea(0, 0, 0, 0){ }
+			m_tlc34076(*this, "tlc34076"),
+			m_visarea(0, 0, 0, 0),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_subcpu(*this, "sub") { }
+
+	required_device<tlc34076_device> m_tlc34076;
 
 	rectangle m_visarea;
 	UINT8 m_grom_bank;
@@ -100,19 +107,35 @@ public:
 	TIMER_CALLBACK_MEMBER(delayed_sound_data_w);
 	TIMER_CALLBACK_MEMBER(blitter_done);
 	TIMER_DEVICE_CALLBACK_MEMBER(grmatch_palette_update);
+	inline UINT8 fetch_next_raw();
+	inline void consume_raw(int count);
+	inline UINT8 fetch_next_rle();
+	inline void consume_rle(int count);
+	void perform_blit(address_space &space);
+	void itech8_update_interrupts(int periodic, int tms34061, int blitter);
+	DECLARE_WRITE_LINE_MEMBER(generate_sound_irq);
+
+	/*----------- defined in machine/slikshot.c -----------*/
+
+	DECLARE_READ8_MEMBER( slikz80_port_r );
+	DECLARE_WRITE8_MEMBER( slikz80_port_w );
+
+	DECLARE_READ8_MEMBER( slikshot_z80_r );
+	DECLARE_READ8_MEMBER( slikshot_z80_control_r );
+	DECLARE_WRITE8_MEMBER( slikshot_z80_control_w );
+
+	void inters_to_vels(UINT16 inter1, UINT16 inter2, UINT16 inter3, UINT8 beams,
+							UINT8 *xres, UINT8 *vxres, UINT8 *vyres);
+	void vels_to_inters(UINT8 x, UINT8 vx, UINT8 vy,
+							UINT16 *inter1, UINT16 *inter2, UINT16 *inter3, UINT8 *beams);
+	void inters_to_words(UINT16 inter1, UINT16 inter2, UINT16 inter3, UINT8 *beams,
+							UINT16 *word1, UINT16 *word2, UINT16 *word3);
+
+	void words_to_sensors(UINT16 word1, UINT16 word2, UINT16 word3, UINT8 beams,
+							UINT16 *sens0, UINT16 *sens1, UINT16 *sens2, UINT16 *sens3);
+	void compute_sensors();
+	TIMER_CALLBACK_MEMBER( delayed_z80_control_w );
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	optional_device<cpu_device> m_subcpu;
 };
-
-
-/*----------- defined in drivers/itech8.c -----------*/
-
-void itech8_update_interrupts(running_machine &machine, int periodic, int tms34061, int blitter);
-
-
-/*----------- defined in machine/slikshot.c -----------*/
-
-DECLARE_READ8_HANDLER( slikz80_port_r );
-DECLARE_WRITE8_HANDLER( slikz80_port_w );
-
-DECLARE_READ8_HANDLER( slikshot_z80_r );
-DECLARE_READ8_HANDLER( slikshot_z80_control_r );
-DECLARE_WRITE8_HANDLER( slikshot_z80_control_w );

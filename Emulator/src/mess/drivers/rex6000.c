@@ -61,7 +61,7 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_ram(*this, RAM_TAG),
-			m_beep(*this, BEEPER_TAG)
+			m_beep(*this, "beeper")
 		{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -119,6 +119,7 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(irq_timer1);
 	TIMER_DEVICE_CALLBACK_MEMBER(irq_timer2);
 	TIMER_DEVICE_CALLBACK_MEMBER(sec_timer);
+	DECLARE_QUICKLOAD_LOAD_MEMBER(rex6000);
 };
 
 
@@ -233,16 +234,16 @@ WRITE8_MEMBER( rex6000_state::beep_w )
 		case 1:     //tone mode control
 			if (m_beep_mode)
 			{
-				beep_set_state(m_beep, BIT(data, 0));
+				m_beep->set_state(BIT(data, 0));
 
 				//the beeper frequency is update only if the bit 1 is set
 				if (BIT(data, 1))
-					beep_set_frequency(m_beep, 16384 / (((m_beep_io[2] | (m_beep_io[3]<<8)) & 0x0fff) + 2));
+					m_beep->set_frequency(16384 / (((m_beep_io[2] | (m_beep_io[3]<<8)) & 0x0fff) + 2));
 			}
 			break;
 		case 4:     //select alarm/tone mode
 			if (m_beep_mode != BIT(data, 0))
-				beep_set_state(m_beep, 0);      //turned off when mode changes
+				m_beep->set_state(0);      //turned off when mode changes
 
 			m_beep_mode = BIT(data, 0);
 			break;
@@ -412,7 +413,6 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(rex6000_state::trigger_irq)
 {
-
 	if (!(m_irq_mask & IRQ_FLAG_KEYCHANGE))
 	{
 		m_irq_flag |= IRQ_FLAG_KEYCHANGE;
@@ -517,7 +517,6 @@ UINT32 rex6000_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap,
 
 TIMER_DEVICE_CALLBACK_MEMBER(rex6000_state::irq_timer1)
 {
-
 	if (!(m_irq_mask & IRQ_FLAG_IRQ2))
 	{
 		m_irq_flag |= IRQ_FLAG_IRQ2;
@@ -529,7 +528,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(rex6000_state::irq_timer1)
 
 TIMER_DEVICE_CALLBACK_MEMBER(rex6000_state::irq_timer2)
 {
-
 	if (!(m_irq_mask & IRQ_FLAG_IRQ1))
 	{
 		m_irq_flag |= IRQ_FLAG_IRQ1;
@@ -540,7 +538,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(rex6000_state::irq_timer2)
 
 TIMER_DEVICE_CALLBACK_MEMBER(rex6000_state::sec_timer)
 {
-
 	if (!(m_irq_mask & IRQ_FLAG_1HZ))
 	{
 		m_irq_flag |= IRQ_FLAG_1HZ;
@@ -565,15 +562,14 @@ void rex6000_state::palette_init()
 	palette_set_color(machine(), 1, MAKE_RGB(92, 83, 88));
 }
 
-static QUICKLOAD_LOAD(rex6000)
+QUICKLOAD_LOAD_MEMBER( rex6000_state,rex6000)
 {
 	static const char magic[] = "ApplicationName:Addin";
-	running_machine &machine = image.device().machine();
-	address_space& flash = machine.device("flash0b")->memory().space(0);
+	address_space& flash = machine().device("flash0b")->memory().space(0);
 	UINT32 img_start = 0;
 	UINT8 *data;
 
-	data = (UINT8*)auto_alloc_array(machine, UINT8, image.length());
+	data = (UINT8*)auto_alloc_array(machine(), UINT8, image.length());
 	image.fread(data, image.length());
 
 	if(strncmp((const char*)data, magic, 21))
@@ -585,7 +581,7 @@ static QUICKLOAD_LOAD(rex6000)
 	for (int i=0; i<image.length() - img_start ;i++)
 		flash.write_byte(i, data[img_start + i]);
 
-	auto_free(machine, data);
+	auto_free(machine(), data);
 
 	return IMAGE_INIT_PASS;
 }
@@ -666,7 +662,7 @@ static MACHINE_CONFIG_START( rex6000, rex6000_state )
 	MCFG_GFXDECODE(rex6000)
 
 	/* quickload */
-	MCFG_QUICKLOAD_ADD("quickload", rex6000, "rex,ds2", 0)
+	MCFG_QUICKLOAD_ADD("quickload", rex6000_state, rex6000, "rex,ds2", 0)
 
 	MCFG_RP5C01_ADD(TC8521_TAG, XTAL_32_768kHz, rtc_intf)
 
@@ -688,7 +684,7 @@ static MACHINE_CONFIG_START( rex6000, rex6000_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD( BEEPER_TAG, BEEP, 0 )
+	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 MACHINE_CONFIG_END
 

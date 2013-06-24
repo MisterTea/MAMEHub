@@ -32,7 +32,8 @@ class shanghai_state : public driver_device
 {
 public:
 	shanghai_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_WRITE16_MEMBER(shanghai_coin_w);
 	DECLARE_READ16_MEMBER(kothello_hd63484_status_r);
@@ -40,6 +41,7 @@ public:
 	DECLARE_PALETTE_INIT(shanghai);
 	UINT32 screen_update_shanghai(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(shanghai_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -155,7 +157,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( shanghai_portmap, AS_IO, 16, shanghai_state )
 	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("hd63484", hd63484_status_r, hd63484_address_w)
 	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE_LEGACY("hd63484", hd63484_data_r, hd63484_data_w)
-	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE8_LEGACY("ymsnd", ym2203_r, ym2203_w, 0x00ff)
+	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE8("ymsnd", ym2203_device, read, write, 0x00ff)
 	AM_RANGE(0x40, 0x41) AM_READ_PORT("P1")
 	AM_RANGE(0x44, 0x45) AM_READ_PORT("P2")
 	AM_RANGE(0x48, 0x49) AM_READ_PORT("SYSTEM")
@@ -169,7 +171,7 @@ static ADDRESS_MAP_START( shangha2_portmap, AS_IO, 16, shanghai_state )
 	AM_RANGE(0x20, 0x21) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x30, 0x31) AM_DEVREADWRITE_LEGACY("hd63484", hd63484_status_r, hd63484_address_w)
 	AM_RANGE(0x32, 0x33) AM_DEVREADWRITE_LEGACY("hd63484", hd63484_data_r, hd63484_data_w)
-	AM_RANGE(0x40, 0x43) AM_DEVREADWRITE8_LEGACY("ymsnd", ym2203_r, ym2203_w, 0x00ff)
+	AM_RANGE(0x40, 0x43) AM_DEVREADWRITE8("ymsnd", ym2203_device, read, write, 0x00ff)
 	AM_RANGE(0x50, 0x51) AM_WRITE(shanghai_coin_w)
 ADDRESS_MAP_END
 
@@ -414,29 +416,23 @@ INPUT_PORTS_END
 
 
 
-static const ym2203_interface sh_ym2203_interface =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW1"),
-		DEVCB_INPUT_PORT("DSW2"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_INPUT_PORT("DSW2"),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
 
-static const ym2203_interface kothello_ym2203_interface =
+static const ay8910_interface kothello_ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW"),
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(seibu_ym2203_irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW"),
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 static const hd63484_interface shanghai_hd63484_intf = { 0 };
@@ -466,7 +462,7 @@ static MACHINE_CONFIG_START( shanghai, shanghai_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 16000000/4)
-	MCFG_SOUND_CONFIG(sh_ym2203_interface)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -498,7 +494,7 @@ static MACHINE_CONFIG_START( shangha2, shanghai_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 16000000/4)
-	MCFG_SOUND_CONFIG(sh_ym2203_interface)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
@@ -536,7 +532,8 @@ static MACHINE_CONFIG_START( kothello, shanghai_state )
 
 	/* same as standard seibu ym2203, but "ym1" also reads "DSW" */
 	MCFG_SOUND_ADD("ym1", YM2203, 14318180/4)
-	MCFG_SOUND_CONFIG(kothello_ym2203_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<seibu_ym2203_irqhandler>))
+	MCFG_YM2203_AY8910_INTF(&kothello_ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 14318180/4)
@@ -568,6 +565,21 @@ ROM_START( shangha2 )
 	ROM_LOAD16_BYTE( "sht-31j", 0xc0001, 0x20000, CRC(312e3b9d) SHA1(f15f76a087d4972aa72145eced8d1fb15329b359) )
 	ROM_LOAD16_BYTE( "sht-30j", 0xc0000, 0x20000, CRC(2861a894) SHA1(6da99d15f41e900735f8943f2710487817f98579) )
 ROM_END
+
+ROM_START( shangha2a ) // content is the same, just different ROM sizes
+	ROM_REGION( 0x100000, "maincpu", 0 )
+
+	ROM_LOAD16_BYTE( "3.bin", 0x80001, 0x10000, CRC(93aacccb) SHA1(8b29b9b24cf268a4376b7f653c19d6f46d698552) )
+	ROM_LOAD16_BYTE( "1.bin", 0x80000, 0x10000, CRC(0fb2d8ee) SHA1(fee8074d8116f551c634f088b8121d48a9b4a008) )
+	ROM_LOAD16_BYTE( "7.bin", 0xa0001, 0x10000, CRC(f9e06880) SHA1(7840b6672cc02fd70f478a5c9f11cfc26ddfca52) )
+	ROM_LOAD16_BYTE( "5.bin", 0xa0000, 0x10000, CRC(06ada73c) SHA1(13ee91b94489096f03afc05fdd3d4c65a87a6628) )
+	ROM_LOAD16_BYTE( "4.bin", 0xc0001, 0x10000, CRC(b4d82724) SHA1(84496b7ad43817c307227bdab4f58a19484519bb) )
+	ROM_LOAD16_BYTE( "2.bin", 0xc0000, 0x10000, CRC(97a25fdb) SHA1(43f065b737e5c4bd44c02ab1d0d6fa34aea8d139) )
+
+	ROM_LOAD16_BYTE( "8.bin", 0xf0001, 0x08000, CRC(21c41557) SHA1(967c97a6b35407a5b32938c88bf7e719a1489b6b) )
+	ROM_LOAD16_BYTE( "6.bin", 0xf0000, 0x08000, CRC(14250057) SHA1(15af554099c977e3c753d758080805581a9e4c50) )
+ROM_END
+
 
 /*
 
@@ -641,5 +653,6 @@ ROM_END
 
 
 GAME( 1988, shanghai, 0, shanghai, shanghai, driver_device, 0, ROT0, "Sunsoft", "Shanghai (Japan)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1989, shangha2, 0, shangha2, shangha2, driver_device, 0, ROT0, "Sunsoft", "Shanghai II (Japan)", 0 )
+GAME( 1989, shangha2, 0, shangha2, shangha2, driver_device, 0, ROT0, "Sunsoft", "Shanghai II (Japan, set 1)", 0 )
+GAME( 1989, shangha2a, shangha2, shangha2, shangha2, driver_device, 0, ROT0, "Sunsoft", "Shanghai II (Japan, set 2)", 0 )
 GAME( 1990, kothello, 0, kothello, kothello, driver_device, 0, ROT0, "Success", "Kyuukyoku no Othello", GAME_IMPERFECT_GRAPHICS )

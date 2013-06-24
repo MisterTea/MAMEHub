@@ -1,3 +1,5 @@
+#define NO_MEM_TRACKING
+
 #include "debugqtdasmwindow.h"
 
 #include "debug/debugcon.h"
@@ -6,11 +8,15 @@
 
 
 DasmWindow::DasmWindow(running_machine* machine, QWidget* parent) :
-	WindowQt(machine, parent)
+	WindowQt(machine, NULL)
 {
-	QPoint parentPos = parent->pos();
-	setGeometry(parentPos.x()+100, parentPos.y()+100, 800, 400);
 	setWindowTitle("Debug: Disassembly View");
+
+	if (parent != NULL)
+	{
+		QPoint parentPos = parent->pos();
+		setGeometry(parentPos.x()+100, parentPos.y()+100, 800, 400);
+	}
 
 	//
 	// The main frame and its input and log widgets
@@ -26,6 +32,7 @@ DasmWindow::DasmWindow(running_machine* machine, QWidget* parent) :
 
 	// The cpu combo box
 	m_cpuComboBox = new QComboBox(topSubFrame);
+	m_cpuComboBox->setObjectName("cpu");
 	m_cpuComboBox->setMinimumWidth(300);
 	connect(m_cpuComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(cpuChanged(int)));
 
@@ -72,6 +79,7 @@ DasmWindow::DasmWindow(running_machine* machine, QWidget* parent) :
 
 	// Right bar options
 	QActionGroup* rightBarGroup = new QActionGroup(this);
+	rightBarGroup->setObjectName("rightbargroup");
 	QAction* rightActRaw = new QAction("Raw Opcodes", this);
 	QAction* rightActEncrypted = new QAction("Encrypted Opcodes", this);
 	QAction* rightActComments = new QAction("Comments", this);
@@ -93,6 +101,11 @@ DasmWindow::DasmWindow(running_machine* machine, QWidget* parent) :
 	optionsMenu->addAction(runToCursorAct);
 	optionsMenu->addSeparator();
 	optionsMenu->addActions(rightBarGroup->actions());
+}
+
+
+DasmWindow::~DasmWindow()
+{
 }
 
 
@@ -197,4 +210,49 @@ void DasmWindow::populateComboBox()
 	{
 		m_cpuComboBox->addItem(source->name());
 	}
+}
+
+
+//=========================================================================
+//  DasmWindowQtConfig
+//=========================================================================
+void DasmWindowQtConfig::buildFromQWidget(QWidget* widget)
+{
+	WindowQtConfig::buildFromQWidget(widget);
+	DasmWindow* window = dynamic_cast<DasmWindow*>(widget);
+	QComboBox* cpu = window->findChild<QComboBox*>("cpu");
+	m_cpu = cpu->currentIndex();
+
+	QActionGroup* rightBarGroup = window->findChild<QActionGroup*>("rightbargroup");
+	if (rightBarGroup->checkedAction()->text() == "Raw Opcodes")
+		m_rightBar = 0;
+	else if (rightBarGroup->checkedAction()->text() == "Encrypted Opcodes")
+		m_rightBar = 1;
+	else if (rightBarGroup->checkedAction()->text() == "Comments")
+		m_rightBar = 2;
+}
+
+void DasmWindowQtConfig::applyToQWidget(QWidget* widget)
+{
+	WindowQtConfig::applyToQWidget(widget);
+	DasmWindow* window = dynamic_cast<DasmWindow*>(widget);
+	QComboBox* cpu = window->findChild<QComboBox*>("cpu");
+	cpu->setCurrentIndex(m_cpu);
+
+	QActionGroup* rightBarGroup = window->findChild<QActionGroup*>("rightbargroup");
+	rightBarGroup->actions()[m_rightBar]->trigger();
+}
+
+void DasmWindowQtConfig::addToXmlDataNode(xml_data_node* node) const
+{
+	WindowQtConfig::addToXmlDataNode(node);
+	xml_set_attribute_int(node, "cpu", m_cpu);
+	xml_set_attribute_int(node, "rightbar", m_rightBar);
+}
+
+void DasmWindowQtConfig::recoverFromXmlNode(xml_data_node* node)
+{
+	WindowQtConfig::recoverFromXmlNode(node);
+	m_cpu = xml_get_attribute_int(node, "cpu", m_cpu);
+	m_rightBar = xml_get_attribute_int(node, "rightbar", m_rightBar);
 }

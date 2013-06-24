@@ -1,14 +1,21 @@
+#include "sound/msm5205.h"
+
 class splash_state : public driver_device
 {
 public:
 	splash_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_pixelram(*this, "pixelram"),
 		m_videoram(*this, "videoram"),
 		m_vregs(*this, "vregs"),
 		m_spriteram(*this, "spriteram"),
 		m_protdata(*this, "protdata"),
-		m_bitmap_mode(*this, "bitmap_mode"){ }
+		m_bitmap_mode(*this, "bitmap_mode"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_msm(*this, "msm"),
+		m_msm1(*this, "msm1"),
+		m_msm2(*this, "msm2")  { }
 
 	required_shared_ptr<UINT16> m_pixelram;
 	required_shared_ptr<UINT16> m_videoram;
@@ -65,4 +72,17 @@ public:
 	UINT32 screen_update_splash(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_funystrp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(roldfrog_interrupt);
+	void draw_bitmap(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void splash_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void funystrp_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void roldfrog_update_irq(  );
+	DECLARE_WRITE_LINE_MEMBER(splash_msm5205_int);
+	DECLARE_WRITE_LINE_MEMBER(ym_irq);
+	DECLARE_WRITE_LINE_MEMBER(adpcm_int1);
+	DECLARE_WRITE_LINE_MEMBER(adpcm_int2);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<msm5205_device> m_msm;
+	optional_device<msm5205_device> m_msm1;
+	optional_device<msm5205_device> m_msm2;
 };

@@ -11,7 +11,7 @@
 #include "includes/busicom.h"
 
 
-static UINT8 get_bit_selected(UINT32 val,int num)
+UINT8 busicom_state::get_bit_selected(UINT32 val,int num)
 {
 	int i;
 	for(i=0;i<num;i++) {
@@ -68,7 +68,6 @@ WRITE8_MEMBER(busicom_state::printer_w)
 		}
 	}
 	if (BIT(data,3)) {
-
 		for(j=0;j<10;j++) {
 			for(i=0;i<17;i++) {
 				m_printer_line[j][i] = m_printer_line[j+1][i];
@@ -183,7 +182,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(busicom_state::timer_callback)
 	m_timer ^=1;
 	if (m_timer==1) m_drum_index++;
 	if (m_drum_index==13) m_drum_index=0;
-	i4004_set_test(machine().device("maincpu"),m_timer);
+	i4004_set_test(m_maincpu,m_timer);
 
 }
 

@@ -44,7 +44,7 @@ static const int m_cmd_fifo_length[256] =
 	-1, -1, -1, -1,  1,  3, -1, -1, -1, -1, -1, -1, -1, -1,  2,  1, /* 0x */
 		2, -1, -1, -1,  3, -1,  3,  3, -1, -1, -1,  -1,  1, -1, -1,  1, /* 1x */
 	-1, -1, -1, -1,  3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, /* 2x */
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, /* 3x */
+		1,  1, -1, -1,  1,  1,  1,  1,  1,  -1, -1, -1, -1, -1, -1, -1, /* 3x */
 		2,  3,  3, -1, -1, -1, -1, -1,  3, -1, -1,  -1, -1, -1, -1, -1, /* 4x */
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, /* 5x */
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, /* 6x */
@@ -61,26 +61,33 @@ static const int m_cmd_fifo_length[256] =
 
 static const int protection_magic[4] = { 0x96, 0xa5, 0x69, 0x5a };
 
-static const ym3812_interface pc_ym3812_interface =
+static SLOT_INTERFACE_START(midiin_slot)
+	SLOT_INTERFACE("midiin", MIDIIN_PORT)
+SLOT_INTERFACE_END
+
+static const serial_port_interface midiin_intf =
 {
-	NULL
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, sb_device, midi_rx_w)
 };
 
-static const ymf262_interface pc_ymf262_interface =
+static SLOT_INTERFACE_START(midiout_slot)
+	SLOT_INTERFACE("midiout", MIDIOUT_PORT)
+SLOT_INTERFACE_END
+
+static const serial_port_interface midiout_intf =
 {
-	NULL
+	DEVCB_NULL  // midi out ports don't transmit inward
 };
 
 static MACHINE_CONFIG_FRAGMENT( sblaster1_0_config )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("ym3812", YM3812, ym3812_StdClock)
-	MCFG_SOUND_CONFIG(pc_ym3812_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 3.00)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 3.00)
-	MCFG_SOUND_ADD("saa1099.1", SAA1099, 4772720)
+	MCFG_SAA1099_ADD("saa1099.1", 4772720)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
-	MCFG_SOUND_ADD("saa1099.2", SAA1099, 4772720)
+	MCFG_SAA1099_ADD("saa1099.2", 4772720)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 
@@ -89,13 +96,14 @@ static MACHINE_CONFIG_FRAGMENT( sblaster1_0_config )
 	MCFG_SOUND_ADD("sbdacr", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.00)
 
-	MCFG_PC_JOY_ADD("joy")
+	MCFG_PC_JOY_ADD("pc_joy")
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_FRAGMENT( sblaster1_5_config )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("ym3812", YM3812, ym3812_StdClock)
-	MCFG_SOUND_CONFIG(pc_ym3812_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.00)
 	/* no CM/S support (empty sockets) */
@@ -105,13 +113,14 @@ static MACHINE_CONFIG_FRAGMENT( sblaster1_5_config )
 	MCFG_SOUND_ADD("sbdacr", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.00)
 
-	MCFG_PC_JOY_ADD("joy")
+	MCFG_PC_JOY_ADD("pc_joy")
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_FRAGMENT( sblaster_16_config )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("ymf262", YMF262, ymf262_StdClock)
-	MCFG_SOUND_CONFIG(pc_ymf262_interface)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.00)
 	MCFG_SOUND_ROUTE(2, "lspeaker", 1.00)
@@ -121,25 +130,31 @@ static MACHINE_CONFIG_FRAGMENT( sblaster_16_config )
 	MCFG_SOUND_ADD("sbdacr", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.00)
 
-	MCFG_PC_JOY_ADD("joy")
+	MCFG_PC_JOY_ADD("pc_joy")
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
 MACHINE_CONFIG_END
 
 static READ8_DEVICE_HANDLER( ym3812_16_r )
 {
+	ym3812_device *ym3812 = (ym3812_device *) device;
+
 	UINT8 retVal = 0xff;
 	switch(offset)
 	{
-		case 0 : retVal = ym3812_status_port_r( device, space, offset ); break;
+		case 0 : retVal = ym3812->status_port_r( space, offset ); break;
 	}
 	return retVal;
 }
 
 static WRITE8_DEVICE_HANDLER( ym3812_16_w )
 {
+	ym3812_device *ym3812 = (ym3812_device *) device;
+
 	switch(offset)
 	{
-		case 0 : ym3812_control_port_w( device, space, offset, data ); break;
-		case 1 : ym3812_write_port_w( device, space, offset, data ); break;
+		case 0 : ym3812->control_port_w( space, offset, data ); break;
+		case 1 : ym3812->write_port_w( space, offset, data ); break;
 	}
 }
 
@@ -152,8 +167,8 @@ static WRITE8_DEVICE_HANDLER( saa1099_16_w )
 {
 	switch(offset)
 	{
-		case 0 : saa1099_control_w( device, space, offset, data ); break;
-		case 1 : saa1099_data_w( device, space, offset, data ); break;
+		case 0 : dynamic_cast<saa1099_device*>(device)->saa1099_control_w( space, offset, data ); break;
+		case 1 : dynamic_cast<saa1099_device*>(device)->saa1099_data_w( space, offset, data ); break;
 	}
 }
 
@@ -225,28 +240,42 @@ WRITE8_MEMBER( sb_device::dsp_reset_w )
 	if(offset)
 		return;
 
-	if(data == 0 && m_dsp.reset_latch == 1)
+	// a reset while in UART MIDI mode simply restores the previous
+	// operating state (page 5-3 of the Creative manual).
+	if (!m_uart_midi)
 	{
-		// reset routine
-		m_dsp.fifo_ptr = 0;
-		m_dsp.fifo_r_ptr = 0;
-		for(int i=0;i < 15; i++)
+		if(data == 0 && m_dsp.reset_latch == 1)
 		{
-			m_dsp.fifo[i] = 0;
-			m_dsp.fifo_r[i] = 0;
+			// reset routine
+			m_dsp.fifo_ptr = 0;
+			m_dsp.fifo_r_ptr = 0;
+			for(int i=0;i < 15; i++)
+			{
+				m_dsp.fifo[i] = 0;
+				m_dsp.fifo_r[i] = 0;
+			}
+			queue_r(0xaa); // reset OK ID
 		}
-		queue_r(0xaa); // reset OK ID
+
+		m_dsp.reset_latch = data;
+		drq_w(0);
+		m_dsp.dma_autoinit = 0;
+		irq_w(0, IRQ_ALL);
+		m_timer->adjust(attotime::never, 0);
+		m_dsp.d_rptr = 0;
+		m_dsp.d_wptr = 0;
+		m_dsp.dma_throttled = false;
+		m_dsp.dma_timer_started = false;
 	}
 
-	m_dsp.reset_latch = data;
-	drq_w(0);
-	m_dsp.dma_autoinit = 0;
-	irq_w(0, IRQ_ALL);
-	m_timer->adjust(attotime::never, 0);
-	m_dsp.d_rptr = 0;
-	m_dsp.d_wptr = 0;
-	m_dsp.dma_throttled = false;
-	m_dsp.dma_timer_started = false;
+	m_onebyte_midi = false;
+	m_uart_midi = false;
+	m_uart_irq = false;
+	m_mpu_midi = false;
+	m_tx_busy = false;
+	m_xmit_read = m_xmit_write = 0;
+	m_recv_read = m_recv_write = 0;
+	m_rx_waiting = m_tx_waiting = 0;
 
 	//printf("%02x\n",data);
 }
@@ -256,6 +285,22 @@ READ8_MEMBER( sb_device::dsp_data_r )
 //    printf("read DSP data @ %x\n", offset);
 	if(offset)
 		return 0xff;
+
+	if (m_uart_midi)
+	{
+		UINT8 rv = m_recvring[m_recv_read++];
+		if (m_recv_read >= MIDI_RING_SIZE)
+		{
+			m_recv_read = 0;
+		}
+
+		if (m_rx_waiting)
+		{
+			m_rx_waiting--;
+		}
+
+		return rv;
+	}
 
 	return dequeue_r();
 }
@@ -282,14 +327,39 @@ READ8_MEMBER(sb_device::dsp_rbuf_status_r)
 //    printf("Clear IRQ5\n");
 	irq_w(0, IRQ_DMA8);   // reading this port ACKs the card's IRQ, 8-bit dma only?
 
+	// in either SB-MIDI mode, bit 7 indicates if a character is available
+	// to read.
+	if (m_uart_midi || m_onebyte_midi)
+	{
+		if (m_rx_waiting)
+		{
+			return 0x80;
+		}
+
+		return 0x00;
+	}
+
 	return m_dsp.rbuf_status;
 }
 
 READ8_MEMBER(sb_device::dsp_wbuf_status_r)
 {
 //    printf("read Wbufstat @ %x\n", offset);
+
 	if(offset)
 		return 0xff;
+
+	// in either SB-MIDI mode, bit 7 indicates if there's space to write.
+	// set = buffer full
+	if (m_uart_midi || m_onebyte_midi)
+	{
+		if (m_tx_waiting >= MIDI_RING_SIZE)
+		{
+			return 0x80;
+		}
+
+		return 0x00;
+	}
 
 	return m_dsp.wbuf_status;
 }
@@ -361,6 +431,25 @@ void sb_device::process_fifo(UINT8 cmd)
 				m_dsp.dma_autoinit = 0;
 				drq_w(1);
 				logerror("SB: ADC capture unimplemented\n");
+				break;
+
+			case 0x34:
+				m_uart_midi = true;
+				m_uart_irq = false;
+				break;
+
+			case 0x35:
+				m_uart_midi = true;
+				m_uart_irq = true;
+				break;
+
+			case 0x36:
+			case 0x37:  // Enter UART mode
+				printf("timestamp MIDI mode not supported, contact MESSDEV!\n");
+				break;
+
+			case 0x38:  // single-byte MIDI send
+				m_onebyte_midi = true;
 				break;
 
 			case 0x40:  // set time constant
@@ -614,6 +703,13 @@ WRITE8_MEMBER(sb_device::dsp_cmd_w)
 	if(offset)
 		return;
 
+	if (m_uart_midi || m_onebyte_midi)
+	{
+		xmit_char(data);
+		m_onebyte_midi = false; // clear onebyte (if this is uart, that's harmless)
+		return;
+	}
+
 	queue(data);
 
 	process_fifo(m_dsp.fifo[0]);
@@ -677,17 +773,28 @@ READ8_MEMBER( sb16_device::mpu401_r )
 	irq_w(0, IRQ_MPU);
 	if(offset == 0) // data
 	{
-		if(m_head != m_tail)
+		res = m_recvring[m_recv_read++];
+		if (m_recv_read >= MIDI_RING_SIZE)
 		{
-			res = m_mpu_queue[m_tail++];
-			m_tail %= 16;
+			m_recv_read = 0;
 		}
-		else
-			res = 0xff;
+
+		if (m_rx_waiting)
+		{
+			m_rx_waiting--;
+		}
 	}
 	else // status
 	{
-		res = ((m_head != m_tail)?0:0x80) | 0x3f; // bit 7 queue empty (DSR), bit 6 DRR (Data Receive Ready?)
+		res = 0;
+		if (m_tx_waiting >= MIDI_RING_SIZE)
+		{
+			res |= 0x40;   // tx full
+		}
+		if (m_rx_waiting == 0)
+		{
+			res |= 0x80;    // rx empty
+		}
 	}
 
 	return res;
@@ -698,6 +805,10 @@ WRITE8_MEMBER( sb16_device::mpu401_w )
 	if(offset == 0) // data
 	{
 		logerror("SB MPU401:%02x %02x\n",offset,data);
+		if (m_mpu_midi)
+		{
+			xmit_char(data);
+		}
 	}
 	else // command
 	{
@@ -705,10 +816,21 @@ WRITE8_MEMBER( sb16_device::mpu401_w )
 
 		switch(data)
 		{
+			case 0x3f: // enter MPU-401 UART mode
+				irq_w(1, IRQ_MPU);
+				m_recv_read = m_recv_write = 0;
+				m_xmit_read = m_xmit_write = m_tx_waiting = 0;
+				m_recvring[m_recv_write++] = 0xfe;
+				m_rx_waiting = 1;
+				m_mpu_midi = true;
+				break;
+
 			case 0xff: // reset
 				irq_w(1, IRQ_MPU);
-				m_head = m_tail = 0;
-				m_mpu_queue[m_head++] = 0xfe;
+				m_recv_read = m_recv_write = 0;
+				m_recvring[m_recv_write++] = 0xfe;
+				m_rx_waiting = 1;
+				m_mpu_midi = false;
 				break;
 		}
 	}
@@ -986,22 +1108,24 @@ machine_config_constructor isa16_sblaster16_device::device_mconfig_additions() c
 //  LIVE DEVICE
 //**************************************************************************
 
-sb_device::sb_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name) :
-	device_t(mconfig, type, name, tag, owner, clock),
+sb_device::sb_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name, const char *shortname, const char *source) :
+	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+	device_serial_interface(mconfig, *this),
 	m_dacl(*this, "sbdacl"),
 	m_dacr(*this, "sbdacr"),
-	m_joy(*this, "joy")
+	m_joy(*this, "pc_joy"),
+	m_mdout(*this, "mdout")
 {
 }
 
-sb8_device::sb8_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name) :
-	sb_device(mconfig, type, tag, owner, clock, name),
+sb8_device::sb8_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name, const char *shortname, const char *source) :
+	sb_device(mconfig, type, tag, owner, clock, name, shortname, source),
 	device_isa8_card_interface(mconfig, *this)
 {
 }
 
-sb16_device::sb16_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name) :
-	sb_device(mconfig, type, tag, owner, clock, name),
+sb16_device::sb16_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name, const char *shortname, const char *source) :
+	sb_device(mconfig, type, tag, owner, clock, name, shortname, source),
 	device_isa16_card_interface(mconfig, *this)
 {
 }
@@ -1011,17 +1135,17 @@ sb16_device::sb16_device(const machine_config &mconfig, device_type type, const 
 //-------------------------------------------------
 
 isa8_sblaster1_0_device::isa8_sblaster1_0_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	sb8_device(mconfig, ISA8_SOUND_BLASTER_1_0, tag, owner, clock, "Sound Blaster 1.0")
+	sb8_device(mconfig, ISA8_SOUND_BLASTER_1_0, tag, owner, clock, "Sound Blaster 1.0", "isa_sblaster1_0", __FILE__)
 {
 }
 
 isa8_sblaster1_5_device::isa8_sblaster1_5_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	sb8_device(mconfig, ISA8_SOUND_BLASTER_1_5, tag, owner, clock, "Sound Blaster 1.5")
+	sb8_device(mconfig, ISA8_SOUND_BLASTER_1_5, tag, owner, clock, "Sound Blaster 1.5", "isa_sblaster1_5", __FILE__)
 {
 }
 
 isa16_sblaster16_device::isa16_sblaster16_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	sb16_device(mconfig, ISA16_SOUND_BLASTER_16, tag, owner, clock, "Sound Blaster 16")
+	sb16_device(mconfig, ISA16_SOUND_BLASTER_16, tag, owner, clock, "Sound Blaster 16", "isa_sblaster_16", __FILE__)
 {
 }
 
@@ -1031,17 +1155,18 @@ isa16_sblaster16_device::isa16_sblaster16_device(const machine_config &mconfig, 
 
 void sb8_device::device_start()
 {
-	m_isa->install_device(                   0x0200, 0x0207, 0, 0, read8_delegate(FUNC(pc_joy_device::joy_port_r), subdevice<pc_joy_device>("joy")), write8_delegate(FUNC(pc_joy_device::joy_port_w), subdevice<pc_joy_device>("joy")));
-	m_isa->install_device(                   0x0226, 0x0227, 0, 0, read8_delegate(FUNC(sb_device::dsp_reset_r), this), write8_delegate(FUNC(sb_device::dsp_reset_w), this));
-	m_isa->install_device(                   0x022a, 0x022b, 0, 0, read8_delegate(FUNC(sb_device::dsp_data_r), this), write8_delegate(FUNC(sb_device::dsp_data_w), this) );
-	m_isa->install_device(                   0x022c, 0x022d, 0, 0, read8_delegate(FUNC(sb_device::dsp_wbuf_status_r), this), write8_delegate(FUNC(sb_device::dsp_cmd_w), this) );
-	m_isa->install_device(                   0x022e, 0x022f, 0, 0, read8_delegate(FUNC(sb_device::dsp_rbuf_status_r), this), write8_delegate(FUNC(sb_device::dsp_rbuf_status_w), this) );
+	m_isa->install_device(0x0200, 0x0207, 0, 0, read8_delegate(FUNC(pc_joy_device::joy_port_r), subdevice<pc_joy_device>("pc_joy")), write8_delegate(FUNC(pc_joy_device::joy_port_w), subdevice<pc_joy_device>("pc_joy")));
+	m_isa->install_device(0x0226, 0x0227, 0, 0, read8_delegate(FUNC(sb_device::dsp_reset_r), this), write8_delegate(FUNC(sb_device::dsp_reset_w), this));
+	m_isa->install_device(0x022a, 0x022b, 0, 0, read8_delegate(FUNC(sb_device::dsp_data_r), this), write8_delegate(FUNC(sb_device::dsp_data_w), this) );
+	m_isa->install_device(0x022c, 0x022d, 0, 0, read8_delegate(FUNC(sb_device::dsp_wbuf_status_r), this), write8_delegate(FUNC(sb_device::dsp_cmd_w), this) );
+	m_isa->install_device(0x022e, 0x022f, 0, 0, read8_delegate(FUNC(sb_device::dsp_rbuf_status_r), this), write8_delegate(FUNC(sb_device::dsp_rbuf_status_w), this) );
 	if(m_dsp.version >= 0x0301)
 	{
-		//m_isa->install_device(0x0224, 0x0225, 0, 0, read8_delegate(FUNC(sb8_device::mixer_r), this), write8_delegate(FUNC(sb8_device::mixer_w), this));
-		m_isa->install_device(subdevice("ymf262"),    0x0388, 0x038b, 0, 0, FUNC(ymf262_r), FUNC(ymf262_w) );
-		m_isa->install_device(subdevice("ymf262"),    0x0220, 0x0223, 0, 0, FUNC(ymf262_r), FUNC(ymf262_w) );
-		m_isa->install_device(subdevice("ymf262"),    0x0228, 0x0229, 0, 0, FUNC(ymf262_r), FUNC(ymf262_w) );
+		ymf262_device *ymf262 = subdevice<ymf262_device>("ymf262");
+
+		m_isa->install_device(0x0388, 0x038b, 0, 0, read8_delegate(FUNC(ymf262_device::read), ymf262), write8_delegate(FUNC(ymf262_device::write), ymf262));
+		m_isa->install_device(0x0220, 0x0223, 0, 0, read8_delegate(FUNC(ymf262_device::read), ymf262), write8_delegate(FUNC(ymf262_device::write), ymf262));
+		m_isa->install_device(0x0228, 0x0229, 0, 0, read8_delegate(FUNC(ymf262_device::read), ymf262), write8_delegate(FUNC(ymf262_device::write), ymf262));
 	}
 	else
 	{
@@ -1050,6 +1175,21 @@ void sb8_device::device_start()
 	}
 
 	m_timer = timer_alloc(0, NULL);
+
+	save_item(NAME(m_dack_out));
+	save_item(NAME(m_onebyte_midi));
+	save_item(NAME(m_uart_midi));
+	save_item(NAME(m_uart_irq));
+	save_item(NAME(m_mpu_midi));
+	save_item(NAME(m_rx_waiting));
+	save_item(NAME(m_tx_waiting));
+	save_item(NAME(m_recvring));
+	save_item(NAME(m_xmitring));
+	save_item(NAME(m_xmit_read));
+	save_item(NAME(m_xmit_write));
+	save_item(NAME(m_recv_read));
+	save_item(NAME(m_recv_write));
+	save_item(NAME(m_tx_busy));
 }
 
 void isa8_sblaster1_0_device::device_start()
@@ -1074,20 +1214,37 @@ void isa8_sblaster1_5_device::device_start()
 
 void sb16_device::device_start()
 {
-	m_isa->install_device(                   0x0200, 0x0207, 0, 0, read8_delegate(FUNC(pc_joy_device::joy_port_r), subdevice<pc_joy_device>("joy")), write8_delegate(FUNC(pc_joy_device::joy_port_w), subdevice<pc_joy_device>("joy")));
-	m_isa->install_device(                   0x0224, 0x0225, 0, 0, read8_delegate(FUNC(sb16_device::mixer_r), this), write8_delegate(FUNC(sb16_device::mixer_w), this));
-	m_isa->install_device(                   0x0226, 0x0227, 0, 0, read8_delegate(FUNC(sb_device::dsp_reset_r), this), write8_delegate(FUNC(sb_device::dsp_reset_w), this));
-	m_isa->install_device(                   0x022a, 0x022b, 0, 0, read8_delegate(FUNC(sb_device::dsp_data_r), this), write8_delegate(FUNC(sb_device::dsp_data_w), this) );
-	m_isa->install_device(                   0x022c, 0x022d, 0, 0, read8_delegate(FUNC(sb_device::dsp_wbuf_status_r), this), write8_delegate(FUNC(sb_device::dsp_cmd_w), this) );
-	m_isa->install_device(                   0x022e, 0x022f, 0, 0, read8_delegate(FUNC(sb_device::dsp_rbuf_status_r), this), write8_delegate(FUNC(sb_device::dsp_rbuf_status_w), this) );
-	m_isa->install_device(                   0x0330, 0x0331, 0, 0, read8_delegate(FUNC(sb16_device::mpu401_r), this), write8_delegate(FUNC(sb16_device::mpu401_w), this));
-	m_isa->install_device(subdevice("ymf262"),    0x0388, 0x038b, 0, 0, FUNC(ymf262_r), FUNC(ymf262_w) );
-	m_isa->install_device(subdevice("ymf262"),    0x0220, 0x0223, 0, 0, FUNC(ymf262_r), FUNC(ymf262_w) );
-	m_isa->install_device(subdevice("ymf262"),    0x0228, 0x0229, 0, 0, FUNC(ymf262_r), FUNC(ymf262_w) );
+	ymf262_device *ymf262 = subdevice<ymf262_device>("ymf262");
 
-	m_head = 0;
-	m_tail = 0;
+	m_isa->install_device(0x0200, 0x0207, 0, 0, read8_delegate(FUNC(pc_joy_device::joy_port_r), subdevice<pc_joy_device>("pc_joy")), write8_delegate(FUNC(pc_joy_device::joy_port_w), subdevice<pc_joy_device>("pc_joy")));
+	m_isa->install_device(0x0224, 0x0225, 0, 0, read8_delegate(FUNC(sb16_device::mixer_r), this), write8_delegate(FUNC(sb16_device::mixer_w), this));
+	m_isa->install_device(0x0226, 0x0227, 0, 0, read8_delegate(FUNC(sb_device::dsp_reset_r), this), write8_delegate(FUNC(sb_device::dsp_reset_w), this));
+	m_isa->install_device(0x022a, 0x022b, 0, 0, read8_delegate(FUNC(sb_device::dsp_data_r), this), write8_delegate(FUNC(sb_device::dsp_data_w), this) );
+	m_isa->install_device(0x022c, 0x022d, 0, 0, read8_delegate(FUNC(sb_device::dsp_wbuf_status_r), this), write8_delegate(FUNC(sb_device::dsp_cmd_w), this) );
+	m_isa->install_device(0x022e, 0x022f, 0, 0, read8_delegate(FUNC(sb_device::dsp_rbuf_status_r), this), write8_delegate(FUNC(sb_device::dsp_rbuf_status_w), this) );
+	m_isa->install_device(0x0330, 0x0331, 0, 0, read8_delegate(FUNC(sb16_device::mpu401_r), this), write8_delegate(FUNC(sb16_device::mpu401_w), this));
+	m_isa->install_device(0x0388, 0x038b, 0, 0, read8_delegate(FUNC(ymf262_device::read), ymf262), write8_delegate(FUNC(ymf262_device::write), ymf262));
+	m_isa->install_device(0x0220, 0x0223, 0, 0, read8_delegate(FUNC(ymf262_device::read), ymf262), write8_delegate(FUNC(ymf262_device::write), ymf262));
+	m_isa->install_device(0x0228, 0x0229, 0, 0, read8_delegate(FUNC(ymf262_device::read), ymf262), write8_delegate(FUNC(ymf262_device::write), ymf262));
+
 	m_timer = timer_alloc(0, NULL);
+
+	save_item(NAME(m_mixer.data));
+	save_item(NAME(m_mixer.status));
+	save_item(NAME(m_mixer.main_vol));
+	save_item(NAME(m_mixer.dac_vol));
+	save_item(NAME(m_mixer.fm_vol));
+	save_item(NAME(m_mixer.cd_vol));
+	save_item(NAME(m_mixer.line_vol));
+	save_item(NAME(m_mixer.mic_vol));
+	save_item(NAME(m_mixer.pc_speaker_vol));
+	save_item(NAME(m_mixer.output_ctl));
+	save_item(NAME(m_mixer.input_ctl));
+	save_item(NAME(m_mixer.input_gain));
+	save_item(NAME(m_mixer.output_gain));
+	save_item(NAME(m_mixer.agc));
+	save_item(NAME(m_mixer.treble));
+	save_item(NAME(m_mixer.bass));
 }
 
 void isa16_sblaster16_device::device_start()
@@ -1116,6 +1273,20 @@ void sb_device::device_reset()
 	m_dsp.irq_active = 0;
 	m_dsp.dma_no_irq = false;
 	mixer_reset();
+
+	m_onebyte_midi = false;
+	m_uart_midi = false;
+	m_uart_irq = false;
+	m_mpu_midi = false;
+	m_tx_busy = false;
+	m_xmit_read = m_xmit_write = 0;
+	m_recv_read = m_recv_write = 0;
+	m_rx_waiting = m_tx_waiting = 0;
+
+	// MIDI is 31250 baud, 8-N-1
+	set_rcv_rate(31250);
+	set_tra_rate(31250);
+	set_data_frame(8, 1, SERIAL_PARITY_NONE);
 }
 
 UINT8 sb_device::dack_r(int line)
@@ -1404,5 +1575,108 @@ void sb_device::device_timer(emu_timer &timer, device_timer_id tid, int param, v
 				drq_w(1);   // raise DRQ
 			m_dsp.dma_throttled = false;
 		}
+	}
+}
+
+void sb_device::rcv_complete()    // Rx completed receiving byte
+{
+	receive_register_extract();
+	UINT8 data = get_received_char();
+
+	// in UART MIDI mode, we set the DMA8 IRQ on receiving a character
+	if (m_uart_midi)
+	{
+		m_recvring[m_recv_write++] = data;
+		if (m_recv_write >= MIDI_RING_SIZE)
+		{
+			m_recv_write = 0;
+		}
+
+		if (m_recv_write != m_recv_read)
+		{
+			m_rx_waiting++;
+		}
+		if (m_uart_irq)
+		{
+			irq_w(1, IRQ_DMA8);
+		}
+	}
+}
+
+void sb16_device::rcv_complete()    // Rx completed receiving byte
+{
+	receive_register_extract();
+	UINT8 data = get_received_char();
+
+	// for UART or MPU, add character to the receive queue
+	if (m_uart_midi || m_mpu_midi)
+	{
+		m_recvring[m_recv_write++] = data;
+		if (m_recv_write >= MIDI_RING_SIZE)
+		{
+			m_recv_write = 0;
+		}
+
+		if (m_recv_write != m_recv_read)
+		{
+			m_rx_waiting++;
+		}
+
+		if (m_uart_irq)
+		{
+			irq_w(1, IRQ_DMA8);
+		}
+
+		if (m_mpu_midi)
+		{
+			irq_w(1, IRQ_MPU);
+		}
+	}
+}
+
+void sb_device::tra_complete()    // Tx completed sending byte
+{
+//  printf("Tx complete\n");
+	// is there more waiting to send?
+	if (m_tx_waiting)
+	{
+		transmit_register_setup(m_xmitring[m_xmit_read++]);
+		if (m_xmit_read >= MIDI_RING_SIZE)
+		{
+			m_xmit_read = 0;
+		}
+		m_tx_waiting--;
+	}
+	else
+	{
+		m_tx_busy = false;
+	}
+}
+
+void sb_device::tra_callback()    // Tx send bit
+{
+	int bit = transmit_register_get_data_bit();
+	m_mdout->tx(bit);
+}
+
+void sb_device::xmit_char(UINT8 data)
+{
+//  printf("SB: xmit %02x\n", data);
+
+	// if tx is busy it'll pick this up automatically when it completes
+	if (!m_tx_busy)
+	{
+		m_tx_busy = true;
+		transmit_register_setup(data);
+	}
+	else
+	{
+		// tx is busy, it'll pick this up next time
+		m_xmitring[m_xmit_write++] = data;
+		if (m_xmit_write >= MIDI_RING_SIZE)
+		{
+			m_xmit_write = 0;
+		}
+		m_tx_waiting++;
 	}
 }

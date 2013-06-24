@@ -99,12 +99,10 @@
 #include "machine/upd765.h"
 #include "machine/mc146818.h"
 #include "machine/pic8259.h"
-#include "machine/pit8253.h"
-#include "machine/8237dma.h"
+#include "machine/am9517a.h"
 #include "machine/idectrl.h"
 #include "machine/pci.h"
 #include "machine/intelfsh.h"
-#include "machine/8042kbdc.h"
 #include "machine/53c810.h"
 #include "machine/ram.h"
 
@@ -249,7 +247,7 @@ READ64_MEMBER(bebox_state::bebox_crossproc_interrupts_r )
 	result = m_crossproc_interrupts;
 
 	/* return a different result depending on which CPU is accessing this handler */
-	if (&space != &space.machine().device("ppc1")->memory().space(AS_PROGRAM))
+	if (&space != &m_ppc1->space(AS_PROGRAM))
 		result |= 0x02000000;
 	else
 		result &= ~0x02000000;
@@ -307,7 +305,7 @@ WRITE64_MEMBER(bebox_state::bebox_processor_resets_w )
 
 	if (b & 0x20)
 	{
-		space.machine().device("ppc2")->execute().set_input_line(INPUT_LINE_RESET, (b & 0x80) ? CLEAR_LINE : ASSERT_LINE);
+		m_ppc2->set_input_line(INPUT_LINE_RESET, (b & 0x80) ? CLEAR_LINE : ASSERT_LINE);
 	}
 }
 
@@ -454,17 +452,13 @@ const ins8250_interface bebox_uart_inteface_3 =
 void bebox_state::fdc_interrupt(bool state)
 {
 	bebox_set_irq_bit(machine(), 13, state);
-	if ( m_devices.pic8259_master ) {
-		pic8259_ir6_w(m_devices.pic8259_master, state);
-	}
+	m_pic8259_1->ir6_w(state);
 }
 
 
 void bebox_state::fdc_dma_drq(bool state)
 {
-	if ( m_devices.dma8237_1 ) {
-		i8237_dreq2_w(m_devices.dma8237_1, state);
-	}
+	m_dma8237_1->dreq2_w(state);
 }
 
 /*************************************
@@ -475,8 +469,8 @@ void bebox_state::fdc_dma_drq(bool state)
 
 READ64_MEMBER(bebox_state::bebox_interrupt_ack_r )
 {
-	int result;
-	result = pic8259_acknowledge( m_devices.pic8259_master );
+	UINT32 result;
+	result = m_pic8259_1->acknowledge();
 	bebox_set_irq_bit(space.machine(), 5, 0);   /* HACK */
 	return ((UINT64) result) << 56;
 }
@@ -495,31 +489,13 @@ WRITE_LINE_MEMBER(bebox_state::bebox_pic8259_master_set_int_line)
 
 WRITE_LINE_MEMBER(bebox_state::bebox_pic8259_slave_set_int_line)
 {
-	if (m_devices.pic8259_master)
-		pic8259_ir2_w(m_devices.pic8259_master, state);
+	m_pic8259_1->ir2_w(state);
 }
 
 READ8_MEMBER(bebox_state::get_slave_ack)
 {
-	if (offset==2) { // IRQ = 2
-		return pic8259_acknowledge(m_devices.pic8259_slave);
-	}
-	return 0x00;
+	return m_pic8259_2->acknowledge();
 }
-
-const struct pic8259_interface bebox_pic8259_master_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(bebox_state,bebox_pic8259_master_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_MEMBER(bebox_state,get_slave_ack)
-};
-
-const struct pic8259_interface bebox_pic8259_slave_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(bebox_state,bebox_pic8259_slave_set_int_line),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
 
 
 /*************************************
@@ -528,39 +504,10 @@ const struct pic8259_interface bebox_pic8259_slave_config =
  *
  *************************************/
 
-static device_t *ide_device(running_machine &machine)
-{
-	return machine.device("ide");
-}
-
-READ8_MEMBER(bebox_state::bebox_800001F0_r ) { return ide_controller_r(ide_device(space.machine()), offset + 0x1F0, 1); }
-WRITE8_MEMBER(bebox_state::bebox_800001F0_w ) { ide_controller_w(ide_device(space.machine()), offset + 0x1F0, 1, data); }
-
-READ64_MEMBER(bebox_state::bebox_800003F0_r )
-{
-	UINT64 result = 0;
-
-	if (((mem_mask >> 8) & 0xFF) == 0)
-	{
-		result |= ide_controller_r(space.machine().device("ide"), 0x3F6, 1) << 8;
-	}
-	return result;
-}
-
-
-WRITE64_MEMBER(bebox_state::bebox_800003F0_w )
-{
-	if (((mem_mask >> 8) & 0xFF) == 0)
-		ide_controller_w(space.machine().device("ide"), 0x3F6, 1, (data >> 8) & 0xFF);
-}
-
-
 WRITE_LINE_MEMBER(bebox_state::bebox_ide_interrupt)
 {
 	bebox_set_irq_bit(machine(), 7, state);
-	if ( m_devices.pic8259_master ) {
-		pic8259_ir6_w(m_devices.pic8259_master, state);
-	}
+	m_pic8259_1->ir6_w(state);
 }
 
 
@@ -704,10 +651,10 @@ READ8_MEMBER(bebox_state::bebox_80000480_r)
 
 WRITE_LINE_MEMBER(bebox_state::bebox_dma_hrq_changed)
 {
-	machine().device("ppc1")->execute().set_input_line(INPUT_LINE_HALT, state ? ASSERT_LINE : CLEAR_LINE);
+	m_ppc1->set_input_line(INPUT_LINE_HALT, state ? ASSERT_LINE : CLEAR_LINE);
 
 	/* Assert HLDA */
-	i8237_hlda_w( machine().device("dma8237_1"), state );
+	m_dma8237_1->hack_w( state );
 }
 
 
@@ -787,12 +734,11 @@ I8237_INTERFACE( bebox_dma8237_2_config )
 
 WRITE_LINE_MEMBER(bebox_state::bebox_timer0_w)
 {
-	if (m_devices.pic8259_master)
-		pic8259_ir0_w(m_devices.pic8259_master, state);
+	m_pic8259_1->ir0_w(state);
 }
 
 
-const struct pit8253_config bebox_pit8254_config =
+const struct pit8253_interface bebox_pit8254_config =
 {
 	{
 		{
@@ -834,35 +780,6 @@ WRITE8_MEMBER(bebox_state::bebox_flash_w )
 	offset = (offset & ~7) | (7 - (offset & 7));
 	flash->write(offset, data);
 }
-
-/*************************************
- *
- *  Keyboard
- *
- *************************************/
-
-static void bebox_keyboard_interrupt(running_machine &machine,int state)
-{
-	bebox_state *drvstate = machine.driver_data<bebox_state>();
-	bebox_set_irq_bit(machine, 16, state);
-	if ( drvstate->m_devices.pic8259_master ) {
-		pic8259_ir1_w(drvstate->m_devices.pic8259_master, state);
-	}
-}
-
-static int bebox_get_out2(running_machine &machine) {
-	return pit8253_get_output(machine.device("pit8254"), 2 );
-}
-
-static const struct kbdc8042_interface bebox_8042_interface =
-{
-	KBDC8042_STANDARD,
-	NULL,
-	bebox_keyboard_interrupt,
-	NULL,
-	bebox_get_out2
-};
-
 
 /*************************************
  *
@@ -986,7 +903,7 @@ void scsi53c810_pci_write(device_t *busdevice, device_t *device, int function, i
 					/* brutal ugly hack; at some point the PCI code should be handling this stuff */
 					if (state->m_scsi53c810_data[5] != 0xFFFFFFF0)
 					{
-						address_space &space = device->machine().device("ppc1")->memory().space(AS_PROGRAM);
+						address_space &space = state->m_ppc1->space(AS_PROGRAM);
 
 						addr = (state->m_scsi53c810_data[5] | 0xC0000000) & ~0xFF;
 						space.install_readwrite_handler(addr, addr + 0xFF, read64_delegate(FUNC(bebox_state::scsi53c810_r),state), write64_delegate(FUNC(bebox_state::scsi53c810_w),state));
@@ -998,11 +915,15 @@ void scsi53c810_pci_write(device_t *busdevice, device_t *device, int function, i
 }
 
 
-TIMER_CALLBACK_MEMBER(bebox_state::bebox_get_devices){
-	m_devices.pic8259_master = machine().device("pic8259_master");
-	m_devices.pic8259_slave = machine().device("pic8259_slave");
-	m_devices.dma8237_1 = machine().device("dma8237_1");
-	m_devices.dma8237_2 = machine().device("dma8237_2");
+void bebox_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_GET_DEVICES:
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in bebox_state::device_timer");
+	}
 }
 
 
@@ -1014,15 +935,10 @@ TIMER_CALLBACK_MEMBER(bebox_state::bebox_get_devices){
 
 void bebox_state::machine_reset()
 {
-	m_devices.pic8259_master = NULL;
-	m_devices.pic8259_slave = NULL;
-	m_devices.dma8237_1 = NULL;
-	m_devices.dma8237_2 = NULL;
+	timer_set(attotime::zero, TIMER_GET_DEVICES);
 
-	machine().scheduler().timer_set(attotime::zero, timer_expired_delegate(FUNC(bebox_state::bebox_get_devices),this));
-
-	machine().device("ppc1")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
-	machine().device("ppc2")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_ppc1->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+	m_ppc2->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
 	memcpy(machine().device<fujitsu_29f016a_device>("flash")->space().get_read_ptr(0),memregion("user1")->base(),0x200000);
 }
@@ -1036,18 +952,16 @@ void bebox_state::machine_start()
 
 DRIVER_INIT_MEMBER(bebox_state,bebox)
 {
-	address_space &space_0 = machine().device("ppc1")->memory().space(AS_PROGRAM);
-	address_space &space_1 = machine().device("ppc2")->memory().space(AS_PROGRAM);
+	address_space &space_0 = m_ppc1->space(AS_PROGRAM);
+	address_space &space_1 = m_ppc2->space(AS_PROGRAM);
 
 	/* set up boot and flash ROM */
-	membank("bank2")->set_base(machine().root_device().memregion("user2")->base());
+	membank("bank2")->set_base(memregion("user2")->base());
 
 	/* install MESS managed RAM */
-	space_0.install_readwrite_bank(0, machine().device<ram_device>(RAM_TAG)->size() - 1, 0, 0x02000000, "bank3");
-	space_1.install_readwrite_bank(0, machine().device<ram_device>(RAM_TAG)->size() - 1, 0, 0x02000000, "bank3");
-	membank("bank3")->set_base(machine().device<ram_device>(RAM_TAG)->pointer());
-
-	kbdc8042_init(machine(), &bebox_8042_interface);
+	space_0.install_readwrite_bank(0, m_ram->size() - 1, 0, 0x02000000, "bank3");
+	space_1.install_readwrite_bank(0, m_ram->size() - 1, 0, 0x02000000, "bank3");
+	membank("bank3")->set_base(m_ram->pointer());
 
 	/* The following is a verrrry ugly hack put in to support NetBSD for
 	 * NetBSD.  When NetBSD/bebox it does most of its work on CPU #0 and then

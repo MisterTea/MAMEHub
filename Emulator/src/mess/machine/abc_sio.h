@@ -32,7 +32,6 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "abcsio"; }
 
 	// device_abcbus_interface overrides
 	virtual void abcbus_cs(UINT8 data);
@@ -41,7 +40,7 @@ protected:
 private:
 	required_device<z80ctc_device> m_ctc;
 	required_device<z80dart_device> m_sio;
-
+	required_memory_region m_rom;
 };
 
 

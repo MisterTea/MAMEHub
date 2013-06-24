@@ -27,7 +27,7 @@ const device_type K054539 = &device_creator<k054539_device>;
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
 
 k054539_device::k054539_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, K054539, "K054539", "k054539", tag, owner, clock),
+	: device_t(mconfig, K054539, "K054539", tag, owner, clock, "k054539", __FILE__),
 		device_sound_interface(mconfig, *this)
 {
 }
@@ -459,7 +459,7 @@ WRITE8_MEMBER(k054539_device::write)
 	regs[offset] = data;
 }
 
-void k054539_device::reset_zones()
+void k054539_device::device_post_load()
 {
 	int data = regs[0x22e];
 	cur_zone = data == 0x80 ? ram : rom + 0x20000*data;
@@ -516,8 +516,6 @@ void k054539_device::device_start()
 		pantab[i] = sqrt((double)i) / sqrt((double)0xe);
 
 	init_chip();
-
-	machine().save().register_postload(save_prepost_delegate(FUNC(k054539_device::reset_zones), this));
 }
 
 void k054539_device::device_reset()

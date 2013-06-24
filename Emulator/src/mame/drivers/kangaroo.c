@@ -174,21 +174,20 @@
 
 void kangaroo_state::machine_start()
 {
-	machine().root_device().membank("bank1")->configure_entries(0, 2, machine().root_device().memregion("gfx1")->base(), 0x2000);
+	membank("bank1")->configure_entries(0, 2, memregion("gfx1")->base(), 0x2000);
 }
 
 
 MACHINE_START_MEMBER(kangaroo_state,kangaroo_mcu)
 {
 	kangaroo_state::machine_start();
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xef00, 0xefff, read8_delegate(FUNC(kangaroo_state::mcu_sim_r),this), write8_delegate(FUNC(kangaroo_state::mcu_sim_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xef00, 0xefff, read8_delegate(FUNC(kangaroo_state::mcu_sim_r),this), write8_delegate(FUNC(kangaroo_state::mcu_sim_w),this));
 	save_item(NAME(m_mcu_clock));
 }
 
 
 void kangaroo_state::machine_reset()
 {
-
 	/* I think there is a bug in the startup checks of the game. At the very */
 	/* beginning, during the RAM check, it goes one byte too far, and ends up */
 	/* trying to write, and re-read, location dfff. To the best of my knowledge, */
@@ -200,7 +199,7 @@ void kangaroo_state::machine_reset()
 	/* the copy protection. */
 	/* Anyway, what I do here is just immediately generate the NMI, so the game */
 	/* properly starts. */
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 
 	m_mcu_clock = 0;
 }
@@ -272,8 +271,8 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, kangaroo_state )
 	AM_RANGE(0x0000, 0x0fff) AM_ROM
 	AM_RANGE(0x4000, 0x43ff) AM_MIRROR(0x0c00) AM_RAM
 	AM_RANGE(0x6000, 0x6000) AM_MIRROR(0x0fff) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x7000, 0x7000) AM_MIRROR(0x0fff) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
-	AM_RANGE(0x8000, 0x8000) AM_MIRROR(0x0fff) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x7000, 0x7000) AM_MIRROR(0x0fff) AM_DEVWRITE("aysnd", ay8910_device, data_w)
+	AM_RANGE(0x8000, 0x8000) AM_MIRROR(0x0fff) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 ADDRESS_MAP_END
 
 
@@ -282,8 +281,8 @@ static ADDRESS_MAP_START( sound_portmap, AS_IO, 8, kangaroo_state )
 	AM_RANGE(0x0000, 0x0fff) AM_ROM
 	AM_RANGE(0x4000, 0x43ff) AM_MIRROR(0x0c00) AM_RAM
 	AM_RANGE(0x6000, 0x6000) AM_MIRROR(0x0fff) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x7000, 0x7000) AM_MIRROR(0x0fff) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
-	AM_RANGE(0x8000, 0x8000) AM_MIRROR(0x0fff) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x7000, 0x7000) AM_MIRROR(0x0fff) AM_DEVWRITE("aysnd", ay8910_device, data_w)
+	AM_RANGE(0x8000, 0x8000) AM_MIRROR(0x0fff) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 ADDRESS_MAP_END
 
 

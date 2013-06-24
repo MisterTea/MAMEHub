@@ -159,6 +159,7 @@ public:
 	DECLARE_WRITE32_MEMBER(rso_w);
 	DECLARE_VIDEO_START(gal3);
 	UINT32 screen_update_gal3(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void update_palette(  );
 };
 
 
@@ -173,23 +174,22 @@ VIDEO_START_MEMBER(gal3_state,gal3)
 
 }
 
-static void update_palette( running_machine &machine )
+void gal3_state::update_palette(  )
 {
-	gal3_state *state = machine.driver_data<gal3_state>();
 	int i;
 	INT16 data1,data2;
 	int r,g,b;
 
 	for( i=0; i<NAMCOS21_NUM_COLORS; i++ )
 	{
-		data1 = state->m_generic_paletteram_16[0x00000/2+i];
-		data2 = state->m_generic_paletteram_16[0x10000/2+i];
+		data1 = m_generic_paletteram_16[0x00000/2+i];
+		data2 = m_generic_paletteram_16[0x10000/2+i];
 
 		r = data1>>8;
 		g = data1&0xff;
 		b = data2&0xff;
 
-		palette_set_color( machine,i, MAKE_RGB(r,g,b) );
+		palette_set_color( machine(),i, MAKE_RGB(r,g,b) );
 	}
 } /* update_palette */
 
@@ -200,7 +200,7 @@ UINT32 gal3_state::screen_update_gal3(screen_device &screen, bitmap_rgb32 &bitma
 	static int pivot = 15;
 	int pri;
 
-	update_palette(machine());
+	update_palette();
 
 	if( machine().input().code_pressed_once(KEYCODE_H)&&(pivot<15) )    pivot+=1;
 	if( machine().input().code_pressed_once(KEYCODE_J)&&(pivot>0) ) pivot-=1;
@@ -323,7 +323,7 @@ WRITE32_MEMBER(gal3_state::rso_w)
 static ADDRESS_MAP_START( cpu_mst_map, AS_PROGRAM, 32, gal3_state )
 	AM_RANGE(0x00000000, 0x001fffff) AM_ROM
 	AM_RANGE(0x20000000, 0x20001fff) AM_RAM AM_SHARE("nvmem")   //NVRAM
-/// AM_RANGE(0x40000000, 0x4000ffff) AM_WRITE_LEGACY() //
+/// AM_RANGE(0x40000000, 0x4000ffff) AM_WRITE() //
 	AM_RANGE(0x44000000, 0x44000003) AM_READ_PORT("DSW_CPU_mst" )
 	AM_RANGE(0x44800000, 0x44800003) AM_READ(led_mst_r) AM_WRITE(led_mst_w) //LEDs
 	AM_RANGE(0x48000000, 0x48000003) AM_READNOP //irq1 v-blank ack
@@ -339,21 +339,21 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cpu_slv_map, AS_PROGRAM, 32, gal3_state )
 	AM_RANGE(0x00000000, 0x0007ffff) AM_ROM
-/// AM_RANGE(0x40000000, 0x4000ffff) AM_WRITE_LEGACY() //
+/// AM_RANGE(0x40000000, 0x4000ffff) AM_WRITE() //
 	AM_RANGE(0x44000000, 0x44000003) AM_READ_PORT("DSW_CPU_slv" )
 	AM_RANGE(0x44800000, 0x44800003) AM_READ(led_slv_r) AM_WRITE(led_slv_w) //LEDs
 	AM_RANGE(0x48000000, 0x48000003) AM_READNOP //irq1 ack
-/// AM_RANGE(0x50000000, 0x50000003) AM_READ_LEGACY() AM_WRITE_LEGACY()
-/// AM_RANGE(0x54000000, 0x54000003) AM_READ_LEGACY() AM_WRITE_LEGACY()
+/// AM_RANGE(0x50000000, 0x50000003) AM_READ() AM_WRITE()
+/// AM_RANGE(0x54000000, 0x54000003) AM_READ() AM_WRITE()
 	AM_RANGE(0x60000000, 0x60007fff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x60010000, 0x60017fff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x80000000, 0x8007ffff) AM_RAM //512K Local RAM
 
 	AM_RANGE(0xf1200000, 0xf120ffff) AM_RAM //DSP RAM
-/// AM_RANGE(0xf1400000, 0xf1400003) AM_WRITE_LEGACY(pointram_control_w)
-/// AM_RANGE(0xf1440000, 0xf1440003) AM_READWRITE_LEGACY(pointram_data_r,pointram_data_w)
+/// AM_RANGE(0xf1400000, 0xf1400003) AM_WRITE(pointram_control_w)
+/// AM_RANGE(0xf1440000, 0xf1440003) AM_READWRITE(pointram_data_r,pointram_data_w)
 /// AM_RANGE(0x440002, 0x47ffff) AM_WRITENOP /* (frame buffer?) */
-/// AM_RANGE(0xf1480000, 0xf14807ff) AM_READWRITE_LEGACY(namcos21_depthcue_r,namcos21_depthcue_w)
+/// AM_RANGE(0xf1480000, 0xf14807ff) AM_READWRITE(namcos21_depthcue_r,namcos21_depthcue_w)
 	AM_RANGE(0xf1700000, 0xf170ffff) AM_READWRITE16(c355_obj_ram_r,c355_obj_ram_w,0xffffffff) AM_SHARE("objram")
 	AM_RANGE(0xf1720000, 0xf1720007) AM_READWRITE16(c355_obj_position_r,c355_obj_position_w,0xffffffff)
 	AM_RANGE(0xf1740000, 0xf175ffff) AM_READWRITE(paletteram32_r,paletteram32_w)
@@ -438,11 +438,11 @@ static ADDRESS_MAP_START( sound_cpu_map, AS_PROGRAM, 16, gal3_state )
 	AM_RANGE(0x110000, 0x113fff) AM_RAM
 /// AM_RANGE(0x120000, 0x120003) AM_RAM //2ieme byte
 /// AM_RANGE(0x200000, 0x20017f) AM_RAM //C140
-	AM_RANGE(0x200000, 0x2037ff) AM_DEVREADWRITE8_LEGACY("c140_16a", c140_r, c140_w, 0x00ff)    //C140///////////
+	AM_RANGE(0x200000, 0x2037ff) AM_DEVREADWRITE8("c140_16a", c140_device, c140_r, c140_w, 0x00ff)    //C140///////////
 /// AM_RANGE(0x201000, 0x20117f) AM_RAM //C140
 /// AM_RANGE(0x202000, 0x20217f) AM_RAM //C140
 /// AM_RANGE(0x203000, 0x20317f) AM_RAM //C140
-	AM_RANGE(0x204000, 0x2047ff) AM_DEVREADWRITE8_LEGACY("c140_16g", c140_r, c140_w, 0x00ff)    //C140
+	AM_RANGE(0x204000, 0x2047ff) AM_DEVREADWRITE8("c140_16g", c140_device, c140_r, c140_w, 0x00ff)    //C140
 /// AM_RANGE(0x090000, 0xffffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -588,7 +588,7 @@ static const c140_interface C140_interface =
 };
 
 static MACHINE_CONFIG_START( gal3, gal3_state )
-	MCFG_CPU_ADD("cpumst", M68020, 49152000/2)
+	MCFG_CPU_ADD("maincpu", M68020, 49152000/2)
 	MCFG_CPU_PROGRAM_MAP(cpu_mst_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("lscreen", gal3_state,  irq1_line_hold)
 
@@ -637,12 +637,12 @@ static MACHINE_CONFIG_START( gal3, gal3_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("c140_16g", C140, 8000000/374)
+	MCFG_C140_ADD("c140_16g", 8000000/374)
 	MCFG_SOUND_CONFIG(C140_interface)   //to be verified
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
-	MCFG_SOUND_ADD("c140_16a", C140, 8000000/374)
+	MCFG_C140_ADD("c140_16a", 8000000/374)
 	MCFG_SOUND_CONFIG(C140_interface)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
@@ -773,7 +773,7 @@ GLC1-SND-DATA1  4/5H    27c1000     DATA1.BIN
 
 ROM_START( gal3 )
 	/********* CPU-MST board x1 *********/
-	ROM_REGION( 0x200000, "cpumst", 0 ) /* 68020 Code */
+	ROM_REGION( 0x200000, "maincpu", 0 ) /* 68020 Code */
 	ROM_LOAD32_BYTE( "glc1-mst-prg0e.6b", 0x00003, 0x80000, CRC(5deccd72) SHA1(8d50779221538cc171469a691fabb17b62a8e664) )
 	ROM_LOAD32_BYTE( "glc1-mst-prg1e.10b", 0x00002, 0x80000, CRC(b6144e3b) SHA1(33f63d881e7012db7f971b074bc5f876a66198b7) )
 	ROM_LOAD32_BYTE( "glc1-mst-prg2e.14b", 0x00001, 0x80000, CRC(13381084) SHA1(486c1e136e6594ba68858e40246c5fb9bef1c0d2) )

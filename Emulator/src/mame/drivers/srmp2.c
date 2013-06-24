@@ -160,7 +160,6 @@ WRITE16_MEMBER(srmp2_state::mjyuugi_adpcm_bank_w)
 
 WRITE16_MEMBER(srmp2_state::srmp2_adpcm_code_w)
 {
-	device_t *device = machine().device("msm");
 /*
     - Received data may be playing ADPCM number.
     - 0x000000 - 0x0000ff and 0x010000 - 0x0100ff are offset table.
@@ -177,14 +176,13 @@ WRITE16_MEMBER(srmp2_state::srmp2_adpcm_code_w)
 	m_adpcm_sptr += (m_adpcm_bank * 0x10000);
 	m_adpcm_eptr += (m_adpcm_bank * 0x10000);
 
-	msm5205_reset_w(device, 0);
+	m_msm->reset_w(0);
 	m_adpcm_data = -1;
 }
 
 
 WRITE8_MEMBER(srmp2_state::srmp3_adpcm_code_w)
 {
-	device_t *device = machine().device("msm");
 /*
     - Received data may be playing ADPCM number.
     - 0x000000 - 0x0000ff and 0x010000 - 0x0100ff are offset table.
@@ -201,43 +199,42 @@ WRITE8_MEMBER(srmp2_state::srmp3_adpcm_code_w)
 	m_adpcm_sptr += (m_adpcm_bank * 0x10000);
 	m_adpcm_eptr += (m_adpcm_bank * 0x10000);
 
-	msm5205_reset_w(device, 0);
+	m_msm->reset_w(0);
 	m_adpcm_data = -1;
 }
 
 
-static void srmp2_adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(srmp2_state::srmp2_adpcm_int)
 {
-	srmp2_state *state = device->machine().driver_data<srmp2_state>();
-	UINT8 *ROM = state->memregion("adpcm")->base();
+	UINT8 *ROM = memregion("adpcm")->base();
 
-	if (state->m_adpcm_sptr)
+	if (m_adpcm_sptr)
 	{
-		if (state->m_adpcm_data == -1)
+		if (m_adpcm_data == -1)
 		{
-			state->m_adpcm_data = ROM[state->m_adpcm_sptr];
+			m_adpcm_data = ROM[m_adpcm_sptr];
 
-			if (state->m_adpcm_sptr >= state->m_adpcm_eptr)
+			if (m_adpcm_sptr >= m_adpcm_eptr)
 			{
-				msm5205_reset_w(device, 1);
-				state->m_adpcm_data = 0;
-				state->m_adpcm_sptr = 0;
+				m_msm->reset_w(1);
+				m_adpcm_data = 0;
+				m_adpcm_sptr = 0;
 			}
 			else
 			{
-				msm5205_data_w(device, ((state->m_adpcm_data >> 4) & 0x0f));
+				m_msm->data_w(((m_adpcm_data >> 4) & 0x0f));
 			}
 		}
 		else
 		{
-			msm5205_data_w(device, ((state->m_adpcm_data >> 0) & 0x0f));
-			state->m_adpcm_sptr++;
-			state->m_adpcm_data = -1;
+			m_msm->data_w(((m_adpcm_data >> 0) & 0x0f));
+			m_adpcm_sptr++;
+			m_adpcm_data = -1;
 		}
 	}
 	else
 	{
-		msm5205_reset_w(device, 1);
+		m_msm->reset_w(1);
 	}
 }
 
@@ -247,7 +244,7 @@ READ8_MEMBER(srmp2_state::vox_status_r)
 }
 
 
-static UINT8 iox_key_matrix_calc(running_machine &machine,UINT8 p_side)
+UINT8 srmp2_state::iox_key_matrix_calc(UINT8 p_side)
 {
 	static const char *const keynames[] = { "KEY0", "KEY1", "KEY2", "KEY3", "KEY4", "KEY5", "KEY6", "KEY7" };
 	int i, j, t;
@@ -258,7 +255,7 @@ static UINT8 iox_key_matrix_calc(running_machine &machine,UINT8 p_side)
 
 		for (t = 0 ; t < 8 ; t ++)
 		{
-			if (!(machine.root_device().ioport(keynames[j+p_side])->read() & ( 1 << t )))
+			if (!(ioport(keynames[j+p_side])->read() & ( 1 << t )))
 			{
 				return (i + t) | (p_side ? 0x20 : 0x00);
 			}
@@ -297,8 +294,8 @@ READ8_MEMBER(srmp2_state::iox_mux_r)
 		/* both side checks */
 		if(iox.mux == 1)
 		{
-			UINT8 p1_side = iox_key_matrix_calc(machine(),0);
-			UINT8 p2_side = iox_key_matrix_calc(machine(),4);
+			UINT8 p1_side = iox_key_matrix_calc(0);
+			UINT8 p2_side = iox_key_matrix_calc(4);
 
 			if(p1_side != 0)
 				return p1_side;
@@ -307,7 +304,7 @@ READ8_MEMBER(srmp2_state::iox_mux_r)
 		}
 
 		/* check individual input side */
-		return iox_key_matrix_calc(machine(),(iox.mux == 2) ? 0 : 4);
+		return iox_key_matrix_calc((iox.mux == 2) ? 0 : 4);
 	}
 
 	return ioport("SERVICE")->read() & 0xff;
@@ -373,12 +370,12 @@ WRITE8_MEMBER(srmp2_state::srmp3_rombank_w)
 
 WRITE8_MEMBER(srmp2_state::srmp2_irq2_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(2, CLEAR_LINE);
+	m_maincpu->set_input_line(2, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(srmp2_state::srmp2_irq4_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(4, CLEAR_LINE);
+	m_maincpu->set_input_line(4, CLEAR_LINE);
 }
 
 
@@ -399,19 +396,19 @@ static ADDRESS_MAP_START( srmp2_map, AS_PROGRAM, 16, srmp2_state )
 	AM_RANGE(0xc00000, 0xc00001) AM_WRITE8(srmp2_irq2_ack_w,0x00ff)         /* irq ack lv 2 */
 	AM_RANGE(0xd00000, 0xd00001) AM_WRITE8(srmp2_irq4_ack_w,0x00ff)         /* irq ack lv 4 */
 	AM_RANGE(0xe00000, 0xe00001) AM_WRITENOP                        /* watchdog */
-	AM_RANGE(0xf00000, 0xf00001) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
-	AM_RANGE(0xf00000, 0xf00003) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
+	AM_RANGE(0xf00000, 0xf00001) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0xf00000, 0xf00003) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
 ADDRESS_MAP_END
 
 READ8_MEMBER(srmp2_state::mjyuugi_irq2_ack_r)
 {
-	machine().device("maincpu")->execute().set_input_line(2, CLEAR_LINE);
+	m_maincpu->set_input_line(2, CLEAR_LINE);
 	return 0xff; // value returned doesn't matter
 }
 
 READ8_MEMBER(srmp2_state::mjyuugi_irq4_ack_r)
 {
-	machine().device("maincpu")->execute().set_input_line(4, CLEAR_LINE);
+	m_maincpu->set_input_line(4, CLEAR_LINE);
 	return 0xff; // value returned doesn't matter
 }
 
@@ -431,8 +428,8 @@ static ADDRESS_MAP_START( mjyuugi_map, AS_PROGRAM, 16, srmp2_state )
 	AM_RANGE(0x900002, 0x900003) AM_READWRITE8(iox_status_r,iox_data_w,0x00ff)
 	AM_RANGE(0xa00000, 0xa00001) AM_WRITE(srmp2_adpcm_code_w)           /* ADPCM number */
 	AM_RANGE(0xb00002, 0xb00003) AM_READ8(vox_status_r,0x00ff)      /* ADPCM voice status */
-	AM_RANGE(0xb00000, 0xb00001) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
-	AM_RANGE(0xb00000, 0xb00003) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
+	AM_RANGE(0xb00000, 0xb00001) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0xb00000, 0xb00003) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
 	AM_RANGE(0xc00000, 0xc00001) AM_WRITENOP                    /* ??? */
 	AM_RANGE(0xd00000, 0xd005ff) AM_RAM AM_DEVREADWRITE_LEGACY("spritegen", spriteylow_r16, spriteylow_w16) /* Sprites Y */
 	AM_RANGE(0xd00600, 0xd00607) AM_RAM AM_DEVREADWRITE_LEGACY("spritegen", spritectrl_r16, spritectrl_w16)
@@ -458,7 +455,7 @@ WRITE8_MEMBER(srmp2_state::srmp3_flags_w)
 
 WRITE8_MEMBER(srmp2_state::srmp3_irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 static ADDRESS_MAP_START( srmp3_map, AS_PROGRAM, 8, srmp2_state )
@@ -482,8 +479,8 @@ static ADDRESS_MAP_START( srmp3_io_map, AS_IO, 8, srmp2_state )
 	AM_RANGE(0xa1, 0xa1) AM_READ(vox_status_r)                                  /* ADPCM voice status */
 	AM_RANGE(0xc0, 0xc0) AM_READWRITE(iox_mux_r, iox_command_w)                 /* key matrix | I/O */
 	AM_RANGE(0xc1, 0xc1) AM_READWRITE(iox_status_r,iox_data_w)
-	AM_RANGE(0xe0, 0xe1) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0xe2, 0xe2) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0xe0, 0xe1) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0xe2, 0xe2) AM_DEVREAD("aysnd", ay8910_device, data_r)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( rmgoldyh_map, AS_PROGRAM, 8, srmp2_state )
@@ -1129,7 +1126,7 @@ static const ay8910_interface srmp2_ay8910_interface =
 
 static const msm5205_interface msm5205_config =
 {
-	srmp2_adpcm_int,            /* IRQ handler */
+	DEVCB_DRIVER_LINE_MEMBER(srmp2_state,srmp2_adpcm_int),            /* IRQ handler */
 	MSM5205_S48_4B              /* 8 KHz, 4 Bits  */
 };
 

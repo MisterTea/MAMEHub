@@ -220,7 +220,6 @@ WRITE32_MEMBER(fuuki32_state::snd_020_w)
 
 WRITE32_MEMBER(fuuki32_state::fuuki32_vregs_w)
 {
-
 	if (m_vregs[offset] != data)
 	{
 		COMBINE_DATA(&m_vregs[offset]);
@@ -283,11 +282,11 @@ WRITE8_MEMBER(fuuki32_state::snd_z80_w)
 
 WRITE8_MEMBER(fuuki32_state::snd_ymf278b_w)
 {
-	ymf278b_w(machine().device("ymf1"), space, offset, data);
+	machine().device<ymf278b_device>("ymf1")->write(space, offset, data);
 
 	// also write to ymf262
 	if (offset < 4)
-		ymf262_w(machine().device("ymf2"), space, offset, data);
+		machine().device<ymf262_device>("ymf2")->write(space, offset, data);
 }
 
 static ADDRESS_MAP_START( fuuki32_sound_map, AS_PROGRAM, 8, fuuki32_state )
@@ -301,7 +300,7 @@ static ADDRESS_MAP_START( fuuki32_sound_io_map, AS_IO, 8, fuuki32_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(fuuki32_sound_bw_w)
 	AM_RANGE(0x30, 0x30) AM_WRITENOP // leftover/unused nmi handler related
-	AM_RANGE(0x40, 0x45) AM_DEVREAD_LEGACY("ymf1", ymf278b_r) AM_WRITE(snd_ymf278b_w)
+	AM_RANGE(0x40, 0x45) AM_DEVREAD("ymf1", ymf278b_device, read) AM_WRITE(snd_ymf278b_w)
 ADDRESS_MAP_END
 
 /***************************************************************************
@@ -522,25 +521,26 @@ GFXDECODE_END
 
 ***************************************************************************/
 
-TIMER_CALLBACK_MEMBER(fuuki32_state::level_1_interrupt_callback)
+void fuuki32_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_maincpu->set_input_line(1, HOLD_LINE);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(248), timer_expired_delegate(FUNC(fuuki32_state::level_1_interrupt_callback),this));
-}
-
-
-TIMER_CALLBACK_MEMBER(fuuki32_state::vblank_interrupt_callback)
-{
-	m_maincpu->set_input_line(3, HOLD_LINE);    // VBlank IRQ
-	machine().scheduler().timer_set(machine().primary_screen->time_until_vblank_start(), timer_expired_delegate(FUNC(fuuki32_state::vblank_interrupt_callback),this));
-}
-
-
-TIMER_CALLBACK_MEMBER(fuuki32_state::raster_interrupt_callback)
-{
-	m_maincpu->set_input_line(5, HOLD_LINE);    // Raster Line IRQ
-	machine().primary_screen->update_partial(machine().primary_screen->vpos());
-	m_raster_interrupt_timer->adjust(machine().primary_screen->frame_period());
+	switch (id)
+	{
+	case TIMER_LEVEL_1_INTERRUPT:
+		m_maincpu->set_input_line(1, HOLD_LINE);
+		timer_set(machine().primary_screen->time_until_pos(248), TIMER_LEVEL_1_INTERRUPT);
+		break;
+	case TIMER_VBLANK_INTERRUPT:
+		m_maincpu->set_input_line(3, HOLD_LINE);    // VBlank IRQ
+		timer_set(machine().primary_screen->time_until_vblank_start(), TIMER_VBLANK_INTERRUPT);
+		break;
+	case TIMER_RASTER_INTERRUPT:
+		m_maincpu->set_input_line(5, HOLD_LINE);    // Raster Line IRQ
+		machine().primary_screen->update_partial(machine().primary_screen->vpos());
+		m_raster_interrupt_timer->adjust(machine().primary_screen->frame_period());
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in fuuki32_state::device_timer");
+	}
 }
 
 
@@ -550,10 +550,7 @@ void fuuki32_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 0x10, &ROM[0x10000], 0x8000);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("soundcpu");
-
-	m_raster_interrupt_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(fuuki32_state::raster_interrupt_callback),this));
+	m_raster_interrupt_timer = timer_alloc(TIMER_RASTER_INTERRUPT);
 
 	save_item(NAME(m_spr_buffered_tilebank));
 	save_item(NAME(m_shared_ram));
@@ -564,27 +561,16 @@ void fuuki32_state::machine_reset()
 {
 	const rectangle &visarea = machine().primary_screen->visible_area();
 
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(248), timer_expired_delegate(FUNC(fuuki32_state::level_1_interrupt_callback),this));
-	machine().scheduler().timer_set(machine().primary_screen->time_until_vblank_start(), timer_expired_delegate(FUNC(fuuki32_state::vblank_interrupt_callback),this));
+	timer_set(machine().primary_screen->time_until_pos(248), TIMER_LEVEL_1_INTERRUPT);
+	timer_set(machine().primary_screen->time_until_vblank_start(), TIMER_VBLANK_INTERRUPT);
 	m_raster_interrupt_timer->adjust(machine().primary_screen->time_until_pos(0, visarea.max_x + 1));
 }
 
 
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(fuuki32_state::irqhandler)
 {
-	fuuki32_state *state = device->machine().driver_data<fuuki32_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ymf278b_interface fuuki32_ymf278b_interface =
-{
-	irqhandler      /* irq */
-};
-
-static const ymf262_interface fuuki32_ymf262_interface =
-{
-	NULL            /* irq, already hooked up via ymf278b */
-};
 
 static MACHINE_CONFIG_START( fuuki32, fuuki32_state )
 
@@ -613,12 +599,11 @@ static MACHINE_CONFIG_START( fuuki32, fuuki32_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymf1", YMF278B, YMF278B_STD_CLOCK) // 33.8688MHz
-	MCFG_SOUND_CONFIG(fuuki32_ymf278b_interface)
+	MCFG_YMF278B_IRQ_HANDLER(WRITELINE(fuuki32_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 
 	MCFG_SOUND_ADD("ymf2", YMF262, YMF278B_STD_CLOCK / (19/8.0))
-	MCFG_SOUND_CONFIG(fuuki32_ymf262_interface)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.40)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.40)
 	MCFG_SOUND_ROUTE(2, "lspeaker", 0.40)

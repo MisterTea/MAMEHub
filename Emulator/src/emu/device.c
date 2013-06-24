@@ -96,49 +96,12 @@ resource_pool &machine_get_pool(running_machine &machine)
 //  from the provided config
 //-------------------------------------------------
 
-device_t::device_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: m_type(type),
-		m_name(name),
-		m_owner(owner),
-		m_next(NULL),
-
-		m_interface_list(NULL),
-		m_execute(NULL),
-		m_memory(NULL),
-		m_state(NULL),
-
-		m_configured_clock(clock),
-		m_unscaled_clock(clock),
-		m_clock(clock),
-		m_clock_scale(1.0),
-		m_attoseconds_per_clock((clock == 0) ? 0 : HZ_TO_ATTOSECONDS(clock)),
-
-		m_debug(NULL),
-		m_region(NULL),
-		m_machine_config(mconfig),
-		m_static_config(NULL),
-		m_input_defaults(NULL),
-
-		m_machine(NULL),
-		m_save(NULL),
-		m_basetag(tag),
-		m_config_complete(false),
-		m_started(false),
-		m_auto_finder_list(NULL)
-{
-	if (owner != NULL)
-		m_tag.cpy((owner->owner() == NULL) ? "" : owner->tag()).cat(":").cat(tag);
-	else
-		m_tag.cpy(":");
-	static_set_clock(*this, clock);
-}
-
-
-device_t::device_t(const machine_config &mconfig, device_type type, const char *name, const char *shortname, const char *tag, device_t *owner, UINT32 clock)
+device_t::device_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 	: m_type(type),
 		m_name(name),
 		m_shortname(shortname),
 		m_searchpath(shortname),
+		m_source(source),
 		m_owner(owner),
 		m_next(NULL),
 
@@ -421,6 +384,18 @@ void device_t::set_machine(running_machine &machine)
 	m_save = &machine.save();
 }
 
+//-------------------------------------------------
+//  findit - seach for all objects in auto finder
+//  list and return status
+//-------------------------------------------------
+
+bool device_t::findit(bool isvalidation)
+{
+	bool allfound = true;
+	for (finder_base *autodev = m_auto_finder_list; autodev != NULL; autodev = autodev->m_next)
+		allfound &= autodev->findit(isvalidation);
+	return allfound;
+}
 
 //-------------------------------------------------
 //  start - start a device
@@ -432,10 +407,7 @@ void device_t::start()
 	m_region = machine().root_device().memregion(tag());
 
 	// find all the registered devices
-	bool allfound = true;
-	for (finder_base *autodev = m_auto_finder_list; autodev != NULL; autodev = autodev->m_next)
-		allfound &= autodev->findit();
-	if (!allfound)
+	if (!findit(false))
 		throw emu_fatalerror("Missing some required objects, unable to proceed");
 
 	// let the interfaces do their pre-work
@@ -845,7 +817,7 @@ device_t *device_t::replace_subdevice(device_t &old, device_type type, const cha
 	// iterate over all devices and remove any references to the old device
 	device_iterator iter(mconfig().root_device());
 	for (device_t *scan = iter.first(); scan != NULL; scan = iter.next())
-		scan->m_device_map.remove(&old);
+		scan->m_device_map.reset(); //remove(&old);
 
 	// create a new device, and substitute it for the old one
 	device_t *device = (*type)(mconfig(), tag, this, clock);
@@ -868,7 +840,7 @@ void device_t::remove_subdevice(device_t &device)
 	// iterate over all devices and remove any references
 	device_iterator iter(mconfig().root_device());
 	for (device_t *scan = iter.first(); scan != NULL; scan = iter.next())
-		scan->m_device_map.remove(&device);
+		scan->m_device_map.reset(); //remove(&device);
 
 	// remove from our list
 	m_subdevice_list.remove(device);

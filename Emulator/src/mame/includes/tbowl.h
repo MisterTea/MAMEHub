@@ -1,13 +1,19 @@
+#include "sound/msm5205.h"
+
 class tbowl_state : public driver_device
 {
 public:
 	tbowl_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_shared_ram(*this, "shared_ram"),
 		m_txvideoram(*this, "txvideoram"),
 		m_bgvideoram(*this, "bgvideoram"),
 		m_bg2videoram(*this, "bg2videoram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_msm1(*this, "msm1"),
+		m_msm2(*this, "msm2") { }
 
 	int m_adpcm_pos[2];
 	int m_adpcm_end[2];
@@ -52,4 +58,13 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_tbowl_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_tbowl_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void tbowl_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect, int xscroll, UINT8* spriteram);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	void tbowl_adpcm_int(msm5205_device *device, int chip);
+	DECLARE_WRITE_LINE_MEMBER(tbowl_adpcm_int_1);
+	DECLARE_WRITE_LINE_MEMBER(tbowl_adpcm_int_2);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<msm5205_device> m_msm1;
+	required_device<msm5205_device> m_msm2;
 };

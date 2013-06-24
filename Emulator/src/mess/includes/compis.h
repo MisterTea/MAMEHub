@@ -187,16 +187,22 @@ public:
 	INTERRUPT_GEN_MEMBER(compis_vblank_int);
 	TIMER_CALLBACK_MEMBER(internal_timer_int);
 	TIMER_CALLBACK_MEMBER(dma_timer_callback);
+	IRQ_CALLBACK_MEMBER(int_callback);
+	IRQ_CALLBACK_MEMBER(compis_irq_callback);
+	void compis_irq_set(UINT8 irq);
+	void compis_keyb_update();
+	void compis_keyb_init();
+	void compis_fdc_reset();
+	void update_interrupt_state();
+	void compis_cpu_init();
 };
 
 
 /*----------- defined in machine/compis.c -----------*/
 
 extern const i8255_interface compis_ppi_interface;
-extern const struct pit8253_config compis_pit8253_config;
-extern const struct pit8253_config compis_pit8254_config;
-extern const struct pic8259_interface compis_pic8259_master_config;
-extern const struct pic8259_interface compis_pic8259_slave_config;
+extern const struct pit8253_interface compis_pit8253_config;
+extern const struct pit8253_interface compis_pit8254_config;
 extern const i8251_interface compis_usart_interface;
 
 #endif /* COMPIS_H_ */

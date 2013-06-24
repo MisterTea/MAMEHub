@@ -65,13 +65,13 @@ static const kcexp_interface kc_d002_interface =
 };
 
 static MACHINE_CONFIG_FRAGMENT( kc_d002 )
-	MCFG_KC85_CARTRIDGE_ADD("m0", "m4", kc_d002_interface, kc85_cart, NULL, NULL)
-	MCFG_KC85_CARTRIDGE_ADD("m4", "m8", kc_d002_interface, kc85_cart, NULL, NULL)
-	MCFG_KC85_CARTRIDGE_ADD("m8", "mc", kc_d002_interface, kc85_cart, NULL, NULL)
-	MCFG_KC85_CARTRIDGE_ADD("mc", "exp", kc_d002_interface, kc85_cart, NULL, NULL)
+	MCFG_KC85_CARTRIDGE_ADD("m0", "m4", kc_d002_interface, kc85_cart, NULL)
+	MCFG_KC85_CARTRIDGE_ADD("m4", "m8", kc_d002_interface, kc85_cart, NULL)
+	MCFG_KC85_CARTRIDGE_ADD("m8", "mc", kc_d002_interface, kc85_cart, NULL)
+	MCFG_KC85_CARTRIDGE_ADD("mc", "exp", kc_d002_interface, kc85_cart, NULL)
 
 	// expansion interface
-	MCFG_KC85_EXPANSION_ADD("exp", NULL, kc_d002_interface, kc85_exp , NULL, NULL)
+	MCFG_KC85_EXPANSION_ADD("exp", NULL, kc_d002_interface, kc85_exp, NULL)
 MACHINE_CONFIG_END
 
 //**************************************************************************
@@ -89,7 +89,7 @@ const device_type KC_D002 = &device_creator<kc_d002_device>;
 //-------------------------------------------------
 
 kc_d002_device::kc_d002_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: device_t(mconfig, KC_D002, "D002 Bus Driver", tag, owner, clock),
+		: device_t(mconfig, KC_D002, "D002 Bus Driver", tag, owner, clock, "kc_d002", __FILE__),
 		device_kcexp_interface( mconfig, *this )
 {
 }

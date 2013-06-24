@@ -196,7 +196,7 @@ WRITE8_MEMBER( rm380z_state::videoram_write )
 {
 	rm380z_state *state = machine().driver_data<rm380z_state>();
 
-	//printf("vramw [%2.2x][%2.2x] port0 [%2.2x] fbfd [%2.2x] fbfe [%2.2x] PC [%4.4x]\n",offset,data,state->m_port0,m_fbfd,m_fbfe,machine().device("maincpu")->safe_pc());
+	//printf("vramw [%2.2x][%2.2x] port0 [%2.2x] fbfd [%2.2x] fbfe [%2.2x] PC [%4.4x]\n",offset,data,state->m_port0,m_fbfd,m_fbfe,m_maincpu->safe_pc());
 
 	int lineWidth=0x80;
 	if (m_videomode==RM380Z_VIDEOMODE_40COL)
@@ -382,7 +382,7 @@ void rm380z_state::putChar(int charnum,int attribs,int x,int y,bitmap_ind16 &bit
 
 void rm380z_state::update_screen(bitmap_ind16 &bitmap)
 {
-	unsigned char* pChar=machine().root_device().memregion("chargen")->base();
+	unsigned char* pChar=memregion("chargen")->base();
 
 	int lineWidth=0x80;
 	int ncols=80;

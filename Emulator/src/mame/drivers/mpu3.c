@@ -77,6 +77,17 @@ A800-A803  |R/W| D D D D D D D D | PIA6821 IC6 PA0-PA7, AUX1 connector (ALPHA)
 ??? B000-FFFF | R | D D D D D D D D | ROM
 -----------+---+-----------------+--------------------------------------------------------------------------
 
+NOTES:
+A number of different modifications exist to the main board, essentially all are compatible with one another aside from RAM sizes.
+
+MOD0- 3 - early boards with small RAM allocations
+MOD4- Some modifications on the PCB that didnt work, so field engineers reverted them to MOD3.
+MOD5- board revision with bigger RAM and reset sensitivity circuit added on the PCB.
+
+MOD6- adaption of the PCB to use small daughter card with 6116 RAM
+
+Collectors have gone further with zero power RAM and the like, but these are the ones out in the wild.
+
 TODO: - Distinguish door switches using manual
       - Add discrete sound functionality (same as MPU4 alarm)
       - Is pulse timer ic11 right?
@@ -120,8 +131,8 @@ class mpu3_state : public driver_device
 public:
 	mpu3_state(const machine_config &mconfig, device_type type, const char *tag)
 	: driver_device(mconfig, type, tag),
-			m_vfd(*this, "vfd")
-	{ }
+			m_vfd(*this, "vfd"),
+			m_maincpu(*this, "maincpu") { }
 	optional_device<roc10937_t> m_vfd;
 
 
@@ -188,6 +199,13 @@ emu_timer *m_ic21_timer;
 	TIMER_CALLBACK_MEMBER(ic21_timeout);
 	TIMER_DEVICE_CALLBACK_MEMBER(gen_50hz);
 	TIMER_DEVICE_CALLBACK_MEMBER(ic10_callback);
+	void update_triacs();
+	void mpu3_stepper_reset();
+	void ic11_update(mpu3_state *state);
+	void ic21_output(mpu3_state *state,int data);
+	void ic21_setup(mpu3_state *state);
+	void mpu3_config_common();
+	required_device<cpu_device> m_maincpu;
 };
 
 #define DISPLAY_PORT 0
@@ -195,12 +213,11 @@ emu_timer *m_ic21_timer;
 #define BWB_FUNCTIONALITY 2
 
 
-static void update_triacs(running_machine &machine)
+void mpu3_state::update_triacs()
 {
-	mpu3_state *state = machine.driver_data<mpu3_state>();
 	int i,triacdata;
 
-	triacdata=state->m_triac_ic3 + (state->m_triac_ic4 << 8) + (state->m_triac_ic5 << 9);
+	triacdata=m_triac_ic3 + (m_triac_ic4 << 8) + (m_triac_ic5 << 9);
 
 	for (i = 0; i < 8; i++)
 	{
@@ -209,23 +226,22 @@ static void update_triacs(running_machine &machine)
 }
 
 /* called if board is reset */
-static void mpu3_stepper_reset(running_machine &machine)
+void mpu3_state::mpu3_stepper_reset()
 {
-	mpu3_state *state = machine.driver_data<mpu3_state>();
 	int pattern = 0,reel;
 	for (reel = 0; reel < 6; reel++)
 	{
 		stepper_reset_position(reel);
 		if (stepper_optic_state(reel)) pattern |= 1<<reel;
 	}
-	state->m_optic_pattern = pattern;
+	m_optic_pattern = pattern;
 }
 
 void mpu3_state::machine_reset()
 {
 	m_vfd->reset();
 
-	mpu3_stepper_reset(machine());
+	mpu3_stepper_reset();
 
 	m_lamp_strobe   = 0;
 	m_led_strobe    = 0;
@@ -254,7 +270,7 @@ WRITE_LINE_MEMBER(mpu3_state::cpu0_irq)
 							pia6->irq_a_state() | pia6->irq_b_state() |
 							ptm2->irq_state();
 
-		machine().device("maincpu")->execute().set_input_line(M6800_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(M6800_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
 		LOG(("6808 int%d \n", combined_state));
 }
 
@@ -292,29 +308,29 @@ IC23 is a 74LS138 1-of-8 Decoder
 
 It is used as a multiplexer for the LEDs, lamp selects and inputs.*/
 
-static void ic11_update(mpu3_state *state)
+void mpu3_state::ic11_update(mpu3_state *state)
 {
-	if (!state->m_IC11G2A)
+	if (!m_IC11G2A)
 	{
-		if (!state->m_IC11G2B)
+		if (!m_IC11G2B)
 		{
-			if (state->m_IC11G1)
+			if (m_IC11G1)
 			{
-				if ( state->m_IC11GA )  state->m_input_strobe |= 0x01;
-				else                    state->m_input_strobe &= ~0x01;
+				if ( m_IC11GA )  m_input_strobe |= 0x01;
+				else                    m_input_strobe &= ~0x01;
 
-				if ( state->m_IC11GB )  state->m_input_strobe |= 0x02;
-				else                    state->m_input_strobe &= ~0x02;
+				if ( m_IC11GB )  m_input_strobe |= 0x02;
+				else                    m_input_strobe &= ~0x02;
 
-				if ( state->m_IC11GC )  state->m_input_strobe |= 0x04;
-				else                    state->m_input_strobe &= ~0x04;
+				if ( m_IC11GC )  m_input_strobe |= 0x04;
+				else                    m_input_strobe &= ~0x04;
 			}
 		}
 	}
 	else
-	if ((state->m_IC11G2A)||(state->m_IC11G2B)||(!state->m_IC11G1))
+	if ((m_IC11G2A)||(m_IC11G2B)||(!m_IC11G1))
 	{
-		state->m_input_strobe = 0x00;
+		m_input_strobe = 0x00;
 	}
 }
 
@@ -338,20 +354,20 @@ t/ns = .34 * 47 * 2.2e6 [ 1+ (1/47)]
 
 This seems less stable than the revised version used in MPU4
 */
-static void ic21_output(mpu3_state *state,int data)
+void mpu3_state::ic21_output(mpu3_state *state,int data)
 {
-	state->m_IC11G1 = data;
+	m_IC11G1 = data;
 	ic11_update(state);
 }
 
-static void ic21_setup(mpu3_state *state)
+void mpu3_state::ic21_setup(mpu3_state *state)
 {
-	if (state->m_IC11GA)
+	if (m_IC11GA)
 	{
 		{
-			state->m_ic11_active=1;
+			m_ic11_active=1;
 			ic21_output(state,1);
-			state->m_ic21_timer->adjust(attotime::from_nsec( (0.34 * 47 * 2200000) *(1+(1/47))));
+			m_ic21_timer->adjust(attotime::from_nsec( (0.34 * 47 * 2200000) *(1+(1/47))));
 		}
 	}
 }
@@ -375,13 +391,13 @@ READ8_MEMBER(mpu3_state::pia_ic3_porta_r)
 		case 2:
 		case 3:
 		{
-			data = (machine().root_device().ioport(portnames[m_input_strobe])->read()<<2);
+			data = (ioport(portnames[m_input_strobe])->read()<<2);
 			break;
 		}
 		case 4://DIL1
 		case 6://DIL2
 		{
-			swizzle = (machine().root_device().ioport(portnames[m_input_strobe])->read());
+			swizzle = (ioport(portnames[m_input_strobe])->read());
 			data = (((swizzle & 0x01) << 7) + ((swizzle & 0x02) << 5) + ((swizzle & 0x04) << 3)
 					+ ((swizzle & 0x08) << 1) +((swizzle & 0x10) >> 1) + ((swizzle & 0x20) >> 3));
 			break;
@@ -389,7 +405,7 @@ READ8_MEMBER(mpu3_state::pia_ic3_porta_r)
 		case 5://DIL1
 		case 7://DIL2
 		{
-			swizzle = (machine().root_device().ioport(portnames[m_input_strobe])->read());
+			swizzle = (ioport(portnames[m_input_strobe])->read());
 			data = (((swizzle & 0x80) >> 1) + ((swizzle & 0x40) << 1));
 			break;
 		}
@@ -539,7 +555,6 @@ static const pia6821_interface pia_ic4_intf =
 /* IC5, AUX ports, coin lockouts and AY sound chip select (MODs below 4 only) */
 WRITE8_MEMBER(mpu3_state::pia_ic5_porta_w)
 {
-
 	LOG(("%s: IC5 PIA Port A Set to %2x (Reel)\n", machine().describe_context(),data));
 	stepper_update(0, data & 0x03 );
 	stepper_update(1, (data>>2) & 0x03 );
@@ -784,15 +799,14 @@ static const stepper_interface mpu3_reel_interface =
 };
 
 /* Common configurations */
-static void mpu3_config_common(running_machine &machine)
+void mpu3_state::mpu3_config_common()
 {
-	mpu3_state *state = machine.driver_data<mpu3_state>();
-	state->m_ic21_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(mpu3_state::ic21_timeout),state));
+	m_ic21_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(mpu3_state::ic21_timeout),this));
 }
 
 void mpu3_state::machine_start()
 {
-	mpu3_config_common(machine());
+	mpu3_config_common();
 
 	/* setup 8 mechanical meters */
 	MechMtr_config(machine(),8);
@@ -862,7 +876,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(mpu3_state::gen_50hz)
 	m_signal_50hz = m_signal_50hz?0:1;
 	machine().device<ptm6840_device>("ptm_ic2")->set_c1(m_signal_50hz);
 	machine().device<pia6821_device>("pia_ic3")->cb1_w(~m_signal_50hz);
-	update_triacs(machine());
+	update_triacs();
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(mpu3_state::ic10_callback)
@@ -935,7 +949,7 @@ static const mpu3_chr_table hprvpr_data[64] = {
 
 DRIVER_INIT_MEMBER(mpu3_state,m3hprvpr)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	m_disp_func=METER_PORT;
 	m_current_chr_table = hprvpr_data;
@@ -1107,7 +1121,7 @@ ROM_END
 
 ROM_START( m3xchngua ) // check if this actually differs
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00  )
-	ROM_LOAD( "exchanges.hex", 0x5000, 0x3000, CRC(758323b9) SHA1(524fcb81148ec940ef98568d99fc7a0bda7d727a) )
+	ROM_LOAD( "exchanges.hex", 0x5000, 0x3000, CRC(758323b9) SHA1(524fcb81148ec940ef98568d99fc7a0bda7d727a) ) // == m3sexcu
 	ROM_COPY( "maincpu", 0x0000, 0x8000, 0x8000 )
 ROM_END
 
@@ -1159,8 +1173,8 @@ ROM_END
 
 ROM_START( m3gcrown )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00  )
-	ROM_LOAD( "crown.2l", 0x7000, 0x1000, CRC(184780c5) SHA1(e07f56e536823c28d524a687d607cb2877199210) )
-	ROM_LOAD( "crown.2l2", 0x6000, 0x1000, CRC(04fadad3) SHA1(d82536f18122b9fb33fae6a238f29e4c615b3681) )
+	ROM_LOAD( "crown.2l", 0x7000, 0x1000, CRC(184780c5) SHA1(e07f56e536823c28d524a687d607cb2877199210) ) // == m3nudge
+	ROM_LOAD( "crown.2l2", 0x6000, 0x1000, CRC(04fadad3) SHA1(d82536f18122b9fb33fae6a238f29e4c615b3681) ) // == m3nudge
 	ROM_COPY( "maincpu", 0x0000, 0x8000, 0x8000 )
 ROM_END
 
@@ -1260,8 +1274,8 @@ ROM_END
 
 ROM_START( m3nudge )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00  )
-	ROM_LOAD( "nu1.2l",  0x7000, 0x1000, CRC(184780c5) SHA1(e07f56e536823c28d524a687d607cb2877199210) )
-	ROM_LOAD( "nu1.2l2", 0x6000, 0x1000, CRC(04fadad3) SHA1(d82536f18122b9fb33fae6a238f29e4c615b3681) )
+	ROM_LOAD( "nu1.2l",  0x7000, 0x1000, CRC(184780c5) SHA1(e07f56e536823c28d524a687d607cb2877199210) ) // == m3gcrown
+	ROM_LOAD( "nu1.2l2", 0x6000, 0x1000, CRC(04fadad3) SHA1(d82536f18122b9fb33fae6a238f29e4c615b3681) ) // == m3gcrown
 	ROM_COPY( "maincpu", 0x0000, 0x8000, 0x8000 )
 ROM_END
 
@@ -1450,7 +1464,7 @@ ROM_END
 
 ROM_START( m3sexcu )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00  ) // needs to be split
-	ROM_LOAD( "superexchanges.hex", 0x5000, 0x003000, CRC(758323b9) SHA1(524fcb81148ec940ef98568d99fc7a0bda7d727a) )
+	ROM_LOAD( "superexchanges.hex", 0x5000, 0x003000, CRC(758323b9) SHA1(524fcb81148ec940ef98568d99fc7a0bda7d727a) ) // == m3xchngua
 	ROM_COPY( "maincpu", 0x0000, 0x8000, 0x8000 )
 ROM_END
 
@@ -1512,8 +1526,8 @@ ROM_END
 
 ROM_START( m3supwina ) // odd in only p2 differing
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00  )
-	ROM_LOAD( "superwin.p1", 0x6000, 0x2000, CRC(d6193f5b) SHA1(2813a982d1527d994a045840aaaa20032bd39c45) )
-	ROM_LOAD( "superwin_.p2", 0x4000, 0x2000, CRC(f4210f20) SHA1(e0c7e28950683e35102bfd0bef7b74c63a36798f) )
+	ROM_LOAD( "superwin.p1", 0x6000, 0x2000, CRC(d6193f5b) SHA1(2813a982d1527d994a045840aaaa20032bd39c45) ) // == m3winagna
+	ROM_LOAD( "superwin_.p2", 0x4000, 0x2000, CRC(f4210f20) SHA1(e0c7e28950683e35102bfd0bef7b74c63a36798f) ) // == m3winagna
 	ROM_COPY( "maincpu", 0x0000, 0x8000, 0x8000 )
 ROM_END
 
@@ -1593,8 +1607,8 @@ ROM_END
 
 ROM_START( m3winagna )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00  )
-	ROM_LOAD( "wag.p1", 0x6000, 0x2000, CRC(d6193f5b) SHA1(2813a982d1527d994a045840aaaa20032bd39c45) )
-	ROM_LOAD( "wag.p2", 0x4000, 0x2000, CRC(f4210f20) SHA1(e0c7e28950683e35102bfd0bef7b74c63a36798f) )
+	ROM_LOAD( "wag.p1", 0x6000, 0x2000, CRC(d6193f5b) SHA1(2813a982d1527d994a045840aaaa20032bd39c45) ) // == m3supwina
+	ROM_LOAD( "wag.p2", 0x4000, 0x2000, CRC(f4210f20) SHA1(e0c7e28950683e35102bfd0bef7b74c63a36798f) ) // == m3supwina
 	ROM_COPY( "maincpu", 0x0000, 0x8000, 0x8000 )
 ROM_END
 

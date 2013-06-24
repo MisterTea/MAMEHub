@@ -43,7 +43,6 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "comx_clm"; }
 
 	// device_comx_expansion_card_interface overrides
 	virtual int comx_ef4_r();
@@ -52,10 +51,9 @@ protected:
 
 private:
 	required_device<mc6845_device> m_crtc;
+	required_memory_region m_rom;
+	required_memory_region m_char_rom;
 	optional_shared_ptr<UINT8> m_video_ram;
-
-	UINT8 *m_rom;           // program ROM
-	UINT8 *m_char_rom;      // character ROM
 };
 
 

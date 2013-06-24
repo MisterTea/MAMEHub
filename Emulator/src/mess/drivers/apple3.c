@@ -16,11 +16,11 @@
 #include "includes/apple2.h"
 #include "imagedev/flopdrv.h"
 #include "formats/ap2_dsk.h"
-#include "machine/6551acia.h"
+#include "machine/mos6551.h"
 #include "machine/6522via.h"
 #include "machine/a2bus.h"
 #include "machine/ram.h"
-#include "devices/appldriv.h"
+#include "machine/appldriv.h"
 
 static ADDRESS_MAP_START( apple3_map, AS_PROGRAM, 8, apple3_state )
 	AM_RANGE(0x0000, 0x00FF) AM_READWRITE(apple3_00xx_r, apple3_00xx_w)
@@ -62,8 +62,8 @@ static const floppy_interface apple3_floppy_interface =
 static const struct a2bus_interface a2bus_intf =
 {
 	// interrupt lines
-//  DEVCB_HANDLER(a2bus_irq_w),
-//  DEVCB_HANDLER(a2bus_nmi_w)
+//  DEVCB_DRIVER_MEMBER(apple3_state,a2bus_irq_w),
+//  DEVCB_DRIVER_MEMBER(apple3_state,a2bus_nmi_w)
 	DEVCB_NULL,
 	DEVCB_NULL
 };
@@ -98,7 +98,7 @@ static MACHINE_CONFIG_START( apple3, apple3_state )
 	MCFG_APPLEFDC_ADD("fdc", apple3_fdc_interface)
 	MCFG_LEGACY_FLOPPY_APPLE_4_DRIVES_ADD(apple3_floppy_interface,1,4)
 	/* acia */
-	MCFG_ACIA6551_ADD("acia")
+	MCFG_MOS6551_ADD("acia", XTAL_1_8432MHz, NULL)
 
 	/* via */
 	MCFG_VIA6522_ADD("via6522_0", 1000000, apple3_via_0_intf)

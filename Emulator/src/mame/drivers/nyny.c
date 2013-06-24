@@ -88,11 +88,14 @@ class nyny_state : public driver_device
 {
 public:
 	nyny_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram1(*this, "videoram1"),
 		m_colorram1(*this, "colorram1"),
 		m_videoram2(*this, "videoram2"),
-		m_colorram2(*this, "colorram2"){ }
+		m_colorram2(*this, "colorram2"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_audiocpu2(*this, "audio2"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram1;
@@ -107,9 +110,9 @@ public:
 	UINT16   m_star_shift_reg;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_audiocpu2;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_audiocpu2;
 	device_t *m_ic48_1;
 	mc6845_device *m_mc6845;
 	pia6821_device *m_pia1;
@@ -131,6 +134,7 @@ public:
 	virtual void machine_reset();
 	INTERRUPT_GEN_MEMBER(update_pia_1);
 	DECLARE_WRITE8_MEMBER(ic48_1_74123_output_changed);
+	inline void shift_star_generator(  );
 };
 
 
@@ -173,7 +177,6 @@ WRITE_LINE_MEMBER(nyny_state::main_cpu_firq)
 
 INTERRUPT_GEN_MEMBER(nyny_state::update_pia_1)
 {
-
 	/* update the different PIA pins from the input ports */
 
 	/* CA1 - copy of PA0 (COIN1) */
@@ -221,7 +224,6 @@ WRITE8_MEMBER(nyny_state::pia_2_port_a_w)
 
 WRITE8_MEMBER(nyny_state::pia_2_port_b_w)
 {
-
 	/* bits 0-3 go to bits 8-11 of the star delay counter */
 	m_star_delay_counter = (m_star_delay_counter & 0x00ff) | ((data & 0x0f) << 8);
 
@@ -373,10 +375,9 @@ static MC6845_UPDATE_ROW( update_row )
 }
 
 
-INLINE void shift_star_generator( running_machine &machine )
+void nyny_state::shift_star_generator(  )
 {
-	nyny_state *state = machine.driver_data<nyny_state>();
-	state->m_star_shift_reg = (state->m_star_shift_reg << 1) | (((~state->m_star_shift_reg >> 15) & 0x01) ^ ((state->m_star_shift_reg >> 2) & 0x01));
+	m_star_shift_reg = (m_star_shift_reg << 1) | (((~m_star_shift_reg >> 15) & 0x01) ^ ((m_star_shift_reg >> 2) & 0x01));
 }
 
 
@@ -410,7 +411,7 @@ static MC6845_END_UPDATE( end_update )
 			}
 
 			if (delay_counter == 0)
-				shift_star_generator(device->machine());
+				state->shift_star_generator();
 			else
 				delay_counter = delay_counter - 1;
 		}
@@ -424,9 +425,10 @@ WRITE_LINE_MEMBER(nyny_state::display_enable_changed)
 }
 
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",               /* screen we are acting on */
+	false,                  /* show border area */
 	8,                      /* number of pixels per video memory address */
 	begin_update,           /* before pixel update callback */
 	update_row,             /* row update callback */
@@ -448,7 +450,6 @@ static const mc6845_interface mc6845_intf =
 
 WRITE8_MEMBER(nyny_state::audio_1_command_w)
 {
-
 	soundlatch_byte_w(space, 0, data);
 	m_audiocpu->set_input_line(M6800_IRQ_LINE, HOLD_LINE);
 }
@@ -456,7 +457,6 @@ WRITE8_MEMBER(nyny_state::audio_1_command_w)
 
 WRITE8_MEMBER(nyny_state::audio_1_answer_w)
 {
-
 	soundlatch3_byte_w(space, 0, data);
 	m_maincpu->set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 }
@@ -501,9 +501,8 @@ static const ay8910_interface ay8910_64_interface =
 
 WRITE8_MEMBER(nyny_state::audio_2_command_w)
 {
-
 	soundlatch2_byte_w(space, 0, (data & 0x60) >> 5);
-	m_audiocpu2->execute().set_input_line(M6800_IRQ_LINE, BIT(data, 7) ? CLEAR_LINE : ASSERT_LINE);
+	m_audiocpu2->set_input_line(M6800_IRQ_LINE, BIT(data, 7) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 
@@ -528,7 +527,6 @@ READ8_MEMBER(nyny_state::nyny_pia_1_2_r)
 
 WRITE8_MEMBER(nyny_state::nyny_pia_1_2_w)
 {
-
 	/* the address bits are directly connected to the chip selects */
 	if (BIT(offset, 2))  m_pia1->write(space, offset & 0x03, data);
 	if (BIT(offset, 3))  m_pia2->write_alt(space, offset & 0x03, data);
@@ -559,10 +557,10 @@ static ADDRESS_MAP_START( nyny_audio_1_map, AS_PROGRAM, 8, nyny_state )
 	AM_RANGE(0x0080, 0x0fff) AM_NOP
 	AM_RANGE(0x1000, 0x1000) AM_MIRROR(0x0fff) AM_READ(soundlatch_byte_r) AM_WRITE(audio_1_answer_w)
 	AM_RANGE(0x2000, 0x2000) AM_MIRROR(0x0fff) AM_READ_PORT("SW3")
-	AM_RANGE(0x3000, 0x3000) AM_MIRROR(0x0ffc) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x3000, 0x3001) AM_MIRROR(0x0ffc) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
-	AM_RANGE(0x3002, 0x3002) AM_MIRROR(0x0ffc) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0x3002, 0x3003) AM_MIRROR(0x0ffc) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
+	AM_RANGE(0x3000, 0x3000) AM_MIRROR(0x0ffc) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x3000, 0x3001) AM_MIRROR(0x0ffc) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
+	AM_RANGE(0x3002, 0x3002) AM_MIRROR(0x0ffc) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0x3002, 0x3003) AM_MIRROR(0x0ffc) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
 	AM_RANGE(0x4000, 0x4fff) AM_NOP
 	AM_RANGE(0x5000, 0x57ff) AM_MIRROR(0x0800) AM_ROM
 	AM_RANGE(0x6000, 0x67ff) AM_MIRROR(0x0800) AM_ROM
@@ -575,8 +573,8 @@ static ADDRESS_MAP_START( nyny_audio_2_map, AS_PROGRAM, 8, nyny_state )
 	AM_RANGE(0x0000, 0x007f) AM_RAM     /* internal RAM */
 	AM_RANGE(0x0080, 0x0fff) AM_NOP
 	AM_RANGE(0x1000, 0x1000) AM_MIRROR(0x0fff) AM_READ(soundlatch2_byte_r)
-	AM_RANGE(0x2000, 0x2000) AM_MIRROR(0x0ffe) AM_DEVREAD_LEGACY("ay3", ay8910_r)
-	AM_RANGE(0x2000, 0x2001) AM_MIRROR(0x0ffe) AM_DEVWRITE_LEGACY("ay3", ay8910_data_address_w)
+	AM_RANGE(0x2000, 0x2000) AM_MIRROR(0x0ffe) AM_DEVREAD("ay3", ay8910_device, data_r)
+	AM_RANGE(0x2000, 0x2001) AM_MIRROR(0x0ffe) AM_DEVWRITE("ay3", ay8910_device, data_address_w)
 	AM_RANGE(0x3000, 0x6fff) AM_NOP
 	AM_RANGE(0x7000, 0x77ff) AM_MIRROR(0x0800) AM_ROM
 ADDRESS_MAP_END
@@ -677,10 +675,6 @@ INPUT_PORTS_END
 
 void nyny_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_audiocpu2 = machine().device("audio2");
 	m_ic48_1 = machine().device("ic48_1");
 	m_mc6845 = machine().device<mc6845_device>("crtc");
 	m_pia1 = machine().device<pia6821_device>("pia1");
@@ -695,7 +689,6 @@ void nyny_state::machine_start()
 
 void nyny_state::machine_reset()
 {
-
 	m_flipscreen = 0;
 	m_star_enable = 0;
 	m_star_delay_counter = 0;

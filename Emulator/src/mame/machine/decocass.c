@@ -133,7 +133,6 @@ WRITE8_MEMBER(decocass_state::decocass_nmi_reset_w)
 
 WRITE8_MEMBER(decocass_state::decocass_quadrature_decoder_reset_w)
 {
-
 	/* just latch the analog controls here */
 	m_quadrature_decoder[0] = ioport("AN0")->read();
 	m_quadrature_decoder[1] = ioport("AN1")->read();
@@ -210,11 +209,10 @@ WRITE8_MEMBER(decocass_state::decocass_reset_w)
 
 
 #ifdef MAME_DEBUG
-static void decocass_fno( running_machine &machine, offs_t offset, UINT8 data )
+void decocass_state::decocass_fno( offs_t offset, UINT8 data )
 {
-	decocass_state *state = machine.driver_data<decocass_state>();
 	/* 8041ENA/ and is this a FNO write (function number)? */
-	if (0 == (state->m_i8041_p2 & 0x01))
+	if (0 == (m_i8041_p2 & 0x01))
 	{
 		switch (data)
 		{
@@ -468,7 +466,7 @@ WRITE8_MEMBER(decocass_state::decocass_type2_w)
 	upi41_master_w(m_mcu, offset & 1, data);
 
 #ifdef MAME_DEBUG
-	decocass_fno(space.machine(), offset, data);
+	decocass_fno(offset, data);
 #endif
 }
 
@@ -982,7 +980,7 @@ WRITE8_MEMBER(decocass_state::decocass_e5xx_w)
 		LOG(3,("%10s 6502-PC: %04x decocass_e5xx_w(%02x): $%02x -> %s\n", space.machine().time().as_string(6), space.device().safe_pcbase(), offset, data, offset & 1 ? "8041-CMND" : "8041-DATA"));
 		upi41_master_w(m_mcu, offset & 1, data);
 #ifdef MAME_DEBUG
-		decocass_fno(space.machine(), offset, data);
+		decocass_fno(offset, data);
 #endif
 	}
 	else

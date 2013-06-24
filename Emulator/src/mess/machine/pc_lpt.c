@@ -58,7 +58,7 @@ static SLOT_INTERFACE_START(pc_centronics)
 SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_FRAGMENT( pc_lpt )
-	MCFG_CENTRONICS_ADD("centronics", pc_centronics_config, pc_centronics, "printer", NULL)
+	MCFG_CENTRONICS_ADD("centronics", pc_centronics_config, pc_centronics, "printer")
 MACHINE_CONFIG_END
 
 
@@ -332,7 +332,7 @@ ioport_constructor isa8_lpt_device::device_input_ports() const
 //-------------------------------------------------
 
 isa8_lpt_device::isa8_lpt_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, ISA8_LPT, "Printer Adapter", tag, owner, clock),
+		device_t(mconfig, ISA8_LPT, "Printer Adapter", tag, owner, clock, "isa_lpt", __FILE__),
 		device_isa8_card_interface(mconfig, *this)
 {
 }

@@ -6,6 +6,7 @@
 #include "emu.h"
 #include "machine/cococart.h"
 #include "machine/msm6242.h"
+#include "machine/ds1315.h"
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -30,7 +31,7 @@ class coco_fdc_device :
 public:
 		// construction/destruction
 		coco_fdc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-		coco_fdc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+		coco_fdc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 		// optional information overrides
 		virtual machine_config_constructor device_mconfig_additions() const;
@@ -46,7 +47,6 @@ public:
 protected:
 		// device-level overrides
 		virtual void device_start();
-		virtual void device_config_complete();
 		virtual DECLARE_READ8_MEMBER(read);
 		virtual DECLARE_WRITE8_MEMBER(write);
 
@@ -59,8 +59,8 @@ protected:
 		UINT8 m_drq : 1;
 		UINT8 m_intrq : 1;
 
-		device_t *m_wd17xx;         /* WD17xx */
-		device_t *m_ds1315;         /* DS1315 */
+		device_t *m_wd17xx;              /* WD17xx */
+		ds1315_device *m_ds1315;         /* DS1315 */
 
 		/* Disto RTC */
 		msm6242_device *m_disto_msm6242;        /* 6242 RTC on Disto interface */
@@ -82,9 +82,6 @@ public:
 
 		// optional information overrides
 		virtual const rom_entry *device_rom_region() const;
-protected:
-		// device-level overrides
-		virtual void device_config_complete();
 };
 
 
@@ -102,9 +99,6 @@ public:
 
 		// optional information overrides
 		virtual const rom_entry *device_rom_region() const;
-protected:
-		// device-level overrides
-		virtual void device_config_complete();
 };
 
 
@@ -119,7 +113,7 @@ class dragon_fdc_device :
 public:
 		// construction/destruction
 		dragon_fdc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-		dragon_fdc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+		dragon_fdc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 		// optional information overrides
 		virtual machine_config_constructor device_mconfig_additions() const;
@@ -129,7 +123,6 @@ public:
 protected:
 		// device-level overrides
 		virtual void device_start();
-		virtual void device_config_complete();
 		virtual DECLARE_READ8_MEMBER(read);
 		virtual DECLARE_WRITE8_MEMBER(write);
 private:
@@ -150,9 +143,6 @@ public:
 
 		// optional information overrides
 		virtual const rom_entry *device_rom_region() const;
-protected:
-		// device-level overrides
-		virtual void device_config_complete();
 };
 
 

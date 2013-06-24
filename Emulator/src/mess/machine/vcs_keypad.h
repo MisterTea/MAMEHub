@@ -36,7 +36,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "vcs_keypad"; }
 	virtual void device_start();
 
 	// device_vcs_control_port_interface overrides
@@ -44,6 +43,12 @@ protected:
 	virtual void vcs_joy_w( UINT8 data );
 	virtual UINT8 vcs_pot_x_r();
 	virtual UINT8 vcs_pot_y_r();
+
+	virtual bool has_pot_x() { return true; }
+	virtual bool has_pot_y() { return true; }
+
+private:
+	required_ioport m_keypad;
 
 	UINT8   m_column;
 };

@@ -136,7 +136,7 @@ static INPUT_PORTS_START( czz50 )
 	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("8") PORT_CODE(KEYCODE_8_PAD) PORT_CHAR('8')
 	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("9") PORT_CODE(KEYCODE_9_PAD) PORT_CHAR('9')
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("#") PORT_CODE(KEYCODE_MINUS_PAD) PORT_CHAR('#')
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME(".") PORT_CODE(KEYCODE_PLUS_PAD) PORT_CHAR('.')
+	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("*") PORT_CODE(KEYCODE_PLUS_PAD) PORT_CHAR('*')
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1)
 	PORT_BIT( 0xb000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
@@ -176,14 +176,12 @@ WRITE_LINE_MEMBER(coleco_state::coleco_vdp_interrupt)
 
 TIMER_CALLBACK_MEMBER(coleco_state::paddle_d7reset_callback)
 {
-
 	m_joy_d7_state[param] = 0;
 	m_joy_analog_state[param] = 0;
 }
 
 TIMER_CALLBACK_MEMBER(coleco_state::paddle_irqreset_callback)
 {
-
 	m_joy_irq_state[param] = 0;
 
 	if (!m_joy_irq_state[param ^ 1])
@@ -192,7 +190,6 @@ TIMER_CALLBACK_MEMBER(coleco_state::paddle_irqreset_callback)
 
 TIMER_CALLBACK_MEMBER(coleco_state::paddle_pulse_callback)
 {
-
 	if (m_joy_analog_reload[param])
 	{
 		m_joy_analog_state[param] = m_joy_analog_reload[param];
@@ -265,6 +262,13 @@ void coleco_state::machine_start()
 		m_joy_d7_state[port] = 0;
 		m_joy_analog_state[port] = 0;
 	}
+
+	save_item(NAME(m_joy_mode));
+	save_item(NAME(m_last_nmi_state));
+	save_item(NAME(m_joy_irq_state));
+	save_item(NAME(m_joy_d7_state));
+	save_item(NAME(m_joy_analog_state));
+	save_item(NAME(m_joy_analog_reload));
 }
 
 void coleco_state::machine_reset()
@@ -273,7 +277,7 @@ void coleco_state::machine_reset()
 
 	m_maincpu->set_input_line_vector(INPUT_LINE_IRQ0, 0xff);
 
-	memset(&machine().root_device().memregion(Z80_TAG)->base()[0x6000], 0xff, 0x400);   // initialize RAM
+	memset(&memregion(Z80_TAG)->base()[0x6000], 0xff, 0x400);   // initialize RAM
 }
 
 //static int coleco_cart_verify(const UINT8 *cartdata, size_t size)
@@ -289,9 +293,9 @@ void coleco_state::machine_reset()
 //  return retval;
 //}
 
-static DEVICE_IMAGE_LOAD( czz50_cart )
+DEVICE_IMAGE_LOAD_MEMBER( coleco_state,czz50_cart )
 {
-	UINT8 *ptr = image.device().machine().root_device().memregion(Z80_TAG)->base() + 0x8000;
+	UINT8 *ptr = memregion(Z80_TAG)->base() + 0x8000;
 	UINT32 size;
 
 	if (image.software_entry() == NULL)
@@ -360,7 +364,7 @@ static MACHINE_CONFIG_START( czz50, coleco_state )
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom,col,bin")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(czz50_cart)
+	MCFG_CARTSLOT_LOAD(coleco_state,czz50_cart)
 	MCFG_CARTSLOT_INTERFACE("coleco_cart")
 
 	/* software lists */
@@ -415,6 +419,6 @@ ROM_END
 CONS( 1982, coleco,   0,        0,      coleco,   coleco, driver_device,   0,       "Coleco",           "ColecoVision",                     0 )
 CONS( 1982, colecoa,  coleco,   0,      coleco,   coleco, driver_device,   0,       "Coleco",           "ColecoVision (Thick Characters)",  0 )
 CONS( 1983, colecob,  coleco,   0,      coleco,   coleco, driver_device,   0,       "Spectravideo",     "SVI-603 Coleco Game Adapter",      0 )
-CONS( 1986, czz50,    0,   coleco,      czz50,    czz50, driver_device,    0,       "Bit Corporation",  "Chuang Zao Zhe 50",                0 )
-CONS( 1988, dina,     czz50,    0,      dina,     czz50, driver_device,    0,       "Telegames",        "Dina",                             0 )
-CONS( 1988, prsarcde, czz50,    0,      czz50,    czz50, driver_device,    0,       "Telegames",        "Personal Arcade",                  0 )
+CONS( 1986, czz50,    0,        coleco, czz50,    czz50,  driver_device,   0,       "Bit Corporation",  "Chuang Zao Zhe 50",                0 )
+CONS( 1988, dina,     czz50,    0,      dina,     czz50,  driver_device,   0,       "Telegames",        "Dina",                             0 )
+CONS( 1988, prsarcde, czz50,    0,      czz50,    czz50,  driver_device,   0,       "Telegames",        "Personal Arcade",                  0 )

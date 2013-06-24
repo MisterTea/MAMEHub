@@ -1,15 +1,26 @@
+#include "sound/k007232.h"
+
 class wecleman_state : public driver_device
 {
 public:
 	wecleman_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videostatus(*this, "videostatus"),
 		m_protection_ram(*this, "protection_ram"),
 		m_blitter_regs(*this, "blitter_regs"),
 		m_pageram(*this, "pageram"),
 		m_txtram(*this, "txtram"),
 		m_spriteram(*this, "spriteram"),
-		m_roadram(*this, "roadram"){ }
+		m_roadram(*this, "roadram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_k051316_1(*this, "k051316_1"),
+		m_k051316_2(*this, "k051316_2"),
+		m_k007232(*this, "k007232"),
+		m_k007232_1(*this, "k007232_1"),
+		m_k007232_2(*this, "k007232_2"),
+		m_k007232_3(*this, "k007232_3") { }
 
 	optional_shared_ptr<UINT16> m_videostatus;
 	optional_shared_ptr<UINT16> m_protection_ram;
@@ -81,6 +92,18 @@ public:
 	INTERRUPT_GEN_MEMBER(hotchase_sound_timer);
 	TIMER_DEVICE_CALLBACK_MEMBER(wecleman_scanline);
 	TIMER_DEVICE_CALLBACK_MEMBER(hotchase_scanline);
+	void wecleman_unpack_sprites();
+	void bitswap(UINT8 *src,size_t len,int _14,int _13,int _12,int _11,int _10,int _f,int _e,int _d,int _c,int _b,int _a,int _9,int _8,int _7,int _6,int _5,int _4,int _3,int _2,int _1,int _0);
+	void hotchase_sprite_decode( int num16_banks, int bank_size );
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_subcpu;
+	optional_device<k051316_device> m_k051316_1;
+	optional_device<k051316_device> m_k051316_2;
+	optional_device<k007232_device> m_k007232;
+	optional_device<k007232_device> m_k007232_1;
+	optional_device<k007232_device> m_k007232_2;
+	optional_device<k007232_device> m_k007232_3;
 };
 
 /*----------- defined in video/wecleman.c -----------*/

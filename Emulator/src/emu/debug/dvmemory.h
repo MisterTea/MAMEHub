@@ -60,7 +60,7 @@ public:
 	address_space *space() const { return m_space; }
 
 private:
-	address_space *m_space;             // address space we reference (if any)
+	address_space *m_space;                     // address space we reference (if any)
 	device_memory_interface *m_memintf;         // pointer to the memory interface of the device
 	void *              m_base;                 // pointer to memory base
 	offs_t              m_length;               // length of memory
@@ -87,6 +87,7 @@ public:
 	bool reverse() const { return m_reverse_view; }
 	bool ascii() const { return m_ascii_view; }
 	bool physical() const { return m_no_translation; }
+	offs_t addressAtCursorPosition(const debug_view_xy& pos) { return get_cursor_pos(pos).m_address; }
 
 	// setters
 	void set_expression(const char *expression);
@@ -101,6 +102,7 @@ protected:
 	virtual void view_notify(debug_view_notification type);
 	virtual void view_update();
 	virtual void view_char(int chval);
+	virtual void view_click(const int button, const debug_view_xy& pos);
 
 private:
 	struct cursor_pos
@@ -116,9 +118,9 @@ private:
 	bool needs_recompute();
 
 	// cursor position management
-	cursor_pos get_cursor_pos();
+	cursor_pos get_cursor_pos(const debug_view_xy& cursor);
 	void set_cursor_pos(cursor_pos pos);
-	cursor_pos begin_update_and_get_cursor_pos() { begin_update(); return get_cursor_pos(); }
+	cursor_pos begin_update_and_get_cursor_pos() { begin_update(); return get_cursor_pos(m_cursor); }
 	void end_update_and_set_cursor_pos(cursor_pos pos) { set_cursor_pos(pos); end_update(); }
 
 	// memory access

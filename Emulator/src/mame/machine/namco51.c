@@ -352,10 +352,10 @@ READ8_DEVICE_HANDLER( namco_51xx_read )
 ***************************************************************************/
 
 static ADDRESS_MAP_START( namco_51xx_map_io, AS_IO, 8, namco_51xx_device )
-//  AM_RANGE(MB88_PORTK,  MB88_PORTK)  AM_READ_LEGACY(namco_51xx_K_r)
-//  AM_RANGE(MB88_PORTO,  MB88_PORTO)  AM_WRITE_LEGACY(namco_51xx_O_w)
-//  AM_RANGE(MB88_PORTR0, MB88_PORTR0) AM_READ_LEGACY(namco_51xx_R0_r)
-//  AM_RANGE(MB88_PORTR2, MB88_PORTR2) AM_READ_LEGACY(namco_51xx_R2_r)
+//  AM_RANGE(MB88_PORTK,  MB88_PORTK)  AM_READ(namco_51xx_K_r)
+//  AM_RANGE(MB88_PORTO,  MB88_PORTO)  AM_WRITE(namco_51xx_O_w)
+//  AM_RANGE(MB88_PORTR0, MB88_PORTR0) AM_READ(namco_51xx_R0_r)
+//  AM_RANGE(MB88_PORTR2, MB88_PORTR2) AM_READ(namco_51xx_R2_r)
 ADDRESS_MAP_END
 
 
@@ -442,20 +442,9 @@ static DEVICE_RESET( namco_51xx )
 const device_type NAMCO_51XX = &device_creator<namco_51xx_device>;
 
 namco_51xx_device::namco_51xx_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, NAMCO_51XX, "Namco 51xx", tag, owner, clock)
+	: device_t(mconfig, NAMCO_51XX, "Namco 51xx", tag, owner, clock, "namco51", __FILE__)
 {
 	m_token = global_alloc_clear(namco_51xx_state);
-}
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void namco_51xx_device::device_config_complete()
-{
-	m_shortname = "namco51";
 }
 
 //-------------------------------------------------

@@ -7,13 +7,11 @@
 
     - floppy write
     - floppy DMA transfer timer
-    - MSA disk image support
     - mouse moves too fast?
     - UK keyboard layout for the special keys
     - accurate screen timing
     - STe DMA sound and LMC1992 Microwire mixer
     - Mega ST/STe MC68881 FPU
-    - MIDI interface
     - Mega STe 16KB cache
     - Mega STe LAN
 
@@ -39,6 +37,32 @@ static const int IKBD_MOUSE_XYA[3][4] = { { 0, 0, 0, 0 }, { 1, 1, 0, 0 }, { 0, 1
 static const int IKBD_MOUSE_XYB[3][4] = { { 0, 0, 0, 0 }, { 0, 1, 1, 0 }, { 1, 1, 0, 0 } };
 
 static const int DMASOUND_RATE[] = { Y2/640/8, Y2/640/4, Y2/640/2, Y2/640 };
+
+
+//**************************************************************************
+//  TIMERS
+//**************************************************************************
+
+void st_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_MOUSE_TICK:
+		mouse_tick();
+		break;
+	case TIMER_SHIFTER_TICK:
+		shifter_tick();
+		break;
+	case TIMER_GLUE_TICK:
+		glue_tick();
+		break;
+	case TIMER_BLITTER_TICK:
+		blitter_tick();
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in st_state::device_timer");
+	}
+}
 
 
 //**************************************************************************
@@ -428,8 +452,8 @@ void st_state::mouse_tick()
 
 	*/
 
-	UINT8 x = ioport("IKBD_MOUSEX")->read_safe(0x00);
-	UINT8 y = ioport("IKBD_MOUSEY")->read_safe(0x00);
+	UINT8 x = m_mousex->read();
+	UINT8 y = m_mousey->read();
 
 	if (m_ikbd_mouse_pc == 0)
 	{
@@ -476,17 +500,6 @@ void st_state::mouse_tick()
 
 
 //-------------------------------------------------
-//  TIMER_CALLBACK_MEMBER( st_mouse_tick )
-//-------------------------------------------------
-
-TIMER_CALLBACK_MEMBER(st_state::st_mouse_tick)
-{
-
-	mouse_tick();
-}
-
-
-//-------------------------------------------------
 //  ikbd_port1_r -
 //-------------------------------------------------
 
@@ -510,21 +523,21 @@ READ8_MEMBER( st_state::ikbd_port1_r )
 	UINT8 data = 0xff;
 
 	// keyboard data
-	if (!BIT(m_ikbd_keylatch, 1)) data &= ioport("P31")->read();
-	if (!BIT(m_ikbd_keylatch, 2)) data &= ioport("P32")->read();
-	if (!BIT(m_ikbd_keylatch, 3)) data &= ioport("P33")->read();
-	if (!BIT(m_ikbd_keylatch, 4)) data &= ioport("P34")->read();
-	if (!BIT(m_ikbd_keylatch, 5)) data &= ioport("P35")->read();
-	if (!BIT(m_ikbd_keylatch, 6)) data &= ioport("P36")->read();
-	if (!BIT(m_ikbd_keylatch, 7)) data &= ioport("P37")->read();
-	if (!BIT(m_ikbd_keylatch, 8)) data &= ioport("P40")->read();
-	if (!BIT(m_ikbd_keylatch, 9)) data &= ioport("P41")->read();
-	if (!BIT(m_ikbd_keylatch, 10)) data &= ioport("P42")->read();
-	if (!BIT(m_ikbd_keylatch, 11)) data &= ioport("P43")->read();
-	if (!BIT(m_ikbd_keylatch, 12)) data &= ioport("P44")->read();
-	if (!BIT(m_ikbd_keylatch, 13)) data &= ioport("P45")->read();
-	if (!BIT(m_ikbd_keylatch, 14)) data &= ioport("P46")->read();
-	if (!BIT(m_ikbd_keylatch, 15)) data &= ioport("P47")->read();
+	if (!BIT(m_ikbd_keylatch, 1)) data &= m_p31->read();
+	if (!BIT(m_ikbd_keylatch, 2)) data &= m_p32->read();
+	if (!BIT(m_ikbd_keylatch, 3)) data &= m_p33->read();
+	if (!BIT(m_ikbd_keylatch, 4)) data &= m_p34->read();
+	if (!BIT(m_ikbd_keylatch, 5)) data &= m_p35->read();
+	if (!BIT(m_ikbd_keylatch, 6)) data &= m_p36->read();
+	if (!BIT(m_ikbd_keylatch, 7)) data &= m_p37->read();
+	if (!BIT(m_ikbd_keylatch, 8)) data &= m_p40->read();
+	if (!BIT(m_ikbd_keylatch, 9)) data &= m_p41->read();
+	if (!BIT(m_ikbd_keylatch, 10)) data &= m_p42->read();
+	if (!BIT(m_ikbd_keylatch, 11)) data &= m_p43->read();
+	if (!BIT(m_ikbd_keylatch, 12)) data &= m_p44->read();
+	if (!BIT(m_ikbd_keylatch, 13)) data &= m_p45->read();
+	if (!BIT(m_ikbd_keylatch, 14)) data &= m_p46->read();
+	if (!BIT(m_ikbd_keylatch, 15)) data &= m_p47->read();
 
 	return data;
 }
@@ -548,7 +561,7 @@ READ8_MEMBER( st_state::ikbd_port2_r )
 
 	*/
 
-	UINT8 data = ioport("IKBD_JOY1")->read_safe(0xff) & 0x06;
+	UINT8 data = m_joy1 ? m_joy1->read() & 0x06 : 0x06;
 
 	// serial receive
 	data |= m_ikbd_tx << 3;
@@ -635,9 +648,9 @@ READ8_MEMBER( st_state::ikbd_port4_r )
 
 	if (m_ikbd_joy) return 0xff;
 
-	UINT8 data = ioport("IKBD_JOY0")->read_safe(0xff);
+	UINT8 data = m_joy0 ? m_joy0->read() : 0xff;
 
-	if ((ioport("config")->read() & 0x01) == 0)
+	if ((m_config->read() & 0x01) == 0)
 	{
 		data = (data & 0xf0) | m_ikbd_mouse;
 	}
@@ -727,7 +740,7 @@ void ste_state::dmasound_tick()
 {
 	if (m_dmasnd_samples == 0)
 	{
-		UINT8 *RAM = machine().device<ram_device>(RAM_TAG)->pointer();
+		UINT8 *RAM = m_ram->pointer();
 
 		for (int i = 0; i < 8; i++)
 		{
@@ -771,14 +784,19 @@ void ste_state::dmasound_tick()
 }
 
 
-//-------------------------------------------------
-//  TIMER_CALLBACK_MEMBER( atariste_dmasound_tick )
-//-------------------------------------------------
-
-TIMER_CALLBACK_MEMBER(ste_state::atariste_dmasound_tick)
+void ste_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-
-	dmasound_tick();
+	switch (id)
+	{
+	case TIMER_DMASOUND_TICK:
+		dmasound_tick();
+		break;
+	case TIMER_MICROWIRE_TICK:
+		microwire_tick();
+		break;
+	default:
+		st_state::device_timer(timer, id, param, ptr);
+	}
 }
 
 
@@ -1022,17 +1040,6 @@ void ste_state::microwire_tick()
 
 
 //-------------------------------------------------
-//  TIMER_CALLBACK_MEMBER( atariste_microwire_tick )
-//-------------------------------------------------
-
-TIMER_CALLBACK_MEMBER(ste_state::atariste_microwire_tick)
-{
-
-	microwire_tick();
-}
-
-
-//-------------------------------------------------
 //  microwire_data_r -
 //-------------------------------------------------
 
@@ -1140,7 +1147,7 @@ READ16_MEMBER( stbook_state::config_r )
 
 	*/
 
-	return (ioport("SW400")->read() << 8) | 0xff;
+	return (m_sw400->read() << 8) | 0xff;
 }
 
 
@@ -1215,8 +1222,8 @@ static ADDRESS_MAP_START( st_map, AS_PROGRAM, 16, st_state )
 	AM_RANGE(0xff8604, 0xff8605) AM_READWRITE(fdc_data_r, fdc_data_w)
 	AM_RANGE(0xff8606, 0xff8607) AM_READWRITE(dma_status_r, dma_mode_w)
 	AM_RANGE(0xff8608, 0xff860d) AM_READWRITE8(dma_counter_r, dma_base_w, 0x00ff)
-	AM_RANGE(0xff8800, 0xff8801) AM_DEVREADWRITE8_LEGACY(YM2149_TAG, ay8910_r, ay8910_address_w, 0xff00) AM_MIRROR(0xfc)
-	AM_RANGE(0xff8802, 0xff8803) AM_DEVREADWRITE8_LEGACY(YM2149_TAG, ay8910_r, ay8910_data_w, 0xff00) AM_MIRROR(0xfc)
+	AM_RANGE(0xff8800, 0xff8801) AM_DEVREADWRITE8(YM2149_TAG, ay8910_device, data_r, address_w, 0xff00) AM_MIRROR(0xfc)
+	AM_RANGE(0xff8802, 0xff8803) AM_DEVREADWRITE8(YM2149_TAG, ay8910_device, data_r, data_w, 0xff00) AM_MIRROR(0xfc)
 #if 0
 	AM_RANGE(0xff8a00, 0xff8a1f) AM_READWRITE(blitter_halftone_r, blitter_halftone_w)
 	AM_RANGE(0xff8a20, 0xff8a21) AM_READWRITE(blitter_src_inc_x_r, blitter_src_inc_x_w)
@@ -1260,8 +1267,8 @@ static ADDRESS_MAP_START( megast_map, AS_PROGRAM, 16, megast_state )
 	AM_RANGE(0xff8604, 0xff8605) AM_READWRITE(fdc_data_r, fdc_data_w)
 	AM_RANGE(0xff8606, 0xff8607) AM_READWRITE(dma_status_r, dma_mode_w)
 	AM_RANGE(0xff8608, 0xff860d) AM_READWRITE8(dma_counter_r, dma_base_w, 0x00ff)
-	AM_RANGE(0xff8800, 0xff8801) AM_DEVREADWRITE8_LEGACY(YM2149_TAG, ay8910_r, ay8910_address_w, 0xff00)
-	AM_RANGE(0xff8802, 0xff8803) AM_DEVWRITE8_LEGACY(YM2149_TAG, ay8910_data_w, 0xff00)
+	AM_RANGE(0xff8800, 0xff8801) AM_DEVREADWRITE8(YM2149_TAG, ay8910_device, data_r, address_w, 0xff00)
+	AM_RANGE(0xff8802, 0xff8803) AM_DEVWRITE8(YM2149_TAG, ay8910_device, data_w, 0xff00)
 	AM_RANGE(0xff8a00, 0xff8a1f) AM_READWRITE(blitter_halftone_r, blitter_halftone_w)
 	AM_RANGE(0xff8a20, 0xff8a21) AM_READWRITE(blitter_src_inc_x_r, blitter_src_inc_x_w)
 	AM_RANGE(0xff8a22, 0xff8a23) AM_READWRITE(blitter_src_inc_y_r, blitter_src_inc_y_w)
@@ -1385,8 +1392,8 @@ static ADDRESS_MAP_START( stbook_map, AS_PROGRAM, 16, stbook_state )
     AM_RANGE(0xff8260, 0xff8261) AM_READWRITE8(stbook_shifter_mode_r, stbook_shifter_mode_w, 0xff00)
     AM_RANGE(0xff8264, 0xff8265) AM_READWRITE(stbook_shifter_pixelofs_r, stbook_shifter_pixelofs_w)
     AM_RANGE(0xff827e, 0xff827f) AM_WRITE(lcd_control_w)*/
-	AM_RANGE(0xff8800, 0xff8801) AM_DEVREADWRITE8_LEGACY(YM3439_TAG, ay8910_r, ay8910_address_w, 0xff00)
-	AM_RANGE(0xff8802, 0xff8803) AM_DEVWRITE8_LEGACY(YM3439_TAG, ay8910_data_w, 0xff00)
+	AM_RANGE(0xff8800, 0xff8801) AM_DEVREADWRITE8(YM3439_TAG, ay8910_device, data_r, address_w, 0xff00)
+	AM_RANGE(0xff8802, 0xff8803) AM_DEVWRITE8(YM3439_TAG, ay8910_device, data_w, 0xff00)
 /*  AM_RANGE(0xff8900, 0xff8901) AM_READWRITE8(sound_dma_control_r, sound_dma_control_w, 0x00ff)
     AM_RANGE(0xff8902, 0xff8907) AM_READWRITE8(sound_dma_base_r, sound_dma_base_w, 0x00ff)
     AM_RANGE(0xff8908, 0xff890d) AM_READ8(sound_dma_counter_r, 0x00ff)
@@ -1731,8 +1738,10 @@ WRITE8_MEMBER( st_state::psg_pa_w )
 	m_fdc->set_floppy(floppy);
 
 	// request to send
+	m_rs232->rts_w(BIT(data, 3));
 
 	// data terminal ready
+	m_rs232->dtr_w(BIT(data, 4));
 
 	// centronics strobe
 	m_centronics->strobe_w(BIT(data, 5));
@@ -1784,8 +1793,10 @@ WRITE8_MEMBER( stbook_state::psg_pa_w )
 	m_fdc->set_floppy(floppy);
 
 	// request to send
+	m_rs232->rts_w(BIT(data, 3));
 
 	// data terminal ready
+	m_rs232->dtr_w(BIT(data, 4));
 
 	// centronics strobe
 	m_centronics->strobe_w(BIT(data, 5));
@@ -1860,6 +1871,16 @@ static ACIA6850_INTERFACE( stbook_acia_ikbd_intf )
 //  ACIA6850_INTERFACE( acia_midi_intf )
 //-------------------------------------------------
 
+READ_LINE_MEMBER( st_state::midi_rx_in )
+{
+	return m_midi_rx_state;
+}
+
+WRITE_LINE_MEMBER( st_state::midi_tx_out )
+{
+	m_mdout->tx(state);
+}
+
 WRITE_LINE_MEMBER( st_state::acia_midi_irq_w )
 {
 	m_acia_midi_irq = state;
@@ -1870,9 +1891,9 @@ WRITE_LINE_MEMBER( st_state::acia_midi_irq_w )
 static ACIA6850_INTERFACE( acia_midi_intf )
 {
 	Y2/64,
-	Y2/64,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	0,          // rx clock (we manually clock rx)
+	DEVCB_DRIVER_LINE_MEMBER(st_state, midi_rx_in),
+	DEVCB_DRIVER_LINE_MEMBER(st_state, midi_tx_out),
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
@@ -1907,8 +1928,10 @@ READ8_MEMBER( st_state::mfp_gpio_r )
 	data |= m_centronics->busy_r();
 
 	// data carrier detect
+	data |= m_rs232->dcd_r() << 1;
 
 	// clear to send
+	data |= m_rs232->cts_r() << 2;
 
 	// blitter done
 	data |= m_blitter_done << 3;
@@ -1920,9 +1943,10 @@ READ8_MEMBER( st_state::mfp_gpio_r )
 	data |= !m_fdc->intrq_r() << 5;
 
 	// ring indicator
+	data |= m_rs232->ri_r() << 6;
 
 	// monochrome monitor detect
-	data |= ioport("config")->read() & 0x80;
+	data |= m_config->read() & 0x80;
 
 	return data;
 }
@@ -1945,8 +1969,8 @@ static MC68901_INTERFACE( mfp_intf )
 	DEVCB_NULL,                                         /* TBO */
 	DEVCB_NULL,                                         /* TCO */
 	DEVCB_DRIVER_LINE_MEMBER(st_state, mfp_tdo_w),      /* TDO */
-	DEVCB_NULL,                                         /* serial input */
-	DEVCB_NULL                                          /* serial output */
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx)
 };
 
 
@@ -1977,8 +2001,10 @@ READ8_MEMBER( ste_state::mfp_gpio_r )
 	data |= m_centronics->busy_r();
 
 	// data carrier detect
+	data |= m_rs232->dcd_r() << 1;
 
 	// clear to send
+	data |= m_rs232->cts_r() << 2;
 
 	// blitter done
 	data |= m_blitter_done << 3;
@@ -1990,9 +2016,10 @@ READ8_MEMBER( ste_state::mfp_gpio_r )
 	data |= !m_fdc->intrq_r() << 5;
 
 	// ring indicator
+	data |= m_rs232->ri_r() << 6;
 
 	// monochrome monitor detect, DMA sound active
-	data |= (ioport("config")->read() & 0x80) ^ (m_dmasnd_active << 7);
+	data |= (m_config->read() & 0x80) ^ (m_dmasnd_active << 7);
 
 	return data;
 }
@@ -2009,8 +2036,8 @@ static MC68901_INTERFACE( atariste_mfp_intf )
 	DEVCB_NULL,                                         /* TBO */
 	DEVCB_NULL,                                         /* TCO */
 	DEVCB_DRIVER_LINE_MEMBER(st_state, mfp_tdo_w),      /* TDO */
-	DEVCB_NULL,                                         /* serial input */
-	DEVCB_NULL                                          /* serial output */
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx)
 };
 
 
@@ -2041,8 +2068,10 @@ READ8_MEMBER( stbook_state::mfp_gpio_r )
 	data |= m_centronics->busy_r();
 
 	// data carrier detect
+	data |= m_rs232->dcd_r() << 1;
 
 	// clear to send
+	data |= m_rs232->cts_r() << 2;
 
 	// blitter done
 	data |= m_blitter_done << 3;
@@ -2054,6 +2083,7 @@ READ8_MEMBER( stbook_state::mfp_gpio_r )
 	data |= !m_fdc->intrq_r() << 5;
 
 	// ring indicator
+	data |= m_rs232->ri_r() << 6;
 
 	// TODO power alarms
 
@@ -2072,8 +2102,8 @@ static MC68901_INTERFACE( stbook_mfp_intf )
 	DEVCB_NULL,                                         /* TBO */
 	DEVCB_NULL,                                         /* TCO */
 	DEVCB_DRIVER_LINE_MEMBER(st_state, mfp_tdo_w),      /* TDO */
-	DEVCB_NULL,                                         /* serial input */
-	DEVCB_NULL                                          /* serial output */
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx)
 };
 
 void st_state::fdc_intrq_w(bool state)
@@ -2111,22 +2141,72 @@ static const centronics_interface centronics_intf =
 };
 
 
+//-------------------------------------------------
+//  rs232_port_interface rs232_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
+
+//-------------------------------------------------
+//  SLOT_INTERFACE( midiin_slot )
+//-------------------------------------------------
+
+static SLOT_INTERFACE_START( midiin_slot )
+	SLOT_INTERFACE("midiin", MIDIIN_PORT)
+SLOT_INTERFACE_END
+
+WRITE_LINE_MEMBER( st_state::midi_rx_w )
+{
+	m_midi_rx_state = state;
+
+	for (int i = 0; i < 64; i++)    // divider is set to 64
+	{
+		m_acia1->rx_clock_in();
+	}
+}
+
+static const serial_port_interface midiin_intf =
+{
+	DEVCB_DRIVER_LINE_MEMBER(st_state, midi_rx_w)
+};
+
+
+//-------------------------------------------------
+//  SLOT_INTERFACE( midiout_slot )
+//-------------------------------------------------
+
+static SLOT_INTERFACE_START( midiout_slot )
+	SLOT_INTERFACE("midiout", MIDIOUT_PORT)
+SLOT_INTERFACE_END
+
+static const serial_port_interface midiout_intf =
+{
+	DEVCB_NULL  // midi out ports don't transmit inward
+};
+
+
 
 //**************************************************************************
 //  MACHINE INITIALIZATION
 //**************************************************************************
 
 //-------------------------------------------------
-//  IRQ_CALLBACK( atarist_int_ack )
+//  IRQ_CALLBACK_MEMBER( atarist_int_ack )
 //-------------------------------------------------
 
-static IRQ_CALLBACK( atarist_int_ack )
+IRQ_CALLBACK_MEMBER(st_state::atarist_int_ack)
 {
-	st_state *state = device->machine().driver_data<st_state>();
-
 	if (irqline == M68K_IRQ_6)
 	{
-		return state->m_mfp->get_vector();
+		return m_mfp->get_vector();
 	}
 
 	return M68K_INT_ACK_AUTOVECTOR;
@@ -2202,11 +2282,13 @@ void st_state::machine_start()
 	configure_memory();
 
 	// set CPU interrupt callback
-	m_maincpu->set_irq_acknowledge_callback(atarist_int_ack);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(st_state::atarist_int_ack),this));
 
 	// allocate timers
-	m_mouse_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(st_state::st_mouse_tick),this));
-	m_mouse_timer->adjust(attotime::zero, 0, attotime::from_hz(500));
+	if(m_mousex) {
+		m_mouse_timer = timer_alloc(TIMER_MOUSE_TICK);
+		m_mouse_timer->adjust(attotime::zero, 0, attotime::from_hz(500));
+	}
 
 	// register for state saving
 	state_save();
@@ -2259,11 +2341,11 @@ void ste_state::machine_start()
 	configure_memory();
 
 	/* set CPU interrupt callback */
-	m_maincpu->set_irq_acknowledge_callback(atarist_int_ack);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(st_state::atarist_int_ack),this));
 
 	/* allocate timers */
-	m_dmasound_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(ste_state::atariste_dmasound_tick),this));
-	m_microwire_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(ste_state::atariste_microwire_tick),this));
+	m_dmasound_timer = timer_alloc(TIMER_DMASOUND_TICK);
+	m_microwire_timer = timer_alloc(TIMER_MICROWIRE_TICK);
 
 	/* register for state saving */
 	state_save();
@@ -2299,7 +2381,7 @@ void stbook_state::machine_start()
 	}
 
 	/* set CPU interrupt callback */
-	m_maincpu->set_irq_acknowledge_callback(atarist_int_ack);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(st_state::atarist_int_ack),this));
 
 	/* register for state saving */
 	ste_state::state_save();
@@ -2312,6 +2394,8 @@ FLOPPY_FORMATS_END
 static SLOT_INTERFACE_START( atari_floppies )
 	SLOT_INTERFACE( "35dd", FLOPPY_35_DD )
 SLOT_INTERFACE_END
+
+
 
 //**************************************************************************
 //  MACHINE CONFIGURATION
@@ -2349,10 +2433,13 @@ static MACHINE_CONFIG_START( st, st_state )
 	MCFG_MC68901_ADD(MC68901_TAG, Y2/8, mfp_intf)
 	MCFG_WD1772x_ADD(WD1772_TAG, Y2/4)
 
-	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", 0, st_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      0, st_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", st_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      st_state::floppy_formats)
 
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
 
 	// cartridge
 	MCFG_CARTSLOT_ADD("cart")
@@ -2402,9 +2489,12 @@ static MACHINE_CONFIG_START( megast, megast_state )
 	MCFG_ACIA6850_ADD(MC6850_1_TAG, acia_midi_intf)
 	MCFG_MC68901_ADD(MC68901_TAG, Y2/8, mfp_intf)
 	MCFG_WD1772x_ADD(WD1772_TAG, Y2/4)
-	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", 0, st_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      0, st_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", st_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      st_state::floppy_formats)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
 	MCFG_RP5C15_ADD(RP5C15_TAG, XTAL_32_768kHz, rtc_intf)
 
 	// cartridge
@@ -2463,9 +2553,12 @@ static MACHINE_CONFIG_START( ste, ste_state )
 	MCFG_ACIA6850_ADD(MC6850_1_TAG, acia_midi_intf)
 	MCFG_MC68901_ADD(MC68901_TAG, Y2/8, atariste_mfp_intf)
 	MCFG_WD1772x_ADD(WD1772_TAG, Y2/4)
-	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", 0, st_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      0, st_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", st_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      st_state::floppy_formats)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
 
 	// cartridge
 	MCFG_CARTSLOT_ADD("cart")
@@ -2537,6 +2630,9 @@ static MACHINE_CONFIG_START( stbook, stbook_state )
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":0", atari_floppies, "35dd", 0, st_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(WD1772_TAG ":1", atari_floppies, 0,      0, st_state::floppy_formats)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL, NULL)
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin", NULL)
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout", NULL)
 
 	// cartridge
 	MCFG_CARTSLOT_ADD("cart")

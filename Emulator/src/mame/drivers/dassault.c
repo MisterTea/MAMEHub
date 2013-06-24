@@ -136,7 +136,6 @@ Dip locations verified with US conversion kit manual.
 #include "sound/okim6295.h"
 #include "video/deco16ic.h"
 #include "video/decocomn.h"
-#include "video/decospr.h"
 
 /**********************************************************************************/
 
@@ -261,7 +260,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, dassault_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
+	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
 	AM_RANGE(0x110000, 0x110001) AM_DEVREADWRITE("ym2", ym2151_device, read, write)
 	AM_RANGE(0x120000, 0x120001) AM_DEVREADWRITE("oki1", okim6295_device, read, write)
 	AM_RANGE(0x130000, 0x130001) AM_DEVREADWRITE("oki2", okim6295_device, read, write)
@@ -447,7 +446,6 @@ GFXDECODE_END
 
 WRITE8_MEMBER(dassault_state::sound_bankswitch_w)
 {
-
 	/* the second OKIM6295 ROM is bank switched */
 	m_oki2->set_bank_base((data & 1) * 0x40000);
 }
@@ -970,8 +968,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(dassault_state,dassault)
 {
-	const UINT8 *src = machine().root_device().memregion("gfx1")->base();
-	UINT8 *dst = machine().root_device().memregion("gfx2")->base();
+	const UINT8 *src = memregion("gfx1")->base();
+	UINT8 *dst = memregion("gfx2")->base();
 	UINT8 *tmp = auto_alloc_array(machine(), UINT8, 0x80000);
 
 	/* Playfield 4 also has access to the char graphics, make things easier
@@ -987,8 +985,8 @@ DRIVER_INIT_MEMBER(dassault_state,dassault)
 
 DRIVER_INIT_MEMBER(dassault_state,thndzone)
 {
-	const UINT8 *src = machine().root_device().memregion("gfx1")->base();
-	UINT8 *dst = machine().root_device().memregion("gfx2")->base();
+	const UINT8 *src = memregion("gfx1")->base();
+	UINT8 *dst = memregion("gfx2")->base();
 	UINT8 *tmp = auto_alloc_array(machine(), UINT8, 0x80000);
 
 	/* Playfield 4 also has access to the char graphics, make things easier

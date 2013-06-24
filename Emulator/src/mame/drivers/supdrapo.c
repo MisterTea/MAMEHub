@@ -69,10 +69,11 @@ class supdrapo_state : public driver_device
 {
 public:
 	supdrapo_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_col_line(*this, "col_line"),
 		m_videoram(*this, "videoram"),
-		m_char_bank(*this, "char_bank"){ }
+		m_char_bank(*this, "char_bank"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_col_line;
 	required_shared_ptr<UINT8> m_videoram;
@@ -91,6 +92,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_supdrapo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -132,7 +134,7 @@ UINT32 supdrapo_state::screen_update_supdrapo(screen_device &screen, bitmap_ind1
 /*Maybe bit 2 & 3 of the second color prom are intensity bits? */
 void supdrapo_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
 	int i;
 
@@ -275,7 +277,7 @@ static ADDRESS_MAP_START( sdpoker_mem, AS_PROGRAM, 8, supdrapo_state )
 	AM_RANGE(0x8006, 0x8006) AM_READ_PORT("SW2")
 	AM_RANGE(0x9000, 0x90ff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0x9400, 0x9400) AM_READ(sdpoker_rng_r)
-	AM_RANGE(0x9800, 0x9801) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x9800, 0x9801) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 

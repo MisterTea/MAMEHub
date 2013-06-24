@@ -10,15 +10,15 @@ class trackfld_state : public driver_device
 {
 public:
 	trackfld_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram2(*this, "spriteram2"),
 		m_scroll(*this, "scroll"),
 		m_spriteram(*this, "spriteram"),
 		m_scroll2(*this, "scroll2"),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_sn(*this, "snsnd")
-	{ }
+		m_sn(*this, "snsnd"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_spriteram2;
@@ -69,4 +69,6 @@ public:
 	INTERRUPT_GEN_MEMBER(vblank_irq);
 	INTERRUPT_GEN_MEMBER(vblank_nmi);
 	INTERRUPT_GEN_MEMBER(yieartf_timer_irq);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

@@ -71,7 +71,7 @@ TIMER_CALLBACK_MEMBER(atetris_state::interrupt_gen)
 	int scanline = param;
 
 	/* assert/deassert the interrupt */
-	machine().device("maincpu")->execute().set_input_line(0, (scanline & 32) ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, (scanline & 32) ? ASSERT_LINE : CLEAR_LINE);
 
 	/* set the next timer */
 	scanline += 32;
@@ -83,7 +83,7 @@ TIMER_CALLBACK_MEMBER(atetris_state::interrupt_gen)
 
 WRITE8_MEMBER(atetris_state::irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -94,34 +94,30 @@ WRITE8_MEMBER(atetris_state::irq_ack_w)
  *
  *************************************/
 
-static void reset_bank(running_machine &machine)
+void atetris_state::reset_bank()
 {
-	atetris_state *state = machine.driver_data<atetris_state>();
-
-	memcpy(state->m_slapstic_base, &state->m_slapstic_source[state->m_current_bank * 0x4000], 0x4000);
+	memcpy(m_slapstic_base, &m_slapstic_source[m_current_bank * 0x4000], 0x4000);
 }
 
 
 void atetris_state::machine_start()
 {
-
 	/* Allocate interrupt timer */
 	m_interrupt_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(atetris_state::interrupt_gen),this));
 
 	/* Set up save state */
 	save_item(NAME(m_current_bank));
 	save_item(NAME(m_nvram_write_enable));
-	machine().save().register_postload(save_prepost_delegate(FUNC(reset_bank), &machine()));
+	machine().save().register_postload(save_prepost_delegate(FUNC(atetris_state::reset_bank), this));
 }
 
 
 void atetris_state::machine_reset()
 {
-
 	/* reset the slapstic */
 	slapstic_reset();
 	m_current_bank = slapstic_bank() & 1;
-	reset_bank(machine());
+	reset_bank();
 
 	/* start interrupts going (32V clocked by 16V) */
 	m_interrupt_timer->adjust(machine().primary_screen->time_until_pos(48), 48);
@@ -173,7 +169,6 @@ WRITE8_MEMBER(atetris_state::coincount_w)
 
 WRITE8_MEMBER(atetris_state::nvram_w)
 {
-
 	if (m_nvram_write_enable)
 		m_nvram[offset] = data;
 	m_nvram_write_enable = 0;
@@ -182,7 +177,6 @@ WRITE8_MEMBER(atetris_state::nvram_w)
 
 WRITE8_MEMBER(atetris_state::nvram_enable_w)
 {
-
 	m_nvram_write_enable = 1;
 }
 

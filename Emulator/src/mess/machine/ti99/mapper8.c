@@ -55,7 +55,7 @@
 #define MAP8_INTS (void*)6L
 
 ti998_mapper_device::ti998_mapper_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-: bus8z_device(mconfig, MAPPER8, "TI-99/8 Memory mapper", tag, owner, clock)
+: bus8z_device(mconfig, MAPPER8, "TI-99/8 Memory mapper", tag, owner, clock, "ti99_mapper8", __FILE__)
 {
 }
 
@@ -323,7 +323,6 @@ bool ti998_mapper_device::search_logically_addressed_w(address_space& space, off
 			|| ((dev->m_config->mode == TI99EM) && (m_CRUS==true))
 			|| ((dev->m_config->mode == PATGEN) && (m_PTGE==true)))
 		{
-
 			if ((offset & dev->m_config->address_mask)==(dev->m_config->select_pattern | dev->m_config->write_select))
 			{
 				if (dev->m_device == MAP8_SRAM)
@@ -560,6 +559,7 @@ void ti998_mapper_device::device_reset()
 	m_dsr_selected = false;
 	m_CRUS = true;
 	m_PTGE = false;
+	m_waitcount = 0;
 
 	// Clean mapper
 	for (int i=0; i < 16; i++) m_pas_offset[i] = 0;

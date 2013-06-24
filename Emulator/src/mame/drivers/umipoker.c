@@ -26,12 +26,13 @@ class umipoker_state : public driver_device
 {
 public:
 	umipoker_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram_0(*this, "vra0"),
 		m_vram_1(*this, "vra1"),
 		m_vram_2(*this, "vra2"),
 		m_vram_3(*this, "vra3"),
-		m_z80_wram(*this, "z80_wram"){ }
+		m_z80_wram(*this, "z80_wram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_vram_0;
 	required_shared_ptr<UINT16> m_vram_1;
@@ -68,6 +69,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_umipoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 TILE_GET_INFO_MEMBER(umipoker_state::get_tile_info_0)
@@ -120,7 +122,6 @@ TILE_GET_INFO_MEMBER(umipoker_state::get_tile_info_3)
 
 void umipoker_state::video_start()
 {
-
 	m_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_0),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 	m_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_1),this),TILEMAP_SCAN_ROWS,8,8,64,32);
 	m_tilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(umipoker_state::get_tile_info_2),this),TILEMAP_SCAN_ROWS,8,8,64,32);
@@ -135,7 +136,6 @@ void umipoker_state::video_start()
 
 UINT32 umipoker_state::screen_update_umipoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_tilemap_0->set_scrolly(0, m_umipoker_scrolly[0]);
 	m_tilemap_1->set_scrolly(0, m_umipoker_scrolly[1]);
 	m_tilemap_2->set_scrolly(0, m_umipoker_scrolly[2]);
@@ -160,7 +160,6 @@ READ8_MEMBER(umipoker_state::z80_rom_readback_r)
 
 READ8_MEMBER(umipoker_state::z80_shared_ram_r)
 {
-
 	machine().scheduler().synchronize(); // force resync
 
 	return m_z80_wram[offset];
@@ -168,7 +167,6 @@ READ8_MEMBER(umipoker_state::z80_shared_ram_r)
 
 WRITE8_MEMBER(umipoker_state::z80_shared_ram_w)
 {
-
 	machine().scheduler().synchronize(); // force resync
 
 	m_z80_wram[offset] = data;
@@ -176,7 +174,7 @@ WRITE8_MEMBER(umipoker_state::z80_shared_ram_w)
 
 WRITE16_MEMBER(umipoker_state::umipoker_irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(6, CLEAR_LINE);
+	m_maincpu->set_input_line(6, CLEAR_LINE);
 
 	/* shouldn't happen */
 	if(data)
@@ -190,14 +188,12 @@ WRITE16_MEMBER(umipoker_state::umipoker_scrolly_3_w){ COMBINE_DATA(&m_umipoker_s
 
 WRITE16_MEMBER(umipoker_state::umipoker_vram_0_w)
 {
-
 	COMBINE_DATA(&m_vram_0[offset]);
 	m_tilemap_0->mark_tile_dirty(offset >> 1);
 }
 
 WRITE16_MEMBER(umipoker_state::umipoker_vram_1_w)
 {
-
 	COMBINE_DATA(&m_vram_1[offset]);
 	m_tilemap_1->mark_tile_dirty(offset >> 1);
 }
@@ -205,14 +201,12 @@ WRITE16_MEMBER(umipoker_state::umipoker_vram_1_w)
 
 WRITE16_MEMBER(umipoker_state::umipoker_vram_2_w)
 {
-
 	COMBINE_DATA(&m_vram_2[offset]);
 	m_tilemap_2->mark_tile_dirty(offset >> 1);
 }
 
 WRITE16_MEMBER(umipoker_state::umipoker_vram_3_w)
 {
-
 	COMBINE_DATA(&m_vram_3[offset]);
 	m_tilemap_3->mark_tile_dirty(offset >> 1);
 }
@@ -325,7 +319,7 @@ static ADDRESS_MAP_START( umipoker_map, AS_PROGRAM, 16, umipoker_state )
 	AM_RANGE(0xe00004, 0xe00005) AM_READ_PORT("IN1") // unused?
 	AM_RANGE(0xe00008, 0xe00009) AM_READ_PORT("IN2")
 //  AM_RANGE(0xe0000c, 0xe0000d) AM_WRITE(lamps_w) -----> lamps only for saiyukip.
-//  AM_RANGE(0xe00010, 0xe00011) AM_WRITE_LEGACY(counters_w) --> coin counters for both games.
+//  AM_RANGE(0xe00010, 0xe00011) AM_WRITE(counters_w) --> coin counters for both games.
 	AM_RANGE(0xe00014, 0xe00015) AM_READ_PORT("DSW1-2")
 	AM_RANGE(0xe00018, 0xe00019) AM_READ_PORT("DSW3-4")
 	AM_RANGE(0xe00020, 0xe00021) AM_WRITE(umipoker_scrolly_0_w)
@@ -344,7 +338,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( umipoker_audio_io_map, AS_IO, 8, umipoker_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE_LEGACY("ym", ym3812_r, ym3812_w)
+	AM_RANGE(0x10, 0x11) AM_DEVREADWRITE("ym", ym3812_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -649,7 +643,6 @@ GFXDECODE_END
 
 void umipoker_state::machine_start()
 {
-
 }
 
 void umipoker_state::machine_reset()
@@ -747,13 +740,13 @@ ROM_END
 
 DRIVER_INIT_MEMBER(umipoker_state,umipoker)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xe00010, 0xe00011, write16_delegate(FUNC(umipoker_state::umi_counters_w), this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xe00010, 0xe00011, write16_delegate(FUNC(umipoker_state::umi_counters_w), this));
 }
 
 DRIVER_INIT_MEMBER(umipoker_state,saiyukip)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xe00010, 0xe00011, write16_delegate(FUNC(umipoker_state::saiyu_counters_w), this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xe0000c, 0xe0000d, write16_delegate(FUNC(umipoker_state::lamps_w), this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xe00010, 0xe00011, write16_delegate(FUNC(umipoker_state::saiyu_counters_w), this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xe0000c, 0xe0000d, write16_delegate(FUNC(umipoker_state::lamps_w), this));
 }
 
 

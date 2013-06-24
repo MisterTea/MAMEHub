@@ -96,7 +96,6 @@ READ8_MEMBER(ladybug_state::sraider_8005_r)
 /* Unknown IO */
 WRITE8_MEMBER(ladybug_state::sraider_misc_w)
 {
-
 	switch(offset)
 	{
 		/* These 8 bits are stored in the latch at A7 */
@@ -184,14 +183,12 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(ladybug_state::coin1_inserted)
 {
-
 	/* left coin insertion causes an NMI */
 	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? ASSERT_LINE : CLEAR_LINE);
 }
 
 INPUT_CHANGED_MEMBER(ladybug_state::coin2_inserted)
 {
-
 	/* right coin insertion causes an IRQ */
 	if (newval)
 		m_maincpu->set_input_line(0, HOLD_LINE);
@@ -728,14 +725,10 @@ static const sn76496_config psg_intf =
 
 MACHINE_START_MEMBER(ladybug_state,ladybug)
 {
-	m_maincpu = machine().device<cpu_device>("maincpu");
 }
 
 MACHINE_START_MEMBER(ladybug_state,sraider)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_grid_color));
 	save_item(NAME(m_sound_low));
 	save_item(NAME(m_sound_high));
@@ -1068,10 +1061,10 @@ DRIVER_INIT_MEMBER(ladybug_state,dorodon)
 	/* decode the opcodes */
 
 	offs_t i;
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *decrypted = auto_alloc_array(machine(), UINT8, 0x6000);
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
-	UINT8 *table = machine().root_device().memregion("user1")->base();
+	UINT8 *rom = memregion("maincpu")->base();
+	UINT8 *table = memregion("user1")->base();
 
 	space.set_decrypted_region(0x0000, 0x5fff, decrypted);
 

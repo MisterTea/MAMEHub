@@ -14,7 +14,7 @@
 
 #include "emu.h"
 #include "includes/lemmings.h"
-#include "video/decospr.h"
+
 
 /******************************************************************************/
 
@@ -38,8 +38,8 @@ void lemmings_state::video_start()
 
 	machine().gfx[2]->set_source(m_vram_buffer);
 
-	machine().device<decospr_device>("spritegen")->alloc_sprite_bitmap();
-	machine().device<decospr_device>("spritegen2")->alloc_sprite_bitmap();
+	m_sprgen->alloc_sprite_bitmap();
+	m_sprgen2->alloc_sprite_bitmap();
 
 	save_item(NAME(m_bitmap0));
 	save_item(NAME(m_vram_buffer));
@@ -62,7 +62,6 @@ void lemmings_state::screen_eof_lemmings(screen_device &screen, bool state)
 // RAM based
 WRITE16_MEMBER(lemmings_state::lemmings_pixel_0_w)
 {
-
 	int sx, sy, src, old;
 
 	old = m_pixel_0_data[offset];
@@ -108,10 +107,10 @@ WRITE16_MEMBER(lemmings_state::lemmings_vram_w)
 }
 
 
-void lemmings_copy_bitmap(running_machine &machine, bitmap_rgb32& bitmap, bitmap_ind16& srcbitmap, int* xscroll, int* yscroll, const rectangle& cliprect)
+void lemmings_state::lemmings_copy_bitmap(bitmap_rgb32& bitmap, bitmap_ind16& srcbitmap, int* xscroll, int* yscroll, const rectangle& cliprect)
 {
 	int y,x;
-	const pen_t *paldata = machine.pens;
+	const pen_t *paldata = machine().pens;
 
 	for (y=cliprect.min_y; y<cliprect.max_y;y++)
 	{
@@ -136,31 +135,31 @@ UINT32 lemmings_state::screen_update_lemmings(screen_device &screen, bitmap_rgb3
 	rect.max_y = cliprect.max_y;
 	rect.min_y = cliprect.min_y;
 
-	machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_sprite_triple_buffer_1, 0x400, true);
-	machine().device<decospr_device>("spritegen2")->draw_sprites(bitmap, cliprect, m_sprite_triple_buffer_0, 0x400, true);
+	m_sprgen->draw_sprites(bitmap, cliprect, m_sprite_triple_buffer_1, 0x400, true);
+	m_sprgen2->draw_sprites(bitmap, cliprect, m_sprite_triple_buffer_0, 0x400, true);
 
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	machine().device<decospr_device>("spritegen")->inefficient_copy_sprite_bitmap(bitmap, cliprect, 0x0800, 0x0800, 0x300, 0xff);
+	m_sprgen->inefficient_copy_sprite_bitmap(bitmap, cliprect, 0x0800, 0x0800, 0x300, 0xff);
 
 	/* Pixel layer can be windowed in hardware (two player mode) */
 	if ((m_control_data[6] & 2) == 0)
 	{
-		lemmings_copy_bitmap(machine(), bitmap, m_bitmap0, &x1, &y, cliprect);
+		lemmings_copy_bitmap(bitmap, m_bitmap0, &x1, &y, cliprect);
 	}
 	else
 	{
 		rect.max_x = 159;
 		rect.min_x = 0;
-		lemmings_copy_bitmap(machine(), bitmap, m_bitmap0, &x0, &y, rect);
+		lemmings_copy_bitmap(bitmap, m_bitmap0, &x0, &y, rect);
 
 		rect.max_x = 319;
 		rect.min_x = 160;
-		lemmings_copy_bitmap(machine(), bitmap, m_bitmap0, &x1, &y, rect);
+		lemmings_copy_bitmap(bitmap, m_bitmap0, &x1, &y, rect);
 	}
 
-	machine().device<decospr_device>("spritegen2")->inefficient_copy_sprite_bitmap(bitmap, cliprect, 0x0800, 0x0800, 0x200, 0xff);
-	machine().device<decospr_device>("spritegen")->inefficient_copy_sprite_bitmap(bitmap, cliprect, 0x0000, 0x0800, 0x300, 0xff);
+	m_sprgen2->inefficient_copy_sprite_bitmap(bitmap, cliprect, 0x0800, 0x0800, 0x200, 0xff);
+	m_sprgen->inefficient_copy_sprite_bitmap(bitmap, cliprect, 0x0000, 0x0800, 0x300, 0xff);
 	m_vram_tilemap->draw(bitmap, cliprect, 0, 0);
-	machine().device<decospr_device>("spritegen2")->inefficient_copy_sprite_bitmap(bitmap, cliprect, 0x0000, 0x0800, 0x200, 0xff);
+	m_sprgen2->inefficient_copy_sprite_bitmap(bitmap, cliprect, 0x0000, 0x0800, 0x200, 0xff);
 	return 0;
 }

@@ -51,7 +51,6 @@ Stephh's notes (based on the games M68000 code and some tests) :
 #include "sound/2203intf.h"
 #include "sound/okim6295.h"
 #include "includes/sshangha.h"
-#include "video/decospr.h"
 #include "video/deco16ic.h"
 
 #define SSHANGHA_HACK   0
@@ -115,16 +114,16 @@ void sshangha_state::machine_reset()
 
 /******************************************************************************/
 
-INLINE void sshangha_set_color_888(running_machine &machine, pen_t color, int rshift, int gshift, int bshift, UINT32 data)
+inline void sshangha_state::sshangha_set_color_888(pen_t color, int rshift, int gshift, int bshift, UINT32 data)
 {
-	palette_set_color_rgb(machine, color, (data >> rshift) & 0xff, (data >> gshift) & 0xff, (data >> bshift) & 0xff);
+	palette_set_color_rgb(machine(), color, (data >> rshift) & 0xff, (data >> gshift) & 0xff, (data >> bshift) & 0xff);
 }
 
 
 WRITE16_MEMBER(sshangha_state::paletteram16_xbgr_word_be_sprites2_w)
 {
 	COMBINE_DATA(&m_sprite_paletteram2[offset]);
-	sshangha_set_color_888(machine(), (offset/2)+0x100, 0, 8, 16, m_sprite_paletteram2[(offset) | 1] | (m_sprite_paletteram2[(offset) & ~1] << 16) );
+	sshangha_set_color_888((offset/2)+0x100, 0, 8, 16, m_sprite_paletteram2[(offset) | 1] | (m_sprite_paletteram2[(offset) & ~1] << 16) );
 }
 
 WRITE16_MEMBER(sshangha_state::paletteram16_xbgr_word_be_sprites_w)
@@ -137,19 +136,19 @@ WRITE16_MEMBER(sshangha_state::paletteram16_xbgr_word_be_sprites_w)
 	paletteram16_xbgr_word_be_sprites2_w(space,offset,data,mem_mask);
 
 	COMBINE_DATA(&m_sprite_paletteram[offset]);
-	sshangha_set_color_888(machine(), (offset/2)+0x000, 0, 8, 16, m_sprite_paletteram[(offset) | 1] | (m_sprite_paletteram[(offset) & ~1] << 16) );
+	sshangha_set_color_888((offset/2)+0x000, 0, 8, 16, m_sprite_paletteram[(offset) | 1] | (m_sprite_paletteram[(offset) & ~1] << 16) );
 }
 
 WRITE16_MEMBER(sshangha_state::paletteram16_xbgr_word_be_tilelow_w)
 {
 	COMBINE_DATA(&m_tile_paletteram1[offset]);
-	sshangha_set_color_888(machine(), (offset/2)+0x200, 0, 8, 16, m_tile_paletteram1[(offset) | 1] | (m_tile_paletteram1[(offset) & ~1] << 16) );
+	sshangha_set_color_888((offset/2)+0x200, 0, 8, 16, m_tile_paletteram1[(offset) | 1] | (m_tile_paletteram1[(offset) & ~1] << 16) );
 }
 
 WRITE16_MEMBER(sshangha_state::paletteram16_xbgr_word_be_tilehigh_w)
 {
 	COMBINE_DATA(&m_tile_paletteram2[offset]);
-	sshangha_set_color_888(machine(), (offset/2)+0x300, 0, 8, 16, m_tile_paletteram2[(offset) | 1] | (m_tile_paletteram2[(offset) & ~1] << 16) );
+	sshangha_set_color_888((offset/2)+0x300, 0, 8, 16, m_tile_paletteram2[(offset) | 1] | (m_tile_paletteram2[(offset) & ~1] << 16) );
 }
 
 static ADDRESS_MAP_START( sshangha_map, AS_PROGRAM, 16, sshangha_state )
@@ -228,7 +227,7 @@ WRITE8_MEMBER(sshangha_state::sshangha_sound_shared_w)
 /* Note: there's rom data after 0x8000 but the game never seem to call a rom bank, left-over? */
 static ADDRESS_MAP_START( sshangha_sound_map, AS_PROGRAM, 8, sshangha_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r,ym2203_w)
+	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0xc200, 0xc201) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0xf800, 0xf807) AM_READWRITE(sshangha_sound_shared_r,sshangha_sound_shared_w)
 	AM_RANGE(0xf808, 0xffff) AM_RAM
@@ -356,19 +355,16 @@ GFXDECODE_END
 
 /******************************************************************************/
 
-static void irqhandler(device_t *device, int state)
+WRITE_LINE_MEMBER(sshangha_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, state);
+	m_audiocpu->set_input_line(0, state);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 static int sshangha_bank_callback( int bank )
@@ -427,7 +423,8 @@ static MACHINE_CONFIG_START( sshangha, sshangha_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker") /* sure it's stereo? */
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 16000000/4)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(sshangha_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.33)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.33)
 
@@ -490,7 +487,7 @@ DRIVER_INIT_MEMBER(sshangha_state,sshangha)
 #if SSHANGHA_HACK
 	/* This is a hack to allow you to use the extra features
 	     of the first "Unused" Dip Switch (see notes above). */
-	UINT16 *RAM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *RAM = (UINT16 *)memregion("maincpu")->base();
 	RAM[0x000384/2] = 0x4e71;
 	RAM[0x000386/2] = 0x4e71;
 	RAM[0x000388/2] = 0x4e71;

@@ -206,7 +206,6 @@ TODO:
 
 WRITE8_MEMBER(rallyx_state::rallyx_interrupt_vector_w)
 {
-
 	m_maincpu->set_input_line_vector(0, data);
 	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
@@ -214,7 +213,6 @@ WRITE8_MEMBER(rallyx_state::rallyx_interrupt_vector_w)
 
 WRITE8_MEMBER(rallyx_state::rallyx_bang_w)
 {
-
 	if (data == 0 && m_last_bang != 0)
 		m_samples->start(0, 0);
 
@@ -370,7 +368,7 @@ static INPUT_PORTS_START( rallyx )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN1 )
 
 	PORT_START("P2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("P2:1")
 	PORT_DIPSETTING(    0x01, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Cocktail ) )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_COCKTAIL
@@ -382,12 +380,12 @@ static INPUT_PORTS_START( rallyx )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN2 )
 
 	PORT_START("DSW")
-	PORT_DIPNAME( 0xc0, 0xc0, DEF_STR( Coinage ) )
+	PORT_DIPNAME( 0xc0, 0xc0, DEF_STR( Coinage ) )      PORT_DIPLOCATION("DSW:7,8")
 	PORT_DIPSETTING(    0x40, DEF_STR( 2C_1C ) )
 	PORT_DIPSETTING(    0xc0, DEF_STR( 1C_1C ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Free_Play ) )
-	PORT_DIPNAME( 0x38, 0x08, DEF_STR( Difficulty ) )
+	PORT_DIPNAME( 0x38, 0x08, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("DSW:4,5,6")
 	PORT_DIPSETTING(    0x10, "1 Car, Medium" )
 	PORT_DIPSETTING(    0x28, "1 Car, Hard" )
 	PORT_DIPSETTING(    0x00, "2 Cars, Easy" )
@@ -396,14 +394,10 @@ static INPUT_PORTS_START( rallyx )
 	PORT_DIPSETTING(    0x08, "3 Cars, Easy" )
 	PORT_DIPSETTING(    0x20, "3 Cars, Medium" )
 	PORT_DIPSETTING(    0x38, "3 Cars, Hard" )
-	PORT_DIPNAME( 0x06, 0x02, DEF_STR( Bonus_Life ) )
+	PORT_DIPNAME( 0x06, 0x02, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("DSW:2,3")
 	PORT_DIPSETTING(    0x02, "15000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x00)
 	PORT_DIPSETTING(    0x04, "30000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x00)
 	PORT_DIPSETTING(    0x06, "40000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x00)
-
-	PORT_DIPSETTING(    0x02, "20000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x08)
-	PORT_DIPSETTING(    0x04, "40000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x08)
-	PORT_DIPSETTING(    0x06, "60000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x08)
 
 	PORT_DIPSETTING(    0x02, "10000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x10)
 	PORT_DIPSETTING(    0x04, "20000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x10)
@@ -429,39 +423,14 @@ static INPUT_PORTS_START( rallyx )
 	PORT_DIPSETTING(    0x04, "40000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x38)
 	PORT_DIPSETTING(    0x06, "60000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x38)
 	PORT_DIPSETTING(    0x00, DEF_STR( None ) )
-	PORT_SERVICE( 0x01, IP_ACTIVE_LOW )
+	PORT_SERVICE_DIPLOC( 0x01, 0x01, "DSW:1")
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( nrallyx )
-	PORT_START("P1")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SERVICE1 )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON1 )
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_4WAY
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_4WAY
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_4WAY
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_START1 )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_INCLUDE( rallyx )
 
-	PORT_START("P2")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Cabinet ) )
-	PORT_DIPSETTING(    0x01, DEF_STR( Upright ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Cocktail ) )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_COCKTAIL
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_4WAY PORT_COCKTAIL
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_4WAY PORT_COCKTAIL
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY PORT_COCKTAIL
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_4WAY PORT_COCKTAIL
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_START2 )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN2 )
-
-	PORT_START("DSW")
-	PORT_DIPNAME( 0xc0, 0xc0, DEF_STR( Coinage ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( 2C_1C ) )
-	PORT_DIPSETTING(    0xc0, DEF_STR( 1C_1C ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( 1C_2C ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Free_Play ) )
-	PORT_DIPNAME( 0x38, 0x00, DEF_STR( Difficulty ) )
+	PORT_MODIFY("DSW")
+	PORT_DIPNAME( 0x38, 0x00, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("DSW:4,5,6")
 	PORT_DIPSETTING(    0x10, "1 Car, Medium" )
 	PORT_DIPSETTING(    0x28, "1 Car, Hard" )
 	PORT_DIPSETTING(    0x18, "2 Cars, Medium" )
@@ -470,13 +439,35 @@ static INPUT_PORTS_START( nrallyx )
 	PORT_DIPSETTING(    0x20, "3 Cars, Medium" )
 	PORT_DIPSETTING(    0x38, "3 Cars, Hard" )
 	PORT_DIPSETTING(    0x08, "4 Cars, Easy" )
-	/* TODO: the bonus score depends on the number of lives */
-	PORT_DIPNAME( 0x06, 0x02, DEF_STR( Bonus_Life ) )
-	PORT_DIPSETTING(    0x02, "A" )
-	PORT_DIPSETTING(    0x04, "B" )
-	PORT_DIPSETTING(    0x06, "C" )
-	PORT_DIPSETTING(    0x00, DEF_STR( None ) )
-	PORT_SERVICE( 0x01, IP_ACTIVE_LOW )
+
+	PORT_DIPNAME( 0x06, 0x02, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("DSW:2,3")
+	PORT_DIPSETTING(    0x02, "20000/80000" )   PORT_CONDITION("DSW", 0x38, EQUALS, 0x00)
+	PORT_DIPSETTING(    0x04, "20000/100000" )  PORT_CONDITION("DSW", 0x38, EQUALS, 0x00)
+	PORT_DIPSETTING(    0x06, "20000/120000" )  PORT_CONDITION("DSW", 0x38, EQUALS, 0x00)
+
+	PORT_DIPSETTING(    0x02, "20000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x08)
+	PORT_DIPSETTING(    0x04, "40000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x08)
+	PORT_DIPSETTING(    0x06, "60000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x08)
+
+	PORT_DIPSETTING(    0x02, "20000/80000" )   PORT_CONDITION("DSW", 0x38, EQUALS, 0x10)
+	PORT_DIPSETTING(    0x04, "20000/100000" )  PORT_CONDITION("DSW", 0x38, EQUALS, 0x10)
+	PORT_DIPSETTING(    0x06, "20000/120000" )  PORT_CONDITION("DSW", 0x38, EQUALS, 0x10)
+
+	PORT_DIPSETTING(    0x02, "20000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x18)
+	PORT_DIPSETTING(    0x04, "40000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x18)
+	PORT_DIPSETTING(    0x06, "60000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x18)
+
+	PORT_DIPSETTING(    0x02, "20000/80000" )   PORT_CONDITION("DSW", 0x38, EQUALS, 0x20)
+	PORT_DIPSETTING(    0x04, "20000/100000" )  PORT_CONDITION("DSW", 0x38, EQUALS, 0x20)
+	PORT_DIPSETTING(    0x06, "20000/120000" )  PORT_CONDITION("DSW", 0x38, EQUALS, 0x20)
+
+	PORT_DIPSETTING(    0x02, "20000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x28)
+	PORT_DIPSETTING(    0x04, "40000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x28)
+	PORT_DIPSETTING(    0x06, "60000" )     PORT_CONDITION("DSW", 0x38, EQUALS, 0x28)
+
+	PORT_DIPSETTING(    0x02, "20000/80000" )   PORT_CONDITION("DSW", 0x38, EQUALS, 0x30)
+	PORT_DIPSETTING(    0x04, "20000/100000" )  PORT_CONDITION("DSW", 0x38, EQUALS, 0x30)
+	PORT_DIPSETTING(    0x06, "20000/120000" )  PORT_CONDITION("DSW", 0x38, EQUALS, 0x30)
 INPUT_PORTS_END
 
 
@@ -506,7 +497,7 @@ static INPUT_PORTS_START( jungler )
 	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("DSW2")      /* CPU board */
-	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("DSW2:1,2,3")
 	PORT_DIPSETTING(    0x01, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 3C_1C ) )
 	PORT_DIPSETTING(    0x03, DEF_STR( 2C_1C ) )
@@ -515,7 +506,7 @@ static INPUT_PORTS_START( jungler )
 	PORT_DIPSETTING(    0x06, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x05, DEF_STR( 1C_3C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 1C_4C ) )
-	PORT_DIPNAME( 0x38, 0x38, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x38, 0x38, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("DSW2:4,5,6")
 	PORT_DIPSETTING(    0x08, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(    0x10, DEF_STR( 3C_1C ) )
 	PORT_DIPSETTING(    0x18, DEF_STR( 2C_1C ) )
@@ -524,10 +515,10 @@ static INPUT_PORTS_START( jungler )
 	PORT_DIPSETTING(    0x30, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x28, DEF_STR( 1C_3C ) )
 	PORT_DIPSETTING(    0x20, DEF_STR( 1C_4C ) )
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("DSW2:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Cocktail ) )
-	PORT_DIPNAME( 0x80, 0x80, "Test (255 lives)" )
+	PORT_DIPNAME( 0x80, 0x80, "Test (255 lives)" )      PORT_DIPLOCATION("DSW2:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
@@ -557,26 +548,24 @@ static INPUT_PORTS_START( locomotn )
 	PORT_START("DSW1")      /* Sound board */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Lives ) )        PORT_DIPLOCATION("DSW1:5,6")
 	PORT_DIPSETTING(    0x30, "3" )
 	PORT_DIPSETTING(    0x20, "4" )
 	PORT_DIPSETTING(    0x10, "5" )
 	PORT_DIPSETTING(    0x00, "255" )
-	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("DSW1:4")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( Cocktail ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "Intermissions" )
+	PORT_DIPUNUSED_DIPLOC( 0x04, 0x04, "DSW1:3")
+	PORT_DIPNAME( 0x02, 0x02, "Intermissions" )     PORT_DIPLOCATION("DSW1:2")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
-	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Demo_Sounds ) )
+	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("DSW1:1")
 	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
 	PORT_START("DSW2")      /* CPU board */
-	PORT_DIPNAME( 0x0f, 0x0f, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x0f, 0x0f, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("DSW2:1,2,3,4")
 	PORT_DIPSETTING(    0x04, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(    0x0a, DEF_STR( 3C_1C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 2C_1C ) )
@@ -593,7 +582,7 @@ static INPUT_PORTS_START( locomotn )
 	PORT_DIPSETTING(    0x05, DEF_STR( 1C_6C ) )
 	PORT_DIPSETTING(    0x09, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Free_Play ) )
-	PORT_DIPNAME( 0xf0, 0xf0, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0xf0, 0xf0, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("DSW2:5,6,7,8")
 	PORT_DIPSETTING(    0x40, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(    0xa0, DEF_STR( 3C_1C ) )
 	PORT_DIPSETTING(    0x10, DEF_STR( 2C_1C ) )
@@ -615,78 +604,44 @@ INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( tactcian )
-	PORT_START("P1")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_4WAY PORT_COCKTAIL
+	PORT_INCLUDE( locomotn )
+
+		PORT_MODIFY("P1")
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 )
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SERVICE1 )
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON1 )
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_4WAY
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_4WAY
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_COIN2 )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN1 )
 
-	PORT_START("P2")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_4WAY
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY PORT_COCKTAIL
+	PORT_MODIFY("P2")
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_COCKTAIL
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_COCKTAIL
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_4WAY PORT_COCKTAIL
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_4WAY PORT_COCKTAIL
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_START2 )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 )
 
-	PORT_START("DSW1")      /* Sound board */
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_DIPNAME( 0x30, 0x00, DEF_STR( Lives ) )
-	PORT_DIPSETTING(    0x00, "3" )
-	PORT_DIPSETTING(    0x10, "4" )
-	PORT_DIPSETTING(    0x20, "5" )
+	PORT_MODIFY("DSW1")      /* Sound board */
+	PORT_DIPNAME( 0x30, 0x00, DEF_STR( Lives ) )        PORT_DIPLOCATION("DSW1:5,6")
 	PORT_DIPSETTING(    0x30, "255" )
-	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Cabinet ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
-	PORT_DIPSETTING(    0x08, DEF_STR( Cocktail ) )
-	PORT_DIPNAME( 0x06, 0x00, DEF_STR( Coinage ) )          // Mode 1
-	PORT_DIPSETTING(    0x06, DEF_STR( 4C_1C ) )
-	PORT_DIPSETTING(    0x02, DEF_STR( 2C_1C ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
-	PORT_DIPSETTING(    0x04, DEF_STR( 1C_2C ) )
-	/*
-	PORT_DIPNAME( 0x06, 0x00, DEF_STR( Coinage ) )          // Mode 2
-	PORT_DIPSETTING(    0x02, DEF_STR( 2C_1C ) )
-	PORT_DIPSETTING(    0x04, "A 2C/1C  B 1C/3C" )
-	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )
-	PORT_DIPSETTING(    0x06, "A 1C/1C  B 1C/6C" )
-	*/
-	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Bonus_Life ) )
+	PORT_DIPSETTING(    0x20, "5" )
+	PORT_DIPSETTING(    0x10, "4" )
+	PORT_DIPSETTING(    0x00, "3" )
+	PORT_DIPNAME( 0x06, 0x00, DEF_STR( Coinage ) )      PORT_DIPLOCATION("DSW1:2,3")
+	PORT_DIPSETTING(    0x06, DEF_STR( 4C_1C ) )        PORT_CONDITION("DSW2", 0x01, EQUALS, 0x00)
+	PORT_DIPSETTING(    0x02, DEF_STR( 2C_1C ) )        PORT_CONDITION("DSW2", 0x01, EQUALS, 0x00)
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )        PORT_CONDITION("DSW2", 0x01, EQUALS, 0x00)
+	PORT_DIPSETTING(    0x04, DEF_STR( 1C_2C ) )        PORT_CONDITION("DSW2", 0x01, EQUALS, 0x00)
+	PORT_DIPSETTING(    0x02, DEF_STR( 2C_1C ) )        PORT_CONDITION("DSW2", 0x01, EQUALS, 0x01)
+	PORT_DIPSETTING(    0x04, "A 2C/1C  B 1C/3C" )      PORT_CONDITION("DSW2", 0x01, EQUALS, 0x01)
+	PORT_DIPSETTING(    0x00, DEF_STR( 1C_1C ) )        PORT_CONDITION("DSW2", 0x01, EQUALS, 0x01)
+	PORT_DIPSETTING(    0x06, "A 1C/1C  B 1C/6C" )      PORT_CONDITION("DSW2", 0x01, EQUALS, 0x01)
+	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("DSW1:1")
 	PORT_DIPSETTING(    0x00, "10k, 80k then every 100k" )
 	PORT_DIPSETTING(    0x01, "20k, 80k then every 100k" )
 
-	PORT_START("DSW2")      /* CPU board */
-	PORT_DIPNAME( 0x01, 0x00, "Coin Mode" )
+	PORT_MODIFY("DSW2")      /* CPU board */
+	PORT_DIPNAME( 0x01, 0x00, "Coin Mode" )         PORT_DIPLOCATION("DSW2:1")
 	PORT_DIPSETTING(    0x00, "Mode 1" )
 	PORT_DIPSETTING(    0x01, "Mode 2" )
-	PORT_DIPNAME( 0x02, 0x00, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x00, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x04, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x00, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x00, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
+	PORT_DIPUNUSED_DIPLOC( 0x02, 0x00, "DSW2:2")
+	PORT_DIPUNUSED_DIPLOC( 0x04, 0x00, "DSW2:3")
+	PORT_DIPUNUSED_DIPLOC( 0x08, 0x00, "DSW2:4")
+	PORT_DIPUNUSED_DIPLOC( 0x10, 0x00, "DSW2:5")
+	PORT_DIPUNUSED_DIPLOC( 0x20, 0x00, "DSW2:6")
+	PORT_DIPUNUSED_DIPLOC( 0x40, 0x00, "DSW2:7")
+	PORT_DIPUNUSED_DIPLOC( 0x80, 0x00, "DSW2:8")
 INPUT_PORTS_END
 
 
@@ -713,17 +668,13 @@ static INPUT_PORTS_START( commsega )
 
 	PORT_START("DSW1")      /* (sound board) */
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_4WAY
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )          // "Infinite Lives" - See notes
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 )        PORT_DIPLOCATION("DSW1:7")
+	PORT_DIPUNUSED_DIPLOC( 0x20, 0x20, "DSW1:6")
+	PORT_DIPUNUSED_DIPLOC( 0x10, 0x10, "DSW1:5")
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )      PORT_DIPLOCATION("DSW1:4") // "Infinite Lives" - See notes
 	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("DSW1:1,2,3")
 	PORT_DIPSETTING(    0x04, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(    0x05, DEF_STR( 3C_1C ) )
 	PORT_DIPSETTING(    0x06, DEF_STR( 2C_1C ) )
@@ -734,12 +685,12 @@ static INPUT_PORTS_START( commsega )
 	PORT_DIPSETTING(    0x00, DEF_STR( Free_Play ) )
 
 	PORT_START("DSW2")      /* (CPU board) */
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Lives ) )        PORT_DIPLOCATION("DSW2:1,2")
 	PORT_DIPSETTING(    0x03, "3" )
 	PORT_DIPSETTING(    0x02, "4" )
 	PORT_DIPSETTING(    0x01, "5" )
 	PORT_DIPSETTING(    0x00, "6" )
-	PORT_DIPNAME( 0x1c, 0x1c, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x1c, 0x1c, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("DSW2:3,4,5")
 	PORT_DIPSETTING(    0x10, DEF_STR( 4C_1C ) )            // Bonus Life : 50000 points
 	PORT_DIPSETTING(    0x14, DEF_STR( 3C_1C ) )            // Bonus Life : 50000 points
 	PORT_DIPSETTING(    0x18, DEF_STR( 2C_1C ) )            // Bonus Life : 30000 points
@@ -748,13 +699,11 @@ static INPUT_PORTS_START( commsega )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_2C ) )            // Bonus Life : 30000 points
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_3C ) )            // Bonus Life : 30000 points
 	PORT_DIPSETTING(    0x00, DEF_STR( Free_Play ) )        // Bonus Life : 50000 points
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unused ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Difficulty ) )       // Check code at 0x1fc5
+	PORT_DIPUNUSED_DIPLOC( 0x20, 0x20, "DSW2:6")
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Difficulty ) )       PORT_DIPLOCATION("DSW2:7") // Check code at 0x1fc5
 	PORT_DIPSETTING(    0x40, DEF_STR( Easy ) )             // 16 flying enemies to kill
 	PORT_DIPSETTING(    0x00, DEF_STR( Hard ) )             // 24 flying enemies to kill
-	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Cabinet ) )
+	PORT_DIPNAME( 0x80, 0x00, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("DSW2:8")
 	PORT_DIPSETTING(    0x00, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( Cocktail ) )
 INPUT_PORTS_END
@@ -873,31 +822,24 @@ static const samples_interface rallyx_samples_interface =
 
 MACHINE_START_MEMBER(rallyx_state,rallyx)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_samples = machine().device<samples_device>("samples");
-
 	save_item(NAME(m_last_bang));
 	save_item(NAME(m_stars_enable));
 }
 
 MACHINE_RESET_MEMBER(rallyx_state,rallyx)
 {
-
 	m_last_bang = 0;
 	m_stars_enable = 0;
 }
 
 INTERRUPT_GEN_MEMBER(rallyx_state::rallyx_vblank_irq)
 {
-
 	if(m_main_irq_mask)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(rallyx_state::jungler_vblank_irq)
 {
-
 	if(m_main_irq_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -1024,46 +966,46 @@ ROM_START( rallyx )
 	ROM_LOAD( "8e",           0x0000, 0x1000, CRC(277c1de5) SHA1(30bc57263e8dad870c501c76bce6f42d69ab9e00) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "rx1-6.8m",       0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "rx1-1.11n",      0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
-	ROM_LOAD( "rx1-7.8p",       0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
-	ROM_LOAD( "rx1-2.4n",       0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
-	ROM_LOAD( "rx1-3.7k",       0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
+	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
 
 	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",       0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",       0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
 ROM_END
 
 ROM_START( rallyxa )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "rx1_prg_1.1b",   0x0000, 0x0800, CRC(ef9238db) SHA1(44313381652916a59a8d9959fb170184578472af) )
-	ROM_LOAD( "rx1_prg_2.1c",   0x0800, 0x0800, CRC(7cbeb656) SHA1(ff6e669f7d3e91c1cc835106cccefcd81aa28bb8) )
-	ROM_LOAD( "rx1_prg_3.1d",   0x1000, 0x0800, CRC(334b1042) SHA1(348a303eb8f03f19e5060d81f733d3145113abd5) )
-	ROM_LOAD( "rx1_prg_4.1e",   0x1800, 0x0800, CRC(d6618add) SHA1(4c66160996f3195a83628f486789721935d2cf5b) )
-	ROM_LOAD( "rx1_prg_5.bin",  0x2000, 0x0800, CRC(3d69f24e) SHA1(fe5a43b7144f62d28aaf0dd92e1d02ef9199b132) )
-	ROM_LOAD( "rx1_prg_6.bin",  0x2800, 0x0800, CRC(e9740f16) SHA1(02a134ccd3d6557d46492747b04da02e933aa6b4) )
-	ROM_LOAD( "rx1_prg_7.1k",   0x3000, 0x0800, CRC(843109f2) SHA1(7241d1025f249d23a0d15b5e31fdb2f5297ffbf4) )
-	ROM_LOAD( "rx1_prg_8.1l",   0x3800, 0x0800, CRC(9b846ec9) SHA1(1fd8cce517f31a15e06cf250bc50b5a663424877) )
+	ROM_LOAD( "rx1_prg_1.1b", 0x0000, 0x0800, CRC(ef9238db) SHA1(44313381652916a59a8d9959fb170184578472af) )
+	ROM_LOAD( "rx1_prg_2.1c", 0x0800, 0x0800, CRC(7cbeb656) SHA1(ff6e669f7d3e91c1cc835106cccefcd81aa28bb8) )
+	ROM_LOAD( "rx1_prg_3.1d", 0x1000, 0x0800, CRC(334b1042) SHA1(348a303eb8f03f19e5060d81f733d3145113abd5) )
+	ROM_LOAD( "rx1_prg_4.1e", 0x1800, 0x0800, CRC(d6618add) SHA1(4c66160996f3195a83628f486789721935d2cf5b) )
+	ROM_LOAD( "rx1_prg_5.bin",0x2000, 0x0800, CRC(3d69f24e) SHA1(fe5a43b7144f62d28aaf0dd92e1d02ef9199b132) )
+	ROM_LOAD( "rx1_prg_6.bin",0x2800, 0x0800, CRC(e9740f16) SHA1(02a134ccd3d6557d46492747b04da02e933aa6b4) )
+	ROM_LOAD( "rx1_prg_7.1k", 0x3000, 0x0800, CRC(843109f2) SHA1(7241d1025f249d23a0d15b5e31fdb2f5297ffbf4) )
+	ROM_LOAD( "rx1_prg_8.1l", 0x3800, 0x0800, CRC(9b846ec9) SHA1(1fd8cce517f31a15e06cf250bc50b5a663424877) )
 
 	ROM_REGION( 0x1000, "gfx1", 0 )
-	ROM_LOAD( "rx1_chg_1.8e",   0x0000, 0x0800, CRC(1fff38a4) SHA1(5f6ccce2e0daad5915d017e8d067f187eb2ed41d) )
-	ROM_LOAD( "rx1_chg_2.8d",   0x0800, 0x0800, CRC(68dff552) SHA1(5dad38db45afbd79b5627a75b295fc920ad68856) )
+	ROM_LOAD( "rx1_chg_1.8e", 0x0000, 0x0800, CRC(1fff38a4) SHA1(5f6ccce2e0daad5915d017e8d067f187eb2ed41d) )
+	ROM_LOAD( "rx1_chg_2.8d", 0x0800, 0x0800, CRC(68dff552) SHA1(5dad38db45afbd79b5627a75b295fc920ad68856) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "rx1-6.8m",       0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "rx1-1.11n",      0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
-	ROM_LOAD( "rx1-7.8p",       0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
-	ROM_LOAD( "rx1-2.4n",       0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
-	ROM_LOAD( "rx1-3.7k",       0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
+	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
 
 	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",       0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",       0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
 ROM_END
 
 ROM_START( rallyxm )
@@ -1077,17 +1019,46 @@ ROM_START( rallyxm )
 	ROM_LOAD( "8e",           0x0000, 0x1000, CRC(277c1de5) SHA1(30bc57263e8dad870c501c76bce6f42d69ab9e00) )
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
-	ROM_LOAD( "rx1-6.8m",       0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
 
 	ROM_REGION( 0x0160, "proms", 0 )
-	ROM_LOAD( "rx1-1.11n",      0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
-	ROM_LOAD( "rx1-7.8p",       0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
-	ROM_LOAD( "rx1-2.4n",       0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
-	ROM_LOAD( "rx1-3.7k",       0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
+	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
 
 	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",       0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",       0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+ROM_END
+
+ROM_START( rallyxmr )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "166.bin",      0x0000, 0x0800, CRC(ef9238db) SHA1(44313381652916a59a8d9959fb170184578472af) )
+	ROM_LOAD( "167.bin",      0x0800, 0x0800, CRC(7cbeb656) SHA1(ff6e669f7d3e91c1cc835106cccefcd81aa28bb8) )
+	ROM_LOAD( "168.bin",      0x1000, 0x0800, CRC(334b1042) SHA1(348a303eb8f03f19e5060d81f733d3145113abd5) )
+	ROM_LOAD( "169.bin",      0x1800, 0x0800, CRC(b4852b52) SHA1(bf82ab1db49811114d16cf2cb5a318b98c07603c) )
+	ROM_LOAD( "170.bin",      0x2000, 0x0800, CRC(3d69f24e) SHA1(fe5a43b7144f62d28aaf0dd92e1d02ef9199b132) )
+	ROM_LOAD( "171.bin",      0x2800, 0x0800, CRC(e9740f16) SHA1(02a134ccd3d6557d46492747b04da02e933aa6b4) )
+	ROM_LOAD( "172.bin",      0x3000, 0x0800, CRC(843109f2) SHA1(7241d1025f249d23a0d15b5e31fdb2f5297ffbf4) )
+	ROM_LOAD( "173.bin",      0x3800, 0x0800, CRC(3b5b1a81) SHA1(5aa4dd850283062113181674849d531a2908340c) )
+
+	ROM_REGION( 0x1000, "gfx1", 0 )
+	ROM_LOAD( "175.bin",      0x0000, 0x0800, CRC(50a224e2) SHA1(33da1bdc33f085d19ae2c482747c509cf9441674) )
+	ROM_LOAD( "174.bin",      0x0800, 0x0800, CRC(68dff552) SHA1(5dad38db45afbd79b5627a75b295fc920ad68856) )
+
+	ROM_REGION( 0x0100, "gfx2", 0 )
+	ROM_LOAD( "rx1-6.8m",     0x0000, 0x0100, CRC(3c16f62c) SHA1(7a3800be410e306cf85753b9953ffc5575afbcd6) )  /* Prom type: IM5623    - dots */
+
+	ROM_REGION( 0x0160, "proms", 0 )
+	ROM_LOAD( "rx1-1.11n",    0x0000, 0x0020, CRC(c7865434) SHA1(70c1c9610ba6f1ead77f347e7132958958bccb31) )  /* Prom type: M3-7603-5 - palette */
+	ROM_LOAD( "rx1-7.8p",     0x0020, 0x0100, CRC(834d4fda) SHA1(617864d3df0917a513e8255ad8d96ae7a04da5a1) )  /* Prom type: IM5623    - lookup table */
+	ROM_LOAD( "rx1-2.4n",     0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) )  /* Prom type: N82S123N  - video layout (not used) */
+	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
+
+	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
 ROM_END
 
 ROM_START( nrallyx )
@@ -1115,8 +1086,8 @@ ROM_START( nrallyx )
 	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
 
 	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",    0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",    0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
 ROM_END
 
 ROM_START( nrallyxb )
@@ -1139,8 +1110,8 @@ ROM_START( nrallyxb )
 	ROM_LOAD( "rx1-3.7k",     0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) )  /* Prom type: M3-7603-5 - video timing (not used) */
 
 	ROM_REGION( 0x0200, "namco", 0 ) /* sound proms */
-	ROM_LOAD( "rx1-5.3p",    0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
-	ROM_LOAD( "rx1-4.2m",    0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
+	ROM_LOAD( "rx1-5.3p",     0x0000, 0x0100, CRC(4bad7017) SHA1(3e6da9d798f5e07fa18d6ce7d0b148be98c766d5) )  /* Prom type: IM5623  */
+	ROM_LOAD( "rx1-4.2m",     0x0100, 0x0100, CRC(77245b66) SHA1(0c4d0bee858b97632411c440bea6948a74759746) )  /* Prom type: IM5623 - not used */
 ROM_END
 
 ROM_START( jungler )
@@ -1180,6 +1151,30 @@ ROM_START( junglers )
 	ROM_REGION( 0x1000, "gfx1", 0 )
 	ROM_LOAD( "5k",           0x0000, 0x0800, CRC(924262bf) SHA1(593f59630b3bd369aef0819992106b4e6e6a241f) )
 	ROM_LOAD( "5m",           0x0800, 0x0800, CRC(131a08ac) SHA1(167a0710a2a153f7f7c6839d2340e5aa725ef039) )
+
+	ROM_REGION( 0x0100, "gfx2", 0 )
+	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) /* dots */
+
+	ROM_REGION( 0x0160, "proms", 0 )
+	ROM_LOAD( "18s030.8b",    0x0000, 0x0020, CRC(55a7e6d1) SHA1(f9e4ff3b165235db2fd8dab94c43bc686c3ad29b) ) /* palette */
+	ROM_LOAD( "tbp24s10.9d",  0x0020, 0x0100, CRC(d223f7b8) SHA1(87b62f09d4eda09c16d99d1554017d18e52b5886) ) /* loookup table */
+	ROM_LOAD( "18s030.7a",    0x0120, 0x0020, CRC(8f574815) SHA1(4f84162db9d58b64742c67dc689eb665b9862fb3) ) /* video layout (not used) */
+	ROM_LOAD( "6331-1.10a",   0x0140, 0x0020, CRC(b8861096) SHA1(26fad384ed7a1a1e0ba719b5578e2dbb09334a25) ) /* video timing (not used) */
+ROM_END
+
+ROM_START( jackler ) /* Board ID SL-HA-2061-21-B */
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "jackler_j1.r1",0x0000, 0x1000, CRC(3fc0d149) SHA1(d2d8273d57e26ebc97158549d5c7dada78bf2ae4) )
+	ROM_LOAD( "jackler_j2.r2",0x1000, 0x1000, CRC(5f482c7d) SHA1(5111f114c8427271d4641a55c88e54853e82aa50) )
+	ROM_LOAD( "jungr3",       0x2000, 0x1000, CRC(3dcc03da) SHA1(2c328a46511c4c9eec6515b9316a586de6503152) ) // jackler_j2.r2
+	ROM_LOAD( "jungr4",       0x3000, 0x1000, CRC(f92e9940) SHA1(d72a4d0a0ab7c9a1dcbb7925eb8530052640a234) ) // jackler_j3.r3
+
+	ROM_REGION( 0x10000, "tpsound", 0 )
+	ROM_LOAD( "1b",           0x0000, 0x1000, CRC(f86999c3) SHA1(4660bd7826219b1bad7d9178918823196d4fd8d6) ) // jackler_j7_sound.1b
+
+	ROM_REGION( 0x1800, "gfx1", 0 )
+	ROM_LOAD( "jackler_j5.r9",0x0000, 0x1000, CRC(4190c6c0) SHA1(ebd3b5b0e6660045f1ee84006536fa31cb3d5f8e) ) // Both are 2x original
+	ROM_LOAD( "jackler_j6.r10",0x0800, 0x1000, CRC(5c001c66) SHA1(aab8342131f831cb9bab4258488a0f666c35ee4d) ) // so mapped to overlap
 
 	ROM_REGION( 0x0100, "gfx2", 0 )
 	ROM_LOAD( "82s129.10g",   0x0000, 0x0100, CRC(c59c51b7) SHA1(e8ac60fed9ba16c61a4c3c09e27f8c3f4e254014) ) /* dots */
@@ -1347,10 +1342,10 @@ ROM_END
 
 ROM_START( locoboot )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "g.116",           0x0000, 0x1000, CRC(1248799c) SHA1(b0e513bb7ca6266f9182a91c2a30adc4b414a7ad) )
-	ROM_LOAD( "g.117",           0x1000, 0x1000, CRC(5b5b5753) SHA1(22f7fa0968843b52aa6eac743e5447502c86b10f) )
-	ROM_LOAD( "g.118",           0x2000, 0x1000, CRC(6bc269e1) SHA1(22d2c97e597fb7e6ae9074c8f921c902b879efe8) )
-	ROM_LOAD( "g.119",           0x3000, 0x1000, CRC(3feb762e) SHA1(94ee68549752fac3c67582d968d3f5e3f1380eef) )
+	ROM_LOAD( "g.116",        0x0000, 0x1000, CRC(1248799c) SHA1(b0e513bb7ca6266f9182a91c2a30adc4b414a7ad) )
+	ROM_LOAD( "g.117",        0x1000, 0x1000, CRC(5b5b5753) SHA1(22f7fa0968843b52aa6eac743e5447502c86b10f) )
+	ROM_LOAD( "g.118",        0x2000, 0x1000, CRC(6bc269e1) SHA1(22d2c97e597fb7e6ae9074c8f921c902b879efe8) )
+	ROM_LOAD( "g.119",        0x3000, 0x1000, CRC(3feb762e) SHA1(94ee68549752fac3c67582d968d3f5e3f1380eef) )
 
 	/* no other roms were present in this set,
 	   but it appears to work best with the cottong roms,
@@ -1410,11 +1405,13 @@ ROM_END
 GAME( 1980, rallyx,   0,        rallyx,   rallyx, driver_device,   0, ROT0,  "Namco", "Rally X (32k Ver.?)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, rallyxa,  rallyx,   rallyx,   rallyx, driver_device,   0, ROT0,  "Namco", "Rally X", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, rallyxm,  rallyx,   rallyx,   rallyx, driver_device,   0, ROT0,  "Namco (Midway license)", "Rally X (Midway)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1980, rallyxmr, rallyx,   rallyx,   rallyx, driver_device,   0, ROT0,  "bootleg (Model Racing)", "Rally X (Model Racing bootleg)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1981, nrallyx,  0,        rallyx,   nrallyx, driver_device,  0, ROT0,  "Namco", "New Rally X", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1981, nrallyxb, nrallyx,  rallyx,   nrallyx, driver_device,  0, ROT0,  "Namco", "New Rally X (bootleg?) ", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1981, nrallyxb, nrallyx,  rallyx,   nrallyx, driver_device,  0, ROT0,  "Namco", "New Rally X (bootleg?)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1981, jungler,  0,        jungler,  jungler, driver_device,  0, ROT90, "Konami", "Jungler", GAME_SUPPORTS_SAVE )
 GAME( 1981, junglers, jungler,  jungler,  jungler, driver_device,  0, ROT90, "Konami (Stern Electronics license)", "Jungler (Stern Electronics)", GAME_SUPPORTS_SAVE )
-GAME( 1981, savanna,  jungler,  jungler,  jungler, driver_device,  0, ROT90, "bootleg (Olympia)", "Savanna (Jungler bootleg)", GAME_SUPPORTS_SAVE ) // or licensed from Konami?
+GAME( 1982, jackler,  jungler,  jungler,  jungler, driver_device,  0, ROT90, "bootleg", "Jackler (Jungler bootleg)", GAME_SUPPORTS_SAVE )
+GAME( 1982, savanna,  jungler,  jungler,  jungler, driver_device,  0, ROT90, "bootleg (Olympia)", "Savanna (Jungler bootleg)", GAME_SUPPORTS_SAVE ) // or licensed from Konami?
 GAME( 1982, tactcian, 0,        tactcian, tactcian, driver_device, 0, ROT90, "Konami (Sega license)", "Tactician (set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1981, tactcian2,tactcian, tactcian, tactcian, driver_device, 0, ROT90, "Konami (Sega license)", "Tactician (set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1982, locomotn, 0,        locomotn, locomotn, driver_device, 0, ROT90, "Konami (Centuri license)", "Loco-Motion", GAME_SUPPORTS_SAVE )

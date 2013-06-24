@@ -150,10 +150,10 @@ reg: 0->1 (main->2nd) /     : (1->0) 2nd->main :
 
 
 #if 0
-static int gsword_coins_in(void)
+int ::gsword_coins_in(void)
 {
 	/* emulate 8741 coin slot */
-	if (machine.root_device().ioport("IN4")->read() & 0xc0)
+	if (ioport("IN4")->read() & 0xc0)
 	{
 		logerror("Coin In\n");
 		return 0x80;
@@ -249,7 +249,6 @@ MACHINE_RESET_MEMBER(gsword_state,josvolly)
 
 INTERRUPT_GEN_MEMBER(gsword_state::gsword_snd_interrupt)
 {
-
 	if(m_nmi_enable)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -291,14 +290,14 @@ WRITE8_MEMBER(gsword_state::gsword_nmi_set_w)
 
 WRITE8_MEMBER(gsword_state::gsword_AY8910_control_port_0_w)
 {
-	device_t *device = machine().device("ay1");
-	ay8910_address_w(device,space,offset,data);
+	ay8910_device *ay8910 = machine().device<ay8910_device>("ay1");
+	ay8910->address_w(space,offset,data);
 	m_fake8910_0 = data;
 }
 WRITE8_MEMBER(gsword_state::gsword_AY8910_control_port_1_w)
 {
-	device_t *device = machine().device("ay2");
-	ay8910_address_w(device,space,offset,data);
+	ay8910_device *ay8910 = machine().device<ay8910_device>("ay2");
+	ay8910->address_w(space,offset,data);
 	m_fake8910_1 = data;
 }
 
@@ -313,16 +312,15 @@ READ8_MEMBER(gsword_state::gsword_fake_1_r)
 
 WRITE8_MEMBER(gsword_state::gsword_adpcm_data_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_data_w (device,data & 0x0f); /* bit 0..3 */
-	msm5205_reset_w(device,(data>>5)&1); /* bit 5    */
-	msm5205_vclk_w(device,(data>>4)&1);  /* bit 4    */
+	m_msm->data_w (data & 0x0f); /* bit 0..3 */
+	m_msm->reset_w(BIT(data, 5)); /* bit 5    */
+	m_msm->vclk_w(BIT(data, 4));  /* bit 4    */
 }
 
 WRITE8_MEMBER(gsword_state::adpcm_soundcommand_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static ADDRESS_MAP_START( cpu1_map, AS_PROGRAM , 8, gsword_state )
@@ -362,9 +360,9 @@ static ADDRESS_MAP_START( cpu2_io_map, AS_IO, 8, gsword_state )
 	AM_RANGE(0x20, 0x21) AM_READWRITE_LEGACY(TAITO8741_3_r,TAITO8741_3_w)
 	AM_RANGE(0x40, 0x41) AM_READWRITE_LEGACY(TAITO8741_1_r,TAITO8741_1_w)
 	AM_RANGE(0x60, 0x60) AM_READWRITE(gsword_fake_0_r, gsword_AY8910_control_port_0_w)
-	AM_RANGE(0x61, 0x61) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r,        ay8910_data_w)
+	AM_RANGE(0x61, 0x61) AM_DEVREADWRITE("ay1", ay8910_device, data_r, data_w)
 	AM_RANGE(0x80, 0x80) AM_READWRITE(gsword_fake_1_r, gsword_AY8910_control_port_1_w)
-	AM_RANGE(0x81, 0x81) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r,        ay8910_data_w)
+	AM_RANGE(0x81, 0x81) AM_DEVREADWRITE("ay2", ay8910_device, data_r, data_w)
 //
 	AM_RANGE(0xe0, 0xe0) AM_READNOP /* ?? */
 	AM_RANGE(0xa0, 0xa0) AM_WRITENOP /* ?? */
@@ -396,9 +394,9 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( josvolly_cpu2_io_map, AS_IO, 8, gsword_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READWRITE(gsword_fake_0_r, gsword_AY8910_control_port_0_w)
-	AM_RANGE(0x01, 0x01) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r,        ay8910_data_w)
+	AM_RANGE(0x01, 0x01) AM_DEVREADWRITE("ay1", ay8910_device, data_r, data_w)
 	AM_RANGE(0x40, 0x40) AM_READWRITE(gsword_fake_1_r, gsword_AY8910_control_port_1_w)
-	AM_RANGE(0x41, 0x41) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r,        ay8910_data_w)
+	AM_RANGE(0x41, 0x41) AM_DEVREADWRITE("ay2", ay8910_device, data_r, data_w)
 
 	AM_RANGE(0x81, 0x81) AM_WRITE_LEGACY(josvolly_nmi_enable_w)
 	AM_RANGE(0xC1, 0xC1) AM_NOP // irq clear
@@ -650,7 +648,7 @@ static const ay8910_interface ay8910_config =
 
 static const msm5205_interface msm5205_config =
 {
-	0,              /* interrupt function */
+	DEVCB_NULL,              /* interrupt function */
 	MSM5205_SEX_4B  /* vclk input mode    */
 };
 
@@ -897,7 +895,7 @@ ROM_END
 DRIVER_INIT_MEMBER(gsword_state,gsword)
 {
 #if 0
-	UINT8 *ROM2 = machine().root_device().memregion("sub")->base();
+	UINT8 *ROM2 = memregion("sub")->base();
 	ROM2[0x1da] = 0xc3; /* patch for rom self check */
 
 	ROM2[0x71e] = 0;    /* patch for sound protection or time out function */
@@ -905,14 +903,14 @@ DRIVER_INIT_MEMBER(gsword_state,gsword)
 #endif
 #if 1
 	/* hack for sound protection or time out function */
-	machine().device("sub")->memory().space(AS_PROGRAM).install_read_handler(0x4004, 0x4005, read8_delegate(FUNC(gsword_state::gsword_hack_r),this));
+	m_subcpu->space(AS_PROGRAM).install_read_handler(0x4004, 0x4005, read8_delegate(FUNC(gsword_state::gsword_hack_r),this));
 #endif
 }
 
 DRIVER_INIT_MEMBER(gsword_state,gsword2)
 {
 #if 0
-	UINT8 *ROM2 = machine().root_device().memregion("sub")->base();
+	UINT8 *ROM2 = memregion("sub")->base();
 
 	ROM2[0x1da] = 0xc3; /* patch for rom self check */
 	ROM2[0x726] = 0;    /* patch for sound protection or time out function */
@@ -920,7 +918,7 @@ DRIVER_INIT_MEMBER(gsword_state,gsword2)
 #endif
 #if 1
 	/* hack for sound protection or time out function */
-	machine().device("sub")->memory().space(AS_PROGRAM).install_read_handler(0x4004, 0x4005, read8_delegate(FUNC(gsword_state::gsword_hack_r),this));
+	m_subcpu->space(AS_PROGRAM).install_read_handler(0x4004, 0x4005, read8_delegate(FUNC(gsword_state::gsword_hack_r),this));
 #endif
 }
 

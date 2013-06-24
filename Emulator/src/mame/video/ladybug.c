@@ -95,13 +95,13 @@ static void palette_init_common( running_machine &machine, const UINT8 *color_pr
 
 PALETTE_INIT_MEMBER(ladybug_state,ladybug)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	palette_init_common(machine(), color_prom, 0x20, 0, 5, 2, 6, 4, 7);
 }
 
 PALETTE_INIT_MEMBER(ladybug_state,sraider)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* the resistor net may be probably different than Lady Bug */
@@ -160,7 +160,6 @@ WRITE8_MEMBER(ladybug_state::ladybug_flipscreen_w)
 
 WRITE8_MEMBER(ladybug_state::sraider_io_w)
 {
-
 	// bit7 = flip
 	// bit6 = grid red
 	// bit5 = grid green
@@ -176,7 +175,7 @@ WRITE8_MEMBER(ladybug_state::sraider_io_w)
 
 	m_grid_color = data & 0x70;
 
-	redclash_set_stars_enable(machine(), (data & 0x08) >> 3);
+	redclash_set_stars_enable((data & 0x08) >> 3);
 
 	/*
 	 * There must be a subtle clocking difference between
@@ -184,7 +183,7 @@ WRITE8_MEMBER(ladybug_state::sraider_io_w)
 	 * hence the -1 here
 	 */
 
-	redclash_set_stars_speed(machine(), (data & 0x07) - 1);
+	redclash_set_stars_speed((data & 0x07) - 1);
 }
 
 TILE_GET_INFO_MEMBER(ladybug_state::get_bg_tile_info)
@@ -209,7 +208,6 @@ TILE_GET_INFO_MEMBER(ladybug_state::get_grid_tile_info)
 
 VIDEO_START_MEMBER(ladybug_state,ladybug)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ladybug_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_bg_tilemap->set_scroll_rows(32);
 	m_bg_tilemap->set_transparent_pen(0);
@@ -217,7 +215,6 @@ VIDEO_START_MEMBER(ladybug_state,ladybug)
 
 VIDEO_START_MEMBER(ladybug_state,sraider)
 {
-
 	m_grid_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ladybug_state::get_grid_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_grid_tilemap->set_scroll_rows(32);
 	m_grid_tilemap->set_transparent_pen(0);
@@ -227,13 +224,12 @@ VIDEO_START_MEMBER(ladybug_state,sraider)
 	m_bg_tilemap->set_transparent_pen(0);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void ladybug_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	ladybug_state *state = machine.driver_data<ladybug_state>();
-	UINT8 *spriteram = state->m_spriteram;
+	UINT8 *spriteram = m_spriteram;
 	int offs;
 
-	for (offs = state->m_spriteram.bytes() - 2 * 0x40; offs >= 2 * 0x40; offs -= 0x40)
+	for (offs = m_spriteram.bytes() - 2 * 0x40; offs >= 2 * 0x40; offs -= 0x40)
 	{
 		int i = 0;
 
@@ -260,14 +256,14 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 			if (spriteram[offs + i] & 0x80)
 			{
 				if (spriteram[offs + i] & 0x40) /* 16x16 */
-					drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+					drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 							(spriteram[offs + i + 1] >> 2) + 4 * (spriteram[offs + i + 2] & 0x10),
 							spriteram[offs + i + 2] & 0x0f,
 							spriteram[offs + i] & 0x20,spriteram[offs + i] & 0x10,
 							spriteram[offs + i + 3],
 							offs / 4 - 8 + (spriteram[offs + i] & 0x0f),0);
 				else    /* 8x8 */
-					drawgfx_transpen(bitmap,cliprect,machine.gfx[2],
+					drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
 							spriteram[offs + i + 1] + 16 * (spriteram[offs + i + 2] & 0x10),
 							spriteram[offs + i + 2] & 0x0f,
 							spriteram[offs + i] & 0x20,spriteram[offs + i] & 0x10,
@@ -297,7 +293,7 @@ UINT32 ladybug_state::screen_update_ladybug(screen_device &screen, bitmap_ind16 
 	}
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }
 
@@ -305,12 +301,11 @@ void ladybug_state::screen_eof_sraider(screen_device &screen, bool state)/* upda
 {
 	// falling edge
 	if (!state)
-		redclash_update_stars_state(machine());
+		redclash_update_stars_state();
 }
 
 UINT32 ladybug_state::screen_update_sraider(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	// this part is boilerplate from ladybug, not sure if hardware does this,
 	// since it's not used
 
@@ -333,9 +328,9 @@ UINT32 ladybug_state::screen_update_sraider(screen_device &screen, bitmap_ind16 
 
 	// draw the stars
 	if (flip_screen())
-		redclash_draw_stars(machine(), bitmap, cliprect, 0x60, 1, 0x27, 0xff);
+		redclash_draw_stars(bitmap, cliprect, 0x60, 1, 0x27, 0xff);
 	else
-		redclash_draw_stars(machine(), bitmap, cliprect, 0x60, 1, 0x00, 0xd8);
+		redclash_draw_stars(bitmap, cliprect, 0x60, 1, 0x00, 0xd8);
 
 	// draw the gridlines
 	colortable_palette_set_color(machine().colortable, 0x40, MAKE_RGB(m_grid_color & 0x40 ? 0xff : 0,
@@ -361,7 +356,7 @@ UINT32 ladybug_state::screen_update_sraider(screen_device &screen, bitmap_ind16 
 	m_bg_tilemap->draw(bitmap, cliprect, 0, flip_screen());
 
 	// now the sprites
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 
 	return 0;
 }

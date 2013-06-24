@@ -55,7 +55,6 @@ Verify Color PROM resistor values (Last 8 colors)
 
 CUSTOM_INPUT_MEMBER(stactics_state::get_motor_not_ready)
 {
-
 	/* if the motor is self-centering, but not centered yet */
 	return ((*m_motor_on & 0x01) == 0) &&
 			((m_horiz_pos != 0) || (m_vert_pos != 0));
@@ -64,55 +63,53 @@ CUSTOM_INPUT_MEMBER(stactics_state::get_motor_not_ready)
 
 READ8_MEMBER(stactics_state::vert_pos_r)
 {
-
 	return 0x70 - m_vert_pos;
 }
 
 
 READ8_MEMBER(stactics_state::horiz_pos_r)
 {
-
 	return m_horiz_pos + 0x88;
 }
 
 
-static void move_motor(running_machine &machine, stactics_state *state)
+void stactics_state::move_motor()
 {
 		/* monitor motor under joystick control */
-	if (*state->m_motor_on & 0x01)
+	if (*m_motor_on & 0x01)
 	{
-		int ip3 = machine.root_device().ioport("IN3")->read();
-		int ip4 = machine.root_device().ioport("FAKE")->read();
+		int ip3 = ioport("IN3")->read();
+		int ip4 = ioport("FAKE")->read();
 
 		/* up */
-		if (((ip4 & 0x01) == 0) && (state->m_vert_pos > -128))
-			state->m_vert_pos--;
+		if (((ip4 & 0x01) == 0) && (m_vert_pos > -128))
+			m_vert_pos--;
 
 		/* down */
-		if (((ip4 & 0x02) == 0) && (state->m_vert_pos < 127))
-			state->m_vert_pos++;
+		if (((ip4 & 0x02) == 0) && (m_vert_pos < 127))
+			m_vert_pos++;
 
 		/* left */
-		if (((ip3 & 0x20) == 0) && (state->m_horiz_pos < 127))
-			state->m_horiz_pos++;
+		if (((ip3 & 0x20) == 0) && (m_horiz_pos < 127))
+			m_horiz_pos++;
 
 		/* right */
-		if (((ip3 & 0x40) == 0) && (state->m_horiz_pos > -128))
-			state->m_horiz_pos--;
+		if (((ip3 & 0x40) == 0) && (m_horiz_pos > -128))
+			m_horiz_pos--;
 	}
 
 		/* monitor motor under self-centering control */
 	else
 	{
-		if (state->m_horiz_pos > 0)
-			state->m_horiz_pos--;
-		else if (state->m_horiz_pos < 0)
-			state->m_horiz_pos++;
+		if (m_horiz_pos > 0)
+			m_horiz_pos--;
+		else if (m_horiz_pos < 0)
+			m_horiz_pos++;
 
-		if (state->m_vert_pos > 0)
-			state->m_vert_pos--;
-		else if (state->m_vert_pos < 0)
-			state->m_vert_pos++;
+		if (m_vert_pos > 0)
+			m_vert_pos--;
+		else if (m_vert_pos < 0)
+			m_vert_pos++;
 	}
 }
 
@@ -153,8 +150,7 @@ WRITE8_MEMBER(stactics_state::stactics_coin_lockout_w)
 
 INTERRUPT_GEN_MEMBER(stactics_state::stactics_interrupt)
 {
-
-	move_motor(machine(), this);
+	move_motor();
 
 	device.execute().set_input_line(0, HOLD_LINE);
 }
@@ -175,7 +171,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, stactics_state )
 	AM_RANGE(0x6000, 0x6001) AM_MIRROR(0x0f08) AM_WRITE(stactics_coin_lockout_w)
 	AM_RANGE(0x6002, 0x6005) AM_MIRROR(0x0f08) AM_WRITENOP
 	AM_RANGE(0x6006, 0x6007) AM_MIRROR(0x0f08) AM_WRITEONLY AM_SHARE("palette")
-	/* AM_RANGE(0x6010, 0x6017) AM_MIRROR(0x0f08) AM_WRITE_LEGACY(stactics_sound_w) */
+	/* AM_RANGE(0x6010, 0x6017) AM_MIRROR(0x0f08) AM_WRITE(stactics_sound_w) */
 	AM_RANGE(0x6016, 0x6016) AM_MIRROR(0x0f08) AM_WRITEONLY AM_SHARE("motor_on")  /* Note: This overlaps rocket sound */
 	AM_RANGE(0x6020, 0x6027) AM_MIRROR(0x0f08) AM_WRITEONLY AM_SHARE("lamps")
 	AM_RANGE(0x6030, 0x6030) AM_MIRROR(0x0f0f) AM_WRITE(stactics_speed_latch_w)
@@ -183,7 +179,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, stactics_state )
 	AM_RANGE(0x6050, 0x6050) AM_MIRROR(0x0f0f) AM_WRITE(stactics_shot_flag_clear_w)
 	AM_RANGE(0x6060, 0x606f) AM_MIRROR(0x0f00) AM_WRITEONLY AM_SHARE("display_buffer")
 	AM_RANGE(0x6070, 0x609f) AM_MIRROR(0x0f00) AM_WRITENOP
-	/* AM_RANGE(0x60a0, 0x60ef) AM_MIRROR(0x0f00) AM_WRITE_LEGACY(stactics_sound2_w) */
+	/* AM_RANGE(0x60a0, 0x60ef) AM_MIRROR(0x0f00) AM_WRITE(stactics_sound2_w) */
 	AM_RANGE(0x60f0, 0x60ff) AM_MIRROR(0x0f00) AM_WRITENOP
 	AM_RANGE(0x7000, 0x7000) AM_MIRROR(0x0fff) AM_READ_PORT("IN2")
 	AM_RANGE(0x8000, 0x8000) AM_MIRROR(0x0fff) AM_READ_PORT("IN3")
@@ -283,7 +279,6 @@ INPUT_PORTS_END
 
 void stactics_state::machine_start()
 {
-
 	m_vert_pos = 0;
 	m_horiz_pos = 0;
 	*m_motor_on = 0;

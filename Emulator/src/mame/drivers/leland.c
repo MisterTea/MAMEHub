@@ -625,8 +625,22 @@ static INPUT_PORTS_START( offroadt2p )
 
 	PORT_MODIFY("IN0")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_START1 )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_START2 )
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_START3 )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_START2 )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
+
+	PORT_MODIFY("IN1")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_MODIFY("AN1")
+	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
+	PORT_MODIFY("AN2")   /* Analog pedal 2 */
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_PLAYER(2)
+	PORT_MODIFY("AN4")
+	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
+	PORT_MODIFY("AN5")   /* Analog wheel 2 */
+	PORT_BIT( 0xff, 0x00, IPT_DIAL ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_PLAYER(2)
 INPUT_PORTS_END
 
 
@@ -1978,309 +1992,308 @@ ROM_END
  *
  *************************************/
 
-static void init_master_ports(running_machine &machine, UINT8 mvram_base, UINT8 io_base)
+void leland_state::init_master_ports(UINT8 mvram_base, UINT8 io_base)
 {
-	leland_state *state = machine.driver_data<leland_state>();
 	/* set up the master CPU VRAM I/O */
-	machine.device("master")->memory().space(AS_IO).install_readwrite_handler(mvram_base, mvram_base + 0x1f, read8_delegate(FUNC(leland_state::leland_mvram_port_r),state), write8_delegate(FUNC(leland_state::leland_mvram_port_w),state));
+	m_master->space(AS_IO).install_readwrite_handler(mvram_base, mvram_base + 0x1f, read8_delegate(FUNC(leland_state::leland_mvram_port_r),this), write8_delegate(FUNC(leland_state::leland_mvram_port_w),this));
 
 	/* set up the master CPU I/O ports */
-	machine.device("master")->memory().space(AS_IO).install_read_handler(io_base, io_base + 0x1f, read8_delegate(FUNC(leland_state::leland_master_input_r),state));
-	machine.device("master")->memory().space(AS_IO).install_write_handler(io_base, io_base + 0x0f, write8_delegate(FUNC(leland_state::leland_master_output_w),state));
+	m_master->space(AS_IO).install_read_handler(io_base, io_base + 0x1f, read8_delegate(FUNC(leland_state::leland_master_input_r),this));
+	m_master->space(AS_IO).install_write_handler(io_base, io_base + 0x0f, write8_delegate(FUNC(leland_state::leland_master_output_w),this));
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,cerberus)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = cerberus_bankswitch;
+	m_update_master_bank = &leland_state::cerberus_bankswitch;
 	membank("bank1")->set_base(memregion("master")->base() + 0x2000);
 	membank("bank2")->set_base(memregion("master")->base() + 0xa000);
 	membank("bank3")->set_base(memregion("slave")->base() + 0x2000);
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x40, 0x80);
+	init_master_ports(0x40, 0x80);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0x80, 0x80, read8_delegate(FUNC(leland_state::cerberus_dial_1_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0x90, 0x90, read8_delegate(FUNC(leland_state::cerberus_dial_2_r),this));
+	m_master->space(AS_IO).install_read_handler(0x80, 0x80, read8_delegate(FUNC(leland_state::cerberus_dial_1_r),this));
+	m_master->space(AS_IO).install_read_handler(0x90, 0x90, read8_delegate(FUNC(leland_state::cerberus_dial_2_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,mayhem)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = mayhem_bankswitch;
+	m_update_master_bank = &leland_state::mayhem_bankswitch;
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0xc0);
+	init_master_ports(0x00, 0xc0);
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,powrplay)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = mayhem_bankswitch;
+	m_update_master_bank = &leland_state::mayhem_bankswitch;
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x40, 0x80);
+	init_master_ports(0x40, 0x80);
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,wseries)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = mayhem_bankswitch;
+	m_update_master_bank = &leland_state::mayhem_bankswitch;
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x40, 0x80);
+	init_master_ports(0x40, 0x80);
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,alleymas)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = mayhem_bankswitch;
+	m_update_master_bank = &leland_state::mayhem_bankswitch;
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0xc0);
+	init_master_ports(0x00, 0xc0);
 
 	/* kludge warning: the game uses location E0CA to determine if the joysticks are available */
 	/* it gets cleared by the code, but there is no obvious way for the value to be set to a */
 	/* non-zero value. If the value is zero, the joystick is never read. */
-	m_alleymas_kludge_mem = machine().device("master")->memory().space(AS_PROGRAM).install_write_handler(0xe0ca, 0xe0ca, write8_delegate(FUNC(leland_state::alleymas_joystick_kludge),this));
+	m_alleymas_kludge_mem = m_master->space(AS_PROGRAM).install_write_handler(0xe0ca, 0xe0ca, write8_delegate(FUNC(leland_state::alleymas_joystick_kludge),this));
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,upyoural)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = mayhem_bankswitch;
+	m_update_master_bank = &leland_state::mayhem_bankswitch;
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0xc0);
+	init_master_ports(0x00, 0xc0);
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,dangerz)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = dangerz_bankswitch;
+	m_update_master_bank = &leland_state::dangerz_bankswitch;
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x40, 0x80);
+	init_master_ports(0x40, 0x80);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xf4, 0xf4, read8_delegate(FUNC(leland_state::dangerz_input_upper_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xf8, 0xf8, read8_delegate(FUNC(leland_state::dangerz_input_y_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xfc, 0xfc, read8_delegate(FUNC(leland_state::dangerz_input_x_r),this));
+	m_master->space(AS_IO).install_read_handler(0xf4, 0xf4, read8_delegate(FUNC(leland_state::dangerz_input_upper_r),this));
+	m_master->space(AS_IO).install_read_handler(0xf8, 0xf8, read8_delegate(FUNC(leland_state::dangerz_input_y_r),this));
+	m_master->space(AS_IO).install_read_handler(0xfc, 0xfc, read8_delegate(FUNC(leland_state::dangerz_input_x_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,basebal2)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = basebal2_bankswitch;
+	m_update_master_bank = &leland_state::basebal2_bankswitch;
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0xc0);
+	init_master_ports(0x00, 0xc0);
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,dblplay)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = basebal2_bankswitch;
+	m_update_master_bank = &leland_state::basebal2_bankswitch;
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x80, 0x40);
+	init_master_ports(0x80, 0x40);
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,strkzone)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = basebal2_bankswitch;
+	m_update_master_bank = &leland_state::basebal2_bankswitch;
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0x40);
+	init_master_ports(0x00, 0x40);
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,redlin2p)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = redline_bankswitch;
+	m_update_master_bank = &leland_state::redline_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
+	leland_rotate_memory("master");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0xc0);
+	init_master_ports(0x00, 0xc0);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xc0, 0xc0, read8_delegate(FUNC(leland_state::redline_pedal_1_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xd0, 0xd0, read8_delegate(FUNC(leland_state::redline_pedal_2_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xf8, 0xf8, read8_delegate(FUNC(leland_state::redline_wheel_2_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xfb, 0xfb, read8_delegate(FUNC(leland_state::redline_wheel_1_r),this));
+	m_master->space(AS_IO).install_read_handler(0xc0, 0xc0, read8_delegate(FUNC(leland_state::redline_pedal_1_r),this));
+	m_master->space(AS_IO).install_read_handler(0xd0, 0xd0, read8_delegate(FUNC(leland_state::redline_pedal_2_r),this));
+	m_master->space(AS_IO).install_read_handler(0xf8, 0xf8, read8_delegate(FUNC(leland_state::redline_wheel_2_r),this));
+	m_master->space(AS_IO).install_read_handler(0xfb, 0xfb, read8_delegate(FUNC(leland_state::redline_wheel_1_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,quarterb)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = viper_bankswitch;
+	m_update_master_bank = &leland_state::viper_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
+	leland_rotate_memory("master");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x40, 0x80);
+	init_master_ports(0x40, 0x80);
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,viper)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = viper_bankswitch;
+	m_update_master_bank = &leland_state::viper_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
-	leland_rotate_memory(machine(), "slave");
-	leland_rotate_memory(machine(), "slave");
+	leland_rotate_memory("master");
+	leland_rotate_memory("slave");
+	leland_rotate_memory("slave");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0xc0);
+	init_master_ports(0x00, 0xc0);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xa4, 0xa4, read8_delegate(FUNC(leland_state::dangerz_input_upper_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xb8, 0xb8, read8_delegate(FUNC(leland_state::dangerz_input_y_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xbc, 0xbc, read8_delegate(FUNC(leland_state::dangerz_input_x_r),this));
+	m_master->space(AS_IO).install_read_handler(0xa4, 0xa4, read8_delegate(FUNC(leland_state::dangerz_input_upper_r),this));
+	m_master->space(AS_IO).install_read_handler(0xb8, 0xb8, read8_delegate(FUNC(leland_state::dangerz_input_y_r),this));
+	m_master->space(AS_IO).install_read_handler(0xbc, 0xbc, read8_delegate(FUNC(leland_state::dangerz_input_x_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,teamqb)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = viper_bankswitch;
+	m_update_master_bank = &leland_state::viper_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
-	leland_rotate_memory(machine(), "slave");
-	leland_rotate_memory(machine(), "slave");
+	leland_rotate_memory("master");
+	leland_rotate_memory("slave");
+	leland_rotate_memory("slave");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x40, 0x80);
+	init_master_ports(0x40, 0x80);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_port(0x7c, 0x7c, "IN4");
-	machine().device("master")->memory().space(AS_IO).install_read_port(0x7f, 0x7f, "IN5");
+	m_master->space(AS_IO).install_read_port(0x7c, 0x7c, "IN4");
+	m_master->space(AS_IO).install_read_port(0x7f, 0x7f, "IN5");
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,aafb)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = viper_bankswitch;
+	m_update_master_bank = &leland_state::viper_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
-	leland_rotate_memory(machine(), "slave");
-	leland_rotate_memory(machine(), "slave");
+	leland_rotate_memory("master");
+	leland_rotate_memory("slave");
+	leland_rotate_memory("slave");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0xc0);
+	init_master_ports(0x00, 0xc0);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_port(0x7c, 0x7c, "IN4");
-	machine().device("master")->memory().space(AS_IO).install_read_port(0x7f, 0x7f, "IN5");
+	m_master->space(AS_IO).install_read_port(0x7c, 0x7c, "IN4");
+	m_master->space(AS_IO).install_read_port(0x7f, 0x7f, "IN5");
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,aafbb)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = viper_bankswitch;
+	m_update_master_bank = &leland_state::viper_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
-	leland_rotate_memory(machine(), "slave");
-	leland_rotate_memory(machine(), "slave");
+	leland_rotate_memory("master");
+	leland_rotate_memory("slave");
+	leland_rotate_memory("slave");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x80, 0x40);
+	init_master_ports(0x80, 0x40);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_port(0x7c, 0x7c, "IN4");
-	machine().device("master")->memory().space(AS_IO).install_read_port(0x7f, 0x7f, "IN5");
+	m_master->space(AS_IO).install_read_port(0x7c, 0x7c, "IN4");
+	m_master->space(AS_IO).install_read_port(0x7f, 0x7f, "IN5");
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,aafbd2p)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = viper_bankswitch;
+	m_update_master_bank = &leland_state::viper_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
-	leland_rotate_memory(machine(), "slave");
-	leland_rotate_memory(machine(), "slave");
+	leland_rotate_memory("master");
+	leland_rotate_memory("slave");
+	leland_rotate_memory("slave");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0x40);
+	init_master_ports(0x00, 0x40);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_port(0x7c, 0x7c, "IN4");
-	machine().device("master")->memory().space(AS_IO).install_read_port(0x7f, 0x7f, "IN5");
+	m_master->space(AS_IO).install_read_port(0x7c, 0x7c, "IN4");
+	m_master->space(AS_IO).install_read_port(0x7f, 0x7f, "IN5");
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,offroad)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = offroad_bankswitch;
+	m_update_master_bank = &leland_state::offroad_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
-	leland_rotate_memory(machine(), "slave");
-	leland_rotate_memory(machine(), "slave");
+	leland_rotate_memory("master");
+	leland_rotate_memory("slave");
+	leland_rotate_memory("slave");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0xc0);
-	init_master_ports(machine(), 0x40, 0x80);   /* yes, this is intentional */
+	init_master_ports(0x00, 0xc0);
+	init_master_ports(0x40, 0x80);   /* yes, this is intentional */
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xf8, 0xf8, read8_delegate(FUNC(leland_state::offroad_wheel_3_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xf9, 0xf9, read8_delegate(FUNC(leland_state::offroad_wheel_1_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xfb, 0xfb, read8_delegate(FUNC(leland_state::offroad_wheel_2_r),this));
+	m_master->space(AS_IO).install_read_handler(0xf8, 0xf8, read8_delegate(FUNC(leland_state::offroad_wheel_3_r),this));
+	m_master->space(AS_IO).install_read_handler(0xf9, 0xf9, read8_delegate(FUNC(leland_state::offroad_wheel_1_r),this));
+	m_master->space(AS_IO).install_read_handler(0xfb, 0xfb, read8_delegate(FUNC(leland_state::offroad_wheel_2_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,offroadt)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = offroad_bankswitch;
+	m_update_master_bank = &leland_state::offroad_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
-	leland_rotate_memory(machine(), "slave");
-	leland_rotate_memory(machine(), "slave");
+	leland_rotate_memory("master");
+	leland_rotate_memory("slave");
+	leland_rotate_memory("slave");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x80, 0x40);
+	init_master_ports(0x80, 0x40);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xf8, 0xf8, read8_delegate(FUNC(leland_state::offroad_wheel_3_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xf9, 0xf9, read8_delegate(FUNC(leland_state::offroad_wheel_1_r),this));
-	machine().device("master")->memory().space(AS_IO).install_read_handler(0xfb, 0xfb, read8_delegate(FUNC(leland_state::offroad_wheel_2_r),this));
+	m_master->space(AS_IO).install_read_handler(0xf8, 0xf8, read8_delegate(FUNC(leland_state::offroad_wheel_3_r),this));
+	m_master->space(AS_IO).install_read_handler(0xf9, 0xf9, read8_delegate(FUNC(leland_state::offroad_wheel_1_r),this));
+	m_master->space(AS_IO).install_read_handler(0xfb, 0xfb, read8_delegate(FUNC(leland_state::offroad_wheel_2_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(leland_state,pigout)
 {
 	/* master CPU bankswitching */
-	m_update_master_bank = offroad_bankswitch;
+	m_update_master_bank = &leland_state::offroad_bankswitch;
 
-	leland_rotate_memory(machine(), "master");
-	leland_rotate_memory(machine(), "slave");
-	leland_rotate_memory(machine(), "slave");
+	leland_rotate_memory("master");
+	leland_rotate_memory("slave");
+	leland_rotate_memory("slave");
 
 	/* set up the master CPU I/O ports */
-	init_master_ports(machine(), 0x00, 0x40);
+	init_master_ports(0x00, 0x40);
 
 	/* set up additional input ports */
-	machine().device("master")->memory().space(AS_IO).install_read_port(0x7f, 0x7f, "IN4");
+	m_master->space(AS_IO).install_read_port(0x7f, 0x7f, "IN4");
 }
 
 

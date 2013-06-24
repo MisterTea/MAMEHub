@@ -23,8 +23,8 @@ SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_FRAGMENT( iq151_disc2 )
 	MCFG_UPD765A_ADD("fdc", false, true)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", iq151_disc2_floppies, "8sssd", 0, iq151_disc2_device::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:2", iq151_disc2_floppies, "8sssd", 0, iq151_disc2_device::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", iq151_disc2_floppies, "8sssd", iq151_disc2_device::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:2", iq151_disc2_floppies, "8sssd", iq151_disc2_device::floppy_formats)
 MACHINE_CONFIG_END
 
 ROM_START( iq151_disc2 )
@@ -47,7 +47,7 @@ const device_type IQ151_DISC2 = &device_creator<iq151_disc2_device>;
 //-------------------------------------------------
 
 iq151_disc2_device::iq151_disc2_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: device_t(mconfig, IQ151_DISC2, "IQ151 Disc2", tag, owner, clock),
+		: device_t(mconfig, IQ151_DISC2, "IQ151 Disc2", tag, owner, clock, "iq151_disc2", __FILE__),
 		device_iq151cart_interface( mconfig, *this ),
 		m_fdc(*this, "fdc")
 {

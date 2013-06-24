@@ -331,7 +331,6 @@ Stephh's notes (based on the game M68000 code and some tests) :
 
 WRITE16_MEMBER(rbisland_state::jumping_sound_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		m_jumping_latch = data & 0xff; /*M68000 writes .b to $400007*/
@@ -353,8 +352,8 @@ static ADDRESS_MAP_START( rbisland_map, AS_PROGRAM, 16, rbisland_state )
 	AM_RANGE(0x3a0000, 0x3a0001) AM_WRITE(rbisland_spritectrl_w)
 	AM_RANGE(0x3b0000, 0x3b0003) AM_READ_PORT("DSWB")
 	AM_RANGE(0x3c0000, 0x3c0003) AM_WRITENOP        /* written very often, watchdog? */
-	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r,tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
+	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r,tc0140syt_comm_w, 0x00ff)
 	AM_RANGE(0x800000, 0x8007ff) AM_READWRITE(rbisland_cchip_ram_r,rbisland_cchip_ram_w)
 	AM_RANGE(0x800802, 0x800803) AM_READWRITE(rbisland_cchip_ctrl_r,rbisland_cchip_ctrl_w)
 	AM_RANGE(0x800c00, 0x800c01) AM_WRITE(rbisland_cchip_bank_w)
@@ -397,7 +396,7 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(rbisland_state::bankswitch_w)
 {
-	machine().root_device().membank("bank1")->set_entry(data & 3);
+	membank("bank1")->set_entry(data & 3);
 }
 
 READ8_MEMBER(rbisland_state::jumping_latch_r)
@@ -412,15 +411,15 @@ static ADDRESS_MAP_START( rbisland_sound_map, AS_PROGRAM, 8, rbisland_state )
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2151_device,read,write)
 	AM_RANGE(0x9002, 0x9100) AM_READNOP
-	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( jumping_sound_map, AS_PROGRAM, 8, rbisland_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
-	AM_RANGE(0xb000, 0xb001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r,ym2203_w)
-	AM_RANGE(0xb400, 0xb401) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r,ym2203_w)
+	AM_RANGE(0xb000, 0xb001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0xb400, 0xb401) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
 	AM_RANGE(0xb800, 0xb800) AM_READ(jumping_latch_r)
 	AM_RANGE(0xbc00, 0xbc00) AM_WRITENOP    /* looks like a bankswitch, but sound works with or without it */
 	AM_RANGE(0xc000, 0xffff) AM_ROM
@@ -645,11 +644,6 @@ static const tc0140syt_interface rbisland_tc0140syt_intf =
 
 void rbisland_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_pc080sn = machine().device("pc080sn");
-	m_pc090oj = machine().device("pc090oj");
 }
 
 static MACHINE_CONFIG_START( rbisland, rbisland_state )
@@ -854,20 +848,20 @@ ROM_END
 
 DRIVER_INIT_MEMBER(rbisland_state,rbisland)
 {
-	UINT8 *ROM = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *ROM = memregion("audiocpu")->base();
 
-	machine().root_device().membank("bank1")->configure_entries(0, 4, &ROM[0xc000], 0x4000);
+	membank("bank1")->configure_entries(0, 4, &ROM[0xc000], 0x4000);
 
-	rbisland_cchip_init(machine(), 0);
+	rbisland_cchip_init(0);
 }
 
 DRIVER_INIT_MEMBER(rbisland_state,rbislande)
 {
-	UINT8 *ROM = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *ROM = memregion("audiocpu")->base();
 
-	machine().root_device().membank("bank1")->configure_entries(0, 4, &ROM[0xc000], 0x4000);
+	membank("bank1")->configure_entries(0, 4, &ROM[0xc000], 0x4000);
 
-	rbisland_cchip_init(machine(), 1);
+	rbisland_cchip_init(1);
 }
 
 DRIVER_INIT_MEMBER(rbisland_state,jumping)

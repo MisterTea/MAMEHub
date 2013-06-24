@@ -114,6 +114,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_galpani3(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(galpani3_vblank);
+	int gp3_is_alpha_pen(int pen);
 };
 
 
@@ -150,38 +151,37 @@ void galpani3_state::video_start()
 
 
 
-static int gp3_is_alpha_pen(running_machine &machine, int pen)
+int galpani3_state::gp3_is_alpha_pen(int pen)
 {
-	galpani3_state *state = machine.driver_data<galpani3_state>();
 	UINT16 dat = 0;
 
 	if (pen<0x4000)
 	{
-		dat = state->m_generic_paletteram_16[pen];
+		dat = m_generic_paletteram_16[pen];
 	}
 	else if (pen<0x4100)
 	{
-		dat = state->m_grap2_0->m_framebuffer_palette[pen&0xff];
+		dat = m_grap2_0->m_framebuffer_palette[pen&0xff];
 	}
 	else if (pen<0x4200)
 	{
-		dat = state->m_grap2_1->m_framebuffer_palette[pen&0xff];
+		dat = m_grap2_1->m_framebuffer_palette[pen&0xff];
 	}
 	else if (pen<0x4300)
 	{
-		dat = state->m_grap2_2->m_framebuffer_palette[pen&0xff];
+		dat = m_grap2_2->m_framebuffer_palette[pen&0xff];
 	}
 	else if (pen<0x4301)
 	{
-		dat = state->m_grap2_0->m_framebuffer_bgcol;
+		dat = m_grap2_0->m_framebuffer_bgcol;
 	}
 	else if (pen<0x4302)
 	{
-		dat = state->m_grap2_1->m_framebuffer_bgcol;
+		dat = m_grap2_1->m_framebuffer_bgcol;
 	}
 	else if (pen<0x4303)
 	{
-		dat = state->m_grap2_2->m_framebuffer_bgcol;
+		dat = m_grap2_2->m_framebuffer_bgcol;
 	}
 
 	if (dat&0x8000) return 1;
@@ -259,7 +259,7 @@ UINT32 galpani3_state::screen_update_galpani3(screen_device &screen, bitmap_rgb3
 						UINT16 pen = dat1+0x4000;
 						UINT32 pal = paldata[pen];
 
-						if (gp3_is_alpha_pen(machine(), pen))
+						if (gp3_is_alpha_pen(pen))
 						{
 							int r,g,b;
 							r = (pal & 0x00ff0000)>>16;
@@ -287,7 +287,7 @@ UINT32 galpani3_state::screen_update_galpani3(screen_device &screen, bitmap_rgb3
 						UINT16 pen = dat2+0x4100;
 						UINT32 pal = paldata[pen];
 
-						if (gp3_is_alpha_pen(machine(), pen))
+						if (gp3_is_alpha_pen(pen))
 						{
 							int r,g,b;
 							r = (pal & 0x00ff0000)>>16;
@@ -346,7 +346,7 @@ UINT32 galpani3_state::screen_update_galpani3(screen_device &screen, bitmap_rgb3
 
 	m_sprite_bitmap_1.fill(0x0000, cliprect);
 
-	m_spritegen->skns_draw_sprites(machine(), m_sprite_bitmap_1, cliprect, &m_spriteram32[0], 0x4000, machine().root_device().memregion("gfx1")->base(), machine().root_device().memregion ("gfx1")->bytes(), m_spc_regs );
+	m_spritegen->skns_draw_sprites(machine(), m_sprite_bitmap_1, cliprect, &m_spriteram32[0], 0x4000, memregion("gfx1")->base(), memregion ("gfx1")->bytes(), m_spc_regs );
 
 	// ignoring priority bits for now..
 	for (y=0;y<240;y++)
@@ -433,7 +433,6 @@ INPUT_PORTS_END
 
 WRITE16_MEMBER(galpani3_state::galpani3_suprnova_sprite32_w)
 {
-
 	COMBINE_DATA(&m_spriteram[offset]);
 	offset>>=1;
 	m_spriteram32[offset]=(m_spriteram[offset*2+1]<<16) | (m_spriteram[offset*2]);
@@ -441,7 +440,6 @@ WRITE16_MEMBER(galpani3_state::galpani3_suprnova_sprite32_w)
 
 WRITE16_MEMBER(galpani3_state::galpani3_suprnova_sprite32regs_w)
 {
-
 	COMBINE_DATA(&m_sprregs[offset]);
 	offset>>=1;
 	m_spc_regs[offset]=(m_sprregs[offset*2+1]<<16) | (m_sprregs[offset*2]);
@@ -449,7 +447,6 @@ WRITE16_MEMBER(galpani3_state::galpani3_suprnova_sprite32regs_w)
 
 WRITE16_MEMBER(galpani3_state::galpani3_priority_buffer_scrollx_w)
 {
-
 	m_priority_buffer_scrollx = data;
 }
 
@@ -496,16 +493,11 @@ static ADDRESS_MAP_START( galpani3_map, AS_PROGRAM, 16, galpani3_state )
 	AM_RANGE(0xf00012, 0xf00013) AM_READ_PORT("P2")
 	AM_RANGE(0xf00014, 0xf00015) AM_READ_PORT("COIN")
 	AM_RANGE(0xf00016, 0xf00017) AM_NOP // ? read, but overwritten
-	AM_RANGE(0xf00020, 0xf00023) AM_DEVWRITE8_LEGACY("ymz", ymz280b_w, 0x00ff)  // sound
+	AM_RANGE(0xf00020, 0xf00023) AM_DEVWRITE8("ymz", ymz280b_device, write, 0x00ff)     // sound
 	AM_RANGE(0xf00040, 0xf00041) AM_READWRITE(watchdog_reset16_r, watchdog_reset16_w)   // watchdog
 	AM_RANGE(0xf00050, 0xf00051) AM_NOP // ? written once (3rd opcode, $30.b)
 ADDRESS_MAP_END
 
-
-static const ymz280b_interface ymz280b_intf =
-{
-	0   // irq ?
-};
 
 static MACHINE_CONFIG_START( galpani3, galpani3_state )
 	MCFG_CPU_ADD("maincpu", M68000, XTAL_28_63636MHz/2) // Confirmed from PCB
@@ -543,7 +535,6 @@ static MACHINE_CONFIG_START( galpani3, galpani3_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_33_333MHz / 2)  // Confirmed from PCB
-	MCFG_SOUND_CONFIG(ymz280b_intf)
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 MACHINE_CONFIG_END

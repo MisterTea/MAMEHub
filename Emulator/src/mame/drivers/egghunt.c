@@ -49,8 +49,11 @@ class egghunt_state : public driver_device
 {
 public:
 	egghunt_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_atram(*this, "atram"){ }
+		: driver_device(mconfig, type, tag),
+		m_audiocpu(*this, "audiocpu"),
+		m_atram(*this, "atram"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
 
 	/* video-related */
 	tilemap_t   *m_bg_tilemap;
@@ -61,7 +64,7 @@ public:
 	UINT8     m_gfx_banking;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 
 	/* memory */
 	required_shared_ptr<UINT8> m_atram;
@@ -80,27 +83,29 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_egghunt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki;
 };
 
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect )
+void egghunt_state::draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect )
 {
-	egghunt_state *state = machine.driver_data<egghunt_state>();
 	int flipscreen = 0;
 	int offs, sx, sy;
 
 	for (offs = 0x1000 - 0x40; offs >= 0; offs -= 0x20)
 	{
-		int code = state->m_spram[offs];
-		int attr = state->m_spram[offs + 1];
+		int code = m_spram[offs];
+		int attr = m_spram[offs + 1];
 		int color = attr & 0x0f;
-		sx = state->m_spram[offs + 3] + ((attr & 0x10) << 4);
-		sy = ((state->m_spram[offs + 2] + 8) & 0xff) - 8;
+		sx = m_spram[offs + 3] + ((attr & 0x10) << 4);
+		sy = ((m_spram[offs + 2] + 8) & 0xff) - 8;
 		code += (attr & 0xe0) << 3;
 
 		if (attr & 0xe0)
 		{
-			switch(state->m_gfx_banking & 0x30)
+			switch(m_gfx_banking & 0x30)
 			{
 	//          case 0x00:
 	//          case 0x10: code += 0; break;
@@ -114,7 +119,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,const r
 			sx = 496 - sx;
 			sy = 240 - sy;
 		}
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 					code,
 					color,
 					flipscreen,flipscreen,
@@ -174,7 +179,6 @@ WRITE8_MEMBER(egghunt_state::egghunt_atram_w)
 
 void egghunt_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(egghunt_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	save_item(NAME(m_bgram));
@@ -184,7 +188,7 @@ void egghunt_state::video_start()
 UINT32 egghunt_state::screen_update_egghunt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }
 
@@ -215,9 +219,8 @@ READ8_MEMBER(egghunt_state::egghunt_okibanking_r)
 
 WRITE8_MEMBER(egghunt_state::egghunt_okibanking_w)
 {
-	okim6295_device *oki = machine().device<okim6295_device>("oki");
 	m_okibanking = data;
-	oki->set_bank_base((data & 0x10) ? 0x40000 : 0);
+	m_oki->set_bank_base((data & 0x10) ? 0x40000 : 0);
 }
 
 static ADDRESS_MAP_START( egghunt_map, AS_PROGRAM, 8, egghunt_state )
@@ -391,9 +394,6 @@ GFXDECODE_END
 
 void egghunt_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_gfx_banking));
 	save_item(NAME(m_okibanking));
 	save_item(NAME(m_vidram_bank));

@@ -2,13 +2,14 @@ class vastar_state : public driver_device
 {
 public:
 	vastar_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg1videoram(*this, "bg1videoram"),
 		m_bg2videoram(*this, "bg2videoram"),
 		m_fgvideoram(*this, "fgvideoram"),
 		m_sprite_priority(*this, "sprite_priority"),
-		m_sharedram(*this, "sharedram")
-	{ }
+		m_sharedram(*this, "sharedram"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub") { }
 
 	required_shared_ptr<UINT8> m_bg1videoram;
 	required_shared_ptr<UINT8> m_bg2videoram;
@@ -42,4 +43,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_vastar(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 };

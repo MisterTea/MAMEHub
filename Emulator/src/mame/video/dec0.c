@@ -17,28 +17,27 @@ WRITE16_MEMBER(dec0_state::dec0_update_sprites_w)
 
 /******************************************************************************/
 
-static void update_24bitcol(running_machine &machine, int offset)
+void dec0_state::update_24bitcol(int offset)
 {
-	dec0_state *state = machine.driver_data<dec0_state>();
 	int r,g,b;
 
-	r = (state->m_generic_paletteram_16[offset] >> 0) & 0xff;
-	g = (state->m_generic_paletteram_16[offset] >> 8) & 0xff;
-	b = (state->m_generic_paletteram2_16[offset] >> 0) & 0xff;
+	r = (m_generic_paletteram_16[offset] >> 0) & 0xff;
+	g = (m_generic_paletteram_16[offset] >> 8) & 0xff;
+	b = (m_generic_paletteram2_16[offset] >> 0) & 0xff;
 
-	palette_set_color(machine,offset,MAKE_RGB(r,g,b));
+	palette_set_color(machine(),offset,MAKE_RGB(r,g,b));
 }
 
 WRITE16_MEMBER(dec0_state::dec0_paletteram_rg_w)
 {
 	COMBINE_DATA(&m_generic_paletteram_16[offset]);
-	update_24bitcol(machine(), offset);
+	update_24bitcol(offset);
 }
 
 WRITE16_MEMBER(dec0_state::dec0_paletteram_b_w)
 {
 	COMBINE_DATA(&m_generic_paletteram2_16[offset]);
-	update_24bitcol(machine(), offset);
+	update_24bitcol(offset);
 }
 
 /******************************************************************************/
@@ -46,7 +45,6 @@ WRITE16_MEMBER(dec0_state::dec0_paletteram_b_w)
 
 UINT32 dec0_state::screen_update_hbarrel(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	flip_screen_set(m_tilegen1->get_flip_state());
 
 	m_tilegen3->deco_bac06_pf_draw(machine(),bitmap,cliprect,TILEMAP_DRAW_OPAQUE, 0x00, 0x00, 0x00, 0x00);
@@ -215,7 +213,6 @@ UINT32 dec0_automat_state::screen_update_automat(screen_device &screen, bitmap_i
 
 UINT32 dec0_automat_state::screen_update_secretab(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	// layer enables seem different... where are they?
 
 	// the bootleg doesn't write these registers, I think they're hardcoded?, so fake them for compatibility with our implementation..
@@ -265,7 +262,6 @@ UINT32 dec0_automat_state::screen_update_secretab(screen_device &screen, bitmap_
 
 UINT32 dec0_state::screen_update_birdtry(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	flip_screen_set(m_tilegen1->get_flip_state());
 
 	/* This game doesn't have the extra playfield chip on the game board, but

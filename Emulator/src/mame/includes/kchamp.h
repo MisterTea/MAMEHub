@@ -3,15 +3,19 @@
     Karate Champ
 
 *************************************************************************/
+#include "sound/msm5205.h"
 
 class kchamp_state : public driver_device
 {
 public:
 	kchamp_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu"),
+		m_msm(*this, "msm") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -29,7 +33,7 @@ public:
 	int        m_counter;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE8_MEMBER(control_w);
 	DECLARE_WRITE8_MEMBER(sound_reset_w);
 	DECLARE_WRITE8_MEMBER(sound_command_w);
@@ -52,4 +56,10 @@ public:
 	UINT32 screen_update_kchamp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(kc_interrupt);
 	INTERRUPT_GEN_MEMBER(sound_int);
+	void kchamp_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void kchampvs_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	UINT8 *decrypt_code();
+	DECLARE_WRITE_LINE_MEMBER(msmint);
+	required_device<cpu_device> m_maincpu;
+	optional_device<msm5205_device> m_msm;
 };

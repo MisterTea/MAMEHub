@@ -141,7 +141,7 @@ static ADDRESS_MAP_START( grip_io, AS_IO, 8, grip_device )
 //  AM_RANGE(0x15, 0x15) AM_WRITE(cc2_w)
 	AM_RANGE(0x16, 0x16) AM_WRITE(flash_w)
 	AM_RANGE(0x17, 0x17) AM_WRITE(vol1_w)
-	AM_RANGE(0x20, 0x2f) AM_DEVREADWRITE_LEGACY(Z80STI_TAG, z80sti_r, z80sti_w)
+	AM_RANGE(0x20, 0x2f) AM_DEVREADWRITE(Z80STI_TAG, z80sti_device, read, write)
 	AM_RANGE(0x30, 0x30) AM_READWRITE(lrs_r, lrs_w)
 	AM_RANGE(0x40, 0x40) AM_READ(stat_r)
 	AM_RANGE(0x50, 0x50) AM_DEVWRITE(MC6845_TAG, mc6845_device, address_w)
@@ -282,23 +282,26 @@ static const speaker_interface speaker_intf =
 	speaker_levels
 };
 
-static const mc6845_interface crtc_intf =
+static MC6845_INTERFACE( crtc_intf )
 {
 	SCREEN_TAG,
+	false,
 	8,
 	NULL,
 	grip_update_row,
 	NULL,
-	DEVCB_DEVICE_LINE(Z80STI_TAG, z80sti_i1_w),
-	DEVCB_DEVICE_LINE(Z80STI_TAG, z80sti_i2_w),
+	DEVCB_DEVICE_LINE_MEMBER(Z80STI_TAG, z80sti_device, i1_w),
+	DEVCB_DEVICE_LINE_MEMBER(Z80STI_TAG, z80sti_device, i2_w),
 	DEVCB_NULL,
 	DEVCB_NULL,
 	NULL
 };
 /*
-static const mc6845_interface grip5_crtc_intf =
+
+static MC6845_INTERFACE( grip5_crtc_intf )
 {
     SCREEN_TAG,
+    false,
     8,
     NULL,
     grip5_update_row,
@@ -395,14 +398,14 @@ WRITE8_MEMBER( grip_device::ppi_pc_w )
 
 	// keyboard interrupt
 	m_ib = BIT(data, 0);
-	z80sti_i4_w(m_sti, m_ib);
+	m_sti->i4_w(m_ib);
 
 	// keyboard buffer full
 	m_kbf = BIT(data, 1);
 
 	// PROF-80 interrupt
 	m_ia = BIT(data, 3);
-	z80sti_i7_w(m_sti, m_ia);
+	m_sti->i7_w(m_ia);
 
 	// PROF-80 handshaking
 	m_ppi_pc = (!BIT(data, 7) << 7) | (!BIT(data, 5) << 6) | (m_ppi->pa_r() & 0x3f);
@@ -464,7 +467,7 @@ WRITE_LINE_MEMBER( grip_device::speaker_w )
 {
 	int level = state && ((m_vol1 << 1) | m_vol0);
 
-	speaker_level_w(m_speaker, level);
+	m_speaker->level_w(level);
 }
 
 static Z80STI_INTERFACE( sti_intf )
@@ -478,8 +481,8 @@ static Z80STI_INTERFACE( sti_intf )
 	DEVCB_NULL,                                             // serial output
 	DEVCB_NULL,                                             // timer A output
 	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, grip_device, speaker_w),    // timer B output
-	DEVCB_LINE(z80sti_tc_w),                                // timer C output
-	DEVCB_LINE(z80sti_rc_w)                                 // timer D output
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF, z80sti_device, tc_w),                                // timer C output
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF, z80sti_device, rc_w)                                 // timer D output
 };
 
 
@@ -542,7 +545,7 @@ static MACHINE_CONFIG_FRAGMENT( grip )
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_CONFIG(speaker_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
@@ -663,14 +666,17 @@ ioport_constructor grip_device::device_input_ports() const
 //-------------------------------------------------
 
 grip_device::grip_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, ECB_GRIP21, "GRIP-2.1", tag, owner, clock),
+	device_t(mconfig, ECB_GRIP21, "GRIP-2.1", tag, owner, clock, "grip", __FILE__),
 	device_ecbbus_card_interface(mconfig, *this),
 	m_ppi(*this, I8255A_TAG),
 	m_sti(*this, Z80STI_TAG),
 	m_crtc(*this, MC6845_TAG),
 	m_centronics(*this, CENTRONICS_TAG),
-	m_speaker(*this, SPEAKER_TAG),
-	m_video_ram(*this, "video_ram")
+	m_speaker(*this, "speaker"),
+	m_video_ram(*this, "video_ram"),
+	m_j3a(*this, "J3A"),
+	m_j3b(*this, "J3B"),
+	m_j7(*this, "J7")
 {
 }
 
@@ -680,8 +686,6 @@ grip_device::grip_device(const machine_config &mconfig, const char *tag, device_
 
 void grip_device::device_start()
 {
-	m_ecb = machine().device<ecbbus_device>(ECBBUS_TAG);
-
 	// allocate video RAM
 	m_video_ram.allocate(VIDEORAM_SIZE);
 
@@ -723,7 +727,8 @@ void grip5_state::machine_start()
 
 void grip_device::device_reset()
 {
-	m_base = ioport("J7")->read();
+	m_base = m_j7->read();
+	m_page = 0;
 }
 
 
@@ -794,7 +799,7 @@ READ8_MEMBER( grip_device::stat_r )
 	int js0 = 0, js1 = 0;
 
 	// JS0
-	switch (ioport("J3A")->read())
+	switch (m_j3a->read())
 	{
 	case 0: js0 = 0; break;
 	case 1: js0 = 1; break;
@@ -806,7 +811,7 @@ READ8_MEMBER( grip_device::stat_r )
 	data |= js0 << 4;
 
 	// JS1
-	switch (ioport("J3B")->read())
+	switch (m_j3b->read())
 	{
 	case 0: js1 = 0; break;
 	case 1: js1 = 1; break;

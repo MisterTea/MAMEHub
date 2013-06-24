@@ -8,10 +8,12 @@ class amspdwy_state : public driver_device
 {
 public:
 	amspdwy_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -28,7 +30,7 @@ public:
 	UINT8      m_wheel_return[2];
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_READ8_MEMBER(amspdwy_wheel_0_r);
 	DECLARE_READ8_MEMBER(amspdwy_wheel_1_r);
 	DECLARE_WRITE8_MEMBER(amspdwy_sound_w);
@@ -44,4 +46,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_amspdwy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	UINT8 amspdwy_wheel_r( int index );
+	required_device<cpu_device> m_maincpu;
 };

@@ -20,7 +20,6 @@
 
 WRITE8_MEMBER(crgolf_state::crgolf_videoram_w)
 {
-
 	if (*m_screen_select & 1)
 		m_videoram_b[offset] = data;
 	else
@@ -48,10 +47,10 @@ READ8_MEMBER(crgolf_state::crgolf_videoram_r)
  *
  *************************************/
 
-static void get_pens( running_machine &machine, pen_t *pens )
+void crgolf_state::get_pens( pen_t *pens )
 {
 	offs_t offs;
-	const UINT8 *prom = machine.root_device().memregion("proms")->base();
+	const UINT8 *prom = memregion("proms")->base();
 
 	for (offs = 0; offs < NUM_PENS; offs++)
 	{
@@ -90,7 +89,6 @@ static void get_pens( running_machine &machine, pen_t *pens )
 
 VIDEO_START_MEMBER(crgolf_state,crgolf)
 {
-
 	/* allocate memory for the two bitmaps */
 	m_videoram_a = auto_alloc_array(machine(), UINT8, VIDEORAM_SIZE);
 	m_videoram_b = auto_alloc_array(machine(), UINT8, VIDEORAM_SIZE);
@@ -115,7 +113,7 @@ UINT32 crgolf_state::screen_update_crgolf(screen_device &screen, bitmap_rgb32 &b
 	offs_t offs;
 	pen_t pens[NUM_PENS];
 
-	get_pens(machine(), pens);
+	get_pens(pens);
 
 	/* for each byte in the video RAM */
 	for (offs = 0; offs < VIDEORAM_SIZE / 3; offs++)

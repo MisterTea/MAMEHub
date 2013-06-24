@@ -34,8 +34,8 @@ Galaksija driver by Krzysztof Strzecha and Miodrag Milanovic
 static ADDRESS_MAP_START (galaxyp_io, AS_IO, 8, galaxy_state )
 	ADDRESS_MAP_GLOBAL_MASK(0x01)
 	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0xbe, 0xbe) AM_DEVWRITE_LEGACY("ay8910", ay8910_address_w)
-	AM_RANGE(0xbf, 0xbf) AM_DEVWRITE_LEGACY("ay8910", ay8910_data_w)
+	AM_RANGE(0xbe, 0xbe) AM_DEVWRITE("ay8910", ay8910_device, address_w)
+	AM_RANGE(0xbf, 0xbf) AM_DEVWRITE("ay8910", ay8910_device, data_w)
 ADDRESS_MAP_END
 
 
@@ -204,13 +204,13 @@ static MACHINE_CONFIG_START( galaxy, galaxy_state )
 
 
 	/* snapshot */
-	MCFG_SNAPSHOT_ADD("snapshot", galaxy, "gal", 0)
+	MCFG_SNAPSHOT_ADD("snapshot", galaxy_state, galaxy, "gal", 0)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, galaxy_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", galaxy_cassette_interface )
 	MCFG_SOFTWARE_LIST_ADD("cass_list","galaxy")
 
 	/* internal ram */
@@ -240,16 +240,16 @@ static MACHINE_CONFIG_START( galaxyp, galaxy_state )
 
 
 	/* snapshot */
-	MCFG_SNAPSHOT_ADD("snapshot", galaxy, "gal", 0)
+	MCFG_SNAPSHOT_ADD("snapshot", galaxy_state, galaxy, "gal", 0)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ay8910", AY8910, XTAL/4)
 	MCFG_SOUND_CONFIG(galaxy_ay_interface)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, galaxy_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", galaxy_cassette_interface )
 	MCFG_SOFTWARE_LIST_ADD("cass_list","galaxy")
 
 	/* internal ram */

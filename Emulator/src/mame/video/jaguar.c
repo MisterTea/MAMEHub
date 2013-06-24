@@ -151,11 +151,6 @@
 #define LOG_UNHANDLED_BLITS 0
 
 
-// FIXME: this should be 1, but then MAME performance will be s*** with this
-//    (i.e. it drops the performance from 400% to 6% on an i5 machine).
-// But the PIT irq is definitely needed by some games (for example Pitfall refuses
-//    to enter into gameplay without this enabled).
-const int PIT_MULT_DBG_HACK = 64;
 
 
 // interrupts to main CPU:
@@ -273,9 +268,9 @@ inline bool jaguar_state::adjust_object_timer(int vc)
 void jaguar_state::update_cpu_irq()
 {
 	if ((m_cpu_irq_state & m_gpu_regs[INT1] & 0x1f) != 0)
-		m_main_cpu->set_input_line(m_is_r3000 ? R3000_IRQ4 : M68K_IRQ_6, ASSERT_LINE);
+		m_maincpu->set_input_line(m_is_r3000 ? R3000_IRQ4 : M68K_IRQ_6, ASSERT_LINE);
 	else
-		m_main_cpu->set_input_line(m_is_r3000 ? R3000_IRQ4 : M68K_IRQ_6, CLEAR_LINE);
+		m_maincpu->set_input_line(m_is_r3000 ? R3000_IRQ4 : M68K_IRQ_6, CLEAR_LINE);
 }
 
 
@@ -551,7 +546,9 @@ WRITE32_MEMBER( jaguar_state::blitter_w )
 	if ((offset == B_CMD) && (mem_mask & 0x0000ffff))
 	{
 		m_blitter_status = 0;
-		timer_set(attotime::from_usec(100), TID_BLITTER_DONE);
+		int inner_count = m_blitter_regs[B_COUNT] & 0xffff;
+		int outer_count = m_blitter_regs[B_COUNT] >> 16;
+		timer_set(attotime::from_ticks(inner_count * outer_count, JAGUAR_CLOCK), TID_BLITTER_DONE);
 		blitter_run();
 	}
 
@@ -615,7 +612,7 @@ WRITE16_MEMBER( jaguar_state::tom_regs_w )
 			case PIT1:
 				if (m_gpu_regs[PIT0] && m_gpu_regs[PIT0] != 0xffff) //FIXME: avoid too much small timers for now
 				{
-					sample_period = attotime::from_nsec(((m_gpu->unscaled_clock()*PIT_MULT_DBG_HACK) / (1+m_gpu_regs[PIT0])) / (1+m_gpu_regs[PIT1]));
+					sample_period = attotime::from_ticks((1+m_gpu_regs[PIT0]) * (1+m_gpu_regs[PIT1]), JAGUAR_CLOCK/2);
 					timer_set(sample_period, TID_PIT);
 				}
 				break;
@@ -721,11 +718,14 @@ void jaguar_state::device_timer(emu_timer &timer, device_timer_id id, int param,
 			break;
 
 		case TID_PIT:
-			m_cpu_irq_state |= 4;
-			update_cpu_irq();
+			if (m_gpu_regs[INT1] & 0x8)
+			{
+				m_cpu_irq_state |= 8;
+				update_cpu_irq();
+			}
 			if (m_gpu_regs[PIT0] != 0)
 			{
-				attotime sample_period = attotime::from_nsec(((m_gpu->unscaled_clock()*PIT_MULT_DBG_HACK) / (1+m_gpu_regs[PIT0])) / (1+m_gpu_regs[PIT1]));
+				attotime sample_period = attotime::from_ticks((1+m_gpu_regs[PIT0]) * (1+m_gpu_regs[PIT1]), JAGUAR_CLOCK/2);
 				timer_set(sample_period, TID_PIT);
 			}
 			break;

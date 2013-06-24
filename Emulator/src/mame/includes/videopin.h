@@ -18,9 +18,16 @@
 class videopin_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_INTERRUPT
+	};
+
 	videopin_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_video_ram(*this, "video_ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_video_ram(*this, "video_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_discrete(*this, "discrete") { }
 
 	attotime m_time_pushed;
 	attotime m_time_released;
@@ -43,6 +50,13 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_videopin(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
+	void update_plunger();
+	double calc_plunger_pos();
+	required_device<cpu_device> m_maincpu;
+	required_device<discrete_device> m_discrete;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 /*----------- defined in audio/videopin.c -----------*/

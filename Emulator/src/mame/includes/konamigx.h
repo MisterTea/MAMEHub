@@ -1,3 +1,6 @@
+#include "sound/k054539.h"
+#include "cpu/tms57002/tms57002.h"
+
 class konamigx_state : public driver_device
 {
 public:
@@ -11,7 +14,11 @@ public:
 		m_k053936_0_linectrl(*this,"k053936_0_line",32),
 		m_k053936_0_ctrl_16(*this,"k053936_0_ct16",16),
 		m_k053936_0_linectrl_16(*this,"k053936_0_li16",16),
-		m_konamigx_type3_psac2_bank(*this,"psac2_bank")
+		m_konamigx_type3_psac2_bank(*this,"psac2_bank"),
+		m_k054539_1(*this,"k054539_1"),
+		m_k054539_2(*this,"k054539_2"),
+		m_soundcpu(*this, "soundcpu"),
+		m_dasp(*this, "dasp")
 		{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -23,6 +30,8 @@ public:
 	optional_shared_ptr<UINT16> m_k053936_0_ctrl_16;
 	optional_shared_ptr<UINT16> m_k053936_0_linectrl_16;
 	optional_shared_ptr<UINT32> m_konamigx_type3_psac2_bank;
+	optional_device<k054539_device> m_k054539_1;
+	optional_device<k054539_device> m_k054539_2;
 	DECLARE_WRITE32_MEMBER(esc_w);
 	DECLARE_WRITE32_MEMBER(eeprom_w);
 	DECLARE_WRITE32_MEMBER(control_w);
@@ -86,6 +95,8 @@ public:
 	INTERRUPT_GEN_MEMBER(tms_sync);
 	TIMER_CALLBACK_MEMBER(dmaend_callback);
 	TIMER_DEVICE_CALLBACK_MEMBER(konamigx_hbinterrupt);
+	optional_device<cpu_device> m_soundcpu;
+	optional_device<tms57002_device> m_dasp;
 };
 
 

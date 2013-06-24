@@ -59,11 +59,12 @@ class olibochu_state : public driver_device
 {
 public:
 	olibochu_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_spriteram(*this, "spriteram"),
-		m_spriteram2(*this, "spriteram2"){ }
+		m_spriteram2(*this, "spriteram2"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -88,13 +89,15 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_olibochu(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(olibochu_scanline);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };
 
 
 
 void olibochu_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -168,15 +171,14 @@ void olibochu_state::video_start()
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(olibochu_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void olibochu_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	olibochu_state *state = machine.driver_data<olibochu_state>();
-	UINT8 *spriteram = state->m_spriteram;
-	UINT8 *spriteram_2 = state->m_spriteram2;
+	UINT8 *spriteram = m_spriteram;
+	UINT8 *spriteram_2 = m_spriteram2;
 	int offs;
 
 	/* 16x16 sprites */
-	for (offs = 0; offs < state->m_spriteram.bytes(); offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes(); offs += 4)
 	{
 		int attr = spriteram[offs + 1];
 		int code = spriteram[offs];
@@ -186,7 +188,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		int sx = spriteram[offs + 3];
 		int sy = ((spriteram[offs + 2] + 8) & 0xff) - 8;
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sx = 240 - sx;
 			sy = 240 - sy;
@@ -195,14 +197,14 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		}
 
 		drawgfx_transpen(bitmap, cliprect,
-			machine.gfx[1],
+			machine().gfx[1],
 			code, color,
 			flipx, flipy,
 			sx, sy, 0);
 	}
 
 	/* 8x8 sprites */
-	for (offs = 0; offs < state->m_spriteram2.bytes(); offs += 4)
+	for (offs = 0; offs < m_spriteram2.bytes(); offs += 4)
 	{
 		int attr = spriteram_2[offs + 1];
 		int code = spriteram_2[offs];
@@ -212,7 +214,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		int sx = spriteram_2[offs + 3];
 		int sy = spriteram_2[offs + 2];
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sx = 248 - sx;
 			sy = 248 - sy;
@@ -221,7 +223,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		}
 
 		drawgfx_transpen(bitmap, cliprect,
-			machine.gfx[0],
+			machine().gfx[0],
 			code, color,
 			flipx, flipy,
 			sx, sy, 0);
@@ -231,7 +233,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 UINT32 olibochu_state::screen_update_olibochu(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }
 
@@ -275,7 +277,7 @@ static ADDRESS_MAP_START( olibochu_sound_map, AS_PROGRAM, 8, olibochu_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x6000, 0x63ff) AM_RAM
 	AM_RANGE(0x7000, 0x7000) AM_READ(soundlatch_byte_r) /* likely ay8910 input port, not direct */
-	AM_RANGE(0x7000, 0x7001) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x7000, 0x7001) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x7004, 0x7004) AM_WRITENOP //sound filter?
 	AM_RANGE(0x7006, 0x7006) AM_WRITENOP //irq ack?
 ADDRESS_MAP_END
@@ -423,13 +425,11 @@ GFXDECODE_END
 
 void olibochu_state::machine_start()
 {
-
 	save_item(NAME(m_cmd));
 }
 
 void olibochu_state::machine_reset()
 {
-
 	m_cmd = 0;
 }
 
@@ -438,10 +438,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(olibochu_state::olibochu_scanline)
 	int scanline = param;
 
 	if(scanline == 248) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xd7);   /* RST 10h - vblank */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xd7);   /* RST 10h - vblank */
 
 	if(scanline == 0) // sprite buffer irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xcf);   /* RST 08h */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xcf);   /* RST 08h */
 }
 
 static MACHINE_CONFIG_START( olibochu, olibochu_state )

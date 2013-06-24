@@ -47,7 +47,7 @@ class base_c1541_device :  public device_t,
 {
 public:
 	// construction/destruction
-	base_c1541_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant);
+	base_c1541_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
 
 	enum
 	{
@@ -57,6 +57,7 @@ public:
 		TYPE_1541II,
 		TYPE_SX1541,
 		TYPE_FSD2,
+		TYPE_CSD1,
 
 		// extended hardware
 		TYPE_1541_DOLPHIN_DOS,
@@ -83,7 +84,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -180,6 +180,16 @@ public:
 };
 
 
+// ======================> csd1_device
+
+class csd1_device :  public base_c1541_device
+{
+public:
+	// construction/destruction
+	csd1_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+};
+
+
 // ======================> c1541_dolphin_dos_device
 
 class c1541_dolphin_dos_device :  public base_c1541_device
@@ -208,9 +218,6 @@ public:
 	// construction/destruction
 	c1541_prologic_dos_classic_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	// device-level overrides
-	virtual void device_start();
-
 	// not really public
 	DECLARE_READ8_MEMBER( read );
 	DECLARE_WRITE8_MEMBER( write );
@@ -225,8 +232,7 @@ public:
 protected:
 	required_device<pia6821_device> m_pia;
 	required_device<centronics_device> m_centronics;
-
-	UINT8 *m_mmu_rom;
+	required_memory_region m_mmu_rom;
 };
 
 
@@ -237,6 +243,7 @@ extern const device_type C1541C;
 extern const device_type C1541II;
 extern const device_type SX1541;
 extern const device_type FSD2;
+extern const device_type CSD1;
 extern const device_type C1541_DOLPHIN_DOS;
 extern const device_type C1541_PROFESSIONAL_DOS_V1;
 extern const device_type C1541_PROLOGIC_DOS_CLASSIC;

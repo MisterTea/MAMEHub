@@ -68,8 +68,10 @@ class feversoc_state : public driver_device
 {
 public:
 	feversoc_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_spriteram(*this, "spriteram"){ }
+		: driver_device(mconfig, type, tag),
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
 
 	UINT16 m_x;
 	required_shared_ptr<UINT32> m_spriteram;
@@ -80,6 +82,8 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_feversoc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(feversoc_irq);
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki;
 };
 
 
@@ -87,7 +91,6 @@ public:
 
 void feversoc_state::video_start()
 {
-
 }
 
 UINT32 feversoc_state::screen_update_feversoc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -156,8 +159,7 @@ WRITE32_MEMBER(feversoc_state::output_w)
 		//data>>16 & 2 coin out
 		coin_counter_w(machine(), 1,data>>16 & 4);
 		//data>>16 & 8 coin hopper
-		okim6295_device *oki = machine().device<okim6295_device>("oki");
-		oki->set_bank_base(0x40000 * (((data>>16) & 0x20)>>5));
+		m_oki->set_bank_base(0x40000 * (((data>>16) & 0x20)>>5));
 	}
 	if(ACCESSING_BITS_0_15)
 	{
@@ -249,7 +251,7 @@ INPUT_PORTS_END
 
 INTERRUPT_GEN_MEMBER(feversoc_state::feversoc_irq)
 {
-	machine().device("maincpu")->execute().set_input_line(8, HOLD_LINE );
+	m_maincpu->set_input_line(8, HOLD_LINE );
 }
 
 static MACHINE_CONFIG_START( feversoc, feversoc_state )
@@ -299,7 +301,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(feversoc_state,feversoc)
 {
-	seibuspi_rise11_sprite_decrypt_feversoc(machine().root_device().memregion("gfx1")->base(), 0x200000);
+	seibuspi_rise11_sprite_decrypt_feversoc(memregion("gfx1")->base(), 0x200000);
 }
 
 GAME( 2004, feversoc,  0,       feversoc,  feversoc, feversoc_state,  feversoc, ROT0, "Seibu Kaihatsu", "Fever Soccer", 0 )

@@ -16,11 +16,11 @@
 #include "machine/pit8253.h"
 #include "sound/speaker.h"
 #include "imagedev/cassette.h"
+#include "machine/ram.h"
 
 #define MCFG_IBM5160_MOTHERBOARD_ADD(_tag, _cputag) \
 	MCFG_DEVICE_ADD(_tag, IBM5160_MOTHERBOARD, 0) \
-	ibm5160_mb_device::static_set_cputag(*device, _cputag); \
-
+	ibm5160_mb_device::static_set_cputag(*device, _cputag);
 // ======================> ibm5160_mb_device
 class ibm5160_mb_device : public device_t
 {
@@ -50,6 +50,7 @@ public:
 	required_device<speaker_sound_device>  m_speaker;
 	required_device<isa8_device>  m_isabus;
 	required_device<pc_kbdc_device>  m_pc_kbdc;
+	required_device<ram_device> m_ram;
 
 	/* U73 is an LS74 - dual flip flop */
 	/* Q2 is set by OUT1 from the 8253 and goes to DRQ1 on the 8237 */
@@ -73,7 +74,7 @@ public:
 	UINT8                   m_ppi_shift_register;
 	UINT8                   m_ppi_shift_enable;
 
-	static IRQ_CALLBACK(pc_irq_callback);
+	IRQ_CALLBACK_MEMBER(pc_irq_callback);
 
 	// interface to the keyboard
 	DECLARE_WRITE_LINE_MEMBER( keyboard_clock_w );
@@ -102,7 +103,6 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( pc_dack2_w );
 	DECLARE_WRITE_LINE_MEMBER( pc_dack3_w );
 
-	DECLARE_WRITE_LINE_MEMBER( pc_cpu_line );
 	DECLARE_WRITE_LINE_MEMBER( pc_speaker_set_spkrdata );
 
 	const char *m_cputag;
@@ -118,8 +118,7 @@ extern const device_type IBM5160_MOTHERBOARD;
 
 #define MCFG_IBM5150_MOTHERBOARD_ADD(_tag, _cputag) \
 	MCFG_DEVICE_ADD(_tag, IBM5150_MOTHERBOARD, 0) \
-	ibm5150_mb_device::static_set_cputag(*device, _cputag); \
-
+	ibm5150_mb_device::static_set_cputag(*device, _cputag);
 
 // ======================> ibm5150_mb_device
 class ibm5150_mb_device : public ibm5160_mb_device

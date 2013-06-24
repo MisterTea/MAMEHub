@@ -35,7 +35,8 @@ public:
 	victory_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_videoram(*this, "videoram"),
-			m_charram(*this, "charram") { }
+			m_charram(*this, "charram") ,
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_charram;
@@ -64,4 +65,15 @@ public:
 	UINT32 screen_update_victory(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(victory_vblank_interrupt);
 	TIMER_CALLBACK_MEMBER(bgcoll_irq_callback);
+	void victory_update_irq();
+	void set_palette();
+	int command2();
+	int command3();
+	int command4();
+	int command5();
+	int command6();
+	int command7();
+	void update_background();
+	void update_foreground();
+	required_device<cpu_device> m_maincpu;
 };

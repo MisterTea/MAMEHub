@@ -50,10 +50,12 @@ class onetwo_state : public driver_device
 {
 public:
 	onetwo_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_paletteram(*this, "paletteram"),
 		m_paletteram2(*this, "paletteram2"),
-		m_fgram(*this, "fgram"){ }
+		m_fgram(*this, "fgram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_paletteram;
@@ -64,8 +66,8 @@ public:
 	tilemap_t *m_fg_tilemap;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE8_MEMBER(onetwo_fgram_w);
 	DECLARE_WRITE8_MEMBER(onetwo_cpubank_w);
 	DECLARE_WRITE8_MEMBER(onetwo_coin_counters_w);
@@ -76,6 +78,8 @@ public:
 	virtual void machine_start();
 	virtual void video_start();
 	UINT32 screen_update_onetwo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void set_color(int offset);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 };
 
 
@@ -137,27 +141,26 @@ WRITE8_MEMBER(onetwo_state::onetwo_soundlatch_w)
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-static void set_color(running_machine &machine, int offset)
+void onetwo_state::set_color(int offset)
 {
-	onetwo_state *state = machine.driver_data<onetwo_state>();
 	int r, g, b;
 
-	r = state->m_paletteram[offset] & 0x1f;
-	g = state->m_paletteram2[offset] & 0x1f;
-	b = ((state->m_paletteram[offset] & 0x60) >> 2) | ((state->m_paletteram2[offset] & 0xe0) >> 5);
-	palette_set_color_rgb(machine, offset, pal5bit(r), pal5bit(g), pal5bit(b));
+	r = m_paletteram[offset] & 0x1f;
+	g = m_paletteram2[offset] & 0x1f;
+	b = ((m_paletteram[offset] & 0x60) >> 2) | ((m_paletteram2[offset] & 0xe0) >> 5);
+	palette_set_color_rgb(machine(), offset, pal5bit(r), pal5bit(g), pal5bit(b));
 }
 
 WRITE8_MEMBER(onetwo_state::palette1_w)
 {
 	m_paletteram[offset] = data;
-	set_color(machine(), offset);
+	set_color(offset);
 }
 
 WRITE8_MEMBER(onetwo_state::palette2_w)
 {
 	m_paletteram2[offset] = data;
-	set_color(machine(), offset);
+	set_color(offset);
 }
 
 /*************************************
@@ -192,8 +195,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_cpu_io, AS_IO, 8, onetwo_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_status_port_r, ym3812_control_port_w)
-	AM_RANGE(0x20, 0x20) AM_DEVWRITE_LEGACY("ymsnd", ym3812_write_port_w)
+	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE("ymsnd", ym3812_device, status_port_r, control_port_w)
+	AM_RANGE(0x20, 0x20) AM_DEVWRITE("ymsnd", ym3812_device, write_port_w)
 	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0xc0, 0xc0) AM_WRITE(soundlatch_clear_byte_w)
 ADDRESS_MAP_END
@@ -329,16 +332,10 @@ GFXDECODE_END
  *
  *************************************/
 
-static void irqhandler(device_t *device, int linestate)
+WRITE_LINE_MEMBER(onetwo_state::irqhandler)
 {
-	onetwo_state *state = device->machine().driver_data<onetwo_state>();
-	state->m_audiocpu->set_input_line(0, linestate);
+	m_audiocpu->set_input_line(0, state);
 }
-
-static const ym3812_interface ym3812_config =
-{
-	irqhandler  /* IRQ Line */
-};
 
 /*************************************
  *
@@ -352,8 +349,6 @@ void onetwo_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 }
 
 static MACHINE_CONFIG_START( onetwo, onetwo_state )
@@ -385,7 +380,7 @@ static MACHINE_CONFIG_START( onetwo, onetwo_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, MASTER_CLOCK)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(onetwo_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_OKIM6295_ADD("oki", 1056000*2, OKIM6295_PIN7_LOW) // clock frequency & pin 7 not verified

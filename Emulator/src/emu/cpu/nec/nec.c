@@ -114,7 +114,7 @@ typedef UINT32 DWORD;
 #include "nec.h"
 #include "necpriv.h"
 
-extern int necv_dasm_one(char *buffer, UINT32 eip, const UINT8 *oprom, const nec_config *config);
+extern CPU_DISASSEMBLE( nec );
 
 INLINE nec_state_t *get_safe_token(device_t *device)
 {
@@ -227,7 +227,6 @@ static CPU_RESET( nec )
 
 static CPU_EXIT( nec )
 {
-
 }
 
 static void nec_interrupt(nec_state_t *nec_state, unsigned int_num, INTSOURCES source)
@@ -308,11 +307,6 @@ static void set_irq_line(nec_state_t *nec_state, int irqline, int state)
 			nec_state->poll_state = state;
 			break;
 	}
-}
-
-static CPU_DISASSEMBLE( nec )
-{
-	return necv_dasm_one(buffer, pc, oprom, NULL);
 }
 
 static void nec_init(legacy_cpu_device *device, device_irq_acknowledge_callback irqcallback)

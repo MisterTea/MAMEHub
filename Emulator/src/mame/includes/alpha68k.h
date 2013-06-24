@@ -8,11 +8,13 @@ class alpha68k_state : public driver_device
 {
 public:
 	alpha68k_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_shared_ram(*this, "shared_ram"),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
-		m_paletteram(*this, "paletteram"){ }
+		m_paletteram(*this, "paletteram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_shared_ram;
@@ -43,7 +45,7 @@ public:
 	unsigned    m_game_id;  // see below
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	UINT8       m_sound_nmi_mask;
 	UINT8       m_sound_pa_latch;
 	DECLARE_WRITE16_MEMBER(tnextspc_coin_counters_w);
@@ -105,6 +107,17 @@ public:
 	UINT32 screen_update_alpha68k_V(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_alpha68k_V_sb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(alpha68k_sound_nmi);
+	void alpha68k_flipscreen_w( int flip );
+	void alpha68k_V_video_bank_w( int bank );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int j, int s, int e );
+	void draw_sprites_V( bitmap_ind16 &bitmap, const rectangle &cliprect, int j, int s, int e, int fx_mask, int fy_mask, int sprite_mask );
+	void draw_sprites_I( bitmap_ind16 &bitmap, const rectangle &cliprect, int c, int d, int yshift );
+	void kyros_video_banking(int *bank, int data);
+	void jongbou_video_banking(int *bank, int data);
+	void kyros_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int c, int d );
+	void sstingry_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int c, int d );
+	DECLARE_WRITE_LINE_MEMBER(ym3812_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 /* game_id - used to deal with a few game specific situations */
@@ -114,8 +127,3 @@ enum
 	ALPHA68K_JONGBOU,           // used in kyros_alpha_trigger_r & kyros_draw_sprites
 	ALPHA68K_KYROS          // used in kyros_draw_sprites
 };
-
-
-/*----------- defined in video/alpha68k.c -----------*/
-void alpha68k_V_video_bank_w(running_machine &machine, int bank);
-void alpha68k_flipscreen_w(running_machine &machine, int flip);

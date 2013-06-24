@@ -195,8 +195,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( meijinsn_sound_io_map, AS_IO, 8, meijinsn_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0x01, 0x01) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0x01, 0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
 	AM_RANGE(0x02, 0x02) AM_WRITE(soundlatch_clear_byte_w)
 	AM_RANGE(0x06, 0x06) AM_WRITENOP
 ADDRESS_MAP_END
@@ -254,7 +254,7 @@ void meijinsn_state::video_start()
 
 void meijinsn_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 	static const int resistances_b[2]  = { 470, 220 };
 	static const int resistances_rg[3] = { 1000, 470, 220 };
@@ -337,7 +337,6 @@ static const ay8910_interface ay8910_config =
 
 void meijinsn_state::machine_start()
 {
-
 	save_item(NAME(m_deposits1));
 	save_item(NAME(m_deposits2));
 	save_item(NAME(m_credits));
@@ -345,7 +344,6 @@ void meijinsn_state::machine_start()
 
 void meijinsn_state::machine_reset()
 {
-
 	m_deposits1 = 0;
 	m_deposits2 = 0;
 	m_credits   = 0;

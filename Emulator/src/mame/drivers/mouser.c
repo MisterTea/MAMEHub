@@ -27,7 +27,6 @@ WRITE8_MEMBER(mouser_state::mouser_nmi_enable_w)
 
 INTERRUPT_GEN_MEMBER(mouser_state::mouser_nmi_interrupt)
 {
-
 	if (BIT(m_nmi_enable, 0))
 		nmi_line_pulse(device);
 }
@@ -84,8 +83,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mouser_sound_io_map, AS_IO, 8, mouser_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
-	AM_RANGE(0x80, 0x81) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
+	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START( mouser )
@@ -183,17 +182,12 @@ GFXDECODE_END
 
 void mouser_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_sound_byte));
 	save_item(NAME(m_nmi_enable));
 }
 
 void mouser_state::machine_reset()
 {
-
 	m_sound_byte = 0;
 	m_nmi_enable = 0;
 }
@@ -287,10 +281,10 @@ DRIVER_INIT_MEMBER(mouser_state,mouser)
 	/* Decode the opcodes */
 
 	offs_t i;
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	UINT8 *rom = memregion("maincpu")->base();
 	UINT8 *decrypted = auto_alloc_array(machine(), UINT8, 0x6000);
-	UINT8 *table = machine().root_device().memregion("user1")->base();
+	UINT8 *table = memregion("user1")->base();
 
 	space.set_decrypted_region(0x0000, 0x5fff, decrypted);
 

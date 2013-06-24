@@ -10,12 +10,18 @@
 class midtunit_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_DMA
+	};
+
 	midtunit_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_nvram(*this, "nvram"),
 			m_gfxrom(*this, "gfxrom"),
 			m_cvsd_sound(*this, "cvsd"),
-			m_adpcm_sound(*this, "adpcm") { }
+			m_adpcm_sound(*this, "adpcm") ,
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_nvram;
 	required_memory_region m_gfxrom;
@@ -65,8 +71,35 @@ public:
 	DECLARE_DRIVER_INIT(mk2);
 	DECLARE_MACHINE_RESET(midtunit);
 	DECLARE_VIDEO_START(midtunit);
-	TIMER_CALLBACK_MEMBER(dma_callback);
+	required_device<cpu_device> m_maincpu;
+	void register_state_saving();
+	void init_tunit_generic(int sound);
+	void init_nbajam_common(int te_protection);
+
+	/* CMOS-related variables */
+	UINT8    cmos_write_enable;
+
+	/* sound-related variables */
+	UINT8    chip_type;
+	UINT8    fake_sound_state;
+
+	/* protection */
+	UINT8    mk_prot_index;
+	UINT16   mk2_prot_data;
+
+	const UINT32 *nbajam_prot_table;
+	UINT16   nbajam_prot_queue[5];
+	UINT8    nbajam_prot_index;
+
+	const UINT8 *jdredd_prot_table;
+	UINT8    jdredd_prot_index;
+	UINT8    jdredd_prot_max;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
+
+
 /*----------- defined in video/midtunit.c -----------*/
 extern UINT8 midtunit_gfx_rom_large;
 

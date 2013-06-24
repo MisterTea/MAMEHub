@@ -58,7 +58,7 @@ WRITE16_MEMBER(m90_state::dynablsb_sound_command_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, offset, data);
-		machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 }
 
@@ -1172,14 +1172,14 @@ ROM_END
 DRIVER_INIT_MEMBER(m90_state,quizf1)
 {
 	membank("bank1")->configure_entries(0, 16, memregion("user1")->base(), 0x10000);
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x04, 0x05, write16_delegate(FUNC(m90_state::quizf1_bankswitch_w),this));
+	m_maincpu->space(AS_IO).install_write_handler(0x04, 0x05, write16_delegate(FUNC(m90_state::quizf1_bankswitch_w),this));
 }
 
 
 
 DRIVER_INIT_MEMBER(m90_state,bomblord)
 {
-	UINT16 *ROM = (UINT16 *)(machine().root_device().memregion("maincpu")->base());
+	UINT16 *ROM = (UINT16 *)(memregion("maincpu")->base());
 
 	for (int i = 0; i < 0x100000 / 2; i += 4)
 	{

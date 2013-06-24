@@ -54,7 +54,7 @@
     Ground Effects is effectively a 30Hz game - though the vblank interrupts
     still come in at 60Hz, the game uses a hardware frame counter to limit
     itself to 30Hz (it only updates things like the video registers every
-    other vblank).  There isn't enough cpu power in a 16MHz 68020 to run
+    other vblank).  There isn't enough cpu power in a 20MHz 68020 to run
     this game at 60Hz.
 
     Ground Effects has a network mode - probably uses IRQ 6 and the unknown
@@ -98,9 +98,16 @@ WRITE32_MEMBER(groundfx_state::color_ram_w)
                 INTERRUPTS
 ***********************************************************/
 
-TIMER_CALLBACK_MEMBER(groundfx_state::groundfx_interrupt5)
+void groundfx_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(5, HOLD_LINE); //from 5... ADC port
+	switch (id)
+	{
+	case TIMER_GROUNDFX_INTERRUPT5:
+		m_maincpu->set_input_line(5, HOLD_LINE); //from 5... ADC port
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in groundfx_state::device_timer");
+	}
 }
 
 
@@ -173,7 +180,7 @@ WRITE32_MEMBER(groundfx_state::groundfx_adc_w)
 {
 	/* One interrupt per input port (4 per frame, though only 2 used).
 	    1000 cycle delay is arbitrary */
-	machine().scheduler().timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(1000), timer_expired_delegate(FUNC(groundfx_state::groundfx_interrupt5),this));
+	timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(1000), TIMER_GROUNDFX_INTERRUPT5);
 }
 
 WRITE32_MEMBER(groundfx_state::rotate_control_w)/* only a guess that it's rotation */
@@ -363,7 +370,7 @@ INTERRUPT_GEN_MEMBER(groundfx_state::groundfx_interrupt)
 static MACHINE_CONFIG_START( groundfx, groundfx_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68EC020, 16000000) /* 16 MHz */
+	MCFG_CPU_ADD("maincpu", M68EC020, XTAL_40MHz/2) /* 20MHz - verified */
 	MCFG_CPU_PROGRAM_MAP(groundfx_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", groundfx_state,  groundfx_interrupt)
 
@@ -451,12 +458,12 @@ READ32_MEMBER(groundfx_state::irq_speedup_r_groundfx)
 DRIVER_INIT_MEMBER(groundfx_state,groundfx)
 {
 	UINT32 offset,i;
-	UINT8 *gfx = machine().root_device().memregion("gfx3")->base();
-	int size=machine().root_device().memregion("gfx3")->bytes();
+	UINT8 *gfx = memregion("gfx3")->base();
+	int size=memregion("gfx3")->bytes();
 	int data;
 
 	/* Speedup handlers */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x20b574, 0x20b577, read32_delegate(FUNC(groundfx_state::irq_speedup_r_groundfx),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x20b574, 0x20b577, read32_delegate(FUNC(groundfx_state::irq_speedup_r_groundfx),this));
 
 	/* make piv tile GFX format suitable for gfxdecode */
 	offset = size/2;

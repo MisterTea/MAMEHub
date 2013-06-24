@@ -64,15 +64,15 @@ WRITE8_MEMBER( draco_state::sound_g_w )
 	switch (data)
 	{
 	case 0x01:
-		ay8910_data_w(m_psg, space, 0, m_psg_latch);
+		m_psg->data_w(space, 0, m_psg_latch);
 		break;
 
 	case 0x02:
-		m_psg_latch = ay8910_r(m_psg, space, 0);
+		m_psg_latch = m_psg->data_r(space, 0);
 		break;
 
 	case 0x03:
-		ay8910_address_w(m_psg, space, 0, m_psg_latch);
+		m_psg->address_w(space, 0, m_psg_latch);
 		break;
 	}
 }
@@ -206,15 +206,15 @@ static COP400_INTERFACE( draco_cop_intf )
 static ADDRESS_MAP_START( destryer_map, AS_PROGRAM, 8, cidelsa_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x2000, 0x20ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0xf400, 0xf7ff) AM_DEVREADWRITE(CDP1869_TAG, cdp1869_device, char_ram_r, char_ram_w)
-	AM_RANGE(0xf800, 0xffff) AM_DEVREADWRITE(CDP1869_TAG, cdp1869_device, page_ram_r, page_ram_w)
+	AM_RANGE(0xf400, 0xf7ff) AM_DEVICE(CDP1869_TAG, cdp1869_device, char_map)
+	AM_RANGE(0xf800, 0xffff) AM_DEVICE(CDP1869_TAG, cdp1869_device, page_map)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( destryera_map, AS_PROGRAM, 8, cidelsa_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x3000, 0x30ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0xf400, 0xf7ff) AM_DEVREADWRITE(CDP1869_TAG, cdp1869_device, char_ram_r, char_ram_w)
-	AM_RANGE(0xf800, 0xffff) AM_DEVREADWRITE(CDP1869_TAG, cdp1869_device, page_ram_r, page_ram_w)
+	AM_RANGE(0xf400, 0xf7ff) AM_DEVICE(CDP1869_TAG, cdp1869_device, char_map)
+	AM_RANGE(0xf800, 0xffff) AM_DEVICE(CDP1869_TAG, cdp1869_device, page_map)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( destryer_io_map, AS_IO, 8, cidelsa_state )
@@ -228,8 +228,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( altair_map, AS_PROGRAM, 8, cidelsa_state )
 	AM_RANGE(0x0000, 0x2fff) AM_ROM
 	AM_RANGE(0x3000, 0x30ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0xf400, 0xf7ff) AM_DEVREADWRITE(CDP1869_TAG, cdp1869_device, char_ram_r, char_ram_w)
-	AM_RANGE(0xf800, 0xffff) AM_DEVREADWRITE(CDP1869_TAG, cdp1869_device, page_ram_r, page_ram_w)
+	AM_RANGE(0xf400, 0xf7ff) AM_DEVICE(CDP1869_TAG, cdp1869_device, char_map)
+	AM_RANGE(0xf800, 0xffff) AM_DEVICE(CDP1869_TAG, cdp1869_device, page_map)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( altair_io_map, AS_IO, 8, cidelsa_state )
@@ -244,8 +244,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( draco_map, AS_PROGRAM, 8, draco_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x8000, 0x83ff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0xf400, 0xf7ff) AM_DEVREADWRITE(CDP1869_TAG, cdp1869_device, char_ram_r, char_ram_w)
-	AM_RANGE(0xf800, 0xffff) AM_DEVREADWRITE(CDP1869_TAG, cdp1869_device, page_ram_r, page_ram_w)
+	AM_RANGE(0xf400, 0xf7ff) AM_DEVICE(CDP1869_TAG, cdp1869_device, char_map)
+	AM_RANGE(0xf800, 0xffff) AM_DEVICE(CDP1869_TAG, cdp1869_device, page_map)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( draco_io_map, AS_IO, 8, draco_state )
@@ -272,13 +272,12 @@ ADDRESS_MAP_END
 
 CUSTOM_INPUT_MEMBER(cidelsa_state::cdp1869_pcb_r)
 {
-
 	return m_cdp1869_pcb;
 }
 
 INPUT_CHANGED_MEMBER(cidelsa_state::ef_w)
 {
-	machine().device(CDP1802_TAG)->execute().set_input_line((int)(FPTR)param, newval);
+	m_maincpu->set_input_line((int)(FPTR)param, newval);
 }
 
 static INPUT_PORTS_START( destryer )
@@ -425,10 +424,16 @@ INPUT_PORTS_END
 
 /* Machine Start */
 
-TIMER_CALLBACK_MEMBER(cidelsa_state::set_cpu_mode)
+void cidelsa_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-
-	m_reset = 1;
+	switch (id)
+	{
+	case TIMER_SET_CPU_MODE:
+		m_reset = 1;
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in cidelsa_state::device_timer");
+	}
 }
 
 void cidelsa_state::machine_start()
@@ -455,14 +460,14 @@ void cidelsa_state::machine_reset()
 {
 	/* reset the CPU */
 	m_reset = 0;
-	machine().scheduler().timer_set(attotime::from_msec(200), timer_expired_delegate(FUNC(cidelsa_state::set_cpu_mode),this));
+	timer_set(attotime::from_msec(200), TIMER_SET_CPU_MODE);
 }
 
 /* Machine Drivers */
 
 static MACHINE_CONFIG_START( destryer, cidelsa_state )
 	/* basic system hardware */
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, DESTRYER_CHR1)
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, DESTRYER_CHR1)
 	MCFG_CPU_PROGRAM_MAP(destryer_map)
 	MCFG_CPU_IO_MAP(destryer_io_map)
 	MCFG_CPU_CONFIG(cidelsa_cdp1802_config)
@@ -474,7 +479,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( destryera, cidelsa_state )
 	/* basic system hardware */
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, DESTRYER_CHR1)
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, DESTRYER_CHR1)
 	MCFG_CPU_PROGRAM_MAP(destryera_map)
 	MCFG_CPU_IO_MAP(destryer_io_map)
 	MCFG_CPU_CONFIG(cidelsa_cdp1802_config)
@@ -486,7 +491,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( altair, cidelsa_state )
 	/* basic system hardware */
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, ALTAIR_CHR1)
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, ALTAIR_CHR1)
 	MCFG_CPU_PROGRAM_MAP(altair_map)
 	MCFG_CPU_IO_MAP(altair_io_map)
 	MCFG_CPU_CONFIG(cidelsa_cdp1802_config)
@@ -504,7 +509,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( draco, draco_state )
 	/* basic system hardware */
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, DRACO_CHR1)
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, DRACO_CHR1)
 	MCFG_CPU_PROGRAM_MAP(draco_map)
 	MCFG_CPU_IO_MAP(draco_io_map)
 	MCFG_CPU_CONFIG(cidelsa_cdp1802_config)

@@ -28,10 +28,11 @@ class d9final_state : public driver_device
 {
 public:
 	d9final_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_lo_vram(*this, "lo_vram"),
 		m_hi_vram(*this, "hi_vram"),
-		m_cram(*this, "cram"){ }
+		m_cram(*this, "cram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_lo_vram;
 	required_shared_ptr<UINT8> m_hi_vram;
@@ -46,6 +47,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_d9final(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -127,7 +129,7 @@ static ADDRESS_MAP_START( d9final_io, AS_IO, 8, d9final_state )
 	AM_RANGE(0x00, 0x00) AM_READ_PORT("DSWA")
 	AM_RANGE(0x20, 0x20) AM_READ_PORT("DSWB")
 	AM_RANGE(0x40, 0x40) AM_READ_PORT("DSWC")
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("ymsnd",ym2413_w)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0x60, 0x60) AM_READ_PORT("DSWD")
 	AM_RANGE(0x80, 0x80) AM_READ_PORT("IN0")
 	AM_RANGE(0xa0, 0xa0) AM_READ_PORT("IN1") AM_WRITE(d9final_bank_w)
@@ -274,9 +276,9 @@ GFXDECODE_END
 
 void d9final_state::machine_reset()
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
-	machine().root_device().membank("bank1")->set_base(&ROM[0x10000]);
+	membank("bank1")->set_base(&ROM[0x10000]);
 }
 
 static MACHINE_CONFIG_START( d9final, d9final_state )

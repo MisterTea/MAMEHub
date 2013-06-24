@@ -34,7 +34,6 @@ WRITE8_MEMBER(compgolf_state::compgolf_scrolly_lo_w)
 
 WRITE8_MEMBER(compgolf_state::compgolf_ctrl_w)
 {
-
 	/* bit 4 and 6 are always set */
 
 	int new_bank = (data & 4) >> 2;
@@ -66,7 +65,7 @@ static ADDRESS_MAP_START( compgolf_map, AS_PROGRAM, 8, compgolf_state )
 	AM_RANGE(0x3001, 0x3001) AM_READ_PORT("P2") AM_WRITE(compgolf_ctrl_w)
 	AM_RANGE(0x3002, 0x3002) AM_READ_PORT("DSW1")
 	AM_RANGE(0x3003, 0x3003) AM_READ_PORT("DSW2")
-	AM_RANGE(0x3800, 0x3801) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x3800, 0x3801) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -198,22 +197,19 @@ GFXDECODE_END
  *
  *************************************/
 
-static void sound_irq(device_t *device, int linestate)
+WRITE_LINE_MEMBER(compgolf_state::sound_irq)
 {
-	device->machine().device("maincpu")->execute().set_input_line(0, linestate);
+	m_maincpu->set_input_line(0, state);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-			AY8910_LEGACY_OUTPUT,
-			AY8910_DEFAULT_LOADS,
-			DEVCB_NULL,
-			DEVCB_NULL,
-			DEVCB_DRIVER_MEMBER(compgolf_state,compgolf_scrollx_lo_w),
-			DEVCB_DRIVER_MEMBER(compgolf_state,compgolf_scrolly_lo_w),
-	},
-	DEVCB_LINE(sound_irq)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(compgolf_state,compgolf_scrollx_lo_w),
+	DEVCB_DRIVER_MEMBER(compgolf_state,compgolf_scrolly_lo_w),
 };
 
 
@@ -225,7 +221,6 @@ static const ym2203_interface ym2203_config =
 
 void compgolf_state::machine_start()
 {
-
 	save_item(NAME(m_bank));
 	save_item(NAME(m_scrollx_lo));
 	save_item(NAME(m_scrollx_hi));
@@ -235,7 +230,6 @@ void compgolf_state::machine_start()
 
 void compgolf_state::machine_reset()
 {
-
 	m_bank = -1;
 	m_scrollx_lo = 0;
 	m_scrollx_hi = 0;
@@ -266,7 +260,8 @@ static MACHINE_CONFIG_START( compgolf, compgolf_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(compgolf_state, sound_irq))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -336,10 +331,10 @@ ROM_END
  *
  *************************************/
 
-static void compgolf_expand_bg(running_machine &machine)
+void compgolf_state::compgolf_expand_bg()
 {
-	UINT8 *GFXDST = machine.root_device().memregion("gfx2")->base();
-	UINT8 *GFXSRC = machine.root_device().memregion("gfx4")->base();
+	UINT8 *GFXDST = memregion("gfx2")->base();
+	UINT8 *GFXSRC = memregion("gfx4")->base();
 
 	int x;
 
@@ -352,8 +347,8 @@ static void compgolf_expand_bg(running_machine &machine)
 
 DRIVER_INIT_MEMBER(compgolf_state,compgolf)
 {
-	machine().root_device().membank("bank1")->configure_entries(0, 2, machine().root_device().memregion("user1")->base(), 0x4000);
-	compgolf_expand_bg(machine());
+	membank("bank1")->configure_entries(0, 2, memregion("user1")->base(), 0x4000);
+	compgolf_expand_bg();
 }
 
 

@@ -21,13 +21,11 @@
 #define MCFG_A2EAUXSLOT_BUS_ADD(_tag, _cputag, _config) \
 	MCFG_DEVICE_ADD(_tag, A2EAUXSLOT, 0) \
 	MCFG_DEVICE_CONFIG(_config) \
-	a2eauxslot_device::static_set_cputag(*device, _cputag); \
-
-#define MCFG_A2EAUXSLOT_SLOT_ADD(_nbtag, _tag, _slot_intf, _def_slot, _def_inp) \
+	a2eauxslot_device::static_set_cputag(*device, _cputag);
+#define MCFG_A2EAUXSLOT_SLOT_ADD(_nbtag, _tag, _slot_intf, _def_slot) \
 	MCFG_DEVICE_ADD(_tag, A2EAUXSLOT_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, false) \
-	a2eauxslot_slot_device::static_set_a2eauxslot_slot(*device, _nbtag, _tag); \
-
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false) \
+	a2eauxslot_slot_device::static_set_a2eauxslot_slot(*device, _nbtag, _tag);
 #define MCFG_A2EAUXSLOT_SLOT_REMOVE(_tag)    \
 	MCFG_DEVICE_REMOVE(_tag)
 
@@ -46,7 +44,7 @@ class a2eauxslot_slot_device : public device_t,
 public:
 	// construction/destruction
 	a2eauxslot_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	a2eauxslot_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	a2eauxslot_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	// device-level overrides
 	virtual void device_start();
@@ -77,12 +75,12 @@ class a2eauxslot_device : public device_t,
 public:
 	// construction/destruction
 	a2eauxslot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	a2eauxslot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	a2eauxslot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	// inline configuration
 	static void static_set_cputag(device_t &device, const char *tag);
 
 	void add_a2eauxslot_card(device_a2eauxslot_card_interface *card);
-	device_a2eauxslot_card_interface *get_a2eauxslot_card(int slot);
+	device_a2eauxslot_card_interface *get_a2eauxslot_card();
 
 	void set_irq_line(int state);
 	void set_nmi_line(int state);
@@ -121,7 +119,11 @@ public:
 	device_a2eauxslot_card_interface(const machine_config &mconfig, device_t &device);
 	virtual ~device_a2eauxslot_card_interface();
 
-	virtual void write_c07x(address_space &space, UINT8 offset, UINT8 data) { printf("a2eauxslot: unhandled write %02x to C07%x\n", data, offset); }
+	virtual UINT8 read_auxram(UINT16 offset) { printf("a2eauxslot: unhandled auxram read @ %04x\n", offset); return 0xff; }
+	virtual void write_auxram(UINT16 offset, UINT8 data) { printf("a2eauxslot: unhandled auxram write %02x @ %04x\n", data, offset); }
+	virtual void write_c07x(address_space &space, UINT8 offset, UINT8 data) {}
+	virtual UINT8 *get_vram_ptr() = 0;
+	virtual bool allow_dhr() { return true; }
 
 	device_a2eauxslot_card_interface *next() const { return m_next; }
 

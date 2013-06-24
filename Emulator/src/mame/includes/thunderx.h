@@ -3,13 +3,24 @@
     Super Contra / Thunder Cross
 
 *************************************************************************/
+#include "sound/k007232.h"
 
 class thunderx_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_THUNDERX_FIRQ
+	};
+
 	thunderx_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_ram(*this, "ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_ram(*this, "ram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_k007232(*this, "k007232"),
+		m_k052109(*this, "k052109"),
+		m_k051960(*this, "k051960") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_ram;
@@ -28,11 +39,11 @@ public:
 	int        m_pmcbank;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_k007232;
-	device_t *m_k052109;
-	device_t *m_k051960;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<k007232_device> m_k007232;
+	required_device<k052109_device> m_k052109;
+	required_device<k051960_device> m_k051960;
 	DECLARE_READ8_MEMBER(scontra_bankedram_r);
 	DECLARE_WRITE8_MEMBER(scontra_bankedram_w);
 	DECLARE_READ8_MEMBER(thunderx_bankedram_r);
@@ -52,7 +63,12 @@ public:
 	DECLARE_MACHINE_RESET(thunderx);
 	UINT32 screen_update_scontra(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(scontra_interrupt);
-	TIMER_CALLBACK_MEMBER(thunderx_firq_callback);
+	void run_collisions( int s0, int e0, int s1, int e1, int cm, int hm );
+	void calculate_collisions(  );
+	DECLARE_WRITE8_MEMBER(volume_callback);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 

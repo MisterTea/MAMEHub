@@ -1,14 +1,18 @@
+#include "video/tecmo_spr.h"
+
 class tecmo16_state : public driver_device
 {
 public:
 	tecmo16_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_videoram2(*this, "videoram2"),
 		m_colorram2(*this, "colorram2"),
 		m_charram(*this, "charram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	required_shared_ptr<UINT16> m_videoram;
 	required_shared_ptr<UINT16> m_colorram;
@@ -50,4 +54,6 @@ public:
 	DECLARE_VIDEO_START(ginkun);
 	DECLARE_VIDEO_START(riot);
 	UINT32 screen_update_tecmo16(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };

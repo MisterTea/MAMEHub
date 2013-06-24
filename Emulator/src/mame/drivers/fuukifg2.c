@@ -41,8 +41,6 @@ To Do:
 
 - The scroll values are generally wrong when flip screen is on and rasters are often incorrect
 
-- gogomile M6295 banking is incorrect (the story sequence should have speech)
-
 ***************************************************************************/
 
 #include "emu.h"
@@ -122,14 +120,12 @@ WRITE8_MEMBER(fuuki16_state::fuuki16_sound_rombank_w)
 
 WRITE8_MEMBER(fuuki16_state::fuuki16_oki_banking_w)
 {
-	device_t *device = machine().device("oki");
 	/*
 	    data & 0x06 is always equals to data & 0x60
 	    data & 0x10 is always set
 	*/
 
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base(((data & 6) >> 1) * 0x40000);
+	m_oki->set_bank_base(((data & 6) >> 1) * 0x40000);
 }
 
 static ADDRESS_MAP_START( fuuki16_sound_map, AS_PROGRAM, 8, fuuki16_state )
@@ -144,8 +140,8 @@ static ADDRESS_MAP_START( fuuki16_sound_io_map, AS_IO, 8, fuuki16_state )
 	AM_RANGE(0x11, 0x11) AM_READ(soundlatch_byte_r) AM_WRITENOP // From Main CPU / ? To Main CPU ?
 	AM_RANGE(0x20, 0x20) AM_WRITE(fuuki16_oki_banking_w)    // Oki Banking
 	AM_RANGE(0x30, 0x30) AM_WRITENOP    // ? In the NMI routine
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x50, 0x51) AM_DEVREADWRITE_LEGACY("ym2", ym3812_r, ym3812_w)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x50, 0x51) AM_DEVREADWRITE("ym2", ym3812_device, read, write)
 	AM_RANGE(0x60, 0x60) AM_DEVREAD("oki", okim6295_device, read)   // M6295
 	AM_RANGE(0x61, 0x61) AM_DEVWRITE("oki", okim6295_device, write) // M6295
 ADDRESS_MAP_END
@@ -391,16 +387,10 @@ GFXDECODE_END
 
 ***************************************************************************/
 
-static void soundirq( device_t *device, int state )
+WRITE_LINE_MEMBER(fuuki16_state::soundirq)
 {
-	fuuki16_state *fuuki16 = device->machine().driver_data<fuuki16_state>();
-	fuuki16->m_audiocpu->set_input_line(0, state);
+	m_audiocpu->set_input_line(0, state);
 }
-
-static const ym3812_interface fuuki16_ym3812_intf =
-{
-	soundirq    /* IRQ Line */
-};
 
 /*
     - Interrupts (pbancho) -
@@ -414,25 +404,26 @@ static const ym3812_interface fuuki16_ym3812_intf =
             also used for water effects and titlescreen linescroll on gogomile
 */
 
-TIMER_CALLBACK_MEMBER(fuuki16_state::level_1_interrupt_callback)
+void fuuki16_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_maincpu->set_input_line(1, HOLD_LINE);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(248), timer_expired_delegate(FUNC(fuuki16_state::level_1_interrupt_callback),this));
-}
-
-
-TIMER_CALLBACK_MEMBER(fuuki16_state::vblank_interrupt_callback)
-{
-	m_maincpu->set_input_line(3, HOLD_LINE);    // VBlank IRQ
-	machine().scheduler().timer_set(machine().primary_screen->time_until_vblank_start(), timer_expired_delegate(FUNC(fuuki16_state::vblank_interrupt_callback),this));
-}
-
-
-TIMER_CALLBACK_MEMBER(fuuki16_state::raster_interrupt_callback)
-{
-	m_maincpu->set_input_line(5, HOLD_LINE);    // Raster Line IRQ
-	machine().primary_screen->update_partial(machine().primary_screen->vpos());
-	m_raster_interrupt_timer->adjust(machine().primary_screen->frame_period());
+	switch (id)
+	{
+	case TIMER_LEVEL_1_INTERRUPT:
+		m_maincpu->set_input_line(1, HOLD_LINE);
+		timer_set(machine().primary_screen->time_until_pos(248), TIMER_LEVEL_1_INTERRUPT);
+		break;
+	case TIMER_VBLANK_INTERRUPT:
+		m_maincpu->set_input_line(3, HOLD_LINE);    // VBlank IRQ
+		timer_set(machine().primary_screen->time_until_vblank_start(), TIMER_VBLANK_INTERRUPT);
+		break;
+	case TIMER_RASTER_INTERRUPT:
+		m_maincpu->set_input_line(5, HOLD_LINE);    // Raster Line IRQ
+		machine().primary_screen->update_partial(machine().primary_screen->vpos());
+		m_raster_interrupt_timer->adjust(machine().primary_screen->frame_period());
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in fuuki16_state::device_timer");
+	}
 }
 
 
@@ -442,10 +433,7 @@ void fuuki16_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 3, &ROM[0x10000], 0x8000);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
-	m_raster_interrupt_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(fuuki16_state::raster_interrupt_callback),this));
+	m_raster_interrupt_timer = timer_alloc(TIMER_RASTER_INTERRUPT);
 }
 
 
@@ -453,8 +441,8 @@ void fuuki16_state::machine_reset()
 {
 	const rectangle &visarea = machine().primary_screen->visible_area();
 
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(248), timer_expired_delegate(FUNC(fuuki16_state::level_1_interrupt_callback),this));
-	machine().scheduler().timer_set(machine().primary_screen->time_until_vblank_start(), timer_expired_delegate(FUNC(fuuki16_state::vblank_interrupt_callback),this));
+	timer_set(machine().primary_screen->time_until_pos(248), TIMER_LEVEL_1_INTERRUPT);
+	timer_set(machine().primary_screen->time_until_vblank_start(), TIMER_VBLANK_INTERRUPT);
 	m_raster_interrupt_timer->adjust(machine().primary_screen->time_until_pos(0, visarea.max_x + 1));
 }
 
@@ -462,10 +450,10 @@ void fuuki16_state::machine_reset()
 static MACHINE_CONFIG_START( fuuki16, fuuki16_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 16000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_32MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(fuuki16_map)
 
-	MCFG_CPU_ADD("audiocpu", Z80, 3000000)  /* ? */
+	MCFG_CPU_ADD("audiocpu", Z80, XTAL_12MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(fuuki16_sound_map)
 	MCFG_CPU_IO_MAP(fuuki16_sound_io_map)
 
@@ -484,12 +472,12 @@ static MACHINE_CONFIG_START( fuuki16, fuuki16_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("ym1", YM2203, 4000000)
+	MCFG_SOUND_ADD("ym1", YM2203, XTAL_12MHz / 3)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.15)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.15)
 
-	MCFG_SOUND_ADD("ym2", YM3812, 4000000)
-	MCFG_SOUND_CONFIG(fuuki16_ym3812_intf)
+	MCFG_SOUND_ADD("ym2", YM3812, XTAL_12MHz / 3)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(fuuki16_state, soundirq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.30)
 
@@ -672,6 +660,6 @@ ROM_END
 
 ***************************************************************************/
 
-GAME( 1995, gogomile, 0,        fuuki16, gogomile, driver_device, 0, ROT0, "Fuuki", "Go Go! Mile Smile", GAME_IMPERFECT_SOUND )
-GAME( 1995, gogomilej,gogomile, fuuki16, gogomilej, driver_device,0, ROT0, "Fuuki", "Susume! Mile Smile (Japan)", GAME_IMPERFECT_SOUND )
+GAME( 1995, gogomile, 0,        fuuki16, gogomile, driver_device, 0, ROT0, "Fuuki", "Go Go! Mile Smile", 0 )
+GAME( 1995, gogomilej,gogomile, fuuki16, gogomilej, driver_device,0, ROT0, "Fuuki", "Susume! Mile Smile (Japan)", 0 )
 GAME( 1996, pbancho,  0,        fuuki16, pbancho, driver_device,  0, ROT0, "Fuuki", "Gyakuten!! Puzzle Bancho (Japan)", 0)

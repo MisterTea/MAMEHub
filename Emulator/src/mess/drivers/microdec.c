@@ -17,7 +17,8 @@ class microdec_state : public driver_device
 public:
 	microdec_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_terminal(*this, TERMINAL_TAG) { }
+			m_terminal(*this, TERMINAL_TAG) ,
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_READ8_MEMBER(terminal_status_r);
 	DECLARE_READ8_MEMBER(terminal_r);
@@ -29,6 +30,7 @@ public:
 
 	virtual void machine_start();
 	void fdc_irq(bool state);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -101,8 +103,8 @@ static MACHINE_CONFIG_START( microdec, microdec_state )
 	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
 
 	MCFG_UPD765A_ADD("upd765", true, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", microdec_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", microdec_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", microdec_floppies, "525hd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", microdec_floppies, "525hd", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
 
 /* ROM definition */

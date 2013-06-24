@@ -44,7 +44,6 @@ Note:   if MAME_DEBUG is defined, pressing Z with:
 
 WRITE16_MEMBER(blmbycar_state::blmbycar_palette_w)
 {
-
 	data = COMBINE_DATA(&m_paletteram[offset]);
 	palette_set_color_rgb( machine(), offset, pal4bit(data >> 4), pal4bit(data >> 0), pal4bit(data >> 8));
 }
@@ -120,7 +119,6 @@ WRITE16_MEMBER(blmbycar_state::blmbycar_vram_1_w)
 
 void blmbycar_state::video_start()
 {
-
 	m_tilemap_0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(blmbycar_state::get_tile_info_0),this), TILEMAP_SCAN_ROWS, 16, 16, DIM_NX, DIM_NY );
 	m_tilemap_1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(blmbycar_state::get_tile_info_1),this), TILEMAP_SCAN_ROWS, 16, 16, DIM_NX, DIM_NY );
 
@@ -159,13 +157,12 @@ void blmbycar_state::video_start()
 
 ***************************************************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void blmbycar_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	blmbycar_state *state = machine.driver_data<blmbycar_state>();
 	UINT16 *source, *finish;
 
-	source = state->m_spriteram + 0x6 / 2;              // !
-	finish = state->m_spriteram + state->m_spriteram.bytes() / 2 - 8 / 2;
+	source = m_spriteram + 0x6 / 2;              // !
+	finish = m_spriteram + m_spriteram.bytes() / 2 - 8 / 2;
 
 	/* Find "the end of sprites" marker */
 
@@ -175,7 +172,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 	/* Draw sprites in reverse order for pdrawfgfx */
 
 	source -= 8 / 2;
-	finish = state->m_spriteram;
+	finish = m_spriteram;
 
 	for ( ; source >= finish; source -= 8 / 2 )
 	{
@@ -194,12 +191,12 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		x   = (x & 0x1ff) - 0x10;
 		y   = 0xf0 - ((y & 0xff)  - (y & 0x100));
 
-		pdrawgfx_transpen(bitmap, cliprect, machine.gfx[0],
+		pdrawgfx_transpen(bitmap, cliprect, machine().gfx[0],
 					code,
 					0x20 + (attr & 0xf),
 					flipx, flipy,
 					x, y,
-					machine.priority_bitmap,
+					machine().priority_bitmap,
 					pri_mask,0);
 	}
 }
@@ -249,7 +246,7 @@ if (machine().input().code_pressed(KEYCODE_Z))
 			m_tilemap_1->draw(bitmap, cliprect, i, i);
 
 	if (layers_ctrl & 8)
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 
 	return 0;
 }

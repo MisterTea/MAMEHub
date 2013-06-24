@@ -381,7 +381,7 @@ WRITE8_MEMBER( cuda_device::pram_w )
 //-------------------------------------------------
 
 cuda_device::cuda_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, CUDA, "Apple Cuda", tag, owner, clock),
+	: device_t(mconfig, CUDA, "Apple Cuda", tag, owner, clock, "cuda", __FILE__),
 	device_nvram_interface(mconfig, *this),
 	m_maincpu(*this, CUDA_CPU_TAG)
 {
@@ -466,6 +466,8 @@ void cuda_device::device_reset()
 	timer_ctrl = 0;
 	timer_counter = 32;
 	last_adb_time = m_maincpu->total_cycles();
+	onesec = 0;
+	last_adb = 0;
 }
 
 void cuda_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
@@ -505,8 +507,6 @@ void cuda_device::device_timer(emu_timer &timer, device_timer_id id, int param, 
 
 void cuda_device::device_config_complete()
 {
-	m_shortname = "cuda";
-
 	// inherit a copy of the static data
 	const cuda_interface *intf = reinterpret_cast<const cuda_interface *>(static_config());
 	if (intf != NULL)

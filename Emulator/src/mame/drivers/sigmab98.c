@@ -103,11 +103,13 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
 		m_spriteram(*this, "spriteram"),
-		m_nvram(*this, "nvram"){ }
+		m_nvram(*this, "nvram"),
+		m_eeprom(*this, "eeprom"){ }
 
 	required_device<cpu_device> m_maincpu;
 	optional_shared_ptr<UINT8> m_spriteram;
 	required_shared_ptr<UINT8> m_nvram;
+	required_device<eeprom_device> m_eeprom;
 
 	UINT8 m_reg;
 	UINT8 m_rombank;
@@ -179,6 +181,7 @@ public:
 	void screen_eof_sammymdl(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(gegege_vblank_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(sammymd1_irq);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int pri_mask);
 };
 
 
@@ -224,11 +227,10 @@ public:
 
 ***************************************************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int pri_mask)
+void sigmab98_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int pri_mask)
 {
-	sigmab98_state *state = machine.driver_data<sigmab98_state>();
-	UINT8 *end      =   state->m_spriteram - 0x10;
-	UINT8 *s        =   end + state->m_spriteram.bytes();
+	UINT8 *end      =   m_spriteram - 0x10;
+	UINT8 *s        =   end + m_spriteram.bytes();
 
 	for ( ; s != end; s -= 0x10 )
 	{
@@ -296,7 +298,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		{
 			for (x = x0; x != x1; x += dx)
 			{
-				drawgfxzoom_transpen(   bitmap, cliprect, machine.gfx[gfx],
+				drawgfxzoom_transpen(   bitmap, cliprect, machine().gfx[gfx],
 										code++, color,
 										flipx, flipy,
 										(sx + x * dim) / 0x10000, (sy + y * dim) / 0x10000,
@@ -325,10 +327,10 @@ UINT32 sigmab98_state::screen_update_sigmab98(screen_device &screen, bitmap_ind1
 	bitmap.fill(get_black_pen(machine()), cliprect);
 
 	// Draw from priority 3 (bottom, converted to a bitmask) to priority 0 (top)
-	draw_sprites(machine(), bitmap, cliprect, layers_ctrl & 8);
-	draw_sprites(machine(), bitmap, cliprect, layers_ctrl & 4);
-	draw_sprites(machine(), bitmap, cliprect, layers_ctrl & 2);
-	draw_sprites(machine(), bitmap, cliprect, layers_ctrl & 1);
+	draw_sprites(bitmap, cliprect, layers_ctrl & 8);
+	draw_sprites(bitmap, cliprect, layers_ctrl & 4);
+	draw_sprites(bitmap, cliprect, layers_ctrl & 2);
+	draw_sprites(bitmap, cliprect, layers_ctrl & 1);
 
 	return 0;
 }
@@ -443,17 +445,15 @@ void sigmab98_state::show_outputs()
 // Port c0
 WRITE8_MEMBER(sigmab98_state::eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	// latch the bit
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->write_bit(data & 0x40);
+	m_eeprom->write_bit(data & 0x40);
 
 	// reset line asserted: reset.
 //  if ((m_c0 ^ data) & 0x20)
-		eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE);
 
 	// clock line asserted: write latch or select next bit to read
-	eeprom->set_clock_line((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->set_clock_line((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
 
 	m_c0 = data;
 	//show_outputs(state);
@@ -521,7 +521,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( gegege_io_map, AS_IO, 8, sigmab98_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 
-	AM_RANGE( 0x00, 0x01 ) AM_DEVWRITE_LEGACY("ymz", ymz280b_w )
+	AM_RANGE( 0x00, 0x01 ) AM_DEVWRITE("ymz", ymz280b_device, write )
 
 	AM_RANGE( 0xa0, 0xa1 ) AM_READWRITE(regs_r,  regs_w )
 //  AM_RANGE( 0xa2, 0xa3 )
@@ -644,23 +644,19 @@ READ8_MEMBER(sigmab98_state::animalc_rambank_r)
 
 READ8_MEMBER(sigmab98_state::sammymdl_eeprom_r)
 {
-	device_t *device = machine().device("eeprom");
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	return eeprom->read_bit() ? 0x80 : 0;
+	return m_eeprom->read_bit() ? 0x80 : 0;
 }
 
 WRITE8_MEMBER(sigmab98_state::sammymdl_eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	// latch the bit
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->write_bit(data & 0x40);
+	m_eeprom->write_bit(data & 0x40);
 
 	// reset line asserted: reset.
-	eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE);
+	m_eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE);
 
 	// clock line asserted: write latch or select next bit to read
-	eeprom->set_clock_line((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->set_clock_line((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
 
 	if (data & 0x8f)
 		logerror("%s: unknown eeeprom bits written %02x\n", machine().describe_context(), data);
@@ -1747,7 +1743,7 @@ static const eeprom_interface eeprom_interface_93C46_8bit_delay =
 
 MACHINE_RESET_MEMBER(sigmab98_state,sammymdl)
 {
-	machine().device("maincpu")->state().set_state_int(Z80_PC, 0x400);  // code starts at 400 ??? (000 = cart header)
+	m_maincpu->set_state_int(Z80_PC, 0x400);  // code starts at 400 ??? (000 = cart header)
 }
 
 static MACHINE_CONFIG_START( sammymdl, sigmab98_state )
@@ -1911,7 +1907,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(sigmab98_state,gegege)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	// Protection?
 	rom[0x0bdd] = 0xc9;
@@ -1929,14 +1925,14 @@ DRIVER_INIT_MEMBER(sigmab98_state,gegege)
 	rom[0x8165] = 0x00;
 
 	// ROM banks
-	machine().root_device().membank("rombank")->configure_entries(0, 0x18, rom + 0x8000, 0x1000);
-	machine().root_device().membank("rombank")->set_entry(0);
+	membank("rombank")->configure_entries(0, 0x18, rom + 0x8000, 0x1000);
+	membank("rombank")->set_entry(0);
 
 	// RAM banks
 	UINT8 *bankedram = auto_alloc_array(machine(), UINT8, 0x800 * 2);
 
-	machine().root_device().membank("rambank")->configure_entries(0, 2, bankedram, 0x800);
-	machine().root_device().membank("rambank")->set_entry(0);
+	membank("rambank")->configure_entries(0, 2, bankedram, 0x800);
+	membank("rambank")->set_entry(0);
 }
 
 
@@ -1960,7 +1956,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(sigmab98_state,pepsiman)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	// Protection?
 	rom[0x058a] = 0xc9;
@@ -1978,14 +1974,14 @@ DRIVER_INIT_MEMBER(sigmab98_state,pepsiman)
 	rom[0x8165] = 0x00;
 
 	// ROM banks
-	machine().root_device().membank("rombank")->configure_entries(0, 0x18, rom + 0x8000, 0x1000);
-	machine().root_device().membank("rombank")->set_entry(0);
+	membank("rombank")->configure_entries(0, 0x18, rom + 0x8000, 0x1000);
+	membank("rombank")->set_entry(0);
 
 	// RAM banks
 	UINT8 *bankedram = auto_alloc_array(machine(), UINT8, 0x800 * 2);
 
-	machine().root_device().membank("rambank")->configure_entries(0, 2, bankedram, 0x800);
-	machine().root_device().membank("rambank")->set_entry(0);
+	membank("rambank")->configure_entries(0, 2, bankedram, 0x800);
+	membank("rambank")->set_entry(0);
 }
 
 
@@ -2011,7 +2007,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(sigmab98_state,ucytokyu)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	// Protection?
 	rom[0x0bfa] = 0xc9;
@@ -2029,14 +2025,14 @@ DRIVER_INIT_MEMBER(sigmab98_state,ucytokyu)
 	rom[0x8165] = 0x00;
 
 	// ROM banks
-	machine().root_device().membank("rombank")->configure_entries(0, 0x18, rom + 0x8000, 0x1000);
-	machine().root_device().membank("rombank")->set_entry(0);
+	membank("rombank")->configure_entries(0, 0x18, rom + 0x8000, 0x1000);
+	membank("rombank")->set_entry(0);
 
 	// RAM banks
 	UINT8 *bankedram = auto_alloc_array(machine(), UINT8, 0x800 * 2);
 
-	machine().root_device().membank("rambank")->configure_entries(0, 2, bankedram, 0x800);
-	machine().root_device().membank("rambank")->set_entry(0);
+	membank("rambank")->configure_entries(0, 2, bankedram, 0x800);
+	membank("rambank")->set_entry(0);
 }
 
 

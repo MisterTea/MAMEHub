@@ -19,7 +19,7 @@
 
 PALETTE_INIT_MEMBER(ojankohs_state,ojankoy)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 	int bit0, bit1, bit2, bit3, bit4, r, g, b;
 
@@ -122,7 +122,6 @@ WRITE8_MEMBER(ojankohs_state::ojankohs_colorram_w)
 
 WRITE8_MEMBER(ojankohs_state::ojankohs_gfxreg_w)
 {
-
 	if (m_gfxreg != data)
 	{
 		m_gfxreg = data;
@@ -132,10 +131,8 @@ WRITE8_MEMBER(ojankohs_state::ojankohs_gfxreg_w)
 
 WRITE8_MEMBER(ojankohs_state::ojankohs_flipscreen_w)
 {
-
 	if (m_flipscreen != BIT(data, 0))
 	{
-
 		m_flipscreen = BIT(data, 0);
 
 		machine().tilemap().set_flip_all(m_flipscreen ? (TILEMAP_FLIPX | TILEMAP_FLIPY) : 0);
@@ -184,34 +181,33 @@ TILE_GET_INFO_MEMBER(ojankohs_state::ojankoy_get_tile_info)
 
 ******************************************************************************/
 
-void ojankoc_flipscreen( address_space &space, int data )
+void ojankohs_state::ojankoc_flipscreen( address_space &space, int data )
 {
-	ojankohs_state *state = space.machine().driver_data<ojankohs_state>();
 	int x, y;
 	UINT8 color1, color2;
 
-	state->m_flipscreen = BIT(data, 7);
+	m_flipscreen = BIT(data, 7);
 
-	if (state->m_flipscreen == state->m_flipscreen_old)
+	if (m_flipscreen == m_flipscreen_old)
 		return;
 
 	for (y = 0; y < 0x40; y++)
 	{
 		for (x = 0; x < 0x100; x++)
 		{
-			color1 = state->m_videoram[0x0000 + ((y * 256) + x)];
-			color2 = state->m_videoram[0x3fff - ((y * 256) + x)];
-			state->ojankoc_videoram_w(space, 0x0000 + ((y * 256) + x), color2);
-			state->ojankoc_videoram_w(space, 0x3fff - ((y * 256) + x), color1);
+			color1 = m_videoram[0x0000 + ((y * 256) + x)];
+			color2 = m_videoram[0x3fff - ((y * 256) + x)];
+			ojankoc_videoram_w(space, 0x0000 + ((y * 256) + x), color2);
+			ojankoc_videoram_w(space, 0x3fff - ((y * 256) + x), color1);
 
-			color1 = state->m_videoram[0x4000 + ((y * 256) + x)];
-			color2 = state->m_videoram[0x7fff - ((y * 256) + x)];
-			state->ojankoc_videoram_w(space, 0x4000 + ((y * 256) + x), color2);
-			state->ojankoc_videoram_w(space, 0x7fff - ((y * 256) + x), color1);
+			color1 = m_videoram[0x4000 + ((y * 256) + x)];
+			color2 = m_videoram[0x7fff - ((y * 256) + x)];
+			ojankoc_videoram_w(space, 0x4000 + ((y * 256) + x), color2);
+			ojankoc_videoram_w(space, 0x7fff - ((y * 256) + x), color1);
 		}
 	}
 
-	state->m_flipscreen_old = state->m_flipscreen;
+	m_flipscreen_old = m_flipscreen;
 }
 
 WRITE8_MEMBER(ojankohs_state::ojankoc_videoram_w)
@@ -259,7 +255,6 @@ WRITE8_MEMBER(ojankohs_state::ojankoc_videoram_w)
 
 VIDEO_START_MEMBER(ojankohs_state,ojankohs)
 {
-
 	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ojankohs_state::ojankohs_get_tile_info),this), TILEMAP_SCAN_ROWS,  8, 4, 64, 64);
 //  m_videoram = auto_alloc_array(machine(), UINT8, 0x1000);
 //  m_colorram = auto_alloc_array(machine(), UINT8, 0x1000);
@@ -268,7 +263,6 @@ VIDEO_START_MEMBER(ojankohs_state,ojankohs)
 
 VIDEO_START_MEMBER(ojankohs_state,ojankoy)
 {
-
 	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ojankohs_state::ojankoy_get_tile_info),this), TILEMAP_SCAN_ROWS,  8, 4, 64, 64);
 //  m_videoram = auto_alloc_array(machine(), UINT8, 0x2000);
 //  m_colorram = auto_alloc_array(machine(), UINT8, 0x1000);
@@ -276,7 +270,6 @@ VIDEO_START_MEMBER(ojankohs_state,ojankoy)
 
 VIDEO_START_MEMBER(ojankohs_state,ojankoc)
 {
-
 	machine().primary_screen->register_screen_bitmap(m_tmpbitmap);
 	m_videoram.allocate(0x8000);
 	m_paletteram.allocate(0x20);
@@ -293,7 +286,6 @@ VIDEO_START_MEMBER(ojankohs_state,ojankoc)
 
 UINT32 ojankohs_state::screen_update_ojankohs(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_tilemap->set_scrollx(0, m_scrollx);
 	m_tilemap->set_scrolly(0, m_scrolly);
 
@@ -307,7 +299,7 @@ UINT32 ojankohs_state::screen_update_ojankoc(screen_device &screen, bitmap_ind16
 
 	if (m_screen_refresh)
 	{
-		address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+		address_space &space = m_maincpu->space(AS_PROGRAM);
 
 		/* redraw bitmap */
 		for (offs = 0; offs < 0x8000; offs++)

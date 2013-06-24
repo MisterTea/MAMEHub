@@ -136,7 +136,8 @@ class sigmab52_state : public driver_device
 {
 public:
 	sigmab52_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	int m_latch;
 	unsigned int m_acrtc_data;
@@ -151,6 +152,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_jwildb52(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(timer_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -163,7 +165,6 @@ public:
 
 void sigmab52_state::video_start()
 {
-
 }
 
 
@@ -191,7 +192,6 @@ UINT32 sigmab52_state::screen_update_jwildb52(screen_device &screen, bitmap_ind1
 	{
 		for (x = 0; x < (hd63484_regs_r(hd63484, space, 0xca/2, 0xffff) & 0x0fff) * 4; x += 4)
 		{
-
 			src = hd63484_ram_r(hd63484, space, b & (HD63484_RAM_SIZE - 1), 0xffff);
 
 			bitmap.pix16(y, x    ) = ((src & 0x000f) >>  0) << 0;
@@ -238,7 +238,6 @@ if (!machine().input().code_pressed(KEYCODE_O))
 
 void sigmab52_state::palette_init()
 {
-
 }
 
 
@@ -301,7 +300,7 @@ READ8_MEMBER(sigmab52_state::unk_f700_r)
 
 WRITE8_MEMBER(sigmab52_state::unk_f710_w)
 {
-	membank("bank1" )->set_base(&machine().root_device().memregion("maincpu")->base()[0x10000 + ((data&0x80)?0x4000:0x0000)]);
+	membank("bank1" )->set_base(&memregion("maincpu")->base()[0x10000 + ((data&0x80)?0x4000:0x0000)]);
 }
 
 READ8_MEMBER(sigmab52_state::unk_f721_r)
@@ -539,7 +538,7 @@ INPUT_PORTS_END
 
 INTERRUPT_GEN_MEMBER(sigmab52_state::timer_irq)
 {
-	generic_pulse_irq_line(device.execute(), M6809_IRQ_LINE, 1);
+	device.execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 }
 
 
@@ -549,11 +548,11 @@ INTERRUPT_GEN_MEMBER(sigmab52_state::timer_irq)
 
 void sigmab52_state::machine_start()
 {
-	machine().root_device().membank("bank1")->set_base(&machine().root_device().memregion("maincpu")->base()[0x10000 + 0x0000]);
+	membank("bank1")->set_base(&memregion("maincpu")->base()[0x10000 + 0x0000]);
 
-	machine().root_device().membank("bank2")->set_base(&machine().root_device().memregion("maincpu")->base()[0x10000 + 0xf800]);
+	membank("bank2")->set_base(&memregion("maincpu")->base()[0x10000 + 0xf800]);
 
-	machine().root_device().membank("bank3")->set_base(&machine().root_device().memregion("maincpu")->base()[0x10000 + 0x8000]);
+	membank("bank3")->set_base(&memregion("maincpu")->base()[0x10000 + 0x8000]);
 
 /*
 
@@ -567,7 +566,7 @@ void sigmab52_state::machine_start()
 */
 
 	{
-		UINT16 *rom = (UINT16*)machine().root_device().memregion("gfx1")->base();
+		UINT16 *rom = (UINT16*)memregion("gfx1")->base();
 		int i;
 
 		device_t *hd63484 = machine().device("hd63484");

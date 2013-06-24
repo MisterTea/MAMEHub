@@ -30,6 +30,7 @@ struct VS_INPUT
 	float4 Position : POSITION;
 	float4 Color : COLOR0;
 	float2 TexCoord : TEXCOORD0;
+	float2 Unused : TEXCOORD1;
 };
 
 struct PS_INPUT
@@ -41,11 +42,10 @@ struct PS_INPUT
 // Passthrough Vertex Shader
 //-----------------------------------------------------------------------------
 
-float TargetWidth;
-float TargetHeight;
+uniform float TargetWidth;
+uniform float TargetHeight;
 
-float RawWidth;
-float RawHeight;
+uniform float2 RawDims;
 
 VS_OUTPUT vs_main(VS_INPUT Input)
 {
@@ -70,14 +70,13 @@ VS_OUTPUT vs_main(VS_INPUT Input)
 
 float4 ps_main(PS_INPUT Input) : COLOR
 {
-	float2 RawDims = float2(RawWidth, RawHeight);
-	float2 TexCoord = Input.TexCoord * RawDims;
-	TexCoord -= frac(TexCoord);
-	TexCoord += 0.5f;
-	TexCoord /= RawDims;
-	
-	float4 Center = tex2D(DiffuseSampler, TexCoord);
-	return Center;
+	//float2 TexCoord = Input.TexCoord * RawDims;
+	//TexCoord -= frac(TexCoord);
+	//TexCoord += 0.5f;
+	//TexCoord /= RawDims;
+	//
+	//return tex2D(DiffuseSampler, TexCoord);
+	return tex2D(DiffuseSampler, Input.TexCoord);
 }
 
 //-----------------------------------------------------------------------------

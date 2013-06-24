@@ -10,6 +10,7 @@
 #include "cpu/mcs48/mcs48.h"
 #include "cpu/m68000/m68000.h"
 #include "machine/ctronics.h"
+#include "machine/keyboard.h"
 #include "machine/pic8259.h"
 #include "machine/ram.h"
 #include "machine/trs80m2kb.h"
@@ -51,6 +52,8 @@ public:
 			m_floppy(NULL),
 			m_ram(*this, RAM_TAG),
 			m_kb(*this, TRS80M2_KEYBOARD_TAG),
+			m_rom(*this, Z80_TAG),
+			m_char_rom(*this, MC6845_TAG),
 			m_video_ram(*this, "video_ram")
 	{ }
 
@@ -68,6 +71,8 @@ public:
 	floppy_image_device *m_floppy;
 	required_device<ram_device> m_ram;
 	required_device<trs80m2_keyboard_device> m_kb;
+	required_memory_region m_rom;
+	required_memory_region m_char_rom;
 	optional_shared_ptr<UINT8> m_video_ram;
 
 	virtual void machine_start();
@@ -98,8 +103,7 @@ public:
 	void fdc_intrq_w(bool state);
 	void fdc_drq_w(bool state);
 	DECLARE_WRITE_LINE_MEMBER( kb_clock_w );
-
-	void scan_keyboard();
+	DECLARE_WRITE8_MEMBER( kbd_w );
 
 	// memory state
 	int m_boot_rom;
@@ -115,14 +119,15 @@ public:
 	int m_kbirq;
 
 	// video state
-	const UINT8 *m_char_rom;
 	int m_blnkvid;
 	int m_80_40_char_en;
 	int m_de;
 	int m_rtc_int;
 	int m_enable_rtc_int;
-	TIMER_DEVICE_CALLBACK_MEMBER(trs80m2_keyboard_tick);
+
 	TIMER_DEVICE_CALLBACK_MEMBER(ctc_tick);
+	DECLARE_READ8_MEMBER(io_read_byte);
+	DECLARE_WRITE8_MEMBER(io_write_byte);
 };
 
 class trs80m16_state : public trs80m2_state
@@ -141,6 +146,8 @@ public:
 
 	DECLARE_WRITE8_MEMBER( ual_w );
 	DECLARE_WRITE8_MEMBER( tcl_w );
+
+	IRQ_CALLBACK_MEMBER(trs80m16_irq_callback);
 
 	UINT16 m_ual;
 	UINT8 m_limit[2];

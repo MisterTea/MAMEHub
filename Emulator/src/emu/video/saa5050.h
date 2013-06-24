@@ -74,7 +74,7 @@ class saa5050_device :  public device_t,
 {
 public:
 	// construction/destruction
-	saa5050_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant);
+	saa5050_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
 	saa5050_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	// optional information overrides
@@ -102,6 +102,7 @@ protected:
 	// device-level overrides
 	virtual void device_config_complete();
 	virtual void device_start();
+	virtual void device_reset();
 
 private:
 	void process_control_character(UINT8 data);

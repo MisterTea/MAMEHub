@@ -34,7 +34,7 @@
 
 void brkthru_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -88,7 +88,6 @@ TILE_GET_INFO_MEMBER(brkthru_state::get_bg_tile_info)
 
 WRITE8_MEMBER(brkthru_state::brkthru_bgram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset / 2);
 }
@@ -102,14 +101,12 @@ TILE_GET_INFO_MEMBER(brkthru_state::get_fg_tile_info)
 
 WRITE8_MEMBER(brkthru_state::brkthru_fgram_w)
 {
-
 	m_fg_videoram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
 void brkthru_state::video_start()
 {
-
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(brkthru_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(brkthru_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 32, 16);
 
@@ -120,7 +117,6 @@ void brkthru_state::video_start()
 
 WRITE8_MEMBER(brkthru_state::brkthru_1800_w)
 {
-
 	if (offset == 0)    /* low 8 bits of scroll */
 		m_bgscroll = (m_bgscroll & 0x100) | data;
 	else if (offset == 1)
@@ -151,7 +147,7 @@ WRITE8_MEMBER(brkthru_state::brkthru_1800_w)
 
 
 #if 0
-static void show_register( bitmap_ind16 &bitmap, int x, int y, UINT32 data )
+void brkthru_state::show_register( bitmap_ind16 &bitmap, int x, int y, UINT32 data )
 {
 	char buf[5];
 
@@ -161,9 +157,8 @@ static void show_register( bitmap_ind16 &bitmap, int x, int y, UINT32 data )
 #endif
 
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int prio )
+void brkthru_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int prio )
 {
-	brkthru_state *state = machine.driver_data<brkthru_state>();
 	int offs;
 	/* Draw the sprites. Note that it is important to draw them exactly in this */
 	/* order, to have the correct priorities. */
@@ -180,64 +175,64 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 	    ---- ---- ---- ---- ---- ---- xxxx xxxx = X position
 	*/
 
-	for (offs = 0;offs < state->m_spriteram.bytes(); offs += 4)
+	for (offs = 0;offs < m_spriteram.bytes(); offs += 4)
 	{
-		if ((state->m_spriteram[offs] & 0x09) == prio)  /* Enable && Low Priority */
+		if ((m_spriteram[offs] & 0x09) == prio)  /* Enable && Low Priority */
 		{
 			int sx, sy, code, color;
 
-			sx = 240 - state->m_spriteram[offs + 3];
+			sx = 240 - m_spriteram[offs + 3];
 			if (sx < -7)
 				sx += 256;
 
-			sy = 240 - state->m_spriteram[offs + 2];
-			code = state->m_spriteram[offs + 1] + 128 * (state->m_spriteram[offs] & 0x06);
-			color = (state->m_spriteram[offs] & 0xe0) >> 5;
-			if (state->m_flipscreen)
+			sy = 240 - m_spriteram[offs + 2];
+			code = m_spriteram[offs + 1] + 128 * (m_spriteram[offs] & 0x06);
+			color = (m_spriteram[offs] & 0xe0) >> 5;
+			if (m_flipscreen)
 			{
 				sx = 240 - sx;
 				sy = 240 - sy;
 			}
 
-			if (state->m_spriteram[offs] & 0x10)    /* double height */
+			if (m_spriteram[offs] & 0x10)    /* double height */
 			{
-				drawgfx_transpen(bitmap,cliprect,machine.gfx[9],
+				drawgfx_transpen(bitmap,cliprect,machine().gfx[9],
 						code & ~1,
 						color,
-						state->m_flipscreen, state->m_flipscreen,
-						sx, state->m_flipscreen ? sy + 16 : sy - 16,0);
-				drawgfx_transpen(bitmap,cliprect,machine.gfx[9],
+						m_flipscreen, m_flipscreen,
+						sx, m_flipscreen ? sy + 16 : sy - 16,0);
+				drawgfx_transpen(bitmap,cliprect,machine().gfx[9],
 						code | 1,
 						color,
-						state->m_flipscreen, state->m_flipscreen,
+						m_flipscreen, m_flipscreen,
 						sx,sy,0);
 
 				/* redraw with wraparound */
-				drawgfx_transpen(bitmap,cliprect,machine.gfx[9],
+				drawgfx_transpen(bitmap,cliprect,machine().gfx[9],
 						code & ~1,
 						color,
-						state->m_flipscreen, state->m_flipscreen,
-						sx,(state->m_flipscreen ? sy + 16 : sy - 16) + 256,0);
-				drawgfx_transpen(bitmap,cliprect,machine.gfx[9],
+						m_flipscreen, m_flipscreen,
+						sx,(m_flipscreen ? sy + 16 : sy - 16) + 256,0);
+				drawgfx_transpen(bitmap,cliprect,machine().gfx[9],
 						code | 1,
 						color,
-						state->m_flipscreen, state->m_flipscreen,
+						m_flipscreen, m_flipscreen,
 						sx,sy + 256,0);
 
 			}
 			else
 			{
-				drawgfx_transpen(bitmap,cliprect,machine.gfx[9],
+				drawgfx_transpen(bitmap,cliprect,machine().gfx[9],
 						code,
 						color,
-						state->m_flipscreen, state->m_flipscreen,
+						m_flipscreen, m_flipscreen,
 						sx,sy,0);
 
 				/* redraw with wraparound */
-				drawgfx_transpen(bitmap,cliprect,machine.gfx[9],
+				drawgfx_transpen(bitmap,cliprect,machine().gfx[9],
 						code,
 						color,
-						state->m_flipscreen, state->m_flipscreen,
+						m_flipscreen, m_flipscreen,
 						sx,sy + 256,0);
 
 			}
@@ -247,18 +242,17 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 UINT32 brkthru_state::screen_update_brkthru(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrollx(0, m_bgscroll);
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 
 	/* low priority sprites */
-	draw_sprites(machine(), bitmap, cliprect, 0x01);
+	draw_sprites(bitmap, cliprect, 0x01);
 
 	/* draw background over low priority sprites */
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	/* high priority sprites */
-	draw_sprites(machine(), bitmap, cliprect, 0x09);
+	draw_sprites(bitmap, cliprect, 0x09);
 
 	/* fg layer */
 	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);

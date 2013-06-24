@@ -243,9 +243,7 @@ Stephh's log (2006.09.20) :
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "sound/qsound.h"
-#include "sound/msm5205.h"
-#include "machine/timekpr.h"
-
+#include "machine/kabuki.h"
 #include "includes/cps1.h"       /* External CPS1 definitions */
 
 
@@ -261,6 +259,24 @@ READ16_MEMBER(cps_state::cps1_hack_dsw_r)
 {
 	static const char *const dswname[] = { "IN0", "DSWA", "DSWB", "DSWC" };
 	int in = ioport(dswname[offset])->read();
+	return (in << 8) | in;
+}
+
+READ16_MEMBER(cps_state::cps1_in1_r)
+{
+	int in = ioport("IN1")->read();
+	return (in << 8) | in;
+}
+
+READ16_MEMBER(cps_state::cps1_in2_r)
+{
+	int in = ioport("IN2")->read();
+	return (in << 8) | in;
+}
+
+READ16_MEMBER(cps_state::cps1_in3_r)
+{
+	int in = ioport("IN3")->read();
 	return (in << 8) | in;
 }
 
@@ -292,14 +308,15 @@ WRITE8_MEMBER(cps_state::cps1_snd_bankswitch_w)
 
 WRITE8_MEMBER(cps_state::cps1_oki_pin7_w)
 {
-	device_t *device = machine().device("oki");
-	downcast<okim6295_device *>(device)->set_pin7(data & 1);
+	m_oki->set_pin7(data & 1);
 }
 
 WRITE16_MEMBER(cps_state::cps1_soundlatch_w)
 {
 	if (ACCESSING_BITS_0_7)
 		soundlatch_byte_w(space, 0, data & 0xff);
+	else
+		soundlatch_byte_w(space, 0, data >> 8);
 }
 
 WRITE16_MEMBER(cps_state::cps1_soundlatch2_w)
@@ -376,7 +393,6 @@ READ16_MEMBER(cps_state::qsound_sharedram1_r)
 
 WRITE16_MEMBER(cps_state::qsound_sharedram1_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 		m_qsound_sharedram1[offset] = data;
 }
@@ -388,7 +404,6 @@ READ16_MEMBER(cps_state::qsound_sharedram2_r)
 
 WRITE16_MEMBER(cps_state::qsound_sharedram2_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 		m_qsound_sharedram2[offset] = data;
 }
@@ -624,6 +639,22 @@ ADDRESS_MAP_START( qsound_sub_map, AS_PROGRAM, 8, cps_state )   // used by cps2.
 	AM_RANGE(0xf000, 0xffff) AM_RAM AM_SHARE("qsound_ram2")
 ADDRESS_MAP_END
 
+static ADDRESS_MAP_START( sf2m3_map, AS_PROGRAM, 16, cps_state )
+	AM_RANGE(0x000000, 0x3fffff) AM_ROM
+	AM_RANGE(0x800010, 0x800011) AM_READ_PORT("IN1")            /* Player input ports */
+	AM_RANGE(0x800028, 0x80002f) AM_READ(cps1_hack_dsw_r)            /* System input ports / Dip Switches */
+	AM_RANGE(0x800030, 0x800037) AM_WRITE(cps1_coinctrl_w)
+	AM_RANGE(0x800100, 0x80013f) AM_WRITE(cps1_cps_a_w) AM_SHARE("cps_a_regs")  /* CPS-A custom */
+	AM_RANGE(0x800140, 0x80017f) AM_READWRITE(cps1_cps_b_r, cps1_cps_b_w) AM_SHARE("cps_b_regs")   /* CPS-B custom */
+	AM_RANGE(0x800186, 0x800187) AM_READ(cps1_in2_r)            /* Buttons 4,5,6 for both players */
+	AM_RANGE(0x800190, 0x800197) AM_WRITE(cps1_soundlatch_w)    /* Sound command */
+	AM_RANGE(0x800198, 0x80019f) AM_WRITE(cps1_soundlatch2_w)   /* Sound timer fade */
+	AM_RANGE(0x8001a0, 0x8001c3) AM_WRITE(cps1_cps_a_w)
+	AM_RANGE(0x8001c4, 0x8001c5) AM_WRITE(sf2m3_layer_w)
+	AM_RANGE(0x900000, 0x92ffff) AM_RAM_WRITE(cps1_gfxram_w) AM_SHARE("gfxram")
+	AM_RANGE(0xff0000, 0xffffff) AM_RAM
+ADDRESS_MAP_END
+
 /***********************************************************
              INPUT PORTS, DIPs
 ***********************************************************/
@@ -681,14 +712,14 @@ ADDRESS_MAP_END
 
 #define CPS1_DIFFICULTY_1(diploc) \
 	PORT_DIPNAME( 0x07, 0x04, DEF_STR( Difficulty ) ) PORT_DIPLOCATION(diploc ":1,2,3") \
-	PORT_DIPSETTING(    0x07, "1 (Easiest)" ) \
-	PORT_DIPSETTING(    0x06, "2" ) \
-	PORT_DIPSETTING(    0x05, "3" ) \
-	PORT_DIPSETTING(    0x04, "4 (Normal)" ) \
-	PORT_DIPSETTING(    0x03, "5" ) \
-	PORT_DIPSETTING(    0x02, "6" ) \
-	PORT_DIPSETTING(    0x01, "7" ) \
-	PORT_DIPSETTING(    0x00, "8 (Hardest)" )
+	PORT_DIPSETTING(    0x07, "0 (Easiest)" ) \
+	PORT_DIPSETTING(    0x06, "1" ) \
+	PORT_DIPSETTING(    0x05, "2" ) \
+	PORT_DIPSETTING(    0x04, "3 (Normal)" ) \
+	PORT_DIPSETTING(    0x03, "4" ) \
+	PORT_DIPSETTING(    0x02, "5" ) \
+	PORT_DIPSETTING(    0x01, "6" ) \
+	PORT_DIPSETTING(    0x00, "7 (Hardest)" )
 
 #define CPS1_DIFFICULTY_2(diploc) \
 	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Difficulty ) ) PORT_DIPLOCATION(diploc ":1,2,3") \
@@ -1732,7 +1763,7 @@ static INPUT_PORTS_START( nemo )
 	PORT_DIPSETTING(    0x00, DEF_STR( Test ) )                 // To enable the "debug" features
 INPUT_PORTS_END
 
-static INPUT_PORTS_START( sf2 )
+INPUT_PORTS_START( sf2 )
 	PORT_INCLUDE( cps1_6b )
 
 	PORT_MODIFY("IN0")
@@ -2040,7 +2071,7 @@ static INPUT_PORTS_START( captcomm )
 	PORT_DIPSETTING(    0x00, DEF_STR( Test ) )
 INPUT_PORTS_END
 
-static INPUT_PORTS_START( knights )
+INPUT_PORTS_START( knights )
 	PORT_INCLUDE( cps1_3players )
 
 	PORT_MODIFY("IN0")
@@ -2252,8 +2283,7 @@ static INPUT_PORTS_START( wof )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
 INPUT_PORTS_END
 
-/* Needs further checking */
-static INPUT_PORTS_START( dinopic )
+INPUT_PORTS_START( dino )
 	PORT_INCLUDE( cps1_3players )
 
 	PORT_MODIFY("IN0")
@@ -2273,10 +2303,6 @@ static INPUT_PORTS_START( dinopic )
 
 	PORT_START("IN3")      /* Player 4 - not used */
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
-INPUT_PORTS_END
-
-static INPUT_PORTS_START( dino )
-	PORT_INCLUDE( dinopic )
 
 	PORT_START( "EEPROMIN" )
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
@@ -2382,8 +2408,7 @@ static INPUT_PORTS_START( dinoh )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START3 )
 INPUT_PORTS_END
 
-/* Needs further checking */
-static INPUT_PORTS_START( punipic )
+INPUT_PORTS_START( punisher )
 	PORT_INCLUDE( cps1_2b )
 
 	PORT_MODIFY("IN0")
@@ -2406,10 +2431,6 @@ static INPUT_PORTS_START( punipic )
 
 	PORT_START("IN3")      /* Player 4 - not used */
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
-INPUT_PORTS_END
-
-static INPUT_PORTS_START( punisher )
-	PORT_INCLUDE( punipic )
 
 	PORT_START( "EEPROMIN" )
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
@@ -2487,7 +2508,7 @@ static INPUT_PORTS_START( punisherbz )
 INPUT_PORTS_END
 
 /* Needs further checking */
-static INPUT_PORTS_START( slammast )
+INPUT_PORTS_START( slammast )
 	PORT_INCLUDE( cps1_4players )
 
 	PORT_MODIFY("IN0")
@@ -3132,21 +3153,18 @@ GFXDECODE_END
 
 MACHINE_START_MEMBER(cps_state,common)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 }
 
 MACHINE_START_MEMBER(cps_state,cps1)
 {
 	MACHINE_START_CALL_MEMBER(common);
-	machine().root_device().membank("bank1")->configure_entries(0, 2, machine().root_device().memregion("audiocpu")->base() + 0x10000, 0x4000);
+	membank("bank1")->configure_entries(0, 2, memregion("audiocpu")->base() + 0x10000, 0x4000);
 }
 
 MACHINE_START_MEMBER(cps_state,qsound)
 {
 	MACHINE_START_CALL_MEMBER(common);
-	machine().root_device().membank("bank1")->configure_entries(0, 6, machine().root_device().memregion("audiocpu")->base() + 0x10000, 0x4000);
+	membank("bank1")->configure_entries(0, 6, memregion("audiocpu")->base() + 0x10000, 0x4000);
 }
 
 static MACHINE_CONFIG_START( cps1_10MHz, cps_state )
@@ -3238,174 +3256,16 @@ static MACHINE_CONFIG_DERIVED( qsound, cps1_12MHz )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
 
-/* bootlegs with PIC */
-
-static MACHINE_CONFIG_START( cpspicb, cps_state )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 12000000)
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state, cps1_interrupt)
-
-	MCFG_CPU_ADD("audiocpu", PIC16C57, 12000000)
-	MCFG_DEVICE_DISABLE() /* no valid dumps .. */
-
-	MCFG_MACHINE_START_OVERRIDE(cps_state,common)
-
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(64*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 2*8, 30*8-1 )
-	MCFG_SCREEN_UPDATE_DRIVER(cps_state, screen_update_cps1)
-	MCFG_SCREEN_VBLANK_DRIVER(cps_state, screen_eof_cps1)
-
-	MCFG_GFXDECODE(cps1)
-	MCFG_PALETTE_LENGTH(0xc00)
-
-	MCFG_VIDEO_START_OVERRIDE(cps_state,cps1)
-
-	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-
-	MCFG_OKIM6295_ADD("oki", 1000000, OKIM6295_PIN7_HIGH)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
-MACHINE_CONFIG_END
-
 static MACHINE_CONFIG_DERIVED( wofhfh, cps1_12MHz )
 
 	/* basic machine hardware */
 	MCFG_EEPROM_ADD("eeprom", qsound_eeprom_interface)
 MACHINE_CONFIG_END
 
-/*
-
-CPU:
-
-1x MC68000P12 ic65 main
-1x Z0840006PSC ic1 sound
-1x YM2151 ic29 sound
-1x YM3012 ic30 sound
-2x LM324 ic15,ic31 sound
-2x M5205 ic184,ic185 sound
-1x TDA2003 ic14 sound
-1x oscillator 24.000000MHz (close to main)
-1x oscillator 29.821000MHz (close to sound)
-
-ROMs
-
-5x M27C2001 1,2,3,4,5 dumped
-4x maskrom KA,KB,KC,KD not dumped
-
-RAMs:
-
-4x KM62256ALP ic112,ic113,ic168,ic170
-1x SYC6116L ic24
-1x MCM2018AN ic7,ic8,ic51,ic56,ic70,ic71,ic77,ic78
-
-PLDs:
-
-1x TPC1020AFN ic116 read protected
-3x GAL20V8A ic120,ic121,ic169 read protected
-3x GAL16V8A ic7,ic72,ic80 read protected
-
-Note:
-
-1x JAMMA edge connector
-2x 10 legs connector
-1x trimmer (volume)
-3x 8x2 switches DIP
-
-*/
-
-// The following is temporary - new code is on the way
-
-static ADDRESS_MAP_START( sf2mdt_z80map, AS_PROGRAM, 8, cps_state )
-	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0xd7ff) AM_RAM
-	AM_RANGE(0xd800, 0xd801) AM_DEVREADWRITE("2151", ym2151_device, read, write)
-	AM_RANGE(0xdc00, 0xdc00) AM_READ(soundlatch_byte_r)
-ADDRESS_MAP_END
-
-static void m5205_int1( device_t *device )
-{
-	cps_state *state = device->machine().driver_data<cps_state>();
-
-	msm5205_data_w(device, state->m_sample_buffer1 & 0x0f);
-	state->m_sample_buffer1 >>= 4;
-	state->m_sample_select1 ^= 1;
-	if (state->m_sample_select1 == 0)
-		state->m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
-}
-
-static void m5205_int2( device_t *device )
-{
-	cps_state *state = device->machine().driver_data<cps_state>();
-
-	msm5205_data_w(device, state->m_sample_buffer2 & 0x0f);
-	state->m_sample_buffer2 >>= 4;
-	state->m_sample_select2 ^= 1;
-}
-
-static const msm5205_interface msm5205_interface1 =
-{
-	m5205_int1, /* interrupt function */
-	MSM5205_S96_4B /* 4KHz 4-bit */
-};
-
-static const msm5205_interface msm5205_interface2 =
-{
-	m5205_int2, /* interrupt function */
-	MSM5205_S96_4B /* 4KHz 4-bit */
-};
-
-
-static MACHINE_CONFIG_START( knightsb, cps_state )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 24000000 / 2)
-	MCFG_CPU_PROGRAM_MAP(main_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", cps_state, cps1_interrupt)
-
-	MCFG_CPU_ADD("audiocpu", Z80, 29821000 / 8)
-	MCFG_CPU_PROGRAM_MAP(sf2mdt_z80map)
-
-	MCFG_MACHINE_START_OVERRIDE(cps_state,common)
-
-	/* video hardware */
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(64*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(8*8, (64-8)*8-1, 2*8, 30*8-1 )
-	MCFG_SCREEN_UPDATE_DRIVER(cps_state, screen_update_cps1)
-	MCFG_SCREEN_VBLANK_DRIVER(cps_state, screen_eof_cps1)
-
-	MCFG_GFXDECODE(cps1)
-	MCFG_PALETTE_LENGTH(0xc00)
-
-	MCFG_VIDEO_START_OVERRIDE(cps_state,cps1)
-
-	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-
-	MCFG_YM2151_ADD("2151", 29821000 / 8)
-	MCFG_YM2151_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
-	MCFG_SOUND_ROUTE(0, "mono", 0.35)
-	MCFG_SOUND_ROUTE(1, "mono", 0.35)
-
-	/* has 2x MSM5205 instead of OKI6295 */
-	MCFG_SOUND_ADD("msm1", MSM5205, 24000000/64)    /* ? */
-	MCFG_SOUND_CONFIG(msm5205_interface1)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-
-	MCFG_SOUND_ADD("msm2", MSM5205, 24000000/64)    /* ? */
-	MCFG_SOUND_CONFIG(msm5205_interface2)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+static MACHINE_CONFIG_DERIVED( sf2m3, cps1_12MHz)
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_PROGRAM_MAP(sf2m3_map)
 MACHINE_CONFIG_END
-
-
 
 
 /***************************************************************************
@@ -3591,6 +3451,48 @@ ROM_START( forgottnua )
 	ROM_LOAD16_BYTE( "lwu_15a.14g",    0x00001, 0x20000, CRC(f7ce2097) SHA1(44c06fabdb6de7d8afc2164458c90b0be9cf945d) )
 	ROM_LOAD16_BYTE( "lwu_10a.13f",    0x40000, 0x20000, CRC(8cb38c81) SHA1(1d36cab7d17ff778ee7dfcd9606a3a87f6906f21) )
 	ROM_LOAD16_BYTE( "lwu_14a.13g",    0x40001, 0x20000, CRC(d70ef9fd) SHA1(b393aa2a7bea440fdcf057ffc6ff233fc0d35d4b) )
+	ROM_LOAD16_WORD_SWAP( "lw-07.13e", 0x80000, 0x80000, CRC(fd252a26) SHA1(5cfb097984912a5167a8c7ec4c2e119b642f9970) )
+
+	ROM_REGION( 0x400000, "gfx", 0 )
+	ROMX_LOAD( "lw-01.9d",  0x000000, 0x80000, CRC(0318f298) SHA1(178ffd6da7bf845e30abf1bfc38a469cd319a73f) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "lw-08.9f",  0x000002, 0x80000, CRC(25a8e43c) SHA1(d57cee1fc508db2677e84882fb814e4d9ad20543) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "lw-05.9e",  0x000004, 0x80000, CRC(e4552fd7) SHA1(11147afc475904848458425661473586dd6f60cc) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "lw-12.9g",  0x000006, 0x80000, CRC(8e6a832b) SHA1(d63a1331fda2365f090fa31950098f321a720ea8) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "lw-02.12d", 0x200000, 0x80000, CRC(43e6c5c8) SHA1(d3e6c971de0477ec4e178adc82508208dd8b397f) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "lw-09.12f", 0x200002, 0x80000, CRC(899cb4ad) SHA1(95e61af338945e690f2a82746feba3871ea224eb) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "lw-06.12e", 0x200004, 0x80000, CRC(5b9edffc) SHA1(6fd8f4a3ab070733b52365ab1945bf86acb2bf62) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "lw-13.12g", 0x200006, 0x80000, CRC(8e058ef5) SHA1(00f2c0050fd106276ea5398511c5861ebfbc0d10) , ROM_GROUPWORD | ROM_SKIP(6) )
+
+	ROM_REGION( 0x8000, "stars", 0 )
+	ROM_COPY( "gfx", 0x200000, 0x000000, 0x8000 )
+
+	ROM_REGION( 0x18000, "audiocpu", 0 )
+	ROM_LOAD( "lwu_00.14a", 0x00000, 0x08000, CRC(59df2a63) SHA1(dfe1fffc7a17179a80a2ae623e93b30a7d6df20d) )    // == lw_00b.14a
+	ROM_CONTINUE(           0x10000, 0x08000 )
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "lw-03u.14c", 0x00000, 0x20000, CRC(807d051f) SHA1(720e4733787b9b11f4d1cdce0892b69475802844) )
+	ROM_LOAD( "lw-04u.13c", 0x20000, 0x20000, CRC(e6cd098e) SHA1(667f6e5736f76a1c4c450c4e2035574ea89d7910) )
+
+	ROM_REGION( 0x0200, "aboardplds", 0 )
+	ROM_LOAD( "buf1",         0x0000, 0x0117, CRC(eb122de7) SHA1(b26b5bfe258e3e184f069719f9fd008d6b8f6b9b) )
+	ROM_LOAD( "ioa1",         0x0000, 0x0117, CRC(59c7ee3b) SHA1(fbb887c5b4f5cb8df77cec710eaac2985bc482a6) )
+	ROM_LOAD( "prg1",         0x0000, 0x0117, CRC(f1129744) SHA1(a5300f301c1a08a7da768f0773fa0fe3f683b237) )
+	ROM_LOAD( "rom1",         0x0000, 0x0117, CRC(41dc73b9) SHA1(7d4c9f1693c821fbf84e32dd6ef62ddf14967845) )
+	ROM_LOAD( "sou1",         0x0000, 0x0117, CRC(84f4b2fe) SHA1(dcc9e86cc36316fe42eace02d6df75d08bc8bb6d) )
+
+	ROM_REGION( 0x0200, "bboardplds", 0 )
+	ROM_LOAD( "lwchr.3a",     0x0000, 0x0117, CRC(54ed4c39) SHA1(961309335dc1c84482ebe99ea938b32d3a6ae9a8) )
+	ROM_LOAD( "lwio.15e",     0x0000, 0x0117, CRC(ad52b90c) SHA1(f0fd6aeea515ee449320fe15684e6b3ab7f97bf4) )
+ROM_END
+
+/* B-Board 88618B-2 */
+ROM_START( forgottnuaa ) /* 1 byte difference to parent set. Region byte or pointer to the US "warning" screen at boot */
+	ROM_REGION( CODE_SIZE, "maincpu", 0 )
+	ROM_LOAD16_BYTE( "lwu_11aa.14f",   0x00000, 0x20000, CRC(73e920b7) SHA1(2df12fc1a66f488d06b0927db909da81466d7d07) ) // == lw11.12f
+	ROM_LOAD16_BYTE( "lwu_15aa.14g",   0x00001, 0x20000, CRC(e47524b9) SHA1(2fad1e59432cb63017caf691bb28eb7cbcecb3c6) ) // 1 byte difference to lw15.12h 0x8B6 == 0x07
+	ROM_LOAD16_BYTE( "lwu_10aa.13f",   0x40000, 0x20000, CRC(bea45994) SHA1(c419f65c5e0c11ae7508ec54412bf6b62fac4f72) ) // == lw10.13f
+	ROM_LOAD16_BYTE( "lwu_14aa.13g",   0x40001, 0x20000, CRC(539b2339) SHA1(8a9e452ef8ed05e0b956d36990266657d3077470) ) // == lw14.13h
 	ROM_LOAD16_WORD_SWAP( "lw-07.13e", 0x80000, 0x80000, CRC(fd252a26) SHA1(5cfb097984912a5167a8c7ec4c2e119b642f9970) )
 
 	ROM_REGION( 0x400000, "gfx", 0 )
@@ -3959,11 +3861,11 @@ ROM_END
 /* B-Board 89624B-3 */
 ROM_START( striderua )
 	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "30.30",         0x00000, 0x20000, CRC(66aec273) SHA1(576b1e9062874e68d68f8725949c151509eb6d56) )  /* different CRC from strider but same label, pcb verified */
-	ROM_LOAD16_BYTE( "35.35",         0x00001, 0x20000, CRC(50e0e865) SHA1(201ef385c228c124ed9412002233a501ea514efd) )  /* different CRC from strider but same label, pcb verified */
-	ROM_LOAD16_BYTE( "31.31",         0x40000, 0x20000, CRC(eae93bd1) SHA1(b320a00b67ea3c7fffc6c37d57863163975f7b80) )  /* different CRC from strider but same label, pcb verified */
-	ROM_LOAD16_BYTE( "36.36",         0x40001, 0x20000, CRC(b904a31d) SHA1(5509d1024151eb8548fd1b29e6c0c95775c61364) )  /* different CRC from strider but same label, pcb verified */
-	ROM_LOAD16_WORD_SWAP( "st-14.8h", 0x80000, 0x80000, CRC(9b3cfc08) SHA1(a7d7f270a097437affa845d80bed82a1fa874878) )  // in "32" socket
+	ROM_LOAD16_BYTE( "30(__striderua).11f", 0x00000, 0x20000, CRC(66aec273) SHA1(576b1e9062874e68d68f8725949c151509eb6d56) )    /* different CRC from strider, pcb verified */
+	ROM_LOAD16_BYTE( "35(__striderua).11h", 0x00001, 0x20000, CRC(50e0e865) SHA1(201ef385c228c124ed9412002233a501ea514efd) )    /* different CRC from strider, pcb verified */
+	ROM_LOAD16_BYTE( "31(__striderua).12f", 0x40000, 0x20000, CRC(eae93bd1) SHA1(b320a00b67ea3c7fffc6c37d57863163975f7b80) )    /* different CRC from strider, pcb verified */
+	ROM_LOAD16_BYTE( "36(__striderua).12h", 0x40001, 0x20000, CRC(b904a31d) SHA1(5509d1024151eb8548fd1b29e6c0c95775c61364) )    /* different CRC from strider, pcb verified */
+	ROM_LOAD16_WORD_SWAP( "st-14.8h",       0x80000, 0x80000, CRC(9b3cfc08) SHA1(a7d7f270a097437affa845d80bed82a1fa874878) )    // in "32" socket
 
 	ROM_REGION( 0x400000, "gfx", 0 )
 	ROMX_LOAD( "st-2.8a",   0x000000, 0x80000, CRC(4eee9aea) SHA1(5e619fd5f3f1181e32a8fd9dbb4661d74ff8a484) , ROM_GROUPWORD | ROM_SKIP(6) ) // in "6" socket
@@ -3979,8 +3881,8 @@ ROM_START( striderua )
 	ROM_COPY( "gfx", 0x000000, 0x000000, 0x8000 )
 
 	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "09.9",       0x00000, 0x08000, CRC(08d63519) SHA1(c120ecfe25c3c50bc51bc7d5a9ef1c8ca6591240) )    /* different CRC from strider but same label, pcb verified */
-	ROM_CONTINUE(           0x10000, 0x08000 )
+	ROM_LOAD( "09(__striderua).12b", 0x00000, 0x08000, CRC(08d63519) SHA1(c120ecfe25c3c50bc51bc7d5a9ef1c8ca6591240) )   /* different CRC from strider, pcb verified */
+	ROM_CONTINUE(                    0x10000, 0x08000 )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "18.11c",     0x00000, 0x20000, CRC(4386bc80) SHA1(fb2b261995aeacfa13e7ee40b1a973dfb178f015) )
@@ -4087,7 +3989,7 @@ ROM_END
 	ROM_COPY( "gfx", 0x000000, 0x000000, 0x8000 )
 
 	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "sth_09.12a",  0x00000, 0x08000, CRC(08d63519) SHA1(c120ecfe25c3c50bc51bc7d5a9ef1c8ca6591240) )   // == 09.9
+	ROM_LOAD( "sth_09.12a",  0x00000, 0x08000, CRC(08d63519) SHA1(c120ecfe25c3c50bc51bc7d5a9ef1c8ca6591240) )   // == 09(__striderua).12b
 	ROM_CONTINUE(            0x10000, 0x08000 )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
@@ -4229,46 +4131,46 @@ ROM_START( dynwarj )
 	ROM_LOAD16_BYTE( "41.11h", 0xc0001, 0x20000, CRC(1aae69a4) SHA1(56e4761818f7857bc7520f2b8de90eabd857c577) ) // == tkm-9.8h
 
 	ROM_REGION( 0x400000, "gfx", 0 )
-	ROMX_LOAD( "09.4b",  0x000000, 0x20000, CRC(c3e83c69) SHA1(bd361a39dc6428fea8f56ebbe5cdcc4bf63a51f0) , ROM_SKIP(7) )    // == tkm-5.7a
-	ROMX_LOAD( "01.4a",  0x000001, 0x20000, CRC(187b2886) SHA1(b16121f57926d9fd2c3bc82ae6babf6a2297f140) , ROM_SKIP(7) )    // == tkm-5.7a
-	ROMX_LOAD( "13.9b",  0x000002, 0x20000, CRC(0273d87d) SHA1(7803b04d72eedb4c8b39f63fea458cfef0034813) , ROM_SKIP(7) )    // == tkm-8.9a
-	ROMX_LOAD( "05.9a",  0x000003, 0x20000, CRC(339378b8) SHA1(c3dfe7039e4572b9ef56166346f3cbc6f6ab07c1) , ROM_SKIP(7) )    // == tkm-8.9a
-	ROMX_LOAD( "24.5e",  0x000004, 0x20000, CRC(c6909b6f) SHA1(2828bd6bdc8e3f87a4a37d4e20bdff86cb6850c9) , ROM_SKIP(7) )    // == tkm-6.3a
-	ROMX_LOAD( "17.5c",  0x000005, 0x20000, CRC(2e2f8320) SHA1(7bcb80447d9ce7cc9a38e2506196acd6bf50b49f) , ROM_SKIP(7) )    // == tkm-6.3a
-	ROMX_LOAD( "38.8h",  0x000006, 0x20000, CRC(cd7923ed) SHA1(29187b99847a4b56f2f1763d086b8e7dc5cebed7) , ROM_SKIP(7) )    // == tkm-7.5a
-	ROMX_LOAD( "32.8f",  0x000007, 0x20000, CRC(21a0a453) SHA1(ace38c5943f9f744212cfdb7caa2caa43312e82c) , ROM_SKIP(7) )    // == tkm-7.5a
-	ROMX_LOAD( "10.5b",  0x100000, 0x20000, CRC(ff28f8d0) SHA1(c8c4851816f17a4a0494164f5e8cc910f16669e8) , ROM_SKIP(7) )    // == tkm-5.7a
-	ROMX_LOAD( "02.5a",  0x100001, 0x20000, CRC(cc83c02f) SHA1(915e9d7acec1ba7a2035ae140f576839eba8694f) , ROM_SKIP(7) )    // == tkm-5.7a
-	ROMX_LOAD( "14.10b", 0x100002, 0x20000, CRC(58d9b32f) SHA1(c13a12afcb83159b284b95053951dfa1841bb612) , ROM_SKIP(7) )    // == tkm-8.9a
-	ROMX_LOAD( "06.10a", 0x100003, 0x20000, CRC(6f9edd75) SHA1(e8d43c0ec2165e88aefbb5c92048fbcd06fe578b) , ROM_SKIP(7) )    // == tkm-8.9a
-	ROMX_LOAD( "25.7e",  0x100004, 0x20000, CRC(152ea74a) SHA1(c0c56b1bdfa0d7fdea040dbcc6ff871e5957a5b6) , ROM_SKIP(7) )    // == tkm-6.3a
-	ROMX_LOAD( "18.7c",  0x100005, 0x20000, CRC(1833f932) SHA1(81f94d26bdb6758736ca02d7b1772801be4da181) , ROM_SKIP(7) )    // == tkm-6.3a
-	ROMX_LOAD( "39.9h",  0x100006, 0x20000, CRC(bc09b360) SHA1(de2c9a42490db79c8e5fe57b9107f1adbe5dd241) , ROM_SKIP(7) )    // == tkm-7.5a
-	ROMX_LOAD( "33.9f",  0x100007, 0x20000, CRC(89de1533) SHA1(e48312e37c0f98faeec91546acde5daf0da8f6b3) , ROM_SKIP(7) )    // == tkm-7.5a
-	ROMX_LOAD( "11.7b",  0x200000, 0x20000, CRC(29eaf490) SHA1(42fcb67c7014e0ad62cde9e77c79e61268647528) , ROM_SKIP(7) )    // == tkm-1.8a
-	ROMX_LOAD( "03.7a",  0x200001, 0x20000, CRC(7bf51337) SHA1(c21938029641ebcbc484680cf8a57186cdde220f) , ROM_SKIP(7) )    // == tkm-1.8a
-	ROMX_LOAD( "15.11b", 0x200002, 0x20000, CRC(d36cdb91) SHA1(66ab873ce285e857f30294dd1c9b1dda0c6c6b76) , ROM_SKIP(7) )    // == tkm-4.10a
-	ROMX_LOAD( "07.11a", 0x200003, 0x20000, CRC(e04af054) SHA1(f227b8a0a3d8f41e1922d184eaec7a1243c7c3af) , ROM_SKIP(7) )    // == tkm-4.10a
-	ROMX_LOAD( "26.8e",  0x200004, 0x20000, CRC(07fc714b) SHA1(eda97a3c5596ebdfa61bdd01d39647c89b9a2f13) , ROM_SKIP(7) )    // == tkm-2.4a
-	ROMX_LOAD( "19.8c",  0x200005, 0x20000, CRC(7114e5c6) SHA1(2f2925b942af50781857f4fe74e9a58f2cf7b883) , ROM_SKIP(7) )    // == tkm-2.4a
-	ROMX_LOAD( "28.10e", 0x200006, 0x20000, CRC(af62bf07) SHA1(a6e0f598de1fa8a4960e89d655b7514572ed6310) , ROM_SKIP(7) )    // == tkm-3.6a
-	ROMX_LOAD( "21.10c", 0x200007, 0x20000, CRC(523f462a) SHA1(b0fc9e29d6ca44aafb20a62355bde9f4b4cf1e43) , ROM_SKIP(7) )    // == tkm-3.6a
-	ROMX_LOAD( "12.8b",  0x300000, 0x20000, CRC(38652339) SHA1(930a035bbe34c81c26d774d2ab45f53a3a9205fb) , ROM_SKIP(7) )    // == tkm-1.8a
-	ROMX_LOAD( "04.8a",  0x300001, 0x20000, CRC(4951bc0f) SHA1(07f424c147d787321b668d787216733c35e2cff9) , ROM_SKIP(7) )    // == tkm-1.8a
-	ROMX_LOAD( "16.12b", 0x300002, 0x20000, CRC(381608ae) SHA1(666e15e61c7c59df5a97bdc2d77db611d60b3ca8) , ROM_SKIP(7) )    // == tkm-4.10a
-	ROMX_LOAD( "08.12a", 0x300003, 0x20000, CRC(b475d4e9) SHA1(dc5d223bc2a27904e6e38b68507d2e87fbbde158) , ROM_SKIP(7) )    // == tkm-4.10a
-	ROMX_LOAD( "27.9e",  0x300004, 0x20000, CRC(a27e81fa) SHA1(b25854d4a7e52d500c19445badb4cfe745d88d23) , ROM_SKIP(7) )    // == tkm-2.4a
-	ROMX_LOAD( "20.9c",  0x300005, 0x20000, CRC(002796dc) SHA1(2dba0434916dd82c59a66e2f3ce8d3165713c308) , ROM_SKIP(7) )    // == tkm-2.4a
-	ROMX_LOAD( "29.11e", 0x300006, 0x20000, CRC(6b41f82d) SHA1(111af606d8107d377e3af618584a75ed6cfc9bbd) , ROM_SKIP(7) )    // == tkm-3.6a
-	ROMX_LOAD( "22.11c", 0x300007, 0x20000, CRC(52145369) SHA1(bd422f0c51cdd62b69229f926569ad05d430bd57) , ROM_SKIP(7) )    // == tkm-3.6a
+	ROMX_LOAD( "09.4b",             0x000000, 0x20000, CRC(c3e83c69) SHA1(bd361a39dc6428fea8f56ebbe5cdcc4bf63a51f0) , ROM_SKIP(7) ) // == tkm-5.7a
+	ROMX_LOAD( "01.4a",             0x000001, 0x20000, CRC(187b2886) SHA1(b16121f57926d9fd2c3bc82ae6babf6a2297f140) , ROM_SKIP(7) ) // == tkm-5.7a
+	ROMX_LOAD( "13.9b",             0x000002, 0x20000, CRC(0273d87d) SHA1(7803b04d72eedb4c8b39f63fea458cfef0034813) , ROM_SKIP(7) ) // == tkm-8.9a
+	ROMX_LOAD( "05.9a",             0x000003, 0x20000, CRC(339378b8) SHA1(c3dfe7039e4572b9ef56166346f3cbc6f6ab07c1) , ROM_SKIP(7) ) // == tkm-8.9a
+	ROMX_LOAD( "24.5e",             0x000004, 0x20000, CRC(c6909b6f) SHA1(2828bd6bdc8e3f87a4a37d4e20bdff86cb6850c9) , ROM_SKIP(7) ) // == tkm-6.3a
+	ROMX_LOAD( "17.5c",             0x000005, 0x20000, CRC(2e2f8320) SHA1(7bcb80447d9ce7cc9a38e2506196acd6bf50b49f) , ROM_SKIP(7) ) // == tkm-6.3a
+	ROMX_LOAD( "38.8h",             0x000006, 0x20000, CRC(cd7923ed) SHA1(29187b99847a4b56f2f1763d086b8e7dc5cebed7) , ROM_SKIP(7) ) // == tkm-7.5a
+	ROMX_LOAD( "32.8f",             0x000007, 0x20000, CRC(21a0a453) SHA1(ace38c5943f9f744212cfdb7caa2caa43312e82c) , ROM_SKIP(7) ) // == tkm-7.5a
+	ROMX_LOAD( "10.5b",             0x100000, 0x20000, CRC(ff28f8d0) SHA1(c8c4851816f17a4a0494164f5e8cc910f16669e8) , ROM_SKIP(7) ) // == tkm-5.7a
+	ROMX_LOAD( "02.5a",             0x100001, 0x20000, CRC(cc83c02f) SHA1(915e9d7acec1ba7a2035ae140f576839eba8694f) , ROM_SKIP(7) ) // == tkm-5.7a
+	ROMX_LOAD( "14(__dynwarj).10b", 0x100002, 0x20000, CRC(18fb232c) SHA1(c690ca668a56c756c04ef5db4900eb3fd34897e7) , ROM_SKIP(7) ) /* 1 byte different from dynwara, pcb verified */
+	ROMX_LOAD( "06.10a",            0x100003, 0x20000, CRC(6f9edd75) SHA1(e8d43c0ec2165e88aefbb5c92048fbcd06fe578b) , ROM_SKIP(7) ) // == tkm-8.9a
+	ROMX_LOAD( "25.7e",             0x100004, 0x20000, CRC(152ea74a) SHA1(c0c56b1bdfa0d7fdea040dbcc6ff871e5957a5b6) , ROM_SKIP(7) ) // == tkm-6.3a
+	ROMX_LOAD( "18.7c",             0x100005, 0x20000, CRC(1833f932) SHA1(81f94d26bdb6758736ca02d7b1772801be4da181) , ROM_SKIP(7) ) // == tkm-6.3a
+	ROMX_LOAD( "39.9h",             0x100006, 0x20000, CRC(bc09b360) SHA1(de2c9a42490db79c8e5fe57b9107f1adbe5dd241) , ROM_SKIP(7) ) // == tkm-7.5a
+	ROMX_LOAD( "33.9f",             0x100007, 0x20000, CRC(89de1533) SHA1(e48312e37c0f98faeec91546acde5daf0da8f6b3) , ROM_SKIP(7) ) // == tkm-7.5a
+	ROMX_LOAD( "11.7b",             0x200000, 0x20000, CRC(29eaf490) SHA1(42fcb67c7014e0ad62cde9e77c79e61268647528) , ROM_SKIP(7) ) // == tkm-1.8a
+	ROMX_LOAD( "03.7a",             0x200001, 0x20000, CRC(7bf51337) SHA1(c21938029641ebcbc484680cf8a57186cdde220f) , ROM_SKIP(7) ) // == tkm-1.8a
+	ROMX_LOAD( "15.11b",            0x200002, 0x20000, CRC(d36cdb91) SHA1(66ab873ce285e857f30294dd1c9b1dda0c6c6b76) , ROM_SKIP(7) ) // == tkm-4.10a
+	ROMX_LOAD( "07.11a",            0x200003, 0x20000, CRC(e04af054) SHA1(f227b8a0a3d8f41e1922d184eaec7a1243c7c3af) , ROM_SKIP(7) ) // == tkm-4.10a
+	ROMX_LOAD( "26.8e",             0x200004, 0x20000, CRC(07fc714b) SHA1(eda97a3c5596ebdfa61bdd01d39647c89b9a2f13) , ROM_SKIP(7) ) // == tkm-2.4a
+	ROMX_LOAD( "19.8c",             0x200005, 0x20000, CRC(7114e5c6) SHA1(2f2925b942af50781857f4fe74e9a58f2cf7b883) , ROM_SKIP(7) ) // == tkm-2.4a
+	ROMX_LOAD( "28.10e",            0x200006, 0x20000, CRC(af62bf07) SHA1(a6e0f598de1fa8a4960e89d655b7514572ed6310) , ROM_SKIP(7) ) // == tkm-3.6a
+	ROMX_LOAD( "21.10c",            0x200007, 0x20000, CRC(523f462a) SHA1(b0fc9e29d6ca44aafb20a62355bde9f4b4cf1e43) , ROM_SKIP(7) ) // == tkm-3.6a
+	ROMX_LOAD( "12.8b",             0x300000, 0x20000, CRC(38652339) SHA1(930a035bbe34c81c26d774d2ab45f53a3a9205fb) , ROM_SKIP(7) ) // == tkm-1.8a
+	ROMX_LOAD( "04.8a",             0x300001, 0x20000, CRC(4951bc0f) SHA1(07f424c147d787321b668d787216733c35e2cff9) , ROM_SKIP(7) ) // == tkm-1.8a
+	ROMX_LOAD( "16.12b",            0x300002, 0x20000, CRC(381608ae) SHA1(666e15e61c7c59df5a97bdc2d77db611d60b3ca8) , ROM_SKIP(7) ) // == tkm-4.10a
+	ROMX_LOAD( "08.12a",            0x300003, 0x20000, CRC(b475d4e9) SHA1(dc5d223bc2a27904e6e38b68507d2e87fbbde158) , ROM_SKIP(7) ) // == tkm-4.10a
+	ROMX_LOAD( "27.9e",             0x300004, 0x20000, CRC(a27e81fa) SHA1(b25854d4a7e52d500c19445badb4cfe745d88d23) , ROM_SKIP(7) ) // == tkm-2.4a
+	ROMX_LOAD( "20.9c",             0x300005, 0x20000, CRC(002796dc) SHA1(2dba0434916dd82c59a66e2f3ce8d3165713c308) , ROM_SKIP(7) ) // == tkm-2.4a
+	ROMX_LOAD( "29.11e",            0x300006, 0x20000, CRC(6b41f82d) SHA1(111af606d8107d377e3af618584a75ed6cfc9bbd) , ROM_SKIP(7) ) // == tkm-3.6a
+	ROMX_LOAD( "22.11c",            0x300007, 0x20000, CRC(52145369) SHA1(bd422f0c51cdd62b69229f926569ad05d430bd57) , ROM_SKIP(7) ) // == tkm-3.6a
 
 	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "23.13c",  0x00000, 0x08000, CRC(b3b79d4f) SHA1(2b960545741d3b9a53ffbf3ed83030392aa02698) )   // == tke_17.12b
-	ROM_CONTINUE(        0x10000, 0x08000 )
+	ROM_LOAD( "23.13c",             0x00000, 0x08000, CRC(b3b79d4f) SHA1(2b960545741d3b9a53ffbf3ed83030392aa02698) )    // == tke_17.12b
+	ROM_CONTINUE(                   0x10000, 0x08000 )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
-	ROM_LOAD( "30.12e",  0x00000, 0x20000, CRC(7e5f6cb4) SHA1(c7b6b7d6dfe5f9f0e1521e7ce990229f480cf68d) )
-	ROM_LOAD( "31.13e",  0x20000, 0x20000, CRC(4a30c737) SHA1(426eb90f2edf73eb468c94b4a094da3d46acbab2) )
+	ROM_LOAD( "30.12e",             0x00000, 0x20000, CRC(7e5f6cb4) SHA1(c7b6b7d6dfe5f9f0e1521e7ce990229f480cf68d) )
+	ROM_LOAD( "31.13e",             0x20000, 0x20000, CRC(4a30c737) SHA1(426eb90f2edf73eb468c94b4a094da3d46acbab2) )
 
 	ROM_REGION( 0x0200, "aboardplds", 0 )
 	ROM_LOAD( "buf1",         0x0000, 0x0117, CRC(eb122de7) SHA1(b26b5bfe258e3e184f069719f9fd008d6b8f6b9b) )
@@ -4739,11 +4641,11 @@ ROM_END
 /* B-Board 89624B-3 */
 ROM_START( ffightua )
 	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "ffu_36.11f",     0x00000, 0x20000, CRC(e2a48af9) SHA1(11e06f95bdf575af396dded2b84d858f6c7388f1) ) // in "30" socket
-	ROM_LOAD16_BYTE( "ffu_42.11h",     0x00001, 0x20000, CRC(f4bb480e) SHA1(32114df1d2f4f98a4a2280a330c7b6af8ab4d862) ) // in "35" socket
-	ROM_LOAD16_BYTE( "ffu_37.12f",     0x40000, 0x20000, CRC(c371c667) SHA1(633977c91a8ff09b7fe83128eced7c4dee9aee1d) ) // in "31" socket
-	ROM_LOAD16_BYTE( "ffu_43.36",      0x40001, 0x20000, CRC(2f5771f9) SHA1(fb532402bc00b5619a23dfa7e4525f1717020303) ) // in "36" socket   /* different CRC from ffightu, ffightu1 but same label, pcb verified */
-	ROM_LOAD16_WORD_SWAP( "ff-32m.8h", 0x80000, 0x80000, CRC(c747696e) SHA1(d3362dadded31ccb7eaf71ef282d698d18edd722) )
+	ROM_LOAD16_BYTE( "ffu_36.11f",             0x00000, 0x20000, CRC(e2a48af9) SHA1(11e06f95bdf575af396dded2b84d858f6c7388f1) ) // in "30" socket
+	ROM_LOAD16_BYTE( "ffu_42.11h",             0x00001, 0x20000, CRC(f4bb480e) SHA1(32114df1d2f4f98a4a2280a330c7b6af8ab4d862) ) // in "35" socket
+	ROM_LOAD16_BYTE( "ffu_37.12f",             0x40000, 0x20000, CRC(c371c667) SHA1(633977c91a8ff09b7fe83128eced7c4dee9aee1d) ) // in "31" socket
+	ROM_LOAD16_BYTE( "ffu_43(__ffightua).12h", 0x40001, 0x20000, CRC(2f5771f9) SHA1(fb532402bc00b5619a23dfa7e4525f1717020303) ) // in "36" socket   /* different CRC from ffightu, ffightu1, pcb verified */
+	ROM_LOAD16_WORD_SWAP( "ff-32m.8h",         0x80000, 0x80000, CRC(c747696e) SHA1(d3362dadded31ccb7eaf71ef282d698d18edd722) )
 
 	ROM_REGION( 0x200000, "gfx", 0 )
 	ROMX_LOAD( "ff-5m.7a", 0x000000, 0x80000, CRC(9c284108) SHA1(7868f5801347340867720255f8380548ad1a65a7) , ROM_GROUPWORD | ROM_SKIP(6) )
@@ -5810,7 +5712,7 @@ ROM_START( nemoj )
 	ROMX_LOAD( "nm_33.9f",  0x100007, 0x20000, CRC(c469dc74) SHA1(d06956eef5f9b31779f218d597a1a504c1e16bad) , ROM_SKIP(7) ) // == nm-3m.5a
 
 	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "nm_23.13b",  0x00000, 0x08000, BAD_DUMP CRC(8d3c5a42) SHA1(cc7477da80f3d08cf014379318e39cb75b5d3205) )   // could have one bad byte
+	ROM_LOAD( "nm_23.13b",  0x00000, 0x08000, CRC(8d3c5a42) SHA1(cc7477da80f3d08cf014379318e39cb75b5d3205) )    /* 1 byte different from nemo, pcb verified */
 	ROM_CONTINUE(           0x10000, 0x08000 )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
@@ -6203,7 +6105,7 @@ ROM_START( sf2ue )
 	ROMX_LOAD( "sf2-11m.5d", 0x400006, 0x80000, CRC(0627c831) SHA1(f9a92d614e8877d648449de2612fc8b43c85e4c2) , ROM_GROUPWORD | ROM_SKIP(6) )    // in "22" socket
 
 	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "sf2_9.12a",   0x00000, 0x08000, CRC(a4823a1b) SHA1(7b6bf59dfd578bfbbdb64c27988796783442d659) )   // missing sticker, could be sf2_09.12a
+	ROM_LOAD( "sf2_9.12a",   0x00000, 0x08000, CRC(a4823a1b) SHA1(7b6bf59dfd578bfbbdb64c27988796783442d659) )
 	ROM_CONTINUE(            0x10000, 0x08000 )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
@@ -6865,6 +6767,51 @@ ROM_START( 3wonders )
 ROM_END
 
 /* B-Board 89624B-3 */
+ROM_START( 3wondersr1 )
+	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
+	ROM_LOAD16_BYTE( "rte_30.11f", 0x00000, 0x20000, CRC(0d541519) SHA1(ce0f9ebaea038c98f8866624d3061c65c84cf20d) )
+	ROM_LOAD16_BYTE( "rte_35.11h", 0x00001, 0x20000, CRC(73dd0e20) SHA1(b4f4086574176befa70863a85a3c0a8fd6e4bd90) )
+	ROM_LOAD16_BYTE( "rte_31.12f", 0x40000, 0x20000, CRC(33e0337d) SHA1(53e5795baf307a789b4337f081a932359e569a98) )
+	ROM_LOAD16_BYTE( "rte_36.12h", 0x40001, 0x20000, CRC(a8865243) SHA1(0a4d7e8e07d88104aa01457a10a8a9abd3ed4ce1) )
+	ROM_LOAD16_BYTE( "rte_28.9f",  0x80000, 0x20000, CRC(054137c8) SHA1(e4c406e0a32198323a5931093fbaa6836510b8ad) ) // == rt_28a.9f
+	ROM_LOAD16_BYTE( "rte_33.9h",  0x80001, 0x20000, CRC(7264cb1b) SHA1(b367acb9f6579569321ecaa98a14e29dd775b9db) ) // == rt_33a.9h
+	ROM_LOAD16_BYTE( "rte_29.10f", 0xc0000, 0x20000, CRC(9a8df1e4) SHA1(5b61d2d729145d524e23036bb27ba3ba75c208fe) )
+	ROM_LOAD16_BYTE( "rte_34.10h", 0xc0001, 0x20000, CRC(6348a79d) SHA1(2e4b58f9c6c1ad6a89c90d8ebb46cee2613f1397) )
+
+	ROM_REGION( 0x400000, "gfx", 0 )
+	ROMX_LOAD( "rt-5m.7a",  0x000000, 0x80000, CRC(86aef804) SHA1(723927ef3bf992d12395c52db051ece7bf57d5e5) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "rt-7m.9a",  0x000002, 0x80000, CRC(4f057110) SHA1(b7d35c883a74cf4bfb242d9f15a0e40ed1ec111f) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "rt-1m.3a",  0x000004, 0x80000, CRC(902489d0) SHA1(748ba416a8b9343059a3e7d8b93f02162feb1d0b) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "rt-3m.5a",  0x000006, 0x80000, CRC(e35ce720) SHA1(6c1a87a1f819bdc20408b5a7823cf35a79d34110) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "rt-6m.8a",  0x200000, 0x80000, CRC(13cb0e7c) SHA1(e429d594d9a7ff4cc6306e2796a9d6ad0fa25569) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "rt-8m.10a", 0x200002, 0x80000, CRC(1f055014) SHA1(d64f5be9bb2ef761ca9b2e797dbc3554cf996a79) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "rt-2m.4a",  0x200004, 0x80000, CRC(e9a034f4) SHA1(deb4cb5886705380b57d4fe9b9bf3c032e1d6227) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "rt-4m.6a",  0x200006, 0x80000, CRC(df0eea8b) SHA1(5afa05654cccb0504bd44569d42fd68f08fd172f) , ROM_GROUPWORD | ROM_SKIP(6) )
+
+	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
+	ROM_LOAD( "rt_9(__3wondersr1).12b",  0x00000, 0x08000, CRC(7d5a77a7) SHA1(4f2a6534d7a9e518061102c1dd7d7aca39600c33) )   /* 1 byte different from 3wonders, pcb verified */
+	ROM_CONTINUE(                        0x10000, 0x08000 )
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "rt_18(__3wondersr1).11c", 0x00000, 0x20000, CRC(f6dc0d3d) SHA1(9959fc3339613042c95b90aad2bc1c3dafdb605e) )   /* 6 bytes different from 3wonders, pcb verified */
+	ROM_LOAD( "rt_19.12c",               0x20000, 0x20000, CRC(dbe64ad0) SHA1(09f2ad522fe75d7bcca094b8c6696c3733b539d5) )
+
+	ROM_REGION( 0x0200, "aboardplds", 0 )
+	ROM_LOAD( "buf1",         0x0000, 0x0117, CRC(eb122de7) SHA1(b26b5bfe258e3e184f069719f9fd008d6b8f6b9b) )
+	ROM_LOAD( "ioa1",         0x0000, 0x0117, CRC(59c7ee3b) SHA1(fbb887c5b4f5cb8df77cec710eaac2985bc482a6) )
+	ROM_LOAD( "prg1",         0x0000, 0x0117, CRC(f1129744) SHA1(a5300f301c1a08a7da768f0773fa0fe3f683b237) )
+	ROM_LOAD( "rom1",         0x0000, 0x0117, CRC(41dc73b9) SHA1(7d4c9f1693c821fbf84e32dd6ef62ddf14967845) )
+	ROM_LOAD( "sou1",         0x0000, 0x0117, CRC(84f4b2fe) SHA1(dcc9e86cc36316fe42eace02d6df75d08bc8bb6d) )
+
+	ROM_REGION( 0x0200, "bboardplds", 0 )
+	ROM_LOAD( "rt24b.1a",     0x0000, 0x0117, CRC(54b85159) SHA1(c6f4fb5d747a215f4f50e4f2258e35d3f9bdbb2e) )
+	ROM_LOAD( "iob1.11e",     0x0000, 0x0117, CRC(3abc0700) SHA1(973043aa46ec6d5d1db20dc9d5937005a0f9f6ae) )
+
+	ROM_REGION( 0x0200, "cboardplds", 0 )
+	ROM_LOAD( "ioc1.ic1",     0x0000, 0x0117, CRC(0d182081) SHA1(475b3d417785da4bc512cce2b274bb00d4cc6792) )
+ROM_END
+
+/* B-Board 89624B-3 */
 ROM_START( 3wondersu )
 	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
 	ROM_LOAD16_BYTE( "rtu_30a.11f", 0x00000, 0x20000, CRC(0b156fd8) SHA1(1ec811cd7cbd12066f876db7255394e754ceb25e) )
@@ -6956,8 +6903,9 @@ ROM_START( wonder3 )
 	ROMX_LOAD( "rt_22.11c", 0x300007, 0x20000, CRC(228a0d4a) SHA1(bcaf12d01abe1d3cd5731bd5341cb22c4ca6139e) , ROM_SKIP(7) ) // == rt-4m.6a
 
 	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "rt_23.13b",  0x00000, 0x08000, CRC(abfca165) SHA1(428069d3bdc45775854cd0e8abe447f134fe5492) )    // == rt_9.12b
-	ROM_CONTINUE(           0x10000, 0x08000 )
+	ROM_LOAD( "rt_23.13b",        0x00000, 0x08000, CRC(abfca165) SHA1(428069d3bdc45775854cd0e8abe447f134fe5492) )    // == rt_9.12b
+//  ROM_LOAD( "rt_23(__alt).13b", 0x00000, 0x08000, CRC(7d5a77a7) SHA1(4f2a6534d7a9e518061102c1dd7d7aca39600c33) )  /* dumped from another board, 1 byte different, pcb verified */
+	ROM_CONTINUE(                 0x10000, 0x08000 )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "rt_30.12c",  0x00000, 0x20000, CRC(26b211ab) SHA1(0ea03fdd9edff41eacfc52aa9e0421c10968356b) )    // == rt_18.11c
@@ -7100,12 +7048,12 @@ ROM_START( kodr1 )
 	ROMX_LOAD( "kd-4m.5c", 0x200006, 0x80000, CRC(402b9b4f) SHA1(4c11976976eadf1ad293b31b0a4d047d05032b06) , ROM_GROUPWORD | ROM_SKIP(6) )  // in "12" socket
 
 	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "kd_9.9",    0x00000, 0x08000, CRC(f5514510) SHA1(07e9c836adf9ef2f7e7729e99015f71e3b5f16e0) ) /* different CRC from kod but same label, pcb verified */
-	ROM_CONTINUE(          0x10000, 0x08000 )
+	ROM_LOAD( "kd_9(__kodr1).12a",  0x00000, 0x08000, CRC(f5514510) SHA1(07e9c836adf9ef2f7e7729e99015f71e3b5f16e0) )    /* different CRC from kod, pcb verified */
+	ROM_CONTINUE(                   0x10000, 0x08000 )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
-	ROM_LOAD( "kd_18.18",  0x00000, 0x20000, CRC(69ecb2c8) SHA1(fadf266b6b20bd6329a3e638918c5a3106413476) ) /* different CRC from kod but same label, pcb verified */
-	ROM_LOAD( "kd_19.19",  0x20000, 0x20000, CRC(02d851c1) SHA1(c959a6fc3e7d893557f319debae91f28471f4be2) ) /* different CRC from kod but same label, pcb verified */
+	ROM_LOAD( "kd_18(__kodr1).11c", 0x00000, 0x20000, CRC(69ecb2c8) SHA1(fadf266b6b20bd6329a3e638918c5a3106413476) )    /* different CRC from kod, pcb verified */
+	ROM_LOAD( "kd_19(__kodr1).12c", 0x20000, 0x20000, CRC(02d851c1) SHA1(c959a6fc3e7d893557f319debae91f28471f4be2) )    /* different CRC from kod, pcb verified */
 
 	ROM_REGION( 0x0200, "aboardplds", 0 )
 	ROM_LOAD( "buf1",         0x0000, 0x0117, CRC(eb122de7) SHA1(b26b5bfe258e3e184f069719f9fd008d6b8f6b9b) )
@@ -7520,7 +7468,6 @@ no custom chips
 no PLD/CPLD/FPGA
 no PROMs
 
-
 */
 
 ROM_START( captcommb )
@@ -7750,29 +7697,6 @@ ROM_START( knightsja )
 	ROM_LOAD( "c632.ic1",     0x0000, 0x0117, CRC(0fbd9270) SHA1(d7e737b20c44d41e29ca94be56114b31934dde81) )
 ROM_END
 
-/* bootleg */
-/* FIXME - GFX ROMs are wrong, copied from the other version */
-/* ROMs missing are KA.IC91 KB.IC92 KC.IC93 KD.IC94 */
-ROM_START( knightsb )
-	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "3.ic173",    0x00001, 0x40000, CRC(c9c6e720) SHA1(e8a1cd73458b548e88fc49d8f659e0dc33a8e756) )
-	ROM_LOAD16_BYTE( "5.ic172",    0x00000, 0x40000, CRC(7fd91118) SHA1(d2832b21309a467938891946d7af35d8095787a4) )
-	ROM_LOAD16_BYTE( "2.ic175",    0x80001, 0x40000, CRC(1eb91343) SHA1(e02cfbbd7689346f14f2e3455ed17e7f0b51bad0) )
-	ROM_LOAD16_BYTE( "4.ic176",    0x80000, 0x40000, CRC(af352703) SHA1(7855ac65752203f45af4ef41af8c291540a1c8a8) )
-
-	ROM_REGION( 0x400000, "gfx", 0 ) /* bootleg had 4x 1meg MASKroms, these need dumping so that the format is known */
-	ROMX_LOAD( "kr_gfx1.rom",  0x000000, 0x80000, BAD_DUMP CRC(9e36c1a4) SHA1(772daae74e119371dfb76fde9775bda78a8ba125) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "kr_gfx3.rom",  0x000002, 0x80000, BAD_DUMP CRC(c5832cae) SHA1(a188cf401cd3a2909b377d3059f14d22ec3b0643) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "kr_gfx2.rom",  0x000004, 0x80000, BAD_DUMP CRC(f095be2d) SHA1(0427d1574062f277a9d04440019d5638b05de561) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "kr_gfx4.rom",  0x000006, 0x80000, BAD_DUMP CRC(179dfd96) SHA1(b1844e69da7ab13474da569978d5b47deb8eb2be) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "kr_gfx5.rom",  0x200000, 0x80000, BAD_DUMP CRC(1f4298d2) SHA1(4b162a7f649b0bcd676f8ca0c5eee9a1250d6452) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "kr_gfx7.rom",  0x200002, 0x80000, BAD_DUMP CRC(37fa8751) SHA1(b88b39d1f08621f15a5620095aef998346fa9891) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "kr_gfx6.rom",  0x200004, 0x80000, BAD_DUMP CRC(0200bc3d) SHA1(c900b1be2b4e49b951e5c1e3fd1e19d21b82986e) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "kr_gfx8.rom",  0x200006, 0x80000, BAD_DUMP CRC(0bb2b4e7) SHA1(983b800925d58e4aeb4e5105f93ed5faf66d009c) , ROM_GROUPWORD | ROM_SKIP(6) )
-
-	ROM_REGION( 0x40000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "1.ic26",     0x00000, 0x40000, CRC(bd6f9cc1) SHA1(9f33cccef224d2204736a9eae761196866bd6e41) )
-ROM_END
 
 /* B-Board 91635B-2 */
 ROM_START( sf2ce )
@@ -8398,16 +8322,16 @@ ROM_START( sf2amf )
 
 	ROM_REGION( 0x600000, "gfx", 0 )
 	ROMX_LOAD( "y.c.e.c m.k.r-001", 0x000000, 0x80000, CRC(a258de13) SHA1(2e477948c4c8a2fb7cfdc4a739766bc4a4e01c49), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(                   0x000002, 0x80000)
-	ROMX_LOAD( "y.c.e.c m.k.r-003", 0x000004, 0x80000, CRC(c781bf87) SHA1(034baa9807c2ce8dc800200963a38cd9262b21fb), ROM_GROUPWORD | ROM_SKIP(6) )
+	ROM_CONTINUE(                   0x000004, 0x80000)
+	ROMX_LOAD( "y.c.e.c m.k.r-003", 0x000002, 0x80000, CRC(c781bf87) SHA1(034baa9807c2ce8dc800200963a38cd9262b21fb), ROM_GROUPWORD | ROM_SKIP(6) )
 	ROM_CONTINUE(                   0x000006, 0x80000)
 	ROMX_LOAD( "y.c.e.c m.k.r-002", 0x200000, 0x80000, CRC(5726cab8) SHA1(0b2243a9a7184d53d42ddab7a8c51b63001c2f56), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(                   0x200002, 0x80000)
-	ROMX_LOAD( "y.c.e.c d.w.c-011", 0x200004, 0x80000, CRC(bc90c12f) SHA1(ecdb776239b22bd56b7c3a87c9e561f650a4dfea), ROM_GROUPWORD | ROM_SKIP(6) )
+	ROM_CONTINUE(                   0x200004, 0x80000)
+	ROMX_LOAD( "y.c.e.c d.w.c-011", 0x200002, 0x80000, CRC(bc90c12f) SHA1(ecdb776239b22bd56b7c3a87c9e561f650a4dfea), ROM_GROUPWORD | ROM_SKIP(6) )
 	ROM_CONTINUE(                   0x200006, 0x80000)
 	ROMX_LOAD( "y.c.e.c d.w.c-012", 0x400000, 0x80000, CRC(187667cc) SHA1(fae65bf23f49a32903fda8080659ccf8d42b911f), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(                   0x400002, 0x80000)
-	ROMX_LOAD( "y.c.e.c d.w.c-013", 0x400004, 0x80000, CRC(5b585071) SHA1(ad3371b1ba0441c67d9fcbb23b09464710e4e28a), ROM_GROUPWORD | ROM_SKIP(6) )
+	ROM_CONTINUE(                   0x400004, 0x80000)
+	ROMX_LOAD( "y.c.e.c d.w.c-013", 0x400002, 0x80000, CRC(5b585071) SHA1(ad3371b1ba0441c67d9fcbb23b09464710e4e28a), ROM_GROUPWORD | ROM_SKIP(6) )
 	ROM_CONTINUE(                   0x400006, 0x80000)
 	/* extra gfx layer roms loaded over the former ones to remove the capcom copyright logo */
 	ROMX_LOAD( "6.amf",             0x400000, 0x10000, CRC(3a85a275) SHA1(01907d69f912abffe3ad9745638ce3f282cfb2e8), ROM_SKIP(7) )
@@ -8442,35 +8366,6 @@ ROM_START( sf2dkot2 )
 	ROM_RELOAD(                         0x200000, 0x80000 )
 
 	ROM_LOAD16_WORD_SWAP( "turboii.21", 0x100000, 0x80000, CRC(ed4186bd) SHA1(f3dfe91d8f4384275190b0d86488843c1161d86f) )
-
-	ROM_REGION( 0x600000, "gfx", 0 )
-	ROMX_LOAD( "s92_01.bin",   0x000000, 0x80000, CRC(03b0d852) SHA1(f370f25c96ad2b94f8c53d6b7139100285a25bef) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_02.bin",   0x000002, 0x80000, CRC(840289ec) SHA1(2fb42a242f60ba7e74009b5a90eb26e035ba1e82) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_03.bin",   0x000004, 0x80000, CRC(cdb5f027) SHA1(4c7d944fef200fdfcaf57758b901b5511188ed2e) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_04.bin",   0x000006, 0x80000, CRC(e2799472) SHA1(27d3796429338d82a8de246a0ea06dd487a87768) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_05.bin",   0x200000, 0x80000, CRC(ba8a2761) SHA1(4b696d66c51611e43522bed752654314e76d33b6) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_06.bin",   0x200002, 0x80000, CRC(e584bfb5) SHA1(ebdf1f5e2638eed3a65dda82b1ed9151a355f4c9) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_07.bin",   0x200004, 0x80000, CRC(21e3f87d) SHA1(4a4961bb68c3a1ce15f9d393d9c03ecb2466cc29) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_08.bin",   0x200006, 0x80000, CRC(befc47df) SHA1(520390420da3a0271ba90b0a933e65143265e5cf) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_10.bin",   0x400000, 0x80000, CRC(960687d5) SHA1(2868c31121b1c7564e9767b9a19cdbf655c7ed1d) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_11.bin",   0x400002, 0x80000, CRC(978ecd18) SHA1(648a59706b93c84b4206a968ecbdc3e834c476f6) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_12.bin",   0x400004, 0x80000, CRC(d6ec9a0a) SHA1(ed6143f8737013b6ef1684e37c05e037e7a80dae) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "s92_13.bin",   0x400006, 0x80000, CRC(ed2c67f6) SHA1(0083c0ffaf6fe7659ff0cf822be4346cd6e61329) , ROM_GROUPWORD | ROM_SKIP(6) )
-
-	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "s92_09.bin",    0x00000, 0x08000, CRC(08f6b60e) SHA1(8258fcaca4ac419312531eec67079b97f471179c) )
-	ROM_CONTINUE(              0x10000, 0x08000 )
-
-	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
-	ROM_LOAD( "s92_18.bin",    0x00000, 0x20000, CRC(7f162009) SHA1(346bf42992b4c36c593e21901e22c87ae4a7d86d) )
-	ROM_LOAD( "s92_19.bin",    0x20000, 0x20000, CRC(beade53f) SHA1(277c397dc12752719ec6b47d2224750bd1c07f79) )
-ROM_END
-
-ROM_START( sf2m1 )
-	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "222e",              0x000000, 0x80000, CRC(1e20d0a3) SHA1(5e05b52fd938aff5190bca7e178705d7236aef66) )
-	ROM_LOAD16_BYTE( "196e",              0x000001, 0x80000, CRC(88cc38a3) SHA1(6049962f943bd37748a9531cc3254e8b59326eac) )
-	ROM_LOAD16_WORD_SWAP( "s92_21a.bin",  0x100000, 0x80000, CRC(925a7877) SHA1(1960dca35f0ca6f2b399a9fccfbc0132ac6425d1) )
 
 	ROM_REGION( 0x600000, "gfx", 0 )
 	ROMX_LOAD( "s92_01.bin",   0x000000, 0x80000, CRC(03b0d852) SHA1(f370f25c96ad2b94f8c53d6b7139100285a25bef) , ROM_GROUPWORD | ROM_SKIP(6) )
@@ -8681,18 +8576,22 @@ ROM_START( sf2m8 )
 	ROM_LOAD16_BYTE( "yyc-5.3", 0x100001, 0x20000, CRC(924c6ce2) SHA1(676a912652bd75da5087f0c7eae047b7681a993c) )
 
 	ROM_REGION( 0x600000, "gfx", 0 )
-	ROMX_LOAD( "yyc-a",    0x000000, 0x80000, CRC(8242621f) SHA1(9d566176462bd25f9a377104b0c78a962708bc2b), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(          0x000002, 0x80000)
-	ROMX_LOAD( "yyc-c",    0x000004, 0x80000, CRC(0793a960) SHA1(f351163dd1090f8cd8d4c77e2a29764fee627b13), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(          0x000006, 0x80000)
-	ROMX_LOAD( "yyc-b",    0x200000, 0x80000, CRC(b0159973) SHA1(2a236b9d98fa0acddd844aa94bc5118012a6fb2f), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(          0x200002, 0x80000)
-	ROMX_LOAD( "yyc-d",    0x200004, 0x80000, CRC(92a8b572) SHA1(cbad24e519f0152989764c054da914f55e2b118c), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(          0x200006, 0x80000)
-	ROMX_LOAD( "yyc-e",    0x400000, 0x80000, CRC(61138469) SHA1(dec3b3af6e3f4fedf51600ddf0515f61b2122493), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(          0x400002, 0x80000)
-	ROMX_LOAD( "yyc-f",    0x400004, 0x80000, CRC(b800dcdb) SHA1(2ec3251b78159b15032d55a5ee5138f159e67190), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(          0x400006, 0x80000)
+	ROMX_LOAD( "yyc-a",    0x000000, 0x40000, CRC(8242621f) SHA1(9d566176462bd25f9a377104b0c78a962708bc2b), ROM_SKIP(7) )
+	ROM_CONTINUE(          0x000004, 0x40000)
+	ROM_CONTINUE(          0x200000, 0x40000)
+	ROM_CONTINUE(          0x200004, 0x40000)
+	ROMX_LOAD( "yyc-c",    0x000001, 0x40000, CRC(0793a960) SHA1(f351163dd1090f8cd8d4c77e2a29764fee627b13), ROM_SKIP(7) )
+	ROM_CONTINUE(          0x000005, 0x40000)
+	ROM_CONTINUE(          0x200001, 0x40000)
+	ROM_CONTINUE(          0x200005, 0x40000)
+	ROMX_LOAD( "yyc-b",    0x000002, 0x40000, CRC(b0159973) SHA1(2a236b9d98fa0acddd844aa94bc5118012a6fb2f), ROM_SKIP(7) )
+	ROM_CONTINUE(          0x000006, 0x40000)
+	ROM_CONTINUE(          0x200002, 0x40000)
+	ROM_CONTINUE(          0x200006, 0x40000)
+	ROMX_LOAD( "yyc-d",    0x000003, 0x40000, CRC(92a8b572) SHA1(cbad24e519f0152989764c054da914f55e2b118c), ROM_SKIP(7) )
+	ROM_CONTINUE(          0x000007, 0x40000)
+	ROM_CONTINUE(          0x200003, 0x40000)
+	ROM_CONTINUE(          0x200007, 0x40000)
 	/* extra gfx layer roms loaded over the former ones to remove the capcom copyright logo */
 	ROMX_LOAD( "yyc-6.1",  0x400000, 0x10000, CRC(94778332) SHA1(c0b9a05c710b89864ee5df1a53b39de30c994e2d), ROM_SKIP(7) )
 	ROM_CONTINUE(          0x400004, 0x10000 )
@@ -8708,8 +8607,12 @@ ROM_START( sf2m8 )
 	ROM_LOAD( "a-15.5", 0x00000, 0x08000, CRC(6f07d2cb) SHA1(8ef1338d04c1a0b43e24303085105cfdced0bd5e) )
 	ROM_CONTINUE(       0x10000, 0x08000 )
 
-	ROM_REGION( 0x20000, "user1", 0 ) /* unknown (bootleg priority?) */
+	ROM_REGION( 0x10000, "user1", 0 ) /* unknown (bootleg priority?) */
 	ROM_LOAD( "c-27.7", 0x00000, 0x10000, CRC(13ea1c44) SHA1(5b05fe4c3920e33d94fac5f59e09ff14b3e427fe) )
+
+	ROM_REGION( 0x200000, "user2", 0 )
+	ROM_LOAD( "yyc-e",    0x000000, 0x100000, CRC(61138469) SHA1(dec3b3af6e3f4fedf51600ddf0515f61b2122493) )
+	ROM_LOAD( "yyc-f",    0x100000, 0x100000, CRC(b800dcdb) SHA1(2ec3251b78159b15032d55a5ee5138f159e67190) )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "b-16.6", 0x00000, 0x40000, CRC(6cfffb11) SHA1(995526183ffd35f92e9096500a3fe6237faaa2dd) )
@@ -8777,17 +8680,47 @@ ROM_START( sf2koryu )
 	ROM_LOAD( "s92_19.bin",    0x20000, 0x20000, CRC(beade53f) SHA1(277c397dc12752719ec6b47d2224750bd1c07f79) )
 ROM_END
 
+ROM_START( sf2dongb )
+	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
+	ROM_LOAD16_WORD_SWAP( "1.8f",        0x000000, 0x80000, CRC(19fffa37) SHA1(db464c64de3aebe929c85ee167961de05d2c16be) )
+	ROM_LOAD16_WORD_SWAP( "1.7f",        0x080000, 0x80000, CRC(99f1cca4) SHA1(64111eba81d743fc3fd51d7a89cd0b2eefcc900d) ) // same as sf2ceea
+	ROM_LOAD16_WORD_SWAP( "1.6f",        0x100000, 0x80000, CRC(65c2c719) SHA1(d407cae5f04fc8d05776d478a6eb4363b3c36805) )
+
+	ROM_REGION( 0x600000, "gfx", 0 )
+	ROMX_LOAD( "s92-1m.3a",  0x000000, 0x80000, CRC(03b0d852) SHA1(f370f25c96ad2b94f8c53d6b7139100285a25bef) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-3m.5a",  0x000002, 0x80000, CRC(840289ec) SHA1(2fb42a242f60ba7e74009b5a90eb26e035ba1e82) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-2m.4a",  0x000004, 0x80000, CRC(cdb5f027) SHA1(4c7d944fef200fdfcaf57758b901b5511188ed2e) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-4m.6a",  0x000006, 0x80000, CRC(e2799472) SHA1(27d3796429338d82a8de246a0ea06dd487a87768) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-5m.7a",  0x200000, 0x80000, CRC(ba8a2761) SHA1(4b696d66c51611e43522bed752654314e76d33b6) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-7m.9a",  0x200002, 0x80000, CRC(e584bfb5) SHA1(ebdf1f5e2638eed3a65dda82b1ed9151a355f4c9) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-6m.8a",  0x200004, 0x80000, CRC(21e3f87d) SHA1(4a4961bb68c3a1ce15f9d393d9c03ecb2466cc29) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-8m.10a", 0x200006, 0x80000, CRC(befc47df) SHA1(520390420da3a0271ba90b0a933e65143265e5cf) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-10m.3c", 0x400000, 0x80000, CRC(960687d5) SHA1(2868c31121b1c7564e9767b9a19cdbf655c7ed1d) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-12m.5c", 0x400002, 0x80000, CRC(978ecd18) SHA1(648a59706b93c84b4206a968ecbdc3e834c476f6) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-11m.4c", 0x400004, 0x80000, CRC(d6ec9a0a) SHA1(ed6143f8737013b6ef1684e37c05e037e7a80dae) , ROM_GROUPWORD | ROM_SKIP(6) )
+	ROMX_LOAD( "s92-13m.6c", 0x400006, 0x80000, CRC(ed2c67f6) SHA1(0083c0ffaf6fe7659ff0cf822be4346cd6e61329) , ROM_GROUPWORD | ROM_SKIP(6) )
+
+	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
+	ROM_LOAD( "s92_09.11a",  0x00000, 0x08000, CRC(08f6b60e) SHA1(8258fcaca4ac419312531eec67079b97f471179c) )
+	ROM_CONTINUE(            0x10000, 0x08000 )
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "s92_18.11c",  0x00000, 0x20000, CRC(7f162009) SHA1(346bf42992b4c36c593e21901e22c87ae4a7d86d) )
+	ROM_LOAD( "s92_19.12c",  0x20000, 0x20000, CRC(beade53f) SHA1(277c397dc12752719ec6b47d2224750bd1c07f79) )
+ROM_END
+
 /* B-Board 89625B-1 */
 ROM_START( cworld2j )
 	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "q5_36.12f", 0x00000, 0x20000, CRC(38a08099) SHA1(961f733baa2bbf8419e4de70f18660098dba7d52) )
-	ROM_LOAD16_BYTE( "q5_42.12h", 0x00001, 0x20000, CRC(4d29b3a4) SHA1(bf40fc22c0161fe131ca69100b2a4d102e86bde6) )
-	ROM_LOAD16_BYTE( "q5_37.13f", 0x40000, 0x20000, CRC(eb547ebc) SHA1(fce470b05ce095badd180c3740677146f52f6080) )
-	ROM_LOAD16_BYTE( "q5_43.13h", 0x40001, 0x20000, CRC(3ef65ea8) SHA1(2348d84b380c0e8ebe270a37d4ff3ce5204abc8c) )
-	ROM_LOAD16_BYTE( "q5_34.10f", 0x80000, 0x20000, CRC(7fcc1317) SHA1(672ca45d3fad5eec4d65bbbbd1d21cbf6be4ec8b) )
-	ROM_LOAD16_BYTE( "q5_40.10h", 0x80001, 0x20000, CRC(7f14b7b4) SHA1(5564eb9f65dad76ebe40d12d5c39fec5e246adf0) )
-	ROM_LOAD16_BYTE( "q5_35.11f", 0xc0000, 0x20000, CRC(abacee26) SHA1(2f513c02f715ffeec12a6d1c292619e214155cbc) )
-	ROM_LOAD16_BYTE( "q5_41.11h", 0xc0001, 0x20000, CRC(d3654067) SHA1(0b597483e136ff19b031171941cb8439bcd7f145) )
+	ROM_LOAD16_BYTE( "q5_36.12f",        0x00000, 0x20000, CRC(38a08099) SHA1(961f733baa2bbf8419e4de70f18660098dba7d52) )
+	ROM_LOAD16_BYTE( "q5_42.12h",        0x00001, 0x20000, CRC(4d29b3a4) SHA1(bf40fc22c0161fe131ca69100b2a4d102e86bde6) )
+	ROM_LOAD16_BYTE( "q5_37.13f",        0x40000, 0x20000, CRC(eb547ebc) SHA1(fce470b05ce095badd180c3740677146f52f6080) )
+	ROM_LOAD16_BYTE( "q5_43.13h",        0x40001, 0x20000, CRC(3ef65ea8) SHA1(2348d84b380c0e8ebe270a37d4ff3ce5204abc8c) )
+	ROM_LOAD16_BYTE( "q5_34.10f",        0x80000, 0x20000, CRC(7fcc1317) SHA1(672ca45d3fad5eec4d65bbbbd1d21cbf6be4ec8b) )
+	ROM_LOAD16_BYTE( "q5_40.10h",        0x80001, 0x20000, CRC(7f14b7b4) SHA1(5564eb9f65dad76ebe40d12d5c39fec5e246adf0) )
+	ROM_LOAD16_BYTE( "q5_35.11f",        0xc0000, 0x20000, CRC(abacee26) SHA1(2f513c02f715ffeec12a6d1c292619e214155cbc) )
+//  ROM_LOAD16_BYTE( "q5_35(__alt).11f", 0xc0000, 0x20000, CRC(59961612) SHA1(ded5144746dd9612f2db1415e96a826e215ad176) )   /* dumped from another board, 1 byte different, pcb verified */
+	ROM_LOAD16_BYTE( "q5_41.11h",        0xc0001, 0x20000, CRC(d3654067) SHA1(0b597483e136ff19b031171941cb8439bcd7f145) )
 
 	ROM_REGION( 0x200000, "gfx", 0 )
 	ROMX_LOAD( "q5_09.4b",  0x000000, 0x20000, CRC(48496d80) SHA1(bdfaca6375c8275b06b2bc170a25ff6aa62394dc) , ROM_SKIP(7) )
@@ -9613,112 +9546,6 @@ ROM_START( dinoj )
 	ROM_LOAD( "d10f1.10f",    0x0000, 0x0117, CRC(6619c494) SHA1(3aef656c07182a2186f810f30e0d854dd5bd8d18) )
 ROM_END
 
-/*
-
-Cadillac Bootleg Hardware:
-
-1x 68000p10
-1x PIC16c57
-1x AD-65
-1x OSC 30mhz
-1x OSC 24mhz
-13x 27c4000 ROMS
-
-*/
-ROM_START( dinopic )
-	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "3.bin",      0x000001, 0x80000, CRC(13dfeb08) SHA1(cd2f9dd64f4fabe93901247e36dff3763169716d) )
-	ROM_LOAD16_BYTE( "5.bin",      0x000000, 0x80000, CRC(96dfcbf1) SHA1(a8bda6edae2c1b79db7ae8a8976fd2457f874373) )
-	ROM_LOAD16_BYTE( "2.bin",      0x100001, 0x80000, CRC(0e4058ba) SHA1(346f9e34ea53dd1bf5cdafa1e38bf2edb09b9a7f) )
-	ROM_LOAD16_BYTE( "7.bin",      0x100000, 0x80000, CRC(6133f349) SHA1(d13af99910623f62c090d25372a2253dbc2f8cbe) )
-
-	ROM_REGION( 0x400000, "gfx", 0 ) // same data, different format, except for 8 which is a 99% match (bad rom?)
-	ROMX_LOAD( "4.bin",   0x000000, 0x40000, CRC(f3c2c98d) SHA1(98ae51a67fa4159456a4a205eebdd8d1775888d1), ROM_SKIP(7) )
-	ROM_CONTINUE(         0x000004, 0x40000)
-	ROMX_LOAD( "8.bin",   0x000001, 0x40000, CRC(d574befc) SHA1(56482e7a9aa8439f30e3cf72311495ce677a083d), ROM_SKIP(7) )
-	ROM_CONTINUE(         0x000005, 0x40000)
-	ROMX_LOAD( "9.bin",   0x000002, 0x40000, CRC(55ef0adc) SHA1(3b5551ae76ae80882d37fc70a1031a57885d6840), ROM_SKIP(7) )
-	ROM_CONTINUE(         0x000006, 0x40000)
-	ROMX_LOAD( "6.bin",   0x000003, 0x40000, CRC(cc0805fc) SHA1(c512734c28b878a30a0de249929f69784d5d77a1), ROM_SKIP(7) )
-	ROM_CONTINUE(         0x000007, 0x40000)
-	ROMX_LOAD( "13.bin",  0x200000, 0x40000, CRC(1371f714) SHA1(d2c98096fab08e3d4fd2482e6ebfc970ead656ee), ROM_SKIP(7) )
-	ROM_CONTINUE(         0x200004, 0x40000)
-	ROMX_LOAD( "12.bin",  0x200001, 0x40000, CRC(b284c4a7) SHA1(166f571e0afa115f8e38ba427b40e30abcfd70ee), ROM_SKIP(7) )
-	ROM_CONTINUE(         0x200005, 0x40000)
-	ROMX_LOAD( "11.bin",  0x200002, 0x40000, CRC(b7ad3394) SHA1(58dec34d9d991ff2817c8a7847749716abae6c77), ROM_SKIP(7) )
-	ROM_CONTINUE(         0x200006, 0x40000)
-	ROMX_LOAD( "10.bin",  0x200003, 0x40000, CRC(88847705) SHA1(05dc90067921960e417b7436056a5e1f86abaa1a), ROM_SKIP(7) )
-	ROM_CONTINUE(         0x200007, 0x40000)
-
-	ROM_REGION( 0x28000, "audiocpu", 0 ) /* PIC16c57 - protected, dump isn't valid */
-	ROM_LOAD( "pic16c57-rp", 0x00000, 0x2d4c, BAD_DUMP CRC(5a6d393c) SHA1(1391a1590aff5f75bb6fae1c83eddb796b53135d) )
-
-	ROM_REGION( 0x80000, "oki", 0 ) /* OKI6295 samples */
-	ROM_LOAD( "1.bin",      0x000000, 0x80000,  CRC(7d921309) SHA1(d51e60e904d302c2516b734189e141aa171b2b82) )
-ROM_END
-
-/* this is basically the same set as above, from a different bootleg pcb, with a few extra pal dumps etc.
-   the first dump will probably be removed eventually
-
-  CPU
-  1x TS68000CP10 (main)
-  1x AD-65 (sound)(equivalent to M6295)
-  1x PIC16C57-XT/P
-  1x A1020B-PL84C
-  1x oscillator 24.000MHz (close to main)
-  1x oscillator 30.000MHz (close to sound)
-
-  ROMs
-  13x 27C4000
-  3x GAL20V8A
-  3x PALCE16V8H (1 broken not dumped)
-  1x CAT93C46P
-
-  Note
-  1x JAMMA edge connector
-  1x 10 legs connector
-  1x trimmer (volume)
-*/
-
-ROM_START( dinopic2 )
-	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "27c4000-m12374r-2.bin",      0x000001, 0x80000, CRC(13dfeb08) SHA1(cd2f9dd64f4fabe93901247e36dff3763169716d) )
-	ROM_LOAD16_BYTE( "27c4000-m12481.bin",         0x000000, 0x80000, CRC(96dfcbf1) SHA1(a8bda6edae2c1b79db7ae8a8976fd2457f874373) )
-	ROM_LOAD16_BYTE( "27c4000-m12374r-1.bin",      0x100001, 0x80000, CRC(0e4058ba) SHA1(346f9e34ea53dd1bf5cdafa1e38bf2edb09b9a7f) )
-	ROM_LOAD16_BYTE( "27c4000-m12374r-3.bin",      0x100000, 0x80000, CRC(6133f349) SHA1(d13af99910623f62c090d25372a2253dbc2f8cbe) )
-
-	ROM_REGION( 0x400000, "gfx", 0 )
-	ROMX_LOAD( "27c4000-m12481-4.bin",   0x000000, 0x40000, CRC(f3c2c98d) SHA1(98ae51a67fa4159456a4a205eebdd8d1775888d1), ROM_SKIP(7) )
-	ROM_CONTINUE(                        0x000004, 0x40000)
-	ROMX_LOAD( "27c4000-m12481-3.bin",   0x000001, 0x40000, CRC(417a4816) SHA1(5268f6667ff550a949a08f94171966f5d841c6b2), ROM_SKIP(7) ) // this one is a perfect match, unlike dinopic set
-	ROM_CONTINUE(                        0x000005, 0x40000)
-	ROMX_LOAD( "27c4000-m12481-2.bin",   0x000002, 0x40000, CRC(55ef0adc) SHA1(3b5551ae76ae80882d37fc70a1031a57885d6840), ROM_SKIP(7) )
-	ROM_CONTINUE(                        0x000006, 0x40000)
-	ROMX_LOAD( "27c4000-m12481-1.bin",   0x000003, 0x40000, CRC(cc0805fc) SHA1(c512734c28b878a30a0de249929f69784d5d77a1), ROM_SKIP(7) )
-	ROM_CONTINUE(                        0x000007, 0x40000)
-	ROMX_LOAD( "27c4000-m12481-8.bin",   0x200000, 0x40000, CRC(1371f714) SHA1(d2c98096fab08e3d4fd2482e6ebfc970ead656ee), ROM_SKIP(7) )
-	ROM_CONTINUE(                        0x200004, 0x40000)
-	ROMX_LOAD( "27c4000-m12481-7.bin",   0x200001, 0x40000, CRC(b284c4a7) SHA1(166f571e0afa115f8e38ba427b40e30abcfd70ee), ROM_SKIP(7) )
-	ROM_CONTINUE(                        0x200005, 0x40000)
-	ROMX_LOAD( "27c4000-m12481-6.bin",   0x200002, 0x40000, CRC(b7ad3394) SHA1(58dec34d9d991ff2817c8a7847749716abae6c77), ROM_SKIP(7) )
-	ROM_CONTINUE(                        0x200006, 0x40000)
-	ROMX_LOAD( "27c4000-m12481-5.bin",   0x200003, 0x40000, CRC(88847705) SHA1(05dc90067921960e417b7436056a5e1f86abaa1a), ROM_SKIP(7) )
-	ROM_CONTINUE(                        0x200007, 0x40000)
-
-	ROM_REGION( 0x28000, "audiocpu", 0 ) /* PIC16c57 - protected, dump isn't valid */
-	ROM_LOAD( "pic16c57-xt.hex", 0x00000, 0x26cc, BAD_DUMP CRC(a6a5eac4) SHA1(2039789084836769180f0bfd230c2553a37e2aaf) )
-
-	ROM_REGION( 0x80000, "oki", 0 ) /* OKI6295 samples */
-	ROM_LOAD( "27c4000-m12623.bin",      0x000000, 0x80000,  CRC(7d921309) SHA1(d51e60e904d302c2516b734189e141aa171b2b82) )
-
-	ROM_REGION( 0x80000, "user1", 0 ) /* extra bits on this set */
-	ROM_LOAD( "cat93c46p.bin",       0x0, 0x080,  CRC(d49fa351) SHA1(e6dfaff1c6aa962d34ae8e82b71e6f394d82e19c) )
-	ROM_LOAD( "gal20v8a-1.bin",      0x0, 0x157,  CRC(cd99ca47) SHA1(ee1d990fd294aa46f56f31264134251569f6792e) )
-	ROM_LOAD( "gal20v8a-2.bin",      0x0, 0x157,  CRC(60d016b9) SHA1(add42c763c819f3fe6d7cf3adc7123a52c2a3be9) )
-	ROM_LOAD( "gal20v8a-3.bin",      0x0, 0x157,  CRC(049b7f4f) SHA1(6c6ea03d9a293db69a8bd10e042ee75e3c01313c) )
-	ROM_LOAD( "palce16v8h-1.bin",    0x0, 0x117,  CRC(48253c66) SHA1(8c94e655b768c45c3edf6ef39e62e3b7a4e57530) )
-	ROM_LOAD( "palce16v8h-2.bin",    0x0, 0x117,  CRC(9ae375ba) SHA1(6f227c2a5b1170a41e6419f12d1e1f98edc6f8e5) )
-ROM_END
 
 /* Chinese bootleg board */
 ROM_START( dinohunt )
@@ -9955,137 +9782,6 @@ ROM_START( punisherj )
 	ROM_LOAD( "d8l1.8l",      0x0000, 0x0117, CRC(539fc7da) SHA1(cad5c91629c6247e49ccbbcbfe6b08229eafae07) )
 	ROM_LOAD( "d9k2.9k",      0x0000, 0x0117, CRC(cd85a156) SHA1(a88f8939c5d93e65d7bcc0eb3ee5b6f4f1114e3a) )
 	ROM_LOAD( "d10f1.10f",    0x0000, 0x0117, CRC(6619c494) SHA1(3aef656c07182a2186f810f30e0d854dd5bd8d18) )
-ROM_END
-
-/* bootleg with pic, like dinopic / dinopic2 */
-ROM_START( punipic )
-	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "cpu5.bin",       0x000000, 0x80000, CRC(c3151563) SHA1(61d3a20c25fea8a94ae6e473a87c21968867cba0) )
-	ROM_LOAD16_BYTE( "cpu3.bin",       0x000001, 0x80000, CRC(8c2593ac) SHA1(4261bc72b96c3a5690df35c5d8b71524765693d9) )
-	ROM_LOAD16_BYTE( "cpu4.bin",       0x100000, 0x80000, CRC(665a5485) SHA1(c07920d110ca9c35f6cbff94a6a889c17300f994) )
-	ROM_LOAD16_BYTE( "cpu2.bin",       0x100001, 0x80000, CRC(d7b13f39) SHA1(eb7cd92b44fdef3b72672b0be6786c526421b627) )
-
-	ROM_REGION( 0x400000, "gfx", 0 )
-	ROMX_LOAD( "gfx9.bin",    0x000000, 0x40000, CRC(9b9a887a) SHA1(8805b36fc18837bd7c64c751b435d72b763b2235), ROM_SKIP(7) )
-	ROM_CONTINUE(             0x000004, 0x40000)
-	ROMX_LOAD( "gfx8.bin",    0x000001, 0x40000, CRC(2b94287a) SHA1(815d88e66f537e17550fc0483616f02f7126bfb1), ROM_SKIP(7) )
-	ROM_CONTINUE(             0x000005, 0x40000)
-	ROMX_LOAD( "gfx7.bin",    0x000002, 0x40000, CRC(e9bd74f5) SHA1(8ed7098c69d1c70093c99956bf82e532bd6fc7ac), ROM_SKIP(7) )
-	ROM_CONTINUE(             0x000006, 0x40000)
-	ROMX_LOAD( "gfx6.bin",    0x000003, 0x40000, CRC(a5e1c8a4) SHA1(3596265a45cf6bbf16c623f0fce7cdc65f9338ad), ROM_SKIP(7) )
-	ROM_CONTINUE(             0x000007, 0x40000)
-	ROMX_LOAD( "gfx13.bin",   0x200000, 0x40000, CRC(6d75a193) SHA1(6c5a89517926d7ba4a925a3df800d4bdb8a6938d), ROM_SKIP(7) )
-	ROM_CONTINUE(             0x200004, 0x40000)
-	ROMX_LOAD( "gfx12.bin",   0x200001, 0x40000, CRC(a3c205c1) SHA1(6317cc49434dbbb9a249ddd4b50bd791803b3ebe), ROM_SKIP(7) )
-	ROM_CONTINUE(             0x200005, 0x40000)
-	ROMX_LOAD( "gfx11.bin",   0x200002, 0x40000, CRC(22f2ec92) SHA1(9186bfc5db71dc5b099c9a985e8fdd5710772d1c), ROM_SKIP(7) )
-	ROM_CONTINUE(             0x200006, 0x40000)
-	ROMX_LOAD( "gfx10.bin",   0x200003, 0x40000, CRC(763974c9) SHA1(f9b93c7cf0cb8c212fc21c57c85459b7d2e4e2fd), ROM_SKIP(7) )
-	ROM_CONTINUE(             0x200007, 0x40000)
-
-	ROM_REGION( 0x28000, "audiocpu", 0 ) /* PIC16c57 - protected */
-	ROM_LOAD( "pic16c57", 0x00000, 0x4000, NO_DUMP )
-
-	ROM_REGION( 0x200000, "oki", 0 ) /* OKI6295 */
-	ROM_LOAD( "sound.bin",      0x000000, 0x80000, CRC(aeec9dc6) SHA1(56fd62e8db8aa96cdd242d8c705849a413567780) )
-ROM_END
-
-/* alt bootleg with PIC, same program roms as above, bigger GFX roms
-
-Punisher
-1993, Capcom
-
-This is a bootleg version running on a single PCB.
-
-PCB Layout
-----------
-
-|-----------------------------------------|
-|    93C46  SOUND   30MHz  PAL            |
-|    M6295  PIC16C57                      |
-|           6116     PAL   6116           |
-|           6116           6116  ACTEL    |
-|                          6116  A1020B   |
-|J                         6116           |
-|A   TEST                  6116           |
-|M                         6116           |
-|M                                        |
-|A                                        |
-|    62256  62256        62256  PU13478   |
-|     PRG1   PRG2                         |
-|     PRG3   PRG4        62256  PU11256   |
-|                                      PAL|
-|       68000      24MHz        PAL   PAL |
-|-----------------------------------------|
-
-Notes:
-      Measured clocks
-      ---------------
-      68000 clock: 12.000MHz (24 / 2)
-      M6295 clock: 937.5kHz  (30 / 32), sample rate = 30000000 / 32 / 132
-      16C57 clock: 3.75MHz   (30 / 8)   NOTE! 4096 bytes internal ROM is protected and can't be read out.
-      VSYNC      : 60Hz
-
-      ROMs
-      ----
-      PRG*  - 4M  MASK ROM (read as 27C040)
-      SOUND - 4M  MASK ROM (read as 27C040)
-      PU*   - 16M MASK ROM (read as 27C160)
-
-*/
-
-ROM_START( punipic2 )
-	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "prg4.bin",       0x000000, 0x80000, CRC(c3151563) SHA1(61d3a20c25fea8a94ae6e473a87c21968867cba0) )
-	ROM_LOAD16_BYTE( "prg3.bin",       0x000001, 0x80000, CRC(8c2593ac) SHA1(4261bc72b96c3a5690df35c5d8b71524765693d9) )
-	ROM_LOAD16_BYTE( "prg2.bin",       0x100000, 0x80000, CRC(665a5485) SHA1(c07920d110ca9c35f6cbff94a6a889c17300f994) )
-	ROM_LOAD16_BYTE( "prg1.bin",       0x100001, 0x80000, CRC(d7b13f39) SHA1(eb7cd92b44fdef3b72672b0be6786c526421b627) )
-
-	ROM_REGION( 0x400000, "gfx", 0 )
-	ROMX_LOAD( "pu11256.bin",   0x000000, 0x80000, CRC(6581faea) SHA1(2b0e96998002a1df96c7869ec965257d2ecfb531), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(               0x200000, 0x80000 )
-	ROM_CONTINUE(               0x000004, 0x80000 )
-	ROM_CONTINUE(               0x200004, 0x80000 )
-	ROMX_LOAD( "pu13478.bin",   0x000002, 0x80000, CRC(61613de4) SHA1(8f8c46ce907be2b4c4715ad88bfd1456818bdd2c), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(               0x200002, 0x80000 )
-	ROM_CONTINUE(               0x000006, 0x80000 )
-	ROM_CONTINUE(               0x200006, 0x80000 )
-
-	ROM_REGION( 0x28000, "audiocpu", 0 ) /* PIC16c57 - protected */
-	ROM_LOAD( "pic16c57", 0x00000, 0x4000, NO_DUMP )
-
-	ROM_REGION( 0x200000, "oki", 0 ) /* OKI6295 */
-	ROM_LOAD( "sound.bin",      0x000000, 0x80000, CRC(aeec9dc6) SHA1(56fd62e8db8aa96cdd242d8c705849a413567780) )
-
-	ROM_REGION( 0x200000, "user1", 0 ) /* other */
-	ROM_LOAD( "93c46.bin",      0x00, 0x80, CRC(36ab4e7d) SHA1(60bea43051d86d9aefcbb7a390cf0c7d8b905a4b) )
-ROM_END
-
-/* the readme doesn't actually state this has a PIC, and there's no sound rom
-   so it might be different */
-
-ROM_START( punipic3 )
-	ROM_REGION( CODE_SIZE, "maincpu", 0 )      /* 68000 code */
-	ROM_LOAD16_BYTE( "psb5b.rom",       0x000000, 0x80000, CRC(58f42c05) SHA1(e243928f0bbecdf2a8d07cf4a6fdea4440e46c01) )
-	ROM_LOAD16_BYTE( "psb3b.rom",       0x000001, 0x80000, CRC(90113db4) SHA1(4decc203ae3ee4abcb2e017f11cd20eae2abf3f3) )
-	ROM_LOAD16_BYTE( "psb4a.rom",       0x100000, 0x80000, CRC(665a5485) SHA1(c07920d110ca9c35f6cbff94a6a889c17300f994) )
-	ROM_LOAD16_BYTE( "psb2a.rom",       0x100001, 0x80000, CRC(d7b13f39) SHA1(eb7cd92b44fdef3b72672b0be6786c526421b627) )
-
-	ROM_REGION( 0x400000, "gfx", 0 )
-	ROMX_LOAD( "psb-a.rom",     0x000000, 0x80000, CRC(57f0f5e3) SHA1(130b6e92181994bbe874261e0895db65d4f3d5d1), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(               0x000004, 0x80000 )
-	ROM_CONTINUE(               0x200000, 0x80000 )
-	ROM_CONTINUE(               0x200004, 0x80000 )
-	ROMX_LOAD( "psb-b.rom",     0x000002, 0x80000, CRC(d9eb867e) SHA1(9b6eaa4a780da5c9cf09658fcab3a1a6f632c2f4), ROM_GROUPWORD | ROM_SKIP(6) )
-	ROM_CONTINUE(               0x000006, 0x80000 )
-	ROM_CONTINUE(               0x200002, 0x80000 )
-	ROM_CONTINUE(               0x200006, 0x80000 )
-
-	ROM_REGION( 0x28000, "audiocpu", ROMREGION_ERASE00 ) /* PIC16c57 (maybe, not listed in readme) */
-	//ROM_LOAD( "pic16c57", 0x00000, 0x4000, NO_DUMP )
-
-	ROM_REGION( 0x200000, "oki", ROMREGION_ERASE00 ) /* OKI6295 */
-	//ROM_LOAD( "sound.bin",      0x000000, 0x80000, CRC(aeec9dc6) SHA1(56fd62e8db8aa96cdd242d8c705849a413567780) )
 ROM_END
 
 /* Chinese bootleg board */
@@ -10651,7 +10347,7 @@ ROM_START( pang3b )
 	ROM_CONTINUE(            0x000006, 0x100000 )
 
 	ROM_REGION( 0x18000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
-	ROM_LOAD( "pa3_11.11",   0x00000, 0x08000, CRC(90a08c46) SHA1(7544adab2d7e052e0d21c920bff7841d9d718345) )   // == pa3_11.11f but different size, resized by bootlegger
+	ROM_LOAD( "pa3_11(__pang3b).11f", 0x00000, 0x08000, CRC(90a08c46) SHA1(7544adab2d7e052e0d21c920bff7841d9d718345) )  // == pa3_11.11f but different size, resized by bootlegger
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "pa3_05.10d",  0x00000, 0x20000, CRC(73a10d5d) SHA1(999465e4fbc35a34746d2db61ad49f61403d5af7) )
@@ -10883,7 +10579,7 @@ ROM_START( wofch )
 	ROMX_LOAD( "tk2-4m.6a",      0x000006, 0x80000, CRC(e349551c) SHA1(1d977bdf256accf750ad9930ec4a0a19bbf86964) , ROM_GROUPWORD | ROM_SKIP(6) )
 	ROMX_LOAD( "tk2(ch)_05.7a",  0x200000, 0x80000, CRC(e4a44d53) SHA1(b747679f4d63e5e62d9fd81b3120fba0401fadfb) , ROM_GROUPWORD | ROM_SKIP(6) )    // == tk2_05.7a
 	ROMX_LOAD( "tk2(ch)_06.8a",  0x200002, 0x80000, CRC(58066ba8) SHA1(c93af968e21094d020e4b2002e0c6fc0d746af0b) , ROM_GROUPWORD | ROM_SKIP(6) )    // == tk2_06.8a
-	ROMX_LOAD( "tk2(ch)_07.9a",  0x200004, 0x80000, CRC(d706568e) SHA1(7886414dc86c42e35d24b85c4bfa41a9f0c167ac) , ROM_GROUPWORD | ROM_SKIP(6) )    // == tk2_07.9a
+	ROMX_LOAD( "tk2(ch)_07.9a",  0x200004, 0x80000, CRC(cc9006c9) SHA1(cfcbec3a67052268a7739538aa28a6391fe5400e) , ROM_GROUPWORD | ROM_SKIP(6) )    /* 1 byte different from wofj, pcb verified */
 	ROMX_LOAD( "tk2(ch)_08.10a", 0x200006, 0x80000, CRC(d4a19a02) SHA1(ff396b1d33d9b4842140f2c6d085fe05748e3244) , ROM_GROUPWORD | ROM_SKIP(6) )    // == tk2_08.10a
 
 	ROM_REGION( 0x28000, "audiocpu", 0 ) /* QSound Z80 code */
@@ -11037,10 +10733,10 @@ DRIVER_INIT_MEMBER(cps_state,forgottn)
 {
 	/* Forgotten Worlds has a NEC uPD4701AC on the B-board handling dial inputs from the CN-MOWS connector. */
 	/* The memory mapping is handled by PAL LWIO */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x800040, 0x800041, write16_delegate(FUNC(cps_state::forgottn_dial_0_reset_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x800048, 0x800049, write16_delegate(FUNC(cps_state::forgottn_dial_1_reset_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x800052, 0x800055, read16_delegate(FUNC(cps_state::forgottn_dial_0_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x80005a, 0x80005d, read16_delegate(FUNC(cps_state::forgottn_dial_1_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x800040, 0x800041, write16_delegate(FUNC(cps_state::forgottn_dial_0_reset_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x800048, 0x800049, write16_delegate(FUNC(cps_state::forgottn_dial_1_reset_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x800052, 0x800055, read16_delegate(FUNC(cps_state::forgottn_dial_0_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x80005a, 0x80005d, read16_delegate(FUNC(cps_state::forgottn_dial_1_r),this));
 
 	save_item(NAME(m_dial));
 
@@ -11066,7 +10762,7 @@ READ16_MEMBER(cps_state::sf2rb_prot_r)
 
 DRIVER_INIT_MEMBER(cps_state,sf2rb)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x200000, 0x2fffff, read16_delegate(FUNC(cps_state::sf2rb_prot_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x200000, 0x2fffff, read16_delegate(FUNC(cps_state::sf2rb_prot_r),this));
 
 	DRIVER_INIT_CALL(cps1);
 }
@@ -11087,7 +10783,7 @@ READ16_MEMBER(cps_state::sf2rb2_prot_r)
 
 DRIVER_INIT_MEMBER(cps_state,sf2rb2)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x200000, 0x2fffff, read16_delegate(FUNC(cps_state::sf2rb2_prot_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x200000, 0x2fffff, read16_delegate(FUNC(cps_state::sf2rb2_prot_r),this));
 
 	DRIVER_INIT_CALL(cps1);
 }
@@ -11096,8 +10792,8 @@ DRIVER_INIT_MEMBER(cps_state,sf2ee)
 {
 	/* This specific revision of SF2 has the CPS-B custom mapped at a different address. */
 	/* The mapping is handled by the PAL IOB2 on the B-board */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).unmap_readwrite(0x800140, 0x80017f);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x8001c0, 0x8001ff, read16_delegate(FUNC(cps_state::cps1_cps_b_r),this), write16_delegate(FUNC(cps_state::cps1_cps_b_w),this));
+	m_maincpu->space(AS_PROGRAM).unmap_readwrite(0x800140, 0x80017f);
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x8001c0, 0x8001ff, read16_delegate(FUNC(cps_state::cps1_cps_b_r),this), write16_delegate(FUNC(cps_state::cps1_cps_b_w),this));
 
 	DRIVER_INIT_CALL(cps1);
 }
@@ -11105,7 +10801,7 @@ DRIVER_INIT_MEMBER(cps_state,sf2ee)
 DRIVER_INIT_MEMBER(cps_state,sf2thndr)
 {
 	/* This particular hack uses a modified B-board PAL which mirrors the CPS-B registers at an alternate address */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x8001c0, 0x8001ff, read16_delegate(FUNC(cps_state::cps1_cps_b_r),this), write16_delegate(FUNC(cps_state::cps1_cps_b_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x8001c0, 0x8001ff, read16_delegate(FUNC(cps_state::cps1_cps_b_r),this), write16_delegate(FUNC(cps_state::cps1_cps_b_w),this));
 
 	DRIVER_INIT_CALL(cps1);
 }
@@ -11113,7 +10809,50 @@ DRIVER_INIT_MEMBER(cps_state,sf2thndr)
 DRIVER_INIT_MEMBER(cps_state,sf2hack)
 {
 	/* some SF2 hacks have some inputs wired to the LSB instead of MSB */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x800018, 0x80001f, read16_delegate(FUNC(cps_state::cps1_hack_dsw_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x800018, 0x80001f, read16_delegate(FUNC(cps_state::cps1_hack_dsw_r),this));
+
+	DRIVER_INIT_CALL(cps1);
+}
+
+
+READ16_MEMBER(cps_state::sf2dongb_prot_r)
+{
+	switch (offset)
+	{
+		case 0x00000/2: // (ret & 0x0f00) == 0x0200
+		case 0x77040/2: // (ret & 0x0ff0) == 0x0210
+			return 0x0210;
+	}
+
+	return 0;
+}
+
+DRIVER_INIT_MEMBER(cps_state,sf2dongb)
+{
+	// There is a hacked up Altera EP910PC-30 DIP in the 5f socket instead of a 4th eprom
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x180000, 0x1fffff, read16_delegate(FUNC(cps_state::sf2dongb_prot_r),this));
+
+	DRIVER_INIT_CALL(cps1);
+}
+
+DRIVER_INIT_MEMBER( cps_state, sf2m8 )
+{
+	// unscramble gfx
+	UINT8 *grom = memregion("gfx")->base();
+	UINT8 *urom = memregion("user2")->base();
+	int i = 0x480000, j = 0;
+
+	for (j = 0x20000; j < 0x80000; j+=2)
+	{
+		grom[i++] = urom[j];
+		grom[i++] = urom[j|0x100000];
+		grom[i++] = urom[j|0x000001];
+		grom[i++] = urom[j|0x100001];
+		grom[i++] = urom[j|0x080000];
+		grom[i++] = urom[j|0x180000];
+		grom[i++] = urom[j|0x080001];
+		grom[i++] = urom[j|0x180001];
+	}
 
 	DRIVER_INIT_CALL(cps1);
 }
@@ -11146,14 +10885,14 @@ DRIVER_INIT_MEMBER(cps_state,pang3b)
 {
 	/* Pang 3 is the only non-QSound game to have an EEPROM. */
 	/* It is mapped in the CPS-B address range so probably is on the C-board. */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_port(0x80017a, 0x80017b, "EEPROMIN", "EEPROMOUT");
+	m_maincpu->space(AS_PROGRAM).install_readwrite_port(0x80017a, 0x80017b, "EEPROMIN", "EEPROMOUT");
 
 	DRIVER_INIT_CALL(cps1);
 }
 
 DRIVER_INIT_MEMBER(cps_state,pang3)
 {
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 	int A, src, dst;
 
 	for (A = 0x80000; A < 0x100000; A += 2)
@@ -11180,7 +10919,7 @@ READ16_MEMBER(cps_state::ganbare_ram_r)
 	UINT16 result = 0xffff;
 
 	if (ACCESSING_BITS_0_7)
-		result = (result & ~0x00ff) | timekeeper_r(machine().device("m48t35"), space, offset);
+		result = (result & ~0x00ff) | m_m48t35->read(space, offset, 0xff);
 	if (ACCESSING_BITS_8_15)
 		result = (result & ~0xff00) | (m_mainram[offset] & 0xff00);
 
@@ -11192,7 +10931,7 @@ WRITE16_MEMBER(cps_state::ganbare_ram_w)
 	COMBINE_DATA(&m_mainram[offset]);
 
 	if (ACCESSING_BITS_0_7)
-		timekeeper_w(machine().device("m48t35"), space, offset, data & 0xff);
+		m_m48t35->write(space, offset, data & 0xff, 0xff);
 }
 
 DRIVER_INIT_MEMBER(cps_state, ganbare)
@@ -11200,22 +10939,31 @@ DRIVER_INIT_MEMBER(cps_state, ganbare)
 	DRIVER_INIT_CALL(cps1);
 
 	/* ram is shared between the CPS work ram and the timekeeper ram */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xff0000, 0xffffff, read16_delegate(FUNC(cps_state::ganbare_ram_r),this), write16_delegate(FUNC(cps_state::ganbare_ram_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xff0000, 0xffffff, read16_delegate(FUNC(cps_state::ganbare_ram_r),this), write16_delegate(FUNC(cps_state::ganbare_ram_w),this));
 }
 
 DRIVER_INIT_MEMBER(cps_state,dinohunt)
 {
 	// is this shared with the new sound hw?
-	UINT8* ram = (UINT8*)machine().device("maincpu")->memory().space(AS_PROGRAM).install_ram(0xf18000, 0xf19fff);
+	UINT8* ram = (UINT8*)m_maincpu->space(AS_PROGRAM).install_ram(0xf18000, 0xf19fff);
 	memset(ram,0xff,0x2000);
 	DRIVER_INIT_CALL(cps1);
 }
 
+WRITE16_MEMBER( cps_state::sf2m3_layer_w )
+{
+	cps1_cps_b_w(space,0x0a,data);
+}
+
+
+
+/*************************************************** Game Macros *****************************************************/
 
 GAME( 1988, forgottn,    0,        cps1_10MHz, forgottn, cps_state,   forgottn, ROT0,   "Capcom", "Forgotten Worlds (World)", GAME_SUPPORTS_SAVE )  // (c) Capcom U.S.A. but World "warning"
 GAME( 1988, forgottnu,   forgottn, cps1_10MHz, forgottn, cps_state,   forgottn, ROT0,   "Capcom", "Forgotten Worlds (USA, B-Board 88621B-2, Rev. C)", GAME_SUPPORTS_SAVE )
 GAME( 1988, forgottnu1,  forgottn, cps1_10MHz, forgottn, cps_state,   forgottn, ROT0,   "Capcom", "Forgotten Worlds (USA, B-Board 88618B-2, Rev. C)", GAME_SUPPORTS_SAVE )
 GAME( 1988, forgottnua,  forgottn, cps1_10MHz, forgottn, cps_state,   forgottn, ROT0,   "Capcom", "Forgotten Worlds (USA, B-Board 88618B-2, Rev. A)", GAME_SUPPORTS_SAVE )
+GAME( 1988, forgottnuaa, forgottn, cps1_10MHz, forgottn, cps_state,   forgottn, ROT0,   "Capcom", "Forgotten Worlds (USA, B-Board 88618B-2, Rev. AA)", GAME_SUPPORTS_SAVE )
 GAME( 1988, lostwrld,    forgottn, cps1_10MHz, forgottn, cps_state,   forgottn, ROT0,   "Capcom", "Lost Worlds (Japan)", GAME_SUPPORTS_SAVE )
 GAME( 1988, lostwrldo,   forgottn, cps1_10MHz, forgottn, cps_state,   forgottn, ROT0,   "Capcom", "Lost Worlds (Japan Old Ver.)", GAME_SUPPORTS_SAVE )
 GAME( 1988, ghouls,      0,        cps1_10MHz, ghouls,   cps_state,   cps1,     ROT0,   "Capcom", "Ghouls'n Ghosts (World)", GAME_SUPPORTS_SAVE )   // "EXPORT" // Wed.26.10.1988 in the ROMs
@@ -11287,6 +11035,7 @@ GAME( 1992, sf2rk,       sf2,      cps1_10MHz, sf2hack,  cps_state,   sf2hack,  
 GAME( 1991, sf2qp1,      sf2,      cps1_10MHz, sf2,      cps_state,   cps1,     ROT0,   "bootleg", "Street Fighter II: The World Warrior (Quicken Pt-I, bootleg)", GAME_SUPPORTS_SAVE )     // 910214 - based on World version
 GAME( 1991, sf2thndr,    sf2,      cps1_10MHz, sf2,      cps_state,   sf2thndr, ROT0,   "bootleg", "Street Fighter II: The World Warrior (Thunder Edition, bootleg)", GAME_SUPPORTS_SAVE )  // 910214 - based on World version
 GAME( 1991, 3wonders,    0,        cps1_10MHz, 3wonders, cps_state,   cps1,     ROT0,   "Capcom", "Three Wonders (World 910520)", GAME_SUPPORTS_SAVE )  // "ETC"
+GAME( 1991, 3wondersr1,  3wonders, cps1_10MHz, 3wonders, cps_state,   cps1,     ROT0,   "Capcom", "Three Wonders (World 910513)", GAME_SUPPORTS_SAVE )  // "ETC"
 GAME( 1991, 3wondersu,   3wonders, cps1_10MHz, 3wonders, cps_state,   cps1,     ROT0,   "Capcom", "Three Wonders (USA 910520)", GAME_SUPPORTS_SAVE )
 GAME( 1991, wonder3,     3wonders, cps1_10MHz, 3wonders, cps_state,   cps1,     ROT0,   "Capcom", "Wonder 3 (Japan 910520)", GAME_SUPPORTS_SAVE )
 GAME( 1991, 3wondersh,   3wonders, cps1_10MHz, 3wonders, cps_state,   cps1,     ROT0,   "bootleg", "Three Wonders (hack)", GAME_SUPPORTS_SAVE ) // 910520 - based on World version
@@ -11305,7 +11054,6 @@ GAME( 1991, knights,     0,        cps1_10MHz, knights,  cps_state,   cps1,     
 GAME( 1991, knightsu,    knights,  cps1_10MHz, knights,  cps_state,   cps1,     ROT0,   "Capcom", "Knights of the Round (USA 911127)", GAME_SUPPORTS_SAVE )
 GAME( 1991, knightsj,    knights,  cps1_10MHz, knights,  cps_state,   cps1,     ROT0,   "Capcom", "Knights of the Round (Japan 911127, B-Board 91634B-2)", GAME_SUPPORTS_SAVE )
 GAME( 1991, knightsja,   knights,  cps1_10MHz, knights,  cps_state,   cps1,     ROT0,   "Capcom", "Knights of the Round (Japan 911127, B-Board 89625B-1)", GAME_SUPPORTS_SAVE )
-GAME( 1991, knightsb,    knights,  knightsb,   knights,  cps_state,   cps1,     ROT0,   "bootleg", "Knights of the Round (bootleg)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )    // 911127 - based on World version
 GAME( 1992, sf2ce,       0,        cps1_12MHz, sf2,      cps_state,   cps1,     ROT0,   "Capcom", "Street Fighter II': Champion Edition (World 920513)", GAME_SUPPORTS_SAVE )   // "ETC"
 GAME( 1992, sf2ceea,     sf2ce,    cps1_12MHz, sf2,      cps_state,   cps1,     ROT0,   "Capcom", "Street Fighter II': Champion Edition (World 920313)", GAME_SUPPORTS_SAVE )   // "ETC"
 GAME( 1992, sf2ceua,     sf2ce,    cps1_12MHz, sf2,      cps_state,   cps1,     ROT0,   "Capcom", "Street Fighter II': Champion Edition (USA 920313)", GAME_SUPPORTS_SAVE )
@@ -11324,16 +11072,16 @@ GAME( 1992, sf2acca,     sf2ce,    cps1_12MHz, sf2,      cps_state,   cps1,     
 GAME( 1992, sf2accp2,    sf2ce,    cps1_12MHz, sf2,      cps_state,   cps1,     ROT0,   "bootleg", "Street Fighter II': Champion Edition (Accelerator Pt.II, bootleg)", GAME_SUPPORTS_SAVE )        // 920313 - based on World version
 GAME( 1992, sf2amf,      sf2ce,    cps1_12MHz, sf2amf,   cps_state,   cps1,     ROT0,   "bootleg", "Street Fighter II': Champion Edition (Alpha Magic-F, bootleg)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )     // 920313 - based on World version
 GAME( 1992, sf2dkot2,    sf2ce,    cps1_12MHz, sf2,      cps_state,   cps1,     ROT0,   "bootleg", "Street Fighter II': Champion Edition (Double K.O. Turbo II, bootleg)", GAME_SUPPORTS_SAVE ) // 902140 !!! - based on USA version
-GAME( 1992, sf2m1,       sf2ce,    cps1_12MHz, sf2,      cps_state,   cps1,     ROT0,   "bootleg", "Street Fighter II': Champion Edition (M1, bootleg)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
 GAME( 1992, sf2m2,       sf2ce,    cps1_12MHz, sf2m2,    cps_state,   sf2hack,  ROT0,   "bootleg", "Street Fighter II': Champion Edition (M2, bootleg)", GAME_SUPPORTS_SAVE )               // 920313 - based on World version
-GAME( 1992, sf2m3,       sf2ce,    cps1_12MHz, sf2,      cps_state,   cps1,     ROT0,   "bootleg", "Street Fighter II': Champion Edition (M3, bootleg)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
+GAME( 1992, sf2m3,       sf2ce,    sf2m3,      sf2hack,  cps_state,   cps1,     ROT0,   "bootleg", "Street Fighter II': Champion Edition (M3, bootleg)", GAME_SUPPORTS_SAVE )               // 920313 - based on USA version
 GAME( 1992, sf2m4,       sf2ce,    cps1_12MHz, sf2m4,    cps_state,   sf2hack,  ROT0,   "bootleg", "Street Fighter II': Champion Edition (M4, bootleg)", GAME_SUPPORTS_SAVE )               // 920322 - based on Japan version
 GAME( 1992, sf2m5,       sf2ce,    cps1_12MHz, sf2hack,  cps_state,   sf2hack,  ROT0,   "bootleg", "Street Fighter II': Champion Edition (M5, bootleg)", GAME_SUPPORTS_SAVE )               // 920313 - based on World version
 GAME( 1992, sf2m6,       sf2ce,    cps1_12MHz, sf2hack,  cps_state,   sf2hack,  ROT0,   "bootleg", "Street Fighter II': Champion Edition (M6, bootleg)", GAME_SUPPORTS_SAVE )               // 811102 !!! - based on World version
 GAME( 1992, sf2m7,       sf2ce,    cps1_12MHz, sf2hack,  cps_state,   sf2hack,  ROT0,   "bootleg", "Street Fighter II': Champion Edition (M7, bootleg)", GAME_SUPPORTS_SAVE )               // 920313 - based on World version
-GAME( 1992, sf2m8,       sf2ce,    cps1_12MHz, sf2hack,  cps_state,   sf2hack,  ROT0,   "bootleg", "Street Fighter II': Champion Edition (M8, bootleg)", GAME_NOT_WORKING | GAME_UNEMULATED_PROTECTION | GAME_SUPPORTS_SAVE )
+GAME( 1992, sf2m8,       sf2ce,    sf2m3,      sf2hack,  cps_state,   sf2m8,    ROT0,   "bootleg", "Street Fighter II': Champion Edition (M8, bootleg)", GAME_SUPPORTS_SAVE )               // 920313 - based on USA version
 GAME( 1992, sf2yyc,      sf2ce,    cps1_12MHz, sf2hack,  cps_state,   sf2hack,  ROT0,   "bootleg", "Street Fighter II': Champion Edition (YYC, bootleg)", GAME_SUPPORTS_SAVE )              // 920313 - based on World version
 GAME( 1992, sf2koryu,    sf2ce,    cps1_12MHz, sf2hack,  cps_state,   sf2hack,  ROT0,   "bootleg", "Street Fighter II': Champion Edition (Xiang Long, Chinese bootleg)", GAME_SUPPORTS_SAVE )       // 811102 !!! - based on World version
+GAME( 1992, sf2dongb,    sf2ce,    cps1_12MHz, sf2,      cps_state,   sf2dongb, ROT0,   "bootleg", "Street Fighter II': Champion Edition (Dongfang Bubai protection, bootleg)", GAME_SUPPORTS_SAVE ) // 920313 - based on World version
 GAME( 1992, cworld2j,    0,        cps1_12MHz, cworld2j, cps_state,   cps1,     ROT0,   "Capcom", "Adventure Quiz Capcom World 2 (Japan 920611)", GAME_SUPPORTS_SAVE )
 GAME( 1992, varth,       0,        cps1_12MHz, varth,    cps_state,   cps1,     ROT270, "Capcom", "Varth: Operation Thunderstorm (World 920714)", GAME_SUPPORTS_SAVE )  // "ETC"    // 12MHz verified
 GAME( 1992, varthr1,     varth,    cps1_12MHz, varth,    cps_state,   cps1,     ROT270, "Capcom", "Varth: Operation Thunderstorm (World 920612)", GAME_SUPPORTS_SAVE )  // "ETC"
@@ -11353,23 +11101,18 @@ GAME( 1992, sf2hfj,      sf2hf,    cps1_12MHz, sf2j,     cps_state,   cps1,     
 GAME( 1993, dino,        0,        qsound,     dino,     cps_state,   dino,     ROT0,   "Capcom", "Cadillacs and Dinosaurs (World 930201)", GAME_SUPPORTS_SAVE )    // "ETC"
 GAME( 1993, dinou,       dino,     qsound,     dino,     cps_state,   dino,     ROT0,   "Capcom", "Cadillacs and Dinosaurs (USA 930201)", GAME_SUPPORTS_SAVE )
 GAME( 1993, dinoj,       dino,     qsound,     dino,     cps_state,   dino,     ROT0,   "Capcom", "Cadillacs: Kyouryuu Shin Seiki (Japan 930201)", GAME_SUPPORTS_SAVE )
-GAME( 1993, dinopic,     dino,     cpspicb,    dinopic,  cps_state,   dino,     ROT0,   "bootleg", "Cadillacs and Dinosaurs (bootleg with PIC16c57, set 1)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
-GAME( 1993, dinopic2,    dino,     cpspicb,    dinopic,  cps_state,   dino,     ROT0,   "bootleg", "Cadillacs and Dinosaurs (bootleg with PIC16c57, set 2)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
 GAME( 1993, dinohunt,    dino,     wofhfh,     dinoh,    cps_state,   dinohunt, ROT0,   "bootleg", "Dinosaur Hunter (Chinese bootleg of Cadillacs and Dinosaurs)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )  // 930223 - based on Asia TW version, the original is still undumped
 GAME( 1993, punisher,    0,        qsound,     punisher, cps_state,   punisher, ROT0,   "Capcom", "The Punisher (World 930422)", GAME_SUPPORTS_SAVE )   // "ETC"
 GAME( 1993, punisheru,   punisher, qsound,     punisher, cps_state,   punisher, ROT0,   "Capcom", "The Punisher (USA 930422)", GAME_SUPPORTS_SAVE )
 GAME( 1993, punisherh,   punisher, qsound,     punisher, cps_state,   punisher, ROT0,   "Capcom", "The Punisher (Hispanic 930422)", GAME_SUPPORTS_SAVE )
 GAME( 1993, punisherj,   punisher, qsound,     punisher, cps_state,   punisher, ROT0,   "Capcom", "The Punisher (Japan 930422)", GAME_SUPPORTS_SAVE )
-GAME( 1993, punipic,     punisher, cpspicb,    punipic,  cps_state,   punisher, ROT0,   "bootleg", "The Punisher (bootleg with PIC16c57, set 1)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
-GAME( 1993, punipic2,    punisher, cpspicb,    punipic,  cps_state,   punisher, ROT0,   "bootleg", "The Punisher (bootleg with PIC16c57, set 2)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
-GAME( 1993, punipic3,    punisher, cpspicb,    punipic,  cps_state,   punisher, ROT0,   "bootleg", "The Punisher (bootleg with PIC16c57, set 3)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
 GAME( 1993, punisherbz,  punisher, wofhfh,     punisherbz, cps_state, cps1,     ROT0,   "bootleg", "Biaofeng Zhanjing (Chinese bootleg of The Punisher)", GAME_SUPPORTS_SAVE )  // (c) 2002, they ripped the sound from Final Fight!
 GAME( 1993, slammast,    0,        qsound,     slammast, cps_state,   slammast, ROT0,   "Capcom", "Saturday Night Slam Masters (World 930713)", GAME_SUPPORTS_SAVE )    // "ETC"
 GAME( 1993, slammastu,   slammast, qsound,     slammast, cps_state,   slammast, ROT0,   "Capcom", "Saturday Night Slam Masters (USA 930713)", GAME_SUPPORTS_SAVE )
 GAME( 1993, mbomberj,    slammast, qsound,     slammast, cps_state,   slammast, ROT0,   "Capcom", "Muscle Bomber: The Body Explosion (Japan 930713)", GAME_SUPPORTS_SAVE )
 GAME( 1993, mbombrd,     0,        qsound,     slammast, cps_state,   slammast, ROT0,   "Capcom", "Muscle Bomber Duo: Ultimate Team Battle (World 931206)", GAME_SUPPORTS_SAVE )    // "ETC"
 GAME( 1993, mbombrdj,    mbombrd,  qsound,     slammast, cps_state,   slammast, ROT0,   "Capcom", "Muscle Bomber Duo: Heat Up Warriors (Japan 931206)", GAME_SUPPORTS_SAVE )
-GAME( 1994, pnickj,      0,        cps1_12MHz, pnickj,   cps_state,   cps1,     ROT0,   "Capcom (Compile license)", "Pnickies (Japan 940608)", GAME_SUPPORTS_SAVE )
+GAME( 1994, pnickj,      0,        cps1_12MHz, pnickj,   cps_state,   cps1,     ROT0,   "Compile (Capcom license)", "Pnickies (Japan 940608)", GAME_SUPPORTS_SAVE )
 GAME( 1995, qtono2j,     0,        cps1_12MHz, qtono2j,  cps_state,   cps1,     ROT0,   "Capcom", "Quiz Tonosama no Yabou 2: Zenkoku-ban (Japan 950123)", GAME_SUPPORTS_SAVE )
 GAME( 1995, megaman,     0,        cps1_12MHz, megaman,  cps_state,   cps1,     ROT0,   "Capcom", "Mega Man: The Power Battle (CPS1, USA 951006)", GAME_SUPPORTS_SAVE )
 GAME( 1995, megamana,    megaman,  cps1_12MHz, megaman,  cps_state,   cps1,     ROT0,   "Capcom", "Mega Man: The Power Battle (CPS1, Asia 951006)", GAME_SUPPORTS_SAVE )
@@ -11387,6 +11130,6 @@ GAME( 1995, pang3b,      pang3,    pang3,      pang3b,   cps_state,   pang3b,   
 
 CONS( 1994, wofch,  0, 0,     qsound,     wofch,      cps_state, wof,      "Capcom", "Tenchi wo Kurau II: Sekiheki no Tatakai (CPS Changer, Japan 921031)", 0 )
 CONS( 1995, sfzch,  0, 0,     cps1_12MHz, sfzch,      cps_state, cps1,     "Capcom", "Street Fighter Zero (CPS Changer, Japan 951020)", 0 )
-// are the 2 legit sets, or did somebody region hack it?
+// are these 2 legit sets, or did somebody region hack it?
 CONS( 1995, sfach,  sfzch, 0, cps1_12MHz, sfzch,      cps_state, cps1,     "Capcom", "Street Fighter Alpha: Warriors' Dreams (CPS Changer, Publicity USA 950727)", 0 )
 CONS( 1995, sfzbch, sfzch, 0, cps1_12MHz, sfzch,      cps_state, cps1,     "Capcom", "Street Fighter Zero (CPS Changer, Brazil 950727)", 0 )

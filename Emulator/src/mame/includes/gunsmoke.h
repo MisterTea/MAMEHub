@@ -8,12 +8,13 @@ class gunsmoke_state : public driver_device
 {
 public:
 	gunsmoke_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_scrollx(*this, "scrollx"),
 		m_scrolly(*this, "scrolly"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -41,4 +42,6 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_gunsmoke(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

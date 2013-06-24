@@ -68,136 +68,141 @@ enum
 };
 
 // core options
-#define OPTION_SYSTEMNAME			core_options::unadorned(0)
-#define OPTION_SOFTWARENAME			core_options::unadorned(1)
+#define OPTION_SYSTEMNAME           core_options::unadorned(0)
+#define OPTION_SOFTWARENAME         core_options::unadorned(1)
 
 // core configuration options
-#define OPTION_READCONFIG			"readconfig"
-#define OPTION_WRITECONFIG			"writeconfig"
+#define OPTION_READCONFIG           "readconfig"
+#define OPTION_WRITECONFIG          "writeconfig"
 
 // core search path options
-#define OPTION_MEDIAPATH			"rompath"
-#define OPTION_HASHPATH				"hashpath"
-#define OPTION_SAMPLEPATH			"samplepath"
-#define OPTION_ARTPATH				"artpath"
-#define OPTION_CTRLRPATH			"ctrlrpath"
-#define OPTION_INIPATH				"inipath"
-#define OPTION_FONTPATH				"fontpath"
-#define OPTION_CHEATPATH			"cheatpath"
-#define OPTION_CROSSHAIRPATH		"crosshairpath"
+#define OPTION_MEDIAPATH            "rompath"
+#define OPTION_HASHPATH             "hashpath"
+#define OPTION_SAMPLEPATH           "samplepath"
+#define OPTION_ARTPATH              "artpath"
+#define OPTION_CTRLRPATH            "ctrlrpath"
+#define OPTION_INIPATH              "inipath"
+#define OPTION_FONTPATH             "fontpath"
+#define OPTION_CHEATPATH            "cheatpath"
+#define OPTION_CROSSHAIRPATH        "crosshairpath"
 
 // core directory options
-#define OPTION_CFG_DIRECTORY		"cfg_directory"
-#define OPTION_NVRAM_DIRECTORY		"nvram_directory"
-#define OPTION_MEMCARD_DIRECTORY	"memcard_directory"
-#define OPTION_INPUT_DIRECTORY		"input_directory"
-#define OPTION_STATE_DIRECTORY		"state_directory"
-#define OPTION_SNAPSHOT_DIRECTORY	"snapshot_directory"
-#define OPTION_DIFF_DIRECTORY		"diff_directory"
-#define OPTION_COMMENT_DIRECTORY	"comment_directory"
+#define OPTION_CFG_DIRECTORY        "cfg_directory"
+#define OPTION_NVRAM_DIRECTORY      "nvram_directory"
+#define OPTION_MEMCARD_DIRECTORY    "memcard_directory"
+#define OPTION_INPUT_DIRECTORY      "input_directory"
+#define OPTION_STATE_DIRECTORY      "state_directory"
+#define OPTION_SNAPSHOT_DIRECTORY   "snapshot_directory"
+#define OPTION_DIFF_DIRECTORY       "diff_directory"
+#define OPTION_COMMENT_DIRECTORY    "comment_directory"
 
 // core state/playback options
-#define OPTION_STATE				"state"
-#define OPTION_AUTOSAVE				"autosave"
-#define OPTION_PLAYBACK				"playback"
-#define OPTION_RECORD				"record"
-#define OPTION_MNGWRITE				"mngwrite"
-#define OPTION_AVIWRITE				"aviwrite"
-#define OPTION_WAVWRITE				"wavwrite"
-#define OPTION_SNAPNAME				"snapname"
-#define OPTION_SNAPSIZE				"snapsize"
-#define OPTION_SNAPVIEW				"snapview"
-#define OPTION_BURNIN				"burnin"
+#define OPTION_STATE                "state"
+#define OPTION_AUTOSAVE             "autosave"
+#define OPTION_PLAYBACK             "playback"
+#define OPTION_RECORD               "record"
+#define OPTION_MNGWRITE             "mngwrite"
+#define OPTION_AVIWRITE             "aviwrite"
+#define OPTION_WAVWRITE             "wavwrite"
+#define OPTION_SNAPNAME             "snapname"
+#define OPTION_SNAPSIZE             "snapsize"
+#define OPTION_SNAPVIEW             "snapview"
+#define OPTION_STATENAME            "statename"
+#define OPTION_BURNIN               "burnin"
 
 // core performance options
-#define OPTION_AUTOFRAMESKIP		"autoframeskip"
-#define OPTION_FRAMESKIP			"frameskip"
-#define OPTION_SECONDS_TO_RUN		"seconds_to_run"
-#define OPTION_THROTTLE				"throttle"
-#define OPTION_SLEEP				"sleep"
-#define OPTION_SPEED				"speed"
-#define OPTION_REFRESHSPEED			"refreshspeed"
+#define OPTION_AUTOFRAMESKIP        "autoframeskip"
+#define OPTION_FRAMESKIP            "frameskip"
+#define OPTION_SECONDS_TO_RUN       "seconds_to_run"
+#define OPTION_THROTTLE             "throttle"
+#define OPTION_SLEEP                "sleep"
+#define OPTION_SPEED                "speed"
+#define OPTION_REFRESHSPEED         "refreshspeed"
 
 // core rotation options
-#define OPTION_ROTATE				"rotate"
-#define OPTION_ROR					"ror"
-#define OPTION_ROL					"rol"
-#define OPTION_AUTOROR				"autoror"
-#define OPTION_AUTOROL				"autorol"
-#define OPTION_FLIPX				"flipx"
-#define OPTION_FLIPY				"flipy"
+#define OPTION_ROTATE               "rotate"
+#define OPTION_ROR                  "ror"
+#define OPTION_ROL                  "rol"
+#define OPTION_AUTOROR              "autoror"
+#define OPTION_AUTOROL              "autorol"
+#define OPTION_FLIPX                "flipx"
+#define OPTION_FLIPY                "flipy"
 
 // core artwork options
-#define OPTION_ARTWORK_CROP			"artwork_crop"
-#define OPTION_USE_BACKDROPS		"use_backdrops"
-#define OPTION_USE_OVERLAYS			"use_overlays"
-#define OPTION_USE_BEZELS			"use_bezels"
-#define OPTION_USE_CPANELS			"use_cpanels"
-#define OPTION_USE_MARQUEES			"use_marquees"
+#define OPTION_ARTWORK_CROP         "artwork_crop"
+#define OPTION_USE_BACKDROPS        "use_backdrops"
+#define OPTION_USE_OVERLAYS         "use_overlays"
+#define OPTION_USE_BEZELS           "use_bezels"
+#define OPTION_USE_CPANELS          "use_cpanels"
+#define OPTION_USE_MARQUEES         "use_marquees"
 
 // core screen options
-#define OPTION_BRIGHTNESS			"brightness"
-#define OPTION_CONTRAST				"contrast"
-#define OPTION_GAMMA				"gamma"
-#define OPTION_PAUSE_BRIGHTNESS		"pause_brightness"
-#define OPTION_EFFECT				"effect"
+#define OPTION_BRIGHTNESS           "brightness"
+#define OPTION_CONTRAST             "contrast"
+#define OPTION_GAMMA                "gamma"
+#define OPTION_PAUSE_BRIGHTNESS     "pause_brightness"
+#define OPTION_EFFECT               "effect"
 
 // core vector options
-#define OPTION_ANTIALIAS			"antialias"
-#define OPTION_BEAM					"beam"
-#define OPTION_FLICKER				"flicker"
+#define OPTION_ANTIALIAS            "antialias"
+#define OPTION_BEAM                 "beam"
+#define OPTION_FLICKER              "flicker"
 
 // core sound options
-#define OPTION_SOUND				"sound"
-#define OPTION_SAMPLERATE			"samplerate"
-#define OPTION_SAMPLES				"samples"
-#define OPTION_VOLUME				"volume"
+#define OPTION_SOUND                "sound"
+#define OPTION_SAMPLERATE           "samplerate"
+#define OPTION_SAMPLES              "samples"
+#define OPTION_VOLUME               "volume"
 
 // core input options
-#define OPTION_COIN_LOCKOUT			"coin_lockout"
-#define OPTION_CTRLR				"ctrlr"
-#define OPTION_MOUSE				"mouse"
-#define OPTION_JOYSTICK				"joystick"
-#define OPTION_LIGHTGUN				"lightgun"
-#define OPTION_MULTIKEYBOARD		"multikeyboard"
-#define OPTION_MULTIMOUSE			"multimouse"
-#define OPTION_STEADYKEY			"steadykey"
+#define OPTION_COIN_LOCKOUT         "coin_lockout"
+#define OPTION_CTRLR                "ctrlr"
+#define OPTION_MOUSE                "mouse"
+#define OPTION_JOYSTICK             "joystick"
+#define OPTION_LIGHTGUN             "lightgun"
+#define OPTION_MULTIKEYBOARD        "multikeyboard"
+#define OPTION_MULTIMOUSE           "multimouse"
+#define OPTION_STEADYKEY            "steadykey"
 #define OPTION_UI_ACTIVE            "ui_active"
-#define OPTION_OFFSCREEN_RELOAD		"offscreen_reload"
-#define OPTION_JOYSTICK_MAP			"joystick_map"
-#define OPTION_JOYSTICK_DEADZONE	"joystick_deadzone"
-#define OPTION_JOYSTICK_SATURATION	"joystick_saturation"
-#define OPTION_NATURAL_KEYBOARD		"natural"
-#define OPTION_JOYSTICK_CONTRADICTORY	"joystick_contradictory"
-#define OPTION_COIN_IMPULSE			"coin_impulse"
+#define OPTION_OFFSCREEN_RELOAD     "offscreen_reload"
+#define OPTION_JOYSTICK_MAP         "joystick_map"
+#define OPTION_JOYSTICK_DEADZONE    "joystick_deadzone"
+#define OPTION_JOYSTICK_SATURATION  "joystick_saturation"
+#define OPTION_NATURAL_KEYBOARD     "natural"
+#define OPTION_JOYSTICK_CONTRADICTORY   "joystick_contradictory"
+#define OPTION_COIN_IMPULSE         "coin_impulse"
 
 // input autoenable options
-#define OPTION_PADDLE_DEVICE		"paddle_device"
-#define OPTION_ADSTICK_DEVICE		"adstick_device"
-#define OPTION_PEDAL_DEVICE			"pedal_device"
-#define OPTION_DIAL_DEVICE			"dial_device"
-#define OPTION_TRACKBALL_DEVICE		"trackball_device"
-#define OPTION_LIGHTGUN_DEVICE		"lightgun_device"
-#define OPTION_POSITIONAL_DEVICE	"positional_device"
-#define OPTION_MOUSE_DEVICE			"mouse_device"
+#define OPTION_PADDLE_DEVICE        "paddle_device"
+#define OPTION_ADSTICK_DEVICE       "adstick_device"
+#define OPTION_PEDAL_DEVICE         "pedal_device"
+#define OPTION_DIAL_DEVICE          "dial_device"
+#define OPTION_TRACKBALL_DEVICE     "trackball_device"
+#define OPTION_LIGHTGUN_DEVICE      "lightgun_device"
+#define OPTION_POSITIONAL_DEVICE    "positional_device"
+#define OPTION_MOUSE_DEVICE         "mouse_device"
 
 // core debugging options
-#define OPTION_LOG					"log"
-#define OPTION_VERBOSE				"verbose"
-#define OPTION_UPDATEINPAUSE		"update_in_pause"
-#define OPTION_DEBUG				"debug"
-#define OPTION_DEBUG_INTERNAL		"debug_internal"
-#define OPTION_DEBUGSCRIPT			"debugscript"
+#define OPTION_LOG                  "log"
+#define OPTION_VERBOSE              "verbose"
+#define OPTION_UPDATEINPAUSE        "update_in_pause"
+#define OPTION_DEBUG                "debug"
+#define OPTION_DEBUG_INTERNAL       "debug_internal"
+#define OPTION_DEBUGSCRIPT          "debugscript"
 
 // core misc options
-#define OPTION_BIOS					"bios"
-#define OPTION_CHEAT				"cheat"
-#define OPTION_SKIP_GAMEINFO		"skip_gameinfo"
-#define OPTION_UI_FONT				"uifont"
-#define OPTION_RAMSIZE				"ramsize"
+#define OPTION_BIOS                 "bios"
+#define OPTION_CHEAT                "cheat"
+#define OPTION_SKIP_GAMEINFO        "skip_gameinfo"
+#define OPTION_UI_FONT              "uifont"
+#define OPTION_RAMSIZE              "ramsize"
 
-#define OPTION_CONFIRM_QUIT			"confirm_quit"
+#define OPTION_CONFIRM_QUIT         "confirm_quit"
 #define OPTION_UI_MOUSE             "ui_mouse"
+
+#define OPTION_AUTOBOOT_COMMAND     "autoboot_command"
+#define OPTION_AUTOBOOT_DELAY       "autoboot_delay"
+#define OPTION_AUTOBOOT_SCRIPT      "autoboot_script"
 
 // core net options
 #define OPTION_USERNAME                "username"
@@ -208,7 +213,6 @@ enum
 #define OPTION_SELFPORT                "selfport"
 #define OPTION_SECONDSBETWEENSYNC      "secondsbetweensync"
 #define OPTION_SYNCTRANSFERSECONDS     "synctransferseconds"
-
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -273,6 +277,7 @@ public:
 	const char *snap_name() const { return value(OPTION_SNAPNAME); }
 	const char *snap_size() const { return value(OPTION_SNAPSIZE); }
 	const char *snap_view() const { return value(OPTION_SNAPVIEW); }
+	const char *state_name() const { return value(OPTION_STATENAME); }
 	bool burnin() const { return bool_value(OPTION_BURNIN); }
 
 	// core performance options
@@ -363,6 +368,10 @@ public:
 	bool confirm_quit() const { return bool_value(OPTION_CONFIRM_QUIT); }
 	bool ui_mouse() const { return bool_value(OPTION_UI_MOUSE); }
 
+	const char *autoboot_command() const { return value(OPTION_AUTOBOOT_COMMAND); }
+	int autoboot_delay() const { return int_value(OPTION_AUTOBOOT_DELAY); }
+	const char *autoboot_script() const { return value(OPTION_AUTOBOOT_SCRIPT); }
+
 	// core net options
 	const char *username() const { return value(OPTION_USERNAME); }
 	const char *hostname() const { return value(OPTION_HOSTNAME); }
@@ -393,4 +402,4 @@ private:
 };
 
 
-#endif	/* __EMUOPTS_H__ */
+#endif  /* __EMUOPTS_H__ */

@@ -98,13 +98,13 @@ static ADDRESS_MAP_START( hecdisc2_io , AS_IO, 8, hec2hrp_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	// ROM Page managing
-	AM_RANGE(0x000,0x00f) AM_READWRITE_LEGACY(hector_disc2_io00_port_r, hector_disc2_io00_port_w )
+	AM_RANGE(0x000,0x00f) AM_READWRITE(hector_disc2_io00_port_r, hector_disc2_io00_port_w )
 	// RS232 - 8251 managing
-	AM_RANGE(0x020,0x02f) AM_READWRITE_LEGACY(hector_disc2_io20_port_r, hector_disc2_io20_port_w )
+	AM_RANGE(0x020,0x02f) AM_READWRITE(hector_disc2_io20_port_r, hector_disc2_io20_port_w )
 	// Hector communication managing
-	AM_RANGE(0x030,0x03f) AM_READWRITE_LEGACY(hector_disc2_io30_port_r, hector_disc2_io30_port_w )
-	AM_RANGE(0x040,0x04f) AM_READWRITE_LEGACY(hector_disc2_io40_port_r, hector_disc2_io40_port_w )
-	AM_RANGE(0x050,0x05f) AM_READWRITE_LEGACY(hector_disc2_io50_port_r, hector_disc2_io50_port_w )
+	AM_RANGE(0x030,0x03f) AM_READWRITE(hector_disc2_io30_port_r, hector_disc2_io30_port_w )
+	AM_RANGE(0x040,0x04f) AM_READWRITE(hector_disc2_io40_port_r, hector_disc2_io40_port_w )
+	AM_RANGE(0x050,0x05f) AM_READWRITE(hector_disc2_io50_port_r, hector_disc2_io50_port_w )
 	// uPD765 link:
 	AM_RANGE(0x060,0x061) AM_DEVICE("upd765", upd765a_device, map)
 	AM_RANGE(0x070,0x07f) AM_DEVREADWRITE("upd765", upd765a_device, mdma_r, mdma_w)
@@ -290,19 +290,19 @@ INPUT_PORTS_END
 MACHINE_START_MEMBER(hec2hrp_state,hec2hrp)
 /*****************************************************************************/
 {
-	hector_init(machine());
+	hector_init();
 }
 
 MACHINE_RESET_MEMBER(hec2hrp_state,hec2hrp)
 {
 	// Machines init
-	hector_reset(machine(), 1, 0);
+	hector_reset(1, 0);
 }
 /*****************************************************************************/
 MACHINE_START_MEMBER(hec2hrp_state,hec2hrx)
 /*****************************************************************************/
 {
-	UINT8 *RAM   = machine().root_device().memregion("maincpu"  )->base();  // pointer to mess ram
+	UINT8 *RAM   = memregion("maincpu"  )->base();  // pointer to mess ram
 	//Patch rom possible !
 	//RAMD2[0xff6b] = 0x0ff; // force verbose mode hector !
 
@@ -315,13 +315,13 @@ MACHINE_START_MEMBER(hec2hrp_state,hec2hrx)
 
 /******************************************************SPECIFIQUE MX ***************************/
 	membank("bank2")->configure_entry(HECTORMX_BANK_PAGE0 , &RAM[0x0000]                    ); // Mess ram
-	membank("bank2")->configure_entry(HECTORMX_BANK_PAGE1 , machine().root_device().memregion("page1")->base() ); // Rom page 1
-	membank("bank2")->configure_entry(HECTORMX_BANK_PAGE2 , machine().root_device().memregion("page2")->base() ); // Rom page 2
+	membank("bank2")->configure_entry(HECTORMX_BANK_PAGE1 , memregion("page1")->base() ); // Rom page 1
+	membank("bank2")->configure_entry(HECTORMX_BANK_PAGE2 , memregion("page2")->base() ); // Rom page 2
 	membank("bank2")->set_entry(HECTORMX_BANK_PAGE0);
 /******************************************************SPECIFIQUE MX ***************************/
 
 /*************************************************SPECIFIQUE DISK II ***************************/
-	membank("bank3")->configure_entry(DISCII_BANK_ROM , machine().root_device().memregion("rom_disc2")->base() ); // ROM
+	membank("bank3")->configure_entry(DISCII_BANK_ROM , memregion("rom_disc2")->base() ); // ROM
 	membank("bank3")->configure_entry(DISCII_BANK_RAM , memregion("disc2mem" )->base() ); // RAM
 	membank("bank3")->set_entry(DISCII_BANK_ROM);
 /*************************************************SPECIFIQUE DISK II ***************************/
@@ -329,15 +329,15 @@ MACHINE_START_MEMBER(hec2hrp_state,hec2hrx)
 	// As video HR ram is in bank, use extern memory
 	m_hector_videoram.set_target(m_hector_videoram_hrx,m_hector_videoram.bytes());
 
-	hector_init(machine());
-	hector_disc2_init(machine()); // Init of the Disc II !
+	hector_init();
+	hector_disc2_init(); // Init of the Disc II !
 }
 /*****************************************************************************/
 MACHINE_START_MEMBER(hec2hrp_state,hec2mdhrx)
 /*****************************************************************************/
 //minidisc
 {
-	UINT8 *RAM   = machine().root_device().memregion("maincpu"  )->base();  // pointer to mess ram
+	UINT8 *RAM   = memregion("maincpu"  )->base();  // pointer to mess ram
 
 	// Memory install for bank switching
 	membank("bank1")->configure_entry(HECTOR_BANK_PROG , &RAM[0xc000]   ); // Mess ram
@@ -355,8 +355,8 @@ MACHINE_START_MEMBER(hec2hrp_state,hec2mdhrx)
 	// As video HR ram is in bank, use extern memory
 	m_hector_videoram.set_target(m_hector_videoram_hrx,m_hector_videoram.bytes());
 
-	hector_init(machine());
-	hector_minidisc_init(machine());
+	hector_init();
+	hector_minidisc_init();
 }
 MACHINE_RESET_MEMBER(hec2hrp_state,hec2hrx)
 {
@@ -367,8 +367,8 @@ MACHINE_RESET_MEMBER(hec2hrp_state,hec2hrx)
 	membank("bank3")->set_entry(DISCII_BANK_ROM);
 
 	// Machines init
-	hector_reset(machine(), 1, 1);
-	hector_disc2_reset(machine());
+	hector_reset(1, 1);
+	hector_disc2_reset();
 }
 //minidisc
 MACHINE_RESET_MEMBER(hec2hrp_state,hec2mdhrx)
@@ -378,7 +378,7 @@ MACHINE_RESET_MEMBER(hec2hrp_state,hec2mdhrx)
 	membank("bank2")->set_entry(HECTORMX_BANK_PAGE0);
 
 	// Machines init
-	hector_reset(machine(), 1, 0);
+	hector_reset(1, 0);
 }
 
 /* Cassette definition */
@@ -452,7 +452,7 @@ static MACHINE_CONFIG_START( hec2hr, hec2hrp_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 
 	MCFG_SOUND_ADD("sn76477", SN76477, 0)
@@ -464,7 +464,7 @@ static MACHINE_CONFIG_START( hec2hr, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* Gestion cassette*/
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")
@@ -495,7 +495,7 @@ static MACHINE_CONFIG_START( hec2hrp, hec2hrp_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)// Sound level for cassette, as it is in mono => output channel=0
 
 	MCFG_SOUND_ADD("sn76477", SN76477, 0)
@@ -507,7 +507,7 @@ static MACHINE_CONFIG_START( hec2hrp, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* Gestion cassette*/
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")
@@ -532,8 +532,8 @@ static MACHINE_CONFIG_START( hec2mx40, hec2hrp_state )
 	MCFG_CPU_PROGRAM_MAP(hecdisc2_mem)
 	MCFG_CPU_IO_MAP(hecdisc2_io)
 	MCFG_UPD765A_ADD("upd765", false, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", hector_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", hector_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
 	MCFG_MACHINE_RESET_OVERRIDE(hec2hrp_state,hec2hrx)
 	MCFG_MACHINE_START_OVERRIDE(hec2hrp_state,hec2hrx)
 
@@ -550,7 +550,7 @@ static MACHINE_CONFIG_START( hec2mx40, hec2hrp_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)// Sound level for cassette, as it is in mono => output channel=0
 
 	MCFG_SOUND_ADD("sn76477", SN76477, 0)
@@ -562,7 +562,7 @@ static MACHINE_CONFIG_START( hec2mx40, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* Gestion cassette*/
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")
@@ -584,8 +584,8 @@ static MACHINE_CONFIG_START( hec2hrx, hec2hrp_state )
 	MCFG_CPU_PROGRAM_MAP(hecdisc2_mem)
 	MCFG_CPU_IO_MAP(hecdisc2_io)
 	MCFG_UPD765A_ADD("upd765", false, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", hector_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", hector_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -600,7 +600,7 @@ static MACHINE_CONFIG_START( hec2hrx, hec2hrp_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)// Sound level for cassette, as it is in mono => output channel=0
 
 	MCFG_SOUND_ADD("sn76477", SN76477, 0)
@@ -612,7 +612,7 @@ static MACHINE_CONFIG_START( hec2hrx, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	// Gestion cassette
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")
@@ -648,7 +648,7 @@ static MACHINE_CONFIG_START( hec2mdhrx, hec2hrp_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)// Sound level for cassette, as it is in mono => output channel=0
 
 	MCFG_SOUND_ADD("sn76477", SN76477, 0)
@@ -660,7 +660,7 @@ static MACHINE_CONFIG_START( hec2mdhrx, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	// Gestion cassette
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")
@@ -683,8 +683,8 @@ static MACHINE_CONFIG_START( hec2mx80, hec2hrp_state )
 	MCFG_CPU_PROGRAM_MAP(hecdisc2_mem)
 	MCFG_CPU_IO_MAP(hecdisc2_io)
 	MCFG_UPD765A_ADD("upd765", false, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", hector_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", hector_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", hector_floppies, "525hd", floppy_image_device::default_floppy_formats)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -699,7 +699,7 @@ static MACHINE_CONFIG_START( hec2mx80, hec2hrp_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)// Sound level for cassette, as it is in mono => output channel=0
 
 	MCFG_SOUND_ADD("sn76477", SN76477, 0)
@@ -711,7 +711,7 @@ static MACHINE_CONFIG_START( hec2mx80, hec2hrp_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* Gestion cassette*/
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, hector_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", hector_cassette_interface )
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")

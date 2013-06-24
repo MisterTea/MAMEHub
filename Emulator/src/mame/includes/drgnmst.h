@@ -14,7 +14,9 @@ public:
 		m_vidregs2(*this, "vidregs2"),
 		m_spriteram(*this, "spriteram"),
 			m_oki_1(*this, "oki1"),
-			m_oki_2(*this, "oki2") { }
+			m_oki_2(*this, "oki2") ,
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_vidregs;
@@ -67,4 +69,8 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_drgnmst(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect );
+	UINT8 drgnmst_asciitohex( UINT8 data );
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };

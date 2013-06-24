@@ -102,15 +102,20 @@ data:  0 0000 0000  all fields occupied
 
 	if (data && Line18_REED)
 	{
-		i_18=get_first_cleared_bit(Line18_REED);
+		i_18 = get_first_cleared_bit(Line18_REED);
 
-/* looking for a piece in this line and clear bit in data if found */
+		if (i_18 == NOT_VALID)
+			printf("No cleared bit in mask Line18_REED!\n");
+		else
+		{
+			/* looking for a piece in this line and clear bit in data if found */
 
-		for ( i_AH = 0; i_AH < 8; i_AH = i_AH + 1)
-			if (IsPiece(64-(i_18*8 + 8-i_AH)))
-				data &= ~(1 << i_AH);           // clear bit
+			for (i_AH = 0; i_AH < 8; i_AH = i_AH + 1)
+				if (IsPiece(64 - (i_18 * 8 + 8 - i_AH)))
+					data &= ~(1 << i_AH);           // clear bit
 
-		read_board_flag = TRUE;
+			read_board_flag = TRUE;
+		}
 	}
 
 	return data;
@@ -119,7 +124,6 @@ data:  0 0000 0000  all fields occupied
 
 void mboard_state::write_board(UINT8 data)
 {
-
 	Line18_REED=data;
 
 	if (read_board_flag && !strcmp(machine().system().name,"glasgow") ) //HACK
@@ -265,7 +269,7 @@ void mboard_state::board_postload()
 
 void mboard_state::mboard_savestate_register()
 {
-	state_save_register_global_array(machine(),save_board);
+	save_item(NAME(save_board));
 	machine().save().register_postload(save_prepost_delegate(FUNC(mboard_state::board_postload),this));
 	machine().save().register_presave(save_prepost_delegate(FUNC(mboard_state::board_presave),this));
 }
@@ -323,14 +327,14 @@ void mboard_state::check_board_buttons()
 
 /* check click on border pieces */
 	i=0;
-	port_input=machine().root_device().ioport("B_BLACK")->read();
+	port_input=ioport("B_BLACK")->read();
 	if (port_input)
 	{
 		i=get_first_bit(port_input)+6;
 		click_on_border_piece=TRUE;
 	}
 
-	port_input=machine().root_device().ioport("B_WHITE")->read();
+	port_input=ioport("B_WHITE")->read();
 	if (port_input)
 	{
 		i=get_first_bit(port_input);
@@ -367,11 +371,10 @@ void mboard_state::check_board_buttons()
 
 
 /* check click on board */
-	data = machine().root_device().ioport(keynames[board_row])->read_safe(0xff);
+	data = ioport(keynames[board_row])->read_safe(0xff);
 
 	if ((data != 0xff) && (!mouse_down) )
 	{
-
 		pos2num_res = pos_to_num(data);
 		field=64-(board_row*8+8-pos2num_res);
 
@@ -414,7 +417,7 @@ void mboard_state::check_board_buttons()
 		mouse_down = 0;
 
 /* check click on border - remove selected piece*/
-	if (machine().root_device().ioport("LINE10")->read_safe(0x01))
+	if (ioport("LINE10")->read_safe(0x01))
 	{
 		if (mouse_hold_piece)
 		{
@@ -434,8 +437,7 @@ void mboard_state::check_board_buttons()
 /* check additional buttons */
 	if (data == 0xff)
 	{
-
-		port_input=machine().root_device().ioport("B_BUTTONS")->read();
+		port_input=ioport("B_BUTTONS")->read();
 		if (port_input==0x01)
 		{
 			clear_board();

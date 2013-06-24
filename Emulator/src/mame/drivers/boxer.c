@@ -23,10 +23,17 @@
 class boxer_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_POT_INTERRUPT,
+		TIMER_PERIODIC
+	};
+
 	boxer_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_tile_ram(*this, "tile_ram"),
-		m_sprite_ram(*this, "sprite_ram"){ }
+		m_sprite_ram(*this, "sprite_ram"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_tile_ram;
@@ -37,7 +44,7 @@ public:
 	UINT8 m_pot_latch;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_READ8_MEMBER(boxer_input_r);
 	DECLARE_READ8_MEMBER(boxer_misc_r);
 	DECLARE_WRITE8_MEMBER(boxer_bell_w);
@@ -52,6 +59,10 @@ public:
 	UINT32 screen_update_boxer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(pot_interrupt);
 	TIMER_CALLBACK_MEMBER(periodic_callback);
+	void draw_boxer( bitmap_ind16 &bitmap, const rectangle &cliprect );
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 /*************************************
@@ -59,6 +70,21 @@ public:
  *  Interrupts / Timers
  *
  *************************************/
+
+void boxer_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch(id)
+	{
+	case TIMER_POT_INTERRUPT:
+		pot_interrupt(ptr, param);
+		break;
+	case TIMER_PERIODIC:
+		periodic_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in boxer_state::device_timer");
+	}
+}
 
 TIMER_CALLBACK_MEMBER(boxer_state::pot_interrupt)
 {
@@ -94,7 +120,7 @@ TIMER_CALLBACK_MEMBER(boxer_state::periodic_callback)
 
 		for (i = 1; i < 256; i++)
 			if (mask[i] != 0)
-				machine().scheduler().timer_set(machine().primary_screen->time_until_pos(i), timer_expired_delegate(FUNC(boxer_state::pot_interrupt),this), mask[i]);
+				timer_set(machine().primary_screen->time_until_pos(i), TIMER_POT_INTERRUPT, mask[i]);
 
 		m_pot_state = 0;
 	}
@@ -104,7 +130,7 @@ TIMER_CALLBACK_MEMBER(boxer_state::periodic_callback)
 	if (scanline >= 262)
 		scanline = 0;
 
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(boxer_state::periodic_callback),this), scanline);
+	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_PERIODIC, scanline);
 }
 
 
@@ -123,22 +149,21 @@ void boxer_state::palette_init()
 	palette_set_color(machine(),3, MAKE_RGB(0x00,0x00,0x00));
 }
 
-static void draw_boxer( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void boxer_state::draw_boxer( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	boxer_state *state = machine.driver_data<boxer_state>();
 	int n;
 
 	for (n = 0; n < 2; n++)
 	{
-		const UINT8* p = state->memregion(n == 0 ? "user1" : "user2")->base();
+		const UINT8* p = memregion(n == 0 ? "user1" : "user2")->base();
 
 		int i, j;
 
-		int x = 196 - state->m_sprite_ram[0 + 2 * n];
-		int y = 192 - state->m_sprite_ram[1 + 2 * n];
+		int x = 196 - m_sprite_ram[0 + 2 * n];
+		int y = 192 - m_sprite_ram[1 + 2 * n];
 
-		int l = state->m_sprite_ram[4 + 2 * n] & 15;
-		int r = state->m_sprite_ram[5 + 2 * n] & 15;
+		int l = m_sprite_ram[4 + 2 * n] & 15;
+		int r = m_sprite_ram[5 + 2 * n] & 15;
 
 		for (i = 0; i < 8; i++)
 		{
@@ -149,7 +174,7 @@ static void draw_boxer( running_machine &machine, bitmap_ind16 &bitmap, const re
 				code = p[32 * l + 4 * i + j];
 
 				drawgfx_transpen(bitmap, cliprect,
-					machine.gfx[n],
+					machine().gfx[n],
 					code,
 					0,
 					code & 0x80, 0,
@@ -159,7 +184,7 @@ static void draw_boxer( running_machine &machine, bitmap_ind16 &bitmap, const re
 				code = p[32 * r + 4 * i - j + 3];
 
 				drawgfx_transpen(bitmap, cliprect,
-					machine.gfx[n],
+					machine().gfx[n],
 					code,
 					0,
 					!(code & 0x80), 0,
@@ -193,7 +218,7 @@ UINT32 boxer_state::screen_update_boxer(screen_device &screen, bitmap_ind16 &bit
 		}
 	}
 
-	draw_boxer(machine(), bitmap, cliprect);
+	draw_boxer(bitmap, cliprect);
 	return 0;
 }
 
@@ -427,16 +452,13 @@ GFXDECODE_END
 
 void boxer_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_pot_state));
 	save_item(NAME(m_pot_latch));
 }
 
 void boxer_state::machine_reset()
 {
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(0), timer_expired_delegate(FUNC(boxer_state::periodic_callback),this));
+	timer_set(machine().primary_screen->time_until_pos(0), TIMER_PERIODIC);
 
 	m_pot_state = 0;
 	m_pot_latch = 0;

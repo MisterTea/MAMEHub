@@ -60,7 +60,7 @@ void vc4000_state::video_start()
 	m_bitmap = auto_bitmap_ind16_alloc(machine(), screen->width(), screen->height());
 }
 
-INLINE UINT8 vc4000_joystick_return_to_centre(UINT8 joy)
+inline UINT8 vc4000_state::vc4000_joystick_return_to_centre(UINT8 joy)
 {
 	UINT8 data;
 
@@ -115,21 +115,21 @@ READ8_MEMBER( vc4000_state::vc4000_video_r )
 
 #ifndef ANALOG_HACK
 	case 0xcc:
-		if (!activeS2650_FO)) data=ioport("JOY1_X")->read();
-		else data=ioport("JOY1_Y")->read();
+		if (!activeS2650_FO)) data = m_io_joy1_x->read();
+		else data = m_io_joy1_y->read();
 		break;
 	case 0xcd:
-		if (!activecpu_get_reg(S2650_FO)) data=ioport("JOY2_X")->read();
-		else data=ioport("JOY2_Y")->read();
+		if (!activecpu_get_reg(S2650_FO)) data = m_io_joy2_x->read();
+		else data = m_io_joy2_y->read();
 		break;
 #else
 
 	case 0xcc:      /* left joystick */
-		if (ioport("CONFIG")->read()&1)
+		if (m_config->read()&1)
 		{       /* paddle */
-			if (!machine().device("maincpu")->state().state_int(S2650_FO))
+			if (!m_maincpu->state_int(S2650_FO))
 			{
-				data = ioport("JOYS")->read() & 0x03;
+				data = m_joys->read() & 0x03;
 				switch (data)
 				{
 				case 0x01:
@@ -147,7 +147,7 @@ READ8_MEMBER( vc4000_state::vc4000_video_r )
 			}
 			else
 			{
-				data = ioport("JOYS")->read() & 0x0c;
+				data = m_joys->read() & 0x0c;
 				switch (data)
 				{
 				case 0x08:
@@ -166,9 +166,9 @@ READ8_MEMBER( vc4000_state::vc4000_video_r )
 		}
 		else
 		{       /* buttons */
-			if (!machine().device("maincpu")->state().state_int(S2650_FO))
+			if (!m_maincpu->state_int(S2650_FO))
 			{
-				data = ioport("JOYS")->read() & 0x03;
+				data = m_joys->read() & 0x03;
 				switch (data)
 				{
 				case 0x01:
@@ -184,7 +184,7 @@ READ8_MEMBER( vc4000_state::vc4000_video_r )
 			}
 			else
 			{
-				data = ioport("JOYS")->read() & 0x0c;
+				data = m_joys->read() & 0x0c;
 				switch (data)
 				{
 				case 0x08:
@@ -202,11 +202,11 @@ READ8_MEMBER( vc4000_state::vc4000_video_r )
 		break;
 
 	case 0xcd:      /* right joystick */
-		if (ioport("CONFIG")->read()&1)
+		if (m_config->read()&1)
 		{
-			if (!machine().device("maincpu")->state().state_int(S2650_FO))
+			if (!m_maincpu->state_int(S2650_FO))
 			{
-				data = ioport("JOYS")->read() & 0x30;
+				data = m_joys->read() & 0x30;
 				switch (data)
 				{
 				case 0x10:
@@ -224,7 +224,7 @@ READ8_MEMBER( vc4000_state::vc4000_video_r )
 			}
 			else
 			{
-				data = ioport("JOYS")->read() & 0xc0;
+				data = m_joys->read() & 0xc0;
 				switch (data)
 				{
 				case 0x80:
@@ -243,9 +243,9 @@ READ8_MEMBER( vc4000_state::vc4000_video_r )
 		}
 		else
 		{
-			if (!machine().device("maincpu")->state().state_int(S2650_FO))
+			if (!m_maincpu->state_int(S2650_FO))
 			{
-				data = ioport("JOYS")->read() & 0x30;
+				data = m_joys->read() & 0x30;
 				switch (data)
 				{
 				case 0x10:
@@ -261,7 +261,7 @@ READ8_MEMBER( vc4000_state::vc4000_video_r )
 			}
 			else
 			{
-				data = ioport("JOYS")->read() & 0xc0;
+				data = m_joys->read() & 0xc0;
 				switch (data)
 				{
 				case 0x80:
@@ -293,7 +293,6 @@ WRITE8_MEMBER( vc4000_state::vc4000_video_w )
 
 	switch (offset)
 	{
-
 	case 0xc0:                      // Sprite size
 		m_video.sprites[0].size=1<<(data&3);
 		m_video.sprites[1].size=1<<((data>>2)&3);
@@ -321,7 +320,7 @@ WRITE8_MEMBER( vc4000_state::vc4000_video_w )
 
 	case 0xc7:                      // Soundregister
 		m_video.reg.data[offset] = data;
-		vc4000_soundport_w(machine().device("custom"), 0, data);
+		machine().device<vc4000_sound_device>("custom")->soundport_w(0, data);
 		break;
 
 	case 0xc8:                      // Digits 1 and 2
@@ -378,7 +377,7 @@ static const char led[20][12+1] =
 };
 
 
-static void vc4000_draw_digit(vc4000_state *state, bitmap_ind16 &bitmap, int x, int y, int d, int line)
+void vc4000_state::vc4000_draw_digit(bitmap_ind16 &bitmap, int x, int y, int d, int line)
 {
 	static const int digit_to_segment[0x10]={
 	0x0fff, 0x007c, 0x17df, 0x15ff, 0x1c7d, 0x1df7, 0x1ff7, 0x007f, 0x1fff, 0x1dff
@@ -386,14 +385,14 @@ static void vc4000_draw_digit(vc4000_state *state, bitmap_ind16 &bitmap, int x, 
 
 	int i=line,j;
 
-	for (j=0; j<sizeof(led[0]); j++)
+	for (j=0; j<sizeof(led[0])-1; j++)
 	{
-		if (digit_to_segment[d]&(1<<(led[i][j]-'a')) )
-			bitmap.pix16(y+i, x+j) = ((state->m_video.reg.d.background>>4)&7)^7;
+		if (led[i][j] != ' ' && digit_to_segment[d]&(1<<(led[i][j]-'a')) )
+			bitmap.pix16(y+i, x+j) = ((m_video.reg.d.background>>4)&7)^7;
 	}
 }
 
-INLINE void vc4000_collision_plot(UINT8 *collision, UINT8 data, UINT8 color, int scale)
+inline void vc4000_state::vc4000_collision_plot(UINT8 *collision, UINT8 data, UINT8 color, int scale)
 {
 	int i,j,m;
 
@@ -407,11 +406,11 @@ INLINE void vc4000_collision_plot(UINT8 *collision, UINT8 data, UINT8 color, int
 }
 
 
-static void vc4000_sprite_update(vc4000_state *state, bitmap_ind16 &bitmap, UINT8 *collision, SPRITE *This)
+void vc4000_state::vc4000_sprite_update(bitmap_ind16 &bitmap, UINT8 *collision, SPRITE *This)
 {
 	int i,j,m;
 
-	if (state->m_video.line==0)
+	if (m_video.line==0)
 	{
 		This->y=This->data->y1;
 		This->state=0;
@@ -421,12 +420,12 @@ static void vc4000_sprite_update(vc4000_state *state, bitmap_ind16 &bitmap, UINT
 
 	This->finished_now=FALSE;
 
-	if (state->m_video.line>VC4000_END_LINE) return;
+	if (m_video.line>VC4000_END_LINE) return;
 
 	switch (This->state)
 	{
 	case 0:
-		if (state->m_video.line != This->y + 2) break;
+		if (m_video.line != This->y + 2) break;
 		This->state++;
 
 	case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8:case 9:case 10:
@@ -439,8 +438,8 @@ static void vc4000_sprite_update(vc4000_state *state, bitmap_ind16 &bitmap, UINT
 			{
 				for (i=0; i<This->size; i++)
 				{
-					state->m_objects[This->data->x1 + i + j*This->size] |= This->scolor;
-					state->m_objects[This->data->x1 + i + j*This->size] &= 7;
+					m_objects[This->data->x1 + i + j*This->size] |= This->scolor;
+					m_objects[This->data->x1 + i + j*This->size] &= 7;
 				}
 			}
 		}
@@ -498,8 +497,8 @@ static void vc4000_sprite_update(vc4000_state *state, bitmap_ind16 &bitmap, UINT
 					// it properly.
 					if (offset < 256)
 					{
-						state->m_objects[offset] |= This->scolor;
-						state->m_objects[offset] &= 7;
+						m_objects[offset] |= This->scolor;
+						m_objects[offset] &= 7;
 					}
 				}
 			}
@@ -516,26 +515,25 @@ static void vc4000_sprite_update(vc4000_state *state, bitmap_ind16 &bitmap, UINT
 	}
 }
 
-INLINE void vc4000_draw_grid(running_machine &machine, UINT8 *collision)
+inline void vc4000_state::vc4000_draw_grid(UINT8 *collision)
 {
-	vc4000_state *state = machine.driver_data<vc4000_state>();
-	screen_device *screen = machine.first_screen();
+	screen_device *screen = machine().first_screen();
 	int width = screen->width();
 	int height = screen->height();
-	int i, j, m, x, line=state->m_video.line-20;
+	int i, j, m, x, line=m_video.line-20;
 	int w, k;
 
-	if (state->m_video.line>=height) return;
+	if (m_video.line>=height) return;
 
-	state->m_bitmap->plot_box(0, state->m_video.line, width, 1, (state->m_video.reg.d.background)&7);
+	m_bitmap->plot_box(0, m_video.line, width, 1, (m_video.reg.d.background)&7);
 
 	if (line<0 || line>=200) return;
-	if (~state->m_video.reg.d.background & 8) return;
+	if (~m_video.reg.d.background & 8) return;
 
 	i=(line/20)*2;
 	if (line%20>=2) i++;
 
-	k=state->m_video.reg.d.grid_control[i>>2];
+	k=m_video.reg.d.grid_control[i>>2];
 	switch (k>>6) {
 		default:
 		case 0:case 2: w=1;break;
@@ -563,11 +561,11 @@ INLINE void vc4000_draw_grid(running_machine &machine, UINT8 *collision)
 	}
 	for (x=30, j=0, m=0x80; j<16; j++, x+=8, m>>=1)
 	{
-		if (state->m_video.reg.d.grid[i][j>>3]&m)
+		if (m_video.reg.d.grid[i][j>>3]&m)
 		{
 			int l;
 			for (l=0; l<w; l++) collision[x+l]|=0x10;
-			state->m_bitmap->plot_box(x, state->m_video.line, w, 1, (state->m_video.reg.d.background>>4)&7);
+			m_bitmap->plot_box(x, m_video.line, w, 1, (m_video.reg.d.background>>4)&7);
 		}
 		if (j==7) m=0x100;
 	}
@@ -594,22 +592,22 @@ INTERRUPT_GEN_MEMBER(vc4000_state::vc4000_video_line)
 
 	if (m_irq_pause>10)
 	{
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 		m_irq_pause = 0;
 	}
 
 	if (m_video.line <= VC4000_END_LINE)
 	{
-		vc4000_draw_grid(machine(), collision);
+		vc4000_draw_grid(collision);
 
 		/* init object colours */
 		for (i=visarea.min_x; i<visarea.max_x; i++) m_objects[i]=8;
 
 		/* calculate object colours and OR overlapping object colours */
-		vc4000_sprite_update(this, *m_bitmap, collision, &m_video.sprites[0]);
-		vc4000_sprite_update(this, *m_bitmap, collision, &m_video.sprites[1]);
-		vc4000_sprite_update(this, *m_bitmap, collision, &m_video.sprites[2]);
-		vc4000_sprite_update(this, *m_bitmap, collision, &m_video.sprites[3]);
+		vc4000_sprite_update(*m_bitmap, collision, &m_video.sprites[0]);
+		vc4000_sprite_update(*m_bitmap, collision, &m_video.sprites[1]);
+		vc4000_sprite_update(*m_bitmap, collision, &m_video.sprites[2]);
+		vc4000_sprite_update(*m_bitmap, collision, &m_video.sprites[3]);
 
 		for (i=visarea.min_x; i<visarea.max_x; i++)
 		{
@@ -625,11 +623,11 @@ INTERRUPT_GEN_MEMBER(vc4000_state::vc4000_video_line)
 		if ((m_video.line>=y)&&(m_video.line<y+20))
 		{
 			x = 60;
-			vc4000_draw_digit(this, *m_bitmap, x, y, m_video.reg.d.bcd[0]>>4, m_video.line-y);
-			vc4000_draw_digit(this, *m_bitmap, x+16, y, m_video.reg.d.bcd[0]&0xf, m_video.line-y);
+			vc4000_draw_digit(*m_bitmap, x, y, m_video.reg.d.bcd[0]>>4, m_video.line-y);
+			vc4000_draw_digit(*m_bitmap, x+16, y, m_video.reg.d.bcd[0]&0xf, m_video.line-y);
 			if (m_video.reg.d.score_control&2)  x -= 16;
-			vc4000_draw_digit(this, *m_bitmap, x+48, y, m_video.reg.d.bcd[1]>>4, m_video.line-y);
-			vc4000_draw_digit(this, *m_bitmap, x+64, y, m_video.reg.d.bcd[1]&0xf, m_video.line-y);
+			vc4000_draw_digit(*m_bitmap, x+48, y, m_video.reg.d.bcd[1]>>4, m_video.line-y);
+			vc4000_draw_digit(*m_bitmap, x+64, y, m_video.reg.d.bcd[1]&0xf, m_video.line-y);
 		}
 	}
 	if (m_video.line==VC4000_END_LINE) m_video.reg.d.sprite_collision |=0x40;
@@ -640,7 +638,7 @@ INTERRUPT_GEN_MEMBER(vc4000_state::vc4000_video_line)
 		(m_video.sprites[1].finished_now) |
 		(m_video.sprites[0].finished_now)) && (!m_irq_pause))
 		{
-			machine().device("maincpu")->execute().set_input_line_and_vector(0, ASSERT_LINE, 3);
+			m_maincpu->set_input_line_and_vector(0, ASSERT_LINE, 3);
 			m_irq_pause=1;
 		}
 }

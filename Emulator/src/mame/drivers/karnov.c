@@ -91,62 +91,58 @@ Stephh's notes (based on the games M68000 code and some tests) :
  *************************************/
 
 /* Emulation of the protected microcontroller - for coins & general protection */
-static void karnov_i8751_w( running_machine &machine, int data )
+void karnov_state::karnov_i8751_w( int data )
 {
-	karnov_state *state = machine.driver_data<karnov_state>();
-
 	/* Pending coin operations may cause protection commands to be queued */
-	if (state->m_i8751_needs_ack)
+	if (m_i8751_needs_ack)
 	{
-		state->m_i8751_command_queue = data;
+		m_i8751_command_queue = data;
 		return;
 	}
 
-	state->m_i8751_return = 0;
+	m_i8751_return = 0;
 
-	if (data == 0x100 && state->m_microcontroller_id == KARNOV) /* USA version */
-		state->m_i8751_return = 0x56b;
+	if (data == 0x100 && m_microcontroller_id == KARNOV) /* USA version */
+		m_i8751_return = 0x56b;
 
-	if (data == 0x100 && state->m_microcontroller_id == KARNOVJ)    /* Japan version */
-		state->m_i8751_return = 0x56a;
+	if (data == 0x100 && m_microcontroller_id == KARNOVJ)    /* Japan version */
+		m_i8751_return = 0x56a;
 
 	if ((data & 0xf00) == 0x300)
-		state->m_i8751_return = (data & 0xff) * 0x12; /* Player sprite mapping */
+		m_i8751_return = (data & 0xff) * 0x12; /* Player sprite mapping */
 
 	/* I'm not sure the ones marked ^ appear in the right order */
-	if (data == 0x400) state->m_i8751_return = 0x4000; /* Get The Map... */
-	if (data == 0x402) state->m_i8751_return = 0x40a6; /* Ancient Ruins */
-	if (data == 0x403) state->m_i8751_return = 0x4054; /* Forest... */
-	if (data == 0x404) state->m_i8751_return = 0x40de; /* ^Rocky hills */
-	if (data == 0x405) state->m_i8751_return = 0x4182; /* Sea */
-	if (data == 0x406) state->m_i8751_return = 0x41ca; /* Town */
-	if (data == 0x407) state->m_i8751_return = 0x421e; /* Desert */
-	if (data == 0x401) state->m_i8751_return = 0x4138; /* ^Whistling wind */
-	if (data == 0x408) state->m_i8751_return = 0x4276; /* ^Heavy Gates */
+	if (data == 0x400) m_i8751_return = 0x4000; /* Get The Map... */
+	if (data == 0x402) m_i8751_return = 0x40a6; /* Ancient Ruins */
+	if (data == 0x403) m_i8751_return = 0x4054; /* Forest... */
+	if (data == 0x404) m_i8751_return = 0x40de; /* ^Rocky hills */
+	if (data == 0x405) m_i8751_return = 0x4182; /* Sea */
+	if (data == 0x406) m_i8751_return = 0x41ca; /* Town */
+	if (data == 0x407) m_i8751_return = 0x421e; /* Desert */
+	if (data == 0x401) m_i8751_return = 0x4138; /* ^Whistling wind */
+	if (data == 0x408) m_i8751_return = 0x4276; /* ^Heavy Gates */
 
-//  if (!state->m_i8751_return && data != 0x300) logerror("%s - Unknown Write %02x intel\n", machine.describe_context(), data);
+//  if (!m_i8751_return && data != 0x300) logerror("%s - Unknown Write %02x intel\n", machine().describe_context(), data);
 
-	state->m_maincpu->set_input_line(6, HOLD_LINE); /* Signal main cpu task is complete */
-	state->m_i8751_needs_ack = 1;
+	m_maincpu->set_input_line(6, HOLD_LINE); /* Signal main cpu task is complete */
+	m_i8751_needs_ack = 1;
 }
 
-static void wndrplnt_i8751_w( running_machine &machine, int data )
+void karnov_state::wndrplnt_i8751_w( int data )
 {
-	karnov_state *state = machine.driver_data<karnov_state>();
-
 	/* The last command hasn't been ACK'd (probably a conflict with coin command) */
-	if (state->m_i8751_needs_ack)
+	if (m_i8751_needs_ack)
 	{
-		state->m_i8751_command_queue = data;
+		m_i8751_command_queue = data;
 		return;
 	}
 
-	state->m_i8751_return=0;
+	m_i8751_return=0;
 
-	if (data == 0x100) state->m_i8751_return = 0x67a;
-	if (data == 0x200) state->m_i8751_return = 0x214;
-	if (data == 0x300) state->m_i8751_return = 0x17; /* Copyright text on title screen */
-//  if (data == 0x300) state->m_i8751_return = 0x1; /* (USA) Copyright text on title screen */
+	if (data == 0x100) m_i8751_return = 0x67a;
+	if (data == 0x200) m_i8751_return = 0x214;
+	if (data == 0x300) m_i8751_return = 0x17; /* Copyright text on title screen */
+//  if (data == 0x300) m_i8751_return = 0x1; /* (USA) Copyright text on title screen */
 
 	/* The game writes many values in the 0x600 range, but only a specific mask
 	matters for the return value */
@@ -154,172 +150,170 @@ static void wndrplnt_i8751_w( running_machine &machine, int data )
 	{
 		switch (data & 0x18)
 		{
-			case 0x00:  state->m_i8751_return = 0x4d53; break;
-			case 0x08:  state->m_i8751_return = 0x4b54; break;
-			case 0x10:  state->m_i8751_return = 0x5453; break;
-			case 0x18:  state->m_i8751_return = 0x5341; break;
+			case 0x00:  m_i8751_return = 0x4d53; break;
+			case 0x08:  m_i8751_return = 0x4b54; break;
+			case 0x10:  m_i8751_return = 0x5453; break;
+			case 0x18:  m_i8751_return = 0x5341; break;
 		}
 	}
-//  else logerror("%s - Unknown Write %02x intel\n", machine.describe_context(), data);
+//  else logerror("%s - Unknown Write %02x intel\n", machine().describe_context(), data);
 
 	/* These are 68k function call addresses - different address for each power-up */
-	if (data == 0x400) state->m_i8751_return = 0x594;
-	if (data == 0x401) state->m_i8751_return = 0x5ea;
-	if (data == 0x402) state->m_i8751_return = 0x628;
-	if (data == 0x403) state->m_i8751_return = 0x66c;
-	if (data == 0x404) state->m_i8751_return = 0x6a4;
-	if (data == 0x405) state->m_i8751_return = 0x6a4;
-	if (data == 0x406) state->m_i8751_return = 0x6a4;
+	if (data == 0x400) m_i8751_return = 0x594;
+	if (data == 0x401) m_i8751_return = 0x5ea;
+	if (data == 0x402) m_i8751_return = 0x628;
+	if (data == 0x403) m_i8751_return = 0x66c;
+	if (data == 0x404) m_i8751_return = 0x6a4;
+	if (data == 0x405) m_i8751_return = 0x6a4;
+	if (data == 0x406) m_i8751_return = 0x6a4;
 
 	/* This is 68k program code which is executed every frame */
-	if (data == 0x50c) state->m_i8751_return = 0x13fc;
-	if (data == 0x50b) state->m_i8751_return = 0x00ff;
-	if (data == 0x50a) state->m_i8751_return = 0x0006;
-	if (data == 0x509) state->m_i8751_return = 0x0000;
-	if (data == 0x508) state->m_i8751_return = 0x4a39;
-	if (data == 0x507) state->m_i8751_return = 0x0006;
-	if (data == 0x506) state->m_i8751_return = 0x0000;
-	if (data == 0x505) state->m_i8751_return = 0x66f8;
-	if (data == 0x504) state->m_i8751_return = 0x4a39;
-	if (data == 0x503) state->m_i8751_return = 0x000c;
-	if (data == 0x502) state->m_i8751_return = 0x0003;
-	if (data == 0x501) state->m_i8751_return = 0x6bf8;
-	if (data == 0x500) state->m_i8751_return = 0x4e75;
+	if (data == 0x50c) m_i8751_return = 0x13fc;
+	if (data == 0x50b) m_i8751_return = 0x00ff;
+	if (data == 0x50a) m_i8751_return = 0x0006;
+	if (data == 0x509) m_i8751_return = 0x0000;
+	if (data == 0x508) m_i8751_return = 0x4a39;
+	if (data == 0x507) m_i8751_return = 0x0006;
+	if (data == 0x506) m_i8751_return = 0x0000;
+	if (data == 0x505) m_i8751_return = 0x66f8;
+	if (data == 0x504) m_i8751_return = 0x4a39;
+	if (data == 0x503) m_i8751_return = 0x000c;
+	if (data == 0x502) m_i8751_return = 0x0003;
+	if (data == 0x501) m_i8751_return = 0x6bf8;
+	if (data == 0x500) m_i8751_return = 0x4e75;
 
-	state->m_maincpu->set_input_line(6, HOLD_LINE); /* Signal main cpu task is complete */
-	state->m_i8751_needs_ack = 1;
+	m_maincpu->set_input_line(6, HOLD_LINE); /* Signal main cpu task is complete */
+	m_i8751_needs_ack = 1;
 }
 
-static void chelnov_i8751_w( running_machine &machine, int data )
+void karnov_state::chelnov_i8751_w( int data )
 {
-	karnov_state *state = machine.driver_data<karnov_state>();
-
 	/* Pending coin operations may cause protection commands to be queued */
-	if (state->m_i8751_needs_ack)
+	if (m_i8751_needs_ack)
 	{
-		state->m_i8751_command_queue = data;
+		m_i8751_command_queue = data;
 		return;
 	}
 
-	state->m_i8751_return = 0;
+	m_i8751_return = 0;
 
-	if (data == 0x200 && state->m_microcontroller_id == CHELNOV)    /* World version */
-		state->m_i8751_return = 0x7736;
+	if (data == 0x200 && m_microcontroller_id == CHELNOV)    /* World version */
+		m_i8751_return = 0x7736;
 
-	if (data == 0x200 && state->m_microcontroller_id == CHELNOVU)   /* USA version */
-		state->m_i8751_return = 0x783e;
+	if (data == 0x200 && m_microcontroller_id == CHELNOVU)   /* USA version */
+		m_i8751_return = 0x783e;
 
-	if (data == 0x200 && state->m_microcontroller_id == CHELNOVJ)   /* Japan version */
-		state->m_i8751_return = 0x7734;
+	if (data == 0x200 && m_microcontroller_id == CHELNOVJ)   /* Japan version */
+		m_i8751_return = 0x7734;
 
-	if (data == 0x100 && state->m_microcontroller_id == CHELNOV)    /* World version */
-		state->m_i8751_return = 0x71c;
+	if (data == 0x100 && m_microcontroller_id == CHELNOV)    /* World version */
+		m_i8751_return = 0x71c;
 
-	if (data == 0x100 && state->m_microcontroller_id == CHELNOVU)   /* USA version */
-		state->m_i8751_return = 0x71b;
+	if (data == 0x100 && m_microcontroller_id == CHELNOVU)   /* USA version */
+		m_i8751_return = 0x71b;
 
-	if (data == 0x100 && state->m_microcontroller_id == CHELNOVJ)   /* Japan version */
-		state->m_i8751_return = 0x71a;
+	if (data == 0x100 && m_microcontroller_id == CHELNOVJ)   /* Japan version */
+		m_i8751_return = 0x71a;
 
 	if (data >= 0x6000 && data < 0x8000)
-		state->m_i8751_return = 1;  /* patched */
+		m_i8751_return = 1;  /* patched */
 
-	if ((data & 0xf000) == 0x1000) state->m_i8751_level = 1;        /* Level 1 */
-	if ((data & 0xf000) == 0x2000) state->m_i8751_level++;      /* Level Increment */
+	if ((data & 0xf000) == 0x1000) m_i8751_level = 1;        /* Level 1 */
+	if ((data & 0xf000) == 0x2000) m_i8751_level++;      /* Level Increment */
 
 	if ((data & 0xf000) == 0x3000)
 	{
 		/* Sprite table mapping */
 		int b = data & 0xff;
-		switch (state->m_i8751_level)
+		switch (m_i8751_level)
 		{
 			case 1: /* Level 1, Sprite mapping tables */
-				if (state->m_microcontroller_id == CHELNOVU) /* USA */
+				if (m_microcontroller_id == CHELNOVU) /* USA */
 				{
-					if (b < 2) state->m_i8751_return = 0;
-					else if (b < 6) state->m_i8751_return = 1;
-					else if (b < 0xb) state->m_i8751_return = 2;
-					else if (b < 0xf) state->m_i8751_return = 3;
-					else if (b < 0x13) state->m_i8751_return = 4;
-					else state->m_i8751_return = 5;
+					if (b < 2) m_i8751_return = 0;
+					else if (b < 6) m_i8751_return = 1;
+					else if (b < 0xb) m_i8751_return = 2;
+					else if (b < 0xf) m_i8751_return = 3;
+					else if (b < 0x13) m_i8751_return = 4;
+					else m_i8751_return = 5;
 				}
 				else    /* Japan, World */
 				{
-					if (b < 3) state->m_i8751_return = 0;
-					else if (b < 8) state->m_i8751_return = 1;
-					else if (b < 0xc) state->m_i8751_return = 2;
-					else if (b < 0x10) state->m_i8751_return = 3;
-					else if (b < 0x19) state->m_i8751_return = 4;
-					else if (b < 0x1b) state->m_i8751_return = 5;
-					else if (b < 0x22) state->m_i8751_return = 6;
-					else if (b < 0x28) state->m_i8751_return = 7;
-					else state->m_i8751_return = 8;
+					if (b < 3) m_i8751_return = 0;
+					else if (b < 8) m_i8751_return = 1;
+					else if (b < 0xc) m_i8751_return = 2;
+					else if (b < 0x10) m_i8751_return = 3;
+					else if (b < 0x19) m_i8751_return = 4;
+					else if (b < 0x1b) m_i8751_return = 5;
+					else if (b < 0x22) m_i8751_return = 6;
+					else if (b < 0x28) m_i8751_return = 7;
+					else m_i8751_return = 8;
 				}
 				break;
 			case 2: /* Level 2, Sprite mapping tables, all sets are the same */
-				if (b < 3) state->m_i8751_return = 0;
-				else if (b < 9) state->m_i8751_return = 1;
-				else if (b < 0x11) state->m_i8751_return = 2;
-				else if (b < 0x1b) state->m_i8751_return = 3;
-				else if (b < 0x21) state->m_i8751_return = 4;
-				else if (b < 0x28) state->m_i8751_return = 5;
-				else state->m_i8751_return = 6;
+				if (b < 3) m_i8751_return = 0;
+				else if (b < 9) m_i8751_return = 1;
+				else if (b < 0x11) m_i8751_return = 2;
+				else if (b < 0x1b) m_i8751_return = 3;
+				else if (b < 0x21) m_i8751_return = 4;
+				else if (b < 0x28) m_i8751_return = 5;
+				else m_i8751_return = 6;
 				break;
 			case 3: /* Level 3, Sprite mapping tables, all sets are the same */
-				if (b < 5) state->m_i8751_return = 0;
-				else if (b < 9) state->m_i8751_return = 1;
-				else if (b < 0xd) state->m_i8751_return = 2;
-				else if (b < 0x11) state->m_i8751_return = 3;
-				else if (b < 0x1b) state->m_i8751_return = 4;
-				else if (b < 0x1c) state->m_i8751_return = 5;
-				else if (b < 0x22) state->m_i8751_return = 6;
-				else if (b < 0x27) state->m_i8751_return = 7;
-				else state->m_i8751_return = 8;
+				if (b < 5) m_i8751_return = 0;
+				else if (b < 9) m_i8751_return = 1;
+				else if (b < 0xd) m_i8751_return = 2;
+				else if (b < 0x11) m_i8751_return = 3;
+				else if (b < 0x1b) m_i8751_return = 4;
+				else if (b < 0x1c) m_i8751_return = 5;
+				else if (b < 0x22) m_i8751_return = 6;
+				else if (b < 0x27) m_i8751_return = 7;
+				else m_i8751_return = 8;
 				break;
 			case 4: /* Level 4, Sprite mapping tables, all sets are the same */
-				if (b < 4) state->m_i8751_return = 0;
-				else if (b < 0xc) state->m_i8751_return = 1;
-				else if (b < 0xf) state->m_i8751_return = 2;
-				else if (b < 0x19) state->m_i8751_return = 3;
-				else if (b < 0x1c) state->m_i8751_return = 4;
-				else if (b < 0x22) state->m_i8751_return = 5;
-				else if (b < 0x29) state->m_i8751_return = 6;
-				else state->m_i8751_return = 7;
+				if (b < 4) m_i8751_return = 0;
+				else if (b < 0xc) m_i8751_return = 1;
+				else if (b < 0xf) m_i8751_return = 2;
+				else if (b < 0x19) m_i8751_return = 3;
+				else if (b < 0x1c) m_i8751_return = 4;
+				else if (b < 0x22) m_i8751_return = 5;
+				else if (b < 0x29) m_i8751_return = 6;
+				else m_i8751_return = 7;
 				break;
 			case 5: /* Level 5, Sprite mapping tables, all sets are the same  */
-				if (b < 7) state->m_i8751_return = 0;
-				else if (b < 0xe) state->m_i8751_return = 1;
-				else if (b < 0x14) state->m_i8751_return = 2;
-				else if (b < 0x1a) state->m_i8751_return = 3;
-				else if (b < 0x23) state->m_i8751_return = 4;
-				else if (b < 0x27) state->m_i8751_return = 5;
-				else state->m_i8751_return = 6;
+				if (b < 7) m_i8751_return = 0;
+				else if (b < 0xe) m_i8751_return = 1;
+				else if (b < 0x14) m_i8751_return = 2;
+				else if (b < 0x1a) m_i8751_return = 3;
+				else if (b < 0x23) m_i8751_return = 4;
+				else if (b < 0x27) m_i8751_return = 5;
+				else m_i8751_return = 6;
 				break;
 			case 6: /* Level 6, Sprite mapping tables, all sets are the same  */
-				if (b < 3) state->m_i8751_return = 0;
-				else if (b < 0xb) state->m_i8751_return = 1;
-				else if (b < 0x11) state->m_i8751_return = 2;
-				else if (b < 0x17) state->m_i8751_return = 3;
-				else if (b < 0x1d) state->m_i8751_return = 4;
-				else if (b < 0x24) state->m_i8751_return = 5;
-				else state->m_i8751_return = 6;
+				if (b < 3) m_i8751_return = 0;
+				else if (b < 0xb) m_i8751_return = 1;
+				else if (b < 0x11) m_i8751_return = 2;
+				else if (b < 0x17) m_i8751_return = 3;
+				else if (b < 0x1d) m_i8751_return = 4;
+				else if (b < 0x24) m_i8751_return = 5;
+				else m_i8751_return = 6;
 				break;
 			case 7: /* Level 7, Sprite mapping tables, all sets are the same  */
-				if (b < 5) state->m_i8751_return = 0;
-				else if (b < 0xb) state->m_i8751_return = 1;
-				else if (b < 0x11) state->m_i8751_return = 2;
-				else if (b < 0x1a) state->m_i8751_return = 3;
-				else if (b < 0x21) state->m_i8751_return = 4;
-				else if (b < 0x27) state->m_i8751_return = 5;
-				else state->m_i8751_return = 6;
+				if (b < 5) m_i8751_return = 0;
+				else if (b < 0xb) m_i8751_return = 1;
+				else if (b < 0x11) m_i8751_return = 2;
+				else if (b < 0x1a) m_i8751_return = 3;
+				else if (b < 0x21) m_i8751_return = 4;
+				else if (b < 0x27) m_i8751_return = 5;
+				else m_i8751_return = 6;
 				break;
 		}
 	}
 
-	//  logerror("%s - Unknown Write %02x intel\n", machine.describe_context(), data);
+	//  logerror("%s - Unknown Write %02x intel\n", machine().describe_context(), data);
 
-	state->m_maincpu->set_input_line(6, HOLD_LINE); /* Signal main cpu task is complete */
-	state->m_i8751_needs_ack = 1;
+	m_maincpu->set_input_line(6, HOLD_LINE); /* Signal main cpu task is complete */
+	m_i8751_needs_ack = 1;
 }
 
 /*************************************
@@ -330,7 +324,6 @@ static void chelnov_i8751_w( running_machine &machine, int data )
 
 WRITE16_MEMBER(karnov_state::karnov_control_w)
 {
-
 	/* Mnemonics filled in from the schematics, brackets are my comments */
 	switch (offset << 1)
 	{
@@ -371,16 +364,16 @@ WRITE16_MEMBER(karnov_state::karnov_control_w)
 
 		case 6: /* SECREQ (Interrupt & Data to i8751) */
 			if (m_microcontroller_id == KARNOV || m_microcontroller_id == KARNOVJ)
-				karnov_i8751_w(machine(), data);
+				karnov_i8751_w(data);
 			if (m_microcontroller_id == CHELNOV || m_microcontroller_id == CHELNOVU || m_microcontroller_id == CHELNOVJ)
-				chelnov_i8751_w(machine(), data);
+				chelnov_i8751_w(data);
 			if (m_microcontroller_id == WNDRPLNT)
-				wndrplnt_i8751_w(machine(), data);
+				wndrplnt_i8751_w(data);
 			break;
 
 		case 8: /* HSHIFT (9 bits) - Top bit indicates video flip */
 			COMBINE_DATA(&m_scroll[0]);
-			karnov_flipscreen_w(machine(), data >> 15);
+			karnov_flipscreen_w(data >> 15);
 			break;
 
 		case 0xa: /* VSHIFT */
@@ -403,7 +396,6 @@ WRITE16_MEMBER(karnov_state::karnov_control_w)
 
 READ16_MEMBER(karnov_state::karnov_control_r)
 {
-
 	switch (offset << 1)
 	{
 		case 0:
@@ -441,8 +433,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( karnov_sound_map, AS_PROGRAM, 8, karnov_state )
 	AM_RANGE(0x0000, 0x05ff) AM_RAM
 	AM_RANGE(0x0800, 0x0800) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x1800, 0x1801) AM_DEVWRITE_LEGACY("ym2", ym3526_w)
+	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x1800, 0x1801) AM_DEVWRITE("ym2", ym3526_device, write)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -753,11 +745,6 @@ INTERRUPT_GEN_MEMBER(karnov_state::karnov_interrupt)
 	device.execute().set_input_line(7, HOLD_LINE);  /* VBL */
 }
 
-static const ym3526_interface ym3526_config =
-{
-	DEVCB_CPU_INPUT_LINE("audiocpu", M6502_IRQ_LINE)
-};
-
 /*************************************
  *
  *  Machine driver
@@ -766,10 +753,6 @@ static const ym3526_interface ym3526_config =
 
 void karnov_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_flipscreen));
 	save_item(NAME(m_scroll));
 
@@ -784,7 +767,6 @@ void karnov_state::machine_start()
 
 void karnov_state::machine_reset()
 {
-
 	memset(m_ram, 0, 0x4000 / 2); /* Chelnov likes ram clear on reset.. */
 
 	m_i8751_return = 0;
@@ -836,7 +818,7 @@ static MACHINE_CONFIG_START( karnov, karnov_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ym2", YM3526, 3000000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6502_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -877,7 +859,7 @@ static MACHINE_CONFIG_START( wndrplnt, karnov_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ym2", YM3526, 3000000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6502_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -889,6 +871,45 @@ MACHINE_CONFIG_END
  *************************************/
 
 ROM_START( karnov )
+	ROM_REGION( 0x60000, "maincpu", 0 ) /* 6*64k for 68000 code */
+	ROM_LOAD16_BYTE( "dn08-6",       0x00000, 0x10000, CRC(4c60837f) SHA1(6886e6ee1d1563c3011b8fea79e7435f983a3ee0) )
+	ROM_LOAD16_BYTE( "dn11-6",       0x00001, 0x10000, CRC(cd4abb99) SHA1(b4482175f5d90941ad3aec6c2269a50f57a465ed) )
+	ROM_LOAD16_BYTE( "dn07-",        0x20000, 0x10000, CRC(fc14291b) SHA1(c92207cf70d4c887cd0f53208e8090c7f614c1d3) )
+	ROM_LOAD16_BYTE( "dn10-",        0x20001, 0x10000, CRC(a4a34e37) SHA1(f40b680cc7312c844f81d01997f9a47c48d36e88) )
+	ROM_LOAD16_BYTE( "dn06-5",       0x40000, 0x10000, CRC(29d64e42) SHA1(c07ff5f29b7ccd5fc97b5086bcae57ab6eb29330) )
+	ROM_LOAD16_BYTE( "dn09-5",       0x40001, 0x10000, CRC(072d7c49) SHA1(92195b89274d066a9c1f87dd810683ea66edaff4) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 ) /* 6502 Sound CPU */
+	ROM_LOAD( "dn05-5",       0x8000, 0x8000, CRC(fa1a31a8) SHA1(5007a625be03c546d2a78444d72c28761b10cdb0) )
+
+	ROM_REGION( 0x1000, "mcu", 0 )    /* i8751 MCU */
+	ROM_LOAD( "karnov_i8751", 0x0000, 0x1000, NO_DUMP )
+
+	ROM_REGION( 0x08000, "gfx1", 0 )
+	ROM_LOAD( "dn00-",        0x00000, 0x08000, CRC(0ed77c6d) SHA1(4ec86ac56c01c158a580dc13dea3e5cbdf90d0e9) )  /* Characters */
+
+	ROM_REGION( 0x40000, "gfx2", 0 )
+	ROM_LOAD( "dn04-",        0x00000, 0x10000, CRC(a9121653) SHA1(04a67ba6fcf551719734ba2b86ee49c37ee1b842) )  /* Backgrounds */
+	ROM_LOAD( "dn01-",        0x10000, 0x10000, CRC(18697c9e) SHA1(b454af7922c4b1a651d303a3d8d89e5cc102f9ca) )
+	ROM_LOAD( "dn03-",        0x20000, 0x10000, CRC(90d9dd9c) SHA1(00a3bed276927f099d57e90f28fd77bd41a3c360) )
+	ROM_LOAD( "dn02-",        0x30000, 0x10000, CRC(1e04d7b9) SHA1(a2c6fde42569a52cc6d9a86715dea4a8bea80092) )
+
+	ROM_REGION( 0x80000, "gfx3", 0 )
+	ROM_LOAD( "dn12-",        0x00000, 0x10000, CRC(9806772c) SHA1(01f17fa033262a3e64e0675cc4e20b3c3f4b254d) )  /* Sprites - 2 sets of 4, interleaved here */
+	ROM_LOAD( "dn14-5",       0x10000, 0x08000, CRC(ac9e6732) SHA1(6f61344eb8a13349471145dee252a01aadb8cdf0) )
+	ROM_LOAD( "dn13-",        0x20000, 0x10000, CRC(a03308f9) SHA1(1d450725a5c488332c83d8f64a73a750ce7fe4c7) )
+	ROM_LOAD( "dn15-5",       0x30000, 0x08000, CRC(8933fcb8) SHA1(0dbda4b032ed3776d7633264f39e6f00ace7a238) )
+	ROM_LOAD( "dn16-",        0x40000, 0x10000, CRC(55e63a11) SHA1(3ef0468fa02ac5382007428122216917ad5eaa0e) )
+	ROM_LOAD( "dn17-5",       0x50000, 0x08000, CRC(b70ae950) SHA1(1ec833bdad12710ea846ef48dddbe2e1ae6b8ce1) )
+	ROM_LOAD( "dn18-",        0x60000, 0x10000, CRC(2ad53213) SHA1(f22696920bf3d74fb0e28e2d7cb31be5e183c6b4) )
+	ROM_LOAD( "dn19-5",       0x70000, 0x08000, CRC(8fd4fa40) SHA1(1870fb0c5c64fbc53a10115f0f3c7624cf2465db) )
+
+	ROM_REGION( 0x0800, "proms", 0 )
+	ROM_LOAD( "karnprom.21",  0x0000, 0x0400, CRC(aab0bb93) SHA1(545707fbb1007fca1fe297c5fce61e485e7084fc) )
+	ROM_LOAD( "karnprom.20",  0x0400, 0x0400, CRC(02f78ffb) SHA1(cb4dd8b0ce3c404195321b17e10f51352f506958) )
+ROM_END
+
+ROM_START( karnova )
 	ROM_REGION( 0x60000, "maincpu", 0 ) /* 6*64k for 68000 code */
 	ROM_LOAD16_BYTE( "dn08-5",       0x00000, 0x10000, CRC(db92c264) SHA1(bd4bcd984a3455eedd2b78dc2090c9d625025671) )
 	ROM_LOAD16_BYTE( "dn11-5",       0x00001, 0x10000, CRC(05669b4b) SHA1(c78d0da5afc66750dd9841a7d4f8f244d878c081) )
@@ -1175,7 +1196,8 @@ DRIVER_INIT_MEMBER(karnov_state,chelnovj)
  *
  *************************************/
 
-GAME( 1987, karnov,   0,       karnov,   karnov, karnov_state,   karnov,   ROT0,   "Data East USA",         "Karnov (US)", GAME_SUPPORTS_SAVE )
+GAME( 1987, karnov,   0,       karnov,   karnov, karnov_state,   karnov,   ROT0,   "Data East USA",         "Karnov (US, rev 6)", GAME_SUPPORTS_SAVE )
+GAME( 1987, karnova,  karnov,  karnov,   karnov, karnov_state,   karnov,   ROT0,   "Data East USA",         "Karnov (US, rev 5)", GAME_SUPPORTS_SAVE )
 GAME( 1987, karnovj,  karnov,  karnov,   karnov, karnov_state,   karnovj,  ROT0,   "Data East Corporation", "Karnov (Japan)", GAME_SUPPORTS_SAVE )
 GAME( 1987, wndrplnt, 0,       wndrplnt, wndrplnt, karnov_state, wndrplnt, ROT270, "Data East Corporation", "Wonder Planet (Japan)", GAME_SUPPORTS_SAVE )
 GAME( 1988, chelnov,  0,       karnov,   chelnov, karnov_state,  chelnov,  ROT0,   "Data East Corporation", "Chelnov - Atomic Runner (World)", GAME_SUPPORTS_SAVE )

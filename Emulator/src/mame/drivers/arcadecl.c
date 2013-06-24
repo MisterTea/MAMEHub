@@ -84,7 +84,7 @@
 
 void arcadecl_state::update_interrupts()
 {
-	machine().device("maincpu")->execute().set_input_line(4, m_scanline_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(4, m_scanline_int_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -92,7 +92,7 @@ void arcadecl_state::scanline_update(screen_device &screen, int scanline)
 {
 	/* generate 32V signals */
 	if ((scanline & 32) == 0)
-		scanline_int_gen(*subdevice("maincpu"));
+		scanline_int_gen(m_maincpu);
 }
 
 
@@ -128,8 +128,7 @@ WRITE16_MEMBER(arcadecl_state::latch_w)
 	/* lower byte being modified? */
 	if (ACCESSING_BITS_0_7)
 	{
-		okim6295_device *oki = machine().device<okim6295_device>("oki");
-		oki->set_bank_base((data & 0x80) ? 0x40000 : 0x00000);
+		m_oki->set_bank_base((data & 0x80) ? 0x40000 : 0x00000);
 		set_oki6295_volume((data & 0x001f) * 100 / 0x1f);
 	}
 }
@@ -387,7 +386,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(arcadecl_state,sparkz)
 {
-	memset(machine().root_device().memregion("gfx1")->base(), 0, machine().root_device().memregion("gfx1")->bytes());
+	memset(memregion("gfx1")->base(), 0, memregion("gfx1")->bytes());
 }
 
 

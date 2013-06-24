@@ -73,8 +73,24 @@ class vc4000_state : public driver_device
 public:
 	vc4000_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_cass(*this, CASSETTE_TAG)
-	{ }
+		m_cassette(*this, "cassette"),
+		m_maincpu(*this, "maincpu"),
+		m_keypad1_1(*this, "KEYPAD1_1"),
+		m_keypad1_2(*this, "KEYPAD1_2"),
+		m_keypad1_3(*this, "KEYPAD1_3"),
+		m_panel(*this, "PANEL"),
+		m_keypad2_1(*this, "KEYPAD2_1"),
+		m_keypad2_2(*this, "KEYPAD2_2"),
+		m_keypad2_3(*this, "KEYPAD2_3"),
+#ifndef ANALOG_HACK
+		m_io_joy1_x(*this, "JOY1_X"),
+		m_io_joy1_y(*this, "JOY1_Y"),
+		m_io_joy2_x(*this, "JOY2_X"),
+		m_io_joy2_y(*this, "JOY2_Y") { }
+#else
+		m_joys(*this, "JOYS"),
+		m_config(*this, "CONFIG") { }
+#endif
 
 	DECLARE_WRITE8_MEMBER(vc4000_sound_ctl);
 	DECLARE_READ8_MEMBER(vc4000_key_r);
@@ -93,39 +109,72 @@ public:
 	UINT8 m_objects[512];
 	UINT8 m_irq_pause;
 	bitmap_ind16 *m_bitmap;
-	optional_device<cassette_image_device> m_cass;
+	optional_device<cassette_image_device> m_cassette;
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_vc4000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vc4000_video_line);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(vc4000_cart);
+	DECLARE_QUICKLOAD_LOAD_MEMBER(vc4000);
+
+protected:
+	required_device<cpu_device> m_maincpu;
+	required_ioport m_keypad1_1;
+	required_ioport m_keypad1_2;
+	required_ioport m_keypad1_3;
+	required_ioport m_panel;
+	required_ioport m_keypad2_1;
+	required_ioport m_keypad2_2;
+	required_ioport m_keypad2_3;
+#ifndef ANALOG_HACK
+	required_ioport m_io_joy1_x;
+	required_ioport m_io_joy1_y;
+	required_ioport m_io_joy2_x;
+	required_ioport m_io_joy2_y;
+#else
+	required_ioport m_joys;
+	required_ioport m_config;
+#endif
+	inline UINT8 vc4000_joystick_return_to_centre(UINT8 joy);
+	void vc4000_draw_digit(bitmap_ind16 &bitmap, int x, int y, int d, int line);
+	inline void vc4000_collision_plot(UINT8 *collision, UINT8 data, UINT8 color, int scale);
+	void vc4000_sprite_update(bitmap_ind16 &bitmap, UINT8 *collision, SPRITE *This);
+	inline void vc4000_draw_grid(UINT8 *collision);
 };
 
 /*----------- defined in audio/vc4000.c -----------*/
 
+//**************************************************************************
+//  TYPE DEFINITIONS
+//**************************************************************************
+
+// ======================> vc4000_sound_device
+
 class vc4000_sound_device : public device_t,
-									public device_sound_interface
+							public device_sound_interface
 {
 public:
 	vc4000_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	~vc4000_sound_device() { global_free(m_token); }
+	~vc4000_sound_device() { }
 
-	// access to legacy token
-	void *token() const { assert(m_token != NULL); return m_token; }
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 
 	// sound stream update overrides
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
+
+public:
+	void soundport_w(int mode, int data);
+
 private:
-	// internal state
-	void *m_token;
+	sound_stream *m_channel;
+	UINT8 m_reg[1];
+	int m_size;
+	int m_pos;
+	unsigned m_level;
 };
 
 extern const device_type VC4000;
-
-void vc4000_soundport_w (device_t *device, int mode, int data);
-
 
 #endif /* VC4000_H_ */

@@ -178,6 +178,11 @@ Stephh's log (2007.11.28) :
 class peplus_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_ASSERT_LP
+	};
+
 	peplus_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_cmos_ram(*this, "cmos") ,
@@ -189,7 +194,8 @@ public:
 		m_sb000_ram(*this, "sb000_ram"),
 		m_sd000_ram(*this, "sd000_ram"),
 		m_sf000_ram(*this, "sf000_ram"),
-		m_io_port(*this, "io_port"){ }
+		m_io_port(*this, "io_port"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_cmos_ram;
 	required_shared_ptr<UINT8> m_program_ram;
@@ -267,7 +273,12 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_peplus(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(assert_lp_cb);
+	void peplus_load_superdata(const char *bank_name);
+	void peplus_init();
+	required_device<cpu_device> m_maincpu;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 static const UINT8  id_022[8] = { 0x00, 0x01, 0x04, 0x09, 0x13, 0x16, 0x18, 0x00 };
@@ -291,9 +302,10 @@ static const i2cmem_interface i2cmem_interface =
 
 static MC6845_ON_UPDATE_ADDR_CHANGED(crtc_addr);
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",               /* screen we are acting on */
+	false,                  /* show border area */
 	8,                      /* number of pixels per video memory address */
 	NULL,                   /* before pixel update callback */
 	NULL,                   /* row update callback */
@@ -310,18 +322,17 @@ static const mc6845_interface mc6845_intf =
 * Memory Copy *
 ***************/
 
-static void peplus_load_superdata(running_machine &machine, const char *bank_name)
+void peplus_state::peplus_load_superdata(const char *bank_name)
 {
-	peplus_state *state = machine.driver_data<peplus_state>();
-	UINT8 *super_data = state->memregion(bank_name)->base();
+	UINT8 *super_data = memregion(bank_name)->base();
 
 	/* Distribute Superboard Data */
-	memcpy(state->m_s3000_ram, &super_data[0x3000], 0x1000);
-	memcpy(state->m_s5000_ram, &super_data[0x5000], 0x1000);
-	memcpy(state->m_s7000_ram, &super_data[0x7000], 0x1000);
-	memcpy(state->m_sb000_ram, &super_data[0xb000], 0x1000);
-	memcpy(state->m_sd000_ram, &super_data[0xd000], 0x1000);
-	memcpy(state->m_sf000_ram, &super_data[0xf000], 0x1000);
+	memcpy(m_s3000_ram, &super_data[0x3000], 0x1000);
+	memcpy(m_s5000_ram, &super_data[0x5000], 0x1000);
+	memcpy(m_s7000_ram, &super_data[0x7000], 0x1000);
+	memcpy(m_sb000_ram, &super_data[0xb000], 0x1000);
+	memcpy(m_sd000_ram, &super_data[0xd000], 0x1000);
+	memcpy(m_sf000_ram, &super_data[0xf000], 0x1000);
 }
 
 
@@ -373,10 +384,18 @@ WRITE8_MEMBER(peplus_state::peplus_crtc_mode_w)
 	/* Reset timing logic */
 }
 
-TIMER_CALLBACK_MEMBER(peplus_state::assert_lp_cb)
+void peplus_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	downcast<mc6845_device *>((device_t*)ptr)->assert_light_pen_input();
+	switch (id)
+	{
+	case TIMER_ASSERT_LP:
+		downcast<mc6845_device *>((device_t*)ptr)->assert_light_pen_input();
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in peplus_state::device_timer");
+	}
 }
+
 
 static void handle_lightpen( device_t *device )
 {
@@ -389,13 +408,13 @@ static void handle_lightpen( device_t *device )
 	xt = x_val * vis_area.width() / 1024 + vis_area.min_x;
 	yt = y_val * vis_area.height() / 1024 + vis_area.min_y;
 
-		device->machine().scheduler().timer_set(device->machine().primary_screen->time_until_pos(yt, xt), timer_expired_delegate(FUNC(peplus_state::assert_lp_cb),state), 0, device);
+	state->timer_set(device->machine().primary_screen->time_until_pos(yt, xt), peplus_state::TIMER_ASSERT_LP, 0, device);
 }
 
 WRITE_LINE_MEMBER(peplus_state::crtc_vsync)
 {
 	device_t *device = machine().device("crtc");
-	machine().device("maincpu")->execute().set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 	handle_lightpen(device);
 }
 
@@ -430,7 +449,7 @@ WRITE8_MEMBER(peplus_state::peplus_cmos_w)
 	if (offset == 0x1fff && m_wingboard && data < 5)
 	{
 		sprintf(bank_name, "user%d", data + 1);
-		peplus_load_superdata(machine(), bank_name);
+		peplus_load_superdata(bank_name);
 	}
 
 	m_cmos_ram[offset] = data;
@@ -980,7 +999,7 @@ UINT32 peplus_state::screen_update_peplus(screen_device &screen, bitmap_ind16 &b
 
 void peplus_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 /*  prom bits
     7654 3210
     ---- -xxx   red component.
@@ -1047,8 +1066,8 @@ static ADDRESS_MAP_START( peplus_iomap, AS_IO, 8, peplus_state )
 	AM_RANGE(0x3000, 0x3fff) AM_READWRITE(peplus_s3000_r, peplus_s3000_w) AM_SHARE("s3000_ram")
 
 	// Sound and Dipswitches
-	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
-	AM_RANGE(0x4004, 0x4004) AM_READ_PORT("SW1")/* likely ay8910 input port, not direct */ AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
+	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE("aysnd", ay8910_device, address_w)
+	AM_RANGE(0x4004, 0x4004) AM_READ_PORT("SW1")/* likely ay8910 input port, not direct */ AM_DEVWRITE("aysnd", ay8910_device, data_w)
 
 	// Superboard Data
 	AM_RANGE(0x5000, 0x5fff) AM_READWRITE(peplus_s5000_r, peplus_s5000_w) AM_SHARE("s5000_ram")
@@ -1376,11 +1395,10 @@ MACHINE_CONFIG_END
 *****************/
 
 /* Normal board */
-static void peplus_init(running_machine &machine)
+void peplus_state::peplus_init()
 {
-	peplus_state *state = machine.driver_data<peplus_state>();
 	/* default : no address to patch in program RAM to enable autohold feature */
-	state->m_autohold_addr = 0;
+	m_autohold_addr = 0;
 }
 
 
@@ -1393,7 +1411,7 @@ DRIVER_INIT_MEMBER(peplus_state,peplus)
 {
 	m_wingboard = FALSE;
 	m_jumper_e16_e17 = FALSE;
-	peplus_init(machine());
+	peplus_init();
 }
 
 /* Superboard */
@@ -1401,9 +1419,9 @@ DRIVER_INIT_MEMBER(peplus_state,peplussb)
 {
 	m_wingboard = FALSE;
 	m_jumper_e16_e17 = FALSE;
-	peplus_load_superdata(machine(), "user1");
+	peplus_load_superdata("user1");
 
-	peplus_init(machine());
+	peplus_init();
 }
 
 /* Superboard with Attached Wingboard */
@@ -1411,9 +1429,9 @@ DRIVER_INIT_MEMBER(peplus_state,peplussbw)
 {
 	m_wingboard = TRUE;
 	m_jumper_e16_e17 = TRUE;
-	peplus_load_superdata(machine(), "user1");
+	peplus_load_superdata("user1");
 
-	peplus_init(machine());
+	peplus_init();
 }
 
 

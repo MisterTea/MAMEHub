@@ -37,6 +37,7 @@ struct towns_cdrom_controller
 	UINT32 lba_last;
 	UINT32 cdda_current;
 	UINT32 cdda_length;
+	bool software_tx;
 	emu_timer* read_timer;
 };
 
@@ -77,23 +78,32 @@ class towns_state : public driver_device
 	public:
 	towns_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_nvram(*this, "nvram")
+			m_maincpu(*this, "maincpu"),
+			m_speaker(*this, "speaker"),
+			m_pic_master(*this, "pic8259_master"),
+			m_pic_slave(*this, "pic8259_slave"),
+			m_pit(*this, "pit"),
+			m_dma_1(*this, "dma_1"),
+			m_dma_2(*this, "dma_2"),
+			m_ram(*this, RAM_TAG),
+			m_nvram(*this, "nvram"),
+			m_nvram16(*this, "nvram16")
 	{ }
 
 	/* devices */
-	cpu_device* m_maincpu;
-	device_t* m_dma_1;
-	device_t* m_dma_2;
+	required_device<cpu_device> m_maincpu;
+	required_device<speaker_sound_device> m_speaker;
+	required_device<pic8259_device> m_pic_master;
+	required_device<pic8259_device> m_pic_slave;
+	required_device<pit8253_device> m_pit;
+	required_device<upd71071_device> m_dma_1;
+	required_device<upd71071_device> m_dma_2;
+	required_device<ram_device> m_ram;
 	device_t* m_fdc;
-	device_t* m_pic_master;
-	device_t* m_pic_slave;
-	device_t* m_pit;
 	ram_device* m_messram;
 	cdrom_image_device* m_cdrom;
-	device_t* m_cdda;
-	device_t* m_speaker;
+	cdda_device* m_cdda;
 	class fmscsi_device* m_scsi;
-	ram_device* m_ram;
 
 	UINT16 m_ftimer;
 	UINT16 m_freerun_timer;
@@ -148,6 +158,8 @@ class towns_state : public driver_device
 	UINT8 m_timer1;
 
 	emu_timer* m_towns_wait_timer;
+	emu_timer* m_towns_status_timer;
+	emu_timer* m_towns_cdda_timer;
 	struct towns_cdrom_controller m_towns_cd;
 	struct towns_video_controller m_video;
 
@@ -156,7 +168,8 @@ class towns_state : public driver_device
 	UINT8 m_prev_x;
 	UINT8 m_prev_y;
 
-	required_shared_ptr<UINT32> m_nvram;
+	optional_shared_ptr<UINT32> m_nvram;
+	optional_shared_ptr<UINT16> m_nvram16;
 
 	virtual void driver_start();
 	virtual void machine_reset();
@@ -180,12 +193,12 @@ class towns_state : public driver_device
 	DECLARE_WRITE8_MEMBER(towns_keyboard_w);
 	DECLARE_READ8_MEMBER(towns_port60_r);
 	DECLARE_WRITE8_MEMBER(towns_port60_w);
-	DECLARE_READ32_MEMBER(towns_sys5e8_r);
-	DECLARE_WRITE32_MEMBER(towns_sys5e8_w);
+	DECLARE_READ8_MEMBER(towns_sys5e8_r);
+	DECLARE_WRITE8_MEMBER(towns_sys5e8_w);
 	DECLARE_READ8_MEMBER(towns_sound_ctrl_r);
 	DECLARE_WRITE8_MEMBER(towns_sound_ctrl_w);
-	DECLARE_READ32_MEMBER(towns_padport_r);
-	DECLARE_WRITE32_MEMBER(towns_pad_mask_w);
+	DECLARE_READ8_MEMBER(towns_padport_r);
+	DECLARE_WRITE8_MEMBER(towns_pad_mask_w);
 	DECLARE_READ8_MEMBER(towns_cmos8_r);
 	DECLARE_WRITE8_MEMBER(towns_cmos8_w);
 	DECLARE_READ8_MEMBER(towns_cmos_low_r);
@@ -194,13 +207,13 @@ class towns_state : public driver_device
 	DECLARE_WRITE8_MEMBER(towns_cmos_w);
 	DECLARE_READ8_MEMBER(towns_sys480_r);
 	DECLARE_WRITE8_MEMBER(towns_sys480_w);
-	DECLARE_READ32_MEMBER(towns_video_404_r);
-	DECLARE_WRITE32_MEMBER(towns_video_404_w);
+	DECLARE_READ8_MEMBER(towns_video_404_r);
+	DECLARE_WRITE8_MEMBER(towns_video_404_w);
 	DECLARE_READ8_MEMBER(towns_cdrom_r);
 	DECLARE_WRITE8_MEMBER(towns_cdrom_w);
-	DECLARE_READ32_MEMBER(towns_rtc_r);
-	DECLARE_WRITE32_MEMBER(towns_rtc_w);
-	DECLARE_WRITE32_MEMBER(towns_rtc_select_w);
+	DECLARE_READ8_MEMBER(towns_rtc_r);
+	DECLARE_WRITE8_MEMBER(towns_rtc_w);
+	DECLARE_WRITE8_MEMBER(towns_rtc_select_w);
 	DECLARE_READ8_MEMBER(towns_volume_r);
 	DECLARE_WRITE8_MEMBER(towns_volume_w);
 	DECLARE_READ8_MEMBER(towns_41ff_r);
@@ -220,7 +233,7 @@ class towns_state : public driver_device
 	DECLARE_READ8_MEMBER(towns_video_fd90_r);
 	DECLARE_WRITE8_MEMBER(towns_video_fd90_w);
 	DECLARE_READ8_MEMBER(towns_video_ff81_r);
-	DECLARE_READ32_MEMBER(towns_video_unknown_r);
+	DECLARE_READ8_MEMBER(towns_video_unknown_r);
 	DECLARE_WRITE8_MEMBER(towns_video_ff81_w);
 	DECLARE_READ8_MEMBER(towns_spriteram_low_r);
 	DECLARE_WRITE8_MEMBER(towns_spriteram_low_w);
@@ -238,25 +251,32 @@ class towns_state : public driver_device
 	UINT8 speaker_get_spk();
 	void speaker_set_spkrdata(UINT8 data);
 	void speaker_set_input(UINT8 data);
+	UINT8 towns_cdrom_read_byte_software();
 
-	private:
+private:
 	static const device_timer_id TIMER_RTC = 0;
 	static const device_timer_id TIMER_FREERUN = 1;
 	static const device_timer_id TIMER_INTERVAL2 = 2;
 	static const device_timer_id TIMER_KEYBOARD = 3;
 	static const device_timer_id TIMER_MOUSE = 4;
 	static const device_timer_id TIMER_WAIT = 5;
+	static const device_timer_id TIMER_CDSTATUS = 6;
+	static const device_timer_id TIMER_CDDA = 7;
 	void rtc_second();
 	void freerun_inc();
 	void intervaltimer2_timeout();
 	void poll_keyboard();
 	void mouse_timeout();
 	void wait_end();
+	void towns_cd_set_status(UINT8 st0, UINT8 st1, UINT8 st2, UINT8 st3);
+	void towns_cdrom_execute_command(cdrom_image_device* device);
+	void towns_cdrom_play_cdda(cdrom_image_device* device);
+	void towns_cdrom_read(cdrom_image_device* device);
+	void towns_cd_status_ready();
+	void towns_delay_cdda(cdrom_image_device* dev);
 public:
 	INTERRUPT_GEN_MEMBER(towns_vsync_irq);
-	TIMER_CALLBACK_MEMBER(towns_cd_status_ready);
 	TIMER_CALLBACK_MEMBER(towns_cdrom_read_byte);
-	TIMER_CALLBACK_MEMBER(towns_delay_cdda);
 	TIMER_CALLBACK_MEMBER(towns_sprite_done);
 	TIMER_CALLBACK_MEMBER(towns_vblank_end);
 	DECLARE_WRITE_LINE_MEMBER(towns_scsi_irq);
@@ -265,6 +285,39 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(towns_pit_out0_changed);
 	DECLARE_WRITE_LINE_MEMBER(towns_pit_out1_changed);
 	DECLARE_READ8_MEMBER(get_slave_ack);
+	IRQ_CALLBACK_MEMBER(towns_irq_callback);
+	DECLARE_WRITE_LINE_MEMBER(towns_fm_irq);
+	void towns_crtc_refresh_mode();
+	void towns_update_kanji_offset();
+	void render_sprite_4(UINT32 poffset, UINT32 coffset, UINT16 x, UINT16 y, UINT16 xflip, UINT16 yflip, const rectangle* rect);
+	void render_sprite_16(UINT32 poffset, UINT16 x, UINT16 y, UINT16 xflip, UINT16 yflip, const rectangle* rect);
+	void draw_sprites(const rectangle* rect);
+	void towns_crtc_draw_scan_layer_hicolour(bitmap_rgb32 &bitmap,const rectangle* rect,int layer,int line,int scanline);
+	void towns_crtc_draw_scan_layer_256(bitmap_rgb32 &bitmap,const rectangle* rect,int layer,int line,int scanline);
+	void towns_crtc_draw_scan_layer_16(bitmap_rgb32 &bitmap,const rectangle* rect,int layer,int line,int scanline);
+	void towns_crtc_draw_layer(bitmap_rgb32 &bitmap,const rectangle* rect,int layer);
+	void render_text_char(UINT8 x, UINT8 y, UINT8 ascii, UINT16 jis, UINT8 attr);
+	void draw_text_layer();
+	inline UINT8 byte_to_bcd(UINT8 val);
+	inline UINT8 bcd_to_byte(UINT8 val);
+	inline UINT32 msf_to_lbafm(UINT32 val);  // because the CDROM core doesn't provide this;
+	DECLARE_READ16_MEMBER(towns_fdc_dma_r);
+	DECLARE_WRITE16_MEMBER(towns_fdc_dma_w);
+	void towns_cdrom_set_irq(int line,int state);
+	UINT8 towns_cd_get_track();
+	DECLARE_READ16_MEMBER(towns_cdrom_dma_r);
+	void rtc_hour();
+	void rtc_minute();
+	DECLARE_READ16_MEMBER(towns_scsi_dma_r);
+	DECLARE_WRITE16_MEMBER(towns_scsi_dma_w);
+};
+
+class towns16_state : public towns_state
+{
+	public:
+	towns16_state(const machine_config &mconfig, device_type type, const char *tag)
+		: towns_state(mconfig, type, tag)
+	{ }
 };
 
 class marty_state : public towns_state

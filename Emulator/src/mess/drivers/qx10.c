@@ -6,7 +6,6 @@
 
     Status:
     Driver boots and load CP/M from floppy image. Needs upd7220 for gfx
-    and keyboard hooked to upd7021.
 
     Done:
     - preliminary memory map
@@ -34,15 +33,19 @@
 #include "cpu/z80/z80.h"
 #include "machine/pit8253.h"
 #include "machine/pic8259.h"
-#include "machine/upd7201.h"
+#include "machine/z80dart.h"
 #include "machine/mc146818.h"
 #include "machine/i8255.h"
-#include "machine/8237dma.h"
+#include "machine/am9517a.h"
+#include "machine/serial.h"
 #include "video/upd7220.h"
 #include "machine/upd765.h"
 #include "machine/ram.h"
+#include "machine/qx10kbd.h"
 
 #define MAIN_CLK    15974400
+
+#define RS232_TAG   "rs232"
 
 /*
     Driver data
@@ -64,8 +67,10 @@ public:
 	m_fdc(*this, "upd765"),
 	m_hgdc(*this, "upd7220"),
 	m_rtc(*this, "rtc"),
-	m_vram_bank(0)
-	{ }
+	m_kbd(*this, "kbd"),
+	m_vram_bank(0),
+	m_maincpu(*this, "maincpu"),
+	m_ram(*this, RAM_TAG) { }
 
 	required_device<pit8253_device> m_pit_1;
 	required_device<pit8253_device> m_pit_2;
@@ -73,11 +78,12 @@ public:
 	required_device<pic8259_device> m_pic_s;
 	required_device<upd7201_device> m_scc;
 	required_device<i8255_device> m_ppi;
-	required_device<i8237_device> m_dma_1;
-	required_device<i8237_device> m_dma_2;
+	required_device<am9517a_device> m_dma_1;
+	required_device<am9517a_device> m_dma_2;
 	required_device<upd765a_device> m_fdc;
 	required_device<upd7220_device> m_hgdc;
 	required_device<mc146818_device> m_rtc;
+	required_device<qx10_keyboard_device> m_kbd;
 	UINT8 m_vram_bank;
 	//required_shared_ptr<UINT8> m_video_ram;
 	UINT8 *m_video_ram;
@@ -103,21 +109,19 @@ public:
 	DECLARE_READ8_MEMBER( gdc_dack_r );
 	DECLARE_WRITE8_MEMBER( gdc_dack_w );
 	DECLARE_WRITE_LINE_MEMBER( tc_w );
-	DECLARE_READ8_MEMBER( mc146818_data_r );
-	DECLARE_WRITE8_MEMBER( mc146818_data_w );
-	DECLARE_WRITE8_MEMBER( mc146818_offset_w );
-	DECLARE_WRITE_LINE_MEMBER( qx10_pic8259_master_set_int_line );
+	DECLARE_READ8_MEMBER( mc146818_r );
+	DECLARE_WRITE8_MEMBER( mc146818_w );
 	DECLARE_READ8_MEMBER( get_slave_ack );
-	DECLARE_READ8_MEMBER( upd7201_r );
-	DECLARE_WRITE8_MEMBER( upd7201_w );
 	DECLARE_READ8_MEMBER( vram_bank_r );
 	DECLARE_WRITE8_MEMBER( vram_bank_w );
 	DECLARE_READ8_MEMBER( vram_r );
 	DECLARE_WRITE8_MEMBER( vram_w );
+	DECLARE_READ8_MEMBER(memory_read_byte);
+	DECLARE_WRITE8_MEMBER(memory_write_byte);
+	DECLARE_WRITE_LINE_MEMBER(keyboard_clk);
+	DECLARE_WRITE_LINE_MEMBER(keyboard_irq);
 
 	UINT8 *m_char_rom;
-
-	int     m_mc146818_offset;
 
 	/* FDD */
 	int     m_fdcint;
@@ -133,19 +137,15 @@ public:
 	UINT8 m_color_mode;
 
 	struct{
-		UINT8 repeat,enable;
-		int repeat_start_time,repeat_interval;
-		UINT8 led[8];
-		UINT8 rx;
-	}m_keyb;
-
-	struct{
 		UINT8 rx;
 	}m_rs232c;
 
 	virtual void palette_init();
 	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
 	DECLARE_WRITE_LINE_MEMBER(dma_hrq_changed);
+	IRQ_CALLBACK_MEMBER(irq_callback);
+	required_device<cpu_device> m_maincpu;
+	required_device<ram_device> m_ram;
 };
 
 static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
@@ -267,11 +267,11 @@ void qx10_state::update_memory_mapping()
 
 	if (!m_memprom)
 	{
-		membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base());
+		membank("bank1")->set_base(memregion("maincpu")->base());
 	}
 	else
 	{
-		membank("bank1")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() + drambank*64*1024);
+		membank("bank1")->set_base(m_ram->pointer() + drambank*64*1024);
 	}
 	if (m_memcmos)
 	{
@@ -279,7 +279,7 @@ void qx10_state::update_memory_mapping()
 	}
 	else
 	{
-		membank("bank2")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() + drambank*64*1024 + 32*1024);
+		membank("bank2")->set_base(m_ram->pointer() + drambank*64*1024 + 32*1024);
 	}
 }
 
@@ -326,12 +326,12 @@ void qx10_state::qx10_upd765_interrupt(bool state)
 
 	//logerror("Interrupt from upd765: %d\n", state);
 	// signal interrupt
-	pic8259_ir6_w(m_pic_m, state);
+	m_pic_m->ir6_w(state);
 }
 
 void qx10_state::drq_w(bool state)
 {
-	i8237_dreq0_w(m_dma_1, !state);
+	m_dma_1->dreq0_w(!state);
 }
 
 WRITE8_MEMBER( qx10_state::fdd_motor_w )
@@ -360,9 +360,8 @@ READ8_MEMBER( qx10_state::qx10_30_r )
 */
 WRITE_LINE_MEMBER(qx10_state::dma_hrq_changed)
 {
-	device_t *device = machine().device("8237dma_1");
 	/* Assert HLDA */
-	i8237_hlda_w(device, state);
+	m_dma_1->hack_w(state);
 }
 
 READ8_MEMBER( qx10_state::gdc_dack_r )
@@ -388,15 +387,24 @@ WRITE_LINE_MEMBER( qx10_state::tc_w )
     Channel 2: GDC
     Channel 3: Option slots
 */
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(qx10_state::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(qx10_state::memory_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.write_byte(offset, data);
+}
 
 static I8237_INTERFACE( qx10_dma8237_1_interface )
 {
 	DEVCB_DRIVER_LINE_MEMBER(qx10_state,dma_hrq_changed),
 	DEVCB_DRIVER_LINE_MEMBER(qx10_state, tc_w),
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_read_byte),
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_write_byte),
+	DEVCB_DRIVER_MEMBER(qx10_state, memory_read_byte),
+	DEVCB_DRIVER_MEMBER(qx10_state, memory_write_byte),
 	{ DEVCB_DRIVER_MEMBER(qx10_state, fdc_dma_r), DEVCB_DRIVER_MEMBER(qx10_state, gdc_dack_r),/*DEVCB_DEVICE_HANDLER("upd7220", upd7220_dack_r)*/ DEVCB_NULL, DEVCB_NULL },
 	{ DEVCB_DRIVER_MEMBER(qx10_state, fdc_dma_w), DEVCB_DRIVER_MEMBER(qx10_state, gdc_dack_w),/*DEVCB_DEVICE_HANDLER("upd7220", upd7220_dack_w)*/ DEVCB_NULL, DEVCB_NULL },
 	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL }
@@ -436,19 +444,20 @@ static I8255_INTERFACE(qx10_i8255_interface)
 /*
     MC146818
 */
-READ8_MEMBER( qx10_state::mc146818_data_r )
+
+const struct mc146818_interface qx10_mc146818_config =
 {
-	return m_rtc->read(space, m_mc146818_offset);
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir2_w)
+};
+
+WRITE8_MEMBER(qx10_state::mc146818_w)
+{
+	m_rtc->write(space, !offset, data);
 }
 
-WRITE8_MEMBER( qx10_state::mc146818_data_w )
+READ8_MEMBER(qx10_state::mc146818_r)
 {
-	m_rtc->write(space, m_mc146818_offset, data);
-}
-
-WRITE8_MEMBER( qx10_state::mc146818_offset_w )
-{
-	m_mc146818_offset = data;
+	return m_rtc->read(space, !offset);
 }
 
 /*
@@ -459,37 +468,42 @@ WRITE8_MEMBER( qx10_state::mc146818_offset_w )
 
 static UPD7201_INTERFACE(qx10_upd7201_interface)
 {
-	DEVCB_NULL,                 /* interrupt */
-	{
-		{
-			0,                  /* receive clock */
-			0,                  /* transmit clock */
-			DEVCB_NULL,         /* receive DRQ */
-			DEVCB_NULL,         /* transmit DRQ */
-			DEVCB_NULL,         /* receive data */
-			DEVCB_NULL,         /* transmit data */
-			DEVCB_NULL,         /* clear to send */
-			DEVCB_NULL,         /* data carrier detect */
-			DEVCB_NULL,         /* ready to send */
-			DEVCB_NULL,         /* data terminal ready */
-			DEVCB_NULL,         /* wait */
-			DEVCB_NULL          /* sync output */
-		}, {
-			0,                  /* receive clock */
-			0,                  /* transmit clock */
-			DEVCB_NULL,         /* receive DRQ */
-			DEVCB_NULL,         /* transmit DRQ */
-			DEVCB_NULL,         /* receive data */
-			DEVCB_NULL,         /* transmit data */
-			DEVCB_NULL,         /* clear to send */
-			DEVCB_NULL,         /* data carrier detect */
-			DEVCB_NULL,         /* ready to send */
-			DEVCB_NULL,         /* data terminal ready */
-			DEVCB_NULL,         /* wait */
-			DEVCB_NULL          /* sync output */
-		}
-	}
+	0, 0, 0, 0, // channel b clock set by pit2 channel 2
+
+	DEVCB_DEVICE_LINE_MEMBER("kbd", serial_keyboard_device, tx_r),
+	DEVCB_DEVICE_LINE_MEMBER("kbd", serial_keyboard_device, rx_w),
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_DRIVER_LINE_MEMBER(qx10_state, keyboard_irq)
 };
+
+static struct serial_keyboard_interface qx10_keyboard_interface =
+{
+	DEVCB_NULL
+};
+
+WRITE_LINE_MEMBER(qx10_state::keyboard_irq)
+{
+	m_scc->m1_r(); // always set
+	m_pic_m->ir4_w(state);
+}
+
+WRITE_LINE_MEMBER(qx10_state::keyboard_clk)
+{
+	// clock keyboard too
+	m_scc->rxca_w(state);
+	m_scc->txca_w(state);
+}
 
 /*
     Timer 0
@@ -499,7 +513,7 @@ static UPD7201_INTERFACE(qx10_upd7201_interface)
     2       Clock 1,9668MHz             Memory register D7      8259 (12E) IR1  Software timer
 */
 
-static const struct pit8253_config qx10_pit8253_1_config =
+static const struct pit8253_interface qx10_pit8253_1_config =
 {
 	{
 		{ 1200,         DEVCB_NULL,     DEVCB_NULL },
@@ -515,12 +529,12 @@ static const struct pit8253_config qx10_pit8253_1_config =
     1       Clock 1,9668MHz     +5V         Keyboard clock      1200bps (Clock / 1664)
     2       Clock 1,9668MHz     +5V         RS-232C baud rate   9600bps (Clock / 208)
 */
-static const struct pit8253_config qx10_pit8253_2_config =
+static const struct pit8253_interface qx10_pit8253_2_config =
 {
 	{
 		{ MAIN_CLK / 8, DEVCB_LINE_VCC, DEVCB_NULL },
-		{ MAIN_CLK / 8, DEVCB_LINE_VCC, DEVCB_NULL },
-		{ MAIN_CLK / 8, DEVCB_LINE_VCC, DEVCB_NULL },
+		{ MAIN_CLK / 8, DEVCB_LINE_VCC, DEVCB_DRIVER_LINE_MEMBER(qx10_state, keyboard_clk) },
+		{ MAIN_CLK / 8, DEVCB_LINE_VCC, DEVCB_DEVICE_LINE_MEMBER("upd7201", z80dart_device, rxtxcb_w) },
 	}
 };
 
@@ -534,27 +548,17 @@ static const struct pit8253_config qx10_pit8253_2_config =
     IR4     Keyboard/RS232 interrupt
     IR5     CRT/lightpen interrupt
     IR6     Floppy controller interrupt
+    IR7     Slave cascade
 */
-
-WRITE_LINE_MEMBER( qx10_state::qx10_pic8259_master_set_int_line )
-{
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
-}
 
 READ8_MEMBER( qx10_state::get_slave_ack )
 {
 	if (offset==7) { // IRQ = 7
-		return pic8259_acknowledge(m_pic_s);
+		return m_pic_s->inta_r();
 	}
 	return 0x00;
 }
 
-static const struct pic8259_interface qx10_pic8259_master_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(qx10_state, qx10_pic8259_master_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_MEMBER(qx10_state, get_slave_ack)
-};
 
 /*
     Slave PIC8259
@@ -569,18 +573,12 @@ static const struct pic8259_interface qx10_pic8259_master_config =
 
 */
 
-static const struct pic8259_interface qx10_pic8259_slave_config =
+IRQ_CALLBACK_MEMBER(qx10_state::irq_callback)
 {
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir7_w),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
-
-static IRQ_CALLBACK( irq_callback )
-{
-	return pic8259_acknowledge(device->machine().driver_data<qx10_state>()->m_pic_m );
+	return m_pic_m->acknowledge();
 }
 
+#if 0
 READ8_MEMBER( qx10_state::upd7201_r )
 {
 	if((offset & 2) == 0)
@@ -610,7 +608,7 @@ WRITE8_MEMBER( qx10_state::upd7201_w )
 				m_keyb.led[(data & 0xe) >> 1] = data & 1;
 				printf("keyb Set led %02x %s\n",((data & 0xe) >> 1),data & 1 ? "on" : "off");
 				m_keyb.rx = (data & 0xf) | 0xc0;
-				pic8259_ir4_w(machine().device("pic8259_master"), 1);
+				m_pic_m->ir4_w(1);
 				break;
 			case 0x60:
 				printf("keyb Read LED status\n");
@@ -646,6 +644,7 @@ WRITE8_MEMBER( qx10_state::upd7201_w )
 	}
 
 }
+#endif
 
 READ8_MEMBER( qx10_state::vram_bank_r )
 {
@@ -671,11 +670,11 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( qx10_io , AS_IO, 8, qx10_state)
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY("pit8253_1", pit8253_r, pit8253_w)
-	AM_RANGE(0x04, 0x07) AM_DEVREADWRITE_LEGACY("pit8253_2", pit8253_r, pit8253_w)
-	AM_RANGE(0x08, 0x09) AM_DEVREADWRITE_LEGACY("pic8259_master", pic8259_r, pic8259_w)
-	AM_RANGE(0x0c, 0x0d) AM_DEVREADWRITE_LEGACY("pic8259_slave", pic8259_r, pic8259_w)
-	AM_RANGE(0x10, 0x13) AM_READWRITE(upd7201_r, upd7201_w) //AM_DEVREADWRITE("upd7201", upd7201_device, cd_ba_r, cd_ba_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("pit8253_1", pit8253_device, read, write)
+	AM_RANGE(0x04, 0x07) AM_DEVREADWRITE("pit8253_2", pit8253_device, read, write)
+	AM_RANGE(0x08, 0x09) AM_DEVREADWRITE("pic8259_master", pic8259_device, read, write)
+	AM_RANGE(0x0c, 0x0d) AM_DEVREADWRITE("pic8259_slave", pic8259_device, read, write)
+	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE("upd7201", z80dart_device, cd_ba_r, cd_ba_w)
 	AM_RANGE(0x14, 0x17) AM_DEVREADWRITE("i8255", i8255_device, read, write)
 	AM_RANGE(0x18, 0x1b) AM_READ_PORT("DSW") AM_WRITE(qx10_18_w)
 	AM_RANGE(0x1c, 0x1f) AM_WRITE(prom_sel_w)
@@ -687,191 +686,27 @@ static ADDRESS_MAP_START( qx10_io , AS_IO, 8, qx10_state)
 	AM_RANGE(0x38, 0x39) AM_DEVREADWRITE("upd7220", upd7220_device, read, write)
 //  AM_RANGE(0x3a, 0x3a) GDC zoom
 //  AM_RANGE(0x3b, 0x3b) GDC light pen req
-	AM_RANGE(0x3c, 0x3c) AM_READWRITE(mc146818_data_r, mc146818_data_w)
-	AM_RANGE(0x3d, 0x3d) AM_WRITE(mc146818_offset_w)
-	AM_RANGE(0x40, 0x4f) AM_DEVREADWRITE_LEGACY("8237dma_1", i8237_r, i8237_w)
-	AM_RANGE(0x50, 0x5f) AM_DEVREADWRITE_LEGACY("8237dma_2", i8237_r, i8237_w)
+	AM_RANGE(0x3c, 0x3d) AM_READWRITE(mc146818_r, mc146818_w)
+	AM_RANGE(0x40, 0x4f) AM_DEVREADWRITE("8237dma_1", am9517a_device, read, write)
+	AM_RANGE(0x50, 0x5f) AM_DEVREADWRITE("8237dma_2", am9517a_device, read, write)
 //  AM_RANGE(0xfc, 0xfd) Multi-Font comms
 ADDRESS_MAP_END
 
 /* Input ports */
 /* TODO: shift break */
-INPUT_CHANGED_MEMBER(qx10_state::key_stroke)
+/*INPUT_CHANGED_MEMBER(qx10_state::key_stroke)
 {
+    if(newval && !oldval)
+    {
+        m_keyb.rx = (UINT8)(FPTR)(param) & 0x7f;
+        m_pic_m->ir4_w(1);
+    }
 
-	if(newval && !oldval)
-	{
-		m_keyb.rx = (UINT8)(FPTR)(param) & 0x7f;
-		pic8259_ir4_w(machine().device("pic8259_master"), 1);
-	}
-
-	if(oldval && !newval)
-		m_keyb.rx = 0;
-}
+    if(oldval && !newval)
+        m_keyb.rx = 0;
+}*/
 
 static INPUT_PORTS_START( qx10 )
-/* TODO: Several buttons (namely the UNDO / STORE / RETRIEVE etc.) are presumably multiple keypresses */
-	PORT_START("KEY0") // 0x00 - 0x07
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_UNUSED)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("UNDO") /*PORT_CODE(KEYCODE_1) PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x01)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("(H1)") /*PORT_CODE(KEYCODE_2) PORT_CHAR('2')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x02)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("STORE") /*PORT_CODE(KEYCODE_3) PORT_CHAR('3')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x03)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("RETRIEVE") /*PORT_CODE(KEYCODE_4) PORT_CHAR('4')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x04)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("PRINT") /*PORT_CODE(KEYCODE_5) PORT_CHAR('5')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x05)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("INDEX") /*PORT_CODE(KEYCODE_6) PORT_CHAR('6')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x06)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("MAIL") /*PORT_CODE(KEYCODE_7) PORT_CHAR('7')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x07)
-
-	PORT_START("KEY1") // 0x08 - 0x0f
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("(H2)") /*PORT_CODE(KEYCODE_1) PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x08)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("MENU") /*PORT_CODE(KEYCODE_1) PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x09)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("CALC") /*PORT_CODE(KEYCODE_2) PORT_CHAR('2')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x0a)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("SCHED") /*PORT_CODE(KEYCODE_3) PORT_CHAR('3')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x0b)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("DRAW") /*PORT_CODE(KEYCODE_4) PORT_CHAR('4')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x0c)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("(H3)") /*PORT_CODE(KEYCODE_5) PORT_CHAR('5')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x0d)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("BOLD") /*PORT_CODE(KEYCODE_6) PORT_CHAR('6')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x0e)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("ITALIC") /*PORT_CODE(KEYCODE_7) PORT_CHAR('7')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x0f)
-
-	PORT_START("KEY2") // 0x10 - 0x17
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x10)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x11)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x12)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x13)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x14)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("ENTER (PAD)") PORT_CODE(KEYCODE_ENTER_PAD) /*PORT_CHAR(0xd)*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x15)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME(". (PAD)") PORT_CODE(KEYCODE_DEL_PAD) /*PORT_CHAR('6')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x16)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("0 (PAD)") PORT_CODE(KEYCODE_0_PAD) PORT_CHAR('0') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x17)
-
-	PORT_START("KEY3") // 0x18 - 0x1f
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("= (PAD)") /*PORT_CODE(KEYCODE_1) PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x18)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("6 (PAD)") PORT_CODE(KEYCODE_6_PAD) PORT_CHAR('6') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x19)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("5 (PAD)") PORT_CODE(KEYCODE_5_PAD) PORT_CHAR('5') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x1a)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("4 (PAD)") PORT_CODE(KEYCODE_4_PAD) PORT_CHAR('4') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x1b)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("(H5)") /*PORT_CODE(KEYCODE_4) PORT_CHAR('4')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x1c)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("(H4)") /*PORT_CODE(KEYCODE_5) PORT_CHAR(0xd)*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x1d)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("STYLE") /*PORT_CODE(KEYCODE_6) PORT_CHAR('6')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x1e)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("SIZE") /*PORT_CODE(KEYCODE_7) PORT_CHAR('7')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x1f)
-
-	PORT_START("KEY4") // 0x20 - 0x27
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("RSHIFT") PORT_CODE(KEYCODE_RSHIFT) PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x20)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x21)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x22)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x23)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x24)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("3 (PAD)") PORT_CODE(KEYCODE_3_PAD) PORT_CHAR('3') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x25)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("2 (PAD)") PORT_CODE(KEYCODE_2_PAD) PORT_CHAR('2') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x26)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("1 (PAD)") PORT_CODE(KEYCODE_1_PAD) PORT_CHAR('1') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x27)
-
-	PORT_START("KEY5") // 0x28 - 0x2f
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("+ (PAD)") PORT_CODE(KEYCODE_PLUS_PAD) PORT_CHAR('+') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x28)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("9 (PAD)") PORT_CODE(KEYCODE_9_PAD) PORT_CHAR('9') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x29)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("8 (PAD)") PORT_CODE(KEYCODE_8_PAD) PORT_CHAR('8') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x2a)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("7 (PAD)") PORT_CODE(KEYCODE_7_PAD) PORT_CHAR('7') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x2b)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("- (PAD)") PORT_CODE(KEYCODE_MINUS_PAD) PORT_CHAR('-') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x2c)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("* (PAD)") PORT_CODE(KEYCODE_ASTERISK) PORT_CHAR('*') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x2d)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("/ (PAD)") PORT_CODE(KEYCODE_SLASH_PAD) PORT_CHAR('/') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x2e)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("DEC TAB") /*PORT_CODE(KEYCODE_7) PORT_CHAR('7')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x2f)
-
-	PORT_START("KEY6") // 0x30 - 0x37
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("LSHIFT") PORT_CODE(KEYCODE_LSHIFT) PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x30)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("(H6)") /*PORT_CODE(KEYCODE_1) PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x31)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("SPACE") PORT_CODE(KEYCODE_SPACE) PORT_CHAR(' ') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x32)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("Z") PORT_CODE(KEYCODE_Z) PORT_CHAR('Z') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x33)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("X") PORT_CODE(KEYCODE_X) PORT_CHAR('X') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x34)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("C") PORT_CODE(KEYCODE_C) PORT_CHAR('C') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x35)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("V") PORT_CODE(KEYCODE_V) PORT_CHAR('V') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x36)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("B") PORT_CODE(KEYCODE_B) PORT_CHAR('B') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x37)
-
-	/* TODO: check 0x3a - 0x3b */
-	PORT_START("KEY7") // 0x38 - 0x3f
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("N") PORT_CODE(KEYCODE_N) PORT_CHAR('N') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x38)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("M") PORT_CODE(KEYCODE_M) PORT_CHAR('M') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x39)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME(",") /*PORT_CODE(KEYCODE_2) PORT_CHAR('2')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x3a)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME(".") /*PORT_CODE(KEYCODE_3) PORT_CHAR('3')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x3b)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("UP") PORT_CODE(KEYCODE_UP) /*PORT_CHAR('4')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x3c)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("LEFT") PORT_CODE(KEYCODE_LEFT) /*PORT_CHAR(0xd)*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x3d)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("RIGHT") PORT_CODE(KEYCODE_RIGHT) /*PORT_CHAR('6')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x3e)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("DOWN") PORT_CODE(KEYCODE_DOWN) /*PORT_CHAR('7')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x3f)
-
-	PORT_START("KEY8") // 0x40 - 0x47
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x40)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("TAB REL") /*PORT_CODE(KEYCODE_1) PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x41)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("SHIFT LOCK") /*PORT_CODE(KEYCODE_2) PORT_CHAR('2')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x42)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("A") PORT_CODE(KEYCODE_A) PORT_CHAR('A') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x43)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("S") PORT_CODE(KEYCODE_S) PORT_CHAR('S') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x44)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("D") PORT_CODE(KEYCODE_D) PORT_CHAR('D') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x45)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("F") PORT_CODE(KEYCODE_F) PORT_CHAR('F') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x46)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("G") PORT_CODE(KEYCODE_G) PORT_CHAR('G') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x47)
-
-	PORT_START("KEY9") // 0x48 - 0x4f
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("H") PORT_CODE(KEYCODE_H) PORT_CHAR('H') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x48)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("J") PORT_CODE(KEYCODE_J) PORT_CHAR('J') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x49)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("K") PORT_CODE(KEYCODE_K) PORT_CHAR('K') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x4a)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("L") PORT_CODE(KEYCODE_L) PORT_CHAR('L') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x4b)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME(";") /*PORT_CODE(KEYCODE_4) PORT_CHAR('4')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x4c)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("9-6") /*PORT_CODE(KEYCODE_5) PORT_CHAR(0xd)*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x4d)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("RETURN") PORT_CODE(KEYCODE_ENTER) PORT_CHAR(0x0d) PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x4e)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("? /") /*PORT_CODE(KEYCODE_7) PORT_CHAR('7')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x4f)
-
-	PORT_START("KEYA") // 0x50 - 0x57
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("RCTRL") PORT_CODE(KEYCODE_RCONTROL) /*PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x50)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("Q") PORT_CODE(KEYCODE_Q) PORT_CHAR('Q') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x51)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("W") PORT_CODE(KEYCODE_W) PORT_CHAR('W') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x52)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("E") PORT_CODE(KEYCODE_E) PORT_CHAR('E') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x53)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("R") PORT_CODE(KEYCODE_R) PORT_CHAR('R') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x54)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("T") PORT_CODE(KEYCODE_T) PORT_CHAR('T') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x55)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("Y") PORT_CODE(KEYCODE_Y) PORT_CHAR('Y') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x56)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("U") PORT_CODE(KEYCODE_U) PORT_CHAR('U') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x57)
-
-	PORT_START("KEYB") // 0x58 - 0x5f
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("I") PORT_CODE(KEYCODE_I) PORT_CHAR('I') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x58)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("O") PORT_CODE(KEYCODE_O) PORT_CHAR('O') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x59)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("P") PORT_CODE(KEYCODE_P) PORT_CHAR('P') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x5a)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("1/2 1/4") /*PORT_CODE(KEYCODE_3) PORT_CHAR('3')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x5b)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("< [") /*PORT_CODE(KEYCODE_4) PORT_CHAR('4')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x5c)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("> ]") /*PORT_CODE(KEYCODE_5) PORT_CHAR(0xd)*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x5d)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("INSERT") PORT_CODE(KEYCODE_INSERT) /*PORT_CHAR('6')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x5e)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("WORD") /*PORT_CODE(KEYCODE_7) PORT_CHAR('7')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x5f)
-
-	PORT_START("KEYC") // 0x60 - 0x67
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("GRPH SHIFT") /*PORT_CODE(KEYCODE_1) PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x60)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("2") PORT_CODE(KEYCODE_2) PORT_CHAR('2') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x61)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("3") PORT_CODE(KEYCODE_3) PORT_CHAR('3') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x62)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("4") PORT_CODE(KEYCODE_4) PORT_CHAR('4') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x63)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("5") PORT_CODE(KEYCODE_5) PORT_CHAR('5') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x64)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("6") PORT_CODE(KEYCODE_6) PORT_CHAR('6') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x65)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("7") PORT_CODE(KEYCODE_7) PORT_CHAR('7') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x66)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("8") PORT_CODE(KEYCODE_8) PORT_CHAR('8') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x67)
-
-	PORT_START("KEYD") // 0x68 - 0x6f
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("9") PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x68)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("0") PORT_CODE(KEYCODE_0) PORT_CHAR('0') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x69)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("-") /*PORT_CODE(KEYCODE_2) PORT_CHAR('2')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x6a)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("=") /*PORT_CODE(KEYCODE_3) PORT_CHAR('3')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x6b)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("\\") PORT_CODE(KEYCODE_BACKSLASH) /*PORT_CHAR('4')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x6c)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("BACKSPACE") PORT_CODE(KEYCODE_BACKSPACE) /*PORT_CHAR(0xd)*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x6d)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("D-7") /*PORT_CODE(KEYCODE_6) PORT_CHAR('6')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x6e)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("LINE") /*PORT_CODE(KEYCODE_7) PORT_CHAR('7')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x6f)
-
-	PORT_START("KEYE") // 0x70 - 0x77
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("LCTRL") PORT_CODE(KEYCODE_LCONTROL) /*PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x70)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("COPY DISK") /*PORT_CODE(KEYCODE_1) PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x71)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("HELP") /*PORT_CODE(KEYCODE_2) PORT_CHAR('2')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x72)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("STOP") /*PORT_CODE(KEYCODE_3) PORT_CHAR('3')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x73)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("MAR SEL") /*PORT_CODE(KEYCODE_4) PORT_CHAR('4')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x74)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("^") /*PORT_CODE(KEYCODE_5) PORT_CHAR(0xd)*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x75)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("1") PORT_CODE(KEYCODE_1) PORT_CHAR('1') PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x76)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("TAB") PORT_CODE(KEYCODE_TAB) /*PORT_CHAR('7')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x77)
-
-	PORT_START("KEYF") // 0x78 - 0x7f
-	PORT_BIT(0x01,IP_ACTIVE_HIGH,IPT_KEYBOARD) PORT_NAME("TAB SET") /*PORT_CODE(KEYCODE_1) PORT_CHAR('1')*/ PORT_IMPULSE(1) PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x78)
-	PORT_BIT(0x02,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x79)
-	PORT_BIT(0x04,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x7a)
-	PORT_BIT(0x08,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x7b)
-	PORT_BIT(0x10,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x7c)
-	PORT_BIT(0x20,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x7d)
-	PORT_BIT(0x40,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x7e)
-	PORT_BIT(0x80,IP_ACTIVE_HIGH,IPT_UNUSED) //PORT_CHANGED_MEMBER(DEVICE_SELF, qx10_state, key_stroke, 0x7f)
-
 	/* TODO: All of those have unknown meaning */
 	PORT_START("DSW")
 	PORT_DIPNAME( 0x01, 0x00, "DSW" )
@@ -909,14 +744,14 @@ INPUT_PORTS_END
 
 void qx10_state::machine_start()
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(qx10_state::irq_callback),this));
 	m_fdc->setup_intrq_cb(upd765a_device::line_cb(FUNC(qx10_state::qx10_upd765_interrupt), this));
 	m_fdc->setup_drq_cb(upd765a_device::line_cb(FUNC(qx10_state::drq_w), this));
 }
 
 void qx10_state::machine_reset()
 {
-	i8237_dreq0_w(m_dma_1, 1);
+	m_dma_1->dreq0_w(1);
 
 	m_memprom = 0;
 	m_memcmos = 0;
@@ -1014,6 +849,18 @@ static ADDRESS_MAP_START( upd7220_map, AS_0, 8, qx10_state )
 	AM_RANGE(0x00000, 0x5ffff) AM_READWRITE(vram_r,vram_w)
 ADDRESS_MAP_END
 
+//-------------------------------------------------
+//  rs232_port_interface rs232_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
 
 static MACHINE_CONFIG_START( qx10, qx10_state )
 	/* basic machine hardware */
@@ -1034,21 +881,26 @@ static MACHINE_CONFIG_START( qx10, qx10_state )
 	/* Devices */
 	MCFG_PIT8253_ADD("pit8253_1", qx10_pit8253_1_config)
 	MCFG_PIT8253_ADD("pit8253_2", qx10_pit8253_2_config)
-	MCFG_PIC8259_ADD("pic8259_master", qx10_pic8259_master_config)
-	MCFG_PIC8259_ADD("pic8259_slave", qx10_pic8259_slave_config)
+	MCFG_PIC8259_ADD("pic8259_master", INPUTLINE("maincpu", 0), VCC, READ8(qx10_state, get_slave_ack))
+	MCFG_PIC8259_ADD("pic8259_slave", DEVWRITELINE("pic8259_master", pic8259_device, ir7_w), GND, NULL)
 	MCFG_UPD7201_ADD("upd7201", MAIN_CLK/4, qx10_upd7201_interface)
 	MCFG_I8255_ADD("i8255", qx10_i8255_interface)
 	MCFG_I8237_ADD("8237dma_1", MAIN_CLK/4, qx10_dma8237_1_interface)
 	MCFG_I8237_ADD("8237dma_2", MAIN_CLK/4, qx10_dma8237_2_interface)
 	MCFG_UPD7220_ADD("upd7220", MAIN_CLK/6, hgdc_intf, upd7220_map) // unk clock
-	MCFG_MC146818_ADD( "rtc", MC146818_STANDARD )
+	MCFG_MC146818_IRQ_ADD( "rtc", MC146818_STANDARD, qx10_mc146818_config )
 	MCFG_UPD765A_ADD("upd765", true, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", qx10_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", qx10_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", qx10_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", qx10_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
+	MCFG_QX10_KEYBOARD_ADD("kbd", qx10_keyboard_interface)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("256K")
+
+	// software lists
+	MCFG_SOFTWARE_LIST_ADD("flop_list", "qx10_flop")
 MACHINE_CONFIG_END
 
 /* ROM definition */

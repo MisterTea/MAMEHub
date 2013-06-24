@@ -41,7 +41,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c64_ide64"; }
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -55,6 +54,7 @@ private:
 	required_device<atmel_29c010_device> m_flash_rom;
 	required_device<ds1302_device> m_rtc;
 	required_device<ide_controller_device> m_ide;
+	required_ioport m_jp1;
 
 	UINT8 m_bank;
 	UINT16 m_ide_data;

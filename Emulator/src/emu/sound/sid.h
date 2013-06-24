@@ -8,7 +8,6 @@
   this part is for one chip,
 */
 
-#include "sound/sid6581.h"
 #include "sidvoice.h"
 
 /* private area */
@@ -17,10 +16,7 @@ struct SID6581_t
 	device_t *device;
 	sound_stream *mixer_channel; // mame stream/ mixer channel
 
-	devcb_resolved_read8 in_potx_func;
-	devcb_resolved_read8 in_poty_func;
-
-	SIDTYPE type;
+	int type;
 	UINT32 clock;
 
 	UINT16 PCMfreq; // samplerate of the current systems soundcard/DAC

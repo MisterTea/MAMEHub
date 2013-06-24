@@ -25,7 +25,6 @@ WRITE16_MEMBER(ultraman_state::sound_cmd_w)
 
 WRITE16_MEMBER(ultraman_state::sound_irq_trigger_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -192,14 +191,6 @@ static const k051316_interface ultraman_k051316_intf_2 =
 
 void ultraman_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k051960 = machine().device("k051960");
-	m_k051316_1 = machine().device("k051316_1");
-	m_k051316_2 = machine().device("k051316_2");
-	m_k051316_3 = machine().device("k051316_3");
-
 	save_item(NAME(m_bank0));
 	save_item(NAME(m_bank1));
 	save_item(NAME(m_bank2));
@@ -207,7 +198,6 @@ void ultraman_state::machine_start()
 
 void ultraman_state::machine_reset()
 {
-
 	m_bank0 = -1;
 	m_bank1 = -1;
 	m_bank2 = -1;

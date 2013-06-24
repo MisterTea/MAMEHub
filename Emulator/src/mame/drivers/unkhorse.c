@@ -29,8 +29,9 @@ public:
 	horse_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
-		m_color_ram(*this, "color_ram")
-	{ }
+		m_color_ram(*this, "color_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_dac(*this, "dac") { }
 
 	required_shared_ptr<UINT8> m_video_ram;
 	required_shared_ptr<UINT8> m_color_ram;
@@ -41,6 +42,8 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_horse(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(horse_interrupt);
+	required_device<cpu_device> m_maincpu;
+	required_device<dac_device> m_dac;
 };
 
 
@@ -59,7 +62,6 @@ void horse_state::palette_init()
 
 UINT32 horse_state::screen_update_horse(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	for (int y = cliprect.min_y; y <= cliprect.max_y; y++)
 	{
 		for (int x = 0; x < 32; x++)
@@ -119,7 +121,7 @@ WRITE8_MEMBER(horse_state::horse_output_w)
 
 WRITE_LINE_MEMBER(horse_state::horse_timer_out)
 {
-	machine().device<dac_device>("dac")->write_signed8(state ? 0x7f : 0);
+	m_dac->write_signed8(state ? 0x7f : 0);
 }
 
 static I8155_INTERFACE(i8155_intf)
@@ -199,6 +201,7 @@ INTERRUPT_GEN_MEMBER(horse_state::horse_interrupt)
 }
 
 static MACHINE_CONFIG_START( horse, horse_state )
+
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", I8085A, XTAL_12MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(horse_map)

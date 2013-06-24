@@ -44,10 +44,12 @@ class skimaxx_state : public driver_device
 {
 public:
 	skimaxx_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_blitter_regs(*this, "blitter_regs"),
 		m_fpga_ctrl(*this, "fpga_ctrl"),
-		m_fg_buffer(*this, "fg_buffer"){ }
+		m_fg_buffer(*this, "fg_buffer"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "subcpu") { }
 
 	required_shared_ptr<UINT32> m_blitter_regs;
 	required_shared_ptr<UINT32> m_fpga_ctrl;
@@ -74,6 +76,8 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_skimaxx(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 };
 
 
@@ -292,10 +296,8 @@ WRITE32_MEMBER(skimaxx_state::skimaxx_sub_ctrl_w)
 	// 7e/7f at the start. 3f/7f, related to reads from 1018xxxx
 	if (ACCESSING_BITS_0_7)
 	{
-		device_t *subcpu = machine().device("subcpu");
-
-		subcpu->execute().set_input_line(INPUT_LINE_RESET, (data & 0x01) ? CLEAR_LINE : ASSERT_LINE);
-		subcpu->execute().set_input_line(INPUT_LINE_HALT,  (data & 0x40) ? CLEAR_LINE : ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_RESET, (data & 0x01) ? CLEAR_LINE : ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_HALT,  (data & 0x40) ? CLEAR_LINE : ASSERT_LINE);
 	}
 }
 
@@ -513,7 +515,6 @@ static const tms34010_config tms_config =
 
 void skimaxx_state::machine_reset()
 {
-
 }
 
 /*************************************

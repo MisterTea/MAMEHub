@@ -70,8 +70,10 @@ class a310_state : public archimedes_state
 {
 public:
 	a310_state(const machine_config &mconfig, device_type type, const char *tag)
-		: archimedes_state(mconfig, type, tag),
-			m_physram(*this, "physicalram") { }
+		: archimedes_state(mconfig, type, tag)
+		, m_physram(*this, "physicalram")
+		, m_ram(*this, RAM_TAG)
+	{ }
 
 	required_shared_ptr<UINT32> m_physram;
 
@@ -82,6 +84,9 @@ public:
 	DECLARE_DRIVER_INIT(a310);
 	virtual void machine_start();
 	virtual void machine_reset();
+
+protected:
+	required_device<ram_device> m_ram;
 };
 
 
@@ -114,9 +119,9 @@ WRITE32_MEMBER(a310_state::a310_psy_wram_w)
 
 DRIVER_INIT_MEMBER(a310_state,a310)
 {
-	UINT32 ram_size = machine().device<ram_device>(RAM_TAG)->size();
+	UINT32 ram_size = m_ram->size();
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler( 0x02000000, 0x02000000+(ram_size-1), read32_delegate(FUNC(a310_state::a310_psy_wram_r), this), write32_delegate(FUNC(a310_state::a310_psy_wram_w), this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler( 0x02000000, 0x02000000+(ram_size-1), read32_delegate(FUNC(a310_state::a310_psy_wram_r), this), write32_delegate(FUNC(a310_state::a310_psy_wram_w), this));
 
 	archimedes_driver_init();
 }
@@ -126,7 +131,7 @@ void a310_state::machine_start()
 	archimedes_init();
 
 	// reset the DAC to centerline
-	//machine().device<dac_device>("dac")->write_signed8(0x80);
+	//m_dac->write_signed8(0x80);
 }
 
 void a310_state::machine_reset()

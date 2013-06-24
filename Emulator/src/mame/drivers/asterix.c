@@ -39,7 +39,6 @@ READ16_MEMBER(asterix_state::control2_r)
 
 WRITE16_MEMBER(asterix_state::control2_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		m_cur_control2 = data;
@@ -55,7 +54,6 @@ WRITE16_MEMBER(asterix_state::control2_w)
 
 INTERRUPT_GEN_MEMBER(asterix_state::asterix_interrupt)
 {
-
 	// global interrupt masking
 	if (!k056832_is_irq_enabled(m_k056832, 0))
 		return;
@@ -65,20 +63,25 @@ INTERRUPT_GEN_MEMBER(asterix_state::asterix_interrupt)
 
 READ8_MEMBER(asterix_state::asterix_sound_r)
 {
-	device_t *device = machine().device("k053260");
-	return k053260_r(device, space, 2 + offset);
+	return m_k053260->k053260_r(space, 2 + offset);
 }
 
-TIMER_CALLBACK_MEMBER(asterix_state::nmi_callback)
+void asterix_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_NMI:
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in asterix_state::device_timer");
+	}
 }
 
 WRITE8_MEMBER(asterix_state::sound_arm_nmi_w)
 {
-
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	machine().scheduler().timer_set(attotime::from_usec(5), timer_expired_delegate(FUNC(asterix_state::nmi_callback),this));
+	timer_set(attotime::from_usec(5), TIMER_NMI);
 }
 
 WRITE16_MEMBER(asterix_state::sound_irq_w)
@@ -178,7 +181,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, asterix_state )
 	AM_RANGE(0x380000, 0x380001) AM_READ_PORT("IN0")
 	AM_RANGE(0x380002, 0x380003) AM_READ_PORT("IN1")
 	AM_RANGE(0x380100, 0x380101) AM_WRITE(control2_w)
-	AM_RANGE(0x380200, 0x380203) AM_READ8(asterix_sound_r, 0x00ff) AM_DEVWRITE8_LEGACY("k053260", k053260_w, 0x00ff)
+	AM_RANGE(0x380200, 0x380203) AM_READ8(asterix_sound_r, 0x00ff) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x380300, 0x380301) AM_WRITE(sound_irq_w)
 	AM_RANGE(0x380400, 0x380401) AM_WRITE(asterix_spritebank_w)
 	AM_RANGE(0x380500, 0x38051f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
@@ -194,7 +197,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, asterix_state )
 	AM_RANGE(0x0000, 0xefff) AM_ROM
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf801, 0xf801) AM_DEVREADWRITE("ymsnd", ym2151_device, status_r, data_w)
-	AM_RANGE(0xfa00, 0xfa2f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r, k053260_w)
+	AM_RANGE(0xfa00, 0xfa2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
 	AM_RANGE(0xfc00, 0xfc00) AM_WRITE(sound_arm_nmi_w)
 	AM_RANGE(0xfe00, 0xfe00) AM_DEVWRITE("ymsnd", ym2151_device, register_w)
 ADDRESS_MAP_END
@@ -243,14 +246,6 @@ static const k05324x_interface asterix_k05324x_intf =
 
 void asterix_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k053260 = machine().device("k053260");
-	m_k056832 = machine().device("k056832");
-	m_k053244 = machine().device("k053244");
-	m_k053251 = machine().device("k053251");
-
 	save_item(NAME(m_cur_control2));
 	save_item(NAME(m_prot));
 
@@ -320,7 +315,7 @@ static MACHINE_CONFIG_START( asterix, asterix_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k053260", K053260, 4000000)
+	MCFG_K053260_ADD("k053260", 4000000)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 MACHINE_CONFIG_END
@@ -455,8 +450,8 @@ ROM_END
 DRIVER_INIT_MEMBER(asterix_state,asterix)
 {
 #if 0
-	*(UINT16 *)(machine().root_device().memregion("maincpu")->base() + 0x07f34) = 0x602a;
-	*(UINT16 *)(machine().root_device().memregion("maincpu")->base() + 0x00008) = 0x0400;
+	*(UINT16 *)(memregion("maincpu")->base() + 0x07f34) = 0x602a;
+	*(UINT16 *)(memregion("maincpu")->base() + 0x00008) = 0x0400;
 #endif
 }
 

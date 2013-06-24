@@ -114,10 +114,11 @@ class bmcbowl_state : public driver_device
 {
 public:
 	bmcbowl_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_stats_ram(*this, "nvram", 16),
 		m_vid1(*this, "vid1"),
-		m_vid2(*this, "vid2"){ }
+		m_vid2(*this, "vid2"),
+		m_maincpu(*this, "maincpu") { }
 
 	optional_shared_ptr<UINT8> m_stats_ram;
 	required_shared_ptr<UINT16> m_vid1;
@@ -141,6 +142,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_bmcbowl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -241,7 +243,7 @@ WRITE16_MEMBER(bmcbowl_state::scroll_w)
 
 READ8_MEMBER(bmcbowl_state::via_b_in)
 {
-	return machine().root_device().ioport("IN3")->read();
+	return ioport("IN3")->read();
 }
 
 
@@ -263,7 +265,7 @@ WRITE8_MEMBER(bmcbowl_state::via_ca2_out)
 
 WRITE8_MEMBER(bmcbowl_state::via_irq)
 {
-		machine().device("maincpu")->execute().set_input_line(4, data ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(4, data ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -338,8 +340,8 @@ static ADDRESS_MAP_START( bmcbowl_mem, AS_PROGRAM, 16, bmcbowl_state )
 	AM_RANGE(0x092000, 0x09201f) AM_DEVREADWRITE8("via6522_0", via6522_device, read, write, 0x00ff)
 
 	AM_RANGE(0x093000, 0x093003) AM_WRITENOP  // related to music
-	AM_RANGE(0x092800, 0x092803) AM_DEVWRITE8_LEGACY("aysnd", ay8910_data_address_w, 0xff00)
-	AM_RANGE(0x092802, 0x092803) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0xff00)
+	AM_RANGE(0x092800, 0x092803) AM_DEVWRITE8("aysnd", ay8910_device, data_address_w, 0xff00)
+	AM_RANGE(0x092802, 0x092803) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0xff00)
 	AM_RANGE(0x093802, 0x093803) AM_READ_PORT("IN0")
 	AM_RANGE(0x095000, 0x095fff) AM_RAM AM_SHARE("nvram") /* 8 bit */
 	AM_RANGE(0x097000, 0x097001) AM_READNOP

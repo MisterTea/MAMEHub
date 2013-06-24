@@ -80,9 +80,9 @@ enum COMPIS_INTERRUPT_REQUESTS
 /* Desc: IRQ - Issue an interrupt request                                  */
 /*-------------------------------------------------------------------------*/
 #ifdef UNUSED_FUNCTION
-void compis_irq_set(UINT8 irq)
+void compis_state::compis_irq_set(UINT8 irq)
 {
-	machine.device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, irq);
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, irq);
 }
 #endif
 
@@ -90,9 +90,8 @@ void compis_irq_set(UINT8 irq)
 /*-------------------------------------------------------------------------*/
 /*  Keyboard                                                               */
 /*-------------------------------------------------------------------------*/
-static void compis_keyb_update(running_machine &machine)
+void compis_state::compis_keyb_update()
 {
-	compis_state *state = machine.driver_data<compis_state>();
 	UINT8 key_code;
 	UINT8 key_status;
 	UINT8 irow;
@@ -106,7 +105,7 @@ static void compis_keyb_update(running_machine &machine)
 
 	for (irow = 0; irow < 6; irow++)
 	{
-		data = machine.root_device().ioport(rownames[irow])->read();
+		data = machine().root_device().ioport(rownames[irow])->read();
 		if (data != 0)
 		{
 			ibit = 1;
@@ -138,28 +137,28 @@ static void compis_keyb_update(running_machine &machine)
 	}
 	if (key_code != 0)
 	{
-		state->m_compis.keyboard.key_code = key_code;
-		state->m_compis.keyboard.key_status = key_status;
-		state->m_compis.usart.status |= COMPIS_USART_STATUS_RX_READY;
-		state->m_compis.usart.bytes_sent = 0;
+		m_compis.keyboard.key_code = key_code;
+		m_compis.keyboard.key_status = key_status;
+		m_compis.usart.status |= COMPIS_USART_STATUS_RX_READY;
+		m_compis.usart.bytes_sent = 0;
 //      compis_osp_pic_irq(COMPIS_IRQ_8251_RXRDY);
 	}
 }
 
-static void compis_keyb_init(compis_state *state)
+void compis_state::compis_keyb_init()
 {
-	state->m_compis.keyboard.key_code = 0;
-	state->m_compis.keyboard.key_status = 0x80;
-	state->m_compis.usart.status = 0;
-	state->m_compis.usart.bytes_sent = 0;
+	m_compis.keyboard.key_code = 0;
+	m_compis.keyboard.key_status = 0x80;
+	m_compis.usart.status = 0;
+	m_compis.usart.bytes_sent = 0;
 }
 
 /*-------------------------------------------------------------------------*/
 /*  FDC iSBX-218A                                                          */
 /*-------------------------------------------------------------------------*/
-static void compis_fdc_reset(running_machine &machine)
+void compis_state::compis_fdc_reset()
 {
-	machine.device("i8272a")->reset();
+	machine().device("i8272a")->reset();
 }
 
 void compis_state::compis_fdc_tc(int state)
@@ -178,8 +177,8 @@ void compis_state::fdc_irq(bool state)
 	{
 		if (m_8259m)
 		{
-			pic8259_ir0_w(m_8259m, 1);
-			pic8259_ir0_w(m_8259m, 0);
+			m_8259m->ir0_w(1);
+			m_8259m->ir0_w(0);
 		}
 	}
 }
@@ -235,7 +234,7 @@ WRITE8_MEMBER( compis_state::compis_ppi_port_c_w )
 
 	/* FDC Reset */
 	if (BIT(data, 6))
-		compis_fdc_reset(machine());
+		compis_fdc_reset();
 
 	/* FDC Terminal count */
 	compis_fdc_tc(BIT(data, 7));
@@ -256,7 +255,7 @@ I8255A_INTERFACE( compis_ppi_interface )
 /*  PIT 8253                                                               */
 /*-------------------------------------------------------------------------*/
 
-const struct pit8253_config compis_pit8253_config =
+const struct pit8253_interface compis_pit8253_config =
 {
 	{
 		/* Timer0 */
@@ -268,7 +267,7 @@ const struct pit8253_config compis_pit8253_config =
 	}
 };
 
-const struct pit8253_config compis_pit8254_config =
+const struct pit8253_interface compis_pit8254_config =
 {
 	{
 		/* Timer0 */
@@ -286,12 +285,12 @@ const struct pit8253_config compis_pit8254_config =
 
 READ16_MEMBER( compis_state::compis_osp_pit_r )
 {
-	return pit8253_r(m_8254, space, offset);
+	return m_8254->read(space, offset);
 }
 
 WRITE16_MEMBER( compis_state::compis_osp_pit_w )
 {
-	pit8253_w(m_8254, space, offset, data);
+	m_8254->write(space, offset, data);
 }
 
 
@@ -345,112 +344,110 @@ WRITE16_MEMBER( compis_state::compis_usart_w )
  *  80186 interrupt controller
  *
  *************************************/
-static IRQ_CALLBACK(int_callback)
+IRQ_CALLBACK_MEMBER(compis_state::int_callback)
 {
-	compis_state *state = device->machine().driver_data<compis_state>();
 	if (LOG_INTERRUPTS)
-		logerror("(%f) **** Acknowledged interrupt vector %02X\n", device->machine().time().as_double(), state->m_i186.intr.poll_status & 0x1f);
+		logerror("(%f) **** Acknowledged interrupt vector %02X\n", machine().time().as_double(), m_i186.intr.poll_status & 0x1f);
 
 	/* clear the interrupt */
-	device->execute().set_input_line(0, CLEAR_LINE);
-	state->m_i186.intr.pending = 0;
+	device.execute().set_input_line(0, CLEAR_LINE);
+	m_i186.intr.pending = 0;
 
 	/* clear the request and set the in-service bit */
 #if LATCH_INTS
-	state->m_i186.intr.request &= ~state->m_i186.intr.ack_mask;
+	m_i186.intr.request &= ~m_i186.intr.ack_mask;
 #else
-	state->m_i186.intr.request &= ~(state->m_i186.intr.ack_mask & 0x0f);
+	m_i186.intr.request &= ~(m_i186.intr.ack_mask & 0x0f);
 #endif
-	state->m_i186.intr.in_service |= state->m_i186.intr.ack_mask;
-	if (state->m_i186.intr.ack_mask == 0x0001)
+	m_i186.intr.in_service |= m_i186.intr.ack_mask;
+	if (m_i186.intr.ack_mask == 0x0001)
 	{
-		switch (state->m_i186.intr.poll_status & 0x1f)
+		switch (m_i186.intr.poll_status & 0x1f)
 		{
-			case 0x08:  state->m_i186.intr.status &= ~0x01; break;
-			case 0x12:  state->m_i186.intr.status &= ~0x02; break;
-			case 0x13:  state->m_i186.intr.status &= ~0x04; break;
+			case 0x08:  m_i186.intr.status &= ~0x01; break;
+			case 0x12:  m_i186.intr.status &= ~0x02; break;
+			case 0x13:  m_i186.intr.status &= ~0x04; break;
 		}
 	}
-	state->m_i186.intr.ack_mask = 0;
+	m_i186.intr.ack_mask = 0;
 
 	/* a request no longer pending */
-	state->m_i186.intr.poll_status &= ~0x8000;
+	m_i186.intr.poll_status &= ~0x8000;
 
 	/* return the vector */
-	return state->m_i186.intr.poll_status & 0x1f;
+	return m_i186.intr.poll_status & 0x1f;
 }
 
 
-static void update_interrupt_state(running_machine &machine)
+void compis_state::update_interrupt_state()
 {
-	compis_state *state = machine.driver_data<compis_state>();
 	int i, j, new_vector = 0;
 
-	if (LOG_INTERRUPTS) logerror("update_interrupt_status: req=%02X stat=%02X serv=%02X\n", state->m_i186.intr.request, state->m_i186.intr.status, state->m_i186.intr.in_service);
+	if (LOG_INTERRUPTS) logerror("update_interrupt_status: req=%02X stat=%02X serv=%02X\n", m_i186.intr.request, m_i186.intr.status, m_i186.intr.in_service);
 
 	/* loop over priorities */
-	for (i = 0; i <= state->m_i186.intr.priority_mask; i++)
+	for (i = 0; i <= m_i186.intr.priority_mask; i++)
 	{
 		/* note: by checking 4 bits, we also verify that the mask is off */
-		if ((state->m_i186.intr.timer & 15) == i)
+		if ((m_i186.intr.timer & 15) == i)
 		{
 			/* if we're already servicing something at this level, don't generate anything new */
-			if (state->m_i186.intr.in_service & 0x01)
+			if (m_i186.intr.in_service & 0x01)
 				return;
 
 			/* if there's something pending, generate an interrupt */
-			if (state->m_i186.intr.status & 0x07)
+			if (m_i186.intr.status & 0x07)
 			{
-				if (state->m_i186.intr.status & 1)
+				if (m_i186.intr.status & 1)
 					new_vector = 0x08;
-				else if (state->m_i186.intr.status & 2)
+				else if (m_i186.intr.status & 2)
 					new_vector = 0x12;
-				else if (state->m_i186.intr.status & 4)
+				else if (m_i186.intr.status & 4)
 					new_vector = 0x13;
 				else
 					popmessage("Invalid timer interrupt!");
 
 				/* set the clear mask and generate the int */
-				state->m_i186.intr.ack_mask = 0x0001;
+				m_i186.intr.ack_mask = 0x0001;
 				goto generate_int;
 			}
 		}
 
 		/* check DMA interrupts */
 		for (j = 0; j < 2; j++)
-			if ((state->m_i186.intr.dma[j] & 15) == i)
+			if ((m_i186.intr.dma[j] & 15) == i)
 			{
 				/* if we're already servicing something at this level, don't generate anything new */
-				if (state->m_i186.intr.in_service & (0x04 << j))
+				if (m_i186.intr.in_service & (0x04 << j))
 					return;
 
 				/* if there's something pending, generate an interrupt */
-				if (state->m_i186.intr.request & (0x04 << j))
+				if (m_i186.intr.request & (0x04 << j))
 				{
 					new_vector = 0x0a + j;
 
 					/* set the clear mask and generate the int */
-					state->m_i186.intr.ack_mask = 0x0004 << j;
+					m_i186.intr.ack_mask = 0x0004 << j;
 					goto generate_int;
 				}
 			}
 
 		/* check external interrupts */
 		for (j = 0; j < 4; j++)
-			if ((state->m_i186.intr.ext[j] & 15) == i)
+			if ((m_i186.intr.ext[j] & 15) == i)
 			{
 				/* if we're already servicing something at this level, don't generate anything new */
-				if (state->m_i186.intr.in_service & (0x10 << j))
+				if (m_i186.intr.in_service & (0x10 << j))
 					return;
 
 				/* if there's something pending, generate an interrupt */
-				if (state->m_i186.intr.request & (0x10 << j))
+				if (m_i186.intr.request & (0x10 << j))
 				{
 					/* otherwise, generate an interrupt for this request */
 					new_vector = 0x0c + j;
 
 					/* set the clear mask and generate the int */
-					state->m_i186.intr.ack_mask = 0x0010 << j;
+					m_i186.intr.ack_mask = 0x0010 << j;
 					goto generate_int;
 				}
 			}
@@ -459,13 +456,13 @@ static void update_interrupt_state(running_machine &machine)
 
 generate_int:
 	/* generate the appropriate interrupt */
-	state->m_i186.intr.poll_status = 0x8000 | new_vector;
-	if (!state->m_i186.intr.pending)
-		machine.device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
-	state->m_i186.intr.pending = 1;
-	machine.scheduler().trigger(CPU_RESUME_TRIGGER);
+	m_i186.intr.poll_status = 0x8000 | new_vector;
+	if (!m_i186.intr.pending)
+		m_maincpu->set_input_line(0, ASSERT_LINE);
+	m_i186.intr.pending = 1;
+	machine().scheduler().trigger(CPU_RESUME_TRIGGER);
 	if (LOG_OPTIMIZATION) logerror("  - trigger due to interrupt pending\n");
-	if (LOG_INTERRUPTS) logerror("(%f) **** Requesting interrupt vector %02X\n", machine.time().as_double(), new_vector);
+	if (LOG_INTERRUPTS) logerror("(%f) **** Requesting interrupt vector %02X\n", machine().time().as_double(), new_vector);
 }
 
 
@@ -549,7 +546,7 @@ TIMER_CALLBACK_MEMBER(compis_state::internal_timer_int)
 	if (t->control & 0x2000)
 	{
 		m_i186.intr.status |= 0x01 << which;
-		update_interrupt_state(machine());
+		update_interrupt_state();
 		if (LOG_TIMER) logerror("  Generating timer interrupt\n");
 	}
 
@@ -737,7 +734,7 @@ TIMER_CALLBACK_MEMBER(compis_state::dma_timer_callback)
 	{
 		if (LOG_DMA) logerror("DMA%d timer callback - requesting interrupt: count = %04X, source = %04X\n", which, d->count, d->source);
 		m_i186.intr.request |= 0x04 << which;
-		update_interrupt_state(machine());
+		update_interrupt_state();
 	}
 }
 
@@ -819,7 +816,7 @@ READ16_MEMBER( compis_state::compis_i186_internal_port_r )
 		case 0x12:
 			if (LOG_PORTS) logerror("%05X:read 80186 interrupt poll\n", m_maincpu->pc());
 			if (m_i186.intr.poll_status & 0x8000)
-				int_callback(machine().device("maincpu"), 0);
+				int_callback(*m_maincpu, 0);
 			return m_i186.intr.poll_status;
 
 		case 0x13:
@@ -999,7 +996,7 @@ WRITE16_MEMBER( compis_state::compis_i186_internal_port_w )
 		case 0x11:
 			if (LOG_PORTS) logerror("%05X:80186 EOI = %04X\n", m_maincpu->pc(), data16);
 			handle_eoi(0x8000);
-			update_interrupt_state(machine());
+			update_interrupt_state();
 			break;
 
 		case 0x12:
@@ -1019,31 +1016,31 @@ WRITE16_MEMBER( compis_state::compis_i186_internal_port_w )
 			m_i186.intr.ext[1] = (m_i186.intr.ext[1] & ~0x08) | ((data16 >> 2) & 0x08);
 			m_i186.intr.ext[2] = (m_i186.intr.ext[2] & ~0x08) | ((data16 >> 3) & 0x08);
 			m_i186.intr.ext[3] = (m_i186.intr.ext[3] & ~0x08) | ((data16 >> 4) & 0x08);
-			update_interrupt_state(machine());
+			update_interrupt_state();
 			break;
 
 		case 0x15:
 			if (LOG_PORTS) logerror("%05X:80186 interrupt priority mask = %04X\n", m_maincpu->pc(), data16);
 			m_i186.intr.priority_mask = data16 & 0x0007;
-			update_interrupt_state(machine());
+			update_interrupt_state();
 			break;
 
 		case 0x16:
 			if (LOG_PORTS) logerror("%05X:80186 interrupt in-service = %04X\n", m_maincpu->pc(), data16);
 			m_i186.intr.in_service = data16 & 0x00ff;
-			update_interrupt_state(machine());
+			update_interrupt_state();
 			break;
 
 		case 0x17:
 			if (LOG_PORTS) logerror("%05X:80186 interrupt request = %04X\n", m_maincpu->pc(), data16);
 			m_i186.intr.request = (m_i186.intr.request & ~0x00c0) | (data16 & 0x00c0);
-			update_interrupt_state(machine());
+			update_interrupt_state();
 			break;
 
 		case 0x18:
 			if (LOG_PORTS) logerror("%05X:WARNING - wrote to 80186 interrupt status = %04X\n", m_maincpu->pc(), data16);
 			m_i186.intr.status = (m_i186.intr.status & ~0x8007) | (data16 & 0x8007);
-			update_interrupt_state(machine());
+			update_interrupt_state();
 			break;
 
 		case 0x19:
@@ -1152,7 +1149,7 @@ WRITE16_MEMBER( compis_state::compis_i186_internal_port_w )
 			/* we need to do this at a time when the I86 context is swapped in */
 			/* this register is generally set once at startup and never again, so it's a good */
 			/* time to set it up */
-			m_maincpu->set_irq_acknowledge_callback(int_callback);
+			m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(compis_state::int_callback),this));
 			break;
 
 		case 0x60:
@@ -1234,18 +1231,17 @@ WRITE16_MEMBER( compis_state::compis_i186_internal_port_w )
 /* Name: compis                                                            */
 /* Desc: CPU - Initialize the 80186 CPU                                    */
 /*-------------------------------------------------------------------------*/
-static void compis_cpu_init(running_machine &machine)
+void compis_state::compis_cpu_init()
 {
-	compis_state *state = machine.driver_data<compis_state>();
 	/* create timers here so they stick around */
-	state->m_i186.timer[0].int_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::internal_timer_int),state));
-	state->m_i186.timer[1].int_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::internal_timer_int),state));
-	state->m_i186.timer[2].int_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::internal_timer_int),state));
-	state->m_i186.timer[0].time_timer = machine.scheduler().timer_alloc(FUNC_NULL);
-	state->m_i186.timer[1].time_timer = machine.scheduler().timer_alloc(FUNC_NULL);
-	state->m_i186.timer[2].time_timer = machine.scheduler().timer_alloc(FUNC_NULL);
-	state->m_i186.dma[0].finish_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::dma_timer_callback),state));
-	state->m_i186.dma[1].finish_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::dma_timer_callback),state));
+	m_i186.timer[0].int_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::internal_timer_int),this));
+	m_i186.timer[1].int_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::internal_timer_int),this));
+	m_i186.timer[2].int_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::internal_timer_int),this));
+	m_i186.timer[0].time_timer = machine().scheduler().timer_alloc(FUNC_NULL);
+	m_i186.timer[1].time_timer = machine().scheduler().timer_alloc(FUNC_NULL);
+	m_i186.timer[2].time_timer = machine().scheduler().timer_alloc(FUNC_NULL);
+	m_i186.dma[0].finish_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::dma_timer_callback),this));
+	m_i186.dma[1].finish_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(compis_state::dma_timer_callback),this));
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1261,56 +1257,40 @@ static void compis_cpu_init(running_machine &machine)
 
 WRITE_LINE_MEMBER( compis_state::compis_pic8259_master_set_int_line )
 {
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
 }
 
 WRITE_LINE_MEMBER( compis_state::compis_pic8259_slave_set_int_line )
 {
 	if (m_8259m)
-		pic8259_ir2_w(m_8259m, state);
+		m_8259m->ir2_w(state);
 }
 
 READ8_MEMBER( compis_state::get_slave_ack )
 {
 	if (offset==2) { // IRQ = 2
-		return pic8259_acknowledge(m_8259s);
+		return m_8259s->inta_r();
 	}
 	return 0;
 }
 
-const struct pic8259_interface compis_pic8259_master_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(compis_state, compis_pic8259_master_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_MEMBER(compis_state, get_slave_ack)
-};
 
-const struct pic8259_interface compis_pic8259_slave_config =
+IRQ_CALLBACK_MEMBER(compis_state::compis_irq_callback)
 {
-	DEVCB_DRIVER_LINE_MEMBER(compis_state, compis_pic8259_slave_set_int_line),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
-
-
-static IRQ_CALLBACK( compis_irq_callback )
-{
-	compis_state *state = device->machine().driver_data<compis_state>();
-	return pic8259_acknowledge(state->m_8259m);
+	return m_8259m->inta_r();
 }
 
 
 DRIVER_INIT_MEMBER(compis_state,compis)
 {
-
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(compis_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(compis_state::compis_irq_callback),this));
 	memset (&m_compis, 0, sizeof (m_compis) );
 }
 
 void compis_state::machine_start()
 {
 	/* CPU */
-	compis_cpu_init(machine());
+	compis_cpu_init();
 }
 /*-------------------------------------------------------------------------*/
 /* Name: compis                                                            */
@@ -1319,13 +1299,13 @@ void compis_state::machine_start()
 void compis_state::machine_reset()
 {
 	/* FDC */
-	compis_fdc_reset(machine());
+	compis_fdc_reset();
 
 	/* Keyboard */
-	compis_keyb_init(this);
+	compis_keyb_init();
 
 	/* OSP PIC 8259 */
-	m_maincpu->set_irq_acknowledge_callback(compis_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(compis_state::compis_irq_callback),this));
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1335,5 +1315,5 @@ void compis_state::machine_reset()
 INTERRUPT_GEN_MEMBER(compis_state::compis_vblank_int)
 {
 //  compis_gdc_vblank_int();
-	compis_keyb_update(machine());
+	compis_keyb_update();
 }

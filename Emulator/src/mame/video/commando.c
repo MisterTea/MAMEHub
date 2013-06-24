@@ -12,49 +12,42 @@
 
 WRITE8_MEMBER(commando_state::commando_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(commando_state::commando_colorram_w)
 {
-
 	m_colorram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(commando_state::commando_videoram2_w)
 {
-
 	m_videoram2[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(commando_state::commando_colorram2_w)
 {
-
 	m_colorram2[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(commando_state::commando_scrollx_w)
 {
-
 	m_scroll_x[offset] = data;
 	m_bg_tilemap->set_scrollx(0, m_scroll_x[0] | (m_scroll_x[1] << 8));
 }
 
 WRITE8_MEMBER(commando_state::commando_scrolly_w)
 {
-
 	m_scroll_y[offset] = data;
 	m_bg_tilemap->set_scrolly(0, m_scroll_y[0] | (m_scroll_y[1] << 8));
 }
 
 WRITE8_MEMBER(commando_state::commando_c804_w)
 {
-
 	// bits 0 and 1 are coin counters
 	coin_counter_w(machine(), 0, data & 0x01);
 	coin_counter_w(machine(), 1, data & 0x02);
@@ -88,20 +81,18 @@ TILE_GET_INFO_MEMBER(commando_state::get_fg_tile_info)
 
 void commando_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(commando_state::get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 32, 32);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(commando_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	m_fg_tilemap->set_transparent_pen(3);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void commando_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	commando_state *state = machine.driver_data<commando_state>();
-	UINT8 *buffered_spriteram = state->m_spriteram->buffer();
+	UINT8 *buffered_spriteram = m_spriteram->buffer();
 	int offs;
 
-	for (offs = state->m_spriteram->bytes() - 4; offs >= 0; offs -= 4)
+	for (offs = m_spriteram->bytes() - 4; offs >= 0; offs -= 4)
 	{
 		// bit 1 of attr is not used
 		int attr = buffered_spriteram[offs + 1];
@@ -113,7 +104,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		int sx = buffered_spriteram[offs + 3] - ((attr & 0x01) << 8);
 		int sy = buffered_spriteram[offs + 2];
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sx = 240 - sx;
 			sy = 240 - sy;
@@ -122,15 +113,14 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		}
 
 		if (bank < 3)
-			drawgfx_transpen(bitmap, cliprect, machine.gfx[2], code, color, flipx, flipy, sx, sy, 15);
+			drawgfx_transpen(bitmap, cliprect, machine().gfx[2], code, color, flipx, flipy, sx, sy, 15);
 	}
 }
 
 UINT32 commando_state::screen_update_commando(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }

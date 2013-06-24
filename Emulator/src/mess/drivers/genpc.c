@@ -14,7 +14,7 @@
 #include "cpu/nec/nec.h"
 #include "cpu/i86/i86.h"
 
-#include "video/pc_cga.h"
+#include "video/isa_cga.h"
 #include "video/isa_ega.h"
 #include "video/isa_mda.h"
 #include "video/isa_svga_tseng.h"
@@ -42,8 +42,10 @@ class genpc_state : public driver_device
 {
 public:
 	genpc_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu") { }
 
+	required_device<cpu_device> m_maincpu;
 };
 
 static ADDRESS_MAP_START( pc8_map, AS_PROGRAM, 8, genpc_state )
@@ -79,10 +81,6 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( pcgen )
 INPUT_PORTS_END
 
-static INPUT_PORTS_START( pccga )
-	PORT_INCLUDE( pcvideo_cga )
-INPUT_PORTS_END
-
 static const unsigned i86_address_mask = 0x000fffff;
 
 static DEVICE_INPUT_DEFAULTS_START(cga)
@@ -95,6 +93,7 @@ DEVICE_INPUT_DEFAULTS_END
 
 static SLOT_INTERFACE_START(pc_isa8_cards)
 	SLOT_INTERFACE("mda", ISA8_MDA)
+	SLOT_INTERFACE("cga", ISA8_CGA)
 	SLOT_INTERFACE("ega", ISA8_EGA)
 	SLOT_INTERFACE("svga_et4k", ISA8_SVGA_ET4K)
 	SLOT_INTERFACE("com", ISA8_COM)
@@ -125,18 +124,15 @@ static MACHINE_CONFIG_START( pcmda, genpc_state )
 
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 
-	/* video hardware */
-	MCFG_PALETTE_LENGTH( 256 )
-
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "mda", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "com", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, "fdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, "hdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, "adlib", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, NULL, false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "mda", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "com", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, "fdc_xt", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, "hdc", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, "adlib", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, false)
 
 	/* keyboard */
-	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -152,18 +148,15 @@ static MACHINE_CONFIG_START( pcherc, genpc_state )
 
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "hercules", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "com", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, "fdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, "hdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, "adlib", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, NULL, false)
-
-	/* video hardware */
-	MCFG_PALETTE_LENGTH( 256 )
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "hercules", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "com", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, "fdc_xt", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, "hdc", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, "adlib", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, false)
 
 	/* keyboard */
-	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -181,19 +174,15 @@ static MACHINE_CONFIG_START( pccga, genpc_state )
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(cga)
 
-	/* video hardware */
-	MCFG_FRAGMENT_ADD( pcvideo_cga )
-	MCFG_PALETTE_LENGTH( 256 )
-
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "com", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "fdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, "hdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, "sblaster1_0", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, NULL, NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, NULL, false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "cga", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "com", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, "fdc_xt", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, "hdc", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, "sblaster1_0", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, false)
 
 	/* keyboard */
-	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -211,18 +200,15 @@ static MACHINE_CONFIG_START( pcega, genpc_state )
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(vga)
 
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "com", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "fdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, "hdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, "sblaster1_0", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, "ega", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, NULL, false)
-
-	/* video hardware */
-	MCFG_PALETTE_LENGTH( 256 )
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "com", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "fdc_xt", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, "hdc", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, "sblaster1_0", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, "ega", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, false)
 
 	/* keyboard */
-	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -240,18 +226,15 @@ static MACHINE_CONFIG_START( xtvga, genpc_state )
 	MCFG_IBM5160_MOTHERBOARD_ADD("mb","maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(vga)
 
-	MCFG_ISA8_SLOT_ADD("mb:isa","isa1", pc_isa8_cards, "com", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa","isa2", pc_isa8_cards, "fdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa","isa3", pc_isa8_cards, "hdc", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa","isa4", pc_isa8_cards, "sblaster1_0", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa","isa5", pc_isa8_cards, "svga_et4k", NULL, false)
-	MCFG_ISA8_SLOT_ADD("mb:isa","isa6", pc_isa8_cards, NULL, NULL, false)
-
-	/* video hardware */
-	MCFG_PALETTE_LENGTH( 256 )
+	MCFG_ISA8_SLOT_ADD("mb:isa","isa1", pc_isa8_cards, "com", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa","isa2", pc_isa8_cards, "fdc_xt", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa","isa3", pc_isa8_cards, "hdc", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa","isa4", pc_isa8_cards, "sblaster1_0", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa","isa5", pc_isa8_cards, "svga_et4k", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa","isa6", pc_isa8_cards, NULL, false)
 
 	/* keyboard */
-	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("mb:pc_kbdc", "kbd", pc_xt_keyboards, STR_KBD_KEYTRONIC_PC3270)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -275,7 +258,7 @@ ROM_START( pcmda )
 	ROMX_LOAD( "peterv203.75.bin", 0xfe000, 0x2000, CRC(b053a6a4) SHA1(f53218ad3d725f12d9149b22d8afcf6a8869a3bd),ROM_BIOS(6))
 	ROM_SYSTEM_BIOS(6, "pho227", "XT Phoenix Bios 2.27")
 	ROMX_LOAD( "phoenix2.27.bin", 0xfe000, 0x2000, CRC(168ffef0) SHA1(69465db2f9246a614044d1f433d374506a13a07f),ROM_BIOS(7))
-	ROM_SYSTEM_BIOS(7, "pho227", "XT Phoenix Bios 2.51")
+	ROM_SYSTEM_BIOS(7, "pho251", "XT Phoenix Bios 2.51")
 	ROMX_LOAD( "phoenix2.51.bin", 0xfe000, 0x2000, CRC(9b7e9c40) SHA1(c948a8d3d715e469105c6e2acd8b46ec274b25a8),ROM_BIOS(8))
 	ROM_SYSTEM_BIOS(8, "turbo", "XT Turbo Bios 3.10")
 	ROMX_LOAD( "turbo3.10.bin", 0xfe000, 0x2000, CRC(8aaca1e3) SHA1(9c03da16713e08c0112a04c8bdfa394e7341c1fc),ROM_BIOS(9))
@@ -301,7 +284,7 @@ ROM_START( pc )
 	ROMX_LOAD( "peterv203.75.bin", 0xfe000, 0x2000, CRC(b053a6a4) SHA1(f53218ad3d725f12d9149b22d8afcf6a8869a3bd),ROM_BIOS(6))
 	ROM_SYSTEM_BIOS(6, "pho227", "XT Phoenix Bios 2.27")
 	ROMX_LOAD( "phoenix2.27.bin", 0xfe000, 0x2000, CRC(168ffef0) SHA1(69465db2f9246a614044d1f433d374506a13a07f),ROM_BIOS(7))
-	ROM_SYSTEM_BIOS(7, "pho227", "XT Phoenix Bios 2.51")
+	ROM_SYSTEM_BIOS(7, "pho251", "XT Phoenix Bios 2.51")
 	ROMX_LOAD( "phoenix2.51.bin", 0xfe000, 0x2000, CRC(9b7e9c40) SHA1(c948a8d3d715e469105c6e2acd8b46ec274b25a8),ROM_BIOS(8))
 	ROM_SYSTEM_BIOS(8, "turbo", "XT Turbo Bios 3.10")
 	ROMX_LOAD( "turbo3.10.bin", 0xfe000, 0x2000, CRC(8aaca1e3) SHA1(9c03da16713e08c0112a04c8bdfa394e7341c1fc),ROM_BIOS(9))
@@ -319,8 +302,8 @@ ROM_END
 ***************************************************************************/
 
 /*     YEAR     NAME        PARENT      COMPAT  MACHINE     INPUT       INIT        COMPANY     FULLNAME */
-COMP(  1987,    pc,         ibm5150,    0,      pccga,      pccga, driver_device,       0,          "<generic>",  "PC (CGA)" , GAME_NO_SOUND)
-COMP(  1987,    pcega,      ibm5150,    0,      pcega,      pccga, driver_device,       0,          "<generic>",  "PC (EGA)" , GAME_NO_SOUND)
-COMP ( 1987,    pcmda,      ibm5150,    0,      pcmda,      pcgen, driver_device,       0,          "<generic>",  "PC (MDA)" , GAME_NO_SOUND)
-COMP ( 1987,    pcherc,     ibm5150,    0,      pcherc,     pcgen, driver_device,      0,       "<generic>",  "PC (Hercules)" , GAME_NO_SOUND)
-COMP ( 1987,    xtvga,      ibm5150,    0,      xtvga,      pcgen, driver_device,       0,          "<generic>",  "PC (VGA)" , GAME_NOT_WORKING | GAME_NO_SOUND)
+COMP(  1987,    pc,         ibm5150,    0,      pccga,      pcgen, driver_device,       0,          "<generic>",  "PC (CGA)" , 0)
+COMP(  1987,    pcega,      ibm5150,    0,      pcega,      pcgen, driver_device,       0,          "<generic>",  "PC (EGA)" , 0)
+COMP ( 1987,    pcmda,      ibm5150,    0,      pcmda,      pcgen, driver_device,       0,          "<generic>",  "PC (MDA)" , 0)
+COMP ( 1987,    pcherc,     ibm5150,    0,      pcherc,     pcgen, driver_device,      0,       "<generic>",  "PC (Hercules)" , 0)
+COMP ( 1987,    xtvga,      ibm5150,    0,      xtvga,      pcgen, driver_device,       0,          "<generic>",  "PC (VGA)" , GAME_NOT_WORKING)

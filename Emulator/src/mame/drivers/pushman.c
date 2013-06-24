@@ -49,7 +49,6 @@ WRITE16_MEMBER(pushman_state::pushman_control_w)
 
 READ16_MEMBER(pushman_state::pushman_68705_r)
 {
-
 	if (offset == 0)
 		return m_latch;
 
@@ -66,7 +65,6 @@ READ16_MEMBER(pushman_state::pushman_68705_r)
 
 WRITE16_MEMBER(pushman_state::pushman_68705_w)
 {
-
 	if (ACCESSING_BITS_8_15)
 		m_shared_ram[2 * offset] = data >> 8;
 	if (ACCESSING_BITS_0_7)
@@ -74,7 +72,7 @@ WRITE16_MEMBER(pushman_state::pushman_68705_w)
 
 	if (offset == 1)
 	{
-		m_mcu->execute().set_input_line(M68705_IRQ_LINE, HOLD_LINE);
+		m_mcu->set_input_line(M68705_IRQ_LINE, HOLD_LINE);
 		space.device().execute().spin();
 		m_new_latch = 0;
 	}
@@ -83,7 +81,6 @@ WRITE16_MEMBER(pushman_state::pushman_68705_w)
 /* ElSemi - Bouncing balls protection. */
 READ16_MEMBER(pushman_state::bballs_68705_r)
 {
-
 	if (offset == 0)
 		return m_latch;
 	if (offset == 3 && m_new_latch)
@@ -99,7 +96,6 @@ READ16_MEMBER(pushman_state::bballs_68705_r)
 
 WRITE16_MEMBER(pushman_state::bballs_68705_w)
 {
-
 	if (ACCESSING_BITS_8_15)
 		m_shared_ram[2 * offset] = data >> 8;
 	if (ACCESSING_BITS_0_7)
@@ -132,7 +128,6 @@ READ8_MEMBER(pushman_state::pushman_68000_r)
 
 WRITE8_MEMBER(pushman_state::pushman_68000_w)
 {
-
 	if (offset == 2 && (m_shared_ram[2] & 2) == 0 && data & 2)
 	{
 		m_latch = (m_shared_ram[1] << 8) | m_shared_ram[0];
@@ -171,8 +166,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, pushman_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x80, 0x81) AM_DEVWRITE_LEGACY("ym2", ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ym2", ym2203_device, write)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( bballs_map, AS_PROGRAM, 16, pushman_state )
@@ -383,30 +378,21 @@ GFXDECODE_END
 
 /******************************************************************************/
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(pushman_state::irqhandler)
 {
-	pushman_state *state = device->machine().driver_data<pushman_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 };
 
 
 void pushman_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_mcu = machine().device("mcu");
-
 	save_item(NAME(m_control));
 	save_item(NAME(m_shared_ram));
 	save_item(NAME(m_latch));
@@ -415,7 +401,6 @@ void pushman_state::machine_start()
 
 MACHINE_RESET_MEMBER(pushman_state,pushman)
 {
-
 	m_latch = 0;
 	m_new_latch = 0;
 	m_control[0] = 0;
@@ -459,7 +444,8 @@ static MACHINE_CONFIG_START( pushman, pushman_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 2000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(pushman_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 2000000)
@@ -468,7 +454,6 @@ MACHINE_CONFIG_END
 
 MACHINE_RESET_MEMBER(pushman_state,bballs)
 {
-
 	MACHINE_RESET_CALL_MEMBER(pushman);
 
 	m_latch = 0x400;
@@ -505,7 +490,8 @@ static MACHINE_CONFIG_START( bballs, pushman_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 2000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(pushman_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 2000000)

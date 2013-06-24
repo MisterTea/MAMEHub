@@ -14,7 +14,7 @@
 #include "cpu/z80/z80.h"
 #include "video/konicdev.h"
 #include "machine/k053252.h"
-#include "cpu/konami/konami.h" /* for the callback and the firq irq definition */
+#include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "sound/3812intf.h"
 #include "sound/k053260.h"
 #include "includes/rollerg.h"
@@ -41,7 +41,6 @@ WRITE8_MEMBER(rollerg_state::rollerg_0010_w)
 
 READ8_MEMBER(rollerg_state::rollerg_k051316_r)
 {
-
 	if (m_readzoomroms)
 		return k051316_rom_r(m_k051316, space, offset);
 	else
@@ -50,10 +49,9 @@ READ8_MEMBER(rollerg_state::rollerg_k051316_r)
 
 READ8_MEMBER(rollerg_state::rollerg_sound_r)
 {
-	device_t *device = machine().device("k053260");
 	/* If the sound CPU is running, read the status, otherwise
 	   just make it pass the test */
-	return k053260_r(device, space, 2 + offset);
+	return m_k053260->k053260_r(space, 2 + offset);
 }
 
 WRITE8_MEMBER(rollerg_state::soundirq_w)
@@ -61,15 +59,22 @@ WRITE8_MEMBER(rollerg_state::soundirq_w)
 	m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
-TIMER_CALLBACK_MEMBER(rollerg_state::nmi_callback)
+void rollerg_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_NMI:
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in rollerg_state::device_timer");
+	}
 }
 
 WRITE8_MEMBER(rollerg_state::sound_arm_nmi_w)
 {
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	machine().scheduler().timer_set(attotime::from_usec(50), timer_expired_delegate(FUNC(rollerg_state::nmi_callback),this));   /* kludge until the K053260 is emulated correctly */
+	timer_set(attotime::from_usec(50), TIMER_NMI);   /* kludge until the K053260 is emulated correctly */
 }
 
 READ8_MEMBER(rollerg_state::pip_r)
@@ -80,7 +85,7 @@ READ8_MEMBER(rollerg_state::pip_r)
 static ADDRESS_MAP_START( rollerg_map, AS_PROGRAM, 8, rollerg_state )
 	AM_RANGE(0x0010, 0x0010) AM_WRITE(rollerg_0010_w)
 	AM_RANGE(0x0020, 0x0020) AM_READWRITE(watchdog_reset_r,watchdog_reset_w)
-	AM_RANGE(0x0030, 0x0031) AM_READ(rollerg_sound_r) AM_DEVWRITE_LEGACY("k053260", k053260_w)  /* K053260 */
+	AM_RANGE(0x0030, 0x0031) AM_READ(rollerg_sound_r) AM_DEVWRITE("k053260", k053260_device, k053260_w)  /* K053260 */
 	AM_RANGE(0x0040, 0x0040) AM_WRITE(soundirq_w)
 	AM_RANGE(0x0050, 0x0050) AM_READ_PORT("P1")
 	AM_RANGE(0x0051, 0x0051) AM_READ_PORT("P2")
@@ -102,8 +107,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( rollerg_sound_map, AS_PROGRAM, 8, rollerg_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
-	AM_RANGE(0xa000, 0xa02f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r,k053260_w)
-	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r,ym3812_w)
+	AM_RANGE(0xa000, 0xa02f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
+	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 	AM_RANGE(0xfc00, 0xfc00) AM_WRITE(sound_arm_nmi_w)
 ADDRESS_MAP_END
 
@@ -233,7 +238,7 @@ static const k051316_interface rollerg_k051316_intf =
 
 WRITE_LINE_MEMBER(rollerg_state::rollerg_irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 static const k053252_interface rollerg_k053252_intf =
@@ -254,19 +259,12 @@ void rollerg_state::machine_start()
 	membank("bank1")->configure_entries(6, 2, &ROM[0x10000], 0x4000);
 	membank("bank1")->set_entry(0);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k053244 = machine().device("k053244");
-	m_k051316 = machine().device("k051316");
-	m_k053260 = machine().device("k053260");
-
 	save_item(NAME(m_readzoomroms));
 }
 
 void rollerg_state::machine_reset()
 {
-
-	konami_configure_set_lines(machine().device("maincpu"), rollerg_banking);
+	konami_configure_set_lines(m_maincpu, rollerg_banking);
 
 	m_readzoomroms = 0;
 }
@@ -305,7 +303,7 @@ static MACHINE_CONFIG_START( rollerg, rollerg_state )
 	MCFG_SOUND_ADD("ymsnd", YM3812, 3579545)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
-	MCFG_SOUND_ADD("k053260", K053260, 3579545)
+	MCFG_K053260_ADD("k053260", 3579545)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 MACHINE_CONFIG_END
 

@@ -113,11 +113,9 @@
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "video/decocomn.h"
-#include "video/decospr.h"
 
 READ16_MEMBER(rohga_state::rohga_irq_ack_r)
 {
-
 	m_maincpu->set_input_line(6, CLEAR_LINE);
 	return 0;
 }
@@ -1551,8 +1549,8 @@ DRIVER_INIT_MEMBER(rohga_state,nitrobal)
 
 DRIVER_INIT_MEMBER(rohga_state,schmeisr)
 {
-	const UINT8 *src = machine().root_device().memregion("gfx2")->base();
-	UINT8 *dst = machine().root_device().memregion("gfx1")->base();
+	const UINT8 *src = memregion("gfx2")->base();
+	UINT8 *dst = memregion("gfx1")->base();
 
 	memcpy(dst, src, 0x20000);
 	memcpy(dst + 0x20000, src + 0x80000, 0x20000);

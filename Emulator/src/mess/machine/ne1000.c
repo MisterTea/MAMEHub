@@ -19,7 +19,7 @@ machine_config_constructor ne1000_device::device_mconfig_additions() const {
 }
 
 ne1000_device::ne1000_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: device_t(mconfig, NE1000, "NE1000 Network Adapter", tag, owner, clock),
+		: device_t(mconfig, NE1000, "NE1000 Network Adapter", tag, owner, clock, "ne1000", __FILE__),
 		device_isa8_card_interface(mconfig, *this),
 		m_dp8390(*this, "dp8390d") {
 }
@@ -38,6 +38,7 @@ void ne1000_device::device_start() {
 
 void ne1000_device::device_reset() {
 	memcpy(m_prom, m_dp8390->get_mac(), 6);
+	m_irq = ioport("CONFIG")->read() & 3;
 }
 
 READ8_MEMBER(ne1000_device::ne1000_port_r) {
@@ -79,10 +80,24 @@ WRITE8_MEMBER(ne1000_device::ne1000_port_w) {
 }
 
 WRITE_LINE_MEMBER(ne1000_device::ne1000_irq_w) {
-	m_isa->irq3_w(state);
+	switch(m_irq) {
+	case 0:
+		m_isa->irq2_w(state);
+		break;
+	case 1:
+		m_isa->irq3_w(state);
+		break;
+	case 2:
+		m_isa->irq4_w(state);
+		break;
+	case 3:
+		m_isa->irq5_w(state);
+		break;
+	}
 }
 
 READ8_MEMBER(ne1000_device::ne1000_mem_read) {
+	offset &= ~0xc000; // verify
 	if(offset < 16) return m_prom[offset];
 	if((offset < (8*1024)) || (offset >= (16*1024))) {
 		logerror("ne1000: invalid memory read %04X\n", offset);
@@ -92,9 +107,29 @@ READ8_MEMBER(ne1000_device::ne1000_mem_read) {
 }
 
 WRITE8_MEMBER(ne1000_device::ne1000_mem_write) {
+	offset &= ~0xc000; // verify
 	if((offset < (8*1024)) || (offset >= (16*1024))) {
 		logerror("ne1000: invalid memory write %04X\n", offset);
 		return;
 	}
 	m_board_ram[offset - (8*1024)] = data;
+}
+
+static INPUT_PORTS_START( ne1000 )
+	PORT_START("CONFIG")
+	PORT_CONFNAME(0x03, 0x01, "NE1000 IRQ jumper (W12-15)")
+	PORT_CONFSETTING( 0x00, "IRQ2/9")
+	PORT_CONFSETTING( 0x01, "IRQ3")
+	PORT_CONFSETTING( 0x02, "IRQ4")
+	PORT_CONFSETTING( 0x03, "IRQ5")
+	//PORT_CONFNAME(0x30, 0x00, "NE1000 IO port jumper (W9-10)")
+	//PORT_CONFSETTING( 0x00, "300")
+	//PORT_CONFSETTING( 0x10, "320")
+	//PORT_CONFSETTING( 0x20, "340")
+	//PORT_CONFSETTING( 0x30, "360")
+INPUT_PORTS_END
+
+ioport_constructor ne1000_device::device_input_ports() const
+{
+	return INPUT_PORTS_NAME(ne1000);
 }

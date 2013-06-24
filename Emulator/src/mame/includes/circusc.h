@@ -11,16 +11,19 @@ class circusc_state : public driver_device
 {
 public:
 	circusc_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spritebank(*this, "spritebank"),
 		m_scroll(*this, "scroll"),
 		m_colorram(*this, "colorram"),
 		m_videoram(*this, "videoram"),
 		m_spriteram_2(*this, "spriteram_2"),
 		m_spriteram(*this, "spriteram"),
+		m_audiocpu(*this, "audiocpu"),
 		m_sn_1(*this, "sn1"),
 		m_sn_2(*this, "sn2"),
-		m_discrete(*this, "fltdisc"){ }
+		m_dac(*this, "dac"),
+		m_discrete(*this, "fltdisc"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_spritebank;
@@ -37,10 +40,10 @@ public:
 	UINT8          m_sn_latch;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	required_device<sn76496_device> m_sn_1;
 	required_device<sn76496_device> m_sn_2;
-	dac_device *m_dac;
+	required_device<dac_device> m_dac;
 	required_device<discrete_device> m_discrete;
 
 	UINT8          m_irq_mask;
@@ -60,4 +63,6 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_circusc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

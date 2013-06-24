@@ -1,4 +1,7 @@
 
+#include "video/decospr.h"
+#include "sound/okim6295.h"
+
 class tumbleb_state : public driver_device
 {
 public:
@@ -8,7 +11,11 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_pf1_data(*this, "pf1_data"),
 		m_pf2_data(*this, "pf2_data"),
-		m_control(*this, "control")
+		m_control(*this, "control"),
+		m_sprgen(*this, "spritegen"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_oki(*this, "oki")
 	{ }
 
 	/* memory pointers */
@@ -17,6 +24,7 @@ public:
 	required_shared_ptr<UINT16> m_pf1_data;
 	required_shared_ptr<UINT16> m_pf2_data;
 	optional_shared_ptr<UINT16> m_control;
+	optional_device<decospr_device> m_sprgen;
 //  UINT16 *    m_paletteram;    // currently this uses generic palette handling
 
 	/* misc */
@@ -34,9 +42,9 @@ public:
 	UINT16      m_tilebank;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_oki;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	required_device<okim6295_device> m_oki;
 	UINT8 m_semicom_prot_offset;
 	UINT16 m_protbase;
 	DECLARE_WRITE16_MEMBER(tumblepb_oki_w);
@@ -68,6 +76,7 @@ public:
 	DECLARE_DRIVER_INIT(wlstar);
 	DECLARE_DRIVER_INIT(suprtrio);
 	DECLARE_DRIVER_INIT(tumblepb);
+	DECLARE_DRIVER_INIT(tumblepba);
 	DECLARE_DRIVER_INIT(bcstory);
 	DECLARE_DRIVER_INIT(wondl96);
 	DECLARE_DRIVER_INIT(tumbleb2);
@@ -102,4 +111,17 @@ public:
 	UINT32 screen_update_semibase(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_sdfight(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(tumbleb2_interrupt);
+	void tumbleb_tilemap_redraw();
+	inline void get_bg_tile_info( tile_data &tileinfo, int tile_index, int gfx_bank, UINT16 *gfx_base);
+	inline void get_fncywld_bg_tile_info( tile_data &tileinfo, int tile_index, int gfx_bank, UINT16 *gfx_base);
+	inline void pangpang_get_bg_tile_info( tile_data &tileinfo, int tile_index, int gfx_bank, UINT16 *gfx_base );
+	inline void pangpang_get_bg2x_tile_info( tile_data &tileinfo, int tile_index, int gfx_bank, UINT16 *gfx_base );
+	void tumbleb_draw_common(bitmap_ind16 &bitmap, const rectangle &cliprect, int pf1x_offs, int pf1y_offs, int pf2x_offs, int pf2y_offs);
+	void tumbleb2_set_music_bank( int bank );
+	void tumbleb2_play_sound( okim6295_device *oki, int data );
+	void process_tumbleb2_music_command( okim6295_device *oki, int data );
+	void tumblepb_patch_code(UINT16 offset);
+	void tumblepb_gfx_rearrange(int rgn);
+	void suprtrio_decrypt_code();
+	void suprtrio_decrypt_gfx();
 };

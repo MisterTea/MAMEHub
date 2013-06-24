@@ -51,8 +51,7 @@
 
 #define MCFG_VOTRAX_SC01_ADD(_tag, _clock, _interface) \
 	MCFG_DEVICE_ADD(_tag, VOTRAX_SC01, _clock) \
-	votrax_sc01_device::static_set_interface(*device, _interface); \
-
+	votrax_sc01_device::static_set_interface(*device, _interface);
 
 
 //**************************************************************************
@@ -87,7 +86,7 @@ public:
 
 protected:
 	// device-level overrides
-	const rom_entry *device_rom_region() const;
+	virtual const rom_entry *device_rom_region() const;
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_clock_changed();

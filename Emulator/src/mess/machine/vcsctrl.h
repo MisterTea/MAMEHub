@@ -23,9 +23,13 @@
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
 
-#define MCFG_VCS_CONTROL_PORT_ADD(_tag, _slot_intf, _def_slot, _def_inp) \
+#define MCFG_VCS_CONTROL_PORT_ADD(_tag, _slot_intf, _def_slot) \
 	MCFG_DEVICE_ADD(_tag, VCS_CONTROL_PORT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, false)
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
+
+
+#define MCFG_VCS_CONTROL_PORT_TRIGGER_HANDLER(_devcb) \
+	devcb = &vcs_control_port_device::set_trigger_handler(*device, DEVCB2_##_devcb);
 
 
 
@@ -44,6 +48,9 @@ public:
 	// construction/destruction
 	vcs_control_port_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	virtual ~vcs_control_port_device();
+
+	// static configuration helpers
+	template<class _Object> static devcb2_base &set_trigger_handler(device_t &device, _Object object) { return downcast<vcs_control_port_device &>(device).m_trigger_handler.set_callback(object); }
 
 	// computer interface
 
@@ -68,11 +75,20 @@ public:
 	void joy_w( UINT8 data );
 	DECLARE_WRITE8_MEMBER( joy_w );
 
+	bool exists();
+	bool has_pot_x();
+	bool has_pot_y();
+
+	void trigger_w(int state);
+
 protected:
 	// device-level overrides
 	virtual void device_start();
 
 	device_vcs_control_port_interface *m_device;
+
+private:
+	devcb2_write_line m_trigger_handler;
 };
 
 
@@ -90,6 +106,9 @@ public:
 	virtual UINT8 vcs_pot_x_r() { return 0xff; };
 	virtual UINT8 vcs_pot_y_r() { return 0xff; };
 	virtual void vcs_joy_w(UINT8 data) { };
+
+	virtual bool has_pot_x() { return false; }
+	virtual bool has_pot_y() { return false; }
 
 protected:
 	vcs_control_port_device *m_port;

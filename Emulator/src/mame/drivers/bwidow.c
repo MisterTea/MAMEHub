@@ -308,7 +308,7 @@ READ8_MEMBER(bwidow_state::spacduel_IN3_r)
 
 CUSTOM_INPUT_MEMBER(bwidow_state::clock_r)
 {
-	return (machine().device<cpu_device>("maincpu")->total_cycles() & 0x100) ? 1 : 0;
+	return (m_maincpu->total_cycles() & 0x100) ? 1 : 0;
 }
 
 
@@ -343,7 +343,7 @@ WRITE8_MEMBER(bwidow_state::bwidow_misc_w)
 
 WRITE8_MEMBER(bwidow_state::irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -380,7 +380,7 @@ static ADDRESS_MAP_START( spacduel_map, AS_PROGRAM, 8, bwidow_state )
 	AM_RANGE(0x0900, 0x0907) AM_READ(spacduel_IN3_r)    /* IN1 */
 	AM_RANGE(0x0905, 0x0906) AM_WRITENOP /* ignore? */
 	AM_RANGE(0x0a00, 0x0a00) AM_DEVREAD("earom", atari_vg_earom_device, read)
-//  AM_RANGE(0x0c00, 0x0c00) AM_WRITE_LEGACY(coin_counter_w) /* coin out */
+//  AM_RANGE(0x0c00, 0x0c00) AM_WRITE(coin_counter_w) /* coin out */
 	AM_RANGE(0x0c80, 0x0c80) AM_WRITE_LEGACY(avgdvg_go_w)
 	AM_RANGE(0x0d00, 0x0d00) AM_WRITENOP /* watchdog clear */
 	AM_RANGE(0x0d80, 0x0d80) AM_WRITE_LEGACY(avgdvg_reset_w)

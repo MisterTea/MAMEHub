@@ -32,7 +32,7 @@
 
 PALETTE_INIT_MEMBER(mappy_state,superpac)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[3] = { 1000, 470, 220 };
 	double rweights[3], gweights[3], bweights[2];
 	int i;
@@ -92,7 +92,7 @@ PALETTE_INIT_MEMBER(mappy_state,superpac)
 
 PALETTE_INIT_MEMBER(mappy_state,mappy)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[3] = { 1000, 470, 220 };
 	double rweights[3], gweights[3], bweights[2];
 	int i;
@@ -164,7 +164,7 @@ PALETTE_INIT_MEMBER(mappy_state,mappy)
 
 PALETTE_INIT_MEMBER(mappy_state,phozon)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[4] = { 2200, 1000, 470, 220 };
 	double rweights[4], gweights[4], bweights[4];
 	int i;
@@ -320,7 +320,6 @@ TILE_GET_INFO_MEMBER(mappy_state::mappy_get_tile_info)
 
 VIDEO_START_MEMBER(mappy_state,superpac)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mappy_state::superpac_get_tile_info),this),tilemap_mapper_delegate(FUNC(mappy_state::superpac_tilemap_scan),this),8,8,36,28);
 	machine().primary_screen->register_screen_bitmap(m_sprite_bitmap);
 
@@ -329,7 +328,6 @@ VIDEO_START_MEMBER(mappy_state,superpac)
 
 VIDEO_START_MEMBER(mappy_state,phozon)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mappy_state::phozon_get_tile_info),this),tilemap_mapper_delegate(FUNC(mappy_state::superpac_tilemap_scan),this),8,8,36,28);
 
 	colortable_configure_tilemap_groups(machine().colortable, m_bg_tilemap, machine().gfx[0], 15);
@@ -339,7 +337,6 @@ VIDEO_START_MEMBER(mappy_state,phozon)
 
 VIDEO_START_MEMBER(mappy_state,mappy)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mappy_state::mappy_get_tile_info),this),tilemap_mapper_delegate(FUNC(mappy_state::mappy_tilemap_scan),this),8,8,36,60);
 
 	colortable_configure_tilemap_groups(machine().colortable, m_bg_tilemap, machine().gfx[0], 31);
@@ -356,14 +353,12 @@ VIDEO_START_MEMBER(mappy_state,mappy)
 
 WRITE8_MEMBER(mappy_state::superpac_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset & 0x3ff);
 }
 
 WRITE8_MEMBER(mappy_state::mappy_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset & 0x7ff);
 }
@@ -381,7 +376,6 @@ READ8_MEMBER(mappy_state::superpac_flipscreen_r)
 
 WRITE8_MEMBER(mappy_state::mappy_scroll_w)
 {
-
 	m_scroll = offset >> 3;
 }
 
@@ -393,9 +387,8 @@ WRITE8_MEMBER(mappy_state::mappy_scroll_w)
 
 ***************************************************************************/
 
-static void mappy_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 *spriteram_base)
+void mappy_state::mappy_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 *spriteram_base)
 {
-	mappy_state *state = machine.driver_data<mappy_state>();
 	UINT8 *spriteram = spriteram_base + 0x780;
 	UINT8 *spriteram_2 = spriteram + 0x800;
 	UINT8 *spriteram_3 = spriteram_2 + 0x800;
@@ -428,7 +421,7 @@ static void mappy_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, c
 			sy -= 16 * sizey;
 			sy = (sy & 0xff) - 32;  // fix wraparound
 
-			if (state->flip_screen())
+			if (flip_screen())
 			{
 				flipx ^= 1;
 				flipy ^= 1;
@@ -440,12 +433,12 @@ static void mappy_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, c
 			{
 				for (x = 0;x <= sizex;x++)
 				{
-					drawgfx_transmask(bitmap,cliprect,machine.gfx[1],
+					drawgfx_transmask(bitmap,cliprect,machine().gfx[1],
 						sprite + gfx_offs[y ^ (sizey * flipy)][x ^ (sizex * flipx)],
 						color,
 						flipx,flipy,
 						sx + 16*x,sy + 16*y,
-						colortable_get_transpen_mask(machine.colortable, machine.gfx[1], color, 15));
+						colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 15));
 				}
 			}
 		}
@@ -474,9 +467,8 @@ spriteram_3
 1   -------x  X position MSB
 */
 
-static void phozon_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 *spriteram_base)
+void mappy_state::phozon_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 *spriteram_base)
 {
-	mappy_state *state = machine.driver_data<mappy_state>();
 	UINT8 *spriteram = spriteram_base + 0x780;
 	UINT8 *spriteram_2 = spriteram + 0x800;
 	UINT8 *spriteram_3 = spriteram_2 + 0x800;
@@ -508,7 +500,7 @@ static void phozon_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, 
 			sy -= 8 * sizey;
 			sy = (sy & 0xff) - 32;  // fix wraparound
 
-			if (state->flip_screen())
+			if (flip_screen())
 			{
 				flipx ^= 1;
 				flipy ^= 1;
@@ -520,12 +512,12 @@ static void phozon_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, 
 			{
 				for (x = 0;x <= sizex;x++)
 				{
-					drawgfx_transmask(bitmap,cliprect,machine.gfx[1],
+					drawgfx_transmask(bitmap,cliprect,machine().gfx[1],
 						sprite + gfx_offs[y ^ (sizey * flipy)][x ^ (sizex * flipx)],
 						color,
 						flipx,flipy,
 						sx + 8*x,sy + 8*y,
-						colortable_get_transpen_mask(machine.colortable, machine.gfx[1], color, 31));
+						colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 31));
 				}
 			}
 		}
@@ -541,7 +533,7 @@ UINT32 mappy_state::screen_update_superpac(screen_device &screen, bitmap_ind16 &
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES,0);
 
 	sprite_bitmap.fill(15, cliprect);
-	mappy_draw_sprites(machine(),sprite_bitmap,cliprect,m_spriteram);
+	mappy_draw_sprites(sprite_bitmap,cliprect,m_spriteram);
 	copybitmap_trans(bitmap,sprite_bitmap,0,0,0,0,cliprect,15);
 
 	/* Redraw the high priority characters */
@@ -563,13 +555,12 @@ UINT32 mappy_state::screen_update_superpac(screen_device &screen, bitmap_ind16 &
 
 UINT32 mappy_state::screen_update_phozon(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	/* flip screen control is embedded in RAM */
 	flip_screen_set(m_spriteram[0x1f7f-0x800] & 1);
 
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES,0);
 
-	phozon_draw_sprites(machine(),bitmap,cliprect,m_spriteram);
+	phozon_draw_sprites(bitmap,cliprect,m_spriteram);
 
 	/* Redraw the high priority characters */
 	m_bg_tilemap->draw(bitmap, cliprect, 1,0);
@@ -585,7 +576,7 @@ UINT32 mappy_state::screen_update_mappy(screen_device &screen, bitmap_ind16 &bit
 
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES,0);
 
-	mappy_draw_sprites(machine(),bitmap,cliprect,m_spriteram);
+	mappy_draw_sprites(bitmap,cliprect,m_spriteram);
 
 	/* Redraw the high priority characters */
 	m_bg_tilemap->draw(bitmap, cliprect, 1,0);

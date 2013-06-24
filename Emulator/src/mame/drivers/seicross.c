@@ -76,20 +76,18 @@ static NVRAM_HANDLER( seicross )
 void seicross_state::machine_reset()
 {
 	/* start with the protection mcu halted */
-	machine().device("mcu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+	m_mcu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 }
 
 
 
 READ8_MEMBER(seicross_state::friskyt_portB_r)
 {
-
 	return (m_portb & 0x9f) | (ioport("DEBUG")->read_safe(0) & 0x60);
 }
 
 WRITE8_MEMBER(seicross_state::friskyt_portB_w)
 {
-
 	//logerror("PC %04x: 8910 port B = %02x\n", space.device().safe_pc(), data);
 	/* bit 0 is IRQ enable */
 	m_irq_mask = data & 1;
@@ -100,8 +98,8 @@ WRITE8_MEMBER(seicross_state::friskyt_portB_w)
 	if (((m_portb & 4) == 0) && (data & 4))
 	{
 		/* reset and start the protection mcu */
-		machine().device("mcu")->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);
-		machine().device("mcu")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_mcu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+		m_mcu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 	}
 
 	/* other bits unknown */
@@ -125,8 +123,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( main_portmap, AS_IO, 8, seicross_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_MIRROR(0x08) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0x04, 0x04) AM_MIRROR(0x08) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0x00, 0x01) AM_MIRROR(0x08) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0x04, 0x04) AM_MIRROR(0x08) AM_DEVREAD("aysnd", ay8910_device, data_r)
 ADDRESS_MAP_END
 
 
@@ -390,7 +388,6 @@ static const ay8910_interface ay8910_config =
 
 INTERRUPT_GEN_MEMBER(seicross_state::vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 

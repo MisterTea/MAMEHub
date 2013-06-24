@@ -10,13 +10,17 @@ class grchamp_state : public driver_device
 {
 public:
 	grchamp_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_radarram(*this, "radarram"),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
 		m_leftram(*this, "leftram"),
 		m_rightram(*this, "rightram"),
-		m_centerram(*this, "centerram"){ }
+		m_centerram(*this, "centerram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_discrete(*this, "discrete") { }
 
 	UINT8       m_cpu0_out[16];
 	UINT8       m_cpu1_out[16];
@@ -75,6 +79,11 @@ public:
 	INTERRUPT_GEN_MEMBER(grchamp_cpu0_interrupt);
 	INTERRUPT_GEN_MEMBER(grchamp_cpu1_interrupt);
 	TIMER_CALLBACK_MEMBER(main_to_sub_comm_sync_w);
+	void draw_objects(int y, UINT8 *objdata);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_subcpu;
+	required_device<discrete_device> m_discrete;
 };
 
 /* Discrete Sound Input Nodes */

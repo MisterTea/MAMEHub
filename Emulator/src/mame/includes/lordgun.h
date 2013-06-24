@@ -3,6 +3,8 @@
                       -= IGS Lord Of Gun =-
 
 *************************************************************************/
+#include "sound/okim6295.h"
+#include "machine/eeprom.h"
 
 struct lordgun_gun_data
 {
@@ -20,7 +22,11 @@ public:
 			m_spriteram(*this, "spriteram"),
 			m_vram(*this, "vram"),
 			m_scroll_x(*this, "scroll_x"),
-			m_scroll_y(*this, "scroll_y") { }
+			m_scroll_y(*this, "scroll_y") ,
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_oki(*this, "oki"),
+		m_eeprom(*this, "eeprom") { }
 
 	required_shared_ptr<UINT16> m_priority_ram;
 	required_shared_ptr<UINT16> m_scrollram;
@@ -40,6 +46,8 @@ public:
 	UINT16 m_lordgun_protection_data;
 	DECLARE_WRITE16_MEMBER(lordgun_protection_w);
 	DECLARE_READ16_MEMBER(lordgun_protection_r);
+	DECLARE_WRITE16_MEMBER(aliencha_protection_w);
+	DECLARE_READ16_MEMBER(aliencha_protection_r);
 
 	DECLARE_WRITE16_MEMBER(lordgun_priority_w);
 	DECLARE_READ16_MEMBER(lordgun_gun_0_x_r);
@@ -60,16 +68,23 @@ public:
 	DECLARE_WRITE8_MEMBER(aliencha_dip_w);
 	DECLARE_WRITE8_MEMBER(lordgun_okibank_w);
 	DECLARE_DRIVER_INIT(lordgun);
-	DECLARE_DRIVER_INIT(aliencha);
-	DECLARE_DRIVER_INIT(alienchac);
 	TILE_GET_INFO_MEMBER(get_tile_info_0);
 	TILE_GET_INFO_MEMBER(get_tile_info_1);
 	TILE_GET_INFO_MEMBER(get_tile_info_2);
 	TILE_GET_INFO_MEMBER(get_tile_info_3);
 	virtual void video_start();
 	UINT32 screen_update_lordgun(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	inline void get_tile_info(tile_data &tileinfo, tilemap_memory_index tile_index, int _N_);
+	inline void lordgun_vram_w(offs_t offset, UINT16 data, UINT16 mem_mask, int _N_);
+	void lorddgun_calc_gun_scr(int i);
+	void lordgun_update_gun(int i);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(soundirq);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	required_device<okim6295_device> m_oki;
+	required_device<eeprom_device> m_eeprom;
 };
 
 /*----------- defined in video/lordgun.c -----------*/
 float lordgun_crosshair_mapper(const ioport_field *field, float linear_value);
-void lordgun_update_gun(running_machine &machine, int i);

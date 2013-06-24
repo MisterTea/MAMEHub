@@ -6,7 +6,6 @@
 
 #include "emu.h"
 #include "k056230.h"
-#include "devhelpr.h"
 
 
 //**************************************************************************
@@ -23,7 +22,6 @@ const device_type K056230 = &device_creator<k056230_device>;
 k056230_device::k056230_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, K056230, "Konami 056230", tag, owner, clock)
 {
-
 }
 
 
@@ -72,7 +70,7 @@ void k056230_device::device_start()
 }
 
 
-READ8_DEVICE_HANDLER_TRAMPOLINE(k056230, k056230_r)
+READ8_MEMBER(k056230_device::k056230_r)
 {
 	switch (offset)
 	{
@@ -101,7 +99,7 @@ void k056230_device::network_irq_clear()
 }
 
 
-WRITE8_DEVICE_HANDLER_TRAMPOLINE(k056230, k056230_w)
+WRITE8_MEMBER(k056230_device::k056230_w)
 {
 	switch(offset)
 	{
@@ -135,13 +133,13 @@ WRITE8_DEVICE_HANDLER_TRAMPOLINE(k056230, k056230_w)
 //  mame_printf_debug("k056230_w: %d, %02X at %08X\n", offset, data, space.device().safe_pc());
 }
 
-READ32_DEVICE_HANDLER_TRAMPOLINE(k056230, lanc_ram_r)
+READ32_MEMBER(k056230_device::lanc_ram_r)
 {
 	//mame_printf_debug("LANC_RAM_r: %08X, %08X at %08X\n", offset, mem_mask, space.device().safe_pc());
 	return m_ram[offset & 0x7ff];
 }
 
-WRITE32_DEVICE_HANDLER_TRAMPOLINE(k056230, lanc_ram_w)
+WRITE32_MEMBER(k056230_device::lanc_ram_w)
 {
 	//mame_printf_debug("LANC_RAM_w: %08X, %08X, %08X at %08X\n", data, offset, mem_mask, space.device().safe_pc());
 	COMBINE_DATA(m_ram + (offset & 0x7ff));

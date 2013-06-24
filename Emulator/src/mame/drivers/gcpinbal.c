@@ -47,28 +47,31 @@ Stephh's notes (based on the game M68000 code and some tests) :
                       INTERRUPTS
 ***********************************************************/
 
-TIMER_CALLBACK_MEMBER(gcpinbal_state::gcpinbal_interrupt1)
+void gcpinbal_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_maincpu->set_input_line(1, HOLD_LINE);
-}
-
-#ifdef UNUSED_FUNCTION
-TIMER_CALLBACK_MEMBER(gcpinbal_state::gcpinbal_interrupt3)
-{
-	// IRQ3 is from the M6585
-//  if (!ADPCM_playing(0))
+	switch (id)
 	{
-		m_maincpu->set_input_line(3, HOLD_LINE);
+	case TIMER_GCPINBAL_INTERRUPT1:
+		m_maincpu->set_input_line(1, HOLD_LINE);
+		break;
+	case TIMER_GCPINBAL_INTERRUPT3:
+		// IRQ3 is from the M6585
+		//if (!ADPCM_playing(0))
+		{
+			m_maincpu->set_input_line(3, HOLD_LINE);
+		}
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in gcpinbal_state::device_timer");
 	}
 }
-#endif
 
 INTERRUPT_GEN_MEMBER(gcpinbal_state::gcpinbal_interrupt)
 {
 	/* Unsure of actual sequence */
 
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(500), timer_expired_delegate(FUNC(gcpinbal_state::gcpinbal_interrupt1),this));
-//  machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(1000), timer_expired_delegate(FUNC(gcpinbal_state::gcpinbal_interrupt3),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(500), TIMER_GCPINBAL_INTERRUPT1);
+//  timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(1000), TIMER_GCPINBAL_INTERRUPT3);
 	device.execute().set_input_line(4, HOLD_LINE);
 }
 
@@ -79,7 +82,6 @@ INTERRUPT_GEN_MEMBER(gcpinbal_state::gcpinbal_interrupt)
 
 READ16_MEMBER(gcpinbal_state::ioc_r)
 {
-
 	/* 20 (only once), 76, a0 are read in log */
 
 	switch (offset)
@@ -181,7 +183,7 @@ WRITE16_MEMBER(gcpinbal_state::ioc_w)
 				/* data written here is adpcm param? */
 				//popmessage("%08x %08x", m_msm_start + m_msm_bank, m_msm_end);
 				m_adpcm_idle = 0;
-				msm5205_reset_w(m_msm, 0);
+				m_msm->reset_w(0);
 				m_adpcm_start = m_msm_start + m_msm_bank;
 				m_adpcm_end = m_msm_end;
 //              ADPCM_stop(0);
@@ -203,27 +205,25 @@ WRITE16_MEMBER(gcpinbal_state::ioc_w)
 
 
 /* Controlled through ioc? */
-static void gcp_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(gcpinbal_state::gcp_adpcm_int)
 {
-	gcpinbal_state *state = device->machine().driver_data<gcpinbal_state>();
-
-	if (state->m_adpcm_idle)
-		msm5205_reset_w(device, 1);
-	if (state->m_adpcm_start >= 0x200000 || state->m_adpcm_start > state->m_adpcm_end)
+	if (m_adpcm_idle)
+		m_msm->reset_w(1);
+	if (m_adpcm_start >= 0x200000 || m_adpcm_start > m_adpcm_end)
 	{
-		//msm5205_reset_w(device,1);
-		state->m_adpcm_start = state->m_msm_start + state->m_msm_bank;
-		state->m_adpcm_trigger = 0;
+		//m_msm->reset_w(1);
+		m_adpcm_start = m_msm_start + m_msm_bank;
+		m_adpcm_trigger = 0;
 	}
 	else
 	{
-		UINT8 *ROM = device->machine().root_device().memregion("msm")->base();
+		UINT8 *ROM = memregion("msm")->base();
 
-		state->m_adpcm_data = ((state->m_adpcm_trigger ? (ROM[state->m_adpcm_start] & 0x0f) : (ROM[state->m_adpcm_start] & 0xf0) >> 4));
-		msm5205_data_w(device, state->m_adpcm_data & 0xf);
-		state->m_adpcm_trigger ^= 1;
-		if (state->m_adpcm_trigger == 0)
-			state->m_adpcm_start++;
+		m_adpcm_data = ((m_adpcm_trigger ? (ROM[m_adpcm_start] & 0x0f) : (ROM[m_adpcm_start] & 0xf0) >> 4));
+		m_msm->data_w(m_adpcm_data & 0xf);
+		m_adpcm_trigger ^= 1;
+		if (m_adpcm_trigger == 0)
+			m_adpcm_start++;
 	}
 }
 
@@ -385,7 +385,7 @@ GFXDECODE_END
 
 static const msm5205_interface msm6585_config =
 {
-	gcp_adpcm_int,      /* VCK function */
+	DEVCB_DRIVER_LINE_MEMBER(gcpinbal_state,gcp_adpcm_int),      /* VCK function */
 	MSM6585_S40         /* 16 kHz */
 };
 
@@ -395,7 +395,6 @@ static const msm5205_interface msm6585_config =
 
 void gcpinbal_state::machine_start()
 {
-
 	save_item(NAME(m_scrollx));
 	save_item(NAME(m_scrolly));
 	save_item(NAME(m_bg0_gfxset));

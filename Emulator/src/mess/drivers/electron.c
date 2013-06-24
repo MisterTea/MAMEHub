@@ -13,9 +13,11 @@ Incomplete:
     - Graphics (seems to be wrong for several games)
     - 1 MHz bus is not emulated
     - Bus claiming by ULA is not implemented
+    - Currently the cartridge support always loads the upper rom in page 12
+      and the lower rom in page 0. This might need further documentation in
+      the software list and loading code.
 
 Missing:
-    - Support for ROM images
     - Support for floppy disks
     - Other peripherals
     - Keyboard is missing the 'Break' key
@@ -26,6 +28,7 @@ Missing:
 #include "cpu/m6502/m6502.h"
 #include "includes/electron.h"
 #include "imagedev/cassette.h"
+#include "imagedev/cartslot.h"
 #include "formats/uef_cas.h"
 #include "sound/beep.h"
 
@@ -149,22 +152,22 @@ ROM_START(electron)
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
 	ROM_REGION( 0x44000, "user1", 0 ) /* OS Rom */
 	ROM_LOAD( "os.rom", 0x40000, 0x4000, CRC(bf63fb1f) SHA1(a48b8fa0cfb09140e808ac8a187316c605a0b32e) ) /* Os rom */
-	/* 00000 0 */
-		/* 04000 1 */
-		/* 08000 2 */
-		/* 0c000 3 */
-		/* 10000 4 */
-		/* 14000 5 */
-		/* 18000 6 */
-		/* 1c000 7 */
-		/* 20000 8 */
-		/* 24000 9 */
-	ROM_LOAD( "basic.rom", 0x28000, 0x4000, CRC(79434781) SHA1(4a7393f3a45ea309f744441c16723e2ef447a281) ) /* page 10, Basic rom */
-	ROM_COPY( "user1", 0x28000, 0x2c000, 0x4000 ) /* page 11, Basic rom mirror */
-		/* 30000 12 */
-		/* 34000 13 */
-		/* 38000 14 */
-		/* 3c000 15 */
+	/* 00000  0 available for cartridges                     */
+	/* 04000  1 available for cartridges                     */
+	/* 08000  2 available for cartridges                     */
+	/* 0c000  3 available for cartridges                     */
+	/* 10000  4 available for cartridges                     */
+	/* 14000  5 available for cartridges                     */
+	/* 18000  6 available for cartridges                     */
+	/* 1c000  7 available for cartridges                     */
+	/* 20000  8 keyboard                                     */
+	/* 24000  9 keyboard mirror                              */
+	/* 28000 10 Basic rom                                    */ ROM_LOAD( "basic.rom", 0x28000, 0x4000, CRC(79434781) SHA1(4a7393f3a45ea309f744441c16723e2ef447a281) )
+	/* 2c000 11 Basic rom mirror                             */ ROM_COPY( "user1", 0x28000, 0x2c000, 0x4000 )
+	/* 30000 12 available for cartridges with a language ROM */
+	/* 34000 13 available for cartridges with a language ROM */
+	/* 38000 14 available for cartridges with a language ROM */
+	/* 3c000 15 available for cartridges with a language ROM */
 ROM_END
 
 static const cassette_interface electron_cassette_interface =
@@ -192,10 +195,18 @@ static MACHINE_CONFIG_START( electron, electron_state )
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
 
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD( BEEPER_TAG, BEEP, 0 )
+	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, electron_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", electron_cassette_interface )
+
+	MCFG_CARTSLOT_ADD("cart")
+	MCFG_CARTSLOT_EXTENSION_LIST("bin")
+	MCFG_CARTSLOT_NOT_MANDATORY
+	MCFG_CARTSLOT_LOAD(electron_state, electron_cart)
+	MCFG_CARTSLOT_INTERFACE("electron_cart")
+	/* software lists */
+	MCFG_SOFTWARE_LIST_ADD("cart_list","electron_cart")
 MACHINE_CONFIG_END
 
 

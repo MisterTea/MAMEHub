@@ -30,7 +30,8 @@ class forte2_state : public driver_device
 {
 public:
 	forte2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_input_mask;
 	DECLARE_READ8_MEMBER(forte2_ay8910_read_input);
@@ -39,6 +40,7 @@ public:
 	DECLARE_DRIVER_INIT(pesadelo);
 	virtual void machine_start();
 	virtual void machine_reset();
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -53,8 +55,8 @@ static ADDRESS_MAP_START( io_mem, AS_IO, 8, forte2_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x98, 0x98) AM_DEVREADWRITE( "tms9928a", tms9928a_device, vram_read, vram_write )
 	AM_RANGE(0x99, 0x99) AM_DEVREADWRITE( "tms9928a", tms9928a_device, register_read, register_write )
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0xa2, 0xa2) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0xa2, 0xa2) AM_DEVREAD("aysnd", ay8910_device, data_r)
 
 /* Ports a8-ab are originally for communicating with the i8255 PPI on MSX.
 Since this arcade board doesn't have one, those ports should be unmapped. */
@@ -99,7 +101,7 @@ static const ay8910_interface forte2_ay8910_interface =
 
 WRITE_LINE_MEMBER(forte2_state::vdp_interrupt)
 {
-	machine().device("maincpu")->execute().set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
+	m_maincpu->set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
 }
 
 static TMS9928A_INTERFACE(forte2_tms9928a_interface)
@@ -116,9 +118,8 @@ void forte2_state::machine_reset()
 
 void forte2_state::machine_start()
 {
-
 	/* register for save states */
-	state_save_register_global(machine(), m_input_mask);
+	save_item(NAME(m_input_mask));
 }
 
 
@@ -144,8 +145,8 @@ MACHINE_CONFIG_END
 DRIVER_INIT_MEMBER(forte2_state,pesadelo)
 {
 	int i;
-	UINT8 *mem = machine().root_device().memregion("maincpu")->base();
-	int memsize = machine().root_device().memregion("maincpu")->bytes();
+	UINT8 *mem = memregion("maincpu")->base();
+	int memsize = memregion("maincpu")->bytes();
 	UINT8 *buf;
 
 	// data swap

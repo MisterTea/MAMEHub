@@ -475,21 +475,18 @@ READ32_MEMBER(hng64_state::hng64_random_read)
 
 READ32_MEMBER(hng64_state::hng64_com_r)
 {
-
 	logerror("com read  (PC=%08x): %08x %08x = %08x\n", space.device().safe_pc(), (offset*4)+0xc0000000, mem_mask, m_com_ram[offset]);
 	return m_com_ram[offset];
 }
 
 WRITE32_MEMBER(hng64_state::hng64_com_w)
 {
-
 	logerror("com write (PC=%08x): %08x %08x = %08x\n", space.device().safe_pc(), (offset*4)+0xc0000000, mem_mask, data);
 	COMBINE_DATA(&m_com_ram[offset]);
 }
 
 WRITE32_MEMBER(hng64_state::hng64_com_share_w)
 {
-
 	logerror("commw  (PC=%08x): %08x %08x %08x\n", space.device().safe_pc(), data, (offset*4)+0xc0001000, mem_mask);
 
 	if (offset == 0x0) COMBINE_DATA(&m_com_shared_a);
@@ -635,7 +632,6 @@ WRITE32_MEMBER(hng64_state::hng64_sysregs_w)
 /* Fatal Fury Wild Ambition / Buriki One */
 READ32_MEMBER(hng64_state::fight_io_r)
 {
-
 	switch (offset*4)
 	{
 		case 0x000: return 0x00000400;
@@ -650,7 +646,6 @@ READ32_MEMBER(hng64_state::fight_io_r)
 /* Samurai Shodown 64 / Samurai Shodown 64 2 */
 READ32_MEMBER(hng64_state::samsho_io_r)
 {
-
 	switch (offset*4)
 	{
 		case 0x000:
@@ -680,7 +675,6 @@ READ32_MEMBER(hng64_state::samsho_io_r)
 /* FIXME: trigger input doesn't work? */
 READ32_MEMBER(hng64_state::shoot_io_r)
 {
-
 	switch (offset*4)
 	{
 		case 0x000:
@@ -750,7 +744,6 @@ READ32_MEMBER(hng64_state::racing_io_r)
 
 READ32_MEMBER(hng64_state::hng64_dualport_r)
 {
-
 	//printf("dualport R %08x %08x (PC=%08x)\n", offset*4, hng64_dualport[offset], space.device().safe_pc());
 
 	/*
@@ -788,7 +781,6 @@ Beast Busters 2 outputs (all at offset == 0x1c):
 
 WRITE32_MEMBER(hng64_state::hng64_dualport_w)
 {
-
 	//printf("dualport WRITE %08x %08x (PC=%08x)\n", offset*4, hng64_dualport[offset], space.device().safe_pc());
 	COMBINE_DATA (&m_dualport[offset]);
 }
@@ -802,7 +794,6 @@ WRITE32_MEMBER(hng64_state::hng64_dualport_w)
 //   <ElSemi> 30140000-3015ffff is ZBuffer A
 READ32_MEMBER(hng64_state::hng64_3d_1_r)
 {
-
 	return m_3d_1[offset];
 }
 
@@ -815,13 +806,11 @@ WRITE32_MEMBER(hng64_state::hng64_3d_1_w)
 
 READ32_MEMBER(hng64_state::hng64_3d_2_r)
 {
-
 	return m_3d_2[offset];
 }
 
 WRITE32_MEMBER(hng64_state::hng64_3d_2_w)
 {
-
 	COMBINE_DATA (&m_3d_1[offset]);
 	COMBINE_DATA (&m_3d_2[offset]);
 }
@@ -925,7 +914,6 @@ WRITE32_MEMBER(hng64_state::tcram_w)
 
 READ32_MEMBER(hng64_state::tcram_r)
 {
-
 	//printf("Q1 R : %.8x %.8x\n", offset, hng64_tcram[offset]);
 	if(offset == 0x12)
 		return ioport("VBLANK")->read();
@@ -937,7 +925,6 @@ READ32_MEMBER(hng64_state::tcram_r)
    unknown purpose (vblank? related to the display list?). */
 READ32_MEMBER(hng64_state::unk_vreg_r)
 {
-
 	return ++m_unk_vreg_toggle;
 }
 
@@ -1048,14 +1035,14 @@ WRITE32_MEMBER( hng64_state::hng64_soundcpu_enable_w )
 		if (cmd==0x55AA)
 		{
 			printf("soundcpu ON\n");
-			space.machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
-			space.machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 		}
 		else if (cmd==0xAA55)
 		{
 			printf("soundcpu OFF\n");
-			space.machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
-			space.machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 		}
 		else
 		{
@@ -1152,7 +1139,7 @@ static ADDRESS_MAP_START( hng_map, AS_PROGRAM, 32, hng64_state )
 	AM_RANGE(0x20200000, 0x20203fff) AM_RAM_WRITE(hng64_pal_w) AM_SHARE("paletteram")
 	AM_RANGE(0x20208000, 0x2020805f) AM_READWRITE(tcram_r, tcram_w) AM_SHARE("tcram")   // Transition Control
 	AM_RANGE(0x20300000, 0x203001ff) AM_RAM_WRITE(dl_w) AM_SHARE("dl")  // 3d Display List
-//  AM_RANGE(0x20300200, 0x20300213) AM_RAM_WRITE_LEGACY(xxxx) AM_SHARE("xxxxxxxx")  // 3d Display List Upload?
+//  AM_RANGE(0x20300200, 0x20300213) AM_RAM_WRITE(xxxx) AM_SHARE("xxxxxxxx")  // 3d Display List Upload?
 	AM_RANGE(0x20300214, 0x20300217) AM_WRITE(dl_control_w)
 	AM_RANGE(0x20300218, 0x2030021b) AM_READ(unk_vreg_r)
 
@@ -1292,7 +1279,6 @@ WRITE8_MEMBER(hng64_state::hng64_comm_memory_w)
 /* KL5C80 I/O handlers */
 WRITE8_MEMBER(hng64_state::hng64_comm_io_mmu)
 {
-
 	m_com_mmu_mem[offset] = data;
 
 	/* Debugging - you can't change A4 - the hardware doesn't let you */
@@ -1625,7 +1611,7 @@ static void hng64_reorder(running_machine &machine, UINT8* gfxregion, size_t gfx
 
 DRIVER_INIT_MEMBER(hng64_state,hng64_reorder_gfx)
 {
-	hng64_reorder(machine(), machine().root_device().memregion("scrtile")->base(), machine().root_device().memregion("scrtile")->bytes());
+	hng64_reorder(machine(), memregion("scrtile")->base(), memregion("scrtile")->bytes());
 }
 
 #define HACK_REGION
@@ -1646,7 +1632,6 @@ static void hng64_patch_bios_region(running_machine& machine, int region)
 
 DRIVER_INIT_MEMBER(hng64_state,hng64)
 {
-
 	// region hacking, english error messages are more useful to us, but no english bios is dumped...
 #ifdef HACK_REGION
 // versions according to fatal fury test mode
@@ -1669,14 +1654,12 @@ DRIVER_INIT_MEMBER(hng64_state,hng64)
 
 DRIVER_INIT_MEMBER(hng64_state,hng64_fght)
 {
-
 	m_no_machine_error_code = 0x01000000;
 	DRIVER_INIT_CALL(hng64);
 }
 
 DRIVER_INIT_MEMBER(hng64_state,fatfurwa)
 {
-
 	/* FILE* fp = fopen("/tmp/test.bin", "wb"); fwrite(memregion("verts")->base(), 1, 0x0c00000*2, fp); fclose(fp); */
 	DRIVER_INIT_CALL(hng64_fght);
 	m_mcu_type = FIGHT_MCU;
@@ -1684,14 +1667,12 @@ DRIVER_INIT_MEMBER(hng64_state,fatfurwa)
 
 DRIVER_INIT_MEMBER(hng64_state,ss64)
 {
-
 	DRIVER_INIT_CALL(hng64_fght);
 	m_mcu_type = SAMSHO_MCU;
 }
 
 DRIVER_INIT_MEMBER(hng64_state,hng64_race)
 {
-
 	m_no_machine_error_code = 0x02000000;
 	m_mcu_type = RACING_MCU;
 	DRIVER_INIT_CALL(hng64);
@@ -1699,7 +1680,6 @@ DRIVER_INIT_MEMBER(hng64_state,hng64_race)
 
 DRIVER_INIT_MEMBER(hng64_state,hng64_shoot)
 {
-
 	m_mcu_type = SHOOT_MCU;
 	m_no_machine_error_code = 0x03000000;
 	DRIVER_INIT_CALL(hng64);
@@ -1773,14 +1753,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(hng64_state::hng64_irq)
 
 void hng64_state::machine_start()
 {
-
 	/* set the fastest DRC options */
-	mips3drc_set_options(machine().device("maincpu"), MIPS3DRC_FASTEST_OPTIONS + MIPS3DRC_STRICT_VERIFY);
+	mips3drc_set_options(m_maincpu, MIPS3DRC_FASTEST_OPTIONS + MIPS3DRC_STRICT_VERIFY);
 
 	/* configure fast RAM regions for DRC */
-	mips3drc_add_fastram(machine().device("maincpu"), 0x00000000, 0x00ffffff, FALSE, m_mainram);
-	mips3drc_add_fastram(machine().device("maincpu"), 0x04000000, 0x05ffffff, TRUE,  m_cart);
-	mips3drc_add_fastram(machine().device("maincpu"), 0x1fc00000, 0x1fc7ffff, TRUE,  m_rombase);
+	mips3drc_add_fastram(m_maincpu, 0x00000000, 0x00ffffff, FALSE, m_mainram);
+	mips3drc_add_fastram(m_maincpu, 0x04000000, 0x05ffffff, TRUE,  m_cart);
+	mips3drc_add_fastram(m_maincpu, 0x1fc00000, 0x1fc7ffff, TRUE,  m_rombase);
 }
 
 
@@ -1793,8 +1772,8 @@ void hng64_state::machine_reset()
 	UINT8 *RAM = (UINT8*)m_soundram;
 	membank("bank1")->set_base(&RAM[0x1f0000]); // allows us to boot
 	membank("bank2")->set_base(&RAM[0x1f0000]); // seems to be the right default for most games (initial area jumps to a DI here)
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
 	/* Comm CPU */
 	KL5C80_init(this);
@@ -1805,11 +1784,11 @@ void hng64_state::machine_reset()
 
 	KL5C80_virtual_mem_sync(this);
 
-	address_space &space = machine().device<z80_device>("comm")->space(AS_PROGRAM);
+	address_space &space = m_comm->space(AS_PROGRAM);
 	space.set_direct_update_handler(direct_update_delegate(FUNC(hng64_state::KL5C80_direct_handler), this));
 
-	machine().device("comm")->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);     // reset the CPU and let 'er rip
-//  machine().device("comm")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);     // hold on there pardner...
+	m_comm->set_input_line(INPUT_LINE_RESET, PULSE_LINE);     // reset the CPU and let 'er rip
+//  m_comm->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);     // hold on there pardner...
 
 	// "Display List" init - ugly
 	m_activeBuffer = 0;

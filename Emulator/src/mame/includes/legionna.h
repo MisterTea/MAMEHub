@@ -1,3 +1,5 @@
+#include "sound/okim6295.h"
+
 class legionna_state : public driver_device
 {
 public:
@@ -7,7 +9,10 @@ public:
 		m_back_data(*this, "back_data"),
 		m_fore_data(*this, "fore_data"),
 		m_mid_data(*this, "mid_data"),
-		m_textram(*this, "textram"){ }
+		m_textram(*this, "textram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_oki(*this, "oki") { }
 
 	required_shared_ptr<UINT16> m_spriteram;
 	required_shared_ptr<UINT16> m_back_data;
@@ -52,6 +57,11 @@ public:
 	UINT32 screen_update_legionna(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_godzilla(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_grainbow(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void descramble_legionnaire_gfx(UINT8* src);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<okim6295_device> m_oki;
 };
 
 /*----------- defined in video/legionna.c -----------*/

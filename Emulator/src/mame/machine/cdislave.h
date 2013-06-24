@@ -31,11 +31,9 @@ TODO:
 //**************************************************************************
 
 #define MCFG_CDISLAVE_ADD(_tag) \
-	MCFG_DEVICE_ADD(_tag, MACHINE_CDISLAVE, 0) \
-
+	MCFG_DEVICE_ADD(_tag, MACHINE_CDISLAVE, 0)
 #define MCFG_CDISLAVE_REPLACE(_tag) \
-	MCFG_DEVICE_REPLACE(_tag, MACHINE_CDISLAVE, 0) \
-
+	MCFG_DEVICE_REPLACE(_tag, MACHINE_CDISLAVE, 0)
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
@@ -53,8 +51,9 @@ public:
 
 	UINT8* get_lcd_state() { return m_lcd_state; }
 	void readback_trigger();
-	void register_write(const UINT32 offset, const UINT16 data, const UINT16 mem_mask);
-	UINT16 register_read(const UINT32 offset, const UINT16 mem_mask);
+
+	DECLARE_READ16_MEMBER( slave_r );
+	DECLARE_WRITE16_MEMBER( slave_w );
 
 protected:
 	// device-level overrides
@@ -64,7 +63,7 @@ protected:
 	virtual void device_clock_changed() { }
 
 	// internal callbacks
-	static TIMER_CALLBACK( trigger_readback_int );
+	TIMER_CALLBACK_MEMBER( trigger_readback_int );
 
 private:
 	// internal state
@@ -98,9 +97,6 @@ private:
 	UINT16 m_fake_mouse_x;
 	UINT16 m_fake_mouse_y;
 
-	void register_globals();
-	void init();
-
 	// static internal members
 
 	// non-static internal members
@@ -112,15 +108,5 @@ private:
 
 // device type definition
 extern const device_type MACHINE_CDISLAVE;
-
-
-
-//**************************************************************************
-//  READ/WRITE HANDLERS
-//**************************************************************************
-
-DECLARE_READ16_DEVICE_HANDLER( slave_r );
-DECLARE_WRITE16_DEVICE_HANDLER( slave_w );
-
 
 #endif // __CDISLAVE_H__

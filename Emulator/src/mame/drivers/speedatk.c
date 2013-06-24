@@ -82,7 +82,7 @@ PS / PD :  key matrix
 
 #define MASTER_CLOCK XTAL_12MHz
 
-static UINT8 iox_key_matrix_calc(running_machine &machine, UINT8 p_side)
+UINT8 speedatk_state::iox_key_matrix_calc(UINT8 p_side)
 {
 	static const char *const keynames[] = { "P1_ROW0", "P1_ROW1", "P2_ROW0", "P2_ROW1" };
 
@@ -94,7 +94,7 @@ static UINT8 iox_key_matrix_calc(running_machine &machine, UINT8 p_side)
 
 		for (t = 0 ; t < 8 ; t ++)
 		{
-			if (!(machine.root_device().ioport(keynames[j+p_side])->read() & ( 1 << t )))
+			if (!(ioport(keynames[j+p_side])->read() & ( 1 << t )))
 			{
 				return (i + t) | (p_side ? 0x20 : 0x00);
 			}
@@ -106,7 +106,6 @@ static UINT8 iox_key_matrix_calc(running_machine &machine, UINT8 p_side)
 
 READ8_MEMBER(speedatk_state::key_matrix_r)
 {
-
 	if(m_coin_impulse > 0)
 	{
 		m_coin_impulse--;
@@ -126,8 +125,8 @@ READ8_MEMBER(speedatk_state::key_matrix_r)
 	/* both side checks */
 	if(m_mux_data == 1)
 	{
-		UINT8 p1_side = iox_key_matrix_calc(machine(),0);
-		UINT8 p2_side = iox_key_matrix_calc(machine(),2);
+		UINT8 p1_side = iox_key_matrix_calc(0);
+		UINT8 p2_side = iox_key_matrix_calc(2);
 
 		if(p1_side != 0)
 			return p1_side;
@@ -136,19 +135,17 @@ READ8_MEMBER(speedatk_state::key_matrix_r)
 	}
 
 	/* check individual input side */
-	return iox_key_matrix_calc(machine(),(m_mux_data == 2) ? 0 : 2);
+	return iox_key_matrix_calc((m_mux_data == 2) ? 0 : 2);
 }
 
 WRITE8_MEMBER(speedatk_state::key_matrix_w)
 {
-
 	m_mux_data = data;
 }
 
 /* Key matrix status,used for coin settings and I don't know what else... */
 READ8_MEMBER(speedatk_state::key_matrix_status_r)
 {
-
 	/* bit 0: busy flag,active low */
 	return (m_km_status & 0xfe) | 1;
 }
@@ -166,7 +163,6 @@ a1
 */
 WRITE8_MEMBER(speedatk_state::key_matrix_status_w)
 {
-
 	m_km_status = data;
 	if((m_km_status & 0xf0) == 0x80) //coinage setting command
 		m_coin_settings = m_km_status & 0xf;
@@ -186,8 +182,8 @@ static ADDRESS_MAP_START( speedatk_io, AS_IO, 8, speedatk_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_WRITE(speedatk_6845_w) //h46505 address / data routing
 	AM_RANGE(0x24, 0x24) AM_WRITE(watchdog_reset_w)
-	AM_RANGE(0x40, 0x40) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x40, 0x40) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	//what's 60-6f for? Seems used only in attract mode and read back when a 2p play ends ...
 ADDRESS_MAP_END
 
@@ -287,9 +283,10 @@ static GFXDECODE_START( speedatk )
 	GFXDECODE_ENTRY( "gfx2", 0, charlayout_3bpp,   0, 32 )
 GFXDECODE_END
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -303,7 +300,6 @@ static const mc6845_interface mc6845_intf =
 
 WRITE8_MEMBER(speedatk_state::speedatk_output_w)
 {
-
 	m_flip_scr = data & 0x80;
 
 	if((data & 0x7f) != 0x7f)

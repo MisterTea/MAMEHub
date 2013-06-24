@@ -6,7 +6,6 @@
 #include "machine/latch8.h"
 
 #include "sound/tms5110.h"
-#include "machine/tms6100.h"
 
 #include "includes/dkong.h"
 
@@ -1214,10 +1213,16 @@ Addresses found at @0x510, cpu2
 
 WRITE8_MEMBER(dkong_state::M58817_command_w)
 {
-	device_t *device = machine().device("tms");
-	tms5110_ctl_w(device, space, 0, data & 0x0f);
-	tms5110_pdc_w(device, (data>>4) & 0x01);
+	tms5110_device *tms5110 = machine().device<tms5110_device>("tms");
+	tms5110->ctl_w(space, 0, data & 0x0f);
+	tms5110->pdc_w((data>>4) & 0x01);
 	/* FIXME 0x20 is CS */
+}
+
+READ8_DEVICE_HANDLER(M58817_status_r)
+{
+	m58817_device *m58817 = (m58817_device *) device;
+	return m58817->status_r(space, offset, mem_mask);
 }
 
 
@@ -1274,9 +1279,9 @@ WRITE8_MEMBER(dkong_state::dkong_p1_w)
 WRITE8_MEMBER(dkong_state::dkong_audio_irq_w)
 {
 	if (data)
-		machine().device("soundcpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_soundcpu->set_input_line(0, ASSERT_LINE);
 	else
-		machine().device("soundcpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_soundcpu->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -1348,11 +1353,11 @@ static const nes_interface nes_interface_2 = { "n2a03b" };
 const tms5110_interface tms_interface = {
 	NULL,
 	NULL,
-	DEVCB_DEVICE_LINE("m58819", tms6100_m0_w),
-	DEVCB_DEVICE_LINE("m58819", tms6100_m1_w),
-	DEVCB_DEVICE_HANDLER("m58819", tms6100_addr_w),
-	DEVCB_DEVICE_LINE("m58819", tms6100_data_r),
-	DEVCB_DEVICE_LINE("m58819", tms6100_romclock_w)
+	DEVCB_DEVICE_LINE_MEMBER("m58819", tms6100_device, tms6100_m0_w),
+	DEVCB_DEVICE_LINE_MEMBER("m58819", tms6100_device, tms6100_m1_w),
+	DEVCB_DEVICE_MEMBER("m58819", tms6100_device, tms6100_addr_w),
+	DEVCB_DEVICE_LINE_MEMBER("m58819", tms6100_device, tms6100_data_r),
+	DEVCB_DEVICE_LINE_MEMBER("m58819", tms6100_device, tms6100_romclock_w)
 };
 
 /*************************************
@@ -1415,7 +1420,7 @@ MACHINE_CONFIG_DERIVED( radarscp1_audio, radarscp_audio )
 	MCFG_LATCH8_ADD( "virtual_p1" ) /* virtual latch for port A */
 	MCFG_LATCH8_INVERT( 0x80 )      /* signal is inverted       */
 	MCFG_LATCH8_DEVREAD(7, "ls259.6h", latch8_r, 3)
-	MCFG_LATCH8_DEVREAD(6, "tms", m58817_status_r, 0)
+	MCFG_LATCH8_DEVREAD(6, "tms", M58817_status_r, 0)
 
 	/* tms memory controller */
 	MCFG_DEVICE_ADD("m58819", M58819, 0)

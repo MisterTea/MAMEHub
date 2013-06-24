@@ -157,8 +157,7 @@ void *malloc_file_line(size_t size, const char *file, int line)
 #endif
 
 #ifdef MAME_DEBUG
-	// randomize the memory
-	rand_memory(result, size);
+	memset(result, 0xdd, size);
 #endif
 
 	return result;
@@ -188,8 +187,7 @@ void *malloc_array_file_line(size_t size, const char *file, int line)
 #endif
 
 #ifdef MAME_DEBUG
-	// randomize the memory
-	rand_memory(result, size);
+	memset(result, 0xdd, size);
 #endif
 
 	return result;

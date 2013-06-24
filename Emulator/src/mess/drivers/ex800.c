@@ -136,7 +136,9 @@ class ex800_state : public driver_device
 {
 public:
 	ex800_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu"),
+		m_beeper(*this, "beeper") { }
 
 	int m_irq_state;
 	DECLARE_READ8_MEMBER(ex800_porta_r);
@@ -155,6 +157,8 @@ public:
 	DECLARE_WRITE8_MEMBER(ex800_gate7a_w);
 	virtual void machine_start();
 	DECLARE_INPUT_CHANGED_MEMBER(online_switch);
+	required_device<cpu_device> m_maincpu;
+	required_device<beep_device> m_beeper;
 };
 
 
@@ -197,7 +201,7 @@ INPUT_CHANGED_MEMBER(ex800_state::online_switch)
 {
 	if (newval)
 	{
-		machine().device("maincpu")->execute().set_input_line(UPD7810_INTF1, m_irq_state);
+		m_maincpu->set_input_line(UPD7810_INTF1, m_irq_state);
 		m_irq_state = (m_irq_state == ASSERT_LINE) ? CLEAR_LINE : ASSERT_LINE;
 	}
 }
@@ -206,10 +210,9 @@ INPUT_CHANGED_MEMBER(ex800_state::online_switch)
 void ex800_state::machine_start()
 {
 	m_irq_state = ASSERT_LINE;
-	device_t *speaker = machine().device(BEEPER_TAG);
 	/* Setup beep */
-	beep_set_state(speaker, 0);
-	beep_set_frequency(speaker, 4000); /* measured at 4000 Hz */
+	m_beeper->set_state(0);
+	m_beeper->set_frequency(4000); /* measured at 4000 Hz */
 }
 
 
@@ -265,11 +268,10 @@ WRITE8_MEMBER(ex800_state::ex800_portb_w)
 
 WRITE8_MEMBER(ex800_state::ex800_portc_w)
 {
-	device_t *speaker = machine().device(BEEPER_TAG);
 	if (data & 0x80)
-		beep_set_state(speaker, 0);
+		m_beeper->set_state(0);
 	else
-		beep_set_state(speaker, 1);
+		m_beeper->set_state(1);
 
 	logerror("PC W %x @%x\n", data, space.device().safe_pc());
 }
@@ -456,7 +458,7 @@ static MACHINE_CONFIG_START( ex800, ex800_state )
 
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

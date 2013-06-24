@@ -19,8 +19,9 @@ class dorachan_state : public driver_device
 {
 public:
 	dorachan_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -29,13 +30,13 @@ public:
 	UINT8    m_flip_screen;
 
 	/* devices */
-	device_t *m_main_cpu;
 	DECLARE_WRITE8_MEMBER(dorachan_ctrl_w);
 	DECLARE_CUSTOM_INPUT_MEMBER(dorachan_protection_r);
 	DECLARE_CUSTOM_INPUT_MEMBER(dorachan_v128_r);
 	virtual void machine_start();
 	virtual void machine_reset();
 	UINT32 screen_update_dorachan(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -49,14 +50,14 @@ CUSTOM_INPUT_MEMBER(dorachan_state::dorachan_protection_r)
 {
 	UINT8 ret = 0;
 
-	switch (m_main_cpu->safe_pcbase())
+	switch (m_maincpu->pcbase())
 	{
 	case 0x70ce: ret = 0xf2; break;
 	case 0x72a2: ret = 0xd5; break;
 	case 0x72b5: ret = 0xcb; break;
 
 	default:
-		mame_printf_debug("unhandled $2400 read @ %x\n", m_main_cpu->safe_pcbase());
+		mame_printf_debug("unhandled $2400 read @ %x\n", m_maincpu->pcbase());
 		break;
 	}
 
@@ -132,7 +133,6 @@ WRITE8_MEMBER(dorachan_state::dorachan_ctrl_w)
 
 CUSTOM_INPUT_MEMBER(dorachan_state::dorachan_v128_r)
 {
-
 	/* to avoid resetting (when player 2 starts) bit 0 need to be inverted when screen is flipped */
 	return ((machine().primary_screen->vpos() >> 7) & 0x01) ^ m_flip_screen;
 }
@@ -225,15 +225,11 @@ INPUT_PORTS_END
 
 void dorachan_state::machine_start()
 {
-
-	m_main_cpu = machine().device("maincpu");
-
 	save_item(NAME(m_flip_screen));
 }
 
 void dorachan_state::machine_reset()
 {
-
 	m_flip_screen = 0;
 }
 

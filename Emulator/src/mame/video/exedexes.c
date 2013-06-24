@@ -33,7 +33,7 @@
 
 void exedexes_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* allocate the colortable */
@@ -83,21 +83,18 @@ void exedexes_state::palette_init()
 
 WRITE8_MEMBER(exedexes_state::exedexes_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_tx_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(exedexes_state::exedexes_colorram_w)
 {
-
 	m_colorram[offset] = data;
 	m_tx_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(exedexes_state::exedexes_c804_w)
 {
-
 	/* bits 0 and 1 are coin counters */
 	coin_counter_w(machine(), 0, data & 0x01);
 	coin_counter_w(machine(), 1, data & 0x02);
@@ -113,7 +110,6 @@ WRITE8_MEMBER(exedexes_state::exedexes_c804_w)
 
 WRITE8_MEMBER(exedexes_state::exedexes_gfxctrl_w)
 {
-
 	/* bit 4 is bg enable */
 	m_sc2on = data & 0x10;
 
@@ -129,7 +125,7 @@ WRITE8_MEMBER(exedexes_state::exedexes_gfxctrl_w)
 
 TILE_GET_INFO_MEMBER(exedexes_state::get_bg_tile_info)
 {
-	UINT8 *tilerom = machine().root_device().memregion("gfx5")->base();
+	UINT8 *tilerom = memregion("gfx5")->base();
 
 	int attr = tilerom[tile_index];
 	int code = attr & 0x3f;
@@ -141,7 +137,7 @@ TILE_GET_INFO_MEMBER(exedexes_state::get_bg_tile_info)
 
 TILE_GET_INFO_MEMBER(exedexes_state::get_fg_tile_info)
 {
-	int code = machine().root_device().memregion("gfx5")->base()[tile_index];
+	int code = memregion("gfx5")->base()[tile_index];
 
 	SET_TILE_INFO_MEMBER(2, code, 0, 0);
 }
@@ -170,7 +166,6 @@ TILEMAP_MAPPER_MEMBER(exedexes_state::exedexes_fg_tilemap_scan)
 
 void exedexes_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(exedexes_state::get_bg_tile_info),this), tilemap_mapper_delegate(FUNC(exedexes_state::exedexes_bg_tilemap_scan),this), 32, 32, 64, 64);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(exedexes_state::get_fg_tile_info),this), tilemap_mapper_delegate(FUNC(exedexes_state::exedexes_fg_tilemap_scan),this), 16, 16, 128, 128);
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(exedexes_state::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
@@ -179,18 +174,17 @@ void exedexes_state::video_start()
 	colortable_configure_tilemap_groups(machine().colortable, m_tx_tilemap, machine().gfx[0], 0xcf);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int priority )
+void exedexes_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int priority )
 {
-	exedexes_state *state = machine.driver_data<exedexes_state>();
-	UINT8 *buffered_spriteram = state->m_spriteram->buffer();
+	UINT8 *buffered_spriteram = m_spriteram->buffer();
 	int offs;
 
-	if (!state->m_objon)
+	if (!m_objon)
 		return;
 
 	priority = priority ? 0x40 : 0x00;
 
-	for (offs = state->m_spriteram->bytes() - 32;offs >= 0;offs -= 32)
+	for (offs = m_spriteram->bytes() - 32;offs >= 0;offs -= 32)
 	{
 		if ((buffered_spriteram[offs + 1] & 0x40) == priority)
 		{
@@ -203,7 +197,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 			sx = buffered_spriteram[offs + 3] - ((buffered_spriteram[offs + 1] & 0x80) << 1);
 			sy = buffered_spriteram[offs + 2];
 
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[3],
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[3],
 					code,
 					color,
 					flipx,flipy,
@@ -222,7 +216,7 @@ UINT32 exedexes_state::screen_update_exedexes(screen_device &screen, bitmap_ind1
 	else
 		bitmap.fill(0, cliprect);
 
-	draw_sprites(machine(), bitmap, cliprect, 1);
+	draw_sprites(bitmap, cliprect, 1);
 
 	if (m_sc1on)
 	{
@@ -231,7 +225,7 @@ UINT32 exedexes_state::screen_update_exedexes(screen_device &screen, bitmap_ind1
 		m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
 	}
 
-	draw_sprites(machine(), bitmap, cliprect, 0);
+	draw_sprites(bitmap, cliprect, 0);
 
 	if (m_chon)
 		m_tx_tilemap->draw(bitmap, cliprect, 0, 0);

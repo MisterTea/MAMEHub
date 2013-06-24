@@ -22,24 +22,36 @@
 
 
 
-static void update_plunger(running_machine &machine)
+void videopin_state::update_plunger()
 {
-	videopin_state *state = machine.driver_data<videopin_state>();
-	UINT8 val = state->ioport("IN2")->read();
+	UINT8 val = ioport("IN2")->read();
 
-	if (state->m_prev != val)
+	if (m_prev != val)
 	{
 		if (val == 0)
 		{
-			state->m_time_released = machine.time();
+			m_time_released = machine().time();
 
-			if (!state->m_mask)
-				machine.device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+			if (!m_mask)
+				m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 		}
 		else
-			state->m_time_pushed = machine.time();
+			m_time_pushed = machine().time();
 
-		state->m_prev = val;
+		m_prev = val;
+	}
+}
+
+
+void videopin_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_INTERRUPT:
+		interrupt_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in videopin_state::device_timer");
 	}
 }
 
@@ -48,23 +60,22 @@ TIMER_CALLBACK_MEMBER(videopin_state::interrupt_callback)
 {
 	int scanline = param;
 
-	update_plunger(machine());
+	update_plunger();
 
-	machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+	m_maincpu->set_input_line(0, ASSERT_LINE);
 
 	scanline = scanline + 32;
 
 	if (scanline >= 263)
 		scanline = 32;
 
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(videopin_state::interrupt_callback),this), scanline);
+	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_INTERRUPT, scanline);
 }
 
 
 void videopin_state::machine_reset()
 {
-
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(32), timer_expired_delegate(FUNC(videopin_state::interrupt_callback),this), 32);
+	timer_set(machine().primary_screen->time_until_pos(32), TIMER_INTERRUPT, 32);
 
 	/* both output latches are cleared on reset */
 
@@ -73,16 +84,15 @@ void videopin_state::machine_reset()
 }
 
 
-static double calc_plunger_pos(running_machine &machine)
+double videopin_state::calc_plunger_pos()
 {
-	videopin_state *state = machine.driver_data<videopin_state>();
-	return (machine.time().as_double() - state->m_time_released.as_double()) * (state->m_time_released.as_double() - state->m_time_pushed.as_double() + 0.2);
+	return (machine().time().as_double() - m_time_released.as_double()) * (m_time_released.as_double() - m_time_pushed.as_double() + 0.2);
 }
 
 
 READ8_MEMBER(videopin_state::videopin_misc_r)
 {
-	double plunger = calc_plunger_pos(machine());
+	double plunger = calc_plunger_pos();
 
 	// The plunger of the ball shooter has a black piece of
 	// plastic (flag) attached to it. When the plunger flag passes
@@ -131,13 +141,12 @@ WRITE8_MEMBER(videopin_state::videopin_led_w)
 	if (i == 7)
 		set_led_status(machine(), 0, data & 8);   /* start button */
 
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
 WRITE8_MEMBER(videopin_state::videopin_out1_w)
 {
-	device_t *device = machine().device("discrete");
 	/* D0 => OCTAVE0  */
 	/* D1 => OCTACE1  */
 	/* D2 => OCTAVE2  */
@@ -150,18 +159,17 @@ WRITE8_MEMBER(videopin_state::videopin_out1_w)
 	m_mask = ~data & 0x10;
 
 	if (m_mask)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 
 	coin_lockout_global_w(machine(), ~data & 0x08);
 
 	/* Convert octave data to divide value and write to sound */
-	discrete_sound_w(device, space, VIDEOPIN_OCTAVE_DATA, (0x01 << (~data & 0x07)) & 0xfe);
+	discrete_sound_w(m_discrete, space, VIDEOPIN_OCTAVE_DATA, (0x01 << (~data & 0x07)) & 0xfe);
 }
 
 
 WRITE8_MEMBER(videopin_state::videopin_out2_w)
 {
-	device_t *device = machine().device("discrete");
 	/* D0 => VOL0      */
 	/* D1 => VOL1      */
 	/* D2 => VOL2      */
@@ -173,18 +181,17 @@ WRITE8_MEMBER(videopin_state::videopin_out2_w)
 
 	coin_counter_w(machine(), 0, data & 0x10);
 
-	discrete_sound_w(device, space, VIDEOPIN_BELL_EN, data & 0x40); // Bell
-	discrete_sound_w(device, space, VIDEOPIN_BONG_EN, data & 0x20); // Bong
-	discrete_sound_w(device, space, VIDEOPIN_ATTRACT_EN, data & 0x80);  // Attract
-	discrete_sound_w(device, space, VIDEOPIN_VOL_DATA, data & 0x07);        // Vol0,1,2
+	discrete_sound_w(m_discrete, space, VIDEOPIN_BELL_EN, data & 0x40); // Bell
+	discrete_sound_w(m_discrete, space, VIDEOPIN_BONG_EN, data & 0x20); // Bong
+	discrete_sound_w(m_discrete, space, VIDEOPIN_ATTRACT_EN, data & 0x80);  // Attract
+	discrete_sound_w(m_discrete, space, VIDEOPIN_VOL_DATA, data & 0x07);        // Vol0,1,2
 }
 
 
 WRITE8_MEMBER(videopin_state::videopin_note_dvsr_w)
 {
-	device_t *device = machine().device("discrete");
 	/* note data */
-	discrete_sound_w(device, space, VIDEOPIN_NOTE_DATA, ~data &0xff);
+	discrete_sound_w(m_discrete, space, VIDEOPIN_NOTE_DATA, ~data &0xff);
 }
 
 

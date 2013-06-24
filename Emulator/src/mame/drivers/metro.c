@@ -140,15 +140,14 @@ READ16_MEMBER(metro_state::metro_irq_cause_r)
 
 
 /* Update the IRQ state based on all possible causes */
-static void update_irq_state( running_machine &machine )
+void metro_state::update_irq_state()
 {
-	metro_state *state = machine.driver_data<metro_state>();
-	address_space &space = state->m_maincpu->space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	/*  Get the pending IRQs (only the enabled ones, e.g. where irq_enable is *0*)  */
-	UINT16 irq = state->metro_irq_cause_r(space, 0, 0xffff) & ~*state->m_irq_enable;
+	UINT16 irq = metro_irq_cause_r(space, 0, 0xffff) & ~*m_irq_enable;
 
-	if (state->m_irq_line == -1)    /* mouja, gakusai, gakusai2, dokyusei, dokyusp */
+	if (m_irq_line == -1)    /* mouja, gakusai, gakusai2, dokyusei, dokyusp */
 	{
 		/*  This is for games that supply an *IRQ Vector* on the data bus together with an IRQ level for each possible IRQ source */
 		UINT8 irq_level[8] = { 0 };
@@ -156,10 +155,10 @@ static void update_irq_state( running_machine &machine )
 
 		for (i = 0; i < 8; i++)
 			if (BIT(irq, i))
-				irq_level[state->m_irq_levels[i] & 7] = 1;
+				irq_level[m_irq_levels[i] & 7] = 1;
 
 		for (i = 0; i < 8; i++)
-			state->m_maincpu->set_input_line(i, irq_level[i] ? ASSERT_LINE : CLEAR_LINE);
+			m_maincpu->set_input_line(i, irq_level[i] ? ASSERT_LINE : CLEAR_LINE);
 	}
 	else
 	{
@@ -167,18 +166,16 @@ static void update_irq_state( running_machine &machine )
 		    then reads the actual source by peeking a register (metro_irq_cause_r) */
 
 		int irq_state = (irq ? ASSERT_LINE : CLEAR_LINE);
-		state->m_maincpu->set_input_line(state->m_irq_line, irq_state);
+		m_maincpu->set_input_line(m_irq_line, irq_state);
 	}
 }
 
 
 /* For games that supply an *IRQ Vector* on the data bus */
-static IRQ_CALLBACK( metro_irq_callback )
+IRQ_CALLBACK_MEMBER(metro_state::metro_irq_callback)
 {
-	metro_state *state = device->machine().driver_data<metro_state>();
-
-	// logerror("%s: irq callback returns %04X\n", device->machine().describe_context(), state->m_irq_vectors[int_level]);
-	return state->m_irq_vectors[irqline] & 0xff;
+	// logerror("%s: irq callback returns %04X\n", device.machine().describe_context(), m_irq_vectors[int_level]);
+	return m_irq_vectors[irqline] & 0xff;
 }
 
 
@@ -194,24 +191,38 @@ WRITE16_MEMBER(metro_state::metro_irq_cause_w)
 			if (BIT(data, i)) m_requested_int[i] = 0;
 	}
 
-	update_irq_state(machine());
+	update_irq_state();
+}
+
+void metro_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_KARATOUR_IRQ:
+		m_requested_int[5] = 0;
+		break;
+	case TIMER_MOUJA_IRQ:
+		m_requested_int[0] = 1;
+		update_irq_state();
+		break;
+	case TIMER_METRO_BLIT_DONE:
+		metro_blit_done(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in metro_state::device_timer");
+	}
 }
 
 INTERRUPT_GEN_MEMBER(metro_state::metro_vblank_interrupt)
 {
 	m_requested_int[m_vblank_bit] = 1;
-	update_irq_state(machine());
+	update_irq_state();
 }
 
 INTERRUPT_GEN_MEMBER(metro_state::metro_periodic_interrupt)
 {
 	m_requested_int[4] = 1;
-	update_irq_state(machine());
-}
-
-TIMER_CALLBACK_MEMBER(metro_state::karatour_irq_callback)
-{
-	m_requested_int[5] = 0;
+	update_irq_state();
 }
 
 /* lev 2-7 (lev 1 seems sound related) */
@@ -220,16 +231,10 @@ INTERRUPT_GEN_MEMBER(metro_state::karatour_interrupt)
 	m_requested_int[m_vblank_bit] = 1;
 
 	/* write to scroll registers, the duration is a guess */
-	machine().scheduler().timer_set(attotime::from_usec(2500), timer_expired_delegate(FUNC(metro_state::karatour_irq_callback),this));
+	timer_set(attotime::from_usec(2500), TIMER_KARATOUR_IRQ);
 	m_requested_int[5] = 1;
 
-	update_irq_state(machine());
-}
-
-TIMER_CALLBACK_MEMBER(metro_state::mouja_irq_callback)
-{
-	m_requested_int[0] = 1;
-	update_irq_state(machine());
+	update_irq_state();
 }
 
 WRITE16_MEMBER(metro_state::mouja_irq_timer_ctrl_w)
@@ -242,15 +247,14 @@ WRITE16_MEMBER(metro_state::mouja_irq_timer_ctrl_w)
 INTERRUPT_GEN_MEMBER(metro_state::puzzlet_interrupt)
 {
 	m_requested_int[m_vblank_bit] = 1;
-	update_irq_state(machine());
+	update_irq_state();
 
 	m_maincpu->set_input_line(H8_METRO_TIMER_HACK, HOLD_LINE);
 }
 
-static void ymf278b_interrupt( device_t *device, int active )
+WRITE_LINE_MEMBER(metro_state::ymf278b_interrupt)
 {
-	metro_state *state = device->machine().driver_data<metro_state>();
-	state->m_maincpu->set_input_line(2, active);
+	m_maincpu->set_input_line(2, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -369,7 +373,7 @@ WRITE8_MEMBER(metro_state::metro_portb_w)
 	{
 		if (!BIT(data, 2))
 		{
-			ym2413_w(m_ymsnd, space, BIT(data, 1), m_porta);
+			downcast<ym2413_device *>(m_ymsnd.target())->write(space, BIT(data, 1), m_porta);
 		}
 		m_portb = data;
 		return;
@@ -440,11 +444,6 @@ WRITE8_MEMBER(metro_state::daitorid_portb_w)
 
 	m_portb = data;
 }
-
-static const ymf278b_interface ymf278b_config =
-{
-	ymf278b_interrupt
-};
 
 
 /***************************************************************************
@@ -558,10 +557,10 @@ READ16_MEMBER(metro_state::metro_bankedrom_r)
 TIMER_CALLBACK_MEMBER(metro_state::metro_blit_done)
 {
 	m_requested_int[m_blitter_bit] = 1;
-	update_irq_state(machine());
+	update_irq_state();
 }
 
-INLINE int blt_read( const UINT8 *ROM, const int offs )
+inline int metro_state::blt_read( const UINT8 *ROM, const int offs )
 {
 	return ROM[offs];
 }
@@ -629,7 +628,7 @@ WRITE16_MEMBER(metro_state::metro_blitter_w)
 				       another blit. */
 				if (b1 == 0)
 				{
-					machine().scheduler().timer_set(attotime::from_usec(500), timer_expired_delegate(FUNC(metro_state::metro_blit_done),this));
+					timer_set(attotime::from_usec(500), TIMER_METRO_BLIT_DONE);
 					return;
 				}
 
@@ -774,8 +773,8 @@ READ16_MEMBER(metro_state::balcube_dsw_r)
 
 static ADDRESS_MAP_START( balcube_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM                                             // ROM
-	AM_RANGE(0x300000, 0x300001) AM_DEVREAD8_LEGACY("ymf", ymf278b_r, 0x00ff)       // Sound
-	AM_RANGE(0x300000, 0x30000b) AM_DEVWRITE8_LEGACY("ymf", ymf278b_w, 0x00ff)      // Sound
+	AM_RANGE(0x300000, 0x300001) AM_DEVREAD8("ymf", ymf278b_device, read, 0x00ff)   // Sound
+	AM_RANGE(0x300000, 0x30000b) AM_DEVWRITE8("ymf", ymf278b_device, write, 0x00ff) // Sound
 	AM_RANGE(0x400000, 0x41ffff) AM_READ(balcube_dsw_r)                             // DSW x 3
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("IN0")                                // Inputs
 	AM_RANGE(0x500002, 0x500003) AM_READ_PORT("IN1")                                //
@@ -833,8 +832,8 @@ static ADDRESS_MAP_START( daitoa_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x200006, 0x200007) AM_READNOP                                         //
 	AM_RANGE(0x200002, 0x200009) AM_WRITE(metro_coin_lockout_4words_w)              // Coin Lockout
 	AM_RANGE(0x300000, 0x31ffff) AM_READ(balcube_dsw_r)                             // DSW x 3
-	AM_RANGE(0x400000, 0x400001) AM_DEVREAD8_LEGACY("ymf", ymf278b_r, 0x00ff)       // Sound
-	AM_RANGE(0x400000, 0x40000b) AM_DEVWRITE8_LEGACY("ymf", ymf278b_w, 0x00ff)      // Sound
+	AM_RANGE(0x400000, 0x400001) AM_DEVREAD8("ymf", ymf278b_device, read, 0x00ff)   // Sound
+	AM_RANGE(0x400000, 0x40000b) AM_DEVWRITE8("ymf", ymf278b_device, write, 0x00ff) // Sound
 	AM_RANGE(0xf00000, 0xf0ffff) AM_RAM AM_MIRROR(0x0f0000)                         // RAM (mirrored)
 ADDRESS_MAP_END
 
@@ -845,8 +844,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( bangball_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM                                             // ROM
-	AM_RANGE(0xb00000, 0xb00001) AM_DEVREAD8_LEGACY("ymf", ymf278b_r, 0x00ff)       // Sound
-	AM_RANGE(0xb00000, 0xb0000b) AM_DEVWRITE8_LEGACY("ymf", ymf278b_w, 0x00ff)      // Sound
+	AM_RANGE(0xb00000, 0xb00001) AM_DEVREAD8("ymf", ymf278b_device, read, 0x00ff)   // Sound
+	AM_RANGE(0xb00000, 0xb0000b) AM_DEVWRITE8("ymf", ymf278b_device, write, 0x00ff) // Sound
 	AM_RANGE(0xc00000, 0xc1ffff) AM_READ(balcube_dsw_r)                             // DSW x 3
 	AM_RANGE(0xd00000, 0xd00001) AM_READ_PORT("IN0")                                // Inputs
 	AM_RANGE(0xd00002, 0xd00003) AM_READ_PORT("IN1")                                //
@@ -904,8 +903,8 @@ static ADDRESS_MAP_START( batlbubl_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x200006, 0x200007) AM_READ_PORT("IN2")                                //
 	AM_RANGE(0x200002, 0x200009) AM_WRITE(metro_coin_lockout_4words_w)              // Coin Lockout
 	AM_RANGE(0x300000, 0x31ffff) AM_READ(balcube_dsw_r)                             // read but ignored?
-	AM_RANGE(0x400000, 0x400001) AM_DEVREAD8_LEGACY("ymf", ymf278b_r, 0x00ff)       // Sound
-	AM_RANGE(0x400000, 0x40000b) AM_DEVWRITE8_LEGACY("ymf", ymf278b_w, 0x00ff)      //
+	AM_RANGE(0x400000, 0x400001) AM_DEVREAD8("ymf", ymf278b_device, read, 0x00ff)   // Sound
+	AM_RANGE(0x400000, 0x40000b) AM_DEVWRITE8("ymf", ymf278b_device, write, 0x00ff) //
 	AM_RANGE(0xf00000, 0xf0ffff) AM_RAM AM_MIRROR(0x0f0000)                         // RAM (mirrored)
 ADDRESS_MAP_END
 
@@ -939,8 +938,8 @@ static ADDRESS_MAP_START( msgogo_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x200006, 0x200007) AM_READNOP                                         //
 	AM_RANGE(0x200002, 0x200009) AM_WRITE(metro_coin_lockout_4words_w)              // Coin Lockout
 	AM_RANGE(0x300000, 0x31ffff) AM_READ(balcube_dsw_r)                             // 3 x DSW
-	AM_RANGE(0x400000, 0x400001) AM_DEVREAD8_LEGACY("ymf", ymf278b_r, 0x00ff)       // Sound
-	AM_RANGE(0x400000, 0x40000b) AM_DEVWRITE8_LEGACY("ymf", ymf278b_w, 0x00ff)      //
+	AM_RANGE(0x400000, 0x400001) AM_DEVREAD8("ymf", ymf278b_device, read, 0x00ff)   // Sound
+	AM_RANGE(0x400000, 0x40000b) AM_DEVWRITE8("ymf", ymf278b_device, write, 0x00ff) //
 	AM_RANGE(0xf00000, 0xf0ffff) AM_RAM AM_MIRROR(0x0f0000)                         // RAM (mirrored)
 ADDRESS_MAP_END
 
@@ -1181,23 +1180,19 @@ static void gakusai_oki_bank_set(device_t *device)
 
 WRITE16_MEMBER(metro_state::gakusai_oki_bank_hi_w)
 {
-	device_t *device = machine().device("oki");
-
 	if (ACCESSING_BITS_0_7)
 	{
 		m_gakusai_oki_bank_hi = data & 0xff;
-		gakusai_oki_bank_set(device);
+		gakusai_oki_bank_set(m_oki);
 	}
 }
 
 WRITE16_MEMBER(metro_state::gakusai_oki_bank_lo_w)
 {
-	device_t *device = machine().device("oki");
-
 	if (ACCESSING_BITS_0_7)
 	{
 		m_gakusai_oki_bank_lo = data & 0xff;
-		gakusai_oki_bank_set(device);
+		gakusai_oki_bank_set(m_oki);
 	}
 }
 
@@ -1216,26 +1211,21 @@ READ16_MEMBER(metro_state::gakusai_input_r)
 
 READ16_MEMBER(metro_state::gakusai_eeprom_r)
 {
-	device_t *device = machine().device("eeprom");
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	return eeprom->read_bit() & 1;
+	return m_eeprom->read_bit() & 1;
 }
 
 WRITE16_MEMBER(metro_state::gakusai_eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (ACCESSING_BITS_0_7)
 	{
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-
 		// latch the bit
-		eeprom->write_bit(BIT(data, 0));
+		m_eeprom->write_bit(BIT(data, 0));
 
 		// reset line asserted: reset.
-		eeprom->set_cs_line(BIT(data, 2) ? CLEAR_LINE : ASSERT_LINE );
+		m_eeprom->set_cs_line(BIT(data, 2) ? CLEAR_LINE : ASSERT_LINE );
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line(BIT(data, 1) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->set_clock_line(BIT(data, 1) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 
@@ -1265,7 +1255,7 @@ static ADDRESS_MAP_START( gakusai_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x279700, 0x279713) AM_WRITEONLY AM_SHARE("videoregs")                 // Video Registers
 	AM_RANGE(0x400000, 0x400001) AM_WRITENOP                                        // ? 5
 	AM_RANGE(0x500000, 0x500001) AM_WRITE(gakusai_oki_bank_lo_w)                    // Sound
-	AM_RANGE(0x600000, 0x600003) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0x600000, 0x600003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x700000, 0x700001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
 	AM_RANGE(0xc00000, 0xc00001) AM_READWRITE(gakusai_eeprom_r, gakusai_eeprom_w)   // EEPROM
 	AM_RANGE(0xd00000, 0xd00001) AM_WRITE(gakusai_oki_bank_hi_w)
@@ -1306,7 +1296,7 @@ static ADDRESS_MAP_START( gakusai2_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x900000, 0x900001) AM_WRITE(gakusai_oki_bank_lo_w)                    // Sound bank
 	AM_RANGE(0xa00000, 0xa00001) AM_WRITE(gakusai_oki_bank_hi_w)                    //
 	AM_RANGE(0xb00000, 0xb00001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
-	AM_RANGE(0xc00000, 0xc00003) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0xc00000, 0xc00003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0xe00000, 0xe00001) AM_READWRITE(gakusai_eeprom_r,gakusai_eeprom_w)    // EEPROM
 	AM_RANGE(0xf00000, 0xf0ffff) AM_RAM AM_MIRROR(0x0f0000)                         // RAM (mirrored)
 ADDRESS_MAP_END
@@ -1318,38 +1308,32 @@ ADDRESS_MAP_END
 
 READ16_MEMBER(metro_state::dokyusp_eeprom_r)
 {
-	device_t *device = machine().device("eeprom");
 	// clock line asserted: write latch or select next bit to read
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->set_clock_line(CLEAR_LINE);
-	eeprom->set_clock_line(ASSERT_LINE);
+	m_eeprom->set_clock_line(CLEAR_LINE);
+	m_eeprom->set_clock_line(ASSERT_LINE);
 
-	return eeprom->read_bit() & 1;
+	return m_eeprom->read_bit() & 1;
 }
 
 WRITE16_MEMBER(metro_state::dokyusp_eeprom_bit_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (ACCESSING_BITS_0_7)
 	{
 		// latch the bit
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(BIT(data, 0));
+		m_eeprom->write_bit(BIT(data, 0));
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line(CLEAR_LINE);
-		eeprom->set_clock_line(ASSERT_LINE);
+		m_eeprom->set_clock_line(CLEAR_LINE);
+		m_eeprom->set_clock_line(ASSERT_LINE);
 	}
 }
 
 WRITE16_MEMBER(metro_state::dokyusp_eeprom_reset_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (ACCESSING_BITS_0_7)
 	{
 		// reset line asserted: reset.
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->set_cs_line(BIT(data, 0) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_cs_line(BIT(data, 0) ? CLEAR_LINE : ASSERT_LINE);
 	}
 }
 
@@ -1379,7 +1363,7 @@ static ADDRESS_MAP_START( dokyusp_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x279700, 0x279713) AM_WRITEONLY AM_SHARE("videoregs")                 // Video Registers
 	AM_RANGE(0x400000, 0x400001) AM_WRITENOP                                        // ? 5
 	AM_RANGE(0x500000, 0x500001) AM_WRITE(gakusai_oki_bank_lo_w)                    // Sound
-	AM_RANGE(0x600000, 0x600003) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0x600000, 0x600003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x700000, 0x700001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
 	AM_RANGE(0xc00000, 0xc00001) AM_WRITE(dokyusp_eeprom_reset_w)                       // EEPROM
 	AM_RANGE(0xd00000, 0xd00001) AM_READWRITE(dokyusp_eeprom_r, dokyusp_eeprom_bit_w)   // EEPROM
@@ -1422,7 +1406,7 @@ static ADDRESS_MAP_START( dokyusei_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x800000, 0x800001) AM_WRITE(gakusai_oki_bank_hi_w)                    // Samples Bank?
 	AM_RANGE(0x900000, 0x900001) AM_WRITENOP                                        // ? 4
 	AM_RANGE(0xa00000, 0xa00001) AM_WRITE(gakusai_oki_bank_lo_w)                    // Samples Bank
-	AM_RANGE(0xc00000, 0xc00003) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)     //
+	AM_RANGE(0xc00000, 0xc00003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)     //
 	AM_RANGE(0xd00000, 0xd00001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
 	AM_RANGE(0xf00000, 0xf0ffff) AM_RAM AM_MIRROR(0x0f0000)                         // RAM (mirrored)
 ADDRESS_MAP_END
@@ -1623,16 +1607,10 @@ WRITE8_MEMBER(metro_state::blzntrnd_sh_bankswitch_w)
 	membank("bank1")->set_base(&RAM[bankaddress]);
 }
 
-static void blzntrnd_irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(metro_state::blzntrnd_irqhandler)
 {
-	metro_state *state = device->machine().driver_data<metro_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface blzntrnd_ym2610_interface =
-{
-	blzntrnd_irqhandler
-};
 
 static ADDRESS_MAP_START( blzntrnd_sound_map, AS_PROGRAM, 8, metro_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
@@ -1644,7 +1622,7 @@ static ADDRESS_MAP_START( blzntrnd_sound_io_map, AS_IO, 8, metro_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(blzntrnd_sh_bankswitch_w)
 	AM_RANGE(0x40, 0x40) AM_READ(soundlatch_byte_r) AM_WRITENOP
-	AM_RANGE(0x80, 0x83) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r,ym2610_w)
+	AM_RANGE(0x80, 0x83) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( blzntrnd_map, AS_PROGRAM, 16, metro_state )
@@ -1716,7 +1694,7 @@ static ADDRESS_MAP_START( mouja_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x478888, 0x478889) AM_WRITENOP                                        // ??
 	AM_RANGE(0x479700, 0x479713) AM_WRITEONLY AM_SHARE("videoregs")                 // Video Registers
 	AM_RANGE(0x800000, 0x800001) AM_WRITE(mouja_sound_rombank_w)
-	AM_RANGE(0xc00000, 0xc00003) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0xc00000, 0xc00003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0xd00000, 0xd00001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0xffff)
 	AM_RANGE(0xf00000, 0xf0ffff) AM_RAM AM_MIRROR(0x0f0000)                         // RAM (mirrored)
 #if 0
@@ -1774,7 +1752,7 @@ static ADDRESS_MAP_START( puzzlet_map, AS_PROGRAM, 16, metro_state )
 	AM_RANGE(0x470000, 0x47dfff) AM_RAM
 
 	AM_RANGE(0x500000, 0x500001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0xff00)
-	AM_RANGE(0x580000, 0x580003) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0xff00)
+	AM_RANGE(0x580000, 0x580003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0xff00)
 
 	AM_RANGE(0x700000, 0x71ffff) AM_RAM_WRITE(metro_vram_0_w) AM_SHARE("vram_0")    // Layer 0
 	AM_RANGE(0x720000, 0x73ffff) AM_RAM_WRITE(metro_vram_1_w) AM_SHARE("vram_1")    // Layer 1
@@ -1831,7 +1809,7 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(metro_state::vmetal_control_w)
 {
-	device_t *device = machine().device("essnd");
+	es8712_device *device = machine().device<es8712_device>("essnd");
 	/* Lower nibble is the coin control bits shown in
 	   service mode, but in game mode they're different */
 	coin_counter_w(machine(), 0, data & 0x04);
@@ -1842,12 +1820,12 @@ WRITE8_MEMBER(metro_state::vmetal_control_w)
 	if ((data & 0x40) == 0)
 		device->reset();
 	else
-		es8712_play(device);
+		device->play();
 
 	if (data & 0x10)
-		es8712_set_bank_base(device, 0x100000);
+		device->set_bank_base(0x100000);
 	else
-		es8712_set_bank_base(device, 0x000000);
+		device->set_bank_base(0x000000);
 
 	if (data & 0xa0)
 		logerror("%s: Writing unknown bits %04x to $200000\n",machine().describe_context(),data);
@@ -1885,8 +1863,8 @@ WRITE8_MEMBER(metro_state::vmetal_es8712_w)
 	16   002a 000e 0083 00ee 000f 0069 0069   0e832a-0f69ee
 	*/
 
-	device_t *device = machine().device("essnd");
-	es8712_w(device, space, offset, data);
+	es8712_device *device = machine().device<es8712_device>("essnd");
+	device->es8712_w(space, offset, data);
 	logerror("%s: Writing %04x to ES8712 offset %02x\n", machine().describe_context(), data, offset);
 }
 
@@ -1937,8 +1915,7 @@ ADDRESS_MAP_END
 	PORT_BIT(  0x0010, IP_ACTIVE_LOW, IPT_##_b1_         ) PORT_PLAYER(_n_) \
 	PORT_BIT(  0x0020, IP_ACTIVE_LOW, IPT_##_b2_         ) PORT_PLAYER(_n_) \
 	PORT_BIT(  0x0040, IP_ACTIVE_LOW, IPT_##_b3_         ) PORT_PLAYER(_n_) \
-	PORT_BIT(  0x0080, IP_ACTIVE_LOW, IPT_##_b4_         ) PORT_PLAYER(_n_) \
-
+	PORT_BIT(  0x0080, IP_ACTIVE_LOW, IPT_##_b4_         ) PORT_PLAYER(_n_)
 
 #define JOY_MSB(_n_, _b1_, _b2_, _b3_, _b4_) \
 	PORT_BIT(  0x0100, IP_ACTIVE_LOW, IPT_JOYSTICK_UP    ) PORT_PLAYER(_n_) \
@@ -1948,8 +1925,7 @@ ADDRESS_MAP_END
 	PORT_BIT(  0x1000, IP_ACTIVE_LOW, IPT_##_b1_         ) PORT_PLAYER(_n_) \
 	PORT_BIT(  0x2000, IP_ACTIVE_LOW, IPT_##_b2_         ) PORT_PLAYER(_n_) \
 	PORT_BIT(  0x4000, IP_ACTIVE_LOW, IPT_##_b3_         ) PORT_PLAYER(_n_) \
-	PORT_BIT(  0x8000, IP_ACTIVE_LOW, IPT_##_b4_         ) PORT_PLAYER(_n_) \
-
+	PORT_BIT(  0x8000, IP_ACTIVE_LOW, IPT_##_b4_         ) PORT_PLAYER(_n_)
 
 #define COINS \
 	PORT_BIT(  0x0001, IP_ACTIVE_LOW,  IPT_SERVICE1 ) \
@@ -3583,7 +3559,7 @@ MACHINE_START_MEMBER(metro_state,metro)
 MACHINE_RESET_MEMBER(metro_state,metro)
 {
 	if (m_irq_line == -1)
-		machine().device("maincpu")->execute().set_irq_acknowledge_callback(metro_irq_callback);
+		m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(metro_state::metro_irq_callback),this));
 }
 
 
@@ -3620,7 +3596,7 @@ static MACHINE_CONFIG_START( balcube, metro_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymf", YMF278B, YMF278B_STD_CLOCK)
-	MCFG_SOUND_CONFIG(ymf278b_config)
+	MCFG_YMF278B_IRQ_HANDLER(WRITELINE(metro_state, ymf278b_interrupt))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -3653,7 +3629,7 @@ static MACHINE_CONFIG_START( daitoa, metro_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymf", YMF278B, YMF278B_STD_CLOCK)
-	MCFG_SOUND_CONFIG(ymf278b_config)
+	MCFG_YMF278B_IRQ_HANDLER(WRITELINE(metro_state, ymf278b_interrupt))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -3686,7 +3662,7 @@ static MACHINE_CONFIG_START( msgogo, metro_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymf", YMF278B, YMF278B_STD_CLOCK)
-	MCFG_SOUND_CONFIG(ymf278b_config)
+	MCFG_YMF278B_IRQ_HANDLER(WRITELINE(metro_state, ymf278b_interrupt))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -3719,7 +3695,7 @@ static MACHINE_CONFIG_START( bangball, metro_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymf", YMF278B, YMF278B_STD_CLOCK)
-	MCFG_SOUND_CONFIG(ymf278b_config)
+	MCFG_YMF278B_IRQ_HANDLER(WRITELINE(metro_state, ymf278b_interrupt))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -3752,7 +3728,7 @@ static MACHINE_CONFIG_START( batlbubl, metro_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymf", YMF278B, YMF278B_STD_CLOCK)
-	MCFG_SOUND_CONFIG(ymf278b_config)
+	MCFG_YMF278B_IRQ_HANDLER(WRITELINE(metro_state, ymf278b_interrupt))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -4414,7 +4390,7 @@ static MACHINE_CONFIG_START( vmetal, metro_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.75)
 
-	MCFG_SOUND_ADD("essnd", ES8712, 12000)
+	MCFG_ES8712_ADD("essnd", 12000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 
@@ -4460,7 +4436,7 @@ static MACHINE_CONFIG_START( blzntrnd, metro_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_16MHz/2)
-	MCFG_SOUND_CONFIG(blzntrnd_ym2610_interface)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(metro_state, blzntrnd_irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -4507,7 +4483,7 @@ static MACHINE_CONFIG_START( gstrik2, metro_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_16MHz/2)
-	MCFG_SOUND_CONFIG(blzntrnd_ym2610_interface)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(metro_state, blzntrnd_irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -6268,24 +6244,22 @@ ROM_END
 
 ***************************************************************************/
 
-static void metro_common( running_machine &machine )
+void metro_state::metro_common(  )
 {
-	metro_state *state = machine.driver_data<metro_state>();
+	memset(m_requested_int, 0, ARRAY_LENGTH(m_requested_int));
+	m_vblank_bit = 0;
+	m_blitter_bit = 2;
+	m_irq_line = 2;
 
-	memset(state->m_requested_int, 0, ARRAY_LENGTH(state->m_requested_int));
-	state->m_vblank_bit = 0;
-	state->m_blitter_bit = 2;
-	state->m_irq_line = 2;
-
-	*state->m_irq_enable = 0;
+	*m_irq_enable = 0;
 }
 
 
 DRIVER_INIT_MEMBER(metro_state,metro)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	metro_common(machine());
+	metro_common();
 
 	m_porta = 0x00;
 	m_portb = 0x00;
@@ -6310,9 +6284,9 @@ DRIVER_INIT_MEMBER(metro_state,karatour)
 
 DRIVER_INIT_MEMBER(metro_state,daitorid)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	metro_common(machine());
+	metro_common();
 
 	m_porta = 0x00;
 	m_portb = 0x00;
@@ -6338,14 +6312,14 @@ DRIVER_INIT_MEMBER(metro_state,balcube)
 		src   +=  2;
 	}
 
-	metro_common(machine());
+	metro_common();
 	m_irq_line = 1;
 }
 
 
 DRIVER_INIT_MEMBER(metro_state,dharmak)
 {
-	UINT8 *src = machine().root_device().memregion( "gfx1" )->base();
+	UINT8 *src = memregion( "gfx1" )->base();
 	int i;
 
 	for (i = 0; i < 0x200000; i += 4)
@@ -6365,21 +6339,21 @@ DRIVER_INIT_MEMBER(metro_state,dharmak)
 
 DRIVER_INIT_MEMBER(metro_state,blzntrnd)
 {
-	metro_common(machine());
+	metro_common();
 	m_irq_line = 1;
 }
 
 DRIVER_INIT_MEMBER(metro_state,mouja)
 {
-	metro_common(machine());
+	metro_common();
 	m_irq_line = -1;    /* split interrupt handlers */
 	m_vblank_bit = 1;
-	m_mouja_irq_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(metro_state::mouja_irq_callback),this));
+	m_mouja_irq_timer = timer_alloc(TIMER_MOUJA_IRQ);
 }
 
 DRIVER_INIT_MEMBER(metro_state,gakusai)
 {
-	metro_common(machine());
+	metro_common();
 	m_irq_line = -1;
 	m_vblank_bit = 1;
 	m_blitter_bit = 3;
@@ -6387,7 +6361,7 @@ DRIVER_INIT_MEMBER(metro_state,gakusai)
 
 DRIVER_INIT_MEMBER(metro_state,puzzlet)
 {
-	metro_common(machine());
+	metro_common();
 	m_irq_line = 0;
 	m_vblank_bit = 1;
 	m_blitter_bit = 0;

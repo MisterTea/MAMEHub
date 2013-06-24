@@ -10,6 +10,23 @@
 #include "sound/astrocde.h"
 #include "video/resnet.h"
 
+/*************************************
+ *
+ *  Machine setup
+ *
+ *************************************/
+
+void astrocde_state::machine_start()
+{
+	save_item(NAME(m_port_1_last));
+	save_item(NAME(m_port_2_last));
+	save_item(NAME(m_ram_write_enable));
+	save_item(NAME(m_input_select));
+	save_item(NAME(m_profpac_bank));
+
+	m_port_1_last = m_port_2_last = 0xff;
+}
+
 
 
 /*************************************
@@ -22,28 +39,13 @@
 #define VERT_OFFSET     (22)                /* pixels from top of screen to top of game area */
 #define HORZ_OFFSET     (16)                /* pixels from left of screen to left of game area */
 
-
-
-/*************************************
- *
- *  Function prototypes
- *
- *************************************/
-
-static void init_savestate(running_machine &machine);
-
-
-static void init_sparklestar(running_machine &machine);
-
-
-
 /*************************************
  *
  *  Scanline conversion
  *
  *************************************/
 
-INLINE int mame_vpos_to_astrocade_vpos(int scanline)
+inline int astrocde_state::mame_vpos_to_astrocade_vpos(int scanline)
 {
 	scanline -= VERT_OFFSET;
 	if (scanline < 0)
@@ -162,81 +164,78 @@ PALETTE_INIT_MEMBER(astrocde_state,profpac)
 
 void astrocde_state::video_start()
 {
-
 	/* allocate timers */
-	m_scanline_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(astrocde_state::scanline_callback),this));
+	m_scanline_timer = timer_alloc(TIMER_SCANLINE);
 	m_scanline_timer->adjust(machine().primary_screen->time_until_pos(1), 1);
-	m_intoff_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(astrocde_state::interrupt_off),this));
+	m_intoff_timer = timer_alloc(TIMER_INTERRUPT_OFF);
 
 	/* register for save states */
-	init_savestate(machine());
+	init_savestate();
 
 	/* initialize the sparkle and stars */
 	if (m_video_config & AC_STARS)
-		init_sparklestar(machine());
+		init_sparklestar();
 }
 
 
 VIDEO_START_MEMBER(astrocde_state,profpac)
 {
-
 	/* allocate timers */
-	m_scanline_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(astrocde_state::scanline_callback),this));
+	m_scanline_timer = timer_alloc(TIMER_SCANLINE);
 	m_scanline_timer->adjust(machine().primary_screen->time_until_pos(1), 1);
-	m_intoff_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(astrocde_state::interrupt_off),this));
+	m_intoff_timer = timer_alloc(TIMER_INTERRUPT_OFF);
 
 	/* allocate videoram */
 	m_profpac_videoram = auto_alloc_array(machine(), UINT16, 0x4000 * 4);
 
 	/* register for save states */
-	init_savestate(machine());
+	init_savestate();
 
 	/* register our specific save state data */
-	state_save_register_global_pointer(machine(), m_profpac_videoram, 0x4000 * 4);
-	state_save_register_global_array(machine(), m_profpac_palette);
-	state_save_register_global_array(machine(), m_profpac_colormap);
-	state_save_register_global(machine(), m_profpac_intercept);
-	state_save_register_global(machine(), m_profpac_vispage);
-	state_save_register_global(machine(), m_profpac_readpage);
-	state_save_register_global(machine(), m_profpac_readshift);
-	state_save_register_global(machine(), m_profpac_writepage);
-	state_save_register_global(machine(), m_profpac_writemode);
-	state_save_register_global(machine(), m_profpac_writemask);
-	state_save_register_global(machine(), m_profpac_vw);
+	save_pointer(NAME(m_profpac_videoram), 0x4000 * 4);
+	save_item(NAME(m_profpac_palette));
+	save_item(NAME(m_profpac_colormap));
+	save_item(NAME(m_profpac_intercept));
+	save_item(NAME(m_profpac_vispage));
+	save_item(NAME(m_profpac_readpage));
+	save_item(NAME(m_profpac_readshift));
+	save_item(NAME(m_profpac_writepage));
+	save_item(NAME(m_profpac_writemode));
+	save_item(NAME(m_profpac_writemask));
+	save_item(NAME(m_profpac_vw));
 }
 
 
-static void init_savestate(running_machine &machine)
+void astrocde_state::init_savestate()
 {
-	astrocde_state *state = machine.driver_data<astrocde_state>();
-	state_save_register_global_array(machine, state->m_sparkle);
+	save_item(NAME(m_sparkle));
 
-	state_save_register_global(machine, state->m_interrupt_enabl);
-	state_save_register_global(machine, state->m_interrupt_vector);
-	state_save_register_global(machine, state->m_interrupt_scanline);
-	state_save_register_global(machine, state->m_vertical_feedback);
-	state_save_register_global(machine, state->m_horizontal_feedback);
+	save_item(NAME(m_interrupt_enabl));
+	save_item(NAME(m_interrupt_vector));
+	save_item(NAME(m_interrupt_scanline));
+	save_item(NAME(m_vertical_feedback));
+	save_item(NAME(m_horizontal_feedback));
 
-	state_save_register_global_array(machine, state->m_colors);
-	state_save_register_global(machine, state->m_colorsplit);
-	state_save_register_global(machine, state->m_bgdata);
-	state_save_register_global(machine, state->m_vblank);
-	state_save_register_global(machine, state->m_video_mode);
+	save_item(NAME(m_colors));
+	save_item(NAME(m_colorsplit));
+	save_item(NAME(m_bgdata));
+	save_item(NAME(m_vblank));
+	save_item(NAME(m_video_mode));
 
-	state_save_register_global_array(machine, state->m_funcgen_expand_color);
-	state_save_register_global(machine, state->m_funcgen_control);
-	state_save_register_global(machine, state->m_funcgen_expand_count);
-	state_save_register_global(machine, state->m_funcgen_rotate_count);
-	state_save_register_global_array(machine, state->m_funcgen_rotate_data);
-	state_save_register_global(machine, state->m_funcgen_shift_prev_data);
-	state_save_register_global(machine, state->m_funcgen_intercept);
+	save_item(NAME(m_funcgen_expand_color));
+	save_item(NAME(m_funcgen_control));
+	save_item(NAME(m_funcgen_expand_count));
+	save_item(NAME(m_funcgen_rotate_count));
+	save_item(NAME(m_funcgen_rotate_data));
+	save_item(NAME(m_funcgen_shift_prev_data));
+	save_item(NAME(m_funcgen_intercept));
 
-	state_save_register_global(machine, state->m_pattern_source);
-	state_save_register_global(machine, state->m_pattern_mode);
-	state_save_register_global(machine, state->m_pattern_dest);
-	state_save_register_global(machine, state->m_pattern_skip);
-	state_save_register_global(machine, state->m_pattern_width);
-	state_save_register_global(machine, state->m_pattern_height);
+	save_item(NAME(m_pattern_source));
+	save_item(NAME(m_pattern_mode));
+	save_item(NAME(m_pattern_dest));
+	save_item(NAME(m_pattern_skip));
+	save_item(NAME(m_pattern_width));
+	save_item(NAME(m_pattern_height));
 }
 
 
@@ -373,36 +372,45 @@ UINT32 astrocde_state::screen_update_profpac(screen_device &screen, bitmap_ind16
  *
  *************************************/
 
-TIMER_CALLBACK_MEMBER(astrocde_state::interrupt_off)
+void astrocde_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	switch (id)
+	{
+	case TIMER_INTERRUPT_OFF:
+		m_maincpu->set_input_line(0, CLEAR_LINE);
+		break;
+	case TIMER_SCANLINE:
+		scanline_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in astrocde_state::device_timer");
+	}
 }
 
 
-static void astrocade_trigger_lightpen(running_machine &machine, UINT8 vfeedback, UINT8 hfeedback)
+void astrocde_state::astrocade_trigger_lightpen(UINT8 vfeedback, UINT8 hfeedback)
 {
-	astrocde_state *state = machine.driver_data<astrocde_state>();
 	/* both bits 1 and 4 enable lightpen interrupts; bit 4 enables them even in horizontal */
 	/* blanking regions; we treat them both the same here */
-	if ((state->m_interrupt_enabl & 0x12) != 0)
+	if ((m_interrupt_enabl & 0x12) != 0)
 	{
 		/* bit 0 controls the interrupt mode: mode 0 means assert until acknowledged */
-		if ((state->m_interrupt_enabl & 0x01) == 0)
+		if ((m_interrupt_enabl & 0x01) == 0)
 		{
-			machine.device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, state->m_interrupt_vector & 0xf0);
-			state->m_intoff_timer->adjust(machine.primary_screen->time_until_pos(vfeedback));
+			m_maincpu->set_input_line_and_vector(0, HOLD_LINE, m_interrupt_vector & 0xf0);
+			m_intoff_timer->adjust(machine().primary_screen->time_until_pos(vfeedback));
 		}
 
 		/* mode 1 means assert for 1 instruction */
 		else
 		{
-			machine.device("maincpu")->execute().set_input_line_and_vector(0, ASSERT_LINE, state->m_interrupt_vector & 0xf0);
-			state->m_intoff_timer->adjust(machine.device<cpu_device>("maincpu")->cycles_to_attotime(1));
+			m_maincpu->set_input_line_and_vector(0, ASSERT_LINE, m_interrupt_vector & 0xf0);
+			m_intoff_timer->adjust(m_maincpu->cycles_to_attotime(1));
 		}
 
 		/* latch the feedback registers */
-		state->m_vertical_feedback = vfeedback;
-		state->m_horizontal_feedback = hfeedback;
+		m_vertical_feedback = vfeedback;
+		m_horizontal_feedback = hfeedback;
 	}
 }
 
@@ -429,21 +437,21 @@ TIMER_CALLBACK_MEMBER(astrocde_state::scanline_callback)
 		/* bit 2 controls the interrupt mode: mode 0 means assert until acknowledged */
 		if ((m_interrupt_enabl & 0x04) == 0)
 		{
-			machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, m_interrupt_vector);
-			machine().scheduler().timer_set(machine().primary_screen->time_until_vblank_end(), timer_expired_delegate(FUNC(astrocde_state::interrupt_off),this));
+			m_maincpu->set_input_line_and_vector(0, HOLD_LINE, m_interrupt_vector);
+			timer_set(machine().primary_screen->time_until_vblank_end(), TIMER_INTERRUPT_OFF);
 		}
 
 		/* mode 1 means assert for 1 instruction */
 		else
 		{
-			machine().device("maincpu")->execute().set_input_line_and_vector(0, ASSERT_LINE, m_interrupt_vector);
-			machine().scheduler().timer_set(machine().device<cpu_device>("maincpu")->cycles_to_attotime(1), timer_expired_delegate(FUNC(astrocde_state::interrupt_off),this));
+			m_maincpu->set_input_line_and_vector(0, ASSERT_LINE, m_interrupt_vector);
+			timer_set(m_maincpu->cycles_to_attotime(1), TIMER_INTERRUPT_OFF);
 		}
 	}
 
 	/* on some games, the horizontal drive line is conected to the lightpen interrupt */
 	else if (m_video_config & AC_LIGHTPEN_INTS)
-		astrocade_trigger_lightpen(machine(), astrocade_scanline, 8);
+		astrocade_trigger_lightpen(astrocade_scanline, 8);
 
 	/* advance to the next scanline */
 	scanline++;
@@ -595,7 +603,7 @@ WRITE8_MEMBER(astrocde_state::astrocade_data_chip_register_w)
 		case 0x17:  /* noise volume register */
 		case 0x18:  /* sound block transfer */
 			if (m_video_config & AC_SOUND_PRESENT)
-				astrocade_sound_w(machine().device("astrocade1"), space, offset, data);
+				machine().device<astrocade_device>("astrocade1")->astrocade_sound_w(space, offset, data);
 			break;
 
 		case 0x19:  /* expand register */
@@ -708,47 +716,46 @@ WRITE8_MEMBER(astrocde_state::astrocade_funcgen_w)
  *
  *************************************/
 
-INLINE void increment_source(astrocde_state *state, UINT8 curwidth, UINT8 *u13ff)
+inline void astrocde_state::increment_source(UINT8 curwidth, UINT8 *u13ff)
 {
 	/* if the flip-flop at U13 is high and mode.d2 is 1 we can increment */
 	/* however, if mode.d3 is set and we're on the last byte of a row, the increment is suppressed */
-	if (*u13ff && (state->m_pattern_mode & 0x04) != 0 && (curwidth != 0 || (state->m_pattern_mode & 0x08) == 0))
-		state->m_pattern_source++;
+	if (*u13ff && (m_pattern_mode & 0x04) != 0 && (curwidth != 0 || (m_pattern_mode & 0x08) == 0))
+		m_pattern_source++;
 
 	/* if mode.d1 is 1, toggle the flip-flop; otherwise leave it preset */
-	if ((state->m_pattern_mode & 0x02) != 0)
+	if ((m_pattern_mode & 0x02) != 0)
 		*u13ff ^= 1;
 }
 
 
-INLINE void increment_dest(astrocde_state *state, UINT8 curwidth)
+inline void astrocde_state::increment_dest(UINT8 curwidth)
 {
 	/* increment is suppressed for the last byte in a row */
 	if (curwidth != 0)
 	{
 		/* if mode.d5 is 1, we increment */
-		if ((state->m_pattern_mode & 0x20) != 0)
-			state->m_pattern_dest++;
+		if ((m_pattern_mode & 0x20) != 0)
+			m_pattern_dest++;
 
 		/* otherwise, we decrement */
 		else
-			state->m_pattern_dest--;
+			m_pattern_dest--;
 	}
 }
 
 
-static void execute_blit(address_space &space)
+void astrocde_state::execute_blit(address_space &space)
 {
-	astrocde_state *state = space.machine().driver_data<astrocde_state>();
 	/*
-	    state->m_pattern_source = counter set U7/U16/U25/U34
-	    state->m_pattern_dest = counter set U9/U18/U30/U39
-	    state->m_pattern_mode = latch U21
-	    state->m_pattern_skip = latch set U30/U39
-	    state->m_pattern_width = latch set U32/U41
-	    state->m_pattern_height = counter set U31/U40
+	    m_pattern_source = counter set U7/U16/U25/U34
+	    m_pattern_dest = counter set U9/U18/U30/U39
+	    m_pattern_mode = latch U21
+	    m_pattern_skip = latch set U30/U39
+	    m_pattern_width = latch set U32/U41
+	    m_pattern_height = counter set U31/U40
 
-	    state->m_pattern_mode bits:
+	    m_pattern_mode bits:
 	        d0 = direction (0 = read from src, write to dest, 1 = read from dest, write to src)
 	        d1 = expand (0 = increment src each pixel, 1 = increment src every other pixel)
 	        d2 = constant (0 = never increment src, 1 = normal src increment)
@@ -762,13 +769,13 @@ static void execute_blit(address_space &space)
 	int cycles = 0;
 
 /*  logerror("Blit: src=%04X mode=%02X dest=%04X skip=%02X width=%02X height=%02X\n",
-            state->m_pattern_source, state->m_pattern_mode, state->m_pattern_dest, state->m_pattern_skip, state->m_pattern_width, state->m_pattern_height);*/
+            m_pattern_source, m_pattern_mode, m_pattern_dest, m_pattern_skip, m_pattern_width, m_pattern_height);*/
 
 	/* flip-flop at U13 is cleared at the beginning */
 	u13ff = 0;
 
 	/* it is also forced preset if mode.d1 == 0 */
-	if ((state->m_pattern_mode & 0x02) == 0)
+	if ((m_pattern_mode & 0x02) == 0)
 		u13ff = 1;
 
 	/* loop over height */
@@ -777,7 +784,7 @@ static void execute_blit(address_space &space)
 		UINT16 carry;
 
 		/* loop over width */
-		curwidth = state->m_pattern_width;
+		curwidth = m_pattern_width;
 		do
 		{
 			UINT16 busaddr;
@@ -786,31 +793,31 @@ static void execute_blit(address_space &space)
 			/* ----- read phase ----- */
 
 			/* address is selected between source/dest based on mode.d0 */
-			busaddr = ((state->m_pattern_mode & 0x01) == 0) ? state->m_pattern_source : state->m_pattern_dest;
+			busaddr = ((m_pattern_mode & 0x01) == 0) ? m_pattern_source : m_pattern_dest;
 
 			/* if mode.d3 is set, then the last byte fetched per row is forced to 0 */
-			if (curwidth == 0 && (state->m_pattern_mode & 0x08) != 0)
+			if (curwidth == 0 && (m_pattern_mode & 0x08) != 0)
 				busdata = 0;
 			else
 				busdata = space.read_byte(busaddr);
 
 			/* increment the appropriate address */
-			if ((state->m_pattern_mode & 0x01) == 0)
-				increment_source(state, curwidth, &u13ff);
+			if ((m_pattern_mode & 0x01) == 0)
+				increment_source(curwidth, &u13ff);
 			else
-				increment_dest(state, curwidth);
+				increment_dest(curwidth);
 
 			/* ----- write phase ----- */
 
 			/* address is selected between source/dest based on mode.d0 */
-			busaddr = ((state->m_pattern_mode & 0x01) != 0) ? state->m_pattern_source : state->m_pattern_dest;
+			busaddr = ((m_pattern_mode & 0x01) != 0) ? m_pattern_source : m_pattern_dest;
 			space.write_byte(busaddr, busdata);
 
 			/* increment the appropriate address */
-			if ((state->m_pattern_mode & 0x01) == 0)
-				increment_dest(state, curwidth);
+			if ((m_pattern_mode & 0x01) == 0)
+				increment_dest(curwidth);
 			else
-				increment_source(state, curwidth, &u13ff);
+				increment_source(curwidth, &u13ff);
 
 			/* count 4 cycles (two read, two write) */
 			cycles += 4;
@@ -818,16 +825,16 @@ static void execute_blit(address_space &space)
 		} while (curwidth-- != 0);
 
 		/* at the end of each row, the skip value is added to the dest value */
-		carry = ((state->m_pattern_dest & 0xff) + state->m_pattern_skip) & 0x100;
-		state->m_pattern_dest = (state->m_pattern_dest & 0xff00) | ((state->m_pattern_dest + state->m_pattern_skip) & 0xff);
+		carry = ((m_pattern_dest & 0xff) + m_pattern_skip) & 0x100;
+		m_pattern_dest = (m_pattern_dest & 0xff00) | ((m_pattern_dest + m_pattern_skip) & 0xff);
 
 		/* carry behavior into the top byte is controlled by mode.d4 */
-		if ((state->m_pattern_mode & 0x10) == 0)
-			state->m_pattern_dest += carry;
+		if ((m_pattern_mode & 0x10) == 0)
+			m_pattern_dest += carry;
 		else
-			state->m_pattern_dest -= carry ^ 0x100;
+			m_pattern_dest -= carry ^ 0x100;
 
-	} while (state->m_pattern_height-- != 0);
+	} while (m_pattern_height-- != 0);
 
 	/* count cycles we ran the bus */
 	space.device().execute().adjust_icount(-cycles);
@@ -907,17 +914,16 @@ WRITE8_MEMBER(astrocde_state::astrocade_pattern_board_w)
     relative to the beginning of time and use that, mod RNG_PERIOD.
 */
 
-static void init_sparklestar(running_machine &machine)
+void astrocde_state::init_sparklestar()
 {
-	astrocde_state *state = machine.driver_data<astrocde_state>();
 	UINT32 shiftreg;
 	int i;
 
 	/* reset global sparkle state */
-	state->m_sparkle[0] = state->m_sparkle[1] = state->m_sparkle[2] = state->m_sparkle[3] = 0;
+	m_sparkle[0] = m_sparkle[1] = m_sparkle[2] = m_sparkle[3] = 0;
 
 	/* allocate memory for the sparkle/star array */
-	state->m_sparklestar = auto_alloc_array(machine, UINT8, RNG_PERIOD);
+	m_sparklestar = auto_alloc_array(machine(), UINT8, RNG_PERIOD);
 
 	/* generate the data for the sparkle/star array */
 	for (shiftreg = i = 0; i < RNG_PERIOD; i++)
@@ -930,7 +936,7 @@ static void init_sparklestar(running_machine &machine)
 
 		/* extract the sparkle/star intensity here */
 		/* this is controlled by the shift register at U17/U19/U18 */
-		state->m_sparklestar[i] = (((shiftreg >> 4) & 1) << 3) |
+		m_sparklestar[i] = (((shiftreg >> 4) & 1) << 3) |
 							(((shiftreg >> 12) & 1) << 2) |
 							(((shiftreg >> 16) & 1) << 1) |
 							(((shiftreg >> 8) & 1) << 0);
@@ -938,7 +944,7 @@ static void init_sparklestar(running_machine &machine)
 		/* determine the star enable here */
 		/* this is controlled by the shift register at U17/U12/U11 */
 		if ((shiftreg & 0xff) == 0xfe)
-			state->m_sparklestar[i] |= 0x10;
+			m_sparklestar[i] |= 0x10;
 	}
 }
 

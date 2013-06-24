@@ -13,7 +13,7 @@
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "cpu/konami/konami.h" /* for the callback and the firq irq definition */
+#include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "video/konicdev.h"
 #include "sound/2151intf.h"
 #include "sound/k007232.h"
@@ -25,7 +25,6 @@ static KONAMI_SETLINES_CALLBACK( crimfght_banking );
 
 INTERRUPT_GEN_MEMBER(crimfght_state::crimfght_interrupt)
 {
-
 	if (k051960_is_irq_enabled(m_k051960))
 		device.execute().set_input_line(KONAMI_IRQ_LINE, HOLD_LINE);
 }
@@ -55,7 +54,6 @@ WRITE8_MEMBER(crimfght_state::crimfght_snd_bankswitch_w)
 
 READ8_MEMBER(crimfght_state::k052109_051960_r)
 {
-
 	if (k052109_get_rmrd_line(m_k052109) == CLEAR_LINE)
 	{
 		if (offset >= 0x3800 && offset < 0x3808)
@@ -71,7 +69,6 @@ READ8_MEMBER(crimfght_state::k052109_051960_r)
 
 WRITE8_MEMBER(crimfght_state::k052109_051960_w)
 {
-
 	if (offset >= 0x3800 && offset < 0x3808)
 		k051937_w(m_k051960, space, offset - 0x3800, data);
 	else if (offset < 0x3c00)
@@ -223,15 +220,15 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static void volume_callback( device_t *device, int v )
+WRITE8_MEMBER(crimfght_state::volume_callback)
 {
-	k007232_set_volume(device, 0, (v & 0x0f) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v >> 4) * 0x11);
+	k007232_set_volume(m_k007232, 0, (data & 0x0f) * 0x11, 0);
+	k007232_set_volume(m_k007232, 1, 0, (data >> 4) * 0x11);
 }
 
 static const k007232_interface k007232_config =
 {
-	volume_callback /* external port callback */
+	DEVCB_DRIVER_MEMBER(crimfght_state,volume_callback) /* external port callback */
 };
 
 
@@ -257,17 +254,11 @@ void crimfght_state::machine_start()
 
 	membank("bank2")->configure_entries(0, 12, &ROM[0x10000], 0x2000);
 	membank("bank2")->set_entry(0);
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k052109 = machine().device("k052109");
-	m_k051960 = machine().device("k051960");
-	m_k007232 = machine().device("k007232");
 }
 
 void crimfght_state::machine_reset()
 {
-	konami_configure_set_lines(machine().device("maincpu"), crimfght_banking);
+	konami_configure_set_lines(m_maincpu, crimfght_banking);
 }
 
 static MACHINE_CONFIG_START( crimfght, crimfght_state )

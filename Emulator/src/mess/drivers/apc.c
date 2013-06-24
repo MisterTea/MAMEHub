@@ -6,9 +6,7 @@
 
     TODO:
     - video emulation (bitmap part)
-    - Understand interrupt sources
     - NMI seems valid, dumps a x86 stack to vram?
-    - Unknown RTC device type (upd1990a?);
     - What are exactly APU and MPU devices? They sounds scary ...
     - DMA hook-ups
     - serial ports
@@ -16,6 +14,7 @@
     - Extract info regarding Hard Disk functionality
     - Various unknown ports
     - What kind of external ROM actually maps at 0xa****?
+    - Jumper settings (comms settings and display select)
 
 ============================================================================
     front ^
@@ -79,6 +78,7 @@ public:
 		m_i8259_s(*this, "pic8259_slave"),
 		m_fdc(*this, "upd765"),
 		m_dmac(*this, "i8237"),
+		m_pit(*this, "pit8253"),
 		m_video_ram_1(*this, "video_ram_1"),
 		m_video_ram_2(*this, "video_ram_2")
 	{ }
@@ -92,6 +92,7 @@ public:
 	required_device<pic8259_device> m_i8259_s;
 	required_device<upd765a_device> m_fdc;
 	required_device<am9517a_device> m_dmac;
+	required_device<pit8253_device> m_pit;
 	UINT8 *m_char_rom;
 	UINT8 *m_aux_pcg;
 
@@ -149,6 +150,8 @@ public:
 	int m_dack;
 	UINT8 m_dma_offset[4];
 
+	IRQ_CALLBACK_MEMBER(irq_callback);
+
 protected:
 	// driver_device overrides
 	virtual void machine_start();
@@ -156,6 +159,7 @@ protected:
 
 	virtual void video_start();
 	virtual void palette_init();
+	inline void set_dma_channel(int channel, int state);
 };
 
 void apc_state::video_start()
@@ -227,8 +231,7 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 			{
 				int res_x,res_y;
 
-//              res_x = (x*8+xi) * (state->m_video_ff[WIDTH40_REG]+1);
-				res_x = (x*8+xi) * (1);
+				res_x = (x*8+xi);
 				res_y = y*lr+yi;
 
 				if(!device->machine().primary_screen->visible_area().contains(res_x, res_y))
@@ -276,14 +279,6 @@ static UPD7220_DRAW_TEXT_LINE( hgdc_draw_text )
 
 				if(pen)
 					bitmap.pix32(res_y, res_x) = palette[pen];
-
-//              if(state->m_video_ff[WIDTH40_REG])
-//              {
-//                  if(res_x+1 > 640 || res_y > char_size*25) //TODO
-//                      continue;
-
-//                  bitmap.pix16(res_y, res_x+1) = pen;
-//              }
 			}
 		}
 	}
@@ -294,7 +289,7 @@ READ8_MEMBER(apc_state::apc_port_28_r)
 	UINT8 res;
 
 	if(offset & 1)
-		res = pit8253_r(machine().device("pit8253"), space, (offset & 6) >> 1);
+		res = m_pit->read(space, (offset & 6) >> 1);
 	else
 	{
 		if(offset & 4)
@@ -303,7 +298,7 @@ READ8_MEMBER(apc_state::apc_port_28_r)
 			res = 0xff;
 		}
 		else
-			res = pic8259_r(machine().device("pic8259_slave"), space, (offset & 2) >> 1);
+			res = m_i8259_s->read(space, (offset & 2) >> 1);
 	}
 
 	return res;
@@ -312,13 +307,13 @@ READ8_MEMBER(apc_state::apc_port_28_r)
 WRITE8_MEMBER(apc_state::apc_port_28_w)
 {
 	if(offset & 1)
-		pit8253_w(machine().device("pit8253"), space, (offset & 6) >> 1, data);
+		m_pit->write(space, (offset & 6) >> 1, data);
 	else
 	{
 		if(offset & 4)
 			printf("Write undefined port %02x\n",offset+0x28);
 		else
-			pic8259_w(machine().device("pic8259_slave"), space, (offset & 2) >> 1, data);
+			m_i8259_s->write(space, (offset & 2) >> 1, data);
 	}
 }
 
@@ -349,10 +344,10 @@ READ8_MEMBER(apc_state::apc_kbd_r)
 
 	switch(offset & 3)
 	{
-		case 0: res = m_keyb.data; pic8259_ir4_w(machine().device("pic8259_master"), 0); break; // according to the source, reading there acks the irq
+		case 0: res = m_keyb.data; machine().device<pic8259_device>("pic8259_master")->ir4_w(0); break; // according to the source, reading there acks the irq
 		case 1: res = m_keyb.status; break;
 		case 2: res = m_keyb.sig; break; // bit 0: CTRL bit 1: function key (or reversed)
-		case 3: res = machine().root_device().ioport("KEY_MOD")->read() & 0xff; break; // sh
+		case 3: res = ioport("KEY_MOD")->read() & 0xff; break; // sh
 	}
 
 	return res;
@@ -410,16 +405,24 @@ WRITE8_MEMBER(apc_state::apc_dma_w)
 
 WRITE8_MEMBER(apc_state::apc_irq_ack_w)
 {
+	/*
+	    x--- GDC
+	    -x-- TM
+	    --x- APU
+	    ---x CRT
+	*/
 	if(data & 4)
-		pic8259_ir3_w(machine().device("pic8259_master"), 0);
+		machine().device<pic8259_device>("pic8259_master")->ir3_w(0);
 
 	if(data & ~4)
 		logerror("IRQ ACK %02x\n",data);
 }
 
-/* TODO: bit arrangement is completely wrong */
 READ8_MEMBER(apc_state::apc_rtc_r)
 {
+	/*
+	bit 1 high: low battery.
+	*/
 	//fprintf(stderr, "RTC Read: %d\n", m_rtc->data_out_r());
 	return m_rtc->data_out_r();
 }
@@ -442,16 +445,16 @@ RTC write: 0x11
 ...
 
 RTC write bits: 76543210
-                |||||||\- c0 (or OE?)
+                |||||||\- c0
                 ||||||\-- c1
                 |||||\--- c2
                 ||||\---- STB
                 |||\----- CLK
                 ||\------ DATA_IN
-                |\------- ?
-                \-------- ?
+                |\------- "don't care"
+                \-------- ///
 */
-	if (data&0xE0) fprintf(stderr,"RTC write: 0x%02x\n", data);
+	if (data&0xc0) fprintf(stderr,"RTC write: 0x%02x\n", data);
 	m_rtc->c0_w(BIT(data, 0)); // correct assuming theres a delay for changing command lines before stb
 	m_rtc->c1_w(BIT(data, 1)); // "
 	m_rtc->c2_w(BIT(data, 2)); // "
@@ -464,6 +467,7 @@ RTC write bits: 76543210
 static ADDRESS_MAP_START( apc_map, AS_PROGRAM, 16, apc_state )
 	AM_RANGE(0x00000, 0x9ffff) AM_RAM
 	AM_RANGE(0xa0000, 0xa0fff) AM_RAM AM_SHARE("cmos")
+//  AM_RANGE(0xa1000, 0xbffff) mirror CMOS
 //  AM_RANGE(0xc0000, 0xcffff) standard character ROM
 	AM_RANGE(0xd8000, 0xd9fff) AM_RAM AM_REGION("aux_pcg", 0) // AUX character RAM
 //  AM_RANGE(0xe0000, 0xeffff) Special Character RAM
@@ -473,7 +477,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( apc_io, AS_IO, 16, apc_state )
 //  ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x1f) AM_READWRITE8(apc_dma_r, apc_dma_w,0xff00)
-	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE8_LEGACY("pic8259_master", pic8259_r, pic8259_w, 0x00ff) // i8259
+	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE8("pic8259_master", pic8259_device, read, write, 0x00ff) // i8259
 	AM_RANGE(0x28, 0x2f) AM_READWRITE8(apc_port_28_r, apc_port_28_w, 0xffff) // i8259 (even) / pit8253 (odd)
 //  0x30, 0x37 serial port 0/1 (i8251) (even/odd)
 	AM_RANGE(0x38, 0x3f) AM_WRITE8(apc_dma_segments_w,0x00ff)
@@ -482,12 +486,16 @@ static ADDRESS_MAP_START( apc_io, AS_IO, 16, apc_state )
 	AM_RANGE(0x48, 0x4f) AM_READWRITE8(apc_kbd_r, apc_kbd_w, 0x00ff)
 	AM_RANGE(0x50, 0x53) AM_DEVICE8("upd765", upd765a_device, map, 0x00ff ) // upd765
 	AM_RANGE(0x58, 0x59) AM_READWRITE8(apc_rtc_r, apc_rtc_w, 0x00ff)
+//  0x59 CMOS enable
 //  0x5a  APU data (Arithmetic Processing Unit!)
+//  0x5b, Power Off
 //  0x5e  APU status/command
-	AM_RANGE(0x60, 0x61) AM_DEVREADWRITE8_LEGACY("upd1771c", upd1771_r, upd1771_w, 0x00ff )
-//  AM_RANGE(0x68, 0x6f) i8255 , printer port (A: status (R) B: data (W) C: command (W))
-//  AM_DEVREADWRITE8("upd7220_btm", upd7220_device, read, write, 0x00ff)
-//  0x92, 0x9a, 0xa2, 0xaa is for a Hard Disk (unknown type)
+	AM_RANGE(0x60, 0x61) AM_DEVREADWRITE8("upd1771c", upd1771c_device, read, write, 0x00ff)
+//  AM_RANGE(0x68, 0x6f) i8255 , ODA printer port (A: status (R) B: data (W) C: command (W))
+//  0x70, 0x76 AM_DEVREADWRITE8("upd7220_btm", upd7220_device, read, write, 0x00ff)
+//  0x71, 0x77 IDA Controller
+//  0x80, 0x90 Communication Adapter
+//  0xf0, 0xf6 ASOP Controller
 ADDRESS_MAP_END
 
 /* TODO: key repeat, remove port impulse! */
@@ -497,7 +505,7 @@ INPUT_CHANGED_MEMBER(apc_state::key_stroke)
 	{
 		m_keyb.data = (UINT8)(FPTR)(param) & 0xff;
 		//m_keyb.status &= ~1;
-		pic8259_ir4_w(machine().device("pic8259_master"), 1);
+		machine().device<pic8259_device>("pic8259_master")->ir4_w(1);
 	}
 
 	if(oldval && !newval)
@@ -738,17 +746,17 @@ void apc_state::fdc_drq(bool state)
 void apc_state::fdc_irq(bool state)
 {
 //  printf("IRQ %d\n",state);
-	pic8259_ir4_w(machine().device("pic8259_slave"), state);
+	machine().device<pic8259_device>("pic8259_slave")->ir4_w(state);
 }
 
-static IRQ_CALLBACK(irq_callback)
+IRQ_CALLBACK_MEMBER(apc_state::irq_callback)
 {
-	return pic8259_acknowledge( device->machine().device( "pic8259_master" ));
+	return machine().device<pic8259_device>( "pic8259_master" )->acknowledge();
 }
 
 void apc_state::machine_start()
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(apc_state::irq_callback),this));
 
 	m_fdc->set_rate(500000);
 	m_fdc->setup_intrq_cb(upd765a_device::line_cb(FUNC(apc_state::fdc_irq), this));
@@ -768,7 +776,6 @@ void apc_state::machine_reset()
 
 void apc_state::palette_init()
 {
-
 }
 
 static UPD7220_INTERFACE( hgdc_1_intf )
@@ -834,13 +841,13 @@ static ADDRESS_MAP_START( upd7220_2_map, AS_0, 8, apc_state )
 	AM_RANGE(0x00000, 0x3ffff) AM_RAM AM_SHARE("video_ram_2")
 ADDRESS_MAP_END
 
-static const struct pit8253_config pit8253_config =
+static const struct pit8253_interface pit8253_config =
 {
 	{
 		{
 			MAIN_CLOCK,              /* heartbeat IRQ */
 			DEVCB_NULL,
-			DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir3_w)
+			DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir3_w)
 		}, {
 			MAIN_CLOCK,              /* Memory Refresh */
 			DEVCB_NULL,
@@ -882,30 +889,16 @@ WRITE_LINE_MEMBER(apc_state::apc_master_set_int_line)
 {
 	//printf("%02x\n",interrupt);
 //  printf("irq %d\n",state);
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
 }
 
 READ8_MEMBER(apc_state::get_slave_ack)
 {
 	if (offset==7) { // IRQ = 7
-		return pic8259_acknowledge( machine().device( "pic8259_slave" ));
+		return machine().device<pic8259_device>( "pic8259_slave" )->acknowledge();
 	}
 	return 0x00;
 }
-
-static const struct pic8259_interface pic8259_master_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_master_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_MEMBER(apc_state,get_slave_ack)
-};
-
-static const struct pic8259_interface pic8259_slave_config =
-{
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir7_w), //TODO: check me
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
 
 /****************************************
 *
@@ -951,16 +944,15 @@ WRITE8_MEMBER(apc_state::apc_dma_write_byte)
 	program.write_byte(addr, data);
 }
 
-static void set_dma_channel(running_machine &machine, int channel, int state)
+inline void apc_state::set_dma_channel(int channel, int state)
 {
-	apc_state *drvstate = machine.driver_data<apc_state>();
-	if (!state) drvstate->m_dack = channel;
+	if (!state) m_dack = channel;
 }
 
-WRITE_LINE_MEMBER(apc_state::apc_dack0_w){ /*printf("%02x 0\n",state);*/ set_dma_channel(machine(), 0, state); }
-WRITE_LINE_MEMBER(apc_state::apc_dack1_w){ /*printf("%02x 1\n",state);*/ set_dma_channel(machine(), 1, state); }
-WRITE_LINE_MEMBER(apc_state::apc_dack2_w){ /*printf("%02x 2\n",state);*/ set_dma_channel(machine(), 2, state); }
-WRITE_LINE_MEMBER(apc_state::apc_dack3_w){ /*printf("%02x 3\n",state);*/ set_dma_channel(machine(), 3, state); }
+WRITE_LINE_MEMBER(apc_state::apc_dack0_w){ /*printf("%02x 0\n",state);*/ set_dma_channel(0, state); }
+WRITE_LINE_MEMBER(apc_state::apc_dack1_w){ /*printf("%02x 1\n",state);*/ set_dma_channel(1, state); }
+WRITE_LINE_MEMBER(apc_state::apc_dack2_w){ /*printf("%02x 2\n",state);*/ set_dma_channel(2, state); }
+WRITE_LINE_MEMBER(apc_state::apc_dack3_w){ /*printf("%02x 3\n",state);*/ set_dma_channel(3, state); }
 
 READ8_MEMBER(apc_state::fdc_r)
 {
@@ -972,6 +964,12 @@ WRITE8_MEMBER(apc_state::fdc_w)
 	m_fdc->dma_w(data);
 }
 
+/*
+CH0: CRT
+CH1: FDC
+CH2: ("reserved for future graphics expansion")
+CH3: AUX
+*/
 static I8237_INTERFACE( dmac_intf )
 {
 	DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dma_hrq_changed),
@@ -981,12 +979,6 @@ static I8237_INTERFACE( dmac_intf )
 	{ DEVCB_NULL, DEVCB_DRIVER_MEMBER(apc_state,fdc_r), DEVCB_NULL, DEVCB_NULL },
 	{ DEVCB_NULL, DEVCB_DRIVER_MEMBER(apc_state,fdc_w), DEVCB_NULL, DEVCB_NULL },
 	{ DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dack0_w), DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dack1_w), DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dack2_w), DEVCB_DRIVER_LINE_MEMBER(apc_state, apc_dack3_w) }
-};
-
-static UPD1990A_INTERFACE( apc_upd1990a_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL
 };
 
 static const floppy_format_type apc_floppy_formats[] = {
@@ -1020,16 +1012,16 @@ static MACHINE_CONFIG_START( apc, apc_state )
 	MCFG_CPU_IO_MAP(apc_io)
 
 	MCFG_PIT8253_ADD( "pit8253", pit8253_config )
-	MCFG_PIC8259_ADD( "pic8259_master", pic8259_master_config )
-	MCFG_PIC8259_ADD( "pic8259_slave", pic8259_slave_config )
+	MCFG_PIC8259_ADD( "pic8259_master", WRITELINE(apc_state, apc_master_set_int_line), VCC, READ8(apc_state,get_slave_ack) )
+	MCFG_PIC8259_ADD( "pic8259_slave", DEVWRITELINE("pic8259_master", pic8259_device, ir7_w), GND, NULL ) // TODO: check ir7_w
 	MCFG_I8237_ADD("i8237", MAIN_CLOCK, dmac_intf)
 
 	MCFG_NVRAM_ADD_1FILL("cmos")
-	MCFG_UPD1990A_ADD("upd1990a", XTAL_32_768kHz, apc_upd1990a_intf)
+	MCFG_UPD1990A_ADD("upd1990a", XTAL_32_768kHz, NULL, NULL)
 
 	MCFG_UPD765A_ADD("upd765", true, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", apc_floppies, "8", 0, apc_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", apc_floppies, "8", 0, apc_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", apc_floppies, "8", apc_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", apc_floppies, "8", apc_floppy_formats)
 	MCFG_SOFTWARE_LIST_ADD("disk_list","apc")
 
 	/* video hardware */
@@ -1050,7 +1042,7 @@ static MACHINE_CONFIG_START( apc, apc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD( "upd1771c", UPD1771C, MAIN_CLOCK )
+	MCFG_SOUND_ADD( "upd1771c", UPD1771C, MAIN_CLOCK ) //uPD1771C-006
 	MCFG_SOUND_CONFIG( upd1771c_config )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 MACHINE_CONFIG_END

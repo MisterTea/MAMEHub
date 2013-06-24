@@ -5,8 +5,7 @@
 
 
 #define MCFG_NAMCO_50XX_ADD(_tag, _clock) \
-	MCFG_DEVICE_ADD(_tag, NAMCO_50XX, _clock) \
-
+	MCFG_DEVICE_ADD(_tag, NAMCO_50XX, _clock)
 
 DECLARE_READ8_DEVICE_HANDLER( namco_50xx_read );
 void namco_50xx_read_request(device_t *device);
@@ -24,7 +23,6 @@ public:
 	void *token() const { assert(m_token != NULL); return m_token; }
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual const rom_entry *device_rom_region() const;
 	virtual machine_config_constructor device_mconfig_additions() const;

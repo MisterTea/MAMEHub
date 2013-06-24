@@ -400,7 +400,7 @@ void vtech2_state::palette_init()
 
 INTERRUPT_GEN_MEMBER(vtech2_state::vtech2_interrupt)
 {
-	machine().device("maincpu")->execute().set_input_line(0, HOLD_LINE);
+	m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
 static const cassette_interface laser_cassette_interface =
@@ -448,19 +448,19 @@ static MACHINE_CONFIG_START( laser350, vtech2_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, laser_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", laser_cassette_interface )
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(laser_cart)
-	MCFG_CARTSLOT_UNLOAD(laser_cart)
+	MCFG_CARTSLOT_LOAD(vtech2_state,laser_cart)
+	MCFG_CARTSLOT_UNLOAD(vtech2_state,laser_cart)
 
 	/* 5.25" Floppy drive */
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD( FLOPPY_0, vtech2_floppy_interface )

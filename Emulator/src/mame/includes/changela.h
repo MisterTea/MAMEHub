@@ -4,10 +4,12 @@ class changela_state : public driver_device
 {
 public:
 	changela_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_mcu(*this, "mcu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_spriteram;
@@ -57,7 +59,7 @@ public:
 	UINT8    m_mcu_pc_0;
 
 	/* devices */
-	device_t *m_mcu;
+	optional_device<cpu_device> m_mcu;
 	DECLARE_READ8_MEMBER(mcu_r);
 	DECLARE_WRITE8_MEMBER(mcu_w);
 	DECLARE_READ8_MEMBER(changela_68705_port_a_r);
@@ -92,4 +94,9 @@ public:
 	INTERRUPT_GEN_MEMBER(chl_mcu_irq);
 	TIMER_CALLBACK_MEMBER(changela_scanline_callback);
 	TIMER_DEVICE_CALLBACK_MEMBER(changela_scanline);
+	void draw_obj0( bitmap_ind16 &bitmap, int sy );
+	void draw_obj1( bitmap_ind16 &bitmap );
+	void draw_river( bitmap_ind16 &bitmap, int sy );
+	void draw_tree( bitmap_ind16 &bitmap, int sy, int tree_num );
+	required_device<cpu_device> m_maincpu;
 };

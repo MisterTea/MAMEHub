@@ -116,7 +116,7 @@ INTERRUPT_GEN_MEMBER(suprridr_state::main_nmi_gen)
 TIMER_CALLBACK_MEMBER(suprridr_state::delayed_sound_w)
 {
 	m_sound_data = param;
-	machine().device("audiocpu")->execute().set_input_line(0, ASSERT_LINE);
+	m_audiocpu->set_input_line(0, ASSERT_LINE);
 }
 
 
@@ -134,7 +134,7 @@ READ8_MEMBER(suprridr_state::sound_data_r)
 
 WRITE8_MEMBER(suprridr_state::sound_irq_ack_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_audiocpu->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -203,10 +203,10 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_portmap, AS_IO, 8, suprridr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(sound_irq_ack_w)
-	AM_RANGE(0x8c, 0x8d) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x8d, 0x8d) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x8e, 0x8f) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x8f, 0x8f) AM_DEVREAD_LEGACY("ay2", ay8910_r)
+	AM_RANGE(0x8c, 0x8d) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x8d, 0x8d) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x8e, 0x8f) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x8f, 0x8f) AM_DEVREAD("ay2", ay8910_device, data_r)
 ADDRESS_MAP_END
 
 
@@ -226,7 +226,7 @@ CUSTOM_INPUT_MEMBER(suprridr_state::suprridr_control_r)
 	UINT32 ret;
 
 	/* screen flip multiplexes controls */
-	if (suprridr_is_screen_flipped(machine()))
+	if (suprridr_is_screen_flipped())
 		ret = ioport(SUPRRIDR_P2_CONTROL_PORT_TAG)->read();
 	else
 		ret = ioport(SUPRRIDR_P1_CONTROL_PORT_TAG)->read();

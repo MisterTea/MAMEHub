@@ -19,13 +19,15 @@ const device_type SNAPSHOT = &device_creator<snapshot_image_device>;
 snapshot_image_device::snapshot_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, SNAPSHOT, "Snapshot", tag, owner, clock),
 		device_image_interface(mconfig, *this),
+		m_interface(NULL),
 		m_delay_attoseconds(0)
 {
 }
 
-snapshot_image_device::snapshot_image_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, type, name, tag, owner, clock),
+snapshot_image_device::snapshot_image_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_image_interface(mconfig, *this),
+		m_interface(NULL),
 		m_delay_attoseconds(0)
 {
 }
@@ -61,7 +63,7 @@ static TIMER_CALLBACK(process_snapshot_or_quickload)
 void snapshot_image_device::timer_callback()
 {
 	/* invoke the load */
-	(*m_load)(*this, filetype(), length());
+	m_load(*this, filetype(), length());
 
 	/* unload the device */
 	unload();
@@ -95,6 +97,6 @@ const device_type QUICKLOAD = &device_creator<quickload_image_device>;
 //-------------------------------------------------
 
 quickload_image_device::quickload_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: snapshot_image_device(mconfig, QUICKLOAD, "Quickload", tag, owner, clock)
+	: snapshot_image_device(mconfig, QUICKLOAD, "Quickload", tag, owner, clock, "quickload", __FILE__)
 {
 }

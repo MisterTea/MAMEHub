@@ -89,30 +89,6 @@ const device_type ABC800_KEYBOARD = &device_creator<abc800_keyboard_device>;
 
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void abc800_keyboard_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const abc800_keyboard_interface *intf = reinterpret_cast<const abc800_keyboard_interface *>(static_config());
-	if (intf != NULL)
-		*static_cast<abc800_keyboard_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		memset(&m_out_clock_cb, 0, sizeof(m_out_clock_cb));
-		memset(&m_out_keydown_cb, 0, sizeof(m_out_keydown_cb));
-	}
-
-	m_shortname = "abc800kb";
-}
-
-
-//-------------------------------------------------
 //  ROM( abc800_keyboard )
 //-------------------------------------------------
 
@@ -327,7 +303,7 @@ inline void abc800_keyboard_device::serial_clock()
 {
 	m_clk = !m_clk;
 
-	m_out_clock_func(!m_clk);
+	m_slot->trxc_w(!m_clk);
 }
 
 
@@ -341,7 +317,7 @@ inline void abc800_keyboard_device::key_down(int state)
 	{
 		m_keydown = state;
 
-		m_out_keydown_func(state);
+		m_slot->keydown_w(state);
 	}
 }
 
@@ -356,8 +332,21 @@ inline void abc800_keyboard_device::key_down(int state)
 //-------------------------------------------------
 
 abc800_keyboard_device::abc800_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, ABC800_KEYBOARD, "ABC-800 Keyboard", tag, owner, clock),
+	: device_t(mconfig, ABC800_KEYBOARD, "ABC-800 Keyboard", tag, owner, clock, "abc800kb", __FILE__),
+		abc_keyboard_interface(mconfig, *this),
 		m_maincpu(*this, I8048_TAG),
+		m_x0(*this, "X0"),
+		m_x1(*this, "X1"),
+		m_x2(*this, "X2"),
+		m_x3(*this, "X3"),
+		m_x4(*this, "X4"),
+		m_x5(*this, "X5"),
+		m_x6(*this, "X6"),
+		m_x7(*this, "X7"),
+		m_x8(*this, "X8"),
+		m_x9(*this, "X9"),
+		m_x10(*this, "X10"),
+		m_x11(*this, "X11"),
 		m_row(0),
 		m_txd(1),
 		m_clk(0),
@@ -376,10 +365,6 @@ void abc800_keyboard_device::device_start()
 	// allocate timers
 	m_serial_timer = timer_alloc();
 	m_serial_timer->adjust(attotime::from_hz(XTAL_5_9904MHz/(3*5)/20), 0, attotime::from_hz(XTAL_5_9904MHz/(3*5)/20)); // ???
-
-	// resolve callbacks
-	m_out_clock_func.resolve(m_out_clock_cb, *this);
-	m_out_keydown_func.resolve(m_out_keydown_cb, *this);
 
 	// state saving
 	save_item(NAME(m_row));
@@ -410,22 +395,22 @@ void abc800_keyboard_device::device_timer(emu_timer &timer, device_timer_id id, 
 
 
 //-------------------------------------------------
-//  rxd_w - keyboard receive data write
+//  rxd_r -
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( abc800_keyboard_device::rxd_w )
+int abc800_keyboard_device::rxd_r()
 {
-	m_maincpu->set_input_line(MCS48_INPUT_IRQ, state ? CLEAR_LINE : ASSERT_LINE);
+	return m_txd;
 }
 
 
 //-------------------------------------------------
-//  txd_r - keyboard transmit data read
+//  txd_w -
 //-------------------------------------------------
 
-READ_LINE_MEMBER( abc800_keyboard_device::txd_r )
+void abc800_keyboard_device::txd_w(int state)
 {
-	return m_txd;
+	m_maincpu->set_input_line(MCS48_INPUT_IRQ, state ? CLEAR_LINE : ASSERT_LINE);
 }
 
 
@@ -435,12 +420,25 @@ READ_LINE_MEMBER( abc800_keyboard_device::txd_r )
 
 READ8_MEMBER( abc800_keyboard_device::kb_p1_r )
 {
-	static const char *const ABC800_KEY_ROW[] = { "X0", "X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8", "X9", "X10", "X11" };
 	UINT8 data = 0xff;
 
-	if (m_stb && m_row < 12)
+	if (m_stb)
 	{
-		data = ioport(ABC800_KEY_ROW[m_row])->read();
+		switch (m_row)
+		{
+		case 0: data = m_x0->read(); break;
+		case 1: data = m_x1->read(); break;
+		case 2: data = m_x2->read(); break;
+		case 3: data = m_x3->read(); break;
+		case 4: data = m_x4->read(); break;
+		case 5: data = m_x5->read(); break;
+		case 6: data = m_x6->read(); break;
+		case 7: data = m_x7->read(); break;
+		case 8: data = m_x8->read(); break;
+		case 9: data = m_x9->read(); break;
+		case 10: data = m_x10->read(); break;
+		case 11: data = m_x11->read(); break;
+		}
 	}
 
 	return data;

@@ -9,7 +9,7 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "sound/2203intf.h"
 #include "video/konicdev.h"
 #include "includes/konamipt.h"
@@ -46,10 +46,10 @@ WRITE8_MEMBER(labyrunr_state::labyrunr_bankswitch_w)
 static ADDRESS_MAP_START( labyrunr_map, AS_PROGRAM, 8, labyrunr_state )
 	AM_RANGE(0x0000, 0x0007) AM_DEVWRITE_LEGACY("k007121", k007121_ctrl_w)
 	AM_RANGE(0x0020, 0x005f) AM_RAM AM_SHARE("scrollram")
-	AM_RANGE(0x0800, 0x0800) AM_DEVREADWRITE_LEGACY("ym1", ym2203_read_port_r, ym2203_write_port_w)
-	AM_RANGE(0x0801, 0x0801) AM_DEVREADWRITE_LEGACY("ym1", ym2203_status_port_r, ym2203_control_port_w)
-	AM_RANGE(0x0900, 0x0900) AM_DEVREADWRITE_LEGACY("ym2", ym2203_read_port_r, ym2203_write_port_w)
-	AM_RANGE(0x0901, 0x0901) AM_DEVREADWRITE_LEGACY("ym2", ym2203_status_port_r, ym2203_control_port_w)
+	AM_RANGE(0x0800, 0x0800) AM_DEVREADWRITE("ym1", ym2203_device, read_port_r, write_port_w)
+	AM_RANGE(0x0801, 0x0801) AM_DEVREADWRITE("ym1", ym2203_device, status_port_r, control_port_w)
+	AM_RANGE(0x0900, 0x0900) AM_DEVREADWRITE("ym2", ym2203_device, read_port_r, write_port_w)
+	AM_RANGE(0x0901, 0x0901) AM_DEVREADWRITE("ym2", ym2203_device, status_port_r, control_port_w)
 	AM_RANGE(0x0a00, 0x0a00) AM_READ_PORT("P2")
 	AM_RANGE(0x0a01, 0x0a01) AM_READ_PORT("P1")
 	AM_RANGE(0x0b00, 0x0b00) AM_READ_PORT("SYSTEM")
@@ -153,29 +153,23 @@ GFXDECODE_END
 
 ***************************************************************************/
 
-static const ym2203_interface ym2203_interface_1 =
+static const ay8910_interface ay8910_config_1 =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW1"),
-		DEVCB_INPUT_PORT("DSW2"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_INPUT_PORT("DSW2"),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
-static const ym2203_interface ym2203_interface_2 =
+static const ay8910_interface ay8910_config_2 =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_INPUT_PORT("DSW3"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_INPUT_PORT("DSW3"),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -186,8 +180,6 @@ void labyrunr_state::machine_start()
 	UINT8 *ROM = memregion("maincpu")->base();
 
 	membank("bank1")->configure_entries(0, 6, &ROM[0x10000], 0x4000);
-
-	m_k007121 = machine().device("k007121");
 }
 
 static MACHINE_CONFIG_START( labyrunr, labyrunr_state )
@@ -218,14 +210,14 @@ static MACHINE_CONFIG_START( labyrunr, labyrunr_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_interface_1)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config_1)
 	MCFG_SOUND_ROUTE(0, "mono", 0.40)
 	MCFG_SOUND_ROUTE(1, "mono", 0.40)
 	MCFG_SOUND_ROUTE(2, "mono", 0.40)
 	MCFG_SOUND_ROUTE(3, "mono", 0.80)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_interface_2)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config_2)
 	MCFG_SOUND_ROUTE(0, "mono", 0.40)
 	MCFG_SOUND_ROUTE(1, "mono", 0.40)
 	MCFG_SOUND_ROUTE(2, "mono", 0.40)

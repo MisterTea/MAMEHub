@@ -19,10 +19,11 @@ class orbit_state : public driver_device
 {
 public:
 	orbit_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_playfield_ram(*this, "playfield_ram"),
 		m_sprite_ram(*this, "sprite_ram"),
-		m_discrete(*this, "discrete"){ }
+		m_discrete(*this, "discrete"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_playfield_ram;
@@ -38,7 +39,7 @@ public:
 	UINT8      m_misc_flags;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_WRITE8_MEMBER(orbit_misc_w);
 	DECLARE_WRITE8_MEMBER(orbit_playfield_w);
 	TILE_GET_INFO_MEMBER(get_tile_info);
@@ -53,6 +54,8 @@ public:
 	DECLARE_WRITE8_MEMBER(orbit_note_amp_w);
 	DECLARE_WRITE8_MEMBER(orbit_noise_amp_w);
 	DECLARE_WRITE8_MEMBER(orbit_noise_rst_w);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void update_misc_flags(address_space &space, UINT8 val);
 };
 /*----------- defined in audio/orbit.c -----------*/
 

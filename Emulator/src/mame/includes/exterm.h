@@ -3,14 +3,20 @@
     Gottlieb Exterminator hardware
 
 *************************************************************************/
+#include "sound/dac.h"
 
 class exterm_state : public driver_device
 {
 public:
 	exterm_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_master_videoram(*this, "master_videoram"),
-		m_slave_videoram(*this, "slave_videoram"){ }
+		m_slave_videoram(*this, "slave_videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_audioslave(*this, "audioslave"),
+		m_slave(*this, "slave"),
+		m_dac(*this, "dac") { }
 
 	UINT8 m_aimpos[2];
 	UINT8 m_trackball_old[2];
@@ -37,6 +43,11 @@ public:
 	virtual void palette_init();
 	TIMER_CALLBACK_MEMBER(sound_delayed_w);
 	TIMER_DEVICE_CALLBACK_MEMBER(master_sound_nmi_callback);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_audioslave;
+	required_device<cpu_device> m_slave;
+	required_device<dac_device> m_dac;
 };
 
 /*----------- defined in video/exterm.c -----------*/

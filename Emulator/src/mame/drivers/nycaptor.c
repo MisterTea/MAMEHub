@@ -302,7 +302,6 @@ WRITE8_MEMBER(nycaptor_state::nmi_enable_w)
 
 WRITE8_MEMBER(nycaptor_state::unk_w)
 {
-
 }
 
 static const ay8910_interface ay8910_config =
@@ -330,7 +329,7 @@ READ8_MEMBER(nycaptor_state::nycaptor_generic_control_r)
 WRITE8_MEMBER(nycaptor_state::nycaptor_generic_control_w)
 {
 	m_generic_control_reg = data;
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x10000 + ((data&0x08)>>3)*0x4000 );
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000 + ((data&0x08)>>3)*0x4000 );
 }
 
 static ADDRESS_MAP_START( nycaptor_master_map, AS_PROGRAM, 8, nycaptor_state )
@@ -381,8 +380,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( nycaptor_sound_map, AS_PROGRAM, 8, nycaptor_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
-	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0xc802, 0xc803) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0xc802, 0xc803) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 	AM_RANGE(0xc900, 0xc90d) AM_DEVWRITE_LEGACY("msm", msm5232_w)
 	AM_RANGE(0xca00, 0xca00) AM_WRITENOP
 	AM_RANGE(0xcb00, 0xcb00) AM_WRITENOP
@@ -422,7 +421,6 @@ READ8_MEMBER(nycaptor_state::cyclshtg_mcu_r)
 
 WRITE8_MEMBER(nycaptor_state::cyclshtg_mcu_w)
 {
-
 }
 
 READ8_MEMBER(nycaptor_state::cyclshtg_mcu_status_r1)
@@ -435,7 +433,7 @@ WRITE8_MEMBER(nycaptor_state::cyclshtg_generic_control_w)
 	int bank = (data >> 2) & 3;
 
 	m_generic_control_reg = data;
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x10000 + bank*0x4000 );
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000 + bank*0x4000 );
 }
 
 
@@ -764,12 +762,6 @@ GFXDECODE_END
 
 void nycaptor_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-	m_mcu = machine().device("mcu");
-
 	save_item(NAME(m_generic_control_reg));
 	save_item(NAME(m_sound_nmi_enable));
 	save_item(NAME(m_pending_nmi));
@@ -797,7 +789,6 @@ void nycaptor_state::machine_start()
 
 void nycaptor_state::machine_reset()
 {
-
 	MACHINE_RESET_CALL_MEMBER(ta7630);
 
 	m_generic_control_reg = 0;

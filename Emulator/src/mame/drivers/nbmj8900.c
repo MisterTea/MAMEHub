@@ -35,7 +35,7 @@ TODO:
 DRIVER_INIT_MEMBER(nbmj8900_state,ohpaipee)
 {
 #if 0
-	UINT8 *prot = machine().root_device().memregion("protdata")->base();
+	UINT8 *prot = memregion("protdata")->base();
 	int i;
 
 	/* this is one possible way to rearrange the protection ROM data to get the
@@ -49,7 +49,7 @@ DRIVER_INIT_MEMBER(nbmj8900_state,ohpaipee)
 		prot[i] = BITSWAP8(prot[i],2,7,3,5,0,6,4,1);
 	}
 #else
-	unsigned char *ROM = machine().root_device().memregion("maincpu")->base();
+	unsigned char *ROM = memregion("maincpu")->base();
 
 	// Protection ROM check skip
 	ROM[0x00e4] = 0x00;
@@ -66,7 +66,7 @@ DRIVER_INIT_MEMBER(nbmj8900_state,ohpaipee)
 DRIVER_INIT_MEMBER(nbmj8900_state,togenkyo)
 {
 #if 0
-	UINT8 *prot = machine().root_device().memregion("protdata")->base();
+	UINT8 *prot = memregion("protdata")->base();
 	int i;
 
 	/* this is one possible way to rearrange the protection ROM data to get the
@@ -79,7 +79,7 @@ DRIVER_INIT_MEMBER(nbmj8900_state,togenkyo)
 		prot[i] = BITSWAP8(prot[i],2,7,3,5,0,6,4,1);
 	}
 #else
-	unsigned char *ROM = machine().root_device().memregion("maincpu")->base();
+	unsigned char *ROM = memregion("maincpu")->base();
 
 	// Protection ROM check skip
 	ROM[0x010b] = 0x00;
@@ -118,7 +118,7 @@ static ADDRESS_MAP_START( ohpaipee_io_map, AS_IO, 8, nbmj8900_state )
 	AM_RANGE(0x60, 0x60) AM_WRITE(nbmj8900_romsel_w)
 	AM_RANGE(0x70, 0x70) AM_WRITE(nbmj8900_scrolly_w)
 
-	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r,ym3812_w)
+	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 
 	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
 

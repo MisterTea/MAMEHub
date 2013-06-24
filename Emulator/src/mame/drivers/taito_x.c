@@ -337,6 +337,8 @@ public:
 	DECLARE_WRITE8_MEMBER(sound_bankswitch_w);
 	DECLARE_DRIVER_INIT(kyustrkr);
 	DECLARE_MACHINE_START(taitox);
+	void reset_sound_region();
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 };
 
 READ16_MEMBER(taitox_state::superman_dsw_input_r)
@@ -412,18 +414,15 @@ WRITE16_MEMBER(taitox_state::kyustrkr_input_w)
 
 /**************************************************************************/
 
-static void reset_sound_region(running_machine &machine)
+void taitox_state::reset_sound_region()
 {
-	taitox_state *state = machine.driver_data<taitox_state>();
-
-	state->membank("bank2")->set_base(state->memregion("audiocpu")->base() + (state->m_banknum * 0x4000) + 0x10000 );
+	membank("bank2")->set_base(memregion("audiocpu")->base() + (m_banknum * 0x4000) + 0x10000 );
 }
 
 WRITE8_MEMBER(taitox_state::sound_bankswitch_w)
 {
-
 	m_banknum = (data - 1) & 3;
-	reset_sound_region(machine());
+	reset_sound_region();
 }
 
 
@@ -435,8 +434,8 @@ static ADDRESS_MAP_START( superman_map, AS_PROGRAM, 16, taitox_state )
 	AM_RANGE(0x400000, 0x400001) AM_WRITENOP    /* written each frame at $3aa2, mostly 0x10 */
 	AM_RANGE(0x500000, 0x500007) AM_READ(superman_dsw_input_r)
 	AM_RANGE(0x600000, 0x600001) AM_WRITENOP    /* written each frame at $3ab0, mostly 0x10 */
-	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
+	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
 	AM_RANGE(0x900000, 0x9007ff) AM_READWRITE_LEGACY(cchip1_ram_r, cchip1_ram_w)
 	AM_RANGE(0x900802, 0x900803) AM_READWRITE_LEGACY(cchip1_ctrl_r, cchip1_ctrl_w)
 	AM_RANGE(0x900c00, 0x900c01) AM_WRITE_LEGACY(cchip1_bank_w)
@@ -452,8 +451,8 @@ static ADDRESS_MAP_START( daisenpu_map, AS_PROGRAM, 16, taitox_state )
 //  AM_RANGE(0x400000, 0x400001) AM_WRITENOP    /* written each frame at $2ac, values change */
 	AM_RANGE(0x500000, 0x50000f) AM_READ(superman_dsw_input_r)
 //  AM_RANGE(0x600000, 0x600001) AM_WRITENOP    /* written each frame at $2a2, values change */
-	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
+	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
 	AM_RANGE(0x900000, 0x90000f) AM_READWRITE(daisenpu_input_r, daisenpu_input_w)
 	AM_RANGE(0xb00000, 0xb00fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0xd00000, 0xd005ff) AM_RAM AM_DEVREADWRITE_LEGACY("spritegen", spriteylow_r16, spriteylow_w16) // Sprites Y
@@ -467,8 +466,8 @@ static ADDRESS_MAP_START( gigandes_map, AS_PROGRAM, 16, taitox_state )
 	AM_RANGE(0x400000, 0x400001) AM_WRITENOP    /* 0x1 written each frame at $d42, watchdog? */
 	AM_RANGE(0x500000, 0x500007) AM_READ(superman_dsw_input_r)
 	AM_RANGE(0x600000, 0x600001) AM_WRITENOP    /* 0x1 written each frame at $d3c, watchdog? */
-	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
+	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
 	AM_RANGE(0x900000, 0x90000f) AM_READWRITE(daisenpu_input_r, daisenpu_input_w)
 	AM_RANGE(0xb00000, 0xb00fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0xd00000, 0xd005ff) AM_RAM AM_DEVREADWRITE_LEGACY("spritegen", spriteylow_r16, spriteylow_w16) // Sprites Y
@@ -482,8 +481,8 @@ static ADDRESS_MAP_START( ballbros_map, AS_PROGRAM, 16, taitox_state )
 	AM_RANGE(0x400000, 0x400001) AM_WRITENOP    /* 0x1 written each frame at $c56, watchdog? */
 	AM_RANGE(0x500000, 0x50000f) AM_READ(superman_dsw_input_r)
 	AM_RANGE(0x600000, 0x600001) AM_WRITENOP    /* 0x1 written each frame at $c4e, watchdog? */
-	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x800000, 0x800001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
+	AM_RANGE(0x800002, 0x800003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
 	AM_RANGE(0x900000, 0x90000f) AM_READWRITE(daisenpu_input_r, daisenpu_input_w)
 	AM_RANGE(0xb00000, 0xb00fff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0xd00000, 0xd005ff) AM_RAM AM_DEVREADWRITE_LEGACY("spritegen", spriteylow_r16, spriteylow_w16) // Sprites Y
@@ -499,9 +498,9 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, taitox_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank2")
 	AM_RANGE(0xc000, 0xdfff) AM_RAM
-	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
-	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
+	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 	AM_RANGE(0xe400, 0xe403) AM_WRITENOP /* pan */
 	AM_RANGE(0xea00, 0xea00) AM_READNOP
 	AM_RANGE(0xee00, 0xee00) AM_WRITENOP /* ? */
@@ -514,8 +513,8 @@ static ADDRESS_MAP_START( daisenpu_sound_map, AS_PROGRAM, 8, taitox_state )
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank2")
 	AM_RANGE(0xc000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 	AM_RANGE(0xe400, 0xe403) AM_WRITENOP /* pan */
 	AM_RANGE(0xea00, 0xea00) AM_READNOP
 	AM_RANGE(0xee00, 0xee00) AM_WRITENOP /* ? */
@@ -793,22 +792,16 @@ GFXDECODE_END
 /**************************************************************************/
 
 /* handler called by the YM2610 emulator when the internal timers cause an IRQ */
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(taitox_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	irqhandler
-};
 
 MACHINE_START_MEMBER(taitox_state,taitox)
 {
-
 	m_banknum = -1;
 	save_item(NAME(m_banknum));
-	machine().save().register_postload(save_prepost_delegate(FUNC(reset_sound_region), &machine()));
+	machine().save().register_postload(save_prepost_delegate(FUNC(taitox_state::reset_sound_region), this));
 }
 
 static const tc0140syt_interface taitox_tc0140syt_intf =
@@ -853,7 +846,7 @@ static MACHINE_CONFIG_START( superman, taitox_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_16MHz/2)   /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitox_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -935,7 +928,7 @@ static MACHINE_CONFIG_START( gigandes, taitox_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitox_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -977,7 +970,7 @@ static MACHINE_CONFIG_START( ballbros, taitox_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitox_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -1264,7 +1257,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(taitox_state,kyustrkr)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x900000, 0x90000f, write16_delegate(FUNC(taitox_state::kyustrkr_input_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x900000, 0x90000f, write16_delegate(FUNC(taitox_state::kyustrkr_input_w),this));
 }
 
 

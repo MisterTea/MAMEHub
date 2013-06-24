@@ -22,14 +22,12 @@
 
 READ8_MEMBER(lkage_state::lkage_68705_port_a_r)
 {
-
 	//logerror("%04x: 68705 port A read %02x\n", space.device().safe_pc(), m_port_a_in);
 	return (m_port_a_out & m_ddr_a) | (m_port_a_in & ~m_ddr_a);
 }
 
 WRITE8_MEMBER(lkage_state::lkage_68705_port_a_w)
 {
-
 	//logerror("%04x: 68705 port A write %02x\n", space.device().safe_pc(), data);
 	m_port_a_out = data;
 }
@@ -57,14 +55,13 @@ READ8_MEMBER(lkage_state::lkage_68705_port_b_r)
 
 WRITE8_MEMBER(lkage_state::lkage_68705_port_b_w)
 {
-
 	//logerror("%04x: 68705 port B write %02x\n", space.device().safe_pc(), data);
 
 	if ((m_ddr_b & 0x02) && (~data & 0x02) && (m_port_b_out & 0x02))
 	{
 		m_port_a_in = m_from_main;
 		if (m_main_sent)
-			m_mcu->execute().set_input_line(0, CLEAR_LINE);
+			m_mcu->set_input_line(0, CLEAR_LINE);
 
 		m_main_sent = 0;
 		logerror("read command %02x from main cpu\n", m_port_a_in);
@@ -89,7 +86,6 @@ WRITE8_MEMBER(lkage_state::lkage_68705_ddr_b_w)
 
 READ8_MEMBER(lkage_state::lkage_68705_port_c_r)
 {
-
 	m_port_c_in = 0;
 	if (m_main_sent)
 		m_port_c_in |= 0x01;
@@ -102,7 +98,6 @@ READ8_MEMBER(lkage_state::lkage_68705_port_c_r)
 
 WRITE8_MEMBER(lkage_state::lkage_68705_port_c_w)
 {
-
 	logerror("%04x: 68705 port C write %02x\n", space.device().safe_pc(), data);
 	m_port_c_out = data;
 }
@@ -115,16 +110,14 @@ WRITE8_MEMBER(lkage_state::lkage_68705_ddr_c_w)
 
 WRITE8_MEMBER(lkage_state::lkage_mcu_w)
 {
-
 	logerror("%04x: mcu_w %02x\n", space.device().safe_pc(), data);
 	m_from_main = data;
 	m_main_sent = 1;
-	m_mcu->execute().set_input_line(0, ASSERT_LINE);
+	m_mcu->set_input_line(0, ASSERT_LINE);
 }
 
 READ8_MEMBER(lkage_state::lkage_mcu_r)
 {
-
 	logerror("%04x: mcu_r %02x\n", space.device().safe_pc(), m_from_mcu);
 	m_mcu_sent = 0;
 	return m_from_mcu;

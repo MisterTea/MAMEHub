@@ -8,12 +8,11 @@
 
 #include "emu.h"
 #include "cpu/m6502/m65sc02.h"
+#include "audio/lynx.h"
 #include "includes/lynx.h"
 
 #include "imagedev/snapquik.h"
 #include "lynx.lh"
-
-static QUICKLOAD_LOAD( lynx );
 
 static ADDRESS_MAP_START( lynx_mem , AS_PROGRAM, 8, lynx_state )
 	AM_RANGE(0x0000, 0xfbff) AM_RAM AM_SHARE("mem_0000")
@@ -65,6 +64,13 @@ UINT32 lynx_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, co
 	return 0;
 }
 
+// callback for Mikey call of shift(3) which shall act on the lynx_timer_count_down
+void lynx_state::sound_cb()
+{
+	lynx_timer_count_down(1);
+}
+
+
 static MACHINE_CONFIG_START( lynx, lynx_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M65SC02, 4000000)        /* vti core, integrated in vlsi, stz, but not bbr bbs */
@@ -85,11 +91,12 @@ static MACHINE_CONFIG_START( lynx, lynx_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("custom", LYNX, 0)
+	MCFG_SOUND_ADD("custom", LYNX_SND, 0)
+	MCFG_LYNX_SND_SET_TIMER(lynx_state, sound_cb)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
-	MCFG_QUICKLOAD_ADD("quickload", lynx, "o", 0)
+	MCFG_QUICKLOAD_ADD("quickload", lynx_state, lynx, "o", 0)
 
 	MCFG_FRAGMENT_ADD(lynx_cartslot)
 MACHINE_CONFIG_END
@@ -101,7 +108,8 @@ static MACHINE_CONFIG_DERIVED( lynx2, lynx )
 	MCFG_DEVICE_REMOVE("mono")
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_DEVICE_REMOVE("lynx")
-	MCFG_SOUND_ADD("custom", LYNX2, 0)
+	MCFG_SOUND_ADD("custom", LYNX2_SND, 0)
+	MCFG_LYNX_SND_SET_TIMER(lynx_state, sound_cb)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
 MACHINE_CONFIG_END
@@ -135,12 +143,11 @@ ROM_START(lynx2)
 ROM_END
 
 
-static QUICKLOAD_LOAD( lynx )
+QUICKLOAD_LOAD_MEMBER( lynx_state, lynx )
 {
-	device_t *cpu = image.device().machine().device("maincpu");
-	address_space &space = image.device().machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *data = NULL;
-	UINT8 *rom = image.device().machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 	UINT8 header[10]; // 80 08 dw Start dw Len B S 9 3
 	UINT16 start, length;
 	int i;
@@ -174,7 +181,7 @@ static QUICKLOAD_LOAD( lynx )
 	space.write_byte(0x1fc, start & 0xff);
 	space.write_byte(0x1fd, start >> 8);
 
-	cpu->state().set_pc(start);
+	m_maincpu->set_pc(start);
 
 	return IMAGE_INIT_PASS;
 }
@@ -186,5 +193,5 @@ static QUICKLOAD_LOAD( lynx )
 ***************************************************************************/
 
 /*    YEAR  NAME    PARENT  COMPAT  MACHINE INPUT   INIT    COMPANY   FULLNAME      FLAGS */
-CONS( 1989, lynx,   0,      0,      lynx,   lynx, driver_device,   0,       "Atari",  "Lynx",   0)
+CONS( 1989, lynx,   0,      0,      lynx,   lynx, driver_device,   0,       "Atari",  "Lynx", GAME_SUPPORTS_SAVE )
 // CONS( 1991, lynx2,  lynx,   0,      lynx2,  lynx, driver_device,   0,       "Atari",  "Lynx II",    GAME_NOT_WORKING | GAME_IMPERFECT_SOUND )

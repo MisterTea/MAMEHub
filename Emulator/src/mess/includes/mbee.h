@@ -26,22 +26,57 @@
 class mbee_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_MBEE256_KBD,
+		TIMER_MBEE_RTC_IRQ,
+		TIMER_MBEE_RESET
+	};
+
 	mbee_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu"),
-	m_pio(*this, "z80pio"),
-	m_cass(*this, CASSETTE_TAG),
-	m_wave(*this, WAVE_TAG),
-	m_speaker(*this, SPEAKER_TAG),
-	m_printer(*this, "centronics"),
-	m_crtc(*this, "crtc"),
-	m_fdc(*this, "fdc"),
-	m_rtc(*this, "rtc")
-	{ }
+		m_maincpu(*this, "maincpu"),
+		m_pio(*this, "z80pio"),
+		m_cassette(*this, "cassette"),
+		m_wave(*this, WAVE_TAG),
+		m_speaker(*this, "speaker"),
+		m_printer(*this, "centronics"),
+		m_crtc(*this, "crtc"),
+		m_fdc(*this, "fdc"),
+		m_rtc(*this, "rtc"),
+		m_boot(*this, "boot"),
+		m_pak(*this, "pak"),
+		m_telcom(*this, "telcom"),
+		m_basic(*this, "basic"),
+		m_bankl(*this, "bankl"),
+		m_bankh(*this, "bankh"),
+		m_bank1(*this, "bank1"),
+		m_bank8l(*this, "bank8l"),
+		m_bank8h(*this, "bank8h"),
+		m_bank9(*this, "bank9"),
+		m_bankfl(*this, "bankfl"),
+		m_bankfh(*this, "bankfh"),
+		m_io_x0(*this, "X0"),
+		m_io_x1(*this, "X1"),
+		m_io_x2(*this, "X2"),
+		m_io_x3(*this, "X3"),
+		m_io_x4(*this, "X4"),
+		m_io_x5(*this, "X5"),
+		m_io_x6(*this, "X6"),
+		m_io_x7(*this, "X7"),
+		m_io_extra(*this, "EXTRA"),
+		m_io_config(*this, "CONFIG"),
+		m_io_x8(*this, "X8"),
+		m_io_x9(*this, "X9"),
+		m_io_x10(*this, "X10"),
+		m_io_x11(*this, "X11"),
+		m_io_x12(*this, "X12"),
+		m_io_x13(*this, "X13"),
+		m_io_x14(*this, "X14") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<z80pio_device> m_pio;
-	required_device<cassette_image_device> m_cass;
+	required_device<cassette_image_device> m_cassette;
 	required_device<wave_device> m_wave;
 	required_device<speaker_sound_device> m_speaker;
 	required_device<centronics_device> m_printer;
@@ -145,6 +180,42 @@ public:
 	TIMER_CALLBACK_MEMBER(mbee256_kbd);
 	TIMER_CALLBACK_MEMBER(mbee_rtc_irq);
 	TIMER_CALLBACK_MEMBER(mbee_reset);
+	DECLARE_QUICKLOAD_LOAD_MEMBER( mbee );
+	DECLARE_QUICKLOAD_LOAD_MEMBER( mbee_z80bin );
+
+protected:
+	required_memory_bank m_boot;
+	optional_memory_bank m_pak;
+	optional_memory_bank m_telcom;
+	optional_memory_bank m_basic;
+	optional_memory_bank m_bankl;
+	optional_memory_bank m_bankh;
+	optional_memory_bank m_bank1;
+	optional_memory_bank m_bank8l;
+	optional_memory_bank m_bank8h;
+	optional_memory_bank m_bank9;
+	optional_memory_bank m_bankfl;
+	optional_memory_bank m_bankfh;
+	required_ioport m_io_x0;
+	required_ioport m_io_x1;
+	required_ioport m_io_x2;
+	required_ioport m_io_x3;
+	required_ioport m_io_x4;
+	required_ioport m_io_x5;
+	required_ioport m_io_x6;
+	required_ioport m_io_x7;
+	optional_ioport m_io_extra;
+	optional_ioport m_io_config;
+	optional_ioport m_io_x8;
+	optional_ioport m_io_x9;
+	optional_ioport m_io_x10;
+	optional_ioport m_io_x11;
+	optional_ioport m_io_x12;
+	optional_ioport m_io_x13;
+	optional_ioport m_io_x14;
+
+	void machine_reset_common_disk();
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -152,9 +223,6 @@ public:
 
 extern const wd17xx_interface mbee_wd17xx_interface;
 extern const z80pio_interface mbee_z80pio_intf;
-
-QUICKLOAD_LOAD( mbee );
-
 
 /*----------- defined in video/mbee.c -----------*/
 

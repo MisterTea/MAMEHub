@@ -82,6 +82,9 @@ public:
 	void transmit_clock();
 	void receive_clock();
 
+	DECLARE_WRITE_LINE_MEMBER( txc_w ) { if (state) transmit_clock(); }
+	DECLARE_WRITE_LINE_MEMBER( rxc_w ) { if (state) receive_clock(); }
+
 	void receive_character(UINT8 ch);
 
 	virtual void input_callback(UINT8 state);
@@ -118,6 +121,10 @@ private:
 	UINT8 m_command;
 	/* mode byte - bit definitions depend on mode - e.g. synchronous, asynchronous */
 	UINT8 m_mode_byte;
+
+	int m_rxc;
+	int m_txc;
+	int m_br_factor;
 
 	/* data being received */
 	UINT8 m_data;

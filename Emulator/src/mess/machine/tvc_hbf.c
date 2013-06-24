@@ -22,8 +22,8 @@ SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_FRAGMENT(tvc_hbf)
 	MCFG_FD1793x_ADD("fdc", XTAL_16MHz / 16)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", tvc_hbf_floppies, "525qd", NULL, tvc_hbf_device::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", tvc_hbf_floppies, "525qd", NULL, tvc_hbf_device::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", tvc_hbf_floppies, "525qd", tvc_hbf_device::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", tvc_hbf_floppies, "525qd", tvc_hbf_device::floppy_formats)
 MACHINE_CONFIG_END
 
 ROM_START( tvc_hbf )
@@ -57,7 +57,7 @@ const device_type TVC_HBF = &device_creator<tvc_hbf_device>;
 //-------------------------------------------------
 
 tvc_hbf_device::tvc_hbf_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: device_t(mconfig, TVC_HBF, "HBF floppy interface", tag, owner, clock),
+		: device_t(mconfig, TVC_HBF, "HBF floppy interface", tag, owner, clock, "tvc_hbf", __FILE__),
 		device_tvcexp_interface( mconfig, *this ),
 		m_fdc(*this, "fdc")
 {

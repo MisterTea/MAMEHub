@@ -34,7 +34,7 @@
 
 void relief_state::update_interrupts()
 {
-	subdevice("maincpu")->execute().set_input_line(4, m_scanline_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(4, m_scanline_int_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -69,7 +69,7 @@ MACHINE_RESET_MEMBER(relief_state,relief)
 	atarigen_state::machine_reset();
 	atarivc_reset(*machine().primary_screen, m_atarivc_eof_data, 2);
 
-	machine().device<okim6295_device>("oki")->set_bank_base(0);
+	m_oki->set_bank_base(0);
 	m_ym2413_volume = 15;
 	m_overall_volume = 127;
 	m_adpcm_bank_base = 0;
@@ -110,8 +110,7 @@ WRITE16_MEMBER(relief_state::audio_control_w)
 	if (ACCESSING_BITS_8_15)
 		m_adpcm_bank_base = (0x100000 * ((data >> 8) & 1)) | (m_adpcm_bank_base & 0x0c0000);
 
-	okim6295_device *oki = machine().device<okim6295_device>("oki");
-	oki->set_bank_base(m_adpcm_bank_base);
+	m_oki->set_bank_base(m_adpcm_bank_base);
 }
 
 
@@ -137,7 +136,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, relief_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	ADDRESS_MAP_GLOBAL_MASK(0x3fffff)
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x140000, 0x140003) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0x140000, 0x140003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x140010, 0x140011) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x140020, 0x140021) AM_WRITE(audio_volume_w)
 	AM_RANGE(0x140030, 0x140031) AM_WRITE(audio_control_w)
@@ -433,7 +432,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(relief_state,relief)
 {
-	UINT8 *sound_base = machine().root_device().memregion("oki")->base();
+	UINT8 *sound_base = memregion("oki")->base();
 
 	/* expand the ADPCM data to avoid lots of memcpy's during gameplay */
 	/* the upper 128k is fixed, the lower 128k is bankswitched */

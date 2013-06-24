@@ -30,36 +30,24 @@
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
 
-#define MCFG_VICTOR9K_KEYBOARD_ADD(_config) \
+#define MCFG_VICTOR9K_KEYBOARD_ADD(_kbrdy) \
 	MCFG_DEVICE_ADD(VICTOR9K_KEYBOARD_TAG, VICTOR9K_KEYBOARD, 0) \
-	MCFG_DEVICE_CONFIG(_config)
-
-
-#define VICTOR9K_KEYBOARD_INTERFACE(_name) \
-	const victor9k_keyboard_interface (_name) =
-
+	downcast<victor9k_keyboard_device *>(device)->set_kbrdy_callback(DEVCB2_##_kbrdy);
 
 
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
-// ======================> victor9k_keyboard_interface
-
-struct victor9k_keyboard_interface
-{
-	devcb_write_line    m_out_kbrdy_cb;
-};
-
-
 // ======================> victor9k_keyboard_device
 
-class victor9k_keyboard_device :  public device_t,
-									public victor9k_keyboard_interface
+class victor9k_keyboard_device :  public device_t
 {
 public:
 	// construction/destruction
 	victor9k_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	template<class _kbrdy> void set_kbrdy_callback(_kbrdy kbrdy) { m_write_kbrdy.set_callback(kbrdy); }
 
 	// optional information overrides
 	virtual const rom_entry *device_rom_region() const;
@@ -80,12 +68,24 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "victor9kb"; }
 
 private:
-	devcb_resolved_write_line   m_out_kbrdy_func;
-
 	required_device<cpu_device> m_maincpu;
+	required_ioport m_y0;
+	required_ioport m_y1;
+	required_ioport m_y2;
+	required_ioport m_y3;
+	required_ioport m_y4;
+	required_ioport m_y5;
+	required_ioport m_y6;
+	required_ioport m_y7;
+	required_ioport m_y8;
+	required_ioport m_y9;
+	required_ioport m_ya;
+	required_ioport m_yb;
+	required_ioport m_yc;
+
+	devcb2_write_line   m_write_kbrdy;
 
 	UINT8 m_y;
 	int m_kbrdy;

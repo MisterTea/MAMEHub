@@ -227,7 +227,9 @@ class omegrace_state : public driver_device
 {
 public:
 	omegrace_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	DECLARE_READ8_MEMBER(omegrace_vg_go_r);
 	DECLARE_READ8_MEMBER(omegrace_spinner1_r);
@@ -235,6 +237,8 @@ public:
 	DECLARE_WRITE8_MEMBER(omegrace_soundlatch_w);
 	DECLARE_DRIVER_INIT(omegrace);
 	virtual void machine_reset();
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 
 
@@ -246,7 +250,7 @@ public:
 
 void omegrace_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	/* Omega Race expects the vector processor to be ready. */
 	avgdvg_reset_w(space, 0, 0);
 }
@@ -329,7 +333,7 @@ WRITE8_MEMBER(omegrace_state::omegrace_leds_w)
 WRITE8_MEMBER(omegrace_state::omegrace_soundlatch_w)
 {
 	soundlatch_byte_w (space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 
@@ -381,8 +385,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_port, AS_IO, 8, omegrace_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ(soundlatch_byte_r) /* likely ay8910 input port, not direct */
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -590,8 +594,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(omegrace_state,omegrace)
 {
-	int i, len = machine().root_device().memregion("user1")->bytes();
-	UINT8 *prom = machine().root_device().memregion("user1")->base();
+	int i, len = memregion("user1")->bytes();
+	UINT8 *prom = memregion("user1")->base();
 
 	/* Omega Race has two pairs of the state PROM output
 	 * lines swapped before going into the decoder.

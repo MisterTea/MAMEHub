@@ -319,7 +319,6 @@ WRITE32_MEMBER(macrossp_state::paletteram32_macrossp_w)
 
 READ32_MEMBER(macrossp_state::macrossp_soundstatus_r)
 {
-
 	//  logerror("%08x read soundstatus\n", space.device().safe_pc());
 
 	/* bit 1 is sound status */
@@ -332,7 +331,6 @@ READ32_MEMBER(macrossp_state::macrossp_soundstatus_r)
 
 WRITE32_MEMBER(macrossp_state::macrossp_soundcmd_w)
 {
-
 	if (ACCESSING_BITS_16_31)
 	{
 		//logerror("%08x write soundcmd %08x (%08x)\n",space.device().safe_pc(),data,mem_mask);
@@ -346,52 +344,49 @@ WRITE32_MEMBER(macrossp_state::macrossp_soundcmd_w)
 
 READ16_MEMBER(macrossp_state::macrossp_soundcmd_r)
 {
-
 	//  logerror("%06x read soundcmd\n",space.device().safe_pc());
 	m_sndpending = 0;
 	return soundlatch_word_r(space, offset, mem_mask);
 }
 
-static void update_colors( running_machine &machine )
+void macrossp_state::update_colors(  )
 {
-	macrossp_state *state = machine.driver_data<macrossp_state>();
 	int i, r, g, b;
 
 	for (i = 0; i < 0x1000; i++)
 	{
-		b = ((state->m_paletteram[i] & 0x0000ff00) >>  8);
-		g = ((state->m_paletteram[i] & 0x00ff0000) >> 16);
-		r = ((state->m_paletteram[i] & 0xff000000) >> 24);
+		b = ((m_paletteram[i] & 0x0000ff00) >>  8);
+		g = ((m_paletteram[i] & 0x00ff0000) >> 16);
+		r = ((m_paletteram[i] & 0xff000000) >> 24);
 
-		if (state->m_fade_effect > b)
+		if (m_fade_effect > b)
 			b = 0;
 		else
-			b -= state->m_fade_effect;
+			b -= m_fade_effect;
 
-		if (state->m_fade_effect > g)
+		if (m_fade_effect > g)
 			g = 0;
 		else
-			g -= state->m_fade_effect;
+			g -= m_fade_effect;
 
-		if (state->m_fade_effect > r)
+		if (m_fade_effect > r)
 			r = 0;
 		else
-			r -= state->m_fade_effect;
+			r -= m_fade_effect;
 
-		palette_set_color(machine, i, MAKE_RGB(r, g, b));
+		palette_set_color(machine(), i, MAKE_RGB(r, g, b));
 	}
 }
 
 WRITE32_MEMBER(macrossp_state::macrossp_palette_fade_w)
 {
-
 	m_fade_effect = ((data & 0xff00) >> 8) - 0x28; //it writes two times, first with a -0x28 then with the proper data
 	//  popmessage("%02x",fade_effect);
 
 	if (m_old_fade != m_fade_effect)
 	{
 		m_old_fade = m_fade_effect;
-		update_colors(machine());
+		update_colors();
 	}
 }
 
@@ -577,14 +572,13 @@ GFXDECODE_END
 
 /*** MACHINE DRIVER **********************************************************/
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(macrossp_state::irqhandler)
 {
-	// macrossp_state *state = space.machine().driver_data<macrossp_state>();
-	logerror("ES5506 irq %d\n", irq);
+	logerror("ES5506 irq %d\n", state);
 
 	/* IRQ lines 1 & 4 on the sound 68000 are definitely triggered by the ES5506,
 	but I haven't noticed the ES5506 ever assert the line - maybe only used when developing the game? */
-	//  state->m_audiocpu->set_input_line(1, irq ? ASSERT_LINE : CLEAR_LINE);
+	//  m_audiocpu->set_input_line(1, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 static const es5506_interface es5506_config =
@@ -593,16 +587,12 @@ static const es5506_interface es5506_config =
 	"ensoniq.1",
 	"ensoniq.2",
 	"ensoniq.3",
-	irqhandler
+	DEVCB_DRIVER_LINE_MEMBER(macrossp_state,irqhandler)
 };
 
 
 void macrossp_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_sndpending));
 	save_item(NAME(m_snd_toggle));
 	save_item(NAME(m_fade_effect));
@@ -611,7 +601,6 @@ void macrossp_state::machine_start()
 
 void macrossp_state::machine_reset()
 {
-
 	m_sndpending = 0;
 	m_snd_toggle = 0;
 	m_fade_effect = 0;
@@ -771,7 +760,6 @@ PC :00018110 018110: beq     18104
 #ifdef UNUSED_FUNCTION
 WRITE32_MEMBER(macrossp_state::quizmoon_speedup_w)
 {
-
 	COMBINE_DATA(&m_mainram[0x00020 / 4]);
 	if (space.device().safe_pc() == 0x1cc) space.device().execute().spin_until_interrupt();
 }
@@ -779,13 +767,13 @@ WRITE32_MEMBER(macrossp_state::quizmoon_speedup_w)
 
 DRIVER_INIT_MEMBER(macrossp_state,macrossp)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xf10158, 0xf1015b, write32_delegate(FUNC(macrossp_state::macrossp_speedup_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xf10158, 0xf1015b, write32_delegate(FUNC(macrossp_state::macrossp_speedup_w),this));
 }
 
 DRIVER_INIT_MEMBER(macrossp_state,quizmoon)
 {
 #ifdef UNUSED_FUNCTION
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xf00020, 0xf00023, write32_delegate(FUNC(macrossp_state::quizmoon_speedup_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xf00020, 0xf00023, write32_delegate(FUNC(macrossp_state::quizmoon_speedup_w),this));
 #endif
 }
 

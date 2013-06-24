@@ -17,8 +17,10 @@ public:
 		m_videoram(*this, "videoram"),
 		m_blaster_palette_0(*this, "blaster_pal0"),
 		m_blaster_scanline_control(*this, "blaster_scan"),
-		m_williams2_tileram(*this, "williams2_tile")
-	{ }
+		m_williams2_tileram(*this, "williams2_tile"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_soundcpu_b(*this, "soundcpu_b") { }
 
 	required_shared_ptr<UINT8>  m_nvram;
 	UINT8 *m_mayday_protection;
@@ -127,6 +129,28 @@ public:
 	DECLARE_READ8_MEMBER(tshoot_input_port_0_3_r);
 	DECLARE_WRITE8_MEMBER(tshoot_maxvol_w);
 	DECLARE_WRITE8_MEMBER(tshoot_lamp_w);
+	void williams2_postload();
+	void defender_postload();
+	void state_save_register();
+	void create_palette_lookup();
+	void blitter_init(int blitter_config, const UINT8 *remap_prom);
+	inline void blit_pixel(address_space &space, int offset, int srcdata, int data, int mask, int solid);
+	int blitter_core(address_space &space, int sstart, int dstart, int w, int h, int data);
+	inline void update_blaster_banking();
+	void defender_install_io_space(address_space &space);
+
+	/* older-Williams routines */
+	DECLARE_WRITE_LINE_MEMBER(williams_main_irq);
+	DECLARE_WRITE_LINE_MEMBER(williams_main_firq);
+	DECLARE_WRITE_LINE_MEMBER(williams_snd_irq);
+	DECLARE_WRITE_LINE_MEMBER(williams_snd_irq_b);
+
+	/* newer-Williams routines */
+	DECLARE_WRITE_LINE_MEMBER(mysticm_main_irq);
+	DECLARE_WRITE_LINE_MEMBER(tshoot_main_irq);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	optional_device<cpu_device> m_soundcpu_b;
 };
 
 
@@ -145,11 +169,6 @@ public:
 	DECLARE_WRITE8_MEMBER(joust2_pia_3_cb1_w);
 	DECLARE_WRITE8_MEMBER(joust2_snd_cmd_w);
 };
-
-/*----------- defined in drivers/williams.c -----------*/
-
-void defender_install_io_space(address_space &space);
-
 
 /*----------- defined in machine/williams.c -----------*/
 

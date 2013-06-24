@@ -17,9 +17,10 @@ class pc4_state : public driver_device
 public:
 	pc4_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_beep(*this, BEEPER_TAG)
-		{ }
+		m_maincpu(*this, "maincpu"),
+		m_beep(*this, "beeper"),
+		m_region_charset(*this, "charset"),
+		m_rombank(*this, "rombank") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<beep_device> m_beep;
@@ -34,7 +35,7 @@ public:
 	//LCD controller
 	void update_ac(void);
 	void set_busy_flag(UINT16 usec);
-	void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 	DECLARE_WRITE8_MEMBER(lcd_control_w);
 	DECLARE_READ8_MEMBER(lcd_control_r);
@@ -63,6 +64,11 @@ public:
 	INT8 m_direction;
 	UINT8 m_blink;
 	virtual void palette_init();
+
+protected:
+	required_memory_region m_region_charset;
+	required_memory_bank m_rombank;
+	ioport_port *io_port[8];
 };
 
 #endif  // _PC4_H_

@@ -25,7 +25,7 @@
 
 PALETTE_INIT_MEMBER(fastfred_state,fastfred)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[4] = { 1000, 470, 220, 100 };
 	double rweights[4], gweights[4], bweights[4];
 	int i;
@@ -113,18 +113,16 @@ VIDEO_START_MEMBER(fastfred_state,fastfred)
  *
  *************************************/
 
-WRITE8_HANDLER( fastfred_videoram_w )
+WRITE8_MEMBER(fastfred_state::fastfred_videoram_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	state->m_videoram[offset] = data;
-	state->m_bg_tilemap->mark_tile_dirty(offset);
+	m_videoram[offset] = data;
+	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 
-WRITE8_HANDLER( fastfred_attributes_w )
+WRITE8_MEMBER(fastfred_state::fastfred_attributes_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	if (state->m_attributesram[offset] != data)
+	if (m_attributesram[offset] != data)
 	{
 		if (offset & 0x01)
 		{
@@ -132,93 +130,87 @@ WRITE8_HANDLER( fastfred_attributes_w )
 			int i;
 
 			for (i = offset / 2; i < 0x0400; i += 32)
-				state->m_bg_tilemap->mark_tile_dirty(i);
+				m_bg_tilemap->mark_tile_dirty(i);
 		}
 		else
 		{
 			/* coloumn scroll */
-			state->m_bg_tilemap->set_scrolly(offset / 2, data);
+			m_bg_tilemap->set_scrolly(offset / 2, data);
 		}
 
-		state->m_attributesram[offset] = data;
+		m_attributesram[offset] = data;
 	}
 }
 
 
-WRITE8_HANDLER( fastfred_charbank1_w )
+WRITE8_MEMBER(fastfred_state::fastfred_charbank1_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	UINT16 new_data = (state->m_charbank & 0x0200) | ((data & 0x01) << 8);
+	UINT16 new_data = (m_charbank & 0x0200) | ((data & 0x01) << 8);
 
-	if (new_data != state->m_charbank)
+	if (new_data != m_charbank)
 	{
-		state->m_bg_tilemap->mark_all_dirty();
+		m_bg_tilemap->mark_all_dirty();
 
-		state->m_charbank = new_data;
+		m_charbank = new_data;
 	}
 }
 
-WRITE8_HANDLER( fastfred_charbank2_w )
+WRITE8_MEMBER(fastfred_state::fastfred_charbank2_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	UINT16 new_data = (state->m_charbank & 0x0100) | ((data & 0x01) << 9);
+	UINT16 new_data = (m_charbank & 0x0100) | ((data & 0x01) << 9);
 
-	if (new_data != state->m_charbank)
+	if (new_data != m_charbank)
 	{
-		state->m_bg_tilemap->mark_all_dirty();
+		m_bg_tilemap->mark_all_dirty();
 
-		state->m_charbank = new_data;
+		m_charbank = new_data;
 	}
 }
 
 
-WRITE8_HANDLER( fastfred_colorbank1_w )
+WRITE8_MEMBER(fastfred_state::fastfred_colorbank1_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	UINT8 new_data = (state->m_colorbank & 0x10) | ((data & 0x01) << 3);
+	UINT8 new_data = (m_colorbank & 0x10) | ((data & 0x01) << 3);
 
-	if (new_data != state->m_colorbank)
+	if (new_data != m_colorbank)
 	{
-		state->m_bg_tilemap->mark_all_dirty();
+		m_bg_tilemap->mark_all_dirty();
 
-		state->m_colorbank = new_data;
+		m_colorbank = new_data;
 	}
 }
 
-WRITE8_HANDLER( fastfred_colorbank2_w )
+WRITE8_MEMBER(fastfred_state::fastfred_colorbank2_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	UINT8 new_data = (state->m_colorbank & 0x08) | ((data & 0x01) << 4);
+	UINT8 new_data = (m_colorbank & 0x08) | ((data & 0x01) << 4);
 
-	if (new_data != state->m_colorbank)
+	if (new_data != m_colorbank)
 	{
-		state->m_bg_tilemap->mark_all_dirty();
+		m_bg_tilemap->mark_all_dirty();
 
-		state->m_colorbank = new_data;
+		m_colorbank = new_data;
 	}
 }
 
 
 
-WRITE8_HANDLER( fastfred_flip_screen_x_w )
+WRITE8_MEMBER(fastfred_state::fastfred_flip_screen_x_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	if (state->flip_screen_x() != (data & 0x01))
+	if (flip_screen_x() != (data & 0x01))
 	{
-		state->flip_screen_x_set(data & 0x01);
+		flip_screen_x_set(data & 0x01);
 
-		state->m_bg_tilemap->set_flip((state->flip_screen_x() ? TILEMAP_FLIPX : 0) | (state->flip_screen_y() ? TILEMAP_FLIPY : 0));
+		m_bg_tilemap->set_flip((flip_screen_x() ? TILEMAP_FLIPX : 0) | (flip_screen_y() ? TILEMAP_FLIPY : 0));
 	}
 }
 
-WRITE8_HANDLER( fastfred_flip_screen_y_w )
+WRITE8_MEMBER(fastfred_state::fastfred_flip_screen_y_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	if (state->flip_screen_y() != (data & 0x01))
+	if (flip_screen_y() != (data & 0x01))
 	{
-		state->flip_screen_y_set(data & 0x01);
+		flip_screen_y_set(data & 0x01);
 
-		state->m_bg_tilemap->set_flip((state->flip_screen_x() ? TILEMAP_FLIPX : 0) | (state->flip_screen_y() ? TILEMAP_FLIPY : 0));
+		m_bg_tilemap->set_flip((flip_screen_x() ? TILEMAP_FLIPX : 0) | (flip_screen_y() ? TILEMAP_FLIPY : 0));
 	}
 }
 
@@ -230,65 +222,64 @@ WRITE8_HANDLER( fastfred_flip_screen_y_w )
  *
  *************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void fastfred_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	const rectangle spritevisiblearea(2*8, 32*8-1, 2*8, 30*8-1);
 	const rectangle spritevisibleareaflipx(0*8, 30*8-1, 2*8, 30*8-1);
-	fastfred_state *state = machine.driver_data<fastfred_state>();
 	int offs;
 
-	for (offs = state->m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
+	for (offs = m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
 	{
 		UINT8 code,sx,sy;
 		int flipx,flipy;
 
-		sx = state->m_spriteram[offs + 3];
-		sy = 240 - state->m_spriteram[offs];
+		sx = m_spriteram[offs + 3];
+		sy = 240 - m_spriteram[offs];
 
-		if (state->m_hardware_type == 3)
+		if (m_hardware_type == 3)
 		{
 			// Imago
-			code  = (state->m_spriteram[offs + 1]) & 0x3f;
+			code  = (m_spriteram[offs + 1]) & 0x3f;
 			flipx = 0;
 			flipy = 0;
 		}
-		else if (state->m_hardware_type == 2)
+		else if (m_hardware_type == 2)
 		{
 			// Boggy 84
-			code  =  state->m_spriteram[offs + 1] & 0x7f;
+			code  =  m_spriteram[offs + 1] & 0x7f;
 			flipx =  0;
-			flipy =  state->m_spriteram[offs + 1] & 0x80;
+			flipy =  m_spriteram[offs + 1] & 0x80;
 		}
-		else if (state->m_hardware_type == 1)
+		else if (m_hardware_type == 1)
 		{
 			// Fly-Boy/Fast Freddie/Red Robin
-			code  =  state->m_spriteram[offs + 1] & 0x7f;
+			code  =  m_spriteram[offs + 1] & 0x7f;
 			flipx =  0;
-			flipy = ~state->m_spriteram[offs + 1] & 0x80;
+			flipy = ~m_spriteram[offs + 1] & 0x80;
 		}
 		else
 		{
 			// Jump Coaster
-			code  = (state->m_spriteram[offs + 1] & 0x3f) | 0x40;
-			flipx = ~state->m_spriteram[offs + 1] & 0x40;
-			flipy =  state->m_spriteram[offs + 1] & 0x80;
+			code  = (m_spriteram[offs + 1] & 0x3f) | 0x40;
+			flipx = ~m_spriteram[offs + 1] & 0x40;
+			flipy =  m_spriteram[offs + 1] & 0x80;
 		}
 
 
-		if (state->flip_screen_x())
+		if (flip_screen_x())
 		{
 			sx = 240 - sx;
 			flipx = !flipx;
 		}
-		if (state->flip_screen_y())
+		if (flip_screen_y())
 		{
 			sy = 240 - sy;
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap,state->flip_screen_x() ? spritevisibleareaflipx : spritevisiblearea,machine.gfx[1],
+		drawgfx_transpen(bitmap,flip_screen_x() ? spritevisibleareaflipx : spritevisiblearea,machine().gfx[1],
 				code,
-				state->m_colorbank | (state->m_spriteram[offs + 2] & 0x07),
+				m_colorbank | (m_spriteram[offs + 2] & 0x07),
 				flipx,flipy,
 				sx,sy,0);
 	}
@@ -299,7 +290,7 @@ UINT32 fastfred_state::screen_update_fastfred(screen_device &screen, bitmap_ind1
 {
 	bitmap.fill(*m_background_color, cliprect);
 	m_bg_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 
 	return 0;
 }
@@ -326,20 +317,18 @@ TILE_GET_INFO_MEMBER(fastfred_state::imago_get_tile_info_web)
 	SET_TILE_INFO_MEMBER(3, tile_index & 0x1ff, 0, 0);
 }
 
-WRITE8_HANDLER( imago_fg_videoram_w )
+WRITE8_MEMBER(fastfred_state::imago_fg_videoram_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	state->m_imago_fg_videoram[offset] = data;
-	state->m_fg_tilemap->mark_tile_dirty(offset);
+	m_imago_fg_videoram[offset] = data;
+	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
-WRITE8_HANDLER( imago_charbank_w )
+WRITE8_MEMBER(fastfred_state::imago_charbank_w )
 {
-	fastfred_state *state = space.machine().driver_data<fastfred_state>();
-	if( state->m_charbank != data )
+	if( m_charbank != data )
 	{
-		state->m_charbank = data;
-		state->m_bg_tilemap->mark_all_dirty();
+		m_charbank = data;
+		m_bg_tilemap->mark_all_dirty();
 	}
 }
 
@@ -353,7 +342,7 @@ VIDEO_START_MEMBER(fastfred_state,imago)
 	m_fg_tilemap->set_transparent_pen(0);
 
 	/* the game has a galaxian starfield */
-	galaxold_init_stars(machine(), 256);
+	galaxold_init_stars(256);
 	m_stars_on = 1;
 
 	/* web colors */
@@ -364,9 +353,9 @@ VIDEO_START_MEMBER(fastfred_state,imago)
 UINT32 fastfred_state::screen_update_imago(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_web_tilemap->draw(bitmap, cliprect, 0,0);
-	galaxold_draw_stars(machine(), bitmap, cliprect);
+	galaxold_draw_stars(bitmap, cliprect);
 	m_bg_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_fg_tilemap->draw(bitmap, cliprect, 0,0);
 
 	return 0;

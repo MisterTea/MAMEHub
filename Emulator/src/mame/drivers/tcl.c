@@ -50,11 +50,13 @@ class tcl_state : public driver_device
 {
 public:
 	tcl_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_DRIVER_INIT(tcl);
 	virtual void video_start();
 	UINT32 screen_update_tcl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -190,9 +192,9 @@ DRIVER_INIT_MEMBER(tcl_state,tcl)
 {
 	/* only the first part is decrypted (and verified)*/
 
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
-	UINT8 *dest = machine().root_device().memregion("maincpu")->base();
-	int len = machine().root_device().memregion("maincpu")->bytes();
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	UINT8 *dest = memregion("maincpu")->base();
+	int len = memregion("maincpu")->bytes();
 	UINT8 *src = auto_alloc_array(machine(), UINT8, len);
 
 	int i,idx=0;

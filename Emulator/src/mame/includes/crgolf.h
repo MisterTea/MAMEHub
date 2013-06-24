@@ -3,7 +3,7 @@
     Kitco Crowns Golf hardware
 
 **************************************************************************/
-
+#include "sound/msm5205.h"
 #define MASTER_CLOCK        18432000
 
 
@@ -11,12 +11,15 @@ class crgolf_state : public driver_device
 {
 public:
 	crgolf_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_color_select(*this, "color_select"),
 		m_screen_flip(*this, "screen_flip"),
 		m_screen_select(*this, "screen_select"),
 		m_screenb_enable(*this, "screenb_enable"),
-		m_screena_enable(*this, "screena_enable"){ }
+		m_screena_enable(*this, "screena_enable"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_msm(*this, "msm"){ }
 
 	/* memory pointers */
 	UINT8 *  m_videoram_a;
@@ -35,8 +38,9 @@ public:
 	UINT8    m_sample_count;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<msm5205_device> m_msm;
 	DECLARE_WRITE8_MEMBER(rom_bank_select_w);
 	DECLARE_READ8_MEMBER(switch_input_r);
 	DECLARE_READ8_MEMBER(analog_input_r);
@@ -56,6 +60,8 @@ public:
 	UINT32 screen_update_crgolf(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(main_to_sound_callback);
 	TIMER_CALLBACK_MEMBER(sound_to_main_callback);
+	void get_pens( pen_t *pens );
+	DECLARE_WRITE_LINE_MEMBER(vck_callback);
 };
 
 /*----------- defined in video/crgolf.c -----------*/

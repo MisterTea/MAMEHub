@@ -13,15 +13,6 @@
 SOUNDSRC = $(EMUSRC)/sound
 SOUNDOBJ = $(EMUOBJ)/sound
 
-
-#-------------------------------------------------
-# Core sound types; samples always required
-#-------------------------------------------------
-
-SOUNDOBJS += $(SOUNDOBJ)/samples.o
-
-
-
 #-------------------------------------------------
 # DACs
 #-------------------------------------------------
@@ -324,6 +315,16 @@ endif
 
 
 #-------------------------------------------------
+# MOS 7360 TED
+#-------------------------------------------------
+
+ifneq ($(filter MOS7360,$(SOUNDS)),)
+SOUNDOBJS += $(SOUNDOBJ)/mos7360.o
+endif
+
+
+
+#-------------------------------------------------
 # Namco custom sound chips
 #-------------------------------------------------
 
@@ -434,7 +435,7 @@ SOUNDOBJS += $(SOUNDOBJ)/qs1000.o
 #-------------------------------------------------
 
 ifneq ($(filter QSOUND,$(SOUNDS)),)
-SOUNDOBJS += $(SOUNDOBJ)/qsound.o
+SOUNDOBJS += $(SOUNDOBJ)/qsound.o $(CPUOBJ)/dsp16/dsp16.o $(CPUOBJ)/dsp16/dsp16dis.o
 endif
 
 
@@ -511,11 +512,11 @@ endif
 #-------------------------------------------------
 
 ifneq ($(filter SID6581,$(SOUNDS)),)
-SOUNDOBJS += $(SOUNDOBJ)/sid6581.o $(SOUNDOBJ)/sid.o $(SOUNDOBJ)/sidenvel.o $(SOUNDOBJ)/sidvoice.o
+SOUNDOBJS += $(SOUNDOBJ)/mos6581.o $(SOUNDOBJ)/sid.o $(SOUNDOBJ)/sidenvel.o $(SOUNDOBJ)/sidvoice.o
 endif
 
 ifneq ($(filter SID8580,$(SOUNDS)),)
-SOUNDOBJS += $(SOUNDOBJ)/sid6581.o $(SOUNDOBJ)/sid.o $(SOUNDOBJ)/sidenvel.o $(SOUNDOBJ)/sidvoice.o
+SOUNDOBJS += $(SOUNDOBJ)/mos6581.o $(SOUNDOBJ)/sid.o $(SOUNDOBJ)/sidenvel.o $(SOUNDOBJ)/sidvoice.o
 endif
 
 
@@ -619,19 +620,35 @@ endif
 
 
 #-------------------------------------------------
-# Texas Instruments TMS5110 speech synthesizers
+# Texas Instruments TMS5100-series speech synthesizers
 #-------------------------------------------------
 
 ifneq ($(filter TMS5110,$(SOUNDS)),)
 SOUNDOBJS += $(SOUNDOBJ)/tms5110.o
 endif
 
+$(SOUNDOBJ)/tms5110.o:  $(SOUNDSRC)/tms5110r.c
+
+
+
+#-------------------------------------------------
+# Texas Instruments TMS5200-series speech synthesizers
+#-------------------------------------------------
 ifneq ($(filter TMS5220,$(SOUNDS)),)
-SOUNDOBJS += $(SOUNDOBJ)/tms5220.o
+SOUNDOBJS += $(SOUNDOBJ)/tms5220.o $(EMUMACHINE)/spchrom.o
 endif
 
-$(SOUNDOBJ)/tms5110.o:  $(SOUNDSRC)/tms5110r.c
-$(SOUNDOBJ)/tms5220.o:  $(SOUNDSRC)/tms5220r.c
+$(SOUNDOBJ)/tms5220.o:  $(SOUNDSRC)/tms5110r.c
+
+
+
+#-------------------------------------------------
+# Toshiba T6721A voice synthesizer
+#-------------------------------------------------
+
+ifneq ($(filter T6721A,$(SOUNDS)),)
+SOUNDOBJS += $(SOUNDOBJ)/t6721a.o
+endif
 
 
 
@@ -652,6 +669,8 @@ endif
 ifneq ($(filter VLM5030,$(SOUNDS)),)
 SOUNDOBJS += $(SOUNDOBJ)/vlm5030.o
 endif
+
+$(SOUNDOBJ)/vlm5030.o:  $(SOUNDSRC)/tms5110r.c
 
 
 

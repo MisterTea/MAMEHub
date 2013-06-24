@@ -17,14 +17,12 @@
 
 WRITE16_MEMBER(wwfsstar_state::wwfsstar_fg0_videoram_w)
 {
-
 	COMBINE_DATA(&m_fg0_videoram[offset]);
 	m_fg0_tilemap->mark_tile_dirty(offset/2);
 }
 
 WRITE16_MEMBER(wwfsstar_state::wwfsstar_bg0_videoram_w)
 {
-
 	COMBINE_DATA(&m_bg0_videoram[offset]);
 	m_bg0_tilemap->mark_tile_dirty(offset/2);
 }
@@ -107,7 +105,7 @@ TILE_GET_INFO_MEMBER(wwfsstar_state::get_bg0_tile_info)
  sprite colour marking could probably be improved..
 *******************************************************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void wwfsstar_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	/*- SPR RAM Format -**
 
@@ -130,9 +128,8 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 	**- End of Comments -*/
 
-	wwfsstar_state *state = machine.driver_data<wwfsstar_state>();
-	gfx_element *gfx = machine.gfx[1];
-	UINT16 *source = state->m_spriteram;
+	gfx_element *gfx = machine().gfx[1];
+	UINT16 *source = m_spriteram;
 	UINT16 *finish = source + 0x3ff/2;
 
 	while (source < finish)
@@ -156,7 +153,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 			number &= ~(chain - 1);
 
-			if (state->flip_screen())
+			if (flip_screen())
 			{
 				flipy = !flipy;
 				flipx = !flipx;
@@ -166,7 +163,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 			for (count=0;count<chain;count++)
 			{
-				if (state->flip_screen())
+				if (flip_screen())
 				{
 					if (!flipy)
 					{
@@ -207,7 +204,6 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 void wwfsstar_state::video_start()
 {
-
 	m_fg0_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(wwfsstar_state::get_fg0_tile_info),this),TILEMAP_SCAN_ROWS, 8, 8,32,32);
 	m_fg0_tilemap->set_transparent_pen(0);
 
@@ -217,12 +213,11 @@ void wwfsstar_state::video_start()
 
 UINT32 wwfsstar_state::screen_update_wwfsstar(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg0_tilemap->set_scrolly(0, m_scrolly  );
 	m_bg0_tilemap->set_scrollx(0, m_scrollx  );
 
 	m_bg0_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(machine(), bitmap,cliprect );
+	draw_sprites(bitmap,cliprect );
 	m_fg0_tilemap->draw(bitmap, cliprect, 0,0);
 
 	return 0;

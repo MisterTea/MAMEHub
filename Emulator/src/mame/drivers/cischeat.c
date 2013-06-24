@@ -483,10 +483,8 @@ WRITE16_MEMBER(cischeat_state::scudhamm_oki_bank_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-		okim6295_device *oki1 = machine().device<okim6295_device>("oki1");
-		okim6295_device *oki2 = machine().device<okim6295_device>("oki2");
-		oki1->set_bank_base(0x40000 * ((data >> 0) & 0x3) );
-		oki2->set_bank_base(0x40000 * ((data >> 4) & 0x3) );
+		m_oki1->set_bank_base(0x40000 * ((data >> 0) & 0x3) );
+		m_oki2->set_bank_base(0x40000 * ((data >> 4) & 0x3) );
 	}
 }
 
@@ -679,10 +677,8 @@ WRITE16_MEMBER(cischeat_state::bigrun_soundbank_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-		okim6295_device *oki1 = machine().device<okim6295_device>("oki1");
-		okim6295_device *oki2 = machine().device<okim6295_device>("oki2");
-		oki1->set_bank_base(0x40000 * ((data >> 0) & 1) );
-		oki2->set_bank_base(0x40000 * ((data >> 4) & 1) );
+		m_oki1->set_bank_base(0x40000 * ((data >> 0) & 1) );
+		m_oki2->set_bank_base(0x40000 * ((data >> 4) & 1) );
 	}
 }
 
@@ -703,16 +699,12 @@ ADDRESS_MAP_END
 
 WRITE16_MEMBER(cischeat_state::cischeat_soundbank_1_w)
 {
-	device_t *device = machine().device("oki1");
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	if (ACCESSING_BITS_0_7) oki->set_bank_base(0x40000 * (data & 1) );
+	if (ACCESSING_BITS_0_7) m_oki1->set_bank_base(0x40000 * (data & 1) );
 }
 
 WRITE16_MEMBER(cischeat_state::cischeat_soundbank_2_w)
 {
-	device_t *device = machine().device("oki2");
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	if (ACCESSING_BITS_0_7) oki->set_bank_base(0x40000 * (data & 1) );
+	if (ACCESSING_BITS_0_7) m_oki2->set_bank_base(0x40000 * (data & 1) );
 }
 static ADDRESS_MAP_START( cischeat_sound_map, AS_PROGRAM, 16, cischeat_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM                                                 // ROM
@@ -1538,13 +1530,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(cischeat_state::bigrun_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("cpu1")->execute().set_input_line(4, HOLD_LINE);
+		m_cpu1->set_input_line(4, HOLD_LINE);
 
 	if(scanline == 154)
-		machine().device("cpu1")->execute().set_input_line(2, HOLD_LINE);
+		m_cpu1->set_input_line(2, HOLD_LINE);
 
 	if(scanline == 69)
-		machine().device("cpu1")->execute().set_input_line(1, HOLD_LINE);
+		m_cpu1->set_input_line(1, HOLD_LINE);
 }
 
 
@@ -1696,10 +1688,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(cischeat_state::scudhamm_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line(3, HOLD_LINE);
+		m_maincpu->set_input_line(3, HOLD_LINE);
 
 	if(scanline == 120) // timer irq (clears a flag, presumably sprite DMA end)
-		machine().device("maincpu")->execute().set_input_line(2, HOLD_LINE);
+		m_maincpu->set_input_line(2, HOLD_LINE);
 }
 
 static MACHINE_CONFIG_START( scudhamm, cischeat_state )
@@ -1746,10 +1738,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(cischeat_state::armchamp2_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line(2, HOLD_LINE);
+		m_maincpu->set_input_line(2, HOLD_LINE);
 
 	if(scanline == 120) // timer irq (TODO: timing)
-		machine().device("maincpu")->execute().set_input_line(4, HOLD_LINE);
+		m_maincpu->set_input_line(4, HOLD_LINE);
 }
 
 static MACHINE_CONFIG_DERIVED( armchmp2, scudhamm )
@@ -1781,10 +1773,10 @@ MACHINE_CONFIG_END
 
     We need to untangle it
 */
-static void cischeat_untangle_sprites(running_machine &machine, const char *region)
+void cischeat_state::cischeat_untangle_sprites(const char *region)
 {
-	UINT8       *src = machine.root_device().memregion(region)->base();
-	const UINT8 *end = src + machine.root_device().memregion(region)->bytes();
+	UINT8       *src = memregion(region)->base();
+	const UINT8 *end = src + memregion(region)->bytes();
 
 	while (src < end)
 	{
@@ -1936,7 +1928,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(cischeat_state,bigrun)
 {
-	cischeat_untangle_sprites(machine(), "gfx4");   // Untangle sprites
+	cischeat_untangle_sprites("gfx4");   // Untangle sprites
 	phantasm_rom_decode(machine(), "soundcpu");                 // Decrypt sound cpu code
 }
 
@@ -2055,7 +2047,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(cischeat_state,cischeat)
 {
-	cischeat_untangle_sprites(machine(), "gfx4");   // Untangle sprites
+	cischeat_untangle_sprites("gfx4");   // Untangle sprites
 	astyanax_rom_decode(machine(), "soundcpu");                 // Decrypt sound cpu code
 }
 
@@ -2269,7 +2261,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(cischeat_state,f1gpstar)
 {
-	cischeat_untangle_sprites(machine(), "gfx4");
+	cischeat_untangle_sprites("gfx4");
 }
 
 
@@ -2481,7 +2473,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(cischeat_state,wildplt)
 {
-	machine().device("cpu1")->memory().space(AS_PROGRAM).install_read_handler(0x080000, 0x087fff, read16_delegate(FUNC(cischeat_state::wildplt_vregs_r),this));
+	m_cpu1->space(AS_PROGRAM).install_read_handler(0x080000, 0x087fff, read16_delegate(FUNC(cischeat_state::wildplt_vregs_r),this));
 
 	DRIVER_INIT_CALL(f1gpstar);
 }

@@ -36,7 +36,7 @@ WRITE8_MEMBER(battlera_state::battlera_sound_w)
 	if (offset == 0)
 	{
 		soundlatch_byte_w(space,0,data);
-		machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+		m_audiocpu->set_input_line(0, HOLD_LINE);
 	}
 }
 
@@ -83,16 +83,14 @@ ADDRESS_MAP_END
 /******************************************************************************/
 
 
-static void battlera_adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(battlera_state::battlera_adpcm_int)
 {
-	battlera_state *state = device->machine().driver_data<battlera_state>();
+	m_msm->data_w(m_msm5205next >> 4);
+	m_msm5205next <<= 4;
 
-	msm5205_data_w(device,state->m_msm5205next >> 4);
-	state->m_msm5205next <<= 4;
-
-	state->m_toggle = 1 - state->m_toggle;
-	if (state->m_toggle)
-		device->machine().device("audiocpu")->execute().set_input_line(1, HOLD_LINE);
+	m_toggle = 1 - m_toggle;
+	if (m_toggle)
+		m_audiocpu->set_input_line(1, HOLD_LINE);
 }
 
 WRITE8_MEMBER(battlera_state::battlera_adpcm_data_w)
@@ -102,13 +100,12 @@ WRITE8_MEMBER(battlera_state::battlera_adpcm_data_w)
 
 WRITE8_MEMBER(battlera_state::battlera_adpcm_reset_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device, 0);
+	m_msm->reset_w(0);
 }
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, battlera_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
-	AM_RANGE(0x040000, 0x040001) AM_DEVWRITE_LEGACY("ymsnd", ym2203_w)
+	AM_RANGE(0x040000, 0x040001) AM_DEVWRITE("ymsnd", ym2203_device, write)
 	AM_RANGE(0x080000, 0x080001) AM_WRITE(battlera_adpcm_data_w)
 	AM_RANGE(0x1fe800, 0x1fe80f) AM_DEVWRITE("c6280", c6280_device, c6280_w)
 	AM_RANGE(0x1f0000, 0x1f1fff) AM_RAMBANK("bank7") /* Main ram */
@@ -217,7 +214,7 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_config =
 {
-	battlera_adpcm_int,/* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(battlera_state,battlera_adpcm_int),/* interrupt function */
 	MSM5205_S48_4B      /* 8KHz            */
 };
 

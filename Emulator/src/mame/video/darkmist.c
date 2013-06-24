@@ -15,8 +15,8 @@ TILE_GET_INFO_MEMBER(darkmist_state::get_bgtile_info)
 {
 	int code,attr,pal;
 
-	code=machine().root_device().memregion("user1")->base()[tile_index]; /* TTTTTTTT */
-	attr=machine().root_device().memregion("user2")->base()[tile_index]; /* -PPP--TT - FIXED BITS (0xxx00xx) */
+	code=memregion("user1")->base()[tile_index]; /* TTTTTTTT */
+	attr=memregion("user2")->base()[tile_index]; /* -PPP--TT - FIXED BITS (0xxx00xx) */
 	code+=(attr&3)<<8;
 	pal=(attr>>4);
 
@@ -31,8 +31,8 @@ TILE_GET_INFO_MEMBER(darkmist_state::get_fgtile_info)
 {
 	int code,attr,pal;
 
-	code=machine().root_device().memregion("user3")->base()[tile_index]; /* TTTTTTTT */
-	attr=machine().root_device().memregion("user4")->base()[tile_index]; /* -PPP--TT - FIXED BITS (0xxx00xx) */
+	code=memregion("user3")->base()[tile_index]; /* TTTTTTTT */
+	attr=memregion("user4")->base()[tile_index]; /* -PPP--TT - FIXED BITS (0xxx00xx) */
 	pal=attr>>4;
 
 	code+=(attr&3)<<8;
@@ -70,7 +70,7 @@ TILE_GET_INFO_MEMBER(darkmist_state::get_txttile_info)
 
 void darkmist_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* allocate the colortable */
@@ -100,21 +100,20 @@ void darkmist_state::palette_init()
 }
 
 
-static void set_pens(running_machine &machine)
+void darkmist_state::set_pens()
 {
-	darkmist_state *state = machine.driver_data<darkmist_state>();
 	int i;
 
 	for (i = 0; i < 0x100; i++)
 	{
-		int r = pal4bit(state->m_generic_paletteram_8[i | 0x200] >> 0);
-		int g = pal4bit(state->m_generic_paletteram_8[i | 0x000] >> 4);
-		int b = pal4bit(state->m_generic_paletteram_8[i | 0x000] >> 0);
+		int r = pal4bit(m_generic_paletteram_8[i | 0x200] >> 0);
+		int g = pal4bit(m_generic_paletteram_8[i | 0x000] >> 4);
+		int b = pal4bit(m_generic_paletteram_8[i | 0x000] >> 0);
 
-		colortable_palette_set_color(machine.colortable, i, MAKE_RGB(r, g, b));
+		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
 	}
 
-	colortable_palette_set_color(machine.colortable, 0x100, RGB_BLACK);
+	colortable_palette_set_color(machine().colortable, 0x100, RGB_BLACK);
 }
 
 
@@ -133,7 +132,7 @@ UINT32 darkmist_state::screen_update_darkmist(screen_device &screen, bitmap_ind1
 
 #define DM_GETSCROLL(n) (((m_scroll[(n)]<<1)&0xff) + ((m_scroll[(n)]&0x80)?1:0) +( ((m_scroll[(n)-1]<<4) | (m_scroll[(n)-1]<<12) )&0xff00))
 
-	set_pens(machine());
+	set_pens();
 
 	m_bgtilemap->set_scrollx(0, DM_GETSCROLL(0x2));
 	m_bgtilemap->set_scrolly(0, DM_GETSCROLL(0x6));

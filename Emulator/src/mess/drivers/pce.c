@@ -55,11 +55,9 @@ Super System Card:
 **********************************************************************/
 
 #include "emu.h"
-#include "video/vdc.h"
 #include "cpu/h6280/h6280.h"
 #include "includes/pce.h"
-#include "imagedev/cartslot.h"
-#include "imagedev/chd_cd.h"
+#include "machine/pce_rom.h"
 #include "sound/c6280.h"
 #include "sound/cdda.h"
 #include "sound/msm5205.h"
@@ -238,71 +236,12 @@ static INPUT_PORTS_START( pce )
 INPUT_PORTS_END
 
 
-static void pce_partialhash(hash_collection &dest, const unsigned char *data,
-	unsigned long length, const char *functions)
-{
-	if ( ( length <= PCE_HEADER_SIZE ) || ( length & PCE_HEADER_SIZE ) ) {
-			dest.compute(&data[PCE_HEADER_SIZE], length - PCE_HEADER_SIZE, functions);
-	} else {
-		dest.compute(data, length, functions);
-	}
-}
-
-static const c6280_interface c6280_config =
-{
-	"maincpu"
-};
-
-struct cdrom_interface pce_cdrom =
-{
-	"pce_cdrom",
-	NULL
-};
-
-static MACHINE_CONFIG_FRAGMENT( pce_cdslot )
-	MCFG_CDROM_ADD("cdrom",pce_cdrom)
-
-	MCFG_SOFTWARE_LIST_ADD("cd_list","pcecd")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( pce_cartslot )
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("pce,bin")
-	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("pce_cart")
-	MCFG_CARTSLOT_LOAD(pce_cart)
-	MCFG_CARTSLOT_PARTIALHASH(pce_partialhash)
-	MCFG_SOFTWARE_LIST_ADD("cart_list","pce")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( tg16_cartslot )
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("pce,bin")
-	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("tg16_cart")
-	MCFG_CARTSLOT_LOAD(pce_cart)
-	MCFG_CARTSLOT_PARTIALHASH(pce_partialhash)
-	MCFG_SOFTWARE_LIST_ADD("cart_list","tg16")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( sgx_cartslot )
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("pce,bin")
-	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("pce_cart")
-	MCFG_CARTSLOT_LOAD(pce_cart)
-	MCFG_CARTSLOT_PARTIALHASH(pce_partialhash)
-	MCFG_SOFTWARE_LIST_ADD("cart_list","sgx")
-MACHINE_CONFIG_END
 
 static ADDRESS_MAP_START( pce_mem , AS_PROGRAM, 8, pce_state )
-	AM_RANGE( 0x000000, 0x07FFFF) AM_ROMBANK("bank1")
-	AM_RANGE( 0x080000, 0x087FFF) AM_ROMBANK("bank2")
-	AM_RANGE( 0x088000, 0x0CFFFF) AM_ROMBANK("bank3")
-	AM_RANGE( 0x0D0000, 0x0FFFFF) AM_ROMBANK("bank4")
+	AM_RANGE( 0x000000, 0x0FFFFF) AM_DEVREADWRITE("cartslot", pce_cart_slot_device, read_cart, write_cart)
 	AM_RANGE( 0x100000, 0x10FFFF) AM_RAM AM_SHARE("cd_ram")
 	AM_RANGE( 0x110000, 0x1EDFFF) AM_NOP
-	AM_RANGE( 0x1EE000, 0x1EE7FF) AM_ROMBANK("bank10") AM_WRITE(pce_cd_bram_w )
+	AM_RANGE( 0x1EE000, 0x1EE7FF) AM_DEVREADWRITE("pce_cd", pce_cd_device, bram_r, bram_w)
 	AM_RANGE( 0x1EE800, 0x1EFFFF) AM_NOP
 	AM_RANGE( 0x1F0000, 0x1F1FFF) AM_RAM AM_MIRROR(0x6000) AM_SHARE("user_ram")
 	AM_RANGE( 0x1FE000, 0x1FE3FF) AM_DEVREADWRITE( "huc6270", huc6270_device, read, write )
@@ -320,13 +259,10 @@ ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( sgx_mem , AS_PROGRAM, 8, pce_state )
-	AM_RANGE( 0x000000, 0x07FFFF) AM_ROMBANK("bank1")
-	AM_RANGE( 0x080000, 0x087FFF) AM_ROMBANK("bank2")
-	AM_RANGE( 0x088000, 0x0CFFFF) AM_ROMBANK("bank3")
-	AM_RANGE( 0x0D0000, 0x0FFFFF) AM_ROMBANK("bank4")
+	AM_RANGE( 0x000000, 0x0FFFFF) AM_DEVREADWRITE("cartslot", pce_cart_slot_device, read_cart, write_cart)
 	AM_RANGE( 0x100000, 0x10FFFF) AM_RAM AM_SHARE("cd_ram")
 	AM_RANGE( 0x110000, 0x1EDFFF) AM_NOP
-	AM_RANGE( 0x1EE000, 0x1EE7FF) AM_ROMBANK("bank10") AM_WRITE(pce_cd_bram_w )
+	AM_RANGE( 0x1EE000, 0x1EE7FF) AM_DEVREADWRITE("pce_cd", pce_cd_device, bram_r, bram_w)
 	AM_RANGE( 0x1EE800, 0x1EFFFF) AM_NOP
 	AM_RANGE( 0x1F0000, 0x1F7FFF) AM_RAM AM_SHARE("user_ram")
 	AM_RANGE( 0x1FE000, 0x1FE007) AM_DEVREADWRITE( "huc6270_0", huc6270_device, read, write ) AM_MIRROR(0x03E0)
@@ -346,6 +282,11 @@ static ADDRESS_MAP_START( sgx_io , AS_IO, 8, pce_state )
 ADDRESS_MAP_END
 
 
+static const c6280_interface c6280_config =
+{
+	"maincpu"
+};
+
 UINT32 pce_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_huc6260->video_update( bitmap, cliprect );
@@ -355,7 +296,7 @@ UINT32 pce_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, con
 
 WRITE_LINE_MEMBER(pce_state::pce_irq_changed)
 {
-	machine().device("maincpu")->execute().set_input_line(0, state);
+	m_maincpu->set_input_line(0, state);
 }
 
 
@@ -416,6 +357,15 @@ static const huc6260_interface sgx_huc6260_config =
 	DEVCB_DEVICE_LINE_MEMBER( "huc6202", huc6202_device, hsync_changed )
 };
 
+
+static SLOT_INTERFACE_START(pce_cart)
+	SLOT_INTERFACE_INTERNAL("rom", PCE_ROM_STD)
+	SLOT_INTERFACE_INTERNAL("cdsys3u", PCE_ROM_CDSYS3)
+	SLOT_INTERFACE_INTERNAL("cdsys3j", PCE_ROM_CDSYS3)
+	SLOT_INTERFACE_INTERNAL("populous", PCE_ROM_POPULOUS)
+	SLOT_INTERFACE_INTERNAL("sf2", PCE_ROM_SF2)
+SLOT_INTERFACE_END
+
 static MACHINE_CONFIG_START( pce_common, pce_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", H6280, MAIN_CLOCK/3)
@@ -437,34 +387,27 @@ static MACHINE_CONFIG_START( pce_common, pce_state )
 	MCFG_HUC6260_ADD( "huc6260", MAIN_CLOCK, pce_huc6260_config )
 	MCFG_HUC6270_ADD( "huc6270", pce_huc6270_config )
 
-	MCFG_NVRAM_ADD_0FILL("nvram")
-
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD(C6280_TAG, C6280, MAIN_CLOCK/6)
 	MCFG_SOUND_CONFIG(c6280_config)
 	MCFG_SOUND_ROUTE( 0, "lspeaker", 1.00 )
 	MCFG_SOUND_ROUTE( 1, "rspeaker", 1.00 )
 
-	MCFG_SOUND_ADD( "msm5205", MSM5205, PCE_CD_CLOCK / 6 )
-	MCFG_SOUND_CONFIG( pce_cd_msm5205_interface )
-	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "lspeaker", 0.50 )
-	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "rspeaker", 0.50 )
+	MCFG_PCE_CD_ADD("pce_cd")
 
-	MCFG_SOUND_ADD( "cdda", CDDA, 0 )
-	MCFG_SOUND_ROUTE( 0, "lspeaker", 1.00 )
-	MCFG_SOUND_ROUTE( 1, "rspeaker", 1.00 )
+	MCFG_SOFTWARE_LIST_ADD("cd_list","pcecd")
 MACHINE_CONFIG_END
 
 
 static MACHINE_CONFIG_DERIVED( pce, pce_common )
-	MCFG_FRAGMENT_ADD( pce_cartslot )
-	MCFG_FRAGMENT_ADD( pce_cdslot )
+	MCFG_PCE_CARTRIDGE_ADD("cartslot", pce_cart, NULL)
+	MCFG_SOFTWARE_LIST_ADD("cart_list","pce")
 MACHINE_CONFIG_END
 
 
 static MACHINE_CONFIG_DERIVED( tg16, pce_common )
-	MCFG_FRAGMENT_ADD( tg16_cartslot )
-	MCFG_FRAGMENT_ADD( pce_cdslot )
+	MCFG_TG16_CARTRIDGE_ADD("cartslot", pce_cart, NULL)
+	MCFG_SOFTWARE_LIST_ADD("cart_list","tg16")
 MACHINE_CONFIG_END
 
 
@@ -491,25 +434,19 @@ static MACHINE_CONFIG_START( sgx, pce_state )
 	MCFG_HUC6270_ADD( "huc6270_1", sgx_huc6270_1_config )
 	MCFG_HUC6202_ADD( "huc6202", sgx_huc6202_config )
 
-	MCFG_NVRAM_ADD_0FILL("nvram")
-
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD(C6280_TAG, C6280, MAIN_CLOCK/6)
 	MCFG_SOUND_CONFIG(c6280_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.00)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.00)
 
-	MCFG_SOUND_ADD( "msm5205", MSM5205, PCE_CD_CLOCK / 6 )
-	MCFG_SOUND_CONFIG( pce_cd_msm5205_interface )
-	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "lspeaker", 0.00 )
-	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "rspeaker", 0.00 )
+	MCFG_PCE_CARTRIDGE_ADD("cartslot", pce_cart, NULL)
+	MCFG_SOFTWARE_LIST_ADD("cart_list","sgx")
+	MCFG_SOFTWARE_LIST_COMPATIBLE_ADD("pce_list","pce")
 
-	MCFG_SOUND_ADD( "cdda", CDDA, 0 )
-	MCFG_SOUND_ROUTE( 0, "lspeaker", 1.00 )
-	MCFG_SOUND_ROUTE( 1, "rspeaker", 1.00 )
+	MCFG_PCE_CD_ADD("pce_cd")
 
-	MCFG_FRAGMENT_ADD( sgx_cartslot )
-	MCFG_FRAGMENT_ADD( pce_cdslot )
+	MCFG_SOFTWARE_LIST_ADD("cd_list","pcecd")
 MACHINE_CONFIG_END
 
 /***************************************************************************
@@ -519,7 +456,7 @@ MACHINE_CONFIG_END
 ***************************************************************************/
 
 ROM_START( pce )
-	ROM_REGION( PCE_ROM_MAXSIZE, "user1", ROMREGION_ERASEFF )       /* Cartridge ROM area */
+	ROM_REGION( 0x100000, "maincpu", ROMREGION_ERASEFF )
 ROM_END
 
 #define rom_tg16 rom_pce

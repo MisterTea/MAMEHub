@@ -80,7 +80,7 @@ ADDRESS_MAP_END
 // 256 kbyte ram + 256 kbyte memory mapped flash
 static ADDRESS_MAP_START( cybikov2_mem, AS_PROGRAM, 16, cybiko_state )
 	AM_RANGE( 0x000000, 0x007fff ) AM_ROM
-	AM_RANGE( 0x100000, 0x13ffff ) AM_READ_BANK("bank2") AM_MIRROR( 0x0c0000 )
+	AM_RANGE( 0x100000, 0x13ffff ) AM_DEVREAD8("flash2", sst_39vf020_device, read, 0xffff) AM_MIRROR( 0x0c0000 )
 	AM_RANGE( 0x600000, 0x600001 ) AM_READWRITE( cybiko_lcd_r, cybiko_lcd_w ) AM_MIRROR( 0x1ffffe )
 	AM_RANGE( 0xe00000, 0xffdbff ) AM_READ( cybikov2_key_r )
 ADDRESS_MAP_END
@@ -90,7 +90,7 @@ static ADDRESS_MAP_START( cybikoxt_mem, AS_PROGRAM, 16, cybiko_state )
 	AM_RANGE( 0x000000, 0x007fff ) AM_ROM AM_MIRROR( 0x038000 )
 	AM_RANGE( 0x100000, 0x100001 ) AM_READWRITE( cybiko_lcd_r, cybiko_lcd_w )
 	AM_RANGE( 0x200000, 0x200003 ) AM_WRITE( cybiko_usb_w )
-	AM_RANGE( 0x600000, 0x67ffff ) AM_READ_BANK("bank2") AM_MIRROR( 0x180000 )
+	AM_RANGE( 0x600000, 0x67ffff ) AM_DEVREAD("flashxt", sst_39vf400a_device, read) AM_MIRROR( 0x180000 )
 	AM_RANGE( 0xe00000, 0xefffff ) AM_READ( cybikoxt_key_r )
 ADDRESS_MAP_END
 
@@ -296,24 +296,12 @@ void cybiko_state::palette_init()
 }
 
 ////////////////////
-// SCREEN UPDATE  //
-////////////////////
-
-UINT32 cybiko_state::screen_update_cybiko(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
-{
-	hd66421_device *hd66421 = machine().device<hd66421_device>( "hd66421" );
-	hd66421->update_screen(bitmap, cliprect);
-	return 0;
-}
-
-
-////////////////////
 // MACHINE DRIVER //
 ////////////////////
 
 static MACHINE_CONFIG_START( cybikov1, cybiko_state )
 	// cpu
-	MCFG_CPU_ADD( "maincpu", H8S2241, 11059200 )
+	MCFG_CPU_ADD( "maincpu", H8S2241, XTAL_11_0592MHz )
 	MCFG_CPU_PROGRAM_MAP( cybikov1_mem )
 	MCFG_CPU_IO_MAP( cybikov1_io )
 	// screen
@@ -321,7 +309,7 @@ static MACHINE_CONFIG_START( cybikov1, cybiko_state )
 	MCFG_SCREEN_REFRESH_RATE( 60 )
 	MCFG_SCREEN_SIZE( HD66421_WIDTH, HD66421_HEIGHT )
 	MCFG_SCREEN_VISIBLE_AREA( 0, HD66421_WIDTH - 1, 0, HD66421_HEIGHT - 1 )
-	MCFG_SCREEN_UPDATE_DRIVER(cybiko_state, screen_update_cybiko)
+	MCFG_SCREEN_UPDATE_DEVICE("hd66421", hd66421_device, update_screen)
 
 	// video
 	MCFG_HD66421_ADD("hd66421")
@@ -329,7 +317,7 @@ static MACHINE_CONFIG_START( cybikov1, cybiko_state )
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 	// sound
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 	// machine
 	/* rtc */
@@ -340,22 +328,18 @@ static MACHINE_CONFIG_START( cybikov1, cybiko_state )
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("512K")
 	MCFG_RAM_EXTRA_OPTIONS("1M")
-MACHINE_CONFIG_END
 
-const sst39vfx_config cybyko_sst39vfx_intf =
-{
-	16, ENDIANNESS_BIG
-};
+	/* quickload */
+	MCFG_QUICKLOAD_ADD("quickload", cybiko_state, cybiko, "bin,nv", 0)
+MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( cybikov2, cybikov1)
 	// cpu
-	MCFG_CPU_REPLACE("maincpu", H8S2246, 11059200)
+	MCFG_CPU_REPLACE("maincpu", H8S2246, XTAL_11_0592MHz)
 	MCFG_CPU_PROGRAM_MAP(cybikov2_mem )
 	MCFG_CPU_IO_MAP(cybikov2_io )
 	// machine
-	MCFG_MACHINE_START_OVERRIDE(cybiko_state,cybikov2)
-	MCFG_MACHINE_RESET_OVERRIDE(cybiko_state,cybikov2)
-	MCFG_SST39VF020_ADD("flash2", cybyko_sst39vfx_intf)
+	MCFG_SST_39VF020_ADD("flash2")
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -365,18 +349,22 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( cybikoxt, cybikov1)
 	// cpu
-	MCFG_CPU_REPLACE("maincpu", H8S2323, 18432000)
+	MCFG_CPU_REPLACE("maincpu", H8S2323, XTAL_18_432MHz)
 	MCFG_CPU_PROGRAM_MAP(cybikoxt_mem )
 	MCFG_CPU_IO_MAP(cybikoxt_io )
 	// machine
-	MCFG_MACHINE_START_OVERRIDE(cybiko_state,cybikoxt)
-	MCFG_MACHINE_RESET_OVERRIDE(cybiko_state,cybikoxt)
 	MCFG_DEVICE_REMOVE("flash1")
-	MCFG_SST39VF400A_ADD("flash2", cybyko_sst39vfx_intf)
+	MCFG_SST_39VF400A_ADD("flashxt")
+
+	MCFG_NVRAM_HANDLER( cybikoxt )
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("2M")
+
+	/* quickload */
+	MCFG_DEVICE_REMOVE("quickload")
+	MCFG_QUICKLOAD_ADD("quickload", cybiko_state, cybikoxt, "bin,nv", 0)
 MACHINE_CONFIG_END
 
 
@@ -387,16 +375,38 @@ MACHINE_CONFIG_END
 ROM_START( cybikov1 )
 	ROM_REGION( 0x8000, "maincpu", 0 )
 	ROM_LOAD( "cyrom112.bin", 0, 0x8000, CRC(9e1f1a0f) SHA1(6fc08de6b2c67d884ec78f748e4a4bad27ee8045) )
+
+	ROM_REGION( 0x84000, "flash1", 0 )
+	ROM_LOAD( "flash1.bin", 0, 0x84000, NO_DUMP )
 ROM_END
 
 ROM_START( cybikov2 )
 	ROM_REGION( 0x8000, "maincpu", 0 )
 	ROM_LOAD( "cyrom117.bin", 0, 0x8000, CRC(268da7bf) SHA1(135eaf9e3905e69582aabd9b06bc4de0a66780d5) )
+
+	ROM_SYSTEM_BIOS( 0, "v1358", "v1.3.58" )
+	ROM_SYSTEM_BIOS( 1, "v1357", "v1.3.57" )
+	ROM_SYSTEM_BIOS( 2, "v1355", "v1.3.55" )
+
+	ROM_REGION( 0x84000, "flash1", 0 )
+	ROMX_LOAD( "flash_v1358.bin", 0, 0x84000, CRC(e485880f) SHA1(e414d6d2f876c7c811946bcdfcb6212999412381), ROM_BIOS(1) )
+	ROMX_LOAD( "flash_v1357.bin", 0, 0x84000, CRC(9fd3c058) SHA1(dad0c3db0f11c91747db6ccc1900004432afb881), ROM_BIOS(2) )
+	ROMX_LOAD( "flash_v1355.bin", 0, 0x84000, CRC(497a5bbe) SHA1(0af611424cbf287b26c668a3109fb0861a27f603), ROM_BIOS(3) )
+
+	ROM_REGION( 0x40000, "flash2", 0 )
+	ROMX_LOAD( "cyos_v1358.bin", 0, 0x40000, CRC(05ca4ece) SHA1(eee329e8541e1e36c22acb1317378ce23ccd1e12), ROM_BIOS(1) )
+	ROMX_LOAD( "cyos_v1357.bin", 0, 0x40000, CRC(54ba7d43) SHA1(c6e0f7982e0f7a5fa65f2cecc8b27cb21909a407), ROM_BIOS(2) )
+	ROMX_LOAD( "cyos_v1355.bin", 0, 0x40000, CRC(02d3dba5) SHA1(4ed728940bbcb3d2464fc7fba14d17924ece94aa), ROM_BIOS(3) )
 ROM_END
 
 ROM_START( cybikoxt )
 	ROM_REGION( 0x8000, "maincpu", 0 )
 	ROM_LOAD( "cyrom150.bin", 0, 0x8000, CRC(18b9b21f) SHA1(28868d6174eb198a6cec6c3c70b6e494517229b9) )
+
+	ROM_SYSTEM_BIOS( 0, "v1508", "v1.5.08" )
+
+	ROM_REGION( 0x80000, "flashxt", 0 )
+	ROMX_LOAD( "cyos_v1508.bin", 0, 0x80000, CRC(f79400ba) SHA1(537a88e238746b3944b0cdfd4b0a9396460b2977), ROM_BIOS(1) )
 ROM_END
 
 //////////////
@@ -404,6 +414,6 @@ ROM_END
 //////////////
 
 /*    YEAR  NAME        PARENT      COMPAT  MACHINE     INPUT     INIT        COMPANY       FULLNAME                FLAGS */
-COMP( 2000, cybikov1,   0,          0,      cybikov1,   cybiko, cybiko_state,   cybikov1,   "Cybiko Inc", "Cybiko Classic (V1)",  GAME_IMPERFECT_SOUND )
-COMP( 2000, cybikov2,   cybikov1,   0,      cybikov2,   cybiko, cybiko_state,   cybikov2,   "Cybiko Inc", "Cybiko Classic (V2)",  GAME_IMPERFECT_SOUND )
+COMP( 2000, cybikov1,   0,          0,      cybikov1,   cybiko, cybiko_state,   cybiko  ,   "Cybiko Inc", "Cybiko Classic (V1)",  GAME_IMPERFECT_SOUND )
+COMP( 2000, cybikov2,   cybikov1,   0,      cybikov2,   cybiko, cybiko_state,   cybiko  ,   "Cybiko Inc", "Cybiko Classic (V2)",  GAME_IMPERFECT_SOUND )
 COMP( 2001, cybikoxt,   cybikov1,   0,      cybikoxt,   cybikoxt, cybiko_state, cybikoxt,   "Cybiko Inc", "Cybiko Xtreme",        GAME_IMPERFECT_SOUND )

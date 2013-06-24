@@ -241,14 +241,16 @@ class goldngam_state : public driver_device
 {
 public:
 	goldngam_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_videoram;
 	DECLARE_READ16_MEMBER(unk_r);
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_goldngam(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -258,12 +260,10 @@ public:
 
 void goldngam_state::video_start()
 {
-
 }
 
 UINT32 goldngam_state::screen_update_goldngam(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	int x, y;
 
 	// ERROR: This cast is NOT endian-safe without the use of BYTE/WORD/DWORD_XOR_* macros!
@@ -285,7 +285,6 @@ UINT32 goldngam_state::screen_update_goldngam(screen_device &screen, bitmap_ind1
 
 void goldngam_state::palette_init()
 {
-
 }
 
 
@@ -308,8 +307,8 @@ static ADDRESS_MAP_START( swisspkr_map, AS_PROGRAM, 16, goldngam_state )
 	AM_RANGE(0x400002, 0x400003) AM_NOP // hopper status read ?
 	AM_RANGE(0x40000c, 0x40000d) AM_READ(unk_r)
 	AM_RANGE(0x40000e, 0x40000f) AM_READ_PORT("DSW2")   // not sure...
-	AM_RANGE(0x402000, 0x402001) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
-	AM_RANGE(0x402000, 0x402003) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff) //wrong
+	AM_RANGE(0x402000, 0x402001) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0x402000, 0x402003) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff) //wrong
 
 	AM_RANGE(0xc00000, 0xc3ffff) AM_RAM AM_SHARE("videoram")
 	AM_RANGE(0x500200, 0x50020f) AM_RAM //?

@@ -127,7 +127,6 @@ CUSTOM_INPUT_MEMBER(champbas_state::champbas_watchdog_bit2)
 
 WRITE8_MEMBER(champbas_state::irq_enable_w)
 {
-
 	m_irq_mask = data & 1;
 
 	if (!m_irq_mask)
@@ -142,20 +141,17 @@ TIMER_CALLBACK_MEMBER(champbas_state::exctsccr_fm_callback)
 // Champion Baseball has only one DAC
 WRITE8_MEMBER(champbas_state::champbas_dac_w)
 {
-	dac_device *device = machine().device<dac_device>("dac");
-	device->write_signed8(data << 2);
+	m_dac->write_signed8(data << 2);
 }
 
 WRITE8_MEMBER(champbas_state::champbas_dac1_w)
 {
-	dac_device *device = machine().device<dac_device>("dac1");
-	device->write_signed8(data << 2);
+	m_dac1->write_signed8(data << 2);
 }
 
 WRITE8_MEMBER(champbas_state::champbas_dac2_w)
 {
-	dac_device *device = machine().device<dac_device>("dac2");
-	device->write_signed8(data << 2);
+	m_dac2->write_signed8(data << 2);
 }
 
 /*************************************
@@ -172,13 +168,12 @@ WRITE8_MEMBER(champbas_state::champbas_mcu_switch_w)
 
 WRITE8_MEMBER(champbas_state::champbas_mcu_halt_w)
 {
-
 	// MCU not present/not used in champbas
 	if (m_mcu == NULL)
 		return;
 
 	data &= 1;
-	m_mcu->execute().set_input_line(INPUT_LINE_HALT, data ? ASSERT_LINE : CLEAR_LINE);
+	m_mcu->set_input_line(INPUT_LINE_HALT, data ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -226,7 +221,7 @@ READ8_MEMBER(champbas_state::champbja_alt_protection_r)
 static ADDRESS_MAP_START( talbot_map, AS_PROGRAM, 8, champbas_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM
 	AM_RANGE(0x6000, 0x63ff) AM_RAM AM_SHARE("share1") /* MCU shared RAM */
-	AM_RANGE(0x7000, 0x7001) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x7000, 0x7001) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x8000, 0x87ff) AM_RAM_WRITE(champbas_bg_videoram_w) AM_SHARE("bg_videoram")
 	AM_RANGE(0x8800, 0x8fef) AM_RAM
 	AM_RANGE(0x8ff0, 0x8fff) AM_RAM AM_SHARE("spriteram")
@@ -253,7 +248,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( champbas_main_map, AS_PROGRAM, 8, champbas_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM
 	AM_RANGE(0x6000, 0x63ff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x7000, 0x7001) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x7000, 0x7001) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x7800, 0x7fff) AM_ROM // champbb2 only
 	AM_RANGE(0x8000, 0x87ff) AM_RAM_WRITE(champbas_bg_videoram_w) AM_SHARE("bg_videoram")
 	AM_RANGE(0x8800, 0x8fef) AM_RAM
@@ -285,7 +280,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( exctsccrb_main_map, AS_PROGRAM, 8, champbas_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM
 //  AM_RANGE(0x6000, 0x63ff) AM_RAM AM_SHARE("share1") // MCU not used (though it's present on the board)
-	AM_RANGE(0x7000, 0x7001) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x7000, 0x7001) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 //  AM_RANGE(0x7800, 0x7fff) AM_ROM // champbb2 only
 	AM_RANGE(0x8000, 0x87ff) AM_RAM_WRITE(champbas_bg_videoram_w) AM_SHARE("bg_videoram")
 	AM_RANGE(0x8800, 0x8fff) AM_RAM AM_SHARE("spriteram_2") /* ??? */
@@ -356,10 +351,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( exctsccr_sound_io_map, AS_IO, 8, champbas_state )
 	ADDRESS_MAP_GLOBAL_MASK( 0x00ff )
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
-	AM_RANGE(0x86, 0x87) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
-	AM_RANGE(0x8a, 0x8b) AM_DEVWRITE_LEGACY("ay3", ay8910_data_address_w)
-	AM_RANGE(0x8e, 0x8f) AM_DEVWRITE_LEGACY("ay4", ay8910_data_address_w)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
+	AM_RANGE(0x86, 0x87) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
+	AM_RANGE(0x8a, 0x8b) AM_DEVWRITE("ay3", ay8910_device, data_address_w)
+	AM_RANGE(0x8e, 0x8f) AM_DEVWRITE("ay4", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 
@@ -576,10 +571,6 @@ GFXDECODE_END
 
 MACHINE_START_MEMBER(champbas_state,champbas)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_mcu = machine().device(CPUTAG_MCU);
-
 	save_item(NAME(m_watchdog_count));
 	save_item(NAME(m_palette_bank));
 	save_item(NAME(m_gfx_bank));
@@ -587,8 +578,6 @@ MACHINE_START_MEMBER(champbas_state,champbas)
 
 MACHINE_START_MEMBER(champbas_state,exctsccr)
 {
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	// FIXME
 	machine().scheduler().timer_pulse(attotime::from_hz(75), timer_expired_delegate(FUNC(champbas_state::exctsccr_fm_callback),this)); /* updates fm */
 
@@ -598,14 +587,12 @@ MACHINE_START_MEMBER(champbas_state,exctsccr)
 
 MACHINE_RESET_MEMBER(champbas_state,champbas)
 {
-
 	m_palette_bank = 0;
 	m_gfx_bank = 0; // talbot has only 1 bank
 }
 
 INTERRUPT_GEN_MEMBER(champbas_state::vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
@@ -1213,9 +1200,9 @@ ROM_END
 DRIVER_INIT_MEMBER(champbas_state,champbas)
 {
 	// chars and sprites are mixed in the same ROMs, so rearrange them for easier decoding
-	UINT8 *rom1 = machine().root_device().memregion("gfx1")->base();
-	UINT8 *rom2 = machine().root_device().memregion("gfx2")->base();
-	int len = machine().root_device().memregion("gfx1")->bytes();
+	UINT8 *rom1 = memregion("gfx1")->base();
+	UINT8 *rom2 = memregion("gfx2")->base();
+	int len = memregion("gfx1")->bytes();
 	int i;
 
 	for (i = 0; i < len/2; ++i)
@@ -1230,8 +1217,8 @@ DRIVER_INIT_MEMBER(champbas_state,champbas)
 DRIVER_INIT_MEMBER(champbas_state,exctsccr)
 {
 	// chars and sprites are mixed in the same ROMs, so rearrange them for easier decoding
-	UINT8 *rom1 = machine().root_device().memregion("gfx1")->base();
-	UINT8 *rom2 = machine().root_device().memregion("gfx2")->base();
+	UINT8 *rom1 = memregion("gfx1")->base();
+	UINT8 *rom2 = memregion("gfx2")->base();
 	int i;
 
 	// planes 0,1

@@ -7,10 +7,12 @@ class dogfgt_state : public driver_device
 {
 public:
 	dogfgt_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bgvideoram(*this, "bgvideoram"),
 		m_spriteram(*this, "spriteram"),
-		m_sharedram(*this, "sharedram") { }
+		m_sharedram(*this, "sharedram"),
+		m_subcpu(*this, "sub") ,
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_bgvideoram;
@@ -33,7 +35,7 @@ public:
 	int       m_last_snd_ctrl;
 
 	/* devices */
-	cpu_device *m_subcpu;
+	required_device<cpu_device> m_subcpu;
 	DECLARE_READ8_MEMBER(sharedram_r);
 	DECLARE_WRITE8_MEMBER(sharedram_w);
 	DECLARE_WRITE8_MEMBER(subirqtrigger_w);
@@ -53,4 +55,6 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_dogfgt(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

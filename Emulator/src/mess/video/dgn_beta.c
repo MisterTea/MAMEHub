@@ -253,12 +253,13 @@ WRITE_LINE_MEMBER(dgn_beta_state::dgnbeta_vsync_changed)
 		}
 	}
 
-	dgn_beta_frame_interrupt(machine(), state);
+	dgn_beta_frame_interrupt(state);
 }
 
-const mc6845_interface dgnbeta_crtc6845_interface =
+MC6845_INTERFACE( dgnbeta_crtc6845_interface )
 {
 	"screen",
+	false,
 	16 /*?*/,
 	NULL,
 	dgnbeta_update_row,
@@ -286,10 +287,9 @@ const mc6845_interface dgnbeta_crtc6845_interface =
 /* 6821-I28, this allows the 6845 to access the full 64K address range, however    */
 /* since the ram data is addressed as a 16bit wide unit, this allows the 6845      */
 /* access to the first 128K or ram.                                                */
-void dgnbeta_vid_set_gctrl(running_machine &machine, int data)
+void dgn_beta_state::dgnbeta_vid_set_gctrl(int data)
 {
-	dgn_beta_state *state = machine.driver_data<dgn_beta_state>();
-	state->m_GCtrl=data;
+	m_GCtrl=data;
 }
 
 

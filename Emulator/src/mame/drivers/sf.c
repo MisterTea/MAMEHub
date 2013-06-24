@@ -41,7 +41,6 @@ WRITE16_MEMBER(sf_state::sf_coin_w)
 
 WRITE16_MEMBER(sf_state::soundcmd_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, offset, data & 0xff);
@@ -53,7 +52,7 @@ WRITE16_MEMBER(sf_state::soundcmd_w)
 /* The protection of the Japanese (and alt US) version */
 /* I'd love to see someone dump the 68705 / i8751 roms */
 
-static void write_dword( address_space &space, offs_t offset, UINT32 data )
+void sf_state::write_dword( address_space &space, offs_t offset, UINT32 data )
 {
 	space.write_word(offset, data >> 16);
 	space.write_word(offset + 2, data);
@@ -173,28 +172,26 @@ READ16_MEMBER(sf_state::button2_r)
 
 WRITE8_MEMBER(sf_state::sound2_bank_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("audio2")->base() + 0x8000 * (data + 1));
+	membank("bank1")->set_base(memregion("audio2")->base() + 0x8000 * (data + 1));
 }
 
 
 WRITE8_MEMBER(sf_state::msm1_5205_w)
 {
-	device_t *device = machine().device("msm1");
-	msm5205_reset_w(device, (data >> 7) & 1);
+	m_msm1->reset_w(BIT(data, 7));
 	/* ?? bit 6?? */
-	msm5205_data_w(device, data);
-	msm5205_vclk_w(device, 1);
-	msm5205_vclk_w(device, 0);
+	m_msm1->data_w(data);
+	m_msm1->vclk_w(1);
+	m_msm1->vclk_w(0);
 }
 
 WRITE8_MEMBER(sf_state::msm2_5205_w)
 {
-	device_t *device = machine().device("msm2");
-	msm5205_reset_w(device, (data >> 7) & 1);
+	m_msm2->reset_w(BIT(data, 7));
 	/* ?? bit 6?? */
-	msm5205_data_w(device, data);
-	msm5205_vclk_w(device, 1);
-	msm5205_vclk_w(device, 0);
+	m_msm2->data_w(data);
+	m_msm2->vclk_w(1);
+	m_msm2->vclk_w(0);
 }
 
 
@@ -798,16 +795,13 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_config =
 {
-	0,              /* interrupt function */
+	DEVCB_NULL,              /* interrupt function */
 	MSM5205_SEX_4B  /* 8KHz playback ?    */
 };
 
 void sf_state::machine_start()
 {
-
 	/* devices */
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 
 	save_item(NAME(m_sf_active));
 	save_item(NAME(m_bgscroll));
@@ -816,7 +810,6 @@ void sf_state::machine_start()
 
 void sf_state::machine_reset()
 {
-
 	m_sf_active = 0;
 	m_bgscroll = 0;
 	m_fgscroll = 0;

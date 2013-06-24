@@ -11,6 +11,8 @@ public:
 	hng64_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_comm(*this, "comm"),
 		m_rtc(*this, "rtc"),
 		m_mainram(*this, "mainram"),
 		m_cart(*this, "cart"),
@@ -30,6 +32,8 @@ public:
 		m_com_mmu_mem(*this, "com_mmu_mem"){ }
 
 	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_comm;
 	required_device<msm6242_device> m_rtc;
 	required_shared_ptr<UINT32> m_mainram;
 	required_shared_ptr<UINT32> m_cart;

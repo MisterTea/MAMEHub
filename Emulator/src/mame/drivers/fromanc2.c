@@ -5,10 +5,10 @@
     Taisen Idol-Mahjong Final Romance 2 (Japan)
     (c)1995 Video System Co.,Ltd.
 
-    Taisen Mahjong FinalRomance R (Japan)
+    Taisen Mahjong Final Romance R (Japan)
     (c)1995 Video System Co.,Ltd.
 
-    Taisen Mahjong FinalRomance 4 (Japan)
+    Taisen Mahjong Final Romance 4 (Japan)
     (c)1998 Video System Co.,Ltd.
 
     Driver by Takahiro Nogi <nogi@kt.rim.or.jp> 2001/02/28 -
@@ -39,7 +39,6 @@ INTERRUPT_GEN_MEMBER(fromanc2_state::fromanc2_interrupt)
 
 WRITE16_MEMBER(fromanc2_state::fromanc2_sndcmd_w)
 {
-
 	soundlatch_byte_w(space, offset, (data >> 8) & 0xff);   // 1P (LEFT)
 	soundlatch2_byte_w(space, offset, data & 0xff);         // 2P (RIGHT)
 
@@ -95,7 +94,7 @@ WRITE16_MEMBER(fromanc2_state::fromancr_eeprom_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-		fromancr_gfxbank_w(machine(), data & 0xfff8);
+		fromancr_gfxbank_w(data & 0xfff8);
 		ioport("EEPROMOUT")->write(data, 0xff);
 	}
 }
@@ -241,8 +240,8 @@ static ADDRESS_MAP_START( fromanc4_main_map, AS_PROGRAM, 16, fromanc2_state )
 
 	AM_RANGE(0xd00000, 0xd00001) AM_WRITE(fromanc2_portselect_w)    // PORT SELECT (1P/2P)
 
-	AM_RANGE(0xd10000, 0xd10001) AM_WRITENOP                // ?
-	AM_RANGE(0xd30000, 0xd30001) AM_WRITENOP                // ?
+	AM_RANGE(0xd10000, 0xd10001) AM_WRITENOP                        // ?
+	AM_RANGE(0xd30000, 0xd30001) AM_WRITENOP                        // ?
 	AM_RANGE(0xd50000, 0xd50001) AM_WRITE(fromanc4_eeprom_w)        // EEPROM DATA
 
 	AM_RANGE(0xd70000, 0xd70001) AM_WRITE(fromanc2_sndcmd_w)        // SOUND REQ (1P/2P)
@@ -254,33 +253,33 @@ static ADDRESS_MAP_START( fromanc4_main_map, AS_PROGRAM, 16, fromanc2_state )
 	AM_RANGE(0xdb0000, 0xdb0fff) AM_READWRITE(fromanc4_paletteram_0_r, fromanc4_paletteram_0_w) // PALETTE (1P)
 	AM_RANGE(0xdc0000, 0xdc0fff) AM_READWRITE(fromanc4_paletteram_1_r, fromanc4_paletteram_1_w) // PALETTE (2P)
 
-	AM_RANGE(0xd10000, 0xd10001) AM_READ(fromanc2_keymatrix_r)  // INPUT KEY MATRIX
+	AM_RANGE(0xd10000, 0xd10001) AM_READ(fromanc2_keymatrix_r)      // INPUT KEY MATRIX
 	AM_RANGE(0xd20000, 0xd20001) AM_READ_PORT("SYSTEM")
 
-	AM_RANGE(0xe00000, 0xe0001d) AM_WRITE(fromanc4_gfxreg_0_w)  // SCROLL, GFXBANK (1P/2P)
-	AM_RANGE(0xe10000, 0xe1001d) AM_WRITE(fromanc4_gfxreg_1_w)  // SCROLL, GFXBANK (1P/2P)
-	AM_RANGE(0xe20000, 0xe2001d) AM_WRITE(fromanc4_gfxreg_2_w)  // SCROLL, GFXBANK (1P/2P)
+	AM_RANGE(0xe00000, 0xe0001d) AM_WRITE(fromanc4_gfxreg_0_w)      // SCROLL, GFXBANK (1P/2P)
+	AM_RANGE(0xe10000, 0xe1001d) AM_WRITE(fromanc4_gfxreg_1_w)      // SCROLL, GFXBANK (1P/2P)
+	AM_RANGE(0xe20000, 0xe2001d) AM_WRITE(fromanc4_gfxreg_2_w)      // SCROLL, GFXBANK (1P/2P)
 
-	AM_RANGE(0xe30000, 0xe30013) AM_WRITENOP                // ???
-	AM_RANGE(0xe40000, 0xe40013) AM_WRITENOP                // ???
+	AM_RANGE(0xe30000, 0xe30013) AM_WRITENOP                        // ???
+	AM_RANGE(0xe40000, 0xe40013) AM_WRITENOP                        // ???
 
-	AM_RANGE(0xe50000, 0xe50009) AM_WRITENOP                // EXT-COMM PORT ?
-	AM_RANGE(0xe5000c, 0xe5000d) AM_READNOP             // EXT-COMM PORT ?
+	AM_RANGE(0xe50000, 0xe50009) AM_WRITENOP                        // EXT-COMM PORT ?
+	AM_RANGE(0xe5000c, 0xe5000d) AM_READNOP                         // EXT-COMM PORT ?
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( fromanc2_sub_map, AS_PROGRAM, 8, fromanc2_state )
-	AM_RANGE(0x0000, 0x3fff) AM_ROM                             // ROM
-	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")                        // ROM(BANK)
-	AM_RANGE(0x8000, 0xbfff) AM_RAM                             // RAM(WORK)
-	AM_RANGE(0xc000, 0xffff) AM_RAMBANK("bank2")                        // RAM(BANK)
+	AM_RANGE(0x0000, 0x3fff) AM_ROM                                 // ROM
+	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")                    // ROM(BANK)
+	AM_RANGE(0x8000, 0xbfff) AM_RAM                                 // RAM(WORK)
+	AM_RANGE(0xc000, 0xffff) AM_RAMBANK("bank2")                    // RAM(BANK)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( fromanc2_sub_io_map, AS_IO, 8, fromanc2_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(fromanc2_subcpu_rombank_w)
-	AM_RANGE(0x02, 0x02) AM_READWRITE(fromanc2_maincpu_r_l, fromanc2_maincpu_w_l)   // to/from MAIN CPU
-	AM_RANGE(0x04, 0x04) AM_READWRITE(fromanc2_maincpu_r_h, fromanc2_maincpu_w_h)   // to/from MAIN CPU
+	AM_RANGE(0x02, 0x02) AM_READWRITE(fromanc2_maincpu_r_l, fromanc2_maincpu_w_l) // to/from MAIN CPU
+	AM_RANGE(0x04, 0x04) AM_READWRITE(fromanc2_maincpu_r_h, fromanc2_maincpu_w_h) // to/from MAIN CPU
 	AM_RANGE(0x06, 0x06) AM_WRITE(fromanc2_subcpu_nmi_clr)
 ADDRESS_MAP_END
 
@@ -292,9 +291,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( fromanc2_sound_io_map, AS_IO, 8, fromanc2_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READ(soundlatch_byte_r) AM_WRITENOP         // snd cmd (1P) / ?
-	AM_RANGE(0x04, 0x04) AM_READ(soundlatch2_byte_r)                            // snd cmd (2P)
-	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
+	AM_RANGE(0x00, 0x00) AM_READ(soundlatch_byte_r) AM_WRITENOP     // snd cmd (1P) / ?
+	AM_RANGE(0x04, 0x04) AM_READ(soundlatch2_byte_r)                // snd cmd (2P)
+	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 	AM_RANGE(0x0c, 0x0c) AM_READ(fromanc2_sndcpu_nmi_clr)
 ADDRESS_MAP_END
 
@@ -311,12 +310,12 @@ static INPUT_PORTS_START( fromanc2 )
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_COIN3 )
 	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_COIN4 )
-	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, fromanc2_state,subcpu_int_r, NULL)      // SUBCPU INT FLAG
-	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, fromanc2_state,sndcpu_nmi_r, NULL)      // SNDCPU NMI FLAG
-	PORT_BIT( 0x0040, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, fromanc2_state,subcpu_nmi_r, NULL)      // SUBCPU NMI FLAG
+	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, fromanc2_state,subcpu_int_r, NULL) // SUBCPU INT FLAG
+	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, fromanc2_state,sndcpu_nmi_r, NULL) // SNDCPU NMI FLAG
+	PORT_BIT( 0x0040, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, fromanc2_state,subcpu_nmi_r, NULL) // SUBCPU NMI FLAG
 	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME( "Service Mode (1P)" ) PORT_CODE(KEYCODE_F2)   // TEST (1P)
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME( "Service Mode (2P)" ) PORT_CODE(KEYCODE_F2)   // TEST (2P)
+	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME( "Service Mode (1P)" ) PORT_CODE(KEYCODE_F2) // TEST (1P)
+	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME( "Service Mode (2P)" ) PORT_CODE(KEYCODE_F2) // TEST (2P)
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -402,17 +401,6 @@ static INPUT_PORTS_START( fromanc2 )
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
 INPUT_PORTS_END
 
-#ifdef UNREFERENCED_CODE
-static INPUT_PORTS_START( fromancr )
-	PORT_INCLUDE( fromanc2 )
-
-	PORT_MODIFY("EEPROMOUT")
-	PORT_BIT( 0x0001, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x0002, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-INPUT_PORTS_END
-#endif
-
 static INPUT_PORTS_START( fromanc4 )
 	PORT_INCLUDE( fromanc2 )
 
@@ -422,7 +410,7 @@ static INPUT_PORTS_START( fromanc4 )
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_COIN3 )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_COIN4 )
-	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, fromanc2_state,sndcpu_nmi_r, NULL)      // SNDCPU NMI FLAG
+	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, fromanc2_state,sndcpu_nmi_r, NULL) // SNDCPU NMI FLAG
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
 	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -483,16 +471,10 @@ GFXDECODE_END
  *
  *************************************/
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(fromanc2_state::irqhandler)
 {
-	fromanc2_state *state = device->machine().driver_data<fromanc2_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	irqhandler
-};
 
 
 /*************************************
@@ -503,13 +485,6 @@ static const ym2610_interface ym2610_config =
 
 MACHINE_START_MEMBER(fromanc2_state,fromanc4)
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-	m_eeprom = machine().device("eeprom");
-	m_left_screen = machine().device("lscreen");
-	m_right_screen = machine().device("rscreen");
-
 	save_item(NAME(m_portselect));
 	save_item(NAME(m_sndcpu_nmi_flag));
 	save_item(NAME(m_datalatch1));
@@ -521,7 +496,6 @@ MACHINE_START_MEMBER(fromanc2_state,fromanc4)
 
 MACHINE_START_MEMBER(fromanc2_state,fromanc2)
 {
-
 	m_bankedram = auto_alloc_array(machine(), UINT8, 0x4000 * 3);
 
 	membank("bank1")->configure_entries(0, 4, memregion("sub")->base(), 0x4000);
@@ -537,7 +511,6 @@ MACHINE_START_MEMBER(fromanc2_state,fromanc2)
 
 void fromanc2_state::machine_reset()
 {
-
 	m_portselect = 0;
 	m_datalatch1 = 0;
 	m_datalatch_2h = 0;
@@ -588,7 +561,7 @@ static MACHINE_CONFIG_START( fromanc2, fromanc2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(fromanc2_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.75)
 	MCFG_SOUND_ROUTE(2, "mono", 0.75)
@@ -638,7 +611,7 @@ static MACHINE_CONFIG_START( fromancr, fromanc2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(fromanc2_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.75)
 	MCFG_SOUND_ROUTE(2, "mono", 0.75)
@@ -685,7 +658,7 @@ static MACHINE_CONFIG_START( fromanc4, fromanc2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(fromanc2_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.75)
 	MCFG_SOUND_ROUTE(2, "mono", 0.75)
@@ -825,5 +798,5 @@ DRIVER_INIT_MEMBER(fromanc2_state,fromanc4)
  *************************************/
 
 GAME( 1995, fromanc2, 0, fromanc2, fromanc2, fromanc2_state, fromanc2, ROT0, "Video System Co.", "Taisen Idol-Mahjong Final Romance 2 (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1995, fromancr, 0, fromancr, fromanc2, fromanc2_state, fromanc2, ROT0, "Video System Co.", "Taisen Mahjong FinalRomance R (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1998, fromanc4, 0, fromanc4, fromanc4, fromanc2_state, fromanc4, ROT0, "Video System Co.", "Taisen Mahjong FinalRomance 4 (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1995, fromancr, 0, fromancr, fromanc2, fromanc2_state, fromanc2, ROT0, "Video System Co.", "Taisen Mahjong Final Romance R (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1998, fromanc4, 0, fromanc4, fromanc4, fromanc2_state, fromanc4, ROT0, "Video System Co.", "Taisen Mahjong Final Romance 4 (Japan)", GAME_SUPPORTS_SAVE )

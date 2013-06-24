@@ -66,7 +66,7 @@ public:
 
 void kontest_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
 	int i;
 
@@ -91,7 +91,6 @@ void kontest_state::palette_init()
 
 void kontest_state::video_start()
 {
-
 }
 
 UINT32 kontest_state::screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect )

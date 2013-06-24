@@ -1,3 +1,5 @@
+#include "sound/msm5205.h"
+
 class gladiatr_state : public driver_device
 {
 public:
@@ -7,7 +9,11 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_textram(*this, "textram"){ }
+		m_textram(*this, "textram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_msm(*this, "msm") { }
 
 	required_shared_ptr<UINT8>  m_nvram;
 	required_shared_ptr<UINT8> m_spriteram;
@@ -66,4 +72,11 @@ public:
 	DECLARE_VIDEO_START(gladiatr);
 	UINT32 screen_update_ppking(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_gladiatr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void swap_block(UINT8 *src1,UINT8 *src2,int len);
+	DECLARE_WRITE_LINE_MEMBER(gladiator_ym_irq);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_subcpu;
+	required_device<msm5205_device> m_msm;
 };

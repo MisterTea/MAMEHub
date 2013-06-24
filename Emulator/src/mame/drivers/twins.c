@@ -57,8 +57,9 @@ class twins_state : public driver_device
 {
 public:
 	twins_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_videoram;
 	UINT16 *m_pal;
@@ -73,6 +74,7 @@ public:
 	DECLARE_VIDEO_START(twinsa);
 	UINT32 screen_update_twins(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_twinsa(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -106,8 +108,8 @@ static ADDRESS_MAP_START( twins_map, AS_PROGRAM, 16, twins_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( twins_io, AS_IO, 16, twins_state )
-	AM_RANGE(0x0000, 0x0003) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
-	AM_RANGE(0x0002, 0x0003) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
+	AM_RANGE(0x0000, 0x0003) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
+	AM_RANGE(0x0002, 0x0003) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
 	AM_RANGE(0x0004, 0x0005) AM_READWRITE(twins_port4_r, twins_port4_w)
 	AM_RANGE(0x0006, 0x0007) AM_WRITE(port6_pal0_w)
 	AM_RANGE(0x000e, 0x000f) AM_WRITE(porte_paloff0_w)
@@ -270,8 +272,8 @@ static ADDRESS_MAP_START( twinsa_io, AS_IO, 16, twins_state )
 	AM_RANGE(0x0000, 0x0001) AM_READWRITE(twinsa_unk_r, porte_paloff0_w)
 	AM_RANGE(0x0002, 0x0003) AM_WRITE(porte_paloff0_w)
 	AM_RANGE(0x0004, 0x0005) AM_WRITE(twinsa_port4_w) // palette on this set
-	AM_RANGE(0x0008, 0x0009) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_w, 0x00ff)
-	AM_RANGE(0x0010, 0x0011) AM_DEVREADWRITE8_LEGACY("aysnd", ay8910_r, ay8910_data_w, 0x00ff)
+	AM_RANGE(0x0008, 0x0009) AM_DEVWRITE8("aysnd", ay8910_device, address_w, 0x00ff)
+	AM_RANGE(0x0010, 0x0011) AM_DEVREADWRITE8("aysnd", ay8910_device, data_r, data_w, 0x00ff)
 	AM_RANGE(0x0018, 0x0019) AM_READ(twins_port4_r) AM_WRITE(twins_port4_w)
 ADDRESS_MAP_END
 

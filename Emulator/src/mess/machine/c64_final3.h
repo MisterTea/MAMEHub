@@ -34,12 +34,10 @@ public:
 	// optional information overrides
 	virtual ioport_constructor device_input_ports() const;
 
-	DECLARE_INPUT_CHANGED_MEMBER( reset );
 	DECLARE_INPUT_CHANGED_MEMBER( freeze );
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c64_final3"; }
 	virtual void device_start();
 	virtual void device_reset();
 

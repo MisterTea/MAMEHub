@@ -21,6 +21,7 @@ const device_type VCS_LIGHTPEN = &device_creator<vcs_lightpen_device>;
 INPUT_CHANGED_MEMBER( vcs_lightpen_device::trigger )
 {
 	// TODO trigger timer at correct screen position
+	m_port->trigger_w(newval);
 }
 
 
@@ -30,10 +31,10 @@ static INPUT_PORTS_START( vcs_lightpen )
 	PORT_BIT( 0xdf, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("LIGHTX")
-	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_X) PORT_NAME("Lightpen X Axis") PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_SENSITIVITY(30) PORT_KEYDELTA(20) PORT_PLAYER(1)
+	PORT_BIT( 0xff, 0x00, IPT_LIGHTGUN_X) PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_SENSITIVITY(45) PORT_KEYDELTA(15)
 
 	PORT_START("LIGHTY")
-	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_Y) PORT_NAME("Lightpen Y Axis") PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(30) PORT_KEYDELTA(20) PORT_PLAYER(1)
+	PORT_BIT( 0xff, 0x00, IPT_LIGHTGUN_Y) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(45) PORT_KEYDELTA(15)
 INPUT_PORTS_END
 
 
@@ -57,8 +58,11 @@ ioport_constructor vcs_lightpen_device::device_input_ports() const
 //-------------------------------------------------
 
 vcs_lightpen_device::vcs_lightpen_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, VCS_LIGHTPEN, "Light Pen", tag, owner, clock),
-	device_vcs_control_port_interface(mconfig, *this)
+	device_t(mconfig, VCS_LIGHTPEN, "Light Pen", tag, owner, clock, "vcs_lightpen", __FILE__),
+	device_vcs_control_port_interface(mconfig, *this),
+	m_joy(*this, "JOY"),
+	m_lightx(*this, "LIGHTX"),
+	m_lighty(*this, "LIGHTY")
 {
 }
 
@@ -78,5 +82,5 @@ void vcs_lightpen_device::device_start()
 
 UINT8 vcs_lightpen_device::vcs_joy_r()
 {
-	return ioport("JOY")->read();
+	return m_joy->read();
 }

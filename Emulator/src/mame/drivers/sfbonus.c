@@ -282,14 +282,15 @@ class sfbonus_state : public driver_device
 {
 public:
 	sfbonus_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_nvram(*this, "nvram"),
 		m_1800_regs(*this, "1800_regs"),
 		m_vregs(*this, "vregs"),
 		m_2801_regs(*this, "2801_regs"),
 		m_2c01_regs(*this, "2c01_regs"),
 		m_3000_regs(*this, "3000_regs"),
-		m_3800_regs(*this, "3800_regs"){ }
+		m_3800_regs(*this, "3800_regs"),
+		m_maincpu(*this, "maincpu") { }
 
 	bitmap_ind16 *m_temp_reel_bitmap;
 	tilemap_t *m_tilemap;
@@ -454,6 +455,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_sfbonus(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -1062,7 +1064,6 @@ static void sfbonus_draw_reel_layer(screen_device &screen, bitmap_ind16 &bitmap,
 
 UINT32 sfbonus_state::screen_update_sfbonus(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	int globalyscroll = (m_vregs[2] | m_vregs[3]<<8);
 	int globalxscroll = (m_vregs[0] | m_vregs[1]<<8);
 	UINT8* front_rowscroll = &m_videoram[0x200];
@@ -1339,9 +1340,9 @@ GFXDECODE_END
 
 void sfbonus_state::machine_reset()
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
-	machine().root_device().membank("bank1")->set_base(&ROM[0]);
+	membank("bank1")->set_base(&ROM[0]);
 }
 
 
@@ -5528,6 +5529,58 @@ ROM_START( atworldd1 )
 	ROM_LOAD( "aw13re.id", 0x00, 0x1000,  CRC(0f9991fb) SHA1(5ea9e49c6b8b00c2c3638cc39e479d6e5e112b7a) )
 ROM_END
 
+/* Spooky Night
+
+   ROM    SUM16 printed on rom label
+   --------------------------------------------
+   ROM1   70DE  <-- V1.0.1
+   ROM2   F088
+   ROM3   429D
+   ROM4   AA27
+   ROM5   C409
+   ROM6   59B6
+
+Note: There are at least two graphics roms updated for the "2nd Edition" which are currently undumped.
+      It to correct the misspelling of POINT on the play field, currently it's "PONIT".
+*/
+ROM_START( spooky )
+	ROM_REGION( 0x80000, "maincpu", 0 ) /* Z80 Code */
+	ROM_LOAD( "snd204r.bin", 0x00000, 0x80000, CRC(0e737c07) SHA1(50b55390f6ae6ae661d020dabd685651a7f160b2) )
+
+	ROM_REGION( 0x040000, "oki", ROMREGION_ERASE00 ) /* Samples */
+	ROM_LOAD( "snrom2.bin", 0x00000, 0x40000, CRC(cd85ba2e) SHA1(16b3f9e1e86fcb30daec16a80c1ec5fafe0d1e39) )
+
+	ROM_REGION( 0x100000, "gfx1", 0 )
+	ROM_LOAD16_BYTE( "snrom3.bin", 0x00000, 0x80000, CRC(bef6f60b) SHA1(189cbf4f6c479b0e84e08bc523b626c5c69b38c0) ) /* Need to verify against a factory 2nd Edition */
+	ROM_LOAD16_BYTE( "snrom4.bin", 0x00001, 0x80000, CRC(33b6679c) SHA1(ce6325c142e918bbc90e797867d220af06295eea) ) /* Need to verify against a factory 2nd Edition */
+
+	ROM_REGION( 0x100000, "gfx2", 0 )
+	ROM_LOAD16_BYTE( "snrom5.bin", 0x00000, 0x80000, CRC(5dff1e2b) SHA1(be564a980be44940144399095e39d46a06703aaf) ) /* Need to verify against a factory 2nd Edition */
+	ROM_LOAD16_BYTE( "snrom6.bin", 0x00001, 0x80000, CRC(d9d01d3b) SHA1(4acf7962ee6dd0c8a3d1f32f4b22678285417cc4) ) /* Need to verify against a factory 2nd Edition */
+
+	ROM_REGION( 0x1000, "nvram", 0 ) /* default settings */
+	ROM_LOAD( "snd204r.id", 0x0000, 0x1000, CRC(bd1884de) SHA1(cfbed0d9bffd16769ca3d1cb6ee131bd799b5eb9) )
+ROM_END
+
+ROM_START( spookyo )
+	ROM_REGION( 0x80000, "maincpu", 0 ) /* Z80 Code */
+	ROM_LOAD( "snd101r.bin", 0x00000, 0x80000, CRC(536e678c) SHA1(648e5f87c30750defd788bf6e360a37eff345748) )
+
+	ROM_REGION( 0x040000, "oki", ROMREGION_ERASE00 ) /* Samples */
+	ROM_LOAD( "snrom2.bin", 0x00000, 0x40000, CRC(cd85ba2e) SHA1(16b3f9e1e86fcb30daec16a80c1ec5fafe0d1e39) )
+
+	ROM_REGION( 0x100000, "gfx1", 0 )
+	ROM_LOAD16_BYTE( "snrom3.bin", 0x00000, 0x80000, CRC(bef6f60b) SHA1(189cbf4f6c479b0e84e08bc523b626c5c69b38c0) )
+	ROM_LOAD16_BYTE( "snrom4.bin", 0x00001, 0x80000, CRC(33b6679c) SHA1(ce6325c142e918bbc90e797867d220af06295eea) )
+
+	ROM_REGION( 0x100000, "gfx2", 0 )
+	ROM_LOAD16_BYTE( "snrom5.bin", 0x00000, 0x80000, CRC(5dff1e2b) SHA1(be564a980be44940144399095e39d46a06703aaf) )
+	ROM_LOAD16_BYTE( "snrom6.bin", 0x00001, 0x80000, CRC(d9d01d3b) SHA1(4acf7962ee6dd0c8a3d1f32f4b22678285417cc4) )
+
+	ROM_REGION( 0x1000, "nvram", 0 ) /* default settings */
+	ROM_LOAD( "snd101r.id", 0x0000, 0x1000, CRC(2b842d0e) SHA1(ec6dbfa3ee3ab9d1d5256c2fe5f1cf37f7055b0f) )
+ROM_END
+
 /* Fruit Bonus Deluxe
 
 Version 1.0.3 program rom need dumping. Board was reflashed (updated) to v1.0.9
@@ -5581,7 +5634,7 @@ ROM_END
 
 /* Fruit Bonus 3G
 
-Version 1.0.1 roms need dumping. Board was reflashed (updated) to v1.0.3
+Version 1.0.1 roms need dumping. The board was reflashed (updated) to v1.0.3
 
    ROM    SUM16 printed on rom label
    --------------------------------------------
@@ -5642,8 +5695,8 @@ ROM_START( getrich )
 ROM_END
 
 
-
 /* Not working sets (due to incomplete dumps) */
+
 ROM_START( version4 )
 	ROM_REGION( 0x80000, "maincpu", 0 ) /* Z80 Code */
 	ROM_LOAD( "96d43r.bin", 0x00000, 0x40000, CRC(51971502) SHA1(7767a98da2b75d9289b665c648036adb8f31f3dd) )
@@ -5777,22 +5830,6 @@ ROM_START( version4o )
 	ROM_LOAD( "fcs40r1.id", 0x00, 0x20, CRC(b3638cdb) SHA1(283824c57f3f62f6e2b505f6e13b100a7d7f33af) )
 ROM_END
 
-ROM_START( spooky )
-	ROM_REGION( 0x80000, "maincpu", 0 ) /* Z80 Code */
-	ROM_LOAD( "snd204r.bin", 0x00000, 0x80000, CRC(0e737c07) SHA1(50b55390f6ae6ae661d020dabd685651a7f160b2) )
-
-	ROM_REGION( 0x040000, "oki", ROMREGION_ERASE00 ) /* Samples */
-	ROM_LOAD( "snrom2.bin", 0x00000, 0x40000, NO_DUMP )
-
-	ROM_REGION( 0x100000, "gfx1", 0 )
-	ROM_LOAD16_BYTE( "snrom3.bin", 0x00000, 0x80000, NO_DUMP )
-	ROM_LOAD16_BYTE( "snrom4.bin", 0x00001, 0x80000, NO_DUMP )
-
-	ROM_REGION( 0x100000, "gfx2", 0 )
-	ROM_LOAD16_BYTE( "snrom5.bin", 0x00000, 0x80000, NO_DUMP )
-	ROM_LOAD16_BYTE( "snrom6.bin", 0x00001, 0x80000, NO_DUMP )
-ROM_END
-
 
 // diagnostics?
 ROM_START( amclink )
@@ -5813,29 +5850,29 @@ DRIVER_INIT_MEMBER(sfbonus_state,sfbonus_common)
 {
 	m_tilemap_ram = auto_alloc_array(machine(), UINT8, 0x4000);
 	memset(m_tilemap_ram, 0xff, 0x4000);
-	state_save_register_global_pointer(machine(), m_tilemap_ram , 0x4000);
+	save_pointer(NAME(m_tilemap_ram), 0x4000);
 
 	m_reel_ram = auto_alloc_array(machine(), UINT8, 0x0800);
 	memset(m_reel_ram, 0xff ,0x0800);
-	state_save_register_global_pointer(machine(), m_reel_ram , 0x0800);
+	save_pointer(NAME(m_reel_ram), 0x0800);
 
 	m_reel2_ram = auto_alloc_array(machine(), UINT8, 0x0800);
 	memset(m_reel2_ram, 0xff, 0x0800);
-	state_save_register_global_pointer(machine(), m_reel2_ram , 0x0800);
+	save_pointer(NAME(m_reel2_ram), 0x0800);
 
 	m_reel3_ram = auto_alloc_array(machine(), UINT8, 0x0800);
 	memset(m_reel3_ram, 0xff, 0x0800);
-	state_save_register_global_pointer(machine(), m_reel3_ram , 0x0800);
+	save_pointer(NAME(m_reel3_ram), 0x0800);
 
 	m_reel4_ram = auto_alloc_array(machine(), UINT8, 0x0800);
 	memset(m_reel4_ram, 0xff, 0x0800);
-	state_save_register_global_pointer(machine(), m_reel4_ram , 0x0800);
+	save_pointer(NAME(m_reel4_ram), 0x0800);
 
 	m_videoram = auto_alloc_array(machine(), UINT8, 0x10000);
 
 	memset(m_videoram, 0xff, 0x10000);
 
-	state_save_register_global_pointer(machine(), m_videoram, 0x10000);
+	save_pointer(NAME(m_videoram), 0x10000);
 
 	// dummy.rom helper
 	{
@@ -5848,7 +5885,6 @@ DRIVER_INIT_MEMBER(sfbonus_state,sfbonus_common)
 			printf("X %02x %02x %02x %02x %02x %02x %02x %02x\n", ROM[0x50], ROM[0x51], ROM[0x52], ROM[0x53], ROM[0x54], ROM[0x55],ROM[0x56],ROM[0x57]);
 
 			{
-
 				int x;
 				int y;
 				for (y = 0; y < 0x8; y++)
@@ -5889,11 +5925,10 @@ void sfbonus_state::sfbonus_bitswap(
 						UINT8 xor6, UINT8 b60, UINT8 b61, UINT8 b62, UINT8 b63, UINT8 b64, UINT8 b65, UINT8 b66,UINT8 b67,
 						UINT8 xor7, UINT8 b70, UINT8 b71, UINT8 b72, UINT8 b73, UINT8 b74, UINT8 b75, UINT8 b76,UINT8 b77 )
 {
-
 	int i;
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
-	for(i = 0; i < machine().root_device().memregion("maincpu")->bytes(); i++)
+	for(i = 0; i < memregion("maincpu")->bytes(); i++)
 	{
 		UINT8 x = ROM[i];
 
@@ -5916,121 +5951,121 @@ void sfbonus_state::sfbonus_bitswap(
 
 //static DRIVER_INIT(helper) { sfbonus_bitswap(machine,  0xff, 7,6,5,4,3,2,1,0, 0xff, 7,6,5,4,3,2,1,0, 0xff, 7,6,5,4,3,2,1,0, 0xff, 7,6,5,4,3,2,1,0, 0xff, 7,6,5,4,3,2,1,0, 0xff, 7,6,5,4,3,2,1,0, 0xff, 7,6,5,4,3,2,1,0, 0xff, 7,6,5,4,3,2,1,0); }
 
-DRIVER_INIT_MEMBER(sfbonus_state,abnudge)          { sfbonus_bitswap(    0x33, 0,3,7,6,5,2,1,4, 0xff, 3,7,6,5,1,0,4,2, 0x36, 4,2,3,7,6,5,1,0, 0xa8, 3,2,4,0,1,7,6,5, 0x2c, 0,1,7,6,5,2,4,3, 0xff, 3,7,6,5,1,0,4,2, 0x26, 2,4,3,7,6,5,1,0, 0xbe, 4,1,3,0,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,abnudged)         { sfbonus_bitswap(   0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x21, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3d, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x21, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,abnudgev)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 0,1,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,act2000)          { sfbonus_bitswap(    0x25, 1,2,7,6,5,4,3,0, 0xE6, 1,7,6,5,4,3,0,2, 0x20, 2,4,1,7,6,5,0,3, 0xBF, 0,3,1,2,4,7,6,5, 0x2E, 1,3,7,6,5,2,0,4, 0xE0, 3,7,6,5,2,0,4,1, 0x2D, 4,1,2,7,6,5,0,3, 0xB2, 2,0,4,1,3,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,act2000d)         { sfbonus_bitswap(   0x3d, 0,2,7,6,5,4,3,1, 0xef, 1,7,6,5,4,3,2,0, 0x27, 0,2,1,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xed, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,act2000v)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,act2000v2)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,act2000v3)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,anibonus)         { sfbonus_bitswap(   0x33, 0,3,7,6,5,2,1,4, 0xe7, 2,7,6,5,3,4,1,0, 0x3a, 4,2,3,7,6,5,1,0, 0xa8, 3,4,2,0,1,7,6,5, 0x3d, 2,3,7,6,5,1,0,4, 0xff, 3,7,6,5,1,0,2,4, 0x3a, 4,2,3,7,6,5,1,0, 0xbe, 3,4,1,0,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,anibonus3)        { sfbonus_bitswap(  0x33, 0,3,7,6,5,2,1,4, 0xff, 3,7,6,5,1,0,4,2, 0x36, 4,2,3,7,6,5,1,0, 0xa8, 3,2,4,0,1,7,6,5, 0x2c, 0,1,7,6,5,2,4,3, 0xff, 3,7,6,5,1,0,4,2, 0x26, 2,4,3,7,6,5,1,0, 0xbe, 4,1,3,0,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,anibonusd)        { sfbonus_bitswap(  0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x21, 0,2,1,7,6,5,4,3, 0xa8, 4,3,0,1,2,7,6,5, 0x3d, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x21, 0,2,1,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,anibonusv)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 0,1,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,abnudge)          { sfbonus_bitswap( 0x33, 0,3,7,6,5,2,1,4, 0xff, 3,7,6,5,1,0,4,2, 0x36, 4,2,3,7,6,5,1,0, 0xa8, 3,2,4,0,1,7,6,5, 0x2c, 0,1,7,6,5,2,4,3, 0xff, 3,7,6,5,1,0,4,2, 0x26, 2,4,3,7,6,5,1,0, 0xbe, 4,1,3,0,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,abnudged)         { sfbonus_bitswap( 0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x21, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3d, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x21, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,abnudgev)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 0,1,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,act2000)          { sfbonus_bitswap( 0x25, 1,2,7,6,5,4,3,0, 0xE6, 1,7,6,5,4,3,0,2, 0x20, 2,4,1,7,6,5,0,3, 0xBF, 0,3,1,2,4,7,6,5, 0x2E, 1,3,7,6,5,2,0,4, 0xE0, 3,7,6,5,2,0,4,1, 0x2D, 4,1,2,7,6,5,0,3, 0xB2, 2,0,4,1,3,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,act2000d)         { sfbonus_bitswap( 0x3d, 0,2,7,6,5,4,3,1, 0xef, 1,7,6,5,4,3,2,0, 0x27, 0,2,1,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xed, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,act2000v)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,act2000v2)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,act2000v3)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,anibonus)         { sfbonus_bitswap( 0x33, 0,3,7,6,5,2,1,4, 0xe7, 2,7,6,5,3,4,1,0, 0x3a, 4,2,3,7,6,5,1,0, 0xa8, 3,4,2,0,1,7,6,5, 0x3d, 2,3,7,6,5,1,0,4, 0xff, 3,7,6,5,1,0,2,4, 0x3a, 4,2,3,7,6,5,1,0, 0xbe, 3,4,1,0,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,anibonus3)        { sfbonus_bitswap( 0x33, 0,3,7,6,5,2,1,4, 0xff, 3,7,6,5,1,0,4,2, 0x36, 4,2,3,7,6,5,1,0, 0xa8, 3,2,4,0,1,7,6,5, 0x2c, 0,1,7,6,5,2,4,3, 0xff, 3,7,6,5,1,0,4,2, 0x26, 2,4,3,7,6,5,1,0, 0xbe, 4,1,3,0,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,anibonusd)        { sfbonus_bitswap( 0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x21, 0,2,1,7,6,5,4,3, 0xa8, 4,3,0,1,2,7,6,5, 0x3d, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x21, 0,2,1,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,anibonusv)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 0,1,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
 DRIVER_INIT_MEMBER(sfbonus_state,anibonusv3)       { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 0,1,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,anithunt)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xe7, 4,7,6,5,0,3,1,2, 0x33, 0,2,1,7,6,5,4,3, 0xb3, 0,3,4,2,1,7,6,5, 0x2a, 1,3,7,6,5,2,0,4, 0xe4, 3,7,6,5,2,0,4,1, 0x2d, 4,1,3,7,6,5,2,0, 0xb6, 0,3,2,1,4,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,anithuntd)        { sfbonus_bitswap(  0x3c, 0,1,7,6,5,4,3,2, 0xee, 0,7,6,5,4,3,2,1, 0x21, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3d, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x21, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,anithuntv)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,atworld)          { sfbonus_bitswap(    0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x26, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,atworldd)         { sfbonus_bitswap(   0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x26, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xe8, 1,7,6,5,4,3,0,2, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,ch2000)           { sfbonus_bitswap(     0x29, 2,3,7,6,5,0,4,1, 0xfe, 2,7,6,5,1,0,3,4, 0x33, 0,1,3,7,6,5,2,4, 0xa6, 1,0,3,4,2,7,6,5, 0x25, 4,1,7,6,5,3,2,0, 0xfe, 2,7,6,5,1,0,3,4, 0x35, 0,1,4,7,6,5,3,2, 0xbe, 1,0,4,2,3,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,ch2000c)          { sfbonus_bitswap(    0x29, 2,3,7,6,5,0,4,1, 0xfe, 2,7,6,5,1,0,3,4, 0x33, 0,1,3,7,6,5,2,4, 0xa6, 1,0,3,4,2,7,6,5, 0x25, 4,1,7,6,5,3,2,0, 0xfe, 2,7,6,5,1,0,3,4, 0x35, 0,1,4,7,6,5,3,2, 0xbe, 1,0,4,2,3,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,ch2000d)          { sfbonus_bitswap(    0x38, 0,2,7,6,5,4,3,1, 0xed, 0,7,6,5,4,3,2,1, 0x25, 2,0,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xed, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,ch2000v)          { sfbonus_bitswap(    0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,ch2000v2)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3e, 2,1,7,6,5,4,3,0, 0xec, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,ch2000v3)         { sfbonus_bitswap(   0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,classice)         { sfbonus_bitswap(   0x3f, 2,0,7,6,5,4,3,1, 0xe9, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xab, 4,3,2,0,1,7,6,5, 0x3e, 2,1,7,6,5,4,3,0, 0xeb, 2,7,6,5,4,3,0,1, 0x22, 0,2,1,7,6,5,4,3, 0xad, 4,3,0,2,1,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,classiced)        { sfbonus_bitswap(  0x38, 0,2,7,6,5,4,3,1, 0xea, 2,7,6,5,4,3,0,1, 0x24, 2,1,0,7,6,5,4,3, 0xaa, 4,3,2,0,1,7,6,5, 0x3e, 1,0,7,6,5,4,3,2, 0xe8, 0,7,6,5,4,3,1,2, 0x24, 2,1,0,7,6,5,4,3, 0xa8, 4,3,0,2,1,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,anithunt)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xe7, 4,7,6,5,0,3,1,2, 0x33, 0,2,1,7,6,5,4,3, 0xb3, 0,3,4,2,1,7,6,5, 0x2a, 1,3,7,6,5,2,0,4, 0xe4, 3,7,6,5,2,0,4,1, 0x2d, 4,1,3,7,6,5,2,0, 0xb6, 0,3,2,1,4,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,anithuntd)        { sfbonus_bitswap( 0x3c, 0,1,7,6,5,4,3,2, 0xee, 0,7,6,5,4,3,2,1, 0x21, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3d, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x21, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,anithuntv)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,atworld)          { sfbonus_bitswap( 0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x26, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,atworldd)         { sfbonus_bitswap( 0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x26, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xe8, 1,7,6,5,4,3,0,2, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,ch2000)           { sfbonus_bitswap( 0x29, 2,3,7,6,5,0,4,1, 0xfe, 2,7,6,5,1,0,3,4, 0x33, 0,1,3,7,6,5,2,4, 0xa6, 1,0,3,4,2,7,6,5, 0x25, 4,1,7,6,5,3,2,0, 0xfe, 2,7,6,5,1,0,3,4, 0x35, 0,1,4,7,6,5,3,2, 0xbe, 1,0,4,2,3,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,ch2000c)          { sfbonus_bitswap( 0x29, 2,3,7,6,5,0,4,1, 0xfe, 2,7,6,5,1,0,3,4, 0x33, 0,1,3,7,6,5,2,4, 0xa6, 1,0,3,4,2,7,6,5, 0x25, 4,1,7,6,5,3,2,0, 0xfe, 2,7,6,5,1,0,3,4, 0x35, 0,1,4,7,6,5,3,2, 0xbe, 1,0,4,2,3,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,ch2000d)          { sfbonus_bitswap( 0x38, 0,2,7,6,5,4,3,1, 0xed, 0,7,6,5,4,3,2,1, 0x25, 2,0,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xed, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,ch2000v)          { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,ch2000v2)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3e, 2,1,7,6,5,4,3,0, 0xec, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,ch2000v3)         { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,classice)         { sfbonus_bitswap( 0x3f, 2,0,7,6,5,4,3,1, 0xe9, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xab, 4,3,2,0,1,7,6,5, 0x3e, 2,1,7,6,5,4,3,0, 0xeb, 2,7,6,5,4,3,0,1, 0x22, 0,2,1,7,6,5,4,3, 0xad, 4,3,0,2,1,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,classiced)        { sfbonus_bitswap( 0x38, 0,2,7,6,5,4,3,1, 0xea, 2,7,6,5,4,3,0,1, 0x24, 2,1,0,7,6,5,4,3, 0xaa, 4,3,2,0,1,7,6,5, 0x3e, 1,0,7,6,5,4,3,2, 0xe8, 0,7,6,5,4,3,1,2, 0x24, 2,1,0,7,6,5,4,3, 0xa8, 4,3,0,2,1,7,6,5); }
 DRIVER_INIT_MEMBER(sfbonus_state,classiced3)       { sfbonus_bitswap( 0x3b, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x24, 2,1,0,7,6,5,4,3, 0xaa, 4,3,2,0,1,7,6,5, 0x3e, 1,0,7,6,5,4,3,2, 0xe8, 0,7,6,5,4,3,1,2, 0x24, 2,1,0,7,6,5,4,3, 0xae, 4,3,1,0,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,classicev)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,classicev)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
 DRIVER_INIT_MEMBER(sfbonus_state,classicev3)       { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xe9, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,dblchal)          { sfbonus_bitswap(    0x3D, 0,3,7,6,5,2,1,4, 0xF3, 3,7,6,5,1,0,4,2, 0x3D, 2,0,1,7,6,5,3,4, 0xA8, 3,4,2,0,1,7,6,5, 0x3D, 2,3,7,6,5,1,0,4, 0xEF, 2,7,6,5,1,0,3,4, 0x3A, 4,2,3,7,6,5,1,0, 0xBA, 2,4,1,0,3,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,dblchald)         { sfbonus_bitswap(   0x3c, 0,1,7,6,5,4,3,2, 0xed, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,0,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x27, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,dblchalv)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb2gen)           { sfbonus_bitswap(     0x35, 0,3,7,6,5,2,1,4, 0xe8, 2,7,6,5,4,3,1,0, 0x23, 4,3,2,7,6,5,1,0, 0xb8, 2,1,4,0,3,7,6,5, 0x2d, 0,1,7,6,5,4,2,3, 0xf8, 2,7,6,5,1,4,3,0, 0x23, 4,0,3,7,6,5,2,1, 0xb8, 2,1,4,0,3,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb2gend)          { sfbonus_bitswap(    0x3d, 2,0,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x25, 2,0,1,7,6,5,4,3, 0xac, 4,3,2,1,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb2genv)          { sfbonus_bitswap(    0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xea, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb2genv3)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xeb, 0,7,6,5,4,3,2,1, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb2nd)            { sfbonus_bitswap(      0x2f, 0,2,7,6,5,3,4,1, 0xff, 2,7,6,5,3,0,4,1, 0x3e, 4,0,1,7,6,5,2,3, 0xad, 3,0,4,1,2,7,6,5, 0x35, 4,3,7,6,5,1,0,2, 0xfd, 4,7,6,5,3,1,2,0, 0x3a, 4,1,2,7,6,5,3,0, 0xbd, 3,4,2,0,1,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb2ndv)           { sfbonus_bitswap(     0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 2,1,7,6,5,4,3,0, 0xec, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb2ndd)           { sfbonus_bitswap(     0x3b, 1,0,7,6,5,4,3,2, 0xeb, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x25, 2,0,1,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb4)              { sfbonus_bitswap(        0x37, 1,2,7,6,5,4,3,0, 0xeb, 1,7,6,5,4,0,2,3, 0x2d, 4,0,2,7,6,5,3,1, 0xbd, 2,0,4,1,3,7,6,5, 0x29, 4,1,7,6,5,2,3,0, 0xff, 1,7,6,5,2,3,0,4, 0x3f, 1,0,4,7,6,5,3,2, 0xae, 2,3,0,4,1,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb4d)             { sfbonus_bitswap(       0x3d, 2,0,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xad, 4,3,2,1,0,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x25, 2,0,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb4v)             { sfbonus_bitswap(       0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xeb, 0,7,6,5,4,3,2,1, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb4v3)            { sfbonus_bitswap(      0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3e, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb5)              { sfbonus_bitswap(        0x20, 0,3,7,6,5,1,4,2, 0xf1, 1,7,6,5,3,2,4,0, 0x33, 2,3,1,7,6,5,0,4, 0xaf, 2,0,1,4,3,7,6,5, 0x2d, 2,4,7,6,5,1,0,3, 0xfb, 4,7,6,5,1,0,3,2, 0x34, 2,0,4,7,6,5,3,1, 0xb7, 1,0,3,2,4,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb5d)             { sfbonus_bitswap(       0x3e, 2,1,7,6,5,4,3,0, 0xef, 1,7,6,5,4,3,2,0, 0x24, 2,1,0,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3e, 1,0,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x24, 2,1,0,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb5v)             { sfbonus_bitswap(       0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb6)              { sfbonus_bitswap(        0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb6d)             { sfbonus_bitswap(       0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb6s)             { sfbonus_bitswap(       0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x24, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 0,7,6,5,4,3,2,1, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb6v)             { sfbonus_bitswap(       0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xed, 2,7,6,5,4,3,1,0, 0x23, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fb6v3)            { sfbonus_bitswap(      0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fruitcar)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 0,1,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fruitcar2)        { sfbonus_bitswap(  0x33, 0,3,7,6,5,2,1,4, 0xff, 3,7,6,5,1,0,4,2, 0x36, 4,2,3,7,6,5,1,0, 0xa8, 3,2,4,0,1,7,6,5, 0x2c, 0,1,7,6,5,2,4,3, 0xff, 3,7,6,5,1,0,4,2, 0x26, 2,4,3,7,6,5,1,0, 0xbe, 4,1,3,0,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fruitcar3)        { sfbonus_bitswap(  0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x21, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3d, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x21, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,hldspin1)         { sfbonus_bitswap(   0x21, 0,2,7,6,5,4,3,1, 0xe1, 1,7,6,5,4,3,2,0, 0x31, 1,4,3,7,6,5,2,0, 0xbc, 0,3,4,2,1,7,6,5, 0x24, 4,3,7,6,5,2,0,1, 0xf8, 3,7,6,5,2,0,1,4, 0x39, 1,4,2,7,6,5,0,3, 0xaf, 0,3,2,1,4,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,hldspin1d)        { sfbonus_bitswap(  0x38, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x27, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3e, 0,2,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x27, 1,0,2,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,hldspin1v)        { sfbonus_bitswap(  0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x26, 2,1,0,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,hldspin2)         { sfbonus_bitswap(   0x21, 1,3,7,6,5,0,4,2, 0xfe, 2,7,6,5,1,0,4,3, 0x33, 1,0,3,7,6,5,2,4, 0xa6, 1,0,4,3,2,7,6,5, 0x37, 0,1,7,6,5,3,2,4, 0xfe, 2,7,6,5,1,0,4,3, 0x36, 1,0,4,7,6,5,3,2, 0xa2, 1,0,2,4,3,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,hldspin2d)        { sfbonus_bitswap(  0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x27, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3e, 0,2,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x27, 1,0,2,7,6,5,4,3, 0xab, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,hldspin2v)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x23, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,moneymac)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xeb, 0,7,6,5,4,3,2,1, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,moneymacv)        { sfbonus_bitswap(  0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x23, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xeb, 0,7,6,5,4,3,2,1, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,moneymacd)        { sfbonus_bitswap(  0x3a, 1,0,7,6,5,4,3,2, 0xe9, 0,7,6,5,4,3,1,2, 0x26, 0,2,1,7,6,5,4,3, 0xaf, 4,3,1,2,0,7,6,5, 0x3d, 0,2,7,6,5,4,3,1, 0xe9, 0,7,6,5,4,3,1,2, 0x23, 0,1,2,7,6,5,4,3, 0xae, 4,3,2,0,1,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,parrot3d)         { sfbonus_bitswap(   0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xee, 2,7,6,5,4,3,1,0, 0x27, 0,2,1,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,parrot3v)         { sfbonus_bitswap(   0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x26, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,parrot3v2)        { sfbonus_bitswap(  0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xe9, 2,7,6,5,4,3,1,0, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pickwin)          { sfbonus_bitswap(    0x20, 1,3,7,6,5,2,4,0, 0xfa, 2,7,6,5,4,0,1,3, 0x37, 1,0,3,7,6,5,2,4, 0xb0, 4,0,1,3,2,7,6,5, 0x34, 0,1,7,6,5,3,2,4, 0xef, 3,7,6,5,2,0,1,4, 0x27, 1,0,4,7,6,5,3,2, 0xb0, 4,0,1,3,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pickwind)         { sfbonus_bitswap(   0x3c, 0,1,7,6,5,4,3,2, 0xed, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,0,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xe8, 0,7,6,5,4,3,1,2, 0x27, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pickwinv)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pickwinv2)        { sfbonus_bitswap(  0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x26, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pir2001)          { sfbonus_bitswap(    0x3a, 1,2,7,6,5,4,3,0, 0xfa, 3,7,6,5,2,0,4,1, 0x33, 4,1,3,7,6,5,2,0, 0xa8, 2,0,4,1,3,7,6,5, 0x2a, 2,4,7,6,5,0,3,1, 0xf7, 1,7,6,5,4,3,0,2, 0x27, 4,1,2,7,6,5,0,3, 0xaf, 0,3,2,4,1,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pir2001v)         { sfbonus_bitswap(   0x39, 1,0,7,6,5,4,3,2, 0xea, 0,7,6,5,4,3,2,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x23, 0,1,2,7,6,5,4,3, 0xac, 4,3,2,1,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pir2001v2)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x39, 1,0,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pir2001d)         { sfbonus_bitswap(   0x3c, 0,1,7,6,5,4,3,2, 0xeb, 0,7,6,5,4,3,2,1, 0x27, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3e, 0,2,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x27, 1,0,2,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pir2002)          { sfbonus_bitswap(    0x30, 3,2,7,6,5,4,0,1, 0xec, 2,7,6,5,4,0,1,3, 0x2d, 1,4,3,7,6,5,2,0, 0xa6, 4,0,1,3,2,7,6,5, 0x20, 4,1,7,6,5,2,3,0, 0xf9, 2,7,6,5,4,3,0,1, 0x3a, 4,1,2,7,6,5,0,3, 0xb7, 1,0,3,2,4,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pir2002d)         { sfbonus_bitswap(   0x3d, 2,0,7,6,5,4,3,1, 0xef, 1,7,6,5,4,3,2,0, 0x27, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,0,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xed, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pir2002v)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pir2002v2)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pirpok2)          { sfbonus_bitswap(    0x26, 1,2,7,6,5,4,3,0, 0xf6, 1,7,6,5,4,3,0,2, 0x29, 4,0,1,7,6,5,2,3, 0xad, 0,3,1,2,4,7,6,5, 0x2e, 1,3,7,6,5,2,0,4, 0xe0, 3,7,6,5,2,0,4,1, 0x39, 4,1,2,7,6,5,0,3, 0xb2, 2,0,4,1,3,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pirpok2d)         { sfbonus_bitswap(   0x3c, 0,1,7,6,5,4,3,2, 0xed, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x38, 0,2,7,6,5,4,3,1, 0xed, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pirpok2v)         { sfbonus_bitswap(   0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3e, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,1,0, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,pirpok2v2)        { sfbonus_bitswap(  0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,1,0, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,robadv)           { sfbonus_bitswap(     0x31, 0,3,7,6,5,2,1,4, 0xe0, 1,7,6,5,3,2,4,0, 0x2f, 4,0,2,7,6,5,3,1, 0xa7, 1,0,3,4,2,7,6,5, 0x33, 1,3,7,6,5,2,0,4, 0xed, 2,7,6,5,1,4,3,0, 0x34, 4,1,3,7,6,5,2,0, 0xaf, 2,0,4,1,3,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,robadv2d)         { sfbonus_bitswap(   0x3c, 0,1,7,6,5,4,3,2, 0xe8, 0,7,6,5,4,3,1,2, 0x24, 2,1,0,7,6,5,4,3, 0xae, 4,3,1,0,2,7,6,5, 0x3e, 1,0,7,6,5,4,3,2, 0xed, 1,7,6,5,4,3,0,2, 0x24, 2,1,0,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,robadv2v1)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,robadv2v4)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,seawld)           { sfbonus_bitswap(     0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x24, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,2,0, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,seawldv)          { sfbonus_bitswap(    0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,sfbonus)          { sfbonus_bitswap(    0x2a, 1,3,7,6,5,2,0,4, 0xe4, 3,7,6,5,2,0,4,1, 0x2d, 4,1,3,7,6,5,2,0, 0xba, 4,3,0,2,1,7,6,5, 0x30, 2,1,7,6,5,0,3,4, 0xf1, 2,7,6,5,1,3,4,0, 0x3d, 2,1,4,7,6,5,3,0, 0xba, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,sfbonusd)         { sfbonus_bitswap(   0x3b, 0,1,7,6,5,4,3,2, 0xef, 1,7,6,5,4,3,0,2, 0x24, 2,1,0,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3e, 1,0,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x24, 2,1,0,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,sfbonusv)         { sfbonus_bitswap(   0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x25, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,sfruitb)          { sfbonus_bitswap(    0x3e, 2,1,7,6,5,4,3,0, 0xfd, 1,7,6,5,0,3,2,4, 0x37, 4,1,3,7,6,5,2,0, 0xac, 2,0,4,1,3,7,6,5, 0x35, 2,3,7,6,5,1,0,4, 0xf6, 3,7,6,5,2,0,1,4, 0x37, 4,1,3,7,6,5,2,0, 0xb9, 0,3,4,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,sfruitbd)         { sfbonus_bitswap(   0x3e, 1,0,7,6,5,4,3,2, 0xed, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xed, 2,7,6,5,4,3,1,0, 0x25, 2,0,1,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,sfruitbv)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x25, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,sfruitbv2)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x25, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,suprball)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xe7, 4,7,6,5,0,3,1,2, 0x33, 0,2,1,7,6,5,4,3, 0xb3, 0,3,4,2,1,7,6,5, 0x2a, 1,3,7,6,5,2,0,4, 0xe4, 3,7,6,5,2,0,4,1, 0x2d, 4,1,3,7,6,5,2,0, 0xb6, 0,3,2,1,4,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,tighook)          { sfbonus_bitswap(    0x33, 0,1,7,6,5,2,3,4, 0xf3, 3,7,6,5,1,0,4,2, 0x2e, 4,0,2,7,6,5,3,1, 0xa7, 1,0,4,2,3,7,6,5, 0x2d, 1,2,7,6,5,3,4,0, 0xff, 2,7,6,5,1,0,3,4, 0x27, 1,0,2,7,6,5,3,4, 0xa7, 1,0,4,2,3,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,tighookd)         { sfbonus_bitswap(   0x3d, 0,1,7,6,5,4,3,2, 0xed, 1,7,6,5,4,3,0,2, 0x26, 2,1,0,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3c, 1,0,7,6,5,4,3,2, 0xed, 2,7,6,5,4,3,1,0, 0x26, 2,1,0,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,tighookv)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,tighookv2)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xea, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,bugfever)         { sfbonus_bitswap(   0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,bugfeverd)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xe8, 1,7,6,5,4,3,0,2, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,bugfeverv)        { sfbonus_bitswap(  0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x22, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xea, 2,7,6,5,4,3,1,0, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,dblchal)          { sfbonus_bitswap( 0x3D, 0,3,7,6,5,2,1,4, 0xF3, 3,7,6,5,1,0,4,2, 0x3D, 2,0,1,7,6,5,3,4, 0xA8, 3,4,2,0,1,7,6,5, 0x3D, 2,3,7,6,5,1,0,4, 0xEF, 2,7,6,5,1,0,3,4, 0x3A, 4,2,3,7,6,5,1,0, 0xBA, 2,4,1,0,3,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,dblchald)         { sfbonus_bitswap( 0x3c, 0,1,7,6,5,4,3,2, 0xed, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,0,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x27, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,dblchalv)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb2gen)           { sfbonus_bitswap( 0x35, 0,3,7,6,5,2,1,4, 0xe8, 2,7,6,5,4,3,1,0, 0x23, 4,3,2,7,6,5,1,0, 0xb8, 2,1,4,0,3,7,6,5, 0x2d, 0,1,7,6,5,4,2,3, 0xf8, 2,7,6,5,1,4,3,0, 0x23, 4,0,3,7,6,5,2,1, 0xb8, 2,1,4,0,3,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb2gend)          { sfbonus_bitswap( 0x3d, 2,0,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x25, 2,0,1,7,6,5,4,3, 0xac, 4,3,2,1,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb2genv)          { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xea, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb2genv3)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xeb, 0,7,6,5,4,3,2,1, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb2nd)            { sfbonus_bitswap( 0x2f, 0,2,7,6,5,3,4,1, 0xff, 2,7,6,5,3,0,4,1, 0x3e, 4,0,1,7,6,5,2,3, 0xad, 3,0,4,1,2,7,6,5, 0x35, 4,3,7,6,5,1,0,2, 0xfd, 4,7,6,5,3,1,2,0, 0x3a, 4,1,2,7,6,5,3,0, 0xbd, 3,4,2,0,1,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb2ndv)           { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 2,1,7,6,5,4,3,0, 0xec, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb2ndd)           { sfbonus_bitswap( 0x3b, 1,0,7,6,5,4,3,2, 0xeb, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x25, 2,0,1,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb4)              { sfbonus_bitswap( 0x37, 1,2,7,6,5,4,3,0, 0xeb, 1,7,6,5,4,0,2,3, 0x2d, 4,0,2,7,6,5,3,1, 0xbd, 2,0,4,1,3,7,6,5, 0x29, 4,1,7,6,5,2,3,0, 0xff, 1,7,6,5,2,3,0,4, 0x3f, 1,0,4,7,6,5,3,2, 0xae, 2,3,0,4,1,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb4d)             { sfbonus_bitswap( 0x3d, 2,0,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xad, 4,3,2,1,0,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x25, 2,0,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb4v)             { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xeb, 0,7,6,5,4,3,2,1, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb4v3)            { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3e, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb5)              { sfbonus_bitswap( 0x20, 0,3,7,6,5,1,4,2, 0xf1, 1,7,6,5,3,2,4,0, 0x33, 2,3,1,7,6,5,0,4, 0xaf, 2,0,1,4,3,7,6,5, 0x2d, 2,4,7,6,5,1,0,3, 0xfb, 4,7,6,5,1,0,3,2, 0x34, 2,0,4,7,6,5,3,1, 0xb7, 1,0,3,2,4,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb5d)             { sfbonus_bitswap( 0x3e, 2,1,7,6,5,4,3,0, 0xef, 1,7,6,5,4,3,2,0, 0x24, 2,1,0,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3e, 1,0,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x24, 2,1,0,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb5v)             { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb6)              { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb6d)             { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb6s)             { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x24, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 0,7,6,5,4,3,2,1, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb6v)             { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xed, 2,7,6,5,4,3,1,0, 0x23, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fb6v3)            { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fruitcar)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 0,1,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fruitcar2)        { sfbonus_bitswap( 0x33, 0,3,7,6,5,2,1,4, 0xff, 3,7,6,5,1,0,4,2, 0x36, 4,2,3,7,6,5,1,0, 0xa8, 3,2,4,0,1,7,6,5, 0x2c, 0,1,7,6,5,2,4,3, 0xff, 3,7,6,5,1,0,4,2, 0x26, 2,4,3,7,6,5,1,0, 0xbe, 4,1,3,0,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fruitcar3)        { sfbonus_bitswap( 0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x21, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3d, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x21, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,hldspin1)         { sfbonus_bitswap( 0x21, 0,2,7,6,5,4,3,1, 0xe1, 1,7,6,5,4,3,2,0, 0x31, 1,4,3,7,6,5,2,0, 0xbc, 0,3,4,2,1,7,6,5, 0x24, 4,3,7,6,5,2,0,1, 0xf8, 3,7,6,5,2,0,1,4, 0x39, 1,4,2,7,6,5,0,3, 0xaf, 0,3,2,1,4,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,hldspin1d)        { sfbonus_bitswap( 0x38, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x27, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3e, 0,2,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x27, 1,0,2,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,hldspin1v)        { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x26, 2,1,0,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,hldspin2)         { sfbonus_bitswap( 0x21, 1,3,7,6,5,0,4,2, 0xfe, 2,7,6,5,1,0,4,3, 0x33, 1,0,3,7,6,5,2,4, 0xa6, 1,0,4,3,2,7,6,5, 0x37, 0,1,7,6,5,3,2,4, 0xfe, 2,7,6,5,1,0,4,3, 0x36, 1,0,4,7,6,5,3,2, 0xa2, 1,0,2,4,3,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,hldspin2d)        { sfbonus_bitswap( 0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x27, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3e, 0,2,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x27, 1,0,2,7,6,5,4,3, 0xab, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,hldspin2v)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x23, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,moneymac)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xeb, 0,7,6,5,4,3,2,1, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,moneymacv)        { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x23, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xeb, 0,7,6,5,4,3,2,1, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,moneymacd)        { sfbonus_bitswap( 0x3a, 1,0,7,6,5,4,3,2, 0xe9, 0,7,6,5,4,3,1,2, 0x26, 0,2,1,7,6,5,4,3, 0xaf, 4,3,1,2,0,7,6,5, 0x3d, 0,2,7,6,5,4,3,1, 0xe9, 0,7,6,5,4,3,1,2, 0x23, 0,1,2,7,6,5,4,3, 0xae, 4,3,2,0,1,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,parrot3d)         { sfbonus_bitswap( 0x3b, 0,1,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xee, 2,7,6,5,4,3,1,0, 0x27, 0,2,1,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,parrot3v)         { sfbonus_bitswap( 0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x26, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,parrot3v2)        { sfbonus_bitswap( 0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xe9, 2,7,6,5,4,3,1,0, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pickwin)          { sfbonus_bitswap( 0x20, 1,3,7,6,5,2,4,0, 0xfa, 2,7,6,5,4,0,1,3, 0x37, 1,0,3,7,6,5,2,4, 0xb0, 4,0,1,3,2,7,6,5, 0x34, 0,1,7,6,5,3,2,4, 0xef, 3,7,6,5,2,0,1,4, 0x27, 1,0,4,7,6,5,3,2, 0xb0, 4,0,1,3,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pickwind)         { sfbonus_bitswap( 0x3c, 0,1,7,6,5,4,3,2, 0xed, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,0,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xe8, 0,7,6,5,4,3,1,2, 0x27, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pickwinv)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pickwinv2)        { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x26, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pir2001)          { sfbonus_bitswap( 0x3a, 1,2,7,6,5,4,3,0, 0xfa, 3,7,6,5,2,0,4,1, 0x33, 4,1,3,7,6,5,2,0, 0xa8, 2,0,4,1,3,7,6,5, 0x2a, 2,4,7,6,5,0,3,1, 0xf7, 1,7,6,5,4,3,0,2, 0x27, 4,1,2,7,6,5,0,3, 0xaf, 0,3,2,4,1,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pir2001v)         { sfbonus_bitswap( 0x39, 1,0,7,6,5,4,3,2, 0xea, 0,7,6,5,4,3,2,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3f, 2,1,7,6,5,4,3,0, 0xed, 2,7,6,5,4,3,1,0, 0x23, 0,1,2,7,6,5,4,3, 0xac, 4,3,2,1,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pir2001v2)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x39, 1,0,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pir2001d)         { sfbonus_bitswap( 0x3c, 0,1,7,6,5,4,3,2, 0xeb, 0,7,6,5,4,3,2,1, 0x27, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3e, 0,2,7,6,5,4,3,1, 0xeb, 1,7,6,5,4,3,0,2, 0x27, 1,0,2,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pir2002)          { sfbonus_bitswap( 0x30, 3,2,7,6,5,4,0,1, 0xec, 2,7,6,5,4,0,1,3, 0x2d, 1,4,3,7,6,5,2,0, 0xa6, 4,0,1,3,2,7,6,5, 0x20, 4,1,7,6,5,2,3,0, 0xf9, 2,7,6,5,4,3,0,1, 0x3a, 4,1,2,7,6,5,0,3, 0xb7, 1,0,3,2,4,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pir2002d)         { sfbonus_bitswap( 0x3d, 2,0,7,6,5,4,3,1, 0xef, 1,7,6,5,4,3,2,0, 0x27, 0,2,1,7,6,5,4,3, 0xae, 4,3,1,0,2,7,6,5, 0x3b, 2,1,7,6,5,4,3,0, 0xed, 0,7,6,5,4,3,2,1, 0x27, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pir2002v)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pir2002v2)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pirpok2)          { sfbonus_bitswap( 0x26, 1,2,7,6,5,4,3,0, 0xf6, 1,7,6,5,4,3,0,2, 0x29, 4,0,1,7,6,5,2,3, 0xad, 0,3,1,2,4,7,6,5, 0x2e, 1,3,7,6,5,2,0,4, 0xe0, 3,7,6,5,2,0,4,1, 0x39, 4,1,2,7,6,5,0,3, 0xb2, 2,0,4,1,3,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pirpok2d)         { sfbonus_bitswap( 0x3c, 0,1,7,6,5,4,3,2, 0xed, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x38, 0,2,7,6,5,4,3,1, 0xed, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pirpok2v)         { sfbonus_bitswap( 0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x23, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3e, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,1,0, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,pirpok2v2)        { sfbonus_bitswap( 0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x22, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 2,1,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,1,0, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,robadv)           { sfbonus_bitswap( 0x31, 0,3,7,6,5,2,1,4, 0xe0, 1,7,6,5,3,2,4,0, 0x2f, 4,0,2,7,6,5,3,1, 0xa7, 1,0,3,4,2,7,6,5, 0x33, 1,3,7,6,5,2,0,4, 0xed, 2,7,6,5,1,4,3,0, 0x34, 4,1,3,7,6,5,2,0, 0xaf, 2,0,4,1,3,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,robadv2d)         { sfbonus_bitswap( 0x3c, 0,1,7,6,5,4,3,2, 0xe8, 0,7,6,5,4,3,1,2, 0x24, 2,1,0,7,6,5,4,3, 0xae, 4,3,1,0,2,7,6,5, 0x3e, 1,0,7,6,5,4,3,2, 0xed, 1,7,6,5,4,3,0,2, 0x24, 2,1,0,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,robadv2v1)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,robadv2v4)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,seawld)           { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x24, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,2,0, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,seawldv)          { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x22, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,sfbonus)          { sfbonus_bitswap( 0x2a, 1,3,7,6,5,2,0,4, 0xe4, 3,7,6,5,2,0,4,1, 0x2d, 4,1,3,7,6,5,2,0, 0xba, 4,3,0,2,1,7,6,5, 0x30, 2,1,7,6,5,0,3,4, 0xf1, 2,7,6,5,1,3,4,0, 0x3d, 2,1,4,7,6,5,3,0, 0xba, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,sfbonusd)         { sfbonus_bitswap( 0x3b, 0,1,7,6,5,4,3,2, 0xef, 1,7,6,5,4,3,0,2, 0x24, 2,1,0,7,6,5,4,3, 0xad, 4,3,0,1,2,7,6,5, 0x3e, 1,0,7,6,5,4,3,2, 0xeb, 2,7,6,5,4,3,1,0, 0x24, 2,1,0,7,6,5,4,3, 0xaa, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,sfbonusv)         { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x25, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,sfruitb)          { sfbonus_bitswap( 0x3e, 2,1,7,6,5,4,3,0, 0xfd, 1,7,6,5,0,3,2,4, 0x37, 4,1,3,7,6,5,2,0, 0xac, 2,0,4,1,3,7,6,5, 0x35, 2,3,7,6,5,1,0,4, 0xf6, 3,7,6,5,2,0,1,4, 0x37, 4,1,3,7,6,5,2,0, 0xb9, 0,3,4,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,sfruitbd)         { sfbonus_bitswap( 0x3e, 1,0,7,6,5,4,3,2, 0xed, 1,7,6,5,4,3,0,2, 0x25, 2,0,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3c, 0,1,7,6,5,4,3,2, 0xed, 2,7,6,5,4,3,1,0, 0x25, 2,0,1,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,sfruitbv)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x25, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,sfruitbv2)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x25, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x25, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,suprball)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xe7, 4,7,6,5,0,3,1,2, 0x33, 0,2,1,7,6,5,4,3, 0xb3, 0,3,4,2,1,7,6,5, 0x2a, 1,3,7,6,5,2,0,4, 0xe4, 3,7,6,5,2,0,4,1, 0x2d, 4,1,3,7,6,5,2,0, 0xb6, 0,3,2,1,4,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,tighook)          { sfbonus_bitswap( 0x33, 0,1,7,6,5,2,3,4, 0xf3, 3,7,6,5,1,0,4,2, 0x2e, 4,0,2,7,6,5,3,1, 0xa7, 1,0,4,2,3,7,6,5, 0x2d, 1,2,7,6,5,3,4,0, 0xff, 2,7,6,5,1,0,3,4, 0x27, 1,0,2,7,6,5,3,4, 0xa7, 1,0,4,2,3,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,tighookd)         { sfbonus_bitswap( 0x3d, 0,1,7,6,5,4,3,2, 0xed, 1,7,6,5,4,3,0,2, 0x26, 2,1,0,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5, 0x3c, 1,0,7,6,5,4,3,2, 0xed, 2,7,6,5,4,3,1,0, 0x26, 2,1,0,7,6,5,4,3, 0xae, 4,3,1,2,0,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,tighookv)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,tighookv2)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x23, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xea, 0,7,6,5,4,3,2,1, 0x21, 1,0,2,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,bugfever)         { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x22, 2,1,0,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,bugfeverd)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xe8, 1,7,6,5,4,3,0,2, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,bugfeverv)        { sfbonus_bitswap( 0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x22, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3a, 0,1,7,6,5,4,3,2, 0xea, 2,7,6,5,4,3,1,0, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
 DRIVER_INIT_MEMBER(sfbonus_state,bugfeverv2)       { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x23, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xed, 2,7,6,5,4,3,1,0, 0x26, 2,1,0,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,version4)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,version4)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,0,2, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
 DRIVER_INIT_MEMBER(sfbonus_state,version4v2)       { sfbonus_bitswap( 0x3c, 1,0,7,6,5,4,3,2, 0xef, 0,7,6,5,4,3,2,1, 0x26, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xea, 2,7,6,5,4,3,1,0, 0x22, 0,1,2,7,6,5,4,3, 0xa9, 4,3,2,1,0,7,6,5); }
 DRIVER_INIT_MEMBER(sfbonus_state,version4d2)       { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x25, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
 DRIVER_INIT_MEMBER(sfbonus_state,version4v)        { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x26, 2,0,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xee, 1,7,6,5,4,3,0,2, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,dvisland)         { sfbonus_bitswap(   0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x23, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,funriver)         { sfbonus_bitswap(   0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x24, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 0,7,6,5,4,3,2,1, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,funriverv)        { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,spooky)           { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x39, 1,0,7,6,5,4,3,2, 0xe8, 1,7,6,5,4,3,2,0, 0x23, 0,2,1,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,fbdeluxe)         { sfbonus_bitswap(  0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,2,0, 0x26, 0,2,1,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,dvisland)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xe9, 1,7,6,5,4,3,0,2, 0x23, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,funriver)         { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x24, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xec, 0,7,6,5,4,3,2,1, 0x23, 1,0,2,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,funriverv)        { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x26, 0,2,1,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 0,1,7,6,5,4,3,2, 0xea, 2,7,6,5,4,3,1,0, 0x22, 2,1,0,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,spooky)           { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x39, 1,0,7,6,5,4,3,2, 0xe8, 1,7,6,5,4,3,2,0, 0x23, 0,2,1,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,fbdeluxe)         { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x21, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,2,0, 0x26, 0,2,1,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
 DRIVER_INIT_MEMBER(sfbonus_state,fb3g)             { sfbonus_bitswap( 0x39, 1,2,7,6,5,4,3,0, 0xef, 2,7,6,5,4,3,0,1, 0x25, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,2,0, 0x24, 0,2,1,7,6,5,4,3, 0xac, 4,3,0,1,2,7,6,5); }
-DRIVER_INIT_MEMBER(sfbonus_state,getrich)          { sfbonus_bitswap(  0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x23, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,2,0, 0x24, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
+DRIVER_INIT_MEMBER(sfbonus_state,getrich)          { sfbonus_bitswap( 0x3c, 1,2,7,6,5,4,3,0, 0xea, 2,7,6,5,4,3,0,1, 0x23, 1,0,2,7,6,5,4,3, 0xa8, 4,3,1,2,0,7,6,5, 0x3b, 1,0,7,6,5,4,3,2, 0xec, 1,7,6,5,4,3,2,0, 0x24, 0,2,1,7,6,5,4,3, 0xa9, 4,3,0,1,2,7,6,5); }
 
 
 GAME( 2002, suprball,    0,        sfbonus,    amcoe2_reels3, sfbonus_state,    suprball,        ROT0,  "Amcoe", "Super Ball (Version 1.3)", 0)
@@ -6041,11 +6076,11 @@ GAME( 2003, sfbonusv1,   sfbonus,  sfbonus,    amcoe1_reels3, sfbonus_state,    
 GAME( 2003, sfbonuso,    sfbonus,  sfbonus,    amcoe2_reels3, sfbonus_state,    sfbonus,         ROT0,  "Amcoe", "Skill Fruit Bonus (Version 1.7)", 0)
 GAME( 2003, sfbonuso2,   sfbonus,  sfbonus,    amcoe2_reels3, sfbonus_state,    sfbonus,         ROT0,  "Amcoe", "Skill Fruit Bonus (Version 1.6)", 0)
 
-GAMEL( 2004, parrot3,    0,        sfbonus,    amcoe1_poker, sfbonus_state,    parrot3v,        ROT0,  "Amcoe", "Parrot Poker III (Version 2.6E Dual)", 0, layout_pirpok2)
-GAMEL( 2004, parrot3b1,  parrot3,  sfbonus,    amcoe2_poker, sfbonus_state,    pirpok2,         ROT0,  "Amcoe", "Parrot Poker III (Version 2.6R, set 1)", 0, layout_pirpok2)
-GAMEL( 2004, parrot3d1,  parrot3,  sfbonus,    amcoe1_poker, sfbonus_state,    parrot3d,        ROT0,  "Amcoe", "Parrot Poker III (Version 2.6R, set 2)", 0, layout_pirpok2)
-GAMEL( 2004, parrot3v1,  parrot3,  sfbonus,    amcoe1_poker, sfbonus_state,    parrot3v2,       ROT0,  "Amcoe", "Parrot Poker III (Version 2.6R Dual)", 0, layout_pirpok2)
-GAMEL( 2003, parrot3o,   parrot3,  sfbonus,    amcoe2_poker, sfbonus_state,    pirpok2,         ROT0,  "Amcoe", "Parrot Poker III (Version 2.4)", 0, layout_pirpok2)
+GAMEL( 2004, parrot3,    0,        sfbonus,    amcoe1_poker,  sfbonus_state,    parrot3v,        ROT0,  "Amcoe", "Parrot Poker III (Version 2.6E Dual)", 0, layout_pirpok2)
+GAMEL( 2004, parrot3b1,  parrot3,  sfbonus,    amcoe2_poker,  sfbonus_state,    pirpok2,         ROT0,  "Amcoe", "Parrot Poker III (Version 2.6R, set 1)", 0, layout_pirpok2)
+GAMEL( 2004, parrot3d1,  parrot3,  sfbonus,    amcoe1_poker,  sfbonus_state,    parrot3d,        ROT0,  "Amcoe", "Parrot Poker III (Version 2.6R, set 2)", 0, layout_pirpok2)
+GAMEL( 2004, parrot3v1,  parrot3,  sfbonus,    amcoe1_poker,  sfbonus_state,    parrot3v2,       ROT0,  "Amcoe", "Parrot Poker III (Version 2.6R Dual)", 0, layout_pirpok2)
+GAMEL( 2003, parrot3o,   parrot3,  sfbonus,    amcoe2_poker,  sfbonus_state,    pirpok2,         ROT0,  "Amcoe", "Parrot Poker III (Version 2.4)", 0, layout_pirpok2)
 
 GAME( 2000, hldspin1,    0,        sfbonus,    amcoe2_reels3, sfbonus_state,    hldspin1,        ROT0,  "Amcoe", "Hold & Spin I (Version 2.7T, set 1)", 0)
 GAME( 2000, hldspin1dt,  hldspin1, sfbonus,    amcoe1_reels3, sfbonus_state,    hldspin1d,       ROT0,  "Amcoe", "Hold & Spin I (Version 2.7T, set 2)", 0)
@@ -6101,11 +6136,11 @@ GAME( 2004, robadv2v3,   robadv2,  sfbonus,    amcoe1_reels3, sfbonus_state,    
 GAME( 2004, robadv2o,    robadv2,  sfbonus,    amcoe1_reels3, sfbonus_state,    robadv,          ROT0,  "Amcoe", "Robin's Adventure 2 (Version 1.5SH)", 0)
 GAME( 2004, robadv2o2,   robadv2,  sfbonus,    amcoe1_reels3, sfbonus_state,    robadv,          ROT0,  "Amcoe", "Robin's Adventure 2 (Version 1.5)", 0)
 
-GAMEL( 2003, pirpok2,    0,        sfbonus,    amcoe1_poker, sfbonus_state,    pirpok2v2,       ROT0,  "Amcoe", "Pirate Poker II (Version 2.4E Dual)", 0, layout_pirpok2)
-GAMEL( 2003, pirpok2b1,  pirpok2,  sfbonus,    amcoe2_poker, sfbonus_state,    pirpok2,         ROT0,  "Amcoe", "Pirate Poker II (Version 2.2R, set 1)", 0, layout_pirpok2)
-GAMEL( 2003, pirpok2d1,  pirpok2,  sfbonus,    amcoe1_poker, sfbonus_state,    pirpok2d,        ROT0,  "Amcoe", "Pirate Poker II (Version 2.2R, set 2)", 0, layout_pirpok2)
-GAMEL( 2003, pirpok2v1,  pirpok2,  sfbonus,    amcoe1_poker, sfbonus_state,    pirpok2v,        ROT0,  "Amcoe", "Pirate Poker II (Version 2.2R Dual)", 0, layout_pirpok2)
-GAMEL( 2003, pirpok2o,   pirpok2,  sfbonus,    amcoe2_poker, sfbonus_state,    pirpok2,         ROT0,  "Amcoe", "Pirate Poker II (Version 2.0)", 0, layout_pirpok2)
+GAMEL( 2003, pirpok2,    0,        sfbonus,    amcoe1_poker,  sfbonus_state,    pirpok2v2,       ROT0,  "Amcoe", "Pirate Poker II (Version 2.4E Dual)", 0, layout_pirpok2)
+GAMEL( 2003, pirpok2b1,  pirpok2,  sfbonus,    amcoe2_poker,  sfbonus_state,    pirpok2,         ROT0,  "Amcoe", "Pirate Poker II (Version 2.2R, set 1)", 0, layout_pirpok2)
+GAMEL( 2003, pirpok2d1,  pirpok2,  sfbonus,    amcoe1_poker,  sfbonus_state,    pirpok2d,        ROT0,  "Amcoe", "Pirate Poker II (Version 2.2R, set 2)", 0, layout_pirpok2)
+GAMEL( 2003, pirpok2v1,  pirpok2,  sfbonus,    amcoe1_poker,  sfbonus_state,    pirpok2v,        ROT0,  "Amcoe", "Pirate Poker II (Version 2.2R Dual)", 0, layout_pirpok2)
+GAMEL( 2003, pirpok2o,   pirpok2,  sfbonus,    amcoe2_poker,  sfbonus_state,    pirpok2,         ROT0,  "Amcoe", "Pirate Poker II (Version 2.0)", 0, layout_pirpok2)
 
 GAME( 2003, anibonus,    0,        sfbonus,    amcoe1_reels3, sfbonus_state,    anibonusv3,      ROT0,  "Amcoe", "Animal Bonus (Version 1.8E Dual)", 0)
 GAME( 2003, anibonusv1,  anibonus, sfbonus,    amcoe1_reels3, sfbonus_state,    anibonusv,       ROT0,  "Amcoe", "Animal Bonus (Version 1.8R Dual)", 0)
@@ -6287,12 +6322,18 @@ GAME( 2007, atworld,     0,        sfbonus,    newlk1_reels3, sfbonus_state,    
 GAME( 2007, atworlde1,   atworld,  sfbonus,    newlk1_reels3, sfbonus_state,    atworld,         ROT0,  "Amcoe", "Around The World (Version 1.3E CGA)", 0) /* Year according to Amcoe web site */
 GAME( 2007, atworldd1,   atworld,  sfbonus,    newlk1_reels3, sfbonus_state,    atworldd,        ROT0,  "Amcoe", "Around The World (Version 1.3R CGA)", 0) /* Year according to Amcoe web site */
 
-GAME( 200?, fbdeluxe,    0,        sfbonus,    newer1_reels3, sfbonus_state,    fbdeluxe,        ROT0,  "Amcoe", "Fruit Bonus Deluxe (Version 1.0.9)", 0) /* After Around The World */
-GAME( 200?, fbdeluxeo,   fbdeluxe, sfbonus,    newer1_reels3, sfbonus_state,    fbdeluxe,        ROT0,  "Amcoe", "Fruit Bonus Deluxe (Version 1.0.7)", 0) /* After Around The World */
+/* The following sets were produced after Around The World, but specific month and year are unknown */
 
-GAME( 200?, fb3g,        0,        sfbonus,    newer1_reels3, sfbonus_state,    fb3g,            ROT0,  "Amcoe", "Fruit Bonus 3G (Version 1.0.3)", 0) /* After Around The World */
+GAME( 200?, spooky,      0,        sfbonus,    newer1_reels3, sfbonus_state,    spooky,          ROT0,  "Amcoe", "Spooky Night 2nd Edition (Version 2.0.4)", 0)
+GAME( 200?, spookyo,     spooky,   sfbonus,    newer1_reels3, sfbonus_state,    spooky,          ROT0,  "Amcoe", "Spooky Night (Version 1.0.1)", 0)
 
-GAME( 200?, getrich,     0,        sfbonus,    newer1_reels3, sfbonus_state,    getrich,         ROT0,  "Amcoe", "Get Rich (Version 1.0.1)", 0) /* After Around The World */
+GAME( 200?, fbdeluxe,    0,        sfbonus,    newer1_reels3, sfbonus_state,    fbdeluxe,        ROT0,  "Amcoe", "Fruit Bonus Deluxe (Version 1.0.9)", 0)
+GAME( 200?, fbdeluxeo,   fbdeluxe, sfbonus,    newer1_reels3, sfbonus_state,    fbdeluxe,        ROT0,  "Amcoe", "Fruit Bonus Deluxe (Version 1.0.7)", 0)
+
+GAME( 200?, fb3g,        0,        sfbonus,    newer1_reels3, sfbonus_state,    fb3g,            ROT0,  "Amcoe", "Fruit Bonus 3G (Version 1.0.3)", 0)
+
+GAME( 200?, getrich,     0,        sfbonus,    newer1_reels3, sfbonus_state,    getrich,         ROT0,  "Amcoe", "Get Rich (Version 1.0.1)", 0)
+
 
 // no graphic / sound roms dumped for these sets, but functional program roms & descramble are in place
 /* Version 4 is a multi-game that has New Fruit Bonus ?96 Special Edition Ver. 4, New Cherry ?96 Special Edition Ver. 4 or Skill Cherry ?97 Ver. 4 */
@@ -6303,9 +6344,6 @@ GAME( 2006, version4v2,  version4, sfbonus,    amcoe1_reels3, sfbonus_state,    
 GAME( 2006, version4d3,  version4, sfbonus,    amcoe1_reels3, sfbonus_state,    version4,        ROT0,  "Amcoe", "Version 4 (Version 4.3LT CGA)", GAME_NOT_WORKING)
 GAME( 2006, version4v3,  version4, sfbonus,    amcoe1_reels3, sfbonus_state,    version4v,       ROT0,  "Amcoe", "Version 4 (Version 4.3LT Dual)",GAME_NOT_WORKING)
 GAME( 2006, version4o,   version4, sfbonus,    amcoe1_reels3, sfbonus_state,    version4,        ROT0,  "Amcoe", "Version 4 (Version 4.2R CGA)", GAME_NOT_WORKING)
-
-GAME( 200?, spooky,      0,        sfbonus,    newer1_reels3, sfbonus_state,    spooky,          ROT0,  "Amcoe", "Spooky Night (2nd edition) (Version 2.0.4)", GAME_NOT_WORKING) /* After Around The World */
-
 
 // Known sets but no roms dumped at all for these:
 // Merry Circus

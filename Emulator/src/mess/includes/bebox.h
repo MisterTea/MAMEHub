@@ -10,32 +10,49 @@
 #define BEBOX_H_
 
 #include "emu.h"
-#include "machine/ins8250.h"
-#include "machine/8237dma.h"
 #include "machine/53c810.h"
+#include "machine/am9517a.h"
+#include "machine/idectrl.h"
+#include "machine/ins8250.h"
+#include "machine/pic8259.h"
+#include "machine/pit8253.h"
+#include "machine/ram.h"
 #include "machine/upd765.h"
-
-struct bebox_devices_t
-{
-	device_t *pic8259_master;
-	device_t *pic8259_slave;
-	device_t *dma8237_1;
-	device_t *dma8237_2;
-};
-
 
 class bebox_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_GET_DEVICES
+	};
+
 	bebox_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_lsi53c810(*this, "scsi:lsi53c810"){ }
+			m_ppc1(*this, "ppc1"),
+			m_ppc2(*this, "ppc2"),
+			m_lsi53c810(*this, "scsi:lsi53c810"),
+			m_dma8237_1(*this, "dma8237_1"),
+			m_dma8237_2(*this, "dma8237_2"),
+			m_pic8259_1(*this, "pic8259_1"),
+			m_pic8259_2(*this, "pic8259_2"),
+			m_pit8254(*this, "pit8254"),
+			m_ram(*this, RAM_TAG)
+	{
+	}
 
+	required_device<cpu_device> m_ppc1;
+	required_device<cpu_device> m_ppc2;
 	required_device<lsi53c810_device> m_lsi53c810;
+	required_device<am9517a_device> m_dma8237_1;
+	required_device<am9517a_device> m_dma8237_2;
+	required_device<pic8259_device> m_pic8259_1;
+	required_device<pic8259_device> m_pic8259_2;
+	required_device<pit8254_device> m_pit8254;
+	required_device<ram_device> m_ram;
 	UINT32 m_cpu_imask[2];
 	UINT32 m_interrupts;
 	UINT32 m_crossproc_interrupts;
-	bebox_devices_t m_devices;
 	int m_dma_channel;
 	UINT16 m_dma_offset[2][4];
 	UINT8 m_at_pages[0x10];
@@ -43,7 +60,6 @@ public:
 	DECLARE_DRIVER_INIT(bebox);
 	virtual void machine_start();
 	virtual void machine_reset();
-	TIMER_CALLBACK_MEMBER(bebox_get_devices);
 	DECLARE_WRITE_LINE_MEMBER(bebox_pic8259_master_set_int_line);
 	DECLARE_WRITE_LINE_MEMBER(bebox_pic8259_slave_set_int_line);
 	DECLARE_READ8_MEMBER(get_slave_ack);
@@ -60,8 +76,6 @@ public:
 	DECLARE_READ64_MEMBER(bebox_cpu1_imask_r);
 	DECLARE_READ64_MEMBER(bebox_interrupt_sources_r);
 	DECLARE_READ64_MEMBER(bebox_crossproc_interrupts_r);
-	DECLARE_READ8_MEMBER(bebox_800001F0_r);
-	DECLARE_READ64_MEMBER(bebox_800003F0_r);
 	DECLARE_READ64_MEMBER(bebox_interrupt_ack_r);
 	DECLARE_READ8_MEMBER(bebox_page_r);
 	DECLARE_READ8_MEMBER(bebox_80000480_r);
@@ -86,19 +100,23 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER(bebox_ide_interrupt);
 
+	DECLARE_WRITE_LINE_MEMBER(bebox_keyboard_interrupt);
+	DECLARE_READ8_MEMBER(bebox_get_out2);
+
 	void fdc_interrupt(bool state);
 	void fdc_dma_drq(bool state);
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
 /*----------- defined in machine/bebox.c -----------*/
 
-extern const struct pit8253_config bebox_pit8254_config;
-extern const i8237_interface bebox_dma8237_1_config;
-extern const i8237_interface bebox_dma8237_2_config;
-extern const struct pic8259_interface bebox_pic8259_master_config;
-extern const struct pic8259_interface bebox_pic8259_slave_config;
+extern const struct pit8253_interface bebox_pit8254_config;
+extern const am9517a_interface bebox_dma8237_1_config;
+extern const am9517a_interface bebox_dma8237_2_config;
 extern const ins8250_interface bebox_uart_inteface_0;
 extern const ins8250_interface bebox_uart_inteface_1;
 extern const ins8250_interface bebox_uart_inteface_2;

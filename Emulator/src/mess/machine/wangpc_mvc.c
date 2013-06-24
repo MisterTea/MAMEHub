@@ -137,9 +137,10 @@ WRITE_LINE_MEMBER( wangpc_mvc_device::vsync_w )
 	}
 }
 
-static const mc6845_interface crtc_intf =
+static MC6845_INTERFACE( crtc_intf )
 {
 	SCREEN_TAG,
+	false,
 	10,
 	NULL,
 	wangpc_mvc_update_row,
@@ -206,7 +207,7 @@ inline void wangpc_mvc_device::set_irq(int state)
 //-------------------------------------------------
 
 wangpc_mvc_device::wangpc_mvc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, WANGPC_MVC, "Wang PC Medium Resolution Video Card", tag, owner, clock),
+	device_t(mconfig, WANGPC_MVC, "Wang PC Medium Resolution Video Card", tag, owner, clock, "wangpc_mvc", __FILE__),
 	device_wangpcbus_card_interface(mconfig, *this),
 	m_crtc(*this, MC6845_TAG),
 	m_video_ram(*this, "video_ram"),

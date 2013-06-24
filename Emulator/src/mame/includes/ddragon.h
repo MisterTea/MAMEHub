@@ -3,20 +3,25 @@
     Double Dragon & Double Dragon II (but also China Gate)
 
 *************************************************************************/
-
+#include "sound/msm5205.h"
 
 class ddragon_state : public driver_device
 {
 public:
 	ddragon_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_rambase(*this, "rambase"),
 		m_bgvideoram(*this, "bgvideoram"),
 		m_fgvideoram(*this, "fgvideoram"),
 		m_spriteram(*this, "spriteram"),
 		m_scrollx_lo(*this, "scrollx_lo"),
 		m_scrolly_lo(*this, "scrolly_lo"),
-		m_darktowr_mcu_ports(*this, "darktowr_mcu"){ }
+		m_darktowr_mcu_ports(*this, "darktowr_mcu"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_subcpu(*this, "sub"),
+		m_adpcm1(*this, "adpcm1"),
+		m_adpcm2(*this, "adpcm2") { }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT8> m_rambase;
@@ -59,11 +64,11 @@ public:
 #endif
 
 	/* devices */
-	cpu_device *m_maincpu;
-	device_t *m_snd_cpu;
-	device_t *m_sub_cpu;
-	device_t *m_adpcm_1;
-	device_t *m_adpcm_2;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	optional_device<cpu_device> m_subcpu;
+	optional_device<msm5205_device> m_adpcm1;
+	optional_device<msm5205_device> m_adpcm2;
 	DECLARE_WRITE_LINE_MEMBER(irq_handler);
 	DECLARE_WRITE8_MEMBER(ddragon_bgvideoram_w);
 	DECLARE_WRITE8_MEMBER(ddragon_fgvideoram_w);
@@ -89,18 +94,18 @@ public:
 	DECLARE_DRIVER_INIT(ddragon2);
 	DECLARE_DRIVER_INIT(ddragon);
 	DECLARE_DRIVER_INIT(ddragon6809);
-	DECLARE_DRIVER_INIT(chinagat);
 	TILEMAP_MAPPER_MEMBER(background_scan);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
 	TILE_GET_INFO_MEMBER(get_fg_16color_tile_info);
-	DECLARE_MACHINE_START(chinagat);
-	DECLARE_MACHINE_RESET(chinagat);
-	DECLARE_VIDEO_START(chinagat);
 	DECLARE_MACHINE_START(ddragon);
 	DECLARE_MACHINE_RESET(ddragon);
 	DECLARE_VIDEO_START(ddragon);
 	UINT32 screen_update_ddragon(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(ddragon_scanline);
-	TIMER_DEVICE_CALLBACK_MEMBER(chinagat_scanline);
+	void draw_sprites(  bitmap_ind16 &bitmap,const rectangle &cliprect );
+	int scanline_to_vcount( int scanline );
+	void dd_adpcm_int(msm5205_device *device, int chip);
+	DECLARE_WRITE_LINE_MEMBER(dd_adpcm_int_1);
+	DECLARE_WRITE_LINE_MEMBER(dd_adpcm_int_2);
 };

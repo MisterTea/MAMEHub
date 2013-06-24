@@ -72,7 +72,6 @@ WRITE8_MEMBER(ladyfrog_state::sound_cpu_reset_w)
 
 TIMER_CALLBACK_MEMBER(ladyfrog_state::nmi_callback)
 {
-
 	if (m_sound_nmi_enable)
 		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	else
@@ -92,7 +91,6 @@ WRITE8_MEMBER(ladyfrog_state::nmi_disable_w)
 
 WRITE8_MEMBER(ladyfrog_state::nmi_enable_w)
 {
-
 	m_sound_nmi_enable = 1;
 	if (m_pending_nmi)
 	{
@@ -103,7 +101,6 @@ WRITE8_MEMBER(ladyfrog_state::nmi_enable_w)
 
 WRITE8_MEMBER(ladyfrog_state::unk_w)
 {
-
 }
 
 static const ay8910_interface ay8910_config =
@@ -152,7 +149,7 @@ static ADDRESS_MAP_START( ladyfrog_sound_map, AS_PROGRAM, 8, ladyfrog_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
 	AM_RANGE(0xc800, 0xc801) AM_WRITENOP
-	AM_RANGE(0xc802, 0xc803) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0xc802, 0xc803) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0xc900, 0xc90d) AM_DEVWRITE_LEGACY("msm", msm5232_w)
 	AM_RANGE(0xca00, 0xca00) AM_WRITENOP
 	AM_RANGE(0xcb00, 0xcb00) AM_WRITENOP
@@ -278,9 +275,6 @@ GFXDECODE_END
 
 void ladyfrog_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_tilebank));
 	save_item(NAME(m_palette_bank));
 	save_item(NAME(m_sound_nmi_enable));
@@ -291,7 +285,6 @@ void ladyfrog_state::machine_start()
 
 void ladyfrog_state::machine_reset()
 {
-
 	m_tilebank = 0;
 	m_palette_bank = 0;
 	m_sound_nmi_enable = 0;

@@ -52,7 +52,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c8280"; }
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -76,6 +75,7 @@ private:
 	int m_rfdo;                         // not ready for data output
 	int m_daco;                         // not data accepted output
 	int m_atna;                         // attention acknowledge
+	int m_ifc;
 
 	UINT8 m_fk5;
 };

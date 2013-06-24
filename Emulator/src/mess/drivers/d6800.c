@@ -10,15 +10,17 @@
 
     NOTE that the display only updates after each 4 digits is entered, and
     you can't see what you type as you change bytes. This is by design.
-    The speaker is supposed to bleep on each keystroke, but it only gets
-    one pulse - which is almost inaudible.
+
+    The cassette has no checksum, header or blocks. It is simply a stream
+    of pulses. The successful loading of a tape is therefore a matter of luck.
 
     Function keys:
     FN 0 - Modify memory - firstly enter a 4-digit address, then 2-digit data
                     the address will increment by itself, enter the next byte.
                     FN by itself will step to the next address.
 
-    FN 1 - Tape load
+    FN 1 - Tape load. You must have entered the start address at 0002, and
+           the end address+1 at 0004 (big-endian).
 
     FN 2 - Tape save. You must have entered the start address at 0002, and
            the end address+1 at 0004 (big-endian).
@@ -31,9 +33,6 @@
     Information and programs can be found at http://chip8.com/?page=78
 
 
-    TODO:
-    - Cassette
-
 */
 
 
@@ -43,7 +42,6 @@
 #include "imagedev/cassette.h"
 #include "imagedev/snapquik.h"
 #include "sound/wave.h"
-#include "sound/dac.h"
 #include "machine/6821pia.h"
 
 
@@ -52,11 +50,20 @@ class d6800_state : public driver_device
 public:
 	d6800_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu"),
-			m_cass(*this, CASSETTE_TAG),
-			m_pia(*this, "pia"),
-			m_dac(*this, "dac"),
-			m_videoram(*this, "videoram") { }
+		m_maincpu(*this, "maincpu"),
+		m_cass(*this, "cassette"),
+		m_pia(*this, "pia"),
+		m_beeper(*this, "beeper"),
+		m_videoram(*this, "videoram"),
+		m_io_x0(*this, "X0"),
+		m_io_x1(*this, "X1"),
+		m_io_x2(*this, "X2"),
+		m_io_x3(*this, "X3"),
+		m_io_y0(*this, "Y0"),
+		m_io_y1(*this, "Y1"),
+		m_io_y2(*this, "Y2"),
+		m_io_y3(*this, "Y3"),
+		m_io_shift(*this, "SHIFT") { }
 
 	DECLARE_READ8_MEMBER( d6800_cassette_r );
 	DECLARE_WRITE8_MEMBER( d6800_cassette_w );
@@ -66,21 +73,35 @@ public:
 	DECLARE_READ_LINE_MEMBER( d6800_keydown_r );
 	DECLARE_READ_LINE_MEMBER( d6800_rtc_pulse );
 	DECLARE_WRITE_LINE_MEMBER( d6800_screen_w );
-	UINT8 m_rtc;
-	bool m_screen_on;
+	UINT32 screen_update_d6800(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	TIMER_DEVICE_CALLBACK_MEMBER(d6800_c);
+	TIMER_DEVICE_CALLBACK_MEMBER(d6800_p);
+	DECLARE_QUICKLOAD_LOAD_MEMBER( d6800 );
+protected:
 	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cass;
 	required_device<pia6821_device> m_pia;
-	required_device<dac_device> m_dac;
+	required_device<beep_device> m_beeper;
 	required_shared_ptr<UINT8> m_videoram;
+	required_ioport m_io_x0;
+	required_ioport m_io_x1;
+	required_ioport m_io_x2;
+	required_ioport m_io_x3;
+	required_ioport m_io_y0;
+	required_ioport m_io_y1;
+	required_ioport m_io_y2;
+	required_ioport m_io_y3;
+	required_ioport m_io_shift;
 private:
-	UINT8 m_kbd_s;
+	UINT8 m_rtc;
+	bool m_ca1;
+	bool m_ca2;
+	bool m_cb1;
+	bool m_cb2;
+	UINT8 m_cass_data[4];
 	UINT8 m_portb;
 	virtual void machine_start();
 	virtual void machine_reset();
-public:
-	UINT32 screen_update_d6800(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_DEVICE_CALLBACK_MEMBER(d6800_p);
 };
 
 
@@ -89,9 +110,9 @@ public:
 static ADDRESS_MAP_START( d6800_map, AS_PROGRAM, 8, d6800_state )
 	AM_RANGE(0x0000, 0x00ff) AM_RAM
 	AM_RANGE(0x0100, 0x01ff) AM_RAM AM_SHARE("videoram")
-	AM_RANGE(0x0200, 0x07ff) AM_RAM
+	AM_RANGE(0x0200, 0x0fff) AM_RAM
 	AM_RANGE(0x8010, 0x8013) AM_DEVREADWRITE("pia", pia6821_device, read, write)
-	AM_RANGE(0xc000, 0xc3ff) AM_MIRROR(0x3c00) AM_ROM
+	AM_RANGE(0xc000, 0xc7ff) AM_MIRROR(0x3800) AM_ROM
 ADDRESS_MAP_END
 
 /* Input Ports */
@@ -102,44 +123,52 @@ static INPUT_PORTS_START( d6800 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_1) PORT_CHAR('1')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_2) PORT_CHAR('2')
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_3) PORT_CHAR('3')
+	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("X1")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_4) PORT_CHAR('4')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_5) PORT_CHAR('5')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_6) PORT_CHAR('6')
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_7) PORT_CHAR('7')
+	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("X2")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_8) PORT_CHAR('8')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_9) PORT_CHAR('9')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_A) PORT_CHAR('A')
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_B) PORT_CHAR('B')
+	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("X3")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_C) PORT_CHAR('C')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_D) PORT_CHAR('D')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_E) PORT_CHAR('E')
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F) PORT_CHAR('F')
+	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("Y0")
+	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_0) PORT_CHAR('0')
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_4) PORT_CHAR('4')
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_8) PORT_CHAR('8')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_C) PORT_CHAR('C')
 
 	PORT_START("Y1")
+	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_1) PORT_CHAR('1')
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_5) PORT_CHAR('5')
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_9) PORT_CHAR('9')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_D) PORT_CHAR('D')
 
 	PORT_START("Y2")
+	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_2) PORT_CHAR('2')
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_6) PORT_CHAR('6')
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_A) PORT_CHAR('A')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_E) PORT_CHAR('E')
 
 	PORT_START("Y3")
+	PORT_BIT( 0x0f, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_3) PORT_CHAR('3')
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_7) PORT_CHAR('7')
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_B) PORT_CHAR('B')
@@ -165,7 +194,7 @@ UINT32 d6800_state::screen_update_d6800(screen_device &screen, bitmap_ind16 &bit
 
 		for (x = 0; x < 8; x++)
 		{
-			if (m_screen_on)
+			if (m_cb2)
 				gfx = m_videoram[ x | (y<<3)];
 
 			*p++ = BIT(gfx, 7);
@@ -181,41 +210,66 @@ UINT32 d6800_state::screen_update_d6800(screen_device &screen, bitmap_ind16 &bit
 	return 0;
 }
 
+/* NE556 */
+
+TIMER_DEVICE_CALLBACK_MEMBER(d6800_state::d6800_c)
+{
+	m_cass_data[3]++;
+
+	if (BIT(m_portb, 0))
+		m_cass->output(BIT(m_cass_data[3], 0) ? -1.0 : +1.0); // 2400Hz
+	else
+		m_cass->output(BIT(m_cass_data[3], 1) ? -1.0 : +1.0); // 1200Hz
+}
+
 /* PIA6821 Interface */
 
 TIMER_DEVICE_CALLBACK_MEMBER(d6800_state::d6800_p)
 {
 	m_rtc++;
-	m_maincpu->set_input_line(M6800_IRQ_LINE, (m_rtc > 0xf8) ? ASSERT_LINE : CLEAR_LINE);
+	if (m_rtc > 159)
+		m_rtc = 0;
+
+	UINT8 data = m_io_x0->read() & m_io_x1->read() & m_io_x2->read() & m_io_x3->read();
+	m_ca1 = (data == 255) ? 0 : 1;
+	m_ca2 = (bool)m_io_shift->read();
+	m_cb1 = (m_rtc) ? 1 : 0;
+
+	m_pia->ca1_w(m_ca1);
+	m_pia->ca2_w(m_ca2);
+	m_pia->cb1_w(m_cb1);
+
+	/* cassette - turn 1200/2400Hz to a bit */
+	m_cass_data[1]++;
+	UINT8 cass_ws = (m_cass->input() > +0.03) ? 1 : 0;
+
+	if (cass_ws != m_cass_data[0])
+	{
+		m_cass_data[0] = cass_ws;
+		m_cass_data[2] = ((m_cass_data[1] < 12) ? 128 : 0);
+		m_cass_data[1] = 0;
+	}
 }
 
 
-// not used
 READ_LINE_MEMBER( d6800_state::d6800_rtc_pulse )
 {
-	return 1;
+	return m_cb1;
 }
 
 READ_LINE_MEMBER( d6800_state::d6800_keydown_r )
 {
-	UINT8 data = ioport("X0")->read()
-				& ioport("X1")->read()
-				& ioport("X2")->read()
-				& ioport("X3")->read();
-
-	m_kbd_s = (data == 15) ? 0 : 1;
-
-	return m_kbd_s;
+	return m_ca1;
 }
 
 READ_LINE_MEMBER( d6800_state::d6800_fn_key_r )
 {
-	return ioport("SHIFT")->read();
+	return m_ca2;
 }
 
 WRITE_LINE_MEMBER( d6800_state::d6800_screen_w )
 {
-	m_screen_on = state;
+	m_cb2 = state;
 }
 
 READ8_MEMBER( d6800_state::d6800_cassette_r )
@@ -227,21 +281,22 @@ READ8_MEMBER( d6800_state::d6800_cassette_r )
 	knows if the tone is 1200 or 2400 Hz. Input to PIA is bit 7.
 	*/
 
-	return ((m_cass->input() > 0.03) ? 1 : 0) | m_portb;
+	return m_cass_data[2] | m_portb;
 }
 
 WRITE8_MEMBER( d6800_state::d6800_cassette_w )
 {
 	/*
-	Cassette circuit consists of a 566 and a transistor. The 556 runs at 2400
-	or 1200 Hz depending on the state of the transistor. This is controlled by
-	bit 0 of the PIA. Bit 6 drives the speaker.
+	    A NE556 runs at either 1200 or 2400 Hz, depending on the state of bit 0.
+	    This output drives the speaker and the output signal to the cassette player.
+	    Bit 6 enables the speaker. Also the speaker is silenced when cassette operations
+	    are in progress (DMA/CB2 line low).
 	*/
 
-	m_cass->output(BIT(data, 0) ? -1.0 : +1.0);
+	m_beeper->set_frequency(BIT(data, 0) ? 2400 : 1200);
+	m_beeper->set_state(BIT(data, 6) & m_cb2);
 
-	m_dac->write_unsigned8(data);
-	m_portb = data;
+	m_portb = data & 0x7f;
 }
 
 READ8_MEMBER( d6800_state::d6800_keyboard_r )
@@ -251,15 +306,10 @@ READ8_MEMBER( d6800_state::d6800_keyboard_r )
 	lines around and reads it another way. This isolates the key that was pressed.
 	*/
 
-	m_kbd_s++;
+	UINT8 data = m_io_x0->read() & m_io_x1->read() & m_io_x2->read() & m_io_x3->read()
+				& m_io_y0->read() & m_io_y1->read() & m_io_y2->read() & m_io_y3->read();
 
-	if (m_kbd_s == 3)
-		return 0x0f & ioport("X0")->read() & ioport("X1")->read() & ioport("X2")->read() & ioport("X3")->read();
-	else
-	if (m_kbd_s == 6)
-		return 0xf0 & ioport("Y0")->read() & ioport("Y1")->read() & ioport("Y2")->read() & ioport("Y3")->read();
-	else
-		return 0xff;
+	return data;
 }
 
 WRITE8_MEMBER( d6800_state::d6800_keyboard_w )
@@ -305,6 +355,12 @@ void d6800_state::machine_start()
 
 void d6800_state::machine_reset()
 {
+	m_beeper->set_state(0);
+	m_rtc = 0;
+	m_cass_data[0] = 0;
+	m_cass_data[1] = 0;
+	m_cass_data[2] = 128;
+	m_cass_data[3] = 0;
 }
 
 /* Machine Drivers */
@@ -318,15 +374,16 @@ static const cassette_interface d6800_cassette_interface =
 	NULL
 };
 
-static QUICKLOAD_LOAD( d6800 )
+QUICKLOAD_LOAD_MEMBER( d6800_state, d6800 )
 {
-	address_space &space = image.device().machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i;
-	int quick_addr = 0x0200;
+	int quick_addr = 0x200;
 	int exec_addr = 0xc000;
 	int quick_length;
 	UINT8 *quick_data;
 	int read_;
+	int result = IMAGE_INIT_FAIL;
 
 	quick_length = image.length();
 	quick_data = (UINT8*)malloc(quick_length);
@@ -334,27 +391,37 @@ static QUICKLOAD_LOAD( d6800 )
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot open file");
 		image.message(" Cannot open file");
-		return IMAGE_INIT_FAIL;
 	}
-
-	read_ = image.fread( quick_data, quick_length);
-	if (read_ != quick_length)
+	else
 	{
-		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot read the file");
-		image.message(" Cannot read the file");
-		return IMAGE_INIT_FAIL;
+		read_ = image.fread( quick_data, quick_length);
+		if (read_ != quick_length)
+		{
+			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot read the file");
+			image.message(" Cannot read the file");
+		}
+		else
+		{
+			for (i = 0; i < quick_length; i++)
+				if ((quick_addr + i) < 0x1000)
+					space.write_byte(i + quick_addr, quick_data[i]);
+
+			/* display a message about the loaded quickload */
+			image.message(" Quickload: size=%04X : start=%04X : end=%04X : exec=%04X",quick_length,quick_addr,quick_addr+quick_length,exec_addr);
+
+			// Start the quickload
+			if (strcmp(image.filetype(), "bin") == 0)
+				m_maincpu->set_pc(quick_addr);
+			else
+				m_maincpu->set_pc(exec_addr);
+
+			result = IMAGE_INIT_PASS;
+		}
+
+		free( quick_data );
 	}
 
-	for (i = 0; i < quick_length; i++)
-		if ((quick_addr + i) < 0x800)
-			space.write_byte(i + quick_addr, quick_data[i]);
-
-	/* display a message about the loaded quickload */
-	image.message(" Quickload: size=%04X : start=%04X : end=%04X : exec=%04X",quick_length,quick_addr,quick_addr+quick_length,exec_addr);
-
-	// Start the quickload
-	image.device().machine().device("maincpu")->state().set_pc(exec_addr);
-	return IMAGE_INIT_PASS;
+	return result;
 }
 
 static MACHINE_CONFIG_START( d6800, d6800_state )
@@ -362,39 +429,43 @@ static MACHINE_CONFIG_START( d6800, d6800_state )
 	MCFG_CPU_ADD("maincpu",M6800, XTAL_4MHz/4)
 	MCFG_CPU_PROGRAM_MAP(d6800_map)
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(50)
 	MCFG_SCREEN_SIZE(64, 32)
 	MCFG_SCREEN_VISIBLE_AREA(0, 63, 0, 31)
 	MCFG_SCREEN_UPDATE_DRIVER(d6800_state, screen_update_d6800)
-
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(25))
 	MCFG_PALETTE_LENGTH(2)
 	MCFG_PALETTE_INIT(black_and_white)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
-	MCFG_SOUND_ADD("dac", DAC, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
 	MCFG_PIA6821_ADD("pia", d6800_mc6821_intf)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, d6800_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", d6800_cassette_interface)
+	MCFG_TIMER_DRIVER_ADD_PERIODIC("d6800_c", d6800_state, d6800_c, attotime::from_hz(4800))
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("d6800_p", d6800_state, d6800_p, attotime::from_hz(40000))
 
 	/* quickload */
-	MCFG_QUICKLOAD_ADD("quickload", d6800, "ch8", 1)
+	MCFG_QUICKLOAD_ADD("quickload", d6800_state, d6800, "bin,c8,ch8", 1)
 MACHINE_CONFIG_END
 
 /* ROMs */
 
 ROM_START( d6800 )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "d6800.bin", 0xc000, 0x0400, CRC(3f97ca2e) SHA1(60f26e57a058262b30befceceab4363a5d65d877) )
+	ROM_SYSTEM_BIOS(0, "0", "Original")
+	ROMX_LOAD( "d6800.bin", 0xc000, 0x0400, CRC(3f97ca2e) SHA1(60f26e57a058262b30befceceab4363a5d65d877), ROM_BIOS(1) )
+	ROMX_LOAD( "d6800.bin", 0xc400, 0x0400, CRC(3f97ca2e) SHA1(60f26e57a058262b30befceceab4363a5d65d877), ROM_BIOS(1) )
+	ROM_SYSTEM_BIOS(1, "1", "Dreamsoft")
+	ROMX_LOAD( "d6800d.bin", 0xc000, 0x0800, CRC(ded5712f) SHA1(f594f313a74d7135c9fdd0bcb0093fc5771a9b7d), ROM_BIOS(2) )
 ROM_END
 
-/*    YEAR  NAME   PARENT  COMPAT  MACHINE   INPUT       INIT        COMPANY             FULLNAME      FLAGS */
-COMP( 1979, d6800, 0,      0,      d6800,    d6800, driver_device,      0,   "Electronics Australia", "Dream 6800", GAME_NOT_WORKING )
+/*    YEAR  NAME   PARENT  COMPAT  MACHINE   INPUT  CLASS,          INIT      COMPANY        FULLNAME      FLAGS */
+COMP( 1979, d6800, 0,      0,      d6800,    d6800, driver_device,   0,   "Michael Bauer", "Dream 6800", 0 )

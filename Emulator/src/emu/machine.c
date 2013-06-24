@@ -138,50 +138,51 @@ static char giant_string_buffer[65536] = { 0 };
 
 running_machine::running_machine(const machine_config &_config, osd_interface &osd, bool exit_to_game_select)
 	: firstcpu(NULL),
-	  primary_screen(NULL),
-	  palette(NULL),
-	  pens(NULL),
-	  colortable(NULL),
-	  shadow_table(NULL),
-	  debug_flags(0),
-	  palette_data(NULL),
-	  romload_data(NULL),
-	  ui_input_data(NULL),
-	  debugcpu_data(NULL),
-	  generic_machine_data(NULL),
+		primary_screen(NULL),
+		palette(NULL),
+		pens(NULL),
+		colortable(NULL),
+		shadow_table(NULL),
+		debug_flags(0),
+		palette_data(NULL),
+		romload_data(NULL),
+		ui_input_data(NULL),
+		debugcpu_data(NULL),
+		generic_machine_data(NULL),
 
-	  m_config(_config),
-	  m_system(_config.gamedrv()),
-	  m_osd(osd),
-	  m_cheat(NULL),
-	  m_render(NULL),
-	  m_input(NULL),
-	  m_sound(NULL),
-	  m_video(NULL),
-	  m_tilemap(NULL),
-	  m_debug_view(NULL),
-	  m_current_phase(MACHINE_PHASE_PREINIT),
-	  m_paused(false),
-	  m_hard_reset_pending(false),
-	  m_exit_pending(false),
-	  m_exit_to_game_select(exit_to_game_select),
-	  m_new_driver_pending(NULL),
-	  m_soft_reset_timer(NULL),
-	  m_rand_seed(0x9d14abd7),
+		m_config(_config),
+		m_system(_config.gamedrv()),
+		m_osd(osd),
+		m_cheat(NULL),
+		m_render(NULL),
+		m_input(NULL),
+		m_sound(NULL),
+		m_video(NULL),
+		m_tilemap(NULL),
+		m_debug_view(NULL),
+		m_current_phase(MACHINE_PHASE_PREINIT),
+		m_paused(false),
+		m_hard_reset_pending(false),
+		m_exit_pending(false),
+		m_exit_to_game_select(exit_to_game_select),
+		m_new_driver_pending(NULL),
+		m_soft_reset_timer(NULL),
+		m_rand_seed(0x9d14abd7),
 		m_ui_active(_config.options().ui_active()),
-	  m_basename(_config.gamedrv().name),
-	  m_sample_rate(_config.options().sample_rate()),
-	  m_logfile(NULL),
-	  m_saveload_schedule(SLS_NONE),
-	  m_saveload_schedule_time(attotime::zero),
-	  m_saveload_searchpath(NULL),
-	  m_logerror_list(m_respool),
+		m_basename(_config.gamedrv().name),
+		m_sample_rate(_config.options().sample_rate()),
+		m_logfile(NULL),
+		m_saveload_schedule(SLS_NONE),
+		m_saveload_schedule_time(attotime::zero),
+		m_saveload_searchpath(NULL),
+		m_logerror_list(m_respool),
       m_watchdog_enabled(false),
 
-	  m_save(*this),
-	  m_memory(*this),
-	  m_ioport(*this),
-	  m_scheduler(*this)
+		m_save(*this),
+		m_memory(*this),
+		m_ioport(*this),
+		m_scheduler(*this),
+		m_lua_engine(*this)
 {
 	memset(gfx, 0, sizeof(gfx));
 	memset(&m_base_time, 0, sizeof(m_base_time));
@@ -237,6 +238,18 @@ const char *running_machine::describe_context()
 	return m_context;
 }
 
+TIMER_CALLBACK_MEMBER(running_machine::autoboot_callback)
+{
+	if (strlen(options().autoboot_script())!=0) {
+		m_lua_engine.execute(options().autoboot_script());
+	}
+	if (strlen(options().autoboot_command())!=0) {
+		astring cmd = astring(options().autoboot_command());
+		cmd.replace("'","\\'");
+		astring val = astring("emu.keypost('",cmd,"')");
+		m_lua_engine.execute_string(val);
+	}
+}
 
 //-------------------------------------------------
 //  start - initialize the emulated machine
@@ -326,8 +339,8 @@ void running_machine::start()
 	add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(running_machine::reset_all_devices), this));
 	add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(running_machine::stop_all_devices), this));
 	save().register_presave(save_prepost_delegate(FUNC(running_machine::presave_all_devices), this));
-	save().register_postload(save_prepost_delegate(FUNC(running_machine::postload_all_devices), this));
 	start_all_devices();
+	save().register_postload(save_prepost_delegate(FUNC(running_machine::postload_all_devices), this));
 
 	// if we're coming in with a savegame request, process it now
 	const char *savegame = options().state();
@@ -340,6 +353,12 @@ void running_machine::start()
 
 	// set up the cheat engine
 	m_cheat = auto_alloc(*this, cheat_manager(*this));
+
+	// allocate autoboot timer
+	m_autoboot_timer = scheduler().timer_alloc(timer_expired_delegate(FUNC(running_machine::autoboot_callback), this));
+
+	// initialize lua
+	m_lua_engine.initialize();
 
 	// disallow save state registrations starting here
 	m_save.allow_registration(false);
@@ -386,7 +405,7 @@ int running_machine::run(bool firstrun)
 	int error = MAMERR_NONE;
 
 	// use try/catch for deep error recovery
-  //try
+	try
 	{
 		// move to the init phase
 		m_current_phase = MACHINE_PHASE_INIT;
@@ -601,7 +620,6 @@ int running_machine::run(bool firstrun)
 		nvram_save(*this);
 		config_save_settings(*this);
 	}
-  /*
 	catch (emu_fatalerror &fatal)
 	{
 		mame_printf_error("%s\n", fatal.string());
@@ -629,7 +647,6 @@ int running_machine::run(bool firstrun)
 		mame_printf_error("Caught unhandled %s exception: %s\n", typeid(ex).name(), ex.what());
 		error = MAMERR_FATALERROR;
 	}
-  */
 
 	// make sure our phase is set properly before cleaning up,
 	// in case we got here via exception
@@ -718,6 +735,101 @@ void running_machine::schedule_new_driver(const game_driver &driver)
 
 
 //-------------------------------------------------
+//  get_statename - allow to specify a subfolder of
+//  the state directory for state loading/saving,
+//  very useful for MESS and consoles or computers
+//  where you can have separate folders for diff
+//  software
+//-------------------------------------------------
+
+astring running_machine::get_statename(const char *option)
+{
+	astring statename_str("");
+	if (option == NULL || option[0] == 0)
+		statename_str.cpy("%g");
+	else
+		statename_str.cpy(option);
+
+	// strip any extension in the provided statename
+	int index = statename_str.rchr(0, '.');
+	if (index != -1)
+		statename_str.substr(0, index);
+
+	// handle %d in the template (for image devices)
+	astring statename_dev("%d_");
+	int pos = statename_str.find(0, statename_dev);
+
+	if (pos != -1)
+	{
+		// if more %d are found, revert to default and ignore them all
+		if (statename_str.find(pos + 3, statename_dev) != -1)
+			statename_str.cpy("%g");
+		// else if there is a single %d, try to create the correct snapname
+		else
+		{
+			int name_found = 0;
+
+			// find length of the device name
+			int end1 = statename_str.find(pos + 3, "/");
+			int end2 = statename_str.find(pos + 3, "%");
+			int end = -1;
+
+			if ((end1 != -1) && (end2 != -1))
+				end = MIN(end1, end2);
+			else if (end1 != -1)
+				end = end1;
+			else if (end2 != -1)
+				end = end2;
+			else
+				end = statename_str.len();
+
+			if (end - pos < 3)
+				fatalerror("Something very wrong is going on!!!\n");
+
+			// copy the device name to an astring
+			astring devname_str;
+			devname_str.cpysubstr(statename_str, pos + 3, end - pos - 3);
+			//printf("check template: %s\n", devname_str.cstr());
+
+			// verify that there is such a device for this system
+			image_interface_iterator iter(root_device());
+			for (device_image_interface *image = iter.first(); image != NULL; image = iter.next())
+			{
+				// get the device name
+				astring tempdevname(image->brief_instance_name());
+				//printf("check device: %s\n", tempdevname.cstr());
+
+				if (devname_str.cmp(tempdevname) == 0)
+				{
+					// verify that such a device has an image mounted
+					if (image->basename_noext() != NULL)
+					{
+						astring filename(image->basename_noext());
+
+						// setup snapname and remove the %d_
+						statename_str.replace(0, devname_str, filename);
+						statename_str.del(pos, 3);
+						//printf("check image: %s\n", filename.cstr());
+
+						name_found = 1;
+					}
+				}
+			}
+
+			// or fallback to default
+			if (name_found == 0)
+				statename_str.cpy("%g");
+		}
+	}
+
+	// substitute path and gamename up front
+	statename_str.replace(0, "/", PATH_SEPARATOR);
+	statename_str.replace(0, "%g", basename());
+
+	return statename_str;
+}
+
+//-------------------------------------------------
 //  set_saveload_filename - specifies the filename
 //  for state loading/saving
 //-------------------------------------------------
@@ -733,7 +845,10 @@ void running_machine::set_saveload_filename(const char *filename)
 	else
 	{
 		m_saveload_searchpath = options().state_directory();
-		m_saveload_pending_file.cpy(basename()).cat(PATH_SEPARATOR).cat(filename).cat(".sta");
+		// take into account the statename option
+		const char *stateopt = options().state_name();
+		astring statename = get_statename(stateopt);
+		m_saveload_pending_file.cpy(statename.cstr()).cat(PATH_SEPARATOR).cat(filename).cat(".sta");
 	}
 }
 
@@ -758,6 +873,24 @@ void running_machine::schedule_save(const char *filename)
 
 
 //-------------------------------------------------
+//  immediate_save - save state.
+//-------------------------------------------------
+
+void running_machine::immediate_save(const char *filename)
+{
+	// specify the filename to save or load
+	set_saveload_filename(filename);
+
+	// set up some parameters for handle_saveload()
+	m_saveload_schedule = SLS_SAVE;
+	m_saveload_schedule_time = this->time();
+
+	// jump right into the save, anonymous timers can't hurt us!
+	handle_saveload();
+}
+
+
+//-------------------------------------------------
 //  schedule_load - schedule a load to occur as
 //  soon as possible
 //-------------------------------------------------
@@ -773,6 +906,24 @@ void running_machine::schedule_load(const char *filename)
 
 	// we can't be paused since we need to clear out anonymous timers
 	resume();
+}
+
+
+//-------------------------------------------------
+//  immediate_load - load state.
+//-------------------------------------------------
+
+void running_machine::immediate_load(const char *filename)
+{
+	// specify the filename to save or load
+	set_saveload_filename(filename);
+
+	// set up some parameters for handle_saveload()
+	m_saveload_schedule = SLS_LOAD;
+	m_saveload_schedule_time = this->time();
+
+	// jump right into the load, anonymous timers can't hurt us
+	handle_saveload();
 }
 
 
@@ -916,7 +1067,7 @@ UINT32 running_machine::rand()
 	m_rand_seed = 1664525 * m_rand_seed + 1013904223;
 
 	// return rotated by 16 bits; the low bits have a short period
-    // and are frequently used
+	// and are frequently used
 	return (m_rand_seed >> 16) | (m_rand_seed << 16);
 }
 
@@ -1035,6 +1186,9 @@ void running_machine::soft_reset(void *ptr, INT32 param)
 
 	// call all registered reset callbacks
 	call_notifiers(MACHINE_NOTIFY_RESET);
+
+	// setup autoboot if needed
+	m_autoboot_timer->adjust(attotime(options().autoboot_delay(),0),0);
 
 	// now we're running
 	m_current_phase = MACHINE_PHASE_RUNNING;
@@ -1245,7 +1399,7 @@ void running_machine::postload_all_devices()
 
 running_machine::notifier_callback_item::notifier_callback_item(machine_notify_delegate func)
 	: m_next(NULL),
-	  m_func(func)
+		m_func(func)
 {
 }
 
@@ -1256,7 +1410,7 @@ running_machine::notifier_callback_item::notifier_callback_item(machine_notify_d
 
 running_machine::logerror_callback_item::logerror_callback_item(logerror_callback func)
 	: m_next(NULL),
-	  m_func(func)
+		m_func(func)
 {
 }
 
@@ -1282,7 +1436,6 @@ system_time::system_time()
 
 void system_time::set(time_t t)
 {
-  //cout << "SETTING SECONDS TO : " << t << endl;
 	time = t;
 	local_time.set(*localtime(&t));
 	utc_time.set(*gmtime(&t));
@@ -1296,9 +1449,8 @@ void system_time::set(time_t t)
 
 void system_time::full_time::set(struct tm &t)
 {
-  //JJG: Force clock to 1/1/2000.  It's hard to get a machine reference here.
-  //if(machine().options().server() || machine().options().client())
-  if(true)
+  //JJG: Force clock to 1/1/2000.
+  if(netCommon)
   {
     second	= 0;
     minute	= 0;
@@ -1312,15 +1464,14 @@ void system_time::full_time::set(struct tm &t)
   }
   else
 {
-	second	= t.tm_sec;
-	minute	= t.tm_min;
-	hour	= t.tm_hour;
-	mday	= t.tm_mday;
-	month	= t.tm_mon;
-	year	= t.tm_year + 1900;
-	weekday	= t.tm_wday;
-	day		= t.tm_yday;
-	is_dst	= t.tm_isdst;
+	second  = t.tm_sec;
+	minute  = t.tm_min;
+	hour    = t.tm_hour;
+	mday    = t.tm_mday;
+	month   = t.tm_mon;
+	year    = t.tm_year + 1900;
+	weekday = t.tm_wday;
+	day     = t.tm_yday;
+	is_dst  = t.tm_isdst;
   }
-  //cout << "SETTING TIME TO : " << int(second) << ',' << int(minute) << ',' << int(hour) << ',' << int(mday) << ',' << int(month) << ',' << int(year) << ',' << int(weekday) << ',' << int(day) << ',' << int(is_dst) << endl;
 }

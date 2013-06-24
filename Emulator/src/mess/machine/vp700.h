@@ -36,14 +36,13 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "vp700"; }
 	virtual void device_start();
 
 	// device_vip_expansion_card_interface overrides
 	virtual UINT8 vip_program_r(address_space &space, offs_t offset, int cs, int cdef, int *minh);
 
 private:
-	const UINT8 *m_rom;
+	required_memory_region m_rom;
 };
 
 

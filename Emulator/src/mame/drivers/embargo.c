@@ -12,8 +12,9 @@ class embargo_state : public driver_device
 {
 public:
 	embargo_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -30,6 +31,7 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	UINT32 screen_update_embargo(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -80,7 +82,6 @@ READ8_MEMBER(embargo_state::input_port_bit_r)
 
 READ8_MEMBER(embargo_state::dial_r)
 {
-
 	UINT8 lo = 0;
 	UINT8 hi = 0;
 
@@ -230,7 +231,6 @@ INPUT_PORTS_END
 
 void embargo_state::machine_start()
 {
-
 	/* register for state saving */
 	save_item(NAME(m_dial_enable_1));
 	save_item(NAME(m_dial_enable_2));
@@ -240,7 +240,6 @@ void embargo_state::machine_start()
 
 void embargo_state::machine_reset()
 {
-
 	m_dial_enable_1 = 0;
 	m_dial_enable_2 = 0;
 	m_input_select = 0;

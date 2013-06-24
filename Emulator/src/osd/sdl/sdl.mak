@@ -37,11 +37,12 @@
 
 # NO_X11 = 1
 
-# uncomment next line to disable XInput support for e.g. multiple lightguns
+# uncomment next line to disable XInput support for e.g. multiple lightguns and mice on X11 systems
 # using Wiimote driver (see http://spritesmods.com/?art=wiimote-mamegun for more info)
 # enabling NO_X11 also implies no XInput support, of course.
+# (currently defaults disabled due to causing issues with mouse capture, esp. in MESS)
 
-# NO_USE_XINPUT = 1
+NO_USE_XINPUT = 1
 
 # uncomment and adapt next line to link against specific GL-Library
 # this will also add a rpath to the executable
@@ -75,15 +76,11 @@ endif
 # Get what you need here: http://www.gtk.org/download-windows.html
 # GTK_INSTALL_ROOT = y:/couriersud/win/gtk-32
 
-# uncomment to use Xinput for multiple mice on X11 systems
-# (currently defaults disabled due to causing issues with mouse capture, esp. in MESS)
-NO_USE_XINPUT = 1
-
-# uncomment to try the experimental new Qt debugger
-#USE_QTDEBUG = 1
+# uncomment to disable the Qt debugger and fall back to a system default
+# NO_USE_QTDEBUG = 1
 
 # uncomment to disable MIDI
-#NO_USE_MIDI = 1
+# NO_USE_MIDI = 1
 
 ###########################################################################
 ##################   END USER-CONFIGURABLE OPTIONS   ######################
@@ -131,7 +128,7 @@ else
 ifeq ($(DISTRO),ubuntu-intrepid)
 # Force gcc-4.2 on ubuntu-intrepid
 CC = @gcc -V 4.2
-LD = g++-4.2
+LD = @g++-4.2
 else
 ifeq ($(DISTRO),gcc44-generic)
 CC = @gcc-4.4
@@ -240,10 +237,12 @@ SYNC_IMPLEMENTATION = ntc
 NO_X11 = 1
 NO_USE_XINPUT = 1
 NO_USE_MIDI = 1
+NO_USE_QTDEBUG = 1
 LIBS += -lnetwork -lbsd
 endif
 
 ifeq ($(TARGETOS),macosx)
+NO_USE_QTDEBUG = 1
 BASE_TARGETOS = unix
 CCOMFLAGS += -mmacosx-version-min=10.5
 DEFS += -DSDLMAME_UNIX -DSDLMAME_MACOSX -DSDLMAME_DARWIN
@@ -252,9 +251,10 @@ ifndef NO_USE_MIDI
 LIBS += -framework CoreAudio -framework CoreMIDI
 endif
 
-ifndef USE_QTDEBUG
+ifdef NO_USE_QTDEBUG
 DEBUGOBJS = $(SDLOBJ)/debugosx.o
 endif
+
 SYNC_IMPLEMENTATION = ntc
 SDLMAIN = $(SDLOBJ)/SDLMain_tmpl.o
 SDLUTILMAIN = $(SDLOBJ)/SDLMain_tmpl.o
@@ -263,6 +263,7 @@ MAINLDFLAGS = -Xlinker -all_load
 NO_X11 = 1
 NO_USE_XINPUT = 1
 ifdef BIGENDIAN
+DEFS += -DOSX_PPC=1
 ifdef SYMBOLS
 CCOMFLAGS += -mlong-branch
 endif	# SYMBOLS
@@ -300,11 +301,11 @@ SDL_NETWORK = pcap
 
 # do we have GTK ?
 ifndef GTK_INSTALL_ROOT
-ifndef USE_QTDEBUG
+ifdef NO_USE_QTDEBUG
 NO_DEBUGGER = 1
 endif
 else
-ifndef USE_QTDEBUG
+ifdef NO_USE_QTDEBUG
 DEBUGOBJS = $(SDLOBJ)/debugwin.o $(SDLOBJ)/dview.o $(SDLOBJ)/debug-sup.o $(SDLOBJ)/debug-intf.o
 LIBS += -lgtk-win32-2.0 -lgdk-win32-2.0 -lgmodule-2.0 -lglib-2.0 -lgobject-2.0 \
 	-lpango-1.0 -latk-1.0 -lgdk_pixbuf-2.0
@@ -322,7 +323,7 @@ DEFS += -Dmain=utf8_main -DUNICODE -D_UNICODE
 LDFLAGS += -municode
 
 # Qt
-ifdef USE_QTDEBUG
+ifndef NO_USE_QTDEBUG
 QT_INSTALL_HEADERS = $(shell qmake -query QT_INSTALL_HEADERS)
 INCPATH += -I$(QT_INSTALL_HEADERS)/QtCore -I$(QT_INSTALL_HEADERS)/QtGui -I$(QT_INSTALL_HEADERS)
 LIBS += -L$(shell qmake -query QT_INSTALL_LIBS) -lqtmain -lQtGui4 -lQtCore4 -lcomdlg32 -loleaut32 -limm32 -lwinspool -lmsimg32 -lole32 -luuid -lws2_32 -lshell32 -lkernel32
@@ -330,7 +331,7 @@ endif
 endif
 
 ifeq ($(TARGETOS),macosx)
-ifdef USE_QTDEBUG
+ifndef NO_USE_QTDEBUG
 MOC = @moc
 
 QT_INSTALL_LIBS = $(shell qmake -query QT_INSTALL_LIBS)
@@ -347,6 +348,7 @@ NO_DEBUGGER = 1
 NO_X11 = 1
 NO_USE_XINPUT = 1
 NO_USE_MIDI = 1
+NO_USE_QTDEBUG = 1
 # OS/2 can't have OpenGL (aww)
 NO_OPENGL = 1
 endif
@@ -438,20 +440,24 @@ SDLOS_TARGETOS = $(BASE_TARGETOS)
 # TEST_GCC for GCC version-specific stuff
 #-------------------------------------------------
 
+ifeq (,$(findstring clang,$(CC)))
+# TODO: needs to use $(CC)
 TEST_GCC = $(shell gcc --version)
-
-ifeq ($(findstring 4.7,$(TEST_GCC)),4.7)
-	CCOMFLAGS += -Wno-narrowing -Wno-attributes
-endif
 
 # Ubuntu 12.10 GCC 4.7.2 autodetect
 ifeq ($(findstring 4.7.2-2ubuntu1,$(TEST_GCC)),4.7.2-2ubuntu1)
 GCC46TST = $(shell which g++-4.6 2>/dev/null)
 ifeq '$(GCC46TST)' ''
-	$(error Ubuntu 12.10 detected.  Please install the gcc-4.6 and g++-4.6 packages)
+$(error Ubuntu 12.10 detected.  Please install the gcc-4.6 and g++-4.6 packages)
 endif
 CC = @gcc-4.6
 LD = @g++-4.6
+TEST_GCC = $(shell gcc-4.6 --version)
+endif
+
+ifeq ($(findstring 4.7.,$(TEST_GCC)),4.7.)
+	CCOMFLAGS += -Wno-narrowing -Wno-attributes
+endif
 endif
 
 #-------------------------------------------------
@@ -490,7 +496,7 @@ else   # ifeq ($(TARGETOS),macosx)
 
 DEFS += -DSDLMAME_UNIX
 
-ifdef USE_QTDEBUG
+ifndef NO_USE_QTDEBUG
 MOCTST = $(shell which moc-qt4 2>/dev/null)
 ifeq '$(MOCTST)' ''
 MOCTST = $(shell which moc 2>/dev/null)
@@ -545,7 +551,7 @@ endif
 
 # libs that Haiku doesn't want but are mandatory on *IX
 ifneq ($(TARGETOS),haiku)
-LIBS += -lm -lutil
+LIBS += -lm -lutil -lpthread
 endif
 
 endif # not Mac OS X
@@ -598,12 +604,14 @@ endif
 # Static linking
 
 LDFLAGS += -static-libgcc
+ifeq (,$(findstring clang,$(CC)))
 ifeq ($(findstring 4.4,$(TEST_GCC)),)
 	#if we use new tools
 	LDFLAGS += -static-libstdc++
 endif
+endif
 
-ifdef USE_QTDEBUG
+ifndef NO_USE_QTDEBUG
 MOC = @moc
 endif
 
@@ -627,7 +635,7 @@ endif # OS2
 # Debugging
 #-------------------------------------------------
 
-ifdef USE_QTDEBUG
+ifndef NO_USE_QTDEBUG
 $(SDLOBJ)/%.moc.c: $(SDLSRC)/%.h
 	$(MOC) $(MOCINCPATH) $(DEFS) $< -o $@
 
@@ -639,11 +647,14 @@ DEBUGOBJS = \
 	$(SDLOBJ)/debugqtdasmwindow.o \
 	$(SDLOBJ)/debugqtmainwindow.o \
 	$(SDLOBJ)/debugqtmemorywindow.o \
+	$(SDLOBJ)/debugqtbreakpointswindow.o \
+	$(SDLOBJ)/debugqtview.moc.o \
 	$(SDLOBJ)/debugqtwindow.moc.o \
 	$(SDLOBJ)/debugqtlogwindow.moc.o \
 	$(SDLOBJ)/debugqtdasmwindow.moc.o \
 	$(SDLOBJ)/debugqtmainwindow.moc.o \
-	$(SDLOBJ)/debugqtmemorywindow.moc.o
+	$(SDLOBJ)/debugqtmemorywindow.moc.o \
+	$(SDLOBJ)/debugqtbreakpointswindow.moc.o
 endif
 
 ifeq ($(NO_DEBUGGER),1)
@@ -689,17 +700,16 @@ else
 DEFS += -DSDLMAME_X11
 LIBS += -lX11 -lXinerama
 
-# the new debugger relies on GTK+ in addition to the base SDLMAME needs
+# The newer debugger uses QT
+ifndef NO_USE_QTDEBUG
+INCPATH += `pkg-config QtGui --cflags`
+LIBS += `pkg-config QtGui --libs`
+else
+# the old-new debugger relies on GTK+ in addition to the base SDLMAME needs
 # Non-X11 builds can not use the debugger
 INCPATH += `pkg-config --cflags-only-I gtk+-2.0` `pkg-config --cflags-only-I gconf-2.0`
 CCOMFLAGS += `pkg-config --cflags-only-other gtk+-2.0` `pkg-config --cflags-only-other gconf-2.0`
 LIBS += `pkg-config --libs gtk+-2.0` `pkg-config --libs gconf-2.0`
-#CCOMFLAGS += -DGTK_DISABLE_DEPRECATED
-
-# The newer debugger uses QT
-ifdef USE_QTDEBUG
-INCPATH += `pkg-config QtGui --cflags`
-LIBS += `pkg-config QtGui --libs`
 endif
 
 # some systems still put important things in a different prefix
@@ -733,9 +743,13 @@ DEFS += -DSDLMAME_NETWORK -DSDLMAME_NET_TAPTUN
 endif
 
 ifeq ($(SDL_NETWORK),pcap)
-OSDOBJS += \
-	$(SDLOBJ)/netdev.o \
-	$(SDLOBJ)/netdev_pcap.o
+OSDOBJS += $(SDLOBJ)/netdev.o
+
+ifeq ($(TARGETOS),macosx)
+OSDOBJS += $(SDLOBJ)/netdev_pcap_osx.o
+else
+OSDOBJS += $(SDLOBJ)/netdev_pcap.o
+endif
 
 DEFS += -DSDLMAME_NETWORK -DSDLMAME_NET_PCAP
 ifneq ($(TARGETOS),win32)

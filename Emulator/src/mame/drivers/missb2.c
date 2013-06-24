@@ -40,6 +40,7 @@ public:
 	DECLARE_MACHINE_RESET(missb2);
 	UINT32 screen_update_missb2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(missb2_interrupt);
+	void configure_banks();
 };
 
 
@@ -77,7 +78,7 @@ UINT32 missb2_state::screen_update_missb2(screen_device &screen, bitmap_ind16 &b
 
 	sx = 0;
 
-	prom = machine().root_device().memregion("proms")->base();
+	prom = memregion("proms")->base();
 	for (offs = 0; offs < m_objectram.bytes(); offs += 4)
 	{
 		/* skip empty sprites */
@@ -147,7 +148,6 @@ INLINE void bg_changecolor_RRRRGGGGBBBBxxxx( running_machine &machine, pen_t col
 
 WRITE8_MEMBER(missb2_state::bg_paletteram_RRRRGGGGBBBBxxxx_be_w)
 {
-
 	m_bg_paletteram[offset] = data;
 	bg_changecolor_RRRRGGGGBBBBxxxx(machine(), offset / 2, m_bg_paletteram[offset | 1] | (m_bg_paletteram[offset & ~1] << 8));
 }
@@ -207,7 +207,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, missb2_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9000) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE_LEGACY("ymsnd", ym3526_r, ym3526_w)
+	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ymsnd", ym3526_device, read, write)
 	AM_RANGE(0xb000, 0xb000) AM_READ(soundlatch_byte_r) AM_WRITENOP // message for main cpu
 	AM_RANGE(0xb001, 0xb001) AM_READNOP AM_WRITE(bublbobl_sh_nmi_enable_w)  // bit 0: message pending for main cpu, bit 1: message pending for sound cpu
 	AM_RANGE(0xb002, 0xb002) AM_WRITE(bublbobl_sh_nmi_disable_w)
@@ -419,13 +419,8 @@ GFXDECODE_END
 WRITE_LINE_MEMBER(missb2_state::irqhandler)
 {
 	logerror("YM3526 firing an IRQ\n");
-//  machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+//  m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym3526_interface ym3526_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(missb2_state,irqhandler)
-};
 
 /* Interrupt Generator */
 
@@ -438,12 +433,6 @@ INTERRUPT_GEN_MEMBER(missb2_state::missb2_interrupt)
 
 MACHINE_START_MEMBER(missb2_state,missb2)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_slave = machine().device("slave");
-	m_mcu = NULL;
-
 	save_item(NAME(m_sound_nmi_enable));
 	save_item(NAME(m_pending_nmi));
 	save_item(NAME(m_sound_status));
@@ -452,7 +441,6 @@ MACHINE_START_MEMBER(missb2_state,missb2)
 
 MACHINE_RESET_MEMBER(missb2_state,missb2)
 {
-
 	m_sound_nmi_enable = 0;
 	m_pending_nmi = 0;
 	m_sound_status = 0;
@@ -494,7 +482,7 @@ static MACHINE_CONFIG_START( missb2, missb2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3526, MAIN_XTAL/8)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(WRITELINE(missb2_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
@@ -574,22 +562,21 @@ ROM_START( bublpong )
 ROM_END
 
 
-static void configure_banks( running_machine& machine )
+void missb2_state::configure_banks()
 {
-	UINT8 *ROM = machine.root_device().memregion("maincpu")->base();
-	UINT8 *SLAVE = machine.root_device().memregion("slave")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
+	UINT8 *SLAVE = memregion("slave")->base();
 
-	machine.root_device().membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
+	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x4000);
 
 	/* 2009-11 FP: isn't there a way to configure both at once? */
-	machine.root_device().membank("bank2")->configure_entries(0, 7, &SLAVE[0x8000], 0x1000);
-	machine.root_device().membank("bank3")->configure_entries(0, 7, &SLAVE[0x9000], 0x1000);
+	membank("bank2")->configure_entries(0, 7, &SLAVE[0x8000], 0x1000);
+	membank("bank3")->configure_entries(0, 7, &SLAVE[0x9000], 0x1000);
 }
 
 DRIVER_INIT_MEMBER(missb2_state,missb2)
 {
-
-	configure_banks(machine());
+	configure_banks();
 	m_video_enable = 0;
 }
 

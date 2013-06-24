@@ -143,10 +143,10 @@ INPUT_PORTS_END
 
 
 /* Dipswitch for font selection */
-#define CGA_FONT        (ioport("cga_config")->read() & m_font_selection_mask)
+#define CGA_FONT        (m_cga_config->read() & m_font_selection_mask)
 
 /* Dipswitch for monitor selection */
-#define CGA_MONITOR     (ioport("cga_config")->read()&0x1C)
+#define CGA_MONITOR     (m_cga_config->read()&0x1C)
 #define CGA_MONITOR_RGB         0x00    /* Colour RGB */
 #define CGA_MONITOR_MONO        0x04    /* Greyscale RGB */
 #define CGA_MONITOR_COMPOSITE   0x08    /* Colour composite */
@@ -156,7 +156,7 @@ INPUT_PORTS_END
 
 /* Dipswitch for chipset selection */
 /* TODO: Get rid of this; these should be handled by separate classes */
-#define CGA_CHIPSET     (ioport("cga_config")->read() & 0xE0)
+#define CGA_CHIPSET     (m_cga_config->read() & 0xE0)
 #define CGA_CHIPSET_IBM         0x00    /* Original IBM CGA */
 #define CGA_CHIPSET_PC1512      0x20    /* PC1512 CGA subset */
 #define CGA_CHIPSET_PC200       0x40    /* PC200 in CGA mode */
@@ -604,9 +604,10 @@ static MC6845_UPDATE_ROW( cga_update_row )
 }
 
 
-static const mc6845_interface mc6845_cga_intf =
+static MC6845_INTERFACE( mc6845_cga_intf )
 {
 	CGA_SCREEN_NAME,    /* screen number */
+	false,              /* show border area */
 	8,                  /* numbers of pixels per video memory address */
 	NULL,               /* begin_update */
 	cga_update_row,     /* update_row */
@@ -676,8 +677,9 @@ const rom_entry *isa8_cga_device::device_rom_region() const
 //-------------------------------------------------
 
 isa8_cga_device::isa8_cga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, ISA8_CGA, "IBM Color/Graphics Monitor Adapter", tag, owner, clock),
+		device_t(mconfig, ISA8_CGA, "IBM Color/Graphics Monitor Adapter", tag, owner, clock, "cga", __FILE__),
 		device_isa8_card_interface(mconfig, *this),
+		m_cga_config(*this, "cga_config"),
 		m_vram_size( 0x4000 )
 {
 	m_chr_gen_offset[0] = m_chr_gen_offset[2] = 0x1800;
@@ -686,9 +688,10 @@ isa8_cga_device::isa8_cga_device(const machine_config &mconfig, const char *tag,
 	m_start_offset = 0;
 }
 
-isa8_cga_device::isa8_cga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, type, name, tag, owner, clock),
+isa8_cga_device::isa8_cga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_isa8_card_interface(mconfig, *this),
+		m_cga_config(*this, "cga_config"),
 		m_vram_size( 0x4000 )
 {
 	m_chr_gen_offset[0] = m_chr_gen_offset[2] = 0x1800;
@@ -749,6 +752,8 @@ void isa8_cga_device::device_reset()
 	m_mode_control = 0;
 	m_vsync = 0;
 	m_hsync = 0;
+	m_color_select = 0;
+	memset(m_palette_lut_2bpp, 0, sizeof(m_palette_lut_2bpp));
 }
 
 /***************************************************************************
@@ -765,7 +770,7 @@ const device_type ISA8_CGA_MC1502 = &device_creator<isa8_cga_mc1502_device>;
 //-------------------------------------------------
 
 isa8_cga_mc1502_device::isa8_cga_mc1502_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		isa8_cga_device( mconfig, ISA8_CGA_MC1502, "ISA8_CGA_MC1502", tag, owner, clock )
+		isa8_cga_device( mconfig, ISA8_CGA_MC1502, "ISA8_CGA_MC1502", tag, owner, clock, "cga_mc1502", __FILE__)
 {
 	m_vram_size = 0x8000;
 }
@@ -818,7 +823,7 @@ const device_type ISA8_CGA_POISK1 = &device_creator<isa8_cga_poisk1_device>;
 //-------------------------------------------------
 
 isa8_cga_poisk1_device::isa8_cga_poisk1_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		isa8_cga_device( mconfig, ISA8_CGA_POISK1, "ISA8_CGA_POISK1", tag, owner, clock )
+		isa8_cga_device( mconfig, ISA8_CGA_POISK1, "ISA8_CGA_POISK1", tag, owner, clock, "cga_poisk1", __FILE__)
 {
 	m_chr_gen_offset[0] = 0x0000;
 	m_font_selection_mask = 0;
@@ -846,7 +851,7 @@ const device_type ISA8_CGA_POISK2 = &device_creator<isa8_cga_poisk2_device>;
 //-------------------------------------------------
 
 isa8_cga_poisk2_device::isa8_cga_poisk2_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		isa8_cga_device( mconfig, ISA8_CGA_POISK2, "ISA8_CGA_POISK2", tag, owner, clock )
+		isa8_cga_device( mconfig, ISA8_CGA_POISK2, "ISA8_CGA_POISK2", tag, owner, clock, "cga_poisk2", __FILE__)
 {
 	m_chr_gen_offset[0] = 0x0000;
 	m_chr_gen_offset[1] = 0x0800;
@@ -875,7 +880,7 @@ const device_type ISA8_CGA_SUPERIMPOSE = &device_creator<isa8_cga_superimpose_de
 //-------------------------------------------------
 
 isa8_cga_superimpose_device::isa8_cga_superimpose_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		isa8_cga_device( mconfig, ISA8_CGA_SUPERIMPOSE, "ISA8_CGA_SUPERIMPOSE", tag, owner, clock )
+		isa8_cga_device( mconfig, ISA8_CGA_SUPERIMPOSE, "ISA8_CGA_SUPERIMPOSE", tag, owner, clock, "cga_superimpose", __FILE__)
 {
 	m_superimpose = true;
 }
@@ -1983,7 +1988,7 @@ const UINT8 isa8_cga_pc1512_device::mc6845_writeonce_register[31] =
 //-------------------------------------------------
 
 isa8_cga_pc1512_device::isa8_cga_pc1512_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		isa8_cga_device( mconfig, ISA8_CGA_PC1512, "ISA8_CGA_PC1512", tag, owner, clock )
+		isa8_cga_device( mconfig, ISA8_CGA_PC1512, "ISA8_CGA_PC1512", tag, owner, clock, "cga_pc1512", __FILE__)
 {
 	m_vram_size = 0x10000;
 	m_chr_gen_offset[0] = 0x0000;
@@ -2112,7 +2117,7 @@ const device_type ISA8_WYSE700 = &device_creator<isa8_wyse700_device>;
 //-------------------------------------------------
 
 isa8_wyse700_device::isa8_wyse700_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		isa8_cga_device( mconfig, ISA8_WYSE700, "Wyse 700", tag, owner, clock )
+		isa8_cga_device( mconfig, ISA8_WYSE700, "Wyse 700", tag, owner, clock, "wyse700", __FILE__)
 {
 	m_vram_size = 0x20000;
 	m_start_offset = 0x18000;

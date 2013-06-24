@@ -84,7 +84,6 @@ I/O read/write
 
 void senjyo_state::machine_reset()
 {
-
 	/* we must avoid generating interrupts for the first few frames otherwise */
 	/* Senjyo locks up. There must be an interrupt enable port somewhere, */
 	/* or maybe interrupts are genenrated by the CTC. */
@@ -94,7 +93,6 @@ void senjyo_state::machine_reset()
 
 INTERRUPT_GEN_MEMBER(senjyo_state::senjyo_interrupt)
 {
-
 	if (m_int_delay_kludge == 0) device.execute().set_input_line(0, HOLD_LINE);
 	else m_int_delay_kludge--;
 }
@@ -169,8 +167,8 @@ static ADDRESS_MAP_START( senjyo_sound_map, AS_PROGRAM, 8, senjyo_state )
 	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("sn3", sn76496_device, write)
 	AM_RANGE(0xd000, 0xd000) AM_WRITE(senjyo_volume_w)
 #if 0
-	AM_RANGE(0xe000, 0xe000) AM_WRITE_LEGACY(unknown)
-	AM_RANGE(0xf000, 0xf000) AM_WRITE_LEGACY(unknown)
+	AM_RANGE(0xe000, 0xe000) AM_WRITE(unknown)
+	AM_RANGE(0xf000, 0xf000) AM_WRITE(unknown)
 #endif
 ADDRESS_MAP_END
 
@@ -235,8 +233,8 @@ static ADDRESS_MAP_START( starforb_sound_map, AS_PROGRAM, 8, senjyo_state )
 	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("sn3", sn76496_device, write)
 	AM_RANGE(0xd000, 0xd000) AM_WRITE(senjyo_volume_w)
 #if 0
-	AM_RANGE(0xe000, 0xe000) AM_WRITE_LEGACY(unknown)
-	AM_RANGE(0xf000, 0xf000) AM_WRITE_LEGACY(unknown)
+	AM_RANGE(0xe000, 0xe000) AM_WRITE(unknown)
+	AM_RANGE(0xf000, 0xf000) AM_WRITE(unknown)
 #endif
 	AM_RANGE(0xf000, 0xffff) AM_RAM
 ADDRESS_MAP_END
@@ -911,13 +909,11 @@ ROM_END
 
 DRIVER_INIT_MEMBER(senjyo_state,starforc)
 {
-
 	m_is_senjyo = 0;
 	m_scrollhack = 1;
 }
 DRIVER_INIT_MEMBER(senjyo_state,starfore)
 {
-
 	/* encrypted CPU */
 	suprloco_decode(machine(), "maincpu");
 
@@ -927,7 +923,6 @@ DRIVER_INIT_MEMBER(senjyo_state,starfore)
 
 DRIVER_INIT_MEMBER(senjyo_state,starfora)
 {
-
 	/* encrypted CPU */
 	yamato_decode(machine(), "maincpu");
 
@@ -937,7 +932,6 @@ DRIVER_INIT_MEMBER(senjyo_state,starfora)
 
 DRIVER_INIT_MEMBER(senjyo_state,senjyo)
 {
-
 	m_is_senjyo = 1;
 	m_scrollhack = 0;
 }

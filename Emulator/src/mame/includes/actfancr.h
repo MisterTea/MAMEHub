@@ -8,8 +8,10 @@ class actfancr_state : public driver_device
 {
 public:
 	actfancr_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_main_ram(*this, "main_ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_main_ram(*this, "main_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_main_ram;
@@ -22,8 +24,8 @@ public:
 	int            m_trio_control_select;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE8_MEMBER(triothep_control_select_w);
 	DECLARE_READ8_MEMBER(triothep_control_r);
 	DECLARE_WRITE8_MEMBER(actfancr_sound_w);
@@ -34,14 +36,6 @@ public:
 	DECLARE_MACHINE_START(triothep);
 	DECLARE_MACHINE_RESET(triothep);
 	UINT32 screen_update_actfancr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void register_savestate(  );
+	DECLARE_WRITE_LINE_MEMBER(sound_irq);
 };
-
-
-/*----------- defined in video/actfancr.c -----------*/
-
-DECLARE_WRITE8_HANDLER( actfancr_pf1_data_w );
-DECLARE_READ8_HANDLER( actfancr_pf1_data_r );
-DECLARE_WRITE8_HANDLER( actfancr_pf1_control_w );
-DECLARE_WRITE8_HANDLER( actfancr_pf2_data_w );
-DECLARE_READ8_HANDLER( actfancr_pf2_data_r );
-DECLARE_WRITE8_HANDLER( actfancr_pf2_control_w );

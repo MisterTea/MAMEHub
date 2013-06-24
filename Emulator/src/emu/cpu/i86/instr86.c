@@ -2954,7 +2954,6 @@ static void PREFIX86(_f6pre)(i8086_state *cpustate)
 	case 0x38:  /* IDIV AL, Ew */
 		ICOUNT -= (ModRM >= 0xc0) ? timing.idiv_r8 : timing.idiv_m8;
 		{
-
 			INT16 result;
 
 			result = cpustate->regs.w[AX];
@@ -3272,12 +3271,12 @@ static void PREFIX86(_ffpre)(i8086_state *cpustate)    /* Opcode 0xff */
 
 static void PREFIX86(_invalid)(i8086_state *cpustate)
 {
+	logerror("illegal instruction %.2x at %.5x\n",PEEKBYTE(cpustate->pc-1), cpustate->pc);
 #ifdef I80286
 	throw TRAP(ILLEGAL_INSTRUCTION,-1);
 #else
 	/* i8086/i8088 ignore an invalid opcode. */
 	/* i80186/i80188 probably also ignore an invalid opcode. */
-	logerror("illegal instruction %.2x at %.5x\n",PEEKBYTE(cpustate->pc-1), cpustate->pc);
 	ICOUNT -= 10;
 #endif
 }

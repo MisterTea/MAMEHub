@@ -60,7 +60,6 @@
 
 WRITE8_MEMBER(arabian_state::ay8910_porta_w)
 {
-
 	/*
 	    bit 7 = ENA
 	    bit 6 = ENB
@@ -81,8 +80,8 @@ WRITE8_MEMBER(arabian_state::ay8910_portb_w)
 	    bit 0 = coin 1 counter
 	*/
 
-	machine().device("mcu")->execute().set_input_line(MB88_IRQ_LINE, data & 0x20 ? CLEAR_LINE : ASSERT_LINE);
-	machine().device("mcu")->execute().set_input_line(INPUT_LINE_RESET, data & 0x10 ? CLEAR_LINE : ASSERT_LINE);
+	m_mcu->set_input_line(MB88_IRQ_LINE, data & 0x20 ? CLEAR_LINE : ASSERT_LINE);
+	m_mcu->set_input_line(INPUT_LINE_RESET, data & 0x10 ? CLEAR_LINE : ASSERT_LINE);
 
 	/* clock the coin counters */
 	coin_counter_w(machine(), 1, ~data & 0x02);
@@ -99,7 +98,6 @@ WRITE8_MEMBER(arabian_state::ay8910_portb_w)
 
 READ8_MEMBER(arabian_state::mcu_port_r_r)
 {
-
 	UINT8 val = m_mcu_port_r[offset];
 
 	/* RAM mode is enabled */
@@ -111,7 +109,6 @@ READ8_MEMBER(arabian_state::mcu_port_r_r)
 
 WRITE8_MEMBER(arabian_state::mcu_port_r_w)
 {
-
 	if (offset == 0)
 	{
 		UINT32 ram_addr = ((m_mcu_port_p & 7) << 8) | m_mcu_port_o;
@@ -194,8 +191,8 @@ ADDRESS_MAP_END
  *************************************/
 
 static ADDRESS_MAP_START( main_io_map, AS_IO, 8, arabian_state )
-	AM_RANGE(0xc800, 0xc800) AM_MIRROR(0x01ff) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
-	AM_RANGE(0xca00, 0xca00) AM_MIRROR(0x01ff) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
+	AM_RANGE(0xc800, 0xc800) AM_MIRROR(0x01ff) AM_DEVWRITE("aysnd", ay8910_device, address_w)
+	AM_RANGE(0xca00, 0xca00) AM_MIRROR(0x01ff) AM_DEVWRITE("aysnd", ay8910_device, data_w)
 ADDRESS_MAP_END
 
 
@@ -342,7 +339,6 @@ static const ay8910_interface ay8910_config =
 
 void arabian_state::machine_start()
 {
-
 	save_item(NAME(m_mcu_port_o));
 	save_item(NAME(m_mcu_port_p));
 	save_item(NAME(m_mcu_port_r));
@@ -350,7 +346,6 @@ void arabian_state::machine_start()
 
 void arabian_state::machine_reset()
 {
-
 	m_video_control = 0;
 }
 

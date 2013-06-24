@@ -115,6 +115,14 @@ Notes:
   setting. For the avid golfer, a more challenging style of swing.".
   This feature only exists when "Language" Dip Swicth is set to "English"
 
+- fitegolfu:  An "SNK Fighting Golf Program Update" notice published in a trade
+  journal outlines 3 improvements which is supposed to allow game players a bit
+  more time at crucial points in the game.
+
+  1) Shot time: The 12/10 seconds dip has been changed to 15/12 seconds.
+  2) Power/Swing gauge moves slower when the ball is on the green.
+  3) Hit Check area around the cup is enlarged for easier putting.
+
 - there are two versions of the Ikari Warriors board, one has the standard JAMMA
   connector while the other has the custom SNK connector. The video and audio
   PCBs are the same, only the CPU PCB changes.
@@ -275,28 +283,28 @@ READ8_MEMBER(snk_state::snk_cpuA_nmi_trigger_r)
 {
 	if(!space.debugger_access())
 	{
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 	return 0xff;
 }
 
 WRITE8_MEMBER(snk_state::snk_cpuA_nmi_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
 READ8_MEMBER(snk_state::snk_cpuB_nmi_trigger_r)
 {
 	if(!space.debugger_access())
 	{
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 	return 0xff;
 }
 
 WRITE8_MEMBER(snk_state::snk_cpuB_nmi_ack_w)
 {
-	machine().device("sub")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_subcpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
 /*********************************************************************/
@@ -316,28 +324,25 @@ enum
 
 WRITE8_MEMBER(snk_state::marvins_soundlatch_w)
 {
-
 	m_marvins_sound_busy_flag = 1;
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 READ8_MEMBER(snk_state::marvins_soundlatch_r)
 {
-
 	m_marvins_sound_busy_flag = 0;
 	return soundlatch_byte_r(space, 0);
 }
 
 CUSTOM_INPUT_MEMBER(snk_state::marvins_sound_busy)
 {
-
 	return m_marvins_sound_busy_flag;
 }
 
 READ8_MEMBER(snk_state::marvins_sound_nmi_ack_r)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	return 0xff;
 }
 
@@ -345,7 +350,6 @@ READ8_MEMBER(snk_state::marvins_sound_nmi_ack_r)
 
 TIMER_CALLBACK_MEMBER(snk_state::sgladiat_sndirq_update_callback)
 {
-
 	switch(param)
 	{
 		case CMDIRQ_BUSY_ASSERT:
@@ -361,7 +365,7 @@ TIMER_CALLBACK_MEMBER(snk_state::sgladiat_sndirq_update_callback)
 			break;
 	}
 
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, (m_sound_status & 0x8) ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, (m_sound_status & 0x8) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -385,7 +389,7 @@ READ8_MEMBER(snk_state::sgladiat_sound_nmi_ack_r)
 
 READ8_MEMBER(snk_state::sgladiat_sound_irq_ack_r)
 {
-	machine().device("audiocpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_audiocpu->set_input_line(0, CLEAR_LINE);
 	return 0xff;
 }
 
@@ -415,7 +419,6 @@ READ8_MEMBER(snk_state::sgladiat_sound_irq_ack_r)
 
 TIMER_CALLBACK_MEMBER(snk_state::sndirq_update_callback)
 {
-
 	switch(param)
 	{
 		case YM1IRQ_ASSERT:
@@ -447,16 +450,15 @@ TIMER_CALLBACK_MEMBER(snk_state::sndirq_update_callback)
 			break;
 	}
 
-	machine().device("audiocpu")->execute().set_input_line(0, (m_sound_status & 0xb) ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, (m_sound_status & 0xb) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
 
-static WRITE_LINE_DEVICE_HANDLER( ymirq_callback_1 )
+WRITE_LINE_MEMBER(snk_state::ymirq_callback_1 )
 {
-	snk_state *drvstate = device->machine().driver_data<snk_state>();
 	if (state)
-		device->machine().scheduler().synchronize(timer_expired_delegate(FUNC(snk_state::sndirq_update_callback),drvstate), YM1IRQ_ASSERT);
+		machine().scheduler().synchronize(timer_expired_delegate(FUNC(snk_state::sndirq_update_callback),this), YM1IRQ_ASSERT);
 }
 
 WRITE_LINE_MEMBER(snk_state::ymirq_callback_2)
@@ -464,27 +466,6 @@ WRITE_LINE_MEMBER(snk_state::ymirq_callback_2)
 	if (state)
 		machine().scheduler().synchronize(timer_expired_delegate(FUNC(snk_state::sndirq_update_callback),this), YM2IRQ_ASSERT);
 }
-
-
-static const ym3526_interface ym3526_config_1 =
-{
-	DEVCB_LINE(ymirq_callback_1)
-};
-
-static const ym3526_interface ym3526_config_2 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(snk_state,ymirq_callback_2)
-};
-
-static const ym3812_interface ym3812_config_1 =
-{
-	ymirq_callback_1
-};
-
-static const y8950_interface y8950_config_2 =
-{
-	DEVCB_DRIVER_LINE_MEMBER(snk_state,ymirq_callback_2)
-};
 
 
 
@@ -496,7 +477,6 @@ WRITE8_MEMBER(snk_state::snk_soundlatch_w)
 
 CUSTOM_INPUT_MEMBER(snk_state::snk_sound_busy)
 {
-
 	return (m_sound_status & 4) ? 1 : 0;
 }
 
@@ -504,7 +484,6 @@ CUSTOM_INPUT_MEMBER(snk_state::snk_sound_busy)
 
 READ8_MEMBER(snk_state::snk_sound_status_r)
 {
-
 	return m_sound_status;
 }
 
@@ -583,15 +562,14 @@ WRITE8_MEMBER(snk_state::hardflags_scroll_msb_w)
 	// low 6 bits might indicate radius, but it's not clear
 }
 
-static int hardflags_check(running_machine &machine, int num)
+int snk_state::hardflags_check(int num)
 {
-	snk_state *state = machine.driver_data<snk_state>();
-	const UINT8 *sr = &state->m_spriteram[0x800 + 4*num];
+	const UINT8 *sr = &m_spriteram[0x800 + 4*num];
 	int x = sr[2] + ((sr[3] & 0x80) << 1);
 	int y = sr[0] + ((sr[3] & 0x10) << 4);
 
-	int dx = (x - state->m_hf_posx) & 0x1ff;
-	int dy = (y - state->m_hf_posy) & 0x1ff;
+	int dx = (x - m_hf_posx) & 0x1ff;
+	int dy = (y - m_hf_posy) & 0x1ff;
 
 	if (dx > 0x20 && dx <= 0x1e0 && dy > 0x20 && dy <= 0x1e0)
 		return 0;
@@ -599,33 +577,33 @@ static int hardflags_check(running_machine &machine, int num)
 		return 1;
 }
 
-static int hardflags_check8(running_machine &machine, int num)
+int snk_state::hardflags_check8(int num)
 {
 	return
-		(hardflags_check(machine, num + 0) << 0) |
-		(hardflags_check(machine, num + 1) << 1) |
-		(hardflags_check(machine, num + 2) << 2) |
-		(hardflags_check(machine, num + 3) << 3) |
-		(hardflags_check(machine, num + 4) << 4) |
-		(hardflags_check(machine, num + 5) << 5) |
-		(hardflags_check(machine, num + 6) << 6) |
-		(hardflags_check(machine, num + 7) << 7);
+		(hardflags_check(num + 0) << 0) |
+		(hardflags_check(num + 1) << 1) |
+		(hardflags_check(num + 2) << 2) |
+		(hardflags_check(num + 3) << 3) |
+		(hardflags_check(num + 4) << 4) |
+		(hardflags_check(num + 5) << 5) |
+		(hardflags_check(num + 6) << 6) |
+		(hardflags_check(num + 7) << 7);
 }
 
-READ8_MEMBER(snk_state::hardflags1_r){ return hardflags_check8(machine(), 0*8); }
-READ8_MEMBER(snk_state::hardflags2_r){ return hardflags_check8(machine(), 1*8); }
-READ8_MEMBER(snk_state::hardflags3_r){ return hardflags_check8(machine(), 2*8); }
-READ8_MEMBER(snk_state::hardflags4_r){ return hardflags_check8(machine(), 3*8); }
-READ8_MEMBER(snk_state::hardflags5_r){ return hardflags_check8(machine(), 4*8); }
-READ8_MEMBER(snk_state::hardflags6_r){ return hardflags_check8(machine(), 5*8); }
+READ8_MEMBER(snk_state::hardflags1_r){ return hardflags_check8(0*8); }
+READ8_MEMBER(snk_state::hardflags2_r){ return hardflags_check8(1*8); }
+READ8_MEMBER(snk_state::hardflags3_r){ return hardflags_check8(2*8); }
+READ8_MEMBER(snk_state::hardflags4_r){ return hardflags_check8(3*8); }
+READ8_MEMBER(snk_state::hardflags5_r){ return hardflags_check8(4*8); }
+READ8_MEMBER(snk_state::hardflags6_r){ return hardflags_check8(5*8); }
 READ8_MEMBER(snk_state::hardflags7_r)
 {
 	// apparently the startup tests use bits 0&1 while the game uses bits 4&5
 	return
-		(hardflags_check(machine(), 6*8 + 0) << 0) |
-		(hardflags_check(machine(), 6*8 + 1) << 1) |
-		(hardflags_check(machine(), 6*8 + 0) << 4) |
-		(hardflags_check(machine(), 6*8 + 1) << 5);
+		(hardflags_check(6*8 + 0) << 0) |
+		(hardflags_check(6*8 + 1) << 1) |
+		(hardflags_check(6*8 + 0) << 4) |
+		(hardflags_check(6*8 + 1) << 5);
 }
 
 
@@ -676,15 +654,14 @@ WRITE8_MEMBER(snk_state::turbocheck_msb_w)
 	// low 6 bits might indicate radius, but it's not clear
 }
 
-static int turbofront_check(running_machine &machine, int small, int num)
+int snk_state::turbofront_check(int small, int num)
 {
-	snk_state *state = machine.driver_data<snk_state>();
-	const UINT8 *sr = &state->m_spriteram[0x800*small + 4*num];
+	const UINT8 *sr = &m_spriteram[0x800*small + 4*num];
 	int x = sr[2] + ((sr[3] & 0x80) << 1);
 	int y = sr[0] + ((sr[3] & 0x10) << 4);
 
-	int dx = (x - (small ? state->m_tc16_posx : state->m_tc32_posx)) & 0x1ff;
-	int dy = (y - (small ? state->m_tc16_posy : state->m_tc32_posy)) & 0x1ff;
+	int dx = (x - (small ? m_tc16_posx : m_tc32_posx)) & 0x1ff;
+	int dy = (y - (small ? m_tc16_posy : m_tc32_posy)) & 0x1ff;
 
 	if (dx > 0x20 && dx <= 0x1e0 && dy > 0x20 && dy <= 0x1e0)
 		return 0;
@@ -692,31 +669,31 @@ static int turbofront_check(running_machine &machine, int small, int num)
 		return 1;
 }
 
-static int turbofront_check8(running_machine &machine, int small, int num)
+int snk_state::turbofront_check8(int small, int num)
 {
 	return
-		(turbofront_check(machine, small, num + 0) << 0) |
-		(turbofront_check(machine, small, num + 1) << 1) |
-		(turbofront_check(machine, small, num + 2) << 2) |
-		(turbofront_check(machine, small, num + 3) << 3) |
-		(turbofront_check(machine, small, num + 4) << 4) |
-		(turbofront_check(machine, small, num + 5) << 5) |
-		(turbofront_check(machine, small, num + 6) << 6) |
-		(turbofront_check(machine, small, num + 7) << 7);
+		(turbofront_check(small, num + 0) << 0) |
+		(turbofront_check(small, num + 1) << 1) |
+		(turbofront_check(small, num + 2) << 2) |
+		(turbofront_check(small, num + 3) << 3) |
+		(turbofront_check(small, num + 4) << 4) |
+		(turbofront_check(small, num + 5) << 5) |
+		(turbofront_check(small, num + 6) << 6) |
+		(turbofront_check(small, num + 7) << 7);
 }
 
-READ8_MEMBER(snk_state::turbocheck16_1_r){ return turbofront_check8(machine(), 1, 0*8); }
-READ8_MEMBER(snk_state::turbocheck16_2_r){ return turbofront_check8(machine(), 1, 1*8); }
-READ8_MEMBER(snk_state::turbocheck16_3_r){ return turbofront_check8(machine(), 1, 2*8); }
-READ8_MEMBER(snk_state::turbocheck16_4_r){ return turbofront_check8(machine(), 1, 3*8); }
-READ8_MEMBER(snk_state::turbocheck16_5_r){ return turbofront_check8(machine(), 1, 4*8); }
-READ8_MEMBER(snk_state::turbocheck16_6_r){ return turbofront_check8(machine(), 1, 5*8); }
-READ8_MEMBER(snk_state::turbocheck16_7_r){ return turbofront_check8(machine(), 1, 6*8); }
-READ8_MEMBER(snk_state::turbocheck16_8_r){ return turbofront_check8(machine(), 1, 7*8); }
-READ8_MEMBER(snk_state::turbocheck32_1_r){ return turbofront_check8(machine(), 0, 0*8); }
-READ8_MEMBER(snk_state::turbocheck32_2_r){ return turbofront_check8(machine(), 0, 1*8); }
-READ8_MEMBER(snk_state::turbocheck32_3_r){ return turbofront_check8(machine(), 0, 2*8); }
-READ8_MEMBER(snk_state::turbocheck32_4_r){ return turbofront_check8(machine(), 0, 3*8); }
+READ8_MEMBER(snk_state::turbocheck16_1_r){ return turbofront_check8(1, 0*8); }
+READ8_MEMBER(snk_state::turbocheck16_2_r){ return turbofront_check8(1, 1*8); }
+READ8_MEMBER(snk_state::turbocheck16_3_r){ return turbofront_check8(1, 2*8); }
+READ8_MEMBER(snk_state::turbocheck16_4_r){ return turbofront_check8(1, 3*8); }
+READ8_MEMBER(snk_state::turbocheck16_5_r){ return turbofront_check8(1, 4*8); }
+READ8_MEMBER(snk_state::turbocheck16_6_r){ return turbofront_check8(1, 5*8); }
+READ8_MEMBER(snk_state::turbocheck16_7_r){ return turbofront_check8(1, 6*8); }
+READ8_MEMBER(snk_state::turbocheck16_8_r){ return turbofront_check8(1, 7*8); }
+READ8_MEMBER(snk_state::turbocheck32_1_r){ return turbofront_check8(0, 0*8); }
+READ8_MEMBER(snk_state::turbocheck32_2_r){ return turbofront_check8(0, 1*8); }
+READ8_MEMBER(snk_state::turbocheck32_3_r){ return turbofront_check8(0, 2*8); }
+READ8_MEMBER(snk_state::turbocheck32_4_r){ return turbofront_check8(0, 3*8); }
 
 
 
@@ -797,19 +774,16 @@ WRITE8_MEMBER(snk_state::tdfever_coin_counter_w)
 
 WRITE8_MEMBER(snk_state::countryc_trackball_w)
 {
-
 	m_countryc_trackball = data & 1;
 }
 
 CUSTOM_INPUT_MEMBER(snk_state::countryc_trackball_x)
 {
-
 	return ioport(m_countryc_trackball ? "TRACKBALLX2" : "TRACKBALLX1")->read();
 }
 
 CUSTOM_INPUT_MEMBER(snk_state::countryc_trackball_y)
 {
-
 	return ioport(m_countryc_trackball ? "TRACKBALLY2" : "TRACKBALLY1")->read();
 }
 
@@ -1385,9 +1359,9 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( marvins_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x4000) AM_READ(marvins_soundlatch_r)
-	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
 	AM_RANGE(0x8002, 0x8007) AM_DEVWRITE("wave", snkwave_device, snkwave_w)
-	AM_RANGE(0x8008, 0x8009) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0x8008, 0x8009) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 	AM_RANGE(0xa000, 0xa000) AM_READ(marvins_sound_nmi_ack_r)
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM
 ADDRESS_MAP_END
@@ -1403,9 +1377,9 @@ static ADDRESS_MAP_START( jcross_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0xa000, 0xa000) AM_READ(sgladiat_soundlatch_r)
 	AM_RANGE(0xc000, 0xc000) AM_READ(sgladiat_sound_nmi_ack_r)
-	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
+	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
 	AM_RANGE(0xe002, 0xe003) AM_WRITENOP    // ? always FFFF, snkwave leftover?
-	AM_RANGE(0xe004, 0xe005) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0xe004, 0xe005) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( jcross_sound_portmap, AS_IO, 8, snk_state )
@@ -1419,9 +1393,9 @@ static ADDRESS_MAP_START( hal21_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0xa000, 0xa000) AM_READ(sgladiat_soundlatch_r)
 	AM_RANGE(0xc000, 0xc000) AM_READ(sgladiat_sound_nmi_ack_r)
-	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
+	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
 //  AM_RANGE(0xe002, 0xe002) AM_WRITENOP    // bitfielded(0-5) details unknown. Filter enable?
-	AM_RANGE(0xe008, 0xe009) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0xe008, 0xe009) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( hal21_sound_portmap, AS_IO, 8, snk_state )
@@ -1435,7 +1409,7 @@ static ADDRESS_MAP_START( tnk3_YM3526_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0xc000, 0xc000) AM_READ(tnk3_busy_clear_r)
-	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE_LEGACY("ym1", ym3526_r, ym3526_w)
+	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE("ym1", ym3526_device, read, write)
 	AM_RANGE(0xe004, 0xe004) AM_READ(tnk3_cmdirq_ack_r)
 	AM_RANGE(0xe006, 0xe006) AM_READ(tnk3_ymirq_ack_r)
 ADDRESS_MAP_END
@@ -1445,7 +1419,7 @@ static ADDRESS_MAP_START( aso_YM3526_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
 	AM_RANGE(0xd000, 0xd000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0xe000, 0xe000) AM_READ(tnk3_busy_clear_r)
-	AM_RANGE(0xf000, 0xf001) AM_DEVREADWRITE_LEGACY("ym1", ym3526_r, ym3526_w)
+	AM_RANGE(0xf000, 0xf001) AM_DEVREADWRITE("ym1", ym3526_device, read, write)
 //  AM_RANGE(0xf002, 0xf002) AM_READNOP unknown
 	AM_RANGE(0xf004, 0xf004) AM_READ(tnk3_cmdirq_ack_r)
 	AM_RANGE(0xf006, 0xf006) AM_READ(tnk3_ymirq_ack_r)
@@ -1455,10 +1429,10 @@ static ADDRESS_MAP_START( YM3526_YM3526_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
 	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE_LEGACY("ym1", ym3526_status_port_r, ym3526_control_port_w)
-	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE_LEGACY("ym1", ym3526_write_port_w)
-	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE_LEGACY("ym2", ym3526_status_port_r, ym3526_control_port_w)
-	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE_LEGACY("ym2", ym3526_write_port_w)
+	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE("ym1", ym3526_device, status_port_r, control_port_w)
+	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE("ym1", ym3526_device, write_port_w)
+	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE("ym2", ym3526_device, status_port_r, control_port_w)
+	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE("ym2", ym3526_device, write_port_w)
 	AM_RANGE(0xf800, 0xf800) AM_READWRITE(snk_sound_status_r, snk_sound_status_w)
 ADDRESS_MAP_END
 
@@ -1466,8 +1440,8 @@ static ADDRESS_MAP_START( YM3812_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
 	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE_LEGACY("ym1", ym3812_status_port_r, ym3812_control_port_w)
-	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE_LEGACY("ym1", ym3812_write_port_w)
+	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE("ym1", ym3812_device, status_port_r, control_port_w)
+	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE("ym1", ym3812_device, write_port_w)
 	AM_RANGE(0xf800, 0xf800) AM_READWRITE(snk_sound_status_r, snk_sound_status_w)
 ADDRESS_MAP_END
 
@@ -1475,10 +1449,10 @@ static ADDRESS_MAP_START( YM3526_Y8950_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
 	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE_LEGACY("ym1", ym3526_status_port_r, ym3526_control_port_w)
-	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE_LEGACY("ym1", ym3526_write_port_w)
-	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE_LEGACY("ym2", y8950_status_port_r, y8950_control_port_w)
-	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE_LEGACY("ym2", y8950_write_port_w)
+	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE("ym1", ym3526_device, status_port_r, control_port_w)
+	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE("ym1", ym3526_device, write_port_w)
+	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE("ym2", y8950_device, status_port_r, control_port_w)
+	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE("ym2", y8950_device, write_port_w)
 	AM_RANGE(0xf800, 0xf800) AM_READWRITE(snk_sound_status_r, snk_sound_status_w)
 ADDRESS_MAP_END
 
@@ -1486,10 +1460,10 @@ static ADDRESS_MAP_START( YM3812_Y8950_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
 	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE_LEGACY("ym1", ym3812_status_port_r, ym3812_control_port_w)
-	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE_LEGACY("ym1", ym3812_write_port_w)
-	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE_LEGACY("ym2", y8950_status_port_r, y8950_control_port_w)
-	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE_LEGACY("ym2", y8950_write_port_w)
+	AM_RANGE(0xe800, 0xe800) AM_DEVREADWRITE("ym1", ym3812_device, status_port_r, control_port_w)
+	AM_RANGE(0xec00, 0xec00) AM_DEVWRITE("ym1", ym3812_device, write_port_w)
+	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE("ym2", y8950_device, status_port_r, control_port_w)
+	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE("ym2", y8950_device, write_port_w)
 	AM_RANGE(0xf800, 0xf800) AM_READWRITE(snk_sound_status_r, snk_sound_status_w)
 ADDRESS_MAP_END
 
@@ -1497,8 +1471,8 @@ static ADDRESS_MAP_START( Y8950_sound_map, AS_PROGRAM, 8, snk_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xcfff) AM_RAM
 	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE_LEGACY("ym2", y8950_status_port_r, y8950_control_port_w)
-	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE_LEGACY("ym2", y8950_write_port_w)
+	AM_RANGE(0xf000, 0xf000) AM_DEVREADWRITE("ym2", y8950_device, status_port_r, control_port_w)
+	AM_RANGE(0xf400, 0xf400) AM_DEVWRITE("ym2", y8950_device, write_port_w)
 	AM_RANGE(0xf800, 0xf800) AM_READWRITE(snk_sound_status_r, snk_sound_status_w)
 ADDRESS_MAP_END
 
@@ -2185,8 +2159,7 @@ static INPUT_PORTS_START( tnk3 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_8WAY
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )  PORT_8WAY
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY
-	PORT_BIT( 0xf0, 0x00, IPT_POSITIONAL ) PORT_POSITIONS(12) PORT_WRAPS PORT_SENSITIVITY(15) PORT_KEYDELTA(1) PORT_CODE_DEC(KEYCODE_Z) PORT_CODE_INC(KEYCODE_X) PORT_REVERSE PORT_FULL_TURN_COUNT(12) \
-
+	PORT_BIT( 0xf0, 0x00, IPT_POSITIONAL ) PORT_POSITIONS(12) PORT_WRAPS PORT_SENSITIVITY(15) PORT_KEYDELTA(1) PORT_CODE_DEC(KEYCODE_Z) PORT_CODE_INC(KEYCODE_X) PORT_REVERSE PORT_FULL_TURN_COUNT(12)
 	PORT_START("IN2")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )    PORT_8WAY PORT_COCKTAIL
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_8WAY PORT_COCKTAIL
@@ -2426,6 +2399,17 @@ static INPUT_PORTS_START( fitegolf )
 	PORT_DIPSETTING(    0x40, DEF_STR( Yes ) )
 	PORT_SERVICE( 0x80, IP_ACTIVE_LOW )                     PORT_DIPLOCATION("DSW2:8")
 INPUT_PORTS_END
+
+
+static INPUT_PORTS_START( fitegolfu )
+		PORT_INCLUDE( fitegolf )
+
+	PORT_MODIFY("DSW2")
+	PORT_DIPNAME( 0x01, 0x01, "Shot Time" )                 PORT_DIPLOCATION("DSW2:1")
+	PORT_DIPSETTING(    0x00, "Short (12 sec)" )
+	PORT_DIPSETTING(    0x01, "Long (15 sec)" )
+INPUT_PORTS_END
+
 
 
 static INPUT_PORTS_START( countryc )
@@ -3803,7 +3787,7 @@ static MACHINE_CONFIG_START( tnk3, snk_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM3526, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3526_config_1)
+	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 MACHINE_CONFIG_END
 
@@ -3833,7 +3817,7 @@ static MACHINE_CONFIG_DERIVED( athena, tnk3 )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("ym2", YM3526, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3526_config_2)
+	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_2))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 MACHINE_CONFIG_END
 
@@ -3847,7 +3831,7 @@ static MACHINE_CONFIG_DERIVED( fitegolf, tnk3 )
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("ym1", YM3812, XTAL_4MHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3812_config_1)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 MACHINE_CONFIG_END
 
@@ -3887,11 +3871,11 @@ static MACHINE_CONFIG_START( ikari, snk_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM3526, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3526_config_1)
+	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 
 	MCFG_SOUND_ADD("ym2", YM3526, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3526_config_2)
+	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_2))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 MACHINE_CONFIG_END
 
@@ -3904,7 +3888,7 @@ static MACHINE_CONFIG_DERIVED( victroad, ikari )
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("ym2", Y8950, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_SOUND_CONFIG(y8950_config_2)
+	MCFG_Y8950_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_2))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 MACHINE_CONFIG_END
 
@@ -3943,11 +3927,11 @@ static MACHINE_CONFIG_START( bermudat, snk_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM3526, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3526_config_1)
+	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 
 	MCFG_SOUND_ADD("ym2", Y8950, XTAL_8MHz/2) /* verified on pcb */
-	MCFG_SOUND_CONFIG(y8950_config_2)
+	MCFG_Y8950_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_2))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 2.0)
 MACHINE_CONFIG_END
 
@@ -3999,7 +3983,7 @@ static MACHINE_CONFIG_DERIVED( chopper1, bermudat )
 
 	/* sound hardware */
 	MCFG_SOUND_REPLACE("ym1", YM3812, 4000000)
-	MCFG_SOUND_CONFIG(ym3812_config_1)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -4047,11 +4031,11 @@ static MACHINE_CONFIG_START( tdfever, snk_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM3526, 4000000)
-	MCFG_SOUND_CONFIG(ym3526_config_1)
+	MCFG_YM3526_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_1))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("ym2", Y8950, 4000000)
-	MCFG_SOUND_CONFIG(y8950_config_2)
+	MCFG_Y8950_IRQ_HANDLER(WRITELINE(snk_state, ymirq_callback_2))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -4625,7 +4609,7 @@ ROM_START( fitegolf )
 	ROM_LOAD( "pal20l8a.6r", 0x0400, 0x0144, CRC(0f011673) SHA1(383e6f6e78daec9c874d5b48378111ca60f5ed64) )
 ROM_END
 
-ROM_START( fitegolfu )
+ROM_START( fitegolfu )  /*  Later US version containing enhancements to make the game a little easier */
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "np45.128", 0x0000, 0x4000, CRC(16e8e763) SHA1(0b5296f2a91a7f3176b7461ca4958865ce998241) )
 	ROM_LOAD( "mn45.256", 0x4000, 0x8000, CRC(a4fa09d5) SHA1(ae7f0cb47de06006ae71252c4201a93a01a26887) )
@@ -6265,7 +6249,7 @@ ROM_END
 DRIVER_INIT_MEMBER(snk_state,countryc)
 {
 	// replace coin counter with trackball select
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xc300, 0xc300, write8_delegate(FUNC(snk_state::countryc_trackball_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xc300, 0xc300, write8_delegate(FUNC(snk_state::countryc_trackball_w),this));
 }
 
 
@@ -6287,12 +6271,12 @@ GAME( 1985, tnk3,     0,        tnk3,     tnk3, driver_device,     0,        ROT
 GAME( 1985, tnk3j,    tnk3,     tnk3,     tnk3, driver_device,     0,        ROT270, "SNK", "T.A.N.K (Japan)", 0 )
 GAME( 1986, athena,   0,        athena,   athena, driver_device,   0,        ROT0,   "SNK", "Athena", 0 )
 GAME( 1988, fitegolf, 0,        fitegolf, fitegolf, driver_device, 0,        ROT0,   "SNK", "Fighting Golf (World?)", 0 )
-GAME( 1988, fitegolfu,fitegolf, fitegolf, fitegolf, driver_device, 0,        ROT0,   "SNK", "Fighting Golf (US)", 0 )
-GAME( 1988, countryc, 0,        fitegolf, countryc, snk_state, countryc, ROT0,   "SNK", "Country Club", 0 )
+GAME( 1988, fitegolfu,fitegolf, fitegolf, fitegolfu, driver_device,0,        ROT0,   "SNK", "Fighting Golf (US)", 0 )
+GAME( 1988, countryc, 0,        fitegolf, countryc, snk_state, countryc,     ROT0,   "SNK", "Country Club", 0 )
 
-GAME( 1986, ikari,    0,        ikari,    ikari, driver_device,    0,        ROT270, "SNK", "Ikari Warriors (US JAMMA)", 0 )
-GAME( 1986, ikaria,   ikari,    ikari,    ikaria, driver_device,   0,        ROT270, "SNK", "Ikari Warriors (US)", 0 )
-GAME( 1986, ikarinc,  ikari,    ikari,    ikarinc, driver_device,  0,        ROT270, "SNK", "Ikari Warriors (US No Continues)", 0 )
+GAME( 1986, ikari,    0,        ikari,    ikari, driver_device,    0,        ROT270, "SNK", "Ikari Warriors (US JAMMA)", 0 ) // distributed by Tradewest(?)
+GAME( 1986, ikaria,   ikari,    ikari,    ikaria, driver_device,   0,        ROT270, "SNK", "Ikari Warriors (US)", 0 ) // distributed by Tradewest(?)
+GAME( 1986, ikarinc,  ikari,    ikari,    ikarinc, driver_device,  0,        ROT270, "SNK", "Ikari Warriors (US No Continues)", 0 ) // distributed by Tradewest(?)
 GAME( 1986, ikarijp,  ikari,    ikari,    ikarinc, driver_device,  0,        ROT270, "SNK", "Ikari (Japan No Continues)", 0 )
 GAME( 1986, ikarijpb, ikari,    ikari,    ikarijpb, driver_device, 0,        ROT270, "bootleg", "Ikari (Joystick hack bootleg)", 0 )
 GAME( 1986, victroad, 0,        victroad, victroad, driver_device, 0,        ROT270, "SNK", "Victory Road", 0 )

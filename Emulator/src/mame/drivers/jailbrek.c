@@ -94,7 +94,6 @@ Notes:
 
 WRITE8_MEMBER(jailbrek_state::ctrl_w)
 {
-
 	m_nmi_enable = data & 0x01;
 	m_irq_enable = data & 0x02;
 	flip_screen_set(data & 0x08);
@@ -102,14 +101,12 @@ WRITE8_MEMBER(jailbrek_state::ctrl_w)
 
 INTERRUPT_GEN_MEMBER(jailbrek_state::jb_interrupt)
 {
-
 	if (m_irq_enable)
 		device.execute().set_input_line(0, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(jailbrek_state::jb_interrupt_nmi)
 {
-
 	if (m_nmi_enable)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -415,7 +412,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(jailbrek_state,jailbrek)
 {
-	UINT8 *SPEECH_ROM = machine().root_device().memregion("vlm")->base();
+	UINT8 *SPEECH_ROM = memregion("vlm")->base();
 	int ind;
 
 	/*
@@ -427,7 +424,7 @@ DRIVER_INIT_MEMBER(jailbrek_state,jailbrek)
 	   represents address line A13.)
 	*/
 
-	if (machine().root_device().memregion("vlm")->bytes() == 0x4000)
+	if (memregion("vlm")->bytes() == 0x4000)
 	{
 		for (ind = 0; ind < 0x2000; ++ind)
 		{

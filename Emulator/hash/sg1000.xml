@@ -3,10 +3,10 @@
 <!-- Othello Multivision carts are marked with OMV.
 
 Canceled titles (possibly exist in prototype form)
-	C-62    Champion Ski (by Sega)
-	OM-G009 Challenge Soccer (by Tsukuda)
-	OM-G010 Great Escape 2 (by Tsukuda)
-	-->
+  C-62    Champion Ski (by Sega)
+  OM-G009 Challenge Soccer (by Tsukuda)
+  OM-G010 Great Escape 2 (by Tsukuda)
+ -->
 <!--
 The following games were available both as Golden Carts and as MyCards.
 I'm not sure from what version the dumps below come (or it they have been
@@ -18,7 +18,7 @@ C-26 - Star Force
 C-33 - Champion Boxing [dumped and verified to be diff from G-1033]
 C-43 - Zippy Race
 
-	-->
+ -->
 <!--
 Many SG-1000 games were also sold in Taiwan by Aaronix
 These are now mostly dumped (thanks to Bock and SMS Power)
@@ -142,7 +142,7 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		</part>
 	</software>
 
-	<software name="bankpani">
+	<software name="bankp">
 		<description>Bank Panic (Jpn)</description>
 		<year>1985</year>
 		<publisher>Sega / Sanritsu</publisher>
@@ -155,7 +155,7 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		</part>
 	</software>
 
-	<software name="bilidada" cloneof="bankpani">
+	<software name="bilidada" cloneof="bankp">
 		<description>Bi Li Da Dao (Tw)</description>
 		<year>1985?</year>
 		<publisher>Aaronix</publisher>
@@ -277,8 +277,16 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1046"/>
 		<info name="alt_title" value="ザ・キャッスル"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5382" />
+			<feature name="ic1" value="MPR-10159" />
+			<feature name="ic2" value="??" />   <!-- RAM should be present -->
+
+			<feature name="slot" value="castle" />
 			<dataarea name="rom" size="32768">
-				<rom name="castle, the (japan).bin" size="32768" crc="092f29d6" sha1="2681786bffccf58b59410c331865d30a4d027087" offset="000000" />
+				<rom name="mpr-10159.ic1" size="32768" crc="092f29d6" sha1="2681786bffccf58b59410c331865d30a4d027087" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -336,7 +344,7 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 	</software>
 
 <!-- This has been hacked to work in emus, by mirroring the first 8K up to 32K and then adding the second 8K. This can be removed when the emulation
-	of this kind of carts have been fixed (running the 16K image results in missing graphics, among other things, see the title screen) -->
+  of this kind of carts have been fixed (running the 16K image results in missing graphics, among other things, see the title screen) -->
 	<software name="chaldrbyb" cloneof="chaldrby">
 		<description>Challenge Derby (Jpn, OMV, Hacked)</description>
 		<year>1984</year>
@@ -358,8 +366,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1011"/>
 		<info name="alt_title" value="チャンピオンベースボール"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on Enri's website -->
+			<feature name="pcb" value="171-5177" />
+			<feature name="ic1" value="MPR-6381" />
 			<dataarea name="rom" size="16384">
-				<rom name="champion baseball [16k].bin" size="16384" crc="5970a12b" sha1="737b9478c4ce6df2afcd36f78011019f5d669226" offset="000000" />
+				<rom name="mpr-6381.ic1" size="16384" crc="5970a12b" sha1="737b9478c4ce6df2afcd36f78011019f5d669226" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -370,6 +381,10 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<year>1983</year>
 		<publisher>Sega / Alpha Denshi</publisher>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SC-3000.com (dump to be splitted and PCB emulated properly) -->
+			<feature name="pcb" value="171-5043" />
+			<feature name="ic1" value="MPR-5503" />
+			<feature name="ic2" value="MPR-5504" />
 			<dataarea name="rom" size="40960">
 				<rom name="champion baseball [40k].bin" size="40960" crc="c0c16fa7" sha1="85e5c2f354b9110e5f7c7dfcc7ab9814598b7956" offset="000000" />
 			</dataarea>
@@ -422,8 +437,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1033"/>
 		<info name="alt_title" value="チャンピオン ボクシング"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5177" />
+			<feature name="ic1" value="MPR-6100" />
 			<dataarea name="rom" size="32768">
-				<rom name="champion boxing (japan).bin" size="32768" crc="26f947d1" sha1="8cd55ee1efcab917087b80629ca18b4629edc15d" offset="000000" />
+				<rom name="mpr-6100.ic1" size="32768" crc="26f947d1" sha1="8cd55ee1efcab917087b80629ca18b4629edc15d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -441,19 +459,6 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		</part>
 	</software>
 
-	<software name="champbox1" cloneof="champbox">
-		<description>Champion Boxing (MyCard) (Jpn)</description>
-		<year>1984</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-33"/>
-		<info name="alt_title" value="チャンピオン ボクシング"/>
-		<part name="cart" interface="sg1000_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="champion boxing (japan) (mycard).bin" size="32768" crc="f8b2ac1d" sha1="7a7ace132090f11bac4f4aec58bcbf6a2a1c6168" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
 	<software name="champglf">
 		<description>Champion Golf (Jpn)</description>
 		<year>1983</year>
@@ -461,21 +466,12 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1005"/>
 		<info name="alt_title" value="チャンピオン ゴルフ"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SC-3000.com -->
+			<feature name="pcb" value="171-5137" />
+			<feature name="ic1" value="MPR-5435" />
+			<feature name="ic2" value="TC40H004P" />
 			<dataarea name="rom" size="32768">
-				<rom name="champion golf (japan).bin" size="32768" crc="868419b5" sha1="05deb000f24b7d8625c6e9332dcc91416ed3258f" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="champglf1" cloneof="champglf">
-		<description>Champion Golf (MyCard) (Jpn)</description>
-		<year>1983</year>
-		<publisher>Sega / Logitec</publisher>
-		<info name="serial" value="C-05"/>
-		<info name="alt_title" value="チャンピオン ゴルフ"/>
-		<part name="cart" interface="sg1000_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="champion golf [card].bin" size="32768" crc="5a904122" sha1="f58f14581919c431ac85da72fd1a39bbe1da5e66" offset="000000" />
+				<rom name="mpr-5435.ic1" size="32768" crc="868419b5" sha1="05deb000f24b7d8625c6e9332dcc91416ed3258f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -603,8 +599,12 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1009"/>
 		<info name="alt_title" value="チャンピオン テニス"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SC-3000.com -->
+			<feature name="pcb" value="171-5070" />
+			<feature name="ic1" value="MPR-5439" />
+			<feature name="ic2" value="DM74125N" />
 			<dataarea name="rom" size="8192">
-				<rom name="champion tennis (japan).bin" size="8192" crc="7c663316" sha1="8b90300dcabc2cf8d58ee4800dce3084b739886b" offset="000000" />
+				<rom name="mpr-5439.ic1" size="8192" crc="7c663316" sha1="8b90300dcabc2cf8d58ee4800dce3084b739886b" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -737,6 +737,7 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		</part>
 	</software>
 
+<!-- MPR-5437 according to SC-3000.com pics, but not clear which version these correspond to -->
 	<software name="congo">
 		<description>Congo Bongo (Euro, Jpn, v1)</description>
 		<year>1983</year>
@@ -962,8 +963,12 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1028"/>
 		<info name="alt_title" value="エクセリオン"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SC-3000.com (Jpn?) -->
+			<feature name="pcb" value="171-5044" />
+			<feature name="ic1" value="MPR-5692" />
+			<feature name="ic2" value="(unpopulated)" />
 			<dataarea name="rom" size="16384">
-				<rom name="exerion (japan, europe).bin" size="16384" crc="a2c45b61" sha1="839e19487b96d02222ff397b047cbc6a0fbc08ff" offset="000000" />
+				<rom name="mpr-5692.ic1" size="16384" crc="a2c45b61" sha1="839e19487b96d02222ff397b047cbc6a0fbc08ff" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -993,6 +998,7 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		</part>
 	</software>
 
+<!-- MPR-6145.IC1 according to SC-3000.com pics, PCB 171-5177, but not clear which version these correspond to -->
 	<software name="flicky">
 		<description>Flicky (Jpn, v1)</description>
 		<year>1984</year>
@@ -1091,8 +1097,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1040"/>
 		<info name="alt_title" value="GPワールド"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on Enri's website (which calls it ver. B) -->
+			<feature name="pcb" value="171-5177" />
+			<feature name="ic1" value="MPR-6485" />
 			<dataarea name="rom" size="32768">
-				<rom name="gp world [v0].bin" size="32768" crc="942adf84" sha1="40ae9c24c61188c6f02eba1b83109c5c4d86e64b" offset="000000" />
+				<rom name="mpr-6485.ic1" size="32768" crc="942adf84" sha1="40ae9c24c61188c6f02eba1b83109c5c4d86e64b" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1281,8 +1290,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1042"/>
 		<info name="alt_title" value="Konami no Hyper Sports ~ コナミのハイパースポーツ (on the game box)"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on Enri's website -->
+			<feature name="pcb" value="171-5177" />
+			<feature name="ic1" value="MPR-6487" />
 			<dataarea name="rom" size="32768">
-				<rom name="hyper sports (japan).bin" size="32768" crc="ba09a0fd" sha1="8a13ee297f861f436b9529a5e2193cb697baa56f" offset="000000" />
+				<rom name="mpr-6487.ic1" size="32768" crc="ba09a0fd" sha1="8a13ee297f861f436b9529a5e2193cb697baa56f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1369,9 +1381,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="Y-106"/>
 		<info name="alt_title" value="King's Valley"/>
 		<part name="cart" interface="sg1000_cart">
-			<feature name="needs_addon" value="dahjee_type_a"/>
+			<feature name="slot" value="dahjee_typea"/>
 			<dataarea name="rom" size="32768">
 				<rom name="king's valley (tw).bin" size="32768" crc="223397a1" sha1="922d23895c12707b2fc382ea5cb769c5cb9b5755" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="9216">
 			</dataarea>
 		</part>
 	</software>
@@ -1383,8 +1397,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1031"/>
 		<info name="alt_title" value="ロードランナー"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SC-3000.com (Euro?) -->
+			<feature name="pcb" value="171-5177" />
+			<feature name="ic1" value="MPR-5998" />
 			<dataarea name="rom" size="32768">
-				<rom name="lode runner (japan, europe).bin" size="32768" crc="00ed3970" sha1="f14f216edfda7dfd113f5cb32375a27be8a6409d" offset="000000" />
+				<rom name="mpr-5998.ic1" size="32768" crc="00ed3970" sha1="f14f216edfda7dfd113f5cb32375a27be8a6409d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1439,15 +1456,18 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		</part>
 	</software>
 
-	<software name="magkidwz">
+	<software name="mkidwiz">
 		<description>Magical Kid Wiz (Tw)</description>
 		<year>198?</year>
 		<publisher>Aaronix</publisher>
 		<info name="serial" value="Y-115"/>
 		<info name="alt_title" value="Mófǎ shī ~ 魔法師"/>
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="dahjee_typeb"/>
 			<dataarea name="rom" size="49152">
 				<rom name="magical kid wiz (tw).bin" size="49152" crc="ffc4ee3f" sha1="fd24b501046cf811b04386129be0362a1eabf6b3" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -1663,8 +1683,12 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1015"/>
 		<info name="alt_title" value="オーガス"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SC-3000.com (Jpn?) -->
+			<feature name="pcb" value="171-5137" />
+			<feature name="ic1" value="MPR-5743" />
+			<feature name="ic2" value="TC40H004P" />
 			<dataarea name="rom" size="32768">
-				<rom name="orguss (japan, europe).bin" size="32768" crc="f4f78b76" sha1="c50b133dac95718e3a92a7ed45b6c7e83927abb0" offset="000000" />
+				<rom name="mpr-5743.ic1" size="32768" crc="f4f78b76" sha1="c50b133dac95718e3a92a7ed45b6c7e83927abb0" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1676,8 +1700,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1044"/>
 		<info name="alt_title" value="オセロ"/>
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="othello" />
 			<dataarea name="rom" size="32768">
 				<rom name="othello (japan).bin" size="32768" crc="af4f14bc" sha1="d0cd594ddb321f707ddba8a044fa3e9b906e720a" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="2048">
 			</dataarea>
 		</part>
 	</software>
@@ -1689,8 +1716,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="R-044"/>
 		<info name="alt_title" value="Hēibái qí ~ 黑白棋"/>
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="othello" />
 			<dataarea name="rom" size="32768">
 				<rom name="othello (tw).bin" size="32768" crc="1d1a0ca3" sha1="242c29989149b94ff27d59a94f067d0f1c84b4a7" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="2048">
 			</dataarea>
 		</part>
 	</software>
@@ -1702,8 +1732,12 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1020"/>
 		<info name="alt_title" value="パッカー"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SC-3000.com (Euro) -->
+			<feature name="pcb" value="171-5044" />
+			<feature name="ic1" value="MPR-5556" />
+			<feature name="ic2" value="(unpopulated)" />
 			<dataarea name="rom" size="16384">
-				<rom name="pacar (japan, europe).bin" size="16384" crc="30c52e5e" sha1="91fd213308b83bb1bda1dfc7e971e576caace291" offset="000000" />
+				<rom name="mpr-5556.ic1" size="16384" crc="30c52e5e" sha1="91fd213308b83bb1bda1dfc7e971e576caace291" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1947,8 +1981,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1032"/>
 		<info name="alt_title" value="サファリレース"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on Enri's website -->
+			<feature name="pcb" value="171-5177" />
+			<feature name="ic1" value="MPR-5977" />
 			<dataarea name="rom" size="32768">
-				<rom name="safari race.bin" size="32768" crc="08707fe3" sha1="ecbba909f2227786e7ba3360d2dd158f6513cfd4" offset="000000" />
+				<rom name="mpr-5977.ic1" size="32768" crc="08707fe3" sha1="ecbba909f2227786e7ba3360d2dd158f6513cfd4" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2088,8 +2125,12 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="G-1012"/>
 		<info name="alt_title" value="シンドバッドミステリー"/>
 		<part name="cart" interface="sg1000_cart">
+			<!-- PCB info based on SC-3000.com (Jpn?) -->
+			<feature name="pcb" value="171-5044, 171-5043, 171-5177" />
+			<feature name="ic1" value="MPR-5546" />
+			<feature name="ic2" value="(unpopulated)" />
 			<dataarea name="rom" size="32768">
-				<rom name="sindbad mystery (japan, europe).bin" size="32768" crc="01932df9" sha1="90bb8b8337866339f32b3fd48b4d25d78d682b55" offset="000000" />
+				<rom name="mpr-5546.ic1" size="32768" crc="01932df9" sha1="90bb8b8337866339f32b3fd48b4d25d78d682b55" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2286,6 +2327,7 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		</part>
 	</software>
 
+<!-- MPR-5440 according to SC-3000.com pics, but not clear which version these correspond to -->
 	<software name="starjack">
 		<description>Star Jacker (Euro, Jpn, v1.2)</description>
 		<year>1983</year>
@@ -2379,6 +2421,7 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="GB-800"/>
 		<info name="alt_title" value="テレビおえかき"/>
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="terebi" />
 			<feature name="peripheral" value="tablet" />
 			<dataarea name="rom" size="8192">
 				<rom name="terebi oekaki (japan).bin" size="8192" crc="dd4a661b" sha1="12296f2bb57d80d1774749d3002a039e0940c6fa" offset="000000" />
@@ -2570,8 +2613,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<year>1987</year>
 		<publisher>Abstract Software</publisher>
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="level3" />  <!-- Not sure about this, in the sense that it could have less RAM... -->
 			<dataarea name="rom" size="32768">
 				<rom name="link world.bin" size="32768" crc="d5e919c1" sha1="c81c783fb806b3626ece75bf4456038a8a9e7075" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="32768">
 			</dataarea>
 		</part>
 	</software>
@@ -2581,8 +2627,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<year>1985</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="level3" />
 			<dataarea name="rom" size="32768">
 				<rom name="home basic (jp).bin" size="32768" crc="78a37cbc" sha1="f1e1e7e9687cf4f9f498779a44134c2d70bb8d4b" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="32768">
 			</dataarea>
 		</part>
 	</software>
@@ -2593,8 +2642,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<publisher>Sega</publisher>
 		<info name="usage" value="Needs SC-3000 to work" />
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="level3" />
 			<dataarea name="rom" size="32768">
 				<rom name="basic3.bin" size="32768" crc="a46e3c73" sha1="b1a8585a9afff962e8fd0e79b3305199da4e4562" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="32768">
 			</dataarea>
 		</part>
 	</software>
@@ -2605,8 +2657,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<publisher>Sega</publisher>
 		<info name="usage" value="Needs SC-3000 to work" />
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="level3" />
 			<dataarea name="rom" size="32768">
 				<rom name="basic3e.bin" size="32768" crc="5d9f11ca" sha1="a43aef367857a681decea52377c2e7a992c2ac68" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="32768">
 			</dataarea>
 		</part>
 	</software>
@@ -2628,8 +2683,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<year>198?</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="music_editor" />
 			<dataarea name="rom" size="32768">
 				<rom name="music.bin" size="32768" crc="622010e1" sha1="61f40e4b7576d4d55322f3d6eef2038aa784336e" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="10240">
 			</dataarea>
 		</part>
 	</software>
@@ -2643,8 +2701,11 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 		<info name="serial" value="E-101"/>
 		<info name="alt_title" value="ミュージック"/>
 		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="music_editor" />
 			<dataarea name="rom" size="32768">
 				<rom name="music (jp).bin" size="32768" crc="2ec28526" sha1="a2137e818242e8b361d5d5677797034c55fb1a2d" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="10240">
 			</dataarea>
 		</part>
 	</software>
@@ -2895,5 +2956,47 @@ A135 : 森林歷險記 / Sēnlín lìxiǎn jì -> Pitfall II (same as R-049 by A
 			</dataarea>
 		</part>
 	</software>
+
+
+<!-- MyCard -->
+
+	<software name="cardctch">
+		<description>Sega Card Catcher (Jpn)</description>
+		<year>198?</year>
+		<publisher>Sega</publisher>
+		<part name="cart" interface="sg1000_cart">
+			<feature name="slot" value="cardcatcher" />
+			<dataarea name="rom" size="1">
+				<!-- this cartridge is just an adapted -->
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="champbox1" cloneof="champbox">
+		<description>Champion Boxing (Jpn, MyCard)</description>
+		<year>1984</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-33"/>
+		<info name="alt_title" value="チャンピオン ボクシング"/>
+		<part name="cart" interface="sg1000_cart">
+			<dataarea name="rom" size="32768">
+				<rom name="champion boxing (japan) (mycard).bin" size="32768" crc="f8b2ac1d" sha1="7a7ace132090f11bac4f4aec58bcbf6a2a1c6168" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="champglf1" cloneof="champglf">
+		<description>Champion Golf (Jpn, MyCard)</description>
+		<year>1983</year>
+		<publisher>Sega / Logitec</publisher>
+		<info name="serial" value="C-05"/>
+		<info name="alt_title" value="チャンピオン ゴルフ"/>
+		<part name="cart" interface="sg1000_cart">
+			<dataarea name="rom" size="32768">
+				<rom name="champion golf [card].bin" size="32768" crc="5a904122" sha1="f58f14581919c431ac85da72fd1a39bbe1da5e66" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
 
 </softwarelist>

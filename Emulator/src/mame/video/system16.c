@@ -30,23 +30,21 @@
 #include "video/segaic16.h"
 
 
-static void setup_system16_bootleg_spritebanking( running_machine& machine )
+void segas1x_bootleg_state::setup_system16_bootleg_spritebanking(  )
 {
-	segas1x_bootleg_state *state = machine.driver_data<segas1x_bootleg_state>();
-
-	if (state->m_spritebank_type == 1)
+	if (m_spritebank_type == 1)
 	{
 		static const UINT8 default_banklist[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 		int i;
 		for (i = 0; i < 16; i++)
-			state->m_sprites->set_bank(i, default_banklist[i]);
+			m_sprites->set_bank(i, default_banklist[i]);
 	}
 	else
 	{
 		static const UINT8 alternate_banklist[] = { 0,255,255,255, 255,255,255,3, 255,255,255,2, 255,1,0,255 };
 		int i;
 		for (i = 0; i < 16; i++)
-			state->m_sprites->set_bank(i, alternate_banklist[i]);
+			m_sprites->set_bank(i, alternate_banklist[i]);
 
 	}
 
@@ -159,75 +157,74 @@ WRITE16_MEMBER(segas1x_bootleg_state::sys16_paletteram_w)
 }
 #endif
 
-static void update_page( running_machine &machine )
+void segas1x_bootleg_state::update_page(  )
 {
-	segas1x_bootleg_state *state = machine.driver_data<segas1x_bootleg_state>();
 	int all_dirty = 0;
 	int i, offset;
 
-	if (state->m_old_tile_bank1 != state->m_tile_bank1)
+	if (m_old_tile_bank1 != m_tile_bank1)
 	{
 		all_dirty = 1;
-		state->m_old_tile_bank1 = state->m_tile_bank1;
+		m_old_tile_bank1 = m_tile_bank1;
 	}
 
-	if (state->m_old_tile_bank0 != state->m_tile_bank0)
+	if (m_old_tile_bank0 != m_tile_bank0)
 	{
 		all_dirty = 1;
-		state->m_old_tile_bank0 = state->m_tile_bank0;
-		state->m_text_layer->mark_all_dirty();
+		m_old_tile_bank0 = m_tile_bank0;
+		m_text_layer->mark_all_dirty();
 	}
 
 	if (all_dirty)
 	{
-		state->m_background->mark_all_dirty();
-		state->m_foreground->mark_all_dirty();
+		m_background->mark_all_dirty();
+		m_foreground->mark_all_dirty();
 
-		if (state->m_system18)
+		if (m_system18)
 		{
-			state->m_background2->mark_all_dirty();
-			state->m_foreground2->mark_all_dirty();
+			m_background2->mark_all_dirty();
+			m_foreground2->mark_all_dirty();
 		}
 	}
 	else {
 		for (i = 0; i < 4; i++)
 		{
 			int page0 = 64 * 32 * i;
-			if (state->m_old_bg_page[i] != state->m_bg_page[i])
+			if (m_old_bg_page[i] != m_bg_page[i])
 			{
-				state->m_old_bg_page[i] = state->m_bg_page[i];
+				m_old_bg_page[i] = m_bg_page[i];
 				for (offset = page0; offset < page0 + 64 * 32; offset++)
 				{
-					state->m_background->mark_tile_dirty(offset);
+					m_background->mark_tile_dirty(offset);
 				}
 			}
 
-			if (state->m_old_fg_page[i] != state->m_fg_page[i])
+			if (m_old_fg_page[i] != m_fg_page[i])
 			{
-				state->m_old_fg_page[i] = state->m_fg_page[i];
+				m_old_fg_page[i] = m_fg_page[i];
 				for (offset = page0; offset < page0 + 64 * 32; offset++)
 				{
-					state->m_foreground->mark_tile_dirty(offset);
+					m_foreground->mark_tile_dirty(offset);
 				}
 			}
 
-			if (state->m_system18)
+			if (m_system18)
 			{
-				if (state->m_old_bg2_page[i] != state->m_bg2_page[i])
+				if (m_old_bg2_page[i] != m_bg2_page[i])
 				{
-					state->m_old_bg2_page[i] = state->m_bg2_page[i];
+					m_old_bg2_page[i] = m_bg2_page[i];
 					for (offset = page0; offset < page0 + 64 * 32; offset++)
 					{
-						state->m_background2->mark_tile_dirty(offset);
+						m_background2->mark_tile_dirty(offset);
 					}
 				}
 
-				if (state->m_old_fg2_page[i] != state->m_fg2_page[i])
+				if (m_old_fg2_page[i] != m_fg2_page[i])
 				{
-					state->m_old_fg2_page[i] = state->m_fg2_page[i];
+					m_old_fg2_page[i] = m_fg2_page[i];
 					for (offset = page0; offset < page0 + 64 * 32; offset++)
 					{
-						state->m_foreground2->mark_tile_dirty(offset);
+						m_foreground2->mark_tile_dirty(offset);
 					}
 				}
 			}
@@ -356,7 +353,6 @@ TILE_GET_INFO_MEMBER(segas1x_bootleg_state::get_text_tile_info)
 
 WRITE16_MEMBER(segas1x_bootleg_state::sys16_textram_w)
 {
-
 	COMBINE_DATA(&m_textram[offset]);
 	m_text_layer->mark_tile_dirty(offset);
 }
@@ -365,7 +361,6 @@ WRITE16_MEMBER(segas1x_bootleg_state::sys16_textram_w)
 
 VIDEO_START_MEMBER(segas1x_bootleg_state,system16)
 {
-
 	/* Normal colors */
 	compute_resistor_weights(0, 255, -1.0,
 		6, resistances_normal, m_weights[0][0], 0, 0,
@@ -425,12 +420,11 @@ VIDEO_START_MEMBER(segas1x_bootleg_state,system16)
 		m_system18 = 0;
 	}
 
-	setup_system16_bootleg_spritebanking(machine());
+	setup_system16_bootleg_spritebanking();
 }
 
 VIDEO_START_MEMBER(segas1x_bootleg_state,system18old)
 {
-
 	VIDEO_START_CALL_MEMBER(system16);
 
 	m_bg1_trans = 1;
@@ -549,7 +543,6 @@ WRITE16_MEMBER(segas1x_bootleg_state::s16a_bootleg_fgscrollx_w)
 
 WRITE16_MEMBER(segas1x_bootleg_state::s16a_bootleg_tilemapselect_w)
 {
-
 	COMBINE_DATA(&m_tilemapselect);
 	//printf("system16 bootleg tilemapselect %04x\n", m_tilemapselect);
 }
@@ -557,7 +550,6 @@ WRITE16_MEMBER(segas1x_bootleg_state::s16a_bootleg_tilemapselect_w)
 
 VIDEO_START_MEMBER(segas1x_bootleg_state,s16a_bootleg)
 {
-
 	/* Normal colors */
 	compute_resistor_weights(0, 255, -1.0,
 		6, resistances_normal, m_weights[0][0], 0, 0,
@@ -588,25 +580,24 @@ VIDEO_START_MEMBER(segas1x_bootleg_state,s16a_bootleg)
 VIDEO_START_MEMBER(segas1x_bootleg_state,s16a_bootleg_wb3bl)
 {
 	VIDEO_START_CALL_MEMBER(s16a_bootleg);
-	setup_system16_bootleg_spritebanking(machine());
+	setup_system16_bootleg_spritebanking();
 }
 
 VIDEO_START_MEMBER(segas1x_bootleg_state,s16a_bootleg_shinobi)
 {
 	VIDEO_START_CALL_MEMBER(s16a_bootleg);
-	setup_system16_bootleg_spritebanking(machine());
+	setup_system16_bootleg_spritebanking();
 }
 
 VIDEO_START_MEMBER(segas1x_bootleg_state,s16a_bootleg_passsht)
 {
 	VIDEO_START_CALL_MEMBER(s16a_bootleg);
-	setup_system16_bootleg_spritebanking(machine());
+	setup_system16_bootleg_spritebanking();
 }
 
 // Passing Shot (2 player), Shinobi (Datsu), Wonderboy 3
 UINT32 segas1x_bootleg_state::screen_update_s16a_bootleg(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	// passing shot
 	int offset_txtx = 192;
 	int offset_txty = 0;
@@ -694,7 +685,6 @@ UINT32 segas1x_bootleg_state::screen_update_s16a_bootleg(screen_device &screen, 
 /* The Passing Shot 4 Player bootleg has weird scroll registers (different offsets, ^0x7 xor) */
 UINT32 segas1x_bootleg_state::screen_update_s16a_bootleg_passht4b(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	// passing shot
 	int offset_txtx = 192;
 	int offset_txty = 0;
@@ -767,7 +757,6 @@ UINT32 segas1x_bootleg_state::screen_update_s16a_bootleg_passht4b(screen_device 
 
 UINT32 segas1x_bootleg_state::screen_update_system16(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	if (!m_refreshenable)
 	{
 		bitmap.fill(0, cliprect);
@@ -777,7 +766,7 @@ UINT32 segas1x_bootleg_state::screen_update_system16(screen_device &screen, bitm
 	// start the sprites drawing
 	m_sprites->draw_async(cliprect);
 
-	update_page(machine());
+	update_page();
 
 	machine().priority_bitmap.fill(0, cliprect);
 
@@ -844,7 +833,6 @@ UINT32 segas1x_bootleg_state::screen_update_system16(screen_device &screen, bitm
 
 UINT32 segas1x_bootleg_state::screen_update_system18old(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	if (!m_refreshenable)
 	{
 		bitmap.fill(get_black_pen(machine()), cliprect);
@@ -854,7 +842,7 @@ UINT32 segas1x_bootleg_state::screen_update_system18old(screen_device &screen, b
 	// start the sprites drawing
 	m_sprites->draw_async(cliprect);
 
-	update_page(machine());
+	update_page();
 
 	machine().priority_bitmap.fill(0);
 

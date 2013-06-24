@@ -99,7 +99,7 @@ void maygay1b_state::m1_draw_lamps(int data,int strobe, int col)
  *
  *************************************/
 
-static void update_outputs(i8279_state *chip, UINT16 which)
+void maygay1b_state::update_outputs(i8279_state *chip, UINT16 which)
 {
 	static const UINT8 ls48_map[16] =
 		{ 0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7c,0x07,0x7f,0x67,0x58,0x4c,0x62,0x69,0x78,0x00 };
@@ -456,23 +456,22 @@ WRITE8_MEMBER(maygay1b_state::m1_8279_2_w)
 // called if board is reset ///////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-static void m1_stepper_reset(running_machine &machine)
+void maygay1b_state::m1_stepper_reset()
 {
-	maygay1b_state *state = machine.driver_data<maygay1b_state>();
 	int pattern = 0,i;
 	for ( i = 0; i < 6; i++)
 	{
 		stepper_reset_position(i);
 		if ( stepper_optic_state(i) ) pattern |= 1<<i;
 	}
-	state->m_optic_pattern = pattern;
+	m_optic_pattern = pattern;
 }
 
 void maygay1b_state::machine_reset()
 {
 	m_vfd->reset(); // reset display1
 	m_duart68681 = machine().device( "duart68681" );
-	m1_stepper_reset(machine());
+	m1_stepper_reset();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -480,7 +479,8 @@ void maygay1b_state::machine_reset()
 // IRQ from Duart (hopper?)
 static void duart_irq_handler(device_t *device, int state, UINT8 vector)
 {
-	device->machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE,  state?ASSERT_LINE:CLEAR_LINE);
+	maygay1b_state *drvstate = device->machine().driver_data<maygay1b_state>();
+	drvstate->m_maincpu->set_input_line(M6809_IRQ_LINE,  state?ASSERT_LINE:CLEAR_LINE);
 	LOG(("6809 irq%d \n",state));
 }
 
@@ -489,7 +489,7 @@ READ8_MEMBER( maygay1b_state::m1_firq_trg_r )
 {
 	static int i = 0xff;
 	i ^= 0xff;
-	space.machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
+	m_maincpu->set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
 	LOG(("6809 firq\n"));
 	return i;
 }
@@ -500,7 +500,7 @@ TIMER_DEVICE_CALLBACK_MEMBER( maygay1b_state::maygay1b_nmitimer_callback )
 	if (m_NMIENABLE)
 	{
 		LOG(("6809 nmi\n"));
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, HOLD_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, HOLD_LINE);
 	}
 }
 
@@ -776,30 +776,27 @@ WRITE8_MEMBER(maygay1b_state::m1_latch_w)
 
 WRITE8_MEMBER(maygay1b_state::latch_ch2_w)
 {
-	device_t *msm6376 = machine().device("msm6376");
-	okim6376_w(msm6376, space, 0, data&0x7f);
-	okim6376_ch2_w(msm6376,data&0x80);
+	okim6376_w(m_msm6376, space, 0, data&0x7f);
+	okim6376_ch2_w(m_msm6376,data&0x80);
 }
 
 //A strange setup this, the address lines are used to move st to the right level
 READ8_MEMBER(maygay1b_state::latch_st_hi)
 {
-	device_t *msm6376 = machine().device("msm6376");
-	okim6376_st_w(msm6376,1);
+	okim6376_st_w(m_msm6376,1);
 	return 0;
 }
 
 READ8_MEMBER(maygay1b_state::latch_st_lo)
 {
-	device_t *msm6376 = machine().device("msm6376");
-	okim6376_st_w(msm6376,0);
+	okim6376_st_w(m_msm6376,0);
 	return 0;
 }
 
 READ8_MEMBER(maygay1b_state::m1_meter_r)
 {
-	device_t *ay8910 = machine().device("aysnd");
-	return ~ay8910_read_ym(ay8910);
+	ay8910_device *ay8910 = machine().device<ay8910_device>("aysnd");
+	return ~ay8910->data_r(space, offset);
 }
 
 static ADDRESS_MAP_START( m1_memmap, AS_PROGRAM, 8, maygay1b_state )
@@ -816,7 +813,7 @@ static ADDRESS_MAP_START( m1_memmap, AS_PROGRAM, 8, maygay1b_state )
 
 	AM_RANGE(0x2070, 0x207f) AM_DEVREADWRITE_LEGACY("duart68681", duart68681_r, duart68681_w )
 
-	AM_RANGE(0x2090, 0x2091) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x2090, 0x2091) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x20B0, 0x20B0) AM_READ(m1_meter_r)
 
 	AM_RANGE(0x20A0, 0x20A3) AM_DEVWRITE("pia", pia6821_device, write)
@@ -824,7 +821,7 @@ static ADDRESS_MAP_START( m1_memmap, AS_PROGRAM, 8, maygay1b_state )
 
 	AM_RANGE(0x20C0, 0x20C7) AM_WRITE(m1_latch_w)
 
-	AM_RANGE(0x2400, 0x2401) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w ) // 2149F??
+	AM_RANGE(0x2400, 0x2401) AM_DEVWRITE("ymsnd", ym2413_device, write) // 2149F??
 	AM_RANGE(0x2404, 0x2405) AM_READ(latch_st_lo)
 	AM_RANGE(0x2406, 0x2407) AM_READ(latch_st_hi)
 
@@ -898,19 +895,18 @@ WRITE8_MEMBER(maygay1b_state::m1ab_no_oki_w)
 
 DRIVER_INIT_MEMBER(maygay1b_state,m1)
 {
-
 	//AM_RANGE(0x2420, 0x2421) AM_WRITE(latch_ch2_w ) // oki
 	// if there is no OKI region disable writes here, the rom might be missing, so alert user
 
-	UINT8 *okirom = machine().root_device().memregion( "msm6376" )->base();
+	UINT8 *okirom = memregion( "msm6376" )->base();
 
 	if (!okirom) {
-		machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x2420, 0x2421, write8_delegate(FUNC(maygay1b_state::m1ab_no_oki_w), this));
+		m_maincpu->space(AS_PROGRAM).install_write_handler(0x2420, 0x2421, write8_delegate(FUNC(maygay1b_state::m1ab_no_oki_w), this));
 	}
 	// print out the rom id / header info to give us some hints
 	// note this isn't always correct, alley cat has 'Calpsyo' still in the ident string?
 	{
-		UINT8 *cpu = machine().root_device().memregion( "maincpu" )->base();
+		UINT8 *cpu = memregion( "maincpu" )->base();
 		int base = 0xff20;
 		for (int i=0;i<14;i++)
 		{

@@ -331,7 +331,8 @@ public:
 	fortecar_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
-		m_vram(*this, "vram"){ }
+		m_vram(*this, "vram"),
+		m_eeprom(*this, "eeprom"){ }
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT8> m_vram;
@@ -344,6 +345,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_fortecar(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<eeprom_device> m_eeprom;
 };
 
 
@@ -380,7 +382,7 @@ UINT32 fortecar_state::screen_update_fortecar(screen_device &screen, bitmap_ind1
 
 void fortecar_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 /* Video resistors...
 
 O1 (LS374) R1K  RED
@@ -432,7 +434,6 @@ R = 82 Ohms Pull Down.
 
 WRITE8_MEMBER(fortecar_state::ppi0_portc_w)
 {
-	device_t *device = machine().device("eeprom");
 /*
 NM93CS56N Serial EEPROM
 
@@ -441,18 +442,15 @@ CK   PPI_PC1
 DIN  PPI_PC2
 DOUT PPI_PC4
 */
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->write_bit((data & 0x04) >> 2);
-	eeprom->set_cs_line((data & 0x01) ? CLEAR_LINE : ASSERT_LINE);
-	eeprom->set_clock_line((data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->write_bit((data & 0x04) >> 2);
+	m_eeprom->set_cs_line((data & 0x01) ? CLEAR_LINE : ASSERT_LINE);
+	m_eeprom->set_clock_line((data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 READ8_MEMBER(fortecar_state::ppi0_portc_r)
 {
-	device_t *device = machine().device("eeprom");
 //  popmessage("%s",machine().describe_context());
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	return ((eeprom->read_bit()<<4) & 0x10);
+	return ((m_eeprom->read_bit()<<4) & 0x10);
 }
 
 static I8255A_INTERFACE( ppi8255_intf )
@@ -535,9 +533,10 @@ static const ay8910_interface ay8910_config =
 };
 
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -576,8 +575,8 @@ static ADDRESS_MAP_START( fortecar_ports, AS_IO, 8, fortecar_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x20, 0x20) AM_DEVWRITE("crtc", mc6845_device, address_w)  // pc=444
 	AM_RANGE(0x21, 0x21) AM_DEVWRITE("crtc", mc6845_device, register_w)
-	AM_RANGE(0x40, 0x40) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x40, 0x40) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x60, 0x63) AM_DEVREADWRITE("fcppi0", i8255_device, read, write)//M5L8255AP
 //  AM_RANGE(0x80, 0x81) //8251A UART
 	AM_RANGE(0xa0, 0xa0) AM_DEVREADWRITE("rtc", v3021_device, read, write)

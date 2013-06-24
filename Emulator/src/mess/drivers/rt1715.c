@@ -15,7 +15,7 @@
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "machine/z80ctc.h"
-#include "machine/z80sio.h"
+#include "machine/z80dart.h"
 #include "machine/z80pio.h"
 #include "machine/z80dma.h"
 #include "machine/ram.h"
@@ -26,7 +26,9 @@ class rt1715_state : public driver_device
 {
 public:
 	rt1715_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu"),
+		m_ram(*this, RAM_TAG) { }
 
 	int m_led1_val;
 	int m_led2_val;
@@ -39,6 +41,8 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void palette_init();
+	required_device<cpu_device> m_maincpu;
+	required_device<ram_device> m_ram;
 };
 
 
@@ -107,8 +111,8 @@ WRITE8_MEMBER(rt1715_state::k7658_data_w)
 
 void rt1715_state::machine_start()
 {
-	membank("bank2")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() + 0x0800);
-	membank("bank3")->set_base(machine().device<ram_device>(RAM_TAG)->pointer());
+	membank("bank2")->set_base(m_ram->pointer() + 0x0800);
+	membank("bank3")->set_base(m_ram->pointer());
 }
 
 void rt1715_state::machine_reset()
@@ -122,7 +126,7 @@ WRITE8_MEMBER(rt1715_state::rt1715_rom_disable)
 	logerror("%s: rt1715_set_bank %02x\n", machine().describe_context(), data);
 
 	/* disable ROM, enable RAM */
-	membank("bank1")->set_base(machine().device<ram_device>(RAM_TAG)->pointer());
+	membank("bank1")->set_base(m_ram->pointer());
 }
 
 /***************************************************************************
@@ -131,7 +135,6 @@ WRITE8_MEMBER(rt1715_state::rt1715_rom_disable)
 
 static I8275_DISPLAY_PIXELS( rt1715_display_pixels )
 {
-
 }
 
 /* F4 Character Displayer */
@@ -193,7 +196,7 @@ static ADDRESS_MAP_START( rt1715_io, AS_IO, 8, rt1715_state )
 	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("a71", z80pio_device, read_alt, write_alt)
 	AM_RANGE(0x04, 0x07) AM_DEVREADWRITE("a72", z80pio_device, read_alt, write_alt)
 	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE("a30", z80ctc_device, read, write)
-	AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE("a29", z80sio_device, read_alt, write_alt)
+	AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE("a29", z80sio0_device, ba_cd_r, ba_cd_w)
 	AM_RANGE(0x18, 0x19) AM_DEVREADWRITE("a26", i8275_device, read, write)
 	AM_RANGE(0x20, 0x20) AM_WRITE(rt1715_floppy_enable)
 	AM_RANGE(0x28, 0x28) AM_WRITE(rt1715_rom_disable)
@@ -269,13 +272,24 @@ static const z80ctc_interface rt1715_ctc_intf =
 	DEVCB_NULL
 };
 
-static const z80sio_interface rt1715_sio_intf =
+static Z80SIO_INTERFACE( rt1715_sio_intf )
 {
+	0, 0, 0, 0,
+
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
 	DEVCB_NULL
 };
 
@@ -337,7 +351,7 @@ static MACHINE_CONFIG_START( rt1715, rt1715_state )
 
 	MCFG_I8275_ADD("a26", rt1715_i8275_intf)
 	MCFG_Z80CTC_ADD("a30", XTAL_10MHz/4 /* ? */, rt1715_ctc_intf)
-	MCFG_Z80SIO_ADD("a29", XTAL_10MHz/4 /* ? */, rt1715_sio_intf)
+	MCFG_Z80SIO0_ADD("a29", XTAL_10MHz/4 /* ? */, rt1715_sio_intf)
 
 	/* floppy */
 	MCFG_Z80PIO_ADD("a71", XTAL_10MHz/4 /* ? */, rt1715_pio_data_intf)

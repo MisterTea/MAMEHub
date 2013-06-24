@@ -346,7 +346,7 @@ READ8_MEMBER(opwolf_state::z80_input2_r)
 
 WRITE8_MEMBER(opwolf_state::sound_bankswitch_w)
 {
-	machine().root_device().membank("bank10")->set_entry((data - 1) & 0x03);
+	membank("bank10")->set_entry((data - 1) & 0x03);
 }
 
 /***********************************************************
@@ -367,8 +367,8 @@ static ADDRESS_MAP_START( opwolf_map, AS_PROGRAM, 16, opwolf_state )
 	AM_RANGE(0x380000, 0x380003) AM_WRITE(opwolf_spritectrl_w)  // usually 0x4, changes when you fire
 	AM_RANGE(0x3a0000, 0x3a0003) AM_READ(opwolf_lightgun_r)     /* lightgun, read at $11e0/6 */
 	AM_RANGE(0x3c0000, 0x3c0001) AM_WRITENOP                    /* watchdog ?? */
-	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	AM_RANGE(0xc00000, 0xc0ffff) AM_DEVREADWRITE_LEGACY("pc080sn", pc080sn_word_r, pc080sn_word_w)
 	AM_RANGE(0xc10000, 0xc1ffff) AM_WRITEONLY                   /* error in init code (?) */
 	AM_RANGE(0xc20000, 0xc20003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_yscroll_word_w)
@@ -388,8 +388,8 @@ static ADDRESS_MAP_START( opwolfb_map, AS_PROGRAM, 16, opwolf_state )
 	AM_RANGE(0x380000, 0x380003) AM_WRITE(opwolf_spritectrl_w)  // usually 0x4, changes when you fire
 	AM_RANGE(0x3a0000, 0x3a0003) AM_READ(opwolf_lightgun_r)     /* lightgun, read at $11e0/6 */
 	AM_RANGE(0x3c0000, 0x3c0001) AM_WRITENOP                    /* watchdog ?? */
-	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0xff00)
-	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
+	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
+	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
 	AM_RANGE(0xc00000, 0xc0ffff) AM_DEVREADWRITE_LEGACY("pc080sn", pc080sn_word_r, pc080sn_word_w)
 	AM_RANGE(0xc10000, 0xc1ffff) AM_WRITEONLY                   /* error in init code (?) */
 	AM_RANGE(0xc20000, 0xc20003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_yscroll_word_w)
@@ -428,14 +428,6 @@ ADDRESS_MAP_END
 
 void opwolf_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_pc080sn = machine().device("pc080sn");
-	m_pc090oj = machine().device("pc090oj");
-	m_msm1 = machine().device("msm1");
-	m_msm2 = machine().device("msm2");
-
 	save_item(NAME(m_sprite_ctrl));
 	save_item(NAME(m_sprites_flipscreen));
 
@@ -447,7 +439,6 @@ void opwolf_state::machine_start()
 
 MACHINE_RESET_MEMBER(opwolf_state,opwolf)
 {
-
 	m_adpcm_b[0] = m_adpcm_b[1] = 0;
 	m_adpcm_c[0] = m_adpcm_c[1] = 0;
 	m_adpcm_pos[0] = m_adpcm_pos[1] = 0;
@@ -457,32 +448,37 @@ MACHINE_RESET_MEMBER(opwolf_state,opwolf)
 	m_sprite_ctrl = 0;
 	m_sprites_flipscreen = 0;
 
-	msm5205_reset_w(machine().device("msm1"), 1);
-	msm5205_reset_w(machine().device("msm2"), 1);
+	m_msm1->reset_w(1);
+	m_msm2->reset_w(1);
 }
 
-static void opwolf_msm5205_vck( device_t *device )
+void opwolf_state::opwolf_msm5205_vck(msm5205_device *device,int chip)
 {
-	opwolf_state *state = device->machine().driver_data<opwolf_state>();
-	int chip = (strcmp(device->tag(), ":msm1") == 0) ? 0 : 1;
-	if (state->m_adpcm_data[chip] != -1)
+	if (m_adpcm_data[chip] != -1)
 	{
-		msm5205_data_w(device, state->m_adpcm_data[chip] & 0x0f);
-		state->m_adpcm_data[chip] = -1;
-		if (state->m_adpcm_pos[chip] == state->m_adpcm_end[chip])
-			msm5205_reset_w(device, 1);
+		device->data_w(m_adpcm_data[chip] & 0x0f);
+		m_adpcm_data[chip] = -1;
+		if (m_adpcm_pos[chip] == m_adpcm_end[chip])
+			device->reset_w(1);
 	}
 	else
 	{
-		state->m_adpcm_data[chip] = device->machine().root_device().memregion("adpcm")->base()[state->m_adpcm_pos[chip]];
-		state->m_adpcm_pos[chip] = (state->m_adpcm_pos[chip] + 1) & 0x7ffff;
-		msm5205_data_w(device, state->m_adpcm_data[chip] >> 4);
+		m_adpcm_data[chip] = memregion("adpcm")->base()[m_adpcm_pos[chip]];
+		m_adpcm_pos[chip] = (m_adpcm_pos[chip] + 1) & 0x7ffff;
+		device->data_w(m_adpcm_data[chip] >> 4);
 	}
+}
+WRITE_LINE_MEMBER(opwolf_state::opwolf_msm5205_vck_1)
+{
+	opwolf_msm5205_vck(m_msm1, 0);
+}
+WRITE_LINE_MEMBER(opwolf_state::opwolf_msm5205_vck_2)
+{
+	opwolf_msm5205_vck(m_msm2, 1);
 }
 
 WRITE8_MEMBER(opwolf_state::opwolf_adpcm_b_w)
 {
-	device_t *device = machine().device("msm1");
 	int start;
 	int end;
 
@@ -496,7 +492,7 @@ WRITE8_MEMBER(opwolf_state::opwolf_adpcm_b_w)
 		end   *= 16;
 		m_adpcm_pos[0] = start;
 		m_adpcm_end[0] = end;
-		msm5205_reset_w(device, 0);
+		m_msm1->reset_w(0);
 	}
 
 //  logerror("CPU #1     b00%i-data=%2x   pc=%4x\n",offset,data,space.device().safe_pc() );
@@ -505,7 +501,6 @@ WRITE8_MEMBER(opwolf_state::opwolf_adpcm_b_w)
 
 WRITE8_MEMBER(opwolf_state::opwolf_adpcm_c_w)
 {
-	device_t *device = machine().device("msm2");
 	int start;
 	int end;
 
@@ -519,7 +514,7 @@ WRITE8_MEMBER(opwolf_state::opwolf_adpcm_c_w)
 		end   *= 16;
 		m_adpcm_pos[1] = start;
 		m_adpcm_end[1] = end;
-		msm5205_reset_w(device, 0);
+		m_msm2->reset_w(0);
 	}
 
 //  logerror("CPU #1     c00%i-data=%2x   pc=%4x\n",offset,data,space.device().safe_pc() );
@@ -542,8 +537,8 @@ static ADDRESS_MAP_START( opwolf_sound_z80_map, AS_PROGRAM, 8, opwolf_state )
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2151_device,read,write)
 	AM_RANGE(0x9002, 0x9100) AM_READNOP
-	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 	AM_RANGE(0xb000, 0xb006) AM_WRITE(opwolf_adpcm_b_w)
 	AM_RANGE(0xc000, 0xc006) AM_WRITE(opwolf_adpcm_c_w)
 	AM_RANGE(0xd000, 0xd000) AM_WRITE(opwolf_adpcm_d_w)
@@ -686,12 +681,17 @@ GFXDECODE_END
                  YM2151 (SOUND)
 **************************************************************/
 
-static const msm5205_interface msm5205_config =
+static const msm5205_interface msm5205_config_1 =
 {
-	opwolf_msm5205_vck, /* VCK function */
+	DEVCB_DRIVER_LINE_MEMBER(opwolf_state,opwolf_msm5205_vck_1), /* VCK function */
 	MSM5205_S48_4B      /* 8 kHz */
 };
 
+static const msm5205_interface msm5205_config_2 =
+{
+	DEVCB_DRIVER_LINE_MEMBER(opwolf_state,opwolf_msm5205_vck_2), /* VCK function */
+	MSM5205_S48_4B      /* 8 kHz */
+};
 
 
 /***********************************************************
@@ -752,12 +752,12 @@ static MACHINE_CONFIG_START( opwolf, opwolf_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
 	MCFG_SOUND_ADD("msm1", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_SOUND_CONFIG(msm5205_config_1)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.60)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.60)
 
 	MCFG_SOUND_ADD("msm2", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_SOUND_CONFIG(msm5205_config_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.60)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.60)
 
@@ -806,12 +806,12 @@ static MACHINE_CONFIG_START( opwolfb, opwolf_state ) /* OSC clocks unknown for t
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
 	MCFG_SOUND_ADD("msm1", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_SOUND_CONFIG(msm5205_config_1)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.60)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.60)
 
 	MCFG_SOUND_ADD("msm2", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_SOUND_CONFIG(msm5205_config_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.60)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.60)
 
@@ -964,7 +964,7 @@ DRIVER_INIT_MEMBER(opwolf_state,opwolf)
 
 	m_opwolf_region = rom[0x03fffe / 2] & 0xff;
 
-	opwolf_cchip_init(machine());
+	opwolf_cchip_init();
 
 	// World & US version have different gun offsets, presumably slightly different gun hardware
 	m_opwolf_gun_xoffs = 0xec - (rom[0x03ffb0 / 2] & 0xff);

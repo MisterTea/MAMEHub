@@ -104,7 +104,7 @@ void comx_clm_device::crtc_update_row(mc6845_device *device, bitmap_rgb32 &bitma
 	{
 		UINT8 code = m_video_ram[((ma + column) & 0x7ff)];
 		UINT16 addr = (code << 3) | (ra & 0x07);
-		UINT8 data = m_char_rom[addr & 0x7ff];
+		UINT8 data = m_char_rom->base()[addr & 0x7ff];
 
 		if (BIT(ra, 3) && column == cursor_x)
 		{
@@ -129,9 +129,10 @@ static MC6845_UPDATE_ROW( comx_clm_update_row )
 	clm->crtc_update_row(device,bitmap,cliprect,ma,ra,y,x_count,cursor_x,param);
 }
 
-static const mc6845_interface crtc_intf =
+static MC6845_INTERFACE( crtc_intf )
 {
 	MC6845_SCREEN_TAG,
+	false,
 	8,
 	NULL,
 	comx_clm_update_row,
@@ -192,9 +193,11 @@ machine_config_constructor comx_clm_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 comx_clm_device::comx_clm_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, COMX_CLM, "COMX 80 Column Card", tag, owner, clock),
+	device_t(mconfig, COMX_CLM, "COMX 80 Column Card", tag, owner, clock, "comx_clm", __FILE__),
 	device_comx_expansion_card_interface(mconfig, *this),
 	m_crtc(*this, MC6845_TAG),
+	m_rom(*this, "c000"),
+	m_char_rom(*this, MC6845_TAG),
 	m_video_ram(*this, "video_ram")
 {
 }
@@ -206,10 +209,6 @@ comx_clm_device::comx_clm_device(const machine_config &mconfig, const char *tag,
 
 void comx_clm_device::device_start()
 {
-	// find memory regions
-	m_rom = memregion("c000")->base();
-	m_char_rom = memregion(MC6845_TAG)->base();
-
 	// allocate memory
 	m_video_ram.allocate(VIDEORAM_SIZE);
 
@@ -247,7 +246,7 @@ UINT8 comx_clm_device::comx_mrd_r(address_space &space, offs_t offset, int *extr
 
 	if (offset >= 0xc000 && offset < 0xc800)
 	{
-		data = m_rom[offset & 0x7ff];
+		data = m_rom->base()[offset & 0x7ff];
 	}
 	else if (offset >= 0xd000 && offset < 0xd800)
 	{

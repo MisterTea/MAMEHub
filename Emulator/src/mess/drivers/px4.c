@@ -17,6 +17,7 @@
 #include "machine/ram.h"
 #include "machine/nvram.h"
 #include "sound/speaker.h"
+#include "machine/serial.h"
 #include "px4.lh"
 
 
@@ -24,7 +25,7 @@
 //  CONSTANTS
 //**************************************************************************
 
-#define VERBOSE 0
+#define VERBOSE 1
 
 // interrupt sources
 #define INT0_7508   0x01
@@ -79,9 +80,11 @@ public:
 			m_ram(*this, RAM_TAG),
 			m_centronics(*this, "centronics"),
 			m_ext_cas(*this, "extcas"),
-			m_speaker(*this, SPEAKER_TAG),
-			m_sio(*this, "sio")
-			{ }
+			m_speaker(*this, "speaker"),
+			m_sio(*this, "sio"),
+			m_rs232(*this, "rs232")
+			,
+		m_maincpu(*this, "maincpu") { }
 
 	// internal devices
 	required_device<cpu_device> m_z80;
@@ -90,6 +93,7 @@ public:
 	required_device<cassette_image_device> m_ext_cas;
 	required_device<speaker_sound_device> m_speaker;
 	required_device<epson_sio_device> m_sio;
+	required_device<rs232_port_device> m_rs232;
 
 	/* gapnit register */
 	UINT8 m_ctrl1;
@@ -120,6 +124,9 @@ public:
 	UINT8 m_artcr;
 	UINT8 m_swr;
 
+	int rxd_r();
+	void txd_w(int data);
+
 	/* 7508 internal */
 	bool m_one_sec_int_enabled;
 	bool m_alarm_int_enabled;
@@ -135,10 +142,6 @@ public:
 	/* external cassette/barcode reader */
 	emu_timer *m_ext_cas_timer;
 	int m_ear_last_state;
-
-	/* external devices */
-	device_t *m_sio_device;
-	device_t *m_rs232c_device;
 
 	void install_rom_capsule(address_space &space, int size, const char *region);
 
@@ -186,73 +189,8 @@ public:
 	TIMER_CALLBACK_MEMBER(receive_data);
 	TIMER_DEVICE_CALLBACK_MEMBER(frc_tick);
 	TIMER_DEVICE_CALLBACK_MEMBER(upd7508_1sec_callback);
-
-	void px4_rs232c_txd(device_t *device,int state);
-	int px4_rs232c_rxd(device_t *device);
-	void px4_rs232c_rts(device_t *device,int state);
-	int px4_rs232c_cts(device_t *device);
-	int px4_rs232c_dsr(device_t *device);
-	void px4_rs232c_dtr(device_t *device,int state);
-	int px4_rs232c_dcd(device_t *device);
+	required_device<cpu_device> m_maincpu;
 };
-
-
-//**************************************************************************
-//  RS232C PORT
-//**************************************************************************
-
-// Currently nothing is connected to this port
-
-void px4_state::px4_rs232c_txd(device_t *device,int state)
-{
-	if (VERBOSE)
-		logerror("px4_rs232c_txd: %d\n", state);
-}
-
-#ifdef UNUSED_FUNCTION
-int px4_state::px4_rs232c_rxd(device_t *device)
-{
-	if (VERBOSE)
-		logerror("px4_rs232c_rxd\n");
-	return ASSERT_LINE;
-}
-#endif
-
-void px4_state::px4_rs232c_rts(device_t *device,int state)
-{
-	if (VERBOSE)
-		logerror("px4_rs232c_rts: %d\n", state);
-}
-
-int px4_state::px4_rs232c_cts(device_t *device)
-{
-	if (VERBOSE)
-		logerror("px4_rs232c_cts\n");
-
-	return ASSERT_LINE;
-}
-
-int px4_state::px4_rs232c_dsr(device_t *device)
-{
-	if (VERBOSE)
-		logerror("px4_rs232c_dsr\n");
-
-	return ASSERT_LINE;
-}
-
-void px4_state::px4_rs232c_dtr(device_t *device,int state)
-{
-	if (VERBOSE)
-		logerror("px4_rs232c_dtr: %d\n", state);
-}
-
-int px4_state::px4_rs232c_dcd(device_t *device)
-{
-	if (VERBOSE)
-		logerror("px4_rs232c_dcd\n");
-
-	return ASSERT_LINE;
-}
 
 
 //**************************************************************************
@@ -321,7 +259,6 @@ TIMER_CALLBACK_MEMBER(px4_state::ext_cassette_read)
 // free running counter
 TIMER_DEVICE_CALLBACK_MEMBER(px4_state::frc_tick)
 {
-
 	m_frc_value++;
 
 	if (m_frc_value == 0)
@@ -519,7 +456,7 @@ WRITE8_MEMBER(px4_state::px4_bankr_w)
 	default:
 		if (VERBOSE)
 			logerror("invalid bank switch value: 0x%02x\n", data >> 4);
-
+		break;
 	}
 }
 
@@ -699,11 +636,38 @@ WRITE8_MEMBER(px4_state::px4_spur_w)
 //  GAPNIO
 //**************************************************************************
 
+// helper function to read from selected serial port
+int px4_state::rxd_r()
+{
+	if (BIT(m_swr, 3))
+		// from rs232
+		return m_rs232->rx();
+	else
+		if (BIT(m_swr, 2))
+			// from sio
+			return m_sio->rx_r();
+		else
+			// from cartridge
+			return 0;
+}
+
+// helper function to write to selected serial port
+void px4_state::txd_w(int data)
+{
+	if (BIT(m_swr, 2))
+		// from sio
+		m_sio->tx_w(data);
+	else
+		if (BIT(m_swr, 3))
+			// from rs232
+			m_rs232->tx(data);
+		// else from cartridge
+}
+
 TIMER_CALLBACK_MEMBER(px4_state::transmit_data)
 {
 	if (ART_TX_ENABLED)
 	{
-
 	}
 }
 
@@ -711,7 +675,6 @@ TIMER_CALLBACK_MEMBER(px4_state::receive_data)
 {
 	if (ART_RX_ENABLED)
 	{
-
 	}
 }
 
@@ -763,7 +726,7 @@ READ8_MEMBER(px4_state::px4_artsr_r)
 	if (VERBOSE)
 		logerror("%s: px4_artsr_r\n", machine().describe_context());
 
-	result |= px4_rs232c_dsr(m_rs232c_device) << 7;
+	result |= m_rs232->dsr_r() << 7;
 
 	return result | m_artsr;
 }
@@ -785,12 +748,20 @@ READ8_MEMBER(px4_state::px4_iostr_r)
 	if (VERBOSE)
 		logerror("%s: px4_iostr_r\n", machine().describe_context());
 
+	// centronics status
 	result |= m_centronics->busy_r() << 0;
 	result |= !m_centronics->pe_r() << 1;
+
+	// sio status
 	result |= !m_sio->pin_r() << 2;
-	result |= m_sio->rx_r() << 3;
-	result |= px4_rs232c_dcd(m_rs232c_device) << 4;
-	result |= px4_rs232c_cts(m_rs232c_device) << 5;
+
+	// serial data
+	result |= rxd_r() << 3;
+
+	// rs232 status
+	result |= m_rs232->dcd_r() << 4;
+	result |= m_rs232->cts_r() << 5;
+
 	result |= 1 << 6;   // bit 6, csel, cartridge option select signal, set to 'other mode'
 	result |= 0 << 7;   // bit 7, caud - audio input from cartridge
 
@@ -807,26 +778,19 @@ WRITE8_MEMBER(px4_state::px4_artcr_w)
 
 	// bit 0, txe - transmit enable
 	if (!ART_TX_ENABLED)
-	{
-		// force high when disabled
-		m_sio->tx_w(1);
-		px4_rs232c_txd(m_rs232c_device, ASSERT_LINE);
-	}
+		txd_w(1); // force high when disabled
 
 	// bit 3, sbrk - break output
 	if (ART_TX_ENABLED && BIT(data, 3))
-	{
-		// force low when enabled and transmit enabled
-		m_sio->tx_w(0);
-		px4_rs232c_txd(m_rs232c_device, CLEAR_LINE);
-	}
+		txd_w(0); // force low when enabled and transmit enabled
 
 	// error reset
 	if (BIT(data, 4))
 		m_artsr &= ~(ART_PE | ART_OE | ART_FE);
 
-	px4_rs232c_dtr(m_rs232c_device, BIT(data, 1));
-	px4_rs232c_rts(m_rs232c_device, BIT(data, 5));
+	// rs232
+	m_rs232->dtr_w(BIT(data, 1));
+	m_rs232->rts_w(BIT(data, 5));
 }
 
 // switch register
@@ -855,7 +819,7 @@ WRITE8_MEMBER(px4_state::px4_ioctlr_w)
 	output_set_value("led_1", BIT(data, 5)); // num lock
 	output_set_value("led_2", BIT(data, 6)); // "led 2"
 
-	speaker_level_w(m_speaker, BIT(data, 7));
+	m_speaker->level_w(BIT(data, 7));
 }
 
 
@@ -865,7 +829,6 @@ WRITE8_MEMBER(px4_state::px4_ioctlr_w)
 
 TIMER_DEVICE_CALLBACK_MEMBER(px4_state::upd7508_1sec_callback)
 {
-
 	// adjust interrupt status
 	m_interrupt_status |= UPD7508_INT_ONE_SECOND;
 
@@ -953,7 +916,6 @@ READ8_MEMBER(px4_state::px4_ramdisk_data_r)
 
 WRITE8_MEMBER(px4_state::px4_ramdisk_data_w)
 {
-
 	if (m_ramdisk_address < 0x20000)
 		m_ramdisk[m_ramdisk_address] = data;
 
@@ -1031,10 +993,6 @@ DRIVER_INIT_MEMBER(px4_state,px4)
 	// external cassette or barcode reader
 	m_ext_cas_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(px4_state::ext_cassette_read), this));
 	m_ear_last_state = 0;
-
-	// external devices
-	m_sio_device = machine().device("floppy");
-	m_rs232c_device = NULL;
 
 	// map os rom and last half of memory
 	membank("bank1")->set_base(memregion("os")->base());
@@ -1281,6 +1239,15 @@ PALETTE_INIT_MEMBER(px4_state, px4p)
 //  MACHINE DRIVERS
 //**************************************************************************
 
+static const rs232_port_interface rs232_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
 static const cassette_interface px4_cassette_interface =
 {
 	cassette_default_formats,
@@ -1309,7 +1276,7 @@ static MACHINE_CONFIG_START( px4, px4_state )
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("one_sec", px4_state, upd7508_1sec_callback, attotime::from_seconds(1))
@@ -1326,7 +1293,10 @@ static MACHINE_CONFIG_START( px4, px4_state )
 	MCFG_CASSETTE_ADD("extcas", px4_cassette_interface)
 
 	// sio port
-	MCFG_EPSON_SIO_ADD("sio")
+	MCFG_EPSON_SIO_ADD("sio", NULL)
+
+	// rs232 port
+	MCFG_RS232_PORT_ADD("rs232", rs232_intf, default_rs232_devices, NULL)
 
 	// rom capsules
 	MCFG_CARTSLOT_ADD("capsule1")

@@ -1,6 +1,6 @@
 #include "emu.h"
 #include "includes/gotcha.h"
-#include "video/decospr.h"
+
 
 /***************************************************************************
 
@@ -13,23 +13,22 @@ TILEMAP_MAPPER_MEMBER(gotcha_state::gotcha_tilemap_scan)
 	return (col & 0x1f) | (row << 5) | ((col & 0x20) << 5);
 }
 
-INLINE void get_tile_info( running_machine &machine, tile_data &tileinfo, int tile_index ,UINT16 *vram, int color_offs)
+inline void gotcha_state::get_tile_info( tile_data &tileinfo, int tile_index ,UINT16 *vram, int color_offs)
 {
-	gotcha_state *state = machine.driver_data<gotcha_state>();
 	UINT16 data = vram[tile_index];
-	int code = (data & 0x3ff) | (state->m_gfxbank[(data & 0x0c00) >> 10] << 10);
+	int code = (data & 0x3ff) | (m_gfxbank[(data & 0x0c00) >> 10] << 10);
 
-	SET_TILE_INFO(0, code, (data >> 12) + color_offs, 0);
+	SET_TILE_INFO_MEMBER(0, code, (data >> 12) + color_offs, 0);
 }
 
 TILE_GET_INFO_MEMBER(gotcha_state::fg_get_tile_info)
 {
-	get_tile_info(machine(), tileinfo, tile_index, m_fgvideoram, 0);
+	get_tile_info(tileinfo, tile_index, m_fgvideoram, 0);
 }
 
 TILE_GET_INFO_MEMBER(gotcha_state::bg_get_tile_info)
 {
-	get_tile_info(machine(), tileinfo, tile_index, m_bgvideoram, 16);
+	get_tile_info(tileinfo, tile_index, m_bgvideoram, 16);
 }
 
 
@@ -103,6 +102,6 @@ UINT32 gotcha_state::screen_update_gotcha(screen_device &screen, bitmap_ind16 &b
 {
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
-	machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
+	m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
 	return 0;
 }

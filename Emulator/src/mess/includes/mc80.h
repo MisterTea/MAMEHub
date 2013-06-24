@@ -11,14 +11,15 @@
 #include "cpu/z80/z80.h"
 #include "machine/z80ctc.h"
 #include "machine/z80pio.h"
-#include "machine/z80sio.h"
+#include "machine/z80dart.h"
 
 class mc80_state : public driver_device
 {
 public:
 	mc80_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_p_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_p_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_WRITE8_MEMBER(mc8030_zve_write_protect_w);
 	DECLARE_WRITE8_MEMBER(mc8030_vis_w);
@@ -46,6 +47,9 @@ public:
 	UINT32 screen_update_mc8030(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(mc8020_kbd);
 	DECLARE_WRITE_LINE_MEMBER(ctc_z2_w);
+	IRQ_CALLBACK_MEMBER(mc8020_irq_callback);
+	IRQ_CALLBACK_MEMBER(mc8030_irq_callback);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -67,6 +71,6 @@ extern const z80pio_interface mc8030_zve_z80pio_intf;
 extern const z80pio_interface mc8030_asp_z80pio_intf;
 extern const z80ctc_interface mc8030_zve_z80ctc_intf;
 extern const z80ctc_interface mc8030_asp_z80ctc_intf;
-extern const z80sio_interface mc8030_asp_z80sio_intf;
+extern const z80dart_interface mc8030_asp_z80sio_intf;
 
 #endif /* MC80_H_ */

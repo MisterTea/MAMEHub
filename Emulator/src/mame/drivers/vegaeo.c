@@ -51,12 +51,10 @@ READ8_MEMBER( vegaeo_state::qs1000_p1_r )
 
 WRITE8_MEMBER( vegaeo_state::qs1000_p1_w )
 {
-
 }
 
 WRITE8_MEMBER( vegaeo_state::qs1000_p2_w )
 {
-
 }
 
 WRITE8_MEMBER( vegaeo_state::qs1000_p3_w )
@@ -146,7 +144,7 @@ WRITE32_MEMBER(vegaeo_state::soundlatch_w)
 static ADDRESS_MAP_START( vega_map, AS_PROGRAM, 32, vegaeo_state )
 	AM_RANGE(0x00000000, 0x001fffff) AM_RAM
 	AM_RANGE(0x80000000, 0x80013fff) AM_READWRITE(vega_vram_r, vega_vram_w)
-	AM_RANGE(0xfc000000, 0xfc0000ff) AM_DEVREADWRITE8_LEGACY("at28c16", at28c16_r, at28c16_w, 0x000000ff)
+	AM_RANGE(0xfc000000, 0xfc0000ff) AM_DEVREADWRITE8("at28c16", at28c16_device, read, write, 0x000000ff)
 	AM_RANGE(0xfc200000, 0xfc2003ff) AM_RAM_WRITE(vega_palette_w) AM_SHARE("paletteram")
 	AM_RANGE(0xfc400000, 0xfc40005b) AM_WRITENOP // crt registers ?
 	AM_RANGE(0xfc600000, 0xfc600003) AM_WRITE(soundlatch_w)
@@ -354,7 +352,6 @@ ROM_END
 
 DRIVER_INIT_MEMBER(vegaeo_state,vegaeo)
 {
-
 	// Set up the QS1000 program ROM banking, taking care not to overlap the internal RAM
 	machine().device("qs1000:cpu")->memory().space(AS_IO).install_read_bank(0x0100, 0xffff, "bank");
 	membank("qs1000:bank")->configure_entries(0, 8, memregion("qs1000:cpu")->base()+0x100, 0x10000);

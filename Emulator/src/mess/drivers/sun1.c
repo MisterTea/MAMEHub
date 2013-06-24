@@ -49,7 +49,7 @@
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/upd7201.h"
+#include "machine/z80dart.h"
 #include "machine/terminal.h"
 
 
@@ -115,7 +115,7 @@ void sun1_state::machine_reset()
 
 	memcpy((UINT8*)m_p_ram.target(),user1,0x4000);
 
-	machine().device("maincpu")->reset();
+	m_maincpu->reset();
 	m_term_data = 0;
 }
 

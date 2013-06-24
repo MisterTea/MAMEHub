@@ -48,7 +48,7 @@ public:
 	};
 
 	// construction/destruction
-	c2040_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant);
+	c2040_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
 	c2040_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	// not really public
@@ -78,7 +78,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -102,6 +101,7 @@ protected:
 	required_device<via6522_device> m_via;
 	required_device<legacy_floppy_image_device> m_image0;
 	optional_device<legacy_floppy_image_device> m_image1;
+	required_memory_region m_gcr;
 
 	struct {
 		// motors
@@ -125,13 +125,13 @@ protected:
 	int m_rfdo;                         // not ready for data output
 	int m_daco;                         // not data accepted output
 	int m_atna;                         // attention acknowledge
+	int m_ifc;
 
 	// track
 	int m_ds;                           // density select
 	int m_bit_count;                    // GCR bit counter
 	UINT16 m_sr;                        // GCR data shift register
 	UINT8 m_pi;                         // parallel data input
-	const UINT8* m_gcr;                 // GCR encoder/decoder ROM
 	UINT16 m_i;                         // GCR encoder/decoded ROM address
 	UINT8 m_e;                          // GCR encoder/decoded ROM data
 
@@ -175,7 +175,7 @@ class c8050_device :  public c2040_device
 public:
 	// construction/destruction
 	c8050_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	c8050_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant);
+	c8050_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
 
 	DECLARE_READ8_MEMBER( via_pb_r );
 	DECLARE_WRITE8_MEMBER( via_pb_w );

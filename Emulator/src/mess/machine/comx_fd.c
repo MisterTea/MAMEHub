@@ -102,8 +102,8 @@ SLOT_INTERFACE_END
 static MACHINE_CONFIG_FRAGMENT( comx_fd )
 	MCFG_WD1770x_ADD(WD1770_TAG, XTAL_8MHz)
 
-	MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", comx_fd_floppies, "525sd35t", NULL, comx_fd_device::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":1", comx_fd_floppies, NULL,       NULL, comx_fd_device::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", comx_fd_floppies, "525sd35t", comx_fd_device::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":1", comx_fd_floppies, NULL,       comx_fd_device::floppy_formats)
 MACHINE_CONFIG_END
 
 
@@ -128,11 +128,12 @@ machine_config_constructor comx_fd_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 comx_fd_device::comx_fd_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, COMX_FD, "COMX FD", tag, owner, clock),
+	device_t(mconfig, COMX_FD, "COMX FD", tag, owner, clock, "comx_fd", __FILE__),
 	device_comx_expansion_card_interface(mconfig, *this),
 	m_fdc(*this, WD1770_TAG),
 	m_floppy0(*this, WD1770_TAG":0"),
 	m_floppy1(*this, WD1770_TAG":1"),
+	m_rom(*this, "c000"),
 	m_q(0),
 	m_addr(0),
 	m_disb(1)
@@ -146,9 +147,6 @@ comx_fd_device::comx_fd_device(const machine_config &mconfig, const char *tag, d
 
 void comx_fd_device::device_start()
 {
-	// find memory regions
-	m_rom = memregion("c000")->base();
-
 	// state saving
 	save_item(NAME(m_ds));
 	save_item(NAME(m_q));
@@ -209,12 +207,12 @@ UINT8 comx_fd_device::comx_mrd_r(address_space &space, offs_t offset, int *extro
 
 	if (offset >= 0x0dd0 && offset < 0x0de0)
 	{
-		data = m_rom[offset & 0x1fff];
+		data = m_rom->base()[offset & 0x1fff];
 		*extrom = 0;
 	}
 	else if (offset >= 0xc000 && offset < 0xe000)
 	{
-		data = m_rom[offset & 0x1fff];
+		data = m_rom->base()[offset & 0x1fff];
 	}
 
 	return data;

@@ -2,10 +2,11 @@ class thoop2_state : public driver_device
 {
 public:
 	thoop2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_vregs(*this, "vregs"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_videoram;
 	required_shared_ptr<UINT16> m_vregs;
@@ -21,4 +22,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info_thoop2_screen1);
 	virtual void video_start();
 	UINT32 screen_update_thoop2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void thoop2_sort_sprites();
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int pri);
+	required_device<cpu_device> m_maincpu;
 };

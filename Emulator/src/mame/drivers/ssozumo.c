@@ -17,7 +17,7 @@ Driver by Takahiro Nogi (nogi@kt.rim.or.jp) 1999/10/04
 WRITE8_MEMBER(ssozumo_state::ssozumo_sh_command_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	machine().device("audiocpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+	m_audiocpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 }
 
 
@@ -42,15 +42,14 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(ssozumo_state::sound_nmi_mask_w)
 {
-
 	m_sound_nmi_mask = data & 1;
 }
 
 /* Same as Tag Team */
 static ADDRESS_MAP_START( ssozumo_sound_map, AS_PROGRAM, 8, ssozumo_state )
 	AM_RANGE(0x0000, 0x01ff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
-	AM_RANGE(0x2002, 0x2003) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
+	AM_RANGE(0x2002, 0x2003) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
 	AM_RANGE(0x2004, 0x2004) AM_DEVWRITE("dac", dac_device, write_signed8)
 	AM_RANGE(0x2005, 0x2005) AM_WRITE(sound_nmi_mask_w)
 	AM_RANGE(0x2007, 0x2007) AM_READ(soundlatch_byte_r)
@@ -59,7 +58,7 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(ssozumo_state::coin_inserted)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
 }
 
 static INPUT_PORTS_START( ssozumo )
@@ -182,7 +181,6 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(ssozumo_state::sound_timer_irq)
 {
-
 	if(m_sound_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }

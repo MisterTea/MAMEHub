@@ -31,13 +31,11 @@ TIMER_CALLBACK_MEMBER(dday_state::countdown_timer_callback)
 		m_timer_value = 99;
 }
 
-static void start_countdown_timer(running_machine &machine)
+void dday_state::start_countdown_timer()
 {
-	dday_state *state = machine.driver_data<dday_state>();
+	m_timer_value = 0;
 
-	state->m_timer_value = 0;
-
-	machine.scheduler().timer_pulse(attotime::from_seconds(1), timer_expired_delegate(FUNC(dday_state::countdown_timer_callback),state));
+	machine().scheduler().timer_pulse(attotime::from_seconds(1), timer_expired_delegate(FUNC(dday_state::countdown_timer_callback),this));
 }
 
 
@@ -49,7 +47,7 @@ static void start_countdown_timer(running_machine &machine)
 
 void dday_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	palette_set_shadow_factor(machine(), 1.0 / 8);
@@ -219,19 +217,17 @@ void dday_state::video_start()
 	m_fg_tilemap->set_transparent_pen(0);
 	m_text_tilemap->set_transparent_pen(0);
 
-	start_countdown_timer(machine());
+	start_countdown_timer();
 }
 
 WRITE8_MEMBER(dday_state::dday_bgvideoram_w)
 {
-
 	m_bgvideoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(dday_state::dday_fgvideoram_w)
 {
-
 	m_fgvideoram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 	m_fg_tilemap->mark_tile_dirty(offset ^ 0x1f);  /* for flipx case */
@@ -239,7 +235,6 @@ WRITE8_MEMBER(dday_state::dday_fgvideoram_w)
 
 WRITE8_MEMBER(dday_state::dday_textvideoram_w)
 {
-
 	m_textvideoram[offset] = data;
 	m_text_tilemap->mark_tile_dirty(offset);
 }
@@ -264,7 +259,6 @@ READ8_MEMBER(dday_state::dday_colorram_r)
 
 WRITE8_MEMBER(dday_state::dday_sl_control_w)
 {
-
 	if (m_sl_image != data)
 	{
 		m_sl_image = data;
@@ -275,7 +269,6 @@ WRITE8_MEMBER(dday_state::dday_sl_control_w)
 
 WRITE8_MEMBER(dday_state::dday_control_w)
 {
-
 	//if (data & 0xac)  logerror("Control = %02X\n", data & 0xac);
 
 	/* bit 0 is coin counter 1 */
@@ -304,7 +297,6 @@ WRITE8_MEMBER(dday_state::dday_control_w)
 
 UINT32 dday_state::screen_update_dday(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->draw(m_main_bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
 	m_fg_tilemap->draw(m_main_bitmap, cliprect, 0, 0);
 	m_bg_tilemap->draw(m_main_bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);

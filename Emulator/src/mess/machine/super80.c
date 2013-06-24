@@ -1,8 +1,7 @@
 /* Super80.c written by Robbbert, 2005-2009. See driver source for documentation. */
 
-#include "emu.h"
 #include "includes/super80.h"
-
+#include "machine/z80bin.h"
 
 /**************************** PIO ******************************************************************************/
 
@@ -12,17 +11,26 @@ WRITE8_MEMBER( super80_state::pio_port_a_w )
 	m_keylatch = data;
 };
 
-READ8_MEMBER(super80_state::pio_port_b_r)// cannot be modernised yet as super80 hangs at start
+READ8_MEMBER(super80_state::pio_port_b_r)
 {
-	char kbdrow[6];
-	UINT8 i;
 	UINT8 data = 0xff;
 
-	for (i = 0; i < 8; i++)
-	{
-		sprintf(kbdrow,"X%d",i);
-		if (!BIT(m_keylatch, i)) data &= ioport(kbdrow)->read();
-	}
+	if (!BIT(m_keylatch, 0))
+		data &= m_io_x0->read();
+	if (!BIT(m_keylatch, 1))
+		data &= m_io_x1->read();
+	if (!BIT(m_keylatch, 2))
+		data &= m_io_x2->read();
+	if (!BIT(m_keylatch, 3))
+		data &= m_io_x3->read();
+	if (!BIT(m_keylatch, 4))
+		data &= m_io_x4->read();
+	if (!BIT(m_keylatch, 5))
+		data &= m_io_x5->read();
+	if (!BIT(m_keylatch, 6))
+		data &= m_io_x6->read();
+	if (!BIT(m_keylatch, 7))
+		data &= m_io_x7->read();
 
 	return data;
 };
@@ -41,19 +49,18 @@ Z80PIO_INTERFACE( super80_pio_intf )
 
 /**************************** CASSETTE ROUTINES *****************************************************************/
 
-static void super80_cassette_motor( running_machine &machine, UINT8 data )
+void super80_state::super80_cassette_motor( UINT8 data )
 {
-	super80_state *state = machine.driver_data<super80_state>();
 	if (data)
-		state->m_cass->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+		m_cassette->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
 	else
-		state->m_cass->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
+		m_cassette->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
 
 	/* does user want to hear the sound? */
-	if BIT(machine.root_device().ioport("CONFIG")->read(), 3)
-		state->m_cass->change_state(CASSETTE_SPEAKER_ENABLED,CASSETTE_MASK_SPEAKER);
+	if BIT(m_io_config->read(), 3)
+		m_cassette->change_state(CASSETTE_SPEAKER_ENABLED,CASSETTE_MASK_SPEAKER);
 	else
-		state->m_cass->change_state(CASSETTE_SPEAKER_MUTED,CASSETTE_MASK_SPEAKER);
+		m_cassette->change_state(CASSETTE_SPEAKER_MUTED,CASSETTE_MASK_SPEAKER);
 }
 
 /********************************************* TIMER ************************************************/
@@ -82,7 +89,7 @@ TIMER_CALLBACK_MEMBER(super80_state::super80_timer)
 	UINT8 cass_ws=0;
 
 	m_cass_data[1]++;
-	cass_ws = ((m_cass)->input() > +0.03) ? 4 : 0;
+	cass_ws = ((m_cassette)->input() > +0.03) ? 4 : 0;
 
 	if (cass_ws != m_cass_data[0])
 	{
@@ -104,19 +111,19 @@ TIMER_CALLBACK_MEMBER(super80_state::super80_reset)
 TIMER_CALLBACK_MEMBER(super80_state::super80_halfspeed)
 {
 	UINT8 go_fast = 0;
-	if ( (!BIT(m_shared, 2)) | (!BIT(machine().root_device().ioport("CONFIG")->read(), 1)) )    /* bit 2 of port F0 is low, OR user turned on config switch */
+	if ( (!BIT(m_shared, 2)) | (!BIT(m_io_config->read(), 1)) )    /* bit 2 of port F0 is low, OR user turned on config switch */
 		go_fast++;
 
 	/* code to slow down computer to 1 MHz by halting cpu on every second frame */
 	if (!go_fast)
 	{
 		if (!m_int_sw)
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);    // if going, stop it
+			m_maincpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);    // if going, stop it
 
 		m_int_sw++;
 		if (m_int_sw > 1)
 		{
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);     // if stopped, start it
+			m_maincpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);     // if stopped, start it
 			m_int_sw = 0;
 		}
 	}
@@ -124,7 +131,7 @@ TIMER_CALLBACK_MEMBER(super80_state::super80_halfspeed)
 	{
 		if (m_int_sw < 8)                               // @2MHz, reset just once
 		{
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 			m_int_sw = 8;                           // ...not every time
 		}
 	}
@@ -156,7 +163,7 @@ READ8_MEMBER( super80_state::super80_dc_r )
 
 READ8_MEMBER( super80_state::super80_f2_r )
 {
-	UINT8 data = ioport("DSW")->read() & 0xf0;  // dip switches on pcb
+	UINT8 data = m_io_dsw->read() & 0xf0;  // dip switches on pcb
 	data |= m_cass_data[2];         // bit 0 = output of U1, bit 1 = MDS cass state, bit 2 = current wave_state
 	data |= 0x08;               // bit 3 - not used
 	return data;
@@ -175,9 +182,9 @@ WRITE8_MEMBER( super80_state::super80_f0_w )
 {
 	UINT8 bits = data ^ m_last_data;
 	m_shared = data;
-	speaker_level_w(m_speaker, BIT(data, 3));               /* bit 3 - speaker */
-	if (BIT(bits, 1)) super80_cassette_motor(machine(), BIT(data, 1));  /* bit 1 - cassette motor */
-	m_cass->output( BIT(data, 0) ? -1.0 : +1.0);    /* bit 0 - cass out */
+	m_speaker->level_w(BIT(data, 3));               /* bit 3 - speaker */
+	if (BIT(bits, 1)) super80_cassette_motor(BIT(data, 1));  /* bit 1 - cassette motor */
+	m_cassette->output( BIT(data, 0) ? -1.0 : +1.0);    /* bit 0 - cass out */
 
 	m_last_data = data;
 }
@@ -186,9 +193,9 @@ WRITE8_MEMBER( super80_state::super80r_f0_w )
 {
 	UINT8 bits = data ^ m_last_data;
 	m_shared = data | 0x14;
-	speaker_level_w(m_speaker, BIT(data, 3));               /* bit 3 - speaker */
-	if (BIT(bits, 1)) super80_cassette_motor(machine(), BIT(data, 1));  /* bit 1 - cassette motor */
-	m_cass->output( BIT(data, 0) ? -1.0 : +1.0);    /* bit 0 - cass out */
+	m_speaker->level_w(BIT(data, 3));               /* bit 3 - speaker */
+	if (BIT(bits, 1)) super80_cassette_motor(BIT(data, 1));  /* bit 1 - cassette motor */
+	m_cassette->output( BIT(data, 0) ? -1.0 : +1.0);    /* bit 0 - cass out */
 
 	m_last_data = data;
 }
@@ -202,21 +209,46 @@ void super80_state::machine_reset()
 	membank("boot")->set_entry(1);
 }
 
-static void driver_init_common( running_machine &machine )
+void super80_state::driver_init_common(  )
 {
-	super80_state *state = machine.driver_data<super80_state>();
-	UINT8 *RAM = state->memregion("maincpu")->base();
-	state->membank("boot")->configure_entries(0, 2, &RAM[0x0000], 0xc000);
-	machine.scheduler().timer_pulse(attotime::from_hz(200000), timer_expired_delegate(FUNC(super80_state::super80_timer),state));   /* timer for keyboard and cassette */
+	UINT8 *RAM = memregion("maincpu")->base();
+	membank("boot")->configure_entries(0, 2, &RAM[0x0000], 0xc000);
+	machine().scheduler().timer_pulse(attotime::from_hz(200000), timer_expired_delegate(FUNC(super80_state::super80_timer),this));   /* timer for keyboard and cassette */
 }
 
 DRIVER_INIT_MEMBER(super80_state,super80)
 {
 	machine().scheduler().timer_pulse(attotime::from_hz(100), timer_expired_delegate(FUNC(super80_state::super80_halfspeed),this)); /* timer for 1MHz slowdown */
-	driver_init_common(machine());
+	driver_init_common();
 }
 
 DRIVER_INIT_MEMBER(super80_state,super80v)
 {
-	driver_init_common(machine());
+	driver_init_common();
+}
+
+/*-------------------------------------------------
+    QUICKLOAD_LOAD_MEMBER( super80_state, super80 )
+-------------------------------------------------*/
+
+QUICKLOAD_LOAD_MEMBER( super80_state, super80 )
+{
+	UINT16 exec_addr, start_addr, end_addr;
+	int autorun;
+
+	/* load the binary into memory */
+	if (z80bin_load_file(&image, file_type, &exec_addr, &start_addr, &end_addr) == IMAGE_INIT_FAIL)
+		return IMAGE_INIT_FAIL;
+
+	/* is this file executable? */
+	if (exec_addr != 0xffff)
+	{
+		/* check to see if autorun is on (I hate how this works) */
+		autorun = ioport("CONFIG")->read_safe(0xFF) & 1;
+
+		if (autorun)
+			m_maincpu->set_pc(exec_addr);
+	}
+
+	return IMAGE_INIT_PASS;
 }

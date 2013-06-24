@@ -54,8 +54,8 @@ class hitpoker_state : public driver_device
 public:
 	hitpoker_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_sys_regs(*this, "sys_regs")
-	{ }
+		m_sys_regs(*this, "sys_regs"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_sys_regs;
 
@@ -83,6 +83,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_hitpoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(hitpoker_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -258,7 +259,7 @@ static ADDRESS_MAP_START( hitpoker_map, AS_PROGRAM, 8, hitpoker_state )
 	AM_RANGE(0xbe53, 0xbe53) AM_READWRITE(eeprom_r, eeprom_w)
 	AM_RANGE(0xbe80, 0xbe80) AM_DEVWRITE("crtc", mc6845_device, address_w)
 	AM_RANGE(0xbe81, 0xbe81) AM_DEVWRITE("crtc", mc6845_device, register_w)
-	AM_RANGE(0xbe90, 0xbe91) AM_DEVREADWRITE_LEGACY("aysnd", ay8910_r,ay8910_address_data_w)
+	AM_RANGE(0xbe90, 0xbe91) AM_DEVREADWRITE("aysnd", ay8910_device, data_r, address_data_w)
 	AM_RANGE(0xbea0, 0xbea0) AM_READ_PORT("VBLANK") //probably other bits as well
 //  AM_RANGE(0xbe00, 0xbeff) AM_READ(test_r)
 	AM_RANGE(0xc000, 0xdfff) AM_READWRITE(hitpoker_cram_r,hitpoker_cram_w)
@@ -455,9 +456,10 @@ static GFXDECODE_START( hitpoker )
 	GFXDECODE_ENTRY( "gfx1", 0, hitpoker_layout_8bpp,   0, 8  )
 GFXDECODE_END
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -523,7 +525,7 @@ MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(hitpoker_state,hitpoker)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
 	// init nvram
 	machine().device<nvram_device>("nvram")->set_base(m_eeprom_data, sizeof(m_eeprom_data));

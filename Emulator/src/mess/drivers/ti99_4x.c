@@ -64,7 +64,9 @@ class ti99_4x_state : public driver_device
 {
 public:
 	ti99_4x_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_cassette1(*this, "cassette"),
+		m_cassette2(*this, "cassette2") { }
 
 	// CRU (Communication Register Unit) handling
 	DECLARE_READ8_MEMBER(cruread);
@@ -78,7 +80,7 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER( set_tms9901_INT2 );
 	DECLARE_WRITE_LINE_MEMBER( set_tms9901_INT12 );
-	void set_tms9901_INT2_from_v9938(v99x8_device &vdp, int state);
+	DECLARE_WRITE_LINE_MEMBER( set_tms9901_INT2_from_v9938);
 	DECLARE_WRITE_LINE_MEMBER( extint );
 	DECLARE_WRITE_LINE_MEMBER( notconnected );
 
@@ -123,6 +125,8 @@ private:
 	int     m_keyboard_column;
 	int     m_check_alphalock;
 	int     m_ready_prev;       // for debugging purposes only
+	required_device<cassette_image_device> m_cassette1;
+	required_device<cassette_image_device> m_cassette2;
 };
 
 /*
@@ -463,7 +467,7 @@ READ8_MEMBER( ti99_4x_state::read_by_9901 )
 		if ((m_joyport->read_port() & 0x40)==0) answer = 0;
 
 		// we don't take CS2 into account, as CS2 is a write-only unit
-		if ((machine().device<cassette_image_device>(CASSETTE_TAG))->input() > 0)
+		if (m_cassette1->input() > 0)
 		{
 			answer |= 8;
 		}
@@ -534,8 +538,7 @@ WRITE_LINE_MEMBER( ti99_4x_state::alphaW )
 */
 WRITE_LINE_MEMBER( ti99_4x_state::cs1_motor )
 {
-	cassette_image_device *img = machine().device<cassette_image_device>(CASSETTE_TAG);
-	img->change_state(state==ASSERT_LINE? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+	m_cassette1->change_state(state==ASSERT_LINE? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
 }
 
 /*
@@ -543,8 +546,7 @@ WRITE_LINE_MEMBER( ti99_4x_state::cs1_motor )
 */
 WRITE_LINE_MEMBER( ti99_4x_state::cs2_motor )
 {
-	cassette_image_device *img = machine().device<cassette_image_device>(CASSETTE2_TAG);
-	img->change_state(state==ASSERT_LINE? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+	m_cassette2->change_state(state==ASSERT_LINE? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
 }
 
 /*
@@ -564,8 +566,8 @@ WRITE_LINE_MEMBER( ti99_4x_state::audio_gate )
 */
 WRITE_LINE_MEMBER( ti99_4x_state::cassette_output )
 {
-	machine().device<cassette_image_device>(CASSETTE_TAG)->output(state==ASSERT_LINE? +1 : -1);
-	machine().device<cassette_image_device>(CASSETTE2_TAG)->output(state==ASSERT_LINE? +1 : -1);
+	m_cassette1->output(state==ASSERT_LINE? +1 : -1);
+	m_cassette2->output(state==ASSERT_LINE? +1 : -1);
 }
 
 WRITE8_MEMBER( ti99_4x_state::tms9901_interrupt )
@@ -602,7 +604,7 @@ WRITE_LINE_MEMBER( ti99_4x_state::set_tms9901_INT2 )
 	m_tms9901->set_single_int(2, state);
 }
 
-void ti99_4x_state::set_tms9901_INT2_from_v9938(v99x8_device &vdp, int state)
+WRITE_LINE_MEMBER(ti99_4x_state::set_tms9901_INT2_from_v9938)
 {
 	m_tms9901->set_single_int(2, state);
 }
@@ -847,7 +849,6 @@ static JOYPORT_CONFIG( joyport4a_50 )
 
 MACHINE_START_MEMBER(ti99_4x_state,ti99_4)
 {
-
 	m_cpu = static_cast<tms9900_device*>(machine().device("maincpu"));
 	m_tms9901 = static_cast<tms9901_device*>(machine().device(TMS9901_TAG));
 
@@ -901,10 +902,10 @@ static MACHINE_CONFIG_START( ti99_4_60hz, ti99_4x_state )
 
 	/* Cassette drives */
 	MCFG_SPEAKER_STANDARD_MONO("cass_out")
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
-	MCFG_CASSETTE_ADD( CASSETTE2_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette2", default_cassette_interface )
 
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "cass_out", 0.25)
 
 	/* GROM devices */
@@ -943,10 +944,10 @@ static MACHINE_CONFIG_START( ti99_4_50hz, ti99_4x_state )
 
 	/* Cassette drives */
 	MCFG_SPEAKER_STANDARD_MONO("cass_out")
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
-	MCFG_CASSETTE_ADD( CASSETTE2_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette2", default_cassette_interface )
 
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "cass_out", 0.25)
 
 	/* GROM devices */
@@ -965,7 +966,6 @@ MACHINE_CONFIG_END
 
 MACHINE_START_MEMBER(ti99_4x_state,ti99_4a)
 {
-
 	m_cpu = static_cast<tms9900_device*>(machine().device("maincpu"));
 	m_tms9901 = static_cast<tms9901_device*>(machine().device(TMS9901_TAG));
 
@@ -1014,10 +1014,10 @@ static MACHINE_CONFIG_START( ti99_4a_60hz, ti99_4x_state )
 
 	/* Cassette drives */
 	MCFG_SPEAKER_STANDARD_MONO("cass_out")
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
-	MCFG_CASSETTE_ADD( CASSETTE2_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette2", default_cassette_interface )
 
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "cass_out", 0.25)
 
 	/* GROM devices */
@@ -1056,10 +1056,10 @@ static MACHINE_CONFIG_START( ti99_4a_50hz, ti99_4x_state )
 
 	/* Cassette drives */
 	MCFG_SPEAKER_STANDARD_MONO("cass_out")
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
-	MCFG_CASSETTE_ADD( CASSETTE2_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette2", default_cassette_interface )
 
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "cass_out", 0.25)
 
 	/* GROM devices */
@@ -1094,7 +1094,7 @@ static MACHINE_CONFIG_START( ti99_4ev_60hz, ti99_4x_state )
 	// interlace mode, but in non-interlace modes only half of the lines are
 	// painted. Accordingly, the full set of lines is refreshed at 30 Hz,
 	// not 60 Hz. This should be fixed in the v9938 emulation.
-	MCFG_TI_V9938_ADD(VIDEO_SYSTEM_TAG, 30, SCREEN_TAG, 2500, 512+32, (212+28)*2, DEVICE_SELF, ti99_4x_state, set_tms9901_INT2_from_v9938)
+	MCFG_TI_V9938_ADD(VIDEO_SYSTEM_TAG, 30, SCREEN_TAG, 2500, 512+32, (212+28)*2, ti99_4x_state, set_tms9901_INT2_from_v9938)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ti99_4x_state, ti99_4ev_hblank_interrupt, SCREEN_TAG, 0, 1)
 
 	/* Main board */
@@ -1113,10 +1113,10 @@ static MACHINE_CONFIG_START( ti99_4ev_60hz, ti99_4x_state )
 
 	/* Cassette drives */
 	MCFG_SPEAKER_STANDARD_MONO("cass_out")
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
-	MCFG_CASSETTE_ADD( CASSETTE2_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette2", default_cassette_interface )
 
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "cass_out", 0.25)
 
 	/* GROM devices */

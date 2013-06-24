@@ -256,9 +256,9 @@ MACHINE_RESET_MEMBER(gladiatr_state,gladiator)
 	TAITO8741_start(&gladiator_8741interface);
 	/* 6809 bank memory set */
 	{
-		UINT8 *rom = machine().root_device().memregion("audiocpu")->base() + 0x10000;
-		machine().root_device().membank("bank2")->set_base(rom);
-		machine().device("audiocpu")->reset();
+		UINT8 *rom = memregion("audiocpu")->base() + 0x10000;
+		membank("bank2")->set_base(rom);
+		m_audiocpu->reset();
 	}
 }
 
@@ -270,35 +270,34 @@ WRITE8_MEMBER(gladiatr_state::gladiator_int_control_w)
 	/* bit 0   : ??                    */
 }
 /* YM2203 IRQ */
-static void gladiator_ym_irq(device_t *device, int irq)
+WRITE_LINE_MEMBER(gladiatr_state::gladiator_ym_irq)
 {
 	/* NMI IRQ is not used by gladiator sound program */
-	device->machine().device("sub")->execute().set_input_line(INPUT_LINE_NMI, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_subcpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 /*Sound Functions*/
 WRITE8_MEMBER(gladiatr_state::glad_adpcm_w)
 {
-	device_t *device = machine().device("msm");
-	UINT8 *rom = machine().root_device().memregion("audiocpu")->base() + 0x10000;
+	UINT8 *rom = memregion("audiocpu")->base() + 0x10000;
 
 	/* bit6 = bank offset */
-	machine().root_device().membank("bank2")->set_base(rom + ((data & 0x40) ? 0xc000 : 0));
+	membank("bank2")->set_base(rom + ((data & 0x40) ? 0xc000 : 0));
 
-	msm5205_data_w(device,data);         /* bit0..3  */
-	msm5205_reset_w(device,(data>>5)&1); /* bit 5    */
-	msm5205_vclk_w (device,(data>>4)&1); /* bit4     */
+	m_msm->data_w(data);         /* bit0..3  */
+	m_msm->reset_w(BIT(data, 5)); /* bit 5    */
+	m_msm->vclk_w (BIT(data, 4)); /* bit4     */
 }
 
 WRITE8_MEMBER(gladiatr_state::glad_cpu_sound_command_w)
 {
 	soundlatch_byte_w(space,0,data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 READ8_MEMBER(gladiatr_state::glad_cpu_sound_command_r)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	return soundlatch_byte_r(space,0);
 }
 
@@ -312,7 +311,7 @@ WRITE8_MEMBER(gladiatr_state::gladiatr_flipscreen_w)
 /* !!!!! patch to IRQ timming for 2nd CPU !!!!! */
 WRITE8_MEMBER(gladiatr_state::gladiatr_irq_patch_w)
 {
-	machine().device("sub")->execute().set_input_line(0, HOLD_LINE);
+	m_subcpu->set_input_line(0, HOLD_LINE);
 }
 #endif
 
@@ -397,7 +396,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ppking_cpu2_io, AS_IO, 8, gladiatr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x20, 0x21) AM_READ(qx1_r) AM_WRITE(qx1_w)
 	AM_RANGE(0x40, 0x40) AM_READNOP
 	AM_RANGE(0x60, 0x61) AM_READWRITE(qx2_r,qx2_w)
@@ -444,7 +443,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( gladiatr_cpu2_io, AS_IO, 8, gladiatr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x20, 0x21) AM_READWRITE_LEGACY(TAITO8741_1_r, TAITO8741_1_w)
 	AM_RANGE(0x40, 0x40) AM_NOP // WRITE(sub_irq_ack_w)
 	AM_RANGE(0x60, 0x61) AM_READWRITE_LEGACY(TAITO8741_2_r, TAITO8741_2_w)
@@ -626,35 +625,29 @@ READ8_MEMBER(gladiatr_state::f1_r)
 	return machine().rand();
 }
 
-static const ym2203_interface ppking_ym2203_interface =
+static const ay8910_interface ppking_ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_DRIVER_MEMBER(gladiatr_state,f1_r),
-		DEVCB_DRIVER_MEMBER(gladiatr_state,f1_r),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_DRIVER_MEMBER(gladiatr_state,f1_r),
+	DEVCB_DRIVER_MEMBER(gladiatr_state,f1_r),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
-static const ym2203_interface gladiatr_ym2203_interface =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_INPUT_PORT("DSW3"),               /* port B read */
-		DEVCB_DRIVER_MEMBER(gladiatr_state,gladiator_int_control_w), /* port A write */
-		DEVCB_NULL,
-	},
-	DEVCB_LINE(gladiator_ym_irq)          /* NMI request for 2nd cpu */
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_INPUT_PORT("DSW3"),               /* port B read */
+	DEVCB_DRIVER_MEMBER(gladiatr_state,gladiator_int_control_w), /* port A write */
+	DEVCB_NULL,
 };
 
 static const msm5205_interface msm5205_config =
 {
-	0,              /* interrupt function */
+	DEVCB_NULL,              /* interrupt function */
 	MSM5205_SEX_4B  /* vclk input mode    */
 };
 
@@ -698,7 +691,7 @@ static MACHINE_CONFIG_START( ppking, gladiatr_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/8) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ppking_ym2203_interface)
+	MCFG_YM2203_AY8910_INTF(&ppking_ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.60)
 	MCFG_SOUND_ROUTE(1, "mono", 0.60)
 	MCFG_SOUND_ROUTE(2, "mono", 0.60)
@@ -746,7 +739,8 @@ static MACHINE_CONFIG_START( gladiatr, gladiatr_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/8) /* verified on pcb */
-	MCFG_SOUND_CONFIG(gladiatr_ym2203_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(gladiatr_state, gladiator_ym_irq))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.60)
 	MCFG_SOUND_ROUTE(1, "mono", 0.60)
 	MCFG_SOUND_ROUTE(2, "mono", 0.60)
@@ -982,7 +976,7 @@ ROM_START( gcastle )
 ROM_END
 
 
-static void swap_block(UINT8 *src1,UINT8 *src2,int len)
+void gladiatr_state::swap_block(UINT8 *src1,UINT8 *src2,int len)
 {
 	int i,t;
 
@@ -999,7 +993,7 @@ DRIVER_INIT_MEMBER(gladiatr_state,gladiatr)
 	UINT8 *rom;
 	int i,j;
 
-	rom = machine().root_device().memregion("gfx2")->base();
+	rom = memregion("gfx2")->base();
 	// unpack 3bpp graphics
 	for (j = 3; j >= 0; j--)
 	{
@@ -1013,7 +1007,7 @@ DRIVER_INIT_MEMBER(gladiatr_state,gladiatr)
 	swap_block(rom + 0x14000, rom + 0x18000, 0x4000);
 
 
-	rom = machine().root_device().memregion("gfx3")->base();
+	rom = memregion("gfx3")->base();
 	// unpack 3bpp graphics
 	for (j = 5; j >= 0; j--)
 	{
@@ -1030,8 +1024,8 @@ DRIVER_INIT_MEMBER(gladiatr_state,gladiatr)
 	swap_block(rom + 0x24000, rom + 0x28000, 0x4000);
 
 	/* make sure bank is valid in cpu-reset */
-	rom = machine().root_device().memregion("audiocpu")->base() + 0x10000;
-	machine().root_device().membank("bank2")->set_base(rom);
+	rom = memregion("audiocpu")->base() + 0x10000;
+	membank("bank2")->set_base(rom);
 }
 
 
@@ -1048,14 +1042,14 @@ DRIVER_INIT_MEMBER(gladiatr_state,ppking)
 	UINT8 *rom;
 	int i,j;
 
-	rom = machine().root_device().memregion("gfx2")->base();
+	rom = memregion("gfx2")->base();
 	// unpack 3bpp graphics
 	for (i = 0; i < 0x2000; i++)
 	{
 		rom[i+0x2000] = rom[i] >> 4;
 	}
 
-	rom = machine().root_device().memregion("gfx3")->base();
+	rom = memregion("gfx3")->base();
 	// unpack 3bpp graphics
 	for (j = 1; j >= 0; j--)
 	{
@@ -1065,7 +1059,7 @@ DRIVER_INIT_MEMBER(gladiatr_state,ppking)
 			rom[i+2*j*0x2000] = rom[i+j*0x2000];
 		}
 	}
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xf6a3,0xf6a3,read8_delegate(FUNC(gladiatr_state::f6a3_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xf6a3,0xf6a3,read8_delegate(FUNC(gladiatr_state::f6a3_r),this));
 }
 
 

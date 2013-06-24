@@ -46,7 +46,6 @@ Stephh's notes (based on the games Z80 code and some tests) :
 
 void espial_state::machine_reset()
 {
-
 	m_flipscreen = 0;
 
 	m_main_nmi_enabled = FALSE;
@@ -55,11 +54,7 @@ void espial_state::machine_reset()
 
 void espial_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
-	//state_save_register_global_array(machine(), mcu_out[1]);
+	//save_item(NAME(mcu_out[1]));
 	save_item(NAME(m_sound_nmi_enabled));
 }
 
@@ -80,16 +75,15 @@ TIMER_DEVICE_CALLBACK_MEMBER(espial_state::espial_scanline)
 	int scanline = param;
 
 	if(scanline == 240 && m_main_nmi_enabled) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 
 	if(scanline == 16) // timer irq, checks soundlatch port then updates some sound related work RAM buffers
-		machine().device("maincpu")->execute().set_input_line(0, HOLD_LINE);
+		m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
 
 INTERRUPT_GEN_MEMBER(espial_state::espial_sound_nmi_gen)
 {
-
 	if (m_sound_nmi_enabled)
 		nmi_line_pulse(device);
 }
@@ -157,7 +151,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( espial_sound_io_map, AS_IO, 8, espial_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 

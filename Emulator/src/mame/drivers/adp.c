@@ -157,8 +157,9 @@ class adp_state : public driver_device
 public:
 	adp_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_h63484(*this, "h63484"),
-			m_microtouch(*this, "microtouch")
+		m_h63484(*this, "h63484"),
+		m_microtouch(*this, "microtouch"),
+		m_maincpu(*this, "maincpu")
 		{ }
 
 	required_device<h63484_device> m_h63484;
@@ -173,7 +174,7 @@ public:
 	struct { int r,g,b,offs,offs_internal; } m_pal;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	device_t *m_duart;
 	DECLARE_READ16_MEMBER(test_r);
 	DECLARE_WRITE16_MEMBER(wh2_w);
@@ -207,7 +208,6 @@ UINT32 adp_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, con
 #if 0
 UINT32 adp_state::screen_update_adp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_h63484->update_screen(bitmap, cliprect);
 
 	#if 0
@@ -294,16 +294,8 @@ static UINT8 duart_input( device_t *device )
 	return device->machine().root_device().ioport("DSW1")->read();
 }
 
-static const microtouch_interface adb_microtouch_config =
-{
-	DEVCB_DRIVER_MEMBER(adp_state, microtouch_tx),
-	NULL
-};
-
 MACHINE_START_MEMBER(adp_state,skattv)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
 	m_duart = machine().device("duart68681");
 	//m_h63484 = machine().device("h63484");
 
@@ -340,7 +332,6 @@ MACHINE_START_MEMBER(adp_state,skattv)
 
 MACHINE_RESET_MEMBER(adp_state,skattv)
 {
-
 	m_mux_data = 0;
 	m_register_active = 0;
 }
@@ -452,7 +443,7 @@ static ADDRESS_MAP_START( skattv_mem, AS_PROGRAM, 16, adp_state )
 	AM_RANGE(0x800080, 0x800081) AM_DEVREADWRITE("h63484", h63484_device, status_r, address_w)
 	AM_RANGE(0x800082, 0x800083) AM_DEVREADWRITE("h63484", h63484_device, data_r, data_w)
 	AM_RANGE(0x800100, 0x800101) AM_READWRITE(test_r,wh2_w) //related to input
-	AM_RANGE(0x800140, 0x800143) AM_DEVREADWRITE8_LEGACY("aysnd", ay8910_r, ay8910_address_data_w, 0x00ff) //18b too
+	AM_RANGE(0x800140, 0x800143) AM_DEVREADWRITE8("aysnd", ay8910_device, data_r, address_data_w, 0x00ff) //18b too
 	AM_RANGE(0x800180, 0x80019f) AM_DEVREADWRITE8_LEGACY("duart68681", duart68681_r, duart68681_w, 0xff )
 	AM_RANGE(0xffc000, 0xffffff) AM_RAM
 ADDRESS_MAP_END
@@ -462,7 +453,7 @@ static ADDRESS_MAP_START( quickjac_mem, AS_PROGRAM, 16, adp_state )
 //  AM_RANGE(0x400000, 0x40001f) ?
 	AM_RANGE(0x800080, 0x800081) AM_DEVREADWRITE("h63484", h63484_device, status_r, address_w) // bad
 	AM_RANGE(0x800082, 0x800083) AM_DEVREADWRITE("h63484", h63484_device, data_r, data_w) // bad
-	AM_RANGE(0x800140, 0x800143) AM_DEVREADWRITE8_LEGACY("aysnd", ay8910_r, ay8910_address_data_w, 0x00ff) //18b too
+	AM_RANGE(0x800140, 0x800143) AM_DEVREADWRITE8("aysnd", ay8910_device, data_r, address_data_w, 0x00ff) //18b too
 	AM_RANGE(0x800180, 0x80019f) AM_DEVREADWRITE8_LEGACY("duart68681", duart68681_r, duart68681_w, 0xff )
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM
 ADDRESS_MAP_END
@@ -517,7 +508,7 @@ static ADDRESS_MAP_START( funland_mem, AS_PROGRAM, 16, adp_state )
 	AM_RANGE(0x800082, 0x800083) AM_DEVREADWRITE("h63484", h63484_device, data_r, data_w)
 	AM_RANGE(0x800088, 0x80008d) AM_WRITE8(ramdac_io_w, 0x00ff)
 	AM_RANGE(0x800100, 0x800101) AM_RAM //???
-	AM_RANGE(0x800140, 0x800143) AM_DEVREADWRITE8_LEGACY("aysnd", ay8910_r, ay8910_address_data_w, 0x00ff) //18b too
+	AM_RANGE(0x800140, 0x800143) AM_DEVREADWRITE8("aysnd", ay8910_device, data_r, address_data_w, 0x00ff) //18b too
 	AM_RANGE(0x800180, 0x80019f) AM_DEVREADWRITE8_LEGACY("duart68681", duart68681_r, duart68681_w, 0xff )
 	AM_RANGE(0xfc0000, 0xffffff) AM_RAM
 ADDRESS_MAP_END
@@ -528,7 +519,7 @@ static ADDRESS_MAP_START( fstation_mem, AS_PROGRAM, 16, adp_state )
 	AM_RANGE(0x800080, 0x800081) AM_DEVREADWRITE("h63484", h63484_device, status_r, address_w)
 	AM_RANGE(0x800082, 0x800083) AM_DEVREADWRITE("h63484", h63484_device, data_r, data_w)
 	AM_RANGE(0x800100, 0x800101) AM_RAM //???
-	AM_RANGE(0x800140, 0x800143) AM_DEVREADWRITE8_LEGACY("aysnd", ay8910_r, ay8910_address_data_w, 0x00ff) //18b too
+	AM_RANGE(0x800140, 0x800143) AM_DEVREADWRITE8("aysnd", ay8910_device, data_r, address_data_w, 0x00ff) //18b too
 	AM_RANGE(0x800180, 0x80019f) AM_DEVREADWRITE8_LEGACY("duart68681", duart68681_r, duart68681_w, 0xff )
 	AM_RANGE(0xfc0000, 0xffffff) AM_RAM
 ADDRESS_MAP_END
@@ -670,7 +661,7 @@ static MACHINE_CONFIG_START( quickjac, adp_state )
 	MCFG_MACHINE_RESET_OVERRIDE(adp_state,skattv)
 
 	MCFG_DUART68681_ADD( "duart68681", XTAL_8_664MHz / 2, skattv_duart68681_config )
-	MCFG_MICROTOUCH_ADD( "microtouch", adb_microtouch_config )
+	MCFG_MICROTOUCH_ADD( "microtouch", WRITE8(adp_state, microtouch_tx) )
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -702,7 +693,7 @@ static MACHINE_CONFIG_START( skattv, adp_state )
 	MCFG_MACHINE_RESET_OVERRIDE(adp_state,skattv)
 
 	MCFG_DUART68681_ADD( "duart68681", XTAL_8_664MHz / 2, skattv_duart68681_config )
-	MCFG_MICROTOUCH_ADD( "microtouch", adb_microtouch_config )
+	MCFG_MICROTOUCH_ADD( "microtouch", WRITE8(adp_state, microtouch_tx) )
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -730,7 +721,7 @@ static MACHINE_CONFIG_START( backgamn, adp_state )
 	MCFG_CPU_PROGRAM_MAP(backgamn_mem)
 
 	MCFG_DUART68681_ADD( "duart68681", XTAL_8_664MHz / 2, skattv_duart68681_config )
-	MCFG_MICROTOUCH_ADD( "microtouch", adb_microtouch_config )
+	MCFG_MICROTOUCH_ADD( "microtouch", WRITE8(adp_state, microtouch_tx) )
 
 	MCFG_MACHINE_START_OVERRIDE(adp_state,skattv)
 	MCFG_MACHINE_RESET_OVERRIDE(adp_state,skattv)

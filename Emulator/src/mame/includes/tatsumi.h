@@ -1,8 +1,10 @@
+#include "sound/okim6295.h"
+
 class tatsumi_state : public driver_device
 {
 public:
 	tatsumi_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_cyclwarr_cpua_ram(*this, "cw_cpua_ram"),
 		m_cyclwarr_cpub_ram(*this, "cw_cpub_ram"),
@@ -20,7 +22,12 @@ public:
 		m_roundup_r_ram(*this, "roundup_r_ram"),
 		m_roundup_p_ram(*this, "roundup_p_ram"),
 		m_roundup_l_ram(*this, "roundup_l_ram"),
-		m_spriteram(*this, "spriteram") { }
+		m_spriteram(*this, "spriteram") ,
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_subcpu2(*this, "sub2"),
+		m_oki(*this, "oki") { }
 
 	optional_shared_ptr<UINT16> m_videoram;
 	optional_shared_ptr<UINT16> m_cyclwarr_cpua_ram;
@@ -127,6 +134,11 @@ public:
 	INTERRUPT_GEN_MEMBER(roundup5_interrupt);
 	DECLARE_READ8_MEMBER(tatsumi_hack_ym2151_r);
 	DECLARE_READ8_MEMBER(tatsumi_hack_oki_r);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_subcpu;
+	optional_device<cpu_device> m_subcpu2;
+	required_device<okim6295_device> m_oki;
 };
 
 /*----------- defined in machine/tatsumi.c -----------*/

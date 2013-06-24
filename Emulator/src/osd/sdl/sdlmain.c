@@ -67,8 +67,10 @@
 //============================================================
 
 #ifndef INI_PATH
-#if defined(SDLMAME_WIN32) || defined(SDLMAME_MACOSX) || defined(SDLMAME_OS2)
+#if defined(SDLMAME_WIN32) || defined(SDLMAME_OS2)
 	#define INI_PATH ".;ini"
+#elif defined(SDLMAME_MACOSX)
+	#define INI_PATH "$HOME/Library/Application Support/APP_NAME;$HOME/.APP_NAME;.;ini"
 #else
 	#define INI_PATH "$HOME/.APP_NAME;.;ini"
 #endif // MACOSX
@@ -78,6 +80,10 @@
 //============================================================
 //  Global variables
 //============================================================
+
+#if defined(SDLMAME_UNIX) || defined(SDLMAME_WIN32)
+int sdl_entered_debugger;
+#endif
 
 //============================================================
 //  Local variables
@@ -330,6 +336,7 @@ int main(int argc, char *argv[])
 	setvbuf(stderr, (char *) NULL, _IONBF, 0);
 
 	#ifdef SDLMAME_UNIX
+	sdl_entered_debugger = 0;
 	#if (!defined(SDLMAME_MACOSX)) && (!defined(SDLMAME_HAIKU))
 	if (TTF_Init() == -1)
 	{
@@ -384,7 +391,11 @@ int main(int argc, char *argv[])
 	#ifdef SDLMAME_UNIX
 	#if (!defined(SDLMAME_MACOSX)) && (!defined(SDLMAME_HAIKU))
 	TTF_Quit();
-	FcFini();
+
+	if (!sdl_entered_debugger)
+	{
+		FcFini();
+	}
 	#endif
 	#endif
 

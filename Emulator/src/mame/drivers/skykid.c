@@ -64,7 +64,7 @@ WRITE8_MEMBER(skykid_state::skykid_led_w)
 WRITE8_MEMBER(skykid_state::skykid_subreset_w)
 {
 	int bit = !BIT(offset,11);
-	machine().device("mcu")->execute().set_input_line(INPUT_LINE_RESET, bit ? CLEAR_LINE : ASSERT_LINE);
+	m_mcu->set_input_line(INPUT_LINE_RESET, bit ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE8_MEMBER(skykid_state::skykid_bankswitch_w)
@@ -77,7 +77,7 @@ WRITE8_MEMBER(skykid_state::skykid_irq_1_ctrl_w)
 	int bit = !BIT(offset,11);
 	m_main_irq_mask = bit;
 	if (!bit)
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(skykid_state::skykid_irq_2_ctrl_w)
@@ -85,7 +85,7 @@ WRITE8_MEMBER(skykid_state::skykid_irq_2_ctrl_w)
 	int bit = !BIT(offset,13);
 	m_mcu_irq_mask = bit;
 	if (!bit)
-		machine().device("mcu")->execute().set_input_line(0, CLEAR_LINE);
+		m_mcu->set_input_line(0, CLEAR_LINE);
 }
 
 void skykid_state::machine_start()
@@ -93,7 +93,7 @@ void skykid_state::machine_start()
 	/* configure the banks */
 	membank("bank1")->configure_entries(0, 2, memregion("maincpu")->base() + 0x10000, 0x2000);
 
-	state_save_register_global(machine(), m_inputport_selected);
+	save_item(NAME(m_inputport_selected));
 }
 
 
@@ -424,7 +424,6 @@ static const namco_interface namco_config =
 
 INTERRUPT_GEN_MEMBER(skykid_state::main_vblank_irq)
 {
-
 	if(m_main_irq_mask)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
@@ -432,7 +431,6 @@ INTERRUPT_GEN_MEMBER(skykid_state::main_vblank_irq)
 
 INTERRUPT_GEN_MEMBER(skykid_state::mcu_vblank_irq)
 {
-
 	if(m_mcu_irq_mask)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
@@ -632,7 +630,7 @@ DRIVER_INIT_MEMBER(skykid_state,skykid)
 	int i;
 
 	/* unpack the third sprite ROM */
-	rom = machine().root_device().memregion("gfx3")->base() + 0x4000;
+	rom = memregion("gfx3")->base() + 0x4000;
 	for (i = 0;i < 0x2000;i++)
 	{
 		rom[i + 0x4000] = rom[i];       // sprite set #1, plane 3

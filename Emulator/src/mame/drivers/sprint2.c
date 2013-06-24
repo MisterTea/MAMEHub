@@ -22,13 +22,9 @@
 #include "includes/sprint2.h"
 #include "sound/discrete.h"
 
-#define GAME_IS_SPRINT1   (state->m_game == 1)
-#define GAME_IS_SPRINT2   (state->m_game == 2)
-#define GAME_IS_DOMINOS   (state->m_game == 3)
-
-
-
-
+#define GAME_IS_SPRINT1   (m_game == 1)
+#define GAME_IS_SPRINT2   (m_game == 2)
+#define GAME_IS_DOMINOS   (m_game == 3)
 
 DRIVER_INIT_MEMBER(sprint2_state,sprint1)
 {
@@ -43,11 +39,9 @@ DRIVER_INIT_MEMBER(sprint2_state,dominos)
 	m_game = 3;
 }
 
-
-static int service_mode(running_machine &machine)
+int sprint2_state::service_mode()
 {
-	sprint2_state *state = machine.driver_data<sprint2_state>();
-	UINT8 v = state->ioport("INB")->read();
+	UINT8 v = ioport("INB")->read();
 
 	if (GAME_IS_SPRINT1)
 	{
@@ -68,9 +62,6 @@ static int service_mode(running_machine &machine)
 
 INTERRUPT_GEN_MEMBER(sprint2_state::sprint2)
 {
-	sprint2_state *state = machine().driver_data<sprint2_state>();
-	device_t *discrete = machine().device("discrete");
-
 	/* handle steering wheels */
 
 	if (GAME_IS_SPRINT1 || GAME_IS_SPRINT2)
@@ -92,7 +83,7 @@ INTERRUPT_GEN_MEMBER(sprint2_state::sprint2)
 
 			m_dial[i] += delta;
 
-			switch (machine().root_device().ioport(i ? "GEAR_P2" : "GEAR_P1")->read() & 15)
+			switch (ioport(i ? "GEAR_P2" : "GEAR_P1")->read() & 15)
 			{
 			case 1: m_gear[i] = 1; break;
 			case 2: m_gear[i] = 2; break;
@@ -103,15 +94,15 @@ INTERRUPT_GEN_MEMBER(sprint2_state::sprint2)
 	}
 
 	address_space &space = machine().firstcpu->space(AS_PROGRAM);
-	discrete_sound_w(discrete, space, SPRINT2_MOTORSND1_DATA, m_video_ram[0x394] & 15); // also DOMINOS_FREQ_DATA
-	discrete_sound_w(discrete, space, SPRINT2_MOTORSND2_DATA, m_video_ram[0x395] & 15);
-	discrete_sound_w(discrete, space, SPRINT2_CRASHSND_DATA, m_video_ram[0x396] & 15);  // also DOMINOS_AMP_DATA
+	discrete_sound_w(m_discrete, space, SPRINT2_MOTORSND1_DATA, m_video_ram[0x394] & 15); // also DOMINOS_FREQ_DATA
+	discrete_sound_w(m_discrete, space, SPRINT2_MOTORSND2_DATA, m_video_ram[0x395] & 15);
+	discrete_sound_w(m_discrete, space, SPRINT2_CRASHSND_DATA, m_video_ram[0x396] & 15);  // also DOMINOS_AMP_DATA
 
 	/* interrupts and watchdog are disabled during service mode */
 
-	machine().watchdog_enable(!service_mode(machine()));
+	machine().watchdog_enable(!service_mode());
 
-	if (!service_mode(machine()))
+	if (!service_mode())
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
@@ -209,32 +200,28 @@ WRITE8_MEMBER(sprint2_state::sprint2_wram_w)
 
 WRITE8_MEMBER(sprint2_state::sprint2_attract_w)
 {
-	device_t *device = machine().device("discrete");
 	m_attract = offset & 1;
 
 	// also DOMINOS_ATTRACT_EN
-	discrete_sound_w(device, space, SPRINT2_ATTRACT_EN, m_attract);
+	discrete_sound_w(m_discrete, space, SPRINT2_ATTRACT_EN, m_attract);
 }
 
 
 WRITE8_MEMBER(sprint2_state::sprint2_noise_reset_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, SPRINT2_NOISE_RESET, 0);
+	discrete_sound_w(m_discrete, space, SPRINT2_NOISE_RESET, 0);
 }
 
 
 WRITE8_MEMBER(sprint2_state::sprint2_skid1_w)
 {
-	device_t *device = machine().device("discrete");
 	// also DOMINOS_TUMBLE_EN
-	discrete_sound_w(device, space, SPRINT2_SKIDSND1_EN, offset & 1);
+	discrete_sound_w(m_discrete, space, SPRINT2_SKIDSND1_EN, offset & 1);
 }
 
 WRITE8_MEMBER(sprint2_state::sprint2_skid2_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, SPRINT2_SKIDSND2_EN, offset & 1);
+	discrete_sound_w(m_discrete, space, SPRINT2_SKIDSND2_EN, offset & 1);
 }
 
 
@@ -637,7 +624,7 @@ ROM_START( sprint2h )
 	ROM_RELOAD(             0xe800, 0x0800 )
 	ROM_LOAD( "6404.d1",    0x3000, 0x0800, CRC(d2878ff6) SHA1(b742a8896c1bf1cfacf48d06908920d88a2c9ea8) )
 	ROM_RELOAD(             0xf000, 0x0800 )
-	ROM_LOAD( "6405-02.e1", 0x3800, 0x0800, CRC(6de291f1) SHA1(00c2826011d80ac0784649a7bc156a97c26565fd) )
+	ROM_LOAD( "6405-02(__sprint2h).e1", 0x3800, 0x0800, CRC(6de291f1) SHA1(00c2826011d80ac0784649a7bc156a97c26565fd) )
 	ROM_RELOAD(             0xf800, 0x0800 )
 
 	ROM_REGION( 0x0200, "gfx1", 0 ) /* tiles */

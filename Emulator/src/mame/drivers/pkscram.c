@@ -21,10 +21,11 @@ class pkscram_state : public driver_device
 {
 public:
 	pkscram_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_pkscramble_fgtilemap_ram(*this, "fgtilemap_ram"),
 		m_pkscramble_mdtilemap_ram(*this, "mdtilemap_ram"),
-		m_pkscramble_bgtilemap_ram(*this, "bgtilemap_ram"){ }
+		m_pkscramble_bgtilemap_ram(*this, "bgtilemap_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT16 m_out;
 	UINT8 m_interrupt_line_active;
@@ -46,6 +47,8 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_pkscramble(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(scanline_callback);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -98,7 +101,7 @@ WRITE16_MEMBER(pkscram_state::pkscramble_output_w)
 
 	if (!(m_out & 0x2000) && m_interrupt_line_active)
 	{
-		machine().device("maincpu")->execute().set_input_line(1, CLEAR_LINE);
+		m_maincpu->set_input_line(1, CLEAR_LINE);
 		m_interrupt_line_active = 0;
 	}
 
@@ -123,7 +126,7 @@ static ADDRESS_MAP_START( pkscramble_map, AS_PROGRAM, 16, pkscram_state )
 	AM_RANGE(0x049018, 0x049019) AM_WRITENOP
 	AM_RANGE(0x04901c, 0x04901d) AM_WRITENOP
 	AM_RANGE(0x049020, 0x049021) AM_WRITENOP
-	AM_RANGE(0x04900c, 0x04900f) AM_DEVREADWRITE8_LEGACY("ymsnd", ym2203_r, ym2203_w, 0x00ff)
+	AM_RANGE(0x04900c, 0x04900f) AM_DEVREADWRITE8("ymsnd", ym2203_device, read, write, 0x00ff)
 	AM_RANGE(0x052086, 0x052087) AM_WRITENOP
 ADDRESS_MAP_END
 
@@ -221,14 +224,14 @@ TIMER_DEVICE_CALLBACK_MEMBER(pkscram_state::scanline_callback)
 	if (param == interrupt_scanline)
 	{
 		if (m_out & 0x2000)
-			machine().device("maincpu")->execute().set_input_line(1, ASSERT_LINE);
+			m_maincpu->set_input_line(1, ASSERT_LINE);
 		timer.adjust(machine().primary_screen->time_until_pos(param + 1), param+1);
 		m_interrupt_line_active = 1;
 	}
 	else
 	{
 		if (m_interrupt_line_active)
-			machine().device("maincpu")->execute().set_input_line(1, CLEAR_LINE);
+			m_maincpu->set_input_line(1, CLEAR_LINE);
 		timer.adjust(machine().primary_screen->time_until_pos(interrupt_scanline), interrupt_scanline);
 		m_interrupt_line_active = 0;
 	}
@@ -268,27 +271,23 @@ static GFXDECODE_START( pkscram )
 	GFXDECODE_ENTRY( "gfx1", 0, tiles8x8_layout, 0, 0x80 )
 GFXDECODE_END
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(pkscram_state::irqhandler)
 {
-	pkscram_state *state = device->machine().driver_data<pkscram_state>();
-	if(state->m_out & 0x10)
-		device->machine().device("maincpu")->execute().set_input_line(2, irq ? ASSERT_LINE : CLEAR_LINE);
+	if(m_out & 0x10)
+		m_maincpu->set_input_line(2, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 void pkscram_state::machine_start()
 {
-	state_save_register_global(machine(), m_out);
-	state_save_register_global(machine(), m_interrupt_line_active);
+	save_item(NAME(m_out));
+	save_item(NAME(m_interrupt_line_active));
 }
 
 void pkscram_state::machine_reset()
@@ -326,7 +325,8 @@ static MACHINE_CONFIG_START( pkscramble, pkscram_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 12000000/4)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(pkscram_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 

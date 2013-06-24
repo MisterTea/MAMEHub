@@ -266,10 +266,10 @@ WRITE_LINE_MEMBER( isa8_ibm_mfc_device::d8253_clk1_out )
 
 WRITE_LINE_MEMBER( isa8_ibm_mfc_device::d8253_clk2_out )
 {
-	pit8253_clk1_w(m_d8253, state);
+	m_d8253->clk1_w(state);
 }
 
-static const struct pit8253_config d8253_intf =
+static const struct pit8253_interface d8253_intf =
 {
 	{
 		{
@@ -409,7 +409,7 @@ WRITE8_MEMBER( isa8_ibm_mfc_device::ibm_mfc_w )
 		case 0x6:
 		case 0x7:
 		{
-			pit8253_w(m_d8253, space, offset & 3, data);
+			m_d8253->write(space, offset & 3, data);
 			break;
 		}
 
@@ -492,7 +492,7 @@ const rom_entry *isa8_ibm_mfc_device::device_rom_region() const
 //-------------------------------------------------
 
 isa8_ibm_mfc_device::isa8_ibm_mfc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, ISA8_IBM_MFC, "IBM PC Music Feature Card", tag, owner, clock),
+		device_t(mconfig, ISA8_IBM_MFC, "IBM PC Music Feature Card", tag, owner, clock, "ibm_mfc", __FILE__),
 		device_isa8_card_interface(mconfig, *this),
 		m_cpu(*this, "ibm_mfc"),
 		m_ym2151(*this, "ym2151"),

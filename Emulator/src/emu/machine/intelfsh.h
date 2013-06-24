@@ -49,6 +49,9 @@
 #define MCFG_SST_28SF040_ADD(_tag) \
 	MCFG_DEVICE_ADD(_tag, SST_28SF040, 0)
 
+#define MCFG_SST_39VF020_ADD(_tag) \
+	MCFG_DEVICE_ADD(_tag, SST_39VF020, 0)
+
 #define MCFG_SHARP_LH28F400_ADD(_tag) \
 	MCFG_DEVICE_ADD(_tag, SHARP_LH28F400, 0)
 
@@ -63,6 +66,9 @@
 
 #define MCFG_INTEL_28F320J3D_ADD(_tag) \
 	MCFG_DEVICE_ADD(_tag, INTEL_28F320J3D, 0)
+
+#define MCFG_SST_39VF400A_ADD(_tag) \
+	MCFG_DEVICE_ADD(_tag, SST_39VF400A, 0)
 
 //**************************************************************************
 //  TYPE DEFINITIONS
@@ -94,13 +100,15 @@ public:
 		FLASH_PANASONIC_MN63F805MNP,
 		FLASH_SANYO_LE26FV10N1TS,
 		FLASH_SST_28SF040,
+		FLASH_SST_39VF020,
 
 		// 16-bit variants
 		FLASH_SHARP_LH28F400 = 0x1000,
 		FLASH_INTEL_E28F400,
 		FLASH_INTEL_TE28F160,
 		FLASH_SHARP_UNK128MBIT,
-		FLASH_INTEL_28F320J3D
+		FLASH_INTEL_28F320J3D,
+		FLASH_SST_39VF400A
 	};
 
 protected:
@@ -157,6 +165,8 @@ public:
 	// public interface
 	UINT8 read(offs_t offset) { return read_full(offset); }
 	void write(offs_t offset, UINT8 data) { write_full(offset, data); }
+	DECLARE_READ8_MEMBER(read) { return read_full(offset); }
+	DECLARE_WRITE8_MEMBER(write) { write_full(offset, data); }
 
 	UINT8 read_raw(offs_t offset) { return m_addrspace[0]->read_byte(offset); }
 	void write_raw(offs_t offset, UINT8 data) { m_addrspace[0]->write_byte(offset, data); }
@@ -175,6 +185,8 @@ public:
 	// public interface
 	UINT16 read(offs_t offset) { return read_full(offset); }
 	void write(offs_t offset, UINT16 data) { write_full(offset, data); }
+	DECLARE_READ16_MEMBER(read) { return read_full(offset); }
+	DECLARE_WRITE16_MEMBER(write) { write_full(offset, data); }
 
 	UINT16 read_raw(offs_t offset) { return m_addrspace[0]->read_word(offset * 2); }
 	void write_raw(offs_t offset, UINT16 data) { m_addrspace[0]->write_word(offset * 2, data); }
@@ -262,6 +274,12 @@ public:
 	sst_28sf040_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 };
 
+class sst_39vf020_device : public intelfsh8_device
+{
+public:
+	sst_39vf020_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+};
+
 // 16-bit variants
 class sharp_lh28f400_device : public intelfsh16_device
 {
@@ -293,6 +311,12 @@ public:
 	intel_28f320j3d_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 };
 
+class sst_39vf400a_device : public intelfsh16_device
+{
+public:
+	sst_39vf400a_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+};
+
 
 // device type definition
 extern const device_type INTEL_28F016S5;
@@ -308,11 +332,13 @@ extern const device_type MACRONIX_29L001MC;
 extern const device_type PANASONIC_MN63F805MNP;
 extern const device_type SANYO_LE26FV10N1TS;
 extern const device_type SST_28SF040;
+extern const device_type SST_39VF020;
 
 extern const device_type SHARP_LH28F400;
 extern const device_type INTEL_E28F008SA;
 extern const device_type INTEL_TE28F160;
 extern const device_type SHARP_UNK128MBIT;
 extern const device_type INTEL_28F320J3D;
+extern const device_type SST_39VF400A;
 
 #endif

@@ -19,7 +19,7 @@ class nubus_spec8s3_device :
 public:
 		// construction/destruction
 		nubus_spec8s3_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-		nubus_spec8s3_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+		nubus_spec8s3_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 		// optional information overrides
 		virtual machine_config_constructor device_mconfig_additions() const;
@@ -46,10 +46,10 @@ public:
 		emu_timer *m_timer;
 
 private:
-		UINT32 m_7xxxxx_regs[0x100000/4];
-		int m_width, m_height, m_patofsx, m_patofsy;
-		UINT32 m_vram_addr, m_vram_src;
-		UINT8 m_fillbytes[256];
+		//UINT32 m_7xxxxx_regs[0x100000/4];
+		//int m_width, m_height, m_patofsx, m_patofsy;
+		//UINT32 m_vram_addr, m_vram_src;
+		//UINT8 m_fillbytes[256];
 		bool m_vbl_pending;
 		int m_parameter;
 };

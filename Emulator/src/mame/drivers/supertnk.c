@@ -109,7 +109,8 @@ class supertnk_state : public driver_device
 {
 public:
 	supertnk_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 *m_videoram[3];
 	UINT8 m_rom_bank;
@@ -127,6 +128,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_supertnk(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(supertnk_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -145,7 +147,7 @@ WRITE8_MEMBER(supertnk_state::supertnk_bankswitch_0_w)
 
 	bank_address = 0x10000 + (m_rom_bank * 0x1000);
 
-	membank("bank1")->set_base(&machine().root_device().memregion("maincpu")->base()[bank_address]);
+	membank("bank1")->set_base(&memregion("maincpu")->base()[bank_address]);
 }
 
 
@@ -157,7 +159,7 @@ WRITE8_MEMBER(supertnk_state::supertnk_bankswitch_1_w)
 
 	bank_address = 0x10000 + (m_rom_bank * 0x1000);
 
-	membank("bank1")->set_base(&machine().root_device().memregion("maincpu")->base()[bank_address]);
+	membank("bank1")->set_base(&memregion("maincpu")->base()[bank_address]);
 }
 
 
@@ -177,7 +179,7 @@ INTERRUPT_GEN_MEMBER(supertnk_state::supertnk_interrupt)
 
 WRITE8_MEMBER(supertnk_state::supertnk_interrupt_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -208,7 +210,6 @@ void supertnk_state::video_start()
 
 WRITE8_MEMBER(supertnk_state::supertnk_videoram_w)
 {
-
 	if (m_bitplane_select > 2)
 	{
 		m_videoram[0][offset] = 0;
@@ -235,14 +236,12 @@ READ8_MEMBER(supertnk_state::supertnk_videoram_r)
 
 WRITE8_MEMBER(supertnk_state::supertnk_bitplane_select_0_w)
 {
-
 	m_bitplane_select = (m_bitplane_select & 0x02) | ((data << 0) & 0x01);
 }
 
 
 WRITE8_MEMBER(supertnk_state::supertnk_bitplane_select_1_w)
 {
-
 	m_bitplane_select = (m_bitplane_select & 0x01) | ((data << 1) & 0x02);
 }
 
@@ -288,7 +287,7 @@ UINT32 supertnk_state::screen_update_supertnk(screen_device &screen, bitmap_rgb3
 
 void supertnk_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	supertnk_bankswitch_0_w(space, 0, 0);
 	supertnk_bankswitch_1_w(space, 0, 0);
 
@@ -310,7 +309,7 @@ static ADDRESS_MAP_START( supertnk_map, AS_PROGRAM, 8, supertnk_state )
 	AM_RANGE(0x1800, 0x1bff) AM_RAM
 	AM_RANGE(0x1efc, 0x1efc) AM_READ_PORT("JOYS")
 	AM_RANGE(0x1efd, 0x1efd) AM_READ_PORT("INPUTS")
-	AM_RANGE(0x1efe, 0x1eff) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x1efe, 0x1eff) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x1efe, 0x1efe) AM_READ_PORT("DSW")
 	AM_RANGE(0x1eff, 0x1eff) AM_READ_PORT("UNK")
 	AM_RANGE(0x2000, 0x3fff) AM_READWRITE(supertnk_videoram_r, supertnk_videoram_w)
@@ -490,8 +489,8 @@ DRIVER_INIT_MEMBER(supertnk_state,supertnk)
 {
 	/* decode the TMS9980 ROMs */
 	offs_t offs;
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
-	size_t len = machine().root_device().memregion("maincpu")->bytes();
+	UINT8 *rom = memregion("maincpu")->base();
+	size_t len = memregion("maincpu")->bytes();
 
 	for (offs = 0; offs < len; offs++)
 	{

@@ -42,7 +42,6 @@ Ports:
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "formats/ace_ace.h"
 #include "formats/ace_tap.h"
 #include "imagedev/cassette.h"
 #include "imagedev/snapquik.h"
@@ -57,6 +56,107 @@ Ports:
 #include "includes/ace.h"
 
 
+/* Load in .ace files. These are memory images of 0x2000 to 0x7fff
+   and compressed as follows:
+
+   ED 00        : End marker
+   ED <cnt> <byt>   : repeat <byt> count <cnt:1-240> times
+   <byt>        : <byt>
+*/
+
+/******************************************************************************
+ Snapshot Handling
+******************************************************************************/
+
+SNAPSHOT_LOAD_MEMBER( ace_state, ace )
+{
+	cpu_device *cpu = m_maincpu;
+	UINT8 *RAM = memregion(cpu->tag())->base();
+	address_space &space = cpu->space(AS_PROGRAM);
+	unsigned char ace_repeat, ace_byte, loop;
+	int done=0, ace_index=0x2000;
+
+	if (m_ram->size() < 16*1024)
+	{
+		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "At least 16KB RAM expansion required");
+		image.message("At least 16KB RAM expansion required");
+		return IMAGE_INIT_FAIL;
+	}
+
+	logerror("Loading file %s.\r\n", image.filename());
+	while (!done && (ace_index < 0x8001))
+	{
+		image.fread( &ace_byte, 1);
+		if (ace_byte == 0xed)
+		{
+			image.fread(&ace_byte, 1);
+			switch (ace_byte)
+			{
+			case 0x00:
+					logerror("File loaded!\r\n");
+					done = 1;
+					break;
+			case 0x01:
+					image.fread(&ace_byte, 1);
+					RAM[ace_index++] = ace_byte;
+					break;
+			default:
+					image.fread(&ace_repeat, 1);
+					for (loop = 0; loop < ace_byte; loop++)
+						RAM[ace_index++] = ace_repeat;
+					break;
+			}
+		}
+		else
+			RAM[ace_index++] = ace_byte;
+	}
+
+	logerror("Decoded %X bytes.\r\n", ace_index-0x2000);
+
+	if (!done)
+	{
+		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "EOF marker not found");
+		image.message("EOF marker not found");
+		return IMAGE_INIT_FAIL;
+	}
+
+		// patch CPU registers
+		// Some games do not follow the standard, and have rubbish in the CPU area. So,
+		// we check that some other bytes are correct.
+		// 2080 = memory size of original machine, should be 0000 or 8000 or C000.
+		// 2118 = new stack pointer, do not use if between 8000 and FF00.
+
+	ace_index = RAM[0x2080] | (RAM[0x2081] << 8);
+
+	if ((ace_index & 0x3FFF)==0)
+	{
+		cpu->set_state_int(Z80_AF, RAM[0x2100] | (RAM[0x2101] << 8));
+		cpu->set_state_int(Z80_BC, RAM[0x2104] | (RAM[0x2105] << 8));
+		cpu->set_state_int(Z80_DE, RAM[0x2108] | (RAM[0x2109] << 8));
+		cpu->set_state_int(Z80_HL, RAM[0x210c] | (RAM[0x210d] << 8));
+		cpu->set_state_int(Z80_IX, RAM[0x2110] | (RAM[0x2111] << 8));
+		cpu->set_state_int(Z80_IY, RAM[0x2114] | (RAM[0x2115] << 8));
+		cpu->set_pc(RAM[0x211c] | (RAM[0x211d] << 8));
+		cpu->set_state_int(Z80_AF2, RAM[0x2120] | (RAM[0x2121] << 8));
+		cpu->set_state_int(Z80_BC2, RAM[0x2124] | (RAM[0x2125] << 8));
+		cpu->set_state_int(Z80_DE2, RAM[0x2128] | (RAM[0x2129] << 8));
+		cpu->set_state_int(Z80_HL2, RAM[0x212c] | (RAM[0x212d] << 8));
+		cpu->set_state_int(Z80_IM, RAM[0x2130]);
+		cpu->set_state_int(Z80_IFF1, RAM[0x2134]);
+		cpu->set_state_int(Z80_IFF2, RAM[0x2138]);
+		cpu->set_state_int(Z80_I, RAM[0x213c]);
+		cpu->set_state_int(Z80_R, RAM[0x2140]);
+
+		if ((RAM[0x2119] < 0x80) || !ace_index)
+			cpu->set_state_int(STATE_GENSP, RAM[0x2118] | (RAM[0x2119] << 8));
+	}
+
+	/* Copy data to the address space */
+	for (ace_index = 0x2000; ace_index < 0x8000; ace_index++)
+		space.write_byte(ace_index, RAM[ace_index]);
+
+	return IMAGE_INIT_PASS;
+}
 
 //**************************************************************************
 //  READ/WRITE HANDLERS
@@ -83,7 +183,7 @@ READ8_MEMBER( ace_state::io_r )
 		data &= ioport("A15")->read();
 
 		m_cassette->output(-1);
-		speaker_level_w(m_speaker, 0);
+		m_speaker->level_w(0);
 	}
 
 	if (m_cassette->input() > 0)
@@ -102,7 +202,7 @@ READ8_MEMBER( ace_state::io_r )
 WRITE8_MEMBER( ace_state::io_w )
 {
 	m_cassette->output(1);
-	speaker_level_w(m_speaker, 1);
+	m_speaker->level_w(1);
 }
 
 
@@ -247,8 +347,8 @@ static ADDRESS_MAP_START( ace_io, AS_IO, 8, ace_state )
 	AM_RANGE(0x83, 0x83) AM_MIRROR(0xff38) AM_READWRITE(pio_bd_r, pio_bd_w)
 	AM_RANGE(0x85, 0x85) AM_MIRROR(0xff38) AM_READWRITE(pio_ac_r, pio_ac_w)
 	AM_RANGE(0x87, 0x87) AM_MIRROR(0xff38) AM_READWRITE(pio_bc_r, pio_bc_w)
-	AM_RANGE(0xfd, 0xfd) AM_MIRROR(0xff00) AM_DEVWRITE_LEGACY(AY8910_TAG, ay8910_address_w)
-	AM_RANGE(0xff, 0xff) AM_MIRROR(0xff00) AM_DEVREADWRITE_LEGACY(AY8910_TAG, ay8910_r, ay8910_data_w)
+	AM_RANGE(0xfd, 0xfd) AM_MIRROR(0xff00) AM_DEVWRITE(AY8910_TAG, ay8910_device, address_w)
+	AM_RANGE(0xff, 0xff) AM_MIRROR(0xff00) AM_DEVREADWRITE(AY8910_TAG, ay8910_device, data_r, data_w)
 ADDRESS_MAP_END
 
 
@@ -374,7 +474,7 @@ GFXDECODE_END
 
 TIMER_DEVICE_CALLBACK_MEMBER(ace_state::set_irq)
 {
-	machine().device(Z80_TAG)->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 }
 
 
@@ -384,7 +484,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(ace_state::set_irq)
 
 TIMER_DEVICE_CALLBACK_MEMBER(ace_state::clear_irq)
 {
-	machine().device(Z80_TAG)->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 }
 
 
@@ -478,7 +578,6 @@ static const sp0256_interface sp0256_intf =
 
 READ8_MEMBER(ace_state::sby_r)
 {
-	device_t *device = machine().device(SP0256AL2_TAG);
 	/*
 
 	    bit     description
@@ -494,12 +593,11 @@ READ8_MEMBER(ace_state::sby_r)
 
 	*/
 
-	return sp0256_sby_r(device);
+	return m_sp0256->sby_r();
 }
 
 WRITE8_MEMBER(ace_state::ald_w)
 {
-	device_t *device = machine().device(SP0256AL2_TAG);
 	/*
 
 	    bit     description
@@ -517,7 +615,7 @@ WRITE8_MEMBER(ace_state::ald_w)
 
 	if (!BIT(data, 6))
 	{
-		sp0256_ALD_w(device, space, 0, data & 0x3f);
+		m_sp0256->ald_w(space, 0, data & 0x3f);
 	}
 }
 
@@ -650,9 +748,9 @@ static MACHINE_CONFIG_START( ace, ace_state )
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_SOUND_ADD(AY8910_TAG, AY8910, XTAL_6_5MHz/2)
@@ -664,8 +762,8 @@ static MACHINE_CONFIG_START( ace, ace_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, ace_cassette_interface)
-	MCFG_SNAPSHOT_ADD("snapshot", ace, "ace", 1)
+	MCFG_CASSETTE_ADD("cassette", ace_cassette_interface)
+	MCFG_SNAPSHOT_ADD("snapshot", ace_state, ace, "ace", 1)
 	MCFG_I8255A_ADD(I8255_TAG, ppi_intf)
 	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_6_5MHz/2, pio_intf)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)

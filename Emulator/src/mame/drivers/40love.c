@@ -272,7 +272,6 @@ WRITE8_MEMBER(fortyl_state::fortyl_coin_counter_w)
 
 WRITE8_MEMBER(fortyl_state::bank_select_w)
 {
-
 	if ((data != 0x02) && (data != 0xfd))
 	{
 //      logerror("WRONG BANK SELECT = %x !!!!\n",data);
@@ -697,30 +696,24 @@ MACHINE_RESET_MEMBER(fortyl_state,ta7630)
 
 WRITE8_MEMBER(fortyl_state::sound_control_0_w)
 {
-	device_t *device = machine().device("msm");
 	m_snd_ctrl0 = data & 0xff;
 //  popmessage("SND0 0=%02x 1=%02x 2=%02x 3=%02x", m_snd_ctrl0, m_snd_ctrl1, m_snd_ctrl2, m_snd_ctrl3);
 
 	/* this definitely controls main melody voice on 2'-1 and 4'-1 outputs */
-	device_sound_interface *sound;
-	device->interface(sound);
-	sound->set_output_gain(0, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
-	sound->set_output_gain(1, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
-	sound->set_output_gain(2, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
-	sound->set_output_gain(3, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
+	m_msm->set_output_gain(0, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
+	m_msm->set_output_gain(1, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
+	m_msm->set_output_gain(2, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
+	m_msm->set_output_gain(3, m_vol_ctrl[(m_snd_ctrl0 >> 4) & 15] / 100.0); /* group1 from msm5232 */
 
 }
 WRITE8_MEMBER(fortyl_state::sound_control_1_w)
 {
-	device_t *device = machine().device("msm");
 	m_snd_ctrl1 = data & 0xff;
 //  popmessage("SND1 0=%02x 1=%02x 2=%02x 3=%02x", m_snd_ctrl0, m_snd_ctrl1, m_snd_ctrl2, m_snd_ctrl3);
-	device_sound_interface *sound;
-	device->interface(sound);
-	sound->set_output_gain(4, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
-	sound->set_output_gain(5, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
-	sound->set_output_gain(6, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
-	sound->set_output_gain(7, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
+	m_msm->set_output_gain(4, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
+	m_msm->set_output_gain(5, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
+	m_msm->set_output_gain(6, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
+	m_msm->set_output_gain(7, m_vol_ctrl[(m_snd_ctrl1 >> 4) & 15] / 100.0); /* group2 from msm5232 */
 }
 
 WRITE8_MEMBER(fortyl_state::sound_control_2_w)
@@ -745,7 +738,7 @@ WRITE8_MEMBER(fortyl_state::sound_control_3_w)/* unknown */
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, fortyl_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
-	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0xca00, 0xca0d) AM_DEVWRITE_LEGACY("msm", msm5232_w)
 	AM_RANGE(0xcc00, 0xcc00) AM_WRITE(sound_control_0_w)
 	AM_RANGE(0xce00, 0xce00) AM_WRITE(sound_control_1_w)
@@ -975,9 +968,6 @@ static const msm5232_interface msm5232_config =
 
 MACHINE_START_MEMBER(fortyl_state,40love)
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	/* video */
 	save_item(NAME(m_pix1));
 	save_item(NAME(m_pix2));
@@ -995,7 +985,6 @@ MACHINE_START_MEMBER(fortyl_state,40love)
 
 MACHINE_START_MEMBER(fortyl_state,undoukai)
 {
-
 	MACHINE_START_CALL_MEMBER(40love);
 
 	/* fake mcu */
@@ -1009,7 +998,6 @@ MACHINE_START_MEMBER(fortyl_state,undoukai)
 
 MACHINE_RESET_MEMBER(fortyl_state,common)
 {
-
 	MACHINE_RESET_CALL_MEMBER(ta7630);
 
 	/* video */
@@ -1030,7 +1018,7 @@ MACHINE_RESET_MEMBER(fortyl_state,common)
 
 MACHINE_RESET_MEMBER(fortyl_state,40love)
 {
-	machine().device("mcu")->execute().set_input_line(0, CLEAR_LINE);
+	m_mcu->set_input_line(0, CLEAR_LINE);
 
 	MACHINE_RESET_CALL_MEMBER(common);
 }

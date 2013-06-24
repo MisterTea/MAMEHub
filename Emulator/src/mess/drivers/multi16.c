@@ -33,6 +33,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_multi16(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	IRQ_CALLBACK_MEMBER(multi16_irq_callback);
 };
 
 
@@ -107,7 +108,7 @@ WRITE8_MEMBER( multi16_state::multi16_6845_data_w )
 
 static ADDRESS_MAP_START(multi16_io, AS_IO, 16, multi16_state)
 	ADDRESS_MAP_UNMAP_HIGH
-	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE8_LEGACY("pic8259", pic8259_r, pic8259_w, 0xffff) // i8259
+	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0xffff) // i8259
 	AM_RANGE(0x40, 0x41) AM_WRITE8(multi16_6845_address_w, 0x00ff)
 	AM_RANGE(0x40, 0x41) AM_WRITE8(multi16_6845_data_w, 0xff00)
 ADDRESS_MAP_END
@@ -116,27 +117,20 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( multi16 )
 INPUT_PORTS_END
 
-static IRQ_CALLBACK(multi16_irq_callback)
+IRQ_CALLBACK_MEMBER(multi16_state::multi16_irq_callback)
 {
-	return pic8259_acknowledge( device->machine().device("pic8259") );
+	return machine().device<pic8259_device>("pic8259")->acknowledge();
 }
 
 WRITE_LINE_MEMBER( multi16_state::multi16_set_int_line )
 {
 	//printf("%02x\n",interrupt);
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
 }
-
-static const struct pic8259_interface multi16_pic8259_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(multi16_state, multi16_set_int_line),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
 
 void multi16_state::machine_start()
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(multi16_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(multi16_state::multi16_irq_callback),this));
 }
 
 
@@ -144,9 +138,11 @@ void multi16_state::machine_reset()
 {
 }
 
-static const mc6845_interface mc6845_intf =
+
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -176,7 +172,7 @@ static MACHINE_CONFIG_START( multi16, multi16_state )
 
 	/* Devices */
 	MCFG_MC6845_ADD("crtc", H46505, 16000000/5, mc6845_intf)    /* unknown clock, hand tuned to get ~60 fps */
-	MCFG_PIC8259_ADD( "pic8259", multi16_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", WRITELINE(multi16_state, multi16_set_int_line), GND, NULL )
 MACHINE_CONFIG_END
 
 /* ROM definition */

@@ -75,17 +75,6 @@ VIDEO_START_MEMBER(atarig1_state,atarig1)
  *
  *************************************/
 
-WRITE16_HANDLER( atarig1_mo_control_w )
-{
-	atarig1_state *state = space.machine().driver_data<atarig1_state>();
-
-	logerror("MOCONT = %d (scan = %d)\n", data, space.machine().primary_screen->vpos());
-
-	/* set the control value */
-	COMBINE_DATA(&state->m_current_control);
-}
-
-
 void atarig1_state::scanline_update(screen_device &screen, int scanline)
 {
 	UINT16 *base = &m_alpha[(scanline / 8) * 64 + 48];
@@ -148,7 +137,6 @@ void atarig1_state::scanline_update(screen_device &screen, int scanline)
 
 UINT32 atarig1_state::screen_update_atarig1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	/* draw the playfield */
 	m_playfield_tilemap->draw(bitmap, cliprect, 0, 0);
 
@@ -165,7 +153,6 @@ void atarig1_state::screen_eof_atarig1(screen_device &screen, bool state)
 	// rising edge
 	if (state)
 	{
-
 		atarirle_eof(m_rle);
 	}
 }

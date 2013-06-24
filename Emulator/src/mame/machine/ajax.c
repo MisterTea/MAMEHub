@@ -10,7 +10,7 @@
 #include "emu.h"
 #include "cpu/m6809/m6809.h"
 #include "cpu/z80/z80.h"
-#include "cpu/konami/konami.h"
+#include "cpu/m6809/konami.h"
 #include "video/konicdev.h"
 #include "includes/ajax.h"
 
@@ -134,7 +134,6 @@ READ8_MEMBER(ajax_state::ajax_ls138_f10_r)
 
 WRITE8_MEMBER(ajax_state::ajax_ls138_f10_w)
 {
-
 	switch ((offset & 0x01c0) >> 6)
 	{
 		case 0x00:  /* NSFIRQ + AFR */
@@ -180,7 +179,6 @@ WRITE8_MEMBER(ajax_state::ajax_ls138_f10_w)
 
 WRITE8_MEMBER(ajax_state::ajax_bankswitch_2_w)
 {
-
 	/* enable char ROM reading through the video RAM */
 	k052109_set_rmrd_line(m_k052109, (data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 
@@ -205,29 +203,18 @@ void ajax_state::machine_start()
 	membank("bank1")->set_entry(0);
 	membank("bank2")->set_entry(0);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-	m_k007232_1 = machine().device("k007232_1");
-	m_k007232_2 = machine().device("k007232_2");
-	m_k052109 = machine().device("k052109");
-	m_k051960 = machine().device("k051960");
-	m_k051316 = machine().device("k051316");
-
 	save_item(NAME(m_priority));
 	save_item(NAME(m_firq_enable));
 }
 
 void ajax_state::machine_reset()
 {
-
 	m_priority = 0;
 	m_firq_enable = 0;
 }
 
 INTERRUPT_GEN_MEMBER(ajax_state::ajax_interrupt)
 {
-
 	if (k051960_is_irq_enabled(m_k051960))
 		device.execute().set_input_line(KONAMI_IRQ_LINE, HOLD_LINE);
 }

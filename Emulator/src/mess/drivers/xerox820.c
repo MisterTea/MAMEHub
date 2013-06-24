@@ -35,100 +35,6 @@
 
 #include "includes/xerox820.h"
 
-/* Keyboard HACK */
-
-static const UINT8 xerox820_keycodes[3][9][8] =
-{
-	/* unshifted */
-	{
-	{ 0x1e, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37 },
-	{ 0x38, 0x39, 0x30, 0x2d, 0x3d, 0x08, 0x7f, 0x2d },
-	{ 0x37, 0x38, 0x39, 0x09, 0x71, 0x77, 0x65, 0x72 },
-	{ 0x74, 0x79, 0x75, 0x69, 0x6f, 0x70, 0x5b, 0x5d },
-	{ 0x1b, 0x2b, 0x34, 0x35, 0x36, 0x61, 0x73, 0x64 },
-	{ 0x66, 0x67, 0x68, 0x6a, 0x6b, 0x6c, 0x3b, 0x27 },
-	{ 0x0d, 0x0a, 0x01, 0x31, 0x32, 0x33, 0x7a, 0x78 },
-	{ 0x63, 0x76, 0x62, 0x6e, 0x6d, 0x2c, 0x2e, 0x2f },
-	{ 0x04, 0x02, 0x03, 0x30, 0x2e, 0x20, 0x00, 0x00 }
-	},
-
-	/* shifted */
-	{
-	{ 0x1e, 0x21, 0x40, 0x23, 0x24, 0x25, 0x5e, 0x26 },
-	{ 0x2a, 0x28, 0x29, 0x5f, 0x2b, 0x08, 0x7f, 0x2d },
-	{ 0x37, 0x38, 0x39, 0x09, 0x51, 0x57, 0x45, 0x52 },
-	{ 0x54, 0x59, 0x55, 0x49, 0x4f, 0x50, 0x7b, 0x7d },
-	{ 0x1b, 0x2b, 0x34, 0x35, 0x36, 0x41, 0x53, 0x44 },
-	{ 0x46, 0x47, 0x48, 0x4a, 0x4b, 0x4c, 0x3a, 0x22 },
-	{ 0x0d, 0x0a, 0x01, 0x31, 0x32, 0x33, 0x5a, 0x58 },
-	{ 0x43, 0x56, 0x42, 0x4e, 0x4d, 0x3c, 0x3e, 0x3f },
-	{ 0x04, 0x02, 0x03, 0x30, 0x2e, 0x20, 0x00, 0x00 }
-	},
-
-	/* control */
-	{
-	{ 0x9e, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97 },
-	{ 0x98, 0x99, 0x90, 0x1f, 0x9a, 0x88, 0xff, 0xad },
-	{ 0xb7, 0xb8, 0xb9, 0x89, 0x11, 0x17, 0x05, 0x12 },
-	{ 0x14, 0x19, 0x15, 0x09, 0x0f, 0x10, 0x1b, 0x1d },
-	{ 0x9b, 0xab, 0xb4, 0xb5, 0xb6, 0x01, 0x13, 0x04 },
-	{ 0x06, 0x07, 0x08, 0x0a, 0x0b, 0x0c, 0x7e, 0x60 },
-	{ 0x8d, 0x8a, 0x81, 0xb1, 0xb2, 0xb3, 0x1a, 0x18 },
-	{ 0x03, 0x16, 0x02, 0x0e, 0x0d, 0x1c, 0x7c, 0x5c },
-	{ 0x84, 0x82, 0x83, 0xb0, 0xae, 0x00, 0x00, 0x00 }
-	}
-};
-
-void xerox820_state::scan_keyboard()
-{
-	static const char *const keynames[] = { "ROW0", "ROW1", "ROW2", "ROW3", "ROW4", "ROW5", "ROW6", "ROW7", "ROW8" };
-	int table = 0, row, col;
-	int keydata = -1;
-
-	if (ioport("ROW9")->read() & 0x07)
-	{
-		/* shift, upper case */
-		table = 1;
-	}
-
-	if (ioport("ROW9")->read() & 0x18)
-	{
-		/* ctrl */
-		table = 2;
-	}
-
-	/* scan keyboard */
-	for (row = 0; row < 9; row++)
-	{
-		UINT8 data = ioport(keynames[row])->read();
-
-		for (col = 0; col < 8; col++)
-		{
-			if (!BIT(data, col))
-			{
-				/* latch key data */
-				keydata = ~xerox820_keycodes[table][row][col];
-
-				if (m_keydata != keydata)
-				{
-					m_keydata = keydata;
-
-					/* strobe in keyboard data */
-					m_kbpio->strobe_b(0);
-					m_kbpio->strobe_b(1);
-				}
-			}
-		}
-	}
-
-	m_keydata = keydata;
-}
-
-TIMER_DEVICE_CALLBACK_MEMBER(xerox820_state::xerox820_keyboard_tick)
-{
-	scan_keyboard();
-}
-
 /* Read/Write Handlers */
 
 void xerox820_state::bankswitch(int bank)
@@ -139,7 +45,7 @@ void xerox820_state::bankswitch(int bank)
 	if (bank)
 	{
 		/* ROM */
-		program.install_rom(0x0000, 0x0fff, memregion("monitor")->base());
+		program.install_rom(0x0000, 0x0fff, m_rom->base());
 		program.unmap_readwrite(0x1000, 0x1fff);
 		program.install_ram(0x3000, 0x3fff, m_video_ram);
 	}
@@ -158,7 +64,7 @@ void xerox820ii_state::bankswitch(int bank)
 	if (bank)
 	{
 		/* ROM */
-		program.install_rom(0x0000, 0x17ff, memregion("monitor")->base());
+		program.install_rom(0x0000, 0x17ff, m_rom->base());
 		program.unmap_readwrite(0x1800, 0x2fff);
 		program.install_ram(0x3000, 0x3fff, m_video_ram);
 		program.unmap_readwrite(0x4000, 0xbfff);
@@ -207,7 +113,7 @@ WRITE8_MEMBER( xerox820_state::x120_system_w )
 
 WRITE8_MEMBER( xerox820ii_state::bell_w )
 {
-	speaker_level_w(m_speaker, offset);
+	m_speaker->level_w(offset);
 }
 
 WRITE8_MEMBER( xerox820ii_state::slden_w )
@@ -247,8 +153,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( xerox820_io, AS_IO, 8, xerox820_state )
 	AM_RANGE(0x00, 0x00) AM_MIRROR(0xff03) AM_DEVWRITE(COM8116_TAG, com8116_device, str_w)
-	AM_RANGE(0x04, 0x04) AM_MIRROR(0xff02) AM_DEVREADWRITE_LEGACY(Z80SIO_TAG, z80dart_d_r, z80dart_d_w)
-	AM_RANGE(0x05, 0x05) AM_MIRROR(0xff02) AM_DEVREADWRITE_LEGACY(Z80SIO_TAG, z80dart_c_r, z80dart_c_w)
+	AM_RANGE(0x04, 0x07) AM_MIRROR(0xff00) AM_DEVREADWRITE(Z80SIO_TAG, z80sio0_device, ba_cd_r, ba_cd_w)
 	AM_RANGE(0x08, 0x0b) AM_MIRROR(0xff00) AM_DEVREADWRITE(Z80PIO_GP_TAG, z80pio_device, read_alt, write_alt)
 	AM_RANGE(0x0c, 0x0c) AM_MIRROR(0xff03) AM_DEVWRITE(COM8116_TAG, com8116_device, stt_w)
 	AM_RANGE(0x10, 0x13) AM_MIRROR(0xff00) AM_READWRITE(fdc_r, fdc_w)
@@ -288,107 +193,12 @@ ADDRESS_MAP_END
 /* Input Ports */
 
 static INPUT_PORTS_START( xerox820 )
-	PORT_START("ROW0")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("HELP") PORT_CODE(KEYCODE_TILDE)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_1) PORT_CHAR('1') PORT_CHAR('!')
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_2) PORT_CHAR('2') PORT_CHAR('@')
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_3) PORT_CHAR('3') PORT_CHAR('#')
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_4) PORT_CHAR('4') PORT_CHAR('$')
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_5) PORT_CHAR('5') PORT_CHAR('%')
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_6) PORT_CHAR('6') PORT_CHAR('^')
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_7) PORT_CHAR('7') PORT_CHAR('&')
-
-	PORT_START("ROW1")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_8) PORT_CHAR('8') PORT_CHAR('*')
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_CHAR('(')
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_0) PORT_CHAR('0') PORT_CHAR(')')
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_MINUS) PORT_CHAR('-') PORT_CHAR('_')
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('=') PORT_CHAR('+')
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("BACKSPACE") PORT_CODE(KEYCODE_BACKSPACE) PORT_CHAR(8)
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("DEL") PORT_CODE(KEYCODE_DEL)
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad -") PORT_CODE(KEYCODE_MINUS_PAD)
-
-	PORT_START("ROW2")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 7") PORT_CODE(KEYCODE_7_PAD)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 8") PORT_CODE(KEYCODE_8_PAD)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 9") PORT_CODE(KEYCODE_9_PAD)
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("TAB") PORT_CODE(KEYCODE_TAB) PORT_CHAR('\t')
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_Q) PORT_CHAR('q') PORT_CHAR('Q')
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_W) PORT_CHAR('w') PORT_CHAR('W')
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_E) PORT_CHAR('e') PORT_CHAR('E')
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_R) PORT_CHAR('r') PORT_CHAR('R')
-
-	PORT_START("ROW3")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_T) PORT_CHAR('t') PORT_CHAR('T')
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_Y) PORT_CHAR('y') PORT_CHAR('Y')
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_U) PORT_CHAR('u') PORT_CHAR('U')
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_I) PORT_CHAR('i') PORT_CHAR('I')
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_O) PORT_CHAR('o') PORT_CHAR('O')
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_P) PORT_CHAR('p') PORT_CHAR('P')
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_OPENBRACE) PORT_CHAR('[') PORT_CHAR('{')
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_CLOSEBRACE) PORT_CHAR(']') PORT_CHAR('}')
-
-	PORT_START("ROW4")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("ESC") PORT_CODE(KEYCODE_ESC) PORT_CHAR(UCHAR_MAMEKEY(ESC))
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad +") PORT_CODE(KEYCODE_PLUS_PAD)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 4") PORT_CODE(KEYCODE_4_PAD)
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 5") PORT_CODE(KEYCODE_5_PAD)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 6") PORT_CODE(KEYCODE_6_PAD)
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_A) PORT_CHAR('a') PORT_CHAR('A')
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_S) PORT_CHAR('s') PORT_CHAR('S')
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_D) PORT_CHAR('d') PORT_CHAR('D')
-
-	PORT_START("ROW5")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F) PORT_CHAR('f') PORT_CHAR('F')
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_G) PORT_CHAR('g') PORT_CHAR('G')
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_H) PORT_CHAR('h') PORT_CHAR('H')
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_J) PORT_CHAR('j') PORT_CHAR('J')
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_K) PORT_CHAR('k') PORT_CHAR('K')
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_L) PORT_CHAR('l') PORT_CHAR('L')
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_COLON) PORT_CHAR(';') PORT_CHAR(':')
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_QUOTE) PORT_CHAR('\'') PORT_CHAR('"')
-
-	PORT_START("ROW6")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("RETURN") PORT_CODE(KEYCODE_ENTER) PORT_CHAR('\r')
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("LINE FEED") PORT_CODE(KEYCODE_ENTER_PAD)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME(UTF8_UP) PORT_CODE(KEYCODE_UP) PORT_CHAR(UCHAR_MAMEKEY(UP))
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 1") PORT_CODE(KEYCODE_1_PAD)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 2") PORT_CODE(KEYCODE_2_PAD)
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 3") PORT_CODE(KEYCODE_3_PAD)
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_Z) PORT_CHAR('z') PORT_CHAR('Z')
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_X) PORT_CHAR('x') PORT_CHAR('X')
-
-	PORT_START("ROW7")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_C) PORT_CHAR('c') PORT_CHAR('C')
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_V) PORT_CHAR('v') PORT_CHAR('V')
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_B) PORT_CHAR('b') PORT_CHAR('B')
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_N) PORT_CHAR('n') PORT_CHAR('N')
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_M) PORT_CHAR('m') PORT_CHAR('M')
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_COMMA) PORT_CHAR(',') PORT_CHAR('<')
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_STOP) PORT_CHAR('.') PORT_CHAR('>')
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_SLASH) PORT_CHAR('/') PORT_CHAR('?')
-
-	PORT_START("ROW8")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME(UTF8_LEFT) PORT_CODE(KEYCODE_LEFT) PORT_CHAR(UCHAR_MAMEKEY(LEFT))
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME(UTF8_DOWN) PORT_CODE(KEYCODE_DOWN) PORT_CHAR(UCHAR_MAMEKEY(DOWN))
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME(UTF8_RIGHT) PORT_CODE(KEYCODE_RIGHT) PORT_CHAR(UCHAR_MAMEKEY(RIGHT))
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 0") PORT_CODE(KEYCODE_0_PAD)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad .") PORT_CODE(KEYCODE_ASTERISK)
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("SPACE") PORT_CODE(KEYCODE_SPACE) PORT_CHAR(' ')
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD )
-
-	PORT_START("ROW9")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("LOCK") PORT_CODE(KEYCODE_CAPSLOCK) PORT_TOGGLE
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("LEFT SHIFT") PORT_CODE(KEYCODE_LSHIFT) PORT_CHAR(UCHAR_SHIFT_1)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("RIGHT SHIFT") PORT_CODE(KEYCODE_RSHIFT)
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("LEFT CTRL") PORT_CODE(KEYCODE_LCONTROL) PORT_CHAR(UCHAR_MAMEKEY(LCONTROL))
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("RIGHT CTRL") PORT_CODE(KEYCODE_RCONTROL) PORT_CHAR(UCHAR_MAMEKEY(RCONTROL))
+	// inputs defined in machine/keyboard.c
 INPUT_PORTS_END
 
 TIMER_CALLBACK_MEMBER( bigboard_state::bigboard_beepoff )
 {
-	beep_set_state(m_beeper, 0);
+	m_beeper->set_state(0);
 }
 
 /* Z80 PIO */
@@ -480,7 +290,7 @@ WRITE8_MEMBER( bigboard_state::kbpio_pa_w )
 	if (BIT(data, 5) & (!m_bit5))
 	{
 		machine().scheduler().timer_set(attotime::from_msec(40), timer_expired_delegate(FUNC(bigboard_state::bigboard_beepoff),this));
-		beep_set_state(m_beeper, 1);
+		m_beeper->set_state(1);
 	}
 	m_bit5 = BIT(data, 5);
 }
@@ -605,21 +415,21 @@ static Z80PIO_INTERFACE( rdpio_intf )
 
 /* Z80 SIO */
 
-static Z80DART_INTERFACE( sio_intf )
+static Z80SIO_INTERFACE( sio_intf )
 {
 	0, 0, 0, 0,
 
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
 	DEVCB_NULL,
 	DEVCB_NULL,
 
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
 	DEVCB_NULL,
 	DEVCB_NULL,
 
@@ -686,23 +496,55 @@ void xerox820_state::fdc_drq_w(bool state)
 
 /* COM8116 Interface */
 
-static COM8116_INTERFACE( com8116_intf )
+WRITE_LINE_MEMBER( xerox820_state::fr_w )
 {
-	DEVCB_NULL,     /* fX/4 output */
-	DEVCB_NULL,     /* fR output */
-	DEVCB_NULL,     /* fT output */
-	{ 101376, 67584, 46080, 37686, 33792, 16896, 8448, 4224, 2816, 2534, 2112, 1408, 1056, 704, 528, 264 },         /* receiver divisor ROM */
-	{ 101376, 67584, 46080, 37686, 33792, 16896, 8448, 4224, 2816, 2534, 2112, 1408, 1056, 704, 528, 264 },         /* transmitter divisor ROM */
+	m_sio->rxca_w(state);
+	m_sio->txca_w(state);
+}
+
+WRITE8_MEMBER( xerox820_state::kbd_w )
+{
+	m_keydata = ~data;
+
+	/* strobe in keyboard data */
+	m_kbpio->strobe_b(0);
+	m_kbpio->strobe_b(1);
+}
+
+static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
+{
+	DEVCB_DRIVER_MEMBER(xerox820_state, kbd_w)
+};
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232a_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232a_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232b_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232b_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
 };
 
 /* Video */
-
-void xerox820_state::video_start()
-{
-	/* find memory regions */
-	m_char_rom = memregion("chargen")->base();
-}
-
 
 UINT32 xerox820_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
@@ -730,7 +572,7 @@ UINT32 xerox820_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap
 						chr |= 0x80;
 
 					/* get pattern of pixels for that character scanline */
-					gfx = m_char_rom[(m_ncset2 << 10) | (chr<<3) | ra ];
+					gfx = m_char_rom->base()[(m_ncset2 << 10) | (chr<<3) | ra ];
 				}
 				else
 					gfx = 0xff;
@@ -781,8 +623,8 @@ void bigboard_state::machine_reset()
 	bankswitch(1);
 
 	/* bigboard has a one-pulse output to drive a user-supplied beeper */
-	beep_set_state(m_beeper, 0);
-	beep_set_frequency(m_beeper, 950);
+	m_beeper->set_state(0);
+	m_beeper->set_frequency(950);
 
 	m_fdc->reset();
 }
@@ -873,19 +715,19 @@ static MACHINE_CONFIG_START( xerox820, xerox820_state )
 	MCFG_SCREEN_RAW_PARAMS(XTAL_10_69425MHz, 700, 0, 560, 260, 0, 240)
 	MCFG_GFXDECODE(xerox820)
 
-	/* keyboard */
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("keyboard", xerox820_state, xerox820_keyboard_tick, attotime::from_hz(60))
-	//MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc", xerox820_state, ctc_tick, attotime::from_hz(XTAL_20MHz/8))
-
 	/* devices */
 	MCFG_Z80SIO0_ADD(Z80SIO_TAG, XTAL_20MHz/8, sio_intf)
 	MCFG_Z80PIO_ADD(Z80PIO_KB_TAG, XTAL_20MHz/8, xerox820_kbpio_intf)
 	MCFG_Z80PIO_ADD(Z80PIO_GP_TAG, XTAL_20MHz/8, gppio_intf)
 	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_20MHz/8, ctc_intf)
+	//MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc", xerox820_state, ctc_tick, attotime::from_hz(XTAL_20MHz/8))
 	MCFG_FD1771x_ADD(FD1771_TAG, XTAL_20MHz/20)
-	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":0", xerox820_floppies, "sa400", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":1", xerox820_floppies, "sa400", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, com8116_intf)
+	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":0", xerox820_floppies, "sa400", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":1", xerox820_floppies, "sa400", floppy_image_device::default_floppy_formats)
+	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, NULL, WRITELINE(xerox820_state, fr_w), DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxtxcb_w))
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
+	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
@@ -898,7 +740,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED_CLASS( bigboard, xerox820, bigboard_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00) /* bigboard only */
 MACHINE_CONFIG_END
 
@@ -915,13 +757,9 @@ static MACHINE_CONFIG_START( xerox820ii, xerox820ii_state )
 	MCFG_SCREEN_RAW_PARAMS(XTAL_10_69425MHz, 700, 0, 560, 260, 0, 240)
 	MCFG_GFXDECODE(xerox820ii)
 
-	/* keyboard */
-	MCFG_TIMER_DRIVER_ADD_PERIODIC("keyboard", xerox820_state, xerox820_keyboard_tick, attotime::from_hz(60))
-	//MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc", xerox820_state, ctc_tick, attotime::from_hz(XTAL_16MHz/4))
-
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
@@ -930,10 +768,14 @@ static MACHINE_CONFIG_START( xerox820ii, xerox820ii_state )
 	MCFG_Z80PIO_ADD(Z80PIO_GP_TAG, XTAL_16MHz/4, gppio_intf)
 	MCFG_Z80PIO_ADD(Z80PIO_RD_TAG, XTAL_20MHz/8, rdpio_intf)
 	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_16MHz/4, ctc_intf)
+	//MCFG_TIMER_DRIVER_ADD_PERIODIC("ctc", xerox820_state, ctc_tick, attotime::from_hz(XTAL_16MHz/4))
 	MCFG_FD1797x_ADD(FD1797_TAG, XTAL_16MHz/8)
-	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":0", xerox820_floppies, "sa450", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":1", xerox820_floppies, "sa450", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, com8116_intf)
+	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":0", xerox820_floppies, "sa450", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(FD1797_TAG":1", xerox820_floppies, "sa450", floppy_image_device::default_floppy_formats)
+	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, NULL, WRITELINE(xerox820_state, fr_w), DEVWRITELINE(Z80SIO_TAG, z80dart_device, rxtxcb_w))
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
+	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
 
 	// SASI bus
 	MCFG_SCSIBUS_ADD(SASIBUS_TAG)
@@ -966,7 +808,7 @@ MACHINE_CONFIG_END
 /* ROMs */
 
 ROM_START( bigboard )
-	ROM_REGION( 0x1000, "monitor", 0 )
+	ROM_REGION( 0x1000, Z80_TAG, 0 )
 	ROM_LOAD( "bigboard.u67", 0x0000, 0x0800, CRC(5a85a228) SHA1(d51a2cbd0aae80315bda9530275aabfe8305364e))
 
 	ROM_REGION( 0x800, "chargen", 0 )
@@ -976,7 +818,7 @@ ROM_END
 #define rom_mk82 rom_bigboard
 
 ROM_START( x820 )
-	ROM_REGION( 0x1000, "monitor", 0 )
+	ROM_REGION( 0x1000, Z80_TAG, 0 )
 	ROM_DEFAULT_BIOS( "v20" )
 	ROM_SYSTEM_BIOS( 0, "v10", "Xerox Monitor v1.0" )
 	ROMX_LOAD( "x820v10.u64", 0x0000, 0x0800, NO_DUMP, ROM_BIOS(1) )
@@ -999,7 +841,7 @@ ROM_START( x820 )
 ROM_END
 
 ROM_START( x820ii )
-	ROM_REGION( 0x1800, "monitor", 0 )
+	ROM_REGION( 0x1800, Z80_TAG, 0 )
 	ROM_DEFAULT_BIOS( "v404" )
 	ROM_SYSTEM_BIOS( 0, "v404", "Balcones Operating System v4.04" )
 	ROMX_LOAD( "537p3652.u33", 0x0000, 0x0800, CRC(7807cfbb) SHA1(bd3cc5cc5c59c84a50747aae5c17eb4617b0dbc3), ROM_BIOS(1) )
@@ -1015,7 +857,7 @@ ROM_START( x820ii )
 ROM_END
 
 ROM_START( x168 )
-	ROM_REGION( 0x1800, "monitor", 0 )
+	ROM_REGION( 0x1800, Z80_TAG, 0 )
 	ROM_DEFAULT_BIOS( "v404" )
 	ROM_SYSTEM_BIOS( 0, "v404", "Balcones Operating System v4.04" )
 	ROMX_LOAD( "537p3652.u33", 0x0000, 0x0800, CRC(7807cfbb) SHA1(bd3cc5cc5c59c84a50747aae5c17eb4617b0dbc3), ROM_BIOS(1) )
@@ -1034,7 +876,7 @@ ROM_START( x168 )
 ROM_END
 
 ROM_START( mk83 )
-	ROM_REGION( 0x1000, "monitor", 0 )
+	ROM_REGION( 0x1000, Z80_TAG, 0 )
 	ROM_LOAD( "2732mk83.bin", 0x0000, 0x1000, CRC(a845c7e1) SHA1(3ccf629c5cd384953794ac4a1d2b45678bd40e92))
 	ROM_REGION( 0x800, "chargen", 0 )
 	ROM_LOAD( "2716mk83.bin", 0x0000, 0x0800, CRC(10bf0d81) SHA1(7ec73670a4d9d6421a5d6a4c4edc8b7c87923f6c))

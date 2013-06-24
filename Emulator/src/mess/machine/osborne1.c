@@ -23,7 +23,9 @@ WRITE8_MEMBER( osborne1_state::osborne1_0000_w )
 {
 	/* Check whether regular RAM is enabled */
 	if ( ! m_bank2_enabled || ( m_in_irq_handler && m_bankswitch == RAMMODE ) )
-		machine().device<ram_device>(RAM_TAG)->pointer()[ offset ] = data;
+	{
+		m_ram->pointer()[ offset ] = data;
+	}
 }
 
 
@@ -31,7 +33,9 @@ WRITE8_MEMBER( osborne1_state::osborne1_1000_w )
 {
 	/* Check whether regular RAM is enabled */
 	if ( ! m_bank2_enabled || ( m_in_irq_handler && m_bankswitch == RAMMODE ) )
-		machine().device<ram_device>(RAM_TAG)->pointer()[ 0x1000 + offset ] = data;
+	{
+		m_ram->pointer()[ 0x1000 + offset ] = data;
+	}
 }
 
 
@@ -41,7 +45,9 @@ READ8_MEMBER( osborne1_state::osborne1_2000_r )
 
 	/* Check whether regular RAM is enabled */
 	if ( ! m_bank2_enabled )
-		data = machine().device<ram_device>(RAM_TAG)->pointer()[ 0x2000 + offset ];
+	{
+		data = m_ram->pointer()[ 0x2000 + offset ];
+	}
 	else
 	{
 		switch( offset & 0x0F00 )
@@ -51,21 +57,21 @@ READ8_MEMBER( osborne1_state::osborne1_2000_r )
 			break;
 		case 0x200: /* Keyboard */
 			/* Row 0 */
-			if ( offset & 0x01 )    data &= ioport("ROW0")->read();
+			if ( offset & 0x01 )    data &= m_row0->read();
 			/* Row 1 */
-			if ( offset & 0x02 )    data &= ioport("ROW1")->read();
+			if ( offset & 0x02 )    data &= m_row1->read();
 			/* Row 2 */
-			if ( offset & 0x04 )    data &= ioport("ROW3")->read();
+			if ( offset & 0x04 )    data &= m_row3->read();
 			/* Row 3 */
-			if ( offset & 0x08 )    data &= ioport("ROW4")->read();
+			if ( offset & 0x08 )    data &= m_row4->read();
 			/* Row 4 */
-			if ( offset & 0x10 )    data &= ioport("ROW5")->read();
+			if ( offset & 0x10 )    data &= m_row5->read();
 			/* Row 5 */
-			if ( offset & 0x20 )    data &= ioport("ROW2")->read();
+			if ( offset & 0x20 )    data &= m_row2->read();
 			/* Row 6 */
-			if ( offset & 0x40 )    data &= ioport("ROW6")->read();
+			if ( offset & 0x40 )    data &= m_row6->read();
 			/* Row 7 */
-			if ( offset & 0x80 )    data &= ioport("ROW7")->read();
+			if ( offset & 0x80 )    data &= m_row7->read();
 			break;
 		case 0x900: /* IEEE488 PIA */
 			data = m_pia0->read(space, offset & 0x03 );
@@ -85,12 +91,14 @@ WRITE8_MEMBER( osborne1_state::osborne1_2000_w )
 {
 	/* Check whether regular RAM is enabled */
 	if ( ! m_bank2_enabled )
-		machine().device<ram_device>(RAM_TAG)->pointer()[ 0x2000 + offset ] = data;
+	{
+		m_ram->pointer()[ 0x2000 + offset ] = data;
+	}
 	else
 	{
 		if ( m_in_irq_handler && m_bankswitch == RAMMODE )
 		{
-			machine().device<ram_device>(RAM_TAG)->pointer()[ 0x2000 + offset ] = data;
+			m_ram->pointer()[ 0x2000 + offset ] = data;
 		}
 		/* Handle writes to the I/O area */
 		switch( offset & 0x0F00 )
@@ -115,7 +123,9 @@ WRITE8_MEMBER( osborne1_state::osborne1_3000_w )
 {
 	/* Check whether regular RAM is enabled */
 	if ( ! m_bank2_enabled || ( m_in_irq_handler && m_bankswitch == RAMMODE ) )
-		machine().device<ram_device>(RAM_TAG)->pointer()[ 0x3000 + offset ] = data;
+	{
+		m_ram->pointer()[ 0x3000 + offset ] = data;
+	}
 }
 
 
@@ -152,18 +162,18 @@ WRITE8_MEMBER( osborne1_state::osborne1_bankswitch_w )
 	}
 	if ( m_bank2_enabled )
 	{
-		membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() );
-		membank("bank2")->set_base(m_empty_4K );
-		membank("bank3")->set_base(m_empty_4K );
+		m_bank1->set_base(m_region_maincpu->base() );
+		m_bank2->set_base(m_empty_4K );
+		m_bank3->set_base(m_empty_4K );
 	}
 	else
 	{
-		membank("bank1")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() );
-		membank("bank2")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() + 0x1000 );
-		membank("bank3")->set_base(machine().device<ram_device>(RAM_TAG)->pointer() + 0x3000 );
+		m_bank1->set_base(m_ram->pointer() );
+		m_bank2->set_base(m_ram->pointer() + 0x1000 );
+		m_bank3->set_base(m_ram->pointer() + 0x3000 );
 	}
-	m_bank4_ptr = machine().device<ram_device>(RAM_TAG)->pointer() + ( ( m_bank3_enabled ) ? 0x10000 : 0xF000 );
-	membank("bank4")->set_base(m_bank4_ptr );
+	m_bank4_ptr = m_ram->pointer() + ( ( m_bank3_enabled ) ? 0x10000 : 0xF000 );
+	m_bank4->set_base(m_bank4_ptr );
 	m_bankswitch = offset;
 	m_in_irq_handler = 0;
 }
@@ -175,7 +185,7 @@ DIRECT_UPDATE_MEMBER(osborne1_state::osborne1_opbase)
 	{
 		if ( ! m_bank2_enabled )
 		{
-			direct.explicit_configure(0x2000, 0x2fff, 0x0fff, machine().device<ram_device>(RAM_TAG)->pointer() + 0x2000);
+			direct.explicit_configure(0x2000, 0x2fff, 0x0fff, m_ram->pointer() + 0x2000);
 			return ~0;
 		}
 	}
@@ -186,7 +196,7 @@ DIRECT_UPDATE_MEMBER(osborne1_state::osborne1_opbase)
 WRITE_LINE_MEMBER( osborne1_state::ieee_pia_irq_a_func )
 {
 	m_pia_0_irq_state = state;
-	machine().device("maincpu")->execute().set_input_line(0, ( m_pia_1_irq_state ) ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, ( m_pia_1_irq_state ) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -297,7 +307,7 @@ WRITE8_MEMBER( osborne1_state::video_pia_port_b_w )
 WRITE_LINE_MEMBER( osborne1_state::video_pia_irq_a_func )
 {
 	m_pia_1_irq_state = state;
-	machine().device("maincpu")->execute().set_input_line(0, ( m_pia_1_irq_state ) ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, ( m_pia_1_irq_state ) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -331,6 +341,22 @@ const pia6821_interface osborne1_video_pia_config =
 //};
 
 
+void osborne1_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_VIDEO:
+		osborne1_video_callback(ptr, param);
+		break;
+	case TIMER_SETUP:
+		setup_osborne1(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in osborne1_state::device_timer");
+	}
+}
+
+
 TIMER_CALLBACK_MEMBER(osborne1_state::osborne1_video_callback)
 {
 	int y = machine().primary_screen->vpos();
@@ -357,8 +383,8 @@ TIMER_CALLBACK_MEMBER(osborne1_state::osborne1_video_callback)
 
 		for ( x = 0; x < 52; x++ )
 		{
-			chr = machine().device<ram_device>(RAM_TAG)->pointer()[ 0xF000 + ( (ma+x) & 0xFFF ) ];
-			dim = machine().device<ram_device>(RAM_TAG)->pointer()[ 0x10000 + ( (ma+x) & 0xFFF ) ] & 0x80;
+			chr = m_ram->pointer()[ 0xF000 + ( (ma+x) & 0xFFF ) ];
+			dim = m_ram->pointer()[ 0x10000 + ( (ma+x) & 0xFFF ) ] & 0x80;
 
 			if ( (chr & 0x80) && (ra == 9) )
 				gfx = 0xFF;
@@ -379,11 +405,11 @@ TIMER_CALLBACK_MEMBER(osborne1_state::osborne1_video_callback)
 
 	if ( (ra==2) || (ra== 6) )
 	{
-		beep_set_state( m_beep, m_beep_state );
+		m_beep->set_state( m_beep_state );
 	}
 	else
 	{
-		beep_set_state( m_beep, 0 );
+		m_beep->set_state( 0 );
 	}
 
 	m_video_timer->adjust(machine().primary_screen->time_until_pos(y + 1, 0 ));
@@ -391,8 +417,8 @@ TIMER_CALLBACK_MEMBER(osborne1_state::osborne1_video_callback)
 
 TIMER_CALLBACK_MEMBER(osborne1_state::setup_osborne1)
 {
-	beep_set_state( m_beep, 0 );
-	beep_set_frequency( m_beep, 300 /* 60 * 240 / 2 */ );
+	m_beep->set_state( 0 );
+	m_beep->set_frequency( 300 /* 60 * 240 / 2 */ );
 	m_pia1->ca1_w(0);
 }
 
@@ -424,7 +450,7 @@ static void osborne1_load_proc(device_image_interface &image)
 void osborne1_state::machine_reset()
 {
 	int drive;
-	address_space& space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& space = m_maincpu->space(AS_PROGRAM);
 	/* Initialize memory configuration */
 	osborne1_bankswitch_w( space, 0x00, 0 );
 
@@ -434,7 +460,7 @@ void osborne1_state::machine_reset()
 
 	m_p_chargen = memregion( "chargen" )->base();
 
-	memset( machine().device<ram_device>(RAM_TAG)->pointer() + 0x10000, 0xFF, 0x1000 );
+	memset( m_ram->pointer() + 0x10000, 0xFF, 0x1000 );
 
 	for(drive=0;drive<2;drive++)
 		floppy_install_load_proc(floppy_get_device(machine(), drive), osborne1_load_proc);
@@ -445,16 +471,15 @@ void osborne1_state::machine_reset()
 
 DRIVER_INIT_MEMBER(osborne1_state,osborne1)
 {
-
 	m_empty_4K = auto_alloc_array(machine(), UINT8, 0x1000 );
 	memset( m_empty_4K, 0xFF, 0x1000 );
 
 	/* Configure the 6850 ACIA */
 //  acia6850_config( 0, &osborne1_6850_config );
-	m_video_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(osborne1_state::osborne1_video_callback),this));
+	m_video_timer = timer_alloc(TIMER_VIDEO);
 	m_video_timer->adjust(machine().primary_screen->time_until_pos(1, 0 ));
 
-	machine().scheduler().timer_set(attotime::zero, timer_expired_delegate(FUNC(osborne1_state::setup_osborne1),this));
+	timer_set(attotime::zero, TIMER_SETUP);
 }
 
 
@@ -522,7 +547,7 @@ int osborne1_daisy_device::z80daisy_irq_ack()
 	osborne1_state *state = machine().driver_data<osborne1_state>();
 	/* Enable ROM and I/O when IRQ is acknowledged */
 	UINT8 old_bankswitch = state->m_bankswitch;
-	address_space& space = device().machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& space = state->m_maincpu->space(AS_PROGRAM);
 
 	state->osborne1_bankswitch_w( space, 0, 0 );
 	state->m_bankswitch = old_bankswitch;

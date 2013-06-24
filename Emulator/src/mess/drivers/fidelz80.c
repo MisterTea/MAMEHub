@@ -667,7 +667,7 @@ WRITE8_MEMBER( fidelz80_state::fidelz80_portc_w )
 
 WRITE8_MEMBER( fidelz80_state::cc10_porta_w )
 {
-	beep_set_state(m_beep, (data & 0x80) ? 0 : 1);
+	m_beep->set_state((data & 0x80) ? 0 : 1);
 
 	m_digit_data = data;
 
@@ -1008,7 +1008,7 @@ void fidelz80_state::machine_reset()
 
 TIMER_DEVICE_CALLBACK_MEMBER(fidelz80_state::nmi_timer)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 /******************************************************************************
@@ -1083,13 +1083,11 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(fidelz80_state::fidelz80_trigger_reset)
 {
-
 	m_maincpu->set_input_line(INPUT_LINE_RESET, newval ? CLEAR_LINE : ASSERT_LINE);
 }
 
 INPUT_CHANGED_MEMBER(fidelz80_state::abc_trigger_reset)
 {
-
 	m_maincpu->set_input_line(INPUT_LINE_RESET, newval ? CLEAR_LINE : ASSERT_LINE);
 	m_i8041->set_input_line(INPUT_LINE_RESET, newval ? CLEAR_LINE : ASSERT_LINE);
 }
@@ -1298,7 +1296,7 @@ static MACHINE_CONFIG_START( cc10, fidelz80_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD( BEEPER_TAG, BEEP, 0 )
+	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 MACHINE_CONFIG_END
 

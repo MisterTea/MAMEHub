@@ -160,24 +160,22 @@ Dip locations verified with manual for docastle, dorunrun and dowild.
 
 
 /* Read/Write Handlers */
-static void idsoccer_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(docastle_state::idsoccer_adpcm_int)
 {
-	docastle_state *state = device->machine().driver_data<docastle_state>();
-
-	if (state->m_adpcm_pos >= state->memregion("adpcm")->bytes())
+	if (m_adpcm_pos >= memregion("adpcm")->bytes())
 	{
-		state->m_adpcm_idle = 1;
-		msm5205_reset_w(device, 1);
+		m_adpcm_idle = 1;
+		m_msm->reset_w(1);
 	}
-	else if (state->m_adpcm_data != -1)
+	else if (m_adpcm_data != -1)
 	{
-		msm5205_data_w(device, state->m_adpcm_data & 0x0f);
-		state->m_adpcm_data = -1;
+		m_msm->data_w(m_adpcm_data & 0x0f);
+		m_adpcm_data = -1;
 	}
 	else
 	{
-		state->m_adpcm_data = device->machine().root_device().memregion("adpcm")->base()[state->m_adpcm_pos++];
-		msm5205_data_w(device, state->m_adpcm_data >> 4);
+		m_adpcm_data = memregion("adpcm")->base()[m_adpcm_pos++];
+		m_msm->data_w(m_adpcm_data >> 4);
 	}
 }
 
@@ -190,18 +188,16 @@ READ8_MEMBER(docastle_state::idsoccer_adpcm_status_r)
 
 WRITE8_MEMBER(docastle_state::idsoccer_adpcm_w)
 {
-	device_t *device = machine().device("msm");
-
 	if (data & 0x80)
 	{
 		m_adpcm_idle = 1;
-		msm5205_reset_w(device, 1);
+		m_msm->reset_w(1);
 	}
 	else
 	{
 		m_adpcm_pos = (data & 0x7f) * 0x200;
 		m_adpcm_idle = 0;
-		msm5205_reset_w(device, 0);
+		m_msm->reset_w(0);
 	}
 }
 
@@ -552,7 +548,7 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_config =
 {
-	idsoccer_adpcm_int, // interrupt function
+	DEVCB_DRIVER_LINE_MEMBER(docastle_state,idsoccer_adpcm_int), // interrupt function
 	MSM5205_S64_4B      // 6 kHz    ???
 };
 
@@ -586,10 +582,6 @@ void docastle_state::machine_reset()
 
 void docastle_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_slave = machine().device<cpu_device>("slave");
-
 	save_item(NAME(m_adpcm_pos));
 	save_item(NAME(m_adpcm_data));
 	save_item(NAME(m_adpcm_idle));

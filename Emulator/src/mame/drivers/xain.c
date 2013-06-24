@@ -164,7 +164,7 @@ Updates by Bryan McPhail, 12/12/2004:
     Since MAME's video timing is 0-based, we need to convert this.
 */
 
-INLINE int scanline_to_vcount(int scanline)
+inline int xain_state::scanline_to_vcount(int scanline)
 {
 	int vcount = scanline + 8;
 	if (vcount < 0x100)
@@ -189,13 +189,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(xain_state::xain_scanline)
 	/* FIRQ (IMS) fires every on every 8th scanline (except 0) */
 	if (!(vcount_old & 8) && (vcount & 8))
 	{
-		machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, ASSERT_LINE);
+		m_maincpu->set_input_line(M6809_FIRQ_LINE, ASSERT_LINE);
 	}
 
 	/* NMI fires on scanline 248 (VBL) and is latched */
 	if (vcount == 0xf8)
 	{
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 
 	/* VBLANK input bit is held high from scanlines 248-255 */
@@ -223,7 +223,7 @@ WRITE8_MEMBER(xain_state::xainCPUB_bankswitch_w)
 WRITE8_MEMBER(xain_state::xain_sound_command_w)
 {
 	soundlatch_byte_w(space,offset,data);
-	machine().device("audiocpu")->execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
+	m_audiocpu->set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 }
 
 WRITE8_MEMBER(xain_state::xain_main_irq_w)
@@ -231,28 +231,28 @@ WRITE8_MEMBER(xain_state::xain_main_irq_w)
 	switch (offset)
 	{
 	case 0: /* 0x3a09 - NMI clear */
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 		break;
 	case 1: /* 0x3a0a - FIRQ clear */
-		machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, CLEAR_LINE);
+		m_maincpu->set_input_line(M6809_FIRQ_LINE, CLEAR_LINE);
 		break;
 	case 2: /* 0x3a0b - IRQ clear */
-		machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
+		m_maincpu->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 		break;
 	case 3: /* 0x3a0c - IRQB assert */
-		machine().device("sub")->execute().set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
+		m_subcpu->set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
 		break;
 	}
 }
 
 WRITE8_MEMBER(xain_state::xain_irqA_assert_w)
 {
-	machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
+	m_maincpu->set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
 }
 
 WRITE8_MEMBER(xain_state::xain_irqB_clear_w)
 {
-	machine().device("sub")->execute().set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
+	m_subcpu->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 }
 
 READ8_MEMBER(xain_state::xain_68705_r)
@@ -266,8 +266,8 @@ WRITE8_MEMBER(xain_state::xain_68705_w)
 	m_from_main = data;
 	m_mcu_accept = 0;
 
-	if (machine().device("mcu") != NULL)
-		machine().device("mcu")->execute().set_input_line(0, ASSERT_LINE);
+	if (m_mcu != NULL)
+		m_mcu->set_input_line(0, ASSERT_LINE);
 }
 
 CUSTOM_INPUT_MEMBER(xain_state::xain_vblank_r)
@@ -312,7 +312,7 @@ WRITE8_MEMBER(xain_state::xain_68705_port_b_w)
 	else if ((m_ddr_b & 0x02) && (~m_port_b_out & 0x02) && (data & 0x02))
 	{
 		m_mcu_accept = 1;
-		machine().device("mcu")->execute().set_input_line(0, CLEAR_LINE);
+		m_mcu->set_input_line(0, CLEAR_LINE);
 	}
 
 	/* Rising edge of PB2 */
@@ -356,7 +356,7 @@ CUSTOM_INPUT_MEMBER(xain_state::mcu_status_r)
 {
 	UINT8 res = 0;
 
-	if (machine().device("mcu") != NULL)
+	if (m_mcu != NULL)
 	{
 		if (m_mcu_ready == 1)
 			res |= 0x01;
@@ -376,8 +376,8 @@ READ8_MEMBER(xain_state::mcu_comm_reset_r)
 	m_mcu_ready = 1;
 	m_mcu_accept = 1;
 
-	if (machine().device("mcu") != NULL)
-		machine().device("mcu")->execute().set_input_line(0, CLEAR_LINE);
+	if (m_mcu != NULL)
+		m_mcu->set_input_line(0, CLEAR_LINE);
 
 	return 0xff;
 }
@@ -428,8 +428,8 @@ static ADDRESS_MAP_START( mcu_map, AS_PROGRAM, 8, xain_state )
 	AM_RANGE(0x0004, 0x0004) AM_WRITE(xain_68705_ddr_a_w)
 	AM_RANGE(0x0005, 0x0005) AM_WRITE(xain_68705_ddr_b_w)
 	AM_RANGE(0x0006, 0x0006) AM_WRITE(xain_68705_ddr_c_w)
-//  AM_RANGE(0x0008, 0x0008) AM_READWRITE_LEGACY(m68705_tdr_r, m68705_tdr_w)
-//  AM_RANGE(0x0009, 0x0009) AM_READWRITE_LEGACY(m68705_tcr_r, m68705_tcr_w)
+//  AM_RANGE(0x0008, 0x0008) AM_READWRITE(m68705_tdr_r, m68705_tdr_w)
+//  AM_RANGE(0x0009, 0x0009) AM_READWRITE(m68705_tcr_r, m68705_tcr_w)
 	AM_RANGE(0x0010, 0x007f) AM_RAM
 	AM_RANGE(0x0080, 0x07ff) AM_ROM
 ADDRESS_MAP_END
@@ -437,8 +437,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, xain_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
 	AM_RANGE(0x1000, 0x1000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x2800, 0x2801) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x3000, 0x3001) AM_DEVWRITE_LEGACY("ym2", ym2203_w)
+	AM_RANGE(0x2800, 0x2801) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x3000, 0x3001) AM_DEVWRITE("ym2", ym2203_device, write)
 	AM_RANGE(0x4000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -550,27 +550,24 @@ GFXDECODE_END
 
 
 /* handler called by the 2203 emulator when the internal timers cause an IRQ */
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(xain_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(M6809_FIRQ_LINE, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 void xain_state::machine_start()
 {
-	machine().root_device().membank("bank1")->configure_entries(0, 2, machine().root_device().memregion("maincpu")->base() + 0x4000, 0xc000);
-	machine().root_device().membank("bank2")->configure_entries(0, 2, machine().root_device().memregion("sub")->base()  + 0x4000, 0xc000);
-	machine().root_device().membank("bank1")->set_entry(0);
-	machine().root_device().membank("bank2")->set_entry(0);
+	membank("bank1")->configure_entries(0, 2, memregion("maincpu")->base() + 0x4000, 0xc000);
+	membank("bank2")->configure_entries(0, 2, memregion("sub")->base()  + 0x4000, 0xc000);
+	membank("bank1")->set_entry(0);
+	membank("bank2")->set_entry(0);
 }
 
 static MACHINE_CONFIG_START( xsleena, xain_state )
@@ -605,7 +602,8 @@ static MACHINE_CONFIG_START( xsleena, xain_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, MCU_CLOCK)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(xain_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)

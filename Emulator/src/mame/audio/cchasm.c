@@ -47,7 +47,7 @@ WRITE8_MEMBER(cchasm_state::cchasm_soundlatch4_w)
 {
 	m_sound_flags |= 0x40;
 	soundlatch4_byte_w(space, offset, data);
-	machine().device("maincpu")->execute().set_input_line(1, HOLD_LINE);
+	m_maincpu->set_input_line(1, HOLD_LINE);
 }
 
 WRITE16_MEMBER(cchasm_state::cchasm_io_w)
@@ -66,7 +66,7 @@ WRITE16_MEMBER(cchasm_state::cchasm_io_w)
 			m_sound_flags |= 0x80;
 			soundlatch2_byte_w(space, offset, data);
 			m_ctc->trg2(1);
-			machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 			break;
 		case 2:
 			//led = data;
@@ -102,7 +102,7 @@ WRITE_LINE_MEMBER(cchasm_state::ctc_timer_1_w)
 	{
 		m_output[0] ^= 0x7f;
 		m_channel_active[0] = 1;
-		machine().device<dac_device>("dac1")->write_unsigned8(m_output[0]);
+		m_dac1->write_unsigned8(m_output[0]);
 	}
 }
 
@@ -112,7 +112,7 @@ WRITE_LINE_MEMBER(cchasm_state::ctc_timer_2_w)
 	{
 		m_output[1] ^= 0x7f;
 		m_channel_active[1] = 1;
-		machine().device<dac_device>("dac2")->write_unsigned8(m_output[0]);
+		m_dac2->write_unsigned8(m_output[0]);
 	}
 }
 

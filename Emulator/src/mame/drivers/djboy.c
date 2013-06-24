@@ -141,7 +141,6 @@ Notes:
 #include "cpu/mcs51/mcs51.h"
 #include "sound/2203intf.h"
 #include "sound/okim6295.h"
-#include "video/kan_pand.h"
 #include "includes/djboy.h"
 
 
@@ -149,16 +148,14 @@ Notes:
 
 WRITE8_MEMBER(djboy_state::beast_data_w)
 {
-
 	m_data_to_beast = data;
 	m_z80_to_beast_full = 1;
 	m_beast_int0_l = 0;
-	m_beast->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+	m_beast->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 }
 
 READ8_MEMBER(djboy_state::beast_data_r)
 {
-
 	m_beast_to_z80_full = 0;
 	return m_data_to_z80;
 }
@@ -177,7 +174,6 @@ WRITE8_MEMBER(djboy_state::trigger_nmi_on_cpu0)
 
 WRITE8_MEMBER(djboy_state::cpu0_bankswitch_w)
 {
-
 	data ^= m_bankxor;
 	membank("bank1")->set_entry(data);
 	membank("bank4")->set_entry(0); /* unsure if/how this area is banked */
@@ -233,7 +229,7 @@ WRITE8_MEMBER(djboy_state::coin_count_w)
 WRITE8_MEMBER(djboy_state::trigger_nmi_on_sound_cpu2)
 {
 	soundlatch_byte_w(space, 0, data);
-	m_cpu2->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_cpu2->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 } /* trigger_nmi_on_sound_cpu2 */
 
 WRITE8_MEMBER(djboy_state::cpu2_bankswitch_w)
@@ -246,7 +242,7 @@ WRITE8_MEMBER(djboy_state::cpu2_bankswitch_w)
 static ADDRESS_MAP_START( cpu0_am, AS_PROGRAM, 8, djboy_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xafff) AM_ROMBANK("bank4")
-	AM_RANGE(0xb000, 0xbfff) AM_DEVREADWRITE_LEGACY("pandora", pandora_spriteram_r, pandora_spriteram_w)
+	AM_RANGE(0xb000, 0xbfff) AM_DEVREADWRITE("pandora", kaneko_pandora_device, spriteram_r, spriteram_w)
 	AM_RANGE(0xc000, 0xdfff) AM_ROMBANK("bank1")
 	AM_RANGE(0xe000, 0xefff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
@@ -292,7 +288,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( cpu2_port_am, AS_IO, 8, djboy_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(cpu2_bankswitch_w)
-	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x04, 0x04) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x06, 0x06) AM_DEVREADWRITE("oki1", okim6295_device, read, write)
 	AM_RANGE(0x07, 0x07) AM_DEVREADWRITE("oki2", okim6295_device, read, write)
@@ -308,7 +304,6 @@ READ8_MEMBER(djboy_state::beast_p0_r)
 
 WRITE8_MEMBER(djboy_state::beast_p0_w)
 {
-
 	if (!BIT(m_beast_p0, 1) && BIT(data, 1))
 	{
 		m_beast_to_z80_full = 1;
@@ -323,7 +318,6 @@ WRITE8_MEMBER(djboy_state::beast_p0_w)
 
 READ8_MEMBER(djboy_state::beast_p1_r)
 {
-
 	if (BIT(m_beast_p0, 0) == 0)
 		return m_data_to_beast;
 	else
@@ -332,11 +326,10 @@ READ8_MEMBER(djboy_state::beast_p1_r)
 
 WRITE8_MEMBER(djboy_state::beast_p1_w)
 {
-
 	if (data == 0xff)
 	{
 		m_beast_int0_l = 1;
-		m_beast->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+		m_beast->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 	}
 
 	m_beast_p1 = data;
@@ -344,7 +337,6 @@ WRITE8_MEMBER(djboy_state::beast_p1_w)
 
 READ8_MEMBER(djboy_state::beast_p2_r)
 {
-
 	switch ((m_beast_p0 >> 2) & 3)
 	{
 		case 0: return ioport("IN1")->read();
@@ -361,7 +353,6 @@ WRITE8_MEMBER(djboy_state::beast_p2_w)
 
 READ8_MEMBER(djboy_state::beast_p3_r)
 {
-
 	UINT8 dsw = 0;
 	UINT8 dsw1 = ~ioport("DSW1")->read();
 	UINT8 dsw2 = ~ioport("DSW2")->read();
@@ -378,9 +369,8 @@ READ8_MEMBER(djboy_state::beast_p3_r)
 
 WRITE8_MEMBER(djboy_state::beast_p3_w)
 {
-
 	m_beast_p3 = data;
-	m_cpu1->execute().set_input_line(INPUT_LINE_RESET, data & 2 ? CLEAR_LINE : ASSERT_LINE);
+	m_cpu1->set_input_line(INPUT_LINE_RESET, data & 2 ? CLEAR_LINE : ASSERT_LINE);
 }
 /* Program/data maps are defined in the 8051 core */
 
@@ -504,11 +494,11 @@ TIMER_DEVICE_CALLBACK_MEMBER(djboy_state::djboy_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xfd);
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xfd);
 
 	/* Pandora "sprite end dma" irq? TODO: timing is clearly off, attract mode relies on this */
 	if(scanline == 64)
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
 static const kaneko_pandora_interface djboy_pandora_config =
@@ -533,12 +523,6 @@ void djboy_state::machine_start()
 	membank("bank3")->configure_entries(3, 5,  &CPU2[0x10000], 0x4000);
 	membank("bank4")->configure_entry(0, &MAIN[0x10000]); /* unsure if/how this area is banked */
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_cpu1 = machine().device("cpu1");
-	m_cpu2 = machine().device("cpu2");
-	m_beast = machine().device("beast");
-	m_pandora = machine().device("pandora");
-
 	save_item(NAME(m_videoreg));
 	save_item(NAME(m_scrollx));
 	save_item(NAME(m_scrolly));
@@ -557,7 +541,6 @@ void djboy_state::machine_start()
 
 void djboy_state::machine_reset()
 {
-
 	m_videoreg = 0;
 	m_scrollx = 0;
 	m_scrolly = 0;

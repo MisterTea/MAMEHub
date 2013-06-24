@@ -53,7 +53,9 @@ public:
 			m_ldv1000(*this, "ld_ldv1000"),
 			m_pr7820(*this, "ld_pr7820"),
 			m_22vp932(*this, "ld_22vp932") ,
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_beeper(*this, "beeper")    { }
 
 	void laserdisc_data_w(UINT8 data)
 	{
@@ -118,6 +120,8 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(dleuro_interrupt);
 	DECLARE_WRITE16_MEMBER(serial_transmit);
 	DECLARE_READ16_MEMBER(serial_receive);
+	required_device<cpu_device> m_maincpu;
+	optional_device<beep_device> m_beeper;
 };
 
 
@@ -155,7 +159,7 @@ static const UINT8 led_map[16] =
 
 WRITE_LINE_MEMBER(dlair_state::dleuro_interrupt)
 {
-	machine().device("maincpu")->execute().set_input_line(0, state);
+	m_maincpu->set_input_line(0, state);
 }
 
 
@@ -282,12 +286,11 @@ MACHINE_RESET_MEMBER(dlair_state,dlair)
 INTERRUPT_GEN_MEMBER(dlair_state::vblank_callback)
 {
 	/* also update the speaker on the European version */
-	beep_device *beep = machine().device<beep_device>("beep");
-	if (beep != NULL)
+	if (m_beeper != NULL)
 	{
 		z80ctc_device *ctc = machine().device<z80ctc_device>("ctc");
-		beep_set_state(beep, 1);
-		beep_set_frequency(beep, ATTOSECONDS_TO_HZ(ctc->period(0).attoseconds));
+		m_beeper->set_state(1);
+		m_beeper->set_frequency(ATTOSECONDS_TO_HZ(ctc->period(0).attoseconds));
 	}
 }
 
@@ -405,13 +408,13 @@ WRITE8_MEMBER(dlair_state::laserdisc_w)
 static ADDRESS_MAP_START( dlus_map, AS_PROGRAM, 8, dlair_state )
 	AM_RANGE(0x0000, 0x9fff) AM_ROM
 	AM_RANGE(0xa000, 0xa7ff) AM_MIRROR(0x1800) AM_RAM
-	AM_RANGE(0xc000, 0xc000) AM_MIRROR(0x1fc7) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0xc000, 0xc000) AM_MIRROR(0x1fc7) AM_DEVREAD("aysnd", ay8910_device, data_r)
 	AM_RANGE(0xc008, 0xc008) AM_MIRROR(0x1fc7) AM_READ_PORT("CONTROLS")
 	AM_RANGE(0xc010, 0xc010) AM_MIRROR(0x1fc7) AM_READ_PORT("SERVICE")
 	AM_RANGE(0xc020, 0xc020) AM_MIRROR(0x1fc7) AM_READ(laserdisc_r)
-	AM_RANGE(0xe000, 0xe000) AM_MIRROR(0x1fc7) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
+	AM_RANGE(0xe000, 0xe000) AM_MIRROR(0x1fc7) AM_DEVWRITE("aysnd", ay8910_device, data_w)
 	AM_RANGE(0xe008, 0xe008) AM_MIRROR(0x1fc7) AM_WRITE(misc_w)
-	AM_RANGE(0xe010, 0xe010) AM_MIRROR(0x1fc7) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0xe010, 0xe010) AM_MIRROR(0x1fc7) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 	AM_RANGE(0xe020, 0xe020) AM_MIRROR(0x1fc7) AM_WRITE(laserdisc_w)
 	AM_RANGE(0xe030, 0xe037) AM_MIRROR(0x1fc0) AM_WRITE(led_den2_w)
 	AM_RANGE(0xe038, 0xe03f) AM_MIRROR(0x1fc0) AM_WRITE(led_den1_w)
@@ -787,7 +790,7 @@ static MACHINE_CONFIG_START( dleuro, dlair_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("beep", BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.33)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.33)
 

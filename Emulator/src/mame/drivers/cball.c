@@ -11,9 +11,15 @@
 class cball_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_INTERRUPT
+	};
+
 	cball_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_video_ram(*this, "video_ram")
+		m_video_ram(*this, "video_ram"),
+		m_maincpu(*this, "maincpu")
 	{ }
 
 	/* memory pointers */
@@ -23,7 +29,7 @@ public:
 	tilemap_t* m_bg_tilemap;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_WRITE8_MEMBER(cball_vram_w);
 	DECLARE_READ8_MEMBER(cball_wram_r);
 	DECLARE_WRITE8_MEMBER(cball_wram_w);
@@ -34,6 +40,9 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_cball(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -60,7 +69,6 @@ void cball_state::video_start()
 
 UINT32 cball_state::screen_update_cball(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	/* draw playfield */
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
@@ -75,6 +83,19 @@ UINT32 cball_state::screen_update_cball(screen_device &screen, bitmap_ind16 &bit
 }
 
 
+void cball_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_INTERRUPT:
+		interrupt_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in cball_state::device_timer");
+	}
+}
+
+
 TIMER_CALLBACK_MEMBER(cball_state::interrupt_callback)
 {
 	int scanline = param;
@@ -86,18 +107,17 @@ TIMER_CALLBACK_MEMBER(cball_state::interrupt_callback)
 	if (scanline >= 262)
 		scanline = 16;
 
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(cball_state::interrupt_callback),this), scanline);
+	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_INTERRUPT, scanline);
 }
 
 
 void cball_state::machine_start()
 {
-	m_maincpu = machine().device<cpu_device>("maincpu");
 }
 
 void cball_state::machine_reset()
 {
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(16), timer_expired_delegate(FUNC(cball_state::interrupt_callback),this), 16);
+	timer_set(machine().primary_screen->time_until_pos(16), TIMER_INTERRUPT, 16);
 }
 
 

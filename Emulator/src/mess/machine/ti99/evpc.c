@@ -23,10 +23,9 @@
 #define NOVRAM_SIZE 256
 
 snug_enhanced_video_device::snug_enhanced_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-: ti_expansion_card_device(mconfig, TI99_EVPC, "SNUG Enhanced Video Processor Card", tag, owner, clock),
+: ti_expansion_card_device(mconfig, TI99_EVPC, "SNUG Enhanced Video Processor Card", tag, owner, clock, "ti99_evpc", __FILE__),
 	device_nvram_interface(mconfig, *this)
 {
-	m_shortname = "ti99_evpc";
 }
 
 //-------------------------------------------------
@@ -317,6 +316,7 @@ void snug_enhanced_video_device::device_reset()
 	m_select_value = 0x74000;
 	m_dsr_page = 0;
 	m_RAMEN = false;
+	m_selected = false;
 }
 
 void snug_enhanced_video_device::device_stop()

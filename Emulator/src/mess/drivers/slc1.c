@@ -58,7 +58,7 @@ public:
 	slc1_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
-			m_speaker(*this, SPEAKER_TAG)
+			m_speaker(*this, "speaker")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -91,7 +91,7 @@ WRITE8_MEMBER( slc1_state::io_w )
 	else
 	if (data < 12)
 	{
-		speaker_level_w(m_speaker, BIT(data, 1) );
+		m_speaker->level_w(BIT(data, 1));
 		return;
 	}
 	else
@@ -259,7 +259,7 @@ static MACHINE_CONFIG_START( slc1, slc1_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -272,9 +272,9 @@ MACHINE_CONFIG_END
 
 ROM_START(slc1)
 	ROM_REGION(0x10000, "maincpu", ROMREGION_ERASEFF)
-	ROM_SYSTEM_BIOS(0, "BIOS0", "SLC-1")
+	ROM_SYSTEM_BIOS(0, "bios0", "SLC-1")
 	ROMX_LOAD("slc1_0000.bin",   0x0000, 0x1000, CRC(06d32967) SHA1(f25eac66a4fca9383964d509c671a7ad2e020e7e), ROM_BIOS(1) )
-	ROM_SYSTEM_BIOS(1, "BIOS1", "SC-1 v2")
+	ROM_SYSTEM_BIOS(1, "bios1", "SC-1 v2")
 	ROMX_LOAD("sc1-v2.bin",      0x0000, 0x1000, CRC(1f122a85) SHA1(d60f89f8b59d04f4cecd6e3ecfe0a24152462a36), ROM_BIOS(2) )
 ROM_END
 

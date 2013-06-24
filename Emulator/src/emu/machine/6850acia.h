@@ -91,6 +91,8 @@ public:
 
 	void receive_data(UINT8 data);
 
+	UINT8 get_status() { return m_status; }  // returns current status without mangling it
+
 protected:
 	// device-level overrides
 	virtual void device_start();
@@ -105,6 +107,7 @@ private:
 	};
 
 	void check_interrupts();
+	void check_dcd_input();
 
 	void tx_tick();
 	void transmit_event();
@@ -170,6 +173,7 @@ private:
 	serial_state m_rx_state;
 	serial_state m_tx_state;
 	int         m_irq;
+	bool        m_dcd_triggered;
 
 	emu_timer   *m_rx_timer;
 	emu_timer   *m_tx_timer;

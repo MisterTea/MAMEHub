@@ -30,8 +30,10 @@ class suprgolf_state : public driver_device
 {
 public:
 	suprgolf_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_msm(*this, "msm") { }
 
 	tilemap_t *m_tilemap;
 	required_shared_ptr<UINT8> m_videoram;
@@ -69,6 +71,10 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_suprgolf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	DECLARE_WRITE_LINE_MEMBER(adpcm_int);
+	required_device<cpu_device> m_maincpu;
+	required_device<msm5205_device> m_msm;
 };
 
 TILE_GET_INFO_MEMBER(suprgolf_state::get_tile_info)
@@ -85,7 +91,6 @@ TILE_GET_INFO_MEMBER(suprgolf_state::get_tile_info)
 
 void suprgolf_state::video_start()
 {
-
 	m_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(suprgolf_state::get_tile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
 	m_paletteram = auto_alloc_array(machine(), UINT8, 0x1000);
 	m_bg_vram = auto_alloc_array(machine(), UINT8, 0x2000*0x20);
@@ -141,7 +146,6 @@ UINT32 suprgolf_state::screen_update_suprgolf(screen_device &screen, bitmap_ind1
 
 READ8_MEMBER(suprgolf_state::suprgolf_videoram_r)
 {
-
 	if (m_palette_switch)
 		return m_paletteram[offset];
 	else
@@ -150,7 +154,6 @@ READ8_MEMBER(suprgolf_state::suprgolf_videoram_r)
 
 WRITE8_MEMBER(suprgolf_state::suprgolf_videoram_w)
 {
-
 	if(m_palette_switch)
 	{
 		int r,g,b,datax;
@@ -173,13 +176,11 @@ WRITE8_MEMBER(suprgolf_state::suprgolf_videoram_w)
 
 READ8_MEMBER(suprgolf_state::suprgolf_vregs_r)
 {
-
 	return m_vreg_bank;
 }
 
 WRITE8_MEMBER(suprgolf_state::suprgolf_vregs_w)
 {
-
 	//printf("%02x\n",data);
 
 	//bits 0,1,2 and probably 3 controls the background vram banking
@@ -195,7 +196,6 @@ WRITE8_MEMBER(suprgolf_state::suprgolf_vregs_w)
 
 READ8_MEMBER(suprgolf_state::suprgolf_bg_vram_r)
 {
-
 	return m_bg_vram[offset+m_bg_bank*0x2000];
 }
 
@@ -246,19 +246,16 @@ WRITE8_MEMBER(suprgolf_state::suprgolf_bg_vram_w)
 
 WRITE8_MEMBER(suprgolf_state::suprgolf_pen_w)
 {
-
 	m_vreg_pen = data;
 }
 
 WRITE8_MEMBER(suprgolf_state::adpcm_data_w)
 {
-
 	m_msm5205next = data;
 }
 
 READ8_MEMBER(suprgolf_state::rom_bank_select_r)
 {
-
 	return m_rom_bank;
 }
 
@@ -292,20 +289,20 @@ READ8_MEMBER(suprgolf_state::pedal_extra_bits_r)
 {
 	UINT8 p1_sht_sw,p2_sht_sw;
 
-	p1_sht_sw = (machine().root_device().ioport("P1_RELEASE")->read() & 0x80)>>7;
-	p2_sht_sw = (machine().root_device().ioport("P2_RELEASE")->read() & 0x80)>>6;
+	p1_sht_sw = (ioport("P1_RELEASE")->read() & 0x80)>>7;
+	p2_sht_sw = (ioport("P2_RELEASE")->read() & 0x80)>>6;
 
 	return p1_sht_sw | p2_sht_sw;
 }
 
 READ8_MEMBER(suprgolf_state::p1_r)
 {
-	return (machine().root_device().ioport("P1")->read() & 0xf0) | ((machine().root_device().ioport("P1_ANALOG")->read() & 0xf));
+	return (ioport("P1")->read() & 0xf0) | ((ioport("P1_ANALOG")->read() & 0xf));
 }
 
 READ8_MEMBER(suprgolf_state::p2_r)
 {
-	return (machine().root_device().ioport("P2")->read() & 0xf0) | ((machine().root_device().ioport("P2_ANALOG")->read() & 0xf));
+	return (ioport("P2")->read() & 0xf0) | ((ioport("P2_ANALOG")->read() & 0xf));
 }
 
 static ADDRESS_MAP_START( suprgolf_map, AS_PROGRAM, 8, suprgolf_state )
@@ -323,7 +320,7 @@ static ADDRESS_MAP_START( io_map, AS_IO, 8, suprgolf_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)
 	AM_RANGE(0x04, 0x07) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write)
-	AM_RANGE(0x08, 0x09) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x08, 0x09) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x0c, 0x0c) AM_WRITE(adpcm_data_w)
 	ADDRESS_MAP_END
 
@@ -422,46 +419,39 @@ WRITE8_MEMBER(suprgolf_state::suprgolf_writeB)
 	mame_printf_debug("ymwA\n");
 }
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(suprgolf_state::irqhandler)
 {
-	//device->machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, irq ? ASSERT_LINE : CLEAR_LINE);
+	//m_maincpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW0"),
-		DEVCB_INPUT_PORT("DSW1"),
-		DEVCB_DRIVER_MEMBER(suprgolf_state,suprgolf_writeA),
-		DEVCB_DRIVER_MEMBER(suprgolf_state,suprgolf_writeB),
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW0"),
+	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_DRIVER_MEMBER(suprgolf_state,suprgolf_writeA),
+	DEVCB_DRIVER_MEMBER(suprgolf_state,suprgolf_writeB),
 };
 
-static void adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(suprgolf_state::adpcm_int)
 {
-	suprgolf_state *state = device->machine().driver_data<suprgolf_state>();
-
+	m_msm->reset_w(0);
+	m_toggle ^= 1;
+	if(m_toggle)
 	{
-		msm5205_reset_w(device,0);
-		state->m_toggle ^= 1;
-		if(state->m_toggle)
-		{
-			msm5205_data_w(device, (state->m_msm5205next & 0xf0) >> 4);
-			if(state->m_msm_nmi_mask) { device->machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE); }
-		}
-		else
-		{
-			msm5205_data_w(device, (state->m_msm5205next & 0x0f) >> 0);
-		}
+		m_msm->data_w((m_msm5205next & 0xf0) >> 4);
+		if(m_msm_nmi_mask) { m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE); }
+	}
+	else
+	{
+		m_msm->data_w((m_msm5205next & 0x0f) >> 0);
 	}
 }
 
 static const msm5205_interface msm5205_config =
 {
-	adpcm_int,      /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(suprgolf_state,adpcm_int),      /* interrupt function */
 	MSM5205_S48_4B  /* 4KHz 4-bit */
 };
 
@@ -482,7 +472,6 @@ GFXDECODE_END
 
 void suprgolf_state::machine_reset()
 {
-
 	m_msm_nmi_mask = 0;
 }
 
@@ -537,7 +526,8 @@ static MACHINE_CONFIG_START( suprgolf, suprgolf_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MASTER_CLOCK/4) /* guess */
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(suprgolf_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_384kHz) /* guess */
@@ -642,7 +632,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(suprgolf_state,suprgolf)
 {
-	UINT8 *ROM = machine().root_device().memregion("user2")->base();
+	UINT8 *ROM = memregion("user2")->base();
 
 	ROM[0x74f4-0x4000] = 0x00;
 	ROM[0x74f5-0x4000] = 0x00;

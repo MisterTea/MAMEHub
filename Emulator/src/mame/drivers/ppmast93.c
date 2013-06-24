@@ -140,9 +140,11 @@ class ppmast93_state : public driver_device
 {
 public:
 	ppmast93_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bgram(*this, "bgram"),
-		m_fgram(*this, "fgram"){ }
+		m_fgram(*this, "fgram"),
+		m_maincpu(*this, "maincpu"),
+		m_dac(*this, "dac") { }
 
 	tilemap_t *m_fg_tilemap;
 	tilemap_t *m_bg_tilemap;
@@ -156,6 +158,8 @@ public:
 	TILE_GET_INFO_MEMBER(get_ppmast93_fg_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_ppmast93(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<dac_device> m_dac;
 };
 
 
@@ -218,8 +222,8 @@ WRITE8_MEMBER(ppmast93_state::ppmast_sound_w)
 	switch(offset&0xff)
 	{
 		case 0:
-		case 1: ym2413_w(machine().device("ymsnd"),space,offset,data); break;
-		case 2: machine().device<dac_device>("dac")->write_unsigned8(data);break;
+		case 1: machine().device<ym2413_device>("ymsnd")->write(space,offset,data); break;
+		case 2: m_dac->write_unsigned8(data);break;
 		default: logerror("%x %x - %x\n",offset,data,space.device().safe_pcbase());
 	}
 }

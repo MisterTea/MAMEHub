@@ -48,7 +48,7 @@ Stephh's notes (based on the games M68000 code and some tests) :
 #include "sound/okim6295.h"
 #include "includes/tumblep.h"
 #include "video/deco16ic.h"
-#include "video/decospr.h"
+
 
 #define TUMBLEP_HACK    0
 
@@ -78,7 +78,7 @@ WRITE16_MEMBER(tumblep_state::tumblep_sound_w)
 WRITE16_MEMBER(tumblep_state::jumppop_sound_w)
 {
 	soundlatch_byte_w(space, 0, data & 0xff);
-	m_audiocpu.device(0)->execute().set_input_line(ASSERT_LINE );
+	m_audiocpu->set_input_line(ASSERT_LINE );
 }
 #endif
 
@@ -285,10 +285,6 @@ static const deco16ic_interface tumblep_deco16ic_tilegen1_intf =
 
 void tumblep_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_deco_tilegen1 = machine().device("tilegen1");
 }
 
 static MACHINE_CONFIG_START( tumblep, tumblep_state )
@@ -373,10 +369,10 @@ ROM_END
 /******************************************************************************/
 
 #if TUMBLEP_HACK
-void tumblep_patch_code(UINT16 offset)
+void ::tumblep_patch_code(UINT16 offset)
 {
 	/* A hack which enables all Dip Switches effects */
-	UINT16 *RAM = (UINT16 *)machine.root_device().memregion("maincpu")->base();
+	UINT16 *RAM = (UINT16 *)memregion("maincpu")->base();
 	RAM[(offset + 0)/2] = 0x0240;
 	RAM[(offset + 2)/2] = 0xffff;   // andi.w  #$f3ff, D0
 }

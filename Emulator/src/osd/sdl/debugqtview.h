@@ -8,11 +8,13 @@
 
 class DebuggerView : public QAbstractScrollArea
 {
+	Q_OBJECT
+
 public:
 	DebuggerView(const debug_view_type& type,
 					running_machine* machine,
 					QWidget* parent=NULL);
-	virtual ~DebuggerView() {}
+	virtual ~DebuggerView();
 
 	void paintEvent(QPaintEvent* event);
 
@@ -26,6 +28,11 @@ public:
 
 protected:
 	void keyPressEvent(QKeyEvent* event);
+	void mousePressEvent(QMouseEvent* event);
+
+private slots:
+	void verticalScrollSlot(int value);
+	void horizontalScrollSlot(int value);
 
 
 private:

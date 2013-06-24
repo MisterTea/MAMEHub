@@ -36,7 +36,7 @@ void taitosj_state::machine_start()
 
 void taitosj_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	/* set the default ROM bank (many games only have one bank and */
 	/* never write to the bank selector register) */
 	taitosj_bankswitch_w(space, 0, 0);
@@ -45,8 +45,8 @@ void taitosj_state::machine_reset()
 	m_zaccept = 1;
 	m_zready = 0;
 	m_busreq = 0;
-	if (machine().device("mcu") != NULL)
-		machine().device("mcu")->execute().set_input_line(0, CLEAR_LINE);
+	if (m_mcu != NULL)
+		m_mcu->set_input_line(0, CLEAR_LINE);
 
 	m_spacecr_prot_value = 0;
 }
@@ -105,7 +105,7 @@ READ8_MEMBER(taitosj_state::taitosj_mcu_data_r)
 TIMER_CALLBACK_MEMBER(taitosj_state::taitosj_mcu_real_data_w)
 {
 	m_zready = 1;
-	machine().device("mcu")->execute().set_input_line(0, ASSERT_LINE);
+	m_mcu->set_input_line(0, ASSERT_LINE);
 	m_fromz80 = param;
 }
 
@@ -191,7 +191,7 @@ WRITE8_MEMBER(taitosj_state::taitosj_68705_portB_w)
 	{
 		/* 68705 is going to read data from the Z80 */
 		machine().scheduler().synchronize(timer_expired_delegate(FUNC(taitosj_state::taitosj_mcu_data_real_r),this));
-		machine().device("mcu")->execute().set_input_line(0, CLEAR_LINE);
+		m_mcu->set_input_line(0, CLEAR_LINE);
 		m_portA_in = m_fromz80;
 		LOG(("%04x: 68705 <- Z80 %02x\n", space.device().safe_pc(), m_portA_in));
 	}
@@ -208,7 +208,7 @@ WRITE8_MEMBER(taitosj_state::taitosj_68705_portB_w)
 	}
 	if (~data & 0x10)
 	{
-		address_space &cpu0space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+		address_space &cpu0space = m_maincpu->space(AS_PROGRAM);
 		LOG(("%04x: 68705 write %02x to address %04x\n",space.device().safe_pc(), m_portA_out, m_address));
 
 		cpu0space.write_byte(m_address, m_portA_out);
@@ -218,7 +218,7 @@ WRITE8_MEMBER(taitosj_state::taitosj_68705_portB_w)
 	}
 	if (~data & 0x20)
 	{
-		address_space &cpu0space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+		address_space &cpu0space = m_maincpu->space(AS_PROGRAM);
 		m_portA_in = cpu0space.read_byte(m_address);
 		LOG(("%04x: 68705 read %02x from address %04x\n", space.device().safe_pc(), m_portA_in, m_address));
 	}

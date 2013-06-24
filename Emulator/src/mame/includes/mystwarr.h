@@ -1,3 +1,5 @@
+#include "sound/k054539.h"
+
 class mystwarr_state : public konamigx_state
 {
 public:
@@ -5,8 +7,7 @@ public:
 		: konamigx_state(mconfig, type, tag),
 		m_gx_workram(*this,"gx_workram"),
 		m_spriteram(*this,"spriteram"),
-		m_maincpu(*this,"maincpu")
-		{ }
+		m_maincpu(*this,"maincpu") { }
 
 	required_shared_ptr<UINT16> m_gx_workram;
 	UINT8 m_mw_irq_control;
@@ -75,4 +76,5 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(mystwarr_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(metamrph_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(mchamp_interrupt);
+	void reset_sound_region();
 };

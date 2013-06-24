@@ -149,7 +149,242 @@ static const int ddenlovr_commands[8]   = { BLIT_NEXT, BLIT_LINE,       BLIT_COP
 static const int hanakanz_commands[8]   = { BLIT_NEXT, BLIT_CHANGE_PEN, BLIT_CHANGE_NUM,    BLIT_UNKNOWN,   BLIT_SKIP,      BLIT_COPY,          BLIT_LINE,          BLIT_STOP   };
 static const int mjflove_commands[8]    = { BLIT_STOP, BLIT_CHANGE_PEN, BLIT_CHANGE_NUM,    BLIT_UNKNOWN,   BLIT_SKIP,      BLIT_COPY,          BLIT_LINE,          BLIT_NEXT   };
 
-VIDEO_START_MEMBER(dynax_state,ddenlovr)
+class ddenlovr_state : public dynax_state
+{
+public:
+	ddenlovr_state(const machine_config &mconfig, device_type type, const char *tag)
+		: dynax_state(mconfig, type, tag)
+		{ }
+
+	DECLARE_MACHINE_START(ddenlovr);
+	DECLARE_MACHINE_RESET(ddenlovr);
+	DECLARE_VIDEO_START(ddenlovr);
+	DECLARE_MACHINE_START(rongrong);
+	DECLARE_MACHINE_START(mmpanic);
+	DECLARE_VIDEO_START(mmpanic);
+	DECLARE_MACHINE_START(hanakanz);
+	DECLARE_VIDEO_START(hanakanz);
+	DECLARE_MACHINE_START(sryudens);
+	DECLARE_VIDEO_START(mjflove);
+	DECLARE_MACHINE_START(seljan2);
+	DECLARE_MACHINE_START(mjflove);
+	DECLARE_MACHINE_START(funkyfig);
+	DECLARE_MACHINE_START(mjmyster);
+	DECLARE_MACHINE_START(hparadis);
+	UINT32 screen_update_ddenlovr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	UINT32 screen_update_htengoku(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	INTERRUPT_GEN_MEMBER(quizchq_irq);
+	INTERRUPT_GEN_MEMBER(mmpanic_irq);
+	DECLARE_WRITE_LINE_MEMBER(quizchq_rtc_irq);
+	DECLARE_WRITE_LINE_MEMBER(mmpanic_rtc_irq);
+	INTERRUPT_GEN_MEMBER(hanakanz_irq);
+	INTERRUPT_GEN_MEMBER(mjchuuka_irq);
+	INTERRUPT_GEN_MEMBER(hginga_irq);
+	INTERRUPT_GEN_MEMBER(mjflove_irq);
+	INTERRUPT_GEN_MEMBER(hparadis_irq);
+	DECLARE_WRITE_LINE_MEMBER(hanakanz_rtc_irq);
+	DECLARE_WRITE_LINE_MEMBER(mjchuuka_rtc_irq);
+	DECLARE_WRITE_LINE_MEMBER(hginga_rtc_irq);
+	DECLARE_WRITE_LINE_MEMBER(mjflove_rtc_irq);
+	DECLARE_WRITE_LINE_MEMBER(mjmyster_rtc_irq);
+	TIMER_DEVICE_CALLBACK_MEMBER(mjmyster_irq);
+
+	DECLARE_CUSTOM_INPUT_MEMBER(ddenlovr_blitter_irq_r);
+	DECLARE_CUSTOM_INPUT_MEMBER(ddenlovj_blitter_r);
+	DECLARE_CUSTOM_INPUT_MEMBER(nettoqc_special_r);
+	DECLARE_CUSTOM_INPUT_MEMBER(mjflove_blitter_r);
+	DECLARE_WRITE8_MEMBER(ddenlovr_bgcolor_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_bgcolor2_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr16_bgcolor_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_priority_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_priority2_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr16_priority_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_layer_enable_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_layer_enable2_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr16_layer_enable_w);
+	DECLARE_WRITE8_MEMBER(hanakanz_blitter_reg_w);
+	DECLARE_WRITE8_MEMBER(hanakanz_blitter_data_w);
+	DECLARE_WRITE8_MEMBER(rongrong_blitter_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr_blitter_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr_blitter_irq_ack_w);
+	DECLARE_READ8_MEMBER(rongrong_gfxrom_r);
+	DECLARE_READ16_MEMBER(ddenlovr_gfxrom_r);
+	DECLARE_WRITE16_MEMBER(ddenlovr_coincounter_0_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr_coincounter_1_w);
+	DECLARE_WRITE8_MEMBER(rongrong_palette_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr_palette_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_palette_base_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_palette_base2_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_palette_mask_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_palette_mask2_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_transparency_pen_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_transparency_pen2_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_transparency_mask_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_transparency_mask2_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr16_palette_base_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr16_palette_mask_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr16_transparency_pen_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr16_transparency_mask_w);
+	DECLARE_READ8_MEMBER(unk_r);
+	DECLARE_READ16_MEMBER(unk16_r);
+	DECLARE_WRITE16_MEMBER(ddenlovr_select_16_w);
+	DECLARE_WRITE8_MEMBER(ddenlovr_select2_w);
+	DECLARE_WRITE16_MEMBER(ddenlovr_select2_16_w);
+	DECLARE_READ8_MEMBER(rongrong_input2_r);
+	DECLARE_READ16_MEMBER(quiz365_input2_r);
+	DECLARE_WRITE8_MEMBER(rongrong_blitter_busy_w);
+	DECLARE_READ8_MEMBER(rongrong_blitter_busy_r);
+	DECLARE_WRITE16_MEMBER(quiz365_coincounter_w);
+	DECLARE_READ16_MEMBER(quiz365_protection_r);
+	DECLARE_WRITE16_MEMBER(quiz365_protection_w);
+	DECLARE_READ16_MEMBER(ddenlovj_dsw_r);
+	DECLARE_WRITE16_MEMBER(ddenlovj_coincounter_w);
+	DECLARE_READ16_MEMBER(ddenlovrk_protection1_r);
+	DECLARE_READ16_MEMBER(ddenlovrk_protection2_r);
+	DECLARE_WRITE16_MEMBER(ddenlovrk_protection2_w);
+	DECLARE_READ16_MEMBER(nettoqc_input_r);
+	DECLARE_READ16_MEMBER(nettoqc_protection1_r);
+	DECLARE_WRITE16_MEMBER(nettoqc_coincounter_w);
+	DECLARE_READ16_MEMBER(ultrchmp_protection2_r);
+	DECLARE_WRITE16_MEMBER(ultrchmp_protection2_w);
+	DECLARE_READ8_MEMBER(rongrong_input_r);
+	DECLARE_WRITE8_MEMBER(rongrong_select_w);
+	DECLARE_READ8_MEMBER(magic_r);
+	DECLARE_WRITE8_MEMBER(mmpanic_rombank_w);
+	DECLARE_WRITE8_MEMBER(mmpanic_soundlatch_w);
+	DECLARE_WRITE8_MEMBER(mmpanic_blitter_w);
+	DECLARE_WRITE8_MEMBER(mmpanic_blitter2_w);
+	DECLARE_WRITE8_MEMBER(mmpanic_leds_w);
+	DECLARE_WRITE8_MEMBER(mmpanic_leds2_w);
+	DECLARE_WRITE8_MEMBER(mmpanic_lockout_w);
+	DECLARE_READ8_MEMBER(mmpanic_link_r);
+	DECLARE_READ8_MEMBER(funkyfig_busy_r);
+	DECLARE_WRITE8_MEMBER(funkyfig_blitter_w);
+	DECLARE_WRITE8_MEMBER(funkyfig_rombank_w);
+	DECLARE_READ8_MEMBER(funkyfig_dsw_r);
+	DECLARE_READ8_MEMBER(funkyfig_coin_r);
+	DECLARE_READ8_MEMBER(funkyfig_key_r);
+	DECLARE_WRITE8_MEMBER(funkyfig_lockout_w);
+	DECLARE_WRITE8_MEMBER(hanakanz_rombank_w);
+	DECLARE_WRITE8_MEMBER(hanakanz_keyb_w);
+	DECLARE_WRITE8_MEMBER(hanakanz_dsw_w);
+	DECLARE_READ8_MEMBER(hanakanz_keyb_r);
+	DECLARE_READ8_MEMBER(hanakanz_dsw_r);
+	DECLARE_READ8_MEMBER(hanakanz_busy_r);
+	DECLARE_READ8_MEMBER(hanakanz_gfxrom_r);
+	DECLARE_WRITE8_MEMBER(hanakanz_coincounter_w);
+	DECLARE_WRITE8_MEMBER(hanakanz_palette_w);
+	DECLARE_READ8_MEMBER(hanakanz_rand_r);
+	DECLARE_WRITE8_MEMBER(mjreach1_protection_w);
+	DECLARE_READ8_MEMBER(mjreach1_protection_r);
+	DECLARE_READ8_MEMBER(mjchuuka_keyb_r);
+	DECLARE_WRITE8_MEMBER(mjchuuka_blitter_w);
+	DECLARE_READ8_MEMBER(mjchuuka_gfxrom_0_r);
+	DECLARE_READ8_MEMBER(mjchuuka_gfxrom_1_r);
+	DECLARE_WRITE8_MEMBER(mjchuuka_palette_w);
+	DECLARE_WRITE8_MEMBER(mjchuuka_coincounter_w);
+	DECLARE_WRITE8_MEMBER(mjmyster_rambank_w);
+	DECLARE_WRITE8_MEMBER(mjmyster_select2_w);
+	DECLARE_READ8_MEMBER(mjmyster_coins_r);
+	DECLARE_READ8_MEMBER(mjmyster_keyb_r);
+	DECLARE_READ8_MEMBER(mjmyster_dsw_r);
+	DECLARE_WRITE8_MEMBER(mjmyster_coincounter_w);
+	DECLARE_WRITE8_MEMBER(mjmyster_blitter_w);
+	DECLARE_WRITE8_MEMBER(hginga_rombank_w);
+	DECLARE_READ8_MEMBER(hginga_protection_r);
+	DECLARE_WRITE8_MEMBER(hginga_input_w);
+	DECLARE_READ8_MEMBER(hginga_coins_r);
+	DECLARE_WRITE8_MEMBER(hginga_80_w);
+	DECLARE_WRITE8_MEMBER(hginga_coins_w);
+	DECLARE_READ8_MEMBER(hginga_input_r);
+	DECLARE_WRITE8_MEMBER(hginga_blitter_w);
+	DECLARE_WRITE8_MEMBER(hgokou_dsw_sel_w);
+	DECLARE_READ8_MEMBER(hgokou_input_r);
+	DECLARE_WRITE8_MEMBER(hgokou_input_w);
+	DECLARE_READ8_MEMBER(hgokou_protection_r);
+	DECLARE_READ8_MEMBER(hgokbang_input_r);
+	DECLARE_WRITE8_MEMBER(hparadis_select_w);
+	DECLARE_READ8_MEMBER(hparadis_input_r);
+	DECLARE_READ8_MEMBER(hparadis_dsw_r);
+	DECLARE_WRITE8_MEMBER(hparadis_coin_w);
+	DECLARE_READ8_MEMBER(mjmywrld_coins_r);
+	DECLARE_READ16_MEMBER(akamaru_protection1_r);
+	DECLARE_WRITE16_MEMBER(akamaru_protection1_w);
+	DECLARE_READ16_MEMBER(akamaru_protection2_r);
+	DECLARE_READ16_MEMBER(akamaru_dsw_r);
+	DECLARE_READ16_MEMBER(akamaru_blitter_r);
+	DECLARE_READ16_MEMBER(akamaru_e0010d_r);
+	DECLARE_WRITE8_MEMBER(mjflove_rombank_w);
+	DECLARE_READ8_MEMBER(mjflove_protection_r);
+	DECLARE_READ8_MEMBER(mjflove_keyb_r);
+	DECLARE_WRITE8_MEMBER(mjflove_blitter_w);
+	DECLARE_WRITE8_MEMBER(mjflove_coincounter_w);
+	DECLARE_WRITE8_MEMBER(jongtei_dsw_keyb_w);
+	DECLARE_READ8_MEMBER(jongtei_busy_r);
+	DECLARE_READ8_MEMBER(sryudens_keyb_r);
+	DECLARE_WRITE8_MEMBER(sryudens_coincounter_w);
+	DECLARE_WRITE8_MEMBER(sryudens_rambank_w);
+	DECLARE_READ8_MEMBER(daimyojn_keyb1_r);
+	DECLARE_READ8_MEMBER(daimyojn_keyb2_r);
+	DECLARE_WRITE8_MEMBER(daimyojn_protection_w);
+	DECLARE_READ8_MEMBER(daimyojn_protection_r);
+	DECLARE_READ8_MEMBER(momotaro_protection_r);
+	DECLARE_WRITE8_MEMBER(daimyojn_palette_sel_w);
+	DECLARE_WRITE8_MEMBER(daimyojn_blitter_data_palette_w);
+	DECLARE_READ8_MEMBER(daimyojn_year_hack_r);
+	DECLARE_WRITE8_MEMBER(janshinp_coincounter_w);
+	DECLARE_READ8_MEMBER(seljan2_busy_r);
+	DECLARE_WRITE8_MEMBER(seljan2_rombank_w);
+	DECLARE_WRITE8_MEMBER(seljan2_palette_enab_w);
+	DECLARE_WRITE8_MEMBER(seljan2_palette_w);
+	DECLARE_DRIVER_INIT(rongrong);
+	DECLARE_DRIVER_INIT(momotaro);
+	DECLARE_WRITE8_MEMBER(htengoku_select_w);
+	DECLARE_WRITE8_MEMBER(htengoku_coin_w);
+	DECLARE_READ8_MEMBER(htengoku_input_r);
+	DECLARE_READ8_MEMBER(htengoku_coin_r);
+	DECLARE_WRITE8_MEMBER(htengoku_rombank_w);
+	DECLARE_WRITE8_MEMBER(htengoku_blit_romregion_w);
+	DECLARE_MACHINE_START(htengoku);
+	DECLARE_VIDEO_START(htengoku);
+	DECLARE_WRITE8_MEMBER(htengoku_dsw_w);
+	DECLARE_READ8_MEMBER(htengoku_dsw_r);
+
+	void ddenlovr_flipscreen_w( UINT8 data );
+	void ddenlovr_blit_flip_w( UINT8 data );
+	void do_plot( int x, int y, int pen );
+	inline void log_draw_error( int src, int cmd );
+	int blit_draw( int src, int sx );
+	void blit_rect_xywh();
+	void blit_rect_yh();
+	void blit_fill_xy(int x, int y );
+	void blit_horiz_line();
+	void blit_vert_line();
+	inline void log_blit(int data );
+	void blitter_w( address_space &space, int blitter, offs_t offset, UINT8 data, int irq_vector );
+	void blitter_w_funkyfig(int blitter, offs_t offset, UINT8 data, int irq_vector );
+	void copylayer(bitmap_ind16 &bitmap, const rectangle &cliprect, int layer );
+	void mmpanic_update_leds();
+	void mjchuuka_get_romdata();
+	UINT8 hgokou_player_r( int player );
+	DECLARE_WRITE8_MEMBER( quizchq_oki_bank_w );
+	DECLARE_WRITE16_MEMBER( ddenlovr_oki_bank_w );
+	DECLARE_WRITE16_MEMBER( quiz365_oki_bank1_w );
+	DECLARE_WRITE16_MEMBER( quiz365_oki_bank2_w );
+	DECLARE_WRITE8_MEMBER( ddenlovr_select_w );
+	DECLARE_READ8_MEMBER( quiz365_input_r );
+	DECLARE_WRITE16_MEMBER( nettoqc_oki_bank_w );
+	DECLARE_WRITE8_MEMBER( hanakanz_oki_bank_w );
+	DECLARE_WRITE8_MEMBER( mjchuuka_oki_bank_w );
+	DECLARE_READ8_MEMBER( hginga_dsw_r );
+	DECLARE_WRITE8_MEMBER( mjflove_okibank_w );
+	DECLARE_WRITE8_MEMBER( jongtei_okibank_w );
+	DECLARE_READ8_MEMBER( seljan2_dsw_r );
+	DECLARE_WRITE8_MEMBER( daimyojn_okibank_w );
+};
+
+VIDEO_START_MEMBER(ddenlovr_state,ddenlovr)
 {
 	int i;
 
@@ -246,14 +481,14 @@ VIDEO_START_MEMBER(dynax_state,ddenlovr)
 	save_pointer(NAME(m_ddenlovr_pixmap[7]), 512 * 512);
 }
 
-VIDEO_START_MEMBER(dynax_state,mmpanic)
+VIDEO_START_MEMBER(ddenlovr_state,mmpanic)
 {
 	VIDEO_START_CALL_MEMBER(ddenlovr);
 
 	m_extra_layers = 1;
 }
 
-VIDEO_START_MEMBER(dynax_state,hanakanz)
+VIDEO_START_MEMBER(ddenlovr_state,hanakanz)
 {
 	VIDEO_START_CALL_MEMBER(ddenlovr);
 
@@ -261,23 +496,21 @@ VIDEO_START_MEMBER(dynax_state,hanakanz)
 	m_ddenlovr_blit_commands = hanakanz_commands;
 }
 
-VIDEO_START_MEMBER(dynax_state,mjflove)
+VIDEO_START_MEMBER(ddenlovr_state,mjflove)
 {
 	VIDEO_START_CALL_MEMBER(ddenlovr);
 
 	m_ddenlovr_blit_commands = mjflove_commands;
 }
 
-static void ddenlovr_flipscreen_w( UINT8 data )
+void ddenlovr_state::ddenlovr_flipscreen_w( UINT8 data )
 {
 	logerror("flipscreen = %02x (%s)\n", data, (data & 1) ? "off" : "on");
 }
 
-static void ddenlovr_blit_flip_w( running_machine &machine, UINT8 data )
+void ddenlovr_state::ddenlovr_blit_flip_w( UINT8 data )
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
-
-	if ((data ^ state->m_ddenlovr_blit_flip) & 0xec)
+	if ((data ^ m_ddenlovr_blit_flip) & 0xec)
 	{
 #ifdef MAME_DEBUG
 		popmessage("warning ddenlovr_blit_flip = %02x", data);
@@ -285,55 +518,55 @@ static void ddenlovr_blit_flip_w( running_machine &machine, UINT8 data )
 		logerror("warning ddenlovr_blit_flip = %02x\n", data);
 	}
 
-	state->m_ddenlovr_blit_flip = data;
+	m_ddenlovr_blit_flip = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_bgcolor_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_bgcolor_w)
 {
 	m_ddenlovr_bgcolor = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_bgcolor2_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_bgcolor2_w)
 {
 	m_ddenlovr_bgcolor2 = data;
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr16_bgcolor_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr16_bgcolor_w)
 {
 	if (ACCESSING_BITS_0_7)
 		ddenlovr_bgcolor_w(space, offset, data);
 }
 
 
-WRITE8_MEMBER(dynax_state::ddenlovr_priority_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_priority_w)
 {
 	m_ddenlovr_priority = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_priority2_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_priority2_w)
 {
 	m_ddenlovr_priority2 = data;
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr16_priority_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr16_priority_w)
 {
 	if (ACCESSING_BITS_0_7)
 		ddenlovr_priority_w(space, offset, data);
 }
 
 
-WRITE8_MEMBER(dynax_state::ddenlovr_layer_enable_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_layer_enable_w)
 {
 	m_ddenlovr_layer_enable = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_layer_enable2_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_layer_enable2_w)
 {
 	m_ddenlovr_layer_enable2 = data;
 }
 
 
-WRITE16_MEMBER(dynax_state::ddenlovr16_layer_enable_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr16_layer_enable_w)
 {
 	if (ACCESSING_BITS_0_7)
 		ddenlovr_layer_enable_w(space, offset, data);
@@ -341,9 +574,8 @@ WRITE16_MEMBER(dynax_state::ddenlovr16_layer_enable_w)
 
 
 
-static void do_plot( running_machine &machine, int x, int y, int pen )
+void ddenlovr_state::do_plot( int x, int y, int pen )
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
 	int addr, temp;
 	int xclip, yclip;
 
@@ -351,35 +583,35 @@ static void do_plot( running_machine &machine, int x, int y, int pen )
 	x &= 0x1ff;
 
 	// swap x & y (see hanakanz gal check)
-	if (state->m_ddenlovr_blit_flip & 0x10) {  temp = x;   x = y;   y = temp;  }
+	if (m_ddenlovr_blit_flip & 0x10) {  temp = x;   x = y;   y = temp;  }
 
 	// clipping rectangle (see hanakanz / hkagerou gal check)
 #if 0
-	xclip   =   (x < state->m_ddenlovr_clip_x) || (x > state->m_ddenlovr_clip_x + state->m_ddenlovr_clip_width);
-	yclip   =   (y < state->m_ddenlovr_clip_y) || (y > state->m_ddenlovr_clip_y + state->m_ddenlovr_clip_height);
+	xclip   =   (x < m_ddenlovr_clip_x) || (x > m_ddenlovr_clip_x + m_ddenlovr_clip_width);
+	yclip   =   (y < m_ddenlovr_clip_y) || (y > m_ddenlovr_clip_y + m_ddenlovr_clip_height);
 #else
-	xclip   =   (x < state->m_ddenlovr_clip_x) || (x > state->m_ddenlovr_clip_width);
-	yclip   =   (y < state->m_ddenlovr_clip_y) || (y > state->m_ddenlovr_clip_height);
+	xclip   =   (x < m_ddenlovr_clip_x) || (x > m_ddenlovr_clip_width);
+	yclip   =   (y < m_ddenlovr_clip_y) || (y > m_ddenlovr_clip_height);
 #endif
 
-	if (!(state->m_ddenlovr_clip_ctrl & 1) &&  xclip) return;
-	if (!(state->m_ddenlovr_clip_ctrl & 2) && !xclip) return;
-	if (!(state->m_ddenlovr_clip_ctrl & 4) &&  yclip) return;
-	if (!(state->m_ddenlovr_clip_ctrl & 8) && !yclip) return;
+	if (!(m_ddenlovr_clip_ctrl & 1) &&  xclip) return;
+	if (!(m_ddenlovr_clip_ctrl & 2) && !xclip) return;
+	if (!(m_ddenlovr_clip_ctrl & 4) &&  yclip) return;
+	if (!(m_ddenlovr_clip_ctrl & 8) && !yclip) return;
 
 	addr = 512 * y + x;
 
-	if (state->m_ddenlovr_dest_layer & 0x0001) state->m_ddenlovr_pixmap[0][addr] = pen;
-	if (state->m_ddenlovr_dest_layer & 0x0002) state->m_ddenlovr_pixmap[1][addr] = pen;
-	if (state->m_ddenlovr_dest_layer & 0x0004) state->m_ddenlovr_pixmap[2][addr] = pen;
-	if (state->m_ddenlovr_dest_layer & 0x0008) state->m_ddenlovr_pixmap[3][addr] = pen;
+	if (m_ddenlovr_dest_layer & 0x0001) m_ddenlovr_pixmap[0][addr] = pen;
+	if (m_ddenlovr_dest_layer & 0x0002) m_ddenlovr_pixmap[1][addr] = pen;
+	if (m_ddenlovr_dest_layer & 0x0004) m_ddenlovr_pixmap[2][addr] = pen;
+	if (m_ddenlovr_dest_layer & 0x0008) m_ddenlovr_pixmap[3][addr] = pen;
 
-	if (!state->m_extra_layers) return;
+	if (!m_extra_layers) return;
 
-	if (state->m_ddenlovr_dest_layer & 0x0100) state->m_ddenlovr_pixmap[4][addr] = pen;
-	if (state->m_ddenlovr_dest_layer & 0x0200) state->m_ddenlovr_pixmap[5][addr] = pen;
-	if (state->m_ddenlovr_dest_layer & 0x0400) state->m_ddenlovr_pixmap[6][addr] = pen;
-	if (state->m_ddenlovr_dest_layer & 0x0800) state->m_ddenlovr_pixmap[7][addr] = pen;
+	if (m_ddenlovr_dest_layer & 0x0100) m_ddenlovr_pixmap[4][addr] = pen;
+	if (m_ddenlovr_dest_layer & 0x0200) m_ddenlovr_pixmap[5][addr] = pen;
+	if (m_ddenlovr_dest_layer & 0x0400) m_ddenlovr_pixmap[6][addr] = pen;
+	if (m_ddenlovr_dest_layer & 0x0800) m_ddenlovr_pixmap[7][addr] = pen;
 }
 
 
@@ -415,7 +647,7 @@ INLINE int fetch_word( UINT8 *src_data, int src_len, int *bit_addr, int word_len
 
 
 
-INLINE void log_draw_error( int src, int cmd )
+inline void ddenlovr_state::log_draw_error( int src, int cmd )
 {
 #ifdef MAME_DEBUG
 	popmessage("%06x: warning unknown pixel command %02x", src, cmd);
@@ -434,16 +666,15 @@ INLINE void log_draw_error( int src, int cmd )
     06 blit_pen_mode (replace values stored in ROM)
 */
 
-static int blit_draw( running_machine &machine, int src, int sx )
+int ddenlovr_state::blit_draw( int src, int sx )
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
-	UINT8 *src_data = state->memregion("blitter")->base();
-	int src_len = state->memregion("blitter")->bytes();
-	int bit_addr = (src & 0xffffff) * state->m_ddenlovr_blit_rom_bits;  /* convert to bit address */
+	UINT8 *src_data = memregion("blitter")->base();
+	int src_len = memregion("blitter")->bytes();
+	int bit_addr = (src & 0xffffff) * m_ddenlovr_blit_rom_bits;  /* convert to bit address */
 	int pen_size, arg_size, cmd;
 	int x;
-	int xinc = (state->m_ddenlovr_blit_flip & 1) ? -1 : 1;
-	int yinc = (state->m_ddenlovr_blit_flip & 2) ? -1 : 1;
+	int xinc = (m_ddenlovr_blit_flip & 1) ? -1 : 1;
+	int yinc = (m_ddenlovr_blit_flip & 2) ? -1 : 1;
 
 	pen_size = fetch_word(src_data, src_len, &bit_addr, 4) + 1;
 	arg_size = fetch_word(src_data, src_len, &bit_addr, 4) + 1;
@@ -462,11 +693,11 @@ static int blit_draw( running_machine &machine, int src, int sx )
 	for (;;)
 	{
 		cmd = fetch_word(src_data, src_len, &bit_addr, 3);
-		switch (state->m_ddenlovr_blit_commands[cmd])
+		switch (m_ddenlovr_blit_commands[cmd])
 		{
 			case BLIT_NEXT:
 				/* next line */
-				state->m_ddenlovr_blit_y += yinc;
+				m_ddenlovr_blit_y += yinc;
 				x = sx;
 				break;
 
@@ -475,13 +706,13 @@ static int blit_draw( running_machine &machine, int src, int sx )
 					int length = fetch_word(src_data, src_len, &bit_addr, arg_size);
 					int pen    = fetch_word(src_data, src_len, &bit_addr, pen_size);
 
-					if (state->m_ddenlovr_blit_pen_mode)
-						pen = (state->m_ddenlovr_blit_pen & 0x0f);
-					pen |= state->m_ddenlovr_blit_pen & 0xf0;
+					if (m_ddenlovr_blit_pen_mode)
+						pen = (m_ddenlovr_blit_pen & 0x0f);
+					pen |= m_ddenlovr_blit_pen & 0xf0;
 
 					while (length-- >= 0)
 					{
-						do_plot(machine, x, state->m_ddenlovr_blit_y, pen);
+						do_plot(x, m_ddenlovr_blit_y, pen);
 						x += xinc;
 					}
 				}
@@ -494,11 +725,11 @@ static int blit_draw( running_machine &machine, int src, int sx )
 					while (length-- >= 0)
 					{
 						int pen = fetch_word(src_data, src_len, &bit_addr, pen_size);
-						if (state->m_ddenlovr_blit_pen_mode)
-							pen = (state->m_ddenlovr_blit_pen & 0x0f);
-						pen |= state->m_ddenlovr_blit_pen & 0xf0;
+						if (m_ddenlovr_blit_pen_mode)
+							pen = (m_ddenlovr_blit_pen & 0x0f);
+						pen |= m_ddenlovr_blit_pen & 0xf0;
 
-						do_plot(machine, x, state->m_ddenlovr_blit_y, pen);
+						do_plot(x, m_ddenlovr_blit_y, pen);
 						x += xinc;
 					}
 				}
@@ -520,7 +751,7 @@ static int blit_draw( running_machine &machine, int src, int sx )
 				log_draw_error(src, cmd);
 			// fall through
 			case BLIT_STOP:
-				return ((bit_addr + state->m_ddenlovr_blit_rom_bits - 1) / state->m_ddenlovr_blit_rom_bits) & 0xffffff;
+				return ((bit_addr + m_ddenlovr_blit_rom_bits - 1) / m_ddenlovr_blit_rom_bits) & 0xffffff;
 		}
 	}
 }
@@ -529,19 +760,18 @@ static int blit_draw( running_machine &machine, int src, int sx )
 
 /*  Draw a simple rectangle
 */
-static void blit_rect_xywh( running_machine &machine )
+void ddenlovr_state::blit_rect_xywh()
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
 	int x, y;
 
 #ifdef MAME_DEBUG
-//  if (state->m_ddenlovr_clip_ctrl != 0x0f)
-//      popmessage("RECT clipx=%03x clipy=%03x ctrl=%x", state->m_ddenlovr_clip_x, state->m_ddenlovr_clip_y, state->m_ddenlovr_clip_ctrl);
+//  if (m_ddenlovr_clip_ctrl != 0x0f)
+//      popmessage("RECT clipx=%03x clipy=%03x ctrl=%x", m_ddenlovr_clip_x, m_ddenlovr_clip_y, m_ddenlovr_clip_ctrl);
 #endif
 
-	for (y = 0; y <= state->m_ddenlovr_rect_height; y++)
-		for (x = 0; x <= state->m_ddenlovr_rect_width; x++)
-			do_plot(machine, x + state->m_ddenlovr_blit_x, y + state->m_ddenlovr_blit_y, state->m_ddenlovr_blit_pen);
+	for (y = 0; y <= m_ddenlovr_rect_height; y++)
+		for (x = 0; x <= m_ddenlovr_rect_width; x++)
+			do_plot(x + m_ddenlovr_blit_x, y + m_ddenlovr_blit_y, m_ddenlovr_blit_pen);
 }
 
 
@@ -556,15 +786,14 @@ static void blit_rect_xywh( running_machine &machine )
     04 blit_pen
     0c line_length - always 0?
 */
-static void blit_rect_yh( running_machine &machine )
+void ddenlovr_state::blit_rect_yh()
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
-	int start = 512 * state->m_ddenlovr_blit_y;
-	int length = 512 * (state->m_ddenlovr_rect_height + 1);
+	int start = 512 * m_ddenlovr_blit_y;
+	int length = 512 * (m_ddenlovr_rect_height + 1);
 
 #ifdef MAME_DEBUG
-//  if (state->m_ddenlovr_clip_ctrl != 0x0f)
-//      popmessage("UNK8C clipx=%03x clipy=%03x ctrl=%x", state->m_ddenlovr_clip_x, state->m_ddenlovr_clip_y, state->m_ddenlovr_clip_ctrl);
+//  if (m_ddenlovr_clip_ctrl != 0x0f)
+//      popmessage("UNK8C clipx=%03x clipy=%03x ctrl=%x", m_ddenlovr_clip_x, m_ddenlovr_clip_y, m_ddenlovr_clip_ctrl);
 #endif
 
 	if (start < 512 * 512)
@@ -572,17 +801,17 @@ static void blit_rect_yh( running_machine &machine )
 		if (start + length > 512 * 512)
 			length = 512 * 512 - start;
 
-		if (state->m_ddenlovr_dest_layer & 0x0001) memset(state->m_ddenlovr_pixmap[0] + start, state->m_ddenlovr_blit_pen, length);
-		if (state->m_ddenlovr_dest_layer & 0x0002) memset(state->m_ddenlovr_pixmap[1] + start, state->m_ddenlovr_blit_pen, length);
-		if (state->m_ddenlovr_dest_layer & 0x0004) memset(state->m_ddenlovr_pixmap[2] + start, state->m_ddenlovr_blit_pen, length);
-		if (state->m_ddenlovr_dest_layer & 0x0008) memset(state->m_ddenlovr_pixmap[3] + start, state->m_ddenlovr_blit_pen, length);
+		if (m_ddenlovr_dest_layer & 0x0001) memset(m_ddenlovr_pixmap[0] + start, m_ddenlovr_blit_pen, length);
+		if (m_ddenlovr_dest_layer & 0x0002) memset(m_ddenlovr_pixmap[1] + start, m_ddenlovr_blit_pen, length);
+		if (m_ddenlovr_dest_layer & 0x0004) memset(m_ddenlovr_pixmap[2] + start, m_ddenlovr_blit_pen, length);
+		if (m_ddenlovr_dest_layer & 0x0008) memset(m_ddenlovr_pixmap[3] + start, m_ddenlovr_blit_pen, length);
 
-		if (!state->m_extra_layers) return;
+		if (!m_extra_layers) return;
 
-		if (state->m_ddenlovr_dest_layer & 0x0100) memset(state->m_ddenlovr_pixmap[4] + start, state->m_ddenlovr_blit_pen, length);
-		if (state->m_ddenlovr_dest_layer & 0x0200) memset(state->m_ddenlovr_pixmap[5] + start, state->m_ddenlovr_blit_pen, length);
-		if (state->m_ddenlovr_dest_layer & 0x0400) memset(state->m_ddenlovr_pixmap[6] + start, state->m_ddenlovr_blit_pen, length);
-		if (state->m_ddenlovr_dest_layer & 0x0800) memset(state->m_ddenlovr_pixmap[7] + start, state->m_ddenlovr_blit_pen, length);
+		if (m_ddenlovr_dest_layer & 0x0100) memset(m_ddenlovr_pixmap[4] + start, m_ddenlovr_blit_pen, length);
+		if (m_ddenlovr_dest_layer & 0x0200) memset(m_ddenlovr_pixmap[5] + start, m_ddenlovr_blit_pen, length);
+		if (m_ddenlovr_dest_layer & 0x0400) memset(m_ddenlovr_pixmap[6] + start, m_ddenlovr_blit_pen, length);
+		if (m_ddenlovr_dest_layer & 0x0800) memset(m_ddenlovr_pixmap[7] + start, m_ddenlovr_blit_pen, length);
 	}
 }
 
@@ -596,9 +825,8 @@ static void blit_rect_yh( running_machine &machine )
     02 Y
     04 blit_pen
 */
-static void blit_fill_xy( running_machine &machine, int x, int y )
+void ddenlovr_state::blit_fill_xy( int x, int y )
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
 	int start = 512 * y + x;
 
 #ifdef MAME_DEBUG
@@ -606,17 +834,17 @@ static void blit_fill_xy( running_machine &machine, int x, int y )
 //      popmessage("FILL command X %03x Y %03x", x, y);
 #endif
 
-	if (state->m_ddenlovr_dest_layer & 0x0001) memset(state->m_ddenlovr_pixmap[0] + start, state->m_ddenlovr_blit_pen, 512 * 512 - start);
-	if (state->m_ddenlovr_dest_layer & 0x0002) memset(state->m_ddenlovr_pixmap[1] + start, state->m_ddenlovr_blit_pen, 512 * 512 - start);
-	if (state->m_ddenlovr_dest_layer & 0x0004) memset(state->m_ddenlovr_pixmap[2] + start, state->m_ddenlovr_blit_pen, 512 * 512 - start);
-	if (state->m_ddenlovr_dest_layer & 0x0008) memset(state->m_ddenlovr_pixmap[3] + start, state->m_ddenlovr_blit_pen, 512 * 512 - start);
+	if (m_ddenlovr_dest_layer & 0x0001) memset(m_ddenlovr_pixmap[0] + start, m_ddenlovr_blit_pen, 512 * 512 - start);
+	if (m_ddenlovr_dest_layer & 0x0002) memset(m_ddenlovr_pixmap[1] + start, m_ddenlovr_blit_pen, 512 * 512 - start);
+	if (m_ddenlovr_dest_layer & 0x0004) memset(m_ddenlovr_pixmap[2] + start, m_ddenlovr_blit_pen, 512 * 512 - start);
+	if (m_ddenlovr_dest_layer & 0x0008) memset(m_ddenlovr_pixmap[3] + start, m_ddenlovr_blit_pen, 512 * 512 - start);
 
-	if (!state->m_extra_layers) return;
+	if (!m_extra_layers) return;
 
-	if (state->m_ddenlovr_dest_layer & 0x0100) memset(state->m_ddenlovr_pixmap[4] + start, state->m_ddenlovr_blit_pen, 512 * 512 - start);
-	if (state->m_ddenlovr_dest_layer & 0x0200) memset(state->m_ddenlovr_pixmap[5] + start, state->m_ddenlovr_blit_pen, 512 * 512 - start);
-	if (state->m_ddenlovr_dest_layer & 0x0400) memset(state->m_ddenlovr_pixmap[6] + start, state->m_ddenlovr_blit_pen, 512 * 512 - start);
-	if (state->m_ddenlovr_dest_layer & 0x0800) memset(state->m_ddenlovr_pixmap[7] + start, state->m_ddenlovr_blit_pen, 512 * 512 - start);
+	if (m_ddenlovr_dest_layer & 0x0100) memset(m_ddenlovr_pixmap[4] + start, m_ddenlovr_blit_pen, 512 * 512 - start);
+	if (m_ddenlovr_dest_layer & 0x0200) memset(m_ddenlovr_pixmap[5] + start, m_ddenlovr_blit_pen, 512 * 512 - start);
+	if (m_ddenlovr_dest_layer & 0x0400) memset(m_ddenlovr_pixmap[6] + start, m_ddenlovr_blit_pen, 512 * 512 - start);
+	if (m_ddenlovr_dest_layer & 0x0800) memset(m_ddenlovr_pixmap[7] + start, m_ddenlovr_blit_pen, 512 * 512 - start);
 }
 
 
@@ -631,23 +859,22 @@ static void blit_fill_xy( running_machine &machine, int x, int y )
     04 blit_pen
     ddenlovr_blit_x and ddenlovr_blit_y are left pointing to the last pixel at the end of the command
 */
-static void blit_horiz_line( running_machine &machine )
+void ddenlovr_state::blit_horiz_line()
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
 	int i;
 
 #ifdef MAME_DEBUG
 	popmessage("LINE X");
 
-	if (state->m_ddenlovr_clip_ctrl != 0x0f)
-		popmessage("LINE X clipx=%03x clipy=%03x ctrl=%x", state->m_ddenlovr_clip_x, state->m_ddenlovr_clip_y, state->m_ddenlovr_clip_ctrl);
+	if (m_ddenlovr_clip_ctrl != 0x0f)
+		popmessage("LINE X clipx=%03x clipy=%03x ctrl=%x", m_ddenlovr_clip_x, m_ddenlovr_clip_y, m_ddenlovr_clip_ctrl);
 
-	if (state->m_ddenlovr_blit_flip)
-		popmessage("LINE X flip=%x", state->m_ddenlovr_blit_flip);
+	if (m_ddenlovr_blit_flip)
+		popmessage("LINE X flip=%x", m_ddenlovr_blit_flip);
 #endif
 
-	for (i = 0; i <= state->m_ddenlovr_line_length; i++)
-		do_plot(machine, state->m_ddenlovr_blit_x++, state->m_ddenlovr_blit_y, state->m_ddenlovr_blit_pen);
+	for (i = 0; i <= m_ddenlovr_line_length; i++)
+		do_plot(m_ddenlovr_blit_x++, m_ddenlovr_blit_y, m_ddenlovr_blit_pen);
 }
 
 
@@ -662,41 +889,38 @@ static void blit_horiz_line( running_machine &machine )
     04 blit_pen
     ddenlovr_blit_x and ddenlovr_blit_y are left pointing to the last pixel at the end of the command
 */
-static void blit_vert_line( running_machine &machine )
+void ddenlovr_state::blit_vert_line()
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
 	int i;
 
 #ifdef MAME_DEBUG
 	popmessage("LINE Y");
 
-	if (state->m_ddenlovr_clip_ctrl != 0x0f)
-		popmessage("LINE Y clipx=%03x clipy=%03x ctrl=%x", state->m_ddenlovr_clip_x, state->m_ddenlovr_clip_y, state->m_ddenlovr_clip_ctrl);
+	if (m_ddenlovr_clip_ctrl != 0x0f)
+		popmessage("LINE Y clipx=%03x clipy=%03x ctrl=%x", m_ddenlovr_clip_x, m_ddenlovr_clip_y, m_ddenlovr_clip_ctrl);
 #endif
 
-	for (i = 0; i <= state->m_ddenlovr_line_length; i++)
-		do_plot(machine, state->m_ddenlovr_blit_x, state->m_ddenlovr_blit_y++, state->m_ddenlovr_blit_pen);
+	for (i = 0; i <= m_ddenlovr_line_length; i++)
+		do_plot(m_ddenlovr_blit_x, m_ddenlovr_blit_y++, m_ddenlovr_blit_pen);
 }
 
 
 
 
-INLINE void log_blit( running_machine &machine, int data )
+inline void ddenlovr_state::log_blit( int data )
 {
 #if 0
-	dynax_state *state = machine.driver_data<dynax_state>();
 
 	logerror("%s: blit src %06x x %03x y %03x flags %02x layer %02x pen %02x penmode %02x w %03x h %03x linelen %03x flip %02x clip: ctrl %x xy %03x %03x wh %03x %03x\n",
-			machine.describe_context(),
-			state->m_ddenlovr_blit_address, state->m_ddenlovr_blit_x, state->m_ddenlovr_blit_y, data,
-			state->m_ddenlovr_dest_layer, state->m_ddenlovr_blit_pen, state->m_ddenlovr_blit_pen_mode, state->m_ddenlovr_rect_width, state->m_ddenlovr_rect_height, state->m_ddenlovr_line_length, state->m_ddenlovr_blit_flip,
-			state->m_ddenlovr_clip_ctrl, state->m_ddenlovr_clip_x, state->m_ddenlovr_clip_y, state->m_ddenlovr_clip_width, state->m_ddenlovr_clip_height);
+			machine().describe_context(),
+			m_ddenlovr_blit_address, m_ddenlovr_blit_x, m_ddenlovr_blit_y, data,
+			m_ddenlovr_dest_layer, m_ddenlovr_blit_pen, m_ddenlovr_blit_pen_mode, m_ddenlovr_rect_width, m_ddenlovr_rect_height, m_ddenlovr_line_length, m_ddenlovr_blit_flip,
+			m_ddenlovr_clip_ctrl, m_ddenlovr_clip_x, m_ddenlovr_clip_y, m_ddenlovr_clip_width, m_ddenlovr_clip_height);
 #endif
 }
 
-static void blitter_w( address_space &space, int blitter, offs_t offset, UINT8 data, int irq_vector )
+void ddenlovr_state::blitter_w( address_space &space, int blitter, offs_t offset, UINT8 data, int irq_vector )
 {
-	dynax_state *state = space.machine().driver_data<dynax_state>();
 	int hi_bits;
 
 g_profiler.start(PROFILER_VIDEO);
@@ -704,17 +928,17 @@ g_profiler.start(PROFILER_VIDEO);
 	switch (offset)
 	{
 	case 0:
-		state->m_ddenlovr_blit_regs[blitter] = data;
+		m_ddenlovr_blit_regs[blitter] = data;
 		break;
 
 	case 1:
-		hi_bits = (state->m_ddenlovr_blit_regs[blitter] & 0xc0) << 2;
+		hi_bits = (m_ddenlovr_blit_regs[blitter] & 0xc0) << 2;
 
-		switch (state->m_ddenlovr_blit_regs[blitter] & 0x3f)
+		switch (m_ddenlovr_blit_regs[blitter] & 0x3f)
 		{
 		case 0x00:
-			if (blitter)    state->m_ddenlovr_dest_layer = (state->m_ddenlovr_dest_layer & 0x00ff) | (data << 8);
-			else            state->m_ddenlovr_dest_layer = (state->m_ddenlovr_dest_layer & 0xff00) | (data << 0);
+			if (blitter)    m_ddenlovr_dest_layer = (m_ddenlovr_dest_layer & 0x00ff) | (data << 8);
+			else            m_ddenlovr_dest_layer = (m_ddenlovr_dest_layer & 0xff00) | (data << 0);
 			break;
 
 		case 0x01:
@@ -722,60 +946,60 @@ g_profiler.start(PROFILER_VIDEO);
 			break;
 
 		case 0x02:
-			state->m_ddenlovr_blit_y = data | hi_bits;
+			m_ddenlovr_blit_y = data | hi_bits;
 			break;
 
 		case 0x03:
-			ddenlovr_blit_flip_w(space.machine(), data);
+			ddenlovr_blit_flip_w(data);
 			break;
 
 		case 0x04:
-			state->m_ddenlovr_blit_pen = data;
+			m_ddenlovr_blit_pen = data;
 			break;
 
 		case 0x05:
-			state->m_ddenlovr_blit_pen_mask = data;
+			m_ddenlovr_blit_pen_mask = data;
 			break;
 
 		case 0x06:
 			// related to pen, can be 0 or 1 for 0x10 blitter command
 			// 0 = only bits 7-4 of ddenlovr_blit_pen contain data
 			// 1 = bits 3-0 contain data as well
-			state->m_ddenlovr_blit_pen_mode = data;
+			m_ddenlovr_blit_pen_mode = data;
 			break;
 
 		case 0x0a:
-			state->m_ddenlovr_rect_width = data | hi_bits;
+			m_ddenlovr_rect_width = data | hi_bits;
 			break;
 
 		case 0x0b:
-			state->m_ddenlovr_rect_height = data | hi_bits;
+			m_ddenlovr_rect_height = data | hi_bits;
 			break;
 
 		case 0x0c:
-			state->m_ddenlovr_line_length = data | hi_bits;
+			m_ddenlovr_line_length = data | hi_bits;
 			break;
 
 		case 0x0d:
-			state->m_ddenlovr_blit_address = (state->m_ddenlovr_blit_address & 0xffff00) | (data <<0);
+			m_ddenlovr_blit_address = (m_ddenlovr_blit_address & 0xffff00) | (data <<0);
 			break;
 		case 0x0e:
-			state->m_ddenlovr_blit_address = (state->m_ddenlovr_blit_address & 0xff00ff) | (data <<8);
+			m_ddenlovr_blit_address = (m_ddenlovr_blit_address & 0xff00ff) | (data <<8);
 			break;
 		case 0x0f:
-			state->m_ddenlovr_blit_address = (state->m_ddenlovr_blit_address & 0x00ffff) | (data<<16);
+			m_ddenlovr_blit_address = (m_ddenlovr_blit_address & 0x00ffff) | (data<<16);
 			break;
 
 		case 0x14:
-			state->m_ddenlovr_blit_x = data | hi_bits;
+			m_ddenlovr_blit_x = data | hi_bits;
 			break;
 
 		case 0x16:
-			state->m_ddenlovr_clip_x = data | hi_bits;
+			m_ddenlovr_clip_x = data | hi_bits;
 			break;
 
 		case 0x17:
-			state->m_ddenlovr_clip_y = data | hi_bits;
+			m_ddenlovr_clip_y = data | hi_bits;
 			break;
 
 		case 0x18:
@@ -786,40 +1010,40 @@ g_profiler.start(PROFILER_VIDEO);
 		case 0x1d:
 		case 0x1e:
 		case 0x1f:
-			state->m_ddenlovr_scroll[blitter * 8 + (state->m_ddenlovr_blit_regs[blitter] & 7)] = data | hi_bits;
+			m_ddenlovr_scroll[blitter * 8 + (m_ddenlovr_blit_regs[blitter] & 7)] = data | hi_bits;
 			break;
 
 		case 0x20:
-			state->m_ddenlovr_clip_ctrl = data;
+			m_ddenlovr_clip_ctrl = data;
 			break;
 
 		case 0x24:
 
-			log_blit(space.machine(), data);
+			log_blit(data);
 
 			switch (data)
 			{
-				case 0x04:  blit_fill_xy(space.machine(), 0, 0);
+				case 0x04:  blit_fill_xy(0, 0);
 							break;
-				case 0x14:  blit_fill_xy(space.machine(), state->m_ddenlovr_blit_x, state->m_ddenlovr_blit_y);
-							break;
-
-				case 0x10:  state->m_ddenlovr_blit_address = blit_draw(space.machine(), state->m_ddenlovr_blit_address, state->m_ddenlovr_blit_x);
+				case 0x14:  blit_fill_xy(m_ddenlovr_blit_x, m_ddenlovr_blit_y);
 							break;
 
-				case 0x13:  blit_horiz_line(space.machine());
-							break;
-				case 0x1b:  blit_vert_line(space.machine());
+				case 0x10:  m_ddenlovr_blit_address = blit_draw(m_ddenlovr_blit_address, m_ddenlovr_blit_x);
 							break;
 
-				case 0x1c:  blit_rect_xywh(space.machine());
+				case 0x13:  blit_horiz_line();
+							break;
+				case 0x1b:  blit_vert_line();
+							break;
+
+				case 0x1c:  blit_rect_xywh();
 							break;
 
 				// These two are issued one after the other (43 then 8c)
 				// 8c is issued immediately after 43 has finished, without
 				// changing any argument
 				case 0x43:  break;
-				case 0x8c:  blit_rect_yh(space.machine());
+				case 0x8c:  blit_rect_yh();
 							break;
 
 				default:
@@ -836,16 +1060,16 @@ g_profiler.start(PROFILER_VIDEO);
 			else
 			{
 				/* ddenlovr */
-				if (state->m_ddenlovr_blitter_irq_enable)
+				if (m_ddenlovr_blitter_irq_enable)
 				{
-					state->m_ddenlovr_blitter_irq_flag = 1;
+					m_ddenlovr_blitter_irq_flag = 1;
 					space.device().execute().set_input_line(1, HOLD_LINE);
 				}
 			}
 			break;
 
 		default:
-			logerror("%06x: Blitter %d reg %02x = %02x\n", space.device().safe_pc(), blitter, state->m_ddenlovr_blit_regs[blitter], data);
+			logerror("%06x: Blitter %d reg %02x = %02x\n", space.device().safe_pc(), blitter, m_ddenlovr_blit_regs[blitter], data);
 			break;
 		}
 	}
@@ -857,9 +1081,8 @@ g_profiler.stop();
 
 
 // differences wrt blitter_data_w: slightly different blitter commands
-static void blitter_w_funkyfig( running_machine &machine, int blitter, offs_t offset, UINT8 data, int irq_vector )
+void ddenlovr_state::blitter_w_funkyfig( int blitter, offs_t offset, UINT8 data, int irq_vector )
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
 	int hi_bits;
 
 g_profiler.start(PROFILER_VIDEO);
@@ -867,17 +1090,17 @@ g_profiler.start(PROFILER_VIDEO);
 	switch(offset)
 	{
 	case 0:
-		state->m_ddenlovr_blit_regs[blitter] = data;
+		m_ddenlovr_blit_regs[blitter] = data;
 		break;
 
 	case 1:
-		hi_bits = (state->m_ddenlovr_blit_regs[blitter] & 0xc0) << 2;
+		hi_bits = (m_ddenlovr_blit_regs[blitter] & 0xc0) << 2;
 
-		switch (state->m_ddenlovr_blit_regs[blitter] & 0x3f)
+		switch (m_ddenlovr_blit_regs[blitter] & 0x3f)
 		{
 		case 0x00:
-			if (blitter)    state->m_ddenlovr_dest_layer = (state->m_ddenlovr_dest_layer & 0x00ff) | (data << 8);
-			else            state->m_ddenlovr_dest_layer = (state->m_ddenlovr_dest_layer & 0xff00) | (data << 0);
+			if (blitter)    m_ddenlovr_dest_layer = (m_ddenlovr_dest_layer & 0x00ff) | (data << 8);
+			else            m_ddenlovr_dest_layer = (m_ddenlovr_dest_layer & 0xff00) | (data << 0);
 			break;
 
 		case 0x01:
@@ -885,60 +1108,60 @@ g_profiler.start(PROFILER_VIDEO);
 			break;
 
 		case 0x02:
-			state->m_ddenlovr_blit_y = data | hi_bits;
+			m_ddenlovr_blit_y = data | hi_bits;
 			break;
 
 		case 0x03:
-			ddenlovr_blit_flip_w(machine, data);
+			ddenlovr_blit_flip_w(data);
 			break;
 
 		case 0x04:
-			state->m_ddenlovr_blit_pen = data;
+			m_ddenlovr_blit_pen = data;
 			break;
 
 		case 0x05:
-			state->m_ddenlovr_blit_pen_mask = data;
+			m_ddenlovr_blit_pen_mask = data;
 			break;
 
 		case 0x06:
 			// related to pen, can be 0 or 1 for 0x10 blitter command
 			// 0 = only bits 7-4 of ddenlovr_blit_pen contain data
 			// 1 = bits 3-0 contain data as well
-			state->m_ddenlovr_blit_pen_mode = data;
+			m_ddenlovr_blit_pen_mode = data;
 			break;
 
 		case 0x0a:
-			state->m_ddenlovr_rect_width = data | hi_bits;
+			m_ddenlovr_rect_width = data | hi_bits;
 			break;
 
 		case 0x0b:
-			state->m_ddenlovr_rect_height = data | hi_bits;
+			m_ddenlovr_rect_height = data | hi_bits;
 			break;
 
 		case 0x0c:
-			state->m_ddenlovr_line_length = data | hi_bits;
+			m_ddenlovr_line_length = data | hi_bits;
 			break;
 
 		case 0x0d:
-			state->m_ddenlovr_blit_address = (state->m_ddenlovr_blit_address & 0xffff00) | (data <<  0);
+			m_ddenlovr_blit_address = (m_ddenlovr_blit_address & 0xffff00) | (data <<  0);
 			break;
 		case 0x0e:
-			state->m_ddenlovr_blit_address = (state->m_ddenlovr_blit_address & 0xff00ff) | (data <<  8);
+			m_ddenlovr_blit_address = (m_ddenlovr_blit_address & 0xff00ff) | (data <<  8);
 			break;
 		case 0x0f:
-			state->m_ddenlovr_blit_address = (state->m_ddenlovr_blit_address & 0x00ffff) | (data << 16);
+			m_ddenlovr_blit_address = (m_ddenlovr_blit_address & 0x00ffff) | (data << 16);
 			break;
 
 		case 0x14:
-			state->m_ddenlovr_blit_x = data | hi_bits;
+			m_ddenlovr_blit_x = data | hi_bits;
 			break;
 
 		case 0x16:
-			state->m_ddenlovr_clip_x = data | hi_bits;
+			m_ddenlovr_clip_x = data | hi_bits;
 			break;
 
 		case 0x17:
-			state->m_ddenlovr_clip_y = data | hi_bits;
+			m_ddenlovr_clip_y = data | hi_bits;
 			break;
 
 		case 0x18:
@@ -949,60 +1172,60 @@ g_profiler.start(PROFILER_VIDEO);
 		case 0x1d:
 		case 0x1e:
 		case 0x1f:
-			state->m_ddenlovr_scroll[blitter * 8 + (state->m_ddenlovr_blit_regs[blitter] & 7)] = data | hi_bits;
+			m_ddenlovr_scroll[blitter * 8 + (m_ddenlovr_blit_regs[blitter] & 7)] = data | hi_bits;
 			break;
 
 		case 0x20:
-			state->m_ddenlovr_clip_ctrl = data;
+			m_ddenlovr_clip_ctrl = data;
 			break;
 
 		case 0x24:
 
-			log_blit(machine, data);
+			log_blit(data);
 
 			switch (data)
 			{
 				case 0x84:  // same as 04?
-				case 0x04:  blit_fill_xy(machine, 0, 0);
+				case 0x04:  blit_fill_xy(0, 0);
 							break;
 
 //              unused?
-//              case 0x14:  blit_fill_xy(machine, state->m_ddenlovr_blit_x, state->m_ddenlovr_blit_y);
+//              case 0x14:  blit_fill_xy(m_ddenlovr_blit_x, m_ddenlovr_blit_y);
 //                          break;
 
-				case 0x00/*0x10*/:  state->m_ddenlovr_blit_address = blit_draw(machine, state->m_ddenlovr_blit_address, state->m_ddenlovr_blit_x);
+				case 0x00/*0x10*/:  m_ddenlovr_blit_address = blit_draw(m_ddenlovr_blit_address, m_ddenlovr_blit_x);
 							break;
 
 				case 0x0b:  // same as 03? see the drawing of the R in "cRoss hatch" (key test)
-				case 0x03/*0x13*/:  blit_horiz_line(machine);
+				case 0x03/*0x13*/:  blit_horiz_line();
 							break;
 //              unused?
-//              case 0x1b:  blit_vert_line(machine);
+//              case 0x1b:  blit_vert_line();
 //                          break;
 
-				case 0x0c/*0x1c*/:  blit_rect_xywh(machine);
+				case 0x0c/*0x1c*/:  blit_rect_xywh();
 							break;
 
 				// These two are issued one after the other (43 then 8c)
 				// 8c is issued immediately after 43 has finished, without
 				// changing any argument
 				case 0x43:  break;
-				case 0x8c:  blit_rect_yh(machine);
+				case 0x8c:  blit_rect_yh();
 							break;
 
 				default:
 							;
 				#ifdef MAME_DEBUG
 					popmessage("unknown blitter command %02x", data);
-					logerror("%s: unknown blitter command %02x\n", machine.describe_context(), data);
+					logerror("%s: unknown blitter command %02x\n", machine().describe_context(), data);
 				#endif
 			}
 
-			state->m_maincpu->set_input_line_and_vector(0, HOLD_LINE, irq_vector);
+			m_maincpu->set_input_line_and_vector(0, HOLD_LINE, irq_vector);
 			break;
 
 		default:
-			logerror("%s: Blitter %d reg %02x = %02x\n", machine.describe_context(), blitter, state->m_ddenlovr_blit_regs[blitter], data);
+			logerror("%s: Blitter %d reg %02x = %02x\n", machine().describe_context(), blitter, m_ddenlovr_blit_regs[blitter], data);
 			break;
 		}
 	}
@@ -1013,13 +1236,13 @@ g_profiler.stop();
 
 
 
-WRITE8_MEMBER(dynax_state::hanakanz_blitter_reg_w)
+WRITE8_MEMBER(ddenlovr_state::hanakanz_blitter_reg_w)
 {
 	m_ddenlovr_blit_latch = data;
 }
 
 // differences wrt blitter_data_w: registers are shuffled around, hi_bits in the low bits, clip_w/h, includes layers registers
-WRITE8_MEMBER(dynax_state::hanakanz_blitter_data_w)
+WRITE8_MEMBER(ddenlovr_state::hanakanz_blitter_data_w)
 {
 	int hi_bits;
 
@@ -1042,7 +1265,7 @@ g_profiler.start(PROFILER_VIDEO);
 			break;
 
 		case 0x0c:
-			ddenlovr_blit_flip_w(machine(), data);
+			ddenlovr_blit_flip_w(data);
 			break;
 
 		case 0x10:
@@ -1161,31 +1384,31 @@ g_profiler.start(PROFILER_VIDEO);
 
 		case 0x90:
 
-			log_blit(machine(), data);
+			log_blit(data);
 
 			switch (data)
 			{
-				case 0x04:  blit_fill_xy(machine(), 0, 0);
+				case 0x04:  blit_fill_xy(0, 0);
 							break;
-				case 0x14:  blit_fill_xy(machine(), m_ddenlovr_blit_x, m_ddenlovr_blit_y);
-							break;
-
-				case 0x10:  m_ddenlovr_blit_address = blit_draw(machine(), m_ddenlovr_blit_address, m_ddenlovr_blit_x);
+				case 0x14:  blit_fill_xy(m_ddenlovr_blit_x, m_ddenlovr_blit_y);
 							break;
 
-				case 0x13:  blit_horiz_line(machine());
-							break;
-				case 0x1b:  blit_vert_line(machine());
+				case 0x10:  m_ddenlovr_blit_address = blit_draw(m_ddenlovr_blit_address, m_ddenlovr_blit_x);
 							break;
 
-				case 0x1c:  blit_rect_xywh(machine());
+				case 0x13:  blit_horiz_line();
+							break;
+				case 0x1b:  blit_vert_line();
+							break;
+
+				case 0x1c:  blit_rect_xywh();
 							break;
 
 				// These two are issued one after the other (43 then 8c)
 				// 8c is issued immediately after 43 has finished, without
 				// changing any argument
 				case 0x43:  break;
-				case 0x8c:  blit_rect_yh(machine());
+				case 0x8c:  blit_rect_yh();
 							break;
 
 				default:
@@ -1209,19 +1432,19 @@ g_profiler.stop();
 }
 
 
-WRITE8_MEMBER(dynax_state::rongrong_blitter_w)
+WRITE8_MEMBER(ddenlovr_state::rongrong_blitter_w)
 {
 	blitter_w(space, 0, offset, data, 0xf8);
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr_blitter_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr_blitter_w)
 {
 	if (ACCESSING_BITS_0_7)
 		blitter_w(space, 0, offset, data & 0xff, 0);
 }
 
 
-WRITE16_MEMBER(dynax_state::ddenlovr_blitter_irq_ack_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr_blitter_irq_ack_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
@@ -1238,7 +1461,7 @@ WRITE16_MEMBER(dynax_state::ddenlovr_blitter_irq_ack_w)
 }
 
 
-READ8_MEMBER(dynax_state::rongrong_gfxrom_r)
+READ8_MEMBER(ddenlovr_state::rongrong_gfxrom_r)
 {
 	UINT8 *rom  = memregion("blitter")->base();
 	size_t size = memregion("blitter")->bytes();
@@ -1255,35 +1478,34 @@ READ8_MEMBER(dynax_state::rongrong_gfxrom_r)
 	return rom[address];
 }
 
-READ16_MEMBER(dynax_state::ddenlovr_gfxrom_r)
+READ16_MEMBER(ddenlovr_state::ddenlovr_gfxrom_r)
 {
 	return rongrong_gfxrom_r(space, offset);
 }
 
 
-static void copylayer(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int layer )
+void ddenlovr_state::copylayer(bitmap_ind16 &bitmap, const rectangle &cliprect, int layer )
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
 	int x,y;
-	int scrollx = state->m_ddenlovr_scroll[layer / 4 * 8 + (layer % 4) + 0];
-	int scrolly = state->m_ddenlovr_scroll[layer / 4 * 8 + (layer % 4) + 4];
+	int scrollx = m_ddenlovr_scroll[layer / 4 * 8 + (layer % 4) + 0];
+	int scrolly = m_ddenlovr_scroll[layer / 4 * 8 + (layer % 4) + 4];
 
-	int palbase = state->m_ddenlovr_palette_base[layer];
-	int penmask = state->m_ddenlovr_palette_mask[layer];
+	int palbase = m_ddenlovr_palette_base[layer];
+	int penmask = m_ddenlovr_palette_mask[layer];
 
-	int transpen = state->m_ddenlovr_transparency_pen[layer];
-	int transmask = state->m_ddenlovr_transparency_mask[layer];
+	int transpen = m_ddenlovr_transparency_pen[layer];
+	int transmask = m_ddenlovr_transparency_mask[layer];
 
 	palbase  &= ~penmask;
 	transpen &= transmask;
 
-	if (((state->m_ddenlovr_layer_enable2 << 4) | state->m_ddenlovr_layer_enable) & (1 << layer))
+	if (((m_ddenlovr_layer_enable2 << 4) | m_ddenlovr_layer_enable) & (1 << layer))
 	{
 		for (y = cliprect.min_y; y <= cliprect.max_y; y++)
 		{
 			for (x = cliprect.min_x; x <= cliprect.max_x; x++)
 			{
-				int pen = state->m_ddenlovr_pixmap[layer][512 * ((y + scrolly) & 0x1ff) + ((x + scrollx) & 0x1ff)];
+				int pen = m_ddenlovr_pixmap[layer][512 * ((y + scrolly) & 0x1ff) + ((x + scrollx) & 0x1ff)];
 				if ((pen & transmask) != transpen)
 				{
 					pen &= penmask;
@@ -1295,9 +1517,8 @@ static void copylayer(running_machine &machine, bitmap_ind16 &bitmap, const rect
 	}
 }
 
-UINT32 dynax_state::screen_update_ddenlovr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+UINT32 ddenlovr_state::screen_update_ddenlovr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	static const int order[24][4] =
 	{
 		{ 3,2,1,0 }, { 2,3,1,0 }, { 3,1,2,0 }, { 1,3,2,0 }, { 2,1,3,0 }, { 1,2,3,0 },
@@ -1313,7 +1534,7 @@ UINT32 dynax_state::screen_update_ddenlovr(screen_device &screen, bitmap_ind16 &
 
 #if 0
 	static int base = 0x0;
-	const UINT8 *gfx = machine().root_device().memregion("blitter")->base();
+	const UINT8 *gfx = memregion("blitter")->base();
 	int next;
 	memset(m_ddenlovr_pixmap[0], 0, 512 * 512);
 	memset(m_ddenlovr_pixmap[1], 0, 512 * 512);
@@ -1374,10 +1595,10 @@ UINT32 dynax_state::screen_update_ddenlovr(screen_device &screen, bitmap_ind16 &
 		pri = 0;
 	}
 
-	copylayer(machine(), bitmap, cliprect, order[pri][0]);
-	copylayer(machine(), bitmap, cliprect, order[pri][1]);
-	copylayer(machine(), bitmap, cliprect, order[pri][2]);
-	copylayer(machine(), bitmap, cliprect, order[pri][3]);
+	copylayer(bitmap, cliprect, order[pri][0]);
+	copylayer(bitmap, cliprect, order[pri][1]);
+	copylayer(bitmap, cliprect, order[pri][2]);
+	copylayer(bitmap, cliprect, order[pri][3]);
 
 	if (m_extra_layers)
 	{
@@ -1389,10 +1610,10 @@ UINT32 dynax_state::screen_update_ddenlovr(screen_device &screen, bitmap_ind16 &
 			pri = 0;
 		}
 
-		copylayer(machine(), bitmap, cliprect, order[pri][0] + 4);
-		copylayer(machine(), bitmap, cliprect, order[pri][1] + 4);
-		copylayer(machine(), bitmap, cliprect, order[pri][2] + 4);
-		copylayer(machine(), bitmap, cliprect, order[pri][3] + 4);
+		copylayer(bitmap, cliprect, order[pri][0] + 4);
+		copylayer(bitmap, cliprect, order[pri][1] + 4);
+		copylayer(bitmap, cliprect, order[pri][2] + 4);
+		copylayer(bitmap, cliprect, order[pri][3] + 4);
 	}
 
 	m_ddenlovr_layer_enable = enab;
@@ -1401,24 +1622,24 @@ UINT32 dynax_state::screen_update_ddenlovr(screen_device &screen, bitmap_ind16 &
 	return 0;
 }
 
-CUSTOM_INPUT_MEMBER(dynax_state::ddenlovr_blitter_irq_r)
+CUSTOM_INPUT_MEMBER(ddenlovr_state::ddenlovr_blitter_irq_r)
 {
 	return m_ddenlovr_blitter_irq_flag;
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr_coincounter_0_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr_coincounter_0_w)
 {
 	if (ACCESSING_BITS_0_7)
 		coin_counter_w(machine(), 0, data & 1);
 }
-WRITE16_MEMBER(dynax_state::ddenlovr_coincounter_1_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr_coincounter_1_w)
 {
 	if (ACCESSING_BITS_0_7)
 		coin_counter_w(machine(), 1, data & 1);
 }
 
 
-WRITE8_MEMBER(dynax_state::rongrong_palette_w)
+WRITE8_MEMBER(ddenlovr_state::rongrong_palette_w)
 {
 	int r, g, b, d1, d2, indx;
 
@@ -1436,159 +1657,150 @@ WRITE8_MEMBER(dynax_state::rongrong_palette_w)
 	palette_set_color_rgb(machine(), indx, pal5bit(r), pal5bit(g), pal5bit(b));
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr_palette_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr_palette_w)
 {
 	if (ACCESSING_BITS_0_7)
 		rongrong_palette_w(space, offset, data & 0xff);
 }
 
 
-WRITE8_MEMBER(dynax_state::ddenlovr_palette_base_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_palette_base_w)
 {
 	m_ddenlovr_palette_base[offset] = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_palette_base2_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_palette_base2_w)
 {
 	m_ddenlovr_palette_base[offset + 4] = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_palette_mask_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_palette_mask_w)
 {
 	m_ddenlovr_palette_mask[offset] = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_palette_mask2_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_palette_mask2_w)
 {
 	m_ddenlovr_palette_mask[offset + 4] = data;
 }
 
 
-WRITE8_MEMBER(dynax_state::ddenlovr_transparency_pen_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_transparency_pen_w)
 {
 	m_ddenlovr_transparency_pen[offset] = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_transparency_pen2_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_transparency_pen2_w)
 {
 	m_ddenlovr_transparency_pen[offset + 4] = data;
 }
 
 
-WRITE8_MEMBER(dynax_state::ddenlovr_transparency_mask_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_transparency_mask_w)
 {
 	m_ddenlovr_transparency_mask[offset] = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_transparency_mask2_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_transparency_mask2_w)
 {
 	m_ddenlovr_transparency_mask[offset + 4] = data;
 }
 
 
-WRITE16_MEMBER(dynax_state::ddenlovr16_palette_base_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr16_palette_base_w)
 {
 	if (ACCESSING_BITS_0_7)
 		m_ddenlovr_palette_base[offset] = data & 0xff;
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr16_palette_mask_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr16_palette_mask_w)
 {
 	if (ACCESSING_BITS_0_7)
 		m_ddenlovr_palette_mask[offset] = data & 0xff;
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr16_transparency_pen_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr16_transparency_pen_w)
 {
 	if (ACCESSING_BITS_0_7)
 		m_ddenlovr_transparency_pen[offset] = data & 0xff;
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr16_transparency_mask_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr16_transparency_mask_w)
 {
 	if (ACCESSING_BITS_0_7)
 		m_ddenlovr_transparency_mask[offset] = data & 0xff;
 }
 
 
-static WRITE8_DEVICE_HANDLER( quizchq_oki_bank_w )
+WRITE8_MEMBER(ddenlovr_state::quizchq_oki_bank_w )
 {
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base((data & 1) * 0x40000);
+	m_oki->set_bank_base((data & 1) * 0x40000);
 }
 
-static WRITE16_DEVICE_HANDLER( ddenlovr_oki_bank_w )
+WRITE16_MEMBER(ddenlovr_state::ddenlovr_oki_bank_w )
 {
 	if (ACCESSING_BITS_0_7)
 	{
-		okim6295_device *oki = downcast<okim6295_device *>(device);
-		oki->set_bank_base((data & 7) * 0x40000);
+		m_oki->set_bank_base((data & 7) * 0x40000);
 	}
 }
 
 
 
-static WRITE16_DEVICE_HANDLER( quiz365_oki_bank1_w )
+WRITE16_MEMBER(ddenlovr_state::quiz365_oki_bank1_w )
 {
-	dynax_state *state = space.machine().driver_data<dynax_state>();
-
 	if (ACCESSING_BITS_0_7)
 	{
-		state->m_okibank = (state->m_okibank & 2) | (data & 1);
-		okim6295_device *oki = downcast<okim6295_device *>(device);
-		oki->set_bank_base(state->m_okibank * 0x40000);
+		m_okibank = (m_okibank & 2) | (data & 1);
+		m_oki->set_bank_base(m_okibank * 0x40000);
 	}
 }
 
-static WRITE16_DEVICE_HANDLER( quiz365_oki_bank2_w )
+WRITE16_MEMBER(ddenlovr_state::quiz365_oki_bank2_w )
 {
-	dynax_state *state = space.machine().driver_data<dynax_state>();
-
 	if (ACCESSING_BITS_0_7)
 	{
-		state->m_okibank = (state->m_okibank & 1) | ((data & 1) << 1);
-		okim6295_device *oki = downcast<okim6295_device *>(device);
-		oki->set_bank_base(state->m_okibank * 0x40000);
+		m_okibank = (m_okibank & 1) | ((data & 1) << 1);
+		m_oki->set_bank_base(m_okibank * 0x40000);
 	}
 }
 
 
 
-READ8_MEMBER(dynax_state::unk_r)
+READ8_MEMBER(ddenlovr_state::unk_r)
 {
 	return 0x78;
 }
 
-READ16_MEMBER(dynax_state::unk16_r)
+READ16_MEMBER(ddenlovr_state::unk16_r)
 {
 	return unk_r(space, offset);
 }
 
 
-static WRITE8_DEVICE_HANDLER( ddenlovr_select_w )
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_select_w )
 {
-	dynax_state *state = space.machine().driver_data<dynax_state>();
-	state->m_dsw_sel = data;
+	m_dsw_sel = data;
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr_select_16_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr_select_16_w)
 {
 	if (ACCESSING_BITS_0_7)
 		m_dsw_sel = data;
 }
 
-WRITE8_MEMBER(dynax_state::ddenlovr_select2_w)
+WRITE8_MEMBER(ddenlovr_state::ddenlovr_select2_w)
 {
 	m_input_sel = data;
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovr_select2_16_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovr_select2_16_w)
 {
 	if (ACCESSING_BITS_0_7)
 		m_input_sel = data;
 }
 
-READ8_MEMBER(dynax_state::rongrong_input2_r)
+READ8_MEMBER(ddenlovr_state::rongrong_input2_r)
 {
 //  logerror("%04x: input2_r offset %d select %x\n", space.device().safe_pc(), offset, m_input_sel);
 	/* 0 and 1 are read from offset 1, 2 from offset 0... */
@@ -1602,19 +1814,17 @@ READ8_MEMBER(dynax_state::rongrong_input2_r)
 }
 
 
-static READ8_DEVICE_HANDLER( quiz365_input_r )
+READ8_MEMBER(ddenlovr_state::quiz365_input_r )
 {
-	dynax_state *state = space.machine().driver_data<dynax_state>();
-
-	if (!BIT(state->m_dsw_sel, 0))  return state->ioport("DSW1")->read();
-	if (!BIT(state->m_dsw_sel, 1))  return state->ioport("DSW2")->read();
-	if (!BIT(state->m_dsw_sel, 2))  return state->ioport("DSW3")->read();
-	if (!BIT(state->m_dsw_sel, 3))  return 0xff;//space.machine().rand();
-	if (!BIT(state->m_dsw_sel, 4))  return 0xff;//space.machine().rand();
+	if (!BIT(m_dsw_sel, 0))  return ioport("DSW1")->read();
+	if (!BIT(m_dsw_sel, 1))  return ioport("DSW2")->read();
+	if (!BIT(m_dsw_sel, 2))  return ioport("DSW3")->read();
+	if (!BIT(m_dsw_sel, 3))  return 0xff;//space.machine().rand();
+	if (!BIT(m_dsw_sel, 4))  return 0xff;//space.machine().rand();
 	return 0xff;
 }
 
-READ16_MEMBER(dynax_state::quiz365_input2_r)
+READ16_MEMBER(ddenlovr_state::quiz365_input2_r)
 {
 //  logerror("%04x: input2_r offset %d select %x\n",space.device().safe_pc(), offset, m_input_sel);
 	/* 0 and 1 are read from offset 1, 2 from offset 0... */
@@ -1628,7 +1838,7 @@ READ16_MEMBER(dynax_state::quiz365_input2_r)
 }
 
 
-WRITE8_MEMBER(dynax_state::rongrong_blitter_busy_w)
+WRITE8_MEMBER(ddenlovr_state::rongrong_blitter_busy_w)
 {
 	m_rongrong_blitter_busy_select = data;
 
@@ -1636,7 +1846,7 @@ WRITE8_MEMBER(dynax_state::rongrong_blitter_busy_w)
 		logerror("%04x: rongrong_blitter_busy_w data = %02x\n", space.device().safe_pc(), data);
 }
 
-READ8_MEMBER(dynax_state::rongrong_blitter_busy_r)
+READ8_MEMBER(ddenlovr_state::rongrong_blitter_busy_r)
 {
 	switch (m_rongrong_blitter_busy_select)
 	{
@@ -1649,7 +1859,7 @@ READ8_MEMBER(dynax_state::rongrong_blitter_busy_r)
 }
 
 
-WRITE16_MEMBER(dynax_state::quiz365_coincounter_w)
+WRITE16_MEMBER(ddenlovr_state::quiz365_coincounter_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
@@ -1665,7 +1875,7 @@ WRITE16_MEMBER(dynax_state::quiz365_coincounter_w)
 37,28,12    11      ->      88
 67,4c,3a    ??      ->      51
 */
-READ16_MEMBER(dynax_state::quiz365_protection_r)
+READ16_MEMBER(ddenlovr_state::quiz365_protection_r)
 {
 	switch (m_quiz365_protection[0])
 	{
@@ -1676,12 +1886,12 @@ READ16_MEMBER(dynax_state::quiz365_protection_r)
 	}
 }
 
-WRITE16_MEMBER(dynax_state::quiz365_protection_w)
+WRITE16_MEMBER(ddenlovr_state::quiz365_protection_w)
 {
 	COMBINE_DATA(m_quiz365_protection + offset);
 }
 
-static ADDRESS_MAP_START( quiz365_map, AS_PROGRAM, 16, dynax_state )
+static ADDRESS_MAP_START( quiz365_map, AS_PROGRAM, 16, ddenlovr_state )
 	AM_RANGE(0x000000, 0x17ffff) AM_ROM                                                 // ROM
 
 	AM_RANGE(0x200000, 0x2003ff) AM_WRITE(ddenlovr_palette_w)                           // Palette
@@ -1706,19 +1916,19 @@ static ADDRESS_MAP_START( quiz365_map, AS_PROGRAM, 16, dynax_state )
 	AM_RANGE(0x300286, 0x300287) AM_READ(ddenlovr_gfxrom_r)                             // Video Chip
 
 	AM_RANGE(0x3002c0, 0x3002c1) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)// Sound
-	AM_RANGE(0x300300, 0x300303) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0x300300, 0x300303) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x300340, 0x30035f) AM_DEVREADWRITE8("rtc", msm6242_device, read, write,0x00ff)
-	AM_RANGE(0x300380, 0x300383) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
-	AM_RANGE(0x300384, 0x300385) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
-	AM_RANGE(0x3003c2, 0x3003c3) AM_DEVWRITE_LEGACY("oki", quiz365_oki_bank1_w)
+	AM_RANGE(0x300380, 0x300383) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
+	AM_RANGE(0x300384, 0x300385) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0x3003c2, 0x3003c3) AM_WRITE(quiz365_oki_bank1_w)
 	AM_RANGE(0x3003ca, 0x3003cb) AM_WRITE(ddenlovr_blitter_irq_ack_w)                   // Blitter irq acknowledge
-	AM_RANGE(0x3003cc, 0x3003cd) AM_DEVWRITE_LEGACY("oki", quiz365_oki_bank2_w)
+	AM_RANGE(0x3003cc, 0x3003cd) AM_WRITE(quiz365_oki_bank2_w)
 
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM                                                 // RAM
 ADDRESS_MAP_END
 
 
-READ16_MEMBER(dynax_state::ddenlovj_dsw_r)
+READ16_MEMBER(ddenlovr_state::ddenlovj_dsw_r)
 {
 	UINT16 dsw = 0;
 	if ((~*m_dsw_sel16) & 0x01) dsw |= ioport("DSW1")->read();
@@ -1727,7 +1937,7 @@ READ16_MEMBER(dynax_state::ddenlovj_dsw_r)
 	return dsw;
 }
 
-WRITE16_MEMBER(dynax_state::ddenlovj_coincounter_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovj_coincounter_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
@@ -1737,12 +1947,12 @@ WRITE16_MEMBER(dynax_state::ddenlovj_coincounter_w)
 	}
 }
 
-CUSTOM_INPUT_MEMBER(dynax_state::ddenlovj_blitter_r)
+CUSTOM_INPUT_MEMBER(ddenlovr_state::ddenlovj_blitter_r)
 {
 	return m_ddenlovr_blitter_irq_flag ? 0x03 : 0x00;       // bit 4 = 1 -> blitter busy
 }
 
-static ADDRESS_MAP_START( ddenlovj_map, AS_PROGRAM, 16, dynax_state )
+static ADDRESS_MAP_START( ddenlovj_map, AS_PROGRAM, 16, ddenlovr_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM // ROM
 
 	AM_RANGE(0x200000, 0x2003ff) AM_WRITE(ddenlovr_palette_w)                           // Palette
@@ -1758,23 +1968,23 @@ static ADDRESS_MAP_START( ddenlovj_map, AS_PROGRAM, 16, dynax_state )
 	AM_RANGE(0x300070, 0x300071) AM_READ(unk16_r)                                       // ? must be 78 on startup (not necessary in ddlover)
 	AM_RANGE(0x300080, 0x300083) AM_WRITE(ddenlovr_blitter_w)
 	AM_RANGE(0x300086, 0x300087) AM_READ(ddenlovr_gfxrom_r)                             // Video Chip
-	AM_RANGE(0x3000c0, 0x3000c3) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0x3000c0, 0x3000c3) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x300100, 0x30011f) AM_DEVREADWRITE8("rtc", msm6242_device, read, write,0x00ff)
-	AM_RANGE(0x300140, 0x300143) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
+	AM_RANGE(0x300140, 0x300143) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
 	AM_RANGE(0x300180, 0x300181) AM_READ_PORT("P1")
 	AM_RANGE(0x300182, 0x300183) AM_READ_PORT("P2")
 	AM_RANGE(0x300184, 0x300185) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x300186, 0x300187) AM_READ(ddenlovj_dsw_r)                                // DSW
 	AM_RANGE(0x300188, 0x300189) AM_WRITE(ddenlovj_coincounter_w)                       // Coin Counters
 	AM_RANGE(0x30018a, 0x30018b) AM_WRITEONLY AM_SHARE("dsw_sel16")         // DSW select
-	AM_RANGE(0x30018c, 0x30018d) AM_DEVWRITE_LEGACY("oki", ddenlovr_oki_bank_w)
+	AM_RANGE(0x30018c, 0x30018d) AM_WRITE(ddenlovr_oki_bank_w)
 	AM_RANGE(0x3001ca, 0x3001cb) AM_WRITE(ddenlovr_blitter_irq_ack_w)                   // Blitter irq acknowledge
 	AM_RANGE(0x300240, 0x300241) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)// Sound
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM                                                 // RAM
 ADDRESS_MAP_END
 
 
-READ16_MEMBER(dynax_state::ddenlovrk_protection1_r)
+READ16_MEMBER(ddenlovr_state::ddenlovrk_protection1_r)
 {
 	switch (*m_protection1)
 	{
@@ -1783,7 +1993,7 @@ READ16_MEMBER(dynax_state::ddenlovrk_protection1_r)
 	return *m_protection1;
 }
 
-READ16_MEMBER(dynax_state::ddenlovrk_protection2_r)
+READ16_MEMBER(ddenlovr_state::ddenlovrk_protection2_r)
 {
 	switch (*m_protection1)
 	{
@@ -1791,13 +2001,13 @@ READ16_MEMBER(dynax_state::ddenlovrk_protection2_r)
 	}
 	return 0x80;
 }
-WRITE16_MEMBER(dynax_state::ddenlovrk_protection2_w)
+WRITE16_MEMBER(ddenlovr_state::ddenlovrk_protection2_w)
 {
 	COMBINE_DATA(m_protection2);
 	m_oki->set_bank_base(((*m_protection2) & 0x7) * 0x40000);
 }
 
-static ADDRESS_MAP_START( ddenlovrk_map, AS_PROGRAM, 16, dynax_state )
+static ADDRESS_MAP_START( ddenlovrk_map, AS_PROGRAM, 16, ddenlovr_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM                                                     // ROM
 
 	AM_RANGE(0x100000, 0x100001) AM_RAM_READ(ddenlovrk_protection1_r) AM_SHARE("protection1")
@@ -1825,10 +2035,10 @@ static ADDRESS_MAP_START( ddenlovrk_map, AS_PROGRAM, 16, dynax_state )
 	AM_RANGE(0xe00308, 0xe00309) AM_WRITE(ddenlovr_coincounter_0_w)                         // Coin Counters
 	AM_RANGE(0xe0030c, 0xe0030d) AM_WRITE(ddenlovr_coincounter_1_w)                         //
 
-	AM_RANGE(0xe00400, 0xe00403) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0xe00400, 0xe00403) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0xe00500, 0xe0051f) AM_DEVREADWRITE8("rtc", msm6242_device, read, write,0x00ff)
-	AM_RANGE(0xe00600, 0xe00603) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
-	AM_RANGE(0xe00604, 0xe00605) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
+	AM_RANGE(0xe00600, 0xe00603) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
+	AM_RANGE(0xe00604, 0xe00605) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
 	AM_RANGE(0xe00700, 0xe00701) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM                                                     // RAM
 ADDRESS_MAP_END
@@ -1836,10 +2046,10 @@ ADDRESS_MAP_END
 
 
 
-static ADDRESS_MAP_START( ddenlovr_map, AS_PROGRAM, 16, dynax_state )
+static ADDRESS_MAP_START( ddenlovr_map, AS_PROGRAM, 16, ddenlovr_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM                                                     // ROM
 
-	AM_RANGE(0x300000, 0x300001) AM_DEVWRITE_LEGACY("oki", ddenlovr_oki_bank_w)
+	AM_RANGE(0x300000, 0x300001) AM_WRITE( ddenlovr_oki_bank_w)
 
 	AM_RANGE(0xd00000, 0xd003ff) AM_WRITE(ddenlovr_palette_w)                               // Palette
 //  AM_RANGE(0xd01000, 0xd017ff) AM_RAM                                                   // ? B0 on startup, then 00
@@ -1863,21 +2073,21 @@ static ADDRESS_MAP_START( ddenlovr_map, AS_PROGRAM, 16, dynax_state )
 	AM_RANGE(0xe00308, 0xe00309) AM_WRITE(ddenlovr_coincounter_0_w)                         // Coin Counters
 	AM_RANGE(0xe0030c, 0xe0030d) AM_WRITE(ddenlovr_coincounter_1_w)                         //
 
-	AM_RANGE(0xe00400, 0xe00403) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0xe00400, 0xe00403) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0xe00500, 0xe0051f) AM_DEVREADWRITE8("rtc", msm6242_device, read, write,0x00ff)
-	AM_RANGE(0xe00600, 0xe00603) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
-	AM_RANGE(0xe00604, 0xe00605) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
+	AM_RANGE(0xe00600, 0xe00603) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
+	AM_RANGE(0xe00604, 0xe00605) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
 	AM_RANGE(0xe00700, 0xe00701) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM                                                     // RAM
 ADDRESS_MAP_END
 
 
-CUSTOM_INPUT_MEMBER(dynax_state::nettoqc_special_r)
+CUSTOM_INPUT_MEMBER(ddenlovr_state::nettoqc_special_r)
 {
 	return m_ddenlovr_blitter_irq_flag ? 0x03 : 0x00;
 }
 
-READ16_MEMBER(dynax_state::nettoqc_input_r)
+READ16_MEMBER(ddenlovr_state::nettoqc_input_r)
 {
 	if (!BIT(m_dsw_sel, 0)) return ioport("DSW1")->read();
 	if (!BIT(m_dsw_sel, 1)) return ioport("DSW2")->read();
@@ -1892,7 +2102,7 @@ READ16_MEMBER(dynax_state::nettoqc_input_r)
     Writes 67 4c 3a to 200e0b then 19 to 200e0d. Expects to read 51 from 200c03
 */
 
-READ16_MEMBER(dynax_state::nettoqc_protection1_r)
+READ16_MEMBER(ddenlovr_state::nettoqc_protection1_r)
 {
 	switch (*m_protection1 & 0xff)
 	{
@@ -1901,7 +2111,7 @@ READ16_MEMBER(dynax_state::nettoqc_protection1_r)
 	}
 }
 
-WRITE16_MEMBER(dynax_state::nettoqc_coincounter_w)
+WRITE16_MEMBER(ddenlovr_state::nettoqc_coincounter_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
@@ -1911,16 +2121,15 @@ WRITE16_MEMBER(dynax_state::nettoqc_coincounter_w)
 	}
 }
 
-static WRITE16_DEVICE_HANDLER( nettoqc_oki_bank_w )
+WRITE16_MEMBER(ddenlovr_state::nettoqc_oki_bank_w )
 {
 	if (ACCESSING_BITS_0_7)
 	{
-		okim6295_device *oki = downcast<okim6295_device *>(device);
-		oki->set_bank_base((data & 3) * 0x40000);
+		m_oki->set_bank_base((data & 3) * 0x40000);
 	}
 }
 
-static ADDRESS_MAP_START( nettoqc_map, AS_PROGRAM, 16, dynax_state )
+static ADDRESS_MAP_START( nettoqc_map, AS_PROGRAM, 16, ddenlovr_state )
 	AM_RANGE(0x000000, 0x17ffff) AM_ROM                                                     // ROM
 
 	AM_RANGE(0x200000, 0x2003ff) AM_WRITE(ddenlovr_palette_w)                               // Palette
@@ -1938,23 +2147,23 @@ static ADDRESS_MAP_START( nettoqc_map, AS_PROGRAM, 16, dynax_state )
 	AM_RANGE(0x300070, 0x300071) AM_READ(unk16_r)                                           // ? must be 78 on startup (not necessary in ddlover)
 	AM_RANGE(0x300080, 0x300083) AM_WRITE(ddenlovr_blitter_w)
 	AM_RANGE(0x300086, 0x300087) AM_READ(ddenlovr_gfxrom_r)                                 // Video Chip
-	AM_RANGE(0x3000c0, 0x3000c3) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0x3000c0, 0x3000c3) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x300100, 0x30011f) AM_DEVREADWRITE8("rtc", msm6242_device, read, write,0x00ff)
-	AM_RANGE(0x300140, 0x300143) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
+	AM_RANGE(0x300140, 0x300143) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
 	AM_RANGE(0x300180, 0x300181) AM_READ_PORT("P1")
 	AM_RANGE(0x300182, 0x300183) AM_READ_PORT("P2")
 	AM_RANGE(0x300184, 0x300185) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x300186, 0x300187) AM_READ(nettoqc_input_r)                                   // DSW's
 	AM_RANGE(0x300188, 0x300189) AM_WRITE(nettoqc_coincounter_w)                            // Coin Counters
 	AM_RANGE(0x30018a, 0x30018b) AM_WRITE(ddenlovr_select_16_w)                             //
-	AM_RANGE(0x30018c, 0x30018d) AM_DEVWRITE_LEGACY("oki", nettoqc_oki_bank_w)
+	AM_RANGE(0x30018c, 0x30018d) AM_WRITE(nettoqc_oki_bank_w)
 	AM_RANGE(0x3001ca, 0x3001cb) AM_WRITE(ddenlovr_blitter_irq_ack_w)                       // Blitter irq acknowledge
 	AM_RANGE(0x300240, 0x300241) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM                                                     // RAM
 ADDRESS_MAP_END
 
 
-READ16_MEMBER(dynax_state::ultrchmp_protection2_r)
+READ16_MEMBER(ddenlovr_state::ultrchmp_protection2_r)
 {
 	switch (*m_protection2)
 	{
@@ -1963,13 +2172,13 @@ READ16_MEMBER(dynax_state::ultrchmp_protection2_r)
 	}
 	return *m_protection2;
 }
-WRITE16_MEMBER(dynax_state::ultrchmp_protection2_w)
+WRITE16_MEMBER(ddenlovr_state::ultrchmp_protection2_w)
 {
 //  COMBINE_DATA(m_protection2);
 	m_oki->set_bank_base((data & 0xf) * 0x40000);
 }
 
-static ADDRESS_MAP_START( ultrchmp_map, AS_PROGRAM, 16, dynax_state )
+static ADDRESS_MAP_START( ultrchmp_map, AS_PROGRAM, 16, ddenlovr_state )
 	AM_RANGE(0x000000, 0x17ffff) AM_ROM                                                     // ROM
 
 	AM_RANGE(0x224680, 0x224681) AM_RAM_READ(ultrchmp_protection2_r) AM_SHARE("protection2")    // Protection 2
@@ -2001,10 +2210,10 @@ static ADDRESS_MAP_START( ultrchmp_map, AS_PROGRAM, 16, dynax_state )
 	AM_RANGE(0xe00308, 0xe00309) AM_WRITE(ddenlovr_coincounter_0_w)                         // Coin Counters
 	AM_RANGE(0xe0030c, 0xe0030d) AM_WRITE(ddenlovr_coincounter_1_w)                         //
 
-	AM_RANGE(0xe00400, 0xe00403) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0xe00400, 0xe00403) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0xe00500, 0xe0051f) AM_DEVREADWRITE8("rtc", msm6242_device, read, write,0x00ff)
-	AM_RANGE(0xe00600, 0xe00603) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
-	AM_RANGE(0xe00604, 0xe00605) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
+	AM_RANGE(0xe00600, 0xe00603) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
+	AM_RANGE(0xe00604, 0xe00605) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
 	AM_RANGE(0xe00700, 0xe00701) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM AM_SHARE("nvram")                                       // RAM (Battey-backed)
 ADDRESS_MAP_END
@@ -2014,7 +2223,7 @@ ADDRESS_MAP_END
                                 Rong Rong
 ***************************************************************************/
 
-READ8_MEMBER(dynax_state::rongrong_input_r)
+READ8_MEMBER(ddenlovr_state::rongrong_input_r)
 {
 	if (!BIT(m_dsw_sel, 0)) return ioport("DSW1")->read();
 	if (!BIT(m_dsw_sel, 1)) return ioport("DSW2")->read();
@@ -2024,7 +2233,7 @@ READ8_MEMBER(dynax_state::rongrong_input_r)
 	return 0xff;
 }
 
-WRITE8_MEMBER(dynax_state::rongrong_select_w)
+WRITE8_MEMBER(ddenlovr_state::rongrong_select_w)
 {
 //logerror("%04x: rongrong_select_w %02x\n",space.device().safe_pc(),data);
 
@@ -2037,7 +2246,7 @@ WRITE8_MEMBER(dynax_state::rongrong_select_w)
 }
 
 
-static ADDRESS_MAP_START( quizchq_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( quizchq_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                                             // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                                             // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")                                // RAM (Banked)
@@ -2045,7 +2254,7 @@ static ADDRESS_MAP_START( quizchq_map, AS_PROGRAM, 8, dynax_state )
 	AM_RANGE(0x8000, 0x81ff) AM_WRITE(rongrong_palette_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( quizchq_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( quizchq_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_WRITE(rongrong_blitter_w)
 	AM_RANGE(0x03, 0x03) AM_READ(rongrong_gfxrom_r)
@@ -2057,7 +2266,7 @@ static ADDRESS_MAP_START( quizchq_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x22, 0x23) AM_READ(rongrong_input2_r)
 
 	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x60, 0x61) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x60, 0x61) AM_DEVWRITE("ymsnd", ym2413_device, write)
 
 	AM_RANGE(0x80, 0x83) AM_WRITE(ddenlovr_palette_base_w)
 	AM_RANGE(0x84, 0x87) AM_WRITE(ddenlovr_palette_mask_w)
@@ -2069,13 +2278,13 @@ static ADDRESS_MAP_START( quizchq_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x98, 0x98) AM_READ(unk_r)                         // ? must be 78 on startup
 
 	AM_RANGE(0xa0, 0xaf) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
-	AM_RANGE(0xc0, 0xc0) AM_DEVWRITE_LEGACY("oki", quizchq_oki_bank_w)
+	AM_RANGE(0xc0, 0xc0) AM_WRITE(quizchq_oki_bank_w)
 	AM_RANGE(0xc2, 0xc2) AM_WRITENOP                        // enables palette RAM at 8000
 ADDRESS_MAP_END
 
 
 
-static ADDRESS_MAP_START( rongrong_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( rongrong_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                                             // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                                             // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")                                // RAM (Banked)
@@ -2083,7 +2292,7 @@ static ADDRESS_MAP_START( rongrong_map, AS_PROGRAM, 8, dynax_state )
 	AM_RANGE(0xf000, 0xf1ff) AM_WRITE(rongrong_palette_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( rongrong_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( rongrong_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_WRITE(rongrong_blitter_w)
 	AM_RANGE(0x03, 0x03) AM_READ(rongrong_gfxrom_r)
@@ -2094,7 +2303,7 @@ static ADDRESS_MAP_START( rongrong_portmap, AS_IO, 8, dynax_state )
 
 	AM_RANGE(0x20, 0x2f) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x60, 0x61) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x60, 0x61) AM_DEVWRITE("ymsnd", ym2413_device, write)
 
 	AM_RANGE(0x80, 0x83) AM_WRITE(ddenlovr_palette_base_w)
 	AM_RANGE(0x84, 0x87) AM_WRITE(ddenlovr_palette_mask_w)
@@ -2122,53 +2331,52 @@ a0 input select,a2 input read (protection?)
 ***************************************************************************/
 
 
-READ8_MEMBER(dynax_state::magic_r)
+READ8_MEMBER(ddenlovr_state::magic_r)
 {
 	return 0x01;
 }
 
-WRITE8_MEMBER(dynax_state::mmpanic_rombank_w)
+WRITE8_MEMBER(ddenlovr_state::mmpanic_rombank_w)
 {
 	membank("bank1")->set_entry(data & 0x7);
 	/* Bit 4? */
 }
 
-WRITE8_MEMBER(dynax_state::mmpanic_soundlatch_w)
+WRITE8_MEMBER(ddenlovr_state::mmpanic_soundlatch_w)
 {
 	soundlatch_byte_w(space, 0, data);
 	m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-WRITE8_MEMBER(dynax_state::mmpanic_blitter_w)
+WRITE8_MEMBER(ddenlovr_state::mmpanic_blitter_w)
 {
 	blitter_w(space, 0, offset, data, 0xdf);    // RST 18
 }
-WRITE8_MEMBER(dynax_state::mmpanic_blitter2_w)
+WRITE8_MEMBER(ddenlovr_state::mmpanic_blitter2_w)
 {
 	blitter_w(space, 1, offset, data, 0xdf);    // RST 18
 }
 
-static void mmpanic_update_leds(running_machine &machine)
+void ddenlovr_state::mmpanic_update_leds()
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
-	set_led_status(machine, 0, state->m_mmpanic_leds);
+	set_led_status(machine(), 0, m_mmpanic_leds);
 }
 
 /* leds 1-8 */
-WRITE8_MEMBER(dynax_state::mmpanic_leds_w)
+WRITE8_MEMBER(ddenlovr_state::mmpanic_leds_w)
 {
 	m_mmpanic_leds = (m_mmpanic_leds & 0xff00) | data;
-	mmpanic_update_leds(machine());
+	mmpanic_update_leds();
 }
 /* led 9 */
-WRITE8_MEMBER(dynax_state::mmpanic_leds2_w)
+WRITE8_MEMBER(ddenlovr_state::mmpanic_leds2_w)
 {
 	m_mmpanic_leds = (m_mmpanic_leds & 0xfeff) | (data ? 0x0100 : 0);
-	mmpanic_update_leds(machine());
+	mmpanic_update_leds();
 }
 
 
-WRITE8_MEMBER(dynax_state::mmpanic_lockout_w)
+WRITE8_MEMBER(ddenlovr_state::mmpanic_lockout_w)
 {
 	if (m_dsw_sel == 0x0c)
 	{
@@ -2178,11 +2386,11 @@ WRITE8_MEMBER(dynax_state::mmpanic_lockout_w)
 	}
 }
 
-READ8_MEMBER(dynax_state::mmpanic_link_r){ return 0xff; }
+READ8_MEMBER(ddenlovr_state::mmpanic_link_r){ return 0xff; }
 
 /* Main CPU */
 
-static ADDRESS_MAP_START( mmpanic_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( mmpanic_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0051, 0x0051) AM_READ(magic_r)                                   // ?
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                                             // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                                             // RAM
@@ -2191,7 +2399,7 @@ static ADDRESS_MAP_START( mmpanic_map, AS_PROGRAM, 8, dynax_state )
 	AM_RANGE(0x8000, 0x81ff) AM_WRITE(rongrong_palette_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( mmpanic_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( mmpanic_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x0f) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 
@@ -2218,7 +2426,7 @@ static ADDRESS_MAP_START( mmpanic_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x60, 0x61) AM_WRITE(mmpanic_blitter_w)
 	AM_RANGE(0x63, 0x63) AM_READ(rongrong_gfxrom_r) // Video Chip
 	AM_RANGE(0x64, 0x65) AM_WRITE(mmpanic_blitter2_w)
-	AM_RANGE(0x68, 0x68) AM_DEVWRITE_LEGACY("aysnd", ddenlovr_select_w)
+	AM_RANGE(0x68, 0x68) AM_WRITE(ddenlovr_select_w)
 	AM_RANGE(0x69, 0x69) AM_WRITE(mmpanic_lockout_w)
 	AM_RANGE(0x6a, 0x6a) AM_READ_PORT("IN0")
 	AM_RANGE(0x6b, 0x6b) AM_READ_PORT("IN1")
@@ -2237,21 +2445,21 @@ ADDRESS_MAP_END
 
 /* Sound CPU */
 
-static ADDRESS_MAP_START( mmpanic_sound_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( mmpanic_sound_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM     // ROM
 	AM_RANGE(0x6000, 0x66ff) AM_RAM     // RAM
 	AM_RANGE(0x8000, 0xffff) AM_ROM     // ROM
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( mmpanic_sound_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( mmpanic_sound_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x02, 0x02) AM_READNOP     // read just before port 00
 	AM_RANGE(0x04, 0x04) AM_NOP                 // read only once at the start
 	AM_RANGE(0x06, 0x06) AM_WRITENOP    // almost always 1, sometimes 0
-	AM_RANGE(0x08, 0x09) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
-	AM_RANGE(0x0c, 0x0c) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
-	AM_RANGE(0x0e, 0x0e) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x08, 0x09) AM_DEVWRITE("ymsnd", ym2413_device, write)
+	AM_RANGE(0x0c, 0x0c) AM_DEVWRITE("aysnd", ay8910_device, data_w)
+	AM_RANGE(0x0e, 0x0e) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 ADDRESS_MAP_END
 
 
@@ -2262,7 +2470,7 @@ ADDRESS_MAP_END
 
 /* Main CPU */
 
-static ADDRESS_MAP_START( funkyfig_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( funkyfig_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")            // RAM (Banked)
@@ -2273,18 +2481,18 @@ static ADDRESS_MAP_START( funkyfig_map, AS_PROGRAM, 8, dynax_state )
 ADDRESS_MAP_END
 
 
-READ8_MEMBER(dynax_state::funkyfig_busy_r)
+READ8_MEMBER(ddenlovr_state::funkyfig_busy_r)
 {
 					// bit 0 ?
 	return 0x00;    // bit 7 = blitter busy
 }
 
-WRITE8_MEMBER(dynax_state::funkyfig_blitter_w)
+WRITE8_MEMBER(ddenlovr_state::funkyfig_blitter_w)
 {
-	blitter_w_funkyfig(machine(), 0, offset, data, 0xe0);
+	blitter_w_funkyfig(0, offset, data, 0xe0);
 }
 
-WRITE8_MEMBER(dynax_state::funkyfig_rombank_w)
+WRITE8_MEMBER(ddenlovr_state::funkyfig_rombank_w)
 {
 	m_dsw_sel = data;
 
@@ -2293,7 +2501,7 @@ WRITE8_MEMBER(dynax_state::funkyfig_rombank_w)
 	membank("bank2")->set_entry(((data & 0xe0) >> 5));
 }
 
-READ8_MEMBER(dynax_state::funkyfig_dsw_r)
+READ8_MEMBER(ddenlovr_state::funkyfig_dsw_r)
 {
 	if (!BIT(m_dsw_sel, 0))  return ioport("DSW1")->read();
 	if (!BIT(m_dsw_sel, 1))  return ioport("DSW2")->read();
@@ -2302,7 +2510,7 @@ READ8_MEMBER(dynax_state::funkyfig_dsw_r)
 	return 0xff;
 }
 
-READ8_MEMBER(dynax_state::funkyfig_coin_r)
+READ8_MEMBER(ddenlovr_state::funkyfig_coin_r)
 {
 	switch (m_input_sel)
 	{
@@ -2313,7 +2521,7 @@ READ8_MEMBER(dynax_state::funkyfig_coin_r)
 	return 0xff;
 }
 
-READ8_MEMBER(dynax_state::funkyfig_key_r)
+READ8_MEMBER(ddenlovr_state::funkyfig_key_r)
 {
 	switch (m_input_sel)
 	{
@@ -2324,7 +2532,7 @@ READ8_MEMBER(dynax_state::funkyfig_key_r)
 	return 0xff;
 }
 
-WRITE8_MEMBER(dynax_state::funkyfig_lockout_w)
+WRITE8_MEMBER(ddenlovr_state::funkyfig_lockout_w)
 {
 	switch (m_input_sel)
 	{
@@ -2343,7 +2551,7 @@ WRITE8_MEMBER(dynax_state::funkyfig_lockout_w)
 	}
 }
 
-static ADDRESS_MAP_START( funkyfig_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( funkyfig_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE("oki", okim6295_device, read, write)   // Sound
 	AM_RANGE(0x01, 0x01) AM_WRITE(mmpanic_leds_w)       // Leds
@@ -2376,7 +2584,7 @@ ADDRESS_MAP_END
 
 /* Sound CPU */
 
-static ADDRESS_MAP_START( funkyfig_sound_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( funkyfig_sound_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x02, 0x02) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x04, 0x04) AM_READNOP // read only once at the start
@@ -2390,13 +2598,13 @@ ADDRESS_MAP_END
 
 ***************************************************************************/
 
-WRITE8_MEMBER(dynax_state::hanakanz_rombank_w)
+WRITE8_MEMBER(ddenlovr_state::hanakanz_rombank_w)
 {
 	membank("bank1")->set_entry(data & 0x0f);
 	membank("bank2")->set_entry(((data & 0xf0) >> 4));
 }
 
-static ADDRESS_MAP_START( hanakanz_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( hanakanz_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                 // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                 // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")    // RAM (Banked)
@@ -2404,17 +2612,17 @@ static ADDRESS_MAP_START( hanakanz_map, AS_PROGRAM, 8, dynax_state )
 ADDRESS_MAP_END
 
 
-WRITE8_MEMBER(dynax_state::hanakanz_keyb_w)
+WRITE8_MEMBER(ddenlovr_state::hanakanz_keyb_w)
 {
 	m_keyb = data;
 }
 
-WRITE8_MEMBER(dynax_state::hanakanz_dsw_w)
+WRITE8_MEMBER(ddenlovr_state::hanakanz_dsw_w)
 {
 	m_dsw_sel = data;
 }
 
-READ8_MEMBER(dynax_state::hanakanz_keyb_r)
+READ8_MEMBER(ddenlovr_state::hanakanz_keyb_r)
 {
 	UINT8 val = 0xff;
 
@@ -2428,7 +2636,7 @@ READ8_MEMBER(dynax_state::hanakanz_keyb_r)
 	return val;
 }
 
-READ8_MEMBER(dynax_state::hanakanz_dsw_r)
+READ8_MEMBER(ddenlovr_state::hanakanz_dsw_r)
 {
 	if (!BIT(m_dsw_sel, 0))   return ioport("DSW1")->read();
 	if (!BIT(m_dsw_sel, 1))   return ioport("DSW2")->read();
@@ -2438,12 +2646,12 @@ READ8_MEMBER(dynax_state::hanakanz_dsw_r)
 	return 0xff;
 }
 
-READ8_MEMBER(dynax_state::hanakanz_busy_r)
+READ8_MEMBER(ddenlovr_state::hanakanz_busy_r)
 {
 	return 0x80;    // bit 7 == 0 -> blitter busy
 }
 
-READ8_MEMBER(dynax_state::hanakanz_gfxrom_r)
+READ8_MEMBER(ddenlovr_state::hanakanz_gfxrom_r)
 {
 	UINT8 *rom  = memregion("blitter")->base();
 	size_t size = memregion("blitter")->bytes();
@@ -2471,7 +2679,7 @@ READ8_MEMBER(dynax_state::hanakanz_gfxrom_r)
 }
 
 
-WRITE8_MEMBER(dynax_state::hanakanz_coincounter_w)
+WRITE8_MEMBER(ddenlovr_state::hanakanz_coincounter_w)
 {
 	// bit 0 = coin counter
 	// bit 1 = out counter
@@ -2489,7 +2697,7 @@ WRITE8_MEMBER(dynax_state::hanakanz_coincounter_w)
 #endif
 }
 
-WRITE8_MEMBER(dynax_state::hanakanz_palette_w)
+WRITE8_MEMBER(ddenlovr_state::hanakanz_palette_w)
 {
 	if (m_ddenlovr_blit_latch & 0x80)
 	{
@@ -2507,20 +2715,19 @@ WRITE8_MEMBER(dynax_state::hanakanz_palette_w)
 	}
 }
 
-static WRITE8_DEVICE_HANDLER( hanakanz_oki_bank_w )
+WRITE8_MEMBER(ddenlovr_state::hanakanz_oki_bank_w )
 {
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base((data & 0x40) ? 0x40000 : 0);
+	m_oki->set_bank_base((data & 0x40) ? 0x40000 : 0);
 }
 
-READ8_MEMBER(dynax_state::hanakanz_rand_r)
+READ8_MEMBER(ddenlovr_state::hanakanz_rand_r)
 {
 	return machine().rand();
 }
 
-static ADDRESS_MAP_START( hanakanz_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( hanakanz_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x2c, 0x2c) AM_READ(hanakanz_busy_r) AM_DEVWRITE_LEGACY("oki", hanakanz_oki_bank_w)
+	AM_RANGE(0x2c, 0x2c) AM_READWRITE(hanakanz_busy_r, hanakanz_oki_bank_w)
 	AM_RANGE(0x2e, 0x2e) AM_WRITE(hanakanz_blitter_reg_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(hanakanz_rombank_w)
 	AM_RANGE(0x31, 0x31) AM_WRITE(hanakanz_dsw_w)
@@ -2533,15 +2740,15 @@ static ADDRESS_MAP_START( hanakanz_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x93, 0x93) AM_WRITE(hanakanz_coincounter_w)
 	AM_RANGE(0x94, 0x94) AM_WRITE(hanakanz_keyb_w)
 	AM_RANGE(0x96, 0x96) AM_READ(hanakanz_rand_r)
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0xc0, 0xc0) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0xe0, 0xef) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 ADDRESS_MAP_END
 
 
-static ADDRESS_MAP_START( hkagerou_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( hkagerou_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x2c, 0x2c) AM_READ(hanakanz_busy_r) AM_DEVWRITE_LEGACY("oki", hanakanz_oki_bank_w)
+	AM_RANGE(0x2c, 0x2c) AM_READWRITE(hanakanz_busy_r, hanakanz_oki_bank_w)
 	AM_RANGE(0x2e, 0x2e) AM_WRITE(hanakanz_blitter_reg_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(hanakanz_rombank_w)
 	AM_RANGE(0x31, 0x31) AM_WRITE(hanakanz_dsw_w)
@@ -2549,7 +2756,7 @@ static ADDRESS_MAP_START( hkagerou_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x80, 0x80) AM_WRITE(hanakanz_blitter_data_w)
 	AM_RANGE(0x81, 0x81) AM_WRITE(hanakanz_palette_w)
 	AM_RANGE(0x83, 0x84) AM_READ(hanakanz_gfxrom_r)
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0xb0, 0xb0) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0xb1, 0xb2) AM_READ(hanakanz_keyb_r)
 	AM_RANGE(0xb3, 0xb3) AM_WRITE(hanakanz_coincounter_w)
@@ -2561,9 +2768,9 @@ ADDRESS_MAP_END
 
 
 // same as hkagerou, different inputs, no RTC
-static ADDRESS_MAP_START( kotbinyo_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( kotbinyo_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x2c, 0x2c) AM_READ(hanakanz_busy_r) AM_DEVWRITE_LEGACY("oki", hanakanz_oki_bank_w)
+	AM_RANGE(0x2c, 0x2c) AM_READWRITE(hanakanz_busy_r, hanakanz_oki_bank_w)
 	AM_RANGE(0x2e, 0x2e) AM_WRITE(hanakanz_blitter_reg_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(hanakanz_rombank_w)
 	AM_RANGE(0x31, 0x31) AM_WRITE(hanakanz_dsw_w)
@@ -2571,7 +2778,7 @@ static ADDRESS_MAP_START( kotbinyo_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x80, 0x80) AM_WRITE(hanakanz_blitter_data_w)
 	AM_RANGE(0x81, 0x81) AM_WRITE(hanakanz_palette_w)
 	AM_RANGE(0x83, 0x84) AM_READ(hanakanz_gfxrom_r)
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0xb0, 0xb0) AM_READ_PORT("SYSTEM")
 //  AM_RANGE(0xb1, 0xb2) AM_READ(hanakanz_keyb_r)
 	AM_RANGE(0xb1, 0xb1) AM_READ_PORT("KEYB0")
@@ -2585,9 +2792,9 @@ ADDRESS_MAP_END
 
 
 // same as hkagerou, different inputs, no RTC
-static ADDRESS_MAP_START( kotbinsp_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( kotbinsp_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x2c, 0x2c) AM_READ(hanakanz_busy_r) AM_DEVWRITE_LEGACY("oki", hanakanz_oki_bank_w)
+	AM_RANGE(0x2c, 0x2c) AM_READWRITE(hanakanz_busy_r, hanakanz_oki_bank_w)
 	AM_RANGE(0x2e, 0x2e) AM_WRITE(hanakanz_blitter_reg_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(hanakanz_rombank_w)
 	AM_RANGE(0x31, 0x31) AM_WRITE(hanakanz_dsw_w)
@@ -2595,7 +2802,7 @@ static ADDRESS_MAP_START( kotbinsp_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x80, 0x80) AM_WRITE(hanakanz_blitter_data_w)
 	AM_RANGE(0x81, 0x81) AM_WRITE(hanakanz_palette_w)
 	AM_RANGE(0x83, 0x84) AM_READ(hanakanz_gfxrom_r)
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0x90, 0x90) AM_READ_PORT("SYSTEM")
 //  AM_RANGE(0x91, 0x91) AM_READ(hanakanz_keyb_r)
 	AM_RANGE(0x91, 0x91) AM_READ_PORT("KEYB0")
@@ -2608,19 +2815,19 @@ static ADDRESS_MAP_START( kotbinsp_portmap, AS_IO, 8, dynax_state )
 ADDRESS_MAP_END
 
 
-WRITE8_MEMBER(dynax_state::mjreach1_protection_w)
+WRITE8_MEMBER(ddenlovr_state::mjreach1_protection_w)
 {
 	m_prot_val = data;
 }
 
-READ8_MEMBER(dynax_state::mjreach1_protection_r)
+READ8_MEMBER(ddenlovr_state::mjreach1_protection_r)
 {
 	return m_prot_val;
 }
 
-static ADDRESS_MAP_START( mjreach1_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( mjreach1_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x2c, 0x2c) AM_READ(hanakanz_busy_r) AM_DEVWRITE_LEGACY("oki", hanakanz_oki_bank_w)
+	AM_RANGE(0x2c, 0x2c) AM_READWRITE(hanakanz_busy_r, hanakanz_oki_bank_w)
 	AM_RANGE(0x2e, 0x2e) AM_WRITE(hanakanz_blitter_reg_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(hanakanz_rombank_w)
 	AM_RANGE(0x31, 0x31) AM_WRITE(hanakanz_dsw_w)
@@ -2634,7 +2841,7 @@ static ADDRESS_MAP_START( mjreach1_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x94, 0x94) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x95, 0x96) AM_READ(hanakanz_keyb_r)
 	AM_RANGE(0x97, 0x97) AM_WRITE(hanakanz_coincounter_w)
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0xc0, 0xc0) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0xe0, 0xef) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 ADDRESS_MAP_END
@@ -2644,7 +2851,7 @@ ADDRESS_MAP_END
      Mahjong Chuukanejyo
 ***************************************************************************/
 
-READ8_MEMBER(dynax_state::mjchuuka_keyb_r)
+READ8_MEMBER(ddenlovr_state::mjchuuka_keyb_r)
 {
 	UINT8 val = 0xff;
 
@@ -2662,42 +2869,41 @@ READ8_MEMBER(dynax_state::mjchuuka_keyb_r)
 	return val;
 }
 
-WRITE8_MEMBER(dynax_state::mjchuuka_blitter_w)
+WRITE8_MEMBER(ddenlovr_state::mjchuuka_blitter_w)
 {
 	hanakanz_blitter_reg_w(space, 0, offset >> 8);
 	hanakanz_blitter_data_w(space, 0, data);
 }
 
-static void mjchuuka_get_romdata(running_machine &machine)
+void ddenlovr_state::mjchuuka_get_romdata()
 {
-	dynax_state *state = machine.driver_data<dynax_state>();
-	UINT8 *rom = state->memregion("blitter")->base();
-	size_t size = state->memregion("blitter")->bytes();
-	int address = (state->m_ddenlovr_blit_address & 0xffffff) * 2;
+	UINT8 *rom = memregion("blitter")->base();
+	size_t size = memregion("blitter")->bytes();
+	int address = (m_ddenlovr_blit_address & 0xffffff) * 2;
 
 	if (address >= size)
 	{
-		logerror("%s: Error, Blitter address %06X out of range\n", machine.describe_context(), address);
+		logerror("%s: Error, Blitter address %06X out of range\n", machine().describe_context(), address);
 		address %= size;
 	}
 
-	state->m_romdata[0] = rom[address + 0];
-	state->m_romdata[1] = rom[address + 1];
+	m_romdata[0] = rom[address + 0];
+	m_romdata[1] = rom[address + 1];
 }
 
-READ8_MEMBER(dynax_state::mjchuuka_gfxrom_0_r)
+READ8_MEMBER(ddenlovr_state::mjchuuka_gfxrom_0_r)
 {
-	mjchuuka_get_romdata(machine());
+	mjchuuka_get_romdata();
 	m_ddenlovr_blit_address++;
 	return m_romdata[0];
 }
 
-READ8_MEMBER(dynax_state::mjchuuka_gfxrom_1_r)
+READ8_MEMBER(ddenlovr_state::mjchuuka_gfxrom_1_r)
 {
 	return m_romdata[1];
 }
 
-WRITE8_MEMBER(dynax_state::mjchuuka_palette_w)
+WRITE8_MEMBER(ddenlovr_state::mjchuuka_palette_w)
 {
 	UINT16 rgb = (offset & 0xff00) | data;
 
@@ -2717,7 +2923,7 @@ WRITE8_MEMBER(dynax_state::mjchuuka_palette_w)
 	}
 }
 
-WRITE8_MEMBER(dynax_state::mjchuuka_coincounter_w)
+WRITE8_MEMBER(ddenlovr_state::mjchuuka_coincounter_w)
 {
 	// bit 0 = in counter
 	// bit 1 = out counter
@@ -2735,21 +2941,20 @@ WRITE8_MEMBER(dynax_state::mjchuuka_coincounter_w)
 #endif
 }
 
-static WRITE8_DEVICE_HANDLER( mjchuuka_oki_bank_w )
+WRITE8_MEMBER(ddenlovr_state::mjchuuka_oki_bank_w )
 {
 	// data & 0x08 ?
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base((data & 0x01) ? 0x40000 : 0);
+	m_oki->set_bank_base((data & 0x01) ? 0x40000 : 0);
 
 #ifdef MAME_DEBUG
 //    popmessage("1e = %02x",data);
 #endif
 }
 
-static ADDRESS_MAP_START( mjchuuka_portmap, AS_IO, 8, dynax_state )     // 16 bit I/O
+static ADDRESS_MAP_START( mjchuuka_portmap, AS_IO, 8, ddenlovr_state )     // 16 bit I/O
 	AM_RANGE(0x13, 0x13) AM_MIRROR(0xff00) AM_READ(hanakanz_rand_r)
 	AM_RANGE(0x1c, 0x1c) AM_MIRROR(0xff00) AM_WRITE(hanakanz_rombank_w)
-	AM_RANGE(0x1e, 0x1e) AM_MIRROR(0xff00) AM_DEVWRITE_LEGACY("oki", mjchuuka_oki_bank_w    )
+	AM_RANGE(0x1e, 0x1e) AM_MIRROR(0xff00) AM_WRITE(mjchuuka_oki_bank_w)
 	AM_RANGE(0x20, 0x20) AM_MIRROR(0xff00) AM_MASK(0xff00) AM_WRITE(mjchuuka_blitter_w)
 	AM_RANGE(0x21, 0x21) AM_MIRROR(0xff00) AM_MASK(0xff00) AM_WRITE(mjchuuka_palette_w)
 	AM_RANGE(0x23, 0x23) AM_MIRROR(0xff00) AM_READ(mjchuuka_gfxrom_0_r)
@@ -2764,9 +2969,9 @@ static ADDRESS_MAP_START( mjchuuka_portmap, AS_IO, 8, dynax_state )     // 16 bi
 	AM_RANGE(0x63, 0x63) AM_MIRROR(0xff00) AM_READ_PORT("DSW4")
 	AM_RANGE(0x64, 0x64) AM_MIRROR(0xff00) AM_READ_PORT("DSW5")     // DSW 1-4 high bits
 	AM_RANGE(0x80, 0x80) AM_MIRROR(0xff00) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0xa0, 0xa1) AM_MIRROR(0xff00) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0xa0, 0xa1) AM_MIRROR(0xff00) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0xc0, 0xcf) AM_MIRROR(0xff00) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
-	AM_RANGE(0xe0, 0xe1) AM_MIRROR(0xff00) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0xe0, 0xe1) AM_MIRROR(0xff00) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -2774,7 +2979,7 @@ ADDRESS_MAP_END
                         Mahjong The Mysterious World
 ***************************************************************************/
 
-static ADDRESS_MAP_START( mjmyster_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( mjmyster_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                         // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                         // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")            // RAM (Banked)
@@ -2783,13 +2988,13 @@ static ADDRESS_MAP_START( mjmyster_map, AS_PROGRAM, 8, dynax_state )
 	AM_RANGE(0xf200, 0xffff) AM_WRITENOP                    // ""
 ADDRESS_MAP_END
 
-WRITE8_MEMBER(dynax_state::mjmyster_rambank_w)
+WRITE8_MEMBER(ddenlovr_state::mjmyster_rambank_w)
 {
 	membank("bank2")->set_entry(data & 0x07);
 	//logerror("%04x: rambank = %02x\n", space.device().safe_pc(), data);
 }
 
-WRITE8_MEMBER(dynax_state::mjmyster_select2_w)
+WRITE8_MEMBER(ddenlovr_state::mjmyster_select2_w)
 {
 	m_input_sel = data;
 
@@ -2797,7 +3002,7 @@ WRITE8_MEMBER(dynax_state::mjmyster_select2_w)
 		m_keyb = 1;
 }
 
-READ8_MEMBER(dynax_state::mjmyster_coins_r)
+READ8_MEMBER(ddenlovr_state::mjmyster_coins_r)
 {
 	switch (m_input_sel)
 	{
@@ -2812,7 +3017,7 @@ READ8_MEMBER(dynax_state::mjmyster_coins_r)
 	return 0xff;
 }
 
-READ8_MEMBER(dynax_state::mjmyster_keyb_r)
+READ8_MEMBER(ddenlovr_state::mjmyster_keyb_r)
 {
 	UINT8 ret = 0xff;
 
@@ -2828,7 +3033,7 @@ READ8_MEMBER(dynax_state::mjmyster_keyb_r)
 	return ret;
 }
 
-READ8_MEMBER(dynax_state::mjmyster_dsw_r)
+READ8_MEMBER(ddenlovr_state::mjmyster_dsw_r)
 {
 	if (!BIT(m_dsw_sel, 0))   return ioport("DSW4")->read();
 	if (!BIT(m_dsw_sel, 1))   return ioport("DSW3")->read();
@@ -2839,7 +3044,7 @@ READ8_MEMBER(dynax_state::mjmyster_dsw_r)
 	return 0xff;
 }
 
-WRITE8_MEMBER(dynax_state::mjmyster_coincounter_w)
+WRITE8_MEMBER(ddenlovr_state::mjmyster_coincounter_w)
 {
 	switch (m_input_sel)
 	{
@@ -2857,12 +3062,12 @@ WRITE8_MEMBER(dynax_state::mjmyster_coincounter_w)
 	}
 }
 
-WRITE8_MEMBER(dynax_state::mjmyster_blitter_w)
+WRITE8_MEMBER(ddenlovr_state::mjmyster_blitter_w)
 {
 	blitter_w(space, 0, offset, data, 0xfc);
 }
 
-static ADDRESS_MAP_START( mjmyster_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( mjmyster_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_WRITE(mjmyster_blitter_w)
 	AM_RANGE(0x03, 0x03) AM_READ(rongrong_gfxrom_r)
@@ -2873,10 +3078,10 @@ static ADDRESS_MAP_START( mjmyster_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x22, 0x22) AM_READ(mjmyster_coins_r)
 	AM_RANGE(0x23, 0x23) AM_READ(mjmyster_keyb_r)
 	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x42, 0x43) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
-	AM_RANGE(0x44, 0x44) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x46, 0x46) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
-	AM_RANGE(0x48, 0x48) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x42, 0x43) AM_DEVWRITE("ymsnd", ym2413_device, write)
+	AM_RANGE(0x44, 0x44) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x46, 0x46) AM_DEVWRITE("aysnd", ay8910_device, data_w)
+	AM_RANGE(0x48, 0x48) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 	AM_RANGE(0x60, 0x6f) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 	AM_RANGE(0x80, 0x83) AM_WRITE(ddenlovr_palette_base_w)
 	AM_RANGE(0x84, 0x87) AM_WRITE(ddenlovr_palette_mask_w)
@@ -2894,14 +3099,14 @@ ADDRESS_MAP_END
                             Hanafuda Hana Ginga
 ***************************************************************************/
 
-WRITE8_MEMBER(dynax_state::hginga_rombank_w)
+WRITE8_MEMBER(ddenlovr_state::hginga_rombank_w)
 {
 	membank("bank1")->set_entry(data & 0x7);
 	m_hginga_rombank = data;
 }
 
 // similar to rongrong
-READ8_MEMBER(dynax_state::hginga_protection_r)
+READ8_MEMBER(ddenlovr_state::hginga_protection_r)
 {
 	UINT8 *rom = memregion("maincpu")->base();
 
@@ -2910,7 +3115,7 @@ READ8_MEMBER(dynax_state::hginga_protection_r)
 	return rom[0x10000 + 0x8000 * (m_hginga_rombank & 0x7) + 0xf601 - 0x8000];
 }
 
-static ADDRESS_MAP_START( hginga_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( hginga_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                         // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                         // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")            // RAM (Banked)
@@ -2920,27 +3125,25 @@ static ADDRESS_MAP_START( hginga_map, AS_PROGRAM, 8, dynax_state )
 	AM_RANGE(0xf700, 0xf706) AM_WRITENOP
 ADDRESS_MAP_END
 
-static READ8_DEVICE_HANDLER( hginga_dsw_r )
+READ8_MEMBER(ddenlovr_state::hginga_dsw_r )
 {
-	dynax_state *state = space.machine().driver_data<dynax_state>();
+	if (!BIT(m_dsw_sel, 0))   return ioport("DSW4")->read();
+	if (!BIT(m_dsw_sel, 1))   return ioport("DSW3")->read();
+	if (!BIT(m_dsw_sel, 2))   return ioport("DSW2")->read();
+	if (!BIT(m_dsw_sel, 3))   return ioport("DSW1")->read();
+	if (!BIT(m_dsw_sel, 4))   return ioport("DSW5")->read();
 
-	if (!BIT(state->m_dsw_sel, 0))   return state->ioport("DSW4")->read();
-	if (!BIT(state->m_dsw_sel, 1))   return state->ioport("DSW3")->read();
-	if (!BIT(state->m_dsw_sel, 2))   return state->ioport("DSW2")->read();
-	if (!BIT(state->m_dsw_sel, 3))   return state->ioport("DSW1")->read();
-	if (!BIT(state->m_dsw_sel, 4))   return state->ioport("DSW5")->read();
-
-	logerror("%s: warning, unknown bits read, ddenlovr_select = %02x\n", space.machine().describe_context(), state->m_dsw_sel);
+	logerror("%s: warning, unknown bits read, ddenlovr_select = %02x\n", space.machine().describe_context(), m_dsw_sel);
 	return 0xff;
 }
 
-WRITE8_MEMBER(dynax_state::hginga_input_w)
+WRITE8_MEMBER(ddenlovr_state::hginga_input_w)
 {
 	m_input_sel = data;
 	m_keyb = 0;
 }
 
-READ8_MEMBER(dynax_state::hginga_coins_r)
+READ8_MEMBER(ddenlovr_state::hginga_coins_r)
 {
 	switch (m_input_sel)
 	{
@@ -2953,12 +3156,12 @@ READ8_MEMBER(dynax_state::hginga_coins_r)
 	return 0xff;
 }
 
-WRITE8_MEMBER(dynax_state::hginga_80_w)
+WRITE8_MEMBER(ddenlovr_state::hginga_80_w)
 {
 //  popmessage("port 80 = %02x", data);
 }
 
-WRITE8_MEMBER(dynax_state::hginga_coins_w)
+WRITE8_MEMBER(ddenlovr_state::hginga_coins_w)
 {
 	switch (m_input_sel)
 	{
@@ -2982,7 +3185,7 @@ WRITE8_MEMBER(dynax_state::hginga_coins_w)
 	}
 }
 
-READ8_MEMBER(dynax_state::hginga_input_r)
+READ8_MEMBER(ddenlovr_state::hginga_input_r)
 {
 	static const char *const keynames0[] = { "KEY0", "KEY1", "KEY2", "KEY3", "KEY4" };
 	static const char *const keynames1[] = { "KEY5", "KEY6", "KEY7", "KEY8", "KEY9" };
@@ -3004,7 +3207,7 @@ READ8_MEMBER(dynax_state::hginga_input_r)
 	return 0xff;
 }
 
-WRITE8_MEMBER(dynax_state::hginga_blitter_w)
+WRITE8_MEMBER(ddenlovr_state::hginga_blitter_w)
 {
 	if (offset == 0)
 	{
@@ -3034,16 +3237,16 @@ WRITE8_MEMBER(dynax_state::hginga_blitter_w)
 	blitter_w(space, 0, offset, data, 0xfc);
 }
 
-static ADDRESS_MAP_START( hginga_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( hginga_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_WRITE(hginga_blitter_w)
 	AM_RANGE(0x03, 0x03) AM_READ(rongrong_gfxrom_r)
 	AM_RANGE(0x1c, 0x1c) AM_READNOP AM_WRITE(mjmyster_rambank_w)
 	AM_RANGE(0x1e, 0x1e) AM_WRITE(hginga_rombank_w)
-	AM_RANGE(0x22, 0x23) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
-	AM_RANGE(0x24, 0x24) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x26, 0x26) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
-	AM_RANGE(0x28, 0x28) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x22, 0x23) AM_DEVWRITE("ymsnd", ym2413_device, write)
+	AM_RANGE(0x24, 0x24) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x26, 0x26) AM_DEVWRITE("aysnd", ay8910_device, data_w)
+	AM_RANGE(0x28, 0x28) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 	AM_RANGE(0x40, 0x40) AM_WRITE(hginga_input_w)
 	AM_RANGE(0x41, 0x41) AM_WRITE(hginga_coins_w)
 	AM_RANGE(0x42, 0x42) AM_READ(hginga_coins_r)
@@ -3065,39 +3268,38 @@ ADDRESS_MAP_END
                              Hanafuda Hana Gokou
 ***************************************************************************/
 
-static UINT8 hgokou_player_r( address_space &space, int player )
+UINT8 ddenlovr_state::hgokou_player_r(int player )
 {
-	dynax_state *state = space.machine().driver_data<dynax_state>();
-	UINT8 hopper_bit = ((state->m_hopper && !(space.machine().primary_screen->frame_number() % 10)) ? 0 : (1 << 6));
+	UINT8 hopper_bit = ((m_hopper && !(machine().primary_screen->frame_number() % 10)) ? 0 : (1 << 6));
 
-	if (!BIT(state->m_input_sel, 0))   return state->ioport(player ? "KEY5" : "KEY0")->read() | hopper_bit;
-	if (!BIT(state->m_input_sel, 1))   return state->ioport(player ? "KEY6" : "KEY1")->read() | hopper_bit;
-	if (!BIT(state->m_input_sel, 2))   return state->ioport(player ? "KEY7" : "KEY2")->read() | hopper_bit;
-	if (!BIT(state->m_input_sel, 3))   return state->ioport(player ? "KEY8" : "KEY3")->read() | hopper_bit;
-	if (!BIT(state->m_input_sel, 4))   return state->ioport(player ? "KEY9" : "KEY4")->read() | hopper_bit;
+	if (!BIT(m_input_sel, 0))   return ioport(player ? "KEY5" : "KEY0")->read() | hopper_bit;
+	if (!BIT(m_input_sel, 1))   return ioport(player ? "KEY6" : "KEY1")->read() | hopper_bit;
+	if (!BIT(m_input_sel, 2))   return ioport(player ? "KEY7" : "KEY2")->read() | hopper_bit;
+	if (!BIT(m_input_sel, 3))   return ioport(player ? "KEY8" : "KEY3")->read() | hopper_bit;
+	if (!BIT(m_input_sel, 4))   return ioport(player ? "KEY9" : "KEY4")->read() | hopper_bit;
 
 	return 0x7f;    // bit 7 = blitter busy, bit 6 = hopper
 }
 
-WRITE8_MEMBER(dynax_state::hgokou_dsw_sel_w)
+WRITE8_MEMBER(ddenlovr_state::hgokou_dsw_sel_w)
 {
 	m_dsw_sel = data;
 }
 
-READ8_MEMBER(dynax_state::hgokou_input_r)
+READ8_MEMBER(ddenlovr_state::hgokou_input_r)
 {
 	switch (m_dsw_sel)
 	{
 		case 0x20:  return ioport("SYSTEM")->read();
-		case 0x21:  return hgokou_player_r(space, 1);
-		case 0x22:  return hgokou_player_r(space, 0);
+		case 0x21:  return hgokou_player_r(1);
+		case 0x22:  return hgokou_player_r(0);
 		case 0x23:  return m_coins;
 	}
 	logerror("%06x: warning, unknown bits read, dsw_sel = %02x\n", space.device().safe_pc(), m_dsw_sel);
 	return 0xff;
 }
 
-WRITE8_MEMBER(dynax_state::hgokou_input_w)
+WRITE8_MEMBER(ddenlovr_state::hgokou_input_w)
 {
 	switch (m_dsw_sel)
 	{
@@ -3125,7 +3327,7 @@ WRITE8_MEMBER(dynax_state::hgokou_input_w)
 }
 
 // similar to rongrong
-READ8_MEMBER(dynax_state::hgokou_protection_r)
+READ8_MEMBER(ddenlovr_state::hgokou_protection_r)
 {
 	UINT8 *rom = memregion("maincpu")->base();
 
@@ -3134,7 +3336,7 @@ READ8_MEMBER(dynax_state::hgokou_protection_r)
 	return rom[0x10000 + 0x8000 * (m_hginga_rombank & 0x7) + 0xe601 - 0x8000];
 }
 
-static ADDRESS_MAP_START( hgokou_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( hgokou_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                         // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                         // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")            // RAM (Banked)
@@ -3145,7 +3347,7 @@ static ADDRESS_MAP_START( hgokou_map, AS_PROGRAM, 8, dynax_state )
 ADDRESS_MAP_END
 
 
-static ADDRESS_MAP_START( hgokou_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( hgokou_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_WRITE(hginga_blitter_w)
 	AM_RANGE(0x03, 0x03) AM_READ(rongrong_gfxrom_r)
@@ -3164,10 +3366,10 @@ static ADDRESS_MAP_START( hgokou_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x61, 0x61) AM_WRITE(hgokou_input_w)
 	AM_RANGE(0x62, 0x62) AM_READ(hgokou_input_r)
 	AM_RANGE(0x80, 0x80) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x82, 0x83) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
-	AM_RANGE(0x84, 0x84) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x86, 0x86) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
-	AM_RANGE(0x88, 0x88) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x82, 0x83) AM_DEVWRITE("ymsnd", ym2413_device, write)
+	AM_RANGE(0x84, 0x84) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x86, 0x86) AM_DEVWRITE("aysnd", ay8910_device, data_w)
+	AM_RANGE(0x88, 0x88) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 	AM_RANGE(0xb0, 0xb0) AM_READ(hanakanz_rand_r)
 ADDRESS_MAP_END
 
@@ -3176,7 +3378,7 @@ ADDRESS_MAP_END
                         Hanafuda Hana Gokou Bangaihen
 ***************************************************************************/
 
-READ8_MEMBER(dynax_state::hgokbang_input_r)
+READ8_MEMBER(ddenlovr_state::hgokbang_input_r)
 {
 	UINT8 ret;
 	switch (m_dsw_sel)
@@ -3186,12 +3388,12 @@ READ8_MEMBER(dynax_state::hgokbang_input_r)
 				m_input_sel = 0xfe;
 			return 0;   // discarded
 		case 0xa1:
-			ret = hgokou_player_r(space, 1);
+			ret = hgokou_player_r(1);
 			m_input_sel <<= 1;      // auto-increment input_sel
 			m_input_sel |= 1;
 			return ret;
 		case 0xa2:
-			ret = hgokou_player_r(space, 0);
+			ret = hgokou_player_r(0);
 			m_input_sel <<= 1;      // auto-increment input_sel
 			m_input_sel |= 1;
 			return ret;
@@ -3200,17 +3402,17 @@ READ8_MEMBER(dynax_state::hgokbang_input_r)
 	return 0xff;
 }
 
-static ADDRESS_MAP_START( hgokbang_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( hgokbang_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_WRITE(hginga_blitter_w)
 	AM_RANGE(0x03, 0x03) AM_READ(rongrong_gfxrom_r)
 	AM_RANGE(0x1c, 0x1c) AM_READNOP AM_WRITE(mjmyster_rambank_w)        // ? ack on RTC int
 	AM_RANGE(0x1e, 0x1e) AM_WRITE(hginga_rombank_w)
 	AM_RANGE(0x20, 0x20) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x22, 0x23) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
-	AM_RANGE(0x24, 0x24) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x26, 0x26) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
-	AM_RANGE(0x28, 0x28) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x22, 0x23) AM_DEVWRITE("ymsnd", ym2413_device, write)
+	AM_RANGE(0x24, 0x24) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x26, 0x26) AM_DEVWRITE("aysnd", ay8910_device, data_w)
+	AM_RANGE(0x28, 0x28) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 	AM_RANGE(0x40, 0x40) AM_WRITE(hgokou_dsw_sel_w)
 	AM_RANGE(0x41, 0x41) AM_WRITE(hgokou_input_w)
 	AM_RANGE(0x42, 0x42) AM_READ(hgokou_input_r)
@@ -3232,7 +3434,7 @@ ADDRESS_MAP_END
                             Super Hana Paradise
 ***************************************************************************/
 
-WRITE8_MEMBER(dynax_state::hparadis_select_w)
+WRITE8_MEMBER(ddenlovr_state::hparadis_select_w)
 {
 	m_dsw_sel = data;
 	m_keyb = 0;
@@ -3242,7 +3444,7 @@ WRITE8_MEMBER(dynax_state::hparadis_select_w)
 }
 
 
-READ8_MEMBER(dynax_state::hparadis_input_r)
+READ8_MEMBER(ddenlovr_state::hparadis_input_r)
 {
 	static const char *const keynames0[] = { "KEY0", "KEY1", "KEY2", "KEY3", "KEY4" };
 	static const char *const keynames1[] = { "KEY5", "KEY6", "KEY7", "KEY8", "KEY9" };
@@ -3260,7 +3462,7 @@ READ8_MEMBER(dynax_state::hparadis_input_r)
 	return 0xff;
 }
 
-READ8_MEMBER(dynax_state::hparadis_dsw_r)
+READ8_MEMBER(ddenlovr_state::hparadis_dsw_r)
 {
 	if (!BIT(m_dsw_sel, 0)) return ioport("DSW1")->read();
 	if (!BIT(m_dsw_sel, 1)) return ioport("DSW2")->read();
@@ -3270,7 +3472,7 @@ READ8_MEMBER(dynax_state::hparadis_dsw_r)
 	return 0xff;
 }
 
-WRITE8_MEMBER(dynax_state::hparadis_coin_w)
+WRITE8_MEMBER(ddenlovr_state::hparadis_coin_w)
 {
 	switch (m_input_sel)
 	{
@@ -3281,7 +3483,7 @@ WRITE8_MEMBER(dynax_state::hparadis_coin_w)
 	}
 }
 
-static ADDRESS_MAP_START( hparadis_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( hparadis_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                         // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                         // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")            // RAM (Banked)
@@ -3290,7 +3492,7 @@ static ADDRESS_MAP_START( hparadis_map, AS_PROGRAM, 8, dynax_state )
 ADDRESS_MAP_END
 
 // the RTC seems unused
-static ADDRESS_MAP_START( hparadis_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( hparadis_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_WRITE(rongrong_blitter_w)
 	AM_RANGE(0x03, 0x03) AM_READ(rongrong_gfxrom_r)
@@ -3298,7 +3500,7 @@ static ADDRESS_MAP_START( hparadis_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x1c, 0x1c) AM_READ(hparadis_dsw_r)
 	AM_RANGE(0x1e, 0x1e) AM_WRITE(hparadis_select_w)
 	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x60, 0x61) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x60, 0x61) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0x80, 0x83) AM_WRITE(ddenlovr_palette_base_w)
 	AM_RANGE(0x84, 0x87) AM_WRITE(ddenlovr_palette_mask_w)
 	AM_RANGE(0x88, 0x8b) AM_WRITE(ddenlovr_transparency_pen_w)
@@ -3318,7 +3520,7 @@ ADDRESS_MAP_END
                           Mahjong Mysterious World
 ***************************************************************************/
 
-READ8_MEMBER(dynax_state::mjmywrld_coins_r)
+READ8_MEMBER(ddenlovr_state::mjmywrld_coins_r)
 {
 	switch (m_input_sel)
 	{
@@ -3333,7 +3535,7 @@ READ8_MEMBER(dynax_state::mjmywrld_coins_r)
 	return 0xff;
 }
 
-static ADDRESS_MAP_START( mjmywrld_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( mjmywrld_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_WRITE(mjmyster_blitter_w)
 	AM_RANGE(0x03, 0x03) AM_READ(rongrong_gfxrom_r)
@@ -3344,10 +3546,10 @@ static ADDRESS_MAP_START( mjmywrld_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x22, 0x22) AM_READ(mjmywrld_coins_r)
 	AM_RANGE(0x23, 0x23) AM_READ(mjmyster_keyb_r)
 	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x42, 0x43) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
-	AM_RANGE(0x44, 0x44) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x46, 0x46) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
-	AM_RANGE(0x48, 0x48) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x42, 0x43) AM_DEVWRITE("ymsnd", ym2413_device, write)
+	AM_RANGE(0x44, 0x44) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x46, 0x46) AM_DEVWRITE("aysnd", ay8910_device, data_w)
+	AM_RANGE(0x48, 0x48) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 	AM_RANGE(0x60, 0x6f) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 	AM_RANGE(0x80, 0x83) AM_WRITE(ddenlovr_palette_base_w)
 	AM_RANGE(0x84, 0x87) AM_WRITE(ddenlovr_palette_mask_w)
@@ -3366,12 +3568,12 @@ ADDRESS_MAP_END
                   Panel & Variety Akamaru Q Jousyou Dont-R
 ***************************************************************************/
 
-READ16_MEMBER(dynax_state::akamaru_protection1_r)
+READ16_MEMBER(ddenlovr_state::akamaru_protection1_r)
 {
 	return (m_prot_16 & 0x0008) ? 0x0001 : 0x0000;
 }
 
-WRITE16_MEMBER(dynax_state::akamaru_protection1_w)
+WRITE16_MEMBER(ddenlovr_state::akamaru_protection1_w)
 {
 	int bank;
 
@@ -3383,12 +3585,12 @@ WRITE16_MEMBER(dynax_state::akamaru_protection1_w)
 //  popmessage("bank $%0x (%d)", m_prot_16, bank);
 }
 
-READ16_MEMBER(dynax_state::akamaru_protection2_r)
+READ16_MEMBER(ddenlovr_state::akamaru_protection2_r)
 {
 	return 0x55;
 }
 
-READ16_MEMBER(dynax_state::akamaru_dsw_r)
+READ16_MEMBER(ddenlovr_state::akamaru_dsw_r)
 {
 	UINT16 dsw = 0;
 
@@ -3397,17 +3599,17 @@ READ16_MEMBER(dynax_state::akamaru_dsw_r)
 	return dsw;
 }
 
-READ16_MEMBER(dynax_state::akamaru_blitter_r)
+READ16_MEMBER(ddenlovr_state::akamaru_blitter_r)
 {
 	return m_ddenlovr_blitter_irq_flag << 6;    // bit 7 = 1 -> blitter busy
 }
 
-READ16_MEMBER(dynax_state::akamaru_e0010d_r)
+READ16_MEMBER(ddenlovr_state::akamaru_e0010d_r)
 {
 	return 0xffff;  // read but not used, it seems
 }
 
-static ADDRESS_MAP_START( akamaru_map, AS_PROGRAM, 16, dynax_state )
+static ADDRESS_MAP_START( akamaru_map, AS_PROGRAM, 16, ddenlovr_state )
 	AM_RANGE(0x000000, 0x1fffff) AM_ROM                                                     // ROM
 
 	AM_RANGE(0x213570, 0x213571) AM_WRITE(akamaru_protection1_w)                            // OKI bank
@@ -3444,10 +3646,10 @@ static ADDRESS_MAP_START( akamaru_map, AS_PROGRAM, 16, dynax_state )
 	AM_RANGE(0xe00308, 0xe00309) AM_WRITE(ddenlovr_coincounter_0_w)                         // Coin Counters
 	AM_RANGE(0xe0030c, 0xe0030d) AM_WRITE(ddenlovr_coincounter_1_w)                         //
 
-	AM_RANGE(0xe00400, 0xe00403) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0xe00400, 0xe00403) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0xe00500, 0xe0051f) AM_DEVREADWRITE8("rtc", msm6242_device, read, write, 0x00ff)
-	AM_RANGE(0xe00600, 0xe00603) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_data_w, 0x00ff)
-	AM_RANGE(0xe00604, 0xe00605) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
+	AM_RANGE(0xe00600, 0xe00603) AM_DEVWRITE8("aysnd", ay8910_device, address_data_w, 0x00ff)
+	AM_RANGE(0xe00604, 0xe00605) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
 	AM_RANGE(0xe00700, 0xe00701) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM                                                     // RAM
 ADDRESS_MAP_END
@@ -3457,25 +3659,24 @@ ADDRESS_MAP_END
                           Mahjong Fantasic Love
 ***************************************************************************/
 
-WRITE8_MEMBER(dynax_state::mjflove_rombank_w)
+WRITE8_MEMBER(ddenlovr_state::mjflove_rombank_w)
 {
 	membank("bank1")->set_entry(data & 0xf);
 	// bit 4 enables palette ram
 }
 
-static WRITE8_DEVICE_HANDLER( mjflove_okibank_w )
+WRITE8_MEMBER(ddenlovr_state::mjflove_okibank_w )
 {
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base((data & 0x07) * 0x40000);
+	m_oki->set_bank_base((data & 0x07) * 0x40000);
 	//popmessage("SOUND = %02x", data);
 }
 
-READ8_MEMBER(dynax_state::mjflove_protection_r)
+READ8_MEMBER(ddenlovr_state::mjflove_protection_r)
 {
 	return 0x27;
 }
 
-READ8_MEMBER(dynax_state::mjflove_keyb_r)
+READ8_MEMBER(ddenlovr_state::mjflove_keyb_r)
 {
 	UINT8 val = 0xff;
 
@@ -3488,7 +3689,7 @@ READ8_MEMBER(dynax_state::mjflove_keyb_r)
 	return val;
 }
 
-CUSTOM_INPUT_MEMBER(dynax_state::mjflove_blitter_r)
+CUSTOM_INPUT_MEMBER(ddenlovr_state::mjflove_blitter_r)
 {
 	// bit 7 = 1 -> blitter busy
 	// bit 6 = 0 -> VBLANK?
@@ -3496,12 +3697,12 @@ CUSTOM_INPUT_MEMBER(dynax_state::mjflove_blitter_r)
 	return m_mjflove_irq_cause;
 }
 
-WRITE8_MEMBER(dynax_state::mjflove_blitter_w)
+WRITE8_MEMBER(ddenlovr_state::mjflove_blitter_w)
 {
 	blitter_w(space, 0, offset, data, 0);
 }
 
-WRITE8_MEMBER(dynax_state::mjflove_coincounter_w)
+WRITE8_MEMBER(ddenlovr_state::mjflove_coincounter_w)
 {
 	// bit 0 = in counter
 	coin_counter_w(machine(), 0, data & 0x01);
@@ -3513,7 +3714,7 @@ WRITE8_MEMBER(dynax_state::mjflove_coincounter_w)
 	}
 }
 
-static ADDRESS_MAP_START( mjflove_portmap, AS_IO, 8, dynax_state )  // 16 bit I/O
+static ADDRESS_MAP_START( mjflove_portmap, AS_IO, 8, ddenlovr_state )  // 16 bit I/O
 	AM_RANGE(0x0010, 0x0010) AM_READ(hanakanz_rand_r) AM_MIRROR(0xff00)
 	AM_RANGE(0x001c, 0x001c) AM_READ_PORT("DSW2") AM_MIRROR(0xff00)
 	AM_RANGE(0x001e, 0x001e) AM_WRITE(hanakanz_keyb_w) AM_MIRROR(0xff00)
@@ -3532,13 +3733,13 @@ static ADDRESS_MAP_START( mjflove_portmap, AS_IO, 8, dynax_state )  // 16 bit I/
 	AM_RANGE(0x00da, 0x00da) AM_READ(mjflove_protection_r) AM_MIRROR(0xff00)
 	AM_RANGE(0x00f2, 0x00f2) AM_WRITE(mjmyster_rambank_w) AM_MIRROR(0xff00)
 	AM_RANGE(0x00f8, 0x00f8) AM_WRITE(mjflove_rombank_w) AM_MIRROR(0xff00)
-	AM_RANGE(0x00fa, 0x00fa) AM_DEVWRITE_LEGACY("oki", mjflove_okibank_w)
+	AM_RANGE(0x00fa, 0x00fa) AM_WRITE(mjflove_okibank_w)
 	AM_RANGE(0x0100, 0x0100) AM_READ_PORT("DSW1")
 	AM_RANGE(0x0181, 0x0181) AM_WRITENOP                        // ? int. enable
 	AM_RANGE(0x0184, 0x0184) AM_WRITE(mjflove_coincounter_w)
-	AM_RANGE(0x0200, 0x0201) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x0200, 0x0201) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0x0280, 0x028f) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
-	AM_RANGE(0x0300, 0x0301) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x0300, 0x0301) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x0380, 0x0380) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 ADDRESS_MAP_END
 
@@ -3547,26 +3748,25 @@ ADDRESS_MAP_END
                           Mahjong Jong-Tei
 ***************************************************************************/
 
-static WRITE8_DEVICE_HANDLER( jongtei_okibank_w )
+WRITE8_MEMBER(ddenlovr_state::jongtei_okibank_w )
 {
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base(((data >> 4) & 0x07) * 0x40000);
+	m_oki->set_bank_base(((data >> 4) & 0x07) * 0x40000);
 }
 
-WRITE8_MEMBER(dynax_state::jongtei_dsw_keyb_w)
+WRITE8_MEMBER(ddenlovr_state::jongtei_dsw_keyb_w)
 {
 	m_dsw_sel = data;
 	m_keyb = data;
 }
 
-READ8_MEMBER(dynax_state::jongtei_busy_r)
+READ8_MEMBER(ddenlovr_state::jongtei_busy_r)
 {
 	return 0x04;    // !bit 2 = blitter busy
 }
 
-static ADDRESS_MAP_START( jongtei_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( jongtei_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x2c, 0x2c) AM_READ(jongtei_busy_r) AM_DEVWRITE_LEGACY("oki", jongtei_okibank_w)
+	AM_RANGE(0x2c, 0x2c) AM_READWRITE(jongtei_busy_r, jongtei_okibank_w)
 	AM_RANGE(0x2e, 0x2e) AM_WRITE(hanakanz_blitter_reg_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(hanakanz_rombank_w)
 	AM_RANGE(0x31, 0x31) AM_WRITE(jongtei_dsw_keyb_w)
@@ -3578,7 +3778,7 @@ static ADDRESS_MAP_START( jongtei_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x60, 0x60) AM_WRITE(hanakanz_blitter_data_w)
 	AM_RANGE(0x61, 0x61) AM_WRITE(hanakanz_palette_w)
 	AM_RANGE(0x63, 0x64) AM_READ(hanakanz_gfxrom_r)
-	AM_RANGE(0x80, 0x81) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0xa0, 0xa0) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0xc0, 0xcf) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 ADDRESS_MAP_END
@@ -3588,7 +3788,7 @@ ADDRESS_MAP_END
                             Mahjong Seiryu Densetsu
 ***************************************************************************/
 
-static ADDRESS_MAP_START( sryudens_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( sryudens_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                         // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                         // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")            // RAM (Banked)
@@ -3596,7 +3796,7 @@ static ADDRESS_MAP_START( sryudens_map, AS_PROGRAM, 8, dynax_state )
 	AM_RANGE(0xe000, 0xe1ff) AM_WRITE(rongrong_palette_w)
 ADDRESS_MAP_END
 
-READ8_MEMBER(dynax_state::sryudens_keyb_r)
+READ8_MEMBER(ddenlovr_state::sryudens_keyb_r)
 {
 	UINT8 val = 0x3f;
 
@@ -3612,7 +3812,7 @@ READ8_MEMBER(dynax_state::sryudens_keyb_r)
 	return val;
 }
 
-WRITE8_MEMBER(dynax_state::sryudens_coincounter_w)
+WRITE8_MEMBER(ddenlovr_state::sryudens_coincounter_w)
 {
 	// bit 0 = coin counter
 	// bit 1 = out counter
@@ -3632,17 +3832,17 @@ WRITE8_MEMBER(dynax_state::sryudens_coincounter_w)
 #endif
 }
 
-WRITE8_MEMBER(dynax_state::sryudens_rambank_w)
+WRITE8_MEMBER(ddenlovr_state::sryudens_rambank_w)
 {
 	membank("bank2")->set_entry(data & 0x0f);
 	//logerror("%04x: rambank = %02x\n", space.device().safe_pc(), data);
 }
 
-static ADDRESS_MAP_START( sryudens_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( sryudens_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
-	AM_RANGE(0x04, 0x05) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ymsnd", ym2413_device, write)
+	AM_RANGE(0x04, 0x05) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x1c, 0x1c) AM_READNOP AM_WRITE(sryudens_rambank_w)    // ? ack on RTC int
 	AM_RANGE(0x1e, 0x1e) AM_WRITE(mjflove_rombank_w)
 	AM_RANGE(0x20, 0x23) AM_WRITE(ddenlovr_palette_base_w)
@@ -3656,7 +3856,7 @@ static ADDRESS_MAP_START( sryudens_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x40, 0x41) AM_WRITE(mjflove_blitter_w)
 	AM_RANGE(0x43, 0x43) AM_READ(rongrong_gfxrom_r)
 	AM_RANGE(0x50, 0x50) AM_READ(hanakanz_rand_r)
-	AM_RANGE(0x70, 0x70) AM_DEVWRITE_LEGACY("oki", quizchq_oki_bank_w)
+	AM_RANGE(0x70, 0x70) AM_WRITE(quizchq_oki_bank_w)
 	AM_RANGE(0x80, 0x8f) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 	AM_RANGE(0x90, 0x90) AM_READ_PORT("DSW1")
 	AM_RANGE(0x91, 0x91) AM_READ_PORT("DSW2")
@@ -3674,7 +3874,7 @@ ADDRESS_MAP_END
                             Mahjong Janshin Plus
 ***************************************************************************/
 
-WRITE8_MEMBER(dynax_state::janshinp_coincounter_w)
+WRITE8_MEMBER(ddenlovr_state::janshinp_coincounter_w)
 {
 	// bit 0 = coin counter
 	// bit 1 = out counter
@@ -3692,7 +3892,7 @@ WRITE8_MEMBER(dynax_state::janshinp_coincounter_w)
 #endif
 }
 
-static ADDRESS_MAP_START( janshinp_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( janshinp_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                         // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                         // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")            // RAM (Banked)
@@ -3700,7 +3900,7 @@ static ADDRESS_MAP_START( janshinp_map, AS_PROGRAM, 8, dynax_state )
 	AM_RANGE(0xe000, 0xe1ff) AM_WRITE(rongrong_palette_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( janshinp_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( janshinp_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ_PORT("DSW1")
 	AM_RANGE(0x01, 0x01) AM_READ_PORT("DSW2")
@@ -3725,11 +3925,11 @@ static ADDRESS_MAP_START( janshinp_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x43, 0x43) AM_READ(rongrong_gfxrom_r)
 	AM_RANGE(0x50, 0x5f) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 	AM_RANGE(0x60, 0x60) AM_READ(hanakanz_rand_r)
-	AM_RANGE(0x70, 0x70) AM_DEVWRITE_LEGACY("oki", quizchq_oki_bank_w)
+	AM_RANGE(0x70, 0x70) AM_WRITE(quizchq_oki_bank_w)
 	AM_RANGE(0x80, 0x80) AM_RAM
 	AM_RANGE(0x90, 0x90) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x92, 0x93) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
-	AM_RANGE(0x94, 0x95) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x92, 0x93) AM_DEVWRITE("ymsnd", ym2413_device, write)
+	AM_RANGE(0x94, 0x95) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -3737,24 +3937,24 @@ ADDRESS_MAP_END
                              Return Of Sel Jan II
 ***************************************************************************/
 
-READ8_MEMBER(dynax_state::seljan2_busy_r)
+READ8_MEMBER(ddenlovr_state::seljan2_busy_r)
 {
 	return 0x00;    // bit 7 = blitter busy
 }
 
-WRITE8_MEMBER(dynax_state::seljan2_rombank_w)
+WRITE8_MEMBER(ddenlovr_state::seljan2_rombank_w)
 {
 	membank("bank1")->set_entry(data & 0x0f);   // disable palette?
 }
 
-WRITE8_MEMBER(dynax_state::seljan2_palette_enab_w)
+WRITE8_MEMBER(ddenlovr_state::seljan2_palette_enab_w)
 {
 	membank("bank1")->set_entry((membank("bank1")->entry() & 0x0f) | ((data & 0x01) << 4));
 	if (data & ~0x01)
 		logerror("%s: warning, unknown palette_enab bits written = %02x\n", machine().describe_context(), data);
 }
 
-WRITE8_MEMBER(dynax_state::seljan2_palette_w)
+WRITE8_MEMBER(ddenlovr_state::seljan2_palette_w)
 {
 	if ((membank("bank1")->entry() & 0x10) && offset >= 0xb000-0x8000 && offset <= 0xb1ff-0x8000)
 	{
@@ -3765,21 +3965,19 @@ WRITE8_MEMBER(dynax_state::seljan2_palette_w)
 		logerror("%s: warning, palette_w with palette disabled, %04x <- %02x\n", machine().describe_context(), offset, data);
 }
 
-static READ8_DEVICE_HANDLER( seljan2_dsw_r )
+READ8_MEMBER(ddenlovr_state::seljan2_dsw_r )
 {
-	dynax_state *state = space.machine().driver_data<dynax_state>();
+	if (!BIT(m_dsw_sel, 0))   return ioport("DSW1")->read();
+	if (!BIT(m_dsw_sel, 1))   return ioport("DSW2")->read();
+	if (!BIT(m_dsw_sel, 2))   return ioport("DSW3")->read();
+	if (!BIT(m_dsw_sel, 3))   return ioport("DSW4")->read();
+	if (!BIT(m_dsw_sel, 4))   return ioport("DSWTOP")->read();
 
-	if (!BIT(state->m_dsw_sel, 0))   return state->ioport("DSW1")->read();
-	if (!BIT(state->m_dsw_sel, 1))   return state->ioport("DSW2")->read();
-	if (!BIT(state->m_dsw_sel, 2))   return state->ioport("DSW3")->read();
-	if (!BIT(state->m_dsw_sel, 3))   return state->ioport("DSW4")->read();
-	if (!BIT(state->m_dsw_sel, 4))   return state->ioport("DSWTOP")->read();
-
-	logerror("%s: warning, unknown bits read, ddenlovr_select = %02x\n", space.machine().describe_context(), state->m_dsw_sel);
+	logerror("%s: warning, unknown bits read, ddenlovr_select = %02x\n", space.machine().describe_context(), m_dsw_sel);
 	return 0xff;
 }
 
-static ADDRESS_MAP_START( seljan2_map, AS_PROGRAM, 8, dynax_state )
+static ADDRESS_MAP_START( seljan2_map, AS_PROGRAM, 8, ddenlovr_state )
 	AM_RANGE(0x0000, 0x5fff) AM_ROM                         // ROM
 	AM_RANGE(0x6000, 0x6fff) AM_RAM                         // RAM
 	AM_RANGE(0x7000, 0x7fff) AM_RAMBANK("bank2")            // RAM (Banked)
@@ -3787,7 +3985,7 @@ static ADDRESS_MAP_START( seljan2_map, AS_PROGRAM, 8, dynax_state )
 	AM_RANGE(0x8000, 0xffff) AM_WRITE(seljan2_palette_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( seljan2_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( seljan2_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x0f) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
 	AM_RANGE(0x1c, 0x1c) AM_READ(seljan2_busy_r) AM_WRITE(hanakanz_keyb_w)
@@ -3802,25 +4000,257 @@ static ADDRESS_MAP_START( seljan2_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x38, 0x38) AM_READNOP         // ? ack or watchdog
 	AM_RANGE(0x40, 0x41) AM_WRITE(mjflove_blitter_w)
 	AM_RANGE(0x43, 0x43) AM_READ(rongrong_gfxrom_r)
-	AM_RANGE(0x50, 0x51) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x50, 0x51) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0x54, 0x54) AM_DEVREADWRITE("oki", okim6295_device, read, write)
-	AM_RANGE(0x58, 0x58) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
-	AM_RANGE(0x5c, 0x5c) AM_DEVREADWRITE_LEGACY("aysnd", ay8910_r, ay8910_data_w)   // dsw
+	AM_RANGE(0x58, 0x58) AM_DEVWRITE("aysnd", ay8910_device, address_w)
+	AM_RANGE(0x5c, 0x5c) AM_DEVREADWRITE("aysnd", ay8910_device, data_r, data_w)   // dsw
 	AM_RANGE(0x60, 0x60) AM_READNOP AM_WRITE(sryudens_rambank_w)    // ? ack on RTC int
 	AM_RANGE(0x70, 0x70) AM_WRITE(seljan2_rombank_w)
 	AM_RANGE(0x80, 0x80) AM_READ_PORT("SYSTEM") AM_WRITE(seljan2_palette_enab_w)    // writes: 1 = palette RAM at b000, 0 = ROM
 	AM_RANGE(0x84, 0x84) AM_READ(daimyojn_keyb1_r)
 	AM_RANGE(0x88, 0x88) AM_READ(daimyojn_keyb2_r)
-	AM_RANGE(0x90, 0x90) AM_DEVWRITE_LEGACY("oki", quizchq_oki_bank_w)
+	AM_RANGE(0x90, 0x90) AM_WRITE(quizchq_oki_bank_w)
 	AM_RANGE(0xa0, 0xa0) AM_READ(hanakanz_rand_r)
 ADDRESS_MAP_END
+
+
+/***************************************************************************
+                            Hanafuda Hana Tengoku
+***************************************************************************/
+// htengoku uses the mixer chip from ddenlovr
+
+VIDEO_START_MEMBER(ddenlovr_state,htengoku)
+{
+	VIDEO_START_CALL_MEMBER(ddenlovr);
+	VIDEO_START_CALL_MEMBER(hnoridur);
+}
+
+UINT32 ddenlovr_state::screen_update_htengoku(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+{
+	int layer, x, y;
+
+	// render the layers, one by one, "dynax.c" style. Then convert the pixmaps to "ddenlovr.c"
+	// format and let SCREEN_UPDATE_IND16(ddenlovr) do the final compositing (priorities + palettes)
+	for (layer = 0; layer < 4; layer++)
+	{
+		bitmap.fill(0, cliprect);
+		hanamai_copylayer(bitmap, cliprect, layer);
+
+		for (y = 0; y < 256; y++)
+			for (x = 0; x < 512; x++)
+				m_ddenlovr_pixmap[3 - layer][y * 512 + x] = (UINT8)(bitmap.pix16(y, x));
+	}
+
+	return screen_update_ddenlovr(screen, bitmap, cliprect);
+}
+
+MACHINE_START_MEMBER(ddenlovr_state,htengoku)
+{
+	UINT8 *ROM = memregion("maincpu")->base();
+
+	membank("bank1")->configure_entries(0, 8, &ROM[0x10000], 0x8000);
+
+	MACHINE_START_CALL_MEMBER(dynax);
+}
+
+WRITE8_MEMBER(ddenlovr_state::htengoku_select_w)
+{
+	m_input_sel = data;
+	m_keyb = 0;
+}
+
+WRITE8_MEMBER(ddenlovr_state::htengoku_dsw_w)
+{
+	m_dsw_sel = data;
+}
+
+READ8_MEMBER(ddenlovr_state::htengoku_dsw_r)
+{
+	if (!BIT(m_dsw_sel, 0)) return ioport("DSW0")->read();
+	if (!BIT(m_dsw_sel, 1)) return ioport("DSW1")->read();
+	if (!BIT(m_dsw_sel, 2)) return ioport("DSW2")->read();
+	if (!BIT(m_dsw_sel, 3)) return ioport("DSW3")->read();
+	if (!BIT(m_dsw_sel, 4)) return ioport("DSW4")->read();
+	logerror("%s: warning, unknown bits read, dsw_sel = %02x\n", machine().describe_context(), m_dsw_sel);
+
+	return 0xff;
+}
+
+WRITE8_MEMBER(ddenlovr_state::htengoku_coin_w)
+{
+	switch (m_input_sel)
+	{
+		case 0x0c:
+			// bit 0 = coin counter
+			// bit 1 = out counter
+			// bit 2 = hopper
+			coin_counter_w(machine(), 0, data & 1);
+			m_hopper = data & 0x04;
+#ifdef MAME_DEBUG
+//          popmessage("COINS %02x",data);
+#endif
+			m_coins = data;
+
+		case 0x0d:  break;  // ff resets input port sequence?
+
+		case 0xff:  break;  // CRT controller?
+		default:
+			logerror("%04x: coins_w with select = %02x, data = %02x\n", space.device().safe_pc(), m_input_sel, data);
+	}
+}
+
+READ8_MEMBER(ddenlovr_state::htengoku_input_r)
+{
+	static const char *const keynames0[] = { "KEY0", "KEY1", "KEY2", "KEY3", "KEY4" };
+	static const char *const keynames1[] = { "KEY5", "KEY6", "KEY7", "KEY8", "KEY9" };
+
+	switch (m_input_sel)
+	{
+		case 0x81:  return ioport(keynames1[m_keyb++])->read();
+		case 0x82:  return ioport(keynames0[m_keyb++])->read();
+		case 0x0d:  return 0xff;    // unused
+	}
+	logerror("%04x: input_r with select = %02x\n", space.device().safe_pc(), m_input_sel);
+	return 0xff;
+}
+
+READ8_MEMBER(ddenlovr_state::htengoku_coin_r)
+{
+	switch (m_input_sel)
+	{
+		case 0x00:  return ioport("COINS")->read();
+		case 0x01:  return 0xff;    //?
+		case 0x02:  return 0xbf | ((m_hopper && !(machine().primary_screen->frame_number() % 10)) ? 0 : (1 << 6));  // bit 7 = blitter busy, bit 6 = hopper
+		case 0x03:  return m_coins;
+	}
+	logerror("%04x: coin_r with select = %02x\n", space.device().safe_pc(), m_input_sel);
+	return 0xff;
+}
+
+WRITE8_MEMBER(ddenlovr_state::htengoku_rombank_w)
+{
+	membank("bank1")->set_entry(data & 0x07);
+	m_hnoridur_bank = data;
+}
+
+WRITE8_MEMBER(ddenlovr_state::htengoku_blit_romregion_w)
+{
+	switch (data)
+	{
+		case 0x80:  dynax_blit_romregion_w(space, 0, 0);    return;
+		case 0x81:  dynax_blit_romregion_w(space, 0, 1);    return;
+		case 0x00:  dynax_blit_romregion_w(space, 0, 2);    return;
+	}
+	logerror("%04x: unmapped romregion=%02X\n", space.device().safe_pc(), data);
+}
+
+static ADDRESS_MAP_START( htengoku_io_map, AS_IO, 8, ddenlovr_state )
+	ADDRESS_MAP_GLOBAL_MASK(0xff)
+	AM_RANGE( 0x01, 0x07 ) AM_WRITE(dynax_blitter_rev2_w)       // Blitter
+	AM_RANGE( 0x20, 0x20 ) AM_WRITE(htengoku_select_w)      // Controls
+	AM_RANGE( 0x21, 0x21 ) AM_WRITE(htengoku_coin_w)        //
+	AM_RANGE( 0x22, 0x22 ) AM_READ(htengoku_coin_r)         //
+	AM_RANGE( 0x23, 0x23 ) AM_READ(htengoku_input_r)        //
+	AM_RANGE( 0x40, 0x40 ) AM_DEVWRITE("aysnd", ay8910_device, address_w)    // AY8910
+	AM_RANGE( 0x42, 0x42 ) AM_DEVREAD("aysnd", ay8910_device, data_r)     //
+	AM_RANGE( 0x44, 0x44 ) AM_DEVWRITE("aysnd", ay8910_device, data_w)   //
+	AM_RANGE( 0x46, 0x47 ) AM_DEVWRITE("ymsnd", ym2413_device, write)        //
+	AM_RANGE( 0x80, 0x8f ) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
+	AM_RANGE( 0xa0, 0xa3 ) AM_WRITE(ddenlovr_palette_base_w)    // ddenlovr mixer chip
+	AM_RANGE( 0xa4, 0xa7 ) AM_WRITE(ddenlovr_palette_mask_w)
+	AM_RANGE( 0xa8, 0xab ) AM_WRITE(ddenlovr_transparency_pen_w)
+	AM_RANGE( 0xac, 0xaf ) AM_WRITE(ddenlovr_transparency_mask_w)
+	// b0-b3 ?
+	AM_RANGE( 0xb4, 0xb4 ) AM_WRITE(ddenlovr_bgcolor_w)
+	AM_RANGE( 0xb5, 0xb5 ) AM_WRITE(ddenlovr_priority_w)
+	AM_RANGE( 0xb6, 0xb6 ) AM_WRITE(ddenlovr_layer_enable_w)
+	AM_RANGE( 0xb8, 0xb8 ) AM_READ(unk_r)               // ? must be 78 on startup
+	AM_RANGE( 0xc2, 0xc2 ) AM_WRITE(htengoku_rombank_w)     // BANK ROM Select
+	AM_RANGE( 0xc0, 0xc0 ) AM_WRITE(dynax_extra_scrollx_w)  // screen scroll X
+	AM_RANGE( 0xc1, 0xc1 ) AM_WRITE(dynax_extra_scrolly_w)  // screen scroll Y
+	AM_RANGE( 0xc3, 0xc3 ) AM_WRITE(dynax_vblank_ack_w)     // VBlank IRQ Ack
+	AM_RANGE( 0xc4, 0xc4 ) AM_WRITE(dynax_blit_pen_w)       // Destination Pen
+	AM_RANGE( 0xc5, 0xc5 ) AM_WRITE(dynax_blit_dest_w)      // Destination Layer
+	AM_RANGE( 0xc6, 0xc6 ) AM_WRITE(htengoku_blit_romregion_w)  // Blitter ROM bank
+	AM_RANGE( 0xe0, 0xe0 ) AM_WRITE(yarunara_flipscreen_w)
+	AM_RANGE( 0xe1, 0xe1 ) AM_WRITE(yarunara_layer_half_w)  // half of the interleaved layer to write to
+	AM_RANGE( 0xe2, 0xe2 ) AM_WRITE(yarunara_layer_half2_w) //
+	AM_RANGE( 0xe5, 0xe5 ) AM_WRITE(dynax_blitter_ack_w)        // Blitter IRQ Ack
+ADDRESS_MAP_END
+
+/***************************************************************************
+                           Hanafuda Hana Tengoku
+***************************************************************************/
+
+static const ay8910_interface htengoku_ay8910_interface =
+{
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	// A            B
+	DEVCB_DRIVER_MEMBER(ddenlovr_state,htengoku_dsw_r),    DEVCB_NULL,                         // R
+	DEVCB_NULL,                     DEVCB_DRIVER_MEMBER(ddenlovr_state,htengoku_dsw_w)     // W
+};
+
+static MSM6242_INTERFACE( htengoku_rtc_intf )
+{
+	DEVCB_NULL
+};
+
+static ADDRESS_MAP_START( yarunara_mem_map, AS_PROGRAM, 8, dynax_state )
+	AM_RANGE( 0x0000, 0x5fff ) AM_ROM
+	AM_RANGE( 0x6000, 0x6fff ) AM_RAM
+	AM_RANGE( 0x7000, 0x7fff ) AM_RAM AM_SHARE("nvram")
+	AM_RANGE( 0x8000, 0xffff ) AM_ROMBANK("bank1")
+	AM_RANGE( 0x8000, 0x81ff ) AM_WRITE(yarunara_palette_w) // Palette or RTC
+ADDRESS_MAP_END
+
+static MACHINE_CONFIG_START( htengoku, ddenlovr_state )
+
+	/* basic machine hardware */
+	MCFG_CPU_ADD("maincpu",Z80,20000000 / 4)
+	MCFG_CPU_PROGRAM_MAP(yarunara_mem_map)
+	MCFG_CPU_IO_MAP(htengoku_io_map)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state,  sprtmtch_vblank_interrupt)   /* IM 0 needs an opcode on the data bus */
+	MCFG_CPU_PERIODIC_INT_DRIVER(ddenlovr_state, yarunara_clock_interrupt,  60)    // RTC
+
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,htengoku)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,dynax)
+
+	MCFG_NVRAM_ADD_0FILL("nvram")
+
+	/* video hardware */
+	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_REFRESH_RATE(60)
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
+	MCFG_SCREEN_SIZE(512, 256)
+	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 0+8, 256-1-8)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_htengoku)
+
+	MCFG_PALETTE_LENGTH(16*256)
+
+	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,htengoku)
+
+	/* sound hardware */
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_SOUND_ADD("aysnd", AY8910, 20000000 / 16)
+	MCFG_SOUND_CONFIG(htengoku_ay8910_interface)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
+
+	MCFG_SOUND_ADD("ymsnd", YM2413, 3579545)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+
+	/* devices */
+	MCFG_MSM6242_ADD("rtc", htengoku_rtc_intf)
+MACHINE_CONFIG_END
 
 
 /***************************************************************************
                             Mahjong Daimyojin
 ***************************************************************************/
 
-READ8_MEMBER(dynax_state::daimyojn_keyb1_r)
+READ8_MEMBER(ddenlovr_state::daimyojn_keyb1_r)
 {
 	UINT8 val = 0x3f;
 
@@ -3836,7 +4266,7 @@ READ8_MEMBER(dynax_state::daimyojn_keyb1_r)
 	return val;
 }
 
-READ8_MEMBER(dynax_state::daimyojn_keyb2_r)
+READ8_MEMBER(ddenlovr_state::daimyojn_keyb2_r)
 {
 	UINT8 val = 0x3f;
 
@@ -3853,12 +4283,12 @@ READ8_MEMBER(dynax_state::daimyojn_keyb2_r)
 // 1B18: D4 ED 76 C9 CB
 // 1B1D: 96 AF 34 8B 89
 
-WRITE8_MEMBER(dynax_state::daimyojn_protection_w)
+WRITE8_MEMBER(ddenlovr_state::daimyojn_protection_w)
 {
 	m_prot_val = data;
 }
 
-READ8_MEMBER(dynax_state::daimyojn_protection_r)
+READ8_MEMBER(ddenlovr_state::daimyojn_protection_r)
 {
 	switch (m_prot_val)
 	{
@@ -3874,7 +4304,7 @@ READ8_MEMBER(dynax_state::daimyojn_protection_r)
 // 1ADD: D4 ED 76 C9 CB
 // 1AE2: D9 E0 7B C4 C6
 
-READ8_MEMBER(dynax_state::momotaro_protection_r)
+READ8_MEMBER(ddenlovr_state::momotaro_protection_r)
 {
 	switch (m_prot_val)
 	{
@@ -3888,18 +4318,17 @@ READ8_MEMBER(dynax_state::momotaro_protection_r)
 	return 0xff;
 }
 
-static WRITE8_DEVICE_HANDLER( daimyojn_okibank_w )
+WRITE8_MEMBER(ddenlovr_state::daimyojn_okibank_w )
 {
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base(((data >> 4) & 0x01) * 0x40000);
+	m_oki->set_bank_base(((data >> 4) & 0x01) * 0x40000);
 }
 
-WRITE8_MEMBER(dynax_state::daimyojn_palette_sel_w)
+WRITE8_MEMBER(ddenlovr_state::daimyojn_palette_sel_w)
 {
 	m_daimyojn_palette_sel = data;
 }
 
-WRITE8_MEMBER(dynax_state::daimyojn_blitter_data_palette_w)
+WRITE8_MEMBER(ddenlovr_state::daimyojn_blitter_data_palette_w)
 {
 	if (m_daimyojn_palette_sel & 0x01)
 		hanakanz_palette_w(space, offset, data);
@@ -3907,15 +4336,15 @@ WRITE8_MEMBER(dynax_state::daimyojn_blitter_data_palette_w)
 		hanakanz_blitter_data_w(space, offset, data);
 }
 
-READ8_MEMBER(dynax_state::daimyojn_year_hack_r)
+READ8_MEMBER(ddenlovr_state::daimyojn_year_hack_r)
 {
 	// See code at C8D7, 633f holds reg B of the RTC
 	return offset ? 1 : 0;  // year = 0x10 (BCD)
 }
 
-static ADDRESS_MAP_START( daimyojn_portmap, AS_IO, 8, dynax_state )
+static ADDRESS_MAP_START( daimyojn_portmap, AS_IO, 8, ddenlovr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x2c, 0x2c) AM_READ(jongtei_busy_r) AM_DEVWRITE_LEGACY("oki", daimyojn_okibank_w)
+	AM_RANGE(0x2c, 0x2c) AM_READWRITE(jongtei_busy_r, daimyojn_okibank_w)
 	AM_RANGE(0x2e, 0x2e) AM_WRITE(daimyojn_palette_sel_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(hanakanz_blitter_reg_w)
 	AM_RANGE(0x31, 0x31) AM_WRITE(jongtei_dsw_keyb_w)
@@ -3924,7 +4353,7 @@ static ADDRESS_MAP_START( daimyojn_portmap, AS_IO, 8, dynax_state )
 	AM_RANGE(0x42, 0x44) AM_READ(hanakanz_gfxrom_r)
 	AM_RANGE(0x8a, 0x8b) AM_READ(daimyojn_year_hack_r)  // ?
 	AM_RANGE(0x80, 0x8f) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("ymsnd", ym2413_device, write)
 	AM_RANGE(0xa2, 0xa2) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0xa8, 0xa8) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0xaa, 0xaa) AM_READ(daimyojn_keyb1_r)
@@ -3965,7 +4394,7 @@ static INPUT_PORTS_START( ddenlovj )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME(DEF_STR( Test )) PORT_CODE(KEYCODE_F1)   /* Test */
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL )   // blitter busy flag
-	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, dynax_state,ddenlovj_blitter_r, NULL) // blitter irq flag? (bit 5) & RTC (bit 6)
+	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, ddenlovr_state,ddenlovj_blitter_r, NULL) // blitter irq flag? (bit 5) & RTC (bit 6)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL )
 
 	PORT_START("DSW1")
@@ -4071,7 +4500,7 @@ static INPUT_PORTS_START( ddenlovr )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME(DEF_STR( Test )) PORT_CODE(KEYCODE_F1)   /* Test */
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SPECIAL )    // ? quiz365
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, dynax_state,ddenlovr_blitter_irq_r, NULL) // blitter irq flag
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, ddenlovr_state,ddenlovr_blitter_irq_r, NULL) // blitter irq flag
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL )   // blitter busy flag
 
 	PORT_START("DSW")
@@ -4126,7 +4555,7 @@ static INPUT_PORTS_START( nettoqc )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME(DEF_STR( Test )) PORT_CODE(KEYCODE_F1)   /* Test */
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL )   // blitter busy flag
-	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, dynax_state,nettoqc_special_r, NULL)  // ? (bit 5) & blitter irq flag (bit 6)
+	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, ddenlovr_state,nettoqc_special_r, NULL)  // ? (bit 5) & blitter irq flag (bit 6)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL )
 
 	PORT_START("DSW1")
@@ -4224,7 +4653,7 @@ static INPUT_PORTS_START( ultrchmp )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME(DEF_STR( Test )) PORT_CODE(KEYCODE_F1)   /* Test */
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, dynax_state,ddenlovr_blitter_irq_r, NULL) // blitter irq flag
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, ddenlovr_state,ddenlovr_blitter_irq_r, NULL) // blitter irq flag
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL )   // blitter busy flag
 
 	PORT_START("DSW")
@@ -4236,6 +4665,143 @@ static INPUT_PORTS_START( ultrchmp )
 	PORT_DIPUNKNOWN( 0x20, 0x20 )
 	PORT_DIPUNKNOWN( 0x40, 0x40 )
 	PORT_DIPUNKNOWN( 0x80, 0x80 )
+INPUT_PORTS_END
+
+INPUT_PORTS_EXTERN( HANAFUDA_KEYS_BET );
+
+static INPUT_PORTS_START( htengoku )
+	PORT_START("COINS")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SERVICE4 )   // medal out
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SERVICE  ) PORT_NAME(DEF_STR( Test )) PORT_CODE(KEYCODE_F1)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE2 )   // analyzer
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE3 )   // data clear
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_COIN2 )  // note
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_INCLUDE( HANAFUDA_KEYS_BET )
+
+	PORT_START("DSW0")  /* IN11 - DSW1 */
+	PORT_DIPNAME( 0x01, 0x01, "Show Girls" )
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x02, 0x02, "Select Stage" )
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x04, 0x04, "Secret Trick" )
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x08, 0x08, "Secret Character" )
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x10, 0x10, "In Game Sounds" )
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Demo_Sounds ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, "Guide" )
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Flip_Screen ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW1")  /* IN12 - DSW2 */
+	PORT_DIPNAME( 0x07, 0x05, "Payout Rate" )
+	PORT_DIPSETTING(    0x00, "Lowest" )
+	PORT_DIPSETTING(    0x01, "Lower" )
+	PORT_DIPSETTING(    0x02, DEF_STR( Low ) )
+	PORT_DIPSETTING(    0x03, "Bit Low" )
+	PORT_DIPSETTING(    0x04, DEF_STR( Medium ) )
+	PORT_DIPSETTING(    0x05, DEF_STR( High ) )
+	PORT_DIPSETTING(    0x06, DEF_STR( Higher ) )
+	PORT_DIPSETTING(    0x07, DEF_STR( Highest ) )
+	PORT_DIPNAME( 0x08, 0x08, "Payout Wave" )
+	PORT_DIPSETTING(    0x00, "Small" )
+	PORT_DIPSETTING(    0x08, "Big" )
+	PORT_DIPNAME( 0x10, 0x10, "Goko Yaku" )
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x60, 0x60, "Double-Up Win Rate" )
+	PORT_DIPSETTING(    0x00, "65%" )
+	PORT_DIPSETTING(    0x20, "70%" )
+	PORT_DIPSETTING(    0x40, "75%" )
+	PORT_DIPSETTING(    0x60, "80%" )
+	PORT_DIPNAME( 0x80, 0x80, "Unknown 2-7" )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW2")  /* IN13 - DSW3 */
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Coinage ) )
+	PORT_DIPSETTING(    0x03, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( 1C_5C ) )
+	PORT_DIPSETTING(    0x00, "1 Coin/10 Credits" )
+	PORT_DIPNAME( 0x04, 0x04, "Credits Per Note" )
+	PORT_DIPSETTING(    0x00, "5" )
+	PORT_DIPSETTING(    0x04, "10" )
+	PORT_DIPNAME( 0x08, 0x08, "Max Bet" )
+	PORT_DIPSETTING(    0x08, "5" )
+	PORT_DIPSETTING(    0x00, "10" )
+	PORT_DIPNAME( 0x30, 0x30, "Min Rate To Start" )
+	PORT_DIPSETTING(    0x30, "1" )
+	PORT_DIPSETTING(    0x20, "2" )
+	PORT_DIPSETTING(    0x10, "3" )
+	PORT_DIPSETTING(    0x00, "5" )
+	PORT_DIPNAME( 0xc0, 0xc0, "Credits Limit" )
+	PORT_DIPSETTING(    0xc0, "1000" )
+	PORT_DIPSETTING(    0x80, "2000" )
+	PORT_DIPSETTING(    0x40, "3000" )
+	PORT_DIPSETTING(    0x00, "5000" )
+
+	PORT_START("DSW3")  /* IN14 - DSW4 */
+	PORT_DIPNAME( 0x03, 0x03, "Odds For Goko" )
+	PORT_DIPSETTING(    0x03, "100" )
+	PORT_DIPSETTING(    0x02, "200" )
+	PORT_DIPSETTING(    0x01, "250" )
+	PORT_DIPSETTING(    0x00, "300" )
+	PORT_DIPNAME( 0x0c, 0x0c, "Odds For Shiko" )
+	PORT_DIPSETTING(    0x0c, "50" )
+	PORT_DIPSETTING(    0x08, "60" )
+	PORT_DIPSETTING(    0x04, "70" )
+	PORT_DIPSETTING(    0x00, "80" )
+	PORT_DIPNAME( 0x30, 0x30, "Odds For Ameshiko" )
+	PORT_DIPSETTING(    0x30, "20" )
+	PORT_DIPSETTING(    0x20, "30" )
+	PORT_DIPSETTING(    0x10, "40" )
+	PORT_DIPSETTING(    0x00, "50" )
+	PORT_DIPNAME( 0x40, 0x40, "Unknown 4-6" )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "Unknown 4-7" )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW4")  /* IN15 - DSWs top bits */
+	PORT_SERVICE( 0x01, IP_ACTIVE_LOW )
+	PORT_DIPNAME( 0x02, 0x02, "Set Clock" )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, "Unknown 2-8" )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, "Unknown 2-9" )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, "Pay Out Type" )
+	PORT_DIPSETTING(    0x10, "Credit" )
+	PORT_DIPSETTING(    0x00, "Hopper" )
+	PORT_DIPNAME( 0x20, 0x20, "Hopper Switch" )
+	PORT_DIPSETTING(    0x20, "Active Low" )
+	PORT_DIPSETTING(    0x00, "Active High" )
+	PORT_DIPNAME( 0x40, 0x40, "Unknown 4-8" )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "Unknown 4-9" )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
 
 
@@ -4267,7 +4833,7 @@ static INPUT_PORTS_START( quiz365 )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME(DEF_STR( Test )) PORT_CODE(KEYCODE_F1)   /* Test */
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SPECIAL )    // ? quiz365
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, dynax_state,ddenlovr_blitter_irq_r, NULL) // blitter irq flag
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, ddenlovr_state,ddenlovr_blitter_irq_r, NULL) // blitter irq flag
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL )   // blitter busy flag
 
 	PORT_START("DSW1")
@@ -7238,7 +7804,7 @@ static INPUT_PORTS_START( mjflove )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME(DEF_STR( Test )) PORT_CODE(KEYCODE_F1)   PORT_TOGGLE
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, dynax_state,mjflove_blitter_r, NULL)  // RTC (bit 5) & blitter irq flag (bit 6)
+	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, ddenlovr_state,mjflove_blitter_r, NULL)  // RTC (bit 5) & blitter irq flag (bit 6)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL )   // blitter busy flag
 
 	PORT_START("KEY0")
@@ -8724,12 +9290,8 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-MACHINE_START_MEMBER(dynax_state,ddenlovr)
+MACHINE_START_MEMBER(ddenlovr_state,ddenlovr)
 {
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_soundcpu = machine().device<cpu_device>("soundcpu");
-	m_oki = machine().device<okim6295_device>("oki");
-
 	save_item(NAME(m_input_sel));
 	save_item(NAME(m_dsw_sel));
 	save_item(NAME(m_keyb));
@@ -8755,7 +9317,7 @@ MACHINE_START_MEMBER(dynax_state,ddenlovr)
 	save_item(NAME(m_irq_count));
 }
 
-MACHINE_RESET_MEMBER(dynax_state,ddenlovr)
+MACHINE_RESET_MEMBER(ddenlovr_state,ddenlovr)
 {
 	m_input_sel = 0;
 	m_dsw_sel = 0;
@@ -8783,73 +9345,73 @@ MACHINE_RESET_MEMBER(dynax_state,ddenlovr)
 	memset(m_palram, 0, ARRAY_LENGTH(m_palram));
 }
 
-MACHINE_START_MEMBER(dynax_state,rongrong)
+MACHINE_START_MEMBER(ddenlovr_state,rongrong)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 0x20, &ROM[0x010000], 0x8000);
-	machine().root_device().membank("bank2")->configure_entries(0, 8,    &ROM[0x110000], 0x1000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 0x20, &ROM[0x010000], 0x8000);
+	membank("bank2")->configure_entries(0, 8,    &ROM[0x110000], 0x1000);
 
 	MACHINE_START_CALL_MEMBER(ddenlovr);
 }
 
-MACHINE_START_MEMBER(dynax_state,mmpanic)
+MACHINE_START_MEMBER(ddenlovr_state,mmpanic)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 8,    &ROM[0x10000], 0x8000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 8,    &ROM[0x10000], 0x8000);
 
 	MACHINE_START_CALL_MEMBER(ddenlovr);
 }
 
-MACHINE_START_MEMBER(dynax_state,funkyfig)
+MACHINE_START_MEMBER(ddenlovr_state,funkyfig)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 0x10, &ROM[0x10000], 0x8000);
-	machine().root_device().membank("bank2")->configure_entries(0, 8,    &ROM[0x90000], 0x1000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 0x10, &ROM[0x10000], 0x8000);
+	membank("bank2")->configure_entries(0, 8,    &ROM[0x90000], 0x1000);
 
 	MACHINE_START_CALL_MEMBER(ddenlovr);
 }
 
-MACHINE_START_MEMBER(dynax_state,hanakanz)
+MACHINE_START_MEMBER(ddenlovr_state,hanakanz)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 0x10, &ROM[0x10000], 0x8000);
-	machine().root_device().membank("bank2")->configure_entries(0, 0x10, &ROM[0x90000], 0x1000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 0x10, &ROM[0x10000], 0x8000);
+	membank("bank2")->configure_entries(0, 0x10, &ROM[0x90000], 0x1000);
 
 	MACHINE_START_CALL_MEMBER(ddenlovr);
 }
 
-MACHINE_START_MEMBER(dynax_state,mjmyster)
+MACHINE_START_MEMBER(ddenlovr_state,mjmyster)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 8,    &ROM[0x10000], 0x8000);
-	machine().root_device().membank("bank2")->configure_entries(0, 8,    &ROM[0x90000], 0x1000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 8,    &ROM[0x10000], 0x8000);
+	membank("bank2")->configure_entries(0, 8,    &ROM[0x90000], 0x1000);
 
 	MACHINE_START_CALL_MEMBER(ddenlovr);
 }
 
-MACHINE_START_MEMBER(dynax_state,hparadis)
+MACHINE_START_MEMBER(ddenlovr_state,hparadis)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 8,    &ROM[0x10000], 0x8000);
-	machine().root_device().membank("bank2")->configure_entries(0, 8,    &ROM[0x50000], 0x1000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 8,    &ROM[0x10000], 0x8000);
+	membank("bank2")->configure_entries(0, 8,    &ROM[0x50000], 0x1000);
 
 	MACHINE_START_CALL_MEMBER(ddenlovr);
 }
 
-MACHINE_START_MEMBER(dynax_state,mjflove)
+MACHINE_START_MEMBER(ddenlovr_state,mjflove)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 0x10, &ROM[0x10000], 0x8000);
-	machine().root_device().membank("bank2")->configure_entries(0, 8,    &ROM[0x90000], 0x1000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 0x10, &ROM[0x10000], 0x8000);
+	membank("bank2")->configure_entries(0, 8,    &ROM[0x90000], 0x1000);
 
 	MACHINE_START_CALL_MEMBER(ddenlovr);
 }
 
-MACHINE_START_MEMBER(dynax_state,sryudens)
+MACHINE_START_MEMBER(ddenlovr_state,sryudens)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 0x10, &ROM[0x10000], 0x8000);
-	machine().root_device().membank("bank2")->configure_entries(0, 0x10, &ROM[0x90000], 0x1000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 0x10, &ROM[0x10000], 0x8000);
+	membank("bank2")->configure_entries(0, 0x10, &ROM[0x90000], 0x1000);
 
 	MACHINE_START_CALL_MEMBER(ddenlovr);
 }
@@ -8863,15 +9425,15 @@ static MSM6242_INTERFACE( ddenlovr_rtc_intf )
 	DEVCB_NULL
 };
 
-static MACHINE_CONFIG_START( ddenlovr, dynax_state )
+static MACHINE_CONFIG_START( ddenlovr, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",M68000, XTAL_24MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(ddenlovr_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, irq1_line_hold)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, irq1_line_hold)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,ddenlovr)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,ddenlovr)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -8879,12 +9441,12 @@ static MACHINE_CONFIG_START( ddenlovr, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-16+5-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x100)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -8927,8 +9489,8 @@ static const ay8910_interface quiz365_ay8910_interface =
 	AY8910_LEGACY_OUTPUT,
 	AY8910_DEFAULT_LOADS,
 	// A                            B
-	DEVCB_HANDLER(quiz365_input_r), DEVCB_NULL,                         // R
-	DEVCB_NULL,                     DEVCB_HANDLER(ddenlovr_select_w)    // W
+	DEVCB_DRIVER_MEMBER(ddenlovr_state,quiz365_input_r), DEVCB_NULL,                         // R
+	DEVCB_NULL,                     DEVCB_DRIVER_MEMBER(ddenlovr_state,ddenlovr_select_w)    // W
 };
 
 static MACHINE_CONFIG_DERIVED( quiz365, ddenlovr )
@@ -8956,7 +9518,7 @@ static MACHINE_CONFIG_DERIVED( ultrchmp, nettoqc )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,mjflove)
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mjflove)
 MACHINE_CONFIG_END
 
 /***************************************************************************
@@ -8970,41 +9532,39 @@ MACHINE_CONFIG_END
    0xee is vblank
    0xfc is from the 6242RTC
  */
-INTERRUPT_GEN_MEMBER(dynax_state::quizchq_irq)
+INTERRUPT_GEN_MEMBER(ddenlovr_state::quizchq_irq)
 {
 //  int scanline = param;
 
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise quizchq would lock up. */
-//  if (downcast<cpu_device *>(state->m_maincpu)->input_state(0))
+//  if (downcast<cpu_device *>(m_maincpu)->input_state(0))
 //      return;
 
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xee);
 }
 
-static WRITE_LINE_DEVICE_HANDLER( quizchq_rtc_irq )
+WRITE_LINE_MEMBER(ddenlovr_state::quizchq_rtc_irq )
 {
-	dynax_state *drvstate = device->machine().driver_data<dynax_state>();
-
-	drvstate->m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xfc);
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xfc);
 }
 
 static MSM6242_INTERFACE( quizchq_rtc_intf )
 {
-	DEVCB_LINE(quizchq_rtc_irq)
+	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,quizchq_rtc_irq)
 };
 
-static MACHINE_CONFIG_START( quizchq, dynax_state )
+static MACHINE_CONFIG_START( quizchq, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_16MHz/2)  /* Verified */
 	MCFG_CPU_PROGRAM_MAP(quizchq_map)
 	MCFG_CPU_IO_MAP(quizchq_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, quizchq_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, quizchq_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,rongrong)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,rongrong)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9012,12 +9572,12 @@ static MACHINE_CONFIG_START( quizchq, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-16+5-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x100)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -9053,47 +9613,45 @@ MACHINE_CONFIG_END
     RST 20 is from the link device?
  */
 
-INTERRUPT_GEN_MEMBER(dynax_state::mmpanic_irq)
+INTERRUPT_GEN_MEMBER(ddenlovr_state::mmpanic_irq)
 {
 	//int scanline = param;
 
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise quizchq would lock up. */
-	//if (downcast<cpu_device *>(state->m_maincpu)->input_state(0))
+	//if (downcast<cpu_device *>(m_maincpu)->input_state(0))
 	//  return;
 
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xcf); // RST 08, vblank
 }
 
 
-static WRITE_LINE_DEVICE_HANDLER( mmpanic_rtc_irq )
+WRITE_LINE_MEMBER(ddenlovr_state::mmpanic_rtc_irq )
 {
-	dynax_state *drvstate = device->machine().driver_data<dynax_state>();
-
-	drvstate->m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xdf); // RST 18, clock
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xdf); // RST 18, clock
 }
 
 static MSM6242_INTERFACE( mmpanic_rtc_intf )
 {
-	DEVCB_LINE(mmpanic_rtc_irq)
+	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,mmpanic_rtc_irq)
 };
 
-static MACHINE_CONFIG_START( mmpanic, dynax_state )
+static MACHINE_CONFIG_START( mmpanic, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80, 8000000)
 	MCFG_CPU_PROGRAM_MAP(mmpanic_map)
 	MCFG_CPU_IO_MAP(mmpanic_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, mmpanic_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, mmpanic_irq)
 
 	MCFG_CPU_ADD("soundcpu", Z80, 3579545)
 	MCFG_CPU_PROGRAM_MAP(mmpanic_sound_map)
 	MCFG_CPU_IO_MAP(mmpanic_sound_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, irq0_line_hold)   // NMI by main cpu
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, irq0_line_hold)   // NMI by main cpu
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,mmpanic)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mmpanic)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9101,12 +9659,12 @@ static MACHINE_CONFIG_START( mmpanic, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-16+5-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x100)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,mmpanic)  // extra layers
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mmpanic)  // extra layers
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -9137,45 +9695,43 @@ MACHINE_CONFIG_END
     0xe2 is from the 6242RTC
  */
 
-INTERRUPT_GEN_MEMBER(dynax_state::hanakanz_irq)
+INTERRUPT_GEN_MEMBER(ddenlovr_state::hanakanz_irq)
 {
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise quizchq would lock up. */
-	//if (downcast<cpu_device *>(state->m_maincpu)->input_state(0))
+	//if (downcast<cpu_device *>(m_maincpu)->input_state(0))
 	//  return;
 
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xe0);
 }
 
-static WRITE_LINE_DEVICE_HANDLER(hanakanz_rtc_irq)
+WRITE_LINE_MEMBER(ddenlovr_state::hanakanz_rtc_irq)
 {
-	dynax_state *drvstate = device->machine().driver_data<dynax_state>();
-
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise quizchq would lock up. */
-	//if (downcast<cpu_device *>(drvstate->m_maincpu)->input_state(0))
+	//if (downcast<cpu_device *>(drvm_maincpu)->input_state(0))
 	//  return;
 
-	drvstate->m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xe2);
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xe2);
 }
 
 static MSM6242_INTERFACE( hanakanz_rtc_intf )
 {
-	DEVCB_LINE(hanakanz_rtc_irq)
+	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,hanakanz_rtc_irq)
 };
 
-static MACHINE_CONFIG_START( hanakanz, dynax_state )
+static MACHINE_CONFIG_START( hanakanz, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80,8000000) // TMPZ84C015BF-8
 	MCFG_CPU_PROGRAM_MAP(hanakanz_map)
 	MCFG_CPU_IO_MAP(hanakanz_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, hanakanz_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, hanakanz_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,hanakanz)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,hanakanz)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9183,12 +9739,12 @@ static MACHINE_CONFIG_START( hanakanz, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-11-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x200)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,hanakanz) // blitter commands in the roms are shuffled around
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,hanakanz) // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -9210,16 +9766,16 @@ static MACHINE_CONFIG_DERIVED( hkagerou, hanakanz )
 	MCFG_CPU_IO_MAP(hkagerou_portmap)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_START( kotbinyo, dynax_state )
+static MACHINE_CONFIG_START( kotbinyo, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_20MHz / 2) // !! KL5C80A12CFP @ 10MHz? (actually 4 times faster than Z80) !!
 	MCFG_CPU_PROGRAM_MAP(hanakanz_map)
 	MCFG_CPU_IO_MAP(kotbinyo_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, hanakanz_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, hanakanz_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,hanakanz)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,hanakanz)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9227,12 +9783,12 @@ static MACHINE_CONFIG_START( kotbinyo, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1-1, 1+4, 256-15-1+4)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x200)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,hanakanz) // blitter commands in the roms are shuffled around
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,hanakanz) // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -9272,33 +9828,31 @@ MACHINE_CONFIG_END
     0xf8 is vblank
     0xfa is from the 6242RTC
  */
-INTERRUPT_GEN_MEMBER(dynax_state::mjchuuka_irq)
+INTERRUPT_GEN_MEMBER(ddenlovr_state::mjchuuka_irq)
 {
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise quizchq would lock up. */
-	//if (downcast<cpu_device *>(state->m_maincpu)->input_state(0))
+	//if (downcast<cpu_device *>(m_maincpu)->input_state(0))
 	//  return;
 
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xf8);
 }
 
-static WRITE_LINE_DEVICE_HANDLER(mjchuuka_rtc_irq)
+WRITE_LINE_MEMBER(ddenlovr_state::mjchuuka_rtc_irq)
 {
-	dynax_state *drvstate = device->machine().driver_data<dynax_state>();
-
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise quizchq would lock up. */
-	//if (downcast<cpu_device *>(drvstate->m_maincpu)->input_state(0))
+	//if (downcast<cpu_device *>(drvm_maincpu)->input_state(0))
 	//  return;
 
-	drvstate->m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xfa);
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xfa);
 }
 
 static MSM6242_INTERFACE( mjchuuka_rtc_intf )
 {
-	DEVCB_LINE(mjchuuka_rtc_irq)
+	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,mjchuuka_rtc_irq)
 };
 
 static MACHINE_CONFIG_DERIVED( mjchuuka, hanakanz )
@@ -9306,7 +9860,7 @@ static MACHINE_CONFIG_DERIVED( mjchuuka, hanakanz )
 	/* basic machine hardware */
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_IO_MAP(mjchuuka_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, mjchuuka_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, mjchuuka_irq)
 
 	MCFG_DEVICE_MODIFY("rtc")
 	MCFG_DEVICE_CONFIG(mjchuuka_rtc_intf)
@@ -9320,9 +9874,9 @@ static MACHINE_CONFIG_DERIVED( funkyfig, mmpanic )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(funkyfig_map)
 	MCFG_CPU_IO_MAP(funkyfig_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, mjchuuka_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, mjchuuka_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,funkyfig)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,funkyfig)
 
 	MCFG_DEVICE_MODIFY("rtc")
 	MCFG_DEVICE_CONFIG(mjchuuka_rtc_intf)
@@ -9330,7 +9884,7 @@ static MACHINE_CONFIG_DERIVED( funkyfig, mmpanic )
 	MCFG_CPU_MODIFY("soundcpu")
 	MCFG_CPU_IO_MAP(funkyfig_sound_portmap)
 
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,ddenlovr) // no extra layers?
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,ddenlovr) // no extra layers?
 MACHINE_CONFIG_END
 
 
@@ -9351,14 +9905,14 @@ MACHINE_CONFIG_END
     to trigger the blitter irq every frame.
  */
 
-TIMER_DEVICE_CALLBACK_MEMBER(dynax_state::mjmyster_irq)
+TIMER_DEVICE_CALLBACK_MEMBER(ddenlovr_state::mjmyster_irq)
 {
 	int scanline = param;
 
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise quizchq would lock up. */
-	if (downcast<cpu_device *>(m_maincpu)->input_state(0))
+	if (m_maincpu->input_state(0))
 		return;
 
 	if(scanline == 245)
@@ -9374,25 +9928,23 @@ static const ay8910_interface mjmyster_ay8910_interface =
 	AY8910_DEFAULT_LOADS,
 	// A            B
 	DEVCB_NULL,     DEVCB_NULL,                         // R
-	DEVCB_NULL,     DEVCB_HANDLER(ddenlovr_select_w)    // W
+	DEVCB_NULL,     DEVCB_DRIVER_MEMBER(ddenlovr_state,ddenlovr_select_w)    // W
 };
 
-static WRITE_LINE_DEVICE_HANDLER(mjmyster_rtc_irq)
+WRITE_LINE_MEMBER(ddenlovr_state::mjmyster_rtc_irq)
 {
-	dynax_state *drvstate = device->machine().driver_data<dynax_state>();
-
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise quizchq would lock up. */
-	//if (downcast<cpu_device *>(drvstate->m_maincpu)->input_state(0))
+	//if (downcast<cpu_device *>(drvm_maincpu)->input_state(0))
 	//  return;
 
-	drvstate->m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static MSM6242_INTERFACE( mjmyster_rtc_intf )
 {
-	DEVCB_LINE(mjmyster_rtc_irq)
+	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,mjmyster_rtc_irq)
 };
 
 
@@ -9404,12 +9956,12 @@ static MACHINE_CONFIG_DERIVED( mjmyster, quizchq )
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_16MHz/2)  /* Verified */
 	MCFG_CPU_PROGRAM_MAP(mjmyster_map)
 	MCFG_CPU_IO_MAP(mjmyster_portmap)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", dynax_state, mjmyster_irq, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ddenlovr_state, mjmyster_irq, "screen", 0, 1)
 
 	MCFG_DEVICE_MODIFY("rtc")
 	MCFG_DEVICE_CONFIG(mjmyster_rtc_intf)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,mjmyster)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 3579545)
 	MCFG_SOUND_CONFIG(mjmyster_ay8910_interface)
@@ -9426,14 +9978,14 @@ MACHINE_CONFIG_END
     0xfa and/or 0xfc are from the blitter (almost identical)
     0xee triggered by the RTC
  */
-INTERRUPT_GEN_MEMBER(dynax_state::hginga_irq)
+INTERRUPT_GEN_MEMBER(ddenlovr_state::hginga_irq)
 {
 //  int scanline = param;
 
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise hginga would lock up. */
-//  if (downcast<cpu_device *>(state->m_maincpu)->input_state(0))
+//  if (downcast<cpu_device *>(m_maincpu)->input_state(0))
 //      return;
 
 	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xf8);
@@ -9444,26 +9996,24 @@ static const ay8910_interface hginga_ay8910_interface =
 	AY8910_LEGACY_OUTPUT,
 	AY8910_DEFAULT_LOADS,
 	// A                            B
-	DEVCB_HANDLER(hginga_dsw_r),    DEVCB_NULL,                             // R
-	DEVCB_NULL,                     DEVCB_HANDLER(ddenlovr_select_w)        // W
+	DEVCB_DRIVER_MEMBER(ddenlovr_state,hginga_dsw_r),    DEVCB_NULL,                             // R
+	DEVCB_NULL,                     DEVCB_DRIVER_MEMBER(ddenlovr_state,ddenlovr_select_w)        // W
 };
 
-static WRITE_LINE_DEVICE_HANDLER(hginga_rtc_irq)
+WRITE_LINE_MEMBER(ddenlovr_state::hginga_rtc_irq)
 {
-	dynax_state *drvstate = device->machine().driver_data<dynax_state>();
-
 	/* I haven't found a irq ack register, so I need this kludge to
 	   make sure I don't lose any interrupt generated by the blitter,
 	   otherwise quizchq would lock up. */
-	//if (downcast<cpu_device *>(drvstate->m_maincpu)->input_state(0))
+	//if (downcast<cpu_device *>(drvm_maincpu)->input_state(0))
 	//  return;
 
-	drvstate->m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xee);
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xee);
 }
 
 static MSM6242_INTERFACE( hginga_rtc_intf )
 {
-	DEVCB_LINE(hginga_rtc_irq)
+	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,hginga_rtc_irq)
 };
 
 static MACHINE_CONFIG_DERIVED( hginga, quizchq )
@@ -9472,12 +10022,12 @@ static MACHINE_CONFIG_DERIVED( hginga, quizchq )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(hginga_map)
 	MCFG_CPU_IO_MAP(hginga_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, hginga_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, hginga_irq)
 
 	MCFG_DEVICE_MODIFY("rtc")
 	MCFG_DEVICE_CONFIG(hginga_rtc_intf)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,mjmyster)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 3579545)
 	MCFG_SOUND_CONFIG(hginga_ay8910_interface)
@@ -9490,12 +10040,12 @@ static MACHINE_CONFIG_DERIVED( hgokou, quizchq )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(hgokou_map)
 	MCFG_CPU_IO_MAP(hgokou_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, hginga_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, hginga_irq)
 
 	MCFG_DEVICE_MODIFY("rtc")
 	MCFG_DEVICE_CONFIG(hginga_rtc_intf)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,mjmyster)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 3579545)
 	MCFG_SOUND_CONFIG(hginga_ay8910_interface)
@@ -9526,9 +10076,9 @@ static MACHINE_CONFIG_DERIVED( mjmyuniv, quizchq )
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_16MHz/2)  /* Verified */
 	MCFG_CPU_PROGRAM_MAP(mjmyster_map)
 	MCFG_CPU_IO_MAP(mjmyster_portmap)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", dynax_state, mjmyster_irq, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ddenlovr_state, mjmyster_irq, "screen", 0, 1)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,mjmyster)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_DEVICE_MODIFY("rtc")
 	MCFG_DEVICE_CONFIG(mjmyster_rtc_intf)
@@ -9546,9 +10096,9 @@ static MACHINE_CONFIG_DERIVED( mjmyornt, quizchq )
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_16MHz/2)  /* Verified */
 	MCFG_CPU_PROGRAM_MAP(quizchq_map)
 	MCFG_CPU_IO_MAP(mjmyster_portmap)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", dynax_state, mjmyster_irq, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ddenlovr_state, mjmyster_irq, "screen", 0, 1)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,mjmyster)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjmyster)
 
 	MCFG_DEVICE_MODIFY("rtc")
 	MCFG_DEVICE_CONFIG(mjmyster_rtc_intf)
@@ -9559,23 +10109,21 @@ static MACHINE_CONFIG_DERIVED( mjmyornt, quizchq )
 MACHINE_CONFIG_END
 
 
-INTERRUPT_GEN_MEMBER(dynax_state::mjflove_irq)
+INTERRUPT_GEN_MEMBER(ddenlovr_state::mjflove_irq)
 {
 	m_mjflove_irq_cause = 1;
 	m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
-static WRITE_LINE_DEVICE_HANDLER(mjflove_rtc_irq)
+WRITE_LINE_MEMBER(ddenlovr_state::mjflove_rtc_irq)
 {
-	dynax_state *drvstate = device->machine().driver_data<dynax_state>();
-
-	drvstate->m_mjflove_irq_cause = 2;
-	drvstate->m_maincpu->set_input_line(0, HOLD_LINE);
+	m_mjflove_irq_cause = 2;
+	m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
 static MSM6242_INTERFACE( mjflove_rtc_intf )
 {
-	DEVCB_LINE(mjflove_rtc_irq)
+	DEVCB_DRIVER_LINE_MEMBER(ddenlovr_state,mjflove_rtc_irq)
 };
 
 static MACHINE_CONFIG_DERIVED( mjflove, quizchq )
@@ -9586,14 +10134,14 @@ static MACHINE_CONFIG_DERIVED( mjflove, quizchq )
 	MCFG_CPU_ADD("maincpu", Z80, XTAL_16MHz/2)  /* Verified */
 	MCFG_CPU_PROGRAM_MAP(rongrong_map)
 	MCFG_CPU_IO_MAP(mjflove_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, mjflove_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, mjflove_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,mjflove)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjflove)
 
 	MCFG_DEVICE_MODIFY("rtc")
 	MCFG_DEVICE_CONFIG(mjflove_rtc_intf)
 
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,mjflove)  // blitter commands in the roms are shuffled around
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mjflove)  // blitter commands in the roms are shuffled around
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 28636363/8)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
@@ -9601,7 +10149,7 @@ MACHINE_CONFIG_END
 
 /*  It runs in IM 2, thus needs a vector on the data bus:
     0xee is vblank  */
-INTERRUPT_GEN_MEMBER(dynax_state::hparadis_irq)
+INTERRUPT_GEN_MEMBER(ddenlovr_state::hparadis_irq)
 {
 	device.execute().set_input_line_and_vector(0, HOLD_LINE, 0xee);
 }
@@ -9612,23 +10160,23 @@ static MACHINE_CONFIG_DERIVED( hparadis, quizchq )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(hparadis_map)
 	MCFG_CPU_IO_MAP(hparadis_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, hparadis_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, hparadis_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,hparadis)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,hparadis)
 MACHINE_CONFIG_END
 
 
 
-static MACHINE_CONFIG_START( jongtei, dynax_state )
+static MACHINE_CONFIG_START( jongtei, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_20MHz / 2) // ?
 	MCFG_CPU_PROGRAM_MAP(hanakanz_map)
 	MCFG_CPU_IO_MAP(jongtei_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, hanakanz_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, hanakanz_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,hanakanz)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,hanakanz)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9636,12 +10184,12 @@ static MACHINE_CONFIG_START( jongtei, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 5, 256-11-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x200)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,hanakanz) // blitter commands in the roms are shuffled around
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,hanakanz) // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -9660,16 +10208,16 @@ MACHINE_CONFIG_END
                             Mahjong Seiryu Densetsu
 ***************************************************************************/
 
-static MACHINE_CONFIG_START( sryudens, dynax_state )
+static MACHINE_CONFIG_START( sryudens, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_16MHz / 2) // ?
 	MCFG_CPU_PROGRAM_MAP(sryudens_map)
 	MCFG_CPU_IO_MAP(sryudens_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, mjchuuka_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, mjchuuka_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,sryudens)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,sryudens)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9677,12 +10225,12 @@ static MACHINE_CONFIG_START( sryudens, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 0+5, 256-12-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x100)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,mjflove)  // blitter commands in the roms are shuffled around
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mjflove)  // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -9705,16 +10253,16 @@ MACHINE_CONFIG_END
 ***************************************************************************/
 
 // PCB: NM7001004
-static MACHINE_CONFIG_START( janshinp, dynax_state )
+static MACHINE_CONFIG_START( janshinp, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_16MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(janshinp_map)
 	MCFG_CPU_IO_MAP(janshinp_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, mjchuuka_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, mjchuuka_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,hanakanz)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,hanakanz)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9722,12 +10270,12 @@ static MACHINE_CONFIG_START( janshinp, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 0+5, 256-12-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x100)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -9748,7 +10296,7 @@ MACHINE_CONFIG_END
 // Same PCB as janshinp
 static MACHINE_CONFIG_DERIVED( dtoyoken, janshinp )
 
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,mjflove)  // blitter commands in the roms are shuffled around
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mjflove)  // blitter commands in the roms are shuffled around
 MACHINE_CONFIG_END
 
 
@@ -9761,34 +10309,34 @@ static const ay8910_interface seljan2_ay8910_interface =
 	AY8910_LEGACY_OUTPUT,
 	AY8910_DEFAULT_LOADS,
 	// A                            B
-	DEVCB_HANDLER(seljan2_dsw_r),   DEVCB_NULL,                             // R
-	DEVCB_NULL,                     DEVCB_HANDLER(ddenlovr_select_w)        // W
+	DEVCB_DRIVER_MEMBER(ddenlovr_state,seljan2_dsw_r),   DEVCB_NULL,                             // R
+	DEVCB_NULL,                     DEVCB_DRIVER_MEMBER(ddenlovr_state,ddenlovr_select_w)        // W
 };
 
-MACHINE_START_MEMBER(dynax_state,seljan2)
+MACHINE_START_MEMBER(ddenlovr_state,seljan2)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
-	machine().root_device().membank("bank1")->configure_entries(0x00, 0x10, &ROM[0x10000], 0x8000);
+	membank("bank1")->configure_entries(0x00, 0x10, &ROM[0x10000], 0x8000);
 	// banks 10-1f -> palette RAM
 	for (int i = 0; i < 0x10; i++)
-		machine().root_device().membank("bank1")->configure_entries(0x10+i, 1, &ROM[0x90000], 0x8000);
+		membank("bank1")->configure_entries(0x10+i, 1, &ROM[0x90000], 0x8000);
 
-	machine().root_device().membank("bank2")->configure_entries(0, 0x10, &ROM[0x98000], 0x1000);
+	membank("bank2")->configure_entries(0, 0x10, &ROM[0x98000], 0x1000);
 
 	MACHINE_START_CALL_MEMBER(ddenlovr);
 }
 
-static MACHINE_CONFIG_START( seljan2, dynax_state )
+static MACHINE_CONFIG_START( seljan2, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_16MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(seljan2_map)
 	MCFG_CPU_IO_MAP(seljan2_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, mjchuuka_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, mjchuuka_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,seljan2)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,seljan2)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9796,12 +10344,12 @@ static MACHINE_CONFIG_START( seljan2, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1, 0+5, 256-12-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x100)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,mjflove)  // blitter commands in the roms are shuffled around
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,mjflove)  // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -9826,16 +10374,16 @@ MACHINE_CONFIG_END
 ***************************************************************************/
 
 
-static MACHINE_CONFIG_START( daimyojn, dynax_state )
+static MACHINE_CONFIG_START( daimyojn, ddenlovr_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",Z80, XTAL_20MHz / 2)
 	MCFG_CPU_PROGRAM_MAP(hanakanz_map)
 	MCFG_CPU_IO_MAP(daimyojn_portmap)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", dynax_state, hanakanz_irq)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddenlovr_state, hanakanz_irq)
 
-	MCFG_MACHINE_START_OVERRIDE(dynax_state,mjflove)
-	MCFG_MACHINE_RESET_OVERRIDE(dynax_state,ddenlovr)
+	MCFG_MACHINE_START_OVERRIDE(ddenlovr_state,mjflove)
+	MCFG_MACHINE_RESET_OVERRIDE(ddenlovr_state,ddenlovr)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -9843,12 +10391,12 @@ static MACHINE_CONFIG_START( daimyojn, dynax_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(336, 256+22)
 	MCFG_SCREEN_VISIBLE_AREA(0, 336-1-1, 1, 256-15-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dynax_state, screen_update_ddenlovr)
+	MCFG_SCREEN_UPDATE_DRIVER(ddenlovr_state, screen_update_ddenlovr)
 
 	MCFG_PALETTE_LENGTH(0x200)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
-	MCFG_VIDEO_START_OVERRIDE(dynax_state,hanakanz) // blitter commands in the roms are shuffled around
+	MCFG_VIDEO_START_OVERRIDE(ddenlovr_state,hanakanz) // blitter commands in the roms are shuffled around
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -10367,6 +10915,24 @@ ROM_START( ultrchmp )
 	ROM_LOAD( "1.1h",     0x200000, 0x020000, CRC(65f3df4c) SHA1(564a668d3345074901a8e69bfd6b6d151883cfff) )
 ROM_END
 
+ROM_START( ultrchmph )
+	ROM_REGION( 0x180000, "maincpu", 0 )        /* 68000 Code */
+	ROM_LOAD16_BYTE( "1145h.1a", 0x000000, 0x80000, CRC(aec83a82) SHA1(2668b60e0da2e9a57678704e67d96b424959767c) )
+	ROM_LOAD16_BYTE( "1143h.1c", 0x000001, 0x80000, CRC(7ab05a4c) SHA1(cc418365389aae55b5015b7c22c7ad0348370d1d) )
+	ROM_LOAD16_BYTE( "1144h.1b", 0x100000, 0x40000, CRC(bc413cce) SHA1(6a903b48cb709e08b760dea31e41728342132f0a) )
+	ROM_LOAD16_BYTE( "1142h.1d", 0x100001, 0x40000, CRC(d4a70092) SHA1(bd6bbbfa6db650476ae559adf48caba6679cec0d) )
+
+	ROM_REGION( 0x440000, "blitter", 0 )    /* blitter data */
+	ROM_LOAD( "1148h.2b", 0x000000, 0x200000, CRC(6414d46f) SHA1(a87f06f955c3c052670c3ac7416919de2b4a5d6e) )
+	ROM_LOAD( "1149h.2a", 0x200000, 0x200000, CRC(b646fa00) SHA1(e4d57b159e992eed6b3e1d3a573003fdcee5dc91) )
+	ROM_LOAD( "1147h.2c", 0x400000, 0x040000, CRC(3ed82868) SHA1(29b240fbfa5f2bb0811eb461d807799ac70a3da3) )
+
+	ROM_REGION( 0x400000, "oki", 0 )    /* Samples */
+	ROM_LOAD( "1146h.2h", 0x000000, 0x200000, CRC(7ea88e86) SHA1(343fbb79c8f388561660f690f54a830819a66c87) )
+	ROM_RELOAD(           0x200000, 0x200000 )
+	ROM_LOAD( "1141h.1h", 0x200000, 0x020000, CRC(98b7501c) SHA1(e450d32bb58f4900bec33fc0b3eea0fb7b8c81e2) )
+ROM_END
+
 /***************************************************************************
 
 Don Den Lover Vol.1 -Shiro Kuro Tsukeyo!-
@@ -10572,7 +11138,7 @@ ROM_START( ddenlovrb )
 	ROM_LOAD( "rom1", 0x000000, 0x080000, CRC(ba4723e8) SHA1(fd32b33bd43773fed083990b59a3994f4a631b04) )
 ROM_END
 
-DRIVER_INIT_MEMBER(dynax_state,rongrong)
+DRIVER_INIT_MEMBER(ddenlovr_state,rongrong)
 {
 	/* Rong Rong seems to have a protection that works this way:
 	    - write 01 to port c2
@@ -10587,7 +11153,7 @@ DRIVER_INIT_MEMBER(dynax_state,rongrong)
 	   version of the game might be a bootleg with the protection
 	   patched. (both sets need this)
 	 */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_read(0x60d4, 0x60d4);
+	m_maincpu->space(AS_PROGRAM).nop_read(0x60d4, 0x60d4);
 }
 
 /***************************************************************************
@@ -10829,10 +11395,10 @@ D11107218L1
 |-----------------------------------------------|
 Notes:
       Main CPU is Toshiba TMPZ84C015F-6 (QFP100)
-      95101 - Unknown 40 pin DIP, maybe equivalent to AY-3-8910?
+      95101 - Compatible to AY-3-8910
       6868A - Unknown 18 pin DIP, maybe some other sound related chip or a PIC?
       3631  - Unknown 18 pin DIP, maybe RTC or a PIC?
-      6606  - Unknown QFP44, probably OKI M6295?
+      6606  - Compatible to OKI M6295
       70C160F009 - QFP208 Dynax Custom
 
 
@@ -10892,7 +11458,7 @@ Notes:
       PCB uses common 10-way/18-way and 28-way Mahjong pinouts
       5.5V    - Battery
       6606    - Compatible to M6295 (QFP44)
-      6868A   - compatible to YM2413 (DIP18)
+      6868A   - Compatible to YM2413 (DIP18)
       3631    - Unknown DIP18 chip (maybe RTC?)
       Z84C015 - Toshiba TMPZ84C015BF-6 Z80 compatible CPU (clock input 16.0MHz)
       44C251  - Texas Instruments TMS44C251-12SD 256k x4 Dual Port VRAM (ZIP28)
@@ -11934,11 +12500,85 @@ ROM_START( seljan2 )
 	ROM_LOAD( "5571.1c", 0x000000, 0x80000, CRC(5a8cd45c) SHA1(25ca573b8ba226fb3f2de48c57b5ced6884eaa63) )  // = 50201.1c (sryudens)
 ROM_END
 
-DRIVER_INIT_MEMBER(dynax_state,momotaro)
+DRIVER_INIT_MEMBER(ddenlovr_state,momotaro)
 {
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0xe0, 0xe0, read8_delegate(FUNC(dynax_state::momotaro_protection_r),this));
+	m_maincpu->space(AS_IO).install_read_handler(0xe0, 0xe0, read8_delegate(FUNC(ddenlovr_state::momotaro_protection_r),this));
 }
 
+/***************************************************************************
+
+Hanafuda Hana Tengoku
+(c)1992 Dynax
+
+D6502208L1
+CPU   : TMP91P640? (surface scratched)
+Sound : AY38910A/P(YM2149F version exists), YM2413
+OSC   : 20.00000MHz, 14.31818MHz, ?(near 6242)
+Others: M6242B(RTC), battery
+DIPs  : 10 position (x4), 4 position (x1)
+ROMs  : 6501.4B
+        6509.10B
+        6510.11B
+
+D6107068L-1
+ROMs  : 6502.1A
+        6503.2A
+        6504.1B
+        6505.2B
+        6506.4C
+        6507.5C
+        6508.6C
+
+dumped by sayu
+--- Team Japump!!! ---
+
+
+Daughterboard number - D6107068L-1
+Top daughterboard has most of the ROMs
+Mainboard has roms labelled 6501, 6509, 6510
+The main board is almost like a few other Dynax Mahjong PCB's I've
+documented, so most of the details should be the same. The layout is
+similar to Mysterious World.
+
+Mainboard number - D6502208L1
+Mainboard main parts include.....
+AY3-8910
+YM2413
+RAM TC5563 x1
+RAM 2018 x1
+RAM HM53461 x6 (plus 2 empty spaces for 2 more)
+RAM TC524256 x2
+M6242 RTC + BATTERY
+Two scratched SDIP64 chips (possibly NL-001 and NL-002 or similar)
+Another scratched chip QFP64.... should be another known Dynax IC.
+DIP40 chip near ROM 6501... surface scratched too. Probably Z80
+XTALs - 20Mz, 14.31818MHz
+DSWs - 4x 10-position, 1x 4-position
+
+***************************************************************************/
+
+ROM_START( htengoku )
+	ROM_REGION( 0x50000, "maincpu", 0 ) // Z80 Code
+	ROM_LOAD( "6501.4b", 0x00000, 0x40000, CRC(29a7fc83) SHA1(5d3cf0a72918e58b5b60f7c978e559c7c1306bce) )
+	ROM_RELOAD(          0x10000, 0x40000 )
+
+	ROM_REGION( 0x80000, "gfx1", 0 )    // blitter data
+	ROM_LOAD( "6506.4c",  0x00000, 0x80000, CRC(7de17b26) SHA1(326667063ab045ac50e850f2f7821a65317879ad) )
+
+	ROM_REGION( 0xc0000, "gfx2", 0 )    // blitter data
+	ROM_LOAD( "6507.5c", 0x00000, 0x20000, CRC(ced3155b) SHA1(658e3947781f1be2ee87b43952999281c66683a6) )
+	ROM_LOAD( "6508.6c", 0x20000, 0x20000, CRC(ca46ed48) SHA1(0769ac0b211181b7b57033f09f72828c885186cc) )
+	ROM_LOAD( "6505.2b", 0x40000, 0x20000, CRC(161058fd) SHA1(cfc21abdc036e874d34bfa3c60486a5ab87cf9cd) )
+	ROM_LOAD( "6504.1b", 0x60000, 0x20000, CRC(b2ca9838) SHA1(7104697802a0466fab40414a467146a224eb6a74) )
+	ROM_LOAD( "6503.2a", 0x80000, 0x20000, CRC(6ac42304) SHA1(ce822da6d61e68578c08c9f1d0af1557c64ac5ae) )
+	ROM_LOAD( "6502.1a", 0xa0000, 0x20000, CRC(9276a10a) SHA1(5a68fff20631a2002509d6cace06b5a9fa0e75d2) )
+
+	ROM_REGION( 0xa0000, "gfx3", 0 )    // blitter data
+	ROM_LOAD( "6509.10b", 0x00000, 0x80000, CRC(f8524c28) SHA1(d50b99664c9f0735838adb55aa7db53e58a43f99) )
+	ROM_LOAD( "6510.11b", 0x80000, 0x20000, CRC(0fdd6edf) SHA1(c6870ab538987110337e6e154cba98391c68fb98) )
+ROM_END
+
+GAME( 1992, htengoku, 0,        htengoku, htengoku, driver_device, 0,        ROT180, "Dynax",                    "Hanafuda Hana Tengoku (Japan)",                                 GAME_SUPPORTS_SAVE )
 GAME( 1992, mmpanic,   0,        mmpanic,   mmpanic,  driver_device, 0,        ROT0, "Nakanihon / East Technology (Taito license)", "Monkey Mole Panic (USA)",                                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1993, funkyfig,  0,        funkyfig,  funkyfig, driver_device, 0,        ROT0, "Nakanihon / East Technology (Taito license)", "The First Funky Fighter",                                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS ) // scrolling, priority?
 GAME( 1993, quizchq,   0,        quizchq,   quizchq,  driver_device, 0,        ROT0, "Nakanihon",                                   "Quiz Channel Question (Ver 1.00) (Japan)",                        GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING )
@@ -11953,15 +12593,16 @@ GAME( 1994, mjmyornt,  0,        mjmyornt,  mjmyornt, driver_device, 0,        R
 GAME( 1994, mjmyuniv,  0,        mjmyuniv,  mjmyster, driver_device, 0,        ROT0, "Dynax",                                       "Mahjong The Mysterious Universe",                                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1994, quiz365,   0,        quiz365,   quiz365,  driver_device, 0,        ROT0, "Nakanihon",                                   "Quiz 365 (Japan)",                                                GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_UNEMULATED_PROTECTION )
 GAME( 1994, quiz365t,  quiz365,  quiz365,   quiz365,  driver_device, 0,        ROT0, "Nakanihon / Taito",                           "Quiz 365 (Hong Kong & Taiwan)",                                   GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_UNEMULATED_PROTECTION )
-GAME( 1994, rongrong,  0,        rongrong,  rongrong, dynax_state,   rongrong, ROT0, "Nakanihon (Activision license)",              "Puzzle Game Rong Rong (Europe)",                                  GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_COLORS )
-GAME( 1994, rongrongj, rongrong, rongrong,  rongrong, dynax_state,   rongrong, ROT0, "Nakanihon (Activision license)",              "Puzzle Game Rong Rong (Japan)",                                   GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_COLORS )
-GAME( 1994, rongrongg, rongrong, rongrong,  rongrong, dynax_state,   rongrong, ROT0, "Nakanihon (Activision license)",              "Puzzle Game Rong Rong (Germany)",                                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_COLORS )
+GAME( 1994, rongrong,  0,        rongrong,  rongrong, ddenlovr_state,   rongrong, ROT0, "Nakanihon (Activision license)",           "Puzzle Game Rong Rong (Europe)",                                  GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_COLORS )
+GAME( 1994, rongrongj, rongrong, rongrong,  rongrong, ddenlovr_state,   rongrong, ROT0, "Nakanihon (Activision license)",           "Puzzle Game Rong Rong (Japan)",                                   GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_COLORS )
+GAME( 1994, rongrongg, rongrong, rongrong,  rongrong, ddenlovr_state,   rongrong, ROT0, "Nakanihon (Activision license)",           "Puzzle Game Rong Rong (Germany)",                                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_COLORS )
 GAME( 1994, hparadis,  0,        hparadis,  hparadis, driver_device, 0,        ROT0, "Dynax",                                       "Super Hana Paradise (Japan)",                                     GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1995, hgokou,    0,        hgokou,    hgokou,   driver_device, 0,        ROT0, "Dynax (Alba license)",                        "Hanafuda Hana Gokou (Japan)",                                     GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1995, hgokbang,  hgokou,   hgokbang,  hgokou,   driver_device, 0,        ROT0, "Dynax",                                       "Hanafuda Hana Gokou Bangaihen (Japan)",                           GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1995, mjdchuka,  0,        mjchuuka,  mjchuuka, driver_device, 0,        ROT0, "Dynax",                                       "Mahjong The Dai Chuuka Ken (China, v. D111)",                     GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1995, nettoqc,   0,        nettoqc,   nettoqc,  driver_device, 0,        ROT0, "Nakanihon",                                   "Nettoh Quiz Champion (Japan)",                                    GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_COLORS )
 GAME( 1995, ultrchmp,  nettoqc,  ultrchmp,  ultrchmp, driver_device, 0,        ROT0, "Nakanihon",                                   "Se Gye Hweng Dan Ultra Champion (Korea)",                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_COLORS )
+GAME( 1995, ultrchmph, nettoqc,  ultrchmp,  ultrchmp, driver_device, 0,        ROT0, "Nakanihon",                                   "Cheng Ba Shi Jie - Chao Shi Kong Guan Jun (Taiwan)",              GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_COLORS )
 GAME( 1995, ddenlovj,  0,        ddenlovj,  ddenlovj, driver_device, 0,        ROT0, "Dynax",                                       "Don Den Lover Vol. 1 - Shiro Kuro Tsukeyo! (Japan)",              GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1995, ddenlovrk, ddenlovj, ddenlovrk, ddenlovr, driver_device, 0,        ROT0, "Dynax",                                       "Don Den Lover Vol. 1 - Heukbaeg-euro Jeonghaja (Korea)",          GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1995, ddenlovrb, ddenlovj, ddenlovr,  ddenlovr, driver_device, 0,        ROT0, "bootleg",                                     "Don Den Lover Vol. 1 - Heukbaeg-euro Jeonghaja (Korea, bootleg)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
@@ -11980,4 +12621,4 @@ GAME( 1998, mjchuuka,  0,        mjchuuka,  mjchuuka, driver_device, 0,        R
 GAME( 1998, mjreach1,  0,        mjreach1,  mjreach1, driver_device, 0,        ROT0, "Nihon System",                                "Mahjong Reach Ippatsu (Japan)",                                   GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1999, jongtei,   0,        jongtei,   jongtei,  driver_device, 0,        ROT0, "Dynax",                                       "Mahjong Jong-Tei (Japan, ver. NM532-01)",                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 2002, daimyojn,  0,        daimyojn,  daimyojn, driver_device, 0,        ROT0, "Dynax / Techno-Top / Techno-Planning",        "Mahjong Daimyojin (Japan, T017-PB-00)",                           GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 2004, momotaro,  0,        daimyojn,  daimyojn, dynax_state,   momotaro, ROT0, "Techno-Top",                                  "Mahjong Momotarou (Japan)",                                       GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )
+GAME( 2004, momotaro,  0,        daimyojn,  daimyojn, ddenlovr_state,   momotaro, ROT0, "Techno-Top",                               "Mahjong Momotarou (Japan)",                                       GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )

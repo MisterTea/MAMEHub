@@ -1,8 +1,11 @@
+#include "sound/k007232.h"
+#include "sound/k005289.h"
+
 class nemesis_state : public driver_device
 {
 public:
 	nemesis_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_charram(*this, "charram"),
 		m_xscroll1(*this, "xscroll1"),
 		m_xscroll2(*this, "xscroll2"),
@@ -14,7 +17,11 @@ public:
 		m_colorram2(*this, "colorram2"),
 		m_spriteram(*this, "spriteram"),
 		m_paletteram(*this, "paletteram"),
-		m_gx400_shared_ram(*this, "gx400_shared"){ }
+		m_gx400_shared_ram(*this, "gx400_shared"),
+		m_k007232(*this, "k007232"),
+		m_k005289(*this, "k005289"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_charram;
@@ -29,6 +36,8 @@ public:
 	required_shared_ptr<UINT16> m_spriteram;
 	required_shared_ptr<UINT16> m_paletteram;
 	optional_shared_ptr<UINT8> m_gx400_shared_ram;
+	optional_device<k007232_device> m_k007232;
+	optional_device<k005289_device> m_k005289;
 
 	/* video-related */
 	tilemap_t *m_background;
@@ -49,8 +58,8 @@ public:
 	UINT8     m_frame_counter;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	device_t *m_vlm;
 	DECLARE_WRITE16_MEMBER(gx400_irq1_enable_word_w);
 	DECLARE_WRITE16_MEMBER(gx400_irq2_enable_word_w);
@@ -89,4 +98,8 @@ public:
 	INTERRUPT_GEN_MEMBER(blkpnthr_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(konamigt_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(gx400_interrupt);
+	void nemesis_postload();
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	DECLARE_WRITE_LINE_MEMBER(sound_irq);
+	DECLARE_WRITE8_MEMBER(volume_callback);
 };

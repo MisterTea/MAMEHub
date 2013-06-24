@@ -348,8 +348,8 @@ static MACHINE_CONFIG_FRAGMENT( luxor_55_10828 )
 	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_4MHz/2, pio_intf)
 	MCFG_MB8876x_ADD(MB8876_TAG, XTAL_4MHz/2)
 
-	MCFG_FLOPPY_DRIVE_ADD(MB8876_TAG":0", abc_floppies, "525dd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(MB8876_TAG":1", abc_floppies, "525dd", NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8876_TAG":0", abc_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(MB8876_TAG":1", abc_floppies, "525dd", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
 
 
@@ -410,7 +410,7 @@ ioport_constructor luxor_55_10828_device::device_input_ports() const
 //-------------------------------------------------
 
 luxor_55_10828_device::luxor_55_10828_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, LUXOR_55_10828, "Luxor 55 10828", tag, owner, clock),
+	: device_t(mconfig, LUXOR_55_10828, "Luxor 55 10828", tag, owner, clock, "lux10828", __FILE__),
 		device_abcbus_card_interface(mconfig, *this),
 		m_maincpu(*this, Z80_TAG),
 		m_pio(*this, Z80PIO_TAG),
@@ -484,19 +484,6 @@ void luxor_55_10828_device::abcbus_cs(UINT8 data)
 	UINT8 address = 0x2c | BIT(m_s1->read(), 0);
 
 	m_cs = (data == address);
-}
-
-
-//-------------------------------------------------
-//  abcbus_rst -
-//-------------------------------------------------
-
-void luxor_55_10828_device::abcbus_rst(int state)
-{
-	if (!state)
-	{
-		device_reset();
-	}
 }
 
 
@@ -663,7 +650,7 @@ WRITE8_MEMBER( luxor_55_10828_device::status_w )
 	m_status = data & 0xfe;
 
 	// interrupt
-	m_bus->int_w(BIT(data, 0) ? CLEAR_LINE : ASSERT_LINE);
+	m_slot->int_w(BIT(data, 0) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 

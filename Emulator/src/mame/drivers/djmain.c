@@ -101,10 +101,9 @@ WRITE32_MEMBER(djmain_state::paletteram32_w)
 
 //---------
 
-static void sndram_set_bank(running_machine &machine)
+void djmain_state::sndram_set_bank()
 {
-	djmain_state *state = machine.driver_data<djmain_state>();
-	state->m_sndram = state->memregion("shared")->base() + 0x80000 * state->m_sndram_bank;
+	m_sndram = memregion("shared")->base() + 0x80000 * m_sndram_bank;
 }
 
 WRITE32_MEMBER(djmain_state::sndram_bank_w)
@@ -112,7 +111,7 @@ WRITE32_MEMBER(djmain_state::sndram_bank_w)
 	if (ACCESSING_BITS_16_31)
 	{
 		m_sndram_bank = (data >> 16) & 0x1f;
-		sndram_set_bank(machine());
+		sndram_set_bank();
 	}
 }
 
@@ -199,16 +198,15 @@ WRITE32_MEMBER(djmain_state::v_ctrl_w)
 		if (m_pending_vb_int && !(!(m_v_ctrl & 0x8000))) // #define DISABLE_VB_INT  (!(state->m_v_ctrl & 0x8000))
 		{
 			m_pending_vb_int = 0;
-			machine().device("maincpu")->execute().set_input_line(M68K_IRQ_4, HOLD_LINE);
+			m_maincpu->set_input_line(M68K_IRQ_4, HOLD_LINE);
 		}
 	}
 }
 
 READ32_MEMBER(djmain_state::v_rom_r)
 {
-	device_t *k056832 = machine().device("k056832");
 	UINT8 *mem8 = memregion("gfx2")->base();
-	int bank = k056832_word_r(k056832, space, 0x34/2, 0xffff);
+	int bank = k056832_word_r(m_k056832, space, 0x34/2, 0xffff);
 
 	offset *= 2;
 
@@ -268,47 +266,6 @@ WRITE32_MEMBER(djmain_state::turntable_select_w)
 {
 	if (ACCESSING_BITS_16_23)
 		m_turntable_select = (data >> 19) & 1;
-}
-
-
-//---------
-
-#define IDE_STD_OFFSET  (0x1f0/2)
-#define IDE_ALT_OFFSET  (0x3f6/2)
-
-READ32_MEMBER(djmain_state::ide_std_r)
-{
-	device_t *device = machine().device("ide");
-	if (ACCESSING_BITS_0_7)
-		return ide_controller16_r(device, space, IDE_STD_OFFSET + offset, 0xff00) >> 8;
-	else
-		return ide_controller16_r(device, space, IDE_STD_OFFSET + offset, 0xffff) << 16;
-}
-
-WRITE32_MEMBER(djmain_state::ide_std_w)
-{
-	device_t *device = machine().device("ide");
-	if (ACCESSING_BITS_0_7)
-		ide_controller16_w(device, space, IDE_STD_OFFSET + offset, data << 8, 0xff00);
-	else
-		ide_controller16_w(device, space, IDE_STD_OFFSET + offset, data >> 16, 0xffff);
-}
-
-
-READ32_MEMBER(djmain_state::ide_alt_r)
-{
-	device_t *device = machine().device("ide");
-	if (offset == 0)
-		return ide_controller16_r(device, space, IDE_ALT_OFFSET, 0x00ff) << 24;
-
-	return 0;
-}
-
-WRITE32_MEMBER(djmain_state::ide_alt_w)
-{
-	device_t *device = machine().device("ide");
-	if (offset == 0 && ACCESSING_BITS_16_23)
-		ide_controller16_w(device, space, IDE_ALT_OFFSET, data >> 24, 0x00ff);
 }
 
 
@@ -416,12 +373,12 @@ WRITE_LINE_MEMBER( djmain_state::ide_interrupt )
 	if (state != CLEAR_LINE)
 	{
 		//logerror("IDE interrupt asserted\n");
-		device().machine().device("maincpu")->execute().set_input_line(M68K_IRQ_1, HOLD_LINE);
+		m_maincpu->set_input_line(M68K_IRQ_1, HOLD_LINE);
 	}
 	else
 	{
 		//logerror("IDE interrupt cleared\n");
-		device().machine().device("maincpu")->execute().set_input_line(M68K_IRQ_1, CLEAR_LINE);
+		m_maincpu->set_input_line(M68K_IRQ_1, CLEAR_LINE);
 	}
 }
 
@@ -443,8 +400,8 @@ static ADDRESS_MAP_START( memory_map, AS_PROGRAM, 32, djmain_state )
 	AM_RANGE(0x580000, 0x58003f) AM_DEVREADWRITE_LEGACY("k056832", k056832_long_r, k056832_long_w)      // VIDEO REG (tilemap)
 	AM_RANGE(0x590000, 0x590007) AM_WRITE(unknown590000_w)                  // ??
 	AM_RANGE(0x5a0000, 0x5a005f) AM_DEVWRITE_LEGACY("k055555", k055555_long_w)                  // 055555: priority encoder
-	AM_RANGE(0x5b0000, 0x5b04ff) AM_DEVREADWRITE8("konami1", k054539_device, read, write, 0xff00ff00)
-	AM_RANGE(0x5b0000, 0x5b04ff) AM_DEVREADWRITE8("konami2", k054539_device, read, write, 0x00ff00ff)
+	AM_RANGE(0x5b0000, 0x5b04ff) AM_DEVREADWRITE8("k054539_1", k054539_device, read, write, 0xff00ff00)
+	AM_RANGE(0x5b0000, 0x5b04ff) AM_DEVREADWRITE8("k054539_2", k054539_device, read, write, 0x00ff00ff)
 	AM_RANGE(0x5c0000, 0x5c0003) AM_READ8(inp1_r, 0xffffffff)  //  DSW3,BTN3,BTN2,BTN1  // input port control (buttons and DIP switches)
 	AM_RANGE(0x5c8000, 0x5c8003) AM_READ8(inp2_r, 0xffffffff)  //  DSW1,DSW2,UNK2,UNK1  // input port control (DIP switches)
 	AM_RANGE(0x5d0000, 0x5d0003) AM_WRITE(light_ctrl_1_w)                   // light/coin blocker control
@@ -459,11 +416,11 @@ static ADDRESS_MAP_START( memory_map, AS_PROGRAM, 32, djmain_state )
 	AM_RANGE(0x803800, 0x803fff) AM_READ(obj_rom_r)                     // OBJECT ROM readthrough (for POST)
 	AM_RANGE(0xc00000, 0xc01fff) AM_DEVREADWRITE_LEGACY("k056832", k056832_ram_long_r, k056832_ram_long_w)  // VIDEO RAM (tilemap) (beatmania)
 	AM_RANGE(0xc02000, 0xc02047) AM_WRITE(unknownc02000_w)                  // ??
-	AM_RANGE(0xd00000, 0xd0000f) AM_READWRITE(ide_std_r, ide_std_w)             // IDE control regs (hiphopmania)
-	AM_RANGE(0xd4000c, 0xd4000f) AM_READWRITE(ide_alt_r, ide_alt_w)             // IDE status control reg (hiphopmania)
+	AM_RANGE(0xd00000, 0xd0000f) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0, write_cs0, 0xffffffff) // IDE control regs (hiphopmania)
+	AM_RANGE(0xd40000, 0xd4000f) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1, write_cs1, 0xffffffff) // IDE status control reg (hiphopmania)
 	AM_RANGE(0xe00000, 0xe01fff) AM_DEVREADWRITE_LEGACY("k056832", k056832_ram_long_r, k056832_ram_long_w)  // VIDEO RAM (tilemap) (hiphopmania)
-	AM_RANGE(0xf00000, 0xf0000f) AM_READWRITE(ide_std_r, ide_std_w)             // IDE control regs (beatmania)
-	AM_RANGE(0xf4000c, 0xf4000f) AM_READWRITE(ide_alt_r, ide_alt_w)             // IDE status control reg (beatmania)
+	AM_RANGE(0xf00000, 0xf0000f) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0, write_cs0, 0xffffffff) // IDE control regs (beatmania)
+	AM_RANGE(0xf40000, 0xf4000f) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1, write_cs1, 0xffffffff) // IDE status control reg (beatmania)
 ADDRESS_MAP_END
 
 
@@ -1397,19 +1354,17 @@ static const k054539_interface k054539_config =
 
 void djmain_state::machine_start()
 {
-	ide_controller_device *ide = (ide_controller_device *) machine().device("ide");
+	if (m_ide_master_password != NULL)
+		m_ide->ide_set_master_password(m_ide_master_password);
+	if (m_ide_user_password != NULL)
+		m_ide->ide_set_user_password(m_ide_user_password);
 
-	if (ide != NULL && m_ide_master_password != NULL)
-		ide->ide_set_master_password(m_ide_master_password);
-	if (ide != NULL && m_ide_user_password != NULL)
-		ide->ide_set_user_password(m_ide_user_password);
+	save_item(NAME(m_sndram_bank));
+	save_item(NAME(m_pending_vb_int));
+	save_item(NAME(m_v_ctrl));
+	save_item(NAME(m_obj_regs));
 
-	state_save_register_global(machine(), m_sndram_bank);
-	state_save_register_global(machine(), m_pending_vb_int);
-	state_save_register_global(machine(), m_v_ctrl);
-	state_save_register_global_array(machine(), m_obj_regs);
-
-	machine().save().register_postload(save_prepost_delegate(FUNC(sndram_set_bank), &machine()));
+	machine().save().register_postload(save_prepost_delegate(FUNC(djmain_state::sndram_set_bank), this));
 }
 
 
@@ -1417,10 +1372,10 @@ void djmain_state::machine_reset()
 {
 	/* reset sound ram bank */
 	m_sndram_bank = 0;
-	sndram_set_bank(machine());
+	sndram_set_bank();
 
 	/* reset the IDE controller */
-	machine().device("ide")->reset();
+	m_ide->reset();
 
 	/* reset LEDs */
 	set_led_status(machine(), 0, 1);
@@ -1456,7 +1411,7 @@ static MACHINE_CONFIG_START( djmain, djmain_state )
 
 
 	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF, djmain_state, ide_interrupt))
+	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(djmain_state, ide_interrupt))
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1475,12 +1430,12 @@ static MACHINE_CONFIG_START( djmain, djmain_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_K054539_ADD("konami1", 48000, k054539_config)
+	MCFG_K054539_ADD("k054539_1", 48000, k054539_config)
 	MCFG_SOUND_CONFIG(k054539_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_K054539_ADD("konami2", 48000, k054539_config)
+	MCFG_K054539_ADD("k054539_2", 48000, k054539_config)
 	MCFG_SOUND_CONFIG(k054539_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)

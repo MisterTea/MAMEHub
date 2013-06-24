@@ -91,7 +91,6 @@
 
 #include "emu.h"
 #include "includes/mbee.h"
-#include "formats/z80bin.h"
 
 #define XTAL_13_5MHz 13500000
 
@@ -614,8 +613,11 @@ static const floppy_interface mbee_floppy_interface =
 	NULL
 };
 
-static const mc6845_interface mbee_crtc = {
+
+static MC6845_INTERFACE( mbee_crtc )
+{
 	"screen",           /* name of screen */
+	false,
 	8,          /* number of dots per character */
 	NULL,
 	mbee_update_row,        /* handler to display a scanline */
@@ -627,8 +629,11 @@ static const mc6845_interface mbee_crtc = {
 	mbee_update_addr        /* handler to process transparent mode */
 };
 
-static const mc6845_interface mbeeic_crtc = {
+
+static MC6845_INTERFACE( mbeeic_crtc )
+{
 	"screen",           /* name of screen */
+	false,
 	8,          /* number of dots per character */
 	NULL,
 	mbeeic_update_row,      /* handler to display a scanline */
@@ -640,8 +645,10 @@ static const mc6845_interface mbeeic_crtc = {
 	mbee_update_addr        /* handler to process transparent mode */
 };
 
-static const mc6845_interface mbeeppc_crtc = {
+static MC6845_INTERFACE( mbeeppc_crtc )
+{
 	"screen",           /* name of screen */
+	false,
 	8,          /* number of dots per character */
 	NULL,
 	mbeeppc_update_row,     /* handler to display a scanline */
@@ -653,8 +660,10 @@ static const mc6845_interface mbeeppc_crtc = {
 	mbee_update_addr        /* handler to process transparent mode */
 };
 
-static const mc6845_interface mbee256_crtc = {
+static MC6845_INTERFACE( mbee256_crtc )
+{
 	"screen",           /* name of screen */
+	false,
 	8,          /* number of dots per character */
 	NULL,
 	mbeeppc_update_row,     /* handler to display a scanline */
@@ -692,17 +701,17 @@ static MACHINE_CONFIG_START( mbee, mbee_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
 	MCFG_MC6845_ADD("crtc", SY6545_1, XTAL_12MHz / 8, mbee_crtc)
-	MCFG_QUICKLOAD_ADD("quickload", mbee, "mwb,com", 2)
-	MCFG_QUICKLOAD_ADD("quickload2", mbee_z80bin, "bin", 2)
+	MCFG_QUICKLOAD_ADD("quickload", mbee_state, mbee, "mwb,com", 2)
+	MCFG_QUICKLOAD_ADD("quickload2", mbee_state, mbee_z80bin, "bin", 2)
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 MACHINE_CONFIG_END
 
 
@@ -733,17 +742,17 @@ static MACHINE_CONFIG_START( mbeeic, mbee_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
 	MCFG_MC6845_ADD("crtc", SY6545_1, XTAL_13_5MHz / 8, mbeeic_crtc)
-	MCFG_QUICKLOAD_ADD("quickload", mbee, "mwb,com", 2)
-	MCFG_QUICKLOAD_ADD("quickload2", mbee_z80bin, "bin", 2)
+	MCFG_QUICKLOAD_ADD("quickload", mbee_state, mbee, "mwb,com", 2)
+	MCFG_QUICKLOAD_ADD("quickload2", mbee_state, mbee_z80bin, "bin", 2)
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mbeepc, mbeeic )

@@ -103,7 +103,8 @@ class uapce_state : public pce_common_state
 {
 public:
 	uapce_state(const machine_config &mconfig, device_type type, const char *tag)
-		: pce_common_state(mconfig, type, tag) { }
+		: pce_common_state(mconfig, type, tag),
+		m_discrete(*this, "discrete") { }
 
 	UINT8 m_jamma_if_control_latch;
 	DECLARE_WRITE8_MEMBER(jamma_if_control_latch_w);
@@ -111,6 +112,7 @@ public:
 	DECLARE_READ8_MEMBER(jamma_if_read_dsw);
 	virtual UINT8 joy_read();
 	virtual void machine_reset();
+	required_device<discrete_device> m_discrete;
 };
 
 #define UAPCE_SOUND_EN  NODE_10
@@ -137,7 +139,7 @@ WRITE8_MEMBER(uapce_state::jamma_if_control_latch_w)
 
 	if ( diff & 0x40 )
 	{
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_RESET, (data & 0x40) ? CLEAR_LINE : ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_RESET, (data & 0x40) ? CLEAR_LINE : ASSERT_LINE);
 	}
 
 /* D5 : Connected to a TIP31 which may control the coin meter:
@@ -157,7 +159,7 @@ WRITE8_MEMBER(uapce_state::jamma_if_control_latch_w)
       752 Hz (D-3) square wave to be output on the common audio path.
       (1= Tone output ON, 0= Tone output OFF) */
 
-	discrete_sound_w(machine().device("discrete"), space, UAPCE_SOUND_EN, BIT(data,3));
+	discrete_sound_w(m_discrete, space, UAPCE_SOUND_EN, BIT(data,3));
 
 /* D2 : Not latched, though software writes to this bit like it is. */
 
@@ -221,7 +223,7 @@ UINT8 uapce_state::joy_read()
 	}
 	else
 	{
-		return machine().root_device().ioport("JOY" )->read() | 0x08;
+		return ioport("JOY" )->read() | 0x08;
 	}
 }
 

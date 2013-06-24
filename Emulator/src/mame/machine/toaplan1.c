@@ -41,7 +41,6 @@ static const UINT8 toaplan1_credits_for_coin[TOAPLAN1_REGION_OTHER+1][2][4] =
 
 INTERRUPT_GEN_MEMBER(toaplan1_state::toaplan1_interrupt)
 {
-
 	if (m_intenable)
 		device.execute().set_input_line(4, HOLD_LINE);
 }
@@ -57,7 +56,6 @@ WRITE16_MEMBER(toaplan1_state::toaplan1_intenable_w)
 
 WRITE16_MEMBER(toaplan1_state::demonwld_dsp_addrsel_w)
 {
-
 	/* This sets the main CPU RAM address the DSP should */
 	/*  read/write, via the DSP IO port 0 */
 	/* Top three bits of data need to be shifted left 9 places */
@@ -78,7 +76,7 @@ READ16_MEMBER(toaplan1_state::demonwld_dsp_r)
 	UINT16 input_data = 0;
 
 	switch (m_main_ram_seg) {
-		case 0xc00000: {address_space &mainspace = machine().device("maincpu")->memory().space(AS_PROGRAM);
+		case 0xc00000: {address_space &mainspace = m_maincpu->space(AS_PROGRAM);
 						input_data = mainspace.read_word(m_main_ram_seg + m_dsp_addr_w);
 						break;}
 		default:        logerror("DSP PC:%04x Warning !!! IO reading from %08x (port 1)\n", space.device().safe_pcbase(), m_main_ram_seg + m_dsp_addr_w);
@@ -93,7 +91,7 @@ WRITE16_MEMBER(toaplan1_state::demonwld_dsp_w)
 	m_dsp_execute = 0;
 	switch (m_main_ram_seg) {
 		case 0xc00000: {if ((m_dsp_addr_w < 3) && (data == 0)) m_dsp_execute = 1;
-						address_space &mainspace = machine().device("maincpu")->memory().space(AS_PROGRAM);
+						address_space &mainspace = m_maincpu->space(AS_PROGRAM);
 						mainspace.write_word(m_main_ram_seg + m_dsp_addr_w, data);
 						break;}
 		default:        logerror("DSP PC:%04x Warning !!! IO writing to %08x (port 1)\n", space.device().safe_pcbase(), m_main_ram_seg + m_dsp_addr_w);
@@ -117,7 +115,7 @@ WRITE16_MEMBER(toaplan1_state::demonwld_dsp_bio_w)
 	if (data == 0) {
 		if (m_dsp_execute) {
 			logerror("Turning 68000 on\n");
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 			m_dsp_execute = 0;
 		}
 		m_dsp_BIO = ASSERT_LINE;
@@ -126,35 +124,31 @@ WRITE16_MEMBER(toaplan1_state::demonwld_dsp_bio_w)
 
 READ16_MEMBER(toaplan1_state::demonwld_BIO_r)
 {
-
 	return m_dsp_BIO;
 }
 
 
-static void demonwld_dsp(running_machine &machine, int enable)
+void toaplan1_state::demonwld_dsp(int enable)
 {
-	toaplan1_state *state = machine.driver_data<toaplan1_state>();
-
-	state->m_dsp_on = enable;
+	m_dsp_on = enable;
 	if (enable)
 	{
 		logerror("Turning DSP on and 68000 off\n");
-		machine.device("dsp")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
-		machine.device("dsp")->execute().set_input_line(0, ASSERT_LINE); /* TMS32010 INT */
-		machine.device("maincpu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_dsp->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_dsp->set_input_line(0, ASSERT_LINE); /* TMS32010 INT */
+		m_maincpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	}
 	else
 	{
 		logerror("Turning DSP off\n");
-		machine.device("dsp")->execute().set_input_line(0, CLEAR_LINE); /* TMS32010 INT */
-		machine.device("dsp")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_dsp->set_input_line(0, CLEAR_LINE); /* TMS32010 INT */
+		m_dsp->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	}
 }
 
-static void demonwld_restore_dsp(running_machine &machine)
+void toaplan1_state::demonwld_restore_dsp()
 {
-	toaplan1_state *state = machine.driver_data<toaplan1_state>();
-	demonwld_dsp(machine, state->m_dsp_on);
+	demonwld_dsp(m_dsp_on);
 }
 
 WRITE16_MEMBER(toaplan1_state::demonwld_dsp_ctrl_w)
@@ -167,8 +161,8 @@ WRITE16_MEMBER(toaplan1_state::demonwld_dsp_ctrl_w)
 	{
 		switch (data)
 		{
-			case 0x00:  demonwld_dsp(machine(), 1); break;  /* Enable the INT line to the DSP */
-			case 0x01:  demonwld_dsp(machine(), 0); break;  /* Inhibit the INT line to the DSP */
+			case 0x00:  demonwld_dsp(1); break;  /* Enable the INT line to the DSP */
+			case 0x01:  demonwld_dsp(0); break;  /* Inhibit the INT line to the DSP */
 			default:    logerror("68000:%04x  Writing unknown command %08x to %08x\n",space.device().safe_pcbase() ,data ,0xe0000a + offset); break;
 		}
 	}
@@ -311,16 +305,14 @@ WRITE16_MEMBER(toaplan1_state::toaplan1_reset_sound)
 	{
 		logerror("PC:%04x  Resetting Sound CPU and Sound chip (%08x)\n", space.device().safe_pcbase(), data);
 		machine().device("ymsnd")->reset();
-		device_t *audiocpu = machine().device("audiocpu");
-		if (audiocpu != NULL && audiocpu->type() == Z80)
-			audiocpu->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+		if (m_audiocpu != NULL && m_audiocpu->type() == Z80)
+			m_audiocpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
 	}
 }
 
 
 WRITE8_MEMBER(toaplan1_state::rallybik_coin_w)
 {
-
 	switch (data) {
 		case 0x08: if (m_coin_count) { coin_counter_w(machine(), 0, 1); coin_counter_w(machine(), 0, 0); } break;
 		case 0x09: if (m_coin_count) { coin_counter_w(machine(), 2, 1); coin_counter_w(machine(), 2, 0); } break;
@@ -379,65 +371,55 @@ WRITE16_MEMBER(toaplan1_state::samesame_coin_w)
 
 MACHINE_RESET_MEMBER(toaplan1_state,toaplan1)
 {
-
 	m_intenable = 0;
 	m_coin_count = 0;
 	m_unk_reset_port = 0;
 	coin_lockout_global_w(machine(), 0);
 }
 
-void toaplan1_driver_savestate(running_machine &machine)
+void toaplan1_state::toaplan1_driver_savestate()
 {
-	toaplan1_state *state = machine.driver_data<toaplan1_state>();
-
-	state->save_item(NAME(state->m_intenable));
-	state->save_item(NAME(state->m_coin_count));
-	state->save_item(NAME(state->m_unk_reset_port));
+	save_item(NAME(m_intenable));
+	save_item(NAME(m_coin_count));
+	save_item(NAME(m_unk_reset_port));
 }
 
 MACHINE_RESET_MEMBER(toaplan1_state,zerowing)/* Hack for ZeroWing and OutZone. See the video driver */
 {
-
 	MACHINE_RESET_CALL_MEMBER(toaplan1);
 	m_unk_reset_port = 1;
 }
 
 MACHINE_RESET_MEMBER(toaplan1_state,demonwld)
 {
-
 	MACHINE_RESET_CALL_MEMBER(toaplan1);
 	m_dsp_addr_w = 0;
 	m_main_ram_seg = 0;
 	m_dsp_execute = 0;
 }
 
-void demonwld_driver_savestate(running_machine &machine)
+void toaplan1_state::demonwld_driver_savestate()
 {
-	toaplan1_state *state = machine.driver_data<toaplan1_state>();
-
-	state->save_item(NAME(state->m_dsp_on));
-	state->save_item(NAME(state->m_dsp_addr_w));
-	state->save_item(NAME(state->m_main_ram_seg));
-	state->save_item(NAME(state->m_dsp_BIO));
-	state->save_item(NAME(state->m_dsp_execute));
-	machine.save().register_postload(save_prepost_delegate(FUNC(demonwld_restore_dsp), &machine));
+	save_item(NAME(m_dsp_on));
+	save_item(NAME(m_dsp_addr_w));
+	save_item(NAME(m_main_ram_seg));
+	save_item(NAME(m_dsp_BIO));
+	save_item(NAME(m_dsp_execute));
+	machine().save().register_postload(save_prepost_delegate(FUNC(toaplan1_state::demonwld_restore_dsp), this));
 }
 
 MACHINE_RESET_MEMBER(toaplan1_state,vimana)
 {
-
 	MACHINE_RESET_CALL_MEMBER(toaplan1);
 	m_vimana_coins[0] = m_vimana_coins[1] = 0;
 	m_vimana_credits = 0;
 	m_vimana_latch = 0;
 }
 
-void vimana_driver_savestate(running_machine &machine)
+void toaplan1_state::vimana_driver_savestate()
 {
-	toaplan1_state *state = machine.driver_data<toaplan1_state>();
-
-	state->save_item(NAME(state->m_vimana_coins[0]));
-	state->save_item(NAME(state->m_vimana_coins[1]));
-	state->save_item(NAME(state->m_vimana_credits));
-	state->save_item(NAME(state->m_vimana_latch));
+	save_item(NAME(m_vimana_coins[0]));
+	save_item(NAME(m_vimana_coins[1]));
+	save_item(NAME(m_vimana_credits));
+	save_item(NAME(m_vimana_latch));
 }

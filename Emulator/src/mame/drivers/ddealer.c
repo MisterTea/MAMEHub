@@ -1,63 +1,65 @@
-/*
-Double Dealer (c)NMK 1991
+/*********************************************************************************************************
 
-driver by Angelo Salese & David Haywood,based on early work by Tomasz Slanina
+    Double Dealer (c)NMK 1991
 
-Appears to be a down-grade of the nmk16 HW
+    driver by Angelo Salese & David Haywood, based on early work by Tomasz Slanina
 
-TODO:
--When you use the "gun card" the game gives "minus" points,but points are always added,inaccurate protection?
--Understand better the video emulation and convert it to tilemaps;
--A Double Dealer manual is needed for the coinage settings and coin/credit simulation;
--Decap + emulate MCU, required if the random number generation is going to be accurate;
+    Appears to be a down-grade of the nmk16 HW
 
---
+    TODO:
+    -When you use the "gun card" the game gives "minus" points,but points are always added,inaccurate protection?
+    -Understand better the video emulation and convert it to tilemaps;
+    -A Double Dealer manual is needed for the coinage settings and coin/credit simulation;
+    -Decap + emulate MCU, required if the random number generation is going to be accurate;
 
-pcb marked  GD91071
+==========================================================================================================
+    --
 
-68000P10
-YM2203C
-91071-3 (Mask ROM)
-NMK-110 8131 ( Mitsubishi M50747 MCU ?)
-NMK 901
-NMK 902
-NMK 903 x2
-82S135N ("5")
-82S129N ("6")
-xtals 16.000 MHz and  6.000 MHz
-DSW x2
+    pcb marked  GD91071
 
---
+    68000P10
+    YM2203C
+    91071-3 (Mask ROM)
+    NMK-110 8131 ( Mitsubishi M50747 MCU ?)
+    NMK 901
+    NMK 902
+    NMK 903 x2
+    82S135N ("5")
+    82S129N ("6")
+    xtals 16.000 MHz and  6.000 MHz
+    DSW x2
 
-Few words about protection:
+    --
 
-- Work RAM at $fe000 - $fffff is shared with MCU . Maybe whole $f0000-$fffff is shared ...
-- After boot, game writes random-looking data to work RAM:
+    Few words about protection:
 
- 00052C: 33FC 1234 000F E086        move.w  #$1234, $fe086.l
- 000534: 33FC 5678 000F E164        move.w  #$5678, $fe164.l
- 00053C: 33FC 9CA3 000F E62E        move.w  #$9ca3, $fe62e.l
- 000544: 33FC ABA2 000F E734        move.w  #$aba2, $fe734.l
- 00054C: 33FC B891 000F E828        move.w  #$b891, $fe828.l
- 000554: 33FC C760 000F E950        move.w  #$c760, $fe950.l
- 00055C: 33FC D45F 000F EA7C        move.w  #$d45f, $fea7c.l
- 000564: 33FC E32E 000F ED4A        move.w  #$e32e, $fed4a.l
+    - Work RAM at $fe000 - $fffff is shared with MCU . Maybe whole $f0000-$fffff is shared ...
+    - After boot, game writes random-looking data to work RAM:
 
-  Some (or maybe all ?) of above enables random generator at $fe010 - $fe017
+    00052C: 33FC 1234 000F E086        move.w  #$1234, $fe086.l
+    000534: 33FC 5678 000F E164        move.w  #$5678, $fe164.l
+    00053C: 33FC 9CA3 000F E62E        move.w  #$9ca3, $fe62e.l
+    000544: 33FC ABA2 000F E734        move.w  #$aba2, $fe734.l
+    00054C: 33FC B891 000F E828        move.w  #$b891, $fe828.l
+    000554: 33FC C760 000F E950        move.w  #$c760, $fe950.l
+    00055C: 33FC D45F 000F EA7C        move.w  #$d45f, $fea7c.l
+    000564: 33FC E32E 000F ED4A        move.w  #$e32e, $fed4a.l
 
-- There's also MCU response (write/read/test) test just after these writes.
-  (probably data used in the check depends on above writes). It's similar to
-  jalmah.c tests, but num of responses is different, and  shared ram is
-  used to communicate with MCU
+    Some (or maybe all ?) of above enables random generator at $fe010 - $fe017
 
-- After last check (or maybe durning tests ... no idea)
-  MCU writes $4ef900000604 (jmp $604) to $fe000 and game jumps to this address.
+    - There's also MCU response (write/read/test) test just after these writes.
+      (probably data used in the check depends on above writes). It's similar to
+      jalmah.c tests, but num of responses is different, and  shared ram is
+      used to communicate with MCU
 
-- code at $604  writes $20.w to $fe018 and $1.w to $fe01e.
-  As result shared ram $fe000 - $fe007 is cleared.
+    - After last check (or maybe durning tests ... no idea)
+      MCU writes $4ef900000604 (jmp $604) to $fe000 and game jumps to this address.
 
-  Also many, many other reads/writes  from/to shared mem.
-  Few checks every interrupt:
+    - code at $604  writes $20.w to $fe018 and $1.w to $fe01e.
+      As result shared ram $fe000 - $fe007 is cleared.
+
+    Also many, many other reads/writes  from/to shared mem.
+    Few checks every interrupt:
 
     interrupt, lvl1
 
@@ -106,7 +108,7 @@ Few words about protection:
      000A6C: 33C3 000F 0014             move.w  D3, $f0014.l
      000A72: 4E75                       rts
 
-*/
+*********************************************************************************************************/
 
 
 #include "emu.h"
@@ -117,7 +119,7 @@ class ddealer_state : public driver_device
 {
 public:
 	ddealer_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vregs(*this, "vregs"),
 		m_left_fg_vram_top(*this, "left_fg_vratop"),
 		m_right_fg_vram_top(*this, "right_fg_vratop"),
@@ -125,7 +127,8 @@ public:
 		m_right_fg_vram_bottom(*this, "right_fg_vrabot"),
 		m_back_vram(*this, "back_vram"),
 		m_work_ram(*this, "work_ram"),
-		m_mcu_shared_ram(*this, "mcu_shared_ram"){ }
+		m_mcu_shared_ram(*this, "mcu_shared_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_vregs;
@@ -159,6 +162,7 @@ public:
 	UINT32 screen_update_ddealer(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ddealer_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(ddealer_mcu_sim);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -310,10 +314,9 @@ UINT32 ddealer_state::screen_update_ddealer(screen_device &screen, bitmap_ind16 
 
 TIMER_DEVICE_CALLBACK_MEMBER(ddealer_state::ddealer_mcu_sim)
 {
-
 	/*coin/credit simulation*/
 	/*$fe002 is used,might be for multiple coins for one credit settings.*/
-	m_coin_input = (~(machine().root_device().ioport("IN0")->read()));
+	m_coin_input = (~(ioport("IN0")->read()));
 
 	if (m_coin_input & 0x01)//coin 1
 	{
@@ -399,8 +402,7 @@ Protection handling,identical to Hacha Mecha Fighter / Thunder Dragon with diffe
 		m_mcu_shared_ram[(_offs_+2-0x10)/2] = 0x4ef9;/*JMP*/\
 		m_mcu_shared_ram[(_offs_+4-0x10)/2] = 0x0000;/*HI-DWORD*/\
 		m_mcu_shared_ram[(_offs_+6-0x10)/2] = _pc_;  /*LO-DWORD*/\
-	} \
-
+	}
 #define PROT_INPUT(_offs_,_protvalue_,_protinput_,_input_) \
 	if(m_mcu_shared_ram[_offs_] == _protvalue_) \
 	{\
@@ -471,7 +473,7 @@ static ADDRESS_MAP_START( ddealer, AS_PROGRAM, 16, ddealer_state )
 	AM_RANGE(0x080002, 0x080003) AM_READ_PORT("IN1")
 	AM_RANGE(0x080008, 0x080009) AM_READ_PORT("DSW1")
 	AM_RANGE(0x08000a, 0x08000b) AM_READ_PORT("UNK")
-	AM_RANGE(0x084000, 0x084003) AM_DEVWRITE8_LEGACY("ymsnd", ym2203_w, 0x00ff) // ym ?
+	AM_RANGE(0x084000, 0x084003) AM_DEVWRITE8("ymsnd", ym2203_device, write, 0x00ff) // ym ?
 	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram") // palette ram
 	AM_RANGE(0x08c000, 0x08cfff) AM_RAM_WRITE(ddealer_vregs_w) AM_SHARE("vregs") // palette ram
 
@@ -603,7 +605,6 @@ GFXDECODE_END
 
 void ddealer_state::machine_start()
 {
-
 	save_item(NAME(m_respcount));
 	save_item(NAME(m_flipscreen));
 	save_item(NAME(m_input_pressed));
@@ -612,7 +613,6 @@ void ddealer_state::machine_start()
 
 void ddealer_state::machine_reset()
 {
-
 	m_respcount = 0;
 	m_flipscreen = 0;
 	m_input_pressed = 0;
@@ -677,7 +677,7 @@ READ16_MEMBER(ddealer_state::ddealer_mcu_r)
 
 DRIVER_INIT_MEMBER(ddealer_state,ddealer)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xfe01c, 0xfe01d, read16_delegate(FUNC(ddealer_state::ddealer_mcu_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xfe01c, 0xfe01d, read16_delegate(FUNC(ddealer_state::ddealer_mcu_r), this));
 }
 
 ROM_START( ddealer )

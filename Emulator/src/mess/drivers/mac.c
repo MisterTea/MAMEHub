@@ -51,7 +51,7 @@
 #include "machine/ncr5380.h"
 #include "machine/applefdc.h"
 #include "machine/swim.h"
-#include "devices/sonydriv.h"
+#include "machine/sonydriv.h"
 #include "formats/ap_dsk35.h"
 #include "machine/ram.h"
 #include "machine/scsibus.h"
@@ -94,7 +94,6 @@
 
 INTERRUPT_GEN_MEMBER(mac_state::mac_rbv_vbl)
 {
-
 	m_rbv_regs[2] &= ~0x40; // set vblank signal
 	m_rbv_vbltime = 10;
 
@@ -127,8 +126,8 @@ WRITE32_MEMBER( mac_state::rbv_ramdac_w )
 			// for portrait display, force monochrome by using the blue channel
 			if (m_model != MODEL_MAC_CLASSIC_II)
 			{
-				// Color Classic has no MONTYPE so the safe read gets us 512x384, which is right
-				if (space.machine().root_device().ioport("MONTYPE")->read_safe(2) == 1)
+				// Color Classic has no MONTYPE so the default gets us 512x384, which is right
+				if ((m_montype ? m_montype->read() : 2) == 1)
 				{
 					palette_set_color(space.machine(), m_rbv_clutoffs, MAKE_RGB(m_rbv_colors[2], m_rbv_colors[2], m_rbv_colors[2]));
 					m_rbv_palette[m_rbv_clutoffs] = MAKE_RGB(m_rbv_colors[2], m_rbv_colors[2], m_rbv_colors[2]);
@@ -163,8 +162,8 @@ WRITE32_MEMBER( mac_state::ariel_ramdac_w ) // this is for the "Ariel" style RAM
 			// for portrait display, force monochrome by using the blue channel
 			if (m_model != MODEL_MAC_CLASSIC_II)
 			{
-				// Color Classic has no MONTYPE so the safe read gets us 512x384, which is right
-				if (space.machine().root_device().ioport("MONTYPE")->read_safe(2) == 1)
+				// Color Classic has no MONTYPE so the default gets us 512x384, which is right
+				if ((m_montype ? m_montype->read() : 2) == 1)
 				{
 					palette_set_color(space.machine(), m_rbv_clutoffs, MAKE_RGB(m_rbv_colors[2], m_rbv_colors[2], m_rbv_colors[2]));
 					m_rbv_palette[m_rbv_clutoffs] = MAKE_RGB(m_rbv_colors[2], m_rbv_colors[2], m_rbv_colors[2]);
@@ -196,7 +195,7 @@ READ8_MEMBER( mac_state::mac_sonora_vctl_r )
 	if (offset == 2)
 	{
 //        printf("Sonora: read monitor ID at PC=%x\n", m_maincpu->pc());
-		return (space.machine().root_device().ioport("MONTYPE")->read_safe(6)<<4);
+		return (m_montype->read_safe(6)<<4);
 	}
 
 	return m_sonora_vctl[offset];
@@ -252,7 +251,7 @@ READ8_MEMBER ( mac_state::mac_rbv_r )
 		if (offset == 0x10)
 		{
 			data &= ~0x38;
-			data |= (space.machine().root_device().ioport("MONTYPE")->read_safe(2)<<3);
+			data |= ((m_montype ? m_montype->read() : 2)<<3);
 //            printf("rbv_r montype: %02x (PC %x)\n", data, space.cpu->safe_pc());
 		}
 
@@ -446,8 +445,8 @@ WRITE8_MEMBER(mac_state::oss_w)
 
 READ32_MEMBER(mac_state::buserror_r)
 {
-	machine().device("maincpu")->execute().set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
-	machine().device("maincpu")->execute().set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
+	m_maincpu->set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
+	m_maincpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
 	return 0;
 }
 
@@ -829,7 +828,7 @@ static const applefdc_interface mac_iwm_interface =
 
 static const struct NCR5380interface macplus_5380intf =
 {
-	mac_scsi_irq    // IRQ (unconnected on the Mac Plus)
+	DEVCB_DRIVER_LINE_MEMBER(mac_state,mac_scsi_irq)    // IRQ (unconnected on the Mac Plus)
 };
 
 static const struct NCR539Xinterface mac_539x_intf =
@@ -1053,12 +1052,12 @@ static MACHINE_CONFIG_START( macii, mac_state )
 	/* devices */
 	MCFG_RTC3430042_ADD("rtc", XTAL_32_768kHz)
 	MCFG_NUBUS_BUS_ADD("nubus", "maincpu", nubus_intf)
-	MCFG_NUBUS_SLOT_ADD("nubus","nb9", mac_nubus_cards, "48gc", NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nba", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbb", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbc", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nb9", mac_nubus_cards, "48gc")
+	MCFG_NUBUS_SLOT_ADD("nubus","nba", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbb", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbc", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL)
 
 	MCFG_SCSIBUS_ADD("scsi")
 	MCFG_SCSIDEV_ADD("scsi:harddisk1", SCSIHD, SCSI_ID_6)
@@ -1103,12 +1102,12 @@ static MACHINE_CONFIG_START( maciifx, mac_state )
 	/* devices */
 	MCFG_RTC3430042_ADD("rtc", XTAL_32_768kHz)
 	MCFG_NUBUS_BUS_ADD("nubus", "maincpu", nubus_intf)
-	MCFG_NUBUS_SLOT_ADD("nubus","nb9", mac_nubus_cards, "48gc", NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nba", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbb", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbc", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nb9", mac_nubus_cards, "48gc")
+	MCFG_NUBUS_SLOT_ADD("nubus","nba", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbb", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbc", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL)
 
 	MCFG_SCSIBUS_ADD("scsi")
 	MCFG_SCSIDEV_ADD("scsi:harddisk1", SCSIHD, SCSI_ID_6)
@@ -1163,7 +1162,7 @@ static MACHINE_CONFIG_DERIVED( maclc, macii )
 	MCFG_NUBUS_BUS_REMOVE("nubus")
 
 	MCFG_NUBUS_BUS_ADD("pds", "maincpu", nubus_intf)
-	MCFG_NUBUS_SLOT_ADD("pds","lcpds", mac_lcpds_cards, NULL, NULL)
+	MCFG_NUBUS_SLOT_ADD("pds","lcpds", mac_lcpds_cards, NULL)
 
 	MCFG_ASC_REPLACE("asc", C15M, ASC_TYPE_V8, mac_asc_irq)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
@@ -1232,9 +1231,9 @@ static MACHINE_CONFIG_DERIVED( maciivx, maclc )
 	MCFG_SCREEN_UPDATE_DRIVER(mac_state, screen_update_macrbvvram)
 
 	MCFG_NUBUS_BUS_ADD("nubus", "maincpu", nubus_intf)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbc", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbc", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL)
 
 	MCFG_RAM_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("4M")
@@ -1256,9 +1255,9 @@ static MACHINE_CONFIG_DERIVED( maciivi, maclc )
 	MCFG_SCREEN_UPDATE_DRIVER(mac_state, screen_update_macrbvvram)
 
 	MCFG_NUBUS_BUS_ADD("nubus", "maincpu", nubus_intf)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbc", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbc", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL)
 
 	MCFG_RAM_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("4M")
@@ -1316,7 +1315,7 @@ static MACHINE_CONFIG_START( macse30, mac_state )
 	MCFG_NCR5380_ADD("scsi:ncr5380", C7M, macplus_5380intf)
 
 	MCFG_NUBUS_BUS_ADD("pds", "maincpu", nubus_intf)
-	MCFG_NUBUS_SLOT_ADD("pds","pds030", mac_pds030_cards, NULL, NULL)
+	MCFG_NUBUS_SLOT_ADD("pds","pds030", mac_pds030_cards, NULL)
 
 	MCFG_SWIM_ADD("fdc", mac_iwm_interface)
 	MCFG_LEGACY_FLOPPY_SONY_2_DRIVES_ADD(mac_floppy_interface)
@@ -1645,8 +1644,8 @@ static MACHINE_CONFIG_START( macqd700, mac_state )
 	/* devices */
 	MCFG_RTC3430042_ADD("rtc", XTAL_32_768kHz)
 	MCFG_NUBUS_BUS_ADD("nubus", "maincpu", nubus_intf)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL, NULL)
-	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbd", mac_nubus_cards, NULL)
+	MCFG_NUBUS_SLOT_ADD("nubus","nbe", mac_nubus_cards, NULL)
 
 	MCFG_IWM_ADD("fdc", mac_iwm_interface)
 	MCFG_LEGACY_FLOPPY_SONY_2_DRIVES_ADD(mac_floppy_interface)

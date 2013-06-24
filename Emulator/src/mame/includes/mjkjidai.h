@@ -2,12 +2,13 @@ class mjkjidai_state : public driver_device
 {
 public:
 	mjkjidai_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_nvram(*this, "nvram"),
 		m_spriteram1(*this, "spriteram1"),
 		m_spriteram2(*this, "spriteram2"),
 		m_spriteram3(*this, "spriteram3"),
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_nvram;
 	required_shared_ptr<UINT8> m_spriteram1;
@@ -30,4 +31,6 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_mjkjidai(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };

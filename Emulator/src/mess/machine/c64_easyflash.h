@@ -36,11 +36,8 @@ public:
 	virtual machine_config_constructor device_mconfig_additions() const;
 	virtual ioport_constructor device_input_ports() const;
 
-	DECLARE_INPUT_CHANGED_MEMBER( reset );
-
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c64_easyflash"; }
 	virtual void device_start();
 	virtual void device_reset();
 

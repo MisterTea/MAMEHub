@@ -70,8 +70,8 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, gng_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
 	AM_RANGE(0xc800, 0xc800) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0xe002, 0xe003) AM_DEVWRITE_LEGACY("ym2", ym2203_w)
+	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0xe002, 0xe003) AM_DEVWRITE("ym2", ym2203_device, write)
 ADDRESS_MAP_END
 
 
@@ -302,7 +302,6 @@ GFXDECODE_END
 
 void gng_state::machine_start()
 {
-
 	UINT8 *rombase = memregion("maincpu")->base();
 	membank("bank1")->configure_entries(0, 4, &rombase[0x10000], 0x2000);
 	membank("bank1")->configure_entry(4, &rombase[0x4000]);
@@ -313,7 +312,6 @@ void gng_state::machine_start()
 
 void gng_state::machine_reset()
 {
-
 	m_scrollx[0] = 0;
 	m_scrollx[1] = 0;
 	m_scrolly[0] = 0;
@@ -764,7 +762,7 @@ READ8_MEMBER(gng_state::diamond_hack_r)
 
 DRIVER_INIT_MEMBER(gng_state,diamond)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x6000, 0x6000, read8_delegate(FUNC(gng_state::diamond_hack_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x6000, 0x6000, read8_delegate(FUNC(gng_state::diamond_hack_r),this));
 }
 
 

@@ -2,9 +2,10 @@ class zac2650_state : public driver_device
 {
 public:
 	zac2650_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_s2636_0_ram(*this, "s2636_0_ram"){ }
+		m_s2636_0_ram(*this, "s2636_0_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_s2636_0_ram;
@@ -22,4 +23,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_tinvader(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	int SpriteCollision(int first,int second);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };

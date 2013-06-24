@@ -37,7 +37,7 @@
 /* Result of the last ADC channel sampled */
 
 /* 8254 timer config */
-const struct pit8253_config vertigo_pit8254_config =
+const struct pit8253_interface vertigo_pit8254_config =
 {
 	{
 		{
@@ -70,27 +70,26 @@ void vertigo_update_irq(device_t *device)
 {
 	vertigo_state *state = device->machine().driver_data<vertigo_state>();
 	if (state->m_irq_state < 7)
-		device->machine().device("maincpu")->execute().set_input_line(state->m_irq_state ^ 7, CLEAR_LINE);
+		state->m_maincpu->set_input_line(state->m_irq_state ^ 7, CLEAR_LINE);
 
 	state->m_irq_state = ttl74148_output_r(device);
 
 	if (state->m_irq_state < 7)
-		device->machine().device("maincpu")->execute().set_input_line(state->m_irq_state ^ 7, ASSERT_LINE);
+		state->m_maincpu->set_input_line(state->m_irq_state ^ 7, ASSERT_LINE);
 }
 
 
-static void update_irq_encoder(running_machine &machine, int line, int state)
+void vertigo_state::update_irq_encoder(int line, int state)
 {
-	vertigo_state *drvstate = machine.driver_data<vertigo_state>();
-	ttl74148_input_line_w(drvstate->m_ttl74148, line, !state);
-	ttl74148_update(drvstate->m_ttl74148);
+	ttl74148_input_line_w(m_ttl74148, line, !state);
+	ttl74148_update(m_ttl74148);
 }
 
 
 WRITE_LINE_MEMBER(vertigo_state::v_irq4_w)
 {
-	update_irq_encoder(machine(), INPUT_LINE_IRQ4, state);
-	vertigo_vproc(machine(), machine().device<cpu_device>("maincpu")->attotime_to_cycles(machine().time() - m_irq4_time), state);
+	update_irq_encoder(INPUT_LINE_IRQ4, state);
+	vertigo_vproc(m_maincpu->attotime_to_cycles(machine().time() - m_irq4_time), state);
 	m_irq4_time = machine().time();
 }
 
@@ -98,9 +97,9 @@ WRITE_LINE_MEMBER(vertigo_state::v_irq4_w)
 WRITE_LINE_MEMBER(vertigo_state::v_irq3_w)
 {
 	if (state)
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 
-	update_irq_encoder(machine(), INPUT_LINE_IRQ3, state);
+	update_irq_encoder(INPUT_LINE_IRQ3, state);
 }
 
 
@@ -120,21 +119,21 @@ READ16_MEMBER(vertigo_state::vertigo_io_convert)
 	else
 		m_adc_result = ioport(adcnames[offset])->read();
 
-	update_irq_encoder(machine(), INPUT_LINE_IRQ2, ASSERT_LINE);
+	update_irq_encoder(INPUT_LINE_IRQ2, ASSERT_LINE);
 	return 0;
 }
 
 
 READ16_MEMBER(vertigo_state::vertigo_io_adc)
 {
-	update_irq_encoder(machine(), INPUT_LINE_IRQ2, CLEAR_LINE);
+	update_irq_encoder(INPUT_LINE_IRQ2, CLEAR_LINE);
 	return m_adc_result;
 }
 
 
 READ16_MEMBER(vertigo_state::vertigo_coin_r)
 {
-	update_irq_encoder(machine(), INPUT_LINE_IRQ6, CLEAR_LINE);
+	update_irq_encoder(INPUT_LINE_IRQ6, CLEAR_LINE);
 	return (ioport("COIN")->read());
 }
 
@@ -142,8 +141,8 @@ READ16_MEMBER(vertigo_state::vertigo_coin_r)
 INTERRUPT_GEN_MEMBER(vertigo_state::vertigo_interrupt)
 {
 	/* Coin inputs cause IRQ6 */
-	if ((machine().root_device().ioport("COIN")->read() & 0x7) < 0x7)
-		update_irq_encoder(machine(), INPUT_LINE_IRQ6, ASSERT_LINE);
+	if ((ioport("COIN")->read() & 0x7) < 0x7)
+		update_irq_encoder(INPUT_LINE_IRQ6, ASSERT_LINE);
 }
 
 
@@ -158,9 +157,9 @@ WRITE16_MEMBER(vertigo_state::vertigo_wsot_w)
 {
 	/* Reset sound cpu */
 	if ((data & 2) == 0)
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 	else
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 }
 
 
@@ -198,15 +197,14 @@ READ16_MEMBER(vertigo_state::vertigo_sio_r)
 
 void vertigo_state::machine_start()
 {
-
 	m_custom = machine().device("custom");
 	m_ttl74148 = machine().device("74148");
 
-	state_save_register_global(machine(), m_irq_state);
-	state_save_register_global(machine(), m_adc_result);
-	state_save_register_global(machine(), m_irq4_time);
+	save_item(NAME(m_irq_state));
+	save_item(NAME(m_adc_result));
+	save_item(NAME(m_irq4_time));
 
-	vertigo_vproc_init(machine());
+	vertigo_vproc_init();
 }
 
 void vertigo_state::machine_reset()
@@ -219,7 +217,7 @@ void vertigo_state::machine_reset()
 		ttl74148_input_line_w(m_ttl74148, i, 1);
 
 	ttl74148_update(m_ttl74148);
-	vertigo_vproc_reset(machine());
+	vertigo_vproc_reset();
 
 	m_irq4_time = machine().time();
 	m_irq_state = 7;

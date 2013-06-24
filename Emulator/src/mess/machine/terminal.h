@@ -51,7 +51,7 @@ class generic_terminal_device :
 	public terminal_interface
 {
 public:
-	generic_terminal_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	generic_terminal_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	generic_terminal_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	DECLARE_WRITE8_MEMBER(write) { term_write(data); }
 	DECLARE_WRITE8_MEMBER(kbd_put);
@@ -60,6 +60,9 @@ public:
 	virtual ioport_constructor device_input_ports() const;
 	virtual machine_config_constructor device_mconfig_additions() const;
 protected:
+	optional_ioport m_io_term_frame;
+	required_ioport m_io_term_conf;
+
 	virtual void term_write(UINT8 data);
 	virtual void device_start();
 	virtual void device_reset();
@@ -93,6 +96,7 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER(rx_w) { m_tbit = state; check_for_start(state); }
 	DECLARE_READ_LINE_MEMBER(tx_r);
+	virtual void tx(UINT8 state) { rx_w(state); }
 	virtual ioport_constructor device_input_ports() const;
 
 	DECLARE_INPUT_CHANGED_MEMBER(update_frame);

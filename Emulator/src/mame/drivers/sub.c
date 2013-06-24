@@ -116,12 +116,14 @@ class sub_state : public driver_device
 {
 public:
 	sub_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_attr(*this, "attr"),
 		m_vid(*this, "vid"),
 		m_spriteram(*this, "spriteram"),
 		m_spriteram2(*this, "spriteram2"),
-		m_scrolly(*this, "scrolly"){ }
+		m_scrolly(*this, "scrolly"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu") { }
 
 	required_shared_ptr<UINT8> m_attr;
 	required_shared_ptr<UINT8> m_vid;
@@ -135,6 +137,8 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_sub(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(subm_sound_irq);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 };
 
 void sub_state::video_start()
@@ -248,12 +252,11 @@ ADDRESS_MAP_END
 WRITE8_MEMBER(sub_state::subm_to_sound_w)
 {
 	soundlatch_byte_w(space, 0, data & 0xff);
-	machine().device("soundcpu")->execute().set_input_line(0, HOLD_LINE);
+	m_soundcpu->set_input_line(0, HOLD_LINE);
 }
 
 WRITE8_MEMBER(sub_state::nmi_mask_w)
 {
-
 	m_nmi_en = data & 1;
 }
 
@@ -271,8 +274,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( subm_sound_io, AS_IO, 8, sub_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READWRITE(soundlatch_byte_r, soundlatch2_byte_w) // to/from main CPU
-	AM_RANGE(0x40, 0x41) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r, ay8910_address_data_w)
-	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r, ay8910_address_data_w)
+	AM_RANGE(0x40, 0x41) AM_DEVREADWRITE("ay1", ay8910_device, data_r, address_data_w)
+	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE("ay2", ay8910_device, data_r, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -389,9 +392,9 @@ GFXDECODE_END
 
 void sub_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
-	UINT8* lookup = machine().root_device().memregion("proms2")->base();
+	UINT8* lookup = memregion("proms2")->base();
 
 	/* allocate the colortable */
 	machine().colortable = colortable_alloc(machine(), 0x100);
@@ -421,9 +424,8 @@ void sub_state::palette_init()
 
 INTERRUPT_GEN_MEMBER(sub_state::subm_sound_irq)
 {
-
 	if(m_nmi_en)
-		machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static MACHINE_CONFIG_START( sub, sub_state )

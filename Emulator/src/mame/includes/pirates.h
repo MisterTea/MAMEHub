@@ -1,13 +1,19 @@
+#include "machine/eeprom.h"
+#include "sound/okim6295.h"
+
 class pirates_state : public driver_device
 {
 public:
 	pirates_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_scroll(*this, "scroll"),
 		m_tx_tileram(*this, "tx_tileram"),
 		m_fg_tileram(*this, "fg_tileram"),
-		m_bg_tileram(*this, "bg_tileram"){ }
+		m_bg_tileram(*this, "bg_tileram"),
+		m_maincpu(*this, "maincpu"),
+		m_eeprom(*this, "eeprom"),
+		m_oki(*this, "oki") { }
 
 	required_shared_ptr<UINT16> m_spriteram;
 	required_shared_ptr<UINT16> m_scroll;
@@ -30,4 +36,12 @@ public:
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_pirates(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void pirates_decrypt_68k();
+	void pirates_decrypt_p();
+	void pirates_decrypt_s();
+	void pirates_decrypt_oki();
+	required_device<cpu_device> m_maincpu;
+	required_device<eeprom_device> m_eeprom;
+	required_device<okim6295_device> m_oki;
 };

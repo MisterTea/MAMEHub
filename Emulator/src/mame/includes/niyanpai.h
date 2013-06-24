@@ -1,10 +1,19 @@
+#include "sound/dac.h"
 #define VRAM_MAX    3
 
 class niyanpai_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_BLITTER
+	};
+
 	niyanpai_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu"),
+		m_dac1(*this, "dac1"),
+		m_dac2(*this, "dac2") { }
 
 	int m_musobana_inputport;
 	int m_musobana_outcoin_flag;
@@ -81,5 +90,18 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_niyanpai(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(niyanpai_interrupt);
-	TIMER_CALLBACK_MEMBER(blitter_timer_callback);
+	int niyanpai_blitter_r(int vram, int offset);
+	void niyanpai_blitter_w(int vram, int offset, int data);
+	void niyanpai_clutsel_w(int vram, int data);
+	void niyanpai_clut_w(int vram, int offset, int data);
+	void niyanpai_vramflip(int vram);
+	void update_pixel(int vram, int x, int y);
+	void niyanpai_gfxdraw(int vram);
+	void niyanpai_soundbank_w(int data);
+	required_device<cpu_device> m_maincpu;
+	required_device<dac_device> m_dac1;
+	required_device<dac_device> m_dac2;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

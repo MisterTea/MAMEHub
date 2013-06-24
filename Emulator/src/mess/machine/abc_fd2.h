@@ -43,7 +43,6 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "abc_fd2"; }
 
 	// device_abcbus_interface overrides
 	virtual void abcbus_cs(UINT8 data);
@@ -55,6 +54,7 @@ private:
 	required_device<fd1771_t> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
+	required_memory_region m_rom;
 };
 
 

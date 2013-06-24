@@ -426,6 +426,9 @@ class n64_rdp : public poly_manager<UINT32, rdp_poly_state, 8, 32000>
 				m_norm_point_rom[i] = (normpoint[(i << 1) + 1] << 8) | normpoint[i << 1];
 				m_norm_slope_rom[i] = (normslope[(i << 1) + 1] << 8) | normslope[i << 1];
 			}
+
+			memset(m_tiles, 0, 8 * sizeof(N64Tile));
+			memset(m_cmd_data, 0, sizeof(m_cmd_data));
 		}
 
 		void        ProcessList();

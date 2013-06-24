@@ -95,10 +95,9 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(yunsung8_state::yunsung8_sound_bankswitch_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device, data & 0x20);
+	m_msm->reset_w(data & 0x20);
 
-	machine().root_device().membank("bank2")->set_entry(data & 0x07);
+	membank("bank2")->set_entry(data & 0x07);
 
 	if (data != (data & (~0x27)))
 		logerror("%s: Bank %02X\n", machine().describe_context(), data);
@@ -117,7 +116,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, yunsung8_state )
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank2")    // Banked ROM
 	AM_RANGE(0xe000, 0xe000) AM_WRITE(yunsung8_sound_bankswitch_w   )   // ROM Bank
 	AM_RANGE(0xe400, 0xe400) AM_WRITE(yunsung8_adpcm_w)
-	AM_RANGE(0xec00, 0xec01) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0xec00, 0xec01) AM_DEVWRITE("ymsnd", ym3812_device, write)
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf800) AM_READ(soundlatch_byte_r) // From Main CPU
 ADDRESS_MAP_END
@@ -443,21 +442,19 @@ GFXDECODE_END
 ***************************************************************************/
 
 
-static void yunsung8_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(yunsung8_state::yunsung8_adpcm_int)
 {
-	yunsung8_state *state = device->machine().driver_data<yunsung8_state>();
+	m_msm->data_w(m_adpcm >> 4);
+	m_adpcm <<= 4;
 
-	msm5205_data_w(device, state->m_adpcm >> 4);
-	state->m_adpcm <<= 4;
-
-	state->m_toggle ^= 1;
-	if (state->m_toggle)
-		state->m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_toggle ^= 1;
+	if (m_toggle)
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static const msm5205_interface yunsung8_msm5205_interface =
 {
-	yunsung8_adpcm_int, /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(yunsung8_state,yunsung8_adpcm_int), /* interrupt function */
 	MSM5205_S96_4B      /* 4KHz, 4 Bits */
 };
 
@@ -475,7 +472,6 @@ void yunsung8_state::machine_start()
 	membank("bank2")->configure_entries(0, 3, &AUDIO[0x00000], 0x4000);
 	membank("bank2")->configure_entries(3, 5, &AUDIO[0x10000], 0x4000);
 
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 
 	save_item(NAME(m_videoram));
 	save_item(NAME(m_layers_ctrl));
@@ -486,7 +482,6 @@ void yunsung8_state::machine_start()
 
 void yunsung8_state::machine_reset()
 {
-
 	m_videobank = 0;
 	m_layers_ctrl = 0;
 	m_adpcm = 0;

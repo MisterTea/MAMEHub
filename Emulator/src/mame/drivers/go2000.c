@@ -38,9 +38,11 @@ class go2000_state : public driver_device
 {
 public:
 	go2000_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_videoram2(*this, "videoram2"){ }
+		m_videoram2(*this, "videoram2"),
+		m_soundcpu(*this, "soundcpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoram;
@@ -48,12 +50,13 @@ public:
 //  UINT16 *  m_paletteram;   // currently this uses generic palette handling
 
 	/* devices */
-	cpu_device *m_soundcpu;
+	required_device<cpu_device> m_soundcpu;
 	DECLARE_WRITE16_MEMBER(sound_cmd_w);
 	DECLARE_WRITE8_MEMBER(go2000_pcm_1_bankswitch_w);
 	virtual void machine_start();
 	virtual void video_start();
 	UINT32 screen_update_go2000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -313,7 +316,6 @@ void go2000_state::machine_start()
 
 	membank("bank1")->set_entry(0);
 
-	m_soundcpu = machine().device<cpu_device>("soundcpu");
 }
 
 static MACHINE_CONFIG_START( go2000, go2000_state )

@@ -14,11 +14,12 @@ class snk6502_state : public driver_device
 {
 public:
 	snk6502_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram2(*this, "videoram2"),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_charram(*this, "charram"){ }
+		m_charram(*this, "charram"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_sasuke_counter;
 
@@ -64,6 +65,8 @@ public:
 	INTERRUPT_GEN_MEMBER(satansat_interrupt);
 	INTERRUPT_GEN_MEMBER(snk6502_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(sasuke_update_counter);
+	void sasuke_start_counter();
+	required_device<cpu_device> m_maincpu;
 };
 
 

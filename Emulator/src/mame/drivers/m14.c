@@ -58,9 +58,10 @@ class m14_state : public driver_device
 {
 public:
 	m14_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
-		m_color_ram(*this, "color_ram"){ }
+		m_color_ram(*this, "color_ram"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* video-related */
 	tilemap_t  *m_m14_tilemap;
@@ -71,7 +72,7 @@ public:
 	UINT8 m_hop_mux;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_WRITE8_MEMBER(m14_vram_w);
 	DECLARE_WRITE8_MEMBER(m14_cram_w);
 	DECLARE_READ8_MEMBER(m14_rng_r);
@@ -116,7 +117,6 @@ void m14_state::palette_init()
 
 TILE_GET_INFO_MEMBER(m14_state::m14_get_tile_info)
 {
-
 	int code = m_video_ram[tile_index];
 	int color = m_color_ram[tile_index] & 0x0f;
 
@@ -131,13 +131,11 @@ TILE_GET_INFO_MEMBER(m14_state::m14_get_tile_info)
 
 void m14_state::video_start()
 {
-
 	m_m14_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m14_state::m14_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
 UINT32 m14_state::screen_update_m14(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_m14_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }
@@ -145,14 +143,12 @@ UINT32 m14_state::screen_update_m14(screen_device &screen, bitmap_ind16 &bitmap,
 
 WRITE8_MEMBER(m14_state::m14_vram_w)
 {
-
 	m_video_ram[offset] = data;
 	m_m14_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(m14_state::m14_cram_w)
 {
-
 	m_color_ram[offset] = data;
 	m_m14_tilemap->mark_tile_dirty(offset);
 }
@@ -172,7 +168,6 @@ READ8_MEMBER(m14_state::m14_rng_r)
 /* Here routes the hopper & the inputs */
 READ8_MEMBER(m14_state::input_buttons_r)
 {
-
 	if (m_hop_mux)
 	{
 		m_hop_mux = 0;
@@ -195,7 +190,6 @@ WRITE8_MEMBER(m14_state::test_w)
 
 WRITE8_MEMBER(m14_state::hopper_w)
 {
-
 	/* ---- x--- coin out */
 	/* ---- --x- hopper/input mux? */
 	m_hop_mux = data & 2;
@@ -322,15 +316,11 @@ INTERRUPT_GEN_MEMBER(m14_state::m14_irq)
 
 void m14_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_hop_mux));
 }
 
 void m14_state::machine_reset()
 {
-
 	m_hop_mux = 0;
 }
 

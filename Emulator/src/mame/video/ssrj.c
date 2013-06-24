@@ -5,7 +5,6 @@
 
 WRITE8_MEMBER(ssrj_state::ssrj_vram1_w)
 {
-
 	m_vram1[offset] = data;
 	m_tilemap1->mark_tile_dirty(offset>>1);
 }
@@ -25,7 +24,6 @@ TILE_GET_INFO_MEMBER(ssrj_state::get_tile_info1)
 
 WRITE8_MEMBER(ssrj_state::ssrj_vram2_w)
 {
-
 	m_vram2[offset] = data;
 	m_tilemap2->mark_tile_dirty(offset>>1);
 }
@@ -45,7 +43,6 @@ TILE_GET_INFO_MEMBER(ssrj_state::get_tile_info2)
 
 WRITE8_MEMBER(ssrj_state::ssrj_vram4_w)
 {
-
 	m_vram4[offset] = data;
 	m_tilemap4->mark_tile_dirty(offset>>1);
 }
@@ -62,10 +59,16 @@ TILE_GET_INFO_MEMBER(ssrj_state::get_tile_info4)
 }
 
 
+/*
+TODO: This table is nowhere near as accurate. If you bother, here's how colors should be:
+-"START" sign is red with dark blue background.
+-Sidewalk is yellow-ish.
+-first opponents have swapped colors (blue/yellow ?nstead of yellow/blue)
+-after the first stage, houses have red/white colors.
+*/
 
 static const UINT8 fakecols[4*4][8][3]=
 {
-
 {{0x00,0x00,0x00},
 	{42,87,140},
 	{0,0,0},
@@ -218,7 +221,6 @@ static const UINT8 fakecols[4*4][8][3]=
 
 void ssrj_state::video_start()
 {
-
 	m_tilemap1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ssrj_state::get_tile_info1),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 	m_tilemap2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ssrj_state::get_tile_info2),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 	m_tilemap4 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ssrj_state::get_tile_info4),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
@@ -229,18 +231,16 @@ void ssrj_state::video_start()
 }
 
 
-static void draw_objects(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void ssrj_state::draw_objects(bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	ssrj_state *state = machine.driver_data<ssrj_state>();
 	int i,j,k,x,y;
 
 	for(i=0;i<6;i++)
 	{
-		y = state->m_buffer_spriteram[0x80+20*i];
-		x = state->m_buffer_spriteram[0x80+20*i+2];
-		if (!state->m_buffer_spriteram[0x80+20*i+3])
+		y = m_buffer_spriteram[0x80+20*i];
+		x = m_buffer_spriteram[0x80+20*i+2];
+		if (!m_buffer_spriteram[0x80+20*i+3])
 		{
-
 			for(k=0;k<5;k++,x+=8)
 			{
 				for(j=0;j<0x20;j++)
@@ -248,9 +248,9 @@ static void draw_objects(running_machine &machine, bitmap_ind16 &bitmap, const r
 					int code;
 					int offs = (i * 5 + k) * 64 + (31 - j) * 2;
 
-					code = state->m_vram3[offs] + 256 * state->m_vram3[offs + 1];
+					code = m_vram3[offs] + 256 * m_vram3[offs + 1];
 					drawgfx_transpen(bitmap,
-						cliprect,machine.gfx[0],
+						cliprect,machine().gfx[0],
 						code&1023,
 						((code>>12)&0x3)+8,
 						code&0x4000,
@@ -275,11 +275,10 @@ void ssrj_state::palette_init()
 
 UINT32 ssrj_state::screen_update_ssrj(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_tilemap1->set_scrollx(0, 0xff-m_scrollram[2] );
 	m_tilemap1->set_scrolly(0, m_scrollram[0] );
 	m_tilemap1->draw(bitmap, cliprect, 0, 0);
-	draw_objects(machine(), bitmap, cliprect);
+	draw_objects(bitmap, cliprect);
 	m_tilemap2->draw(bitmap, cliprect, 0, 0);
 
 	if (m_scrollram[0x101] == 0xb) m_tilemap4->draw(bitmap, cliprect, 0, 0);/* hack to display 4th tilemap */
@@ -291,7 +290,6 @@ void ssrj_state::screen_eof_ssrj(screen_device &screen, bool state)
 	// rising edge
 	if (state)
 	{
-
 		memcpy(m_buffer_spriteram, m_scrollram, 0x800);
 	}
 }

@@ -163,7 +163,6 @@ inline offs_t mpz80_state::get_address(offs_t offset)
 READ8_MEMBER( mpz80_state::mmu_r )
 {
 	m_addr = get_address(offset);
-	UINT8 *rom = memregion(Z80_TAG)->base();
 	UINT8 data = 0;
 
 	if (m_pretrap)
@@ -180,8 +179,7 @@ READ8_MEMBER( mpz80_state::mmu_r )
 	{
 		if (offset < 0x400)
 		{
-			UINT8 *ram = m_ram->pointer();
-			data = ram[offset & 0x3ff];
+			data = m_ram->pointer()[offset & 0x3ff];
 		}
 		else if (offset == 0x400)
 		{
@@ -206,7 +204,7 @@ READ8_MEMBER( mpz80_state::mmu_r )
 		else if (offset < 0xc00)
 		{
 			UINT16 rom_addr = (m_trap_reset << 10) | (offset & 0x3ff);
-			data = rom[rom_addr];
+			data = m_rom->base()[rom_addr];
 		}
 		else
 		{
@@ -234,8 +232,7 @@ WRITE8_MEMBER( mpz80_state::mmu_w )
 	{
 		if (offset < 0x400)
 		{
-			UINT8 *ram = m_ram->pointer();
-			ram[offset & 0x3ff] = data;
+			m_ram->pointer()[offset & 0x3ff] = data;
 		}
 		else if (offset == 0x400)
 		{
@@ -468,7 +465,7 @@ READ8_MEMBER( mpz80_state::switch_r )
 	data |= m_int_pend << 1;
 
 	// boot address
-	data |= ioport("16C")->read() & 0xfc;
+	data |= m_16c->read() & 0xfc;
 
 	return data;
 }
@@ -632,16 +629,6 @@ INPUT_PORTS_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  GENERIC_TERMINAL_INTERFACE( terminal_intf )
-//-------------------------------------------------
-
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
-{
-	DEVCB_DEVICE_MEMBER(S100_TAG, s100_device, terminal_receive_w)
-};
-
-
-//-------------------------------------------------
 //  S100_INTERFACE( s100_intf )
 //-------------------------------------------------
 
@@ -680,8 +667,7 @@ static S100_INTERFACE( s100_intf )
 	DEVCB_NULL,
 	DEVCB_CPU_INPUT_LINE(Z80_TAG, Z80_INPUT_LINE_WAIT),
 	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_MEMBER(TERMINAL_TAG, generic_terminal_device, write)
+	DEVCB_NULL
 };
 
 static SLOT_INTERFACE_START( mpz80_s100_cards )
@@ -742,24 +728,21 @@ static MACHINE_CONFIG_START( mpz80, mpz80_state )
 	MCFG_CPU_IO_MAP(mpz80_io)
 
 	// S-100
-	MCFG_S100_BUS_ADD(Z80_TAG, s100_intf)
-	MCFG_S100_SLOT_ADD("s100_1", mpz80_s100_cards, "mm65k16s", NULL)
-	MCFG_S100_SLOT_ADD("s100_2", mpz80_s100_cards, "wunderbus", NULL)
-	MCFG_S100_SLOT_ADD("s100_3", mpz80_s100_cards, "dj2db", NULL)
-	MCFG_S100_SLOT_ADD("s100_4", mpz80_s100_cards, NULL, NULL)//"hdcdma")
-	MCFG_S100_SLOT_ADD("s100_5", mpz80_s100_cards, NULL, NULL)
-	MCFG_S100_SLOT_ADD("s100_6", mpz80_s100_cards, NULL, NULL)
-	MCFG_S100_SLOT_ADD("s100_7", mpz80_s100_cards, NULL, NULL)
-	MCFG_S100_SLOT_ADD("s100_8", mpz80_s100_cards, NULL, NULL)
-	MCFG_S100_SLOT_ADD("s100_9", mpz80_s100_cards, NULL, NULL)
-	MCFG_S100_SLOT_ADD("s100_10", mpz80_s100_cards, NULL, NULL)
-	MCFG_S100_SLOT_ADD("s100_11", mpz80_s100_cards, NULL, NULL)
-	MCFG_S100_SLOT_ADD("s100_12", mpz80_s100_cards, NULL, NULL)
-	MCFG_S100_SLOT_ADD("s100_13", mpz80_s100_cards, NULL, NULL)
-	MCFG_S100_SLOT_ADD("s100_14", mpz80_s100_cards, NULL, NULL)
-
-	// devices
-	MCFG_GENERIC_TERMINAL_ADD(TERMINAL_TAG, terminal_intf)
+	MCFG_S100_BUS_ADD(s100_intf)
+	MCFG_S100_SLOT_ADD("s100_1", mpz80_s100_cards, "mm65k16s")
+	MCFG_S100_SLOT_ADD("s100_2", mpz80_s100_cards, "wunderbus")
+	MCFG_S100_SLOT_ADD("s100_3", mpz80_s100_cards, "dj2db")
+	MCFG_S100_SLOT_ADD("s100_4", mpz80_s100_cards, NULL)//"hdcdma")
+	MCFG_S100_SLOT_ADD("s100_5", mpz80_s100_cards, NULL)
+	MCFG_S100_SLOT_ADD("s100_6", mpz80_s100_cards, NULL)
+	MCFG_S100_SLOT_ADD("s100_7", mpz80_s100_cards, NULL)
+	MCFG_S100_SLOT_ADD("s100_8", mpz80_s100_cards, NULL)
+	MCFG_S100_SLOT_ADD("s100_9", mpz80_s100_cards, NULL)
+	MCFG_S100_SLOT_ADD("s100_10", mpz80_s100_cards, NULL)
+	MCFG_S100_SLOT_ADD("s100_11", mpz80_s100_cards, NULL)
+	MCFG_S100_SLOT_ADD("s100_12", mpz80_s100_cards, NULL)
+	MCFG_S100_SLOT_ADD("s100_13", mpz80_s100_cards, NULL)
+	MCFG_S100_SLOT_ADD("s100_14", mpz80_s100_cards, NULL)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -813,7 +796,7 @@ DIRECT_UPDATE_MEMBER(mpz80_state::mpz80_direct_update_handler)
 {
 	if (m_trap && address >= m_trap_start && address <= m_trap_start + 0xf)
 	{
-		direct.explicit_configure(m_trap_start, m_trap_start + 0xf, 0xf, memregion(Z80_TAG)->base() + ((m_trap_reset << 10) | 0x3f0));
+		direct.explicit_configure(m_trap_start, m_trap_start + 0xf, 0xf, m_rom->base() + ((m_trap_reset << 10) | 0x3f0));
 		return ~0;
 	}
 

@@ -41,7 +41,6 @@ READ8_MEMBER(aeroboto_state::aeroboto_201_r)
 
 INTERRUPT_GEN_MEMBER(aeroboto_state::aeroboto_interrupt)
 {
-
 	if (!m_disable_irq)
 		device.execute().set_input_line(0, ASSERT_LINE);
 	else
@@ -50,20 +49,18 @@ INTERRUPT_GEN_MEMBER(aeroboto_state::aeroboto_interrupt)
 
 READ8_MEMBER(aeroboto_state::aeroboto_irq_ack_r)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 	return 0xff;
 }
 
 READ8_MEMBER(aeroboto_state::aeroboto_2973_r)
 {
-
 	m_mainram[0x02be] = 0;
 	return 0xff;
 }
 
 WRITE8_MEMBER(aeroboto_state::aeroboto_1a2_w)
 {
-
 	m_mainram[0x01a2] = data;
 	if (data)
 		m_disable_irq = 1;
@@ -94,10 +91,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, aeroboto_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x9000, 0x9001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x9002, 0x9002) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0xa000, 0xa001) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0xa002, 0xa002) AM_DEVREAD_LEGACY("ay2", ay8910_r)
+	AM_RANGE(0x9000, 0x9001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x9002, 0x9002) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0xa000, 0xa001) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0xa002, 0xa002) AM_DEVREAD("ay2", ay8910_device, data_r)
 	AM_RANGE(0xf000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -224,7 +221,6 @@ static const ay8910_interface ay8910_config =
 
 void aeroboto_state::machine_start()
 {
-
 	m_stars_rom = memregion("gfx2")->base();
 	m_stars_length = memregion("gfx2")->bytes();
 
@@ -234,7 +230,6 @@ void aeroboto_state::machine_start()
 
 void aeroboto_state::machine_reset()
 {
-
 	m_disable_irq = 0;
 	m_count = 0;
 

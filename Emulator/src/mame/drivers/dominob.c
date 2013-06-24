@@ -68,10 +68,11 @@ class dominob_state : public driver_device
 {
 public:
 	dominob_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
-		m_bgram(*this, "bgram"){ }
+		m_bgram(*this, "bgram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -86,6 +87,8 @@ public:
 	DECLARE_READ8_MEMBER(dominob_unk_port02_r);
 	virtual void video_start();
 	UINT32 screen_update_dominob(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };
 
 void dominob_state::video_start()
@@ -93,31 +96,30 @@ void dominob_state::video_start()
 	machine().gfx[0]->set_granularity(8);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void dominob_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	dominob_state *state = machine.driver_data<dominob_state>();
 	int offs;
 
-	for (offs = 0; offs < state->m_spriteram.bytes(); offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes(); offs += 4)
 	{
 		int sx, sy, code;
 
-		sx = state->m_spriteram[offs];
-		sy = 248 - state->m_spriteram[offs + 1];
-		if (state->flip_screen_x()) sx = 248 - sx;
-		if (state->flip_screen_y()) sy = 248 - sy;
+		sx = m_spriteram[offs];
+		sy = 248 - m_spriteram[offs + 1];
+		if (flip_screen_x()) sx = 248 - sx;
+		if (flip_screen_y()) sy = 248 - sy;
 
-		code = state->m_spriteram[offs + 3] + ((state->m_spriteram[offs + 2] & 0x03) << 8)  ;
+		code = m_spriteram[offs + 3] + ((m_spriteram[offs + 2] & 0x03) << 8)  ;
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[0],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
 				2 * code,
-				((state->m_spriteram[offs + 2] & 0xf8) >> 3)  ,
-				state->flip_screen_x(),state->flip_screen_y(),
-				sx,sy + (state->flip_screen_y() ? 8 : -8),0);
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[0],
+				((m_spriteram[offs + 2] & 0xf8) >> 3)  ,
+				flip_screen_x(),flip_screen_y(),
+				sx,sy + (flip_screen_y() ? 8 : -8),0);
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
 				2 * code + 1,
-				((state->m_spriteram[offs + 2] & 0xf8) >> 3)  ,
-				state->flip_screen_x(),state->flip_screen_y(),
+				((m_spriteram[offs + 2] & 0xf8) >> 3)  ,
+				flip_screen_x(),flip_screen_y(),
 				sx,sy,0);
 	}
 }
@@ -158,7 +160,7 @@ UINT32 dominob_state::screen_update_dominob(screen_device &screen, bitmap_ind16 
 		}
 	}
 
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 
 	return 0;
 }
@@ -173,8 +175,8 @@ static ADDRESS_MAP_START( memmap, AS_PROGRAM, 8, dominob_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM AM_WRITENOP // there are some garbage writes to ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
 
-	AM_RANGE(0xd000, 0xd001) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0xd001, 0xd001) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0xd000, 0xd001) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0xd001, 0xd001) AM_DEVREAD("aysnd", ay8910_device, data_r)
 	AM_RANGE(0xd008, 0xd008) AM_WRITE(dominob_d008_w)
 	AM_RANGE(0xd00c, 0xd00c) AM_READ_PORT("IN0")
 	AM_RANGE(0xd010, 0xd010) AM_READ_PORT("IN1") AM_WRITENOP

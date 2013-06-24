@@ -49,9 +49,9 @@ static ADDRESS_MAP_START( svi318_io, AS_IO, 8, svi318_state )
 	AM_RANGE( 0x81, 0x81) AM_DEVWRITE( "tms9928a", tms9928a_device, register_write )
 	AM_RANGE( 0x84, 0x84) AM_DEVREAD( "tms9928a", tms9928a_device, vram_read )
 	AM_RANGE( 0x85, 0x85) AM_DEVREAD( "tms9928a", tms9928a_device, register_read )
-	AM_RANGE( 0x88, 0x88) AM_DEVWRITE_LEGACY("ay8910", ay8910_address_w )
-	AM_RANGE( 0x8c, 0x8c) AM_DEVWRITE_LEGACY("ay8910", ay8910_data_w )
-	AM_RANGE( 0x90, 0x90) AM_DEVREAD_LEGACY("ay8910", ay8910_r )
+	AM_RANGE( 0x88, 0x88) AM_DEVWRITE("ay8910", ay8910_device, address_w )
+	AM_RANGE( 0x8c, 0x8c) AM_DEVWRITE("ay8910", ay8910_device, data_w )
+	AM_RANGE( 0x90, 0x90) AM_DEVREAD("ay8910", ay8910_device, data_r )
 	AM_RANGE( 0x96, 0x97) AM_WRITE(svi318_ppi_w)
 	AM_RANGE( 0x98, 0x9a) AM_DEVREAD("ppi8255", i8255_device, read)
 ADDRESS_MAP_END
@@ -64,9 +64,9 @@ static ADDRESS_MAP_START( svi328_806_io, AS_IO, 8, svi318_state )
 	AM_RANGE( 0x81, 0x81) AM_DEVWRITE( "tms9928a", tms9928a_device, register_write )
 	AM_RANGE( 0x84, 0x84) AM_DEVREAD( "tms9928a", tms9928a_device, vram_read )
 	AM_RANGE( 0x85, 0x85) AM_DEVREAD( "tms9928a", tms9928a_device, register_read )
-	AM_RANGE( 0x88, 0x88) AM_DEVWRITE_LEGACY("ay8910", ay8910_address_w )
-	AM_RANGE( 0x8c, 0x8c) AM_DEVWRITE_LEGACY("ay8910", ay8910_data_w )
-	AM_RANGE( 0x90, 0x90) AM_DEVREAD_LEGACY("ay8910", ay8910_r )
+	AM_RANGE( 0x88, 0x88) AM_DEVWRITE("ay8910", ay8910_device, address_w )
+	AM_RANGE( 0x8c, 0x8c) AM_DEVWRITE("ay8910", ay8910_device, data_w )
+	AM_RANGE( 0x90, 0x90) AM_DEVREAD("ay8910", ay8910_device, data_r )
 	AM_RANGE( 0x96, 0x97) AM_WRITE(svi318_ppi_w)
 	AM_RANGE( 0x98, 0x9a) AM_DEVREAD("ppi8255", i8255_device, read)
 ADDRESS_MAP_END
@@ -262,7 +262,7 @@ static const ay8910_interface svi318_ay8910_interface =
 
 WRITE_LINE_MEMBER(svi318_state::vdp_interrupt)
 {
-	machine().device("maincpu")->execute().set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
+	m_maincpu->set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
 }
 
 static TMS9928A_INTERFACE(svi318_tms9928a_interface)
@@ -299,9 +299,8 @@ static MACHINE_CONFIG_FRAGMENT( svi318_cartslot )
 	MCFG_CARTSLOT_EXTENSION_LIST("rom")
 	MCFG_CARTSLOT_NOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("svi318_cart")
-	MCFG_CARTSLOT_START(svi318_cart)
-	MCFG_CARTSLOT_LOAD(svi318_cart)
-	MCFG_CARTSLOT_UNLOAD(svi318_cart)
+	MCFG_CARTSLOT_LOAD(svi318_state,svi318_cart)
+	MCFG_CARTSLOT_UNLOAD(svi318_state,svi318_cart)
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","svi318_cart")
@@ -331,7 +330,7 @@ static MACHINE_CONFIG_START( svi318, svi318_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8910", AY8910, 1789773)
 	MCFG_SOUND_CONFIG(svi318_ay8910_interface)
@@ -340,7 +339,7 @@ static MACHINE_CONFIG_START( svi318, svi318_state )
 	/* printer */
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, svi318_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", svi318_cassette_interface )
 
 	MCFG_FD1793_ADD("wd179x", svi_wd17xx_interface )
 
@@ -386,9 +385,11 @@ static MACHINE_CONFIG_DERIVED( svi328n, svi318n )
 	MCFG_RAM_EXTRA_OPTIONS("96K,160K")
 MACHINE_CONFIG_END
 
-static const mc6845_interface svi806_crtc6845_interface =
+
+static MC6845_INTERFACE( svi806_crtc6845_interface )
 {
 	"svi806",
+	false,
 	8 /*?*/,
 	NULL,
 	svi806_crtc6845_update_row,
@@ -458,7 +459,7 @@ static MACHINE_CONFIG_START( svi328_806, svi318_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8910", AY8910, 1789773)
 	MCFG_SOUND_CONFIG(svi318_ay8910_interface)
@@ -467,7 +468,7 @@ static MACHINE_CONFIG_START( svi328_806, svi318_state )
 	/* printer */
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, svi318_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", svi318_cassette_interface )
 
 	MCFG_FD1793_ADD("wd179x", svi_wd17xx_interface )
 

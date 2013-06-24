@@ -340,7 +340,6 @@ WRITE8_MEMBER(homedata_state::reikaids_upd7807_porta_w)
 
 WRITE8_MEMBER(homedata_state::reikaids_upd7807_portc_w)
 {
-
 	/* port C layout:
 	   7 coin counter
 	   6 to main CPU (data)
@@ -358,10 +357,10 @@ WRITE8_MEMBER(homedata_state::reikaids_upd7807_portc_w)
 	coin_counter_w(machine(), 0, ~data & 0x80);
 
 	if (BIT(m_upd7807_portc, 5) && !BIT(data, 5))   /* write clock 1->0 */
-		ym2203_w(m_ym, space, BIT(data, 3), m_upd7807_porta);
+		m_ymsnd->write(space, BIT(data, 3), m_upd7807_porta);
 
 	if (BIT(m_upd7807_portc, 4) && !BIT(data, 4))   /* read clock 1->0 */
-		m_upd7807_porta = ym2203_r(m_ym, space, BIT(data, 3));
+		m_upd7807_porta = m_ymsnd->read(space, BIT(data, 3));
 
 	m_upd7807_portc = data;
 }
@@ -507,7 +506,7 @@ WRITE8_MEMBER(homedata_state::pteacher_upd7807_portc_w)
 
 WRITE8_MEMBER(homedata_state::bankswitch_w)
 {
-	int last_bank = (machine().root_device().memregion("maincpu")->bytes() - 0x10000) / 0x4000;
+	int last_bank = (memregion("maincpu")->bytes() - 0x10000) / 0x4000;
 
 	/* last bank is fixed and is #0 for us, other banks start from #1 (hence data+1 below)*/
 	if (data < last_bank)
@@ -1141,12 +1140,7 @@ static const sn76496_config psg_intf =
 
 MACHINE_START_MEMBER(homedata_state,homedata)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_ym = machine().device("ymsnd");
 	m_sn = machine().device<sn76489a_device>("snsnd");
-	m_dac = machine().device<dac_device>("dac");
 
 	save_item(NAME(m_visible_page));
 	save_item(NAME(m_flipscreen));
@@ -1194,7 +1188,6 @@ MACHINE_START_MEMBER(homedata_state,pteacher)
 
 MACHINE_RESET_MEMBER(homedata_state,homedata)
 {
-
 	m_visible_page = 0;
 	m_flipscreen = 0;
 	m_blitter_bank = 0;
@@ -1211,7 +1204,7 @@ MACHINE_RESET_MEMBER(homedata_state,homedata)
 
 MACHINE_RESET_MEMBER(homedata_state,pteacher)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	/* on reset, ports are set as input (high impedance), therefore 0xff output */
 	pteacher_upd7807_portc_w(space, 0, 0xff);
@@ -1227,7 +1220,7 @@ MACHINE_RESET_MEMBER(homedata_state,pteacher)
 
 MACHINE_RESET_MEMBER(homedata_state,reikaids)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	/* on reset, ports are set as input (high impedance), therefore 0xff output */
 	reikaids_upd7807_portc_w(space, 0, 0xff);
@@ -1285,16 +1278,13 @@ MACHINE_CONFIG_END
 /**************************************************************************/
 
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW1"),
-		DEVCB_INPUT_PORT("DSW2"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_INPUT_PORT("DSW2"),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -1343,7 +1333,7 @@ static MACHINE_CONFIG_START( reikaids, homedata_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)
@@ -2016,15 +2006,15 @@ DRIVER_INIT_MEMBER(homedata_state,jogakuen)
 	/* it seems that Mahjong Jogakuen runs on the same board as the others,
 	   but with just these two addresses swapped. Instead of creating a new
 	   MachineDriver, I just fix them here. */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x8007, 0x8007, write8_delegate(FUNC(homedata_state::pteacher_blitter_bank_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x8005, 0x8005, write8_delegate(FUNC(homedata_state::pteacher_gfx_bank_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x8007, 0x8007, write8_delegate(FUNC(homedata_state::pteacher_blitter_bank_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x8005, 0x8005, write8_delegate(FUNC(homedata_state::pteacher_gfx_bank_w),this));
 }
 
 DRIVER_INIT_MEMBER(homedata_state,mjikaga)
 {
 	/* Mahjong Ikagadesuka is different as well. */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x7802, 0x7802, read8_delegate(FUNC(homedata_state::pteacher_snd_r),this));
-	machine().device("audiocpu")->memory().space(AS_PROGRAM).install_write_handler(0x0123, 0x0123, write8_delegate(FUNC(homedata_state::pteacher_snd_answer_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x7802, 0x7802, read8_delegate(FUNC(homedata_state::pteacher_snd_r),this));
+	m_audiocpu->space(AS_PROGRAM).install_write_handler(0x0123, 0x0123, write8_delegate(FUNC(homedata_state::pteacher_snd_answer_w),this));
 }
 
 DRIVER_INIT_MEMBER(homedata_state,reikaids)
@@ -2039,7 +2029,6 @@ DRIVER_INIT_MEMBER(homedata_state,battlcry)
 
 DRIVER_INIT_MEMBER(homedata_state,mirderby)
 {
-
 }
 
 

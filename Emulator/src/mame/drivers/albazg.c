@@ -45,10 +45,11 @@ class albazg_state : public driver_device
 {
 public:
 	albazg_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_cus_ram(*this, "cus_ram"),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_cus_ram;
@@ -77,6 +78,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_yumefuda(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 TILE_GET_INFO_MEMBER(albazg_state::y_get_bg_tile_info)
@@ -207,9 +209,10 @@ static const ay8910_interface ay8910_config =
 	DEVCB_NULL
 };
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -250,8 +253,8 @@ static ADDRESS_MAP_START( port_map, AS_IO, 8, albazg_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_DEVWRITE("crtc", mc6845_device, address_w)
 	AM_RANGE(0x01, 0x01) AM_DEVWRITE("crtc", mc6845_device, register_w)
-	AM_RANGE(0x40, 0x40) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x40, 0x40) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x80, 0x83) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)
 	AM_RANGE(0xc0, 0xc0) AM_WRITE(watchdog_reset_w)
 ADDRESS_MAP_END

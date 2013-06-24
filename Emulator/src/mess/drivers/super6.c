@@ -24,7 +24,7 @@ void super6_state::bankswitch()
 {
 	address_space &program = m_maincpu->space(AS_PROGRAM);
 	UINT8 *ram = m_ram->pointer();
-	UINT8 *rom = memregion(Z80_TAG)->base();
+	UINT8 *rom = m_rom->base();
 
 	// power on jump
 	if (!BIT(m_bank0, 6)) { program.install_rom(0x0000, 0x07ff, 0, 0xf800, rom); return; }
@@ -255,8 +255,8 @@ WRITE8_MEMBER( super6_state::baud_w )
 
 	*/
 
-	m_brg->str_w(space, 0, data & 0x0f);
-	m_brg->stt_w(space, 0, data >> 4);
+	m_brg->str_w(data & 0x0f);
+	m_brg->stt_w(data >> 4);
 }
 
 
@@ -279,7 +279,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( super6_io, AS_IO, 8, super6_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY(Z80DART_TAG, z80dart_ba_cd_r, z80dart_ba_cd_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE(Z80DART_TAG, z80dart_device, ba_cd_r, ba_cd_w)
 	AM_RANGE(0x04, 0x07) AM_DEVREADWRITE(Z80PIO_TAG, z80pio_device, read, write)
 	AM_RANGE(0x08, 0x0b) AM_DEVREADWRITE(Z80CTC_TAG, z80ctc_device, read, write)
 	AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE(WD2793_TAG, wd2793_t, read, write)
@@ -305,7 +305,7 @@ ADDRESS_MAP_END
 
 static INPUT_PORTS_START( super6 )
 	PORT_START("J7")
-	PORT_DIPNAME( 0x0f, 0x0e, "SIO Channel A Baud Rate" ) PORT_DIPLOCATION("J7:1,2,3,4")
+	PORT_DIPNAME( 0x0f, 0x0f, "SIO Channel A Baud Rate" ) PORT_DIPLOCATION("J7:1,2,3,4")
 	PORT_DIPSETTING(    0x00, "50" )
 	PORT_DIPSETTING(    0x01, "75" )
 	PORT_DIPSETTING(    0x02, "110" )
@@ -369,17 +369,17 @@ static Z80DART_INTERFACE( dart_intf )
 {
 	0, 0, 0, 0,
 
-	DEVCB_DEVICE_LINE_MEMBER(TERMINAL_TAG, serial_terminal_device, tx_r),
-	DEVCB_DEVICE_LINE_MEMBER(TERMINAL_TAG, serial_terminal_device, rx_w),
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
 	DEVCB_NULL,
 	DEVCB_NULL,
 
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_B_TAG, rs232_port_device, rts_w),
 	DEVCB_NULL,
 	DEVCB_NULL,
 
@@ -391,18 +391,39 @@ static Z80DART_INTERFACE( dart_intf )
 //  Z80DMA_INTERFACE( dma_intf )
 //-------------------------------------------------
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(super6_state::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(super6_state::memory_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.write_byte(offset, data);
+}
+
+READ8_MEMBER(super6_state::io_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(super6_state::io_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.write_byte(offset, data);
+}
 
 static Z80DMA_INTERFACE( dma_intf )
 {
 	DEVCB_CPU_INPUT_LINE(Z80_TAG, INPUT_LINE_HALT),
 	DEVCB_DEVICE_LINE_MEMBER(Z80CTC_TAG, z80ctc_device, trg2),
 	DEVCB_NULL,
-	DEVCB_MEMORY_HANDLER(Z80_TAG, PROGRAM, memory_read_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, PROGRAM, memory_write_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_read_byte),
-	DEVCB_MEMORY_HANDLER(Z80_TAG, IO, memory_write_byte)
+	DEVCB_DRIVER_MEMBER(super6_state, memory_read_byte),
+	DEVCB_DRIVER_MEMBER(super6_state, memory_write_byte),
+	DEVCB_DRIVER_MEMBER(super6_state, io_read_byte),
+	DEVCB_DRIVER_MEMBER(super6_state, io_write_byte),
 };
 
 
@@ -428,20 +449,11 @@ static Z80PIO_INTERFACE( pio_intf )
 
 WRITE_LINE_MEMBER( super6_state::fr_w )
 {
-	z80dart_rxca_w(m_dart, state);
-	z80dart_txca_w(m_dart, state);
+	m_dart->rxca_w(state);
+	m_dart->txca_w(state);
 
 	m_ctc->trg1(state);
 }
-
-static COM8116_INTERFACE( brg_intf )
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(super6_state, fr_w),
-	DEVCB_DEVICE_LINE(Z80DART_TAG, z80dart_rxtxcb_w),
-	{ 6336, 4224, 2880, 2355, 2112, 1056, 528, 264, 176, 158, 132, 88, 66, 44, 33, 16 }, // from WD1943-00 datasheet
-	{ 6336, 4224, 2880, 2355, 2112, 1056, 528, 264, 176, 158, 132, 88, 66, 44, 33, 16 },
-};
 
 
 //-------------------------------------------------
@@ -481,17 +493,35 @@ static const z80_daisy_config super6_daisy_chain[] =
 
 
 //-------------------------------------------------
-//  GENERIC_TERMINAL_INTERFACE( terminal_intf )
+//  rs232_port_interface rs232a_intf
 //-------------------------------------------------
 
-WRITE8_MEMBER( super6_state::dummy_w )
-{
-	// handled in Z80DART_INTERFACE
-}
+static DEVICE_INPUT_DEFAULTS_START( terminal )
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x08 ) // 19200
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x00 ) // 8N1
+DEVICE_INPUT_DEFAULTS_END
 
-static GENERIC_TERMINAL_INTERFACE( terminal_intf )
+static const rs232_port_interface rs232a_intf =
 {
-	DEVCB_DRIVER_MEMBER(super6_state, dummy_w)
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232b_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232b_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
 };
 
 
@@ -526,6 +556,11 @@ void super6_state::machine_reset()
 	m_bank0 = m_bank1 = 0;
 
 	bankswitch();
+
+	UINT8 baud = m_j7->read();
+
+	m_brg->str_w(baud & 0x0f);
+	m_brg->stt_w((baud >> 4) & 0x07);
 }
 
 
@@ -552,10 +587,12 @@ static MACHINE_CONFIG_START( super6, super6_state )
 	MCFG_Z80DMA_ADD(Z80DMA_TAG, XTAL_24MHz/6, dma_intf)
 	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_24MHz/4, pio_intf)
 	MCFG_WD2793x_ADD(WD2793_TAG, 1000000)
-	MCFG_COM8116_ADD(BR1945_TAG, XTAL_5_0688MHz, brg_intf)
-	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":0", super6_floppies, "525dd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":1", super6_floppies, NULL,   NULL, floppy_image_device::default_floppy_formats)
-	MCFG_SERIAL_TERMINAL_ADD(TERMINAL_TAG, terminal_intf, 4800)
+	MCFG_COM8116_ADD(BR1945_TAG, XTAL_5_0688MHz, NULL, WRITELINE(super6_state, fr_w), DEVWRITELINE(Z80DART_TAG, z80dart_device, rxtxcb_w))
+	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":0", super6_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":1", super6_floppies, NULL,    floppy_image_device::default_floppy_formats)
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232b_intf, default_rs232_devices, "serial_terminal")
+	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232a_intf, default_rs232_devices, NULL)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

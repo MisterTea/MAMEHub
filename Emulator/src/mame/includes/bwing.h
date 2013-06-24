@@ -10,13 +10,16 @@ class bwing_state : public driver_device
 {
 public:
 	bwing_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bwp1_sharedram1(*this, "bwp1_sharedram1"),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
 		m_paletteram(*this, "paletteram"),
 		m_bwp2_sharedram1(*this, "bwp2_sharedram1"),
-		m_bwp3_rombase(*this, "bwp3_rombase"){ }
+		m_bwp3_rombase(*this, "bwp3_rombase"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"),
+		m_audiocpu(*this, "audiocpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_bwp1_sharedram1;
@@ -48,9 +51,9 @@ public:
 	UINT8 *m_bwp123_membase[3];
 
 	/* device */
-	cpu_device *m_maincpu;
-	cpu_device *m_subcpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE8_MEMBER(bwp12_sharedram1_w);
 	DECLARE_WRITE8_MEMBER(bwp3_u8F_w);
 	DECLARE_WRITE8_MEMBER(bwp3_nmimask_w);
@@ -76,6 +79,9 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_bwing(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(bwp3_interrupt);
+	void fill_srxlat( int *xlat );
+	void draw_sprites( bitmap_ind16 &bmp, const rectangle &clip, UINT8 *ram, int pri );
+	void fix_bwp3(  );
 };
 
 /*----------- defined in video/bwing.c -----------*/

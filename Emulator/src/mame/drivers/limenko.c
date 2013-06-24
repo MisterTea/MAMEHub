@@ -33,14 +33,16 @@ class limenko_state : public driver_device
 {
 public:
 	limenko_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_mainram(*this, "mainram"),
 		m_fg_videoram(*this, "fg_videoram"),
 		m_md_videoram(*this, "md_videoram"),
 		m_bg_videoram(*this, "bg_videoram"),
 		m_spriteram(*this, "spriteram"),
 		m_spriteram2(*this, "spriteram2"),
-		m_videoreg(*this, "videoreg"){ }
+		m_videoreg(*this, "videoreg"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki")  { }
 
 	required_shared_ptr<UINT32> m_mainram;
 	required_shared_ptr<UINT32> m_fg_videoram;
@@ -88,10 +90,11 @@ public:
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_limenko(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(UINT32 *sprites, const rectangle &cliprect, int count);
+	void copy_sprites(bitmap_ind16 &bitmap, bitmap_ind16 &sprites_bitmap, bitmap_ind8 &priority_bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	optional_device<okim6295_device> m_oki;
 };
-
-
-static void draw_sprites(running_machine &machine, UINT32 *sprites, const rectangle &cliprect, int count);
 
 /*****************************************************************************************************
   MISC FUNCTIONS
@@ -156,12 +159,12 @@ WRITE32_MEMBER(limenko_state::spriteram_buffer_w)
 	if(m_spriteram_bit)
 	{
 		// draw the sprites to the frame buffer
-		draw_sprites(machine(),m_spriteram2,clip,m_prev_sprites_count);
+		draw_sprites(m_spriteram2,clip,m_prev_sprites_count);
 	}
 	else
 	{
 		// draw the sprites to the frame buffer
-		draw_sprites(machine(),m_spriteram,clip,m_prev_sprites_count);
+		draw_sprites(m_spriteram,clip,m_prev_sprites_count);
 	}
 
 	// buffer the next number of sprites to draw
@@ -194,7 +197,6 @@ READ8_MEMBER(limenko_state::qs1000_p1_r)
 
 WRITE8_MEMBER(limenko_state::qs1000_p1_w)
 {
-
 }
 
 WRITE8_MEMBER(limenko_state::qs1000_p2_w)
@@ -288,7 +290,7 @@ READ8_MEMBER(limenko_state::spotty_sound_r)
 	if(m_spotty_sound_cmd == 0xf7)
 		return soundlatch_byte_r(space,0);
 	else
-		return machine().device<okim6295_device>("oki")->read(space,0);
+		return m_oki->read(space,0);
 }
 
 static ADDRESS_MAP_START( spotty_sound_io_map, AS_IO, 8, limenko_state )
@@ -421,13 +423,12 @@ static void draw_single_sprite(bitmap_ind16 &dest_bmp,const rectangle &clip,gfx_
 }
 
 // sprites aren't tile based (except for 8x8 ones)
-static void draw_sprites(running_machine &machine, UINT32 *sprites, const rectangle &cliprect, int count)
+void limenko_state::draw_sprites(UINT32 *sprites, const rectangle &cliprect, int count)
 {
-	limenko_state *state = machine.driver_data<limenko_state>();
 	int i;
 
-	UINT8 *base_gfx = state->memregion("gfx1")->base();
-	UINT8 *gfx_max  = base_gfx + state->memregion("gfx1")->bytes();
+	UINT8 *base_gfx = memregion("gfx1")->base();
+	UINT8 *gfx_max  = base_gfx + memregion("gfx1")->bytes();
 
 	UINT8 *gfxdata;
 
@@ -464,31 +465,30 @@ static void draw_sprites(running_machine &machine, UINT32 *sprites, const rectan
 			continue;
 
 		/* prepare GfxElement on the fly */
-		gfx_element gfx(machine, gfxdata, width, height, width, 0, 256);
+		gfx_element gfx(machine(), gfxdata, width, height, width, 0, 256);
 
-		draw_single_sprite(state->m_sprites_bitmap,cliprect,&gfx,0,color,flipx,flipy,x,y,pri);
+		draw_single_sprite(m_sprites_bitmap,cliprect,&gfx,0,color,flipx,flipy,x,y,pri);
 
 		// wrap around x
-		draw_single_sprite(state->m_sprites_bitmap,cliprect,&gfx,0,color,flipx,flipy,x-512,y,pri);
+		draw_single_sprite(m_sprites_bitmap,cliprect,&gfx,0,color,flipx,flipy,x-512,y,pri);
 
 		// wrap around y
-		draw_single_sprite(state->m_sprites_bitmap,cliprect,&gfx,0,color,flipx,flipy,x,y-512,pri);
+		draw_single_sprite(m_sprites_bitmap,cliprect,&gfx,0,color,flipx,flipy,x,y-512,pri);
 
 		// wrap around x and y
-		draw_single_sprite(state->m_sprites_bitmap,cliprect,&gfx,0,color,flipx,flipy,x-512,y-512,pri);
+		draw_single_sprite(m_sprites_bitmap,cliprect,&gfx,0,color,flipx,flipy,x-512,y-512,pri);
 	}
 }
 
-static void copy_sprites(running_machine &machine, bitmap_ind16 &bitmap, bitmap_ind16 &sprites_bitmap, bitmap_ind8 &priority_bitmap, const rectangle &cliprect)
+void limenko_state::copy_sprites(bitmap_ind16 &bitmap, bitmap_ind16 &sprites_bitmap, bitmap_ind8 &priority_bitmap, const rectangle &cliprect)
 {
-	limenko_state *state = machine.driver_data<limenko_state>();
 	int y;
 	for( y=cliprect.min_y; y<=cliprect.max_y; y++ )
 	{
 		UINT16 *source = &sprites_bitmap.pix16(y);
 		UINT16 *dest = &bitmap.pix16(y);
 		UINT8 *dest_pri = &priority_bitmap.pix8(y);
-		UINT8 *source_pri = &state->m_sprites_bitmap_pri.pix8(y);
+		UINT8 *source_pri = &m_sprites_bitmap_pri.pix8(y);
 
 		int x;
 		for( x=cliprect.min_x; x<=cliprect.max_x; x++ )
@@ -538,7 +538,7 @@ UINT32 limenko_state::screen_update_limenko(screen_device &screen, bitmap_ind16 
 	m_fg_tilemap->draw(bitmap, cliprect, 0,1);
 
 	if(m_videoreg[0] & 8)
-		copy_sprites(machine(), bitmap, m_sprites_bitmap, machine().priority_bitmap, cliprect);
+		copy_sprites(bitmap, m_sprites_bitmap, machine().priority_bitmap, cliprect);
 
 	return 0;
 }
@@ -619,8 +619,8 @@ static INPUT_PORTS_START( sb2003 )
 	PORT_BIT( 0x00020000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_PLAYER(1)
 	PORT_BIT( 0x00040000, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )  PORT_PLAYER(1)
 	PORT_BIT( 0x00080000, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(1)
-	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1)
-	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1)
+	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1)
+	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1)
 	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(1)
 	PORT_BIT( 0x00800000, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_PLAYER(1)
 	PORT_BIT( 0xff00ffff, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -630,8 +630,8 @@ static INPUT_PORTS_START( sb2003 )
 	PORT_BIT( 0x00020000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_PLAYER(2)
 	PORT_BIT( 0x00040000, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )  PORT_PLAYER(2)
 	PORT_BIT( 0x00080000, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(2)
-	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
-	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
+	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
+	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
 	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(2)
 	PORT_BIT( 0x00800000, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_PLAYER(2)
 	PORT_BIT( 0xff00ffff, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -1116,7 +1116,6 @@ READ32_MEMBER(limenko_state::spotty_speedup_r)
 
 DRIVER_INIT_MEMBER(limenko_state,common)
 {
-
 	// Set up the QS1000 program ROM banking, taking care not to overlap the internal RAM
 	machine().device("qs1000:cpu")->memory().space(AS_IO).install_read_bank(0x0100, 0xffff, "bank");
 	membank("qs1000:bank")->configure_entries(0, 8, memregion("qs1000:cpu")->base()+0x100, 0x10000);
@@ -1126,21 +1125,21 @@ DRIVER_INIT_MEMBER(limenko_state,common)
 
 DRIVER_INIT_MEMBER(limenko_state,dynabomb)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xe2784, 0xe2787, read32_delegate(FUNC(limenko_state::dynabomb_speedup_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xe2784, 0xe2787, read32_delegate(FUNC(limenko_state::dynabomb_speedup_r), this));
 
 	DRIVER_INIT_CALL(common);
 }
 
 DRIVER_INIT_MEMBER(limenko_state,legendoh)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x32ab0, 0x32ab3, read32_delegate(FUNC(limenko_state::legendoh_speedup_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x32ab0, 0x32ab3, read32_delegate(FUNC(limenko_state::legendoh_speedup_r), this));
 
 	DRIVER_INIT_CALL(common);
 }
 
 DRIVER_INIT_MEMBER(limenko_state,sb2003)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x135800, 0x135803, read32_delegate(FUNC(limenko_state::sb2003_speedup_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x135800, 0x135803, read32_delegate(FUNC(limenko_state::sb2003_speedup_r), this));
 
 	DRIVER_INIT_CALL(common);
 }
@@ -1161,7 +1160,7 @@ DRIVER_INIT_MEMBER(limenko_state,spotty)
 		dst[x+2] = (src[x+1]&0x0f) >> 0;
 	}
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x6626c, 0x6626f, read32_delegate(FUNC(limenko_state::spotty_speedup_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x6626c, 0x6626f, read32_delegate(FUNC(limenko_state::spotty_speedup_r), this));
 
 	m_spriteram_bit = 1;
 }

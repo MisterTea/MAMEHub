@@ -8,7 +8,7 @@ class contra_state : public driver_device
 {
 public:
 	contra_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_paletteram(*this, "paletteram"),
 		m_fg_cram(*this, "fg_cram"),
 		m_fg_vram(*this, "fg_vram"),
@@ -16,7 +16,11 @@ public:
 		m_tx_vram(*this, "tx_vram"),
 		m_spriteram(*this, "spriteram"),
 		m_bg_cram(*this, "bg_cram"),
-		m_bg_vram(*this, "bg_vram"){ }
+		m_bg_vram(*this, "bg_vram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_k007121_1(*this, "k007121_1"),
+		m_k007121_2(*this, "k007121_2"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	UINT8 *        m_buffered_spriteram;
@@ -39,9 +43,9 @@ public:
 	rectangle m_tx_clip;
 
 	/* devices */
-	cpu_device *m_audiocpu;
-	device_t *m_k007121_1;
-	device_t *m_k007121_2;
+	required_device<cpu_device> m_audiocpu;
+	required_device<k007121_device> m_k007121_1;
+	required_device<k007121_device> m_k007121_2;
 	DECLARE_WRITE8_MEMBER(contra_bankswitch_w);
 	DECLARE_WRITE8_MEMBER(contra_sh_irqtrigger_w);
 	DECLARE_WRITE8_MEMBER(contra_coin_counter_w);
@@ -62,4 +66,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_contra(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(contra_interrupt);
+	void set_pens(  );
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int bank );
+	required_device<cpu_device> m_maincpu;
 };

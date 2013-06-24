@@ -129,11 +129,10 @@ Thanks to Tony Friery and JPeMU for I/O routines and documentation.
  *
  *************************************/
 
-static void update_irqs(running_machine &machine)
+void jpmimpct_state::update_irqs()
 {
-	jpmimpct_state *state = machine.driver_data<jpmimpct_state>();
-	machine.device("maincpu")->execute().set_input_line(2, state->m_tms_irq ? ASSERT_LINE : CLEAR_LINE);
-	machine.device("maincpu")->execute().set_input_line(5, state->m_duart_1_irq ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(2, m_tms_irq ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(5, m_duart_1_irq ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -145,15 +144,15 @@ static void update_irqs(running_machine &machine)
 
 MACHINE_START_MEMBER(jpmimpct_state,jpmimpct)
 {
-	state_save_register_global(machine(), m_tms_irq);
-	state_save_register_global(machine(), m_duart_1_irq);
-	state_save_register_global(machine(), m_touch_cnt);
-	state_save_register_global_array(machine(), m_touch_data);
+	save_item(NAME(m_tms_irq));
+	save_item(NAME(m_duart_1_irq));
+	save_item(NAME(m_touch_cnt));
+	save_item(NAME(m_touch_data));
 
 	/* TODO! */
-	state_save_register_global(machine(), m_duart_1.ISR);
-	state_save_register_global(machine(), m_duart_1.IMR);
-	state_save_register_global(machine(), m_duart_1.CT);
+	save_item(NAME(m_duart_1.ISR));
+	save_item(NAME(m_duart_1.IMR));
+	save_item(NAME(m_duart_1.CT));
 }
 
 
@@ -220,7 +219,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(jpmimpct_state::duart_1_timer_event)
 	m_duart_1.ISR |= 0x08;
 
 	m_duart_1_irq = 1;
-	update_irqs(machine());
+	update_irqs();
 }
 
 READ16_MEMBER(jpmimpct_state::duart_1_r)
@@ -279,7 +278,7 @@ READ16_MEMBER(jpmimpct_state::duart_1_r)
 		case 0xf:
 		{
 			m_duart_1_irq = 0;
-			update_irqs(machine());
+			update_irqs();
 			duart_1.ISR |= ~0x8;
 			break;
 		}
@@ -481,31 +480,28 @@ READ16_MEMBER(jpmimpct_state::inputs1_r)
  *************************************/
 WRITE16_MEMBER(jpmimpct_state::volume_w)
 {
-	device_t *device = machine().device("upd");
 	if (ACCESSING_BITS_0_7)
 	{
-		upd7759_set_bank_base(device, 0x20000 * ((data >> 1) & 3));
-		upd7759_reset_w(device, data & 0x01);
+		upd7759_set_bank_base(m_upd7759, 0x20000 * ((data >> 1) & 3));
+		upd7759_reset_w(m_upd7759, data & 0x01);
 	}
 }
 
 WRITE16_MEMBER(jpmimpct_state::upd7759_w)
 {
-	device_t *device = machine().device("upd");
 	if (ACCESSING_BITS_0_7)
 	{
-		upd7759_port_w(device, space, 0, data);
-		upd7759_start_w(device, 0);
-		upd7759_start_w(device, 1);
+		upd7759_port_w(m_upd7759, space, 0, data);
+		upd7759_start_w(m_upd7759, 0);
+		upd7759_start_w(m_upd7759, 1);
 	}
 }
 
 READ16_MEMBER(jpmimpct_state::upd7759_r)
 {
-	device_t *device = machine().device("upd");
 	if (ACCESSING_BITS_0_7)
 	{
-		return upd7759_busy_r(device);
+		return upd7759_busy_r(m_upd7759);
 	}
 
 	return 0xffff;
@@ -844,7 +840,7 @@ static void jpmimpct_tms_irq(device_t *device, int state)
 {
 	jpmimpct_state *drvstate = device->machine().driver_data<jpmimpct_state>();
 	drvstate->m_tms_irq = state;
-	update_irqs(device->machine());
+	drvstate->update_irqs();
 }
 
 static const tms34010_config tms_config =
@@ -905,7 +901,6 @@ MACHINE_CONFIG_END
 
 READ8_MEMBER(jpmimpct_state::hopper_b_r)
 {
-
 	int retval;
 	// B0 = 100p Hopper Out Verif
 	// B1 = Hopper High
@@ -932,7 +927,6 @@ READ8_MEMBER(jpmimpct_state::hopper_b_r)
 
 READ8_MEMBER(jpmimpct_state::hopper_c_r)
 {
-
 	int retval;
 	// C0-C2 = Alpha
 	// C3
@@ -970,7 +964,6 @@ READ8_MEMBER(jpmimpct_state::hopper_c_r)
 
 WRITE8_MEMBER(jpmimpct_state::payen_a_w)
 {
-
 	m_motor[0] = (data & 0x01);
 	m_payen = (data & 0x10);
 	m_slidesout = (data & 0x10);
@@ -1011,14 +1004,14 @@ static I8255_INTERFACE (ppi8255_intf)
 
 MACHINE_START_MEMBER(jpmimpct_state,impctawp)
 {
-	state_save_register_global(machine(), m_duart_1_irq);
-	state_save_register_global(machine(), m_touch_cnt);
-	state_save_register_global_array(machine(), m_touch_data);
+	save_item(NAME(m_duart_1_irq));
+	save_item(NAME(m_touch_cnt));
+	save_item(NAME(m_touch_data));
 
 	/* TODO! */
-	state_save_register_global(machine(), m_duart_1.ISR);
-	state_save_register_global(machine(), m_duart_1.IMR);
-	state_save_register_global(machine(), m_duart_1.CT);
+	save_item(NAME(m_duart_1.ISR));
+	save_item(NAME(m_duart_1.IMR));
+	save_item(NAME(m_duart_1.CT));
 
 	stepper_config(machine(), 0, &starpoint_interface_48step);
 	stepper_config(machine(), 1, &starpoint_interface_48step);

@@ -230,19 +230,19 @@ WRITE_LINE_MEMBER(spiders_state::main_cpu_irq)
 													pia2->irq_b_state() |
 							pia3->irq_a_state() | pia3->irq_b_state();
 
-	machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M6809_IRQ_LINE, combined_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
 WRITE_LINE_MEMBER(spiders_state::main_cpu_firq)
 {
-	machine().device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
 WRITE_LINE_MEMBER(spiders_state::audio_cpu_irq)
 {
-	machine().device("audiocpu")->execute().set_input_line(M6800_IRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(M6800_IRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -275,13 +275,13 @@ INTERRUPT_GEN_MEMBER(spiders_state::update_pia_1)
 	/* update the different PIA pins from the input ports */
 
 	/* CA1 - copy of PA1 (COIN1) */
-	pia1->ca1_w(machine().root_device().ioport("IN0")->read() & 0x02);
+	pia1->ca1_w(ioport("IN0")->read() & 0x02);
 
 	/* CA2 - copy of PA0 (SERVICE1) */
-	pia1->ca2_w(machine().root_device().ioport("IN0")->read() & 0x01);
+	pia1->ca2_w(ioport("IN0")->read() & 0x01);
 
 	/* CB1 - (crosshatch) */
-	pia1->cb1_w(machine().root_device().ioport("XHATCH")->read());
+	pia1->cb1_w(ioport("XHATCH")->read());
 
 	/* CB2 - NOT CONNECTED */
 }
@@ -401,11 +401,11 @@ static const ttl74123_interface ic60_intf =
 void spiders_state::machine_start()
 {
 	/* setup for save states */
-	state_save_register_global(machine(), m_flipscreen);
-	state_save_register_global(machine(), m_gfx_rom_address);
-	state_save_register_global(machine(), m_gfx_rom_ctrl_mode);
-	state_save_register_global(machine(), m_gfx_rom_ctrl_latch);
-	state_save_register_global(machine(), m_gfx_rom_ctrl_data);
+	save_item(NAME(m_flipscreen));
+	save_item(NAME(m_gfx_rom_address));
+	save_item(NAME(m_gfx_rom_ctrl_mode));
+	save_item(NAME(m_gfx_rom_ctrl_latch));
+	save_item(NAME(m_gfx_rom_ctrl_data));
 }
 
 
@@ -505,9 +505,10 @@ WRITE_LINE_MEMBER(spiders_state::display_enable_changed)
 }
 
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",               /* screen we are acting on */
+	false,                  /* show border area */
 	8,                      /* number of pixels per video memory address */
 	begin_update,           /* before pixel update callback */
 	update_row,             /* row update callback */

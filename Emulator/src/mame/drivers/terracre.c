@@ -189,8 +189,8 @@ WRITE16_MEMBER(terracre_state::amazon_protection_w)
 MACHINE_START_MEMBER(terracre_state,amazon)
 {
 	/* set up for save */
-	state_save_register_global(machine(), m_mAmazonProtCmd);
-	state_save_register_global_array(machine(), m_mAmazonProtReg);
+	save_item(NAME(m_mAmazonProtCmd));
+	save_item(NAME(m_mAmazonProtReg));
 }
 
 static ADDRESS_MAP_START( terracre_map, AS_PROGRAM, 16, terracre_state )
@@ -234,7 +234,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_3526_io_map, AS_IO, 8, terracre_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ymsnd", ym3526_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ymsnd", ym3526_device, write)
 	AM_RANGE(0x02, 0x02) AM_DEVWRITE("dac1", dac_device, write_signed8)
 	AM_RANGE(0x03, 0x03) AM_DEVWRITE("dac2", dac_device, write_signed8)
 	AM_RANGE(0x04, 0x04) AM_READ(soundlatch_clear_r)
@@ -243,7 +243,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_2203_io_map, AS_IO, 8, terracre_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ym1", ym2203_device, write)
 	AM_RANGE(0x02, 0x02) AM_DEVWRITE("dac1", dac_device, write_signed8)
 	AM_RANGE(0x03, 0x03) AM_DEVWRITE("dac2", dac_device, write_signed8)
 	AM_RANGE(0x04, 0x04) AM_READ(soundlatch_clear_r)
@@ -1014,7 +1014,7 @@ DRIVER_INIT_MEMBER(terracre_state,amatelas)
 DRIVER_INIT_MEMBER(terracre_state,horekid)
 {
 	m_mpProtData = mHoreKidProtData;
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x44004, 0x44005, read16_delegate(FUNC(terracre_state::horekid_IN2_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x44004, 0x44005, read16_delegate(FUNC(terracre_state::horekid_IN2_r),this));
 }
 
 /*    YEAR, NAME,   PARENT,     MACHINE, INPUT,    INIT,     MONITOR,  COMPANY,      FULLNAME, FLAGS */

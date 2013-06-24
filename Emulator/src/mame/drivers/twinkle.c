@@ -39,7 +39,7 @@ beatmania IIDX 8th Style       - Konami 2002     C44 JA A01       ?            C
 ? = Undumped pieces.
 # = Dumped but code unknown.
 * = Came with beatmania IIDX main board but might be for 8th Style (i.e. game C44)?
-If you can help, please contact us at http://guru.mameworld.info or http://mamedev.org/contact.html
+If you can help, please contact us at http://members.iinet.net.au/~lantra9jp1/gurudumps/ or http://mamedev.org/contact.html
 
 
 The Konami Twinkle hardware basically consists of the following parts....
@@ -245,7 +245,11 @@ class twinkle_state : public driver_device
 public:
 	twinkle_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_am53cf96(*this, "scsi:am53cf96"){ }
+		m_am53cf96(*this, "scsi:am53cf96"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu")
+	{
+	}
 
 	required_device<am53cf96_device> m_am53cf96;
 
@@ -257,21 +261,21 @@ public:
 	int m_output_last[ 0x100 ];
 	int m_last_io_offset;
 	UINT8 m_sector_buffer[ 4096 ];
-	DECLARE_WRITE32_MEMBER(twinkle_io_w);
-	DECLARE_READ32_MEMBER(twinkle_io_r);
-	DECLARE_WRITE32_MEMBER(twinkle_output_w);
-	DECLARE_WRITE32_MEMBER(serial_w);
-	DECLARE_WRITE32_MEMBER(shared_psx_w);
-	DECLARE_READ32_MEMBER(shared_psx_r);
+	DECLARE_WRITE8_MEMBER(twinkle_io_w);
+	DECLARE_READ8_MEMBER(twinkle_io_r);
+	DECLARE_WRITE16_MEMBER(twinkle_output_w);
+	DECLARE_WRITE16_MEMBER(serial_w);
+	DECLARE_WRITE8_MEMBER(shared_psx_w);
+	DECLARE_READ8_MEMBER(shared_psx_r);
 	DECLARE_WRITE16_MEMBER(twinkle_spu_ctrl_w);
 	DECLARE_READ16_MEMBER(twinkle_waveram_r);
 	DECLARE_WRITE16_MEMBER(twinkle_waveram_w);
 	DECLARE_READ16_MEMBER(shared_68k_r);
 	DECLARE_WRITE16_MEMBER(shared_68k_w);
-	DECLARE_READ16_MEMBER(twinkle_ide_r);
-	DECLARE_WRITE16_MEMBER(twinkle_ide_w);
 	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
 	DECLARE_DRIVER_INIT(twinkle);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 
 /* RTC */
@@ -436,19 +440,14 @@ static const UINT16 asciicharset[]=
 	0, //
 };
 
-WRITE32_MEMBER(twinkle_state::twinkle_io_w)
+WRITE8_MEMBER(twinkle_state::twinkle_io_w)
 {
-
-
-	if( ACCESSING_BITS_16_23 )
+	switch( offset )
 	{
-		m_io_offset = ( data >> 16 ) & 0xff;
-	}
-	if( ACCESSING_BITS_0_7 )
-	{
-		if( m_output_last[ m_io_offset ] != ( data & 0xff ) )
+	case 0:
+		if( m_output_last[ m_io_offset ] != data )
 		{
-			m_output_last[ m_io_offset ] = ( data & 0xff );
+			m_output_last[ m_io_offset ] = data;
 
 			switch( m_io_offset )
 			{
@@ -490,49 +489,54 @@ WRITE32_MEMBER(twinkle_state::twinkle_io_w)
 
 				if( ( data & 0xfe ) != 0xfe )
 				{
-					printf("%02x = %02x\n", m_io_offset, data & 0xff );
+					printf("%02x = %02x\n", m_io_offset, data );
 				}
 				break;
 
 			default:
-				printf( "unknown io %02x = %02x\n", m_io_offset, data & 0xff );
+				printf( "unknown io %02x = %02x\n", m_io_offset, data );
 				break;
 			}
 		}
+		break;
+
+	case 1:
+		m_io_offset = data;
+		break;
 	}
 }
 
-READ32_MEMBER(twinkle_state::twinkle_io_r)
+READ8_MEMBER(twinkle_state::twinkle_io_r)
 {
+	UINT8 data = 0;
 
-	UINT32 data = 0;
-
-	if( ACCESSING_BITS_0_7 )
+	switch( offset )
 	{
+	case 0:
 		switch( m_io_offset )
 		{
 			case 0x07:
-				data |= ioport( "IN0" )->read();
+				data = ioport( "IN0" )->read();
 				break;
 
 			case 0x0f:
-				data |= ioport( "IN1" )->read();
+				data = ioport( "IN1" )->read();
 				break;
 
 			case 0x17:
-				data |= ioport( "IN2" )->read();
+				data = ioport( "IN2" )->read();
 				break;
 
 			case 0x1f:
-				data |= ioport( "IN3" )->read();
+				data = ioport( "IN3" )->read();
 				break;
 
 			case 0x27:
-				data |= ioport( "IN4" )->read();
+				data = ioport( "IN4" )->read();
 				break;
 
 			case 0x2f:
-				data |= ioport( "IN5" )->read();
+				data = ioport( "IN5" )->read();
 				break;
 
 			default:
@@ -540,50 +544,49 @@ READ32_MEMBER(twinkle_state::twinkle_io_r)
 				{
 					m_last_io_offset = m_io_offset;
 				}
-
 				break;
 		}
-	}
+		break;
 
-	if( ACCESSING_BITS_8_15 )
-	{
+	case 1:
 		/* led status? 1100 */
+		break;
 	}
 
 	return data;
 }
 
-WRITE32_MEMBER(twinkle_state::twinkle_output_w)
+WRITE16_MEMBER(twinkle_state::twinkle_output_w)
 {
 	switch( offset )
 	{
 	case 0x00:
 		/* offset */
 		break;
-	case 0x02:
+	case 0x04:
 		/* data */
 		break;
-	case 0x04:
+	case 0x08:
 		/* ?? */
 		break;
-	case 0x08:
+	case 0x10:
 		/* bit 0 = clock?? */
 		/* bit 1 = data?? */
 		/* bit 2 = reset?? */
 		break;
-	case 0x0c:
+	case 0x18:
 		/* ?? */
 		break;
-	case 0x15:
+	case 0x30:
 		/* ?? */
 		break;
-	case 0x24:
+	case 0x48:
 		/* ?? */
 		break;
 	}
 }
 
-WRITE32_MEMBER(twinkle_state::serial_w)
+WRITE16_MEMBER(twinkle_state::serial_w)
 {
 /*
     int _do = ( data >> 4 ) & 1;
@@ -594,34 +597,17 @@ WRITE32_MEMBER(twinkle_state::serial_w)
 */
 }
 
-WRITE32_MEMBER(twinkle_state::shared_psx_w)
+WRITE8_MEMBER(twinkle_state::shared_psx_w)
 {
-
-
-	if (mem_mask == 0xff)
-	{
-		m_spu_shared[offset*2] = data;
-//      printf("shared_psx_w: %x to %x (%x), mask %x (PC=%x)\n", data, offset, offset*2, mem_mask, space.device().safe_pc());
-	}
-	else if (mem_mask == 0xff0000)
-	{
-		m_spu_shared[(offset*2)+1] = data;
-//      printf("shared_psx_w: %x to %x (%x), mask %x (PC=%x)\n", data, offset, (offset*2)+1, mem_mask, space.device().safe_pc());
-	}
-	else
-	{
-		fatalerror("shared_psx_w: Unknown mask %x\n", mem_mask);
-	}
+	m_spu_shared[offset] = data;
+//  printf("shared_psx_w: %x to %x, mask %x (PC=%x)\n", data, offset, mem_mask, space.device().safe_pc());
 }
 
-READ32_MEMBER(twinkle_state::shared_psx_r)
+READ8_MEMBER(twinkle_state::shared_psx_r)
 {
+	UINT32 result = m_spu_shared[offset];
 
-	UINT32 result;
-
-	result = m_spu_shared[offset*2] | m_spu_shared[(offset*2)+1]<<16;
-
-//  printf("shared_psx_r: @ %x (%x %x), mask %x = %x (PC=%x)\n", offset, offset*2, (offset*2)+1, mem_mask, result, space.device().safe_pc());
+//  printf("shared_psx_r: @ %x, mask %x (PC=%x)\n", offset, mem_mask, result, space.device().safe_pc());
 
 	result = 0; // HACK to prevent the games from freezing while we sort out the rest of the 68k's boot sequence
 
@@ -629,28 +615,22 @@ READ32_MEMBER(twinkle_state::shared_psx_r)
 }
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 32, twinkle_state )
-	AM_RANGE(0x00000000, 0x003fffff) AM_RAM AM_SHARE("share1") /* ram */
-	AM_RANGE(0x1f000000, 0x1f0007ff) AM_READWRITE(shared_psx_r, shared_psx_w)
+	AM_RANGE(0x1f000000, 0x1f0007ff) AM_READWRITE8(shared_psx_r, shared_psx_w, 0x00ff00ff)
 	AM_RANGE(0x1f200000, 0x1f20001f) AM_DEVREADWRITE8("scsi:am53cf96", am53cf96_device, read, write, 0x00ff00ff)
 	AM_RANGE(0x1f20a01c, 0x1f20a01f) AM_WRITENOP /* scsi? */
 	AM_RANGE(0x1f210400, 0x1f2107ff) AM_READNOP
-	AM_RANGE(0x1f218000, 0x1f218003) AM_WRITE(watchdog_reset32_w) /* LTC1232 */
-	AM_RANGE(0x1f220000, 0x1f220003) AM_WRITE(twinkle_io_w)
-	AM_RANGE(0x1f220004, 0x1f220007) AM_READ(twinkle_io_r)
+	AM_RANGE(0x1f218000, 0x1f218003) AM_WRITE8(watchdog_reset_w, 0x000000ff) /* LTC1232 */
+	AM_RANGE(0x1f220000, 0x1f220003) AM_WRITE8(twinkle_io_w, 0x00ff00ff)
+	AM_RANGE(0x1f220004, 0x1f220007) AM_READ8(twinkle_io_r, 0x00ff00ff)
 	AM_RANGE(0x1f230000, 0x1f230003) AM_WRITENOP
 	AM_RANGE(0x1f240000, 0x1f240003) AM_READ_PORT("IN6")
 	AM_RANGE(0x1f250000, 0x1f250003) AM_WRITENOP
-	AM_RANGE(0x1f260000, 0x1f260003) AM_WRITE(serial_w)
+	AM_RANGE(0x1f260000, 0x1f260003) AM_WRITE16(serial_w, 0x0000ffff)
 	AM_RANGE(0x1f270000, 0x1f270003) AM_WRITE_PORT("OUTSEC")
 	AM_RANGE(0x1f280000, 0x1f280003) AM_READ_PORT("INSEC")
 	AM_RANGE(0x1f290000, 0x1f29007f) AM_DEVREADWRITE8("rtc", rtc65271_device, rtc_r, rtc_w, 0x00ff00ff)
 	AM_RANGE(0x1f2a0000, 0x1f2a007f) AM_DEVREADWRITE8("rtc", rtc65271_device, xram_r, xram_w, 0x00ff00ff)
-	AM_RANGE(0x1f2b0000, 0x1f2b00ff) AM_WRITE(twinkle_output_w)
-	AM_RANGE(0x1fc00000, 0x1fc7ffff) AM_ROM AM_SHARE("share2") AM_REGION("user1", 0) /* bios */
-	AM_RANGE(0x80000000, 0x803fffff) AM_RAM AM_SHARE("share1") /* ram mirror */
-	AM_RANGE(0x9fc00000, 0x9fc7ffff) AM_ROM AM_SHARE("share2") /* bios mirror */
-	AM_RANGE(0xa0000000, 0xa03fffff) AM_RAM AM_SHARE("share1") /* ram mirror */
-	AM_RANGE(0xbfc00000, 0xbfc7ffff) AM_ROM AM_SHARE("share2") /* bios mirror */
+	AM_RANGE(0x1f2b0000, 0x1f2b00ff) AM_WRITE16(twinkle_output_w, 0xffffffff)
 ADDRESS_MAP_END
 
 /* SPU board */
@@ -659,27 +639,8 @@ WRITE_LINE_MEMBER(twinkle_state::ide_interrupt)
 {
 	if ((state) && (m_spu_ctrl & 0x0400))
 	{
-		machine().device("audiocpu")->execute().set_input_line(M68K_IRQ_6, ASSERT_LINE);
+		m_audiocpu->set_input_line(M68K_IRQ_6, ASSERT_LINE);
 	}
-}
-
-READ16_MEMBER(twinkle_state::twinkle_ide_r)
-{
-	device_t *device = machine().device("ide");
-	if (offset == 0)
-	{
-		return ide_controller_r(device, offset+0x1f0, 2);
-	}
-	else
-	{
-		return ide_controller_r(device, offset+0x1f0, 1);
-	}
-}
-
-WRITE16_MEMBER(twinkle_state::twinkle_ide_w)
-{
-	device_t *device = machine().device("ide");
-	ide_controller_w(device, offset+0x1f0, 1, data);
 }
 
 /*
@@ -695,8 +656,6 @@ WRITE16_MEMBER(twinkle_state::twinkle_ide_w)
 */
 WRITE16_MEMBER(twinkle_state::twinkle_spu_ctrl_w)
 {
-
-
 	if ((!(data & 0x0080)) && (m_spu_ctrl & 0x0080))
 	{
 		space.device().execute().set_input_line(M68K_IRQ_1, CLEAR_LINE);
@@ -719,22 +678,20 @@ WRITE16_MEMBER(twinkle_state::twinkle_spu_ctrl_w)
 
 READ16_MEMBER(twinkle_state::twinkle_waveram_r)
 {
-	UINT16 *waveram = (UINT16 *)machine().root_device().memregion("rfsnd")->base();
+	UINT16 *waveram = (UINT16 *)memregion("rfsnd")->base();
 
 	return waveram[offset];
 }
 
 WRITE16_MEMBER(twinkle_state::twinkle_waveram_w)
 {
-	UINT16 *waveram = (UINT16 *)machine().root_device().memregion("rfsnd")->base();
+	UINT16 *waveram = (UINT16 *)memregion("rfsnd")->base();
 
 	COMBINE_DATA(&waveram[offset]);
 }
 
 READ16_MEMBER(twinkle_state::shared_68k_r)
 {
-
-
 //  printf("shared_68k_r: @ %x, mask %x\n", offset, mem_mask);
 
 	return m_spu_shared[offset];
@@ -742,8 +699,6 @@ READ16_MEMBER(twinkle_state::shared_68k_r)
 
 WRITE16_MEMBER(twinkle_state::shared_68k_w)
 {
-
-
 //  printf("shared_68k_w: %x to %x, mask %x\n", data, offset, mem_mask);
 
 	m_spu_shared[offset] = data & 0xff;
@@ -758,9 +713,9 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 16, twinkle_state )
 	// 250000 = write to initiate DMA?
 	// 260000 = ???
 	AM_RANGE(0x280000, 0x280fff) AM_READWRITE(shared_68k_r, shared_68k_w )
-	AM_RANGE(0x300000, 0x30000f) AM_READWRITE(twinkle_ide_r, twinkle_ide_w)
+	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE("ide", ide_controller_device, read_cs0, write_cs0)
 	// 34000E = ???
-	AM_RANGE(0x400000, 0x400fff) AM_DEVREADWRITE_LEGACY("rfsnd", rf5c400_r, rf5c400_w)
+	AM_RANGE(0x400000, 0x400fff) AM_DEVREADWRITE("rfsnd", rf5c400_device, rf5c400_r, rf5c400_w)
 	AM_RANGE(0x800000, 0xffffff) AM_READWRITE(twinkle_waveram_r, twinkle_waveram_w )    // 8 MB window wave RAM
 ADDRESS_MAP_END
 
@@ -866,6 +821,9 @@ static MACHINE_CONFIG_START( twinkle, twinkle_state )
 	MCFG_CPU_ADD( "maincpu", CXD8530CQ, XTAL_67_7376MHz )
 	MCFG_CPU_PROGRAM_MAP( main_map )
 
+	MCFG_RAM_MODIFY("maincpu:ram")
+	MCFG_RAM_DEFAULT_SIZE("4M")
+
 	MCFG_PSX_DMA_CHANNEL_READ( "maincpu", 5, psx_dma_read_delegate( FUNC( scsi_dma_read ), (twinkle_state *) owner ) )
 	MCFG_PSX_DMA_CHANNEL_WRITE( "maincpu", 5, psx_dma_write_delegate( FUNC( scsi_dma_write ), (twinkle_state *) owner ) )
 
@@ -882,7 +840,7 @@ static MACHINE_CONFIG_START( twinkle, twinkle_state )
 	MCFG_AM53CF96_IRQ_HANDLER(DEVWRITELINE("^maincpu:irq", psxirq_device, intin10))
 
 	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF, twinkle_state, ide_interrupt))
+	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(twinkle_state, ide_interrupt))
 
 	MCFG_RTC65271_ADD("rtc", twinkle_rtc)
 
@@ -896,7 +854,7 @@ static MACHINE_CONFIG_START( twinkle, twinkle_state )
 	MCFG_SOUND_ROUTE( 0, "speakerleft", 0.75 )
 	MCFG_SOUND_ROUTE( 1, "speakerright", 0.75 )
 
-	MCFG_SOUND_ADD("rfsnd", RF5C400, 32000000/2)
+	MCFG_RF5C400_ADD("rfsnd", 32000000/2)
 	MCFG_SOUND_ROUTE(0, "speakerleft", 1.0)
 	MCFG_SOUND_ROUTE(1, "speakerright", 1.0)
 
@@ -960,7 +918,7 @@ static INPUT_PORTS_START( twinkle )
 INPUT_PORTS_END
 
 #define TWINKLE_BIOS    \
-	ROM_REGION32_LE( 0x080000, "user1", 0 )\
+	ROM_REGION32_LE( 0x080000, "maincpu:rom", 0 )\
 	ROM_LOAD( "863a03.7b",    0x000000, 0x080000, CRC(81498f73) SHA1(3599b40a5872eab3a00d345287635355fcb25a71) )\
 \
 	ROM_REGION32_LE( 0x080000, "audiocpu", 0 )\

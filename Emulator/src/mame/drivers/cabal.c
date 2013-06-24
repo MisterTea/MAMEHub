@@ -62,7 +62,6 @@ MACHINE_RESET_MEMBER(cabal_state,cabalbl)
 
 WRITE16_MEMBER(cabal_state::cabalbl_sndcmd_w)
 {
-
 	switch (offset)
 	{
 		case 0x0:
@@ -88,7 +87,6 @@ WRITE16_MEMBER(cabal_state::track_reset_w)
 
 READ16_MEMBER(cabal_state::track_r)
 {
-
 	switch (offset)
 	{
 		default:
@@ -110,7 +108,7 @@ WRITE16_MEMBER(cabal_state::cabal_sound_irq_trigger_word_w)
 
 WRITE16_MEMBER(cabal_state::cabalbl_sound_irq_trigger_word_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE );
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE );
 }
 
 
@@ -158,13 +156,11 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(cabal_state::cabalbl_snd2_r)
 {
-
 	return BITSWAP8(m_sound_command2, 7,2,4,5,3,6,1,0);
 }
 
 READ8_MEMBER(cabal_state::cabalbl_snd1_r)
 {
-
 	return BITSWAP8(m_sound_command1, 7,2,4,5,3,6,1,0);
 }
 
@@ -214,21 +210,19 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(cabal_state::cabalbl_1_adpcm_w)
 {
-	device_t *device = machine().device("msm1");
-	msm5205_reset_w(device,(data>>7)&1);
+	m_msm1->reset_w(BIT(data, 7));
 	/* ?? bit 6?? */
-	msm5205_data_w(device,data);
-	msm5205_vclk_w(device,1);
-	msm5205_vclk_w(device,0);
+	m_msm1->data_w(data);
+	m_msm1->vclk_w(1);
+	m_msm1->vclk_w(0);
 }
 WRITE8_MEMBER(cabal_state::cabalbl_2_adpcm_w)
 {
-	device_t *device = machine().device("msm2");
-	msm5205_reset_w(device,(data>>7)&1);
+	m_msm2->reset_w(BIT(data, 7));
 	/* ?? bit 6?? */
-	msm5205_data_w(device,data);
-	msm5205_vclk_w(device,1);
-	msm5205_vclk_w(device,0);
+	m_msm2->data_w(data);
+	m_msm2->vclk_w(1);
+	m_msm2->vclk_w(0);
 }
 static ADDRESS_MAP_START( cabalbl_talk1_map, AS_PROGRAM, 8, cabal_state )
 	AM_RANGE(0x0000, 0xffff) AM_ROM AM_WRITENOP
@@ -467,13 +461,13 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_interface_1 =
 {
-	0,
+	DEVCB_NULL,
 	MSM5205_SEX_4B
 };
 
 static const msm5205_interface msm5205_interface_2 =
 {
-	0,
+	DEVCB_NULL,
 	MSM5205_SEX_4B
 };
 
@@ -836,18 +830,18 @@ ROM_END
 
 
 
-static void seibu_sound_bootleg(running_machine &machine,const char *cpu,int length)
+void cabal_state::seibu_sound_bootleg(const char *cpu,int length)
 {
-	address_space &space = machine.device(cpu)->memory().space(AS_PROGRAM);
-	UINT8 *decrypt = auto_alloc_array(machine, UINT8, length);
-	UINT8 *rom = machine.root_device().memregion(cpu)->base();
+	address_space &space = machine().device(cpu)->memory().space(AS_PROGRAM);
+	UINT8 *decrypt = auto_alloc_array(machine(), UINT8, length);
+	UINT8 *rom = memregion(cpu)->base();
 
 	space.set_decrypted_region(0x0000, (length < 0x10000) ? (length - 1) : 0x1fff, decrypt);
 
 	memcpy(decrypt, rom+length, length);
 
 	if (length > 0x10000)
-		machine.root_device().membank("bank1")->configure_decrypted_entries(0, (length - 0x10000) / 0x8000, decrypt + 0x10000, 0x8000);
+		membank("bank1")->configure_decrypted_entries(0, (length - 0x10000) / 0x8000, decrypt + 0x10000, 0x8000);
 }
 
 
@@ -861,7 +855,7 @@ DRIVER_INIT_MEMBER(cabal_state,cabal)
 
 DRIVER_INIT_MEMBER(cabal_state,cabalbl2)
 {
-	seibu_sound_bootleg(machine(),"audiocpu",0x2000);
+	seibu_sound_bootleg("audiocpu",0x2000);
 	seibu_adpcm_decrypt(machine(),"adpcm1");
 	seibu_adpcm_decrypt(machine(),"adpcm2");
 }

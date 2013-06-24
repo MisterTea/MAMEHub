@@ -56,7 +56,6 @@ TILE_GET_INFO_MEMBER(m10_state::get_tile_info)
 
 WRITE8_MEMBER(m10_state::m10_colorram_w)
 {
-
 	if (m_colorram[offset] != data)
 	{
 		m_tx_tilemap->mark_tile_dirty(offset);
@@ -67,7 +66,6 @@ WRITE8_MEMBER(m10_state::m10_colorram_w)
 
 WRITE8_MEMBER(m10_state::m10_chargen_w)
 {
-
 	if (m_chargen[offset] != data)
 	{
 		m_chargen[offset] = data;
@@ -78,7 +76,6 @@ WRITE8_MEMBER(m10_state::m10_chargen_w)
 
 WRITE8_MEMBER(m10_state::m15_chargen_w)
 {
-
 	if (m_chargen[offset] != data)
 	{
 		m_chargen[offset] = data;
@@ -87,11 +84,9 @@ WRITE8_MEMBER(m10_state::m15_chargen_w)
 }
 
 
-INLINE void plot_pixel_m10( running_machine &machine, bitmap_ind16 &bm, int x, int y, int col )
+inline void m10_state::plot_pixel_m10( bitmap_ind16 &bm, int x, int y, int col )
 {
-	m10_state *state = machine.driver_data<m10_state>();
-
-	if (!state->m_flip)
+	if (!m_flip)
 		bm.pix16(y, x) = col;
 	else
 		bm.pix16((IREMM10_VBSTART - 1) - (y - IREMM10_VBEND) + 6,
@@ -100,7 +95,6 @@ INLINE void plot_pixel_m10( running_machine &machine, bitmap_ind16 &bm, int x, i
 
 VIDEO_START_MEMBER(m10_state,m10)
 {
-
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m10_state::get_tile_info),this), tilemap_mapper_delegate(FUNC(m10_state::tilemap_scan),this), 8, 8, 32, 32);
 	m_tx_tilemap->set_transparent_pen(0);
 	m_tx_tilemap->set_scrolldx(0, 62);
@@ -114,7 +108,6 @@ VIDEO_START_MEMBER(m10_state,m10)
 
 VIDEO_START_MEMBER(m10_state,m15)
 {
-
 	machine().gfx[0] = auto_alloc(machine(), gfx_element(machine(), charlayout, m_chargen, 8, 0));
 
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m10_state::get_tile_info),this),tilemap_mapper_delegate(FUNC(m10_state::tilemap_scan),this), 8, 8, 32, 32);
@@ -150,7 +143,7 @@ UINT32 m10_state::screen_update_m10(screen_device &screen, bitmap_ind16 &bitmap,
 		int y;
 
 		for (y = IREMM10_VBEND; y < IREMM10_VBSTART; y++)
-			plot_pixel_m10(machine(), bitmap, 16, y, 1);
+			plot_pixel_m10(bitmap, 16, y, 1);
 	}
 
 	for (offs = m_videoram.bytes() - 1; offs >= 0; offs--)

@@ -12,6 +12,8 @@ Ernesto Corvi & Mariusz Wojcieszek
 
 #include "devlegcy.h"
 
+#include "machine/6526cia.h"
+#include "machine/amigafdc.h"
 
 /*************************************
  *
@@ -371,15 +373,52 @@ struct autoconfig_device
 class amiga_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_SCANLINE,
+		TIMER_AMIGA_IRQ,
+		TIMER_AMIGA_BLITTER,
+		TIMER_FINISH_SERIAL_WRITE
+	};
+
 	amiga_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+			m_maincpu(*this, "maincpu"), /* accelerator cards may present an interesting challenge because the maincpu will be the one on the card instead */
+			m_cia_0(*this, "cia_0"),
+			m_cia_1(*this, "cia_1"),
+			m_fdc(*this, "fdc"),
 			m_chip_ram(*this, "chip_ram", 0),
-			m_custom_regs(*this, "custom_regs", 0) { }
+			m_custom_regs(*this, "custom_regs", 0),
+			m_joy0dat_port(*this, "JOY0DAT"),
+			m_joy1dat_port(*this, "JOY1DAT"),
+			m_potgo_port(*this, "POTGO"),
+			m_pot0dat_port(*this, "POT0DAT"),
+			m_pot1dat_port(*this, "POT1DAT"),
+			m_p1joy_port(*this, "P1JOY"),
+			m_p2joy_port(*this, "P2JOY"),
+			m_bank1(*this, "bank1")
 
+	{ }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<legacy_mos6526_device> m_cia_0;
+	required_device<legacy_mos6526_device> m_cia_1;
+	optional_device<amiga_fdc> m_fdc;
 	required_shared_ptr<UINT16> m_chip_ram;
 	UINT16 (*m_chip_ram_r)(amiga_state *state, offs_t offset);
 	void (*m_chip_ram_w)(amiga_state *state, offs_t offset, UINT16 data);
 	required_shared_ptr<UINT16> m_custom_regs;
+
+	optional_ioport m_joy0dat_port;
+	optional_ioport m_joy1dat_port;
+	optional_ioport m_potgo_port;
+	optional_ioport m_pot0dat_port;
+	optional_ioport m_pot1dat_port;
+	optional_ioport m_p1joy_port;
+	optional_ioport m_p2joy_port;
+	optional_memory_bank m_bank1;
+
+	address_space* m_maincpu_program_space;
 
 	const amiga_machine_interface *m_intf;
 	autoconfig_device *m_autoconfig_list;
@@ -428,11 +467,10 @@ public:
 	int m_aga_sprite_dma_used_words[8];
 
 	DECLARE_CUSTOM_INPUT_MEMBER( amiga_joystick_convert );
-	DECLARE_DRIVER_INIT(mquake);
 	DECLARE_DRIVER_INIT(amiga);
 	DECLARE_DRIVER_INIT(cdtv);
 	DECLARE_DRIVER_INIT(a3000);
-	DECLARE_MACHINE_RESET(mquake);
+	DECLARE_MACHINE_START(amiga);
 	DECLARE_MACHINE_RESET(amiga);
 	DECLARE_VIDEO_START(amiga);
 	DECLARE_PALETTE_INIT(amiga);
@@ -443,6 +481,27 @@ public:
 	TIMER_CALLBACK_MEMBER(amiga_irq_proc);
 	TIMER_CALLBACK_MEMBER(amiga_blitter_proc);
 	TIMER_CALLBACK_MEMBER(finish_serial_write);
+	DECLARE_WRITE_LINE_MEMBER(amiga_cia_0_irq);
+	DECLARE_WRITE_LINE_MEMBER(amiga_cia_1_irq);
+
+
+
+	DECLARE_READ16_MEMBER( amiga_custom_r );
+	DECLARE_WRITE16_MEMBER( amiga_custom_w );
+
+	DECLARE_READ16_MEMBER( amiga_autoconfig_r );
+	DECLARE_WRITE16_MEMBER( amiga_autoconfig_w );
+
+	DECLARE_READ16_MEMBER( amiga_cia_r );
+	DECLARE_WRITE16_MEMBER( amiga_cia_w );
+	// action replay
+	DECLARE_READ16_MEMBER( amiga_ar23_cia_r );
+	DECLARE_READ16_MEMBER( amiga_ar23_mode_r );
+	DECLARE_WRITE16_MEMBER( amiga_ar23_mode_w );
+	void amiga_ar23_init( running_machine &machine, int ar3 );
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -456,21 +515,13 @@ void amiga_machine_config(running_machine &machine, const amiga_machine_interfac
 
 
 
-DECLARE_READ16_HANDLER( amiga_cia_r );
-DECLARE_WRITE16_HANDLER( amiga_cia_w );
 
-DECLARE_READ16_HANDLER( amiga_custom_r );
-DECLARE_WRITE16_HANDLER( amiga_custom_w );
+
 
 void amiga_serial_in_w(running_machine &machine, UINT16 data);
 attotime amiga_get_serial_char_period(running_machine &machine);
 
 void amiga_add_autoconfig(running_machine &machine, const amiga_autoconfig_device *device);
-DECLARE_READ16_HANDLER( amiga_autoconfig_r );
-DECLARE_WRITE16_HANDLER( amiga_autoconfig_w );
-
-void amiga_cia_0_irq(device_t *device, int state);
-void amiga_cia_1_irq(device_t *device, int state);
 
 const amiga_machine_interface *amiga_get_interface(running_machine &machine);
 

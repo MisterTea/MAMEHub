@@ -7,6 +7,9 @@
 #ifndef __DC_H__
 #define __DC_H__
 
+#include "video/powervr2.h"
+#include "machine/naomig1.h"
+
 class dc_state : public driver_device
 {
 	public:
@@ -16,9 +19,10 @@ class dc_state : public driver_device
 		dc_texture_ram(*this, "dc_texture_ram"),
 		dc_sound_ram(*this, "dc_sound_ram"),
 		dc_ram(*this, "dc_ram"),
-		pvr2_texture_ram(*this, "textureram2"),
-		pvr2_framebuffer_ram(*this, "frameram2"),
-		elan_ram(*this, "elan_ram") { }
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_powervr2(*this, "powervr2"),
+		m_naomig1(*this, "rom_board") { }
 
 	required_shared_ptr<UINT64> dc_framebuffer_ram; // '32-bit access area'
 	required_shared_ptr<UINT64> dc_texture_ram; // '64-bit access area'
@@ -45,98 +49,43 @@ class dc_state : public driver_device
 		UINT8 sel;
 	}m_wave_dma;
 
-	struct {
-		UINT32 pvr_addr;
-		UINT32 sys_addr;
-		UINT32 size;
-		UINT8 sel;
-		UINT8 dir;
-		UINT8 flag;
-		UINT8 start;
-	}m_pvr_dma;
-
-	/* video related */
-	UINT32 pvrta_regs[0x2000/4];
-	UINT32 pvrctrl_regs[0x100/4];
-	UINT32 debug_dip_status;
-	emu_timer *vbout_timer;
-	emu_timer *vbin_timer;
-	emu_timer *hbin_timer;
-	emu_timer *endofrender_timer_isp;
-	emu_timer *endofrender_timer_tsp;
-	emu_timer *endofrender_timer_video;
-	UINT32 tafifo_buff[32];
-	int scanline;
-	int next_y;
-
-	/* Naomi 2 specific (To be moved) */
-	optional_shared_ptr<UINT64> pvr2_texture_ram;
-	optional_shared_ptr<UINT64> pvr2_framebuffer_ram;
-	optional_shared_ptr<UINT64> elan_ram;
-	DECLARE_DRIVER_INIT(atomiswave);
-	DECLARE_DRIVER_INIT(naomigd);
-	DECLARE_DRIVER_INIT(ggxx);
-	DECLARE_DRIVER_INIT(ggxxrl);
-	DECLARE_DRIVER_INIT(ggxxsla);
-	DECLARE_DRIVER_INIT(naomi2);
-	DECLARE_DRIVER_INIT(naomi);
-	DECLARE_DRIVER_INIT(naomigd_mp);
-	DECLARE_DRIVER_INIT(sfz3ugd);
-	DECLARE_DRIVER_INIT(hotd2);
-	DECLARE_DRIVER_INIT(qmegamis);
-	DECLARE_DRIVER_INIT(gram2000);
-	DECLARE_DRIVER_INIT(kick4csh);
-	DECLARE_DRIVER_INIT(vf4evoct);
-	DECLARE_DRIVER_INIT(naomi_mp);
-	DECLARE_DRIVER_INIT(mvsc2);
 	virtual void machine_start();
 	virtual void machine_reset();
-	virtual void video_start();
-	DECLARE_MACHINE_RESET(naomi);
-	UINT32 screen_update_dc(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(aica_dma_irq);
-	TIMER_CALLBACK_MEMBER(pvr_dma_irq);
 	TIMER_CALLBACK_MEMBER(ch2_dma_irq);
 	TIMER_CALLBACK_MEMBER(yuv_fifo_irq);
 	TIMER_CALLBACK_MEMBER(dc_rtc_increment);
-	TIMER_CALLBACK_MEMBER(transfer_opaque_list_irq);
-	TIMER_CALLBACK_MEMBER(transfer_opaque_modifier_volume_list_irq);
-	TIMER_CALLBACK_MEMBER(transfer_translucent_list_irq);
-	TIMER_CALLBACK_MEMBER(transfer_translucent_modifier_volume_list_irq);
-	TIMER_CALLBACK_MEMBER(transfer_punch_through_list_irq);
-	TIMER_CALLBACK_MEMBER(vbin);
-	TIMER_CALLBACK_MEMBER(vbout);
-	TIMER_CALLBACK_MEMBER(hbin);
-	TIMER_CALLBACK_MEMBER(endofrender_video);
-	TIMER_CALLBACK_MEMBER(endofrender_tsp);
-	TIMER_CALLBACK_MEMBER(endofrender_isp);
 	DECLARE_READ64_MEMBER(dc_aica_reg_r);
 	DECLARE_WRITE64_MEMBER(dc_aica_reg_w);
 	DECLARE_READ32_MEMBER(dc_arm_aica_r);
 	DECLARE_WRITE32_MEMBER(dc_arm_aica_w);
+	void wave_dma_execute(address_space &space);
+	inline int decode_reg32_64(UINT32 offset, UINT64 mem_mask, UINT64 *shift);
+	inline int decode_reg3216_64(UINT32 offset, UINT64 mem_mask, UINT64 *shift);
+	int dc_compute_interrupt_level();
+	void dc_update_interrupt_status();
+	inline int decode_reg_64(UINT32 offset, UINT64 mem_mask, UINT64 *shift);
+	void rtc_initial_setup();
+	DECLARE_READ64_MEMBER( dc_sysctrl_r );
+	DECLARE_WRITE64_MEMBER( dc_sysctrl_w );
+	DECLARE_READ64_MEMBER( dc_gdrom_r );
+	DECLARE_WRITE64_MEMBER( dc_gdrom_w );
+	DECLARE_READ64_MEMBER( dc_g2_ctrl_r );
+	DECLARE_WRITE64_MEMBER( dc_g2_ctrl_w );
+	DECLARE_READ64_MEMBER( dc_modem_r );
+	DECLARE_WRITE64_MEMBER( dc_modem_w );
+	DECLARE_READ64_MEMBER( dc_rtc_r );
+	DECLARE_WRITE64_MEMBER( dc_rtc_w );
+	DECLARE_WRITE8_MEMBER( g1_irq );
+	DECLARE_WRITE8_MEMBER( pvr_irq );
+
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	required_device<powervr2_device> m_powervr2;
+	optional_device<naomi_g1_device> m_naomig1;
+
+	void generic_dma(UINT32 main_adr, void *dma_ptr, UINT32 length, UINT32 size, bool to_mainram);
 };
-
-/*----------- defined in machine/dc.c -----------*/
-
-DECLARE_READ64_HANDLER( pvr_ctrl_r );
-DECLARE_WRITE64_HANDLER( pvr_ctrl_w );
-
-DECLARE_READ64_HANDLER( dc_sysctrl_r );
-DECLARE_WRITE64_HANDLER( dc_sysctrl_w );
-DECLARE_READ64_HANDLER( dc_gdrom_r );
-DECLARE_WRITE64_HANDLER( dc_gdrom_w );
-DECLARE_READ64_HANDLER( dc_g1_ctrl_r );
-DECLARE_WRITE64_HANDLER( dc_g1_ctrl_w );
-DECLARE_READ64_HANDLER( dc_g2_ctrl_r );
-DECLARE_WRITE64_HANDLER( dc_g2_ctrl_w );
-DECLARE_READ64_HANDLER( dc_modem_r );
-DECLARE_WRITE64_HANDLER( dc_modem_w );
-DECLARE_READ64_HANDLER( dc_rtc_r );
-DECLARE_WRITE64_HANDLER( dc_rtc_w );
-
-
-int dc_compute_interrupt_level(running_machine &machine);
-void dc_update_interrupt_status(running_machine &machine);
 
 /*--------- Ch2-DMA Control Registers ----------*/
 #define SB_C2DSTAT  ((0x005f6800-0x005f6800)/4)
@@ -297,29 +246,6 @@ void dc_update_interrupt_status(running_machine &machine);
 #define RTC3        ((0x00710008-0x00710000)/4)
 
 
-/*----------- defined in video/dc.c -----------*/
-
-extern UINT32 pvrctrl_regs[0x100/4];
-extern UINT64 *dc_texture_ram;
-extern UINT64 *dc_framebuffer_ram;
-
-extern UINT64 *pvr2_texture_ram;
-extern UINT64 *pvr2_framebuffer_ram;
-extern UINT64 *elan_ram;
-
-DECLARE_READ64_HANDLER( pvr_ta_r );
-DECLARE_WRITE64_HANDLER( pvr_ta_w );
-DECLARE_READ64_HANDLER( pvr2_ta_r );
-DECLARE_WRITE64_HANDLER( pvr2_ta_w );
-DECLARE_READ64_HANDLER( pvrs_ta_r );
-DECLARE_WRITE64_HANDLER( pvrs_ta_w );
-DECLARE_READ32_HANDLER( elan_regs_r );
-DECLARE_WRITE32_HANDLER( elan_regs_w );
-DECLARE_WRITE64_HANDLER( ta_fifo_poly_w );
-DECLARE_WRITE64_HANDLER( ta_fifo_yuv_w );
-
-
-
 /*--------------- CORE registers --------------*/
 #define PVRID               ((0x005f8000-0x005f8000)/4)
 #define REVISION            ((0x005f8004-0x005f8000)/4)
@@ -396,29 +322,30 @@ DECLARE_WRITE64_HANDLER( ta_fifo_yuv_w );
 /* 0x005f8600 - 0x005f8f5c TA_OL_POINTERS (read only) */
 
 /* ------------- normal interrupts ------------- */
-#define IST_EOR_VIDEO   0x00000001
-#define IST_EOR_ISP 0x00000002
-#define IST_EOR_TSP 0x00000004
-#define IST_VBL_IN  0x00000008
-#define IST_VBL_OUT 0x00000010
-#define IST_HBL_IN  0x00000020
-#define IST_EOXFER_YUV  0x00000040
+#define IST_EOR_VIDEO    0x00000001
+#define IST_EOR_ISP      0x00000002
+#define IST_EOR_TSP      0x00000004
+#define IST_VBL_IN       0x00000008
+#define IST_VBL_OUT      0x00000010
+#define IST_HBL_IN       0x00000020
+#define IST_EOXFER_YUV   0x00000040
 #define IST_EOXFER_OPLST 0x00000080
-#define IST_EOXFER_OPMV 0x00000100
+#define IST_EOXFER_OPMV  0x00000100
 #define IST_EOXFER_TRLST 0x00000200
-#define IST_EOXFER_TRMV 0x00000400
-#define IST_DMA_PVR 0x00000800
-#define IST_DMA_MAPLE   0x00001000
-#define IST_DMA_MAPLEVB 0x00002000
-#define IST_DMA_GDROM   0x00004000
-#define IST_DMA_AICA    0x00008000
-#define IST_DMA_EXT1    0x00010000
-#define IST_DMA_EXT2    0x00020000
-#define IST_DMA_DEV 0x00040000
-#define IST_DMA_CH2 0x00080000
-#define IST_DMA_SORT    0x00100000
-#define IST_G1G2EXTSTAT 0x40000000
-#define IST_ERROR   0x80000000
+#define IST_EOXFER_TRMV  0x00000400
+#define IST_DMA_PVR      0x00000800
+#define IST_DMA_MAPLE    0x00001000
+#define IST_DMA_MAPLEVB  0x00002000
+#define IST_DMA_GDROM    0x00004000
+#define IST_DMA_AICA     0x00008000
+#define IST_DMA_EXT1     0x00010000
+#define IST_DMA_EXT2     0x00020000
+#define IST_DMA_DEV      0x00040000
+#define IST_DMA_CH2      0x00080000
+#define IST_DMA_SORT     0x00100000
+#define IST_EOXFER_PTLST 0x00200000
+#define IST_G1G2EXTSTAT  0x40000000
+#define IST_ERROR        0x80000000
 /* ------------ external interrupts ------------ */
 #define IST_EXT_EXTERNAL    0x00000008
 #define IST_EXT_MODEM   0x00000004

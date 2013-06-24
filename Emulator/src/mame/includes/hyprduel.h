@@ -6,7 +6,7 @@ class hyprduel_state : public driver_device
 {
 public:
 	hyprduel_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram_0(*this, "vram_0"),
 		m_vram_1(*this, "vram_1"),
 		m_vram_2(*this, "vram_2"),
@@ -21,7 +21,9 @@ public:
 		m_screenctrl(*this, "screenctrl"),
 		m_videoregs(*this, "videoregs"),
 		m_sharedram1(*this, "sharedram1"),
-		m_sharedram3(*this, "sharedram3"){ }
+		m_sharedram3(*this, "sharedram3"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_vram_0;
@@ -59,8 +61,8 @@ public:
 	int       m_int_num;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_subcpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 	DECLARE_READ16_MEMBER(hyprduel_irq_cause_r);
 	DECLARE_WRITE16_MEMBER(hyprduel_irq_cause_w);
 	DECLARE_WRITE16_MEMBER(hyprduel_subcpu_control_w);
@@ -94,4 +96,16 @@ public:
 	TIMER_CALLBACK_MEMBER(magerror_irq_callback);
 	TIMER_CALLBACK_MEMBER(hyprduel_blit_done);
 	TIMER_DEVICE_CALLBACK_MEMBER(hyprduel_interrupt);
+	void hyprduel_postload();
+	inline void get_tile_info( tile_data &tileinfo, int tile_index, int layer, UINT16 *vram);
+	inline void get_tile_info_8bit( tile_data &tileinfo, int tile_index, int layer, UINT16 *vram );
+	inline void get_tile_info_16x16_8bit( tile_data &tileinfo, int tile_index, int layer, UINT16 *vram );
+	inline void hyprduel_vram_w( offs_t offset, UINT16 data, UINT16 mem_mask, int layer, UINT16 *vram );
+	void alloc_empty_tiles(  );
+	void expand_gfx1(hyprduel_state &state);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_layers( bitmap_ind16 &bitmap, const rectangle &cliprect, int pri, int layers_ctrl );
+	void dirty_tiles( int layer, UINT16 *vram );
+	void update_irq_state(  );
+	inline int blt_read( const UINT8 *ROM, const int offs );
 };

@@ -1,13 +1,20 @@
 #include "sound/dac.h"
 #include "sound/sn76496.h"
+#include "sound/2203intf.h"
 
 class homedata_state : public driver_device
 {
 public:
 	homedata_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vreg(*this, "vreg"),
-		m_videoram(*this, "videoram") {}
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_dac(*this, "dac"),
+		m_ymsnd(*this, "ymsnd")
+	{
+	}
 
 	/* memory pointers */
 	optional_shared_ptr<UINT8> m_vreg;
@@ -36,10 +43,10 @@ public:
 	int      m_from_cpu;
 
 	/* device */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	dac_device *m_dac;
-	device_t *m_ym;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<dac_device> m_dac;
+	optional_device<ym2203_device> m_ymsnd;
 	sn76489a_device *m_sn;
 	UINT8 m_prot_data;
 	DECLARE_READ8_MEMBER(mrokumei_keyboard_r);
@@ -127,4 +134,14 @@ public:
 	void screen_eof_homedata(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(homedata_irq);
 	INTERRUPT_GEN_MEMBER(upd7807_irq);
+	void mrokumei_handleblit( address_space &space, int rom_base );
+	void reikaids_handleblit( address_space &space, int rom_base );
+	void pteacher_handleblit( address_space &space, int rom_base );
+	inline void mrokumei_info0( tile_data &tileinfo, int tile_index, int page, int gfxbank );
+	inline void mrokumei_info1( tile_data &tileinfo, int tile_index, int page, int gfxbank );
+	inline void reikaids_info( tile_data &tileinfo, int tile_index, int page, int layer, int gfxbank );
+	inline void pteacher_info( tile_data &tileinfo, int tile_index, int page, int layer, int gfxbank );
+	inline void lemnangl_info( tile_data &tileinfo, int tile_index, int page, int layer, int gfxset, int gfxbank );
+	inline void mirderby_info0( tile_data &tileinfo, int tile_index, int page, int gfxbank );
+	inline void mirderby_info1( tile_data &tileinfo, int tile_index, int page, int gfxbank );
 };

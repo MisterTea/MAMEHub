@@ -16,9 +16,11 @@ class c900_state : public driver_device
 {
 public:
 	c900_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu") { }
 
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 static ADDRESS_MAP_START(c900_mem, AS_PROGRAM, 16, c900_state)
@@ -31,7 +33,7 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( c900 )
 INPUT_PORTS_END
 
-UINT32 c900_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+UINT32 c900_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	return 0;
 }
@@ -56,6 +58,9 @@ ROM_START( c900 )
 	ROM_REGION16_LE( 0x8000, "maincpu", 0 )
 	ROM_LOAD16_BYTE( "c 900 boot-h v 1.0.bin.u17", 0x0000, 0x4000, CRC(c3aa7fc1) SHA1(ff12dd100fa7b1e7e931e9a8ef4c4f5cc056e099) )
 	ROM_LOAD16_BYTE( "c 900 boot-l v 1.0.bin.u18", 0x0001, 0x4000, CRC(0aa39272) SHA1(b2c5da4586d38fc66bb33aafeae4dbda36080f1e) )
+
+	ROM_REGION( 0x1000, "chargen", 0 )
+	ROM_LOAD( "380217-01.u2", 0x0000, 0x1000, CRC(64cb4171) SHA1(e60d796170addfd27e2c33090f9c512c7e3f99f5) )
 ROM_END
 
 /*    YEAR  NAME   PARENT  COMPAT  MACHINE INPUT   INIT COMPANY     FULLNAME        FLAGS */

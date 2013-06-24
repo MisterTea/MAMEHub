@@ -30,8 +30,7 @@ static UINT8 *namcos2_eeprom;
 static int sendval;
 
 
-// not shared
-READ16_HANDLER( namcos2_flap_prot_r )
+READ16_MEMBER( namcos2_state::namcos2_finallap_prot_r )
 {
 	static const UINT16 table0[8] = { 0x0000,0x0040,0x0440,0x2440,0x2480,0xa080,0x8081,0x8041 };
 	static const UINT16 table1[8] = { 0x0040,0x0060,0x0060,0x0860,0x0864,0x08e4,0x08e5,0x08a5 };
@@ -84,16 +83,25 @@ READ16_HANDLER( namcos2_flap_prot_r )
 static void
 ResetAllSubCPUs( running_machine &machine, int state )
 {
-	machine.device("slave")->execute().set_input_line(INPUT_LINE_RESET, state);
-	machine.device("mcu")->execute().set_input_line(INPUT_LINE_RESET, state);
+	namcos2_shared_state *s2state = machine.driver_data<namcos2_shared_state>();
+
+	s2state->m_slave->set_input_line(INPUT_LINE_RESET, state);
+	if (s2state->m_c68)
+	{
+		s2state->m_c68->set_input_line(INPUT_LINE_RESET, state);
+	}
+	else
+	{
+		s2state->m_mcu->set_input_line(INPUT_LINE_RESET, state);
+	}
 	switch( machine.driver_data<namcos2_shared_state>()->m_gametype )
 	{
 	case NAMCOS21_SOLVALOU:
 	case NAMCOS21_STARBLADE:
 	case NAMCOS21_AIRCOMBAT:
 	case NAMCOS21_CYBERSLED:
-		machine.device("dspmaster")->execute().set_input_line(INPUT_LINE_RESET, state);
-		machine.device("dspslave")->execute().set_input_line(INPUT_LINE_RESET, state);
+		s2state->m_dspmaster->set_input_line(INPUT_LINE_RESET, state);
+		s2state->m_dspslave->set_input_line(INPUT_LINE_RESET, state);
 		break;
 
 //  case NAMCOS21_WINRUN91:
@@ -113,7 +121,9 @@ MACHINE_START_MEMBER(namcos2_shared_state,namcos2)
 
 MACHINE_RESET_MEMBER(namcos2_shared_state,namcos2)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+//  address_space &space = m_maincpu->space(AS_PROGRAM);
+	address_space &audio_space = m_audiocpu->space(AS_PROGRAM);
+
 	mFinalLapProtCount = 0;
 	namcos2_mcu_analog_ctrl = 0;
 	namcos2_mcu_analog_data = 0xaa;
@@ -121,9 +131,9 @@ MACHINE_RESET_MEMBER(namcos2_shared_state,namcos2)
 	sendval = 0;
 
 	/* Initialise the bank select in the sound CPU */
-	namcos2_sound_bankselect_w(space, 0, 0); /* Page in bank 0 */
+	namcos2_sound_bankselect_w(audio_space, 0, 0); /* Page in bank 0 */
 
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE );
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE );
 
 	/* Place CPU2 & CPU3 into the reset condition */
 	ResetAllSubCPUs( machine(), ASSERT_LINE );
@@ -133,29 +143,22 @@ MACHINE_RESET_MEMBER(namcos2_shared_state,namcos2)
 
 	/* reset POSIRQ timer */
 	namcos2_posirq_timer->adjust(attotime::never);
+
+	m_player_mux = 0;
 }
 
 /*************************************************************/
 /* EEPROM Load/Save and read/write handling                  */
 /*************************************************************/
 
-WRITE16_HANDLER( namcos2_68k_eeprom_w ){
-	if( ACCESSING_BITS_0_7 )
-	{
-		namcos2_eeprom[offset] = data;
-	}
+WRITE8_MEMBER( namcos2_shared_state::namcos2_68k_eeprom_w )
+{
+	namcos2_eeprom[offset] = data;
 }
 
-READ16_HANDLER( namcos2_68k_eeprom_r ){
+READ8_MEMBER( namcos2_shared_state::namcos2_68k_eeprom_r )
+{
 	return namcos2_eeprom[offset];
-}
-
-/*************************************************************/
-/* 68000 Shared memory area - Data ROM area                  */
-/*************************************************************/
-READ16_HANDLER( namcos2_68k_data_rom_r ){
-	UINT16 *ROM = (UINT16 *)space.machine().root_device().memregion("user1")->base();
-	return ROM[offset];
 }
 
 
@@ -227,9 +230,9 @@ suzuk8h2    1993
 sws93       1993    334         $014e
  *************************************************************/
 
-READ16_HANDLER( namcos2_68k_key_r )
+READ16_MEMBER( namcos2_state::namcos2_68k_key_r )
 {
-	switch (space.machine().driver_data<namcos2_shared_state>()->m_gametype)
+	switch (machine().driver_data<namcos2_shared_state>()->m_gametype)
 	{
 	case NAMCOS2_ORDYNE:
 		switch(offset)
@@ -401,9 +404,9 @@ READ16_HANDLER( namcos2_68k_key_r )
 	return space.machine().rand()&0xffff;
 }
 
-WRITE16_HANDLER( namcos2_68k_key_w )
+WRITE16_MEMBER( namcos2_state::namcos2_68k_key_w )
 {
-	int gametype = space.machine().driver_data<namcos2_shared_state>()->m_gametype;
+	int gametype = machine().driver_data<namcos2_shared_state>()->m_gametype;
 	if( gametype == NAMCOS2_MARVEL_LAND && offset == 5 )
 	{
 		if (data == 0x615E) sendval = 1;
@@ -619,32 +622,32 @@ ReadWriteC148( address_space &space, offs_t offset, UINT16 data, int bWrite )
 	return result;
 }
 
-WRITE16_HANDLER( namcos2_68k_master_C148_w )
+WRITE16_MEMBER( namcos2_shared_state::namcos2_68k_master_C148_w )
 {
 	(void)ReadWriteC148(space, offset, data, 1);
 }
 
-READ16_HANDLER( namcos2_68k_master_C148_r )
+READ16_MEMBER( namcos2_shared_state::namcos2_68k_master_C148_r )
 {
 	return ReadWriteC148(space, offset, 0, 0);
 }
 
-WRITE16_HANDLER( namcos2_68k_slave_C148_w )
+WRITE16_MEMBER( namcos2_shared_state::namcos2_68k_slave_C148_w )
 {
 	(void)ReadWriteC148(space, offset, data, 1);
 }
 
-READ16_HANDLER( namcos2_68k_slave_C148_r )
+READ16_MEMBER( namcos2_shared_state::namcos2_68k_slave_C148_r )
 {
 	return ReadWriteC148(space, offset, 0, 0);
 }
 
-WRITE16_HANDLER( namcos2_68k_gpu_C148_w )
+WRITE16_MEMBER( namcos2_shared_state::namcos21_68k_gpu_C148_w )
 {
 	(void)ReadWriteC148(space, offset, data, 1);
 }
 
-READ16_HANDLER( namcos2_68k_gpu_C148_r )
+READ16_MEMBER( namcos2_shared_state::namcos21_68k_gpu_C148_r )
 {
 	return ReadWriteC148(space, offset, 0, 0);
 }
@@ -669,8 +672,8 @@ TIMER_CALLBACK_MEMBER(namcos2_shared_state::namcos2_posirq_tick)
 
 	if (namcos2_68k_master_C148[NAMCOS2_C148_POSIRQ]|namcos2_68k_slave_C148[NAMCOS2_C148_POSIRQ]) {
 		machine().primary_screen->update_partial(param);
-		if (namcos2_68k_master_C148[NAMCOS2_C148_POSIRQ]) machine().device("maincpu")->execute().set_input_line(namcos2_68k_master_C148[NAMCOS2_C148_POSIRQ] , ASSERT_LINE);
-		if (namcos2_68k_slave_C148[NAMCOS2_C148_POSIRQ]) machine().device("slave")->execute().set_input_line(namcos2_68k_slave_C148[NAMCOS2_C148_POSIRQ] , ASSERT_LINE);
+		if (namcos2_68k_master_C148[NAMCOS2_C148_POSIRQ]) m_maincpu->set_input_line(namcos2_68k_master_C148[NAMCOS2_C148_POSIRQ] , ASSERT_LINE);
+		if (namcos2_68k_slave_C148[NAMCOS2_C148_POSIRQ]) m_slave->set_input_line(namcos2_68k_slave_C148[NAMCOS2_C148_POSIRQ] , ASSERT_LINE);
 	}
 }
 
@@ -706,12 +709,12 @@ INTERRUPT_GEN_MEMBER(namcos2_shared_state::namcos2_68k_gpu_vblank)
 /*  Sound sub-system                                          */
 /**************************************************************/
 
-WRITE8_HANDLER( namcos2_sound_bankselect_w )
+WRITE8_MEMBER( namcos2_shared_state::namcos2_sound_bankselect_w )
 {
-	UINT8 *RAM=space.machine().root_device().memregion("audiocpu")->base();
-	UINT32 max = (space.machine().root_device().memregion("audiocpu")->bytes() - 0x10000) / 0x4000;
+	UINT8 *RAM= memregion("audiocpu")->base();
+	UINT32 max = (memregion("audiocpu")->bytes() - 0x10000) / 0x4000;
 	int bank = ( data >> 4 ) % max; /* 991104.CAB */
-	space.machine().root_device().membank(BANKED_SOUND_ROM)->set_base(&RAM[ 0x10000 + ( 0x4000 * bank ) ] );
+	membank(BANKED_SOUND_ROM)->set_base(&RAM[ 0x10000 + ( 0x4000 * bank ) ] );
 }
 
 /**************************************************************/
@@ -720,7 +723,7 @@ WRITE8_HANDLER( namcos2_sound_bankselect_w )
 /*                                                            */
 /**************************************************************/
 
-WRITE8_HANDLER( namcos2_mcu_analog_ctrl_w )
+WRITE8_MEMBER( namcos2_shared_state::namcos2_mcu_analog_ctrl_w )
 {
 	namcos2_mcu_analog_ctrl = data & 0xff;
 
@@ -735,28 +738,28 @@ WRITE8_HANDLER( namcos2_mcu_analog_ctrl_w )
 		switch((data>>2) & 0x07)
 		{
 		case 0:
-			namcos2_mcu_analog_data=space.machine().root_device().ioport("AN0")->read();
+			namcos2_mcu_analog_data=ioport("AN0")->read();
 			break;
 		case 1:
-			namcos2_mcu_analog_data=space.machine().root_device().ioport("AN1")->read();
+			namcos2_mcu_analog_data=ioport("AN1")->read();
 			break;
 		case 2:
-			namcos2_mcu_analog_data=space.machine().root_device().ioport("AN2")->read();
+			namcos2_mcu_analog_data=ioport("AN2")->read();
 			break;
 		case 3:
-			namcos2_mcu_analog_data=space.machine().root_device().ioport("AN3")->read();
+			namcos2_mcu_analog_data=ioport("AN3")->read();
 			break;
 		case 4:
-			namcos2_mcu_analog_data=space.machine().root_device().ioport("AN4")->read();
+			namcos2_mcu_analog_data=ioport("AN4")->read();
 			break;
 		case 5:
-			namcos2_mcu_analog_data=space.machine().root_device().ioport("AN5")->read();
+			namcos2_mcu_analog_data=ioport("AN5")->read();
 			break;
 		case 6:
-			namcos2_mcu_analog_data=space.machine().root_device().ioport("AN6")->read();
+			namcos2_mcu_analog_data=ioport("AN6")->read();
 			break;
 		case 7:
-			namcos2_mcu_analog_data=space.machine().root_device().ioport("AN7")->read();
+			namcos2_mcu_analog_data=ioport("AN7")->read();
 			break;
 		default:
 			output_set_value("anunk",data);
@@ -773,12 +776,12 @@ WRITE8_HANDLER( namcos2_mcu_analog_ctrl_w )
 		/* If the interrupt enable bit is set trigger an A/D IRQ */
 		if(data & 0x20)
 		{
-			generic_pulse_irq_line(space.machine().device("mcu"), HD63705_INT_ADCONV, 1);
+			generic_pulse_irq_line(m_mcu, HD63705_INT_ADCONV, 1);
 		}
 	}
 }
 
-READ8_HANDLER( namcos2_mcu_analog_ctrl_r )
+READ8_MEMBER( namcos2_shared_state::namcos2_mcu_analog_ctrl_r )
 {
 	int data=0;
 
@@ -792,55 +795,37 @@ READ8_HANDLER( namcos2_mcu_analog_ctrl_r )
 	return data;
 }
 
-WRITE8_HANDLER( namcos2_mcu_analog_port_w )
+WRITE8_MEMBER( namcos2_shared_state::namcos2_mcu_analog_port_w )
 {
 }
 
-READ8_HANDLER( namcos2_mcu_analog_port_r )
+READ8_MEMBER( namcos2_shared_state::namcos2_mcu_analog_port_r )
 {
 	if(namcos2_mcu_analog_complete==1) namcos2_mcu_analog_complete=0;
 	return namcos2_mcu_analog_data;
 }
 
-WRITE8_HANDLER( namcos2_mcu_port_d_w )
+WRITE8_MEMBER( namcos2_shared_state::namcos2_mcu_port_d_w )
 {
 	/* Undefined operation on write */
 }
 
-READ8_HANDLER( namcos2_mcu_port_d_r )
+READ8_MEMBER( namcos2_shared_state::namcos2_mcu_port_d_r )
 {
 	/* Provides a digital version of the analog ports */
 	int threshold = 0x7f;
 	int data = 0;
 
 	/* Read/convert the bits one at a time */
-	if(space.machine().root_device().ioport("AN0")->read() > threshold) data |= 0x01;
-	if(space.machine().root_device().ioport("AN1")->read() > threshold) data |= 0x02;
-	if(space.machine().root_device().ioport("AN2")->read() > threshold) data |= 0x04;
-	if(space.machine().root_device().ioport("AN3")->read() > threshold) data |= 0x08;
-	if(space.machine().root_device().ioport("AN4")->read() > threshold) data |= 0x10;
-	if(space.machine().root_device().ioport("AN5")->read() > threshold) data |= 0x20;
-	if(space.machine().root_device().ioport("AN6")->read() > threshold) data |= 0x40;
-	if(space.machine().root_device().ioport("AN7")->read() > threshold) data |= 0x80;
+	if(ioport("AN0")->read() > threshold) data |= 0x01;
+	if(ioport("AN1")->read() > threshold) data |= 0x02;
+	if(ioport("AN2")->read() > threshold) data |= 0x04;
+	if(ioport("AN3")->read() > threshold) data |= 0x08;
+	if(ioport("AN4")->read() > threshold) data |= 0x10;
+	if(ioport("AN5")->read() > threshold) data |= 0x20;
+	if(ioport("AN6")->read() > threshold) data |= 0x40;
+	if(ioport("AN7")->read() > threshold) data |= 0x80;
 
 	/* Return the result */
-	return data;
-}
-
-READ8_HANDLER( namcos2_input_port_0_r )
-{
-	int data = space.machine().root_device().ioport("MCUB")->read();
-	return data;
-}
-
-READ8_HANDLER( namcos2_input_port_10_r )
-{
-	int data = space.machine().root_device().ioport("MCUH")->read();
-	return data;
-}
-
-READ8_HANDLER( namcos2_input_port_12_r )
-{
-	int data = space.machine().root_device().ioport("MCUDI0")->read();
 	return data;
 }

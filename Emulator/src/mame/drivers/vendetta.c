@@ -90,7 +90,7 @@
 #include "cpu/z80/z80.h"
 #include "video/konicdev.h"
 #include "machine/k053252.h"
-#include "cpu/konami/konami.h" /* for the callback and the firq irq definition */
+#include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "machine/eeprom.h"
 #include "sound/2151intf.h"
 #include "sound/k053260.h"
@@ -99,7 +99,6 @@
 
 /* prototypes */
 static KONAMI_SETLINES_CALLBACK( vendetta_banking );
-static void vendetta_video_banking( running_machine &machine, int select );
 
 /***************************************************************************
 
@@ -138,7 +137,7 @@ WRITE8_MEMBER(vendetta_state::vendetta_eeprom_w)
 
 	m_irq_enabled = (data >> 6) & 1;
 
-	vendetta_video_banking(machine(), data & 1);
+	vendetta_video_banking(data & 1);
 }
 
 /********************************************/
@@ -150,7 +149,6 @@ READ8_MEMBER(vendetta_state::vendetta_K052109_r)
 
 WRITE8_MEMBER(vendetta_state::vendetta_K052109_w)
 {
-
 	// *************************************************************************************
 	// *  Escape Kids uses 052109's mirrored Tilemap ROM bank selector, but only during    *
 	// *  Tilemap MASK-ROM Test       (0x1d80<->0x3d80, 0x1e00<->0x3e00, 0x1f00<->0x3f00)  *
@@ -161,28 +159,26 @@ WRITE8_MEMBER(vendetta_state::vendetta_K052109_w)
 }
 
 
-static void vendetta_video_banking( running_machine &machine, int select )
+void vendetta_state::vendetta_video_banking( int select )
 {
-	vendetta_state *state = machine.driver_data<vendetta_state>();
-	address_space &space = machine.device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	if (select & 1)
 	{
-		space.install_read_bank(state->m_video_banking_base + 0x2000, state->m_video_banking_base + 0x2fff, "bank4" );
-		space.install_write_handler(state->m_video_banking_base + 0x2000, state->m_video_banking_base + 0x2fff, write8_delegate(FUNC(vendetta_state::paletteram_xBBBBBGGGGGRRRRR_byte_be_w), state) );
-		space.install_legacy_readwrite_handler(*state->m_k053246, state->m_video_banking_base + 0x0000, state->m_video_banking_base + 0x0fff, FUNC(k053247_r), FUNC(k053247_w) );
-		state->membank("bank4")->set_base(state->m_generic_paletteram_8);
+		space.install_read_bank(m_video_banking_base + 0x2000, m_video_banking_base + 0x2fff, "bank4" );
+		space.install_write_handler(m_video_banking_base + 0x2000, m_video_banking_base + 0x2fff, write8_delegate(FUNC(vendetta_state::paletteram_xBBBBBGGGGGRRRRR_byte_be_w), this) );
+		space.install_legacy_readwrite_handler(*m_k053246, m_video_banking_base + 0x0000, m_video_banking_base + 0x0fff, FUNC(k053247_r), FUNC(k053247_w) );
+		membank("bank4")->set_base(m_generic_paletteram_8);
 	}
 	else
 	{
-		space.install_readwrite_handler(state->m_video_banking_base + 0x2000, state->m_video_banking_base + 0x2fff, read8_delegate(FUNC(vendetta_state::vendetta_K052109_r),state), write8_delegate(FUNC(vendetta_state::vendetta_K052109_w),state) );
-		space.install_legacy_readwrite_handler(*state->m_k052109, state->m_video_banking_base + 0x0000, state->m_video_banking_base + 0x0fff, FUNC(k052109_r), FUNC(k052109_w) );
+		space.install_readwrite_handler(m_video_banking_base + 0x2000, m_video_banking_base + 0x2fff, read8_delegate(FUNC(vendetta_state::vendetta_K052109_r),this), write8_delegate(FUNC(vendetta_state::vendetta_K052109_w),this) );
+		space.install_legacy_readwrite_handler(*m_k052109, m_video_banking_base + 0x0000, m_video_banking_base + 0x0fff, FUNC(k052109_r), FUNC(k052109_w) );
 	}
 }
 
 WRITE8_MEMBER(vendetta_state::vendetta_5fe0_w)
 {
-
 	/* bit 0,1 coin counters */
 	coin_counter_w(machine(), 0, data & 0x01);
 	coin_counter_w(machine(), 1, data & 0x02);
@@ -198,16 +194,23 @@ WRITE8_MEMBER(vendetta_state::vendetta_5fe0_w)
 	k053246_set_objcha_line(m_k053246, (data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
 }
 
-TIMER_CALLBACK_MEMBER(vendetta_state::z80_nmi_callback)
+void vendetta_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_Z80_NMI:
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in vendetta_state::device_timer");
+	}
 }
 
 WRITE8_MEMBER(vendetta_state::z80_arm_nmi_w)
 {
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 
-	machine().scheduler().timer_set(attotime::from_usec(25), timer_expired_delegate(FUNC(vendetta_state::z80_nmi_callback),this));
+	timer_set(attotime::from_usec(25), TIMER_Z80_NMI);
 }
 
 WRITE8_MEMBER(vendetta_state::z80_irq_w)
@@ -223,8 +226,7 @@ READ8_MEMBER(vendetta_state::vendetta_sound_interrupt_r)
 
 READ8_MEMBER(vendetta_state::vendetta_sound_r)
 {
-	device_t *device = machine().device("k053260");
-	return k053260_r(device, space, 2 + offset);
+	return m_k053260->k053260_r(space, 2 + offset);
 }
 
 /********************************************/
@@ -244,7 +246,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, vendetta_state )
 	AM_RANGE(0x5fe0, 0x5fe0) AM_WRITE(vendetta_5fe0_w)
 	AM_RANGE(0x5fe2, 0x5fe2) AM_WRITE(vendetta_eeprom_w)
 	AM_RANGE(0x5fe4, 0x5fe4) AM_READWRITE(vendetta_sound_interrupt_r, z80_irq_w)
-	AM_RANGE(0x5fe6, 0x5fe7) AM_READ(vendetta_sound_r) AM_DEVWRITE_LEGACY("k053260", k053260_w)
+	AM_RANGE(0x5fe6, 0x5fe7) AM_READ(vendetta_sound_r) AM_DEVWRITE("k053260", k053260_device, k053260_w)
 	AM_RANGE(0x5fe8, 0x5fe9) AM_DEVREAD_LEGACY("k053246", k053246_r)
 	AM_RANGE(0x5fea, 0x5fea) AM_READ(watchdog_reset_r)
 	/* what is the desired effect of overlapping these memory regions anyway? */
@@ -268,7 +270,7 @@ static ADDRESS_MAP_START( esckids_map, AS_PROGRAM, 8, vendetta_state )
 	AM_RANGE(0x3fd0, 0x3fd0) AM_WRITE(vendetta_5fe0_w)      // Coin Counter, 052109 RMRD, 053246 OBJCHA
 	AM_RANGE(0x3fd2, 0x3fd2) AM_WRITE(vendetta_eeprom_w)    // EEPROM, Video banking
 	AM_RANGE(0x3fd4, 0x3fd4) AM_READWRITE(vendetta_sound_interrupt_r, z80_irq_w)            // Sound
-	AM_RANGE(0x3fd6, 0x3fd7) AM_READ(vendetta_sound_r) AM_DEVWRITE_LEGACY("k053260", k053260_w)     // Sound
+	AM_RANGE(0x3fd6, 0x3fd7) AM_READ(vendetta_sound_r) AM_DEVWRITE("k053260", k053260_device, k053260_w)     // Sound
 	AM_RANGE(0x3fd8, 0x3fd9) AM_DEVREAD_LEGACY("k053246", k053246_r)                // 053246 (Sprite)
 	AM_RANGE(0x3fda, 0x3fda) AM_WRITENOP                // Not Emulated (Watchdog ???)
 	/* what is the desired effect of overlapping these memory regions anyway? */
@@ -285,7 +287,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, vendetta_state )
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(z80_arm_nmi_w)
-	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE_LEGACY("k053260", k053260_r, k053260_w)
+	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
 ADDRESS_MAP_END
 
 
@@ -464,14 +466,6 @@ void vendetta_state::machine_start()
 
 	m_generic_paletteram_8.allocate(0x1000);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k053246 = machine().device("k053246");
-	m_k053251 = machine().device("k053251");
-	m_k052109 = machine().device("k052109");
-	m_k054000 = machine().device("k054000");
-	m_k053260 = machine().device("k053260");
-
 	save_item(NAME(m_irq_enabled));
 	save_item(NAME(m_sprite_colorbase));
 	save_item(NAME(m_layer_colorbase));
@@ -482,7 +476,7 @@ void vendetta_state::machine_reset()
 {
 	int i;
 
-	konami_configure_set_lines(machine().device("maincpu"), vendetta_banking);
+	konami_configure_set_lines(m_maincpu, vendetta_banking);
 
 	for (i = 0; i < 3; i++)
 	{
@@ -494,7 +488,7 @@ void vendetta_state::machine_reset()
 	m_irq_enabled = 0;
 
 	/* init banks */
-	vendetta_video_banking(machine(), 0);
+	vendetta_video_banking(0);
 }
 
 static MACHINE_CONFIG_START( vendetta, vendetta_state )
@@ -535,7 +529,7 @@ static MACHINE_CONFIG_START( vendetta, vendetta_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k053260", K053260, XTAL_3_579545MHz)    /* verified with PCB */
+	MCFG_K053260_ADD("k053260", XTAL_3_579545MHz)    /* verified with PCB */
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 MACHINE_CONFIG_END

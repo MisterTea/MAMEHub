@@ -34,17 +34,18 @@ public:
 	// optional information overrides
 	virtual ioport_constructor device_input_ports() const;
 
-	DECLARE_INPUT_CHANGED_MEMBER( fire4 );
-
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c64_4ksa"; }
 	virtual void device_start();
 
 	// device_c64_user_port_interface overrides
 	virtual UINT8 c64_pb_r(address_space &space, offs_t offset);
 	virtual int c64_pa2_r();
 	virtual void c64_cnt1_w(int level);
+
+private:
+	required_ioport m_pb;
+	required_ioport m_pa2;
 };
 
 

@@ -1,5 +1,6 @@
 #include "video/poly.h"
 #include "audio/dsbz80.h"
+#include "machine/eeprom.h"
 
 struct raster_state;
 struct geo_state;
@@ -20,7 +21,12 @@ public:
 		m_lumaram(*this, "lumaram"),
 		m_soundram(*this, "soundram"),
 		m_dsbz80(*this, DSBZ80_TAG),
-		m_tgp_program(*this, "tgp_program"){ }
+		m_tgp_program(*this, "tgp_program"),
+		m_audiocpu(*this, "audiocpu"),
+		m_tgp(*this, "tgp"),
+		m_dsp(*this, "dsp"),
+		m_drivecpu(*this, "drivecpu"),
+		m_eeprom(*this, "eeprom") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT32> m_workram;
@@ -168,6 +174,13 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(model2_timer_cb);
 	TIMER_DEVICE_CALLBACK_MEMBER(model2_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(model2c_interrupt);
+	void model2_exit();
+	DECLARE_WRITE_LINE_MEMBER(scsp_irq);
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_tgp;
+	optional_device<cpu_device> m_dsp;
+	optional_device<cpu_device> m_drivecpu;
+	required_device<eeprom_device> m_eeprom;
 };
 
 /*----------- defined in video/model2.c -----------*/

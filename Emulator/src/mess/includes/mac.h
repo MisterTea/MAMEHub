@@ -141,21 +141,23 @@ extern const via6522_interface mac_via6522_intf;
 extern const via6522_interface mac_via6522_2_intf;
 extern const via6522_interface mac_via6522_adb_intf;
 
-void mac_scsi_irq(running_machine &machine, int state);
 void mac_asc_irq(device_t *device, int state);
 void mac_fdc_set_enable_lines(device_t *device, int enable_mask);
 
 /*----------- defined in audio/mac.c -----------*/
 
 class mac_sound_device : public device_t,
-									public device_sound_interface
+							public device_sound_interface
 {
 public:
 	mac_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	~mac_sound_device() { global_free(m_token); }
+	~mac_sound_device() {}
 
-	// access to legacy token
-	void *token() const { assert(m_token != NULL); return m_token; }
+	void enable_sound(int on);
+	void set_sound_buffer(int buffer);
+	void set_volume(int volume);
+	void sh_updatebuffer();
+
 protected:
 	// device-level overrides
 	virtual void device_config_complete();
@@ -165,17 +167,22 @@ protected:
 	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
 private:
 	// internal state
-	void *m_token;
+
+	ram_device *m_ram;
+	model_t m_mac_model;
+
+	sound_stream *m_mac_stream;
+	int m_sample_enable;
+	UINT16 *m_mac_snd_buf_ptr;
+	UINT8 *m_snd_cache;
+	int m_snd_cache_len;
+	int m_snd_cache_head;
+	int m_snd_cache_tail;
+	int m_indexx;
 };
 
 extern const device_type MAC_SOUND;
 
-
-void mac_enable_sound( device_t *device, int on );
-void mac_set_sound_buffer( device_t *device, int buffer );
-void mac_set_volume( device_t *device, int volume );
-
-void mac_sh_updatebuffer(device_t *device);
 
 /* Mac driver data */
 
@@ -198,6 +205,17 @@ public:
 		m_ncr5380(*this, "scsi:ncr5380"),
 		m_mackbd(*this, MACKBD_TAG),
 		m_rtc(*this,"rtc"),
+		m_mouse0(*this, "MOUSE0"),
+		m_mouse1(*this, "MOUSE1"),
+		m_mouse2(*this, "MOUSE2"),
+		m_key0(*this, "KEY0"),
+		m_key1(*this, "KEY1"),
+		m_key2(*this, "KEY2"),
+		m_key3(*this, "KEY3"),
+		m_key4(*this, "KEY4"),
+		m_key5(*this, "KEY5"),
+		m_key6(*this, "KEY6"),
+		m_montype(*this, "MONTYPE"),
 		m_vram(*this,"vram"),
 		m_vram16(*this,"vram16")
 		{ }
@@ -216,6 +234,10 @@ public:
 	optional_device<ncr5380_device> m_ncr5380;
 	optional_device<mackbd_device> m_mackbd;
 	optional_device<rtc3430042_device> m_rtc;
+
+	required_ioport m_mouse0, m_mouse1, m_mouse2;
+	required_ioport m_key0, m_key1, m_key2, m_key3, m_key4, m_key5;
+	optional_ioport m_key6, m_montype;
 
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -385,6 +407,8 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(cuda_reset_w);
 	DECLARE_WRITE_LINE_MEMBER(adb_linechange_w);
 
+	DECLARE_WRITE_LINE_MEMBER(mac_scsi_irq);
+
 	DECLARE_DIRECT_UPDATE_MEMBER(overlay_opbaseoverride);
 private:
 	int has_adb();
@@ -494,6 +518,19 @@ public:
 	DECLARE_WRITE8_MEMBER(mac_via2_out_a);
 	DECLARE_WRITE8_MEMBER(mac_via2_out_b);
 	DECLARE_WRITE_LINE_MEMBER(mac_kbd_clk_in);
+	void mac_state_load();
+	DECLARE_WRITE_LINE_MEMBER(mac_via_irq);
+	DECLARE_WRITE_LINE_MEMBER(mac_via2_irq);
+	void dafb_recalc_ints();
+	void set_scc_waitrequest(int waitrequest);
+	int scan_keyboard();
+	void keyboard_init();
+	void kbd_shift_out(int data);
+	void keyboard_receive(int val);
+	void mac_driver_init(model_t model);
+	void mac_tracetrap(const char *cpu_name_local, int addr, int trap);
+	void mac_install_memory(offs_t memory_begin, offs_t memory_end,
+		offs_t memory_size, void *memory_data, int is_rom, const char *bank);
 };
 
 #endif /* MAC_H_ */

@@ -6,12 +6,15 @@ class buggychl_state : public driver_device
 {
 public:
 	buggychl_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_charram(*this, "charram"),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
 		m_scrollv(*this, "scrollv"),
-		m_scrollh(*this, "scrollh"){ }
+		m_scrollh(*this, "scrollh"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu"),
+		m_mcu(*this, "mcu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_charram;
@@ -36,7 +39,7 @@ public:
 	int         m_pending_nmi;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE8_MEMBER(bankswitch_w);
 	DECLARE_WRITE8_MEMBER(sound_command_w);
 	DECLARE_WRITE8_MEMBER(nmi_disable_w);
@@ -57,4 +60,10 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_buggychl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(nmi_callback);
+	void draw_sky( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_bg( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_fg( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_mcu;
 };

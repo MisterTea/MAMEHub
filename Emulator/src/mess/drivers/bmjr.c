@@ -25,8 +25,8 @@ public:
 	bmjr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
-	m_cass(*this, CASSETTE_TAG),
-	m_beep(*this, BEEPER_TAG)
+	m_cass(*this, "cassette"),
+	m_beep(*this, "beeper")
 	,
 		m_p_wram(*this, "p_wram"){ }
 
@@ -133,7 +133,7 @@ WRITE8_MEMBER( bmjr_state::tape_w )
 {
 	if(!m_tape_switch)
 	{
-		beep_set_state(m_beep, !BIT(data, 7));
+		m_beep->set_state(!BIT(data, 7));
 	}
 	else
 	{
@@ -333,8 +333,8 @@ void bmjr_state::palette_init()
 
 void bmjr_state::machine_start()
 {
-	beep_set_frequency(m_beep, 1200); //guesswork
-	beep_set_state(m_beep, 0);
+	m_beep->set_frequency(1200); //guesswork
+	m_beep->set_state(0);
 }
 
 void bmjr_state::machine_reset()
@@ -362,13 +362,13 @@ static MACHINE_CONFIG_START( bmjr, bmjr_state )
 
 	/* Audio */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS,"mono",0.50)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* Devices */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 MACHINE_CONFIG_END
 
 /* ROM definition */
@@ -385,7 +385,6 @@ ROM_END
 /* Driver */
 DRIVER_INIT_MEMBER(bmjr_state,bmjr)
 {
-
 }
 
 /*    YEAR  NAME    PARENT  COMPAT   MACHINE    INPUT    INIT    COMPANY        FULLNAME       FLAGS */

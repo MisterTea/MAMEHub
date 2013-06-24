@@ -216,14 +216,12 @@ TILE_GET_INFO_MEMBER(ssv_state::get_tile_info_0)
 
 WRITE16_MEMBER(ssv_state::gdfs_tmapram_w)
 {
-
 	COMBINE_DATA(&m_gdfs_tmapram[offset]);
 	m_gdfs_tmap->mark_tile_dirty(offset);
 }
 
 VIDEO_START_MEMBER(ssv_state,gdfs)
 {
-
 	ssv_state::video_start();
 
 
@@ -381,11 +379,11 @@ READ16_MEMBER(ssv_state::ssv_vblank_r)
 
 WRITE16_MEMBER(ssv_state::ssv_scroll_w)
 {
-
 	COMBINE_DATA(m_scroll + offset);
 
 /*  offsets 60-7f: CRT Controller   */
-
+//  if(((offset*2) & 0x70) == 0x60)
+//      printf("%04x %04x\n",data,offset*2);
 }
 
 WRITE16_MEMBER(ssv_state::paletteram16_xrgb_swap_word_w)
@@ -595,11 +593,10 @@ From the above some noteworthy cases are:
 
 /* Draw a tilemap sprite */
 
-static void draw_row(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int sx, int sy, int scroll)
+void ssv_state::draw_row(bitmap_ind16 &bitmap, const rectangle &cliprect, int sx, int sy, int scroll)
 {
-	ssv_state *state = machine.driver_data<ssv_state>();
-	UINT16 *spriteram16 = state->m_spriteram;
-	UINT16 *ssv_scroll = state->m_scroll;
+	UINT16 *spriteram16 = m_spriteram;
+	UINT16 *ssv_scroll = m_scroll;
 	rectangle clip;
 	int attr, code, color, mode, size, page, shadow;
 	int x, x1, sx1, flipx, xnum, xstart, xend, xinc;
@@ -681,7 +678,7 @@ static void draw_row(running_machine &machine, bitmap_ind16 &bitmap, const recta
 			attr    =   s3[1];  // code low  bits + color
 
 			/* Code's high bits are scrambled */
-			code    +=  state->m_tile_code[(attr & 0x3c00)>>10];
+			code    +=  m_tile_code[(attr & 0x3c00)>>10];
 			flipy   =   (attr & 0x4000);
 			flipx   =   (attr & 0x8000);
 
@@ -711,7 +708,7 @@ static void draw_row(running_machine &machine, bitmap_ind16 &bitmap, const recta
 			{
 				for (ty = ystart; ty != yend; ty += yinc)
 				{
-					ssv_drawgfx( bitmap, clip, machine.gfx[gfx],
+					ssv_drawgfx( bitmap, clip, machine().gfx[gfx],
 											code++,
 											color,
 											flipx, flipy,
@@ -727,21 +724,20 @@ static void draw_row(running_machine &machine, bitmap_ind16 &bitmap, const recta
 
 /* Draw the "background layer" using multiple tilemap sprites */
 
-static void draw_layer(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int  nr)
+void ssv_state::draw_layer(bitmap_ind16 &bitmap, const rectangle &cliprect, int  nr)
 {
 	int sy;
-	for ( sy = 0; sy <= machine.primary_screen->visible_area().max_y; sy += 0x40 )
-		draw_row(machine, bitmap, cliprect, 0, sy, nr);
+	for ( sy = 0; sy <= machine().primary_screen->visible_area().max_y; sy += 0x40 )
+		draw_row(bitmap, cliprect, 0, sy, nr);
 }
 
 /* Draw sprites in the sprites list */
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void ssv_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	/* Sprites list */
-	ssv_state *state = machine.driver_data<ssv_state>();
-	UINT16 *ssv_scroll = state->m_scroll;
-	UINT16 *spriteram16 = state->m_spriteram;
+	UINT16 *ssv_scroll = m_scroll;
+	UINT16 *spriteram16 = m_spriteram;
 
 	UINT16 *s1  =   spriteram16;
 	UINT16 *end1    =   spriteram16 + 0x02000/2;
@@ -826,7 +822,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 				}
 
 				if ((mode & 0x001f) != 0)
-					draw_row(machine, bitmap, cliprect, sx, sy, scroll);
+					draw_row(bitmap, cliprect, sx, sy, scroll);
 			}
 			else
 			{
@@ -847,7 +843,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 				attr    =   s2[1];  // code low  bits + color
 
 				/* Code's high bits are scrambled */
-				code    +=  state->m_tile_code[(attr & 0x3c00)>>10];
+				code    +=  m_tile_code[(attr & 0x3c00)>>10];
 				flipy   =   (attr & 0x4000);
 				flipx   =   (attr & 0x8000);
 
@@ -937,7 +933,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 				{
 					for (y = ystart; y != yend; y += yinc)
 					{
-						ssv_drawgfx( bitmap, cliprect, machine.gfx[gfx],
+						ssv_drawgfx( bitmap, cliprect, machine().gfx[gfx],
 												code++,
 												color,
 												flipx, flipy,
@@ -947,10 +943,10 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 				}
 
 				#ifdef MAME_DEBUG
-				if (machine.input().code_pressed(KEYCODE_Z))    /* Display some info on each sprite */
+				if (machine().input().code_pressed(KEYCODE_Z))    /* Display some info on each sprite */
 				{   char buf[30];
 					sprintf(buf, "%02X",/*(s2[2] & ~0x3ff)>>8*/mode>>8);
-					ui_draw_text(&machine.render().ui_container(), buf, sx, sy);
+					ui_draw_text(&machine().render().ui_container(), buf, sx, sy);
 				}
 				#endif
 
@@ -977,7 +973,6 @@ UINT32 ssv_state::screen_update_eaglshot(screen_device &screen, bitmap_ind16 &bi
 
 UINT32 ssv_state::screen_update_gdfs(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	screen_update_ssv(screen, bitmap, cliprect);
 
 	// draw zooming sprites
@@ -990,11 +985,9 @@ UINT32 ssv_state::screen_update_gdfs(screen_device &screen, bitmap_ind16 &bitmap
 	return 0;
 }
 
-void ssv_enable_video(running_machine &machine, int enable)
+void ssv_state::ssv_enable_video(int enable)
 {
-	ssv_state *state = machine.driver_data<ssv_state>();
-
-	state->m_enable_video = enable;
+	m_enable_video = enable;
 }
 
 UINT32 ssv_state::screen_update_ssv(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -1039,9 +1032,9 @@ UINT32 ssv_state::screen_update_ssv(screen_device &screen, bitmap_ind16 &bitmap,
 	if (!m_enable_video)
 		return 0;
 
-	draw_layer(machine(), bitmap, clip, 0); // "background layer"
+	draw_layer(bitmap, clip, 0); // "background layer"
 
-	draw_sprites(machine(), bitmap, clip);  // sprites list
+	draw_sprites(bitmap, clip);  // sprites list
 
 
 	return 0;

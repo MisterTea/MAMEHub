@@ -5,7 +5,7 @@
     Driver by Nathan Woods and R. Belmont
 
     TODO:
-    - Fix spurious interrupt problem
+    - Fix spurious interrupt problem (caused by ADB HLE; switching to emulation of the M50740 + GLU should solve this)
     - Fix 5.25" disks
     - Optimize video code
     - More RAM configurations
@@ -49,8 +49,8 @@
 #include "formats/ap2_dsk.h"
 #include "formats/ap_dsk35.h"
 #include "includes/apple2gs.h"
-#include "devices/sonydriv.h"
-#include "devices/appldriv.h"
+#include "machine/sonydriv.h"
+#include "machine/appldriv.h"
 #include "sound/es5503.h"
 #include "machine/applefdc.h"
 #include "machine/8530scc.h"
@@ -64,13 +64,21 @@
 #include "machine/a2cffa.h"
 #include "machine/a2memexp.h"
 #include "machine/a2scsi.h"
+#include "machine/a2thunderclock.h"
+#include "machine/a2ssc.h"
 #include "machine/a2softcard.h"
 #include "machine/a2sam.h"
 #include "machine/a2alfam2.h"
+#include "machine/a2echoii.h"
+#include "machine/a2arcadebd.h"
+#include "machine/a2midi.h"
+#include "machine/a2vulcan.h"
+#include "machine/a2zipdrive.h"
+//#include "machine/a2udrive.h"
 
 static const gfx_layout apple2gs_text_layout =
 {
-	14,8,       /* 14*8 characters */
+		14,8,       /* 14*8 characters */
 	512,        /* 256 characters */
 	1,          /* 1 bits per pixel */
 	{ 0 },      /* no bitplanes; 1 bit per pixel */
@@ -182,15 +190,87 @@ static ADDRESS_MAP_START( apple2gs_map, AS_PROGRAM, 8, apple2gs_state )
 	/* nothing in the address map - everything is added dynamically */
 ADDRESS_MAP_END
 
+// ADB microcontroller emulation
+//
+// Huge thanks to Neil Parker's writeup on the ADB microcontroller!
+// http://www.llx.com/~nparker/a2/adb.html
+
+#if RUN_ADB_MICRO
+READ8_MEMBER(apple2gs_state::adbmicro_p0_in)
+{
+	return m_glu_bus;
+}
+
+READ8_MEMBER(apple2gs_state::adbmicro_p1_in)
+{
+	if (m_is_rom3)
+	{
+		return 0x06;    // indicate ROM 3
+	}
+
+	return 0xff;
+}
+
+READ8_MEMBER(apple2gs_state::adbmicro_p2_in)
+{
+	UINT8 rv = 0;
+
+	rv |= 0x40;     // no reset
+	rv |= (m_adb_line) ? 0x00 : 0x80;
+
+	return rv;
+}
+
+READ8_MEMBER(apple2gs_state::adbmicro_p3_in)
+{
+	return 0x7;     // don't press IIE capslock/ctrl/shift
+}
+
+WRITE8_MEMBER(apple2gs_state::adbmicro_p0_out)
+{
+	m_glu_bus = data;
+}
+
+WRITE8_MEMBER(apple2gs_state::adbmicro_p1_out)
+{
+}
+
+WRITE8_MEMBER(apple2gs_state::adbmicro_p2_out)
+{
+	if (!(data & 0x10))
+	{
+			if (m_adbmicro->are_port_bits_output(0, 0xff))
+			{
+					keyglu_mcu_write(data & 7, m_glu_bus);
+			}
+			else    // read GLU
+			{
+					m_glu_bus = keyglu_mcu_read(data & 7);
+			}
+	}
+}
+
+WRITE8_MEMBER(apple2gs_state::adbmicro_p3_out)
+{
+	if (((data & 0x08) == 0x08) != m_adb_line)
+	{
+		m_adb_dtime = (int)(machine().time().as_ticks(XTAL_3_579545MHz*2) - m_last_adb_time);
+//      printf("ADB change to %d (dtime %d)\n", (data>>3) & 1, m_adb_dtime);
+		m_last_adb_time = machine().time().as_ticks(XTAL_3_579545MHz*2);
+		m_adb_line = (data & 0x8) ? true : false;
+	}
+}
+#endif
+
 WRITE8_MEMBER(apple2gs_state::a2bus_irq_w)
 {
 	if (data)
 	{
-		apple2gs_add_irq(machine(), IRQ_SLOT);
+		apple2gs_add_irq(IRQ_SLOT);
 	}
 	else
 	{
-		apple2gs_remove_irq(machine(), IRQ_SLOT);
+		apple2gs_remove_irq(IRQ_SLOT);
 	}
 }
 
@@ -202,7 +282,7 @@ WRITE8_MEMBER(apple2gs_state::a2bus_nmi_w)
 WRITE8_MEMBER(apple2gs_state::a2bus_inh_w)
 {
 	m_inh_slot = data;
-	apple2_update_memory(machine());
+	apple2_update_memory();
 }
 
 static const struct a2bus_interface a2bus_intf =
@@ -221,16 +301,33 @@ static SLOT_INTERFACE_START(apple2_cards)
 	SLOT_INTERFACE("cffa202", A2BUS_CFFA2_6502)  /* CFFA2000 Compact Flash for Apple II (www.dreher.net), 6502 firmware */
 	SLOT_INTERFACE("memexp", A2BUS_MEMEXP)  /* Apple II Memory Expansion Card */
 	SLOT_INTERFACE("ramfactor", A2BUS_RAMFACTOR)    /* Applied Engineering RamFactor */
+	SLOT_INTERFACE("thclock", A2BUS_THUNDERCLOCK)    /* ThunderWare ThunderClock Plus */
+	SLOT_INTERFACE("ssc", A2BUS_SSC)    /* Apple Super Serial Card */
 	SLOT_INTERFACE("sam", A2BUS_SAM)    /* SAM Software Automated Mouth (8-bit DAC + speaker) */
 	SLOT_INTERFACE("alfam2", A2BUS_ALFAM2)    /* ALF Apple Music II */
+	SLOT_INTERFACE("echoii", A2BUS_ECHOII)    /* Street Electronics Echo II */
+	SLOT_INTERFACE("arcbd", A2BUS_ARCADEBOARD)    /* Third Millenium Engineering Arcade Board */
+	SLOT_INTERFACE("midi", A2BUS_MIDI)  /* Generic 6840+6850 MIDI board */
+	SLOT_INTERFACE("vulcan", A2BUS_VULCAN)  /* AE Vulcan IDE card */
+	SLOT_INTERFACE("zipdrive", A2BUS_ZIPDRIVE)  /* ZIP Technologies IDE card */
+	SLOT_INTERFACE("echoiiplus", A2BUS_ECHOPLUS)    /* Street Electronics Echo Plus (Echo II + Mockingboard clone) */
+//  SLOT_INTERFACE("mdturbo", A2BUS_UDRIVE_TURBO)  /* ///SHH Systeme MicroDrive Turbo IDE card */
+
 //    SLOT_INTERFACE("softcard", A2BUS_SOFTCARD)  /* Microsoft SoftCard */  // appears not to be IIgs compatible?
-//    SLOT_INTERFACE("scsi", A2BUS_SCSI)  /* Apple II SCSI Card */
+	SLOT_INTERFACE("scsi", A2BUS_SCSI)  /* Apple II SCSI Card */
 SLOT_INTERFACE_END
 
 static MACHINE_CONFIG_START( apple2gs, apple2gs_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", G65816, APPLE2GS_14M/5)
 	MCFG_CPU_PROGRAM_MAP(apple2gs_map)
+	#if RUN_ADB_MICRO
+	MCFG_CPU_ADD(ADBMICRO_TAG, M50741, XTAL_3_579545MHz)
+	MCFG_M5074X_PORT0_CALLBACKS(READ8(apple2gs_state, adbmicro_p0_in), WRITE8(apple2gs_state, adbmicro_p0_out))
+	MCFG_M5074X_PORT1_CALLBACKS(READ8(apple2gs_state, adbmicro_p1_in), WRITE8(apple2gs_state, adbmicro_p1_out))
+	MCFG_M5074X_PORT2_CALLBACKS(READ8(apple2gs_state, adbmicro_p2_in), WRITE8(apple2gs_state, adbmicro_p2_out))
+	MCFG_M5074X_PORT3_CALLBACKS(READ8(apple2gs_state, adbmicro_p3_in), WRITE8(apple2gs_state, adbmicro_p3_out))
+	#endif
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", apple2gs_state, apple2_interrupt, "screen", 0, 1)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
@@ -263,13 +360,13 @@ static MACHINE_CONFIG_START( apple2gs, apple2gs_state )
 	/* slot devices */
 	MCFG_A2BUS_BUS_ADD("a2bus", "maincpu", a2bus_intf)
 	MCFG_A2BUS_ONBOARD_ADD("a2bus", "sl0", A2BUS_LANG, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl1", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl2", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl3", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl4", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl5", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl6", apple2_cards, NULL, NULL)
-	MCFG_A2BUS_SLOT_ADD("a2bus", "sl7", apple2_cards, NULL, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl1", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl2", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl3", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl4", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl5", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl6", apple2_cards, NULL)
+	MCFG_A2BUS_SLOT_ADD("a2bus", "sl7", apple2_cards, NULL)
 
 	MCFG_IWM_ADD("fdc", apple2_fdc_interface)
 
@@ -294,6 +391,14 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( apple2gsr1, apple2gs )
 	MCFG_MACHINE_START_OVERRIDE(apple2gs_state, apple2gsr1 )
 
+	#if RUN_ADB_MICRO
+	MCFG_CPU_REPLACE(ADBMICRO_TAG, M50740, XTAL_3_579545MHz)
+		MCFG_M5074X_PORT0_CALLBACKS(READ8(apple2gs_state, adbmicro_p0_in), WRITE8(apple2gs_state, adbmicro_p0_out))
+		MCFG_M5074X_PORT1_CALLBACKS(READ8(apple2gs_state, adbmicro_p1_in), WRITE8(apple2gs_state, adbmicro_p1_out))
+		MCFG_M5074X_PORT2_CALLBACKS(READ8(apple2gs_state, adbmicro_p2_in), WRITE8(apple2gs_state, adbmicro_p2_out))
+		MCFG_M5074X_PORT3_CALLBACKS(READ8(apple2gs_state, adbmicro_p3_in), WRITE8(apple2gs_state, adbmicro_p3_out))
+	#endif
+
 	MCFG_RAM_MODIFY(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1280K")  // 256K on board + 1M in the expansion slot was common for ROM 01
 	MCFG_RAM_EXTRA_OPTIONS("256K,512K,768K,1M,2M,3M,4M,5M,6M,7M,8M")
@@ -308,7 +413,7 @@ MACHINE_CONFIG_END
 
 ROM_START(apple2gs)
 	// M50740/50741 ADB MCU inside the IIgs system unit
-	ROM_REGION(0x1000,"keyboard",0)
+	ROM_REGION(0x1000,"m50741",0)
 	ROM_LOAD( "341s0632-2.bin", 0x000000, 0x001000, CRC(e1c11fb0) SHA1(141d18c36a617ab9dce668445440d34354be0672) )
 
 	// i8048 microcontroller inside the IIgs ADB Standard Keyboard
@@ -331,7 +436,7 @@ ROM_START(apple2gs)
 ROM_END
 
 ROM_START(apple2gsr3p)
-	ROM_REGION(0x1000,"keyboard",0)
+	ROM_REGION(0x1000,"m50741",0)
 	ROM_LOAD( "341s0632-2.bin", 0x000000, 0x001000, CRC(e1c11fb0) SHA1(141d18c36a617ab9dce668445440d34354be0672) )
 
 	ROM_REGION(0x400, "kmcu", 0)
@@ -349,7 +454,7 @@ ROM_START(apple2gsr3p)
 ROM_END
 
 ROM_START(apple2gsr3lp)
-	ROM_REGION(0x1000,"keyboard",0)
+	ROM_REGION(0x1000,"m50741",0)
 	ROM_LOAD( "341s0632-2.bin", 0x000000, 0x001000, CRC(e1c11fb0) SHA1(141d18c36a617ab9dce668445440d34354be0672) )
 
 	ROM_REGION(0x400, "kmcu", 0)
@@ -367,7 +472,7 @@ ROM_START(apple2gsr3lp)
 ROM_END
 
 ROM_START(apple2gsr1)
-	ROM_REGION(0xc00,"keyboard",0)
+	ROM_REGION(0xc00,"m50740",0)
 	ROM_LOAD( "341s0345.bin", 0x000000, 0x000c00, CRC(48cd5779) SHA1(97e421f5247c00a0ca34cd08b6209df573101480) )
 
 	ROM_REGION(0x400, "kmcu", 0)
@@ -384,7 +489,7 @@ ROM_START(apple2gsr1)
 ROM_END
 
 ROM_START(apple2gsr0)
-	ROM_REGION(0xc00,"keyboard",0)
+	ROM_REGION(0xc00,"m50740",0)
 	ROM_LOAD( "341s0345.bin", 0x000000, 0x000c00, CRC(48cd5779) SHA1(97e421f5247c00a0ca34cd08b6209df573101480) )
 
 	ROM_REGION(0x400, "kmcu", 0)

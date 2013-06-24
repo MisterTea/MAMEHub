@@ -12,15 +12,12 @@
 #include "cpu/z80/z80.h"
 #include "cpu/i8085/i8085.h"
 #include "sound/ay8910.h"
-#include "sound/speaker.h"
 #include "sound/wave.h"
-#include "machine/mc146818.h"
 #include "imagedev/cassette.h"
 #include "imagedev/cartslot.h"
 #include "formats/smx_dsk.h"
 #include "formats/rk_cas.h"
 #include "includes/orion.h"
-#include "machine/ram.h"
 
 /* Address maps */
 
@@ -120,18 +117,18 @@ static MACHINE_CONFIG_START( orion128, orion_state )
 	MCFG_VIDEO_START_OVERRIDE(orion_state,orion128)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, orion_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", orion_cassette_interface )
 	MCFG_SOFTWARE_LIST_ADD("cass_list","orion_cass")
 
 	MCFG_FD1793x_ADD("fd1793", XTAL_8MHz / 8)
 
-	MCFG_FLOPPY_DRIVE_ADD("fd0", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd1", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd2", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd3", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd0", orion_floppies, "525qd", orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd1", orion_floppies, "525qd", orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd2", orion_floppies, "525qd", orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd3", orion_floppies, "525qd", orion_state::orion_floppy_formats)
 	MCFG_SOFTWARE_LIST_ADD("flop_list","orion_flop")
 
 	MCFG_CARTSLOT_ADD("cart")
@@ -185,23 +182,23 @@ static MACHINE_CONFIG_START( orionz80, orion_state )
 	MCFG_MC146818_ADD( "rtc", MC146818_IGNORE_CENTURY )
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8912", AY8912, 1773400)
 	MCFG_SOUND_CONFIG(orionz80_ay_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, orion_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", orion_cassette_interface )
 	MCFG_SOFTWARE_LIST_ADD("cass_list","orion_cass")
 
 	MCFG_FD1793x_ADD("fd1793", XTAL_8MHz / 8)
 
-	MCFG_FLOPPY_DRIVE_ADD("fd0", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd1", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd2", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd3", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd0", orion_floppies, "525qd", orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd1", orion_floppies, "525qd", orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd2", orion_floppies, "525qd", orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd3", orion_floppies, "525qd", orion_state::orion_floppy_formats)
 	MCFG_SOFTWARE_LIST_ADD("flop_list","orion_flop")
 
 	MCFG_CARTSLOT_ADD("cart")
@@ -245,23 +242,23 @@ static MACHINE_CONFIG_START( orionpro, orion_state )
 	MCFG_VIDEO_START_OVERRIDE(orion_state,orion128)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("ay8912", AY8912, 1773400)
 	MCFG_SOUND_CONFIG(orionz80_ay_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, orion_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", orion_cassette_interface )
 	MCFG_SOFTWARE_LIST_ADD("cass_list","orion_cass")
 
 	MCFG_FD1793x_ADD("fd1793", XTAL_8MHz / 8)
 
-	MCFG_FLOPPY_DRIVE_ADD("fd0", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd1", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd2", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd3", orion_floppies, "525qd", 0, orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd0", orion_floppies, "525qd", orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd1", orion_floppies, "525qd", orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd2", orion_floppies, "525qd", orion_state::orion_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd3", orion_floppies, "525qd", orion_state::orion_floppy_formats)
 	MCFG_SOFTWARE_LIST_ADD("flop_list","orionpro_flop")
 	MCFG_SOFTWARE_LIST_COMPATIBLE_ADD("flop128_list","orion_flop")
 

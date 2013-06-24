@@ -4,7 +4,7 @@
 
 void bogeyman_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* first 16 colors are RAM */
@@ -38,28 +38,24 @@ void bogeyman_state::palette_init()
 
 WRITE8_MEMBER(bogeyman_state::bogeyman_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(bogeyman_state::bogeyman_colorram_w)
 {
-
 	m_colorram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(bogeyman_state::bogeyman_videoram2_w)
 {
-
 	m_videoram2[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(bogeyman_state::bogeyman_colorram2_w)
 {
-
 	m_colorram2[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
@@ -98,28 +94,27 @@ void bogeyman_state::video_start()
 	m_fg_tilemap->set_transparent_pen(0);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void bogeyman_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	bogeyman_state *state = machine.driver_data<bogeyman_state>();
 	int offs;
 
-	for (offs = 0; offs < state->m_spriteram.bytes(); offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes(); offs += 4)
 	{
-		int attr = state->m_spriteram[offs];
+		int attr = m_spriteram[offs];
 
 		if (attr & 0x01)
 		{
-			int code = state->m_spriteram[offs + 1] + ((attr & 0x40) << 2);
+			int code = m_spriteram[offs + 1] + ((attr & 0x40) << 2);
 			int color = (attr & 0x08) >> 3;
 			int flipx = !(attr & 0x04);
 			int flipy = attr & 0x02;
-			int sx = state->m_spriteram[offs + 3];
-			int sy = (240 - state->m_spriteram[offs + 2]) & 0xff;
+			int sx = m_spriteram[offs + 3];
+			int sy = (240 - m_spriteram[offs + 2]) & 0xff;
 			int multi = attr & 0x10;
 
 			if (multi) sy -= 16;
 
-			if (state->flip_screen())
+			if (flip_screen())
 			{
 				sx = 240 - sx;
 				sy = 240 - sy;
@@ -128,7 +123,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 			}
 
 			drawgfx_transpen(bitmap, cliprect,
-				machine.gfx[2],
+				machine().gfx[2],
 				code, color,
 				flipx, flipy,
 				sx, sy, 0);
@@ -136,10 +131,10 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 			if (multi)
 			{
 				drawgfx_transpen(bitmap,cliprect,
-					machine.gfx[2],
+					machine().gfx[2],
 					code + 1, color,
 					flipx, flipy,
-					sx, sy + (state->flip_screen() ? -16 : 16), 0);
+					sx, sy + (flip_screen() ? -16 : 16), 0);
 			}
 		}
 	}
@@ -147,9 +142,8 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 UINT32 bogeyman_state::screen_update_bogeyman(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }

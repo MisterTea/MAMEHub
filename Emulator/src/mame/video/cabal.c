@@ -11,7 +11,6 @@
 
 TILE_GET_INFO_MEMBER(cabal_state::get_back_tile_info)
 {
-
 	int tile = m_videoram[tile_index];
 	int color = (tile>>12)&0xf;
 
@@ -26,7 +25,6 @@ TILE_GET_INFO_MEMBER(cabal_state::get_back_tile_info)
 
 TILE_GET_INFO_MEMBER(cabal_state::get_text_tile_info)
 {
-
 	int tile = m_colorram[tile_index];
 	int color = (tile>>10);
 
@@ -42,7 +40,6 @@ TILE_GET_INFO_MEMBER(cabal_state::get_text_tile_info)
 
 void cabal_state::video_start()
 {
-
 	m_background_layer = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cabal_state::get_back_tile_info),this),TILEMAP_SCAN_ROWS,16,16,16,16);
 	m_text_layer       = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cabal_state::get_text_tile_info),this),TILEMAP_SCAN_ROWS,  8,8,32,32);
 
@@ -99,13 +96,12 @@ WRITE16_MEMBER(cabal_state::cabal_text_videoram16_w)
 
 ********************************************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void cabal_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	cabal_state *state = machine.driver_data<cabal_state>();
 	int offs,data0,data1,data2;
-	UINT16 *spriteram16 = state->m_spriteram;
+	UINT16 *spriteram16 = m_spriteram;
 
-	for( offs = state->m_spriteram.bytes()/2 - 4; offs >= 0; offs -= 4 )
+	for( offs = m_spriteram.bytes()/2 - 4; offs >= 0; offs -= 4 )
 	{
 		data0 = spriteram16[offs];
 		data1 = spriteram16[offs+1];
@@ -122,7 +118,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 			if ( sx>256 )   sx -= 512;
 
-			if (state->flip_screen())
+			if (flip_screen())
 			{
 				sx = 240 - sx;
 				sy = 240 - sy;
@@ -130,7 +126,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 				flipy = !flipy;
 			}
 
-			drawgfx_transpen( bitmap,cliprect,machine.gfx[2],
+			drawgfx_transpen( bitmap,cliprect,machine().gfx[2],
 				tile_number,
 				color,
 				flipx,flipy,
@@ -143,7 +139,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 UINT32 cabal_state::screen_update_cabal(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_background_layer->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
-	draw_sprites(machine(),bitmap,cliprect);
+	draw_sprites(bitmap,cliprect);
 	m_text_layer->draw(bitmap, cliprect, 0,0);
 	return 0;
 }

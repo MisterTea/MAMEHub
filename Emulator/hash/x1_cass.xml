@@ -5,12 +5,12 @@
 <!--
 
 Titles, publishers and release dates taken from:
-	- X1 Soft Database ( http://www2s.biglobe.ne.jp/~ITTO/x1/softdb.html )
+  - X1 Soft Database ( http://www2s.biglobe.ne.jp/~ITTO/x1/softdb.html )
 [which is not really complete when it comes to older tapes, unfortunately...]
 
 -->
 
-<softwarelist name="x1_cass" description="Sharp X1 tape images">
+<softwarelist name="x1_cass" description="Sharp X1 cassettes">
 
 	<software name="blckonyx" supported="no">
 		<description>The Black Onyx</description>
@@ -1044,7 +1044,7 @@ Titles, publishers and release dates taken from:
 	</software>
 
 	<software name="macross">
-		<description>Macross</description>
+		<description>Choujikuu Yousai Macross</description>
 		<year>19??</year>
 		<publisher>ボーステック (Bothtec)</publisher>
 		<info name="alt_title" value="超時空要塞マクロス"/>
@@ -1056,7 +1056,7 @@ Titles, publishers and release dates taken from:
 	</software>
 
 	<software name="macrossa" cloneof="macross">
-		<description>Macross (Alt)</description>
+		<description>Choujikuu Yousai Macross (Alt)</description>
 		<year>19??</year>
 		<publisher>ボーステック (Bothtec)</publisher>
 		<info name="alt_title" value="超時空要塞マクロス"/>
@@ -1704,8 +1704,8 @@ Titles, publishers and release dates taken from:
 		</part>
 	</software>
 
-	<software name="daidsso">
-		<description>Daidasso</description>
+	<software name="daidasso">
+		<description>Dai Dassou</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
 		<part name="cass" interface="x1_cass">

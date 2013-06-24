@@ -108,7 +108,6 @@ READ8_MEMBER(bigevglf_state::soundstate_r)
 
 TIMER_CALLBACK_MEMBER(bigevglf_state::nmi_callback)
 {
-
 	if (m_sound_nmi_enable)
 		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	else
@@ -173,7 +172,6 @@ WRITE8_MEMBER(bigevglf_state::beg13_b_set_w)
 
 READ8_MEMBER(bigevglf_state::beg_status_r)
 {
-
 /* d0 = Q of 74ls74 IC13(partA)
    d1 = Q of 74ls74 IC13(partB)
    d2 =
@@ -365,7 +363,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, bigevglf_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
-	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0xca00, 0xca0d) AM_DEVWRITE_LEGACY("msm", msm5232_w)
 	AM_RANGE(0xcc00, 0xcc00) AM_WRITENOP
 	AM_RANGE(0xce00, 0xce00) AM_WRITENOP
@@ -416,10 +414,6 @@ static const msm5232_interface msm5232_config =
 
 void bigevglf_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_mcu = machine().device("mcu");
-
 	save_item(NAME(m_vidram_bank));
 	save_item(NAME(m_plane_selected));
 	save_item(NAME(m_plane_visible));
@@ -452,7 +446,6 @@ void bigevglf_state::machine_start()
 
 void bigevglf_state::machine_reset()
 {
-
 	m_vidram_bank = 0;
 	m_plane_selected = 0;
 	m_plane_visible = 0;
@@ -612,8 +605,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(bigevglf_state,bigevglf)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 0xff, &ROM[0x10000], 0x800);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 0xff, &ROM[0x10000], 0x800);
 }
 
 GAME( 1986, bigevglf,  0,        bigevglf, bigevglf, bigevglf_state, bigevglf, ROT270, "Taito America Corporation", "Big Event Golf (US)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )

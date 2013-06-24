@@ -32,11 +32,37 @@ driver by Chris Moore
 
 /*************************************
  *
+ *  Timer handling
+ *
+ *************************************/
+
+void gameplan_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_CLEAR_SCREEN_DONE:
+		clear_screen_done_callback(ptr, param);
+		break;
+	case TIMER_VIA_IRQ_DELAYED:
+		via_irq_delayed(ptr, param);
+		break;
+	case TIMER_VIA_0_CAL:
+		via_0_ca1_timer_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in gameplan_state::device_timer");
+	}
+}
+
+
+
+/*************************************
+ *
  *  Palette handling
  *
  *************************************/
 
-static void gameplan_get_pens( pen_t *pens )
+void gameplan_state::gameplan_get_pens( pen_t *pens )
 {
 	offs_t i;
 
@@ -46,7 +72,7 @@ static void gameplan_get_pens( pen_t *pens )
 
 
 /* RGBI palette. Is it correct, or does it use the standard RGB? */
-static void leprechn_get_pens( pen_t *pens )
+void gameplan_state::leprechn_get_pens( pen_t *pens )
 {
 	offs_t i;
 
@@ -116,28 +142,24 @@ UINT32 gameplan_state::screen_update_leprechn(screen_device &screen, bitmap_rgb3
 
 WRITE8_MEMBER(gameplan_state::video_data_w)
 {
-
 	m_video_data = data;
 }
 
 
 WRITE8_MEMBER(gameplan_state::gameplan_video_command_w)
 {
-
 	m_video_command = data & 0x07;
 }
 
 
 WRITE8_MEMBER(gameplan_state::leprechn_video_command_w)
 {
-
 	m_video_command = (data >> 3) & 0x07;
 }
 
 
 TIMER_CALLBACK_MEMBER(gameplan_state::clear_screen_done_callback)
 {
-
 	/* indicate that the we are done clearing the screen */
 	m_via_0->write_ca1(0);
 }
@@ -145,7 +167,6 @@ TIMER_CALLBACK_MEMBER(gameplan_state::clear_screen_done_callback)
 
 WRITE_LINE_MEMBER(gameplan_state::video_command_trigger_w)
 {
-
 	if (state == 0)
 	{
 		switch (m_video_command)
@@ -196,7 +217,7 @@ WRITE_LINE_MEMBER(gameplan_state::video_command_trigger_w)
 			/* set a timer for an arbitrarily short period.
 			   The real time it takes to clear to screen is not
 			   important to the software */
-			machine().scheduler().synchronize(timer_expired_delegate(FUNC(gameplan_state::clear_screen_done_callback),this));
+			synchronize(TIMER_CLEAR_SCREEN_DONE);
 
 			break;
 		}
@@ -210,13 +231,12 @@ TIMER_CALLBACK_MEMBER(gameplan_state::via_irq_delayed)
 }
 
 
-static void via_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(gameplan_state::via_irq)
 {
-	gameplan_state *driver_state = device->machine().driver_data<gameplan_state>();
 	/* Kaos sits in a tight loop polling the VIA irq flags register, but that register is
 	   cleared by the irq handler. Therefore, I wait a bit before triggering the irq to
 	   leave time for the program to see the flag change. */
-	device->machine().scheduler().timer_set(attotime::from_usec(50), timer_expired_delegate(FUNC(gameplan_state::via_irq_delayed),driver_state), state);
+	timer_set(attotime::from_usec(50), TIMER_VIA_IRQ_DELAYED, state);
 }
 
 
@@ -233,7 +253,7 @@ const via6522_interface gameplan_via_0_interface =
 	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,                             /*inputs : CA/B1,CA/B2 */
 	DEVCB_DRIVER_MEMBER(gameplan_state,video_data_w), DEVCB_DRIVER_MEMBER(gameplan_state,gameplan_video_command_w),     /*outputs: A/B         */
 	DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_LINE_MEMBER(gameplan_state,video_command_trigger_w), DEVCB_NULL,   /*outputs: CA/B1,CA/B2 */
-	DEVCB_LINE(via_irq)                                                         /*irq                  */
+	DEVCB_DRIVER_LINE_MEMBER(gameplan_state,via_irq)                                                         /*irq                  */
 };
 
 
@@ -243,7 +263,7 @@ const via6522_interface leprechn_via_0_interface =
 	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,                             /*inputs : CA/B1,CA/B2 */
 	DEVCB_DRIVER_MEMBER(gameplan_state,video_data_w), DEVCB_DRIVER_MEMBER(gameplan_state,leprechn_video_command_w),     /*outputs: A/B         */
 	DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_LINE_MEMBER(gameplan_state,video_command_trigger_w), DEVCB_NULL,   /*outputs: CA/B1,CA/B2 */
-	DEVCB_LINE(via_irq)                                                         /*irq                  */
+	DEVCB_DRIVER_LINE_MEMBER(gameplan_state,via_irq)                                                         /*irq                  */
 };
 
 
@@ -259,7 +279,6 @@ const via6522_interface trvquest_via_0_interface =
 
 TIMER_CALLBACK_MEMBER(gameplan_state::via_0_ca1_timer_callback)
 {
-
 	/* !VBLANK is connected to CA1 */
 	m_via_0->write_ca1(param);
 
@@ -278,11 +297,10 @@ TIMER_CALLBACK_MEMBER(gameplan_state::via_0_ca1_timer_callback)
 
 VIDEO_START_MEMBER(gameplan_state,common)
 {
-
 	m_videoram_size = (HBSTART - HBEND) * (VBSTART - VBEND);
 	m_videoram = auto_alloc_array(machine(), UINT8, m_videoram_size);
 
-	m_via_0_ca1_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(gameplan_state::via_0_ca1_timer_callback),this));
+	m_via_0_ca1_timer = timer_alloc(TIMER_VIA_0_CAL);
 
 	/* register for save states */
 	save_pointer(NAME(m_videoram), m_videoram_size);

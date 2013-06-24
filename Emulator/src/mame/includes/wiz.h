@@ -1,8 +1,10 @@
+#include "sound/discrete.h"
+
 class wiz_state : public driver_device
 {
 public:
 	wiz_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram2(*this, "videoram2"),
 		m_colorram2(*this, "colorram2"),
 		m_attributesram2(*this, "attributesram2"),
@@ -10,7 +12,10 @@ public:
 		m_videoram(*this, "videoram"),
 		m_attributesram(*this, "attributesram"),
 		m_spriteram(*this, "spriteram"),
-		m_sprite_bank(*this, "sprite_bank"){ }
+		m_sprite_bank(*this, "sprite_bank"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_discrete(*this, "discrete") { }
 
 	int m_dsc0;
 	int m_dsc1;
@@ -53,4 +58,10 @@ public:
 	UINT32 screen_update_kungfut(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(wiz_vblank_interrupt);
 	INTERRUPT_GEN_MEMBER(wiz_sound_interrupt);
+	void draw_background(bitmap_ind16 &bitmap, const rectangle &cliprect, int bank, int colortype);
+	void draw_foreground(bitmap_ind16 &bitmap, const rectangle &cliprect, int colortype);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect, UINT8* sprite_ram,int bank);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<discrete_device> m_discrete;
 };

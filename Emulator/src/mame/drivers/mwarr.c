@@ -50,7 +50,7 @@ class mwarr_state : public driver_device
 {
 public:
 	mwarr_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg_videoram(*this, "bg_videoram"),
 		m_mlow_videoram(*this, "mlow_videoram"),
 		m_mhigh_videoram(*this, "mhigh_videoram"),
@@ -60,7 +60,9 @@ public:
 		m_mhigh_scrollram(*this, "mhigh_scrollram"),
 		m_vidattrram(*this, "vidattrram"),
 		m_spriteram(*this, "spriteram"),
-		m_mwarr_ram(*this, "mwarr_ram"){ }
+		m_mwarr_ram(*this, "mwarr_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_oki2(*this, "oki2") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bg_videoram;
@@ -100,6 +102,9 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_mwarr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki2;
 };
 
 
@@ -111,41 +116,35 @@ public:
 
 WRITE16_MEMBER(mwarr_state::bg_videoram_w)
 {
-
 	COMBINE_DATA(&m_bg_videoram[offset]);
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE16_MEMBER(mwarr_state::mlow_videoram_w)
 {
-
 	COMBINE_DATA(&m_mlow_videoram[offset]);
 	m_mlow_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE16_MEMBER(mwarr_state::mhigh_videoram_w)
 {
-
 	COMBINE_DATA(&m_mhigh_videoram[offset]);
 	m_mhigh_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE16_MEMBER(mwarr_state::tx_videoram_w)
 {
-
 	COMBINE_DATA(&m_tx_videoram[offset]);
 	m_tx_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE16_MEMBER(mwarr_state::oki1_bank_w)
 {
-	device_t *device = machine().device("oki2");
-	downcast<okim6295_device *>(device)->set_bank_base(0x40000 * (data & 3));
+	m_oki2->set_bank_base(0x40000 * (data & 3));
 }
 
 WRITE16_MEMBER(mwarr_state::sprites_commands_w)
 {
-
 	if (m_which)
 	{
 		int i;
@@ -393,7 +392,6 @@ TILE_GET_INFO_MEMBER(mwarr_state::get_tx_tile_info)
 
 void mwarr_state::video_start()
 {
-
 	m_bg_tilemap    = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mwarr_state::get_bg_tile_info),this),    TILEMAP_SCAN_COLS, 16, 16, 64, 16);
 	m_mlow_tilemap  = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mwarr_state::get_mlow_tile_info),this),  TILEMAP_SCAN_COLS, 16, 16, 64, 16);
 	m_mhigh_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mwarr_state::get_mhigh_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 64, 16);
@@ -410,12 +408,11 @@ void mwarr_state::video_start()
 	save_item(NAME(m_sprites_buffer));
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void mwarr_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	mwarr_state *state = machine.driver_data<mwarr_state>();
-	const UINT16 *source = state->m_sprites_buffer + 0x800 - 4;
-	const UINT16 *finish = state->m_sprites_buffer;
-	gfx_element *gfx = machine.gfx[0];
+	const UINT16 *source = m_sprites_buffer + 0x800 - 4;
+	const UINT16 *finish = m_sprites_buffer;
+	gfx_element *gfx = machine().gfx[0];
 	int x, y, color, flipx, dy, pri, pri_mask, i;
 
 	while (source >= finish)
@@ -443,7 +440,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 							color,
 							flipx,0,
 							x,y+i*16,
-							machine.priority_bitmap,pri_mask,0 );
+							machine().priority_bitmap,pri_mask,0 );
 
 				/* wrap around x */
 				pdrawgfx_transpen( bitmap,
@@ -453,7 +450,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 							color,
 							flipx,0,
 							x-1024,y+i*16,
-							machine.priority_bitmap,pri_mask,0 );
+							machine().priority_bitmap,pri_mask,0 );
 
 				/* wrap around y */
 				pdrawgfx_transpen( bitmap,
@@ -463,7 +460,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 							color,
 							flipx,0,
 							x,y-512+i*16,
-							machine.priority_bitmap,pri_mask,0 );
+							machine().priority_bitmap,pri_mask,0 );
 
 				/* wrap around x & y */
 				pdrawgfx_transpen( bitmap,
@@ -473,7 +470,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 							color,
 							flipx,0,
 							x-1024,y-512+i*16,
-							machine.priority_bitmap,pri_mask,0 );
+							machine().priority_bitmap,pri_mask,0 );
 			}
 		}
 
@@ -531,7 +528,7 @@ UINT32 mwarr_state::screen_update_mwarr(screen_device &screen, bitmap_ind16 &bit
 	m_mlow_tilemap->draw(bitmap, cliprect, 0, 0x02);
 	m_mhigh_tilemap->draw(bitmap, cliprect, 0, 0x04);
 	m_tx_tilemap->draw(bitmap, cliprect, 0, 0x10);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }
 
@@ -543,13 +540,11 @@ UINT32 mwarr_state::screen_update_mwarr(screen_device &screen, bitmap_ind16 &bit
 
 void mwarr_state::machine_start()
 {
-
 	save_item(NAME(m_which));
 }
 
 void mwarr_state::machine_reset()
 {
-
 	m_which = 0;
 }
 

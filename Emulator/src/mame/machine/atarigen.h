@@ -43,7 +43,7 @@
 #include "machine/nvram.h"
 #include "machine/er2055.h"
 #include "cpu/m6502/m6502.h"
-
+#include "sound/okim6295.h"
 
 /***************************************************************************
     CONSTANTS
@@ -185,9 +185,9 @@ public:
 	// video helpers
 	int get_hblank(screen_device &screen) const { return (screen.hpos() > (screen.width() * 9 / 10)); }
 	void halt_until_hblank_0(device_t &device, screen_device &screen);
-	DECLARE_WRITE16_HANDLER( paletteram_666_w );
-	DECLARE_WRITE16_HANDLER( expanded_paletteram_666_w );
-	DECLARE_WRITE32_HANDLER( paletteram32_666_w );
+	DECLARE_WRITE16_MEMBER( paletteram_666_w );
+	DECLARE_WRITE16_MEMBER( expanded_paletteram_666_w );
+	DECLARE_WRITE32_MEMBER( paletteram32_666_w );
 
 	// misc helpers
 	void blend_gfx(int gfx0, int gfx1, int mask0, int mask1);
@@ -206,7 +206,8 @@ public:
 		TID_6502_WRITE,
 		TID_SCANLINE_TIMER,
 		TID_ATARIVC_EOF,
-		TID_UNHALT_CPU
+		TID_UNHALT_CPU,
+		TID_ATARIGEN_LAST
 	};
 
 	// vector and early raster EAROM interface
@@ -274,6 +275,10 @@ public:
 	UINT32                  m_playfield2_latch;
 
 	atarigen_screen_timer   m_screen_timer[2];
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<m6502_device> m_jsacpu;
+	optional_device<okim6295_device> m_oki;
 };
 
 

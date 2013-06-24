@@ -67,9 +67,9 @@ static ADDRESS_MAP_START( skyfox_sound_map, AS_PROGRAM, 8, skyfox_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM                             // ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM                             // RAM
 //  AM_RANGE(0x9000, 0x9001) AM_WRITENOP                        // ??
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r,ym2203_w)   // YM2203 #1
+	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ym1", ym2203_device, read, write) // YM2203 #1
 //  AM_RANGE(0xb000, 0xb001) AM_WRITENOP                        // ??
-	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r,ym2203_w)   // YM2203 #2
+	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ym2", ym2203_device, read, write) // YM2203 #2
 	AM_RANGE(0xb000, 0xb000) AM_READ(soundlatch_byte_r)             // From Main CPU
 ADDRESS_MAP_END
 
@@ -213,23 +213,18 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(skyfox_state::skyfox_interrupt)
 {
-
 	/* Scroll the bg */
 	m_bg_pos += (m_bg_ctrl >> 1) & 0x7; // maybe..
 }
 
 void skyfox_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_bg_pos));
 	save_item(NAME(m_bg_ctrl));
 }
 
 void skyfox_state::machine_reset()
 {
-
 	m_bg_pos = 0;
 	m_bg_ctrl = 0;
 }
@@ -426,8 +421,8 @@ ROM_END
 /* Untangle the graphics: cut each 32x32x8 tile in 16 8x8x8 tiles */
 DRIVER_INIT_MEMBER(skyfox_state,skyfox)
 {
-	UINT8 *RAM = machine().root_device().memregion("gfx1")->base();
-	UINT8 *end = RAM + machine().root_device().memregion("gfx1")->bytes();
+	UINT8 *RAM = memregion("gfx1")->base();
+	UINT8 *end = RAM + memregion("gfx1")->bytes();
 	UINT8 buf[32 * 32];
 
 	while (RAM < end)

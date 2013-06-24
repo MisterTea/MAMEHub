@@ -18,16 +18,21 @@
 #define LENGTH 7
 
 
-
-TIMER_CALLBACK_MEMBER(cchasm_state::cchasm_refresh_end)
+void cchasm_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(2, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_REFRESH_END:
+		m_maincpu->set_input_line(2, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in cchasm_state::device_timer");
+	}
 }
 
-static void cchasm_refresh (running_machine &machine)
-{
-	cchasm_state *state = machine.driver_data<cchasm_state>();
 
+void cchasm_state::cchasm_refresh ()
+{
 	int pc = 0;
 	int done = 0;
 	int opcode, data;
@@ -41,7 +46,7 @@ static void cchasm_refresh (running_machine &machine)
 
 	while (!done)
 	{
-		data = state->m_ram[pc];
+		data = m_ram[pc];
 		opcode = data >> 12;
 		data &= 0xfff;
 		if ((opcode > COLOR) && (data & 0x800))
@@ -66,19 +71,19 @@ static void cchasm_refresh (running_machine &machine)
 			break;
 		case POSY:
 			move = 1;
-			currenty = state->m_ycenter + (data << 16);
+			currenty = m_ycenter + (data << 16);
 			break;
 		case SCALEX:
 			scalex = data << 5;
 			break;
 		case POSX:
 			move = 1;
-			currentx = state->m_xcenter - (data << 16);
+			currentx = m_xcenter - (data << 16);
 			break;
 		case LENGTH:
 			if (move)
 			{
-				vector_add_point (machine, currentx, currenty, 0, 0);
+				vector_add_point (machine(), currentx, currenty, 0, 0);
 				move = 0;
 			}
 
@@ -88,7 +93,7 @@ static void cchasm_refresh (running_machine &machine)
 			total_length += abs(data);
 
 			if (color)
-				vector_add_point (machine, currentx, currenty, color, 0xff);
+				vector_add_point (machine(), currentx, currenty, color, 0xff);
 			else
 				move = 1;
 			break;
@@ -99,7 +104,7 @@ static void cchasm_refresh (running_machine &machine)
 		}
 	}
 	/* Refresh processor runs with 6 MHz */
-	machine.scheduler().timer_set (attotime::from_hz(6000000) * total_length, timer_expired_delegate(FUNC(cchasm_state::cchasm_refresh_end),state));
+	timer_set(attotime::from_hz(6000000) * total_length, TIMER_REFRESH_END);
 }
 
 
@@ -110,10 +115,10 @@ WRITE16_MEMBER(cchasm_state::cchasm_refresh_control_w)
 		switch (data >> 8)
 		{
 		case 0x37:
-			cchasm_refresh(machine());
+			cchasm_refresh();
 			break;
 		case 0xf7:
-			machine().device("maincpu")->execute().set_input_line(2, CLEAR_LINE);
+			m_maincpu->set_input_line(2, CLEAR_LINE);
 			break;
 		}
 	}

@@ -2,7 +2,7 @@ class taxidriv_state : public driver_device
 {
 public:
 	taxidriv_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram0(*this, "vram0"),
 		m_vram1(*this, "vram1"),
 		m_vram2(*this, "vram2"),
@@ -11,7 +11,8 @@ public:
 		m_vram5(*this, "vram5"),
 		m_vram6(*this, "vram6"),
 		m_vram7(*this, "vram7"),
-		m_scroll(*this, "scroll"){ }
+		m_scroll(*this, "scroll"),
+		m_maincpu(*this, "maincpu") { }
 
 	int m_s1;
 	int m_s2;
@@ -53,4 +54,5 @@ public:
 	DECLARE_WRITE8_MEMBER(taxidriv_spritectrl_w);
 	virtual void palette_init();
 	UINT32 screen_update_taxidriv(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };

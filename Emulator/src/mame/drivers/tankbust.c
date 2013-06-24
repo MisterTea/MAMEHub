@@ -54,7 +54,7 @@ TIMER_CALLBACK_MEMBER(tankbust_state::soundirqline_callback)
 //logerror("sound_irq_line write = %2x (after CPUs synced) \n",param);
 
 		if ((param & 1) == 0)
-			machine().device("sub")->execute().set_input_line(0, HOLD_LINE);
+			m_subcpu->set_input_line(0, HOLD_LINE);
 }
 
 
@@ -96,8 +96,8 @@ WRITE8_MEMBER(tankbust_state::tankbust_e0xx_w)
 	case 7: /* 0xe007 bankswitch */
 		/* bank 1 at 0x6000-9fff = from 0x10000 when bit0=0 else from 0x14000 */
 		/* bank 2 at 0xa000-bfff = from 0x18000 when bit0=0 else from 0x1a000 */
-		membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x10000 + ((data&1) * 0x4000) );
-		membank("bank2")->set_base(machine().root_device().memregion("maincpu")->base() + 0x18000 + ((data&1) * 0x2000) ); /* verified (the game will reset after the "game over" otherwise) */
+		membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000 + ((data&1) * 0x4000) );
+		membank("bank2")->set_base(memregion("maincpu")->base() + 0x18000 + ((data&1) * 0x2000) ); /* verified (the game will reset after the "game over" otherwise) */
 		break;
 	}
 }
@@ -112,7 +112,7 @@ READ8_MEMBER(tankbust_state::debug_output_area_r)
 
 void tankbust_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < 128; i++)
@@ -193,10 +193,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( port_map_cpu2, AS_IO, 8, tankbust_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x10, 0x10) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
-	AM_RANGE(0x30, 0x30) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r, ay8910_address_w)
-	AM_RANGE(0x40, 0x40) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0xc0, 0xc0) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r, ay8910_address_w)
+	AM_RANGE(0x10, 0x10) AM_DEVWRITE("ay2", ay8910_device, data_w)
+	AM_RANGE(0x30, 0x30) AM_DEVREADWRITE("ay2", ay8910_device, data_r, address_w)
+	AM_RANGE(0x40, 0x40) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0xc0, 0xc0) AM_DEVREADWRITE("ay1", ay8910_device, data_r, address_w)
 ADDRESS_MAP_END
 
 
@@ -318,7 +318,6 @@ void tankbust_state::machine_reset()
 
 INTERRUPT_GEN_MEMBER(tankbust_state::vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }

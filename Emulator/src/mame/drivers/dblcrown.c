@@ -101,7 +101,7 @@ void dblcrown_state::video_start()
 	m_pal_ram = auto_alloc_array(machine(), UINT8, 0x200*2);
 	m_vram = auto_alloc_array(machine(), UINT8, 0x1000*0x10);
 
-	state_save_register_global_pointer(machine(), m_vram, 0x1000*0x10);
+	save_pointer(NAME(m_vram), 0x1000*0x10);
 }
 
 UINT32 dblcrown_state::screen_update( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect )
@@ -322,7 +322,7 @@ static ADDRESS_MAP_START( dblcrown_io, AS_IO, 8, dblcrown_state )
 	AM_RANGE(0x10, 0x10) AM_READWRITE(lamps_r,lamps_w)
 	AM_RANGE(0x11, 0x11) AM_READWRITE(bank_r,bank_w)
 	AM_RANGE(0x12, 0x12) AM_READWRITE(mux_r,mux_w)
-	AM_RANGE(0x20, 0x21) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x20, 0x21) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 //  AM_RANGE(0x30, 0x30) always 1?
 	AM_RANGE(0x40, 0x40) AM_WRITE(output_w)
 ADDRESS_MAP_END

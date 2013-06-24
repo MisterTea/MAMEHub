@@ -71,7 +71,6 @@ player - when there's nothing to play - first, empty 2k of ROMs are selected.
 
 READ16_MEMBER(rltennis_state::rlt_io_r)
 {
-
 	return (ioport("P1" )->read()&0x1fff) | (m_unk_counter<<13); /* top 3 bits controls smaple address update */
 }
 
@@ -132,7 +131,6 @@ INPUT_PORTS_END
 
 TIMER_CALLBACK_MEMBER(rltennis_state::sample_player)
 {
-
 	if((m_dac_counter&0x7ff) == 0x7ff) /* reload top address bits */
 	{
 		m_sample_rom_offset_1=(( m_data740000 >> m_offset_shift ) & 0xff )<<11;
@@ -155,10 +153,7 @@ INTERRUPT_GEN_MEMBER(rltennis_state::rltennis_interrupt)
 
 void rltennis_state::machine_start()
 {
-	m_maincpu = machine().device<cpu_device>( "maincpu");
 	m_screen = machine().device(  "screen");
-	m_dac_1 = machine().device<dac_device>("dac1");
-	m_dac_2 = machine().device<dac_device>("dac2");
 	m_samples_1 = memregion("samples1")->base();
 	m_samples_2 = memregion("samples2")->base();
 	m_gfx =  memregion("gfx1")->base();

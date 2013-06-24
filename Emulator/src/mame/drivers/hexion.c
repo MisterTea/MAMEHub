@@ -104,12 +104,12 @@ if ((data & 0xdc) != 0x10) popmessage("coincntr %02x",data);
 
 WRITE_LINE_MEMBER(hexion_state::hexion_irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 WRITE_LINE_MEMBER(hexion_state::hexion_nmi_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
 static ADDRESS_MAP_START( hexion_map, AS_PROGRAM, 8, hexion_state )
@@ -118,11 +118,11 @@ static ADDRESS_MAP_START( hexion_map, AS_PROGRAM, 8, hexion_state )
 	AM_RANGE(0xa000, 0xbfff) AM_RAM
 	AM_RANGE(0xc000, 0xdffe) AM_READWRITE(hexion_bankedram_r, hexion_bankedram_w)
 	AM_RANGE(0xdfff, 0xdfff) AM_WRITE(hexion_bankctrl_w)
-	AM_RANGE(0xe800, 0xe87f) AM_DEVREADWRITE_LEGACY("konami", k051649_waveform_r, k051649_waveform_w)
-	AM_RANGE(0xe880, 0xe889) AM_DEVWRITE_LEGACY("konami", k051649_frequency_w)
-	AM_RANGE(0xe88a, 0xe88e) AM_DEVWRITE_LEGACY("konami", k051649_volume_w)
-	AM_RANGE(0xe88f, 0xe88f) AM_DEVWRITE_LEGACY("konami", k051649_keyonoff_w)
-	AM_RANGE(0xe8e0, 0xe8ff) AM_DEVREADWRITE_LEGACY("konami", k051649_test_r, k051649_test_w)
+	AM_RANGE(0xe800, 0xe87f) AM_DEVREADWRITE("k051649", k051649_device, k051649_waveform_r, k051649_waveform_w)
+	AM_RANGE(0xe880, 0xe889) AM_DEVWRITE("k051649", k051649_device, k051649_frequency_w)
+	AM_RANGE(0xe88a, 0xe88e) AM_DEVWRITE("k051649", k051649_device, k051649_volume_w)
+	AM_RANGE(0xe88f, 0xe88f) AM_DEVWRITE("k051649", k051649_device, k051649_keyonoff_w)
+	AM_RANGE(0xe8e0, 0xe8ff) AM_DEVREADWRITE("k051649", k051649_device, k051649_test_r, k051649_test_w)
 	AM_RANGE(0xf000, 0xf00f) AM_DEVREADWRITE_LEGACY("k053252",k053252_r,k053252_w)
 	AM_RANGE(0xf200, 0xf200) AM_DEVWRITE("oki", okim6295_device, write)
 	AM_RANGE(0xf400, 0xf400) AM_READ_PORT("DSW1")
@@ -204,9 +204,9 @@ TIMER_DEVICE_CALLBACK_MEMBER(hexion_state::hexion_scanline)
 	int scanline = param;
 
 	if(scanline == 256)
-		machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 	else if ((scanline == 85) || (scanline == 170)) //TODO
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 static const k053252_interface hexion_k053252_intf =
@@ -247,7 +247,7 @@ static MACHINE_CONFIG_START( hexion, hexion_state )
 	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
-	MCFG_SOUND_ADD("konami", K051649, 24000000/16)
+	MCFG_K051649_ADD("k051649", 24000000/16)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 MACHINE_CONFIG_END
 

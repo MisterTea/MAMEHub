@@ -213,7 +213,6 @@ static const UINT32 sl_table[16]={
 
 #define RATE_STEPS (8)
 static const UINT8 eg_inc[19*RATE_STEPS]={
-
 /*cycle:0 1  2 3  4 5  6 7*/
 
 /* 0 */ 0,1, 0,1, 0,1, 0,1, /* rates 00..11 0 (increment by 0 or 1) */
@@ -1448,7 +1447,7 @@ INLINE void update_phase_lfo_slot(FM_OPN *OPN, FM_SLOT *SLOT, INT32 pms, UINT32 
 		UINT32 fn  = block_fnum & 0xfff;
 
 		/* recalculate keyscale code */
-		int kc = (blk<<2) | opn_fktable[fn >> 7];
+		int kc = (blk<<2) | opn_fktable[(fn >> 7) & 0xf];
 
 		/* recalculate (frequency) phase increment counter */
 		int fc = (OPN->fn_table[fn]>>(7-blk)) + SLOT->DT[kc];
@@ -1480,7 +1479,7 @@ INLINE void update_phase_lfo_channel(FM_OPN *OPN, FM_CH *CH)
 		UINT32 fn  = block_fnum & 0xfff;
 
 		/* recalculate keyscale code */
-		int kc = (blk<<2) | opn_fktable[fn >> 7];
+		int kc = (blk<<2) | opn_fktable[(fn >> 7) & 0xf];
 
 		/* recalculate (frequency) phase increment counter */
 		int fc = (OPN->fn_table[fn]>>(7-blk));
@@ -1916,7 +1915,7 @@ static void OPNWriteReg(FM_OPN *OPN, int r, int v)
 				UINT32 fn = (((UINT32)( (OPN->ST.fn_h)&7))<<8) + v;
 				UINT8 blk = OPN->ST.fn_h>>3;
 				/* keyscale code */
-				CH->kcode = (blk<<2) | opn_fktable[fn >> 7];
+				CH->kcode = (blk<<2) | opn_fktable[(fn >> 7) & 0xf];
 				/* phase increment counter */
 				CH->fc = OPN->fn_table[fn*2]>>(7-blk);
 
@@ -1935,7 +1934,7 @@ static void OPNWriteReg(FM_OPN *OPN, int r, int v)
 				UINT32 fn = (((UINT32)(OPN->SL3.fn_h&7))<<8) + v;
 				UINT8 blk = OPN->SL3.fn_h>>3;
 				/* keyscale code */
-				OPN->SL3.kcode[c]= (blk<<2) | opn_fktable[fn >> 7];
+				OPN->SL3.kcode[c]= (blk<<2) | opn_fktable[(fn >> 7) & 0xf];
 				/* phase increment counter */
 				OPN->SL3.fc[c] = OPN->fn_table[fn*2]>>(7-blk);
 				OPN->SL3.block_fnum[c] = (blk<<11) | fn;

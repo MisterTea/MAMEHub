@@ -28,7 +28,7 @@
 
 void mikie_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[4] = { 2200, 1000, 470, 220 };
 	double rweights[4], gweights[4], bweights[4];
 	int i;
@@ -90,21 +90,18 @@ void mikie_state::palette_init()
 
 WRITE8_MEMBER(mikie_state::mikie_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(mikie_state::mikie_colorram_w)
 {
-
 	m_colorram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(mikie_state::mikie_palettebank_w)
 {
-
 	if (m_palettebank != (data & 0x07))
 	{
 		m_palettebank = data & 0x07;
@@ -141,30 +138,29 @@ void mikie_state::video_start()
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mikie_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void mikie_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	mikie_state *state = machine.driver_data<mikie_state>();
-	UINT8 *spriteram = state->m_spriteram;
+	UINT8 *spriteram = m_spriteram;
 	int offs;
 
-	for (offs = 0; offs < state->m_spriteram.bytes(); offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes(); offs += 4)
 	{
 		int gfxbank = (spriteram[offs + 2] & 0x40) ? 2 : 1;
 		int code = (spriteram[offs + 2] & 0x3f) + ((spriteram[offs + 2] & 0x80) >> 1) + ((spriteram[offs] & 0x40) << 1);
-		int color = (spriteram[offs] & 0x0f) + 16 * state->m_palettebank;
+		int color = (spriteram[offs] & 0x0f) + 16 * m_palettebank;
 		int sx = spriteram[offs + 3];
 		int sy = 244 - spriteram[offs + 1];
 		int flipx = ~spriteram[offs] & 0x10;
 		int flipy = spriteram[offs] & 0x20;
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sy = 242 - sy;
 			flipy = !flipy;
 		}
 
 		drawgfx_transpen(bitmap, cliprect,
-			machine.gfx[gfxbank],
+			machine().gfx[gfxbank],
 			code, color,
 			flipx,flipy,
 			sx,sy, 0);
@@ -174,7 +170,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 UINT32 mikie_state::screen_update_mikie(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_CATEGORY(0), 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_CATEGORY(1), 0);
 	return 0;
 }

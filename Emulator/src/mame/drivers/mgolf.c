@@ -10,9 +10,15 @@
 class mgolf_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_INTERRUPT
+	};
+
 	mgolf_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_video_ram(*this, "video_ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_video_ram(*this, "video_ram"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_video_ram;
@@ -27,7 +33,7 @@ public:
 	attotime m_time_released;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_WRITE8_MEMBER(mgolf_vram_w);
 	DECLARE_READ8_MEMBER(mgolf_wram_r);
 	DECLARE_READ8_MEMBER(mgolf_dial_r);
@@ -40,6 +46,11 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_mgolf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
+	void update_plunger(  );
+	double calc_plunger_pos();
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -92,24 +103,36 @@ UINT32 mgolf_state::screen_update_mgolf(screen_device &screen, bitmap_ind16 &bit
 }
 
 
-static void update_plunger( running_machine &machine )
+void mgolf_state::update_plunger(  )
 {
-	mgolf_state *state = machine.driver_data<mgolf_state>();
-	UINT8 val = state->ioport("BUTTON")->read();
+	UINT8 val = ioport("BUTTON")->read();
 
-	if (state->m_prev != val)
+	if (m_prev != val)
 	{
 		if (val == 0)
 		{
-			state->m_time_released = machine.time();
+			m_time_released = machine().time();
 
-			if (!state->m_mask)
-				state->m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+			if (!m_mask)
+				m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 		}
 		else
-			state->m_time_pushed = machine.time();
+			m_time_pushed = machine().time();
 
-		state->m_prev = val;
+		m_prev = val;
+	}
+}
+
+
+void mgolf_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_INTERRUPT:
+		interrupt_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in mgolf_state::device_timer");
 	}
 }
 
@@ -118,7 +141,7 @@ TIMER_CALLBACK_MEMBER(mgolf_state::interrupt_callback)
 {
 	int scanline = param;
 
-	update_plunger(machine());
+	update_plunger();
 
 	generic_pulse_irq_line(*m_maincpu, 0, 1);
 
@@ -127,14 +150,13 @@ TIMER_CALLBACK_MEMBER(mgolf_state::interrupt_callback)
 	if (scanline >= 262)
 		scanline = 16;
 
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(mgolf_state::interrupt_callback),this), scanline);
+	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_INTERRUPT, scanline);
 }
 
 
-static double calc_plunger_pos(running_machine &machine)
+double mgolf_state::calc_plunger_pos()
 {
-	mgolf_state *state = machine.driver_data<mgolf_state>();
-	return (machine.time().as_double() - state->m_time_released.as_double()) * (state->m_time_released.as_double() - state->m_time_pushed.as_double() + 0.2);
+	return (machine().time().as_double() - m_time_released.as_double()) * (m_time_released.as_double() - m_time_pushed.as_double() + 0.2);
 }
 
 
@@ -163,7 +185,7 @@ READ8_MEMBER(mgolf_state::mgolf_dial_r)
 
 READ8_MEMBER(mgolf_state::mgolf_misc_r)
 {
-	double plunger = calc_plunger_pos(machine()); /* see Video Pinball */
+	double plunger = calc_plunger_pos(); /* see Video Pinball */
 
 	UINT8 val = ioport("61")->read();
 
@@ -307,16 +329,13 @@ GFXDECODE_END
 
 void mgolf_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_prev));
 	save_item(NAME(m_mask));
 }
 
 void mgolf_state::machine_reset()
 {
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(16), timer_expired_delegate(FUNC(mgolf_state::interrupt_callback),this), 16);
+	timer_set(machine().primary_screen->time_until_pos(16), TIMER_INTERRUPT, 16);
 
 	m_mask = 0;
 	m_prev = 0;

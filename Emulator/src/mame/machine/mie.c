@@ -82,18 +82,12 @@ mie_jvs_device::mie_jvs_device(const machine_config &mconfig, const char *tag, d
 }
 
 mie_device::mie_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: maple_device(mconfig, MIE, "MIE", tag, owner, clock)
+	: maple_device(mconfig, MIE, "MIE", tag, owner, clock, "mie", __FILE__)
 {
-	m_shortname = "mie";
 	memset(gpio_name, 0, sizeof(gpio_name));
 	jvs_name = 0;
 	cpu = 0;
 	jvs = 0;
-}
-
-IRQ_CALLBACK(mie_device::irq_callback_1)
-{
-	return downcast<mie_device *>(device->owner())->irq_callback();
 }
 
 void mie_device::device_start()
@@ -101,7 +95,7 @@ void mie_device::device_start()
 	maple_device::device_start();
 	cpu = subdevice<z80_device>("mie");
 	timer = timer_alloc(0);
-	cpu->set_irq_acknowledge_callback(irq_callback_1);
+	cpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mie_device::irq_callback),this));
 	jvs = machine().device<mie_jvs_device>(jvs_name);
 
 	save_item(NAME(gpiodir));
@@ -270,7 +264,7 @@ void mie_device::recalc_irq()
 	cpu->set_input_line(0, irq_enable & irq_pending & 0x7f ? ASSERT_LINE : CLEAR_LINE);
 }
 
-int mie_device::irq_callback()
+IRQ_CALLBACK_MEMBER(mie_device::irq_callback)
 {
 	if(!(irq_enable & irq_pending & 0x7f))
 		throw emu_fatalerror("MIE irq callback called with enable=%02x, pending=%02x", irq_enable, irq_pending);

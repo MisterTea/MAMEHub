@@ -462,7 +462,8 @@ class majorpkr_state : public driver_device
 public:
 	majorpkr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			oki(*this, "oki") { }
+			oki(*this, "oki") ,
+		m_maincpu(*this, "maincpu") { }
 
 	int m_mux_data;
 	int m_palette_bank;
@@ -494,6 +495,7 @@ public:
 	TILE_GET_INFO_MEMBER(fg_get_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_majorpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -503,7 +505,6 @@ public:
 
 TILE_GET_INFO_MEMBER(majorpkr_state::bg_get_tile_info)
 {
-
 	int code = m_videoram[0x800 + 2 * tile_index] + (m_videoram[0x800 + 2 * tile_index + 1] << 8);
 
 	SET_TILE_INFO_MEMBER(
@@ -515,7 +516,6 @@ TILE_GET_INFO_MEMBER(majorpkr_state::bg_get_tile_info)
 
 TILE_GET_INFO_MEMBER(majorpkr_state::fg_get_tile_info)
 {
-
 	int code = m_videoram[2 * tile_index] + (m_videoram[2 * tile_index + 1] << 8);
 
 	SET_TILE_INFO_MEMBER(
@@ -528,7 +528,6 @@ TILE_GET_INFO_MEMBER(majorpkr_state::fg_get_tile_info)
 
 void majorpkr_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(majorpkr_state::bg_get_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 36, 28);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(majorpkr_state::fg_get_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 36, 28);
 	m_fg_tilemap->set_transparent_pen(0);
@@ -539,7 +538,6 @@ void majorpkr_state::video_start()
 
 UINT32 majorpkr_state::screen_update_majorpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(get_black_pen(machine()), cliprect);
 
 	rectangle custom_clip;
@@ -575,7 +573,6 @@ WRITE8_MEMBER(majorpkr_state::rom_bank_w)
 
 WRITE8_MEMBER(majorpkr_state::palette_bank_w)
 {
-
 	m_palette_bank=data;
 }
 
@@ -628,7 +625,6 @@ WRITE8_MEMBER(majorpkr_state::vram_w)
 
 WRITE8_MEMBER(majorpkr_state::vidreg_w)
 {
-
 /*  If bit6 is active, the screen is drawn upside down.
     (also 0xfc and 0x11 are written to the CRTC registers 0xc0 and 0xd0)
     So, the CRTC display start address = 0xfc11
@@ -655,7 +651,6 @@ WRITE8_MEMBER(majorpkr_state::vidreg_w)
 
 READ8_MEMBER(majorpkr_state::mux_port_r)
 {
-
 	switch( (m_mux_data & 0xf0) )       /* 00-10-20-30-0F-1F-2F-3F */
 	{
 		case 0x00: return ioport("DSW1")->read();   /* confirmed */
@@ -669,7 +664,6 @@ READ8_MEMBER(majorpkr_state::mux_port_r)
 
 READ8_MEMBER(majorpkr_state::mux_port2_r)
 {
-
 	if ((m_mux_data & 0x0f) == 4)
 	{
 		return ioport("IN0-1")->read();
@@ -682,7 +676,6 @@ READ8_MEMBER(majorpkr_state::mux_port2_r)
 
 WRITE8_MEMBER(majorpkr_state::mux_sel_w)
 {
-
 	m_mux_data = data;  /* 00-10-20-30-0F-1F-2F-3F */
 }
 
@@ -1008,9 +1001,10 @@ GFXDECODE_END
 *    CRTC Interface    *
 ***********************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",       /* screen we are acting on */
+	false,          /* show border area */
 	16,             /* number of pixels per video memory address */
 	NULL,           /* before pixel update callback */
 	NULL,           /* row update callback */
@@ -1085,8 +1079,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(majorpkr_state,majorpkr)
 {
-	UINT8 * ROM = (UINT8 *)machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("rom_bank")->configure_entries(0, 4, &ROM[0x10000], 0x800);
+	UINT8 * ROM = (UINT8 *)memregion("maincpu")->base();
+	membank("rom_bank")->configure_entries(0, 4, &ROM[0x10000], 0x800);
 }
 
 

@@ -1,6 +1,11 @@
 #ifndef _GP32_H_
 #define _GP32_H_
 
+#include "machine/smartmed.h"
+#include "sound/dac.h"
+#include "machine/nvram.h"
+
+
 #define INT_ADC       31
 #define INT_RTC       30
 #define INT_UTXD1     29
@@ -86,8 +91,15 @@ class gp32_state : public driver_device
 {
 public:
 	gp32_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_s3c240x_ram(*this, "s3c240x_ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_s3c240x_ram(*this, "s3c240x_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_smartmedia(*this, "smartmedia"),
+		m_dac1(*this, "dac1"),
+		m_dac2(*this, "dac2"),
+		m_nvram(*this, "nvram"),
+		m_io_in0(*this, "IN0"),
+		m_io_in1(*this, "IN1") { }
 
 	virtual void video_start();
 
@@ -169,6 +181,65 @@ public:
 	TIMER_CALLBACK_MEMBER(s3c240x_dma_timer_exp);
 	TIMER_CALLBACK_MEMBER(s3c240x_iic_timer_exp);
 	TIMER_CALLBACK_MEMBER(s3c240x_iis_timer_exp);
+protected:
+	required_device<cpu_device> m_maincpu;
+	required_device<smartmedia_image_device> m_smartmedia;
+	required_device<dac_device> m_dac1;
+	required_device<dac_device> m_dac2;
+	required_device<nvram_device> m_nvram;
+	required_ioport m_io_in0;
+	required_ioport m_io_in1;
+
+	UINT32 s3c240x_get_fclk(int reg);
+	UINT32 s3c240x_get_hclk(int reg);
+	UINT32 s3c240x_get_pclk(int reg);
+	void s3c240x_lcd_dma_reload();
+	void s3c240x_lcd_dma_init();
+	void s3c240x_lcd_configure();
+	void s3c240x_lcd_start();
+	void s3c240x_lcd_stop();
+	void s3c240x_lcd_recalc();
+	void s3c240x_check_pending_irq();
+	void s3c240x_request_irq(UINT32 int_type);
+	void s3c240x_dma_reload(int dma);
+	void s3c240x_dma_trigger(int dma);
+	void s3c240x_dma_request_iis();
+	void s3c240x_dma_request_pwm();
+	void s3c240x_dma_start(int dma);
+	void s3c240x_dma_stop(int dma);
+	void s3c240x_dma_recalc(int dma);
+	void s3c240x_pwm_start(int timer);
+	void s3c240x_pwm_stop(int timer);
+	void s3c240x_pwm_recalc(int timer);
+	void s3c240x_iis_start();
+	void s3c240x_iis_stop();
+	void s3c240x_iis_recalc();
+	void smc_reset();
+	void smc_init();
+	UINT8 smc_read();
+	void smc_write(UINT8 data);
+	void smc_update();
+	void i2s_reset();
+	void i2s_init();
+	void i2s_write(int line, int data);
+	UINT8 eeprom_read(UINT16 address);
+	void eeprom_write(UINT16 address, UINT8 data);
+	void iic_start();
+	void iic_stop();
+	void iic_resume();
+	void s3c240x_machine_start();
+	void s3c240x_machine_reset();
+	inline rgb_t s3c240x_get_color_5551( UINT16 data);
+	UINT32 s3c240x_lcd_dma_read( );
+	void s3c240x_lcd_render_01( );
+	void s3c240x_lcd_render_02( );
+	void s3c240x_lcd_render_04( );
+	void s3c240x_lcd_render_08( );
+	void s3c240x_lcd_render_16( );
+	UINT8 i2cmem_read_byte( int last);
+	void i2cmem_write_byte( UINT8 data);
+	void i2cmem_start( );
+	void i2cmem_stop( );
 };
 
 

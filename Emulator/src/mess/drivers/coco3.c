@@ -12,7 +12,7 @@
 
 #include "includes/coco3.h"
 #include "cpu/m6809/m6809.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "coco3.lh"
 
 
@@ -40,7 +40,13 @@ static ADDRESS_MAP_START( coco3_mem, AS_PROGRAM, 8, coco3_state )
 	AM_RANGE(0xFF40, 0xFF5F) AM_READWRITE(ff40_read, ff40_write)
 	AM_RANGE(0xFF60, 0xFF8F) AM_READWRITE(ff60_read, ff60_write)
 	AM_RANGE(0xFF90, 0xFFDF) AM_DEVREADWRITE(GIME_TAG, gime_base_device, read, write)
-	AM_RANGE(0xFFE0, 0xFFFF) AM_ROM AM_REGION(MAINCPU_TAG, 0x3FE0)
+
+	// While Tepolt and other sources say that the interrupt vectors are mapped to
+	// the same memory accessed at $BFFx, William Astle offered evidence that this
+	// memory on a CoCo 3 is not the same.
+	//
+	// http://lost.l-w.ca/0x05/coco3-and-interrupt-vectors/
+	AM_RANGE(0xFFE0, 0xFFFF) AM_ROM AM_REGION(MAINCPU_TAG, 0x7FE0)
 ADDRESS_MAP_END
 
 
@@ -245,9 +251,9 @@ static MACHINE_CONFIG_START( coco3, coco3_state )
 	// devices
 	MCFG_PIA6821_ADD(PIA0_TAG, coco_state::pia0_config)
 	MCFG_PIA6821_ADD(PIA1_TAG, coco_state::pia1_config)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, coco_state::coco_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", coco_state::coco_cassette_interface)
 	MCFG_BITBANGER_ADD(BITBANGER_TAG, coco_state::coco_bitbanger_config)
-	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, coco_state::cartridge_config, coco_cart, "fdcv11", NULL)
+	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, coco_state::cartridge_config, coco_cart, "fdcv11")
 	MCFG_COCO_VHD_ADD(VHD0_TAG)
 	MCFG_COCO_VHD_ADD(VHD1_TAG)
 

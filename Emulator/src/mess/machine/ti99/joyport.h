@@ -40,11 +40,11 @@ class joyport_attached_device : public device_t
 {
 	friend class joyport_device;
 public:
-	joyport_attached_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock) { }
+	joyport_attached_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source) { }
 
 protected:
-	void device_config_complete();
+	virtual void device_config_complete();
 	joyport_device* m_joyport;
 
 private:
@@ -64,8 +64,8 @@ public:
 	void    set_interrupt(int state);
 
 protected:
-	void device_start() { };
-	void device_config_complete();
+	virtual void device_start() { };
+	virtual void device_config_complete();
 
 private:
 	devcb_resolved_write_line   m_interrupt;
@@ -79,16 +79,16 @@ SLOT_INTERFACE_EXTERN(joystick_port_gen);
 #define MCFG_GENEVE_JOYPORT_ADD( _tag, _conf )  \
 	MCFG_DEVICE_ADD(_tag, JOYPORT, 0) \
 	MCFG_DEVICE_CONFIG( _conf ) \
-	MCFG_DEVICE_SLOT_INTERFACE(joystick_port_gen, "twinjoy", NULL, false)
+	MCFG_DEVICE_SLOT_INTERFACE(joystick_port_gen, "twinjoy", false)
 
 #define MCFG_TI_JOYPORT4A_ADD( _tag, _conf )    \
 	MCFG_DEVICE_ADD(_tag, JOYPORT, 0) \
 	MCFG_DEVICE_CONFIG( _conf ) \
-	MCFG_DEVICE_SLOT_INTERFACE(joystick_port, "twinjoy", NULL, false)
+	MCFG_DEVICE_SLOT_INTERFACE(joystick_port, "twinjoy", false)
 
 #define MCFG_TI_JOYPORT4_ADD( _tag, _conf ) \
 	MCFG_DEVICE_ADD(_tag, JOYPORT, 0) \
 	MCFG_DEVICE_CONFIG( _conf ) \
-	MCFG_DEVICE_SLOT_INTERFACE(joystick_port_994, "twinjoy", NULL, false)
+	MCFG_DEVICE_SLOT_INTERFACE(joystick_port_994, "twinjoy", false)
 
 #endif /* __JOYPORT__ */

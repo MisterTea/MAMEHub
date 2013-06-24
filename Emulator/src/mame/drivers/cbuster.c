@@ -24,11 +24,10 @@
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "video/deco16ic.h"
-#include "video/decospr.h"
+
 
 WRITE16_MEMBER(cbuster_state::twocrude_control_w)
 {
-
 	switch (offset << 1)
 	{
 	case 0: /* DMA flag */
@@ -80,7 +79,6 @@ WRITE16_MEMBER(cbuster_state::twocrude_control_w)
 
 READ16_MEMBER(cbuster_state::twocrude_control_r)
 {
-
 	switch (offset << 1)
 	{
 		case 0: /* Player 1 & Player 2 joysticks & fire buttons */
@@ -129,7 +127,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, cbuster_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
+	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
 	AM_RANGE(0x110000, 0x110001) AM_DEVREADWRITE("ym2", ym2151_device, read, write)
 	AM_RANGE(0x120000, 0x120001) AM_DEVREADWRITE("oki1", okim6295_device, read, write)
 	AM_RANGE(0x130000, 0x130001) AM_DEVREADWRITE("oki2", okim6295_device, read, write)
@@ -293,19 +291,12 @@ static const deco16ic_interface twocrude_deco16ic_tilegen2_intf =
 
 void cbuster_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_deco_tilegen1 = machine().device("tilegen1");
-	m_deco_tilegen2 = machine().device("tilegen2");
-
 	save_item(NAME(m_prot));
 	save_item(NAME(m_pri));
 }
 
 void cbuster_state::machine_reset()
 {
-
 	m_prot = 0;
 	m_pri = 0;
 }
@@ -514,7 +505,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(cbuster_state,twocrude)
 {
-	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *RAM = memregion("maincpu")->base();
 	UINT8 *PTR;
 	int i, j;
 
@@ -531,8 +522,8 @@ DRIVER_INIT_MEMBER(cbuster_state,twocrude)
 	}
 
 	/* Rearrange the 'extra' sprite bank to be in the same format as main sprites */
-	RAM = machine().root_device().memregion("gfx3")->base() + 0x080000;
-	PTR = machine().root_device().memregion("gfx3")->base() + 0x140000;
+	RAM = memregion("gfx3")->base() + 0x080000;
+	PTR = memregion("gfx3")->base() + 0x140000;
 	for (i = 0; i < 0x20000; i += 64)
 	{
 		for (j = 0; j < 16; j += 1)

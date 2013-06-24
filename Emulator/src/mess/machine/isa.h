@@ -75,23 +75,19 @@
 #define MCFG_ISA8_BUS_ADD(_tag, _cputag, _config) \
 	MCFG_DEVICE_ADD(_tag, ISA8, 0) \
 	MCFG_DEVICE_CONFIG(_config) \
-	isa8_device::static_set_cputag(*device, _cputag); \
-
-#define MCFG_ISA8_SLOT_ADD(_isatag, _tag, _slot_intf, _def_slot, _def_inp, _fixed) \
+	isa8_device::static_set_cputag(*device, _cputag);
+#define MCFG_ISA8_SLOT_ADD(_isatag, _tag, _slot_intf, _def_slot, _fixed) \
 	MCFG_DEVICE_ADD(_tag, ISA8_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, _fixed) \
-	isa8_slot_device::static_set_isa8_slot(*device, owner, _isatag); \
-
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _fixed) \
+	isa8_slot_device::static_set_isa8_slot(*device, owner, _isatag);
 #define MCFG_ISA16_BUS_ADD(_tag, _cputag, _config) \
 	MCFG_DEVICE_ADD(_tag, ISA16, 0) \
 	MCFG_DEVICE_CONFIG(_config) \
-	isa8_device::static_set_cputag(*device, _cputag); \
-
-#define MCFG_ISA16_SLOT_ADD(_isatag, _tag, _slot_intf, _def_slot, _def_inp, _fixed) \
+	isa8_device::static_set_cputag(*device, _cputag);
+#define MCFG_ISA16_SLOT_ADD(_isatag, _tag, _slot_intf, _def_slot, _fixed) \
 	MCFG_DEVICE_ADD(_tag, ISA16_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, _fixed) \
-	isa16_slot_device::static_set_isa16_slot(*device, owner, _isatag); \
-
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _fixed) \
+	isa16_slot_device::static_set_isa16_slot(*device, owner, _isatag);
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
@@ -293,9 +289,7 @@ public:
 	// construction/destruction
 	isa16_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	void install16_device(device_t *dev, offs_t start, offs_t end, offs_t mask, offs_t mirror, read16_device_func rhandler, const char* rhandler_name, write16_device_func whandler, const char *whandler_name);
 	void install16_device(offs_t start, offs_t end, offs_t mask, offs_t mirror, read16_delegate rhandler, write16_delegate whandler);
-	void install16_device(offs_t start, offs_t end, offs_t mask, offs_t mirror, read16_space_func rhandler, const char* rhandler_name, write16_space_func whandler, const char *whandler_name);
 
 	DECLARE_WRITE_LINE_MEMBER( irq10_w );
 	DECLARE_WRITE_LINE_MEMBER( irq11_w );

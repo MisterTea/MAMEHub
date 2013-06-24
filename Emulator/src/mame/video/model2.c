@@ -90,7 +90,7 @@
 #include "video/poly.h"
 #include "includes/model2.h"
 
-#define DEBUG 0
+#define MODEL2_VIDEO_DEBUG 0
 
 
 #define pz      p[0]
@@ -1022,7 +1022,7 @@ static void model2_3d_frame_end( model2_state *state, bitmap_rgb32 &bitmap, cons
 	if ( raster->tri_list_index == 0 )
 		return;
 
-#if DEBUG
+#if MODEL2_VIDEO_DEBUG
 	if (machine.input().code_pressed(KEYCODE_Q))
 	{
 		UINT32  i;
@@ -1033,7 +1033,6 @@ static void model2_3d_frame_end( model2_state *state, bitmap_rgb32 &bitmap, cons
 		{
 			for( i = 0; i < raster->tri_list_index; i++ )
 			{
-
 				fprintf( f, "index: %d\n", i );
 				fprintf( f, "v0.x = %f, v0.y = %f, v0.z = %f\n", raster->tri_list[i].v[0].x, raster->tri_list[i].v[0].y, raster->tri_list[i].v[0].pz );
 				fprintf( f, "v1.x = %f, v1.y = %f, v1.z = %f\n", raster->tri_list[i].v[1].x, raster->tri_list[i].v[1].y, raster->tri_list[i].v[1].pz );
@@ -2693,10 +2692,9 @@ static void geo_parse( model2_state *state )
 /***********************************************************************************************/
 
 
-static void model2_exit(running_machine &machine)
+void model2_state::model2_exit()
 {
-	model2_state *state = machine.driver_data<model2_state>();
-	poly_free(state->m_poly);
+	poly_free(m_poly);
 }
 
 VIDEO_START_MEMBER(model2_state,model2)
@@ -2708,7 +2706,7 @@ VIDEO_START_MEMBER(model2_state,model2)
 	m_sys24_bitmap.allocate(width, height+4);
 
 	m_poly = poly_alloc(machine(), 4000, sizeof(poly_extra_data), 0);
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(model2_exit), &machine()));
+	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(model2_state::model2_exit), this));
 
 	/* initialize the hardware rasterizer */
 	model2_3d_init( machine(), (UINT16*)memregion("user3")->base() );

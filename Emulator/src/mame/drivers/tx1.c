@@ -61,23 +61,23 @@
 /* Main CPU and Z80 synchronisation */
 WRITE16_MEMBER(tx1_state::z80_busreq_w)
 {
-	machine().device("audio_cpu")->execute().set_input_line(INPUT_LINE_HALT, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_HALT, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE16_MEMBER(tx1_state::resume_math_w)
 {
-	machine().device("math_cpu")->execute().set_input_line(INPUT_LINE_TEST, ASSERT_LINE);
+	m_mathcpu->set_input_line(INPUT_LINE_TEST, ASSERT_LINE);
 }
 
 WRITE16_MEMBER(tx1_state::halt_math_w)
 {
-	machine().device("math_cpu")->execute().set_input_line(INPUT_LINE_TEST, CLEAR_LINE);
+	m_mathcpu->set_input_line(INPUT_LINE_TEST, CLEAR_LINE);
 }
 
 /* Z80 can trigger its own interrupts */
 WRITE8_MEMBER(tx1_state::z80_intreq_w)
 {
-	machine().device("audio_cpu")->execute().set_input_line(0, HOLD_LINE);
+	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 /* Periodic Z80 interrupt */
@@ -88,13 +88,13 @@ INTERRUPT_GEN_MEMBER(tx1_state::z80_irq)
 
 READ16_MEMBER(tx1_state::z80_shared_r)
 {
-	address_space &cpu2space = machine().device("audio_cpu")->memory().space(AS_PROGRAM);
+	address_space &cpu2space = m_audiocpu->space(AS_PROGRAM);
 	return cpu2space.read_byte(offset);
 }
 
 WRITE16_MEMBER(tx1_state::z80_shared_w)
 {
-	address_space &cpu2space = machine().device("audio_cpu")->memory().space(AS_PROGRAM);
+	address_space &cpu2space = m_audiocpu->space(AS_PROGRAM);
 	cpu2space.write_byte(offset, data & 0xff);
 }
 
@@ -541,7 +541,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tx1_sound_io, AS_IO, 8, tx1_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 
@@ -616,10 +616,10 @@ ADDRESS_MAP_END
 /* Common */
 static ADDRESS_MAP_START( buggyboy_sound_io, AS_IO, 8, tx1_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x40, 0x40) AM_DEVREAD_LEGACY("ym1", ay8910_r)
-	AM_RANGE(0x40, 0x41) AM_DEVWRITE_LEGACY("ym1", ay8910_data_address_w)
-	AM_RANGE(0x80, 0x80) AM_DEVREAD_LEGACY("ym2", ay8910_r)
-	AM_RANGE(0x80, 0x81) AM_DEVWRITE_LEGACY("ym2", ay8910_data_address_w)
+	AM_RANGE(0x40, 0x40) AM_DEVREAD("ym1", ay8910_device, data_r)
+	AM_RANGE(0x40, 0x41) AM_DEVWRITE("ym1", ay8910_device, data_address_w)
+	AM_RANGE(0x80, 0x80) AM_DEVREAD("ym2", ay8910_device, data_r)
+	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ym2", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 

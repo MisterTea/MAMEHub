@@ -4,15 +4,19 @@
 
 ***************************************************************************/
 
+#include "video/tecmo_spr.h"
+
 class gaiden_state : public driver_device
 {
 public:
 	gaiden_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_videoram2(*this, "videoram2"),
 		m_videoram3(*this, "videoram3"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoram;
@@ -45,7 +49,7 @@ public:
 	const int   *m_raiga_jumppoints;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE16_MEMBER(gaiden_sound_command_w);
 	DECLARE_WRITE16_MEMBER(drgnbowl_sound_command_w);
 	DECLARE_WRITE16_MEMBER(wildfang_protection_w);
@@ -86,4 +90,11 @@ public:
 	UINT32 screen_update_gaiden(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_drgnbowl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_raiga(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void drgnbowl_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void descramble_drgnbowl_gfx();
+	void descramble_mastninj_gfx(UINT8* src);
+	void blendbitmaps(bitmap_rgb32 &dest,bitmap_ind16 &src1,bitmap_ind16 &src2,bitmap_ind16 &src3,
+		int sx,int sy,const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
 };

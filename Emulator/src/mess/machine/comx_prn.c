@@ -65,7 +65,7 @@ SLOT_INTERFACE_END
 //-------------------------------------------------
 
 static MACHINE_CONFIG_FRAGMENT( comx_prn )
-	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, standard_centronics, comx_centronics_printer, "pl80", NULL)
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, standard_centronics, comx_centronics_printer, "pl80")
 MACHINE_CONFIG_END
 
 
@@ -90,9 +90,10 @@ machine_config_constructor comx_prn_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 comx_prn_device::comx_prn_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, COMX_PRN, "COMX-35 Printer Card", tag, owner, clock),
+	device_t(mconfig, COMX_PRN, "COMX-35 Printer Card", tag, owner, clock, "comx_prn", __FILE__),
 	device_comx_expansion_card_interface(mconfig, *this),
-	m_centronics(*this, CENTRONICS_TAG)
+	m_centronics(*this, CENTRONICS_TAG),
+	m_rom(*this, "c000")
 {
 }
 
@@ -103,7 +104,6 @@ comx_prn_device::comx_prn_device(const machine_config &mconfig, const char *tag,
 
 void comx_prn_device::device_start()
 {
-	m_rom = memregion("c000")->base();
 }
 
 
@@ -126,7 +126,7 @@ UINT8 comx_prn_device::comx_mrd_r(address_space &space, offs_t offset, int *extr
 
 	if (offset >= 0xc000 && offset < 0xe000)
 	{
-		data = m_rom[offset & 0x1fff];
+		data = m_rom->base()[offset & 0x1fff];
 	}
 
 	return data;

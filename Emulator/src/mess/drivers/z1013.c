@@ -61,7 +61,7 @@ public:
 	z1013_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
-	m_cass(*this, CASSETTE_TAG),
+	m_cass(*this, "cassette"),
 	m_p_videoram(*this, "videoram"){ }
 
 	required_device<cpu_device> m_maincpu;
@@ -77,6 +77,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_z1013(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_SNAPSHOT_LOAD_MEMBER( z1013 );
 };
 
 
@@ -257,7 +258,7 @@ UINT32 z1013_state::screen_update_z1013(screen_device &screen, bitmap_ind16 &bit
 
 void z1013_state::machine_reset()
 {
-	machine().device("maincpu")->state().set_state_int(Z80_PC, 0xF000);
+	m_maincpu->set_state_int(Z80_PC, 0xF000);
 	m_keyboard_part = 0;
 	m_keyboard_line = 0;
 }
@@ -317,7 +318,7 @@ const z80pio_interface z1013k7659_z80pio_intf =
 	DEVCB_NULL
 };
 
-SNAPSHOT_LOAD( z1013 )
+SNAPSHOT_LOAD_MEMBER( z1013_state, z1013 )
 {
 /* header layout
 0000,0001 - load address
@@ -330,7 +331,7 @@ SNAPSHOT_LOAD( z1013 )
 0020 up   - Program to load
 */
 
-	UINT8* data= auto_alloc_array(image.device().machine(), UINT8, snapshot_size);
+	UINT8* data= auto_alloc_array(machine(), UINT8, snapshot_size);
 	UINT16 startaddr,endaddr,runaddr;
 
 	image.fread( data, snapshot_size);
@@ -348,11 +349,11 @@ SNAPSHOT_LOAD( z1013 )
 		return IMAGE_INIT_FAIL;
 	}
 
-	memcpy (image.device().machine().device("maincpu")->memory().space(AS_PROGRAM).get_read_ptr(startaddr),
+	memcpy (m_maincpu->space(AS_PROGRAM).get_read_ptr(startaddr),
 			data+0x20, endaddr - startaddr + 1);
 
 	if (runaddr)
-		image.device().machine().device("maincpu")->state().set_state_int(Z80_PC, runaddr);
+		m_maincpu->set_state_int(Z80_PC, runaddr);
 	else
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Loaded but cannot run");
@@ -411,13 +412,13 @@ static MACHINE_CONFIG_START( z1013, z1013_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* Devices */
 	MCFG_Z80PIO_ADD( "z80pio", XTAL_1MHz, z1013_z80pio_intf )
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, z1013_cassette_interface )
-	MCFG_SNAPSHOT_ADD("snapshot", z1013, "z80", 0)
+	MCFG_CASSETTE_ADD( "cassette", z1013_cassette_interface )
+	MCFG_SNAPSHOT_ADD("snapshot", z1013_state, z1013, "z80", 0)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( z1013k76, z1013 )

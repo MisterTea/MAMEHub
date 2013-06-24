@@ -20,10 +20,11 @@ class subs_state : public driver_device
 {
 public:
 	subs_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
-		m_discrete(*this, "discrete"){ }
+		m_discrete(*this, "discrete"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_spriteram;
 	required_shared_ptr<UINT8> m_videoram;
@@ -52,6 +53,9 @@ public:
 	DECLARE_WRITE8_MEMBER(subs_crash_w);
 	DECLARE_WRITE8_MEMBER(subs_explode_w);
 	DECLARE_WRITE8_MEMBER(subs_noise_reset_w);
+	int subs_steering_1();
+	int subs_steering_2();
+	required_device<cpu_device> m_maincpu;
 };
 
 /*----------- defined in audio/subs.c -----------*/

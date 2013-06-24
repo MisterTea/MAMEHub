@@ -45,10 +45,11 @@ class vroulet_state : public driver_device
 {
 public:
 	vroulet_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_ball(*this, "ball"){ }
+		m_ball(*this, "ball"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -63,6 +64,7 @@ public:
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_vroulet(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -139,8 +141,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( vroulet_io_map, AS_IO, 8, vroulet_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x00, 0x00) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE("ppi8255_0", i8255_device, read, write)
 	AM_RANGE(0x80, 0x83) AM_DEVREADWRITE("ppi8255_1", i8255_device, read, write)
 ADDRESS_MAP_END

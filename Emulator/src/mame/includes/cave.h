@@ -3,6 +3,8 @@
     Cave hardware
 
 ***************************************************************************/
+#include "machine/eeprom.h"
+#include "machine/nmk112.h"
 
 struct sprite_cave
 {
@@ -33,7 +35,11 @@ public:
 			m_spriteram_2(*this, "spriteram_2"),
 			m_paletteram(*this, "paletteram"),
 			m_mirror_ram(*this, "mirror_ram"),
-			m_int_timer(*this, "int_timer") { }
+			m_maincpu(*this, "maincpu"),
+			m_audiocpu(*this, "audiocpu"),
+			m_nmk112(*this, "nmk112"),
+			m_int_timer(*this, "int_timer"),
+			m_eeprom(*this, "eeprom") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoregs;
@@ -110,8 +116,9 @@ public:
 	int          m_hopper;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<nmk112_device> m_nmk112;
 	required_device<timer_device> m_int_timer;
 	int m_rasflag;
 	int m_old_rasflag;
@@ -204,8 +211,9 @@ public:
 	INTERRUPT_GEN_MEMBER(cave_interrupt);
 	TIMER_CALLBACK_MEMBER(cave_vblank_end);
 	TIMER_DEVICE_CALLBACK_MEMBER(cave_vblank_start);
+	void cave_get_sprite_info();
+	void sailormn_tilebank_w(int bank);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	DECLARE_WRITE_LINE_MEMBER(sound_irq_gen);
+	optional_device<eeprom_device> m_eeprom;
 };
-
-/*----------- defined in video/cave.c -----------*/
-void cave_get_sprite_info(running_machine &machine);
-void sailormn_tilebank_w(running_machine &machine, int bank);

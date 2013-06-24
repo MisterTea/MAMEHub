@@ -1,13 +1,7 @@
 #include "emu.h"
 #include "video/ppu2c0x.h"
-#include "machine/rp5h01.h"
 #include "machine/nvram.h"
 #include "includes/playch10.h"
-
-/* prototypes */
-static void pc10_set_videorom_bank( running_machine &machine, int first, int count, int bank, int size );
-static void set_videoram_bank( running_machine &machine, int first, int count, int bank, int size );
-
 
 /*************************************
  *
@@ -17,8 +11,6 @@ static void set_videoram_bank( running_machine &machine, int first, int count, i
 
 void playch10_state::machine_reset()
 {
-	device_t *rp5h01 = machine().device("rp5h01");
-
 	/* initialize latches and flip-flops */
 	m_pc10_nmi_enable = m_pc10_dog_di = m_pc10_dispmask = m_pc10_sdcs = m_pc10_int_detect = 0;
 
@@ -35,10 +27,10 @@ void playch10_state::machine_reset()
 
 	/* reset the security chip */
 	address_space &space = generic_space();
-	rp5h01_enable_w(rp5h01, space, 0, 0);
-	rp5h01_reset_w(rp5h01, space, 0, 0);
-	rp5h01_reset_w(rp5h01, space, 0, 1);
-	rp5h01_enable_w(rp5h01, space, 0, 1);
+	m_rp5h01->enable_w(space, 0, 0);
+	m_rp5h01->reset_w(space, 0, 0);
+	m_rp5h01->reset_w(space, 0, 1);
+	m_rp5h01->enable_w(space, 0, 1);
 
 	pc10_set_mirroring(m_mirroring);
 }
@@ -55,8 +47,8 @@ void playch10_state::machine_start()
 	machine().device("ppu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x2000, 0x3eff, read8_delegate(FUNC(playch10_state::pc10_nt_r),this),write8_delegate(FUNC(playch10_state::pc10_nt_w),this));
 
 	if (NULL != m_vram)
-		set_videoram_bank(machine(), 0, 8, 0, 8);
-	else pc10_set_videorom_bank(machine(), 0, 8, 0, 8);
+		set_videoram_bank(0, 8, 0, 8);
+	else pc10_set_videorom_bank(0, 8, 0, 8);
 
 	nvram_device *nvram = machine().device<nvram_device>("nvram");
 	if (nvram != NULL)
@@ -163,31 +155,29 @@ WRITE8_MEMBER(playch10_state::pc10_CARTSEL_w)
 
 READ8_MEMBER(playch10_state::pc10_prot_r)
 {
-	device_t *rp5h01 = machine().device("rp5h01");
 	int data = 0xe7;
 
 	/* we only support a single cart connected at slot 0 */
 	if (m_cart_sel == 0)
 	{
-		rp5h01_enable_w(rp5h01, space, 0, 0);
-		data |= ((~rp5h01_counter_r(rp5h01, space, 0)) << 4) & 0x10;    /* D4 */
-		data |= ((rp5h01_data_r(rp5h01, space, 0)) << 3) & 0x08;        /* D3 */
-		rp5h01_enable_w(rp5h01, space, 0, 1);
+		m_rp5h01->enable_w(space, 0, 0);
+		data |= ((~m_rp5h01->counter_r(space, 0)) << 4) & 0x10;    /* D4 */
+		data |= ((m_rp5h01->data_r(space, 0)) << 3) & 0x08;        /* D3 */
+		m_rp5h01->enable_w(space, 0, 1);
 	}
 	return data;
 }
 
 WRITE8_MEMBER(playch10_state::pc10_prot_w)
 {
-	device_t *rp5h01 = machine().device("rp5h01");
 	/* we only support a single cart connected at slot 0 */
 	if (m_cart_sel == 0)
 	{
-		rp5h01_enable_w(rp5h01, space, 0, 0);
-		rp5h01_test_w(rp5h01, space, 0, data & 0x10);       /* D4 */
-		rp5h01_clock_w(rp5h01, space, 0, data & 0x08);      /* D3 */
-		rp5h01_reset_w(rp5h01, space, 0, ~data & 0x01); /* D0 */
-		rp5h01_enable_w(rp5h01, space, 0, 1);
+		m_rp5h01->enable_w(space, 0, 0);
+		m_rp5h01->test_w(space, 0, data & 0x10);       /* D4 */
+		m_rp5h01->clock_w(space, 0, data & 0x08);      /* D3 */
+		m_rp5h01->reset_w(space, 0, ~data & 0x01); /* D0 */
+		m_rp5h01->enable_w(space, 0, 1);
 
 		/* this thing gets dense at some point                      */
 		/* it wants to jump and execute an opcode at $ffff, wich    */
@@ -355,9 +345,8 @@ void playch10_state::pc10_set_mirroring(int mirroring )
  *  64         1 *
 \*****************/
 
-static void pc10_set_videorom_bank( running_machine &machine, int first, int count, int bank, int size )
+void playch10_state::pc10_set_videorom_bank( int first, int count, int bank, int size )
 {
-	playch10_state *state = machine.driver_data<playch10_state>();
 	int i, len;
 	/* first = first bank to map */
 	/* count = number of 1K banks to map */
@@ -368,7 +357,7 @@ static void pc10_set_videorom_bank( running_machine &machine, int first, int cou
 	/* yeah, this is probably a horrible assumption to make.*/
 	/* but the driver is 100% consistant */
 
-	len = state->memregion("gfx2")->bytes();
+	len = memregion("gfx2")->bytes();
 	len /= 0x400;   // convert to KB
 	len /= size;    // convert to bank resolution
 	len--;          // convert to mask
@@ -376,14 +365,13 @@ static void pc10_set_videorom_bank( running_machine &machine, int first, int cou
 
 	for (i = 0; i < count; i++)
 	{
-		state->m_chr_page[i + first].writable = 0;
-		state->m_chr_page[i + first].chr=state->m_vrom + (i * 0x400) + (bank * size * 0x400);
+		m_chr_page[i + first].writable = 0;
+		m_chr_page[i + first].chr=m_vrom + (i * 0x400) + (bank * size * 0x400);
 	}
 }
 
-static void set_videoram_bank( running_machine &machine, int first, int count, int bank, int size )
+void playch10_state::set_videoram_bank( int first, int count, int bank, int size )
 {
-	playch10_state *state = machine.driver_data<playch10_state>();
 	int i;
 	/* first = first bank to map */
 	/* count = number of 1K banks to map */
@@ -397,8 +385,8 @@ static void set_videoram_bank( running_machine &machine, int first, int count, i
 
 	for (i = 0; i < count; i++)
 	{
-		state->m_chr_page[i + first].writable = 1;
-		state->m_chr_page[i + first].chr = state->m_vram + (((i * 0x400) + (bank * size * 0x400)) & 0x1fff);
+		m_chr_page[i + first].writable = 1;
+		m_chr_page[i + first].chr = m_vram + (((i * 0x400) + (bank * size * 0x400)) & 0x1fff);
 	}
 }
 
@@ -525,18 +513,18 @@ WRITE8_MEMBER(playch10_state::mmc1_rom_switch_w)
 
 			case 1: /* video rom banking - bank 0 - 4k or 8k */
 				if (m_vram)
-					set_videoram_bank(machine(), 0, (vrom4k) ? 4 : 8, (m_mmc1_shiftreg & 0x1f), 4);
+					set_videoram_bank(0, (vrom4k) ? 4 : 8, (m_mmc1_shiftreg & 0x1f), 4);
 				else
-					pc10_set_videorom_bank(machine(), 0, (vrom4k) ? 4 : 8, (m_mmc1_shiftreg & 0x1f), 4);
+					pc10_set_videorom_bank(0, (vrom4k) ? 4 : 8, (m_mmc1_shiftreg & 0x1f), 4);
 			break;
 
 			case 2: /* video rom banking - bank 1 - 4k only */
 				if (vrom4k)
 				{
 					if (m_vram)
-						set_videoram_bank(machine(), 0, (vrom4k) ? 4 : 8, (m_mmc1_shiftreg & 0x1f), 4);
+						set_videoram_bank(0, (vrom4k) ? 4 : 8, (m_mmc1_shiftreg & 0x1f), 4);
 					else
-						pc10_set_videorom_bank(machine(), 4, 4, (m_mmc1_shiftreg & 0x1f), 4);
+						pc10_set_videorom_bank(4, 4, (m_mmc1_shiftreg & 0x1f), 4);
 				}
 			break;
 
@@ -575,7 +563,7 @@ WRITE8_MEMBER(playch10_state::mmc1_rom_switch_w)
 
 WRITE8_MEMBER(playch10_state::aboard_vrom_switch_w)
 {
-	pc10_set_videorom_bank(machine(), 0, 8, (data & 3), 8);
+	pc10_set_videorom_bank(0, 8, (data & 3), 8);
 }
 
 DRIVER_INIT_MEMBER(playch10_state,pcaboard)
@@ -624,7 +612,7 @@ DRIVER_INIT_MEMBER(playch10_state,pcbboard)
 	/* set the mirroring here */
 	m_mirroring = PPU_MIRROR_VERT;
 	/* special init */
-	set_videoram_bank(machine(), 0, 8, 0, 8);
+	set_videoram_bank(0, 8, 0, 8);
 }
 
 /**********************************************************************************/
@@ -632,7 +620,7 @@ DRIVER_INIT_MEMBER(playch10_state,pcbboard)
 
 WRITE8_MEMBER(playch10_state::cboard_vrom_switch_w)
 {
-	pc10_set_videorom_bank(machine(), 0, 8, ((data >> 1) & 1), 8);
+	pc10_set_videorom_bank(0, 8, ((data >> 1) & 1), 8);
 }
 
 DRIVER_INIT_MEMBER(playch10_state,pccboard)
@@ -669,7 +657,7 @@ DRIVER_INIT_MEMBER(playch10_state,pcdboard)
 	/* allocate vram */
 	m_vram = auto_alloc_array(machine(), UINT8, 0x2000);
 	/* special init */
-	set_videoram_bank(machine(), 0, 8, 0, 8);
+	set_videoram_bank(0, 8, 0, 8);
 }
 
 /* D Board games with extra ram (Metroid) */
@@ -685,36 +673,34 @@ DRIVER_INIT_MEMBER(playch10_state,pcdboard_2)
 	/* allocate vram */
 	m_vram = auto_alloc_array(machine(), UINT8, 0x2000);
 	/* special init */
-	set_videoram_bank(machine(), 0, 8, 0, 8);
+	set_videoram_bank(0, 8, 0, 8);
 }
 
 /**********************************************************************************/
 /* E Board games (Mike Tyson's Punchout) - BROKEN - FIX ME */
 
 /* callback for the ppu_latch */
-static void mapper9_latch( device_t *ppu, offs_t offset )
+void playch10_state::mapper9_latch(offs_t offset )
 {
-	playch10_state *state = ppu->machine().driver_data<playch10_state>();
-
-	if((offset & 0x1ff0) == 0x0fd0 && state->m_MMC2_bank_latch[0] != 0xfd)
+	if((offset & 0x1ff0) == 0x0fd0 && m_MMC2_bank_latch[0] != 0xfd)
 	{
-		state->m_MMC2_bank_latch[0] = 0xfd;
-		pc10_set_videorom_bank(ppu->machine(), 0, 4, state->m_MMC2_bank[0], 4);
+		m_MMC2_bank_latch[0] = 0xfd;
+		pc10_set_videorom_bank(0, 4, m_MMC2_bank[0], 4);
 	}
-	else if((offset & 0x1ff0) == 0x0fe0 && state->m_MMC2_bank_latch[0] != 0xfe)
+	else if((offset & 0x1ff0) == 0x0fe0 && m_MMC2_bank_latch[0] != 0xfe)
 	{
-		state->m_MMC2_bank_latch[0] = 0xfe;
-		pc10_set_videorom_bank(ppu->machine(), 0, 4, state->m_MMC2_bank[1], 4);
+		m_MMC2_bank_latch[0] = 0xfe;
+		pc10_set_videorom_bank(0, 4, m_MMC2_bank[1], 4);
 	}
-	else if((offset & 0x1ff0) == 0x1fd0 && state->m_MMC2_bank_latch[1] != 0xfd)
+	else if((offset & 0x1ff0) == 0x1fd0 && m_MMC2_bank_latch[1] != 0xfd)
 	{
-		state->m_MMC2_bank_latch[1] = 0xfd;
-		pc10_set_videorom_bank(ppu->machine(), 4, 4, state->m_MMC2_bank[2], 4);
+		m_MMC2_bank_latch[1] = 0xfd;
+		pc10_set_videorom_bank(4, 4, m_MMC2_bank[2], 4);
 	}
-	else if((offset & 0x1ff0) == 0x1fe0 && state->m_MMC2_bank_latch[1] != 0xfe)
+	else if((offset & 0x1ff0) == 0x1fe0 && m_MMC2_bank_latch[1] != 0xfe)
 	{
-		state->m_MMC2_bank_latch[1] = 0xfe;
-		pc10_set_videorom_bank(ppu->machine(), 4, 4, state->m_MMC2_bank[3], 4);
+		m_MMC2_bank_latch[1] = 0xfe;
+		pc10_set_videorom_bank(4, 4, m_MMC2_bank[3], 4);
 	}
 }
 
@@ -734,25 +720,25 @@ WRITE8_MEMBER(playch10_state::eboard_rom_switch_w)
 		case 0x3000: /* gfx bank 0 - 4k */
 			m_MMC2_bank[0] = data;
 			if (m_MMC2_bank_latch[0] == 0xfd)
-				pc10_set_videorom_bank(machine(), 0, 4, data, 4);
+				pc10_set_videorom_bank(0, 4, data, 4);
 		break;
 
 		case 0x4000: /* gfx bank 0 - 4k */
 			m_MMC2_bank[1] = data;
 			if (m_MMC2_bank_latch[0] == 0xfe)
-				pc10_set_videorom_bank(machine(), 0, 4, data, 4);
+				pc10_set_videorom_bank(0, 4, data, 4);
 		break;
 
 		case 0x5000: /* gfx bank 1 - 4k */
 			m_MMC2_bank[2] = data;
 			if (m_MMC2_bank_latch[1] == 0xfd)
-				pc10_set_videorom_bank(machine(), 4, 4, data, 4);
+				pc10_set_videorom_bank(4, 4, data, 4);
 		break;
 
 		case 0x6000: /* gfx bank 1 - 4k */
 			m_MMC2_bank[3] = data;
 			if (m_MMC2_bank_latch[1] == 0xfe)
-				pc10_set_videorom_bank(machine(), 4, 4, data, 4);
+				pc10_set_videorom_bank(4, 4, data, 4);
 		break;
 
 		case 0x7000: /* mirroring */
@@ -778,7 +764,7 @@ DRIVER_INIT_MEMBER(playch10_state,pceboard)
 	machine().device("cart")->memory().space(AS_PROGRAM).install_write_handler(0x8000, 0xffff, write8_delegate(FUNC(playch10_state::eboard_rom_switch_w),this));
 
 	/* ppu_latch callback */
-	ppu->set_latch(mapper9_latch);
+	ppu->set_latch(ppu2c0x_latch_delegate(FUNC(playch10_state::mapper9_latch),this));
 
 	/* nvram at $6000-$6fff */
 	machine().device("cart")->memory().space(AS_PROGRAM).install_ram(0x6000, 0x6fff);
@@ -793,6 +779,7 @@ DRIVER_INIT_MEMBER(playch10_state,pceboard)
 DRIVER_INIT_MEMBER(playch10_state,pcfboard)
 {
 	UINT8 *prg = memregion("cart")->base();
+	UINT32 len = memregion("cart")->bytes();
 
 	/* we have no vram, make sure switching games doesn't point to an old allocation */
 	m_vram = NULL;
@@ -801,7 +788,7 @@ DRIVER_INIT_MEMBER(playch10_state,pcfboard)
 	/* Copy the initial banks */
 	memcpy(&prg[0x08000], &prg[0x28000], 0x8000);
 
-	m_mmc1_rom_mask = 0x07;
+	m_mmc1_rom_mask = ((len - 0x10000) / 0x4000) - 1;
 
 	/* MMC mapper at writes to $8000-$ffff */
 	machine().device("cart")->memory().space(AS_PROGRAM).install_write_handler(0x8000, 0xffff, write8_delegate(FUNC(playch10_state::mmc1_rom_switch_w),this));
@@ -827,21 +814,19 @@ DRIVER_INIT_MEMBER(playch10_state,pcfboard_2)
 /* G Board games (Super Mario Bros. 3) */
 
 
-static void gboard_scanline_cb( device_t *device, int scanline, int vblank, int blanked )
+void playch10_state::gboard_scanline_cb( int scanline, int vblank, int blanked )
 {
-	playch10_state *state = device->machine().driver_data<playch10_state>();
-
 	if (scanline < PPU_BOTTOM_VISIBLE_SCANLINE)
 	{
-		int priorCount = state->m_IRQ_count;
-		if (state->m_IRQ_count == 0)
-			state->m_IRQ_count = state->m_IRQ_count_latch;
+		int priorCount = m_IRQ_count;
+		if (m_IRQ_count == 0)
+			m_IRQ_count = m_IRQ_count_latch;
 		else
-			state->m_IRQ_count--;
+			m_IRQ_count--;
 
-		if (state->m_IRQ_enable && !blanked && (state->m_IRQ_count == 0) && priorCount) // according to blargg the latter should be present as well, but it breaks Rampart and Joe & Mac US: they probably use the alt irq!
+		if (m_IRQ_enable && !blanked && (m_IRQ_count == 0) && priorCount) // according to blargg the latter should be present as well, but it breaks Rampart and Joe & Mac US: they probably use the alt irq!
 		{
-			device->machine().device("cart")->execute().set_input_line(0, HOLD_LINE);
+			machine().device("cart")->execute().set_input_line(0, HOLD_LINE);
 		}
 	}
 }
@@ -898,7 +883,7 @@ WRITE8_MEMBER(playch10_state::gboard_rom_switch_w)
 					case 1: /* char banking */
 						data &= 0xfe;
 						page ^= (cmd << 1);
-						pc10_set_videorom_bank(machine(), page, 2, data, 1);
+						pc10_set_videorom_bank(page, 2, data, 1);
 					break;
 
 					case 2: /* char banking */
@@ -906,7 +891,7 @@ WRITE8_MEMBER(playch10_state::gboard_rom_switch_w)
 					case 4: /* char banking */
 					case 5: /* char banking */
 						page ^= cmd + 2;
-						pc10_set_videorom_bank(machine(), page, 1, data, 1);
+						pc10_set_videorom_bank(page, 1, data, 1);
 					break;
 
 					case 6: /* program banking */
@@ -1007,7 +992,7 @@ DRIVER_INIT_MEMBER(playch10_state,pcgboard)
 	/* common init */
 	DRIVER_INIT_CALL(playch10);
 
-	ppu->set_scanline_callback(gboard_scanline_cb);
+	ppu->set_scanline_callback(ppu2c0x_scanline_delegate(FUNC(playch10_state::gboard_scanline_cb),this));
 }
 
 DRIVER_INIT_MEMBER(playch10_state,pcgboard_type2)
@@ -1053,7 +1038,7 @@ DRIVER_INIT_MEMBER(playch10_state,pciboard)
 	/* allocate vram */
 	m_vram = auto_alloc_array(machine(), UINT8, 0x2000);
 	/* special init */
-	set_videoram_bank(machine(), 0, 8, 0, 8);
+	set_videoram_bank(0, 8, 0, 8);
 }
 
 /**********************************************************************************/
@@ -1076,11 +1061,11 @@ WRITE8_MEMBER(playch10_state::hboard_rom_switch_w)
 						page ^= (cmd << 1);
 						if (data & 0x40)
 						{
-							set_videoram_bank(machine(), page, 2, data, 1);
+							set_videoram_bank(page, 2, data, 1);
 						}
 						else
 						{
-							pc10_set_videorom_bank(machine(), page, 2, data, 1);
+							pc10_set_videorom_bank(page, 2, data, 1);
 						}
 					return;
 
@@ -1091,11 +1076,11 @@ WRITE8_MEMBER(playch10_state::hboard_rom_switch_w)
 						page ^= cmd + 2;
 						if (data & 0x40)
 						{
-							set_videoram_bank(machine(), page, 1, data, 1);
+							set_videoram_bank(page, 1, data, 1);
 						}
 						else
 						{
-							pc10_set_videorom_bank(machine(), page, 1, data, 1);
+							pc10_set_videorom_bank(page, 1, data, 1);
 						}
 					return;
 				}
@@ -1153,5 +1138,5 @@ DRIVER_INIT_MEMBER(playch10_state,pckboard)
 	/* allocate vram */
 	m_vram = auto_alloc_array(machine(), UINT8, 0x2000);
 	/* special init */
-	set_videoram_bank(machine(), 0, 8, 0, 8);
+	set_videoram_bank(0, 8, 0, 8);
 }

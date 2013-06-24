@@ -12,7 +12,7 @@
 #include "video/mc6845.h"
 #include "machine/6821pia.h"
 #include "machine/6522via.h"
-#include "machine/6551acia.h"
+#include "machine/mos6551.h"
 #include "machine/6850acia.h"
 #include "machine/keyboard.h"
 
@@ -29,7 +29,8 @@ public:
 	ec65_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_via_0(*this, VIA6522_0_TAG),
-	m_p_videoram(*this, "videoram"){ }
+	m_p_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_READ8_MEMBER(ec65_via_read_a);
 	DECLARE_READ8_MEMBER(ec65_read_ca1 );
@@ -43,6 +44,7 @@ public:
 	required_shared_ptr<UINT8> m_p_videoram;
 	virtual void machine_reset();
 	virtual void video_start();
+	required_device<cpu_device> m_maincpu;
 };
 
 static ADDRESS_MAP_START(ec65_mem, AS_PROGRAM, 8, ec65_state)
@@ -53,7 +55,7 @@ static ADDRESS_MAP_START(ec65_mem, AS_PROGRAM, 8, ec65_state)
 	AM_RANGE(0xe011, 0xe011) AM_DEVREADWRITE(ACIA6850_TAG, acia6850_device, data_read, data_write)
 	AM_RANGE(0xe100, 0xe10f) AM_DEVREADWRITE(VIA6522_0_TAG, via6522_device, read, write)
 	AM_RANGE(0xe110, 0xe11f) AM_DEVREADWRITE(VIA6522_1_TAG, via6522_device, read, write)
-	AM_RANGE(0xe130, 0xe133) AM_DEVREADWRITE(ACIA6551_TAG,  acia6551_device, read, write)
+	AM_RANGE(0xe130, 0xe133) AM_DEVREADWRITE(ACIA6551_TAG,  mos6551_device, read, write)
 	AM_RANGE(0xe140, 0xe140) AM_DEVWRITE(MC6845_TAG, mc6845_device, address_w)
 	AM_RANGE(0xe141, 0xe141) AM_DEVREADWRITE(MC6845_TAG, mc6845_device, register_r , register_w)
 	AM_RANGE(0xe400, 0xe7ff) AM_RAM // 1KB on-board RAM
@@ -211,9 +213,11 @@ static MC6845_UPDATE_ROW( ec65_update_row )
 	}
 }
 
-static const mc6845_interface ec65_crtc6845_interface =
+
+static MC6845_INTERFACE( ec65_crtc6845_interface )
 {
 	"screen",
+	false,
 	8 /*?*/,
 	NULL,
 	ec65_update_row,
@@ -271,7 +275,7 @@ static MACHINE_CONFIG_START( ec65, ec65_state )
 	MCFG_ACIA6850_ADD(ACIA6850_TAG, ec65_acia_intf)
 	MCFG_VIA6522_ADD(VIA6522_0_TAG, XTAL_4MHz / 4, ec65_via_0_intf)
 	MCFG_VIA6522_ADD(VIA6522_1_TAG, XTAL_4MHz / 4, ec65_via_1_intf)
-	MCFG_ACIA6551_ADD(ACIA6551_TAG)     // have XTAL of 1.8432MHz connected
+	MCFG_MOS6551_ADD(ACIA6551_TAG, XTAL_1_8432MHz, NULL)
 	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
 MACHINE_CONFIG_END
 

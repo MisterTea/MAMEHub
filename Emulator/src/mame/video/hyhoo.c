@@ -11,9 +11,6 @@
 #include "includes/hyhoo.h"
 
 
-static void hyhoo_gfxdraw(running_machine &machine);
-
-
 WRITE8_MEMBER(hyhoo_state::hyhoo_blitter_w)
 {
 	switch (offset)
@@ -27,7 +24,7 @@ WRITE8_MEMBER(hyhoo_state::hyhoo_blitter_w)
 		case 0x04:  m_blitter_sizex = data; break;
 		case 0x05:  m_blitter_sizey = data;
 					/* writing here also starts the blit */
-					hyhoo_gfxdraw(machine());
+					hyhoo_gfxdraw();
 					break;
 		case 0x06:  m_blitter_direction_x = (data >> 0) & 0x01;
 					m_blitter_direction_y = (data >> 1) & 0x01;
@@ -55,16 +52,21 @@ WRITE8_MEMBER(hyhoo_state::hyhoo_romsel_w)
 	}
 }
 
-
-TIMER_CALLBACK_MEMBER(hyhoo_state::blitter_timer_callback)
+void hyhoo_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	nb1413m3_busyflag = 1;
+	switch (id)
+	{
+	case TIMER_BLITTER:
+		nb1413m3_busyflag = 1;
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in hyhoo_state::device_timer");
+	}
 }
 
-static void hyhoo_gfxdraw(running_machine &machine)
+void hyhoo_state::hyhoo_gfxdraw()
 {
-	hyhoo_state *state = machine.driver_data<hyhoo_state>();
-	UINT8 *GFX = state->memregion("gfx1")->base();
+	UINT8 *GFX = memregion("gfx1")->base();
 
 	int x, y;
 	int dx1, dx2, dy;
@@ -79,35 +81,35 @@ static void hyhoo_gfxdraw(running_machine &machine)
 
 	nb1413m3_busyctr = 0;
 
-	state->m_gfxrom |= ((nb1413m3_sndrombank1 & 0x02) << 3);
+	m_gfxrom |= ((nb1413m3_sndrombank1 & 0x02) << 3);
 
-	startx = state->m_blitter_destx + state->m_blitter_sizex;
-	starty = state->m_blitter_desty + state->m_blitter_sizey;
+	startx = m_blitter_destx + m_blitter_sizex;
+	starty = m_blitter_desty + m_blitter_sizey;
 
-	if (state->m_blitter_direction_x)
+	if (m_blitter_direction_x)
 	{
-		sizex = state->m_blitter_sizex ^ 0xff;
+		sizex = m_blitter_sizex ^ 0xff;
 		skipx = 1;
 	}
 	else
 	{
-		sizex = state->m_blitter_sizex;
+		sizex = m_blitter_sizex;
 		skipx = -1;
 	}
 
-	if (state->m_blitter_direction_y)
+	if (m_blitter_direction_y)
 	{
-		sizey = state->m_blitter_sizey ^ 0xff;
+		sizey = m_blitter_sizey ^ 0xff;
 		skipy = 1;
 	}
 	else
 	{
-		sizey = state->m_blitter_sizey;
+		sizey = m_blitter_sizey;
 		skipy = -1;
 	}
 
-	gfxlen = machine.root_device().memregion("gfx1")->bytes();
-	gfxaddr = (state->m_gfxrom << 17) + (state->m_blitter_src_addr << 1);
+	gfxlen = memregion("gfx1")->bytes();
+	gfxaddr = (m_gfxrom << 17) + (m_blitter_src_addr << 1);
 
 	for (y = starty, ctry = sizey; ctry >= 0; y += skipy, ctry--)
 	{
@@ -127,13 +129,13 @@ static void hyhoo_gfxdraw(running_machine &machine)
 			dx2 = (2 * x + 1) & 0x1ff;
 			dy = y & 0xff;
 
-			if (state->m_highcolorflag & 0x04)
+			if (m_highcolorflag & 0x04)
 			{
 				// direct mode
 
 				if (color != 0xff)
 				{
-					if (state->m_highcolorflag & 0x20)
+					if (m_highcolorflag & 0x20)
 					{
 						/* least significant bits */
 
@@ -146,8 +148,8 @@ static void hyhoo_gfxdraw(running_machine &machine)
 
 						pen = MAKE_RGB(pal6bit(r), pal5bit(g), pal5bit(b));
 
-						state->m_tmpbitmap.pix32(dy, dx1) = state->m_tmpbitmap.pix32(dy, dx1) | pen;
-						state->m_tmpbitmap.pix32(dy, dx2) = state->m_tmpbitmap.pix32(dy, dx2) | pen;
+						m_tmpbitmap.pix32(dy, dx1) = m_tmpbitmap.pix32(dy, dx1) | pen;
+						m_tmpbitmap.pix32(dy, dx2) = m_tmpbitmap.pix32(dy, dx2) | pen;
 					}
 					else
 					{
@@ -162,8 +164,8 @@ static void hyhoo_gfxdraw(running_machine &machine)
 
 						pen = MAKE_RGB(pal6bit(r << 3), pal5bit(g << 2), pal5bit(b << 3));
 
-						state->m_tmpbitmap.pix32(dy, dx1) = pen;
-						state->m_tmpbitmap.pix32(dy, dx2) = pen;
+						m_tmpbitmap.pix32(dy, dx1) = pen;
+						m_tmpbitmap.pix32(dy, dx2) = pen;
 					}
 				}
 			}
@@ -171,7 +173,7 @@ static void hyhoo_gfxdraw(running_machine &machine)
 			{
 				// lookup table mode
 
-				if (state->m_blitter_direction_x)
+				if (m_blitter_direction_x)
 				{
 					// flip
 					color1 = (color & 0x0f) >> 0;
@@ -184,32 +186,32 @@ static void hyhoo_gfxdraw(running_machine &machine)
 					color2 = (color & 0x0f) >> 0;
 				}
 
-				if (state->m_clut[color1])
+				if (m_clut[color1])
 				{
 					// src xxxxxxxx_bbgggrrr
 					// dst bbxxxggg_xxrrrxxx
 
-					r = ((~state->m_clut[color1] & 0x07) >> 0) & 0x07;
-					g = ((~state->m_clut[color1] & 0x38) >> 3) & 0x07;
-					b = ((~state->m_clut[color1] & 0xc0) >> 6) & 0x03;
+					r = ((~m_clut[color1] & 0x07) >> 0) & 0x07;
+					g = ((~m_clut[color1] & 0x38) >> 3) & 0x07;
+					b = ((~m_clut[color1] & 0xc0) >> 6) & 0x03;
 
 					pen = MAKE_RGB(pal6bit(r << 3), pal5bit(g << 2), pal5bit(b << 3));
 
-					state->m_tmpbitmap.pix32(dy, dx1) = pen;
+					m_tmpbitmap.pix32(dy, dx1) = pen;
 				}
 
-				if (state->m_clut[color2])
+				if (m_clut[color2])
 				{
 					// src xxxxxxxx_bbgggrrr
 					// dst bbxxxggg_xxrrrxxx
 
-					r = ((~state->m_clut[color2] & 0x07) >> 0) & 0x07;
-					g = ((~state->m_clut[color2] & 0x38) >> 3) & 0x07;
-					b = ((~state->m_clut[color2] & 0xc0) >> 6) & 0x03;
+					r = ((~m_clut[color2] & 0x07) >> 0) & 0x07;
+					g = ((~m_clut[color2] & 0x38) >> 3) & 0x07;
+					b = ((~m_clut[color2] & 0xc0) >> 6) & 0x03;
 
 					pen = MAKE_RGB(pal6bit(r << 3), pal5bit(g << 2), pal5bit(b << 3));
 
-					state->m_tmpbitmap.pix32(dy, dx2) = pen;
+					m_tmpbitmap.pix32(dy, dx2) = pen;
 				}
 			}
 
@@ -218,7 +220,7 @@ static void hyhoo_gfxdraw(running_machine &machine)
 	}
 
 	nb1413m3_busyflag = 0;
-	machine.scheduler().timer_set(attotime::from_hz(400000) * nb1413m3_busyctr, timer_expired_delegate(FUNC(hyhoo_state::blitter_timer_callback),state));
+	timer_set(attotime::from_hz(400000) * nb1413m3_busyctr, TIMER_BLITTER);
 }
 
 

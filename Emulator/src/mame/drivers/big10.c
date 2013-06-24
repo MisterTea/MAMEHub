@@ -68,7 +68,8 @@ class big10_state : public driver_device
 public:
 	big10_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_v9938(*this, "v9938") { }
+			m_v9938(*this, "v9938") ,
+		m_maincpu(*this, "maincpu") { }
 
 	required_device<v9938_device> m_v9938;
 	UINT8 m_mux_data;
@@ -76,6 +77,8 @@ public:
 	DECLARE_WRITE8_MEMBER(mux_w);
 	virtual void machine_reset();
 	TIMER_DEVICE_CALLBACK_MEMBER(big10_interrupt);
+	DECLARE_WRITE_LINE_MEMBER(big10_vdp_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -86,9 +89,9 @@ public:
 *      Interrupt handling & Video      *
 ***************************************/
 
-static void big10_vdp_interrupt(device_t *, v99x8_device &device, int i)
+WRITE_LINE_MEMBER(big10_state::big10_vdp_interrupt)
 {
-	device.machine().device("maincpu")->execute().set_input_line(0, (i ? ASSERT_LINE : CLEAR_LINE));
+	m_maincpu->set_input_line(0, (state ? ASSERT_LINE : CLEAR_LINE));
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(big10_state::big10_interrupt)
@@ -144,8 +147,8 @@ static ADDRESS_MAP_START( main_io, AS_IO, 8, big10_state )
 	AM_RANGE(0x00, 0x00) AM_READ(mux_r)         /* present in test mode */
 	AM_RANGE(0x02, 0x02) AM_READ_PORT("SYSTEM") /* coins and service */
 	AM_RANGE(0x98, 0x9b) AM_DEVREADWRITE("v9938", v9938_device, read, write)
-	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0xa2, 0xa2) AM_DEVREAD_LEGACY("aysnd", ay8910_r) /* Dip-Switches routes here. */
+	AM_RANGE(0xa0, 0xa1) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0xa2, 0xa2) AM_DEVREAD("aysnd", ay8910_device, data_r) /* Dip-Switches routes here. */
 ADDRESS_MAP_END
 
 
@@ -254,7 +257,7 @@ static MACHINE_CONFIG_START( big10, big10_state )
 
 	/* video hardware */
 	MCFG_V9938_ADD("v9938", "screen", VDP_MEM)
-	MCFG_V99X8_INTERRUPT_CALLBACK_STATIC(big10_vdp_interrupt)
+	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(big10_state, big10_vdp_interrupt))
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)

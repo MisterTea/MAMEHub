@@ -31,8 +31,10 @@ class _39in1_state : public driver_device
 {
 public:
 	_39in1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_ram(*this, "ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_ram(*this, "ram"),
+		m_eeprom(*this, "eeprom"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT32 m_seed;
 	UINT32 m_magic;
@@ -48,7 +50,7 @@ public:
 	PXA255_LCD_Regs m_lcd_regs;
 
 	dmadac_sound_device *m_dmadac[2];
-	eeprom_device *m_eeprom;
+	required_device<eeprom_device> m_eeprom;
 	UINT32 m_pxa255_lcd_palette[0x100];
 	UINT8 m_pxa255_lcd_framebuffer[0x100000];
 
@@ -91,6 +93,7 @@ public:
 	void pxa255_lcd_dma_kickoff(int channel);
 	void pxa255_lcd_check_load_next_branch(int channel);
 	void pxa255_start();
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -266,7 +269,7 @@ void _39in1_state::pxa255_dma_load_descriptor_and_start(int channel)
 
 	// Load the next descriptor
 
-	address_space &space = machine().device<pxa255_device>("maincpu")->space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	dma_regs->dsadr[channel] = space.read_dword(dma_regs->ddadr[channel] + 0x4);
 	dma_regs->dtadr[channel] = space.read_dword(dma_regs->ddadr[channel] + 0x8);
 	dma_regs->dcmd[channel]  = space.read_dword(dma_regs->ddadr[channel] + 0xc);
@@ -305,7 +308,7 @@ TIMER_CALLBACK_MEMBER(_39in1_state::pxa255_dma_dma_end)
 	UINT16 temp16;
 	UINT32 temp32;
 
-	address_space &space = machine().device<pxa255_device>("maincpu")->space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	switch(param)
 	{
 		case 3:
@@ -709,8 +712,8 @@ void _39in1_state::pxa255_update_interrupts()
 
 	intc_regs->icfp = (intc_regs->icpr & intc_regs->icmr) & intc_regs->iclr;
 	intc_regs->icip = (intc_regs->icpr & intc_regs->icmr) & (~intc_regs->iclr);
-	machine().device("maincpu")->execute().set_input_line(ARM7_FIRQ_LINE, intc_regs->icfp ? ASSERT_LINE : CLEAR_LINE);
-	machine().device("maincpu")->execute().set_input_line(ARM7_IRQ_LINE,  intc_regs->icip ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(ARM7_FIRQ_LINE, intc_regs->icfp ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(ARM7_IRQ_LINE,  intc_regs->icip ? ASSERT_LINE : CLEAR_LINE);
 }
 
 void _39in1_state::pxa255_set_irq_line(UINT32 line, int irq_state)
@@ -1091,7 +1094,7 @@ void _39in1_state::pxa255_lcd_dma_kickoff(int channel)
 
 		if(lcd_regs->dma[channel].ldcmd & PXA255_LDCMD_PAL)
 		{
-			address_space &space = machine().device<pxa255_device>("maincpu")->space(AS_PROGRAM);
+			address_space &space = m_maincpu->space(AS_PROGRAM);
 			int length = lcd_regs->dma[channel].ldcmd & 0x000fffff;
 			int index = 0;
 			for(index = 0; index < length; index += 2)
@@ -1103,7 +1106,7 @@ void _39in1_state::pxa255_lcd_dma_kickoff(int channel)
 		}
 		else
 		{
-			address_space &space = machine().device<pxa255_device>("maincpu")->space(AS_PROGRAM);
+			address_space &space = m_maincpu->space(AS_PROGRAM);
 			int length = lcd_regs->dma[channel].ldcmd & 0x000fffff;
 			int index = 0;
 			for(index = 0; index < length; index++)
@@ -1122,7 +1125,7 @@ void _39in1_state::pxa255_lcd_check_load_next_branch(int channel)
 	{
 		verboselog( machine(), 4, "pxa255_lcd_check_load_next_branch: Taking branch\n" );
 		lcd_regs->fbr[channel] &= ~1;
-		address_space &space = machine().device<pxa255_device>("maincpu")->space(AS_PROGRAM);
+		address_space &space = m_maincpu->space(AS_PROGRAM);
 		//lcd_regs->fbr[channel] = (space.read_dword(lcd_regs->fbr[channel] & 0xfffffff0) & 0xfffffff0) | (lcd_regs->fbr[channel] & 0x00000003);
 		//printf( "%08x\n", lcd_regs->fbr[channel] );
 		pxa255_lcd_load_dma_descriptor(space, lcd_regs->fbr[channel] & 0xfffffff0, 0);
@@ -1348,7 +1351,6 @@ READ32_MEMBER(_39in1_state::unknown_r)
 
 READ32_MEMBER(_39in1_state::cpld_r)
 {
-
 	//if (space.device().safe_pc() != 0xe3af4) printf("CPLD read @ %x (PC %x state %d)\n", offset, space.device().safe_pc(), state);
 
 	if (space.device().safe_pc() == 0x3f04)
@@ -1404,7 +1406,6 @@ READ32_MEMBER(_39in1_state::cpld_r)
 
 WRITE32_MEMBER(_39in1_state::cpld_w)
 {
-
 	if (mem_mask == 0xffff)
 	{
 		m_seed = data<<16;
@@ -1439,9 +1440,8 @@ DRIVER_INIT_MEMBER(_39in1_state,39in1)
 {
 	m_dmadac[0] = machine().device<dmadac_sound_device>("dac1");
 	m_dmadac[1] = machine().device<dmadac_sound_device>("dac2");
-	m_eeprom = machine().device<eeprom_device>("eeprom");
 
-	address_space &space = machine().device<pxa255_device>("maincpu")->space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	space.install_read_handler (0xa0151648, 0xa015164b, read32_delegate(FUNC(_39in1_state::prot_cheater_r), this));
 }
 
@@ -1547,7 +1547,7 @@ void _39in1_state::pxa255_start()
 
 void _39in1_state::machine_start()
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 	int i;
 
 	for (i = 0; i < 0x80000; i += 2)
@@ -1560,7 +1560,7 @@ void _39in1_state::machine_start()
 
 MACHINE_START_MEMBER(_39in1_state,60in1)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 	int i;
 
 	for (i = 0; i < 0x80000; i += 2)

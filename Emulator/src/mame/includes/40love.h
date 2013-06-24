@@ -1,14 +1,19 @@
+#include "sound/msm5232.h"
 class fortyl_state : public driver_device
 {
 public:
 	fortyl_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_video_ctrl(*this, "video_ctrl"),
 		m_spriteram(*this, "spriteram"),
 		m_colorram(*this, "colorram"),
 		m_spriteram2(*this, "spriteram2"),
-		m_mcu_ram(*this, "mcu_ram"){ }
+		m_mcu_ram(*this, "mcu_ram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu"),
+		m_mcu(*this, "mcu"),
+		m_msm(*this, "msm") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -56,7 +61,7 @@ public:
 	UINT8       m_snd_ctrl3;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE8_MEMBER(sound_command_w);
 	DECLARE_WRITE8_MEMBER(nmi_disable_w);
 	DECLARE_WRITE8_MEMBER(nmi_enable_w);
@@ -97,4 +102,12 @@ public:
 	DECLARE_MACHINE_RESET(ta7630);
 	UINT32 screen_update_fortyl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(nmi_callback);
+	void redraw_pixels();
+	void fortyl_set_scroll_x( int offset );
+	void fortyl_plot_pix( int offset );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_pixram( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_mcu;
+	optional_device<msm5232_device> m_msm;
 };

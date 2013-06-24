@@ -195,6 +195,10 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_RAMSIZE ";ram",                             NULL,        OPTION_STRING,     "size of RAM (if supported by driver)" },
 	{ OPTION_CONFIRM_QUIT,                               "0",         OPTION_BOOLEAN,    "display confirm quit screen on exit" },
 	{ OPTION_UI_MOUSE,                                   "0",         OPTION_BOOLEAN,    "display ui mouse cursor" },
+	{ OPTION_AUTOBOOT_COMMAND ";ab",                     NULL,        OPTION_STRING,     "command to execute after machine boot" },
+	{ OPTION_AUTOBOOT_DELAY,                             "2",         OPTION_INTEGER,    "timer delay in sec to trigger command execution on autoboot" },
+	{ OPTION_AUTOBOOT_SCRIPT ";script",                  NULL,        OPTION_STRING,     "lua script to execute after machine boot" },
+
 
     // net options
 	{ "username",               "Player",         OPTION_STRING,    "Username for displaying network info" },
@@ -205,6 +209,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ "selfport",               "5805",         OPTION_INTEGER,    "local port for other peers to connect to" },
 	{ "secondsbetweensync",               "30",         OPTION_INTEGER,    "Number of seconds to wait between syncs" },
 	{ "synctransferseconds",               "10",         OPTION_INTEGER,    "Number of seconds to spend transfering the sync" },
+
 
 	{ NULL }
 };
@@ -260,12 +265,18 @@ bool emu_options::add_slot_options(bool isfirst)
 
 		// retrieve info about the device instance
 		if (!exists(slot->device().tag() + 1)) {
-
 			// add the option
 			entry[0].name = slot->device().tag() + 1;
 			entry[0].description = NULL;
 			entry[0].flags = OPTION_STRING | OPTION_FLAG_DEVICE;
 			entry[0].defvalue = (slot->get_slot_interfaces() != NULL) ? slot->get_default_card() : NULL;
+			if ( entry[0].defvalue )
+			{
+				if ( slot->is_internal_option( entry[0].defvalue ) )
+				{
+					entry[0].flags |= OPTION_FLAG_INTERNAL;
+				}
+			}
 			add_entries(entry, true);
 
 			added = true;
@@ -296,7 +307,11 @@ void emu_options::update_slot_options()
 		if (exists(slot->device().tag()+1)) {
 			if (slot->get_slot_interfaces() != NULL) {
 				const char *def = slot->get_default_card_software(config,*this);
-				if (def) set_default_value(slot->device().tag()+1,def);
+				if (def)
+				{
+					set_default_value(slot->device().tag()+1,def);
+					set_flag(slot->device().tag()+1, ~OPTION_FLAG_INTERNAL, slot->is_internal_option(def) ? OPTION_FLAG_INTERNAL : 0 );
+				}
 			}
 		}
 	}
@@ -392,10 +407,10 @@ bool emu_options::parse_slot_devices(int argc, char *argv[], astring &error_stri
 	int num = 0;
 	do {
 		num = options_count();
-	update_slot_options();
-	while (add_slot_options(false));
+		update_slot_options();
+		while (add_slot_options(false));
 		add_device_options(false);
-	result = core_options::parse_command_line(argc, argv, OPTION_PRIORITY_CMDLINE, error_string);
+		result = core_options::parse_command_line(argc, argv, OPTION_PRIORITY_CMDLINE, error_string);
 	} while(num != options_count());
 
 	return result;
@@ -486,6 +501,9 @@ void emu_options::parse_standard_inis(astring &error_string)
 	if (parent != -1)
 		parse_one_ini(driver_list::driver(parent).name, OPTION_PRIORITY_PARENT_INI, &error_string);
 	parse_one_ini(cursystem->name, OPTION_PRIORITY_DRIVER_INI, &error_string);
+
+	// Re-evaluate slot options after loading ini files
+	update_slot_options();
 }
 
 
@@ -530,8 +548,8 @@ void emu_options::set_system_name(const char *name)
 		int num = 0;
 		do {
 			num = options_count();
-		update_slot_options();
-		while (add_slot_options(false));
+			update_slot_options();
+			while (add_slot_options(false));
 			add_device_options(false);
 		} while(num != options_count());
 	}

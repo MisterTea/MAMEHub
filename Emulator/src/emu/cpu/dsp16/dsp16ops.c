@@ -45,6 +45,34 @@ void dsp16_device::writeRegister(void* reg, const UINT16 &value)
 }
 
 
+bool dsp16_device::conditionTest(const UINT8& CON)
+{
+	switch (CON)
+	{
+		case 0x00: return (m_psw & 0x8000);     // mi (negative result)
+		case 0x01: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // pl (positive result)
+		case 0x02: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // eq (result == 0)
+		case 0x03: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // ne (result != 0)
+		case 0x04: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // lvs (logical overflow set)
+		case 0x05: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // lvc (logical overflow clear)
+		case 0x06: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // mvs (math. overflow set)
+		case 0x07: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // mvc (math. overflow clear)
+		case 0x08: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // heads (random bit set)
+		case 0x09: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // tails (random bit clear)
+		case 0x0a: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // c0ge (counter0 >= 0)
+		case 0x0b: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // c0lt (counter0 < 0)
+		case 0x0c: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // c1ge (counter1 >= 0)
+		case 0x0d: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // c1lt (counter1 < 0)
+		case 0x0e: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // true (always)
+		case 0x0f: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // false (never)
+		case 0x10: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // gt (result > 0
+		case 0x11: printf("UNIMPLEMENTED condition check @ PC 0x%04x\n", m_pc); return false;   // le (result <= 0)
+		default: logerror("Unrecognized condition at PC=0x%04x\n", m_pc); break;
+	}
+	return false;
+}
+
+
 void* dsp16_device::registerFromRImmediateField(const UINT8& R)
 {
 	switch (R)
@@ -84,18 +112,18 @@ void* dsp16_device::registerFromRTable(const UINT8 &R)
 		case 0x10: return (void*)&m_x;
 		case 0x11: return (void*)&m_y;
 		case 0x12: return (void*)addressYL();
-		case 0x13: return (void*)&m_auc;
+		case 0x13: return (void*)&m_auc;    // zero extended
 		case 0x14: return (void*)&m_psw;
-		case 0x15: return (void*)&m_c0;
-		case 0x16: return (void*)&m_c1;
-		case 0x17: return (void*)&m_c2;
+		case 0x15: return (void*)&m_c0;     // sign extended
+		case 0x16: return (void*)&m_c1;     // sign extended
+		case 0x17: return (void*)&m_c2;     // sign extended
 		case 0x18: return (void*)&m_sioc;
-		//case 0x19: return (void*)&m_srta;
-		//case 0x1a: return (void*)&m_sdx;
+		case 0x19: return (void*)&m_srta;
+		case 0x1a: return (void*)&m_sdx;
 		//case 0x1b: return (void*)&m_tdms;
 		case 0x1c: return (void*)&m_pioc;
-		//case 0x1d: return (void*)&m_pdx0;
-		//case 0x1e: return (void*)&m_pdx1;
+		case 0x1d: return (void*)&m_pdx0;
+		case 0x1e: return (void*)&m_pdx1;
 
 		default: return NULL;
 	}
@@ -185,6 +213,32 @@ void dsp16_device::executeYFieldPost(const UINT8& Y)
 }
 
 
+void dsp16_device::executeZFieldPartOne(const UINT8& Z, UINT16* rN)
+{
+	const UINT8 lower = Z & 0x03;
+	switch (lower)
+	{
+		case 0x00: /* nop */ break;
+		case 0x01: (*rN)++; break;
+		case 0x02: (*rN)--; break;
+		case 0x03: (*rN) += m_j; break;
+	}
+}
+
+
+void dsp16_device::executeZFieldPartTwo(const UINT8& Z, UINT16* rN)
+{
+	const UINT8 lower = Z & 0x03;
+	switch (lower)
+	{
+		case 0x00: (*rN)++; break;
+		case 0x01: /* nop */   break;
+		case 0x02: (*rN) += 2; break;
+		case 0x03: (*rN) += m_k; break;
+	}
+}
+
+
 void dsp16_device::execute_one(const UINT16& op, UINT8& cycles, UINT8& pcAdvance)
 {
 	cycles = 1;
@@ -209,20 +263,42 @@ void dsp16_device::execute_one(const UINT16& op, UINT8& cycles, UINT8& pcAdvance
 		}
 		case 0x04: case 0x1c:
 		{
-			// F1 Y=a0[1] | F1 Y=a1[1]
-			//const UINT8 Y = (op & 0x000f);
-			//const UINT8 S = (op & 0x0200) >> 9;
-			//const UINT8 D = (op & 0x0400) >> 10;
-			//const UINT8 F1 = (op & 0x01e0) >> 5;
+			// F1 Y=a0[1] | F1 Y=a1[1]  :  (page 3-40)
+			const UINT8 Y = (op & 0x000f);
+			const UINT8 X = (op & 0x0010) >> 4;
+			const UINT8 S = (op & 0x0200) >> 9;
+			const UINT8 D = (op & 0x0400) >> 10;
+			const UINT8 F1 = (op & 0x01e0) >> 5;
+			UINT16* destinationReg = (UINT16*)registerFromYFieldUpper(Y);
+			UINT16 aRegValue = 0x0000;
+			if (op & 0xc000)
+			{
+				aRegValue = (X) ? (m_a0 & 0x0ffff0000) >> 16 : m_a0 & 0x00000ffff;
+			}
+			else
+			{
+				aRegValue = (X) ? (m_a1 & 0x0ffff0000) >> 16 : m_a1 & 0x00000ffff;
+			}
+			data_write(*destinationReg, aRegValue);
+			executeYFieldPost(Y);
+			executeF1Field(F1, D, S);
+			cycles = 2;
+			pcAdvance = 1;
 			break;
 		}
 		case 0x16:
 		{
-			// F1, x = Y
-			//const UINT8 Y = (op & 0x000f);
-			//const UINT8 S = (op & 0x0200) >> 9;
-			//const UINT8 D = (op & 0x0400) >> 10;
-			//const UINT8 F1 = (op & 0x01e0) >> 5;
+			// F1, x = Y  :  (page 3-42)
+			const UINT8 Y = (op & 0x000f);
+			const UINT8 S = (op & 0x0200) >> 9;
+			const UINT8 D = (op & 0x0400) >> 10;
+			const UINT8 F1 = (op & 0x01e0) >> 5;
+			executeF1Field(F1, D, S);
+			UINT16* sourceReg = (UINT16*)registerFromYFieldUpper(Y);
+			writeRegister(&m_x, data_read(*sourceReg));
+			executeYFieldPost(Y);
+			cycles = 1;
+			pcAdvance = 1;
 			break;
 		}
 		case 0x17:
@@ -249,22 +325,46 @@ void dsp16_device::execute_one(const UINT16& op, UINT8& cycles, UINT8& pcAdvance
 		}
 		case 0x1f:
 		{
-			// F1, y = Y, x = *pt++[i]
-			//const UINT8 Y = (op & 0x000f);
-			//const UINT8 X = (op & 0x0010) >> 4;
-			//const UINT8 S = (op & 0x0200) >> 9;
-			//const UINT8 D = (op & 0x0400) >> 10;
-			//const UINT8 F1 = (op & 0x01e0) >> 5;
+			// F1, y = Y, x = *pt++[i]  :  (page 3-46)
+			const UINT8 Y = (op & 0x000f);
+			const UINT8 X = (op & 0x0010) >> 4;
+			const UINT8 S = (op & 0x0200) >> 9;
+			const UINT8 D = (op & 0x0400) >> 10;
+			const UINT8 F1 = (op & 0x01e0) >> 5;
+			executeF1Field(F1, D, S);
+			UINT16* sourceRegR = (UINT16*)registerFromYFieldUpper(Y);
+			writeRegister(&m_y, data_read(*sourceRegR));
+			executeYFieldPost(Y);
+			writeRegister(&m_x, data_read(m_pt));
+			switch (X)
+			{
+				case 0x00: m_pt++;      break;
+				case 0x01: m_pt += m_i; break;
+			}
+			cycles = 2;     // TODO: 1 if cached
+			pcAdvance = 1;
 			break;
 		}
 		case 0x19: case 0x1b:
 		{
-			// F1, y = a0|1, x = *pt++[i]
-			//const UINT8 Y = (op & 0x000f);
-			//const UINT8 X = (op & 0x0010) >> 4;
-			//const UINT8 S = (op & 0x0200) >> 9;
-			//const UINT8 D = (op & 0x0400) >> 10;
-			//const UINT8 F1 = (op & 0x01e0) >> 5;
+			// F1, y = a0|1, x = *pt++[i]  :  (page 3-48)
+			const UINT8 Y = (op & 0x000f);
+			const UINT8 X = (op & 0x0010) >> 4;
+			const UINT8 S = (op & 0x0200) >> 9;
+			const UINT8 D = (op & 0x0400) >> 10;
+			const UINT8 F1 = (op & 0x01e0) >> 5;
+			bool useA1 = (opcode == 0x1b);
+			if (Y != 0x00) printf("Unknown opcode @ PC=0x%04x", m_pc);
+			m_y = (useA1) ? (m_a1 & 0xffffffff) : (m_a0 & 0xffffffff);      // TODO: What happens to Ax when it goes 32 bit (pc=3f & pc=47)?
+			executeF1Field(F1, D, S);
+			writeRegister(&m_x, data_read(m_pt));                           // TODO: EXM Pin & internal/external ROM?  Research.
+			switch (X)
+			{
+				case 0x00: m_pt++;      break;
+				case 0x01: m_pt += m_i; break;
+			}
+			cycles = 2;     // TODO: 1 if cached
+			pcAdvance = 1;
 			break;
 		}
 		case 0x14:
@@ -319,12 +419,36 @@ void dsp16_device::execute_one(const UINT16& op, UINT8& cycles, UINT8& pcAdvance
 		// Format 2: Multiply/ALU Read/Write Group
 		case 0x15:
 		{
-			// F1, Z : y[1]
-			//const UINT8 Z = (op & 0x000f);
-			//const UINT8 X = (op & 0x0010) >> 4;
-			//const UINT8 S = (op & 0x0200) >> 9;
-			//const UINT8 D = (op & 0x0400) >> 10;
-			//const UINT8 F1 = (op & 0x01e0) >> 5;
+			// F1, Z : y[1]  :  (page 3-54)
+			const UINT8 Z = (op & 0x000f);
+			const UINT8 X = (op & 0x0010) >> 4;
+			const UINT8 S = (op & 0x0200) >> 9;
+			const UINT8 D = (op & 0x0400) >> 10;
+			const UINT8 F1 = (op & 0x01e0) >> 5;
+			executeF1Field(F1, D, S);
+			UINT16 temp = 0x0000;
+			UINT16* rN = (UINT16*)registerFromYFieldUpper(Z);
+			switch (X)
+			{
+				case 0x00:
+					temp = m_y & 0x0000ffff;
+					m_y &= 0xffff0000;
+					m_y |= data_read(*rN);
+					executeZFieldPartOne(Z, rN);
+					data_write(*rN, temp);
+					executeZFieldPartTwo(Z, rN);
+					break;
+				case 0x01:
+					temp = (m_y & 0xffff0000) >> 16;
+					m_y &= 0x0000ffff;
+					m_y |= (data_read(*rN) << 16);
+					executeZFieldPartOne(Z, rN);
+					data_write(*rN, temp);
+					executeZFieldPartTwo(Z, rN);
+					break;
+			}
+			cycles = 2;
+			pcAdvance = 1;
 			break;
 		}
 		case 0x1d:
@@ -355,10 +479,17 @@ void dsp16_device::execute_one(const UINT16& op, UINT8& cycles, UINT8& pcAdvance
 		case 0x13:
 		{
 			// if|ifc CON F2
-			//const UINT8 CON = (op & 0x001f);
+			const UINT8 CON = (op & 0x001f);
 			//const UINT8 S = (op & 0x0200) >> 9;
 			//const UINT8 D = (op & 0x0400) >> 10;
 			//const UINT8 F2 = (op & 0x01e0) >> 5;
+			bool conditionFulfilled = conditionTest(CON);
+			if (conditionFulfilled)
+			{
+				printf("Fulfilled condition not yet implemented @ PC=0x%04x", m_pc);
+			}
+			cycles = 1;
+			pcAdvance = 1;
 			break;
 		}
 
@@ -387,39 +518,84 @@ void dsp16_device::execute_one(const UINT16& op, UINT8& cycles, UINT8& pcAdvance
 		// Format 5: Branch Indirect Group
 		case 0x18:
 		{
-			// goto B
-			//const UINT8 B = (op & 0x0700) >> 8;
+			// goto B  :  (page 3-21)
+			const UINT8 B = (op & 0x0700) >> 8;
+			switch (B)
+			{
+				case 0x00: m_pc = m_pr; break;
+				case 0x01: printf("UNIMPLEMENTED branch instruction @ PC 0x%04x\n", m_pc); break;
+				case 0x02: printf("UNIMPLEMENTED branch instruction @ PC 0x%04x\n", m_pc); break;
+				case 0x03: printf("UNIMPLEMENTED branch instruction @ PC 0x%04x\n", m_pc); break;
+				default: logerror("DSP16: Invalid branch indirect instruction executed at PC=0x%04x\n.", m_pc); break;
+			}
+			cycles = 2;
+			pcAdvance = 0;
 			break;
 		}
 
 		// Format 6: Contitional Branch Qualifier/Software Interrupt (icall)
 		case 0x1a:
 		{
-			// if CON [goto/call/return]
-			//const UINT8 CON = (op & 0x001f);
+			// if CON [goto/call/return]  :  (page 3-22)
+			const UINT8 CON = (op & 0x001f);
+			bool conditionFulfilled = conditionTest(CON);
+			cycles = 3;                 // TODO: This may need to interact with the next opcode to make sure it doesn't exceed 3?
+			pcAdvance = 1;
+			if (!conditionFulfilled)
+			{
+				pcAdvance = 2;
+			}
 			break;
 		}
 
 		// Format 7: Data Move Group
 		case 0x09: case 0x0b:
 		{
-			// R = aS
-			//const UINT8 R = (op & 0x03f0) >> 4;
-			//const UINT8 S = (op & 0x1000) >> 12;
+			// TODO: Fix register pdxX (pc=338)
+			// R = aS  :  (page 3-29)
+			const UINT8 R = (op & 0x03f0) >> 4;
+			const UINT8 S = (op & 0x1000) >> 12;
+			void* destinationReg = registerFromRTable(R);
+			UINT64* sourceReg = (S) ? &m_a1 : &m_a0;
+			UINT16 sourceValue = (*sourceReg & U64(0x0ffff0000)) >> 16;
+			writeRegister(destinationReg, sourceValue);
+			cycles = 2;
+			pcAdvance = 1;
 			break;
 		}
 		case 0x08:
 		{
-			// aT = R
-			//const UINT8 R  = (op & 0x03f0) >> 4;
-			//const UINT8 aT = (op & 0x0400) >> 10;
+			// aT = R  :  (page 3-30)
+			const UINT8 R  = (op & 0x03f0) >> 4;
+			const UINT8 aT = (op & 0x0400) >> 10;
+			UINT64* destinationReg = NULL;
+			switch(aT)
+			{
+				case 0: destinationReg = &m_a1; break;
+				case 1: destinationReg = &m_a0; break;
+				default: break;
+			}
+			void* sourceReg = registerFromRTable(R);
+			*destinationReg &= U64(0x00000ffff);
+			*destinationReg |= (*(UINT16*)sourceReg) << 16;     // TODO: Fix for all registers
+			if (*(UINT16*)sourceReg & 0x8000)
+				*destinationReg |= U64(0xf00000000);
+			// TODO: Special function encoding
+			cycles = 2;
+			pcAdvance = 1;
 			break;
 		}
 		case 0x0f:
 		{
-			// R = Y
-			//const UINT8 Y = (op & 0x000f);
-			//const UINT8 R = (op & 0x03f0) >> 4;
+			// R = Y  :  (page 3-32)
+			const UINT8 Y = (op & 0x000f);
+			const UINT8 R = (op & 0x03f0) >> 4;
+			UINT16* sourceReg = (UINT16*)registerFromYFieldUpper(Y);
+			void* destinationReg = registerFromRTable(R);
+			writeRegister(destinationReg, data_read(*sourceReg));
+			executeYFieldPost(Y);
+			cycles = 2;
+			pcAdvance = 1;
 			break;
 		}
 		case 0x0c:
@@ -480,14 +656,14 @@ void dsp16_device::execute_one(const UINT16& op, UINT8& cycles, UINT8& pcAdvance
 				// Do
 				m_cacheStart = m_pc + 1;
 				m_cacheEnd = m_pc + NI + 1;
-				m_cacheIterations = K-1;    // -1 because we check the counter below
+				m_cacheIterations = K-1;    // -1 because we check the counter @ the end
 				cycles = 1;
 				pcAdvance = 1;
 			}
 			else
 			{
 				// Redo
-				m_cacheIterations = K-1;    // -1 because we check the counter below
+				m_cacheIterations = K-1;    // -1 because we check the counter @ the end
 				m_cacheRedoNextPC = m_pc + 1;
 				m_pc = m_cacheStart;
 				pcAdvance = 0;

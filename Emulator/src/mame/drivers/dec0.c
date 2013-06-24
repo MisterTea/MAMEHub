@@ -187,16 +187,16 @@ WRITE16_MEMBER(dec0_state::dec0_control_w)
 			if (ACCESSING_BITS_0_7)
 			{
 				soundlatch_byte_w(space, 0, data & 0xff);
-				machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+				m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 			}
 			break;
 
 		case 6: /* Intel 8751 microcontroller - Bad Dudes, Heavy Barrel, Birdy Try only */
-			dec0_i8751_write(machine(), data);
+			dec0_i8751_write(data);
 			break;
 
 		case 8: /* Interrupt ack (VBL - IRQ 6) */
-			machine().device("maincpu")->execute().set_input_line(6, CLEAR_LINE);
+			m_maincpu->set_input_line(6, CLEAR_LINE);
 			break;
 
 		case 0xa: /* Mix Psel(?). */
@@ -207,7 +207,7 @@ WRITE16_MEMBER(dec0_state::dec0_control_w)
 			break;
 
 		case 0xe: /* Reset Intel 8751? - not sure, all the games write here at startup */
-			dec0_i8751_reset(machine());
+			dec0_i8751_reset();
 			logerror("CPU #0 PC %06x: warning - write %02x to unmapped memory address %06x\n",space.device().safe_pc(),data,0x30c010+(offset<<1));
 			break;
 
@@ -226,7 +226,7 @@ WRITE16_MEMBER(dec0_automat_state::automat_control_w)
 			if (ACCESSING_BITS_0_7)
 			{
 				soundlatch_byte_w(space, 0, data & 0xff);
-				machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+				m_audiocpu->set_input_line(0, HOLD_LINE);
 			}
 			break;
 
@@ -259,7 +259,7 @@ WRITE16_MEMBER(dec0_state::slyspy_control_w)
 			if (ACCESSING_BITS_0_7)
 			{
 				soundlatch_byte_w(space, 0, data & 0xff);
-				machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+				m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 			}
 			break;
 		case 2:
@@ -273,7 +273,7 @@ WRITE16_MEMBER(dec0_state::midres_sound_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xff);
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 }
 
@@ -407,34 +407,32 @@ void slyspy_set_protection_map(running_machine& machine, int type);
 WRITE16_MEMBER(dec0_state::slyspy_state_w)
 {
 	m_slyspy_state=0;
-	slyspy_set_protection_map(machine(), m_slyspy_state);
+	slyspy_set_protection_map(m_slyspy_state);
 }
 
 READ16_MEMBER(dec0_state::slyspy_state_r)
 {
 	m_slyspy_state++;
 	m_slyspy_state=m_slyspy_state%4;
-	slyspy_set_protection_map(machine(), m_slyspy_state);
+	slyspy_set_protection_map(m_slyspy_state);
 
 	return 0; /* Value doesn't mater */
 }
 
-void slyspy_set_protection_map(running_machine& machine, int type)
+void dec0_state::slyspy_set_protection_map( int type)
 {
-	dec0_state *state = machine.driver_data<dec0_state>();
-	address_space& space = machine.device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& space = m_maincpu->space(AS_PROGRAM);
 
-	deco_bac06_device *tilegen1 = (deco_bac06_device*)state->m_tilegen1;
-	deco_bac06_device *tilegen2 = (deco_bac06_device*)state->m_tilegen2;
+	deco_bac06_device *tilegen1 = (deco_bac06_device*)m_tilegen1;
+	deco_bac06_device *tilegen2 = (deco_bac06_device*)m_tilegen2;
 
-	space.install_write_handler( 0x240000, 0x24ffff, write16_delegate(FUNC(dec0_state::unmapped_w),state));
+	space.install_write_handler( 0x240000, 0x24ffff, write16_delegate(FUNC(dec0_state::unmapped_w),this));
 
-	space.install_write_handler( 0x24a000, 0x24a001, write16_delegate(FUNC(dec0_state::slyspy_state_w),state));
-	space.install_read_handler( 0x244000, 0x244001, read16_delegate(FUNC(dec0_state::slyspy_state_r),state));
+	space.install_write_handler( 0x24a000, 0x24a001, write16_delegate(FUNC(dec0_state::slyspy_state_w),this));
+	space.install_read_handler( 0x244000, 0x244001, read16_delegate(FUNC(dec0_state::slyspy_state_r),this));
 
 	switch (type)
 	{
-
 		case 0:
 			space.install_legacy_write_handler( *tilegen2, 0x240000, 0x240007, FUNC(deco_bac06_pf_control_0_w));
 			space.install_legacy_write_handler( *tilegen2, 0x240010, 0x240017, FUNC(deco_bac06_pf_control_1_w));
@@ -548,8 +546,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( dec0_s_map, AS_PROGRAM, 8, dec0_state )
 	AM_RANGE(0x0000, 0x05ff) AM_RAM
-	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE_LEGACY("ym2", ym3812_w)
+	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ym2", ym3812_device, write)
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x3800, 0x3800) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
@@ -558,9 +556,9 @@ ADDRESS_MAP_END
 /* Physical memory map (21 bits) */
 static ADDRESS_MAP_START( slyspy_s_map, AS_PROGRAM, 8, dec0_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
-	AM_RANGE(0x090000, 0x090001) AM_DEVWRITE_LEGACY("ym2", ym3812_w)
+	AM_RANGE(0x090000, 0x090001) AM_DEVWRITE("ym2", ym3812_device, write)
 	AM_RANGE(0x0a0000, 0x0a0001) AM_READNOP /* Protection counter */
-	AM_RANGE(0x0b0000, 0x0b0001) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
+	AM_RANGE(0x0b0000, 0x0b0001) AM_DEVWRITE("ym1", ym2203_device, write)
 	AM_RANGE(0x0e0000, 0x0e0001) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x0f0000, 0x0f0001) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x1f0000, 0x1f1fff) AM_RAMBANK("bank8")
@@ -569,8 +567,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( midres_s_map, AS_PROGRAM, 8, dec0_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
-	AM_RANGE(0x108000, 0x108001) AM_DEVWRITE_LEGACY("ym2", ym3812_w)
-	AM_RANGE(0x118000, 0x118001) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
+	AM_RANGE(0x108000, 0x108001) AM_DEVWRITE("ym2", ym3812_device, write)
+	AM_RANGE(0x118000, 0x118001) AM_DEVWRITE("ym1", ym2203_device, write)
 	AM_RANGE(0x130000, 0x130001) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x138000, 0x138001) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x1f0000, 0x1f1fff) AM_RAMBANK("bank8")
@@ -669,9 +667,9 @@ WRITE8_MEMBER(dec0_automat_state::automat_adpcm_w)
 static ADDRESS_MAP_START( automat_s_map, AS_PROGRAM, 8, dec0_automat_state )
 	AM_RANGE(0x0103, 0x0103) AM_WRITENOP
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
-	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE_LEGACY("2203a", ym2203_w)
+	AM_RANGE(0xc800, 0xc801) AM_DEVWRITE("2203a", ym2203_device, write)
 	AM_RANGE(0xd800, 0xd800) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xd000, 0xd001) AM_DEVWRITE_LEGACY("2203b", ym2203_w)
+	AM_RANGE(0xd000, 0xd001) AM_DEVWRITE("2203b", ym2203_device, write)
 	AM_RANGE(0xf000, 0xf000) AM_WRITE(automat_adpcm_w)
 	AM_RANGE(0x0000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -1296,25 +1294,15 @@ GFXDECODE_END
 
 /******************************************************************************/
 
-static void sound_irq(device_t *device, int linestate)
+WRITE_LINE_MEMBER(dec0_state::sound_irq)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, linestate); /* IRQ */
+	m_audiocpu->set_input_line(0, state); /* IRQ */
 }
 
-static void sound_irq2(device_t *device, int linestate)
+WRITE_LINE_MEMBER(dec0_state::sound_irq2)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(1, linestate); /* IRQ2 */
+	m_audiocpu->set_input_line(1, state); /* IRQ2 */
 }
-
-static const ym3812_interface ym3812_config =
-{
-	sound_irq
-};
-
-static const ym3812_interface ym3812b_interface =
-{
-	sound_irq2
-};
 
 /******************************************************************************/
 
@@ -1349,7 +1337,7 @@ static MACHINE_CONFIG_DERIVED( dec0_base_sound, dec0_base )
 	MCFG_SOUND_ROUTE(3, "mono", 0.35)
 
 	MCFG_SOUND_ADD("ym2", YM3812, XTAL_12MHz / 4)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(dec0_state, sound_irq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_OKIM6295_ADD("oki", XTAL_20MHz / 2 / 10, OKIM6295_PIN7_HIGH)
@@ -1367,7 +1355,7 @@ static MACHINE_CONFIG_DERIVED( dec0_base_sound_alt, dec0_base )
 	MCFG_SOUND_ROUTE(3, "mono", 0.35)
 
 	MCFG_SOUND_ADD("ym2", YM3812, XTAL_12MHz/4) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3812b_interface)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(dec0_state, sound_irq2))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_OKIM6295_ADD("oki", XTAL_12MHz/12, OKIM6295_PIN7_HIGH) /* verified on pcb */
@@ -1386,25 +1374,24 @@ MACHINE_CONFIG_END
 #define DEC0_VBSTART 256-8
 
 
-static void automat_vclk_cb(device_t *device)
+WRITE_LINE_MEMBER(dec0_automat_state::automat_vclk_cb)
 {
-	dec0_automat_state *state = device->machine().driver_data<dec0_automat_state>();
-	if (state->m_automat_msm5205_vclk_toggle == 0)
+	if (m_automat_msm5205_vclk_toggle == 0)
 	{
-		msm5205_data_w(device, state->m_automat_adpcm_byte & 0xf);
+		m_msm->data_w(m_automat_adpcm_byte & 0xf);
 	}
 	else
 	{
-		msm5205_data_w(device, state->m_automat_adpcm_byte >> 4);
-		//device->machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE); // gives some scratch samples but breaks other sounds too
+		m_msm->data_w(m_automat_adpcm_byte >> 4);
+		//device->m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE); // gives some scratch samples but breaks other sounds too
 	}
 
-	state->m_automat_msm5205_vclk_toggle ^= 1;
+	m_automat_msm5205_vclk_toggle ^= 1;
 }
 
 static const msm5205_interface msm5205_config =
 {
-	automat_vclk_cb,
+	DEVCB_DRIVER_LINE_MEMBER(dec0_automat_state,automat_vclk_cb),
 	MSM5205_S48_4B
 };
 
@@ -1677,7 +1664,7 @@ MACHINE_CONFIG_END
 MACHINE_RESET_MEMBER(dec0_state,slyspy)
 {
 	// set initial memory map
-	slyspy_set_protection_map(machine(), 0);
+	slyspy_set_protection_map(0);
 }
 
 static MACHINE_CONFIG_DERIVED( slyspy, dec0_base_sound_alt )
@@ -1736,7 +1723,7 @@ static MACHINE_CONFIG_DERIVED( midresb, midres )
 	MCFG_CPU_PROGRAM_MAP(dec0_s_map)
 
 	MCFG_SOUND_MODIFY("ym2")
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(dec0_state, sound_irq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 
@@ -3079,10 +3066,10 @@ ROM_END
 
 DRIVER_INIT_MEMBER(dec0_state,midresb)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x00180000, 0x0018000f, read16_delegate(FUNC(dec0_state::dec0_controls_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x001a0000, 0x001a000f, read16_delegate(FUNC(dec0_state::dec0_rotary_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00180000, 0x0018000f, read16_delegate(FUNC(dec0_state::dec0_controls_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x001a0000, 0x001a000f, read16_delegate(FUNC(dec0_state::dec0_rotary_r),this));
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x00180014, 0x00180015, write16_delegate(FUNC(dec0_state::midres_sound_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x00180014, 0x00180015, write16_delegate(FUNC(dec0_state::midres_sound_w),this));
 }
 
 READ16_MEMBER(dec0_state::ffantasybl_242024_r)
@@ -3105,10 +3092,10 @@ READ16_MEMBER(dec0_state::ffantasybl_vblank_r)
 
 DRIVER_INIT_MEMBER(dec0_state,ffantasybl)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_ram(0x24c880, 0x24cbff); // what is this? layer 3-related??
+	m_maincpu->space(AS_PROGRAM).install_ram(0x24c880, 0x24cbff); // what is this? layer 3-related??
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x00242024, 0x00242025, read16_delegate(FUNC(dec0_state::ffantasybl_242024_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x00ff87ee, 0x00ff87ef, read16_delegate(FUNC(dec0_state::ffantasybl_vblank_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00242024, 0x00242025, read16_delegate(FUNC(dec0_state::ffantasybl_242024_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00ff87ee, 0x00ff87ef, read16_delegate(FUNC(dec0_state::ffantasybl_vblank_r),this));
 }
 
 /******************************************************************************/

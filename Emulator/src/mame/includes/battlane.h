@@ -8,9 +8,11 @@ class battlane_state : public driver_device
 {
 public:
 	battlane_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_tileram(*this, "tileram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_tileram;
@@ -23,8 +25,8 @@ public:
 	int         m_cpu_control;  /* CPU interrupt control register */
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_subcpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 	DECLARE_WRITE8_MEMBER(battlane_cpu_command_w);
 	DECLARE_WRITE8_MEMBER(battlane_palette_w);
 	DECLARE_WRITE8_MEMBER(battlane_scrollx_w);
@@ -40,4 +42,6 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_battlane(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(battlane_cpu1_interrupt);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_fg_bitmap( bitmap_ind16 &bitmap );
 };

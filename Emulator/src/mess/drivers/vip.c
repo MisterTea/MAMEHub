@@ -244,9 +244,9 @@ enum
 
 void vip_state::update_interrupts()
 {
-	int irq = m_vdc_int | m_exp_int;
+	int irq = m_vdc_int || m_exp_int;
 	int dma_in = m_exp_dma_in;
-	int dma_out = m_vdc_dma_out | m_exp_dma_out;
+	int dma_out = m_vdc_dma_out || m_exp_dma_out;
 
 	m_maincpu->set_input_line(COSMAC_INPUT_LINE_INT, irq);
 	m_maincpu->set_input_line(COSMAC_INPUT_LINE_DMAIN, dma_in);
@@ -268,7 +268,7 @@ READ8_MEMBER( vip_state::read )
 
 	if (cs)
 	{
-		data = memregion(CDP1802_TAG)->base()[offset & 0x1ff];
+		data = m_rom->base()[offset & 0x1ff];
 	}
 	else if (!minh)
 	{
@@ -447,29 +447,29 @@ INPUT_PORTS_END
 
 READ_LINE_MEMBER( vip_state::clear_r )
 {
-	return BIT(ioport("RUN")->read(), 0);
+	return BIT(m_run->read(), 0);
 }
 
 READ_LINE_MEMBER( vip_state::ef1_r )
 {
-	return m_vdc_ef1 | m_exp->ef1_r();
+	return m_vdc_ef1 || m_exp->ef1_r();
 }
 
 READ_LINE_MEMBER( vip_state::ef2_r )
 {
-	set_led_status(machine(), LED_TAPE, ((m_cassette)->input() > 0));
+	set_led_status(machine(), LED_TAPE, m_cassette->input() > 0);
 
-	return ((m_cassette)->input() < 0) ? ASSERT_LINE : CLEAR_LINE;
+	return (m_cassette->input() < 0) ? ASSERT_LINE : CLEAR_LINE;
 }
 
 READ_LINE_MEMBER( vip_state::ef3_r )
 {
-	return !BIT(ioport("KEYPAD")->read(), m_keylatch) || m_byteio_ef3 || m_exp_ef3;
+	return !BIT(m_keypad->read(), m_keylatch) || m_byteio_ef3 || m_exp_ef3;
 }
 
 READ_LINE_MEMBER( vip_state::ef4_r )
 {
-	return m_byteio_ef4 | m_exp_ef4;
+	return m_byteio_ef4 || m_exp_ef4;
 }
 
 static COSMAC_SC_WRITE( vip_sc_w )
@@ -546,15 +546,6 @@ WRITE_LINE_MEMBER( vip_state::vdc_ef1_w )
 	m_vdc_ef1 = state;
 }
 
-static CDP1861_INTERFACE( vdc_intf )
-{
-	CDP1802_TAG,
-	SCREEN_TAG,
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, vdc_int_w),
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, vdc_dma_out_w),
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, vdc_ef1_w)
-};
-
 UINT32 vip_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	m_vdc->screen_update(screen, bitmap, cliprect);
@@ -609,11 +600,6 @@ WRITE_LINE_MEMBER( vip_state::byteio_inst_w )
 	}
 }
 
-static VIP_BYTEIO_PORT_INTERFACE( byteio_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, byteio_inst_w)
-};
-
 
 //-------------------------------------------------
 //  VIP_EXPANSION_INTERFACE( expansion_intf )
@@ -639,13 +625,6 @@ WRITE_LINE_MEMBER( vip_state::exp_dma_in_w )
 
 	update_interrupts();
 }
-
-static VIP_EXPANSION_INTERFACE( expansion_intf )
-{
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, exp_int_w),
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, exp_dma_out_w),
-	DEVCB_DRIVER_LINE_MEMBER(vip_state, exp_dma_in_w)
-};
 
 
 
@@ -704,7 +683,7 @@ void vip_state::machine_reset()
 	m_8000 = 1;
 
 	// internal speaker
-	m_beeper->set_output_gain(0, ioport("BEEPER")->read() ? 0.80 : 0);
+	m_beeper->set_output_gain(0, m_io_beeper->read() ? 0.80 : 0);
 
 	// clear byte I/O latch
 	m_byteio_data = 0;
@@ -712,13 +691,12 @@ void vip_state::machine_reset()
 
 
 //-------------------------------------------------
-//  QUICKLOAD_LOAD( vip )
+//  QUICKLOAD_LOAD_MEMBER( vip_state, vip )
 //-------------------------------------------------
 
-static QUICKLOAD_LOAD( vip )
+QUICKLOAD_LOAD_MEMBER( vip_state, vip )
 {
-	vip_state *state = image.device().machine().driver_data<vip_state>();
-	UINT8 *ram = state->m_ram->pointer();
+	UINT8 *ram = m_ram->pointer();
 	UINT8 *chip8_ptr = NULL;
 	int chip8_size = 0;
 	int size = image.length();
@@ -726,17 +704,17 @@ static QUICKLOAD_LOAD( vip )
 	if (strcmp(image.filetype(), "c8") == 0)
 	{
 		/* CHIP-8 program */
-		chip8_ptr = image.device().machine().root_device().memregion("chip8")->base();
-		chip8_size = image.device().machine().root_device().memregion("chip8")->bytes();
+		chip8_ptr = m_chip8->base();
+		chip8_size = m_chip8->bytes();
 	}
 	else if (strcmp(image.filename(), "c8x") == 0)
 	{
 		/* CHIP-8X program */
-		chip8_ptr = image.device().machine().root_device().memregion("chip8x")->base();
-		chip8_size = image.device().machine().root_device().memregion("chip8x")->bytes();
+		chip8_ptr = m_chip8x->base();
+		chip8_size = m_chip8x->bytes();
 	}
 
-	if ((size + chip8_size) > image.device().machine().device<ram_device>(RAM_TAG)->size())
+	if ((size + chip8_size) > m_ram->size())
 	{
 		return IMAGE_INIT_FAIL;
 	}
@@ -765,7 +743,7 @@ static QUICKLOAD_LOAD( vip )
 
 static MACHINE_CONFIG_START( vip, vip_state )
 	// basic machine hardware
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, XTAL_3_52128MHz/2)
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, XTAL_3_52128MHz/2)
 	MCFG_CPU_PROGRAM_MAP(vip_mem)
 	MCFG_CPU_IO_MAP(vip_io)
 	MCFG_CPU_CONFIG(cosmac_intf)
@@ -773,8 +751,7 @@ static MACHINE_CONFIG_START( vip, vip_state )
 	// video hardware
 	MCFG_CDP1861_SCREEN_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_52128MHz/2)
 	MCFG_SCREEN_UPDATE_DRIVER(vip_state, screen_update)
-
-	MCFG_CDP1861_ADD(CDP1861_TAG, XTAL_3_52128MHz/2, vdc_intf)
+	MCFG_CDP1861_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_52128MHz/2, WRITELINE(vip_state, vdc_int_w), WRITELINE(vip_state, vdc_dma_out_w), WRITELINE(vip_state, vdc_ef1_w))
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -783,12 +760,13 @@ static MACHINE_CONFIG_START( vip, vip_state )
 	MCFG_SOUND_CONFIG_DISCRETE(vip)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_VIP_BYTEIO_PORT_ADD(VIP_BYTEIO_PORT_TAG, byteio_intf, vip_byteio_cards, NULL, NULL)
-	MCFG_VIP_EXPANSION_SLOT_ADD(VIP_EXPANSION_SLOT_TAG, XTAL_3_52128MHz/2, expansion_intf, vip_expansion_cards, NULL, NULL)
+	MCFG_VIP_BYTEIO_PORT_ADD(VIP_BYTEIO_PORT_TAG, vip_byteio_cards, NULL, WRITELINE(vip_state, byteio_inst_w))
+	MCFG_VIP_EXPANSION_SLOT_ADD(VIP_EXPANSION_SLOT_TAG, XTAL_3_52128MHz/2, vip_expansion_cards, NULL)
+	MCFG_VIP_EXPANSION_SLOT_CALLBACKS(WRITELINE(vip_state, exp_int_w), WRITELINE(vip_state, exp_dma_out_w), WRITELINE(vip_state, exp_dma_in_w))
 
 	// devices
-	MCFG_QUICKLOAD_ADD("quickload", vip, "bin,c8,c8x", 0)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, vip_cassette_interface)
+	MCFG_QUICKLOAD_ADD("quickload", vip_state, vip, "bin,c8,c8x", 0)
+	MCFG_CASSETTE_ADD("cassette", vip_cassette_interface)
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("cass_list", "vip")

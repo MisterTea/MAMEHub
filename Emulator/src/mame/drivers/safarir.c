@@ -55,9 +55,11 @@ class safarir_state : public driver_device
 {
 public:
 	safarir_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg_scroll(*this, "bg_scroll"),
-		m_ram(*this, "ram") { }
+		m_ram(*this, "ram"),
+		m_samples(*this, "samples"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 *m_ram_1;
 	UINT8 *m_ram_2;
@@ -68,7 +70,7 @@ public:
 	required_shared_ptr<UINT8> m_ram;
 	UINT8 m_port_last;
 	UINT8 m_port_last2;
-	samples_device *m_samples;
+	required_device<samples_device> m_samples;
 	DECLARE_WRITE8_MEMBER(ram_w);
 	DECLARE_READ8_MEMBER(ram_r);
 	DECLARE_WRITE8_MEMBER(ram_bank_w);
@@ -79,6 +81,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_safarir(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -90,7 +93,6 @@ public:
 
 WRITE8_MEMBER(safarir_state::ram_w)
 {
-
 	if (m_ram_bank)
 		m_ram_2[offset] = data;
 	else
@@ -102,14 +104,12 @@ WRITE8_MEMBER(safarir_state::ram_w)
 
 READ8_MEMBER(safarir_state::ram_r)
 {
-
 	return m_ram_bank ? m_ram_2[offset] : m_ram_1[offset];
 }
 
 
 WRITE8_MEMBER(safarir_state::ram_bank_w)
 {
-
 	m_ram_bank = data & 0x01;
 
 	machine().tilemap().mark_all_dirty();
@@ -155,7 +155,7 @@ void safarir_state::palette_init()
 TILE_GET_INFO_MEMBER(safarir_state::get_bg_tile_info)
 {
 	int color;
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 code = ram_r(space,tile_index | 0x400);
 
 	if (code & 0x80)
@@ -177,7 +177,7 @@ TILE_GET_INFO_MEMBER(safarir_state::get_bg_tile_info)
 TILE_GET_INFO_MEMBER(safarir_state::get_fg_tile_info)
 {
 	int color, flags;
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 code = ram_r(space,tile_index);
 
 	if (code & 0x80)
@@ -193,7 +193,6 @@ TILE_GET_INFO_MEMBER(safarir_state::get_fg_tile_info)
 
 void safarir_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(safarir_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(safarir_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
@@ -203,7 +202,6 @@ void safarir_state::video_start()
 
 UINT32 safarir_state::screen_update_safarir(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->set_scrollx(0, *m_bg_scroll);
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
@@ -317,12 +315,10 @@ MACHINE_CONFIG_END
 
 void safarir_state::machine_start()
 {
-
 	m_ram_1 = auto_alloc_array(machine(), UINT8, m_ram.bytes());
 	m_ram_2 = auto_alloc_array(machine(), UINT8, m_ram.bytes());
 	m_port_last = 0;
 	m_port_last2 = 0;
-	m_samples = machine().device<samples_device>("samples");
 
 	/* setup for save states */
 	save_pointer(NAME(m_ram_1), m_ram.bytes());

@@ -23,7 +23,7 @@ class a2bus_alfam2_device:
 {
 public:
 	// construction/destruction
-	a2bus_alfam2_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	a2bus_alfam2_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	a2bus_alfam2_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	// optional information overrides
@@ -38,8 +38,12 @@ protected:
 	virtual void device_reset();
 
 	// overrides of standard a2bus slot functions
+	virtual UINT8 read_c0nx(address_space &space, UINT8 offset);
 	virtual void write_c0nx(address_space &space, UINT8 offset, UINT8 data);
 	virtual bool take_c800();
+
+private:
+	UINT8 m_latch0, m_latch1, m_latch2;
 };
 
 // device type definition

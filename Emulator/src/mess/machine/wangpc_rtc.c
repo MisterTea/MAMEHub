@@ -68,7 +68,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( wangpc_rtc_io, AS_IO, 8, wangpc_rtc_device )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY(Z80SIO_TAG, z80dart_cd_ba_r, z80dart_cd_ba_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE(Z80SIO_TAG, z80sio0_device, cd_ba_r, cd_ba_w)
 	AM_RANGE(0x10, 0x1f) AM_DEVREADWRITE(AM9517A_TAG, am9517a_device, read, write)
 	AM_RANGE(0x20, 0x23) AM_DEVREADWRITE(Z80CTC_0_TAG, z80ctc_device, read, write)
 	AM_RANGE(0x30, 0x30) //AM_WRITE(clear_char_w)
@@ -152,10 +152,10 @@ static Z80CTC_INTERFACE( ctc1_intf )
 
 
 //-------------------------------------------------
-//  Z80DART_INTERFACE( sio_intf )
+//  Z80SIO_INTERFACE( sio_intf )
 //-------------------------------------------------
 
-static Z80DART_INTERFACE( sio_intf )
+static Z80SIO_INTERFACE( sio_intf )
 {
 	0, 0, 0, 0,
 
@@ -190,7 +190,7 @@ static MACHINE_CONFIG_FRAGMENT( wangpc_rtc )
 	MCFG_I8237_ADD(AM9517A_TAG, 2000000, dmac_intf)
 	MCFG_Z80CTC_ADD(Z80CTC_0_TAG, 2000000, ctc0_intf)
 	MCFG_Z80CTC_ADD(Z80CTC_1_TAG, 2000000, ctc1_intf)
-	MCFG_Z80DART_ADD(Z80SIO_TAG, 2000000, sio_intf)
+	MCFG_Z80SIO0_ADD(Z80SIO_TAG, 2000000, sio_intf)
 MACHINE_CONFIG_END
 
 
@@ -259,7 +259,7 @@ ioport_constructor wangpc_rtc_device::device_input_ports() const
 //-------------------------------------------------
 
 wangpc_rtc_device::wangpc_rtc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, WANGPC_RTC, "Wang PC-PM040-B", tag, owner, clock),
+	device_t(mconfig, WANGPC_RTC, "Wang PC-PM040-B", tag, owner, clock, "wangpc_rtc", __FILE__),
 	device_wangpcbus_card_interface(mconfig, *this),
 	m_maincpu(*this, Z80_TAG),
 	m_dmac(*this, AM9517A_TAG),

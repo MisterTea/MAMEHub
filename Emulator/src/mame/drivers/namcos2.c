@@ -34,8 +34,10 @@ known issues:
     Suzuka 8 Hours II
     - some sprite cropping issues
 
-    Legend of Valkyrie
+    Valkyrie No Densetsu
     - gives ADSMISS error on startup
+       Does a checksum on area 0x181000 - 0x183fff, in 0x20 bytes block chunks. Game doesn't init it properly so you either have to go into service menu and do
+       an "all data clear" or play once to get rid of the message.
 
     Bubble Trouble (Golly Ghost II)
     - no artwork
@@ -460,6 +462,7 @@ $a00000 checks have been seen on the Final Lap boards.
 #define M68K_CPU_CLOCK      (MAIN_OSC_CLOCK / 4)        /* 12.288MHz clock for 68000 (Master & Slave) */
 #define M68B09_CPU_CLOCK    (MAIN_OSC_CLOCK / 24)       /* 2.048MHz clock for 68B09 sound CPU */
 #define C65_CPU_CLOCK       (MAIN_OSC_CLOCK / 24)       /* 2.048MHz clock for 63705 (or 63B05) I/O CPU */
+#define C68_CPU_CLOCK       (MAIN_OSC_CLOCK / 6)        /* 8.192MHz clock for 37450 I/O CPU */
 #define YM2151_SOUND_CLOCK  XTAL_3_579545MHz        /* 3.579545MHz FM clock */
 #define C140_SOUND_CLOCK    (MAIN_OSC_CLOCK / 384 / 6)  /* 21.333kHz C140 clock (was 8000000/374 or 21.390kHz) */
 
@@ -571,6 +574,12 @@ WRITE8_MEMBER(namcos2_state::dpram_byte_w)
 	m_dpram[offset] = data;
 }
 
+READ8_MEMBER(namcos2_state::ack_mcu_vbl_r)
+{
+	m_c68->set_input_line(m37450_device::M3745X_INT1_LINE, CLEAR_LINE);
+	return 0;
+}
+
 /*************************************************************/
 /* SHARED 68000 CPU Memory declarations                      */
 /*************************************************************/
@@ -588,9 +597,9 @@ WRITE8_MEMBER(namcos2_state::dpram_byte_w)
 */
 
 static ADDRESS_MAP_START( namcos2_68k_default_cpu_board_am, AS_PROGRAM, 16, namcos2_state )
-	AM_RANGE(0x200000, 0x3fffff) AM_READ_LEGACY(namcos2_68k_data_rom_r)
-	AM_RANGE(0x400000, 0x41ffff) AM_READWRITE_LEGACY(namco_tilemapvideoram16_r,namco_tilemapvideoram16_w)
-	AM_RANGE(0x420000, 0x42003f) AM_READWRITE_LEGACY(namco_tilemapcontrol16_r,namco_tilemapcontrol16_w)
+	AM_RANGE(0x200000, 0x3fffff) AM_ROM AM_REGION("data_rom", 0)
+	AM_RANGE(0x400000, 0x41ffff) AM_READWRITE(namco_tilemapvideoram16_r,namco_tilemapvideoram16_w)
+	AM_RANGE(0x420000, 0x42003f) AM_READWRITE(namco_tilemapcontrol16_r,namco_tilemapcontrol16_w)
 	AM_RANGE(0x440000, 0x44ffff) AM_READWRITE(paletteram_word_r,paletteram_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x460000, 0x460fff) AM_READWRITE(dpram_word_r,dpram_word_w)
 	AM_RANGE(0x468000, 0x468fff) AM_READWRITE(dpram_word_r,dpram_word_w) /* mirror */
@@ -605,22 +614,22 @@ static ADDRESS_MAP_START( common_default_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0xc40000, 0xc40001) AM_READWRITE(gfx_ctrl_r, gfx_ctrl_w)
 	AM_RANGE(0xc80000, 0xc9ffff) AM_RAM_WRITE(rozram_word_w) AM_SHARE("rozram")
 	AM_RANGE(0xcc0000, 0xcc000f) AM_RAM AM_SHARE("rozctrl")
-	AM_RANGE(0xd00000, 0xd0000f) AM_READWRITE_LEGACY(namcos2_68k_key_r,namcos2_68k_key_w)
+	AM_RANGE(0xd00000, 0xd0000f) AM_READWRITE(namcos2_68k_key_r,namcos2_68k_key_w)
 	AM_IMPORT_FROM( namcos2_68k_default_cpu_board_am )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( master_default_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAMBANK(NAMCOS2_68K_MASTER_RAM)
-	AM_RANGE(0x180000, 0x183fff) AM_READWRITE_LEGACY(NAMCOS2_68K_eeprom_R,NAMCOS2_68K_eeprom_W)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
+	AM_RANGE(0x180000, 0x183fff) AM_READWRITE8(namcos2_68k_eeprom_r,namcos2_68k_eeprom_w,0x00ff)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
 	AM_IMPORT_FROM( common_default_am )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( slave_default_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x13ffff) AM_RAMBANK(NAMCOS2_68K_SLAVE_RAM)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
 	AM_IMPORT_FROM( common_default_am )
 ADDRESS_MAP_END
 
@@ -628,7 +637,7 @@ ADDRESS_MAP_END
 /*************************************************************/
 
 static ADDRESS_MAP_START( common_finallap_am, AS_PROGRAM, 16, namcos2_state )
-	AM_RANGE(0x300000, 0x33ffff) AM_READ_LEGACY(namcos2_flap_prot_r)
+	AM_RANGE(0x300000, 0x33ffff) AM_READ(namcos2_finallap_prot_r)
 	AM_RANGE(0x800000, 0x80ffff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x840000, 0x840001) AM_READWRITE(gfx_ctrl_r, gfx_ctrl_w)
 	AM_RANGE(0x880000, 0x89ffff) AM_DEVREADWRITE("c45_road", namco_c45_road_device, read, write)
@@ -639,15 +648,15 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( master_finallap_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAMBANK(NAMCOS2_68K_MASTER_RAM)
-	AM_RANGE(0x180000, 0x183fff) AM_READWRITE_LEGACY(NAMCOS2_68K_eeprom_R,NAMCOS2_68K_eeprom_W)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
+	AM_RANGE(0x180000, 0x183fff) AM_READWRITE8(namcos2_68k_eeprom_r,namcos2_68k_eeprom_w,0x00ff)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
 	AM_IMPORT_FROM( common_finallap_am )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( slave_finallap_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x13ffff) AM_RAMBANK(NAMCOS2_68K_SLAVE_RAM)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
 	AM_IMPORT_FROM( common_finallap_am )
 ADDRESS_MAP_END
 
@@ -656,47 +665,47 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( common_sgunner_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x800000, 0x8141ff) AM_READWRITE(c355_obj_ram_r,c355_obj_ram_w)
 	AM_RANGE(0x818000, 0x818001) AM_WRITENOP
-	AM_RANGE(0xa00000, 0xa0000f) AM_READWRITE_LEGACY(namcos2_68k_key_r,namcos2_68k_key_w)
+	AM_RANGE(0xa00000, 0xa0000f) AM_READWRITE(namcos2_68k_key_r,namcos2_68k_key_w)
 	AM_IMPORT_FROM( namcos2_68k_default_cpu_board_am )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( master_sgunner_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAMBANK(NAMCOS2_68K_MASTER_RAM)
-	AM_RANGE(0x180000, 0x183fff) AM_READWRITE_LEGACY(NAMCOS2_68K_eeprom_R,NAMCOS2_68K_eeprom_W)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
+	AM_RANGE(0x180000, 0x183fff) AM_READWRITE8(namcos2_68k_eeprom_r,namcos2_68k_eeprom_w,0x00ff)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
 	AM_IMPORT_FROM( common_sgunner_am )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( slave_sgunner_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x13ffff) AM_RAMBANK(NAMCOS2_68K_SLAVE_RAM)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
 	AM_IMPORT_FROM( common_sgunner_am )
 ADDRESS_MAP_END
 
 /*************************************************************/
 
 static ADDRESS_MAP_START( common_metlhawk_am, AS_PROGRAM, 16, namcos2_state )
-	AM_RANGE(0xc00000, 0xc03fff) AM_RAM AM_SHARE("spriteram") \
-	AM_RANGE(0xc40000, 0xc4ffff) AM_READWRITE(c169_roz_videoram_r,c169_roz_videoram_w) AM_SHARE("rozvideoram") \
-	AM_RANGE(0xd00000, 0xd0001f) AM_READWRITE(c169_roz_control_r,c169_roz_control_w) \
-	AM_RANGE(0xe00000, 0xe00001) AM_READWRITE(gfx_ctrl_r, gfx_ctrl_w) /* ??? */ \
+	AM_RANGE(0xc00000, 0xc03fff) AM_RAM AM_SHARE("spriteram")
+	AM_RANGE(0xc40000, 0xc4ffff) AM_READWRITE(c169_roz_videoram_r,c169_roz_videoram_w) AM_SHARE("rozvideoram")
+	AM_RANGE(0xd00000, 0xd0001f) AM_READWRITE(c169_roz_control_r,c169_roz_control_w)
+	AM_RANGE(0xe00000, 0xe00001) AM_READWRITE(gfx_ctrl_r, gfx_ctrl_w) /* ??? */
 	AM_IMPORT_FROM( namcos2_68k_default_cpu_board_am )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( master_metlhawk_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAMBANK(NAMCOS2_68K_MASTER_RAM)
-	AM_RANGE(0x180000, 0x183fff) AM_READWRITE_LEGACY(NAMCOS2_68K_eeprom_R,NAMCOS2_68K_eeprom_W)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
+	AM_RANGE(0x180000, 0x183fff) AM_READWRITE8(namcos2_68k_eeprom_r,namcos2_68k_eeprom_w,0x00ff)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
 	AM_IMPORT_FROM( common_metlhawk_am )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( slave_metlhawk_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x13ffff) AM_RAMBANK(NAMCOS2_68K_SLAVE_RAM)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
 	AM_IMPORT_FROM( common_metlhawk_am )
 ADDRESS_MAP_END
 
@@ -711,22 +720,22 @@ static ADDRESS_MAP_START( common_luckywld_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0xa00000, 0xa1ffff) AM_DEVREADWRITE("c45_road", namco_c45_road_device, read, write)
 	AM_RANGE(0xc00000, 0xc0ffff) AM_READWRITE(c169_roz_videoram_r,c169_roz_videoram_w) AM_SHARE("rozvideoram")
 	AM_RANGE(0xd00000, 0xd0001f) AM_READWRITE(c169_roz_control_r,c169_roz_control_w)
-	AM_RANGE(0xf00000, 0xf00007) AM_READWRITE_LEGACY(namcos2_68k_key_r,namcos2_68k_key_w)
+	AM_RANGE(0xf00000, 0xf00007) AM_READWRITE(namcos2_68k_key_r,namcos2_68k_key_w)
 	AM_IMPORT_FROM( namcos2_68k_default_cpu_board_am )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( master_luckywld_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAMBANK(NAMCOS2_68K_MASTER_RAM)
-	AM_RANGE(0x180000, 0x183fff) AM_READWRITE_LEGACY(NAMCOS2_68K_eeprom_R,NAMCOS2_68K_eeprom_W)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
+	AM_RANGE(0x180000, 0x183fff) AM_READWRITE8(namcos2_68k_eeprom_r,namcos2_68k_eeprom_w,0x00ff)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_master_C148_r,namcos2_68k_master_C148_w)
 	AM_IMPORT_FROM( common_luckywld_am )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( slave_luckywld_am, AS_PROGRAM, 16, namcos2_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x13ffff) AM_RAMBANK(NAMCOS2_68K_SLAVE_RAM)
-	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE_LEGACY(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
+	AM_RANGE(0x1c0000, 0x1fffff) AM_READWRITE(namcos2_68k_slave_C148_r,namcos2_68k_slave_C148_w)
 	AM_IMPORT_FROM( common_luckywld_am )
 ADDRESS_MAP_END
 
@@ -737,12 +746,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_default_am, AS_PROGRAM, 8, namcos2_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROMBANK("bank6") /* banked */
 	AM_RANGE(0x4000, 0x4001) AM_DEVREADWRITE("ymsnd", ym2151_device,read,write)
-	AM_RANGE(0x5000, 0x6fff) AM_DEVREADWRITE_LEGACY("c140", c140_r,c140_w)
+	AM_RANGE(0x5000, 0x6fff) AM_DEVREADWRITE("c140", c140_device, c140_r,c140_w)
 	AM_RANGE(0x7000, 0x77ff) AM_READWRITE(dpram_byte_r,dpram_byte_w) AM_SHARE("dpram")
 	AM_RANGE(0x7800, 0x7fff) AM_READWRITE(dpram_byte_r,dpram_byte_w) /* mirror */
 	AM_RANGE(0x8000, 0x9fff) AM_RAM
 	AM_RANGE(0xa000, 0xbfff) AM_WRITENOP /* Amplifier enable on 1st write */
-	AM_RANGE(0xc000, 0xc001) AM_WRITE_LEGACY(namcos2_sound_bankselect_w)
+	AM_RANGE(0xc000, 0xc001) AM_WRITE(namcos2_sound_bankselect_w)
 	AM_RANGE(0xd001, 0xd001) AM_WRITENOP /* Watchdog */
 	AM_RANGE(0xe000, 0xe000) AM_WRITENOP
 	AM_RANGE(0xd000, 0xffff) AM_ROM
@@ -756,17 +765,17 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( mcu_default_am, AS_PROGRAM, 8, namcos2_state )
 	/* input ports and dips are mapped here */
 	AM_RANGE(0x0000, 0x0000) AM_READNOP /* Keep logging quiet */
-	AM_RANGE(0x0001, 0x0001) AM_READ_LEGACY(namcos2_input_port_0_r)
+	AM_RANGE(0x0001, 0x0001) AM_READ_PORT("MCUB")
 	AM_RANGE(0x0002, 0x0002) AM_READ_PORT("MCUC")
-	AM_RANGE(0x0003, 0x0003) AM_READWRITE_LEGACY(namcos2_mcu_port_d_r,namcos2_mcu_port_d_w)
-	AM_RANGE(0x0007, 0x0007) AM_READ_LEGACY(namcos2_input_port_10_r)
-	AM_RANGE(0x0010, 0x0010) AM_READWRITE_LEGACY(namcos2_mcu_analog_ctrl_r,namcos2_mcu_analog_ctrl_w)
-	AM_RANGE(0x0011, 0x0011) AM_READWRITE_LEGACY(namcos2_mcu_analog_port_r,namcos2_mcu_analog_port_w)
+	AM_RANGE(0x0003, 0x0003) AM_READWRITE(namcos2_mcu_port_d_r,namcos2_mcu_port_d_w)
+	AM_RANGE(0x0007, 0x0007) AM_READ_PORT("MCUH")
+	AM_RANGE(0x0010, 0x0010) AM_READWRITE(namcos2_mcu_analog_ctrl_r,namcos2_mcu_analog_ctrl_w)
+	AM_RANGE(0x0011, 0x0011) AM_READWRITE(namcos2_mcu_analog_port_r,namcos2_mcu_analog_port_w)
 	AM_RANGE(0x0000, 0x003f) AM_RAM /* Fill in register to stop logging */
 	AM_RANGE(0x0040, 0x01bf) AM_RAM
 	AM_RANGE(0x01c0, 0x1fff) AM_ROM
 	AM_RANGE(0x2000, 0x2000) AM_READ_PORT("DSW")
-	AM_RANGE(0x3000, 0x3000) AM_READ_LEGACY(namcos2_input_port_12_r)
+	AM_RANGE(0x3000, 0x3000) AM_READ_PORT("MCUDI0")
 	AM_RANGE(0x3001, 0x3001) AM_READ_PORT("MCUDI1")
 	AM_RANGE(0x3002, 0x3002) AM_READ_PORT("MCUDI2")
 	AM_RANGE(0x3003, 0x3003) AM_READ_PORT("MCUDI3")
@@ -775,6 +784,42 @@ static ADDRESS_MAP_START( mcu_default_am, AS_PROGRAM, 8, namcos2_state )
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
+
+/*************************************************************/
+/* 37450 (C68) IO CPU Memory declarations                    */
+/*************************************************************/
+READ8_MEMBER(namcos2_state::c68_p5_r)
+{
+	UINT8 rv;
+
+	if (m_player_mux)
+	{
+		rv = ioport("MCUB2")->read();
+	}
+	else
+	{
+		rv = ioport("MCUB")->read();
+	}
+
+	return rv;
+}
+
+WRITE8_MEMBER(namcos2_state::c68_p3_w)
+{
+	m_player_mux = (data & 0x80) ? 1 : 0;
+}
+
+static ADDRESS_MAP_START( c68_default_am, AS_PROGRAM, 8, namcos2_state )
+	/* input ports and dips are mapped here */
+	AM_RANGE(0x2000, 0x2000) AM_READ_PORT("DSW")
+	AM_RANGE(0x3000, 0x3000) AM_READ_PORT("MCUDI0")
+	AM_RANGE(0x3001, 0x3001) AM_READ_PORT("MCUDI1")
+	AM_RANGE(0x3002, 0x3002) AM_READ_PORT("MCUDI2")
+	AM_RANGE(0x3003, 0x3003) AM_READ_PORT("MCUDI3")
+	AM_RANGE(0x5000, 0x57ff) AM_READWRITE(dpram_byte_r,dpram_byte_w) AM_SHARE("dpram")
+	AM_RANGE(0x6000, 0x6fff) AM_READ(ack_mcu_vbl_r) // VBL ack
+	AM_RANGE(0x8000, 0xffff) AM_ROM AM_REGION("c68", 0)
+ADDRESS_MAP_END
 
 /*************************************************************/
 /*                                                           */
@@ -1380,6 +1425,58 @@ static INPUT_PORTS_START( sgunner )
 	NAMCOS2_MCU_DIAL_DEFAULT
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( sgunner2 )
+	PORT_START("MCUB")  /* M37450 - PORT 5 (multiplexed) */
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2 )
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON3 )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 )
+
+	PORT_START("MCUB2")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(2)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(2)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(2)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(2)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(2)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START1 ) PORT_PLAYER(2)
+
+	PORT_START("MCUC")      /* M37450 - PORT 6 */
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_START("AN0")       /* M37450 - 8 CHANNEL ANALOG - CHANNEL 0 */
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_START("AN1")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_START("AN2")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_START("AN3")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_START("AN4")
+	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_X ) PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_SENSITIVITY(50) PORT_KEYDELTA(8)
+	PORT_START("AN5")
+	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_X ) PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_SENSITIVITY(50) PORT_KEYDELTA(8) PORT_PLAYER(2)
+	PORT_START("AN6")
+	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(50) PORT_KEYDELTA(8)
+	PORT_START("AN7")
+	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(50) PORT_KEYDELTA(8) PORT_PLAYER(2)
+
+	PORT_START("MCUH")      /* M37450 - PORT 3 */
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN2 )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME("Service Button") PORT_CODE(KEYCODE_0) /* Make it accessible by default*/ \
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_SERVICE1 )
+	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	NAMCOS2_MCU_DIPSW_DEFAULT
+	NAMCOS2_MCU_DIAL_DEFAULT
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( dirtfox )
 	PORT_START("MCUB")      /* 63B05Z0 - PORT B */
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_NAME("Gear Shift Up") /* Gear shift up */
@@ -1582,7 +1679,7 @@ Master clock = 49.152MHz
 63B05 Measured at 120ns = 8.333 MHz BUT 49.152MHz/6 = 8.192MHz = 122ns
 
 I've corrected all frequencies to be multiples of integer divisions of
-the 49.152MHz master clock. Additionally the 6305 looks to hav an
+the 49.152MHz master clock. Additionally the 6305 looks to have an
 internal divider.
 
 Soooo;
@@ -1640,7 +1737,7 @@ static MACHINE_CONFIG_START( default, namcos2_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("c140", C140, C140_SOUND_CLOCK) /* 21.333kHz */
+	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
 	MCFG_SOUND_CONFIG(c140_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
@@ -1653,7 +1750,7 @@ MACHINE_CONFIG_END
 /* adjusted machine driver start */
 static MACHINE_CONFIG_DERIVED( default2, default )
 
-	MCFG_SOUND_REPLACE("c140", C140, C140_SOUND_CLOCK) /* 21.333kHz */
+	MCFG_C140_REPLACE("c140", C140_SOUND_CLOCK) /* 21.333kHz */
 	MCFG_SOUND_CONFIG(c140_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
@@ -1667,7 +1764,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( default3, default )
 
-	MCFG_SOUND_REPLACE("c140", C140, C140_SOUND_CLOCK) /* 21.333kHz */
+	MCFG_C140_REPLACE("c140", C140_SOUND_CLOCK) /* 21.333kHz */
 	MCFG_SOUND_CONFIG(c140_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.45)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.45)
@@ -1714,7 +1811,7 @@ static MACHINE_CONFIG_START( gollygho, namcos2_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("c140", C140, C140_SOUND_CLOCK) /* 21.333kHz */
+	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
 	MCFG_SOUND_CONFIG(c140_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
@@ -1765,7 +1862,7 @@ static MACHINE_CONFIG_START( finallap, namcos2_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("c140", C140, C140_SOUND_CLOCK) /* 21.333kHz */
+	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
 	MCFG_SOUND_CONFIG(c140_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
@@ -1814,7 +1911,61 @@ static MACHINE_CONFIG_START( sgunner, namcos2_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("c140", C140, C140_SOUND_CLOCK) /* 21.333kHz */
+	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
+	MCFG_SOUND_CONFIG(c140_config)
+	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
+	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
+
+	MCFG_YM2151_ADD("ymsnd", YM2151_SOUND_CLOCK) /* 3.579545MHz */
+	MCFG_SOUND_ROUTE(0, "lspeaker", 0.80)
+	MCFG_SOUND_ROUTE(1, "rspeaker", 0.80)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_START( sgunner2, namcos2_state )
+	MCFG_CPU_ADD("maincpu", M68000, M68K_CPU_CLOCK) /* 12.288MHz (49.152MHz OSC/4) */
+	MCFG_CPU_PROGRAM_MAP(master_sgunner_am)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos2_shared_state,  namcos2_68k_master_vblank)
+
+	MCFG_CPU_ADD("slave", M68000, M68K_CPU_CLOCK) /* 12.288MHz (49.152MHz OSC/4) */
+	MCFG_CPU_PROGRAM_MAP(slave_sgunner_am)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos2_shared_state,  namcos2_68k_slave_vblank)
+
+	MCFG_CPU_ADD("audiocpu", M6809, M68B09_CPU_CLOCK) /* 2.048MHz (49.152MHz OSC/24) - Sound handling */
+	MCFG_CPU_PROGRAM_MAP(sound_default_am)
+	MCFG_CPU_PERIODIC_INT_DRIVER(namcos2_shared_state, irq0_line_hold,  2*60)
+	MCFG_CPU_PERIODIC_INT_DRIVER(namcos2_shared_state, irq1_line_hold,  120)
+
+	MCFG_CPU_ADD("c68", M37450, C68_CPU_CLOCK) /* C68 @ 8.192MHz (49.152MHz OSC/6) - I/O handling */
+	MCFG_M3745X_ADC14_CALLBACKS(IOPORT("AN0"), IOPORT("AN1"), IOPORT("AN2"), IOPORT("AN3"))
+	MCFG_M3745X_ADC58_CALLBACKS(IOPORT("AN4"), IOPORT("AN5"), IOPORT("AN6"), IOPORT("AN7"))
+	MCFG_M3745X_PORT3_CALLBACKS(IOPORT("MCUH"), WRITE8(namcos2_state, c68_p3_w))    // coins/test/service
+	MCFG_M3745X_PORT5_CALLBACKS(READ8(namcos2_state, c68_p5_r), NULL) // muxed player 1/2
+	MCFG_M3745X_PORT6_CALLBACKS(IOPORT("MCUC"), NULL) // unused in sgunner2
+	MCFG_CPU_PROGRAM_MAP(c68_default_am)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", namcos2_shared_state, irq0_line_assert)    // 37450 maps INT1 to irq0 as it's the first external interrupt on that chip
+
+	MCFG_QUANTUM_TIME(attotime::from_hz(6000)) /* CPU slices per frame */
+
+	MCFG_MACHINE_START_OVERRIDE(namcos2_state,namcos2)
+	MCFG_MACHINE_RESET_OVERRIDE(namcos2_state,namcos2)
+	MCFG_NVRAM_ADD_1FILL("nvram")
+
+	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
+
+	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_REFRESH_RATE( (49152000.0 / 8) / (384 * 264) )
+	MCFG_SCREEN_SIZE(384, 264)
+	MCFG_SCREEN_VISIBLE_AREA(0*8, 36*8-1, 0*8, 28*8-1)
+	MCFG_SCREEN_UPDATE_DRIVER(namcos2_state, screen_update_sgunner)
+
+	MCFG_GFXDECODE(sgunner)
+	MCFG_PALETTE_LENGTH(0x2000)
+
+	MCFG_VIDEO_START_OVERRIDE(namcos2_state, sgunner)
+
+	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+
+	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
 	MCFG_SOUND_CONFIG(c140_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
@@ -1865,7 +2016,7 @@ static MACHINE_CONFIG_START( luckywld, namcos2_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("c140", C140, C140_SOUND_CLOCK) /* 21.333kHz */
+	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
 	MCFG_SOUND_CONFIG(c140_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
@@ -1914,7 +2065,7 @@ static MACHINE_CONFIG_START( metlhawk, namcos2_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("c140", C140, C140_SOUND_CLOCK) /* 21.333kHz */
+	MCFG_C140_ADD("c140", C140_SOUND_CLOCK) /* 21.333kHz */
 	MCFG_SOUND_CONFIG(c140_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
@@ -2012,7 +2163,7 @@ ROM_START( assault )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "atshape.bin",  0x000000, CRC(dfcad82b) SHA1(9c3826b8dc36fa0d71c0de7f8be3479d9a025803) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "at1dat0.bin",  0x000000, CRC(844890f4) SHA1(1be30760acd81fae836301d81d6adbb3e5941373) )
 	NAMCOS2_DATA_LOAD_O_128K( "at1dat1.bin",  0x000000, CRC(21715313) SHA1(97c6edae6a5f1df434f1dcf7be307b5e006e72a6) )
 
@@ -2066,7 +2217,7 @@ ROM_START( assaultj )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "atshape.bin",  0x000000, CRC(dfcad82b) SHA1(9c3826b8dc36fa0d71c0de7f8be3479d9a025803) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "at1dat0.bin",  0x000000, CRC(844890f4) SHA1(1be30760acd81fae836301d81d6adbb3e5941373) )
 	NAMCOS2_DATA_LOAD_O_128K( "at1dat1.bin",  0x000000, CRC(21715313) SHA1(97c6edae6a5f1df434f1dcf7be307b5e006e72a6) )
 
@@ -2120,7 +2271,7 @@ ROM_START( assaultp )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "atshape.bin",  0x000000, CRC(dfcad82b) SHA1(9c3826b8dc36fa0d71c0de7f8be3479d9a025803) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "at1dat0.bin",  0x000000, CRC(844890f4) SHA1(1be30760acd81fae836301d81d6adbb3e5941373) )
 	NAMCOS2_DATA_LOAD_O_128K( "at1dat1.bin",  0x000000, CRC(21715313) SHA1(97c6edae6a5f1df434f1dcf7be307b5e006e72a6) )
 
@@ -2173,7 +2324,7 @@ ROM_START( burnforc )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "bu_shape.bin",  0x000000,CRC(80a6b722) SHA1(2c24327a890310c5e8086dc6821627108a88c62e) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "bu1_dat0.bin",  0x000000, CRC(e0a9d92f) SHA1(15042e6d7b31bec08ccdf36e89fdb4b6fb62fa4b) )
 	NAMCOS2_DATA_LOAD_O_128K( "bu1_dat1.bin",  0x000000, CRC(5fe54b73) SHA1(a5d4895f0a4523be20de40ccaa74f8fad0d5df7d) )
 
@@ -2225,7 +2376,7 @@ ROM_START( burnforco )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "bu_shape.bin",  0x000000,CRC(80a6b722) SHA1(2c24327a890310c5e8086dc6821627108a88c62e) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "bu1_dat0.bin",  0x000000, CRC(e0a9d92f) SHA1(15042e6d7b31bec08ccdf36e89fdb4b6fb62fa4b) )
 	NAMCOS2_DATA_LOAD_O_128K( "bu1_dat1.bin",  0x000000, CRC(5fe54b73) SHA1(a5d4895f0a4523be20de40ccaa74f8fad0d5df7d) )
 
@@ -2270,7 +2421,7 @@ ROM_START( cosmogng )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "co1sha0.bin",  0x000000, 0x80000, CRC(063a70cc) SHA1(c3179d55d57c47d3fef49d45e45b88c4d8250548) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "co1dat0.bin",  0x000000, CRC(b53da2ae) SHA1(a7fe63668d50928d5d2e2249a5f377c7e8dfc6a5) )
 	NAMCOS2_DATA_LOAD_O_128K( "co1dat1.bin",  0x000000, CRC(d21ad10b) SHA1(dcf2d4cc048ea57507952a9a35390af7de5cfe34) )
 
@@ -2316,7 +2467,7 @@ ROM_START( cosmogngj )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "co1sha0.bin",  0x000000, 0x80000, CRC(063a70cc) SHA1(c3179d55d57c47d3fef49d45e45b88c4d8250548) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "co1dat0.bin",  0x000000, CRC(b53da2ae) SHA1(a7fe63668d50928d5d2e2249a5f377c7e8dfc6a5) )
 	NAMCOS2_DATA_LOAD_O_128K( "co1dat1.bin",  0x000000, CRC(d21ad10b) SHA1(dcf2d4cc048ea57507952a9a35390af7de5cfe34) )
 
@@ -2369,7 +2520,7 @@ ROM_START( dirtfoxj )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "df1_sha.bin",  0x000000, CRC(9a7c9a9b) SHA1(06221ae8d3f6bebbb5a7ab2eaaf35b9922389115) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_256K( "df1_dat0.bin",  0x000000, CRC(f5851c85) SHA1(e99c05891622cdaab394630b7b2678968e6761d7) )
 	NAMCOS2_DATA_LOAD_O_256K( "df1_dat1.bin",  0x000000, CRC(1a31e46b) SHA1(4be7115893b27d6a3dc38c97dcb41eafebb423cd) )
 
@@ -2413,7 +2564,7 @@ ROM_START( dsaber )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "shape.bin",  0x000000, 0x80000, CRC(698e7a3e) SHA1(4d41bf0242626ca1448d1f650c84b5987a7f6597) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "data0.bin",  0x000000, CRC(3e53331f) SHA1(3dd4c133f587361f30ab1b890f5b05749d5838e3) )
 	NAMCOS2_DATA_LOAD_O_128K( "data1.bin",  0x000000, CRC(d5427f11) SHA1(af8d8153dc60044616a6b0571831c53c09fefda1) )
 
@@ -2463,7 +2614,7 @@ ROM_START( dsaberj )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "shape.bin",  0x000000, 0x80000, CRC(698e7a3e) SHA1(4d41bf0242626ca1448d1f650c84b5987a7f6597) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "data0.bin",  0x000000, CRC(3e53331f) SHA1(3dd4c133f587361f30ab1b890f5b05749d5838e3) )
 	NAMCOS2_DATA_LOAD_O_128K( "data1.bin",  0x000000, CRC(d5427f11) SHA1(af8d8153dc60044616a6b0571831c53c09fefda1) )
 
@@ -2510,7 +2661,7 @@ ROM_START( finallap )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "fl2-sha",  0x000000, CRC(5fda0b6d) SHA1(92c0410e159977ea73a8e8c0cb1321c3056f6c2f) )
 
-	ROM_REGION16_BE( 0x200000, "user1", ROMREGION_ERASEFF ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", ROMREGION_ERASEFF ) /* Shared data roms */
 	/* No DAT files present in ZIP archive */
 
 	ROM_REGION( 0x100, "c45_road:clut", 0 ) /* prom for road colors */
@@ -2565,7 +2716,7 @@ ROM_START( finallapd )
 	ROM_REGION( 0x080000, "gfx4", 0 )                 /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "fl2-sha",  0x000000, CRC(5fda0b6d) SHA1(92c0410e159977ea73a8e8c0cb1321c3056f6c2f) )
 
-	ROM_REGION16_BE( 0x200000, "user1", ROMREGION_ERASEFF ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", ROMREGION_ERASEFF ) /* Shared data roms */
 	/* No DAT files present in ZIP archive */
 
 	ROM_REGION( 0x100, "c45_road:clut", 0 ) /* prom for road colors */
@@ -2620,7 +2771,7 @@ ROM_START( finallapc )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "fl2-sha",  0x000000, CRC(5fda0b6d) SHA1(92c0410e159977ea73a8e8c0cb1321c3056f6c2f) )
 
-	ROM_REGION16_BE( 0x200000, "user1", ROMREGION_ERASEFF ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", ROMREGION_ERASEFF ) /* Shared data roms */
 	/* No DAT files present in ZIP archive */
 
 	ROM_REGION( 0x100, "c45_road:clut", 0 ) /* prom for road colors */
@@ -2675,7 +2826,7 @@ ROM_START( finallapjc )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "fl2-sha",  0x000000, CRC(5fda0b6d) SHA1(92c0410e159977ea73a8e8c0cb1321c3056f6c2f) )
 
-	ROM_REGION16_BE( 0x200000, "user1", ROMREGION_ERASEFF ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", ROMREGION_ERASEFF ) /* Shared data roms */
 	/* No DAT files present in ZIP archive */
 
 	ROM_REGION( 0x100, "c45_road:clut", 0 ) /* prom for road colors */
@@ -2730,7 +2881,7 @@ ROM_START( finallapjb )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "fl1_sha.bin",  0x000000, CRC(b7e1c7a3) SHA1(b82f9b340d95b80a12286647adba8c139b4d081a) )
 
-	ROM_REGION16_BE( 0x200000, "user1", ROMREGION_ERASEFF ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", ROMREGION_ERASEFF ) /* Shared data roms */
 	/* No DAT files present in ZIP archive */
 
 	ROM_REGION( 0x100, "c45_road:clut", 0 ) /* prom for road colors */
@@ -2788,7 +2939,7 @@ ROM_START( finalap2 )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_256K( "fls2sha",  0x000000, CRC(f7b40a85) SHA1(a458a1cc0dae757fe8a15cb5f5ae46d3c033df00) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_256K( "fls2dat0",  0x000000, CRC(f1af432c) SHA1(c514261a49ceb5c3ba0246519ba5d02e9a20d950) )
 	NAMCOS2_DATA_LOAD_O_256K( "fls2dat1",  0x000000, CRC(8719533e) SHA1(98d2767da6f7f67da7af15e8cfed95adb04b7427) )
 
@@ -2845,7 +2996,7 @@ ROM_START( finalap2j )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_256K( "fls2sha",  0x000000, CRC(f7b40a85) SHA1(a458a1cc0dae757fe8a15cb5f5ae46d3c033df00) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_256K( "fls2dat0",  0x000000, CRC(f1af432c) SHA1(c514261a49ceb5c3ba0246519ba5d02e9a20d950) )
 	NAMCOS2_DATA_LOAD_O_256K( "fls2dat1",  0x000000, CRC(8719533e) SHA1(98d2767da6f7f67da7af15e8cfed95adb04b7427) )
 
@@ -2890,9 +3041,9 @@ ROM_START( finalap3 ) // this set displays MOTION (Ver. 3) in the test mode menu
 	ROM_LOAD( "fltobj7",  0x380000, 0x80000, CRC(b52a85e2) SHA1(1eea10eb20ae56309397238a52e9ea0756912412) )
 
 	ROM_REGION( 0x200000, "gfx2", 0 ) /* Tiles */
-	ROM_LOAD( "flt2 chr-0.bin", 0x000000, 0x40000, CRC(5954f270) SHA1(6f26365d89f38d4ab477908f32823e06f1a84e09) )
+	ROM_LOAD( "flt2_chr-0.bin", 0x000000, 0x40000, CRC(5954f270) SHA1(6f26365d89f38d4ab477908f32823e06f1a84e09) )
 	ROM_LOAD( "fltchr-1.11p",   0x040000, 0x40000, CRC(2e68d13c) SHA1(46bb0628da1f97e0f6865f37e53a01d2e8391255) )
-	ROM_LOAD( "flt2 chr-2.bin", 0x080000, 0x40000, CRC(98f3b190) SHA1(4858dab070c0c46d37148312664c6a616765c240) )
+	ROM_LOAD( "flt2_chr-2.bin", 0x080000, 0x40000, CRC(98f3b190) SHA1(4858dab070c0c46d37148312664c6a616765c240) )
 	ROM_LOAD( "fltchr-3.11s",   0x0c0000, 0x40000, CRC(e9b05a1f) SHA1(6b7e08f4f535fb99692920612f751a49c3cd529e) )
 	ROM_LOAD( "fltchr-4.9n",    0x100000, 0x40000, CRC(5ae43767) SHA1(f3e24dd5ba2cffffd616ddee628e423aa0aec1d2) )
 	ROM_LOAD( "fltchr-5.9p",    0x140000, 0x40000, CRC(b5f4e780) SHA1(a7d64d150121eda5d82f5651a06a11683220577a) )
@@ -2900,9 +3051,9 @@ ROM_START( finalap3 ) // this set displays MOTION (Ver. 3) in the test mode menu
 	ROM_LOAD( "fltchr-7.9s",    0x1c0000, 0x40000, CRC(85db9e94) SHA1(918f414c1dd51f7451a9a491ba1d60f5f9a38c3e) )
 
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
-	NAMCOS2_GFXROM_LOAD_256K( "flt2 sha.bin",  0x000000, CRC(6986565b) SHA1(df95f2ad5d1e938551d33153f2dcc4711ffd0eba) )
+	NAMCOS2_GFXROM_LOAD_256K( "flt2_sha.bin",  0x000000, CRC(6986565b) SHA1(df95f2ad5d1e938551d33153f2dcc4711ffd0eba) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "flt1d0",  0x000000, CRC(80004966) SHA1(112b2a9b0ea792d5dbff1b9cf904da788aeede29) )
 	NAMCOS2_DATA_LOAD_O_128K( "flt1d1",  0x000000, CRC(a2e93e8c) SHA1(9c8a5431a79153a70eb6939d16e0a5a6be235e75) )
 
@@ -2951,9 +3102,9 @@ ROM_START( finalap3a )
 	ROM_LOAD( "fltobj7",  0x380000, 0x80000, CRC(b52a85e2) SHA1(1eea10eb20ae56309397238a52e9ea0756912412) )
 
 	ROM_REGION( 0x200000, "gfx2", 0 ) /* Tiles */
-	ROM_LOAD( "flt2 chr-0.bin", 0x000000, 0x40000, CRC(5954f270) SHA1(6f26365d89f38d4ab477908f32823e06f1a84e09) )
+	ROM_LOAD( "flt2_chr-0.bin", 0x000000, 0x40000, CRC(5954f270) SHA1(6f26365d89f38d4ab477908f32823e06f1a84e09) )
 	ROM_LOAD( "fltchr-1.11p",   0x040000, 0x40000, CRC(2e68d13c) SHA1(46bb0628da1f97e0f6865f37e53a01d2e8391255) )
-	ROM_LOAD( "flt2 chr-2.bin", 0x080000, 0x40000, CRC(98f3b190) SHA1(4858dab070c0c46d37148312664c6a616765c240) )
+	ROM_LOAD( "flt2_chr-2.bin", 0x080000, 0x40000, CRC(98f3b190) SHA1(4858dab070c0c46d37148312664c6a616765c240) )
 	ROM_LOAD( "fltchr-3.11s",   0x0c0000, 0x40000, CRC(e9b05a1f) SHA1(6b7e08f4f535fb99692920612f751a49c3cd529e) )
 	ROM_LOAD( "fltchr-4.9n",    0x100000, 0x40000, CRC(5ae43767) SHA1(f3e24dd5ba2cffffd616ddee628e423aa0aec1d2) )
 	ROM_LOAD( "fltchr-5.9p",    0x140000, 0x40000, CRC(b5f4e780) SHA1(a7d64d150121eda5d82f5651a06a11683220577a) )
@@ -2961,9 +3112,9 @@ ROM_START( finalap3a )
 	ROM_LOAD( "fltchr-7.9s",    0x1c0000, 0x40000, CRC(85db9e94) SHA1(918f414c1dd51f7451a9a491ba1d60f5f9a38c3e) )
 
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
-	NAMCOS2_GFXROM_LOAD_256K( "flt2 sha.bin",  0x000000, CRC(6986565b) SHA1(df95f2ad5d1e938551d33153f2dcc4711ffd0eba) )
+	NAMCOS2_GFXROM_LOAD_256K( "flt2_sha.bin",  0x000000, CRC(6986565b) SHA1(df95f2ad5d1e938551d33153f2dcc4711ffd0eba) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "flt1d0",  0x000000, CRC(80004966) SHA1(112b2a9b0ea792d5dbff1b9cf904da788aeede29) )
 	NAMCOS2_DATA_LOAD_O_128K( "flt1d1",  0x000000, CRC(a2e93e8c) SHA1(9c8a5431a79153a70eb6939d16e0a5a6be235e75) )
 
@@ -3027,7 +3178,7 @@ ROM_START( finalap3j )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_256K( "fltsha",  0x000000, CRC(211bbd83) SHA1(17502830d1af1e2cfbc17e2f3bb303f2a0c27e68) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "flt1d0",  0x000000, CRC(80004966) SHA1(112b2a9b0ea792d5dbff1b9cf904da788aeede29) )
 	NAMCOS2_DATA_LOAD_O_128K( "flt1d1",  0x000000, CRC(a2e93e8c) SHA1(9c8a5431a79153a70eb6939d16e0a5a6be235e75) )
 
@@ -3063,8 +3214,8 @@ ROM_START( finalap3jc )
 	ROM_REGION( 0x010000, "mcu", 0 ) /* M37450S2FP I/O MCU */
 	/* The M37450 is unemulated so we're using the C65/6805 program instead.
 	   This particular M37450 variant has no internal ROM. */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
-	ROM_LOAD( "sys2_c68.3f",   0x008000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "sys2c68.3f",   0x008000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "flt_obj-0.4c",  0x000000, 0x80000, CRC(eab19ec6) SHA1(2859e88b94aa873f3b6ba22790f2211f3e172dd1) )
@@ -3089,7 +3240,7 @@ ROM_START( finalap3jc )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_256K( "flt sha.7n",  0x000000, CRC(211bbd83) SHA1(17502830d1af1e2cfbc17e2f3bb303f2a0c27e68) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data ROMs */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data ROMs */
 	NAMCOS2_DATA_LOAD_E_128K( "flt1_d0.13s",  0x000000, CRC(80004966) SHA1(112b2a9b0ea792d5dbff1b9cf904da788aeede29) )
 	NAMCOS2_DATA_LOAD_O_128K( "flt1_d1.13p",  0x000000, CRC(a2e93e8c) SHA1(9c8a5431a79153a70eb6939d16e0a5a6be235e75) )
 
@@ -3136,9 +3287,9 @@ ROM_START( finalap3bl ) // bootleg set
 	ROM_LOAD( "fltobj7",  0x380000, 0x80000, CRC(b52a85e2) SHA1(1eea10eb20ae56309397238a52e9ea0756912412) )
 
 	ROM_REGION( 0x200000, "gfx2", 0 ) /* Tiles */
-	ROM_LOAD( "flt2 chr-0.bin", 0x000000, 0x40000, CRC(5954f270) SHA1(6f26365d89f38d4ab477908f32823e06f1a84e09) )
+	ROM_LOAD( "flt2_chr-0.bin", 0x000000, 0x40000, CRC(5954f270) SHA1(6f26365d89f38d4ab477908f32823e06f1a84e09) )
 	ROM_LOAD( "fltchr-1.11p",   0x040000, 0x40000, CRC(2e68d13c) SHA1(46bb0628da1f97e0f6865f37e53a01d2e8391255) )
-	ROM_LOAD( "flt2 chr-2.bin", 0x080000, 0x40000, CRC(98f3b190) SHA1(4858dab070c0c46d37148312664c6a616765c240) )
+	ROM_LOAD( "flt2_chr-2.bin", 0x080000, 0x40000, CRC(98f3b190) SHA1(4858dab070c0c46d37148312664c6a616765c240) )
 	ROM_LOAD( "fltchr-3.11s",   0x0c0000, 0x40000, CRC(e9b05a1f) SHA1(6b7e08f4f535fb99692920612f751a49c3cd529e) )
 	ROM_LOAD( "fltchr-4.9n",    0x100000, 0x40000, CRC(5ae43767) SHA1(f3e24dd5ba2cffffd616ddee628e423aa0aec1d2) )
 	ROM_LOAD( "fltchr-5.9p",    0x140000, 0x40000, CRC(b5f4e780) SHA1(a7d64d150121eda5d82f5651a06a11683220577a) )
@@ -3146,9 +3297,9 @@ ROM_START( finalap3bl ) // bootleg set
 	ROM_LOAD( "fltchr-7.9s",    0x1c0000, 0x40000, CRC(85db9e94) SHA1(918f414c1dd51f7451a9a491ba1d60f5f9a38c3e) )
 
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
-	NAMCOS2_GFXROM_LOAD_256K( "flt2 sha.bin",  0x000000, CRC(6986565b) SHA1(df95f2ad5d1e938551d33153f2dcc4711ffd0eba) )
+	NAMCOS2_GFXROM_LOAD_256K( "flt2_sha.bin",  0x000000, CRC(6986565b) SHA1(df95f2ad5d1e938551d33153f2dcc4711ffd0eba) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "flt1d0",  0x000000, CRC(80004966) SHA1(112b2a9b0ea792d5dbff1b9cf904da788aeede29) )
 	NAMCOS2_DATA_LOAD_O_128K( "flt1d1",  0x000000, CRC(a2e93e8c) SHA1(9c8a5431a79153a70eb6939d16e0a5a6be235e75) )
 
@@ -3210,7 +3361,7 @@ ROM_START( finehour )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_256K( "fh1_sha.bin",  0x000000, CRC(15875eb0) SHA1(9225df6b01897938488461ebf0717e6d7b81d562) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "fh1_dt0.bin",  0x000000, CRC(2441c26f) SHA1(429c8f12f7bef3e62153ac8b9e00ea870db36a7b) )
 	NAMCOS2_DATA_LOAD_O_128K( "fh1_dt1.bin",  0x000000, CRC(48154deb) SHA1(d6fde316f90bc847f60fa8d997504da34337ffa4) )
 	NAMCOS2_DATA_LOAD_E_128K( "fh1_dt2.bin",  0x100000, CRC(12453ba4) SHA1(26ad0da6e56ece6f1ba0b0cf23d2fdae2ce24100) )
@@ -3433,7 +3584,7 @@ ROM_START( fourtrax )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "fx_sha.7n", 0x000000, CRC(f7aa4af7) SHA1(b18ffda9e35beb0f072825e2899691be370f33b1) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_256K( "fx_dat0.13s", 0x000000, CRC(63abf69b) SHA1(6776991eeff434bf9720f49ad6e62c37fc7ddf40) )
 	NAMCOS2_DATA_LOAD_O_256K( "fx_dat1.13r", 0x000000, CRC(725bed14) SHA1(bbf886ac7f8c2c7857bc0b5d7f8fc7e63e8e9559) )
 	NAMCOS2_DATA_LOAD_E_256K( "fx_dat2.13p", 0x100000, CRC(71e4a5a0) SHA1(a0188c920a43c5e69e25464627094b6b6ed26a59) )
@@ -3487,7 +3638,7 @@ ROM_START( marvland )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_256K( "mv1-sha.bin",  0x000000, CRC(a47db5d3) SHA1(110e26412aa84f229773049112709be457b7a6ff) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "mv2_dat0",  0x000000, CRC(62e6318b) SHA1(5c26bc054298f2a0980f7e82ba1844bc9f5eff98) )
 	NAMCOS2_DATA_LOAD_O_128K( "mv2_dat1",  0x000000, CRC(8a6902ca) SHA1(272e8699b872b3a50d72090b43c57493e6642bfe) )
 	NAMCOS2_DATA_LOAD_E_128K( "mv2_dat2",  0x100000, CRC(f5c6408c) SHA1(568fb08d0763dc91674d708fa2d15ca952956145) )
@@ -3538,7 +3689,7 @@ ROM_START( marvlandj )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_256K( "mv1-sha.bin",  0x000000, CRC(a47db5d3) SHA1(110e26412aa84f229773049112709be457b7a6ff) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "mv1-dat0.bin",  0x000000, CRC(e15f412e) SHA1(d3ff006d4577540a690c912e94897a1b638ac265) )
 	NAMCOS2_DATA_LOAD_O_128K( "mv1-dat1.bin",  0x000000, CRC(73e1545a) SHA1(a04034e56fef69fb2a2eb88f2f392c376e52d00d) )
 
@@ -3597,7 +3748,7 @@ ROM_START( metlhawk )
 	ROM_REGION( 0x80000, "gfx5", 0 ) /* Mask shape (ROZ) */
 	ROM_LOAD( "mh-rzsh.bin",    0x000000, 0x40000, CRC(5090b1cf) SHA1(b814f8309a6133c6ece5f20161ebd02a981da66f) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "mh1d0.13s",  0x000000, CRC(8b178ac7) SHA1(210d31baf0aaba1af5efc15ec05714123f669030) )
 	NAMCOS2_DATA_LOAD_O_128K( "mh1d1.13p",  0x000000, CRC(10684fd6) SHA1(1e39d32dcf7ab9a146aa01f47e2737142874eede) )
 
@@ -3668,7 +3819,7 @@ ROM_START( metlhawkj )
 	ROM_REGION( 0x80000, "gfx5", 0 ) /* Mask shape (ROZ) */
 	ROM_LOAD( "mh-rzsh.bin",    0x000000, 0x40000, CRC(5090b1cf) SHA1(b814f8309a6133c6ece5f20161ebd02a981da66f) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "mh1d0.13s",  0x000000, CRC(8b178ac7) SHA1(210d31baf0aaba1af5efc15ec05714123f669030) )
 	NAMCOS2_DATA_LOAD_O_128K( "mh1d1.13p",  0x000000, CRC(10684fd6) SHA1(1e39d32dcf7ab9a146aa01f47e2737142874eede) )
 
@@ -3734,7 +3885,7 @@ ROM_START( mirninja )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "mn_sha.bin",  0x000000, CRC(c28af90f) SHA1(8b7f95375eb32c3e30c2a55b7f543235f56d3a13) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "mn1_dat0.bin",  0x000000, CRC(104bcca8) SHA1(e8368d0dc51bf0653143bf2261d7ed5b54d92941) )
 	NAMCOS2_DATA_LOAD_O_128K( "mn1_dat1.bin",  0x000000, CRC(d2a918fb) SHA1(032b7a7bcc60c41325e7b35df9a932e68cdd0788) )
 
@@ -3790,7 +3941,7 @@ ROM_START( ordyne )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "or1_sha.bin",  0x000000, CRC(7aec9dee) SHA1(2e774e4cff69173b4524d6b25a6a449ba5498a6a) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "or1_dt0.bin",  0x000000, CRC(de214f7a) SHA1(59883c7886b403306c30e51d7f49225483792650) )
 	NAMCOS2_DATA_LOAD_O_128K( "or1_dt1.bin",  0x000000, CRC(25e3e6c8) SHA1(ad093f15edaea71f6c7226c6e4f3c2130d418013) )
 
@@ -3846,7 +3997,7 @@ ROM_START( ordynej )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "or1_sha.bin",  0x000000, CRC(7aec9dee) SHA1(2e774e4cff69173b4524d6b25a6a449ba5498a6a) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "or1_dt0.bin",  0x000000, CRC(de214f7a) SHA1(59883c7886b403306c30e51d7f49225483792650) )
 	NAMCOS2_DATA_LOAD_O_128K( "or1_dt1.bin",  0x000000, CRC(25e3e6c8) SHA1(ad093f15edaea71f6c7226c6e4f3c2130d418013) )
 
@@ -3906,7 +4057,7 @@ ROM_START( phelios )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "ps1-sha.bin",  0x000000, CRC(58e26fcf) SHA1(9edc3b54964f923ed07ee878520ccf3f188f04ad) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "ps1dat0.bin",  0x000000, CRC(ee4194b0) SHA1(a0c2a807db70164ed761e5ad04301e5ae1173e7a) )
 	NAMCOS2_DATA_LOAD_O_128K( "ps1dat1.bin",  0x000000, CRC(5b22d714) SHA1(f6cb1fe661f7691269840245f06875845fd6eb33) )
 
@@ -3950,7 +4101,7 @@ ROM_START( rthun2 )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "shape.bin",  0x000000, 0x80000, CRC(cf58fbbe) SHA1(fbe3b2f0c3267b298993d6238d97b119e13e07f6) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "data0.bin",  0x000000, CRC(0baf44ee) SHA1(5135d634f76893adb26a32976a69e2d47e2385c6) )
 	NAMCOS2_DATA_LOAD_O_128K( "data1.bin",  0x000000, CRC(58a8daac) SHA1(c13ae8fc25b748a006c6db5b4b7ae593738544e8) )
 	NAMCOS2_DATA_LOAD_E_128K( "data2.bin",  0x100000, CRC(8e850a2a) SHA1(e5230e80a23ca6d09c2c53f443ecf70cc74075d7) )
@@ -3996,7 +4147,7 @@ ROM_START( rthun2j )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "shape.bin",  0x000000, 0x80000, CRC(cf58fbbe) SHA1(fbe3b2f0c3267b298993d6238d97b119e13e07f6) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "data0.bin",  0x000000, CRC(0baf44ee) SHA1(5135d634f76893adb26a32976a69e2d47e2385c6) )
 	NAMCOS2_DATA_LOAD_O_128K( "data1.bin",  0x000000, CRC(58a8daac) SHA1(c13ae8fc25b748a006c6db5b4b7ae593738544e8) )
 	NAMCOS2_DATA_LOAD_E_128K( "data2.bin",  0x100000, CRC(8e850a2a) SHA1(e5230e80a23ca6d09c2c53f443ecf70cc74075d7) )
@@ -4022,8 +4173,8 @@ ROM_START( sgunner )
 	ROM_RELOAD(               0x010000, 0x020000 )
 
 	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
-	ROM_LOAD( "sys2c65c.bin",  0x008000, 0x008000, CRC(a5b2a4ff) SHA1(068bdfcc71a5e83706e8b23330691973c1c214dc) )
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "sys2c68.3f",  0x008000, 0x008000, BAD_DUMP CRC(a5b2a4ff) SHA1(068bdfcc71a5e83706e8b23330691973c1c214dc) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "sn_obj0.8c",   0x000000, 0x80000, CRC(bbae38f7) SHA1(7a40ade13307791f5c5d300882f9a38e18c411d6) )
@@ -4045,7 +4196,7 @@ ROM_START( sgunner )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "sn_sha0.8n",  0x000000, 0x80000, CRC(01e20999) SHA1(5f925b5b43aa8889e077f7854a89d0731052605d) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "sn1_dat0.13s",  0x000000, CRC(72bfeca8) SHA1(88a2f8959d803611b2f2e219cb8ff085a37d01fe) )
 	NAMCOS2_DATA_LOAD_O_128K( "sn1_dat1.13p",  0x000000, CRC(99b3e653) SHA1(d7e29ad4e059f5d5e03386d903428c879d591459) )
 
@@ -4073,8 +4224,8 @@ ROM_START( sgunnerj )
 	ROM_RELOAD(               0x010000, 0x020000 )
 
 	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
-	ROM_LOAD( "sys2c65c.bin",  0x008000, 0x008000, CRC(a5b2a4ff) SHA1(068bdfcc71a5e83706e8b23330691973c1c214dc) )
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "sys2c68.3f",  0x008000, 0x008000, BAD_DUMP CRC(a5b2a4ff) SHA1(068bdfcc71a5e83706e8b23330691973c1c214dc) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "sn_obj0.8c",   0x000000, 0x80000, CRC(bbae38f7) SHA1(7a40ade13307791f5c5d300882f9a38e18c411d6) )
@@ -4096,7 +4247,7 @@ ROM_START( sgunnerj )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "sn_sha0.8n",  0x000000, 0x80000, CRC(01e20999) SHA1(5f925b5b43aa8889e077f7854a89d0731052605d) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "sn1_dat0.13s",  0x000000, CRC(72bfeca8) SHA1(88a2f8959d803611b2f2e219cb8ff085a37d01fe) )
 	NAMCOS2_DATA_LOAD_O_128K( "sn1_dat1.13p",  0x000000, CRC(99b3e653) SHA1(d7e29ad4e059f5d5e03386d903428c879d591459) )
 
@@ -4123,9 +4274,8 @@ ROM_START( sgunner2 )
 	ROM_CONTINUE( 0x010000, 0x01c000 )
 	ROM_RELOAD(  0x010000, 0x020000 )
 
-	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
-	ROM_LOAD( "sys2c65c.bin",  0x008000, 0x008000, CRC(a5b2a4ff) SHA1(068bdfcc71a5e83706e8b23330691973c1c214dc) )
+	ROM_REGION( 0x8000, "c68", 0 ) /* C68 (M37450) I/O MCU program */
+	ROM_LOAD( "sys2_c68.3f",  0x000000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "sns_obj0.bin",  0x000000, 0x80000, CRC(c762445c) SHA1(108170c9a5c82c23c1ac09f91195137ca05989f4) )
@@ -4149,7 +4299,7 @@ ROM_START( sgunner2 )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "sns_sha0.bin",  0x000000, 0x80000, CRC(0374fd67) SHA1(2f09536ef4f8e1aa719108e73642feb376d6efff) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "sns_dat0.bin",  0x000000, CRC(48295d93) SHA1(2b314128d5ed7d30895967dbd2ecd8f1dfdc61ca) )
 	NAMCOS2_DATA_LOAD_O_128K( "sns_dat1.bin",  0x000000, CRC(b44cc656) SHA1(7126ef28bf174c6c560469fa6dc4cfb439811850) )
 	NAMCOS2_DATA_LOAD_E_128K( "sns_dat2.bin",  0x100000, CRC(ca2ae645) SHA1(8addc8ed8244d0ff4c03909e865e3f15934963f1) )
@@ -4182,6 +4332,9 @@ ROM_START( sgunner2j )
 	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
 	ROM_LOAD( "sys2c65c.bin",  0x008000, 0x008000, CRC(a5b2a4ff) SHA1(068bdfcc71a5e83706e8b23330691973c1c214dc) )
 
+	ROM_REGION( 0x8000, "c68", 0 ) /* C68 (M37450) I/O MCU program */
+	ROM_LOAD( "sys2_c68.3f",  0x000000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
+
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "sns_obj0.bin",  0x000000, 0x80000, CRC(c762445c) SHA1(108170c9a5c82c23c1ac09f91195137ca05989f4) )
 	ROM_LOAD( "sns_obj1.bin",  0x100000, 0x80000, CRC(e9e379d8) SHA1(01b5f5946e746a5265d230273c99a41910fd9e6f) )
@@ -4204,7 +4357,7 @@ ROM_START( sgunner2j )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "sns_sha0.bin",  0x000000, 0x80000, CRC(0374fd67) SHA1(2f09536ef4f8e1aa719108e73642feb376d6efff) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "sns_dat0.bin",  0x000000, CRC(48295d93) SHA1(2b314128d5ed7d30895967dbd2ecd8f1dfdc61ca) )
 	NAMCOS2_DATA_LOAD_O_128K( "sns_dat1.bin",  0x000000, CRC(b44cc656) SHA1(7126ef28bf174c6c560469fa6dc4cfb439811850) )
 	NAMCOS2_DATA_LOAD_E_128K( "sns_dat2.bin",  0x100000, CRC(ca2ae645) SHA1(8addc8ed8244d0ff4c03909e865e3f15934963f1) )
@@ -4234,8 +4387,8 @@ ROM_START( sws )
 	ROM_RELOAD(  0x010000, 0x020000 )
 
 	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
-	ROM_LOAD( "sys2c68.bin",  0x008000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "sys2c68.3f",  0x008000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "ss1_obj0.5b",  0x000000, 0x80000, CRC(9bd6add1) SHA1(34595987670d7f64ba18a840e98667b96ae5e4bf) )
@@ -4254,7 +4407,7 @@ ROM_START( sws )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "ss1_sha0.7n",  0x000000, 0x80000,  CRC(fea6952c) SHA1(3bf27ee1e7e4c5ee0d53f28d49ef063b3f8064ba) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_256K( "ss1_dat0.13s",  0x000000, CRC(6a360f91) SHA1(22597c6bf7c597cf554a27182b4748de43a87b0a)  )
 	NAMCOS2_DATA_LOAD_O_256K( "ss1_dat1.13p",  0x000000, CRC(ab1e487d) SHA1(b40ea6c28dd9adae4939f69fcbf53414ae4703c6) )
 
@@ -4278,8 +4431,8 @@ ROM_START( sws92 )
 	ROM_RELOAD(  0x010000, 0x020000 )
 
 	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
-	ROM_LOAD( "sys2c68.bin",  0x008000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "sys2c68.3f",  0x008000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "sss_obj0.bin",  0x000000, 0x80000, CRC(375e8f1f) SHA1(b737bcceb498a66593d06ef102958bea90032106) )
@@ -4300,7 +4453,7 @@ ROM_START( sws92 )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "sss_sha0.bin",  0x000000, 0x80000, CRC(b71a731a) SHA1(29eab0ad5618f54e6c790d20f7dc895afae6c709) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_256K( "sss1dat0.bin",  0x000000, CRC(db3e6aec) SHA1(928960e3dc9c8225e695d12e9b18fbb7f151c151) )
 	NAMCOS2_DATA_LOAD_O_256K( "sss1dat1.bin",  0x000000, CRC(463b5ba8) SHA1(029dce2e7ee50181392b6ef409bbd192105fb065) )
 
@@ -4324,8 +4477,8 @@ ROM_START( sws92g )
 	ROM_RELOAD(  0x010000, 0x020000 )
 
 	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
-	ROM_LOAD( "sys2c68.bin",  0x008000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "sys2c68.3f",  0x008000, 0x008000, CRC(ca64550a) SHA1(38d1ad1b1287cadef0c999aff9357927315f8e6b) )
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "sss_obj0.bin",  0x000000, 0x80000, CRC(375e8f1f) SHA1(b737bcceb498a66593d06ef102958bea90032106) )
@@ -4346,7 +4499,7 @@ ROM_START( sws92g )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "sss_sha0.bin",  0x000000, 0x80000, CRC(b71a731a) SHA1(29eab0ad5618f54e6c790d20f7dc895afae6c709) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_256K( "sss1dat0.bin",  0x000000, CRC(db3e6aec) SHA1(928960e3dc9c8225e695d12e9b18fbb7f151c151) )
 	NAMCOS2_DATA_LOAD_O_256K( "sss1dat1.bin",  0x000000, CRC(463b5ba8) SHA1(029dce2e7ee50181392b6ef409bbd192105fb065) )
 	NAMCOS2_DATA_LOAD_E_256K( "ssg1dat2.bin",  0x080000, CRC(754128aa) SHA1(459ffb08bcd905644d6019e5b25870dcb1e2b418) )
@@ -4394,7 +4547,7 @@ ROM_START( sws93 )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "sst_sha0.bin", 0x000000, 0x80000, CRC(4f64d4bd) SHA1(0eb5311448cfd91b1e139b64b2f35b5179237e58) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_512K( "sst1dat0.bin",  0x000000, CRC(b99c9656) SHA1(ac9e6bf46204dad70caf0d75614a20af0269a07f) )
 	NAMCOS2_DATA_LOAD_O_512K( "sst1dat1.bin",  0x000000, CRC(60cf6281) SHA1(c02a5bf8f4f94cbe8b0448c9457af53cd1c043d0) )
 
@@ -4441,7 +4594,7 @@ ROM_START( suzuka8h )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "eh2-sha0.bin",  0x000000, 0x80000, CRC(7F24619C) SHA1(0D19AB621CB42C5315BE9A6B56F6711FC46FFFF7) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_256K( "eh1-d0.bin",  0x000000, CRC(B43E5DFA) SHA1(7E24EE46169532CDB5C504239F7961F8D17E86E4) )
 	NAMCOS2_DATA_LOAD_O_256K( "eh1-d1.bin",  0x000000, CRC(9825D5BF) SHA1(720F0E90C69A2E0C48889D510A15102768226A67) )
 	NAMCOS2_DATA_LOAD_O_256K( "eh1-d3.bin",  0x100000, CRC(F46D301F) SHA1(70797FD584735844539553EFCAD53E11239EC10E) )
@@ -4493,7 +4646,7 @@ ROM_START( suzuka8hj )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "eh1-sha0.bin",  0x000000, 0x80000, CRC(39585cf9) SHA1(8cc18b5745ab2cf50d4df0a17fc1a57771db28ab) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_256K( "eh1-d0.bin",  0x000000, CRC(b43e5dfa) SHA1(7e24ee46169532cdb5c504239f7961f8d17e86e4) )
 	NAMCOS2_DATA_LOAD_O_256K( "eh1-d1.bin",  0x000000, CRC(9825d5bf) SHA1(720f0e90c69a2e0c48889d510a15102768226a67) )
 	NAMCOS2_DATA_LOAD_O_256K( "eh1-d3.bin",  0x100000, CRC(f46d301f) SHA1(70797fd584735844539553efcad53e11239ec10e) )
@@ -4509,8 +4662,8 @@ ROM_END /* suzuk8hj */
 /* SUZUKA 8 HOURS 2 */
 ROM_START( suzuk8h2 )
 	ROM_REGION( 0x040000, "maincpu", 0 ) /* Master CPU */
-	ROM_LOAD16_BYTE( "ehs2-mp0b.11d",  0x000000, 0x020000, CRC(ade97f90) SHA1(8674da5b72d9c9dc09004cb5458b4e87a2b33459) )
-	ROM_LOAD16_BYTE( "ehs2-mp1b.13d",  0x000001, 0x020000, CRC(19744a66) SHA1(90a9699d988eca89633def190836bc3862b8e49e) )
+	ROM_LOAD16_BYTE( "ehs2_mp0b.11d",  0x000000, 0x020000, CRC(ade97f90) SHA1(8674da5b72d9c9dc09004cb5458b4e87a2b33459) )
+	ROM_LOAD16_BYTE( "ehs2_mp1b.13d",  0x000001, 0x020000, CRC(19744a66) SHA1(90a9699d988eca89633def190836bc3862b8e49e) )
 
 	ROM_REGION( 0x040000, "slave", 0 ) /* Slave CPU */
 	ROM_LOAD16_BYTE( "ehs1-sp0.11k",  0x000000, 0x020000, CRC(9ca967bc) SHA1(a4d19ae72d0d8e96c1fa5f7e9d8e002275e7be32) )
@@ -4522,8 +4675,8 @@ ROM_START( suzuk8h2 )
 	ROM_RELOAD(  0x010000, 0x020000 )
 
 	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
-	ROM_LOAD( "sys2c65c.bin",  0x008000, 0x008000, CRC(a5b2a4ff) SHA1(068bdfcc71a5e83706e8b23330691973c1c214dc) )
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "sys2c68.3f",  0x008000, 0x008000, BAD_DUMP CRC(a5b2a4ff) SHA1(068bdfcc71a5e83706e8b23330691973c1c214dc) )
 	/*There is no C65 on the board. There is C68 instead */
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
@@ -4552,7 +4705,7 @@ ROM_START( suzuk8h2 )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "ehs1-sha0.7n",  0x000000, 0x80000, CRC(0f0e2dbf) SHA1(a4575fbdc868ba959d23204be7d659d40d8db4c2) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_512K( "ehs1-dat0.13s",  0x000000, CRC(12a202fb) SHA1(dca1b88cb524d54a699d4f6003854cfc980e084b) )
 	NAMCOS2_DATA_LOAD_O_512K( "ehs1-dat1.13r",  0x000000, CRC(91790905) SHA1(988af294959dbb8636f808347b44897a133d3203) )
 	NAMCOS2_DATA_LOAD_E_512K( "ehs1-dat2.13p",  0x100000, CRC(087da1f3) SHA1(e9c4ba0383e883502c0f45ae6e6d5daba4eccb01) )
@@ -4565,6 +4718,66 @@ ROM_START( suzuk8h2 )
 	ROM_LOAD( "ehs1-voi1.3m",  0x000000, 0x080000, CRC(bf94eb42) SHA1(61bb36550a58ffb8ad0ab8f5b51eddd7824ae8bc) )
 	ROM_LOAD( "ehs1-voi2.3l",  0x080000, 0x080000, CRC(0e427604) SHA1(ebb15f53713c24731f6ebdc37ece88587cce5616) )
 ROM_END /* suzuk8h2 */
+
+/* SUZUKA 8 HOURS 2 Japan */
+ROM_START( suzuk8h2j )
+	ROM_REGION( 0x040000, "maincpu", 0 ) /* Master CPU */
+	ROM_LOAD16_BYTE( "ehs1_mp0b.11d",  0x000000, 0x020000, CRC(ae40d445) SHA1(a6ce8eb691d2b20a120a2c8ce04dbc925fceaad5) )
+	ROM_LOAD16_BYTE( "ehs1_mp1b.13d",  0x000001, 0x020000, CRC(9d5b0d43) SHA1(cc8d288bb91703221697484aa41417c041d6a77f) )
+
+	ROM_REGION( 0x040000, "slave", 0 ) /* Slave CPU */
+	ROM_LOAD16_BYTE( "ehs1-sp0.11k",  0x000000, 0x020000, CRC(9ca967bc) SHA1(a4d19ae72d0d8e96c1fa5f7e9d8e002275e7be32) )
+	ROM_LOAD16_BYTE( "ehs1-sp1.13k",  0x000001, 0x020000, CRC(f25bfaaa) SHA1(829936a9d19c4a8818684ce263e9ae5cbc7d5ca4) )
+
+	ROM_REGION( 0x030000, "audiocpu", 0 ) /* Sound CPU (Banked) */
+	ROM_LOAD( "ehs1-snd0.7j",  0x00c000, 0x004000, CRC(fc95993b) SHA1(e8ecd6dc37634bdd030b8cea0b69818fba5a9388) )
+	ROM_CONTINUE( 0x010000, 0x01c000 )
+	ROM_RELOAD(  0x010000, 0x020000 )
+
+	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "sys2c68.3f",  0x008000, 0x008000, BAD_DUMP CRC(a5b2a4ff) SHA1(068bdfcc71a5e83706e8b23330691973c1c214dc) )
+	/*There is no C65 on the board. There is C68 instead */
+
+	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
+	ROM_LOAD( "ehs1-obj0.3p",  0x000000, 0x80000, CRC(a0acf307) SHA1(6d79d2dd00da4f8f0462245f42a9d88b6ad632b1) )
+	ROM_LOAD( "ehs1-obj1.3w",  0x100000, 0x80000, CRC(ca780b44) SHA1(d16263851c165f5958b0a2ad1ba199058a8d56d5) )
+	ROM_LOAD( "ehs1-obj2.3t",  0x200000, 0x80000, CRC(83b45afe) SHA1(10a4b88b36f8d037cbb611cb273613b1d45e8eb5) )
+	ROM_LOAD( "ehs1-obj3.3y",  0x300000, 0x80000, CRC(360c03a8) SHA1(969b1a96833ab2db3d610a2b3793fc1e038b24d8) )
+	ROM_LOAD( "ehs1-obj4.3s",  0x080000, 0x80000, CRC(4e503ca5) SHA1(248af1cba2cad2b6e3c53c7c7673165789c5f4d5) )
+	ROM_LOAD( "ehs1-obj5.3x",  0x180000, 0x80000, CRC(5405f2d9) SHA1(c2b592abf72f4de22a3863909be579820c8fe5b1) )
+	ROM_LOAD( "ehs1-obj6.3j",  0x280000, 0x80000, CRC(f5fc8b23) SHA1(d7cd4596cd6991db72c371d835051cc8001f30b3) )
+	ROM_LOAD( "ehs1-obj7.3z",  0x380000, 0x80000, CRC(da6bf51b) SHA1(b9b49b983f76989067c4763fd88bfa11bbf5d064) )
+
+	ROM_REGION( 0x400000, "gfx2", 0 ) /* Tiles */
+	ROM_LOAD( "ehs1-chr0.11n", 0x000000, 0x80000, CRC(844efe0d) SHA1(032a2d268bbab60706d911ab42206b5329e1abba) )
+	ROM_LOAD( "ehs1-chr1.11p", 0x080000, 0x80000, CRC(e8480a6d) SHA1(247a7ab2f5270a87c6a05b12f01b884fb05dabd2) )
+	ROM_LOAD( "ehs1-chr2.11r", 0x100000, 0x80000, CRC(ace2d871) SHA1(1a10f571268d83c70fe00fad2f1ce2b48fb764b1) )
+	ROM_LOAD( "ehs1-chr3.11s", 0x180000, 0x80000, CRC(c1680818) SHA1(c8c9fd02b1155924fdc1e930fe176225a3b840a1) )
+	ROM_LOAD( "ehs1-chr4.9n", 0x200000, 0x80000, CRC(82e8c1d5) SHA1(4c6d234a875f108623638960258a0cd530cab6da) )
+	ROM_LOAD( "ehs1-chr5.9p", 0x280000, 0x80000, CRC(9448537c) SHA1(99b9215907ed8658f19bec1153dc1d48bbfd7753) )
+	ROM_LOAD( "ehs1-chr6.9r", 0x300000, 0x80000, CRC(2d1c01ad) SHA1(1ed79e22b964fe648d22e43b78c1c3b5a7d5f8c8) )
+	ROM_LOAD( "ehs1-chr7.9s", 0x380000, 0x80000, CRC(18dd8676) SHA1(59b9a07f4a980fd920a29b8a90ef54c8c3b53e97) )
+
+	ROM_REGION( 0x400000, "gfx3", ROMREGION_ERASEFF ) /* ROZ Tiles */
+	/* No ROZ hardware on PCB */
+
+	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
+	ROM_LOAD( "ehs1-sha0.7n",  0x000000, 0x80000, CRC(0f0e2dbf) SHA1(a4575fbdc868ba959d23204be7d659d40d8db4c2) )
+
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
+	NAMCOS2_DATA_LOAD_E_512K( "ehs1-dat0.13s",  0x000000, CRC(12a202fb) SHA1(dca1b88cb524d54a699d4f6003854cfc980e084b) )
+	NAMCOS2_DATA_LOAD_O_512K( "ehs1-dat1.13r",  0x000000, CRC(91790905) SHA1(988af294959dbb8636f808347b44897a133d3203) )
+	NAMCOS2_DATA_LOAD_E_512K( "ehs1-dat2.13p",  0x100000, CRC(087da1f3) SHA1(e9c4ba0383e883502c0f45ae6e6d5daba4eccb01) )
+	NAMCOS2_DATA_LOAD_O_512K( "ehs1-dat3.13n",  0x100000, CRC(85aecb3f) SHA1(00ab6104dee0cd0fbdb0235b88b41e4d26794f98) )
+
+	ROM_REGION( 0x100, "c45_road:clut", 0 ) /* prom for road colors */
+	ROM_LOAD( "ehs1-landdt.10w", 0, 0x100,             CRC(cde7e8a6) SHA1(860273daf2e649418746adf50a67ae33f9f3740c) )
+
+	ROM_REGION( 0x100000, "c140", 0 ) /* Sound voices */
+	ROM_LOAD( "ehs1-voi1.3m",  0x000000, 0x080000, CRC(bf94eb42) SHA1(61bb36550a58ffb8ad0ab8f5b51eddd7824ae8bc) )
+	ROM_LOAD( "ehs1-voi2.3l",  0x080000, 0x080000, CRC(0e427604) SHA1(ebb15f53713c24731f6ebdc37ece88587cce5616) )
+ROM_END /* suzuk8h2j */
 
 /* LEGEND OF THE VALKYRIE */
 ROM_START( valkyrie )
@@ -4612,7 +4825,7 @@ ROM_START( valkyrie )
 	ROM_REGION( 0x080000, "gfx4", 0 )    /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "wdshape.bin",  0x000000, CRC(3b5e0249) SHA1(259bbabf57a8ad739c646c56aad6d0b92e10adcd) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 )  /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 )  /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "wd1dat0.bin",  0x000000, CRC(ea209f48) SHA1(5e73a745dc2faaa4ce6c633d4072d41e9e494276) )
 	NAMCOS2_DATA_LOAD_O_128K( "wd1dat1.bin",  0x000000, CRC(04b48ada) SHA1(aa046f8856bdd5b56d481c2c12ad2808c6517a5f) )
 
@@ -4665,7 +4878,7 @@ ROM_START( kyukaidk )
 	ROM_REGION( 0x080000, "gfx4", 0 )    /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "ky1_sha.bin",  0x000000, CRC(380a20d7) SHA1(9627d2e0192779d50bfb25d5c19976275818c310) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 )  /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 )  /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "ky1_d0.bin",   0x000000, CRC(c9cf399d) SHA1(90cba42781b1e03ecc3f5b802d740ace6b88baaa) )
 	NAMCOS2_DATA_LOAD_O_128K( "ky1_d1.bin",   0x000000, CRC(6d4f21b9) SHA1(f234a785f61969be684d2a4aed59616f125d72fc) )
 	NAMCOS2_DATA_LOAD_E_128K( "ky1_d2.bin",   0x100000, CRC(eb6d19c8) SHA1(c9fdb33fe191d3c4d284db7cbb05d852551a998d) )
@@ -4715,7 +4928,7 @@ ROM_START( kyukaidko )
 	ROM_REGION( 0x080000, "gfx4", 0 )    /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "ky1_sha.bin",  0x000000, CRC(380a20d7) SHA1(9627d2e0192779d50bfb25d5c19976275818c310) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 )  /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 )  /* Shared data roms */
 	NAMCOS2_DATA_LOAD_E_128K( "ky1_d0.bin",   0x000000, CRC(c9cf399d) SHA1(90cba42781b1e03ecc3f5b802d740ace6b88baaa) )
 	NAMCOS2_DATA_LOAD_O_128K( "ky1_d1.bin",   0x000000, CRC(6d4f21b9) SHA1(f234a785f61969be684d2a4aed59616f125d72fc) )
 	NAMCOS2_DATA_LOAD_E_128K( "ky1_d2.bin",   0x100000, CRC(eb6d19c8) SHA1(c9fdb33fe191d3c4d284db7cbb05d852551a998d) )
@@ -4761,7 +4974,7 @@ ROM_START( gollygho )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	NAMCOS2_GFXROM_LOAD_128K( "gl1sha0.7n", 0x000000, CRC(8886f6f5) SHA1(3b311c5061449e1bbde1a1006fd967a6154326b8) )
 
-	ROM_REGION16_BE( 0x200000, "user1", ROMREGION_ERASEFF ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", ROMREGION_ERASEFF ) /* Shared data roms */
 	/* All DAT ROM sockets unpopulated on PCB */
 
 	ROM_REGION16_BE( 0x2000, "user2", 0 ) /* sprite zoom */
@@ -4811,7 +5024,7 @@ ROM_START( bubbletr )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Mask shape */
 	ROM_LOAD( "bt1-sha0.bin",   0x000000, 0x80000, CRC(dc4664df) SHA1(59818b14e74ee9b15a66e850658e4697d78b28d9) )
 
-	ROM_REGION16_BE( 0x200000, "user1", ROMREGION_ERASEFF ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", ROMREGION_ERASEFF ) /* Shared data roms */
 	/* All DAT ROM sockets unpopulated on PCB */
 
 	ROM_REGION16_BE( 0x2000, "user2", 0 ) /* sprite zoom */
@@ -4948,7 +5161,7 @@ ROM_START( luckywld )
 	ROM_RELOAD(  0x010000, 0x020000 )
 
 	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
 		/* MCU code only, C68PRG socket is unpopulated on real Lucky & Wild PCB */
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
@@ -4981,7 +5194,7 @@ ROM_START( luckywld )
 	ROM_REGION( 0x80000, "gfx5", 0 ) /* 16x16 shape */
 	ROM_LOAD( "lw1rzs0.20z", 0x000000, 0x80000, CRC(a1071537) SHA1(bb8a97b82066d7838471e258d1c3c716ede7572c) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	ROM_LOAD16_BYTE( "lw1dat0.13s",  0x000000, 0x80000, CRC(5d387d47) SHA1(e40ef52d1403fa630294d736f35a6924fa4e762e) )
 	ROM_LOAD16_BYTE( "lw1dat1.13p",  0x000001, 0x80000, CRC(7ba94476) SHA1(cd4a964050e706f783450ace277e67586bf69e61) )
 	ROM_LOAD16_BYTE( "lw1dat2.13r",  0x100000, 0x80000, CRC(eeba7c62) SHA1(6468518d3a5499b3f9a066488d83252cfc804d69) )
@@ -5014,7 +5227,7 @@ ROM_START( luckywldj )
 	ROM_RELOAD(  0x010000, 0x020000 )
 
 	ROM_REGION( 0x010000, "mcu", 0 ) /* I/O MCU */
-	ROM_LOAD( "sys2mcpu.bin",  0x000000, 0x002000, CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
+	ROM_LOAD( "c68.3d",  0x000000, 0x002000, BAD_DUMP CRC(a342a97e) SHA1(2c420d34dba21e409bf78ddca710fc7de65a6642) )
 		/* MCU code only, C68PRG socket is unpopulated on real Lucky & Wild PCB */
 
 	ROM_REGION( 0x400000, "gfx1", 0 ) /* Sprites */
@@ -5047,7 +5260,7 @@ ROM_START( luckywldj )
 	ROM_REGION( 0x80000, "gfx5", 0 ) /* 16x16 shape */
 	ROM_LOAD( "lw1rzs0.20z", 0x000000, 0x80000, CRC(a1071537) SHA1(bb8a97b82066d7838471e258d1c3c716ede7572c) )
 
-	ROM_REGION16_BE( 0x200000, "user1", 0 ) /* Shared data roms */
+	ROM_REGION16_BE( 0x200000, "data_rom", 0 ) /* Shared data roms */
 	ROM_LOAD16_BYTE( "lw1dat0.13s",  0x000000, 0x80000, CRC(5d387d47) SHA1(e40ef52d1403fa630294d736f35a6924fa4e762e) )
 	ROM_LOAD16_BYTE( "lw1dat1.13p",  0x000001, 0x80000, CRC(7ba94476) SHA1(cd4a964050e706f783450ace277e67586bf69e61) )
 	ROM_LOAD16_BYTE( "lw1dat2.13r",  0x100000, 0x80000, CRC(eeba7c62) SHA1(6468518d3a5499b3f9a066488d83252cfc804d69) )
@@ -5089,7 +5302,7 @@ DRIVER_INIT_MEMBER(namcos2_state,assaultp_hack)
 	//
 	// This is used in conjunction with the interleave increase in the
 	// MACHINE_DRIVER
-	machine().device("mcu")->set_clock_scale(4.0f);
+	m_mcu->set_clock_scale(4.0f);
 
 	DRIVER_INIT_CALL(assaultp);
 }
@@ -5163,7 +5376,7 @@ DRIVER_INIT_MEMBER(namcos2_state,metlhawk)
 {
 	/* unscramble sprites */
 	int i, j, k, l;
-	UINT8 *data = machine().root_device().memregion("gfx1")->base();
+	UINT8 *data = memregion("gfx1")->base();
 	for(i=0; i<0x200000; i+=32*32)
 	{
 		for(j=0; j<32*32; j+=32*4)
@@ -5296,7 +5509,7 @@ DRIVER_INIT_MEMBER(namcos2_state,bubbletr)
 
 DRIVER_INIT_MEMBER(namcos2_state,luckywld)
 {
-	UINT8 *pData = (UINT8 *)machine().root_device().memregion( "gfx5" )->base();
+	UINT8 *pData = (UINT8 *)memregion( "gfx5" )->base();
 	int i;
 	for( i=0; i<32*0x4000; i++ )
 	{ /* unscramble gfx mask */
@@ -5319,7 +5532,7 @@ DRIVER_INIT_MEMBER(namcos2_state,luckywld)
 /* from sys2c65b to sys2c65c sometime between 1988 and 1990 as mirai ninja    */
 /* and metal hawk have the B version and dragon saber has the C version       */
 
-/*    YEAR, NAME,     PARENT,   MACHINE,  INPUT,    INIT,     MONITOR, COMPANY, FULLNAME */
+/*    YEAR, NAME,     PARENT,   MACHINE,  INPUT,    STATE,        INIT,     MONITOR, COMPANY, FULLNAME */
 GAMEL(1987, finallap,  0,        finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Rev E)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
 GAMEL(1987, finallapd, finallap, finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Rev D)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
 GAMEL(1987, finallapc, finallap, finallap, finallap, namcos2_state, finallap, ROT0,   "Namco", "Final Lap (Rev C)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND, layout_finallap )
@@ -5371,8 +5584,8 @@ GAME( 1990, rthun2j,   rthun2,   default3, default, namcos2_state,  rthun2j,  RO
 GAME( 1990, sgunner,   0,        sgunner,  sgunner, namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner", 0 )
 GAME( 1990, sgunnerj,  sgunner,  sgunner,  sgunner, namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner (Japan)", 0 )
 
-GAME( 1991, sgunner2,  0,        sgunner,  sgunner, namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner 2 (US)", 0 )
-GAME( 1991, sgunner2j, sgunner2, sgunner,  sgunner, namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner 2 (Japan)", 0 )
+GAME( 1991, sgunner2,  0,        sgunner2, sgunner2,namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner 2 (US)", 0 )
+GAME( 1991, sgunner2j, sgunner2, sgunner2, sgunner2,namcos2_state,  sgunner2, ROT0,   "Namco", "Steel Gunner 2 (Japan)", 0 )
 
 GAME( 1991, cosmogng,  0,        default,  default, namcos2_state,  cosmogng, ROT90,  "Namco", "Cosmo Gang the Video (US)", 0 )
 GAME( 1991, cosmogngj, cosmogng, default,  default, namcos2_state,  cosmogng, ROT90,  "Namco", "Cosmo Gang the Video (Japan)", 0 )
@@ -5397,5 +5610,6 @@ GAME( 1992, sws92,     0,        default,  default, namcos2_state,  sws92,    RO
 GAME( 1992, sws92g,    sws92,    default,  default, namcos2_state,  sws92g,   ROT0,   "Namco", "Super World Stadium '92 Gekitouban (Japan)", 0 )
 
 GAME( 1993, suzuk8h2,  0,        luckywld, suzuka, namcos2_state,   suzuk8h2, ROT0,   "Namco", "Suzuka 8 Hours 2 (World)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1993, suzuk8h2j, suzuk8h2, luckywld, suzuka, namcos2_state,   suzuk8h2, ROT0,   "Namco", "Suzuka 8 Hours 2 (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
 GAME( 1993, sws93,     0,        default,  default, namcos2_state,  sws93,    ROT0,   "Namco", "Super World Stadium '93 (Japan)", 0 )

@@ -25,7 +25,8 @@ public:
 	mod8_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_teleprinter(*this, TELEPRINTER_TAG)
-	{ }
+	,
+		m_maincpu(*this, "maincpu") { }
 
 	required_device<teleprinter_device> m_teleprinter;
 	DECLARE_WRITE8_MEMBER(out_w);
@@ -36,6 +37,8 @@ public:
 	UINT8 m_tty_key_data;
 	int m_tty_cnt;
 	virtual void machine_reset();
+	IRQ_CALLBACK_MEMBER(mod8_irq_callback);
+	required_device<cpu_device> m_maincpu;
 };
 
 WRITE8_MEMBER( mod8_state::out_w )
@@ -82,20 +85,20 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( mod8 )
 INPUT_PORTS_END
 
-static IRQ_CALLBACK ( mod8_irq_callback )
+IRQ_CALLBACK_MEMBER(mod8_state::mod8_irq_callback)
 {
 	return 0xC0; // LAA - NOP equivalent
 }
 
 void mod8_state::machine_reset()
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(mod8_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mod8_state::mod8_irq_callback),this));
 }
 
 WRITE8_MEMBER( mod8_state::kbd_put )
 {
 	m_tty_key_data = data ^ 0xff;
-	machine().device("maincpu")->execute().set_input_line(0, HOLD_LINE);
+	m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
 static GENERIC_TELEPRINTER_INTERFACE( teleprinter_intf )

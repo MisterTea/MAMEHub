@@ -14,7 +14,8 @@ class apexc_state : public driver_device
 {
 public:
 	apexc_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu") { }
 
 	UINT32 m_panel_data_reg;    /* value of a data register on the control panel which can
                                 be edited - the existence of this register is a personnal
@@ -35,16 +36,18 @@ public:
 	INTERRUPT_GEN_MEMBER(apexc_interrupt);
 	DECLARE_READ8_MEMBER(tape_read);
 	DECLARE_WRITE8_MEMBER(tape_write);
+	void apexc_draw_led(bitmap_ind16 &bitmap, int x, int y, int state);
+	void apexc_draw_char(bitmap_ind16 &bitmap, char character, int x, int y, int color);
+	void apexc_draw_string(bitmap_ind16 &bitmap, const char *buf, int x, int y, int color);
+	void apexc_teletyper_init();
+	void apexc_teletyper_linefeed();
+	void apexc_teletyper_putchar(int character);
+	required_device<cpu_device> m_maincpu;
 };
-
-
-static void apexc_teletyper_init(running_machine &machine);
-static void apexc_teletyper_putchar(running_machine &machine, int character);
-
 
 void apexc_state::machine_start()
 {
-	apexc_teletyper_init(machine());
+	apexc_teletyper_init();
 }
 
 
@@ -287,7 +290,7 @@ WRITE8_MEMBER(apexc_state::tape_write)
 	if (image->exists())
 		image->fwrite(& data5, 1);
 
-	apexc_teletyper_putchar(machine(), data & 0x1f);    /* display on screen */
+	apexc_teletyper_putchar(data & 0x1f);    /* display on screen */
 }
 
 /*
@@ -402,7 +405,7 @@ INPUT_PORTS_END
 */
 INTERRUPT_GEN_MEMBER(apexc_state::apexc_interrupt)
 {
-	address_space& space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& space = m_maincpu->space(AS_PROGRAM);
 	UINT32 edit_keys;
 	int control_keys;
 
@@ -410,7 +413,7 @@ INTERRUPT_GEN_MEMBER(apexc_state::apexc_interrupt)
 
 
 	/* read new state of edit keys */
-	edit_keys = machine().root_device().ioport("data")->read();
+	edit_keys = ioport("data")->read();
 
 	/* toggle data reg according to transitions */
 	m_panel_data_reg ^= edit_keys & (~m_old_edit_keys);
@@ -567,7 +570,7 @@ void apexc_state::video_start()
 }
 
 /* draw a small 8*8 LED (well, there were no LEDs at the time, so let's call this a lamp ;-) ) */
-static void apexc_draw_led(bitmap_ind16 &bitmap, int x, int y, int state)
+void apexc_state::apexc_draw_led(bitmap_ind16 &bitmap, int x, int y, int state)
 {
 	int xx, yy;
 
@@ -577,18 +580,18 @@ static void apexc_draw_led(bitmap_ind16 &bitmap, int x, int y, int state)
 }
 
 /* write a single char on screen */
-static void apexc_draw_char(running_machine &machine, bitmap_ind16 &bitmap, char character, int x, int y, int color)
+void apexc_state::apexc_draw_char(bitmap_ind16 &bitmap, char character, int x, int y, int color)
 {
-	drawgfx_transpen(bitmap, bitmap.cliprect(), machine.gfx[0], character-32, color, 0, 0,
+	drawgfx_transpen(bitmap, bitmap.cliprect(), machine().gfx[0], character-32, color, 0, 0,
 				x+1, y, 0);
 }
 
 /* write a string on screen */
-static void apexc_draw_string(running_machine &machine, bitmap_ind16 &bitmap, const char *buf, int x, int y, int color)
+void apexc_state::apexc_draw_string(bitmap_ind16 &bitmap, const char *buf, int x, int y, int color)
 {
 	while (* buf)
 	{
-		apexc_draw_char(machine, bitmap, *buf, x, y, color);
+		apexc_draw_char(bitmap, *buf, x, y, color);
 
 		x += 8;
 		buf++;
@@ -602,55 +605,52 @@ UINT32 apexc_state::screen_update_apexc(screen_device &screen, bitmap_ind16 &bit
 	char the_char;
 
 	bitmap.fill(0, /*machine().visible_area*/panel_window);
-	apexc_draw_string(machine(), bitmap, "power", 8, 0, 0);
-	apexc_draw_string(machine(), bitmap, "running", 8, 8, 0);
-	apexc_draw_string(machine(), bitmap, "data :", 0, 24, 0);
+	apexc_draw_string(bitmap, "power", 8, 0, 0);
+	apexc_draw_string(bitmap, "running", 8, 8, 0);
+	apexc_draw_string(bitmap, "data :", 0, 24, 0);
 
 	copybitmap(bitmap, *m_bitmap, 0, 0, 0, 0, teletyper_window);
 
 
 	apexc_draw_led(bitmap, 0, 0, 1);
 
-	apexc_draw_led(bitmap, 0, 8, machine().device("maincpu")->state().state_int(APEXC_STATE));
+	apexc_draw_led(bitmap, 0, 8, m_maincpu->state_int(APEXC_STATE));
 
 	for (i=0; i<32; i++)
 	{
 		apexc_draw_led(bitmap, i*8, 32, (m_panel_data_reg << i) & 0x80000000UL);
 		the_char = '0' + ((i + 1) % 10);
-		apexc_draw_char(machine(), bitmap, the_char, i*8, 40, 0);
+		apexc_draw_char(bitmap, the_char, i*8, 40, 0);
 		if (((i + 1) % 10) == 0)
 		{
 			the_char = '0' + ((i + 1) / 10);
-			apexc_draw_char(machine(), bitmap, the_char, i*8, 48, 0);
+			apexc_draw_char(bitmap, the_char, i*8, 48, 0);
 		}
 	}
 	return 0;
 }
 
-static void apexc_teletyper_init(running_machine &machine)
+void apexc_state::apexc_teletyper_init()
 {
-	apexc_state *state = machine.driver_data<apexc_state>();
-
-	state->m_letters = FALSE;
-	state->m_pos = 0;
+	m_letters = FALSE;
+	m_pos = 0;
 }
 
-static void apexc_teletyper_linefeed(running_machine &machine)
+void apexc_state::apexc_teletyper_linefeed()
 {
-	apexc_state *state = machine.driver_data<apexc_state>();
 	UINT8 buf[teletyper_window_width];
 	int y;
 
 	for (y=teletyper_window_offset_y; y<teletyper_window_offset_y+teletyper_window_height-teletyper_scroll_step; y++)
 	{
-		extract_scanline8(*state->m_bitmap, teletyper_window_offset_x, y+teletyper_scroll_step, teletyper_window_width, buf);
-		draw_scanline8(*state->m_bitmap, teletyper_window_offset_x, y, teletyper_window_width, buf, machine.pens);
+		extract_scanline8(*m_bitmap, teletyper_window_offset_x, y+teletyper_scroll_step, teletyper_window_width, buf);
+		draw_scanline8(*m_bitmap, teletyper_window_offset_x, y, teletyper_window_width, buf, machine().pens);
 	}
 
-	state->m_bitmap->fill(0, teletyper_scroll_clear_window);
+	m_bitmap->fill(0, teletyper_scroll_clear_window);
 }
 
-static void apexc_teletyper_putchar(running_machine &machine, int character)
+void apexc_state::apexc_teletyper_putchar(int character)
 {
 	static const char ascii_table[2][32] =
 	{
@@ -676,7 +676,6 @@ static void apexc_teletyper_putchar(running_machine &machine, int character)
 		}
 	};
 
-	apexc_state *state = machine.driver_data<apexc_state>();
 	char buffer[2] = "x";
 
 	character &= 0x1f;
@@ -685,38 +684,38 @@ static void apexc_teletyper_putchar(running_machine &machine, int character)
 	{
 	case 19:
 		/* Line Space */
-		apexc_teletyper_linefeed(machine);
+		apexc_teletyper_linefeed();
 		break;
 
 	case 24:
 		/* Carriage Return */
-		state->m_pos = 0;
+		m_pos = 0;
 		break;
 
 	case 27:
 		/* Figures */
-		state->m_letters = FALSE;
+		m_letters = FALSE;
 		break;
 
 	case 31:
 		/* Letters */
-		state->m_letters = TRUE;
+		m_letters = TRUE;
 		break;
 
 	default:
 		/* Any printable character... */
 
-		if (state->m_pos >= 32)
+		if (m_pos >= 32)
 		{   /* if past right border, wrap around */
-			apexc_teletyper_linefeed(machine);  /* next line */
-			state->m_pos = 0;                   /* return to start of line */
+			apexc_teletyper_linefeed();  /* next line */
+			m_pos = 0;                   /* return to start of line */
 		}
 
 		/* print character */
-		buffer[0] = ascii_table[state->m_letters][character];   /* lookup ASCII equivalent in table */
+		buffer[0] = ascii_table[m_letters][character];   /* lookup ASCII equivalent in table */
 		buffer[1] = '\0';                               /* terminate string */
-		apexc_draw_string(machine, *state->m_bitmap, buffer, 8*state->m_pos, 176, 0);   /* print char */
-		state->m_pos++;                                         /* step carriage forward */
+		apexc_draw_string(*m_bitmap, buffer, 8*m_pos, 176, 0);   /* print char */
+		m_pos++;                                         /* step carriage forward */
 
 		break;
 	}
@@ -827,7 +826,7 @@ DRIVER_INIT_MEMBER(apexc_state,apexc)
 		0x00
 	};
 
-	dst = machine().root_device().memregion("chargen")->base();
+	dst = memregion("chargen")->base();
 
 	memcpy(dst, fontdata6x8, apexcfontdata_size);
 }

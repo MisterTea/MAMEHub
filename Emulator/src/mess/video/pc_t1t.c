@@ -29,8 +29,10 @@ static WRITE_LINE_DEVICE_HANDLER( t1000_vsync_changed );
 static WRITE_LINE_DEVICE_HANDLER( pcjr_vsync_changed );
 
 
-static const mc6845_interface mc6845_t1000_intf = {
+static MC6845_INTERFACE( mc6845_t1000_intf )
+{
 	T1000_SCREEN_NAME,      /* screen number */
+	false,                  /* show border area */
 	8,                      /* numbers of pixels per video memory address */
 	NULL,                   /* begin_update */
 	t1000_update_row,       /* update_row */
@@ -57,8 +59,10 @@ MACHINE_CONFIG_FRAGMENT( pcvideo_t1000 )
 MACHINE_CONFIG_END
 
 
-static const mc6845_interface mc6845_pcjr_intf = {
+static MC6845_INTERFACE( mc6845_pcjr_intf )
+{
 	T1000_SCREEN_NAME,      /* screen number */
+	false,                  /* show border area */
 	8,                      /* numbers of pixels per video memory address */
 	NULL,                   /* begin_update */
 	t1000_update_row,       /* update_row */
@@ -139,8 +143,9 @@ static struct
 	UINT8 *displayram;
 	UINT8 *t1_displayram;
 
-	UINT8 *chr_gen;
-	UINT8   chr_size;
+	UINT8  *chr_gen;
+	UINT8  chr_size;
+	UINT16 ra_offset;
 
 	UINT8   address_data_ff;
 
@@ -164,7 +169,7 @@ static MC6845_UPDATE_ROW( t1000_text_inten_update_row )
 		UINT16 offset = ( ( ma + i ) << 1 ) & 0x3fff;
 		UINT8 chr = pcjr.displayram[ offset ];
 		UINT8 attr = pcjr.displayram[ offset +1 ];
-		UINT8 data = pcjr.chr_gen[ chr * pcjr.chr_size + ra ];
+		UINT8 data = pcjr.chr_gen[ chr * pcjr.chr_size + ra * pcjr.ra_offset ];
 		UINT16 fg = pcjr.palette_base + ( attr & 0x0F );
 		UINT16 bg = pcjr.palette_base + ( ( attr >> 4 ) & 0x07 );
 
@@ -196,7 +201,7 @@ static MC6845_UPDATE_ROW( t1000_text_blink_update_row )
 		UINT16 offset = ( ( ma + i ) << 1 ) & 0x3fff;
 		UINT8 chr = pcjr.displayram[ offset ];
 		UINT8 attr = pcjr.displayram[ offset +1 ];
-		UINT8 data = pcjr.chr_gen[ chr * pcjr.chr_size + ra ];
+		UINT8 data = pcjr.chr_gen[ chr * pcjr.chr_size + ra * pcjr.ra_offset ];
 		UINT16 fg = pcjr.palette_base + ( attr & 0x0F );
 		UINT16 bg = pcjr.palette_base + ( ( attr >> 4 ) & 0x07 );
 
@@ -987,7 +992,7 @@ static WRITE_LINE_DEVICE_HANDLER( pcjr_vsync_changed )
 	{
 		pcjr.pc_framecnt++;
 	}
-	pic8259_ir5_w(device->machine().device("pic8259"), state);
+	device->machine().device<pic8259_device>("pic8259")->ir5_w(state);
 }
 
 static VIDEO_START( pc_t1t )
@@ -999,7 +1004,8 @@ static VIDEO_START( pc_t1t )
 	pcjr.chr_gen = machine.root_device().memregion("gfx1")->base();
 	pcjr.update_row = NULL;
 	pcjr.bank = 0;
-	pcjr.chr_size = 16;
+	pcjr.chr_size = 1;
+	pcjr.ra_offset = 256;
 
 	buswidth = machine.firstcpu->space_config(AS_PROGRAM)->m_databus_width;
 	switch(buswidth)
@@ -1031,6 +1037,7 @@ static VIDEO_START( pc_pcjr )
 	pcjr.bank = 0;
 	pcjr.mode_control = 0x08;
 	pcjr.chr_size = 8;
+	pcjr.ra_offset = 1;
 	if(!strncmp(machine.system().name, "ibmpcjx", 7))
 		pcjr.jxkanji = machine.root_device().memregion("kanji")->base();
 	else

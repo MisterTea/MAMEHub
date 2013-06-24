@@ -521,7 +521,7 @@ VIDEO_START( ygv608 )
 	ygv608.screen_resize = 1;
 	ygv608.tilemap_resize = 1;
 	namcond1_gfxbank = 0;
-	state_save_register_global(machine, namcond1_gfxbank);
+	machine.save().save_item(NAME(namcond1_gfxbank));
 
 	/* create tilemaps of all sizes and combinations */
 	tilemap_A_cache_8[0] = tilemap_create(machine, get_tile_info_A_8, get_tile_offset,  8,8, 32,32);
@@ -591,7 +591,6 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 	}
 
 	switch( size ) {
-
 	case SZ_8X8 :
 		code = ( (int)ygv608.regs.s.sba << 8 ) | (int)sa->sn;
 		if (spf != 0)
@@ -1320,7 +1319,6 @@ static void HandleRomTransfers(running_machine &machine)
 
 	/* scroll table */
 	if( ygv608.ports.s.tl ) {
-
 	int dest = (int)ygv608.regs.s.sca;
 	if( ygv608.regs.s.p2_b_a )
 		dest += 0x100;
@@ -1337,7 +1335,6 @@ static void HandleRomTransfers(running_machine &machine)
 
 	/* sprite attribute table */
 	if( ygv608.ports.s.ts ) {
-
 	int dest = (int)ygv608.regs.s.saa;
 
 	/* fudge a transfer for now... */
@@ -1379,7 +1376,6 @@ void nvsram( offs_t offset, UINT16 data )
 static void SetPreShortcuts( int reg, int data )
 {
 	switch( reg ) {
-
 		case 7 :
 			if( ( ( data >> MD_SHIFT ) & MD_MASK ) != (ygv608.regs.s.r7 & r7_md))
 				ygv608.tilemap_resize = 1;

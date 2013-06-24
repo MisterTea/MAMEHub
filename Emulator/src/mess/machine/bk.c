@@ -23,7 +23,7 @@ TIMER_CALLBACK_MEMBER(bk_state::keyboard_callback)
 
 	for(i = 1; i < 12; i++)
 	{
-		code =  machine().root_device().ioport(keynames[i-1])->read();
+		code =  ioport(keynames[i-1])->read();
 		if (code != 0)
 		{
 			for(j = 0; j < 8; j++)
@@ -34,7 +34,7 @@ TIMER_CALLBACK_MEMBER(bk_state::keyboard_callback)
 					break;
 				}
 			}
-			if ((machine().root_device().ioport("LINE0")->read() & 4) == 4)
+			if ((ioport("LINE0")->read() & 4) == 4)
 			{
 				if (i==6 || i==7)
 				{
@@ -42,7 +42,7 @@ TIMER_CALLBACK_MEMBER(bk_state::keyboard_callback)
 				}
 
 			}
-			if ((machine().root_device().ioport("LINE0")->read() & 4) == 4)
+			if ((ioport("LINE0")->read() & 4) == 4)
 			{
 				if (i>=8 && i<=11)
 				{
@@ -50,7 +50,7 @@ TIMER_CALLBACK_MEMBER(bk_state::keyboard_callback)
 				}
 			}
 			m_key_pressed = 0x40;
-			if ((machine().root_device().ioport("LINE0")->read() & 2) == 0)
+			if ((ioport("LINE0")->read() & 2) == 0)
 			{
 				m_key_irq_vector = 0x30;
 			}
@@ -58,7 +58,7 @@ TIMER_CALLBACK_MEMBER(bk_state::keyboard_callback)
 			{
 				m_key_irq_vector = 0xBC;
 			}
-			machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+			m_maincpu->set_input_line(0, ASSERT_LINE);
 			break;
 		}
 	}
@@ -70,16 +70,15 @@ void bk_state::machine_start()
 	machine().scheduler().timer_pulse(attotime::from_hz(2400), timer_expired_delegate(FUNC(bk_state::keyboard_callback),this));
 }
 
-static IRQ_CALLBACK(bk0010_irq_callback)
+IRQ_CALLBACK_MEMBER(bk_state::bk0010_irq_callback)
 {
-	bk_state *state = device->machine().driver_data<bk_state>();
-	device->execute().set_input_line(0, CLEAR_LINE);
-	return state->m_key_irq_vector;
+	device.execute().set_input_line(0, CLEAR_LINE);
+	return m_key_irq_vector;
 }
 
 void bk_state::machine_reset()
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(bk0010_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(bk_state::bk0010_irq_callback),this));
 
 	m_kbd_state = 0;
 	m_scrool = 01330;
@@ -102,7 +101,7 @@ READ16_MEMBER(bk_state::bk_vid_scrool_r)
 
 READ16_MEMBER(bk_state::bk_key_press_r)
 {
-	double level = (machine().device<cassette_image_device>(CASSETTE_TAG)->input());
+	double level = m_cassette->input();
 	UINT16 cas;
 	if (level < 0)
 	{

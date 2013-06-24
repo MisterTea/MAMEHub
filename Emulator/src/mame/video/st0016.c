@@ -74,7 +74,6 @@ READ8_MEMBER(st0016_state::st0016_sprite_ram_r)
 
 WRITE8_MEMBER(st0016_state::st0016_sprite_ram_w)
 {
-
 	st0016_spriteram[ST0016_SPR_BANK_SIZE*st0016_spr_bank+offset]=data;
 }
 
@@ -186,7 +185,7 @@ WRITE8_MEMBER(st0016_state::st0016_vregs_w)
 		UINT32 srcadr=(st0016_vregs[0xa0]|(st0016_vregs[0xa1]<<8)|(st0016_vregs[0xa2]<<16))<<1;
 		UINT32 dstadr=(st0016_vregs[0xa3]|(st0016_vregs[0xa4]<<8)|(st0016_vregs[0xa5]<<16))<<1;
 		UINT32 length=((st0016_vregs[0xa6]|(st0016_vregs[0xa7]<<8)|((st0016_vregs[0xa8]&0x1f)<<16))+1)<<1;
-		UINT32 srclen = (machine().root_device().memregion("maincpu")->bytes());
+		UINT32 srclen = (memregion("maincpu")->bytes());
 		UINT8 *mem = memregion("maincpu")->base();
 
 		srcadr += macs_cart_slot*0x400000;
@@ -212,7 +211,7 @@ WRITE8_MEMBER(st0016_state::st0016_vregs_w)
 	}
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void st0016_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	/*
 	object ram :
@@ -257,7 +256,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 	*/
 
-	gfx_element *gfx = machine.gfx[st0016_ramgfx];
+	gfx_element *gfx = machine().gfx[st0016_ramgfx];
 	int i,j,lx,ly,x,y,code,offset,length,sx,sy,color,flipx,flipy,scrollx,scrolly/*,plx,ply*/;
 
 
@@ -419,17 +418,17 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 }
 
 
-static void st0016_save_init(running_machine &machine)
+void st0016_state::st0016_save_init()
 {
-	state_save_register_global(machine, st0016_spr_bank);
-	state_save_register_global(machine, st0016_spr2_bank);
-	state_save_register_global(machine, st0016_pal_bank);
-	state_save_register_global(machine, st0016_char_bank);
-	//state_save_register_global(machine, st0016_rom_bank);
-	state_save_register_global_array(machine, st0016_vregs);
-	state_save_register_global_pointer(machine, st0016_charram, ST0016_MAX_CHAR_BANK*ST0016_CHAR_BANK_SIZE);
-	state_save_register_global_pointer(machine, st0016_paletteram, ST0016_MAX_PAL_BANK*ST0016_PAL_BANK_SIZE);
-	state_save_register_global_pointer(machine, st0016_spriteram, ST0016_MAX_SPR_BANK*ST0016_SPR_BANK_SIZE);
+	save_item(NAME(st0016_spr_bank));
+	save_item(NAME(st0016_spr2_bank));
+	save_item(NAME(st0016_pal_bank));
+	save_item(NAME(st0016_char_bank));
+	//save_item(NAME(st0016_rom_bank));
+	save_item(NAME(st0016_vregs));
+	save_pointer(NAME(st0016_charram), ST0016_MAX_CHAR_BANK*ST0016_CHAR_BANK_SIZE);
+	save_pointer(NAME(st0016_paletteram), ST0016_MAX_PAL_BANK*ST0016_PAL_BANK_SIZE);
+	save_pointer(NAME(st0016_spriteram), ST0016_MAX_SPR_BANK*ST0016_SPR_BANK_SIZE);
 }
 
 
@@ -484,13 +483,13 @@ VIDEO_START_MEMBER(st0016_state,st0016)
 
 	}
 
-	st0016_save_init(machine());
+	st0016_save_init();
 }
 
 
-static void draw_bgmap(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect, int priority)
+void st0016_state::draw_bgmap(bitmap_ind16 &bitmap,const rectangle &cliprect, int priority)
 {
-	gfx_element *gfx = machine.gfx[st0016_ramgfx];
+	gfx_element *gfx = machine().gfx[st0016_ramgfx];
 	int j;
 	//for(j=0x40-8;j>=0;j-=8)
 	for(j=0;j<0x40;j+=8)
@@ -548,12 +547,10 @@ static void draw_bgmap(running_machine &machine, bitmap_ind16 &bitmap,const rect
 
 									if (cliprect.contains(drawxpos, drawypos))
 									{
-
 										if(st0016_vregs[j+7]==0x12)
 											destline[drawxpos] = (destline[drawxpos] | (pixdata<<4))&0x3ff;
 										else
 										{
-
 											if(ISMACS2)
 											{
 												if(pixdata)// || destline[drawxpos]==UNUSED_PEN)
@@ -586,14 +583,13 @@ static void draw_bgmap(running_machine &machine, bitmap_ind16 &bitmap,const rect
 
 void st0016_state::st0016_draw_screen(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	draw_bgmap(machine(), bitmap,cliprect,0);
-	draw_sprites(machine(), bitmap,cliprect);
-	draw_bgmap(machine(), bitmap,cliprect,1);
+	draw_bgmap(bitmap,cliprect,0);
+	draw_sprites(bitmap,cliprect);
+	draw_bgmap(bitmap,cliprect,1);
 }
 
 UINT32 st0016_state::screen_update_st0016(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 #ifdef MAME_DEBUG
 	if(machine().input().code_pressed_once(KEYCODE_Z))
 	{

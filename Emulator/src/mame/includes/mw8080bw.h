@@ -4,6 +4,7 @@
 
 ****************************************************************************/
 
+#include "machine/mb14241.h"
 #include "sound/discrete.h"
 #include "sound/sn76477.h"
 #include "sound/samples.h"
@@ -37,13 +38,18 @@ public:
 	mw8080bw_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
+		m_mb14241(*this,"mb14241"),
 		m_main_ram(*this, "main_ram"),
 		m_colorram(*this, "colorram"),
-		m_discrete(*this, "discrete")
+		m_discrete(*this, "discrete"),
+		m_samples(*this, "samples"),
+		m_samples1(*this, "samples1"),
+		m_samples2(*this, "samples2")
 	{ }
 
 	/* device/memory pointers */
 	required_device<cpu_device> m_maincpu;
+	optional_device<mb14241_device> m_mb14241;
 	required_shared_ptr<UINT8> m_main_ram;
 	optional_shared_ptr<UINT8> m_colorram;
 	optional_device<discrete_device> m_discrete;
@@ -72,10 +78,9 @@ public:
 	emu_timer   *m_interrupt_timer;
 
 	/* other devices */
-	device_t *m_mb14241;
-	samples_device *m_samples;
-	samples_device *m_samples1;
-	samples_device *m_samples2;
+	optional_device<samples_device> m_samples;
+	optional_device<samples_device> m_samples1;
+	optional_device<samples_device> m_samples2;
 	device_t *m_sn1;
 	device_t *m_sn2;
 	device_t *m_sn;
@@ -173,6 +178,17 @@ public:
 	DECLARE_WRITE8_MEMBER(invad2ct_audio_2_w);
 	DECLARE_WRITE8_MEMBER(invad2ct_audio_3_w);
 	DECLARE_WRITE8_MEMBER(invad2ct_audio_4_w);
+	void maze_update_discrete();
+	UINT8 vpos_to_vysnc_chain_counter( int vpos );
+	int vysnc_chain_counter_to_vpos( UINT8 counter, int vblank );
+	void mw8080bw_create_interrupt_timer(  );
+	void mw8080bw_start_interrupt_timer(  );
+	UINT8 tornbase_get_cabinet_type();
+	UINT8 spcenctr_get_trench_width();
+	UINT8 spcenctr_get_trench_center();
+	UINT8 spcenctr_get_trench_slope(UINT8 addr );
+	int invaders_is_cabinet_cocktail();
+	UINT32 invad2ct_coin_input_r(void *param);
 };
 
 

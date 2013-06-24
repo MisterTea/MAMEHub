@@ -23,11 +23,10 @@ public:
 	virtual void    reset_vdp(int state) =0;
 
 protected:
-	address_space   *m_space;
 	tms9928a_device *m_tms9928a;
 
 	/* Constructor */
-	ti_video_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	ti_video_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	virtual void device_start(void);
 	virtual void device_reset(void);
 	virtual DECLARE_READ8Z_MEMBER(readz) { };
@@ -62,7 +61,7 @@ public:
 	void    reset_vdp(int state) { m_v9938->reset_line(state); }
 
 protected:
-	void            device_start(void);
+	virtual void    device_start(void);
 	v9938_device    *m_v9938;
 };
 
@@ -89,7 +88,7 @@ class ti_sound_system_device : public bus8z_device
 {
 public:
 	ti_sound_system_device(const machine_config &mconfig, device_type type, const char *tag, const char *name, device_t *owner, UINT32 clock)
-	: bus8z_device(mconfig, type, name, tag, owner, clock) { };
+	: bus8z_device(mconfig, type, name, tag, owner, clock, "ti99_ss", __FILE__) { };
 
 	// Cannot read from sound; just ignore silently
 	DECLARE_READ8Z_MEMBER(readz) { };
@@ -97,7 +96,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( sound_ready );   // connect to console READY
 
 protected:
-	void device_start(void);
+	virtual void device_start(void);
 	virtual machine_config_constructor device_mconfig_additions() const =0;
 
 private:
@@ -115,7 +114,7 @@ public:
 	: ti_sound_system_device(mconfig, TISOUND_94624, tag, "Onboard sound (SN94624)", owner, clock) { }
 
 protected:
-	machine_config_constructor device_mconfig_additions() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 /*
@@ -128,7 +127,7 @@ public:
 	: ti_sound_system_device(mconfig, TISOUND_76496, tag, "Onboard sound (SN76496)", owner, clock) { }
 
 protected:
-	machine_config_constructor device_mconfig_additions() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 
@@ -158,10 +157,10 @@ protected:
 	MCFG_TMS9928A_SCREEN_ADD_PAL( SCREEN_TAG )                              \
 	MCFG_SCREEN_UPDATE_DEVICE( VDP_TAG, tms9928a_device, screen_update )
 
-#define MCFG_TI_V9938_ADD(_tag, _rate, _screen, _blank, _x, _y, _devtag, _class, _int)      \
+#define MCFG_TI_V9938_ADD(_tag, _rate, _screen, _blank, _x, _y, _class, _int)      \
 	MCFG_DEVICE_ADD(_tag, V9938VIDEO, 0)                                        \
 	MCFG_V9938_ADD(VDP_TAG, _screen, 0x20000)                           \
-	MCFG_V99X8_INTERRUPT_CALLBACK_DEVICE(_devtag, _class, _int)         \
+	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(_class, _int))         \
 	MCFG_SCREEN_ADD(_screen, RASTER)                                        \
 	MCFG_SCREEN_REFRESH_RATE(_rate)                                         \
 	MCFG_SCREEN_UPDATE_DEVICE(VDP_TAG, v9938_device, screen_update) \

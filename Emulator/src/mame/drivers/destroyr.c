@@ -18,11 +18,18 @@ TODO:
 class destroyr_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_DESTROYR_DIAL,
+		TIMER_DESTROYR_FRAME
+	};
+
 	destroyr_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_alpha_num_ram(*this, "alpha_nuram"),
 		m_major_obj_ram(*this, "major_obj_ram"),
-		m_minor_obj_ram(*this, "minor_obj_ram"){ }
+		m_minor_obj_ram(*this, "minor_obj_ram"),
+		m_maincpu(*this, "maincpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_alpha_num_ram;
@@ -41,7 +48,7 @@ public:
 	int            m_noise;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_WRITE8_MEMBER(destroyr_misc_w);
 	DECLARE_WRITE8_MEMBER(destroyr_cursor_load_w);
 	DECLARE_WRITE8_MEMBER(destroyr_interrupt_ack_w);
@@ -54,6 +61,9 @@ public:
 	UINT32 screen_update_destroyr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(destroyr_dial_callback);
 	TIMER_CALLBACK_MEMBER(destroyr_frame_callback);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -123,6 +133,23 @@ UINT32 destroyr_state::screen_update_destroyr(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
+
+void destroyr_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_DESTROYR_DIAL:
+		destroyr_dial_callback(ptr, param);
+		break;
+	case TIMER_DESTROYR_FRAME:
+		destroyr_frame_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in destroyr_state::device_timer");
+	}
+}
+
+
 TIMER_CALLBACK_MEMBER(destroyr_state::destroyr_dial_callback)
 {
 	int dial = param;
@@ -149,15 +176,14 @@ TIMER_CALLBACK_MEMBER(destroyr_state::destroyr_frame_callback)
 	m_potsense[1] = 0;
 
 	/* PCB supports two dials, but cab has only got one */
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(ioport("PADDLE")->read()), timer_expired_delegate(FUNC(destroyr_state::destroyr_dial_callback),this));
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(0), timer_expired_delegate(FUNC(destroyr_state::destroyr_frame_callback),this));
+	timer_set(machine().primary_screen->time_until_pos(ioport("PADDLE")->read()), TIMER_DESTROYR_DIAL);
+	timer_set(machine().primary_screen->time_until_pos(0), TIMER_DESTROYR_FRAME);
 }
 
 
 void destroyr_state::machine_reset()
 {
-
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(0), timer_expired_delegate(FUNC(destroyr_state::destroyr_frame_callback),this));
+	timer_set(machine().primary_screen->time_until_pos(0), TIMER_DESTROYR_FRAME);
 
 	m_cursor = 0;
 	m_wavemod = 0;
@@ -173,7 +199,6 @@ void destroyr_state::machine_reset()
 
 WRITE8_MEMBER(destroyr_state::destroyr_misc_w)
 {
-
 	/* bits 0 to 2 connect to the sound circuits */
 	m_attract = data & 0x01;
 	m_noise = data & 0x02;
@@ -236,7 +261,6 @@ WRITE8_MEMBER(destroyr_state::destroyr_output_w)
 
 READ8_MEMBER(destroyr_state::destroyr_input_r)
 {
-
 	if (offset & 1)
 	{
 		return ioport("IN1")->read();
@@ -435,9 +459,6 @@ void destroyr_state::palette_init()
 
 void destroyr_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_cursor));
 	save_item(NAME(m_wavemod));
 	save_item(NAME(m_attract));

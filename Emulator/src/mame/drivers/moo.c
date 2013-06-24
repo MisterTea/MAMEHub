@@ -91,21 +91,19 @@ WRITE16_MEMBER(moo_state::control2_w)
 }
 
 
-static void moo_objdma( running_machine &machine, int type )
+void moo_state::moo_objdma()
 {
-	moo_state *state = machine.driver_data<moo_state>();
 	int num_inactive;
-	UINT16 *src, *dst, zmask;
-	int counter = k053247_get_dy(state->m_k053246);
+	UINT16 *src, *dst;
+	int counter = k053247_get_dy(m_k053246);
 
-	k053247_get_ram(state->m_k053246, &dst);
-	src = state->m_spriteram;
+	k053247_get_ram(m_k053246, &dst);
+	src = m_spriteram;
 	num_inactive = counter = 256;
 
-	zmask = (type) ? 0x00ff : 0xffff;
-
-	do {
-		if ((*src & 0x8000) && (*src & zmask))
+	do
+	{
+		if ((*src & 0x8000) && (*src & m_zmask))
 		{
 			memcpy(dst, src, 0x10);
 			dst += 8;
@@ -115,7 +113,15 @@ static void moo_objdma( running_machine &machine, int type )
 	}
 	while (--counter);
 
-	if (num_inactive) do { *dst = 0; dst += 8; } while (--num_inactive);
+	if (num_inactive)
+	{
+		do
+		{
+			*dst = 0;
+			dst += 8;
+		}
+		while (--num_inactive);
+	}
 }
 
 TIMER_CALLBACK_MEMBER(moo_state::dmaend_callback)
@@ -128,7 +134,7 @@ INTERRUPT_GEN_MEMBER(moo_state::moo_interrupt)
 {
 	if (k053246_is_irq_enabled(m_k053246))
 	{
-		moo_objdma(machine(), m_game_type);
+		moo_objdma();
 
 		// schedule DMA end interrupt (delay shortened to catch up with V-blank)
 		m_dmaend_timer->adjust(attotime::from_usec(MOO_DMADELAY));
@@ -141,7 +147,7 @@ INTERRUPT_GEN_MEMBER(moo_state::moo_interrupt)
 
 INTERRUPT_GEN_MEMBER(moo_state::moobl_interrupt)
 {
-	moo_objdma(machine(), m_game_type);
+	moo_objdma();
 
 	// schedule DMA end interrupt (delay shortened to catch up with V-blank)
 	m_dmaend_timer->adjust(attotime::from_usec(MOO_DMADELAY));
@@ -167,7 +173,7 @@ WRITE16_MEMBER(moo_state::sound_cmd2_w)
 
 WRITE16_MEMBER(moo_state::sound_irq_w)
 {
-	m_audiocpu->set_input_line(0, HOLD_LINE);
+	m_soundcpu->set_input_line(0, HOLD_LINE);
 }
 
 READ16_MEMBER(moo_state::sound_status_r)
@@ -177,7 +183,7 @@ READ16_MEMBER(moo_state::sound_status_r)
 
 WRITE8_MEMBER(moo_state::sound_bankswitch_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("soundcpu")->base() + 0x10000 + (data&0xf)*0x4000);
+	membank("bank1")->set_base(memregion("soundcpu")->base() + 0x10000 + (data&0xf)*0x4000);
 }
 
 
@@ -187,7 +193,6 @@ WRITE8_MEMBER(moo_state::sound_bankswitch_w)
 /* of RAM, but they put 0x10000 there. The CPU can access them all. */
 READ16_MEMBER(moo_state::K053247_scattered_word_r)
 {
-
 	if (offset & 0x0078)
 		return m_spriteram[offset];
 	else
@@ -199,7 +204,6 @@ READ16_MEMBER(moo_state::K053247_scattered_word_r)
 
 WRITE16_MEMBER(moo_state::K053247_scattered_word_w)
 {
-
 	if (offset & 0x0078)
 		COMBINE_DATA(m_spriteram + offset);
 	else
@@ -245,10 +249,9 @@ WRITE16_MEMBER(moo_state::moo_prot_w)
 
 WRITE16_MEMBER(moo_state::moobl_oki_bank_w)
 {
-	device_t *device = machine().device("oki");
 	logerror("%x to OKI bank\n", data);
 
-	downcast<okim6295_device *>(device)->set_bank_base((data & 0x0f) * 0x40000);
+	m_oki->set_bank_base((data & 0x0f) * 0x40000);
 }
 
 static ADDRESS_MAP_START( moo_map, AS_PROGRAM, 16, moo_state )
@@ -422,15 +425,6 @@ INPUT_PORTS_END
 
 MACHINE_START_MEMBER(moo_state,moo)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("soundcpu");
-	m_k054539 = machine().device("k054539");
-	m_k053246 = machine().device("k053246");
-	m_k053251 = machine().device("k053251");
-	m_k056832 = machine().device("k056832");
-	m_k054338 = machine().device("k054338");
-
 	save_item(NAME(m_cur_control2));
 	save_item(NAME(m_alpha_enabled));
 	save_item(NAME(m_sprite_colorbase));
@@ -606,6 +600,8 @@ static MACHINE_CONFIG_DERIVED( bucky, moo )
 
 	/* video hardware */
 	MCFG_PALETTE_LENGTH(4096)
+
+	MCFG_VIDEO_START_OVERRIDE(moo_state,bucky)
 MACHINE_CONFIG_END
 
 
@@ -912,17 +908,12 @@ ROM_START( moomesabl )
 	ROM_LOAD( "moo.nv", 0x0000, 0x080, CRC(7bd904a8) SHA1(8747c5c62d1832e290be8ace73c61b1f228c0bec) )
 ROM_END
 
-DRIVER_INIT_MEMBER(moo_state,moo)
-{
-	m_game_type = (!strcmp(machine().system().name, "bucky") || !strcmp(machine().system().name, "buckyua"));
-}
 
-
-GAME( 1992, moomesa,    0,       moo,     moo, moo_state,     moo,      ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver EAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, moomesauac, moomesa, moo,     moo, moo_state,     moo,      ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver UAC)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, moomesauab, moomesa, moo,     moo, moo_state,     moo,      ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver UAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, moomesaaab, moomesa, moo,     moo, moo_state,     moo,      ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver AAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
-GAME( 1992, moomesabl,  moomesa, moobl,   moo, moo_state,     moo,      ROT0, "bootleg", "Wild West C.O.W.-Boys of Moo Mesa (bootleg)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE ) // based on Version AA
-GAME( 1992, bucky,      0,       bucky,   bucky, moo_state,   moo,      ROT0, "Konami", "Bucky O'Hare (ver EAB)", GAME_SUPPORTS_SAVE )
-GAME( 1992, buckyuab,   bucky,   bucky,   bucky, moo_state,   moo,      ROT0, "Konami", "Bucky O'Hare (ver UAB)", GAME_SUPPORTS_SAVE )
-GAME( 1992, buckyaab,   bucky,   bucky,   bucky, moo_state,   moo,      ROT0, "Konami", "Bucky O'Hare (ver AAB)", GAME_SUPPORTS_SAVE )
+GAME( 1992, moomesa,    0,       moo,     moo,   driver_device, 0, ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver EAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, moomesauac, moomesa, moo,     moo,   driver_device, 0, ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver UAC)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, moomesauab, moomesa, moo,     moo,   driver_device, 0, ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver UAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, moomesaaab, moomesa, moo,     moo,   driver_device, 0, ROT0, "Konami", "Wild West C.O.W.-Boys of Moo Mesa (ver AAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, moomesabl,  moomesa, moobl,   moo,   driver_device, 0, ROT0, "bootleg", "Wild West C.O.W.-Boys of Moo Mesa (bootleg)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE ) // based on Version AA
+GAME( 1992, bucky,      0,       bucky,   bucky, driver_device, 0, ROT0, "Konami", "Bucky O'Hare (ver EAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, buckyuab,   bucky,   bucky,   bucky, driver_device, 0, ROT0, "Konami", "Bucky O'Hare (ver UAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1992, buckyaab,   bucky,   bucky,   bucky, driver_device, 0, ROT0, "Konami", "Bucky O'Hare (ver AAB)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )

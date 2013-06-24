@@ -23,12 +23,12 @@ Main CPU:
 
 WRITE8_MEMBER(kingofb_state::video_interrupt_w)
 {
-	m_video_cpu->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);
+	m_video_cpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
 WRITE8_MEMBER(kingofb_state::sprite_interrupt_w)
 {
-	m_sprite_cpu->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);
+	m_sprite_cpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
 WRITE8_MEMBER(kingofb_state::scroll_interrupt_w)
@@ -40,7 +40,7 @@ WRITE8_MEMBER(kingofb_state::scroll_interrupt_w)
 WRITE8_MEMBER(kingofb_state::sound_command_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	m_audio_cpu->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);
+	m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
 
@@ -91,8 +91,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( kingobox_sound_io_map, AS_IO, 8, kingofb_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_DEVWRITE("dac", dac_device, write_unsigned8)
-	AM_RANGE(0x08, 0x08) AM_DEVREADWRITE_LEGACY("aysnd", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x0c, 0x0c) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x08, 0x08) AM_DEVREADWRITE("aysnd", ay8910_device, data_r, data_w)
+	AM_RANGE(0x0c, 0x0c) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 ADDRESS_MAP_END
 
 /* Ring King */
@@ -136,8 +136,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( ringking_sound_io_map, AS_IO, 8, kingofb_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_DEVWRITE("dac", dac_device, write_unsigned8)
-	AM_RANGE(0x02, 0x02) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x02, 0x02) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 
@@ -444,25 +444,18 @@ static const ay8910_interface ay8910_config =
 
 INTERRUPT_GEN_MEMBER(kingofb_state::kingofb_interrupt)
 {
-
 	if (m_nmi_enable)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 void kingofb_state::machine_start()
 {
-
-	m_video_cpu = machine().device("video");
-	m_sprite_cpu = machine().device("sprite");
-	m_audio_cpu = machine().device("audiocpu");
-
 	save_item(NAME(m_nmi_enable));
 	save_item(NAME(m_palette_bank));
 }
 
 void kingofb_state::machine_reset()
 {
-
 	m_nmi_enable = 0;
 	m_palette_bank = 0;
 }
@@ -781,7 +774,7 @@ ROM_END
 DRIVER_INIT_MEMBER(kingofb_state,ringking3)
 {
 	int i;
-	UINT8 *RAM = machine().root_device().memregion("proms")->base();
+	UINT8 *RAM = memregion("proms")->base();
 
 	/* expand the first color PROM to look like the kingofb ones... */
 	for (i = 0; i < 0x100; i++)
@@ -791,8 +784,8 @@ DRIVER_INIT_MEMBER(kingofb_state,ringking3)
 DRIVER_INIT_MEMBER(kingofb_state,ringkingw)
 {
 	int i,j,k;
-	UINT8 *PROMS = machine().root_device().memregion("proms")->base();
-	UINT8 *USER1 = machine().root_device().memregion("user1")->base();
+	UINT8 *PROMS = memregion("proms")->base();
+	UINT8 *USER1 = memregion("user1")->base();
 
 	/* change the PROMs encode in a simple format to use kingofb decode */
 	for(i = 0, j = 0; j < 0x40; i++, j++)

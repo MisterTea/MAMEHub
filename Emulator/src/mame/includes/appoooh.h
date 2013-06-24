@@ -1,16 +1,18 @@
-
+#include "sound/msm5205.h"
 
 class appoooh_state : public driver_device
 {
 public:
 	appoooh_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_fg_videoram(*this, "fg_videoram"),
 		m_fg_colorram(*this, "fg_colorram"),
 		m_spriteram_2(*this, "spriteram_2"),
 		m_bg_videoram(*this, "bg_videoram"),
-		m_bg_colorram(*this, "bg_colorram"){ }
+		m_bg_colorram(*this, "bg_colorram"),
+		m_msm(*this, "msm"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_spriteram;
@@ -31,7 +33,7 @@ public:
 	UINT32   m_adpcm_address;
 
 	/* devices */
-	device_t *m_adpcm;
+	required_device<msm5205_device> m_msm;
 
 	UINT8 m_nmi_mask;
 	DECLARE_WRITE8_MEMBER(appoooh_adpcm_w);
@@ -53,6 +55,10 @@ public:
 	UINT32 screen_update_appoooh(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_robowres(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	void appoooh_draw_sprites( bitmap_ind16 &dest_bmp, const rectangle &cliprect, gfx_element *gfx, UINT8 *sprite );
+	void robowres_draw_sprites( bitmap_ind16 &dest_bmp, const rectangle &cliprect, gfx_element *gfx, UINT8 *sprite );
+	DECLARE_WRITE_LINE_MEMBER(appoooh_adpcm_int);
+	required_device<cpu_device> m_maincpu;
 };
 
 #define CHR1_OFST   0x00  /* palette page of char set #1 */

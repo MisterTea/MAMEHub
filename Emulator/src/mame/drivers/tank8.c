@@ -11,12 +11,11 @@ Atari Tank 8 driver
 
 
 
-void tank8_set_collision(running_machine &machine, int index)
+void tank8_state::tank8_set_collision(int index)
 {
-	tank8_state *state = machine.driver_data<tank8_state>();
-	machine.device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+	m_maincpu->set_input_line(0, ASSERT_LINE);
 
-	state->m_collision_index = index;
+	m_collision_index = index;
 }
 
 
@@ -41,47 +40,43 @@ WRITE8_MEMBER(tank8_state::tank8_int_reset_w)
 {
 	m_collision_index &= ~0x3f;
 
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(tank8_state::tank8_crash_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, TANK8_CRASH_EN, data);
+	discrete_sound_w(m_discrete, space, TANK8_CRASH_EN, data);
 }
 
 WRITE8_MEMBER(tank8_state::tank8_explosion_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, TANK8_EXPLOSION_EN, data);
+	discrete_sound_w(m_discrete, space, TANK8_EXPLOSION_EN, data);
 }
 
 WRITE8_MEMBER(tank8_state::tank8_bugle_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, TANK8_BUGLE_EN, data);
+	discrete_sound_w(m_discrete, space, TANK8_BUGLE_EN, data);
 }
 
 WRITE8_MEMBER(tank8_state::tank8_bug_w)
 {
-	device_t *device = machine().device("discrete");
 	/* D0 and D1 determine the on/off time off the square wave */
 	switch(data & 3) {
 		case 0:
-			discrete_sound_w(device, space, TANK8_BUGLE_DATA1,8.0);
-			discrete_sound_w(device, space, TANK8_BUGLE_DATA2,4.0);
+			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA1,8.0);
+			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA2,4.0);
 			break;
 		case 1:
-			discrete_sound_w(device, space, TANK8_BUGLE_DATA1,8.0);
-			discrete_sound_w(device, space, TANK8_BUGLE_DATA2,7.0);
+			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA1,8.0);
+			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA2,7.0);
 			break;
 		case 2:
-			discrete_sound_w(device, space, TANK8_BUGLE_DATA1,8.0);
-			discrete_sound_w(device, space, TANK8_BUGLE_DATA2,2.0);
+			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA1,8.0);
+			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA2,2.0);
 			break;
 		case 3:
-			discrete_sound_w(device, space, TANK8_BUGLE_DATA1,16.0);
-			discrete_sound_w(device, space, TANK8_BUGLE_DATA2,4.0);
+			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA1,16.0);
+			discrete_sound_w(m_discrete, space, TANK8_BUGLE_DATA2,4.0);
 			break;
 	}
 
@@ -89,14 +84,12 @@ WRITE8_MEMBER(tank8_state::tank8_bug_w)
 
 WRITE8_MEMBER(tank8_state::tank8_attract_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, TANK8_ATTRACT_EN, data);
+	discrete_sound_w(m_discrete, space, TANK8_ATTRACT_EN, data);
 }
 
 WRITE8_MEMBER(tank8_state::tank8_motor_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, NODE_RELATIVE(TANK8_MOTOR1_EN, offset), data);
+	discrete_sound_w(m_discrete, space, NODE_RELATIVE(TANK8_MOTOR1_EN, offset), data);
 }
 
 static ADDRESS_MAP_START( tank8_cpu_map, AS_PROGRAM, 8, tank8_state )
@@ -218,25 +211,25 @@ static INPUT_PORTS_START( tank8 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(8)
 
-	/* play time is 4351 + N * 640 frames */
+	/* play time setting according to documents */
 	PORT_START("DSW1")
 	PORT_DIPNAME( 0x0f, 0x08, "Play Time" )
-	PORT_DIPSETTING(    0x0f, "73 seconds" )
-	PORT_DIPSETTING(    0x0e, "83 seconds" )
-	PORT_DIPSETTING(    0x0d, "94 seconds" )
-	PORT_DIPSETTING(    0x0c, "105 seconds" )
-	PORT_DIPSETTING(    0x0b, "115 seconds" )
-	PORT_DIPSETTING(    0x0a, "126 seconds" )
-	PORT_DIPSETTING(    0x09, "137 seconds" )
-	PORT_DIPSETTING(    0x08, "147 seconds" )
-	PORT_DIPSETTING(    0x07, "158 seconds" )
-	PORT_DIPSETTING(    0x06, "169 seconds" )
-	PORT_DIPSETTING(    0x05, "179 seconds" )
+	PORT_DIPSETTING(    0x0f, "60 seconds" )
+	PORT_DIPSETTING(    0x07, "70 seconds" )
+	PORT_DIPSETTING(    0x0b, "80 seconds" )
+	PORT_DIPSETTING(    0x03, "90 seconds" )
+	PORT_DIPSETTING(    0x0d, "100 seconds" )
+	PORT_DIPSETTING(    0x05, "110 seconds" )
+	PORT_DIPSETTING(    0x09, "120 seconds" )
+	PORT_DIPSETTING(    0x01, "130 seconds" )
+	PORT_DIPSETTING(    0x0e, "140 seconds" )
+	PORT_DIPSETTING(    0x06, "150 seconds" )
+	PORT_DIPSETTING(    0x0a, "160 seconds" )
+	PORT_DIPSETTING(    0x02, "170 seconds" )
+	PORT_DIPSETTING(    0x0c, "180 seconds" )
 	PORT_DIPSETTING(    0x04, "190 seconds" )
-	PORT_DIPSETTING(    0x03, "201 seconds" )
-	PORT_DIPSETTING(    0x02, "211 seconds" )
-	PORT_DIPSETTING(    0x01, "222 seconds" )
-	PORT_DIPSETTING(    0x00, "233 seconds" )
+	PORT_DIPSETTING(    0x08, "200 seconds" )
+	PORT_DIPSETTING(    0x00, "210 seconds" )
 	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("DSW2")
@@ -466,10 +459,10 @@ ROM_END
 
 DRIVER_INIT_MEMBER(tank8_state,decode)
 {
-	const UINT8* DECODE = machine().root_device().memregion("user1")->base();
+	const UINT8* DECODE = memregion("user1")->base();
 
-	UINT8* p1 = machine().root_device().memregion("maincpu")->base() + 0x00000;
-	UINT8* p2 = machine().root_device().memregion("maincpu")->base() + 0x10000;
+	UINT8* p1 = memregion("maincpu")->base() + 0x00000;
+	UINT8* p2 = memregion("maincpu")->base() + 0x10000;
 
 	int i;
 

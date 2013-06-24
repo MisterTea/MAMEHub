@@ -36,7 +36,8 @@ public:
 		m_dspram16(*this,"dspram16"),
 		m_mpSharedRAM1(*this,"mpsharedram1"),
 		m_mpDualPortRAM(*this,"mpdualportram"),
-		m_master_dsp_code(*this,"master_dsp_code") { }
+		m_master_dsp_code(*this,"master_dsp_code"),
+		m_dsp(*this, "dsp") { }
 
 	optional_shared_ptr<UINT16> m_winrun_dspbios;
 	optional_shared_ptr<UINT16> m_winrun_polydata;
@@ -45,6 +46,8 @@ public:
 	required_shared_ptr<UINT16> m_mpSharedRAM1;
 	required_shared_ptr<UINT8> m_mpDualPortRAM;
 	optional_shared_ptr<UINT16> m_master_dsp_code;
+
+	optional_device<cpu_device> m_dsp;
 
 	UINT8 *m_videoram;
 	UINT16 *m_winrun_dspcomram;
@@ -146,6 +149,7 @@ public:
 	DECLARE_WRITE16_MEMBER(winrun_gpu_register_w);
 	DECLARE_WRITE16_MEMBER(winrun_gpu_videoram_w);
 	DECLARE_READ16_MEMBER(winrun_gpu_videoram_r);
+
 	DECLARE_DRIVER_INIT(driveyes);
 	DECLARE_DRIVER_INIT(winrun);
 	DECLARE_DRIVER_INIT(starblad);

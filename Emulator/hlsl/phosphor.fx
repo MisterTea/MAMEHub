@@ -45,6 +45,7 @@ struct VS_INPUT
 	float3 Position : POSITION;
 	float4 Color : COLOR0;
 	float2 TexCoord : TEXCOORD0;
+	float2 Unused : TEXCOORD1;
 };
 
 struct PS_INPUT
@@ -60,12 +61,6 @@ struct PS_INPUT
 
 uniform float TargetWidth;
 uniform float TargetHeight;
-
-uniform float RawWidth;
-uniform float RawHeight;
-
-uniform float WidthRatio;
-uniform float HeightRatio;
 
 uniform float TextureWidth;
 uniform float TextureHeight;
@@ -120,8 +115,8 @@ technique TestTechnique
 	{
 		Lighting = FALSE;
 
-		//Sampler[0] = <DiffuseSampler>;
-		//Sampler[1] = <PreviousSampler>;
+		Sampler[0] = <DiffuseSampler>;
+		Sampler[1] = <PreviousSampler>;
 
 		VertexShader = compile vs_2_0 vs_main();
 		PixelShader  = compile ps_2_0 ps_main();

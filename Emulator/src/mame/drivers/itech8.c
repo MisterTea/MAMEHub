@@ -497,7 +497,7 @@
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/m68000/m68000.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "cpu/m6809/m6809.h"
 #include "machine/6821pia.h"
 #include "machine/6522via.h"
@@ -569,30 +569,29 @@ static const via6522_interface via_interface =
  *
  *************************************/
 
-void itech8_update_interrupts(running_machine &machine, int periodic, int tms34061, int blitter)
+void itech8_state::itech8_update_interrupts(int periodic, int tms34061, int blitter)
 {
-	itech8_state *state = machine.driver_data<itech8_state>();
-	device_type main_cpu_type = machine.device("maincpu")->type();
+	device_type main_cpu_type = m_maincpu->type();
 
 	/* update the states */
-	if (periodic != -1) state->m_periodic_int = periodic;
-	if (tms34061 != -1) state->m_tms34061_int = tms34061;
-	if (blitter != -1) state->m_blitter_int = blitter;
+	if (periodic != -1) m_periodic_int = periodic;
+	if (tms34061 != -1) m_tms34061_int = tms34061;
+	if (blitter != -1) m_blitter_int = blitter;
 
 	/* handle the 6809 case */
 	if (main_cpu_type == M6809 || main_cpu_type == HD6309)
 	{
 		/* just modify lines that have changed */
-		if (periodic != -1) machine.device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, periodic ? ASSERT_LINE : CLEAR_LINE);
-		if (tms34061 != -1) machine.device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, tms34061 ? ASSERT_LINE : CLEAR_LINE);
-		if (blitter != -1) machine.device("maincpu")->execute().set_input_line(M6809_FIRQ_LINE, blitter ? ASSERT_LINE : CLEAR_LINE);
+		if (periodic != -1) m_maincpu->set_input_line(INPUT_LINE_NMI, periodic ? ASSERT_LINE : CLEAR_LINE);
+		if (tms34061 != -1) m_maincpu->set_input_line(M6809_IRQ_LINE, tms34061 ? ASSERT_LINE : CLEAR_LINE);
+		if (blitter != -1) m_maincpu->set_input_line(M6809_FIRQ_LINE, blitter ? ASSERT_LINE : CLEAR_LINE);
 	}
 
 	/* handle the 68000 case */
 	else
 	{
-		machine.device("maincpu")->execute().set_input_line(2, state->m_blitter_int ? ASSERT_LINE : CLEAR_LINE);
-		machine.device("maincpu")->execute().set_input_line(3, state->m_periodic_int ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(2, m_blitter_int ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(3, m_periodic_int ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
@@ -606,14 +605,14 @@ void itech8_update_interrupts(running_machine &machine, int periodic, int tms340
 
 TIMER_CALLBACK_MEMBER(itech8_state::irq_off)
 {
-	itech8_update_interrupts(machine(), 0, -1, -1);
+	itech8_update_interrupts(0, -1, -1);
 }
 
 
 INTERRUPT_GEN_MEMBER(itech8_state::generate_nmi)
 {
 	/* signal the NMI */
-	itech8_update_interrupts(machine(), 1, -1, -1);
+	itech8_update_interrupts(1, -1, -1);
 	machine().scheduler().timer_set(attotime::from_usec(1), timer_expired_delegate(FUNC(itech8_state::irq_off),this));
 
 	if (FULL_LOGGING) logerror("------------ VBLANK (%d) --------------\n", machine().primary_screen->vpos());
@@ -623,13 +622,13 @@ INTERRUPT_GEN_MEMBER(itech8_state::generate_nmi)
 WRITE8_MEMBER(itech8_state::itech8_nmi_ack_w)
 {
 /* doesn't seem to hold for every game (e.g., hstennis) */
-/*  machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);*/
+/*  m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);*/
 }
 
 
-static void generate_sound_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(itech8_state::generate_sound_irq)
 {
-	device->machine().device("soundcpu")->execute().set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu->set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -651,13 +650,13 @@ MACHINE_START_MEMBER(itech8_state,sstrike)
 
 void itech8_state::machine_reset()
 {
-	device_type main_cpu_type = machine().device("maincpu")->type();
+	device_type main_cpu_type = m_maincpu->type();
 
 	/* make sure bank 0 is selected */
 	if (main_cpu_type == M6809 || main_cpu_type == HD6309)
 	{
 		membank("bank1")->set_base(&memregion("maincpu")->base()[0x4000]);
-		machine().device("maincpu")->reset();
+		m_maincpu->reset();
 	}
 
 	/* set the visible area */
@@ -704,7 +703,7 @@ WRITE8_MEMBER(itech8_state::blitter_w)
 {
 	/* bit 0x20 on address 7 controls CPU banking */
 	if (offset / 2 == 7)
-		membank("bank1")->set_base(&machine().root_device().memregion("maincpu")->base()[0x4000 + 0xc000 * ((data >> 5) & 1)]);
+		membank("bank1")->set_base(&memregion("maincpu")->base()[0x4000 + 0xc000 * ((data >> 5) & 1)]);
 
 	/* the rest is handled by the video hardware */
 	itech8_blitter_w(space, offset, data);
@@ -714,7 +713,7 @@ WRITE8_MEMBER(itech8_state::blitter_w)
 WRITE8_MEMBER(itech8_state::rimrockn_bank_w)
 {
 	/* banking is controlled here instead of by the blitter output */
-	membank("bank1")->set_base(&machine().root_device().memregion("maincpu")->base()[0x4000 + 0xc000 * (data & 3)]);
+	membank("bank1")->set_base(&memregion("maincpu")->base()[0x4000 + 0xc000 * (data & 3)]);
 }
 
 
@@ -782,7 +781,7 @@ WRITE8_MEMBER(itech8_state::ym2203_portb_out)
 TIMER_CALLBACK_MEMBER(itech8_state::delayed_sound_data_w)
 {
 	m_sound_data = param;
-	machine().device("soundcpu")->execute().set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
+	m_soundcpu->set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
 }
 
 
@@ -805,7 +804,7 @@ WRITE8_MEMBER(itech8_state::gtg2_sound_data_w)
 
 READ8_MEMBER(itech8_state::sound_data_r)
 {
-	machine().device("soundcpu")->execute().set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
+	m_soundcpu->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 	return m_sound_data;
 }
 
@@ -926,7 +925,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound2203_map, AS_PROGRAM, 8, itech8_state )
 	AM_RANGE(0x0000, 0x0000) AM_WRITENOP
 	AM_RANGE(0x1000, 0x1000) AM_READ(sound_data_r)
-	AM_RANGE(0x2000, 0x2001) AM_MIRROR(0x0002) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x2000, 0x2001) AM_MIRROR(0x0002) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x3000, 0x37ff) AM_RAM
 	AM_RANGE(0x4000, 0x4000) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
@@ -937,7 +936,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound2608b_map, AS_PROGRAM, 8, itech8_state )
 	AM_RANGE(0x1000, 0x1000) AM_WRITENOP
 	AM_RANGE(0x2000, 0x2000) AM_READ(sound_data_r)
-	AM_RANGE(0x4000, 0x4003) AM_DEVREADWRITE_LEGACY("ymsnd", ym2608_r, ym2608_w)
+	AM_RANGE(0x4000, 0x4003) AM_DEVREADWRITE("ymsnd", ym2608_device, read, write)
 	AM_RANGE(0x6000, 0x67ff) AM_RAM
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -947,7 +946,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound3812_map, AS_PROGRAM, 8, itech8_state )
 	AM_RANGE(0x0000, 0x0000) AM_WRITENOP
 	AM_RANGE(0x1000, 0x1000) AM_READ(sound_data_r)
-	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r, ym3812_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 	AM_RANGE(0x3000, 0x37ff) AM_RAM
 	AM_RANGE(0x4000, 0x4000) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x5000, 0x5003) AM_DEVREADWRITE("pia", pia6821_device, read, write)
@@ -959,7 +958,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound3812_external_map, AS_PROGRAM, 8, itech8_state )
 	AM_RANGE(0x0000, 0x0000) AM_WRITENOP
 	AM_RANGE(0x1000, 0x1000) AM_READ(sound_data_r)
-	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r, ym3812_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 	AM_RANGE(0x3000, 0x37ff) AM_RAM
 	AM_RANGE(0x4000, 0x4000) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x5000, 0x500f) AM_DEVREADWRITE("via6522_0", via6522_device, read, write)
@@ -981,7 +980,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( slikz80_io_map, AS_IO, 8, itech8_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_READWRITE_LEGACY(slikz80_port_r, slikz80_port_w)
+	AM_RANGE(0x00, 0x00) AM_READWRITE(slikz80_port_r, slikz80_port_w)
 ADDRESS_MAP_END
 
 
@@ -1636,37 +1635,14 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(itech8_state,ym2203_portb_out)
-	},
-	DEVCB_LINE(generate_sound_irq)
-};
-
-
-static const ym2608_interface ym2608b_config =
-{
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(itech8_state,ym2203_portb_out),
-	},
-	generate_sound_irq
-};
-
-
-static const ym3812_interface ym3812_config =
-{
-	generate_sound_irq
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(itech8_state,ym2203_portb_out),
 };
 
 
@@ -1691,7 +1667,7 @@ static MACHINE_CONFIG_START( itech8_core_lo, itech8_state )
 	MCFG_TICKET_DISPENSER_ADD("ticket", attotime::from_msec(200), TICKET_MOTOR_ACTIVE_HIGH, TICKET_STATUS_ACTIVE_LOW)
 
 	/* video hardware */
-	MCFG_TLC34076_ADD("tlc34076", tlc34076_6_bit_intf)
+	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 
@@ -1723,7 +1699,8 @@ static MACHINE_CONFIG_FRAGMENT( itech8_sound_ym2203 )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("ymsnd", YM2203, CLOCK_8MHz/2)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(itech8_state, generate_sound_irq))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.07)
 	MCFG_SOUND_ROUTE(1, "mono", 0.07)
 	MCFG_SOUND_ROUTE(2, "mono", 0.07)
@@ -1742,7 +1719,8 @@ static MACHINE_CONFIG_FRAGMENT( itech8_sound_ym2608b )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("ymsnd", YM2608, CLOCK_8MHz)
-	MCFG_SOUND_CONFIG(ym2608b_config)
+	MCFG_YM2608_IRQ_HANDLER(WRITELINE(itech8_state, generate_sound_irq))
+	MCFG_YM2608_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 MACHINE_CONFIG_END
 
@@ -1757,7 +1735,7 @@ static MACHINE_CONFIG_FRAGMENT( itech8_sound_ym3812 )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("ymsnd", YM3812, CLOCK_8MHz/2)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(itech8_state, generate_sound_irq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
 	MCFG_OKIM6295_ADD("oki", CLOCK_8MHz/8, OKIM6295_PIN7_HIGH) // was /128, not /132, so unsure so pin 7 not verified
@@ -1773,7 +1751,7 @@ static MACHINE_CONFIG_FRAGMENT( itech8_sound_ym3812_external )
 
 	/* sound hardware */
 	MCFG_SOUND_ADD("ymsnd", YM3812, CLOCK_8MHz/2)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(itech8_state, generate_sound_irq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
 	MCFG_OKIM6295_ADD("oki", CLOCK_8MHz/8, OKIM6295_PIN7_HIGH) // was /128, not /132, so unsure so pin 7 not verified
@@ -2010,7 +1988,7 @@ ROM_START( grmatch )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
 	ROM_LOAD( "grudgematch.u5", 0x04000, 0x4000, CRC(11cadec9) SHA1(e21df623d1311ea63bafa2d6d0d94eb7d13232da) )
 	ROM_CONTINUE(               0x10000, 0xc000 )
-	ROM_COPY( "maincpu",           0x14000, 0x8000, 0x8000 )
+	ROM_COPY( "maincpu", 0x14000, 0x8000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
 	ROM_LOAD( "grudgematch.u27", 0x08000, 0x8000, CRC(59c18e63) SHA1(0d00c9cc683ff17e3213ba343ae65d533b57a243) )
@@ -2031,37 +2009,37 @@ ROM_END
 
 ROM_START( stratab )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
-	ROM_LOAD( "sbprogv3.bin", 0x08000, 0x8000, CRC(a5ae728f) SHA1(85098eef1614d5148e8082df4c936883662292ee) )
-	ROM_COPY( "maincpu",    0x8000, 0x14000, 0x8000 )
+	ROM_LOAD( "sb_prog_v3_u5.u5", 0x08000, 0x8000, CRC(a5ae728f) SHA1(85098eef1614d5148e8082df4c936883662292ee) ) /* Labeled as SB PROG V3 (U5) */
+	ROM_COPY( "maincpu", 0x8000, 0x14000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
-	ROM_LOAD( "sbsnds.bin", 0x08000, 0x8000, CRC(b36c8f0a) SHA1(c4c3edf3352d95561f76705087338c1946137447) )
+	ROM_LOAD( "sb_snds_u27.u27", 0x08000, 0x8000, CRC(b36c8f0a) SHA1(c4c3edf3352d95561f76705087338c1946137447) ) /* Labeled as SB SNDS (U27) */
 
 	ROM_REGION( 0xc0000, "grom", 0 )
-	ROM_LOAD( "grom0.bin", 0x00000, 0x20000, CRC(a915b0bd) SHA1(0955c7ebb48e97ccffc18c5deec6eccce1d68de8) )
-	ROM_LOAD( "grom1.bin", 0x20000, 0x20000, CRC(340c661f) SHA1(150f9158fa6d956d08051c67c17723b1d8c66867) )
-	ROM_LOAD( "grom2.bin", 0x40000, 0x20000, CRC(5df9f1cf) SHA1(cad87f63ac0e902dffeeaa42538fc73f792d87d9) )
+	ROM_LOAD( "sb_grom0_0.grom0", 0x00000, 0x20000, CRC(a915b0bd) SHA1(0955c7ebb48e97ccffc18c5deec6eccce1d68de8) )
+	ROM_LOAD( "sb_grom0_1.grom1", 0x20000, 0x20000, CRC(340c661f) SHA1(150f9158fa6d956d08051c67c17723b1d8c66867) )
+	ROM_LOAD( "sb_grom0_2.grom2", 0x40000, 0x20000, CRC(5df9f1cf) SHA1(cad87f63ac0e902dffeeaa42538fc73f792d87d9) )
 
 	ROM_REGION( 0x40000, "oki", 0 )
-	ROM_LOAD( "srom0.bin", 0x00000, 0x20000, CRC(6ff390b9) SHA1(f31dae9e31f3fc83b9253e49fd4204820db3587e) )
+	ROM_LOAD( "sb_srom0.srom0", 0x00000, 0x20000, CRC(6ff390b9) SHA1(f31dae9e31f3fc83b9253e49fd4204820db3587e) )
 ROM_END
 
 
 ROM_START( stratab1 )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
-	ROM_LOAD( "sbprgv1.bin",  0x08000, 0x8000, CRC(46d51604) SHA1(de7b6306fdcee4907b07667baf874bd195822e6a) )
-	ROM_COPY( "maincpu",    0x8000, 0x14000, 0x8000 )
+	ROM_LOAD( "sb_prog_v1_u5.u5",  0x08000, 0x8000, CRC(46d51604) SHA1(de7b6306fdcee4907b07667baf874bd195822e6a) ) /* Labeled as SB PROG V1 (U5) */
+	ROM_COPY( "maincpu", 0x8000, 0x14000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
-	ROM_LOAD( "sbsnds.bin", 0x08000, 0x8000, CRC(b36c8f0a) SHA1(c4c3edf3352d95561f76705087338c1946137447) )
+	ROM_LOAD( "sb_snds_u27.u27", 0x08000, 0x8000, CRC(b36c8f0a) SHA1(c4c3edf3352d95561f76705087338c1946137447) ) /* Labeled as SB SNDS (U27) */
 
 	ROM_REGION( 0xc0000, "grom", 0 )
-	ROM_LOAD( "grom0.bin", 0x00000, 0x20000, CRC(a915b0bd) SHA1(0955c7ebb48e97ccffc18c5deec6eccce1d68de8) )
-	ROM_LOAD( "grom1.bin", 0x20000, 0x20000, CRC(340c661f) SHA1(150f9158fa6d956d08051c67c17723b1d8c66867) )
-	ROM_LOAD( "grom2.bin", 0x40000, 0x20000, CRC(5df9f1cf) SHA1(cad87f63ac0e902dffeeaa42538fc73f792d87d9) )
+	ROM_LOAD( "sb_grom0_0.grom0", 0x00000, 0x20000, CRC(a915b0bd) SHA1(0955c7ebb48e97ccffc18c5deec6eccce1d68de8) )
+	ROM_LOAD( "sb_grom0_1.grom1", 0x20000, 0x20000, CRC(340c661f) SHA1(150f9158fa6d956d08051c67c17723b1d8c66867) )
+	ROM_LOAD( "sb_grom0_2.grom2", 0x40000, 0x20000, CRC(5df9f1cf) SHA1(cad87f63ac0e902dffeeaa42538fc73f792d87d9) )
 
 	ROM_REGION( 0x40000, "oki", 0 )
-	ROM_LOAD( "srom0.bin", 0x00000, 0x20000, CRC(6ff390b9) SHA1(f31dae9e31f3fc83b9253e49fd4204820db3587e) )
+	ROM_LOAD( "sb_srom0.srom0", 0x00000, 0x20000, CRC(6ff390b9) SHA1(f31dae9e31f3fc83b9253e49fd4204820db3587e) )
 ROM_END
 
 
@@ -2183,7 +2161,7 @@ ROM_END
 
 ROM_START( slikshot )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
-	ROM_LOAD( "pgm20.u5",  0x04000, 0x4000, CRC(370a00eb) SHA1(b2878f161f4931d9fc3979a84b29660941e2608f) )
+	ROM_LOAD( "poolpgm-20.u5",  0x04000, 0x4000, CRC(370a00eb) SHA1(b2878f161f4931d9fc3979a84b29660941e2608f) )
 	ROM_CONTINUE(          0x10000, 0xc000 )
 	ROM_COPY( "maincpu", 0x14000, 0x8000, 0x8000 )
 
@@ -2207,8 +2185,8 @@ ROM_END
 
 ROM_START( slikshot17 )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
-	ROM_LOAD( "u5.bin", 0x04000, 0x4000, CRC(09d70554) SHA1(a009cd3b22261c60f1028694baef51f61713154f) )
-	ROM_CONTINUE(       0x10000, 0xc000 )
+	ROM_LOAD( "poolpgm-17.u5", 0x04000, 0x4000, CRC(09d70554) SHA1(a009cd3b22261c60f1028694baef51f61713154f) )
+	ROM_CONTINUE(        0x10000, 0xc000 )
 	ROM_COPY( "maincpu", 0x14000, 0x8000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
@@ -2232,8 +2210,8 @@ ROM_END
 ROM_START( slikshot16 )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
 	ROM_LOAD( "poolpgm-16.u5", 0x04000, 0x4000, CRC(c0f17012) SHA1(5d466e058daf91b4f52e634498df9d2a03627aaa) )
-	ROM_CONTINUE(              0x10000, 0xc000 )
-	ROM_COPY( "maincpu",     0x14000, 0x8000, 0x8000 )
+	ROM_CONTINUE(        0x10000, 0xc000 )
+	ROM_COPY( "maincpu", 0x14000, 0x8000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
 	ROM_LOAD( "u27.bin", 0x08000, 0x8000, CRC(a96ce0f7) SHA1(c1fec3aeef97c846fd1a20b91af54f6bf9723a71) )
@@ -2259,7 +2237,7 @@ ROM_START( dynobop )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
 	ROM_LOAD( "dynobop.u5", 0x04000, 0x4000, CRC(98452c40) SHA1(9b9316fc258792e0d825f16e0fadf8e0c35a864e) )
 	ROM_CONTINUE(           0x10000, 0xc000 )
-	ROM_COPY( "maincpu",  0x14000, 0x8000, 0x8000 )
+	ROM_COPY( "maincpu", 0x14000, 0x8000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
 	ROM_LOAD( "dynobop.u27", 0x08000, 0x8000, CRC(a37d862b) SHA1(922eeae184df2c5c28040da27699dd55744f8dca) )
@@ -2282,7 +2260,7 @@ ROM_END
 ROM_START( sstrike )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
 	ROM_LOAD( "sstrku5.bin", 0x08000, 0x8000, CRC(af00cddf) SHA1(b866e8dfce1449f7462a79efa385ea6b55cdc6e7) )
-	ROM_COPY( "maincpu",    0x8000, 0x14000, 0x8000 )
+	ROM_COPY( "maincpu", 0x8000, 0x14000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
 	ROM_LOAD( "sstrku27.bin", 0x08000, 0x8000, CRC(efab7252) SHA1(eb3b2002531e551e3d67958ea3cc56a69fa660e2) )
@@ -2325,7 +2303,7 @@ ROM_START( hstennis )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
 	ROM_LOAD( "tenbim.v11", 0x04000, 0x4000, CRC(faffab5c) SHA1(4de525f6adb16205c47788b78aecdebd57008295) )
 	ROM_CONTINUE(           0x10000, 0xc000 )
-	ROM_COPY( "maincpu",  0x14000, 0x8000, 0x8000 )
+	ROM_COPY( "maincpu", 0x14000, 0x8000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
 	ROM_LOAD( "tensnd.v1", 0x08000, 0x8000, CRC(f034a694) SHA1(3540e2edff2ce47504260ec856bab9b638d9260d) )
@@ -2577,8 +2555,8 @@ ROM_END
 
 ROM_START( gpgolf )
 	ROM_REGION( 0x1c000, "maincpu", 0 )
-	ROM_LOAD( "gpgv1_1.bin",   0x04000, 0x4000, CRC(631e77e0) SHA1(847ba1e00d31441620a2a1f45a9aa58df84bde8b) ) /* Joystick version */
-	ROM_CONTINUE(       0x10000, 0xc000 )
+	ROM_LOAD( "gpgv1_1.bin", 0x04000, 0x4000, CRC(631e77e0) SHA1(847ba1e00d31441620a2a1f45a9aa58df84bde8b) ) /* Joystick version */
+	ROM_CONTINUE(        0x10000, 0xc000 )
 	ROM_COPY( "maincpu", 0x14000, 0x8000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
@@ -2597,8 +2575,8 @@ ROM_END
 ROM_START( gtg2 )
 	/* banks are loaded in the opposite order from the others, */
 	ROM_REGION( 0x1c000, "maincpu", 0 )
-	ROM_LOAD( "gtg2_v2_2.u5",   0x10000, 0x4000, CRC(4a61580f) SHA1(7c64648d47418fbcc0f9b5bd91f88856209bc0f5) ) /* Trackball version */
-	ROM_CONTINUE(       0x04000, 0xc000 )
+	ROM_LOAD( "gtg2_v2_2.u5", 0x10000, 0x4000, CRC(4a61580f) SHA1(7c64648d47418fbcc0f9b5bd91f88856209bc0f5) ) /* Trackball version */
+	ROM_CONTINUE(        0x04000, 0xc000 )
 	ROM_COPY( "maincpu", 0x8000, 0x14000, 0x8000 )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
@@ -2629,25 +2607,25 @@ ROM_END
 
 DRIVER_INIT_MEMBER(itech8_state,grmatch)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x0160, 0x0160, write8_delegate(FUNC(itech8_state::grmatch_palette_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x0180, 0x0180, write8_delegate(FUNC(itech8_state::grmatch_xscroll_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).unmap_write(0x01e0, 0x01ff);
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x0160, 0x0160, write8_delegate(FUNC(itech8_state::grmatch_palette_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x0180, 0x0180, write8_delegate(FUNC(itech8_state::grmatch_xscroll_w),this));
+	m_maincpu->space(AS_PROGRAM).unmap_write(0x01e0, 0x01ff);
 }
 
 
 DRIVER_INIT_MEMBER(itech8_state,slikshot)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_read_handler (0x0180, 0x0180, FUNC(slikshot_z80_r));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_read_handler (0x01cf, 0x01cf, FUNC(slikshot_z80_control_r));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_write_handler(0x01cf, 0x01cf, FUNC(slikshot_z80_control_w));
+	m_maincpu->space(AS_PROGRAM).install_read_handler (0x0180, 0x0180, read8_delegate(FUNC(itech8_state::slikshot_z80_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler (0x01cf, 0x01cf, read8_delegate(FUNC(itech8_state::slikshot_z80_control_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x01cf, 0x01cf, write8_delegate(FUNC(itech8_state::slikshot_z80_control_w),this));
 }
 
 
 DRIVER_INIT_MEMBER(itech8_state,sstrike)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_read_handler (0x1180, 0x1180, FUNC(slikshot_z80_r));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_read_handler (0x11cf, 0x11cf, FUNC(slikshot_z80_control_r));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_write_handler(0x11cf, 0x11cf, FUNC(slikshot_z80_control_w));
+	m_maincpu->space(AS_PROGRAM).install_read_handler (0x1180, 0x1180, read8_delegate(FUNC(itech8_state::slikshot_z80_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler (0x11cf, 0x11cf, read8_delegate(FUNC(itech8_state::slikshot_z80_control_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x11cf, 0x11cf, write8_delegate(FUNC(itech8_state::slikshot_z80_control_w),this));
 }
 
 
@@ -2678,15 +2656,15 @@ DRIVER_INIT_MEMBER(itech8_state,neckneck)
 DRIVER_INIT_MEMBER(itech8_state,rimrockn)
 {
 	/* additional input ports */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port (0x0161, 0x0161, "161");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port (0x0162, 0x0162, "162");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port (0x0163, 0x0163, "163");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port (0x0164, 0x0164, "164");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port (0x0165, 0x0165, "165");
+	m_maincpu->space(AS_PROGRAM).install_read_port (0x0161, 0x0161, "161");
+	m_maincpu->space(AS_PROGRAM).install_read_port (0x0162, 0x0162, "162");
+	m_maincpu->space(AS_PROGRAM).install_read_port (0x0163, 0x0163, "163");
+	m_maincpu->space(AS_PROGRAM).install_read_port (0x0164, 0x0164, "164");
+	m_maincpu->space(AS_PROGRAM).install_read_port (0x0165, 0x0165, "165");
 
 	/* different banking mechanism (disable the old one) */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x01a0, 0x01a0, write8_delegate(FUNC(itech8_state::rimrockn_bank_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x01c0, 0x01df, write8_delegate(FUNC(itech8_state::itech8_blitter_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x01a0, 0x01a0, write8_delegate(FUNC(itech8_state::rimrockn_bank_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x01c0, 0x01df, write8_delegate(FUNC(itech8_state::itech8_blitter_w),this));
 }
 
 

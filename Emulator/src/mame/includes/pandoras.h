@@ -8,10 +8,14 @@ class pandoras_state : public driver_device
 {
 public:
 	pandoras_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_colorram(*this, "colorram"),
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"),
+		m_audiocpu(*this, "audiocpu"),
+		m_mcu(*this, "mcu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_spriteram;
@@ -29,10 +33,10 @@ public:
 	int m_i8039_status;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_subcpu;
-	cpu_device *m_audiocpu;
-	cpu_device *m_mcu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_mcu;
 	DECLARE_WRITE8_MEMBER(pandoras_int_control_w);
 	DECLARE_WRITE8_MEMBER(pandoras_cpua_irqtrigger_w);
 	DECLARE_WRITE8_MEMBER(pandoras_cpub_irqtrigger_w);
@@ -53,4 +57,5 @@ public:
 	UINT32 screen_update_pandoras(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(pandoras_master_interrupt);
 	INTERRUPT_GEN_MEMBER(pandoras_slave_interrupt);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8* sr );
 };

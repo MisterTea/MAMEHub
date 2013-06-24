@@ -217,9 +217,10 @@ class mpu12wbk_state : public driver_device
 {
 public:
 	mpu12wbk_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -231,6 +232,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_mpu12wbk(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -284,7 +286,6 @@ UINT32 mpu12wbk_state::screen_update_mpu12wbk(screen_device &screen, bitmap_ind1
 
 void mpu12wbk_state::palette_init()
 {
-
 }
 
 
@@ -305,7 +306,7 @@ void mpu12wbk_state::palette_init()
 static ADDRESS_MAP_START( mpu12wbk_map, AS_PROGRAM, 8, mpu12wbk_state )
 	AM_RANGE(0x1400, 0x1400) AM_DEVWRITE("crtc", mc6845_device, address_w)                      // OK
 	AM_RANGE(0x1401, 0x1401) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w)     // OK
-	AM_RANGE(0x1e00, 0x1e01) AM_DEVREADWRITE_LEGACY("ay8910", ay8910_r, ay8910_address_data_w)  // hmmmmm....
+	AM_RANGE(0x1e00, 0x1e01) AM_DEVREADWRITE("ay8910", ay8910_device, data_r, address_data_w)  // hmmmmm....
 	AM_RANGE(0x2000, 0x23ff) AM_RAM_WRITE(mpu12wbk_videoram_w) AM_SHARE("videoram")             // FIXME
 	AM_RANGE(0x2400, 0x27ff) AM_RAM_WRITE(mpu12wbk_colorram_w) AM_SHARE("colorram")             // FIXME
 	AM_RANGE(0x2800, 0x3fff) AM_RAM                                                             // RAM (from 2000-3fff)
@@ -492,9 +493,10 @@ static const ay8910_interface ay8910_config =
 *    CRTC Interface    *
 ************************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	4,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */

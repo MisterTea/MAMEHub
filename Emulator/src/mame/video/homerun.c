@@ -37,7 +37,6 @@ WRITE8_MEMBER(homerun_state::homerun_scrollx_w)
 
 WRITE8_MEMBER(homerun_state::homerun_banking_w)
 {
-
 	// games do mid-screen gfx bank switching
 	int vpos = machine().primary_screen->vpos();
 	machine().primary_screen->update_partial(vpos);
@@ -109,29 +108,28 @@ void homerun_state::video_start()
 }
 
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void homerun_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	homerun_state *state = machine.driver_data<homerun_state>();
-	UINT8 *spriteram = state->m_spriteram;
+	UINT8 *spriteram = m_spriteram;
 	int offs;
 
-	for (offs = state->m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
+	for (offs = m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
 	{
 		int sx = spriteram[offs + 3];
 		int sy = spriteram[offs + 0] - 15;
-		int code = (spriteram[offs + 1]) | ((spriteram[offs + 2] & 0x8) << 5) | ((state->m_gfx_ctrl & 3) << 9);
+		int code = (spriteram[offs + 1]) | ((spriteram[offs + 2] & 0x8) << 5) | ((m_gfx_ctrl & 3) << 9);
 		int color = (spriteram[offs + 2] & 0x07) | 8;
 		int flipx = (spriteram[offs + 2] & 0x40) >> 6;
 		int flipy = (spriteram[offs + 2] & 0x80) >> 7;
 
-		drawgfx_transpen(bitmap, cliprect, machine.gfx[1],
+		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
 				code,
 				color,
 				flipx,flipy,
 				sx,sy,0);
 
 		// wraparound
-		drawgfx_transpen(bitmap, cliprect, machine.gfx[1],
+		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
 				code,
 				color,
 				flipx,flipy,
@@ -141,12 +139,11 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 UINT32 homerun_state::screen_update_homerun(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_tilemap->set_scrolly(0, m_scrolly);
 	m_tilemap->set_scrollx(0, m_scrollx);
 
 	m_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 
 	return 0;
 }

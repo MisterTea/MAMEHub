@@ -114,20 +114,20 @@ WRITE_LINE_MEMBER(scramble_state::scramble_sh_7474_q_callback)
 {
 	/* the Q bar is connected to the Z80's INT line.  But since INT is complemented, */
 	/* we need to complement Q bar */
-	if (machine().device("audiocpu"))
-		machine().device("audiocpu")->execute().set_input_line(0, !state ? ASSERT_LINE : CLEAR_LINE);
+	if (m_audiocpu)
+		m_audiocpu->set_input_line(0, !state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE8_MEMBER(scramble_state::hotshock_sh_irqtrigger_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(0, ASSERT_LINE);
+	m_audiocpu->set_input_line(0, ASSERT_LINE);
 }
 
 READ8_DEVICE_HANDLER( hotshock_soundlatch_r )
 {
-	driver_device *drvstate = space.machine().driver_data<driver_device>();
-	space.machine().device("audiocpu")->execute().set_input_line(0, CLEAR_LINE);
-	return drvstate->soundlatch_byte_r(space.machine().device("audiocpu")->memory().space(AS_PROGRAM),0);
+	scramble_state *drvstate = space.machine().driver_data<scramble_state>();
+	drvstate->m_audiocpu->set_input_line(0, CLEAR_LINE);
+	return drvstate->soundlatch_byte_r(drvstate->m_audiocpu->space(AS_PROGRAM),0);
 }
 
 static void filter_w(device_t *device, int data)
@@ -141,7 +141,7 @@ static void filter_w(device_t *device, int data)
 	if (data & 2)
 		C +=  47000;    /*  47000pF = 0.047uF */
 	if (device != NULL)
-		filter_rc_set_RC(device,FLT_RC_LOWPASS,1000,5100,0,CAP_P(C));
+		dynamic_cast<filter_rc_device*>(device)->filter_rc_set_RC(FLT_RC_LOWPASS, 1000, 5100, 0, CAP_P(C));
 }
 
 WRITE8_MEMBER(scramble_state::scramble_filter_w)
@@ -257,16 +257,17 @@ WRITE8_DEVICE_HANDLER( harem_portB_w )
 
 static WRITE8_DEVICE_HANDLER( ad2083_tms5110_ctrl_w )
 {
+	tmsprom_device *tmsprom = (tmsprom_device *) device;
 	static const int tbl[8] = {0,4,2,6,1,5,3,7};
 
-	tmsprom_bit_w(device, space, 0, tbl[data & 0x07]);
+	tmsprom->bit_w(space, 0, tbl[data & 0x07]);
 	switch (data>>3)
 	{
 		case 0x01:
-			tmsprom_rom_csq_w(device, space, 1, 0);
+			tmsprom->rom_csq_w(space, 1, 0);
 			break;
 		case 0x03:
-			tmsprom_rom_csq_w(device, space, 0, 0);
+			tmsprom->rom_csq_w(space, 0, 0);
 			break;
 		case 0x00:
 			/* Rom 2 select */
@@ -278,8 +279,8 @@ static WRITE8_DEVICE_HANDLER( ad2083_tms5110_ctrl_w )
 			break;
 	}
 	/* most likely triggered by write access */
-	tmsprom_enable_w(device, 0);
-	tmsprom_enable_w(device, 1);
+	tmsprom->enable_w(0);
+	tmsprom->enable_w(1);
 }
 
 
@@ -311,10 +312,10 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( ad2083_sound_io_map, AS_IO, 8, driver_device )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x01, 0x01) AM_DEVWRITE_LEGACY("tmsprom", ad2083_tms5110_ctrl_w)
-	AM_RANGE(0x10, 0x10) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x20, 0x20) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x80, 0x80) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x10, 0x10) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x20, 0x20) AM_DEVREADWRITE("ay1", ay8910_device, data_r, data_w)
+	AM_RANGE(0x40, 0x40) AM_DEVREADWRITE("ay2", ay8910_device, data_r, data_w)
+	AM_RANGE(0x80, 0x80) AM_DEVWRITE("ay2", ay8910_device, address_w)
 ADDRESS_MAP_END
 
 static SOUND_START( ad2083 )
@@ -333,8 +334,8 @@ static const tmsprom_interface prom_intf =
 	2,                              /* bit # of ctl8 line */
 	6,                              /* bit # of rom reset */
 	7,                              /* bit # of stop */
-	DEVCB_DEVICE_LINE("tms", tms5110_pdc_w),        /* tms pdc func */
-	DEVCB_DEVICE_HANDLER("tms", tms5110_ctl_w)      /* tms ctl func */
+	DEVCB_DEVICE_LINE_MEMBER("tms", tms5110_device, pdc_w),        /* tms pdc func */
+	DEVCB_DEVICE_MEMBER("tms", tms5110_device, ctl_w)      /* tms ctl func */
 };
 
 static const tms5110_interface ad2083_tms5110_interface =
@@ -343,10 +344,10 @@ static const tms5110_interface ad2083_tms5110_interface =
 	NULL,                                           /* function to be called when chip requests another bit */
 	NULL,                                           /* speech ROM load address callback */
 	/* new rom controller interface */
-	DEVCB_DEVICE_LINE("tmsprom", tmsprom_m0_w),     /* the M0 line */
+	DEVCB_DEVICE_LINE_MEMBER("tmsprom", tmsprom_device, m0_w),     /* the M0 line */
 	DEVCB_NULL,                                     /* the M1 line */
 	DEVCB_NULL,                                     /* Write to ADD1,2,4,8 - 4 address bits */
-	DEVCB_DEVICE_LINE("tmsprom", tmsprom_data_r),   /* Read one bit from ADD8/Data - voice data */
+	DEVCB_DEVICE_LINE_MEMBER("tmsprom", tmsprom_device, data_r),   /* Read one bit from ADD8/Data - voice data */
 	DEVCB_NULL                                      /* rom clock - Only used to drive the data lines */
 };
 

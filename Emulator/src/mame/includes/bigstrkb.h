@@ -2,13 +2,14 @@ class bigstrkb_state : public driver_device
 {
 public:
 	bigstrkb_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram2(*this, "videoram2"),
 		m_videoram3(*this, "videoram3"),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
 		m_vidreg1(*this, "vidreg1"),
-		m_vidreg2(*this, "vidreg2"){ }
+		m_vidreg2(*this, "vidreg2"),
+		m_maincpu(*this, "maincpu") { }
 
 	tilemap_t *m_tilemap;
 	tilemap_t *m_tilemap2;
@@ -31,4 +32,6 @@ public:
 	TILE_GET_INFO_MEMBER(get_bsb_tile3_info);
 	virtual void video_start();
 	UINT32 screen_update_bigstrkb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

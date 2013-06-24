@@ -397,7 +397,7 @@ D                                                                               
 
 TIMER_CALLBACK_MEMBER(equites_state::equites_nmi_callback)
 {
-	m_audio_cpu->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 TIMER_CALLBACK_MEMBER(equites_state::equites_frq_adjuster_callback)
@@ -424,21 +424,20 @@ static SOUND_START(equites)
 
 WRITE8_MEMBER(equites_state::equites_c0f8_w)
 {
-
 	switch (offset)
 	{
 		case 0: // c0f8: NMI ack (written by NMI handler)
-			m_audio_cpu->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 			break;
 
 		case 1: // c0f9: RST75 trigger (written by NMI handler)
 			// Note: solder pad CP3 on the pcb would allow to disable this
-			generic_pulse_irq_line(m_audio_cpu->execute(), I8085_RST75_LINE, 1);
+			generic_pulse_irq_line(m_audiocpu, I8085_RST75_LINE, 1);
 			break;
 
 		case 2: // c0fa: INTR trigger (written by NMI handler)
 			// verified on PCB:
-			m_audio_cpu->execute().set_input_line(I8085_INTR_LINE, HOLD_LINE);
+			m_audiocpu->set_input_line(I8085_INTR_LINE, HOLD_LINE);
 			break;
 
 		case 3: // c0fb: n.c.
@@ -472,18 +471,15 @@ WRITE8_MEMBER(equites_state::equites_c0f8_w)
 
 WRITE8_MEMBER(equites_state::equites_8910porta_w)
 {
-	device_t *device = machine().device("samples");
-	samples_device *samples = downcast<samples_device *>(device);
-
 	// bongo 1
-	samples->set_volume(0, ((data & 0x30) >> 4) * 0.33);
+	m_samples->set_volume(0, ((data & 0x30) >> 4) * 0.33);
 	if (data & ~m_ay_port_a & 0x80)
-		samples->start(0, 0);
+		m_samples->start(0, 0);
 
 	// bongo 2
-	samples->set_volume(1, (data & 0x03) * 0.33);
+	m_samples->set_volume(1, (data & 0x03) * 0.33);
 	if (data & ~m_ay_port_a & 0x08)
-		samples->start(1, 1);
+		m_samples->start(1, 1);
 
 	m_ay_port_a = data;
 
@@ -494,17 +490,15 @@ popmessage("HH %d(%d) CYM %d(%d)", m_hihat, BIT(m_ay_port_b, 6), m_cymbal, m_ay_
 
 WRITE8_MEMBER(equites_state::equites_8910portb_w)
 {
-	device_t *device = machine().device("samples");
-	samples_device *samples = downcast<samples_device *>(device);
 #if POPDRUMKIT
 if (data & ~m_ay_port_b & 0x08) m_cymbal++;
 if (data & ~m_ay_port_b & 0x04) m_hihat++;
 #endif
 
 	// bongo 3
-	samples->set_volume(2, ((data & 0x30)>>4) * 0.33);
+	m_samples->set_volume(2, ((data & 0x30)>>4) * 0.33);
 	if (data & ~m_ay_port_b & 0x80)
-		samples->start(2, 2);
+		m_samples->start(2, 2);
 
 	// FIXME I'm just enabling the MSM5232 Noise Output for now. Proper emulation
 	// of the analog circuitry should be done instead.
@@ -535,33 +529,31 @@ WRITE8_MEMBER(equites_state::equites_cymbal_ctrl_w)
 }
 
 
-static void equites_update_dac( running_machine &machine )
+void equites_state::equites_update_dac(  )
 {
-	equites_state *state = machine.driver_data<equites_state>();
-
 	// there is only one latch, which is used to drive two DAC channels.
 	// When the channel is enabled in the 4066, it goes to a series of
 	// low-pass filters. The channel is kept enabled only for a short time,
 	// then it's disabled again.
 	// Note that PB0 goes through three filters while PB1 only goes through one.
 
-	if (state->m_eq8155_port_b & 1)
-		state->m_dac_1->write_signed8(state->m_dac_latch);
+	if (m_eq8155_port_b & 1)
+		m_dac_1->write_signed8(m_dac_latch);
 
-	if (state->m_eq8155_port_b & 2)
-		state->m_dac_2->write_signed8(state->m_dac_latch);
+	if (m_eq8155_port_b & 2)
+		m_dac_2->write_signed8(m_dac_latch);
 }
 
 WRITE8_MEMBER(equites_state::equites_dac_latch_w)
 {
 	m_dac_latch = data << 2;
-	equites_update_dac(machine());
+	equites_update_dac();
 }
 
 WRITE8_MEMBER(equites_state::equites_8155_portb_w)
 {
 	m_eq8155_port_b = data;
-	equites_update_dac(machine());
+	equites_update_dac();
 }
 
 WRITE_LINE_MEMBER(equites_state::equites_msm5232_gate)
@@ -580,10 +572,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(equites_state::equites_scanline)
 	int scanline = param;
 
 	if(scanline == 232) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line(1, HOLD_LINE);
+		m_maincpu->set_input_line(1, HOLD_LINE);
 
 	if(scanline == 24) // vblank-in irq
-		machine().device("maincpu")->execute().set_input_line(2, HOLD_LINE);
+		m_maincpu->set_input_line(2, HOLD_LINE);
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(equites_state::splndrbt_scanline)
@@ -591,15 +583,14 @@ TIMER_DEVICE_CALLBACK_MEMBER(equites_state::splndrbt_scanline)
 	int scanline = param;
 
 	if(scanline == 224) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line(1, HOLD_LINE);
+		m_maincpu->set_input_line(1, HOLD_LINE);
 
 	if(scanline == 32) // vblank-in irq
-		machine().device("maincpu")->execute().set_input_line(2, HOLD_LINE);
+		m_maincpu->set_input_line(2, HOLD_LINE);
 }
 
 WRITE8_MEMBER(equites_state::equites_8155_w)
 {
-
 	// FIXME proper 8155 emulation must be implemented
 	switch( offset )
 	{
@@ -690,12 +681,12 @@ WRITE16_MEMBER(equites_state::mcu_w)
 
 WRITE16_MEMBER(equites_state::mcu_halt_assert_w)
 {
-	m_mcu->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+	m_mcu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 }
 
 WRITE16_MEMBER(equites_state::mcu_halt_clear_w)
 {
-	m_mcu->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+	m_mcu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
 }
 
 
@@ -750,7 +741,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, equites_state )
 	AM_RANGE(0x0000, 0xbfff) AM_ROM
 	AM_RANGE(0xc000, 0xc000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0xc080, 0xc08d) AM_DEVWRITE_LEGACY("msm", msm5232_w)
-	AM_RANGE(0xc0a0, 0xc0a1) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0xc0a0, 0xc0a1) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0xc0b0, 0xc0b0) AM_WRITENOP // n.c.
 	AM_RANGE(0xc0c0, 0xc0c0) AM_WRITE(equites_cymbal_ctrl_w)
 	AM_RANGE(0xc0d0, 0xc0d0) AM_WRITE(equites_dac_latch_w)  // followed by 1 (and usually 0) on 8155 port B
@@ -1188,13 +1179,6 @@ MACHINE_CONFIG_END
 
 MACHINE_START_MEMBER(equites_state,equites)
 {
-
-	m_mcu = machine().device("mcu");
-	m_audio_cpu = machine().device("audiocpu");
-	m_msm = machine().device<msm5232_device>("msm");
-	m_dac_1 = machine().device<dac_device>("dac1");
-	m_dac_2 = machine().device<dac_device>("dac2");
-
 	save_item(NAME(m_fg_char_bank));
 	save_item(NAME(m_bgcolor));
 	save_item(NAME(m_splndrbt_bg_scrollx));
@@ -1219,7 +1203,6 @@ MACHINE_START_MEMBER(equites_state,equites)
 
 MACHINE_RESET_MEMBER(equites_state,equites)
 {
-
 	flip_screen_set(0);
 
 	m_fg_char_bank = 0;
@@ -1851,9 +1834,9 @@ ROM_END
 /******************************************************************************/
 // Initializations
 
-static void unpack_block( running_machine &machine, const char *region, int offset, int size )
+void equites_state::unpack_block( const char *region, int offset, int size )
 {
-	UINT8 *rom = machine.root_device().memregion(region)->base();
+	UINT8 *rom = memregion(region)->base();
 	int i;
 
 	for (i = 0; i < size; ++i)
@@ -1863,52 +1846,52 @@ static void unpack_block( running_machine &machine, const char *region, int offs
 	}
 }
 
-static void unpack_region( running_machine &machine, const char *region )
+void equites_state::unpack_region( const char *region )
 {
-	unpack_block(machine, region, 0x0000, 0x2000);
-	unpack_block(machine, region, 0x4000, 0x2000);
+	unpack_block(region, 0x0000, 0x2000);
+	unpack_block(region, 0x4000, 0x2000);
 }
 
 
 DRIVER_INIT_MEMBER(equites_state,equites)
 {
-	unpack_region(machine(), "gfx2");
-	unpack_region(machine(), "gfx3");
+	unpack_region("gfx2");
+	unpack_region("gfx3");
 }
 
 DRIVER_INIT_MEMBER(equites_state,bullfgtr)
 {
-	unpack_region(machine(), "gfx2");
-	unpack_region(machine(), "gfx3");
+	unpack_region("gfx2");
+	unpack_region("gfx3");
 }
 
 DRIVER_INIT_MEMBER(equites_state,kouyakyu)
 {
-	unpack_region(machine(), "gfx2");
-	unpack_region(machine(), "gfx3");
+	unpack_region("gfx2");
+	unpack_region("gfx3");
 }
 
 DRIVER_INIT_MEMBER(equites_state,gekisou)
 {
-	unpack_region(machine(), "gfx2");
-	unpack_region(machine(), "gfx3");
+	unpack_region("gfx2");
+	unpack_region("gfx3");
 
 	// install special handlers for unknown device (protection?)
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x580000, 0x580001, write16_delegate(FUNC(equites_state::gekisou_unknown_0_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x5a0000, 0x5a0001, write16_delegate(FUNC(equites_state::gekisou_unknown_1_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x580000, 0x580001, write16_delegate(FUNC(equites_state::gekisou_unknown_0_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x5a0000, 0x5a0001, write16_delegate(FUNC(equites_state::gekisou_unknown_1_w),this));
 }
 
 DRIVER_INIT_MEMBER(equites_state,splndrbt)
 {
-	unpack_region(machine(), "gfx3");
+	unpack_region("gfx3");
 }
 
 DRIVER_INIT_MEMBER(equites_state,hvoltage)
 {
-	unpack_region(machine(), "gfx3");
+	unpack_region("gfx3");
 
 #if HVOLTAGE_DEBUG
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_read_handler(0x000038, 0x000039, read16_delegate(FUNC(equites_state::hvoltage_debug_r),this));
+	m_maincpu->space(AS_PROGRAM).install_legacy_read_handler(0x000038, 0x000039, read16_delegate(FUNC(equites_state::hvoltage_debug_r),this));
 #endif
 }
 

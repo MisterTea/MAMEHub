@@ -50,6 +50,7 @@ CPUS += V30MZ
 CPUS += V60
 CPUS += MCS48
 CPUS += MCS51
+CPUS += MCS96
 CPUS += M6800
 CPUS += M6805
 CPUS += HD6309
@@ -60,6 +61,9 @@ CPUS += T11
 CPUS += S2650
 CPUS += TMS340X0
 CPUS += TMS9900
+CPUS += TMS9995
+CPUS += TMS9900L
+CPUS += TMS9995L
 CPUS += Z8000
 CPUS += Z8001
 CPUS += TMS32010
@@ -133,6 +137,10 @@ CPUS += HCD62121
 CPUS += PPS4
 CPUS += UPD7725
 CPUS += HD61700
+CPUS += LC8670
+CPUS += ES5510
+CPUS += SCUDSP
+CPUS += IE15
 
 #-------------------------------------------------
 # specify available sound cores
@@ -238,9 +246,235 @@ SOUNDS += MOS656X
 SOUNDS += S2636
 SOUNDS += ASC
 SOUNDS += MAS3507D
+SOUNDS += SOCRATES
+SOUNDS += TMC0285
+SOUNDS += TMS5200
+SOUNDS += CD2801
+SOUNDS += CD2802
+SOUNDS += M58817
+SOUNDS += TMC0281
+SOUNDS += TMS5100
+SOUNDS += TMS5110A
 SOUNDS += LMC1992
 SOUNDS += AWACS
 SOUNDS += YMZ770
+SOUNDS += T6721A
+SOUNDS += MOS7360
+
+#-------------------------------------------------
+# specify available video cores
+#-------------------------------------------------
+
+VIDEOS += SEGA315_5124
+VIDEOS += BUFSPRITE
+#VIDEOS += CDP1861
+#VIDEOS += CDP1862
+#VIDEOS += CRT9007
+#VIDEOS += CRT9021
+#VIDEOS += CRT9212
+#VIDEOS += DL1416
+#VIDEOS += DM9368
+#VIDEOS += EF9340_1
+VIDEOS += H63484
+#VIDEOS += HD44102
+#VIDEOS += HD44352
+#VIDEOS += HD44780
+VIDEOS += HD61830
+VIDEOS += HD63484
+#VIDEOS += HD66421
+VIDEOS += HUC6202
+VIDEOS += HUC6260
+#VIDEOS += HUC6261
+VIDEOS += HUC6270
+#VIDEOS += HUC6272
+#VIDEOS += I8244
+VIDEOS += I8275
+VIDEOS += K053250
+VIDEOS += M50458
+VIDEOS += MB90082
+VIDEOS += MC6845
+#VIDEOS += MC6847
+#VIDEOS += MSM6255
+VIDEOS += PC_CGA
+VIDEOS += PC_VGA
+VIDEOS += POLY
+VIDEOS += PSX
+VIDEOS += RAMDAC
+VIDEOS += S2636
+VIDEOS += SAA5050
+#VIDEOS += SED1330
+VIDEOS += STVVDP
+VIDEOS += TLC34076
+VIDEOS += TMS34061
+#VIDEOS += TMS3556
+VIDEOS += TMS9927
+VIDEOS += TMS9928A
+#VIDEOS += UPD3301
+#VIDEOS += UPD7220
+#VIDEOS += UPD7227
+VIDEOS += V9938
+VIDEOS += VOODOO
+
+#-------------------------------------------------
+# specify available machine cores
+#-------------------------------------------------
+
+MACHINES += NCR53C7XX
+MACHINES += LSI53C810
+MACHINES += 6522VIA
+MACHINES += TPI6525
+MACHINES += 6526CIA
+MACHINES += RIOT6532
+MACHINES += 6821PIA
+MACHINES += 6840PTM
+MACHINES += ACIA6850
+MACHINES += 68681
+MACHINES += 7200FIFO
+MACHINES += TTL74123
+MACHINES += TTL74145
+MACHINES += TTL74148
+MACHINES += TTL74153
+MACHINES += TTL74181
+MACHINES += TTL7474
+MACHINES += KBDC8042
+MACHINES += I8257
+MACHINES += AAKARTDEV
+MACHINES += ADC0808
+MACHINES += ADC083X
+MACHINES += ADC1038
+MACHINES += ADC1213X
+MACHINES += AM53CF96
+MACHINES += AM9517A
+MACHINES += AMIGAFDC
+MACHINES += AT28C16
+MACHINES += AT29040
+MACHINES += AT45DBXX
+MACHINES += ATAFLASH
+MACHINES += AY31015
+MACHINES += BANKDEV
+MACHINES += CDP1852
+MACHINES += CDP1871
+MACHINES += COM8116
+MACHINES += CR589
+MACHINES += CTRONICS
+MACHINES += DS1302
+MACHINES += DS2401
+MACHINES += DS2404
+MACHINES += DS75160A
+MACHINES += DS75161A
+MACHINES += E0516
+MACHINES += EEPROMDEV
+MACHINES += ER2055
+MACHINES += ER59256
+MACHINES += F3853
+MACHINES += I2CMEM
+MACHINES += I8155
+MACHINES += I8212
+MACHINES += I8214
+MACHINES += I8243
+MACHINES += I8251
+MACHINES += I8255
+MACHINES += I8279
+MACHINES += I8355
+MACHINES += IDE
+MACHINES += IM6402
+MACHINES += INS8154
+MACHINES += INS8250
+MACHINES += INTELFLASH
+MACHINES += JVS
+MACHINES += K033906
+MACHINES += K053252
+MACHINES += K056230
+MACHINES += LATCH8
+MACHINES += LC89510
+MACHINES += LDPR8210
+MACHINES += LDSTUB
+MACHINES += LDV1000
+MACHINES += LDVP931
+MACHINES += LINFLASH
+MACHINES += M6M80011AP
+MACHINES += MATSUCD
+MACHINES += MB14241
+MACHINES += MB3773
+MACHINES += MB87078
+MACHINES += MB89371
+MACHINES += MC146818
+MACHINES += MC2661
+MACHINES += MC6843
+MACHINES += MC6846
+MACHINES += MC6852
+MACHINES += MC6854
+MACHINES += MC68901
+MACHINES += MCCS1850
+MACHINES += MCF5206E
+MACHINES += MICROTOUCH
+MACHINES += MM58274C
+MACHINES += MM74C922
+MACHINES += MOS6526
+MACHINES += MOS6529
+MACHINES += MIOT6530
+MACHINES += MOS6551
+MACHINES += MSM5832
+MACHINES += MSM58321
+MACHINES += MSM6242
+MACHINES += NCR539x
+MACHINES += NMC9306
+MACHINES += NSCSI
+MACHINES += PCF8593
+MACHINES += PCI
+MACHINES += PCKEYBRD
+MACHINES += PD4990A_OLD
+MACHINES += PIC8259
+MACHINES += PIT8253
+MACHINES += PLA
+MACHINES += RF5C296
+MACHINES += ROC10937
+MACHINES += RP5C01
+MACHINES += RP5C15
+MACHINES += RP5H01
+MACHINES += RTC4543
+MACHINES += RTC65271
+MACHINES += RTC9701
+MACHINES += S3520CF
+MACHINES += S3C2400
+MACHINES += S3C2410
+MACHINES += S3C2440
+MACHINES += SATURN
+MACHINES += SCSI
+MACHINES += SCUDSP
+MACHINES += SEIBU_COP
+MACHINES += SERFLASH
+MACHINES += SMC91C9X
+MACHINES += SMPC
+MACHINES += STVCD
+MACHINES += TC0091LVC
+MACHINES += TIMEKPR
+MACHINES += TMP68301
+MACHINES += TMS6100
+MACHINES += TMS9901
+MACHINES += TMS9902
+MACHINES += UPD1990A
+MACHINES += UPD4701
+MACHINES += UPD7002
+MACHINES += UPD765
+MACHINES += V3021
+MACHINES += WD_FDC
+MACHINES += WD11C00_17
+MACHINES += WD17XX
+MACHINES += WD2010
+MACHINES += WD33C93
+MACHINES += X2212
+MACHINES += X76F041
+MACHINES += X76F100
+MACHINES += Z80CTC
+MACHINES += Z80DART
+MACHINES += Z80DMA
+MACHINES += Z80PIO
+MACHINES += Z80SIO
+MACHINES += Z80STI
+MACHINES += Z8536
+MACHINES += SECFLASH
+MACHINES += PCCARD
 
 #-------------------------------------------------
 # this is the list of driver libraries that
@@ -356,7 +590,6 @@ DRVLIBS += \
 
 $(MAMEOBJ)/shared.a: \
 	$(MACHINE)/nmk112.o \
-	$(MACHINE)/pckeybrd.o \
 	$(MACHINE)/pcshare.o \
 	$(MACHINE)/segacrpt.o \
 	$(MACHINE)/segacrp2.o \
@@ -639,6 +872,7 @@ $(MAMEOBJ)/dataeast.a: \
 	$(DRIVERS)/decocass.o $(MACHINE)/decocass.o $(MACHINE)/decocass_tape.o $(VIDEO)/decocass.o \
 	$(DRIVERS)/deshoros.o \
 	$(DRIVERS)/dietgo.o $(VIDEO)/dietgo.o \
+	$(DRIVERS)/dreambal.o \
 	$(DRIVERS)/exprraid.o $(VIDEO)/exprraid.o \
 	$(DRIVERS)/firetrap.o $(VIDEO)/firetrap.o \
 	$(DRIVERS)/funkyjet.o $(VIDEO)/funkyjet.o \
@@ -769,6 +1003,7 @@ $(MAMEOBJ)/gottlieb.a: \
 
 $(MAMEOBJ)/ibmpc.a: \
 	$(DRIVERS)/calchase.o \
+	$(DRIVERS)/fruitpc.o \
 	$(DRIVERS)/pangofun.o \
 	$(DRIVERS)/pcat_dyn.o \
 	$(DRIVERS)/pcat_nit.o \
@@ -788,6 +1023,7 @@ $(MAMEOBJ)/igs.a: \
 	$(DRIVERS)/igs011.o \
 	$(DRIVERS)/igs017.o \
 	$(DRIVERS)/igs_m027.o \
+	$(DRIVERS)/igs_m036.o \
 	$(DRIVERS)/iqblock.o $(VIDEO)/iqblock.o \
 	$(DRIVERS)/lordgun.o $(VIDEO)/lordgun.o \
 	$(DRIVERS)/pgm.o $(VIDEO)/pgm.o \
@@ -826,6 +1062,7 @@ $(MAMEOBJ)/itech.a: \
 	$(DRIVERS)/capbowl.o $(VIDEO)/capbowl.o \
 	$(DRIVERS)/itech8.o $(MACHINE)/slikshot.o $(VIDEO)/itech8.o \
 	$(DRIVERS)/itech32.o $(VIDEO)/itech32.o \
+	$(DRIVERS)/iteagle.o \
 
 $(MAMEOBJ)/jaleco.a: \
 	$(DRIVERS)/aeroboto.o $(VIDEO)/aeroboto.o \
@@ -908,7 +1145,7 @@ $(MAMEOBJ)/konami.a: \
 	$(DRIVERS)/fastfred.o $(VIDEO)/fastfred.o \
 	$(DRIVERS)/fastlane.o $(VIDEO)/fastlane.o \
 	$(DRIVERS)/finalizr.o $(VIDEO)/finalizr.o \
-	$(DRIVERS)/firebeat.o \
+	$(DRIVERS)/firebeat.o $(MACHINE)/midikbd.o \
 	$(DRIVERS)/flkatck.o $(VIDEO)/flkatck.o \
 	$(DRIVERS)/gberet.o $(VIDEO)/gberet.o \
 	$(DRIVERS)/gbusters.o $(VIDEO)/gbusters.o \
@@ -930,7 +1167,7 @@ $(MAMEOBJ)/konami.a: \
 	$(DRIVERS)/konamim2.o \
 	$(DRIVERS)/kontest.o \
 	$(DRIVERS)/konendev.o \
-	$(DRIVERS)/ksys573.o $(MACHINE)/k573cass.o $(MACHINE)/zs01.o \
+	$(DRIVERS)/ksys573.o $(MACHINE)/k573cass.o $(MACHINE)/mpeg573.o $(MACHINE)/zs01.o \
 	$(DRIVERS)/labyrunr.o $(VIDEO)/labyrunr.o \
 	$(DRIVERS)/lethal.o $(VIDEO)/lethal.o \
 	$(DRIVERS)/mainevt.o $(VIDEO)/mainevt.o \
@@ -1009,6 +1246,7 @@ $(MAMEOBJ)/metro.a: \
 $(MAMEOBJ)/midcoin.a: \
 	$(DRIVERS)/wallc.o \
 	$(DRIVERS)/wink.o \
+	$(DRIVERS)/24cdjuke.o \
 
 $(MAMEOBJ)/midw8080.a: \
 	$(DRIVERS)/8080bw.o $(AUDIO)/8080bw.o $(VIDEO)/8080bw.o \
@@ -1034,9 +1272,10 @@ $(MAMEOBJ)/midway.a: \
 	$(DRIVERS)/midyunit.o $(MACHINE)/midyunit.o $(VIDEO)/midyunit.o \
 	$(DRIVERS)/midzeus.o $(VIDEO)/midzeus.o $(VIDEO)/midzeus2.o \
 	$(DRIVERS)/omegrace.o \
+	$(DRIVERS)/pinball2k.o \
 	$(DRIVERS)/seattle.o \
 	$(DRIVERS)/tmaster.o \
-	$(DRIVERS)/vegas.o \
+	$(DRIVERS)/vegas.o $(DRIVERS)/wmg.o \
 	$(DRIVERS)/williams.o $(MACHINE)/williams.o $(AUDIO)/williams.o $(VIDEO)/williams.o \
 	$(MACHINE)/midwayic.o \
 	$(AUDIO)/dcs.o \
@@ -1064,7 +1303,7 @@ $(MAMEOBJ)/namco.a: \
 	$(DRIVERS)/namcops2.o \
 	$(DRIVERS)/namcos1.o $(MACHINE)/namcos1.o $(VIDEO)/namcos1.o \
 	$(DRIVERS)/namcos10.o \
-	$(DRIVERS)/namcos11.o \
+	$(DRIVERS)/namcos11.o $(MACHINE)/ns11prot.o \
 	$(DRIVERS)/namcos12.o \
 	$(DRIVERS)/namcos2.o $(MACHINE)/namcos2.o $(VIDEO)/namcos2.o \
 	$(DRIVERS)/namcos21.o $(VIDEO)/namcos21.o \
@@ -1247,7 +1486,6 @@ $(MAMEOBJ)/sega.a: \
 	$(DRIVERS)/coolridr.o \
 	$(DRIVERS)/deniam.o $(VIDEO)/deniam.o \
 	$(DRIVERS)/dotrikun.o \
-	$(VIDEO)/genesis.o \
 	$(DRIVERS)/gpworld.o \
 	$(DRIVERS)/hikaru.o \
 	$(DRIVERS)/hshavoc.o \
@@ -1256,9 +1494,7 @@ $(MAMEOBJ)/sega.a: \
 	$(MACHINE)/megacd.o \
 	$(MACHINE)/megacdcd.o \
 	$(MACHINE)/mega32x.o \
-	$(MACHINE)/megasvp.o \
 	$(MACHINE)/megavdp.o \
-	$(MACHINE)/md_cart.o \
 	$(DRIVERS)/megadrvb.o \
 	$(DRIVERS)/megaplay.o \
 	$(DRIVERS)/megatech.o \
@@ -1266,8 +1502,10 @@ $(MAMEOBJ)/sega.a: \
 	$(AUDIO)/dsbz80.o \
 	$(DRIVERS)/model2.o $(VIDEO)/model2.o \
 	$(DRIVERS)/model3.o $(VIDEO)/model3.o $(MACHINE)/model3.o \
-	$(DRIVERS)/naomi.o $(MACHINE)/dc.o $(VIDEO)/dc.o $(MACHINE)/naomi.o \
-	$(MACHINE)/naomig1.o $(MACHINE)/naomibd.o $(MACHINE)/naomirom.o $(MACHINE)/naomigd.o $(MACHINE)/naomim1.o $(MACHINE)/naomim2.o $(MACHINE)/naomim4.o $(MACHINE)/awboard.o \
+	$(DRIVERS)/naomi.o $(MACHINE)/dc.o $(VIDEO)/powervr2.o $(MACHINE)/naomi.o \
+	$(MACHINE)/naomig1.o $(MACHINE)/naomibd.o $(MACHINE)/naomirom.o $(MACHINE)/naomigd.o \
+	$(MACHINE)/naomicrypt.o $(MACHINE)/naomim1.o $(MACHINE)/naomim2.o $(MACHINE)/naomim4.o \
+	$(MACHINE)/awboard.o \
 	$(MACHINE)/mie.o $(MACHINE)/maple-dc.o $(MACHINE)/mapledev.o $(MACHINE)/dc-ctrl.o $(MACHINE)/jvs13551.o \
 	$(DRIVERS)/triforce.o \
 	$(DRIVERS)/puckpkmn.o \
@@ -1289,7 +1527,8 @@ $(MAMEOBJ)/sega.a: \
 	$(DRIVERS)/segaybd.o $(VIDEO)/segaybd.o \
 	$(DRIVERS)/sg1000a.o \
 	$(DRIVERS)/stactics.o $(VIDEO)/stactics.o \
-	$(DRIVERS)/saturn.o $(MACHINE)/stvprot.o $(MACHINE)/stvcd.o $(MACHINE)/smpc.o $(VIDEO)/stvvdp1.o $(VIDEO)/stvvdp2.o \
+	$(DRIVERS)/stv.o $(MACHINE)/stvprot.o \
+	$(MACHINE)/decathlt.o \
 	$(DRIVERS)/suprloco.o $(VIDEO)/suprloco.o \
 	$(DRIVERS)/system1.o $(VIDEO)/system1.o \
 	$(DRIVERS)/system16.o $(VIDEO)/system16.o \
@@ -1301,7 +1540,6 @@ $(MAMEOBJ)/sega.a: \
 	$(MACHINE)/fd1094.o \
 	$(MACHINE)/fddebug.o \
 	$(MACHINE)/mc8123.o \
-	$(MACHINE)/scudsp.o \
 	$(MACHINE)/segaic16.o \
 	$(AUDIO)/carnival.o \
 	$(AUDIO)/depthch.o \
@@ -1539,6 +1777,7 @@ $(MAMEOBJ)/technos.a: \
 	$(DRIVERS)/xain.o $(VIDEO)/xain.o \
 
 $(MAMEOBJ)/tehkan.a: \
+	$(VIDEO)/tecmo_spr.o \
 	$(DRIVERS)/bombjack.o $(VIDEO)/bombjack.o \
 	$(DRIVERS)/gaiden.o $(VIDEO)/gaiden.o \
 	$(DRIVERS)/lvcards.o $(VIDEO)/lvcards.o \
@@ -1630,6 +1869,7 @@ $(MAMEOBJ)/yunsung.a: \
 
 $(MAMEOBJ)/zaccaria.a: \
 	$(DRIVERS)/laserbat.o $(AUDIO)/laserbat.o \
+	$(DRIVERS)/seabattl.o \
 	$(DRIVERS)/zac2650.o $(VIDEO)/zac2650.o \
 	$(DRIVERS)/zaccaria.o $(VIDEO)/zaccaria.o \
 
@@ -1791,8 +2031,10 @@ $(MAMEOBJ)/misc.a: \
 	$(DRIVERS)/flipjack.o \
 	$(DRIVERS)/flower.o $(AUDIO)/flower.o $(VIDEO)/flower.o \
 	$(DRIVERS)/fortecar.o \
+	$(DRIVERS)/fresh.o \
 	$(DRIVERS)/freekick.o $(VIDEO)/freekick.o \
 	$(DRIVERS)/funkball.o \
+	$(DRIVERS)/gambl186.o \
 	$(DRIVERS)/galaxi.o \
 	$(DRIVERS)/galgame.o \
 	$(DRIVERS)/gamecstl.o \
@@ -1801,6 +2043,7 @@ $(MAMEOBJ)/misc.a: \
 	$(DRIVERS)/gei.o \
 	$(DRIVERS)/globalfr.o \
 	$(DRIVERS)/globalvr.o \
+	$(DRIVERS)/gluck2.o \
 	$(DRIVERS)/goldngam.o \
 	$(DRIVERS)/goldnpkr.o \
 	$(DRIVERS)/good.o \
@@ -1897,6 +2140,7 @@ $(MAMEOBJ)/misc.a: \
 	$(DRIVERS)/rgum.o \
 	$(DRIVERS)/roul.o \
 	$(DRIVERS)/savquest.o \
+	$(DRIVERS)/sanremo.o \
 	$(DRIVERS)/sfbonus.o \
 	$(DRIVERS)/shangkid.o $(VIDEO)/shangkid.o \
 	$(DRIVERS)/skeetsht.o \
@@ -1905,7 +2149,7 @@ $(MAMEOBJ)/misc.a: \
 	$(DRIVERS)/skylncr.o \
 	$(DRIVERS)/sliver.o \
 	$(DRIVERS)/slotcarn.o \
-	$(DRIVERS)/sms.o \
+	$(DRIVERS)/smsmcorp.o \
 	$(DRIVERS)/sothello.o \
 	$(DRIVERS)/splus.o \
 	$(DRIVERS)/spool99.o \
@@ -1915,6 +2159,7 @@ $(MAMEOBJ)/misc.a: \
 	$(DRIVERS)/sstrangr.o \
 	$(DRIVERS)/statriv2.o \
 	$(DRIVERS)/stellafr.o \
+	$(DRIVERS)/stuntair.o \
 	$(DRIVERS)/su2000.o \
 	$(DRIVERS)/summit.o \
 	$(DRIVERS)/sumt8035.o \
@@ -1958,6 +2203,8 @@ $(MAMEOBJ)/misc.a: \
 #-------------------------------------------------
 # layout dependencies
 #-------------------------------------------------
+
+$(DRIVERS)/24cdjuke.o:  $(LAYOUT)/24cdjuke.lh
 
 $(DRIVERS)/30test.o:    $(LAYOUT)/30test.lh
 
@@ -2034,6 +2281,8 @@ $(DRIVERS)/bfm_sc4.o:   $(LAYOUT)/bfm_sc4.lh \
 $(DRIVERS)/bfm_sc4h.o:  $(LAYOUT)/bfm_sc4.lh \
 			$(LAYOUT)/sc4_dmd.lh
 
+$(DRIVERS)/bfm_sc5.o:   $(LAYOUT)/bfm_sc5.lh
+
 $(DRIVERS)/bfmsys85.o:  $(LAYOUT)/bfmsys85.lh
 
 $(DRIVERS)/blockade.o:  $(LAYOUT)/blockade.lh
@@ -2075,6 +2324,8 @@ $(DRIVERS)/corona.o:    $(LAYOUT)/re800.lh \
 			$(LAYOUT)/luckyrlt.lh
 
 $(DRIVERS)/darius.o:    $(LAYOUT)/darius.lh
+
+$(DRIVERS)/de_2.o:      $(LAYOUT)/de2.lh
 
 $(DRIVERS)/destroyr.o:  $(LAYOUT)/destroyr.lh
 
@@ -2264,6 +2515,8 @@ $(DRIVERS)/s11a.o:  $(LAYOUT)/s11a.lh
 $(DRIVERS)/s11b.o:  $(LAYOUT)/s11b.lh
 $(DRIVERS)/s11c.o:  $(LAYOUT)/s11c.lh
 
+$(DRIVERS)/sanremo.o:   $(LAYOUT)/sanremo.lh
+
 $(DRIVERS)/sbrkout.o:   $(LAYOUT)/sbrkout.lh
 
 $(DRIVERS)/sderby.o:    $(LAYOUT)/sderby.lh \
@@ -2274,8 +2527,6 @@ $(DRIVERS)/segaorun.o:  $(LAYOUT)/outrun.lh
 
 $(DRIVERS)/segas32.o:   $(LAYOUT)/radr.lh
 
-$(DRIVERS)/segasms.o:   $(LAYOUT)/sms1.lh
-
 $(DRIVERS)/segaybd.o:   $(LAYOUT)/pdrift.lh
 
 $(DRIVERS)/skydiver.o:  $(LAYOUT)/skydiver.lh
@@ -2285,6 +2536,8 @@ $(DRIVERS)/snookr10.o:  $(LAYOUT)/snookr10.lh
 $(DRIVERS)/spectra.o:   $(LAYOUT)/spectra.lh
 
 $(DRIVERS)/splus.o:     $(LAYOUT)/splus.lh
+
+$(DRIVERS)/speedbal.o:  $(LAYOUT)/speedbal.lh
 
 $(DRIVERS)/sspeedr.o:   $(LAYOUT)/sspeedr.lh
 
@@ -2376,20 +2629,6 @@ $(MACHINE)/megacd.o:  $(LAYOUT)/megacd.lh
 
 $(DRIVERS)/galaxian.o:  $(MAMESRC)/drivers/galdrvr.c
 $(DRIVERS)/neogeo.o:    $(MAMESRC)/drivers/neodrvr.c
-$(DRIVERS)/saturn.o:    $(MAMESRC)/drivers/stv.c
-$(MACHINE)/snes.o:      $(MAMESRC)/machine/snesobc1.c \
-			$(MAMESRC)/machine/snescx4.c \
-			$(MAMESRC)/machine/cx4ops.c \
-			$(MAMESRC)/machine/cx4oam.c \
-			$(MAMESRC)/machine/cx4fn.c \
-			$(MAMESRC)/machine/cx4data.c \
-			$(MAMESRC)/machine/snesrtc.c \
-			$(MAMESRC)/machine/snessdd1.c \
-			$(MAMESRC)/machine/snes7110.c \
-			$(MAMESRC)/machine/snesbsx.c
-$(MACHINE)/nes_mmc.o:   $(MAMESRC)/machine/nes_ines.c \
-			$(MAMESRC)/machine/nes_pcb.c \
-			$(MAMESRC)/machine/nes_unif.c
 $(VIDEO)/jaguar.o:  $(MAMESRC)/video/jagobj.c \
 			$(MAMESRC)/video/jagblit.c
 $(DRIVERS)/model1.o: $(MAMESRC)/includes/model1.h $(MAMESRC)/audio/dsbz80.h
@@ -2400,4 +2639,6 @@ $(VIDEO)/model3.o:  $(MAMESRC)/video/m3raster.c
 $(VIDEO)/n64.o:     $(MAMESRC)/video/rdpfiltr.c
 $(DRIVERS)/bfm_sc4.o: $(MAMESRC)/includes/bfm_sc45.h
 $(DRIVERS)/bfm_sc5.o: $(MAMESRC)/includes/bfm_sc45.h
-
+$(DRIVERS)/namcos2.o: $(MAMESRC)/includes/namcos2.h
+$(MACHINE)/namcos2.o: $(MAMESRC)/includes/namcos2.h
+$(VIDEO)/namcos2.o: $(MAMESRC)/includes/namcos2.h

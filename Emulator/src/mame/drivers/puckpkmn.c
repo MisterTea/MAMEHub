@@ -257,20 +257,20 @@ static ADDRESS_MAP_START( jzth_map, AS_PROGRAM, 16, md_boot_state )
 	AM_RANGE(0x710000, 0x710001) AM_READWRITE(bl_710000_r,bl_710000_w) // protection, will erase the VDP address causing writes to 0 unless this returns 0xe
 ADDRESS_MAP_END
 
-static READ16_HANDLER(puckpkmna_70001c_r)
+READ16_MEMBER(md_boot_state::puckpkmna_70001c_r)
 {
 	return 0x0e;
 }
 
-static READ16_HANDLER(puckpkmna_4b2476_r)
+READ16_MEMBER(md_boot_state::puckpkmna_4b2476_r)
 {
 	return 0x3400;
 }
 
 static ADDRESS_MAP_START( puckpkmna_map, AS_PROGRAM, 16, md_boot_state )
 	AM_IMPORT_FROM( puckpkmn_map )
-	AM_RANGE(0x4b2476, 0x4b2477) AM_READ_LEGACY(puckpkmna_4b2476_r)
-	AM_RANGE(0x70001c, 0x70001d) AM_READ_LEGACY(puckpkmna_70001c_r)
+	AM_RANGE(0x4b2476, 0x4b2477) AM_READ(puckpkmna_4b2476_r)
+	AM_RANGE(0x70001c, 0x70001d) AM_READ(puckpkmna_70001c_r)
 ADDRESS_MAP_END
 
 static MACHINE_CONFIG_START( puckpkmn, md_boot_state )
@@ -369,15 +369,15 @@ PUCKPOKE.U8 27C4001---/
 ROM sockets U63 & U64 empty
 
 Hi-res PCB scan available on request.
-Screenshots available on my site at http://guru.mameworld.info/oldnews2001.html (under PCB Shop Raid #2)
+Screenshots available on my site at http://members.iinet.net.au/~lantra9jp1/gurudumps/oldnews2001.html (under PCB Shop Raid #2)
 
 
 ****************************************************************************/
 
 DRIVER_INIT_MEMBER(md_boot_state,puckpkmn)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
-	size_t len = machine().root_device().memregion("maincpu")->bytes();
+	UINT8 *rom = memregion("maincpu")->base();
+	size_t len = memregion("maincpu")->bytes();
 	int i;
 
 	for (i = 0; i < len; i++)

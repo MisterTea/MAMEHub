@@ -169,12 +169,15 @@ MC6845_ON_UPDATE_ADDR_CHANGED( v6809_update_addr )
 
 void v6809_state::video_start()
 {
-	m_p_chargen = machine().root_device().memregion("chargen")->base();
+	m_p_chargen = memregion("chargen")->base();
 	m_p_videoram = memregion("videoram")->base();
 }
 
-static const mc6845_interface v6809_crtc = {
+
+static MC6845_INTERFACE( v6809_crtc )
+{
 	"screen",           /* name of screen */
+	false,
 	8,              /* number of dots per character */
 	NULL,
 	v6809_update_row,       /* handler to display a scanline */

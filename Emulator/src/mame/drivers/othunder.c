@@ -249,16 +249,14 @@ TODO:
                 INTERRUPTS
 ***********************************************************/
 
-static void update_irq( running_machine &machine )
+void othunder_state::update_irq(  )
 {
-	othunder_state *state = machine.driver_data<othunder_state>();
-	state->m_maincpu->set_input_line(6, state->m_ad_irq ? ASSERT_LINE : CLEAR_LINE);
-	state->m_maincpu->set_input_line(5, state->m_vblank_irq ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(6, m_ad_irq ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(5, m_vblank_irq ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE16_MEMBER(othunder_state::irq_ack_w)
 {
-
 	switch (offset)
 	{
 		case 0:
@@ -270,21 +268,26 @@ WRITE16_MEMBER(othunder_state::irq_ack_w)
 			break;
 	}
 
-	update_irq(machine());
+	update_irq();
 }
 
 INTERRUPT_GEN_MEMBER(othunder_state::vblank_interrupt)
 {
-
 	m_vblank_irq = 1;
-	update_irq(machine());
+	update_irq();
 }
 
-TIMER_CALLBACK_MEMBER(othunder_state::ad_interrupt)
+void othunder_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-
-	m_ad_irq = 1;
-	update_irq(machine());
+	switch (id)
+	{
+	case TIMER_AD_INTERRUPT:
+		m_ad_irq = 1;
+		update_irq();
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in othunder_state::device_timer");
+	}
 }
 
 
@@ -309,7 +312,6 @@ static const eeprom_interface eeprom_intf =
 
 WRITE16_MEMBER(othunder_state::othunder_tc0220ioc_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		switch (offset)
@@ -338,7 +340,7 @@ WRITE16_MEMBER(othunder_state::othunder_tc0220ioc_w)
 				break;
 
 			default:
-				tc0220ioc_w(m_tc0220ioc, space, offset, data & 0xff);
+				m_tc0220ioc->write(space, offset, data & 0xff);
 		}
 	}
 }
@@ -350,14 +352,13 @@ WRITE16_MEMBER(othunder_state::othunder_tc0220ioc_w)
 
 READ16_MEMBER(othunder_state::othunder_tc0220ioc_r)
 {
-
 	switch (offset)
 	{
 		case 0x03:
 			return (m_eeprom->read_bit() & 1) << 7;
 
 		default:
-			return tc0220ioc_r(m_tc0220ioc, space, offset);
+			return m_tc0220ioc->read(space, offset);
 	}
 }
 
@@ -380,7 +381,7 @@ WRITE16_MEMBER(othunder_state::othunder_lightgun_w)
 	   The ADC60808 clock is 512kHz. Conversion takes between 0 and 8 clock
 	   cycles, so would end in a maximum of 15.625us. We'll use 10. */
 
-	machine().scheduler().timer_set(attotime::from_usec(10), timer_expired_delegate(FUNC(othunder_state::ad_interrupt),this));
+	timer_set(attotime::from_usec(10), TIMER_AD_INTERRUPT);
 }
 
 
@@ -388,31 +389,30 @@ WRITE16_MEMBER(othunder_state::othunder_lightgun_w)
             SOUND
 *****************************************/
 
-static void reset_sound_region( running_machine &machine )
+void othunder_state::reset_sound_region()
 {
-	othunder_state *state = machine.driver_data<othunder_state>();
-	state->membank("bank10")->set_entry(state->m_banknum);
+	membank("bank10")->set_entry(m_banknum);
 }
 
 
 WRITE8_MEMBER(othunder_state::sound_bankswitch_w)
 {
 	m_banknum = data & 7;
-	reset_sound_region(machine());
+	reset_sound_region();
 }
 
 WRITE16_MEMBER(othunder_state::othunder_sound_w)
 {
 	if (offset == 0)
-		tc0140syt_port_w(m_tc0140syt, space, 0, data & 0xff);
+		m_tc0140syt->tc0140syt_port_w(space, 0, data & 0xff);
 	else if (offset == 1)
-		tc0140syt_comm_w(m_tc0140syt, space, 0, data & 0xff);
+		m_tc0140syt->tc0140syt_comm_w(space, 0, data & 0xff);
 }
 
 READ16_MEMBER(othunder_state::othunder_sound_r)
 {
 	if (offset == 1)
-		return ((tc0140syt_comm_r(m_tc0140syt, space, 0) & 0xff));
+		return ((m_tc0140syt->tc0140syt_comm_r(space, 0) & 0xff));
 	else
 		return 0;
 }
@@ -429,20 +429,20 @@ WRITE8_MEMBER(othunder_state::othunder_TC0310FAM_w)
 	   because we are using the AY-3-8910 emulation. */
 	volr = (m_pan[0] + m_pan[2]) * 100 / (2 * 0x1f);
 	voll = (m_pan[1] + m_pan[3]) * 100 / (2 * 0x1f);
-	flt_volume_set_volume(m_2610_0l, voll / 100.0);
-	flt_volume_set_volume(m_2610_0r, volr / 100.0);
+	m_2610_0l->flt_volume_set_volume(voll / 100.0);
+	m_2610_0r->flt_volume_set_volume(volr / 100.0);
 
 	/* CH1 */
 	volr = m_pan[0] * 100 / 0x1f;
 	voll = m_pan[1] * 100 / 0x1f;
-	flt_volume_set_volume(m_2610_1l, voll / 100.0);
-	flt_volume_set_volume(m_2610_1r, volr / 100.0);
+	m_2610_1l->flt_volume_set_volume(voll / 100.0);
+	m_2610_1r->flt_volume_set_volume(volr / 100.0);
 
 	/* CH2 */
 	volr = m_pan[2] * 100 / 0x1f;
 	voll = m_pan[3] * 100 / 0x1f;
-	flt_volume_set_volume(m_2610_2l, voll / 100.0);
-	flt_volume_set_volume(m_2610_2r, volr / 100.0);
+	m_2610_2l->flt_volume_set_volume(voll / 100.0);
+	m_2610_2r->flt_volume_set_volume(volr / 100.0);
 }
 
 
@@ -454,7 +454,7 @@ static ADDRESS_MAP_START( othunder_map, AS_PROGRAM, 16, othunder_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x080000, 0x08ffff) AM_RAM
 	AM_RANGE(0x090000, 0x09000f) AM_READWRITE(othunder_tc0220ioc_r, othunder_tc0220ioc_w)
-//  AM_RANGE(0x090006, 0x090007) AM_WRITE_LEGACY(eeprom_w)
+//  AM_RANGE(0x090006, 0x090007) AM_WRITE(eeprom_w)
 //  AM_RANGE(0x09000c, 0x09000d) AM_WRITENOP   /* ?? (keeps writing 0x77) */
 	AM_RANGE(0x100000, 0x100007) AM_DEVREADWRITE_LEGACY("tc0110pcr", tc0110pcr_word_r, tc0110pcr_step1_rbswap_word_w)   /* palette */
 	AM_RANGE(0x200000, 0x20ffff) AM_DEVREADWRITE_LEGACY("tc0100scn", tc0100scn_word_r, tc0100scn_word_w)    /* tilemaps */
@@ -472,9 +472,9 @@ static ADDRESS_MAP_START( z80_sound_map, AS_PROGRAM, 8, othunder_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank10")
 	AM_RANGE(0xc000, 0xdfff) AM_RAM
-	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
-	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
+	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 	AM_RANGE(0xe400, 0xe403) AM_WRITE(othunder_TC0310FAM_w) /* pan */
 	AM_RANGE(0xe600, 0xe600) AM_WRITENOP /* ? */
 	AM_RANGE(0xea00, 0xea00) AM_READ_PORT(ROTARY_PORT_TAG)  /* rotary input */
@@ -625,16 +625,10 @@ GFXDECODE_END
 **************************************************************/
 
 /* handler called by the YM2610 emulator when the internal timers cause an IRQ */
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(othunder_state::irqhandler)
 {
-	othunder_state *state = device->machine().driver_data<othunder_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	irqhandler
-};
 
 
 
@@ -670,33 +664,17 @@ static const tc0140syt_interface othunder_tc0140syt_intf =
 
 void othunder_state::machine_start()
 {
-
 	membank("bank10")->configure_entries(0, 4, memregion("audiocpu")->base() + 0xc000, 0x4000);
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_eeprom = machine().device<eeprom_device>("eeprom");
-	m_tc0220ioc = machine().device("tc0220ioc");
-	m_tc0100scn = machine().device("tc0100scn");
-	m_tc0110pcr = machine().device("tc0110pcr");
-	m_tc0140syt = machine().device("tc0140syt");
-	m_2610_0l = machine().device("2610.0l");
-	m_2610_0r = machine().device("2610.0r");
-	m_2610_1l = machine().device("2610.1l");
-	m_2610_1r = machine().device("2610.1r");
-	m_2610_2l = machine().device("2610.2l");
-	m_2610_2r = machine().device("2610.2r");
 
 	save_item(NAME(m_vblank_irq));
 	save_item(NAME(m_ad_irq));
 	save_item(NAME(m_banknum));
 	save_item(NAME(m_pan));
-	machine().save().register_postload(save_prepost_delegate(FUNC(reset_sound_region), &machine()));
+	machine().save().register_postload(save_prepost_delegate(FUNC(othunder_state::reset_sound_region), this));
 }
 
 void othunder_state::machine_reset()
 {
-
 	m_vblank_irq = 0;
 	m_ad_irq = 0;
 	m_banknum = 0;
@@ -737,7 +715,7 @@ static MACHINE_CONFIG_START( othunder, othunder_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 16000000/2)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(othunder_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "2610.0l", 0.25)
 	MCFG_SOUND_ROUTE(0, "2610.0r", 0.25)
 	MCFG_SOUND_ROUTE(1, "2610.1l", 1.0)
@@ -745,17 +723,17 @@ static MACHINE_CONFIG_START( othunder, othunder_state )
 	MCFG_SOUND_ROUTE(2, "2610.2l", 1.0)
 	MCFG_SOUND_ROUTE(2, "2610.2r", 1.0)
 
-	MCFG_SOUND_ADD("2610.0l", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("2610.0l", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("2610.0r", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("2610.0r", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-	MCFG_SOUND_ADD("2610.1l", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("2610.1l", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("2610.1r", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("2610.1r", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-	MCFG_SOUND_ADD("2610.2l", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("2610.2l", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("2610.2r", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("2610.2r", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
 	MCFG_TC0140SYT_ADD("tc0140syt", othunder_tc0140syt_intf)

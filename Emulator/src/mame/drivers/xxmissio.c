@@ -35,7 +35,7 @@ WRITE8_MEMBER(xxmissio_state::xxmissio_status_m_w)
 
 		case 0x40:
 			m_status &= ~0x08;
-			machine().device("sub")->execute().set_input_line_and_vector(0, HOLD_LINE, 0x10);
+			m_subcpu->set_input_line_and_vector(0, HOLD_LINE, 0x10);
 			break;
 
 		case 0x80:
@@ -58,7 +58,7 @@ WRITE8_MEMBER(xxmissio_state::xxmissio_status_s_w)
 
 		case 0x80:
 			m_status &= ~0x04;
-			machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0x10);
+			m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0x10);
 			break;
 	}
 }
@@ -77,8 +77,8 @@ INTERRUPT_GEN_MEMBER(xxmissio_state::xxmissio_interrupt_s)
 
 void xxmissio_state::machine_start()
 {
-	machine().root_device().membank("bank1")->configure_entries(0, 8, machine().root_device().memregion("user1")->base(), 0x4000);
-	machine().root_device().membank("bank1")->set_entry(0);
+	membank("bank1")->configure_entries(0, 8, memregion("user1")->base(), 0x4000);
+	membank("bank1")->set_entry(0);
 }
 
 /****************************************************************************/
@@ -86,8 +86,8 @@ void xxmissio_state::machine_start()
 static ADDRESS_MAP_START( map1, AS_PROGRAM, 8, xxmissio_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 
-	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0x8002, 0x8003) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r, ym2203_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0x8002, 0x8003) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
 
 	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("P1")
 	AM_RANGE(0xa001, 0xa001) AM_READ_PORT("P2")
@@ -110,8 +110,8 @@ static ADDRESS_MAP_START( map2, AS_PROGRAM, 8, xxmissio_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 
-	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0x8002, 0x8003) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r, ym2203_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0x8002, 0x8003) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
 	AM_RANGE(0x8006, 0x8006) AM_WRITE(xxmissio_bank_sel_w)
 
 	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("P1")
@@ -253,30 +253,24 @@ GFXDECODE_END
 
 /****************************************************************************/
 
-static const ym2203_interface ym2203_interface_1 =
+static const ay8910_interface ay8910_config_1 =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW1"),
-		DEVCB_INPUT_PORT("DSW2"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_INPUT_PORT("DSW2"),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
-static const ym2203_interface ym2203_interface_2 =
+static const ay8910_interface ay8910_config_2 =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(xxmissio_state, xxmissio_scroll_x_w),
-		DEVCB_DRIVER_MEMBER(xxmissio_state, xxmissio_scroll_y_w)
-	},
-	DEVCB_NULL
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(xxmissio_state, xxmissio_scroll_x_w),
+	DEVCB_DRIVER_MEMBER(xxmissio_state, xxmissio_scroll_y_w)
 };
 
 static MACHINE_CONFIG_START( xxmissio, xxmissio_state )
@@ -309,14 +303,14 @@ static MACHINE_CONFIG_START( xxmissio, xxmissio_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 12000000/8)
-	MCFG_SOUND_CONFIG(ym2203_interface_1)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config_1)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
 	MCFG_SOUND_ROUTE(3, "mono", 0.40)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 12000000/8)
-	MCFG_SOUND_CONFIG(ym2203_interface_2)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config_2)
 	MCFG_SOUND_ROUTE(0, "mono", 0.15)
 	MCFG_SOUND_ROUTE(1, "mono", 0.15)
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)

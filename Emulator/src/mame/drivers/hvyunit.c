@@ -75,9 +75,15 @@ class hvyunit_state : public driver_device
 {
 public:
 	hvyunit_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_mastercpu(*this, "master"),
+		m_slavecpu(*this, "slave"),
+		m_mermaid(*this, "mermaid"),
+		m_soundcpu(*this, "soundcpu"),
+		m_pandora(*this, "pandora")
+		{ }
 
 	/* Video */
 	required_shared_ptr<UINT8> m_videoram;
@@ -96,11 +102,11 @@ public:
 	UINT8           m_mermaid_p[4];
 
 	/* Devices */
-	device_t    *m_master_cpu;
-	device_t    *m_slave_cpu;
-	device_t    *m_sound_cpu;
-	device_t    *m_mermaid;
-	device_t    *m_pandora;
+	required_device<cpu_device> m_mastercpu;
+	required_device<cpu_device> m_slavecpu;
+	required_device<cpu_device> m_mermaid;
+	required_device<cpu_device> m_soundcpu;
+	required_device<kaneko_pandora_device> m_pandora;
 	DECLARE_WRITE8_MEMBER(trigger_nmi_on_slave_cpu);
 	DECLARE_WRITE8_MEMBER(master_bankswitch_w);
 	DECLARE_WRITE8_MEMBER(mermaid_data_w);
@@ -140,19 +146,11 @@ public:
 
 void hvyunit_state::machine_start()
 {
-
-	m_master_cpu = machine().device("master");
-	m_slave_cpu = machine().device("slave");
-	m_sound_cpu = machine().device("soundcpu");
-	m_mermaid = machine().device("mermaid");
-	m_pandora = machine().device("pandora");
-
 	// TODO: Save state
 }
 
 void hvyunit_state::machine_reset()
 {
-
 	m_mermaid_int0_l = 1;
 	m_mermaid_to_z80_full = 0;
 	m_z80_to_mermaid_full = 0;
@@ -167,7 +165,6 @@ void hvyunit_state::machine_reset()
 
 TILE_GET_INFO_MEMBER(hvyunit_state::get_bg_tile_info)
 {
-
 	int attr = m_colorram[tile_index];
 	int code = m_videoram[tile_index] + ((attr & 0x0f) << 8);
 	int color = (attr >> 4);
@@ -189,7 +186,7 @@ UINT32 hvyunit_state::screen_update_hvyunit(screen_device &screen, bitmap_ind16 
 	m_bg_tilemap->set_scrolly(0, ((m_port0_data & 0x80) << 1) + m_scrolly + SY_POS); // TODO
 	bitmap.fill(get_black_pen(machine()), cliprect);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	pandora_update(m_pandora, bitmap, cliprect);
+	m_pandora->update(bitmap, cliprect);
 
 	return 0;
 }
@@ -199,7 +196,7 @@ void hvyunit_state::screen_eof_hvyunit(screen_device &screen, bool state)
 	// rising edge
 	if (state)
 	{
-		pandora_eof(m_pandora);
+		m_pandora->eof();
 	}
 }
 
@@ -212,7 +209,7 @@ void hvyunit_state::screen_eof_hvyunit(screen_device &screen, bool state)
 
 WRITE8_MEMBER(hvyunit_state::trigger_nmi_on_slave_cpu)
 {
-	m_slave_cpu->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_slavecpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 WRITE8_MEMBER(hvyunit_state::master_bankswitch_w)
@@ -225,23 +222,20 @@ WRITE8_MEMBER(hvyunit_state::master_bankswitch_w)
 
 WRITE8_MEMBER(hvyunit_state::mermaid_data_w)
 {
-
 	m_data_to_mermaid = data;
 	m_z80_to_mermaid_full = 1;
 	m_mermaid_int0_l = 0;
-	m_mermaid->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+	m_mermaid->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 }
 
 READ8_MEMBER(hvyunit_state::mermaid_data_r)
 {
-
 	m_mermaid_to_z80_full = 0;
 	return m_data_to_z80;
 }
 
 READ8_MEMBER(hvyunit_state::mermaid_status_r)
 {
-
 	return (!m_mermaid_to_z80_full << 2) | (m_z80_to_mermaid_full << 3);
 }
 
@@ -254,28 +248,24 @@ READ8_MEMBER(hvyunit_state::mermaid_status_r)
 
 WRITE8_MEMBER(hvyunit_state::trigger_nmi_on_sound_cpu2)
 {
-
 	soundlatch_byte_w(space, 0, data);
-	m_sound_cpu->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 WRITE8_MEMBER(hvyunit_state::hu_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(hvyunit_state::hu_colorram_w)
 {
-
 	m_colorram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(hvyunit_state::slave_bankswitch_w)
 {
-
 	unsigned char *ROM = memregion("slave")->base();
 	int bank = (data & 0x03);
 	m_port0_data = data;
@@ -331,7 +321,6 @@ READ8_MEMBER(hvyunit_state::mermaid_p0_r)
 
 WRITE8_MEMBER(hvyunit_state::mermaid_p0_w)
 {
-
 	if (!BIT(m_mermaid_p[0], 1) && BIT(data, 1))
 	{
 		m_mermaid_to_z80_full = 1;
@@ -346,7 +335,6 @@ WRITE8_MEMBER(hvyunit_state::mermaid_p0_w)
 
 READ8_MEMBER(hvyunit_state::mermaid_p1_r)
 {
-
 	if (BIT(m_mermaid_p[0], 0) == 0)
 		return m_data_to_mermaid;
 	else
@@ -355,11 +343,10 @@ READ8_MEMBER(hvyunit_state::mermaid_p1_r)
 
 WRITE8_MEMBER(hvyunit_state::mermaid_p1_w)
 {
-
 	if (data == 0xff)
 	{
 		m_mermaid_int0_l = 1;
-		m_mermaid->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+		m_mermaid->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 	}
 
 	m_mermaid_p[1] = data;
@@ -367,7 +354,6 @@ WRITE8_MEMBER(hvyunit_state::mermaid_p1_w)
 
 READ8_MEMBER(hvyunit_state::mermaid_p2_r)
 {
-
 	switch ((m_mermaid_p[0] >> 2) & 3)
 	{
 		case 0: return ioport("IN1")->read();
@@ -379,13 +365,11 @@ READ8_MEMBER(hvyunit_state::mermaid_p2_r)
 
 WRITE8_MEMBER(hvyunit_state::mermaid_p2_w)
 {
-
 	m_mermaid_p[2] = data;
 }
 
 READ8_MEMBER(hvyunit_state::mermaid_p3_r)
 {
-
 	UINT8 dsw = 0;
 	UINT8 dsw1 = ioport("DSW1")->read();
 	UINT8 dsw2 = ioport("DSW2")->read();
@@ -403,9 +387,8 @@ READ8_MEMBER(hvyunit_state::mermaid_p3_r)
 
 WRITE8_MEMBER(hvyunit_state::mermaid_p3_w)
 {
-
 	m_mermaid_p[3] = data;
-	m_slave_cpu->execute().set_input_line(INPUT_LINE_RESET, data & 2 ? CLEAR_LINE : ASSERT_LINE);
+	m_slavecpu->set_input_line(INPUT_LINE_RESET, data & 2 ? CLEAR_LINE : ASSERT_LINE);
 }
 
 
@@ -418,7 +401,7 @@ WRITE8_MEMBER(hvyunit_state::mermaid_p3_w)
 static ADDRESS_MAP_START( master_memory, AS_PROGRAM, 8, hvyunit_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xcfff) AM_DEVREADWRITE_LEGACY("pandora", pandora_spriteram_r, pandora_spriteram_w)
+	AM_RANGE(0xc000, 0xcfff) AM_DEVREADWRITE("pandora", kaneko_pandora_device, spriteram_r, spriteram_w)
 	AM_RANGE(0xd000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xffff) AM_RAM AM_SHARE("share1")
 ADDRESS_MAP_END
@@ -452,8 +435,8 @@ static ADDRESS_MAP_START( slave_io, AS_IO, 8, hvyunit_state )
 	AM_RANGE(0x0c, 0x0c) AM_READ(mermaid_status_r)
 	AM_RANGE(0x0e, 0x0e) AM_WRITE(coin_count_w)
 
-//  AM_RANGE(0x22, 0x22) AM_READ_LEGACY(hu_scrolly_hi_reset) //22/a2 taken from ram $f065
-//  AM_RANGE(0xa2, 0xa2) AM_READ_LEGACY(hu_scrolly_hi_set)
+//  AM_RANGE(0x22, 0x22) AM_READ(hu_scrolly_hi_reset) //22/a2 taken from ram $f065
+//  AM_RANGE(0xa2, 0xa2) AM_READ(hu_scrolly_hi_set)
 ADDRESS_MAP_END
 
 
@@ -466,7 +449,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_io, AS_IO, 8, hvyunit_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(sound_bankswitch_w)
-	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x04, 0x04) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
 
@@ -630,11 +613,11 @@ TIMER_DEVICE_CALLBACK_MEMBER(hvyunit_state::hvyunit_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		m_master_cpu->execute().set_input_line_and_vector(0, HOLD_LINE, 0xfd);
+		m_mastercpu->set_input_line_and_vector(0, HOLD_LINE, 0xfd);
 
 	/* Pandora "sprite end dma" irq? TODO: timing is likely off */
 	if(scanline == 64)
-		m_master_cpu->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);
+		m_mastercpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
 static const kaneko_pandora_interface hvyunit_pandora_config =

@@ -80,7 +80,7 @@ INPUT_CHANGED_MEMBER( lc80_state::trigger_nmi )
 }
 
 static INPUT_PORTS_START( lc80 )
-	PORT_START("ROW0")
+	PORT_START("Y0")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_3) PORT_CHAR('3')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_7) PORT_CHAR('7')
@@ -88,7 +88,7 @@ static INPUT_PORTS_START( lc80 )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F) PORT_CHAR('F')
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("-") PORT_CODE(KEYCODE_DOWN) PORT_CHAR('V')
 
-	PORT_START("ROW1")
+	PORT_START("Y1")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("LD") PORT_CODE(KEYCODE_L)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_2) PORT_CHAR('2')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("+") PORT_CODE(KEYCODE_UP) PORT_CHAR('^')
@@ -96,7 +96,7 @@ static INPUT_PORTS_START( lc80 )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_A) PORT_CHAR('A')
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_6) PORT_CHAR('6')
 
-	PORT_START("ROW2")
+	PORT_START("Y2")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("ST") PORT_CODE(KEYCODE_S)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_1) PORT_CHAR('1')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_5) PORT_CHAR('5')
@@ -104,7 +104,7 @@ static INPUT_PORTS_START( lc80 )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_D) PORT_CHAR('D')
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("DAT") PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('=')
 
-	PORT_START("ROW3")
+	PORT_START("Y3")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("EX") PORT_CODE(KEYCODE_X) PORT_CHAR('X')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_0) PORT_CHAR('0')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_4) PORT_CHAR('4')
@@ -190,7 +190,7 @@ READ8_MEMBER( lc80_state::pio1_pb_r )
 
 	*/
 
-	return ((m_cassette)->input() < +0.0);
+	return (m_cassette->input() < +0.0);
 }
 
 WRITE8_MEMBER( lc80_state::pio1_pb_w )
@@ -214,7 +214,7 @@ WRITE8_MEMBER( lc80_state::pio1_pb_w )
 	m_cassette->output( BIT(data, 1) ? +1.0 : -1.0);
 
 	/* speaker */
-	speaker_level_w(m_speaker, !BIT(data, 1));
+	m_speaker->level_w(!BIT(data, 1));
 
 	/* OUT led */
 	output_set_led_value(0, !BIT(data, 1));
@@ -261,10 +261,10 @@ READ8_MEMBER( lc80_state::pio2_pb_r )
 	{
 		if (!BIT(m_digit, i))
 		{
-			if (!BIT(ioport("ROW0")->read(), i)) data &= ~0x10;
-			if (!BIT(ioport("ROW1")->read(), i)) data &= ~0x20;
-			if (!BIT(ioport("ROW2")->read(), i)) data &= ~0x40;
-			if (!BIT(ioport("ROW3")->read(), i)) data &= ~0x80;
+			if (!BIT(m_y0->read(), i)) data &= ~0x10;
+			if (!BIT(m_y1->read(), i)) data &= ~0x20;
+			if (!BIT(m_y2->read(), i)) data &= ~0x40;
+			if (!BIT(m_y3->read(), i)) data &= ~0x80;
 		}
 	}
 
@@ -299,19 +299,19 @@ void lc80_state::machine_start()
 	address_space &program = m_maincpu->space(AS_PROGRAM);
 
 	/* setup memory banking */
-	membank("bank1")->configure_entry(0, memregion(Z80_TAG)->base()); // TODO
-	membank("bank1")->configure_entry(1, memregion(Z80_TAG)->base());
+	membank("bank1")->configure_entry(0, m_rom->base()); // TODO
+	membank("bank1")->configure_entry(1, m_rom->base());
 	membank("bank1")->set_entry(1);
 
-	membank("bank2")->configure_entry(0, memregion(Z80_TAG)->base() + 0x800); // TODO
-	membank("bank2")->configure_entry(1, memregion(Z80_TAG)->base() + 0x800);
+	membank("bank2")->configure_entry(0, m_rom->base() + 0x800); // TODO
+	membank("bank2")->configure_entry(1, m_rom->base() + 0x800);
 	membank("bank2")->set_entry(1);
 
-	membank("bank3")->configure_entry(0, memregion(Z80_TAG)->base() + 0x1000); // TODO
-	membank("bank3")->configure_entry(1, memregion(Z80_TAG)->base() + 0x1000);
+	membank("bank3")->configure_entry(0, m_rom->base() + 0x1000); // TODO
+	membank("bank3")->configure_entry(1, m_rom->base() + 0x1000);
 	membank("bank3")->set_entry(1);
 
-	membank("bank4")->configure_entry(0, memregion(Z80_TAG)->base() + 0x2000);
+	membank("bank4")->configure_entry(0, m_rom->base() + 0x2000);
 	membank("bank4")->set_entry(0);
 
 	program.install_readwrite_bank(0x0000, 0x07ff, "bank1");
@@ -367,7 +367,7 @@ static MACHINE_CONFIG_START( lc80, lc80_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
@@ -375,7 +375,7 @@ static MACHINE_CONFIG_START( lc80, lc80_state )
 	MCFG_Z80PIO_ADD(Z80PIO1_TAG, 900000, pio1_intf)
 	MCFG_Z80PIO_ADD(Z80PIO2_TAG, 900000, pio2_intf)
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, lc80_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", lc80_cassette_interface)
 
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1K")
@@ -393,7 +393,7 @@ static MACHINE_CONFIG_START( lc80_2, lc80_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* devices */
@@ -401,7 +401,7 @@ static MACHINE_CONFIG_START( lc80_2, lc80_state )
 	MCFG_Z80PIO_ADD(Z80PIO1_TAG, 900000, pio1_intf)
 	MCFG_Z80PIO_ADD(Z80PIO2_TAG, 900000, pio2_intf)
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, lc80_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", lc80_cassette_interface)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

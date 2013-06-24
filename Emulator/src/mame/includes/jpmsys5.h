@@ -3,7 +3,6 @@
 #include "machine/6840ptm.h"
 #include "machine/6850acia.h"
 #include "sound/2413intf.h"
-#include "sound/saa1099.h"
 #include "sound/upd7759.h"
 #include "video/tms34061.h"
 #include "machine/nvram.h"
@@ -16,8 +15,8 @@ class jpmsys5_state : public driver_device
 public:
 	jpmsys5_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_vfd(*this, "vfd")
-		{ }
+			m_vfd(*this, "vfd"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_palette[16][3];
 	int m_pal_addr;
@@ -75,4 +74,5 @@ public:
 	DECLARE_MACHINE_RESET(jpmsys5);
 	UINT32 screen_update_jpmsys5v(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(touch_cb);
+	required_device<cpu_device> m_maincpu;
 };

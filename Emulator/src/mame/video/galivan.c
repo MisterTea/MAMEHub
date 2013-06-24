@@ -54,7 +54,7 @@ background: 0x4000 bytes of ROM:    76543210    tile code low bits
 
 void galivan_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* allocate the colortable */
@@ -122,7 +122,7 @@ void galivan_state::palette_init()
 
 TILE_GET_INFO_MEMBER(galivan_state::get_bg_tile_info)
 {
-	UINT8 *BGROM = machine().root_device().memregion("gfx4")->base();
+	UINT8 *BGROM = memregion("gfx4")->base();
 	int attr = BGROM[tile_index + 0x4000];
 	int code = BGROM[tile_index] | ((attr & 0x03) << 8);
 	SET_TILE_INFO_MEMBER(
@@ -146,7 +146,7 @@ TILE_GET_INFO_MEMBER(galivan_state::get_tx_tile_info)
 
 TILE_GET_INFO_MEMBER(galivan_state::ninjemak_get_bg_tile_info)
 {
-	UINT8 *BGROM = machine().root_device().memregion("gfx4")->base();
+	UINT8 *BGROM = memregion("gfx4")->base();
 	int attr = BGROM[tile_index + 0x4000];
 	int code = BGROM[tile_index] | ((attr & 0x03) << 8);
 	SET_TILE_INFO_MEMBER(
@@ -181,7 +181,6 @@ TILE_GET_INFO_MEMBER(galivan_state::ninjemak_get_tx_tile_info)
 
 VIDEO_START_MEMBER(galivan_state,galivan)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galivan_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 128, 128);
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galivan_state::get_tx_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 
@@ -190,7 +189,6 @@ VIDEO_START_MEMBER(galivan_state,galivan)
 
 VIDEO_START_MEMBER(galivan_state,ninjemak)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galivan_state::ninjemak_get_bg_tile_info),this), TILEMAP_SCAN_COLS, 16, 16, 512, 32);
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galivan_state::ninjemak_get_tx_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 
@@ -214,7 +212,6 @@ WRITE8_MEMBER(galivan_state::galivan_videoram_w)
 /* Written through port 40 */
 WRITE8_MEMBER(galivan_state::galivan_gfxbank_w)
 {
-
 	/* bits 0 and 1 coin counters */
 	coin_counter_w(machine(), 0,data & 1);
 	coin_counter_w(machine(), 1,data & 2);
@@ -232,7 +229,6 @@ WRITE8_MEMBER(galivan_state::galivan_gfxbank_w)
 
 WRITE8_MEMBER(galivan_state::ninjemak_gfxbank_w)
 {
-
 	/* bits 0 and 1 coin counters */
 	coin_counter_w(machine(), 0,data & 1);
 	coin_counter_w(machine(), 1,data & 2);
@@ -298,15 +294,14 @@ WRITE8_MEMBER(galivan_state::galivan_scrolly_w)
 
 ***************************************************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void galivan_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	galivan_state *state = machine.driver_data<galivan_state>();
-	const UINT8 *spritepalettebank = state->memregion("user1")->base();
-	UINT8 *spriteram = state->m_spriteram;
+	const UINT8 *spritepalettebank = memregion("user1")->base();
+	UINT8 *spriteram = m_spriteram;
 	int offs;
 
 	/* draw the sprites */
-	for (offs = 0; offs < state->m_spriteram.bytes(); offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes(); offs += 4)
 	{
 		int code;
 		int attr = spriteram[offs + 2];
@@ -317,7 +312,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 		sx = (spriteram[offs + 3] - 0x80) + 256 * (attr & 0x01);
 		sy = 240 - spriteram[offs];
-		if (state->m_flipscreen)
+		if (m_flipscreen)
 		{
 			sx = 240 - sx;
 			sy = 240 - sy;
@@ -328,7 +323,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 //      code = spriteram[offs + 1] + ((attr & 0x02) << 7);
 		code = spriteram[offs + 1] + ((attr & 0x06) << 7);  // for ninjemak, not sure ?
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[2],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
 				code,
 				color + 16 * (spritepalettebank[code >> 2] & 0x0f),
 				flipx,flipy,
@@ -351,11 +346,11 @@ UINT32 galivan_state::screen_update_galivan(screen_device &screen, bitmap_ind16 
 	{
 		m_tx_tilemap->draw(bitmap, cliprect, 0, 0);
 		m_tx_tilemap->draw(bitmap, cliprect, 1, 0);
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 	}
 	else
 	{
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 		m_tx_tilemap->draw(bitmap, cliprect, 0, 0);
 		m_tx_tilemap->draw(bitmap, cliprect, 1, 0);
 	}
@@ -365,7 +360,6 @@ UINT32 galivan_state::screen_update_galivan(screen_device &screen, bitmap_ind16 
 
 UINT32 galivan_state::screen_update_ninjemak(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	/* (scrollx[1] & 0x40) does something */
 	m_bg_tilemap->set_scrollx(0, m_scrollx);
 	m_bg_tilemap->set_scrolly(0, m_scrolly);
@@ -375,7 +369,7 @@ UINT32 galivan_state::screen_update_ninjemak(screen_device &screen, bitmap_ind16
 	else
 		m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_tx_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }

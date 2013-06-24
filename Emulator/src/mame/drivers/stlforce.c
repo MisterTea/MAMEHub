@@ -76,20 +76,17 @@ TO DO :
 
 WRITE16_MEMBER(stlforce_state::eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	if( ACCESSING_BITS_0_7 )
 	{
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x01);
-		eeprom->set_cs_line((data & 0x02) ? CLEAR_LINE : ASSERT_LINE );
-		eeprom->set_clock_line((data & 0x04) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->write_bit(data & 0x01);
+		m_eeprom->set_cs_line((data & 0x02) ? CLEAR_LINE : ASSERT_LINE );
+		m_eeprom->set_clock_line((data & 0x04) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 
 WRITE16_MEMBER(stlforce_state::oki_bank_w)
 {
-	device_t *device = machine().device("oki");
-	downcast<okim6295_device *>(device)->set_bank_base(0x40000 * ((data>>8) & 3));
+	m_oki->set_bank_base(0x40000 * ((data>>8) & 3));
 }
 
 static ADDRESS_MAP_START( stlforce_map, AS_PROGRAM, 16, stlforce_state )
@@ -363,13 +360,11 @@ ROM_END
 
 DRIVER_INIT_MEMBER(stlforce_state,stlforce)
 {
-
 	m_sprxoffs = 0;
 }
 
 DRIVER_INIT_MEMBER(stlforce_state,twinbrat)
 {
-
 	m_sprxoffs = 9;
 }
 

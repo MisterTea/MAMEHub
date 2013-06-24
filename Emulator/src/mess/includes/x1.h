@@ -75,65 +75,29 @@ class x1_state : public driver_device
 public:
 	x1_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_x1_cpu(*this,"x1_cpu"),
-	m_cass(*this, CASSETTE_TAG),
+	m_maincpu(*this,"x1_cpu"),
+	m_cassette(*this, "cassette"),
 	m_fdc(*this, "fdc"),
 	m_crtc(*this, "crtc"),
 	m_ctc(*this, "ctc")
 	{ }
 
-	DECLARE_READ8_MEMBER(x1_mem_r);
-	DECLARE_WRITE8_MEMBER(x1_mem_w);
-	DECLARE_READ8_MEMBER(x1_io_r);
-	DECLARE_WRITE8_MEMBER(x1_io_w);
-	DECLARE_READ8_MEMBER(x1_sub_io_r);
-	DECLARE_WRITE8_MEMBER(x1_sub_io_w);
-	DECLARE_READ8_MEMBER(x1_rom_r);
-	DECLARE_WRITE8_MEMBER(x1_rom_w);
-	DECLARE_WRITE8_MEMBER(x1_rom_bank_0_w);
-	DECLARE_WRITE8_MEMBER(x1_rom_bank_1_w);
-	DECLARE_READ8_MEMBER(x1_fdc_r);
-	DECLARE_WRITE8_MEMBER(x1_fdc_w);
-	DECLARE_READ8_MEMBER(x1_pcg_r);
-	DECLARE_WRITE8_MEMBER(x1_pcg_w);
-	DECLARE_WRITE8_MEMBER(x1_pal_r_w);
-	DECLARE_WRITE8_MEMBER(x1_pal_g_w);
-	DECLARE_WRITE8_MEMBER(x1_pal_b_w);
-	DECLARE_WRITE8_MEMBER(x1_ex_gfxram_w);
-	DECLARE_WRITE8_MEMBER(x1_scrn_w);
-	DECLARE_WRITE8_MEMBER(x1_pri_w);
-	DECLARE_WRITE8_MEMBER(x1_6845_w);
-	DECLARE_READ8_MEMBER(x1_kanji_r);
-	DECLARE_WRITE8_MEMBER(x1_kanji_w);
-	DECLARE_READ8_MEMBER(x1_emm_r);
-	DECLARE_WRITE8_MEMBER(x1_emm_w);
-	DECLARE_READ8_MEMBER(x1turbo_pal_r);
-	DECLARE_READ8_MEMBER(x1turbo_txpal_r);
-	DECLARE_READ8_MEMBER(x1turbo_txdisp_r);
-	DECLARE_READ8_MEMBER(x1turbo_gfxpal_r);
-	DECLARE_WRITE8_MEMBER(x1turbo_pal_w);
-	DECLARE_WRITE8_MEMBER(x1turbo_txpal_w);
-	DECLARE_WRITE8_MEMBER(x1turbo_txdisp_w);
-	DECLARE_WRITE8_MEMBER(x1turbo_gfxpal_w);
-	DECLARE_WRITE8_MEMBER(x1turbo_blackclip_w);
-	DECLARE_READ8_MEMBER(x1turbo_mem_r);
-	DECLARE_WRITE8_MEMBER(x1turbo_mem_w);
-	DECLARE_READ8_MEMBER(x1turbo_io_r);
-	DECLARE_WRITE8_MEMBER(x1turbo_io_w);
-	DECLARE_WRITE8_MEMBER(x1turboz_4096_palette_w);
-	DECLARE_READ8_MEMBER(x1turboz_blackclip_r);
-	DECLARE_READ8_MEMBER(x1turbo_bank_r);
-	DECLARE_WRITE8_MEMBER(x1turbo_bank_w);
-	DECLARE_READ8_MEMBER(x1_porta_r);
-	DECLARE_READ8_MEMBER(x1_portb_r);
-	DECLARE_READ8_MEMBER(x1_portc_r);
-	DECLARE_WRITE8_MEMBER(x1_porta_w);
-	DECLARE_WRITE8_MEMBER(x1_portb_w);
-	DECLARE_WRITE8_MEMBER(x1_portc_w);
+	required_device<cpu_device> m_maincpu;
+	required_device<cassette_image_device> m_cassette;
+	required_device<mb8877_device> m_fdc;
+	required_device<mc6845_device> m_crtc;
+	required_device<z80ctc_device> m_ctc;
 
 	UINT8 *m_tvram;
 	UINT8 *m_avram;
 	UINT8 *m_kvram;
+	UINT8 *m_ipl_rom;
+	UINT8 *m_work_ram;
+	UINT8 *m_emm_ram;
+	UINT8 *m_pcg_ram;
+	UINT8 *m_cg_rom;
+	UINT8 *m_kanji_rom;
+	int m_xstart,m_ystart;
 	UINT8 m_hres_320;
 	UINT8 m_io_switch;
 	UINT8 m_io_sys;
@@ -188,11 +152,54 @@ public:
 	UINT8 check_keyboard_shift();
 	UINT16 check_keyboard_press();
 
-	required_device<cpu_device> m_x1_cpu;
-	required_device<cassette_image_device> m_cass;
-	required_device<mb8877_device> m_fdc;
-	required_device<mc6845_device> m_crtc;
-	required_device<z80ctc_device> m_ctc;
+	DECLARE_READ8_MEMBER(x1_mem_r);
+	DECLARE_WRITE8_MEMBER(x1_mem_w);
+	DECLARE_READ8_MEMBER(x1_io_r);
+	DECLARE_WRITE8_MEMBER(x1_io_w);
+	DECLARE_READ8_MEMBER(x1_sub_io_r);
+	DECLARE_WRITE8_MEMBER(x1_sub_io_w);
+	DECLARE_READ8_MEMBER(x1_rom_r);
+	DECLARE_WRITE8_MEMBER(x1_rom_w);
+	DECLARE_WRITE8_MEMBER(x1_rom_bank_0_w);
+	DECLARE_WRITE8_MEMBER(x1_rom_bank_1_w);
+	DECLARE_READ8_MEMBER(x1_fdc_r);
+	DECLARE_WRITE8_MEMBER(x1_fdc_w);
+	DECLARE_READ8_MEMBER(x1_pcg_r);
+	DECLARE_WRITE8_MEMBER(x1_pcg_w);
+	DECLARE_WRITE8_MEMBER(x1_pal_r_w);
+	DECLARE_WRITE8_MEMBER(x1_pal_g_w);
+	DECLARE_WRITE8_MEMBER(x1_pal_b_w);
+	DECLARE_WRITE8_MEMBER(x1_ex_gfxram_w);
+	DECLARE_WRITE8_MEMBER(x1_scrn_w);
+	DECLARE_WRITE8_MEMBER(x1_pri_w);
+	DECLARE_WRITE8_MEMBER(x1_6845_w);
+	DECLARE_READ8_MEMBER(x1_kanji_r);
+	DECLARE_WRITE8_MEMBER(x1_kanji_w);
+	DECLARE_READ8_MEMBER(x1_emm_r);
+	DECLARE_WRITE8_MEMBER(x1_emm_w);
+	DECLARE_READ8_MEMBER(x1turbo_pal_r);
+	DECLARE_READ8_MEMBER(x1turbo_txpal_r);
+	DECLARE_READ8_MEMBER(x1turbo_txdisp_r);
+	DECLARE_READ8_MEMBER(x1turbo_gfxpal_r);
+	DECLARE_WRITE8_MEMBER(x1turbo_pal_w);
+	DECLARE_WRITE8_MEMBER(x1turbo_txpal_w);
+	DECLARE_WRITE8_MEMBER(x1turbo_txdisp_w);
+	DECLARE_WRITE8_MEMBER(x1turbo_gfxpal_w);
+	DECLARE_WRITE8_MEMBER(x1turbo_blackclip_w);
+	DECLARE_READ8_MEMBER(x1turbo_mem_r);
+	DECLARE_WRITE8_MEMBER(x1turbo_mem_w);
+	DECLARE_READ8_MEMBER(x1turbo_io_r);
+	DECLARE_WRITE8_MEMBER(x1turbo_io_w);
+	DECLARE_WRITE8_MEMBER(x1turboz_4096_palette_w);
+	DECLARE_READ8_MEMBER(x1turboz_blackclip_r);
+	DECLARE_READ8_MEMBER(x1turbo_bank_r);
+	DECLARE_WRITE8_MEMBER(x1turbo_bank_w);
+	DECLARE_READ8_MEMBER(x1_porta_r);
+	DECLARE_READ8_MEMBER(x1_portb_r);
+	DECLARE_READ8_MEMBER(x1_portc_r);
+	DECLARE_WRITE8_MEMBER(x1_porta_w);
+	DECLARE_WRITE8_MEMBER(x1_portb_w);
+	DECLARE_WRITE8_MEMBER(x1_portc_w);
 	DECLARE_DRIVER_INIT(x1_kanji);
 	DECLARE_MACHINE_START(x1);
 	DECLARE_MACHINE_RESET(x1);
@@ -206,6 +213,21 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(x1_cmt_wind_timer);
 	TIMER_DEVICE_CALLBACK_MEMBER(x1_keyboard_callback);
 	DECLARE_WRITE_LINE_MEMBER(fdc_drq_w);
+
+	void x1_draw_pixel(running_machine &machine, bitmap_rgb32 &bitmap,int y,int x,UINT16 pen,UINT8 width,UINT8 height);
+	void draw_fgtilemap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect);
+	void draw_gfxbitmap(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect, int plane,int pri);
+	UINT8 check_prev_height(running_machine &machine,int x,int y,int x_size);
+	UINT8 check_line_valid_height(running_machine &machine,int y,int x_size,int height);
+
+	int priority_mixer_pri(int color);
+	void cmt_command( UINT8 cmd );
+	UINT16 jis_convert(int kanji_addr);
+
+	DECLARE_READ8_MEMBER(memory_read_byte);
+	DECLARE_WRITE8_MEMBER(memory_write_byte);
+	DECLARE_READ8_MEMBER(io_read_byte);
+	DECLARE_WRITE8_MEMBER(io_write_byte);
 };
 
 /*----------- defined in machine/x1.c -----------*/

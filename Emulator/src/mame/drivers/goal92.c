@@ -69,10 +69,9 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(goal92_state::adpcm_control_w)
 {
-	device_t *device = machine().device("msm");
-	machine().root_device().membank("bank1")->set_entry(data & 0x01);
+	membank("bank1")->set_entry(data & 0x01);
 
-	msm5205_reset_w(device, data & 0x08);
+	m_msm->reset_w(data & 0x08);
 }
 
 WRITE8_MEMBER(goal92_state::adpcm_data_w)
@@ -85,8 +84,8 @@ static ADDRESS_MAP_START( sound_cpu, AS_PROGRAM, 8, goal92_state )
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
 	AM_RANGE(0xe000, 0xe000) AM_WRITE(adpcm_control_w)
 	AM_RANGE(0xe400, 0xe400) AM_WRITE(adpcm_data_w)
-	AM_RANGE(0xe800, 0xe801) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0xec00, 0xec01) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r, ym2203_w)
+	AM_RANGE(0xe800, 0xe801) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0xec00, 0xec01) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf800) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -209,37 +208,32 @@ static INPUT_PORTS_START( goal92 )
 INPUT_PORTS_END
 
 /* handler called by the 2203 emulator when the internal timers cause an IRQ */
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(goal92_state::irqhandler)
 {
 	/* NMI writes to MSM ports *only*! -AS */
-	//goal92_state *state = device->machine().driver_data<goal92_state>();
-	//state->m_audiocpu->set_input_line(INPUT_LINE_NMI, irq ? ASSERT_LINE : CLEAR_LINE);
+	//m_audiocpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
-static void goal92_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(goal92_state::goal92_adpcm_int)
 {
-	goal92_state *state = device->machine().driver_data<goal92_state>();
-	msm5205_data_w(device, state->m_msm5205next);
-	state->m_msm5205next >>= 4;
-	state->m_adpcm_toggle^= 1;
+	m_msm->data_w(m_msm5205next);
+	m_msm5205next >>= 4;
+	m_adpcm_toggle^= 1;
 
-	if (state->m_adpcm_toggle)
-		state->m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	if (m_adpcm_toggle)
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static const msm5205_interface msm5205_config =
 {
-	goal92_adpcm_int,   /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(goal92_state,goal92_adpcm_int),   /* interrupt function */
 	MSM5205_S96_4B      /* 4KHz 4-bit */
 };
 
@@ -295,7 +289,6 @@ void goal92_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 2, &ROM[0x10000], 0x4000);
 
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 
 	save_item(NAME(m_fg_bank));
 	save_item(NAME(m_msm5205next));
@@ -304,7 +297,6 @@ void goal92_state::machine_start()
 
 void goal92_state::machine_reset()
 {
-
 	m_fg_bank = 0;
 	m_msm5205next = 0;
 	m_adpcm_toggle = 0;
@@ -339,7 +331,8 @@ static MACHINE_CONFIG_START( goal92, goal92_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 2500000/2)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(goal92_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 2500000/2)

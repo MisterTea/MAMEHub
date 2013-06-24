@@ -6,12 +6,9 @@
 
 #include "emu.h"
 #include "cpu/cosmac/cosmac.h"
-#include "formats/basicdsk.h"
 #include "imagedev/cassette.h"
-#include "imagedev/flopdrv.h"
-#include "imagedev/printer.h"
-#include "machine/rescap.h"
 #include "machine/ram.h"
+#include "machine/rescap.h"
 #include "sound/cdp1864.h"
 
 #define SCREEN_TAG      "screen"
@@ -27,18 +24,35 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, CDP1802_TAG),
 			m_cti(*this, CDP1864_TAG),
-			m_cassette(*this, CASSETTE_TAG)
-	,
-		m_colorram(*this, "colorram"){ }
+			m_cassette(*this, "cassette"),
+			m_colorram(*this, "colorram"),
+			m_y0(*this, "Y0"),
+			m_y1(*this, "Y1"),
+			m_y2(*this, "Y2"),
+			m_y3(*this, "Y3"),
+			m_y4(*this, "Y4"),
+			m_y5(*this, "Y5"),
+			m_y6(*this, "Y6"),
+			m_y7(*this, "Y7"),
+			m_run(*this, "RUN")
+	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cdp1864_device> m_cti;
 	required_device<cassette_image_device> m_cassette;
+	required_shared_ptr<UINT8> m_colorram;
+	required_ioport m_y0;
+	required_ioport m_y1;
+	required_ioport m_y2;
+	required_ioport m_y3;
+	required_ioport m_y4;
+	required_ioport m_y5;
+	required_ioport m_y6;
+	required_ioport m_y7;
+	required_ioport m_run;
 
 	virtual void machine_start();
 	virtual void machine_reset();
-
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	DECLARE_READ8_MEMBER( vismac_r );
 	DECLARE_WRITE8_MEMBER( vismac_w );
@@ -60,10 +74,10 @@ public:
 
 	/* video state */
 	int m_cdp1864_efx;      /* EFx */
-	required_shared_ptr<UINT8> m_colorram;      /* color memory */
 	UINT8 m_color;
 
 	/* keyboard state */
+	ioport_port* m_key_row[8];
 	int m_keylatch;         /* key latch */
 	int m_reset;            /* reset activated */
 };

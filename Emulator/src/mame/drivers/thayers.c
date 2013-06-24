@@ -35,10 +35,17 @@ struct ssi263_t
 class thayers_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_INTRQ_TICK,
+		TIMER_SSI263_PHONEME_TICK
+	};
+
 	thayers_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_pr7820(*this, "laserdisc"),
-			m_ldv1000(*this, "ldv1000") { }
+			m_ldv1000(*this, "ldv1000") ,
+		m_maincpu(*this, "maincpu") { }
 
 	optional_device<pioneer_pr7820_device> m_pr7820;
 	optional_device<pioneer_ldv1000_device> m_ldv1000;
@@ -82,8 +89,11 @@ public:
 	DECLARE_CUSTOM_INPUT_MEMBER(laserdisc_ready_r);
 	virtual void machine_start();
 	virtual void machine_reset();
-	TIMER_CALLBACK_MEMBER(intrq_tick);
-	TIMER_CALLBACK_MEMBER(ssi263_phoneme_tick);
+	void check_interrupt();
+	required_device<cpu_device> m_maincpu;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -95,31 +105,41 @@ static const UINT8 led_map[16] = { 0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7c, 0x0
 
 /* Interrupts */
 
-static void check_interrupt(running_machine &machine)
+void thayers_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	thayers_state *state = machine.driver_data<thayers_state>();
-	if (!state->m_timer_int || !state->m_data_rdy_int || !state->m_ssi_data_request)
+	switch (id)
 	{
-		machine.device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, HOLD_LINE);
-	}
-	else
-	{
-		machine.device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	case TIMER_INTRQ_TICK:
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+		break;
+	case TIMER_SSI263_PHONEME_TICK:
+		m_ssi_data_request = 0;
+		check_interrupt();
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in thayers_state::device_timer");
 	}
 }
 
-TIMER_CALLBACK_MEMBER(thayers_state::intrq_tick)
+void thayers_state::check_interrupt()
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	if (!m_timer_int || !m_data_rdy_int || !m_ssi_data_request)
+	{
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, HOLD_LINE);
+	}
+	else
+	{
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	}
 }
 
 WRITE8_MEMBER(thayers_state::intrq_w)
 {
 	// T = 1.1 * R30 * C53 = 1.1 * 750K * 0.01uF = 8.25 ms
 
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, HOLD_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, HOLD_LINE);
 
-	machine().scheduler().timer_set(attotime::from_usec(8250), timer_expired_delegate(FUNC(thayers_state::intrq_tick),this));
+	timer_set(attotime::from_usec(8250), TIMER_INTRQ_TICK);
 }
 
 READ8_MEMBER(thayers_state::irqstate_r)
@@ -146,14 +166,14 @@ WRITE8_MEMBER(thayers_state::timer_int_ack_w)
 {
 	m_timer_int = 1;
 
-	check_interrupt(machine());
+	check_interrupt();
 }
 
 WRITE8_MEMBER(thayers_state::data_rdy_int_ack_w)
 {
 	m_data_rdy_int = 1;
 
-	check_interrupt(machine());
+	check_interrupt();
 }
 
 WRITE8_MEMBER(thayers_state::cop_d_w)
@@ -179,7 +199,7 @@ WRITE8_MEMBER(thayers_state::cop_d_w)
 		m_data_rdy_int = 0;
 	}
 
-	check_interrupt(machine());
+	check_interrupt();
 }
 
 /* COP Communication */
@@ -357,7 +377,7 @@ WRITE8_MEMBER(thayers_state::control2_w)
 
 	if ((!BIT(data, 2)) & m_cart_present)
 	{
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, HOLD_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, HOLD_LINE);
 	}
 }
 
@@ -472,12 +492,6 @@ static const char SSI263_PHONEMES[0x40][5] =
 	"L", "L1", "LF", "W", "B", "D", "KV", "P", "T", "K", "HV", "HVC", "HF", "HFC", "HN", "Z", "S", "J", "SCH", "V", "F", "THV", "TH", "M", "N", "NG", ":A", ":OH", ":U", ":UH", "E2", "LB"
 };
 
-TIMER_CALLBACK_MEMBER(thayers_state::ssi263_phoneme_tick)
-{
-	m_ssi_data_request = 0;
-	check_interrupt(machine());
-}
-
 WRITE8_MEMBER(thayers_state::ssi263_register_w)
 {
 	struct ssi263_t &ssi263 = m_ssi263;
@@ -493,18 +507,18 @@ WRITE8_MEMBER(thayers_state::ssi263_register_w)
 		ssi263.p = data & 0x3f;
 
 		m_ssi_data_request = 1;
-		check_interrupt(machine());
+		check_interrupt();
 
 		switch (ssi263.mode)
 		{
 		case 0:
 		case 1:
 			// phoneme timing response
-			machine().scheduler().timer_set(attotime::from_usec(phoneme_time), timer_expired_delegate(FUNC(thayers_state::ssi263_phoneme_tick),this));
+			timer_set(attotime::from_usec(phoneme_time), TIMER_SSI263_PHONEME_TICK);
 			break;
 		case 2:
 			// frame timing response
-			machine().scheduler().timer_set(attotime::from_usec(frame_time), timer_expired_delegate(FUNC(thayers_state::ssi263_phoneme_tick),this));
+			timer_set(attotime::from_usec(frame_time), TIMER_SSI263_PHONEME_TICK);
 			break;
 		case 3:
 			// disable A/_R output
@@ -747,7 +761,6 @@ void thayers_state::machine_start()
 
 void thayers_state::machine_reset()
 {
-
 	m_laserdisc_data = 0;
 
 	m_rx_bit = 0;

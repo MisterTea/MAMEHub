@@ -100,10 +100,6 @@ debug_view_disasm::debug_view_disasm(running_machine &machine, debug_view_osd_up
 		total_comments += dasmsource.m_device.debug()->comment_count();
 	}
 
-	// initialize
-	if (total_comments > 0)
-		m_right_column = DASM_RIGHTCOL_COMMENTS;
-
 	// configure the view
 	m_total.y = DEFAULT_DASM_LINES;
 	m_supports_cursor = true;
@@ -228,6 +224,32 @@ void debug_view_disasm::view_char(int chval)
 		m_update_pending = true;
 		end_update();
 	}
+}
+
+
+//-------------------------------------------------
+//  view_click - handle a mouse click within the
+//  current view
+//-------------------------------------------------
+
+void debug_view_disasm::view_click(const int button, const debug_view_xy& pos)
+{
+	const debug_view_xy origcursor = m_cursor;
+	m_cursor = pos;
+
+	/* cursor popup|toggle */
+	bool cursorVisible = true;
+	if (m_cursor.y == origcursor.y)
+	{
+		cursorVisible = !m_cursor_visible;
+	}
+
+	/* send a cursor changed notification */
+	begin_update();
+	m_cursor_visible = cursorVisible;
+	view_notify(VIEW_NOTIFY_CURSOR_CHANGED);
+	m_update_pending = true;
+	end_update();
 }
 
 
@@ -586,6 +608,10 @@ recompute:
 			// if we're on the active column and everything is couth, highlight it
 			if (m_cursor_visible && effrow == m_cursor.y)
 				attrib |= DCA_SELECTED;
+
+			// if we've visited this pc, mark it as such
+			if (source.m_device.debug()->track_pc_visited(m_byteaddress[effrow]))
+				attrib |= DCA_VISITED;
 
 			// get the effective string
 			const char *data = &m_dasm[effrow * m_allocated.x];

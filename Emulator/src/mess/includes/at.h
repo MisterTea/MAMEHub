@@ -35,7 +35,6 @@
 #include "machine/idectrl.h"
 #include "machine/isa_aha1542.h"
 #include "machine/at_keybc.h"
-#include "includes/ps2.h"
 
 #include "imagedev/harddriv.h"
 #include "machine/am9517a.h"
@@ -75,7 +74,9 @@ class at586_state : public driver_device
 {
 public:
 	at586_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
+	required_device<cpu_device> m_maincpu;
 };
 
 class at_state : public driver_device
@@ -94,7 +95,7 @@ public:
 	m_ide(*this, "ide"),
 	m_keybc(*this, "keybc"),
 	m_isabus(*this, "isabus"),
-	m_speaker(*this, SPEAKER_TAG),
+	m_speaker(*this, "speaker"),
 	m_ram(*this, RAM_TAG),
 	m_mc146818(*this, "rtc"),
 	m_pc_kbdc(*this, "pc_kbdc")
@@ -183,14 +184,14 @@ public:
 	DECLARE_MACHINE_START(at);
 	DECLARE_MACHINE_RESET(at);
 	void pc_set_dma_channel(int channel, int state);
+	IRQ_CALLBACK_MEMBER(at_irq_callback);
+	void init_at_common();
 };
 
 
 /*----------- defined in machine/at.c -----------*/
 
-extern const struct pic8259_interface at_pic8259_master_config;
-extern const struct pic8259_interface at_pic8259_slave_config;
-extern const struct pit8253_config at_pit8254_config;
+extern const struct pit8253_interface at_pit8254_config;
 extern const am9517a_interface at_dma8237_1_config;
 extern const am9517a_interface at_dma8237_2_config;
 

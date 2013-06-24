@@ -76,6 +76,9 @@ enum {
 	DVSSR = 0x13
 };
 
+ALLOW_SAVE_TYPE(huc6270_device::huc6270_v_state);
+ALLOW_SAVE_TYPE(huc6270_device::huc6270_h_state);
+
 
 /* Bits in the VDC status register */
 #define HUC6270_BSY         0x40    /* Set when the VDC accesses VRAM */
@@ -816,8 +819,55 @@ void huc6270_device::device_start()
 
 	assert( ! m_irq_changed.isnull() );
 
-	m_vram = (UINT16 *)machine().memory().region_alloc( tag(), vram_size, 1, ENDIANNESS_LITTLE )->base();
-	m_vram_mask = ( vram_size >> 1 ) - 1;
+	m_vram = auto_alloc_array_clear(machine(), UINT16, vram_size/sizeof(UINT16));
+	m_vram_mask = (vram_size >> 1) - 1;
+
+	save_pointer(NAME(m_vram), vram_size/sizeof(UINT16));
+
+	save_item(NAME(m_register_index));
+	save_item(NAME(m_mawr));
+	save_item(NAME(m_marr));
+	save_item(NAME(m_vrr));
+	save_item(NAME(m_vwr));
+	save_item(NAME(m_cr));
+	save_item(NAME(m_rcr));
+	save_item(NAME(m_bxr));
+	save_item(NAME(m_byr));
+	save_item(NAME(m_mwr));
+	save_item(NAME(m_hsr));
+	save_item(NAME(m_hdr));
+	save_item(NAME(m_vpr));
+	save_item(NAME(m_vdw));
+	save_item(NAME(m_vcr));
+	save_item(NAME(m_dcr));
+	save_item(NAME(m_sour));
+	save_item(NAME(m_desr));
+	save_item(NAME(m_lenr));
+	save_item(NAME(m_dvssr));
+	save_item(NAME(m_status));
+	save_item(NAME(m_hsync));
+	save_item(NAME(m_vsync));
+	save_item(NAME(m_vert_state));
+	save_item(NAME(m_horz_state));
+	save_item(NAME(m_vd_triggered));
+	save_item(NAME(m_vert_to_go));
+	save_item(NAME(m_horz_to_go));
+	save_item(NAME(m_horz_steps));
+	save_item(NAME(m_raster_count));
+	save_item(NAME(m_dvssr_written));
+	save_item(NAME(m_satb_countdown));
+	save_item(NAME(m_dma_enabled));
+	save_item(NAME(m_byr_latched));
+	save_item(NAME(m_bxr_latched));
+	save_item(NAME(m_bat_address));
+	save_item(NAME(m_bat_address_mask));
+	save_item(NAME(m_bat_row));
+	save_item(NAME(m_bat_column));
+	save_item(NAME(m_bat_tile_row));
+	save_item(NAME(m_sat));
+	save_item(NAME(m_sprites_this_line));
+	save_item(NAME(m_sprite_row_index));
+	save_item(NAME(m_sprite_row));
 }
 
 
@@ -846,4 +896,15 @@ void huc6270_device::device_reset()
 	m_dvssr_written = 0;
 	m_satb_countdown = 0;
 	m_raster_count = 0x4000;
+	m_vert_to_go = 0;
+	m_vert_state = HUC6270_VSW;
+	m_horz_steps = 0;
+	m_horz_to_go = 0;
+	m_horz_state = HUC6270_HDS;
+	m_hsync = 0;
+	m_vsync = 0;
+	m_dma_enabled = 0;
+	m_byr_latched = 0;
+
+	memset(m_sat, 0, sizeof(m_sat));
 }

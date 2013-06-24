@@ -96,7 +96,7 @@ Notes:
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "video/deco16ic.h"
-#include "video/decospr.h"
+
 
 /******************************************************************************/
 
@@ -288,11 +288,6 @@ static const deco16ic_interface funkyjet_deco16ic_tilegen1_intf =
 
 void funkyjet_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_deco_tilegen1 = machine().device("tilegen1");
-
 	decoprot_reset(machine());
 }
 

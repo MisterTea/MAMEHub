@@ -3,16 +3,8 @@ intended to cover aspects of using and configuring the program that are
 specific to running MAME from the command line on a Windows-based system.
 For common options that apply to all systems, please see config.txt.
 
-
-
-Default Keys
-------------
-
 In addition to the keys described in config.txt, the following additional
 keys are defined for Windows versions of MAME:
-
-
-Alt+Enter Toggles between full-screen and windowed mode.
 
 
 
@@ -192,15 +184,6 @@ DirectDraw-specific options
 
 Direct3D-specific options
 -------------------------
-
--d3dversion <version>
-
-	MAME supports both Direct3D 9 and Direct3D 8 for maximum compatibility.
-	By default, it will automatically detect which one it can use and use
-	that version exclusively. You can override MAME's selection with this
-	option. It is primarily intended as a means for the MAME developers to
-	test compatibility with older hardware; for the most part, there is no
-	reason to alter this setting. The default is 9.
 
 -[no]filter / -[no]d3dfilter / -[no]flt
 

@@ -2,15 +2,16 @@
 
     Popo Bear (c) 2000 BMC
 
-    preliminary driver by Angelo Salese
+    driver by Angelo Salese, David Haywood
 
     TODO:
     - auto-animation speed is erratic (way too fast);
-    - sprites;
-    - tilemap effects (scrolling, colscroll, linescroll);
     - BGM seems quite off, YM2413 core bug?
-    - I/Os;
     - IRQ generation;
+      - all possible related to some timers?
+
+
+    - I/Os;
     - Port 0x620000 is quite a mystery, some silly protection?
 
 ============================================================================================
@@ -73,6 +74,7 @@ Component Side   A   B   Solder Side
 *******************************************************************************************/
 
 
+
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
 #include "sound/okim6295.h"
@@ -85,174 +87,259 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
 		m_spr(*this, "spr"),
-		m_vram(*this, "vram"),
-		m_vregs(*this, "vregs"){ }
+		m_vregs(*this, "vregs")
+
+	{
+		tilemap_base[0] = 0xf0000;
+		tilemap_base[1] = 0xf4000;
+		tilemap_base[2] = 0xf8000;
+		tilemap_base[3] = 0xfc000;
+
+		tilemap_size[0] = 0x04000;
+		tilemap_size[1] = 0x04000;
+		tilemap_size[2] = 0x04000;
+		tilemap_size[3] = 0x04000;
+	}
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT16> m_spr;
-	required_shared_ptr<UINT16> m_vram;
 	required_shared_ptr<UINT16> m_vregs;
+
+	UINT16* m_vram;
+	UINT16* m_vram_rearranged;
+
+	int tilemap_base[4];
+	int tilemap_size[4];
+
 	DECLARE_READ8_MEMBER(popo_620000_r);
 	DECLARE_WRITE8_MEMBER(popobear_irq_ack_w);
 	virtual void video_start();
 	UINT32 screen_update_popobear(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(popobear_irq);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+
+	int m_gfx_index;
+	tilemap_t    *m_bg_tilemap[4];
+	TILE_GET_INFO_MEMBER(get_popobear_bg0_tile_info);
+	TILE_GET_INFO_MEMBER(get_popobear_bg1_tile_info);
+	TILE_GET_INFO_MEMBER(get_popobear_bg2_tile_info);
+	TILE_GET_INFO_MEMBER(get_popobear_bg3_tile_info);
+
+	DECLARE_WRITE16_MEMBER(popo_vram_w)
+	{
+		COMBINE_DATA(&m_vram[offset]);
+
+		// the graphic data for the tiles is in a strange order, rearrange it so that we can use it as tiles..
+		int swapped_offset = BITSWAP32(offset, /* unused bits */ 31,30,29,28,27,26,25,24,23,22,21,20,19, /* end unused bits */
+
+		18,17,16,15,14,13,12,
+
+		8,7,6,5,4,3,2,
+
+		11,10,9, /* y tile address bits */
+
+		1,0 /* x tile address bits */);
+
+
+
+		COMBINE_DATA(&m_vram_rearranged[swapped_offset]);
+		machine().gfx[m_gfx_index]->mark_dirty((swapped_offset)/32);
+
+		// unfortunately tilemaps and tilegfx share the same ram so we're always dirty if we write to RAM
+		m_bg_tilemap[0]->mark_all_dirty();
+		m_bg_tilemap[1]->mark_all_dirty();
+		m_bg_tilemap[2]->mark_all_dirty();
+		m_bg_tilemap[3]->mark_all_dirty();
+
+	}
+	DECLARE_READ16_MEMBER(popo_vram_r) { return m_vram[offset]; }
+
 };
+
+
+static const gfx_layout popobear_char_layout =
+{
+	8,8,
+	0x4000,
+	8,
+	{ 0,1,2,3,4,5,6,7 },
+	{ 8,0,24,16,40,32,56,48 },
+	{ 0*64, 1*64, 2*64, 3*64, 4*64, 5*64, 6*64, 7*64 },
+	8*64
+};
+
+
+TILE_GET_INFO_MEMBER(popobear_state::get_popobear_bg0_tile_info)
+{
+	int base = tilemap_base[0];
+	int tileno = m_vram[base/2 + tile_index];
+	int flipyx = (tileno>>14);
+	SET_TILE_INFO_MEMBER(0, tileno&0x3fff, 0, TILE_FLIPYX(flipyx));
+}
+
+TILE_GET_INFO_MEMBER(popobear_state::get_popobear_bg1_tile_info)
+{
+	int base = tilemap_base[1];
+	int tileno = m_vram[base/2 + tile_index];
+	int flipyx = (tileno>>14);
+	SET_TILE_INFO_MEMBER(0, tileno&0x3fff, 0, TILE_FLIPYX(flipyx));
+}
+
+TILE_GET_INFO_MEMBER(popobear_state::get_popobear_bg2_tile_info)
+{
+	int base = tilemap_base[2];
+	int tileno = m_vram[base/2 + tile_index];
+	int flipyx = (tileno>>14);
+	SET_TILE_INFO_MEMBER(0, tileno&0x3fff, 0, TILE_FLIPYX(flipyx));
+}
+
+TILE_GET_INFO_MEMBER(popobear_state::get_popobear_bg3_tile_info)
+{
+	int base = tilemap_base[3];
+	int tileno = m_vram[base/2 + tile_index];
+	int flipyx = (tileno>>14);
+	SET_TILE_INFO_MEMBER(0, tileno&0x3fff, 0, TILE_FLIPYX(flipyx));
+}
+
+
+
 
 void popobear_state::video_start()
 {
+	/* find first empty slot to decode gfx */
+	for (m_gfx_index = 0; m_gfx_index < MAX_GFX_ELEMENTS; m_gfx_index++)
+		if (machine().gfx[m_gfx_index] == 0)
+			break;
+
+	assert(m_gfx_index != MAX_GFX_ELEMENTS);
+
+	m_vram = auto_alloc_array_clear(machine(), UINT16, 0x100000/2);
+	m_vram_rearranged = auto_alloc_array_clear(machine(), UINT16, 0x100000/2);
+
+
+	/* create the char set (gfx will then be updated dynamically from RAM) */
+	machine().gfx[m_gfx_index] = auto_alloc(machine(), gfx_element(machine(), popobear_char_layout, (UINT8 *)m_vram_rearranged, machine().total_colors() / 16, 0));
+
+	m_bg_tilemap[0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg0_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+	m_bg_tilemap[1] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+	m_bg_tilemap[2] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+	m_bg_tilemap[3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(popobear_state::get_popobear_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 128, 64);
+
+	m_bg_tilemap[0]->set_transparent_pen(0);
+	m_bg_tilemap[1]->set_transparent_pen(0);
+	m_bg_tilemap[2]->set_transparent_pen(0);
+	m_bg_tilemap[3]->set_transparent_pen(0);
 
 }
 
-static void draw_layer(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect, UINT8 layer_n)
+
+
+
+void popobear_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
-	popobear_state *state = machine.driver_data<popobear_state>();
 	// ERROR: This cast is NOT endian-safe without the use of BYTE/WORD/DWORD_XOR_* macros!
-	UINT8* vram = reinterpret_cast<UINT8 *>(state->m_vram.target());
-	UINT16* vreg = (UINT16 *)state->m_vregs;
-	int count;
-	const UINT8 vreg_base[] = { 0x10/2, 0x14/2 };
-	int xscroll,yscroll;
-
-//  count = (state->m_vregs[vreg_base[layer_n]]<<5);
-//  count &= 0xfc000;
-	count = (0xf0000+layer_n*0x4000);
-	if(layer_n & 2)
-	{
-		xscroll = vreg[vreg_base[(layer_n & 1) ^ 1]+2/2] & 0x1ff;
-		yscroll = vreg[vreg_base[(layer_n & 1) ^ 1]+0/2] & 0x1ff;
-	}
-	else
-	{
-		xscroll = 0;
-		yscroll = 0;
-	}
-
-	popmessage("%04x %04x",vreg[vreg_base[0]+0/2],vreg[vreg_base[1]+0/2]);
-
-	for(int y=0;y<64;y++)
-	{
-		for(int x=0;x<128;x++)
-		{
-			int tile,xtile,ytile;
-
-			tile = vram[count+0]|(vram[count+1]<<8);
-			xtile = tile & 0x7f;
-			xtile *= 8;
-			ytile = tile >> 7;
-			ytile *= 1024*8;
-
-			for(int yi=0;yi<8;yi++)
-			{
-				for(int xi=0;xi<8;xi+=2)
-				{
-					UINT8 color;
-					int xoffs,yoffs;
-
-					xoffs = x*8+xi - xscroll;
-					yoffs = y*8+yi - yscroll;
-
-					color = (vram[((xi+yi*1024)+xtile+ytile) & 0xfffff] & 0xff);
-
-					if(cliprect.contains(xoffs+1, yoffs) && color)
-						bitmap.pix16(yoffs, xoffs+1) = machine.pens[color];
-
-					if(cliprect.contains(xoffs+1, yoffs+512) && color)
-						bitmap.pix16(yoffs+512, xoffs+1) = machine.pens[color];
-
-					//if(cliprect.contains(xoffs+1, yoffs+256) && color)
-					//  bitmap.pix16(yoffs+512, xoffs+1) = machine.pens[color];
-
-					color = (vram[((xi+1+yi*1024)+xtile+ytile) & 0xfffff] & 0xff);
-
-					if(cliprect.contains(xoffs, yoffs) && color)
-						bitmap.pix16(yoffs, xoffs) = machine.pens[color];
-
-					if(cliprect.contains(xoffs, yoffs+512) && color)
-						bitmap.pix16(yoffs+512, xoffs) = machine.pens[color];
-				}
-			}
-
-			count+=2;
-		}
-	}
-}
-
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect)
-{
-	popobear_state *state = machine.driver_data<popobear_state>();
-	// ERROR: This cast is NOT endian-safe without the use of BYTE/WORD/DWORD_XOR_* macros!
-	UINT8* vram = reinterpret_cast<UINT8 *>(state->m_spr.target());
+	UINT8* vram = reinterpret_cast<UINT8 *>(m_spr.target());
 	int i;
-	#if 0
-	static int bank_test = 1;
-
-	if(machine.input().code_pressed_once(KEYCODE_Z))
-		bank_test<<=1;
-
-	if(machine.input().code_pressed_once(KEYCODE_X))
-		bank_test>>=1;
-
-	popmessage("%02x",bank_test);
-	#endif
 
 	/*
 	???? ---- ---- ---- unused?
-	---- xxxx ---- ---- priority?
+	---- xxxx ---- ---- priority (against other sprites! used to keep the line of characters following you in order)
 	---- ---- x--- ---- Y direction
 	---- ---- -x-- ---- X direction
-	---- ---- --xx ---- width
+	---- ---- --xx ---- size (height & width)
 	---- ---- ---- xx-- color bank
-	---- ---- ---- --xx height?
+	---- ---- ---- --x- NOT set on the enemy character / characters in your line
+	---- ---- ---- ---x set on opposite to above?
 	*/
 
-	/* 0x106 = 8 x 8 */
-	/* 0x*29 = 32 x 32 */
-	for(i = 0x800-8;i >= 0; i-=8)
+	for (int drawpri = 0xf;drawpri>=0x0;drawpri--)
 	{
-		int y = vram[i+0x7f800+2]|(vram[i+0x7f800+3]<<8);
-		int x = vram[i+0x7f800+4]|(vram[i+0x7f800+5]<<8);
-		int spr_num = vram[i+0x7f800+6]|(vram[i+0x7f800+7]<<8);
-		int param = vram[i+0x7f800+0]|(vram[i+0x7f800+1]<<8);
-		int width = 8 << ((param & 0x30)>>4);
-		int height = 32;
-		int color_bank = ((param & 0xc)<<4);
-		int x_dir = param & 0x40;
-		int y_dir = param & 0x80;
-
-		if((param & 0x3) == 3) // actually sprite mode?
-			color_bank |= 0x20;
-
-		if(param == 0)
-			continue;
-
-		//if(param & bank_test)
-		//  continue;
-
-		spr_num <<= 3;
-
-		for(int yi=0;yi<height;yi++)
+		/* 0x106 = 8 x 8 */
+		/* 0x*29 = 32 x 32 */
+		for(i = 0x800-8;i >= 0; i-=8)
 		{
-			for(int xi=0;xi<width;xi+=2)
+			int y = vram[i+0x7f800+2]|(vram[i+0x7f800+3]<<8);
+			int x = vram[i+0x7f800+4]|(vram[i+0x7f800+5]<<8);
+			int spr_num = vram[i+0x7f800+6]|(vram[i+0x7f800+7]<<8);
+			int param = vram[i+0x7f800+0]|(vram[i+0x7f800+1]<<8);
+
+			int pri = (param & 0x0f00)>>8;
+
+			// we do this because it's sprite<->sprite priority,
+			if (pri!=drawpri)
+				continue;
+
+			int width = 8 << ((param & 0x30)>>4);
+			int height = width; // sprites are always square?
+
+			int color_bank = ((param & 0xc)>>2);
+			int x_dir = param & 0x40;
+			int y_dir = param & 0x80;
+
+			if (x&0x8000) x-= 0x10000;
+			if (y&0x8000) y-= 0x10000;
+
+			if (param&0xf000) color_bank = (machine().rand() & 0x3);
+
+
+
+			int add_it = 0;
+
+			// this isn't understood, not enough evidence.
+			switch (param & 3)
 			{
-				UINT8 color;
-				int x_res,y_res;
+				case 0x0: // not used?
+				color_bank = (machine().rand() & 0x3);
+				add_it = color_bank*0x40;
+				break;
 
-				color = (vram[spr_num] & 0xff);
-				x_res = (x_dir) ? x+0+(width - xi) : x+1+xi;
-				y_res = (y_dir) ? y+(height - yi) : y+yi;
+				case 0x1: // butterflies in intro, enemy characters, line of characters, stage start text
+				//color_bank = (machine().rand() & 0x3);
+				add_it = color_bank*0x40;
+				break;
 
-				if(cliprect.contains(x_res, y_res) && color)
-					bitmap.pix16(y_res, x_res) = machine.pens[color+0x100+color_bank];
+				case 0x2: // characters in intro, main player, powerups, timer, large dancing chars between levels (0x3f?)
+				//color_bank = (machine().rand() & 0x3);
+				add_it = color_bank*0x40;
+				break;
 
-				color = (vram[spr_num+1] & 0xff);
-				x_res = (x_dir) ? x+1+(width - xi) : x+0+xi;
-				y_res = (y_dir) ? y+(height - yi) : y+yi;
+				case 0x3: // letters on GAME OVER need this..
+				add_it = color_bank*0x40;
+				add_it += 0x20;
+				break;
+			}
 
-				if(cliprect.contains(x_res, y_res) && color)
-					bitmap.pix16(y_res, x_res) = machine.pens[color+0x100+color_bank];
+			if(param == 0)
+				continue;
 
-				spr_num+=2;
+
+			spr_num <<= 3;
+
+			for(int yi=0;yi<height;yi++)
+			{
+				int y_draw = (y_dir) ? y+((height-1) - yi) : y+yi;
+
+				for(int xi=0;xi<width;xi++)
+				{
+					UINT8 pix = (vram[spr_num^1] & 0xff);
+					int x_draw = (x_dir) ? x+((width-1) - xi) : x+xi;
+
+					if(cliprect.contains(x_draw, y_draw))
+					{
+						// this is a bit strange, pix data is basically 8-bit
+						// but we have to treat 0x00, 0x40, 0x80, 0xc0 */
+						// see scores when you colect an item, must be at least steps of 0x40 or one of the female panda gfx between levels breaks.. might depend on lower bits?
+						// granularity also means colour bank is applied *0x40
+						// and we have 2 more possible colour bank bits
+						// colours on game over screen are still wrong without the weird param kludge above
+						if (pix&0x3f)
+						{
+							bitmap.pix16(y_draw, x_draw) = machine().pens[((pix+(add_it))&0xff)+0x100];
+						}
+					}
+
+					spr_num++;
+				}
 			}
 		}
 	}
@@ -260,16 +347,106 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const re
 
 UINT32 popobear_state::screen_update_popobear(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(0, cliprect);
+	int line;
+	rectangle clip;
+	int scrollbase;
+	int scrollbase2;
+
+	const rectangle &visarea = screen.visible_area();
+	clip = visarea;
 
 	//popmessage("%04x",m_vregs[0/2]);
+	UINT16* vreg = m_vregs;
 
-	draw_layer(machine(),bitmap,cliprect,3);
-	draw_layer(machine(),bitmap,cliprect,2);
-	draw_layer(machine(),bitmap,cliprect,1);
-	draw_layer(machine(),bitmap,cliprect,0);
-	draw_sprites(machine(),bitmap,cliprect);
+//  popmessage("%04x %04x %04x %04x %04x %04x %04x - %04x - %04x %04x",vreg[0x00],vreg[0x01],vreg[0x02],vreg[0x03],vreg[0x04],vreg[0x05],vreg[0x06], vreg[0x0b],vreg[0x0e],vreg[0x0f]);
+
+	// vreg[0x00] also looks like it could be some enable registers
+	// 0x82ff - BMC logo
+	// 0x8aff - some attract scenes (no sprites)
+	// 0x8bff - game attract scense etc. (sprites)
+
+	// vreg[0x01] is always
+	// 0xfefb
+
+
+
+	// these are more than just enable, they get written with 0x0d and 0x1f (and 0x00 when a layer is off)
+	// seems to be related to the linescroll mode at least? maybe sizes?
+	int enable0 = (m_vregs[0x0c] & 0xff00)>>8;
+	int enable1 = (m_vregs[0x0c] & 0x00ff)>>0;
+	int enable2 = (m_vregs[0x0d] & 0xff00)>>8;
+	int enable3 = (m_vregs[0x0d] & 0x00ff)>>0;
+
+	if ((enable0 != 0x00) && (enable0 != 0x0d) && (enable0 != 0x1f)) printf("unknown enable0 value %02x\n", enable0);
+	if ((enable1 != 0x00) && (enable1 != 0x0d) && (enable1 != 0x1f)) printf("unknown enable1 value %02x\n", enable1);
+	if ((enable2 != 0x00) && (enable2 != 0x0d)) printf("unknown enable2 value %02x\n", enable2);
+	if ((enable3 != 0x00) && (enable3 != 0x0d)) printf("unknown enable3 value %02x\n", enable3);
+
+
+	// the lower 2 tilemaps use regular scrolling
+	m_bg_tilemap[2]->set_scrollx(0, vreg[0x07]);
+	m_bg_tilemap[2]->set_scrolly(0, vreg[0x08]);
+
+	m_bg_tilemap[3]->set_scrollx(0, vreg[0x09]);
+	m_bg_tilemap[3]->set_scrolly(0, vreg[0x0a]);
+
+	if (enable3) m_bg_tilemap[3]->draw(bitmap, cliprect, 0, 0);
+	if (enable2) m_bg_tilemap[2]->draw(bitmap, cliprect, 0, 0);
+
+	// the upper 2 tilemaps have a lineselect / linescroll logic
+
+	if (enable1 == 0x1f)
+	{
+		scrollbase = 0xdf600;
+		scrollbase2 = 0xdf800;
+
+		for (line = 0; line < 240;line++)
+		{
+			UINT16 val = m_vram[scrollbase/2 + line];
+			UINT16 upper = (m_vram[scrollbase2/2 + line]&0xff00)>>8;
+
+			clip.min_y = clip.max_y = line;
+
+			m_bg_tilemap[1]->set_scrollx(0,(val&0x00ff) | (upper << 8));
+			m_bg_tilemap[1]->set_scrolly(0,((val&0xff00)>>8)-line);
+
+			m_bg_tilemap[1]->draw(bitmap, clip, 0, 0);
+		}
+	}
+	else if (enable1 != 0x00)
+	{
+		m_bg_tilemap[1]->set_scrollx(0, 0);
+		m_bg_tilemap[1]->set_scrolly(0, 0);
+		m_bg_tilemap[1]->draw(bitmap, cliprect, 0, 0);
+	}
+
+	if (enable0 == 0x1f)
+	{
+		scrollbase = 0xdf400;
+		scrollbase2 = 0xdf800;
+
+		for (line = 0; line < 240;line++)
+		{
+			UINT16 val = m_vram[scrollbase/2 + line];
+			UINT16 upper = (m_vram[scrollbase2/2 + line]&0x00ff)>>0;
+
+			clip.min_y = clip.max_y = line;
+
+			m_bg_tilemap[0]->set_scrollx(0,(val&0x00ff) | (upper << 8));
+			m_bg_tilemap[0]->set_scrolly(0,((val&0xff00)>>8)-line);
+
+			m_bg_tilemap[0]->draw(bitmap, clip, 0, 0);
+		}
+	}
+	else if (enable0 != 0x00)
+	{
+		m_bg_tilemap[0]->set_scrollx(0, 0);
+		m_bg_tilemap[0]->set_scrolly(0, 0);
+		m_bg_tilemap[0]->draw(bitmap, cliprect, 0, 0);
+	}
+
+	draw_sprites(bitmap,cliprect);
 
 	return 0;
 }
@@ -295,31 +472,31 @@ static ADDRESS_MAP_START( popobear_mem, AS_PROGRAM, 16, popobear_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x210000, 0x21ffff) AM_RAM
-	AM_RANGE(0x280000, 0x2fffff) AM_RAM AM_SHARE("spr") // unknown boundaries, 0x2ff800 contains a sprite list
-	AM_RANGE(0x300000, 0x3fffff) AM_RAM AM_SHARE("vram")
+	AM_RANGE(0x280000, 0x2fffff) AM_RAM AM_SHARE("spr") // unknown boundaries, 0x2ff800 contains a sprite list, lower area = sprite gfx
+	AM_RANGE(0x300000, 0x3fffff) AM_READWRITE( popo_vram_r, popo_vram_w ) // tile definitions + tilemaps
+
 
 	/* Most if not all of these are vregs */
 	AM_RANGE(0x480000, 0x48001f) AM_RAM AM_SHARE("vregs")
 	AM_RANGE(0x480020, 0x480023) AM_RAM
 	AM_RANGE(0x480028, 0x48002d) AM_RAM
-//  AM_RANGE(0x480020, 0x480021) AM_NOP //AM_READ_LEGACY(popo_480020_r) AM_WRITE_LEGACY(popo_480020_w)
-//  AM_RANGE(0x480028, 0x480029) AM_NOP //AM_WRITE_LEGACY(popo_480028_w)
-//  AM_RANGE(0x48002c, 0x48002d) AM_NOP //AM_WRITE_LEGACY(popo_48002c_w)
+//  AM_RANGE(0x480020, 0x480021) AM_NOP //AM_READ(popo_480020_r) AM_WRITE(popo_480020_w)
+//  AM_RANGE(0x480028, 0x480029) AM_NOP //AM_WRITE(popo_480028_w)
+//  AM_RANGE(0x48002c, 0x48002d) AM_NOP //AM_WRITE(popo_48002c_w)
 	AM_RANGE(0x480030, 0x480031) AM_WRITE8(popobear_irq_ack_w, 0x00ff)
 	AM_RANGE(0x480034, 0x480035) AM_RAM // coin counter or coin lockout
-	AM_RANGE(0x48003a, 0x48003b) AM_RAM //AM_READ_LEGACY(popo_48003a_r) AM_WRITE_LEGACY(popo_48003a_w)
+	AM_RANGE(0x48003a, 0x48003b) AM_RAM //AM_READ(popo_48003a_r) AM_WRITE(popo_48003a_w)
 
 	AM_RANGE(0x480400, 0x4807ff) AM_RAM AM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
 
 	AM_RANGE(0x500000, 0x500001) AM_READ_PORT("IN0")
 	AM_RANGE(0x520000, 0x520001) AM_READ_PORT("IN1")
 	AM_RANGE(0x540000, 0x540001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x550000, 0x550003) AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff )
+	AM_RANGE(0x550000, 0x550003) AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 
 	AM_RANGE(0x600000, 0x600001) AM_WRITENOP
 	AM_RANGE(0x620000, 0x620001) AM_READ8(popo_620000_r,0xff00) AM_WRITENOP
-	AM_RANGE(0x800000, 0x9fffff) AM_ROM AM_REGION("gfx1", 0) // u5 & u6
-	AM_RANGE(0xa00000, 0xbfffff) AM_ROM AM_REGION("gfx2", 0) // u7 & u8
+	AM_RANGE(0x800000, 0xbfffff) AM_ROM
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START( popobear )
@@ -450,6 +627,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(popobear_state::popobear_irq)
 		m_maincpu->set_input_line(5, ASSERT_LINE);
 
 	/* TODO: actually a timer irq, tied with YM2413 sound chip (controls BGM tempo) */
+	/* the YM2413 doesn't have interrupts? */
 	if(scanline == 64 || scanline == 192)
 		m_maincpu->set_input_line(2, ASSERT_LINE);
 }
@@ -467,12 +645,9 @@ static MACHINE_CONFIG_START( popobear, popobear_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 	MCFG_SCREEN_UPDATE_DRIVER(popobear_state, screen_update_popobear)
 
-//  MCFG_GFXDECODE(popobear)
-
 	MCFG_SCREEN_SIZE(128*8, 32*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 0*8, 32*8-1)
+	MCFG_SCREEN_VISIBLE_AREA(0, 479, 0, 239)
 	MCFG_PALETTE_LENGTH(256*2)
-
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
@@ -485,20 +660,16 @@ MACHINE_CONFIG_END
 
 
 ROM_START( popobear )
-	ROM_REGION( 0x400000, "maincpu", 0 ) /* 68000 Code */
-	ROM_LOAD16_BYTE( "popobear_en-a-301_1.6.u3", 0x000001, 0x20000, CRC(b934adf6) SHA1(93431c7a19af812b549aad35cc1176a81805ffab) )
-	ROM_LOAD16_BYTE( "popobear_en-a-401_1.6.u4", 0x000000, 0x20000, CRC(0568af9c) SHA1(920531dbc4bbde2d1db062bd5c48b97dd50b7185) )
-
-	ROM_REGION( 0x200000, "gfx1", 0 )
-	ROM_LOAD16_BYTE( "popobear_en-a-501.u5", 0x000000, 0x100000, CRC(185901a9) SHA1(7ff82b5751645df53435eaa66edce589684cc5c7) )
-	ROM_LOAD16_BYTE( "popobear_en-a-601.u6", 0x000001, 0x100000, CRC(84fa9f3f) SHA1(34dd7873f88b0dae5fb81fe84e82d2b6b49f7332) )
-
-	ROM_REGION( 0x200000, "gfx2", 0 )
-	ROM_LOAD16_BYTE( "popobear_en-a-701.u7", 0x000000, 0x100000, CRC(45eba6d0) SHA1(0278602ed57ac45040619d590e6cc85e2cfeed31) )
-	ROM_LOAD16_BYTE( "popobear_en-a-801.u8", 0x000001, 0x100000, CRC(2760f2e6) SHA1(58af59f486c9df930f7c124f89154f8f389a5bd7) )
+	ROM_REGION( 0x1000000, "maincpu", 0 ) /* 68000 Code + gfx data */
+	ROM_LOAD16_BYTE( "popobear_en-a-301_1.6.u3", 0x000001, 0x020000, CRC(b934adf6) SHA1(93431c7a19af812b549aad35cc1176a81805ffab) )
+	ROM_LOAD16_BYTE( "popobear_en-a-401_1.6.u4", 0x000000, 0x020000, CRC(0568af9c) SHA1(920531dbc4bbde2d1db062bd5c48b97dd50b7185) )
+	ROM_LOAD16_BYTE( "popobear_en-a-501.u5",     0x800001, 0x100000, CRC(185901a9) SHA1(7ff82b5751645df53435eaa66edce589684cc5c7) )
+	ROM_LOAD16_BYTE( "popobear_en-a-601.u6",     0x800000, 0x100000, CRC(84fa9f3f) SHA1(34dd7873f88b0dae5fb81fe84e82d2b6b49f7332) )
+	ROM_LOAD16_BYTE( "popobear_en-a-701.u7",     0xa00001, 0x100000, CRC(45eba6d0) SHA1(0278602ed57ac45040619d590e6cc85e2cfeed31) )
+	ROM_LOAD16_BYTE( "popobear_en-a-801.u8",     0xa00000, 0x100000, CRC(2760f2e6) SHA1(58af59f486c9df930f7c124f89154f8f389a5bd7) )
 
 	ROM_REGION( 0x040000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "popobear_ta-a-901.u9", 0x00000, 0x40000,  CRC(f1e94926) SHA1(f4d6f5b5811d90d0069f6efbb44d725ff0d07e1c) )
 ROM_END
 
-GAME( 2000, popobear,    0, popobear,    popobear, driver_device,    0, ROT0,  "BMC", "PoPo Bear", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
+GAME( 2000, popobear,    0, popobear,    popobear, driver_device,    0, ROT0,  "BMC", "PoPo Bear",  GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )

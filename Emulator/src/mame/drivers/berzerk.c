@@ -21,9 +21,10 @@ class berzerk_state : public driver_device
 {
 public:
 	berzerk_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -61,6 +62,14 @@ public:
 	UINT32 screen_update_berzerk(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(irq_callback);
 	TIMER_CALLBACK_MEMBER(nmi_callback);
+	void vpos_to_vsync_chain_counter(int vpos, UINT8 *counter, UINT8 *v256);
+	int vsync_chain_counter_to_vpos(UINT8 counter, UINT8 v256);
+	void create_irq_timer();
+	void start_irq_timer();
+	void create_nmi_timer();
+	void start_nmi_timer();
+	void get_pens(pen_t *pens);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -130,7 +139,7 @@ WRITE8_MEMBER(berzerk_state::led_off_w)
  *
  *************************************/
 
-static void vpos_to_vsync_chain_counter(int vpos, UINT8 *counter, UINT8 *v256)
+void berzerk_state::vpos_to_vsync_chain_counter(int vpos, UINT8 *counter, UINT8 *v256)
 {
 	/* convert from a vertical position to the actual values on the vertical sync counters */
 	*v256 = ((vpos < VBEND) || (vpos >= VBSTART));
@@ -149,7 +158,7 @@ static void vpos_to_vsync_chain_counter(int vpos, UINT8 *counter, UINT8 *v256)
 }
 
 
-static int vsync_chain_counter_to_vpos(UINT8 counter, UINT8 v256)
+int berzerk_state::vsync_chain_counter_to_vpos(UINT8 counter, UINT8 v256)
 {
 	/* convert from the vertical sync counters to an actual vertical position */
 	int vpos;
@@ -193,7 +202,7 @@ TIMER_CALLBACK_MEMBER(berzerk_state::irq_callback)
 
 	/* set the IRQ line if enabled */
 	if (m_irq_enabled)
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xfc);
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xfc);
 
 	/* set up for next interrupt */
 	next_irq_number = (irq_number + 1) % IRQS_PER_FRAME;
@@ -205,18 +214,16 @@ TIMER_CALLBACK_MEMBER(berzerk_state::irq_callback)
 }
 
 
-static void create_irq_timer(running_machine &machine)
+void berzerk_state::create_irq_timer()
 {
-	berzerk_state *state = machine.driver_data<berzerk_state>();
-	state->m_irq_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(berzerk_state::irq_callback),state));
+	m_irq_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(berzerk_state::irq_callback),this));
 }
 
 
-static void start_irq_timer(running_machine &machine)
+void berzerk_state::start_irq_timer()
 {
-	berzerk_state *state = machine.driver_data<berzerk_state>();
 	int vpos = vsync_chain_counter_to_vpos(irq_trigger_counts[0], irq_trigger_v256s[0]);
-	state->m_irq_timer->adjust(machine.primary_screen->time_until_pos(vpos));
+	m_irq_timer->adjust(machine().primary_screen->time_until_pos(vpos));
 }
 
 
@@ -272,7 +279,7 @@ TIMER_CALLBACK_MEMBER(berzerk_state::nmi_callback)
 
 	/* pulse the NMI line if enabled */
 	if (m_nmi_enabled)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 
 	/* set up for next interrupt */
 	next_nmi_number = (nmi_number + 1) % NMIS_PER_FRAME;
@@ -284,18 +291,16 @@ TIMER_CALLBACK_MEMBER(berzerk_state::nmi_callback)
 }
 
 
-static void create_nmi_timer(running_machine &machine)
+void berzerk_state::create_nmi_timer()
 {
-	berzerk_state *state = machine.driver_data<berzerk_state>();
-	state->m_nmi_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(berzerk_state::nmi_callback),state));
+	m_nmi_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(berzerk_state::nmi_callback),this));
 }
 
 
-static void start_nmi_timer(running_machine &machine)
+void berzerk_state::start_nmi_timer()
 {
-	berzerk_state *state = machine.driver_data<berzerk_state>();
 	int vpos = vsync_chain_counter_to_vpos(nmi_trigger_counts[0], nmi_trigger_v256s[0]);
-	state->m_nmi_timer->adjust(machine.primary_screen->time_until_pos(vpos));
+	m_nmi_timer->adjust(machine().primary_screen->time_until_pos(vpos));
 }
 
 
@@ -308,15 +313,15 @@ static void start_nmi_timer(running_machine &machine)
 
 void berzerk_state::machine_start()
 {
-	create_irq_timer(machine());
-	create_nmi_timer(machine());
+	create_irq_timer();
+	create_nmi_timer();
 
 	/* register for state saving */
-	state_save_register_global(machine(), m_magicram_control);
-	state_save_register_global(machine(), m_last_shift_data);
-	state_save_register_global(machine(), m_intercept);
-	state_save_register_global(machine(), m_irq_enabled);
-	state_save_register_global(machine(), m_nmi_enabled);
+	save_item(NAME(m_magicram_control));
+	save_item(NAME(m_last_shift_data));
+	save_item(NAME(m_intercept));
+	save_item(NAME(m_irq_enabled));
+	save_item(NAME(m_nmi_enabled));
 }
 
 
@@ -334,8 +339,8 @@ void berzerk_state::machine_reset()
 	set_led_status(machine(), 0, 0);
 	m_magicram_control = 0;
 
-	start_irq_timer(machine());
-	start_nmi_timer(machine());
+	start_irq_timer();
+	start_nmi_timer();
 }
 
 
@@ -421,7 +426,7 @@ READ8_MEMBER(berzerk_state::intercept_v256_r)
 }
 
 
-static void get_pens(running_machine &machine, pen_t *pens)
+void berzerk_state::get_pens(pen_t *pens)
 {
 	static const int resistances_wg[] = { 750, 0 };
 	static const int resistances_el[] = { 1.0 / ((1.0 / 750.0) + (1.0 / 360.0)), 0 };
@@ -429,7 +434,7 @@ static void get_pens(running_machine &machine, pen_t *pens)
 	int color;
 	double color_weights[2];
 
-	if (machine.root_device().ioport(MONITOR_TYPE_PORT_TAG)->read() == 0)
+	if (ioport(MONITOR_TYPE_PORT_TAG)->read() == 0)
 		compute_resistor_weights(0, 0xff, -1.0,
 									2, resistances_wg, color_weights, 0, 270,
 									2, resistances_wg, color_weights, 0, 270,
@@ -461,7 +466,7 @@ UINT32 berzerk_state::screen_update_berzerk(screen_device &screen, bitmap_rgb32 
 	pen_t pens[NUM_PENS];
 	offs_t offs;
 
-	get_pens(machine(), pens);
+	get_pens(pens);
 
 	for (offs = 0; offs < m_videoram.bytes(); offs++)
 	{
@@ -582,8 +587,8 @@ READ8_MEMBER(berzerk_state::berzerk_audio_r)
 
 static SOUND_RESET(berzerk)
 {
-	address_space &space = machine.device("maincpu")->memory().space(AS_IO);
 	berzerk_state *state = machine.driver_data<berzerk_state>();
+	address_space &space = state->m_maincpu->space(AS_IO);
 	/* clears the flip-flop controlling the volume and freq on the speech chip */
 	state->berzerk_audio_w(space, 4, 0x40);
 }
@@ -1234,7 +1239,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(berzerk_state,moonwarp)
 {
-	address_space &io = machine().device("maincpu")->memory().space(AS_IO);
+	address_space &io = m_maincpu->space(AS_IO);
 	io.install_read_handler (0x48, 0x48, read8_delegate(FUNC(berzerk_state::moonwarp_p1_r), this));
 	io.install_read_handler (0x4a, 0x4a, read8_delegate(FUNC(berzerk_state::moonwarp_p2_r), this));
 }

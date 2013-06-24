@@ -57,7 +57,8 @@ class mole_state : public driver_device
 {
 public:
 	mole_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	/* video-related */
 	tilemap_t    *m_bg_tilemap;
@@ -75,6 +76,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_mole(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -125,7 +127,6 @@ WRITE8_MEMBER(mole_state::mole_flipscreen_w)
 
 UINT32 mole_state::screen_update_mole(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }
@@ -201,7 +202,7 @@ static ADDRESS_MAP_START( mole_map, AS_PROGRAM, 8, mole_state )
 	AM_RANGE(0x5000, 0x7fff) AM_MIRROR(0x8000) AM_ROM
 	AM_RANGE(0x8000, 0x83ff) AM_WRITE(mole_tileram_w) AM_READNOP
 	AM_RANGE(0x8400, 0x8400) AM_WRITE(mole_tilebank_w)
-	AM_RANGE(0x8c00, 0x8c01) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x8c00, 0x8c01) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x8c40, 0x8c40) AM_WRITENOP // ???
 	AM_RANGE(0x8c80, 0x8c80) AM_WRITENOP // ???
 	AM_RANGE(0x8c81, 0x8c81) AM_WRITENOP // ???

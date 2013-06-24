@@ -101,54 +101,50 @@ VIDEO_START_MEMBER(skullxbo_state,skullxbo)
  *
  *************************************/
 
-WRITE16_HANDLER( skullxbo_xscroll_w )
+WRITE16_MEMBER( skullxbo_state::skullxbo_xscroll_w )
 {
-	skullxbo_state *state = space.machine().driver_data<skullxbo_state>();
-
 	/* combine data */
-	UINT16 oldscroll = *state->m_xscroll;
+	UINT16 oldscroll = *m_xscroll;
 	UINT16 newscroll = oldscroll;
 	COMBINE_DATA(&newscroll);
 
 	/* if something changed, force an update */
 	if (oldscroll != newscroll)
-		space.machine().primary_screen->update_partial(space.machine().primary_screen->vpos());
+		machine().primary_screen->update_partial(machine().primary_screen->vpos());
 
 	/* adjust the actual scrolls */
-	state->m_playfield_tilemap->set_scrollx(0, 2 * (newscroll >> 7));
+	m_playfield_tilemap->set_scrollx(0, 2 * (newscroll >> 7));
 	atarimo_set_xscroll(0, 2 * (newscroll >> 7));
 
 	/* update the data */
-	*state->m_xscroll = newscroll;
+	*m_xscroll = newscroll;
 }
 
 
-WRITE16_HANDLER( skullxbo_yscroll_w )
+WRITE16_MEMBER( skullxbo_state::skullxbo_yscroll_w )
 {
-	skullxbo_state *state = space.machine().driver_data<skullxbo_state>();
-
 	/* combine data */
-	int scanline = space.machine().primary_screen->vpos();
-	UINT16 oldscroll = *state->m_yscroll;
+	int scanline = machine().primary_screen->vpos();
+	UINT16 oldscroll = *m_yscroll;
 	UINT16 newscroll = oldscroll;
 	UINT16 effscroll;
 	COMBINE_DATA(&newscroll);
 
 	/* if something changed, force an update */
 	if (oldscroll != newscroll)
-		space.machine().primary_screen->update_partial(scanline);
+		machine().primary_screen->update_partial(scanline);
 
 	/* adjust the effective scroll for the current scanline */
-	if (scanline > space.machine().primary_screen->visible_area().max_y)
+	if (scanline > machine().primary_screen->visible_area().max_y)
 		scanline = 0;
 	effscroll = (newscroll >> 7) - scanline;
 
 	/* adjust the actual scrolls */
-	state->m_playfield_tilemap->set_scrolly(0, effscroll);
+	m_playfield_tilemap->set_scrolly(0, effscroll);
 	atarimo_set_yscroll(0, effscroll & 0x1ff);
 
 	/* update the data */
-	*state->m_yscroll = newscroll;
+	*m_yscroll = newscroll;
 }
 
 
@@ -159,9 +155,9 @@ WRITE16_HANDLER( skullxbo_yscroll_w )
  *
  *************************************/
 
-WRITE16_HANDLER( skullxbo_mobmsb_w )
+WRITE16_MEMBER( skullxbo_state::skullxbo_mobmsb_w )
 {
-	space.machine().primary_screen->update_partial(space.machine().primary_screen->vpos());
+	machine().primary_screen->update_partial(machine().primary_screen->vpos());
 	atarimo_set_bank(0, (offset >> 9) & 1);
 }
 
@@ -173,10 +169,9 @@ WRITE16_HANDLER( skullxbo_mobmsb_w )
  *
  *************************************/
 
-WRITE16_HANDLER( skullxbo_playfieldlatch_w )
+WRITE16_MEMBER( skullxbo_state::skullxbo_playfieldlatch_w )
 {
-	skullxbo_state *state = space.machine().driver_data<skullxbo_state>();
-	state->set_playfield_latch(data);
+	set_playfield_latch(data);
 }
 
 
@@ -187,21 +182,20 @@ WRITE16_HANDLER( skullxbo_playfieldlatch_w )
  *
  *************************************/
 
-void skullxbo_scanline_update(running_machine &machine, int scanline)
+void skullxbo_state::skullxbo_scanline_update(int scanline)
 {
-	skullxbo_state *state = machine.driver_data<skullxbo_state>();
-	UINT16 *base = &state->m_alpha[(scanline / 8) * 64 + 42];
+	UINT16 *base = &m_alpha[(scanline / 8) * 64 + 42];
 	int x;
 
 	/* keep in range */
-	if (base >= &state->m_alpha[0x7c0])
+	if (base >= &m_alpha[0x7c0])
 		return;
 
 	/* special case: scanline 0 should re-latch the previous raw scroll */
 	if (scanline == 0)
 	{
-		int newscroll = (*state->m_yscroll >> 7) & 0x1ff;
-		state->m_playfield_tilemap->set_scrolly(0, newscroll);
+		int newscroll = (*m_yscroll >> 7) & 0x1ff;
+		m_playfield_tilemap->set_scrolly(0, newscroll);
 		atarimo_set_yscroll(0, newscroll);
 	}
 
@@ -219,15 +213,15 @@ void skullxbo_scanline_update(running_machine &machine, int scanline)
 
 			/* force a partial update with the previous scroll */
 			if (scanline > 0)
-				machine.primary_screen->update_partial(scanline - 1);
+				machine().primary_screen->update_partial(scanline - 1);
 
 			/* update the new scroll */
-			state->m_playfield_tilemap->set_scrolly(0, newscroll);
+			m_playfield_tilemap->set_scrolly(0, newscroll);
 			atarimo_set_yscroll(0, newscroll);
 
 			/* make sure we change this value so that writes to the scroll register */
 			/* know whether or not they are a different scroll */
-			*state->m_yscroll = data;
+			*m_yscroll = data;
 		}
 	}
 }

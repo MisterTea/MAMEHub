@@ -90,7 +90,8 @@ class pachifev_state : public driver_device
 {
 public:
 	pachifev_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	/* controls related */
 	int m_power;
@@ -108,14 +109,13 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	INTERRUPT_GEN_MEMBER(pachifev_vblank_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 WRITE8_MEMBER(pachifev_state::controls_w)
 {
 	if(!data)
 	{
-
-
 		/*end of input read*/
 		m_power=0;
 		m_max_power=m_input_power;
@@ -269,35 +269,33 @@ static const sn76496_config psg_intf =
 #if USE_MSM
 
 
-static void pf_adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(pachifev_state::pf_adpcm_int)
 {
-	pachifev_state *state = device->machine().driver_data<pachifev_state>();
-
-	if (state->m_adpcm_pos >= 0x4000 || state->m_adpcm_idle)
+	if (m_adpcm_pos >= 0x4000 || m_adpcm_idle)
 	{
-		state->m_adpcm_idle = 1;
-		msm5205_reset_w(device,1);
-		state->m_trigger = 0;
+		m_adpcm_idle = 1;
+		m_msm->reset_w(1);
+		m_trigger = 0;
 	}
 	else
 	{
-		UINT8 *ROM = device->machine().root_device().memregion("adpcm")->base();
+		UINT8 *ROM = memregion("adpcm")->base();
 
-		state->m_adpcm_data = ((state->m_trigger ? (ROM[state->m_adpcm_pos] & 0x0f) : (ROM[state->m_adpcm_pos] & 0xf0)>>4) );
-		msm5205_data_w(device,state->m_adpcm_data & 0xf);
-		state->m_trigger^=1;
-		if(state->m_trigger == 0)
+		m_adpcm_data = ((m_trigger ? (ROM[m_adpcm_pos] & 0x0f) : (ROM[m_adpcm_pos] & 0xf0)>>4) );
+		m_msm->data_w(m_adpcm_data & 0xf);
+		m_trigger^=1;
+		if(m_trigger == 0)
 		{
-			state->m_adpcm_pos++;
-			if((ROM[state->m_adpcm_pos] & 0xff) == 0xff)
-				state->m_adpcm_idle = 1;
+			m_adpcm_pos++;
+			if((ROM[m_adpcm_pos] & 0xff) == 0xff)
+				m_adpcm_idle = 1;
 		}
 	}
 }
 
 static const msm5205_interface msm5205_config =
 {
-	pf_adpcm_int,    /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(pachifev_state,pf_adpcm_int),    /* interrupt function */
 	MSM5205_S48_4B    /* 8kHz */
 };
 
@@ -305,7 +303,6 @@ static const msm5205_interface msm5205_config =
 
 void pachifev_state::machine_reset()
 {
-
 	m_power=0;
 	m_max_power=0;
 	m_input_power=0;
@@ -358,7 +355,6 @@ static TMS9928A_INTERFACE(pachifev_tms9928a_interface)
 
 void pachifev_state::machine_start()
 {
-
 	save_item(NAME(m_power));
 	save_item(NAME(m_max_power));
 	save_item(NAME(m_input_power));

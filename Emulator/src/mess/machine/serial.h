@@ -3,15 +3,15 @@
 
 #include "emu.h"
 
-#define MCFG_SERIAL_PORT_ADD(_tag, _intf, _slot_intf, _def_slot, _def_inp) \
+#define MCFG_SERIAL_PORT_ADD(_tag, _intf, _slot_intf, _def_slot) \
 	MCFG_DEVICE_ADD(_tag, SERIAL_PORT, 0) \
 	MCFG_DEVICE_CONFIG(_intf) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, false)
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
 
-#define MCFG_RS232_PORT_ADD(_tag, _intf, _slot_intf, _def_slot, _def_inp) \
+#define MCFG_RS232_PORT_ADD(_tag, _intf, _slot_intf, _def_slot) \
 	MCFG_DEVICE_ADD(_tag, RS232_PORT, 0) \
 	MCFG_DEVICE_CONFIG(_intf) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, false)
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
 
 struct serial_port_interface
 {
@@ -37,11 +37,11 @@ class serial_port_device : public device_t,
 {
 public:
 	serial_port_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	serial_port_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	serial_port_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	virtual ~serial_port_device();
 
 	DECLARE_WRITE_LINE_MEMBER( tx ) { if(m_dev) m_dev->tx(state); }
-	DECLARE_READ_LINE_MEMBER( rx )  { return (m_dev) ? m_dev->rx() : 0; }
+	DECLARE_READ_LINE_MEMBER( rx )  { return (m_dev) ? m_dev->rx() : 1; }
 
 	void out_rx(UINT8 param)  { m_out_rx_func(param); }
 protected:
@@ -119,5 +119,7 @@ private:
 };
 
 extern const device_type RS232_PORT;
+
+SLOT_INTERFACE_EXTERN( default_rs232_devices );
 
 #endif

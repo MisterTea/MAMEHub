@@ -174,8 +174,6 @@ Stephh's notes (based on the games Z80 code and some tests) :
 
 WRITE8_MEMBER(wiz_state::sound_command_w)
 {
-	device_t *discrete = machine().device("discrete");
-
 	switch (offset)
 	{
 		// 0x90 triggers a jump to non-existant address(development system?) and must be filtered
@@ -185,14 +183,14 @@ WRITE8_MEMBER(wiz_state::sound_command_w)
 
 		// explosion sound trigger(analog?)
 		case 0x08:
-			discrete_sound_w(discrete, space, STINGER_BOOM_EN1, m_dsc1);
-			discrete_sound_w(discrete, space, STINGER_BOOM_EN2, m_dsc1^=1);
+			discrete_sound_w(m_discrete, space, STINGER_BOOM_EN1, m_dsc1);
+			discrete_sound_w(m_discrete, space, STINGER_BOOM_EN2, m_dsc1^=1);
 		break;
 
 		// player shot sound trigger(analog?)
 		case 0x0a:
-			discrete_sound_w(discrete, space, STINGER_SHOT_EN1, m_dsc0);
-			discrete_sound_w(discrete, space, STINGER_SHOT_EN2, m_dsc0^=1);
+			discrete_sound_w(m_discrete, space, STINGER_SHOT_EN1, m_dsc0);
+			discrete_sound_w(m_discrete, space, STINGER_SHOT_EN2, m_dsc0^=1);
 		break;
 	}
 }
@@ -216,7 +214,6 @@ WRITE8_MEMBER(wiz_state::wiz_coin_counter_w)
 
 WRITE8_MEMBER(wiz_state::wiz_main_nmi_mask_w)
 {
-
 	m_main_nmi_mask = data & 1;
 }
 
@@ -252,7 +249,6 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(wiz_state::wiz_sound_nmi_mask_w)
 {
-
 	m_sound_nmi_mask = data & 1;
 }
 
@@ -262,9 +258,9 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, wiz_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x2000, 0x23ff) AM_RAM
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r) AM_WRITE(wiz_sound_nmi_mask_w)  /* Stinger/Scion */
-	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE_LEGACY("8910.3", ay8910_address_data_w)
-	AM_RANGE(0x5000, 0x5001) AM_DEVWRITE_LEGACY("8910.1", ay8910_address_data_w)
-	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE_LEGACY("8910.2", ay8910_address_data_w)        /* Wiz only */
+	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE("8910.3", ay8910_device, address_data_w)
+	AM_RANGE(0x5000, 0x5001) AM_DEVWRITE("8910.1", ay8910_device, address_data_w)
+	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE("8910.2", ay8910_device, address_data_w)        /* Wiz only */
 	AM_RANGE(0x7000, 0x7000) AM_READ(soundlatch_byte_r) AM_WRITE(wiz_sound_nmi_mask_w)  /* Wiz */
 ADDRESS_MAP_END
 
@@ -272,8 +268,8 @@ static ADDRESS_MAP_START( stinger_sound_map, AS_PROGRAM, 8, wiz_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x2000, 0x23ff) AM_RAM
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r) AM_WRITE(wiz_sound_nmi_mask_w)  /* Stinger/Scion */
-	AM_RANGE(0x5000, 0x5001) AM_DEVWRITE_LEGACY("8910.1", ay8910_address_data_w)
-	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE_LEGACY("8910.2", ay8910_address_data_w)        /* Wiz only */
+	AM_RANGE(0x5000, 0x5001) AM_DEVWRITE("8910.1", ay8910_device, address_data_w)
+	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE("8910.2", ay8910_device, address_data_w)        /* Wiz only */
 	AM_RANGE(0x7000, 0x7000) AM_READ(soundlatch_byte_r) AM_WRITE(wiz_sound_nmi_mask_w)  /* Wiz */
 ADDRESS_MAP_END
 
@@ -702,14 +698,12 @@ void wiz_state::machine_reset()
 
 INTERRUPT_GEN_MEMBER(wiz_state::wiz_vblank_interrupt)
 {
-
 	if(m_main_nmi_mask & 1)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(wiz_state::wiz_sound_interrupt)
 {
-
 	if(m_sound_nmi_mask & 1)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -1057,9 +1051,9 @@ DRIVER_INIT_MEMBER(wiz_state,stinger)
 		{ 5,3,7, 0x80 },
 		{ 5,7,3, 0x28 }
 	};
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
-	int size = machine().root_device().memregion("maincpu")->bytes();
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	UINT8 *rom = memregion("maincpu")->base();
+	int size = memregion("maincpu")->bytes();
 	UINT8 *decrypt = auto_alloc_array(machine(), UINT8, size);
 	int A;
 	const UINT8 *tbl;
@@ -1094,13 +1088,13 @@ DRIVER_INIT_MEMBER(wiz_state,stinger)
 
 DRIVER_INIT_MEMBER(wiz_state,scion)
 {
-	machine().device("audiocpu")->memory().space(AS_PROGRAM).nop_write(0x4000, 0x4001);
+	m_audiocpu->space(AS_PROGRAM).nop_write(0x4000, 0x4001);
 }
 
 
 DRIVER_INIT_MEMBER(wiz_state,wiz)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xd400, 0xd400, read8_delegate(FUNC(wiz_state::wiz_protection_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xd400, 0xd400, read8_delegate(FUNC(wiz_state::wiz_protection_r),this));
 }
 
 

@@ -17,217 +17,81 @@
 
 #define RAMDISK_SIZE (512 * 1024)
 
-/////////////////////////
-// FUNCTION PROTOTYPES //
-/////////////////////////
-
-#define MACHINE_STOP(name) \
-	static void machine_stop_##name( running_machine &machine)
-
-// machine stop
-MACHINE_STOP( cybikov1 );
-MACHINE_STOP( cybikov2 );
-MACHINE_STOP( cybikoxt );
-
-// state->m_rs232
-static void cybiko_rs232_init(running_machine &machine);
-static void cybiko_rs232_exit(void);
-static void cybiko_rs232_reset(void);
 
 ////////////////////////
 // DRIVER INIT & EXIT //
 ////////////////////////
 
-static void init_ram_handler(running_machine &machine, offs_t start, offs_t size, offs_t mirror)
-{
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(start, start + size - 1, 0, mirror - size, "bank1");
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_write_bank(start, start + size - 1, 0, mirror - size, "bank1");
-	machine.root_device().membank( "bank1" )->set_base( machine.device<ram_device>(RAM_TAG)->pointer());
-}
-
-DRIVER_INIT_MEMBER(cybiko_state,cybikov1)
+DRIVER_INIT_MEMBER(cybiko_state,cybiko)
 {
 	_logerror( 0, ("init_cybikov1\n"));
-	init_ram_handler(machine(), 0x200000, machine().device<ram_device>(RAM_TAG)->size(), 0x200000);
-}
-
-DRIVER_INIT_MEMBER(cybiko_state,cybikov2)
-{
-	_logerror( 0, ("init_cybikov2\n"));
-	init_ram_handler(machine(), 0x200000, machine().device<ram_device>(RAM_TAG)->size(), 0x200000);
+	m_maincpu->space(AS_PROGRAM).install_ram(0x200000, 0x200000 + m_ram->size() - 1, 0, 0x200000 - m_ram->size(), m_ram->pointer());
 }
 
 DRIVER_INIT_MEMBER(cybiko_state,cybikoxt)
 {
 	_logerror( 0, ("init_cybikoxt\n"));
-	init_ram_handler(machine(), 0x400000, machine().device<ram_device>(RAM_TAG)->size(), 0x200000);
+	m_maincpu->space(AS_PROGRAM).install_ram(0x400000, 0x400000 + m_ram->size() - 1, 0, 0x200000 - m_ram->size(), m_ram->pointer());
+}
+
+QUICKLOAD_LOAD_MEMBER( cybiko_state, cybiko )
+{
+	image.fread(m_flash1->get_ptr(), MIN(image.length(), 0x84000));
+
+	return IMAGE_INIT_PASS;
+}
+
+QUICKLOAD_LOAD_MEMBER( cybiko_state, cybikoxt )
+{
+	address_space &dest = m_maincpu->space(AS_PROGRAM);
+	UINT32 size = MIN(image.length(), RAMDISK_SIZE);
+
+	UINT8 *buffer = global_alloc_array(UINT8, size);
+	image.fread(buffer, size);
+	for (int byte = 0; byte < size; byte++)
+		dest.write_byte(0x400000 + byte, buffer[byte]);
+	global_free(buffer);
+
+	return IMAGE_INIT_PASS;
 }
 
 ///////////////////
 // MACHINE START //
 ///////////////////
 
-static emu_file *nvram_system_fopen( running_machine &machine, UINT32 openflags, const char *name)
+NVRAM_HANDLER( cybikoxt )
 {
-	file_error filerr;
-	astring fname(machine.system().name, PATH_SEPARATOR, name, ".nv");
-	emu_file *file = global_alloc(emu_file(machine.options().nvram_directory(), openflags));
-	filerr = file->open(fname.cstr());
-	if (filerr == FILERR_NONE)
-		return file;
+	address_space &space =  machine.driver_data<cybiko_state>()->m_maincpu->space(AS_PROGRAM);
+	UINT8 *buffer = global_alloc_array(UINT8, RAMDISK_SIZE);
 
-	global_free(file);
-	return NULL;
-}
-
-typedef void (nvram_load_func)(running_machine &machine, emu_file *file);
-
-static int nvram_system_load( running_machine &machine, const char *name, nvram_load_func _nvram_load, int required)
-{
-	emu_file *file;
-	file = nvram_system_fopen( machine, OPEN_FLAG_READ, name);
-	if (!file)
+	if (read_or_write)
 	{
-		if (required) mame_printf_error( "nvram load failed (%s)\n", name);
-		return FALSE;
+		for (offs_t offs = 0; offs < RAMDISK_SIZE; offs++)
+			buffer[offs] = space.read_byte(0x400000 + offs);
+
+		file->write(buffer, RAMDISK_SIZE);
 	}
-	(*_nvram_load)(machine, file);
-	global_free(file);
-	return TRUE;
-}
-
-typedef void (nvram_save_func)(running_machine &machine, emu_file *file);
-
-static int nvram_system_save( running_machine &machine, const char *name, nvram_save_func _nvram_save)
-{
-	emu_file *file;
-	file = nvram_system_fopen( machine, OPEN_FLAG_CREATE | OPEN_FLAG_WRITE | OPEN_FLAG_CREATE_PATHS, name);
-	if (!file)
+	else
 	{
-		mame_printf_error( "nvram save failed (%s)\n", name);
-		return FALSE;
+		if (file)
+			file->read(buffer, RAMDISK_SIZE);
+		else
+			memset(buffer, 0, RAMDISK_SIZE);
+
+		for (offs_t offs = 0; offs < RAMDISK_SIZE; offs++)
+			space.write_byte(0x400000 + offs, buffer[offs]);
 	}
-	(*_nvram_save)(machine, file);
-	global_free(file);
-	return TRUE;
-}
 
-static void cybiko_pcf8593_load(running_machine &machine, emu_file *file)
-{
-	device_t *device = machine.device("rtc");
-	pcf8593_load(device, file);
-}
-
-static void cybiko_pcf8593_save(running_machine &machine, emu_file *file)
-{
-	device_t *device = machine.device("rtc");
-	pcf8593_save(device, file);
-}
-
-static void cybiko_at45dbxx_load(running_machine &machine, emu_file *file)
-{
-	device_t *device = machine.device("flash1");
-	at45dbxx_load(device, file);
-}
-
-static void cybiko_at45dbxx_save(running_machine &machine, emu_file *file)
-{
-	device_t *device = machine.device("flash1");
-	at45dbxx_save(device, file);
-}
-
-static void cybiko_sst39vfx_load(running_machine &machine, emu_file *file)
-{
-	device_t *device = machine.device("flash2");
-	sst39vfx_load(device, file);
-}
-
-static void cybiko_sst39vfx_save(running_machine &machine, emu_file *file)
-{
-	device_t *device = machine.device("flash2");
-	sst39vfx_save(device, file);
-}
-
-static void cybiko_ramdisk_load(running_machine &machine, emu_file *file)
-{
-	UINT8 *ram = machine.device<ram_device>(RAM_TAG)->pointer();
-#ifdef LSB_FIRST
-	UINT8 *temp = (UINT8*)malloc( RAMDISK_SIZE);
-	file->read( temp, RAMDISK_SIZE);
-	for (int i = 0; i < RAMDISK_SIZE; i += 2)
-	{
-		ram[i+0] = temp[i+1];
-		ram[i+1] = temp[i+0];
-	}
-	free( temp);
-#else
-	file->read( ram, RAMDISK_SIZE);
-#endif
-}
-
-static void cybiko_ramdisk_save(running_machine &machine, emu_file *file)
-{
-	UINT8 *ram = machine.device<ram_device>(RAM_TAG)->pointer();
-#ifdef LSB_FIRST
-	UINT8 *temp = (UINT8*)malloc( RAMDISK_SIZE);
-	for (int i = 0; i < RAMDISK_SIZE; i += 2)
-	{
-		temp[i+0] = ram[i+1];
-		temp[i+1] = ram[i+0];
-	}
-	file->write( temp, RAMDISK_SIZE);
-	free( temp);
-#else
-	file->write( ram, RAMDISK_SIZE);
-#endif
+	global_free(buffer);
 }
 
 void cybiko_state::machine_start()
 {
 	_logerror( 0, ("machine_start_cybikov1\n"));
-	// real-time clock
-	nvram_system_load( machine(), "rtc", cybiko_pcf8593_load, 0);
-	// serial dataflash
-	nvram_system_load( machine(), "flash1", cybiko_at45dbxx_load, 1);
 	// serial port
-	cybiko_rs232_init(machine());
+	cybiko_rs232_init();
 	// other
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(machine_stop_cybikov1),&machine()));
-}
-
-MACHINE_START_MEMBER(cybiko_state,cybikov2)
-{
-	device_t *flash2 = machine().device("flash2");
-
-	_logerror( 0, ("machine_start_cybikov2\n"));
-	// real-time clock
-	nvram_system_load( machine(), "rtc", cybiko_pcf8593_load, 0);
-	// serial dataflash
-	nvram_system_load( machine(), "flash1", cybiko_at45dbxx_load, 1);
-	// multi-purpose flash
-	nvram_system_load( machine(), "flash2", cybiko_sst39vfx_load, 1);
-	machine().root_device().membank( "bank2" )->set_base( sst39vfx_get_base(flash2));
-	// serial port
-	cybiko_rs232_init(machine());
-	// other
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(machine_stop_cybikov2),&machine()));
-}
-
-MACHINE_START_MEMBER(cybiko_state,cybikoxt)
-{
-	device_t *flash2 = machine().device("flash2");
-	_logerror( 0, ("machine_start_cybikoxt\n"));
-	// real-time clock
-	nvram_system_load( machine(), "rtc", cybiko_pcf8593_load, 0);
-	// multi-purpose flash
-	nvram_system_load( machine(), "flash2", cybiko_sst39vfx_load, 1);
-	machine().root_device().membank( "bank2" )->set_base( sst39vfx_get_base(flash2));
-	// ramdisk
-	nvram_system_load( machine(), "ramdisk", cybiko_ramdisk_load, 0);
-	// serial port
-	cybiko_rs232_init(machine());
-	// other
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(machine_stop_cybikoxt),&machine()));
+	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(cybiko_state::machine_stop_cybiko),this));
 }
 
 ///////////////////
@@ -240,55 +104,13 @@ void cybiko_state::machine_reset()
 	cybiko_rs232_reset();
 }
 
-MACHINE_RESET_MEMBER(cybiko_state,cybikov2)
-{
-	_logerror( 0, ("machine_reset_cybikov2\n"));
-	cybiko_rs232_reset();
-}
-
-MACHINE_RESET_MEMBER(cybiko_state,cybikoxt)
-{
-	_logerror( 0, ("machine_reset_cybikoxt\n"));
-	cybiko_rs232_reset();
-}
-
 //////////////////
 // MACHINE STOP //
 //////////////////
 
-MACHINE_STOP( cybikov1 )
+void cybiko_state::machine_stop_cybiko()
 {
 	_logerror( 0, ("machine_stop_cybikov1\n"));
-	// real-time clock
-	nvram_system_save( machine, "rtc", cybiko_pcf8593_save);
-	// serial dataflash
-	nvram_system_save( machine, "flash1", cybiko_at45dbxx_save);
-	// serial port
-	cybiko_rs232_exit();
-}
-
-MACHINE_STOP( cybikov2 )
-{
-	_logerror( 0, ("machine_stop_cybikov2\n"));
-	// real-time clock
-	nvram_system_save( machine, "rtc", cybiko_pcf8593_save);
-	// serial dataflash
-	nvram_system_save( machine, "flash1", cybiko_at45dbxx_save);
-	// multi-purpose flash
-	nvram_system_save( machine, "flash2", cybiko_sst39vfx_save);
-	// serial port
-	cybiko_rs232_exit();
-}
-
-MACHINE_STOP( cybikoxt )
-{
-	_logerror( 0, ("machine_stop_cybikoxt\n"));
-	// real-time clock
-	nvram_system_save( machine, "rtc", cybiko_pcf8593_save);
-	// multi-purpose flash
-	nvram_system_save( machine, "flash2", cybiko_sst39vfx_save);
-	// ramdisk
-	nvram_system_save( machine, "ramdisk", cybiko_ramdisk_save);
 	// serial port
 	cybiko_rs232_exit();
 }
@@ -298,20 +120,19 @@ MACHINE_STOP( cybikoxt )
 ///////////
 
 
-static void cybiko_rs232_init(running_machine &machine)
+void cybiko_state::cybiko_rs232_init()
 {
-	cybiko_state *state = machine.driver_data<cybiko_state>();
 	_logerror( 0, ("cybiko_rs232_init\n"));
-	memset( &state->m_rs232, 0, sizeof( state->m_rs232));
-//  machine.scheduler().timer_pulse(TIME_IN_HZ( 10), FUNC(rs232_timer_callback));
+	memset( &m_rs232, 0, sizeof(m_rs232));
+//  machine().scheduler().timer_pulse(TIME_IN_HZ( 10), FUNC(rs232_timer_callback));
 }
 
-static void cybiko_rs232_exit()
+void cybiko_state::cybiko_rs232_exit()
 {
 	_logerror( 0, ("cybiko_rs232_exit\n"));
 }
 
-static void cybiko_rs232_reset()
+void cybiko_state::cybiko_rs232_reset()
 {
 	_logerror( 0, ("cybiko_rs232_reset\n"));
 }
@@ -434,7 +255,7 @@ READ8_MEMBER( cybiko_state::cybikov1_io_reg_r )
 		// serial dataflash
 		case H8S_IO_PORT3 :
 		{
-			if (at45dbxx_pin_so(m_flash1))
+			if (m_flash1->so_r())
 				data |= H8S_P3_RXD1;
 		}
 		break;
@@ -449,7 +270,7 @@ READ8_MEMBER( cybiko_state::cybikov1_io_reg_r )
 		case H8S_IO_PORTF :
 		{
 			data = H8S_PF_PF2;
-			if (pcf8593_pin_sda_r(m_rtc))
+			if (m_rtc->sda_r())
 				data |= H8S_PF_PF0;
 		}
 		break;
@@ -480,7 +301,7 @@ READ8_MEMBER( cybiko_state::cybikov2_io_reg_r )
 		// serial dataflash
 		case H8S_IO_PORT3 :
 		{
-			if (at45dbxx_pin_so(m_flash1))
+			if (m_flash1->so_r())
 				data |= H8S_P3_RXD1;
 		}
 		break;
@@ -495,7 +316,7 @@ READ8_MEMBER( cybiko_state::cybikov2_io_reg_r )
 		case H8S_IO_PORTF :
 		{
 			data = H8S_PF_PF2;
-			if (pcf8593_pin_sda_r(m_rtc))
+			if (m_rtc->sda_r())
 				data |= H8S_PF_PF0;
 		}
 		break;
@@ -533,7 +354,7 @@ READ8_MEMBER( cybiko_state::cybikoxt_io_reg_r )
 		// real-time clock
 		case H8S_IO_PORTF :
 		{
-			if (pcf8593_pin_sda_r(m_rtc))
+			if (m_rtc->sda_r())
 				data |= H8S_PF_PF6;
 		}
 		break;
@@ -556,15 +377,15 @@ WRITE8_MEMBER( cybiko_state::cybikov1_io_reg_w )
 		// speaker
 		case H8S_IO_P1DR :
 		{
-			speaker_level_w(m_speaker, (data & H8S_P1_TIOCB1) ? 1 : 0);
+			m_speaker->level_w((data & H8S_P1_TIOCB1) ? 1 : 0);
 		}
 		break;
 		// serial dataflash
 		case H8S_IO_P3DR :
 		{
-			at45dbxx_pin_cs (m_flash1, (data & H8S_P3_SCK0) ? 0 : 1);
-			at45dbxx_pin_si (m_flash1, (data & H8S_P3_TXD1) ? 1 : 0);
-			at45dbxx_pin_sck(m_flash1, (data & H8S_P3_SCK1) ? 1 : 0);
+			m_flash1->cs_w ((data & H8S_P3_SCK0) ? 0 : 1);
+			m_flash1->si_w ((data & H8S_P3_TXD1) ? 1 : 0);
+			m_flash1->sck_w((data & H8S_P3_SCK1) ? 1 : 0);
 		}
 		break;
 		// rs232
@@ -577,13 +398,13 @@ WRITE8_MEMBER( cybiko_state::cybikov1_io_reg_w )
 		// real-time clock
 		case H8S_IO_PFDR :
 		{
-			pcf8593_pin_scl(m_rtc, (data & H8S_PF_PF1) ? 1 : 0);
+			m_rtc->scl_w((data & H8S_PF_PF1) ? 1 : 0);
 		}
 		break;
 		// real-time clock
 		case H8S_IO_PFDDR :
 		{
-			pcf8593_pin_sda_w(m_rtc, (data & H8S_PF_PF0) ? 0 : 1);
+			m_rtc->sda_w((data & H8S_PF_PF0) ? 0 : 1);
 		}
 		break;
 	}
@@ -597,15 +418,15 @@ WRITE8_MEMBER( cybiko_state::cybikov2_io_reg_w )
 		// speaker
 		case H8S_IO_P1DR :
 		{
-			speaker_level_w(m_speaker, (data & H8S_P1_TIOCB1) ? 1 : 0);
+			m_speaker->level_w((data & H8S_P1_TIOCB1) ? 1 : 0);
 		}
 		break;
 		// serial dataflash
 		case H8S_IO_P3DR :
 		{
-			at45dbxx_pin_cs (m_flash1, (data & H8S_P3_SCK0) ? 0 : 1);
-			at45dbxx_pin_si (m_flash1, (data & H8S_P3_TXD1) ? 1 : 0);
-			at45dbxx_pin_sck(m_flash1, (data & H8S_P3_SCK1) ? 1 : 0);
+			m_flash1->cs_w ((data & H8S_P3_SCK0) ? 0 : 1);
+			m_flash1->si_w ((data & H8S_P3_TXD1) ? 1 : 0);
+			m_flash1->sck_w((data & H8S_P3_SCK1) ? 1 : 0);
 		}
 		break;
 		// rs232
@@ -618,13 +439,13 @@ WRITE8_MEMBER( cybiko_state::cybikov2_io_reg_w )
 		// real-time clock
 		case H8S_IO_PFDR :
 		{
-			pcf8593_pin_scl(m_rtc, (data & H8S_PF_PF1) ? 1 : 0);
+			m_rtc->scl_w((data & H8S_PF_PF1) ? 1 : 0);
 		}
 		break;
 		// real-time clock
 		case H8S_IO_PFDDR :
 		{
-			pcf8593_pin_sda_w(m_rtc, (data & H8S_PF_PF0) ? 0 : 1);
+			m_rtc->sda_w((data & H8S_PF_PF0) ? 0 : 1);
 		}
 		break;
 	}
@@ -638,7 +459,7 @@ WRITE8_MEMBER( cybiko_state::cybikoxt_io_reg_w )
 		// speaker
 		case H8S_IO_P1DR :
 		{
-			speaker_level_w(m_speaker, (data & H8S_P1_TIOCB1) ? 1 : 0);
+			m_speaker->level_w((data & H8S_P1_TIOCB1) ? 1 : 0);
 		}
 		break;
 		// rs232
@@ -651,13 +472,13 @@ WRITE8_MEMBER( cybiko_state::cybikoxt_io_reg_w )
 		// real-time clock
 		case H8S_IO_PFDR :
 		{
-			pcf8593_pin_scl(m_rtc, (data & H8S_PF_PF1) ? 1 : 0);
+			m_rtc->scl_w((data & H8S_PF_PF1) ? 1 : 0);
 		}
 		break;
 		// real-time clock
 		case H8S_IO_PFDDR :
 		{
-			pcf8593_pin_sda_w(m_rtc, (data & H8S_PF_PF6) ? 0 : 1);
+			m_rtc->sda_w((data & H8S_PF_PF6) ? 0 : 1);
 		}
 		break;
 	}

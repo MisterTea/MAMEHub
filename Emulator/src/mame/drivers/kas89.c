@@ -204,7 +204,9 @@ class kas89_state : public driver_device
 public:
 	kas89_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_v9938(*this, "v9938")
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_v9938(*this, "v9938")
 		{ }
 
 	UINT8 m_mux_data;
@@ -214,8 +216,8 @@ public:
 	UINT8 m_leds_mux_data;
 	UINT8 m_outdata;            /* Muxed with the sound latch. Output to a sign? */
 
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 
 	required_device<v9938_device> m_v9938;
 	DECLARE_WRITE8_MEMBER(mux_w);
@@ -231,6 +233,7 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(kas89_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(kas89_nmi_cb);
 	TIMER_DEVICE_CALLBACK_MEMBER(kas89_sound_nmi_cb);
+	DECLARE_WRITE_LINE_MEMBER(kas89_vdp_interrupt);
 };
 
 #define VDP_MEM             0x40000
@@ -240,9 +243,9 @@ public:
 *      Interrupt handling & Video      *
 ***************************************/
 
-static void kas89_vdp_interrupt(device_t *, v99x8_device &device, int i)
+WRITE_LINE_MEMBER(kas89_state::kas89_vdp_interrupt)
 {
-	device.machine().device("maincpu")->execute().set_input_line(0, (i ? ASSERT_LINE : CLEAR_LINE));
+	m_maincpu->set_input_line(0, (state ? ASSERT_LINE : CLEAR_LINE));
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(kas89_state::kas89_interrupt)
@@ -260,15 +263,11 @@ TIMER_DEVICE_CALLBACK_MEMBER(kas89_state::kas89_interrupt)
 
 void kas89_state::machine_start()
 {
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	output_set_lamp_value(37, 0);   /* turning off the operator led */
 }
 
 void kas89_state::machine_reset()
 {
-
 	m_main_nmi_enable = 0;
 }
 
@@ -576,8 +575,8 @@ static ADDRESS_MAP_START( audio_io, AS_IO, 8, kas89_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(int_ack_w)    // comm out (1st Z80). seems to write here the value previously read through soundlatch (port 0x02).
 	AM_RANGE(0x02, 0x02) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x04, 0x04) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x04, 0x05) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x04, 0x04) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x04, 0x05) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 
@@ -790,7 +789,7 @@ static MACHINE_CONFIG_START( kas89, kas89_state )
 
 	/* video hardware */
 	MCFG_V9938_ADD("v9938", "screen", VDP_MEM)
-	MCFG_V99X8_INTERRUPT_CALLBACK_STATIC(kas89_vdp_interrupt)
+	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(kas89_state,kas89_vdp_interrupt))
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -862,8 +861,8 @@ ROM_END
 DRIVER_INIT_MEMBER(kas89_state,kas89)
 {
 	int i;
-	UINT8 *mem = machine().root_device().memregion("maincpu")->base();
-	int memsize = machine().root_device().memregion("maincpu")->bytes();
+	UINT8 *mem = memregion("maincpu")->base();
+	int memsize = memregion("maincpu")->bytes();
 	UINT8 *buf;
 
 	/* Unscrambling data lines */

@@ -273,7 +273,7 @@ WRITE8_MEMBER( wangpc_state::timer0_irq_clr_w )
 {
 	//if (LOG) logerror("%s: Timer 0 IRQ clear\n", machine().describe_context());
 
-	pic8259_ir0_w(m_pic, CLEAR_LINE);
+	m_pic->ir0_w(CLEAR_LINE);
 }
 
 
@@ -557,8 +557,8 @@ static ADDRESS_MAP_START( wangpc_io, AS_IO, 16, wangpc_state )
 	AM_RANGE(0x101c, 0x101d) AM_MIRROR(0x0002) AM_READWRITE8(fdc_tc_r, fdc_tc_w, 0x00ff)
 	AM_RANGE(0x1020, 0x1027) AM_DEVREADWRITE8(I8255A_TAG, i8255_device, read, write, 0x00ff)
 	AM_RANGE(0x1028, 0x1029) //AM_WRITE(?)
-	AM_RANGE(0x1040, 0x1047) AM_DEVREADWRITE8_LEGACY(I8253_TAG, pit8253_r, pit8253_w, 0x00ff)
-	AM_RANGE(0x1060, 0x1063) AM_DEVREADWRITE8_LEGACY(I8259A_TAG, pic8259_r, pic8259_w, 0x00ff)
+	AM_RANGE(0x1040, 0x1047) AM_DEVREADWRITE8(I8253_TAG, pit8253_device, read, write, 0x00ff)
+	AM_RANGE(0x1060, 0x1063) AM_DEVREADWRITE8(I8259A_TAG, pic8259_device, read, write, 0x00ff)
 	AM_RANGE(0x1080, 0x1087) AM_DEVREAD8(SCN2661_TAG, mc2661_device, read, 0x00ff)
 	AM_RANGE(0x1088, 0x108f) AM_DEVWRITE8(SCN2661_TAG, mc2661_device, write, 0x00ff)
 	AM_RANGE(0x10a0, 0x10bf) AM_DEVREADWRITE8(AM9517A_TAG, am9517a_device, read, write, 0x00ff)
@@ -733,29 +733,20 @@ void wangpc_state::check_level1_interrupts()
 {
 	int state = !m_timer2_irq || m_epci->rxrdy_r() || m_epci->txemt_r() || !m_acknlg || !m_dav || !m_busy;
 
-	pic8259_ir1_w(m_pic, state);
+	m_pic->ir1_w(state);
 }
 
 void wangpc_state::check_level2_interrupts()
 {
 	int state = !m_dma_eop || m_uart_dr || m_uart_tbre || m_fdc_dd0 || m_fdc_dd1 || m_fdc->get_irq() || m_fpu_irq || m_bus_irq2;
 
-	pic8259_ir2_w(m_pic, state);
+	m_pic->ir2_w(state);
 }
 
-static IRQ_CALLBACK( wangpc_irq_callback )
+IRQ_CALLBACK_MEMBER( wangpc_state::wangpc_irq_callback )
 {
-	wangpc_state *state = device->machine().driver_data<wangpc_state>();
-
-	return pic8259_acknowledge(state->m_pic);
+	return m_pic->inta_r();
 }
-
-static const struct pic8259_interface pic_intf =
-{
-	DEVCB_CPU_INPUT_LINE(I8086_TAG, INPUT_LINE_IRQ0),
-	DEVCB_LINE_VCC,
-	DEVCB_NULL
-};
 
 
 //-------------------------------------------------
@@ -851,7 +842,7 @@ READ8_MEMBER( wangpc_state::ppi_pc_r )
 
 	*/
 
-	return ioport("SW")->read() << 4;
+	return m_sw->read() << 4;
 }
 
 WRITE8_MEMBER( wangpc_state::ppi_pc_w )
@@ -899,13 +890,13 @@ WRITE_LINE_MEMBER( wangpc_state::pit2_w )
 	}
 }
 
-static const struct pit8253_config pit_intf =
+static const struct pit8253_interface pit_intf =
 {
 	{
 		{
 			500000,
 			DEVCB_LINE_VCC,
-			DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir0_w)
+			DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir0_w)
 		}, {
 			2000000,
 			DEVCB_LINE_VCC,
@@ -947,8 +938,8 @@ WRITE_LINE_MEMBER( wangpc_state::uart_tbre_w )
 
 static IM6402_INTERFACE( uart_intf )
 {
-	0, // HACK should be 62500
-	62500,
+	0, // HACK should be 62500*16
+	62500*16,
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, uart_dr_w),
@@ -970,12 +961,12 @@ static MC2661_INTERFACE( epci_intf )
 {
 	0,
 	0,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, serial_port_device, tx),
 	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, epci_irq_w),
 	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, rts_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_TAG, rs232_port_device, dtr_w),
 	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, epci_irq_w),
 	DEVCB_NULL,
 	DEVCB_NULL
@@ -1049,6 +1040,20 @@ static const centronics_interface centronics_intf =
 
 
 //-------------------------------------------------
+//  rs232_port_interface rs232_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
+
+//-------------------------------------------------
 //  WANGPC_BUS_INTERFACE( kb_intf )
 //-------------------------------------------------
 
@@ -1064,11 +1069,11 @@ WRITE_LINE_MEMBER( wangpc_state::bus_irq2_w )
 static WANGPC_BUS_INTERFACE( bus_intf )
 {
 	DEVCB_DRIVER_LINE_MEMBER(wangpc_state, bus_irq2_w),
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir3_w),
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir4_w),
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir5_w),
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir6_w),
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir7_w),
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir3_w),
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir4_w),
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir5_w),
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir6_w),
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir7_w),
 	DEVCB_DEVICE_LINE_MEMBER(AM9517A_TAG, am9517a_device, dreq1_w),
 	DEVCB_DEVICE_LINE_MEMBER(AM9517A_TAG, am9517a_device, dreq2_w),
 	DEVCB_DEVICE_LINE_MEMBER(AM9517A_TAG, am9517a_device, dreq3_w),
@@ -1099,7 +1104,7 @@ SLOT_INTERFACE_END
 void wangpc_state::machine_start()
 {
 	// register CPU IRQ callback
-	m_maincpu->set_irq_acknowledge_callback(wangpc_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(wangpc_state::wangpc_irq_callback),this));
 
 	// connect serial keyboard
 	m_uart->connect(m_kb);
@@ -1205,24 +1210,25 @@ static MACHINE_CONFIG_START( wangpc, wangpc_state )
 
 	// devices
 	MCFG_AM9517A_ADD(AM9517A_TAG, 4000000, dmac_intf)
-	MCFG_PIC8259_ADD(I8259A_TAG, pic_intf)
+	MCFG_PIC8259_ADD(I8259A_TAG, INPUTLINE(I8086_TAG, INPUT_LINE_IRQ0), VCC, NULL)
 	MCFG_I8255A_ADD(I8255A_TAG, ppi_intf)
 	MCFG_PIT8253_ADD(I8253_TAG, pit_intf)
 	MCFG_IM6402_ADD(IM6402_TAG, uart_intf)
 	MCFG_MC2661_ADD(SCN2661_TAG, 0, epci_intf)
 	MCFG_UPD765A_ADD(UPD765_TAG, false, false)
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", wangpc_floppies, "525dd", 0, wangpc_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":1", wangpc_floppies, "525dd", 0, wangpc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", wangpc_floppies, "525dd", wangpc_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":1", wangpc_floppies, "525dd", wangpc_state::floppy_formats)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
+	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 	MCFG_WANGPC_KEYBOARD_ADD()
 
 	// bus
 	MCFG_WANGPC_BUS_ADD(bus_intf)
-	MCFG_WANGPC_BUS_SLOT_ADD("slot1", 1, wangpc_cards, NULL, NULL)
-	MCFG_WANGPC_BUS_SLOT_ADD("slot2", 2, wangpc_cards, "lvc", NULL)
-	MCFG_WANGPC_BUS_SLOT_ADD("slot3", 3, wangpc_cards, NULL, NULL)
-	MCFG_WANGPC_BUS_SLOT_ADD("slot4", 4, wangpc_cards, NULL, NULL)
-	MCFG_WANGPC_BUS_SLOT_ADD("slot5", 5, wangpc_cards, NULL, NULL)
+	MCFG_WANGPC_BUS_SLOT_ADD("slot1", 1, wangpc_cards, NULL)
+	MCFG_WANGPC_BUS_SLOT_ADD("slot2", 2, wangpc_cards, "mvc")
+	MCFG_WANGPC_BUS_SLOT_ADD("slot3", 3, wangpc_cards, NULL)
+	MCFG_WANGPC_BUS_SLOT_ADD("slot4", 4, wangpc_cards, NULL)
+	MCFG_WANGPC_BUS_SLOT_ADD("slot5", 5, wangpc_cards, NULL)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

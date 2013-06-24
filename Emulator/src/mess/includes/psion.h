@@ -14,24 +14,6 @@
 #include "video/hd44780.h"
 #include "sound/beep.h"
 
-#define MCFG_PSION_CUSTOM_LCDC_ADD( _tag , _config) \
-	MCFG_DEVICE_ADD( _tag, PSION_CUSTOM_LCDC, 0 ) \
-	MCFG_DEVICE_CONFIG(_config)
-
-// ======================> psion_custom_lcdc
-
-class psion_custom_lcdc :   public hd44780_device
-{
-
-public:
-	// construction/destruction
-	psion_custom_lcdc(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-
-	// hd44780_device overrides
-	virtual DECLARE_WRITE8_MEMBER(control_write);
-	virtual UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-};
-
 
 // ======================> psion_state
 
@@ -42,11 +24,11 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_lcdc(*this, "hd44780"),
-			m_beep(*this, BEEPER_TAG),
+			m_beep(*this, "beeper"),
 			m_pack1(*this, "pack1"),
 			m_pack2(*this, "pack2"),
-		m_sys_register(*this, "sys_register"),
-		m_ram(*this, "ram"){ }
+			m_sys_register(*this, "sys_register"),
+			m_ram(*this, "ram"){ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<hd44780_device> m_lcdc;
@@ -87,9 +69,8 @@ public:
 	virtual void palette_init();
 	DECLARE_INPUT_CHANGED_MEMBER(psion_on);
 	TIMER_DEVICE_CALLBACK_MEMBER(nmi_timer);
-};
 
-// device type definition
-extern const device_type PSION_CUSTOM_LCDC;
+	static HD44780_PIXEL_UPDATE(lz_pixel_update);
+};
 
 #endif  // _PSION_H_

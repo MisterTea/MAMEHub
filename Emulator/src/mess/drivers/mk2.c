@@ -60,7 +60,7 @@ public:
 	mk2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
-	m_speaker(*this, SPEAKER_TAG),
+	m_speaker(*this, "speaker"),
 	m_miot(*this, "miot")
 	{ }
 
@@ -173,12 +173,12 @@ READ8_MEMBER( mk2_state::mk2_read_b )
 
 WRITE8_MEMBER( mk2_state::mk2_write_b )
 {
-	if ((data&0x06) == 0x06)
-			speaker_level_w(m_speaker, BIT(data, 0));
+	if ((data & 0x06) == 0x06)
+			m_speaker->level_w(BIT(data, 0));
 
 	m_led[4]|=data;
 
-	machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, (data & 0x80) ? CLEAR_LINE : ASSERT_LINE );
+	m_maincpu->set_input_line(M6502_IRQ_LINE, (data & 0x80) ? CLEAR_LINE : ASSERT_LINE );
 }
 
 static MOS6530_INTERFACE( mk2_mos6530_interface )
@@ -204,7 +204,7 @@ static MACHINE_CONFIG_START( mk2, mk2_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("led_timer", mk2_state, update_leds, attotime::from_hz(60))

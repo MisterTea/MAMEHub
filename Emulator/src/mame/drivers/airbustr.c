@@ -221,13 +221,11 @@ Code at 505: waits for bit 1 to go low, writes command, waits for bit
 #include "cpu/z80/z80.h"
 #include "sound/2203intf.h"
 #include "sound/okim6295.h"
-#include "video/kan_pand.h"
 #include "includes/airbustr.h"
 
 /* Read/Write Handlers */
 READ8_MEMBER(airbustr_state::devram_r)
 {
-
 	// There's an MCU here, possibly
 	switch (offset)
 	{
@@ -261,7 +259,7 @@ READ8_MEMBER(airbustr_state::devram_r)
 
 WRITE8_MEMBER(airbustr_state::master_nmi_trigger_w)
 {
-	m_slave->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_slave->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 WRITE8_MEMBER(airbustr_state::master_bankswitch_w)
@@ -271,13 +269,12 @@ WRITE8_MEMBER(airbustr_state::master_bankswitch_w)
 
 WRITE8_MEMBER(airbustr_state::slave_bankswitch_w)
 {
-
 	membank("bank2")->set_entry(data & 0x07);
 
 	flip_screen_set(data & 0x10);
 
 	// used at the end of levels, after defeating the boss, to leave trails
-	pandora_set_clear_bitmap(m_pandora, data & 0x20);
+	m_pandora->set_clear_bitmap(data & 0x20);
 }
 
 WRITE8_MEMBER(airbustr_state::sound_bankswitch_w)
@@ -287,7 +284,6 @@ WRITE8_MEMBER(airbustr_state::sound_bankswitch_w)
 
 READ8_MEMBER(airbustr_state::soundcommand_status_r)
 {
-
 	// bits: 2 <-> ?    1 <-> soundlatch full   0 <-> soundlatch2 empty
 	return 4 + m_soundlatch_status * 2 + (1 - m_soundlatch2_status);
 }
@@ -343,7 +339,7 @@ WRITE8_MEMBER(airbustr_state::airbustr_coin_counter_w)
 static ADDRESS_MAP_START( master_map, AS_PROGRAM, 8, airbustr_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xcfff) AM_DEVREADWRITE_LEGACY("pandora", pandora_spriteram_r, pandora_spriteram_w)
+	AM_RANGE(0xc000, 0xcfff) AM_DEVREADWRITE("pandora", kaneko_pandora_device, spriteram_r, spriteram_w)
 	AM_RANGE(0xd000, 0xdfff) AM_RAM
 	AM_RANGE(0xe000, 0xefff) AM_RAM AM_SHARE("devram") // shared with protection device
 	AM_RANGE(0xf000, 0xffff) AM_RAM AM_SHARE("share1")
@@ -391,7 +387,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, airbustr_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_WRITE(sound_bankswitch_w)
-	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x02, 0x03) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x04, 0x04) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0x06, 0x06) AM_READWRITE(soundcommand_r, soundcommand2_w)
 ADDRESS_MAP_END
@@ -532,16 +528,13 @@ GFXDECODE_END
 
 /* Sound Interfaces */
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW1"),       // DSW-1 connected to port A
-		DEVCB_INPUT_PORT("DSW2"),       // DSW-2 connected to port B
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW1"),       // DSW-1 connected to port A
+	DEVCB_INPUT_PORT("DSW2"),       // DSW-2 connected to port B
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -553,11 +546,11 @@ TIMER_DEVICE_CALLBACK_MEMBER(airbustr_state::airbustr_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("master")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);
+		m_master->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 
 	/* Pandora "sprite end dma" irq? TODO: timing is likely off */
 	if(scanline == 64)
-		machine().device("master")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xfd);
+		m_master->set_input_line_and_vector(0, HOLD_LINE, 0xfd);
 }
 
 /* Sub Z80 uses IM2 too, but 0xff irq routine just contains an irq ack in it */
@@ -581,11 +574,6 @@ void airbustr_state::machine_start()
 	membank("bank3")->configure_entries(0, 3, &AUDIO[0x00000], 0x4000);
 	membank("bank3")->configure_entries(3, 5, &AUDIO[0x10000], 0x4000);
 
-	m_master = machine().device("master");
-	m_slave = machine().device("slave");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_pandora = machine().device("pandora");
-
 	save_item(NAME(m_soundlatch_status));
 	save_item(NAME(m_soundlatch2_status));
 	save_item(NAME(m_bg_scrollx));
@@ -597,7 +585,6 @@ void airbustr_state::machine_start()
 
 void airbustr_state::machine_reset()
 {
-
 	m_soundlatch_status = m_soundlatch2_status = 0;
 	m_bg_scrollx = 0;
 	m_bg_scrolly = 0;
@@ -660,7 +647,7 @@ static MACHINE_CONFIG_START( airbustr, airbustr_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)
@@ -783,7 +770,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(airbustr_state,airbustr)
 {
-	machine().device("master")->memory().space(AS_PROGRAM).install_read_handler(0xe000, 0xefff, read8_delegate(FUNC(airbustr_state::devram_r),this)); // protection device lives here
+	m_master->space(AS_PROGRAM).install_read_handler(0xe000, 0xefff, read8_delegate(FUNC(airbustr_state::devram_r),this)); // protection device lives here
 }
 
 

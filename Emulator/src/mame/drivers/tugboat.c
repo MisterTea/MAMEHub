@@ -31,9 +31,15 @@ always false - counter was reloaded and incremented before interrupt occurs
 class tugboat_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_INTERRUPT
+	};
+
 	tugboat_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_ram(*this, "ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_ram(*this, "ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_ram;
 	UINT8 m_hd46505_0_reg[18];
@@ -50,7 +56,10 @@ public:
 	virtual void machine_reset();
 	virtual void palette_init();
 	UINT32 screen_update_tugboat(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(interrupt_gen);
+	required_device<cpu_device> m_maincpu;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -58,7 +67,7 @@ public:
     just four 1k resistors. */
 void tugboat_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 
@@ -203,21 +212,28 @@ static const pia6821_interface pia1_intf =
 	DEVCB_NULL      /* IRQB */
 };
 
-TIMER_CALLBACK_MEMBER(tugboat_state::interrupt_gen)
+void tugboat_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(0, HOLD_LINE);
-	machine().scheduler().timer_set(machine().primary_screen->frame_period(), timer_expired_delegate(FUNC(tugboat_state::interrupt_gen),this));
+	switch (id)
+	{
+	case TIMER_INTERRUPT:
+		m_maincpu->set_input_line(0, HOLD_LINE);
+		timer_set(machine().primary_screen->frame_period(), TIMER_INTERRUPT);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in tugboat_state::device_timer");
+	}
 }
 
 void tugboat_state::machine_reset()
 {
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(30*8+4), timer_expired_delegate(FUNC(tugboat_state::interrupt_gen),this));
+	timer_set(machine().primary_screen->time_until_pos(30*8+4), TIMER_INTERRUPT);
 }
 
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, tugboat_state )
 	AM_RANGE(0x0000, 0x01ff) AM_RAM AM_SHARE("ram")
-	AM_RANGE(0x1060, 0x1061) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x1060, 0x1061) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x10a0, 0x10a1) AM_WRITE(tugboat_hd46505_0_w)  /* scrolling is performed changing the start_addr register (0C/0D) */
 	AM_RANGE(0x10c0, 0x10c1) AM_WRITE(tugboat_hd46505_1_w)
 	AM_RANGE(0x11e4, 0x11e7) AM_DEVREADWRITE("pia0", pia6821_device, read, write)

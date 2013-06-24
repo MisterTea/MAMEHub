@@ -3,13 +3,20 @@
     Gradius 3
 
 *************************************************************************/
+#include "sound/k007232.h"
 
 class gradius3_state : public driver_device
 {
 public:
 	gradius3_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_gfxram(*this, "gfxram"){ }
+		: driver_device(mconfig, type, tag),
+		m_gfxram(*this, "gfxram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_k007232(*this, "k007232"),
+		m_k052109(*this, "k052109"),
+		m_k051960(*this, "k051960") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_gfxram;
@@ -25,12 +32,12 @@ public:
 	int         m_irqBmask;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	cpu_device *m_subcpu;
-	device_t *m_k007232;
-	device_t *m_k052109;
-	device_t *m_k051960;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_subcpu;
+	required_device<k007232_device> m_k007232;
+	required_device<k052109_device> m_k052109;
+	required_device<k051960_device> m_k051960;
 	DECLARE_READ16_MEMBER(k052109_halfword_r);
 	DECLARE_WRITE16_MEMBER(k052109_halfword_w);
 	DECLARE_READ16_MEMBER(k051937_halfword_r);
@@ -51,6 +58,8 @@ public:
 	UINT32 screen_update_gradius3(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(cpuA_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(gradius3_sub_scanline);
+	void gradius3_postload();
+	DECLARE_WRITE8_MEMBER(volume_callback);
 };
 
 /*----------- defined in video/gradius3.c -----------*/

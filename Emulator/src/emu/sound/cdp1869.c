@@ -53,11 +53,30 @@ enum
 
 
 //**************************************************************************
-//  GLOBAL VARIABLES
+//  DEVICE DEFINITIONS
 //**************************************************************************
 
 // device type definition
 const device_type CDP1869 = &device_creator<cdp1869_device>;
+
+// I/O map
+DEVICE_ADDRESS_MAP_START( io_map, 8, cdp1869_device )
+	AM_RANGE(0x03, 0x03) AM_WRITE(out3_w)
+	AM_RANGE(0x04, 0x04) AM_WRITE(out4_w)
+	AM_RANGE(0x05, 0x05) AM_WRITE(out5_w)
+	AM_RANGE(0x06, 0x06) AM_WRITE(out6_w)
+	AM_RANGE(0x07, 0x07) AM_WRITE(out7_w)
+ADDRESS_MAP_END
+
+// character RAM map
+DEVICE_ADDRESS_MAP_START( char_map, 8, cdp1869_device )
+	AM_RANGE(0x000, 0x3ff) AM_READWRITE(char_ram_r, char_ram_w)
+ADDRESS_MAP_END
+
+// page RAM map
+DEVICE_ADDRESS_MAP_START( page_map, 8, cdp1869_device )
+	AM_RANGE(0x000, 0x7ff) AM_READWRITE(page_ram_r, page_ram_w)
+ADDRESS_MAP_END
 
 // default address map
 static ADDRESS_MAP_START( cdp1869, AS_0, 8, cdp1869_device )
@@ -329,7 +348,6 @@ cdp1869_device::cdp1869_device(const machine_config &mconfig, const char *tag, d
 		m_stream(NULL),
 		m_space_config("pageram", ENDIANNESS_LITTLE, 8, 11, 0, NULL, *ADDRESS_MAP_NAME(cdp1869))
 {
-
 }
 
 
@@ -377,6 +395,7 @@ void cdp1869_device::device_start()
 
 	// allocate timers
 	m_prd_timer = timer_alloc();
+	m_dispoff = 0;
 	update_prd_changed_timer();
 
 	// initialize palette
@@ -390,6 +409,18 @@ void cdp1869_device::device_start()
 	m_tonediv = 0;
 	m_tonefreq = 0;
 	m_toneamp = 0;
+	m_dblpage = 0;
+	m_line16 = 0;
+	m_line9 = 0;
+	m_fresvert = 0;
+	m_freshorz = 0;
+	m_hma = 0;
+	m_col = 0;
+	m_incr = 0;
+	m_signal = 0;
+	m_cfc = 0;
+	m_toneoff = 0;
+	m_cmem = 0;
 
 	// register for state saving
 	save_item(NAME(m_prd));

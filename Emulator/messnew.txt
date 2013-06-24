@@ -1,0 +1,1159 @@
+0.149
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+- 05127: [Misc.] (paso1600.c) paso1600: Invalid read of size 4 (Robbbert)
+- 05160: [Crash/Freeze] (thomson.c) to8, to8d: Access Violation with 
+  "-ramsize 262144 -cart 6809ass2" (Wilbert Pol)
+
+ 
+New System Drivers Supported:
+-----------------------------
+- Otrona Attache [Al Kossow, Barry Rodewald]
+
+
+Systems Promoted from GAME_NOT_WORKING:
+---------------------------------------
+- BOB-85 [Robbbert]
+- SSE SoftBox [Curt Coder, Mike Naberezny]
+
+
+Skeleton drivers:
+-----------------
+(none)
+
+
+Software Lists:
+----------------
+-horizon.xml: Added floppy images. [Dave Dunfield, Andrew Lynch]
+
+-cpc_flop.xml: added the available SPS release. [Kaylee]
+
+-softlist: added list for Otrona Attache disks. [Kaylee]
+
+-vsmile.xml: added new German dumps. [TeamEurope]
+
+-hx20: Added floppy software list. [Curt Coder]
+
+-softbox: Added floppy software list. [Mike Naberezny]
+
+-qx10: Added floppy software list. [Curt Coder]
+
+-ep64_cart.xml: Added cartridge software list. [Curt Coder]
+
+-ep64_cass.xml: Added preliminary cassette software list.
+ [Guru, Curt Coder]
+
+-ep64_flop.xml: Added floppy images. [Curt Coder]
+
+-ti99_cart.xml: Almost all cartridges available. [Michael Zapf]
+
+
+Source Changes
+--------------
+
+-superslave: Refactored serial terminal to connect to an RS-232
+ port. [Curt Coder]
+
+-mpz80: Fixed terminal. [Curt Coder]
+
+-Added RS-232 ports to several drivers. [Curt Coder]
+
+-vk100/vt100: Added RS-232 port and COM5016T baud rate
+ generator. [Curt Coder]
+
+-atarist: Added RS-232 and MIDI ports. [Curt Coder]
+
+-sdk86: Added serial terminal. [Curt Coder]
+
+-ql: Added RS-232 ports. [Curt Coder]
+
+-psxcd: fix cdda [Carl, Dr. Venom]
+
+-votrtnt: Added serial terminal [Robbbert]
+
+-68ksbc: Added serial terminal [Robbbert]
+
+-applix: Major improvements, system is mostly working [Robbbert]
+
+-altos5: Major improvements [Robbbert]
+
+-sms/gamegear: Various improvements [Fabio Priuli]
+ * Converted cart handling and mappers to use slot devices
+ * Simplified bios and cart bankswitch mechanism
+ * Added save state support to both systems
+ * Removed on-cart EEPROM from main gamegear now that it can be
+    properly implemented on carts which have it
+ * Added support for the card slot to Master System I console; 
+    use the -card switch to load Sega Card/MyCard dumps in the
+    emulated system
+ * Added backward compatibility to SG-1000 Mark III, for SG-1000 
+    games
+ * Made LCD persistence hack optional (ON by default, it can be
+    turned OFF from Driver Configuration submenu)
+ * Reduced tagmap lookups all across the driver
+ * Updated the systems to rely on xml only for RAM/NVRAM when 
+    loading from softlist
+
+-Ignore unformatted tracks in dsk files [smf]
+
+-td0_dsk: add new floppy system support for teledisk [Carl]
+
+-ehx20: Added slave CPU ROM dump. [Kevtris]
+
+-sg1000: converted the driver to use the new sega 8bit cart
+ slot. [Fabio Priuli]
+
+-sg1000: added emulation of the Card Catcher passthrough cart.
+ [Fabio Priuli]
+
+-gba: updated the driver to use slot devices for carts and
+ removed on-cart flash ram devices from main gba now that they can be
+ properly implemented on carts which have them [Fabio Priuli]
+
+-gba: made save states more robust. [Fabio Priuli]
+
+-nes: fixed nvram mirroring in Family Circuit '91 (Namcot-175
+ board), the game still has some issue when saving to NVRAM. 
+ [Fabio Priuli]
+
+-intv: converted the STIC video chip emulation to be a device.
+ [Fabio Priuli]
+
+-sp0256: modernized the SP0256 Narrator Speech Processor sound
+ device. [Fabio Priuli]
+
+-intv.c: added support for save states to all systems of this
+ driver. [Fabio Priuli]
+
+-coleco: added missing input-related variables to save states,
+ which should now work. [Fabio Priuli]
+
+-pasogo.c: Added readme.  [Guru]
+
+-qx10.c: Hook keyboard up to serial controller [Carl]
+
+-pce.c: converted carts to use slot devices [Fabio Priuli]
+
+-pce.c: moved the cd addon to be a separate device. now save
+ states work in the driver for HuCard games, not yet for CD games.
+ [Fabio Priuli]
+
+-pv1000.c: modernized the sound device and added save state
+ support. [Fabio Priuli]
+
+-scv.c: simplified input reading and added save state support
+ [Fabio Priuli]
+
+-softbox: Promoted driver to working. [Curt Coder, Mike Naberezny] 
+
+-Fixed IEEE-488 bus reset on Commodore drives. [Curt Coder]
+
+-enterp: modernized the Dave sound chip. [Fabio Priuli]
+
+-softbox: Added Corvus hard disk. [Curt Coder, Mike Naberezny]
+
+-pet: Implemented SoftBox IEEE-488 peripheral mode, where a PET
+ computer is used as terminal. [Curt Coder, Mike Naberezny]
+
+-enterp: converted the Nick Graphics Chip to be a device.
+ [Fabio Priuli]
+
+-Fix for Apollo PIC8259 breakage [Hans Ostermeyer]
+
+-gba.c: simplified video code, removing many redundancies.
+ [Fabio Priuli]
+
+-abc80x, abc1600: Added Luxor ABC keyboard port slot interface.
+ [Curt Coder]
+
+-softbox: Added CP/M hard disk installation instructions.
+ [Mike Naberezny]
+
+-pet8032: Fixed lowercase mode. [Mike Naberezny]
+
+-concept: added stub implementation for the expansion slots as
+ slot devices in place of previous outdated custom one. [Fabio Priuli]
+
+-Corrected pitch and readback behavior for the ALF Apple Music II, 
+ and noted it's the same as the ALF AM1. [R. Belmont]
+
+-BOB85: fixed Next key, enabled pasting with standard trainer
+ keys, marked as working [Robbbert]
+
+-softbox: Fixed LEDs. [Mike Naberezny]
+
+-Modernized MEA 8000 sound device. [Fabio Priuli]
+
+-Modernized the Mac Sound device. [Fabio Priuli]
+
+-Modernized uPD1771c sound device. [Fabio Priuli]
+
+-gizmondo: converted the GF4500 to be a device. [Fabio Priuli]
+
+-ip22: converted the SGI Newport graphics board to be a device.
+ [Fabio Priuli]
+
+-enterp: Added Guru-readme and fixed setnames. [Guru]
+
+-Modernized MC68328 (DragonBall) device. [Fabio Priuli]
+
+-pc.c: Added t1000sl2. Hooked up the Tandy 1000 character rom to
+ the other Tandy 1000 drivers. Reimplemented Tandy 1000 ROM banking
+ according to the schematics.  [Cowering, Wilbert Pol]
+
+-Modernized VT100/Rainbow video device. [Fabio Priuli]
+
+-Modernized VIC3 video device. [Fabio Priuli]
+
+-Modernized uPD71071 DMA device. [Fabio Priuli]
+
+-Modernized DS1315 clock device. [Fabio Priuli]
+
+-dsk_dsk: Fixed incorrect sector size bug preventing standard DSK
+ images from working. [Barry Rodewald]
+
+-Modernized Samsung S3C44B0 device. [Fabio Priuli]
+
+-Modernized AY-3-1015 device. [Fabio Priuli]
+
+-bml3.c [jedwidz]
+ * improved keyboard
+ * improved video
+ * disk support
+
+-megadriv: emulated protection for 16 Mahjong Tiles II
+ and Tekken Special [EkeEke, Fabio Priuli]
+
+-ep64: Modernized the Enterprise 64/128 driver. [Curt Coder]
+
+-pet8032: Fixed natural keyboard. [Mike Naberezny]
+
+-marked Game Boy, Game Boy Color, Game Boy Advance, Game Gear,
+ Intellivision, Lynx, Master System, MegaDrive / Genesis, NES /
+ Famicom, Neo Geo Pocket, Neo Geo Pocket Color, PV-1000, Super Cassette
+ Vision, Super NES / Super Famicom, Wonderswan and Wonderswan Color as
+ supporting save states. PC-Engine supports save states too, but only
+ for HuCard games and not for CDs. Please report issues with save and
+ restore in these systems, if any, to MameTesters. [Fabio Priuli]
+
+-ql: Added Merlin Tonto ROM dumps. [Ash Evans]
+
+-pet4032: Fixed natural keyboard. [Mike Naberezny]
+
+-terminal: Fixed natural keyboard. [Mike Naberezny]
+
+-n64: improved PIF / RDRAM initialization [Joe]
+
+-wangpc: Use medium resolution video controller by default. [Curt Coder]
+
+-ti99: Added a new cartridge type "gromemu" for GROM emulators
+
+
+
+0.148u5
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+- 05172: [Crash/Freeze] (megadriv.c) 32x and clones: [debug] Assertion 
+  `curlabel->m_codeptr == __null' failed. (hap)
+
+New System Drivers Supported:
+-----------------------------
+-Ensoniq ESQ-M [Anonymous]
+-15IE-00-013 [shattered]
+
+Systems Promoted from GAME_NOT_WORKING:
+---------------------------------------
+-D6800 [Robbbert]
+
+Skeleton drivers:
+-----------------
+-RCA COSMAC Microkit [Bill Degnan, Curt Coder]
+-SSE SoftBox [Mike Naberezny, Curt Coder]
+-V-Tech V-Smile (Germany) [TeamEurope]
+
+Software Lists:
+----------------
+-softlist: Added year and publisher info to most games in Amiga
+ OCS, ECS, AGA  and Atari ST softlist, fixed shortnames and
+ descriptions where needed, improved parent/clone relationships, made
+ better use of part_id features in multidisk sets. Also, re-ordered
+ sets in ZX softlist. [Anonymous, Fabio Priuli]
+
+-partner_cass.xml: fixed some descriptions and added more info [LoganB]
+
+-jaguar.xml: added some dumps surfaced since last update of the list. [LoganB]
+
+-bbca_cass.xml/bbcb_cass.xml: moved a few files in the proper
+ list and added some info. [Nigel Barnes]
+
+-mbc55x.xml: added a few more disks. [pete_j] 
+
+-m20.xml: added newly dumped CP/M 8000 disk [Christian Groessler]
+
+-x68k_flop.xml: added missing sets from TOSEC, plus a lot of new
+ disks dumped in the past seven years, plus lots of info
+ [Ashura, mek1, wushu, Starscream the 2nd, cpt. Misumaru Tenchi,
+ SuperDeadite, Anna Wu, Fabio Priuli]
+
+-Added software list for mc1502 [shattered]
+
+-megadriv.xml: added more pcb documentation. [sunbeam, gigadeath, nights]
+
+-vsmile.xml: added first cart dumps. [TeamEurope]
+
+-ibm5170.xml: added some more coverdisks. [Kaylee]
+
+-c64_cart.xml: Added Super Snapshot family. [Curt Coder]
+ 
+-v1050.xml: Added CP/M Plus BIOS 2.0. [Bill Degnan]
+
+-Added software lists for NorthStar Horizon/Advantage floppies. [Dave Dunfield]
+
+Source Changes
+--------------
+
+-aim65.c: added software list for software ROMs and hooked up to 
+ the driver. [K1W1, Fabio Priuli]
+
+-applix: The mirror is required for the system to size up the
+ ram correctly [O. Galibert]
+
+-esq1: preliminary emulation of analog stages (VCFs and VCAs) [O. Galibert]
+
+-electron.c: Added cartridge support.  [Wilbert Pol]
+
+-cp1: added layout and keyboard input. [Sandro Ronco]
+
+-psxmultitap: add multitap support [Carl]
+
+-D6800: Various improvements. Most games are playable. [Robbbert]
+
+-D6800: Cassette connected up, system marked as WORKING [Robbbert]
+
+-a7800.c - Red and Blue miscalculated proportions fixed.
+ [Robert Tuccitto]
+
+-pc: remove unused ibm5150_ppi8255_interface [shattered]
+ pc, ec1841: unbreak DBG_LOG macro
+ mc1502: FDC xtal freq is 16 MHz
+ asst128: another PC XT clone
+ ec1841: add softlist, set 'v2' as default BIOS to avoid resets
+
+-nes.c: greatly improved save state stability, by adding
+ registration of on-cart VRAM/WRAM. [Fabio Priuli]
+
+-gameboy/gbcolor: simplified video code by reducing the number
+ of memory pointers used, and added support for save state
+ registration. [Fabio Priuli]
+
+-slotify pc joystick [Carl]
+
+-Apollo updates: [Hans Ostermeyer]
+ * Added 4 and 8 plane color graphics board support
+ * Renamed dn3x00 to dn3x00_19i and dn3x00_15i to dn3x00
+ * Reworked video/apollo.c into class apollo_graphics
+ * Fixed recent regression where the arrow keys moved the mouse
+    pointer
+
+-v1050: Fixed floppy drive type. [Curt Coder]
+
+-cosmac: Added the original CDP1801 CPU variant and rewrote 
+ the disassembler. [Curt Coder]
+
+-sms.c: Change hcount calculation to use screen timings and move
+ it to the VDP.  [Enik Land]
+
+-pc_joy_sw: add MS Sidewinder pad [Carl]
+
+-a7800 - [huygens]
+ * Changed default difficulty switch setting to 'A' so Tower Toppler
+   loads the first level.
+ * Added 7 cpu cycle delay between hsync and Maria DMA (based on atari
+   docs).
+ * Rewrite of video code to emulate Maria line ram buffers.
+
+-a7800 : Rendering from line ram no longer uses maria write mode
+ bit (should only use read mode bits) [huygens]
+
+-com8116: Fixed frequency divisors. [Curt Coder] 
+
+-exp85, ob68k1a: Fixed terminal. [Curt Coder]
+
+-i8251: Implemented parity and 16X/64X clock modes. [Curt Coder] 
+
+-wmbullet, softbox, super6, xor100, sage2, mpz80, horizon: Refactored 
+ to use a serial terminal connected to an RS-232 port. [Curt Coder]
+
+-gameboy: modernized sound emulation and added save state
+ [Fabio Priuli]
+
+-lynx.c: modernized sound emulation, slightly simplified blitter
+functions and added save state to the driver. [Fabio Priuli]
+
+-wswan.c: updated rom banking mechanism to be save state friendlier 
+and added save state support to the driver. [Fabio Priuli]
+
+-ngp.c: added save state support to the driver. [Fabio Priuli]
+
+
+0.148u4
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+
+New System Drivers Supported:
+-----------------------------
+-DAG Z80 Trainer [Robbbert]
+
+Systems Promoted from GAME_NOT_WORKING:
+---------------------------------------
+(none)
+
+Skeleton drivers:
+-----------------
+-Ravensburger Selbstbaucomputer [Robbbert]
+
+
+Software Lists:
+----------------
+-softlist: added PCB documentation to gba, gbcolor and n64
+ lists, based on nointro pictures [LoganB]
+
+Source Changes
+--------------
+-XT IDE interface [Phill Harvey-Smith]
+
+-Fix for ROM paging on both the Dragon 64 and Dragon Alpha, which
+ restores the Dragon Alpha to working condition [Phill Harvey-Smith]
+
+-Z800x and M20 improvements to boot CP/M-8000 [Christian Groessler]
+ Z800x: Push the correct word on internal traps.
+ Z800x: Fix FCW handling in system non-segmented mode. 
+ Z800x: Add missing form of ldb reg, #imm. Z800x: Show previous PC, NSPSEG, and
+ PSAPSEG in the debugger. Z800x: Improved flags display in the
+ debugger. Z800x: Add debugger command z8k_disass_mode to toggle
+ segmented/non-segmented.  Default "auto" tracks the current execution
+ state. Z800x: Don't block nested exceptions if the priority and the
+ FCW allows it.
+
+-s3, mach8: Added read/write registers, and implemented read masking in
+ BitBLTs (used by XF86_S3). Made clipping rectangle checks against
+ Destination X/Y when doing BitBLT. [Barry Rodewald]
+
+-merged DAGZ80 into SELZ80 driver. Added a new bios version of
+ SELZ80. [Robbbert]
+
+-cd2650: added correct character generator rom [Robbbert]
+
+-nes.c: major refactoring and improvements of NES/FC cart
+ emulation: [Fabio Priuli]
+ * converted carts, mappers and pcbs to use slot devices
+ * fixed starting of Famicom, Famicom Twin and Dr. PCJr
+ * fixed handling of "no disk" in FDS so that the system displays
+    Mario and Luigi jumping around as expected
+ * added AY8910 sound to Sunsoft-5B (Gimmick JPN sfx)
+ * added YM2413 to VRC-7 (Lagrange Point OST)
+ * added support for recorded samples to Jaleco sport titles and to
+    Bandai Family Trainer Aerobics Studio, thanks to notes by hap and
+    egoh, and recordings by Pongbashi (samples are needed because
+    these games use a currently undumpable speech chip)
+ * added support for NES-EVENT pcb used by Nintendo World Championship
+    1990, including dipswitches
+ * added support for Galoob Game Genie real usage (in addition to the
+    codes which Puggsy added to his cheat collections): when you load
+    ggenie, a second cartslot becomes available to load another game
+    attached to the cheat device (e.g. with "mess.exe nes -cart ggenie
+    -cart2 smb") and you can enter the cheat codes as in a real NES
+ * added support for Nantettatte!! Baseball lock-on mechanism, based
+    on the tests performed by naruko on his carts: when you load
+    nantbb, a second cartslot becomes available to load one of the two
+    update minicarts (91 Hen or OB Hen)
+ * improved emulation of Namcot 163, 175 and 340 boards, based on the
+    tests performed by naruko, lidnariq and bootgod on the real
+    hardware
+ * moved Nantettatte!! Baseball minicarts to a separate list
+    (nes_ntbrom.xml) because they cannot be loaded in the NES
+    directly, but only through the nantbb subslot
+ * emulated bus conflict (CPU/PRG) in PCBs documented as having it
+ * partial emulation of open bus, enough to make working the games
+    using it as a sort of protection
+ * fixed crash when loading files using FFE mappers
+ * fixed mirroring in some boards (Sunsoft DCS and UNL-CC-21) and in
+    some games (e.g. Paris Dakar Rally Special and Escape from
+    Atlantis)
+ * fixed a few bugs in Tengen 800032 emulation (mapper 64), promoting
+    Klax, Xybots and Road Runner to working state
+ * fixed Tengen 800037 emulation (mapper 158), promoting US Alien
+    Syndrome to working state
+ * fixed NINA-001 emulation (mapper 34), promoting Impossible Mission II 
+    to working state
+ * improved Taito LROG017 emulation (mapper 77), promoting Napoleon Senki
+    to working state
+ * added emulation of the Sachen SA-9602B pcb used by Mei Shao Nv 
+    Meng Gong Chang, a chinese port of Princess Maker by Sachen, based 
+    on the great work done by Cah4e3 in FCEUMM
+ * added working emulation of many bootleg pcbs used for pirate
+    conversions from FDS (Ai Senshi Nicol, Doki Doki Panic, Fuuun
+    Shaolin Kyo, Green Beret, Monty no Doki Doki Daidassou, Tobidase
+    Daisakusen, Super Mario Bros Malee 2 / Genius Merio Bros...)
+ * improved emulation of many pirate pcb (BMC-GOLDENCARD-6IN1,
+    KS7013B, KS7012, BMC-GHOSTBUSTERS63IN1, UNL-MALISB, MAXI15 and
+    more...)
+ * improved RacerMate Challenge II emulation, but the game is still
+    not working due to unemulated bicycle controller
+ * added CPU-based IRQ mode in Tengen 800032 emulation (mapper 64),
+    fixing Skulls & Crossbones gfx (but the game is still not working)
+ * improved IRQ handling fixing a lot of 1-line glitches, fixing gfx
+    corruption in the upper half of Pinbot tables and allowing Sangokushi
+    II - Haou no Tairiku to boot.
+ * fixed many small inaccuracies in the old code, spot during the
+    conversion
+ * added support for most other known pcbs, even if in most cases
+    emulation is only sketchy
+ * reduced the need of fake alt pbcs for boards which only differed by
+    mirroring handling (these are now recognized through the
+    "mirroring" feature)
+ * removed fake wram which was added to a lot of partially documented
+    pcbs and re-added it only where actually present, so to more
+    accurately document what was really in the carts
+
+-atari.c: Correct bit for POK_KEY_BREAK which now allows colon/semi-colon
+ [:;] to work properly on Atari Computers. [Tom Clayton]
+
+-psxcd: Further cdrom work, main functional change is better sector
+ buffer handling [Carl]
+
+-svmu.c: changed input mappings to be more standard [LoganB]
+
+-pc8201: Added Japanese ROM. [noris]
+
+-bbc.c: Fixed cassette loading.  [Wilbert Pol]
+
+-csw_cas.c: Fixed CSW header detection regression.  [Wilbert Pol]
+
+
+0.148u3
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+
+
+New System Drivers Supported:
+-----------------------------
+-Acorn Atom with BBC basic [Phill Harvey-Smith]
+
+Systems Promoted from GAME_NOT_WORKING:
+---------------------------------------
+(none)
+
+Skeleton drivers:
+-----------------
+(none)
+
+Software Lists:
+----------------
+-nimbus.xml: added two alt welcome disks [Anna Wu]
+
+-ql: Added floppy softlist. [anonymous]
+
+-Added some most wanted Commodore ROMs. [Martin Hoffmann-Vetter]
+
+-pico.xml: New Japanese dumps added [TeamEurope]
+
+-a800.xml: A couple of new cartridge additions. [K1W1]
+
+Source Changes
+--------------
+-saturn: converted carts to be slot devices and enabled battery
+ RAM carts support [Fabio Priuli]
+
+-megadriv: fixed support of SMD files (those with 512k header),
+ broken by the recent developments. [Fabio Priuli]
+
+-megadriv.c: removed drivers gensvp, mdsvp and mdsvpj: Virtua
+ Racing can now be loaded directly in genesis, megadriv and megadrij
+ [Fabio Priuli]
+
+-a7800.c - Stripped palette to raw video output values removing YIQ/YUV
+ infer data. [Robert Tuccitto]
+
+-psxcd: simplify the cdrom [Carl]
+
+-imd: Stop being so anal-retentive, it's counterproductive [O. Galibert]
+
+-stop psx crashing when reloading a state when cd access was in
+ progress [smf]
+
+-c64: Added Spanish C64C variant. [The Commodore Museum]
+
+-Makes sure the first instruction of cpe/psx/psf files will be
+ executed. [smf]
+
+-upd765: Handle modes a little more, NeXT can boot from floppy again
+ [O. Galibert]
+
+-upd7220: Add the internal rom [rfka01, balrog]
+
+-Added skeleton S3 ViRGE video card. [Barry Rodewald]
+
+-band aid fix for Tobal No. 1, some graphics issues remain [smf]
+
+-snes.c: added support for the PowerFest '94 competition cart.
+ [Fabio Priuli]
+
+-a7800.c - Corrected rotation values and errors including duplicate
+ entries for palette.  Address map locations for the XBOARD added to
+ get the ball rolling on support for it. [Robert Tuccitto]
+
+
+ 
+0.148u2
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+- 05153: [Gameplay] (megadriv.c) genesis, megadriv, pico: Crash 
+  when loading a cart (Wilbert Pol)
+- 05140: [Crash/Freeze] (prof180x.c) prof180x, prof181x: Access 
+  Violation (Firewave)
+- 05156: [Crash/Freeze] (a6809.c) a6809: Access Violation with 
+  -debug (Firewave)
+- 05109: [Crash/Freeze] (amstrad.c) cpc464p, cpc6128p, gx4000: 
+  Crash with "-cart barb2" (Firewave)
+- 05116: [Misc.] Sets using MC6847: Invalid read of size 1 (Firewave)
+- 05111: [Crash/Freeze] (ti99_4x.c) ti99_4ae, ti99_4a, ti99_4ev,
+  ti99_4e, ti99_4: Crash with "-cart invaders" (mizapf)
+- 05154: [DIP/Input] (supercon.c) supercon: Mouse doesn't move pieces
+- 05152: [Interface] (gb.c) all gameboy.c sets: Crashes on exit
+  when no cart was successfully loaded (Firewave)
+- 05070: [Crash/Freeze] (n64.c) n64dd: [debug] Crash after OK (Firewave)
+
+New System Drivers Supported:
+-----------------------------
+- Magnavox Odyssey 3 / Command Center (prototype) [René van den Enden]
+- Samsung Samtron 88S [Kaylee]
+- Yeno - MisterX [Team Europe]
+- PV-16 [plgDavid]
+- Besta-88 [shattered]
+
+Systems Promoted from GAME_NOT_WORKING:
+---------------------------------------
+(none)
+
+Skeleton drivers:
+-----------------
+
+Software Lists:
+----------------
+-snes.xml: Added 51 cartridges [ReadOnly]
+
+-ibm5170.xml: Added 2 ipf cross-platform sets (they are
+ compatible with both Amiga and PC) [Kaylee] 
+
+-ibm5150.xml: Added VisiCalc & StretchCalc [Kaylee]
+
+-socrates.xml: added CAD Professor Maus dump [TeamEurope]
+
+-megadriv.xml: added original uncracked dump of Tiny Toon
+ Adventures 3 [Barver, Azathoth] 
+
+-Added software list for Sega Visual Memory Unit. [LoganB]
+
+-a2600.xml: some additions of new dumps and info [Kaylee]
+
+-pico.xml: added new Japanese dumps. [TeamEurope]
+
+-socrates.xml: added Game Wizard / Magische Spiele dump.
+ [Team Europe]
+
+-snes.xml: added a few pirate multigame carts. Most of these are
+ incomplete dumps, so redumps are needed to promote them to working
+ state, but their existence is now at least documented. [Fabio Priuli]
+
+-megadriv.xml: Added dump of Japanese Marble Madness [ElBarto]
+
+-megadriv.xml: Added documentation for a few carts [ElBarto]
+
+-megadriv.xml: Added documentation for more than 300 carts [Sunbeam/Digital 
+ Corruption]
+
+-Added software list for RM Nimbus. [Robbbert, Fabio Priuli]
+
+Source Changes
+--------------
+-cat.c (Canon Cat): Fixed the v2.40 bioses thinking the phone is
+ constantly ringing; Documented what all the DUART IO pins are
+ connected to, and correctly hooked DUART IP2 up to invert when the 6ms
+ timer expires, removing the previous hack (and fixing the ringing
+ bug). [Lord Nightmare]
+
+-c64: Fixed MACH 5 cartridge C128 mode. [Curt Coder]
+
+-c64: Added support for the standard MIDI cartridges:
+ Passport/Syntech, Siel/JMS/DATEL, Sequential, Namesoft, and Maplin.
+ [Curt Coder]
+
+-Apple II: Allow Super Serial Card to connect to MESS's serial
+ terminal and null modem devices. [R. Belmont]
+
+-fmtowns: Preliminary implementation of the CD-ROM controller's
+ software mode.  Enough to get the CD-ROM working under Win95.
+ [Barry Rodewald]
+
+-vic20/c64: Added VIC-1011A/B RS-232C adapter emulation. [Curt Coder] 
+
+-Added hook-up for CD Block command 0x64 (Put Sector Data) [Angelo Salese]
+
+-megadriv.c: emulated protection in mulan, pokemon 2 (previously patched 
+ out) and in the real ttoon3 dump. [Fabio Priuli]
+
+-ColecoVision: controller has a * key, not a . key [Nick3092]
+
+-Apple II: Added support for Street Electronics Echo Plus and
+ Zip Technologies ZipDrive cards [R. Belmont, Lord Nightmare]
+
+-dectalk.c: renamed dectalk roms to match the DEC 23-xxxLn standard and
+ noted what their actual paper labels were (these paper labels will
+ differ on different dectalk units depending on exactly when they were
+ made, though the ROM contents are exactly the same! The derivable
+ 23-xxxLn part number will not change, though.). Added more comments.
+ [Lord Nightmare]
+
+-supercon: Fix regressions [Ralf Schäfer]
+
+-odyssey2.c: Further palette improvements.  [Dr. Venom]
+
+-cbm8096: Emulated the 64KB memory expansion card, and promoted
+ driver to working. [Curt Coder]
+
+-cat.c: (Canon Cat) Fixed a mistake in the memory map mirroring due to
+ an error during testing; added proper readback of the floppy control
+ register, and corrected the floppy status readback so it thinks that
+ no floppy is inserted. [Lord Nightmare]
+
+-gameboy.c: fixed cart type for MBC1 collection games, promoting
+ Bomberman Collection, Genjin Collection, Momotarou Collection, Mortal
+ Kombat I & II and Super Chinese Land 1.2.3 to working state
+ [Fabio Priuli]
+
+-gbcolor.c: added support for Sintax mapper, promoting a dozen of
+ pirate games to working state [taizou, Fabio Priuli]
+
+-PlayStation: Fix CD-ROM regression [R. Belmont]
+
+-isa_ide: correctly mapped alternate port [Miodrag Milanovic]
+
+-megadriv.c: emulated protection in pirate Super Mario World 64,
+ based on research by Eke and andlabs [Fabio Priuli]
+
+-gb.c: attempt in emulating protection for Chong Wu Xiao Jing
+ Ling/Pokemon Pikecho. [Fabio Priuli]
+
+-megadriv.c: added support for Legend of Wukong [Fabio Priuli]
+
+-aes: Added UniBios versions to Neo Geo home console  [Kaylee]
+
+-a7800.c: Fixed color clip in $1 & $F  [Robert Tuccitto]
+
+-Reimplemented the NCR5380 SCSI controller using nscsi. [R. Belmont]
+
+-Apple II: Preliminary support for the Apple II Rev. C SCSI
+ Card. [R. Belmont]
+
+-a7800.c:  [Robert Tuccitto] Improved and corrected NTSC (a7800) and
+ PAL (a7800p) palettes
+ * Palette rebuild due to misaligned data references
+ * Corrected PAL color sequence order
+
+-gameboy: added emulation of Rockman 8 pirate cart by Yong Yong.
+ [Fabio Priuli]
+
+-gameboy: added correct handling of Echo RAM, needed by Rockman 8. 
+ [Fabio Priuli]
+
+-profweis: added another bios version. [Team Europe]
+
+-snes.c: several updates to cart handling [Fabio Priuli]
+ * moved Sufami Turbo and BSX carts to separate lists
+ * added emulation for DSP1/4, ST-010/011, S-DD1, SPC7110, SuperFX,
+    BS-X and Sufami Turbo as slot devices
+ * added emulation for the protection device used in some pirate carts
+   
+-Fix AES cart swap sound crash. [R. Belmont]
+
+-vk100.c (DEC GIGI/VK100): Hooked up the direction prom to the
+ vector generator rather than using a hack. Still a lot of work to go,
+ but the test mode looks like it at least starts off running more
+ correctly before it fails. [Lord Nightmare]
+
+-Modernized vc4000 device.  [Andrew Gardner]
+
+-snes.c: updated the driver to only save the real amount of SRAM
+ present on the cart. This means that old .nv files won't be directly
+ compatible with newer exe, but you shall be able to keep your saves by
+ backing them up and taking the first block of the correct size (e.g.
+ if you take the first 8KB block of your old .nv for Super Metroid it
+ should work fine with the new exe). At the same time, MESS should be
+ now compatible with saves taken in other emulators. [Fabio Priuli]
+
+-cat.c (Canon Cat): Got rid of the keyboard interrupt timer and
+ hooked the keyboard interrupt to the 6ms timer instead, which is
+ closer to hardware. The cursor blinks at a more correct but not
+ completely correct rate now. The duart (the REAL source of the
+ interrupts, which should fire with the transitions of the 12ms period
+ squarewave) still does not work for interrupts properly, it needs its
+ innards fixed. [Lord Nightmare]
+
+-Modernized wswan, special, and svision devices. [Andrew Gardner]
+
+-sms.c:  [Enik Land]
+ * Fixed master clock speed for PAL machines.
+ * Improved hcount handling resulting in better results from Flubba's
+    VDP timing checks.
+
+-snes.c: misc work on pirate carts.  [Fabio Priuli]
+ * added support for Korean Super 20 Collection multigame cart, even
+    if a few games still have glitches.
+ * added support for bankswitch mechanism used in a few pirate
+    multigame carts.
+ * added support for protection used by Tekken 2 and Street Fighter
+    Alpha EX, based on notes by d4s and nocash.
+
+-3c505: fix typo that broke TCP [Hans Ostermeyer]
+
+-snes.c: major overhaul of cart and add-on handling [Fabio Priuli]
+ * updated carts to be slot devices
+ * simplified loading and bankswitch mechanism
+ * removed drivers snessfx and snespsfx: SuperFX/GSU games can now be
+    loaded in snes and snespal
+ * removed drivers snesdsp and snespdsp: NEC DSPx games can now be
+    loaded in snes and snespal from softlist
+ * removed drivers snesst10 and snesst11: Seta DSP games can now be
+    loaded in snes and snespal from softlist
+ * removed driver snesst: when you load Sufami Turbo, two more cart
+    slots (-cart2 and -cart3) become available to load ST carts
+ * added preliminary support for games with BS-X slots: when you load
+    one of these, a -cart2 slot becomes available to load a 8MB memory
+    pack (only a few of these work at the moment, e.g. Same Game)
+ * added support for loading DSPx games with DSP dump appended at the
+    end of the .sfc file
+
+-snes.c: added support in snes and snespal for loading from
+ fullpath DSPx and ST01x games missing the DSP data, i.e. the commonly
+ available dumps, without using clone systems (softlists had no
+ problems with these games because the DSP data come from the softlist
+ romset) [Fabio Priuli]
+
+-megadriv.c: emulated reset-based Codemaster 2-in-1 carts (2psymmac). 
+ [Fabio Priuli]
+
+ 
+ 0.148u1
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+- 05112: [Crash/Freeze] (x68k.c) x68030: Access Violation (Olivier Galibert)
+- 05110: [Crash/Freeze] (multi16.c) multi16: Access Violation (Olivier Galibert)
+- 05124: [Crash/Freeze] (pc.c) t1000rl, t1000tl2, t1000tx: Access Violation (Olivier Galibert)
+- 05125: [Misc.] (vidbrain.c) vidbrain: Invalid read of size 4 (Firewave)
+- 05126: [Misc.] (ti990_4.c) ti990_4: Conditional jump or move depends on uninitialised value(s) (Firewave)
+- 05130: [Misc.] (nc.c) all nc.c sets: Conditional jump or move depends on uninitialised value(s) (Firewave)
+
+New System Drivers Supported:
+-----------------------------
+- NEC TK85. [Robbbert, Nama]
+- Chunichi ND-80Z. [Robbbert, Nama]
+- BINBUG [Robbbert]
+- DG680 [Robbbert]
+- LZ Color64 [Dantyr]
+- Dynacom MX-1600 [Dantyr]
+
+Systems Promoted from GAME_NOT_WORKING:
+---------------------------------------
+(none)
+
+Skeleton drivers:
+-----------------
+- Atari PC-3 [rfka01]
+
+Software Lists:
+----------------
+-prof80: Added floppy software list. [Curt Coder] 
+
+-prof180: Added floppy software list. [Curt Coder]
+
+-sms.xml: Fixed banking setting for cso making it working. 
+ [Enik Land]
+
+-Added preliminary lists to MO-5, TO-7 and TO-770 [K1W1]
+
+-Added preliminary lists to Enterprise 64/128, Odyssey 2 and
+ G-7400, Interact and Kaypro II [LoganB]
+
+-Added software lists to MZ800, Osborne 1 and Sorcerer [LoganB]
+
+-Added software list to M20 [Fabio Priuli]
+
+-Added info to Amiga ECS list [LoganB]
+
+-psx.xml: Added dump from a real manufactured pirate disk
+ [Kaylee]
+
+-spectrum_flop.xml: Added more disks to the software list [Kaylee]
+
+-spectrum_flop.xml: added year/publisher info to the list [LoganB]
+
+-pet: Added add-on ROM software list. [Curt Coder]
+
+-msx1_cart.xml: added missing cart dumps. [Fabio Priuli]
+
+-ibm5170.xml: added 4 new dumps. [Kaylee]
+
+-pico.xml: added new Japanese dumps [TeamEurope]
+
+-tek4052: Added cartridge software list. [Curt Coder]
+
+-pico.xml: Added a few Brazilian dumps. [TeamEurope]
+
+-apple2gs.xml: Document some cracks and bad dumps [LoganB]
+
+-a800.xml: Added 3 new dumps, removed a confirmed bad 
+ dump and added more cartridge info [K1W1] 
+
+-amigaaga/amigaocs.xml: Added afew more dumps from CAPS releases [Kaylee] 
+
+-apfm1000.xml: Verified compatibility in some entries [Shideravan]
+
+Source Changes:
+----------------
+-Added Cardco CSD-1 floppy drive (C1541 clone). [Cowering]
+
+-g7400: Changed driver to use the i8244/i8245 device
+ implementation.  [Wilbert Pol]
+
+-minichief: Added WD1002A-WX1 ROM dump. [rfka01]
+
+-odyssey2, videopac: Updated drivers to use the i8244/i8245
+ device implementation.  [Wilbert Pol]
+
+-Refactored the Commodore 1581 floppy disk drive to use the
+ modern floppy system. Supports read-only access to D81 images.
+ [Curt Coder]
+
+-wd_fdc: Controller remains busy until the last DRQ has been served,
+ and the sector register can now be written more than once. [Curt
+ Coder]
+
+-esq5505: add MIDI In capability to all of these drivers.
+ [R. Belmont]
+
+-sms.c: Improved memory initialization on Japanese and Korean
+ consoles. This fixes softwre list entries alibaba and blockhol. 
+ [Enik Land]
+
+-Fix non-functionality of all Apple floppy drives. [R. Belmont]
+
+-flopimg: Added support for Commodore GCR encoding. [Curt Coder]
+
+-SMC-777: enabled to show the border area in MC6845 interface,
+ changed various video related function accordingly [Angelo Salese]
+
+-Enabled to show border area in Sharp X1, fixes Shilver Ghost
+ gameplay and Nobunaga no Yabou error display if a single floppy is in
+ [Angelo Salese]
+
+-Made major clean-ups to NEC PC-8801, Sharp MZ-2500, Sharp X1
+ and Sony SMC-777 drivers. This gives a nice speed boost to them
+ [Angelo Salese]
+
+-BINBUG : Added full implementation of DG640 video card.
+ Improved cassette. [Robbbert]
+
+-ESQ-1: Converted to n68681, hooked up MIDI I/O, mapped more
+ front panel buttons [R. Belmont]
+
+-Slotify playstation controller ports [Carl] 
+
+-Fix memory card and standard controller with v3 pad lib psx software [Carl]
+
+-Add Dualshock emulation [Carl]
+
+-make playstation memory cards load and save to a file [Carl]
+
+-floppy: Fixed write protected signal and added a callback for it.
+ [Curt Coder]
+
+-PlayStation: play XA audio at the correct speed [R. Belmont]
+
+-alphasma: added keyboard input and LCD emulation. [Sandro Ronco]
+
+-PlayStation: fix sample signedness and stream rate for CDDA
+ (redbook) audio [R. Belmont]
+
+-PlayStation: mirror main RAM, fixes Woody Woodpecker Racing
+ [R. Belmont]
+
+-dsk_dsk: Header size obvious fix [O. Galibert]
+
+-cat.c (Canon Cat): Reverse engineered 99% of memory map
+ including mirrors based on extensive hardware testing; Located
+ Printer, Modem and Floppy drive registers (not yet hooked up); Added
+ v1.74 firmware and SpellCheck ROMs. Added a lot of debugging
+ information. [Lord Nightmare, Balrog]
+
+-cat.c (Canon Cat): Got rid of a lot of hashtag lookups; fixed
+ the video enable bit location. Cleaned up comments a bit. More
+ debugging stuff added. [Lord Nightmare]
+
+-cat.c (Canon cat): Added the 6ms timer and its counter.
+ [Lord Nightmare]
+
+-cat.c (Canon Cat): implemented video invert bit, added notes
+ about what some of the registers are called in the original source
+ code [Lord Nightmare]
+
+-c64: Cleaned up input handling. Controllers are now connected
+ using the slot interface, and by default a joystick in port 2 is
+ present. [Curt Coder]
+
+-c128: Cleaned up input handling. Controllers are now connected
+ using the slot interface, and by default a joystick in port 2 is
+ present. [Curt Coder]
+
+-c64/c128: Implemented parallel joystick pot X/Y read. [Curt Coder]
+
+-esq5505: Use esqpanel base class for massive cleanup. [R. Belmont] 
+
+-kt76: Convert to modern 68681 and add MIDI I/O.[R. Belmont]
+
+-cdi: Modernized CD-i and removed tag lookups [MooglyGuy]
+
+-cdi: Modernize MCD212 device. [MooglyGuy]
+
+-gba: Cleaned up tag usage outside of the startup path. [MooglyGuy]
+
+-vic10: Cleaned up input handling. Controllers are now connected
+ using the slot interface, and by default a joystick in port 2 is
+ present. [Curt Coder]
+
+-vic20: Cleaned up input handling. Controllers are now connected
+ using the slot interface, and by default a joystick is present.
+ [Curt Coder]
+
+-De-tagged the Apple II series drivers [R. Belmont]
+
+-pet: Added datassette slot interface. [Curt Coder]
+
+-plus4: Cleaned up input handling. Controllers are now connected
+ using the slot interface, and by default a joystick is present.
+ [Curt Coder]
+
+-apple2: Support generic 6850 MIDI card (Yamaha, Passport, etc).
+ [R. Belmont]
+
+-apple2gs: Enable 6850 MIDI card.  Tested in MasterTracks Pro
+ and synthLAB. [R. Belmont]
+
+-gb.c: fixed support for Wisdom Tree games [Fabio Priuli]
+
+-isa_gus:  Enabled 6850 MIDI interface with a hopefully accurate clock,
+ and fixed a silly error with MIDI IRQs, and passes the MIDI transmit
+ IRQ test. [Barry Rodewald]
+
+-psxanalog: add analog joystick [Carl] 
+
+-SoundBlaster: MIDI Out support for single-byte, SB UART, and
+ MPU-401 UART modes. [R. Belmont]
+
+-pet2001: Rewrote the PET 2001 series. [Curt Coder]
+
+-pet: Moved the remaining PETs to the new driver. [Curt Coder]
+
+-isa_sblaster: working SB-MIDI In (tested w/MIDI Monitor for
+ Windows) [R. Belmont]
+
+-isa_sblaster: fully hooked up MPU-401 input and output for SB16
+ [R. Belmont]
+
+-megadriv.c: many updates to cart handling [Fabio Priuli]
+  * updated carts to be slot devices
+  * simplified loading and bankswitch mechanism
+  * added support for real Sonic & Knuckles lock-on emulation (you can
+    combine it freely with other carts, through the -cart2 slot which
+    gets added automatically)
+  * remove need for "pcb_type" feature from xml softlist, since the new
+    "slot" feature is enough
+  * moved SVP emulation to src/mess/ in view of conversion to a slot
+    device as well
+
+-Properly close the old image when swapping CHD-CDs [Steve Leung]
+
+-Added minimal cassette software lists for the Commodore
+ computers. [Curt Coder]
+
+-cat.c(Canon Cat): added another v2.40 romset dumped from two
+ original developer's machines and made it the parent set. Lots and
+ lots of documentation updates.
+ [Lord Nightmare, Dwight Elvey, Sandy Bumgarner]
+
+-pet: Added user and memory expansion ports. [Curt Coder] 
+
+-cbm2: Added user port. [Curt Coder] 
+
+-Apple II: General modernization, some tagmap cleanup, and prep
+ work to emulate IIe aux slot cards. [R. Belmont]
+
+-c64: Added CMD SwiftLink cartridge emulation. [Curt Coder]
+
+-c64: Added CMD Turbo232 cartridge emulation. [Curt Coder]
+
+-megadriv.c: more updates [Fabio Priuli]
+  * implemented correct ROM mirroring, based on research by Eke &
+    others
+  * emulated the protection in Ya Se Chuan Shuo, promoting it to work
+    state
+  * fixed cart type in Blockbuster World Video Game Championship II
+    (works for the first time in MESS)
+  * fixed cart type in HardBall III, Barver Battle Saga and Chao Ji Da
+    Fu Weng
+  * added support for unusual SRAM location in HardBall 95
+  * fixed a few regressions introduced in the previous commit
+  * fixed wrong driver class being used in 32x and SegaCD
+
+-gb.c: many updates to cart handling [Fabio Priuli]
+  * updated carts to be slot devices
+  * simplified loading and bankswitch mechanism
+  * fixed MMM01 emulation
+  * removed need for "mapper" feature from xml softlist, since the new
+    "slot" feature is enough
+
+-Apple II: Another pass on tagmaps, plus preliminary emulation
+ of the standard and extended 80-column cards for the IIe [R. Belmont]
+
+-Apple II: Support 8 meg AE RamWorks III card for IIe.
+ [R. Belmont]
+
+-flopimg: When generating a pc layout, don't write the gap3 after the
+ last sector [O. Galibert]
+
+-odyssey2/videopac: Improved palette.  [Dr. Venom]
+
+-c64: Added support for the VizaStar cartridge. [Curt Coder]
+
+-Apple II: Fixed incorrect handling of CE00/CF00 range for expansion
+ cards. [R. Belmont]
+
+-apple2gs: Added support for the AE Vulcan IDE controller. [R. Belmont]

@@ -1,8 +1,16 @@
+#include "machine/nmk112.h"
+#include "sound/okim6295.h"
+
 class nmk16_state : public driver_device
 {
 public:
 	nmk16_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_oki1(*this, "oki1"),
+		m_oki2(*this, "oki2"),
+		m_nmk112(*this, "nmk112"),
 		m_nmk_bgvideoram0(*this, "nmk_bgvideoram0"),
 		m_nmk_txvideoram(*this, "nmk_txvideoram"),
 		m_mainram(*this, "mainram"),
@@ -14,9 +22,13 @@ public:
 		m_nmk_bgvideoram2(*this, "nmk_bgvideoram2"),
 		m_nmk_bgvideoram3(*this, "nmk_bgvideoram3"),
 		m_afega_scroll_0(*this, "afega_scroll_0"),
-		m_afega_scroll_1(*this, "afega_scroll_1"){ }
+		m_afega_scroll_1(*this, "afega_scroll_1") {}
 
-	int mask[4*2];
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<okim6295_device> m_oki1;
+	optional_device<okim6295_device> m_oki2;
+	optional_device<nmk112_device> m_nmk112;
 	required_shared_ptr<UINT16> m_nmk_bgvideoram0;
 	optional_shared_ptr<UINT16> m_nmk_txvideoram;
 	required_shared_ptr<UINT16> m_mainram;
@@ -29,6 +41,7 @@ public:
 	optional_shared_ptr<UINT16> m_nmk_bgvideoram3;
 	optional_shared_ptr<UINT16> m_afega_scroll_0;
 	optional_shared_ptr<UINT16> m_afega_scroll_1;
+	int mask[4*2];
 	int m_simple_scroll;
 	int m_redraw_bitmap;
 	UINT16 *m_spriteram_old;
@@ -70,7 +83,7 @@ public:
 	DECLARE_WRITE8_MEMBER(okibank_w);
 	DECLARE_WRITE8_MEMBER(raphero_sound_rombank_w);
 	DECLARE_READ16_MEMBER(vandykeb_r);
-	DECLARE_READ16_HANDLER(tdragonb_prot_r);
+	DECLARE_READ16_MEMBER(tdragonb_prot_r);
 	DECLARE_READ16_MEMBER(afega_unknown_r);
 	DECLARE_WRITE16_MEMBER(afega_scroll0_w);
 	DECLARE_WRITE16_MEMBER(afega_scroll1_w);
@@ -96,6 +109,11 @@ public:
 	DECLARE_WRITE16_MEMBER(bioship_bank_w);
 	DECLARE_WRITE8_MEMBER(spec2k_oki1_banking_w);
 	DECLARE_WRITE8_MEMBER(twinactn_oki_bank_w);
+	DECLARE_READ16_MEMBER( atombjt_unkr_r )
+	{
+		return 0x0000;
+	}
+
 	DECLARE_DRIVER_INIT(nmk);
 	DECLARE_DRIVER_INIT(vandykeb);
 	DECLARE_DRIVER_INIT(tdragonb);
@@ -106,6 +124,7 @@ public:
 	DECLARE_DRIVER_INIT(bubl2000);
 	DECLARE_DRIVER_INIT(grdnstrm);
 	DECLARE_DRIVER_INIT(spec2k);
+	DECLARE_DRIVER_INIT(redfoxwp2a);
 	DECLARE_DRIVER_INIT(bjtwin);
 	TILEMAP_MAPPER_MEMBER(afega_tilemap_scan_pages);
 	TILE_GET_INFO_MEMBER(macross_get_bg0_tile_info);
@@ -147,4 +166,31 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(hachamf_mcu_sim);
 	TIMER_DEVICE_CALLBACK_MEMBER(nmk16_scanline);
 	TIMER_DEVICE_CALLBACK_MEMBER(manybloc_scanline);
+	void nmk16_video_init();
+	inline void nmk16_draw_sprite(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority, UINT16 *spr);
+	inline void nmk16_draw_sprite_flipsupported(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority, UINT16 *spr);
+	void nmk16_draw_sprites_swap(bitmap_ind16 &bitmap, const rectangle &cliprect, int *bittbl);
+	void nmk16_draw_sprites_swap_flipsupported(bitmap_ind16 &bitmap, const rectangle &cliprect, int *bittbl);
+	void nmk16_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority);
+	void nmk16_draw_sprites_flipsupported(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority);
+	int nmk16_bg_spr_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	int nmk16_bg_fg_spr_tx_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	int nmk16_bg_spr_tx_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	int nmk16_bg_sprflip_tx_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	int nmk16_bioshipbg_sprflip_tx_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	int nmk16_bg_sprswap_tx_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int bittbl[8]);
+	int nmk16_bg_sprswapflip_tx_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int bittbl[8]);
+	int nmk16_complexbg_sprswap_tx_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int bittbl[8]);
+	void video_update(bitmap_ind16 &bitmap, const rectangle &cliprect,int dsw_flipscreen,int xoffset, int yoffset,int attr_mask);
+	void redhawki_video_update(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void mcu_run(UINT8 dsw_setting);
+	UINT8 decode_byte(UINT8 src, const UINT8 *bitp);
+	UINT32 bjtwin_address_map_bg0(UINT32 addr);
+	UINT16 decode_word(UINT16 src, const UINT8 *bitp);
+	UINT32 bjtwin_address_map_sprites(UINT32 addr);
+	void decode_gfx();
+	void decode_tdragonb();
+	void decode_ssmissin();
+	DECLARE_WRITE_LINE_MEMBER(ym2203_irqhandler);
+
 };

@@ -5,10 +5,12 @@ class armedf_state : public driver_device
 public:
 	armedf_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_spriteram(*this, "spriteram") ,
+		m_spriteram(*this, "spriteram"),
 		m_spr_pal_clut(*this, "spr_pal_clut"),
 		m_fg_videoram(*this, "fg_videoram"),
-		m_bg_videoram(*this, "bg_videoram"){ }
+		m_bg_videoram(*this, "bg_videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_extra(*this, "extra") { }
 
 	/* memory pointers */
 	UINT8  *  m_text_videoram;
@@ -35,7 +37,7 @@ public:
 	int      m_waiting_msb;
 
 	DECLARE_WRITE16_MEMBER(terraf_io_w);
-	DECLARE_WRITE16_MEMBER(terrafb_io_w);
+	DECLARE_WRITE16_MEMBER(terrafjb_io_w);
 	DECLARE_WRITE16_MEMBER(bootleg_io_w);
 	DECLARE_WRITE16_MEMBER(sound_command_w);
 	DECLARE_READ8_MEMBER(soundlatch_clear_r);
@@ -67,7 +69,7 @@ public:
 	DECLARE_DRIVER_INIT(legiono);
 	DECLARE_DRIVER_INIT(kozure);
 	DECLARE_DRIVER_INIT(terraf);
-	DECLARE_DRIVER_INIT(terrafb);
+	DECLARE_DRIVER_INIT(terrafjb);
 	TILEMAP_MAPPER_MEMBER(armedf_scan_type1);
 	TILEMAP_MAPPER_MEMBER(armedf_scan_type2);
 	TILEMAP_MAPPER_MEMBER(armedf_scan_type3);
@@ -80,6 +82,13 @@ public:
 	DECLARE_VIDEO_START(terraf);
 	DECLARE_VIDEO_START(armedf);
 	UINT32 screen_update_armedf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int priority );
+	void armedf_drawgfx(bitmap_ind16 &dest_bmp,const rectangle &clip,gfx_element *gfx,
+						UINT32 code,UINT32 color, UINT32 clut,int flipx,int flipy,int offsx,int offsy,
+						int transparent_color);
+
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_extra;
 };
 
 class bigfghtr_state : public armedf_state

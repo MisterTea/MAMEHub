@@ -20,7 +20,6 @@ TODO:
 #include "cpu/m6800/m6800.h"
 #include "cpu/s2650/s2650.h"
 #include "machine/6821pia.h"
-#include "sound/ay8910.h"
 #include "sound/sn76477.h"
 #include "sound/tms3615.h"
 #include "video/s2636.h"
@@ -480,14 +479,12 @@ GFXDECODE_END
 
 TILE_GET_INFO_MEMBER(laserbat_state::get_tile_info)
 {
-
 	// wrong color index!
 	SET_TILE_INFO_MEMBER(0, m_videoram[tile_index], m_colorram[tile_index] & 0x7f, 0);
 }
 
 void laserbat_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(laserbat_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
 	save_item(NAME(m_videoram));
@@ -580,8 +577,8 @@ WRITE_LINE_MEMBER(laserbat_state::zaccaria_irq0b)
 
 READ8_MEMBER(laserbat_state::zaccaria_port0a_r)
 {
-	device_t *ay = (m_active_8910 == 0) ? m_ay1 : m_ay2;
-	return ay8910_r(ay, space, 0);
+	ay8910_device *ay8910 = (m_active_8910 == 0) ? m_ay1 : m_ay2;
+	return ay8910->data_r(space, 0);
 }
 
 WRITE8_MEMBER(laserbat_state::zaccaria_port0a_w)
@@ -595,7 +592,7 @@ WRITE8_MEMBER(laserbat_state::zaccaria_port0b_w)
 	if ((m_last_port0b & 0x02) == 0x02 && (data & 0x02) == 0x00)
 	{
 		/* bit 0 goes to the 8910 #0 BC1 pin */
-		ay8910_data_address_w(m_ay1, space, m_last_port0b >> 0, m_port0a);
+		m_ay1->data_address_w(space, m_last_port0b >> 0, m_port0a);
 	}
 	else if ((m_last_port0b & 0x02) == 0x00 && (data & 0x02) == 0x02)
 	{
@@ -607,7 +604,7 @@ WRITE8_MEMBER(laserbat_state::zaccaria_port0b_w)
 	if ((m_last_port0b & 0x08) == 0x08 && (data & 0x08) == 0x00)
 	{
 		/* bit 2 goes to the 8910 #1 BC1 pin */
-		ay8910_data_address_w(m_ay2, space, m_last_port0b >> 2, m_port0a);
+		m_ay2->data_address_w(space, m_last_port0b >> 2, m_port0a);
 	}
 	else if ((m_last_port0b & 0x08) == 0x00 && (data & 0x08) == 0x08)
 	{
@@ -653,7 +650,6 @@ INTERRUPT_GEN_MEMBER(laserbat_state::laserbat_interrupt)
 
 INTERRUPT_GEN_MEMBER(laserbat_state::zaccaria_cb1_toggle)
 {
-
 	m_pia->cb1_w(m_cb1_toggle & 1);
 	m_cb1_toggle ^= 1;
 }
@@ -685,16 +681,13 @@ static const s2636_interface s2636_3_config =
 
 void laserbat_state::machine_start()
 {
-
 	m_s2636_1 = machine().device("s2636_1");
 	m_s2636_2 = machine().device("s2636_2");
 	m_s2636_3 = machine().device("s2636_3");
 	m_pia = machine().device<pia6821_device>("pia");
 	m_sn = machine().device("snsnd");
-	m_tms1 = machine().device("tms1");
-	m_tms2 = machine().device("tms2");
-	m_ay1 = machine().device("ay1");
-	m_ay2 = machine().device("ay2");
+	m_tms1 = machine().device<tms3615_device>("tms1");
+	m_tms2 = machine().device<tms3615_device>("tms2");
 
 	save_item(NAME(m_video_page));
 	save_item(NAME(m_input_mux));
@@ -720,7 +713,6 @@ void laserbat_state::machine_start()
 
 void laserbat_state::machine_reset()
 {
-
 	m_video_page = 0;
 	m_input_mux = 0;
 	m_active_8910 = 0;
@@ -774,10 +766,10 @@ static MACHINE_CONFIG_START( laserbat, laserbat_state )
 	MCFG_SOUND_ADD("snsnd", SN76477, 0) // output not connected
 	MCFG_SOUND_CONFIG(laserbat_sn76477_interface)
 
-	MCFG_SOUND_ADD("tms1", TMS3615, 4000000/8/2) // 250 kHz, from second chip's clock out
+	MCFG_TMS3615_ADD("tms1", 4000000/8/2) // 250 kHz, from second chip's clock out
 	MCFG_SOUND_ROUTE(TMS3615_FOOTAGE_8, "mono", 1.0)
 
-	MCFG_SOUND_ADD("tms2", TMS3615, 4000000/8) // 500 kHz
+	MCFG_TMS3615_ADD("tms2", 4000000/8) // 500 kHz
 	MCFG_SOUND_ROUTE(TMS3615_FOOTAGE_8, "mono", 1.0)
 MACHINE_CONFIG_END
 

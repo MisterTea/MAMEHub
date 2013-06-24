@@ -91,7 +91,6 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(galivan_state::blit_trigger_w)
 {
-
 	nb_1414m4_exec(space,(m_videoram[0] << 8) | (m_videoram[1] & 0xff),m_videoram,m_scrollx,m_scrolly,m_tx_tilemap);
 }
 
@@ -114,7 +113,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, galivan_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ymsnd", ym3526_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ymsnd", ym3526_device, write)
 	AM_RANGE(0x02, 0x02) AM_DEVWRITE("dac1", dac_device, write_unsigned8)
 	AM_RANGE(0x03, 0x03) AM_DEVWRITE("dac2", dac_device, write_unsigned8)
 	AM_RANGE(0x04, 0x04) AM_READ(soundlatch_clear_r)
@@ -377,7 +376,6 @@ GFXDECODE_END
 
 MACHINE_START_MEMBER(galivan_state,galivan)
 {
-
 	/* configure ROM banking */
 	UINT8 *rombase = memregion("maincpu")->base();
 	membank("bank1")->configure_entries(0, 2, &rombase[0x10000], 0x2000);
@@ -393,7 +391,6 @@ MACHINE_START_MEMBER(galivan_state,galivan)
 
 MACHINE_START_MEMBER(galivan_state,ninjemak)
 {
-
 	/* configure ROM banking */
 	UINT8 *rombase = memregion("maincpu")->base();
 	membank("bank1")->configure_entries(0, 4, &rombase[0x10000], 0x2000);
@@ -408,8 +405,7 @@ MACHINE_START_MEMBER(galivan_state,ninjemak)
 
 MACHINE_RESET_MEMBER(galivan_state,galivan)
 {
-
-	machine().device("maincpu")->reset();
+	m_maincpu->reset();
 
 //  m_layers = 0x60;
 	m_layers = 0;
@@ -421,8 +417,7 @@ MACHINE_RESET_MEMBER(galivan_state,galivan)
 
 MACHINE_RESET_MEMBER(galivan_state,ninjemak)
 {
-
-	machine().device("maincpu")->reset();
+	m_maincpu->reset();
 
 	m_scrollx = 0;
 	m_scrolly = 0;
@@ -1048,7 +1043,6 @@ WRITE8_MEMBER(galivan_state::youmab_81_w)
 /* scrolling is tied to a serial port, reads from 0xe43d-0xe43e-0xe43f-0xe440 */
 WRITE8_MEMBER(galivan_state::youmab_84_w)
 {
-
 	m_shift_val &= ~((0x80 >> 7) << m_shift_scroll);
 	m_shift_val |= (((data & 0x80) >> 7) << m_shift_scroll);
 
@@ -1061,7 +1055,6 @@ WRITE8_MEMBER(galivan_state::youmab_84_w)
 
 WRITE8_MEMBER(galivan_state::youmab_86_w)
 {
-
 	/* latch values */
 	{
 		m_scrolly = (m_shift_val & 0x0003ff);
@@ -1076,22 +1069,22 @@ WRITE8_MEMBER(galivan_state::youmab_86_w)
 
 DRIVER_INIT_MEMBER(galivan_state,youmab)
 {
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x82, 0x82, write8_delegate(FUNC(galivan_state::youmab_extra_bank_w),this)); // banks rom at 0x8000? writes 0xff and 0x00 before executing code there
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(0x0000, 0x7fff, "bank3");
+	m_maincpu->space(AS_IO).install_write_handler(0x82, 0x82, write8_delegate(FUNC(galivan_state::youmab_extra_bank_w),this)); // banks rom at 0x8000? writes 0xff and 0x00 before executing code there
+	m_maincpu->space(AS_PROGRAM).install_read_bank(0x0000, 0x7fff, "bank3");
 	membank("bank3")->set_base(memregion("maincpu")->base());
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(0x8000, 0xbfff, "bank2");
+	m_maincpu->space(AS_PROGRAM).install_read_bank(0x8000, 0xbfff, "bank2");
 	membank("bank2")->configure_entries(0, 2, memregion("user2")->base(), 0x4000);
 	membank("bank2")->set_entry(0);
 
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x81, 0x81, write8_delegate(FUNC(galivan_state::youmab_81_w),this)); // ?? often, alternating values
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x84, 0x84, write8_delegate(FUNC(galivan_state::youmab_84_w),this)); // ?? often, sequence..
+	m_maincpu->space(AS_IO).install_write_handler(0x81, 0x81, write8_delegate(FUNC(galivan_state::youmab_81_w),this)); // ?? often, alternating values
+	m_maincpu->space(AS_IO).install_write_handler(0x84, 0x84, write8_delegate(FUNC(galivan_state::youmab_84_w),this)); // ?? often, sequence..
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0xd800, 0xd81f); // scrolling isn't here..
+	m_maincpu->space(AS_PROGRAM).nop_write(0xd800, 0xd81f); // scrolling isn't here..
 
-	machine().device("maincpu")->memory().space(AS_IO).install_read_handler(0x8a, 0x8a, read8_delegate(FUNC(galivan_state::youmab_8a_r),this)); // ???
+	m_maincpu->space(AS_IO).install_read_handler(0x8a, 0x8a, read8_delegate(FUNC(galivan_state::youmab_8a_r),this)); // ???
 
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x86, 0x86, write8_delegate(FUNC(galivan_state::youmab_86_w),this));
+	m_maincpu->space(AS_IO).install_write_handler(0x86, 0x86, write8_delegate(FUNC(galivan_state::youmab_86_w),this));
 
 }
 

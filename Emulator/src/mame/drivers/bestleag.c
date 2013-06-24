@@ -27,12 +27,14 @@ class bestleag_state : public driver_device
 {
 public:
 	bestleag_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bgram(*this, "bgram"),
 		m_fgram(*this, "fgram"),
 		m_txram(*this, "txram"),
 		m_vregs(*this, "vregs"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
 
 	required_shared_ptr<UINT16> m_bgram;
 	required_shared_ptr<UINT16> m_fgram;
@@ -53,6 +55,9 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_bestleag(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_bestleaw(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki;
 };
 
 
@@ -118,10 +123,9 @@ Note: sprite chip is different than the other Big Striker sets and they
       include several similiarities with other Playmark games (including
       the sprite end code and the data being offset (i.e. spriteram starting from 0x16/2))
 */
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void bestleag_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	bestleag_state *state = machine.driver_data<bestleag_state>();
-	UINT16 *spriteram16 = state->m_spriteram;
+	UINT16 *spriteram16 = m_spriteram;
 
 	/*
 
@@ -131,7 +135,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 	int offs;
 
-	for (offs = 0x16/2;offs < state->m_spriteram.bytes()/2;offs += 4)
+	for (offs = 0x16/2;offs < m_spriteram.bytes()/2;offs += 4)
 	{
 		int code = spriteram16[offs+3] & 0xfff;
 		int color = (spriteram16[offs+2] & 0xf000) >> 12;
@@ -144,29 +148,29 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 			return;
 
 		/* it can change sprites color mask like the original set */
-		if(state->m_vregs[0x00/2] & 0x1000)
+		if(m_vregs[0x00/2] & 0x1000)
 			color &= 7;
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[2],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
 					code,
 					color,
 					flipx, 0,
 					flipx ? (sx+16) : (sx),sy,15);
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[2],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
 					code+1,
 					color,
 					flipx, 0,
 					flipx ? (sx) : (sx+16),sy,15);
 
 		/* wraparound x */
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[2],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
 					code,
 					color,
 					flipx, 0,
 					flipx ? (sx+16 - 512) : (sx - 512),sy,15);
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[2],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
 					code+1,
 					color,
 					flipx, 0,
@@ -185,7 +189,7 @@ UINT32 bestleag_state::screen_update_bestleag(screen_device &screen, bitmap_ind1
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0,0);
 	m_fg_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(machine(),bitmap,cliprect);
+	draw_sprites(bitmap,cliprect);
 	m_tx_tilemap->draw(bitmap, cliprect, 0,0);
 	return 0;
 }
@@ -201,7 +205,7 @@ UINT32 bestleag_state::screen_update_bestleaw(screen_device &screen, bitmap_ind1
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0,0);
 	m_fg_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(machine(),bitmap,cliprect);
+	draw_sprites(bitmap,cliprect);
 	m_tx_tilemap->draw(bitmap, cliprect, 0,0);
 	return 0;
 }
@@ -226,9 +230,7 @@ WRITE16_MEMBER(bestleag_state::bestleag_fgram_w)
 
 WRITE16_MEMBER(bestleag_state::oki_bank_w)
 {
-	device_t *device = machine().device("oki");
-	okim6295_device *oki = downcast<okim6295_device *>(device);
-	oki->set_bank_base(0x40000 * ((data & 3) - 1));
+	m_oki->set_bank_base(0x40000 * ((data & 3) - 1));
 }
 
 
@@ -395,14 +397,14 @@ MACHINE_CONFIG_END
 
 ROM_START( bestleag )
 	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 Code */
-	ROM_LOAD16_BYTE( "2.bin", 0x00000, 0x20000, CRC(d2be3431) SHA1(37815c80b9fbc246fcdaa202d40fb40b10f55b45) )
-	ROM_LOAD16_BYTE( "3.bin", 0x00001, 0x20000, CRC(f29c613a) SHA1(c66fa53f38bfa77ce1b894db74f94ce573c62412) )
+	ROM_LOAD16_BYTE( "2(__bestleag).bin", 0x00000, 0x20000, CRC(d2be3431) SHA1(37815c80b9fbc246fcdaa202d40fb40b10f55b45) )
+	ROM_LOAD16_BYTE( "3(__bestleag).bin", 0x00001, 0x20000, CRC(f29c613a) SHA1(c66fa53f38bfa77ce1b894db74f94ce573c62412) )
 
 	ROM_REGION( 0x200000, "gfx1", 0 ) /* 16x16x4 BG and 8x8x4 FG Tiles */
-	ROM_LOAD( "4.bin", 0x000000, 0x80000, CRC(47f7c9bc) SHA1(f0e5ef971f3bd6972316c248175436055cb5789d) )
-	ROM_LOAD( "5.bin", 0x080000, 0x80000, CRC(6a6f499d) SHA1(cacdccc64d09fa7289221cdea4654e6c2d811647) )
-	ROM_LOAD( "6.bin", 0x100000, 0x80000, CRC(0c3d2609) SHA1(6e1f1c5b010ef0dfa3f7b4ff9a832e758fbb97d5) )
-	ROM_LOAD( "7.bin", 0x180000, 0x80000, CRC(dcece871) SHA1(7db919ab7f51748b77b3bd35228bbf71b951349f) )
+	ROM_LOAD( "4(__bestleag).bin", 0x000000, 0x80000, CRC(47f7c9bc) SHA1(f0e5ef971f3bd6972316c248175436055cb5789d) )
+	ROM_LOAD( "5(__bestleag).bin", 0x080000, 0x80000, CRC(6a6f499d) SHA1(cacdccc64d09fa7289221cdea4654e6c2d811647) )
+	ROM_LOAD( "6(__bestleag).bin", 0x100000, 0x80000, CRC(0c3d2609) SHA1(6e1f1c5b010ef0dfa3f7b4ff9a832e758fbb97d5) )
+	ROM_LOAD( "7(__bestleag).bin", 0x180000, 0x80000, CRC(dcece871) SHA1(7db919ab7f51748b77b3bd35228bbf71b951349f) )
 
 	ROM_REGION( 0x080000, "gfx2", 0 ) /* 16x16x4 Sprites */
 	ROM_LOAD( "27_27c010.u86",  0x000000, 0x20000, CRC(a463422a) SHA1(a3b6efd1c57b0a3b0ce4ce734a9a9b79540c4136) )

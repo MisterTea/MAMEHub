@@ -30,7 +30,7 @@
 
     - Add the sh2 in Gunmen Wars (no rom, controls the camera)
 
-    - Super System 23 tests irqs in the post.  timecrs2c's code can
+    - Super System 23 tests irqs in the post.  timecrs2v4a's code can
     potentially test 7 sources, but only actually test 5.  With each
     source there is code to clear the interrupt and code to raise it.
     Levels 0 and 1 are not connected to anything according to the code.
@@ -67,11 +67,11 @@
                a6400006.h = fffb
                a6400006.h = 0
 
-      RS323  (level 6, not tested by timecrs2c):
+      RS323  (level 6, not tested by timecrs2v4a):
         clear: nothing
         raise: nothing
 
-      Timer  (level 7, not tested by timecrs2c):
+      Timer  (level 7, not tested by timecrs2v4a):
         clear: c0.Compare = 10d880
         raise: c0.Count   = 10c8e0
                c0.Compare = 10d880
@@ -79,7 +79,7 @@
 
 /*
 
-Namco System 23 and Super System 23 Hardware Overview (last updated 12th December 2010 at 2.56pm)
+Namco System 23 and Super System 23 Hardware Overview (last updated 7th April 2013 at 12.49am)
 Namco, 1997 - 2000
 
 Note! This document is a Work-In-Progress and will be updated from time to time when more games are available.
@@ -91,7 +91,7 @@ Motocross Go!     Namco, 1997    System 23
 Time Crisis II    Namco, 1997    System 23 and Super System 23
 Downhill Bikers   Namco, 1997    System 23
 Panic Park        Namco, 1998    System 23
-*Angler King      Namco, 1999    System 23
+Angler King       Namco, 1998    Super System 23
 Gunmen Wars       Namco, 1998    Super System 23
 Race On!          Namco, 1998    Super System 23
 500 GP            Namco, 1998    Super System 23
@@ -99,8 +99,7 @@ Final Furlong 2   Namco, 1999    Super System 23
 *Guitar Jam       Namco, 1999    Super System 23
 Crisis Zone       Namco, 2000    System 23 Evolution 2
 
-* - denotes not dumped yet (and hardware type not confirmed, they might not be on System 23 hardware).
-If you can help with the remaining undumped S22.5/S23/SS23 games, please contact me at http://guru.mameworld.info/
+* - Guitar Jam is not dumped yet and the hardware type is not confirmed. It might not be on System 23 hardware.
 
 A System 23 unit is comprised of some of the following pieces....
 - V185B EMI PCB                    Small PCB bolted to the metal box with several connectors including power in, video out, network in/out, sound out
@@ -647,6 +646,7 @@ Notes:
 
       Game             Code and revision
       ----------------------------------
+      Angler King      AG1  Ver.A (for Super System 23)
       GP500            5GP3 Ver.C (for Super System 23)
       Time Crisis 2    TSS4 Ver.A (for Super System 23)
       Final Furlong 2  FFS1 Ver.? (for Super System 23)
@@ -686,6 +686,8 @@ Sticker (500GP)           - 8672961100
 Sticker (Time Crisis 2)   - 8660962302
 Sticker (Crisis Zone)     - 8672961100 .... same as 500GP
 Sticker (Race On!)        - 8672961100 .... same as 500GP
+Sticker (Angler King)     - 8672961100 .... same as 500GP
+
 |----------------------------------------------------------------------------|
 | KEYCUS    MTBH.2M      CGLL.4M        CGLL.5M         CCRL.7M       PAL(3) |
 |                                                                            |
@@ -742,11 +744,12 @@ Notes:
             Game            Code     Keycus    Notes
             -----------------------------------------------------------------------
             500GP           5GP1     KC029     -
+            Angler King     AG1      KC028     -
             Crisis Zone     CSZ1     KC039     -
             Downhill Bikers DH1      KC016     3A, 3C, 2M and 2F not populated.
             Final Furlong 2 FFS1     KC???     -
             Gunmen Wars     GM1      KC018     3A, 3C, 4A, 4C, 2A, 2F and 2M not populated.
-            Motocross Go!   MG1      KC???     3A, 3C, 4A, 4C, 4F and 7F not populated.
+            Motocross Go!   MG1      KC009     3A, 3C, 4A, 4C, 4F and 7F not populated.
             Panic Park      PNP1     KC015     3A, 3C, 4A, 4C, 2M and 2F not populated.
             Race On!        RO1      KC017     2M and 2F not populated.
             Time Crisis 2   TSS1     KC010     3A and 3C not populated.
@@ -755,7 +758,7 @@ I/O PCBs
 --------
 
 FCA PCB  8662969102 (8662979102)
-(Used with 500GP so far. Another identical board is used with Ridge Racer V on System 246)
+(Used with 500GP and Angler King. Another identical board is used with Ridge Racer V on System 246)
 |---------------------------------------------------|
 | J101                J106                          |
 |            4.9152MHz                              |
@@ -776,10 +779,10 @@ Notes:
       JP1      - 3 pin jumper, set to 'NORM'. Alt setting 'WR'
       3771     - Fujitsu MB3771 System Reset IC (SOIC8)
       PIC16F84 - Microchip PIC16F84 PIC (SOIC20)
-                  - For 500GP stamped 'CAP10'
+                  - For 500GP and Angler King stamped 'CAP10'
                   - For Ridge Racer V (on System 246) stamped 'CAP11'
       MCU      - Fujitsu MB90F574 Microcontroller (QFP120)
-                  - For 500 GP stamped 'FCAF10'
+                  - For 500 GP and Angler King stamped 'FCAF10'
                   - For Ridge Racer V (on System 246) stamped 'FCAF11'
       ADM485   - Analog Devices ADM485 +5V Low Power EIA RS-485 Transceiver (SOIC8)
 
@@ -1486,16 +1489,37 @@ public:
 	UINT32 screen_update_s23(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(s23_interrupt);
 	TIMER_CALLBACK_MEMBER(c361_timer_cb);
+	UINT8 nthbyte(const UINT32 *pSource, int offs);
+	UINT16 nthword(const UINT32 *pSource, int offs);
+	inline INT32 u32_to_s24(UINT32 v);
+	inline INT32 u32_to_s10(UINT32 v);
+	INT32 *p3d_getv(UINT16 id);
+	INT16 *p3d_getm(UINT16 id);
+	void p3d_matrix_set(const UINT16 *p, int size);
+	void p3d_vector_set(const UINT16 *p, int size);
+	void p3d_scaling_set(const UINT16 *p, int size);
+	void p3d_vector_matrix_mul(const UINT16 *p, int size);
+	void p3d_matrix_vector_mul(const UINT16 *p, int size);
+	void p3d_matrix_matrix_mul(const UINT16 *p, int size);
+	void p3d_render(const UINT16 *p, int size, bool use_scaling);
+	void p3d_flush(const UINT16 *p, int size);
+	void p3d_dma(address_space &space, UINT32 adr, UINT32 size);
+	void render_apply_transform(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, poly_vertex &pv);
+	void render_apply_matrot(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, INT32 &x, INT32 &y, INT32 &z);
+	void render_project(poly_vertex &pv);
+	void render_one_model(const namcos23_render_entry *re);
+	void render_flush(bitmap_rgb32 &bitmap);
+	void render_run(bitmap_rgb32 &bitmap);
 };
 
 
-static UINT8 nthbyte(const UINT32 *pSource, int offs)
+UINT8 namcos23_state::nthbyte(const UINT32 *pSource, int offs)
 {
 	pSource += offs/4;
 	return (pSource[0]<<((offs&3)*8))>>24;
 }
 
-static UINT16 nthword(const UINT32 *pSource, int offs)
+UINT16 namcos23_state::nthword(const UINT32 *pSource, int offs)
 {
 	pSource += offs/2;
 	return (pSource[0]<<((offs&1)*16))>>16;
@@ -1513,12 +1537,12 @@ static UINT16 nthword(const UINT32 *pSource, int offs)
 
 // 3D hardware, to throw at least in part in video/namcos23.c
 
-INLINE INT32 u32_to_s24(UINT32 v)
+inline INT32 namcos23_state::u32_to_s24(UINT32 v)
 {
 	return v & 0x800000 ? v | 0xff000000 : v & 0xffffff;
 }
 
-INLINE INT32 u32_to_s10(UINT32 v)
+inline INT32 namcos23_state::u32_to_s10(UINT32 v)
 {
 	return v & 0x200 ? v | 0xfffffe00 : v & 0x1ff;
 }
@@ -1533,48 +1557,48 @@ INLINE UINT8 light(UINT8 c, float l)
 	return UINT8(l);
 }
 
-static INT32 *p3d_getv(namcos23_state *state, UINT16 id)
+INT32 *namcos23_state::p3d_getv(UINT16 id)
 {
 	if(id == 0x8000)
-		return state->m_light_vector;
+		return m_light_vector;
 	if(id >= 0x100)
 	{
-		memset(state->m_spv, 0, sizeof(state->m_spv));
-		return state->m_spv;
+		memset(m_spv, 0, sizeof(m_spv));
+		return m_spv;
 	}
-	return state->m_vectors[id];
+	return m_vectors[id];
 }
 
-static INT16 *p3d_getm(namcos23_state *state, UINT16 id)
+INT16 *namcos23_state::p3d_getm(UINT16 id)
 {
 	if(id >= 0x100)
 	{
-		memset(state->m_spm, 0, sizeof(state->m_spm));
-		return state->m_spm;
+		memset(m_spm, 0, sizeof(m_spm));
+		return m_spm;
 	}
-	return state->m_matrices[id];
+	return m_matrices[id];
 }
 
-static void p3d_matrix_set(namcos23_state *state, const UINT16 *p, int size)
+void namcos23_state::p3d_matrix_set(const UINT16 *p, int size)
 {
 	if(size != 10)
 	{
 		logerror("WARNING: p3d_matrix_set with size %d\n", size);
 		return;
 	}
-	INT16 *t = p3d_getm(state, *p++);
+	INT16 *t = p3d_getm(*p++);
 	for(int i=0; i<9; i++)
 		t[i] = *p++;
 }
 
-static void p3d_vector_set(namcos23_state *state, const UINT16 *p, int size)
+void namcos23_state::p3d_vector_set(const UINT16 *p, int size)
 {
 	if(size != 7)
 	{
 		logerror("WARNING: p3d_vector_set with size %d\n", size);
 		return;
 	}
-	INT32 *t = p3d_getv(state, *p++);
+	INT32 *t = p3d_getv(*p++);
 	for(int i=0; i<3; i++)
 	{
 		t[i] = u32_to_s24((p[0] << 16) | p[1]);
@@ -1583,17 +1607,17 @@ static void p3d_vector_set(namcos23_state *state, const UINT16 *p, int size)
 }
 
 
-static void p3d_scaling_set(namcos23_state *state, const UINT16 *p, int size)
+void namcos23_state::p3d_scaling_set(const UINT16 *p, int size)
 {
 	if(size != 1)
 	{
 		logerror("WARNING: p3d_scaling_set with size %d\n", size);
 		return;
 	}
-	state->m_scaling = *p;
+	m_scaling = *p;
 }
 
-static void p3d_vector_matrix_mul(namcos23_state *state, const UINT16 *p, int size)
+void namcos23_state::p3d_vector_matrix_mul(const UINT16 *p, int size)
 {
 	if(size != 4)
 	{
@@ -1603,16 +1627,16 @@ static void p3d_vector_matrix_mul(namcos23_state *state, const UINT16 *p, int si
 	if(p[2] != 0xffff)
 		logerror("WARNING: p3d_vector_matrix_mul with +2=%04x\n", p[2]);
 
-	INT32 *t       = p3d_getv(state, p[0]);
-	const INT16 *m = p3d_getm(state, p[1]);
-	const INT32 *v = p3d_getv(state, p[3]);
+	INT32 *t       = p3d_getv(p[0]);
+	const INT16 *m = p3d_getm(p[1]);
+	const INT32 *v = p3d_getv(p[3]);
 
 	t[0] = INT32((m[0]*INT64(v[0]) + m[3]*INT64(v[1]) + m[6]*INT64(v[2])) >> 14);
 	t[1] = INT32((m[1]*INT64(v[0]) + m[4]*INT64(v[1]) + m[7]*INT64(v[2])) >> 14);
 	t[2] = INT32((m[2]*INT64(v[0]) + m[5]*INT64(v[1]) + m[8]*INT64(v[2])) >> 14);
 }
 
-static void p3d_matrix_vector_mul(namcos23_state *state, const UINT16 *p, int size)
+void namcos23_state::p3d_matrix_vector_mul(const UINT16 *p, int size)
 {
 	if(size != 4)
 	{
@@ -1622,9 +1646,9 @@ static void p3d_matrix_vector_mul(namcos23_state *state, const UINT16 *p, int si
 	if(p[2] != 0xffff)
 		logerror("WARNING: p3d_matrix_vector_mul with +2=%04x\n", p[2]);
 
-	INT32 *t       = p3d_getv(state, p[0]);
-	const INT16 *m = p3d_getm(state, p[1]);
-	const INT32 *v = p3d_getv(state, p[3]);
+	INT32 *t       = p3d_getv(p[0]);
+	const INT16 *m = p3d_getm(p[1]);
+	const INT32 *v = p3d_getv(p[3]);
 
 	t[0] = INT32((m[0]*INT64(v[0]) + m[1]*INT64(v[1]) + m[2]*INT64(v[2])) >> 14);
 	t[1] = INT32((m[3]*INT64(v[0]) + m[4]*INT64(v[1]) + m[7]*INT64(v[2])) >> 14);
@@ -1632,7 +1656,7 @@ static void p3d_matrix_vector_mul(namcos23_state *state, const UINT16 *p, int si
 }
 
 
-static void p3d_matrix_matrix_mul(namcos23_state *state, const UINT16 *p, int size)
+void namcos23_state::p3d_matrix_matrix_mul(const UINT16 *p, int size)
 {
 	if(size != 4)
 	{
@@ -1642,9 +1666,9 @@ static void p3d_matrix_matrix_mul(namcos23_state *state, const UINT16 *p, int si
 	if(p[2] != 0xffff)
 		logerror("WARNING: p3d_matrix_matrix_mul with +2=%04x\n", p[2]);
 
-	INT16 *t        = p3d_getm(state, p[0]);
-	const INT16 *m1 = p3d_getm(state, p[1]);
-	const INT16 *m2 = p3d_getm(state, p[3]);
+	INT16 *t        = p3d_getm(p[0]);
+	const INT16 *m1 = p3d_getm(p[1]);
+	const INT16 *m2 = p3d_getm(p[3]);
 
 	t[0] = INT16((m1[0]*m2[0] + m1[1]*m2[3] + m1[2]*m2[6]) >> 14);
 	t[1] = INT16((m1[0]*m2[1] + m1[1]*m2[4] + m1[2]*m2[7]) >> 14);
@@ -1658,9 +1682,9 @@ static void p3d_matrix_matrix_mul(namcos23_state *state, const UINT16 *p, int si
 }
 
 
-static void p3d_render(namcos23_state *state, const UINT16 *p, int size, bool use_scaling)
+void namcos23_state::p3d_render(const UINT16 *p, int size, bool use_scaling)
 {
-	render_t &render = state->m_render;
+	render_t &render = m_render;
 
 	if(size != 3)
 	{
@@ -1677,13 +1701,13 @@ static void p3d_render(namcos23_state *state, const UINT16 *p, int size, bool us
 	}
 
 	// Vector and matrix may be inverted
-	const INT16 *m = p3d_getm(state, p[1]);
-	const INT32 *v = p3d_getv(state, p[2]);
+	const INT16 *m = p3d_getm(p[1]);
+	const INT32 *v = p3d_getv(p[2]);
 
 	namcos23_render_entry *re = render.entries[render.cur] + render.count[render.cur];
 	re->type = MODEL;
 	re->model.model = p[0];
-	re->model.scaling = use_scaling ? state->m_scaling / 16384.0 : 1.0;
+	re->model.scaling = use_scaling ? m_scaling / 16384.0 : 1.0;
 	memcpy(re->model.m, m, sizeof(re->model.m));
 	memcpy(re->model.v, v, sizeof(re->model.v));
 	if(0)
@@ -1698,9 +1722,9 @@ static void p3d_render(namcos23_state *state, const UINT16 *p, int size, bool us
 }
 
 
-static void p3d_flush(namcos23_state *state, const UINT16 *p, int size)
+void namcos23_state::p3d_flush(const UINT16 *p, int size)
 {
-	render_t &render = state->m_render;
+	render_t &render = m_render;
 
 	if(size != 0)
 	{
@@ -1713,9 +1737,8 @@ static void p3d_flush(namcos23_state *state, const UINT16 *p, int size)
 	render.count[render.cur]++;
 }
 
-static void p3d_dma(address_space &space, UINT32 adr, UINT32 size)
+void namcos23_state::p3d_dma(address_space &space, UINT32 adr, UINT32 size)
 {
-	namcos23_state *state = space.machine().driver_data<namcos23_state>();
 	UINT16 buffer[256];
 	adr &= 0x1fffffff;
 	int pos = 0;
@@ -1753,15 +1776,15 @@ static void p3d_dma(address_space &space, UINT32 adr, UINT32 size)
 
 		switch(h1)
 		{
-			case 0x0040: p3d_matrix_set(state, buffer, psize); break;
-			case 0x0050: p3d_vector_set(state, buffer, psize); break;
-			case 0x0000: p3d_matrix_matrix_mul(state, buffer, psize); break;
-			case 0x0810: p3d_matrix_vector_mul(state, buffer, psize); break;
-			case 0x1010: p3d_vector_matrix_mul(state, buffer, psize); break;
-			case 0x4400: p3d_scaling_set(state, buffer, psize); break;
-			case 0x8000: p3d_render(state, buffer, psize, false); break;
-			case 0x8080: p3d_render(state, buffer, psize, true); break;
-			case 0xc000: p3d_flush(state, buffer, psize); break;
+			case 0x0040: p3d_matrix_set(buffer, psize); break;
+			case 0x0050: p3d_vector_set(buffer, psize); break;
+			case 0x0000: p3d_matrix_matrix_mul(buffer, psize); break;
+			case 0x0810: p3d_matrix_vector_mul(buffer, psize); break;
+			case 0x1010: p3d_vector_matrix_mul(buffer, psize); break;
+			case 0x4400: p3d_scaling_set(buffer, psize); break;
+			case 0x8000: p3d_render(buffer, psize, false); break;
+			case 0x8080: p3d_render(buffer, psize, true); break;
+			case 0xc000: p3d_flush(buffer, psize); break;
 			default:
 				if(0)
 				{
@@ -1840,21 +1863,21 @@ static void render_scanline(void *dest, INT32 scanline, const poly_extent *exten
 	}
 }
 
-static void render_apply_transform(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, poly_vertex &pv)
+void namcos23_state::render_apply_transform(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, poly_vertex &pv)
 {
 	pv.x =    (INT32((re->model.m[0]*INT64(xi) + re->model.m[3]*INT64(yi) + re->model.m[6]*INT64(zi)) >> 14)*re->model.scaling + re->model.v[0])/16384.0;
 	pv.y =    (INT32((re->model.m[1]*INT64(xi) + re->model.m[4]*INT64(yi) + re->model.m[7]*INT64(zi)) >> 14)*re->model.scaling + re->model.v[1])/16384.0;
 	pv.p[0] = (INT32((re->model.m[2]*INT64(xi) + re->model.m[5]*INT64(yi) + re->model.m[8]*INT64(zi)) >> 14)*re->model.scaling + re->model.v[2])/16384.0;
 }
 
-static void render_apply_matrot(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, INT32 &x, INT32 &y, INT32 &z)
+void namcos23_state::render_apply_matrot(INT32 xi, INT32 yi, INT32 zi, const namcos23_render_entry *re, INT32 &x, INT32 &y, INT32 &z)
 {
 	x = (re->model.m[0]*xi + re->model.m[3]*yi + re->model.m[6]*zi) >> 14;
 	y = (re->model.m[1]*xi + re->model.m[4]*yi + re->model.m[7]*zi) >> 14;
 	z = (re->model.m[2]*xi + re->model.m[5]*yi + re->model.m[8]*zi) >> 14;
 }
 
-static void render_project(poly_vertex &pv)
+void namcos23_state::render_project(poly_vertex &pv)
 {
 	// 768 validated by the title screen size on tc2:
 	// texture is 640x480, x range is 3.125, y range is 2.34375, z is 3.75
@@ -1886,23 +1909,22 @@ static UINT32 render_texture_lookup_nocache_point(running_machine &machine, cons
 	return pens[color];
 }
 
-static void render_one_model(running_machine &machine, const namcos23_render_entry *re)
+void namcos23_state::render_one_model(const namcos23_render_entry *re)
 {
-	namcos23_state *state = machine.driver_data<namcos23_state>();
-	render_t &render = state->m_render;
-	UINT32 adr = state->m_ptrom[re->model.model];
-	if(adr >= state->m_ptrom_limit)
+	render_t &render = m_render;
+	UINT32 adr = m_ptrom[re->model.model];
+	if(adr >= m_ptrom_limit)
 	{
 		logerror("WARNING: model %04x base address %08x out-of-bounds - pointram?\n", re->model.model, adr);
 		return;
 	}
 
-	while(adr < state->m_ptrom_limit)
+	while(adr < m_ptrom_limit)
 	{
 		poly_vertex pv[15];
 
-		UINT32 type = state->m_ptrom[adr++];
-		UINT32 h    = state->m_ptrom[adr++];
+		UINT32 type = m_ptrom[adr++];
+		UINT32 h    = m_ptrom[adr++];
 
 
 		float tbase = (type >> 24) << 12;
@@ -1923,16 +1945,16 @@ static void render_one_model(running_machine &machine, const namcos23_render_ent
 			adr += ne;
 		}
 		else
-			light = state->m_ptrom[adr++];
+			light = m_ptrom[adr++];
 
 		float minz = FLT_MAX;
 		float maxz = FLT_MIN;
 
 		for(int i=0; i<ne; i++)
 		{
-			UINT32 v1 = state->m_ptrom[adr++];
-			UINT32 v2 = state->m_ptrom[adr++];
-			UINT32 v3 = state->m_ptrom[adr++];
+			UINT32 v1 = m_ptrom[adr++];
+			UINT32 v2 = m_ptrom[adr++];
+			UINT32 v3 = m_ptrom[adr++];
 
 			render_apply_transform(u32_to_s24(v1), u32_to_s24(v2), u32_to_s24(v3), re, pv[i]);
 			pv[i].p[1] = (((v1 >> 20) & 0xf00) | ((v2 >> 24 & 0xff))) + 0.5;
@@ -1953,14 +1975,14 @@ static void render_one_model(running_machine &machine, const namcos23_render_ent
 				break;
 			case 3:
 			{
-				UINT32 norm = state->m_ptrom[extptr++];
+				UINT32 norm = m_ptrom[extptr++];
 				INT32 nx = u32_to_s10(norm >> 20);
 				INT32 ny = u32_to_s10(norm >> 10);
 				INT32 nz = u32_to_s10(norm);
 				INT32 nrx, nry, nrz;
 				render_apply_matrot(nx, ny, nz, re, nrx, nry, nrz);
 
-				float lsi = float(nrx*state->m_light_vector[0] + nry*state->m_light_vector[1] + nrz*state->m_light_vector[2])/4194304.0;
+				float lsi = float(nrx*m_light_vector[0] + nry*m_light_vector[1] + nrz*m_light_vector[2])/4194304.0;
 				if(lsi < 0)
 					lsi = 0;
 
@@ -1987,9 +2009,9 @@ static void render_one_model(running_machine &machine, const namcos23_render_ent
 			}
 			p->zkey = 0.5*(minz+maxz);
 			p->front = !(h & 0x00000001);
-			p->rd.machine = &machine;
+			p->rd.machine = &machine();
 			p->rd.texture_lookup = render_texture_lookup_nocache_point;
-			p->rd.pens = machine.pens + (color << 8);
+			p->rd.pens = machine().pens + (color << 8);
 			render.poly_count++;
 		}
 
@@ -2009,10 +2031,9 @@ static int render_poly_compare(const void *i1, const void *i2)
 	return p1->zkey < p2->zkey ? 1 : p1->zkey > p2->zkey ? -1 : 0;
 }
 
-static void render_flush(running_machine &machine, bitmap_rgb32 &bitmap)
+void namcos23_state::render_flush(bitmap_rgb32 &bitmap)
 {
-	namcos23_state *state = machine.driver_data<namcos23_state>();
-	render_t &render = state->m_render;
+	render_t &render = m_render;
 
 	if(!render.poly_count)
 		return;
@@ -2034,10 +2055,9 @@ static void render_flush(running_machine &machine, bitmap_rgb32 &bitmap)
 	render.poly_count = 0;
 }
 
-static void render_run(running_machine &machine, bitmap_rgb32 &bitmap)
+void namcos23_state::render_run(bitmap_rgb32 &bitmap)
 {
-	namcos23_state *state = machine.driver_data<namcos23_state>();
-	render_t &render = state->m_render;
+	render_t &render = m_render;
 	const namcos23_render_entry *re = render.entries[!render.cur];
 
 	render.poly_count = 0;
@@ -2046,15 +2066,15 @@ static void render_run(running_machine &machine, bitmap_rgb32 &bitmap)
 		switch(re->type)
 		{
 		case MODEL:
-			render_one_model(machine, re);
+			render_one_model(re);
 			break;
 		case FLUSH:
-			render_flush(machine, bitmap);
+			render_flush(bitmap);
 			break;
 		}
 		re++;
 	}
-	render_flush(machine, bitmap);
+	render_flush(bitmap);
 
 	poly_wait(render.polymgr, "render_run");
 }
@@ -2138,7 +2158,7 @@ UINT32 namcos23_state::screen_update_s23(screen_device &screen, bitmap_rgb32 &bi
 	update_mixer();
 	bitmap.fill(m_c404.bgcolor, cliprect);
 
-	render_run(machine(), bitmap);
+	render_run(bitmap);
 
 	m_bgtilemap->set_palette_offset(m_c404.palbase);
 	if (m_c404.layer & 4)
@@ -2207,7 +2227,7 @@ READ16_MEMBER(namcos23_state::s23_c417_r)
 {
 	switch (offset)
 	{
-		/* According to timecrs2c, +0 is the status word with bits being:
+		/* According to timecrs2v4a, +0 is the status word with bits being:
 		   15: test mode flag (huh?)
 		   10: fifo data ready
 		   9:  cmd ram data ready
@@ -3302,7 +3322,7 @@ void namcos23_state::machine_start()
 	m_c361.timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(namcos23_state::c361_timer_cb),this));
 	m_c361.timer->adjust(attotime::never);
 
-	mips3drc_add_fastram(m_maincpu, 0, m_mainram.bytes()-1, FALSE, reinterpret_cast<UINT32 *>(machine().root_device().memshare("mainram")->ptr()));
+	mips3drc_add_fastram(m_maincpu, 0, m_mainram.bytes()-1, FALSE, reinterpret_cast<UINT32 *>(memshare("mainram")->ptr()));
 }
 
 
@@ -3349,7 +3369,7 @@ DRIVER_INIT_MEMBER(namcos23_state,s23)
 	if ((!strcmp(machine().system().name, "motoxgo")) ||
 		(!strcmp(machine().system().name, "panicprk")) ||
 		(!strcmp(machine().system().name, "rapidrvr")) ||
-		(!strcmp(machine().system().name, "rapidrvr2")) ||
+		(!strcmp(machine().system().name, "rapidrvrv2c")) ||
 		(!strcmp(machine().system().name, "rapidrvrp")) ||
 		(!strcmp(machine().system().name, "finfurl")) ||
 		(!strcmp(machine().system().name, "gunwars")) ||
@@ -3358,10 +3378,12 @@ DRIVER_INIT_MEMBER(namcos23_state,s23)
 		(!strcmp(machine().system().name, "finfurl2j")) ||
 		(!strcmp(machine().system().name, "raceon")) ||
 		(!strcmp(machine().system().name, "crszone")) ||
-		(!strcmp(machine().system().name, "crszonea")) ||
-		(!strcmp(machine().system().name, "crszoneb")) ||
-		(!strcmp(machine().system().name, "crszonec")) ||
-		(!strcmp(machine().system().name, "timecrs2b")) ||
+		(!strcmp(machine().system().name, "crszonev4a")) ||
+		(!strcmp(machine().system().name, "crszonev3b")) ||
+		(!strcmp(machine().system().name, "crszonev3b2")) ||
+		(!strcmp(machine().system().name, "crszonev3a")) ||
+		(!strcmp(machine().system().name, "crszonev2a")) ||
+		(!strcmp(machine().system().name, "timecrs2v2b")) ||
 		(!strcmp(machine().system().name, "timecrs2")))
 	{
 		m_has_jvsio = 1;
@@ -3555,7 +3577,7 @@ static MACHINE_CONFIG_START( ss23, namcos23_state )
 	MCFG_SOUND_ROUTE(3, "lspeaker", 1.00)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( timecrs2c, ss23 )
+static MACHINE_CONFIG_DERIVED( timecrs2v4a, ss23 )
 
 	MCFG_CPU_MODIFY("subcpu")
 	MCFG_CPU_IO_MAP( s23h8iomap )
@@ -3641,7 +3663,7 @@ ROM_START( rapidrvr )
 ROM_END
 
 
-ROM_START( rapidrvr2 )
+ROM_START( rapidrvrv2c )
 	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
 	ROM_LOAD16_BYTE( "rd2verc.ic2",  0x000000, 0x200000, CRC(234fc2f4) SHA1(64374f4de19855f1980d8e088049b0c112107f43) )
 	ROM_LOAD16_BYTE( "rd2verc.ic1",  0x000001, 0x200000, CRC(651c5da4) SHA1(0e73e2cfafda626597d2ce08bf07458509fb79de) )
@@ -3866,10 +3888,106 @@ ROM_START( motoxgo )
 ROM_END
 
 
-ROM_START( motoxgoa )
+ROM_START( motoxgov2a )
 	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
 	ROM_LOAD16_BYTE( "mg2vera.ic2",  0x000000, 0x200000, CRC(66093336) SHA1(c87874245a70a1642fb9ecfc94cbbc89f0fd633f) )
 	ROM_LOAD16_BYTE( "mg2vera.ic1",  0x000001, 0x200000, CRC(3dc7736f) SHA1(c5137aa449918a124415f8ea5581e037f841129c) )
+
+	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
+	ROM_LOAD16_WORD_SWAP( "mg3vera.ic3",  0x000000, 0x080000, CRC(9e3d46a8) SHA1(9ffa5b91ea51cc0fb97def25ce47efa3441f3c6f) )
+
+	ROM_REGION( 0x40000, "iocpu", 0 )   /* I/O board HD643334 H8/3334 MCU code */
+	ROM_LOAD( "asca-3a.ic14", 0x000000, 0x040000, CRC(8e9266e5) SHA1(ffa8782ca641d71d57df23ed1c5911db05d3df97) )
+
+	ROM_REGION( 0x20000, "exioboard", 0 )   /* "extra" I/O board (uses Fujitsu MB90611A MCU) */
+	ROM_LOAD( "mg1prog0a.3a", 0x000000, 0x020000, CRC(b2b5be8f) SHA1(803652b7b8fde2196b7fb742ba8b9843e4fcd2de) )
+
+	ROM_REGION32_BE( 0x2000000, "data", ROMREGION_ERASEFF ) /* data roms */
+	ROM_LOAD16_BYTE( "mg1mtah.2j",   0x000000, 0x800000, CRC(845f4768) SHA1(9c03b1f6dcd9d1f43c2958d855221be7f9415c47) )
+	ROM_LOAD16_BYTE( "mg1mtal.2h",   0x000001, 0x800000, CRC(fdad0f0a) SHA1(420d50f012af40f80b196d3aae320376e6c32367) )
+
+	ROM_REGION( 0x2000000, "textile", ROMREGION_ERASEFF )   /* texture tiles */
+	ROM_LOAD( "mg1cgll.4m",   0x0000000, 0x800000, CRC(175dfe34) SHA1(66ae35b0084159aea1afeb1a6486fffa635992b5) )
+	ROM_LOAD( "mg1cglm.4k",   0x0800000, 0x800000, CRC(b3e648e7) SHA1(98018ae2276f905a7f74e1dab540a44247524436) )
+	ROM_LOAD( "mg1cgum.4j",   0x1000000, 0x800000, CRC(46a77d73) SHA1(132ce2452ee68ba374e98b59032ac0a1a277078d) )
+
+	ROM_REGION16_LE( 0x400000, "textilemapl", 0 )   /* texture tilemap 0-15 */
+	ROM_LOAD( "mg1ccrl.7f",   0x000000, 0x400000, CRC(5372e300) SHA1(63a49782289ed93a321ca7d193241fb83ca97e6b) )
+
+	ROM_REGION( 0x200000, "textilemaph", 0 )        /* texture tilemap 16-17 + attr */
+	ROM_LOAD( "mg1ccrh.7e",   0x000000, 0x200000, CRC(2e77597d) SHA1(58dd83c1b0c08115e728c5e7dea5e62135b821ba) )
+
+	ROM_REGION32_BE( 0x1000000, "pointrom", ROMREGION_ERASEFF ) /* 3D model data */
+	ROM_LOAD32_WORD( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
+	ROM_LOAD32_WORD( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
+	ROM_LOAD32_WORD( "mg1pt1l.5c",   0x800000, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
+	ROM_LOAD32_WORD( "mg1pt1h.5a",   0x800002, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+
+	ROM_REGION( 0x1000000, "c352", ROMREGION_ERASEFF ) /* C352 PCM samples */
+	ROM_LOAD( "mg1wavel.2c",  0x000000, 0x800000, CRC(f78b1b4d) SHA1(47cd654ec0a69de0dc81b8d83692eebf5611228b) )
+	ROM_LOAD( "mg1waveh.2a",  0x800000, 0x800000, CRC(8cb73877) SHA1(2e2b170c7ff889770c13b4ab7ac316b386ada153) )
+
+	ROM_REGION( 0x800000, "dups", 0 )   /* duplicate roms */
+	ROM_LOAD( "mg1cgll.5m",   0x000000, 0x800000, CRC(175dfe34) SHA1(66ae35b0084159aea1afeb1a6486fffa635992b5) )
+	ROM_LOAD( "mg1cglm.5k",   0x000000, 0x800000, CRC(b3e648e7) SHA1(98018ae2276f905a7f74e1dab540a44247524436) )
+	ROM_LOAD( "mg1cgum.5j",   0x000000, 0x800000, CRC(46a77d73) SHA1(132ce2452ee68ba374e98b59032ac0a1a277078d) )
+	ROM_LOAD( "mg1ccrl.7m",   0x000000, 0x400000, CRC(5372e300) SHA1(63a49782289ed93a321ca7d193241fb83ca97e6b) )
+	ROM_LOAD( "mg1ccrh.7k",   0x400000, 0x200000, CRC(2e77597d) SHA1(58dd83c1b0c08115e728c5e7dea5e62135b821ba) )
+ROM_END
+
+
+ROM_START( motoxgov1a )
+	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
+	ROM_LOAD16_BYTE( "mg1vera.ic2",  0x000000, 0x200000, CRC(5ba13d9e) SHA1(7f6484df644772f2478155c05844532f8abbd196) )
+	ROM_LOAD16_BYTE( "mg1vera.ic1",  0x000001, 0x200000, CRC(6b2bda52) SHA1(922ea739c8a62c7147126bf20ed3ffe8faec8842) )
+
+	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
+	ROM_LOAD16_WORD_SWAP( "mg3vera.ic3",  0x000000, 0x080000, CRC(9e3d46a8) SHA1(9ffa5b91ea51cc0fb97def25ce47efa3441f3c6f) )
+
+	ROM_REGION( 0x40000, "iocpu", 0 )   /* I/O board HD643334 H8/3334 MCU code */
+	ROM_LOAD( "asca-3a.ic14", 0x000000, 0x040000, CRC(8e9266e5) SHA1(ffa8782ca641d71d57df23ed1c5911db05d3df97) )
+
+	ROM_REGION( 0x20000, "exioboard", 0 )   /* "extra" I/O board (uses Fujitsu MB90611A MCU) */
+	ROM_LOAD( "mg1prog0a.3a", 0x000000, 0x020000, CRC(b2b5be8f) SHA1(803652b7b8fde2196b7fb742ba8b9843e4fcd2de) )
+
+	ROM_REGION32_BE( 0x2000000, "data", ROMREGION_ERASEFF ) /* data roms */
+	ROM_LOAD16_BYTE( "mg1mtah.2j",   0x000000, 0x800000, CRC(845f4768) SHA1(9c03b1f6dcd9d1f43c2958d855221be7f9415c47) )
+	ROM_LOAD16_BYTE( "mg1mtal.2h",   0x000001, 0x800000, CRC(fdad0f0a) SHA1(420d50f012af40f80b196d3aae320376e6c32367) )
+
+	ROM_REGION( 0x2000000, "textile", ROMREGION_ERASEFF )   /* texture tiles */
+	ROM_LOAD( "mg1cgll.4m",   0x0000000, 0x800000, CRC(175dfe34) SHA1(66ae35b0084159aea1afeb1a6486fffa635992b5) )
+	ROM_LOAD( "mg1cglm.4k",   0x0800000, 0x800000, CRC(b3e648e7) SHA1(98018ae2276f905a7f74e1dab540a44247524436) )
+	ROM_LOAD( "mg1cgum.4j",   0x1000000, 0x800000, CRC(46a77d73) SHA1(132ce2452ee68ba374e98b59032ac0a1a277078d) )
+
+	ROM_REGION16_LE( 0x400000, "textilemapl", 0 )   /* texture tilemap 0-15 */
+	ROM_LOAD( "mg1ccrl.7f",   0x000000, 0x400000, CRC(5372e300) SHA1(63a49782289ed93a321ca7d193241fb83ca97e6b) )
+
+	ROM_REGION( 0x200000, "textilemaph", 0 )        /* texture tilemap 16-17 + attr */
+	ROM_LOAD( "mg1ccrh.7e",   0x000000, 0x200000, CRC(2e77597d) SHA1(58dd83c1b0c08115e728c5e7dea5e62135b821ba) )
+
+	ROM_REGION32_BE( 0x1000000, "pointrom", ROMREGION_ERASEFF ) /* 3D model data */
+	ROM_LOAD32_WORD( "mg1pt0h.7a",   0x000000, 0x400000, CRC(c9ba1b47) SHA1(42ec0638edb4c502ff0a340c4cf590bdd767cfe2) )
+	ROM_LOAD32_WORD( "mg1pt0l.7c",   0x000002, 0x400000, CRC(3b9e95d3) SHA1(d7823ed6c590669ccd4098ed439599a3eb814ed1) )
+	ROM_LOAD32_WORD( "mg1pt1l.5c",   0x800000, 0x400000, CRC(0dd2f358) SHA1(3537e6be3fec9fec8d5a8dd02d9cf67b3805f8f0) )
+	ROM_LOAD32_WORD( "mg1pt1h.5a",   0x800002, 0x400000, CRC(8d4f7097) SHA1(004e9ed0b5d6ce83ffadb9bd429fa7560abdb598) )
+
+	ROM_REGION( 0x1000000, "c352", ROMREGION_ERASEFF ) /* C352 PCM samples */
+	ROM_LOAD( "mg1wavel.2c",  0x000000, 0x800000, CRC(f78b1b4d) SHA1(47cd654ec0a69de0dc81b8d83692eebf5611228b) )
+	ROM_LOAD( "mg1waveh.2a",  0x800000, 0x800000, CRC(8cb73877) SHA1(2e2b170c7ff889770c13b4ab7ac316b386ada153) )
+
+	ROM_REGION( 0x800000, "dups", 0 )   /* duplicate roms */
+	ROM_LOAD( "mg1cgll.5m",   0x000000, 0x800000, CRC(175dfe34) SHA1(66ae35b0084159aea1afeb1a6486fffa635992b5) )
+	ROM_LOAD( "mg1cglm.5k",   0x000000, 0x800000, CRC(b3e648e7) SHA1(98018ae2276f905a7f74e1dab540a44247524436) )
+	ROM_LOAD( "mg1cgum.5j",   0x000000, 0x800000, CRC(46a77d73) SHA1(132ce2452ee68ba374e98b59032ac0a1a277078d) )
+	ROM_LOAD( "mg1ccrl.7m",   0x000000, 0x400000, CRC(5372e300) SHA1(63a49782289ed93a321ca7d193241fb83ca97e6b) )
+	ROM_LOAD( "mg1ccrh.7k",   0x400000, 0x200000, CRC(2e77597d) SHA1(58dd83c1b0c08115e728c5e7dea5e62135b821ba) )
+ROM_END
+
+
+ROM_START( motoxgov1a2 )
+	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
+	ROM_LOAD16_BYTE( "mg1vera1.ic2",  0x000000, 0x200000, CRC(532ec687) SHA1(1e822b9afa00a897c0ad2341e33ebc93962a8244) )
+	ROM_LOAD16_BYTE( "mg1vera1.ic1",  0x000001, 0x200000, CRC(3154b80a) SHA1(ecec56dfd594f5fc651478fa3ae8963182cb94c3) )
 
 	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
 	ROM_LOAD16_WORD_SWAP( "mg3vera.ic3",  0x000000, 0x080000, CRC(9e3d46a8) SHA1(9ffa5b91ea51cc0fb97def25ce47efa3441f3c6f) )
@@ -3957,7 +4075,7 @@ ROM_START( timecrs2 )
 ROM_END
 
 
-ROM_START( timecrs2b )
+ROM_START( timecrs2v2b )
 	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
 	ROM_LOAD16_BYTE( "tss2verb.ic2", 0x000000, 0x200000, BAD_DUMP CRC(9f56a4df) SHA1(5ecb3cd93726ab6be02762853fd6a45266d6c0bc) )
 	ROM_LOAD16_BYTE( "tss2verb.ic1", 0x000001, 0x200000, BAD_DUMP CRC(aa147f71) SHA1(e00267d1a8286942c83dc35289ad65bd3cb6d8db) )
@@ -4000,7 +4118,7 @@ ROM_START( timecrs2b )
 ROM_END
 
 
-ROM_START( timecrs2c )
+ROM_START( timecrs2v4a )
 	ROM_REGION32_BE( 0x400000, "user1", 0 ) /* 4 megs for main R4650 code */
 	ROM_LOAD16_BYTE( "tss4vera.2",   0x000000, 0x200000, CRC(c84edd3b) SHA1(0b577a8ef6e74afa991dd81c2db19041787724da) )
 	ROM_LOAD16_BYTE( "tss4vera.1",   0x000001, 0x200000, CRC(26f57c83) SHA1(c8983c26b7524a35257a242b66a9413eb354ca0d) )
@@ -4378,7 +4496,6 @@ ROM_START( downhill )
 ROM_END
 
 
-// bfe4b800
 ROM_START( crszone )
 	ROM_REGION32_BE( 0x800000, "user1", 0 ) /* 4 megs for main R4650 code */
 	ROM_LOAD16_WORD_SWAP( "cszo4verb.ic4", 0x400000, 0x400000, CRC(6192533d) SHA1(d102b91fe193bf255ea4e57a2bd964aa1cdfd21d) )
@@ -4432,7 +4549,60 @@ ROM_START( crszone )
 ROM_END
 
 
-ROM_START( crszonea )
+ROM_START( crszonev4a )
+	ROM_REGION32_BE( 0x800000, "user1", 0 ) /* 4 megs for main R4650 code */
+	ROM_LOAD16_WORD_SWAP( "cszo4vera.ic4", 0x400000, 0x400000, CRC(cabee8c3) SHA1(4887b8550038c072f988c5999d57ec40e82e4072) )
+	ROM_CONTINUE( 0x000000, 0x400000 )
+
+	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
+	ROM_LOAD16_WORD_SWAP( "cszo3verb.ic1", 0x000000, 0x080000, CRC(c790743b) SHA1(5fa7b83a7a1b1105a3aa0870b782cf2741b7d11c) )
+
+	ROM_REGION( 0x40000, "iocpu", 0 )   /* I/O board HD643334 H8/3334 MCU code. "MIU-I/O;Ver2.05;JPN,GUN-EXTENTION" */
+	ROM_LOAD( "csz1prg0a.8f", 0x000000, 0x020000, CRC(8edc36b3) SHA1(b5df211988d856572fcc313480e693c8561784e4) )
+
+	ROM_REGION32_BE( 0x2000000, "data", 0 ) /* data roms */
+	ROM_LOAD16_BYTE( "csz1mtah.2j",  0x0000000, 0x800000, CRC(66b076ad) SHA1(edd32e0b380f01a9626d32f5eec860f841c8be8a) )
+	ROM_LOAD16_BYTE( "csz1mtal.2h",  0x0000001, 0x800000, CRC(38dc639a) SHA1(aa9b5b35174c1b007a57a4bd7a53bc3f479b5b71) )
+	ROM_LOAD16_BYTE( "csz1mtbh.2m",  0x1000000, 0x800000, CRC(bdec4188) SHA1(a098651fbd8a69a0afc17f4b6c93350926cacd6b) )
+	ROM_LOAD16_BYTE( "csz1mtbl.2f",  0x1000001, 0x800000, CRC(9c8f8d7a) SHA1(f61bcc9763df15428c82931a605ee40334d5ad98) )
+
+	ROM_REGION( 0x2000000, "textile", 0 )   /* texture tiles */
+	ROM_LOAD( "csz1cgll.4m",  0x0000000, 0x800000, CRC(0bcd41f2) SHA1(80b74f9398e8bd074f79a14490d06cfeb875c874) )
+	ROM_LOAD( "csz1cglm.4k",  0x0800000, 0x800000, CRC(d4af93d1) SHA1(0df37b793ce8da02d14f714722382786ae5d3ce2) )
+	ROM_LOAD( "csz1cgum.4j",  0x1000000, 0x800000, CRC(913c98b5) SHA1(b952dbc19053796077d4f33e8da836893e933b12) )
+	ROM_LOAD( "csz1cguu.5f",  0x1800000, 0x800000, CRC(e1d1bf24) SHA1(daf2c68e2d9a8f313d262d221cc990c93dfdf22f) )
+
+	ROM_REGION16_LE( 0x400000, "textilemapl", 0 )   /* texture tilemap 0-15 */
+	ROM_LOAD( "csz1ccrl.7f",  0x000000, 0x400000, CRC(1c20768d) SHA1(6cf4280e26f3625d6f750837bf344163e7e93c3d) )
+
+	ROM_REGION( 0x200000, "textilemaph", 0 )        /* texture tilemap 16-17 + attr */
+	ROM_LOAD( "csz1ccrh.7e",  0x000000, 0x200000, CRC(bc2fa03c) SHA1(e63d8e75494a383bf9a213edfa9c472a010f8efe) )
+
+	ROM_REGION32_BE( 0x2000000, "pointrom", 0 ) /* 3D model data */
+	ROM_LOAD32_WORD_SWAP( "csz1pt0h.7a",  0x0000000, 0x400000, CRC(e82f1abb) SHA1(b1c57152cc27835e06e429fd1659fe0973638142) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt0l.7c",  0x0000002, 0x400000, CRC(b0d66afe) SHA1(7cda4eebf1bb1191d17e4b5e616be2fbe4ae9328) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt1h.5a",  0x0800000, 0x400000, CRC(e54f80ad) SHA1(3b3fbb3001e630d800b02ec8e653d74878ac5116) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt1l.5c",  0x0800002, 0x400000, CRC(527171c8) SHA1(0b2ce3858f40bdedf1543309a6bc28d780415250) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt2h.4a",  0x1000000, 0x400000, CRC(e295137a) SHA1(37b18af1b3d9f0e69b45135f89b49a1ceec79127) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt2l.4c",  0x1000002, 0x400000, CRC(c87d6dbd) SHA1(686f39073c521d6b21ef8bc1161b41b680697c63) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt3h.3a",  0x1800000, 0x400000, CRC(05f65bdf) SHA1(0c349fe5381fe7aeb81f9365a2b44a212f6bd33e) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt3l.3c",  0x1800002, 0x400000, CRC(5d077c0f) SHA1(a4fd0167d89bf9417766405726e0334e7c7eaec3) )
+
+	ROM_REGION( 0x1000000, "c352", 0 ) /* C352 PCM samples */
+	ROM_LOAD( "csz1wavel.2c", 0x000000, 0x800000, CRC(d0d74132) SHA1(a293d93bca8e12e388a088a592cfa7bcb9a976f7) )
+	ROM_LOAD( "csz1waveh.2a", 0x800000, 0x800000, CRC(de9d14a8) SHA1(e5006861928bb1d29bf80c7304f1a6d044b094fd) )
+
+	ROM_REGION( 0x800000, "dups", 0 )   /* duplicate roms */
+	ROM_LOAD( "csz1cguu.4f",  0x000000, 0x800000, CRC(e1d1bf24) SHA1(daf2c68e2d9a8f313d262d221cc990c93dfdf22f) )
+	ROM_LOAD( "csz1cgum.5j",  0x000000, 0x800000, CRC(913c98b5) SHA1(b952dbc19053796077d4f33e8da836893e933b12) )
+	ROM_LOAD( "csz1cgll.5m",  0x000000, 0x800000, CRC(0bcd41f2) SHA1(80b74f9398e8bd074f79a14490d06cfeb875c874) )
+	ROM_LOAD( "csz1cglm.5k",  0x000000, 0x800000, CRC(d4af93d1) SHA1(0df37b793ce8da02d14f714722382786ae5d3ce2) )
+	ROM_LOAD( "csz1ccrl.7m",  0x000000, 0x400000, CRC(1c20768d) SHA1(6cf4280e26f3625d6f750837bf344163e7e93c3d) )
+	ROM_LOAD( "csz1ccrh.7k",  0x000000, 0x200000, CRC(bc2fa03c) SHA1(e63d8e75494a383bf9a213edfa9c472a010f8efe) )
+ROM_END
+
+
+ROM_START( crszonev3b )
 	ROM_REGION32_BE( 0x800000, "user1", 0 ) /* 4 megs for main R4650 code */
 	ROM_LOAD16_WORD_SWAP( "cszo3verb.ic4", 0x400000, 0x400000, CRC(4cb26465) SHA1(078dfd0d8c920707df14e9a26658fa63421fcb0b) )
 	ROM_CONTINUE( 0x000000, 0x400000 )
@@ -4485,7 +4655,60 @@ ROM_START( crszonea )
 ROM_END
 
 
-ROM_START( crszoneb )
+ROM_START( crszonev3b2 )
+	ROM_REGION32_BE( 0x800000, "user1", 0 ) /* 4 megs for main R4650 code */
+	ROM_LOAD16_WORD_SWAP( "cszo3verb.ic4", 0x400000, 0x400000, CRC(3755b402) SHA1(e169fded9d136af7ce6997868629eed5196b8cdd) )
+	ROM_CONTINUE( 0x000000, 0x400000 )
+
+	ROM_REGION( 0x80000, "subcpu", 0 )  /* Hitachi H8/3002 MCU code */
+	ROM_LOAD16_WORD_SWAP( "cszo3verb.ic1", 0x000000, 0x080000, CRC(c790743b) SHA1(5fa7b83a7a1b1105a3aa0870b782cf2741b7d11c) )
+
+	ROM_REGION( 0x40000, "iocpu", 0 )   /* I/O board HD643334 H8/3334 MCU code. "MIU-I/O;Ver2.05;JPN,GUN-EXTENTION" */
+	ROM_LOAD( "csz1prg0a.8f", 0x000000, 0x020000, CRC(8edc36b3) SHA1(b5df211988d856572fcc313480e693c8561784e4) )
+
+	ROM_REGION32_BE( 0x2000000, "data", 0 ) /* data roms */
+	ROM_LOAD16_BYTE( "csz1mtah.2j",  0x0000000, 0x800000, CRC(66b076ad) SHA1(edd32e0b380f01a9626d32f5eec860f841c8be8a) )
+	ROM_LOAD16_BYTE( "csz1mtal.2h",  0x0000001, 0x800000, CRC(38dc639a) SHA1(aa9b5b35174c1b007a57a4bd7a53bc3f479b5b71) )
+	ROM_LOAD16_BYTE( "csz1mtbh.2m",  0x1000000, 0x800000, CRC(bdec4188) SHA1(a098651fbd8a69a0afc17f4b6c93350926cacd6b) )
+	ROM_LOAD16_BYTE( "csz1mtbl.2f",  0x1000001, 0x800000, CRC(9c8f8d7a) SHA1(f61bcc9763df15428c82931a605ee40334d5ad98) )
+
+	ROM_REGION( 0x2000000, "textile", 0 )   /* texture tiles */
+	ROM_LOAD( "csz1cgll.4m",  0x0000000, 0x800000, CRC(0bcd41f2) SHA1(80b74f9398e8bd074f79a14490d06cfeb875c874) )
+	ROM_LOAD( "csz1cglm.4k",  0x0800000, 0x800000, CRC(d4af93d1) SHA1(0df37b793ce8da02d14f714722382786ae5d3ce2) )
+	ROM_LOAD( "csz1cgum.4j",  0x1000000, 0x800000, CRC(913c98b5) SHA1(b952dbc19053796077d4f33e8da836893e933b12) )
+	ROM_LOAD( "csz1cguu.5f",  0x1800000, 0x800000, CRC(e1d1bf24) SHA1(daf2c68e2d9a8f313d262d221cc990c93dfdf22f) )
+
+	ROM_REGION16_LE( 0x400000, "textilemapl", 0 )   /* texture tilemap 0-15 */
+	ROM_LOAD( "csz1ccrl.7f",  0x000000, 0x400000, CRC(1c20768d) SHA1(6cf4280e26f3625d6f750837bf344163e7e93c3d) )
+
+	ROM_REGION( 0x200000, "textilemaph", 0 )        /* texture tilemap 16-17 + attr */
+	ROM_LOAD( "csz1ccrh.7e",  0x000000, 0x200000, CRC(bc2fa03c) SHA1(e63d8e75494a383bf9a213edfa9c472a010f8efe) )
+
+	ROM_REGION32_BE( 0x2000000, "pointrom", 0 ) /* 3D model data */
+	ROM_LOAD32_WORD_SWAP( "csz1pt0h.7a",  0x0000000, 0x400000, CRC(e82f1abb) SHA1(b1c57152cc27835e06e429fd1659fe0973638142) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt0l.7c",  0x0000002, 0x400000, CRC(b0d66afe) SHA1(7cda4eebf1bb1191d17e4b5e616be2fbe4ae9328) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt1h.5a",  0x0800000, 0x400000, CRC(e54f80ad) SHA1(3b3fbb3001e630d800b02ec8e653d74878ac5116) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt1l.5c",  0x0800002, 0x400000, CRC(527171c8) SHA1(0b2ce3858f40bdedf1543309a6bc28d780415250) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt2h.4a",  0x1000000, 0x400000, CRC(e295137a) SHA1(37b18af1b3d9f0e69b45135f89b49a1ceec79127) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt2l.4c",  0x1000002, 0x400000, CRC(c87d6dbd) SHA1(686f39073c521d6b21ef8bc1161b41b680697c63) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt3h.3a",  0x1800000, 0x400000, CRC(05f65bdf) SHA1(0c349fe5381fe7aeb81f9365a2b44a212f6bd33e) )
+	ROM_LOAD32_WORD_SWAP( "csz1pt3l.3c",  0x1800002, 0x400000, CRC(5d077c0f) SHA1(a4fd0167d89bf9417766405726e0334e7c7eaec3) )
+
+	ROM_REGION( 0x1000000, "c352", 0 ) /* C352 PCM samples */
+	ROM_LOAD( "csz1wavel.2c", 0x000000, 0x800000, CRC(d0d74132) SHA1(a293d93bca8e12e388a088a592cfa7bcb9a976f7) )
+	ROM_LOAD( "csz1waveh.2a", 0x800000, 0x800000, CRC(de9d14a8) SHA1(e5006861928bb1d29bf80c7304f1a6d044b094fd) )
+
+	ROM_REGION( 0x800000, "dups", 0 )   /* duplicate roms */
+	ROM_LOAD( "csz1cguu.4f",  0x000000, 0x800000, CRC(e1d1bf24) SHA1(daf2c68e2d9a8f313d262d221cc990c93dfdf22f) )
+	ROM_LOAD( "csz1cgum.5j",  0x000000, 0x800000, CRC(913c98b5) SHA1(b952dbc19053796077d4f33e8da836893e933b12) )
+	ROM_LOAD( "csz1cgll.5m",  0x000000, 0x800000, CRC(0bcd41f2) SHA1(80b74f9398e8bd074f79a14490d06cfeb875c874) )
+	ROM_LOAD( "csz1cglm.5k",  0x000000, 0x800000, CRC(d4af93d1) SHA1(0df37b793ce8da02d14f714722382786ae5d3ce2) )
+	ROM_LOAD( "csz1ccrl.7m",  0x000000, 0x400000, CRC(1c20768d) SHA1(6cf4280e26f3625d6f750837bf344163e7e93c3d) )
+	ROM_LOAD( "csz1ccrh.7k",  0x000000, 0x200000, CRC(bc2fa03c) SHA1(e63d8e75494a383bf9a213edfa9c472a010f8efe) )
+ROM_END
+
+
+ROM_START( crszonev3a )
 	ROM_REGION32_BE( 0x800000, "user1", 0 ) /* 4 megs for main R4650 code */
 	ROM_LOAD16_WORD_SWAP( "cszo3vera.ic4", 0x400000, 0x400000, CRC(09b0c91e) SHA1(226c3788d6a50272e2544d04d9ca20df81014fb6) )
 	ROM_CONTINUE( 0x000000, 0x400000 )
@@ -4538,7 +4761,7 @@ ROM_START( crszoneb )
 ROM_END
 
 
-ROM_START( crszonec )
+ROM_START( crszonev2a )
 	ROM_REGION32_BE( 0x800000, "user1", 0 ) /* 4 megs for main R4650 code */
 	ROM_LOAD16_WORD_SWAP( "cszo2vera.ic4", 0x400000, 0x400000, CRC(1426d8d0) SHA1(e8049df1b2db1180f9edf6e5fa9fe8692ae81086) )
 	ROM_CONTINUE( 0x000000, 0x400000 )
@@ -4593,24 +4816,28 @@ ROM_END
 
 /* Games */
 #define GAME_FLAGS (GAME_NOT_WORKING | GAME_UNEMULATED_PROTECTION | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND)
-//    YEAR, NAME,      PARENT,   MACHINE,   INPUT,     INIT,                MNTR,  COMPANY, FULLNAME,                      FLAGS
-GAME( 1997, rapidrvr,  0,        gorgon,    rapidrvr,  namcos23_state, s23, ROT0, "Namco", "Rapid River (RD3 Ver. C)",     GAME_FLAGS ) // 97/11/27, USA
-GAME( 1997, rapidrvr2, rapidrvr, gorgon,    rapidrvr,  namcos23_state, s23, ROT0, "Namco", "Rapid River (RD2 Ver. C)",     GAME_FLAGS ) // 97/11/27, Europe
-GAME( 1997, rapidrvrp, rapidrvr, gorgon,    rapidrvrp, namcos23_state, s23, ROT0, "Namco", "Rapid River (prototype)",      GAME_FLAGS ) // 97/11/10, USA
-GAME( 1997, finfurl,   0,        gorgon,    finfurl,   namcos23_state, s23, ROT0, "Namco", "Final Furlong (FF2 Ver. A)",   GAME_FLAGS )
-GAME( 1997, downhill,  0,        s23,       s23,       namcos23_state, s23, ROT0, "Namco", "Downhill Bikers (DH3 Ver. A)", GAME_FLAGS )
-GAME( 1997, motoxgo,   0,        s23,       s23,       namcos23_state, s23, ROT0, "Namco", "Motocross Go! (MG3 Ver. A)",   GAME_FLAGS )
-GAME( 1997, motoxgoa,  motoxgo,  s23,       s23,       namcos23_state, s23, ROT0, "Namco", "Motocross Go! (MG2 Ver. A)",   GAME_FLAGS )
-GAME( 1997, timecrs2,  0,        timecrs2,  timecrs2,  namcos23_state, s23, ROT0, "Namco", "Time Crisis II (TSS3 Ver. B)", GAME_FLAGS )
-GAME( 1997, timecrs2b, timecrs2, timecrs2,  timecrs2,  namcos23_state, s23, ROT0, "Namco", "Time Crisis II (TSS2 Ver. B)", GAME_FLAGS )
-GAME( 1997, timecrs2c, timecrs2, timecrs2c, timecrs2,  namcos23_state, s23, ROT0, "Namco", "Time Crisis II (TSS4 Ver. A)", GAME_FLAGS )
-GAME( 1998, panicprk,  0,        s23,       s23,       namcos23_state, s23, ROT0, "Namco", "Panic Park (PNP2 Ver. A)",     GAME_FLAGS )
-GAME( 1998, gunwars,   0,        gmen,      s23,       namcos23_state, s23, ROT0, "Namco", "Gunmen Wars (GM1 Ver. A)",     GAME_FLAGS )
-GAME( 1998, raceon,    0,        gmen,      s23,       namcos23_state, s23, ROT0, "Namco", "Race On! (RO2 Ver. A)",        GAME_FLAGS )
-GAME( 1998, 500gp,     0,        ss23,      s23,       namcos23_state, s23, ROT0, "Namco", "500 GP (5GP3 Ver. C)",         GAME_FLAGS )
-GAME( 1999, finfurl2,  0,        gmen,      s23,       namcos23_state, s23, ROT0, "Namco", "Final Furlong 2 (World)",      GAME_FLAGS )
-GAME( 1999, finfurl2j, finfurl2, gmen,      s23,       namcos23_state, s23, ROT0, "Namco", "Final Furlong 2 (Japan)",      GAME_FLAGS )
-GAME( 2000, crszone,   0,        ss23e2,    s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO4 Ver. B)",   GAME_FLAGS )
-GAME( 2000, crszonea,  crszone,  ss23e2,    s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO3 Ver. B)",   GAME_FLAGS )
-GAME( 2000, crszoneb,  crszone,  ss23e2,    s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO3 Ver. A)",   GAME_FLAGS )
-GAME( 2000, crszonec,  crszone,  ss23e2,    s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO2 Ver. A)",   GAME_FLAGS )
+//    YEAR, NAME,        PARENT,   MACHINE,     INPUT,     INIT,                MNTR,  COMPANY, FULLNAME,                      FLAGS
+GAME( 1997, rapidrvr,    0,        gorgon,      rapidrvr,  namcos23_state, s23, ROT0, "Namco", "Rapid River (RD3 Ver. C)",     GAME_FLAGS ) // 97/11/27, USA
+GAME( 1997, rapidrvrv2c, rapidrvr, gorgon,      rapidrvr,  namcos23_state, s23, ROT0, "Namco", "Rapid River (RD2 Ver. C)",     GAME_FLAGS ) // 97/11/27, Europe
+GAME( 1997, rapidrvrp,   rapidrvr, gorgon,      rapidrvrp, namcos23_state, s23, ROT0, "Namco", "Rapid River (prototype)",      GAME_FLAGS ) // 97/11/10, USA
+GAME( 1997, finfurl,     0,        gorgon,      finfurl,   namcos23_state, s23, ROT0, "Namco", "Final Furlong (FF2 Ver. A)",   GAME_FLAGS )
+GAME( 1997, downhill,    0,        s23,         s23,       namcos23_state, s23, ROT0, "Namco", "Downhill Bikers (DH3 Ver. A)", GAME_FLAGS )
+GAME( 1997, motoxgo,     0,        s23,         s23,       namcos23_state, s23, ROT0, "Namco", "Motocross Go! (MG3 Ver. A)",   GAME_FLAGS )
+GAME( 1997, motoxgov2a,  motoxgo,  s23,         s23,       namcos23_state, s23, ROT0, "Namco", "Motocross Go! (MG2 Ver. A)",   GAME_FLAGS )
+GAME( 1997, motoxgov1a,  motoxgo,  s23,         s23,       namcos23_state, s23, ROT0, "Namco", "Motocross Go! (MG1 Ver. A, set 1)", GAME_FLAGS )
+GAME( 1997, motoxgov1a2, motoxgo,  s23,         s23,       namcos23_state, s23, ROT0, "Namco", "Motocross Go! (MG1 Ver. A, set 2)", GAME_FLAGS )
+GAME( 1997, timecrs2,    0,        timecrs2,    timecrs2,  namcos23_state, s23, ROT0, "Namco", "Time Crisis II (TSS3 Ver. B)", GAME_FLAGS )
+GAME( 1997, timecrs2v2b, timecrs2, timecrs2,    timecrs2,  namcos23_state, s23, ROT0, "Namco", "Time Crisis II (TSS2 Ver. B)", GAME_FLAGS )
+GAME( 1997, timecrs2v4a, timecrs2, timecrs2v4a, timecrs2,  namcos23_state, s23, ROT0, "Namco", "Time Crisis II (TSS4 Ver. A)", GAME_FLAGS )
+GAME( 1998, panicprk,    0,        s23,         s23,       namcos23_state, s23, ROT0, "Namco", "Panic Park (PNP2 Ver. A)",     GAME_FLAGS )
+GAME( 1998, gunwars,     0,        gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Gunmen Wars (GM1 Ver. A)",     GAME_FLAGS )
+GAME( 1998, raceon,      0,        gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Race On! (RO2 Ver. A)",        GAME_FLAGS )
+GAME( 1998, 500gp,       0,        ss23,        s23,       namcos23_state, s23, ROT0, "Namco", "500 GP (5GP3 Ver. C)",         GAME_FLAGS )
+GAME( 1999, finfurl2,    0,        gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Final Furlong 2 (World)",      GAME_FLAGS )
+GAME( 1999, finfurl2j,   finfurl2, gmen,        s23,       namcos23_state, s23, ROT0, "Namco", "Final Furlong 2 (Japan)",      GAME_FLAGS )
+GAME( 2000, crszone,     0,        ss23e2,      s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO4 Ver. B)",   GAME_FLAGS )
+GAME( 2000, crszonev4a,  crszone,  ss23e2,      s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO4 Ver. A)",   GAME_FLAGS )
+GAME( 2000, crszonev3b,  crszone,  ss23e2,      s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO3 Ver. B, set 1)", GAME_FLAGS )
+GAME( 2000, crszonev3b2, crszone,  ss23e2,      s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO3 Ver. B, set 2)", GAME_FLAGS )
+GAME( 2000, crszonev3a,  crszone,  ss23e2,      s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO3 Ver. A)",   GAME_FLAGS )
+GAME( 2000, crszonev2a,  crszone,  ss23e2,      s23,       namcos23_state, s23, ROT0, "Namco", "Crisis Zone (CSZO2 Ver. A)",   GAME_FLAGS )

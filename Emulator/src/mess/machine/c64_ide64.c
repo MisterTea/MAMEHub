@@ -49,7 +49,7 @@ static MACHINE_CONFIG_FRAGMENT( c64_ide64 )
 	MCFG_ATMEL_29C010_ADD(AT29C010A_TAG)
 	MCFG_DS1302_ADD(DS1302_TAG, XTAL_32_768kHz)
 
-	MCFG_IDE_CONTROLLER_ADD(IDE_TAG, ide_image_devices, "hdd", "hdd", false)
+	MCFG_IDE_CONTROLLER_ADD(IDE_TAG, ide_devices, "hdd", "hdd", false)
 MACHINE_CONFIG_END
 
 
@@ -96,11 +96,12 @@ ioport_constructor c64_ide64_cartridge_device::device_input_ports() const
 //-------------------------------------------------
 
 c64_ide64_cartridge_device::c64_ide64_cartridge_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, C64_IDE64, "C64 IDE64 cartridge", tag, owner, clock),
+	device_t(mconfig, C64_IDE64, "C64 IDE64 cartridge", tag, owner, clock, "c64_ide64", __FILE__),
 	device_c64_expansion_card_interface(mconfig, *this),
 	m_flash_rom(*this, AT29C010A_TAG),
 	m_rtc(*this, DS1302_TAG),
-	m_ide(*this, IDE_TAG)
+	m_ide(*this, IDE_TAG),
+	m_jp1(*this, "JP1")
 {
 }
 
@@ -131,7 +132,7 @@ void c64_ide64_cartridge_device::device_reset()
 
 	m_enable = 1;
 
-	m_wp = ioport("JP1")->read();
+	m_wp = m_jp1->read();
 	m_game = !m_wp;
 	m_exrom = !m_wp;
 }
@@ -178,9 +179,15 @@ UINT8 c64_ide64_cartridge_device::c64_cd_r(address_space &space, offs_t offset, 
 
 		UINT8 io1_offset = offset & 0xff;
 
-		if (io1_offset >= 0x20 && io1_offset < 0x30)
+		if (io1_offset >= 0x20 && io1_offset < 0x28)
 		{
-			m_ide_data = ide_bus_r(m_ide, BIT(offset, 3), offset & 0x07);
+			m_ide_data = m_ide->read_cs0(space, offset & 0x07, 0xffff);
+
+			data = m_ide_data & 0xff;
+		}
+		else if (io1_offset >= 0x28 && io1_offset < 0x30)
+		{
+			m_ide_data = m_ide->read_cs1(space, offset & 0x07, 0xffff);
 
 			data = m_ide_data & 0xff;
 		}
@@ -273,11 +280,17 @@ void c64_ide64_cartridge_device::c64_cd_w(address_space &space, offs_t offset, U
 
 		UINT8 io1_offset = offset & 0xff;
 
-		if (io1_offset >= 0x20 && io1_offset < 0x30)
+		if (io1_offset >= 0x20 && io1_offset < 0x28)
 		{
 			m_ide_data = (m_ide_data & 0xff00) | data;
 
-			ide_bus_w(m_ide, BIT(offset, 3), offset & 0x07, m_ide_data);
+			m_ide->write_cs0(space, offset & 0x07, m_ide_data, 0xffff);
+		}
+		else if (io1_offset >= 0x28 && io1_offset < 0x30)
+		{
+			m_ide_data = (m_ide_data & 0xff00) | data;
+
+			m_ide->write_cs1(space, offset & 0x07, m_ide_data, 0xffff);
 		}
 		else if (io1_offset == 0x31)
 		{

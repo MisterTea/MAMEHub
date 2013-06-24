@@ -10,6 +10,8 @@
 #pragma once
 
 #include "cpu/esrip/esrip.h"
+#include "sound/dac.h"
+#include "sound/tms5220.h"
 
 /* TODO */
 #define ESRIPSYS_PIXEL_CLOCK    (XTAL_25MHz / 2)
@@ -35,10 +37,19 @@ class esripsys_state : public driver_device
 public:
 	esripsys_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+			m_framecpu(*this, "frame_cpu"),
 			m_videocpu(*this, "video_cpu"),
-			m_pal_ram(*this, "pal_ram") { }
+			m_gamecpu(*this, "game_cpu"),
+			m_soundcpu(*this, "sound_cpu"),
+			m_tms(*this, "tms5220nl"),
+			m_pal_ram(*this, "pal_ram"),
+			m_dac(*this, "dac") { }
 
+	required_device<cpu_device> m_framecpu;
 	required_device<esrip_device> m_videocpu;
+	required_device<cpu_device> m_gamecpu;
+	required_device<cpu_device> m_soundcpu;
+	required_device<tms5220_device> m_tms;
 
 	UINT8 m_g_iodata;
 	UINT8 m_g_ioaddr;
@@ -107,6 +118,7 @@ public:
 	TIMER_CALLBACK_MEMBER(delayed_bank_swap);
 	TIMER_CALLBACK_MEMBER(hblank_start_callback);
 	TIMER_CALLBACK_MEMBER(hblank_end_callback);
+	required_device<dac_device> m_dac;
 };
 
 

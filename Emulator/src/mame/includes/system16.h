@@ -3,6 +3,7 @@
 
 #include "video/sega16sp.h"
 #include "machine/segaic16.h"
+#include "sound/msm5205.h"
 
 class segas1x_bootleg_state : public sega_16bit_common_base
 {
@@ -15,7 +16,10 @@ public:
 		m_tileram(*this, "tileram"),
 		m_goldnaxeb2_bgpage(*this, "gab2_bgpage"),
 		m_goldnaxeb2_fgpage(*this, "gab2_fgpage"),
-		m_sprites(*this, "sprites")
+		m_sprites(*this, "sprites"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_msm(*this, "5205")
 		{ }
 
 	required_shared_ptr<UINT16> m_textram;
@@ -108,8 +112,9 @@ public:
 	UINT8 *m_decrypted_region;  // goldnaxeb1 & bayrouteb1
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_soundcpu;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_soundcpu;
+	optional_device<msm5205_device> m_msm;
 	DECLARE_WRITE16_MEMBER(sound_command_nmi_w);
 	DECLARE_WRITE16_MEMBER(sound_command_w);
 	DECLARE_WRITE16_MEMBER(sys16_coinctrl_w);
@@ -194,4 +199,12 @@ public:
 	UINT32 screen_update_s16a_bootleg(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_s16a_bootleg_passht4b(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(sys16_interrupt);
+	void setup_system16_bootleg_spritebanking(  );
+	void update_page(  );
+	void set_tile_bank( int data );
+	void set_fg_page( int data );
+	void set_bg_page( int data );
+	void datsu_set_pages(  );
+	DECLARE_WRITE_LINE_MEMBER(tturfbl_msm5205_callback);
+	DECLARE_WRITE_LINE_MEMBER(shdancbl_msm5205_callback);
 };

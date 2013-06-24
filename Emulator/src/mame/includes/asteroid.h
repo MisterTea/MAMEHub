@@ -10,10 +10,11 @@ class asteroid_state : public driver_device
 {
 public:
 	asteroid_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_ram1(*this, "ram1"),
 		m_ram2(*this, "ram2"),
-		m_discrete(*this, "discrete") { }
+		m_discrete(*this, "discrete") ,
+		m_maincpu(*this, "maincpu") { }
 
 	optional_shared_ptr<UINT8> m_ram1;
 	optional_shared_ptr<UINT8> m_ram2;
@@ -41,6 +42,7 @@ public:
 	DECLARE_WRITE8_MEMBER(asteroid_noise_reset_w);
 	DECLARE_WRITE8_MEMBER(llander_snd_reset_w);
 	DECLARE_WRITE8_MEMBER(llander_sounds_w);
+	required_device<cpu_device> m_maincpu;
 };
 
 /*----------- defined in audio/asteroid.c -----------*/

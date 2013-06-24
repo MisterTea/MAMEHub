@@ -45,9 +45,17 @@ public:
 			m_maincpu(*this, CDP1802_TAG),
 			m_cti(*this, CDP1864_TAG),
 			m_led(*this, DM9368_TAG),
-			m_cassette(*this, CASSETTE_TAG),
-			m_speaker(*this, SPEAKER_TAG),
-			m_ram(*this, RAM_TAG)
+			m_cassette(*this, "cassette"),
+			m_speaker(*this, "speaker"),
+			m_ram(*this, RAM_TAG),
+			m_rom(*this, CDP1802_TAG),
+			m_y1(*this, "Y1"),
+			m_y2(*this, "Y2"),
+			m_y3(*this, "Y3"),
+			m_y4(*this, "Y4"),
+			m_io_data(*this, "DATA"),
+			m_special(*this, "SPECIAL"),
+			m_buttons(*this, "BUTTONS")
 	{ }
 
 	required_device<cosmac_device> m_maincpu;
@@ -56,11 +64,17 @@ public:
 	required_device<cassette_image_device> m_cassette;
 	required_device<speaker_sound_device> m_speaker;
 	required_device<ram_device> m_ram;
+	required_memory_region m_rom;
+	required_ioport m_y1;
+	required_ioport m_y2;
+	required_ioport m_y3;
+	required_ioport m_y4;
+	required_ioport m_io_data;
+	required_ioport m_special;
+	required_ioport m_buttons;
 
 	virtual void machine_start();
 	virtual void machine_reset();
-
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	DECLARE_READ8_MEMBER( video_off_r );
 	DECLARE_READ8_MEMBER( video_on_r );
@@ -93,10 +107,11 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER( memory_disable );
 	DECLARE_DIRECT_UPDATE_MEMBER(cosmicos_direct_update_handler);
 
+	DECLARE_QUICKLOAD_LOAD_MEMBER( cosmicos );
+
 	void set_cdp1802_mode(int mode);
 	void clear_input_data();
 	void set_ram_mode();
-
 
 	/* CPU state */
 	int m_wait;
@@ -110,6 +125,7 @@ public:
 	int m_ram_disable;
 
 	/* keyboard state */
+	ioport_port* m_key_row[4];
 	UINT8 m_keylatch;
 
 	/* display state */
@@ -120,6 +136,7 @@ public:
 	int m_dmaout;
 	int m_efx;
 	int m_video_on;
+
 	DECLARE_DRIVER_INIT(cosmicos);
 	TIMER_DEVICE_CALLBACK_MEMBER(digit_tick);
 	TIMER_DEVICE_CALLBACK_MEMBER(int_tick);

@@ -45,7 +45,7 @@ READ8_MEMBER(cpc_ssa1_device::ssa1_r)
 
 WRITE8_MEMBER(cpc_ssa1_device::ssa1_w)
 {
-	sp0256_ALD_w(m_sp0256_device,space, 0,data);
+	m_sp0256_device->ald_w(space, 0, data);
 }
 
 READ8_MEMBER(cpc_dkspeech_device::dkspeech_r)
@@ -62,7 +62,7 @@ READ8_MEMBER(cpc_dkspeech_device::dkspeech_r)
 
 WRITE8_MEMBER(cpc_dkspeech_device::dkspeech_w)
 {
-	sp0256_ALD_w(m_sp0256_device,space, 0,data & 0x3f);
+	m_sp0256_device->ald_w(space, 0, data & 0x3f);
 }
 
 WRITE_LINE_MEMBER(cpc_ssa1_device::lrq_cb)
@@ -135,7 +135,7 @@ static MACHINE_CONFIG_FRAGMENT( cpc_ssa1 )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	// pass-through
-	MCFG_CPC_EXPANSION_SLOT_ADD("exp",sub_exp_intf,cpc_exp_cards,NULL,NULL)
+	MCFG_CPC_EXPANSION_SLOT_ADD("exp",sub_exp_intf,cpc_exp_cards,NULL)
 
 MACHINE_CONFIG_END
 
@@ -146,7 +146,7 @@ static MACHINE_CONFIG_FRAGMENT( cpc_dkspeech )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	// pass-through
-	MCFG_CPC_EXPANSION_SLOT_ADD("exp",sub_exp_intf,cpc_exp_cards,NULL,NULL)
+	MCFG_CPC_EXPANSION_SLOT_ADD("exp",sub_exp_intf,cpc_exp_cards,NULL)
 
 MACHINE_CONFIG_END
 
@@ -165,7 +165,7 @@ machine_config_constructor cpc_dkspeech_device::device_mconfig_additions() const
 //**************************************************************************
 
 cpc_ssa1_device::cpc_ssa1_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, CPC_SSA1, "SSA-1", tag, owner, clock),
+	device_t(mconfig, CPC_SSA1, "SSA-1", tag, owner, clock, "cpc_ssa1", __FILE__),
 	device_cpc_expansion_card_interface(mconfig, *this),
 	m_lrq(1),
 	m_sp0256_device(*this,"sp0256")
@@ -173,7 +173,7 @@ cpc_ssa1_device::cpc_ssa1_device(const machine_config &mconfig, const char *tag,
 }
 
 cpc_dkspeech_device::cpc_dkspeech_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, CPC_DKSPEECH, "DK'Tronics Speech Synthesiser", tag, owner, clock),
+	device_t(mconfig, CPC_DKSPEECH, "DK'Tronics Speech Synthesiser", tag, owner, clock, "cpc_dkspeech", __FILE__),
 	device_cpc_expansion_card_interface(mconfig, *this),
 	m_lrq(1),
 	m_sp0256_device(*this,"sp0256")

@@ -293,13 +293,12 @@ INPUT_CHANGED_MEMBER(zaxxon_state::service_switch)
 {
 	/* pressing the service switch sends an NMI */
 	if (newval)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
 INTERRUPT_GEN_MEMBER(zaxxon_state::vblank_int)
 {
-
 	if (m_int_enabled)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
@@ -309,7 +308,7 @@ WRITE8_MEMBER(zaxxon_state::int_enable_w)
 {
 	m_int_enabled = data & 1;
 	if (!m_int_enabled)
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -322,7 +321,6 @@ WRITE8_MEMBER(zaxxon_state::int_enable_w)
 
 void zaxxon_state::machine_start()
 {
-
 	/* register for save states */
 	save_item(NAME(m_int_enabled));
 	save_item(NAME(m_coin_status));
@@ -339,7 +337,6 @@ void zaxxon_state::machine_start()
 
 READ8_MEMBER(zaxxon_state::razmataz_counter_r)
 {
-
 	/* this behavior is really unknown; however, the code is using this */
 	/* counter as a sort of timeout when talking to the sound board */
 	/* it needs to be increasing at a reasonable rate but not too fast */
@@ -390,7 +387,6 @@ WRITE8_MEMBER(zaxxon_state::zaxxon_coin_counter_w)
 // the coin input, which then needs to be explicitly cleared by the game.
 WRITE8_MEMBER(zaxxon_state::zaxxon_coin_enable_w)
 {
-
 	m_coin_enable[offset] = data & 1;
 	if (!m_coin_enable[offset])
 		m_coin_status[offset] = 0;
@@ -408,7 +404,6 @@ INPUT_CHANGED_MEMBER(zaxxon_state::zaxxon_coin_inserted)
 
 CUSTOM_INPUT_MEMBER(zaxxon_state::zaxxon_coin_r)
 {
-
 	return m_coin_status[(int)(FPTR)param];
 }
 
@@ -1477,7 +1472,7 @@ ROM_END
  *
  *************************************/
 
-static void zaxxonj_decode(running_machine &machine, const char *cputag)
+void zaxxon_state::zaxxonj_decode(const char *cputag)
 {
 /*
     the values vary, but the translation mask is always laid out like this:
@@ -1522,10 +1517,10 @@ static void zaxxonj_decode(running_machine &machine, const char *cputag)
 	};
 
 	int A;
-	address_space &space = machine.device(cputag)->memory().space(AS_PROGRAM);
-	UINT8 *rom = machine.root_device().memregion(cputag)->base();
-	int size = machine.root_device().memregion(cputag)->bytes();
-	UINT8 *decrypt = auto_alloc_array(machine, UINT8, size);
+	address_space &space = machine().device(cputag)->memory().space(AS_PROGRAM);
+	UINT8 *rom = memregion(cputag)->base();
+	int size = memregion(cputag)->bytes();
+	UINT8 *decrypt = auto_alloc_array(machine(), UINT8, size);
 
 	space.set_decrypted_region(0x0000, size - 1, decrypt);
 
@@ -1564,7 +1559,7 @@ static void zaxxonj_decode(running_machine &machine, const char *cputag)
 
 DRIVER_INIT_MEMBER(zaxxon_state,zaxxonj)
 {
-	zaxxonj_decode(machine(), "maincpu");
+	zaxxonj_decode("maincpu");
 }
 
 
@@ -1582,7 +1577,7 @@ DRIVER_INIT_MEMBER(zaxxon_state,futspy)
 
 DRIVER_INIT_MEMBER(zaxxon_state,razmataz)
 {
-	address_space &pgmspace = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &pgmspace = m_maincpu->space(AS_PROGRAM);
 
 	nprinces_decode(machine(), "maincpu");
 

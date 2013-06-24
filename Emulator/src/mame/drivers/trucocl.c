@@ -39,19 +39,25 @@ Daughterboard: Custom made, plugged in the 2 roms and Z80 mainboard sockets.
 
 WRITE8_MEMBER(trucocl_state::irq_enable_w)
 {
-
 	m_irq_mask = (data & 1) ^ 1;
 }
 
 
-TIMER_CALLBACK_MEMBER(trucocl_state::dac_irq)
+void trucocl_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE );
+	switch (id)
+	{
+	case TIMER_DAC_IRQ:
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in trucocl_state::device_timer");
+	}
 }
+
 
 WRITE8_MEMBER(trucocl_state::audio_dac_w)
 {
-	dac_device *device = machine().device<dac_device>("dac");
 	UINT8 *rom = memregion("maincpu")->base();
 	int dac_address = ( data & 0xf0 ) << 8;
 	int sel = ( ( (~data) >> 1 ) & 2 ) | ( data & 1 );
@@ -74,9 +80,9 @@ WRITE8_MEMBER(trucocl_state::audio_dac_w)
 
 	dac_address += 0x10000;
 
-	device->write_unsigned8( rom[dac_address+m_cur_dac_address_index] );
+	m_dac->write_unsigned8( rom[dac_address+m_cur_dac_address_index] );
 
-	machine().scheduler().timer_set( attotime::from_hz( 16000 ), timer_expired_delegate(FUNC(trucocl_state::dac_irq),this));
+	timer_set( attotime::from_hz( 16000 ), TIMER_DAC_IRQ);
 }
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, trucocl_state )
@@ -124,7 +130,6 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(trucocl_state::trucocl_interrupt)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 

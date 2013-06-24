@@ -10,14 +10,15 @@ class gberet_state : public driver_device
 {
 public:
 	gberet_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_colorram(*this, "colorram"),
 		m_videoram(*this, "videoram"),
 		m_spriteram2(*this, "spriteram2"),
 		m_spriteram(*this, "spriteram"),
 		m_scrollram(*this, "scrollram"),
 		m_soundlatch(*this, "soundlatch"),
-		m_sn(*this, "snsnd") { }
+		m_sn(*this, "snsnd") ,
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_colorram;
@@ -58,4 +59,7 @@ public:
 	UINT32 screen_update_gberet(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_gberetb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(gberet_interrupt_tick);
+	void gberet_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void gberetb_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

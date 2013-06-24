@@ -4,7 +4,8 @@
 
 *************************************************************************/
 
-#include "devlegcy.h"
+#include "audio/redbaron.h"
+#include "machine/mathbox.h"
 #include "sound/discrete.h"
 
 #define BZONE_MASTER_CLOCK (XTAL_12_096MHz)
@@ -15,9 +16,16 @@ class bzone_state : public driver_device
 public:
 	bzone_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_discrete(*this, "discrete") { }
+		m_maincpu(*this, "maincpu"),
+		m_mathbox(*this, "mathbox"),
+		m_discrete(*this, "discrete"),
+		m_redbaronsound(*this, "custom")
+		{ }
 
+	required_device<cpu_device> m_maincpu;
+	required_device<mathbox_device> m_mathbox;
 	optional_device<discrete_device> m_discrete;
+	optional_device<redbaron_sound_device> m_redbaronsound;
 
 	UINT8 m_analog_data;
 	UINT8 m_rb_input_select;
@@ -37,30 +45,3 @@ public:
 
 /*----------- defined in audio/bzone.c -----------*/
 MACHINE_CONFIG_EXTERN( bzone_audio );
-
-/*----------- defined in audio/redbaron.c -----------*/
-
-DECLARE_WRITE8_DEVICE_HANDLER( redbaron_sounds_w );
-
-class redbaron_sound_device : public device_t,
-									public device_sound_interface
-{
-public:
-	redbaron_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	~redbaron_sound_device() { global_free(m_token); }
-
-	// access to legacy token
-	void *token() const { assert(m_token != NULL); return m_token; }
-protected:
-	// device-level overrides
-	virtual void device_config_complete();
-	virtual void device_start();
-
-	// sound stream update overrides
-	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
-private:
-	// internal state
-	void *m_token;
-};
-
-extern const device_type REDBARON;

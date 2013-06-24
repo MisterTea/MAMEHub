@@ -53,9 +53,11 @@ class r2dtank_state : public driver_device
 {
 public:
 	r2dtank_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -77,6 +79,8 @@ public:
 	DECLARE_WRITE8_MEMBER(pia_comp_w);
 	virtual void machine_start();
 	DECLARE_WRITE8_MEMBER(ttl74123_output_changed);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 
 
@@ -104,7 +108,7 @@ WRITE_LINE_MEMBER(r2dtank_state::main_cpu_irq)
 	int combined_state = pia0->irq_a_state() | pia0->irq_b_state() |
 							pia1->irq_a_state() | pia1->irq_b_state();
 
-	machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE,  combined_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(M6809_IRQ_LINE,  combined_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -128,7 +132,7 @@ if (LOG_AUDIO_COMM) logerror("%08X  CPU#1  Audio Command Read: %x\n", space.devi
 WRITE8_MEMBER(r2dtank_state::audio_command_w)
 {
 	soundlatch_byte_w(space, 0, ~data);
-	machine().device("audiocpu")->execute().set_input_line(M6800_IRQ_LINE, HOLD_LINE);
+	m_audiocpu->set_input_line(M6800_IRQ_LINE, HOLD_LINE);
 
 if (LOG_AUDIO_COMM) logerror("%08X   CPU#0  Audio Command Write: %x\n", space.device().safe_pc(), data^0xff);
 }
@@ -150,7 +154,7 @@ WRITE8_MEMBER(r2dtank_state::audio_answer_w)
 		data = 0x00;
 
 	soundlatch2_byte_w(space, 0, data);
-	machine().device("maincpu")->execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
+	m_maincpu->set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 
 if (LOG_AUDIO_COMM) logerror("%08X  CPU#1  Audio Answer Write: %x\n", space.device().safe_pc(), data);
 }
@@ -176,10 +180,10 @@ READ8_MEMBER(r2dtank_state::AY8910_port_r)
 	UINT8 ret = 0;
 
 	if (m_AY8910_selected & 0x08)
-		ret = ay8910_r(machine().device("ay1"), space, 0);
+		ret = machine().device<ay8910_device>("ay1")->data_r(space, 0);
 
 	if (m_AY8910_selected & 0x10)
-		ret = ay8910_r(machine().device("ay2"), space, 0);
+		ret = machine().device<ay8910_device>("ay2")->data_r(space, 0);
 
 	return ret;
 }
@@ -188,10 +192,10 @@ READ8_MEMBER(r2dtank_state::AY8910_port_r)
 WRITE8_MEMBER(r2dtank_state::AY8910_port_w)
 {
 	if (m_AY8910_selected & 0x08)
-		ay8910_data_address_w(machine().device("ay1"), space, m_AY8910_selected >> 2, data);
+		machine().device<ay8910_device>("ay1")->data_address_w(space, m_AY8910_selected >> 2, data);
 
 	if (m_AY8910_selected & 0x10)
-		ay8910_data_address_w(machine().device("ay2"), space, m_AY8910_selected >> 2, data);
+		machine().device<ay8910_device>("ay2")->data_address_w(space, m_AY8910_selected >> 2, data);
 }
 
 
@@ -300,9 +304,9 @@ static const pia6821_interface pia_audio_intf =
 void r2dtank_state::machine_start()
 {
 	/* setup for save states */
-	state_save_register_global(machine(), m_flipscreen);
-	state_save_register_global(machine(), m_ttl74123_output);
-	state_save_register_global(machine(), m_AY8910_selected);
+	save_item(NAME(m_flipscreen));
+	save_item(NAME(m_ttl74123_output));
+	save_item(NAME(m_AY8910_selected));
 }
 
 
@@ -392,9 +396,10 @@ WRITE_LINE_MEMBER(r2dtank_state::display_enable_changed)
 }
 
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",               /* screen we are acting on */
+	false,                  /* show border area */
 	8,                      /* number of pixels per video memory address */
 	begin_update,           /* before pixel update callback */
 	update_row,             /* row update callback */

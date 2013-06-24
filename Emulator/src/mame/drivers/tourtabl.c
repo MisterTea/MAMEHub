@@ -17,12 +17,14 @@ class tourtabl_state : public driver_device
 {
 public:
 	tourtabl_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_WRITE8_MEMBER(tourtabl_led_w);
 	DECLARE_READ16_MEMBER(tourtabl_read_input_port);
 	DECLARE_READ8_MEMBER(tourtabl_get_databus_contents);
 	DECLARE_WRITE8_MEMBER(watchdog_w);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -44,7 +46,7 @@ READ16_MEMBER(tourtabl_state::tourtabl_read_input_port)
 {
 	static const char *const tianames[] = { "PADDLE4", "PADDLE3", "PADDLE2", "PADDLE1", "TIA_IN4", "TIA_IN5" };
 
-	return machine().root_device().ioport(tianames[offset])->read();
+	return ioport(tianames[offset])->read();
 }
 
 READ8_MEMBER(tourtabl_state::tourtabl_get_databus_contents)
@@ -56,9 +58,9 @@ READ8_MEMBER(tourtabl_state::tourtabl_get_databus_contents)
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, tourtabl_state )
 	AM_RANGE(0x0000, 0x007f) AM_MIRROR(0x0100) AM_DEVREADWRITE("tia_video", tia_video_device, read, write)
 	AM_RANGE(0x0080, 0x00ff) AM_MIRROR(0x0100) AM_RAM
-	AM_RANGE(0x0280, 0x029f) AM_DEVREADWRITE_LEGACY("riot1", riot6532_r, riot6532_w)
+	AM_RANGE(0x0280, 0x029f) AM_DEVREADWRITE("riot1", riot6532_device, read, write)
 	AM_RANGE(0x0400, 0x047f) AM_RAM
-	AM_RANGE(0x0500, 0x051f) AM_DEVREADWRITE_LEGACY("riot2", riot6532_r, riot6532_w)
+	AM_RANGE(0x0500, 0x051f) AM_DEVREADWRITE("riot2", riot6532_device, read, write)
 	AM_RANGE(0x0800, 0x1fff) AM_ROM
 	AM_RANGE(0xe800, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -191,7 +193,7 @@ static MACHINE_CONFIG_START( tourtabl, tourtabl_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("tia", TIA, MASTER_CLOCK/114)
+	MCFG_SOUND_TIA_ADD("tia", MASTER_CLOCK/114)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

@@ -42,7 +42,7 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_ram(*this, RAM_TAG),
-			m_beep(*this, BEEPER_TAG),
+			m_beep(*this, "beeper"),
 			m_serial(*this, PCE220SERIAL_TAG)
 		{ }
 
@@ -376,7 +376,7 @@ READ8_MEMBER( pce220_state::port18_r )
 
 WRITE8_MEMBER( pce220_state::port18_w )
 {
-	beep_set_state(m_beep, BIT(data, 7));
+	m_beep->set_state(BIT(data, 7));
 
 	m_serial->out_busy(BIT(data, 0));
 	m_serial->out_dout(BIT(data, 1));
@@ -618,7 +618,6 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(pce220_state::kb_irq)
 {
-
 	if (m_irq_mask & IRQ_FLAG_KEY)
 	{
 		m_maincpu->set_input_line(0, newval ? ASSERT_LINE : CLEAR_LINE );
@@ -629,7 +628,6 @@ INPUT_CHANGED_MEMBER(pce220_state::kb_irq)
 
 INPUT_CHANGED_MEMBER(pce220_state::on_irq)
 {
-
 	if (m_irq_mask & IRQ_FLAG_ON)
 	{
 		m_maincpu->set_input_line(0, newval ? ASSERT_LINE : CLEAR_LINE );
@@ -853,7 +851,7 @@ void pce220_state::machine_start()
 	membank("bank3")->configure_entries(0, 8, rom, 0x4000);
 	membank("bank4")->configure_entries(0, 8, rom, 0x4000);
 
-	m_vram = (UINT8*)machine().root_device().memregion("lcd_vram")->base();
+	m_vram = (UINT8*)memregion("lcd_vram")->base();
 
 	machine().device<nvram_device>("nvram")->set_base(ram, m_ram->size());
 }
@@ -868,7 +866,7 @@ void pcg850v_state::machine_start()
 	membank("bank3")->configure_entries(0, 22, rom, 0x4000);
 	membank("bank4")->configure_entries(0, 22, rom, 0x4000);
 
-	m_vram = (UINT8*)machine().root_device().memregion("lcd_vram")->base();
+	m_vram = (UINT8*)memregion("lcd_vram")->base();
 	machine().device<nvram_device>("nvram")->set_base(ram, m_ram->size());
 }
 
@@ -878,7 +876,7 @@ void pce220_state::machine_reset()
 	space.unmap_write(0x0000, 0x3fff);
 
 	// install the boot code into the first bank
-	membank("bank1")->set_base(machine().root_device().memregion("user1")->base() + 0x0000);
+	membank("bank1")->set_base(memregion("user1")->base() + 0x0000);
 
 	m_lcd_index_row = 0;
 	m_lcd_index_col = 0;
@@ -903,7 +901,6 @@ void pcg850v_state::machine_reset()
 
 TIMER_DEVICE_CALLBACK_MEMBER(pce220_state::pce220_timer_callback)
 {
-
 	m_timer_status = !m_timer_status;
 
 	if (m_irq_mask & IRQ_FLAG_TIMER)
@@ -942,7 +939,7 @@ static MACHINE_CONFIG_START( pce220, pce220_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("pce220_timer", pce220_state, pce220_timer_callback, attotime::from_msec(468))
@@ -977,7 +974,7 @@ static MACHINE_CONFIG_START( pcg850v, pcg850v_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("pce220_timer", pce220_state, pce220_timer_callback, attotime::from_msec(468))

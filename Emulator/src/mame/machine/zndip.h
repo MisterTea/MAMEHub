@@ -8,8 +8,7 @@
 extern const device_type ZNDIP;
 
 #define MCFG_ZNDIP_DATA_HANDLER(_devcb) \
-	devcb = &zndip_device::set_data_handler(*device, DEVCB2_##_devcb); \
-
+	devcb = &zndip_device::set_data_handler(*device, DEVCB2_##_devcb);
 class zndip_device : public psxsiodev_device
 {
 public:
@@ -21,7 +20,7 @@ public:
 	void select(int select);
 
 protected:
-	void device_start();
+	virtual void device_start();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 private:

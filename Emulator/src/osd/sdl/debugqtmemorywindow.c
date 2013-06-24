@@ -1,17 +1,22 @@
+#define NO_MEM_TRACKING
+
 #include "debugqtmemorywindow.h"
 
 #include "debug/dvmemory.h"
-#include "debug/debugvw.h"
 #include "debug/debugcon.h"
 #include "debug/debugcpu.h"
 
 
 MemoryWindow::MemoryWindow(running_machine* machine, QWidget* parent) :
-	WindowQt(machine, parent)
+	WindowQt(machine, NULL)
 {
-	QPoint parentPos = parent->pos();
-	setGeometry(parentPos.x()+100, parentPos.y()+100, 800, 400);
 	setWindowTitle("Debug: Memory View");
+
+	if (parent != NULL)
+	{
+		QPoint parentPos = parent->pos();
+		setGeometry(parentPos.x()+100, parentPos.y()+100, 800, 400);
+	}
 
 	//
 	// The main frame and its input and log widgets
@@ -27,17 +32,12 @@ MemoryWindow::MemoryWindow(running_machine* machine, QWidget* parent) :
 
 	// The memory space combo box
 	m_memoryComboBox = new QComboBox(topSubFrame);
+	m_memoryComboBox->setObjectName("memoryregion");
 	m_memoryComboBox->setMinimumWidth(300);
 	connect(m_memoryComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(memoryRegionChanged(int)));
 
 	// The main memory window
-	m_memTable = new DebuggerView(DVT_MEMORY,
-									m_machine,
-									this);
-
-	// Populate the combo box
-	populateComboBox();
-
+	m_memTable = new DebuggerMemView(DVT_MEMORY, m_machine, this);
 
 	// Layout
 	QHBoxLayout* subLayout = new QHBoxLayout(topSubFrame);
@@ -59,9 +59,13 @@ MemoryWindow::MemoryWindow(running_machine* machine, QWidget* parent) :
 	//
 	// Create a byte-chunk group
 	QActionGroup* chunkGroup = new QActionGroup(this);
+	chunkGroup->setObjectName("chunkgroup");
 	QAction* chunkActOne  = new QAction("1-byte chunks", this);
+	chunkActOne->setObjectName("chunkActOne");
 	QAction* chunkActTwo  = new QAction("2-byte chunks", this);
+	chunkActTwo->setObjectName("chunkActTwo");
 	QAction* chunkActFour = new QAction("4-byte chunks", this);
+	chunkActFour->setObjectName("chunkActFour");
 	chunkActOne->setCheckable(true);
 	chunkActTwo->setCheckable(true);
 	chunkActFour->setCheckable(true);
@@ -76,6 +80,7 @@ MemoryWindow::MemoryWindow(running_machine* machine, QWidget* parent) :
 
 	// Create a address display group
 	QActionGroup* addressGroup = new QActionGroup(this);
+	addressGroup->setObjectName("addressgroup");
 	QAction* addressActLogical = new QAction("Logical Addresses", this);
 	QAction* addressActPhysical = new QAction("Physical Addresses", this);
 	addressActLogical->setCheckable(true);
@@ -89,6 +94,7 @@ MemoryWindow::MemoryWindow(running_machine* machine, QWidget* parent) :
 
 	// Create a reverse view radio
 	QAction* reverseAct = new QAction("Reverse View", this);
+	reverseAct->setObjectName("reverse");
 	reverseAct->setCheckable(true);
 	reverseAct->setShortcut(QKeySequence("Ctrl+R"));
 	connect(reverseAct, SIGNAL(toggled(bool)), this, SLOT(reverseChanged(bool)));
@@ -111,6 +117,20 @@ MemoryWindow::MemoryWindow(running_machine* machine, QWidget* parent) :
 	optionsMenu->addSeparator();
 	optionsMenu->addAction(increaseBplAct);
 	optionsMenu->addAction(decreaseBplAct);
+
+
+	//
+	// Initialize
+	//
+	populateComboBox();
+
+	// Set to the current CPU's memory view
+	setToCurrentCpu();
+}
+
+
+MemoryWindow::~MemoryWindow()
+{
 }
 
 
@@ -118,6 +138,16 @@ void MemoryWindow::memoryRegionChanged(int index)
 {
 	m_memTable->view()->set_source(*m_memTable->view()->source_list().by_index(index));
 	m_memTable->viewport()->update();
+
+	// Update the chunk size radio buttons to the memory region's default
+	debug_view_memory* memView = downcast<debug_view_memory*>(m_memTable->view());
+	switch(memView->bytes_per_chunk())
+	{
+		case 1: chunkSizeMenuItem("chunkActOne")->setChecked(true); break;
+		case 2: chunkSizeMenuItem("chunkActTwo")->setChecked(true); break;
+		case 4: chunkSizeMenuItem("chunkActFour")->setChecked(true); break;
+		default: break;
+	}
 }
 
 
@@ -209,9 +239,157 @@ void MemoryWindow::populateComboBox()
 	{
 		m_memoryComboBox->addItem(source->name());
 	}
+}
 
-	// TODO: Set to the proper memory view
-	//const debug_view_source *source = mem->views[0]->view->source_list().match_device(curcpu);
-	//gtk_combo_box_set_active(zone_w, mem->views[0]->view->source_list().index(*source));
-	//mem->views[0]->view->set_source(*source);
+
+void MemoryWindow::setToCurrentCpu()
+{
+	device_t* curCpu = debug_cpu_get_visible_cpu(*m_machine);
+	const debug_view_source *source = m_memTable->view()->source_list().match_device(curCpu);
+	const int listIndex = m_memTable->view()->source_list().index(*source);
+	m_memoryComboBox->setCurrentIndex(listIndex);
+}
+
+
+// I have a hard time storing QActions as class members.  This is a substitute.
+QAction* MemoryWindow::chunkSizeMenuItem(const QString& itemName)
+{
+	QList<QMenu*> menus = menuBar()->findChildren<QMenu*>();
+	for (int i = 0; i < menus.length(); i++)
+	{
+		if (menus[i]->title() != "&Options") continue;
+		QList<QAction*> actions = menus[i]->actions();
+		for (int j = 0; j < actions.length(); j++)
+		{
+			if (actions[j]->objectName() == itemName)
+				return actions[j];
+		}
+	}
+	return NULL;
+}
+
+
+//=========================================================================
+//  DebuggerMemView
+//=========================================================================
+void DebuggerMemView::mousePressEvent(QMouseEvent* event)
+{
+	const bool leftClick = event->button() == Qt::LeftButton;
+	const bool rightClick = event->button() == Qt::RightButton;
+
+	if (leftClick || rightClick)
+	{
+		QFontMetrics actualFont = fontMetrics();
+		const int fontWidth = MAX(1, actualFont.width('_'));
+		const int fontHeight = MAX(1, actualFont.height());
+
+		debug_view_xy topLeft = view()->visible_position();
+		debug_view_xy clickViewPosition;
+		clickViewPosition.x = topLeft.x + (event->x() / fontWidth);
+		clickViewPosition.y = topLeft.y + (event->y() / fontHeight);
+		if (leftClick)
+		{
+			view()->process_click(DCK_LEFT_CLICK, clickViewPosition);
+		}
+		else if (rightClick)
+		{
+			// Display the last known PC to write to this memory location & copy it onto the clipboard
+			debug_view_memory* memView = downcast<debug_view_memory*>(view());
+			const offs_t address = memView->addressAtCursorPosition(clickViewPosition);
+			const debug_view_memory_source* source = downcast<const debug_view_memory_source*>(memView->source());
+			address_space* addressSpace = source->space();
+			const int nativeDataWidth = addressSpace->data_width() / 8;
+			const UINT64 memValue = debug_read_memory(*addressSpace,
+														addressSpace->address_to_byte(address),
+														nativeDataWidth,
+														true);
+			const offs_t pc = source->device()->debug()->track_mem_pc_from_space_address_data(addressSpace->spacenum(),
+																								address,
+																								memValue);
+			if (pc != (offs_t)(-1))
+			{
+				// TODO: You can specify a box that the tooltip stays alive within - might be good?
+				const QString addressAndPc = QString("Address %1 written at PC=%2").arg(address, 2, 16).arg(pc, 2, 16);
+				QToolTip::showText(QCursor::pos(), addressAndPc, NULL);
+
+				// Copy the PC into the clipboard as well
+				QClipboard *clipboard = QApplication::clipboard();
+				clipboard->setText(QString("%1").arg(pc, 2, 16));
+			}
+			else
+			{
+				QToolTip::showText(QCursor::pos(), "UNKNOWN PC", NULL);
+			}
+		}
+
+		viewport()->update();
+		update();
+	}
+}
+
+
+//=========================================================================
+//  MemoryWindowQtConfig
+//=========================================================================
+void MemoryWindowQtConfig::buildFromQWidget(QWidget* widget)
+{
+	WindowQtConfig::buildFromQWidget(widget);
+	MemoryWindow* window = dynamic_cast<MemoryWindow*>(widget);
+	QComboBox* memoryRegion = window->findChild<QComboBox*>("memoryregion");
+	m_memoryRegion = memoryRegion->currentIndex();
+
+	QAction* reverse = window->findChild<QAction*>("reverse");
+	m_reverse = reverse->isChecked();
+
+	QActionGroup* addressGroup = window->findChild<QActionGroup*>("addressgroup");
+	if (addressGroup->checkedAction()->text() == "Logical Addresses")
+		m_addressMode = 0;
+	else if (addressGroup->checkedAction()->text() == "Physical Addresses")
+		m_addressMode = 1;
+
+	QActionGroup* chunkGroup = window->findChild<QActionGroup*>("chunkgroup");
+	if (chunkGroup->checkedAction()->text() == "1-byte chunks")
+		m_chunkSize = 0;
+	else if (chunkGroup->checkedAction()->text() == "2-byte chunks")
+		m_chunkSize = 1;
+	else if (chunkGroup->checkedAction()->text() == "4-byte chunks")
+		m_chunkSize = 2;
+}
+
+
+void MemoryWindowQtConfig::applyToQWidget(QWidget* widget)
+{
+	WindowQtConfig::applyToQWidget(widget);
+	MemoryWindow* window = dynamic_cast<MemoryWindow*>(widget);
+	QComboBox* memoryRegion = window->findChild<QComboBox*>("memoryregion");
+	memoryRegion->setCurrentIndex(m_memoryRegion);
+
+	QAction* reverse = window->findChild<QAction*>("reverse");
+	if (m_reverse) reverse->trigger();
+
+	QActionGroup* addressGroup = window->findChild<QActionGroup*>("addressgroup");
+	addressGroup->actions()[m_addressMode]->trigger();
+
+	QActionGroup* chunkGroup = window->findChild<QActionGroup*>("chunkgroup");
+	chunkGroup->actions()[m_chunkSize]->trigger();
+}
+
+
+void MemoryWindowQtConfig::addToXmlDataNode(xml_data_node* node) const
+{
+	WindowQtConfig::addToXmlDataNode(node);
+	xml_set_attribute_int(node, "memoryregion", m_memoryRegion);
+	xml_set_attribute_int(node, "reverse", m_reverse);
+	xml_set_attribute_int(node, "addressmode", m_addressMode);
+	xml_set_attribute_int(node, "chunksize", m_chunkSize);
+}
+
+
+void MemoryWindowQtConfig::recoverFromXmlNode(xml_data_node* node)
+{
+	WindowQtConfig::recoverFromXmlNode(node);
+	m_memoryRegion = xml_get_attribute_int(node, "memoryregion", m_memoryRegion);
+	m_reverse = xml_get_attribute_int(node, "reverse", m_reverse);
+	m_addressMode = xml_get_attribute_int(node, "addressmode", m_addressMode);
+	m_chunkSize = xml_get_attribute_int(node, "chunksize", m_chunkSize);
 }

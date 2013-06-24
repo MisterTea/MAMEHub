@@ -144,7 +144,7 @@ static MACHINE_CONFIG_START( dragon_base, dragon_state )
 	MCFG_PIA6821_ADD(PIA0_TAG, dragon_state::pia0_config)
 	MCFG_PIA6821_ADD(PIA1_TAG, dragon_state::pia1_config)
 	MCFG_SAM6883_ADD(SAM_TAG, XTAL_4_433619MHz, dragon_state::sam6883_config)
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, dragon_state::coco_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", dragon_state::coco_cassette_interface)
 	MCFG_PRINTER_ADD(PRINTER_TAG)
 
 	// video hardware
@@ -162,7 +162,7 @@ static MACHINE_CONFIG_DERIVED( dragon32, dragon_base )
 	MCFG_RAM_EXTRA_OPTIONS("64K")
 
 	// cartridge
-	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_state::cartridge_config, dragon_cart, "dragon_fdc", NULL)
+	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_state::cartridge_config, dragon_cart, "dragon_fdc")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED_CLASS( dragon64, dragon_base, dragon64_state )
@@ -171,10 +171,10 @@ static MACHINE_CONFIG_DERIVED_CLASS( dragon64, dragon_base, dragon64_state )
 	MCFG_RAM_DEFAULT_SIZE("64K")
 
 	// cartridge
-	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_state::cartridge_config, dragon_cart, "dragon_fdc", NULL)
+	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_state::cartridge_config, dragon_cart, "dragon_fdc")
 
 	// acia
-	MCFG_ACIA6551_ADD("acia")
+	MCFG_MOS6551_ADD("acia", XTAL_1_8432MHz, NULL)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED_CLASS( d64plus, dragon_base, dragon64_state )
@@ -183,10 +183,10 @@ static MACHINE_CONFIG_DERIVED_CLASS( d64plus, dragon_base, dragon64_state )
 	MCFG_RAM_DEFAULT_SIZE("128K")
 
 	// cartridge
-	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_state::cartridge_config, dragon_cart, "dragon_fdc", NULL)
+	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_state::cartridge_config, dragon_cart, "dragon_fdc")
 
 	// acia
-	MCFG_ACIA6551_ADD("acia")
+	MCFG_MOS6551_ADD("acia", XTAL_1_8432MHz, NULL)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED_CLASS( dgnalpha, dragon_base, dragon_alpha_state )
@@ -195,10 +195,10 @@ static MACHINE_CONFIG_DERIVED_CLASS( dgnalpha, dragon_base, dragon_alpha_state )
 	MCFG_RAM_DEFAULT_SIZE("64K")
 
 	// cartridge
-	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_alpha_state::cartridge_config, dragon_cart, NULL, NULL)
+	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_alpha_state::cartridge_config, dragon_cart, NULL)
 
 	// acia
-	MCFG_ACIA6551_ADD("acia")
+	MCFG_MOS6551_ADD("acia", XTAL_1_8432MHz, NULL)
 
 	// floppy
 	MCFG_LEGACY_FLOPPY_4_DRIVES_ADD(coco_floppy_interface)
@@ -219,7 +219,7 @@ static MACHINE_CONFIG_DERIVED( tanodr64, dragon_base )
 	MCFG_RAM_DEFAULT_SIZE("64K")
 
 	// cartridge
-	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_state::cartridge_config, dragon_cart, "sdtandy_fdc", NULL)
+	MCFG_COCO_CARTRIDGE_ADD(CARTRIDGE_TAG, dragon_state::cartridge_config, dragon_cart, "sdtandy_fdc")
 MACHINE_CONFIG_END
 
 
@@ -260,7 +260,7 @@ ROM_START(tanodr64)
 ROM_END
 
 ROM_START(dgnalpha)
-	ROM_REGION(0xC000,"maincpu",1)
+	ROM_REGION(0x10000,"maincpu",0)
 	ROM_LOAD("alpha_bt.rom",    0x2000,  0x2000, CRC(c3dab585) SHA1(4a5851aa66eb426e9bb0bba196f1e02d48156068))
 	ROM_LOAD("alpha_ba.rom",    0x8000,  0x4000, CRC(84f68bf9) SHA1(1983b4fb398e3dd9668d424c666c5a0b3f1e2b69))
 ROM_END

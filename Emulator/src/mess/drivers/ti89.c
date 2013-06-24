@@ -25,13 +25,23 @@
 
 UINT8 ti68k_state::keypad_r (running_machine &machine)
 {
-	UINT8 port, bit, data = 0xff;
-	static const char *const bitnames[] = {"BIT0", "BIT1", "BIT2", "BIT3", "BIT4", "BIT5", "BIT6", "BIT7"};
+	UINT8 bit, data = 0xff;
 
 	for (bit = 0; bit < 10; bit++)
+	{
 		if (~m_kb_mask & (0x01 << bit))
-			for (port = 0; port < 8; port++)
-				data ^= machine.root_device().ioport(bitnames[port])->read() & (0x01 << bit) ? 0x01 << port : 0x00;
+		{
+			data ^= m_io_bit0->read() & (0x01 << bit) ? 0x01 : 0x00;
+			data ^= m_io_bit1->read() & (0x01 << bit) ? 0x02 : 0x00;
+			data ^= m_io_bit2->read() & (0x01 << bit) ? 0x04 : 0x00;
+			data ^= m_io_bit3->read() & (0x01 << bit) ? 0x08 : 0x00;
+			data ^= m_io_bit4->read() & (0x01 << bit) ? 0x10 : 0x00;
+			data ^= m_io_bit5->read() & (0x01 << bit) ? 0x20 : 0x00;
+			data ^= m_io_bit6->read() & (0x01 << bit) ? 0x40 : 0x00;
+			data ^= m_io_bit7->read() & (0x01 << bit) ? 0x80 : 0x00;
+		}
+	}
+
 	return data;
 }
 
@@ -145,9 +155,7 @@ READ16_MEMBER ( ti68k_state::flash_r )
 	}
 	else
 	{
-		UINT16 *rom_base = (UINT16 *)(*space.machine().root_device().memregion("flash"));
-
-		return rom_base[offset];
+		return m_rom_base[offset];
 	}
 }
 
@@ -166,7 +174,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(ti68k_state::ti68k_timer_callback)
 				m_timer_val = (m_io_hw1[0x0b]) & 0xff;
 		}
 
-		if (!BIT(m_io_hw1[0x0a], 7) && ((m_hw_version == m_HW1) || (!BIT(m_io_hw1[0x0f], 2) && !BIT(m_io_hw1[0x0f], 1))))
+		if (!BIT(m_io_hw1[0x0a], 7) && ((m_hw_version == HW1) || (!BIT(m_io_hw1[0x0f], 2) && !BIT(m_io_hw1[0x0f], 1))))
 		{
 			if (!(m_timer & 0x003f))
 				m_maincpu->set_input_line(M68K_IRQ_1, HOLD_LINE);
@@ -233,7 +241,6 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(ti68k_state::ti68k_on_key)
 {
-
 	m_on_key = newval;
 
 	if (m_on_key)
@@ -417,31 +424,31 @@ INPUT_PORTS_END
 
 void ti68k_state::machine_start()
 {
-	UINT16 *rom = (UINT16 *)(*machine().root_device().memregion("flash"));
+	m_rom_base = (UINT16 *)(*memregion("flash"));
 	int i;
 
-	m_flash_mem = !((rom[0x32] & 0x0f) != 0);
+	m_flash_mem = !((m_rom_base[0x32] & 0x0f) != 0);
 
 	if (m_flash_mem)
 	{
-		UINT32 base = ((((rom[0x82]) << 16) | rom[0x83]) & 0xffff)>>1;
+		UINT32 base = ((((m_rom_base[0x82]) << 16) | m_rom_base[0x83]) & 0xffff)>>1;
 
-		if (rom[base] >= 8)
-			m_hw_version = ((rom[base + 0x0b]) << 16) | rom[base + 0x0c];
+		if (m_rom_base[base] >= 8)
+			m_hw_version = ((m_rom_base[base + 0x0b]) << 16) | m_rom_base[base + 0x0c];
 
 		if (!m_hw_version)
-			m_hw_version = m_HW1;
+			m_hw_version = HW1;
 
 		for (i = 0x9000; i < 0x100000; i++)
-			if (rom[i] == 0xcccc && rom[i + 1] == 0xcccc)
+			if (m_rom_base[i] == 0xcccc && m_rom_base[i + 1] == 0xcccc)
 				break;
 
-		m_initial_pc = ((rom[i + 4]) << 16) | rom[i + 5];
+		m_initial_pc = ((m_rom_base[i + 4]) << 16) | m_rom_base[i + 5];
 	}
 	else
 	{
-		m_hw_version = m_HW1;
-		m_initial_pc = ((rom[2]) << 16) | rom[3];
+		m_hw_version = HW1;
+		m_initial_pc = ((m_rom_base[2]) << 16) | m_rom_base[3];
 
 		m_maincpu->space(AS_PROGRAM).unmap_read(0x200000, 0x5fffff);
 
@@ -585,9 +592,9 @@ ROM_START( ti89 )
 	ROMX_LOAD( "ti89v203m-2.rom", 0x000000, 0x200000, CRC(04d5d76d) SHA1(14ca44b64c29aa1bf274508ca40fe69224f5a7cc), ROM_BIOS(12))
 	ROM_SYSTEM_BIOS( 12, "v205-2", "V 2.05 - HW2" )
 	ROMX_LOAD( "ti89v205-2.rom", 0x000000, 0x200000, CRC(37c4653c) SHA1(f48d00a57430230e489e243383513485009b1b98), ROM_BIOS(13))
-	ROM_SYSTEM_BIOS( 13, "v205-2m", "V 2.05[m] - HW2" )
+	ROM_SYSTEM_BIOS( 13, "v205-2m", "V 2.05 [m] - HW2" )
 	ROMX_LOAD( "ti89v205m-2.rom", 0x000000, 0x200000, CRC(e58a23f9) SHA1(d4cb23fb4b414a43802c37dc3c572a8ede670e0f), ROM_BIOS(14))
-	ROM_SYSTEM_BIOS( 14, "v205-2m2","V 2.05[m2] - HW2" )
+	ROM_SYSTEM_BIOS( 14, "v205-2m2","V 2.05 [m2] - HW2" )
 	ROMX_LOAD( "ti89v205m2-2.rom", 0x000000, 0x200000, CRC(a8ba976c) SHA1(38bd25ada5e2066c64761d1008a9327a37d68654), ROM_BIOS(15))
 	ROM_SYSTEM_BIOS( 15,"v209-2", "V 2.09 - HW2" )
 	ROMX_LOAD( "ti89v209-2.rom", 0x000000, 0x200000, CRC(242a238f) SHA1(9668df314a0180ef210796e9cb651c5e9f17eb07), ROM_BIOS(16))
@@ -597,17 +604,17 @@ ROM_START( ti92 )
 	ROM_REGION( 0x200000, "flash", ROMREGION_ERASEFF )
 	ROM_SYSTEM_BIOS( 0, "v111", "V 1.11" )
 	ROMX_LOAD( "ti92v111.rom",  0x000000, 0x100000, CRC(67878d52) SHA1(c0fdf162961922a76f286c93fd9b861ce20f23a3), ROM_BIOS(1))
-	ROM_SYSTEM_BIOS( 1, "v13", "V 1.3" )
+	ROM_SYSTEM_BIOS( 1, "v13e", "V 1.3 [e]" )
 	ROMX_LOAD( "ti92v13e.rom",  0x000000, 0x100000, CRC(316c8196) SHA1(82c8cd484c6aebe36f814a2023d2afad6d87f840), ROM_BIOS(2))
-	ROM_SYSTEM_BIOS( 2, "v14", "V 1.4" )
+	ROM_SYSTEM_BIOS( 2, "v14e", "V 1.4 [e]" )
 	ROMX_LOAD( "ti92v14e.rom",  0x000000, 0x100000, CRC(239e9405) SHA1(df2f1ab17d490fda43a02f5851b5a15052361b28), ROM_BIOS(3))
-	ROM_SYSTEM_BIOS( 3, "v17", "V 1.7" )
+	ROM_SYSTEM_BIOS( 3, "v17e", "V 1.7 [e]" )
 	ROMX_LOAD( "ti92v17e.rom",  0x000000, 0x100000, CRC(83e27cc5) SHA1(aec5a6a6157ff94a4e665fa3fe747bacb6688cd4), ROM_BIOS(4))
-	ROM_SYSTEM_BIOS( 4, "v111", "V 1.11" )
+	ROM_SYSTEM_BIOS( 4, "v111e", "V 1.11 [e]" )
 	ROMX_LOAD( "ti92v111e.rom", 0x000000, 0x100000, CRC(4a343833) SHA1(ab4eaacc8c83a861c8d37df5c10e532d0d580460), ROM_BIOS(5))
-	ROM_SYSTEM_BIOS( 5, "v112", "V 1.12" )
+	ROM_SYSTEM_BIOS( 5, "v112e", "V 1.12 [e]" )
 	ROMX_LOAD( "ti92v112e.rom", 0x000000, 0x100000, CRC(9a6947a0) SHA1(8bb0538ca98711e9ad46c56e4dfd609d4699be30), ROM_BIOS(6))
-	ROM_SYSTEM_BIOS( 6, "v21", "V 2.1" )
+	ROM_SYSTEM_BIOS( 6, "v21e", "V 2.1 [e]" )
 	ROMX_LOAD( "ti92v21e.rom",  0x000000, 0x200000, CRC(5afb5863) SHA1(bf7b260d37d1502cc4b08dea5e1d55b523f27925), ROM_BIOS(7))
 
 ROM_END

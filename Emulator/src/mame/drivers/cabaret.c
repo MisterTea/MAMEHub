@@ -30,11 +30,12 @@ class cabaret_state : public driver_device
 {
 public:
 	cabaret_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fg_tile_ram(*this, "fg_tile_ram"),
 		m_fg_color_ram(*this, "fg_color_ram"),
 		m_bg_scroll(*this, "bg_scroll"),
-		m_bg_tile_ram(*this, "bg_tile_ram"){ }
+		m_bg_tile_ram(*this, "bg_tile_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_fg_tile_ram;
 	required_shared_ptr<UINT8> m_fg_color_ram;
@@ -57,6 +58,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_cabaret(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(cabaret_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -179,7 +181,7 @@ static ADDRESS_MAP_START( cabaret_portmap, AS_IO, 8, cabaret_state )
 	AM_RANGE( 0x00a2, 0x00a2 ) AM_READ_PORT("DSW2")         /* DSW2 */
 	AM_RANGE( 0x00b0, 0x00b0 ) AM_READ_PORT("DSW3")         /* DSW3 */
 
-	AM_RANGE( 0x00e0, 0x00e1 ) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w )
+	AM_RANGE( 0x00e0, 0x00e1 ) AM_DEVWRITE("ymsnd", ym2413_device, write)
 
 	AM_RANGE( 0x2000, 0x27ff ) AM_RAM_WRITE(fg_tile_w )  AM_SHARE("fg_tile_ram")
 	AM_RANGE( 0x2800, 0x2fff ) AM_RAM_WRITE(fg_color_w ) AM_SHARE("fg_color_ram")
@@ -360,7 +362,7 @@ MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(cabaret_state,cabaret)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 	int i;
 
 	/* decrypt the program ROM */

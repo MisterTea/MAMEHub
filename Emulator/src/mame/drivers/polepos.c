@@ -292,7 +292,7 @@ WRITE8_MEMBER(polepos_state::polepos_latch_w)
 		case 0x00:  /* IRQON */
 			m_main_irq_mask = bit;
 			if (!bit)
-				machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+				m_maincpu->set_input_line(0, CLEAR_LINE);
 			break;
 
 		case 0x01:  /* IOSEL */
@@ -303,8 +303,8 @@ WRITE8_MEMBER(polepos_state::polepos_latch_w)
 			polepos_sound_enable(machine().device("namco"),bit);
 			if (!bit)
 			{
-				polepos_engine_sound_lsb_w(machine().device("polepos"), space, 0, 0);
-				polepos_engine_sound_msb_w(machine().device("polepos"), space, 0, 0);
+				machine().device<polepos_sound_device>("polepos")->polepos_engine_sound_lsb_w(space, 0, 0);
+				machine().device<polepos_sound_device>("polepos")->polepos_engine_sound_msb_w(space, 0, 0);
 			}
 			break;
 
@@ -313,11 +313,11 @@ WRITE8_MEMBER(polepos_state::polepos_latch_w)
 			break;
 
 		case 0x04:  /* RESB */
-			machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, bit ? CLEAR_LINE : ASSERT_LINE);
+			m_subcpu->set_input_line(INPUT_LINE_RESET, bit ? CLEAR_LINE : ASSERT_LINE);
 			break;
 
 		case 0x05:  /* RESA */
-			machine().device("sub2")->execute().set_input_line(INPUT_LINE_RESET, bit ? CLEAR_LINE : ASSERT_LINE);
+			m_subcpu2->set_input_line(INPUT_LINE_RESET, bit ? CLEAR_LINE : ASSERT_LINE);
 			break;
 
 		case 0x06:  /* SB0 */
@@ -340,8 +340,8 @@ WRITE16_MEMBER(polepos_state::polepos_z8002_nvi_enable_w)
 }
 
 
-CUSTOM_INPUT_MEMBER(polepos_state::high_port_r){ return field.machine().root_device().ioport((const char *)param)->read() >> 4; }
-CUSTOM_INPUT_MEMBER(polepos_state::low_port_r){ return field.machine().root_device().ioport((const char *)param)->read() & 0x0f; }
+CUSTOM_INPUT_MEMBER(polepos_state::high_port_r){ return ioport((const char *)param)->read() >> 4; }
+CUSTOM_INPUT_MEMBER(polepos_state::low_port_r){ return ioport((const char *)param)->read() & 0x0f; }
 CUSTOM_INPUT_MEMBER(polepos_state::auto_start_r)
 {
 	return m_auto_start_mask;
@@ -378,9 +378,9 @@ static const namco_51xx_interface namco_51xx_intf =
 
 READ8_MEMBER(polepos_state::namco_52xx_rom_r)
 {
-	UINT32 length = machine().root_device().memregion("52xx")->bytes();
+	UINT32 length = memregion("52xx")->bytes();
 logerror("ROM @ %04X\n", offset);
-	return (offset < length) ? machine().root_device().memregion("52xx")->base()[offset] : 0xff;
+	return (offset < length) ? memregion("52xx")->base()[offset] : 0xff;
 }
 
 READ8_MEMBER(polepos_state::namco_52xx_si_r)
@@ -450,19 +450,19 @@ TIMER_DEVICE_CALLBACK_MEMBER(polepos_state::polepos_scanline)
 	int scanline = param;
 
 	if (((scanline == 64) || (scanline == 192)) && m_main_irq_mask) // 64V
-		machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 
 	if (scanline == 240 && m_sub_irq_mask)  // VBLANK
 	{
-		machine().device("sub")->execute().set_input_line(0, ASSERT_LINE);
-		machine().device("sub2")->execute().set_input_line(0, ASSERT_LINE);
+		m_subcpu->set_input_line(0, ASSERT_LINE);
+		m_subcpu2->set_input_line(0, ASSERT_LINE);
 	}
 }
 
 
 MACHINE_RESET_MEMBER(polepos_state,polepos)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i;
 
 	/* Reset all latches */
@@ -470,8 +470,8 @@ MACHINE_RESET_MEMBER(polepos_state,polepos)
 		polepos_latch_w(space, i, 0);
 
 	/* set the interrupt vectors (this shouldn't be needed) */
-	machine().device("sub")->execute().set_input_line_vector(0, Z8000_NVI);
-	machine().device("sub2")->execute().set_input_line_vector(0, Z8000_NVI);
+	m_subcpu->set_input_line_vector(0, Z8000_NVI);
+	m_subcpu2->set_input_line_vector(0, Z8000_NVI);
 }
 
 
@@ -496,8 +496,8 @@ static ADDRESS_MAP_START( z80_map, AS_PROGRAM, 8, polepos_state )
 	AM_RANGE(0xa000, 0xa000) AM_MIRROR(0x0cff) AM_READ(polepos_ready_r)                 /* READY */
 	AM_RANGE(0xa000, 0xa007) AM_MIRROR(0x0cf8) AM_WRITE(polepos_latch_w)                /* misc latches */
 	AM_RANGE(0xa100, 0xa100) AM_MIRROR(0x0cff) AM_WRITE(watchdog_reset_w)               /* Watchdog */
-	AM_RANGE(0xa200, 0xa200) AM_MIRROR(0x0cff) AM_DEVWRITE_LEGACY("polepos", polepos_engine_sound_lsb_w)    /* Car Sound ( Lower Nibble ) */
-	AM_RANGE(0xa300, 0xa300) AM_MIRROR(0x0cff) AM_DEVWRITE_LEGACY("polepos", polepos_engine_sound_msb_w)    /* Car Sound ( Upper Nibble ) */
+	AM_RANGE(0xa200, 0xa200) AM_MIRROR(0x0cff) AM_DEVWRITE("polepos", polepos_sound_device, polepos_engine_sound_lsb_w)    /* Car Sound ( Lower Nibble ) */
+	AM_RANGE(0xa300, 0xa300) AM_MIRROR(0x0cff) AM_DEVWRITE("polepos", polepos_sound_device, polepos_engine_sound_msb_w)    /* Car Sound ( Upper Nibble ) */
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( z80_io, AS_IO, 8, polepos_state )
@@ -957,11 +957,6 @@ const namco_06xx_config topracern_namco_06xx_intf =
 	"maincpu", "51xx", NULL, NULL, NULL
 };
 
-static const tms52xx_config tms_intf =
-{
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( topracern, polepos_state )
 
 	/* basic machine hardware */
@@ -1030,10 +1025,9 @@ static MACHINE_CONFIG_DERIVED( polepos2bi, topracern )
 	MCFG_CPU_PROGRAM_MAP(sound_z80_bootleg_map)
 	MCFG_CPU_IO_MAP(sound_z80_bootleg_iomap)
 
-	MCFG_SOUND_ADD("tms", TMS5220N, 600000) /* ? Mhz */
+	MCFG_SOUND_ADD("tms", TMS5220, 600000) /* ? Mhz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.80)
-	MCFG_SOUND_CONFIG(tms_intf)
 MACHINE_CONFIG_END
 
 
@@ -1995,15 +1989,15 @@ ROM_END
 DRIVER_INIT_MEMBER(polepos_state,topracern)
 {
 	/* extra direct mapped inputs read */
-	machine().device("maincpu")->memory().space(AS_IO).install_read_port(0x02, 0x02, "STEER");
-	machine().device("maincpu")->memory().space(AS_IO).install_read_port(0x03, 0x03, "IN0");
-	machine().device("maincpu")->memory().space(AS_IO).install_read_port(0x04, 0x04, "DSWA");
+	m_maincpu->space(AS_IO).install_read_port(0x02, 0x02, "STEER");
+	m_maincpu->space(AS_IO).install_read_port(0x03, 0x03, "IN0");
+	m_maincpu->space(AS_IO).install_read_port(0x04, 0x04, "DSWA");
 }
 
 DRIVER_INIT_MEMBER(polepos_state,polepos2)
 {
 	/* note that the bootleg version doesn't need this custom IC; it has a hacked ROM in its place */
-	machine().device("sub")->memory().space(AS_PROGRAM).install_read_handler(0x4000, 0x5fff, read16_delegate(FUNC(polepos_state::polepos2_ic25_r),this));
+	m_subcpu->space(AS_PROGRAM).install_read_handler(0x4000, 0x5fff, read16_delegate(FUNC(polepos_state::polepos2_ic25_r),this));
 }
 
 

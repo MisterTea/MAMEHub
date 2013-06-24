@@ -333,13 +333,13 @@ WRITE16_MEMBER(wecleman_state::irqctrl_w)
 
 		// Bit 0 : SUBINT
 		if ( (m_irqctrl & 1) && (!(data & 1)) ) // 1->0 transition
-			machine().device("sub")->execute().set_input_line(4, HOLD_LINE);
+			m_subcpu->set_input_line(4, HOLD_LINE);
 
 		// Bit 1 : NSUBRST
 		if (data & 2)
-			machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+			m_subcpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 		else
-			machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+			m_subcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
 		// Bit 2 : SOUND-ON
 		// Bit 3 : SOUNDRST
@@ -584,7 +584,7 @@ WRITE16_MEMBER(wecleman_state::wecleman_soundlatch_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xFF);
-		machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+		m_audiocpu->set_input_line(0, HOLD_LINE);
 	}
 }
 
@@ -617,8 +617,7 @@ WRITE8_MEMBER(wecleman_state::multiply_w)
 
 WRITE8_MEMBER(wecleman_state::wecleman_K00723216_bank_w)
 {
-	device_t *device = machine().device("konami");
-	k007232_set_bank(device, 0, ~data&1 );  //* (wecleman062gre)
+	k007232_set_bank(m_k007232, 0, ~data&1 );  //* (wecleman062gre)
 }
 
 static ADDRESS_MAP_START( wecleman_sound_map, AS_PROGRAM, 8, wecleman_state )
@@ -629,7 +628,7 @@ static ADDRESS_MAP_START( wecleman_sound_map, AS_PROGRAM, 8, wecleman_state )
 	AM_RANGE(0x9000, 0x9001) AM_WRITE(multiply_w)   // Protection
 	AM_RANGE(0x9006, 0x9006) AM_WRITENOP    // ?
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r) // From main CPU
-	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("konami", k007232_r, k007232_w) // K007232 (Reading offset 5/b triggers the sample)
+	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232", k007232_r, k007232_w) // K007232 (Reading offset 5/b triggers the sample)
 	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xf000, 0xf000) AM_WRITE(wecleman_K00723216_bank_w)    // Samples banking
 ADDRESS_MAP_END
@@ -645,19 +644,19 @@ WRITE16_MEMBER(wecleman_state::hotchase_soundlatch_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xFF);
-		machine().device("audiocpu")->execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
+		m_audiocpu->set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 	}
 }
 
 WRITE8_MEMBER(wecleman_state::hotchase_sound_control_w)
 {
-	device_t *sound[3];
+	k007232_device *sound[3];
 
 //  int reg[8];
 
-	sound[0] = machine().device("konami1");
-	sound[1] = machine().device("konami2");
-	sound[2] = machine().device("konami3");
+	sound[0] = m_k007232_1;
+	sound[1] = m_k007232_2;
+	sound[2] = m_k007232_3;
 
 //  reg[offset] = data;
 
@@ -706,38 +705,32 @@ WRITE8_MEMBER(wecleman_state::hotchase_sound_control_w)
    even and odd register are mapped swapped */
 READ8_MEMBER(wecleman_state::hotchase_1_k007232_r)
 {
-	device_t *device = machine().device("konami1");
-	return k007232_r(device, space, offset ^ 1);
+	return k007232_r(m_k007232_1, space, offset ^ 1);
 }
 
 WRITE8_MEMBER(wecleman_state::hotchase_1_k007232_w)
 {
-	device_t *device = machine().device("konami1");
-	k007232_w(device, space, offset ^ 1, data);
+	k007232_w(m_k007232_1, space, offset ^ 1, data);
 }
 
 READ8_MEMBER(wecleman_state::hotchase_2_k007232_r)
 {
-	device_t *device = machine().device("konami2");
-	return k007232_r(device, space, offset ^ 1);
+	return k007232_r(m_k007232_2, space, offset ^ 1);
 }
 
 WRITE8_MEMBER(wecleman_state::hotchase_2_k007232_w)
 {
-	device_t *device = machine().device("konami2");
-	k007232_w(device, space, offset ^ 1, data);
+	k007232_w(m_k007232_2, space, offset ^ 1, data);
 }
 
 READ8_MEMBER(wecleman_state::hotchase_3_k007232_r)
 {
-	device_t *device = machine().device("konami3");
-	return k007232_r(device, space, offset ^ 1);
+	return k007232_r(m_k007232_3, space, offset ^ 1);
 }
 
 WRITE8_MEMBER(wecleman_state::hotchase_3_k007232_w)
 {
-	device_t *device = machine().device("konami3");
-	k007232_w(device, space, offset ^ 1, data);
+	k007232_w(m_k007232_3, space, offset ^ 1, data);
 }
 
 static ADDRESS_MAP_START( hotchase_sound_map, AS_PROGRAM, 8, wecleman_state )
@@ -1029,9 +1022,9 @@ TIMER_DEVICE_CALLBACK_MEMBER(wecleman_state::wecleman_scanline)
 	int scanline = param;
 
 	if(scanline == 232) // vblank irq
-		machine().device("maincpu")->execute().set_input_line(4, HOLD_LINE);
+		m_maincpu->set_input_line(4, HOLD_LINE);
 	else if(((scanline % 64) == 0)) // timer irq TODO: timings
-		machine().device("maincpu")->execute().set_input_line(5, HOLD_LINE);
+		m_maincpu->set_input_line(5, HOLD_LINE);
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(wecleman_state::hotchase_scanline)
@@ -1039,15 +1032,15 @@ TIMER_DEVICE_CALLBACK_MEMBER(wecleman_state::hotchase_scanline)
 	int scanline = param;
 
 	if(scanline == 224) // vblank irq
-		machine().device("maincpu")->execute().set_input_line(4, HOLD_LINE);
+		m_maincpu->set_input_line(4, HOLD_LINE);
 	else if(((scanline % 64) == 0)) // timer irq TODO: timings
-		machine().device("maincpu")->execute().set_input_line(5, HOLD_LINE);
+		m_maincpu->set_input_line(5, HOLD_LINE);
 }
 
 
 MACHINE_RESET_MEMBER(wecleman_state,wecleman)
 {
-	k007232_set_bank( machine().device("konami"), 0, 1 );
+	k007232_set_bank( m_k007232, 0, 1 );
 }
 
 static MACHINE_CONFIG_START( wecleman, wecleman_state )
@@ -1089,7 +1082,7 @@ static MACHINE_CONFIG_START( wecleman, wecleman_state )
 	MCFG_SOUND_ROUTE(0, "mono", 0.85)
 	MCFG_SOUND_ROUTE(1, "mono", 0.85)
 
-	MCFG_SOUND_ADD("konami", K007232, 3579545)
+	MCFG_SOUND_ADD("k007232", K007232, 3579545)
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 MACHINE_CONFIG_END
@@ -1101,7 +1094,7 @@ MACHINE_CONFIG_END
 
 INTERRUPT_GEN_MEMBER(wecleman_state::hotchase_sound_timer)
 {
-	generic_pulse_irq_line(device.execute(), M6809_FIRQ_LINE, 1);
+	device.execute().set_input_line(M6809_FIRQ_LINE, HOLD_LINE);
 }
 
 static const k051316_interface hotchase_k051316_intf_0 =
@@ -1171,15 +1164,15 @@ static MACHINE_CONFIG_START( hotchase, wecleman_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("konami1", K007232, 3579545)
+	MCFG_SOUND_ADD("k007232_1", K007232, 3579545)
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 
-	MCFG_SOUND_ADD("konami2", K007232, 3579545)
+	MCFG_SOUND_ADD("k007232_2", K007232, 3579545)
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 
-	MCFG_SOUND_ADD("konami3", K007232, 3579545)
+	MCFG_SOUND_ADD("k007232_3", K007232, 3579545)
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 MACHINE_CONFIG_END
@@ -1230,7 +1223,7 @@ ROM_START( wecleman )
 	ROM_LOAD( "602a04.11e", 0x000000, 0x08000, CRC(ade9f359) SHA1(58db6be6217ed697827015e50e99e58602042a4c) )
 	ROM_LOAD( "602a05.13e", 0x008000, 0x04000, CRC(f22b7f2b) SHA1(857389c57552c4e2237cb599f4c68c381430475e) )   // may also exist as 32KB with one half empty
 
-	ROM_REGION( 0x40000, "konami", 0 )  /* Samples (Channel A 0x20000=Channel B) */
+	ROM_REGION( 0x40000, "k007232", 0 )  /* Samples (Channel A 0x20000=Channel B) */
 	ROM_LOAD( "602a03.10a", 0x00000, 0x20000, CRC(31392b01) SHA1(0424747bc2015c9c93afd20e6a23083c0dcc4fb7) )
 	ROM_LOAD( "602a02.8a",  0x20000, 0x20000, CRC(e2be10ae) SHA1(109c31bf7252c83a062d259143cd8299681db778) )
 
@@ -1240,8 +1233,9 @@ ROM_END
 
 ROM_START( wecleman2 )
 	ROM_REGION( 0x40000, "maincpu", 0 ) /* Main CPU Code */
-	ROM_LOAD16_BYTE( "602f08.17h", 0x00000, 0x10000, CRC(43241265) SHA1(3da1ed0d15b03845c07f07ec6838ce160d81633d) ) // only 17h and 23h differ slightly from parent
-	ROM_LOAD16_BYTE( "602f11.23h", 0x00001, 0x10000, CRC(3ea7dae0) SHA1(d33d67f4cc65a7680e5f43407136b75512a10230) ) // "
+	// I doubt these labels are correct, or one set of roms is bad.
+	ROM_LOAD16_BYTE( "602f08(__wecleman2).17h", 0x00000, 0x10000, CRC(43241265) SHA1(3da1ed0d15b03845c07f07ec6838ce160d81633d) ) // only 17h and 23h differ slightly from parent
+	ROM_LOAD16_BYTE( "602f11(__wecleman2).23h", 0x00001, 0x10000, CRC(3ea7dae0) SHA1(d33d67f4cc65a7680e5f43407136b75512a10230) ) // "
 	ROM_LOAD16_BYTE( "602a09.18h", 0x20000, 0x10000, CRC(8a9d756f) SHA1(12605e86ce29e6300b5400720baac7b0293d9e66) )
 	ROM_LOAD16_BYTE( "602a10.22h", 0x20001, 0x10000, CRC(569f5001) SHA1(ec2dd331a279083cf847fbbe71c017038a1d562a) )
 
@@ -1279,7 +1273,7 @@ ROM_START( wecleman2 )
 	ROM_LOAD( "602a04.11e", 0x000000, 0x08000, CRC(ade9f359) SHA1(58db6be6217ed697827015e50e99e58602042a4c) )
 	ROM_LOAD( "602a05.13e", 0x008000, 0x04000, CRC(f22b7f2b) SHA1(857389c57552c4e2237cb599f4c68c381430475e) )   // may also exist as 32KB with one half empty
 
-	ROM_REGION( 0x40000, "konami", 0 )  /* Samples (Channel A 0x20000=Channel B) */
+	ROM_REGION( 0x40000, "k007232", 0 )  /* Samples (Channel A 0x20000=Channel B) */
 	ROM_LOAD( "602a03.10a", 0x00000, 0x20000, CRC(31392b01) SHA1(0424747bc2015c9c93afd20e6a23083c0dcc4fb7) )
 	ROM_LOAD( "602a02.8a",  0x20000, 0x20000, CRC(e2be10ae) SHA1(109c31bf7252c83a062d259143cd8299681db778) )
 
@@ -1287,13 +1281,13 @@ ROM_START( wecleman2 )
 	ROM_LOAD( "602a12.1a",  0x000000, 0x04000, CRC(77b9383d) SHA1(7cb970889677704d6324bb64aafc05326c4503ad) )
 ROM_END
 
-static void wecleman_unpack_sprites(running_machine &machine)
+void wecleman_state::wecleman_unpack_sprites()
 {
 	const char *region       = "gfx1";  // sprites
 
-	const UINT32 len = machine.root_device().memregion(region)->bytes();
-	UINT8 *src     = machine.root_device().memregion(region)->base() + len / 2 - 1;
-	UINT8 *dst     = machine.root_device().memregion(region)->base() + len - 1;
+	const UINT32 len = memregion(region)->bytes();
+	UINT8 *src     = memregion(region)->base() + len / 2 - 1;
+	UINT8 *dst     = memregion(region)->base() + len - 1;
 
 	while(dst > src)
 	{
@@ -1304,9 +1298,9 @@ static void wecleman_unpack_sprites(running_machine &machine)
 	}
 }
 
-static void bitswap(running_machine &machine,UINT8 *src,size_t len,int _14,int _13,int _12,int _11,int _10,int _f,int _e,int _d,int _c,int _b,int _a,int _9,int _8,int _7,int _6,int _5,int _4,int _3,int _2,int _1,int _0)
+void wecleman_state::bitswap(UINT8 *src,size_t len,int _14,int _13,int _12,int _11,int _10,int _f,int _e,int _d,int _c,int _b,int _a,int _9,int _8,int _7,int _6,int _5,int _4,int _3,int _2,int _1,int _0)
 {
-	UINT8 *buffer = auto_alloc_array(machine, UINT8, len);
+	UINT8 *buffer = auto_alloc_array(machine(), UINT8, len);
 	int i;
 
 	memcpy(buffer,src,len);
@@ -1315,7 +1309,7 @@ static void bitswap(running_machine &machine,UINT8 *src,size_t len,int _14,int _
 		src[i] =
 			buffer[BITSWAP24(i,23,22,21,_14,_13,_12,_11,_10,_f,_e,_d,_c,_b,_a,_9,_8,_7,_6,_5,_4,_3,_2,_1,_0)];
 	}
-	auto_free(machine, buffer);
+	auto_free(machine(), buffer);
 }
 
 /* Unpack sprites data and do some patching */
@@ -1343,18 +1337,18 @@ DRIVER_INIT_MEMBER(wecleman_state,wecleman)
 		RAM[i] = BITSWAP8(RAM[i],7,0,1,2,3,4,5,6);
 	}
 
-	bitswap(machine(), machine().root_device().memregion("gfx1")->base(), machine().root_device().memregion("gfx1")->bytes(),
+	bitswap(memregion("gfx1")->base(), memregion("gfx1")->bytes(),
 			0,1,20,19,18,17,14,9,16,6,4,7,8,15,10,11,13,5,12,3,2);
 
 	/* Now we can unpack each nibble of the sprites into a pixel (one byte) */
-	wecleman_unpack_sprites(machine());
+	wecleman_unpack_sprites();
 
 	/* Bg & Fg & Txt */
-	bitswap(machine(), machine().root_device().memregion("gfx2")->base(), machine().root_device().memregion("gfx2")->bytes(),
+	bitswap(memregion("gfx2")->base(), memregion("gfx2")->bytes(),
 			20,19,18,17,16,15,12,7,14,4,2,5,6,13,8,9,11,3,10,1,0);
 
 	/* Road */
-	bitswap(machine(), machine().root_device().memregion("gfx3")->base(), machine().root_device().memregion("gfx3")->bytes(),
+	bitswap(memregion("gfx3")->base(), memregion("gfx3")->bytes(),
 			20,19,18,17,16,15,14,7,12,4,2,5,6,13,8,9,11,3,10,1,0);
 
 	m_spr_color_offs = 0x40;
@@ -1396,13 +1390,13 @@ ROM_START( hotchase )
 	ROM_REGION( 0x20000, "gfx4", 0 )    /* road */
 	ROM_LOAD( "763e15", 0x000000, 0x020000, CRC(7110aa43) SHA1(639dc002cc1580f0530bb5bb17f574e2258d5954) )
 
-	ROM_REGION( 0x40000, "konami1", 0 ) /* Samples, 2 banks */
+	ROM_REGION( 0x40000, "k007232_1", 0 ) /* Samples, 2 banks */
 	ROM_LOAD( "763e11", 0x000000, 0x040000, CRC(9d99a5a7) SHA1(96e37bbb259e0a91d124c26b6b1a9b70de2e19a4) )
 
-	ROM_REGION( 0x40000, "konami2", 0 ) /* Samples, 2 banks */
+	ROM_REGION( 0x40000, "k007232_2", 0 ) /* Samples, 2 banks */
 	ROM_LOAD( "763e10", 0x000000, 0x040000, CRC(ca409210) SHA1(703d7619c4bd33d2ff5fad127d98c82906fede33) )
 
-	ROM_REGION( 0x100000, "konami3", 0 )    /* Samples, 4 banks for each ROM */
+	ROM_REGION( 0x100000, "k007232_3", 0 )    /* Samples, 4 banks for each ROM */
 	ROM_LOAD( "763e08", 0x000000, 0x080000, CRC(054a9a63) SHA1(45d7926c9e7af47c041ba9b733e334bccd730a6d) )
 	ROM_LOAD( "763e09", 0x080000, 0x080000, CRC(c39857db) SHA1(64b135a9ccf9e1dd50789cdd5c6bc03da8decfd0) )
 
@@ -1414,13 +1408,13 @@ ROM_END
     in a ROM module definition.  This routine unpacks each sprite nibble
     into a byte, doubling the memory consumption. */
 
-static void hotchase_sprite_decode( running_machine &machine, int num16_banks, int bank_size )
+void wecleman_state::hotchase_sprite_decode( int num16_banks, int bank_size )
 {
 	UINT8 *base, *temp;
 	int i;
 
-	base = machine.root_device().memregion("gfx1")->base(); // sprites
-	temp = auto_alloc_array(machine, UINT8,  bank_size );
+	base = memregion("gfx1")->base(); // sprites
+	temp = auto_alloc_array(machine(), UINT8,  bank_size );
 
 	for( i = num16_banks; i >0; i-- ){
 		UINT8 *finish   = base + 2*bank_size*i;
@@ -1458,7 +1452,7 @@ static void hotchase_sprite_decode( running_machine &machine, int num16_banks, i
 			*dest++ = data & 0xF;
 		} while( dest<finish );
 	}
-	auto_free( machine, temp );
+	auto_free( machine(), temp );
 }
 
 /* Unpack sprites data and do some patching */
@@ -1475,7 +1469,7 @@ DRIVER_INIT_MEMBER(wecleman_state,hotchase)
 	RAM = memregion("gfx1")->base();
 
 	/* Now we can unpack each nibble of the sprites into a pixel (one byte) */
-	hotchase_sprite_decode(machine(),3,0x80000*2);  // num banks, bank len
+	hotchase_sprite_decode(3,0x80000*2);  // num banks, bank len
 
 	/* Let's copy the second half of the fg layer gfx (charset) over the first */
 	RAM = memregion("gfx3")->base();

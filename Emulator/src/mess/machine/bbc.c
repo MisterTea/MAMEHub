@@ -37,13 +37,13 @@ Model A memory handling functions
 /* for the model A just address the 4 on board ROM sockets */
 WRITE8_MEMBER(bbc_state::bbc_page_selecta_w)
 {
-	membank("bank4")->set_base(machine().root_device().memregion("user1")->base()+((data&0x03)<<14));
+	m_bank4->set_base(m_region_user1->base()+((data&0x03)<<14));
 }
 
 
 WRITE8_MEMBER(bbc_state::bbc_memorya1_w)
 {
-	memregion("maincpu")->base()[offset]=data;
+	m_region_maincpu->base()[offset]=data;
 }
 
 /*************************
@@ -57,11 +57,11 @@ WRITE8_MEMBER(bbc_state::bbc_page_selectb_w)
 	m_rombank=data&0x0f;
 	if (m_rombank!=1)
 	{
-		membank("bank4")->set_base(machine().root_device().memregion("user1")->base() + (m_rombank << 14));
+		m_bank4->set_base(m_region_user1->base() + (m_rombank << 14));
 	}
 	else
 	{
-		membank("bank4")->set_base(machine().root_device().memregion("user2")->base() + ((m_DFSType) << 14));
+		m_bank4->set_base(m_region_user2->base() + ((m_DFSType) << 14));
 	}
 }
 
@@ -70,11 +70,11 @@ WRITE8_MEMBER(bbc_state::bbc_memoryb3_w)
 {
 	if (m_RAMSize)
 	{
-		memregion("maincpu")->base()[offset + 0x4000] = data;
+		m_region_maincpu->base()[offset + 0x4000] = data;
 	}
 	else
 	{
-		memregion("maincpu")->base()[offset] = data;
+		m_region_maincpu->base()[offset] = data;
 	}
 
 }
@@ -94,14 +94,14 @@ WRITE8_MEMBER(bbc_state::bbc_memoryb4_w)
 	if (m_rombank == 1)
 	{
 		// special DFS case for Acorn DFS E00 Hack that can write to the DFS RAM Bank;
-		if (m_DFSType == 3) memregion("user2")->base()[((m_DFSType) << 14) + offset] = data;
+		if (m_DFSType == 3) m_region_user2->base()[((m_DFSType) << 14) + offset] = data;
 	} else
 	{
 		switch (m_SWRAMtype)
 		{
-			case 1: if (bbc_SWRAMtype1[m_userport]) memregion("user1")->base()[(m_userport << 14) + offset] = data;
-			case 2: if (bbc_SWRAMtype2[m_rombank])  memregion("user1")->base()[(m_rombank << 14) + offset] = data;
-			case 3: if (bbc_SWRAMtype3[m_rombank])  memregion("user1")->base()[(m_rombank << 14) + offset] = data;
+			case 1: if (bbc_SWRAMtype1[m_userport]) m_region_user1->base()[(m_userport << 14) + offset] = data;
+			case 2: if (bbc_SWRAMtype2[m_rombank])  m_region_user1->base()[(m_rombank << 14) + offset] = data;
+			case 3: if (bbc_SWRAMtype3[m_rombank])  m_region_user1->base()[(m_rombank << 14) + offset] = data;
 		}
 	}
 }
@@ -117,12 +117,11 @@ WRITE8_MEMBER(bbc_state::bbc_memoryb4_w)
     PC is in the range c000 to dfff
     or if pagedRAM set and PC is in the range a000 to afff
 */
-static int vdudriverset(running_machine &machine)
+int bbc_state::vdudriverset()
 {
-	bbc_state *state = machine.driver_data<bbc_state>();
 	int PC;
-	PC = machine.device("maincpu")->safe_pc(); // this needs to be set to the 6502 program counter
-	return (((PC >= 0xc000) && (PC <= 0xdfff)) || ((state->m_pagedRAM) && ((PC >= 0xa000) && (PC <= 0xafff))));
+	PC = machine().device("maincpu")->safe_pc(); // this needs to be set to the 6502 program counter
+	return (((PC >= 0xc000) && (PC <= 0xdfff)) || ((m_pagedRAM) && ((PC >= 0xa000) && (PC <= 0xafff))));
 }
 
 
@@ -138,24 +137,24 @@ WRITE8_MEMBER(bbc_state::bbc_page_selectbp_w)
 		if (m_pagedRAM)
 		{
 			/* if paged ram then set 8000 to afff to read from the ram 8000 to afff */
-			membank("bank4")->set_base(machine().root_device().memregion("maincpu")->base() + 0x8000);
+			m_bank4->set_base(m_region_maincpu->base() + 0x8000);
 		}
 		else
 		{
 			/* if paged rom then set the rom to be read from 8000 to afff */
-			membank("bank4")->set_base(machine().root_device().memregion("user1")->base() + (m_rombank << 14));
+			m_bank4->set_base(m_region_user1->base() + (m_rombank << 14));
 		};
 
 		/* set the rom to be read from b000 to bfff */
-		membank("bank6")->set_entry(m_rombank);
+		m_bank6->set_entry(m_rombank);
 	}
 	else
 	{
 		//the video display should now use this flag to display the shadow ram memory
 		m_vdusel=(data>>7)&0x01;
-		bbcbp_setvideoshadow(machine(), m_vdusel);
+		bbcbp_setvideoshadow(m_vdusel);
 		//need to make the video display do a full screen refresh for the new memory area
-		membank("bank2")->set_base(machine().root_device().memregion("maincpu")->base()+0x3000);
+		m_bank2->set_base(m_region_maincpu->base()+0x3000);
 	}
 }
 
@@ -166,7 +165,7 @@ WRITE8_MEMBER(bbc_state::bbc_page_selectbp_w)
 
 WRITE8_MEMBER(bbc_state::bbc_memorybp1_w)
 {
-	memregion("maincpu")->base()[offset]=data;
+	m_region_maincpu->base()[offset]=data;
 }
 
 
@@ -182,23 +181,23 @@ WRITE8_MEMBER(bbc_state::bbc_memorybp1_w)
 
 DIRECT_UPDATE_MEMBER(bbc_state::bbcbp_direct_handler)
 {
-	UINT8 *ram = memregion("maincpu")->base();
+	UINT8 *ram = m_region_maincpu->base();
 	if (m_vdusel == 0)
 	{
 		// not in shadow ram mode so just read normal ram
-		membank("bank2")->set_base(ram + 0x3000);
+		m_bank2->set_base(ram + 0x3000);
 	}
 	else
 	{
-		if (vdudriverset(machine()))
+		if (vdudriverset())
 		{
 			// if VDUDriver set then read from shadow ram
-			membank("bank2")->set_base(ram + 0xb000);
+			m_bank2->set_base(ram + 0xb000);
 		}
 		else
 		{
 			// else read from normal ram
-			membank("bank2")->set_base(ram + 0x3000);
+			m_bank2->set_base(ram + 0x3000);
 		}
 	}
 	return address;
@@ -207,7 +206,7 @@ DIRECT_UPDATE_MEMBER(bbc_state::bbcbp_direct_handler)
 
 WRITE8_MEMBER(bbc_state::bbc_memorybp2_w)
 {
-	UINT8 *ram = memregion("maincpu")->base();
+	UINT8 *ram = m_region_maincpu->base();
 	if (m_vdusel==0)
 	{
 		// not in shadow ram mode so just write to normal ram
@@ -215,7 +214,7 @@ WRITE8_MEMBER(bbc_state::bbc_memorybp2_w)
 	}
 	else
 	{
-		if (vdudriverset(machine()))
+		if (vdudriverset())
 		{
 			// if VDUDriver set then write to shadow ram
 			ram[offset + 0xb000] = data;
@@ -235,7 +234,7 @@ WRITE8_MEMBER(bbc_state::bbc_memorybp4_w)
 {
 	if (m_pagedRAM)
 	{
-		memregion("maincpu")->base()[offset+0x8000]=data;
+		m_region_maincpu->base()[offset+0x8000]=data;
 	}
 }
 
@@ -255,13 +254,13 @@ WRITE8_MEMBER(bbc_state::bbc_memorybp4_128_w)
 {
 	if (m_pagedRAM)
 	{
-		memregion("maincpu")->base()[offset+0x8000]=data;
+		m_region_maincpu->base()[offset+0x8000]=data;
 	}
 	else
 	{
 		if (bbc_b_plus_sideways_ram_banks[m_rombank])
 		{
-			memregion("user1")->base()[offset+(m_rombank<<14)]=data;
+			m_region_user1->base()[offset+(m_rombank<<14)]=data;
 		}
 	}
 }
@@ -270,7 +269,7 @@ WRITE8_MEMBER(bbc_state::bbc_memorybp6_128_w)
 {
 	if (bbc_b_plus_sideways_ram_banks[m_rombank])
 	{
-		memregion("user1")->base()[offset+(m_rombank<<14)+0x3000]=data;
+		m_region_user1->base()[offset+(m_rombank<<14)+0x3000]=data;
 	}
 }
 
@@ -360,23 +359,23 @@ WRITE8_MEMBER(bbc_state::bbcm_ACCCON_write)
 
 	if (m_ACCCON_Y)
 	{
-		membank("bank7")->set_base(machine().root_device().memregion("maincpu")->base() + 0x9000);
+		m_bank7->set_base(m_region_maincpu->base() + 0x9000);
 	}
 	else
 	{
-		membank("bank7")->set_base(machine().root_device().memregion("user1")->base() + 0x40000);
+		m_bank7->set_base(m_region_user1->base() + 0x40000);
 	}
 
-	bbcbp_setvideoshadow(machine(), m_ACCCON_D);
+	bbcbp_setvideoshadow(m_ACCCON_D);
 
 
 	if (m_ACCCON_X)
 	{
-		membank("bank2")->set_base(machine().root_device().memregion( "maincpu" )->base() + 0xb000 );
+		m_bank2->set_base(m_region_maincpu->base() + 0xb000 );
 	}
 	else
 	{
-		membank("bank2")->set_base(machine().root_device().memregion( "maincpu" )->base() + 0x3000 );
+		m_bank2->set_base(m_region_maincpu->base() + 0x3000 );
 	}
 
 	/* ACCCON_TST controls paging of rom reads in the 0xFC00-0xFEFF reigon */
@@ -384,7 +383,7 @@ WRITE8_MEMBER(bbc_state::bbcm_ACCCON_write)
 	/* if 1 the the ROM is paged in for reads but writes still go to I/O   */
 	if (m_ACCCON_TST)
 	{
-		membank("bank8")->set_base(machine().root_device().memregion("user1")->base()+0x43c00);
+		m_bank8->set_base(m_region_user1->base()+0x43c00);
 		space.install_read_bank(0xFC00,0xFEFF,"bank8");
 	}
 	else
@@ -395,10 +394,10 @@ WRITE8_MEMBER(bbc_state::bbcm_ACCCON_write)
 }
 
 
-static int bbcm_vdudriverset(running_machine &machine)
+int bbc_state::bbcm_vdudriverset()
 {
 	int PC;
-	PC = machine.device("maincpu")->safe_pc();
+	PC = machine().device("maincpu")->safe_pc();
 	return ((PC >= 0xc000) && (PC <= 0xdfff));
 }
 
@@ -410,13 +409,13 @@ WRITE8_MEMBER(bbc_state::page_selectbm_w)
 
 	if (m_pagedRAM)
 	{
-		membank("bank4")->set_base(machine().root_device().memregion("maincpu")->base() + 0x8000);
-		membank("bank5")->set_entry(m_rombank);
+		m_bank4->set_base(m_region_maincpu->base() + 0x8000);
+		m_bank5->set_entry(m_rombank);
 	}
 	else
 	{
-		membank("bank4")->set_base(machine().root_device().memregion("user1")->base() + ((m_rombank) << 14));
-		membank("bank5")->set_entry(m_rombank);
+		m_bank4->set_base(m_region_user1->base() + ((m_rombank) << 14));
+		m_bank5->set_entry(m_rombank);
 	}
 }
 
@@ -424,7 +423,7 @@ WRITE8_MEMBER(bbc_state::page_selectbm_w)
 
 WRITE8_MEMBER(bbc_state::bbc_memorybm1_w)
 {
-	memregion("maincpu")->base()[offset] = data;
+	m_region_maincpu->base()[offset] = data;
 }
 
 
@@ -432,17 +431,17 @@ DIRECT_UPDATE_MEMBER(bbc_state::bbcm_direct_handler)
 {
 	if (m_ACCCON_X)
 	{
-		membank( "bank2" )->set_base( memregion( "maincpu" )->base() + 0xb000 );
+		m_bank2->set_base( m_region_maincpu->base() + 0xb000 );
 	}
 	else
 	{
-		if (m_ACCCON_E && bbcm_vdudriverset(machine()))
+		if (m_ACCCON_E && bbcm_vdudriverset())
 		{
-			membank( "bank2" )->set_base( machine().root_device().memregion( "maincpu" )->base() + 0xb000 );
+			m_bank2->set_base( m_region_maincpu->base() + 0xb000 );
 		}
 		else
 		{
-			membank( "bank2" )->set_base( machine().root_device().memregion( "maincpu" )->base() + 0x3000 );
+			m_bank2->set_base( m_region_maincpu->base() + 0x3000 );
 		}
 	}
 
@@ -453,14 +452,14 @@ DIRECT_UPDATE_MEMBER(bbc_state::bbcm_direct_handler)
 
 WRITE8_MEMBER(bbc_state::bbc_memorybm2_w)
 {
-	UINT8 *ram = memregion("maincpu")->base();
+	UINT8 *ram = m_region_maincpu->base();
 	if (m_ACCCON_X)
 	{
 		ram[offset + 0xb000] = data;
 	}
 	else
 	{
-		if (m_ACCCON_E && bbcm_vdudriverset(machine()))
+		if (m_ACCCON_E && bbcm_vdudriverset())
 		{
 			ram[offset + 0xb000] = data;
 		}
@@ -481,13 +480,13 @@ WRITE8_MEMBER(bbc_state::bbc_memorybm4_w)
 {
 	if (m_pagedRAM)
 	{
-		memregion("maincpu")->base()[offset+0x8000]=data;
+		m_region_maincpu->base()[offset+0x8000]=data;
 	}
 	else
 	{
 		if (bbc_master_sideways_ram_banks[m_rombank])
 		{
-			memregion("user1")->base()[offset+(m_rombank<<14)]=data;
+			m_region_user1->base()[offset+(m_rombank<<14)]=data;
 		}
 	}
 }
@@ -497,7 +496,7 @@ WRITE8_MEMBER(bbc_state::bbc_memorybm5_w)
 {
 	if (bbc_master_sideways_ram_banks[m_rombank])
 	{
-		memregion("user1")->base()[offset+(m_rombank<<14)+0x1000]=data;
+		m_region_user1->base()[offset+(m_rombank<<14)+0x1000]=data;
 	}
 }
 
@@ -506,7 +505,7 @@ WRITE8_MEMBER(bbc_state::bbc_memorybm7_w)
 {
 	if (m_ACCCON_Y)
 	{
-		memregion("maincpu")->base()[offset+0x9000]=data;
+		m_region_maincpu->base()[offset+0x9000]=data;
 	}
 }
 
@@ -541,7 +540,7 @@ long myo;
 	/* Now handled in bbcm_ACCCON_write PHS - 2008-10-11 */
 //  if ( m_ACCCON_TST )
 //  {
-//      return memregion("user1")->base()[offset+0x43c00];
+//      return m_region_user1->base()[offset+0x43c00];
 //  };
 
 	if (offset<=0x0ff) /* FRED */
@@ -565,12 +564,10 @@ long myo;
 		if ((myo>=0x00) && (myo<=0x07)) return bbc_6845_r(space, myo-0x00);     /* Video Controller */
 		if ((myo>=0x08) && (myo<=0x0f))
 		{
-			acia6850_device *acia = machine().device<acia6850_device>("acia6850");
-
 			if ((myo - 0x08) & 1)
-				return acia->status_read(space,0);
+				return m_acia->status_read(space,0);
 			else
-				return acia->data_read(space,0);
+				return m_acia->data_read(space,0);
 		}
 		if ((myo>=0x10) && (myo<=0x17)) return 0xfe;                        /* Serial System Chip */
 		if ((myo>=0x18) && (myo<=0x1f)) return uPD7002_r(machine().device("upd7002"), space, myo-0x18);         /* A to D converter */
@@ -605,12 +602,10 @@ long myo;
 		if ((myo>=0x00) && (myo<=0x07)) bbc_6845_w(space, myo-0x00,data);           /* Video Controller */
 		if ((myo>=0x08) && (myo<=0x0f))
 		{
-			acia6850_device *acia = machine().device<acia6850_device>("acia6850");
-
 			if ((myo - 0x08) & 1)
-				acia->control_write(space, 0, data);
+				m_acia->control_write(space, 0, data);
 			else
-				acia->data_write(space, 0, data);
+				m_acia->data_write(space, 0, data);
 		}
 		if ((myo>=0x10) && (myo<=0x17)) bbc_SerialULA_w(space, myo-0x10,data);      /* Serial System Chip */
 		if ((myo>=0x18) && (myo<=0x1f)) uPD7002_w(machine().device("upd7002"),space,myo-0x18,data);         /* A to D converter */
@@ -753,7 +748,7 @@ INTERRUPT_GEN_MEMBER(bbc_state::bbcb_keyscan)
 			/* KBD IC4 8 input NAND gate */
 			/* set the value of via_system ca2, by checking for any keys
 			     being pressed on the selected m_column */
-			if ((machine().root_device().ioport(colnames[m_column])->read() | 0x01) != 0xff)
+			if ((ioport(colnames[m_column])->read() | 0x01) != 0xff)
 			{
 				via_0->write_ca2(1);
 			}
@@ -793,7 +788,7 @@ INTERRUPT_GEN_MEMBER(bbc_state::bbcm_keyscan)
 			/* KBD IC4 8 input NAND gate */
 			/* set the value of via_system ca2, by checking for any keys
 			     being pressed on the selected m_column */
-			if ((machine().root_device().ioport(colnames[m_column])->read() | 0x01) != 0xff)
+			if ((ioport(colnames[m_column])->read() | 0x01) != 0xff)
 			{
 				via_0->write_ca2(1);
 			}
@@ -812,9 +807,8 @@ INTERRUPT_GEN_MEMBER(bbc_state::bbcm_keyscan)
 
 
 
-static int bbc_keyboard(address_space &space, int data)
+int bbc_state::bbc_keyboard(address_space &space, int data)
 {
-	bbc_state *state = space.machine().driver_data<bbc_state>();
 	int bit;
 	int row;
 	int res;
@@ -824,14 +818,14 @@ static int bbc_keyboard(address_space &space, int data)
 	};
 	via6522_device *via_0 = space.machine().device<via6522_device>("via6522_0");
 
-	state->m_column = data & 0x0f;
+	m_column = data & 0x0f;
 	row = (data>>4) & 0x07;
 
 	bit = 0;
 
-	if (state->m_column < 10)
+	if (m_column < 10)
 	{
-		res = space.machine().root_device().ioport(colnames[state->m_column])->read();
+		res = ioport(colnames[m_column])->read();
 	}
 	else
 	{
@@ -857,50 +851,49 @@ static int bbc_keyboard(address_space &space, int data)
 }
 
 
-static void bbcb_IC32_initialise(bbc_state *state)
+void bbc_state::bbcb_IC32_initialise(bbc_state *state)
 {
-	state->m_b0_sound=0x01;             // Sound is negative edge trigered
-	state->m_b1_speech_read=0x01;       // ????
-	state->m_b2_speech_write=0x01;      // ????
-	state->m_b3_keyboard=0x01;          // Keyboard is negative edge trigered
-	state->m_b4_video0=0x01;
-	state->m_b5_video1=0x01;
-	state->m_b6_caps_lock_led=0x01;
-	state->m_b7_shift_lock_led=0x01;
+	m_b0_sound=0x01;             // Sound is negative edge trigered
+	m_b1_speech_read=0x01;       // ????
+	m_b2_speech_write=0x01;      // ????
+	m_b3_keyboard=0x01;          // Keyboard is negative edge trigered
+	m_b4_video0=0x01;
+	m_b5_video1=0x01;
+	m_b6_caps_lock_led=0x01;
+	m_b7_shift_lock_led=0x01;
 
 }
 
 
 /* This the BBC Masters Real Time Clock and NVRam IC */
-static void MC146818_set(address_space &space)
+void bbc_state::MC146818_set(address_space &space)
 {
-	bbc_state *state = space.machine().driver_data<bbc_state>();
-	logerror ("146181 WR=%d DS=%d AS=%d CE=%d \n",state->m_MC146818_WR,state->m_MC146818_DS,state->m_MC146818_AS,state->m_MC146818_CE);
+	logerror ("146181 WR=%d DS=%d AS=%d CE=%d \n",m_MC146818_WR,m_MC146818_DS,m_MC146818_AS,m_MC146818_CE);
 	mc146818_device *rtc = space.machine().device<mc146818_device>("rtc");
 
 	// if chip enabled
-	if (state->m_MC146818_CE)
+	if (m_MC146818_CE)
 	{
 		// if data select is set then access the data in the 146818
-		if (state->m_MC146818_DS)
+		if (m_MC146818_DS)
 		{
-			if (state->m_MC146818_WR)
+			if (m_MC146818_WR)
 			{
-				state->m_via_system_porta=rtc->read(space, 1);
-				//logerror("read 146818 data %d \n",state->m_via_system_porta);
+				m_via_system_porta=rtc->read(space, 1);
+				//logerror("read 146818 data %d \n",m_via_system_porta);
 			}
 			else
 			{
-				rtc->write(space, 1, state->m_via_system_porta);
-				//logerror("write 146818 data %d \n",state->m_via_system_porta);
+				rtc->write(space, 1, m_via_system_porta);
+				//logerror("write 146818 data %d \n",m_via_system_porta);
 			}
 		}
 
 		// if address select is set then set the address in the 146818
-		if (state->m_MC146818_AS)
+		if (m_MC146818_AS)
 		{
-			rtc->write(space, 0, state->m_via_system_porta);
-			//logerror("write 146818 address %d \n",state->m_via_system_porta);
+			rtc->write(space, 0, m_via_system_porta);
+			//logerror("write 146818 address %d \n",m_via_system_porta);
 		}
 	}
 }
@@ -1139,11 +1132,11 @@ static const int TMSint=1;
 static const int TMSrdy=1;
 
 #ifdef UNUSED_FUNCTION
-void bbc_TMSint(int status)
+void bbc_state::bbc_TMSint(int status)
 {
 	TMSint=(!status)&1;
 	TMSrdy=(!tms5220_readyq_r())&1;
-	via_0_portb_w(0,(0xf | machine.root_device().ioport("IN0")->read()|(TMSint<<6)|(TMSrdy<<7)));
+	via_0_portb_w(0,(0xf | ioport("IN0")->read()|(TMSint<<6)|(TMSrdy<<7)));
 }
 #endif
 
@@ -1155,7 +1148,7 @@ READ8_MEMBER(bbc_state::bbcb_via_system_read_portb)
 
 	//logerror("SYSTEM read portb %d\n",0xf | input_port(machine, "IN0")|(TMSint<<6)|(TMSrdy<<7));
 
-	return (0xf | machine().root_device().ioport("IN0")->read()|(TMSint<<6)|(TMSrdy<<7));
+	return (0xf | ioport("IN0")->read()|(TMSint<<6)|(TMSrdy<<7));
 }
 
 
@@ -1297,101 +1290,245 @@ const uPD7002_interface bbc_uPD7002 =
 
 
 
-static void MC6850_Receive_Clock(running_machine &machine, int new_clock)
+void bbc_state::MC6850_Receive_Clock(int new_clock)
 {
-	bbc_state *state = machine.driver_data<bbc_state>();
-	if (!state->m_mc6850_clock && new_clock)
+	m_rxd_cass = new_clock;
+
+	//
+	// Somehow the "serial processor" generates 16 clock signals towards
+	// the 6850. Exact details are unknown, faking it with the following
+	// loop.
+	//
+	for (int i = 0; i < 16; i++ )
 	{
-		acia6850_device *acia = machine.device<acia6850_device>("acia6850");
-		acia->tx_clock_in();
+		m_acia->rx_clock_in();
 	}
-	state->m_mc6850_clock = new_clock;
 }
 
 TIMER_CALLBACK_MEMBER(bbc_state::bbc_tape_timer_cb)
 {
-
-	double dev_val;
-	dev_val=machine().device<cassette_image_device>(CASSETTE_TAG)->input();
-
-	// look for rising edges on the cassette wave
-	if (((dev_val>=0.0) && (m_last_dev_val<0.0)) || ((dev_val<0.0) && (m_last_dev_val>=0.0)))
+	if ( m_cass_out_enabled )
 	{
-		if (m_wav_len>(9*3))
-		{
-			//this is to long to recive anything so reset the serial IC. This is a hack, this should be done as a timer in the MC6850 code.
-			logerror ("Cassette length %d\n",m_wav_len);
-			m_len0=0;
-			m_len1=0;
-			m_len2=0;
-			m_len3=0;
-			m_wav_len=0;
+		// 0 = 18-18 18-17-1
+		// 1 = 9-9-9-9 9-9-9-8-1
 
+		switch ( m_cass_out_samples_to_go )
+		{
+			case 0:
+				if ( m_cass_out_phase == 0 )
+				{
+					// get bit value
+					m_cass_out_bit = m_txd;
+					if ( m_cass_out_bit )
+					{
+						m_cass_out_phase = 3;
+						m_cass_out_samples_to_go = 9;
+					}
+					else
+					{
+						m_cass_out_phase = 1;
+						m_cass_out_samples_to_go = 18;
+					}
+					m_cassette->output( +1.0 );
+				}
+				else
+				{
+					// switch phase
+					m_cass_out_phase--;
+					m_cass_out_samples_to_go = m_cass_out_bit ? 9 : 18;
+					m_cassette->output( ( m_cass_out_phase & 1 ) ? +1.0 : -1.0 );
+				}
+				break;
+			case 1:
+				if ( m_cass_out_phase == 0 )
+				{
+					m_cassette->output( 0.0 );
+				}
+				break;
 		}
 
-		m_len3=m_len2;
-		m_len2=m_len1;
-		m_len1=m_len0;
-		m_len0=m_wav_len;
-
-		m_wav_len=0;
-		logerror ("cassette  %d  %d  %d  %d\n",m_len3,m_len2,m_len1,m_len0);
-
-		if ((m_len0+m_len1)>=(18+18-5))
-		{
-			/* Clock a 0 onto the serial line */
-			logerror("Serial value 0\n");
-			MC6850_Receive_Clock(machine(), 0);
-			m_len0=0;
-			m_len1=0;
-			m_len2=0;
-			m_len3=0;
-		}
-
-		if (((m_len0+m_len1+m_len2+m_len3)<=41) && (m_len3!=0))
-		{
-			/* Clock a 1 onto the serial line */
-			logerror("Serial value 1\n");
-			MC6850_Receive_Clock(machine(), 1);
-			m_len0=0;
-			m_len1=0;
-			m_len2=0;
-			m_len3=0;
-		}
-
-
-	}
-
-	m_wav_len++;
-	m_last_dev_val=dev_val;
-
-}
-
-static void BBC_Cassette_motor(running_machine &machine, unsigned char status)
-{
-	bbc_state *state = machine.driver_data<bbc_state>();
-	if (status)
-	{
-		machine.device<cassette_image_device>(CASSETTE_TAG)->change_state(CASSETTE_MOTOR_ENABLED, CASSETTE_MASK_MOTOR);
-		state->m_tape_timer->adjust(attotime::zero, 0, attotime::from_hz(44100));
+		m_cass_out_samples_to_go--;
 	}
 	else
 	{
-		machine.device<cassette_image_device>(CASSETTE_TAG)->change_state(CASSETTE_MOTOR_DISABLED, CASSETTE_MASK_MOTOR);
-		state->m_tape_timer->reset();
-		state->m_len0 = 0;
-		state->m_len1 = 0;
-		state->m_len2 = 0;
-		state->m_len3 = 0;
-		state->m_wav_len = 0;
+		double dev_val = m_cassette->input();
+
+		// look for edges on the cassette wave
+		if (((dev_val>=0.0) && (m_last_dev_val<0.0)) || ((dev_val<0.0) && (m_last_dev_val>=0.0)))
+		{
+			if (m_wav_len>(9*3))
+			{
+				//this is to long to recive anything so reset the serial IC. This is a hack, this should be done as a timer in the MC6850 code.
+				logerror ("Cassette length %d\n",m_wav_len);
+				m_nr_high_tones = 0;
+				m_dcd_cass = 0;
+				m_len0=0;
+				m_len1=0;
+				m_len2=0;
+				m_len3=0;
+				m_wav_len=0;
+
+			}
+
+			m_len3=m_len2;
+			m_len2=m_len1;
+			m_len1=m_len0;
+			m_len0=m_wav_len;
+
+			m_wav_len=0;
+			logerror ("cassette  %d  %d  %d  %d\n",m_len3,m_len2,m_len1,m_len0);
+
+			if ((m_len0+m_len1)>=(18+18-5))
+			{
+				/* Clock a 0 onto the serial line */
+				logerror("Serial value 0\n");
+				m_nr_high_tones = 0;
+				m_dcd_cass = 0;
+				MC6850_Receive_Clock(0);
+				m_len0=0;
+				m_len1=0;
+				m_len2=0;
+				m_len3=0;
+			}
+
+			if (((m_len0+m_len1+m_len2+m_len3)<=41) && (m_len3!=0))
+			{
+				/* Clock a 1 onto the serial line */
+				logerror("Serial value 1\n");
+				m_nr_high_tones++;
+				if ( m_nr_high_tones > 100 )
+				{
+					m_dcd_cass = 1;
+				}
+				MC6850_Receive_Clock(1);
+				m_len0=0;
+				m_len1=0;
+				m_len2=0;
+				m_len3=0;
+			}
+
+
+		}
+
+		m_wav_len++;
+		m_last_dev_val=dev_val;
 	}
 }
 
 
+READ_LINE_MEMBER( bbc_state::bbc_rxd_r )
+{
+	return ( m_serproc_data & 0x40 ) ? m_rs232->rx() : m_rxd_cass;
+}
 
+
+READ_LINE_MEMBER( bbc_state::bbc_dcd_r )
+{
+	return ( m_serproc_data & 0x40 ) ? m_rs232->dcd_r() : m_dcd_cass;
+}
+
+
+READ_LINE_MEMBER( bbc_state::bbc_cts_r )
+{
+	return ( m_serproc_data & 0x40 ) ? m_rs232->cts_r() : 0;
+}
+
+
+WRITE_LINE_MEMBER( bbc_state::bbc_rts_w )
+{
+	if ( m_serproc_data & 0x40 )
+	{
+		m_rs232->rts_w(state);
+		m_cass_out_enabled = 0;
+	}
+	else
+	{
+		m_cass_out_enabled = state ? 0 : 1;
+	}
+}
+
+
+WRITE_LINE_MEMBER( bbc_state::bbc_txd_w )
+{
+	if ( m_serproc_data & 0x40 )
+	{
+		m_rs232->tx(state);
+	}
+	else
+	{
+		m_txd = state;
+	}
+}
+
+
+void bbc_state::BBC_Cassette_motor(unsigned char status)
+{
+	if (status)
+	{
+		m_cassette->change_state(CASSETTE_MOTOR_ENABLED, CASSETTE_MASK_MOTOR);
+		m_tape_timer->adjust(attotime::zero, 0, attotime::from_hz(44100));
+	}
+	else
+	{
+		m_cassette->change_state(CASSETTE_MOTOR_DISABLED, CASSETTE_MASK_MOTOR);
+		m_tape_timer->reset();
+		m_len0 = 0;
+		m_len1 = 0;
+		m_len2 = 0;
+		m_len3 = 0;
+		m_wav_len = 0;
+		m_cass_out_phase = 0;
+		m_cass_out_samples_to_go = 4;
+	}
+}
+
+
+//
+// Serial processor control
+// x--- ---- - Motor OFF(0)/ON(1)
+// -x-- ---- - Cassette(0)/RS243 input(1)
+// --xx x--- - Receive baud rate generator control
+// ---- -xxx - Transmit baud rate generator control
+//             These possible settings apply to both the receive
+//             and transmit baud generator control bits:
+//             000 - 16MHz / 13 /   1 - 19200 baud
+//             001 - 16MHz / 13 /  16 -  1200 baud
+//             010 - 16MHz / 13 /   4 -  4800 baud
+//             011 - 16MHz / 13 / 128 -   150 baud
+//             100 - 16MHz / 13 /   2 -  9600 baud
+//             101 - 16MHz / 13 /  64 -   300 baud
+//             110 - 16MHz / 13 /   8 -  2400 baud
+//             110 - 16MHz / 13 / 256 -    75 baud
+//
 WRITE8_MEMBER(bbc_state::bbc_SerialULA_w)
 {
-	BBC_Cassette_motor(machine(), (data & 0x80) >> 7);
+	static const int serial_clocks[8] =
+	{
+		XTAL_16MHz / 13 / 1,    // 000
+		XTAL_16MHz / 13 / 16,   // 001
+		XTAL_16MHz / 13 / 4,    // 010
+		XTAL_16MHz / 13 / 128,  // 011
+		XTAL_16MHz / 13 / 2,    // 100
+		XTAL_16MHz / 13 / 64,   // 101
+		XTAL_16MHz / 13 / 8,    // 110
+		XTAL_16MHz / 13 / 256   // 111
+	};
+
+	m_serproc_data = data;
+	BBC_Cassette_motor(m_serproc_data & 0x80);
+
+	// Set transmit clock rate
+	m_acia->set_tx_clock( serial_clocks[ data & 0x07 ] );
+
+	if ( data & 0x40 )
+	{
+		// Set receive clock rate
+		m_acia->set_rx_clock( serial_clocks[ ( data >> 3 ) & 0x07 ] );
+	}
+	else
+	{
+		m_acia->set_rx_clock( 0 );
+	}
 }
 
 /**************************************
@@ -1414,7 +1551,7 @@ static void bbc_i8271_interrupt(device_t *device, int state)
 		{
 			/* I'll pulse it because if I used hold-line I'm not sure
 			it would clear - to be checked */
-			device->machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI,PULSE_LINE);
+			drvstate->m_maincpu->set_input_line(INPUT_LINE_NMI,PULSE_LINE);
 		}
 	}
 
@@ -1524,13 +1661,12 @@ density disc image
   The nmi is edge triggered, and triggers on a +ve edge.
 */
 
-static void bbc_update_fdq_int(running_machine &machine, int state)
+void bbc_state::bbc_update_fdq_int(int state)
 {
-	bbc_state *drvstate = machine.driver_data<bbc_state>();
 	int bbc_state;
 
 	/* if drq or irq is set, and interrupt is enabled */
-	if ((drvstate->m_wd177x_irq_state || drvstate->m_wd177x_drq_state) && (drvstate->m_1770_IntEnabled))
+	if ((m_wd177x_irq_state || m_wd177x_drq_state) && (m_1770_IntEnabled))
 	{
 		/* int trigger */
 		bbc_state = 1;
@@ -1543,29 +1679,29 @@ static void bbc_update_fdq_int(running_machine &machine, int state)
 
 	/* nmi is edge triggered, and triggers when the state goes from clear->set.
 	Here we are checking this transition before triggering the nmi */
-	if (bbc_state!=drvstate->m_previous_wd177x_int_state)
+	if (bbc_state!=m_previous_wd177x_int_state)
 	{
 		if (bbc_state)
 		{
 			/* I'll pulse it because if I used hold-line I'm not sure
 			it would clear - to be checked */
-			machine.device("maincpu")->execute().set_input_line(INPUT_LINE_NMI,PULSE_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_NMI,PULSE_LINE);
 		}
 	}
 
-	drvstate->m_previous_wd177x_int_state = bbc_state;
+	m_previous_wd177x_int_state = bbc_state;
 }
 
 WRITE_LINE_MEMBER(bbc_state::bbc_wd177x_intrq_w)
 {
 	m_wd177x_irq_state = state;
-	bbc_update_fdq_int(machine(), state);
+	bbc_update_fdq_int(state);
 }
 
 WRITE_LINE_MEMBER(bbc_state::bbc_wd177x_drq_w)
 {
 	m_wd177x_drq_state = state;
-	bbc_update_fdq_int(machine(), state);
+	bbc_update_fdq_int(state);
 }
 
 const wd17xx_interface bbc_wd17xx_interface =
@@ -1914,9 +2050,9 @@ WRITE8_MEMBER(bbc_state::bbc_disc_w)
 /**************************************
    BBC B Rom loading functions
 ***************************************/
-DEVICE_IMAGE_LOAD( bbcb_cart )
+DEVICE_IMAGE_LOAD_MEMBER( bbc_state, bbcb_cart )
 {
-	UINT8 *mem = image.device().machine().root_device().memregion("user1")->base();
+	UINT8 *mem = m_region_user1->base();
 	int size, read_;
 	int addr = 0;
 	int index = 0;
@@ -1978,11 +2114,20 @@ DEVICE_IMAGE_LOAD( bbcb_cart )
 DRIVER_INIT_MEMBER(bbc_state,bbc)
 {
 	m_Master=0;
+	m_rxd_cass = 0;
+	m_nr_high_tones = 0;
+	m_serproc_data = 0;
+	m_cass_out_enabled = 0;
 	m_tape_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(bbc_state::bbc_tape_timer_cb),this));
 }
+
 DRIVER_INIT_MEMBER(bbc_state,bbcm)
 {
 	m_Master=1;
+	m_rxd_cass = 0;
+	m_nr_high_tones = 0;
+	m_serproc_data = 0;
+	m_cass_out_enabled = 0;
 	m_tape_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(bbc_state::bbc_tape_timer_cb),this));
 }
 
@@ -1992,13 +2137,13 @@ MACHINE_START_MEMBER(bbc_state,bbca)
 
 MACHINE_RESET_MEMBER(bbc_state,bbca)
 {
-	UINT8 *ram = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ram = m_region_maincpu->base();
 	m_RAMSize = 1;
-	membank("bank1")->set_base(ram);
-	membank("bank3")->set_base(ram);
+	m_bank1->set_base(ram);
+	m_bank3->set_base(ram);
 
-	membank("bank4")->set_base(machine().root_device().memregion("user1")->base());          /* bank 4 is the paged ROMs     from 8000 to bfff */
-	membank("bank7")->set_base(memregion("user1")->base()+0x10000);  /* bank 7 points at the OS rom  from c000 to ffff */
+	m_bank4->set_base(m_region_user1->base());          /* bank 4 is the paged ROMs     from 8000 to bfff */
+	m_bank7->set_base(m_region_user1->base()+0x10000);  /* bank 7 points at the OS rom  from c000 to ffff */
 
 	bbcb_IC32_initialise(this);
 }
@@ -2008,9 +2153,9 @@ MACHINE_START_MEMBER(bbc_state,bbcb)
 	m_mc6850_clock = 0;
 	//removed from here because MACHINE_START can no longer read DIP swiches.
 	//put in MACHINE_RESET instead.
-	//m_DFSType=  (machine().root_device().ioport("BBCCONFIG")->read()>>0)&0x07;
-	//m_SWRAMtype=(machine().root_device().ioport("BBCCONFIG")->read()>>3)&0x03;
-	//m_RAMSize=  (machine().root_device().ioport("BBCCONFIG")->read()>>5)&0x01;
+	//m_DFSType=  (ioport("BBCCONFIG")->read()>>0)&0x07;
+	//m_SWRAMtype=(ioport("BBCCONFIG")->read()>>3)&0x03;
+	//m_RAMSize=  (ioport("BBCCONFIG")->read()>>5)&0x01;
 
 	/*set up the required disc controller*/
 	//switch (m_DFSType) {
@@ -2025,27 +2170,27 @@ MACHINE_START_MEMBER(bbc_state,bbcb)
 
 MACHINE_RESET_MEMBER(bbc_state,bbcb)
 {
-	UINT8 *ram = memregion("maincpu")->base();
-	m_DFSType=    (machine().root_device().ioport("BBCCONFIG")->read() >> 0) & 0x07;
-	m_SWRAMtype = (machine().root_device().ioport("BBCCONFIG")->read() >> 3) & 0x03;
-	m_RAMSize=    (machine().root_device().ioport("BBCCONFIG")->read() >> 5) & 0x01;
+	UINT8 *ram = m_region_maincpu->base();
+	m_DFSType=    (ioport("BBCCONFIG")->read() >> 0) & 0x07;
+	m_SWRAMtype = (ioport("BBCCONFIG")->read() >> 3) & 0x03;
+	m_RAMSize=    (ioport("BBCCONFIG")->read() >> 5) & 0x01;
 
-	membank("bank1")->set_base(ram);
+	m_bank1->set_base(ram);
 	if (m_RAMSize)
 	{
 		/* 32K Model B */
-		membank("bank3")->set_base(ram + 0x4000);
+		m_bank3->set_base(ram + 0x4000);
 		m_memorySize=32;
 	}
 	else
 	{
 		/* 16K just repeat the lower 16K*/
-		membank("bank3")->set_base(ram);
+		m_bank3->set_base(ram);
 		m_memorySize=16;
 	}
 
-	membank("bank4")->set_base(machine().root_device().memregion("user1")->base());          /* bank 4 is the paged ROMs     from 8000 to bfff */
-	membank("bank7")->set_base(machine().root_device().memregion("user1")->base() + 0x40000);  /* bank 7 points at the OS rom  from c000 to ffff */
+	m_bank4->set_base(m_region_user1->base());          /* bank 4 is the paged ROMs     from 8000 to bfff */
+	m_bank7->set_base(m_region_user1->base() + 0x40000);  /* bank 7 points at the OS rom  from c000 to ffff */
 
 	bbcb_IC32_initialise(this);
 
@@ -2065,19 +2210,19 @@ MACHINE_START_MEMBER(bbc_state,bbcbp)
 {
 	m_mc6850_clock = 0;
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(bbc_state::bbcbp_direct_handler), this));
+	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(bbc_state::bbcbp_direct_handler), this));
 
 	/* bank 6 is the paged ROMs     from b000 to bfff */
-	membank("bank6")->configure_entries(0, 16, memregion("user1")->base() + 0x3000, 1<<14);
+	m_bank6->configure_entries(0, 16, m_region_user1->base() + 0x3000, 1<<14);
 }
 
 MACHINE_RESET_MEMBER(bbc_state,bbcbp)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base());
-	membank("bank2")->set_base(machine().root_device().memregion("maincpu")->base()+0x03000);  /* bank 2 screen/shadow ram     from 3000 to 7fff */
-	membank("bank4")->set_base(machine().root_device().memregion("user1")->base());         /* bank 4 is paged ROM or RAM   from 8000 to afff */
-	membank("bank6")->set_entry(0);
-	membank("bank7")->set_base(memregion("user1")->base()+0x40000); /* bank 7 points at the OS rom  from c000 to ffff */
+	m_bank1->set_base(m_region_maincpu->base());
+	m_bank2->set_base(m_region_maincpu->base()+0x03000);  /* bank 2 screen/shadow ram     from 3000 to 7fff */
+	m_bank4->set_base(m_region_user1->base());         /* bank 4 is paged ROM or RAM   from 8000 to afff */
+	m_bank6->set_entry(0);
+	m_bank7->set_base(m_region_user1->base()+0x40000); /* bank 7 points at the OS rom  from c000 to ffff */
 
 	bbcb_IC32_initialise(this);
 
@@ -2091,23 +2236,23 @@ MACHINE_START_MEMBER(bbc_state,bbcm)
 {
 	m_mc6850_clock = 0;
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(bbc_state::bbcm_direct_handler), this));
+	m_maincpu->space(AS_PROGRAM).set_direct_update_handler(direct_update_delegate(FUNC(bbc_state::bbcm_direct_handler), this));
 
 	/* bank 5 is the paged ROMs     from 9000 to bfff */
-	membank("bank5")->configure_entries(0, 16, machine().root_device().memregion("user1")->base()+0x01000, 1<<14);
+	m_bank5->configure_entries(0, 16, m_region_user1->base()+0x01000, 1<<14);
 
 	/* Set ROM/IO bank to point to rom */
-	membank( "bank8" )->set_base( memregion("user1")->base()+0x43c00);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(0xFC00, 0xFEFF, "bank8");
+	m_bank8->set_base( m_region_user1->base()+0x43c00);
+	m_maincpu->space(AS_PROGRAM).install_read_bank(0xFC00, 0xFEFF, "bank8");
 }
 
 MACHINE_RESET_MEMBER(bbc_state,bbcm)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base());           /* bank 1 regular lower ram     from 0000 to 2fff */
-	membank("bank2")->set_base(machine().root_device().memregion("maincpu")->base() + 0x3000);  /* bank 2 screen/shadow ram     from 3000 to 7fff */
-	membank("bank4")->set_base(machine().root_device().memregion("user1")->base());         /* bank 4 is paged ROM or RAM   from 8000 to 8fff */
-	membank("bank5")->set_entry(0);
-	membank("bank7")->set_base(memregion("user1")->base() + 0x40000); /* bank 6 OS rom of RAM          from c000 to dfff */
+	m_bank1->set_base(m_region_maincpu->base());           /* bank 1 regular lower ram     from 0000 to 2fff */
+	m_bank2->set_base(m_region_maincpu->base() + 0x3000);  /* bank 2 screen/shadow ram     from 3000 to 7fff */
+	m_bank4->set_base(m_region_user1->base());         /* bank 4 is paged ROM or RAM   from 8000 to 8fff */
+	m_bank5->set_entry(0);
+	m_bank7->set_base(m_region_user1->base() + 0x40000); /* bank 6 OS rom of RAM          from c000 to dfff */
 
 	bbcb_IC32_initialise(this);
 

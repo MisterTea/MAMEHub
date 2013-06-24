@@ -27,6 +27,12 @@
 
 /*****************************************************************************
     Changes
+    20130129 Angelo Salese
+    - added illegal opcode exception handling, side effect of some Saturn games
+      on loading like Feda or Falcom Classics Vol. 1
+      (i.e. Master CPU Incautiously transfers memory from CD to work RAM H, and
+            wipes out Slave CPU program code too while at it).
+
     20051129 Mariusz Wojcieszek
     - introduced memory_decrypted_read_word() for opcode fetching
 
@@ -118,17 +124,15 @@ CPU_DISASSEMBLE( sh2 );
 INLINE sh2_state *get_safe_token(device_t *device)
 {
 	assert(device != NULL);
-	assert(device->token != NULL);
-	assert(device->type() == CPU);
-	assert(cpu_get_type(device) == CPU_SH1 ||
-			cpu_get_type(device) == CPU_SH2);
+	assert(device->type() == SH1 ||
+			device->type() == SH2);
 	return (sh2_state *)downcast<legacy_cpu_device *>(device)->token();
 }
 
 INLINE UINT8 RB(sh2_state *sh2, offs_t A)
 {
 	if (A >= 0xe0000000)
-		return sh2_internal_r(sh2->internal, (A & 0x1fc)>>2, 0xff << (((~A) & 3)*8)) >> (((~A) & 3)*8);
+		return sh2_internal_r(*sh2->internal, (A & 0x1fc)>>2, 0xff << (((~A) & 3)*8)) >> (((~A) & 3)*8);
 
 	if (A >= 0xc0000000)
 		return sh2->program->read_byte(A);
@@ -142,7 +146,7 @@ INLINE UINT8 RB(sh2_state *sh2, offs_t A)
 INLINE UINT16 RW(sh2_state *sh2, offs_t A)
 {
 	if (A >= 0xe0000000)
-		return sh2_internal_r(sh2->internal, (A & 0x1fc)>>2, 0xffff << (((~A) & 2)*8)) >> (((~A) & 2)*8);
+		return sh2_internal_r(*sh2->internal, (A & 0x1fc)>>2, 0xffff << (((~A) & 2)*8)) >> (((~A) & 2)*8);
 
 	if (A >= 0xc0000000)
 		return sh2->program->read_word(A);
@@ -156,7 +160,7 @@ INLINE UINT16 RW(sh2_state *sh2, offs_t A)
 INLINE UINT32 RL(sh2_state *sh2, offs_t A)
 {
 	if (A >= 0xe0000000)
-		return sh2_internal_r(sh2->internal, (A & 0x1fc)>>2, 0xffffffff);
+		return sh2_internal_r(*sh2->internal, (A & 0x1fc)>>2, 0xffffffff);
 
 	if (A >= 0xc0000000)
 		return sh2->program->read_dword(A);
@@ -169,10 +173,9 @@ INLINE UINT32 RL(sh2_state *sh2, offs_t A)
 
 INLINE void WB(sh2_state *sh2, offs_t A, UINT8 V)
 {
-
 	if (A >= 0xe0000000)
 	{
-		sh2_internal_w(sh2->internal, (A & 0x1fc)>>2, V << (((~A) & 3)*8), 0xff << (((~A) & 3)*8));
+		sh2_internal_w(*sh2->internal, (A & 0x1fc)>>2, V << (((~A) & 3)*8), 0xff << (((~A) & 3)*8));
 		return;
 	}
 
@@ -192,7 +195,7 @@ INLINE void WW(sh2_state *sh2, offs_t A, UINT16 V)
 {
 	if (A >= 0xe0000000)
 	{
-		sh2_internal_w(sh2->internal, (A & 0x1fc)>>2, V << (((~A) & 2)*8), 0xffff << (((~A) & 2)*8));
+		sh2_internal_w(*sh2->internal, (A & 0x1fc)>>2, V << (((~A) & 2)*8), 0xffff << (((~A) & 2)*8));
 		return;
 	}
 
@@ -212,7 +215,7 @@ INLINE void WL(sh2_state *sh2, offs_t A, UINT32 V)
 {
 	if (A >= 0xe0000000)
 	{
-		sh2_internal_w(sh2->internal, (A & 0x1fc)>>2, V, 0xffffffff);
+		sh2_internal_w(*sh2->internal, (A & 0x1fc)>>2, V, 0xffffffff);
 		return;
 	}
 
@@ -839,6 +842,23 @@ INLINE void EXTUW(sh2_state *sh2, UINT32 m, UINT32 n)
 {
 	sh2->r[n] = sh2->r[m] & 0x0000ffff;
 }
+
+/*  ILLEGAL */
+INLINE void ILLEGAL(sh2_state *sh2)
+{
+	logerror("SH2.%s: Illegal opcode at %08x\n", sh2->device->tag(), sh2->pc - 2);
+	sh2->r[15] -= 4;
+	WL( sh2, sh2->r[15], sh2->sr );     /* push SR onto stack */
+	sh2->r[15] -= 4;
+	WL( sh2, sh2->r[15], sh2->pc - 2 ); /* push PC onto stack */
+
+	/* fetch PC */
+	sh2->pc = RL( sh2, sh2->vbr + 4 * 4 );
+
+	/* TODO: timing is a guess */
+	sh2->icount -= 5;
+}
+
 
 /*  JMP     @Rm */
 INLINE void JMP(sh2_state *sh2, UINT32 m)
@@ -1553,9 +1573,14 @@ INLINE void SHLR16(sh2_state *sh2, UINT32 n)
 /*  SLEEP */
 INLINE void SLEEP(sh2_state *sh2)
 {
-	sh2->pc -= 2;
+	if(sh2->sleep_mode != 2)
+		sh2->pc -= 2;
 	sh2->icount -= 2;
 	/* Wait_for_exception; */
+	if(sh2->sleep_mode == 0)
+		sh2->sleep_mode = 1;
+	else if(sh2->sleep_mode == 2)
+		sh2->sleep_mode = 0;
 }
 
 /*  STC     SR,Rn */
@@ -1829,8 +1854,8 @@ INLINE void op0000(sh2_state *sh2, UINT16 opcode)
 {
 	switch (opcode & 0x3F)
 	{
-	case 0x00: NOP();                       break;
-	case 0x01: NOP();                       break;
+	case 0x00: ILLEGAL(sh2);                       break;
+	case 0x01: ILLEGAL(sh2);                       break;
 	case 0x02: STCSR(sh2, Rn);                  break;
 	case 0x03: BSRF(sh2, Rn);                   break;
 	case 0x04: MOVBS0(sh2, Rm, Rn);             break;
@@ -1838,7 +1863,7 @@ INLINE void op0000(sh2_state *sh2, UINT16 opcode)
 	case 0x06: MOVLS0(sh2, Rm, Rn);             break;
 	case 0x07: MULL(sh2, Rm, Rn);               break;
 	case 0x08: CLRT(sh2);                       break;
-	case 0x09: NOP();                       break;
+	case 0x09: NOP();                           break;
 	case 0x0a: STSMACH(sh2, Rn);                break;
 	case 0x0b: RTS(sh2);                        break;
 	case 0x0c: MOVBL0(sh2, Rm, Rn);             break;
@@ -1846,10 +1871,10 @@ INLINE void op0000(sh2_state *sh2, UINT16 opcode)
 	case 0x0e: MOVLL0(sh2, Rm, Rn);             break;
 	case 0x0f: MAC_L(sh2, Rm, Rn);              break;
 
-	case 0x10: NOP();                       break;
-	case 0x11: NOP();                       break;
+	case 0x10: ILLEGAL(sh2);                       break;
+	case 0x11: ILLEGAL(sh2);                       break;
 	case 0x12: STCGBR(sh2, Rn);                 break;
-	case 0x13: NOP();                       break;
+	case 0x13: ILLEGAL(sh2);                       break;
 	case 0x14: MOVBS0(sh2, Rm, Rn);             break;
 	case 0x15: MOVWS0(sh2, Rm, Rn);             break;
 	case 0x16: MOVLS0(sh2, Rm, Rn);             break;
@@ -1863,8 +1888,8 @@ INLINE void op0000(sh2_state *sh2, UINT16 opcode)
 	case 0x1e: MOVLL0(sh2, Rm, Rn);             break;
 	case 0x1f: MAC_L(sh2, Rm, Rn);              break;
 
-	case 0x20: NOP();                       break;
-	case 0x21: NOP();                       break;
+	case 0x20: ILLEGAL(sh2);                       break;
+	case 0x21: ILLEGAL(sh2);                       break;
 	case 0x22: STCVBR(sh2, Rn);                 break;
 	case 0x23: BRAF(sh2, Rn);                   break;
 	case 0x24: MOVBS0(sh2, Rm, Rn);             break;
@@ -1880,22 +1905,22 @@ INLINE void op0000(sh2_state *sh2, UINT16 opcode)
 	case 0x2e: MOVLL0(sh2, Rm, Rn);             break;
 	case 0x2f: MAC_L(sh2, Rm, Rn);              break;
 
-	case 0x30: NOP();                       break;
-	case 0x31: NOP();                       break;
-	case 0x32: NOP();                       break;
-	case 0x33: NOP();                       break;
+	case 0x30: ILLEGAL(sh2);                       break;
+	case 0x31: ILLEGAL(sh2);                       break;
+	case 0x32: ILLEGAL(sh2);                       break;
+	case 0x33: ILLEGAL(sh2);                       break;
 	case 0x34: MOVBS0(sh2, Rm, Rn);             break;
 	case 0x35: MOVWS0(sh2, Rm, Rn);             break;
 	case 0x36: MOVLS0(sh2, Rm, Rn);             break;
 	case 0x37: MULL(sh2, Rm, Rn);               break;
-	case 0x38: NOP();                       break;
-	case 0x39: NOP();                       break;
+	case 0x38: ILLEGAL(sh2);                       break;
+	case 0x39: ILLEGAL(sh2);                       break;
 	case 0x3c: MOVBL0(sh2, Rm, Rn);             break;
 	case 0x3d: MOVWL0(sh2, Rm, Rn);             break;
 	case 0x3e: MOVLL0(sh2, Rm, Rn);             break;
 	case 0x3f: MAC_L(sh2, Rm, Rn);              break;
-	case 0x3a: NOP();                       break;
-	case 0x3b: NOP();                       break;
+	case 0x3a: ILLEGAL(sh2);                       break;
+	case 0x3b: ILLEGAL(sh2);                       break;
 
 
 
@@ -1914,7 +1939,7 @@ INLINE void op0010(sh2_state *sh2, UINT16 opcode)
 	case  0: MOVBS(sh2, Rm, Rn);                break;
 	case  1: MOVWS(sh2, Rm, Rn);                break;
 	case  2: MOVLS(sh2, Rm, Rn);                break;
-	case  3: NOP();                         break;
+	case  3: ILLEGAL(sh2);                         break;
 	case  4: MOVBM(sh2, Rm, Rn);                break;
 	case  5: MOVWM(sh2, Rm, Rn);                break;
 	case  6: MOVLM(sh2, Rm, Rn);                break;
@@ -1935,7 +1960,7 @@ INLINE void op0011(sh2_state *sh2, UINT16 opcode)
 	switch (opcode & 15)
 	{
 	case  0: CMPEQ(sh2, Rm, Rn);                break;
-	case  1: NOP();                         break;
+	case  1: ILLEGAL(sh2);                         break;
 	case  2: CMPHS(sh2, Rm, Rn);                break;
 	case  3: CMPGE(sh2, Rm, Rn);                break;
 	case  4: DIV1(sh2, Rm, Rn);                 break;
@@ -1943,7 +1968,7 @@ INLINE void op0011(sh2_state *sh2, UINT16 opcode)
 	case  6: CMPHI(sh2, Rm, Rn);                break;
 	case  7: CMPGT(sh2, Rm, Rn);                break;
 	case  8: SUB(sh2, Rm, Rn);                  break;
-	case  9: NOP();                         break;
+	case  9: ILLEGAL(sh2);                         break;
 	case 10: SUBC(sh2, Rm, Rn);                 break;
 	case 11: SUBV(sh2, Rm, Rn);                 break;
 	case 12: ADD(sh2, Rm, Rn);                  break;
@@ -1969,8 +1994,8 @@ INLINE void op0100(sh2_state *sh2, UINT16 opcode)
 	case 0x09: SHLR2(sh2, Rn);                  break;
 	case 0x0a: LDSMACH(sh2, Rn);                break;
 	case 0x0b: JSR(sh2, Rn);                    break;
-	case 0x0c: NOP();                       break;
-	case 0x0d: NOP();                       break;
+	case 0x0c: ILLEGAL(sh2);                       break;
+	case 0x0d: ILLEGAL(sh2);                       break;
 	case 0x0e: LDCSR(sh2, Rn);                  break;
 	case 0x0f: MAC_W(sh2, Rm, Rn);              break;
 
@@ -1978,7 +2003,7 @@ INLINE void op0100(sh2_state *sh2, UINT16 opcode)
 	case 0x11: CMPPZ(sh2, Rn);                  break;
 	case 0x12: STSMMACL(sh2, Rn);               break;
 	case 0x13: STCMGBR(sh2, Rn);                break;
-	case 0x14: NOP();                       break;
+	case 0x14: ILLEGAL(sh2);                       break;
 	case 0x15: CMPPL(sh2, Rn);                  break;
 	case 0x16: LDSMMACL(sh2, Rn);               break;
 	case 0x17: LDCMGBR(sh2, Rn);                break;
@@ -1986,8 +2011,8 @@ INLINE void op0100(sh2_state *sh2, UINT16 opcode)
 	case 0x19: SHLR8(sh2, Rn);                  break;
 	case 0x1a: LDSMACL(sh2, Rn);                break;
 	case 0x1b: TAS(sh2, Rn);                    break;
-	case 0x1c: NOP();                       break;
-	case 0x1d: NOP();                       break;
+	case 0x1c: ILLEGAL(sh2);                       break;
+	case 0x1d: ILLEGAL(sh2);                       break;
 	case 0x1e: LDCGBR(sh2, Rn);                 break;
 	case 0x1f: MAC_W(sh2, Rm, Rn);              break;
 
@@ -2003,26 +2028,26 @@ INLINE void op0100(sh2_state *sh2, UINT16 opcode)
 	case 0x29: SHLR16(sh2, Rn);                 break;
 	case 0x2a: LDSPR(sh2, Rn);                  break;
 	case 0x2b: JMP(sh2, Rn);                    break;
-	case 0x2c: NOP();                       break;
-	case 0x2d: NOP();                       break;
+	case 0x2c: ILLEGAL(sh2);                       break;
+	case 0x2d: ILLEGAL(sh2);                       break;
 	case 0x2e: LDCVBR(sh2, Rn);                 break;
 	case 0x2f: MAC_W(sh2, Rm, Rn);              break;
 
-	case 0x30: NOP();                       break;
-	case 0x31: NOP();                       break;
-	case 0x32: NOP();                       break;
-	case 0x33: NOP();                       break;
-	case 0x34: NOP();                       break;
-	case 0x35: NOP();                       break;
-	case 0x36: NOP();                       break;
-	case 0x37: NOP();                       break;
-	case 0x38: NOP();                       break;
-	case 0x39: NOP();                       break;
-	case 0x3a: NOP();                       break;
-	case 0x3b: NOP();                       break;
-	case 0x3c: NOP();                       break;
-	case 0x3d: NOP();                       break;
-	case 0x3e: NOP();                       break;
+	case 0x30: ILLEGAL(sh2);                       break;
+	case 0x31: ILLEGAL(sh2);                       break;
+	case 0x32: ILLEGAL(sh2);                       break;
+	case 0x33: ILLEGAL(sh2);                       break;
+	case 0x34: ILLEGAL(sh2);                       break;
+	case 0x35: ILLEGAL(sh2);                       break;
+	case 0x36: ILLEGAL(sh2);                       break;
+	case 0x37: ILLEGAL(sh2);                       break;
+	case 0x38: ILLEGAL(sh2);                       break;
+	case 0x39: ILLEGAL(sh2);                       break;
+	case 0x3a: ILLEGAL(sh2);                       break;
+	case 0x3b: ILLEGAL(sh2);                       break;
+	case 0x3c: ILLEGAL(sh2);                       break;
+	case 0x3d: ILLEGAL(sh2);                       break;
+	case 0x3e: ILLEGAL(sh2);                       break;
 	case 0x3f: MAC_W(sh2, Rm, Rn);              break;
 
 	}
@@ -2067,19 +2092,19 @@ INLINE void op1000(sh2_state *sh2, UINT16 opcode)
 	{
 	case  0 << 8: MOVBS4(sh2, opcode & 0x0f, Rm);   break;
 	case  1 << 8: MOVWS4(sh2, opcode & 0x0f, Rm);   break;
-	case  2<< 8: NOP();                 break;
-	case  3<< 8: NOP();                 break;
+	case  2<< 8: ILLEGAL(sh2);                 break;
+	case  3<< 8: ILLEGAL(sh2);                 break;
 	case  4<< 8: MOVBL4(sh2, Rm, opcode & 0x0f);    break;
 	case  5<< 8: MOVWL4(sh2, Rm, opcode & 0x0f);    break;
-	case  6<< 8: NOP();                 break;
-	case  7<< 8: NOP();                 break;
+	case  6<< 8: ILLEGAL(sh2);                 break;
+	case  7<< 8: ILLEGAL(sh2);                 break;
 	case  8<< 8: CMPIM(sh2, opcode & 0xff);     break;
 	case  9<< 8: BT(sh2, opcode & 0xff);        break;
-	case 10<< 8: NOP();                 break;
+	case 10<< 8: ILLEGAL(sh2);                 break;
 	case 11<< 8: BF(sh2, opcode & 0xff);        break;
-	case 12<< 8: NOP();                 break;
+	case 12<< 8: ILLEGAL(sh2);                 break;
 	case 13<< 8: BTS(sh2, opcode & 0xff);       break;
-	case 14<< 8: NOP();                 break;
+	case 14<< 8: ILLEGAL(sh2);                 break;
 	case 15<< 8: BFS(sh2, opcode & 0xff);       break;
 	}
 }
@@ -2135,7 +2160,7 @@ INLINE void op1110(sh2_state *sh2, UINT16 opcode)
 
 INLINE void op1111(sh2_state *sh2, UINT16 opcode)
 {
-	NOP();
+	ILLEGAL(sh2);
 }
 
 /*****************************************************************************
@@ -2176,6 +2201,7 @@ static CPU_RESET( sh2 )
 	sh2->frc_base = 0;
 	sh2->frt_input = sh2->internal_irq_level = sh2->internal_irq_vector = 0;
 	sh2->dma_timer_active[0] = sh2->dma_timer_active[1] = 0;
+	sh2->dma_irq[0] = sh2->dma_irq[1] = 0;
 
 	sh2->dma_callback_kludge = dma_callback_kludge;
 	sh2->dma_callback_fifo_data_available = dma_callback_fifo_data_available;
@@ -2193,6 +2219,7 @@ static CPU_RESET( sh2 )
 	sh2->pc = RL(sh2, 0);
 	sh2->r[15] = RL(sh2, 4);
 	sh2->sr = I;
+	sh2->sleep_mode = 0;
 
 	sh2->internal_irq_level = -1;
 }

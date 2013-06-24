@@ -3,7 +3,7 @@ class fitfight_state : public driver_device
 {
 public:
 	fitfight_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fof_100000(*this, "fof_100000"),
 		m_fof_600000(*this, "fof_600000"),
 		m_fof_700000(*this, "fof_700000"),
@@ -13,7 +13,8 @@ public:
 		m_fof_bak_tileram(*this, "fof_bak_tileram"),
 		m_fof_mid_tileram(*this, "fof_mid_tileram"),
 		m_fof_txt_tileram(*this, "fof_txt_tileram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_fof_100000;
@@ -63,4 +64,6 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_fitfight(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(snd_irq);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int layer );
+	required_device<cpu_device> m_maincpu;
 };

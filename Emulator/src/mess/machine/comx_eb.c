@@ -139,10 +139,10 @@ static COMX_EXPANSION_INTERFACE( expansion_intf )
 //-------------------------------------------------
 
 static MACHINE_CONFIG_FRAGMENT( comx_eb )
-	MCFG_COMX_EXPANSION_SLOT_ADD(SLOT1_TAG, expansion_intf, comx_expansion_cards, "fd", NULL)
-	MCFG_COMX_EXPANSION_SLOT_ADD(SLOT2_TAG, expansion_intf, comx_expansion_cards, "clm", NULL)
-	MCFG_COMX_EXPANSION_SLOT_ADD(SLOT3_TAG, expansion_intf, comx_expansion_cards, "joy", NULL)
-	MCFG_COMX_EXPANSION_SLOT_ADD(SLOT4_TAG, expansion_intf, comx_expansion_cards, "ram", NULL)
+	MCFG_COMX_EXPANSION_SLOT_ADD(SLOT1_TAG, expansion_intf, comx_expansion_cards, "fd")
+	MCFG_COMX_EXPANSION_SLOT_ADD(SLOT2_TAG, expansion_intf, comx_expansion_cards, "clm")
+	MCFG_COMX_EXPANSION_SLOT_ADD(SLOT3_TAG, expansion_intf, comx_expansion_cards, "joy")
+	MCFG_COMX_EXPANSION_SLOT_ADD(SLOT4_TAG, expansion_intf, comx_expansion_cards, "ram")
 MACHINE_CONFIG_END
 
 
@@ -200,8 +200,9 @@ void comx_eb_device::set_int(const char *tag, int state)
 //-------------------------------------------------
 
 comx_eb_device::comx_eb_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, COMX_EB, "COMX-35E Expansion Box", tag, owner, clock),
+	device_t(mconfig, COMX_EB, "COMX-35E Expansion Box", tag, owner, clock, "comx_eb", __FILE__),
 	device_comx_expansion_card_interface(mconfig, *this),
+	m_rom(*this, "e000"),
 	m_select(0)
 {
 }
@@ -222,8 +223,6 @@ void comx_eb_device::device_start()
 	{
 		m_int[slot] = CLEAR_LINE;
 	}
-
-	m_rom = memregion("e000")->base();
 }
 
 
@@ -290,12 +289,12 @@ UINT8 comx_eb_device::comx_mrd_r(address_space &space, offs_t offset, int *extro
 
 	if (offset >= 0x1000 && offset < 0x1800)
 	{
-		data = m_rom[offset & 0x7ff];
+		data = m_rom->base()[offset & 0x7ff];
 		*extrom = 0;
 	}
 	else if (offset >= 0xe000 && offset < 0xf000)
 	{
-		data = m_rom[offset & 0xfff];
+		data = m_rom->base()[offset & 0xfff];
 	}
 	else
 	{

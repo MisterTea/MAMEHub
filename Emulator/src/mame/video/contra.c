@@ -22,7 +22,7 @@
 
 void contra_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int chip;
 
 	/* allocate the colortable */
@@ -53,18 +53,17 @@ void contra_state::palette_init()
 }
 
 
-static void set_pens( running_machine &machine )
+void contra_state::set_pens(  )
 {
-	contra_state *state = machine.driver_data<contra_state>();
 	int i;
 
 	for (i = 0x00; i < 0x100; i += 2)
 	{
-		UINT16 data = state->m_paletteram[i] | (state->m_paletteram[i | 1] << 8);
+		UINT16 data = m_paletteram[i] | (m_paletteram[i | 1] << 8);
 
 		rgb_t color = MAKE_RGB(pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
 
-		colortable_palette_set_color(machine.colortable, i >> 1, color);
+		colortable_palette_set_color(machine().colortable, i >> 1, color);
 	}
 }
 
@@ -164,7 +163,6 @@ TILE_GET_INFO_MEMBER(contra_state::get_tx_tile_info)
 
 void contra_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(contra_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(contra_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(contra_state::get_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
@@ -196,42 +194,36 @@ void contra_state::video_start()
 
 WRITE8_MEMBER(contra_state::contra_fg_vram_w)
 {
-
 	m_fg_vram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(contra_state::contra_fg_cram_w)
 {
-
 	m_fg_cram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(contra_state::contra_bg_vram_w)
 {
-
 	m_bg_vram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(contra_state::contra_bg_cram_w)
 {
-
 	m_bg_cram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(contra_state::contra_text_vram_w)
 {
-
 	m_tx_vram[offset] = data;
 	m_tx_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(contra_state::contra_text_cram_w)
 {
-
 	m_tx_cram[offset] = data;
 	m_tx_tilemap->mark_tile_dirty(offset);
 }
@@ -290,20 +282,19 @@ WRITE8_MEMBER(contra_state::contra_K007121_ctrl_1_w)
 
 ***************************************************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int bank )
+void contra_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int bank )
 {
-	contra_state *state = machine.driver_data<contra_state>();
-	device_t *k007121 = bank ? state->m_k007121_2 : state->m_k007121_1;
-	address_space &space = machine.driver_data()->generic_space();
+	device_t *k007121 = bank ? m_k007121_2 : m_k007121_1;
+	address_space &space = machine().driver_data()->generic_space();
 	int base_color = (k007121_ctrlram_r(k007121, space, 6) & 0x30) * 2;
 	const UINT8 *source;
 
 	if (bank == 0)
-		source = state->m_buffered_spriteram;
+		source = m_buffered_spriteram;
 	else
-		source = state->m_buffered_spriteram_2;
+		source = m_buffered_spriteram_2;
 
-	k007121_sprites_draw(k007121, bitmap, cliprect, machine.gfx[bank], machine.colortable, source, base_color, 40, 0, (UINT32)-1);
+	k007121_sprites_draw(k007121, bitmap, cliprect, machine().gfx[bank], machine().colortable, source, base_color, 40, 0, (UINT32)-1);
 }
 
 UINT32 contra_state::screen_update_contra(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -321,7 +312,7 @@ UINT32 contra_state::screen_update_contra(screen_device &screen, bitmap_ind16 &b
 	fg_finalclip &= cliprect;
 	tx_finalclip &= cliprect;
 
-	set_pens(machine());
+	set_pens();
 
 	m_fg_tilemap->set_scrollx(0, ctrl_1_0 - 40);
 	m_fg_tilemap->set_scrolly(0, ctrl_1_2);
@@ -330,8 +321,8 @@ UINT32 contra_state::screen_update_contra(screen_device &screen, bitmap_ind16 &b
 
 	m_bg_tilemap->draw(bitmap, bg_finalclip, 0 ,0);
 	m_fg_tilemap->draw(bitmap, fg_finalclip, 0 ,0);
-	draw_sprites(machine(),bitmap,cliprect, 0);
-	draw_sprites(machine(),bitmap,cliprect, 1);
+	draw_sprites(bitmap,cliprect, 0);
+	draw_sprites(bitmap,cliprect, 1);
 	m_tx_tilemap->draw(bitmap, tx_finalclip, 0 ,0);
 	return 0;
 }

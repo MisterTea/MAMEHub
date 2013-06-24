@@ -11,11 +11,10 @@
 
 #include "emu.h"
 #include "includes/crospang.h"
-#include "video/decospr.h"
+
 
 WRITE16_MEMBER(crospang_state::bestri_tilebank_w)
 {
-
 	m_bestri_tilebank = (data>>10) & 0xf;
 	//printf("bestri %04x\n", data);
 
@@ -26,7 +25,6 @@ WRITE16_MEMBER(crospang_state::bestri_tilebank_w)
 
 WRITE16_MEMBER(crospang_state::bestri_bg_scrolly_w)
 {
-
 	/* Very Strange */
 	int scroll =  (data & 0x3ff) ^ 0x0155;
 	m_bg_layer->set_scrolly(0, -scroll + 7);
@@ -34,7 +32,6 @@ WRITE16_MEMBER(crospang_state::bestri_bg_scrolly_w)
 
 WRITE16_MEMBER(crospang_state::bestri_fg_scrolly_w)
 {
-
 	/* Very Strange */
 	int scroll = (data & 0x3ff) ^ 0x00ab;
 	m_fg_layer->set_scrolly(0, -scroll + 7);
@@ -42,14 +39,12 @@ WRITE16_MEMBER(crospang_state::bestri_fg_scrolly_w)
 
 WRITE16_MEMBER(crospang_state::bestri_fg_scrollx_w)
 {
-
 	// printf("fg_layer x %04x\n",data);
 	m_fg_layer->set_scrollx(0, data + 32);
 }
 
 WRITE16_MEMBER(crospang_state::bestri_bg_scrollx_w)
 {
-
 	// printf("bg_layer x %04x\n",data);
 	m_bg_layer->set_scrollx(0, data - 60);
 }
@@ -119,6 +114,6 @@ UINT32 crospang_state::screen_update_crospang(screen_device &screen, bitmap_ind1
 {
 	m_bg_layer->draw(bitmap, cliprect, 0, 0);
 	m_fg_layer->draw(bitmap, cliprect, 0, 0);
-	machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
+	m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
 	return 0;
 }

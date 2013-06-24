@@ -10,7 +10,8 @@
 #include "machine/i8212.h"
 #include "machine/pit8253.h"
 #include "machine/ram.h"
-#include "machine/upd7201.h"
+#include "machine/serial.h"
+#include "machine/z80dart.h"
 #include "machine/upd765.h"
 #include "sound/speaker.h"
 #include "video/i8275x.h"
@@ -25,6 +26,9 @@
 #define I8275_TAG       "ic59"
 #define UPD7201_TAG     "ic11"
 #define UPD7220_TAG     "ic101"
+#define RS232_A_TAG     "rs232a"
+#define RS232_B_TAG     "rs232b"
+#define RS232_C_TAG     "rs232c"
 
 class mm1_state : public driver_device
 {
@@ -39,11 +43,29 @@ public:
 			m_fdc(*this, UPD765_TAG),
 			m_mpsc(*this, UPD7201_TAG),
 			m_hgdc(*this, UPD7220_TAG),
-			m_speaker(*this, SPEAKER_TAG),
+			m_speaker(*this, "speaker"),
 			m_floppy0(*this, UPD765_TAG ":0:525qd"),
 			m_floppy1(*this, UPD765_TAG ":1:525qd"),
+			m_rs232a(*this, RS232_A_TAG),
+			m_rs232b(*this, RS232_B_TAG),
+			m_rs232c(*this, RS232_C_TAG),
 			m_ram(*this, RAM_TAG),
+			m_rom(*this, I8085A_TAG),
+			m_mmu_rom(*this, "address"),
+			m_key_rom(*this, "keyboard"),
+			m_char_rom(*this, "chargen"),
 			m_video_ram(*this, "video_ram"),
+			m_y0(*this, "Y0"),
+			m_y1(*this, "Y1"),
+			m_y2(*this, "Y2"),
+			m_y3(*this, "Y3"),
+			m_y4(*this, "Y4"),
+			m_y5(*this, "Y5"),
+			m_y6(*this, "Y6"),
+			m_y7(*this, "Y7"),
+			m_y8(*this, "Y8"),
+			m_y9(*this, "Y9"),
+			m_special(*this, "SPECIAL"),
 			m_a8(0),
 			m_recall(0),
 			m_dack3(1),
@@ -62,13 +84,30 @@ public:
 	required_device<speaker_sound_device> m_speaker;
 	required_device<floppy_image_device> m_floppy0;
 	required_device<floppy_image_device> m_floppy1;
+	required_device<rs232_port_device> m_rs232a;
+	required_device<rs232_port_device> m_rs232b;
+	required_device<rs232_port_device> m_rs232c;
 	required_device<ram_device> m_ram;
+	required_memory_region m_rom;
+	required_memory_region m_mmu_rom;
+	required_memory_region m_key_rom;
+	required_memory_region m_char_rom;
 	required_shared_ptr<UINT8> m_video_ram;
+	required_ioport m_y0;
+	required_ioport m_y1;
+	required_ioport m_y2;
+	required_ioport m_y3;
+	required_ioport m_y4;
+	required_ioport m_y5;
+	required_ioport m_y6;
+	required_ioport m_y7;
+	required_ioport m_y8;
+	required_ioport m_y9;
+	required_ioport m_special;
 
 	virtual void machine_start();
 	virtual void machine_reset();
 
-	virtual void video_start();
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	DECLARE_READ8_MEMBER( read );
@@ -93,17 +132,14 @@ public:
 
 	void scan_keyboard();
 
-	const UINT8 *m_mmu_rom;
 	int m_a8;
 
 	// keyboard state
 	int m_sense;
 	int m_drive;
 	UINT8 m_keydata;
-	const UINT8 *m_key_rom;
 
 	// video state
-	const UINT8 *m_char_rom;
 	int m_llen;
 
 	// serial state

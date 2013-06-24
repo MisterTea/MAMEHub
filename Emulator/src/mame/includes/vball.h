@@ -2,11 +2,13 @@ class vball_state : public driver_device
 {
 public:
 	vball_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vb_attribram(*this, "vb_attribram"),
 		m_vb_videoram(*this, "vb_videoram"),
 		m_vb_scrolly_lo(*this, "vb_scrolly_lo"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	required_shared_ptr<UINT8> m_vb_attribram;
 	required_shared_ptr<UINT8> m_vb_videoram;
@@ -33,11 +35,11 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_vb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(vball_scanline);
+	void vb_bgprombank_w( int bank );
+	void vb_spprombank_w( int bank );
+	void vb_mark_all_dirty(  );
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	inline int scanline_to_vcount(int scanline);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
-
-
-/*----------- defined in video/vball.c -----------*/
-
-void vb_bgprombank_w(running_machine &machine, int bank);
-void vb_spprombank_w(running_machine &machine, int bank);
-void vb_mark_all_dirty(running_machine &machine);

@@ -100,8 +100,8 @@ static MACHINE_CONFIG_FRAGMENT( adam_ddp )
 	MCFG_CPU_PROGRAM_MAP(adam_ddp_mem)
 	MCFG_CPU_IO_MAP(adam_ddp_io)
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, adam_cassette_interface)
-	MCFG_CASSETTE_ADD(CASSETTE2_TAG, adam_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", adam_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette2", adam_cassette_interface)
 MACHINE_CONFIG_END
 
 
@@ -126,11 +126,11 @@ machine_config_constructor adam_digital_data_pack_device::device_mconfig_additio
 //-------------------------------------------------
 
 adam_digital_data_pack_device::adam_digital_data_pack_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, ADAM_DDP, "Adam DDP", tag, owner, clock),
+	: device_t(mconfig, ADAM_DDP, "Adam DDP", tag, owner, clock, "adam_ddp", __FILE__),
 		device_adamnet_card_interface(mconfig, *this),
 		m_maincpu(*this, M6801_TAG),
-		m_ddp0(*this, CASSETTE_TAG),
-		m_ddp1(*this, CASSETTE2_TAG)
+		m_ddp0(*this, "cassette"),
+		m_ddp1(*this, "cassette2")
 {
 }
 

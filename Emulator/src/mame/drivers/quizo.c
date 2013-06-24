@@ -32,7 +32,8 @@ class quizo_state : public driver_device
 {
 public:
 	quizo_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 *m_videoram;
 	UINT8 m_port60;
@@ -43,6 +44,7 @@ public:
 	DECLARE_DRIVER_INIT(quizo);
 	virtual void palette_init();
 	UINT32 screen_update_quizo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -54,7 +56,7 @@ static const UINT8 rombankLookup[]={ 2, 3, 4, 4, 4, 4, 4, 5, 0, 1};
 
 void quizo_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 	for (i = 0;i < 16;i++)
 	{
@@ -131,7 +133,7 @@ WRITE8_MEMBER(quizo_state::port60_w)
 		data=0;
 	}
 	m_port60=data;
-	membank("bank1")->set_base(&machine().root_device().memregion("user1")->base()[rombankLookup[data]*0x4000] );
+	membank("bank1")->set_base(&memregion("user1")->base()[rombankLookup[data]*0x4000] );
 }
 
 static ADDRESS_MAP_START( memmap, AS_PROGRAM, 8, quizo_state )
@@ -147,7 +149,7 @@ static ADDRESS_MAP_START( portmap, AS_IO, 8, quizo_state )
 	AM_RANGE(0x00, 0x00) AM_READ_PORT("IN0")
 	AM_RANGE(0x10, 0x10) AM_READ_PORT("IN1")
 	AM_RANGE(0x40, 0x40) AM_READ_PORT("IN2")
-	AM_RANGE(0x50, 0x51) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
+	AM_RANGE(0x50, 0x51) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
 	AM_RANGE(0x60, 0x60) AM_WRITE(port60_w)
 	AM_RANGE(0x70, 0x70) AM_WRITE(port70_w)
 ADDRESS_MAP_END

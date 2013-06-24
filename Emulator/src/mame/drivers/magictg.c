@@ -131,8 +131,7 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_mips(*this, "mips"),
 		m_adsp(*this, "adsp"),
-		m_pci(*this, "pcibus")
-	,
+		m_pci(*this, "pcibus"),
 		m_adsp_pram(*this, "adsp_pram"){ }
 
 	required_device<cpu_device>         m_mips;
@@ -232,7 +231,7 @@ void magictg_state::machine_start()
 
 void magictg_state::machine_reset()
 {
-	UINT8 *adsp_boot = (UINT8*)machine().root_device().memregion("adsp")->base();
+	UINT8 *adsp_boot = (UINT8*)memregion("adsp")->base();
 
 	zr36120_reset();
 
@@ -258,7 +257,6 @@ void magictg_state::machine_reset()
 
 void magictg_state::video_start()
 {
-
 }
 
 UINT32 magictg_state::screen_update_magictg(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -281,7 +279,6 @@ static UINT32 pci_dev0_r(device_t *busdevice, device_t *device, int function, in
 
 static void pci_dev0_w(device_t *busdevice, device_t *device, int function, int reg, UINT32 data, UINT32 mem_mask)
 {
-
 }
 
 
@@ -753,7 +750,7 @@ WRITE16_MEMBER( magictg_state::adsp_control_w )
 
 			if (data > 0)
 			{
-				UINT8* adsp_rom = (UINT8*)space.machine().root_device().memregion("adsp")->base();
+				UINT8* adsp_rom = (UINT8*)memregion("adsp")->base();
 
 				UINT32 page = (m_adsp_regs.bdma_control >> 8) & 0xff;
 				UINT32 dir = (m_adsp_regs.bdma_control >> 2) & 1;
@@ -903,8 +900,8 @@ static const voodoo_config voodoo_1_intf =
 	0,//                tmumem1;
 	"screen",//         screen;
 	"mips",//           cputag;
-	NULL,//             vblank;
-	NULL,//             stall;
+	DEVCB_NULL,//             vblank;
+	DEVCB_NULL//             stall;
 };
 
 static const voodoo_config voodoo_2_intf =
@@ -914,8 +911,8 @@ static const voodoo_config voodoo_2_intf =
 	0,//                tmumem1;
 	"screen",//         screen;
 	"mips",//           cputag;
-	NULL,//vblank_assert                vblank;
-	NULL,// voodoo_stall            stall;
+	DEVCB_NULL,//vblank_assert                vblank;
+	DEVCB_NULL// voodoo_stall            stall;
 };
 /*************************************
  *

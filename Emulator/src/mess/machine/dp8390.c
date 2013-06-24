@@ -20,17 +20,17 @@ void dp8390_device::device_config_complete() {
 }
 
 dp8390d_device::dp8390d_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: dp8390_device(mconfig, DP8390D, "DP8390D", tag, owner, clock, 10.0f) {
+	: dp8390_device(mconfig, DP8390D, "DP8390D", tag, owner, clock, 10.0f, "dp8390d", __FILE__) {
 		m_type = TYPE_DP8390D;
 }
 
 rtl8019a_device::rtl8019a_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: dp8390_device(mconfig, RTL8019A, "RTL8019A", tag, owner, clock, 10.0f) {
+	: dp8390_device(mconfig, RTL8019A, "RTL8019A", tag, owner, clock, 10.0f, "rtl8019a", __FILE__) {
 		m_type = TYPE_RTL8019A;
 }
 
-dp8390_device::dp8390_device(const machine_config &mconfig, device_type type, const char* name, const char *tag, device_t *owner, UINT32 clock, float bandwidth)
-	: device_t(mconfig, type, name, tag, owner, clock),
+dp8390_device::dp8390_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, float bandwidth, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_network_interface(mconfig, *this, bandwidth) {
 }
 
@@ -132,7 +132,9 @@ void dp8390_device::recv(UINT8 *buf, int len) {
 	offset = start + 4;
 	high16 = (m_regs.dcr & 4)?m_regs.rsar<<16:0;
 	if(buf[0] & 1) {
-		if(!(m_regs.rcr & 4) && !memcmp((const char *)buf, "\xff\xff\xff\xff\xff\xff", 6)) return;
+		if(!memcmp((const char *)buf, "\xff\xff\xff\xff\xff\xff", 6)) {
+			if(!(m_regs.rcr & 4)) return;
+		} else return; // multicast
 		m_regs.rsr = 0x20;
 	} else m_regs.rsr = 0;
 	len &= 0xffff;
@@ -145,6 +147,15 @@ void dp8390_device::recv(UINT8 *buf, int len) {
 			if((offset >> 8) == m_regs.bnry) return recv_overflow();
 		}
 	}
+	if(len < 60) {
+		// this can't pass to the next page
+		for(; i < 60; i++) {
+			mem_write(high16 + offset, 0);
+			offset++;
+		}
+		len = 60;
+	}
+
 	m_regs.rsr |= 1;
 	m_regs.isr |= 1;
 	m_regs.curr = (offset >> 8) + ((offset & 0xff)?1:0);
@@ -159,12 +170,6 @@ void dp8390_device::recv(UINT8 *buf, int len) {
 
 void dp8390_device::recv_cb(UINT8 *buf, int len) {
 	if(!LOOPBACK) recv(buf, len);
-}
-
-bool dp8390_device::mcast_chk(const UINT8 *buf, int len) {
-	if(!(m_regs.rcr & 8)) return false;
-
-	return false; // TODO: multicast
 }
 
 WRITE_LINE_MEMBER(dp8390_device::dp8390_cs) {
@@ -293,6 +298,9 @@ READ16_MEMBER(dp8390_device::dp8390_r) {
 	case 0x8f:
 		data = m_regs.imr;
 		break;
+	case 0xc0:
+		data = m_regs.cr;
+		break;
 	default:
 		if(m_type == TYPE_RTL8019A) {
 			switch((offset & 0x0f)|(m_regs.cr & 0xc0)) {
@@ -302,9 +310,7 @@ READ16_MEMBER(dp8390_device::dp8390_r) {
 				case 0x0b:
 					data = 'p';
 					break;
-				case 0xc0:
-					data = m_regs.cr;
-					break;
+
 				case 0xc1:
 					data = m_8019regs.cr9346;
 					break;
@@ -460,12 +466,12 @@ WRITE16_MEMBER(dp8390_device::dp8390_w) {
 	case 0x87:
 		m_regs.ac = (m_regs.ac & 0xff00) | data;
 		break;
+	case 0xc0:
+		set_cr(data);
+		break;
 	default:
 		if(m_type == TYPE_RTL8019A) {
 			switch((offset & 0x0f)|(m_regs.cr & 0xc0)) {
-				case 0xc0:
-					set_cr(data);
-					break;
 				// XXX: rest of the regs
 				default:
 					logerror("rtl8019: invalid write page %01X reg %02X data %04X\n", (m_regs.cr & 0xc0) >> 6, offset & 0x0f, data);

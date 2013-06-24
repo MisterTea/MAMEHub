@@ -50,53 +50,53 @@ static void dl1416_update(device_t *device, int index)
 	dl1416_data_w(device, state->generic_space(), state->m_pia_a & 0x03, state->m_pia_b & 0x7f);
 }
 
-static void aim65_pia(running_machine &machine)
+void aim65_state::aim65_pia()
 {
-	dl1416_update(machine.device("ds1"), 0);
-	dl1416_update(machine.device("ds2"), 1);
-	dl1416_update(machine.device("ds3"), 2);
-	dl1416_update(machine.device("ds4"), 3);
-	dl1416_update(machine.device("ds5"), 4);
+	dl1416_update(machine().device("ds1"), 0);
+	dl1416_update(machine().device("ds2"), 1);
+	dl1416_update(machine().device("ds3"), 2);
+	dl1416_update(machine().device("ds4"), 3);
+	dl1416_update(machine().device("ds5"), 4);
 }
 
 
 WRITE8_MEMBER( aim65_state::aim65_pia_a_w )
 {
 	m_pia_a = data;
-	aim65_pia(machine());
+	aim65_pia();
 }
 
 
 WRITE8_MEMBER( aim65_state::aim65_pia_b_w )
 {
 	m_pia_b = data;
-	aim65_pia(machine());
+	aim65_pia();
 }
 
 
-void aim65_update_ds1(device_t *device, int digit, int data)
+WRITE16_MEMBER( aim65_state::aim65_update_ds1)
 {
-	output_set_digit_value(0 + (digit ^ 3), data);
+	output_set_digit_value(0 + (offset ^ 3), data);
 }
 
-void aim65_update_ds2(device_t *device, int digit, int data)
+WRITE16_MEMBER( aim65_state::aim65_update_ds2)
 {
-	output_set_digit_value(4 + (digit ^ 3), data);
+	output_set_digit_value(4 + (offset ^ 3), data);
 }
 
-void aim65_update_ds3(device_t *device, int digit, int data)
+WRITE16_MEMBER( aim65_state::aim65_update_ds3)
 {
-	output_set_digit_value(8 + (digit ^ 3), data);
+	output_set_digit_value(8 + (offset ^ 3), data);
 }
 
-void aim65_update_ds4(device_t *device, int digit, int data)
+WRITE16_MEMBER( aim65_state::aim65_update_ds4)
 {
-	output_set_digit_value(12 + (digit ^ 3), data);
+	output_set_digit_value(12 + (offset ^ 3), data);
 }
 
-void aim65_update_ds5(device_t *device, int digit, int data)
+WRITE16_MEMBER( aim65_state::aim65_update_ds5)
 {
-	output_set_digit_value(16 + (digit ^ 3), data);
+	output_set_digit_value(16 + (offset ^ 3), data);
 }
 
 
@@ -140,8 +140,8 @@ WRITE8_MEMBER( aim65_state::aim65_riot_a_w )
 
 void aim65_state::machine_start()
 {
-	ram_device *ram = machine().device<ram_device>(RAM_TAG);
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	ram_device *ram = m_ram;
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
 	/* Init RAM */
 	space.install_ram(0x0000, ram->size() - 1, ram->pointer());
@@ -181,24 +181,24 @@ WRITE8_MEMBER( aim65_state::aim65_pb_w )
 
 	if (BIT(bits, 7))
 	{
-		m_cass1->output(BIT(data, 7) ? -1.0 : +1.0);
-		m_cass2->output(BIT(data, 7) ? -1.0 : +1.0);
+		m_cassette1->output(BIT(data, 7) ? -1.0 : +1.0);
+		m_cassette2->output(BIT(data, 7) ? -1.0 : +1.0);
 	}
 
 	if (BIT(bits, 5))
 	{
 		if (BIT(data, 5))
-			m_cass2->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+			m_cassette2->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
 		else
-			m_cass2->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
+			m_cassette2->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
 	}
 
 	if (BIT(bits, 4))
 	{
 		if (BIT(data, 4))
-			m_cass1->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
+			m_cassette1->change_state(CASSETTE_MOTOR_DISABLED,CASSETTE_MASK_MOTOR);
 		else
-			m_cass1->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
+			m_cassette1->change_state(CASSETTE_MOTOR_ENABLED,CASSETTE_MASK_MOTOR);
 	}
 }
 
@@ -212,7 +212,7 @@ READ8_MEMBER( aim65_state::aim65_pb_r )
 */
 
 	UINT8 data = ioport("switches")->read();
-	data |= (m_cass1->input() > +0.03) ? 0x80 : 0;
+	data |= (m_cassette1->input() > +0.03) ? 0x80 : 0;
 	data |= 0x40; // TTY must be H if not used.
 	data |= m_pb_save & 0x37;
 	return data;

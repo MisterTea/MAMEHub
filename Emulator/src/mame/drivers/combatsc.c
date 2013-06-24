@@ -120,7 +120,7 @@ Dip location and recommended settings verified with the US manual
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "cpu/z80/z80.h"
 #include "sound/2203intf.h"
 #include "sound/upd7759.h"
@@ -163,7 +163,6 @@ READ8_MEMBER(combatsc_state::combatscb_io_r)
 
 WRITE8_MEMBER(combatsc_state::combatscb_priority_w)
 {
-
 	if (data & 0x40)
 	{
 		m_video_circuit = 1;
@@ -182,7 +181,6 @@ WRITE8_MEMBER(combatsc_state::combatscb_priority_w)
 
 WRITE8_MEMBER(combatsc_state::combatsc_bankselect_w)
 {
-
 	m_priority = data & 0x20;
 
 	if (data & 0x40)
@@ -206,7 +204,6 @@ WRITE8_MEMBER(combatsc_state::combatsc_bankselect_w)
 
 WRITE8_MEMBER(combatsc_state::combatscb_io_w)
 {
-
 	switch (offset)
 	{
 		case 0x400: combatscb_priority_w(space, 0, data); break;
@@ -218,7 +215,6 @@ WRITE8_MEMBER(combatsc_state::combatscb_io_w)
 
 WRITE8_MEMBER(combatsc_state::combatscb_bankselect_w)
 {
-
 	if (data & 0x40)
 	{
 		m_video_circuit = 1;
@@ -269,7 +265,6 @@ WRITE8_MEMBER(combatsc_state::combatsc_coin_counter_w)
 
 READ8_MEMBER(combatsc_state::trackball_r)
 {
-
 	if (offset == 0)
 	{
 		int i, dir[4];
@@ -327,20 +322,17 @@ WRITE8_MEMBER(combatsc_state::combatsc_sh_irqtrigger_w)
 
 READ8_MEMBER(combatsc_state::combatsc_busy_r)
 {
-	device_t *device = machine().device("upd");
-	return upd7759_busy_r(device) ? 1 : 0;
+	return upd7759_busy_r(m_upd7759) ? 1 : 0;
 }
 
 WRITE8_MEMBER(combatsc_state::combatsc_play_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_start_w(device, data & 2);
+	upd7759_start_w(m_upd7759, data & 2);
 }
 
 WRITE8_MEMBER(combatsc_state::combatsc_voice_reset_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_reset_w(device,data & 1);
+	upd7759_reset_w(m_upd7759,data & 1);
 }
 
 WRITE8_MEMBER(combatsc_state::combatsc_portA_w)
@@ -402,28 +394,27 @@ static ADDRESS_MAP_START( combatsc_sound_map, AS_PROGRAM, 8, combatsc_state )
 	AM_RANGE(0xc000, 0xc000) AM_WRITE(combatsc_voice_reset_w)           /* upd7759 reset? */
 
 	AM_RANGE(0xd000, 0xd000) AM_READ(soundlatch_byte_r)                             /* soundlatch_byte_r? */
-	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)    /* YM 2203 intercepted */
+	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)   /* YM 2203 intercepted */
 ADDRESS_MAP_END
 
 WRITE8_MEMBER(combatsc_state::combatscb_dac_w)
 {
-	device_t *device = machine().device("msm5205");
 	if(data & 0x60)
 		printf("%02x\n",data);
 
 	membank("bl_abank")->set_entry((data & 0x80) >> 7);
 
-	//msm5205_reset_w(device, (data >> 4) & 1);
-	msm5205_data_w(device, (data & 0x0f));
-	msm5205_vclk_w(device, 1);
-	msm5205_vclk_w(device, 0);
+	//m_msm5205->reset_w(BIT(data, 4));
+	m_msm5205->data_w(data & 0x0f);
+	m_msm5205->vclk_w(1);
+	m_msm5205->vclk_w(0);
 }
 
 static ADDRESS_MAP_START( combatscb_sound_map, AS_PROGRAM, 8, combatsc_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM                                     /* ROM */
 	AM_RANGE(0x8000, 0x87ff) AM_RAM                                     /* RAM */
-	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)    /* YM 2203 */
-	AM_RANGE(0x9008, 0x9009) AM_DEVREAD_LEGACY("ymsnd", ym2203_r)                   /* ??? */
+	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)   /* YM 2203 */
+	AM_RANGE(0x9008, 0x9009) AM_DEVREAD("ymsnd", ym2203_device, read)               /* ??? */
 	AM_RANGE(0x9800, 0x9800) AM_WRITE(combatscb_dac_w)
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)                     /* soundlatch_byte_r? */
 	AM_RANGE(0xc000, 0xffff) AM_ROMBANK("bl_abank")
@@ -647,29 +638,23 @@ GFXDECODE_END
  *
  *************************************/
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(combatsc_state,combatsc_portA_w),
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(combatsc_state,combatsc_portA_w),
 	DEVCB_NULL
 };
 
-static const ym2203_interface ym2203_bootleg_config =
+static const ay8910_interface ay8910_bootleg_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -682,10 +667,6 @@ MACHINE_START_MEMBER(combatsc_state,combatsc)
 	m_page[1] = MEM + 0x6000;
 
 	m_interleave_timer = machine().scheduler().timer_alloc(FUNC_NULL);
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k007121_1 = machine().device("k007121_1");
-	m_k007121_2 = machine().device("k007121_2");
 
 	membank("bank1")->configure_entries(0, 10, memregion("maincpu")->base() + 0x10000, 0x4000);
 
@@ -707,7 +688,7 @@ MACHINE_START_MEMBER(combatsc_state,combatscb)
 
 void combatsc_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i;
 
 	memset(m_io_ram,  0x00, 0x4000);
@@ -765,7 +746,7 @@ static MACHINE_CONFIG_START( combatsc, combatsc_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("upd", UPD7759, UPD7759_STANDARD_CLOCK)
@@ -775,7 +756,7 @@ MACHINE_CONFIG_END
 
 static const msm5205_interface msm5205_config =
 {
-	0,              /* interrupt function */
+	DEVCB_NULL,              /* interrupt function */
 	MSM5205_SEX_4B  /* 8KHz playback ?    */
 };
 
@@ -812,7 +793,7 @@ static MACHINE_CONFIG_START( combatscb, combatsc_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_bootleg_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_bootleg_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("msm5205", MSM5205, 384000)
@@ -991,7 +972,7 @@ ROM_END
 DRIVER_INIT_MEMBER(combatsc_state,combatsc)
 {
 	/* joystick instead of trackball */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port(0x0404, 0x0404, "IN1");
+	m_maincpu->space(AS_PROGRAM).install_read_port(0x0404, 0x0404, "IN1");
 }
 
 

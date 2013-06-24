@@ -242,7 +242,7 @@ static ADDRESS_MAP_START( mz80k_mem, AS_PROGRAM, 8, mz80_state )
 	AM_RANGE(0x1000, 0xcfff) AM_RAM AM_SHARE("p_ram") // 48 KB of RAM
 	AM_RANGE(0xd000, 0xd7ff) AM_RAM AM_SHARE("p_videoram") // Video RAM
 	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE("ppi8255", i8255_device, read, write) /* PPIA 8255 */
-	AM_RANGE(0xe004, 0xe007) AM_DEVREADWRITE_LEGACY("pit8253", pit8253_r,pit8253_w)  /* PIT 8253  */
+	AM_RANGE(0xe004, 0xe007) AM_DEVREADWRITE("pit8253", pit8253_device, read, write)  /* PIT 8253  */
 	AM_RANGE(0xe008, 0xe00b) AM_READWRITE( mz80k_strobe_r, mz80k_strobe_w)
 	AM_RANGE(0xf000, 0xf3ff) AM_ROM
 ADDRESS_MAP_END
@@ -295,16 +295,16 @@ static MACHINE_CONFIG_START( mz80k, mz80_state )
 
 	/* Audio */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
 	MCFG_I8255_ADD( "ppi8255", mz80k_8255_int )
 	MCFG_PIT8253_ADD( "pit8253", mz80k_pit8253_config )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("tempo", mz80_state, ne555_tempo_callback, attotime::from_hz(34))
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, mz80k_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", mz80k_cassette_interface )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mz80kj, mz80k )
@@ -325,10 +325,14 @@ ROM_START( mz80k )
 	ROMX_LOAD( "sp1002.rom",    0x0000, 0x1000, CRC(2223e677) SHA1(518ffbe2333582ab36e6d76d1e03879a246ffa1c), ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS( 1, "tc", "tc" )
 	ROMX_LOAD( "80ktc.rom",     0x0000, 0x1000, CRC(19ed6546) SHA1(2bbeff916c2fa8991e718070ca4195beb45e0848), ROM_BIOS(2) )
+	ROM_SYSTEM_BIOS( 2, "v44", "v44" )
+	ROMX_LOAD( "80kv44.rom",    0x0000, 0x1000, CRC(d66af028) SHA1(718904c011dfcfcfabbb7dbdaaa35b9f3ac41baf), ROM_BIOS(3) )
 	ROM_LOAD( "mz80kfdif.rom",  0xf000, 0x0400, CRC(d36505e0) SHA1(1f60027e8739313962a37edbf98172df7062df49) )
 
-	ROM_REGION( 0x0800, "chargen", 0 )
-	ROM_LOAD ( "80kcg.rom", 0x0000, 0x0800, CRC(9b2fb88b) SHA1(6d4d120bd0e3a8c781c581e3c379a39db610a4d2) )
+	ROM_REGION( 0x1000, "chargen", 0 )
+	ROM_LOAD( "80kcg.rom",      0x0000, 0x0800, CRC(9b2fb88b) SHA1(6d4d120bd0e3a8c781c581e3c379a39db610a4d2) )
+	// This is listed as "fixed" English
+	ROM_LOAD( "80kcgf.rom",     0x0800, 0x0800, CRC(be952852) SHA1(e8273de9cce88b10630187841f81aa9be22520b7) )
 ROM_END
 
 ROM_START( mz80kj )
@@ -338,7 +342,9 @@ ROM_START( mz80kj )
 	ROM_LOAD( "mz80kfdif.rom", 0xf000, 0x0400, CRC(d36505e0) SHA1(1f60027e8739313962a37edbf98172df7062df49) )
 
 	ROM_REGION( 0x1000, "chargen", 0 )
-	ROM_LOAD( "mz80k.jpn", 0x0000, 0x0800, CRC(bffe3312) SHA1(7058e565f338f5ec2bba85c19c9671e5c4fe258e) )
+	ROM_LOAD( "mz80k.jpn",     0x0000, 0x0800, CRC(bffe3312) SHA1(7058e565f338f5ec2bba85c19c9671e5c4fe258e) )
+	// This has a different Japanese set
+	ROM_LOAD( "80kcgj.rom",    0x0800, 0x0800, CRC(7767f11e) SHA1(8dc88d088b2e7d3198bf856bd44d364fb6e5cfa4) )
 ROM_END
 
 ROM_START( mz80a )

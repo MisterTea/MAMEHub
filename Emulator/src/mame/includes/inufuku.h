@@ -3,14 +3,15 @@ class inufuku_state : public driver_device
 {
 public:
 	inufuku_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg_videoram(*this, "bg_videoram"),
 		m_bg_rasterram(*this, "bg_rasterram"),
 		m_tx_videoram(*this, "tx_videoram"),
 		m_spriteram1(*this, "spriteram1"),
 		m_spriteram2(*this, "spriteram2"),
-		m_spr(*this, "vsystem_spr")
-	{ }
+		m_spr(*this, "vsystem_spr"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bg_videoram;
@@ -38,7 +39,7 @@ public:
 	UINT16    m_pending_command;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE16_MEMBER(inufuku_soundcommand_w);
 	DECLARE_WRITE8_MEMBER(pending_command_clear_w);
 	DECLARE_WRITE8_MEMBER(inufuku_soundrombank_w);
@@ -56,5 +57,6 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_inufuku(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_inufuku(screen_device &screen, bool state);
-
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
 };

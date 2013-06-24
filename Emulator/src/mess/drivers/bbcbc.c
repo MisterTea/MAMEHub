@@ -29,6 +29,8 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	DECLARE_WRITE_LINE_MEMBER(tms_interrupt);
+
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( bbcbc_cart );
 };
 
 
@@ -101,7 +103,7 @@ INPUT_PORTS_END
 
 WRITE_LINE_MEMBER(bbcbc_state::tms_interrupt)
 {
-	machine().device("maincpu")->execute().set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 static TMS9928A_INTERFACE(tms9129_interface)
@@ -130,17 +132,9 @@ static const z80_daisy_config bbcbc_daisy_chain[] =
 };
 
 
-static DEVICE_START( bbcbc_cart )
+DEVICE_IMAGE_LOAD_MEMBER( bbcbc_state, bbcbc_cart )
 {
-	UINT8 *cart = device->machine().root_device().memregion("maincpu" )->base() + 0x4000;
-
-	memset( cart, 0xFF, 0x8000 );
-}
-
-
-static DEVICE_IMAGE_LOAD( bbcbc_cart )
-{
-	UINT8 *cart = image.device().machine().root_device().memregion("maincpu" )->base() + 0x4000;
+	UINT8 *cart = memregion("maincpu" )->base() + 0x4000;
 
 	if ( image.software_entry() == NULL )
 	{
@@ -187,8 +181,7 @@ static MACHINE_CONFIG_START( bbcbc, bbcbc_state )
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_NOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("bbcbc_cart")
-	MCFG_CARTSLOT_START( bbcbc_cart )
-	MCFG_CARTSLOT_LOAD( bbcbc_cart )
+	MCFG_CARTSLOT_LOAD( bbcbc_state, bbcbc_cart )
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","bbcbc")
@@ -196,7 +189,7 @@ MACHINE_CONFIG_END
 
 
 ROM_START( bbcbc )
-	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
 	ROM_LOAD("br_4_1.ic3", 0x0000, 0x2000, CRC(7c880d75) SHA1(954db096bd9e8edfef72946637a12f1083841fb0))
 	ROM_LOAD("br_4_2.ic4", 0x2000, 0x2000, CRC(16a33aef) SHA1(9529f9f792718a3715af2063b91a5fb18f741226))
 ROM_END
