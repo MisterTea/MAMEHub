@@ -324,7 +324,10 @@ public class PeerMonitor implements Runnable {
 	}
 
 	public void updatePeerData(Player player, PeerState peerState) {
-		if (player.id.equals(MainFrame.myPlayerId)) {
+		if (player == null) {
+			return;
+		}
+		if (MainFrame.myPlayerId != null && player.id.equals(MainFrame.myPlayerId)) {
 			// Don't try to connect to yourself
 			return;
 		}

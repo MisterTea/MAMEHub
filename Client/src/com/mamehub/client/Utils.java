@@ -36,7 +36,7 @@ public class Utils {
 	private static ClientDatabaseEngine auditDatabaseEngine;
 	private static ClientDatabaseEngine applicationDatabaseEngine;
 
-	public static final int AUDIT_DATABASE_VERSION = 9;
+	public static final int AUDIT_DATABASE_VERSION = 10;
 	public static final int APPLICATION_DATABASE_VERSION = 6;
 
 	private static PlayerProfile playerProfile = null;
@@ -302,5 +302,10 @@ public class Utils {
 		MarkdownProcessor m = new MarkdownProcessor();
 		str = m.markdown(str);
 		return str;
+	}
+
+	public static void wipeAuditDatabaseEngine() throws IOException {
+		Utils.auditDatabaseEngine.wipeDatabase();
+		Utils.auditDatabaseEngine = null;
 	}
 }

@@ -423,14 +423,20 @@ public class RpcEngine implements Runnable {
 				}
 			}
 
-			gameClient.setPorts(token, Utils.getApplicationSettings().basePort,
-					Utils.getApplicationSettings().secondaryPort);
-
 			return "";
 		} catch (IOException e) {
 			return e.getMessage();
+		}
+	}
+
+	public synchronized void setPorts() {
+		try {
+			logger.info("Setting ports");
+			gameClient.setPorts(token, Utils.getApplicationSettings().basePort,
+					Utils.getApplicationSettings().secondaryPort);
 		} catch (TException e) {
-			return e.getMessage();
+			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 	}
 

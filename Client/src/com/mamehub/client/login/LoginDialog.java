@@ -15,7 +15,6 @@ import javax.imageio.ImageIO;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -392,6 +391,8 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 	
 	void loginComplete() {
 		try {
+			rpcEngine.setPorts();
+
 			udpReflectionServer.shutdown();
 			MainFrame mainFrame = new MainFrame(rpcEngine, clientHttpServer);
 			

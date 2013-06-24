@@ -111,6 +111,7 @@ import com.mamehub.thrift.ChatStatus;
 import com.mamehub.thrift.CommitData;
 import com.mamehub.thrift.Game;
 import com.mamehub.thrift.IpRangeData;
+import com.mamehub.thrift.MR;
 import com.mamehub.thrift.Message;
 import com.mamehub.thrift.PeerState;
 import com.mamehub.thrift.Player;
@@ -169,6 +170,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 	private JButton btnArrangeAGame;
 	private HTMLEditorKit chatTextKit;
 	private HTMLDocument chatTextDocument;
+	private JComboBox<String> machineComboBox;
 
 	public class PlayerTableModel extends AbstractTableModel {
 		private static final long serialVersionUID = 1320567054920404367L;
@@ -543,8 +545,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 									new PlayerRomProfile(gameRomInfo.id,
 											starCount, null));
 							Utils.commitProfile(rpcEngine);
-							updateGameTree(gameListModel,
-									mameHubEngine.gameAuditor);
+							updateGameTree(gameListModel);
 						}
 					});
 				}
@@ -643,59 +644,41 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		JPanel panel_6 = new JPanel();
 		panel_1.add(panel_6, BorderLayout.SOUTH);
-		panel_6.setLayout(new BorderLayout(0, 0));
+		panel_6.setLayout(new BoxLayout(panel_6, BoxLayout.X_AXIS));
+
+		JLabel lblNewLabel_1 = new JLabel("Filter by Machine:");
+		panel_6.add(lblNewLabel_1);
+
+		machineComboBox = new JComboBox<String>();
+		machineComboBox.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				updateGameList();
+			}
+		});
+		panel_6.add(machineComboBox);
 
 		JLabel lblNewLabel = new JLabel("Search for Game");
-		panel_6.add(lblNewLabel, BorderLayout.WEST);
+		panel_6.add(lblNewLabel);
 
 		gameSearchTextBox = new JTextField();
 		gameSearchTextBox.getDocument().addDocumentListener(
 				new DocumentListener() {
 					@Override
 					public synchronized void changedUpdate(DocumentEvent e) {
-						updateSearch();
+						updateGameList();
 					}
 
 					@Override
 					public synchronized void insertUpdate(DocumentEvent arg0) {
-						updateSearch();
+						updateGameList();
 					}
 
 					@Override
 					public synchronized void removeUpdate(DocumentEvent arg0) {
-						updateSearch();
-					}
-
-					private void updateSearch() {
-						if (gameSearchTextBox.getText().length() == 0) {
-							searchResults.clear();
-							updateGameTree(gameListModel,
-									mameHubEngine.gameAuditor);
-							return;
-						}
-
-						logger.info("Searching for "
-								+ gameSearchTextBox.getText());
-						List<RomQueryResult> result = mameHubEngine.gameAuditor
-								.queryRoms(gameSearchTextBox.getText(),
-										cloudRoms);
-						searchResults.clear();
-						int a = 0;
-						for (RomQueryResult rqr : result) {
-							if (a < 10)
-								logger.info("" + result.size());
-							if (a < 10)
-								logger.info("GOT RESULT " + rqr.score + " "
-										+ rqr.romInfo);
-							searchResults.add(rqr.romInfo);
-							a++;
-						}
-						logger.info("Game Tree Updating");
-						updateGameTree(gameListModel, mameHubEngine.gameAuditor);
-						logger.info("Game Tree Updated");
+						updateGameList();
 					}
 				});
-		panel_6.add(gameSearchTextBox, BorderLayout.CENTER);
+		panel_6.add(gameSearchTextBox);
 		gameSearchTextBox.setColumns(10);
 
 		btnArrangeAGame = new JButton("Arrange a Game");
@@ -714,7 +697,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 				}
 			}
 		});
-		panel_6.add(btnArrangeAGame, BorderLayout.EAST);
+		panel_6.add(btnArrangeAGame);
 
 		downloadsTable = new JTable(downloadsTableModel);
 		downloadsTable.setMinimumSize(new Dimension(150, 23));
@@ -783,20 +766,11 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 		chatTextArea.setEditorKit(chatTextKit);
 		chatTextArea.setDocument(chatTextDocument);
-		try {
-			chatTextKit.insertHTML(chatTextDocument,
-					chatTextDocument.getLength(), rpcEngine.getMOTD(), 0, 0,
-					null);
-		} catch (BadLocationException e2) {
-			throw new RuntimeException(e2);
-		}
 
 		try {
 			chatTextKit.insertHTML(chatTextDocument,
 					chatTextDocument.getLength(),
-					"<b>Changes in the past week</b>",
-					0,
-					0, null);
+					"<b>Changes in the past week</b>", 0, 0, null);
 			String recentChangesJson = IOUtils.toString(new URI(
 					"https://api.github.com/repos/MisterTea/MAMEHub/commits"));
 
@@ -811,8 +785,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 				if (Days.daysBetween(date.toDateMidnight(),
 						DateTime.now().toDateMidnight()).getDays() < 7) {
-					chatTextKit.insertHTML(chatTextDocument,
-							chatTextDocument.getLength(),
+					chatTextKit
+							.insertHTML(
+									chatTextDocument,
+									chatTextDocument.getLength(),
 									("(" + date.toString("MM-dd") + "): " + cd.commit.message),
 									0, 0, null);
 				}
@@ -825,6 +801,14 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		} catch (BadLocationException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
+		}
+
+		try {
+			chatTextKit.insertHTML(chatTextDocument,
+					chatTextDocument.getLength(), rpcEngine.getMOTD(), 0, 0,
+					null);
+		} catch (BadLocationException e2) {
+			throw new RuntimeException(e2);
 		}
 
 		// We will manually handle advancing chat window
@@ -884,9 +868,9 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 						}
 						if (chatTextField.getText().length() > 0) {
 							chatTextField.setText(chatTextField.getText()
-									+ match.name + ": ");
+									+ match.name + " ");
 						} else {
-							chatTextField.setText(match.name + ": ");
+							chatTextField.setText(match.name + " ");
 						}
 					}
 				}
@@ -1148,6 +1132,31 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		MainFrame.this.repaint();
 	}
 
+	protected void updateGameList() {
+		if (gameSearchTextBox.getText().length() == 0) {
+			searchResults.clear();
+			updateGameTree(gameListModel);
+			return;
+		}
+
+		logger.info("Searching for " + gameSearchTextBox.getText());
+		List<RomQueryResult> result = mameHubEngine.queryRoms(
+				gameSearchTextBox.getText(), cloudRoms);
+		searchResults.clear();
+		int a = 0;
+		for (RomQueryResult rqr : result) {
+			if (a < 10)
+				logger.info("" + result.size());
+			if (a < 10)
+				logger.info("GOT RESULT " + rqr.score + " " + rqr.romInfo);
+			searchResults.add(rqr.romInfo);
+			a++;
+		}
+		logger.info("Game Tree Updating");
+		updateGameTree(gameListModel);
+		logger.info("Game Tree Updated");
+	}
+
 	protected void updatePlayerStatus() {
 		ChatStatus newChatStatus = (ChatStatus) chatStatusComboBox
 				.getSelectedItem();
@@ -1303,12 +1312,20 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 			@Override
 			public void run() {
+				machineComboBox.removeAllItems();
+				machineComboBox.addItem("All");
+				machineComboBox.addItem("Arcade");
+				for (String system : gameAuditor.getMessRomInfoMap().keySet()) {
+					machineComboBox.addItem(system);
+				}
+
 				Map<String, Set<String>> romList = new HashMap<String, Set<String>>();
 
 				Set<String> arcadeRoms = new HashSet<String>();
 				for (Map.Entry<String, RomInfo> entry : gameAuditor
 						.getMameRomInfoMap().entrySet()) {
-					if (entry.getValue().missingReason == null) {
+					if (entry.getValue().missingReason == null
+							|| entry.getValue().missingReason == MR.MISSING_CHD) {
 						// logger.info("Adding arcade game " + entry.getKey());
 						arcadeRoms.add(entry.getKey());
 					}
@@ -1339,15 +1356,14 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
 				MameHubClientRpcImpl.updateRoms(romList);
 
-				// updateSystemTree(gameAuditor);
-				updateGameTree(gameListModel, gameAuditor);
+				updateGameList();
 				statusLabel.setText("Audit finished!");
 			}
 
 		});
 	}
 
-	private void updateGameTree(GameListModel model, GameAuditor gameAuditor) {
+	private void updateGameTree(GameListModel model) {
 		// logger.info("Updating game tree");
 		model.rowRomMap.clear();
 		model.rows.clear();
@@ -1357,8 +1373,14 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		if (!gameSearchTextBox.getText().isEmpty()) {
 			// Add items in search relevance order
 			for (RomInfo romInfo : searchResults) {
-				if (!romInfo.softwareLists.isEmpty()) {
+				if (romInfo.system == null) {
 					// Don't add systems.
+					continue;
+				}
+				if (!machineComboBox.getSelectedItem().equals("All")
+						&& !machineComboBox.getSelectedItem().equals(
+								romInfo.system)) {
+					// Filter by machine
 					continue;
 				}
 				model.rowRomMap.add(romInfo);
@@ -1368,13 +1390,20 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			Map<String, RomInfo> gamesFound = new TreeMap<String, RomInfo>();
 			Map<String, RomInfo> gamesCloud = new TreeMap<String, RomInfo>();
 			Map<String, RomInfo> gamesMissing = new TreeMap<String, RomInfo>();
-			for (Map.Entry<String, RomInfo> entry : gameAuditor
+			for (Map.Entry<String, RomInfo> entry : mameHubEngine
 					.getMameRomInfoMap().entrySet()) {
 				RomInfo romInfo = entry.getValue();
-				if (!romInfo.softwareLists.isEmpty()) {
+				if (romInfo.system == null) {
 					// Don't add systems.
 					continue;
 				}
+				if (!machineComboBox.getSelectedItem().equals("All")
+						&& !machineComboBox.getSelectedItem().equals(
+								romInfo.system)) {
+					// Filter by machine
+					continue;
+				}
+
 				if (romInfo.missingReason == null) {
 					gamesFound.put(romInfo.description, romInfo);
 				} else if (cloudRoms.containsKey("Arcade")
@@ -1384,10 +1413,15 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					gamesMissing.put(romInfo.description, romInfo);
 				}
 			}
-			for (Map.Entry<String, RomInfo> messRomEntry : gameAuditor
+			for (Map.Entry<String, RomInfo> messRomEntry : mameHubEngine
 					.getMessRomInfoMap().entrySet()) {
 				String system = messRomEntry.getKey();
-				for (Map.Entry<String, RomInfo> cartEntry : gameAuditor
+				if (!machineComboBox.getSelectedItem().equals("All")
+						&& !machineComboBox.getSelectedItem().equals(system)) {
+					// Filter by machine
+					continue;
+				}
+				for (Map.Entry<String, RomInfo> cartEntry : mameHubEngine
 						.getSystemRomInfoMap(system).entrySet()) {
 					String cartName = cartEntry.getKey();
 					RomInfo cartRomInfo = cartEntry.getValue();
@@ -1456,7 +1490,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 											playerName, chatPiece));
 						}
 					}
-					if (message.chat.contains(rpcEngine.getMyself().name + ":")) {
+					if (message.chat.contains(" " + rpcEngine.getMyself().name
+							+ " ")
+							|| message.chat.startsWith(rpcEngine.getMyself().name
+									+ " ")) {
 						SoundEngine.instance.playSound("ding");
 					}
 				}
@@ -1773,7 +1810,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					return;
 				}
 				// updateSystemTree(mameHubEngine.gameAuditor);
-				updateGameTree(gameListModel, mameHubEngine.gameAuditor);
+				updateGameTree(gameListModel);
 			}
 		});
 	}

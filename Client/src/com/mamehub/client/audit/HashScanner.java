@@ -12,13 +12,11 @@ import java.util.Formatter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -109,7 +107,8 @@ public class HashScanner {
 							*/
 							//System.out.println(file.getName() + " " + name + " " + crc32);
 							zipFileInfo.contentsCrc32.put(name,crc32);
-							//logger.info(file.getAbsolutePath() + " : " + name + " : " + crc32);
+							logger.info(file.getAbsolutePath() + " : " + name
+									+ " : " + crc32);
 	
 						}
 						

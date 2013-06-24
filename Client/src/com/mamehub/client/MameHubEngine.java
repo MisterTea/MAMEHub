@@ -5,11 +5,16 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.mamehub.client.audit.GameAuditor;
+import com.mamehub.client.audit.GameAuditor.RomQueryResult;
 import com.mamehub.client.server.MameHubClientRpcImpl;
 import com.mamehub.client.utility.MediaCommandFetcher;
 import com.mamehub.client.utility.OSValidator;
@@ -20,7 +25,7 @@ public class MameHubEngine implements Runnable {
 	
 	private Thread gameThread;
 	private Process proc;
-	GameAuditor gameAuditor;
+	private GameAuditor gameAuditor;
 	
 	MediaCommandFetcher mediaCommandFetcher;
 	
@@ -236,5 +241,34 @@ public class MameHubEngine implements Runnable {
 			return true;
 		}
 		return false;
+	}
+
+	public List<RomQueryResult> queryRoms(String text,
+			Map<String, Set<String>> cloudRoms) {
+		return gameAuditor.queryRoms(text, cloudRoms);
+	}
+
+	public ConcurrentMap<String, RomInfo> getMameRomInfoMap() {
+		if (isAuditing()) {
+			return new ConcurrentHashMap<String, RomInfo>();
+		} else {
+			return gameAuditor.getMameRomInfoMap();
+		}
+	}
+
+	public ConcurrentMap<String, RomInfo> getMessRomInfoMap() {
+		if (isAuditing()) {
+			return new ConcurrentHashMap<String, RomInfo>();
+		} else {
+			return gameAuditor.getMessRomInfoMap();
+		}
+	}
+
+	public ConcurrentMap<String, RomInfo> getSystemRomInfoMap(String system) {
+		if (isAuditing()) {
+			return new ConcurrentHashMap<String, RomInfo>();
+		} else {
+			return gameAuditor.getSystemRomInfoMap(system);
+		}
 	}
 }

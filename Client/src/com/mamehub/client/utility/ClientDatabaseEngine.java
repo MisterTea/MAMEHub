@@ -12,6 +12,7 @@ import java.io.Serializable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.thrift.TBase;
 import org.apache.thrift.TDeserializer;
 import org.apache.thrift.TException;
@@ -109,7 +110,7 @@ public class ClientDatabaseEngine {
 
 	private final static Logger logger = Logger.getLogger(ClientDatabaseEngine.class.getName());
 
-	private String dbDirectory;
+	private File dbDirectory;
 	private String dbFileName;
 
 	public DB database;
@@ -121,7 +122,7 @@ public class ClientDatabaseEngine {
 		this.inMemory = inMemory;
 		logger.info("CREATING NEW DATABASE ENGINE");
 		/** create (or open existing) database using builder pattern*/
-		dbDirectory = baseDbDirectory + "/" + dbName;
+		dbDirectory = new File(baseDbDirectory + "/" + dbName);
 		dbFileName = dbDirectory + "/" + "db";
 		logger.info(" db dir: " + dbDirectory + " db file" + dbFileName);
 		if (wipe) {
@@ -132,7 +133,7 @@ public class ClientDatabaseEngine {
 	}
 	
 	private void createDatabase() {
-		new File(dbDirectory).mkdirs();
+		dbDirectory.mkdirs();
 		DBMaker dbMaker = null;
 		if(inMemory) {
 			dbMaker = DBMaker.newDirectMemoryDB();
@@ -155,33 +156,7 @@ public class ClientDatabaseEngine {
 		}
 		if (!inMemory) {
 			// Wipe the old database
-			File folder = new File(dbDirectory);
-			File[] listOfFiles = folder.listFiles();
-			if (listOfFiles == null) {
-				if (!new File(dbDirectory).mkdir()) {
-					throw new IOException("Could not make databse directory!");
-				}
-			} else {
-
-				for (int i = 0; i < listOfFiles.length; i++) {
-					if (listOfFiles[i].isFile()) {
-						String dirFilename = listOfFiles[i].getPath();
-						System.out.println(dirFilename);
-						if (!new File(dirFilename).delete()) {
-							throw new IOException("Could not delete file: "
-									+ dirFilename);
-						}
-						if (new File(dirFilename).delete()) {
-							throw new IOException("Could not delete file: "
-									+ dirFilename);
-						}
-					}
-				}
-			}
-
-			if (new File(dbFileName).delete()) {
-				logger.info("WIPED OLD DATABASE");
-			}
+			FileUtils.deleteDirectory(dbDirectory);
 		}
 		createDatabase();
 	}

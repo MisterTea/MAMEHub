@@ -217,7 +217,8 @@ public class GameAuditor implements Runnable {
 			// Delete the database just in case
 			try {
 				Utils.getAuditDatabaseEngine().close();
-				Utils.getAuditDatabaseEngine().wipeDatabase();
+				Utils.wipeAuditDatabaseEngine();
+				Utils.getAuditDatabaseEngine();
 			} catch (IOException e1) {
 				// We couldn't delete the database, this is probably bad but not
 				// sure what else we can do at this point.

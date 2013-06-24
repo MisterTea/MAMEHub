@@ -52,6 +52,8 @@ public class RomParser extends DefaultHandler {
 
 	private List<RomInfo> systems;
 
+	private boolean chdFailed;
+
 	public RomParser(String xmlFile) {
 		this.xmlFile = xmlFile;
 	}
@@ -86,15 +88,18 @@ public class RomParser extends DefaultHandler {
 		}
 		Utils.getAuditDatabaseEngine().commit();
 
-		for (Map.Entry<String, RomInfo> entry : roms.entrySet()) {
-			RomInfo romInfo = entry.getValue();
-			if (romInfo.cloneRom != null && roms.get(romInfo.cloneRom).missingReason != null) {
-				romInfo.missingReason = MR.MISSING_CLONE;
-			} else if (romInfo.parentRom != null
-					&& !roms.containsKey(romInfo.parentRom)) {
-				romInfo.missingReason = MR.MISSING_PARENT;
-			}
-		}
+		// I used to fail the rom if the clone/parent fails, but that isn't
+		// always true.
+		/*
+		 * for (String romId : new HashSet<String>(roms.keySet())) { RomInfo
+		 * romInfo = new RomInfo(roms.get(romId)); if (romInfo.cloneRom != null
+		 * && roms.get(romInfo.cloneRom).missingReason != null) {
+		 * romInfo.missingReason = MR.MISSING_CLONE; } else if
+		 * (romInfo.parentRom != null &&
+		 * roms.get(romInfo.parentRom).missingReason != null) {
+		 * romInfo.missingReason = MR.MISSING_PARENT; } roms.put(romId,
+		 * romInfo); }
+		 */
 		this.roms = null;
 	}
 
@@ -110,6 +115,7 @@ public class RomParser extends DefaultHandler {
 			romInfo.id = baseName + attributes.getValue("name");
 			romInfo.romName = attributes.getValue("name");
 			gameFailed = false;
+			chdFailed = false;
 			romsWithNoHash = goodRoms = 0;
 			possibleEntries = null;
 		} else if (qName.equals("description")) {
@@ -119,7 +125,7 @@ public class RomParser extends DefaultHandler {
 					&& chdMap.containsKey(attributes.getValue("name"))) {
 				romInfo.chdFilename = chdMap.get(attributes.getValue("name"));
 			} else {
-				gameFailed = true;
+				chdFailed = true;
 			}
 		} else if (qName.equals("softwarelist")) {
 			romInfo.softwareLists.add(new SoftwareList().setName(
@@ -248,6 +254,9 @@ public class RomParser extends DefaultHandler {
 			}
 			if (verbose)
 				logger.info("ROM INFO: " + romInfo);
+			if (chdFailed) {
+				romInfo.missingReason = MR.MISSING_CHD;
+			}
 			roms.put(romInfo.romName, romInfo);
 			count++;
 			if (count % 5000 == 0) {

@@ -16,7 +16,8 @@ public enum MR implements org.apache.thrift.TEnum {
   BAD_FILES(1),
   MISSING_CLONE(2),
   MISSING_PARENT(3),
-  MISSING_SYSTEM(4);
+  MISSING_SYSTEM(4),
+  MISSING_CHD(5);
 
   private final int value;
 
@@ -47,6 +48,8 @@ public enum MR implements org.apache.thrift.TEnum {
         return MISSING_PARENT;
       case 4:
         return MISSING_SYSTEM;
+      case 5:
+        return MISSING_CHD;
       default:
         return null;
     }
