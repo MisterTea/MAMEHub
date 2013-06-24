@@ -5,6 +5,7 @@
 ****************************************************************************/
 
 #include "sound/dac.h"
+#include "sound/tms5110.h"
 
 #define CVS_S2636_Y_OFFSET     (3)
 #define CVS_S2636_X_OFFSET     (-26)
@@ -25,7 +26,14 @@ public:
 			m_fo_state(*this, "fo_state"),
 			m_cvs_4_bit_dac_data(*this, "4bit_dac"),
 			m_tms5110_ctl_data(*this, "tms5110_ctl"),
-			m_dac3_state(*this, "dac3_state") { }
+			m_dac3_state(*this, "dac3_state"),
+			m_maincpu(*this, "maincpu"),
+			m_audiocpu(*this, "audiocpu"),
+			m_dac2(*this, "dac2"),
+			m_dac3(*this, "dac3"),
+			m_tms5110(*this, "tms")
+	{
+	}
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_video_ram;
@@ -55,11 +63,12 @@ public:
 	UINT16     m_speech_rom_bit_address;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
 	device_t *m_speech;
-	dac_device *m_dac3;
-	device_t *m_tms;
+	optional_device<dac_device> m_dac2;
+	optional_device<dac_device> m_dac3;
+	optional_device<tms5110_device> m_tms5110;
 	device_t *m_s2636_0;
 	device_t *m_s2636_1;
 	device_t *m_s2636_2;
@@ -107,9 +116,9 @@ public:
 	UINT32 screen_update_cvs(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(cvs_main_cpu_interrupt);
 	TIMER_CALLBACK_MEMBER(cvs_393hz_timer_cb);
+	void set_pens(  );
+	void cvs_scroll_stars(  );
+	void cvs_init_stars(  );
+	void cvs_update_stars(bitmap_ind16 &bitmap, const rectangle &cliprect, const pen_t star_pen, bool update_always);
+	void start_393hz_timer();
 };
-
-/*----------- defined in video/cvs.c -----------*/
-void cvs_init_stars( running_machine &machine );
-void cvs_scroll_stars( running_machine &machine );
-void cvs_update_stars(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, const pen_t star_pen, bool update_always);

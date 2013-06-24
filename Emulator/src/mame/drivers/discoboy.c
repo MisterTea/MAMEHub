@@ -50,7 +50,10 @@ class discoboy_state : public driver_device
 {
 public:
 	discoboy_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_audiocpu(*this, "audiocpu") ,
+		m_maincpu(*this, "maincpu"),
+		m_msm(*this, "msm") { }
 
 	/* video-related */
 	UINT8    m_ram_bank;
@@ -60,7 +63,7 @@ public:
 	UINT8    m_toggle;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 
 	/* memory */
 	UINT8    m_ram_1[0x800];
@@ -87,6 +90,11 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_discoboy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void discoboy_setrombank( UINT8 data );
+	DECLARE_WRITE_LINE_MEMBER(yunsung8_adpcm_int);
+	required_device<cpu_device> m_maincpu;
+	required_device<msm5205_device> m_msm;
 };
 
 
@@ -95,46 +103,45 @@ void discoboy_state::video_start()
 {
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void discoboy_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	discoboy_state *state = machine.driver_data<discoboy_state>();
 	int flipscreen = 0;
 	int offs, sx, sy;
 
 	for (offs = 0x1000 - 0x40; offs >= 0; offs -= 0x20)
 	{
-		int code = state->m_ram_4[offs];
-		int attr = state->m_ram_4[offs + 1];
+		int code = m_ram_4[offs];
+		int attr = m_ram_4[offs + 1];
 		int color = attr & 0x0f;
-		sx = state->m_ram_4[offs + 3] + ((attr & 0x10) << 4);
-		sy = ((state->m_ram_4[offs + 2] + 8) & 0xff) - 8;
+		sx = m_ram_4[offs + 3] + ((attr & 0x10) << 4);
+		sy = ((m_ram_4[offs + 2] + 8) & 0xff) - 8;
 		code += (attr & 0xe0) << 3;
 
 		if (code >= 0x400)
 		{
-			if ((state->m_gfxbank & 0x30) == 0x00)
+			if ((m_gfxbank & 0x30) == 0x00)
 			{
 				code = 0x400 + (code & 0x3ff);
 			}
-			else if ((state->m_gfxbank & 0x30) == 0x10)
+			else if ((m_gfxbank & 0x30) == 0x10)
 			{
 				code = 0x400 + (code & 0x3ff) + 0x400;
 			}
-			else if ((state->m_gfxbank & 0x30) == 0x20)
+			else if ((m_gfxbank & 0x30) == 0x20)
 			{
 				code = 0x400 + (code & 0x3ff) + 0x800;
 			}
-			else if ((state->m_gfxbank & 0x30) == 0x30)
+			else if ((m_gfxbank & 0x30) == 0x30)
 			{
 				code = 0x400 + (code & 0x3ff) + 0xc00;
 			}
 			else
 			{
-				code = machine.rand();
+				code = machine().rand();
 			}
 		}
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[0],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[0],
 					code,
 					color,
 					flipscreen,0,
@@ -196,17 +203,17 @@ UINT32 discoboy_state::screen_update_discoboy(screen_device &screen, bitmap_ind1
 		}
 	}
 
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 
 	return 0;
 }
 
 #ifdef UNUSED_FUNCTION
-void discoboy_setrombank( running_machine &machine, UINT8 data )
+void discoboy_state::discoboy_setrombank( UINT8 data )
 {
-	UINT8 *ROM = machine.root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 	data &= 0x2f;
-	space.machine().root_device().membank("bank1")->set_base(&ROM[0x6000 + (data * 0x1000)] );
+	space.membank("bank1")->set_base(&ROM[0x6000 + (data * 0x1000)] );
 }
 #endif
 
@@ -224,7 +231,6 @@ WRITE8_MEMBER(discoboy_state::discoboy_port_00_w)
 
 WRITE8_MEMBER(discoboy_state::discoboy_port_01_w)
 {
-
 	// 00 10 20 30 during gameplay  1,2,3 other times?? title screen bit 0x40 toggle
 	//printf("unk discoboy_port_01_w %02x\n",data);
 	// discoboy gfxbank
@@ -250,7 +256,6 @@ WRITE8_MEMBER(discoboy_state::discoboy_port_06_w)
 
 WRITE8_MEMBER(discoboy_state::rambank_w)
 {
-
 	if (m_ram_bank & 0x20)
 		m_ram_2[offset] = data;
 	else
@@ -259,7 +264,6 @@ WRITE8_MEMBER(discoboy_state::rambank_w)
 
 READ8_MEMBER(discoboy_state::rambank_r)
 {
-
 	if (m_ram_bank & 0x20)
 		return m_ram_2[offset];
 	else
@@ -268,7 +272,6 @@ READ8_MEMBER(discoboy_state::rambank_r)
 
 READ8_MEMBER(discoboy_state::rambank2_r)
 {
-
 	if (m_port_00 == 0x00)
 		return m_ram_3[offset];
 	else if (m_port_00 == 0x01)
@@ -281,7 +284,6 @@ READ8_MEMBER(discoboy_state::rambank2_r)
 
 WRITE8_MEMBER(discoboy_state::rambank2_w)
 {
-
 	if (m_port_00 == 0x00)
 		m_ram_3[offset] = data;
 	else if (m_port_00 == 0x01)
@@ -331,11 +333,10 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(discoboy_state::yunsung8_sound_bankswitch_w)
 {
-	device_t *device = machine().device("msm");
 	/* Note: this is bit 5 on yunsung8.c */
-	msm5205_reset_w(device, (data & 0x08) >> 3);
+	m_msm->reset_w((data & 0x08) >> 3);
 
-	machine().root_device().membank("sndbank")->set_entry(data & 0x07);
+	membank("sndbank")->set_entry(data & 0x07);
 
 	if (data != (data & (~0x0f)))
 		logerror("%s: Bank %02X\n", machine().describe_context(), data);
@@ -343,7 +344,6 @@ WRITE8_MEMBER(discoboy_state::yunsung8_sound_bankswitch_w)
 
 WRITE8_MEMBER(discoboy_state::yunsung8_adpcm_w)
 {
-
 	/* Swap the nibbles */
 	m_adpcm = ((data & 0xf) << 4) | ((data >> 4) & 0xf);
 }
@@ -353,7 +353,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, discoboy_state )
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("sndbank")
 	AM_RANGE(0xe000, 0xe000) AM_WRITE(yunsung8_sound_bankswitch_w)
 	AM_RANGE(0xe400, 0xe400) AM_WRITE(yunsung8_adpcm_w)
-	AM_RANGE(0xec00, 0xec01) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0xec00, 0xec01) AM_DEVWRITE("ymsnd", ym3812_device, write)
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf800) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -456,9 +456,6 @@ GFXDECODE_END
 
 void discoboy_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_ram_bank));
 	save_item(NAME(m_port_00));
 	save_item(NAME(m_gfxbank));
@@ -468,7 +465,6 @@ void discoboy_state::machine_start()
 
 void discoboy_state::machine_reset()
 {
-
 	m_ram_bank = 0;
 	m_port_00 = 0;
 	m_gfxbank = 0;
@@ -476,19 +472,17 @@ void discoboy_state::machine_reset()
 	m_toggle = 0;
 }
 
-static void yunsung8_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(discoboy_state::yunsung8_adpcm_int)
 {
-	discoboy_state *state = device->machine().driver_data<discoboy_state>();
+	m_msm->data_w(m_adpcm >> 4);
+	m_adpcm <<= 4;
 
-	msm5205_data_w(device, state->m_adpcm >> 4);
-	state->m_adpcm <<= 4;
-
-	state->m_toggle ^= 1;
+	m_toggle ^= 1;
 }
 
 static const msm5205_interface yunsung8_msm5205_interface =
 {
-	yunsung8_adpcm_int, /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(discoboy_state,yunsung8_adpcm_int), /* interrupt function */
 	MSM5205_S96_4B      /* 4KHz, 4 Bits */
 };
 

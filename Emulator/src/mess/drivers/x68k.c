@@ -145,7 +145,7 @@
 // MFP is clocked at 4MHz, so at /4 prescaler the timer is triggered after 1us (4 cycles)
 // No longer necessary with the new MFP core
 #ifdef UNUSED_FUNCTION
-static attotime prescale(int val)
+attotime x68k_state::prescale(int val)
 {
 	switch(val)
 	{
@@ -171,14 +171,75 @@ void x68k_state::mfp_init()
 	m_mfp.current_irq = -1;  // No current interrupt
 
 #if 0
-	mfp_timer[0] = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::mfp_timer_a_callback),this));
-	mfp_timer[1] = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::mfp_timer_b_callback),this));
-	mfp_timer[2] = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::mfp_timer_c_callback),this));
-	mfp_timer[3] = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::mfp_timer_d_callback),this));
-	mfp_irq = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::mfp_update_irq),this));
+	mfp_timer[0] = timer_alloc(TIMER_MFP_TIMER_A);
+	mfp_timer[1] = timer_alloc(TIMER_MFP_TIMER_B);
+	mfp_timer[2] = timer_alloc(TIMER_MFP_TIMER_C);
+	mfp_timer[3] = timer_alloc(TIMER_MFP_TIMER_D);
+	mfp_irq = timer_alloc(TIMER_MFP_UPDATE_IRQ);
 	mfp_irq->adjust(attotime::zero, 0, attotime::from_usec(32));
 #endif
 }
+
+void x68k_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_MFP_UPDATE_IRQ:
+		//mfp_update_irq(ptr, param);
+		break;
+	case TIMER_MFP_TIMER_A:
+		//mfp_timer_a_callback(ptr, param);
+		break;
+	case TIMER_MFP_TIMER_B:
+		//mfp_timer_b_callback(ptr, param);
+		break;
+	case TIMER_MFP_TIMER_C:
+		//mfp_timer_c_callback(ptr, param);
+		break;
+	case TIMER_MFP_TIMER_D:
+		//mfp_timer_d_callback(ptr, param);
+		break;
+	case TIMER_X68K_LED:
+		x68k_led_callback(ptr, param);
+		break;
+	case TIMER_X68K_KEYBOARD_POLL:
+		x68k_keyboard_poll(ptr, param);
+		break;
+	case TIMER_X68K_SCC_ACK:
+		x68k_scc_ack(ptr, param);
+		break;
+	case TIMER_MD_6BUTTON_PORT1_TIMEOUT:
+		md_6button_port1_timeout(ptr, param);
+		break;
+	case TIMER_MD_6BUTTON_PORT2_TIMEOUT:
+		md_6button_port2_timeout(ptr, param);
+		break;
+	case TIMER_X68K_BUS_ERROR:
+		x68k_bus_error(ptr, param);
+		break;
+	case TIMER_X68K_NET_IRQ:
+		x68k_net_irq(ptr, param);
+		break;
+	case TIMER_X68K_CRTC_OPERATION_END:
+		x68k_crtc_operation_end(ptr, param);
+		break;
+	case TIMER_X68K_HSYNC:
+		x68k_hsync(ptr, param);
+		break;
+	case TIMER_X68K_CRTC_RASTER_END:
+		x68k_crtc_raster_end(ptr, param);
+		break;
+	case TIMER_X68K_CRTC_RASTER_IRQ:
+		x68k_crtc_raster_irq(ptr, param);
+		break;
+	case TIMER_X68K_CRTC_VBLANK_IRQ:
+		x68k_crtc_vblank_irq(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in x68k_state::device_timer");
+	}
+}
+
 
 #ifdef UNUSED_FUNCTION
 TIMER_CALLBACK_MEMBER(x68k_state::mfp_update_irq)
@@ -201,7 +262,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::mfp_update_irq)
 //              if(m_mfp.iera & (1 << x))
 				{
 					m_current_vector[6] = (m_mfp.vr & 0xf0) | (x+8);
-					machine().device("maincpu")->execute().set_input_line_and_vector(m_mfp.irqline,ASSERT_LINE,(m_mfp.vr & 0xf0) | (x + 8));
+					m_maincpu->set_input_line_and_vector(m_mfp.irqline,ASSERT_LINE,(m_mfp.vr & 0xf0) | (x + 8));
 //                  logerror("MFP: Sent IRQ vector 0x%02x (IRQ line %i)\n",(m_mfp.vr & 0xf0) | (x+8),m_mfp.irqline);
 					return;  // one at a time only
 				}
@@ -220,7 +281,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::mfp_update_irq)
 //              if(m_mfp.ierb & (1 << x))
 				{
 					m_current_vector[6] = (m_mfp.vr & 0xf0) | x;
-					machine().device("maincpu")->execute().set_input_line_and_vector(m_mfp.irqline,ASSERT_LINE,(m_mfp.vr & 0xf0) | x);
+					m_maincpu->set_input_line_and_vector(m_mfp.irqline,ASSERT_LINE,(m_mfp.vr & 0xf0) | x);
 //                  logerror("MFP: Sent IRQ vector 0x%02x (IRQ line %i)\n",(m_mfp.vr & 0xf0) | x,m_mfp.irqline);
 					return;  // one at a time only
 				}
@@ -229,26 +290,25 @@ TIMER_CALLBACK_MEMBER(x68k_state::mfp_update_irq)
 	}
 }
 
-void mfp_trigger_irq(running_machine &machine, int irq)
+void x68k_state::mfp_trigger_irq(int irq)
 {
-	x68k_state *state = machine.driver_data<x68k_state>();
 	// check if interrupt is enabled
 	if(irq > 7)
 	{
-		if(!(state->m_mfp.iera & (1 << (irq-8))))
+		if(!(m_mfp.iera & (1 << (irq-8))))
 			return;  // not enabled, no action taken
 	}
 	else
 	{
-		if(!(state->m_mfp.ierb & (1 << irq)))
+		if(!(m_mfp.ierb & (1 << irq)))
 			return;  // not enabled, no action taken
 	}
 
 	// set requested IRQ as pending
 	if(irq > 7)
-		state->m_mfp.ipra |= (1 << (irq-8));
+		m_mfp.ipra |= (1 << (irq-8));
 	else
-		state->m_mfp.iprb |= (1 << irq);
+		m_mfp.iprb |= (1 << irq);
 
 	// check for IRQs to be called
 //  mfp_update_irq(0);
@@ -295,7 +355,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::mfp_timer_d_callback)
 	}
 }
 
-void mfp_set_timer(int timer, unsigned char data)
+void x68k_state::mfp_set_timer(int timer, unsigned char data)
 {
 	if((data & 0x07) == 0x0000)
 	{  // Timer stop
@@ -439,10 +499,10 @@ void x68k_state::x68k_keyboard_push_scancode(unsigned char code)
 		{
 			m_mfp.rsr |= 0x80;  // Buffer full
 //          mfp_trigger_irq(MFP_IRQ_RX_FULL);
-			if(machine().root_device().ioport("options")->read() & 0x01)
+			if(ioport("options")->read() & 0x01)
 			{
 				m_current_vector[6] = 0x4c;
-				machine().device("maincpu")->execute().set_input_line_and_vector(6,ASSERT_LINE,0x4c);
+				m_maincpu->set_input_line_and_vector(6,ASSERT_LINE,0x4c);
 				logerror("MFP: Receive buffer full IRQ sent\n");
 			}
 		}
@@ -453,7 +513,7 @@ void x68k_state::x68k_keyboard_push_scancode(unsigned char code)
 		m_keyboard.headpos = 0;
 //      mfp_trigger_irq(MFP_IRQ_RX_ERROR);
 		m_current_vector[6] = 0x4b;
-//      machine.device("maincpu")->execute().set_input_line_and_vector(6,ASSERT_LINE,0x4b);
+//      m_maincpu->set_input_line_and_vector(6,ASSERT_LINE,0x4b);
 	}
 }
 
@@ -469,7 +529,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_keyboard_poll)
 		{
 			m_keyboard.keytime[x] -= 5;
 		}
-		if(!(machine().root_device().ioport(keynames[x / 32])->read() & (1 << (x % 32))))
+		if(!(ioport(keynames[x / 32])->read() & (1 << (x % 32))))
 		{
 			if(m_keyboard.keyon[x] != 0)
 			{
@@ -483,14 +543,14 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_keyboard_poll)
 		// check to see if a key is being held
 		if(m_keyboard.keyon[x] != 0 && m_keyboard.keytime[x] == 0 && m_keyboard.last_pressed == x)
 		{
-			if(machine().root_device().ioport(keynames[m_keyboard.last_pressed / 32])->read() & (1 << (m_keyboard.last_pressed % 32)))
+			if(ioport(keynames[m_keyboard.last_pressed / 32])->read() & (1 << (m_keyboard.last_pressed % 32)))
 			{
 				x68k_keyboard_push_scancode(m_keyboard.last_pressed);
 				m_keyboard.keytime[m_keyboard.last_pressed] = (m_keyboard.repeat^2)*5+30;
 				logerror("KB: Holding key 0x%02x\n",m_keyboard.last_pressed);
 			}
 		}
-		if((machine().root_device().ioport(keynames[x / 32])->read() & (1 << (x % 32))))
+		if((ioport(keynames[x / 32])->read() & (1 << (x % 32))))
 		{
 			if(m_keyboard.keyon[x] == 0)
 			{
@@ -506,13 +566,12 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_keyboard_poll)
 
 
 #ifdef UNUSED_FUNCTION
-void mfp_recv_data(int data)
+void x68k_state::mfp_recv_data(int data)
 {
-	x68k_state *state = machine.driver_data<x68k_state>();
-	state->m_mfp.rsr |= 0x80;  // Buffer full
-	state->m_mfp.tsr |= 0x80;
-	state->m_mfp.usart.recv_buffer = 0x00;   // TODO: set up keyboard data
-	state->m_mfp.vector = state->m_current_vector[6] = (state->m_mfp.vr & 0xf0) | 0x0c;
+	m_mfp.rsr |= 0x80;  // Buffer full
+	m_mfp.tsr |= 0x80;
+	m_mfp.usart.recv_buffer = 0x00;   // TODO: set up keyboard data
+	m_mfp.vector = m_current_vector[6] = (m_mfp.vr & 0xf0) | 0x0c;
 //  mfp_trigger_irq(MFP_IRQ_RX_FULL);
 //  logerror("MFP: Receive buffer full IRQ sent\n");
 }
@@ -533,15 +592,15 @@ int x68k_state::x68k_read_mouse()
 	switch(m_mouse.inputtype)
 	{
 	case 0:
-		ipt = machine().root_device().ioport("mouse1")->read();
+		ipt = ioport("mouse1")->read();
 		break;
 	case 1:
-		val = machine().root_device().ioport("mouse2")->read();
+		val = ioport("mouse2")->read();
 		ipt = val - m_mouse.last_mouse_x;
 		m_mouse.last_mouse_x = val;
 		break;
 	case 2:
-		val = machine().root_device().ioport("mouse3")->read();
+		val = ioport("mouse3")->read();
 		ipt = val - m_mouse.last_mouse_y;
 		m_mouse.last_mouse_y = val;
 		break;
@@ -637,7 +696,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_scc_ack)
 				m_mouse.irqactive = 1;
 				m_current_vector[5] = 0x54;
 				m_current_irq_line = 5;
-				machine().device("maincpu")->execute().set_input_line_and_vector(5,ASSERT_LINE,0x54);
+				m_maincpu->set_input_line_and_vector(5,ASSERT_LINE,0x54);
 			}
 		}
 	}
@@ -678,7 +737,7 @@ UINT8 x68k_state::md_3button_r(int port)
 {
 	if(port == 1)
 	{
-		UINT8 porta = machine().root_device().ioport("md3b")->read() & 0xff;
+		UINT8 porta = ioport("md3b")->read() & 0xff;
 		UINT8 portb = (ioport("md3b")->read() >> 8) & 0xff;
 		if(m_mdctrl.mux1 & 0x10)
 		{
@@ -691,8 +750,8 @@ UINT8 x68k_state::md_3button_r(int port)
 	}
 	if(port == 2)
 	{
-		UINT8 porta = (machine().root_device().ioport("md3b")->read() >> 16) & 0xff;
-		UINT8 portb = (machine().root_device().ioport("md3b")->read() >> 24) & 0xff;
+		UINT8 porta = (ioport("md3b")->read() >> 16) & 0xff;
+		UINT8 portb = (ioport("md3b")->read() >> 24) & 0xff;
 		if(m_mdctrl.mux2 & 0x20)
 		{
 			return porta | 0x90;
@@ -718,16 +777,16 @@ TIMER_CALLBACK_MEMBER(x68k_state::md_6button_port2_timeout)
 
 void x68k_state::md_6button_init()
 {
-	m_mdctrl.io_timeout1 = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::md_6button_port1_timeout),this));
-	m_mdctrl.io_timeout2 = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::md_6button_port2_timeout),this));
+	m_mdctrl.io_timeout1 = timer_alloc(TIMER_MD_6BUTTON_PORT1_TIMEOUT);
+	m_mdctrl.io_timeout2 = timer_alloc(TIMER_MD_6BUTTON_PORT2_TIMEOUT);
 }
 
 UINT8 x68k_state::md_6button_r(int port)
 {
 	if(port == 1)
 	{
-		UINT8 porta = machine().root_device().ioport("md6b")->read() & 0xff;
-		UINT8 portb = (machine().root_device().ioport("md6b")->read() >> 8) & 0xff;
+		UINT8 porta = ioport("md6b")->read() & 0xff;
+		UINT8 portb = (ioport("md6b")->read() >> 8) & 0xff;
 		UINT8 extra = ioport("md6b_extra")->read() & 0x0f;
 
 		switch(m_mdctrl.seq1)
@@ -764,9 +823,9 @@ UINT8 x68k_state::md_6button_r(int port)
 	}
 	if(port == 2)
 	{
-		UINT8 porta = (machine().root_device().ioport("md6b")->read() >> 16) & 0xff;
-		UINT8 portb = (machine().root_device().ioport("md6b")->read() >> 24) & 0xff;
-		UINT8 extra = (machine().root_device().ioport("md6b_extra")->read() >> 4) & 0x0f;
+		UINT8 porta = (ioport("md6b")->read() >> 16) & 0xff;
+		UINT8 portb = (ioport("md6b")->read() >> 24) & 0xff;
+		UINT8 extra = (ioport("md6b_extra")->read() >> 4) & 0x0f;
 
 		switch(m_mdctrl.seq2)
 		{
@@ -814,7 +873,7 @@ UINT8 x68k_state::xpd1lr_r(int port)
 {
 	if(port == 1)
 	{
-		UINT8 porta = machine().root_device().ioport("xpd1lr")->read() & 0xff;
+		UINT8 porta = ioport("xpd1lr")->read() & 0xff;
 		UINT8 portb = (ioport("xpd1lr")->read() >> 8) & 0xff;
 		if(m_mdctrl.mux1 & 0x10)
 		{
@@ -827,8 +886,8 @@ UINT8 x68k_state::xpd1lr_r(int port)
 	}
 	if(port == 2)
 	{
-		UINT8 porta = (machine().root_device().ioport("xpd1lr")->read() >> 16) & 0xff;
-		UINT8 portb = (machine().root_device().ioport("xpd1lr")->read() >> 24) & 0xff;
+		UINT8 porta = (ioport("xpd1lr")->read() >> 16) & 0xff;
+		UINT8 portb = (ioport("xpd1lr")->read() >> 24) & 0xff;
 		if(m_mdctrl.mux2 & 0x20)
 		{
 			return porta;
@@ -844,7 +903,7 @@ UINT8 x68k_state::xpd1lr_r(int port)
 // Judging from the XM6 source code, PPI ports A and B are joystick inputs
 READ8_MEMBER(x68k_state::ppi_port_a_r)
 {
-	int ctrl = machine().root_device().ioport("ctrltype")->read() & 0x0f;
+	int ctrl = ioport("ctrltype")->read() & 0x0f;
 
 	switch(ctrl)
 	{
@@ -866,7 +925,7 @@ READ8_MEMBER(x68k_state::ppi_port_a_r)
 
 READ8_MEMBER(x68k_state::ppi_port_b_r)
 {
-	int ctrl = machine().root_device().ioport("ctrltype")->read() & 0xf0;
+	int ctrl = ioport("ctrltype")->read() & 0xf0;
 
 	switch(ctrl)
 	{
@@ -902,15 +961,13 @@ READ8_MEMBER(x68k_state::ppi_port_c_r)
 WRITE8_MEMBER(x68k_state::ppi_port_c_w)
 {
 	// ADPCM / Joystick control
-	device_t *oki = machine().device("okim6258");
-
 	m_ppi_port[2] = data;
 	if((data & 0x0f) != (m_ppi_prev & 0x0f))
 	{
 		m_adpcm.pan = data & 0x03;
 		m_adpcm.rate = data & 0x0c;
 		x68k_set_adpcm();
-		okim6258_set_divider(oki, (data >> 2) & 3);
+		m_okim6258->set_divider((data >> 2) & 3);
 	}
 
 	// The joystick enable bits also handle the multiplexer for various controllers
@@ -919,7 +976,7 @@ WRITE8_MEMBER(x68k_state::ppi_port_c_w)
 	if((m_ppi_prev & 0x10) == 0x00 && (data & 0x10) == 0x10)
 	{
 		m_mdctrl.seq1++;
-		m_mdctrl.io_timeout1->adjust(machine().device<cpu_device>("maincpu")->cycles_to_attotime(8192));
+		m_mdctrl.io_timeout1->adjust(m_maincpu->cycles_to_attotime(8192));
 	}
 
 	m_joy.joy2_enable = data & 0x20;
@@ -927,7 +984,7 @@ WRITE8_MEMBER(x68k_state::ppi_port_c_w)
 	if((m_ppi_prev & 0x20) == 0x00 && (data & 0x20) == 0x20)
 	{
 		m_mdctrl.seq2++;
-		m_mdctrl.io_timeout2->adjust(machine().device<cpu_device>("maincpu")->cycles_to_attotime(8192));
+		m_mdctrl.io_timeout2->adjust(m_maincpu->cycles_to_attotime(8192));
 	}
 	m_ppi_prev = data;
 
@@ -1035,7 +1092,7 @@ void x68k_state::fdc_irq(bool state)
 		m_ioc.irqstatus |= 0x80;
 		m_current_irq_line = 1;
 		logerror("FDC: IRQ triggered\n");
-		machine().device("maincpu")->execute().set_input_line_and_vector(1, ASSERT_LINE, m_current_vector[1]);
+		m_maincpu->set_input_line_and_vector(1, ASSERT_LINE, m_current_vector[1]);
 	}
 }
 
@@ -1077,15 +1134,13 @@ READ16_MEMBER(x68k_state::x68k_fm_r)
 
 WRITE8_MEMBER(x68k_state::x68k_ct_w)
 {
-	device_t *okim = space.machine().device("okim6258");
-
 	// CT1 and CT2 bits from YM2151 port 0x1b
 	// CT1 - ADPCM clock - 0 = 8MHz, 1 = 4MHz
 	// CT2 - 1 = Set ready state of FDC
 	m_fdc.fdc->ready_w(data & 0x01);
 	m_adpcm.clock = data & 0x02;
 	x68k_set_adpcm();
-	okim6258_set_clock(okim, data & 0x02 ? 4000000 : 8000000);
+	m_okim6258->set_clock(data & 0x02 ? 4000000 : 8000000);
 }
 
 /*
@@ -1222,7 +1277,6 @@ READ16_MEMBER(x68k_state::x68k_mfp_r)
 
 READ16_MEMBER(x68k_state::x68k_mfp_r)
 {
-
 	// Initial settings indicate that IRQs are generated for FM (YM2151), Receive buffer error or full,
 	// MFP Timer C, and the power switch
 //  logerror("MFP: [%08x] Reading offset %i\n",space.device().safe_pc(),offset);
@@ -1286,7 +1340,6 @@ READ16_MEMBER(x68k_state::x68k_mfp_r)
 
 WRITE16_MEMBER(x68k_state::x68k_mfp_w)
 {
-
 	/* For the Interrupt registers, the bits are set out as such:
 	   Reg A - bit 7: GPIP7 (HSync)
 	           bit 6: GPIP6 (CRTC CIRQ)
@@ -1474,7 +1527,7 @@ READ16_MEMBER(x68k_state::x68k_sram_r)
 //  if(offset == 0x5a/2)  // 0x5a should be 0 if no SASI HDs are present.
 //      return 0x0000;
 	if(offset == 0x08/2)
-		return machine().device<ram_device>(RAM_TAG)->size() >> 16;  // RAM size
+		return m_ram->size() >> 16;  // RAM size
 #if 0
 	if(offset == 0x46/2)
 		return 0x0024;
@@ -1489,7 +1542,7 @@ READ16_MEMBER(x68k_state::x68k_sram_r)
 READ32_MEMBER(x68k_state::x68k_sram32_r)
 {
 	if(offset == 0x08/4)
-		return (machine().device<ram_device>(RAM_TAG)->size() & 0xffff0000);  // RAM size
+		return (m_ram->size() & 0xffff0000);  // RAM size
 #if 0
 	if(offset == 0x46/2)
 		return 0x0024;
@@ -1608,7 +1661,7 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_bus_error)
 {
 	int val = param;
 	int v;
-	UINT8 *ram = machine().device<ram_device>(RAM_TAG)->pointer();
+	UINT8 *ram = m_ram->pointer();
 
 	if(strcmp(machine().system().name,"x68030") == 0)
 		v = 0x0b;
@@ -1616,8 +1669,8 @@ TIMER_CALLBACK_MEMBER(x68k_state::x68k_bus_error)
 		v = 0x09;
 	if(ram[v] != 0x02)  // normal vector for bus errors points to 02FF0540
 	{
-		machine().device("maincpu")->execute().set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
-		machine().device("maincpu")->execute().set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
+		m_maincpu->set_input_line(M68K_LINE_BUSERROR, ASSERT_LINE);
+		m_maincpu->set_input_line(M68K_LINE_BUSERROR, CLEAR_LINE);
 		popmessage("Bus error: Unused RAM access [%08x]", val);
 	}
 }
@@ -1628,13 +1681,13 @@ READ16_MEMBER(x68k_state::x68k_rom0_r)
 	   then access causes a bus error */
 	m_current_vector[2] = 0x02;  // bus error
 	m_current_irq_line = 2;
-//  machine().device("maincpu")->execute().set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
+//  m_maincpu->set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
 	if(ioport("options")->read() & 0x02)
 	{
 		offset *= 2;
 		if(ACCESSING_BITS_0_7)
 			offset++;
-		machine().scheduler().timer_set(machine().device<cpu_device>("maincpu")->cycles_to_attotime(4), timer_expired_delegate(FUNC(x68k_state::x68k_bus_error),this), 0xbffffc+offset);
+		timer_set(m_maincpu->cycles_to_attotime(4), TIMER_X68K_BUS_ERROR, 0xbffffc+offset);
 	}
 	return 0xff;
 }
@@ -1645,13 +1698,13 @@ WRITE16_MEMBER(x68k_state::x68k_rom0_w)
 	   then access causes a bus error */
 	m_current_vector[2] = 0x02;  // bus error
 	m_current_irq_line = 2;
-//  machine().device("maincpu")->execute().set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
+//  m_maincpu->set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
 	if(ioport("options")->read() & 0x02)
 	{
 		offset *= 2;
 		if(ACCESSING_BITS_0_7)
 			offset++;
-		machine().scheduler().timer_set(machine().device<cpu_device>("maincpu")->cycles_to_attotime(4), timer_expired_delegate(FUNC(x68k_state::x68k_bus_error),this), 0xbffffc+offset);
+		timer_set(m_maincpu->cycles_to_attotime(4), TIMER_X68K_BUS_ERROR, 0xbffffc+offset);
 	}
 }
 
@@ -1661,13 +1714,13 @@ READ16_MEMBER(x68k_state::x68k_emptyram_r)
 	   Often a method for detecting amount of installed RAM, is to read or write at 1MB intervals, until a bus error occurs */
 	m_current_vector[2] = 0x02;  // bus error
 	m_current_irq_line = 2;
-//  machine().device("maincpu")->execute().set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
+//  m_maincpu->set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
 	if(ioport("options")->read() & 0x02)
 	{
 		offset *= 2;
 		if(ACCESSING_BITS_0_7)
 			offset++;
-		machine().scheduler().timer_set(machine().device<cpu_device>("maincpu")->cycles_to_attotime(4), timer_expired_delegate(FUNC(x68k_state::x68k_bus_error),this), offset);
+		timer_set(m_maincpu->cycles_to_attotime(4), TIMER_X68K_BUS_ERROR, offset);
 	}
 	return 0xff;
 }
@@ -1678,13 +1731,13 @@ WRITE16_MEMBER(x68k_state::x68k_emptyram_w)
 	   Often a method for detecting amount of installed RAM, is to read or write at 1MB intervals, until a bus error occurs */
 	m_current_vector[2] = 0x02;  // bus error
 	m_current_irq_line = 2;
-//  machine().device("maincpu")->execute().set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
+//  m_maincpu->set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
 	if(ioport("options")->read() & 0x02)
 	{
 		offset *= 2;
 		if(ACCESSING_BITS_0_7)
 			offset++;
-		machine().scheduler().timer_set(machine().device<cpu_device>("maincpu")->cycles_to_attotime(4), timer_expired_delegate(FUNC(x68k_state::x68k_bus_error),this), offset);
+		timer_set(m_maincpu->cycles_to_attotime(4), TIMER_X68K_BUS_ERROR, offset);
 	}
 }
 
@@ -1698,8 +1751,8 @@ READ16_MEMBER(x68k_state::x68k_exp_r)
 		offset *= 2;
 		if(ACCESSING_BITS_0_7)
 			offset++;
-		machine().scheduler().timer_set(machine().device<cpu_device>("maincpu")->cycles_to_attotime(16), timer_expired_delegate(FUNC(x68k_state::x68k_bus_error),this), 0xeafa00+offset);
-//      machine.device("maincpu")->execute().set_input_line_and_vector(2,ASSERT_LINE,state->m_current_vector[2]);
+		timer_set(m_maincpu->cycles_to_attotime(16), TIMER_X68K_BUS_ERROR, 0xeafa00+offset);
+//      m_maincpu->set_input_line_and_vector(2,ASSERT_LINE,state->m_current_vector[2]);
 	}
 	return 0xffff;
 }
@@ -1714,8 +1767,8 @@ WRITE16_MEMBER(x68k_state::x68k_exp_w)
 		offset *= 2;
 		if(ACCESSING_BITS_0_7)
 			offset++;
-		machine().scheduler().timer_set(machine().device<cpu_device>("maincpu")->cycles_to_attotime(16), timer_expired_delegate(FUNC(x68k_state::x68k_bus_error),this), 0xeafa00+offset);
-//      machine.device("maincpu")->execute().set_input_line_and_vector(2,ASSERT_LINE,state->m_current_vector[2]);
+		timer_set(m_maincpu->cycles_to_attotime(16), TIMER_X68K_BUS_ERROR, 0xeafa00+offset);
+//      m_maincpu->set_input_line_and_vector(2,ASSERT_LINE,state->m_current_vector[2]);
 	}
 }
 
@@ -1726,7 +1779,7 @@ static void x68k_dma_irq(running_machine &machine, int channel)
 	state->m_current_vector[3] = hd63450_get_vector(device, channel);
 	state->m_current_irq_line = 3;
 	logerror("DMA#%i: DMA End (vector 0x%02x)\n",channel,state->m_current_vector[3]);
-	machine.device("maincpu")->execute().set_input_line_and_vector(3,ASSERT_LINE,state->m_current_vector[3]);
+	state->m_maincpu->set_input_line_and_vector(3,ASSERT_LINE,state->m_current_vector[3]);
 }
 
 static void x68k_dma_end(running_machine &machine, int channel,int irq)
@@ -1745,7 +1798,7 @@ static void x68k_dma_error(running_machine &machine, int channel, int irq)
 	{
 		state->m_current_vector[3] = hd63450_get_error_vector(device,channel);
 		state->m_current_irq_line = 3;
-		machine.device("maincpu")->execute().set_input_line_and_vector(3,ASSERT_LINE,state->m_current_vector[3]);
+		state->m_maincpu->set_input_line_and_vector(3,ASSERT_LINE,state->m_current_vector[3]);
 	}
 }
 
@@ -1778,14 +1831,13 @@ READ8_MEMBER( x68k_state::mfp_gpio_r )
 
 WRITE8_MEMBER(x68k_state::x68030_adpcm_w)
 {
-	device_t *device = machine().device("okim6258");
 	switch(offset)
 	{
 		case 0x00:
-			okim6258_ctrl_w(device,space,0,data);
+			m_okim6258->okim6258_ctrl_w(space,0,data);
 			break;
 		case 0x01:
-			okim6258_data_w(device,space,0,data);
+			m_okim6258->okim6258_data_w(space,0,data);
 			break;
 	}
 }
@@ -1798,7 +1850,7 @@ WRITE_LINE_MEMBER(x68k_state::mfp_irq_callback)
 		state = HOLD_LINE;  // to get around erroneous spurious interrupt
 //  if((m_ioc.irqstatus & 0xc0) != 0)  // if the FDC is busy, then we don't want to miss that IRQ
 //      return;
-	machine().device("maincpu")->execute().set_input_line(6, state);
+	m_maincpu->set_input_line(6, state);
 	m_current_vector[6] = 0;
 	m_mfp_prev = state;
 }
@@ -1822,33 +1874,31 @@ INTERRUPT_GEN_MEMBER(x68k_state::x68k_vsync_irq)
 #endif
 }
 
-static IRQ_CALLBACK(x68k_int_ack)
+IRQ_CALLBACK_MEMBER(x68k_state::x68k_int_ack)
 {
-	x68k_state *state = device->machine().driver_data<x68k_state>();
-
 	if(irqline == 6)  // MFP
 	{
-		state->m_mfp.current_irq = -1;
-		if(state->m_current_vector[6] != 0x4b && state->m_current_vector[6] != 0x4c)
-			state->m_current_vector[6] = state->m_mfpdev->get_vector();
+		m_mfp.current_irq = -1;
+		if(m_current_vector[6] != 0x4b && m_current_vector[6] != 0x4c)
+			m_current_vector[6] = m_mfpdev->get_vector();
 		else
-			device->machine().device("maincpu")->execute().set_input_line_and_vector(irqline,CLEAR_LINE,state->m_current_vector[irqline]);
-		logerror("SYS: IRQ acknowledged (vector=0x%02x, line = %i)\n",state->m_current_vector[6],irqline);
-		return state->m_current_vector[6];
+			m_maincpu->set_input_line_and_vector(irqline,CLEAR_LINE,m_current_vector[irqline]);
+		logerror("SYS: IRQ acknowledged (vector=0x%02x, line = %i)\n",m_current_vector[6],irqline);
+		return m_current_vector[6];
 	}
 
-	device->machine().device("maincpu")->execute().set_input_line_and_vector(irqline,CLEAR_LINE,state->m_current_vector[irqline]);
+	m_maincpu->set_input_line_and_vector(irqline,CLEAR_LINE,m_current_vector[irqline]);
 	if(irqline == 1)  // IOSC
 	{
-		state->m_ioc.irqstatus &= ~0xf0;
+		m_ioc.irqstatus &= ~0xf0;
 	}
 	if(irqline == 5)  // SCC
 	{
-		state->m_mouse.irqactive = 0;
+		m_mouse.irqactive = 0;
 	}
 
-	logerror("SYS: IRQ acknowledged (vector=0x%02x, line = %i)\n",state->m_current_vector[irqline],irqline);
-	return state->m_current_vector[irqline];
+	logerror("SYS: IRQ acknowledged (vector=0x%02x, line = %i)\n",m_current_vector[irqline],irqline);
+	return m_current_vector[irqline];
 }
 
 WRITE_LINE_MEMBER(x68k_state::x68k_scsi_irq)
@@ -1858,7 +1908,7 @@ WRITE_LINE_MEMBER(x68k_state::x68k_scsi_irq)
 	{
 		m_current_vector[1] = 0x6c;
 		m_current_irq_line = 1;
-		machine().device("maincpu")->execute().set_input_line_and_vector(1,ASSERT_LINE,m_current_vector[1]);
+		m_maincpu->set_input_line_and_vector(1,ASSERT_LINE,m_current_vector[1]);
 	}
 }
 
@@ -1883,8 +1933,8 @@ static ADDRESS_MAP_START(x68k_map, AS_PROGRAM, 16, x68k_state )
 //  AM_RANGE(0xe8c000, 0xe8dfff) AM_READWRITE(x68k_printer_r, x68k_printer_w)
 	AM_RANGE(0xe8e000, 0xe8ffff) AM_READWRITE(x68k_sysport_r, x68k_sysport_w)
 	AM_RANGE(0xe90000, 0xe91fff) AM_READWRITE(x68k_fm_r, x68k_fm_w)
-	AM_RANGE(0xe92000, 0xe92001) AM_DEVREADWRITE8_LEGACY("okim6258", okim6258_status_r, okim6258_ctrl_w, 0x00ff)
-	AM_RANGE(0xe92002, 0xe92003) AM_DEVREADWRITE8_LEGACY("okim6258", okim6258_status_r, okim6258_data_w, 0x00ff)
+	AM_RANGE(0xe92000, 0xe92001) AM_DEVREADWRITE8("okim6258", okim6258_device, okim6258_status_r, okim6258_ctrl_w, 0x00ff)
+	AM_RANGE(0xe92002, 0xe92003) AM_DEVREADWRITE8("okim6258", okim6258_device, okim6258_status_r, okim6258_data_w, 0x00ff)
 	AM_RANGE(0xe94000, 0xe94003) AM_DEVICE8("upd72065", upd72065_device, map, 0x00ff)
 	AM_RANGE(0xe94004, 0xe94007) AM_READWRITE(x68k_fdc_r, x68k_fdc_w)
 	AM_RANGE(0xe96000, 0xe9601f) AM_DEVREADWRITE("x68k_hdc", x68k_hdc_image_device, hdc_r, hdc_w)
@@ -1921,8 +1971,8 @@ static ADDRESS_MAP_START(x68kxvi_map, AS_PROGRAM, 16, x68k_state )
 //  AM_RANGE(0xe8c000, 0xe8dfff) AM_READWRITE(x68k_printer_r, x68k_printer_w)
 	AM_RANGE(0xe8e000, 0xe8ffff) AM_READWRITE(x68k_sysport_r, x68k_sysport_w)
 	AM_RANGE(0xe90000, 0xe91fff) AM_READWRITE(x68k_fm_r, x68k_fm_w)
-	AM_RANGE(0xe92000, 0xe92001) AM_DEVREADWRITE8_LEGACY("okim6258", okim6258_status_r, okim6258_ctrl_w, 0x00ff)
-	AM_RANGE(0xe92002, 0xe92003) AM_DEVREADWRITE8_LEGACY("okim6258", okim6258_status_r, okim6258_data_w, 0x00ff)
+	AM_RANGE(0xe92000, 0xe92001) AM_DEVREADWRITE8("okim6258", okim6258_device, okim6258_status_r, okim6258_ctrl_w, 0x00ff)
+	AM_RANGE(0xe92002, 0xe92003) AM_DEVREADWRITE8("okim6258", okim6258_device, okim6258_status_r, okim6258_data_w, 0x00ff)
 	AM_RANGE(0xe94000, 0xe94003) AM_DEVICE8("upd72065", upd72065_device, map, 0x00ff)
 	AM_RANGE(0xe94004, 0xe94007) AM_READWRITE(x68k_fdc_r, x68k_fdc_w)
 //  AM_RANGE(0xe96000, 0xe9601f) AM_DEVREADWRITE_LEGACY("x68k_hdc",x68k_hdc_r, x68k_hdc_w)
@@ -1961,7 +2011,7 @@ static ADDRESS_MAP_START(x68030_map, AS_PROGRAM, 32, x68k_state )
 //  AM_RANGE(0xe8c000, 0xe8dfff) AM_READWRITE(x68k_printer_r, x68k_printer_w)
 	AM_RANGE(0xe8e000, 0xe8ffff) AM_READWRITE16(x68k_sysport_r, x68k_sysport_w,0xffffffff)
 	AM_RANGE(0xe90000, 0xe91fff) AM_READWRITE16(x68k_fm_r, x68k_fm_w,0xffffffff)
-	AM_RANGE(0xe92000, 0xe92003) AM_DEVREAD8_LEGACY("okim6258", okim6258_status_r, 0x00ff00ff) AM_WRITE8(x68030_adpcm_w, 0x00ff00ff)
+	AM_RANGE(0xe92000, 0xe92003) AM_DEVREAD8("okim6258", okim6258_device, okim6258_status_r, 0x00ff00ff) AM_WRITE8(x68030_adpcm_w, 0x00ff00ff)
 	AM_RANGE(0xe94000, 0xe94003) AM_DEVICE8("upd72065", upd72065_device, map, 0x00ff00ff)
 	AM_RANGE(0xe94004, 0xe94007) AM_READWRITE16(x68k_fdc_r, x68k_fdc_w,0xffffffff)
 //  AM_RANGE(0xe96000, 0xe9601f) AM_DEVREADWRITE16_LEGACY("x68k_hdc",x68k_hdc_r, x68k_hdc_w,0xffffffff)
@@ -1969,7 +2019,7 @@ static ADDRESS_MAP_START(x68030_map, AS_PROGRAM, 32, x68k_state )
 	AM_RANGE(0xe98000, 0xe99fff) AM_READWRITE16(x68k_scc_r, x68k_scc_w,0xffffffff)
 	AM_RANGE(0xe9a000, 0xe9bfff) AM_READWRITE16(x68k_ppi_r, x68k_ppi_w,0xffffffff)
 	AM_RANGE(0xe9c000, 0xe9dfff) AM_READWRITE16(x68k_ioc_r, x68k_ioc_w,0xffffffff)
-	AM_RANGE(0xea0000, 0xea1fff) AM_NOP//AM_READWRITE16_LEGACY(x68k_exp_r, x68k_exp_w,0xffffffff)  // external SCSI ROM and controller
+	AM_RANGE(0xea0000, 0xea1fff) AM_NOP//AM_READWRITE16(x68k_exp_r, x68k_exp_w,0xffffffff)  // external SCSI ROM and controller
 	AM_RANGE(0xeafa00, 0xeafa1f) AM_READWRITE16(x68k_exp_r, x68k_exp_w,0xffffffff)
 	AM_RANGE(0xeafa80, 0xeafa8b) AM_READWRITE16(x68k_areaset_r, x68k_enh_areaset_w,0xffffffff)
 	AM_RANGE(0xeb0000, 0xeb7fff) AM_READWRITE16(x68k_spritereg_r, x68k_spritereg_w,0xffffffff)
@@ -2357,7 +2407,7 @@ void x68k_state::floppy_load_unload()
 		m_current_vector[1] = 0x61;
 		m_ioc.irqstatus |= 0x40;
 		m_current_irq_line = 1;
-		machine().device("maincpu")->execute().set_input_line_and_vector(1,ASSERT_LINE,m_current_vector[1]);  // Disk insert/eject interrupt
+		m_maincpu->set_input_line_and_vector(1,ASSERT_LINE,m_current_vector[1]);  // Disk insert/eject interrupt
 		logerror("IOC: Disk image inserted\n");
 	}
 }
@@ -2375,10 +2425,9 @@ void x68k_state::floppy_unload(floppy_image_device *dev)
 
 TIMER_CALLBACK_MEMBER(x68k_state::x68k_net_irq)
 {
-
 	m_current_vector[2] = 0xf9;
 	m_current_irq_line = 2;
-	machine().device("maincpu")->execute().set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
+	m_maincpu->set_input_line_and_vector(2,ASSERT_LINE,m_current_vector[2]);
 }
 
 WRITE_LINE_MEMBER(x68k_state::x68k_irq2_line)
@@ -2388,7 +2437,7 @@ WRITE_LINE_MEMBER(x68k_state::x68k_irq2_line)
 		m_net_timer->adjust(attotime::from_usec(16));
 	}
 	else
-		machine().device("maincpu")->execute().set_input_line_and_vector(2,CLEAR_LINE,m_current_vector[2]);
+		m_maincpu->set_input_line_and_vector(2,CLEAR_LINE,m_current_vector[2]);
 	logerror("EXP: IRQ2 set to %i\n",state);
 
 }
@@ -2422,8 +2471,8 @@ MACHINE_RESET_MEMBER(x68k_state,x68000)
 	UINT8* romdata = memregion("user2")->base();
 	attotime irq_time;
 
-	memset(machine().device<ram_device>(RAM_TAG)->pointer(),0,machine().device<ram_device>(RAM_TAG)->size());
-	memcpy(machine().device<ram_device>(RAM_TAG)->pointer(),romdata,8);
+	memset(m_ram->pointer(),0,m_ram->size());
+	memcpy(m_ram->pointer(),romdata,8);
 
 	// init keyboard
 	m_keyboard.delay = 500;  // 3*100+200
@@ -2470,18 +2519,18 @@ MACHINE_RESET_MEMBER(x68k_state,x68000)
 	}
 
 	// reset CPU
-	machine().device("maincpu")->reset();
+	m_maincpu->reset();
 }
 
 MACHINE_START_MEMBER(x68k_state,x68000)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	/*  Install RAM handlers  */
 	m_spriteram = (UINT16*)(*memregion("user1"));
 	space.install_read_handler(0x000000,0xbffffb,0xffffffff,0,read16_delegate(FUNC(x68k_state::x68k_emptyram_r),this));
 	space.install_write_handler(0x000000,0xbffffb,0xffffffff,0,write16_delegate(FUNC(x68k_state::x68k_emptyram_w),this));
-	space.install_readwrite_bank(0x000000,machine().device<ram_device>(RAM_TAG)->size()-1,0xffffffff,0,"bank1");
-	membank("bank1")->set_base(machine().device<ram_device>(RAM_TAG)->pointer());
+	space.install_readwrite_bank(0x000000,m_ram->size()-1,0xffffffff,0,"bank1");
+	membank("bank1")->set_base(m_ram->pointer());
 	space.install_read_handler(0xc00000,0xdfffff,0xffffffff,0,read16_delegate(FUNC(x68k_state::x68k_gvram_r),this));
 	space.install_write_handler(0xc00000,0xdfffff,0xffffffff,0,write16_delegate(FUNC(x68k_state::x68k_gvram_w),this));
 	membank("bank2")->set_base(m_gvram16);  // so that code in VRAM is executable - needed for Terra Cresta
@@ -2522,13 +2571,13 @@ MACHINE_START_MEMBER(x68k_state,x68000)
 
 MACHINE_START_MEMBER(x68k_state,x68030)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	/*  Install RAM handlers  */
 	m_spriteram = (UINT16*)(*memregion("user1"));
 	space.install_read_handler(0x000000,0xbffffb,0xffffffff,0,read16_delegate(FUNC(x68k_state::x68k_rom0_r),this),0xffffffff);
 	space.install_write_handler(0x000000,0xbffffb,0xffffffff,0,write16_delegate(FUNC(x68k_state::x68k_rom0_w),this),0xffffffff);
-	space.install_readwrite_bank(0x000000,machine().device<ram_device>(RAM_TAG)->size()-1,0xffffffff,0,"bank1");
-	membank("bank1")->set_base(machine().device<ram_device>(RAM_TAG)->pointer());
+	space.install_readwrite_bank(0x000000,m_ram->size()-1,0xffffffff,0,"bank1");
+	membank("bank1")->set_base(m_ram->pointer());
 	space.install_read_handler(0xc00000,0xdfffff,0xffffffff,0,read32_delegate(FUNC(x68k_state::x68k_gvram32_r),this));
 	space.install_write_handler(0xc00000,0xdfffff,0xffffffff,0,write32_delegate(FUNC(x68k_state::x68k_gvram32_w),this));
 	membank("bank2")->set_base(m_gvram32);  // so that code in VRAM is executable - needed for Terra Cresta
@@ -2569,8 +2618,8 @@ MACHINE_START_MEMBER(x68k_state,x68030)
 
 DRIVER_INIT_MEMBER(x68k_state,x68000)
 {
-	unsigned char* rom = machine().root_device().memregion("maincpu")->base();
-	unsigned char* user2 = machine().root_device().memregion("user2")->base();
+	unsigned char* rom = memregion("maincpu")->base();
+	unsigned char* user2 = memregion("user2")->base();
 	//FIXME
 //  m_gvram = auto_alloc_array(machine(), UINT16, 0x080000/sizeof(UINT16));
 //  m_tvram = auto_alloc_array(machine(), UINT16, 0x080000/sizeof(UINT16));
@@ -2590,18 +2639,18 @@ DRIVER_INIT_MEMBER(x68k_state,x68000)
 
 	mfp_init();
 
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(x68k_int_ack);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(x68k_state::x68k_int_ack),this));
 
 	// init keyboard
 	m_keyboard.delay = 500;  // 3*100+200
 	m_keyboard.repeat = 110;  // 4^2*5+30
-	m_kb_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::x68k_keyboard_poll),this));
-	m_scanline_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::x68k_hsync),this));
-	m_raster_irq = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::x68k_crtc_raster_irq),this));
-	m_vblank_irq = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::x68k_crtc_vblank_irq),this));
-	m_mouse_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::x68k_scc_ack),this));
-	m_led_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::x68k_led_callback),this));
-	m_net_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(x68k_state::x68k_net_irq),this));
+	m_kb_timer = timer_alloc(TIMER_X68K_KEYBOARD_POLL);
+	m_scanline_timer = timer_alloc(TIMER_X68K_HSYNC);
+	m_raster_irq = timer_alloc(TIMER_X68K_CRTC_RASTER_IRQ);
+	m_vblank_irq = timer_alloc(TIMER_X68K_CRTC_VBLANK_IRQ);
+	m_mouse_timer = timer_alloc(TIMER_X68K_SCC_ACK);
+	m_led_timer = timer_alloc(TIMER_X68K_LED);
+	m_net_timer = timer_alloc(TIMER_X68K_NET_IRQ);
 
 	// Initialise timers for 6-button MD controllers
 	md_6button_init();
@@ -2676,20 +2725,20 @@ static MACHINE_CONFIG_FRAGMENT( x68000_base )
 	MCFG_YM2151_PORT_WRITE_HANDLER(WRITE8(x68k_state,x68k_ct_w))  // CT1, CT2 from YM2151 port 0x1b
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.50)
-	MCFG_SOUND_ADD("okim6258", OKIM6258, 4000000)
+	MCFG_OKIM6258_ADD("okim6258", 4000000)
 	MCFG_SOUND_CONFIG(x68k_okim6258_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 
 	MCFG_UPD72065_ADD("upd72065", true, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd72065:0", x68k_floppies, "525hd", 0, x68k_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd72065:1", x68k_floppies, "525hd", 0, x68k_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd72065:2", x68k_floppies, "525hd", 0, x68k_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd72065:3", x68k_floppies, "525hd", 0, x68k_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd72065:0", x68k_floppies, "525hd", x68k_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd72065:1", x68k_floppies, "525hd", x68k_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd72065:2", x68k_floppies, "525hd", x68k_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd72065:3", x68k_floppies, "525hd", x68k_state::floppy_formats)
 
 	MCFG_SOFTWARE_LIST_ADD("flop_list","x68k_flop")
 
-	MCFG_X68K_EXPANSION_SLOT_ADD("exp",x68k_exp_intf,x68000_exp_cards,NULL,NULL)
+	MCFG_X68K_EXPANSION_SLOT_ADD("exp",x68k_exp_intf,x68000_exp_cards,NULL)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

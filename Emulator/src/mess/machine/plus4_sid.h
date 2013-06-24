@@ -16,7 +16,7 @@
 #include "emu.h"
 #include "machine/plus4exp.h"
 #include "sound/dac.h"
-#include "sound/sid6581.h"
+#include "sound/mos6581.h"
 #include "machine/cbmipt.h"
 #include "machine/vcsctrl.h"
 
@@ -41,7 +41,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "plus4_sid"; }
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -51,7 +50,7 @@ protected:
 	virtual void plus4_breset_w(int state);
 
 private:
-	required_device<sid6581_device> m_sid;
+	required_device<mos6581_device> m_sid;
 	required_device<vcs_control_port_device> m_joy;
 };
 

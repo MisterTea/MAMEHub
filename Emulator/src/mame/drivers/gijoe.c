@@ -65,7 +65,6 @@ READ16_MEMBER(gijoe_state::control2_r)
 
 WRITE16_MEMBER(gijoe_state::control2_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		/* bit 0  is data */
@@ -83,14 +82,13 @@ WRITE16_MEMBER(gijoe_state::control2_w)
 	}
 }
 
-static void gijoe_objdma( running_machine &machine )
+void gijoe_state::gijoe_objdma(  )
 {
-	gijoe_state *state = machine.driver_data<gijoe_state>();
 	UINT16 *src_head, *src_tail, *dst_head, *dst_tail;
 
-	src_head = state->m_spriteram;
-	src_tail = state->m_spriteram + 255 * 8;
-	k053247_get_ram(state->m_k053246, &dst_head);
+	src_head = m_spriteram;
+	src_tail = m_spriteram + 255 * 8;
+	k053247_get_ram(m_k053246, &dst_head);
 	dst_tail = dst_head + 255 * 8;
 
 	for (; src_head <= src_tail; src_head += 8)
@@ -110,21 +108,19 @@ static void gijoe_objdma( running_machine &machine )
 
 TIMER_CALLBACK_MEMBER(gijoe_state::dmaend_callback)
 {
-
 	if (m_cur_control2 & 0x0020)
 		m_maincpu->set_input_line(6, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(gijoe_state::gijoe_interrupt)
 {
-
 	// global interrupt masking (*this game only)
 	if (!k056832_is_irq_enabled(m_k056832, 0))
 		return;
 
 	if (k053246_is_irq_enabled(m_k053246))
 	{
-		gijoe_objdma(machine());
+		gijoe_objdma();
 
 		// 42.7us(clr) + 341.3us(xfer) delay at 6Mhz dotclock
 		m_dmadelay_timer->adjust(JOE_DMADELAY);
@@ -271,14 +267,6 @@ static const k053247_interface gijoe_k053247_intf =
 
 void gijoe_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k054539 = machine().device("k054539");
-	m_k056832 = machine().device("k056832");
-	m_k053246 = machine().device("k053246");
-	m_k053251 = machine().device("k053251");
-
 	m_dmadelay_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(gijoe_state::dmaend_callback),this));
 
 	save_item(NAME(m_cur_control2));

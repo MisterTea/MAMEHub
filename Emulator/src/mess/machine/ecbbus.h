@@ -40,9 +40,9 @@
 	const ecbbus_interface (_name) =
 
 
-#define MCFG_ECBBUS_SLOT_ADD(_num, _tag, _slot_intf, _def_slot, _def_inp) \
+#define MCFG_ECBBUS_SLOT_ADD(_num, _tag, _slot_intf, _def_slot) \
 	MCFG_DEVICE_ADD(_tag, ECBBUS_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, false) \
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false) \
 	ecbbus_slot_device::static_set_ecbbus_slot(*device, ECBBUS_TAG, _num);
 
 
@@ -154,7 +154,7 @@ public:
 	virtual void ecbbus_io_w(offs_t offset, UINT8 data) { };
 
 public:
-	ecbbus_device  *m_ecb;
+	ecbbus_slot_device  *m_slot;
 };
 
 #endif

@@ -45,8 +45,8 @@ public:
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
 	m_framecnt(0),
-	m_beeper(*this, BEEPER_TAG),
-	m_cass(*this, CASSETTE_TAG),
+	m_beeper(*this, "beeper"),
+	m_cass(*this, "cassette"),
 	m_p_colorram(*this, "colorram"),
 	m_p_videoram(*this, "videoram"){ }
 
@@ -129,7 +129,7 @@ static Z80PIO_INTERFACE( pio2_intf ) // keyboard PIO
 //Bits0,1 not connected; 2,3,4,5 go to a connector; 6 goes to 'graphics' LED; 7 goes to speaker.
 WRITE8_MEMBER( z9001_state::port88_w )
 {
-	beep_set_state(m_beeper, BIT(data, 7));
+	m_beeper->set_state(BIT(data, 7));
 }
 
 WRITE_LINE_MEMBER( z9001_state::cass_w )
@@ -150,7 +150,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(z9001_state::timer_callback)
 
 void z9001_state::machine_reset()
 {
-	beep_set_frequency(m_beeper, 800);
+	m_beeper->set_frequency(800);
 	m_maincpu->set_state_int(Z80_PC, 0xf000);
 }
 
@@ -250,9 +250,9 @@ static MACHINE_CONFIG_START( z9001, z9001_state )
 
 	/* Sound */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
@@ -261,7 +261,7 @@ static MACHINE_CONFIG_START( z9001, z9001_state )
 	MCFG_Z80PIO_ADD( "z80pio1", XTAL_9_8304MHz / 4, pio1_intf )
 	MCFG_Z80PIO_ADD( "z80pio2", XTAL_9_8304MHz / 4, pio2_intf )
 	MCFG_Z80CTC_ADD( "z80ctc", XTAL_9_8304MHz / 4, ctc_intf )
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 MACHINE_CONFIG_END
 
 /* ROM definition */

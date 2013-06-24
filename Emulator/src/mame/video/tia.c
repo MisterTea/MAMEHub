@@ -1804,7 +1804,7 @@ WRITE8_MEMBER( tia_video_device::write )
 	case 0x18: /* AUDF1 */
 	case 0x19: /* AUDV0 */
 	case 0x1A: /* AUDV1 */
-		tia_sound_w(machine().device("tia"), space, offset, data);
+		machine().device<tia_device>("tia")->tia_sound_w(space, offset, data);
 		break;
 
 	case 0x1B:
@@ -1925,4 +1925,38 @@ void tia_video_device::device_reset()
 	current_bitmap = 0;
 
 	NUSIZx_changed = 0;
+
+	VBLANK = 0;
+	CTRLPF = 0;
+	PF0 = 0;
+	PF1 = 0;
+	PF2 = 0;
+	VDELBL = 0;
+	prevENABL = 0;
+	ENABL = 0;
+	VDELP0 = 0;
+	VDELP1 = 0;
+	prevGRP0 = 0;
+	GRP0 = 0;
+	prevGRP1 = 0;
+	GRP1 = 0;
+	COLUP0 = 0;
+	COLUP1 = 0;
+	REFP0 = 0;
+	REFP1 = 0;
+	NUSIZ0 = 0;
+	NUSIZ1 = 0;
+	horzM0 = 0;
+	horzM1 = 0;
+	RESMP0 = 0;
+	RESMP1 = 0;
+	ENAM0 = 0;
+	ENAM1 = 0;
+	skipclipP0 = 0;
+	skipclipP1 = 0;
+	horzBL = 0;
+	VSYNC = 0;
+	CXM0P = 0;
+	COLUBK = 0;
+	COLUPF = 0;
 }

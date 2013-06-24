@@ -77,7 +77,7 @@ sprites.
 
 PALETTE_INIT_MEMBER(dec8_state,ghostb)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -136,7 +136,6 @@ WRITE8_MEMBER(dec8_state::dec8_scroll2_w)
 
 WRITE8_MEMBER(dec8_state::srdarwin_control_w)
 {
-
 	switch (offset)
 	{
 	case 0: /* Top 3 bits - bank switch, bottom 4 - scroll MSB */
@@ -152,7 +151,6 @@ WRITE8_MEMBER(dec8_state::srdarwin_control_w)
 
 WRITE8_MEMBER(dec8_state::lastmisn_control_w)
 {
-
 	/*
 	    Bit 0x0f - ROM bank switch.
 	    Bit 0x10 - Unused
@@ -173,7 +171,6 @@ WRITE8_MEMBER(dec8_state::lastmisn_control_w)
 
 WRITE8_MEMBER(dec8_state::shackled_control_w)
 {
-
 	/* Bottom 4 bits - bank switch, Bits 4 & 5 - Scroll MSBs */
 	membank("bank1")->set_entry(data & 0x0f);
 
@@ -212,10 +209,9 @@ WRITE8_MEMBER(dec8_state::gondo_scroll_w)
 /******************************************************************************/
 
 
-static void srdarwin_draw_sprites( running_machine& machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int pri )
+void dec8_state::srdarwin_draw_sprites(  bitmap_ind16 &bitmap, const rectangle &cliprect, int pri )
 {
-	dec8_state *state = machine.driver_data<dec8_state>();
-	UINT8 *buffered_spriteram = state->m_spriteram->buffer();
+	UINT8 *buffered_spriteram = m_spriteram->buffer();
 	int offs;
 
 	/* Sprites */
@@ -238,7 +234,7 @@ static void srdarwin_draw_sprites( running_machine& machine, bitmap_ind16 &bitma
 		fx = buffered_spriteram[offs + 1] & 0x04;
 		multi = buffered_spriteram[offs + 1] & 0x10;
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sy = 240 - sy;
 			sx = 240 - sx;
@@ -247,16 +243,16 @@ static void srdarwin_draw_sprites( running_machine& machine, bitmap_ind16 &bitma
 		}
 		else sy2 = sy + 16;
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 					code,
 				color,
-				fx,state->flip_screen(),
+				fx,flip_screen(),
 				sx,sy,0);
 		if (multi)
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 				code+1,
 				color,
-				fx,state->flip_screen(),
+				fx,flip_screen(),
 				sx,sy2,0);
 	}
 }
@@ -461,9 +457,9 @@ UINT32 dec8_state::screen_update_srdarwin(screen_device &screen, bitmap_ind16 &b
 	m_bg_tilemap->set_scrollx(0, (m_scroll2[0] << 8) + m_scroll2[1]);
 
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
-	srdarwin_draw_sprites(machine(), bitmap, cliprect, 0);
+	srdarwin_draw_sprites(bitmap, cliprect, 0);
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);
-	srdarwin_draw_sprites(machine(), bitmap, cliprect, 1);
+	srdarwin_draw_sprites(bitmap, cliprect, 1);
 	m_fix_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }

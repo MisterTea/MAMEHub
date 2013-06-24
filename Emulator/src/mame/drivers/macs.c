@@ -94,7 +94,7 @@ static ADDRESS_MAP_START( macs_mem, AS_PROGRAM, 8, macs_state )
 	AM_RANGE(0xd000, 0xdfff) AM_READ(st0016_sprite2_ram_r) AM_WRITE(st0016_sprite2_ram_w)
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM /* work ram ? */
 	AM_RANGE(0xe800, 0xe87f) AM_RAM AM_SHARE("ram2")
-	AM_RANGE(0xe900, 0xe9ff) AM_DEVREADWRITE_LEGACY("stsnd", st0016_snd_r, st0016_snd_w)
+	AM_RANGE(0xe900, 0xe9ff) AM_DEVREADWRITE("stsnd", st0016_device, st0016_snd_r, st0016_snd_w)
 	AM_RANGE(0xea00, 0xebff) AM_READ(st0016_palette_ram_r) AM_WRITE(st0016_palette_ram_w)
 	AM_RANGE(0xec00, 0xec1f) AM_READ(st0016_character_ram_r) AM_WRITE(st0016_character_ram_w)
 	AM_RANGE(0xf000, 0xf7ff) AM_RAMBANK("bank3") /* common /backup ram ?*/
@@ -141,7 +141,7 @@ READ8_MEMBER(macs_state::macs_input_r)
 
 WRITE8_MEMBER(macs_state::macs_rom_bank_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + (data* 0x4000) + macs_cart_slot*0x400000 );
+	membank("bank1")->set_base(memregion("maincpu")->base() + (data* 0x4000) + macs_cart_slot*0x400000 );
 
 	m_st0016_rom_bank=data;
 }
@@ -500,7 +500,7 @@ static MACHINE_CONFIG_START( macs, macs_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("stsnd", ST0016, 0)
+	MCFG_ST0016_ADD("stsnd", 0)
 	MCFG_SOUND_CONFIG(st0016_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
@@ -511,13 +511,11 @@ MACHINE_CONFIG_END
 #define MACS_BIOS \
 	ROM_REGION( 0x1000000, "user1", 0 ) \
 	ROM_LOAD16_BYTE( "macsos_l.u43", 0x00000, 0x80000, CRC(0b5aed5e) SHA1(042e705017ee34656e2c6af45825bb2dd3447747) ) \
-	ROM_LOAD16_BYTE( "macsos_h.u44", 0x00001, 0x80000, CRC(538b68e4) SHA1(a0534147791e94e726f49451d0e95671ae0a87d5) ) \
-
+	ROM_LOAD16_BYTE( "macsos_h.u44", 0x00001, 0x80000, CRC(538b68e4) SHA1(a0534147791e94e726f49451d0e95671ae0a87d5) )
 #define MACS2_BIOS \
 	ROM_REGION( 0x1000000, "user1", 0 ) \
 	ROM_LOAD16_BYTE( "macs2os_l.bin", 0x00000, 0x80000, NO_DUMP ) \
-	ROM_LOAD16_BYTE( "macs2os_h.bin", 0x00001, 0x80000, NO_DUMP ) \
-
+	ROM_LOAD16_BYTE( "macs2os_h.bin", 0x00001, 0x80000, NO_DUMP )
 ROM_START( macsbios )
 	MACS_BIOS
 	ROM_REGION( 0x400000, "user2", ROMREGION_ERASEFF ) // Slot A
@@ -712,10 +710,10 @@ MACHINE_RESET_MEMBER(macs_state,macs)
 		macs_ram1[0x1ff9]=0x07;
 		#endif
 
-		membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() );
+		membank("bank1")->set_base(memregion("maincpu")->base() );
 		membank("bank2")->set_base(macs_ram1+0x800);
 		membank("bank3")->set_base(macs_ram1+0x10000);
-		membank("bank4")->set_base(machine().root_device().memregion("maincpu")->base() );
+		membank("bank4")->set_base(memregion("maincpu")->base() );
 }
 
 DRIVER_INIT_MEMBER(macs_state,macs)

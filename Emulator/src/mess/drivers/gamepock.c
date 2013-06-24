@@ -12,7 +12,7 @@ static ADDRESS_MAP_START(gamepock_mem, AS_PROGRAM, 8, gamepock_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000,0x0fff) AM_ROM
 	AM_RANGE(0x1000,0x3fff) AM_NOP
-	AM_RANGE(0x4000,0xBfff) AM_ROMBANK("bank1")
+	AM_RANGE(0x4000,0xBfff) AM_ROM AM_REGION("user1", 0)
 	AM_RANGE(0xC000,0xC7ff) AM_MIRROR(0x0800) AM_RAM
 	AM_RANGE(0xff80,0xffff) AM_RAM              /* 128 bytes microcontroller RAM */
 ADDRESS_MAP_END
@@ -45,16 +45,8 @@ INPUT_PORTS_END
 static const UPD7810_CONFIG gamepock_cpu_config = { TYPE_78C06, gamepock_io_callback };
 
 
-static DEVICE_START(gamepock_cart)
-{
-	gamepock_state *state = device->machine().driver_data<gamepock_state>();
-	state->membank( "bank1" )->set_base( state->memregion("user1" )->base() );
-}
-
-
-static DEVICE_IMAGE_LOAD(gamepock_cart) {
-	gamepock_state *state = image.device().machine().driver_data<gamepock_state>();
-	UINT8 *cart = state->memregion("user1" )->base();
+DEVICE_IMAGE_LOAD_MEMBER(gamepock_state,gamepock_cart) {
+	UINT8 *cart = memregion("user1" )->base();
 
 	if ( image.software_entry() == NULL )
 	{
@@ -66,10 +58,8 @@ static DEVICE_IMAGE_LOAD(gamepock_cart) {
 	}
 	else
 	{
-		cart = image.get_software_region( "rom" );
+		memcpy( cart, image.get_software_region( "rom" ), image.get_software_region_length("rom") );
 	}
-
-	state->membank( "bank1" )->set_base( cart );
 
 	return IMAGE_INIT_PASS;
 }
@@ -94,7 +84,7 @@ static MACHINE_CONFIG_START( gamepock, gamepock_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* cartridge */
@@ -102,8 +92,7 @@ static MACHINE_CONFIG_START( gamepock, gamepock_state )
 	MCFG_CARTSLOT_INTERFACE("gamepock_cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_START(gamepock_cart)
-	MCFG_CARTSLOT_LOAD(gamepock_cart)
+	MCFG_CARTSLOT_LOAD(gamepock_state,gamepock_cart)
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","gamepock")

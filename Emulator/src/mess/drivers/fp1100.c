@@ -65,9 +65,9 @@ public:
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
 	m_subcpu(*this, "sub"),
-	//m_cass(*this, CASSETTE_TAG),
+	//m_cass(*this, "cassette"),
 	//m_wave(*this, WAVE_TAG),
-	//m_speaker(*this, SPEAKER_TAG),
+	//m_speaker(*this, "speaker"),
 	//m_printer(*this, "centronics"),
 	m_crtc(*this, "crtc"),
 	//m_fdc(*this, "fdc"),
@@ -170,7 +170,7 @@ WRITE8_MEMBER( fp1100_state::main_bank_w )
 WRITE8_MEMBER( fp1100_state::irq_mask_w )
 {
 	//if((irq_mask & 0x80) != (data & 0x80))
-	//  machine().device("sub")->execute().set_input_line(UPD7810_INTF2, HOLD_LINE);
+	//  m_subcpu->set_input_line(UPD7810_INTF2, HOLD_LINE);
 
 	irq_mask = data;
 	///printf("%02x\n",data);
@@ -182,14 +182,14 @@ WRITE8_MEMBER( fp1100_state::irq_mask_w )
 WRITE8_MEMBER( fp1100_state::main_to_sub_w )
 {
 	machine().scheduler().synchronize(); // force resync
-	machine().device("sub")->execute().set_input_line(UPD7810_INTF2, ASSERT_LINE);
+	m_subcpu->set_input_line(UPD7810_INTF2, ASSERT_LINE);
 	m_sub_latch = data;
 }
 
 READ8_MEMBER( fp1100_state::sub_to_main_r )
 {
 	machine().scheduler().synchronize(); // force resync
-//  machine().device("maincpu")->execute().set_input_line_and_vector(0, CLEAR_LINE, 0xf0);
+//  m_maincpu->set_input_line_and_vector(0, CLEAR_LINE, 0xf0);
 	return m_main_latch;
 }
 
@@ -234,14 +234,14 @@ WRITE8_MEMBER( fp1100_state::fp1100_vram_w )
 READ8_MEMBER( fp1100_state::main_to_sub_r )
 {
 	machine().scheduler().synchronize(); // force resync
-	machine().device("sub")->execute().set_input_line(UPD7810_INTF2, CLEAR_LINE);
+	m_subcpu->set_input_line(UPD7810_INTF2, CLEAR_LINE);
 	return m_sub_latch;
 }
 
 WRITE8_MEMBER( fp1100_state::sub_to_main_w )
 {
 	machine().scheduler().synchronize(); // force resync
-//  machine().device("maincpu")->execute().set_input_line_and_vector(0, ASSERT_LINE, 0xf0);
+//  m_maincpu->set_input_line_and_vector(0, ASSERT_LINE, 0xf0);
 	m_main_latch = data;
 }
 
@@ -260,7 +260,7 @@ ADDRESS_MAP_END
 WRITE8_MEMBER( fp1100_state::portc_w )
 {
 	if((!(m_upd7801.portc & 8)) && data & 8)
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE,0xf8); // TODO
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0xf8); // TODO
 
 	m_upd7801.portc = data;
 }
@@ -358,7 +358,7 @@ void fp1100_state::machine_reset()
 
 	for(i=0;i<8;i++)
 	{
-		slot_type = (machine().root_device().ioport("SLOTS")->read() >> i*2) & 3;
+		slot_type = (ioport("SLOTS")->read() >> i*2) & 3;
 		m_slot[i].id = id_type[slot_type];
 	}
 }
@@ -381,9 +381,11 @@ GFXDECODE_END
 static const UPD7810_CONFIG fp1100_slave_cpu_config = { TYPE_7801, NULL };
 //static const upd1771_interface scv_upd1771c_config = { DEVCB_LINE( scv_upd1771_ack_w ) };
 
-static const mc6845_interface mc6845_intf =
+
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	fp1100_update_row,      /* row update callback */
@@ -397,9 +399,8 @@ static const mc6845_interface mc6845_intf =
 
 INTERRUPT_GEN_MEMBER(fp1100_state::fp1100_vblank_irq)
 {
-
 	if(irq_mask & 0x10)
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xf0);
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xf0);
 }
 
 static MACHINE_CONFIG_START( fp1100, fp1100_state )

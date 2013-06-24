@@ -16,7 +16,7 @@ Symbolic Debugger 5Z-011D
 Easidata (English Version)
 -->
 
-<softwarelist name="mz700_cass" description="Sharp MZ-700 cassette images">
+<softwarelist name="mz700_cass" description="Sharp MZ-700 cassettes">
 
 	<software name="1z013b">
 		<description>BASIC Interpreter 1Z-013B V1.0A / Applications V1.0A</description>
@@ -93,7 +93,7 @@ Easidata (English Version)
 	</software>
 
 <!-- This is a straight recording of the tape. The tape seems to have been destroyed by time and as such a possible bad dump. It might be preferrable to convert to some cooked format. Is MZF considered adequate for preservation?
-		Side A of the dumped tape had been taped over, hence the nodump. -->
+     Side A of the dumped tape had been taped over, hence the nodump. -->
 	<software name="1z013b_a" cloneof="1z013b">
 		<description>BASIC Interpreter 1Z-013B V1.0A / Applications V1.0A (Alt)</description>
 		<year>1983</year>
@@ -721,7 +721,7 @@ Easidata (English Version)
 		<publisher>Michael Gartner</publisher>
 		<info name="usage" value="Load from BASIC"/>
 		<part name="cass1" interface="mz_cass">
-			<dataarea name="cass" size="">
+			<dataarea name="cass" size="10208">
 				<rom name="kalender.mzf" size="10208" crc="6fb5a68a" sha1="dbdd53674934d2fe83aa98c895e5a8e989ab1bf3" offset="0" />
 			</dataarea>
 		</part>
@@ -732,7 +732,7 @@ Easidata (English Version)
 		<year>1982</year>
 		<publisher>Apollo Software</publisher>
 		<part name="cass1" interface="mz_cass">
-			<dataarea name="cass" size="">
+			<dataarea name="cass" size="5499">
 				<rom name="apollo.mzf" size="5499" crc="46b8ae1c" sha1="916c3ccd0f1c441b0f8c268e774eea511a953dd6" offset="0" />
 			</dataarea>
 		</part>
@@ -1352,7 +1352,7 @@ Easidata (English Version)
 		<info name="serial" value="MZ-7G059"/>
 		<info name="usage" value="Load from BASIC"/>
 		<part name="cass1" interface="mz_cass">
-			<dataarea name="cass" size="">
+			<dataarea name="cass" size="15219">
 				<rom name="fighter command.mzf" size="15219" crc="91b4540f" sha1="bf3b9c484459e0d4736ab01daa01bc118210fa16" offset="0" />
 			</dataarea>
 		</part>
@@ -1909,11 +1909,11 @@ Easidata (English Version)
 			</dataarea>
 		</part>
 <!--
-		<part name="cass1" interface="mz_cass">
-			<dataarea name="cass" size="20896">
-				<rom name="mucmac8oo.mzf" size="20896" crc="fab9b721" sha1="524e8855ae1dd36f013c4050924d0540f920d90d" offset="0" />
-			</dataarea>
-		</part>
+        <part name="cass1" interface="mz_cass">
+            <dataarea name="cass" size="20896">
+                <rom name="mucmac8oo.mzf" size="20896" crc="fab9b721" sha1="524e8855ae1dd36f013c4050924d0540f920d90d" offset="0" />
+            </dataarea>
+        </part>
 -->
 	</software>
 
@@ -2354,7 +2354,7 @@ Easidata (English Version)
 		</part>
 	</software>
 
-	<software name="strppokr">
+	<software name="spoker">
 		<description>Strip Poker</description>
 		<year>1986</year>
 		<publisher>Jean François Campan</publisher>

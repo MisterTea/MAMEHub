@@ -7,16 +7,14 @@
 /* Clean Up */
 /* is theres a bg colour register? */
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void silkroad_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	silkroad_state *state = machine.driver_data<silkroad_state>();
-	gfx_element *gfx = machine.gfx[0];
-	UINT32 *source = state->m_sprram;
+	gfx_element *gfx = machine().gfx[0];
+	UINT32 *source = m_sprram;
 	UINT32 *finish = source + 0x1000/4;
 
 	while( source < finish )
 	{
-
 		int xpos = (source[0] & 0x01ff0000) >> 16;
 		int ypos = (source[0] & 0x0000ffff);
 		int tileno = (source[1] & 0xffff0000) >> 16;
@@ -38,15 +36,14 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		{
 			for (wcount=0;wcount<width;wcount++)
 			{
-				pdrawgfx_transpen(bitmap,cliprect,gfx,tileno+wcount,color,0,0,xpos+wcount*16+8,ypos,machine.priority_bitmap,pri_mask,0);
+				pdrawgfx_transpen(bitmap,cliprect,gfx,tileno+wcount,color,0,0,xpos+wcount*16+8,ypos,machine().priority_bitmap,pri_mask,0);
 			}
 		}
 		else
 		{
-
 			for (wcount=width;wcount>0;wcount--)
 			{
-				pdrawgfx_transpen(bitmap,cliprect,gfx,tileno+(width-wcount),color,1,0,xpos+wcount*16-16+8,ypos,machine.priority_bitmap,pri_mask,0);
+				pdrawgfx_transpen(bitmap,cliprect,gfx,tileno+(width-wcount),color,1,0,xpos+wcount*16-16+8,ypos,machine().priority_bitmap,pri_mask,0);
 			}
 		}
 
@@ -74,7 +71,6 @@ TILE_GET_INFO_MEMBER(silkroad_state::get_fg_tile_info)
 
 WRITE32_MEMBER(silkroad_state::silkroad_fgram_w)
 {
-
 	COMBINE_DATA(&m_vidram[offset]);
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
@@ -96,7 +92,6 @@ TILE_GET_INFO_MEMBER(silkroad_state::get_fg2_tile_info)
 
 WRITE32_MEMBER(silkroad_state::silkroad_fgram2_w)
 {
-
 	COMBINE_DATA(&m_vidram2[offset]);
 	m_fg2_tilemap->mark_tile_dirty(offset);
 }
@@ -118,7 +113,6 @@ TILE_GET_INFO_MEMBER(silkroad_state::get_fg3_tile_info)
 
 WRITE32_MEMBER(silkroad_state::silkroad_fgram3_w)
 {
-
 	COMBINE_DATA(&m_vidram3[offset]);
 	m_fg3_tilemap->mark_tile_dirty(offset);
 }
@@ -151,7 +145,7 @@ UINT32 silkroad_state::screen_update_silkroad(screen_device &screen, bitmap_ind1
 	m_fg_tilemap->draw(bitmap, cliprect, 0,0);
 	m_fg2_tilemap->draw(bitmap, cliprect, 0,1);
 	m_fg3_tilemap->draw(bitmap, cliprect, 0,2);
-	draw_sprites(machine(),bitmap,cliprect);
+	draw_sprites(bitmap,cliprect);
 
 	if (0)
 	{

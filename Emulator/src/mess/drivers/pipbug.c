@@ -46,12 +46,15 @@ class pipbug_state : public driver_device
 public:
 	pipbug_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-	m_terminal(*this, TERMINAL_TAG) { }
+	m_terminal(*this, TERMINAL_TAG) ,
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_WRITE8_MEMBER(pipbug_ctrl_w);
 	DECLARE_READ8_MEMBER(pipbug_serial_r);
 	DECLARE_WRITE8_MEMBER(pipbug_serial_w);
 	required_device<serial_terminal_device> m_terminal;
+	required_device<cpu_device> m_maincpu;
+	DECLARE_QUICKLOAD_LOAD_MEMBER( pipbug );
 };
 
 WRITE8_MEMBER( pipbug_state::pipbug_ctrl_w )
@@ -85,79 +88,88 @@ ADDRESS_MAP_END
 static INPUT_PORTS_START( pipbug )
 INPUT_PORTS_END
 
+static DEVICE_INPUT_DEFAULTS_START( terminal )
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x0f, 0x0d ) // 110
+	DEVICE_INPUT_DEFAULTS( "TERM_FRAME", 0x30, 0x10 ) // 7E1
+DEVICE_INPUT_DEFAULTS_END
+
 static const serial_terminal_interface terminal_intf =
 {
 	DEVCB_NULL
 };
 
-QUICKLOAD_LOAD( pipbug )
+QUICKLOAD_LOAD_MEMBER( pipbug_state, pipbug )
 {
-	address_space &space = image.device().machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i;
-	int quick_addr = 0x0440;
+	int quick_addr = 0x440;
 	int exec_addr;
 	int quick_length;
 	UINT8 *quick_data;
 	int read_;
+	int result = IMAGE_INIT_FAIL;
 
 	quick_length = image.length();
-	quick_data = (UINT8*)malloc(quick_length);
-	if (!quick_data)
-	{
-		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot open file");
-		image.message(" Cannot open file");
-		return IMAGE_INIT_FAIL;
-	}
-
-	read_ = image.fread( quick_data, quick_length);
-	if (read_ != quick_length)
-	{
-		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot read the file");
-		image.message(" Cannot read the file");
-		return IMAGE_INIT_FAIL;
-	}
-
-	if (quick_data[0] != 0xc4)
-	{
-		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Invalid header");
-		image.message(" Invalid header");
-		return IMAGE_INIT_FAIL;
-	}
-
-	exec_addr = quick_data[1] * 256 + quick_data[2];
-
-	if (exec_addr >= quick_length)
-	{
-		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Exec address beyond end of file");
-		image.message(" Exec address beyond end of file");
-		return IMAGE_INIT_FAIL;
-	}
-
-	if (quick_length < 0x444)
+	if (quick_length < 0x0444)
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "File too short");
 		image.message(" File too short");
-		return IMAGE_INIT_FAIL;
 	}
-
-	if (quick_length > 0x8000)
+	else if (quick_length > 0x8000)
 	{
 		image.seterror(IMAGE_ERROR_INVALIDIMAGE, "File too long");
 		image.message(" File too long");
-		return IMAGE_INIT_FAIL;
 	}
-
-	for (i = quick_addr; i < quick_length; i++)
+	else
 	{
-		space.write_byte(i, quick_data[i]);
+		quick_data = (UINT8*)malloc(quick_length);
+		if (!quick_data)
+		{
+			image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot open file");
+			image.message(" Cannot open file");
+		}
+		else
+		{
+			read_ = image.fread( quick_data, quick_length);
+			if (read_ != quick_length)
+			{
+				image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Cannot read the file");
+				image.message(" Cannot read the file");
+			}
+			else if (quick_data[0] != 0xc4)
+			{
+				image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Invalid header");
+				image.message(" Invalid header");
+			}
+			else
+			{
+				exec_addr = quick_data[1] * 256 + quick_data[2];
+
+				if (exec_addr >= quick_length)
+				{
+					image.seterror(IMAGE_ERROR_INVALIDIMAGE, "Exec address beyond end of file");
+					image.message(" Exec address beyond end of file");
+				}
+				else
+				{
+					for (i = quick_addr; i < read_; i++)
+						space.write_byte(i, quick_data[i]);
+
+					/* display a message about the loaded quickload */
+					image.message(" Quickload: size=%04X : exec=%04X",quick_length,exec_addr);
+
+					// Start the quickload
+					m_maincpu->set_pc(exec_addr);
+
+					result = IMAGE_INIT_PASS;
+				}
+			}
+		}
+
+		free( quick_data );
 	}
 
-	/* display a message about the loaded quickload */
-	image.message(" Quickload: size=%04X : exec=%04X",quick_length,exec_addr);
-
-	// Start the quickload
-	image.device().machine().device("maincpu")->state().set_pc(exec_addr);
-	return IMAGE_INIT_PASS;
+	return result;
 }
 
 static MACHINE_CONFIG_START( pipbug, pipbug_state )
@@ -168,9 +180,10 @@ static MACHINE_CONFIG_START( pipbug, pipbug_state )
 
 	/* video hardware */
 	MCFG_SERIAL_TERMINAL_ADD(TERMINAL_TAG, terminal_intf, 110)
+	MCFG_DEVICE_INPUT_DEFAULTS(terminal)
 
 	/* quickload */
-	MCFG_QUICKLOAD_ADD("quickload", pipbug, "pgm", 1)
+	MCFG_QUICKLOAD_ADD("quickload", pipbug_state, pipbug, "pgm", 1)
 MACHINE_CONFIG_END
 
 

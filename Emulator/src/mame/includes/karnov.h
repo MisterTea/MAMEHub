@@ -14,7 +14,9 @@ public:
 			m_spriteram(*this, "spriteram") ,
 		m_ram(*this, "ram"),
 		m_videoram(*this, "videoram"),
-		m_pf_data(*this, "pf_data"){ }
+		m_pf_data(*this, "pf_data"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"){ }
 
 	required_device<buffered_spriteram16_device> m_spriteram;
 	/* memory pointers */
@@ -39,8 +41,8 @@ public:
 	int         m_latch;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE16_MEMBER(karnov_control_w);
 	DECLARE_READ16_MEMBER(karnov_control_r);
 	DECLARE_WRITE16_MEMBER(karnov_videoram_w);
@@ -59,6 +61,11 @@ public:
 	DECLARE_VIDEO_START(wndrplnt);
 	UINT32 screen_update_karnov(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(karnov_interrupt);
+	void karnov_flipscreen_w( int data );
+	void draw_background( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void karnov_i8751_w( int data );
+	void wndrplnt_i8751_w( int data );
+	void chelnov_i8751_w( int data );
 };
 
 enum {

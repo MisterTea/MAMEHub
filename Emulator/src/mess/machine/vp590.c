@@ -16,7 +16,7 @@
 //**************************************************************************
 
 #define CDP1862_TAG     "u2"
-#define SCREEN_TAG      ":screen"
+#define SCREEN_TAG      ":screen" // hijack the VIP's screen since the CDP1861 chip would be removed from the PCB on real hardware
 
 #define COLOR_RAM_SIZE  0x100
 
@@ -48,29 +48,15 @@ READ_LINE_MEMBER( vp590_device::gd_r )
 	return BIT(m_color, 3);
 }
 
-static CDP1862_INTERFACE( cgc_intf )
-{
-	SCREEN_TAG,
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, vp590_device, rd_r),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, vp590_device, bd_r),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, vp590_device, gd_r),
-	RES_R(510),     // R3
-	RES_R(360),     // R4
-	RES_K(1),       // R5
-	RES_K(1.5),     // R6
-	RES_K(3.9),     // R7
-	RES_K(10),      // R8
-	RES_K(2),       // R9
-	RES_K(3.3)      // R10
-};
-
 
 //-------------------------------------------------
 //  MACHINE_CONFIG_FRAGMENT( vp590 )
 //-------------------------------------------------
 
 static MACHINE_CONFIG_FRAGMENT( vp590 )
-	MCFG_CDP1862_ADD(CDP1862_TAG, CPD1862_CLOCK, cgc_intf)
+	MCFG_CDP1862_ADD(CDP1862_TAG, SCREEN_TAG, CPD1862_CLOCK, DEVREADLINE(DEVICE_SELF, vp590_device, rd_r), DEVREADLINE(DEVICE_SELF, vp590_device, bd_r), DEVREADLINE(DEVICE_SELF, vp590_device, gd_r))
+	MCFG_CDP1862_LUMINANCE(RES_R(510), RES_R(360), RES_K(1), RES_K(1.5)) // R3, R4, R5, R6
+	MCFG_CDP1862_CHROMINANCE(RES_K(3.9), RES_K(10), RES_K(2), RES_K(3.3)) // R7, R8, R9, R10
 MACHINE_CONFIG_END
 
 
@@ -148,7 +134,7 @@ ioport_constructor vp590_device::device_input_ports() const
 //-------------------------------------------------
 
 vp590_device::vp590_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, VP590, "VP590", tag, owner, clock),
+	device_t(mconfig, VP590, "VP590", tag, owner, clock, "vp590", __FILE__),
 	device_vip_expansion_card_interface(mconfig, *this),
 	m_cgc(*this, CDP1862_TAG),
 	m_color_ram(*this, "color_ram"),

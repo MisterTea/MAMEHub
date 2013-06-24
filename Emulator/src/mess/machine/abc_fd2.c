@@ -147,8 +147,8 @@ static MACHINE_CONFIG_FRAGMENT( abc_fd2 )
 	MCFG_Z80PIO_ADD(Z80PIO_TAG, XTAL_4MHz/2, pio_intf) // ?
 	MCFG_FD1771x_ADD(FD1771_TAG, XTAL_4MHz/2) // ?
 
-	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":0", abc_fd2_floppies, "525sssd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":1", abc_fd2_floppies, "525sssd", NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":0", abc_fd2_floppies, "525sssd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(FD1771_TAG":1", abc_fd2_floppies, "525sssd", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
 
 
@@ -173,13 +173,14 @@ machine_config_constructor abc_fd2_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 abc_fd2_device::abc_fd2_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, ABC_FD2, "ABC FD2", tag, owner, clock),
+	: device_t(mconfig, ABC_FD2, "ABC FD2", tag, owner, clock, "abc_fd2", __FILE__),
 		device_abcbus_card_interface(mconfig, *this),
 		m_maincpu(*this, Z80_TAG),
 		m_pio(*this, Z80PIO_TAG),
 		m_fdc(*this, FD1771_TAG),
 		m_floppy0(*this, FD1771_TAG":0"),
-		m_floppy1(*this, FD1771_TAG":1")
+		m_floppy1(*this, FD1771_TAG":1"),
+		m_rom(*this, "dos")
 {
 }
 
@@ -226,7 +227,7 @@ UINT8 abc_fd2_device::abcbus_xmemfl(offs_t offset)
 
 	if (offset >= 0x6000 && offset < 0x6400) // TODO is this mirrored?
 	{
-		data = memregion("abc80")->base()[offset & 0x3ff];
+		data = m_rom->base()[offset & 0x3ff];
 	}
 
 	return data;

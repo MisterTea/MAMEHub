@@ -19,7 +19,18 @@ static void atapi_irq(device_t *device, int state)
 
 WRITE16_MEMBER( isa16_ide_cd_device::atapi_cmd_w )
 {
+	if(data & 4) // ide reset
+	{
+		m_atapi_regs[ATAPI_REG_CMDSTATUS] = 0x00;
+		m_atapi_regs[ATAPI_REG_ERRFEAT]   = 0x01;
+		m_atapi_regs[ATAPI_REG_INTREASON] = 0x01; // SECTOR_COUNT
+		m_atapi_regs[ATAPI_REG_SAMTAG]    = 0x01; // SECTOR_NUMBER
+		m_atapi_regs[ATAPI_REG_COUNTLOW]  = 0x14; // CYLINDER_LSB
+		m_atapi_regs[ATAPI_REG_COUNTHIGH] = 0xeb; // CYLINDER_MSB
+		m_atapi_regs[ATAPI_REG_DRIVESEL]  = 0xA0; // HEAD_NUMBER
+	}
 }
+
 READ16_MEMBER( isa16_ide_cd_device::atapi_status_r )
 {
 	UINT8 *atapi_regs = m_atapi_regs;
@@ -93,7 +104,6 @@ READ16_MEMBER( isa16_ide_cd_device::atapi_r )
 			data |= ( m_atapi_data[m_atapi_data_ptr++] << 8 );
 			if( m_atapi_data_ptr >= m_atapi_data_len )
 			{
-
 				m_atapi_data_ptr = 0;
 				m_atapi_data_len = 0;
 
@@ -127,7 +137,7 @@ READ16_MEMBER( isa16_ide_cd_device::atapi_r )
 		}
 		if (m_cur_drive==1) return 0x00;
 		data = atapi_regs[reg];
-		//logerror("ATAPI: reg %d = %x (offset %x mask %x) [%08x][read]\n", reg, data, offset, mem_mask,machine().device("maincpu")->safe_pc());
+		//logerror("ATAPI: reg %d = %x (offset %x mask %x) [%08x][read]\n", reg, data, offset, mem_mask,m_maincpu->safe_pc());
 		data <<= shift;
 	}
 	return data;
@@ -196,7 +206,7 @@ WRITE16_MEMBER( isa16_ide_cd_device::atapi_w )
 
 				if (m_atapi_xferlen != -1)
 				{
-					logerror("ATAPI: SCSI command %02x returned %d bytes from the device\n", atapi_data[0]&0xff, m_atapi_xferlen);
+					logerror("ATAPI: SCSI command %02x %s %d bytes from the device\n", atapi_data[0]&0xff, (phase == SCSI_PHASE_DATAOUT) ? "requested" : "returned", m_atapi_xferlen);
 					// store the returned command length in the ATAPI regs, splitting into
 					// multiple transfers if necessary
 					m_atapi_xfermod = 0;
@@ -219,7 +229,10 @@ WRITE16_MEMBER( isa16_ide_cd_device::atapi_w )
 					{
 						// indicate data ready: set DRQ and DMA ready, and IO in INTREASON
 						atapi_regs[ATAPI_REG_CMDSTATUS] = ATAPI_STAT_DRQ | ATAPI_STAT_SERVDSC;
-						atapi_regs[ATAPI_REG_INTREASON] = ATAPI_INTREASON_IO;
+						if(phase != SCSI_PHASE_DATAOUT)
+							atapi_regs[ATAPI_REG_INTREASON] = ATAPI_INTREASON_IO;
+						else
+							atapi_regs[ATAPI_REG_INTREASON] = 0;
 					}
 
 					switch( phase )
@@ -429,7 +442,7 @@ ioport_constructor isa16_ide_cd_device::device_input_ports() const
 //-------------------------------------------------
 
 isa16_ide_cd_device::isa16_ide_cd_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: device_t(mconfig, ISA16_IDE_CD, "IDE CD Drive Adapter", tag, owner, clock),
+		: device_t(mconfig, ISA16_IDE_CD, "IDE CD Drive Adapter", tag, owner, clock, "isa_ide_cd", __FILE__),
 		device_isa16_card_interface( mconfig, *this ),
 		m_is_primary(true),
 		m_inserted_cdrom(NULL)

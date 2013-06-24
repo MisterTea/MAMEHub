@@ -40,22 +40,20 @@ void tail2nos_zoom_callback( running_machine &machine, int *code, int *color, in
 
 ***************************************************************************/
 
-static void tail2nos_postload(running_machine &machine)
+void tail2nos_state::tail2nos_postload()
 {
-	tail2nos_state *state = machine.driver_data<tail2nos_state>();
 	int i;
 
-	state->m_bg_tilemap->mark_all_dirty();
+	m_bg_tilemap->mark_all_dirty();
 
 	for (i = 0; i < 0x20000; i += 64)
 	{
-		machine.gfx[2]->mark_dirty(i / 64);
+		machine().gfx[2]->mark_dirty(i / 64);
 	}
 }
 
 void tail2nos_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tail2nos_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 
 	m_bg_tilemap->set_transparent_pen(15);
@@ -63,7 +61,7 @@ void tail2nos_state::video_start()
 	m_zoomdata = (UINT16 *)memregion("gfx3")->base();
 
 	save_pointer(NAME(m_zoomdata), 0x20000 / 2);
-	machine().save().register_postload(save_prepost_delegate(FUNC(tail2nos_postload), &machine()));
+	machine().save().register_postload(save_prepost_delegate(FUNC(tail2nos_state::tail2nos_postload), this));
 }
 
 
@@ -76,7 +74,6 @@ void tail2nos_state::video_start()
 
 WRITE16_MEMBER(tail2nos_state::tail2nos_bgvideoram_w)
 {
-
 	COMBINE_DATA(&m_bgvideoram[offset]);
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
@@ -97,7 +94,6 @@ WRITE16_MEMBER(tail2nos_state::tail2nos_zoomdata_w)
 
 WRITE16_MEMBER(tail2nos_state::tail2nos_gfxbank_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		int bank;
@@ -140,14 +136,13 @@ WRITE16_MEMBER(tail2nos_state::tail2nos_gfxbank_w)
 
 ***************************************************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void tail2nos_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	tail2nos_state *state = machine.driver_data<tail2nos_state>();
-	UINT16 *spriteram = state->m_spriteram;
+	UINT16 *spriteram = m_spriteram;
 	int offs;
 
 
-	for (offs = 0; offs < state->m_spriteram.bytes() / 2; offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes() / 2; offs += 4)
 	{
 		int sx, sy, flipx, flipy, code, color;
 
@@ -163,7 +158,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		flipy = spriteram[offs + 2] & 0x0800;
 
 		drawgfx_transpen(bitmap,/* placement relative to zoom layer verified on the real thing */
-				cliprect,machine.gfx[1],
+				cliprect,machine().gfx[1],
 				code,
 				40 + color,
 				flipx,flipy,
@@ -173,11 +168,10 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 UINT32 tail2nos_state::screen_update_tail2nos(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	if (m_video_enable)
 	{
 		k051316_zoom_draw(m_k051316, bitmap, cliprect, 0, 0);
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 		m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 	}
 	else

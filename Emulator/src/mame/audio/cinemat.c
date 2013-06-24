@@ -75,16 +75,16 @@ static SOUND_START( generic )
 {
 	cinemat_state *state = machine.driver_data<cinemat_state>();
 	/* register for save states */
-	state_save_register_global(machine, state->m_sound_control);
-	state_save_register_global(machine, state->m_current_shift);
-	state_save_register_global(machine, state->m_last_shift);
-	state_save_register_global(machine, state->m_last_shift2);
-	state_save_register_global(machine, state->m_current_pitch);
-	state_save_register_global(machine, state->m_last_frame);
-	state_save_register_global_array(machine, state->m_sound_fifo);
-	state_save_register_global(machine, state->m_sound_fifo_in);
-	state_save_register_global(machine, state->m_sound_fifo_out);
-	state_save_register_global(machine, state->m_last_portb_write);
+	state->save_item(NAME(state->m_sound_control));
+	state->save_item(NAME(state->m_current_shift));
+	state->save_item(NAME(state->m_last_shift));
+	state->save_item(NAME(state->m_last_shift2));
+	state->save_item(NAME(state->m_current_pitch));
+	state->save_item(NAME(state->m_last_frame));
+	state->save_item(NAME(state->m_sound_fifo));
+	state->save_item(NAME(state->m_sound_fifo_in));
+	state->save_item(NAME(state->m_sound_fifo_out));
+	state->save_item(NAME(state->m_last_portb_write));
 }
 
 
@@ -1410,19 +1410,19 @@ static SOUND_RESET( demon_sound )
 	state->m_last_portb_write = 0xff;
 
 	/* turn off channel A on AY8910 #0 because it is used as a low-pass filter */
-	ay8910_set_volume(machine.device("ay1"), 0, 0);
+	machine.device<ay8910_device>("ay1")->set_volume(0, 0);
 }
 
 
 static ADDRESS_MAP_START( demon_sound_map, AS_PROGRAM, 8, driver_device )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x3000, 0x33ff) AM_RAM
-	AM_RANGE(0x4000, 0x4001) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x4002, 0x4003) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
-	AM_RANGE(0x5000, 0x5001) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0x5002, 0x5003) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
-	AM_RANGE(0x6000, 0x6001) AM_DEVREAD_LEGACY("ay3", ay8910_r)
-	AM_RANGE(0x6002, 0x6003) AM_DEVWRITE_LEGACY("ay3", ay8910_data_address_w)
+	AM_RANGE(0x4000, 0x4001) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x4002, 0x4003) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
+	AM_RANGE(0x5000, 0x5001) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0x5002, 0x5003) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
+	AM_RANGE(0x6000, 0x6001) AM_DEVREAD("ay3", ay8910_device, data_r)
+	AM_RANGE(0x6002, 0x6003) AM_DEVWRITE("ay3", ay8910_device, data_address_w)
 	AM_RANGE(0x7000, 0x7000) AM_WRITENOP  /* watchdog? */
 ADDRESS_MAP_END
 
@@ -1479,7 +1479,7 @@ MACHINE_CONFIG_END
 
 WRITE8_MEMBER(cinemat_state::qb3_sound_w)
 {
-	UINT16 rega = machine().device("maincpu")->state().state_int(CCPU_A);
+	UINT16 rega = m_maincpu->state_int(CCPU_A);
 	demon_sound_w(machine(), 0x00 | (~rega & 0x0f), 0x10);
 }
 

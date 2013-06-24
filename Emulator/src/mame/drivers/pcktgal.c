@@ -42,31 +42,28 @@ WRITE8_MEMBER(pcktgal_state::pcktgal_sound_bank_w)
 WRITE8_MEMBER(pcktgal_state::pcktgal_sound_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
-static void pcktgal_adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(pcktgal_state::pcktgal_adpcm_int)
 {
-	pcktgal_state *state = device->machine().driver_data<pcktgal_state>();
+	m_msm->data_w(m_msm5205next >> 4);
+	m_msm5205next <<= 4;
 
-	msm5205_data_w(device,state->m_msm5205next >> 4);
-	state->m_msm5205next<<=4;
-
-	state->m_toggle = 1 - state->m_toggle;
-	if (state->m_toggle)
-		device->machine().device("audiocpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+	m_toggle = 1 - m_toggle;
+	if (m_toggle)
+		m_audiocpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 }
 
 WRITE8_MEMBER(pcktgal_state::pcktgal_adpcm_data_w)
 {
-	m_msm5205next=data;
+	m_msm5205next = data;
 }
 
 READ8_MEMBER(pcktgal_state::pcktgal_adpcm_reset_r)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device,0);
+	m_msm->reset_w(0);
 	return 0;
 }
 
@@ -92,8 +89,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pcktgal_sound_map, AS_PROGRAM, 8, pcktgal_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE_LEGACY("ym1", ym2203_w)
-	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE_LEGACY("ym2", ym3812_w)
+	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE("ym1", ym2203_device, write)
+	AM_RANGE(0x1000, 0x1001) AM_DEVWRITE("ym2", ym3812_device, write)
 	AM_RANGE(0x1800, 0x1800) AM_WRITE(pcktgal_adpcm_data_w) /* ADPCM data for the MSM5205 chip */
 	AM_RANGE(0x2000, 0x2000) AM_WRITE(pcktgal_sound_bank_w)
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r)
@@ -212,7 +209,7 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_config =
 {
-	pcktgal_adpcm_int,  /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(pcktgal_state,pcktgal_adpcm_int),  /* interrupt function */
 	MSM5205_S48_4B      /* 8KHz            */
 };
 
@@ -221,7 +218,7 @@ static const msm5205_interface msm5205_config =
 
 void pcktgal_state::machine_start()
 {
-	machine().root_device().membank("bank3")->configure_entries(0, 2, machine().root_device().memregion("audiocpu")->base() + 0x10000, 0x4000);
+	membank("bank3")->configure_entries(0, 2, memregion("audiocpu")->base() + 0x10000, 0x4000);
 }
 
 static MACHINE_CONFIG_START( pcktgal, pcktgal_state )
@@ -425,8 +422,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(pcktgal_state,pcktgal)
 {
-	UINT8 *rom = machine().root_device().memregion("gfx1")->base();
-	int len = machine().root_device().memregion("gfx1")->bytes();
+	UINT8 *rom = memregion("gfx1")->base();
+	int len = memregion("gfx1")->bytes();
 	int i,j,temp[16];
 
 	/* Tile graphics roms have some swapped lines, original version only */

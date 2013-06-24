@@ -573,10 +573,9 @@ READ16_MEMBER(raiden_state::sub_cpu_spin_r)
 /* This is based on code by Niclas Karlsson Mate, who figured out the
 encryption method! The technique is a combination of a XOR table plus
 bit-swapping */
-static void common_decrypt(running_machine &machine)
+void raiden_state::common_decrypt()
 {
-
-	UINT16 *RAM = (UINT16 *)machine.root_device().memregion("maincpu")->base();
+	UINT16 *RAM = (UINT16 *)memregion("maincpu")->base();
 	int i;
 
 	for (i = 0; i < 0x20000; i++)
@@ -588,7 +587,7 @@ static void common_decrypt(running_machine &machine)
 		RAM[0xc0000/2 + i] = data;
 	}
 
-	RAM = (UINT16 *)machine.root_device().memregion("sub")->base();
+	RAM = (UINT16 *)memregion("sub")->base();
 
 	for (i = 0; i < 0x20000; i++)
 	{
@@ -606,21 +605,21 @@ static void common_decrypt(running_machine &machine)
 DRIVER_INIT_MEMBER(raiden_state,raidena)
 {
 #ifdef SYNC_HACK
-	machine().device("sub")->memory().space(AS_PROGRAM).install_legacy_read_handler(0x4008, 0x4009, FUNC(sub_cpu_spin_r));
+	m_subcpu->space(AS_PROGRAM).install_legacy_read_handler(0x4008, 0x4009, FUNC(sub_cpu_spin_r));
 #endif
 }
 
 DRIVER_INIT_MEMBER(raiden_state,raiden)
 {
 	DRIVER_INIT_CALL(raidena);
-	common_decrypt(machine());
+	common_decrypt();
 	seibu_sound_decrypt(machine(),"audiocpu",0x20000);
 }
 
 DRIVER_INIT_MEMBER(raiden_state,raidenk)
 {
 	DRIVER_INIT_CALL(raidena);
-	common_decrypt(machine());
+	common_decrypt();
 }
 
 DRIVER_INIT_MEMBER(raiden_state,raidenu)

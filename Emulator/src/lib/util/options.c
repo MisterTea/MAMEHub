@@ -153,6 +153,12 @@ void core_options::entry::set_default_value(const char *defvalue)
 }
 
 
+void core_options::entry::set_flag(UINT32 mask, UINT32 flag)
+{
+	m_flags = ( m_flags & mask ) | flag;
+}
+
+
 //-------------------------------------------------
 //  revert - revert back to our default if we are
 //  at or below the given priority
@@ -512,25 +518,28 @@ const char *core_options::output_ini(astring &buffer, const core_options *diff)
 		// otherwise, output entries for all non-command items
 		else if (!curentry->is_command())
 		{
-			// look up counterpart in diff, if diff is specified
-			if (diff == NULL || strcmp(value, diff->value(name)) != 0)
+			if ( !curentry->is_internal() )
 			{
-				// output header, if we have one
-				if (last_header != NULL)
+				// look up counterpart in diff, if diff is specified
+				if (diff == NULL || strcmp(value, diff->value(name)) != 0)
 				{
-					if (num_valid_headers++)
-						buffer.catprintf("\n");
-					buffer.catprintf("#\n# %s\n#\n", last_header);
-					last_header = NULL;
-				}
+					// output header, if we have one
+					if (last_header != NULL)
+					{
+						if (num_valid_headers++)
+							buffer.catprintf("\n");
+						buffer.catprintf("#\n# %s\n#\n", last_header);
+						last_header = NULL;
+					}
 
-				// and finally output the data, skip if unadorned
-				if (!is_unadorned)
-				{
-					if (strchr(value, ' ') != NULL)
-						buffer.catprintf("%-25s \"%s\"\n", name, value);
-					else
-						buffer.catprintf("%-25s %s\n", name, value);
+					// and finally output the data, skip if unadorned
+					if (!is_unadorned)
+					{
+						if (strchr(value, ' ') != NULL)
+							buffer.catprintf("%-25s \"%s\"\n", name, value);
+						else
+							buffer.catprintf("%-25s %s\n", name, value);
+					}
 				}
 			}
 		}
@@ -637,6 +646,17 @@ bool core_options::set_value(const char *name, float value, int priority, astrin
 	return set_value(name, tempstr.cstr(), priority, error_string);
 }
 
+
+void core_options::set_flag(const char *name, UINT32 mask, UINT32 flag)
+{
+	// find the entry first
+	entry *curentry = m_entrymap.find(name);
+	if ( curentry == NULL )
+	{
+		return;
+	}
+	curentry->set_flag(mask, flag);
+}
 
 //-------------------------------------------------
 //  reset - reset the options state, removing

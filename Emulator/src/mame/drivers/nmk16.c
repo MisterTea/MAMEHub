@@ -148,7 +148,6 @@ Afega stands for "Art-Fiction Electronic Game"
 #include "sound/okim6295.h"
 #include "sound/3812intf.h"
 #include "machine/nmk004.h"
-#include "machine/nmk112.h"
 #include "cpu/pic16c5x/pic16c5x.h"
 #include "includes/nmk16.h"
 
@@ -206,7 +205,7 @@ WRITE16_MEMBER(nmk16_state::ssmissin_sound_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xff);
-		machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+		m_audiocpu->set_input_line(0, HOLD_LINE);
 	}
 }
 
@@ -264,7 +263,7 @@ WRITE16_MEMBER(nmk16_state::macross2_sound_reset_w)
 {
 	/* PCB behaviour verified by Corrado Tomaselli at MAME Italia Forum:
 	   every time music changes Z80 is resetted */
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, data ? CLEAR_LINE : ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, data ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE16_MEMBER(nmk16_state::macross2_sound_command_w)
@@ -303,7 +302,7 @@ WRITE16_MEMBER(nmk16_state::afega_soundlatch_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data&0xff);
-		machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+		m_audiocpu->set_input_line(0, HOLD_LINE);
 	}
 }
 
@@ -395,7 +394,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tharrier_sound_io_map, AS_IO, 8, nmk16_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 ADDRESS_MAP_END
 
 //Read input port 1 030c8/  BAD
@@ -515,8 +514,7 @@ life,but the game looks pretty much hard without it.
 		m_mainram[(_offs_+2-0x10)/2] = 0x4ef9;/*JMP*/\
 		m_mainram[(_offs_+4-0x10)/2] = 0x0000;/*HI-DWORD*/\
 		m_mainram[(_offs_+6-0x10)/2] = _pc_;  /*LO-DWORD*/\
-	} \
-
+	}
 #define PROT_INPUT(_offs_,_protvalue_,_protinput_,_input_) \
 	if(m_mainram[_offs_] == _protvalue_) \
 	{ \
@@ -728,153 +726,152 @@ WRITE16_MEMBER(nmk16_state::tdragon_mainram_w)
 }
 
 /*coin setting MCU simulation*/
-static void mcu_run(running_machine &machine, UINT8 dsw_setting)
+void nmk16_state::mcu_run(UINT8 dsw_setting)
 {
-	nmk16_state *state = machine.driver_data<nmk16_state>();
 	UINT16 coin_input;
 	UINT8 dsw[2];
 	UINT8 i;
 
 	/*Accept the start button but needs some m68k processing first,otherwise you can't start a play with 1 credit inserted*/
-	if(state->m_start_helper & 1 && state->m_mainram[0x9000/2] & 0x0200) /*start 1 */
+	if(m_start_helper & 1 && m_mainram[0x9000/2] & 0x0200) /*start 1 */
 	{
-		state->m_mainram[0xef00/2]--;
-		state->m_start_helper = state->m_start_helper & 2;
+		m_mainram[0xef00/2]--;
+		m_start_helper = m_start_helper & 2;
 	}
-	if(state->m_start_helper & 2 && state->m_mainram[0x9000/2] & 0x0100) /*start 2*/
+	if(m_start_helper & 2 && m_mainram[0x9000/2] & 0x0100) /*start 2*/
 	{
-		state->m_mainram[0xef00/2]--;
-		state->m_start_helper = state->m_start_helper & 1;
+		m_mainram[0xef00/2]--;
+		m_start_helper = m_start_helper & 1;
 	}
 
 	/*needed because of the uncompatibility of the dsw settings.*/
 	if(dsw_setting) // Thunder Dragon
 	{
-		dsw[0] = (machine.root_device().ioport("DSW2")->read() & 0x7);
-		dsw[1] = (machine.root_device().ioport("DSW2")->read() & 0x38) >> 3;
+		dsw[0] = (ioport("DSW2")->read() & 0x7);
+		dsw[1] = (ioport("DSW2")->read() & 0x38) >> 3;
 		for(i=0;i<2;i++)
 		{
 			switch(dsw[i] & 7)
 			{
-				case 0: state->m_mainram[0x9000/2]|=0x4000; break; //free play
-				case 1: state->m_coin_count_frac[i] = 1; state->m_coin_count[i] = 4; break;
-				case 2: state->m_coin_count_frac[i] = 1; state->m_coin_count[i] = 3; break;
-				case 3: state->m_coin_count_frac[i] = 1; state->m_coin_count[i] = 2; break;
-				case 4: state->m_coin_count_frac[i] = 4; state->m_coin_count[i] = 1; break;
-				case 5: state->m_coin_count_frac[i] = 3; state->m_coin_count[i] = 1; break;
-				case 6: state->m_coin_count_frac[i] = 2; state->m_coin_count[i] = 1; break;
-				case 7: state->m_coin_count_frac[i] = 1; state->m_coin_count[i] = 1; break;
+				case 0: m_mainram[0x9000/2]|=0x4000; break; //free play
+				case 1: m_coin_count_frac[i] = 1; m_coin_count[i] = 4; break;
+				case 2: m_coin_count_frac[i] = 1; m_coin_count[i] = 3; break;
+				case 3: m_coin_count_frac[i] = 1; m_coin_count[i] = 2; break;
+				case 4: m_coin_count_frac[i] = 4; m_coin_count[i] = 1; break;
+				case 5: m_coin_count_frac[i] = 3; m_coin_count[i] = 1; break;
+				case 6: m_coin_count_frac[i] = 2; m_coin_count[i] = 1; break;
+				case 7: m_coin_count_frac[i] = 1; m_coin_count[i] = 1; break;
 			}
 		}
 	}
 	else // Hacha Mecha Fighter
 	{
-		dsw[0] = (machine.root_device().ioport("DSW1")->read() & 0x0700) >> 8;
-		dsw[1] = (machine.root_device().ioport("DSW1")->read() & 0x3800) >> 11;
+		dsw[0] = (ioport("DSW1")->read() & 0x0700) >> 8;
+		dsw[1] = (ioport("DSW1")->read() & 0x3800) >> 11;
 		for(i=0;i<2;i++)
 		{
 			switch(dsw[i] & 7)
 			{
-				case 0: state->m_mainram[0x9000/2]|=0x4000; break; //free play
-				case 1: state->m_coin_count_frac[i] = 4; state->m_coin_count[i] = 1; break;
-				case 2: state->m_coin_count_frac[i] = 3; state->m_coin_count[i] = 1; break;
-				case 3: state->m_coin_count_frac[i] = 2; state->m_coin_count[i] = 1; break;
-				case 4: state->m_coin_count_frac[i] = 1; state->m_coin_count[i] = 4; break;
-				case 5: state->m_coin_count_frac[i] = 1; state->m_coin_count[i] = 3; break;
-				case 6: state->m_coin_count_frac[i] = 1; state->m_coin_count[i] = 2; break;
-				case 7: state->m_coin_count_frac[i] = 1; state->m_coin_count[i] = 1; break;
+				case 0: m_mainram[0x9000/2]|=0x4000; break; //free play
+				case 1: m_coin_count_frac[i] = 4; m_coin_count[i] = 1; break;
+				case 2: m_coin_count_frac[i] = 3; m_coin_count[i] = 1; break;
+				case 3: m_coin_count_frac[i] = 2; m_coin_count[i] = 1; break;
+				case 4: m_coin_count_frac[i] = 1; m_coin_count[i] = 4; break;
+				case 5: m_coin_count_frac[i] = 1; m_coin_count[i] = 3; break;
+				case 6: m_coin_count_frac[i] = 1; m_coin_count[i] = 2; break;
+				case 7: m_coin_count_frac[i] = 1; m_coin_count[i] = 1; break;
 			}
 		}
 	}
 
 	/*read the coin port*/
-	coin_input = (~(machine.root_device().ioport("IN0")->read()));
+	coin_input = (~(ioport("IN0")->read()));
 
 	if(coin_input & 0x01)//coin 1
 	{
-		if((state->m_input_pressed & 0x01) == 0)
+		if((m_input_pressed & 0x01) == 0)
 		{
-			if(state->m_coin_count_frac[0] != 1)
+			if(m_coin_count_frac[0] != 1)
 			{
-				state->m_mainram[0xef02/2]+=state->m_coin_count[0];
-				if(state->m_coin_count_frac[0] == state->m_mainram[0xef02/2])
+				m_mainram[0xef02/2]+=m_coin_count[0];
+				if(m_coin_count_frac[0] == m_mainram[0xef02/2])
 				{
-					state->m_mainram[0xef00/2]+=state->m_coin_count[0];
-					state->m_mainram[0xef02/2] = 0;
+					m_mainram[0xef00/2]+=m_coin_count[0];
+					m_mainram[0xef02/2] = 0;
 				}
 			}
 			else
-				state->m_mainram[0xef00/2]+=state->m_coin_count[0];
+				m_mainram[0xef00/2]+=m_coin_count[0];
 		}
-		state->m_input_pressed = (state->m_input_pressed & 0xfe) | 1;
+		m_input_pressed = (m_input_pressed & 0xfe) | 1;
 	}
 	else
-		state->m_input_pressed = (state->m_input_pressed & 0xfe);
+		m_input_pressed = (m_input_pressed & 0xfe);
 
 	if(coin_input & 0x02)//coin 2
 	{
-		if((state->m_input_pressed & 0x02) == 0)
+		if((m_input_pressed & 0x02) == 0)
 		{
-			if(state->m_coin_count_frac[1] != 1)
+			if(m_coin_count_frac[1] != 1)
 			{
-				state->m_mainram[0xef02/2]+=state->m_coin_count[1];
-				if(state->m_coin_count_frac[1] == state->m_mainram[0xef02/2])
+				m_mainram[0xef02/2]+=m_coin_count[1];
+				if(m_coin_count_frac[1] == m_mainram[0xef02/2])
 				{
-					state->m_mainram[0xef00/2]+=state->m_coin_count[1];
-					state->m_mainram[0xef02/2] = 0;
+					m_mainram[0xef00/2]+=m_coin_count[1];
+					m_mainram[0xef02/2] = 0;
 				}
 			}
 			else
-				state->m_mainram[0xef00/2]+=state->m_coin_count[1];
+				m_mainram[0xef00/2]+=m_coin_count[1];
 		}
-		state->m_input_pressed = (state->m_input_pressed & 0xfd) | 2;
+		m_input_pressed = (m_input_pressed & 0xfd) | 2;
 	}
 	else
-		state->m_input_pressed = (state->m_input_pressed & 0xfd);
+		m_input_pressed = (m_input_pressed & 0xfd);
 
 	if(coin_input & 0x04)//service 1
 	{
-		if((state->m_input_pressed & 0x04) == 0)
-			state->m_mainram[0xef00/2]++;
-		state->m_input_pressed = (state->m_input_pressed & 0xfb) | 4;
+		if((m_input_pressed & 0x04) == 0)
+			m_mainram[0xef00/2]++;
+		m_input_pressed = (m_input_pressed & 0xfb) | 4;
 	}
 	else
-		state->m_input_pressed = (state->m_input_pressed & 0xfb);
+		m_input_pressed = (m_input_pressed & 0xfb);
 
 	/*The 0x9000 ram address is the status */
-	if(state->m_mainram[0xef00/2] > 0 && state->m_mainram[0x9000/2] & 0x8000) //enable start button
+	if(m_mainram[0xef00/2] > 0 && m_mainram[0x9000/2] & 0x8000) //enable start button
 	{
 		if(coin_input & 0x08)//start 1
 		{
-			if((state->m_input_pressed & 0x08) == 0 && (!(state->m_mainram[0x9000/2] & 0x0200))) //start 1
-				state->m_start_helper = 1;
+			if((m_input_pressed & 0x08) == 0 && (!(m_mainram[0x9000/2] & 0x0200))) //start 1
+				m_start_helper = 1;
 
-			state->m_input_pressed = (state->m_input_pressed & 0xf7) | 8;
+			m_input_pressed = (m_input_pressed & 0xf7) | 8;
 		}
 		else
-			state->m_input_pressed = (state->m_input_pressed & 0xf7);
+			m_input_pressed = (m_input_pressed & 0xf7);
 
 		if(coin_input & 0x10)//start 2
 		{
 			/*Decrease two coins to let two players play with one start 2 button and two credits inserted at the insert coin screen.*/
-			if((state->m_input_pressed & 0x10) == 0 && (!(state->m_mainram[0x9000/2] & 0x0100))) // start 2
-				state->m_start_helper = (state->m_mainram[0x9000/2] == 0x8000) ? (3) : (2);
+			if((m_input_pressed & 0x10) == 0 && (!(m_mainram[0x9000/2] & 0x0100))) // start 2
+				m_start_helper = (m_mainram[0x9000/2] == 0x8000) ? (3) : (2);
 
-			state->m_input_pressed = (state->m_input_pressed & 0xef) | 0x10;
+			m_input_pressed = (m_input_pressed & 0xef) | 0x10;
 		}
 		else
-			state->m_input_pressed = (state->m_input_pressed & 0xef);
+			m_input_pressed = (m_input_pressed & 0xef);
 	}
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(nmk16_state::tdragon_mcu_sim)
 {
-	mcu_run(machine(),1);
+	mcu_run(1);
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(nmk16_state::hachamf_mcu_sim)
 {
-	mcu_run(machine(),0);
+	mcu_run(0);
 }
 
 static ADDRESS_MAP_START( tdragon_map, AS_PROGRAM, 16, nmk16_state )
@@ -1057,33 +1054,20 @@ static ADDRESS_MAP_START( raphero_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x1f0000, 0x1fffff) AM_RAM AM_SHARE("mainram")
 ADDRESS_MAP_END
 
-#if 0
-/*
-    After playing the game to the end:
-
-    ff,ff,ff,ff     20,00,f8,02     20,00,f8,04     00,04,d8,09
-    0f,00,00,ff     00,00,18,03     a0,13,fe,05     40,1e,1b,09
-*/
-WRITE8_MEMBER(nmk16_state::okibank_w)
-{
-	m_mask[offset] |= 1 << (data & 0x1f);
-	popmessage("%x %x %x %x - %x %x %x %x",m_mask[0],m_mask[1],m_mask[2],m_mask[3],m_mask[4],m_mask[5],m_mask[6],m_mask[7]);
-}
-#endif
-
 WRITE8_MEMBER(nmk16_state::raphero_sound_rombank_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("audiocpu")->base() + 0x10000 + (data & 0x07) * 0x4000);
+	int bank = data & 7;
+
+	membank("bank1")->set_base(memregion("audiocpu")->base() + 0x10000 + (bank * 0x4000));
 }
 
 static ADDRESS_MAP_START( raphero_sound_mem_map, AS_PROGRAM, 8, nmk16_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0xc800, 0xc800) AM_DEVREADWRITE("oki1", okim6295_device, read, write)
 	AM_RANGE(0xc808, 0xc808) AM_DEVREADWRITE("oki2", okim6295_device, read, write)
-	AM_RANGE(0xc810, 0xc817) AM_DEVWRITE_LEGACY("nmk112", nmk112_okibank_w)
-//  AM_RANGE(0xc810, 0xc817) AM_WRITE(okibank_w)
+	AM_RANGE(0xc810, 0xc817) AM_DEVWRITE("nmk112", nmk112_device, okibank_w)
 	AM_RANGE(0xd000, 0xd000) AM_WRITE(raphero_sound_rombank_w)
 	AM_RANGE(0xd800, 0xd800) AM_READWRITE(soundlatch_byte_r, soundlatch2_byte_w)    // main cpu
 	AM_RANGE(0xe000, 0xffff) AM_RAM
@@ -1100,10 +1084,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( macross2_sound_io_map, AS_IO, 8, nmk16_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x80, 0x80) AM_DEVREADWRITE("oki1", okim6295_device, read, write)
 	AM_RANGE(0x88, 0x88) AM_DEVREADWRITE("oki2", okim6295_device, read, write)
-	AM_RANGE(0x90, 0x97) AM_DEVWRITE_LEGACY("nmk112", nmk112_okibank_w)
+	AM_RANGE(0x90, 0x97) AM_DEVWRITE("nmk112", nmk112_device, okibank_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( bjtwin_map, AS_PROGRAM, 16, nmk16_state )
@@ -1115,7 +1099,33 @@ static ADDRESS_MAP_START( bjtwin_map, AS_PROGRAM, 16, nmk16_state )
 	AM_RANGE(0x080014, 0x080015) AM_WRITE(nmk_flipscreen_w)
 	AM_RANGE(0x084000, 0x084001) AM_DEVREADWRITE8("oki1", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x084010, 0x084011) AM_DEVREADWRITE8("oki2", okim6295_device, read, write, 0x00ff)
-	AM_RANGE(0x084020, 0x08402f) AM_DEVWRITE_LEGACY("nmk112", nmk112_okibank_lsb_w)
+	AM_RANGE(0x084020, 0x08402f) AM_DEVWRITE("nmk112", nmk112_device, okibank_lsb_w)
+	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
+	AM_RANGE(0x094000, 0x094001) AM_WRITE(nmk_tilebank_w)
+	AM_RANGE(0x094002, 0x094003) AM_WRITENOP    /* IRQ enable? */
+	AM_RANGE(0x09c000, 0x09cfff) AM_MIRROR(0x1000) AM_RAM_WRITE(nmk_bgvideoram0_w) AM_SHARE("nmk_bgvideoram0")
+	AM_RANGE(0x0f0000, 0x0fffff) AM_RAM AM_SHARE("mainram")
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( atombjt_map, AS_PROGRAM, 16, nmk16_state )
+	AM_RANGE(0x000000, 0x03ffff) AM_ROM
+
+	AM_RANGE(0x0C2010, 0x0C2011) AM_READ_PORT("IN0")
+	AM_RANGE(0x0C2012, 0x0C2013) AM_READ(atombjt_unkr_r)
+	AM_RANGE(0x0C2014, 0x0C2015) AM_READ(atombjt_unkr_r)
+
+	AM_RANGE(0x0C2016, 0x0C2017) AM_READ_PORT("DSW1")
+	AM_RANGE(0x0C2018, 0x0C2019) AM_READ_PORT("DSW2")
+
+	AM_RANGE(0x100000, 0x101fff) AM_RAM
+
+	AM_RANGE(0x080000, 0x080001) AM_READ_PORT("IN0")
+	AM_RANGE(0x080002, 0x080003) AM_READ_PORT("IN1")
+
+	AM_RANGE(0x080014, 0x080015) AM_WRITE(nmk_flipscreen_w)
+//  AM_RANGE(0x084000, 0x084001) AM_DEVREADWRITE8("oki1", okim6295_device, read, write, 0x00ff)
+//  AM_RANGE(0x084010, 0x084011) AM_DEVREADWRITE8("oki2", okim6295_device, read, write, 0x00ff)
+//  AM_RANGE(0x084020, 0x08402f) AM_DEVWRITE("nmk112", nmk112_device, okibank_lsb_w)
 	AM_RANGE(0x088000, 0x0887ff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x094000, 0x094001) AM_WRITE(nmk_tilebank_w)
 	AM_RANGE(0x094002, 0x094003) AM_WRITENOP    /* IRQ enable? */
@@ -1357,6 +1367,7 @@ static INPUT_PORTS_START( manybloc )
 	PORT_DIPSETTING(      0x8000, "Best" )
 INPUT_PORTS_END
 
+
 /**********************************************************
   Input Ports: Task Force Harrier
 
@@ -1364,7 +1375,6 @@ INPUT_PORTS_END
   protection might be more involved here than it first
   appears, however, this works.
 **********************************************************/
-
 
 static INPUT_PORTS_START( tharrier )
 	PORT_START("IN0")
@@ -3477,6 +3487,9 @@ static GFXDECODE_START( bjtwin )
 	GFXDECODE_ENTRY( "gfx3", 0, tilelayout, 0x100, 16 ) /* color 0x100-0x1ff */
 GFXDECODE_END
 
+
+
+
 static GFXDECODE_START( bioship )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout, 0x300, 16 ) /* color 0x300-0x3ff */
 	GFXDECODE_ENTRY( "gfx2", 0, tilelayout, 0x100, 16 ) /* color 0x100-0x1ff */
@@ -3493,29 +3506,47 @@ GFXDECODE_END
 
 
 
-static const ym2203_interface ym2203_nmk004_interface =
+static const gfx_layout atombjt_charlayout =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(NMK004_irq)
+	8,8,
+	RGN_FRAC(1,1),
+	4,
+	{ 0,8,16,24},
+	{ 0,1,2,3,4,5,6,7 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32 },
+	32*8
 };
 
-static void ym2203_irqhandler(device_t *device, int irq)
+static const gfx_layout atombjt_tilelayout =
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	16,16,
+	RGN_FRAC(1,1),
+	4,
+	{ 0,8,16,24},
+	{ 0,1,2,3,4,5,6,7, 512,513,514,515,516,517,518,519 },
+	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32, 256+0*32, 256+1*32, 256+2*32, 256+3*32, 256+4*32, 256+5*32, 256+6*32, 256+7*32 },
+	128*8
+};
+
+static GFXDECODE_START( atombjt )
+	GFXDECODE_ENTRY( "gfx1", 0, atombjt_charlayout, 0x000, 16 ) /* color 0x000-0x0ff */
+	GFXDECODE_ENTRY( "gfx2", 0, atombjt_charlayout, 0x000, 16 ) /* color 0x000-0x0ff */
+	GFXDECODE_ENTRY( "gfx3", 0, atombjt_tilelayout, 0x100, 16 ) /* color 0x100-0x1ff */
+GFXDECODE_END
+
+
+
+
+WRITE_LINE_MEMBER(nmk16_state::ym2203_irqhandler)
+{
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(ym2203_irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 TIMER_DEVICE_CALLBACK_MEMBER(nmk16_state::nmk16_scanline)
@@ -3523,12 +3554,12 @@ TIMER_DEVICE_CALLBACK_MEMBER(nmk16_state::nmk16_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line(4, HOLD_LINE);
+		m_maincpu->set_input_line(4, HOLD_LINE);
 
 	/* This is either vblank-in or sprite dma irq complete, Vandyke definitely relies that irq fires at scanline ~0 instead of 112 (as per previous
 	   cpu_getiloops function implementation), mostly noticeable with sword collisions and related attract mode behaviour. */
 	if(scanline == 0)
-		machine().device("maincpu")->execute().set_input_line(2, HOLD_LINE);
+		m_maincpu->set_input_line(2, HOLD_LINE);
 }
 
 /* bee-oh board, almost certainly it has different timings */
@@ -3537,11 +3568,11 @@ TIMER_DEVICE_CALLBACK_MEMBER(nmk16_state::manybloc_scanline)
 	int scanline = param;
 
 	if(scanline == 248) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line(4, HOLD_LINE);
+		m_maincpu->set_input_line(4, HOLD_LINE);
 
 	/* This is either vblank-in or sprite dma irq complete */
 	if(scanline == 0)
-		machine().device("maincpu")->execute().set_input_line(2, HOLD_LINE);
+		m_maincpu->set_input_line(2, HOLD_LINE);
 }
 
 
@@ -3582,7 +3613,8 @@ static MACHINE_CONFIG_START( tharrier, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3625,7 +3657,8 @@ static MACHINE_CONFIG_START( manybloc, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3666,7 +3699,8 @@ static MACHINE_CONFIG_START( mustang, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3741,7 +3775,8 @@ static MACHINE_CONFIG_START( bioship, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, BIOSHIP_CRYSTAL2 / 8) /* 1.5 Mhz (verified) */
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3782,7 +3817,8 @@ static MACHINE_CONFIG_START( vandyke, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/8) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3857,7 +3893,8 @@ static MACHINE_CONFIG_START( acrobatm, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000) /* (verified on pcb) */
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -3932,7 +3969,8 @@ static MACHINE_CONFIG_START( tdragon, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/8) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4006,7 +4044,8 @@ static MACHINE_CONFIG_START( strahl, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4048,7 +4087,8 @@ static MACHINE_CONFIG_START( hachamf, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4089,7 +4129,8 @@ static MACHINE_CONFIG_START( macross, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4130,7 +4171,8 @@ static MACHINE_CONFIG_START( blkheart, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/8 ) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4171,7 +4213,8 @@ static MACHINE_CONFIG_START( gunnail, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_nmk004_interface)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<NMK004_irq>))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 	MCFG_SOUND_ROUTE(2, "mono", 0.50)
@@ -4214,7 +4257,8 @@ static MACHINE_CONFIG_START( macross2, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, OKIM6295_PIN7_LOW)
@@ -4256,7 +4300,8 @@ static MACHINE_CONFIG_START( tdragon2, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, OKIM6295_PIN7_LOW)
@@ -4297,14 +4342,18 @@ static MACHINE_CONFIG_START( raphero, nmk16_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 1500000)
-	MCFG_SOUND_CONFIG(ym2203_config)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(nmk16_state, ym2203_irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
+	MCFG_SOUND_ROUTE(0, "mono", 0.70)
+	MCFG_SOUND_ROUTE(1, "mono", 0.70)
+	MCFG_SOUND_ROUTE(2, "mono", 0.70)
+	MCFG_SOUND_ROUTE(3, "mono", 1.00)
 
 	MCFG_OKIM6295_ADD("oki1", 16000000/4, OKIM6295_PIN7_LOW)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.08)
 
 	MCFG_OKIM6295_ADD("oki2", 16000000/4, OKIM6295_PIN7_LOW)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.08)
 
 	MCFG_NMK112_ADD("nmk112", nmk16_nmk112_intf)
 MACHINE_CONFIG_END
@@ -4344,7 +4393,39 @@ static MACHINE_CONFIG_START( bjtwin, nmk16_state )
 MACHINE_CONFIG_END
 
 
-static UINT8 decode_byte(UINT8 src, const UINT8 *bitp)
+
+static MACHINE_CONFIG_START( atombjt, nmk16_state )
+
+	/* basic machine hardware */
+	MCFG_CPU_ADD("maincpu", M68000, 10000000) /* there is a 28mhz crystal and a 10mhz crystal near the 12 rated CPU */
+	MCFG_CPU_PROGRAM_MAP(atombjt_map)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", nmk16_state,  irq6_line_hold) // recoded to use this irq
+
+	/* video hardware */
+	MCFG_SCREEN_ADD("screen", RASTER)
+	MCFG_SCREEN_REFRESH_RATE(56)
+	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
+	MCFG_SCREEN_SIZE(512, 256)
+	MCFG_SCREEN_VISIBLE_AREA(0*8, 48*8-1, 2*8, 30*8-1)
+	MCFG_SCREEN_UPDATE_DRIVER(nmk16_state, screen_update_bjtwin)
+	MCFG_SCREEN_VBLANK_DRIVER(nmk16_state, screen_eof_nmk)
+
+	MCFG_GFXDECODE(atombjt)
+	MCFG_PALETTE_LENGTH(1024)
+
+	MCFG_VIDEO_START_OVERRIDE(nmk16_state,bjtwin)
+
+	// the bootleg just has a single OKI
+	/* sound hardware */
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_OKIM6295_ADD("oki1", 16000000/4, OKIM6295_PIN7_LOW) // ?? mhz, I see no 16 crystal
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
+MACHINE_CONFIG_END
+
+
+
+UINT8 nmk16_state::decode_byte(UINT8 src, const UINT8 *bitp)
 {
 	UINT8 ret, i;
 
@@ -4355,13 +4436,13 @@ static UINT8 decode_byte(UINT8 src, const UINT8 *bitp)
 	return ret;
 }
 
-static UINT32 bjtwin_address_map_bg0(UINT32 addr)
+UINT32 nmk16_state::bjtwin_address_map_bg0(UINT32 addr)
 {
 	return ((addr&0x00004)>> 2) | ((addr&0x00800)>> 10) | ((addr&0x40000)>>16);
 }
 
 
-static UINT16 decode_word(UINT16 src, const UINT8 *bitp)
+UINT16 nmk16_state::decode_word(UINT16 src, const UINT8 *bitp)
 {
 	UINT16 ret, i;
 
@@ -4373,13 +4454,13 @@ static UINT16 decode_word(UINT16 src, const UINT8 *bitp)
 }
 
 
-static UINT32 bjtwin_address_map_sprites(UINT32 addr)
+UINT32 nmk16_state::bjtwin_address_map_sprites(UINT32 addr)
 {
 	return ((addr&0x00010)>> 4) | ((addr&0x20000)>>16) | ((addr&0x100000)>>18);
 }
 
 
-static void decode_gfx(running_machine &machine)
+void nmk16_state::decode_gfx()
 {
 	/* GFX are scrambled.  We decode them here.  (BIG Thanks to Antiriad for descrambling info) */
 	UINT8 *rom;
@@ -4412,16 +4493,16 @@ static void decode_gfx(running_machine &machine)
 
 
 	/* background */
-	rom = machine.root_device().memregion("gfx2")->base();
-	len = machine.root_device().memregion("gfx2")->bytes();
+	rom = memregion("gfx2")->base();
+	len = memregion("gfx2")->bytes();
 	for (A = 0;A < len;A++)
 	{
 		rom[A] = decode_byte( rom[A], decode_data_bg[bjtwin_address_map_bg0(A)]);
 	}
 
 	/* sprites */
-	rom = machine.root_device().memregion("gfx3")->base();
-	len = machine.root_device().memregion("gfx3")->bytes();
+	rom = memregion("gfx3")->base();
+	len = memregion("gfx3")->bytes();
 	for (A = 0;A < len;A += 2)
 	{
 		UINT16 tmp = decode_word( rom[A+1]*256 + rom[A], decode_data_sprite[bjtwin_address_map_sprites(A)]);
@@ -4430,7 +4511,7 @@ static void decode_gfx(running_machine &machine)
 	}
 }
 
-static void decode_tdragonb(running_machine &machine)
+void nmk16_state::decode_tdragonb()
 {
 	/* Descrambling Info Again Taken from Raine, Huge Thanks to Antiriad and the Raine Team for
 	   going Open Source, best of luck in future development. */
@@ -4450,8 +4531,8 @@ static void decode_tdragonb(running_machine &machine)
 		{0x7,0x6,0x5,0x3,0x4,0x2,0x1,0x0},
 	};
 
-	rom = machine.root_device().memregion("maincpu")->base();
-	len = machine.root_device().memregion("maincpu")->bytes();
+	rom = memregion("maincpu")->base();
+	len = memregion("maincpu")->bytes();
 	for (A = 0;A < len;A += 2)
 	{
 		int h = A+NATIVE_ENDIAN_VALUE_LE_BE(1,0), l = A+NATIVE_ENDIAN_VALUE_LE_BE(0,1);
@@ -4460,22 +4541,22 @@ static void decode_tdragonb(running_machine &machine)
 		rom[l] = tmp & 0xff;
 	}
 
-	rom = machine.root_device().memregion("gfx2")->base();
-	len = machine.root_device().memregion("gfx2")->bytes();
+	rom = memregion("gfx2")->base();
+	len = memregion("gfx2")->bytes();
 	for (A = 0;A < len;A++)
 	{
 		rom[A] = decode_byte( rom[A], decode_data_tdragonbgfx[0]);
 	}
 
-	rom = machine.root_device().memregion("gfx3")->base();
-	len = machine.root_device().memregion("gfx3")->bytes();
+	rom = memregion("gfx3")->base();
+	len = memregion("gfx3")->bytes();
 	for (A = 0;A < len;A++)
 	{
 		rom[A] = decode_byte( rom[A], decode_data_tdragonbgfx[0]);
 	}
 }
 
-static void decode_ssmissin(running_machine &machine)
+void nmk16_state::decode_ssmissin()
 {
 	/* Like Thunder Dragon Bootleg without the Program Rom Swapping */
 	UINT8 *rom;
@@ -4487,15 +4568,15 @@ static void decode_ssmissin(running_machine &machine)
 		{0x7,0x6,0x5,0x3,0x4,0x2,0x1,0x0},
 	};
 
-	rom = machine.root_device().memregion("gfx2")->base();
-	len = machine.root_device().memregion("gfx2")->bytes();
+	rom = memregion("gfx2")->base();
+	len = memregion("gfx2")->bytes();
 	for (A = 0;A < len;A++)
 	{
 		rom[A] = decode_byte( rom[A], decode_data_tdragonbgfx[0]);
 	}
 
-	rom = machine.root_device().memregion("gfx3")->base();
-	len = machine.root_device().memregion("gfx3")->bytes();
+	rom = memregion("gfx3")->base();
+	len = memregion("gfx3")->bytes();
 	for (A = 0;A < len;A++)
 	{
 		rom[A] = decode_byte( rom[A], decode_data_tdragonbgfx[0]);
@@ -4505,12 +4586,12 @@ static void decode_ssmissin(running_machine &machine)
 
 DRIVER_INIT_MEMBER(nmk16_state,nmk)
 {
-	decode_gfx(machine());
+	decode_gfx();
 }
 
 DRIVER_INIT_MEMBER(nmk16_state,hachamf)
 {
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 
 	//rom[0x0006/2] = 0x7dc2;   /* replace reset vector with the "real" one */
 
@@ -4521,12 +4602,12 @@ DRIVER_INIT_MEMBER(nmk16_state,hachamf)
 
 DRIVER_INIT_MEMBER(nmk16_state,tdragonb)
 {
-	decode_tdragonb(machine());
+	decode_tdragonb();
 }
 
 DRIVER_INIT_MEMBER(nmk16_state,tdragon)
 {
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 
 	//rom[0x94b0/2] = 0; /* Patch out JMP to shared memory (protection) */
 	//rom[0x94b2/2] = 0x92f4;
@@ -4538,12 +4619,11 @@ DRIVER_INIT_MEMBER(nmk16_state,tdragon)
 
 DRIVER_INIT_MEMBER(nmk16_state,ssmissin)
 {
-	decode_ssmissin(machine());
+	decode_ssmissin();
 }
 
 DRIVER_INIT_MEMBER(nmk16_state,bjtwin)
 {
-
 	/* Patch rom to enable test mode */
 
 /*  008F54: 33F9 0008 0000 000F FFFC move.w  $80000.l, $ffffc.l
@@ -4560,7 +4640,7 @@ DRIVER_INIT_MEMBER(nmk16_state,bjtwin)
  *  008F7E: 207C 000F 9000           movea.l #$f9000, A0
  */
 #if 0
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 	rom[0x09172/2] = 0x6006;    /* patch checksum error */
 	rom[0x08f74/2] = 0x4e71;
 #endif
@@ -4573,8 +4653,8 @@ DRIVER_INIT_MEMBER(nmk16_state,bjtwin)
 READ16_MEMBER(nmk16_state::vandykeb_r){ return 0x0000; }
 DRIVER_INIT_MEMBER(nmk16_state,vandykeb)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x08000e, 0x08000f, read16_delegate(FUNC(nmk16_state::vandykeb_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0x08001e, 0x08001f);
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x08000e, 0x08000f, read16_delegate(FUNC(nmk16_state::vandykeb_r),this));
+	m_maincpu->space(AS_PROGRAM).nop_write(0x08001e, 0x08001f);
 }
 
 
@@ -4672,11 +4752,10 @@ WRITE16_MEMBER(nmk16_state::twinactn_flipscreen_w)
 ***************************************************************************/
 WRITE8_MEMBER(nmk16_state::spec2k_oki1_banking_w)
 {
-	device_t *device = machine().device("oki2");
 	if(data == 0xfe)
-		downcast<okim6295_device *>(device)->set_bank_base(0);
+		m_oki2->set_bank_base(0);
 	else if(data == 0xff)
-		downcast<okim6295_device *>(device)->set_bank_base(0x40000);
+		m_oki2->set_bank_base(0x40000);
 }
 
 static ADDRESS_MAP_START( afega_sound_cpu, AS_PROGRAM, 8, nmk16_state )
@@ -4702,8 +4781,7 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(nmk16_state::twinactn_oki_bank_w)
 {
-	device_t *device = machine().device("oki1");
-	downcast<okim6295_device *>(device)->set_bank_base((data & 3) * 0x40000);
+	m_oki1->set_bank_base((data & 3) * 0x40000);
 
 	if (data & (~3))
 		logerror("%s: invalid oki bank %02x\n", machine().describe_context(), data);
@@ -6120,15 +6198,13 @@ ROM_START( raphero )
 	ROM_LOAD16_WORD_SWAP( "rhp94099.9", 0x200000, 0x200000, CRC(ea2e47f0) SHA1(97dfa8f95f27b36deb5ce1c80e3d727bad24e52b) )  /* 16x16 tiles */
 	ROM_LOAD16_WORD_SWAP( "rhp94099.10",0x400000, 0x200000, CRC(512cb839) SHA1(4a2c5ac88e4bf8a6f07c703277c4d33e649fd192) )  /* 16x16 tiles */
 
-	ROM_REGION( 0x240000, "oki1", 0 )   /* OKIM6295 samples */
-	// 1ST AND 2ND HALF IDENTICAL
-	ROM_LOAD( "rhp94099.7", 0x040000, 0x200000, CRC(0d99547e) SHA1(2d9630bd55d27010f9d1d2dbdbd07ac265e8ebe6) )  /* all banked */
+	ROM_REGION( 0x440000, "oki1", 0 )   /* OKIM6295 samples */
+	ROM_LOAD( "rhp94099.6", 0x040000, 0x200000, CRC(f1a80e5a) SHA1(218bd7b0c3d8b283bf96b95bf888228810699370) )  /* all banked */
+	ROM_LOAD( "rhp94099.7", 0x240000, 0x200000, CRC(0d99547e) SHA1(2d9630bd55d27010f9d1d2dbdbd07ac265e8ebe6) )  /* all banked */
 
-	ROM_REGION( 0x840000, "oki2", 0 )   /* OKIM6295 samples */
+	ROM_REGION( 0x440000, "oki2", 0 )   /* OKIM6295 samples */
 	ROM_LOAD( "rhp94099.5", 0x040000, 0x200000, CRC(515eba93) SHA1(c35cb5f31f4bc7327be5777624af168f9fb364a5) )  /* all banked */
 	ROM_LOAD( "rhp94099.6", 0x240000, 0x200000, CRC(f1a80e5a) SHA1(218bd7b0c3d8b283bf96b95bf888228810699370) )  /* all banked */
-	ROM_LOAD( "rhp94099.7", 0x440000, 0x200000, CRC(0d99547e) SHA1(2d9630bd55d27010f9d1d2dbdbd07ac265e8ebe6) )  /* all banked */
-	ROM_LOAD( "rhp94099.7", 0x640000, 0x200000, CRC(0d99547e) SHA1(2d9630bd55d27010f9d1d2dbdbd07ac265e8ebe6) )  /* all banked */
 
 	ROM_REGION( 0x0300, "proms", 0 )
 	ROM_LOAD( "prom1.u19",      0x0000, 0x0100, CRC(4299776e) SHA1(683d14d2ace14965f0fcfe0f0540c1b77d2cece5) ) /* unknown */
@@ -6277,6 +6353,34 @@ ROM_START( bjtwinp )
 	ROM_LOAD( "top.ic27",       0x040000, 0x80000, CRC(adb2f256) SHA1(ab7bb6683799203d0f46705f2fd241c6de914e77) ) /* all banked */
 	ROM_LOAD( "bottom.ic27",    0x0c0000, 0x80000, CRC(6ebeb9e4) SHA1(b547b2fbcc0a35d6183dd4f19684b04839690a2b) )
 ROM_END
+
+ROM_START( atombjt ) // based off bjtwina set
+	ROM_REGION( 0x40000, "maincpu", 0 )  /* 68000 code */
+	ROM_LOAD16_BYTE( "22.u67",  0x00000, 0x20000, CRC(bead8c70) SHA1(2694bb0639f6b94119c21faf3810f00ef20b50da) )
+	ROM_LOAD16_BYTE( "21.u66",  0x00001, 0x20000, CRC(73e3d488) SHA1(7deed6e3aeda1902b75746a9b0a2737632425867) )
+
+	ROM_REGION( 0x200000, "gfxtemp", ROMREGION_ERASEFF ) // first half of these is the text tiles (repeated multiple times) second half the bgs
+	ROM_LOAD32_BYTE( "23.u36",  0x000003, 0x80000, CRC(a3fb6b91) SHA1(477f5722a6bb23f089f32b677efbf69e9dce4b74) )
+	ROM_LOAD32_BYTE( "24.u42",  0x000002, 0x80000, CRC(4c30e15f) SHA1(f92185743594e4e4573ac3f6c0c091802a08d5bd) )
+	ROM_LOAD32_BYTE( "25.u39",  0x000001, 0x80000, CRC(ff1af60f) SHA1(4fe626c9d59ab9b945535b2f796f13adc900f1ed) )
+	ROM_LOAD32_BYTE( "26.u45",  0x000000, 0x80000, CRC(6cc4e817) SHA1(70f2ab50e228a029d3157c94fe0a79e7aad010bd) )
+
+	ROM_REGION( 0x100000, "gfx1", 0 )
+	ROM_COPY( "gfxtemp", 0x000000, 0x00000, 0x100000 )
+
+	ROM_REGION( 0x100000, "gfx2", 0 )
+	ROM_COPY( "gfxtemp", 0x100000, 0x00000, 0x100000 )
+
+	ROM_REGION( 0x100000, "gfx3", 0 )
+	ROM_LOAD32_BYTE( "27.u86",  0x000003, 0x40000, CRC(5a853e5c) SHA1(dfa4e891f716bbf8a038a14a24276cb690f65230) )
+	ROM_LOAD32_BYTE( "28.u85",  0x000002, 0x40000, CRC(41970bf6) SHA1(85b5677585dbdf96acabb59e6369d62d4c2f0e8e) )
+	ROM_LOAD32_BYTE( "29.u84",  0x000001, 0x40000, CRC(59a7d610) SHA1(0dc39c09f7f55dbd12ddb5e2e4ba9d86a2ba24d8) )
+	ROM_LOAD32_BYTE( "30.u83",  0x000000, 0x40000, CRC(9b2dfebd) SHA1(562ab22dc01a129e1b8c201665bbab0561254c2a) )
+
+	ROM_REGION( 0x80000, "oki1", 0 ) /* OKIM6295 samples */
+	ROM_LOAD( "20.u16",    0x00000, 0x80000, CRC(71c74ff9) SHA1(3c22fb2976ab332e9bb1e208432ca985f274adac) )
+ROM_END
+
 
 ROM_START( nouryoku )
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 code */
@@ -6436,7 +6540,7 @@ Other: Lattice pLSI 1032 x 2
 
 DRIVER_INIT_MEMBER(nmk16_state,redhawk)
 {
-	decryptcode( machine(), 23, 22, 21, 20, 19, 18, 16, 15, 14, 17, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 );
+	decryptcode( machine(), 23, 22, 21, 20,  19, 18, 16, 15,  14, 17, 13, 12,  11, 10, 9, 8,  7, 6, 5, 4,  3, 2, 1, 0 );
 }
 
 ROM_START( redhawk ) /* U.S.A., Canada & South America, (c) 1997 */
@@ -6540,6 +6644,9 @@ ROM_START( redhawkb )
 	ROM_REGION( 0x40000, "oki1", 0 )    /* Samples */
 	ROM_LOAD( "5", 0x00000, 0x40000, CRC(e911ce33) SHA1(a29c4dea98a22235122303325c63c15fadd3431d) )
 ROM_END
+
+
+
 
 /***************************************************************************
 
@@ -6656,6 +6763,29 @@ ROM_START( grdnstrmk )
 	ROM_LOAD( "afega1.u95", 0x00000, 0x40000, CRC(e911ce33) SHA1(a29c4dea98a22235122303325c63c15fadd3431d) )
 ROM_END
 
+
+ROM_START( grdnstrmv ) /* Apples Industries license - Vertical version */
+	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 Code */
+	ROM_LOAD16_BYTE( "afega2.u112", 0x000000, 0x040000, CRC(16d41050) SHA1(79b6621dccb286e5adf60c40690083a37746a4f9) )
+	ROM_LOAD16_BYTE( "afega3.u107", 0x000001, 0x040000, CRC(05920a99) SHA1(ee77da303d6b766c529c426a836777827ac31676) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )        /* Z80 Code */
+	ROM_LOAD( "afega7.u92", 0x00000, 0x10000, CRC(5d8cf28e) SHA1(2a440bf5136f95af137b6688e566a14e65be94b1) ) /* MASK ROM (read as 27C020) */
+
+	ROM_REGION( 0x200000, "gfx1", 0 )   /* Sprites, 16x16x4 */
+	ROM_LOAD( "afega6.uc13", 0x000000, 0x200000, CRC(9b54ff84) SHA1(9e120d85cf2fa899e6426dcb4302c8051746facc) ) /* ST M27C160 EPROM */
+
+	ROM_REGION( 0x400000, "gfx2", 0 )   /* Layer 0, 16x16x8 */
+	ROM_LOAD( "afega_af1-b2.uc8", 0x000000, 0x200000, CRC(d68588c2) SHA1(c5f397d74a6ecfd2e375082f82e37c5a330fba62) ) /* MASK ROM (read as 27C160) */
+	ROM_LOAD( "afega_af1-b1.uc3", 0x200000, 0x200000, CRC(f8b200a8) SHA1(a6c43dd57b752d87138d7125b47dc0df83df8987) ) /* MASK ROM (read as 27C160) */
+
+	ROM_REGION( 0x10000, "gfx3", 0 )    /* Layer 1, 8x8x4 */
+	ROM_LOAD( "afega1.u4",  0x00000, 0x10000, CRC(9e7ef086) SHA1(db086bb2ceb11f3e24548aa131cc74fe79a2b516) )
+
+	ROM_REGION( 0x40000, "oki1", 0 )    /* Samples */
+	ROM_LOAD( "afega1.u95", 0x00000, 0x40000, CRC(e911ce33) SHA1(a29c4dea98a22235122303325c63c15fadd3431d) )
+ROM_END
+
 ROM_START( redfoxwp2 )
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 Code */
 	ROM_LOAD16_BYTE( "u112", 0x000000, 0x040000, CRC(3f31600b) SHA1(6c56e36178effb60ec27dfcd205393e2cfac4ed6) ) /* No label */
@@ -6676,6 +6806,38 @@ ROM_START( redfoxwp2 )
 
 	ROM_REGION( 0x40000, "oki1", 0 )    /* Samples */
 	ROM_LOAD( "afega1.u95", 0x00000, 0x40000, CRC(e911ce33) SHA1(a29c4dea98a22235122303325c63c15fadd3431d) )
+ROM_END
+
+
+DRIVER_INIT_MEMBER(nmk16_state,redfoxwp2a)
+{
+	// todo collapse to one bitswap
+	decryptcode( machine(),23, 22, 21, 20,   19, 18, 17, 16, /* */  13,15, 14, /* */ 12,    11, 10, 9, 8,       7, 6, 5, 4,     3, 2, 1, 0 );
+	decryptcode( machine(),23, 22, 21, 20,   19, 18, 17, 16, /* */14,15, /* */    13,12,    11, 10, 9, 8,       7, 6, 5, 4,     3, 2, 1, 0 );
+	decryptcode( machine(),23, 22, 21, 20,   19, 18, /* */ 16, 17, /* */    15,14,13,12,    11, 10, 9, 8,       7, 6, 5, 4,     3, 2, 1, 0 );
+}
+
+
+ROM_START( redfoxwp2a )
+	ROM_REGION( 0x80000, "maincpu", 0 )     /* 68000 Code */
+	ROM_LOAD16_BYTE( "afega_4.u112", 0x000000, 0x040000, CRC(e6e6682a) SHA1(1a70ca3881b4ecc6d329814ff1fdafce16550ca2) )
+	ROM_LOAD16_BYTE( "afega_5.u107", 0x000001, 0x040000, CRC(2faa2ed6) SHA1(c6ca3ca0cff85379007a44648c6de87864095c2e) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )        /* Z80 Code */
+	ROM_LOAD( "afega_1.u92", 0x00000, 0x10000, CRC(5d8cf28e) SHA1(2a440bf5136f95af137b6688e566a14e65be94b1) )
+
+	ROM_REGION( 0x200000, "gfx1", 0 )   /* Sprites, 16x16x4 */ // not dumped, it is correct?
+	ROM_LOAD( "afega_af1-sp.uc13", 0x000000, 0x200000, CRC(7d4d4985) SHA1(15c6c1aecd3f12050c1db2376f929f1a26a1d1cf) )
+
+	ROM_REGION( 0x400000, "gfx2", 0 )   /* Layer 0, 16x16x8 */ // not dumped, it is correct?
+	ROM_LOAD( "afega_af1-b2.uc8", 0x000000, 0x200000, CRC(d68588c2) SHA1(c5f397d74a6ecfd2e375082f82e37c5a330fba62) )
+	ROM_LOAD( "afega_af1-b1.uc3", 0x200000, 0x200000, CRC(f8b200a8) SHA1(a6c43dd57b752d87138d7125b47dc0df83df8987) )
+
+	ROM_REGION( 0x10000, "gfx3", ROMREGION_ERASEFF )    /* Layer 1, 8x8x4 */
+	ROM_LOAD( "afega_3.u4", 0x000000, 0x10000, CRC(64608687) SHA1(c13e55429171653437c8e8c7c8e9c6c5ffa2d2dc) )
+
+	ROM_REGION( 0x40000, "oki1", 0 )    /* Samples */
+	ROM_LOAD( "afega_2.u95", 0x00000, 0x40000, CRC(e911ce33) SHA1(a29c4dea98a22235122303325c63c15fadd3431d) )
 ROM_END
 
 /***************************************************************************
@@ -7142,7 +7304,7 @@ GAME( 1990, sbsgomo,  bioship,  bioship,  bioship, driver_device,  0,        ROT
 GAME( 1990, vandyke,    0,       vandyke,  vandyke, driver_device, 0,        ROT270, "UPL",                          "Vandyke (Japan)",  GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
 GAME( 1990, vandykejal, vandyke, vandyke,  vandyke, driver_device, 0,        ROT270, "UPL (Jaleco license)",         "Vandyke (Jaleco, set 1)",  GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
 GAME( 1990, vandykejal2,vandyke, vandyke,  vandyke, driver_device, 0,        ROT270, "UPL (Jaleco license)",         "Vandyke (Jaleco, set 2)",  GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
-GAME( 1990, vandykeb,  vandyke, vandykeb, vandykeb, nmk16_state, vandykeb, ROT270, "bootleg",                      "Vandyke (bootleg with PIC16c57)",  GAME_NO_SOUND | GAME_IMPERFECT_GRAPHICS )
+GAME( 1990, vandykeb,  vandyke, vandykeb, vandykeb, nmk16_state,   vandykeb, ROT270, "bootleg",                      "Vandyke (bootleg with PIC16c57)",  GAME_NO_SOUND | GAME_IMPERFECT_GRAPHICS )
 
 GAME( 1991, blkheart, 0,        blkheart,  blkheart, driver_device, 0,       ROT0,   "UPL",                          "Black Heart", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
 GAME( 1991, blkheartj,blkheart, blkheart,  blkheart, driver_device, 0,       ROT0,   "UPL",                          "Black Heart (Japan)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
@@ -7155,27 +7317,29 @@ GAME( 1992, strahla,  strahl,   strahl,   strahl, driver_device,   0,        ROT
 GAME( 1991, tdragon,  0,        tdragon,  tdragon, nmk16_state,  tdragon,  ROT270, "NMK (Tecmo license)",          "Thunder Dragon (9th Jan. 1992)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
 GAME( 1991, tdragon1, tdragon,  tdragon,  tdragon, nmk16_state,  tdragon,  ROT270, "NMK (Tecmo license)",          "Thunder Dragon (4th Jun. 1991)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
 
-GAME( 1991, hachamf,  0,        hachamf,  hachamf, nmk16_state,  hachamf,  ROT0,   "NMK",                          "Hacha Mecha Fighter (19th Sep. 1991)", GAME_UNEMULATED_PROTECTION | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1992, macross,  0,        macross,  macross, nmk16_state,  nmk,      ROT270, "Banpresto",                    "Super Spacefortress Macross / Chou-Jikuu Yousai Macross", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
-GAME( 1993, gunnail,  0,        gunnail,  gunnail, nmk16_state,  nmk,      ROT270, "NMK / Tecmo",                  "GunNail (28th May. 1992)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
+GAME( 1991, hachamf,  0,        hachamf,  hachamf, nmk16_state,    hachamf,  ROT0,   "NMK",                          "Hacha Mecha Fighter (19th Sep. 1991)", GAME_UNEMULATED_PROTECTION | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1992, macross,  0,        macross,  macross, nmk16_state,    nmk,      ROT270, "Banpresto",                    "Super Spacefortress Macross / Chou-Jikuu Yousai Macross", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
+GAME( 1993, gunnail,  0,        gunnail,  gunnail, nmk16_state,    nmk,      ROT270, "NMK / Tecmo",                  "GunNail (28th May. 1992)", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS )
 GAME( 1993, macross2, 0,        macross2, macross2, driver_device, 0,        ROT0,   "Banpresto",                    "Super Spacefortress Macross II / Chou-Jikuu Yousai Macross II", GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
 
 GAME( 1993, tdragon2, 0,        tdragon2, tdragon2, driver_device, 0,        ROT270, "NMK",                          "Thunder Dragon 2 (9th Nov. 1993)", GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
 GAME( 1993, tdragon2a,tdragon2, tdragon2, tdragon2, driver_device, 0,        ROT270, "NMK",                          "Thunder Dragon 2 (1st Oct. 1993)", GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
 GAME( 1993, bigbang,  tdragon2, tdragon2, tdragon2, driver_device, 0,        ROT270, "NMK",                          "Big Bang (9th Nov. 1993)", GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
 
-GAME( 1994, raphero,  0,        raphero,  raphero, driver_device,  0,        ROT270, "NMK / Media Shoji",            "Rapid Hero", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_GRAPHICS ) // 23rd July 1993 in test mode, (c)1994 on title screen
+GAME( 1994, raphero,  0,        raphero,  raphero, driver_device,  0,        ROT270, "NMK / Media Shoji",            "Rapid Hero", GAME_IMPERFECT_GRAPHICS ) // 23rd July 1993 in test mode, (c)1994 on title screen
 
 /* both sets of both these games show a date of 9th Mar 1992 in the test mode, they look like different revisions so I doubt this is accurate */
 GAME( 1992, sabotenb, 0,        bjtwin,   sabotenb, nmk16_state, nmk,      ROT0,   "NMK / Tecmo",                  "Saboten Bombers (set 1)", GAME_NO_COCKTAIL )
 GAME( 1992, sabotenba,sabotenb, bjtwin,   sabotenb, nmk16_state, nmk,      ROT0,   "NMK / Tecmo",                  "Saboten Bombers (set 2)", GAME_NO_COCKTAIL )
 GAME( 1992, cactus,   sabotenb, bjtwin,   sabotenb, nmk16_state, nmk,      ROT0,   "bootleg",                      "Cactus (bootleg of Saboten Bombers)", GAME_NO_COCKTAIL ) // PCB marked 'Cactus', no title screen
+
 GAME( 1993, bjtwin,   0,        bjtwin,   bjtwin, nmk16_state,   bjtwin,   ROT270, "NMK",                          "Bombjack Twin (set 1)", GAME_NO_COCKTAIL )
 GAME( 1993, bjtwina,  bjtwin,   bjtwin,   bjtwin, nmk16_state,   bjtwin,   ROT270, "NMK",                          "Bombjack Twin (set 2)", GAME_NO_COCKTAIL )
-GAME( 1993, bjtwinp,  bjtwin,   bjtwin,   bjtwin, driver_device,   0,        ROT270, "NMK",                          "Bombjack Twin (prototype? with adult pictures)", GAME_NO_COCKTAIL ) // Genuine NMK PCB but GFX aren't encrypted
+GAME( 1993, bjtwinp,  bjtwin,   bjtwin,   bjtwin, driver_device, 0,        ROT270, "NMK",                          "Bombjack Twin (prototype? with adult pictures)", GAME_NO_COCKTAIL ) // Genuine NMK PCB but GFX aren't encrypted
+GAME( 1993, atombjt,  bjtwin,   atombjt,  bjtwin, driver_device, 0,        ROT270, "bootleg",                      "Atom (bootleg of Bombjack Twin)", GAME_NO_COCKTAIL | GAME_NOT_WORKING ) // some non-trivial mods to the gfx and sound hw
 
 
-GAME( 1995, nouryoku, 0,        bjtwin,   nouryoku, nmk16_state, nmk,      ROT0,   "Tecmo",                        "Nouryoku Koujou Iinkai", GAME_NO_COCKTAIL )
+GAME( 1995, nouryoku, 0,        bjtwin,   nouryoku, nmk16_state,   nmk,      ROT0,   "Tecmo",                        "Nouryoku Koujou Iinkai", GAME_NO_COCKTAIL )
 GAME( 1995, nouryokup,nouryoku, bjtwin,   nouryoku, driver_device, 0,        ROT0,   "Tecmo",                        "Nouryoku Koujou Iinkai (prototype)", GAME_NO_COCKTAIL ) // GFX aren't encrypted
 
 /* Non NMK boards */
@@ -7183,28 +7347,39 @@ GAME( 1995, nouryokup,nouryoku, bjtwin,   nouryoku, driver_device, 0,        ROT
 // these use the seibu sound system (sound / music stolen from Raiden) rather than the bootleggers copying the nmk004
 GAME( 1990, mustangb, mustang,  mustangb, mustang, driver_device,  0,        ROT0,   "bootleg",                       "US AAF Mustang (bootleg)", 0 )
 GAME( 1990, mustangb2,mustang,  mustangb, mustang, driver_device,  0,        ROT0,   "bootleg (TAB Austria)",         "US AAF Mustang (TAB Austria bootleg)", 0 ) // PCB and roms have TAB Austria stickers
-GAME( 1991, tdragonb, tdragon,  tdragonb, tdragonb, nmk16_state, tdragonb, ROT270, "bootleg",                      "Thunder Dragon (bootleg)", 0 )
+GAME( 1991, tdragonb, tdragon,  tdragonb, tdragonb, nmk16_state,   tdragonb, ROT270, "bootleg",                      "Thunder Dragon (bootleg)", 0 )
 
 // these are from Comad, based on the Thunder Dragon code?
 GAME( 1992, ssmissin, 0,        ssmissin, ssmissin, nmk16_state, ssmissin, ROT270, "Comad",                         "S.S. Mission", GAME_NO_COCKTAIL )
+
 GAME( 1996, airattck, 0,        ssmissin, airattck, nmk16_state, ssmissin, ROT270, "Comad",                         "Air Attack (set 1)", GAME_NO_COCKTAIL )
 GAME( 1996, airattcka,airattck, ssmissin, airattck, nmk16_state, ssmissin, ROT270, "Comad",                         "Air Attack (set 2)", GAME_NO_COCKTAIL )
 
 // afega & clones
-GAME( 1995, twinactn, 0,        twinactn, twinactn, driver_device, 0,        ROT0,   "Afega",                             "Twin Action", 0 )
+GAME( 1995, twinactn, 0,        twinactn, twinactn, driver_device, 0,        ROT0,   "Afega",                             "Twin Action", 0 ) // hacked from USSAF Mustang
+
 GAME( 1998, stagger1, 0,        stagger1, stagger1, driver_device, 0,        ROT270, "Afega",                             "Stagger I (Japan)", 0 )
-GAME( 1997, redhawk,  stagger1, stagger1, stagger1, nmk16_state, redhawk,  ROT270, "Afega (New Vision Ent. license)",   "Red Hawk (US)", 0 )
+
+GAME( 1997, redhawk,  stagger1, stagger1, stagger1, nmk16_state,   redhawk,  ROT270, "Afega (New Vision Ent. license)",   "Red Hawk (US)", 0 )
 GAME( 1997, redhawki, stagger1, redhawki, stagger1, driver_device, 0,        ROT0,   "Afega (Hea Dong Corp license)",     "Red Hawk (Italy)", 0 ) // bootleg? strange scroll regs
 GAME( 1997, redhawke, stagger1, stagger1, stagger1, driver_device, 0,        ROT270, "Afega (Excellent Co. license)",     "Red Hawk (Excellent Co., Ltd)", 0 )
 GAME( 1997, redhawkb, stagger1, redhawkb, redhawkb, driver_device, 0,        ROT0,   "bootleg",                           "Red Hawk (bootleg)", 0 )
-GAME( 1998, grdnstrm, 0,        grdnstrm, grdnstrm, driver_device, 0,        ORIENTATION_FLIP_Y, "Afega (Apples Industries license)", "Guardian Storm", 0 )
-GAME( 1998, grdnstrmk,grdnstrm, grdnstrmk,grdnstrk, nmk16_state, grdnstrm, ROT270, "Afega",                             "Sen Jin - Guardian Storm (Korea)", 0 )
-GAME( 1998, redfoxwp2,grdnstrm, grdnstrmk,grdnstrk, nmk16_state, grdnstrm, ROT270, "Afega",                             "Red Fox War Planes II (China)", 0 )
-GAME( 1998, bubl2000, 0,        popspops, bubl2000, nmk16_state, bubl2000, ROT0,   "Tuning",                            "Bubble 2000", 0 ) // on a tuning board (bootleg?)
-GAME( 1998, hotbubl,  bubl2000, popspops, bubl2000, nmk16_state, bubl2000, ROT0,   "Pandora",                           "Hot Bubble" , 0 ) // on an afega board ..
-GAME( 1999, popspops, 0,        popspops, popspops, nmk16_state, grdnstrm, ROT0,   "Afega",                             "Pop's Pop's", 0 )
-GAME( 2000, mangchi,  0,        popspops, mangchi, nmk16_state,  bubl2000, ROT0,   "Afega",                             "Mang-Chi", 0 )
-GAME( 2000, spec2k,   0,        firehawk, spec2k, nmk16_state,   spec2k,   ORIENTATION_FLIP_Y, "Yona Tech",             "Spectrum 2000 (Euro)", 0 )
+
+GAME( 1998, grdnstrm, 0,        grdnstrm, grdnstrm, driver_device, 0,        ORIENTATION_FLIP_Y, "Afega (Apples Industries license)", "Guardian Storm (horizontal, not encrypted)", 0 )
+GAME( 1998, grdnstrmv,grdnstrm, grdnstrmk,grdnstrk, nmk16_state,   grdnstrm, ROT270,             "Afega (Apples Industries license)", "Guardian Storm (vertical)", 0 )
+GAME( 1998, grdnstrmk,grdnstrm, grdnstrmk,grdnstrk, nmk16_state,   grdnstrm, ROT270,             "Afega",                             "Sen Jin - Guardian Storm (Korea)", 0 )
+GAME( 1998, redfoxwp2,grdnstrm, grdnstrmk,grdnstrk, nmk16_state,   grdnstrm, ROT270,             "Afega",                             "Red Fox War Planes II (China, set 1)", 0 )
+GAME( 1998, redfoxwp2a,grdnstrm,grdnstrmk,grdnstrk, nmk16_state,  redfoxwp2a,ROT270,             "Afega",                             "Red Fox War Planes II (China, set 2)", 0 )
+
+GAME( 1998, bubl2000, 0,        popspops, bubl2000, nmk16_state,   bubl2000, ROT0,               "Tuning",                            "Bubble 2000", 0 ) // on a tuning board (bootleg?)
+GAME( 1998, hotbubl,  bubl2000, popspops, bubl2000, nmk16_state,   bubl2000, ROT0,               "Pandora",                           "Hot Bubble" , 0 ) // on an afega board ..
+
+GAME( 1999, popspops, 0,        popspops, popspops, nmk16_state,   grdnstrm, ROT0,               "Afega",                             "Pop's Pop's", 0 )
+
+GAME( 2000, mangchi,  0,        popspops, mangchi, nmk16_state,    bubl2000, ROT0,               "Afega",                             "Mang-Chi", 0 )
+
+// these two are very similar games, but the exact parent/clone relationship is unknown
+GAME( 2000, spec2k,   0,        firehawk, spec2k, nmk16_state,     spec2k,   ORIENTATION_FLIP_Y, "Yona Tech",             "Spectrum 2000 (Euro)", 0 )
 GAME( 2001, firehawk, 0,        firehawk, firehawk, driver_device, 0,        ORIENTATION_FLIP_Y, "ESD",                   "Fire Hawk", 0 )
 
 // bee-oh board - different display / interrupt timing to others?

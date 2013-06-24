@@ -19,9 +19,10 @@ class poker72_state : public driver_device
 {
 public:
 	poker72_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram(*this, "vram"),
-		m_pal(*this, "pal"){ }
+		m_pal(*this, "pal"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_vram;
 	required_shared_ptr<UINT8> m_pal;
@@ -34,6 +35,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_poker72(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -115,8 +117,8 @@ static ADDRESS_MAP_START( poker72_map, AS_PROGRAM, 8, poker72_state )
 	AM_RANGE(0xfe17, 0xfe17) AM_READNOP //irq ack
 	AM_RANGE(0xfe20, 0xfe20) AM_WRITE(output_w) //output, irq enable?
 	AM_RANGE(0xfe22, 0xfe22) AM_WRITE(tile_bank_w)
-	AM_RANGE(0xfe40, 0xfe40) AM_DEVREADWRITE_LEGACY("ay", ay8910_r, ay8910_data_w)
-	AM_RANGE(0xfe60, 0xfe60) AM_DEVWRITE_LEGACY("ay", ay8910_address_w)
+	AM_RANGE(0xfe40, 0xfe40) AM_DEVREADWRITE("ay", ay8910_device, data_r, data_w)
+	AM_RANGE(0xfe60, 0xfe60) AM_DEVWRITE("ay", ay8910_device, address_w)
 ADDRESS_MAP_END
 
 
@@ -343,9 +345,9 @@ static const ay8910_interface ay8910_config =
 
 void poker72_state::machine_reset()
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
-	machine().root_device().membank("bank1")->set_base(&ROM[0]);
+	membank("bank1")->set_base(&ROM[0]);
 }
 
 static MACHINE_CONFIG_START( poker72, poker72_state )
@@ -394,7 +396,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(poker72_state,poker72)
 {
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	rom[0x4a9] = 0x28;
 }

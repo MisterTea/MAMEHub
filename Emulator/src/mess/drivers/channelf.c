@@ -133,7 +133,7 @@ WRITE8_MEMBER( channelf_state::channelf_port_4_w )
 WRITE8_MEMBER( channelf_state::channelf_port_5_w )
 {
 	m_latch[3] = data;
-	channelf_sound_w(machine().device("custom"), (data>>6)&3);
+	m_custom->sound_w((data>>6)&3);
 	m_row_reg = (data | 0xc0) ^ 0xff;
 }
 
@@ -216,7 +216,7 @@ INPUT_PORTS_END
 
 
 
-static DEVICE_IMAGE_LOAD( channelf_cart )
+DEVICE_IMAGE_LOAD_MEMBER( channelf_state, channelf_cart )
 {
 	UINT32 size;
 
@@ -230,7 +230,7 @@ static DEVICE_IMAGE_LOAD( channelf_cart )
 			return IMAGE_INIT_FAIL;
 		}
 
-		if (image.fread( image.device().machine().root_device().memregion("maincpu")->base() + 0x0800, size) != size)
+		if (image.fread( memregion("maincpu")->base() + 0x0800, size) != size)
 		{
 			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Unable to fully read from file");
 			return IMAGE_INIT_FAIL;
@@ -240,7 +240,7 @@ static DEVICE_IMAGE_LOAD( channelf_cart )
 	else
 	{
 		size = image.get_software_region_length("rom");
-		memcpy(image.device().machine().root_device().memregion("maincpu")->base() + 0x0800, image.get_software_region("rom"), size);
+		memcpy(memregion("maincpu")->base() + 0x0800, image.get_software_region("rom"), size);
 	}
 
 	return IMAGE_INIT_PASS;
@@ -251,7 +251,7 @@ static MACHINE_CONFIG_FRAGMENT( channelf_cart )
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin,chf")
 	MCFG_CARTSLOT_INTERFACE("channelf_cart")
-	MCFG_CARTSLOT_LOAD(channelf_cart)
+	MCFG_CARTSLOT_LOAD(channelf_state,channelf_cart)
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","channelf")
@@ -277,7 +277,7 @@ static MACHINE_CONFIG_START( channelf, channelf_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("custom", CHANNELF, 0)
+	MCFG_SOUND_ADD("custom", CHANNELF_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_FRAGMENT_ADD( channelf_cart )
@@ -303,7 +303,7 @@ static MACHINE_CONFIG_START( sabavdpl, channelf_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("custom", CHANNELF, 0)
+	MCFG_SOUND_ADD("custom", CHANNELF_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_FRAGMENT_ADD( channelf_cart )
@@ -330,7 +330,7 @@ static MACHINE_CONFIG_START( channlf2, channelf_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("custom", CHANNELF, 0)
+	MCFG_SOUND_ADD("custom", CHANNELF_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
 	MCFG_FRAGMENT_ADD( channelf_cart )
@@ -357,7 +357,7 @@ static MACHINE_CONFIG_START( sabavpl2, channelf_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("custom", CHANNELF, 0)
+	MCFG_SOUND_ADD("custom", CHANNELF_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_FRAGMENT_ADD( channelf_cart )

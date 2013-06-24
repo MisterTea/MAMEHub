@@ -38,7 +38,6 @@ DIP locations verified for:
 
 INPUT_CHANGED_MEMBER(lasso_state::coin_inserted)
 {
-
 	/* coin insertion causes an NMI */
 	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? CLEAR_LINE : ASSERT_LINE);
 }
@@ -191,10 +190,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pinbo_audio_io_map, AS_IO, 8, lasso_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x02, 0x02) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x04, 0x05) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x06, 0x06) AM_DEVREAD_LEGACY("ay2", ay8910_r)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x02, 0x02) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x04, 0x05) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x06, 0x06) AM_DEVREAD("ay2", ay8910_device, data_r)
 	AM_RANGE(0x08, 0x08) AM_READ(soundlatch_byte_r) AM_WRITENOP /* ??? */
 	AM_RANGE(0x14, 0x14) AM_WRITENOP    /* ??? */
 ADDRESS_MAP_END
@@ -471,16 +470,11 @@ static const sn76496_config psg_intf =
 
 void lasso_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_gfxbank));
 }
 
 MACHINE_START_MEMBER(lasso_state,wwjgtin)
 {
-
 	lasso_state::machine_start();
 
 	save_item(NAME(m_track_enable));
@@ -488,13 +482,11 @@ MACHINE_START_MEMBER(lasso_state,wwjgtin)
 
 void lasso_state::machine_reset()
 {
-
 	m_gfxbank = 0;
 }
 
 MACHINE_RESET_MEMBER(lasso_state,wwjgtin)
 {
-
 	lasso_state::machine_reset();
 
 	m_track_enable = 0;

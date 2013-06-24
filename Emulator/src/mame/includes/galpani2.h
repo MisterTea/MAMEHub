@@ -1,4 +1,6 @@
 #include "video/kaneko_spr.h"
+#include "sound/okim6295.h"
+#include "machine/eeprom.h"
 
 class galpani2_state : public driver_device
 {
@@ -16,7 +18,9 @@ public:
 		m_maincpu(*this,"maincpu"),
 		m_subcpu(*this,"sub"),
 		m_kaneko_spr(*this, "kan_spr"),
-		m_spriteram(*this, "spriteram")
+		m_spriteram(*this, "spriteram"),
+		m_oki2(*this, "oki2"),
+		m_eeprom(*this, "eeprom")
 		{ }
 
 	required_shared_ptr_array<UINT16, 2> m_bg8;
@@ -53,14 +57,19 @@ public:
 	UINT32 screen_update_galpani2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(galpani2_interrupt1);
 	TIMER_DEVICE_CALLBACK_MEMBER(galpani2_interrupt2);
+	void galpani2_mcu_nmi1();
+	void galpani2_mcu_nmi2();
+	/*----------- defined in video/galpani2.c -----------*/
+	inline void galpani2_bg8_w(offs_t offset, UINT16 data, UINT16 mem_mask, int _n_);
+	inline void galpani2_palette_w(offs_t offset, UINT16 data, UINT16 mem_mask, int _n_);
+
+	DECLARE_WRITE16_MEMBER( galpani2_palette_0_w );
+	DECLARE_WRITE16_MEMBER( galpani2_palette_1_w );
+
+	DECLARE_WRITE16_MEMBER( galpani2_bg8_0_w );
+	DECLARE_WRITE16_MEMBER( galpani2_bg8_1_w );
+
+	DECLARE_WRITE16_MEMBER( galpani2_bg15_w );
+	required_device<okim6295_device> m_oki2;
+	required_device<eeprom_device> m_eeprom;
 };
-
-
-/*----------- defined in video/galpani2.c -----------*/
-DECLARE_WRITE16_HANDLER( galpani2_palette_0_w );
-DECLARE_WRITE16_HANDLER( galpani2_palette_1_w );
-
-DECLARE_WRITE16_HANDLER( galpani2_bg8_0_w );
-DECLARE_WRITE16_HANDLER( galpani2_bg8_1_w );
-
-DECLARE_WRITE16_HANDLER( galpani2_bg15_w );

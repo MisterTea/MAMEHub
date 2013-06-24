@@ -31,7 +31,7 @@ public:
 			m_pia_0( *this, "pia_0" ),
 			m_pia_1( *this, "pia_1" ),
 			m_sio( *this, "sio" ),
-			m_speaker( *this, SPEAKER_TAG )
+			m_speaker( *this, "speaker" )
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -124,7 +124,6 @@ public:
 
 WRITE8_MEMBER(osbexec_state::osbexec_0000_w)
 {
-
 	/* Font RAM writing is enabled when ROM bank is enabled */
 	if ( m_pia0_porta & 0x80 )
 	{
@@ -153,7 +152,6 @@ READ8_MEMBER(osbexec_state::osbexec_c000_r)
 
 WRITE8_MEMBER(osbexec_state::osbexec_c000_w)
 {
-
 	m_ram_c000[offset] = data;
 
 	if ( ( m_pia0_porta & 0x40 ) && offset < 0x1000 )
@@ -197,7 +195,6 @@ READ8_MEMBER(osbexec_state::osbexec_kbd_r)
 
 READ8_MEMBER(osbexec_state::osbexec_rtc_r)
 {
-
 	return m_rtc;
 }
 
@@ -217,7 +214,7 @@ static ADDRESS_MAP_START( osbexec_io, AS_IO, 8, osbexec_state )
 	AM_RANGE( 0x00, 0x03 ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE( "pia_0", pia6821_device, read, write)               /* 6821 PIA @ UD12 */
 	/* 0x04 - 0x07 - 8253 @UD1 */
 	AM_RANGE( 0x08, 0x0B ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE_LEGACY("mb8877", wd17xx_r, wd17xx_w )                /* MB8877 @ UB17 input clock = 1MHz */
-	AM_RANGE( 0x0C, 0x0F ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE_LEGACY("sio", z80dart_ba_cd_r, z80dart_ba_cd_w ) /* SIO @ UD4 */
+	AM_RANGE( 0x0C, 0x0F ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE("sio", z80sio2_device, ba_cd_r, ba_cd_w ) /* SIO @ UD4 */
 	AM_RANGE( 0x10, 0x13 ) AM_MIRROR( 0xff00 ) AM_DEVREADWRITE( "pia_1", pia6821_device, read, write)               /* 6821 PIA @ UD8 */
 	AM_RANGE( 0x14, 0x17 ) AM_MIRROR( 0xff00 ) AM_MASK( 0xff00 ) AM_READ(osbexec_kbd_r )                    /* KBD */
 	AM_RANGE( 0x18, 0x1b ) AM_MIRROR( 0xff00 ) AM_READ(osbexec_rtc_r )                                      /* "RTC" @ UE13/UF13 */
@@ -358,14 +355,12 @@ UINT32 osbexec_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap,
 
 READ8_MEMBER(osbexec_state::osbexec_pia0_a_r)
 {
-
 	return m_pia0_porta;
 }
 
 
 WRITE8_MEMBER(osbexec_state::osbexec_pia0_a_w)
 {
-
 	logerror("osbexec_pia0_a_w: %02x\n", data );
 
 	m_pia0_porta = data;
@@ -376,17 +371,15 @@ WRITE8_MEMBER(osbexec_state::osbexec_pia0_a_w)
 
 READ8_MEMBER(osbexec_state::osbexec_pia0_b_r)
 {
-
 	return m_pia0_portb;
 }
 
 
 WRITE8_MEMBER(osbexec_state::osbexec_pia0_b_w)
 {
-
 	m_pia0_portb = data;
 
-	speaker_level_w( m_speaker, ( data & 0x08 ) ? 0 : 1 );
+	m_speaker->level_w(!BIT(data, 3));
 
 	switch ( data & 0x06 )
 	{
@@ -410,14 +403,12 @@ WRITE_LINE_MEMBER(osbexec_state::osbexec_pia0_ca2_w)
 
 WRITE_LINE_MEMBER(osbexec_state::osbexec_pia0_cb2_w)
 {
-
 	m_pia0_cb2 = state;
 }
 
 
 WRITE_LINE_MEMBER(osbexec_state::osbexec_pia0_irq)
 {
-
 	m_pia0_irq_state = state;
 	update_irq_state(machine());
 }
@@ -442,7 +433,6 @@ static const pia6821_interface osbexec_pia0_config =
 
 WRITE_LINE_MEMBER(osbexec_state::osbexec_pia1_irq)
 {
-
 	m_pia1_irq_state = state;
 	update_irq_state(machine());
 }
@@ -465,7 +455,7 @@ static const pia6821_interface osbexec_pia1_config =
 };
 
 
-static Z80DART_INTERFACE( osbexec_sio_config )
+static Z80SIO_INTERFACE( osbexec_sio_config )
 {
 	0, 0, 0, 0,
 
@@ -608,7 +598,6 @@ TIMER_CALLBACK_MEMBER(osbexec_state::osbexec_video_callback)
 
 DRIVER_INIT_MEMBER(osbexec_state,osbexec)
 {
-
 	m_fontram_region = machine().memory().region_alloc( "fontram", 0x1000, 1, ENDIANNESS_LITTLE);
 	m_vram_region = machine().memory().region_alloc( "vram", 0x2000, 1, ENDIANNESS_LITTLE );
 	m_vram = m_vram_region->base();
@@ -624,7 +613,6 @@ DRIVER_INIT_MEMBER(osbexec_state,osbexec)
 
 void osbexec_state::machine_reset()
 {
-
 	m_pia0_porta = 0xC0;        /* Enable ROM and VRAM on reset */
 
 	set_banks( machine() );
@@ -656,7 +644,7 @@ static MACHINE_CONFIG_START( osbexec, osbexec_state )
 	MCFG_PALETTE_LENGTH( 3 )
 
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
 //  MCFG_PIT8253_ADD( "pit", osbexec_pit_config )

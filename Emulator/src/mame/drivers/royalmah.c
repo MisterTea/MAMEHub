@@ -104,10 +104,12 @@ public:
 	royalmah_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT8> m_videoram;
+	optional_device<cpu_device> m_audiocpu;
 	UINT8 m_input_port_select;
 	UINT8 m_dsw_select;
 	UINT8 m_rombank;
@@ -200,6 +202,8 @@ public:
 	INTERRUPT_GEN_MEMBER(suzume_irq);
 	INTERRUPT_GEN_MEMBER(mjtensin_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(janptr96_interrupt);
+	void mjtensin_update_rombank();
+	void cafetime_update_rombank();
 };
 
 
@@ -208,8 +212,8 @@ public:
 void royalmah_state::palette_init()
 {
 	offs_t i;
-	const UINT8 *prom = machine().root_device().memregion("proms")->base();
-	int len = machine().root_device().memregion("proms")->bytes();
+	const UINT8 *prom = memregion("proms")->base();
+	int len = memregion("proms")->bytes();
 
 	for (i = 0; i < len; i++)
 	{
@@ -243,8 +247,8 @@ void royalmah_state::palette_init()
 PALETTE_INIT_MEMBER(royalmah_state,mjderngr)
 {
 	offs_t i;
-	const UINT8 *prom = machine().root_device().memregion("proms")->base();
-	int len = machine().root_device().memregion("proms")->bytes();
+	const UINT8 *prom = memregion("proms")->base();
+	int len = memregion("proms")->bytes();
 
 	for (i = 0; i < len / 2; i++)
 	{
@@ -427,7 +431,7 @@ WRITE8_MEMBER(royalmah_state::mjapinky_palbank_w)
 READ8_MEMBER(royalmah_state::mjapinky_dsw_r)
 {
 	if (m_rombank == 0x0e)  return ioport("DSW3")->read();
-	else                    return *(machine().root_device().memregion("maincpu")->base() + 0x10000 + 0x8000 * m_rombank);
+	else                    return *(memregion("maincpu")->base() + 0x10000 + 0x8000 * m_rombank);
 }
 
 WRITE8_MEMBER(royalmah_state::tontonb_bank_w)
@@ -545,16 +549,16 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( royalmah_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ippatsu_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x12, 0x12 ) AM_READ_PORT("DSW2")
@@ -563,8 +567,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( suzume_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x80, 0x80 ) AM_READ(suzume_dsw_r )
@@ -573,8 +577,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( dondenmj_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x85, 0x85 ) AM_READ_PORT("DSW2") // DSW2
@@ -584,8 +588,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( makaijan_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x84, 0x84 ) AM_READ_PORT("DSW2") // DSW2
@@ -595,8 +599,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( daisyari_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0xc0, 0xc0 ) AM_READWRITE(daisyari_dsw_r, daisyari_bank_w )
@@ -605,16 +609,16 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( mjclub_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE( 0x00, 0x00 ) AM_READWRITE(mjclub_dsw_r, mjclub_bank_w )
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mjdiplob_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x61, 0x61 ) AM_WRITE(tontonb_bank_w)
@@ -624,8 +628,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( tontonb_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x44, 0x44 ) AM_WRITE(tontonb_bank_w )
@@ -635,8 +639,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( majs101b_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(royalmah_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x00, 0x00 ) AM_READWRITE(majs101b_dsw_r, dynax_bank_w )
@@ -644,8 +648,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mjderngr_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 //  AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1")
 	AM_RANGE( 0x10, 0x10 ) AM_WRITE(mjderngr_coin_w )   // palette bank is set separately
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
@@ -658,8 +662,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( mjapinky_iomap, AS_IO, 8, royalmah_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE( 0x00, 0x00 ) AM_WRITE(mjapinky_bank_w )
-	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x01, 0x01 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x02, 0x03 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x04, 0x04 ) AM_READ_PORT("DSW2")
 	AM_RANGE( 0x10, 0x10 ) AM_READ_PORT("DSW1") AM_WRITE(mjapinky_palbank_w )
 	AM_RANGE( 0x11, 0x11 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
@@ -767,7 +771,7 @@ READ8_MEMBER(royalmah_state::jansou_6405_r)
 WRITE8_MEMBER(royalmah_state::jansou_sound_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
@@ -867,8 +871,8 @@ static ADDRESS_MAP_START( janptr96_iomap, AS_IO, 8, royalmah_state )
 	AM_RANGE( 0x20, 0x20 ) AM_READWRITE(janptr96_unknown_r, janptr96_rambank_w )
 	AM_RANGE( 0x50, 0x50 ) AM_WRITE(mjderngr_palbank_w )
 	AM_RANGE( 0x60, 0x6f ) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
-	AM_RANGE( 0x81, 0x81 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x82, 0x83 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x81, 0x81 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x82, 0x83 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x93, 0x93 ) AM_WRITE(input_port_select_w )
 	AM_RANGE( 0xd8, 0xd8 ) AM_WRITE(janptr96_coin_counter_w )
 	AM_RANGE( 0xd9, 0xd9 ) AM_READ_PORT("SYSTEM")
@@ -889,7 +893,7 @@ WRITE8_MEMBER(royalmah_state::mjifb_coin_counter_w)
 READ8_MEMBER(royalmah_state::mjifb_rom_io_r)
 {
 	if (m_mjifb_rom_enable)
-		return ((UINT8*)(machine().root_device().memregion("maincpu")->base() + 0x10000 + m_rombank * 0x4000))[offset];
+		return ((UINT8*)(memregion("maincpu")->base() + 0x10000 + m_rombank * 0x4000))[offset];
 
 	offset += 0x8000;
 
@@ -897,7 +901,7 @@ READ8_MEMBER(royalmah_state::mjifb_rom_io_r)
 	{
 		case 0x8000:    return ioport("DSW4")->read();      // dsw 4
 		case 0x8200:    return ioport("DSW3")->read();      // dsw 3
-		case 0x9001:    return ay8910_r(machine().device("aysnd"), space, 0);   // inputs
+		case 0x9001:    return machine().device<ay8910_device>("aysnd")->data_r(space, 0);   // inputs
 		case 0x9011:    return ioport("SYSTEM")->read();
 	}
 
@@ -919,8 +923,8 @@ WRITE8_MEMBER(royalmah_state::mjifb_rom_io_w)
 	switch(offset)
 	{
 		case 0x8e00:    m_palette_base = data & 0x1f;   return;
-		case 0x9002:    ay8910_data_w(machine().device("aysnd"),space,0,data);          return;
-		case 0x9003:    ay8910_address_w(machine().device("aysnd"),space,0,data);       return;
+		case 0x9002:    machine().device<ay8910_device>("aysnd")->data_w(space,0,data);          return;
+		case 0x9003:    machine().device<ay8910_device>("aysnd")->address_w(space,0,data);       return;
 		case 0x9010:
 			mjifb_coin_counter_w(space,0,data);
 			return;
@@ -998,7 +1002,7 @@ ADDRESS_MAP_END
 READ8_MEMBER(royalmah_state::mjdejavu_rom_io_r)
 {
 	if (m_mjifb_rom_enable)
-		return ((UINT8*)(machine().root_device().memregion("maincpu")->base() + 0x10000 + m_rombank * 0x4000))[offset];
+		return ((UINT8*)(memregion("maincpu")->base() + 0x10000 + m_rombank * 0x4000))[offset];
 
 	offset += 0x8000;
 
@@ -1006,7 +1010,7 @@ READ8_MEMBER(royalmah_state::mjdejavu_rom_io_r)
 	{
 		case 0x8000:    return ioport("DSW2")->read();      // dsw 2
 		case 0x8001:    return ioport("DSW1")->read();      // dsw 1
-		case 0x9001:    return ay8910_r(machine().device("aysnd"), space, 0);   // inputs
+		case 0x9001:    return machine().device<ay8910_device>("aysnd")->data_r(space, 0);   // inputs
 		case 0x9011:    return ioport("SYSTEM")->read();
 	}
 
@@ -1027,8 +1031,8 @@ WRITE8_MEMBER(royalmah_state::mjdejavu_rom_io_w)
 	switch(offset)
 	{
 		case 0x8802:    m_palette_base = data & 0x1f;                   return;
-		case 0x9002:    ay8910_data_w(machine().device("aysnd"),space,0,data);      return;
-		case 0x9003:    ay8910_address_w(machine().device("aysnd"),space,0,data);   return;
+		case 0x9002:    machine().device<ay8910_device>("aysnd")->data_w(space,0,data);      return;
+		case 0x9003:    machine().device<ay8910_device>("aysnd")->address_w(space,0,data);   return;
 		case 0x9010:    mjifb_coin_counter_w(space,0,data);     return;
 		case 0x9011:    input_port_select_w(space,0,data);      return;
 		case 0x9013:
@@ -1056,27 +1060,26 @@ READ8_MEMBER(royalmah_state::mjtensin_p3_r)
 	return 0xff;
 }
 
-static void mjtensin_update_rombank(running_machine &machine)
+void royalmah_state::mjtensin_update_rombank()
 {
-	royalmah_state *state = machine.driver_data<royalmah_state>();
-	state->membank("bank1")->set_base(state->memregion("maincpu")->base() + 0x10000 + state->m_rombank * 0x8000 );
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000 + m_rombank * 0x8000 );
 }
 WRITE8_MEMBER(royalmah_state::mjtensin_p4_w)
 {
 	m_rombank = (m_rombank & 0xf0) | (data & 0x0f);
-	mjtensin_update_rombank(machine());
+	mjtensin_update_rombank();
 }
 WRITE8_MEMBER(royalmah_state::mjtensin_6ff3_w)
 {
 	m_rombank = (data << 4) | (m_rombank & 0x0f);
-	mjtensin_update_rombank(machine());
+	mjtensin_update_rombank();
 }
 
 static ADDRESS_MAP_START( mjtensin_map, AS_PROGRAM, 8, royalmah_state )
 	AM_RANGE( 0x0000, 0x5fff ) AM_ROM
 	AM_RANGE( 0x6000, 0x6fbf ) AM_RAM
-	AM_RANGE( 0x6fc1, 0x6fc1 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x6fc2, 0x6fc3 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x6fc1, 0x6fc1 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x6fc2, 0x6fc3 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x6fd0, 0x6fd0 ) AM_WRITE(janptr96_coin_counter_w )
 	AM_RANGE( 0x6fd1, 0x6fd1 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x6fe0, 0x6fef ) AM_DEVREADWRITE("rtc", msm6242_device, read, write)
@@ -1098,20 +1101,19 @@ ADDRESS_MAP_END
                                 Mahjong Cafe Time
 ****************************************************************************/
 
-static void cafetime_update_rombank(running_machine &machine)
+void royalmah_state::cafetime_update_rombank()
 {
-	royalmah_state *state = machine.driver_data<royalmah_state>();
-	state->membank("bank1")->set_base(state->memregion("maincpu")->base() + 0x10000 + state->m_rombank * 0x8000 );
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x10000 + m_rombank * 0x8000 );
 }
 WRITE8_MEMBER(royalmah_state::cafetime_p4_w)
 {
 	m_rombank = (m_rombank & 0xf0) | (data & 0x0f);
-	cafetime_update_rombank(machine());
+	cafetime_update_rombank();
 }
 WRITE8_MEMBER(royalmah_state::cafetime_p3_w)
 {
 	m_rombank = (m_rombank & 0x0f) | ((data & 0x0c) << 2);
-	cafetime_update_rombank(machine());
+	cafetime_update_rombank();
 }
 
 WRITE8_MEMBER(royalmah_state::cafetime_dsw_w)
@@ -1144,8 +1146,8 @@ WRITE8_MEMBER(royalmah_state::cafetime_7fe3_w)
 static ADDRESS_MAP_START( cafetime_map, AS_PROGRAM, 8, royalmah_state )
 	AM_RANGE( 0x0000, 0x5fff ) AM_ROM
 	AM_RANGE( 0x6000, 0x7eff ) AM_RAM AM_SHARE("nvram")
-	AM_RANGE( 0x7fc1, 0x7fc1 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x7fc2, 0x7fc3 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x7fc1, 0x7fc1 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x7fc2, 0x7fc3 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x7fd0, 0x7fd0 ) AM_WRITE(janptr96_coin_counter_w )
 	AM_RANGE( 0x7fd1, 0x7fd1 ) AM_READ_PORT("SYSTEM") AM_WRITENOP
 	AM_RANGE( 0x7fd3, 0x7fd3 ) AM_WRITE(input_port_select_w )
@@ -1248,8 +1250,8 @@ static ADDRESS_MAP_START( mjvegasa_map, AS_PROGRAM, 8, royalmah_state )
 	AM_RANGE( 0x06000, 0x07fff ) AM_RAM AM_SHARE("nvram")
 	AM_RANGE( 0x08000, 0x0ffff ) AM_READWRITE(mjvegasa_rom_io_r, mjvegasa_rom_io_w) AM_SHARE("videoram")
 
-	AM_RANGE( 0x10001, 0x10001 ) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
-	AM_RANGE( 0x10002, 0x10003 ) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w )
+	AM_RANGE( 0x10001, 0x10001 ) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE( 0x10002, 0x10003 ) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE( 0x10010, 0x10010 ) AM_WRITE(mjvegasa_coin_counter_w )
 	AM_RANGE( 0x10011, 0x10011 ) AM_READ_PORT("SYSTEM") AM_WRITE(input_port_select_w )
 	AM_RANGE( 0x10013, 0x10013 ) AM_WRITE(input_port_select_w )
@@ -3353,7 +3355,6 @@ MACHINE_CONFIG_END
 
 INTERRUPT_GEN_MEMBER(royalmah_state::mjtensin_interrupt)
 {
-
 	m_maincpu->set_input_line(INPUT_LINE_IRQ0, HOLD_LINE);  // vblank
 }
 
@@ -4713,7 +4714,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(royalmah_state,ippatsu)
 {
-	machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x8000 );
+	membank("bank1")->set_base(memregion("maincpu")->base() + 0x8000 );
 }
 
 DRIVER_INIT_MEMBER(royalmah_state,janptr96)

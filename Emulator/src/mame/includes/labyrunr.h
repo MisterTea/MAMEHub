@@ -9,6 +9,7 @@ class labyrunr_state : public driver_device
 public:
 	labyrunr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_k007121(*this, "k007121"),
 		m_maincpu(*this,"maincpu"),
 		m_scrollram(*this, "scrollram"),
 		m_paletteram(*this, "paletteram"),
@@ -17,7 +18,7 @@ public:
 		m_videoram2(*this, "videoram2"){ }
 
 	/* devices */
-	device_t *m_k007121;
+	required_device<k007121_device> m_k007121;
 
 	required_device<cpu_device> m_maincpu;
 	/* memory pointers */
@@ -44,4 +45,5 @@ public:
 	UINT32 screen_update_labyrunr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(labyrunr_vblank_interrupt);
 	INTERRUPT_GEN_MEMBER(labyrunr_timer_interrupt);
+	void set_pens(  );
 };

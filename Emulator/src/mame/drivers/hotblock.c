@@ -49,8 +49,9 @@ class hotblock_state : public driver_device
 {
 public:
 	hotblock_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_vram(*this, "vram"){ }
+		: driver_device(mconfig, type, tag),
+		m_vram(*this, "vram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_vram;
@@ -69,6 +70,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_hotblock(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(hotblocks_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -133,8 +135,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( hotblock_io, AS_IO, 8, hotblock_state )
 	AM_RANGE(0x0000, 0x0000) AM_WRITE(hotblock_port0_w)
 	AM_RANGE(0x0004, 0x0004) AM_READWRITE(hotblock_port4_r, hotblock_port4_w)
-	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0x8001, 0x8001) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0x8001, 0x8001) AM_DEVREAD("aysnd", ay8910_device, data_r)
 ADDRESS_MAP_END
 
 

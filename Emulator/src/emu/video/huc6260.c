@@ -30,9 +30,9 @@ PALETTE_INIT( huc6260 )
 
 	for ( i = 0; i < 512; i++ )
 	{
-		int r = ( ( i >> 3 ) & 7 ) << 5;
-		int g = ( ( i >> 6 ) & 7 ) << 5;
-		int b = ( ( i      ) & 7 ) << 5;
+		int r = pal3bit( ( i >> 3 ) & 7 );
+		int g = pal3bit( ( i >> 6 ) & 7 );
+		int b = pal3bit( ( i      ) & 7 );
 		int y = ( ( 66 * r + 129 * g + 25 * b + 128 ) >> 8 ) + 16;
 
 		palette_set_color_rgb( machine, i, r, g, b );
@@ -291,6 +291,7 @@ void huc6260_device::device_reset()
 	m_blur = 0;
 	m_pixels_per_clock = 4;
 	m_height = 263;
+	m_pixel_clock = 0;
 
 	m_last_v = m_screen->vpos();
 	m_last_h = m_screen->hpos();

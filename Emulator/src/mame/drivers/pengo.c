@@ -117,8 +117,6 @@ WRITE8_MEMBER(pengo_state::pengo_coin_counter_w)
 
 WRITE8_MEMBER(pengo_state::irq_mask_w)
 {
-
-
 	m_irq_mask = data & 1;
 }
 
@@ -372,7 +370,6 @@ static const namco_interface namco_config =
 
 INTERRUPT_GEN_MEMBER(pengo_state::vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }
@@ -692,9 +689,9 @@ DRIVER_INIT_MEMBER(pengo_state,penta)
 		{ 0x88,0x0a,0x82,0x00,0xa0,0x22,0xaa,0x28 },    /* ...1...1...0.... */
 		{ 0x88,0x0a,0x82,0x00,0xa0,0x22,0xaa,0x28 }     /* ...1...1...1.... */
 	};
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *decrypt = auto_alloc_array(machine(), UINT8, 0x8000);
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 	int A;
 
 	space.set_decrypted_region(0x0000, 0x7fff, decrypt);

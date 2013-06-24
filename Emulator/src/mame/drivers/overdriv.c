@@ -81,14 +81,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(overdriv_state::overdriv_cpuA_scanline)
 	/* TODO: irqs routines are TOO slow right now, it ends up firing spurious irqs for whatever reason (shared ram fighting?) */
 	/*       this is a temporary solution to get rid of deprecat lib and the crashes, but also makes the game timer to be too slow */
 	if(scanline == 256 && machine().primary_screen->frame_number() & 1) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line(4, HOLD_LINE);
+		m_maincpu->set_input_line(4, HOLD_LINE);
 	else if((scanline % 128) == 0) // timer irq
-		machine().device("maincpu")->execute().set_input_line(5, HOLD_LINE);
+		m_maincpu->set_input_line(5, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(overdriv_state::cpuB_interrupt)
 {
-
 	if (k053246_is_irq_enabled(m_k053246))
 		device.execute().set_input_line(4, HOLD_LINE);
 }
@@ -96,7 +95,6 @@ INTERRUPT_GEN_MEMBER(overdriv_state::cpuB_interrupt)
 
 WRITE16_MEMBER(overdriv_state::cpuA_ctrl_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		/* bit 0 probably enables the second 68000 */
@@ -135,14 +133,12 @@ WRITE16_MEMBER(overdriv_state::cpuB_ctrl_w)
 
 READ8_MEMBER(overdriv_state::overdriv_1_sound_r)
 {
-	device_t *device = machine().device("k053260_1");
-	return k053260_r(device, space, 2 + offset);
+	return m_k053260_1->k053260_r(space, 2 + offset);
 }
 
 READ8_MEMBER(overdriv_state::overdriv_2_sound_r)
 {
-	device_t *device = machine().device("k053260_2");
-	return k053260_r(device, space, 2 + offset);
+	return m_k053260_2->k053260_r(space, 2 + offset);
 }
 
 WRITE16_MEMBER(overdriv_state::overdriv_soundirq_w)
@@ -173,8 +169,8 @@ static ADDRESS_MAP_START( overdriv_master_map, AS_PROGRAM, 16, overdriv_state )
 	AM_RANGE(0x1c0000, 0x1c001f) AM_DEVWRITE8_LEGACY("k051316_1", k051316_ctrl_w, 0xff00)
 	AM_RANGE(0x1c8000, 0x1c801f) AM_DEVWRITE8_LEGACY("k051316_2", k051316_ctrl_w, 0xff00)
 	AM_RANGE(0x1d0000, 0x1d001f) AM_DEVWRITE_LEGACY("k053251", k053251_msb_w)
-	AM_RANGE(0x1d8000, 0x1d8003) AM_READ8(overdriv_1_sound_r, 0x00ff) AM_DEVWRITE8_LEGACY("k053260_1", k053260_w, 0x00ff)   /* K053260 */
-	AM_RANGE(0x1e0000, 0x1e0003) AM_READ8(overdriv_2_sound_r, 0x00ff) AM_DEVWRITE8_LEGACY("k053260_2", k053260_w, 0x00ff)   /* K053260 */
+	AM_RANGE(0x1d8000, 0x1d8003) AM_READ8(overdriv_1_sound_r, 0x00ff) AM_DEVWRITE8("k053260_1", k053260_device, k053260_w, 0x00ff)   /* K053260 */
+	AM_RANGE(0x1e0000, 0x1e0003) AM_READ8(overdriv_2_sound_r, 0x00ff) AM_DEVWRITE8("k053260_2", k053260_device, k053260_w, 0x00ff)   /* K053260 */
 	AM_RANGE(0x1e8000, 0x1e8001) AM_WRITE(overdriv_soundirq_w)
 	AM_RANGE(0x1f0000, 0x1f0001) AM_WRITE(cpuA_ctrl_w)  /* halt cpu B, coin counter, start lamp, other? */
 	AM_RANGE(0x1f8000, 0x1f8001) AM_WRITE(eeprom_w)
@@ -191,22 +187,22 @@ static ADDRESS_MAP_START( overdriv_slave_map, AS_PROGRAM, 16, overdriv_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x080000, 0x083fff) AM_RAM /* work RAM */
 	AM_RANGE(0x0c0000, 0x0c1fff) AM_RAM //AM_DEVREADWRITE_LEGACY("k053250_1", k053250_ram_r, k053250_ram_w)
-	AM_RANGE(0x100000, 0x10000f) AM_DEVREADWRITE("k053250_1", k053250_t, reg_r, reg_w)
-	AM_RANGE(0x108000, 0x10800f) AM_DEVREADWRITE("k053250_2", k053250_t, reg_r, reg_w)
+	AM_RANGE(0x100000, 0x10000f) AM_DEVREADWRITE("k053250_1", k053250_device, reg_r, reg_w)
+	AM_RANGE(0x108000, 0x10800f) AM_DEVREADWRITE("k053250_2", k053250_device, reg_r, reg_w)
 	AM_RANGE(0x118000, 0x118fff) AM_DEVREADWRITE_LEGACY("k053246", k053247_word_r, k053247_word_w)
 	AM_RANGE(0x120000, 0x120001) AM_DEVREAD_LEGACY("k053246", k053246_word_r)
 	AM_RANGE(0x128000, 0x128001) AM_READWRITE(cpuB_ctrl_r, cpuB_ctrl_w) /* enable K053247 ROM reading, plus something else */
 	AM_RANGE(0x130000, 0x130007) AM_DEVWRITE_LEGACY("k053246", k053246_word_w)
 	AM_RANGE(0x200000, 0x203fff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x208000, 0x20bfff) AM_RAM
-	AM_RANGE(0x218000, 0x219fff) AM_DEVREAD("k053250_1", k053250_t, rom_r)
-	AM_RANGE(0x220000, 0x221fff) AM_DEVREAD("k053250_2", k053250_t, rom_r)
+	AM_RANGE(0x218000, 0x219fff) AM_DEVREAD("k053250_1", k053250_device, rom_r)
+	AM_RANGE(0x220000, 0x221fff) AM_DEVREAD("k053250_2", k053250_device, rom_r)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( overdriv_sound_map, AS_PROGRAM, 8, overdriv_state )
 	AM_RANGE(0x0200, 0x0201) AM_DEVREADWRITE("ymsnd", ym2151_device,read,write)
-	AM_RANGE(0x0400, 0x042f) AM_DEVREADWRITE_LEGACY("k053260_1", k053260_r, k053260_w)
-	AM_RANGE(0x0600, 0x062f) AM_DEVREADWRITE_LEGACY("k053260_2", k053260_r, k053260_w)
+	AM_RANGE(0x0400, 0x042f) AM_DEVREADWRITE("k053260_1", k053260_device, k053260_r, k053260_w)
+	AM_RANGE(0x0600, 0x062f) AM_DEVREADWRITE("k053260_2", k053260_device, k053260_r, k053260_w)
 	AM_RANGE(0x0800, 0x0fff) AM_RAM
 	AM_RANGE(0x1000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -281,17 +277,6 @@ static const k051316_interface overdriv_k051316_intf_2 =
 
 void overdriv_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-	m_k051316_1 = machine().device("k051316_1");
-	m_k051316_2 = machine().device("k051316_2");
-	m_k053260_1 = machine().device("k053260_1");
-	m_k053260_2 = machine().device("k053260_2");
-	m_k053246 = machine().device("k053246");
-	m_k053251 = machine().device("k053251");
-
 	save_item(NAME(m_cpuB_ctrl));
 	save_item(NAME(m_sprite_colorbase));
 	save_item(NAME(m_zoom_colorbase));
@@ -300,7 +285,6 @@ void overdriv_state::machine_start()
 
 void overdriv_state::machine_reset()
 {
-
 	m_cpuB_ctrl = 0;
 	m_sprite_colorbase = 0;
 	m_zoom_colorbase[0] = 0;
@@ -309,7 +293,7 @@ void overdriv_state::machine_reset()
 	m_road_colorbase[1] = 0;
 
 	/* start with cpu B halted */
-	machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_subcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 static const k053252_interface overdriv_k053252_intf =
@@ -374,12 +358,12 @@ static MACHINE_CONFIG_START( overdriv, overdriv_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.5)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.5)
 
-	MCFG_SOUND_ADD("k053260_1", K053260, 3579545)
+	MCFG_K053260_ADD("k053260_1", 3579545)
 	MCFG_SOUND_CONFIG(k053260_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.35)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.35)
 
-	MCFG_SOUND_ADD("k053260_2", K053260, 3579545)
+	MCFG_K053260_ADD("k053260_2", 3579545)
 	MCFG_SOUND_CONFIG(k053260_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.35)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.35)

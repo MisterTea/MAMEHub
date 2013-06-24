@@ -142,7 +142,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_portmap, AS_IO, 8, ashnojoe_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x02, 0x02) AM_WRITE(adpcm_w)
 	AM_RANGE(0x04, 0x04) AM_READ(sound_latch_r)
 	AM_RANGE(0x06, 0x06) AM_READ(sound_latch_status_r)
@@ -270,68 +270,59 @@ static GFXDECODE_START( ashnojoe )
 GFXDECODE_END
 
 
-static void ym2203_irq_handler( device_t *device, int irq )
+WRITE_LINE_MEMBER(ashnojoe_state::ym2203_irq_handler)
 {
-	ashnojoe_state *state = device->machine().driver_data<ashnojoe_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE8_MEMBER(ashnojoe_state::ym2203_write_a)
 {
-	device_t *device = machine().device("msm");
 	/* This gets called at 8910 startup with 0xff before the 5205 exists, causing a crash */
 	if (data == 0xff)
 		return;
 
-	msm5205_reset_w(device, !(data & 0x01));
+	m_msm->reset_w(!(data & 0x01));
 }
 
 WRITE8_MEMBER(ashnojoe_state::ym2203_write_b)
 {
-	machine().root_device().membank("bank4")->set_entry(data & 0x0f);
+	membank("bank4")->set_entry(data & 0x0f);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(ashnojoe_state,ym2203_write_a),
-		DEVCB_DRIVER_MEMBER(ashnojoe_state,ym2203_write_b),
-	},
-	DEVCB_LINE(ym2203_irq_handler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(ashnojoe_state,ym2203_write_a),
+	DEVCB_DRIVER_MEMBER(ashnojoe_state,ym2203_write_b),
 };
 
-static void ashnojoe_vclk_cb( device_t *device )
+WRITE_LINE_MEMBER(ashnojoe_state::ashnojoe_vclk_cb)
 {
-	ashnojoe_state *state = device->machine().driver_data<ashnojoe_state>();
-	if (state->m_msm5205_vclk_toggle == 0)
+	if (m_msm5205_vclk_toggle == 0)
 	{
-		msm5205_data_w(device, state->m_adpcm_byte >> 4);
+		m_msm->data_w(m_adpcm_byte >> 4);
 	}
 	else
 	{
-		msm5205_data_w(device, state->m_adpcm_byte & 0xf);
-		state->m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_msm->data_w(m_adpcm_byte & 0xf);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 
-	state->m_msm5205_vclk_toggle ^= 1;
+	m_msm5205_vclk_toggle ^= 1;
 }
 
 static const msm5205_interface msm5205_config =
 {
-	ashnojoe_vclk_cb,
+	DEVCB_DRIVER_LINE_MEMBER(ashnojoe_state,ashnojoe_vclk_cb),
 	MSM5205_S48_4B
 };
 
 
 void ashnojoe_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_adpcm_byte));
 	save_item(NAME(m_soundlatch_status));
 	save_item(NAME(m_msm5205_vclk_toggle));
@@ -339,7 +330,6 @@ void ashnojoe_state::machine_start()
 
 void ashnojoe_state::machine_reset()
 {
-
 	m_adpcm_byte = 0;
 	m_soundlatch_status = 0;
 	m_msm5205_vclk_toggle = 0;
@@ -374,7 +364,8 @@ static MACHINE_CONFIG_START( ashnojoe, ashnojoe_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 4000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(ashnojoe_state, ym2203_irq_handler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.1)
 
 	MCFG_SOUND_ADD("msm", MSM5205, 384000)
@@ -458,11 +449,11 @@ ROM_END
 
 DRIVER_INIT_MEMBER(ashnojoe_state,ashnojoe)
 {
-	UINT8 *ROM = machine().root_device().memregion("adpcm")->base();
-	machine().root_device().membank("bank4")->configure_entries(0, 16, &ROM[0x00000], 0x8000);
+	UINT8 *ROM = memregion("adpcm")->base();
+	membank("bank4")->configure_entries(0, 16, &ROM[0x00000], 0x8000);
 
-	machine().root_device().membank("bank4")->set_entry(0);
+	membank("bank4")->set_entry(0);
 }
 
-GAME( 1990, scessjoe, 0,        ashnojoe, ashnojoe, ashnojoe_state, ashnojoe, ROT0, "Wave / Taito Corporation", "Success Joe (World)",   GAME_SUPPORTS_SAVE )
-GAME( 1990, ashnojoe, scessjoe, ashnojoe, ashnojoe, ashnojoe_state, ashnojoe, ROT0, "Wave / Taito Corporation", "Ashita no Joe (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1990, scessjoe, 0,        ashnojoe, ashnojoe, ashnojoe_state, ashnojoe, ROT0, "Taito Corporation / Wave", "Success Joe (World)",   GAME_SUPPORTS_SAVE )
+GAME( 1990, ashnojoe, scessjoe, ashnojoe, ashnojoe, ashnojoe_state, ashnojoe, ROT0, "Taito Corporation / Wave", "Ashita no Joe (Japan)", GAME_SUPPORTS_SAVE )

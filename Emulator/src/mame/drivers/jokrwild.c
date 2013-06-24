@@ -101,9 +101,10 @@ class jokrwild_state : public driver_device
 {
 public:
 	jokrwild_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
@@ -118,6 +119,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_jokrwild(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -456,9 +458,10 @@ static const pia6821_interface pia1_intf =
 *    CRTC Interface    *
 ************************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -555,7 +558,7 @@ DRIVER_INIT_MEMBER(jokrwild_state,jokrwild)
 *****************************************************************************/
 {
 	int i, offs;
-	UINT8 *srcp = machine().root_device().memregion( "maincpu" )->base();
+	UINT8 *srcp = memregion( "maincpu" )->base();
 
 	for (i = 0x8000; i < 0x10000; i++)
 	{

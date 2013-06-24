@@ -9,7 +9,7 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/konami/konami.h" /* for the callback and the firq irq definition */
+#include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "video/konicdev.h"
 #include "sound/2151intf.h"
 #include "includes/konamipt.h"
@@ -26,7 +26,6 @@ INTERRUPT_GEN_MEMBER(surpratk_state::surpratk_interrupt)
 
 READ8_MEMBER(surpratk_state::bankedram_r)
 {
-
 	if (m_videobank & 0x02)
 	{
 		if (m_videobank & 0x04)
@@ -42,7 +41,6 @@ READ8_MEMBER(surpratk_state::bankedram_r)
 
 WRITE8_MEMBER(surpratk_state::bankedram_w)
 {
-
 	if (m_videobank & 0x02)
 	{
 		if (m_videobank & 0x04)
@@ -58,7 +56,6 @@ WRITE8_MEMBER(surpratk_state::bankedram_w)
 
 WRITE8_MEMBER(surpratk_state::surpratk_videobank_w)
 {
-
 	logerror("%04x: videobank = %02x\n",space.device().safe_pc(),data);
 	/* bit 0 = select 053245 at 0000-07ff */
 	/* bit 1 = select palette at 0000-07ff */
@@ -68,7 +65,6 @@ WRITE8_MEMBER(surpratk_state::surpratk_videobank_w)
 
 WRITE8_MEMBER(surpratk_state::surpratk_5fc0_w)
 {
-
 	if ((data & 0xf4) != 0x10)
 		logerror("%04x: 3fc0 = %02x\n",space.device().safe_pc(),data);
 
@@ -184,11 +180,6 @@ void surpratk_state::machine_start()
 
 	m_generic_paletteram_8.allocate(0x1000);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_k053244 = machine().device("k053244");
-	m_k053251 = machine().device("k053251");
-	m_k052109 = machine().device("k052109");
-
 	save_item(NAME(m_videobank));
 	save_item(NAME(m_sprite_colorbase));
 	save_item(NAME(m_layer_colorbase));
@@ -199,7 +190,7 @@ void surpratk_state::machine_reset()
 {
 	int i;
 
-	konami_configure_set_lines(machine().device("maincpu"), surpratk_banking);
+	konami_configure_set_lines(m_maincpu, surpratk_banking);
 
 	for (i = 0; i < 3; i++)
 	{

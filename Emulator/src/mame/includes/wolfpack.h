@@ -1,9 +1,15 @@
 class wolfpack_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_PERIODIC
+	};
+
 	wolfpack_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_alpha_num_ram(*this, "alpha_num_ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_alpha_num_ram(*this, "alpha_num_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	int m_collision;
 	required_shared_ptr<UINT8> m_alpha_num_ram;
@@ -57,4 +63,12 @@ public:
 	UINT32 screen_update_wolfpack(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_wolfpack(screen_device &screen, bool state);
 	TIMER_CALLBACK_MEMBER(periodic_callback);
+	void draw_ship(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_torpedo(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_pt(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_water(colortable_t *colortable, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

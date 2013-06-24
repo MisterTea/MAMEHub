@@ -66,7 +66,8 @@ public:
 			m_blit_transpen(*this, "blit_transpen"),
 			m_leds0(*this, "leds0"),
 			m_leds1(*this, "leds1"),
-			m_leds2(*this, "leds2") { }
+			m_leds2(*this, "leds2") ,
+		m_maincpu(*this, "maincpu") { }
 
 	optional_shared_ptr<UINT16> m_nvram;
 	UINT8 *m_blit_buffer;
@@ -176,6 +177,7 @@ public:
 	UINT32 screen_update_blitz68k(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_blitz68k_noblit(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(steaser_mcu_sim);
+	required_device<cpu_device> m_maincpu;
 };
 
 /*************************************************************************************************************
@@ -583,7 +585,7 @@ READ16_MEMBER(blitz68k_state::test_r)
 WRITE16_MEMBER(blitz68k_state::irq_callback_w)
 {
 //  popmessage("%02x",data);
-	machine().device("maincpu")->execute().set_input_line(3, HOLD_LINE );
+	m_maincpu->set_input_line(3, HOLD_LINE );
 }
 
 WRITE16_MEMBER(blitz68k_state::sound_write_w)
@@ -1649,22 +1651,24 @@ static MC6845_ON_UPDATE_ADDR_CHANGED(crtc_addr)
 
 WRITE_LINE_MEMBER(blitz68k_state::crtc_vsync_irq1)
 {
-	machine().device("maincpu")->execute().set_input_line(1, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(1, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE_LINE_MEMBER(blitz68k_state::crtc_vsync_irq3)
 {
-	machine().device("maincpu")->execute().set_input_line(3, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(3, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE_LINE_MEMBER(blitz68k_state::crtc_vsync_irq5)
 {
-	machine().device("maincpu")->execute().set_input_line(5, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(5, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-const mc6845_interface mc6845_intf_irq1 =
+
+static MC6845_INTERFACE( mc6845_intf_irq1 )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	4,          /* number of pixels per video memory address */ /* Horizontal Display programmed to 160 characters */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -1676,9 +1680,10 @@ const mc6845_interface mc6845_intf_irq1 =
 	crtc_addr               /* update address callback */
 };
 
-const mc6845_interface mc6845_intf_irq3 =
+static MC6845_INTERFACE( mc6845_intf_irq3 )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	4,          /* number of pixels per video memory address */ /* Horizontal Display programmed to 160 characters */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -1690,9 +1695,10 @@ const mc6845_interface mc6845_intf_irq3 =
 	crtc_addr               /* update address callback */
 };
 
-const mc6845_interface mc6845_intf_irq5 =
+static MC6845_INTERFACE( mc6845_intf_irq5 )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	4,          /* number of pixels per video memory address */ /* Horizontal Display programmed to 160 characters */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -1765,14 +1771,14 @@ TIMER_DEVICE_CALLBACK_MEMBER(blitz68k_state::steaser_mcu_sim)
 //  for(i=0;i<8;i+=2)
 //      m_nvram[((0x8a0)+i)/2] = 0;
 	/*finally, read the inputs*/
-	m_nvram[0x89e/2] = machine().root_device().ioport("MENU")->read() & 0xffff;
-	m_nvram[0x8a0/2] = machine().root_device().ioport("STAT")->read() & 0xffff;
-	m_nvram[0x8a2/2] = machine().root_device().ioport("BET_DEAL")->read() & 0xffff;
-	m_nvram[0x8a4/2] = machine().root_device().ioport("TAKE_DOUBLE")->read() & 0xffff;
-	m_nvram[0x8a6/2] = machine().root_device().ioport("SMALL_BIG")->read() & 0xffff;
-	m_nvram[0x8a8/2] = machine().root_device().ioport("CANCEL_HOLD1")->read() & 0xffff;
-	m_nvram[0x8aa/2] = machine().root_device().ioport("HOLD2_HOLD3")->read() & 0xffff;
-	m_nvram[0x8ac/2] = machine().root_device().ioport("HOLD4_HOLD5")->read() & 0xffff;
+	m_nvram[0x89e/2] = ioport("MENU")->read() & 0xffff;
+	m_nvram[0x8a0/2] = ioport("STAT")->read() & 0xffff;
+	m_nvram[0x8a2/2] = ioport("BET_DEAL")->read() & 0xffff;
+	m_nvram[0x8a4/2] = ioport("TAKE_DOUBLE")->read() & 0xffff;
+	m_nvram[0x8a6/2] = ioport("SMALL_BIG")->read() & 0xffff;
+	m_nvram[0x8a8/2] = ioport("CANCEL_HOLD1")->read() & 0xffff;
+	m_nvram[0x8aa/2] = ioport("HOLD2_HOLD3")->read() & 0xffff;
+	m_nvram[0x8ac/2] = ioport("HOLD4_HOLD5")->read() & 0xffff;
 }
 
 
@@ -1990,7 +1996,7 @@ static MACHINE_CONFIG_START( maxidbl, blitz68k_state )
 	MCFG_RAMDAC_ADD("ramdac", ramdac_intf, ramdac_map)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("saa", SAA1099, XTAL_8MHz/2)
+	MCFG_SAA1099_ADD("saa", XTAL_8MHz/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -2780,7 +2786,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(blitz68k_state,bankrob)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0xb5e0/2] = 0x6028;
@@ -2795,7 +2801,7 @@ DRIVER_INIT_MEMBER(blitz68k_state,bankrob)
 
 DRIVER_INIT_MEMBER(blitz68k_state,bankroba)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0x11e4e/2] = 0x6028;
@@ -2810,7 +2816,7 @@ DRIVER_INIT_MEMBER(blitz68k_state,bankroba)
 
 DRIVER_INIT_MEMBER(blitz68k_state,cj3play)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0x7064/2] = 0x6028;
@@ -2826,7 +2832,7 @@ DRIVER_INIT_MEMBER(blitz68k_state,cj3play)
 
 DRIVER_INIT_MEMBER(blitz68k_state,cjffruit)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0xf564/2] = 0x6028;
@@ -2837,7 +2843,7 @@ DRIVER_INIT_MEMBER(blitz68k_state,cjffruit)
 
 DRIVER_INIT_MEMBER(blitz68k_state,deucesw2)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0x8fe4/2] = 0x6020;
@@ -2848,7 +2854,7 @@ DRIVER_INIT_MEMBER(blitz68k_state,deucesw2)
 
 DRIVER_INIT_MEMBER(blitz68k_state,dualgame)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0xa518/2] = 0x6024;
@@ -2859,7 +2865,7 @@ DRIVER_INIT_MEMBER(blitz68k_state,dualgame)
 
 DRIVER_INIT_MEMBER(blitz68k_state,hermit)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0xdeba/2] = 0x602e;
@@ -2876,7 +2882,7 @@ DRIVER_INIT_MEMBER(blitz68k_state,hermit)
 
 DRIVER_INIT_MEMBER(blitz68k_state,maxidbl)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0xb384/2] = 0x6036;
@@ -2887,7 +2893,7 @@ DRIVER_INIT_MEMBER(blitz68k_state,maxidbl)
 
 DRIVER_INIT_MEMBER(blitz68k_state,megadblj)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0xe21c/2] = 0x6040;
@@ -2898,7 +2904,7 @@ DRIVER_INIT_MEMBER(blitz68k_state,megadblj)
 
 DRIVER_INIT_MEMBER(blitz68k_state,megadble)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 
 	// WRONG C8 #1
 	ROM[0xcfc2/2] = 0x4e71;

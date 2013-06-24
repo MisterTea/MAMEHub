@@ -100,11 +100,11 @@ VIDEO_START_MEMBER(midtunit_state,midtunit)
 	dma_state.gfxrom = m_gfxrom->base();
 
 	/* register for state saving */
-	state_save_register_global(machine(), midtunit_control);
-	state_save_register_global_array(machine(), gfxbank_offset);
-	state_save_register_global_pointer(machine(), local_videoram, 0x100000/sizeof(local_videoram[0]));
-	state_save_register_global(machine(), videobank_select);
-	state_save_register_global_array(machine(), dma_register);
+	save_item(NAME(midtunit_control));
+	save_item(NAME(gfxbank_offset));
+	save_pointer(NAME(local_videoram), 0x100000/sizeof(local_videoram[0]));
+	save_item(NAME(videobank_select));
+	save_item(NAME(dma_register));
 }
 
 
@@ -588,10 +588,17 @@ DECLARE_BLITTER_SET(dma_draw_noskip_noscale,   dma_state.bpp, EXTRACTGEN,   SKIP
  *
  *************************************/
 
-TIMER_CALLBACK_MEMBER(midtunit_state::dma_callback)
+void midtunit_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	dma_register[DMA_COMMAND] &= ~0x8000; /* tell the cpu we're done */
-	machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_DMA:
+		dma_register[DMA_COMMAND] &= ~0x8000; /* tell the cpu we're done */
+		m_maincpu->set_input_line(0, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in midtunit_state::device_timer");
+	}
 }
 
 
@@ -681,7 +688,7 @@ WRITE16_MEMBER(midtunit_state::midtunit_dma_w)
 
 	/* high bit triggers action */
 	command = dma_register[DMA_COMMAND];
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 	if (!(command & 0x8000))
 		return;
 
@@ -791,7 +798,7 @@ if (LOG_DMA)
 
 	/* signal we're done */
 skipdma:
-	machine().scheduler().timer_set(attotime::from_nsec(41 * pixels), timer_expired_delegate(FUNC(midtunit_state::dma_callback),this));
+	timer_set(attotime::from_nsec(41 * pixels), TIMER_DMA);
 
 	g_profiler.stop();
 }

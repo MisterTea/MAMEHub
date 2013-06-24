@@ -19,15 +19,16 @@ The MAMEHub Emulator is a fork of MAME that adds a fully-connected peer-to-peer 
 2. Open terminal, go to the SDL directory
 3. run ./configure --prefix=SDL_INSTALL_DIRECTORY  (replace with an empty directory name)
 4. run make install
-5. In the same terminal, go to the MAMEHub/Emulator directory
-6. run export PATH=SDL_INSTALL_DIRECTORY/bin:$PATH
-7. run export MACOSX_DEPLOYMENT_TARGET=10.5
-8. run make -j8 MACOSX_USE_LIBSDL=1 PTR64=1 NOWERROR=1 TARGET=ume PROFILER=1 SYMBOLS=1 OPTIMIZE=3 CC=/usr/bin/clang LD=/usr/bin/clang++ AR=/usr/bin/ar
-9. You should now have a csume64 file which is the emulator binary.
+5. Download and install yasm from http://yasm.tortall.net/
+6. In the same terminal, go to the MAMEHub/Emulator directory
+7. run export PATH=SDL_INSTALL_DIRECTORY/bin:$PATH
+8. run export MACOSX_DEPLOYMENT_TARGET=10.5
+9. run make -j8 MACOSX_USE_LIBSDL=1 PTR64=1 NOWERROR=1 TARGET=ume PROFILER=1 SYMBOLS=1 OPTIMIZE=3 CC=/usr/bin/clang LD=/usr/bin/clang++ AR=/usr/bin/ar
+10. You should now have a csume64 file which is the emulator binary.
 
 ### Linux
 
-1. Install sdl using a package manager
+1. Install sdl and yasm using a package manager
 2. Open a terminal and go to the MAMEHub/Emulator directory
 3. run make -j8 NOWERROR=1 TARGET=ume
 4. You should now have a csume or csume64 file which is the emulator binary.
@@ -35,6 +36,7 @@ The MAMEHub Emulator is a fork of MAME that adds a fully-connected peer-to-peer 
 ### Windows
 
 1. Download the mamedev tools from http://www.mamedev.org/tools/
+2. Download yasm from http://yasm.tortall.net/ .  Rename yasm to "yasm.exe" and put in your path.
 2. Follow the instructions on that page up to the make command
 3. Replace make command with make -j8 NOWERROR=1 TARGET=ume
 4. You should now have a csume.exe which is the emulator binary

@@ -9,11 +9,13 @@ class exprraid_state : public driver_device
 {
 public:
 	exprraid_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_main_ram(*this, "main_ram"),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu"),
+		m_slave(*this, "slave"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_main_ram;
@@ -30,8 +32,8 @@ public:
 	//int          m_coin;    // used in the commented out INTERRUPT_GEN - can this be removed?
 
 	/* devices */
-	cpu_device *m_maincpu;
-	device_t *m_slave;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_slave;
 	DECLARE_READ8_MEMBER(exprraid_protection_r);
 	DECLARE_WRITE8_MEMBER(sound_cpu_command_w);
 	DECLARE_READ8_MEMBER(vblank_r);
@@ -55,4 +57,6 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_exprraid(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(exprraid_interrupt);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void exprraid_gfx_expand();
 };

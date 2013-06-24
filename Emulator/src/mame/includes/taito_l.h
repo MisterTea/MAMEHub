@@ -1,3 +1,5 @@
+#include "sound/msm5205.h"
+#include "sound/2203intf.h"
 
 #define TAITOL_SPRITERAM_SIZE 0x400
 
@@ -5,7 +7,12 @@ class taitol_state : public driver_device
 {
 public:
 	taitol_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_msm(*this, "msm")
+	{
+	}
 
 	/* memory pointers */
 	UINT8 *       m_shared_ram;
@@ -21,7 +28,7 @@ public:
 	int m_flipscreen;
 
 	/* misc */
-	void (*m_current_notifier[4])(running_machine &, int);
+	void (taitol_state::*m_current_notifier[4])(int);
 	UINT8 *m_current_base[4];
 
 	int m_cur_rombank;
@@ -52,8 +59,9 @@ public:
 	const char *m_portf1_tag;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<msm5205_device> m_msm;
 
 	/* memory buffers */
 	UINT8         m_rambanks[0x1000 * 12];
@@ -122,19 +130,24 @@ public:
 	UINT32 screen_update_taitol(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_taitol(screen_device &screen, bool state);
 	TIMER_DEVICE_CALLBACK_MEMBER(vbl_interrupt);
+	IRQ_CALLBACK_MEMBER(irq_callback);
+	void taitol_chardef14_m( int offset );
+	void taitol_chardef15_m( int offset );
+	void taitol_chardef16_m( int offset );
+	void taitol_chardef17_m( int offset );
+	void taitol_chardef1c_m( int offset );
+	void taitol_chardef1d_m( int offset );
+	void taitol_chardef1e_m( int offset );
+	void taitol_chardef1f_m( int offset );
+	void taitol_bg18_m( int offset );
+	void taitol_bg19_m( int offset );
+	void taitol_char1a_m( int offset );
+	void taitol_obj1b_m( int offset );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void palette_notifier(int addr);
+	void state_register(  );
+	void taito_machine_reset();
+	void bank_w(address_space &space, offs_t offset, UINT8 data, int banknum );
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	DECLARE_WRITE_LINE_MEMBER(champwr_msm5205_vck);
 };
-
-/*----------- defined in video/taito_l.c -----------*/
-
-void taitol_chardef14_m(running_machine &machine, int offset);
-void taitol_chardef15_m(running_machine &machine, int offset);
-void taitol_chardef16_m(running_machine &machine, int offset);
-void taitol_chardef17_m(running_machine &machine, int offset);
-void taitol_chardef1c_m(running_machine &machine, int offset);
-void taitol_chardef1d_m(running_machine &machine, int offset);
-void taitol_chardef1e_m(running_machine &machine, int offset);
-void taitol_chardef1f_m(running_machine &machine, int offset);
-void taitol_bg18_m(running_machine &machine, int offset);
-void taitol_bg19_m(running_machine &machine, int offset);
-void taitol_char1a_m(running_machine &machine, int offset);
-void taitol_obj1b_m(running_machine &machine, int offset);

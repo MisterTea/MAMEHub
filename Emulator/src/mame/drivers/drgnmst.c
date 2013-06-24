@@ -50,7 +50,6 @@ WRITE16_MEMBER(drgnmst_state::drgnmst_coin_w)
 
 WRITE16_MEMBER(drgnmst_state::drgnmst_snd_command_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		m_snd_command = (data & 0xff);
@@ -60,7 +59,6 @@ WRITE16_MEMBER(drgnmst_state::drgnmst_snd_command_w)
 
 WRITE16_MEMBER(drgnmst_state::drgnmst_snd_flag_w)
 {
-
 	/* Enables the following 68K write operation to latch through to the PIC */
 	if (ACCESSING_BITS_0_7)
 		m_snd_flag = 1;
@@ -371,7 +369,6 @@ GFXDECODE_END
 
 void drgnmst_state::machine_start()
 {
-
 	save_item(NAME(m_snd_flag));
 	save_item(NAME(m_snd_command));
 	save_item(NAME(m_oki_control));
@@ -383,7 +380,6 @@ void drgnmst_state::machine_start()
 
 void drgnmst_state::machine_reset()
 {
-
 	m_snd_flag = 0;
 	m_snd_command = 0;
 	m_oki_control = 0;
@@ -467,7 +463,7 @@ ROM_START( drgnmst )
 ROM_END
 
 
-static UINT8 drgnmst_asciitohex( UINT8 data )
+UINT8 drgnmst_state::drgnmst_asciitohex( UINT8 data )
 {
 	/* Convert ASCII data to HEX */
 
@@ -481,9 +477,9 @@ static UINT8 drgnmst_asciitohex( UINT8 data )
 
 DRIVER_INIT_MEMBER(drgnmst_state,drgnmst)
 {
-	UINT8 *drgnmst_PICROM_HEX = machine().root_device().memregion("user1")->base();
-	UINT16 *drgnmst_PICROM = (UINT16 *)machine().root_device().memregion("audiocpu")->base();
-	UINT8 *drgnmst_PCM = machine().root_device().memregion("oki1")->base();
+	UINT8 *drgnmst_PICROM_HEX = memregion("user1")->base();
+	UINT16 *drgnmst_PICROM = (UINT16 *)memregion("audiocpu")->base();
+	UINT8 *drgnmst_PCM = memregion("oki1")->base();
 	INT32   offs, data;
 	UINT16  src_pos = 0;
 	UINT16  dst_pos = 0;
@@ -549,7 +545,7 @@ DRIVER_INIT_MEMBER(drgnmst_state,drgnmst)
 			data_lo = drgnmst_asciitohex((drgnmst_PICROM_HEX[src_pos + 3]));
 			data |= (data_hi << 12) | (data_lo << 8);
 
-			pic16c5x_set_config(machine().device("audiocpu"), data);
+			pic16c5x_set_config(m_audiocpu, data);
 
 			src_pos = 0x7fff;       /* Force Exit */
 		}

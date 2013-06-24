@@ -180,15 +180,16 @@ static VIDEO_START( cga_poisk2 );
 static SCREEN_UPDATE_RGB32( cga_poisk2 );
 static VIDEO_START( cga_mc1502 );
 
-static const mc6845_interface mc6845_cga_intf =
+static MC6845_INTERFACE( mc6845_cga_intf )
 {
-	CGA_SCREEN_NAME,    /* screen number */
-	8,                  /* numbers of pixels per video memory address */
-	NULL,               /* begin_update */
-	cga_update_row,     /* update_row */
-	NULL,               /* end_update */
-	DEVCB_NULL,             /* on_de_changed */
-	DEVCB_NULL,             /* on_cur_changed */
+	CGA_SCREEN_NAME,                /* screen number */
+	false,                          /* show border area */
+	8,                              /* numbers of pixels per video memory address */
+	NULL,                           /* begin_update */
+	cga_update_row,                 /* update_row */
+	NULL,                           /* end_update */
+	DEVCB_NULL,                     /* on_de_changed */
+	DEVCB_NULL,                     /* on_cur_changed */
 	DEVCB_LINE(cga_hsync_changed),  /* on_hsync_changed */
 	DEVCB_LINE(cga_vsync_changed),  /* on_vsync_changed */
 	NULL
@@ -361,6 +362,7 @@ static VIDEO_START( pc_cga )
 	internal_pc_cga_video_start(machine);
 	cga.videoram_size = 0x4000;
 	cga.videoram = auto_alloc_array(machine, UINT8, 0x4000);
+	memset(cga.videoram, 0, sizeof(UINT8) * 0x4000);
 	cga.is_superimpose = 0;
 
 	machine.root_device().membank("bank11")->set_base(cga.videoram);

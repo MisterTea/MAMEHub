@@ -42,7 +42,7 @@ public:
 	pv2000_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
-	m_cass(*this, CASSETTE_TAG),
+	m_cass(*this, "cassette"),
 	m_last_state(0)
 	{ }
 
@@ -62,6 +62,7 @@ public:
 	UINT8 m_cass_conf;
 	virtual void machine_start();
 	virtual void machine_reset();
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( pv2000_cart );
 };
 
 
@@ -84,7 +85,7 @@ WRITE8_MEMBER( pv2000_state::pv2000_keys_w )
 
 	m_keyb_column = data & 0x0f;
 
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 }
 
 
@@ -307,7 +308,7 @@ WRITE_LINE_MEMBER( pv2000_state::pv2000_vdp_interrupt )
 {
 	// only if it goes up
 	if (state && !m_last_state)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 
 	m_last_state = state;
 
@@ -328,7 +329,7 @@ WRITE_LINE_MEMBER( pv2000_state::pv2000_vdp_interrupt )
 			| ioport( "IN8" )->read();
 
 		if ( key_pressed && m_key_pressed != key_pressed )
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 
 		m_key_pressed = key_pressed;
 	}
@@ -369,18 +370,17 @@ void pv2000_state::machine_start()
 
 void pv2000_state::machine_reset()
 {
-
 	m_last_state = 0;
 	m_key_pressed = 0;
 	m_keyb_column = 0;
 
-	machine().device("maincpu")->execute().set_input_line_vector(INPUT_LINE_IRQ0, 0xff);
+	m_maincpu->set_input_line_vector(INPUT_LINE_IRQ0, 0xff);
 	memset(&memregion("maincpu")->base()[0x7000], 0xff, 0x1000);    // initialize RAM
 }
 
-static DEVICE_IMAGE_LOAD( pv2000_cart )
+DEVICE_IMAGE_LOAD_MEMBER( pv2000_state, pv2000_cart )
 {
-	UINT8 *cart = image.device().machine().root_device().memregion("maincpu")->base() + 0xC000;
+	UINT8 *cart = memregion("maincpu")->base() + 0xC000;
 	UINT32 size;
 
 	if (image.software_entry() == NULL)
@@ -437,17 +437,17 @@ static MACHINE_CONFIG_START( pv2000, pv2000_state )
 	MCFG_SOUND_ADD("sn76489a", SN76489A, XTAL_7_15909MHz/2) /* 3.579545 MHz */
 	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, pv2000_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", pv2000_cassette_interface )
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom,col,bin")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(pv2000_cart)
+	MCFG_CARTSLOT_LOAD(pv2000_state,pv2000_cart)
 	MCFG_CARTSLOT_INTERFACE("pv2000_cart")
 
 	/* Software lists */

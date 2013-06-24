@@ -52,7 +52,7 @@ class m20_state : public driver_device
 {
 public:
 	m20_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_ram(*this, RAM_TAG),
 		m_kbdi8251(*this, "i8251_1"),
@@ -108,6 +108,7 @@ public:
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
 
 	void fdc_intrq_w(bool state);
+	IRQ_CALLBACK_MEMBER(m20_irq_callback);
 };
 
 
@@ -239,12 +240,12 @@ WRITE16_MEMBER(m20_state::port21_w)
 
 READ16_MEMBER(m20_state::m20_i8259_r)
 {
-	return pic8259_r(m_i8259, space, offset)<<1;
+	return m_i8259->read(space, offset)<<1;
 }
 
 WRITE16_MEMBER(m20_state::m20_i8259_w)
 {
-	pic8259_w(m_i8259, space, offset, (data>>1));
+	m_i8259->write(space, offset, (data>>1));
 }
 
 WRITE_LINE_MEMBER( m20_state::pic_irq_line_w )
@@ -388,8 +389,8 @@ void m20_state::install_memory()
 
 	m_memsize = m_ram->size();
 	UINT8 *memptr = m_ram->pointer();
-	address_space& pspace = machine().device("maincpu")->memory().space(AS_PROGRAM);
-	address_space& dspace = machine().device("maincpu")->memory().space(AS_DATA);
+	address_space& pspace = m_maincpu->space(AS_PROGRAM);
+	address_space& dspace = m_maincpu->space(AS_DATA);
 
 	/* install mainboard memory (aka DRAM0) */
 
@@ -419,8 +420,8 @@ void m20_state::install_memory()
 	pspace.install_readwrite_bank(0x24000, 0x27fff, 0x3fff, 0, "dram0_18000");
 	dspace.install_readwrite_bank(0x24000, 0x27fff, 0x3fff, 0, "dram0_18000");
 	/* <2>8000 */
-	pspace.install_readwrite_bank(0x28000, 0x28fff, 0x3fff, 0, "dram0_1c000");
-	dspace.install_readwrite_bank(0x28000, 0x28fff, 0x3fff, 0, "dram0_1c000");
+	pspace.install_readwrite_bank(0x28000, 0x2bfff, 0x3fff, 0, "dram0_1c000");
+	dspace.install_readwrite_bank(0x28000, 0x2bfff, 0x3fff, 0, "dram0_1c000");
 	/* <2>c000 empty*/
 	/* <3>0000 (video buffer)
 	pspace.install_readwrite_bank(0x30000, 0x33fff, 0x3fff, 0, "dram0_0000");
@@ -474,11 +475,9 @@ void m20_state::install_memory()
 	state->membank("dram0_1c000")->set_base(memptr + 0x1c000);
 
 	if (m_memsize > 128 * 1024) {
-
 		/* install memory expansions (DRAM1..DRAM3) */
 
 		if (m_memsize < 256 * 1024) {
-
 			/* 32K expansion cards */
 
 			/* DRAM1, 32K */
@@ -490,7 +489,7 @@ void m20_state::install_memory()
 			*/
 			pspace.install_readwrite_bank(0x2c000, 0x2ffff, 0x3fff, 0, "dram1_0000");
 			pspace.install_readwrite_bank(0x88000, 0x8bfff, 0x3fff, 0, "dram1_4000");
-			pspace.install_readwrite_bank(0xa8000, 0xaffff, 0x3fff, 0, "dram1_4000");
+			pspace.install_readwrite_bank(0xa8000, 0xabfff, 0x3fff, 0, "dram1_4000");
 
 			/*
 			  data
@@ -565,7 +564,6 @@ void m20_state::install_memory()
 			}
 		}
 		else {
-
 			/* 128K expansion cards */
 
 			/* DRAM1, 128K */
@@ -772,7 +770,7 @@ static ADDRESS_MAP_START(m20_io, AS_IO, 16, m20_state)
 	AM_RANGE(0xc0, 0xc1) AM_DEVREADWRITE8("i8251_2", i8251_device, data_r, data_w, 0x00ff)
 	AM_RANGE(0xc2, 0xc3) AM_DEVREADWRITE8("i8251_2", i8251_device, status_r, control_w, 0x00ff)
 
-	AM_RANGE(0x120, 0x127) AM_DEVREADWRITE8_LEGACY("pit8253", pit8253_r, pit8253_w, 0x00ff)
+	AM_RANGE(0x120, 0x127) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0x00ff)
 
 	AM_RANGE(0x140, 0x143) AM_READWRITE(m20_i8259_r, m20_i8259_w)
 
@@ -801,12 +799,12 @@ DRIVER_INIT_MEMBER(m20_state,m20)
 {
 }
 
-static IRQ_CALLBACK( m20_irq_callback )
+IRQ_CALLBACK_MEMBER(m20_state::m20_irq_callback)
 {
 	if (! irqline)
 		return 0xff; // NVI, value ignored
 	else
-		return pic8259_acknowledge(device->machine().device("i8259"));
+		return m_i8259->acknowledge();
 }
 
 void m20_state::machine_start()
@@ -818,7 +816,7 @@ void m20_state::machine_start()
 
 void m20_state::machine_reset()
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 	UINT8 *RAM = (UINT8 *)(m_ram->pointer() + 0x4000);
 
 	if (m_memsize >= 256 * 1024)
@@ -826,7 +824,7 @@ void m20_state::machine_reset()
 	else
 		m_port21 = 0xff;
 
-	m_maincpu->set_irq_acknowledge_callback(m20_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(m20_state::m20_irq_callback),this));
 
 	m_fd1797->reset();
 
@@ -834,9 +832,11 @@ void m20_state::machine_reset()
 	m_maincpu->reset();     // reset the CPU to ensure it picks up the new vector
 }
 
-static const mc6845_interface mc6845_intf =
+
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	16,         /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -860,12 +860,12 @@ static I8255A_INTERFACE( ppi_interface )
 
 WRITE_LINE_MEMBER(m20_state::kbd_rxrdy_int)
 {
-	pic8259_ir4_w(machine().device("i8259"), state);
+	m_i8259->ir4_w(state);
 }
 
 void m20_state::fdc_intrq_w(bool state)
 {
-	pic8259_ir0_w(machine().device("i8259"), state);
+	m_i8259->ir0_w(state);
 }
 
 static const i8251_interface kbd_i8251_intf =
@@ -900,7 +900,8 @@ static unsigned char kbxlat[] =
 	'o',   'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3',
 	'4',   '5', '6', '7', '8', '9', '-', '^', '@', '[', ';', ':', ']', ',', '.', '/',
 	0x00,  '<', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-	'O',   'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
+	'O',   'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '_', '!', '"', '#',
+	'$',   '%', '&', '\'','(', ')', '=', 'x', 'x', '{', '+', '*', '}'
 };
 
 WRITE8_MEMBER( m20_state::kbd_put )
@@ -910,7 +911,6 @@ WRITE8_MEMBER( m20_state::kbd_put )
 		else if (data == 0x20) data = 0xc0;
 		else if (data == 8) data = 0x69; /* ^H */
 		else if (data == 3) data = 0x64; /* ^C */
-		else if (data >= '0' && data <= '9') data += 0x1c - '0';
 		else {
 			int i;
 			for (i = 0; i < sizeof(kbxlat); i++)
@@ -929,7 +929,7 @@ static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
 	DEVCB_DRIVER_MEMBER(m20_state, kbd_put)
 };
 
-const struct pit8253_config pit8253_intf =
+const struct pit8253_interface pit8253_intf =
 {
 	{
 		{
@@ -950,13 +950,6 @@ const struct pit8253_config pit8253_intf =
 	}
 };
 
-const struct pic8259_interface pic_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(m20_state, pic_irq_line_w),
-	DEVCB_LINE_VCC, // we're the only 8259, so we're the master
-	DEVCB_NULL
-};
-
 static SLOT_INTERFACE_START( m20_floppies )
 	SLOT_INTERFACE( "5dd", FLOPPY_525_DD )
 SLOT_INTERFACE_END
@@ -974,6 +967,7 @@ static MACHINE_CONFIG_START( m20, m20_state )
 
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("160K")
+	MCFG_RAM_DEFAULT_VALUE(0)
 	MCFG_RAM_EXTRA_OPTIONS("128K,192K,224K,256K,384K,512K")
 
 #if 0
@@ -995,16 +989,18 @@ static MACHINE_CONFIG_START( m20, m20_state )
 
 	/* Devices */
 	MCFG_FD1797x_ADD("fd1797", 1000000)
-	MCFG_FLOPPY_DRIVE_ADD("fd1797:0", m20_floppies, "5dd", NULL, m20_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fd1797:1", m20_floppies, "5dd", NULL, m20_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd1797:0", m20_floppies, "5dd", m20_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fd1797:1", m20_floppies, "5dd", m20_state::floppy_formats)
 	MCFG_MC6845_ADD("crtc", MC6845, PIXEL_CLOCK/8, mc6845_intf) /* hand tuned to get ~50 fps */
 	MCFG_I8255A_ADD("ppi8255",  ppi_interface)
 	MCFG_I8251_ADD("i8251_1", kbd_i8251_intf)
 	MCFG_I8251_ADD("i8251_2", tty_i8251_intf)
 	MCFG_PIT8253_ADD("pit8253", pit8253_intf)
-	MCFG_PIC8259_ADD("i8259", pic_intf)
+	MCFG_PIC8259_ADD("i8259", WRITELINE(m20_state, pic_irq_line_w), VCC, NULL)
 
 	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
+
+	MCFG_SOFTWARE_LIST_ADD("flop_list","m20")
 MACHINE_CONFIG_END
 
 ROM_START(m20)

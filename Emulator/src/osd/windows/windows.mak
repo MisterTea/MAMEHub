@@ -77,6 +77,9 @@ WINSRC = $(SRC)/osd/$(OSD)
 WINOBJ = $(OBJ)/osd/$(OSD)
 
 OBJDIRS += $(WINOBJ)
+ifdef USE_QTDEBUG
+OBJDIRS += $(WINOBJ)/../sdl
+endif
 
 
 
@@ -253,8 +256,9 @@ CCOMFLAGS += -include $(WINSRC)/winprefix.h
 
 # ensure we statically link the gcc runtime lib
 LDFLAGS += -static-libgcc
-TEST_GCC = $(shell gcc --version)
-ifeq ($(findstring 4.4,$(TEST_GCC)),)
+# TODO: needs to use $(CC)
+TEST_GCC := $(shell gcc --version)
+ifeq ($(findstring 4.4.,$(TEST_GCC)),)
 	#if we use new tools
 	LDFLAGS += -static-libstdc++
 endif
@@ -321,25 +325,55 @@ OSDOBJS += \
 	$(WINOBJ)/netdev_pcap.o
 endif
 
-ifeq ($(DIRECT3D),9)
 CCOMFLAGS += -DDIRECT3D_VERSION=0x0900
-else
-OSDOBJS += $(WINOBJ)/d3d8intf.o
-endif
 
 # extra dependencies
 $(WINOBJ)/drawdd.o :    $(SRC)/emu/rendersw.c
 $(WINOBJ)/drawgdi.o :   $(SRC)/emu/rendersw.c
 $(WINOBJ)/winmidi.o:    $(SRC)/osd/portmedia/pmmidi.c
 
+ifndef USE_QTDEBUG
 # add debug-specific files
 OSDOBJS += \
 	$(WINOBJ)/debugwin.o
+endif
 
 # add a stub resource file
 RESFILE = $(WINOBJ)/mame.res
 
+#-------------------------------------------------
+# QT Debug library
+#-------------------------------------------------
+ifdef USE_QTDEBUG
+QT_INSTALL_HEADERS := $(shell qmake -query QT_INSTALL_HEADERS)
+QT_LIBS := -L$(shell qmake -query QT_INSTALL_LIBS)
+LIBS += $(QT_LIBS) -lqtmain -lQtGui4 -lQtCore4
+INCPATH += -I$(QT_INSTALL_HEADERS)/QtCore -I$(QT_INSTALL_HEADERS)/QtGui -I$(QT_INSTALL_HEADERS)
+SDLOBJ := $(WINOBJ)/../sdl
+SDLSRC := $(WINSRC)/../sdl
+CFLAGS += -DUSE_QTDEBUG
 
+MOC = @moc
+$(SDLOBJ)/%.moc.c: $(SDLSRC)/%.h
+	$(MOC) $(INCPATH) $(DEFS) $< -o $@
+
+OSDOBJS += \
+	$(SDLOBJ)/debugqt.o \
+	$(SDLOBJ)/debugqtview.o \
+	$(SDLOBJ)/debugqtwindow.o \
+	$(SDLOBJ)/debugqtlogwindow.o \
+	$(SDLOBJ)/debugqtdasmwindow.o \
+	$(SDLOBJ)/debugqtmainwindow.o \
+	$(SDLOBJ)/debugqtmemorywindow.o \
+	$(SDLOBJ)/debugqtbreakpointswindow.o \
+	$(SDLOBJ)/debugqtview.moc.o \
+	$(SDLOBJ)/debugqtwindow.moc.o \
+	$(SDLOBJ)/debugqtlogwindow.moc.o \
+	$(SDLOBJ)/debugqtdasmwindow.moc.o \
+	$(SDLOBJ)/debugqtmainwindow.moc.o \
+	$(SDLOBJ)/debugqtmemorywindow.moc.o \
+	$(SDLOBJ)/debugqtbreakpointswindow.moc.o
+endif
 
 #-------------------------------------------------
 # rules for building the libaries

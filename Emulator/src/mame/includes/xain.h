@@ -2,11 +2,15 @@ class xain_state : public driver_device
 {
 public:
 	xain_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_charram(*this, "charram"),
 		m_bgram0(*this, "bgram0"),
 		m_bgram1(*this, "bgram1"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_mcu(*this, "mcu") { }
 
 	int m_vblank;
 	int m_from_main;
@@ -70,4 +74,11 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_xain(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(xain_scanline);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	inline int scanline_to_vcount(int scanline);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_subcpu;
+	optional_device<cpu_device> m_mcu;
 };

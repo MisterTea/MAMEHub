@@ -7,6 +7,7 @@
 #include "cpu/tms34010/tms34010.h"
 #include "audio/williams.h"
 #include "machine/nvram.h"
+#include "sound/okim6295.h"
 
 /* protection data types */
 struct protection_data
@@ -31,12 +32,21 @@ struct dma_state_t
 class midyunit_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_DMA,
+		TIMER_AUTOERASE_LINE
+	};
+
 	midyunit_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_narc_sound(*this, "narcsnd"),
 			m_cvsd_sound(*this, "cvsd"),
 			m_adpcm_sound(*this, "adpcm"),
-			m_gfx_rom(*this, "gfx_rom", 16) { }
+			m_gfx_rom(*this, "gfx_rom", 16) ,
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_oki(*this, "oki") { }
 
 	optional_device<williams_narc_sound_device> m_narc_sound;
 	optional_device<williams_cvsd_sound_device> m_cvsd_sound;
@@ -109,7 +119,14 @@ public:
 	DECLARE_VIDEO_START(common);
 	TIMER_CALLBACK_MEMBER(dma_callback);
 	TIMER_CALLBACK_MEMBER(autoerase_line);
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<okim6295_device> m_oki;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
+
 /*----------- defined in video/midyunit.c -----------*/
 void midyunit_to_shiftreg(address_space &space, UINT32 address, UINT16 *shiftreg);
 void midyunit_from_shiftreg(address_space &space, UINT32 address, UINT16 *shiftreg);

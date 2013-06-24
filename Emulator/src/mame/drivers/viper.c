@@ -308,8 +308,11 @@ class viper_state : public driver_device
 {
 public:
 	viper_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
-
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_ide(*this, "ide")
+	{
+	}
 
 	UINT32 m_epic_iack;
 	int m_cf_card_ide;
@@ -343,6 +346,7 @@ public:
 	DECLARE_WRITE64_MEMBER(cf_card_w);
 	DECLARE_READ64_MEMBER(ata_r);
 	DECLARE_WRITE64_MEMBER(ata_w);
+	DECLARE_WRITE_LINE_MEMBER(voodoo_vblank);
 	DECLARE_DRIVER_INIT(viper);
 	DECLARE_DRIVER_INIT(vipercf);
 	virtual void machine_start();
@@ -351,6 +355,15 @@ public:
 	INTERRUPT_GEN_MEMBER(viper_vblank);
 	TIMER_CALLBACK_MEMBER(epic_global_timer_callback);
 	TIMER_CALLBACK_MEMBER(ds2430_timer_callback);
+	const char* epic_get_register_name(UINT32 reg);
+	void epic_update_interrupts();
+	void mpc8240_interrupt(int irq);
+	void mpc8240_epic_init();
+	void mpc8240_epic_reset(void);
+	int ds2430_insert_cmd_bit(int bit);
+	void DS2430_w(int bit);
+	required_device<cpu_device> m_maincpu;
+	required_device<ide_controller_device> m_ide;
 };
 
 UINT32 viper_state::screen_update_viper(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -454,8 +467,6 @@ WRITE64_MEMBER(viper_state::pci_config_data_w)
 /*****************************************************************************/
 // MPC8240 Embedded Programmable Interrupt Controller (EPIC)
 
-static void mpc8240_interrupt(running_machine &machine, int irq);
-
 #define MPC8240_IRQ0                0
 #define MPC8240_IRQ1                1
 #define MPC8240_IRQ2                2
@@ -530,7 +541,7 @@ struct MPC8240_EPIC
 static MPC8240_EPIC epic;
 
 #if VIPER_DEBUG_EPIC_REGS
-static const char* epic_get_register_name(UINT32 reg)
+const viper_state::char* epic_get_register_name(UINT32 reg)
 {
 	switch (reg >> 16)
 	{
@@ -663,11 +674,11 @@ TIMER_CALLBACK_MEMBER(viper_state::epic_global_timer_callback)
 		epic.global_timer[timer_num].timer->reset();
 	}
 
-	mpc8240_interrupt(machine(), MPC8240_GTIMER0_IRQ + timer_num);
+	mpc8240_interrupt(MPC8240_GTIMER0_IRQ + timer_num);
 }
 
 
-static void epic_update_interrupts(running_machine &machine)
+void viper_state::epic_update_interrupts()
 {
 	int i;
 
@@ -709,11 +720,11 @@ static void epic_update_interrupts(running_machine &machine)
 			printf("vector = %02X\n", epic.iack);
 #endif
 
-		machine.device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, ASSERT_LINE);
 	}
 	else
 	{
-		machine.device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 	}
 }
 
@@ -783,7 +794,7 @@ READ32_MEMBER(viper_state::epic_r)
 							if (epic.i2c_cr & 0x40)
 							{
 								printf("I2C interrupt\n");
-								mpc8240_interrupt(machine(), MPC8240_I2C_IRQ);
+								mpc8240_interrupt(MPC8240_I2C_IRQ);
 
 								// set interrupt flag in status register
 								epic.i2c_sr |= 0x2;
@@ -802,7 +813,7 @@ READ32_MEMBER(viper_state::epic_r)
 							/*if (epic.i2c_cr & 0x40)
 							{
 							    printf("I2C interrupt\n");
-							    mpc8240_interrupt(machine, MPC8240_I2C_IRQ);
+							    mpc8240_interrupt(MPC8240_I2C_IRQ);
 
 							    // set interrupt flag in status register
 							    epic.i2c_sr |= 0x2;
@@ -886,7 +897,7 @@ READ32_MEMBER(viper_state::epic_r)
 			{
 				case 0x00a0:            // Offset 0x600A0 - IACK
 				{
-					epic_update_interrupts(machine());
+					epic_update_interrupts();
 
 					if (epic.active_irq >= 0)
 					{
@@ -988,7 +999,7 @@ WRITE32_MEMBER(viper_state::epic_w)
 #if VIPER_DEBUG_EPIC_I2C
 								printf("I2C interrupt\n");
 #endif
-								mpc8240_interrupt(machine(), MPC8240_I2C_IRQ);
+								mpc8240_interrupt(MPC8240_I2C_IRQ);
 
 								// set interrupt flag in status register
 								epic.i2c_sr |= 0x2;
@@ -1010,7 +1021,7 @@ WRITE32_MEMBER(viper_state::epic_w)
 #if VIPER_DEBUG_EPIC_I2C
 								printf("I2C interrupt\n");
 #endif
-								mpc8240_interrupt(machine(), MPC8240_I2C_IRQ);
+								mpc8240_interrupt(MPC8240_I2C_IRQ);
 
 								// set interrupt flag in status register
 								epic.i2c_sr |= 0x2;
@@ -1051,7 +1062,7 @@ WRITE32_MEMBER(viper_state::epic_w)
 					epic.irq[MPC8240_GTIMER0_IRQ + timer_num].priority = (data >> 16) & 0xf;
 					epic.irq[MPC8240_GTIMER0_IRQ + timer_num].vector = data & 0xff;
 
-					epic_update_interrupts(machine());
+					epic_update_interrupts();
 					break;
 				}
 				case 0x1130:            // Offset 0x41130 - Global timer 0 destination register
@@ -1063,7 +1074,7 @@ WRITE32_MEMBER(viper_state::epic_w)
 
 					epic.irq[MPC8240_GTIMER0_IRQ + timer_num].destination = data & 0x1;
 
-					epic_update_interrupts(machine());
+					epic_update_interrupts();
 					break;
 				}
 				case 0x1110:            // Offset 0x41110 - Global timer 0 base count register
@@ -1123,7 +1134,7 @@ WRITE32_MEMBER(viper_state::epic_w)
 					epic.irq[MPC8240_IRQ0 + irq].priority = (data >> 16) & 0xf;
 					epic.irq[MPC8240_IRQ0 + irq].vector = data & 0xff;
 
-					epic_update_interrupts(machine());
+					epic_update_interrupts();
 					break;
 				}
 				case 0x1020:            // Offset 0x51020 - I2C IRQ vector/priority register
@@ -1132,7 +1143,7 @@ WRITE32_MEMBER(viper_state::epic_w)
 					epic.irq[MPC8240_I2C_IRQ].priority = (data >> 16) & 0xf;
 					epic.irq[MPC8240_I2C_IRQ].vector = data & 0xff;
 
-					epic_update_interrupts(machine());
+					epic_update_interrupts();
 					break;
 				}
 				case 0x0210:            // Offset 0x50210 - IRQ0 destination register
@@ -1156,13 +1167,13 @@ WRITE32_MEMBER(viper_state::epic_w)
 
 					epic.irq[MPC8240_IRQ0 + irq].destination = data & 0x1;
 
-					epic_update_interrupts(machine());
+					epic_update_interrupts();
 					break;
 				}
 				case 0x1030:            // Offset 0x51030 - I2C IRQ destination register
 				{
 					epic.irq[MPC8240_I2C_IRQ].destination = data & 0x1;
-					epic_update_interrupts(machine());
+					epic_update_interrupts();
 					break;
 				}
 			}
@@ -1182,7 +1193,7 @@ WRITE32_MEMBER(viper_state::epic_w)
 					epic.irq[epic.active_irq].active = 0;
 					epic.active_irq = -1;
 
-					epic_update_interrupts(machine());
+					epic_update_interrupts();
 					break;
 			}
 			break;
@@ -1200,22 +1211,21 @@ WRITE64_MEMBER(viper_state::epic_64be_w)
 }
 */
 
-static void mpc8240_interrupt(running_machine &machine, int irq)
+void viper_state::mpc8240_interrupt(int irq)
 {
 	epic.irq[irq].pending = 1;
-	epic_update_interrupts(machine);
+	epic_update_interrupts();
 }
 
-static void mpc8240_epic_init(running_machine &machine)
+void viper_state::mpc8240_epic_init()
 {
-	viper_state *state = machine.driver_data<viper_state>();
-	epic.global_timer[0].timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(viper_state::epic_global_timer_callback),state));
-	epic.global_timer[1].timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(viper_state::epic_global_timer_callback),state));
-	epic.global_timer[2].timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(viper_state::epic_global_timer_callback),state));
-	epic.global_timer[3].timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(viper_state::epic_global_timer_callback),state));
+	epic.global_timer[0].timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(viper_state::epic_global_timer_callback),this));
+	epic.global_timer[1].timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(viper_state::epic_global_timer_callback),this));
+	epic.global_timer[2].timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(viper_state::epic_global_timer_callback),this));
+	epic.global_timer[3].timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(viper_state::epic_global_timer_callback),this));
 }
 
-static void mpc8240_epic_reset(void)
+void viper_state::mpc8240_epic_reset(void)
 {
 	int i;
 
@@ -1248,7 +1258,6 @@ static const UINT8 cf_card_tuples[] =
 
 READ64_MEMBER(viper_state::cf_card_data_r)
 {
-	device_t *device = machine().device("ide");
 	UINT64 r = 0;
 
 	if (ACCESSING_BITS_16_31)
@@ -1257,7 +1266,7 @@ READ64_MEMBER(viper_state::cf_card_data_r)
 		{
 			case 0x8:   // Duplicate Even RD Data
 			{
-				r |= ide_bus_r(device, 0, 0) << 16;
+				r |= m_ide->read_cs0(space, 0, mem_mask >> 16) << 16;
 				break;
 			}
 
@@ -1272,14 +1281,13 @@ READ64_MEMBER(viper_state::cf_card_data_r)
 
 WRITE64_MEMBER(viper_state::cf_card_data_w)
 {
-	device_t *device = machine().device("ide");
 	if (ACCESSING_BITS_16_31)
 	{
 		switch (offset & 0xf)
 		{
 			case 0x8:   // Duplicate Even RD Data
 			{
-				ide_bus_w(device, 0, 0, (data >> 16) & 0xffff);
+				m_ide->write_cs0(space, 0, data >> 16, mem_mask >> 16);
 				break;
 			}
 
@@ -1293,7 +1301,6 @@ WRITE64_MEMBER(viper_state::cf_card_data_w)
 
 READ64_MEMBER(viper_state::cf_card_r)
 {
-	device_t *device = machine().device("ide");
 	UINT64 r = 0;
 
 	if (ACCESSING_BITS_16_31)
@@ -1311,7 +1318,7 @@ READ64_MEMBER(viper_state::cf_card_r)
 				case 0x6:   // Select Card/Head
 				case 0x7:   // Status
 				{
-					r |= ide_bus_r(device, 0, offset & 7) << 16;
+					r |= m_ide->read_cs0(space, offset & 7, mem_mask >> 16) << 16;
 					break;
 				}
 
@@ -1320,13 +1327,13 @@ READ64_MEMBER(viper_state::cf_card_r)
 
 				case 0xd:   // Duplicate Error
 				{
-					r |= ide_bus_r(device, 0, 1) << 16;
+					r |= m_ide->read_cs0(space, 1, mem_mask >> 16) << 16;
 					break;
 				}
 				case 0xe:   // Alt Status
 				case 0xf:   // Drive Address
 				{
-					r |= ide_bus_r(device, 1, offset & 7) << 16;
+					r |= m_ide->read_cs1(space, offset & 7, mem_mask >> 16) << 16;
 					break;
 				}
 
@@ -1357,8 +1364,6 @@ READ64_MEMBER(viper_state::cf_card_r)
 
 WRITE64_MEMBER(viper_state::cf_card_w)
 {
-	device_t *device = machine().device("ide");
-
 	#ifdef VIPER_DEBUG_LOG
 	//printf("%s:compact_flash_w: %08X%08X, %08X, %08X%08X\n", machine().describe_context(), (UINT32)(data>>32), (UINT32)(data), offset, (UINT32)(mem_mask >> 32), (UINT32)(mem_mask));
 	#endif
@@ -1378,7 +1383,7 @@ WRITE64_MEMBER(viper_state::cf_card_w)
 				case 0x6:   // Select Card/Head
 				case 0x7:   // Command
 				{
-					ide_bus_w(device, 0, offset & 7, (data >> 16) & 0xffff);
+					m_ide->write_cs0(space, offset & 7, data >> 16, mem_mask >> 16);
 					break;
 				}
 
@@ -1387,13 +1392,13 @@ WRITE64_MEMBER(viper_state::cf_card_w)
 
 				case 0xd:   // Duplicate Features
 				{
-					ide_bus_w(device, 0, 1, (data >> 16) & 0xffff);
+					m_ide->write_cs0(space, 1, data >> 16, mem_mask >> 16);
 					break;
 				}
 				case 0xe:   // Device Ctl
 				case 0xf:   // Reserved
 				{
-					ide_bus_w(device, 1, offset & 7, (data >> 16) & 0xffff);
+					m_ide->write_cs1(space, offset & 7, data >> 16, mem_mask >> 16);
 					break;
 				}
 
@@ -1419,12 +1424,12 @@ WRITE64_MEMBER(viper_state::cf_card_w)
 						// cylinder low register is set to 0x00
 						// cylinder high register is set to 0x00
 
-						ide_bus_w(device, 1, 6, 0x04);
+						m_ide->write_cs1(space, 6, 0x04, 0xff);
 
-						ide_bus_w(device, 0, 2, 0x01);
-						ide_bus_w(device, 0, 3, 0x01);
-						ide_bus_w(device, 0, 4, 0x00);
-						ide_bus_w(device, 0, 5, 0x00);
+						m_ide->write_cs0(space, 2, 0x01, 0xff);
+						m_ide->write_cs0(space, 3, 0x01, 0xff);
+						m_ide->write_cs0(space, 4, 0x00, 0xff);
+						m_ide->write_cs0(space, 5, 0x00, 0xff);
 					}
 					break;
 				}
@@ -1439,7 +1444,6 @@ WRITE64_MEMBER(viper_state::cf_card_w)
 
 WRITE64_MEMBER(viper_state::unk2_w)
 {
-
 	if (ACCESSING_BITS_56_63)
 	{
 		m_cf_card_ide = 0;
@@ -1451,14 +1455,21 @@ WRITE64_MEMBER(viper_state::unk2_w)
 
 READ64_MEMBER(viper_state::ata_r)
 {
-	device_t *device = machine().device("ide");
 	UINT64 r = 0;
 
 	if (ACCESSING_BITS_16_31)
 	{
 		int reg = (offset >> 4) & 0x7;
 
-		r |= ide_bus_r(device, (offset & 0x80) ? 1 : 0, reg) << 16;
+		switch(offset & 0x80)
+		{
+		case 0x00:
+			r |= m_ide->read_cs0(space, reg, mem_mask >> 16) << 16;
+			break;
+		case 0x80:
+			r |= m_ide->read_cs1(space, reg, mem_mask >> 16) << 16;
+			break;
+		}
 	}
 
 	return r;
@@ -1466,12 +1477,19 @@ READ64_MEMBER(viper_state::ata_r)
 
 WRITE64_MEMBER(viper_state::ata_w)
 {
-	device_t *device = machine().device("ide");
 	if (ACCESSING_BITS_16_31)
 	{
 		int reg = (offset >> 4) & 0x7;
 
-		ide_bus_w(device, (offset & 0x80) ? 1 : 0, reg, (UINT16)(data >> 16));
+		switch(offset & 0x80)
+		{
+		case 0x00:
+			m_ide->write_cs0(space, reg, data >> 16, mem_mask >> 16);
+			break;
+		case 0x80:
+			m_ide->write_cs1(space, reg, data >> 16, mem_mask >> 16);
+			break;
+		}
 	}
 }
 
@@ -1707,7 +1725,7 @@ READ64_MEMBER(viper_state::unk1_r)
 }
 
 
-static int ds2430_insert_cmd_bit(int bit)
+int viper_state::ds2430_insert_cmd_bit(int bit)
 {
 	ds2430_data <<= 1;
 	ds2430_data |= bit & 1;
@@ -1723,7 +1741,7 @@ static int ds2430_insert_cmd_bit(int bit)
 	return 0;
 }
 
-static void DS2430_w(int bit)
+void viper_state::DS2430_w(int bit)
 {
 	switch (ds2430_state)
 	{
@@ -1913,7 +1931,7 @@ static ADDRESS_MAP_START(viper_map, AS_PROGRAM, 64, viper_state )
 	AM_RANGE(0xffe00000, 0xffe00007) AM_READ(e00000_r)
 	AM_RANGE(0xffe00008, 0xffe0000f) AM_READWRITE(e00008_r, e00008_w)
 	AM_RANGE(0xffe10000, 0xffe10007) AM_READ(unk1_r)
-	AM_RANGE(0xffe30000, 0xffe31fff) AM_DEVREADWRITE8_LEGACY("m48t58", timekeeper_r, timekeeper_w, U64(0xffffffffffffffff))
+	AM_RANGE(0xffe30000, 0xffe31fff) AM_DEVREADWRITE8("m48t58", timekeeper_device, read, write, U64(0xffffffffffffffff))
 	AM_RANGE(0xffe40000, 0xffe4000f) AM_NOP
 	AM_RANGE(0xffe50000, 0xffe50007) AM_WRITE(unk2_w)
 	AM_RANGE(0xffe70000, 0xffe7000f) AM_READWRITE(e70000_r, e70000_w)
@@ -1987,38 +2005,36 @@ static const powerpc_config viper_ppc_cfg =
 
 INTERRUPT_GEN_MEMBER(viper_state::viper_vblank)
 {
-	mpc8240_interrupt(machine(), MPC8240_IRQ0);
+	mpc8240_interrupt(MPC8240_IRQ0);
 	//mpc8240_interrupt(device.machine, MPC8240_IRQ3);
 }
 
-static void voodoo_vblank(device_t *device, int state)
+WRITE_LINE_MEMBER(viper_state::voodoo_vblank)
 {
-	mpc8240_interrupt(device->machine(), MPC8240_IRQ4);
+	mpc8240_interrupt(MPC8240_IRQ4);
 }
 
 void viper_state::machine_start()
 {
 	ds2430_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(viper_state::ds2430_timer_callback),this));
 	ds2430_bit_timer = machine().device<timer_device>("ds2430_timer2");
-	mpc8240_epic_init(machine());
+	mpc8240_epic_init();
 
 	/* set conservative DRC options */
-	ppcdrc_set_options(machine().device("maincpu"), PPCDRC_COMPATIBLE_OPTIONS);
+	ppcdrc_set_options(m_maincpu, PPCDRC_COMPATIBLE_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	ppcdrc_add_fastram(machine().device("maincpu"), 0x00000000, 0x00ffffff, FALSE, workram);
+	ppcdrc_add_fastram(m_maincpu, 0x00000000, 0x00ffffff, FALSE, workram);
 
-	ds2430_rom = (UINT8*)machine().root_device().memregion("ds2430")->base();
+	ds2430_rom = (UINT8*)memregion("ds2430")->base();
 }
 
 void viper_state::machine_reset()
 {
-	ide_controller_device *ide = (ide_controller_device *) machine().device("ide");
-
-	ide->reset();
+	m_ide->reset();
 	mpc8240_epic_reset();
 
-	UINT8 *ide_features = ide->ide_get_features(0);
+	UINT8 *ide_features = m_ide->ide_get_features(0);
 
 	// Viper expects these settings or the BIOS fails
 	ide_features[51*2+0] = 0;           /* 51: PIO data transfer cycle timing mode */
@@ -2034,8 +2050,8 @@ static const voodoo_config voodoo_intf =
 	0,//                tmumem1;
 	"screen",//         screen;
 	"maincpu",//        cputag;
-	voodoo_vblank,//    vblank;
-	NULL,//             stall;
+	DEVCB_DRIVER_LINE_MEMBER(viper_state,voodoo_vblank),//    vblank;
+	DEVCB_NULL//             stall;
 };
 
 static MACHINE_CONFIG_START( viper, viper_state )
@@ -2077,15 +2093,15 @@ MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(viper_state,viper)
 {
-//  machine().device("maincpu")->memory().space(AS_PROGRAM).install_legacy_readwrite_handler( *ide, 0xff200000, 0xff207fff, FUNC(hdd_r), FUNC(hdd_w) ); //TODO
+//  m_maincpu->space(AS_PROGRAM).install_legacy_readwrite_handler( *ide, 0xff200000, 0xff207fff, FUNC(hdd_r), FUNC(hdd_w) ); //TODO
 }
 
 DRIVER_INIT_MEMBER(viper_state,vipercf)
 {
 	DRIVER_INIT_CALL(viper);
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xff000000, 0xff000fff, read64_delegate(FUNC(viper_state::cf_card_data_r), this), write64_delegate(FUNC(viper_state::cf_card_data_w), this) );
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xff200000, 0xff200fff, read64_delegate(FUNC(viper_state::cf_card_r), this), write64_delegate(FUNC(viper_state::cf_card_w), this) );
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xff000000, 0xff000fff, read64_delegate(FUNC(viper_state::cf_card_data_r), this), write64_delegate(FUNC(viper_state::cf_card_data_w), this) );
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xff200000, 0xff200fff, read64_delegate(FUNC(viper_state::cf_card_r), this), write64_delegate(FUNC(viper_state::cf_card_w), this) );
 }
 
 
@@ -2099,8 +2115,7 @@ DRIVER_INIT_MEMBER(viper_state,vipercf)
 	ROM_SYSTEM_BIOS(0, "bios0", "GM941B01 (01/15/01)") \
 		ROM_LOAD_BIOS(0, "941b01.u25", 0x00000, 0x40000, CRC(233e5159) SHA1(66ff268d5bf78fbfa48cdc3e1b08f8956cfd6cfb)) \
 	ROM_SYSTEM_BIOS(1, "bios1", "GM941A01 (03/10/00)") \
-		ROM_LOAD_BIOS(1, "941a01.u25", 0x00000, 0x40000, CRC(df6f88d6) SHA1(2bc10e4fbec36573aa8b6878492d37665f074d87)) \
-
+		ROM_LOAD_BIOS(1, "941a01.u25", 0x00000, 0x40000, CRC(df6f88d6) SHA1(2bc10e4fbec36573aa8b6878492d37665f074d87))
 
 ROM_START(kviper)
 	VIPER_BIOS

@@ -16,8 +16,7 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_dmdcpu(*this, "dmdcpu"),
 		m_mc6845(*this, "mc6845"),
-		m_decobsmt(*this, "decobsmt")
-		,
+		m_decobsmt(*this, "decobsmt"),
 		m_vram(*this, "vram"){ }
 
 	required_device<cpu_device> m_maincpu;
@@ -102,12 +101,12 @@ WRITE8_MEMBER(whitestar_state::switch_w)
 
 WRITE8_MEMBER(whitestar_state::bank_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("user1")->base() + (data & 0x1f) * 0x4000);
+	membank("bank1")->set_base(memregion("user1")->base() + (data & 0x1f) * 0x4000);
 }
 
 WRITE8_MEMBER(whitestar_state::dmd_bank_w)
 {
-	membank("dmd_bank1")->set_base(machine().root_device().memregion("dmdcpu")->base() + (data & 0x1f) * 0x4000);
+	membank("dmd_bank1")->set_base(memregion("dmdcpu")->base() + (data & 0x1f) * 0x4000);
 }
 
 READ8_MEMBER(whitestar_state::dmd_latch_r)
@@ -174,8 +173,8 @@ ADDRESS_MAP_END
 
 void whitestar_state::machine_reset()
 {
-	machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("user1")->base());
-	machine().root_device().membank("dmd_bank1")->set_base(machine().root_device().memregion("dmdcpu")->base());
+	membank("bank1")->set_base(memregion("user1")->base());
+	membank("dmd_bank1")->set_base(memregion("dmdcpu")->base());
 }
 
 DRIVER_INIT_MEMBER(whitestar_state,whitestar)
@@ -244,9 +243,10 @@ MC6845_UPDATE_ROW( whitestar_update_row )
 	}
 }
 
-static const mc6845_interface whitestar_crtc6845_interface =
+static MC6845_INTERFACE( whitestar_crtc6845_interface )
 {
 	NULL,
+	false,      /* show border area */
 	1,
 	NULL,
 	whitestar_update_row,

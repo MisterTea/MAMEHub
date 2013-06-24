@@ -93,15 +93,16 @@ public:
 	// image-level overrides
 	virtual bool call_load();
 	virtual void call_unload();
+	virtual bool call_create(int format_type, option_resolution *format_options);
 
 	// image device
-	virtual iodevice_t image_type() const { return IO_PRINTER; }
+	virtual iodevice_t image_type() const { return IO_SERIAL; }
 	virtual bool is_readable()  const { return 1; }
 	virtual bool is_writeable() const { return 1; }
 	virtual bool is_creatable() const { return 1; }
 	virtual bool must_be_loaded() const { return 0; }
 	virtual bool is_reset_on_load() const { return 0; }
-	virtual const char *file_extensions() const { return "prn"; }
+	virtual const char *file_extensions() const { return ""; }
 	virtual const option_guide *create_option_guide() const { return NULL; }
 
 	// outputs data to a bitbanger port

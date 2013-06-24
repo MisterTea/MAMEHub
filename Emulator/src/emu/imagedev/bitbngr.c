@@ -343,7 +343,7 @@ void bitbanger_device::device_config_complete(void)
 		m_default_baud = 0;
 		m_default_tune = 0;
 	}
-	update_names();
+	update_names(BITBANGER, "bitbngr", "bitb");
 }
 
 
@@ -487,7 +487,14 @@ bool bitbanger_device::call_load(void)
 	return IMAGE_INIT_PASS;
 }
 
+bool bitbanger_device::call_create(int format_type, option_resolution *format_options)
+{
+	m_input_timer->enable(true);
+	m_input_timer->adjust(attotime::zero, 0, attotime::from_seconds(1));
 
+	/* we don't need to do anything special */
+	return IMAGE_INIT_PASS;
+}
 
 /*-------------------------------------------------
     call_unload

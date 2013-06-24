@@ -30,15 +30,21 @@ class dblewing_state : public driver_device
 {
 public:
 	dblewing_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_pf1_rowscroll(*this, "pf1_rowscroll"),
 		m_pf2_rowscroll(*this, "pf2_rowscroll"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_sprgen(*this, "spritegen"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_deco_tilegen1(*this, "tilegen1")
+	{ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_pf1_rowscroll;
 	required_shared_ptr<UINT16> m_pf2_rowscroll;
 	required_shared_ptr<UINT16> m_spriteram;
+	optional_device<decospr_device> m_sprgen;
 
 	/* protection */
 	UINT16 m_008_data;
@@ -74,9 +80,9 @@ public:
 	UINT8 m_sound_irq;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_deco_tilegen1;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<deco16ic_device> m_deco_tilegen1;
 	DECLARE_WRITE_LINE_MEMBER(sound_irq);
 	DECLARE_READ16_MEMBER(dblewing_prot_r);
 	DECLARE_WRITE16_MEMBER(dblewing_prot_w);
@@ -116,7 +122,7 @@ UINT32 dblewing_state::screen_update_dblewing(screen_device &screen, bitmap_ind1
 
 	deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, 0, 2);
 	deco16ic_tilemap_1_draw(m_deco_tilegen1, bitmap, cliprect, 0, 4);
-	machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
+	m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
 	return 0;
 }
 
@@ -132,7 +138,6 @@ UINT32 dblewing_state::screen_update_dblewing(screen_device &screen, bitmap_ind1
 */
 READ16_MEMBER(dblewing_state::dblewing_prot_r)
 {
-
 	switch (offset * 2)
 	{
 		case 0x16a: return m_boss_move;          // boss 1 movement
@@ -195,7 +200,6 @@ READ16_MEMBER(dblewing_state::dblewing_prot_r)
 
 WRITE16_MEMBER(dblewing_state::dblewing_prot_w)
 {
-
 //  if (offset * 2 != 0x380)
 //  printf("dblewing prot w %08x, %04x, %04x %04x\n", space.device().safe_pc(), offset * 2, mem_mask, data);
 
@@ -342,7 +346,6 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(dblewing_state::irq_latch_r)
 {
-
 	/* bit 1 of dblewing_sound_irq specifies IRQ command writes */
 	m_sound_irq &= ~0x02;
 	m_audiocpu->set_input_line(0, (m_sound_irq != 0) ? ASSERT_LINE : CLEAR_LINE);
@@ -560,11 +563,6 @@ static const deco16ic_interface dblewing_deco16ic_tilegen1_intf =
 
 void dblewing_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_deco_tilegen1 = machine().device("tilegen1");
-
 	save_item(NAME(m_008_data));
 	save_item(NAME(m_104_data));
 	save_item(NAME(m_406_data));
@@ -598,7 +596,6 @@ void dblewing_state::machine_start()
 
 void dblewing_state::machine_reset()
 {
-
 	m_008_data = 0;
 	m_104_data = 0;
 	m_406_data = 0;

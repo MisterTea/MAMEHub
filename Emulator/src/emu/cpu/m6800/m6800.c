@@ -4,7 +4,7 @@
 
     References:
 
-        6809 Simulator V09, By L.C. Benschop, Eidnhoven The Netherlands.
+        6809 Simulator V09, By L.C. Benschop, Eindhoven The Netherlands.
 
         m6809: Portable 6809 emulator, DS (6809 code in MAME, derived from
             the 6809 Simulator V09)
@@ -1302,6 +1302,18 @@ static CPU_INIT( m6808 )
 	//cpustate->io = &device->space(AS_IO);
 
 	state_register(cpustate, "m6808");
+
+	if (device->static_config() != NULL)
+	{
+		m6801_interface *intf = (m6801_interface *) device->static_config();
+
+		cpustate->out_sc2_func.resolve(intf->out_sc2_func, *device);
+	}
+	else
+	{
+		devcb_write_line nullcb = DEVCB_NULL;
+		cpustate->out_sc2_func.resolve(nullcb, *device);
+	}
 }
 
 /****************************************************************************
@@ -1326,6 +1338,18 @@ static CPU_INIT( hd6301 )
 	cpustate->sci_timer = device->machine().scheduler().timer_alloc(FUNC(sci_tick), cpustate);
 
 	state_register(cpustate, "hd6301");
+
+	if (device->static_config() != NULL)
+	{
+		m6801_interface *intf = (m6801_interface *) device->static_config();
+
+		cpustate->out_sc2_func.resolve(intf->out_sc2_func, *device);
+	}
+	else
+	{
+		devcb_write_line nullcb = DEVCB_NULL;
+		cpustate->out_sc2_func.resolve(nullcb, *device);
+	}
 }
 
 
@@ -1351,6 +1375,18 @@ static CPU_INIT( hd63701 )
 	cpustate->sci_timer = device->machine().scheduler().timer_alloc(FUNC(sci_tick), cpustate);
 
 	state_register(cpustate, "hd63701");
+
+	if (device->static_config() != NULL)
+	{
+		m6801_interface *intf = (m6801_interface *) device->static_config();
+
+		cpustate->out_sc2_func.resolve(intf->out_sc2_func, *device);
+	}
+	else
+	{
+		devcb_write_line nullcb = DEVCB_NULL;
+		cpustate->out_sc2_func.resolve(nullcb, *device);
+	}
 }
 
 /*

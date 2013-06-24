@@ -158,7 +158,7 @@
  * Time Crisis      (C) Namco, 1995
  * Tokyo Wars       (C) Namco, 1996
  *
- * If you can help with other revisions of the dumped games, please contact http://guru.mameworld.info/
+ * If you can help with other revisions of the dumped games, please contact http://members.iinet.net.au/~lantra9jp1/gurudumps/
  *
  * The Namco Super System 22 System comprises 4 PCB's plugged into a motherboard. The motherboard contains only
  * some slots and connectors. The 4 PCB's are housed in a metal box with a large fan on the side. The fan mostly cools
@@ -1160,88 +1160,16 @@
 /**
  * helper function used to read a byte from a chunk of 32 bit memory
  */
-static UINT8
-nthbyte( const UINT32 *pSource, int offs )
+static UINT8 nthbyte( const UINT32 *pSource, int offs )
 {
 	pSource += offs/4;
 	return (pSource[0]<<((offs&3)*8))>>24;
-} /* nthbyte */
+}
 
 /*********************************************************************************************/
 
-/* mask,default,type,sensitivity,delta,min,max */
-#define DRIVING_ANALOG_PORTS \
-	PORT_START("GAS") \
-	PORT_BIT( 0xff, 0x00, IPT_PEDAL )  PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal") \
-	PORT_START("BRAKE") \
-	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal") \
-	PORT_START("STEER") \
-	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
-
-/* TODO: REMOVE (THIS IS HANDLED BY "SUBCPU") */
-static void
-ReadAnalogDrivingPorts( running_machine &machine, UINT16 *gas, UINT16 *brake, UINT16 *steer )
-{
-	*gas   = machine.root_device().ioport("GAS")->read();
-	*brake = machine.root_device().ioport("BRAKE")->read();
-	*steer = machine.root_device().ioport("STEER")->read();
-}
-
-/* TODO: REMOVE (THIS IS HANDLED BY "SUBCPU") */
-static UINT16
-AnalogAsDigital( running_machine &machine )
-{
-	namcos22_state *state = machine.driver_data<namcos22_state>();
-	UINT16 inputs = state->ioport("INPUTS")->read_safe(0);
-	UINT16 gas    = state->ioport("GAS")->read_safe(0);
-	UINT16 steer  = state->ioport("STEER")->read_safe(0);
-	UINT16 result = 0xffff;
-
-	switch( state->m_gametype )
-	{
-	case NAMCOS22_RAVE_RACER:
-	case NAMCOS22_RIDGE_RACER:
-	case NAMCOS22_RIDGE_RACER2:
-		if( gas == 0xff )
-		{
-			result ^= 0x0100; /* CHOOSE */
-		}
-		if( steer == 0x00 )
-		{
-			result ^= 0x0040; /* PREV */
-		}
-		else if( steer == 0xff )
-		{
-			result ^= 0x0080; /* NEXT */
-		}
-		return result;
-
-	case NAMCOS22_ACE_DRIVER:
-	case NAMCOS22_VICTORY_LAP:
-		if( gas > 0xf0 )
-		{
-			result ^= (state->m_gametype == NAMCOS22_VICTORY_LAP) ? 0x0100 : 0x0001; /* CHOOSE */
-		}
-		inputs &= 3;
-		if( inputs == 1 )
-		{ /* Stick Shift Up */
-			result ^= 0x0040; /* PREV */
-		}
-		else if( inputs == 2 )
-		{ /* Stick Shift Down */
-			result ^= 0x0080; /* NEXT */
-		}
-		return result;
-
-	default:
-		break;
-	}
-	return result;
-} /* AnalogAsDigital */
-
-/* TODO: REMOVE (THIS IS HANDLED BY "SUBCPU") */
-static void
-HandleCoinage(running_machine &machine, int slots, int address_is_odd)
+/* TODO: REMOVE (THIS IS HANDLED BY "IOMCU") */
+static void HandleCoinage(running_machine &machine, int slots, int address_is_odd)
 {
 	namcos22_state *state = machine.driver_data<namcos22_state>();
 	UINT16 *share16 = (UINT16 *)state->m_shareram.target();
@@ -1267,18 +1195,20 @@ HandleCoinage(running_machine &machine, int slots, int address_is_odd)
 	{
 		share16[BYTE_XOR_LE(0x3e/2)] = state->m_credits2 << (address_is_odd*8);
 	}
-} /* HandleCoinage */
+}
 
-/* TODO: REMOVE (THIS IS HANDLED BY "SUBCPU") */
-static void
-HandleDrivingIO( running_machine &machine )
+/* TODO: REMOVE (THIS IS HANDLED BY "IOMCU") */
+static void HandleDrivingIO( running_machine &machine )
 {
 	namcos22_state *state = machine.driver_data<namcos22_state>();
 	if( nthbyte(state->m_system_controller, 0x18) != 0 )
 	{
 		UINT16 flags = state->ioport("INPUTS")->read();
-		UINT16 gas, brake, steer, coinram_address_is_odd = 0;
-		ReadAnalogDrivingPorts( machine, &gas, &brake, &steer );
+		UINT16 coinram_address_is_odd = 0;
+
+		UINT16 gas   = machine.root_device().ioport("GAS")->read();
+		UINT16 brake = machine.root_device().ioport("BRAKE")->read();
+		UINT16 steer = machine.root_device().ioport("STEER")->read();
 
 		switch (state->m_gametype)
 		{
@@ -1325,11 +1255,10 @@ HandleDrivingIO( running_machine &machine )
 		state->m_shareram[0x030/4] = (flags<<16)|steer;
 		state->m_shareram[0x034/4] = (gas<<16)|brake;
 	}
-} /* HandleDrivingIO */
+}
 
-/* TODO: REMOVE (THIS IS HANDLED BY "SUBCPU") */
-static void
-HandleCyberCommandoIO( running_machine &machine )
+/* TODO: REMOVE (THIS IS HANDLED BY "IOMCU") */
+static void HandleCyberCommandoIO( running_machine &machine )
 {
 	namcos22_state *state = machine.driver_data<namcos22_state>();
 	if( nthbyte(state->m_system_controller, 0x18) != 0 )
@@ -1347,57 +1276,48 @@ HandleCyberCommandoIO( running_machine &machine )
 
 		HandleCoinage(machine, 1, 0);
 	}
-} /* HandleCyberCommandoIO */
+}
 
 /*********************************************************************************************/
 
-static void
-InitDSP( running_machine &machine )
-{
-	namcos22_state *state = machine.driver_data<namcos22_state>();
-	state->m_master->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); /* master DSP */
-	state->m_slave->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); /* slave DSP */
-	state->m_mcu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); /* MCU */
-} /* InitDSP */
-
 READ16_MEMBER(namcos22_state::pdp_status_r)
 {
-	return m_mMasterBIOZ;
-} /* pdp_status_r */
+	return m_MasterBIOZ;
+}
 
 void namcos22_state::WriteToPointRAM(offs_t offs, UINT32 data )
 {
 	offs &= 0xffffff; /* 24 bit addressing */
-	if( m_mbSuperSystem22 )
+	if( m_bSuperSystem22 )
 	{
 		if( offs>=0xf80000 && offs<=0xf9ffff )
-			m_mpPointRAM[offs-0xf80000] = data & 0x00ffffff;
+			m_pPointRAM[offs-0xf80000] = data & 0x00ffffff;
 	}
 	else
 	{
 		if( offs>=0xf00000 && offs<=0xf1ffff )
-			m_mpPointRAM[offs-0xf00000] = data & 0x00ffffff;
+			m_pPointRAM[offs-0xf00000] = data & 0x00ffffff;
 	}
-} /* WriteToPointRAM */
+}
 
 UINT32 namcos22_state::ReadFromCommRAM(offs_t offs )
 {
 	return m_polygonram[offs&0x7fff];
-} /* ReadFromCommRAM */
+}
 
 void namcos22_state::WriteToCommRAM(offs_t offs, UINT32 data )
 {
 	if (data & 0x00800000) m_polygonram[offs&0x7fff] = data | 0xff000000;
 	else m_polygonram[offs&0x7fff] = data & 0x00ffffff;
-} /* WriteToCommRAM */
+}
 
 READ16_MEMBER(namcos22_state::pdp_begin_r)
 {
 	/* this feature appears to be only used on Super System22 hardware */
-	if( m_mbSuperSystem22 )
+	if( m_bSuperSystem22 )
 	{
 		UINT16 offs = m_polygonram[0x20000/4-1];
-		m_mMasterBIOZ = 1;
+		m_MasterBIOZ = 1;
 		for(;;)
 		{
 			UINT16 start = offs;
@@ -1485,7 +1405,8 @@ READ16_MEMBER(namcos22_state::pdp_begin_r)
 			case 0xffff: /* "goto" command */
 				offs = ReadFromCommRAM(offs);
 				if( offs == start )
-				{ /* most commands end with a "goto self" */
+				{
+					/* most commands end with a "goto self" */
 					return 0;
 				}
 				break;
@@ -1494,19 +1415,19 @@ READ16_MEMBER(namcos22_state::pdp_begin_r)
 				logerror( "unknown PDP cmd = 0x%04x!\n", cmd );
 				return 0;
 			}
-		} /* for(;;) */
-	} /* m_mbSuperSystem22 */
+		}
+	}
 	return 0;
-} /* pdp_begin_r */
+}
 
 READ16_MEMBER(namcos22_state::slave_external_ram_r)
 {
-	return m_mpSlaveExternalRAM[offset];
+	return m_pSlaveExternalRAM[offset];
 }
 
 WRITE16_MEMBER(namcos22_state::slave_external_ram_w)
 {
-	COMBINE_DATA( &m_mpSlaveExternalRAM[offset] );
+	COMBINE_DATA( &m_pSlaveExternalRAM[offset] );
 }
 
 static void HaltSlaveDSP( running_machine &machine )
@@ -1524,45 +1445,48 @@ static void EnableSlaveDSP( running_machine &machine )
 }
 
 READ16_MEMBER(namcos22_state::dsp_HOLD_signal_r)
-{ /* STUB */
+{
+	/* STUB */
 	return 0;
 }
 
 WRITE16_MEMBER(namcos22_state::dsp_HOLD_ACK_w)
-{ /* STUB */
+{
+	/* STUB */
 }
 
 WRITE16_MEMBER(namcos22_state::dsp_XF_output_w)
-{ /* STUB */
+{
+	/* STUB */
 }
 
 /************************************************************/
 
 WRITE16_MEMBER(namcos22_state::point_ram_idx_w)
 {
-	m_mPointAddr<<=16;
-	m_mPointAddr |= data;
+	m_PointAddr<<=16;
+	m_PointAddr |= data;
 }
 
 WRITE16_MEMBER(namcos22_state::point_ram_loword_iw)
 {
-	m_mPointData |= data;
-	WriteToPointRAM(m_mPointAddr++, m_mPointData );
+	m_PointData |= data;
+	WriteToPointRAM(m_PointAddr++, m_PointData );
 }
 
 WRITE16_MEMBER(namcos22_state::point_ram_hiword_w)
 {
-	m_mPointData = (data<<16);
+	m_PointData = (data<<16);
 }
 
 READ16_MEMBER(namcos22_state::point_ram_loword_r)
 {
-	return namcos22_point_rom_r(machine(), m_mPointAddr)&0xffff;
+	return namcos22_point_rom_r(machine(), m_PointAddr)&0xffff;
 }
 
 READ16_MEMBER(namcos22_state::point_ram_hiword_ir)
 {
-	return namcos22_point_rom_r(machine(), m_mPointAddr++)>>16;
+	return namcos22_point_rom_r(machine(), m_PointAddr++)>>16;
 }
 
 WRITE16_MEMBER(namcos22_state::dsp_unk2_w)
@@ -1585,14 +1509,14 @@ enum
 
 READ16_MEMBER(namcos22_state::dsp_unk_port3_r)
 {
-	m_mMasterBIOZ = 0;
-	m_mDspUploadState = eDSP_UPLOAD_READY;
+	m_MasterBIOZ = 0;
+	m_DspUploadState = eDSP_UPLOAD_READY;
 	return 0;
 }
 
 WRITE16_MEMBER(namcos22_state::upload_code_to_slave_dsp_w)
 {
-	switch( m_mDspUploadState )
+	switch( m_DspUploadState )
 	{
 	case eDSP_UPLOAD_READY:
 		logerror( "UPLOAD_READY; cmd = 0x%x\n", data );
@@ -1602,7 +1526,7 @@ WRITE16_MEMBER(namcos22_state::upload_code_to_slave_dsp_w)
 				HaltSlaveDSP(machine());
 				break;
 			case 1:
-				m_mDspUploadState = eDSP_UPLOAD_DEST;
+				m_DspUploadState = eDSP_UPLOAD_DEST;
 				break;
 			case 2:
 				/* custom IC poke */
@@ -1624,13 +1548,13 @@ WRITE16_MEMBER(namcos22_state::upload_code_to_slave_dsp_w)
 		break;
 
 	case eDSP_UPLOAD_DEST:
-		m_mUploadDestIdx = data;
-		m_mDspUploadState = eDSP_UPLOAD_DATA;
+		m_UploadDestIdx = data;
+		m_DspUploadState = eDSP_UPLOAD_DATA;
 		break;
 
 	case eDSP_UPLOAD_DATA:
-		m_mpSlaveExternalRAM[m_mUploadDestIdx&0x1fff] = data;
-		m_mUploadDestIdx++;
+		m_pSlaveExternalRAM[m_UploadDestIdx&0x1fff] = data;
+		m_UploadDestIdx++;
 		break;
 
 	default:
@@ -1661,34 +1585,34 @@ READ16_MEMBER(namcos22_state::dsp_upload_status_r)
 
 READ16_MEMBER(namcos22_state::master_external_ram_r)
 {
-	return m_mpMasterExternalRAM[offset];
+	return m_pMasterExternalRAM[offset];
 }
 
 WRITE16_MEMBER(namcos22_state::master_external_ram_w)
 {
-	COMBINE_DATA( &m_mpMasterExternalRAM[offset] );
+	COMBINE_DATA( &m_pMasterExternalRAM[offset] );
 }
 
 WRITE16_MEMBER(namcos22_state::slave_serial_io_w)
 {
-	m_mSerialDataSlaveToMasterNext = data;
+	m_SerialDataSlaveToMasterNext = data;
 	logerror( "slave_serial_io_w(%04x)\n", data );
 }
 
 READ16_MEMBER(namcos22_state::master_serial_io_r)
 {
 	logerror( "master_serial_io_r() == %04x\n",
-		m_mSerialDataSlaveToMasterCurrent );
-	return m_mSerialDataSlaveToMasterCurrent;
+		m_SerialDataSlaveToMasterCurrent );
+	return m_SerialDataSlaveToMasterCurrent;
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(namcos22_state::dsp_master_serial_irq)
 {
 	int scanline = param;
 
-	if( m_mbEnableDspIrqs )
+	if( m_bEnableDspIrqs )
 	{
-		m_mSerialDataSlaveToMasterCurrent = m_mSerialDataSlaveToMasterNext;
+		m_SerialDataSlaveToMasterCurrent = m_SerialDataSlaveToMasterNext;
 
 		if(scanline == 480)
 			m_master->set_input_line(TMS32025_INT0, HOLD_LINE);
@@ -1704,7 +1628,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(namcos22_state::dsp_slave_serial_irq)
 {
 	int scanline = param;
 
-	if( m_mbEnableDspIrqs )
+	if( m_bEnableDspIrqs )
 	{
 		if((scanline % 2) == 0)
 		{
@@ -1761,17 +1685,17 @@ WRITE16_MEMBER(namcos22_state::dsp_led_w)
  */
 WRITE16_MEMBER(namcos22_state::dsp_unk8_w)
 {
-	m_mRenderBufSize = 0;
+	m_RenderBufSize = 0;
 }
 
 WRITE16_MEMBER(namcos22_state::master_render_device_w)
 {
-	if( m_mRenderBufSize<MAX_RENDER_CMD_SEQ )
+	if( m_RenderBufSize<MAX_RENDER_CMD_SEQ )
 	{
-		m_mRenderBufData[m_mRenderBufSize++] = data;
-		if( m_mRenderBufSize == MAX_RENDER_CMD_SEQ )
+		m_RenderBufData[m_RenderBufSize++] = data;
+		if( m_RenderBufSize == MAX_RENDER_CMD_SEQ )
 		{
-			namcos22_draw_direct_poly( machine(), m_mRenderBufData );
+			namcos22_draw_direct_poly( machine(), m_RenderBufData );
 		}
 	}
 }
@@ -1810,7 +1734,8 @@ static ADDRESS_MAP_START( master_dsp_io, AS_IO, 16, namcos22_state )
 ADDRESS_MAP_END
 
 READ16_MEMBER(namcos22_state::dsp_BIOZ_r)
-{ /* STUB */
+{
+	/* STUB */
 	return 1;
 }
 
@@ -1997,7 +1922,7 @@ static const gfx_layout namcos22_cg_layout =
 		XOR(8)*4,  XOR(9)*4, XOR(10)*4, XOR(11)*4, XOR(12)*4, XOR(13)*4, XOR(14)*4, XOR(15)*4 },
 	{ 64*0,64*1,64*2,64*3,64*4,64*5,64*6,64*7,64*8,64*9,64*10,64*11,64*12,64*13,64*14,64*15 },
 	64*16
-}; /* cg_layout */
+};
 
 static GFXDECODE_START( namcos22 )
 	GFXDECODE_ENTRY( NULL,                   0, namcos22_cg_layout,   0, 0x800 )
@@ -2015,8 +1940,10 @@ READ32_MEMBER(namcos22_state::namcos22_C139_SCI_r)
 {
 	switch( offset )
 	{
-	case 0x0/4: return 0x0004<<16;
-	default: return 0;
+		case 0x0/4:
+			return 0x0004<<16;
+		default:
+			return 0;
 	}
 }
 
@@ -2142,29 +2069,32 @@ WRITE32_MEMBER(namcos22_state::namcos22s_system_controller_w)
 		if (newreg != oldreg)
 		{
 			if( newreg == 0 )
-			{ /* disable DSPs */
+			{
+				/* disable DSPs */
 				m_master->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); /* master DSP */
 				m_slave->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); /* slave DSP */
 				namcos22_enable_slave_simulation(machine(), 0);
-				m_mbEnableDspIrqs = 0;
+				m_bEnableDspIrqs = 0;
 			}
 			else if( newreg == 1 )
-			{ /* enable dsp and rendering subsystem */
+			{
+				/* enable dsp and rendering subsystem */
 				m_master->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 				namcos22_enable_slave_simulation(machine(), 1);
-				m_mbEnableDspIrqs = 1;
+				m_bEnableDspIrqs = 1;
 			}
 			else if( newreg == 0xff )
-			{ /* used to upload game-specific code to master/slave dsps */
+			{
+				/* used to upload game-specific code to master/slave dsps */
 				m_master->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
-				m_mbEnableDspIrqs = 0;
+				m_bEnableDspIrqs = 0;
 			}
 		}
 	}
 
 	COMBINE_DATA( &m_system_controller[offset] );
 
-} /* namcos22s_system_controller_w */
+}
 
 /*
 000064: 0000 8C9A  (1)
@@ -2180,7 +2110,6 @@ WRITE32_MEMBER(namcos22_state::namcos22s_system_controller_w)
 */
 INTERRUPT_GEN_MEMBER(namcos22_state::namcos22s_interrupt)
 {
-
 	if (nthbyte(m_system_controller, 0x00) & 7)
 	{
 		// vblank irq
@@ -2271,29 +2200,32 @@ WRITE32_MEMBER(namcos22_state::namcos22_system_controller_w)
 		if (newreg != oldreg)
 		{
 			if( newreg == 0 )
-			{ /* disable DSPs */
+			{
+				/* disable DSPs */
 				m_master->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); /* master DSP */
 				m_slave->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); /* slave DSP */
 				namcos22_enable_slave_simulation(machine(), 0);
-				m_mbEnableDspIrqs = 0;
+				m_bEnableDspIrqs = 0;
 			}
 			else if( newreg == 1 )
-			{ /* enable dsp and rendering subsystem */
+			{
+				/* enable dsp and rendering subsystem */
 				m_master->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 				namcos22_enable_slave_simulation(machine(), 1);
-				m_mbEnableDspIrqs = 1;
+				m_bEnableDspIrqs = 1;
 			}
 			else if( newreg == 0xff )
-			{ /* used to upload game-specific code to master/slave dsps */
+			{
+				/* used to upload game-specific code to master/slave dsps */
 				m_master->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
-				m_mbEnableDspIrqs = 0;
+				m_bEnableDspIrqs = 0;
 			}
 		}
 	}
 
 	COMBINE_DATA( &m_system_controller[offset] );
 
-} /* namcos22_system_controller_w */
+}
 
 /* namcos22_interrupt
 Ridge Racer:
@@ -2402,22 +2334,21 @@ WRITE32_MEMBER(namcos22_state::namcos22_keycus_w)
  * Other values seem to be digital versions of analog ports, for example "the gas pedal is
  * pressed" as a boolean flag.  IO RAM supplies it as an analog value.
  */
-READ32_MEMBER(namcos22_state::namcos22_portbit_r)
+READ16_MEMBER(namcos22_state::namcos22_portbit_r)
 {
-	UINT32 data = m_mSys22PortBits;
-	m_mSys22PortBits>>=1;
-	return data&0x10001;
-}
-WRITE32_MEMBER(namcos22_state::namcos22_portbit_w)
-{
-	unsigned dat50000008 = AnalogAsDigital(machine());
-	unsigned dat5000000a = 0xffff;
-	m_mSys22PortBits = (dat50000008<<16)|dat5000000a;
+	UINT16 ret = m_portbits[offset] & 1;
+	m_portbits[offset] = m_portbits[offset] >> 1 | 0x8000;
+	return ret;
 }
 
-READ32_MEMBER(namcos22_state::namcos22_dipswitch_r)
+WRITE16_MEMBER(namcos22_state::namcos22_portbit_w)
 {
-	return ioport("DSW0")->read()<<16;
+	m_portbits[offset] = ioport((offset == 0) ? "P1" : "P2")->read_safe(0xffff);
+}
+
+READ16_MEMBER(namcos22_state::namcos22_dipswitch_r)
+{
+	return ioport("DSW0")->read();
 }
 
 READ32_MEMBER(namcos22_state::namcos22_mcuram_r)
@@ -2450,39 +2381,37 @@ READ32_MEMBER(namcos22_state::namcos22_gun_r)
 	}
 }
 
-WRITE32_MEMBER(namcos22_state::namcos22_cpuleds_w)
+WRITE16_MEMBER(namcos22_state::namcos22_cpuleds_w)
 {
-	// 8 leds on cpu board, left to right:
-	// GYRGYRGY green/yellow/red, 0=on 1=off
-	if (ACCESSING_BITS_0_15) data &= 0xff;
-	else data = (data>>16) & 0xff;
-
+	// 8 leds on cpu board, 0=on 1=off
+	// on system 22: two rows of 4 red leds
+	// on super system 22: GYRGYRGY green/yellow/red
 	for (int i = 0; i < 8; i++)
 		output_set_lamp_value(i, (~data<<i & 0x80) ? 0 : 1);
 }
 
 READ32_MEMBER(namcos22_state::alpinesa_prot_r)
 {
-	return m_mAlpineSurferProtData;
-} /* alpinesa_prot_r */
+	return m_AlpineSurferProtData;
+}
 
 WRITE32_MEMBER(namcos22_state::alpinesa_prot_w)
 {
 	switch( data )
 	{
 		case 0:
-			m_mAlpineSurferProtData = 0;
+			m_AlpineSurferProtData = 0;
 			break;
 		case 1:
-			m_mAlpineSurferProtData = 1;
+			m_AlpineSurferProtData = 1;
 			break;
 		case 3:
-			m_mAlpineSurferProtData = 2;
+			m_AlpineSurferProtData = 2;
 			break;
 		default:
 			break;
 	}
-} /* alpinesa_prot_w */
+}
 
 WRITE32_MEMBER(namcos22_state::namcos22s_nvmem_w)
 {
@@ -2510,9 +2439,8 @@ static ADDRESS_MAP_START( namcos22s_am, AS_PROGRAM, 32, namcos22_state )
 	AM_RANGE(0x400000, 0x40001f) AM_READWRITE(namcos22_keycus_r, namcos22_keycus_w)
 	AM_RANGE(0x410000, 0x413fff) AM_RAM /* C139 SCI buffer */
 	AM_RANGE(0x420000, 0x42000f) AM_READ(namcos22_C139_SCI_r) AM_WRITEONLY /* C139 SCI registers */
-	AM_RANGE(0x430000, 0x430003) AM_WRITE(namcos22_cpuleds_w)
-	AM_RANGE(0x440000, 0x440003) AM_READ(namcos22_dipswitch_r)
-	AM_RANGE(0x450008, 0x45000b) AM_READWRITE(namcos22_portbit_r, namcos22_portbit_w)
+	AM_RANGE(0x440000, 0x440003) AM_READWRITE16(namcos22_dipswitch_r, namcos22_cpuleds_w, 0xffffffff)
+	AM_RANGE(0x450008, 0x45000b) AM_READWRITE16(namcos22_portbit_r, namcos22_portbit_w, 0xffffffff)
 	AM_RANGE(0x460000, 0x463fff) AM_RAM_WRITE(namcos22s_nvmem_w) AM_SHARE("nvmem")
 	AM_RANGE(0x700000, 0x70001f) AM_READWRITE(namcos22_system_controller_r, namcos22s_system_controller_w) AM_SHARE("syscontrol")
 	AM_RANGE(0x800000, 0x800003) AM_WRITE(namcos22s_chipselect_w)
@@ -2581,10 +2509,10 @@ WRITE16_MEMBER(namcos22_state::s22mcu_shared_w)
 static ADDRESS_MAP_START( mcu_program, AS_PROGRAM, 16, namcos22_state )
 	AM_RANGE(0x002000, 0x002fff) AM_DEVREADWRITE("c352", c352_device, read, write)
 	AM_RANGE(0x004000, 0x00bfff) AM_READWRITE(s22mcu_shared_r, s22mcu_shared_w )
-	AM_RANGE(0x00c000, 0x00ffff) AM_ROM AM_REGION("user4", 0xc000)
-	AM_RANGE(0x080000, 0x0fffff) AM_ROM AM_REGION("user4", 0)
-	AM_RANGE(0x200000, 0x27ffff) AM_ROM AM_REGION("user4", 0)
-	AM_RANGE(0x280000, 0x2fffff) AM_ROM AM_REGION("user4", 0)
+	AM_RANGE(0x00c000, 0x00ffff) AM_ROM AM_REGION("mcu", 0xc000)
+	AM_RANGE(0x080000, 0x0fffff) AM_ROM AM_REGION("mcu", 0)
+	AM_RANGE(0x200000, 0x27ffff) AM_ROM AM_REGION("mcu", 0)
+	AM_RANGE(0x280000, 0x2fffff) AM_ROM AM_REGION("mcu", 0)
 	AM_RANGE(0x301000, 0x301001) AM_NOP // watchdog? LEDs?
 	AM_RANGE(0x308000, 0x308003) AM_NOP // volume control IC?
 ADDRESS_MAP_END
@@ -2593,12 +2521,16 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( mcu_s22_program, AS_PROGRAM, 16, namcos22_state )
 	AM_RANGE(0x002000, 0x002fff) AM_DEVREADWRITE("c352", c352_device, read, write)
 	AM_RANGE(0x004000, 0x00bfff) AM_READWRITE(s22mcu_shared_r, s22mcu_shared_w )
-	AM_RANGE(0x00c000, 0x00ffff) AM_ROM AM_REGION("mcu", 0)
-	AM_RANGE(0x080000, 0x0fffff) AM_ROM AM_REGION("user4", 0)
-	AM_RANGE(0x200000, 0x27ffff) AM_ROM AM_REGION("user4", 0)
-	AM_RANGE(0x280000, 0x2fffff) AM_ROM AM_REGION("user4", 0)
+	AM_RANGE(0x00c000, 0x00ffff) AM_ROM AM_REGION("mcu_c74", 0)
+	AM_RANGE(0x080000, 0x0fffff) AM_ROM AM_REGION("mcu", 0)
+	AM_RANGE(0x200000, 0x27ffff) AM_ROM AM_REGION("mcu", 0)
+	AM_RANGE(0x280000, 0x2fffff) AM_ROM AM_REGION("mcu", 0)
 	AM_RANGE(0x301000, 0x301001) AM_NOP // watchdog? LEDs?
 	AM_RANGE(0x308000, 0x308003) AM_NOP // volume control IC?
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( iomcu_s22_program, AS_PROGRAM, 16, namcos22_state )
+	AM_RANGE(0x00c000, 0x00ffff) AM_ROM AM_REGION("iomcu", 0)
 ADDRESS_MAP_END
 
 
@@ -2655,49 +2587,13 @@ WRITE8_MEMBER(namcos22_state::propcycle_mcu_port5_w)
 	set_led_status(machine(), 0, data & 2);
 }
 
-READ8_MEMBER(namcos22_state::propcycle_mcu_adc_r)
+READ8_MEMBER(namcos22_state::namcos22s_mcu_adc_r)
 {
-	// H+L = horizontal, 1 H+L = vertical
-	UINT16 ddx, ddy;
-
-	ddx = ioport("STICKX")->read();
-	if (ddx > 0) ddx -= 1;
-	ddy = ioport("STICKY")->read();
-	if (ddy > 0) ddy -= 1;
-
-	ddx <<= 2;
-	ddy <<= 2;
-
-	switch (offset)
-	{
-		case 0:
-			// also update the pedal here
-			//
-			// this is a wee bit hackish: the way it actually works is like so:
-			// the pedal has a simple 1-bit "light interrupted" sensor.  the faster you pedal,
-			// the faster it pulses.  this is connected to the clock input for timer A3,
-			// and timer A3 is configured by the MCU program to cause an interrupt each time
-			// it's clocked.  by counting the number of interrupts in a frame, we can determine
-			// how fast the user is pedaling.
-			if( ioport("JOY")->read() & 0x10 )
-			{
-				int i;
-				for (i = 0; i < 16; i++)
-				{
-					generic_pulse_irq_line(m_mcu, M37710_LINE_TIMERA3TICK, 1);
-				}
-			}
-
-			return (ddx & 0xff);
-		case 1:
-			return (ddx>>8);
-		case 2:
-			return (ddy & 0xff);
-		case 3:
-			return (ddy>>8);
-		default:
-			return 0;
-	}
+	static const char *const portnames[] = { "ADC0", "ADC1", "ADC2", "ADC3" };
+	if (offset & 1)
+		return (ioport(portnames[offset >> 1 & 3])->read_safe(0) << 2) >> 8 & 0xff;
+	else
+		return (ioport(portnames[offset >> 1 & 3])->read_safe(0) << 2) & 0xff;
 }
 
 TIMER_CALLBACK_MEMBER(namcos22_state::alpine_steplock_callback)
@@ -2728,196 +2624,28 @@ WRITE8_MEMBER(namcos22_state::alpine_mcu_port5_w)
 	}
 }
 
-READ8_MEMBER(namcos22_state::alpineracer_mcu_adc_r)
-{
-	// 0 H+L = swing, 1 H+L = edge
-	UINT16 swing = ioport("SWING")->read()<<2;
-	UINT16 edge  = ioport("EDGE" )->read()<<2;
-
-	switch (offset)
-	{
-		case 0:
-			return swing & 0xff;
-
-		case 1:
-			return (swing>>8);
-
-		case 2:
-			return edge & 0xff;
-
-		case 3:
-			return (edge>>8);
-
-		default:
-			return 0;
-	}
-}
-
-READ8_MEMBER(namcos22_state::cybrcycc_mcu_adc_r)
-{
-	UINT16 gas,brake,steer;
-	ReadAnalogDrivingPorts( machine(), &gas, &brake, &steer );
-
-	gas <<= 2;
-	brake <<= 2;
-	steer <<= 2;
-
-	switch (offset)
-	{
-		case 0:
-			return steer & 0xff;
-
-		case 1:
-			return (steer>>8);
-
-		case 2:
-			return gas & 0xff;
-
-		case 3:
-			return (gas>>8);
-
-		case 4:
-			return brake & 0xff;
-
-		case 5:
-			return (brake>>8);
-
-		default:
-			return 0;
-	}
-}
-
-READ8_MEMBER(namcos22_state::tokyowar_mcu_adc_r)
-{
-	UINT16 gas,brake,steer;
-	ReadAnalogDrivingPorts( machine(), &gas, &brake, &steer );
-
-	gas <<= 2;
-	brake <<= 2;
-	steer <<= 2;
-
-	switch (offset)
-	{
-		case 0:
-			return steer & 0xff;
-
-		case 1:
-			return (steer>>8);
-
-		case 4:
-			return gas & 0xff;
-
-		case 5:
-			return (gas>>8);
-
-		case 6:
-			return brake & 0xff;
-
-		case 7:
-			return (brake>>8);
-
-		default:
-			return 0;
-	}
-}
-
-READ8_MEMBER(namcos22_state::aquajet_mcu_adc_r)
-{
-	UINT16 gas, steer, ddy;
-
-	gas   = ioport("GAS")->read() ^ 0x7f;
-	steer = ioport("STEER")->read() ^ 0xff;
-	ddy = ioport("STICKY")->read();
-	if (ddy > 0) ddy -= 1;
-
-	gas <<= 2;
-	steer <<= 2;
-	ddy <<= 2;
-
-	/*
-	    0 & 1 = handle left/right
-	    2 & 3 = accelerator
-	    4 & 5 = handle pole (Y axis)
-	*/
-
-	switch (offset)
-	{
-		case 0:
-			return steer & 0xff;
-
-		case 1:
-			return (steer>>8);
-
-		case 2:
-			return gas & 0xff;
-
-		case 3:
-			return (gas>>8);
-
-		case 4:
-			return ddy & 0xff;
-
-		case 5:
-			return (ddy>>8);
-
-		default:
-			return 0;
-	}
-}
-
-READ8_MEMBER(namcos22_state::adillor_mcu_adc_r)
-{
-	// unused
-	return 0;
-}
-
-READ8_MEMBER(namcos22_state::airco22_mcu_adc_r)
-{
-	UINT16 pedal, x, y;
-
-	pedal = ioport("PEDAL")->read()<<2;
-	x = ioport("STICKX")->read()<<2;
-	y = ioport("STICKY")->read()<<2;
-
-	switch (offset)
-	{
-		case 0:
-			return x & 0xff;
-
-		case 1:
-			return (x>>8);
-
-		case 2:
-			return y & 0xff;
-
-		case 3:
-			return (y>>8);
-
-		case 4:
-			return pedal & 0xff;
-
-		case 5:
-			return (pedal>>8);
-
-		default:
-			return 0;
-	}
-}
-
 static ADDRESS_MAP_START( mcu_io, AS_IO, 8, namcos22_state )
 	AM_RANGE(M37710_PORT4, M37710_PORT4) AM_READ(mcu_port4_r ) AM_WRITE(mcu_port4_w )
 	AM_RANGE(M37710_PORT5, M37710_PORT5) AM_READ(mcu_port5_r ) AM_WRITE(mcu_port5_w )
 	AM_RANGE(M37710_PORT6, M37710_PORT6) AM_READ(mcu_port6_r ) AM_WRITE(mcu_port6_w )
 	AM_RANGE(M37710_PORT7, M37710_PORT7) AM_READ(mcu_port7_r ) AM_WRITE(mcu_port7_w )
+	AM_RANGE(M37710_ADC0_L, M37710_ADC3_H) AM_READ(namcos22s_mcu_adc_r)
+	AM_RANGE(M37710_ADC4_L, M37710_ADC7_H) AM_READNOP
 ADDRESS_MAP_END
 
 READ8_MEMBER(namcos22_state::mcu_port4_s22_r)
 {
-	return m_p4 | 0x10; // for C74, 0x10 selects sound MCU role, 0x00 selects control-reading role
+	// for C74, 0x10 selects sound MCU role, 0x00 selects control-reading role
+	return (&space.device() == m_mcu) ? 0x10: 0x00;
 }
 
 static ADDRESS_MAP_START( mcu_s22_io, AS_IO, 8, namcos22_state )
 	AM_RANGE(M37710_PORT4, M37710_PORT4) AM_READ(mcu_port4_s22_r )
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( iomcu_s22_io, AS_IO, 8, namcos22_state )
+	AM_RANGE(M37710_PORT4, M37710_PORT4) AM_READ(mcu_port4_s22_r )
+	AM_RANGE(0x00, 0xff) AM_NOP
 ADDRESS_MAP_END
 
 TIMER_DEVICE_CALLBACK_MEMBER(namcos22_state::mcu_irq)
@@ -2935,12 +2663,15 @@ TIMER_DEVICE_CALLBACK_MEMBER(namcos22_state::mcu_irq)
 
 void namcos22_state::machine_reset()
 {
-	InitDSP(machine());
+	m_master->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_slave->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_mcu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 void namcos22_state::machine_start()
 {
-	;
+	m_portbits[0] = 0xffff;
+	m_portbits[1] = 0xffff;
 }
 
 static MACHINE_CONFIG_START( namcos22s, namcos22_state )
@@ -3004,37 +2735,63 @@ MACHINE_CONFIG_END
 TIMER_CALLBACK_MEMBER(namcos22_state::adillor_trackball_interrupt)
 {
 	generic_pulse_irq_line(m_mcu, param ? M37710_LINE_TIMERA2TICK : M37710_LINE_TIMERA3TICK, 1);
-	m_ar_tb_interrupt[param]->adjust(m_ar_tb_reload[param], param);
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(namcos22_state::adillor_trackball_update)
 {
-	// arbitrary timer for reading trackball
-	for (int axis = 0; axis < 2; axis++)
+	// arbitrary timer for reading optical trackball
+	UINT8 ix = ioport("TRACKX")->read();
+	UINT8 iy = ioport("TRACKY")->read();
+
+	if (ix != 0x80 || iy < 0x80)
 	{
-		UINT16 ipt = ioport(axis ? "TRACKY" : "TRACKX")->read();
-		if (ipt > 0 && ipt < 0x8000)
+		if (iy >= 0x80)
+			iy = 0x7f;
+		double x = (double)(ix - 0x80) / 127.0;
+		double y = (double)(0x80 - iy) / 127.0;
+
+		// normalize
+		double a = atan(x/y);
+		double p = sqrt(x*x + y*y);
+		double v = (fabs(a) < (M_PI / 4.0)) ? p*cos(a) : p*sin(a);
+		v = fabs(v);
+
+		// note that it is rotated by 45 degrees, so instead of axes like (+), they are like (x)
+		a += (M_PI / 4.0);
+		if (a < 0)
+			a = 0;
+		else if (a > (M_PI / 2.0))
+			a = M_PI / 2.0;
+
+		// tied to mcu A2/A3 timer (speed determines frequency)
+		// these values(in usec) may need tweaking:
+		const int base = 1000;
+		const int range = 5000;
+
+		double t[2];
+		t[0] = v*sin(a); // y -> A2
+		t[1] = v*cos(a); // x -> A3
+
+		for (int axis = 0; axis < 2; axis++)
 		{
-			// optical trackball, tied to mcu A2/A3 timer (speed determines frequency)
-			// note that it is rotated by 45 degrees, so instead of axes like (+), they are like (x)
-			// (not yet tested on a real trackball, values below still need to be tweaked)
-			const int cap = 256;
-			const int maxspeed = 500;
-			const int sensitivity = 50;
-
-			if (ipt > cap) ipt = cap;
-			ipt = cap - ipt;
-
-			attotime freq = attotime::from_usec(maxspeed + sensitivity * ipt);
-			m_ar_tb_reload[axis] = freq;
-			m_ar_tb_interrupt[axis]->adjust(min(freq, m_ar_tb_interrupt[axis]->remaining()), axis);
-
+			if (t[axis] >  (1.0 / (double)(range)))
+			{
+				attotime freq = attotime::from_usec((base + range) - ((double)(range) * t[axis]));
+				m_ar_tb_interrupt[axis]->adjust(min(freq, m_ar_tb_interrupt[axis]->remaining()), axis, freq);
+			}
+			else
+			{
+				// not moving
+				m_ar_tb_interrupt[axis]->adjust(attotime::never, axis, attotime::never);
+			}
 		}
-		else
+	}
+	else
+	{
+		// both axes not moving
+		for (int axis = 0; axis < 2; axis++)
 		{
-			// backwards or not moving
-			m_ar_tb_reload[axis] = attotime::never;
-			m_ar_tb_interrupt[axis]->adjust(attotime::never, axis);
+			m_ar_tb_interrupt[axis]->adjust(attotime::never, axis, attotime::never);
 		}
 	}
 }
@@ -3053,6 +2810,47 @@ static MACHINE_CONFIG_DERIVED( adillor, namcos22s )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("ar_tb_upd", namcos22_state, adillor_trackball_update, attotime::from_msec(20))
 
 	MCFG_MACHINE_START_OVERRIDE(namcos22_state,adillor)
+MACHINE_CONFIG_END
+
+
+TIMER_DEVICE_CALLBACK_MEMBER(namcos22_state::propcycl_pedal_interrupt)
+{
+	generic_pulse_irq_line(m_mcu, M37710_LINE_TIMERA3TICK, 1);
+}
+
+TIMER_DEVICE_CALLBACK_MEMBER(namcos22_state::propcycl_pedal_update)
+{
+	// arbitrary timer for reading optical pedal
+	UINT8 i = ioport("PEDAL")->read();
+
+	if (i != 0)
+	{
+		// the pedal has a simple 1-bit "light interrupted" sensor.  the faster you pedal,
+		// the faster it pulses.  this is connected to the clock input for timer A3,
+		// and timer A3 is configured by the MCU program to cause an interrupt each time
+		// it's clocked.  by counting the number of interrupts in a frame, we can determine
+		// how fast the user is pedaling.
+
+		// these values(in usec) may need tweaking:
+		const int base = 1000;
+		const int range = 10000;
+
+		attotime freq = attotime::from_usec(base + range * (1.0 / (double)i));
+		m_pc_pedal_interrupt->adjust(min(freq, m_pc_pedal_interrupt->time_left()), 0, freq);
+
+	}
+	else
+	{
+		// not moving
+		m_pc_pedal_interrupt->adjust(attotime::never, 0, attotime::never);
+	}
+}
+
+static MACHINE_CONFIG_DERIVED( propcycl, namcos22s )
+
+	/* basic machine hardware */
+	MCFG_TIMER_DRIVER_ADD_PERIODIC("pc_p_upd", namcos22_state, propcycl_pedal_update, attotime::from_msec(20))
+	MCFG_TIMER_DRIVER_ADD("pc_p_int", namcos22_state, propcycl_pedal_interrupt)
 MACHINE_CONFIG_END
 
 /*********************************************************************************/
@@ -3147,8 +2945,8 @@ static ADDRESS_MAP_START( namcos22_am, AS_PROGRAM, 32, namcos22_state )
 	 *     0x50000000 - DIPSW3
 	 *     0x50000001 - DIPSW2
 	 */
-	AM_RANGE(0x50000000, 0x50000003) AM_READ(namcos22_dipswitch_r) AM_WRITENOP
-	AM_RANGE(0x50000008, 0x5000000b) AM_READWRITE(namcos22_portbit_r, namcos22_portbit_w)
+	AM_RANGE(0x50000000, 0x50000003) AM_READWRITE16(namcos22_dipswitch_r, namcos22_cpuleds_w, 0xffffffff)
+	AM_RANGE(0x50000008, 0x5000000b) AM_READWRITE16(namcos22_portbit_r, namcos22_portbit_w, 0xffffffff)
 
 	/**
 	 * EEPROM
@@ -3284,6 +3082,10 @@ static MACHINE_CONFIG_START( namcos22, namcos22_state )
 	MCFG_CPU_PROGRAM_MAP( mcu_s22_program)
 	MCFG_CPU_IO_MAP( mcu_s22_io)
 
+	MCFG_CPU_ADD("iomcu", M37702, XTAL_6_144MHz)    // 6.144MHz XTAL on I/O board, not sure if it has a divider
+	MCFG_CPU_PROGRAM_MAP( iomcu_s22_program)
+	MCFG_CPU_IO_MAP( iomcu_s22_io)
+
 //  MCFG_VIDEO_ATTRIBUTES(VIDEO_ALWAYS_UPDATE)
 
 	MCFG_NVRAM_HANDLER(namcos22)
@@ -3322,9 +3124,7 @@ ROM_START( airco22b )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", ROMREGION_ERASE00 ) /* S22-BIOS ver1.30 */
-
-	ROM_REGION( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.20 */
 	ROM_LOAD( "acs1data.8k", 0, 0x080000, CRC(33824bc9) SHA1(80ec63883770e5eec1f5f1ddc16a85ef8f22a48b) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -3379,9 +3179,7 @@ ROM_START( alpinerc )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", ROMREGION_ERASE00 ) /* S22-BIOS ver1.30 */
-
-	ROM_REGION( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.30 */
 	ROM_LOAD( "ar1datab.8k", 0, 0x080000, CRC(c26306f8) SHA1(6d8d993c076d5ced523143a86bd0938b3794478d) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -3438,9 +3236,7 @@ ROM_START( alpinerd )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", ROMREGION_ERASE00 ) /* S22-BIOS ver1.30 */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.30 */
 	ROM_LOAD( "ar1datab.8k", 0, 0x080000, CRC(c26306f8) SHA1(6d8d993c076d5ced523143a86bd0938b3794478d) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -3497,9 +3293,7 @@ ROM_START( alpinr2b )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", ROMREGION_ERASE00 ) /* S22-BIOS ver1.30 */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.30 */
 	ROM_LOAD( "ars2data.8k",  0x000000, 0x080000, CRC(29b36dcb) SHA1(70fde130c11789c822829493a70ecefb077c0c15) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -3554,9 +3348,7 @@ ROM_START( alpinr2a )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", ROMREGION_ERASE00 ) /* S22-BIOS ver1.30 */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.30 */
 	ROM_LOAD( "ars2data.8k",  0x000000, 0x080000, CRC(29b36dcb) SHA1(70fde130c11789c822829493a70ecefb077c0c15) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -3611,9 +3403,7 @@ ROM_START( alpinesa )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", ROMREGION_ERASE00 ) /* S22-BIOS ver1.41 */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.41 */
 	ROM_LOAD( "af1data.8k",   0x000000, 0x080000, CRC(ef13ebe8) SHA1(5d3f697994d4b5b19ee7fea1e2aef8e39449b68e) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -3658,11 +3448,17 @@ ROM_START( cybrcomm )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", ROMREGION_ERASE00 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION16_LE( 0x100000, "user4", 0 ) /* MCU BIOS */
-	ROM_LOAD( "cy1data.6r", 0, 0x020000, CRC(10d0005b) SHA1(10508eeaf74d24a611b44cd3bb12417ceb78904f) )
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
+	ROM_LOAD( "cy1data.6r", 0x00000, 0x20000, CRC(10d0005b) SHA1(10508eeaf74d24a611b44cd3bb12417ceb78904f) )
+	ROM_RELOAD(             0x20000, 0x20000)
+	ROM_RELOAD(             0x40000, 0x20000)
+	ROM_RELOAD(             0x60000, 0x20000)
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
 	ROM_LOAD( "cyc1cg0.1a", 0x200000*0x4, 0x200000,CRC(e839b9bd) SHA1(fee43d37dcca7f1fb952a6bfb886b7ee30b7d75c) ) /* cyc1cg0.6a */
@@ -3695,7 +3491,7 @@ ROM_START( cybrcomm )
 	ROM_LOAD( "cy1wav2.10n", 0x100000, 0x100000, CRC(b98c1ca6) SHA1(4b66aa05f82be5ef3315acc30031872698ff4391) )
 	ROM_LOAD( "cy1wav3.10l", 0x300000, 0x100000, CRC(43dbac19) SHA1(83fd4ae4e7ec264fc217ed18caf59bf438af0c3d) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -3717,9 +3513,7 @@ ROM_START( cybrcycc )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", ROMREGION_ERASE00 ) /* S22-BIOS ver1.30 */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.30 */
 	ROM_LOAD( "cb1datab.8k", 0, 0x080000, CRC(e2404221) SHA1(b88810dd45aee8a5475c30806cdfded25fa14e0e) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -3773,9 +3567,7 @@ ROM_START( propcycl )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", ROMREGION_ERASE00 ) /* SS22-BIOS ver1.41 */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* SS22-BIOS ver1.41 */
 	ROM_LOAD( "pr1data.8k", 0, 0x080000, CRC(2e5767a4) SHA1(390bf05c90044d841fe2dd4a427177fa1570b9a6) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -3838,10 +3630,13 @@ ROM_START( acedrvrw )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data and MCU BIOS */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "ad1data.6r", 0, 0x080000, CRC(82024f74) SHA1(711ab0c4f027716aeab18e3a5d3d06fa82af8007) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -3868,7 +3663,7 @@ ROM_START( acedrvrw )
 	ROM_LOAD( "ad1wave2.10n", 0x100000*1, 0x100000,CRC(365a6831) SHA1(ddaa44a4436d6de120b64a5d130b1ee18f872e19) )
 	ROM_LOAD( "ad1wave3.10l", 0x100000*3, 0x100000,CRC(cd8ecb0b) SHA1(7950b5a3a81f5554f57accabc7a623b8265a21a1) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -3887,10 +3682,13 @@ ROM_START( victlapw )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data and MCU BIOS */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "adv1data.6r", 0, 0x080000, CRC(10eecdb4) SHA1(aaedeed166614e6670e765e0d7e4e9eb5f38ad10) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -3924,7 +3722,7 @@ ROM_START( victlapw )
 	ROM_LOAD( "adv1wav2.10n", 0x100000, 0x100000, CRC(c1a5ca5e) SHA1(27e6f9256d5fe5966e91d6be1e6e80900a764af1) )
 	ROM_LOAD( "adv1wav3.10l", 0x300000, 0x100000, CRC(fc6b8004) SHA1(5c9e0805895931ec2b6a43376059bdbf5777222f) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -3943,10 +3741,13 @@ ROM_START( raveracw )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data and MCU BIOS */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rv1data.6r", 0, 0x080000, CRC(d358ec20) SHA1(140c513349240417bb546dd2d151f3666b818e91) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -3983,7 +3784,7 @@ ROM_START( raveracw )
 	ROM_LOAD( "rv1wav2.10n", 0x100000, 0x100000, CRC(5af9dc83) SHA1(9aeb7f8217b806a6f3ed93056513af9fbcb6b372) )
 	ROM_LOAD( "rv1wav3.10l", 0x300000, 0x100000, CRC(ffb9ad75) SHA1(a9a61a597bd3bbe9732f92747d82264fe4d9af48) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4005,10 +3806,13 @@ ROM_START( raveracj )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data and MCU BIOS */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rv1data.6r", 0, 0x080000, CRC(d358ec20) SHA1(140c513349240417bb546dd2d151f3666b818e91) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -4045,7 +3849,7 @@ ROM_START( raveracj )
 	ROM_LOAD( "rv1wav2.10n", 0x100000, 0x100000, CRC(5af9dc83) SHA1(9aeb7f8217b806a6f3ed93056513af9fbcb6b372) )
 	ROM_LOAD( "rv1wav3.10l", 0x300000, 0x100000, CRC(ffb9ad75) SHA1(a9a61a597bd3bbe9732f92747d82264fe4d9af48) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4067,10 +3871,13 @@ ROM_START( raveracja )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data and MCU BIOS */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rv1data.6r", 0, 0x080000, CRC(d358ec20) SHA1(140c513349240417bb546dd2d151f3666b818e91) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -4107,7 +3914,7 @@ ROM_START( raveracja )
 	ROM_LOAD( "rv1wav2.10n", 0x100000, 0x100000, CRC(5af9dc83) SHA1(9aeb7f8217b806a6f3ed93056513af9fbcb6b372) )
 	ROM_LOAD( "rv1wav3.10l", 0x300000, 0x100000, CRC(ffb9ad75) SHA1(a9a61a597bd3bbe9732f92747d82264fe4d9af48) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4129,10 +3936,13 @@ ROM_START( ridgera2 )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data and MCU BIOS */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rrs1data.6r", 0, 0x080000, CRC(b7063aa8) SHA1(08ff689e8dd529b91eee423c93f084945c6de417) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -4159,7 +3969,7 @@ ROM_START( ridgera2 )
 	ROM_LOAD( "rrs1wav2.10n", 0x100000*1, 0x100000,CRC(6f0d4619) SHA1(cd3d57f2ea21497f388ffa29ec7d2665647a01c0) )
 	ROM_LOAD( "rrs1wav3.10l", 0x100000*3, 0x100000,CRC(106e761f) SHA1(97f47b857bdcbc79b0aface53dd385e67fcc9108) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4178,10 +3988,13 @@ ROM_START( ridgera2j )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data and MCU BIOS */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rrs1data.6r", 0, 0x080000, CRC(b7063aa8) SHA1(08ff689e8dd529b91eee423c93f084945c6de417) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -4208,7 +4021,7 @@ ROM_START( ridgera2j )
 	ROM_LOAD( "rrs1wav2.10n", 0x100000*1, 0x100000,CRC(6f0d4619) SHA1(cd3d57f2ea21497f388ffa29ec7d2665647a01c0) )
 	ROM_LOAD( "rrs1wav3.10l", 0x100000*3, 0x100000,CRC(106e761f) SHA1(97f47b857bdcbc79b0aface53dd385e67fcc9108) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4227,10 +4040,13 @@ ROM_START( ridgera2ja )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data and MCU BIOS */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rrs1data.6r", 0, 0x080000, CRC(b7063aa8) SHA1(08ff689e8dd529b91eee423c93f084945c6de417) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -4257,7 +4073,7 @@ ROM_START( ridgera2ja )
 	ROM_LOAD( "rrs1wav2.10n", 0x100000*1, 0x100000,CRC(6f0d4619) SHA1(cd3d57f2ea21497f388ffa29ec7d2665647a01c0) )
 	ROM_LOAD( "rrs1wav3.10l", 0x100000*3, 0x100000,CRC(106e761f) SHA1(97f47b857bdcbc79b0aface53dd385e67fcc9108) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4276,10 +4092,13 @@ ROM_START( ridgerac )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rr1data.6r", 0, 0x080000, CRC(18f5f748) SHA1(e0d149a66de36156edd9b55f604c9a9801aaefa8) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -4306,7 +4125,7 @@ ROM_START( ridgerac )
 	ROM_LOAD( "rr1wav2.10n", 0x100000*1, 0x100000,CRC(3244cb59) SHA1(b3283b30cfafbfdcbc6d482ecc4ed6a47a527ca4) )
 	ROM_LOAD( "rr1wav3.10l", 0x100000*3, 0x100000,CRC(c4cda1a7) SHA1(60bc96880ec79efdff3cc70c09e848692a40bea4) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4325,10 +4144,13 @@ ROM_START( ridgeracb )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rr1data.6r", 0, 0x080000, CRC(18f5f748) SHA1(e0d149a66de36156edd9b55f604c9a9801aaefa8) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -4355,7 +4177,7 @@ ROM_START( ridgeracb )
 	ROM_LOAD( "rr1wav2.10n", 0x100000*1, 0x100000,CRC(3244cb59) SHA1(b3283b30cfafbfdcbc6d482ecc4ed6a47a527ca4) )
 	ROM_LOAD( "rr1wav3.10l", 0x100000*3, 0x100000,CRC(c4cda1a7) SHA1(60bc96880ec79efdff3cc70c09e848692a40bea4) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4374,10 +4196,13 @@ ROM_START( ridgeracj )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data and MCU BIOS */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rr1data.6r", 0, 0x080000, CRC(18f5f748) SHA1(e0d149a66de36156edd9b55f604c9a9801aaefa8) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -4404,7 +4229,7 @@ ROM_START( ridgeracj )
 	ROM_LOAD( "rr1wav2.10n", 0x100000*1, 0x100000,CRC(3244cb59) SHA1(b3283b30cfafbfdcbc6d482ecc4ed6a47a527ca4) )
 	ROM_LOAD( "rr1wav3.10l", 0x100000*3, 0x100000,CRC(c4cda1a7) SHA1(60bc96880ec79efdff3cc70c09e848692a40bea4) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4423,10 +4248,13 @@ ROM_START( ridgerac3 )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rr1data.6r", 0, 0x080000, CRC(18f5f748) SHA1(e0d149a66de36156edd9b55f604c9a9801aaefa8) )
 
 	ROM_REGION( 0x200000*8, "textile", 0) /* 16x16x8bpp texture tiles */
@@ -4453,7 +4281,7 @@ ROM_START( ridgerac3 )
 	ROM_LOAD( "rr1wav2.10n", 0x100000*1, 0x100000,CRC(3244cb59) SHA1(b3283b30cfafbfdcbc6d482ecc4ed6a47a527ca4) )
 	ROM_LOAD( "rr1wav3.10l", 0x100000*3, 0x100000,CRC(c4cda1a7) SHA1(60bc96880ec79efdff3cc70c09e848692a40bea4) )
 
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rr1gam.2d",   0x0000, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.3d",   0x0100, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rr1gam.4d",   0x0200, 0x0100, CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4472,10 +4300,13 @@ ROM_START( ridgeracf )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x080000, "mcu", 0 ) /* BIOS */
+	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
 	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
-	ROM_REGION( 0x100000, "user4", 0 ) /* sound data */
+	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
+	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
+
+	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rrf1data.6r", 0, 0x080000, CRC(ce3c6ed6) SHA1(23e033364bc967c10c49fd1d5413dda837670633) )
 
 	ROM_REGION( 0x80000*6, "pointrom", 0 ) /* 3d model data */
@@ -4493,7 +4324,7 @@ ROM_START( ridgeracf )
 	ROM_LOAD( "rrf1wave3.10l", 0x100000*3, 0x100000,CRC(c4cda1a7) SHA1(60bc96880ec79efdff3cc70c09e848692a40bea4) )
 
 	/* this stuff was missing from this version, and shouldn't be the same (bad textures if we use these roms) */
-	ROM_REGION( 0x300, "user1", 0 )
+	ROM_REGION( 0x300, "gamma_proms", 0 )
 	ROM_LOAD( "rrf1gam.2d",   0x0000, 0x0100, BAD_DUMP CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rrf1gam.3d",   0x0100, 0x0100, BAD_DUMP CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
 	ROM_LOAD( "rrf1gam.4d",   0x0200, 0x0100, BAD_DUMP CRC(b2161bce) SHA1(d2681cc0cf8e68df0d942d392b4eb4458c4bb356) )
@@ -4522,9 +4353,7 @@ ROM_START( timecris )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", ROMREGION_ERASE00 ) /* BIOS */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.30 */
 	ROM_LOAD( "ts1data.8k", 0, 0x080000, CRC(e68aa973) SHA1(663e80d249be5d5841139d98a9d72e2396851272) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -4575,9 +4404,7 @@ ROM_START( timecrisa )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", ROMREGION_ERASE00 ) /* BIOS */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.30 */
 	ROM_LOAD( "ts1data.8k", 0, 0x080000, CRC(e68aa973) SHA1(663e80d249be5d5841139d98a9d72e2396851272) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -4630,9 +4457,7 @@ ROM_START( tokyowar )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", ROMREGION_ERASE00 ) /* BIOS */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.41 */
 	ROM_LOAD( "tw1data.8k",   0x000000, 0x080000, CRC(bd046e4b) SHA1(162bc4ab69959ccab49fd69de291d34d472fb1c8) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -4687,9 +4512,7 @@ ROM_START( dirtdash )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", ROMREGION_ERASE00 ) /* BIOS */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.41 */
 	ROM_LOAD( "dt1dataa.8k",  0x000000, 0x080000, CRC(9bcdea21) SHA1(26ae025cf746d3a703a82495eb2bb515b828a650) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -4739,9 +4562,7 @@ ROM_START( aquajet )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", ROMREGION_ERASE00 ) /* BIOS */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.41 */
 	ROM_LOAD( "aj1data.8k",   0x000000, 0x080000, CRC(52bcc6d5) SHA1(25319ea6db35cc9bdcb39cc83d597a2a9f1690f3) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -4798,9 +4619,7 @@ ROM_START( adillor )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION( 0x80000, "mcu", ROMREGION_ERASE00 ) /* BIOS */
-
-	ROM_REGION16_LE( 0x080000, "user4", 0 ) /* MCU BIOS */
+	ROM_REGION16_LE( 0x080000, "mcu", 0 ) /* S22-BIOS ver1.41 */
 	ROM_LOAD( "am1data.8k", 0x000000, 0x080000, CRC(3c176589) SHA1(fabf8debfa118893449f6086986fd1aa012daf27) )
 
 	ROM_REGION( 0x200000*8, "sprite", ROMREGION_ERASEFF ) /* 32x32x8bpp sprite tiles */
@@ -4863,30 +4682,15 @@ CUSTOM_INPUT_MEMBER(namcos22_state::alpine_motor_read)
 
 static INPUT_PORTS_START( alpiner )
 	PORT_START("DSW0")
-	PORT_DIPNAME( 0x01, 0x01, "DIP4-1" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "DIP4-2" )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "DIP4-3" )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, "DIP4-4" )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "DIP4-5" )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "DIP4-6" )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "DIP4-7" )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "DIP4-8" )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0001, 0x0001, "SW4:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW4:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW4:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW4:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW4:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW4:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW4:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW4:8" )
+	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("MCUP5A")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -4898,52 +4702,28 @@ static INPUT_PORTS_START( alpiner )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT) PORT_16WAY // R Selection
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH,IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, namcos22_state,alpine_motor_read, (void *)0) // steps are free
 
-	PORT_START("SWING")
-	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_NAME("Steps Swing")
-
-	PORT_START("EDGE")
-	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_NAME("Steps Edge")
-
 	PORT_START("MCUP5B")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH,IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, namcos22_state,alpine_motor_read, (void *)1) // steps are locked
 	PORT_BIT( 0xfe, IP_ACTIVE_LOW, IPT_UNKNOWN )
-INPUT_PORTS_END /* Alpine Racer */
+
+	PORT_START("ADC0")
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_NAME("Steps Swing")
+
+	PORT_START("ADC1")
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_NAME("Steps Edge")
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( airco22 )
 	PORT_START("DSW0")
-	PORT_DIPNAME( 0x01, 0x01, "DIP4-1" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "DIP4-2" )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "DIP4-3" )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, "DIP4-4" )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "DIP4-5" )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "DIP4-6" )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "DIP4-7" )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "DIP4-8" )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-
-	PORT_START("PEDAL")
-	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0x00, 0xff) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
-
-	PORT_START("STICKX")
-	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
-
-	PORT_START("STICKY")
-	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
+	PORT_DIPUNKNOWN_DIPLOC( 0x0001, 0x0001, "SW4:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW4:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW4:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW4:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW4:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW4:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW4:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW4:8" )
+	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("MCUP5A")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -4957,34 +4737,30 @@ static INPUT_PORTS_START( airco22 )
 
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
-INPUT_PORTS_END /* Air Combat22 */
+
+	PORT_START("ADC0")
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
+
+	PORT_START("ADC1")
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
+
+	PORT_START("ADC2")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0x00, 0xff) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( cybrcycc )
 	PORT_START("DSW0")
-	PORT_DIPNAME( 0x01, 0x01, "DIP4-1 (Test Mode)" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "DIP4-2" )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "DIP4-3" )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, "DIP4-4" )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "DIP4-5" )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "DIP4-6" )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "DIP4-7" )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "DIP4-8" )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0001, 0x0001, "Test Mode?" ) PORT_DIPLOCATION("SW4:1")
+	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW4:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW4:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW4:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW4:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW4:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW4:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW4:8" )
+	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("MCUP5A")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -4999,35 +4775,27 @@ static INPUT_PORTS_START( cybrcycc )
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	DRIVING_ANALOG_PORTS
-INPUT_PORTS_END /* Cyber Cycles */
+	PORT_START("ADC0")
+	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
+
+	PORT_START("ADC1")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL )  PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
+
+	PORT_START("ADC2")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( dirtdash )
 	PORT_START("DSW0")
-	PORT_DIPNAME( 0x01, 0x01, "DIP4-1" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "DIP4-2" )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "DIP4-3" )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, "DIP4-4" )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "DIP4-5" )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "DIP4-6" )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "DIP4-7" )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "DIP4-8" )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0001, 0x0001, "SW4:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW4:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW4:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW4:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW4:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW4:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW4:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW4:8" )
+	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("MCUP5A")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -5036,43 +4804,35 @@ static INPUT_PORTS_START( dirtdash )
 	PORT_SERVICE( 0x08, IP_ACTIVE_LOW )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("View Change")
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_NAME("Shift Up")
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_UP   ) PORT_NAME("Shift Down")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_NAME("Shift Down")
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_NAME("Motion-Stop")
 
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	DRIVING_ANALOG_PORTS
-	PORT_MODIFY("STEER") // default is too sensitive
+	PORT_START("ADC0")
 	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(3) PORT_NAME("Steering Wheel")
-INPUT_PORTS_END /* Dirt Dash */
+
+	PORT_START("ADC1")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL )  PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
+
+	PORT_START("ADC2")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( tokyowar )
 	PORT_START("DSW0")
-	PORT_DIPNAME( 0x01, 0x01, "DIP4-1 (Test Mode)" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "DIP4-2" )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "DIP4-3" )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, "DIP4-4" )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "DIP4-5" )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "DIP4-6" )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "DIP4-7" )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "DIP4-8" )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0001, 0x0001, "Test Mode?" ) PORT_DIPLOCATION("SW4:1")
+	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW4:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW4:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW4:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW4:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW4:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW4:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW4:8" )
+	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("MCUP5A")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -5087,44 +4847,29 @@ static INPUT_PORTS_START( tokyowar )
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	DRIVING_ANALOG_PORTS
-INPUT_PORTS_END /* Tokyo Wars */
+	PORT_START("ADC0")
+	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
+
+	PORT_START("ADC2")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL )  PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
+
+	PORT_START("ADC3")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( aquajet )
 	PORT_START("DSW0")
-	PORT_DIPNAME( 0x01, 0x01, "DIP4-1 (Test Mode)" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "DIP4-2" )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "DIP4-3" )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, "DIP4-4" )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "DIP4-5" )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "DIP4-6" )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "DIP4-7" )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "DIP4-8" )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-
-	PORT_START("GAS")
-	PORT_BIT( 0x7f, 0x00, IPT_PEDAL ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10)
-
-	PORT_START("STEER")
-	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10)
-
-	PORT_START("STICKY")
-	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10)
+	PORT_DIPNAME( 0x0001, 0x0001, "Test Mode?" ) PORT_DIPLOCATION("SW4:1")
+	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW4:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW4:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW4:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW4:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW4:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW4:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW4:8" )
+	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("MCUP5A")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -5138,34 +4883,39 @@ static INPUT_PORTS_START( aquajet )
 
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
-INPUT_PORTS_END /* Aqua Jet */
+
+	PORT_START("ADC0")
+	PORT_BIT( 0xff, 0x7f, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE
+
+	PORT_START("ADC1")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0x00, 0x80) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE
+
+	PORT_START("ADC2")
+	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( adillor )
 	PORT_START("DSW0")
-	PORT_DIPNAME( 0x01, 0x01, "DIP4-1 (Test Mode)" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "DIP4-2" )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "DIP4-3" )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, "DIP4-4" )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "DIP4-5" )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "DIP4-6" )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "DIP4-7" )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "DIP4-8" )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0001, 0x0001, "Test Mode?" ) PORT_DIPLOCATION("SW4:1")
+	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW4:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW4:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW4:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW4:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW4:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW4:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW4:8" )
+	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("P1")
+	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_NAME("Dev Service Enter")
+	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2) PORT_NAME("Dev Service Exit")
+	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(2) PORT_NAME("Dev Service Left")
+	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(2) PORT_NAME("Dev Service Right") // when in normal testmode, press this to enter the extra testmode
+	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(2) PORT_NAME("Dev Service Up")
+	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(2) PORT_NAME("Dev Service Down")
+	PORT_BIT( 0xffc0, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("MCUP5A")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -5182,52 +4932,23 @@ static INPUT_PORTS_START( adillor )
 	PORT_BIT( 0xfe, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("TRACKX")
-	PORT_BIT( 0xffff, 0x0000, IPT_TRACKBALL_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(200) PORT_RESET
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_MINMAX(0x01, 0xff) PORT_SENSITIVITY(100) PORT_KEYDELTA(20) PORT_NAME("Trackball X")
 
 	PORT_START("TRACKY")
-	PORT_BIT( 0xffff, 0x0000, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(200) PORT_RESET PORT_REVERSE
-INPUT_PORTS_END /* Armadillo Racing */
+	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_MINMAX(0x01, 0xff) PORT_SENSITIVITY(100) PORT_KEYDELTA(20) PORT_NAME("Trackball Y")
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( propcycl )
-	PORT_START("DSW0")  /* DIP4 */
-	PORT_DIPNAME( 0x01, 0x01, "DIP1" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "DIP2" )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "DIP3" )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, "DIP4" )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "DIP5" )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "DIP6" )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "DIP7" )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, "DIP8" )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-
-	PORT_START("JOY")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP )
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN )
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON1 )
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_START1 )
-
-	PORT_START("STICKX")
-	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE
-
-	PORT_START("STICKY")
-	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10)
+	PORT_START("DSW0")
+	PORT_DIPUNKNOWN_DIPLOC( 0x0001, 0x0001, "SW4:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW4:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW4:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW4:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW4:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW4:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW4:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW4:8" )
+	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("MCUP5A")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -5242,37 +4963,28 @@ static INPUT_PORTS_START( propcycl )
 	PORT_START("MCUP5B")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_START1 )
 	PORT_BIT( 0xfe, IP_ACTIVE_LOW, IPT_UNKNOWN )
-INPUT_PORTS_END /* Prop Cycle */
+
+	PORT_START("ADC0")
+	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_X ) PORT_MINMAX(0x00, 0xfe) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE
+
+	PORT_START("ADC1")
+	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_Y ) PORT_MINMAX(0x00, 0xfe) PORT_SENSITIVITY(100) PORT_KEYDELTA(10)
+
+	PORT_START("PEDAL")
+	PORT_BIT( 0x7f, 0x00, IPT_PEDAL ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10)
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( timecris )
 	PORT_START("DSW0")
-	PORT_DIPNAME( 0x01, 0x01, "DIP4-1" )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, "DIP4-2" )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, "DIP4-3" )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, "DIP4-4" )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, "DIP4-5" )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, "DIP4-6" )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, "DIP4-7" )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_SERVICE( 0x80, IP_ACTIVE_LOW )
-
-	PORT_START( "LIGHTX" ) // tuned for CRT
-	PORT_BIT( 0xfff, 68+626/2, IPT_LIGHTGUN_X ) PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_MINMAX(68, 68+626) PORT_SENSITIVITY(48) PORT_KEYDELTA(10)
-	PORT_START( "LIGHTY" ) // tuned for CRT - can't shoot below the statusbar?
-	PORT_BIT( 0xfff, 43+241/2, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_MINMAX(43, 43+241) PORT_SENSITIVITY(64) PORT_KEYDELTA(4)
+	PORT_DIPUNKNOWN_DIPLOC( 0x0001, 0x0001, "SW4:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW4:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW4:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW4:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW4:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW4:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW4:7" )
+	PORT_SERVICE_DIPLOC( 0x0080, IP_ACTIVE_LOW, "SW4:8")
+	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("MCUP5A")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
@@ -5286,7 +4998,13 @@ static INPUT_PORTS_START( timecris )
 
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
-INPUT_PORTS_END /* Time Crisis */
+
+	PORT_START( "LIGHTX" ) // tuned for CRT
+	PORT_BIT( 0xfff, 68+626/2, IPT_LIGHTGUN_X ) PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_MINMAX(68, 68+626) PORT_SENSITIVITY(48) PORT_KEYDELTA(10)
+
+	PORT_START( "LIGHTY" ) // tuned for CRT - can't shoot below the statusbar?
+	PORT_BIT( 0xfff, 43+241/2, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_MINMAX(43, 43+241) PORT_SENSITIVITY(64) PORT_KEYDELTA(4)
+INPUT_PORTS_END
 
 /*****************************************************************************************************/
 
@@ -5324,56 +5042,24 @@ static INPUT_PORTS_START( cybrcomm )
 	PORT_START("STICKX2")       /* VOLUME 0 */
 	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_X ) PORT_MINMAX(0x47,0xb7) /* range based on test mode */ PORT_CODE_DEC(KEYCODE_S) PORT_CODE_INC(KEYCODE_F) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_PLAYER(1) /* left joystick: horizontal */
 
-	PORT_START("DSW0") /* DIP2 and DIP3 */
-	PORT_DIPNAME( 0x0001, 0x0001, "DIP2-1" )
-	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0002, 0x0002, "DIP2-2" )
-	PORT_DIPSETTING(      0x0002, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0004, 0x0004, "DIP2-3" )
-	PORT_DIPSETTING(      0x0004, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0008, 0x0008, "DIP2-4" )
-	PORT_DIPSETTING(      0x0008, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0010, 0x0010, "DIP2-5" )
-	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0020, 0x0020, "DIP2-6" )
-	PORT_DIPSETTING(      0x0020, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0040, 0x0040, "DIP2-7" )
-	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0080, 0x0080, "DIP2-8" )
-	PORT_DIPSETTING(      0x0080, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0100, 0x0100, "DIP3-1" )
-	PORT_DIPSETTING(      0x0100, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0200, 0x0200, "DIP3-2" )
-	PORT_DIPSETTING(      0x0200, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0400, 0x0400, "DIP3-3" )
-	PORT_DIPSETTING(      0x0400, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0800, 0x0800, "DIP3-4" )
-	PORT_DIPSETTING(      0x0800, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x1000, 0x1000, "DIP3-5" )
-	PORT_DIPSETTING(      0x1000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x2000, 0x2000, "DIP3-6" )
-	PORT_DIPSETTING(      0x2000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x4000, 0x4000, "DIP3-7" )
-	PORT_DIPSETTING(      0x4000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x8000, 0x8000, "DIP3-8" )
-	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-INPUT_PORTS_END /* Cyber Commando */
+	PORT_START("DSW0")
+	PORT_DIPUNKNOWN_DIPLOC( 0x0001, 0x0001, "SW2:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW2:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW2:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW2:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW2:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW2:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW2:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW2:8" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0100, 0x0100, "SW3:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0200, 0x0200, "SW3:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0400, 0x0400, "SW3:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0800, 0x0800, "SW3:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x1000, 0x1000, "SW3:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x2000, 0x2000, "SW3:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x4000, 0x4000, "SW3:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x8000, 0x8000, "SW3:8" )
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( acedrvr )
 	PORT_START("INPUTS")
@@ -5394,58 +5080,53 @@ static INPUT_PORTS_START( acedrvr )
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_NAME("Motion-Stop")
 
-	DRIVING_ANALOG_PORTS
+	PORT_START("P1")
+	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_NAME("Dev Service Enter")
+	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(2) PORT_NAME("Dev Service Up")
+	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(2) PORT_NAME("Dev Service Down")
+	PORT_BIT( 0xff3e, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("DSW0") /* DIP2 and DIP3 */
-	PORT_DIPNAME( 0x0001, 0x0001, "DIP2-1" )
-	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0002, 0x0002, "DIP2-2" )
-	PORT_DIPSETTING(      0x0002, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0004, 0x0004, "DIP2-3" )
-	PORT_DIPSETTING(      0x0004, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0008, 0x0008, "DIP2-4" )
-	PORT_DIPSETTING(      0x0008, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0010, 0x0010, "DIP2-5" )
-	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0020, 0x0020, "DIP2-6" )
-	PORT_DIPSETTING(      0x0020, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0040, 0x0040, "DIP2-7" )
-	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0080, 0x0080, "DIP2-8" )
-	PORT_DIPSETTING(      0x0080, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0100, 0x0100, "DIP3-1" )
-	PORT_DIPSETTING(      0x0100, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0200, 0x0200, "DIP3-2" )
-	PORT_DIPSETTING(      0x0200, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0400, 0x0400, "DIP3-3" )
-	PORT_DIPSETTING(      0x0400, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0800, 0x0800, "DIP3-4" )
-	PORT_DIPSETTING(      0x0800, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x1000, 0x1000, "DIP3-5" )
-	PORT_DIPSETTING(      0x1000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x2000, 0x2000, "DIP3-6" )
-	PORT_DIPSETTING(      0x2000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x4000, 0x4000, "DIP3-7 (TEST MODE?)" )
+	PORT_START("DSW0")
+	PORT_DIPUNKNOWN_DIPLOC( 0x0001, 0x0001, "SW2:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW2:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW2:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW2:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW2:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW2:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW2:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW2:8" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0100, 0x0100, "SW3:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0200, 0x0200, "SW3:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0400, 0x0400, "SW3:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0800, 0x0800, "SW3:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x1000, 0x1000, "SW3:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x2000, 0x2000, "SW3:6" )
+	PORT_DIPNAME( 0x4000, 0x4000, "Test Mode?" ) PORT_DIPLOCATION("SW3:7")
 	PORT_DIPSETTING(      0x4000, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x8000, 0x8000, "DIP3-8 (TEST MODE?)" )
+	PORT_DIPNAME( 0x8000, 0x8000, "Test Mode?" ) PORT_DIPLOCATION("SW3:8")
 	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-INPUT_PORTS_END /* Ace Driver */
+
+	PORT_START("GAS")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL )  PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
+
+	PORT_START("BRAKE")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
+
+	PORT_START("STEER")
+	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( victlap )
+	PORT_INCLUDE( acedrvr )
+
+	PORT_MODIFY("P1")
+	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(2) PORT_NAME("Dev Service Up")
+	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(2) PORT_NAME("Dev Service Down")
+	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_NAME("Dev Service Enter")
+	PORT_BIT( 0xfe3f, IP_ACTIVE_LOW, IPT_UNKNOWN )
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( ridgera )
 	PORT_START("INPUTS")
@@ -5471,56 +5152,33 @@ static INPUT_PORTS_START( ridgera )
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	DRIVING_ANALOG_PORTS
+	PORT_START("DSW0")
+	PORT_SERVICE_DIPLOC( 0x0001, IP_ACTIVE_LOW, "SW2:1")
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0002, "SW2:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0004, 0x0004, "SW2:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0008, 0x0008, "SW2:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0010, 0x0010, "SW2:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0020, 0x0020, "SW2:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0040, 0x0040, "SW2:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0080, 0x0080, "SW2:8" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0100, 0x0100, "SW3:1" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0200, 0x0200, "SW3:2" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0400, 0x0400, "SW3:3" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0800, 0x0800, "SW3:4" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x1000, 0x1000, "SW3:5" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x2000, 0x2000, "SW3:6" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x4000, 0x4000, "SW3:7" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x8000, 0x8000, "SW3:8" )
 
-	PORT_START("DSW0") /* DIP2 and DIP3 */
-	PORT_SERVICE( 0x0001, IP_ACTIVE_LOW ) PORT_NAME("DIP2-1 (Service Mode)")
-	PORT_DIPNAME( 0x0002, 0x0002, "DIP2-2" )
-	PORT_DIPSETTING(      0x0002, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0004, 0x0004, "DIP2-3" )
-	PORT_DIPSETTING(      0x0004, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0008, 0x0008, "DIP2-4" )
-	PORT_DIPSETTING(      0x0008, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0010, 0x0010, "DIP2-5" )
-	PORT_DIPSETTING(      0x0010, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0020, 0x0020, "DIP2-6" )
-	PORT_DIPSETTING(      0x0020, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0040, 0x0040, "DIP2-7" )
-	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0080, 0x0080, "DIP2-8" )
-	PORT_DIPSETTING(      0x0080, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0100, 0x0100, "DIP3-1" )
-	PORT_DIPSETTING(      0x0100, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0200, 0x0200, "DIP3-2" )
-	PORT_DIPSETTING(      0x0200, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0400, 0x0400, "DIP3-3" )
-	PORT_DIPSETTING(      0x0400, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0800, 0x0800, "DIP3-4" )
-	PORT_DIPSETTING(      0x0800, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x1000, 0x1000, "DIP3-5" )
-	PORT_DIPSETTING(      0x1000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x2000, 0x2000, "DIP3-6" )
-	PORT_DIPSETTING(      0x2000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x4000, 0x4000, "DIP3-7" )
-	PORT_DIPSETTING(      0x4000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x8000, 0x8000, "DIP3-8" )
-	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-INPUT_PORTS_END /* Ridge Racer */
+	PORT_START("GAS")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL )  PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
+
+	PORT_START("BRAKE")
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
+
+	PORT_START("STEER")
+	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( ridgeracf )
 	PORT_INCLUDE( ridgera )
@@ -5535,16 +5193,12 @@ static INPUT_PORTS_START( ridgeracf )
 	// DIP3-1 to DIP3-3 are for setting up the viewing angle (game used one board per screen?)
 	// Some of the other dipswitches are for debugging, like with Ridge Racer 2.
 	PORT_MODIFY("DSW0")
-	PORT_DIPNAME( 0x0001, 0x0000, "DIP2-1" ) // always on?
-	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0002, 0x0000, "DIP2-2" ) // always on?
-	PORT_DIPSETTING(      0x0002, DEF_STR( Off ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x8000, 0x8000, "DIP3-8 (Test Mode)" )
+	PORT_DIPUNKNOWN_DIPLOC( 0x0001, 0x0000, "SW2:1" ) // always on?
+	PORT_DIPUNKNOWN_DIPLOC( 0x0002, 0x0000, "SW2:2" ) // always on?
+	PORT_DIPNAME( 0x8000, 0x8000, "Test Mode" ) PORT_DIPLOCATION("SW3:8")
 	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-INPUT_PORTS_END /* Ridge Racer Full Scale */
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( ridgera2 )
 	PORT_INCLUDE( ridgera )
@@ -5564,10 +5218,10 @@ static INPUT_PORTS_START( ridgera2 )
 	    3-7 : debug polygons
 	*/
 	PORT_MODIFY("DSW0")
-	PORT_DIPNAME( 0x8000, 0x8000, "DIP3-8 (Test Mode)" )
+	PORT_DIPNAME( 0x8000, 0x8000, "Test Mode" ) PORT_DIPLOCATION("SW3:8")
 	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-INPUT_PORTS_END /* Ridge Racer 2 */
+INPUT_PORTS_END
 
 static INPUT_PORTS_START( raveracw )
 	PORT_INCLUDE( ridgera )
@@ -5581,7 +5235,7 @@ static INPUT_PORTS_START( raveracw )
 	PORT_DIPSETTING(      0x0100, "Twin" )
 	PORT_DIPSETTING(      0x2000, DEF_STR( Standard ) )
 	PORT_DIPSETTING(      0x2100, "Deluxe" )
-INPUT_PORTS_END /* Rave Racer */
+INPUT_PORTS_END
 
 /*****************************************************************************************************/
 
@@ -5603,7 +5257,7 @@ WRITE16_MEMBER(namcos22_state::mcu_speedup_w)
 	COMBINE_DATA(&m_su_82);
 }
 
-// for MCU BIOS v1.30
+// for MCU BIOS v1.20/v1.30
 READ16_MEMBER(namcos22_state::mcu130_speedup_r)
 {
 	if ((space.device().safe_pc() == 0xc12a) && (!(m_su_82 & 0xff00)))
@@ -5635,7 +5289,7 @@ static void install_c74_speedup(running_machine &machine)
 static void install_130_speedup(running_machine &machine)
 {
 	namcos22_state *state = machine.driver_data<namcos22_state>();
-	// install speedup cheat for 1.30 MCU BIOS
+	// install speedup cheat for 1.20/1.30 MCU BIOS
 	if (MCU_SPEEDUP)
 		state->m_mcu->space(AS_PROGRAM).install_readwrite_handler(0x82, 0x83, read16_delegate(FUNC(namcos22_state::mcu130_speedup_r),state), write16_delegate(FUNC(namcos22_state::mcu_speedup_w),state));
 }
@@ -5660,7 +5314,7 @@ static void namcos22_init( running_machine &machine, int game_type )
 	state->m_old_coin_state = 0;
 	state->m_credits1 = state->m_credits2 = 0;
 
-	state->m_mpPointRAM = auto_alloc_array(machine, UINT32, 0x20000);
+	state->m_pPointRAM = auto_alloc_array(machine, UINT32, 0x20000);
 }
 
 static void alpine_init_common( running_machine &machine, int game_type )
@@ -5668,7 +5322,6 @@ static void alpine_init_common( running_machine &machine, int game_type )
 	namcos22_state *state = machine.driver_data<namcos22_state>();
 	namcos22_init(machine, game_type);
 
-	state->m_mcu->space(AS_IO).install_read_handler(M37710_ADC0_L, M37710_ADC7_H, read8_delegate(FUNC(namcos22_state::alpineracer_mcu_adc_r),state));
 	state->m_mcu->space(AS_IO).install_write_handler(M37710_PORT5, M37710_PORT5, write8_delegate(FUNC(namcos22_state::alpine_mcu_port5_w),state));
 
 	state->m_motor_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(namcos22_state::alpine_steplock_callback),state));
@@ -5710,12 +5363,12 @@ DRIVER_INIT_MEMBER(namcos22_state,airco22)
 	namcos22_init(machine(), NAMCOS22_AIR_COMBAT22);
 
 	// S22-BIOS ver1.20 namco all rights reserved 94/12/21
-	m_mcu->space(AS_IO).install_read_handler(M37710_ADC0_L, M37710_ADC7_H, read8_delegate(FUNC(namcos22_state::airco22_mcu_adc_r),this));
+	install_130_speedup(machine());
 }
 
 DRIVER_INIT_MEMBER(namcos22_state,propcycl)
 {
-	UINT32 *pROM = (UINT32 *)machine().root_device().memregion("maincpu")->base();
+	UINT32 *pROM = (UINT32 *)memregion("maincpu")->base();
 
 	/* patch out strange routine (uninitialized-eprom related?) */
 	pROM[0x1992C/4] = 0x4E754E75;
@@ -5733,7 +5386,6 @@ DRIVER_INIT_MEMBER(namcos22_state,propcycl)
 //   pROM[0x22296/4] |= 0x00004e75;
 
 	namcos22_init(machine(), NAMCOS22_PROP_CYCLE);
-	m_mcu->space(AS_IO).install_read_handler(M37710_ADC0_L, M37710_ADC7_H, read8_delegate(FUNC(namcos22_state::propcycle_mcu_adc_r),this));
 	m_mcu->space(AS_IO).install_write_handler(M37710_PORT5, M37710_PORT5, write8_delegate(FUNC(namcos22_state::propcycle_mcu_port5_w),this));
 	install_141_speedup(machine());
 }
@@ -5794,7 +5446,6 @@ DRIVER_INIT_MEMBER(namcos22_state,cybrcyc)
 {
 	namcos22_init(machine(), NAMCOS22_CYBER_CYCLES);
 
-	m_mcu->space(AS_IO).install_read_handler(M37710_ADC0_L, M37710_ADC7_H, read8_delegate(FUNC(namcos22_state::cybrcycc_mcu_adc_r),this));
 	install_130_speedup(machine());
 
 	m_keycus_id = 0x0387;
@@ -5811,7 +5462,6 @@ DRIVER_INIT_MEMBER(namcos22_state,tokyowar)
 {
 	namcos22_init(machine(), NAMCOS22_TOKYO_WARS);
 
-	m_mcu->space(AS_IO).install_read_handler(M37710_ADC0_L, M37710_ADC7_H, read8_delegate(FUNC(namcos22_state::tokyowar_mcu_adc_r),this));
 	install_141_speedup(machine());
 
 	m_keycus_id = 0x01a8;
@@ -5820,14 +5470,12 @@ DRIVER_INIT_MEMBER(namcos22_state,tokyowar)
 DRIVER_INIT_MEMBER(namcos22_state,aquajet)
 {
 	namcos22_init(machine(), NAMCOS22_AQUA_JET);
-	m_mcu->space(AS_IO).install_read_handler(M37710_ADC0_L, M37710_ADC7_H, read8_delegate(FUNC(namcos22_state::aquajet_mcu_adc_r),this));
 	install_141_speedup(machine());
 }
 
 DRIVER_INIT_MEMBER(namcos22_state,adillor)
 {
 	namcos22_init(machine(), NAMCOS22_ARMADILLO_RACING);
-	m_mcu->space(AS_IO).install_read_handler(M37710_ADC0_L, M37710_ADC7_H, read8_delegate(FUNC(namcos22_state::adillor_mcu_adc_r),this));
 	install_141_speedup(machine());
 
 	m_keycus_id = 0x59b7;
@@ -5837,7 +5485,6 @@ DRIVER_INIT_MEMBER(namcos22_state,dirtdash)
 {
 	namcos22_init(machine(), NAMCOS22_DIRT_DASH);
 
-	m_mcu->space(AS_IO).install_read_handler(M37710_ADC0_L, M37710_ADC7_H, read8_delegate(FUNC(namcos22_state::cybrcycc_mcu_adc_r),this));
 	install_141_speedup(machine());
 
 	m_keycus_id = 0x01a2;
@@ -5860,17 +5507,17 @@ GAME( 1995, raveracw,  0,        namcos22,  raveracw,  namcos22_state, raveracw,
 GAME( 1995, raveracj,  raveracw, namcos22,  raveracw,  namcos22_state, raveracw, ROT0, "Namco", "Rave Racer (Rev. RV1 Ver.B, Japan)"     , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 07/16/95
 GAME( 1995, raveracja, raveracw, namcos22,  raveracw,  namcos22_state, raveracw, ROT0, "Namco", "Rave Racer (Rev. RV1, Japan)"           , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 06/29/95
 GAME( 1994, acedrvrw,  0,        namcos22,  acedrvr,   namcos22_state, acedrvr,  ROT0, "Namco", "Ace Driver: Racing Evolution (Rev. AD2)", GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 94/10/20 16:22:25
-GAME( 1996, victlapw,  0,        namcos22,  acedrvr,   namcos22_state, victlap,  ROT0, "Namco", "Ace Driver: Victory Lap (Rev. ADV2)"    , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 96/02/13 17:50:06
+GAME( 1996, victlapw,  0,        namcos22,  victlap,   namcos22_state, victlap,  ROT0, "Namco", "Ace Driver: Victory Lap (Rev. ADV2)"    , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 96/02/13 17:50:06
 
 /* Super System22 games */
 GAME( 1994, alpinerd, 0,         namcos22s, alpiner,   namcos22_state, alpiner,  ROT0, "Namco", "Alpine Racer (Rev. AR2 Ver.D)"          , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS )
 GAME( 1994, alpinerc, alpinerd,  namcos22s, alpiner,   namcos22_state, alpiner,  ROT0, "Namco", "Alpine Racer (Rev. AR2 Ver.C)"          , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS )
-GAME( 1995, airco22b, 0,         namcos22s, airco22,   namcos22_state, airco22,  ROT0, "Namco", "Air Combat 22 (Rev. ACS1 Ver.B, Japan)" , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS|GAME_NOT_WORKING ) // boots but missing sprite clear DMA?
+GAME( 1995, airco22b, 0,         namcos22s, airco22,   namcos22_state, airco22,  ROT0, "Namco", "Air Combat 22 (Rev. ACS1 Ver.B, Japan)" , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS|GAME_NOT_WORKING ) // various problems
 GAME( 1995, cybrcycc, 0,         namcos22s, cybrcycc,  namcos22_state, cybrcyc,  ROT0, "Namco", "Cyber Cycles (Rev. CB2 Ver.C)"          , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 95/04/04
 GAME( 1995, dirtdash, 0,         namcos22s, dirtdash,  namcos22_state, dirtdash, ROT0, "Namco", "Dirt Dash (Rev. DT2)"                   , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 95/12/20 20:01:56
 GAME( 1995, timecris, 0,         timecris,  timecris,  namcos22_state, timecris, ROT0, "Namco", "Time Crisis (Rev. TS2 Ver.B)"           , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 96/04/02 18:48:00
 GAME( 1995, timecrisa,timecris,  timecris,  timecris,  namcos22_state, timecris, ROT0, "Namco", "Time Crisis (Rev. TS2 Ver.A)"           , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 96/01/08 18:56:09
-GAME( 1996, propcycl, 0,         namcos22s, propcycl,  namcos22_state, propcycl, ROT0, "Namco", "Prop Cycle (Rev. PR2 Ver.A)"            , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 96/06/18 21:22:13
+GAME( 1996, propcycl, 0,         propcycl,  propcycl,  namcos22_state, propcycl, ROT0, "Namco", "Prop Cycle (Rev. PR2 Ver.A)"            , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 96/06/18 21:22:13
 GAME( 1996, alpinesa, 0,         namcos22s, alpiner,   namcos22_state, alpinesa, ROT0, "Namco", "Alpine Surfer (Rev. AF2 Ver.A)"         , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS|GAME_NOT_WORKING ) // 96/07/01 15:19:23. major gfx problems, slave dsp?
 GAME( 1996, tokyowar, 0,         namcos22s, tokyowar,  namcos22_state, tokyowar, ROT0, "Namco", "Tokyo Wars (Rev. TW2 Ver.A)"            , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS|GAME_NOT_WORKING ) // 96/09/03 14:08:47. near-invincible tanks, maybe related to timecris helicopter bug?
 GAME( 1996, aquajet,  0,         namcos22s, aquajet,   namcos22_state, aquajet,  ROT0, "Namco", "Aqua Jet (Rev. AJ2 Ver.B)"              , GAME_IMPERFECT_SOUND|GAME_IMPERFECT_GRAPHICS ) // 96/09/20 14:28:30

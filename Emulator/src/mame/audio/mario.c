@@ -516,11 +516,10 @@ WRITE8_MEMBER(mario_state::mario_sh_p2_w)
 
 WRITE8_MEMBER(mario_state::masao_sh_irqtrigger_w)
 {
-
 	if (m_last == 1 && data == 0)
 	{
 		/* setting bit 0 high then low triggers IRQ on the sound CPU */
-		machine().device("audiocpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);
+		m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 	}
 
 	m_last = data;
@@ -548,14 +547,13 @@ WRITE8_MEMBER(mario_state::mario_sh2_w)
 /* Misc samples */
 WRITE8_MEMBER(mario_state::mario_sh3_w)
 {
-
 	switch (offset)
 	{
 		case 0: /* death */
 			if (data)
-				machine().device("audiocpu")->execute().set_input_line(0,ASSERT_LINE);
+				m_audiocpu->set_input_line(0,ASSERT_LINE);
 			else
-				machine().device("audiocpu")->execute().set_input_line(0,CLEAR_LINE);
+				m_audiocpu->set_input_line(0,CLEAR_LINE);
 			break;
 		case 1: /* get coin */
 			I8035_T_W_AH(space, 0,data & 1);
@@ -603,8 +601,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( masao_sound_map, AS_PROGRAM, 8, mario_state )
 	AM_RANGE(0x0000, 0x0fff) AM_ROM
 	AM_RANGE(0x2000, 0x23ff) AM_RAM
-	AM_RANGE(0x4000, 0x4000) AM_DEVREADWRITE_LEGACY("aysnd", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
+	AM_RANGE(0x4000, 0x4000) AM_DEVREADWRITE("aysnd", ay8910_device, data_r, data_w)
+	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE("aysnd", ay8910_device, address_w)
 ADDRESS_MAP_END
 
 /*************************************

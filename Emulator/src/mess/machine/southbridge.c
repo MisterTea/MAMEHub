@@ -8,23 +8,9 @@
 #include "cpu/i386/i386.h"
 #include "machine/southbridge.h"
 #include "machine/pc_keyboards.h"
-#include "machine/8237dma.h"
 
-const struct pic8259_interface at_pic8259_master_config =
-{
-	DEVCB_CPU_INPUT_LINE(":maincpu", 0),
-	DEVCB_LINE_VCC,
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, southbridge_device, get_slave_ack)
-};
 
-const struct pic8259_interface at_pic8259_slave_config =
-{
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir2_w),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
-
-const struct pit8253_config at_pit8254_config =
+const struct pit8253_interface at_pit8254_config =
 {
 	{
 		{
@@ -45,7 +31,7 @@ const struct pit8253_config at_pit8254_config =
 
 I8237_INTERFACE( at_dma8237_1_config )
 {
-	DEVCB_DEVICE_LINE("dma8237_2",i8237_dreq0_w),
+	DEVCB_DEVICE_LINE_MEMBER("dma8237_2",am9517a_device,dreq0_w),
 	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, southbridge_device, at_dma8237_out_eop),
 	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, southbridge_device, pc_dma_read_byte),
 	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, southbridge_device, pc_dma_write_byte),
@@ -75,7 +61,7 @@ static const at_keyboard_controller_interface keyboard_controller_intf =
 {
 	DEVCB_CPU_INPUT_LINE(":maincpu", INPUT_LINE_RESET),
 	DEVCB_CPU_INPUT_LINE(":maincpu", INPUT_LINE_A20),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir1_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir1_w),
 	DEVCB_NULL,
 	DEVCB_DEVICE_LINE_MEMBER("pc_kbdc", pc_kbdc_device, clock_write_from_mb),
 	DEVCB_DEVICE_LINE_MEMBER("pc_kbdc", pc_kbdc_device, data_write_from_mb)
@@ -90,28 +76,28 @@ static const pc_kbdc_interface pc_kbdc_intf =
 static const isa16bus_interface isabus_intf =
 {
 	// interrupts
-	DEVCB_DEVICE_LINE("pic8259_slave",  pic8259_ir2_w), // in place of irq 2 on at irq 9 is used
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir3_w),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir4_w),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir5_w),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir6_w),
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir7_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave",  pic8259_device, ir2_w), // in place of irq 2 on at irq 9 is used
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir3_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir4_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir5_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir6_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_master", pic8259_device, ir7_w),
 
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir3_w),
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir4_w),
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir5_w),
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir6_w),
-	DEVCB_DEVICE_LINE("pic8259_slave", pic8259_ir7_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir3_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir4_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir5_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir6_w),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_slave", pic8259_device, ir7_w),
 
 	// dma request
-	DEVCB_DEVICE_LINE("dma8237_1", i8237_dreq0_w),
-	DEVCB_DEVICE_LINE("dma8237_1", i8237_dreq1_w),
-	DEVCB_DEVICE_LINE("dma8237_1", i8237_dreq2_w),
-	DEVCB_DEVICE_LINE("dma8237_1", i8237_dreq3_w),
+	DEVCB_DEVICE_LINE_MEMBER("dma8237_1", am9517a_device, dreq0_w),
+	DEVCB_DEVICE_LINE_MEMBER("dma8237_1", am9517a_device, dreq1_w),
+	DEVCB_DEVICE_LINE_MEMBER("dma8237_1", am9517a_device, dreq2_w),
+	DEVCB_DEVICE_LINE_MEMBER("dma8237_1", am9517a_device, dreq3_w),
 
-	DEVCB_DEVICE_LINE("dma8237_2", i8237_dreq1_w),
-	DEVCB_DEVICE_LINE("dma8237_2", i8237_dreq2_w),
-	DEVCB_DEVICE_LINE("dma8237_2", i8237_dreq3_w),
+	DEVCB_DEVICE_LINE_MEMBER("dma8237_2", am9517a_device, dreq1_w),
+	DEVCB_DEVICE_LINE_MEMBER("dma8237_2", am9517a_device, dreq2_w),
+	DEVCB_DEVICE_LINE_MEMBER("dma8237_2", am9517a_device, dreq3_w),
 };
 
 static SLOT_INTERFACE_START(pc_isa_onboard)
@@ -128,26 +114,26 @@ static MACHINE_CONFIG_FRAGMENT( southbridge )
 	MCFG_I8237_ADD( "dma8237_1", XTAL_14_31818MHz/3, at_dma8237_1_config )
 	MCFG_I8237_ADD( "dma8237_2", XTAL_14_31818MHz/3, at_dma8237_2_config )
 
-	MCFG_PIC8259_ADD( "pic8259_master", at_pic8259_master_config )
-	MCFG_PIC8259_ADD( "pic8259_slave", at_pic8259_slave_config )
+	MCFG_PIC8259_ADD( "pic8259_master", INPUTLINE(":maincpu", 0), VCC, READ8(southbridge_device, get_slave_ack) )
+	MCFG_PIC8259_ADD( "pic8259_slave", DEVWRITELINE("pic8259_master", pic8259_device, ir2_w), GND, NULL )
 
 	MCFG_AT_KEYBOARD_CONTROLLER_ADD("keybc", XTAL_12MHz, keyboard_controller_intf)
 	MCFG_PC_KBDC_ADD("pc_kbdc", pc_kbdc_intf)
-	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_at_keyboards, STR_KBD_MICROSOFT_NATURAL, NULL)
+	MCFG_PC_KBDC_SLOT_ADD("pc_kbdc", "kbd", pc_at_keyboards, STR_KBD_MICROSOFT_NATURAL)
 
 	MCFG_MC146818_IRQ_ADD( "rtc", MC146818_STANDARD, at_mc146818_config )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_ISA16_BUS_ADD("isabus", ":maincpu", isabus_intf)
 	// on board devices
-	MCFG_ISA16_SLOT_ADD("isabus","board1", pc_isa_onboard, "fdcsmc", NULL, true)
-	MCFG_ISA16_SLOT_ADD("isabus","board2", pc_isa_onboard, "comat", NULL, true)
-	MCFG_ISA16_SLOT_ADD("isabus","board3", pc_isa_onboard, "ide", NULL, true)
-	MCFG_ISA16_SLOT_ADD("isabus","board4", pc_isa_onboard, "lpt", NULL, true)
+	MCFG_ISA16_SLOT_ADD("isabus","board1", pc_isa_onboard, "fdcsmc", true)
+	MCFG_ISA16_SLOT_ADD("isabus","board2", pc_isa_onboard, "comat", true)
+	MCFG_ISA16_SLOT_ADD("isabus","board3", pc_isa_onboard, "ide", true)
+	MCFG_ISA16_SLOT_ADD("isabus","board4", pc_isa_onboard, "lpt", true)
 MACHINE_CONFIG_END
 
 //-------------------------------------------------
@@ -160,8 +146,8 @@ machine_config_constructor southbridge_device::device_mconfig_additions() const
 	return MACHINE_CONFIG_NAME( southbridge );
 }
 
-southbridge_device::southbridge_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock),
+southbridge_device::southbridge_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 	m_maincpu(*this, ":maincpu"),
 	m_pic8259_master(*this, "pic8259_master"),
 	m_pic8259_slave(*this, "pic8259_slave"),
@@ -170,7 +156,7 @@ southbridge_device::southbridge_device(const machine_config &mconfig, device_typ
 	m_pit8254(*this, "pit8254"),
 	m_keybc(*this, "keybc"),
 	m_isabus(*this, "isabus"),
-	m_speaker(*this, SPEAKER_TAG),
+	m_speaker(*this, "speaker"),
 	m_mc146818(*this, "rtc"),
 	m_pc_kbdc(*this, "pc_kbdc")
 {
@@ -180,14 +166,12 @@ southbridge_device::southbridge_device(const machine_config &mconfig, device_typ
  * Init functions
  *
  **********************************************************/
-/*
-IRQ_CALLBACK(southbridge_device::at_irq_callback)
+
+IRQ_CALLBACK_MEMBER(southbridge_device::at_irq_callback)
 {
-    device_t *pic = device->machine().device(":pcibus:1:i82371ab:pic8259_master");
-    //return pic8259_acknowledge(m_pic8259_master);
-    return pic8259_acknowledge(pic);
+	return m_pic8259_master->inta_r();
 }
-*/
+
 //-------------------------------------------------
 //  device_start - device-specific startup
 //-------------------------------------------------
@@ -196,20 +180,20 @@ void southbridge_device::device_start()
 {
 	address_space& spaceio = machine().device(":maincpu")->memory().space(AS_IO);
 
-	spaceio.install_legacy_readwrite_handler(*m_dma8237_1, 0x0000, 0x001f, FUNC(i8237_r), FUNC(i8237_w), 0xffffffff);
-	spaceio.install_legacy_readwrite_handler(*m_pic8259_master, 0x0020, 0x003f, FUNC(pic8259_r), FUNC(pic8259_w), 0xffffffff);
-	spaceio.install_legacy_readwrite_handler(*m_pit8254, 0x0040, 0x005f, FUNC(pit8253_r), FUNC(pit8253_w), 0xffffffff);
+	spaceio.install_readwrite_handler(0x0000, 0x001f, read8_delegate(FUNC(am9517a_device::read),&(*m_dma8237_1)), write8_delegate(FUNC(am9517a_device::write),&(*m_dma8237_1)), 0xffffffff);
+	spaceio.install_readwrite_handler(0x0020, 0x003f, read8_delegate(FUNC(pic8259_device::read),&(*m_pic8259_master)), write8_delegate(FUNC(pic8259_device::write),&(*m_pic8259_master)), 0xffffffff);
+	spaceio.install_readwrite_handler(0x0040, 0x005f, read8_delegate(FUNC(pit8254_device::read),&(*m_pit8254)), write8_delegate(FUNC(pit8254_device::write),&(*m_pit8254)), 0xffffffff);
 	spaceio.install_readwrite_handler(0x0060, 0x0063, read8_delegate(FUNC(southbridge_device::at_keybc_r),this), write8_delegate(FUNC(southbridge_device::at_keybc_w),this), 0xffffffff);
 	spaceio.install_readwrite_handler(0x0064, 0x0067, read8_delegate(FUNC(at_keyboard_controller_device::status_r),&(*m_keybc)), write8_delegate(FUNC(at_keyboard_controller_device::command_w),&(*m_keybc)), 0xffffffff);
 	spaceio.install_readwrite_handler(0x0070, 0x007f, read8_delegate(FUNC(mc146818_device::read),&(*m_mc146818)), write8_delegate(FUNC(mc146818_device::write),&(*m_mc146818)), 0xffffffff);
 	spaceio.install_readwrite_handler(0x0080, 0x009f, read8_delegate(FUNC(southbridge_device::at_page8_r),this), write8_delegate(FUNC(southbridge_device::at_page8_w),this), 0xffffffff);
-	spaceio.install_legacy_readwrite_handler(*m_pic8259_slave, 0x00a0, 0x00bf, FUNC(pic8259_r), FUNC(pic8259_w), 0xffffffff);
+	spaceio.install_readwrite_handler(0x00a0, 0x00bf, read8_delegate(FUNC(pic8259_device::read),&(*m_pic8259_slave)), write8_delegate(FUNC(pic8259_device::write),&(*m_pic8259_slave)), 0xffffffff);
 	spaceio.install_readwrite_handler(0x00c0, 0x00df, read8_delegate(FUNC(southbridge_device::at_dma8237_2_r),this), write8_delegate(FUNC(southbridge_device::at_dma8237_2_w),this), 0xffffffff);
 	spaceio.nop_readwrite(0x00e0, 0x00ef);
 
 
 	m_at_offset1 = 0xff;
-	//machine().device(":maincpu")->execute().set_irq_acknowledge_callback(at_irq_callback);
+	machine().device(":maincpu")->execute().set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(southbridge_device::at_irq_callback),this));
 }
 
 //-------------------------------------------------
@@ -223,6 +207,7 @@ void southbridge_device::device_reset()
 	m_at_speaker_input = 0;
 	m_dma_channel = -1;
 	m_cur_eop = false;
+	m_nmi_enabled = 0;
 }
 
 
@@ -234,7 +219,7 @@ void southbridge_device::device_reset()
 READ8_MEMBER( southbridge_device::get_slave_ack )
 {
 	if (offset==2) // IRQ = 2
-		return pic8259_acknowledge(m_pic8259_slave);
+		return m_pic8259_slave->inta_r();
 
 	return 0x00;
 }
@@ -248,13 +233,13 @@ READ8_MEMBER( southbridge_device::get_slave_ack )
 void southbridge_device::at_speaker_set_spkrdata(UINT8 data)
 {
 	m_at_spkrdata = data ? 1 : 0;
-	speaker_level_w( m_speaker, m_at_spkrdata & m_at_speaker_input);
+	m_speaker->level_w(m_at_spkrdata & m_at_speaker_input);
 }
 
 void southbridge_device::at_speaker_set_input(UINT8 data)
 {
 	m_at_speaker_input = data ? 1 : 0;
-	speaker_level_w( m_speaker, m_at_spkrdata & m_at_speaker_input);
+	m_speaker->level_w(m_at_spkrdata & m_at_speaker_input);
 }
 
 
@@ -268,7 +253,7 @@ void southbridge_device::at_speaker_set_input(UINT8 data)
 WRITE_LINE_MEMBER( southbridge_device::at_pit8254_out0_changed )
 {
 	if (m_pic8259_master)
-		pic8259_ir0_w(m_pic8259_master, state);
+		m_pic8259_master->ir0_w(state);
 }
 
 
@@ -333,7 +318,7 @@ WRITE_LINE_MEMBER( southbridge_device::pc_dma_hrq_changed )
 	m_maincpu->set_input_line(INPUT_LINE_HALT, state ? ASSERT_LINE : CLEAR_LINE);
 
 	/* Assert HLDA */
-	i8237_hlda_w( m_dma8237_2, state );
+	m_dma8237_2->hack_w( state );
 }
 
 READ8_MEMBER(southbridge_device::pc_dma_read_byte)
@@ -425,7 +410,7 @@ WRITE_LINE_MEMBER( southbridge_device::pc_dack0_w ) { pc_select_dma_channel(0, s
 WRITE_LINE_MEMBER( southbridge_device::pc_dack1_w ) { pc_select_dma_channel(1, state); }
 WRITE_LINE_MEMBER( southbridge_device::pc_dack2_w ) { pc_select_dma_channel(2, state); }
 WRITE_LINE_MEMBER( southbridge_device::pc_dack3_w ) { pc_select_dma_channel(3, state); }
-WRITE_LINE_MEMBER( southbridge_device::pc_dack4_w ) { i8237_hlda_w( m_dma8237_1, state ? 0 : 1); } // it's inverted
+WRITE_LINE_MEMBER( southbridge_device::pc_dack4_w ) { m_dma8237_1->hack_w( state ? 0 : 1); } // it's inverted
 WRITE_LINE_MEMBER( southbridge_device::pc_dack5_w ) { pc_select_dma_channel(5, state); }
 WRITE_LINE_MEMBER( southbridge_device::pc_dack6_w ) { pc_select_dma_channel(6, state); }
 WRITE_LINE_MEMBER( southbridge_device::pc_dack7_w ) { pc_select_dma_channel(7, state); }
@@ -443,7 +428,7 @@ READ8_MEMBER( southbridge_device::at_portb_r )
 	}
 	data = (data & ~0x10) | ( m_at_offset1 & 0x10 );
 
-	if ( pit8253_get_output(m_pit8254, 2 ) )
+	if (m_pit8254->get_output(2))
 		data |= 0x20;
 	else
 		data &= ~0x20; /* ps2m30 wants this */
@@ -454,7 +439,7 @@ READ8_MEMBER( southbridge_device::at_portb_r )
 WRITE8_MEMBER( southbridge_device::at_portb_w )
 {
 	m_at_speaker = data;
-	pit8253_gate2_w(m_pit8254, BIT(data, 0));
+	m_pit8254->gate2_w(BIT(data, 0));
 	at_speaker_set_spkrdata( BIT(data, 1));
 	m_channel_check = BIT(data, 3);
 	m_isabus->set_nmi_state((m_nmi_enabled==0) && (m_channel_check==0));
@@ -462,17 +447,17 @@ WRITE8_MEMBER( southbridge_device::at_portb_w )
 
 WRITE_LINE_MEMBER( southbridge_device::at_mc146818_irq )
 {
-	pic8259_ir0_w(m_pic8259_slave, (state) ? 0 : 1);
+	m_pic8259_slave->ir0_w((state) ? 0 : 1);
 }
 
 READ8_MEMBER( southbridge_device::at_dma8237_2_r )
 {
-	return i8237_r( m_dma8237_2, space, offset / 2);
+	return m_dma8237_2->read( space, offset / 2);
 }
 
 WRITE8_MEMBER( southbridge_device::at_dma8237_2_w )
 {
-	i8237_w( m_dma8237_2, space, offset / 2, data);
+	m_dma8237_2->write( space, offset / 2, data);
 }
 
 READ8_MEMBER( southbridge_device::at_keybc_r )

@@ -31,13 +31,20 @@
 class m10_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_INTERRUPT
+	};
+
 	m10_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_memory(*this, "memory"),
 		m_rom(*this, "rom"),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_chargen(*this, "chargen"){ }
+		m_chargen(*this, "chargen"),
+		m_maincpu(*this, "maincpu"),
+		m_samples(*this, "samples"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_memory;
@@ -47,24 +54,24 @@ public:
 	required_shared_ptr<UINT8> m_chargen;
 
 	/* video-related */
-	tilemap_t *           m_tx_tilemap;
+	tilemap_t *         m_tx_tilemap;
 	gfx_element *       m_back_gfx;
 
 	/* this is currently unused, because it is needed by gfx_layout (which has no machine) */
 	UINT32              extyoffs[32 * 8];
 
 	/* video state */
-	UINT8                 m_bottomline;
+	UINT8               m_bottomline;
 	UINT8               m_flip;
 
 	/* misc */
 	int                 m_last;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	device_t *m_ic8j1;
 	device_t *m_ic8j2;
-	samples_device *m_samples;
+	required_device<samples_device> m_samples;
 	DECLARE_WRITE8_MEMBER(m10_ctrl_w);
 	DECLARE_WRITE8_MEMBER(m11_ctrl_w);
 	DECLARE_WRITE8_MEMBER(m15_ctrl_w);
@@ -94,4 +101,8 @@ public:
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
 	DECLARE_WRITE8_MEMBER(ic8j1_output_changed);
 	DECLARE_WRITE8_MEMBER(ic8j2_output_changed);
+	inline void plot_pixel_m10( bitmap_ind16 &bm, int x, int y, int col );
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

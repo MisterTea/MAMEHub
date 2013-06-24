@@ -48,11 +48,11 @@
 
 void beathead_state::video_start()
 {
-	state_save_register_global(machine(), m_finescroll);
-	state_save_register_global(machine(), m_vram_latch_offset);
-	state_save_register_global(machine(), m_hsyncram_offset);
-	state_save_register_global(machine(), m_hsyncram_start);
-	state_save_register_global_array(machine(), m_hsyncram);
+	save_item(NAME(m_finescroll));
+	save_item(NAME(m_vram_latch_offset));
+	save_item(NAME(m_hsyncram_offset));
+	save_item(NAME(m_hsyncram_start));
+	save_item(NAME(m_hsyncram));
 }
 
 
@@ -120,7 +120,7 @@ WRITE32_MEMBER( beathead_state::finescroll_w )
 	if ((oldword & 8) && !(newword & 8) && space.machine().primary_screen->vpos() != 261)
 	{
 		logerror("Suspending time! (scanline = %d)\n", space.machine().primary_screen->vpos());
-		space.machine().device("maincpu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 	}
 }
 

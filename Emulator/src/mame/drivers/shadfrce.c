@@ -263,7 +263,7 @@ WRITE16_MEMBER(shadfrce_state::shadfrce_sound_brt_w)
 	if (ACCESSING_BITS_8_15)
 	{
 		soundlatch_byte_w(space, 1, data >> 8);
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE );
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE );
 	}
 	else
 	{
@@ -277,12 +277,11 @@ WRITE16_MEMBER(shadfrce_state::shadfrce_sound_brt_w)
 
 WRITE16_MEMBER(shadfrce_state::shadfrce_irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(offset ^ 3, CLEAR_LINE);
+	m_maincpu->set_input_line(offset ^ 3, CLEAR_LINE);
 }
 
 WRITE16_MEMBER(shadfrce_state::shadfrce_irq_w)
 {
-
 	m_irqs_enable = data & 1;   /* maybe, it's set/unset inside every trap instruction which is executed */
 	m_video_enable = data & 8;  /* probably */
 
@@ -303,7 +302,6 @@ WRITE16_MEMBER(shadfrce_state::shadfrce_irq_w)
 
 WRITE16_MEMBER(shadfrce_state::shadfrce_scanline_w)
 {
-
 	m_raster_scanline = data;   /* guess, 0 is always written */
 }
 
@@ -330,7 +328,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(shadfrce_state::shadfrce_scanline)
 			m_raster_scanline = (m_raster_scanline + 1) % 240;
 			if (m_raster_scanline > 0)
 				machine().primary_screen->update_partial(m_raster_scanline - 1);
-			machine().device("maincpu")->execute().set_input_line(1, ASSERT_LINE);
+			m_maincpu->set_input_line(1, ASSERT_LINE);
 		}
 	}
 
@@ -341,7 +339,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(shadfrce_state::shadfrce_scanline)
 		{
 			if (scanline > 0)
 				machine().primary_screen->update_partial(scanline - 1);
-			machine().device("maincpu")->execute().set_input_line(2, ASSERT_LINE);
+			m_maincpu->set_input_line(2, ASSERT_LINE);
 		}
 	}
 
@@ -351,7 +349,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(shadfrce_state::shadfrce_scanline)
 		if (scanline == 248)
 		{
 			machine().primary_screen->update_partial(scanline - 1);
-			machine().device("maincpu")->execute().set_input_line(3, ASSERT_LINE);
+			m_maincpu->set_input_line(3, ASSERT_LINE);
 		}
 	}
 }
@@ -392,8 +390,7 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(shadfrce_state::oki_bankswitch_w)
 {
-	device_t *device = machine().device("oki");
-	downcast<okim6295_device *>(device)->set_bank_base((data & 1) * 0x40000);
+	m_oki->set_bank_base((data & 1) * 0x40000);
 }
 
 static ADDRESS_MAP_START( shadfrce_sound_map, AS_PROGRAM, 8, shadfrce_state )

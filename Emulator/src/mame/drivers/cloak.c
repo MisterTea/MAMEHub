@@ -142,12 +142,12 @@ WRITE8_MEMBER(cloak_state::cloak_custom_w)
 
 WRITE8_MEMBER(cloak_state::cloak_irq_reset_0_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(cloak_state::cloak_irq_reset_1_w)
 {
-	machine().device("slave")->execute().set_input_line(0, CLEAR_LINE);
+	m_slave->set_input_line(0, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(cloak_state::cloak_nvram_enable_w)

@@ -15,7 +15,7 @@ TILEMAP_MAPPER_MEMBER(pushman_state::background_scan_rows)
 
 TILE_GET_INFO_MEMBER(pushman_state::get_back_tile_info)
 {
-	UINT8 *bg_map = machine().root_device().memregion("gfx4")->base();
+	UINT8 *bg_map = memregion("gfx4")->base();
 	int tile;
 
 	tile = bg_map[tile_index << 1] + (bg_map[(tile_index << 1) + 1] << 8);
@@ -28,7 +28,6 @@ TILE_GET_INFO_MEMBER(pushman_state::get_back_tile_info)
 
 TILE_GET_INFO_MEMBER(pushman_state::get_text_tile_info)
 {
-
 	int tile = m_videoram[tile_index];
 	SET_TILE_INFO_MEMBER(
 			0,
@@ -47,7 +46,6 @@ TILE_GET_INFO_MEMBER(pushman_state::get_text_tile_info)
 
 void pushman_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pushman_state::get_back_tile_info),this), tilemap_mapper_delegate(FUNC(pushman_state::background_scan_rows),this), 32, 32, 128, 64);
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(pushman_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
@@ -81,10 +79,9 @@ WRITE16_MEMBER(pushman_state::pushman_videoram_w)
 
 ***************************************************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void pushman_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	pushman_state *state = machine.driver_data<pushman_state>();
-	UINT16 *spriteram = state->m_spriteram;
+	UINT16 *spriteram = m_spriteram;
 	int offs, x, y, color, sprite, flipx, flipy;
 
 	for (offs = 0x0800 - 4; offs >=0; offs -= 4)
@@ -103,7 +100,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		flipx = spriteram[offs + 1] & 2;
 		flipy = spriteram[offs + 1] & 1;    /* flip y untested */
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			x = 240 - x;
 			y = 240 - y;
@@ -111,20 +108,19 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[1], sprite,
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[1], sprite,
 				color, flipx, flipy, x, y, 15);
 	}
 }
 
 UINT32 pushman_state::screen_update_pushman(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	/* Setup the tilemaps */
 	m_bg_tilemap->set_scrollx(0, m_control[0]);
 	m_bg_tilemap->set_scrolly(0, 0xf00 - m_control[1]);
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_tx_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }

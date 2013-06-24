@@ -188,7 +188,7 @@ WRITE8_MEMBER(namcos86_state::bankswitch1_w)
 
 	/* if the ROM expansion module is available, don't do anything. This avoids conflict */
 	/* with bankswitch1_ext_w() in wndrmomo */
-	if (machine().root_device().memregion("user1")->base()) return;
+	if (memregion("user1")->base()) return;
 
 	membank("bank1")->set_base(base + ((data & 0x03) * 0x2000));
 }
@@ -247,12 +247,12 @@ READ8_MEMBER(namcos86_state::dsw1_r)
 
 WRITE8_MEMBER(namcos86_state::int_ack1_w)
 {
-	machine().device("cpu1")->execute().set_input_line(0, CLEAR_LINE);
+	m_cpu1->set_input_line(0, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(namcos86_state::int_ack2_w)
 {
-	machine().device("cpu2")->execute().set_input_line(0, CLEAR_LINE);
+	m_cpu2->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -294,7 +294,7 @@ WRITE8_MEMBER(namcos86_state::namcos86_led_w)
 WRITE8_MEMBER(namcos86_state::cus115_w)
 {
 	/* make sure the expansion board is present */
-	if (!machine().root_device().memregion("user1")->base())
+	if (!memregion("user1")->base())
 	{
 		popmessage("expansion board not present");
 		return;
@@ -306,7 +306,7 @@ WRITE8_MEMBER(namcos86_state::cus115_w)
 		case 1:
 		case 2:
 		case 3:
-			namco_63701x_w(machine().device("namco2"), space, (offset & 0x1e00) >> 9,data);
+			machine().device<namco_63701x_device>("namco2")->namco_63701x_w(space, (offset & 0x1e00) >> 9,data);
 			break;
 
 		case 4:
@@ -324,9 +324,9 @@ WRITE8_MEMBER(namcos86_state::cus115_w)
 
 void namcos86_state::machine_reset()
 {
-	UINT8 *base = machine().root_device().memregion("cpu1")->base() + 0x10000;
+	UINT8 *base = memregion("cpu1")->base() + 0x10000;
 
-	machine().root_device().membank("bank1")->set_base(base);
+	membank("bank1")->set_base(base);
 }
 
 
@@ -1064,7 +1064,7 @@ static MACHINE_CONFIG_DERIVED( genpeitd, hopmappy )
 	MCFG_CPU_PROGRAM_MAP(genpeitd_mcu_map)
 
 	/* sound hardware */
-	MCFG_SOUND_ADD("namco2", NAMCO_63701X, 6000000)
+	MCFG_NAMCO_63701X_ADD("namco2", 6000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1079,7 +1079,7 @@ static MACHINE_CONFIG_DERIVED( rthunder, hopmappy )
 	MCFG_CPU_PROGRAM_MAP(rthunder_mcu_map)
 
 	/* sound hardware */
-	MCFG_SOUND_ADD("namco2", NAMCO_63701X, 6000000)
+	MCFG_NAMCO_63701X_ADD("namco2", 6000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1094,7 +1094,7 @@ static MACHINE_CONFIG_DERIVED( wndrmomo, hopmappy )
 	MCFG_CPU_PROGRAM_MAP(wndrmomo_mcu_map)
 
 	/* sound hardware */
-	MCFG_SOUND_ADD("namco2", NAMCO_63701X, 6000000)
+	MCFG_NAMCO_63701X_ADD("namco2", 6000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1519,8 +1519,8 @@ DRIVER_INIT_MEMBER(namcos86_state,namco86)
 	UINT8 *buffer;
 
 	/* shuffle tile ROMs so regular gfx unpack routines can be used */
-	gfx = machine().root_device().memregion("gfx1")->base();
-	size = machine().root_device().memregion("gfx1")->bytes() * 2 / 3;
+	gfx = memregion("gfx1")->base();
+	size = memregion("gfx1")->bytes() * 2 / 3;
 	buffer = auto_alloc_array(machine(), UINT8,  size );
 
 	{
@@ -1544,8 +1544,8 @@ DRIVER_INIT_MEMBER(namcos86_state,namco86)
 		auto_free( machine(), buffer );
 	}
 
-	gfx = machine().root_device().memregion("gfx2")->base();
-	size = machine().root_device().memregion("gfx2")->bytes() * 2 / 3;
+	gfx = memregion("gfx2")->base();
+	size = memregion("gfx2")->bytes() * 2 / 3;
 	buffer = auto_alloc_array(machine(), UINT8,  size );
 
 	{

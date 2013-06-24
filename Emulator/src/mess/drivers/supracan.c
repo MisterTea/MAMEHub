@@ -116,12 +116,14 @@ public:
 	supracan_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
+			m_soundcpu(*this, "soundcpu"),
 			m_soundram(*this, "soundram")
 	{
 		m_m6502_reset = 0;
 	}
 
 	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 	DECLARE_READ16_MEMBER(supracan_68k_soundram_r);
 	DECLARE_WRITE16_MEMBER(supracan_68k_soundram_w);
 	DECLARE_READ8_MEMBER(supracan_6502_soundmem_r);
@@ -207,12 +209,21 @@ public:
 	TIMER_CALLBACK_MEMBER(supracan_line_on_callback);
 	TIMER_CALLBACK_MEMBER(supracan_line_off_callback);
 	TIMER_CALLBACK_MEMBER(supracan_video_callback);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(supracan_cart);
+	inline void verboselog(const char *tag, int n_level, const char *s_fmt, ...);
+	int supracan_tilemap_get_region(int layer);
+	void supracan_tilemap_get_info_common(int layer, tile_data &tileinfo, int count);
+	void supracan_tilemap_get_info_roz(int layer, tile_data &tileinfo, int count);
+	int get_tilemap_dimensions(int &xsize, int &ysize, int layer);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void mark_active_tilemap_all_dirty(int layer);
+	void supracan_suprnova_draw_roz(bitmap_ind16 &bitmap, const rectangle &cliprect, tilemap_t *tmap, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, int wraparound/*, int columnscroll, UINT32* scrollram*/, int transmask);
 };
 
 
 
 #if ENABLE_VERBOSE_LOG
-INLINE void verboselog(const char *tag, running_machine &machine, int n_level, const char *s_fmt, ...)
+inline void supracan_state::verboselog(const char *tag, int n_level, const char *s_fmt, ...)
 {
 	if( VERBOSE_LEVEL >= n_level )
 	{
@@ -221,7 +232,7 @@ INLINE void verboselog(const char *tag, running_machine &machine, int n_level, c
 		va_start( v, s_fmt );
 		vsprintf( buf, s_fmt, v );
 		va_end( v );
-		logerror( "%06x: %s: %s", machine.device(tag)->safe_pc(), tag, buf );
+		logerror( "%06x: %s: %s", machine().device(tag)->safe_pc(), tag, buf );
 	}
 }
 
@@ -229,10 +240,8 @@ INLINE void verboselog(const char *tag, running_machine &machine, int n_level, c
 #define verboselog(w,x,y,z,...)
 #endif
 
-static int supracan_tilemap_get_region(running_machine &machine, int layer)
+int supracan_state::supracan_tilemap_get_region(int layer)
 {
-	supracan_state *state = machine.driver_data<supracan_state>();
-
 	// HACK!!!
 	if (layer==2)
 	{
@@ -244,7 +253,7 @@ static int supracan_tilemap_get_region(running_machine &machine, int layer)
 	{
 		// roz layer
 
-		int gfx_mode = (state->m_roz_mode & 3);
+		int gfx_mode = (m_roz_mode & 3);
 
 		switch(gfx_mode)
 		{
@@ -258,7 +267,7 @@ static int supracan_tilemap_get_region(running_machine &machine, int layer)
 	else
 	{
 		// normal layers
-		int gfx_mode = (state->m_tilemap_mode[layer] & 0x7000) >> 12;
+		int gfx_mode = (m_tilemap_mode[layer] & 0x7000) >> 12;
 
 		switch(gfx_mode)
 		{
@@ -273,15 +282,13 @@ static int supracan_tilemap_get_region(running_machine &machine, int layer)
 
 }
 
-static void supracan_tilemap_get_info_common(running_machine &machine, int layer, tile_data &tileinfo, int count)
+void supracan_state::supracan_tilemap_get_info_common(int layer, tile_data &tileinfo, int count)
 {
-	supracan_state *state = machine.driver_data<supracan_state>();
+	UINT16* supracan_vram = m_vram;
 
-	UINT16* supracan_vram = state->m_vram;
-
-	UINT32 base = (state->m_tilemap_base_addr[layer]);
-	int gfx_mode = (state->m_tilemap_mode[layer] & 0x7000) >> 12;
-	int region = supracan_tilemap_get_region(machine, layer);
+	UINT32 base = (m_tilemap_base_addr[layer]);
+	int gfx_mode = (m_tilemap_mode[layer] & 0x7000) >> 12;
+	int region = supracan_tilemap_get_region(layer);
 
 	count += base;
 
@@ -310,7 +317,7 @@ static void supracan_tilemap_get_info_common(running_machine &machine, int layer
 			break;
 
 		default:
-			verboselog("maincpu", machine, 0, "Unsupported tilemap mode: %d\n", (state->m_tilemap_mode[layer] & 0x7000) >> 12);
+			verboselog("maincpu", 0, "Unsupported tilemap mode: %d\n", (m_tilemap_mode[layer] & 0x7000) >> 12);
 			break;
 	}
 
@@ -324,26 +331,24 @@ static void supracan_tilemap_get_info_common(running_machine &machine, int layer
 	int flipxy = (supracan_vram[count] & 0x0c00)>>10;
 	int palette = ((supracan_vram[count] & 0xf000) >> 12) + palette_bank;
 
-	SET_TILE_INFO(region, tile, palette, TILE_FLIPXY(flipxy));
+	SET_TILE_INFO_MEMBER(region, tile, palette, TILE_FLIPXY(flipxy));
 }
 
 // I wonder how different this really is.. my guess, not at all.
-static void supracan_tilemap_get_info_roz(running_machine &machine, int layer, tile_data &tileinfo, int count)
+void supracan_state::supracan_tilemap_get_info_roz(int layer, tile_data &tileinfo, int count)
 {
-	supracan_state *state = machine.driver_data<supracan_state>();
+	UINT16* supracan_vram = m_vram;
 
-	UINT16* supracan_vram = state->m_vram;
-
-	UINT32 base = state->m_roz_base_addr;
+	UINT32 base = m_roz_base_addr;
 
 
 	int region = 1;
 	UINT16 tile_bank = 0;
 	UINT16 palette_bank = 0;
 
-	region = supracan_tilemap_get_region(machine, layer);
+	region = supracan_tilemap_get_region(layer);
 
-	switch(state->m_roz_mode & 3) //FIXME: fix gfx bpp order
+	switch(m_roz_mode & 3) //FIXME: fix gfx bpp order
 	{
 		case 0:
 			// hack: case for startup logo
@@ -355,21 +360,21 @@ static void supracan_tilemap_get_info_roz(running_machine &machine, int layer, t
 				if (count & 0x20) tile ^= 1;
 				tile |= (count & 0xc0)>>2;
 
-				SET_TILE_INFO(region, tile, 0, 0);
+				SET_TILE_INFO_MEMBER(region, tile, 0, 0);
 				return;
 			}
 
 
 		case 1:
-			tile_bank = (state->m_roz_tile_bank & 0xf000) >> 3;
+			tile_bank = (m_roz_tile_bank & 0xf000) >> 3;
 			break;
 
 		case 2:
-			tile_bank = (state->m_roz_tile_bank & 0xf000) >> 3;
+			tile_bank = (m_roz_tile_bank & 0xf000) >> 3;
 			break;
 
 		case 3:
-			tile_bank = (state->m_roz_tile_bank & 0xf000) >> 3;
+			tile_bank = (m_roz_tile_bank & 0xf000) >> 3;
 			break;
 	}
 
@@ -379,32 +384,29 @@ static void supracan_tilemap_get_info_roz(running_machine &machine, int layer, t
 	int flipxy = (supracan_vram[count] & 0x0c00)>>10;
 	int palette = ((supracan_vram[count] & 0xf000) >> 12) + palette_bank;
 
-	SET_TILE_INFO(region, tile, palette, TILE_FLIPXY(flipxy));
+	SET_TILE_INFO_MEMBER(region, tile, palette, TILE_FLIPXY(flipxy));
 }
 
 
 
 TILE_GET_INFO_MEMBER(supracan_state::get_supracan_tilemap0_tile_info)
 {
-
-	supracan_tilemap_get_info_common(machine(), 0, tileinfo, tile_index);
+	supracan_tilemap_get_info_common(0, tileinfo, tile_index);
 }
 
 TILE_GET_INFO_MEMBER(supracan_state::get_supracan_tilemap1_tile_info)
 {
-	supracan_tilemap_get_info_common(machine(), 1, tileinfo, tile_index);
+	supracan_tilemap_get_info_common(1, tileinfo, tile_index);
 }
 
 TILE_GET_INFO_MEMBER(supracan_state::get_supracan_tilemap2_tile_info)
 {
-
-	supracan_tilemap_get_info_common(machine(), 2, tileinfo, tile_index);
+	supracan_tilemap_get_info_common(2, tileinfo, tile_index);
 }
 
 TILE_GET_INFO_MEMBER(supracan_state::get_supracan_roz_tile_info)
 {
-
-	supracan_tilemap_get_info_roz(machine(), 3, tileinfo, tile_index);
+	supracan_tilemap_get_info_roz(3, tileinfo, tile_index);
 }
 
 
@@ -412,8 +414,8 @@ void supracan_state::video_start()
 {
 	m_sprite_final_bitmap.allocate(1024, 1024, BITMAP_FORMAT_IND16);
 
-	m_vram = (UINT16*)(*machine().root_device().memregion("ram_gfx"));
-	m_vram_swapped = (UINT16*)(*machine().root_device().memregion("ram_gfx2"));
+	m_vram = (UINT16*)(*memregion("ram_gfx"));
+	m_vram_swapped = (UINT16*)(*memregion("ram_gfx2"));
 	m_vram_addr_swapped = (UINT8*)(*memregion("ram_gfx3")); // hack for 1bpp layer at startup
 
 	m_tilemap_sizes[0][0] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(supracan_state::get_supracan_tilemap0_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
@@ -437,16 +439,15 @@ void supracan_state::video_start()
 	m_tilemap_sizes[3][3] = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(supracan_state::get_supracan_roz_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
 }
 
-static int get_tilemap_dimensions(running_machine &machine, int &xsize, int &ysize, int layer)
+int supracan_state::get_tilemap_dimensions(int &xsize, int &ysize, int layer)
 {
-	supracan_state *state = (supracan_state *)machine.driver_data<supracan_state>();
 	int select;
 
 	xsize = 32;
 	ysize = 32;
 
-	if (layer==3) select = (state->m_roz_mode & 0x0f00);
-	else select = state->m_tilemap_flags[layer] & 0x0f00;
+	if (layer==3) select = (m_roz_mode & 0x0f00);
+	else select = m_tilemap_flags[layer] & 0x0f00;
 
 	switch(select)
 	{
@@ -466,7 +467,7 @@ static int get_tilemap_dimensions(running_machine &machine, int &xsize, int &ysi
 			return 3;
 
 		default:
-			verboselog("maincpu", machine, 0, "Unsupported tilemap size for layer %d: %04x\n", layer, select);
+			verboselog("maincpu", 0, "Unsupported tilemap size for layer %d: %04x\n", layer, select);
 			return 0;
 	}
 }
@@ -474,10 +475,9 @@ static int get_tilemap_dimensions(running_machine &machine, int &xsize, int &ysi
 
 
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void supracan_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	supracan_state *state = machine.driver_data<supracan_state>();
-	UINT16 *supracan_vram = state->m_vram;
+	UINT16 *supracan_vram = m_vram;
 
 //      [0]
 //      -e-- ---- ---- ---- sprite enable?
@@ -497,9 +497,9 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 //      -ooo oooo oooo oooo Sprite address
 
 	UINT32 skip_count = 0;
-	UINT32 start_word = (state->m_sprite_base_addr >> 1) + skip_count * 4;
-	UINT32 end_word = start_word + (state->m_sprite_count - skip_count) * 4;
-	int region = (state->m_sprite_flags & 1) ? 0 : 1; //8bpp : 4bpp
+	UINT32 start_word = (m_sprite_base_addr >> 1) + skip_count * 4;
+	UINT32 end_word = start_word + (m_sprite_count - skip_count) * 4;
+	int region = (m_sprite_flags & 1) ? 0 : 1; //8bpp : 4bpp
 
 //  printf("frame\n");
 	#define VRAM_MASK (0xffff)
@@ -516,7 +516,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		int sprite_xflip = (supracan_vram[i+1] & 0x0800) >> 11;
 		int sprite_yflip = (supracan_vram[i+1] & 0x0400) >> 10;
 		//int xscale = (supracan_vram[i+2] & 0xf000) >> 12;
-		gfx_element *gfx = machine.gfx[region];
+		gfx_element *gfx = machine().gfx[region];
 
 
 
@@ -527,7 +527,6 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 		if((supracan_vram[i+0] & 0x4000))
 		{
-
 		#if 0
 			printf("%d (unk %02x) (enable %02x) (unk Y2 %02x, %02x) (y pos %02x) (bank %01x) (flip %01x) (unknown %02x) (x size %02x) (xscale %01x) (unk %01x) (xpos %02x) (code %04x)\n", i,
 				(supracan_vram[i+0] & 0x8000) >> 15,
@@ -629,24 +628,23 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 
 
-static void mark_active_tilemap_all_dirty(running_machine &machine, int layer)
+void supracan_state::mark_active_tilemap_all_dirty(int layer)
 {
-	supracan_state *state = (supracan_state *)machine.driver_data<supracan_state>();
 	int xsize = 0;
 	int ysize = 0;
 
 	int which_tilemap_size;
 
-	which_tilemap_size = get_tilemap_dimensions(machine, xsize, ysize, layer);
+	which_tilemap_size = get_tilemap_dimensions(xsize, ysize, layer);
 //  for (int i=0;i<4;i++)
-//    tilemap_mark_all_tiles_dirty(state->m_tilemap_sizes[layer][i]);
-	state->m_tilemap_sizes[layer][which_tilemap_size]->mark_all_dirty();
+//    tilemap_mark_all_tiles_dirty(m_tilemap_sizes[layer][i]);
+	m_tilemap_sizes[layer][which_tilemap_size]->mark_all_dirty();
 }
 
 
 
 /* draws ROZ with linescroll OR columnscroll to 16-bit indexed bitmap */
-static void supracan_suprnova_draw_roz(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, tilemap_t *tmap, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, int wraparound/*, int columnscroll, UINT32* scrollram*/, int transmask)
+void supracan_state::supracan_suprnova_draw_roz(bitmap_ind16 &bitmap, const rectangle &cliprect, tilemap_t *tmap, UINT32 startx, UINT32 starty, int incxx, int incxy, int incyx, int incyy, int wraparound/*, int columnscroll, UINT32* scrollram*/, int transmask)
 {
 	//bitmap_ind16 *destbitmap = bitmap;
 	bitmap_ind16 &srcbitmap = tmap->pixmap();
@@ -683,7 +681,6 @@ static void supracan_suprnova_draw_roz(running_machine &machine, bitmap_ind16 &b
 		/* loop over rows */
 		while (sy <= ey)
 		{
-
 			/* initialize X counters */
 			x = sx;
 			cx = startx;
@@ -772,9 +769,6 @@ static void supracan_suprnova_draw_roz(running_machine &machine, bitmap_ind16 &b
 
 UINT32 supracan_state::screen_update_supracan(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
-
-
 	// treat the sprites as frame-buffered and only update the buffer when drawing scanline 0 - this might not be true!
 
 	if (0)
@@ -786,16 +780,15 @@ UINT32 supracan_state::screen_update_supracan(screen_device &screen, bitmap_ind1
 			m_sprite_final_bitmap.fill(0x00, visarea);
 			bitmap.fill(0x80, visarea);
 
-			draw_sprites(machine(), m_sprite_final_bitmap, visarea);
+			draw_sprites( m_sprite_final_bitmap, visarea);
 		}
 	}
 	else
 	{
-
 		m_sprite_final_bitmap.fill(0x00, cliprect);
 		bitmap.fill(0x80, cliprect);
 
-		draw_sprites(machine(), m_sprite_final_bitmap, cliprect);
+		draw_sprites(m_sprite_final_bitmap, cliprect);
 	}
 
 
@@ -809,7 +802,6 @@ UINT32 supracan_state::screen_update_supracan(screen_device &screen, bitmap_ind1
 
 	for (int pri=7;pri>=0;pri--)
 	{
-
 		for (int layer = 3; layer >=0; layer--)
 		{
 		//  popmessage("%04x\n",m_video_flags);
@@ -835,9 +827,9 @@ UINT32 supracan_state::screen_update_supracan(screen_device &screen, bitmap_ind1
 			if (priority==pri)
 			{
 //            tilemap_num = layer;
-				which_tilemap_size = get_tilemap_dimensions(machine(), xsize, ysize, layer);
+				which_tilemap_size = get_tilemap_dimensions(xsize, ysize, layer);
 				bitmap_ind16 &src_bitmap = m_tilemap_sizes[layer][which_tilemap_size]->pixmap();
-				int gfx_region = supracan_tilemap_get_region(machine(), layer);
+				int gfx_region = supracan_tilemap_get_region(layer);
 				int transmask = 0xff;
 
 				switch (gfx_region)
@@ -853,7 +845,6 @@ UINT32 supracan_state::screen_update_supracan(screen_device &screen, bitmap_ind1
 				{
 					if (layer != 3) // standard layers, NOT roz
 					{
-
 						int wrap = (m_tilemap_flags[layer] & 0x20);
 
 						int scrollx = m_tilemap_scrollx[layer];
@@ -959,12 +950,12 @@ UINT32 supracan_state::screen_update_supracan(screen_device &screen, bitmap_ind1
 
 
 								if (m_vram[m_roz_unk_base0/2 + y]) // incxx = 0, no draw?
-									supracan_suprnova_draw_roz(machine(), bitmap, clip, m_tilemap_sizes[layer][which_tilemap_size], scrollx<<8, scrolly<<8, incxx<<8, incxy<<8, incyx<<8, incyy<<8, wrap, transmask);
+									supracan_suprnova_draw_roz(bitmap, clip, m_tilemap_sizes[layer][which_tilemap_size], scrollx<<8, scrolly<<8, incxx<<8, incxy<<8, incyx<<8, incyy<<8, wrap, transmask);
 							}
 						}
 						else
 						{
-							supracan_suprnova_draw_roz(machine(), bitmap, cliprect, m_tilemap_sizes[layer][which_tilemap_size], scrollx<<8, scrolly<<8, incxx<<8, incxy<<8, incyx<<8, incyy<<8, wrap, transmask);
+							supracan_suprnova_draw_roz(bitmap, cliprect, m_tilemap_sizes[layer][which_tilemap_size], scrollx<<8, scrolly<<8, incxx<<8, incxy<<8, incyx<<8, incyy<<8, wrap, transmask);
 						}
 					}
 				}
@@ -1003,36 +994,36 @@ WRITE16_MEMBER( supracan_state::supracan_dma_w )
 	{
 		case 0x00/2: // Source address MSW
 		case 0x10/2:
-			verboselog("maincpu", machine(), 0, "supracan_dma_w: source msw %d: %04x\n", ch, data);
+			verboselog("maincpu", 0, "supracan_dma_w: source msw %d: %04x\n", ch, data);
 			acan_dma_regs->source[ch] &= 0x0000ffff;
 			acan_dma_regs->source[ch] |= data << 16;
 			break;
 		case 0x02/2: // Source address LSW
 		case 0x12/2:
-			verboselog("maincpu", machine(), 0, "supracan_dma_w: source lsw %d: %04x\n", ch, data);
+			verboselog("maincpu", 0, "supracan_dma_w: source lsw %d: %04x\n", ch, data);
 			acan_dma_regs->source[ch] &= 0xffff0000;
 			acan_dma_regs->source[ch] |= data;
 			break;
 		case 0x04/2: // Destination address MSW
 		case 0x14/2:
-			verboselog("maincpu", machine(), 0, "supracan_dma_w: dest msw %d: %04x\n", ch, data);
+			verboselog("maincpu", 0, "supracan_dma_w: dest msw %d: %04x\n", ch, data);
 			acan_dma_regs->dest[ch] &= 0x0000ffff;
 			acan_dma_regs->dest[ch] |= data << 16;
 			break;
 		case 0x06/2: // Destination address LSW
 		case 0x16/2:
-			verboselog("maincpu", machine(), 0, "supracan_dma_w: dest lsw %d: %04x\n", ch, data);
+			verboselog("maincpu", 0, "supracan_dma_w: dest lsw %d: %04x\n", ch, data);
 			acan_dma_regs->dest[ch] &= 0xffff0000;
 			acan_dma_regs->dest[ch] |= data;
 			break;
 		case 0x08/2: // Byte count
 		case 0x18/2:
-			verboselog("maincpu", machine(), 0, "supracan_dma_w: count %d: %04x\n", ch, data);
+			verboselog("maincpu", 0, "supracan_dma_w: count %d: %04x\n", ch, data);
 			acan_dma_regs->count[ch] = data;
 			break;
 		case 0x0a/2: // Control
 		case 0x1a/2:
-			verboselog("maincpu", machine(), 0, "supracan_dma_w: control %d: %04x\n", ch, data);
+			verboselog("maincpu", 0, "supracan_dma_w: control %d: %04x\n", ch, data);
 			if(data & 0x8800)
 			{
 //            if(data & 0x2000)
@@ -1060,12 +1051,12 @@ WRITE16_MEMBER( supracan_state::supracan_dma_w )
 			}
 			else if(data != 0x0000) // fake DMA, used by C.U.G.
 			{
-				verboselog("maincpu", machine(), 0, "supracan_dma_w: Unknown DMA kickoff value of %04x (other regs %08x, %08x, %d)\n", data, acan_dma_regs->source[ch], acan_dma_regs->dest[ch], acan_dma_regs->count[ch] + 1);
+				verboselog("maincpu", 0, "supracan_dma_w: Unknown DMA kickoff value of %04x (other regs %08x, %08x, %d)\n", data, acan_dma_regs->source[ch], acan_dma_regs->dest[ch], acan_dma_regs->count[ch] + 1);
 				fatalerror("supracan_dma_w: Unknown DMA kickoff value of %04x (other regs %08x, %08x, %d)\n",data, acan_dma_regs->source[ch], acan_dma_regs->dest[ch], acan_dma_regs->count[ch] + 1);
 			}
 			break;
 		default:
-			verboselog("maincpu", machine(), 0, "supracan_dma_w: Unknown register: %08x = %04x & %04x\n", 0xe90020 + (offset << 1), data, mem_mask);
+			verboselog("maincpu", 0, "supracan_dma_w: Unknown register: %08x = %04x & %04x\n", 0xe90020 + (offset << 1), data, mem_mask);
 			break;
 	}
 }
@@ -1144,33 +1135,33 @@ READ8_MEMBER( supracan_state::supracan_6502_soundmem_r )
 
 		case 0x410: // Sound IRQ enable
 			data = m_sound_irq_enable_reg;
-			if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 0, "supracan_soundreg_r: IRQ enable: %04x\n", data);
+			if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 0, "supracan_soundreg_r: IRQ enable: %04x\n", data);
 			if(!mem.debugger_access())
 			{
 				if(m_sound_irq_enable_reg & m_sound_irq_source_reg)
 				{
-					machine().device("soundcpu")->execute().set_input_line(0, ASSERT_LINE);
+					m_soundcpu->set_input_line(0, ASSERT_LINE);
 				}
 				else
 				{
-					machine().device("soundcpu")->execute().set_input_line(0, CLEAR_LINE);
+					m_soundcpu->set_input_line(0, CLEAR_LINE);
 				}
 			}
 			break;
 		case 0x411: // Sound IRQ source
 			data = m_sound_irq_source_reg;
 			m_sound_irq_source_reg = 0;
-			if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 3, "supracan_soundreg_r: IRQ source: %04x\n", data);
+			if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 3, "supracan_soundreg_r: IRQ source: %04x\n", data);
 			if(!mem.debugger_access())
 			{
-				machine().device("soundcpu")->execute().set_input_line(0, CLEAR_LINE);
+				m_soundcpu->set_input_line(0, CLEAR_LINE);
 			}
 			break;
 		case 0x420:
-			if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 3, "supracan_soundreg_r: Sound hardware status? (not yet implemented): %02x\n", 0);
+			if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 3, "supracan_soundreg_r: Sound hardware status? (not yet implemented): %02x\n", 0);
 			break;
 		case 0x422:
-			if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 3, "supracan_soundreg_r: Sound hardware data? (not yet implemented): %02x\n", 0);
+			if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 3, "supracan_soundreg_r: Sound hardware data? (not yet implemented): %02x\n", 0);
 			break;
 		case 0x404:
 		case 0x405:
@@ -1181,7 +1172,7 @@ READ8_MEMBER( supracan_state::supracan_6502_soundmem_r )
 		default:
 			if(offset >= 0x300 && offset < 0x500)
 			{
-				if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 0, "supracan_soundreg_r: Unknown register %04x\n", offset);
+				if(!mem.debugger_access()) verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 0, "supracan_soundreg_r: Unknown register %04x\n", offset);
 			}
 			break;
 	}
@@ -1196,29 +1187,29 @@ WRITE8_MEMBER( supracan_state::supracan_6502_soundmem_w )
 		case 0x407:
 			if(m_sound_cpu_68k_irq_reg &~ data)
 			{
-				verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 0, "supracan_soundreg_w: sound_cpu_68k_irq_reg: %04x: Triggering M68k IRQ\n", data);
+				verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 0, "supracan_soundreg_w: sound_cpu_68k_irq_reg: %04x: Triggering M68k IRQ\n", data);
 				m_maincpu->set_input_line(7, HOLD_LINE);
 			}
 			else
 			{
-				verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 0, "supracan_soundreg_w: sound_cpu_68k_irq_reg: %04x\n", data);
+				verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 0, "supracan_soundreg_w: sound_cpu_68k_irq_reg: %04x\n", data);
 			}
 			m_sound_cpu_68k_irq_reg = data;
 			break;
 		case 0x410:
 			m_sound_irq_enable_reg = data;
-			verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 0, "supracan_soundreg_w: IRQ enable: %02x\n", data);
+			verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 0, "supracan_soundreg_w: IRQ enable: %02x\n", data);
 			break;
 		case 0x420:
-			verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 3, "supracan_soundreg_w: Sound hardware reg data? (not yet implemented): %02x\n", data);
+			verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 3, "supracan_soundreg_w: Sound hardware reg data? (not yet implemented): %02x\n", data);
 			break;
 		case 0x422:
-			verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 3, "supracan_soundreg_w: Sound hardware reg addr? (not yet implemented): %02x\n", data);
+			verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 3, "supracan_soundreg_w: Sound hardware reg addr? (not yet implemented): %02x\n", data);
 			break;
 		default:
 			if(offset >= 0x300 && offset < 0x500)
 			{
-				verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", machine(), 0, "supracan_soundreg_w: Unknown register %04x = %02x\n", offset, data);
+				verboselog(m_hack_68k_to_6502_access ? "maincpu" : "soundcpu", 0, "supracan_soundreg_w: Unknown register %04x = %02x\n", offset, data);
 			}
 			m_soundram[offset] = data;
 			break;
@@ -1415,7 +1406,7 @@ READ16_MEMBER( supracan_state::supracan_sound_r )
 	switch( offset )
 	{
 		default:
-			verboselog("maincpu", machine(), 0, "supracan_sound_r: Unknown register: (%08x) & %04x\n", 0xe90000 + (offset << 1), mem_mask);
+			verboselog("maincpu", 0, "supracan_sound_r: Unknown register: (%08x) & %04x\n", 0xe90000 + (offset << 1), mem_mask);
 			break;
 	}
 
@@ -1427,7 +1418,7 @@ WRITE16_MEMBER( supracan_state::supracan_sound_w )
 	switch ( offset )
 	{
 		case 0x000a/2:  /* Sound cpu IRQ request. */
-			machine().device("soundcpu")->execute().set_input_line(0, ASSERT_LINE);
+			m_soundcpu->set_input_line(0, ASSERT_LINE);
 			break;
 		case 0x001c/2:  /* Sound cpu control. Bit 0 tied to sound cpu RESET line */
 			if(data & 0x01)
@@ -1436,8 +1427,8 @@ WRITE16_MEMBER( supracan_state::supracan_sound_w )
 				{
 					/* Reset and enable the sound cpu */
 #if !(SOUNDCPU_BOOT_HACK)
-					machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
-					machine().device("soundcpu")->reset();
+					m_soundcpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+					m_soundcpu->reset();
 #endif
 				}
 				m_m6502_reset = data & 0x01;
@@ -1445,12 +1436,12 @@ WRITE16_MEMBER( supracan_state::supracan_sound_w )
 			else
 			{
 				/* Halt the sound cpu */
-				machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+				m_soundcpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 			}
-			verboselog("maincpu", machine(), 0, "sound cpu ctrl: %04x\n", data);
+			verboselog("maincpu", 0, "sound cpu ctrl: %04x\n", data);
 			break;
 		default:
-			verboselog("maincpu", machine(), 0, "supracan_sound_w: Unknown register: %08x = %04x & %04x\n", 0xe90000 + (offset << 1), data, mem_mask);
+			verboselog("maincpu", 0, "supracan_sound_w: Unknown register: %08x = %04x & %04x\n", 0xe90000 + (offset << 1), data, mem_mask);
 			break;
 	}
 }
@@ -1466,7 +1457,7 @@ READ16_MEMBER( supracan_state::supracan_video_r )
 		case 0x00/2: // Video IRQ flags
 			if(!mem.debugger_access())
 			{
-				//verboselog("maincpu", machine(), 0, "read video IRQ flags (%04x)\n", data);
+				//verboselog("maincpu", 0, "read video IRQ flags (%04x)\n", data);
 				m_maincpu->set_input_line(7, CLEAR_LINE);
 			}
 			break;
@@ -1476,16 +1467,16 @@ READ16_MEMBER( supracan_state::supracan_video_r )
 			data = 0;
 			break;
 		case 0x100/2:
-			if(!mem.debugger_access()) verboselog("maincpu", machine(), 0, "read tilemap_flags[0] (%04x)\n", data);
+			if(!mem.debugger_access()) verboselog("maincpu", 0, "read tilemap_flags[0] (%04x)\n", data);
 			break;
 		case 0x106/2:
-			if(!mem.debugger_access()) verboselog("maincpu", machine(), 0, "read tilemap_scrolly[0] (%04x)\n", data);
+			if(!mem.debugger_access()) verboselog("maincpu", 0, "read tilemap_scrolly[0] (%04x)\n", data);
 			break;
 		case 0x120/2:
-			if(!mem.debugger_access()) verboselog("maincpu", machine(), 0, "read tilemap_flags[1] (%04x)\n", data);
+			if(!mem.debugger_access()) verboselog("maincpu", 0, "read tilemap_flags[1] (%04x)\n", data);
 			break;
 		default:
-			if(!mem.debugger_access()) verboselog("maincpu", machine(), 0, "supracan_video_r: Unknown register: %08x (%04x & %04x)\n", 0xf00000 + (offset << 1), data, mem_mask);
+			if(!mem.debugger_access()) verboselog("maincpu", 0, "supracan_video_r: Unknown register: %08x (%04x & %04x)\n", 0xf00000 + (offset << 1), data, mem_mask);
 			break;
 	}
 
@@ -1494,7 +1485,6 @@ READ16_MEMBER( supracan_state::supracan_video_r )
 
 TIMER_CALLBACK_MEMBER(supracan_state::supracan_hbl_callback)
 {
-
 	m_maincpu->set_input_line(3, HOLD_LINE);
 
 	m_hbl_timer->adjust(attotime::never);
@@ -1502,7 +1492,6 @@ TIMER_CALLBACK_MEMBER(supracan_state::supracan_hbl_callback)
 
 TIMER_CALLBACK_MEMBER(supracan_state::supracan_line_on_callback)
 {
-
 	m_maincpu->set_input_line(5, HOLD_LINE);
 
 	m_line_on_timer->adjust(attotime::never);
@@ -1510,7 +1499,6 @@ TIMER_CALLBACK_MEMBER(supracan_state::supracan_line_on_callback)
 
 TIMER_CALLBACK_MEMBER(supracan_state::supracan_line_off_callback)
 {
-
 	m_maincpu->set_input_line(5, CLEAR_LINE);
 
 	m_line_on_timer->adjust(attotime::never);
@@ -1528,10 +1516,10 @@ TIMER_CALLBACK_MEMBER(supracan_state::supracan_video_callback)
 		m_video_regs[0] &= 0x7fff;
 
 		// we really need better management of this
-		mark_active_tilemap_all_dirty(machine(), 0);
-		mark_active_tilemap_all_dirty(machine(), 1);
-		mark_active_tilemap_all_dirty(machine(), 2);
-		mark_active_tilemap_all_dirty(machine(), 3);
+		mark_active_tilemap_all_dirty(0);
+		mark_active_tilemap_all_dirty(1);
+		mark_active_tilemap_all_dirty(2);
+		mark_active_tilemap_all_dirty(3);
 
 
 		break;
@@ -1543,7 +1531,7 @@ TIMER_CALLBACK_MEMBER(supracan_state::supracan_video_callback)
 	case 240:
 		if(m_irq_mask & 1)
 		{
-			verboselog("maincpu", machine(), 0, "Triggering VBL IRQ\n\n");
+			verboselog("maincpu", 0, "Triggering VBL IRQ\n\n");
 			m_maincpu->set_input_line(7, HOLD_LINE);
 		}
 		break;
@@ -1567,35 +1555,35 @@ WRITE16_MEMBER( supracan_state::supracan_video_w )
 	switch(offset)
 	{
 		case 0x10/2: // Byte count
-			verboselog("maincpu", machine(), 0, "sprite dma word count: %04x\n", data);
+			verboselog("maincpu", 0, "sprite dma word count: %04x\n", data);
 			acan_sprdma_regs->count = data;
 			break;
 		case 0x12/2: // Destination address MSW
 			acan_sprdma_regs->dst &= 0x0000ffff;
 			acan_sprdma_regs->dst |= data << 16;
-			verboselog("maincpu", machine(), 0, "sprite dma dest msw: %04x\n", data);
+			verboselog("maincpu", 0, "sprite dma dest msw: %04x\n", data);
 			break;
 		case 0x14/2: // Destination address LSW
 			acan_sprdma_regs->dst &= 0xffff0000;
 			acan_sprdma_regs->dst |= data;
-			verboselog("maincpu", machine(), 0, "sprite dma dest lsw: %04x\n", data);
+			verboselog("maincpu", 0, "sprite dma dest lsw: %04x\n", data);
 			break;
 		case 0x16/2: // Source word increment
-			verboselog("maincpu", machine(), 0, "sprite dma dest word inc: %04x\n", data);
+			verboselog("maincpu", 0, "sprite dma dest word inc: %04x\n", data);
 			acan_sprdma_regs->dst_inc = data;
 			break;
 		case 0x18/2: // Source address MSW
 			acan_sprdma_regs->src &= 0x0000ffff;
 			acan_sprdma_regs->src |= data << 16;
-			verboselog("maincpu", machine(), 0, "sprite dma src msw: %04x\n", data);
+			verboselog("maincpu", 0, "sprite dma src msw: %04x\n", data);
 			break;
 		case 0x1a/2: // Source address LSW
-			verboselog("maincpu", machine(), 0, "sprite dma src lsw: %04x\n", data);
+			verboselog("maincpu", 0, "sprite dma src lsw: %04x\n", data);
 			acan_sprdma_regs->src &= 0xffff0000;
 			acan_sprdma_regs->src |= data;
 			break;
 		case 0x1c/2: // Source word increment
-			verboselog("maincpu", machine(), 0, "sprite dma src word inc: %04x\n", data);
+			verboselog("maincpu", 0, "sprite dma src word inc: %04x\n", data);
 			acan_sprdma_regs->src_inc = data;
 			break;
 		case 0x1e/2:
@@ -1632,12 +1620,12 @@ WRITE16_MEMBER( supracan_state::supracan_video_w )
 			}
 			else
 			{
-				verboselog("maincpu", machine(), 0, "supracan_dma_w: Attempting to kick off a DMA without bit 15 set! (%04x)\n", data);
+				verboselog("maincpu", 0, "supracan_dma_w: Attempting to kick off a DMA without bit 15 set! (%04x)\n", data);
 			}
 			break;
 		case 0x08/2:
 			{
-				verboselog("maincpu", machine(), 3, "video_flags = %04x\n", data);
+				verboselog("maincpu", 3, "video_flags = %04x\n", data);
 				m_video_flags = data;
 
 				rectangle visarea = machine().primary_screen->visible_area();
@@ -1649,7 +1637,7 @@ WRITE16_MEMBER( supracan_state::supracan_video_w )
 		case 0x0a/2:
 			{
 				// raster interrupt
-				verboselog("maincpu", machine(), 0, "IRQ Trigger? = %04x\n", data);
+				verboselog("maincpu", 0, "IRQ Trigger? = %04x\n", data);
 				if(data & 0x8000)
 				{
 					m_line_on_timer->adjust(machine().primary_screen->time_until_pos((data & 0x00ff), 0));
@@ -1663,7 +1651,7 @@ WRITE16_MEMBER( supracan_state::supracan_video_w )
 
 		case 0x0c/2:
 			{
-				verboselog("maincpu", machine(), 0, "IRQ De-Trigger? = %04x\n", data);
+				verboselog("maincpu", 0, "IRQ De-Trigger? = %04x\n", data);
 				if(data & 0x8000)
 				{
 					m_line_off_timer->adjust(machine().primary_screen->time_until_pos(data & 0x00ff, 0));
@@ -1676,48 +1664,48 @@ WRITE16_MEMBER( supracan_state::supracan_video_w )
 			break;
 
 		/* Sprites */
-		case 0x20/2: m_sprite_base_addr = data << 2; verboselog("maincpu", machine(), 0, "sprite_base_addr = %04x\n", data); break;
-		case 0x22/2: m_sprite_count = data+1; verboselog("maincpu", machine(), 0, "sprite_count = %d\n", data+1); break;
-		case 0x26/2: m_sprite_flags = data; verboselog("maincpu", machine(), 0, "sprite_flags = %04x\n", data); break;
+		case 0x20/2: m_sprite_base_addr = data << 2; verboselog("maincpu", 0, "sprite_base_addr = %04x\n", data); break;
+		case 0x22/2: m_sprite_count = data+1; verboselog("maincpu", 0, "sprite_count = %d\n", data+1); break;
+		case 0x26/2: m_sprite_flags = data; verboselog("maincpu", 0, "sprite_flags = %04x\n", data); break;
 
 		/* Tilemap 0 */
-		case 0x100/2: m_tilemap_flags[0] = data; verboselog("maincpu", machine(), 3, "tilemap_flags[0] = %04x\n", data); break;
-		case 0x104/2: m_tilemap_scrollx[0] = data; verboselog("maincpu", machine(), 3, "tilemap_scrollx[0] = %04x\n", data); break;
-		case 0x106/2: m_tilemap_scrolly[0] = data; verboselog("maincpu", machine(), 3, "tilemap_scrolly[0] = %04x\n", data); break;
-		case 0x108/2: m_tilemap_base_addr[0] = (data) << 1; verboselog("maincpu", machine(), 3, "tilemap_base_addr[0] = %05x\n", data << 2); break;
-		case 0x10a/2: m_tilemap_mode[0] = data; verboselog("maincpu", machine(), 3, "tilemap_mode[0] = %04x\n", data); break;
+		case 0x100/2: m_tilemap_flags[0] = data; verboselog("maincpu", 3, "tilemap_flags[0] = %04x\n", data); break;
+		case 0x104/2: m_tilemap_scrollx[0] = data; verboselog("maincpu", 3, "tilemap_scrollx[0] = %04x\n", data); break;
+		case 0x106/2: m_tilemap_scrolly[0] = data; verboselog("maincpu", 3, "tilemap_scrolly[0] = %04x\n", data); break;
+		case 0x108/2: m_tilemap_base_addr[0] = (data) << 1; verboselog("maincpu", 3, "tilemap_base_addr[0] = %05x\n", data << 2); break;
+		case 0x10a/2: m_tilemap_mode[0] = data; verboselog("maincpu", 3, "tilemap_mode[0] = %04x\n", data); break;
 
 		/* Tilemap 1 */
-		case 0x120/2: m_tilemap_flags[1] = data; verboselog("maincpu", machine(), 3, "tilemap_flags[1] = %04x\n", data); break;
-		case 0x124/2: m_tilemap_scrollx[1] = data; verboselog("maincpu", machine(), 3, "tilemap_scrollx[1] = %04x\n", data); break;
-		case 0x126/2: m_tilemap_scrolly[1] = data; verboselog("maincpu", machine(), 3, "tilemap_scrolly[1] = %04x\n", data); break;
-		case 0x128/2: m_tilemap_base_addr[1] = (data) << 1; verboselog("maincpu", machine(), 3, "tilemap_base_addr[1] = %05x\n", data << 2); break;
-		case 0x12a/2: m_tilemap_mode[1] = data; verboselog("maincpu", machine(), 3, "tilemap_mode[1] = %04x\n", data); break;
+		case 0x120/2: m_tilemap_flags[1] = data; verboselog("maincpu", 3, "tilemap_flags[1] = %04x\n", data); break;
+		case 0x124/2: m_tilemap_scrollx[1] = data; verboselog("maincpu", 3, "tilemap_scrollx[1] = %04x\n", data); break;
+		case 0x126/2: m_tilemap_scrolly[1] = data; verboselog("maincpu", 3, "tilemap_scrolly[1] = %04x\n", data); break;
+		case 0x128/2: m_tilemap_base_addr[1] = (data) << 1; verboselog("maincpu", 3, "tilemap_base_addr[1] = %05x\n", data << 2); break;
+		case 0x12a/2: m_tilemap_mode[1] = data; verboselog("maincpu", 3, "tilemap_mode[1] = %04x\n", data); break;
 
 		/* Tilemap 2? */
-		case 0x140/2: m_tilemap_flags[2] = data; verboselog("maincpu", machine(), 0, "tilemap_flags[2] = %04x\n", data); break;
-		case 0x144/2: m_tilemap_scrollx[2] = data; verboselog("maincpu", machine(), 0, "tilemap_scrollx[2] = %04x\n", data); break;
-		case 0x146/2: m_tilemap_scrolly[2] = data; verboselog("maincpu", machine(), 0, "tilemap_scrolly[2] = %04x\n", data); break;
-		case 0x148/2: m_tilemap_base_addr[2] = (data) << 1; verboselog("maincpu", machine(), 0, "tilemap_base_addr[2] = %05x\n", data << 2); break;
-		case 0x14a/2: m_tilemap_mode[2] = data; verboselog("maincpu", machine(), 0, "tilemap_mode[2] = %04x\n", data); break;
+		case 0x140/2: m_tilemap_flags[2] = data; verboselog("maincpu", 0, "tilemap_flags[2] = %04x\n", data); break;
+		case 0x144/2: m_tilemap_scrollx[2] = data; verboselog("maincpu", 0, "tilemap_scrollx[2] = %04x\n", data); break;
+		case 0x146/2: m_tilemap_scrolly[2] = data; verboselog("maincpu", 0, "tilemap_scrolly[2] = %04x\n", data); break;
+		case 0x148/2: m_tilemap_base_addr[2] = (data) << 1; verboselog("maincpu", 0, "tilemap_base_addr[2] = %05x\n", data << 2); break;
+		case 0x14a/2: m_tilemap_mode[2] = data; verboselog("maincpu", 0, "tilemap_mode[2] = %04x\n", data); break;
 
 		/* ROZ */
-		case 0x180/2: m_roz_mode = data; verboselog("maincpu", machine(), 3, "roz_mode = %04x\n", data); break;
-		case 0x184/2: m_roz_scrollx = (data << 16) | (m_roz_scrollx & 0xffff); m_roz_changed |= 1; verboselog("maincpu", machine(), 3, "roz_scrollx = %08x\n", m_roz_scrollx); break;
-		case 0x186/2: m_roz_scrollx = (data) | (m_roz_scrollx & 0xffff0000); m_roz_changed |= 1; verboselog("maincpu", machine(), 3, "roz_scrollx = %08x\n", m_roz_scrollx); break;
-		case 0x188/2: m_roz_scrolly = (data << 16) | (m_roz_scrolly & 0xffff); m_roz_changed |= 2; verboselog("maincpu", machine(), 3, "roz_scrolly = %08x\n", m_roz_scrolly); break;
-		case 0x18a/2: m_roz_scrolly = (data) | (m_roz_scrolly & 0xffff0000); m_roz_changed |= 2; verboselog("maincpu", machine(), 3, "roz_scrolly = %08x\n", m_roz_scrolly); break;
-		case 0x18c/2: m_roz_coeffa = data; verboselog("maincpu", machine(), 3, "roz_coeffa = %04x\n", data); break;
-		case 0x18e/2: m_roz_coeffb = data; verboselog("maincpu", machine(), 3, "roz_coeffb = %04x\n", data); break;
-		case 0x190/2: m_roz_coeffc = data; verboselog("maincpu", machine(), 3, "roz_coeffc = %04x\n", data); break;
-		case 0x192/2: m_roz_coeffd = data; verboselog("maincpu", machine(), 3, "roz_coeffd = %04x\n", data); break;
-		case 0x194/2: m_roz_base_addr = (data) << 1; verboselog("maincpu", machine(), 3, "roz_base_addr = %05x\n", data << 2); break;
-		case 0x196/2: m_roz_tile_bank = data; verboselog("maincpu", machine(), 3, "roz_tile_bank = %04x\n", data); break; //tile bank
-		case 0x198/2: m_roz_unk_base0 = data << 2; verboselog("maincpu", machine(), 3, "roz_unk_base0 = %05x\n", data << 2); break;
-		case 0x19a/2: m_roz_unk_base1 = data << 2; verboselog("maincpu", machine(), 3, "roz_unk_base1 = %05x\n", data << 2); break;
-		case 0x19e/2: m_roz_unk_base2 = data << 2; verboselog("maincpu", machine(), 3, "roz_unk_base2 = %05x\n", data << 2); break;
+		case 0x180/2: m_roz_mode = data; verboselog("maincpu", 3, "roz_mode = %04x\n", data); break;
+		case 0x184/2: m_roz_scrollx = (data << 16) | (m_roz_scrollx & 0xffff); m_roz_changed |= 1; verboselog("maincpu", 3, "roz_scrollx = %08x\n", m_roz_scrollx); break;
+		case 0x186/2: m_roz_scrollx = (data) | (m_roz_scrollx & 0xffff0000); m_roz_changed |= 1; verboselog("maincpu", 3, "roz_scrollx = %08x\n", m_roz_scrollx); break;
+		case 0x188/2: m_roz_scrolly = (data << 16) | (m_roz_scrolly & 0xffff); m_roz_changed |= 2; verboselog("maincpu", 3, "roz_scrolly = %08x\n", m_roz_scrolly); break;
+		case 0x18a/2: m_roz_scrolly = (data) | (m_roz_scrolly & 0xffff0000); m_roz_changed |= 2; verboselog("maincpu", 3, "roz_scrolly = %08x\n", m_roz_scrolly); break;
+		case 0x18c/2: m_roz_coeffa = data; verboselog("maincpu", 3, "roz_coeffa = %04x\n", data); break;
+		case 0x18e/2: m_roz_coeffb = data; verboselog("maincpu", 3, "roz_coeffb = %04x\n", data); break;
+		case 0x190/2: m_roz_coeffc = data; verboselog("maincpu", 3, "roz_coeffc = %04x\n", data); break;
+		case 0x192/2: m_roz_coeffd = data; verboselog("maincpu", 3, "roz_coeffd = %04x\n", data); break;
+		case 0x194/2: m_roz_base_addr = (data) << 1; verboselog("maincpu", 3, "roz_base_addr = %05x\n", data << 2); break;
+		case 0x196/2: m_roz_tile_bank = data; verboselog("maincpu", 3, "roz_tile_bank = %04x\n", data); break; //tile bank
+		case 0x198/2: m_roz_unk_base0 = data << 2; verboselog("maincpu", 3, "roz_unk_base0 = %05x\n", data << 2); break;
+		case 0x19a/2: m_roz_unk_base1 = data << 2; verboselog("maincpu", 3, "roz_unk_base1 = %05x\n", data << 2); break;
+		case 0x19e/2: m_roz_unk_base2 = data << 2; verboselog("maincpu", 3, "roz_unk_base2 = %05x\n", data << 2); break;
 
-		case 0x1d0/2: m_unk_1d0 = data; verboselog("maincpu", machine(), 3, "unk_1d0 = %04x\n", data); break;
+		case 0x1d0/2: m_unk_1d0 = data; verboselog("maincpu", 3, "unk_1d0 = %04x\n", data); break;
 
 
 
@@ -1730,19 +1718,19 @@ WRITE16_MEMBER( supracan_state::supracan_video_w )
 				m_maincpu->set_input_line(7, CLEAR_LINE);
 			}
 #endif
-			verboselog("maincpu", machine(), 3, "irq_mask = %04x\n", data);
+			verboselog("maincpu", 3, "irq_mask = %04x\n", data);
 			break;
 		default:
-			verboselog("maincpu", machine(), 0, "supracan_video_w: Unknown register: %08x = %04x & %04x\n", 0xf00000 + (offset << 1), data, mem_mask);
+			verboselog("maincpu", 0, "supracan_video_w: Unknown register: %08x = %04x & %04x\n", 0xf00000 + (offset << 1), data, mem_mask);
 			break;
 	}
 	m_video_regs[offset] = data;
 }
 
 
-static DEVICE_IMAGE_LOAD( supracan_cart )
+DEVICE_IMAGE_LOAD_MEMBER( supracan_state, supracan_cart )
 {
-	UINT8 *cart = image.device().machine().root_device().memregion("cart")->base();
+	UINT8 *cart = memregion("cart")->base();
 	UINT32 size = 0;
 
 	if (image.software_entry() == NULL)
@@ -1773,7 +1761,6 @@ static DEVICE_IMAGE_LOAD( supracan_cart )
 
 void supracan_state::machine_start()
 {
-
 	m_video_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(supracan_state::supracan_video_callback),this));
 	m_hbl_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(supracan_state::supracan_hbl_callback),this));
 	m_line_on_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(supracan_state::supracan_line_on_callback),this));
@@ -1783,8 +1770,7 @@ void supracan_state::machine_start()
 
 void supracan_state::machine_reset()
 {
-
-	machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
+	m_soundcpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 
 	m_video_timer->adjust( machine().primary_screen->time_until_pos( 0, 0 ) );
 	m_irq_mask = 0;
@@ -1885,16 +1871,15 @@ INTERRUPT_GEN_MEMBER(supracan_state::supracan_irq)
 
 INTERRUPT_GEN_MEMBER(supracan_state::supracan_sound_irq)
 {
-
 	m_sound_irq_source_reg |= 0x80;
 
 	if(m_sound_irq_enable_reg & m_sound_irq_source_reg)
 	{
-		machine().device("soundcpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_soundcpu->set_input_line(0, ASSERT_LINE);
 	}
 	else
 	{
-		machine().device("soundcpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_soundcpu->set_input_line(0, CLEAR_LINE);
 	}
 }
 
@@ -1923,7 +1908,7 @@ static MACHINE_CONFIG_START( supracan, supracan_state )
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("bin")
 	MCFG_CARTSLOT_INTERFACE("supracan_cart")
-	MCFG_CARTSLOT_LOAD(supracan_cart)
+	MCFG_CARTSLOT_LOAD(supracan_state,supracan_cart)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","supracan")
 MACHINE_CONFIG_END

@@ -87,8 +87,7 @@ WRITE8_MEMBER(kchamp_state::sound_reset_w)
 
 WRITE8_MEMBER(kchamp_state::sound_control_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device, !(data & 1));
+	m_msm->reset_w(!(data & 1));
 	m_sound_nmi_enable = ((data >> 1) & 1);
 }
 
@@ -131,9 +130,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( kchampvs_sound_io_map, AS_IO, 8, kchamp_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
 	AM_RANGE(0x01, 0x01) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
 	AM_RANGE(0x04, 0x04) AM_WRITE(sound_msm_w)
 	AM_RANGE(0x05, 0x05) AM_WRITE(sound_control_w)
 ADDRESS_MAP_END
@@ -150,7 +149,6 @@ READ8_MEMBER(kchamp_state::sound_reset_r)
 
 WRITE8_MEMBER(kchamp_state::kc_sound_control_w)
 {
-
 	if (offset == 0)
 		m_sound_nmi_enable = ((data >> 7) & 1);
 //  else
@@ -183,8 +181,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( kchamp_sound_io_map, AS_IO, 8, kchamp_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
 	AM_RANGE(0x04, 0x04) AM_DEVWRITE("dac", dac_device, write_unsigned8)
 	AM_RANGE(0x05, 0x05) AM_WRITE(kc_sound_control_w)
 	AM_RANGE(0x06, 0x06) AM_READ(soundlatch_byte_r)
@@ -346,27 +344,25 @@ INTERRUPT_GEN_MEMBER(kchamp_state::kc_interrupt)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
-static void msmint( device_t *device )
+WRITE_LINE_MEMBER(kchamp_state::msmint)
 {
-	kchamp_state *state = device->machine().driver_data<kchamp_state>();
-
-	if (state->m_msm_play_lo_nibble)
-		msm5205_data_w(device, state->m_msm_data & 0x0f);
+	if (m_msm_play_lo_nibble)
+		m_msm->data_w(m_msm_data & 0x0f);
 	else
-		msm5205_data_w(device, (state->m_msm_data >> 4) & 0x0f);
+		m_msm->data_w((m_msm_data >> 4) & 0x0f);
 
-	state->m_msm_play_lo_nibble ^= 1;
+	m_msm_play_lo_nibble ^= 1;
 
-	if (!(state->m_counter ^= 1))
+	if (!(m_counter ^= 1))
 	{
-		if (state->m_sound_nmi_enable)
-			state->m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		if (m_sound_nmi_enable)
+			m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 }
 
 static const msm5205_interface msm_interface =
 {
-	msmint,         /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(kchamp_state,msmint),         /* interrupt function */
 	MSM5205_S96_4B  /* 1 / 96 = 3906.25Hz playback */
 };
 
@@ -383,16 +379,12 @@ INTERRUPT_GEN_MEMBER(kchamp_state::sound_int)
 
 MACHINE_START_MEMBER(kchamp_state,kchamp)
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_nmi_enable));
 	save_item(NAME(m_sound_nmi_enable));
 }
 
 MACHINE_START_MEMBER(kchamp_state,kchampvs)
 {
-
 	MACHINE_START_CALL_MEMBER(kchamp);
 
 	save_item(NAME(m_msm_data));
@@ -402,7 +394,6 @@ MACHINE_START_MEMBER(kchamp_state,kchampvs)
 
 void kchamp_state::machine_reset()
 {
-
 	m_nmi_enable = 0;
 	m_sound_nmi_enable = 0;
 }
@@ -709,11 +700,11 @@ ROM_START( karatevs )
 ROM_END
 
 
-static UINT8 *decrypt_code(running_machine &machine)
+UINT8 *kchamp_state::decrypt_code()
 {
-	address_space &space = machine.device("maincpu")->memory().space(AS_PROGRAM);
-	UINT8 *decrypted = auto_alloc_array(machine, UINT8, 0x10000);
-	UINT8 *rom = machine.root_device().memregion("maincpu")->base();
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	UINT8 *decrypted = auto_alloc_array(machine(), UINT8, 0x10000);
+	UINT8 *rom = memregion("maincpu")->base();
 	int A;
 
 	space.set_decrypted_region(0x0000, 0xffff, decrypted);
@@ -728,7 +719,7 @@ static UINT8 *decrypt_code(running_machine &machine)
 DRIVER_INIT_MEMBER(kchamp_state,kchampvs)
 {
 	UINT8 *rom = memregion("maincpu")->base();
-	UINT8 *decrypted = decrypt_code(machine());
+	UINT8 *decrypted = decrypt_code();
 	int A;
 
 	/*
@@ -758,7 +749,7 @@ DRIVER_INIT_MEMBER(kchamp_state,kchampvs)
 
 DRIVER_INIT_MEMBER(kchamp_state,kchampvs2)
 {
-	decrypt_code(machine());
+	decrypt_code();
 	m_counter = 0;
 	m_msm_data = 0;
 	m_msm_play_lo_nibble = 1;

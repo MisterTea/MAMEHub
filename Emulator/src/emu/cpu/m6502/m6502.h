@@ -49,11 +49,13 @@ public:
 		IRQ_LINE = INPUT_LINE_IRQ0,
 		APU_IRQ_LINE = INPUT_LINE_IRQ1,
 		NMI_LINE = INPUT_LINE_NMI,
-		V_LINE   = 10
+		V_LINE   = INPUT_LINE_IRQ0 + 16
 	};
 
 	m6502_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	m6502_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	m6502_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
+
+	DECLARE_WRITE_LINE_MEMBER( irq_line );
 
 	UINT64 get_cycle();
 	bool get_sync() const { return sync; }
@@ -97,7 +99,7 @@ protected:
 	};
 
 	enum {
-		STATE_RESET = 0x100,
+		STATE_RESET = 0xff00,
 	};
 
 	enum {
@@ -126,8 +128,11 @@ protected:
 		DASM_zpx,    /* zero page + X */
 		DASM_zpy,    /* zero page + Y */
 		DASM_imz,    /* load immediate byte, store to zero page address (M740) */
-		DASM_spg,    /* "special page": implied FF00 plus immediate value (M740)*/
-		DASM_biz     /* bit, zero page (M740) */
+		DASM_spg,    /* "special page": implied FF00 OR immediate value (M740)*/
+		DASM_biz,    /* bit, zero page (M740) */
+		DASM_bzr,    /* bit, zero page, relative offset (M740) */
+		DASM_bar,    /* bit, accumulator, relative offset (M740) */
+		DASM_bac     /* bit, accumulator (M740) */
 	};
 
 	enum {
@@ -181,6 +186,7 @@ protected:
 	UINT8   Y;                      /* Y index register */
 	UINT8   P;                      /* Processor status */
 	UINT8   IR;                     /* Prefetched instruction register */
+	int     inst_state_base;        /* Current instruction bank */
 
 	memory_interface *mintf;
 	int inst_state, inst_substate;

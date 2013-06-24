@@ -2,10 +2,12 @@ class shootout_state : public driver_device
 {
 public:
 	shootout_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_textram(*this, "textram"),
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu")  { }
 
 	tilemap_t *m_background;
 	tilemap_t *m_foreground;
@@ -27,4 +29,9 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_shootout(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_shootouj(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int bank_bits );
+	DECLARE_WRITE_LINE_MEMBER(shootout_snd_irq);
+	DECLARE_WRITE_LINE_MEMBER(shootout_snd2_irq);
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
 };

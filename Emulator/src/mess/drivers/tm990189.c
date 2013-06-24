@@ -75,10 +75,11 @@ public:
 	tm990189_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_tms9980a(*this, "maincpu"),
-	m_speaker(*this, SPEAKER_TAG),
-	m_cass(*this, CASSETTE_TAG),
-	m_tms9918(*this, "tms9918" )
-	{ }
+	m_speaker(*this, "speaker"),
+	m_cass(*this, "cassette"),
+	m_tms9918(*this, "tms9918" ),
+	m_maincpu(*this, "maincpu"),
+	m_cassette(*this, "cassette") { }
 
 	required_device<tms9980a_device> m_tms9980a;
 	required_device<speaker_sound_device> m_speaker;
@@ -153,6 +154,8 @@ private:
 	void led_set(int number, bool state);
 	void segment_set(int offset, bool state);
 	void digitsel(int offset, bool state);
+	required_device<cpu_device> m_maincpu;
+	required_device<cassette_image_device> m_cassette;
 };
 
 
@@ -179,7 +182,6 @@ static TMS9928A_INTERFACE(tms9918_interface)
 
 MACHINE_START_MEMBER(tm990189_state,tm990_189_v)
 {
-
 	m_displayena_timer = machine().scheduler().timer_alloc(FUNC_NULL);
 
 	m_joy1x_timer = machine().scheduler().timer_alloc(FUNC_NULL);
@@ -423,13 +425,12 @@ WRITE_LINE_MEMBER( tm990189_state::sys9901_shiftlight_w )
 
 WRITE_LINE_MEMBER( tm990189_state::sys9901_spkrdrive_w )
 {
-	device_t *speaker = machine().device(SPEAKER_TAG);
-	speaker_level_w(speaker, state);
+	m_speaker->level_w(state);
 }
 
 WRITE_LINE_MEMBER( tm990189_state::sys9901_tapewdata_w )
 {
-	machine().device<cassette_image_device>(CASSETTE_TAG)->output(state ? +1.0 : -1.0);
+	m_cassette->output(state ? +1.0 : -1.0);
 }
 
 class tm990_189_rs232_image_device :    public device_t,
@@ -476,7 +477,6 @@ void tm990_189_rs232_image_device::device_config_complete()
 
 void tm990_189_rs232_image_device::device_start()
 {
-
 }
 
 void tm990_189_rs232_image_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
@@ -840,13 +840,13 @@ static MACHINE_CONFIG_START( tm990_189, tm990189_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 	MCFG_TMS9901_ADD("tms9901_0", usr9901reset_param, 2000000)
 	MCFG_TMS9901_ADD("tms9901_1", sys9901reset_param, 2000000)
 	MCFG_TMS9902_ADD("tms9902", tms9902_params, 2000000)
@@ -872,13 +872,13 @@ static MACHINE_CONFIG_START( tm990_189_v, tm990189_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)   /* one two-level buzzer */
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)   /* one two-level buzzer */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 	MCFG_TMS9901_ADD("tms9901_0", usr9901reset_param, 2000000)
 	MCFG_TMS9901_ADD("tms9901_1", sys9901reset_param, 2000000)
 	MCFG_TMS9902_ADD("tms9902", tms9902_params, 2000000)

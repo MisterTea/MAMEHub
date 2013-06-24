@@ -12618,7 +12618,7 @@ extern int find_project_string(running_machine &machine, int addrxor, int mode);
 DRIVER_INIT_MEMBER(bfm_sc5_state,sc5)
 {
 	// sc5 roms always start with SC5
-	UINT8 *src = machine().root_device().memregion( "maincpu" )->base();
+	UINT8 *src = memregion( "maincpu" )->base();
 //  printf("%02x %02x %02x %02x\n", src[0], src[1], src[2], src[3]);
 	if (((src[0] == 0x20) && (src[2] == 0x43)) || ((src[1] == 0x35) && (src[3] == 0x53)))
 	{
@@ -12813,7 +12813,7 @@ GAME( 200?, sc5corstc   ,sc5corst,  bfm_sc5, bfm_sc5, bfm_sc5_state, sc5, ROT0, 
 
 // PR3417 AWP CRAZYFRUIT AND NUTCASE SCORP5         PR3417 CF NUTCASE SOUNDS11        CF& NUTCASE S.SITE
 GAME( 200?, sc5cfnc     ,0,         bfm_sc5, bfm_sc5, bfm_sc5_state, sc5, ROT0, "BFM","Crazy Fruit & Nutcase (Bellfruit) (Scorpion 5) (set 1)", GAME_IS_SKELETON_MECHANICAL )
-GAME( 200?, sc5cfnca    ,sc5cfnc,   bfm_sc5, bfm_sc5, bfm_sc5_state, sc5, ROT0, "BFM","Crazy Fruit & Nutcase (Bellfruit) (Scorpion 5) (set 2", GAME_IS_SKELETON_MECHANICAL )
+GAME( 200?, sc5cfnca    ,sc5cfnc,   bfm_sc5, bfm_sc5, bfm_sc5_state, sc5, ROT0, "BFM","Crazy Fruit & Nutcase (Bellfruit) (Scorpion 5) (set 2)", GAME_IS_SKELETON_MECHANICAL )
 
 //  PR3436 CRAZY FRUITS COMMUNITY PARTY         CRAZY FRUITS CP ARCADE  PR3436 CF COMMUNITY P SOUNDS11
 GAME( 200?, sc5cfcp     ,0,         bfm_sc5, bfm_sc5, bfm_sc5_state, sc5, ROT0, "BFM","Crazy Fruits Community Party (Bellfruit) (Scorpion 5) (set 1)", GAME_IS_SKELETON_MECHANICAL )

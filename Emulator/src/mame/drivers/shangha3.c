@@ -24,6 +24,12 @@ blocken:
   but needs HW tests to check out what lies in there (maybe a ROM mirror).
 - how to play screen is bogus, it basically loses sync pretty soon.
 
+Notes:
+- a Blocken PCB shot barely shows a 48 MHz xtal, game is definitely too slow
+  at 8 MHz (noticeable thru colour cycling effects)
+- A picture of an undumped full English version of Shanghai 3 clearly shows
+  a 48MHz OSC & TMP68HC000N-16 cpu plus a little blue resonator for the OKI.
+
 ***************************************************************************/
 
 #include "emu.h"
@@ -35,6 +41,7 @@ blocken:
 #include "includes/shangha3.h"
 
 
+#define MASTER_CLOCK XTAL_48MHz
 
 /* this looks like a simple protection check */
 /*
@@ -81,7 +88,7 @@ WRITE16_MEMBER(shangha3_state::heberpop_coinctrl_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		/* the sound ROM bank is selected by the main CPU! */
-		machine().device<okim6295_device>("oki")->set_bank_base((data & 0x08) ? 0x40000 : 0x00000);
+		m_oki->set_bank_base((data & 0x08) ? 0x40000 : 0x00000);
 
 		coin_lockout_w(machine(), 0,~data & 0x04);
 		coin_lockout_w(machine(), 1,~data & 0x04);
@@ -95,7 +102,7 @@ WRITE16_MEMBER(shangha3_state::blocken_coinctrl_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		/* the sound ROM bank is selected by the main CPU! */
-		machine().device<okim6295_device>("oki")->set_bank_base(((data >> 4) & 3) * 0x40000);
+		m_oki->set_bank_base(((data >> 4) & 3) * 0x40000);
 
 		coin_lockout_w(machine(), 0,~data & 0x04);
 		coin_lockout_w(machine(), 1,~data & 0x04);
@@ -110,13 +117,13 @@ WRITE16_MEMBER(shangha3_state::heberpop_sound_command_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xff);
-		machine().device("audiocpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xff);  /* RST 38h */
+		m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);  /* RST 38h */
 	}
 }
 
 WRITE16_MEMBER(shangha3_state::shangha3_irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(4, CLEAR_LINE);
+	m_maincpu->set_input_line(4, CLEAR_LINE);
 }
 
 static ADDRESS_MAP_START( shangha3_map, AS_PROGRAM, 16, shangha3_state )
@@ -127,9 +134,9 @@ static ADDRESS_MAP_START( shangha3_map, AS_PROGRAM, 16, shangha3_state )
 	AM_RANGE(0x200008, 0x200009) AM_WRITE(shangha3_blitter_go_w)
 	AM_RANGE(0x20000a, 0x20000b) AM_WRITE(shangha3_irq_ack_w)
 	AM_RANGE(0x20000c, 0x20000d) AM_WRITE(shangha3_coinctrl_w)
-	AM_RANGE(0x20001e, 0x20001f) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0x00ff)
-	AM_RANGE(0x20002e, 0x20002f) AM_DEVWRITE8_LEGACY("aysnd", ay8910_data_w, 0x00ff)
-	AM_RANGE(0x20003e, 0x20003f) AM_DEVWRITE8_LEGACY("aysnd", ay8910_address_w, 0x00ff)
+	AM_RANGE(0x20001e, 0x20001f) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0x20002e, 0x20002f) AM_DEVWRITE8("aysnd", ay8910_device, data_w, 0x00ff)
+	AM_RANGE(0x20003e, 0x20003f) AM_DEVWRITE8("aysnd", ay8910_device, address_w, 0x00ff)
 	AM_RANGE(0x20004e, 0x20004f) AM_READWRITE(shangha3_prot_r,shangha3_prot_w)
 	AM_RANGE(0x20006e, 0x20006f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x300000, 0x30ffff) AM_RAM AM_SHARE("ram") /* gfx & work ram */
@@ -177,7 +184,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( heberpop_sound_io_map, AS_IO, 8, shangha3_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY("ymsnd", ym3438_r, ym3438_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ymsnd", ym3438_device, read, write)
 	AM_RANGE(0x80, 0x80) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 	AM_RANGE(0xc0, 0xc0) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -212,31 +219,8 @@ static INPUT_PORTS_START( shangha3 )
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 
-	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) )
-	PORT_DIPSETTING(    0x01, DEF_STR( Easy ) )
-	PORT_DIPSETTING(    0x03, DEF_STR( Normal ) )
-	PORT_DIPSETTING(    0x02, DEF_STR( Hard ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
-	PORT_DIPNAME( 0x0c, 0x0c, "Base Time" )
-	PORT_DIPSETTING(    0x04, "70 sec" )
-	PORT_DIPSETTING(    0x0c, "80 sec" )
-	PORT_DIPSETTING(    0x08, "90 sec" )
-	PORT_DIPSETTING(    0x00, "100 sec" )
-	PORT_DIPNAME( 0x30, 0x30, "Additional Time" )
-	PORT_DIPSETTING(    0x10, "4 sec" )
-	PORT_DIPSETTING(    0x30, "5 sec" )
-	PORT_DIPSETTING(    0x20, "6 sec" )
-	PORT_DIPSETTING(    0x00, "7 sec" )
-	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Demo_Sounds ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Flip_Screen ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-
-	PORT_START("DSW2")
-	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Coin_A ) )
+	PORT_START("DSW1") /* Dipswitch locations assigned as per service mode */
+	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SWA:1,2,3")
 	PORT_DIPSETTING(    0x00, DEF_STR( 5C_1C ) )
 	PORT_DIPSETTING(    0x04, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(    0x02, DEF_STR( 3C_1C ) )
@@ -245,7 +229,7 @@ static INPUT_PORTS_START( shangha3 )
 	PORT_DIPSETTING(    0x03, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x05, DEF_STR( 1C_3C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_4C ) )
-	PORT_DIPNAME( 0x38, 0x38, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x38, 0x38, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SWA:4,5,6")
 	PORT_DIPSETTING(    0x00, DEF_STR( 5C_1C ) )
 	PORT_DIPSETTING(    0x20, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(    0x10, DEF_STR( 3C_1C ) )
@@ -254,10 +238,33 @@ static INPUT_PORTS_START( shangha3 )
 	PORT_DIPSETTING(    0x18, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x28, DEF_STR( 1C_3C ) )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_4C ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SWA:7")
 	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SWA:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+
+	PORT_START("DSW2") /* Dipswitch locations assigned as per service mode */
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("SWB:1,2")
+	PORT_DIPSETTING(    0x01, DEF_STR( Easy ) )
+	PORT_DIPSETTING(    0x03, DEF_STR( Normal ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Hard ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
+	PORT_DIPNAME( 0x0c, 0x0c, "Base Time" )         PORT_DIPLOCATION("SWB:3,4")
+	PORT_DIPSETTING(    0x04, "70 sec" )
+	PORT_DIPSETTING(    0x0c, "80 sec" )
+	PORT_DIPSETTING(    0x08, "90 sec" )
+	PORT_DIPSETTING(    0x00, "100 sec" )
+	PORT_DIPNAME( 0x30, 0x30, "Additional Time" )       PORT_DIPLOCATION("SWB:5,6")
+	PORT_DIPSETTING(    0x10, "4 sec" )
+	PORT_DIPSETTING(    0x30, "5 sec" )
+	PORT_DIPSETTING(    0x20, "6 sec" )
+	PORT_DIPSETTING(    0x00, "7 sec" )
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("SWB:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Flip_Screen ) )  PORT_DIPLOCATION("SWB:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
@@ -291,31 +298,31 @@ static INPUT_PORTS_START( heberpop )
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("DSW")
-	PORT_DIPNAME( 0x0003, 0x0003, DEF_STR( Difficulty ) )
+	PORT_START("DSW") /* Dipswitch locations assigned as per service mode */
+	PORT_DIPNAME( 0x0003, 0x0003, DEF_STR( Difficulty ) )       PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING(      0x0002, DEF_STR( Very_Easy) )
 	PORT_DIPSETTING(      0x0001, DEF_STR( Easy ) )
 	PORT_DIPSETTING(      0x0003, DEF_STR( Normal ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( Hard ) )
-	PORT_DIPNAME( 0x0004, 0x0004, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x0004, 0x0004, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SW1:3")
 	PORT_DIPSETTING(      0x0004, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0008, 0x0008, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x0008, 0x0008, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SW1:4")
 	PORT_DIPSETTING(      0x0008, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0010, 0x0010, "Allow Diagonal Moves" )
+	PORT_DIPNAME( 0x0010, 0x0010, "Allow Diagonal Moves" )      PORT_DIPLOCATION("SW1:5")
 	PORT_DIPSETTING(      0x0000, DEF_STR( No ) )
 	PORT_DIPSETTING(      0x0010, DEF_STR( Yes ) )
-	PORT_DIPNAME( 0x0020, 0x0020, DEF_STR( Demo_Sounds ) )
+	PORT_DIPNAME( 0x0020, 0x0020, DEF_STR( Demo_Sounds ) )      PORT_DIPLOCATION("SW1:6")
 	PORT_DIPSETTING(      0x0000, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0020, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0040, 0x0040, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x0040, 0x0040, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0080, 0x0080, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x0080, 0x0080, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SW1:8")
 	PORT_DIPSETTING(      0x0080, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0700, 0x0700, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x0700, 0x0700, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SW2:1,2,3")
 	PORT_DIPSETTING(      0x0000, DEF_STR( 5C_1C ) )
 	PORT_DIPSETTING(      0x0400, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(      0x0200, DEF_STR( 3C_1C ) )
@@ -324,7 +331,7 @@ static INPUT_PORTS_START( heberpop )
 	PORT_DIPSETTING(      0x0300, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(      0x0500, DEF_STR( 1C_3C ) )
 	PORT_DIPSETTING(      0x0100, DEF_STR( 1C_4C ) )
-	PORT_DIPNAME( 0x3800, 0x3800, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0x3800, 0x3800, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SW2:4,5,6")
 	PORT_DIPSETTING(      0x0000, DEF_STR( 5C_1C ) )
 	PORT_DIPSETTING(      0x2000, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(      0x1000, DEF_STR( 3C_1C ) )
@@ -333,10 +340,10 @@ static INPUT_PORTS_START( heberpop )
 	PORT_DIPSETTING(      0x1800, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(      0x2800, DEF_STR( 1C_3C ) )
 	PORT_DIPSETTING(      0x0800, DEF_STR( 1C_4C ) )
-	PORT_DIPNAME( 0x4000, 0x4000, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x4000, 0x4000, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SW2:7")
 	PORT_DIPSETTING(      0x4000, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x8000, 0x8000, DEF_STR( Unknown ) )
+	PORT_DIPNAME( 0x8000, 0x8000, DEF_STR( Unknown ) )      PORT_DIPLOCATION("SW2:8")
 	PORT_DIPSETTING(      0x8000, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 INPUT_PORTS_END
@@ -370,28 +377,28 @@ static INPUT_PORTS_START( blocken )
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("DSW")
-	PORT_SERVICE( 0x0001, IP_ACTIVE_LOW )
-	PORT_DIPNAME( 0x0006, 0x0006, DEF_STR( Difficulty ) )
+	PORT_START("DSW") /* Dipswitch locations assigned as per service mode */
+	PORT_SERVICE_DIPLOC(  0x0001, IP_ACTIVE_LOW, "SW1:1" )
+	PORT_DIPNAME( 0x0006, 0x0006, DEF_STR( Difficulty ) )       PORT_DIPLOCATION("SW1:2,3")
 	PORT_DIPSETTING(      0x0004, DEF_STR( Easy ) )
 	PORT_DIPSETTING(      0x0006, DEF_STR( Normal ) )
 	PORT_DIPSETTING(      0x0002, DEF_STR( Hard ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( Very_Hard ) )
-	PORT_DIPNAME( 0x0008, 0x0008, "Game Type" )
+	PORT_DIPNAME( 0x0008, 0x0008, "Game Type" )         PORT_DIPLOCATION("SW1:4")
 	PORT_DIPSETTING(      0x0008, "A" )
 	PORT_DIPSETTING(      0x0000, "B" )
-	PORT_DIPNAME( 0x0030, 0x0030, DEF_STR( Players ) )
+	PORT_DIPNAME( 0x0030, 0x0030, DEF_STR( Players ) )      PORT_DIPLOCATION("SW1:5,6")
 	PORT_DIPSETTING(      0x0030, "1" )
 	PORT_DIPSETTING(      0x0020, "2" )
 	PORT_DIPSETTING(      0x0010, "3" )
 	PORT_DIPSETTING(      0x0000, "4" )
-	PORT_DIPNAME( 0x0040, 0x0000, DEF_STR( Demo_Sounds ) )
+	PORT_DIPNAME( 0x0040, 0x0000, DEF_STR( Demo_Sounds ) )      PORT_DIPLOCATION("SW1:7")
 	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0080, 0x0080, DEF_STR( Flip_Screen ) )
+	PORT_DIPNAME( 0x0080, 0x0080, DEF_STR( Flip_Screen ) )      PORT_DIPLOCATION("SW1:8")
 	PORT_DIPSETTING(      0x0080, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0f00, 0x0f00, DEF_STR( Coin_A ) )
+	PORT_DIPNAME( 0x0f00, 0x0f00, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SW2:1,2,3,4")
 	PORT_DIPSETTING(      0x0200, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(      0x0500, DEF_STR( 3C_1C ) )
 	PORT_DIPSETTING(      0x0800, DEF_STR( 2C_1C ) )
@@ -408,7 +415,7 @@ static INPUT_PORTS_START( blocken )
 	PORT_DIPSETTING(      0x0a00, DEF_STR( 1C_6C ) )
 	PORT_DIPSETTING(      0x0900, DEF_STR( 1C_7C ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( Free_Play ) )
-	PORT_DIPNAME( 0xf000, 0xf000, DEF_STR( Coin_B ) )
+	PORT_DIPNAME( 0xf000, 0xf000, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SW2:5,6,7,8")
 	PORT_DIPSETTING(      0x2000, DEF_STR( 4C_1C ) )
 	PORT_DIPSETTING(      0x5000, DEF_STR( 3C_1C ) )
 	PORT_DIPSETTING(      0x8000, DEF_STR( 2C_1C ) )
@@ -452,27 +459,22 @@ static const ay8910_interface ay8910_config =
 {
 	AY8910_LEGACY_OUTPUT,
 	AY8910_DEFAULT_LOADS,
-	DEVCB_INPUT_PORT("DSW2"),
 	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_INPUT_PORT("DSW2"),
 	DEVCB_NULL,
 	DEVCB_NULL
 };
 
-static void irqhandler(device_t *device, int linestate)
+WRITE_LINE_MEMBER(shangha3_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, linestate);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, state);
 }
-
-static const ym3438_interface ym3438_config =
-{
-	irqhandler
-};
 
 
 static MACHINE_CONFIG_START( shangha3, shangha3_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 8000000)
+	MCFG_CPU_ADD("maincpu", M68000, MASTER_CLOCK/3) // TMP68HC000N-16
 	MCFG_CPU_PROGRAM_MAP(shangha3_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", shangha3_state,  irq4_line_assert)
 
@@ -480,10 +482,12 @@ static MACHINE_CONFIG_START( shangha3, shangha3_state )
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
-	MCFG_SCREEN_SIZE(24*16, 16*16)
-	MCFG_SCREEN_VISIBLE_AREA(0*16, 24*16-1, 1*16, 15*16-1)
+//  MCFG_SCREEN_REFRESH_RATE(60)
+//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
+//  MCFG_SCREEN_SIZE(24*16, 16*16)
+//  MCFG_SCREEN_VISIBLE_AREA(0*16, 24*16-1, 1*16, 15*16-1)
+	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/6,512,0,24*16,263,1*16,15*16) /* refresh rate is unknown */
+
 	MCFG_SCREEN_UPDATE_DRIVER(shangha3_state, screen_update_shangha3)
 
 	MCFG_GFXDECODE(shangha3)
@@ -497,7 +501,7 @@ static MACHINE_CONFIG_START( shangha3, shangha3_state )
 	MCFG_SOUND_CONFIG(ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
+	MCFG_OKIM6295_ADD("oki", XTAL_1_056MHz, OKIM6295_PIN7_HIGH) // pin 7 not verified
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -505,51 +509,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( heberpop, shangha3_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 8000000)
+	MCFG_CPU_ADD("maincpu", M68000, MASTER_CLOCK/3) // TMP68HC000N-16 like the others??
 	MCFG_CPU_PROGRAM_MAP(heberpop_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", shangha3_state,  irq4_line_assert)
 
-	MCFG_CPU_ADD("audiocpu", Z80, 6000000)  /* 6 MHz ??? */
-	MCFG_CPU_PROGRAM_MAP(heberpop_sound_map)
-	MCFG_CPU_IO_MAP(heberpop_sound_io_map)  /* NMI triggered by YM3438 */
-
-	/* video hardware */
-	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
-
-	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(60)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
-	MCFG_SCREEN_SIZE(24*16, 16*16)
-	MCFG_SCREEN_VISIBLE_AREA(0*16, 24*16-1, 1*16, 15*16-1)
-	MCFG_SCREEN_UPDATE_DRIVER(shangha3_state, screen_update_shangha3)
-
-	MCFG_GFXDECODE(shangha3)
-	MCFG_PALETTE_LENGTH(2048)
-
-
-	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-
-	MCFG_SOUND_ADD("ymsnd", YM3438, 8000000)
-	MCFG_SOUND_CONFIG(ym3438_config)
-	MCFG_SOUND_ROUTE(0, "mono", 0.40)
-	MCFG_SOUND_ROUTE(1, "mono", 0.40)
-
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-MACHINE_CONFIG_END
-
-/* a Blocken PCB shot barely shows a 48 MHz xtal, game is definitely too slow at 8 MHz (noticeable thru colour cycling effects) */
-#define BLOCKEN_MASTER_CLOCK XTAL_48MHz
-
-static MACHINE_CONFIG_START( blocken, shangha3_state )
-
-	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, BLOCKEN_MASTER_CLOCK/4) // TMP68HC000N-16
-	MCFG_CPU_PROGRAM_MAP(blocken_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", shangha3_state,  irq4_line_assert)
-
-	MCFG_CPU_ADD("audiocpu", Z80, BLOCKEN_MASTER_CLOCK/8)   /* 6 MHz? */
+	MCFG_CPU_ADD("audiocpu", Z80, MASTER_CLOCK/8)  /* 6 MHz ??? */
 	MCFG_CPU_PROGRAM_MAP(heberpop_sound_map)
 	MCFG_CPU_IO_MAP(heberpop_sound_io_map)  /* NMI triggered by YM3438 */
 
@@ -561,7 +525,7 @@ static MACHINE_CONFIG_START( blocken, shangha3_state )
 //  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 //  MCFG_SCREEN_SIZE(24*16, 16*16)
 //  MCFG_SCREEN_VISIBLE_AREA(0*16, 24*16-1, 1*16, 15*16-1)
-	MCFG_SCREEN_RAW_PARAMS(BLOCKEN_MASTER_CLOCK/6,512,0,24*16,263,1*16,15*16) /* refresh rate is unknown */
+	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/6,512,0,24*16,263,1*16,15*16) /* refresh rate is unknown */
 
 	MCFG_SCREEN_UPDATE_DRIVER(shangha3_state, screen_update_shangha3)
 
@@ -572,8 +536,48 @@ static MACHINE_CONFIG_START( blocken, shangha3_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("ymsnd", YM3438, BLOCKEN_MASTER_CLOCK/6) /* 8 MHz? */
-	MCFG_SOUND_CONFIG(ym3438_config)
+	MCFG_SOUND_ADD("ymsnd", YM3438, MASTER_CLOCK/6) /* 8 MHz? */
+	MCFG_YM2612_IRQ_HANDLER(WRITELINE(shangha3_state,irqhandler))
+	MCFG_SOUND_ROUTE(0, "mono", 0.40)
+	MCFG_SOUND_ROUTE(1, "mono", 0.40)
+
+	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+MACHINE_CONFIG_END
+
+
+static MACHINE_CONFIG_START( blocken, shangha3_state )
+
+	/* basic machine hardware */
+	MCFG_CPU_ADD("maincpu", M68000, MASTER_CLOCK/3) // TMP68HC000N-16
+	MCFG_CPU_PROGRAM_MAP(blocken_map)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", shangha3_state,  irq4_line_assert)
+
+	MCFG_CPU_ADD("audiocpu", Z80, MASTER_CLOCK/8)   /* 6 MHz? */
+	MCFG_CPU_PROGRAM_MAP(heberpop_sound_map)
+	MCFG_CPU_IO_MAP(heberpop_sound_io_map)  /* NMI triggered by YM3438 */
+
+	/* video hardware */
+	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)
+
+	MCFG_SCREEN_ADD("screen", RASTER)
+//  MCFG_SCREEN_REFRESH_RATE(60)
+//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
+//  MCFG_SCREEN_SIZE(24*16, 16*16)
+//  MCFG_SCREEN_VISIBLE_AREA(0*16, 24*16-1, 1*16, 15*16-1)
+	MCFG_SCREEN_RAW_PARAMS(MASTER_CLOCK/6,512,0,24*16,263,1*16,15*16) /* refresh rate is unknown */
+
+	MCFG_SCREEN_UPDATE_DRIVER(shangha3_state, screen_update_shangha3)
+
+	MCFG_GFXDECODE(shangha3)
+	MCFG_PALETTE_LENGTH(2048)
+
+
+	/* sound hardware */
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_SOUND_ADD("ymsnd", YM3438, MASTER_CLOCK/6) /* 8 MHz? */
+	MCFG_YM2612_IRQ_HANDLER(WRITELINE(shangha3_state,irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.40)
 	MCFG_SOUND_ROUTE(1, "mono", 0.40)
 
@@ -589,16 +593,16 @@ MACHINE_CONFIG_END
 
 ***************************************************************************/
 
-ROM_START( shangha3 )
+ROM_START( shangha3 ) /* PCB labeled SUN04C */
 	ROM_REGION( 0x80000, "maincpu", 0 )
-	ROM_LOAD16_BYTE( "s3j_ic3.v11",  0x0000, 0x40000, CRC(e98ce9c8) SHA1(359e117aebb644d7b235add7e71ed6891243d451) )
-	ROM_LOAD16_BYTE( "s3j_ic2.v11",  0x0001, 0x40000, CRC(09174620) SHA1(1d1639c07895f715facfe153fbdb6ae0f3cdd876) )
+	ROM_LOAD16_BYTE( "s3j_v11.ic3",  0x0000, 0x40000, CRC(e98ce9c8) SHA1(359e117aebb644d7b235add7e71ed6891243d451) )
+	ROM_LOAD16_BYTE( "s3j_v11.ic2",  0x0001, 0x40000, CRC(09174620) SHA1(1d1639c07895f715facfe153fbdb6ae0f3cdd876) )
 
 	ROM_REGION( 0x200000, "gfx1", 0 )
-	ROM_LOAD( "s3j_ic43.chr", 0x0000, 0x200000, CRC(2dbf9d17) SHA1(dd94ddc4bb02ab544aa3f89b614afc46678cc48d) )
+	ROM_LOAD( "s3j_char-a1.ic43", 0x0000, 0x200000, CRC(2dbf9d17) SHA1(dd94ddc4bb02ab544aa3f89b614afc46678cc48d) ) /* 42pin MASK ROM */
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* samples for M6295 */
-	ROM_LOAD( "s3j_ic75.v10", 0x0000, 0x40000, CRC(f0cdc86a) SHA1(b1017a9841a56e0f5d2714f550f64ed1f4e238e6) )
+	ROM_LOAD( "s3j_v10.ic75", 0x0000, 0x40000, CRC(f0cdc86a) SHA1(b1017a9841a56e0f5d2714f550f64ed1f4e238e6) )
 ROM_END
 
 ROM_START( heberpop )
@@ -667,4 +671,4 @@ DRIVER_INIT_MEMBER(shangha3_state,heberpop)
 
 GAME( 1993, shangha3, 0, shangha3, shangha3, shangha3_state, shangha3, ROT0, "Sunsoft", "Shanghai III (Japan)", 0 )
 GAME( 1994, heberpop, 0, heberpop, heberpop, shangha3_state, heberpop, ROT0, "Sunsoft / Atlus", "Hebereke no Popoon (Japan)", 0 )
-GAME( 1994, blocken,  0, blocken,  blocken, shangha3_state,  heberpop, ROT0, "KID / Visco", "Blocken (Japan)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1994, blocken,  0, blocken,  blocken,  shangha3_state, heberpop, ROT0, "Visco / KID", "Blocken (Japan)", GAME_IMPERFECT_GRAPHICS )

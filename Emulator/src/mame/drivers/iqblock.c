@@ -89,7 +89,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(iqblock_state::iqblock_irq)
 
 WRITE8_MEMBER(iqblock_state::iqblock_irqack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 READ8_MEMBER(iqblock_state::extrarom_r)
@@ -137,7 +137,7 @@ static ADDRESS_MAP_START( main_portmap, AS_IO, 8, iqblock_state )
 	AM_RANGE(0x5080, 0x5083) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
 	AM_RANGE(0x5090, 0x5090) AM_READ_PORT("SW0")
 	AM_RANGE(0x50a0, 0x50a0) AM_READ_PORT("SW1")
-	AM_RANGE(0x50b0, 0x50b1) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w) // UM3567_data_port_0_w
+	AM_RANGE(0x50b0, 0x50b1) AM_DEVWRITE("ymsnd", ym2413_device, write) // UM3567_data_port_0_w
 	AM_RANGE(0x50c0, 0x50c0) AM_WRITE(iqblock_irqack_w)
 	AM_RANGE(0x7000, 0x7fff) AM_READ(iqblock_bgvideoram_r)
 	AM_RANGE(0x8000, 0xffff) AM_READ(extrarom_r)
@@ -442,7 +442,7 @@ DRIVER_INIT_MEMBER(iqblock_state,iqblock)
 	m_generic_paletteram2_8.set_target(rom + 0x12800, 0x800);
 	m_fgvideoram = rom + 0x16800;
 	m_bgvideoram = rom + 0x17000;
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xfe26, 0xfe26, write8_delegate(FUNC(iqblock_state::iqblock_prot_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xfe26, 0xfe26, write8_delegate(FUNC(iqblock_state::iqblock_prot_w),this));
 	m_video_type=1;
 }
 
@@ -464,7 +464,7 @@ DRIVER_INIT_MEMBER(iqblock_state,grndtour)
 	m_generic_paletteram2_8.set_target(rom + 0x12800, 0x800);
 	m_fgvideoram = rom + 0x16800;
 	m_bgvideoram = rom + 0x17000;
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xfe39, 0xfe39, write8_delegate(FUNC(iqblock_state::grndtour_prot_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xfe39, 0xfe39, write8_delegate(FUNC(iqblock_state::grndtour_prot_w),this));
 	m_video_type=0;
 }
 

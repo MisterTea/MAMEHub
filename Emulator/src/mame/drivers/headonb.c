@@ -35,8 +35,8 @@ class headonb_state : public driver_device
 public:
 	headonb_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_video_ram(*this, "video_ram")
-	{ }
+		m_video_ram(*this, "video_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_video_ram;
 
@@ -48,6 +48,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_headonb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TILE_GET_INFO_MEMBER(get_headonb_tile_info);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -188,12 +189,12 @@ MACHINE_CONFIG_END
 
 ROM_START( headonb )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "1.bin",  0x0000, 0x0400, CRC(11586f44) SHA1(95426bbae19e152c103ac589e62e5f7c803a9bd0) )
-	ROM_LOAD( "2.bin",  0x0400, 0x0400, CRC(c3449b99) SHA1(68f0af22c9f3ca971ac7fd5909bb7991d3a0474a) )
-	ROM_LOAD( "3.bin",  0x0800, 0x0400, CRC(9c80b99e) SHA1(4443151df7b2833a7534451fbebf89650266c01e) )
-	ROM_LOAD( "4.bin",  0x0c00, 0x0400, CRC(ed5ecc4e) SHA1(2f30e3090ff303c4198aa94f97d571ccc3b2b42e) )
-	ROM_LOAD( "5.bin",  0x2000, 0x0400, CRC(13cdb6da) SHA1(c58c262e7e880ef199d22d538bfb865eb03e0386) )
-	ROM_LOAD( "6.bin",  0x2400, 0x0400, CRC(e498d21b) SHA1(6f7beb44ce69f448540f594b231a9d9f673916dc) )
+	ROM_LOAD( "1(__headonb).bin",  0x0000, 0x0400, CRC(11586f44) SHA1(95426bbae19e152c103ac589e62e5f7c803a9bd0) )
+	ROM_LOAD( "2(__headonb).bin",  0x0400, 0x0400, CRC(c3449b99) SHA1(68f0af22c9f3ca971ac7fd5909bb7991d3a0474a) )
+	ROM_LOAD( "3(__headonb).bin",  0x0800, 0x0400, CRC(9c80b99e) SHA1(4443151df7b2833a7534451fbebf89650266c01e) )
+	ROM_LOAD( "4(__headonb).bin",  0x0c00, 0x0400, CRC(ed5ecc4e) SHA1(2f30e3090ff303c4198aa94f97d571ccc3b2b42e) )
+	ROM_LOAD( "5(__headonb).bin",  0x2000, 0x0400, CRC(13cdb6da) SHA1(c58c262e7e880ef199d22d538bfb865eb03e0386) )
+	ROM_LOAD( "6(__headonb).bin",  0x2400, 0x0400, CRC(e498d21b) SHA1(6f7beb44ce69f448540f594b231a9d9f673916dc) )
 	ROM_LOAD( "7.bin",  0x2800, 0x0400, CRC(ce2ef8d9) SHA1(87cdddf78b05078338de1711ba7ee17f7faa76c5) )
 	ROM_LOAD( "8.bin",  0x2c00, 0x0400, CRC(85f216e0) SHA1(629a512b25d17a23be4ca92f43c29e6b969d690f) )
 

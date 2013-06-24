@@ -81,20 +81,18 @@
 //  INTERFACE CONFIGURATION MACROS
 //**************************************************************************
 
-#define MCFG_S100_BUS_ADD(_cpu_tag, _config) \
+#define MCFG_S100_BUS_ADD(_config) \
 	MCFG_DEVICE_ADD(S100_TAG, S100, 0) \
-	MCFG_DEVICE_CONFIG(_config) \
-	s100_device::static_set_cputag(*device, _cpu_tag); \
+	MCFG_DEVICE_CONFIG(_config)
 
 
 #define S100_INTERFACE(_name) \
 	const s100_bus_interface (_name) =
 
 
-#define MCFG_S100_SLOT_ADD(_tag, _slot_intf, _def_slot, _def_inp) \
+#define MCFG_S100_SLOT_ADD(_tag, _slot_intf, _def_slot) \
 	MCFG_DEVICE_ADD(_tag, S100_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, false) \
-	s100_slot_device::static_set_s100_slot(*device, S100_TAG); \
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false)
 
 
 
@@ -116,12 +114,7 @@ public:
 	// device-level overrides
 	virtual void device_start();
 
-	// inline configuration
-	static void static_set_s100_slot(device_t &device, const char *tag);
-
 private:
-	// configuration
-	const char *m_bus_tag;
 	s100_device  *m_bus;
 };
 
@@ -151,7 +144,6 @@ struct s100_bus_interface
 	devcb_write_line    m_out_rdy_cb;
 	devcb_write_line    m_out_hold_cb;
 	devcb_write_line    m_out_error_cb;
-	devcb_write8        m_out_terminal_cb;
 };
 
 class device_s100_card_interface;
@@ -165,8 +157,6 @@ class s100_device : public device_t,
 public:
 	// construction/destruction
 	s100_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	// inline configuration
-	static void static_set_cputag(device_t &device, const char *tag);
 
 	void add_s100_card(device_s100_card_interface *card);
 
@@ -194,10 +184,6 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( hold_w );
 	DECLARE_WRITE_LINE_MEMBER( error_w );
 
-	DECLARE_WRITE8_MEMBER( terminal_receive_w );
-	DECLARE_WRITE8_MEMBER( terminal_transmit_w );
-	void terminal_transmit_w(UINT8 data);
-
 protected:
 	// device-level overrides
 	virtual void device_start();
@@ -205,9 +191,6 @@ protected:
 	virtual void device_config_complete();
 
 private:
-	// internal state
-	cpu_device   *m_maincpu;
-
 	devcb_resolved_write_line   m_out_int_func;
 	devcb_resolved_write_line   m_out_nmi_func;
 	devcb_resolved_write_line   m_out_vi0_func;
@@ -225,10 +208,8 @@ private:
 	devcb_resolved_write_line   m_out_rdy_func;
 	devcb_resolved_write_line   m_out_hold_func;
 	devcb_resolved_write_line   m_out_error_func;
-	devcb_resolved_write8       m_out_terminal_func;
 
 	simple_list<device_s100_card_interface> m_device_list;
-	const char *m_cputag;
 };
 
 
@@ -279,10 +260,6 @@ public:
 	virtual void s100_phantom_w(int state) { }
 	virtual void s100_sxtrq_w(int state) { }
 	virtual int s100_sixtn_r() { return 1; }
-
-	// terminal
-	virtual bool s100_has_terminal() { return false; }
-	virtual void s100_terminal_w(UINT8 data) { }
 
 	// reset
 	virtual void s100_poc_w(int state) { }

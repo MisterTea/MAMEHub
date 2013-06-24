@@ -16,22 +16,22 @@
 DRIVER_INIT_MEMBER(special_state,special)
 {
 	/* set initialy ROM to be visible on first bank */
-	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *RAM = m_region_maincpu->base();
 	memset(RAM,0x0000,0x3000); // make first page empty by default
-	membank("bank1")->configure_entries(1, 2, RAM, 0x0000);
-	membank("bank1")->configure_entries(0, 2, RAM, 0xc000);
+	m_bank1->configure_entries(1, 2, RAM, 0x0000);
+	m_bank1->configure_entries(0, 2, RAM, 0xc000);
 }
 
 READ8_MEMBER( special_state::specialist_8255_porta_r )
 {
-	if (ioport("LINE0")->read()!=0xff) return 0xfe;
-	if (ioport("LINE1")->read()!=0xff) return 0xfd;
-	if (ioport("LINE2")->read()!=0xff) return 0xfb;
-	if (ioport("LINE3")->read()!=0xff) return 0xf7;
-	if (ioport("LINE4")->read()!=0xff) return 0xef;
-	if (ioport("LINE5")->read()!=0xff) return 0xdf;
-	if (ioport("LINE6")->read()!=0xff) return 0xbf;
-	if (ioport("LINE7")->read()!=0xff) return 0x7f;
+	if (m_io_line0->read()!=0xff) return 0xfe;
+	if (m_io_line1->read()!=0xff) return 0xfd;
+	if (m_io_line2->read()!=0xff) return 0xfb;
+	if (m_io_line3->read()!=0xff) return 0xf7;
+	if (m_io_line4->read()!=0xff) return 0xef;
+	if (m_io_line5->read()!=0xff) return 0xdf;
+	if (m_io_line6->read()!=0xff) return 0xbf;
+	if (m_io_line7->read()!=0xff) return 0x7f;
 	return 0xff;
 }
 
@@ -40,23 +40,23 @@ READ8_MEMBER( special_state::specialist_8255_portb_r )
 	UINT8 dat = 0;
 	double level;
 
-	if ((m_specialist_8255_porta & 0x01)==0) dat ^= (ioport("LINE0")->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x02)==0) dat ^= (ioport("LINE1")->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x04)==0) dat ^= (ioport("LINE2")->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x08)==0) dat ^= (ioport("LINE3")->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x10)==0) dat ^= (ioport("LINE4")->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x20)==0) dat ^= (ioport("LINE5")->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x40)==0) dat ^= (ioport("LINE6")->read() ^ 0xff);
-	if ((m_specialist_8255_porta & 0x80)==0) dat ^= (ioport("LINE7")->read() ^ 0xff);
-	if ((m_specialist_8255_portc & 0x01)==0) dat ^= (ioport("LINE8")->read() ^ 0xff);
-	if ((m_specialist_8255_portc & 0x02)==0) dat ^= (ioport("LINE9")->read() ^ 0xff);
-	if ((m_specialist_8255_portc & 0x04)==0) dat ^= (ioport("LINE10")->read() ^ 0xff);
-	if ((m_specialist_8255_portc & 0x08)==0) dat ^= (ioport("LINE11")->read() ^ 0xff);
+	if ((m_specialist_8255_porta & 0x01)==0) dat ^= (m_io_line0->read() ^ 0xff);
+	if ((m_specialist_8255_porta & 0x02)==0) dat ^= (m_io_line1->read() ^ 0xff);
+	if ((m_specialist_8255_porta & 0x04)==0) dat ^= (m_io_line2->read() ^ 0xff);
+	if ((m_specialist_8255_porta & 0x08)==0) dat ^= (m_io_line3->read() ^ 0xff);
+	if ((m_specialist_8255_porta & 0x10)==0) dat ^= (m_io_line4->read() ^ 0xff);
+	if ((m_specialist_8255_porta & 0x20)==0) dat ^= (m_io_line5->read() ^ 0xff);
+	if ((m_specialist_8255_porta & 0x40)==0) dat ^= (m_io_line6->read() ^ 0xff);
+	if ((m_specialist_8255_porta & 0x80)==0) dat ^= (m_io_line7->read() ^ 0xff);
+	if ((m_specialist_8255_portc & 0x01)==0) dat ^= (m_io_line8->read() ^ 0xff);
+	if ((m_specialist_8255_portc & 0x02)==0) dat ^= (m_io_line9->read() ^ 0xff);
+	if ((m_specialist_8255_portc & 0x04)==0) dat ^= (m_io_line10->read() ^ 0xff);
+	if ((m_specialist_8255_portc & 0x08)==0) dat ^= (m_io_line11->read() ^ 0xff);
 
 	dat = (dat  << 2) ^0xff;
-	if (ioport("LINE12")->read()!=0xff) dat ^= 0x02;
+	if (m_io_line12->read()!=0xff) dat ^= 0x02;
 
-	level = m_cass->input();
+	level = m_cassette->input();
 	if (level >=  0)
 			dat ^= 0x01;
 
@@ -65,10 +65,10 @@ READ8_MEMBER( special_state::specialist_8255_portb_r )
 
 READ8_MEMBER( special_state::specialist_8255_portc_r )
 {
-	if (ioport("LINE8")->read()!=0xff) return 0x0e;
-	if (ioport("LINE9")->read()!=0xff) return 0x0d;
-	if (ioport("LINE10")->read()!=0xff) return 0x0b;
-	if (ioport("LINE11")->read()!=0xff) return 0x07;
+	if (m_io_line8->read()!=0xff) return 0x0e;
+	if (m_io_line9->read()!=0xff) return 0x0d;
+	if (m_io_line10->read()!=0xff) return 0x0b;
+	if (m_io_line11->read()!=0xff) return 0x07;
 	return 0x0f;
 }
 
@@ -86,7 +86,7 @@ WRITE8_MEMBER( special_state::specialist_8255_portc_w )
 {
 	m_specialist_8255_portc = data;
 
-	m_cass->output(BIT(data, 7) ? 1 : -1);
+	m_cassette->output(BIT(data, 7) ? 1 : -1);
 
 	m_dac->write_unsigned8(BIT(data, 5)); //beeper
 }
@@ -101,16 +101,30 @@ I8255_INTERFACE( specialist_ppi8255_interface )
 	DEVCB_DRIVER_MEMBER(special_state, specialist_8255_portc_w)
 };
 
-TIMER_CALLBACK_MEMBER(special_state::special_reset)
+void special_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	membank("bank1")->set_entry(0);
+	switch (id)
+	{
+	case TIMER_RESET:
+		m_bank1->set_entry(0);
+		break;
+	case TIMER_PIT8253_GATES:
+	{
+		m_pit->gate0_w(0);
+		m_pit->gate1_w(0);
+		m_pit->gate2_w(0);
+		break;
+	}
+	default:
+		assert_always(FALSE, "Unknown id in special_state::device_timer");
+	}
 }
 
 
 MACHINE_RESET_MEMBER(special_state,special)
 {
-	machine().scheduler().timer_set(attotime::from_usec(10), timer_expired_delegate(FUNC(special_state::special_reset),this));
-	membank("bank1")->set_entry(1);
+	timer_set(attotime::from_usec(10), TIMER_RESET);
+	m_bank1->set_entry(1);
 }
 
 
@@ -140,36 +154,36 @@ void special_state::specimx_set_bank(offs_t i, UINT8 data)
 
 	space.install_write_bank(0xc000, 0xffbf, "bank3");
 	space.install_write_bank(0xffc0, 0xffdf, "bank4");
-	membank("bank4")->set_base(ram + 0xffc0);
+	m_bank4->set_base(ram + 0xffc0);
 	switch(i)
 	{
 		case 0 :
 			space.install_write_bank(0x0000, 0x8fff, "bank1");
 			space.install_write_handler(0x9000, 0xbfff, write8_delegate(FUNC(special_state::video_memory_w), this));
 
-			membank("bank1")->set_base(ram);
-			membank("bank2")->set_base(ram + 0x9000);
-			membank("bank3")->set_base(ram + 0xc000);
+			m_bank1->set_base(ram);
+			m_bank2->set_base(ram + 0x9000);
+			m_bank3->set_base(ram + 0xc000);
 			break;
 		case 1 :
 			space.install_write_bank(0x0000, 0x8fff, "bank1");
 			space.install_write_bank(0x9000, 0xbfff, "bank2");
 
-			membank("bank1")->set_base(ram + 0x10000);
-			membank("bank2")->set_base(ram + 0x19000);
-			membank("bank3")->set_base(ram + 0x1c000);
+			m_bank1->set_base(ram + 0x10000);
+			m_bank2->set_base(ram + 0x19000);
+			m_bank3->set_base(ram + 0x1c000);
 			break;
 		case 2 :
 			space.unmap_write(0x0000, 0x8fff);
 			space.unmap_write(0x9000, 0xbfff);
 
-			membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + 0x10000);
-			membank("bank2")->set_base(machine().root_device().memregion("maincpu")->base() + 0x19000);
+			m_bank1->set_base(m_region_maincpu->base() + 0x10000);
+			m_bank2->set_base(m_region_maincpu->base() + 0x19000);
 
 			if (data & 0x80)
-				membank("bank3")->set_base(ram + 0x1c000);
+				m_bank3->set_base(ram + 0x1c000);
 			else
-				membank("bank3")->set_base(ram + 0xc000);
+				m_bank3->set_base(ram + 0xc000);
 
 			break;
 	}
@@ -182,22 +196,22 @@ WRITE8_MEMBER( special_state::specimx_select_bank )
 
 WRITE_LINE_MEMBER( special_state::specimx_pit8253_out0_changed )
 {
-	specimx_set_input( m_specimx_audio, 0, state );
+	m_specimx_audio->set_input( 0, state );
 }
 
 WRITE_LINE_MEMBER( special_state::specimx_pit8253_out1_changed )
 {
-	specimx_set_input( m_specimx_audio, 1, state );
+	m_specimx_audio->set_input( 1, state );
 }
 
 WRITE_LINE_MEMBER( special_state::specimx_pit8253_out2_changed )
 {
-	specimx_set_input( m_specimx_audio, 2, state );
+	m_specimx_audio->set_input( 2, state );
 }
 
 
 
-const struct pit8253_config specimx_pit8253_intf =
+const struct pit8253_interface specimx_pit8253_intf =
 {
 	{
 		{
@@ -220,24 +234,15 @@ const struct pit8253_config specimx_pit8253_intf =
 
 MACHINE_START_MEMBER(special_state,specimx)
 {
-	m_specimx_audio = machine().device("custom");
+	m_specimx_audio = machine().device<specimx_sound_device>("custom");
 	m_drive = 0;
 	m_fdc->setup_drq_cb(fd1793_t::line_cb(FUNC(special_state::fdc_drq), this));
-}
-
-TIMER_CALLBACK_MEMBER(special_state::setup_pit8253_gates)
-{
-	device_t *pit8253 = machine().device("pit8253");
-
-	pit8253_gate0_w(pit8253, 0);
-	pit8253_gate1_w(pit8253, 0);
-	pit8253_gate2_w(pit8253, 0);
 }
 
 MACHINE_RESET_MEMBER(special_state,specimx)
 {
 	specimx_set_bank(2, 0); // Initiali load ROM disk
-	machine().scheduler().timer_set(attotime::zero, timer_expired_delegate(FUNC(special_state::setup_pit8253_gates),this));
+	timer_set(attotime::zero, TIMER_PIT8253_GATES);
 }
 
 READ8_MEMBER( special_state::specimx_disk_ctrl_r )
@@ -288,7 +293,7 @@ void special_state::erik_set_bank()
 	UINT8 bank2 = (m_RR_register >> 2) & 3;
 	UINT8 bank3 = (m_RR_register >> 4) & 3;
 	UINT8 bank4 = (m_RR_register >> 6) & 3;
-	UINT8 *mem = memregion("maincpu")->base();
+	UINT8 *mem = m_region_maincpu->base();
 	UINT8 *ram = m_ram->pointer();
 	address_space &space = m_maincpu->space(AS_PROGRAM);
 
@@ -304,11 +309,11 @@ void special_state::erik_set_bank()
 		case    1:
 		case    2:
 		case    3:
-			membank("bank1")->set_base(ram + 0x10000*(bank1-1));
+			m_bank1->set_base(ram + 0x10000*(bank1-1));
 			break;
 		case    0:
 			space.unmap_write(0x0000, 0x3fff);
-			membank("bank1")->set_base(mem + 0x10000);
+			m_bank1->set_base(mem + 0x10000);
 			break;
 	}
 	switch(bank2)
@@ -316,11 +321,11 @@ void special_state::erik_set_bank()
 		case    1:
 		case    2:
 		case    3:
-			membank("bank2")->set_base(ram + 0x10000*(bank2-1) + 0x4000);
+			m_bank2->set_base(ram + 0x10000*(bank2-1) + 0x4000);
 			break;
 		case    0:
 			space.unmap_write(0x4000, 0x8fff);
-			membank("bank2")->set_base(mem + 0x14000);
+			m_bank2->set_base(mem + 0x14000);
 			break;
 	}
 	switch(bank3)
@@ -328,11 +333,11 @@ void special_state::erik_set_bank()
 		case    1:
 		case    2:
 		case    3:
-			membank("bank3")->set_base(ram + 0x10000*(bank3-1) + 0x9000);
+			m_bank3->set_base(ram + 0x10000*(bank3-1) + 0x9000);
 			break;
 		case    0:
 			space.unmap_write(0x9000, 0xbfff);
-			membank("bank3")->set_base(mem + 0x19000);
+			m_bank3->set_base(mem + 0x19000);
 			break;
 	}
 	switch(bank4)
@@ -340,13 +345,13 @@ void special_state::erik_set_bank()
 		case    1:
 		case    2:
 		case    3:
-			membank("bank4")->set_base(ram + 0x10000*(bank4-1) + 0x0c000);
-			membank("bank5")->set_base(ram + 0x10000*(bank4-1) + 0x0f000);
-			membank("bank6")->set_base(ram + 0x10000*(bank4-1) + 0x0f800);
+			m_bank4->set_base(ram + 0x10000*(bank4-1) + 0x0c000);
+			m_bank5->set_base(ram + 0x10000*(bank4-1) + 0x0f000);
+			m_bank6->set_base(ram + 0x10000*(bank4-1) + 0x0f800);
 			break;
 		case    0:
 			space.unmap_write(0xc000, 0xefff);
-			membank("bank4")->set_base(mem + 0x1c000);
+			m_bank4->set_base(mem + 0x1c000);
 			space.unmap_write(0xf000, 0xf7ff);
 			space.nop_read(0xf000, 0xf7ff);
 			space.install_readwrite_handler(0xf800, 0xf803, 0, 0x7fc, read8_delegate(FUNC(i8255_device::read), (i8255_device*)m_ppi), write8_delegate(FUNC(i8255_device::write), (i8255_device*)m_ppi));

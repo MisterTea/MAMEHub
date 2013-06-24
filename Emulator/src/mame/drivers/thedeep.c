@@ -46,7 +46,7 @@ WRITE8_MEMBER(thedeep_state::thedeep_nmi_w)
 WRITE8_MEMBER(thedeep_state::thedeep_sound_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
@@ -175,7 +175,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( audio_map, AS_PROGRAM, 8, thedeep_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE_LEGACY("ymsnd", ym2203_w)  //
+	AM_RANGE(0x0800, 0x0801) AM_DEVWRITE("ymsnd", ym2203_device, write)  //
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r) // From Main CPU
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -187,27 +187,26 @@ ADDRESS_MAP_END
 
 ***************************************************************************/
 
-static void thedeep_maincpu_bankswitch(running_machine &machine,UINT8 bank_trig)
+void thedeep_state::thedeep_maincpu_bankswitch(UINT8 bank_trig)
 {
-	thedeep_state *state = machine.driver_data<thedeep_state>();
 	UINT8 *rom;
 	int new_rombank = bank_trig & 3;
 
-	if (state->m_rombank == new_rombank)
+	if (m_rombank == new_rombank)
 		return;
-	state->m_rombank = new_rombank;
-	rom = state->memregion("maincpu")->base();
-	state->membank("bank1")->set_base(rom + 0x10000 + state->m_rombank * 0x4000);
+	m_rombank = new_rombank;
+	rom = memregion("maincpu")->base();
+	membank("bank1")->set_base(rom + 0x10000 + m_rombank * 0x4000);
 	/* there's code which falls through from the fixed ROM to bank #1, I have to */
 	/* copy it there otherwise the CPU bank switching support will not catch it. */
-	memcpy(rom + 0x08000, rom + 0x10000 + state->m_rombank * 0x4000, 0x4000);
+	memcpy(rom + 0x08000, rom + 0x10000 + m_rombank * 0x4000, 0x4000);
 
 }
 
 WRITE8_MEMBER(thedeep_state::thedeep_p1_w)
 {
 	flip_screen_set((data & 1) ^ 1);
-	thedeep_maincpu_bankswitch(machine(),(data & 6) >> 1);
+	thedeep_maincpu_bankswitch((data & 6) >> 1);
 	logerror("P1 %02x\n",data);
 }
 
@@ -228,7 +227,6 @@ WRITE8_MEMBER(thedeep_state::thedeep_to_main_w)
 
 WRITE8_MEMBER(thedeep_state::thedeep_p3_w)
 {
-
 	/* bit 0 0->1 transition IRQ0 to main */
 	if((!(m_mcu_p3_reg & 0x01)) && data & 0x01)
 		m_maincpu->set_input_line(0, HOLD_LINE);
@@ -391,19 +389,16 @@ GFXDECODE_END
 
 ***************************************************************************/
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(thedeep_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface thedeep_ym2203_intf =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 TIMER_DEVICE_CALLBACK_MEMBER(thedeep_state::thedeep_interrupt)
@@ -414,7 +409,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(thedeep_state::thedeep_interrupt)
 	{
 		if (m_protection_command != 0x59)
 		{
-			int coins = machine().root_device().ioport("MCU")->read();
+			int coins = ioport("MCU")->read();
 			if      (coins & 1) m_protection_data = 1;
 			else if (coins & 2) m_protection_data = 2;
 			else if (coins & 4) m_protection_data = 3;
@@ -438,7 +433,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(thedeep_state::thedeep_interrupt)
 
 INTERRUPT_GEN_MEMBER(thedeep_state::thedeep_mcu_irq)
 {
-
 	m_mcu->set_input_line(MCS51_INT1_LINE, ASSERT_LINE);
 }
 
@@ -476,7 +470,8 @@ static MACHINE_CONFIG_START( thedeep, thedeep_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_12MHz/4)  /* verified on pcb */
-	MCFG_SOUND_CONFIG(thedeep_ym2203_intf)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(thedeep_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

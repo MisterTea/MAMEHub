@@ -1,24 +1,37 @@
 #include "video/bufsprite.h"
+#include "sound/msm5205.h"
 
 class dec8_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_DEC8_I8751
+	};
+
 	dec8_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_spriteram(*this, "spriteram") ,
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"),
+		m_audiocpu(*this, "audiocpu"),
+		m_mcu(*this, "mcu"),
+		m_spriteram(*this, "spriteram") ,
 		m_videoram(*this, "videoram"),
-		m_bg_data(*this, "bg_data"){ }
+		m_bg_data(*this, "bg_data"),
+		m_msm(*this, "msm") { }
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_subcpu;
-	cpu_device *m_audiocpu;
-	device_t *m_mcu;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_subcpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_mcu;
 	required_device<buffered_spriteram8_device> m_spriteram;
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
 	optional_shared_ptr<UINT8> m_bg_data;
+
+	optional_device<msm5205_device> m_msm;
 	UINT8 *  m_pf1_data;
 	UINT8 *  m_row;
 //  UINT8 *  m_paletteram;    // currently this uses generic palette handling
@@ -132,11 +145,10 @@ public:
 	void screen_eof_dec8(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(gondo_interrupt);
 	INTERRUPT_GEN_MEMBER(oscar_interrupt);
-	TIMER_CALLBACK_MEMBER(dec8_i8751_timer_callback);
-};
+	void srdarwin_draw_sprites(  bitmap_ind16 &bitmap, const rectangle &cliprect, int pri );
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	DECLARE_WRITE_LINE_MEMBER(csilver_adpcm_int);
 
-/*----------- defined in video/dec8.c -----------*/
-DECLARE_WRITE8_HANDLER( dec8_bac06_0_w );
-DECLARE_WRITE8_HANDLER( dec8_bac06_1_w );
-DECLARE_WRITE8_HANDLER( dec8_pf1_data_w );
-DECLARE_READ8_HANDLER( dec8_pf1_data_r );
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+};

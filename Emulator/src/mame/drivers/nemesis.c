@@ -22,6 +22,10 @@
 
 driver by Bryan McPhail
 
+TODO:
+- hcrash: coin insertion isn't always recognized.
+- hcrash: Konami GT-type inputs doesn't work properly.
+
 modified by Hau
 03/27/2009
  spthx to Unagi,rassy,hina,nori,Tobikage,Tommy,Crimson,yasuken,cupmen,zoo
@@ -58,14 +62,12 @@ So this is the correct behavior of real hardware, not an emulation bug.
 
 INTERRUPT_GEN_MEMBER(nemesis_state::nemesis_interrupt)
 {
-
 	if (m_irq_on)
 		device.execute().set_input_line(1, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(nemesis_state::blkpnthr_interrupt)
 {
-
 	if (m_irq_on)
 		device.execute().set_input_line(2, HOLD_LINE);
 }
@@ -250,10 +252,9 @@ READ8_MEMBER(nemesis_state::nemesis_portA_r)
 
 WRITE8_MEMBER(nemesis_state::city_sound_bank_w)
 {
-	device_t *device = machine().device("k007232");
 	int bank_A = (data & 0x03);
 	int bank_B = ((data >> 2) & 0x03);
-	k007232_set_bank(device, bank_A, bank_B);
+	k007232_set_bank(m_k007232, bank_A, bank_B);
 }
 
 
@@ -394,35 +395,35 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, nemesis_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x47ff) AM_RAM
-	AM_RANGE(0xa000, 0xafff) AM_DEVWRITE_LEGACY("k007232", k005289_pitch_A_w)
-	AM_RANGE(0xc000, 0xcfff) AM_DEVWRITE_LEGACY("k007232", k005289_pitch_B_w)
+	AM_RANGE(0xa000, 0xafff) AM_DEVWRITE("k005289", k005289_device, k005289_pitch_A_w)
+	AM_RANGE(0xc000, 0xcfff) AM_DEVWRITE("k005289", k005289_device, k005289_pitch_B_w)
 	AM_RANGE(0xe001, 0xe001) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe003, 0xe003) AM_DEVWRITE_LEGACY("k007232", k005289_keylatch_A_w)
-	AM_RANGE(0xe004, 0xe004) AM_DEVWRITE_LEGACY("k007232", k005289_keylatch_B_w)
-	AM_RANGE(0xe005, 0xe005) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
-	AM_RANGE(0xe006, 0xe006) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0xe086, 0xe086) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0xe106, 0xe106) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0xe205, 0xe205) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0xe405, 0xe405) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
+	AM_RANGE(0xe003, 0xe003) AM_DEVWRITE("k005289", k005289_device, k005289_keylatch_A_w)
+	AM_RANGE(0xe004, 0xe004) AM_DEVWRITE("k005289", k005289_device, k005289_keylatch_B_w)
+	AM_RANGE(0xe005, 0xe005) AM_DEVWRITE("ay2", ay8910_device, address_w)
+	AM_RANGE(0xe006, 0xe006) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0xe086, 0xe086) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0xe106, 0xe106) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0xe205, 0xe205) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0xe405, 0xe405) AM_DEVWRITE("ay2", ay8910_device, data_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( gx400_sound_map, AS_PROGRAM, 8, nemesis_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x4000, 0x87ff) AM_RAM AM_SHARE("gx400_shared")
-	AM_RANGE(0xa000, 0xafff) AM_DEVWRITE_LEGACY("k007232", k005289_pitch_A_w)
-	AM_RANGE(0xc000, 0xcfff) AM_DEVWRITE_LEGACY("k007232", k005289_pitch_B_w)
+	AM_RANGE(0xa000, 0xafff) AM_DEVWRITE("k005289", k005289_device, k005289_pitch_A_w)
+	AM_RANGE(0xc000, 0xcfff) AM_DEVWRITE("k005289", k005289_device, k005289_pitch_B_w)
 	AM_RANGE(0xe000, 0xe000) AM_DEVWRITE_LEGACY("vlm", vlm5030_data_w)
 	AM_RANGE(0xe001, 0xe001) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe003, 0xe003) AM_DEVWRITE_LEGACY("k007232", k005289_keylatch_A_w)
-	AM_RANGE(0xe004, 0xe004) AM_DEVWRITE_LEGACY("k007232", k005289_keylatch_B_w)
-	AM_RANGE(0xe005, 0xe005) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
-	AM_RANGE(0xe006, 0xe006) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
+	AM_RANGE(0xe003, 0xe003) AM_DEVWRITE("k005289", k005289_device, k005289_keylatch_A_w)
+	AM_RANGE(0xe004, 0xe004) AM_DEVWRITE("k005289", k005289_device, k005289_keylatch_B_w)
+	AM_RANGE(0xe005, 0xe005) AM_DEVWRITE("ay2", ay8910_device, address_w)
+	AM_RANGE(0xe006, 0xe006) AM_DEVWRITE("ay1", ay8910_device, address_w)
 	AM_RANGE(0xe030, 0xe030) AM_WRITE(gx400_speech_start_w)
-	AM_RANGE(0xe086, 0xe086) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0xe106, 0xe106) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0xe205, 0xe205) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0xe405, 0xe405) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
+	AM_RANGE(0xe086, 0xe086) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0xe106, 0xe106) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0xe205, 0xe205) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0xe405, 0xe405) AM_DEVWRITE("ay2", ay8910_device, data_w)
 ADDRESS_MAP_END
 
 /******************************************************************************/
@@ -559,12 +560,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( city_sound_map, AS_PROGRAM, 8, nemesis_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
-	AM_RANGE(0x9800, 0x987f) AM_DEVREADWRITE_LEGACY("k051649", k051649_waveform_r, k051649_waveform_w)
-	AM_RANGE(0x9880, 0x9889) AM_DEVWRITE_LEGACY("k051649", k051649_frequency_w)
-	AM_RANGE(0x988a, 0x988e) AM_DEVWRITE_LEGACY("k051649", k051649_volume_w)
-	AM_RANGE(0x988f, 0x988f) AM_DEVWRITE_LEGACY("k051649", k051649_keyonoff_w)
-	AM_RANGE(0x98e0, 0x98ff) AM_DEVREADWRITE_LEGACY("k051649", k051649_test_r, k051649_test_w)
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_r, ym3812_w)
+	AM_RANGE(0x9800, 0x987f) AM_DEVREADWRITE("k051649", k051649_device, k051649_waveform_r, k051649_waveform_w)
+	AM_RANGE(0x9880, 0x9889) AM_DEVWRITE("k051649", k051649_device, k051649_frequency_w)
+	AM_RANGE(0x988a, 0x988e) AM_DEVWRITE("k051649", k051649_device, k051649_volume_w)
+	AM_RANGE(0x988f, 0x988f) AM_DEVWRITE("k051649", k051649_device, k051649_keyonoff_w)
+	AM_RANGE(0x98e0, 0x98ff) AM_DEVREADWRITE("k051649", k051649_device, k051649_test_r, k051649_test_w)
+	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232", k007232_r, k007232_w)
 	AM_RANGE(0xc000, 0xc000) AM_WRITE(city_sound_bank_w) /* 7232 bankswitch */
 	AM_RANGE(0xd000, 0xd000) AM_READ(soundlatch_byte_r)
@@ -1266,7 +1267,7 @@ static INPUT_PORTS_START( hcrash )
 	/* "Invalid" = both coin slots disabled */
 
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x03, 0x01, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("SW2:1,2")
+	PORT_DIPNAME( 0x03, 0x02, DEF_STR( Cabinet ) )      PORT_DIPLOCATION("SW2:1,2")
 	PORT_DIPSETTING(    0x03, "Konami GT without brake" )
 	PORT_DIPSETTING(    0x02, "WEC Le Mans 24 Upright" )
 	PORT_DIPSETTING(    0x01, "Konami GT with brake" )
@@ -1296,7 +1297,7 @@ static INPUT_PORTS_START( hcrash )
 
 	/* Konami GT specific control */
 	PORT_START("PADDLE")
-	PORT_BIT( 0x7f, 0x40, IPT_PADDLE ) PORT_SENSITIVITY(25) PORT_KEYDELTA(10)
+	PORT_BIT( 0x7f, 0x40, IPT_PADDLE ) PORT_SENSITIVITY(25) PORT_KEYDELTA(10) PORT_CONDITION("DSW1", 0x03, NOTEQUALS, 0x02)
 
 	PORT_START("IN3")
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_CONDITION("DSW1", 0x03, EQUALS, 0x01)        // only in Konami GT cabinet with brake
@@ -1306,10 +1307,10 @@ static INPUT_PORTS_START( hcrash )
 
 	/* WEC Le Mans 24 specific control */
 	PORT_START("ACCEL")     /* Accelerator */
-	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0,0x80) PORT_SENSITIVITY(30) PORT_KEYDELTA(10)
+	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0,0x80) PORT_SENSITIVITY(30) PORT_KEYDELTA(10) PORT_CONDITION("DSW1", 0x03, EQUALS, 0x02)
 
 	PORT_START("WHEEL")     /* Steering Wheel */
-	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(50) PORT_KEYDELTA(5)
+	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(50) PORT_KEYDELTA(5) PORT_CONDITION("DSW1", 0x03, EQUALS, 0x02)
 INPUT_PORTS_END
 
 /******************************************************************************/
@@ -1478,40 +1479,32 @@ static const ay8910_interface ay8910_interface_2 =
 	AY8910_DEFAULT_LOADS,
 	DEVCB_NULL,
 	DEVCB_NULL,
-	DEVCB_DEVICE_HANDLER("k007232", k005289_control_A_w),
-	DEVCB_DEVICE_HANDLER("k007232", k005289_control_B_w)
+	DEVCB_DEVICE_MEMBER("k005289", k005289_device, k005289_control_A_w),
+	DEVCB_DEVICE_MEMBER("k005289", k005289_device, k005289_control_B_w)
 };
 
-static void sound_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(nemesis_state::sound_irq)
 {
 /* Interrupts _are_ generated, I wonder where they go.. */
 // nemesis_state *driver_state = device->machine().driver_data<nemesis_state>();
 // driver_state->audiocpu->set_input_line(0, HOLD_LINE);
 }
 
-static const ym3812_interface ym3812_config =
+WRITE8_MEMBER(nemesis_state::volume_callback)
 {
-	sound_irq
-};
-
-static void volume_callback(device_t *device, int v)
-{
-	k007232_set_volume(device, 0, (v >> 4) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232, 1, 0, (data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_config =
 {
-	volume_callback /* external port callback */
+	DEVCB_DRIVER_MEMBER(nemesis_state,volume_callback) /* external port callback */
 };
 
 /******************************************************************************/
 
 void nemesis_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 	m_vlm = machine().device("vlm");
 
 	save_item(NAME(m_irq_on));
@@ -1529,7 +1522,6 @@ void nemesis_state::machine_start()
 
 void nemesis_state::machine_reset()
 {
-
 	m_irq_on = 0;
 	m_irq1_on = 0;
 	m_irq2_on = 0;
@@ -1578,7 +1570,7 @@ static MACHINE_CONFIG_START( nemesis, nemesis_state )
 	MCFG_SOUND_CONFIG(ay8910_interface_2)   /* fixed */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00) /* verified with OST */
 
-	MCFG_SOUND_ADD("k007232", K005289, 3579545/2)
+	MCFG_K005289_ADD("k005289", 3579545/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35) /* verified with OST */
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
@@ -1621,7 +1613,7 @@ static MACHINE_CONFIG_START( gx400, nemesis_state )
 	MCFG_SOUND_CONFIG(ay8910_interface_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00) /* verified with OST */
 
-	MCFG_SOUND_ADD("k007232", K005289, 3579545/2)
+	MCFG_K005289_ADD("k005289", 3579545/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35) /* verified with OST */
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
@@ -1663,7 +1655,7 @@ static MACHINE_CONFIG_START( konamigt, nemesis_state )
 	MCFG_SOUND_CONFIG(ay8910_interface_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_SOUND_ADD("k007232", K005289, 3579545/2)
+	MCFG_K005289_ADD("k005289", 3579545/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 MACHINE_CONFIG_END
 
@@ -1703,7 +1695,7 @@ static MACHINE_CONFIG_START( rf2_gx400, nemesis_state )
 	MCFG_SOUND_CONFIG(ay8910_interface_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
-	MCFG_SOUND_ADD("k007232", K005289, 3579545/2)
+	MCFG_K005289_ADD("k005289", 3579545/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
@@ -1835,11 +1827,11 @@ static MACHINE_CONFIG_START( citybomb, nemesis_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.30)
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, 3579545)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(nemesis_state, sound_irq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k051649", K051649, 3579545/2)
+	MCFG_K051649_ADD("k051649", 3579545/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.38)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.38)
 MACHINE_CONFIG_END
@@ -1881,11 +1873,11 @@ static MACHINE_CONFIG_START( nyanpani, nemesis_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.30)
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, 3579545)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(nemesis_state, sound_irq))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("k051649", K051649, 3579545/2)
+	MCFG_K051649_ADD("k051649", 3579545/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.38)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.38)
 MACHINE_CONFIG_END
@@ -1954,7 +1946,7 @@ ROM_START( nemesis )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "456-d09.9c",   0x00000, 0x4000, CRC(26bf9636) SHA1(009dcbf18ea6230fc75a72232bd4fc29ad28dbf0) )
 
-	ROM_REGION( 0x0200,  "k007232", 0 )      /* 2x 256 byte for 0005289 wavetable data */
+	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
 ROM_END
@@ -1973,7 +1965,7 @@ ROM_START( nemesisuk )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "456-b09.9c",   0x00000, 0x4000, CRC(26bf9636) SHA1(009dcbf18ea6230fc75a72232bd4fc29ad28dbf0) ) /* Labeled "B09" but same as above set */
 
-	ROM_REGION( 0x0200,  "k007232", 0 )      /* 2x 256 byte for 0005289 wavetable data */
+	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
 ROM_END
@@ -1992,7 +1984,7 @@ ROM_START( konamigt )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(       "561-b09.9c",  0x00000, 0x4000, CRC(539d0c49) SHA1(4c16b07fbd876b6445fc0ec49c3ad5ab1a92cbf6) )
 
-	ROM_REGION( 0x0200,  "k007232", 0 )      /* 2x 256 byte for 0005289 wavetable data */
+	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
 ROM_END
@@ -2007,7 +1999,7 @@ ROM_START( rf2 )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "400-e03.5l",   0x00000, 0x02000, CRC(a5a8e57d) SHA1(f4236770093392dec3f76835a5766e9b3ed64e2e) )
 
-	ROM_REGION( 0x0200,  "k007232", 0 )      /* 2x 256 byte for 0005289 wavetable data */
+	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
 ROM_END
@@ -2022,7 +2014,7 @@ ROM_START( twinbee )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "400-e03.5l",   0x00000, 0x02000, CRC(a5a8e57d) SHA1(f4236770093392dec3f76835a5766e9b3ed64e2e) )
 
-	ROM_REGION( 0x0200,  "k007232", 0 )      /* 2x 256 byte for 0005289 wavetable data */
+	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
 ROM_END
@@ -2037,7 +2029,7 @@ ROM_START( gradius )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "400-e03.5l",   0x00000, 0x2000, CRC(a5a8e57d) SHA1(f4236770093392dec3f76835a5766e9b3ed64e2e) )
 
-	ROM_REGION( 0x0200,  "k007232", 0 )      /* 2x 256 byte for 0005289 wavetable data */
+	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
 ROM_END
@@ -2052,7 +2044,7 @@ ROM_START( gwarrior )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD(      "400-e03.5l",   0x00000, 0x02000, CRC(a5a8e57d) SHA1(f4236770093392dec3f76835a5766e9b3ed64e2e) )
 
-	ROM_REGION( 0x0200,  "k007232", 0 )      /* 2x 256 byte for 0005289 wavetable data */
+	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD(      "400-a01.fse",  0x00000, 0x0100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD(      "400-a02.fse",  0x00100, 0x0100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
 ROM_END
@@ -2672,7 +2664,7 @@ static MACHINE_CONFIG_START( bubsys, nemesis_state )
 	MCFG_SOUND_CONFIG(ay8910_interface_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00) /* verified with OST */
 
-	MCFG_SOUND_ADD("k007232", K005289, 3579545/2)
+	MCFG_SOUND_ADD("k005289", K005289, 3579545/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35) /* verified with OST */
 
 	MCFG_SOUND_ADD("vlm", VLM5030, 3579545)
@@ -2691,7 +2683,7 @@ ROM_START( bubsys )
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* 64k for sound */
 	ROM_LOAD( "400b03.8g",   0x00000, 0x2000, CRC(85c2afc5) SHA1(387842d02d50d0d78a27270e7267af19555b9e63) )
 
-	ROM_REGION( 0x0200,  "k007232", 0 )      /* 2x 256 byte for 0005289 wavetable data */
+	ROM_REGION( 0x0200,  "k005289", 0 )      /* 2x 256 byte for 0005289 wavetable data */
 	ROM_LOAD( "400a1.2b", 0x000, 0x100, CRC(5827b1e8) SHA1(fa8cf5f868cfb08bce203baaebb6c4055ee2a000) )
 	ROM_LOAD( "400a2.1b", 0x100, 0x100, CRC(2f44f970) SHA1(7ab46f9d5d587665782cefc623b8de0124a6d38a) )
 

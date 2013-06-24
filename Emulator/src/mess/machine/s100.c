@@ -31,12 +31,6 @@ s100_slot_device::s100_slot_device(const machine_config &mconfig, const char *ta
 {
 }
 
-void s100_slot_device::static_set_s100_slot(device_t &device, const char *tag)
-{
-	s100_slot_device &s100_card = dynamic_cast<s100_slot_device &>(device);
-	s100_card.m_bus_tag = tag;
-}
-
 
 //-------------------------------------------------
 //  device_start - device-specific startup
@@ -44,7 +38,7 @@ void s100_slot_device::static_set_s100_slot(device_t &device, const char *tag)
 
 void s100_slot_device::device_start()
 {
-	m_bus = machine().device<s100_device>(m_bus_tag);
+	m_bus = machine().device<s100_device>(S100_TAG);
 	device_s100_card_interface *dev = dynamic_cast<device_s100_card_interface *>(get_card_device());
 	if (dev) m_bus->add_s100_card(dev);
 }
@@ -56,13 +50,6 @@ void s100_slot_device::device_start()
 //**************************************************************************
 
 const device_type S100 = &device_creator<s100_device>;
-
-
-void s100_device::static_set_cputag(device_t &device, const char *tag)
-{
-	s100_device &s100 = downcast<s100_device &>(device);
-	s100.m_cputag = tag;
-}
 
 
 //-------------------------------------------------
@@ -100,7 +87,6 @@ void s100_device::device_config_complete()
 		memset(&m_out_rdy_cb, 0, sizeof(m_out_rdy_cb));
 		memset(&m_out_hold_cb, 0, sizeof(m_out_hold_cb));
 		memset(&m_out_error_cb, 0, sizeof(m_out_error_cb));
-		memset(&m_out_terminal_cb, 0, sizeof(m_out_terminal_cb));
 	}
 }
 
@@ -126,8 +112,6 @@ s100_device::s100_device(const machine_config &mconfig, const char *tag, device_
 
 void s100_device::device_start()
 {
-	m_maincpu = machine().device<cpu_device>(m_cputag);
-
 	// resolve callbacks
 	m_out_int_func.resolve(m_out_int_cb, *this);
 	m_out_nmi_func.resolve(m_out_nmi_cb, *this);
@@ -146,7 +130,6 @@ void s100_device::device_start()
 	m_out_rdy_func.resolve(m_out_rdy_cb, *this);
 	m_out_hold_func.resolve(m_out_hold_cb, *this);
 	m_out_error_func.resolve(m_out_error_cb, *this);
-	m_out_terminal_func.resolve(m_out_terminal_cb, *this);
 }
 
 
@@ -259,41 +242,6 @@ WRITE_LINE_MEMBER( s100_device::dma3_w ) { m_out_dma3_func(state); }
 WRITE_LINE_MEMBER( s100_device::rdy_w ) { m_out_rdy_func(state); }
 WRITE_LINE_MEMBER( s100_device::hold_w ) { m_out_hold_func(state); }
 WRITE_LINE_MEMBER( s100_device::error_w ) { m_out_error_func(state); }
-
-
-//-------------------------------------------------
-//  terminal_receive_w - receive character
-//-------------------------------------------------
-
-WRITE8_MEMBER( s100_device::terminal_receive_w )
-{
-	device_s100_card_interface *entry = m_device_list.first();
-
-	while (entry)
-	{
-		if (entry->s100_has_terminal())
-		{
-			entry->s100_terminal_w(data);
-			break;
-		}
-		entry = entry->next();
-	}
-}
-
-
-//-------------------------------------------------
-//  terminal_transmit_w - transmit character
-//-------------------------------------------------
-
-WRITE8_MEMBER( s100_device::terminal_transmit_w )
-{
-	terminal_transmit_w(data);
-}
-
-void s100_device::terminal_transmit_w(UINT8 data)
-{
-	m_out_terminal_func(0, data);
-}
 
 
 

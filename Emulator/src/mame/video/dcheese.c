@@ -27,7 +27,7 @@
 
 void dcheese_state::palette_init()
 {
-	const UINT16 *src = (UINT16 *)machine().root_device().memregion("user1")->base();
+	const UINT16 *src = (UINT16 *)memregion("user1")->base();
 	int i;
 
 	/* really 65536 colors, but they don't use the later ones so we can stay */
@@ -47,40 +47,42 @@ void dcheese_state::palette_init()
  *
  *************************************/
 
-static void update_scanline_irq( running_machine &machine )
+void dcheese_state::update_scanline_irq()
 {
-	dcheese_state *state = machine.driver_data<dcheese_state>();
-
 	/* if not in range, don't bother */
-	if (state->m_blitter_vidparam[0x22/2] <= state->m_blitter_vidparam[0x1e/2])
+	if (m_blitter_vidparam[0x22/2] <= m_blitter_vidparam[0x1e/2])
 	{
 		int effscan;
 		attotime time;
 
 		/* compute the effective scanline of the interrupt */
-		effscan = state->m_blitter_vidparam[0x22/2] - state->m_blitter_vidparam[0x1a/2];
+		effscan = m_blitter_vidparam[0x22/2] - m_blitter_vidparam[0x1a/2];
 		if (effscan < 0)
-			effscan += state->m_blitter_vidparam[0x1e/2];
+			effscan += m_blitter_vidparam[0x1e/2];
 
 		/* determine the time; if it's in this scanline, bump to the next frame */
-		time = machine.primary_screen->time_until_pos(effscan);
-		if (time < machine.primary_screen->scan_period())
-			time += machine.primary_screen->frame_period();
-		state->m_blitter_timer->adjust(time);
+		time = machine().primary_screen->time_until_pos(effscan);
+		if (time < machine().primary_screen->scan_period())
+			time += machine().primary_screen->frame_period();
+		m_blitter_timer->adjust(time);
 	}
 }
 
 
-TIMER_CALLBACK_MEMBER(dcheese_state::blitter_scanline_callback)
+void dcheese_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	dcheese_signal_irq(machine(), 3);
-	update_scanline_irq(machine());
-}
-
-
-TIMER_CALLBACK_MEMBER(dcheese_state::dcheese_signal_irq_callback)
-{
-	dcheese_signal_irq(machine(), param);
+	switch (id)
+	{
+	case TIMER_BLITTER_SCANLINE:
+		dcheese_signal_irq(3);
+		update_scanline_irq();
+		break;
+	case TIMER_SIGNAL_IRQ:
+		dcheese_signal_irq(param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in dcheese_state::device_timer");
+	}
 }
 
 
@@ -92,12 +94,11 @@ TIMER_CALLBACK_MEMBER(dcheese_state::dcheese_signal_irq_callback)
 
 void dcheese_state::video_start()
 {
-
 	/* the destination bitmap is not directly accessible to the CPU */
 	m_dstbitmap = auto_bitmap_ind16_alloc(machine(), DSTBITMAP_WIDTH, DSTBITMAP_HEIGHT);
 
 	/* create a timer */
-	m_blitter_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(dcheese_state::blitter_scanline_callback),this));
+	m_blitter_timer = timer_alloc(TIMER_BLITTER_SCANLINE);
 
 	/* register for saving */
 	save_item(NAME(m_blitter_color));
@@ -139,48 +140,46 @@ UINT32 dcheese_state::screen_update_dcheese(screen_device &screen, bitmap_ind16 
  *
  *************************************/
 
-static void do_clear( running_machine &machine )
+void dcheese_state::do_clear(  )
 {
-	dcheese_state *state = machine.driver_data<dcheese_state>();
 	int y;
 
 	/* clear the requested scanlines */
-	for (y = state->m_blitter_vidparam[0x2c/2]; y < state->m_blitter_vidparam[0x2a/2]; y++)
-		memset(&state->m_dstbitmap->pix16(y % DSTBITMAP_HEIGHT), 0, DSTBITMAP_WIDTH * 2);
+	for (y = m_blitter_vidparam[0x2c/2]; y < m_blitter_vidparam[0x2a/2]; y++)
+		memset(&m_dstbitmap->pix16(y % DSTBITMAP_HEIGHT), 0, DSTBITMAP_WIDTH * 2);
 
 	/* signal an IRQ when done (timing is just a guess) */
-	machine.scheduler().timer_set(machine.primary_screen->scan_period(), timer_expired_delegate(FUNC(dcheese_state::dcheese_signal_irq_callback),state), 1);
+	timer_set(machine().primary_screen->scan_period(), TIMER_SIGNAL_IRQ, 1);
 }
 
 
-static void do_blit( running_machine &machine )
+void dcheese_state::do_blit(  )
 {
-	dcheese_state *state = machine.driver_data<dcheese_state>();
-	INT32 srcminx = state->m_blitter_xparam[0] << 12;
-	INT32 srcmaxx = state->m_blitter_xparam[1] << 12;
-	INT32 srcminy = state->m_blitter_yparam[0] << 12;
-	INT32 srcmaxy = state->m_blitter_yparam[1] << 12;
-	INT32 srcx = ((state->m_blitter_xparam[2] & 0x0fff) | ((state->m_blitter_xparam[3] & 0x0fff) << 12)) << 7;
-	INT32 srcy = ((state->m_blitter_yparam[2] & 0x0fff) | ((state->m_blitter_yparam[3] & 0x0fff) << 12)) << 7;
-	INT32 dxdx = (INT32)(((state->m_blitter_xparam[4] & 0x0fff) | ((state->m_blitter_xparam[5] & 0x0fff) << 12)) << 12) >> 12;
-	INT32 dxdy = (INT32)(((state->m_blitter_xparam[6] & 0x0fff) | ((state->m_blitter_xparam[7] & 0x0fff) << 12)) << 12) >> 12;
-	INT32 dydx = (INT32)(((state->m_blitter_yparam[4] & 0x0fff) | ((state->m_blitter_yparam[5] & 0x0fff) << 12)) << 12) >> 12;
-	INT32 dydy = (INT32)(((state->m_blitter_yparam[6] & 0x0fff) | ((state->m_blitter_yparam[7] & 0x0fff) << 12)) << 12) >> 12;
-	UINT8 *src = state->memregion("gfx1")->base();
-	UINT32 pagemask = (state->memregion("gfx1")->bytes() - 1) / 0x40000;
-	int xstart = state->m_blitter_xparam[14];
-	int xend = state->m_blitter_xparam[15] + 1;
-	int ystart = state->m_blitter_yparam[14];
-	int yend = state->m_blitter_yparam[15];
-	int color = (state->m_blitter_color[0] << 8) & 0xff00;
-	int mask = (state->m_blitter_color[0] >> 8) & 0x00ff;
+	INT32 srcminx = m_blitter_xparam[0] << 12;
+	INT32 srcmaxx = m_blitter_xparam[1] << 12;
+	INT32 srcminy = m_blitter_yparam[0] << 12;
+	INT32 srcmaxy = m_blitter_yparam[1] << 12;
+	INT32 srcx = ((m_blitter_xparam[2] & 0x0fff) | ((m_blitter_xparam[3] & 0x0fff) << 12)) << 7;
+	INT32 srcy = ((m_blitter_yparam[2] & 0x0fff) | ((m_blitter_yparam[3] & 0x0fff) << 12)) << 7;
+	INT32 dxdx = (INT32)(((m_blitter_xparam[4] & 0x0fff) | ((m_blitter_xparam[5] & 0x0fff) << 12)) << 12) >> 12;
+	INT32 dxdy = (INT32)(((m_blitter_xparam[6] & 0x0fff) | ((m_blitter_xparam[7] & 0x0fff) << 12)) << 12) >> 12;
+	INT32 dydx = (INT32)(((m_blitter_yparam[4] & 0x0fff) | ((m_blitter_yparam[5] & 0x0fff) << 12)) << 12) >> 12;
+	INT32 dydy = (INT32)(((m_blitter_yparam[6] & 0x0fff) | ((m_blitter_yparam[7] & 0x0fff) << 12)) << 12) >> 12;
+	UINT8 *src = memregion("gfx1")->base();
+	UINT32 pagemask = (memregion("gfx1")->bytes() - 1) / 0x40000;
+	int xstart = m_blitter_xparam[14];
+	int xend = m_blitter_xparam[15] + 1;
+	int ystart = m_blitter_yparam[14];
+	int yend = m_blitter_yparam[15];
+	int color = (m_blitter_color[0] << 8) & 0xff00;
+	int mask = (m_blitter_color[0] >> 8) & 0x00ff;
 	int opaque = (dxdx | dxdy | dydx | dydy) == 0;  /* bit of a hack for fredmem */
 	int x, y;
 
 	/* loop over target rows */
 	for (y = ystart; y <= yend; y++)
 	{
-		UINT16 *dst = &state->m_dstbitmap->pix16(y % DSTBITMAP_HEIGHT);
+		UINT16 *dst = &m_dstbitmap->pix16(y % DSTBITMAP_HEIGHT);
 
 		/* loop over target columns */
 		for (x = xstart; x <= xend; x++)
@@ -204,23 +203,23 @@ static void do_blit( running_machine &machine )
 	}
 
 	/* signal an IRQ when done (timing is just a guess) */
-	machine.scheduler().timer_set(machine.primary_screen->scan_period() / 2, timer_expired_delegate(FUNC(dcheese_state::dcheese_signal_irq_callback),state), 2);
+	timer_set(machine().primary_screen->scan_period() / 2, TIMER_SIGNAL_IRQ, 2);
 
 	/* these extra parameters are written but they are always zero, so I don't know what they do */
-	if (state->m_blitter_xparam[8] != 0 || state->m_blitter_xparam[9] != 0 || state->m_blitter_xparam[10] != 0 || state->m_blitter_xparam[11] != 0 ||
-		state->m_blitter_yparam[8] != 0 || state->m_blitter_yparam[9] != 0 || state->m_blitter_yparam[10] != 0 || state->m_blitter_yparam[11] != 0)
+	if (m_blitter_xparam[8] != 0 || m_blitter_xparam[9] != 0 || m_blitter_xparam[10] != 0 || m_blitter_xparam[11] != 0 ||
+		m_blitter_yparam[8] != 0 || m_blitter_yparam[9] != 0 || m_blitter_yparam[10] != 0 || m_blitter_yparam[11] != 0)
 	{
-		logerror("%s:blit! (%04X)\n", machine.describe_context(), state->m_blitter_color[0]);
+		logerror("%s:blit! (%04X)\n", machine().describe_context(), m_blitter_color[0]);
 		logerror("   %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X\n",
-				state->m_blitter_xparam[0], state->m_blitter_xparam[1], state->m_blitter_xparam[2], state->m_blitter_xparam[3],
-				state->m_blitter_xparam[4], state->m_blitter_xparam[5], state->m_blitter_xparam[6], state->m_blitter_xparam[7],
-				state->m_blitter_xparam[8], state->m_blitter_xparam[9], state->m_blitter_xparam[10], state->m_blitter_xparam[11],
-				state->m_blitter_xparam[12], state->m_blitter_xparam[13], state->m_blitter_xparam[14], state->m_blitter_xparam[15]);
+				m_blitter_xparam[0], m_blitter_xparam[1], m_blitter_xparam[2], m_blitter_xparam[3],
+				m_blitter_xparam[4], m_blitter_xparam[5], m_blitter_xparam[6], m_blitter_xparam[7],
+				m_blitter_xparam[8], m_blitter_xparam[9], m_blitter_xparam[10], m_blitter_xparam[11],
+				m_blitter_xparam[12], m_blitter_xparam[13], m_blitter_xparam[14], m_blitter_xparam[15]);
 		logerror("   %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X - %04X %04X %04X %04X\n",
-				state->m_blitter_yparam[0], state->m_blitter_yparam[1], state->m_blitter_yparam[2], state->m_blitter_yparam[3],
-				state->m_blitter_yparam[4], state->m_blitter_yparam[5], state->m_blitter_yparam[6], state->m_blitter_yparam[7],
-				state->m_blitter_yparam[8], state->m_blitter_yparam[9], state->m_blitter_yparam[10], state->m_blitter_yparam[11],
-				state->m_blitter_yparam[12], state->m_blitter_yparam[13], state->m_blitter_yparam[14], state->m_blitter_yparam[15]);
+				m_blitter_yparam[0], m_blitter_yparam[1], m_blitter_yparam[2], m_blitter_yparam[3],
+				m_blitter_yparam[4], m_blitter_yparam[5], m_blitter_yparam[6], m_blitter_yparam[7],
+				m_blitter_yparam[8], m_blitter_yparam[9], m_blitter_yparam[10], m_blitter_yparam[11],
+				m_blitter_yparam[12], m_blitter_yparam[13], m_blitter_yparam[14], m_blitter_yparam[15]);
 	}
 }
 
@@ -268,7 +267,7 @@ WRITE16_MEMBER(dcheese_state::madmax_blitter_vidparam_w)
 			break;
 
 		case 0x22/2:        /* scanline interrupt */
-			update_scanline_irq(machine());
+			update_scanline_irq();
 			break;
 
 		case 0x24/2:        /* writes here after writing to 0x28 */
@@ -280,11 +279,11 @@ WRITE16_MEMBER(dcheese_state::madmax_blitter_vidparam_w)
 			break;
 
 		case 0x38/2:        /* blit */
-			do_blit(machine());
+			do_blit();
 			break;
 
 		case 0x3e/2:        /* clear */
-			do_clear(machine());
+			do_clear();
 			break;
 
 		default:

@@ -39,8 +39,9 @@ class laserbas_state : public driver_device
 {
 public:
 	laserbas_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_protram(*this, "protram"){ }
+		: driver_device(mconfig, type, tag),
+		m_protram(*this, "protram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* misc */
 	int      m_count;
@@ -60,12 +61,12 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_laserbas(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
 void laserbas_state::video_start()
 {
-
 	save_item(NAME(m_vram1));
 	save_item(NAME(m_vram2));
 }
@@ -92,7 +93,6 @@ UINT32 laserbas_state::screen_update_laserbas(screen_device &screen, bitmap_ind1
 
 READ8_MEMBER(laserbas_state::vram_r)
 {
-
 	if(!m_vrambank)
 		return m_vram1[offset];
 	else
@@ -101,7 +101,6 @@ READ8_MEMBER(laserbas_state::vram_r)
 
 WRITE8_MEMBER(laserbas_state::vram_w)
 {
-
 	if(!m_vrambank)
 		m_vram1[offset] = data;
 	else
@@ -111,7 +110,6 @@ WRITE8_MEMBER(laserbas_state::vram_w)
 #if 0
 READ8_MEMBER(laserbas_state::read_unk)
 {
-
 	m_count ^= 0x80;
 	return m_count | 0x7f;
 }
@@ -119,7 +117,6 @@ READ8_MEMBER(laserbas_state::read_unk)
 
 WRITE8_MEMBER(laserbas_state::vrambank_w)
 {
-
 	/* either bit 2 or 3 controls flip screen */
 
 	m_vrambank = data & 0x40;
@@ -127,13 +124,11 @@ WRITE8_MEMBER(laserbas_state::vrambank_w)
 
 READ8_MEMBER(laserbas_state::protram_r)
 {
-
 	return m_protram[offset];
 }
 
 WRITE8_MEMBER(laserbas_state::protram_w)
 {
-
 	m_protram[offset] = data;
 }
 
@@ -154,9 +149,9 @@ static ADDRESS_MAP_START( laserbas_io, AS_IO, 8, laserbas_state )
 	AM_RANGE(0x20, 0x20) AM_READ_PORT("IN1") // DSW + something else?
 	AM_RANGE(0x21, 0x21) AM_READ_PORT("IN0")
 	AM_RANGE(0x22, 0x22) AM_READ_PORT("IN2")
-//  AM_RANGE(0x23, 0x23) AM_WRITE_LEGACY(test_w) bit 2 presumably is a mux for 0x20?
-	AM_RANGE(0x40, 0x43) AM_DEVREADWRITE_LEGACY("pit0", pit8253_r, pit8253_w)
-	AM_RANGE(0x44, 0x47) AM_DEVREADWRITE_LEGACY("pit1", pit8253_r, pit8253_w)
+//  AM_RANGE(0x23, 0x23) AM_WRITE(test_w) bit 2 presumably is a mux for 0x20?
+	AM_RANGE(0x40, 0x43) AM_DEVREADWRITE("pit0", pit8253_device, read, write)
+	AM_RANGE(0x44, 0x47) AM_DEVREADWRITE("pit1", pit8253_device, read, write)
 	AM_RANGE(0x80, 0x9f) AM_RAM_WRITE(paletteram_RRRGGGBB_byte_w) AM_SHARE("paletteram")
 ADDRESS_MAP_END
 
@@ -233,21 +228,20 @@ INPUT_PORTS_END
 
 void laserbas_state::machine_start()
 {
-
 	save_item(NAME(m_vrambank));
 	save_item(NAME(m_count));
 }
 
 void laserbas_state::machine_reset()
 {
-
 	m_vrambank = 0;
 	m_count = 0;
 }
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -261,7 +255,7 @@ static const mc6845_interface mc6845_intf =
 
 
 /* TODO: clocks aren't known */
-static const struct pit8253_config laserbas_pit8253_intf_0 =
+static const struct pit8253_interface laserbas_pit8253_intf_0 =
 {
 	{
 		{
@@ -282,7 +276,7 @@ static const struct pit8253_config laserbas_pit8253_intf_0 =
 	}
 };
 
-static const struct pit8253_config laserbas_pit8253_intf_1 =
+static const struct pit8253_interface laserbas_pit8253_intf_1 =
 {
 	{
 		{

@@ -36,8 +36,9 @@ class jongkyo_state : public driver_device
 {
 public:
 	jongkyo_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* misc */
 	UINT8    m_rom_bank;
@@ -59,6 +60,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_jongkyo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -70,7 +72,6 @@ public:
 
 void jongkyo_state::video_start()
 {
-
 }
 
 UINT32 jongkyo_state::screen_update_jongkyo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -237,8 +238,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( jongkyo_portmap, AS_IO, 8, jongkyo_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	// R 01 keyboard
-	AM_RANGE(0x01, 0x01) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x01, 0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 
 	AM_RANGE(0x10, 0x10) AM_READ_PORT("DSW") AM_WRITE(jongkyo_coin_counter_w)
 	AM_RANGE(0x11, 0x11) AM_READ_PORT("IN0") AM_WRITE(mux_w)
@@ -435,7 +436,7 @@ INPUT_PORTS_END
 void jongkyo_state::palette_init()
 {
 	int i;
-	UINT8* proms = machine().root_device().memregion("proms")->base();
+	UINT8* proms = memregion("proms")->base();
 	for (i = 0; i < 0x40; i++)
 	{
 		int data = proms[i];
@@ -474,7 +475,6 @@ static const ay8910_interface ay8910_config =
 
 void jongkyo_state::machine_start()
 {
-
 	save_item(NAME(m_videoram2));
 	save_item(NAME(m_rom_bank));
 	save_item(NAME(m_mux_data));
@@ -482,7 +482,6 @@ void jongkyo_state::machine_start()
 
 void jongkyo_state::machine_reset()
 {
-
 	m_rom_bank = 0;
 	m_mux_data = 0;
 }
@@ -549,7 +548,7 @@ ROM_END
 DRIVER_INIT_MEMBER(jongkyo_state,jongkyo)
 {
 	int i;
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	/* first of all, do a simple bitswap */
 	for (i = 0x6000; i < 0x9000; ++i)

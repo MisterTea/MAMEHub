@@ -46,20 +46,18 @@ machine_config_constructor a2bus_echoii_device::device_mconfig_additions() const
 //  LIVE DEVICE
 //**************************************************************************
 
-a2bus_echoii_device::a2bus_echoii_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, type, name, tag, owner, clock),
+a2bus_echoii_device::a2bus_echoii_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 	device_a2bus_card_interface(mconfig, *this),
 	m_tms(*this, TMS_TAG)
 {
-	m_shortname = "a2echoii";
 }
 
 a2bus_echoii_device::a2bus_echoii_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, A2BUS_ECHOII, "Street Electronics Echo II", tag, owner, clock),
+	device_t(mconfig, A2BUS_ECHOII, "Street Electronics Echo II", tag, owner, clock, "a2echoii", __FILE__),
 	device_a2bus_card_interface(mconfig, *this),
 	m_tms(*this, TMS_TAG)
 {
-	m_shortname = "a2echoii";
 }
 
 //-------------------------------------------------
@@ -81,7 +79,7 @@ UINT8 a2bus_echoii_device::read_c0nx(address_space &space, UINT8 offset)
 	switch (offset)
 	{
 		case 0:
-			return 0x1f | tms5220_status_r(m_tms, space, 0);
+			return 0x1f | m_tms->status_r(space, 0);
 	}
 
 	return 0;
@@ -92,7 +90,7 @@ void a2bus_echoii_device::write_c0nx(address_space &space, UINT8 offset, UINT8 d
 	switch (offset)
 	{
 		case 0:
-			tms5220_data_w(m_tms, space, offset, data);
+			m_tms->data_w(space, offset, data);
 			break;
 	}
 }

@@ -29,19 +29,15 @@ keyboard trick;
 
 #include "emu.h"
 #include "cpu/i386/i386.h"
-#include "machine/pic8259.h"
-#include "machine/pit8253.h"
-#include "machine/mc146818.h"
-#include "machine/8042kbdc.h"
 #include "machine/pcshare.h"
 #include "video/pc_vga.h"
 
 
-class pcat_dyn_state : public driver_device
+class pcat_dyn_state : public pcat_base_state
 {
 public:
 	pcat_dyn_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: pcat_base_state(mconfig, type, tag) { }
 
 	DECLARE_DRIVER_INIT(pcat_dyn);
 	virtual void machine_start();
@@ -67,7 +63,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pcat_io, AS_IO, 32, pcat_dyn_state )
 	AM_IMPORT_FROM(pcat32_io_common)
-	AM_RANGE(0x0070, 0x007f) AM_DEVREADWRITE8("rtc", mc146818_device, read, write, 0xffffffff)
 	AM_RANGE(0x03b0, 0x03bf) AM_DEVREADWRITE8("vga", vga_device, port_03b0_r, port_03b0_w, 0xffffffff)
 	AM_RANGE(0x03c0, 0x03cf) AM_DEVREADWRITE8("vga", vga_device, port_03c0_r, port_03c0_w, 0xffffffff)
 	AM_RANGE(0x03d0, 0x03df) AM_DEVREADWRITE8("vga", vga_device, port_03d0_r, port_03d0_w, 0xffffffff)
@@ -107,37 +102,9 @@ static INPUT_PORTS_START( pcat_dyn )
 	PORT_START("pc_keyboard_7")
 INPUT_PORTS_END
 
-static void pcat_dyn_set_keyb_int(running_machine &machine, int state)
-{
-	pic8259_ir1_w(machine.device("pic8259_1"), state);
-}
-
-static void set_gate_a20(running_machine &machine, int a20)
-{
-	machine.device("maincpu")->execute().set_input_line(INPUT_LINE_A20, a20);
-}
-
-static void keyboard_interrupt(running_machine &machine, int state)
-{
-	pic8259_ir1_w(machine.device("pic8259_1"), state);
-}
-
-static int pcat_dyn_get_out2(running_machine &machine) {
-	return pit8253_get_output(machine.device("pit8254"), 2 );
-}
-
-
-static const struct kbdc8042_interface at8042 =
-{
-	KBDC8042_AT386, set_gate_a20, keyboard_interrupt, NULL, pcat_dyn_get_out2
-};
-
 void pcat_dyn_state::machine_start()
 {
-
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(pcat_irq_callback);
-	init_pc_common(machine(), PCCOMMON_KEYBOARD_AT, pcat_dyn_set_keyb_int);
-	kbdc8042_init(machine(), &at8042);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(pcat_dyn_state::irq_callback),this));
 }
 
 static MACHINE_CONFIG_START( pcat_dyn, pcat_dyn_state )
@@ -151,7 +118,6 @@ static MACHINE_CONFIG_START( pcat_dyn, pcat_dyn_state )
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
-	MCFG_MC146818_ADD( "rtc", MC146818_STANDARD )
 
 	MCFG_FRAGMENT_ADD( pcat_common )
 MACHINE_CONFIG_END

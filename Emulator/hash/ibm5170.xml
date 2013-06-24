@@ -2,6 +2,10 @@
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
 <!--
 Missing files come here
+
+    IPF Dumps Missing
+    Rick Dangerous (SPS 3042)
+
 -->
 <softwarelist name="ibm5170" description="IBM PC/AT disk images">
 <!-- OS Disks -->
@@ -11,15 +15,15 @@ Missing files come here
 		<year>1993</year>
 		<publisher>Knowledge Dynamics Corp,</publisher>
 		<part name="flop1" interface="floppy_5_25">
-		<feature name="disk_serial" value="02042 036214.330A" />
-		<feature name="disk_label" value="Programs" />
+			<feature name="disk_serial" value="02042 036214.330A" />
+			<feature name="disk_label" value="Programs" />
 			<dataarea name="flop" size="368640">
 				<rom name="disk 1.img" size="368640" crc="db07d99a" sha1="121ad3c636a69dae3a8eee96ef2ebf1152e9d00f" offset="0" />
 			</dataarea>
 		</part>
 		<part name="flop2" interface="floppy_3_5">
-		<feature name="disk_serial" value="02043 036214.330A" />
-		<feature name="disk_label" value="Additional Pragrams and Microsoft GW-Basic Interpreter" />
+			<feature name="disk_serial" value="02043 036214.330A" />
+			<feature name="disk_label" value="Additional Pragrams and Microsoft GW-Basic Interpreter" />
 			<dataarea name="flop" size="368640">
 				<rom name="disk 2.img" size="368640" crc="bef8e643" sha1="97df57499e009101d04bd696d23024b4d220e297" offset="0" />
 			</dataarea>
@@ -32,19 +36,19 @@ Missing files come here
 		<publisher>Microsoft</publisher>
 		<info name="OEM" value="Mecer" />
 		<part name="flop1" interface="floppy_3_5">
-		<feature name="disk_serial" value="0044238" />
+			<feature name="disk_serial" value="0044238" />
 			<dataarea name="flop" size="737280">
 				<rom name="operating 1.img" size="737280" crc="c54fe610" sha1="27756a10edbe33f76ff2239062af05dbfdc93979" offset="0" />
 			</dataarea>
 		</part>
 		<part name="flop2" interface="floppy_3_5">
-		<feature name="disk_serial" value="0045925" />
+			<feature name="disk_serial" value="0045925" />
 			<dataarea name="flop" size="737280">
 				<rom name="operating 2.img" size="737280" crc="9aa5c1a4" sha1="15cc58e267601b30a594372aea1ff3dbb73ea335" offset="0" />
 			</dataarea>
 		</part>
 		<part name="flop3" interface="floppy_3_5">
-		<feature name="disk_serial" value="0044171" />
+			<feature name="disk_serial" value="0044171" />
 			<dataarea name="flop" size="737280">
 				<rom name="operating 3.img" size="737280" crc="6248317a" sha1="c7ff3a04eb01cab3efb05b6b52ec8b8a36b9b269" offset="0" />
 			</dataarea>
@@ -362,7 +366,7 @@ Missing files come here
 		<publisher>KYE Systems Corp.</publisher>
 		<info name="alt_title" value="MouseMate Software Scroll Mouse for Windows XP/Me/98/2000/2003" />
 		<part name="flop1" interface="floppy_3_5">
-		<feature name="disk_serial" value="12060321100-B" />
+			<feature name="disk_serial" value="12060321100-B" />
 			<dataarea name="flop" size="1474560">
 				<rom name="scroll mouse.img" size="1474560" crc="5ed59ff2" sha1="da4405fda8f12616f0fe4ab71ca0aac92933b22e" offset="0" />
 			</dataarea>
@@ -668,9 +672,100 @@ Missing files come here
 		<publisher>IMSI</publisher>
 		<info name="alt_title" value="WinDelete 3.0 For Win 3.x Version 3.0 - 16 Bit" />
 		<part name="flop1" interface="floppy_3_5">
-		<feature name="disk_serial" value="03WDXW3001" />
+			<feature name="disk_serial" value="03WDXW3001" />
 			<dataarea name="flop" size="1474560">
 				<rom name="wdel3.img" size="1474560" crc="9c2e76b9" sha1="b6b6f18726ce0f4ae1aeb2c33b8e4793ca15f87a" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+<!-- SDK's-->
+
+	<software name="win23sdk">
+		<description>Windows 2.03 SDK</description>
+		<year>1988</year>
+		<publisher>Microsoft</publisher>
+
+		<part name="flop1" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="lgsamp.img" size="737280" crc="e99b3f65" sha1="33a94f251c46d2afda7859f79d595a0013d7e2be" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop2" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="samples.img" size="737280" crc="1b24660c" sha1="2e317489cd6f08d371951abd8404bc585e213096" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop3" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="softdev1.img" size="737280" crc="8d43ccb8" sha1="9441d2cf5215fd0029cd7029fb0e48439682a18a" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop4" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="softdev2.img" size="737280" crc="38507da0" sha1="96c10e6493a5e6ba0e66fc054782115ab0b191e3" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop5" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="utils.img" size="737280" crc="29d9ff07" sha1="bc59bc9011ef6b8e0667acd93cfa1ced68b22b2e" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="win3sdk">
+		<description>Windows 3.0 SDK</description>
+		<year>1990</year>
+		<publisher>Microsoft</publisher>
+
+		<part name="flop1" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="debug files 2 (050-151-032).img" size="737280" crc="e238b341" sha1="63e78f3e07ab626d0ed8752384f12535d1844837" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop2" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="debug tools 2 - debug files 1 (050-151-031).img" size="737280" crc="560a4fed" sha1="c543e5a4e330b62191b0dcae2fa45c4e3588814a" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop3" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="development tools 1 (050-151-029).img" size="737280" crc="d920a200" sha1="70ff9eaef1802e606d81d90e90b8eefaba6c1540" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop4" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="development tools 2 - debug tools 1 (050-151-030).img" size="737280" crc="6c353dc7" sha1="609356e84bb8100e1736718bfb537e794b26ed0c" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop5" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="include files, sample source code 1 (050-151-035).img" size="737280" crc="e704e7cd" sha1="8cae5fd6320a53d37e9f2d4598264fef8cd56f9c" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop6" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="link libraries 1 (050-151-033).img" size="737280" crc="c152995c" sha1="46be42851a98b9c9e8a63b087e730426335f7bbf" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop7" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="link libraries 2 (050-151-034).img" size="737280" crc="3dd278d0" sha1="b3efdf6e9233a490f401e930d2eabc8007534fbe" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop8" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="online reference (advisor format) (050-151-037).img" size="737280" crc="54d14c76" sha1="c9f0d665cb55e819f954bc312b6b1c7ffba8623b" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop9" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="online reference (windows help format) (050-151-038).img" size="737280" crc="18899701" sha1="c0ea127f35431cc575357b1fd9da1b0fcc184c2f" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop10" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="sample source code 2 (050-151-036).img" size="737280" crc="fa050647" sha1="d9a10b58ad2208a6531d9d7627533a3800a69137" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -744,6 +839,17 @@ Missing files come here
 		<part name="flop2" interface="floppy_5_25">
 			<dataarea name="flop" size="368640">
 				<rom name="disk2.img" size="368640" crc="ac41fa21" sha1="37b354219a8db98f6e45f17ca938189078afffb0" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="rylvania">
+		<description>Horror of Rylvania</description>
+		<year>1993</year>
+		<publisher>Adventions</publisher>
+		<part name="flop1" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="rylvania.img" size="737280" crc="ea106aa8" sha1="4fe870233b521ccdc912e5a4476e52bdc03d6f5b" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -824,6 +930,21 @@ Missing files come here
 			</dataarea>
 		</part>
 	</software>
+
+<!--
+    This is not a real dump, it was constructed using WinImage for use with MESS
+    Also circulating with CRC fb591430
+    <software name="ptombs">
+        <description>Pharaoh's Tomb (Shareware)</description>
+        <year>1994</year>
+        <publisher>Apogee</publisher>
+        <part name="flop1" interface="floppy_5_25">
+            <dataarea name="flop" size="368640">
+                <rom name="pharaoh's tomb (shareware).img" size="368640" crc="b1f4dbf6" sha1="d3c4ae0b6ac6b5233c4970805c8e4f2b89f9c57a" offset="0" />
+            </dataarea>
+        </part>
+    </software>
+-->
 
 	<software name="raptor12">
 		<description>Raptor - Call of the Shadows</description>
@@ -1034,6 +1155,45 @@ Missing files come here
 		</part>
 	</software>
 
+	<software name="unnkulia">
+		<description>Unnkulia Zero: The Search for Amanda</description>
+		<year>1993</year>
+		<publisher>Adventions</publisher>
+		<part name="flop1" interface="floppy_3_5">
+			<dataarea name="flop" size="737280">
+				<rom name="unnkulia.img" size="737280" crc="b5332f4b" sha1="052d7068981bfef95fb6b6bd1d35e6f3e3c22e61" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="vanslug">
+		<!-- Marked as bad, could do with another dump to make sure it's correct-->
+		<description>Vanslug: X Mission - The Way of Super Warrior</description>
+		<year>1995</year>
+		<publisher>Soft Action</publisher>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="1228800">
+				<rom name="disk 1.img" size="1228800" crc="646b7e83" sha1="d9b54170f5eedf00fc71aa7461f97b22191ded21" offset="0" status="baddump" />
+			</dataarea>
+		</part>
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="1228800">
+				<rom name="disk 2.img" size="1228800" crc="d2ca67ec" sha1="6e5bf5e88ddc12cd0758807054a84586ad66e334" offset="0" status="baddump" />
+			</dataarea>
+		</part>
+		<part name="flop3" interface="floppy_5_25">
+			<dataarea name="flop" size="1228800">
+				<rom name="disk 3.img" size="1228800" crc="a31fc22a" sha1="ea64dfd20e491a0f2bfce762e34af849ac1524ad" offset="0" status="baddump" />
+			</dataarea>
+		</part>
+		<part name="flop4" interface="floppy_5_25">
+			<dataarea name="flop" size="1228800">
+				<rom name="disk 4.img" size="1228800" crc="caf1057e" sha1="bff9d7c21675da1197cbcf039823982e69d9c6c0" offset="0" status="baddump" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="wcgps">
 		<description>World Circuit - Grand Prix Simulation</description>
 		<year>1992</year>
@@ -1062,9 +1222,101 @@ Missing files come here
 
 	<!-- Coverdisks -->
 
-	<!-- PC Gamer Germany -->
+	<!-- Riki (Slovakia) -->
+
+	<!-- Riki 8 undumped
+	    <info name="Contents" value="The Mask" />-->
+
+	<!-- Riki 10 undumped
+	    <info name="Contents" value="Pyrotechnika" />-->
+
+	<!-- Riki 11 undumped
+	    <info name="Contents" value="Super Stardust" />-->
+
+	<software name="riki12">
+		<description>Riki Coverdisk (September 1995) (Slovak)</description>
+		<year>1995</year>
+		<publisher>Riki</publisher>
+		<info name="contents" value="3D Lemmings" />
+		<part name="flop1" interface="floppy_3_5">
+			<dataarea name="flop" size="1474560">
+				<rom name="riki0995-12.img" size="1474560" crc="08ba4452" sha1="5bafab8f03ee9193bdaaf486abf0a34afc1020bd" offset="0" status="baddump" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="riki13">
+		<description>Riki Coverdisk (October 1995) (Slovak)</description>
+		<year>1995</year>
+		<publisher>Riki</publisher>
+		<info name="contents" value="Darker" />
+		<part name="flop1" interface="floppy_3_5">
+			<dataarea name="flop" size="1474560">
+				<rom name="riki1095-13.img" size="1474560" crc="473d5119" sha1="95f5a08381985710cf9e712b4c8aae4370b16824" offset="0" status="baddump" />
+			</dataarea>
+		</part>
+	</software>
+
+	<!-- Riki 14 undumped
+	    <info name="Contents" value="Bleifuss" />-->
+
+	<software name="riki15">
+		<description>Riki Coverdisk (December 1995) (Slovak)</description>
+		<year>1995</year>
+		<publisher>Riki</publisher>
+		<info name="contents" value="Quadrax" /> <!-- Seems to be a game made especially for Riki by Cauldron and is in Slovakian -->
+		<part name="flop1" interface="floppy_3_5">
+			<dataarea name="flop" size="1474560">
+				<rom name="riki1295-15.img" size="1474560" crc="8e22c825" sha1="72a1b27790d4fcab18a81cb892d9e3e6dc80e47c" offset="0" status="baddump" />
+			</dataarea>
+		</part>
+	</software>
+
+	<!-- Riki 16 undumped
+	    <info name="Contents" value="Jungle Book" />-->
+
+	<!-- Riki 17 undumped
+	    <info name="Contents" value="Turrican II" />-->
+
+	<!-- Riki 18 undumped
+	    <info name="Contents" value="Worms />-->
+
+	<!-- Riki 19 undumped
+	    <info name="Contents" value="Tempest 2000" />-->
+
+	<!-- Riki 20 undumped
+	    <info name="Contents" value="Virtual Snooker" />-->
+
+	<!-- Riki 21 undumped
+	    <info name="Contents" value="World Rally Fever" />-->
+
+	<software name="riki22">
+		<description>Riki Coverdisk (September 1996) (Slovak)</description>
+		<year>1996</year>
+		<publisher>Riki</publisher>
+		<info name="contents" value="Gearheads" />
+		<part name="flop1" interface="floppy_3_5">
+			<dataarea name="flop" size="1474560">
+				<rom name="riki0996-22.img" size="1474560" crc="785d713a" sha1="8d4d2108200b36feef6d0f16a2dd243609d90943" offset="0" status="baddump" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="riki23">
+		<description>Riki Coverdisk (October/November 1996) (Slovak)</description>
+		<year>1996</year>
+		<publisher>Riki</publisher>
+		<info name="contents" value="Mutation of JB" />
+		<part name="flop1" interface="floppy_3_5">
+			<dataarea name="flop" size="1474560">
+				<rom name="riki1196-23.img" size="1474560" crc="d690c997" sha1="38996ed2f099b5c800184ff6b6fbc1f21d87456d" offset="0" status="baddump" />
+			</dataarea>
+		</part>
+	</software>
+
+	<!-- PC Gamer (Germany) -->
 	<!-- October 1992 undumped
-	<info name="Contents" value="Soul Magican / Atom Demo" />-->
+	    <info name="Contents" value="Soul Magican / Atom Demo" />-->
 
 	<software name="pcga9211">
 		<description>PC Games Coverdisk (November 1992) (German)</description>
@@ -1079,7 +1331,7 @@ Missing files come here
 	</software>
 
 	<!-- December 1992 undumped
-	<info name="Contents" value="Ween the Prophecy Demo" />-->
+	    <info name="Contents" value="Ween the Prophecy Demo" />-->
 
 	<software name="pcga9301">
 		<description>PC Games Coverdisk (January 1993) (German)</description>
@@ -1106,13 +1358,13 @@ Missing files come here
 	</software>
 
 	<!-- March 1993 undumped
-	<info name="Contents" value="Ween the Prophecy Demo" />-->
+	    <info name="Contents" value="Ween the Prophecy Demo" />-->
 
 	<!-- April 1993 undumped
-	<info name="Contents" value="Zool Demo" />-->
+	    <info name="Contents" value="Zool Demo" />-->
 
 	<!-- May 1993 undumped
-	<info name="Contents" value="Tornado Demo" />-->
+	    <info name="Contents" value="Tornado Demo" />-->
 
 	<software name="pcga9306">
 		<description>PC Games Coverdisk (June 1993) (German)</description>
@@ -1151,7 +1403,7 @@ Missing files come here
 	</software>
 
 	<!-- September 1993 undumped
-	<info name="Contents" value="Ambush at Sorinor Demo" />-->
+	    <info name="Contents" value="Ambush at Sorinor Demo" />-->
 
 	<software name="pcga9310">
 		<description>PC Games Coverdisk (October 1993) (German)</description>
@@ -1166,13 +1418,13 @@ Missing files come here
 	</software>
 
 	<!-- November 1993 undumped
-	<info name="Contents" value="Energie Manager Demo" />-->
+	    <info name="Contents" value="Energie Manager Demo" />-->
 
 	<!-- December 1993 undumped
-	<info name="Contents" value="Micro Machines Demo" />-->
+	    <info name="Contents" value="Micro Machines Demo" />-->
 
 	<!-- January 1994 undumped
-	<info name="Contents" value="Android Demo" />-->
+	    <info name="Contents" value="Android Demo" />-->
 
 	<software name="pcga9402">
 		<description>PC Games Coverdisk (February 1994) (German)</description>
@@ -1187,7 +1439,7 @@ Missing files come here
 	</software>
 
 	<!-- March 1994 undumped
-	<info name="Contents" value="Pinball Fantasies Demo" />-->
+	    <info name="Contents" value="Pinball Fantasies Demo" />-->
 
 	<software name="pcga9404">
 		<description>PC Games Coverdisk (April 1994) (German)</description>
@@ -1226,22 +1478,22 @@ Missing files come here
 	</software>
 
 	<!-- July 1994 undumped
-	<info name="Contents" value="Tubular Worlds / Empire Soccer Demo" />-->
+	    <info name="Contents" value="Tubular Worlds / Empire Soccer Demo" />-->
 
 	<!-- August 1994 undumped
-	<info name="Contents" value="Der Clou Demo / 3 New Doom Level" />-->
+	    <info name="Contents" value="Der Clou Demo / 3 New Doom Level" />-->
 
 	<!-- September 1994 undumped
-	<info name="Contents" value="Tony and Friends in Kellogg's Land Demo" />-->
+	    <info name="Contents" value="Tony and Friends in Kellogg's Land Demo" />-->
 
 	<!-- October 1994 undumped
-	<info name="Contents" value="Cool Spot / Cheat It Demo" />-->
+	    <info name="Contents" value="Cool Spot / Cheat It Demo" />-->
 
 	<!-- November 1994 undumped
-	<info name="Contents" value="Bundesliga Manager Hattrick / 3 New Doom Level / Cheat it Demo" />-->
+	    <info name="Contents" value="Bundesliga Manager Hattrick / 3 New Doom Level / Cheat it Demo" />-->
 
 	<!-- December 1994 undumped
-	<info name="Contents" value="Desert Strike Demo / Bundesliga Manager Hattrick Update" />-->
+	    <info name="Contents" value="Desert Strike Demo / Bundesliga Manager Hattrick Update" />-->
 
 	<software name="pcga9501">
 		<description>PC Games Coverdisk (January 1995) (German)</description>
@@ -1319,4 +1571,53 @@ Missing files come here
 			</dataarea>
 		</part>
 	</software>
+
+	<!-- IPF's Dual format-->
+	<software name="actfgkix" supported="no">
+		<description>Action Fighter (Kixx)</description>
+		<year>1989</year>
+		<publisher>KIXX</publisher>
+		<info name="SPS Release" value="3040" />
+		<!-- budget, standalone -->
+		<!-- (Amiga, OCS, PAL) -->
+		<!-- (PC, PAL) -->
+
+		<part name="flop1" interface="floppy_3_5">
+			<feature name="part_id" value="Disk 1" />
+			<dataarea name="flop" size="978321">
+				<rom name="(sps3040)actionfighter (amiga + pc disk).ipf" size="978321" crc="795e1dfd" sha1="8fa4beb3cd9150249821f2d90b3c572bab4b3e11" offset="0"/>
+			</dataarea>
+		</part>
+
+		<part name="flop2" interface="floppy_3_5">
+			<feature name="part_id" value="Disk 2" />
+			<dataarea name="flop" size="918252">
+				<rom name="(sps3040)actionfighter (pc disk).ipf" size="918252" crc="809bfb3b" sha1="a6b2a61b6fd30f671706bf3da37f479bf24fd0d3" offset="0"/>
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="sf1" supported="no">
+		<description>Street Fighter (Kixx)</description>
+		<!-- budget, standalone -->
+		<!-- (Amiga, OCS, PAL) -->
+		<!-- (PC, PAL) -->
+		<year>199?</year>
+		<publisher>KIXX</publisher>
+		<info name="SPS Release" value="3041" />
+
+		<part name="flop1" interface="floppy_3_5">
+			<feature name="part_id" value="Disk 1" />
+			<dataarea name="flop" size="991457">
+				<rom name="(sps3041)streetfighter (amiga + pc disk).ipf" size="991457" crc="218d38da" sha1="045b4c14dc1523f33b55e2986357a07908caa8a6" offset="0"/>
+			</dataarea>
+		</part>
+		<part name="flop2" interface="floppy_3_5">
+			<feature name="part_id" value="Disk 2" />
+			<dataarea name="flop" size="918252">
+				<rom name="(sps3041)streetfighter (pc disk).ipf" size="918252" crc="ae97b7e1" sha1="9fc6cebe832e0e19192c428fb93f4ad9a827b2a3" offset="0"/>
+			</dataarea>
+		</part>
+	</software>
+
 </softwarelist>

@@ -44,14 +44,14 @@
 const device_type M6502 = &device_creator<m6502_device>;
 
 m6502_device::m6502_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	cpu_device(mconfig, M6502, "M6502", tag, owner, clock),
+	cpu_device(mconfig, M6502, "M6502", tag, owner, clock, "m6502", __FILE__),
 	program_config("program", ENDIANNESS_LITTLE, 8, 16)
 {
 	direct_disabled = false;
 }
 
-m6502_device::m6502_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-	cpu_device(mconfig, type, name, tag, owner, clock),
+m6502_device::m6502_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+	cpu_device(mconfig, type, name, tag, owner, clock, shortname, source),
 	program_config("program", ENDIANNESS_LITTLE, 8, 16)
 {
 	direct_disabled = false;
@@ -76,7 +76,7 @@ void m6502_device::init()
 	state_add(STATE_GENPCBASE, "GENPCBASE", PPC).noshow();
 	state_add(STATE_GENSP,     "GENSP",     SP).noshow();
 	state_add(STATE_GENFLAGS,  "GENFLAGS",  P).callimport().formatstr("%6s").noshow();
-	state_add(M6502_PC,        "PC",        NPC);
+	state_add(M6502_PC,        "PC",        NPC).callimport();
 	state_add(M6502_A,         "A",         A);
 	state_add(M6502_X,         "X",         X);
 	state_add(M6502_Y,         "Y",         Y);
@@ -100,6 +100,7 @@ void m6502_device::init()
 	save_item(NAME(v_state));
 	save_item(NAME(inst_state));
 	save_item(NAME(inst_substate));
+	save_item(NAME(inst_state_base));
 	save_item(NAME(irq_taken));
 	save_item(NAME(inhibit_interrupts));
 
@@ -122,6 +123,7 @@ void m6502_device::init()
 	v_state = false;
 	inst_state = STATE_RESET;
 	inst_substate = 0;
+	inst_state_base = 0;
 	sync = false;
 	end_cycles = 0;
 	inhibit_interrupts = false;
@@ -131,6 +133,7 @@ void m6502_device::device_reset()
 {
 	inst_state = STATE_RESET;
 	inst_substate = 0;
+	inst_state_base = 0;
 	nmi_state = false;
 	irq_state = false;
 	apu_irq_state = false;
@@ -404,9 +407,9 @@ void m6502_device::execute_run()
 		do_exec_partial();
 
 	while(icount > 0) {
-		if(inst_state < 0x100) {
+		if(inst_state < 0xff00) {
 			PPC = NPC;
-			inst_state = IR;
+			inst_state = IR | inst_state_base;
 			if(machine().debug_flags & DEBUG_FLAG_ENABLED)
 				debugger_instruction_hook(this, NPC);
 		}
@@ -442,6 +445,13 @@ void m6502_device::state_import(const device_state_entry &entry)
 	case STATE_GENFLAGS:
 	case M6502_P:
 		P = P | (F_B|F_E);
+		break;
+	case M6502_PC:
+		PC = NPC;
+		irq_taken = false;
+		prefetch();
+		PPC = NPC;
+		inst_state = IR | inst_state_base;
 		break;
 	}
 }
@@ -479,7 +489,7 @@ UINT32 m6502_device::disasm_max_opcode_bytes() const
 
 offs_t m6502_device::disassemble_generic(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options, const disasm_entry *table)
 {
-	const disasm_entry &e = table[oprom[0]];
+	const disasm_entry &e = table[oprom[0] | inst_state_base];
 	UINT32 flags = e.flags | DASMFLAG_SUPPORTED;
 	buffer += sprintf(buffer, "%s", e.opcode);
 
@@ -617,6 +627,21 @@ offs_t m6502_device::disassemble_generic(char *buffer, offs_t pc, const UINT8 *o
 		flags |= 2;
 		break;
 
+	case DASM_bzr:
+		sprintf(buffer, " %d, $%02x, $%04x", (opram[0] >> 5) & 7, opram[1], (pc & 0xf0000) | UINT16(pc + 3 + INT8(opram[2])));
+		flags |= 3;
+		break;
+
+	case DASM_bar:
+		sprintf(buffer, " %d, a, $%04x", (opram[0] >> 5) & 7, (pc & 0xf0000) | UINT16(pc + 3 + INT8(opram[1])));
+		flags |= 2;
+		break;
+
+	case DASM_bac:
+		sprintf(buffer, " %d, a", (opram[0] >> 5) & 7);
+		flags |= 1;
+		break;
+
 	default:
 		fprintf(stderr, "Unhandled dasm mode %d\n", e.mode);
 		abort();
@@ -701,6 +726,11 @@ UINT8 m6502_device::mi_default_nd::read_direct(UINT16 adr)
 UINT8 m6502_device::mi_default_nd::read_decrypted(UINT16 adr)
 {
 	return read(adr);
+}
+
+WRITE_LINE_MEMBER( m6502_device::irq_line )
+{
+	set_input_line( M6502_IRQ_LINE, state );
 }
 
 #include "cpu/m6502/m6502.inc"

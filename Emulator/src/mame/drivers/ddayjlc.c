@@ -60,11 +60,13 @@ class ddayjlc_state : public driver_device
 {
 public:
 	ddayjlc_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_mainram(*this, "mainram"),
 		m_spriteram(*this, "spriteram"),
 		m_videoram(*this, "videoram"),
-		m_bgram(*this, "bgram"){ }
+		m_bgram(*this, "bgram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_mainram;
@@ -85,7 +87,7 @@ public:
 	UINT8    m_prot_addr;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE8_MEMBER(prot_w);
 	DECLARE_WRITE8_MEMBER(char_bank_w);
 	DECLARE_WRITE8_MEMBER(ddayjlc_bgram_w);
@@ -108,6 +110,7 @@ public:
 	UINT32 screen_update_ddayjlc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ddayjlc_interrupt);
 	INTERRUPT_GEN_MEMBER(ddayjlc_snd_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -171,7 +174,6 @@ WRITE8_MEMBER(ddayjlc_state::char_bank_w)
 
 WRITE8_MEMBER(ddayjlc_state::ddayjlc_bgram_w)
 {
-
 	if (!offset)
 		m_bg_tilemap->set_scrollx(0, data + 8);
 
@@ -207,7 +209,6 @@ WRITE8_MEMBER(ddayjlc_state::bg1_w)
 
 WRITE8_MEMBER(ddayjlc_state::bg2_w)
 {
-
 	m_bgadr = (m_bgadr & 0xfb) | ((data & 1) << 2);
 	if (m_bgadr > 2)
 		m_bgadr = 0;
@@ -217,21 +218,18 @@ WRITE8_MEMBER(ddayjlc_state::bg2_w)
 
 WRITE8_MEMBER(ddayjlc_state::sound_w)
 {
-
 	soundlatch_byte_w(space, offset, data);
 	m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
 }
 
 WRITE8_MEMBER(ddayjlc_state::i8257_CH0_w)
 {
-
 	m_e00x_d[offset][m_e00x_l[offset]] = data;
 	m_e00x_l[offset] ^= 1;
 }
 
 WRITE8_MEMBER(ddayjlc_state::i8257_LMSR_w)
 {
-
 	if (!data)
 	{
 		INT32 src = m_e00x_d[0][1] * 256 + m_e00x_d[0][0];
@@ -282,10 +280,10 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_cpu, AS_PROGRAM, 8, ddayjlc_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x2000, 0x23ff) AM_RAM
-	AM_RANGE(0x3000, 0x3000) AM_DEVREADWRITE_LEGACY("ay1", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x5000, 0x5000) AM_DEVREADWRITE_LEGACY("ay2", ay8910_r, ay8910_data_w)
-	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x3000, 0x3000) AM_DEVREADWRITE("ay1", ay8910_device, data_r, data_w)
+	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x5000, 0x5000) AM_DEVREADWRITE("ay2", ay8910_device, data_r, data_w)
+	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0x7000, 0x7000) AM_WRITE(sound_nmi_w)
 ADDRESS_MAP_END
 
@@ -452,9 +450,6 @@ INTERRUPT_GEN_MEMBER(ddayjlc_state::ddayjlc_snd_interrupt)
 
 void ddayjlc_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_char_bank));
 	save_item(NAME(m_bgadr));
 	save_item(NAME(m_sound_nmi_enable));
@@ -488,7 +483,7 @@ void ddayjlc_state::machine_reset()
 
 void ddayjlc_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i,r,g,b,val;
 	int bit0,bit1,bit2;
 
@@ -673,8 +668,8 @@ DRIVER_INIT_MEMBER(ddayjlc_state,ddayjlc)
 		UINT8 *src, *dst, *temp;
 		temp = auto_alloc_array(machine(), UINT8, 0x10000);
 		src = temp;
-		dst = machine().root_device().memregion("gfx1")->base();
-		length = machine().root_device().memregion("gfx1")->bytes();
+		dst = memregion("gfx1")->base();
+		length = memregion("gfx1")->bytes();
 		memcpy(src, dst, length);
 		newadr = 0;
 		oldaddr = 0;
@@ -688,8 +683,8 @@ DRIVER_INIT_MEMBER(ddayjlc_state,ddayjlc)
 		auto_free(machine(), temp);
 	}
 
-	machine().root_device().membank("bank1")->configure_entries(0, 3, machine().root_device().memregion("user1")->base(), 0x4000);
-	machine().root_device().membank("bank1")->set_entry(0);
+	membank("bank1")->configure_entries(0, 3, memregion("user1")->base(), 0x4000);
+	membank("bank1")->set_entry(0);
 }
 
 GAME( 1984, ddayjlc,  0,       ddayjlc, ddayjlc, ddayjlc_state, ddayjlc, ROT90, "Jaleco", "D-Day (Jaleco set 1)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )

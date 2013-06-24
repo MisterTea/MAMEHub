@@ -23,7 +23,8 @@ class mw18w_state : public driver_device
 {
 public:
 	mw18w_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_WRITE8_MEMBER(mw18w_sound0_w);
 	DECLARE_WRITE8_MEMBER(mw18w_sound1_w);
@@ -31,6 +32,7 @@ public:
 	DECLARE_WRITE8_MEMBER(mw18w_led_display_w);
 	DECLARE_WRITE8_MEMBER(mw18w_irq0_clear_w);
 	DECLARE_CUSTOM_INPUT_MEMBER(mw18w_sensors_r);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -64,7 +66,7 @@ WRITE8_MEMBER(mw18w_state::mw18w_led_display_w)
 
 WRITE8_MEMBER(mw18w_state::mw18w_irq0_clear_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 CUSTOM_INPUT_MEMBER(mw18w_state::mw18w_sensors_r)

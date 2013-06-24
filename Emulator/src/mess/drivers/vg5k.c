@@ -66,7 +66,8 @@ public:
 			m_ef9345(*this, "ef9345"),
 			m_dac(*this, "dac"),
 			m_printer(*this, "printer"),
-			m_cassette(*this, CASSETTE_TAG)
+			m_cassette(*this, "cassette"),
+			m_ram(*this, RAM_TAG)
 		{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -74,6 +75,7 @@ public:
 	required_device<dac_device> m_dac;
 	required_device<printer_image_device> m_printer;
 	required_device<cassette_image_device> m_cassette;
+	required_device<ram_device> m_ram;
 
 	offs_t m_ef9345_offset;
 
@@ -279,13 +281,13 @@ INPUT_PORTS_END
 
 TIMER_CALLBACK_MEMBER(vg5k_state::z80_irq_clear)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
 TIMER_DEVICE_CALLBACK_MEMBER(vg5k_state::z80_irq)
 {
-	machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+	m_maincpu->set_input_line(0, ASSERT_LINE);
 
 	machine().scheduler().timer_set(attotime::from_usec(100), timer_expired_delegate(FUNC(vg5k_state::z80_irq_clear),this));
 }
@@ -326,7 +328,7 @@ GFXDECODE_END
 
 DRIVER_INIT_MEMBER(vg5k_state,vg5k)
 {
-	UINT8 *FNT = machine().root_device().memregion("ef9345")->base();
+	UINT8 *FNT = memregion("ef9345")->base();
 	UINT16 a,b,c,d,dest=0x2000;
 
 	/* Unscramble the chargen rom as the format is too complex for gfxdecode to handle unaided */
@@ -338,9 +340,9 @@ DRIVER_INIT_MEMBER(vg5k_state,vg5k)
 
 
 	/* install expansion memory*/
-	address_space &program = machine().device("maincpu")->memory().space(AS_PROGRAM);
-	UINT8 *ram = machine().device<ram_device>(RAM_TAG)->pointer();
-	UINT16 ram_size = machine().device<ram_device>(RAM_TAG)->size();
+	address_space &program = m_maincpu->space(AS_PROGRAM);
+	UINT8 *ram = m_ram->pointer();
+	UINT16 ram_size = m_ram->size();
 
 	if (ram_size > 0x4000)
 		program.install_ram(0x8000, 0x3fff + ram_size, ram);
@@ -399,10 +401,10 @@ static MACHINE_CONFIG_START( vg5k, vg5k_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* cassette */
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, vg5k_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", vg5k_cassette_interface )
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")

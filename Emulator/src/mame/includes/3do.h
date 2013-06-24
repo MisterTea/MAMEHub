@@ -135,10 +135,12 @@ class _3do_state : public driver_device
 {
 public:
 	_3do_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_dram(*this, "dram"),
-		m_vram(*this, "vram"){ }
+		m_vram(*this, "vram"),
+		m_bank1(*this, "bank1"),
+		m_bank2(*this, "bank2") { }
 
 	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT32> m_dram;
@@ -161,25 +163,26 @@ public:
 	DECLARE_WRITE32_MEMBER(_3do_madam_w);
 	DECLARE_READ32_MEMBER(_3do_clio_r);
 	DECLARE_WRITE32_MEMBER(_3do_clio_w);
+	virtual void machine_start();
 	virtual void machine_reset();
 	DECLARE_VIDEO_START(_3do);
 	UINT32 screen_update__3do(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	TIMER_DEVICE_CALLBACK_MEMBER( timer_x16_cb );
 
+protected:
+	required_memory_bank m_bank1;
+	required_memory_bank m_bank2;
+
 private:
+	void m_3do_slow2_init( void );
+	void m_3do_madam_init( void );
+	void m_3do_clio_init( screen_device *screen );
+
 	void m_3do_request_fiq(UINT32 irq_req, UINT8 type);
 };
 
 /*----------- defined in machine/3do.c -----------*/
-
-
-void _3do_slow2_init( running_machine &machine );
-
-
-void _3do_madam_init( running_machine &machine );
-
-void _3do_clio_init( running_machine &machine, screen_device *screen );
 
 
 #endif /* _3DO_H_ */

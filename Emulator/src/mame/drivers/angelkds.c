@@ -236,8 +236,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sub_portmap, AS_IO, 8, angelkds_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0x40, 0x41) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r, ym2203_w)
+	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0x40, 0x41) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
 	AM_RANGE(0x80, 0x83) AM_READWRITE(angelkds_sub_sound_r, angelkds_sub_sound_w) // spcpostn
 ADDRESS_MAP_END
 
@@ -507,20 +507,16 @@ READ8_MEMBER(angelkds_state::angelkds_sub_sound_r)
 }
 
 
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(angelkds_state::irqhandler)
 {
-	angelkds_state *state = device->machine().driver_data<angelkds_state>();
-	state->m_subcpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_subcpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 /*** Graphics Decoding
@@ -570,9 +566,6 @@ GFXDECODE_END
 
 void angelkds_state::machine_start()
 {
-
-	m_subcpu = machine().device<cpu_device>("sub");
-
 	save_item(NAME(m_layer_ctrl));
 	save_item(NAME(m_txbank));
 	save_item(NAME(m_bgbotbank));
@@ -626,7 +619,8 @@ static MACHINE_CONFIG_START( angelkds, angelkds_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, XTAL_4MHz)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(angelkds_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.65)
 	MCFG_SOUND_ROUTE(1, "mono", 0.65)
 	MCFG_SOUND_ROUTE(2, "mono", 0.65)
@@ -739,16 +733,16 @@ ROM_END
 
 DRIVER_INIT_MEMBER(angelkds_state,angelkds)
 {
-	UINT8 *RAM = machine().root_device().memregion("user1")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 8, &RAM[0x0000], 0x4000);
+	UINT8 *RAM = memregion("user1")->base();
+	membank("bank1")->configure_entries(0, 8, &RAM[0x0000], 0x4000);
 }
 
 DRIVER_INIT_MEMBER(angelkds_state,spcpostn)
 {
-	UINT8 *RAM = machine().root_device().memregion("user1")->base();
+	UINT8 *RAM = memregion("user1")->base();
 
 	sega_317_0005_decode(machine(), "maincpu");
-	machine().root_device().membank("bank1")->configure_entries(0, 10, &RAM[0x0000], 0x4000);
+	membank("bank1")->configure_entries(0, 10, &RAM[0x0000], 0x4000);
 }
 
 

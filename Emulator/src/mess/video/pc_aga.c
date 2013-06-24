@@ -28,8 +28,10 @@ static WRITE_LINE_DEVICE_HANDLER( aga_vsync_changed );
 static VIDEO_START( pc200 );
 
 
-static const mc6845_interface mc6845_aga_intf = {
+static MC6845_INTERFACE( mc6845_aga_intf )
+{
 	AGA_SCREEN_NAME,    /* screen number */
+	false,              /* show border area */
 	8,                  /* numbers of pixels per video memory address */
 	NULL,               /* begin_update */
 	aga_update_row,     /* update_row */
@@ -747,6 +749,7 @@ VIDEO_START( pc200 )
 	aga.mda_chr_gen = machine.root_device().memregion("gfx1")->base();
 	aga.cga_chr_gen = machine.root_device().memregion("gfx1")->base() + 0x1000;
 	aga.videoram = auto_alloc_array(machine, UINT8, 0x10000);
+	memset(aga.videoram, 0, sizeof(UINT8) * 0x10000);
 }
 
 

@@ -220,7 +220,7 @@ READ32_MEMBER(ms32_state::ms32_read_inputs3)
 WRITE32_MEMBER(ms32_state::ms32_sound_w)
 {
 	soundlatch_byte_w(space, 0, data & 0xff);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 
 	// give the Z80 time to respond
 	space.device().execute().spin_until_time(attotime::from_usec(40));
@@ -233,7 +233,7 @@ READ32_MEMBER(ms32_state::ms32_sound_r)
 
 WRITE32_MEMBER(ms32_state::reset_sub_w)
 {
-	if(data) machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE); // 0 too ?
+	if(data) m_audiocpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE); // 0 too ?
 }
 
 
@@ -389,16 +389,14 @@ READ16_MEMBER(ms32_state::ms32_extra_r16)
 	return m_f1superb_extraram_16[offset];
 }
 
-static void irq_raise(running_machine &machine, int level);
-
 WRITE32_MEMBER(ms32_state::ms32_irq2_guess_w)
 {
-	irq_raise(machine(), 2);
+	irq_raise(2);
 }
 
 WRITE32_MEMBER(ms32_state::ms32_irq5_guess_w)
 {
-	irq_raise(machine(), 5);
+	irq_raise(5);
 }
 
 static ADDRESS_MAP_START( f1superb_map, AS_PROGRAM, 32, ms32_state )
@@ -1277,38 +1275,35 @@ GFXDECODE_END
 */
 
 
-static IRQ_CALLBACK(irq_callback)
+IRQ_CALLBACK_MEMBER(ms32_state::irq_callback)
 {
-	ms32_state *state = device->machine().driver_data<ms32_state>();
 	int i;
-	for(i=15; i>=0 && !(state->m_irqreq & (1<<i)); i--);
-	state->m_irqreq &= ~(1<<i);
-	if(!state->m_irqreq)
-		device->execute().set_input_line(0, CLEAR_LINE);
+	for(i=15; i>=0 && !(m_irqreq & (1<<i)); i--);
+	m_irqreq &= ~(1<<i);
+	if(!m_irqreq)
+		device.execute().set_input_line(0, CLEAR_LINE);
 	return i;
 }
 
-static void irq_init(running_machine &machine)
+void ms32_state::irq_init()
 {
-	ms32_state *state = machine.driver_data<ms32_state>();
-	state->m_irqreq = 0;
-	machine.device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
-	machine.device("maincpu")->execute().set_irq_acknowledge_callback(irq_callback);
+	m_irqreq = 0;
+	m_maincpu->set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(ms32_state::irq_callback),this));
 }
 
-static void irq_raise(running_machine &machine, int level)
+void ms32_state::irq_raise(int level)
 {
-	ms32_state *state = machine.driver_data<ms32_state>();
-	state->m_irqreq |= (1<<level);
-	machine.device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+	m_irqreq |= (1<<level);
+	m_maincpu->set_input_line(0, ASSERT_LINE);
 }
 
 /* TODO: fix this arrangement (derived from old deprecat lib) */
 TIMER_DEVICE_CALLBACK_MEMBER(ms32_state::ms32_interrupt)
 {
 	int scanline = param;
-	if( scanline == 0) irq_raise(machine(), 10);
-	if( scanline == 8) irq_raise(machine(), 9);
+	if( scanline == 0) irq_raise(10);
+	if( scanline == 8) irq_raise(9);
 	/* hayaosi1 needs at least 12 IRQ 0 per frame to work (see code at FFE02289)
 	   kirarast needs it too, at least 8 per frame, but waits for a variable amount
 	   47pi2 needs ?? per frame (otherwise it hangs when you lose)
@@ -1317,7 +1312,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(ms32_state::ms32_interrupt)
 	   desertwr
 	   p47aces
 	   */
-	if( (scanline % 8) == 0 && scanline <= 224 ) irq_raise(machine(), 0);
+	if( (scanline % 8) == 0 && scanline <= 224 ) irq_raise(0);
 }
 
 
@@ -1346,7 +1341,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(ms32_state::ms32_interrupt)
 
 READ8_MEMBER(ms32_state::latch_r)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	return soundlatch_byte_r(space,0)^0xff;
 }
 
@@ -1359,12 +1354,12 @@ WRITE8_MEMBER(ms32_state::ms32_snd_bank_w)
 WRITE8_MEMBER(ms32_state::to_main_w)
 {
 	m_to_main=data;
-	irq_raise(machine(), 1);
+	irq_raise(1);
 }
 
 static ADDRESS_MAP_START( ms32_sound_map, AS_PROGRAM, 8, ms32_state )
 	AM_RANGE(0x0000, 0x3eff) AM_ROM
-	AM_RANGE(0x3f00, 0x3f0f) AM_DEVREADWRITE_LEGACY("ymf", ymf271_r,ymf271_w)
+	AM_RANGE(0x3f00, 0x3f0f) AM_DEVREADWRITE("ymf", ymf271_device, read, write)
 	AM_RANGE(0x3f10, 0x3f10) AM_READWRITE(latch_r,to_main_w)
 	AM_RANGE(0x3f20, 0x3f20) AM_READNOP /* 2nd latch ? */
 	AM_RANGE(0x3f20, 0x3f20) AM_WRITENOP /* to_main2_w  ? */
@@ -1381,10 +1376,10 @@ ADDRESS_MAP_END
 
 void ms32_state::machine_reset()
 {
-	machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base());
-	machine().root_device().membank("bank4")->set_entry(0);
-	machine().root_device().membank("bank5")->set_entry(1);
-	irq_init(machine());
+	membank("bank1")->set_base(memregion("maincpu")->base());
+	membank("bank4")->set_entry(0);
+	membank("bank5")->set_entry(1);
+	irq_init();
 }
 
 /********** MACHINE DRIVER **********/
@@ -2196,18 +2191,17 @@ ROM_START( wpksocv2 )
 ROM_END
 
 
-static void configure_banks(running_machine &machine)
+void ms32_state::configure_banks()
 {
-	ms32_state *state = machine.driver_data<ms32_state>();
-	state_save_register_global(machine, state->m_to_main);
-	state->membank("bank4")->configure_entries(0, 16, state->memregion("audiocpu")->base() + 0x14000, 0x4000);
-	state->membank("bank5")->configure_entries(0, 16, state->memregion("audiocpu")->base() + 0x14000, 0x4000);
+	save_item(NAME(m_to_main));
+	membank("bank4")->configure_entries(0, 16, memregion("audiocpu")->base() + 0x14000, 0x4000);
+	membank("bank5")->configure_entries(0, 16, memregion("audiocpu")->base() + 0x14000, 0x4000);
 }
 
 DRIVER_INIT_MEMBER(ms32_state,ms32_common)
 {
 	m_nvram_8 = auto_alloc_array(machine(), UINT8, 0x2000);
-	configure_banks(machine());
+	configure_banks();
 }
 
 /* SS91022-10: desertwr, gratiaa, tp2m32, gametngk */
@@ -2259,7 +2253,7 @@ DRIVER_INIT_MEMBER(ms32_state,47pie2)
 DRIVER_INIT_MEMBER(ms32_state,f1superb)
 {
 #if 0 // we shouldn't need this hack, something else is wrong, and the x offsets are never copied either, v70 problems??
-	UINT32 *pROM = (UINT32 *)machine().root_device().memregion("maincpu")->base();
+	UINT32 *pROM = (UINT32 *)memregion("maincpu")->base();
 	pROM[0x19d04/4]=0x167a021a; // bne->br  : sprite Y offset table is always copied to RAM
 #endif
 	DRIVER_INIT_CALL(ss92046_01);

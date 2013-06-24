@@ -18,19 +18,6 @@
 
 #define VERBOSE_LEVEL ( 0 )
 
-INLINE void ATTR_PRINTF(3,4) verboselog( running_machine &machine, int n_level, const char *s_fmt, ...)
-{
-	if (VERBOSE_LEVEL >= n_level)
-	{
-		va_list v;
-		char buf[32768];
-		va_start( v, s_fmt);
-		vsprintf( buf, s_fmt, v);
-		va_end( v);
-		logerror( "%s: %s", machine.describe_context(), buf);
-	}
-}
-
 struct smc_t
 {
 	int add_latch;
@@ -43,14 +30,17 @@ class juicebox_state : public driver_device
 public:
 	juicebox_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_maincpu(*this, "maincpu")
+			m_maincpu(*this, "maincpu"),
+			m_dac(*this, "dac"),
+			m_s3c44b0(*this, "s3c44b0")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
+	required_device<dac_device> m_dac;
+	required_device<s3c44b0_device> m_s3c44b0;
 	UINT32 port[9];
-	device_t *s3c44b0;
 	smc_t smc;
-	dac_device *dac;
+
 	#if defined(JUICEBOX_ENTER_DEBUG_MENU) || defined(JUICEBOX_DISPLAY_ROM_ID)
 	int port_g_read_count;
 	#endif
@@ -60,7 +50,29 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	DECLARE_INPUT_CHANGED_MEMBER(port_changed);
+	inline void ATTR_PRINTF(3,4) verboselog( int n_level, const char *s_fmt, ...);
+	void smc_reset( );
+	void smc_init( );
+	UINT8 smc_read( );
+	void smc_write( UINT8 data);
+	DECLARE_READ32_MEMBER(s3c44b0_gpio_port_r);
+	DECLARE_WRITE32_MEMBER(s3c44b0_gpio_port_w);
+	DECLARE_WRITE16_MEMBER(s3c44b0_i2s_data_w);
 };
+
+inline void ATTR_PRINTF(3,4)  juicebox_state::verboselog( int n_level, const char *s_fmt, ...)
+{
+	if (VERBOSE_LEVEL >= n_level)
+	{
+		va_list v;
+		char buf[32768];
+		va_start( v, s_fmt);
+		vsprintf( buf, s_fmt, v);
+		va_end( v);
+		logerror( "%s: %s", machine().describe_context(), buf);
+	}
+}
+
 
 /***************************************************************************
     MACHINE HARDWARE
@@ -69,23 +81,22 @@ public:
 
 // SMARTMEDIA
 
-static void smc_reset( running_machine &machine)
+void juicebox_state::smc_reset( )
 {
-	juicebox_state *state = machine.driver_data<juicebox_state>();
-	verboselog( machine, 5, "smc_reset\n");
-	state->smc.add_latch = 0;
-	state->smc.cmd_latch = 0;
+	verboselog(5, "smc_reset\n");
+	smc.add_latch = 0;
+	smc.cmd_latch = 0;
 }
 
-static void smc_init( running_machine &machine)
+void juicebox_state::smc_init( )
 {
-	verboselog( machine, 5, "smc_init\n");
-	smc_reset( machine);
+	verboselog(5, "smc_init\n");
+	smc_reset();
 }
 
-static UINT8 smc_read( running_machine &machine)
+UINT8 juicebox_state::smc_read( )
 {
-	smartmedia_image_device *smartmedia = machine.device<smartmedia_image_device>( "smartmedia");
+	smartmedia_image_device *smartmedia = machine().device<smartmedia_image_device>( "smartmedia");
 	UINT8 data;
 	if (smartmedia->is_present())
 	{
@@ -95,40 +106,38 @@ static UINT8 smc_read( running_machine &machine)
 	{
 		data = 0xFF;
 	}
-	verboselog( machine, 5, "smc_read %08X\n", data);
+	verboselog(5, "smc_read %08X\n", data);
 	return data;
 }
 
-static void smc_write( running_machine &machine, UINT8 data)
+void juicebox_state::smc_write( UINT8 data)
 {
-	juicebox_state *state = machine.driver_data<juicebox_state>();
-	smartmedia_image_device *smartmedia = machine.device<smartmedia_image_device>( "smartmedia");
-	verboselog( machine, 5, "smc_write %08X\n", data);
+	smartmedia_image_device *smartmedia = machine().device<smartmedia_image_device>( "smartmedia");
+	verboselog(5, "smc_write %08X\n", data);
 	if (smartmedia->is_present())
 	{
-		if (state->smc.cmd_latch)
+		if (smc.cmd_latch)
 		{
-			verboselog( machine, 5, "smartmedia_command_w %08X\n", data);
+			verboselog(5, "smartmedia_command_w %08X\n", data);
 			smartmedia->command_w(data);
 		}
-		else if (state->smc.add_latch)
+		else if (smc.add_latch)
 		{
-			verboselog( machine, 5, "smartmedia_address_w %08X\n", data);
+			verboselog(5, "smartmedia_address_w %08X\n", data);
 			smartmedia->address_w(data);
 		}
 		else
 		{
-			verboselog( machine, 5, "smartmedia_data_w %08X\n", data);
+			verboselog(5, "smartmedia_data_w %08X\n", data);
 			smartmedia->data_w(data);
 		}
 	}
 }
 
-static UINT32 s3c44b0_gpio_port_r( device_t *device, int port)
+READ32_MEMBER(juicebox_state::s3c44b0_gpio_port_r)
 {
-	juicebox_state *juicebox = device->machine().driver_data<juicebox_state>();
-	UINT32 data = juicebox->port[port];
-	switch (port)
+	UINT32 data = port[offset];
+	switch (offset)
 	{
 		case S3C44B0_GPIO_PORT_A :
 		{
@@ -164,22 +173,22 @@ static UINT32 s3c44b0_gpio_port_r( device_t *device, int port)
 			data = data | (0 << 7);
 			data = 0x0000009F;
 			data &= ~0xE0;
-			if (juicebox->smc.cmd_latch) data = data | 0x00000020;
-			if (juicebox->smc.add_latch) data = data | 0x00000040;
-			if (!juicebox->smc.busy) data = data | 0x00000080;
+			if (smc.cmd_latch) data = data | 0x00000020;
+			if (smc.add_latch) data = data | 0x00000040;
+			if (!smc.busy) data = data | 0x00000080;
 		}
 		break;
 		case S3C44B0_GPIO_PORT_G :
 		{
 			data = 0x0000009F;
-			data = (data & ~0x1F) | (device->machine().root_device().ioport( "PORTG")->read() & 0x1F);
+			data = (data & ~0x1F) | (ioport( "PORTG")->read() & 0x1F);
 			#if defined(JUICEBOX_ENTER_DEBUG_MENU)
-			if (juicebox->port_g_read_count++ < 1)
+			if (port_g_read_count++ < 1)
 			{
 				data = 0x00000095; // PLAY + REVERSE
 			}
 			#elif defined(JUICEBOX_DISPLAY_ROM_ID)
-			if (juicebox->port_g_read_count++ < 3)
+			if (port_g_read_count++ < 3)
 			{
 				data = 0x0000008A; // RETURN + FORWARD + STAR
 			}
@@ -191,17 +200,16 @@ static UINT32 s3c44b0_gpio_port_r( device_t *device, int port)
 	return data;
 }
 
-static void s3c44b0_gpio_port_w( device_t *device, int port, UINT32 data)
+WRITE32_MEMBER(juicebox_state::s3c44b0_gpio_port_w)
 {
-	juicebox_state *juicebox = device->machine().driver_data<juicebox_state>();
-	juicebox->port[port] = data;
-	switch (port)
+	port[offset] = data;
+	switch (offset)
 	{
 		case S3C44B0_GPIO_PORT_F :
 		{
-			juicebox->smc.cmd_latch = ((data & 0x00000020) != 0);
-			juicebox->smc.add_latch = ((data & 0x00000040) != 0);
-			verboselog( device->machine(), 5, "s3c44b0_gpio_port_w - nand cle %d ale %d\n", (data & 0x20) ? 1 : 0, (data & 0x40) ? 1 : 0);
+			smc.cmd_latch = ((data & 0x00000020) != 0);
+			smc.add_latch = ((data & 0x00000040) != 0);
+			verboselog( 5, "s3c44b0_gpio_port_w - nand cle %d ale %d\n", (data & 0x20) ? 1 : 0, (data & 0x40) ? 1 : 0);
 		}
 		break;
 	}
@@ -212,51 +220,68 @@ static void s3c44b0_gpio_port_w( device_t *device, int port, UINT32 data)
 READ32_MEMBER(juicebox_state::juicebox_nand_r)
 {
 	UINT32 data = 0;
-	if (mem_mask & 0x000000FF) data = data | (smc_read(machine()) <<  0);
-	if (mem_mask & 0x0000FF00) data = data | (smc_read(machine()) <<  8);
-	if (mem_mask & 0x00FF0000) data = data | (smc_read(machine()) << 16);
-	if (mem_mask & 0xFF000000) data = data | (smc_read(machine()) << 24);
-	verboselog( machine(), 5, "juicebox_nand_r %08X %08X %08X\n", offset, mem_mask, data);
+	if (mem_mask & 0x000000FF) data = data | (smc_read() <<  0);
+	if (mem_mask & 0x0000FF00) data = data | (smc_read() <<  8);
+	if (mem_mask & 0x00FF0000) data = data | (smc_read() << 16);
+	if (mem_mask & 0xFF000000) data = data | (smc_read() << 24);
+	verboselog( 5, "juicebox_nand_r %08X %08X %08X\n", offset, mem_mask, data);
 	return data;
 }
 
 WRITE32_MEMBER(juicebox_state::juicebox_nand_w)
 {
-	verboselog( machine(), 5, "juicebox_nand_w %08X %08X %08X\n", offset, mem_mask, data);
-	if (mem_mask & 0x000000FF) smc_write(machine(), (data >>  0) & 0xFF);
-	if (mem_mask & 0x0000FF00) smc_write(machine(), (data >>  8) & 0xFF);
-	if (mem_mask & 0x00FF0000) smc_write(machine(), (data >> 16) & 0xFF);
-	if (mem_mask & 0xFF000000) smc_write(machine(), (data >> 24) & 0xFF);
+	verboselog( 5, "juicebox_nand_w %08X %08X %08X\n", offset, mem_mask, data);
+	if (mem_mask & 0x000000FF) smc_write((data >>  0) & 0xFF);
+	if (mem_mask & 0x0000FF00) smc_write((data >>  8) & 0xFF);
+	if (mem_mask & 0x00FF0000) smc_write((data >> 16) & 0xFF);
+	if (mem_mask & 0xFF000000) smc_write((data >> 24) & 0xFF);
 }
 
 // I2S
 
-static WRITE16_DEVICE_HANDLER( s3c44b0_i2s_data_w )
+WRITE16_MEMBER(juicebox_state::s3c44b0_i2s_data_w )
 {
-	juicebox_state *juicebox = space.machine().driver_data<juicebox_state>();
-	juicebox->dac->write_signed16(data ^ 0x8000);
+	m_dac->write_signed16(data ^ 0x8000);
 }
 
 // ...
 
 INPUT_CHANGED_MEMBER(juicebox_state::port_changed)
 {
-	s3c44b0_request_eint( s3c44b0, (FPTR)param);
+	m_s3c44b0->request_eint((FPTR)param);
 }
 
 // ...
 
 void juicebox_state::machine_start()
 {
-	s3c44b0 = machine().device( "s3c44b0");
-	smc_init( machine());
-	dac = machine().device<dac_device>( "dac");
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+
+	smc_init();
+
+	space.install_readwrite_handler(0x01c00000, 0x01c0000b, 0, 0, read32_delegate(FUNC(s3c44b0_device::cpuwrap_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::cpuwrap_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d00000, 0x01d0002b, 0, 0, read32_delegate(FUNC(s3c44b0_device::uart_0_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::uart_0_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d04000, 0x01d0402b, 0, 0, read32_delegate(FUNC(s3c44b0_device::uart_1_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::uart_1_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d14000, 0x01d14013, 0, 0, read32_delegate(FUNC(s3c44b0_device::sio_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::sio_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d18000, 0x01d18013, 0, 0, read32_delegate(FUNC(s3c44b0_device::iis_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::iis_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d20000, 0x01d20057, 0, 0, read32_delegate(FUNC(s3c44b0_device::gpio_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::gpio_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d30000, 0x01d3000b, 0, 0, read32_delegate(FUNC(s3c44b0_device::wdt_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::wdt_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d40000, 0x01d4000b, 0, 0, read32_delegate(FUNC(s3c44b0_device::adc_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::adc_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d50000, 0x01d5004f, 0, 0, read32_delegate(FUNC(s3c44b0_device::pwm_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::pwm_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d60000, 0x01d6000f, 0, 0, read32_delegate(FUNC(s3c44b0_device::iic_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::iic_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01d80000, 0x01d8000f, 0, 0, read32_delegate(FUNC(s3c44b0_device::clkpow_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::clkpow_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01e00000, 0x01e0003f, 0, 0, read32_delegate(FUNC(s3c44b0_device::irq_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::irq_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01e80000, 0x01e8001b, 0, 0, read32_delegate(FUNC(s3c44b0_device::zdma_0_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::zdma_0_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01e80020, 0x01e8003b, 0, 0, read32_delegate(FUNC(s3c44b0_device::zdma_1_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::zdma_1_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01f00000, 0x01f00047, 0, 0, read32_delegate(FUNC(s3c44b0_device::lcd_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::lcd_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01f80000, 0x01f8001b, 0, 0, read32_delegate(FUNC(s3c44b0_device::bdma_0_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::bdma_0_w), &(*m_s3c44b0)));
+	space.install_readwrite_handler(0x01f80020, 0x01f8003b, 0, 0, read32_delegate(FUNC(s3c44b0_device::bdma_1_r), &(*m_s3c44b0)),  write32_delegate(FUNC(s3c44b0_device::bdma_1_w), &(*m_s3c44b0)));
 }
 
 void juicebox_state::machine_reset()
 {
-	machine().device("maincpu")->reset();
-	smc_reset( machine());
+	m_maincpu->reset();
+	smc_reset();
 }
 
 /***************************************************************************
@@ -281,13 +306,13 @@ DRIVER_INIT_MEMBER(juicebox_state,juicebox)
 static S3C44B0_INTERFACE( juicebox_s3c44b0_intf )
 {
 	// GPIO (port read / port write)
-	{ s3c44b0_gpio_port_r, s3c44b0_gpio_port_w },
+	{ DEVCB_DRIVER_MEMBER32(juicebox_state,s3c44b0_gpio_port_r), DEVCB_DRIVER_MEMBER32(juicebox_state,s3c44b0_gpio_port_w) },
 	// I2C (scl write / sda read / sda write)
-	{ NULL, NULL, NULL },
+	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
 	// ADC (data read)
-	{ NULL },
+	{ DEVCB_NULL },
 	// I2S (data write)
-	{ s3c44b0_i2s_data_w }
+	{ DEVCB_DRIVER_MEMBER16(juicebox_state,s3c44b0_i2s_data_w) }
 };
 
 static MACHINE_CONFIG_START( juicebox, juicebox_state )
@@ -303,12 +328,11 @@ static MACHINE_CONFIG_START( juicebox, juicebox_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 240 - 1, 0, 160 - 1)
 	MCFG_DEFAULT_LAYOUT(layout_lcd)
 
-	MCFG_VIDEO_START(s3c44b0)
-	MCFG_SCREEN_UPDATE_STATIC(s3c44b0)
+	MCFG_SCREEN_UPDATE_DEVICE("s3c44b0", s3c44b0_device, video_update)
 
-	MCFG_SPEAKER_STANDARD_MONO("speaker")
+	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("dac", DAC, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "speaker", 1.0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 
 	MCFG_S3C44B0_ADD("s3c44b0", 10000000, juicebox_s3c44b0_intf)

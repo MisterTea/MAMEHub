@@ -78,13 +78,13 @@
 
 WRITE16_MEMBER(exterm_state::exterm_host_data_w)
 {
-	tms34010_host_w(machine().device("slave"), offset / TOWORD(0x00100000), data);
+	tms34010_host_w(m_slave, offset / TOWORD(0x00100000), data);
 }
 
 
 READ16_MEMBER(exterm_state::exterm_host_data_r)
 {
-	return tms34010_host_r(machine().device("slave"), offset / TOWORD(0x00100000));
+	return tms34010_host_r(m_slave, offset / TOWORD(0x00100000));
 }
 
 
@@ -159,7 +159,7 @@ WRITE16_MEMBER(exterm_state::exterm_output_port_0_w)
 	{
 		/* Bit 13 = Resets the slave CPU */
 		if ((data & 0x2000) && !(m_last & 0x2000))
-			machine().device("slave")->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+			m_slave->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
 
 		/* Bits 14-15 = Coin counters */
 		coin_counter_w(machine(), 0, data & 0x8000);
@@ -174,8 +174,8 @@ TIMER_CALLBACK_MEMBER(exterm_state::sound_delayed_w)
 {
 	/* data is latched independently for both sound CPUs */
 	m_master_sound_latch = m_slave_sound_latch = param;
-	machine().device("audiocpu")->execute().set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
-	machine().device("audioslave")->execute().set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+	m_audiocpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+	m_audioslave->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
 }
 
 
@@ -197,7 +197,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(exterm_state::master_sound_nmi_callback)
 {
 	/* bit 0 of the sound control determines if the NMI is actually delivered */
 	if (m_sound_control & 0x01)
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
@@ -223,7 +223,7 @@ WRITE8_MEMBER(exterm_state::sound_nmi_rate_w)
 READ8_MEMBER(exterm_state::sound_master_latch_r)
 {
 	/* read latch and clear interrupt */
-	machine().device("audiocpu")->execute().set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+	m_audiocpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
 	return m_master_sound_latch;
 }
 
@@ -231,24 +231,23 @@ READ8_MEMBER(exterm_state::sound_master_latch_r)
 READ8_MEMBER(exterm_state::sound_slave_latch_r)
 {
 	/* read latch and clear interrupt */
-	machine().device("audioslave")->execute().set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+	m_audioslave->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
 	return m_slave_sound_latch;
 }
 
 
 WRITE8_MEMBER(exterm_state::sound_slave_dac_w)
 {
-	dac_device *device = machine().device<dac_device>("dac");
 	/* DAC A is used to modulate DAC B */
 	m_dac_value[offset & 1] = data;
-	device->write_unsigned16((m_dac_value[0] ^ 0xff) * m_dac_value[1]);
+	m_dac->write_unsigned16((m_dac_value[0] ^ 0xff) * m_dac_value[1]);
 }
 
 
 READ8_MEMBER(exterm_state::sound_nmi_to_slave_r)
 {
 	/* a read from here triggers an NMI pulse to the slave */
-	machine().device("audioslave")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audioslave->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	return 0xff;
 }
 

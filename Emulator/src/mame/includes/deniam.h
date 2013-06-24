@@ -3,17 +3,20 @@
     Deniam games
 
 *************************************************************************/
-
+#include "sound/okim6295.h"
 
 class deniam_state : public driver_device
 {
 public:
 	deniam_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_textram(*this, "textram"),
 		m_spriteram(*this, "spriteram"),
-		m_paletteram(*this, "paletteram"){ }
+		m_paletteram(*this, "paletteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_oki(*this, "oki") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoram;
@@ -41,7 +44,6 @@ public:
 	UINT16         m_coinctrl;
 
 	/* devices */
-	device_t *m_audio_cpu;  // system 16c does not have sound CPU
 	DECLARE_WRITE16_MEMBER(sound_command_w);
 	DECLARE_WRITE16_MEMBER(deniam_irq_ack_w);
 	DECLARE_WRITE16_MEMBER(deniam_videoram_w);
@@ -61,4 +63,12 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_deniam(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void deniam_common_init(  );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void set_bg_page( int page, int value );
+	void set_fg_page( int page, int value );
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu; // system 16c does not have sound CPU
+	required_device<okim6295_device> m_oki;
 };

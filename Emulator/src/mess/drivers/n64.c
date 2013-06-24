@@ -24,6 +24,8 @@ public:
 	DECLARE_READ32_MEMBER(dd_null_r);
 	DECLARE_MACHINE_START(n64dd);
 	INTERRUPT_GEN_MEMBER(n64_reset_poll);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(n64_cart);
+	void mempak_format(UINT8* pak);
 };
 
 READ32_MEMBER(n64_mess_state::dd_null_r)
@@ -81,8 +83,8 @@ ADDRESS_MAP_END
 
 static INPUT_PORTS_START( n64 )
 	PORT_START("P1")
-	PORT_BIT( 0x8000, IP_ACTIVE_HIGH, IPT_BUTTON1 )        PORT_PLAYER(1) PORT_NAME("P1 Button A")
-	PORT_BIT( 0x4000, IP_ACTIVE_HIGH, IPT_BUTTON2 )        PORT_PLAYER(1) PORT_NAME("P1 Button B")
+	PORT_BIT( 0x8000, IP_ACTIVE_HIGH, IPT_BUTTON2 )        PORT_PLAYER(1) PORT_NAME("P1 Button A")
+	PORT_BIT( 0x4000, IP_ACTIVE_HIGH, IPT_BUTTON1 )        PORT_PLAYER(1) PORT_NAME("P1 Button B")
 	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_BUTTON3 )        PORT_PLAYER(1) PORT_NAME("P1 Button Z")
 	PORT_BIT( 0x1000, IP_ACTIVE_HIGH, IPT_START )          PORT_PLAYER(1) PORT_NAME("P1 Start")
 	PORT_BIT( 0x0800, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP )    PORT_PLAYER(1) PORT_NAME("P1 Joypad \xE2\x86\x91") /* Up */
@@ -104,8 +106,8 @@ static INPUT_PORTS_START( n64 )
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_MINMAX(0x00,0xff) PORT_SENSITIVITY(30) PORT_KEYDELTA(30) PORT_PLAYER(1) PORT_REVERSE
 
 	PORT_START("P2")
-	PORT_BIT( 0x8000, IP_ACTIVE_HIGH, IPT_BUTTON1 )        PORT_PLAYER(2) PORT_NAME("P2 Button A")
-	PORT_BIT( 0x4000, IP_ACTIVE_HIGH, IPT_BUTTON2 )        PORT_PLAYER(2) PORT_NAME("P2 Button B")
+	PORT_BIT( 0x8000, IP_ACTIVE_HIGH, IPT_BUTTON2 )        PORT_PLAYER(2) PORT_NAME("P2 Button A")
+	PORT_BIT( 0x4000, IP_ACTIVE_HIGH, IPT_BUTTON1 )        PORT_PLAYER(2) PORT_NAME("P2 Button B")
 	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_BUTTON3 )        PORT_PLAYER(2) PORT_NAME("P2 Button Z")
 	PORT_BIT( 0x1000, IP_ACTIVE_HIGH, IPT_START )          PORT_PLAYER(2) PORT_NAME("P2 Start")
 	PORT_BIT( 0x0800, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP )    PORT_PLAYER(2) PORT_NAME("P2 Joypad \xE2\x86\x91") /* Up */
@@ -140,7 +142,7 @@ static const mips3_config config =
 	62500000            /* system clock */
 };
 
-static void mempak_format(UINT8* pak)
+void n64_mess_state::mempak_format(UINT8* pak)
 {
 	unsigned char pak_header[] =
 	{
@@ -171,11 +173,11 @@ static void mempak_format(UINT8* pak)
 	memcpy(pak, pak_header, 272);
 }
 
-static DEVICE_IMAGE_LOAD(n64_cart)
+DEVICE_IMAGE_LOAD_MEMBER(n64_mess_state,n64_cart)
 {
 	int i, length;
-	n64_periphs *periphs = image.device().machine().device<n64_periphs>("rcp");
-	UINT8 *cart = image.device().machine().root_device().memregion("user2")->base();
+	n64_periphs *periphs = machine().device<n64_periphs>("rcp");
+	UINT8 *cart = memregion("user2")->base();
 
 	if (image.software_entry() == NULL)
 	{
@@ -228,7 +230,7 @@ static DEVICE_IMAGE_LOAD(n64_cart)
 		UINT8 data[0x30800];
 		battery_image->battery_load(data, 0x30800, 0x00);
 		//memcpy(n64_sram, data, 0x20000);
-		memcpy(image.device().machine().root_device().memshare("sram")->ptr(), data, 0x20000);
+		memcpy(memshare("sram")->ptr(), data, 0x20000);
 		memcpy(periphs->m_save_data.eeprom, data + 0x20000, 0x800);
 		memcpy(periphs->m_save_data.mempak[0], data + 0x20800, 0x8000);
 		memcpy(periphs->m_save_data.mempak[1], data + 0x28800, 0x8000);
@@ -248,7 +250,7 @@ MACHINE_START_MEMBER(n64_mess_state,n64dd)
 {
 	machine_start();
 
-	UINT8 *ipl = machine().root_device().memregion("ddipl")->base();
+	UINT8 *ipl = memregion("ddipl")->base();
 
 	for (int i = 0; i < 0x400000; i += 4)
 	{
@@ -266,7 +268,7 @@ MACHINE_START_MEMBER(n64_mess_state,n64dd)
 INTERRUPT_GEN_MEMBER(n64_mess_state::n64_reset_poll)
 {
 	n64_periphs *periphs = machine().device<n64_periphs>("rcp");
-	periphs->poll_reset_button((machine().root_device().ioport("RESET")->read() & 1) ? true : false);
+	periphs->poll_reset_button((ioport("RESET")->read() & 1) ? true : false);
 }
 
 static MACHINE_CONFIG_START( n64, n64_mess_state )
@@ -309,7 +311,7 @@ static MACHINE_CONFIG_START( n64, n64_mess_state )
 	MCFG_CARTSLOT_EXTENSION_LIST("v64,z64,rom,n64,bin")
 	MCFG_CARTSLOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("n64_cart")
-	MCFG_CARTSLOT_LOAD(n64_cart)
+	MCFG_CARTSLOT_LOAD(n64_mess_state,n64_cart)
 
 	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","n64")

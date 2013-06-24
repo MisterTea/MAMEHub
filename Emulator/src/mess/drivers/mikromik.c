@@ -80,7 +80,7 @@
 READ8_MEMBER( mm1_state::read )
 {
 	UINT8 data = 0;
-	UINT8 mmu = m_mmu_rom[(m_a8 << 8) | (offset >> 8)];
+	UINT8 mmu = m_mmu_rom->base()[(m_a8 << 8) | (offset >> 8)];
 
 	if (mmu & MMU_IOEN)
 	{
@@ -99,7 +99,7 @@ READ8_MEMBER( mm1_state::read )
 			break;
 
 		case 3:
-			data = pit8253_r(m_pit, space, offset & 0x03);
+			data = m_pit->read(space, offset & 0x03);
 			break;
 
 		case 4:
@@ -130,11 +130,11 @@ READ8_MEMBER( mm1_state::read )
 		}
 		else if (!(mmu & MMU_CE0))
 		{
-			data = memregion(I8085A_TAG)->base()[offset & 0x1fff];
+			data = m_rom->base()[offset & 0x1fff];
 		}
 		else if (!(mmu & MMU_CE1))
 		{
-			data = memregion(I8085A_TAG)->base()[0x2000 + (offset & 0x1fff)];
+			data = m_rom->base()[0x2000 + (offset & 0x1fff)];
 		}
 	}
 
@@ -149,7 +149,7 @@ READ8_MEMBER( mm1_state::read )
 
 WRITE8_MEMBER( mm1_state::write )
 {
-	UINT8 mmu = m_mmu_rom[(m_a8 << 8) | (offset >> 8)];
+	UINT8 mmu = m_mmu_rom->base()[(m_a8 << 8) | (offset >> 8)];
 
 	if (mmu & MMU_IOEN)
 	{
@@ -168,7 +168,7 @@ WRITE8_MEMBER( mm1_state::write )
 			break;
 
 		case 3:
-			pit8253_w(m_pit, space, offset & 0x03, data);
+			m_pit->write(space, offset & 0x03, data);
 			break;
 
 		case 4:
@@ -263,10 +263,23 @@ WRITE8_MEMBER( mm1_state::ls259_w )
 
 void mm1_state::scan_keyboard()
 {
-	static const char *const keynames[] = { "ROW0", "ROW1", "ROW2", "ROW3", "ROW4", "ROW5", "ROW6", "ROW7", "ROW8", "ROW9" };
+	UINT8 data = 0xff;
 
-	UINT8 data = ioport(keynames[m_drive])->read();
-	UINT8 special = ioport("SPECIAL")->read();
+	switch (m_drive)
+	{
+	case 0: data = m_y0->read(); break;
+	case 1: data = m_y1->read(); break;
+	case 2: data = m_y2->read(); break;
+	case 3: data = m_y3->read(); break;
+	case 4: data = m_y4->read(); break;
+	case 5: data = m_y5->read(); break;
+	case 6: data = m_y6->read(); break;
+	case 7: data = m_y7->read(); break;
+	case 8: data = m_y8->read(); break;
+	case 9: data = m_y9->read(); break;
+	}
+
+	UINT8 special = m_special->read();
 	int ctrl = BIT(special, 0);
 	int shift = BIT(special, 2) & BIT(special, 1);
 	UINT8 keydata = 0xff;
@@ -274,7 +287,7 @@ void mm1_state::scan_keyboard()
 	if (!BIT(data, m_sense))
 	{
 		// get key data from PROM
-		keydata = m_key_rom[(ctrl << 8) | (shift << 7) | (m_drive << 3) | (m_sense)];
+		keydata = m_key_rom->base()[(ctrl << 8) | (shift << 7) | (m_drive << 3) | (m_sense)];
 	}
 
 	if (m_keydata != keydata)
@@ -344,7 +357,7 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 static INPUT_PORTS_START( mm1 )
-	PORT_START("ROW0")
+	PORT_START("Y0")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_1) PORT_CHAR('1') PORT_CHAR('!')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_2) PORT_CHAR('2') PORT_CHAR('\"')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("F1") PORT_CODE(KEYCODE_F1) PORT_CHAR(UCHAR_MAMEKEY(F1))
@@ -354,7 +367,7 @@ static INPUT_PORTS_START( mm1 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_A) PORT_CHAR('a') PORT_CHAR('A')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_Q) PORT_CHAR('q') PORT_CHAR('Q')
 
-	PORT_START("ROW1")
+	PORT_START("Y1")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_3) PORT_CHAR('3') PORT_CHAR('#')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_4) PORT_CHAR('4') PORT_CHAR('$')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("F3") PORT_CODE(KEYCODE_F3) PORT_CHAR(UCHAR_MAMEKEY(F3))
@@ -364,7 +377,7 @@ static INPUT_PORTS_START( mm1 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_Z) PORT_CHAR('z') PORT_CHAR('Z')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_E) PORT_CHAR('e') PORT_CHAR('E')
 
-	PORT_START("ROW2")
+	PORT_START("Y2")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_V) PORT_CHAR('v') PORT_CHAR('V')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_C) PORT_CHAR('c') PORT_CHAR('C')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("F5") PORT_CODE(KEYCODE_F5) PORT_CHAR(UCHAR_MAMEKEY(F5))
@@ -374,7 +387,7 @@ static INPUT_PORTS_START( mm1 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_D) PORT_CHAR('d') PORT_CHAR('D')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_T) PORT_CHAR('t') PORT_CHAR('T')
 
-	PORT_START("ROW3")
+	PORT_START("Y3")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_7) PORT_CHAR('7') PORT_CHAR('/')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_8) PORT_CHAR('8') PORT_CHAR('(')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("F7") PORT_CODE(KEYCODE_F7) PORT_CHAR(UCHAR_MAMEKEY(F7))
@@ -384,7 +397,7 @@ static INPUT_PORTS_START( mm1 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_J) PORT_CHAR('j') PORT_CHAR('J')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_M) PORT_CHAR('m') PORT_CHAR('M')
 
-	PORT_START("ROW4")
+	PORT_START("Y4")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_5) PORT_CHAR('5') PORT_CHAR('%')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_6) PORT_CHAR('6') PORT_CHAR('&')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_N) PORT_CHAR('n') PORT_CHAR('N')
@@ -394,7 +407,7 @@ static INPUT_PORTS_START( mm1 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_G) PORT_CHAR('g') PORT_CHAR('G')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_U) PORT_CHAR('u') PORT_CHAR('U')
 
-	PORT_START("ROW5")
+	PORT_START("Y5")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_MINUS) PORT_CHAR('+') PORT_CHAR('?')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("\xC2\xB4 '") PORT_CODE(KEYCODE_EQUALS) PORT_CHAR(0x00B4) PORT_CHAR('`')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("\xE2\x86\x96")
@@ -404,7 +417,7 @@ static INPUT_PORTS_START( mm1 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_SLASH) PORT_CHAR('-') PORT_CHAR('_')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME(a_RING " " A_RING) PORT_CODE(KEYCODE_OPENBRACE) PORT_CHAR(0x00E5) PORT_CHAR(0x00C5)
 
-	PORT_START("ROW6")
+	PORT_START("Y6")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_BACKSLASH2) PORT_CHAR('<') PORT_CHAR('>')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad .") PORT_CODE(KEYCODE_DEL_PAD)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME(UTF8_LEFT) PORT_CODE(KEYCODE_LEFT) PORT_CHAR(UCHAR_MAMEKEY(LEFT))
@@ -414,7 +427,7 @@ static INPUT_PORTS_START( mm1 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("LF")
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_BACKSLASH) PORT_CHAR('@') PORT_CHAR('*')
 
-	PORT_START("ROW7")
+	PORT_START("Y7")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 8") PORT_CODE(KEYCODE_8_PAD)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 9") PORT_CODE(KEYCODE_9_PAD)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME(UTF8_RIGHT) PORT_CODE(KEYCODE_RIGHT) PORT_CHAR(UCHAR_MAMEKEY(RIGHT))
@@ -424,7 +437,7 @@ static INPUT_PORTS_START( mm1 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 3") PORT_CODE(KEYCODE_3_PAD)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 5") PORT_CODE(KEYCODE_5_PAD)
 
-	PORT_START("ROW8")
+	PORT_START("Y8")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("CAPS LOCK") PORT_CODE(KEYCODE_CAPSLOCK)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 7") PORT_CODE(KEYCODE_7_PAD)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME(UTF8_UP) PORT_CODE(KEYCODE_UP) PORT_CHAR(UCHAR_MAMEKEY(UP))
@@ -434,7 +447,7 @@ static INPUT_PORTS_START( mm1 )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 1") PORT_CODE(KEYCODE_1_PAD)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Keypad 0") PORT_CODE(KEYCODE_0_PAD)
 
-	PORT_START("ROW9")
+	PORT_START("Y9")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_CHAR(')')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_0) PORT_CHAR('0') PORT_CHAR('=')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("F9") PORT_CODE(KEYCODE_F9) PORT_CHAR(UCHAR_MAMEKEY(F9))
@@ -506,12 +519,12 @@ READ8_MEMBER( mm1_state::mpsc_dack_r )
 	// clear data request
 	m_dmac->dreq2_w(CLEAR_LINE);
 
-	return m_mpsc->dtra_r();
+	return 1;//m_mpsc->dtra_r();
 }
 
 WRITE8_MEMBER( mm1_state::mpsc_dack_w )
 {
-	m_mpsc->hai_w(data);
+	//m_mpsc->hai_w(data);
 
 	// clear data request
 	m_dmac->dreq1_w(CLEAR_LINE);
@@ -569,7 +582,7 @@ WRITE_LINE_MEMBER( mm1_state::auxc_w )
 	m_mpsc->rxcb_w(state);
 }
 
-static const struct pit8253_config pit_intf =
+static const struct pit8253_interface pit_intf =
 {
 	{
 		{
@@ -611,36 +624,27 @@ WRITE_LINE_MEMBER( mm1_state::drq1_w )
 
 static UPD7201_INTERFACE( mpsc_intf )
 {
-	DEVCB_NULL,                 // interrupt
-	{
-		{
-			0,                  // receive clock
-			0,                  // transmit clock
-			DEVCB_DRIVER_LINE_MEMBER(mm1_state, drq2_w),    // receive DRQ
-			DEVCB_DRIVER_LINE_MEMBER(mm1_state, drq1_w),    // transmit DRQ
-			DEVCB_NULL,         // receive data
-			DEVCB_NULL,         // transmit data
-			DEVCB_NULL,         // clear to send
-			DEVCB_NULL,         // data carrier detect
-			DEVCB_NULL,         // ready to send
-			DEVCB_NULL,         // data terminal ready
-			DEVCB_NULL,         // wait
-			DEVCB_NULL          // sync output
-		}, {
-			0,                  // receive clock
-			0,                  // transmit clock
-			DEVCB_NULL,         // receive DRQ
-			DEVCB_NULL,         // transmit DRQ
-			DEVCB_NULL,         // receive data
-			DEVCB_NULL,         // transmit data
-			DEVCB_NULL,         // clear to send
-			DEVCB_LINE_GND,     // data carrier detect
-			DEVCB_NULL,         // ready to send
-			DEVCB_NULL,         // data terminal ready
-			DEVCB_NULL,         // wait
-			DEVCB_NULL          // sync output
-		}
-	}
+	0, 0, 0, 0,
+
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, rx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, serial_port_device, tx),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, dtr_w),
+	DEVCB_DEVICE_LINE_MEMBER(RS232_A_TAG, rs232_port_device, rts_w),
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+
+	DEVCB_NULL,
+	DEVCB_DRIVER_LINE_MEMBER(mm1_state, drq2_w),    // receive DRQ
+	DEVCB_DRIVER_LINE_MEMBER(mm1_state, drq1_w),    // transmit DRQ
+	DEVCB_NULL,
+	DEVCB_NULL
 };
 
 
@@ -658,7 +662,7 @@ static I8085_CONFIG( i8085_intf )
 	DEVCB_NULL,         // STATUS changed callback
 	DEVCB_NULL,         // INTE changed callback
 	DEVCB_DRIVER_LINE_MEMBER(mm1_state, dsra_r),    // SID changed callback (I8085A only)
-	DEVCB_DEVICE_LINE(SPEAKER_TAG, speaker_level_w) // SOD changed callback (I8085A only)
+	DEVCB_DEVICE_LINE_MEMBER("speaker", speaker_sound_device, level_w) // SOD changed callback (I8085A only)
 };
 
 
@@ -689,6 +693,49 @@ void mm1_state::fdc_drq_w(bool state)
 }
 
 
+//-------------------------------------------------
+//  rs232_port_interface rs232a_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232a_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232b_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232b_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232c_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232c_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DEVICE_LINE_MEMBER(UPD7201_TAG, z80dart_device, ctsb_w)
+};
+
+
+
 //**************************************************************************
 //  MACHINE INITIALIZATION
 //**************************************************************************
@@ -702,10 +749,6 @@ void mm1_state::machine_start()
 	// floppy callbacks
 	m_fdc->setup_intrq_cb(upd765_family_device::line_cb(FUNC(mm1_state::fdc_intrq_w), this));
 	m_fdc->setup_drq_cb(upd765_family_device::line_cb(FUNC(mm1_state::fdc_drq_w), this));
-
-	// find memory regions
-	m_mmu_rom = memregion("address")->base();
-	m_key_rom = memregion("keyboard")->base();
 
 	// register for state saving
 	save_item(NAME(m_sense));
@@ -758,7 +801,7 @@ static MACHINE_CONFIG_START( mm1, mm1_state )
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// peripheral hardware
@@ -767,9 +810,11 @@ static MACHINE_CONFIG_START( mm1, mm1_state )
 	MCFG_PIT8253_ADD(I8253_TAG, pit_intf)
 	MCFG_UPD765A_ADD(UPD765_TAG, /* XTAL_16MHz/2/2 */ true, true)
 	MCFG_UPD7201_ADD(UPD7201_TAG, XTAL_6_144MHz/2, mpsc_intf)
-
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", mm1_floppies, "525qd", 0, mm1_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":1", mm1_floppies, "525qd", 0, mm1_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", mm1_floppies, "525qd", mm1_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":1", mm1_floppies, "525qd", mm1_state::floppy_formats)
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232a_intf, default_rs232_devices, NULL)
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232b_intf, default_rs232_devices, NULL)
+	MCFG_RS232_PORT_ADD(RS232_C_TAG, rs232c_intf, default_rs232_devices, NULL)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)

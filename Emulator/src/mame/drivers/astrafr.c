@@ -266,7 +266,6 @@ INPUT_PORTS_END
 
 MACHINE_START_MEMBER(astrafr_state,astra_common)
 {
-
 	m_cpuregion = (UINT32*)memregion( "maincpu" )->base();
 	m_cpuregion_size = memregion( "maincpu" )->bytes()/4;
 	m_mainram = (UINT32*)auto_alloc_array_clear(machine(), UINT32, 0x10000);
@@ -2115,26 +2114,26 @@ void astra_addresslines( UINT16* src, size_t srcsize, int small )
 
 DRIVER_INIT_MEMBER(astrafr_state,astradec)
 {
-	astra_addresslines( (UINT16*)machine().root_device().memregion( "maincpu" )->base(), machine().root_device().memregion( "maincpu" )->bytes(), 0 );
+	astra_addresslines( (UINT16*)memregion( "maincpu" )->base(), memregion( "maincpu" )->bytes(), 0 );
 }
 
 
 
 DRIVER_INIT_MEMBER(astrafr_state,astradec_dual)
 {
-	astra_addresslines( (UINT16*)machine().root_device().memregion( "maincpu" )->base(), machine().root_device().memregion( "maincpu" )->bytes(), 0 );
-	astra_addresslines( (UINT16*)machine().root_device().memregion( "slavecpu" )->base(), machine().root_device().memregion( "slavecpu" )->bytes(), 0 );
+	astra_addresslines( (UINT16*)memregion( "maincpu" )->base(), memregion( "maincpu" )->bytes(), 0 );
+	astra_addresslines( (UINT16*)memregion( "slavecpu" )->base(), memregion( "slavecpu" )->bytes(), 0 );
 }
 
 DRIVER_INIT_MEMBER(astrafr_state,astradec_sml)
 {
-	astra_addresslines( (UINT16*)machine().root_device().memregion( "maincpu" )->base(), machine().root_device().memregion( "maincpu" )->bytes(), 1 );
+	astra_addresslines( (UINT16*)memregion( "maincpu" )->base(), memregion( "maincpu" )->bytes(), 1 );
 }
 
 DRIVER_INIT_MEMBER(astrafr_state,astradec_sml_dual)
 {
-	astra_addresslines( (UINT16*)machine().root_device().memregion( "maincpu" )->base(), machine().root_device().memregion( "maincpu" )->bytes(), 1 );
-	astra_addresslines( (UINT16*)machine().root_device().memregion( "slavecpu" )->base(), machine().root_device().memregion( "slavecpu" )->bytes(), 1 );
+	astra_addresslines( (UINT16*)memregion( "maincpu" )->base(), memregion( "maincpu" )->bytes(), 1 );
+	astra_addresslines( (UINT16*)memregion( "slavecpu" )->base(), memregion( "slavecpu" )->bytes(), 1 );
 }
 
 // Single games?

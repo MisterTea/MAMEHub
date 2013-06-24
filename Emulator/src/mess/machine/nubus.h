@@ -21,13 +21,11 @@
 #define MCFG_NUBUS_BUS_ADD(_tag, _cputag, _config) \
 	MCFG_DEVICE_ADD(_tag, NUBUS, 0) \
 	MCFG_DEVICE_CONFIG(_config) \
-	nubus_device::static_set_cputag(*device, _cputag); \
-
-#define MCFG_NUBUS_SLOT_ADD(_nbtag, _tag, _slot_intf, _def_slot, _def_inp) \
+	nubus_device::static_set_cputag(*device, _cputag);
+#define MCFG_NUBUS_SLOT_ADD(_nbtag, _tag, _slot_intf, _def_slot) \
 	MCFG_DEVICE_ADD(_tag, NUBUS_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _def_inp, false) \
-	nubus_slot_device::static_set_nubus_slot(*device, _nbtag, _tag); \
-
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false) \
+	nubus_slot_device::static_set_nubus_slot(*device, _nbtag, _tag);
 #define MCFG_NUBUS_SLOT_REMOVE(_tag)    \
 	MCFG_DEVICE_REMOVE(_tag)
 
@@ -51,7 +49,7 @@ class nubus_slot_device : public device_t,
 public:
 	// construction/destruction
 	nubus_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	nubus_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	nubus_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	// device-level overrides
 	virtual void device_start();
@@ -86,7 +84,7 @@ class nubus_device : public device_t,
 public:
 	// construction/destruction
 	nubus_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	nubus_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	nubus_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	// inline configuration
 	static void static_set_cputag(device_t &device, const char *tag);
 

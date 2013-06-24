@@ -52,16 +52,15 @@ WRITE8_MEMBER(nbmj9195_state::nbmj9195_soundclr_w)
 	soundlatch_clear_byte_w(space, 0, 0);
 }
 
-static void nbmj9195_outcoin_flag_w(address_space &space, int data)
+void nbmj9195_state::nbmj9195_outcoin_flag_w(int data)
 {
-	nbmj9195_state *state = space.machine().driver_data<nbmj9195_state>();
 	// bit0: coin in counter
 	// bit1: coin out counter
 	// bit2: hopper
 	// bit3: coin lockout
 
-	if (data & 0x04) state->m_outcoin_flag ^= 1;
-	else state->m_outcoin_flag = 1;
+	if (data & 0x04) m_outcoin_flag ^= 1;
+	else m_outcoin_flag = 1;
 }
 
 WRITE8_MEMBER(nbmj9195_state::nbmj9195_inputportsel_w)
@@ -69,36 +68,33 @@ WRITE8_MEMBER(nbmj9195_state::nbmj9195_inputportsel_w)
 	m_inputport = (data ^ 0xff);
 }
 
-static int nbmj9195_dipsw_r(running_machine &machine)
+int nbmj9195_state::nbmj9195_dipsw_r()
 {
-	nbmj9195_state *state = machine.driver_data<nbmj9195_state>();
-	return (((state->ioport("DSWA")->read() & 0xff) | ((state->ioport("DSWB")->read() & 0xff) << 8)) >> state->m_dipswbitsel) & 0x01;
+	return (((ioport("DSWA")->read() & 0xff) | ((ioport("DSWB")->read() & 0xff) << 8)) >> m_dipswbitsel) & 0x01;
 }
 
-static void nbmj9195_dipswbitsel_w(address_space &space, int data)
+void nbmj9195_state::nbmj9195_dipswbitsel_w(int data)
 {
-	nbmj9195_state *state = space.machine().driver_data<nbmj9195_state>();
 	switch (data & 0xc0)
 	{
 		case 0x00:
-			state->m_dipswbitsel = 0;
+			m_dipswbitsel = 0;
 			break;
 		case 0x40:
 			break;
 		case 0x80:
 			break;
 		case 0xc0:
-			state->m_dipswbitsel = ((state->m_dipswbitsel + 1) & 0x0f);
+			m_dipswbitsel = ((m_dipswbitsel + 1) & 0x0f);
 			break;
 		default:
 			break;
 	}
 }
 
-static void mscoutm_inputportsel_w(address_space &space, int data)
+void nbmj9195_state::mscoutm_inputportsel_w( int data)
 {
-	nbmj9195_state *state = space.machine().driver_data<nbmj9195_state>();
-	state->m_mscoutm_inputport = (data ^ 0xff);
+	m_mscoutm_inputport = (data ^ 0xff);
 }
 
 READ8_MEMBER(nbmj9195_state::mscoutm_dipsw_0_r)
@@ -131,7 +127,6 @@ READ8_MEMBER(nbmj9195_state::tmpz84c011_pio_r)
 		(!strcmp(machine().system().name, "imekura")) ||
 		(!strcmp(machine().system().name, "mjegolf")))
 	{
-
 		switch (offset)
 		{
 			case 0:         /* PA_0 */
@@ -242,7 +237,7 @@ READ8_MEMBER(nbmj9195_state::tmpz84c011_pio_r)
 						portdata = ioport("KEY3")->read();
 						break;
 					case 0x10:
-						portdata = ((ioport("KEY4")->read() & 0x7f) | (nbmj9195_dipsw_r(machine()) << 7));
+						portdata = ((ioport("KEY4")->read() & 0x7f) | (nbmj9195_dipsw_r() << 7));
 						break;
 					default:
 						portdata = (ioport("KEY0")->read() & ioport("KEY1")->read() & ioport("KEY2")->read() & ioport("KEY3")->read() & (ioport("KEY4")->read() & 0x7f));
@@ -312,31 +307,30 @@ WRITE8_MEMBER(nbmj9195_state::tmpz84c011_pio_w)
 		(!strcmp(machine().system().name, "mscoutm")) ||
 		(!strcmp(machine().system().name, "mjegolf")))
 	{
-
 		switch (offset)
 		{
 			case 0:         /* PA_0 */
-				mscoutm_inputportsel_w(space, data);    // NB22090
+				mscoutm_inputportsel_w(data);    // NB22090
 				break;
 			case 1:         /* PB_0 */
 				break;
 			case 2:         /* PC_0 */
 				break;
 			case 3:         /* PD_0 */
-				nbmj9195_clutsel_w(space, data);
+				nbmj9195_clutsel_w(data);
 				break;
 			case 4:         /* PE_0 */
-				nbmj9195_gfxflag2_w(space, data);       // NB22090
+				nbmj9195_gfxflag2_w(data);       // NB22090
 				break;
 
 			case 5:         /* PA_1 */
 				nbmj9195_soundbank_w(space, 0, data);
 				break;
 			case 6:         /* PB_1 */
-				machine().device<dac_device>("dac2")->write_unsigned8(data);
+				m_dac2->write_unsigned8(data);
 				break;
 			case 7:         /* PC_1 */
-				machine().device<dac_device>("dac1")->write_unsigned8(data);
+				m_dac1->write_unsigned8(data);
 				break;
 			case 8:         /* PD_1 */
 				break;
@@ -358,23 +352,23 @@ WRITE8_MEMBER(nbmj9195_state::tmpz84c011_pio_w)
 			case 1:         /* PB_0 */
 				break;
 			case 2:         /* PC_0 */
-				nbmj9195_dipswbitsel_w(space, data);
+				nbmj9195_dipswbitsel_w(data);
 				break;
 			case 3:         /* PD_0 */
-				nbmj9195_clutsel_w(space, data);
+				nbmj9195_clutsel_w(data);
 				break;
 			case 4:         /* PE_0 */
-				nbmj9195_outcoin_flag_w(space, data);
+				nbmj9195_outcoin_flag_w(data);
 				break;
 
 			case 5:         /* PA_1 */
 				nbmj9195_soundbank_w(space, 0, data);
 				break;
 			case 6:         /* PB_1 */
-				machine().device<dac_device>("dac1")->write_unsigned8(data);
+				m_dac1->write_unsigned8(data);
 				break;
 			case 7:         /* PC_1 */
-				machine().device<dac_device>("dac2")->write_unsigned8(data);
+				m_dac2->write_unsigned8(data);
 				break;
 			case 8:         /* PD_1 */
 				break;
@@ -636,7 +630,7 @@ static Z80CTC_INTERFACE( ctc_intf_audio )
 
 void nbmj9195_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	int i;
 
 	// initialize TMPZ84C011 PIO
@@ -649,7 +643,7 @@ void nbmj9195_state::machine_reset()
 
 DRIVER_INIT_MEMBER(nbmj9195_state,nbmj9195)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *ROM = memregion("audiocpu")->base();
 
 	// sound program patch
@@ -1164,7 +1158,7 @@ static ADDRESS_MAP_START( sailorws_sound_io_map, AS_IO, 8, nbmj9195_state )
 	AM_RANGE(0x56, 0x56) AM_READWRITE(tmpz84c011_1_dir_pc_r,tmpz84c011_1_dir_pc_w)
 	AM_RANGE(0x34, 0x34) AM_READWRITE(tmpz84c011_1_dir_pd_r,tmpz84c011_1_dir_pd_w)
 	AM_RANGE(0x44, 0x44) AM_READWRITE(tmpz84c011_1_dir_pe_r,tmpz84c011_1_dir_pe_w)
-	AM_RANGE(0x80, 0x81) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0x80, 0x81) AM_DEVWRITE("ymsnd", ym3812_device, write)
 ADDRESS_MAP_END
 
 
@@ -3821,10 +3815,10 @@ ROM_END
 
 ROM_START( yosimotm )
 	ROM_REGION( 0x10000, "maincpu", 0 ) /* main program */
-	ROM_LOAD( "1.7c",  0x00000,  0x10000, CRC(d156b07d) SHA1(8dcf2d8ac60920dc7ea286d4b91399ed2db05a3b) )
+	ROM_LOAD( "1(__yosimotm).7c",  0x00000,  0x10000, CRC(d156b07d) SHA1(8dcf2d8ac60920dc7ea286d4b91399ed2db05a3b) )
 
 	ROM_REGION( 0x20000, "audiocpu", 0 ) /* sound program */
-	ROM_LOAD( "2.12e", 0x00000,  0x20000, CRC(e2d84085) SHA1(890b4d4a02030253837b67e8232293dce30d7ca2) )
+	ROM_LOAD( "2(__yosimotm).12e", 0x00000,  0x20000, CRC(e2d84085) SHA1(890b4d4a02030253837b67e8232293dce30d7ca2) )
 
 	ROM_REGION( 0x300000, "gfx1", 0 ) /* gfx */
 	ROM_LOAD( "3.3h",  0x000000, 0x80000, CRC(f421c6c8) SHA1(f9d68f542cbf379a7c41b47704b19e1aec69f237) )

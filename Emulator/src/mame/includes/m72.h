@@ -3,18 +3,23 @@
     Irem M72 hardware
 
 *************************************************************************/
+#include "sound/dac.h"
 
 class m72_state : public driver_device
 {
 public:
 	m72_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_videoram1(*this, "videoram1"),
 		m_videoram2(*this, "videoram2"),
 		m_majtitle_rowscrollram(*this, "majtitle_rowscr"),
 		m_spriteram2(*this, "spriteram2"),
-		m_soundram(*this, "soundram"){ }
+		m_soundram(*this, "soundram"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_mcu(*this, "mcu"),
+		m_dac(*this, "dac") { }
 
 	required_shared_ptr<UINT16> m_spriteram;
 	required_shared_ptr<UINT16> m_videoram1;
@@ -123,4 +128,17 @@ public:
 	TIMER_CALLBACK_MEMBER(m72_scanline_interrupt);
 	TIMER_CALLBACK_MEMBER(kengo_scanline_interrupt);
 	TIMER_CALLBACK_MEMBER(delayed_ram16_w);
+	inline void m72_get_tile_info(tile_data &tileinfo,int tile_index,const UINT16 *vram,int gfxnum);
+	inline void rtype2_get_tile_info(tile_data &tileinfo,int tile_index,const UINT16 *vram,int gfxnum);
+	void register_savestate();
+	inline void changecolor(int color,int r,int g,int b);
+	void m72_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void majtitle_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	int find_sample(int num);
+	void copy_le(UINT16 *dest, const UINT8 *src, UINT8 bytes);
+	void install_protection_handler(const UINT8 *code,const UINT8 *crc);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	optional_device<cpu_device> m_mcu;
+	optional_device<dac_device> m_dac;
 };

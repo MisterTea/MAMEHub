@@ -64,62 +64,34 @@
 
 #include "emu.h"
 #include "cpu/i386/i386.h"
-#include "machine/8237dma.h"
-#include "machine/pic8259.h"
-#include "machine/pit8253.h"
-#include "machine/mc146818.h"
-#include "machine/pcshare.h"
 #include "machine/pci.h"
-#include "machine/8042kbdc.h"
+#include "machine/pcshare.h"
 #include "machine/pckeybrd.h"
 #include "machine/idectrl.h"
 
 
-class gamecstl_state : public driver_device
+class gamecstl_state : public pcat_base_state
 {
 public:
 	gamecstl_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_cga_ram(*this, "cga_ram"){ }
+		: pcat_base_state(mconfig, type, tag),
+		m_cga_ram(*this, "cga_ram") { }
 
 	required_shared_ptr<UINT32> m_cga_ram;
 	UINT32 *m_bios_ram;
 	UINT8 m_mxtc_config_reg[256];
 	UINT8 m_piix4_config_reg[4][256];
-	int m_dma_channel;
-	UINT8 m_dma_offset[2][4];
-	UINT8 m_at_pages[0x10];
 
-	device_t    *m_pit8254;
-	device_t    *m_pic8259_1;
-	device_t    *m_pic8259_2;
-	device_t    *m_dma8237_1;
-	device_t    *m_dma8237_2;
 	DECLARE_WRITE32_MEMBER(pnp_config_w);
 	DECLARE_WRITE32_MEMBER(pnp_data_w);
 	DECLARE_WRITE32_MEMBER(bios_ram_w);
-	DECLARE_READ8_MEMBER(at_page8_r);
-	DECLARE_WRITE8_MEMBER(at_page8_w);
-	DECLARE_READ8_MEMBER(pc_dma_read_byte);
-	DECLARE_WRITE8_MEMBER(pc_dma_write_byte);
-	DECLARE_READ8_MEMBER(at_dma8237_2_r);
-	DECLARE_WRITE8_MEMBER(at_dma8237_2_w);
-	DECLARE_READ32_MEMBER(ide_r);
-	DECLARE_WRITE32_MEMBER(ide_w);
-	DECLARE_READ32_MEMBER(fdc_r);
-	DECLARE_WRITE32_MEMBER(fdc_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dma_hrq_changed);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack0_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack1_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack2_w);
-	DECLARE_WRITE_LINE_MEMBER(pc_dack3_w);
-	DECLARE_WRITE_LINE_MEMBER(gamecstl_pic8259_1_set_int_line);
-	DECLARE_READ8_MEMBER(get_slave_ack);
 	DECLARE_DRIVER_INIT(gamecstl);
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_gamecstl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_char(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx, int ch, int att, int x, int y);
+	void intel82439tx_init();
 };
 
 
@@ -138,7 +110,7 @@ void gamecstl_state::video_start()
 		palette_set_color(machine(), i, cga_palette[i]);
 }
 
-static void draw_char(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx, int ch, int att, int x, int y)
+void gamecstl_state::draw_char(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx, int ch, int att, int x, int y)
 {
 	int i,j;
 	const UINT8 *dp;
@@ -186,18 +158,6 @@ UINT32 gamecstl_state::screen_update_gamecstl(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
-READ8_MEMBER(gamecstl_state::at_dma8237_2_r)
-{
-	device_t *device = machine().device("dma8237_2");
-	return i8237_r(device, space, offset / 2);
-}
-
-WRITE8_MEMBER(gamecstl_state::at_dma8237_2_w)
-{
-	device_t *device = machine().device("dma8237_2");
-	i8237_w(device, space, offset / 2, data);
-}
-
 // Intel 82439TX System Controller (MXTC)
 
 static UINT8 mxtc_config_r(device_t *busdevice, device_t *device, int function, int reg)
@@ -222,7 +182,7 @@ static void mxtc_config_w(device_t *busdevice, device_t *device, int function, i
 			}
 			else                    // disable RAM access (reads go to BIOS ROM)
 			{
-				state->membank("bank1")->set_base(busdevice->machine().root_device().memregion("bios")->base() + 0x30000);
+				state->membank("bank1")->set_base(state->memregion("bios")->base() + 0x30000);
 			}
 			break;
 		}
@@ -231,15 +191,14 @@ static void mxtc_config_w(device_t *busdevice, device_t *device, int function, i
 	state->m_mxtc_config_reg[reg] = data;
 }
 
-static void intel82439tx_init(running_machine &machine)
+void gamecstl_state::intel82439tx_init()
 {
-	gamecstl_state *state = machine.driver_data<gamecstl_state>();
-	state->m_mxtc_config_reg[0x60] = 0x02;
-	state->m_mxtc_config_reg[0x61] = 0x02;
-	state->m_mxtc_config_reg[0x62] = 0x02;
-	state->m_mxtc_config_reg[0x63] = 0x02;
-	state->m_mxtc_config_reg[0x64] = 0x02;
-	state->m_mxtc_config_reg[0x65] = 0x02;
+	m_mxtc_config_reg[0x60] = 0x02;
+	m_mxtc_config_reg[0x61] = 0x02;
+	m_mxtc_config_reg[0x62] = 0x02;
+	m_mxtc_config_reg[0x63] = 0x02;
+	m_mxtc_config_reg[0x64] = 0x02;
+	m_mxtc_config_reg[0x65] = 0x02;
 }
 
 static UINT32 intel82439tx_pci_r(device_t *busdevice, device_t *device, int function, int reg, UINT32 mem_mask)
@@ -361,33 +320,6 @@ WRITE32_MEMBER(gamecstl_state::pnp_data_w)
 
 
 
-READ32_MEMBER(gamecstl_state::ide_r)
-{
-	device_t *device = machine().device("ide");
-	return ide_controller32_r(device, space, 0x1f0/4 + offset, mem_mask);
-}
-
-WRITE32_MEMBER(gamecstl_state::ide_w)
-{
-	device_t *device = machine().device("ide");
-	ide_controller32_w(device, space, 0x1f0/4 + offset, data, mem_mask);
-}
-
-READ32_MEMBER(gamecstl_state::fdc_r)
-{
-	device_t *device = machine().device("ide");
-	return ide_controller32_r(device, space, 0x3f0/4 + offset, mem_mask);
-}
-
-WRITE32_MEMBER(gamecstl_state::fdc_w)
-{
-	device_t *device = machine().device("ide");
-	//mame_printf_debug("FDC: write %08X, %08X, %08X\n", data, offset, mem_mask);
-	ide_controller32_w(device, space, 0x3f0/4 + offset, data, mem_mask);
-}
-
-
-
 WRITE32_MEMBER(gamecstl_state::bios_ram_w)
 {
 	if (m_mxtc_config_reg[0x59] & 0x20)     // write to RAM if this region is write-enabled
@@ -395,121 +327,6 @@ WRITE32_MEMBER(gamecstl_state::bios_ram_w)
 		COMBINE_DATA(m_bios_ram + offset);
 	}
 }
-
-
-/*************************************************************************
- *
- *      PC DMA stuff
- *
- *************************************************************************/
-
-
-
-READ8_MEMBER(gamecstl_state::at_page8_r)
-{
-	UINT8 data = m_at_pages[offset % 0x10];
-
-	switch(offset % 8)
-	{
-	case 1:
-		data = m_dma_offset[(offset / 8) & 1][2];
-		break;
-	case 2:
-		data = m_dma_offset[(offset / 8) & 1][3];
-		break;
-	case 3:
-		data = m_dma_offset[(offset / 8) & 1][1];
-		break;
-	case 7:
-		data = m_dma_offset[(offset / 8) & 1][0];
-		break;
-	}
-	return data;
-}
-
-
-WRITE8_MEMBER(gamecstl_state::at_page8_w)
-{
-	m_at_pages[offset % 0x10] = data;
-
-	switch(offset % 8)
-	{
-	case 1:
-		m_dma_offset[(offset / 8) & 1][2] = data;
-		break;
-	case 2:
-		m_dma_offset[(offset / 8) & 1][3] = data;
-		break;
-	case 3:
-		m_dma_offset[(offset / 8) & 1][1] = data;
-		break;
-	case 7:
-		m_dma_offset[(offset / 8) & 1][0] = data;
-		break;
-	}
-}
-
-
-WRITE_LINE_MEMBER(gamecstl_state::pc_dma_hrq_changed)
-{
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_HALT, state ? ASSERT_LINE : CLEAR_LINE);
-
-	/* Assert HLDA */
-	i8237_hlda_w( m_dma8237_1, state );
-}
-
-
-READ8_MEMBER(gamecstl_state::pc_dma_read_byte)
-{
-	offs_t page_offset = (((offs_t) m_dma_offset[0][m_dma_channel]) << 16)
-		& 0xFF0000;
-
-	return space.read_byte(page_offset + offset);
-}
-
-
-WRITE8_MEMBER(gamecstl_state::pc_dma_write_byte)
-{
-	offs_t page_offset = (((offs_t) m_dma_offset[0][m_dma_channel]) << 16)
-		& 0xFF0000;
-
-	space.write_byte(page_offset + offset, data);
-}
-
-static void set_dma_channel(device_t *device, int channel, int state)
-{
-	gamecstl_state *drvstate = device->machine().driver_data<gamecstl_state>();
-	if (!state) drvstate->m_dma_channel = channel;
-}
-
-WRITE_LINE_MEMBER(gamecstl_state::pc_dack0_w){ set_dma_channel(m_dma8237_1, 0, state); }
-WRITE_LINE_MEMBER(gamecstl_state::pc_dack1_w){ set_dma_channel(m_dma8237_1, 1, state); }
-WRITE_LINE_MEMBER(gamecstl_state::pc_dack2_w){ set_dma_channel(m_dma8237_1, 2, state); }
-WRITE_LINE_MEMBER(gamecstl_state::pc_dack3_w){ set_dma_channel(m_dma8237_1, 3, state); }
-
-static I8237_INTERFACE( dma8237_1_config )
-{
-	DEVCB_DRIVER_LINE_MEMBER(gamecstl_state,pc_dma_hrq_changed),
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER(gamecstl_state, pc_dma_read_byte),
-	DEVCB_DRIVER_MEMBER(gamecstl_state, pc_dma_write_byte),
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_DRIVER_LINE_MEMBER(gamecstl_state,pc_dack0_w), DEVCB_DRIVER_LINE_MEMBER(gamecstl_state,pc_dack1_w), DEVCB_DRIVER_LINE_MEMBER(gamecstl_state,pc_dack2_w), DEVCB_DRIVER_LINE_MEMBER(gamecstl_state,pc_dack3_w) }
-};
-
-static I8237_INTERFACE( dma8237_2_config )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL },
-	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL }
-};
-
-
 
 /*****************************************************************************/
 
@@ -525,21 +342,14 @@ static ADDRESS_MAP_START( gamecstl_map, AS_PROGRAM, 32, gamecstl_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(gamecstl_io, AS_IO, 32, gamecstl_state )
-	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE8_LEGACY("dma8237_1", i8237_r, i8237_w, 0xffffffff)
-	AM_RANGE(0x0020, 0x003f) AM_DEVREADWRITE8_LEGACY("pic8259_1", pic8259_r, pic8259_w, 0xffffffff)
-	AM_RANGE(0x0040, 0x005f) AM_DEVREADWRITE8_LEGACY("pit8254", pit8253_r, pit8253_w, 0xffffffff)
-	AM_RANGE(0x0060, 0x006f) AM_READWRITE8_LEGACY(kbdc8042_8_r, kbdc8042_8_w, 0xffffffff)
-	AM_RANGE(0x0070, 0x007f) AM_DEVREADWRITE8("rtc", mc146818_device, read, write, 0xffffffff)
-	AM_RANGE(0x0080, 0x009f) AM_READWRITE8(at_page8_r,at_page8_w, 0xffffffff)
-	AM_RANGE(0x00a0, 0x00bf) AM_DEVREADWRITE8_LEGACY("pic8259_2", pic8259_r, pic8259_w, 0xffffffff)
-	AM_RANGE(0x00c0, 0x00df) AM_READWRITE8(at_dma8237_2_r, at_dma8237_2_w, 0xffffffff)
+	AM_IMPORT_FROM(pcat32_io_common)
 	AM_RANGE(0x00e8, 0x00eb) AM_NOP
 	AM_RANGE(0x00ec, 0x00ef) AM_NOP
-	AM_RANGE(0x01f0, 0x01f7) AM_READWRITE(ide_r, ide_w)
+	AM_RANGE(0x01f0, 0x01f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0_pc, write_cs0_pc, 0xffffffff)
 	AM_RANGE(0x0300, 0x03af) AM_NOP
 	AM_RANGE(0x03b0, 0x03df) AM_NOP
 	AM_RANGE(0x0278, 0x027b) AM_WRITE(pnp_config_w)
-	AM_RANGE(0x03f0, 0x03ff) AM_READWRITE(fdc_r, fdc_w)
+	AM_RANGE(0x03f0, 0x03ff) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1_pc, write_cs1_pc, 0xffffffff)
 	AM_RANGE(0x0a78, 0x0a7b) AM_WRITE(pnp_data_w)
 	AM_RANGE(0x0cf8, 0x0cff) AM_DEVREADWRITE("pcibus", pci_bus_legacy_device, read, write)
 ADDRESS_MAP_END
@@ -602,114 +412,31 @@ static INPUT_PORTS_START(gamecstl)
 	PORT_START("pc_keyboard_7")
 INPUT_PORTS_END
 
-static IRQ_CALLBACK(irq_callback)
-{
-	gamecstl_state *state = device->machine().driver_data<gamecstl_state>();
-	return pic8259_acknowledge(state->m_pic8259_1);
-}
-
 void gamecstl_state::machine_start()
 {
-	m_pit8254 = machine().device( "pit8254" );
-	m_pic8259_1 = machine().device( "pic8259_1" );
-	m_pic8259_2 = machine().device( "pic8259_2" );
-	m_dma8237_1 = machine().device( "dma8237_1" );
-	m_dma8237_2 = machine().device( "dma8237_2" );
 }
 
 void gamecstl_state::machine_reset()
 {
-	machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("bios")->base() + 0x30000);
+	membank("bank1")->set_base(memregion("bios")->base() + 0x30000);
 
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(gamecstl_state::irq_callback),this));
 }
-
-
-/*************************************************************
- *
- * pic8259 configuration
- *
- *************************************************************/
-
-WRITE_LINE_MEMBER(gamecstl_state::gamecstl_pic8259_1_set_int_line)
-{
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
-}
-
-READ8_MEMBER(gamecstl_state::get_slave_ack)
-{
-	if (offset==2) { // IRQ = 2
-		return pic8259_acknowledge(m_pic8259_2);
-	}
-	return 0x00;
-}
-
-static const struct pic8259_interface gamecstl_pic8259_1_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(gamecstl_state,gamecstl_pic8259_1_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_MEMBER(gamecstl_state,get_slave_ack)
-};
-
-static const struct pic8259_interface gamecstl_pic8259_2_config =
-{
-	DEVCB_DEVICE_LINE("pic8259_1", pic8259_ir2_w),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
-
-
-/*************************************************************
- *
- * pit8254 configuration
- *
- *************************************************************/
-
-static const struct pit8253_config gamecstl_pit8254_config =
-{
-	{
-		{
-			4772720/4,              /* heartbeat IRQ */
-			DEVCB_NULL,
-			DEVCB_DEVICE_LINE("pic8259_1", pic8259_ir0_w)
-		}, {
-			4772720/4,              /* dram refresh */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}, {
-			4772720/4,              /* pio port c pin 4, and speaker polling enough */
-			DEVCB_NULL,
-			DEVCB_NULL
-		}
-	}
-};
 
 static MACHINE_CONFIG_START( gamecstl, gamecstl_state )
-
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", PENTIUM, 200000000)
 	MCFG_CPU_PROGRAM_MAP(gamecstl_map)
 	MCFG_CPU_IO_MAP(gamecstl_io)
 
+	MCFG_FRAGMENT_ADD( pcat_common )
 
 	MCFG_PCI_BUS_LEGACY_ADD("pcibus", 0)
 	MCFG_PCI_BUS_LEGACY_DEVICE(0, NULL, intel82439tx_pci_r, intel82439tx_pci_w)
 	MCFG_PCI_BUS_LEGACY_DEVICE(7, NULL, intel82371ab_pci_r, intel82371ab_pci_w)
 
-	MCFG_PIT8254_ADD( "pit8254", gamecstl_pit8254_config )
-
-	MCFG_I8237_ADD( "dma8237_1", XTAL_14_31818MHz/3, dma8237_1_config )
-
-	MCFG_I8237_ADD( "dma8237_2", XTAL_14_31818MHz/3, dma8237_2_config )
-
-	MCFG_PIC8259_ADD( "pic8259_1", gamecstl_pic8259_1_config )
-
-	MCFG_PIC8259_ADD( "pic8259_2", gamecstl_pic8259_2_config )
-
 	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
 	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
-
-	MCFG_MC146818_ADD( "rtc", MC146818_STANDARD )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -725,43 +452,11 @@ static MACHINE_CONFIG_START( gamecstl, gamecstl_state )
 
 MACHINE_CONFIG_END
 
-static void set_gate_a20(running_machine &machine, int a20)
-{
-	machine.device("maincpu")->execute().set_input_line(INPUT_LINE_A20, a20);
-}
-
-static void keyboard_interrupt(running_machine &machine, int state)
-{
-	gamecstl_state *drvstate = machine.driver_data<gamecstl_state>();
-	pic8259_ir1_w(drvstate->m_pic8259_1, state);
-}
-
-static int gamecstl_get_out2(running_machine &machine)
-{
-	gamecstl_state *state = machine.driver_data<gamecstl_state>();
-	return pit8253_get_output( state->m_pit8254, 2 );
-}
-
-static const struct kbdc8042_interface at8042 =
-{
-	KBDC8042_AT386, set_gate_a20, keyboard_interrupt, NULL, gamecstl_get_out2
-};
-
-static void gamecstl_set_keyb_int(running_machine &machine, int state)
-{
-	gamecstl_state *drvstate = machine.driver_data<gamecstl_state>();
-	pic8259_ir1_w(drvstate->m_pic8259_1, state);
-}
-
 DRIVER_INIT_MEMBER(gamecstl_state,gamecstl)
 {
 	m_bios_ram = auto_alloc_array(machine(), UINT32, 0x10000/4);
 
-	init_pc_common(machine(), PCCOMMON_KEYBOARD_AT, gamecstl_set_keyb_int);
-
-	intel82439tx_init(machine());
-
-	kbdc8042_init(machine(), &at8042);
+	intel82439tx_init();
 }
 
 /*****************************************************************************/

@@ -101,7 +101,11 @@ const device_type HD61700 = &device_creator<hd61700_cpu_device>;
 
 hd61700_cpu_device::hd61700_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: cpu_device(mconfig, HD61700, "HD61700", tag, owner, clock),
-		m_program_config("program", ENDIANNESS_BIG, 16, 18, -1)
+		m_program_config("program", ENDIANNESS_BIG, 16, 18, -1),
+		m_ppc(0x0000),
+		m_curpc(0x0000),
+		m_pc(0),
+		m_flags(0)
 {
 	// ...
 }
@@ -144,6 +148,11 @@ void hd61700_cpu_device::device_start()
 	save_item(NAME(m_reg16bit));
 	save_item(NAME(m_regmain));
 	save_item(NAME(m_lines_status));
+
+	memset(m_regsir, 0, sizeof(m_regsir));
+	memset(m_reg8bit, 0, sizeof(m_reg8bit));
+	memset(m_reg16bit, 0, sizeof(m_reg16bit));
+	memset(m_regmain, 0, sizeof(m_regmain));
 
 	// register state for debugger
 	state_add(HD61700_PC, "pc",   m_pc).callimport().callexport().formatstr("%04X");
@@ -197,10 +206,10 @@ void hd61700_cpu_device::device_reset()
 	m_irq_status = 0;
 	prev_ua = 0;
 
-	memset(m_regsir, 0, ARRAY_LENGTH(m_regsir));
-	memset(m_reg8bit, 0, ARRAY_LENGTH(m_reg8bit));
-	memset(m_reg16bit, 0, ARRAY_LENGTH(m_reg16bit) * sizeof(UINT16));
-	memset(m_regmain, 0, ARRAY_LENGTH(m_regmain));
+	memset(m_regsir, 0, sizeof(m_regsir));
+	memset(m_reg8bit, 0, sizeof(m_reg8bit));
+	memset(m_reg16bit, 0, sizeof(m_reg16bit));
+	memset(m_regmain, 0, sizeof(m_regmain));
 
 	for (int i=0;i<6; i++)
 		m_lines_status[i] = CLEAR_LINE;
@@ -285,7 +294,7 @@ void hd61700_cpu_device::state_string_export(const device_state_entry &entry, as
 offs_t hd61700_cpu_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options)
 {
 	extern CPU_DISASSEMBLE( hd61700 );
-	return CPU_DISASSEMBLE_NAME(hd61700)(NULL, buffer, pc, oprom, opram, 0);
+	return CPU_DISASSEMBLE_NAME(hd61700)(this, buffer, pc, oprom, opram, options);
 }
 
 
@@ -2963,7 +2972,6 @@ inline int hd61700_cpu_device::get_im_7(UINT8 data)
 
 inline UINT16 hd61700_cpu_device::make_bcd_sub(UINT8 arg1, UINT8 arg2)
 {
-
 	UINT32 ret = (arg1&0x0f) - (arg2&0x0f);
 	UINT8 carry;
 

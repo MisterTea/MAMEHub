@@ -105,8 +105,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( io_map, AS_IO, 8, funkybee_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0x02, 0x02) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0x02, 0x02) AM_DEVREAD("aysnd", ay8910_device, data_r)
 ADDRESS_MAP_END
 
 
@@ -280,13 +280,11 @@ static const ay8910_interface ay8910_config =
 
 void funkybee_state::machine_start()
 {
-
 	save_item(NAME(m_gfx_bank));
 }
 
 void funkybee_state::machine_reset()
 {
-
 	m_gfx_bank = 0;
 }
 

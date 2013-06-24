@@ -14,7 +14,7 @@
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "cpu/konami/konami.h" /* for the callback and the firq irq definition */
+#include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "video/konicdev.h"
 #include "sound/2151intf.h"
 #include "sound/k007232.h"
@@ -27,19 +27,24 @@ static KONAMI_SETLINES_CALLBACK( thunderx_banking );
 
 INTERRUPT_GEN_MEMBER(thunderx_state::scontra_interrupt)
 {
-
 	if (k052109_is_irq_enabled(m_k052109))
 		device.execute().set_input_line(KONAMI_IRQ_LINE, HOLD_LINE);
 }
 
-TIMER_CALLBACK_MEMBER(thunderx_state::thunderx_firq_callback)
+void thunderx_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_maincpu->set_input_line(KONAMI_FIRQ_LINE, HOLD_LINE);
+	switch (id)
+	{
+	case TIMER_THUNDERX_FIRQ:
+		m_maincpu->set_input_line(KONAMI_FIRQ_LINE, HOLD_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in thunderx_state::device_timer");
+	}
 }
 
 READ8_MEMBER(thunderx_state::scontra_bankedram_r)
 {
-
 	if (m_palette_selected)
 		return m_generic_paletteram_8[offset];
 	else
@@ -48,7 +53,6 @@ READ8_MEMBER(thunderx_state::scontra_bankedram_r)
 
 WRITE8_MEMBER(thunderx_state::scontra_bankedram_w)
 {
-
 	if (m_palette_selected)
 		paletteram_xBBBBBGGGGGRRRRR_byte_be_w(space, offset, data);
 	else
@@ -57,7 +61,6 @@ WRITE8_MEMBER(thunderx_state::scontra_bankedram_w)
 
 READ8_MEMBER(thunderx_state::thunderx_bankedram_r)
 {
-
 	if (m_rambank & 0x01)
 		return m_ram[offset];
 	else if (m_rambank & 0x10)
@@ -79,7 +82,6 @@ READ8_MEMBER(thunderx_state::thunderx_bankedram_r)
 
 WRITE8_MEMBER(thunderx_state::thunderx_bankedram_w)
 {
-
 	if (m_rambank & 0x01)
 		m_ram[offset] = data;
 	else if (m_rambank & 0x10)
@@ -183,14 +185,13 @@ this is the data written to internal ram on startup:
 // +3 : x (2 pixel units) of center of object
 // +4 : y (2 pixel units) of center of object
 
-static void run_collisions( running_machine &machine, int s0, int e0, int s1, int e1, int cm, int hm )
+void thunderx_state::run_collisions( int s0, int e0, int s1, int e1, int cm, int hm )
 {
-	thunderx_state *state = machine.driver_data<thunderx_state>();
 	UINT8* p0;
 	UINT8* p1;
 	int ii, jj;
 
-	p0 = &state->m_pmcram[16 + 5 * s0];
+	p0 = &m_pmcram[16 + 5 * s0];
 	for (ii = s0; ii < e0; ii++, p0 += 5)
 	{
 		int l0, r0, b0, t0;
@@ -204,7 +205,7 @@ static void run_collisions( running_machine &machine, int s0, int e0, int s1, in
 		t0 = p0[4] - p0[2];
 		b0 = p0[4] + p0[2];
 
-		p1 = &state->m_pmcram[16 + 5 * s1];
+		p1 = &m_pmcram[16 + 5 * s1];
 		for (jj = s1; jj < e1; jj++,p1 += 5)
 		{
 			int l1,r1,b1,t1;
@@ -235,9 +236,8 @@ static void run_collisions( running_machine &machine, int s0, int e0, int s1, in
 //
 // emulates K052591 collision detection
 
-static void calculate_collisions( running_machine &machine )
+void thunderx_state::calculate_collisions(  )
 {
-	thunderx_state *state = machine.driver_data<thunderx_state>();
 	int X0,Y0;
 	int X1,Y1;
 	int CM,HM;
@@ -261,30 +261,30 @@ static void calculate_collisions( running_machine &machine )
 	// hit mask is 40 to set bit on object 0 and object 1
 	// hit mask is 20 to set bit on object 1 only
 
-	Y0 = state->m_pmcram[0];
-	Y0 = (Y0 << 8) + state->m_pmcram[1];
+	Y0 = m_pmcram[0];
+	Y0 = (Y0 << 8) + m_pmcram[1];
 	Y0 = (Y0 - 15) / 5;
-	Y1 = (state->m_pmcram[2] - 15) / 5;
+	Y1 = (m_pmcram[2] - 15) / 5;
 
-	if (state->m_pmcram[5] < 16)
+	if (m_pmcram[5] < 16)
 	{
 		// US Thunder Cross uses this form
-		X0 = state->m_pmcram[5];
-		X0 = (X0 << 8) + state->m_pmcram[6];
+		X0 = m_pmcram[5];
+		X0 = (X0 << 8) + m_pmcram[6];
 		X0 = (X0 - 16) / 5;
-		X1 = (state->m_pmcram[7] - 16) / 5;
+		X1 = (m_pmcram[7] - 16) / 5;
 	}
 	else
 	{
 		// Japan Thunder Cross uses this form
-		X0 = (state->m_pmcram[5] - 16) / 5;
-		X1 = (state->m_pmcram[6] - 16) / 5;
+		X0 = (m_pmcram[5] - 16) / 5;
+		X1 = (m_pmcram[6] - 16) / 5;
 	}
 
-	CM = state->m_pmcram[3];
-	HM = state->m_pmcram[4];
+	CM = m_pmcram[3];
+	HM = m_pmcram[4];
 
-	run_collisions(machine, X0, Y0, X1, Y1, CM, HM);
+	run_collisions(X0, Y0, X1, Y1, CM, HM);
 }
 
 READ8_MEMBER(thunderx_state::thunderx_1f98_r)
@@ -294,7 +294,6 @@ READ8_MEMBER(thunderx_state::thunderx_1f98_r)
 
 WRITE8_MEMBER(thunderx_state::thunderx_1f98_w)
 {
-
 	// logerror("%04x: 1f98_w %02x\n", space.device().safe_pc(),data);
 
 	/* bit 0 = enable char ROM reading through the video RAM */
@@ -306,10 +305,10 @@ WRITE8_MEMBER(thunderx_state::thunderx_1f98_w)
 	/* bit 2 = do collision detection when 0->1 */
 	if ((data & 4) && !(m_1f98_data & 4))
 	{
-		calculate_collisions(machine());
+		calculate_collisions();
 
 		/* 100 cycle delay is arbitrary */
-		machine().scheduler().timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(100), timer_expired_delegate(FUNC(thunderx_state::thunderx_firq_callback),this));
+		timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(100), TIMER_THUNDERX_FIRQ);
 	}
 
 	m_1f98_data = data;
@@ -360,18 +359,16 @@ WRITE8_MEMBER(thunderx_state::thunderx_sh_irqtrigger_w)
 
 WRITE8_MEMBER(thunderx_state::scontra_snd_bankswitch_w)
 {
-	device_t *device = machine().device("k007232");
 	/* b3-b2: bank for chanel B */
 	/* b1-b0: bank for chanel A */
 
 	int bank_A = (data & 0x03);
 	int bank_B = ((data >> 2) & 0x03);
-	k007232_set_bank(device, bank_A, bank_B);
+	k007232_set_bank(m_k007232, bank_A, bank_B);
 }
 
 READ8_MEMBER(thunderx_state::k052109_051960_r)
 {
-
 	if (k052109_get_rmrd_line(m_k052109) == CLEAR_LINE)
 	{
 		if (offset >= 0x3800 && offset < 0x3808)
@@ -387,7 +384,6 @@ READ8_MEMBER(thunderx_state::k052109_051960_r)
 
 WRITE8_MEMBER(thunderx_state::k052109_051960_w)
 {
-
 	if (offset >= 0x3800 && offset < 0x3808)
 		k051937_w(m_k051960, space, offset - 0x3800, data);
 	else if (offset < 0x3c00)
@@ -576,15 +572,15 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static void volume_callback(device_t *device, int v)
+WRITE8_MEMBER(thunderx_state::volume_callback)
 {
-	k007232_set_volume(device, 0, (v >> 4) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232, 1, 0, (data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_config =
 {
-	volume_callback /* external port callback */
+	DEVCB_DRIVER_MEMBER(thunderx_state,volume_callback) /* external port callback */
 };
 
 
@@ -607,14 +603,7 @@ static const k051960_interface thunderx_k051960_intf =
 
 MACHINE_START_MEMBER(thunderx_state,scontra)
 {
-
 	m_generic_paletteram_8.allocate(0x800);
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k007232 = machine().device("k007232");
-	m_k052109 = machine().device("k052109");
-	m_k051960 = machine().device("k051960");
 
 	save_item(NAME(m_priority));
 	save_item(NAME(m_1f98_data));
@@ -640,7 +629,6 @@ MACHINE_START_MEMBER(thunderx_state,thunderx)
 
 MACHINE_RESET_MEMBER(thunderx_state,scontra)
 {
-
 	m_priority = 0;
 	m_1f98_data = 0;
 	m_palette_selected = 0;
@@ -650,7 +638,7 @@ MACHINE_RESET_MEMBER(thunderx_state,scontra)
 
 MACHINE_RESET_MEMBER(thunderx_state,thunderx)
 {
-	konami_configure_set_lines(machine().device("maincpu"), thunderx_banking);
+	konami_configure_set_lines(m_maincpu, thunderx_banking);
 
 	MACHINE_RESET_CALL_MEMBER(scontra);
 }

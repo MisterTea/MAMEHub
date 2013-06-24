@@ -65,8 +65,7 @@ PS4  J8635      PS4  J8541       PS4  J8648
 
 READ8_MEMBER(mexico86_state::kiki_ym2203_r)
 {
-	device_t *device = machine().device("ymsnd");
-	UINT8 result = ym2203_r(device, space, offset);
+	UINT8 result = m_ymsnd->read(space, offset);
 
 	if (offset == 0)
 		result &= 0x7f;
@@ -100,7 +99,7 @@ static ADDRESS_MAP_START( mexico86_sound_map, AS_PROGRAM, 8, mexico86_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xa7ff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0xa800, 0xbfff) AM_RAM
-	AM_RANGE(0xc000, 0xc001) AM_READ(kiki_ym2203_r) AM_DEVWRITE_LEGACY("ymsnd", ym2203_w)
+	AM_RANGE(0xc000, 0xc001) AM_READ(kiki_ym2203_r) AM_DEVWRITE("ymsnd", ym2203_device, write)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mexico86_m68705_map, AS_PROGRAM, 8, mexico86_state )
@@ -399,16 +398,13 @@ GFXDECODE_END
  *
  *************************************/
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW0"),
-		DEVCB_INPUT_PORT("DSW1"),
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW0"),
+	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -424,11 +420,6 @@ void mexico86_state::machine_start()
 	UINT8 *ROM = memregion("maincpu")->base();
 
 	membank("bank1")->configure_entries(0, 6, &ROM[0x10000], 0x4000);
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-	m_mcu = machine().device("mcu");
 
 	save_item(NAME(m_port_a_in));
 	save_item(NAME(m_port_a_out));
@@ -448,10 +439,9 @@ void mexico86_state::machine_start()
 
 void mexico86_state::machine_reset()
 {
-
 	/*TODO: check the PCB and see how the halt / reset lines are connected. */
-	if (machine().device("sub") != NULL)
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, (ioport("DSW1")->read() & 0x80) ? ASSERT_LINE : CLEAR_LINE);
+	if (m_subcpu != NULL)
+		m_subcpu->set_input_line(INPUT_LINE_RESET, (ioport("DSW1")->read() & 0x80) ? ASSERT_LINE : CLEAR_LINE);
 
 	m_port_a_in = 0;
 	m_port_a_out = 0;
@@ -507,7 +497,7 @@ static MACHINE_CONFIG_START( mexico86, mexico86_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 3000000)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.30)
 	MCFG_SOUND_ROUTE(1, "mono", 0.30)
 	MCFG_SOUND_ROUTE(2, "mono", 0.30)

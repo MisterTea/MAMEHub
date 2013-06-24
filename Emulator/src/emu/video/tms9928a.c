@@ -116,6 +116,9 @@ tms9928a_device::tms9928a_device( const machine_config &mconfig, const char *tag
 
 READ8_MEMBER( tms9928a_device::vram_read )
 {
+	// prevent debugger from changing the address base
+	if (space.debugger_access()) return 0;
+
 	UINT8 data = m_ReadAhead;
 
 	m_ReadAhead = m_vram_space->read_byte(m_Addr);
@@ -128,6 +131,9 @@ READ8_MEMBER( tms9928a_device::vram_read )
 
 WRITE8_MEMBER( tms9928a_device::vram_write )
 {
+	// prevent debugger from changing the address base
+	if (space.debugger_access()) return;
+
 	m_vram_space->write_byte(m_Addr, data);
 	m_Addr = (m_Addr + 1) & (m_vram_size - 1);
 	m_ReadAhead = data;
@@ -137,6 +143,9 @@ WRITE8_MEMBER( tms9928a_device::vram_write )
 
 READ8_MEMBER( tms9928a_device::register_read )
 {
+	// prevent debugger from changing the internal state
+	if (space.debugger_access()) return 0;
+
 	UINT8 data = m_StatusReg;
 
 	m_StatusReg = m_FifthSprite;
@@ -262,21 +271,31 @@ void tms9928a_device::change_register(UINT8 reg, UINT8 val)
 
 WRITE8_MEMBER( tms9928a_device::register_write )
 {
-	if (m_latch) {
+	// prevent debugger from changing the internal state
+	if (space.debugger_access()) return;
+
+	if (m_latch)
+	{
 		/* set high part of read/write address */
 		m_Addr = ((data << 8) | (m_Addr & 0xff)) & (m_vram_size - 1);
 
-		if (data & 0x80) {
+		if (data & 0x80)
+		{
 			/* register write */
 			change_register (data & 7, m_Addr & 0xff);
-		} else {
-			if ( !(data & 0x40) ) {
+		}
+		else
+		{
+			if ( !(data & 0x40) )
+			{
 				/* read ahead */
 				vram_read(space, 0);
 			}
 		}
 		m_latch = 0;
-	} else {
+	}
+	else
+	{
 		/* set low part of read/write address */
 		m_Addr = ((m_Addr & 0xff00) | data) & (m_vram_size - 1);
 		m_latch = 1;

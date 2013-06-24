@@ -397,7 +397,6 @@ Stephh's notes (based on the game M68000 code and some tests) :
 #include "cpu/z80/z80.h"
 #include "includes/taitoipt.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/taitoio.h"
 #include "video/taitoic.h"
 #include "audio/taitosnd.h"
 #include "sound/2610intf.h"
@@ -413,25 +412,23 @@ WRITE16_MEMBER(wgp_state::sharedram_w)
 	COMBINE_DATA(&m_sharedram[offset]);
 }
 
-static void parse_control(running_machine &machine)
+void wgp_state::parse_control()
 {
 	/* bit 0 enables cpu B */
 	/* however this fails when recovering from a save state
 	   if cpu B is disabled !! */
-	wgp_state *state = machine.driver_data<wgp_state>();
-	state->m_subcpu->set_input_line(INPUT_LINE_RESET, (state->m_cpua_ctrl & 0x1) ? CLEAR_LINE : ASSERT_LINE);
+	m_subcpu->set_input_line(INPUT_LINE_RESET, (m_cpua_ctrl & 0x1) ? CLEAR_LINE : ASSERT_LINE);
 
 	/* bit 1 is "vibration" acc. to test mode */
 }
 
 WRITE16_MEMBER(wgp_state::cpua_ctrl_w)/* assumes Z80 sandwiched between 68Ks */
 {
-
 	if ((data &0xff00) && ((data &0xff) == 0))
 		data = data >> 8;   /* for Wgp */
 	m_cpua_ctrl = data;
 
-	parse_control(machine());
+	parse_control();
 
 	logerror("CPU #0 PC %06x: write %04x to cpu control\n",space.device().safe_pc(),data);
 }
@@ -441,27 +438,25 @@ WRITE16_MEMBER(wgp_state::cpua_ctrl_w)/* assumes Z80 sandwiched between 68Ks */
                         INTERRUPTS
 ***********************************************************/
 
-/* 68000 A */
-
-#ifdef UNUSED_FUNCTION
-TIMER_CALLBACK_MEMBER(wgp_state::wgp_interrupt4)
+void wgp_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	m_maincpu->set_input_line(4, HOLD_LINE);
+	switch (id)
+	{
+	/* 68000 A */
+	case TIMER_WGP_INTERRUPT4:
+		m_maincpu->set_input_line(4, HOLD_LINE);
+		break;
+	case TIMER_WGP_INTERRUPT6:
+		m_maincpu->set_input_line(6, HOLD_LINE);
+		break;
+	/* 68000 B */
+	case TIMER_WGP_CPUB_INTERRUPT6:
+		m_subcpu->set_input_line(6, HOLD_LINE); /* assumes Z80 sandwiched between the 68Ks */
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in wgp_state::device_timer");
+	}
 }
-#endif
-
-TIMER_CALLBACK_MEMBER(wgp_state::wgp_interrupt6)
-{
-	m_maincpu->set_input_line(6, HOLD_LINE);
-}
-
-/* 68000 B */
-
-TIMER_CALLBACK_MEMBER(wgp_state::wgp_cpub_interrupt6)
-{
-	m_subcpu->set_input_line(6, HOLD_LINE); /* assumes Z80 sandwiched between the 68Ks */
-}
-
 
 
 /***** Routines for particular games *****/
@@ -471,7 +466,7 @@ TIMER_CALLBACK_MEMBER(wgp_state::wgp_cpub_interrupt6)
 
 INTERRUPT_GEN_MEMBER(wgp_state::wgp_cpub_interrupt)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(200000-500), timer_expired_delegate(FUNC(wgp_state::wgp_cpub_interrupt6),this));
+	timer_set(downcast<cpu_device *>(&device)->cycles_to_attotime(200000-500), TIMER_WGP_CPUB_INTERRUPT6);
 	device.execute().set_input_line(4, HOLD_LINE);
 }
 
@@ -594,7 +589,7 @@ WRITE16_MEMBER(wgp_state::wgp_adinput_w)
 	   hardware has got the next a/d conversion ready. We set a token
 	   delay of 10000 cycles although our inputs are always ready. */
 
-	machine().scheduler().timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(10000), timer_expired_delegate(FUNC(wgp_state::wgp_interrupt6),this));
+	timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(10000), TIMER_WGP_INTERRUPT6);
 }
 
 
@@ -602,32 +597,29 @@ WRITE16_MEMBER(wgp_state::wgp_adinput_w)
                           SOUND
 **********************************************************/
 
-static void reset_sound_region( running_machine &machine )  /* assumes Z80 sandwiched between the 68Ks */
+void wgp_state::reset_sound_region(  )  /* assumes Z80 sandwiched between the 68Ks */
 {
-	wgp_state *state = machine.driver_data<wgp_state>();
-	state->membank("bank10")->set_entry(state->m_banknum);
+	membank("bank10")->set_entry(m_banknum);
 }
 
 WRITE8_MEMBER(wgp_state::sound_bankswitch_w)
 {
 	m_banknum = data & 7;
-	reset_sound_region(machine());
+	reset_sound_region();
 }
 
 WRITE16_MEMBER(wgp_state::wgp_sound_w)
 {
-
 	if (offset == 0)
-		tc0140syt_port_w(m_tc0140syt, space, 0, data & 0xff);
+		m_tc0140syt->tc0140syt_port_w(space, 0, data & 0xff);
 	else if (offset == 1)
-		tc0140syt_comm_w(m_tc0140syt, space, 0, data & 0xff);
+		m_tc0140syt->tc0140syt_comm_w(space, 0, data & 0xff);
 }
 
 READ16_MEMBER(wgp_state::wgp_sound_r)
 {
-
 	if (offset == 1)
-		return ((tc0140syt_comm_r(m_tc0140syt, space, 0) & 0xff));
+		return ((m_tc0140syt->tc0140syt_comm_r(space, 0) & 0xff));
 	else
 		return 0;
 }
@@ -641,7 +633,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, wgp_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM     /* main CPUA ram */
 	AM_RANGE(0x140000, 0x143fff) AM_RAM AM_SHARE("sharedram")
-	AM_RANGE(0x180000, 0x18000f) AM_DEVREADWRITE8_LEGACY("tc0220ioc", tc0220ioc_r, tc0220ioc_w, 0xff00)
+	AM_RANGE(0x180000, 0x18000f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0xff00)
 	AM_RANGE(0x1c0000, 0x1c0001) AM_WRITE(cpua_ctrl_w)
 	AM_RANGE(0x200000, 0x20000f) AM_READWRITE(wgp_adinput_r,wgp_adinput_w)
 	AM_RANGE(0x300000, 0x30ffff) AM_DEVREADWRITE_LEGACY("tc0100scn", tc0100scn_word_r, tc0100scn_word_w)            /* tilemaps */
@@ -675,9 +667,9 @@ static ADDRESS_MAP_START( z80_sound_map, AS_PROGRAM, 8, wgp_state )
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank10")   /* Fallthrough */
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0xc000, 0xdfff) AM_RAM
-	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
-	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xe000, 0xe003) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
+	AM_RANGE(0xe200, 0xe200) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xe201, 0xe201) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 	AM_RANGE(0xe400, 0xe403) AM_WRITENOP /* pan */
 	AM_RANGE(0xea00, 0xea00) AM_READNOP
 	AM_RANGE(0xee00, 0xee00) AM_WRITENOP /* ? */
@@ -893,16 +885,10 @@ GFXDECODE_END
 **************************************************************/
 
 /* handler called by the YM2610 emulator when the internal timers cause an IRQ */
-static void irqhandler( device_t *device, int irq ) // assumes Z80 sandwiched between 68Ks
+WRITE_LINE_MEMBER(wgp_state::irqhandler) // assumes Z80 sandwiched between 68Ks
 {
-	wgp_state *state = device->machine().driver_data<wgp_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	irqhandler
-};
 
 
 /***********************************************************
@@ -913,10 +899,10 @@ However sync to vblank is lacking, which is causing the
 graphics glitches.
 ***********************************************************/
 
-static void wgp_postload(running_machine &machine)
+void wgp_state::wgp_postload()
 {
-	parse_control(machine);
-	reset_sound_region(machine);
+	parse_control();
+	reset_sound_region();
 }
 
 void wgp_state::machine_reset()
@@ -940,19 +926,12 @@ void wgp_state::machine_reset()
 
 void wgp_state::machine_start()
 {
-
 	membank("bank10")->configure_entries(0, 4, memregion("audiocpu")->base() + 0xc000, 0x4000);
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-	m_tc0140syt = machine().device("tc0140syt");
-	m_tc0100scn = machine().device("tc0100scn");
 
 	save_item(NAME(m_cpua_ctrl));
 	save_item(NAME(m_banknum));
 	save_item(NAME(m_port_sel));
-	machine().save().register_postload(save_prepost_delegate(FUNC(wgp_postload), &machine()));
+	machine().save().register_postload(save_prepost_delegate(FUNC(wgp_state::wgp_postload), this));
 }
 
 static const tc0100scn_interface wgp_tc0100scn_intf =
@@ -1023,7 +1002,7 @@ static MACHINE_CONFIG_START( wgp, wgp_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 16000000/2)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(wgp_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -1254,7 +1233,7 @@ DRIVER_INIT_MEMBER(wgp_state,wgp)
 #if 0
 	/* Patch for coding error that causes corrupt data in
 	   sprite tilemapping area from $4083c0-847f */
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 	ROM[0x25dc / 2] = 0x0602;   // faulty value is 0x0206
 #endif
 }
@@ -1262,7 +1241,7 @@ DRIVER_INIT_MEMBER(wgp_state,wgp)
 DRIVER_INIT_MEMBER(wgp_state,wgp2)
 {
 	/* Code patches to prevent failure in memory checks */
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("sub")->base();
+	UINT16 *ROM = (UINT16 *)memregion("sub")->base();
 	ROM[0x8008 / 2] = 0x0;
 	ROM[0x8010 / 2] = 0x0;
 }

@@ -1,3 +1,6 @@
+#include "machine/eeprom.h"
+#include "machine/nmk112.h"
+
 /**************** Machine stuff ******************/
 //#define USE_HD64x180          /* Define if CPU support is available */
 //#define TRUXTON2_STEREO       /* Uncomment to hear truxton2 music in stereo */
@@ -7,11 +10,16 @@
 
 // VDP related
 #include "video/gp9001.h"
-
+#include "sound/okim6295.h"
 // Cache the CPUs and VDPs for faster access
 class toaplan2_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_RAISE_IRQ
+	};
+
 	toaplan2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_shared_ram(*this, "shared_ram"),
@@ -20,8 +28,13 @@ public:
 		m_txvideoram16_offs(*this, "txvram_offs"),
 		m_txscrollram16(*this, "txscrollram16"),
 		m_tx_gfxram16(*this, "tx_gfxram16"),
-		m_mainram16(*this, "mainram16")
-	{
+		m_mainram16(*this, "mainram16"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_nmk112(*this, "nmk112"),
+		m_oki(*this, "oki"),
+		m_oki1(*this, "oki1"),
+		m_eeprom(*this, "eeprom") {
 		m_vdp0 = NULL;
 		m_vdp1 = NULL;
 	}
@@ -31,9 +44,6 @@ public:
 
 	optional_shared_ptr<UINT8> m_shared_ram; // 8 bit RAM shared between 68K and sound CPU
 	optional_shared_ptr<UINT16> m_shared_ram16;     // Really 8 bit RAM connected to Z180
-
-	device_t *m_main_cpu;
-	device_t *m_sub_cpu;
 
 	UINT16 m_mcu_data;
 	UINT16 m_video_status;
@@ -132,4 +142,19 @@ public:
 	INTERRUPT_GEN_MEMBER(toaplan2_vblank_irq4);
 	INTERRUPT_GEN_MEMBER(bbakraid_snd_interrupt);
 	TIMER_CALLBACK_MEMBER(toaplan2_raise_irq);
+	void truxton2_postload();
+	void truxton2_create_tx_tilemap();
+	void register_state_save();
+	void toaplan2_vblank_irq(int irq_line);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	DECLARE_WRITE_LINE_MEMBER(bbakraid_irqhandler);
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<nmk112_device> m_nmk112;
+	optional_device<okim6295_device> m_oki;
+	optional_device<okim6295_device> m_oki1;
+	optional_device<eeprom_device> m_eeprom;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

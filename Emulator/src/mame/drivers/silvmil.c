@@ -30,15 +30,15 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_bg_videoram(*this, "bg_videoram"),
 			m_fg_videoram(*this, "fg_videoram"),
-			m_spriteram(*this, "spriteram")  {
-
-
-	}
+			m_spriteram(*this, "spriteram"),
+			m_sprgen(*this, "spritegen"),
+			m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bg_videoram;
 	required_shared_ptr<UINT16> m_fg_videoram;
 	required_shared_ptr<UINT16> m_spriteram;
+	optional_device<decospr_device> m_sprgen;
 
 	/* video-related */
 	tilemap_t   *m_bg_layer;
@@ -112,6 +112,8 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_silvmil(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void tumblepb_gfx1_rearrange();
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -151,10 +153,9 @@ void silvmil_state::video_start()
 
 UINT32 silvmil_state::screen_update_silvmil(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_layer->draw(bitmap, cliprect, 0, 0);
 	m_fg_layer->draw(bitmap, cliprect, 0, 0);
-	machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
+	m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram, 0x400);
 	return 0;
 }
 
@@ -277,7 +278,6 @@ GFXDECODE_END
 
 void silvmil_state::machine_start()
 {
-
 }
 
 void silvmil_state::machine_reset()
@@ -395,10 +395,10 @@ ROM_START( silvmil )
 ROM_END
 
 
-static void tumblepb_gfx1_rearrange(running_machine &machine)
+void silvmil_state::tumblepb_gfx1_rearrange()
 {
-	UINT8 *rom = machine.root_device().memregion("gfx1")->base();
-	int len = machine.root_device().memregion("gfx1")->bytes();
+	UINT8 *rom = memregion("gfx1")->base();
+	int len = memregion("gfx1")->bytes();
 	int i;
 
 	/* gfx data is in the wrong order */
@@ -418,7 +418,7 @@ static void tumblepb_gfx1_rearrange(running_machine &machine)
 
 DRIVER_INIT_MEMBER(silvmil_state,silvmil)
 {
-	tumblepb_gfx1_rearrange(machine());
+	tumblepb_gfx1_rearrange();
 }
 
 GAME( 1995, silvmil, 0, silvmil, silvmil, silvmil_state, silvmil, ROT270, "Para", "Silver Millennium", 0 )

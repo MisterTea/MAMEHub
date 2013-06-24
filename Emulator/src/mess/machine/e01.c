@@ -39,7 +39,6 @@
 
     TODO:
 
-    - memory_bank::set_entry called for bank ':econet254:e01s:bank2' with invalid bank entry 0
     - centronics strobe
     - econet clock speed select
     - ADLC interrupts
@@ -82,7 +81,7 @@ const device_type E01 = &device_creator<e01_device>;
 const device_type E01S = &device_creator<e01s_device>;
 
 e01s_device::e01s_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	:e01_device(mconfig, E01S, "Acorn FileStore E01S", tag, owner, clock) { m_variant = TYPE_E01S; }
+	:e01_device(mconfig, E01S, "Acorn FileStore E01S", tag, owner, clock, "e01s", __FILE__) { m_variant = TYPE_E01S; }
 
 
 //-------------------------------------------------
@@ -274,7 +273,7 @@ static centronics_interface e01_centronics_intf =
 //-------------------------------------------------
 
 static ADDRESS_MAP_START( e01_mem, AS_PROGRAM, 8, e01_device )
-	AM_RANGE(0x0000, 0xfbff) AM_READ_BANK("bank1") AM_WRITE_BANK("bank2")
+	AM_RANGE(0x0000, 0xffff) AM_READWRITE(read, write)
 	AM_RANGE(0xfc00, 0xfc00) AM_MIRROR(0x00c3) AM_READWRITE(rtc_address_r, rtc_address_w)
 	AM_RANGE(0xfc04, 0xfc04) AM_MIRROR(0x00c3) AM_READWRITE(rtc_data_r, rtc_data_w)
 	AM_RANGE(0xfc08, 0xfc08) AM_MIRROR(0x00c0) AM_READ(ram_select_r) AM_WRITE(floppy_w)
@@ -288,7 +287,6 @@ static ADDRESS_MAP_START( e01_mem, AS_PROGRAM, 8, e01_device )
 	AM_RANGE(0xfc31, 0xfc31) AM_MIRROR(0x00c0) AM_READ(hdc_status_r)
 	AM_RANGE(0xfc32, 0xfc32) AM_MIRROR(0x00c0) AM_WRITE(hdc_select_w)
 	AM_RANGE(0xfc33, 0xfc33) AM_MIRROR(0x00c0) AM_WRITE(hdc_irq_enable_w)
-	AM_RANGE(0xfd00, 0xffff) AM_READ_BANK("bank3") AM_WRITE_BANK("bank4")
 ADDRESS_MAP_END
 
 
@@ -307,8 +305,8 @@ static MACHINE_CONFIG_FRAGMENT( e01 )
 	MCFG_VIA6522_ADD(R6522_TAG, XTAL_8MHz/4, via_intf)
 	MCFG_MC6854_ADD(MC6854_TAG, adlc_intf)
 	MCFG_WD2793x_ADD(WD2793_TAG, XTAL_8MHz/4)
-	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":0", e01_floppies, "35dd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":1", e01_floppies, "35dd", NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":0", e01_floppies, "35dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":1", e01_floppies, "35dd", floppy_image_device::default_floppy_formats)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, e01_centronics_intf)
 
 	MCFG_SCSIBUS_ADD(SCSIBUS_TAG)
@@ -413,7 +411,7 @@ inline void e01_device::hdc_irq_enable(int enabled)
 //-------------------------------------------------
 
 e01_device::e01_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, E01, "Acorn FileStore E01", tag, owner, clock),
+	: device_t(mconfig, E01, "Acorn FileStore E01", tag, owner, clock, "e01" , __FILE__),
 		device_econet_interface(mconfig, *this),
 		m_maincpu(*this, R65C102_TAG),
 		m_fdc(*this, WD2793_TAG),
@@ -423,6 +421,7 @@ e01_device::e01_device(const machine_config &mconfig, const char *tag, device_t 
 		m_scsibus(*this, SCSIBUS_TAG ":host"),
 		m_floppy0(*this, WD2793_TAG":0"),
 		m_floppy1(*this, WD2793_TAG":1"),
+		m_rom(*this, R65C102_TAG),
 		m_adlc_ie(0),
 		m_hdc_ie(0),
 		m_rtc_irq(CLEAR_LINE),
@@ -436,8 +435,8 @@ e01_device::e01_device(const machine_config &mconfig, const char *tag, device_t 
 }
 
 
-e01_device::e01_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock),
+e01_device::e01_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_econet_interface(mconfig, *this),
 		m_maincpu(*this, R65C102_TAG),
 		m_fdc(*this, WD2793_TAG),
@@ -447,6 +446,7 @@ e01_device::e01_device(const machine_config &mconfig, device_type type, const ch
 		m_scsibus(*this, SCSIBUS_TAG ":host"),
 		m_floppy0(*this, WD2793_TAG":0"),
 		m_floppy1(*this, WD2793_TAG":1"),
+		m_rom(*this, R65C102_TAG),
 		m_adlc_ie(0),
 		m_hdc_ie(0),
 		m_rtc_irq(CLEAR_LINE),
@@ -458,29 +458,6 @@ e01_device::e01_device(const machine_config &mconfig, device_type type, const ch
 		m_clk_en(0)
 {
 }
-
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void e01_device::device_config_complete()
-{
-	switch (m_variant)
-	{
-	default:
-	case TYPE_E01:
-		m_shortname = "e01";
-		break;
-
-	case TYPE_E01S:
-		m_shortname = "e01s";
-		break;
-	}
-}
-
 
 //-------------------------------------------------
 //  device_start - device-specific startup
@@ -491,24 +468,6 @@ void e01_device::device_start()
 	// floppy callbacks
 	m_fdc->setup_intrq_cb(wd2793_t::line_cb(FUNC(e01_device::fdc_irq_w), this));
 	m_fdc->setup_drq_cb(wd2793_t::line_cb(FUNC(e01_device::fdc_drq_w), this));
-
-	// setup memory banking
-	UINT8 *ram = m_ram->pointer();
-	UINT8 *rom = memregion(R65C102_TAG)->base();
-
-	membank("bank1")->configure_entry(0, ram);
-	membank("bank1")->configure_entry(1, rom);
-	membank("bank1")->set_entry(1);
-
-	membank("bank2")->configure_entry(0, ram);
-//  membank("bank2")->set_entry(0);
-
-	membank("bank3")->configure_entry(0, ram + 0xfd00);
-	membank("bank3")->configure_entry(1, rom + 0xfd00);
-	membank("bank3")->set_entry(1);
-
-	membank("bank4")->configure_entry(0, ram + 0xfd00);
-	membank("bank4")->set_entry(0);
 
 	// allocate timers
 	m_clk_timer = timer_alloc();
@@ -531,9 +490,7 @@ void e01_device::device_start()
 void e01_device::device_reset()
 {
 	m_clk_timer->adjust(attotime::zero, 0, attotime::from_hz(200000));
-
-	membank("bank1")->set_entry(1);
-	membank("bank3")->set_entry(1);
+	m_ram_en = false;
 }
 
 
@@ -552,13 +509,43 @@ void e01_device::device_timer(emu_timer &timer, device_timer_id id, int param, v
 
 
 //-------------------------------------------------
+//  read -
+//-------------------------------------------------
+
+READ8_MEMBER( e01_device::read )
+{
+	UINT8 data = 0;
+
+	if (m_ram_en)
+	{
+		data = m_ram->pointer()[offset];
+	}
+	else
+	{
+		data = m_rom->base()[offset];
+	}
+
+	return data;
+}
+
+
+//-------------------------------------------------
+//  write -
+//-------------------------------------------------
+
+WRITE8_MEMBER( e01_device::write )
+{
+	m_ram->pointer()[offset] = data;
+}
+
+
+//-------------------------------------------------
 //  eprom_r - ROM/RAM select read
 //-------------------------------------------------
 
 READ8_MEMBER( e01_device::ram_select_r )
 {
-	membank("bank1")->set_entry(0);
-	membank("bank3")->set_entry(0);
+	m_ram_en = true;
 
 	return 0;
 }

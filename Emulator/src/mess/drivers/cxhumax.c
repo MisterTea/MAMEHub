@@ -101,7 +101,7 @@ WRITE32_MEMBER( cxhumax_state::cx_gxa_w )
 
 			if((m_intctrl_regs[INTREG(INTGROUP2, INTIRQ)] & m_intctrl_regs[INTREG(INTGROUP2, INTENABLE)])
 				|| (m_intctrl_regs[INTREG(INTGROUP1, INTIRQ)] & m_intctrl_regs[INTREG(INTGROUP1, INTENABLE)]))
-					machine().device("maincpu")->execute().set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
+					m_maincpu->set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
 
 			break;
 		default:
@@ -321,7 +321,7 @@ TIMER_CALLBACK_MEMBER(cxhumax_state::timer_tick)
 
 			/* Interrupt if Timer interrupt is not masked in ITC_INTENABLE_REG */
 			if (m_intctrl_regs[INTREG(INTGROUP2, INTENABLE)] & INT_TIMER_BIT)
-				machine().device("maincpu")->execute().set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
+				m_maincpu->set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
 		}
 	}
 	attotime period = attotime::from_hz(XTAL_54MHz)*m_timer_regs.timer[param].timebase;
@@ -417,7 +417,7 @@ WRITE32_MEMBER( cxhumax_state::cx_uart2_w )
 
 					/* If INT is enabled at INT Ctrl raise it */
 					if(m_intctrl_regs[INTREG(INTGROUP1, INTENABLE)]&INT_UART2_BIT) {
-						machine().device("maincpu")->execute().set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
+						m_maincpu->set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
 					}
 				}
 			}
@@ -547,9 +547,9 @@ WRITE32_MEMBER( cxhumax_state::cx_intctrl_w )
 	/* check if */
 	if((m_intctrl_regs[INTREG(INTGROUP2, INTIRQ)] & m_intctrl_regs[INTREG(INTGROUP2, INTENABLE)])
 		|| (m_intctrl_regs[INTREG(INTGROUP1, INTIRQ)] & m_intctrl_regs[INTREG(INTGROUP1, INTENABLE)]))
-		machine().device("maincpu")->execute().set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
+		m_maincpu->set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
 	else
-		machine().device("maincpu")->execute().set_input_line(ARM7_IRQ_LINE, CLEAR_LINE);
+		m_maincpu->set_input_line(ARM7_IRQ_LINE, CLEAR_LINE);
 
 }
 
@@ -733,7 +733,7 @@ WRITE32_MEMBER( cxhumax_state::cx_i2c1_w )
 			m_intctrl_regs[INTREG(INTGROUP1, INTSTATSET)] |= 1<<7;
 			if (m_intctrl_regs[INTREG(INTGROUP1, INTENABLE)] & (1<<7)) {
 					verboselog( machine(), 9, "(I2C1) Int\n" );
-					machine().device("maincpu")->execute().set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
+					m_maincpu->set_input_line(ARM7_IRQ_LINE, ASSERT_LINE);
 			}
 			break;
 		case I2C_STAT_REG:
@@ -989,11 +989,10 @@ void cxhumax_state::machine_start()
 
 void cxhumax_state::machine_reset()
 {
-
 	m_i2c0_regs[0x08/4] = 0x08; // SDA high
 	m_i2c2_regs[0x08/4] = 0x08; // SDA high
 
-	UINT8* FLASH = machine().root_device().memregion("flash")->base();
+	UINT8* FLASH = memregion("flash")->base();
 	memcpy(m_ram,FLASH,0x400000);
 
 	m_chipcontrol_regs[PIN_CONFIG_0_REG] =

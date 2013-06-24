@@ -1010,13 +1010,6 @@ natural_keyboard::natural_keyboard(running_machine &machine)
 	m_queue_chars = ioport_queue_chars_delegate();
 	m_accept_char = ioport_accept_char_delegate();
 	m_charqueue_empty = ioport_charqueue_empty_delegate();
-
-	// reigster debugger commands
-	if (machine.debug_flags & DEBUG_FLAG_ENABLED)
-	{
-		debug_console_register_command(machine, "input", CMDFLAG_NONE, 0, 1, 1, execute_input);
-		debug_console_register_command(machine, "dumpkbd", CMDFLAG_NONE, 0, 0, 1, execute_dumpkbd);
-	}
 }
 
 //-------------------------------------------------
@@ -1506,47 +1499,20 @@ const char *natural_keyboard::key_name(astring &string, unicode_char ch)
 
 
 //-------------------------------------------------
-//  execute_input - debugger command to enter
-//  natural keyboard input
+//  dump - dumps info to string
 //-------------------------------------------------
 
-void natural_keyboard::execute_input(running_machine &machine, int ref, int params, const char *param[])
+astring natural_keyboard::dump()
 {
-	machine.ioport().natkeyboard().post_coded(param[0]);
-}
-
-
-//-------------------------------------------------
-//  execute_dumpkbd - debugger command to natural
-//  keyboard codes
-//-------------------------------------------------
-
-void natural_keyboard::execute_dumpkbd(running_machine &machine, int ref, int params, const char *param[])
-{
-	// was there a file specified?
-	const char *filename = (params > 0) ? param[0] : NULL;
-	FILE *file = NULL;
-	if (filename != NULL)
-	{
-		// if so, open it
-		file = fopen(filename, "w");
-		if (file == NULL)
-		{
-			debug_console_printf(machine, "Cannot open \"%s\"\n", filename);
-			return;
-		}
-	}
-
-	// loop through all codes
-	natural_keyboard &natkeyboard = machine.ioport().natkeyboard();
-	dynamic_array<keycode_map_entry> &keycode_map = natkeyboard.m_keycode_map;
 	astring buffer, tempstr;
 	const size_t left_column_width = 24;
-	for (int index = 0; index < keycode_map.count(); index++)
+
+	// loop through all codes
+	for (int index = 0; index < m_keycode_map.count(); index++)
 	{
 		// describe the character code
-		const keycode_map_entry &code = keycode_map[index];
-		buffer.printf("%08X (%s) ", code.ch, natkeyboard.unicode_to_string(tempstr, code.ch));
+		const natural_keyboard::keycode_map_entry &code = m_keycode_map[index];
+		buffer.catprintf("%08X (%s) ", code.ch, unicode_to_string(tempstr, code.ch));
 
 		// pad with spaces
 		while (buffer.len() < left_column_width)
@@ -1556,18 +1522,12 @@ void natural_keyboard::execute_dumpkbd(running_machine &machine, int ref, int pa
 		for (int field = 0; field < ARRAY_LENGTH(code.field) && code.field[field] != 0; field++)
 			buffer.catprintf("%s'%s'", (field > 0) ? ", " : "", code.field[field]->name());
 
-		// and output it as appropriate
-		if (file != NULL)
-			fprintf(file, "%s\n", buffer.cstr());
-		else
-			debug_console_printf(machine, "%s\n", buffer.cstr());
+		// carriage return
+		buffer.cat('\n');
 	}
 
-	// cleanup
-	if (file != NULL)
-		fclose(file);
+	return buffer;
 }
-
 
 
 //**************************************************************************
@@ -1578,14 +1538,14 @@ void natural_keyboard::execute_dumpkbd(running_machine &machine, int ref, int pa
 //  eval - evaluate condition
 //-------------------------------------------------
 
-bool ioport_condition::eval(device_t &device) const
+bool ioport_condition::eval() const
 {
 	// always condition is always true
 	if (m_condition == ALWAYS)
 		return true;
 
 	// otherwise, read the referenced port and switch off the condition type
-	ioport_value condvalue = device.ioport(m_tag)->read();
+	ioport_value condvalue = m_port->read();
 	switch (m_condition)
 	{
 		case ALWAYS:			return true;
@@ -1597,6 +1557,17 @@ bool ioport_condition::eval(device_t &device) const
 		case NOTLESSTHAN:		return ((condvalue & m_mask) >= m_value);
 	}
 	return true;
+}
+
+
+//-------------------------------------------------
+//  initialize - create the live state
+//-------------------------------------------------
+
+void ioport_condition::initialize(device_t &device)
+{
+	if (m_tag != NULL)
+		m_port = device.ioport(m_tag);
 }
 
 
@@ -2361,6 +2332,11 @@ void ioport_field::init_live_state(analog_field *analog)
 
 	// allocate live state
 	m_live = global_alloc(ioport_field_live(*this, analog));
+
+	m_condition.initialize(device());
+
+	for (ioport_setting *setting = first_setting(); setting != NULL; setting = setting->next())
+		setting->condition().initialize(setting->device());
 }
 
 
@@ -4388,8 +4364,7 @@ void ioport_configurer::field_alloc(ioport_type type, ioport_value defval, iopor
 {
 	// make sure we have a port
 	if (m_curport == NULL)
-		throw emu_fatalerror("alloc_field called with no active port (mask=%X defval=%X)\n", mask, defval); \
-
+		throw emu_fatalerror("alloc_field called with no active port (mask=%X defval=%X)\n", mask, defval);
 	// append the field
 	if (type != IPT_UNKNOWN && type != IPT_UNUSED)
 		m_curport->m_active |= mask;

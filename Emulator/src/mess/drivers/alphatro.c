@@ -34,13 +34,20 @@
 class alphatro_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_SYSTEM,
+		TIMER_SERIAL,
+		TIMER_ALPHATRO_BEEP_OFF
+	};
+
 	alphatro_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
 	m_crtc(*this, "crtc"),
 	m_usart(*this, "usart"),
-	m_cass(*this, CASSETTE_TAG),
-	m_beep(*this, BEEPER_TAG),
+	m_cass(*this, "cassette"),
+	m_beep(*this, "beeper"),
 	m_p_ram(*this, "p_ram"),
 	m_p_videoram(*this, "p_videoram"){ }
 
@@ -67,17 +74,9 @@ public:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 private:
-	static const device_timer_id SYSTEM_TIMER = 0;
-	static const device_timer_id SERIAL_TIMER = 1;
 	UINT8 m_timer_bit;
 	virtual void palette_init();
-	TIMER_CALLBACK_MEMBER(alphatro_beepoff);
 };
-
-TIMER_CALLBACK_MEMBER(alphatro_state::alphatro_beepoff)
-{
-	beep_set_state(m_beep, 0);
-}
 
 READ8_MEMBER( alphatro_state::port10_r )
 {
@@ -101,8 +100,8 @@ WRITE8_MEMBER( alphatro_state::port10_w )
 
 	if (length)
 	{
-		machine().scheduler().timer_set(attotime::from_msec(length), timer_expired_delegate(FUNC(alphatro_state::alphatro_beepoff),this));
-		beep_set_state(m_beep, 1);
+		timer_set(attotime::from_msec(length), TIMER_ALPHATRO_BEEP_OFF);
+		m_beep->set_state(1);
 	}
 
 	m_cass->change_state( BIT(data, 3) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED, CASSETTE_MASK_MOTOR);
@@ -112,13 +111,18 @@ void alphatro_state::device_timer(emu_timer &timer, device_timer_id id, int para
 {
 	switch(id)
 	{
-	case SYSTEM_TIMER:
+	case TIMER_SYSTEM:
 		m_timer_bit ^= 0x80;
 		break;
-	case SERIAL_TIMER:
+	case TIMER_SERIAL:
 		m_usart->transmit_clock();
 		m_usart->receive_clock();
 		break;
+	case TIMER_ALPHATRO_BEEP_OFF:
+		m_beep->set_state(0);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in alphatro_state::device_timer");
 	}
 }
 
@@ -342,8 +346,8 @@ GFXDECODE_END
 
 void alphatro_state::machine_start()
 {
-	m_sys_timer = timer_alloc(SYSTEM_TIMER);
-	m_serial_timer = timer_alloc(SERIAL_TIMER);
+	m_sys_timer = timer_alloc(TIMER_SYSTEM);
+	m_serial_timer = timer_alloc(TIMER_SERIAL);
 }
 
 void alphatro_state::machine_reset()
@@ -360,8 +364,8 @@ void alphatro_state::machine_reset()
 	m_sys_timer->adjust(attotime::from_usec(10),0,attotime::from_usec(10));
 	m_serial_timer->adjust(attotime::from_hz(500),0,attotime::from_hz(500));  // USART clock - this is a guesstimate
 	m_timer_bit = 0;
-	beep_set_state(m_beep, 0);
-	beep_set_frequency(m_beep, 950);    /* piezo-device needs to be measured */
+	m_beep->set_state(0);
+	m_beep->set_frequency(950);    /* piezo-device needs to be measured */
 }
 
 void alphatro_state::palette_init()
@@ -379,9 +383,11 @@ void alphatro_state::palette_init()
 	palette_set_color_rgb(machine(), 8, 0xf7, 0xaa, 0x00);
 }
 
-static const mc6845_interface alphatro_crtc6845_interface =
+
+static MC6845_INTERFACE( alphatro_crtc6845_interface )
 {
 	"screen",
+	false,
 	8,
 	NULL,
 	alphatro_update_row,
@@ -435,9 +441,9 @@ static MACHINE_CONFIG_START( alphatro, alphatro_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 
@@ -446,7 +452,7 @@ static MACHINE_CONFIG_START( alphatro, alphatro_state )
 
 	MCFG_I8251_ADD("usart", alphatro_usart_interface)
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, alphatro_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", alphatro_cassette_interface)
 
 	MCFG_RAM_ADD("ram")
 	MCFG_RAM_DEFAULT_SIZE("64K")

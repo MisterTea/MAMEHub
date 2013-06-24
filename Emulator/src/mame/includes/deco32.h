@@ -1,5 +1,9 @@
 #include "audio/decobsmt.h"
 #include "video/bufsprite.h"
+#include "video/decospr.h"
+#include "video/deco16ic.h"
+#include "machine/eeprom.h"
+#include "sound/okim6295.h"
 
 class deco32_state : public driver_device
 {
@@ -7,6 +11,7 @@ public:
 	deco32_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
 		m_decobsmt(*this, "decobsmt"),
 		m_spriteram(*this, "spriteram"),
 		m_ram(*this, "ram"),
@@ -14,9 +19,19 @@ public:
 		m_pf2_rowscroll32(*this, "pf2_rowscroll32"),
 		m_pf3_rowscroll32(*this, "pf3_rowscroll32"),
 		m_pf4_rowscroll32(*this, "pf4_rowscroll32"),
-		m_ace_ram(*this, "ace_ram"){ }
+		m_ace_ram(*this, "ace_ram"),
+		m_sprgen(*this, "spritegen"),
+		m_sprgen1(*this, "spritegen1"),
+		m_sprgen2(*this, "spritegen2"),
+		m_eeprom(*this, "eeprom"),
+		m_oki1(*this, "oki1"),
+		m_oki2(*this, "oki2"),
+		m_deco_tilegen1(*this, "tilegen1"),
+		m_deco_tilegen2(*this, "tilegen2")
+	{ }
 
 	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
 	optional_device<decobsmt_device> m_decobsmt;
 	optional_device<buffered_spriteram32_device> m_spriteram;
 	required_shared_ptr<UINT32> m_ram;
@@ -27,6 +42,13 @@ public:
 	required_shared_ptr<UINT32> m_pf4_rowscroll32;
 
 	optional_shared_ptr<UINT32> m_ace_ram;
+	optional_device<decospr_device> m_sprgen;
+	optional_device<decospr_device> m_sprgen1;
+	optional_device<decospr_device> m_sprgen2;
+
+	optional_device<eeprom_device> m_eeprom;
+	optional_device<okim6295_device> m_oki1;
+	optional_device<okim6295_device> m_oki2;
 
 	int m_raster_enable;
 	timer_device *m_raster_irq_timer;
@@ -58,8 +80,8 @@ public:
 	UINT16    m_pf3_rowscroll[0x1000];
 	UINT16    m_pf4_rowscroll[0x1000];
 
-	device_t *m_deco_tilegen1;
-	device_t *m_deco_tilegen2;
+	required_device<deco16ic_device> m_deco_tilegen1;
+	required_device<deco16ic_device> m_deco_tilegen2;
 	UINT8 m_irq_source;
 	DECLARE_WRITE_LINE_MEMBER(sound_irq_nslasher);
 	DECLARE_READ32_MEMBER(deco32_irq_controller_r);
@@ -113,6 +135,8 @@ public:
 	INTERRUPT_GEN_MEMBER(deco32_vbl_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(interrupt_gen);
 	TIMER_DEVICE_CALLBACK_MEMBER(lockload_vbl_irq);
+	void updateAceRam();
+	void mixDualAlphaSprites(bitmap_rgb32 &bitmap, const rectangle &cliprect, gfx_element *gfx0, gfx_element *gfx1, int mixAlphaTilemap);
 };
 
 class dragngun_state : public deco32_state
@@ -141,10 +165,5 @@ public:
 	DECLARE_VIDEO_START(lockload);
 	UINT32 screen_update_dragngun(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void screen_eof_dragngun(screen_device &screen, bool state);
+	void dragngun_draw_sprites( bitmap_rgb32 &bitmap, const rectangle &cliprect, const UINT32 *spritedata);
 };
-
-/*----------- defined in video/deco32.c -----------*/
-DECLARE_WRITE32_HANDLER( deco32_pf1_data_w );
-DECLARE_WRITE32_HANDLER( deco32_pf2_data_w );
-DECLARE_WRITE32_HANDLER( deco32_pf3_data_w );
-DECLARE_WRITE32_HANDLER( deco32_pf4_data_w );

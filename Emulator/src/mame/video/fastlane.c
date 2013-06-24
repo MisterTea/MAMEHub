@@ -5,7 +5,7 @@
 
 void fastlane_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int pal;
 
 	/* allocate the colortable */
@@ -24,18 +24,17 @@ void fastlane_state::palette_init()
 }
 
 
-static void set_pens( running_machine &machine )
+void fastlane_state::set_pens(  )
 {
-	fastlane_state *state = machine.driver_data<fastlane_state>();
 	int i;
 
 	for (i = 0x00; i < 0x800; i += 2)
 	{
-		UINT16 data = state->m_paletteram[i | 1] | (state->m_paletteram[i] << 8);
+		UINT16 data = m_paletteram[i | 1] | (m_paletteram[i] << 8);
 
 		rgb_t color = MAKE_RGB(pal5bit(data >> 0), pal5bit(data >> 5), pal5bit(data >> 10));
 
-		colortable_palette_set_color(machine.colortable, i >> 1, color);
+		colortable_palette_set_color(machine().colortable, i >> 1, color);
 	}
 }
 
@@ -111,7 +110,6 @@ TILE_GET_INFO_MEMBER(fastlane_state::get_tile_info1)
 
 void fastlane_state::video_start()
 {
-
 	m_layer0 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fastlane_state::get_tile_info0),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_layer1 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(fastlane_state::get_tile_info1),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
@@ -159,7 +157,7 @@ UINT32 fastlane_state::screen_update_fastlane(screen_device &screen, bitmap_ind1
 	finalclip0 &= cliprect;
 	finalclip1 &= cliprect;
 
-	set_pens(machine());
+	set_pens();
 
 	/* set scroll registers */
 	address_space &space = machine().driver_data()->generic_space();

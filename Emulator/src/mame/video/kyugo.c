@@ -43,7 +43,6 @@ TILE_GET_INFO_MEMBER(kyugo_state::get_bg_tile_info)
 
 void kyugo_state::video_start()
 {
-
 	m_color_codes = memregion("proms")->base() + 0x300;
 
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(kyugo_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
@@ -64,7 +63,6 @@ void kyugo_state::video_start()
 
 WRITE8_MEMBER(kyugo_state::kyugo_fgvideoram_w)
 {
-
 	m_fgvideoram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
@@ -72,7 +70,6 @@ WRITE8_MEMBER(kyugo_state::kyugo_fgvideoram_w)
 
 WRITE8_MEMBER(kyugo_state::kyugo_bgvideoram_w)
 {
-
 	m_bgvideoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
@@ -80,7 +77,6 @@ WRITE8_MEMBER(kyugo_state::kyugo_bgvideoram_w)
 
 WRITE8_MEMBER(kyugo_state::kyugo_bgattribram_w)
 {
-
 	m_bgattribram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
@@ -88,7 +84,6 @@ WRITE8_MEMBER(kyugo_state::kyugo_bgattribram_w)
 
 READ8_MEMBER(kyugo_state::kyugo_spriteram_2_r)
 {
-
 	// only the lower nibble is connected
 	return m_spriteram_2[offset] | 0xf0;
 }
@@ -102,7 +97,6 @@ WRITE8_MEMBER(kyugo_state::kyugo_scroll_x_lo_w)
 
 WRITE8_MEMBER(kyugo_state::kyugo_gfxctrl_w)
 {
-
 	/* bit 0 is scroll MSB */
 	m_scroll_x_hi = data & 0x01;
 
@@ -134,7 +128,6 @@ WRITE8_MEMBER(kyugo_state::kyugo_scroll_y_w)
 
 WRITE8_MEMBER(kyugo_state::kyugo_flipscreen_w)
 {
-
 	if (m_flipscreen != (data & 0x01))
 	{
 		m_flipscreen = (data & 0x01);
@@ -149,15 +142,13 @@ WRITE8_MEMBER(kyugo_state::kyugo_flipscreen_w)
  *
  *************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void kyugo_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	kyugo_state *state = machine.driver_data<kyugo_state>();
-
 	/* sprite information is scattered through memory */
 	/* and uses a portion of the text layer memory (outside the visible area) */
-	UINT8 *spriteram_area1 = &state->m_spriteram_1[0x28];
-	UINT8 *spriteram_area2 = &state->m_spriteram_2[0x28];
-	UINT8 *spriteram_area3 = &state->m_fgvideoram[0x28];
+	UINT8 *spriteram_area1 = &m_spriteram_1[0x28];
+	UINT8 *spriteram_area2 = &m_spriteram_2[0x28];
+	UINT8 *spriteram_area3 = &m_fgvideoram[0x28];
 
 	int n;
 
@@ -175,7 +166,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		if (sy > 0xf0)
 			sy -= 256;
 
-		if (state->m_flipscreen)
+		if (m_flipscreen)
 			sy = 240 - sy;
 
 		color = spriteram_area1[offs + 1] & 0x1f;
@@ -192,18 +183,18 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 			flipx =  attr & 0x08;
 			flipy =  attr & 0x04;
 
-			if (state->m_flipscreen)
+			if (m_flipscreen)
 			{
 				flipx = !flipx;
 				flipy = !flipy;
 			}
 
 
-			drawgfx_transpen( bitmap, cliprect,machine.gfx[2],
+			drawgfx_transpen( bitmap, cliprect,machine().gfx[2],
 						code,
 						color,
 						flipx,flipy,
-						sx,state->m_flipscreen ? sy - 16*y : sy + 16*y, 0 );
+						sx,m_flipscreen ? sy - 16*y : sy + 16*y, 0 );
 		}
 	}
 }
@@ -211,7 +202,6 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 UINT32 kyugo_state::screen_update_kyugo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	if (m_flipscreen)
 		m_bg_tilemap->set_scrollx(0, -(m_scroll_x_lo + (m_scroll_x_hi * 256)));
 	else
@@ -220,7 +210,7 @@ UINT32 kyugo_state::screen_update_kyugo(screen_device &screen, bitmap_ind16 &bit
 	m_bg_tilemap->set_scrolly(0, m_scroll_y);
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }

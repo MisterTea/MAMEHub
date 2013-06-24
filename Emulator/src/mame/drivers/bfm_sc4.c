@@ -120,7 +120,6 @@ int find_project_string(running_machine &machine, int addrxor, int mode)
 
 		if (found!=0)
 		{
-
 			int end=0;
 			int count = 0;
 			int blankcount = 0;
@@ -225,7 +224,7 @@ INPUT_PORTS_END
 
 DRIVER_INIT_MEMBER(sc4_state,sc4)
 {
-	UINT8 *src = machine().root_device().memregion( "maincpu" )->base();
+	UINT8 *src = memregion( "maincpu" )->base();
 	// SC4 identification sequence 0x80 0x00 0xf0 0x7d
 	if (((src[0] == 0x80) && (src[2] == 0xf0)) || ((src[1] == 0x00) && (src[3] == 0x7d)))
 	{
@@ -23533,8 +23532,7 @@ ROM_END
 
 #define sc4milro_sound \
 	ROM_REGION( 0x100000, "ymz", ROMREGION_ERASE00 ) \
-	ROM_LOAD( "millionaires row s16 sound (8meg)", 0x000000, 0x100000, CRC(4086df3f) SHA1(7fd358d901db48d1f8edc4b22789c73b5fb84874) ) \
-
+	ROM_LOAD( "millionaires row s16 sound (8meg)", 0x000000, 0x100000, CRC(4086df3f) SHA1(7fd358d901db48d1f8edc4b22789c73b5fb84874) )
 ROM_START( sc4milro )
 	ROM_REGION( 0x400000, "maincpu", 0 )
 	ROM_LOAD16_BYTE( "millionaires row s16 v1-0 lo (4meg)", 0x00001, 0x080000, CRC(8436aab9) SHA1(815000121e93c9a8e4f6c6d6d12a06c4484eb50c) )
@@ -29885,7 +29883,7 @@ DRIVER_INIT_MEMBER(sc4_state,sc4corotb)
 GAME( 200?, sc4coroc    ,0,         sc4, sc4, sc4_state, sc4, ROT0, "Mazooma","Coronation Street Triple (Arcade Version 012) (PR2249) (Mazooma) (Scorpion 4) (set 1)", GAME_NOT_WORKING | GAME_NO_SOUND )
 GAME( 200?, sc4coroh    ,sc4coroc,  sc4, sc4, sc4_state, sc4, ROT0, "Mazooma","Coronation Street Triple (Arcade Version 012) (PR2249) (Mazooma) (Scorpion 4) (set 2)", GAME_NOT_WORKING | GAME_NO_SOUND )
 // P_2_4_ _O_O_A_I_N_S_ _i_g_ _e_s_o_ _1_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _O_O_T_T_I_L_ _O_N_S_ _ _ _ _ _ _ _C_R_N_T_O_ _S_ _ _ _
-GAME( 200?, sc4coron    ,sc4coroc,  sc4, sc4, sc4_state, sc4, ROT0, "Mazooma","Coronation Street Triple (Bingo Version ?1) (PR2?4?) (Mazooma) (Scorpion 4) ", GAME_NOT_WORKING ) // incomplete pair, was in 'show me the money' set 'Bingo Version' is a guess
+GAME( 200?, sc4coron    ,sc4coroc,  sc4, sc4, sc4_state, sc4, ROT0, "Mazooma","Coronation Street Triple (Bingo Version ?1) (PR2?4?) (Mazooma) (Scorpion 4)", GAME_NOT_WORKING ) // incomplete pair, was in 'show me the money' set 'Bingo Version' is a guess
 // PR2249 CORONATION STREET         CORS  MAZ COROST_TRIPLE SOUNDS
 GAME( 200?, sc4corod    ,sc4coroc,  sc4, sc4, sc4_state, sc4corod, ROT0, "Mazooma","Coronation Street Triple (PR2249) (Mazooma) (Scorpion 4) (set 1)", GAME_NOT_WORKING | GAME_NO_SOUND )
 GAME( 200?, sc4coroi    ,sc4coroc,  sc4, sc4, sc4_state, sc4corod, ROT0, "Mazooma","Coronation Street Triple (PR2249) (Mazooma) (Scorpion 4) (set 2)", GAME_NOT_WORKING | GAME_NO_SOUND )

@@ -3,16 +3,20 @@
     Fire Trap
 
 ***************************************************************************/
+#include "sound/msm5205.h"
 
 class firetrap_state : public driver_device
 {
 public:
 	firetrap_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg1videoram(*this, "bg1videoram"),
 		m_bg2videoram(*this, "bg2videoram"),
 		m_fgvideoram(*this, "fgvideoram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_msm(*this, "msm"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_bg1videoram;
@@ -40,9 +44,9 @@ public:
 	int           m_coin_command_pending;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_msm;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<msm5205_device> m_msm;
 	DECLARE_WRITE8_MEMBER(firetrap_nmi_disable_w);
 	DECLARE_WRITE8_MEMBER(firetrap_bankselect_w);
 	DECLARE_READ8_MEMBER(firetrap_8751_bootleg_r);
@@ -72,4 +76,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_firetrap(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(firetrap_irq);
+	inline void get_bg_tile_info(tile_data &tileinfo, int tile_index, UINT8 *bgvideoram, int gfx_region);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	DECLARE_WRITE_LINE_MEMBER(firetrap_adpcm_int);
 };

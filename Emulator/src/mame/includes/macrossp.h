@@ -8,7 +8,7 @@ class macrossp_state : public driver_device
 {
 public:
 	macrossp_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_scra_videoram(*this, "scra_videoram"),
 		m_scra_videoregs(*this, "scra_videoregs"),
@@ -19,7 +19,9 @@ public:
 		m_text_videoram(*this, "text_videoram"),
 		m_text_videoregs(*this, "text_videoregs"),
 		m_paletteram(*this, "paletteram"),
-		m_mainram(*this, "mainram"){ }
+		m_mainram(*this, "mainram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT32> m_spriteram;
@@ -49,8 +51,8 @@ public:
 	INT32            m_old_fade;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE32_MEMBER(paletteram32_macrossp_w);
 	DECLARE_READ32_MEMBER(macrossp_soundstatus_r);
 	DECLARE_WRITE32_MEMBER(macrossp_soundcmd_w);
@@ -73,4 +75,9 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_macrossp(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void screen_eof_macrossp(screen_device &screen, bool state);
+	void draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect, int priority );
+	void draw_layer( bitmap_rgb32 &bitmap, const rectangle &cliprect, int layer );
+	void sortlayers(int *layer,int *pri);
+	void update_colors(  );
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 };

@@ -7,7 +7,6 @@ static UINT32 I386OP(shift_rotate32)(i386_state *cpustate, UINT8 modrm, UINT32 v
 	if( shift == 0 ) {
 		CYCLES_RM(cpustate,modrm, 3, 7);
 	} else if( shift == 1 ) {
-
 		switch( (modrm >> 3) & 0x7 )
 		{
 			case 0:         /* ROL rm32, 1 */
@@ -1769,6 +1768,8 @@ static void I386OP(pushad)(i386_state *cpustate)            // Opcode 0x60
 
 static void I386OP(pushfd)(i386_state *cpustate)            // Opcode 0x9c
 {
+	if(!cpustate->IOP1 && !cpustate->IOP2 && V8086_MODE)
+		FAULT(FAULT_GP,0)
 	UINT32 offset = (STACK_32BIT ? REG32(ESP) : REG16(SP));
 	if(i386_limit_check(cpustate,SS,offset-4) == 0)
 		PUSH32(cpustate, get_flags(cpustate) & 0x00fcffff );
@@ -1863,7 +1864,6 @@ static void I386OP(shld32_i8)(i386_state *cpustate)         // Opcode 0x0f a4
 		UINT8 shift = FETCH(cpustate);
 		shift &= 31;
 		if( shift == 0 ) {
-
 		} else {
 			cpustate->CF = (dst & (1 << (32-shift))) ? 1 : 0;
 			dst = (dst << shift) | (upper >> (32-shift));
@@ -1879,7 +1879,6 @@ static void I386OP(shld32_i8)(i386_state *cpustate)         // Opcode 0x0f a4
 		UINT8 shift = FETCH(cpustate);
 		shift &= 31;
 		if( shift == 0 ) {
-
 		} else {
 			cpustate->CF = (dst & (1 << (32-shift))) ? 1 : 0;
 			dst = (dst << shift) | (upper >> (32-shift));
@@ -1900,7 +1899,6 @@ static void I386OP(shld32_cl)(i386_state *cpustate)         // Opcode 0x0f a5
 		UINT8 shift = REG8(CL);
 		shift &= 31;
 		if( shift == 0 ) {
-
 		} else {
 			cpustate->CF = (dst & (1 << (32-shift))) ? 1 : 0;
 			dst = (dst << shift) | (upper >> (32-shift));
@@ -1916,7 +1914,6 @@ static void I386OP(shld32_cl)(i386_state *cpustate)         // Opcode 0x0f a5
 		UINT8 shift = REG8(CL);
 		shift &= 31;
 		if( shift == 0 ) {
-
 		} else {
 			cpustate->CF = (dst & (1 << (32-shift))) ? 1 : 0;
 			dst = (dst << shift) | (upper >> (32-shift));
@@ -1937,7 +1934,6 @@ static void I386OP(shrd32_i8)(i386_state *cpustate)         // Opcode 0x0f ac
 		UINT8 shift = FETCH(cpustate);
 		shift &= 31;
 		if( shift == 0 ) {
-
 		} else {
 			cpustate->CF = (dst & (1 << (shift-1))) ? 1 : 0;
 			dst = (dst >> shift) | (upper << (32-shift));
@@ -1953,7 +1949,6 @@ static void I386OP(shrd32_i8)(i386_state *cpustate)         // Opcode 0x0f ac
 		UINT8 shift = FETCH(cpustate);
 		shift &= 31;
 		if( shift == 0 ) {
-
 		} else {
 			cpustate->CF = (dst & (1 << (shift-1))) ? 1 : 0;
 			dst = (dst >> shift) | (upper << (32-shift));
@@ -1974,7 +1969,6 @@ static void I386OP(shrd32_cl)(i386_state *cpustate)         // Opcode 0x0f ad
 		UINT8 shift = REG8(CL);
 		shift &= 31;
 		if( shift == 0 ) {
-
 		} else {
 			cpustate->CF = (dst & (1 << (shift-1))) ? 1 : 0;
 			dst = (dst >> shift) | (upper << (32-shift));
@@ -1990,7 +1984,6 @@ static void I386OP(shrd32_cl)(i386_state *cpustate)         // Opcode 0x0f ad
 		UINT8 shift = REG8(CL);
 		shift &= 31;
 		if( shift == 0 ) {
-
 		} else {
 			cpustate->CF = (dst & (1 << (shift-1))) ? 1 : 0;
 			dst = (dst >> shift) | (upper << (32-shift));
@@ -2768,7 +2761,7 @@ static void I386OP(groupFF_32)(i386_state *cpustate)        // Opcode 0xff
 
 				if( modrm >= 0xc0 )
 				{
-					fatalerror("i386: groupFF_32 /%d: NYI\n", (modrm >> 3) & 0x7);
+					report_invalid_modrm(cpustate, "groupFF_32", modrm);
 				}
 				else
 				{
@@ -2815,7 +2808,7 @@ static void I386OP(groupFF_32)(i386_state *cpustate)        // Opcode 0xff
 
 				if( modrm >= 0xc0 )
 				{
-					fatalerror("i386: groupFF_32 /%d: NYI\n", (modrm >> 3) & 0x7);
+					report_invalid_modrm(cpustate, "groupFF_32", modrm);
 				}
 				else
 				{
@@ -2852,7 +2845,7 @@ static void I386OP(groupFF_32)(i386_state *cpustate)        // Opcode 0xff
 			}
 			break;
 		default:
-			fatalerror("i386: groupFF_32 /%d unimplemented at %08X\n", (modrm >> 3) & 0x7, cpustate->pc-2);
+			report_invalid_modrm(cpustate, "groupFF_32", modrm);
 			break;
 	}
 }
@@ -2874,7 +2867,7 @@ static void I386OP(group0F00_32)(i386_state *cpustate)          // Opcode 0x0f 0
 					CYCLES(cpustate,CYCLES_SLDT_REG);
 				} else {
 					ea = GetEA(cpustate,modrm,1);
-					WRITE32(cpustate, ea, cpustate->ldtr.segment);
+					WRITE16(cpustate, ea, cpustate->ldtr.segment);
 					CYCLES(cpustate,CYCLES_SLDT_MEM);
 				}
 			}
@@ -2891,7 +2884,7 @@ static void I386OP(group0F00_32)(i386_state *cpustate)          // Opcode 0x0f 0
 					CYCLES(cpustate,CYCLES_STR_REG);
 				} else {
 					ea = GetEA(cpustate,modrm,1);
-					WRITE32(cpustate, ea, cpustate->task.segment);
+					WRITE16(cpustate, ea, cpustate->task.segment);
 					CYCLES(cpustate,CYCLES_STR_MEM);
 				}
 			}
@@ -3044,7 +3037,7 @@ static void I386OP(group0F00_32)(i386_state *cpustate)          // Opcode 0x0f 0
 			break;
 
 		default:
-			fatalerror("i386: group0F00_32 /%d unimplemented\n", (modrm >> 3) & 0x7);
+			report_invalid_modrm(cpustate, "group0F00_32", modrm);
 			break;
 	}
 }
@@ -3148,7 +3141,7 @@ static void I386OP(group0F01_32)(i386_state *cpustate)      // Opcode 0x0f 01
 				break;
 			}
 		default:
-			fatalerror("i386: unimplemented opcode 0x0f 01 /%d at %08X\n", (modrm >> 3) & 0x7, cpustate->eip - 2);
+			report_invalid_modrm(cpustate, "group0F01_32", modrm);
 			break;
 	}
 }
@@ -3268,7 +3261,7 @@ static void I386OP(group0FBA_32)(i386_state *cpustate)      // Opcode 0x0f ba
 			}
 			break;
 		default:
-			fatalerror("i386: group0FBA_32 /%d unknown\n", (modrm >> 3) & 0x7);
+			report_invalid_modrm(cpustate, "group0FBA_32", modrm);
 			break;
 	}
 }
@@ -3305,7 +3298,8 @@ static void I386OP(lar_r32_rm32)(i386_state *cpustate)  // Opcode 0x0f 0x02
 				SetZF(0);
 				return;
 			}
-			if((((seg.flags >> 5) & 3) < cpustate->CPL) && ((seg.flags & 0x1c) != 0x1c))
+			UINT8 DPL = (seg.flags >> 5) & 3;
+			if(((DPL < cpustate->CPL) || (DPL < (seg.selector & 3))) && ((seg.flags & 0x1c) != 0x1c))
 			{
 				SetZF(0);
 				return;
@@ -3369,7 +3363,8 @@ static void I386OP(lsl_r32_rm32)(i386_state *cpustate)  // Opcode 0x0f 0x03
 				SetZF(0);
 				return;
 			}
-			if((((seg.flags >> 5) & 3) < cpustate->CPL) && ((seg.flags & 0x1c) != 0x1c))
+			UINT8 DPL = (seg.flags >> 5) & 3;
+			if(((DPL < cpustate->CPL) || (DPL < (seg.selector & 3))) && ((seg.flags & 0x1c) != 0x1c))
 			{
 				SetZF(0);
 				return;
@@ -3474,7 +3469,7 @@ static void I386OP(load_far_pointer32)(i386_state *cpustate, int s)
 	UINT16 selector;
 
 	if( modrm >= 0xc0 ) {
-		fatalerror("i386: load_far_pointer32 NYI\n");
+		report_invalid_modrm(cpustate, "load_far_pointer32", modrm);
 	} else {
 		UINT32 ea = GetEA(cpustate,modrm,0);
 		STORE_REG32(modrm, READ32(cpustate,ea + 0));

@@ -17,6 +17,7 @@
 #include "machine/scsibus.h"
 #include "machine/scsicb.h"
 #include "machine/scsihd.h"
+#include "machine/serial.h"
 #include "machine/v1050kb.h"
 #include "machine/wd_fdc.h"
 #include "video/mc6845.h"
@@ -42,6 +43,7 @@
 #define TIMER_ACK_TAG           "timer_ack"
 #define TIMER_RST_TAG           "timer_rst"
 #define SASIBUS_TAG             "sasi"
+#define RS232_TAG               "rs232"
 
 #define V1050_VIDEORAM_SIZE     0x8000
 #define V1050_VIDEORAM_MASK     0x7fff
@@ -78,6 +80,7 @@ public:
 			m_timer_ack(*this, TIMER_ACK_TAG),
 			m_timer_rst(*this, TIMER_RST_TAG),
 			m_sasibus(*this, SASIBUS_TAG ":host"),
+			m_rom(*this, Z80_TAG),
 			m_video_ram(*this, "video_ram"),
 			m_attr_ram(*this, "attr_ram")
 	{ }
@@ -100,6 +103,7 @@ public:
 	required_device<timer_device> m_timer_ack;
 	required_device<timer_device> m_timer_rst;
 	required_device<scsicb_device> m_sasibus;
+	required_memory_region m_rom;
 	required_shared_ptr<UINT8> m_video_ram;
 	optional_shared_ptr<UINT8> m_attr_ram;
 
@@ -182,6 +186,7 @@ public:
 	DECLARE_WRITE8_MEMBER(m6502_ppi_pc_w);
 	DECLARE_WRITE8_MEMBER(misc_ppi_pb_w);
 	DECLARE_READ8_MEMBER(misc_ppi_pc_r);
+	IRQ_CALLBACK_MEMBER(v1050_int_ack);
 };
 
 //----------- defined in video/v1050.c -----------

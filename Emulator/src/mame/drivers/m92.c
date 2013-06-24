@@ -204,9 +204,9 @@ psoldier dip locations still need verification.
 #include "sound/okim6295.h"
 
 
-#define M92_IRQ_0 ((state->m_irq_vectorbase+0)/4)  /* VBL interrupt */
-#define M92_IRQ_1 ((state->m_irq_vectorbase+4)/4)  /* Sprite buffer complete interrupt */
-#define M92_IRQ_2 ((state->m_irq_vectorbase+8)/4)  /* Raster interrupt */
+#define M92_IRQ_0 ((m_irq_vectorbase+0)/4)  /* VBL interrupt */
+#define M92_IRQ_1 ((m_irq_vectorbase+4)/4)  /* Sprite buffer complete interrupt */
+#define M92_IRQ_2 ((m_irq_vectorbase+8)/4)  /* Raster interrupt */
 #define M92_IRQ_3 ((m_irq_vectorbase+12)/4) /* Sound cpu interrupt */
 
 
@@ -219,7 +219,6 @@ MACHINE_START_MEMBER(m92_state,m92)
 
 MACHINE_RESET_MEMBER(m92_state,m92)
 {
-
 	m_sprite_buffer_busy = 1;
 }
 
@@ -227,21 +226,20 @@ MACHINE_RESET_MEMBER(m92_state,m92)
 
 TIMER_DEVICE_CALLBACK_MEMBER(m92_state::m92_scanline_interrupt)
 {
-	m92_state *state = machine().driver_data<m92_state>();
 	int scanline = param;
 
 	/* raster interrupt */
 	if (scanline == m_raster_irq_position)
 	{
 		machine().primary_screen->update_partial(scanline);
-		state->m_maincpu->set_input_line_and_vector(0, HOLD_LINE, M92_IRQ_2);
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, M92_IRQ_2);
 	}
 
 	/* VBLANK interrupt */
 	else if (scanline == machine().primary_screen->visible_area().max_y + 1)
 	{
 		machine().primary_screen->update_partial(scanline);
-		state->m_maincpu->set_input_line_and_vector(0, HOLD_LINE, M92_IRQ_0);
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE, M92_IRQ_0);
 	}
 }
 
@@ -377,8 +375,7 @@ ADDRESS_MAP_END
 
 WRITE16_MEMBER(m92_state::oki_bank_w)
 {
-	device_t *device = machine().device("oki");
-	downcast<okim6295_device *>(device)->set_bank_base(0x40000 * ((data+1) & 0x3)); // +1?
+	m_oki->set_bank_base(0x40000 * ((data+1) & 0x3)); // +1?
 }
 
 static ADDRESS_MAP_START( ppan_portmap, AS_IO, 16, m92_state )
@@ -403,7 +400,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 16, m92_state )
 	AM_RANGE(0x00000, 0x1ffff) AM_ROM
 	AM_RANGE(0xa0000, 0xa3fff) AM_RAM
-	AM_RANGE(0xa8000, 0xa803f) AM_DEVREADWRITE8_LEGACY("irem", irem_ga20_r, irem_ga20_w, 0x00ff)
+	AM_RANGE(0xa8000, 0xa803f) AM_DEVREADWRITE8("irem", iremga20_device, irem_ga20_r, irem_ga20_w, 0x00ff)
 	AM_RANGE(0xa8040, 0xa8043) AM_DEVREADWRITE8("ymsnd", ym2151_device, read, write, 0x00ff)
 	AM_RANGE(0xa8044, 0xa8045) AM_READWRITE(m92_soundlatch_r, m92_sound_irq_ack_w)
 	AM_RANGE(0xa8046, 0xa8047) AM_WRITE(m92_sound_status_w)
@@ -909,11 +906,9 @@ GFXDECODE_END
 
 /***************************************************************************/
 
-void m92_sprite_interrupt(running_machine &machine)
+void m92_state::m92_sprite_interrupt()
 {
-	m92_state *state = machine.driver_data<m92_state>();
-
-	state->m_maincpu->set_input_line_and_vector(0, HOLD_LINE, M92_IRQ_1);
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, M92_IRQ_1);
 }
 
 static MACHINE_CONFIG_START( m92, m92_state )
@@ -954,7 +949,7 @@ static MACHINE_CONFIG_START( m92, m92_state )
 	MCFG_SOUND_ROUTE(0, "mono", 0.40)
 	MCFG_SOUND_ROUTE(1, "mono", 0.40)
 
-	MCFG_SOUND_ADD("irem", IREMGA20, XTAL_14_31818MHz/4)
+	MCFG_IREMGA20_ADD("irem", XTAL_14_31818MHz/4)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1977,13 +1972,13 @@ ROM_START( nbbatman2bl )
 	ROM_LOAD( "at89c4051-24pc.mcu", 0x00000, 0x04000, NO_DUMP )
 
 	ROM_REGION( 0x200000, "gfx1", 0 ) /* Tiles */
-	ROM_LOAD( "4.bg_rom1",  0x100000, 0x100000, BAD_DUMP CRC(c78cd3e9) SHA1(f484399000ac604370998d11ee9e9501b8a09f1e) ) // half size, 1st half missing
+	ROM_LOAD( "4.bin",  0x000000, 0x200000, CRC(17148932) SHA1(f15777b842691dcabc6336a3c33ab6b61c83ae8b) )
 
 	ROM_REGION( 0x400000, "gfx2", 0 ) /* Sprites */
-	ROM_LOAD( "2.obj_rom1", 0x000000, 0x200000, BAD_DUMP CRC(2bd35975) SHA1(9e2e2be727a24943c056acb3e2f453b3b7328c76) ) // half size, 2nd half missing
+	ROM_LOAD( "2.bin", 0x000000, 0x400000, CRC(bae2eb19) SHA1(609c805b23ceaf4cb02f4ad6192ab4dd50b89711) )
 
 	ROM_REGION( 0x200000, "irem", 0 )
-	ROM_LOAD( "3.sou_rom", 0x000000, 0x100000,  CRC(776ed65d) SHA1(0e3321c024a62fc48aa5541215af8af14c95ccc6) ) // looped music samples for OKI, don't know if it's the right size, so marking as bad as a precaution
+	ROM_LOAD( "3.sou_rom", 0x000000, 0x100000, CRC(776ed65d) SHA1(0e3321c024a62fc48aa5541215af8af14c95ccc6) )
 ROM_END
 
 
@@ -2170,7 +2165,7 @@ DRIVER_INIT_MEMBER(m92_state,m92_bank)
 	UINT8 *ROM = memregion("maincpu")->base();
 
 	membank("bank1")->configure_entries(0, 4, &ROM[0x80000], 0x20000);
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x20, 0x21, write16_delegate(FUNC(m92_state::m92_bankswitch_w),this));
+	m_maincpu->space(AS_IO).install_write_handler(0x20, 0x21, write16_delegate(FUNC(m92_state::m92_bankswitch_w),this));
 
 	m_game_kludge = 0;
 	m_irq_vectorbase = 0x80;
@@ -2182,10 +2177,10 @@ DRIVER_INIT_MEMBER(m92_state,majtitl2)
 	UINT8 *ROM = memregion("maincpu")->base();
 
 	membank("bank1")->configure_entries(0, 4, &ROM[0x80000], 0x20000);
-	machine().device("maincpu")->memory().space(AS_IO).install_write_handler(0x20, 0x21, write16_delegate(FUNC(m92_state::m92_bankswitch_w),this));
+	m_maincpu->space(AS_IO).install_write_handler(0x20, 0x21, write16_delegate(FUNC(m92_state::m92_bankswitch_w),this));
 
 	/* This game has an eeprom on the game board */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xf0000, 0xf3fff, read16_delegate(FUNC(m92_state::m92_eeprom_r),this), write16_delegate(FUNC(m92_state::m92_eeprom_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xf0000, 0xf3fff, read16_delegate(FUNC(m92_state::m92_eeprom_r),this), write16_delegate(FUNC(m92_state::m92_eeprom_w),this));
 
 	m_game_kludge = 2;
 	m_irq_vectorbase = 0x80;

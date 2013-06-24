@@ -7,6 +7,8 @@
 #ifndef TX0_H_
 #define TX0_H_
 
+#include "video/crt.h"
+
 enum state_t
 {
 	MTS_UNSELECTED,
@@ -128,7 +130,8 @@ class tx0_state : public driver_device
 {
 public:
 	tx0_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	tape_reader_t m_tape_reader;
 	tape_puncher_t m_tape_puncher;
@@ -144,7 +147,7 @@ public:
 	bitmap_ind16 m_typewriter_bitmap;
 	int m_pos;
 	int m_case_shift;
-	device_t *m_crt;
+	crt_device *m_crt;
 	DECLARE_DRIVER_INIT(tx0);
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -157,17 +160,30 @@ public:
 	TIMER_CALLBACK_MEMBER(puncher_callback);
 	TIMER_CALLBACK_MEMBER(prt_callback);
 	TIMER_CALLBACK_MEMBER(dis_callback);
+	void tx0_machine_stop();
+	required_device<cpu_device> m_maincpu;
+	inline void tx0_plot_pixel(bitmap_ind16 &bitmap, int x, int y, UINT32 color);
+	void tx0_plot(int x, int y);
+	void tx0_draw_led(bitmap_ind16 &bitmap, int x, int y, int state);
+	void tx0_draw_multipleled(bitmap_ind16 &bitmap, int x, int y, int value, int nb_bits);
+	void tx0_draw_switch(bitmap_ind16 &bitmap, int x, int y, int state);
+	void tx0_draw_multipleswitch(bitmap_ind16 &bitmap, int x, int y, int value, int nb_bits);
+	void tx0_draw_char(bitmap_ind16 &bitmap, char character, int x, int y, int color);
+	void tx0_draw_string(bitmap_ind16 &bitmap, const char *buf, int x, int y, int color);
+	void tx0_draw_vline(bitmap_ind16 &bitmap, int x, int y, int height, int color);
+	void tx0_draw_hline(bitmap_ind16 &bitmap, int x, int y, int width, int color);
+	void tx0_draw_panel_backdrop(bitmap_ind16 &bitmap);
+	void tx0_draw_panel(bitmap_ind16 &bitmap);
+	void tx0_typewriter_linefeed();
+	void tx0_typewriter_drawchar(int character);
+	int tape_read(UINT8 *reply);
+	void tape_write(UINT8 data);
+	void begin_tape_read(int binary);
+	void typewriter_out(UINT8 data);
+	void schedule_select();
+	void schedule_unselect();
+	void tx0_keyboard();
 };
-
-
-/*----------- defined in video/tx0.c -----------*/
-
-
-
-
-
-void tx0_plot(running_machine &machine, int x, int y);
-void tx0_typewriter_drawchar(running_machine &machine, int character);
 
 /* defines for each bit and mask in input port "CSW" */
 enum

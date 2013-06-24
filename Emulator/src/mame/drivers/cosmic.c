@@ -40,7 +40,6 @@ a physical DSW B but only read when SWA:3,4 are both set to OFF. Currently,
 
 WRITE8_MEMBER(cosmic_state::panic_sound_output_w)
 {
-
 	/* Sound Enable / Disable */
 	if (offset == 11)
 	{
@@ -115,7 +114,6 @@ WRITE8_MEMBER(cosmic_state::panic_sound_output2_w)
 
 WRITE8_MEMBER(cosmic_state::cosmicg_output_w)
 {
-
 	/* Sound Enable / Disable */
 	if (offset == 12)
 	{
@@ -178,7 +176,6 @@ WRITE8_MEMBER(cosmic_state::cosmicg_output_w)
 
 WRITE8_MEMBER(cosmic_state::cosmica_sound_output_w)
 {
-
 	/* Sound Enable / Disable */
 	if (offset == 11)
 	{
@@ -411,7 +408,7 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(cosmic_state::panic_coin_inserted)
 {
-	panic_sound_output_w(machine().device("maincpu")->memory().space(AS_PROGRAM), 17, newval == 0);
+	panic_sound_output_w(m_maincpu->space(AS_PROGRAM), 17, newval == 0);
 }
 
 static INPUT_PORTS_START( panic )
@@ -472,7 +469,7 @@ INPUT_PORTS_END
 
 INPUT_CHANGED_MEMBER(cosmic_state::cosmica_coin_inserted)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, newval ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? ASSERT_LINE : CLEAR_LINE);
 }
 
 static INPUT_PORTS_START( cosmica )
@@ -527,7 +524,7 @@ INPUT_PORTS_END
 
 INPUT_CHANGED_MEMBER(cosmic_state::cosmicg_coin_inserted)
 {
-	machine().device("maincpu")->execute().set_input_line_and_vector(0, newval ? ASSERT_LINE : CLEAR_LINE, 6);
+	m_maincpu->set_input_line_and_vector(0, newval ? ASSERT_LINE : CLEAR_LINE, 6);
 }
 
 static INPUT_PORTS_START( cosmicg )
@@ -574,12 +571,12 @@ INPUT_PORTS_END
 
 INPUT_CHANGED_MEMBER(cosmic_state::coin_inserted_irq0)
 {
-	machine().device("maincpu")->execute().set_input_line(0, newval ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, newval ? HOLD_LINE : CLEAR_LINE);
 }
 
 INPUT_CHANGED_MEMBER(cosmic_state::coin_inserted_nmi)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, newval ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, newval ? ASSERT_LINE : CLEAR_LINE);
 }
 
 static INPUT_PORTS_START( magspot )
@@ -960,10 +957,6 @@ static const samples_interface cosmicg_samples_interface =
 
 MACHINE_START_MEMBER(cosmic_state,cosmic)
 {
-
-	m_samples = machine().device<samples_device>("samples");
-	m_dac = machine().device<dac_device>("dac");
-
 	save_item(NAME(m_sound_enabled));
 	save_item(NAME(m_march_select));
 	save_item(NAME(m_gun_die_select));
@@ -976,7 +969,6 @@ MACHINE_START_MEMBER(cosmic_state,cosmic)
 
 MACHINE_RESET_MEMBER(cosmic_state,cosmic)
 {
-
 	m_pixel_clock = 0;
 	m_background_enable = 0;
 	m_color_registers[0] = 0;
@@ -1005,10 +997,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(cosmic_state::panic_scanline)
 	int scanline = param;
 
 	if(scanline == 224) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE,0xd7); /* RST 10h */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0xd7); /* RST 10h */
 
 	if(scanline == 0) // vblank-in irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE,0xcf); /* RST 08h */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0xcf); /* RST 08h */
 }
 
 
@@ -1538,17 +1530,16 @@ DRIVER_INIT_MEMBER(cosmic_state,cosmica)
 
 DRIVER_INIT_MEMBER(cosmic_state,devzone)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x4807, 0x4807,write8_delegate(FUNC(cosmic_state::cosmic_background_enable_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x4807, 0x4807,write8_delegate(FUNC(cosmic_state::cosmic_background_enable_w),this));
 }
 
 
 DRIVER_INIT_MEMBER(cosmic_state,nomnlnd)
 {
-	dac_device *dac = machine().device<dac_device>("dac");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x5000, 0x5001, read8_delegate(FUNC(cosmic_state::nomnlnd_port_0_1_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0x4800, 0x4800);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x4807, 0x4807, write8_delegate(FUNC(cosmic_state::cosmic_background_enable_w),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x480a, 0x480a, write8_delegate(FUNC(dac_device::write_unsigned8),dac));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x5000, 0x5001, read8_delegate(FUNC(cosmic_state::nomnlnd_port_0_1_r),this));
+	m_maincpu->space(AS_PROGRAM).nop_write(0x4800, 0x4800);
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x4807, 0x4807, write8_delegate(FUNC(cosmic_state::cosmic_background_enable_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x480a, 0x480a, write8_delegate(FUNC(dac_device::write_unsigned8),(dac_device*)m_dac));
 }
 
 DRIVER_INIT_MEMBER(cosmic_state,panic)

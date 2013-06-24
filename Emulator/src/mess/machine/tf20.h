@@ -18,7 +18,7 @@
 #include "cpu/z80/z80.h"
 #include "machine/ram.h"
 #include "machine/upd765.h"
-#include "machine/upd7201.h"
+#include "machine/z80dart.h"
 #include "machine/epson_sio.h"
 
 
@@ -42,13 +42,12 @@ public:
 	DECLARE_READ8_MEMBER( rom_disable_r );
 	DECLARE_READ8_MEMBER( upd765_tc_r );
 	DECLARE_WRITE8_MEMBER( fdc_control_w );
-	static IRQ_CALLBACK( irq_callback );
+	IRQ_CALLBACK_MEMBER( irq_callback );
 
 	void fdc_irq(bool state);
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "epson_tf20"; }
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

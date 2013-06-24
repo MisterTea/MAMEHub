@@ -21,9 +21,10 @@ class canyon_state : public driver_device
 {
 public:
 	canyon_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_discrete(*this, "discrete"){ }
+		m_discrete(*this, "discrete"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -44,6 +45,9 @@ public:
 	DECLARE_WRITE8_MEMBER(canyon_explode_w);
 	DECLARE_WRITE8_MEMBER(canyon_attract_w);
 	DECLARE_WRITE8_MEMBER(canyon_whistle_w);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_bombs( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };
 
 

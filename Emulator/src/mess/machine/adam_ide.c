@@ -61,7 +61,7 @@ const rom_entry *powermate_ide_device::device_rom_region() const
 //  MACHINE_CONFIG_FRAGMENT( adam_ide )
 //-------------------------------------------------
 static MACHINE_CONFIG_FRAGMENT( adam_ide )
-	MCFG_IDE_CONTROLLER_ADD(IDE_TAG, ide_image_devices, "hdd", NULL, false)
+	MCFG_IDE_CONTROLLER_ADD(IDE_TAG, ide_devices, "hdd", NULL, false)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
 MACHINE_CONFIG_END
 
@@ -87,7 +87,7 @@ machine_config_constructor powermate_ide_device::device_mconfig_additions() cons
 //-------------------------------------------------
 
 powermate_ide_device::powermate_ide_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, ADAM_IDE, "Powermate HP IDE", tag, owner, clock),
+	: device_t(mconfig, ADAM_IDE, "Powermate HP IDE", tag, owner, clock, "adam_ide", __FILE__),
 		device_adam_expansion_slot_card_interface(mconfig, *this),
 		m_ide(*this, IDE_TAG),
 		m_centronics(*this, CENTRONICS_TAG)
@@ -121,7 +121,7 @@ UINT8 powermate_ide_device::adam_bd_r(address_space &space, offs_t offset, UINT8
 		case 0x05:
 		case 0x06:
 		case 0x07:
-			data = ide_bus_r(m_ide, 0, offset & 0x07) & 0xff;
+			data = m_ide->read_cs0(space, offset & 0x07, 0xff);
 			break;
 
 		case 0x40: // Printer status
@@ -142,7 +142,7 @@ UINT8 powermate_ide_device::adam_bd_r(address_space &space, offs_t offset, UINT8
 			break;
 
 		case 0x58:
-			m_ide_data = ide_bus_r(m_ide, 0, 0);
+			m_ide_data = m_ide->read_cs0(space, 0, 0xffff);
 
 			data = m_ide_data & 0xff;
 			break;
@@ -152,7 +152,7 @@ UINT8 powermate_ide_device::adam_bd_r(address_space &space, offs_t offset, UINT8
 			break;
 
 		case 0x5a:
-			data = ide_bus_r(m_ide, 1, 6) & 0xff;
+			data = m_ide->read_cs1(space, 6, 0xff);
 			break;
 
 		case 0x5b: // Digital Input Register
@@ -181,7 +181,7 @@ void powermate_ide_device::adam_bd_w(address_space &space, offs_t offset, UINT8 
 		case 0x05:
 		case 0x06:
 		case 0x07:
-			ide_bus_w(m_ide, 0, offset & 0x07, data);
+			m_ide->write_cs0(space, offset & 0x07, data, 0xff);
 			break;
 
 		case 0x40:
@@ -193,7 +193,7 @@ void powermate_ide_device::adam_bd_w(address_space &space, offs_t offset, UINT8 
 
 		case 0x58:
 			m_ide_data |= data;
-			ide_bus_w(m_ide, 0, 0, m_ide_data);
+			m_ide->write_cs0(space, 0, m_ide_data, 0xffff);
 			break;
 
 		case 0x59:

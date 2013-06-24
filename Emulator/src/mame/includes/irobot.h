@@ -27,7 +27,8 @@ public:
 	irobot_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_nvram(*this, "nvram") ,
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8>  m_nvram;
 	required_shared_ptr<UINT8> m_videoram;
@@ -83,8 +84,13 @@ public:
 	TIMER_CALLBACK_MEMBER(scanline_callback);
 	TIMER_DEVICE_CALLBACK_MEMBER(irobot_irvg_done_callback);
 	TIMER_DEVICE_CALLBACK_MEMBER(irobot_irmb_done_callback);
+	void _irobot_poly_clear(UINT8 *bitmap_base);
+	void irobot_poly_clear();
+	void draw_line(UINT8 *polybitmap, int x1, int y1, int x2, int y2, int col);
+	void irobot_run_video();
+	UINT32 irmb_din(const irmb_ops *curop);
+	void irmb_dout(const irmb_ops *curop, UINT32 d);
+	void load_oproms();
+	void irmb_run();
+	required_device<cpu_device> m_maincpu;
 };
-
-/*----------- defined in video/irobot.c -----------*/
-void irobot_poly_clear(running_machine &machine);
-void irobot_run_video(running_machine &machine);

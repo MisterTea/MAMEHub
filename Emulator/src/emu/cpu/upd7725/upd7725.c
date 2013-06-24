@@ -60,17 +60,17 @@ void necdsp_device::device_config_complete()
 	// or initialize to defaults if none provided
 	else
 	{
-		memset(&m_in_int_func, 0, sizeof(m_in_int_func));
-		//memset(&m_in_si_func, 0, sizeof(m_in_si_func));
-		//memset(&m_in_sck_func, 0, sizeof(m_in_sck_func));
-		//memset(&m_in_sien_func, 0, sizeof(m_in_sien_func));
-		//memset(&m_in_soen_func, 0, sizeof(m_in_soen_func));
-		//memset(&m_in_dack_func, 0, sizeof(m_in_dack_func));
-		memset(&m_out_p0_func, 0, sizeof(m_out_p0_func));
-		memset(&m_out_p1_func, 0, sizeof(m_out_p1_func));
-		//memset(&m_out_so_func, 0, sizeof(m_out_so_func));
-		//memset(&m_out_sorq_func, 0, sizeof(m_out_sorq_func));
-		//memset(&m_out_drq_func, 0, sizeof(m_out_drq_func));
+		memset(&m_in_int_cb, 0, sizeof(m_in_int_cb));
+		//memset(&m_in_si_cb, 0, sizeof(m_in_si_cb));
+		//memset(&m_in_sck_cb, 0, sizeof(m_in_sck_cb));
+		//memset(&m_in_sien_cb, 0, sizeof(m_in_sien_cb));
+		//memset(&m_in_soen_cb, 0, sizeof(m_in_soen_cb));
+		//memset(&m_in_dack_cb, 0, sizeof(m_in_dack_cb));
+		memset(&m_out_p0_cb, 0, sizeof(m_out_p0_cb));
+		memset(&m_out_p1_cb, 0, sizeof(m_out_p1_cb));
+		//memset(&m_out_so_cb, 0, sizeof(m_out_so_cb));
+		//memset(&m_out_sorq_cb, 0, sizeof(m_out_sorq_cb));
+		//memset(&m_out_drq_cb, 0, sizeof(m_out_drq_cb));
 	}
 }
 //-------------------------------------------------
@@ -327,7 +327,7 @@ UINT32 necdsp_device::disasm_max_opcode_bytes() const
 offs_t necdsp_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options)
 {
 	extern CPU_DISASSEMBLE( upd7725 );
-	return CPU_DISASSEMBLE_NAME(upd7725)(NULL, buffer, pc, oprom, opram, 0);
+	return CPU_DISASSEMBLE_NAME(upd7725)(this, buffer, pc, oprom, opram, options);
 }
 
 void necdsp_device::execute_run()
@@ -583,7 +583,6 @@ void necdsp_device::exec_ld(UINT32 opcode) {
 }
 
 UINT8 necdsp_device::snesdsp_read(bool mode) {
-
 	if (!mode)
 	{
 		return regs.sr >> 8;

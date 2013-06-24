@@ -83,65 +83,38 @@ Smitdogg
 
 #include "emu.h"
 #include "cpu/i386/i386.h"
-#include "machine/pic8259.h"
-#include "machine/mc146818.h"
 #include "machine/pcshare.h"
 #include "machine/ins8250.h"
 #include "machine/microtch.h"
 #include "video/pc_vga.h"
 #include "machine/nvram.h"
 
-
-class pcat_nit_state : public driver_device
+class pcat_nit_state : public pcat_base_state
 {
 public:
 	pcat_nit_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
+		: pcat_base_state(mconfig, type, tag),
 			m_uart(*this, "ns16450_0"),
-			m_microtouch(*this, "microtouch")
-		{ }
+			m_microtouch(*this, "microtouch") { }
 
 	UINT8 *m_banked_nvram;
 	required_device<ns16450_device> m_uart;
 	required_device<microtouch_serial_device> m_microtouch;
 
-	DECLARE_WRITE_LINE_MEMBER(microtouch_out);
-	DECLARE_WRITE_LINE_MEMBER(microtouch_in);
 	DECLARE_WRITE8_MEMBER(pcat_nit_rombank_w);
 	DECLARE_READ8_MEMBER(pcat_nit_io_r);
-	DECLARE_WRITE_LINE_MEMBER(at_com_interrupt_1);
 	DECLARE_DRIVER_INIT(pcat_nit);
 	virtual void machine_start();
 };
 
-WRITE_LINE_MEMBER(pcat_nit_state::microtouch_out)
-{
-	m_microtouch->rx(state);
-}
-
-WRITE_LINE_MEMBER(pcat_nit_state::microtouch_in)
-{
-	m_uart->rx_w(state);
-}
-
-WRITE_LINE_MEMBER(pcat_nit_state::at_com_interrupt_1)
-{
-	pic8259_ir4_w(machine().device("pic8259_1"), state);
-}
-
 static const ins8250_interface pcat_nit_com0_interface =
 {
-	DEVCB_DRIVER_LINE_MEMBER(pcat_nit_state, microtouch_out),
+	DEVCB_DEVICE_LINE_MEMBER("microtouch", microtouch_serial_device, rx),
 	DEVCB_NULL,
 	DEVCB_NULL,
-	DEVCB_DRIVER_LINE_MEMBER(pcat_nit_state,at_com_interrupt_1),
+	DEVCB_DEVICE_LINE_MEMBER("pic8259_1", pic8259_device, ir4_w),
 	DEVCB_NULL,
 	DEVCB_NULL
-};
-
-static const microtouch_serial_interface pcat_nit_microtouch_interface =
-{
-	DEVCB_DRIVER_LINE_MEMBER(pcat_nit_state, microtouch_in)
 };
 
 /*************************************
@@ -225,19 +198,12 @@ static INPUT_PORTS_START( pcat_nit )
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_COIN3) PORT_IMPULSE(1)
 INPUT_PORTS_END
 
-static void streetg2_set_keyb_int(running_machine &machine, int state)
-{
-	pic8259_ir1_w(machine.device("pic8259_1"), state);
-}
-
 void pcat_nit_state::machine_start()
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(pcat_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(pcat_nit_state::irq_callback),this));
 
-	init_pc_common(machine(), PCCOMMON_KEYBOARD_AT, streetg2_set_keyb_int);
-
-	machine().root_device().membank("rombank")->configure_entries(0, 0x80, machine().root_device().memregion("game_prg")->base(), 0x8000 );
-	machine().root_device().membank("rombank")->set_entry(0);
+	membank("rombank")->configure_entries(0, 0x80, memregion("game_prg")->base(), 0x8000 );
+	membank("rombank")->set_entry(0);
 
 	//microtouch_init(machine(), pcat_nit_microtouch_tx_callback, NULL);
 }
@@ -255,15 +221,11 @@ static MACHINE_CONFIG_START( pcat_nit, pcat_nit_state )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 
-	MCFG_MC146818_ADD( "rtc", MC146818_STANDARD )
-
-//  MCFG_FRAGMENT_ADD( at_kbdc8042 )
 	MCFG_FRAGMENT_ADD( pcat_common )
 	MCFG_NS16450_ADD( "ns16450_0", pcat_nit_com0_interface, XTAL_1_8432MHz )
-	MCFG_MICROTOUCH_SERIAL_ADD( "microtouch", pcat_nit_microtouch_interface, 9600 ) // rate?
+	MCFG_MICROTOUCH_SERIAL_ADD( "microtouch", 9600, DEVWRITELINE("ns16450_0", ins8250_uart_device, rx_w) ) // rate?
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
-
 MACHINE_CONFIG_END
 
 /***************************************

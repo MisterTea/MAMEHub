@@ -43,6 +43,7 @@
 #define __DEBUGCPU_H__
 
 #include "express.h"
+#include "simple_set.h"
 
 
 //**************************************************************************
@@ -65,7 +66,6 @@ typedef int (*debug_instruction_hook_func)(device_t &device, offs_t curpc);
 
 
 struct xml_data_node;
-
 
 class device_debug
 {
@@ -136,6 +136,33 @@ public:
 		astring             m_action;                   // action
 	};
 
+	// registerpoint class
+	class registerpoint
+	{
+		friend class device_debug;
+
+	public:
+		// construction/destruction
+		registerpoint(symbol_table &symbols, int index, const char *condition, const char *action = NULL);
+
+		// getters
+		registerpoint *next() const { return m_next; }
+		int index() const { return m_index; }
+		bool enabled() const { return m_enabled; }
+		const char *condition() const { return m_condition.original_string(); }
+		const char *action() const { return m_action; }
+
+	private:
+		// internals
+		bool hit();
+
+		registerpoint *     m_next;                     // next in the list
+		int                 m_index;                    // user reported index
+		UINT8               m_enabled;                  // enabled?
+		parsed_expression   m_condition;                // condition
+		astring             m_action;                   // action
+	};
+
 public:
 	// construction/destruction
 	device_debug(device_t &device);
@@ -200,6 +227,14 @@ public:
 	bool watchpoint_enable(int index, bool enable = true);
 	void watchpoint_enable_all(bool enable = true);
 
+	// registerpoints
+	registerpoint *registerpoint_first() const { return m_rplist; }
+	int registerpoint_set(const char *condition, const char *action = NULL);
+	bool registerpoint_clear(int index);
+	void registerpoint_clear_all();
+	bool registerpoint_enable(int index, bool enable = true);
+	void registerpoint_enable_all(bool enable = true );
+
 	// hotspots
 	bool hotspot_tracking_enabled() const { return (m_hotspots != NULL); }
 	void hotspot_track(int numspots, int threshhold);
@@ -208,15 +243,27 @@ public:
 	void comment_add(offs_t address, const char *comment, rgb_t color);
 	bool comment_remove(offs_t addr);
 	const char *comment_text(offs_t addr) const;
-	UINT32 comment_count() const { return m_comment_list.count(); }
+	UINT32 comment_count() const { return m_comment_set.size(); }
 	UINT32 comment_change_count() const { return m_comment_change; }
 	bool comment_export(xml_data_node &node);
 	bool comment_import(xml_data_node &node);
-	void comment_dump(offs_t addr = ~0);
-	UINT32 compute_opcode_crc32(offs_t address) const;
+	UINT32 compute_opcode_crc32(offs_t pc) const;
 
 	// history
 	offs_t history_pc(int index) const;
+
+	// pc tracking
+	void set_track_pc(bool value) { m_track_pc = value; }
+	bool track_pc_visited(const offs_t& pc) const;
+	void set_track_pc_visited(const offs_t& pc);
+	void track_pc_data_clear() { m_track_pc_set.clear(); }
+
+	// memory tracking
+	void set_track_mem(bool value) { m_track_mem = value; }
+	offs_t track_mem_pc_from_space_address_data(const address_spacenum& space,
+												const offs_t& address,
+												const UINT64& data) const;
+	void track_mem_data_clear() { m_track_mem_set.clear(); }
 
 	// tracing
 	void trace(FILE *file, bool trace_over, const char *action);
@@ -244,21 +291,22 @@ private:
 	static UINT64 get_current_pc(symbol_table &table, void *ref);
 	static UINT64 get_cycles(symbol_table &table, void *ref);
 	static UINT64 get_totalcycles(symbol_table &table, void *ref);
+	static UINT64 get_lastinstructioncycles(symbol_table &table, void *ref);
 	static UINT64 get_logunmap(symbol_table &table, void *ref);
 	static void set_logunmap(symbol_table &table, void *ref, UINT64 value);
 	static UINT64 get_state(symbol_table &table, void *ref);
 	static void set_state(symbol_table &table, void *ref, UINT64 value);
 
 	// basic device information
-	device_t &              m_device;                   // device we are attached to
-	device_execute_interface *m_exec;                   // execute interface, if present
-	device_memory_interface *m_memory;                  // memory interface, if present
-	device_state_interface *m_state;                    // state interface, if present
-	device_disasm_interface *m_disasm;                  // disasm interface, if present
+	device_t &                 m_device;                // device we are attached to
+	device_execute_interface * m_exec;                  // execute interface, if present
+	device_memory_interface *  m_memory;                // memory interface, if present
+	device_state_interface *   m_state;                 // state interface, if present
+	device_disasm_interface *  m_disasm;                // disasm interface, if present
 
 	// global state
-	UINT32                  m_flags;                    // debugging flags for this CPU
-	symbol_table            m_symtable;                 // symbol table for expression evaluation
+	UINT32                      m_flags;                // debugging flags for this CPU
+	symbol_table                m_symtable;             // symbol table for expression evaluation
 	debug_instruction_hook_func m_instrhook;            // per-instruction callback hook
 
 	// disassembly
@@ -275,6 +323,8 @@ private:
 	int                     m_stopirq;                  // stop IRQ number for DEBUG_FLAG_STOP_INTERRUPT
 	int                     m_stopexception;            // stop exception number for DEBUG_FLAG_STOP_EXCEPTION
 	attotime                m_endexectime;              // ending time of the current execution
+	UINT64                  m_total_cycles;             // current total cycles
+	UINT64                  m_last_total_cycles;        // last total cycles
 
 	// history
 	offs_t                  m_pc_history[HISTORY_SIZE]; // history of recent PCs
@@ -283,6 +333,7 @@ private:
 	// breakpoints and watchpoints
 	breakpoint *            m_bplist;                   // list of breakpoints
 	watchpoint *            m_wplist[ADDRESS_SPACES];   // watchpoint lists for each address space
+	registerpoint *         m_rplist;                   // list of registerpoints
 
 	// tracing
 	class tracer
@@ -323,22 +374,63 @@ private:
 	int                     m_hotspot_count;            // number of hotspots
 	int                     m_hotspot_threshhold;       // threshhold for the number of hits to print
 
-	// comments
-	class dasm_comment
+	// pc tracking
+	class dasm_pc_tag
 	{
 	public:
-		dasm_comment(const char *text, offs_t address, rgb_t color, UINT32 crc);
+		dasm_pc_tag(const offs_t& address, const UINT32& crc);
 
-		dasm_comment *next() const { return m_next; }
+		// required to be included in a simple_set
+		bool operator < (const dasm_pc_tag& rhs) const
+		{
+			if (m_address == rhs.m_address)
+				return m_crc < rhs.m_crc;
+			return (m_address < rhs.m_address);
+		}
 
-		dasm_comment *      m_next;                     // next comment in the list
-		offs_t              m_address;                  // address in question
-		rgb_t               m_color;                    // color to use
-		UINT32              m_crc;                      // CRC of code
-		astring             m_text;                     // text
+		offs_t m_address;       // Stores [nothing] for a given address & crc32
+		UINT32 m_crc;
 	};
-	simple_list<dasm_comment> m_comment_list;           // list of comments
-	UINT32                  m_comment_change;           // change counter for comments
+	simple_set<dasm_pc_tag> m_track_pc_set;
+	bool m_track_pc;
+
+	// comments
+	class dasm_comment : public dasm_pc_tag
+	{
+	public:
+		dasm_comment(offs_t address, UINT32 crc, const char *text, rgb_t color);
+
+		astring  m_text;        // Stores comment text & color for a given address & crc32
+		rgb_t    m_color;
+	};
+	simple_set<dasm_comment> m_comment_set;             // collection of comments
+	UINT32                   m_comment_change;          // change counter for comments
+
+	// memory tracking
+	class dasm_memory_access
+	{
+	public:
+		dasm_memory_access(const address_spacenum& address_space,
+							const offs_t& address,
+							const UINT64& data,
+							const offs_t& pc);
+
+		// required to be included in a simple_set
+		bool operator < (const dasm_memory_access& rhs) const
+		{
+			if ((m_address == rhs.m_address) && (m_address_space == rhs.m_address_space))
+				return m_data < rhs.m_data;
+			return (m_address < rhs.m_address) && (m_address_space == rhs.m_address_space);
+		}
+
+		// Stores the PC for a given address, memory region, and data value
+		address_spacenum m_address_space;
+		offs_t           m_address;
+		UINT64           m_data;
+		offs_t           m_pc;
+	};
+	simple_set<dasm_memory_access> m_track_mem_set;
+	bool m_track_mem;
 
 	// internal flag values
 	static const UINT32 DEBUG_FLAG_OBSERVING        = 0x00000001;       // observing this CPU

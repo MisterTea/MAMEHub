@@ -86,7 +86,6 @@ Versions known to exist but not dumped:
 #include "cpu/m68000/m68000.h"
 #include "machine/eeprom.h"
 #include "machine/nvram.h"
-#include "machine/nmk112.h"
 #include "cpu/z80/z80.h"
 #include "includes/cave.h"
 #include "sound/2203intf.h"
@@ -127,7 +126,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(cave_state::cave_vblank_start)
 {
 	m_vblank_irq = 1;
 	update_irq_state(machine());
-	cave_get_sprite_info(machine());
+	cave_get_sprite_info();
 	m_agallet_vblank_irq = 1;
 	machine().scheduler().timer_set(attotime::from_usec(2000), timer_expired_delegate(FUNC(cave_state::cave_vblank_end),this));
 }
@@ -139,11 +138,10 @@ INTERRUPT_GEN_MEMBER(cave_state::cave_interrupt)
 }
 
 /* Called by the YMZ280B to set the IRQ state */
-static void sound_irq_gen( device_t *device, int state )
+WRITE_LINE_MEMBER(cave_state::sound_irq_gen)
 {
-	cave_state *cave = device->machine().driver_data<cave_state>();
-	cave->m_sound_irq = (state != 0);
-	update_irq_state(device->machine());
+	m_sound_irq = (state != 0);
+	update_irq_state(machine());
 }
 
 
@@ -288,7 +286,6 @@ WRITE8_MEMBER(cave_state::soundlatch_ack_w)
 
 WRITE16_MEMBER(cave_state::cave_eeprom_msb_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (data & ~0xfe00)
 		logerror("%s: Unknown EEPROM bit written %04X\n", machine().describe_context(), data);
 
@@ -300,43 +297,39 @@ WRITE16_MEMBER(cave_state::cave_eeprom_msb_w)
 		coin_counter_w(machine(), 0, data & 0x1000);
 
 		// latch the bit
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x0800);
+		m_eeprom->write_bit(data & 0x0800);
 
 		// reset line asserted: reset.
-		eeprom->set_cs_line((data & 0x0200) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_cs_line((data & 0x0200) ? CLEAR_LINE : ASSERT_LINE);
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line((data & 0x0400) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->set_clock_line((data & 0x0400) ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
 WRITE16_MEMBER(cave_state::sailormn_eeprom_msb_w)
 {
-	sailormn_tilebank_w(machine(), data & 0x0100);
+	sailormn_tilebank_w(data & 0x0100);
 	cave_eeprom_msb_w(space, offset, data & ~0x0100, mem_mask);
 }
 
 WRITE16_MEMBER(cave_state::hotdogst_eeprom_msb_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (ACCESSING_BITS_8_15)  // even address
 	{
 		// latch the bit
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x0800);
+		m_eeprom->write_bit(data & 0x0800);
 
 		// reset line asserted: reset.
-		eeprom->set_cs_line((data & 0x0200) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_cs_line((data & 0x0200) ? CLEAR_LINE : ASSERT_LINE);
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line((data & 0x0400) ? CLEAR_LINE: ASSERT_LINE);
+		m_eeprom->set_clock_line((data & 0x0400) ? CLEAR_LINE: ASSERT_LINE);
 	}
 }
 
 WRITE16_MEMBER(cave_state::cave_eeprom_lsb_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (data & ~0x00ef)
 		logerror("%s: Unknown EEPROM bit written %04X\n",machine().describe_context(),data);
 
@@ -348,14 +341,13 @@ WRITE16_MEMBER(cave_state::cave_eeprom_lsb_w)
 		coin_counter_w(machine(), 0,  data & 0x0001);
 
 		// latch the bit
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x80);
+		m_eeprom->write_bit(data & 0x80);
 
 		// reset line asserted: reset.
-		eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE);
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->set_clock_line((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
@@ -373,7 +365,6 @@ WRITE16_MEMBER(cave_state::gaia_coin_lsb_w)
     - Writing 0xcf00 shouldn't send a 1 bit to the eeprom   */
 WRITE16_MEMBER(cave_state::metmqstr_eeprom_msb_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (data & ~0xff00)
 		logerror("%s: Unknown EEPROM bit written %04X\n", machine().describe_context(), data);
 
@@ -385,14 +376,13 @@ WRITE16_MEMBER(cave_state::metmqstr_eeprom_msb_w)
 		if (~data & 0x0100)
 		{
 			// latch the bit
-			eeprom_device *eeprom = downcast<eeprom_device *>(device);
-			eeprom->write_bit(data & 0x0800);
+			m_eeprom->write_bit(data & 0x0800);
 
 			// reset line asserted: reset.
-			eeprom->set_cs_line((data & 0x0200) ? CLEAR_LINE : ASSERT_LINE);
+			m_eeprom->set_cs_line((data & 0x0200) ? CLEAR_LINE : ASSERT_LINE);
 
 			// clock line asserted: write latch or select next bit to read
-			eeprom->set_clock_line((data & 0x0400) ? ASSERT_LINE : CLEAR_LINE);
+			m_eeprom->set_clock_line((data & 0x0400) ? ASSERT_LINE : CLEAR_LINE);
 		}
 	}
 }
@@ -432,7 +422,7 @@ static const eeprom_interface eeprom_interface_93C46_pacslot =
 static ADDRESS_MAP_START( dfeveron_map, AS_PROGRAM, 16, cave_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM                                                                 // ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM                                                                 // RAM
-	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x00ff)                   // YMZ280
+	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x00ff)                   // YMZ280
 /**/AM_RANGE(0x400000, 0x407fff) AM_RAM AM_SHARE("spriteram")       // Sprites
 /**/AM_RANGE(0x408000, 0x40ffff) AM_RAM AM_SHARE("spriteram_2")                         // Sprites?
 /**/AM_RANGE(0x500000, 0x507fff) AM_RAM_WRITE(cave_vram_0_w) AM_SHARE("vram.0")         // Layer 0
@@ -457,7 +447,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( ddonpach_map, AS_PROGRAM, 16, cave_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM                                                                 // ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM                                                                 // RAM
-	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x00ff)                   // YMZ280
+	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x00ff)           // YMZ280
 /**/AM_RANGE(0x400000, 0x407fff) AM_RAM AM_SHARE("spriteram")       // Sprites
 /**/AM_RANGE(0x408000, 0x40ffff) AM_RAM AM_SHARE("spriteram_2")                         // Sprites?
 /**/AM_RANGE(0x500000, 0x507fff) AM_RAM_WRITE(cave_vram_0_w) AM_SHARE("vram.0")         // Layer 0
@@ -519,7 +509,7 @@ static ADDRESS_MAP_START( donpachi_map, AS_PROGRAM, 16, cave_state )
 /**/AM_RANGE(0xa08000, 0xa08fff) AM_RAM AM_SHARE("paletteram")      // Palette
 	AM_RANGE(0xb00000, 0xb00003) AM_DEVREADWRITE8("oki1", okim6295_device, read, write, 0x00ff)                 // M6295
 	AM_RANGE(0xb00010, 0xb00013) AM_DEVREADWRITE8("oki2", okim6295_device, read, write, 0x00ff)                 //
-	AM_RANGE(0xb00020, 0xb0002f) AM_DEVWRITE_LEGACY("nmk112", nmk112_okibank_lsb_w)                             //
+	AM_RANGE(0xb00020, 0xb0002f) AM_DEVWRITE("nmk112", nmk112_device, okibank_lsb_w)                             //
 	AM_RANGE(0xc00000, 0xc00001) AM_READ_PORT("IN0")                                                        // Inputs
 	AM_RANGE(0xc00002, 0xc00003) AM_READ_PORT("IN1")                                                        // Inputs + EEPROM
 	AM_RANGE(0xd00000, 0xd00001) AM_WRITE(cave_eeprom_msb_w)                                    // EEPROM
@@ -533,7 +523,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( esprade_map, AS_PROGRAM, 16, cave_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM                                                                 // ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM                                                                 // RAM
-	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x00ff)                   // YMZ280
+	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x00ff)           // YMZ280
 /**/AM_RANGE(0x400000, 0x407fff) AM_RAM AM_SHARE("spriteram")       // Sprites
 /**/AM_RANGE(0x408000, 0x40ffff) AM_RAM AM_SHARE("spriteram_2")                         // Sprites?
 /**/AM_RANGE(0x500000, 0x507fff) AM_RAM_WRITE(cave_vram_0_w) AM_SHARE("vram.0")         // Layer 0
@@ -558,7 +548,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( gaia_map, AS_PROGRAM, 16, cave_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM                                                                 // ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM                                                                 // RAM
-	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x00ff)                   // YMZ280
+	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x00ff)           // YMZ280
 	AM_RANGE(0x400000, 0x407fff) AM_RAM AM_SHARE("spriteram")       // Sprite bank 1
 	AM_RANGE(0x408000, 0x40ffff) AM_RAM AM_SHARE("spriteram_2")                         // Sprite bank 2
 	AM_RANGE(0x500000, 0x507fff) AM_RAM_WRITE(cave_vram_0_w) AM_SHARE("vram.0")         // Layer 0
@@ -595,7 +585,7 @@ static ADDRESS_MAP_START( guwange_map, AS_PROGRAM, 16, cave_state )
 /**/AM_RANGE(0x500000, 0x507fff) AM_RAM_WRITE(cave_vram_0_w) AM_SHARE("vram.0")         // Layer 0
 /**/AM_RANGE(0x600000, 0x607fff) AM_RAM_WRITE(cave_vram_1_w) AM_SHARE("vram.1")         // Layer 1
 /**/AM_RANGE(0x700000, 0x707fff) AM_RAM_WRITE(cave_vram_2_w) AM_SHARE("vram.2")         // Layer 2
-	AM_RANGE(0x800000, 0x800003) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x00ff)                   // YMZ280
+	AM_RANGE(0x800000, 0x800003) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x00ff)           // YMZ280
 /**/AM_RANGE(0x900000, 0x900005) AM_RAM AM_SHARE("vctrl.0")                             // Layer 0 Control
 /**/AM_RANGE(0xa00000, 0xa00005) AM_RAM AM_SHARE("vctrl.1")                             // Layer 1 Control
 /**/AM_RANGE(0xb00000, 0xb00005) AM_RAM AM_SHARE("vctrl.2")                             // Layer 2 Control
@@ -673,7 +663,6 @@ WRITE16_MEMBER(cave_state::korokoro_leds_w)
 
 WRITE16_MEMBER(cave_state::korokoro_eeprom_msb_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (data & ~0x7000)
 	{
 		logerror("%s: Unknown EEPROM bit written %04X\n",machine().describe_context(),data);
@@ -686,14 +675,13 @@ WRITE16_MEMBER(cave_state::korokoro_eeprom_msb_w)
 		m_hopper = data & 0x0100;   // ???
 
 		// latch the bit
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x4000);
+		m_eeprom->write_bit(data & 0x4000);
 
 		// reset line asserted: reset.
-		eeprom->set_cs_line((data & 0x1000) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_cs_line((data & 0x1000) ? CLEAR_LINE : ASSERT_LINE);
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line((data & 0x2000) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->set_clock_line((data & 0x2000) ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
@@ -711,8 +699,8 @@ static ADDRESS_MAP_START( korokoro_map, AS_PROGRAM, 16, cave_state )
 	AM_RANGE(0x1c0000, 0x1c0007) AM_READ(cave_irq_cause_r)                                                  // IRQ Cause
 	AM_RANGE(0x1c0000, 0x1c007f) AM_WRITEONLY AM_SHARE("videoregs")                         // Video Regs
 	AM_RANGE(0x200000, 0x207fff) AM_WRITEONLY AM_SHARE("paletteram")    // Palette
-//  AM_RANGE(0x240000, 0x240003) AM_DEVREAD8_LEGACY("ymz", ymz280b_r, 0x00ff)                                     // YMZ280
-	AM_RANGE(0x240000, 0x240003) AM_DEVWRITE8_LEGACY("ymz", ymz280b_w, 0x00ff)                                  // YMZ280
+//  AM_RANGE(0x240000, 0x240003) AM_DEVREAD8("ymz", ymz280b_device, read, 0x00ff)                           // YMZ280
+	AM_RANGE(0x240000, 0x240003) AM_DEVWRITE8("ymz", ymz280b_device, write, 0x00ff)                         // YMZ280
 	AM_RANGE(0x280000, 0x280001) AM_READ_PORT("IN0")                                                        // Inputs + ???
 	AM_RANGE(0x280002, 0x280003) AM_READ_PORT("IN1")                                                        // Inputs + EEPROM
 	AM_RANGE(0x280008, 0x280009) AM_WRITE(korokoro_leds_w)                                                  // Leds
@@ -727,7 +715,7 @@ static ADDRESS_MAP_START( crusherm_map, AS_PROGRAM, 16, cave_state )
 	AM_RANGE(0x140000, 0x140005) AM_WRITEONLY AM_SHARE("vctrl.0")                           // Layer 0 Control
 	AM_RANGE(0x180000, 0x187fff) AM_WRITEONLY AM_SHARE("spriteram") // Sprites
 	AM_RANGE(0x200000, 0x207fff) AM_WRITEONLY AM_SHARE("paletteram")    // Palette
-	AM_RANGE(0x240000, 0x240003) AM_DEVWRITE8_LEGACY("ymz", ymz280b_w, 0x00ff)                                  // YMZ280
+	AM_RANGE(0x240000, 0x240003) AM_DEVWRITE8("ymz", ymz280b_device, write, 0x00ff)                         // YMZ280
 	AM_RANGE(0x280000, 0x280001) AM_READ_PORT("IN0")                                                        // Inputs + ???
 	AM_RANGE(0x280002, 0x280003) AM_READ_PORT("IN1")                                                        // Inputs + EEPROM
 	AM_RANGE(0x280008, 0x280009) AM_WRITE(korokoro_leds_w)                                                  // Leds
@@ -801,9 +789,7 @@ ADDRESS_MAP_END
 
 READ16_MEMBER(cave_state::pwrinst2_eeprom_r)
 {
-	device_t *device = machine().device("eeprom");
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	return ~8 + ((eeprom->read_bit() & 1) ? 8 : 0);
+	return ~8 + ((m_eeprom->read_bit() & 1) ? 8 : 0);
 }
 
 INLINE void vctrl_w(address_space &space, offs_t offset, UINT16 data, UINT16 mem_mask, int GFX)
@@ -900,21 +886,19 @@ ADDRESS_MAP_END
 
 WRITE16_MEMBER(cave_state::tjumpman_eeprom_lsb_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (data & ~0x0038)
 		logerror("%s: Unknown EEPROM bit written %04X\n",machine().describe_context(),data);
 
 	if (ACCESSING_BITS_0_7)  // odd address
 	{
 		// latch the bit
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x0020);
+		m_eeprom->write_bit(data & 0x0020);
 
 		// reset line asserted: reset.
-		eeprom->set_cs_line((data & 0x0008) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_cs_line((data & 0x0008) ? CLEAR_LINE : ASSERT_LINE);
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line((data & 0x0010) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->set_clock_line((data & 0x0010) ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
@@ -1006,7 +990,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( uopoko_map, AS_PROGRAM, 16, cave_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM                                                                 // ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM                                                                 // RAM
-	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x00ff)                   // YMZ280
+	AM_RANGE(0x300000, 0x300003) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x00ff)                   // YMZ280
 /**/AM_RANGE(0x400000, 0x407fff) AM_RAM AM_SHARE("spriteram")       // Sprites
 /**/AM_RANGE(0x408000, 0x40ffff) AM_RAM AM_SHARE("spriteram_2")                         // Sprites?
 /**/AM_RANGE(0x500000, 0x507fff) AM_RAM_WRITE(cave_vram_0_w) AM_SHARE("vram.0")         // Layer 0
@@ -1072,7 +1056,7 @@ static ADDRESS_MAP_START( hotdogst_sound_portmap, AS_IO, 8, cave_state )
 	AM_RANGE(0x00, 0x00) AM_WRITE(hotdogst_rombank_w)                   // ROM bank
 	AM_RANGE(0x30, 0x30) AM_READ(soundlatch_lo_r)                       // From Main CPU
 	AM_RANGE(0x40, 0x40) AM_READ(soundlatch_hi_r)                       //
-	AM_RANGE(0x50, 0x51) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)    //
+	AM_RANGE(0x50, 0x51) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)   //
 	AM_RANGE(0x60, 0x60) AM_DEVREADWRITE("oki", okim6295_device, read, write)   // M6295
 	AM_RANGE(0x70, 0x70) AM_WRITE(hotdogst_okibank_w)                   // Samples bank
 ADDRESS_MAP_END
@@ -1102,8 +1086,8 @@ static ADDRESS_MAP_START( mazinger_sound_portmap, AS_IO, 8, cave_state )
 	AM_RANGE(0x00, 0x00) AM_WRITE(mazinger_rombank_w)   // ROM bank
 	AM_RANGE(0x10, 0x10) AM_WRITE(soundlatch_ack_w)     // To Main CPU
 	AM_RANGE(0x30, 0x30) AM_READ(soundlatch_lo_r)       // From Main CPU
-	AM_RANGE(0x50, 0x51) AM_DEVWRITE_LEGACY("ymsnd", ym2203_w)  // YM2203
-	AM_RANGE(0x52, 0x53) AM_DEVREAD_LEGACY("ymsnd", ym2203_r)   // YM2203
+	AM_RANGE(0x50, 0x51) AM_DEVWRITE("ymsnd", ym2203_device, write) // YM2203
+	AM_RANGE(0x52, 0x53) AM_DEVREAD("ymsnd", ym2203_device, read)   // YM2203
 	AM_RANGE(0x70, 0x70) AM_DEVWRITE("oki", okim6295_device, write) // M6295
 	AM_RANGE(0x74, 0x74) AM_WRITE(hotdogst_okibank_w)   // Samples bank
 ADDRESS_MAP_END
@@ -1179,8 +1163,8 @@ static ADDRESS_MAP_START( pwrinst2_sound_portmap, AS_IO, 8, cave_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE("oki1", okim6295_device, read, write)  // M6295
 	AM_RANGE(0x08, 0x08) AM_DEVREADWRITE("oki2", okim6295_device, read, write)  //
-	AM_RANGE(0x10, 0x17) AM_DEVWRITE_LEGACY("nmk112", nmk112_okibank_w)         // Samples bank
-	AM_RANGE(0x40, 0x41) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)        //
+	AM_RANGE(0x10, 0x17) AM_DEVWRITE("nmk112", nmk112_device, okibank_w)         // Samples bank
+	AM_RANGE(0x40, 0x41) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)   //
 	AM_RANGE(0x50, 0x50) AM_WRITE(soundlatch_ack_w)                         // To Main CPU
 //  AM_RANGE(0x51, 0x51) AM_WRITENOP                                         // ?? volume
 	AM_RANGE(0x80, 0x80) AM_WRITE(pwrinst2_rombank_w)                       // ROM bank
@@ -1792,10 +1776,6 @@ GFXDECODE_END
 
 MACHINE_START_MEMBER(cave_state,cave)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_soundbuf_len));
 	save_item(NAME(m_soundbuf_data));
 
@@ -1807,7 +1787,6 @@ MACHINE_START_MEMBER(cave_state,cave)
 
 MACHINE_RESET_MEMBER(cave_state,cave)
 {
-
 	memset(m_soundbuf_data, 0, 32);
 	m_soundbuf_len = 0;
 
@@ -1817,24 +1796,16 @@ MACHINE_RESET_MEMBER(cave_state,cave)
 	m_agallet_vblank_irq = 0;
 }
 
-static const ymz280b_interface ymz280b_intf =
+WRITE_LINE_MEMBER(cave_state::irqhandler)
 {
-	sound_irq_gen
-};
-
-static void irqhandler(device_t *device, int irq)
-{
-	device->machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 /***************************************************************************
@@ -1872,7 +1843,7 @@ static MACHINE_CONFIG_START( dfeveron, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(cave_state, sound_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -1914,7 +1885,7 @@ static MACHINE_CONFIG_START( ddonpach, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(cave_state, sound_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -2006,7 +1977,7 @@ static MACHINE_CONFIG_START( esprade, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(cave_state, sound_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -2046,7 +2017,7 @@ static MACHINE_CONFIG_START( gaia, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(cave_state, sound_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -2087,7 +2058,7 @@ static MACHINE_CONFIG_START( guwange, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(cave_state, sound_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -2131,7 +2102,8 @@ static MACHINE_CONFIG_START( hotdogst, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_4MHz)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(cave_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.20)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.20)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.20)
@@ -2183,7 +2155,7 @@ static MACHINE_CONFIG_START( korokoro, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(cave_state, sound_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -2237,7 +2209,8 @@ static MACHINE_CONFIG_START( mazinger, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_4MHz)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(cave_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.20)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.20)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.20)
@@ -2406,7 +2379,8 @@ static MACHINE_CONFIG_START( pwrinst2, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_16MHz / 4)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(cave_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.40)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.40)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  0.40)
@@ -2564,7 +2538,7 @@ static MACHINE_CONFIG_START( uopoko, cave_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(cave_state, sound_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -2711,8 +2685,7 @@ BP962A.U77  23C16000    GFX
 	ROM_LOAD( "bp962a.u48", 0x000000, 0x200000, CRC(ae00a1ce) SHA1(5e8c74df0ac77efb3080406870856f958be14f79) ) \
 	\
 	ROM_REGION( 0x200000, "oki2", 0 )   \
-	ROM_LOAD( "bp962a.u47", 0x000000, 0x200000, CRC(6d4e9737) SHA1(81c7ecdfc2d38d0b35e26745866f6672f566f936) ) \
-
+	ROM_LOAD( "bp962a.u47", 0x000000, 0x200000, CRC(6d4e9737) SHA1(81c7ecdfc2d38d0b35e26745866f6672f566f936) )
 /* the regions differ only in the EEPROM, hence the macro above - all EEPROMs are Factory Defaulted */
 ROM_START( agallet )
 	ROMS_AGALLET
@@ -3652,8 +3625,7 @@ U55
 	ROM_LOAD( "bp943a-0.u63", 0x000000, 0x200000, CRC(c1fed98a) SHA1(c276505f80a49b129862966a19db507f97153e45) ) \
 	\
 	ROM_REGION( 0x080000, "oki", 0 ) \
-	ROM_LOAD( "bp943a-4.u64", 0x000000, 0x080000, CRC(3fc7f29a) SHA1(feb21b918243c0a03dfa4a80cc80b86be4f62680) ) \
-
+	ROM_LOAD( "bp943a-4.u64", 0x000000, 0x080000, CRC(3fc7f29a) SHA1(feb21b918243c0a03dfa4a80cc80b86be4f62680) )
 /* the regions differ only in the EEPROM, hence the macro above - all EEPROMs are Factory Defaulted */
 ROM_START( mazinger )
 	ROMS_MAZINGER
@@ -4179,8 +4151,7 @@ BPSM.U77    23C16000    GFX
 	ROM_LOAD( "bpsm.u47", 0x000000, 0x080000, CRC(0f2901b9) SHA1(ebd3e9e39e8d2bc91688dac19b99548a28b4733c) ) \
 	ROM_RELOAD(           0x080000, 0x080000             ) \
 	ROM_RELOAD(           0x100000, 0x080000             ) \
-	ROM_RELOAD(           0x180000, 0x080000             ) \
-
+	ROM_RELOAD(           0x180000, 0x080000             )
 /* the regions differ only in the EEPROM, hence the macro above - all EEPROMs are Factory Defaulted */
 ROM_START( sailormn )
 	ROMS_SAILORMN
@@ -4264,8 +4235,7 @@ ROM_END
 	ROM_LOAD( "bpsm.u47", 0x000000, 0x080000, CRC(0f2901b9) SHA1(ebd3e9e39e8d2bc91688dac19b99548a28b4733c) ) \
 	ROM_RELOAD(           0x080000, 0x080000             ) \
 	ROM_RELOAD(           0x100000, 0x080000             ) \
-	ROM_RELOAD(           0x180000, 0x080000             ) \
-
+	ROM_RELOAD(           0x180000, 0x080000             )
 /* the regions differ only in the EEPROM, hence the macro above - all EEPROMs are Factory Defaulted */
 ROM_START( sailormno )
 	ROMS_SAILORMNO
@@ -4442,19 +4412,19 @@ static void init_cave(running_machine &machine)
 
 DRIVER_INIT_MEMBER(cave_state,agallet)
 {
-	UINT8 *ROM = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *ROM = memregion("audiocpu")->base();
 	init_cave(machine());
 
-	machine().root_device().membank("bank1")->configure_entries(0, 0x02, &ROM[0x00000], 0x4000);
-	machine().root_device().membank("bank1")->configure_entries(2, 0x1e, &ROM[0x10000], 0x4000);
+	membank("bank1")->configure_entries(0, 0x02, &ROM[0x00000], 0x4000);
+	membank("bank1")->configure_entries(2, 0x1e, &ROM[0x10000], 0x4000);
 
-	ROM = machine().root_device().memregion("oki1")->base();
-	machine().root_device().membank("bank3")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
-	machine().root_device().membank("bank4")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
+	ROM = memregion("oki1")->base();
+	membank("bank3")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
+	membank("bank4")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
 
-	ROM = machine().root_device().memregion("oki2")->base();
-	machine().root_device().membank("bank5")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
-	machine().root_device().membank("bank6")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
+	ROM = memregion("oki2")->base();
+	membank("bank5")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
+	membank("bank6")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
 
 	sailormn_unpack_tiles(machine(), "layer2");
 
@@ -4580,7 +4550,7 @@ DRIVER_INIT_MEMBER(cave_state,mazinger)
 	m_time_vblank_irq = 2100;
 
 	/* setup extra ROM */
-	membank("bank1")->set_base(machine().root_device().memregion("user1")->base());
+	membank("bank1")->set_base(memregion("user1")->base());
 }
 
 
@@ -4649,7 +4619,7 @@ DRIVER_INIT_MEMBER(cave_state,pwrinst2)
 
 #if 1       //ROM PATCH
 	{
-		UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+		UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 		rom[0xd46c / 2] = 0xd482;           // kurara dash fix  0xd400 -> 0xd482
 	}
 #endif

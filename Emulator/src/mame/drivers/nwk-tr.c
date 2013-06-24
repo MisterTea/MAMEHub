@@ -230,12 +230,22 @@ class nwktr_state : public driver_device
 {
 public:
 	nwktr_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_work_ram(*this, "work_ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_work_ram(*this, "work_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_dsp(*this, "dsp"),
+		m_k001604(*this, "k001604"),
+		m_adc12138(*this, "adc12138") { }
 
 	UINT8 m_led_reg0;
 	UINT8 m_led_reg1;
 	required_shared_ptr<UINT32> m_work_ram;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_dsp;
+	required_device<k001604_device> m_k001604;
+	required_device<adc12138_device> m_adc12138;
 	emu_timer *m_sound_irq_timer;
 	int m_fpga_uploaded;
 	int m_lanc2_ram_r;
@@ -251,11 +261,13 @@ public:
 	DECLARE_WRITE32_MEMBER(lanc2_w);
 	DECLARE_READ32_MEMBER(dsp_dataram_r);
 	DECLARE_WRITE32_MEMBER(dsp_dataram_w);
+	DECLARE_WRITE_LINE_MEMBER(voodoo_vblank_0);
 	DECLARE_DRIVER_INIT(nwktr);
 	virtual void machine_start();
 	virtual void machine_reset();
 	UINT32 screen_update_nwktr(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(irq_off);
+	void lanc2_init();
 };
 
 
@@ -269,16 +281,15 @@ WRITE32_MEMBER(nwktr_state::paletteram32_w)
 	palette_set_color_rgb(machine(), offset, pal5bit(data >> 10), pal5bit(data >> 5), pal5bit(data >> 0));
 }
 
-static void voodoo_vblank_0(device_t *device, int param)
+WRITE_LINE_MEMBER(nwktr_state::voodoo_vblank_0)
 {
-	device->machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, param);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, state);
 }
 
 
 UINT32 nwktr_state::screen_update_nwktr(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	device_t *voodoo = machine().device("voodoo");
-	device_t *k001604 = machine().device("k001604");
 
 	bitmap.fill(machine().pens[0], cliprect);
 
@@ -287,7 +298,7 @@ UINT32 nwktr_state::screen_update_nwktr(screen_device &screen, bitmap_rgb32 &bit
 	const rectangle &visarea = screen.visible_area();
 	const rectangle tilemap_rect(visarea.min_x, visarea.max_x, visarea.min_y+16, visarea.max_y);
 
-	k001604_draw_front_layer(k001604, bitmap, tilemap_rect);
+	k001604_draw_front_layer(m_k001604, bitmap, tilemap_rect);
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
 	draw_7segment_led(bitmap, 9, 3, m_led_reg1);
@@ -298,7 +309,6 @@ UINT32 nwktr_state::screen_update_nwktr(screen_device &screen, bitmap_rgb32 &bit
 
 READ32_MEMBER(nwktr_state::sysreg_r)
 {
-	device_t *adc12138 = machine().device("adc12138");
 	UINT32 r = 0;
 	if (offset == 0)
 	{
@@ -316,7 +326,7 @@ READ32_MEMBER(nwktr_state::sysreg_r)
 		}
 		if (ACCESSING_BITS_0_7)
 		{
-			r |= adc1213x_do_r(adc12138, space, 0) | (adc1213x_eoc_r(adc12138, space, 0) << 2);
+			r |= m_adc12138->do_r(space, 0) | (m_adc12138->eoc_r(space, 0) << 2);
 		}
 	}
 	else if (offset == 1)
@@ -331,7 +341,6 @@ READ32_MEMBER(nwktr_state::sysreg_r)
 
 WRITE32_MEMBER(nwktr_state::sysreg_w)
 {
-	device_t *adc12138 = machine().device("adc12138");
 	if( offset == 0 )
 	{
 		if (ACCESSING_BITS_24_31)
@@ -353,17 +362,17 @@ WRITE32_MEMBER(nwktr_state::sysreg_w)
 			int di = (data >> 25) & 0x1;
 			int sclk = (data >> 24) & 0x1;
 
-			adc1213x_cs_w(adc12138, space, 0, cs);
-			adc1213x_conv_w(adc12138, space, 0, conv);
-			adc1213x_di_w(adc12138, space, 0, di);
-			adc1213x_sclk_w(adc12138, space, 0, sclk);
+			m_adc12138->cs_w(space, 0, cs);
+			m_adc12138->conv_w(space, 0, conv);
+			m_adc12138->di_w(space, 0, di);
+			m_adc12138->sclk_w(space, 0, sclk);
 		}
 		if (ACCESSING_BITS_0_7)
 		{
 			if (data & 0x80)    // CG Board 1 IRQ Ack
-				machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ1, CLEAR_LINE);
+				m_maincpu->set_input_line(INPUT_LINE_IRQ1, CLEAR_LINE);
 			if (data & 0x40)    // CG Board 0 IRQ Ack
-				machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+				m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 
 			//set_cgboard_id((data >> 4) & 3);
 		}
@@ -372,13 +381,12 @@ WRITE32_MEMBER(nwktr_state::sysreg_w)
 }
 
 
-static void lanc2_init(running_machine &machine)
+void nwktr_state::lanc2_init()
 {
-	nwktr_state *state = machine.driver_data<nwktr_state>();
-	state->m_fpga_uploaded = 0;
-	state->m_lanc2_ram_r = 0;
-	state->m_lanc2_ram_w = 0;
-	state->m_lanc2_ram = auto_alloc_array(machine, UINT8, 0x8000);
+	m_fpga_uploaded = 0;
+	m_lanc2_ram_r = 0;
+	m_lanc2_ram_w = 0;
+	m_lanc2_ram = auto_alloc_array(machine(), UINT8, 0x8000);
 }
 
 READ32_MEMBER(nwktr_state::lanc1_r)
@@ -513,16 +521,16 @@ WRITE32_MEMBER(nwktr_state::lanc2_w)
 
 TIMER_CALLBACK_MEMBER(nwktr_state::irq_off)
 {
-	machine().device("audiocpu")->execute().set_input_line(param, CLEAR_LINE);
+	m_audiocpu->set_input_line(param, CLEAR_LINE);
 }
 
 void nwktr_state::machine_start()
 {
 	/* set conservative DRC options */
-	ppcdrc_set_options(machine().device("maincpu"), PPCDRC_COMPATIBLE_OPTIONS);
+	ppcdrc_set_options(m_maincpu, PPCDRC_COMPATIBLE_OPTIONS);
 
 	/* configure fast RAM regions for DRC */
-	ppcdrc_add_fastram(machine().device("maincpu"), 0x00000000, 0x003fffff, FALSE, m_work_ram);
+	ppcdrc_add_fastram(m_maincpu, 0x00000000, 0x003fffff, FALSE, m_work_ram);
 
 	m_sound_irq_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(nwktr_state::irq_off),this));
 }
@@ -537,7 +545,7 @@ static ADDRESS_MAP_START( nwktr_map, AS_PROGRAM, 32, nwktr_state )
 	AM_RANGE(0x780c0000, 0x780c0003) AM_READWRITE_LEGACY(cgboard_dsp_comm_r_ppc, cgboard_dsp_comm_w_ppc)
 	AM_RANGE(0x7d000000, 0x7d00ffff) AM_READ(sysreg_r)
 	AM_RANGE(0x7d010000, 0x7d01ffff) AM_WRITE(sysreg_w)
-	AM_RANGE(0x7d020000, 0x7d021fff) AM_DEVREADWRITE8_LEGACY("m48t58", timekeeper_r, timekeeper_w, 0xffffffff)  /* M48T58Y RTC/NVRAM */
+	AM_RANGE(0x7d020000, 0x7d021fff) AM_DEVREADWRITE8("m48t58", timekeeper_device, read, write, 0xffffffff)  /* M48T58Y RTC/NVRAM */
 	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVREAD_LEGACY("k056800", k056800_host_r)
 	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
 	AM_RANGE(0x7d030008, 0x7d03000f) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
@@ -553,7 +561,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_memmap, AS_PROGRAM, 16, nwktr_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM     /* Work RAM */
-	AM_RANGE(0x200000, 0x200fff) AM_DEVREADWRITE_LEGACY("rfsnd", rf5c400_r, rf5c400_w)      /* Ricoh RF5C400 */
+	AM_RANGE(0x200000, 0x200fff) AM_DEVREADWRITE("rfsnd", rf5c400_device, rf5c400_r, rf5c400_w)      /* Ricoh RF5C400 */
 	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE_LEGACY("k056800", k056800_sound_r, k056800_sound_w)
 	AM_RANGE(0x600000, 0x600001) AM_NOP
 ADDRESS_MAP_END
@@ -677,7 +685,7 @@ static void sound_irq_callback(running_machine &machine, int irq)
 	nwktr_state *state = machine.driver_data<nwktr_state>();
 	int line = (irq == 0) ? INPUT_LINE_IRQ1 : INPUT_LINE_IRQ2;
 
-	machine.device("audiocpu")->execute().set_input_line(line, ASSERT_LINE);
+	state->m_audiocpu->set_input_line(line, ASSERT_LINE);
 	state->m_sound_irq_timer->adjust(attotime::from_usec(5), line);
 }
 
@@ -707,7 +715,7 @@ static const k001604_interface thrilld_k001604_intf =
 
 void nwktr_state::machine_reset()
 {
-	machine().device("dsp")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 static const voodoo_config voodoo_intf =
@@ -717,8 +725,8 @@ static const voodoo_config voodoo_intf =
 	2,//                tmumem1;
 	"screen",//         screen;
 	"dsp",//            cputag;
-	voodoo_vblank_0,//  vblank;
-	NULL,//             stall;
+	DEVCB_DRIVER_LINE_MEMBER(nwktr_state,voodoo_vblank_0),//  vblank;
+	DEVCB_NULL//             stall;
 };
 
 static MACHINE_CONFIG_START( nwktr, nwktr_state )
@@ -752,11 +760,11 @@ static MACHINE_CONFIG_START( nwktr, nwktr_state )
 
 	MCFG_K001604_ADD("k001604", racingj_k001604_intf)
 
-	MCFG_K056800_ADD("k056800", nwktr_k056800_interface)
+	MCFG_K056800_ADD("k056800", nwktr_k056800_interface, 64000000/4)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("rfsnd", RF5C400, 16934400)  // as per Guru readme above
+	MCFG_RF5C400_ADD("rfsnd", 16934400)  // as per Guru readme above
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
@@ -781,7 +789,7 @@ DRIVER_INIT_MEMBER(nwktr_state, nwktr)
 	m_sharc_dataram = auto_alloc_array(machine(), UINT32, 0x100000/4);
 	m_led_reg0 = m_led_reg1 = 0x7f;
 
-	lanc2_init(machine());
+	lanc2_init();
 }
 
 /*****************************************************************************/

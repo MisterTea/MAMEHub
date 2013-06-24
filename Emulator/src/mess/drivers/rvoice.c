@@ -10,7 +10,7 @@
 /* Core includes */
 #include "emu.h"
 #include "cpu/m6800/m6800.h"
-#include "machine/6551acia.h"
+#include "machine/mos6551.h"
 //#include "dectalk.lh" //  hack to avoid screenless system crash
 #include "machine/terminal.h"
 
@@ -73,7 +73,8 @@ class rvoice_state : public driver_device
 {
 public:
 	rvoice_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu") { }
 
 	hd63701y0_t m_hd63701y0;
 	rvoicepc_t m_rvoicepc;
@@ -82,6 +83,7 @@ public:
 	DECLARE_DRIVER_INIT(rvoicepc);
 	virtual void machine_reset();
 	DECLARE_WRITE8_MEMBER(null_kbd_put);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -329,7 +331,7 @@ static ADDRESS_MAP_START(hd63701_main_mem, AS_PROGRAM, 8, rvoice_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x0027) AM_READWRITE(main_hd63701_internal_registers_r, main_hd63701_internal_registers_w) // INTERNAL REGS
 	AM_RANGE(0x0040, 0x013f) AM_RAM // INTERNAL RAM (overlaps acia)
-	AM_RANGE(0x0060, 0x007f) AM_DEVREADWRITE("acia65c51", acia6551_device, read, write) // ACIA 65C51
+	AM_RANGE(0x0060, 0x007f) AM_DEVREADWRITE("acia65c51", mos6551_device, read, write) // ACIA 65C51
 	AM_RANGE(0x2000, 0x7fff) AM_RAM // EXTERNAL SRAM
 	AM_RANGE(0x8000, 0xffff) AM_ROM // 27512 EPROM
 ADDRESS_MAP_END
@@ -368,7 +370,7 @@ static MACHINE_CONFIG_START( rvoicepc, rvoice_state )
 	//MCFG_CPU_IO_MAP(hd63701_slave_io)
 	MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
-	MCFG_ACIA6551_ADD("acia65c51")
+	MCFG_MOS6551_ADD("acia65c51", XTAL_1_8432MHz, NULL)
 
 	/* video hardware */
 	//MCFG_DEFAULT_LAYOUT(layout_dectalk) // hack to avoid screenless system crash

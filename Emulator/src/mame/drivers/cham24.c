@@ -65,7 +65,8 @@ class cham24_state : public driver_device
 {
 public:
 	cham24_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8* m_nt_ram;
 	UINT8* m_nt_page[4];
@@ -89,39 +90,41 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_cham24(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void cham24_set_mirroring( int mirroring );
+	void ppu_irq(int *ppu_regs);
+	required_device<cpu_device> m_maincpu;
 };
 
 
 
-static void cham24_set_mirroring( running_machine &machine, int mirroring )
+void cham24_state::cham24_set_mirroring( int mirroring )
 {
-	cham24_state *state = machine.driver_data<cham24_state>();
 	switch(mirroring)
 	{
 	case PPU_MIRROR_LOW:
-		state->m_nt_page[0] = state->m_nt_page[1] = state->m_nt_page[2] = state->m_nt_page[3] = state->m_nt_ram;
+		m_nt_page[0] = m_nt_page[1] = m_nt_page[2] = m_nt_page[3] = m_nt_ram;
 		break;
 	case PPU_MIRROR_HIGH:
-		state->m_nt_page[0] = state->m_nt_page[1] = state->m_nt_page[2] = state->m_nt_page[3] = state->m_nt_ram + 0x400;
+		m_nt_page[0] = m_nt_page[1] = m_nt_page[2] = m_nt_page[3] = m_nt_ram + 0x400;
 		break;
 	case PPU_MIRROR_HORZ:
-		state->m_nt_page[0] = state->m_nt_ram;
-		state->m_nt_page[1] = state->m_nt_ram;
-		state->m_nt_page[2] = state->m_nt_ram + 0x400;
-		state->m_nt_page[3] = state->m_nt_ram + 0x400;
+		m_nt_page[0] = m_nt_ram;
+		m_nt_page[1] = m_nt_ram;
+		m_nt_page[2] = m_nt_ram + 0x400;
+		m_nt_page[3] = m_nt_ram + 0x400;
 		break;
 	case PPU_MIRROR_VERT:
-		state->m_nt_page[0] = state->m_nt_ram;
-		state->m_nt_page[1] = state->m_nt_ram + 0x400;
-		state->m_nt_page[2] = state->m_nt_ram;
-		state->m_nt_page[3] = state->m_nt_ram + 0x400;
+		m_nt_page[0] = m_nt_ram;
+		m_nt_page[1] = m_nt_ram + 0x400;
+		m_nt_page[2] = m_nt_ram;
+		m_nt_page[3] = m_nt_ram + 0x400;
 		break;
 	case PPU_MIRROR_NONE:
 	default:
-		state->m_nt_page[0] = state->m_nt_ram;
-		state->m_nt_page[1] = state->m_nt_ram + 0x400;
-		state->m_nt_page[2] = state->m_nt_ram + 0x800;
-		state->m_nt_page[3] = state->m_nt_ram + 0xc00;
+		m_nt_page[0] = m_nt_ram;
+		m_nt_page[1] = m_nt_ram + 0x400;
+		m_nt_page[2] = m_nt_ram + 0x800;
+		m_nt_page[3] = m_nt_ram + 0xc00;
 		break;
 	}
 }
@@ -207,10 +210,10 @@ WRITE8_MEMBER(cham24_state::cham24_mapper_w)
 	UINT8* src = memregion("user1")->base();
 
 	// switch PPU VROM bank
-	membank("bank1")->set_base(machine().root_device().memregion("gfx1")->base() + (0x2000 * gfx_bank));
+	membank("bank1")->set_base(memregion("gfx1")->base() + (0x2000 * gfx_bank));
 
 	// set gfx mirroring
-	cham24_set_mirroring(machine(), gfx_mirroring != 0 ? PPU_MIRROR_HORZ : PPU_MIRROR_VERT);
+	cham24_set_mirroring(gfx_mirroring != 0 ? PPU_MIRROR_HORZ : PPU_MIRROR_VERT);
 
 	// switch PRG bank
 	if (prg_bank_page_size == 0)
@@ -283,9 +286,9 @@ void cham24_state::palette_init()
 	ppu->init_palette(machine(), 0);
 }
 
-static void ppu_irq( device_t *device, int *ppu_regs )
+void cham24_state::ppu_irq(int *ppu_regs)
 {
-	device->machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 /* our ppu interface                                            */
@@ -295,8 +298,7 @@ static const ppu2c0x_interface ppu_interface =
 	"screen",
 	0,                  /* gfxlayout num */
 	0,                  /* color base */
-	PPU_MIRROR_NONE,    /* mirroring */
-	ppu_irq             /* irq */
+	PPU_MIRROR_NONE     /* mirroring */
 };
 
 void cham24_state::video_start()
@@ -362,6 +364,7 @@ static MACHINE_CONFIG_START( cham24, cham24_state )
 
 
 	MCFG_PPU2C04_ADD("ppu", ppu_interface)
+	MCFG_PPU2C0X_SET_NMI(cham24_state, ppu_irq)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

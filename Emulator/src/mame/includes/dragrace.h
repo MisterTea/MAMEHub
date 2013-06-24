@@ -26,10 +26,11 @@ class dragrace_state : public driver_device
 {
 public:
 	dragrace_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_playfield_ram(*this, "playfield_ram"),
 		m_position_ram(*this, "position_ram"),
-		m_discrete(*this, "discrete"){ }
+		m_discrete(*this, "discrete"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_playfield_ram;
@@ -56,6 +57,8 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_dragrace(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(dragrace_frame_callback);
+	void dragrace_update_misc_flags( address_space &space );
+	required_device<cpu_device> m_maincpu;
 };
 
 /*----------- defined in audio/dragrace.c -----------*/

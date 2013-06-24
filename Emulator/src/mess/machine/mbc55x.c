@@ -109,43 +109,35 @@ WRITE8_MEMBER( mbc55x_state::mbc55x_usart_w )
 
 /* PIC 8259 Configuration */
 
-const struct pic8259_interface mbc55x_pic8259_config =
-{
-	DEVCB_CPU_INPUT_LINE(MAINCPU_TAG, INPUT_LINE_IRQ0),
-	DEVCB_LINE_VCC,
-	DEVCB_NULL
-};
-
 READ8_MEMBER(mbc55x_state::mbcpic8259_r)
 {
-	return pic8259_r(m_pic, space, offset>>1);
+	return m_pic->read(space, offset>>1);
 }
 
 WRITE8_MEMBER(mbc55x_state::mbcpic8259_w)
 {
-	pic8259_w(m_pic, space, offset>>1, data);
+	m_pic->write(space, offset>>1, data);
 }
 
-static IRQ_CALLBACK(mbc55x_irq_callback)
+IRQ_CALLBACK_MEMBER(mbc55x_state::mbc55x_irq_callback)
 {
-	mbc55x_state *state = device->machine().driver_data<mbc55x_state>();
-	return pic8259_acknowledge( state->m_pic );
+	return m_pic->inta_r();
 }
 
 /* PIT8253 Configuration */
 
-const struct pit8253_config mbc55x_pit8253_config =
+const struct pit8253_interface mbc55x_pit8253_config =
 {
 	{
 		{
 			PIT_C0_CLOCK,
 			DEVCB_NULL,
-			DEVCB_DEVICE_LINE(PIC8259_TAG, pic8259_ir0_w)
+			DEVCB_DEVICE_LINE_MEMBER(PIC8259_TAG, pic8259_device, ir0_w)
 		},
 		{
 			PIT_C1_CLOCK,
 			DEVCB_NULL,
-			DEVCB_DEVICE_LINE(PIC8259_TAG, pic8259_ir1_w)
+			DEVCB_DEVICE_LINE_MEMBER(PIC8259_TAG, pic8259_device, ir1_w)
 		},
 		{
 			PIT_C2_CLOCK,
@@ -157,12 +149,12 @@ const struct pit8253_config mbc55x_pit8253_config =
 
 READ8_MEMBER(mbc55x_state::mbcpit8253_r)
 {
-	return pit8253_r(m_pit, space, offset>>1);
+	return m_pit->read(space, offset >> 1);
 }
 
 WRITE8_MEMBER(mbc55x_state::mbcpit8253_w)
 {
-	pit8253_w(m_pit, space, offset>>1, data);
+	m_pit->write(space, offset >> 1, data);
 }
 
 WRITE_LINE_MEMBER( mbc55x_state::pit8253_t2 )
@@ -208,21 +200,19 @@ WRITE_LINE_MEMBER( mbc55x_state::mbc55x_fdc_drq_w )
 
 */
 
-static void keyboard_reset(running_machine &machine)
+void mbc55x_state::keyboard_reset()
 {
-	mbc55x_state *state = machine.driver_data<mbc55x_state>();
 	logerror("keyboard_reset()\n");
 
-	memset(state->m_keyboard.keyrows,0xFF,MBC55X_KEYROWS);
-	state->m_keyboard.key_special=0;
+	memset(m_keyboard.keyrows,0xFF,MBC55X_KEYROWS);
+	m_keyboard.key_special=0;
 
 	// Setup timer to scan keyboard.
-	state->m_keyboard.keyscan_timer->adjust(attotime::zero, 0, attotime::from_hz(50));
+	m_keyboard.keyscan_timer->adjust(attotime::zero, 0, attotime::from_hz(50));
 }
 
-static void scan_keyboard(running_machine &machine)
+void mbc55x_state::scan_keyboard()
 {
-	mbc55x_state *state = machine.driver_data<mbc55x_state>();
 	UINT8   keyrow;
 	UINT8   row;
 	UINT8   bitno;
@@ -261,33 +251,33 @@ static void scan_keyboard(running_machine &machine)
 
 	// First read shift, control and graph
 
-	state->m_keyboard.key_special = machine.root_device().ioport(KEY_SPECIAL_TAG)->read();
+	m_keyboard.key_special = ioport(KEY_SPECIAL_TAG)->read();
 
 	for(row=0; row<MBC55X_KEYROWS; row++)
 	{
-		keyrow = machine.root_device().ioport(keynames[row])->read();
+		keyrow = ioport(keynames[row])->read();
 
 		for(mask=0x80, bitno=7;mask>0;mask=mask>>1, bitno-=1)
 		{
-			if(!(keyrow & mask) && (state->m_keyboard.keyrows[row] & mask))
+			if(!(keyrow & mask) && (m_keyboard.keyrows[row] & mask))
 			{
-				if(state->m_keyboard.key_special & (KEY_BIT_LSHIFT | KEY_BIT_RSHIFT))
+				if(m_keyboard.key_special & (KEY_BIT_LSHIFT | KEY_BIT_RSHIFT))
 					key=keyvalues_shift[row][bitno];
 				else
 					key=keyvalues_normal[row][bitno];
 
 				if (LOG_KEYBOARD) logerror("keypress %c\n",key);
-				state->m_kb_uart->receive_character(key);
+				m_kb_uart->receive_character(key);
 			}
 		}
 
-		state->m_keyboard.keyrows[row]=keyrow;
+		m_keyboard.keyrows[row]=keyrow;
 	}
 }
 
 TIMER_CALLBACK_MEMBER(mbc55x_state::keyscan_callback)
 {
-	scan_keyboard(machine());
+	scan_keyboard();
 }
 
 /* i8251 serial */
@@ -299,7 +289,7 @@ const i8251_interface mbc55x_i8251a_interface =
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
-	DEVCB_DEVICE_LINE(PIC8259_TAG, pic8259_ir3_w),
+	DEVCB_DEVICE_LINE_MEMBER(PIC8259_TAG, pic8259_device, ir3_w),
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL
@@ -336,15 +326,14 @@ WRITE8_MEMBER(mbc55x_state::mbc55x_kb_usart_w)
 	}
 }
 
-static void set_ram_size(running_machine &machine)
+void mbc55x_state::set_ram_size()
 {
-	mbc55x_state    *state      = machine.driver_data<mbc55x_state>();
-	address_space   &space      = machine.device( MAINCPU_TAG)->memory().space( AS_PROGRAM );
-	int             ramsize     = state->m_ram->size();
+	address_space   &space      = m_maincpu->space( AS_PROGRAM );
+	int             ramsize     = m_ram->size();
 	int             nobanks     = ramsize / RAM_BANK_SIZE;
 	char            bank[10];
 	int             bankno;
-	UINT8           *ram        = &state->m_ram->pointer()[0];
+	UINT8           *ram        = &m_ram->pointer()[0];
 	UINT8           *map_base;
 	int             bank_base;
 
@@ -362,7 +351,7 @@ static void set_ram_size(running_machine &machine)
 
 		if(bankno<nobanks)
 		{
-			state->membank(bank)->set_base(map_base);
+			membank(bank)->set_base(map_base);
 			space.install_readwrite_bank(bank_base, bank_base+(RAM_BANK_SIZE-1), bank);
 			logerror("Mapping bank %d at %05X to RAM\n",bankno,bank_base);
 		}
@@ -374,9 +363,9 @@ static void set_ram_size(running_machine &machine)
 	}
 
 	// Graphics red and blue plane memory mapping, green is in main memory
-	state->membank(RED_PLANE_TAG)->set_base(&state->m_video_mem[RED_PLANE_OFFSET]);
+	membank(RED_PLANE_TAG)->set_base(&m_video_mem[RED_PLANE_OFFSET]);
 	space.install_readwrite_bank(RED_PLANE_MEMBASE, RED_PLANE_MEMBASE+(COLOUR_PLANE_SIZE-1), RED_PLANE_TAG);
-	state->membank(BLUE_PLANE_TAG)->set_base(&state->m_video_mem[BLUE_PLANE_OFFSET]);
+	membank(BLUE_PLANE_TAG)->set_base(&m_video_mem[BLUE_PLANE_OFFSET]);
 	space.install_readwrite_bank(BLUE_PLANE_MEMBASE, BLUE_PLANE_MEMBASE+(COLOUR_PLANE_SIZE-1), BLUE_PLANE_TAG);
 }
 
@@ -386,15 +375,15 @@ DRIVER_INIT_MEMBER(mbc55x_state,mbc55x)
 
 void mbc55x_state::machine_reset()
 {
-	set_ram_size(machine());
-	keyboard_reset(machine());
-	machine().device(MAINCPU_TAG)->execute().set_irq_acknowledge_callback(mbc55x_irq_callback);
+	set_ram_size();
+	keyboard_reset();
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mbc55x_state::mbc55x_irq_callback),this));
 }
 
 void mbc55x_state::machine_start()
 {
 	/* init cpu */
-//  mbc55x_cpu_init(machine());
+//  mbc55x_cpu_init();
 
 
 	/* setup debug commands */
@@ -403,7 +392,7 @@ void mbc55x_state::machine_start()
 		debug_console_register_command(machine(), "mbc55x_debug", CMDFLAG_NONE, 0, 0, 1, mbc55x_debug);
 
 		/* set up the instruction hook */
-		machine().device(MAINCPU_TAG)->debug()->set_instruction_hook(instruction_hook);
+		m_maincpu->debug()->set_instruction_hook(instruction_hook);
 	}
 
 	m_debug_machine=DEBUG_NONE;
@@ -452,20 +441,20 @@ static int instruction_hook(device_t &device, offs_t curpc)
 
 static void decode_dos21(device_t *device,offs_t pc)
 {
-	device_t *cpu = device->machine().device(MAINCPU_TAG);
+	mbc55x_state    *state = device->machine().driver_data<mbc55x_state>();
 
-	UINT16  ax = cpu->state().state_int(I8086_AX);
-	UINT16  bx = cpu->state().state_int(I8086_BX);
-	UINT16  cx = cpu->state().state_int(I8086_CX);
-	UINT16  dx = cpu->state().state_int(I8086_DX);
-	UINT16  cs = cpu->state().state_int(I8086_CS);
-	UINT16  ds = cpu->state().state_int(I8086_DS);
-	UINT16  es = cpu->state().state_int(I8086_ES);
-	UINT16  ss = cpu->state().state_int(I8086_SS);
+	UINT16  ax = state->m_maincpu->state_int(I8086_AX);
+	UINT16  bx = state->m_maincpu->state_int(I8086_BX);
+	UINT16  cx = state->m_maincpu->state_int(I8086_CX);
+	UINT16  dx = state->m_maincpu->state_int(I8086_DX);
+	UINT16  cs = state->m_maincpu->state_int(I8086_CS);
+	UINT16  ds = state->m_maincpu->state_int(I8086_DS);
+	UINT16  es = state->m_maincpu->state_int(I8086_ES);
+	UINT16  ss = state->m_maincpu->state_int(I8086_SS);
 
-	UINT16  si = cpu->state().state_int(I8086_SI);
-	UINT16  di = cpu->state().state_int(I8086_DI);
-	UINT16  bp = cpu->state().state_int(I8086_BP);
+	UINT16  si = state->m_maincpu->state_int(I8086_SI);
+	UINT16  di = state->m_maincpu->state_int(I8086_DI);
+	UINT16  bp = state->m_maincpu->state_int(I8086_BP);
 
 	logerror("=======================================================================\n");
 	logerror("DOS Int 0x21 call at %05X\n",pc);

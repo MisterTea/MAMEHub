@@ -57,7 +57,7 @@ static const floppy_interface nimbus_floppy_interface =
 	DEVCB_NULL,
 	FLOPPY_STANDARD_3_5_DSDD,
 	LEGACY_FLOPPY_OPTIONS_NAME(pc),
-	NULL,
+	"floppy_3_5",
 	NULL
 };
 
@@ -76,7 +76,7 @@ static const ay8910_interface nimbus_ay8910_interface =
 
 static const msm5205_interface msm5205_config =
 {
-	nimbus_msm5205_vck, /* VCK function */
+	DEVCB_LINE(nimbus_msm5205_vck), /* VCK function */
 	MSM5205_S48_4B      /* 8 kHz */
 };
 
@@ -342,6 +342,9 @@ static MACHINE_CONFIG_START( nimbus, rmnimbus_state )
 	MCFG_SOUND_ADD(MSM5205_TAG, MSM5205, 384000)
 	MCFG_SOUND_CONFIG(msm5205_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, MONO_TAG, 0.75)
+
+	/* Software list */
+	MCFG_SOFTWARE_LIST_ADD("disk_list","nimbus")
 MACHINE_CONFIG_END
 
 

@@ -25,18 +25,18 @@
 /*
     Constructors
 */
-ti_video_device::ti_video_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-: bus8z_device(mconfig, type, name, tag, owner, clock)
+ti_video_device::ti_video_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+: bus8z_device(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
 
 ti_std_video_device::ti_std_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ti_video_device(mconfig, TI99VIDEO, "Video subsystem", tag, owner, clock)
+	: ti_video_device(mconfig, TI99VIDEO, "Video subsystem", tag, owner, clock, "ti99_video", __FILE__)
 {
 }
 
 ti_exp_video_device::ti_exp_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ti_video_device(mconfig, V9938VIDEO, "Video subsystem", tag, owner, clock)
+	: ti_video_device(mconfig, V9938VIDEO, "Video subsystem", tag, owner, clock, "v9938_video", __FILE__)
 {
 }
 
@@ -48,11 +48,11 @@ READ8Z_MEMBER( ti_std_video_device::readz )
 {
 	if (offset & 2)
 	{       /* read VDP status */
-		*value = m_tms9928a->register_read(*(this->m_space), 0);
+		*value = m_tms9928a->register_read(space, 0);
 	}
 	else
 	{       /* read VDP RAM */
-		*value = m_tms9928a->vram_read(*(this->m_space), 0);
+		*value = m_tms9928a->vram_read(space, 0);
 	}
 }
 
@@ -60,11 +60,11 @@ WRITE8_MEMBER( ti_std_video_device::write )
 {
 	if (offset & 2)
 	{   /* write VDP address */
-		m_tms9928a->register_write(*(this->m_space), 0, data);
+		m_tms9928a->register_write(space, 0, data);
 	}
 	else
 	{   /* write VDP data */
-		m_tms9928a->vram_write(*(this->m_space), 0, data);
+		m_tms9928a->vram_write(space, 0, data);
 	}
 }
 

@@ -91,7 +91,9 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_laserdisc(*this, "laserdisc"),
 			m_port_bank(0),
-			m_phillips_code(0) { }
+			m_phillips_code(0) ,
+		m_maincpu(*this, "maincpu"),
+		m_discrete(*this, "discrete") { }
 
 	required_device<pioneer_pr8210_device> m_laserdisc;
 
@@ -113,6 +115,8 @@ public:
 	virtual void machine_start();
 	virtual void machine_reset();
 	TIMER_CALLBACK_MEMBER(cliff_irq_callback);
+	required_device<cpu_device> m_maincpu;
+	required_device<discrete_device> m_discrete;
 };
 
 
@@ -125,7 +129,6 @@ WRITE8_MEMBER(cliffhgr_state::cliff_test_led_w)
 
 WRITE8_MEMBER(cliffhgr_state::cliff_port_bank_w)
 {
-
 	/* writing 0x0f clears the LS174 flip flop */
 	if (data == 0x0f)
 		m_port_bank = 0;
@@ -164,17 +167,16 @@ WRITE8_MEMBER(cliffhgr_state::cliff_coin_counter_w)
 READ8_MEMBER(cliffhgr_state::cliff_irq_ack_r)
 {
 	/* deassert IRQ on the CPU */
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 
 	return 0x00;
 }
 
 WRITE8_MEMBER(cliffhgr_state::cliff_sound_overlay_w)
 {
-	device_t *device = machine().device("discrete");
 	/* audio */
-	discrete_sound_w(device, space, CLIFF_ENABLE_SND_1, data & 1);
-	discrete_sound_w(device, space, CLIFF_ENABLE_SND_2, (data >> 1) & 1);
+	discrete_sound_w(m_discrete, space, CLIFF_ENABLE_SND_1, data & 1);
+	discrete_sound_w(m_discrete, space, CLIFF_ENABLE_SND_2, (data >> 1) & 1);
 
 	// bit 4 (data & 0x10) is overlay related?
 }
@@ -208,7 +210,7 @@ TIMER_CALLBACK_MEMBER(cliffhgr_state::cliff_irq_callback)
 	if (m_phillips_code & 0x800000)
 	{
 //      printf("%2d:code = %06X\n", param, phillips_code);
-		machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 	}
 
 	m_irq_timer->adjust(machine().primary_screen->time_until_pos(param * 2), param);
@@ -216,7 +218,7 @@ TIMER_CALLBACK_MEMBER(cliffhgr_state::cliff_irq_callback)
 
 WRITE_LINE_MEMBER(cliffhgr_state::vdp_interrupt)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 

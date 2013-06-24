@@ -112,7 +112,7 @@ static char *WriteImmediateOperand( char *pBuf, UINT32 opcode )
 
 	imm = opcode&0xff;
 	r = ((opcode>>8)&0xf)*2;
-	imm = (imm>>r)|(imm<<(32-r));
+	imm = (imm>>r)|(r?(imm<<(32-r)):0);
 	pBuf += sprintf( pBuf, ", #$%x", imm );
 	return pBuf;
 }
@@ -430,7 +430,6 @@ static UINT32 arm7_disasm( char *pBuf, UINT32 pc, UINT32 opcode )
 	}
 	else if( (opcode&0x0c000000)==0 )       //bits 27-26 == 00 - This check can only exist properly after Multiplication check above
 	{
-
 		/* Data Processing OR PSR Transfer */
 
 		//SJE: check for MRS & MSR ( S bit must be clear, and bit 24,23 = 10 )

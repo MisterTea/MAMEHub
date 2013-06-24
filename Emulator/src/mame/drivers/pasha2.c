@@ -80,9 +80,12 @@ class pasha2_state : public driver_device
 {
 public:
 	pasha2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_wram(*this, "wram"),
-		m_paletteram(*this, "paletteram"){ }
+		m_paletteram(*this, "paletteram"),
+		m_maincpu(*this, "maincpu"),
+		m_oki1(*this, "oki1"),
+		m_oki2(*this, "oki2") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_wram;
@@ -110,12 +113,14 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_pasha2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki1;
+	required_device<okim6295_device> m_oki2;
 };
 
 
 WRITE16_MEMBER(pasha2_state::pasha2_misc_w)
 {
-
 	if (offset)
 	{
 		if (data & 0x0800)
@@ -134,7 +139,7 @@ WRITE16_MEMBER(pasha2_state::pasha2_misc_w)
 					case 0xb000:
 					case 0xc000:
 					case 0xd000:
-						membank("bank1")->set_base(machine().root_device().memregion("user2")->base() + 0x400 * (bank - 0x8000)); break;
+						membank("bank1")->set_base(memregion("user2")->base() + 0x400 * (bank - 0x8000)); break;
 				}
 			}
 		}
@@ -173,7 +178,6 @@ WRITE16_MEMBER(pasha2_state::bitmap_0_w)
 
 WRITE16_MEMBER(pasha2_state::bitmap_1_w)
 {
-
 	// handle overlapping pixels without writing them
 	switch (mem_mask)
 	{
@@ -198,16 +202,14 @@ WRITE16_MEMBER(pasha2_state::bitmap_1_w)
 
 WRITE16_MEMBER(pasha2_state::oki1_bank_w)
 {
-	device_t *device = machine().device("oki1");
 	if (offset)
-		downcast<okim6295_device *>(device)->set_bank_base((data & 1) * 0x40000);
+		m_oki1->set_bank_base((data & 1) * 0x40000);
 }
 
 WRITE16_MEMBER(pasha2_state::oki2_bank_w)
 {
-	device_t *device = machine().device("oki2");
 	if (offset)
-		downcast<okim6295_device *>(device)->set_bank_base((data & 1) * 0x40000);
+		m_oki2->set_bank_base((data & 1) * 0x40000);
 }
 
 WRITE16_MEMBER(pasha2_state::pasha2_lamps_w)
@@ -345,7 +347,6 @@ INPUT_PORTS_END
 
 void pasha2_state::video_start()
 {
-
 	save_item(NAME(m_bitmap0));
 	save_item(NAME(m_bitmap1));
 }
@@ -400,14 +401,12 @@ UINT32 pasha2_state::screen_update_pasha2(screen_device &screen, bitmap_ind16 &b
 
 void pasha2_state::machine_start()
 {
-
 	save_item(NAME(m_old_bank));
 	save_item(NAME(m_vbuffer));
 }
 
 void pasha2_state::machine_reset()
 {
-
 	m_old_bank = -1;
 	m_vbuffer = 0;
 }
@@ -472,7 +471,6 @@ ROM_END
 
 READ16_MEMBER(pasha2_state::pasha2_speedup_r)
 {
-
 	if(space.device().safe_pc() == 0x8302)
 		space.device().execute().spin_until_interrupt();
 
@@ -481,7 +479,7 @@ READ16_MEMBER(pasha2_state::pasha2_speedup_r)
 
 DRIVER_INIT_MEMBER(pasha2_state,pasha2)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x95744, 0x95747, read16_delegate(FUNC(pasha2_state::pasha2_speedup_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x95744, 0x95747, read16_delegate(FUNC(pasha2_state::pasha2_speedup_r), this));
 
 	membank("bank1")->set_base(memregion("user2")->base());
 }

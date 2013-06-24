@@ -22,7 +22,6 @@
 
 WRITE16_MEMBER(vaportra_state::vaportra_sound_w)
 {
-
 	/* Force synchronisation between CPUs with fake timer */
 	machine().scheduler().synchronize();
 	soundlatch_byte_w(space, 0, data & 0xff);
@@ -77,7 +76,7 @@ READ8_MEMBER(vaportra_state::vaportra_soundlatch_r)
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, vaportra_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_ROM
-	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
+	AM_RANGE(0x100000, 0x100001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
 	AM_RANGE(0x110000, 0x110001) AM_DEVREADWRITE("ym2", ym2151_device, read, write)
 	AM_RANGE(0x120000, 0x120001) AM_DEVREADWRITE("oki1", okim6295_device, read, write)
 	AM_RANGE(0x130000, 0x130001) AM_DEVREADWRITE("oki2", okim6295_device, read, write)
@@ -231,18 +230,11 @@ static const deco16ic_interface vaportra_deco16ic_tilegen2_intf =
 
 void vaportra_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_deco_tilegen1 = machine().device("tilegen1");
-	m_deco_tilegen2 = machine().device("tilegen2");
-
 	save_item(NAME(m_priority));
 }
 
 void vaportra_state::machine_reset()
 {
-
 	m_priority[0] = 0;
 	m_priority[1] = 0;
 }
@@ -839,7 +831,7 @@ C3D54*
 
 DRIVER_INIT_MEMBER(vaportra_state,vaportra)
 {
-	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *RAM = memregion("maincpu")->base();
 	int i;
 
 	for (i = 0x00000; i < 0x80000; i++)

@@ -1,13 +1,14 @@
+#define NO_MEM_TRACKING
+
 #include "debugqtmainwindow.h"
+
 #include "debug/debugcon.h"
 #include "debug/debugcpu.h"
 #include "debug/dvdisasm.h"
 
 
-MainWindow::MainWindow(device_t* processor,
-						running_machine* machine,
-						QWidget* parent) :
-	WindowQt(machine, parent),
+MainWindow::MainWindow(running_machine* machine, QWidget* parent) :
+	WindowQt(machine, NULL),
 	m_historyIndex(0),
 	m_inputHistory()
 {
@@ -40,7 +41,7 @@ MainWindow::MainWindow(device_t* processor,
 	setCentralWidget(mainWindowFrame);
 
 	//
-	// Menu bars
+	// Options Menu
 	//
 	// Create two commands
 	QAction* breakpointSetAct = new QAction("Toggle Breakpoint At Cursor", this);
@@ -52,6 +53,7 @@ MainWindow::MainWindow(device_t* processor,
 
 	// Right bar options
 	QActionGroup* rightBarGroup = new QActionGroup(this);
+	rightBarGroup->setObjectName("rightbargroup");
 	QAction* rightActRaw = new QAction("Raw Opcodes", this);
 	QAction* rightActEncrypted = new QAction("Encrypted Opcodes", this);
 	QAction* rightActComments = new QAction("Comments", this);
@@ -74,9 +76,17 @@ MainWindow::MainWindow(device_t* processor,
 	optionsMenu->addSeparator();
 	optionsMenu->addActions(rightBarGroup->actions());
 
+	//
+	// Images menu
+	//
+	image_interface_iterator imageIterTest(m_machine->root_device());
+	if (imageIterTest.first() != NULL)
+	{
+		createImagesMenu();
+	}
 
 	//
-	// Dock windows
+	// Dock window menu
 	//
 	QMenu* dockMenu = menuBar()->addMenu("Doc&ks");
 
@@ -85,6 +95,7 @@ MainWindow::MainWindow(device_t* processor,
 
 	// The processor dock
 	QDockWidget* cpuDock = new QDockWidget("processor", this);
+	cpuDock->setObjectName("cpudock");
 	cpuDock->setAllowedAreas(Qt::LeftDockWidgetArea);
 	m_procFrame = new ProcessorDockWidget(m_machine, cpuDock);
 	cpuDock->setWidget(dynamic_cast<QWidget*>(m_procFrame));
@@ -94,17 +105,18 @@ MainWindow::MainWindow(device_t* processor,
 
 	// The disassembly dock
 	QDockWidget* dasmDock = new QDockWidget("dasm", this);
+	dasmDock->setObjectName("dasmdock");
 	dasmDock->setAllowedAreas(Qt::TopDockWidgetArea);
 	m_dasmFrame = new DasmDockWidget(m_machine, dasmDock);
 	dasmDock->setWidget(m_dasmFrame);
 
 	addDockWidget(Qt::TopDockWidgetArea, dasmDock);
 	dockMenu->addAction(dasmDock->toggleViewAction());
+}
 
-	// Window title
-	astring title;
-	title.printf("Debug: %s - %s '%s'", m_machine->system().name, processor->name(), processor->tag());
-	setWindowTitle(title.cstr());
+
+MainWindow::~MainWindow()
+{
 }
 
 
@@ -129,6 +141,9 @@ void MainWindow::setProcessor(device_t* processor)
 void MainWindow::closeEvent(QCloseEvent* event)
 {
 	debugActQuit();
+
+	// Insure the window doesn't disappear before we get a chance to save its parameters
+	event->ignore();
 }
 
 
@@ -261,12 +276,32 @@ void MainWindow::rightBarChanged(QAction* changedTo)
 
 void MainWindow::executeCommand(bool withClear)
 {
+	QString command = m_inputEdit->text();
+
+	// A blank command is a "silent step"
+	if (command == "")
+	{
+		debug_cpu_get_visible_cpu(*m_machine)->debug()->single_step();
+		return;
+	}
+
+	// If the user asked for help on a specific command, enhance the call
+	if (command.trimmed().startsWith("help", Qt::CaseInsensitive))
+	{
+		if (command.split(" ", QString::SkipEmptyParts).length() == 2)
+		{
+			const int width = m_consoleView->view()->visible_size().x;
+			command.append(QString(", %1").arg(width, 1, 16));
+		}
+	}
+
+	// Send along the command
 	debug_console_execute_command(*m_machine,
-									m_inputEdit->text().toLocal8Bit().data(),
+									command.toLocal8Bit().data(),
 									true);
 
 	// Add history & set the index to be the top of the stack
-	addToHistory(m_inputEdit->text());
+	addToHistory(command);
 
 	// Clear out the text and reset the history pointer only if asked
 	if (withClear)
@@ -277,8 +312,79 @@ void MainWindow::executeCommand(bool withClear)
 
 	// Refresh
 	m_consoleView->viewport()->update();
-	m_procFrame->view()->update();
-	m_dasmFrame->view()->update();
+	refreshAll();
+}
+
+
+void MainWindow::mountImage(bool changedTo)
+{
+	// The image interface index was assigned to the QAction's data memeber
+	const int imageIndex = dynamic_cast<QAction*>(sender())->data().toInt();
+	image_interface_iterator iter(m_machine->root_device());
+	device_image_interface *img = iter.byindex(imageIndex);
+	if (img == NULL)
+	{
+		debug_console_printf(*m_machine, "Something is wrong with the mount menu.\n");
+		refreshAll();
+		return;
+	}
+
+	// File dialog
+	QString filename = QFileDialog::getOpenFileName(this,
+													"Select an image file",
+													QDir::currentPath(),
+													tr("All files (*.*)"));
+
+	if (img->load(filename.toUtf8().data()) != IMAGE_INIT_PASS)
+	{
+		debug_console_printf(*m_machine, "Image could not be mounted.\n");
+		refreshAll();
+		return;
+	}
+
+	// Activate the unmount menu option
+	QAction* unmountAct = sender()->parent()->findChild<QAction*>("unmount");
+	unmountAct->setEnabled(true);
+
+	// Set the mount name
+	QMenu* parentMenuItem = dynamic_cast<QMenu*>(sender()->parent());
+	QString baseString = parentMenuItem->title();
+	baseString.truncate(baseString.lastIndexOf(QString(" : ")));
+	const QString newTitle = baseString + QString(" : ") + QString(img->filename());
+	parentMenuItem->setTitle(newTitle);
+
+	debug_console_printf(*m_machine, "Image %s mounted successfully.\n", filename.toUtf8().data());
+	refreshAll();
+}
+
+
+void MainWindow::unmountImage(bool changedTo)
+{
+	// The image interface index was assigned to the QAction's data memeber
+	const int imageIndex = dynamic_cast<QAction*>(sender())->data().toInt();
+	image_interface_iterator iter(m_machine->root_device());
+	device_image_interface *img = iter.byindex(imageIndex);
+
+	img->unload();
+
+	// Deactivate the unmount menu option
+	dynamic_cast<QAction*>(sender())->setEnabled(false);
+
+	// Set the mount name
+	QMenu* parentMenuItem = dynamic_cast<QMenu*>(sender()->parent());
+	QString baseString = parentMenuItem->title();
+	baseString.truncate(baseString.lastIndexOf(QString(" : ")));
+	const QString newTitle = baseString + QString(" : ") + QString("[empty slot]");
+	parentMenuItem->setTitle(newTitle);
+
+	debug_console_printf(*m_machine, "Image successfully unmounted.\n");
+	refreshAll();
+}
+
+
+void MainWindow::debugActClose()
+{
+	m_machine->schedule_exit();
 }
 
 
@@ -299,4 +405,87 @@ void MainWindow::addToHistory(const QString& command)
 	{
 		m_inputHistory.push_back(m_inputEdit->text());
 	}
+}
+
+
+void MainWindow::createImagesMenu()
+{
+	QMenu* imagesMenu = menuBar()->addMenu("&Images");
+
+	int interfaceIndex = 0;
+	image_interface_iterator iter(m_machine->root_device());
+	for (device_image_interface *img = iter.first(); img != NULL; img = iter.next())
+	{
+		astring menuName;
+		menuName.format("%s : %s", img->device().name(), img->exists() ? img->filename() : "[empty slot]");
+
+		QMenu* interfaceMenu = imagesMenu->addMenu(menuName.cstr());
+		interfaceMenu->setObjectName(img->device().name());
+
+		QAction* mountAct = new QAction("Mount...", interfaceMenu);
+		QAction* unmountAct = new QAction("Unmount", interfaceMenu);
+		mountAct->setObjectName("mount");
+		mountAct->setData(QVariant(interfaceIndex));
+		unmountAct->setObjectName("unmount");
+		unmountAct->setData(QVariant(interfaceIndex));
+		connect(mountAct, SIGNAL(triggered(bool)), this, SLOT(mountImage(bool)));
+		connect(unmountAct, SIGNAL(triggered(bool)), this, SLOT(unmountImage(bool)));
+
+		if (!img->exists())
+			unmountAct->setEnabled(false);
+
+		interfaceMenu->addAction(mountAct);
+		interfaceMenu->addAction(unmountAct);
+
+		// TODO: Cassette operations
+
+		interfaceIndex++;
+	}
+}
+
+
+//=========================================================================
+//  MainWindowQtConfig
+//=========================================================================
+void MainWindowQtConfig::buildFromQWidget(QWidget* widget)
+{
+	WindowQtConfig::buildFromQWidget(widget);
+	MainWindow* window = dynamic_cast<MainWindow*>(widget);
+	m_windowState = window->saveState();
+
+	QActionGroup* rightBarGroup = window->findChild<QActionGroup*>("rightbargroup");
+	if (rightBarGroup->checkedAction()->text() == "Raw Opcodes")
+		m_rightBar = 0;
+	else if (rightBarGroup->checkedAction()->text() == "Encrypted Opcodes")
+		m_rightBar = 1;
+	else if (rightBarGroup->checkedAction()->text() == "Comments")
+		m_rightBar = 2;
+}
+
+
+void MainWindowQtConfig::applyToQWidget(QWidget* widget)
+{
+	WindowQtConfig::applyToQWidget(widget);
+	MainWindow* window = dynamic_cast<MainWindow*>(widget);
+	window->restoreState(m_windowState);
+
+	QActionGroup* rightBarGroup = window->findChild<QActionGroup*>("rightbargroup");
+	rightBarGroup->actions()[m_rightBar]->trigger();
+}
+
+
+void MainWindowQtConfig::addToXmlDataNode(xml_data_node* node) const
+{
+	WindowQtConfig::addToXmlDataNode(node);
+	xml_set_attribute_int(node, "rightbar", m_rightBar);
+	xml_set_attribute(node, "qtwindowstate", m_windowState.toPercentEncoding().data());
+}
+
+
+void MainWindowQtConfig::recoverFromXmlNode(xml_data_node* node)
+{
+	WindowQtConfig::recoverFromXmlNode(node);
+	const char* state = xml_get_attribute_string(node, "qtwindowstate", "");
+	m_windowState = QByteArray::fromPercentEncoding(state);
+	m_rightBar = xml_get_attribute_int(node, "rightbar", m_rightBar);
 }

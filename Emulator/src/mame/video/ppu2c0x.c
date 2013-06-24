@@ -99,6 +99,12 @@ const address_space_config *ppu2c0x_device::memory_space_config(address_spacenum
 }
 
 
+// static
+void ppu2c0x_device::set_nmi_delegate(device_t &device,ppu2c0x_nmi_delegate cb)
+{
+	ppu2c0x_device &dev = downcast<ppu2c0x_device &>(device);
+	dev.m_nmi_callback_proc = cb;
+}
 //-------------------------------------------------
 //  ppu2c0x_device - constructor
 //-------------------------------------------------
@@ -109,12 +115,11 @@ void ppu2c0x_device::device_config_complete()
 	assert(config);
 
 	/* reset the callbacks */
-	m_latch = NULL;
-	m_scanline_callback_proc = NULL;
-	m_hblank_callback_proc = NULL;
-	m_vidaccess_callback_proc = NULL;
+	m_latch = ppu2c0x_latch_delegate();
+	m_scanline_callback_proc = ppu2c0x_scanline_delegate();
+	m_hblank_callback_proc = ppu2c0x_hblank_delegate();
+	m_vidaccess_callback_proc = ppu2c0x_vidaccess_delegate();
 
-	m_nmi_callback_proc = config->nmi_handler;
 	m_color_base = config->color_base;
 
 	m_cpu_tag = config->cpu_tag;
@@ -148,6 +153,8 @@ ppu2c0x_device::ppu2c0x_device(const machine_config &mconfig, device_type type, 
 
 	/* usually, no security value... */
 	m_security_value = 0;
+
+	m_nmi_callback_proc = ppu2c0x_nmi_delegate();
 }
 
 
@@ -205,6 +212,9 @@ void ppu2c0x_device::device_start()
 	m_cpu = machine().device<cpu_device>( m_cpu_tag );
 
 	assert(m_screen && m_cpu);
+
+	// bind our handler
+	m_nmi_callback_proc.bind_relative_to(*owner());
 
 	// allocate timers
 	m_hblank_timer = timer_alloc(TIMER_HBLANK);
@@ -291,7 +301,6 @@ inline void ppu2c0x_device::writebyte(offs_t address, UINT8 data)
 
 void ppu2c0x_device::init_palette( running_machine &machine, int first_entry )
 {
-
 	/* This routine builds a palette using a transformation from */
 	/* the YUV (Y, B-Y, R-Y) to the RGB color space */
 
@@ -446,12 +455,6 @@ static const gfx_layout ppu_charlayout =
  *
  *************************************/
 
-void ppu2c0x_device::set_latch( void (*latch)(device_t *device, offs_t offset) )
-{
-	if (latch)
-		m_latch = latch;
-}
-
 //-------------------------------------------------
 //  device_timer - handle timer events
 //-------------------------------------------------
@@ -469,16 +472,16 @@ void ppu2c0x_device::device_timer(emu_timer &timer, device_timer_id id, int para
 
 			//update_scanline();
 
-			if (m_hblank_callback_proc)
-				(*m_hblank_callback_proc) (this, m_scanline, vblank, blanked);
+			if (!m_hblank_callback_proc.isnull())
+				m_hblank_callback_proc(m_scanline, vblank, blanked);
 
 			m_hblank_timer->adjust(attotime::never);
 			break;
 
 		case TIMER_NMI:
 			// Actually fire the VMI
-			if (m_nmi_callback_proc)
-				(*m_nmi_callback_proc) (this, regs);
+			if (!m_nmi_callback_proc.isnull())
+				m_nmi_callback_proc(regs);
 
 			m_nmi_timer->adjust(attotime::never);
 			break;
@@ -489,8 +492,8 @@ void ppu2c0x_device::device_timer(emu_timer &timer, device_timer_id id, int para
 			int next_scanline;
 
 			/* if a callback is available, call it */
-			if (m_scanline_callback_proc)
-				(*m_scanline_callback_proc)(this, m_scanline, vblank, blanked);
+			if (!m_scanline_callback_proc.isnull())
+				m_scanline_callback_proc(m_scanline, vblank, blanked);
 
 			/* update the scanline that just went by */
 			update_scanline();
@@ -621,8 +624,8 @@ void ppu2c0x_device::draw_background( UINT8 *line_priority )
 		page2 = readbyte(index1);
 
 		// 27/12/2002
-		if (m_latch)
-			(*m_latch)(this, (m_tile_page << 10) | (page2 << 4));
+		if (!m_latch.isnull())
+			m_latch((m_tile_page << 10) | (page2 << 4));
 
 		if (start_x < VISIBLE_SCREEN_WIDTH)
 		{
@@ -646,7 +649,6 @@ void ppu2c0x_device::draw_background( UINT8 *line_priority )
 				plane2 = plane2 << 1;
 				if ((start_x + i) >= 0 && (start_x + i) < VISIBLE_SCREEN_WIDTH)
 				{
-
 					if (pix)
 					{
 						pen = paldata[pix];
@@ -752,8 +754,8 @@ void ppu2c0x_device::draw_sprites( UINT8 *line_priority )
 			}
 		}
 
-		if (m_latch)
-			(*m_latch)(this, (m_sprite_page << 10) | ((tile & 0xff) << 4));
+		if (!m_latch.isnull())
+			m_latch((m_sprite_page << 10) | ((tile & 0xff) << 4));
 
 		/* compute the character's line to draw */
 		sprite_line = m_scanline - sprite_ypos;
@@ -1054,7 +1056,6 @@ READ8_MEMBER( ppu2c0x_device::palette_read )
 
 READ8_MEMBER( ppu2c0x_device::read )
 {
-
 	if (offset >= PPU_MAX_REG)
 	{
 		logerror("PPU %s: Attempting to read past the chip: offset %x\n", this->tag(), offset);
@@ -1085,8 +1086,8 @@ READ8_MEMBER( ppu2c0x_device::read )
 			break;
 
 		case PPU_DATA: /* 7 */
-			if (m_latch)
-				(*m_latch)(this, m_videomem_addr & 0x3fff);
+			if (!m_latch.isnull())
+				m_latch( m_videomem_addr & 0x3fff);
 
 			if (m_videomem_addr >= 0x3f00)
 			{
@@ -1234,12 +1235,12 @@ WRITE8_MEMBER( ppu2c0x_device::write )
 			{
 				int tempAddr = m_videomem_addr & 0x3fff;
 
-				if (m_latch)
-					(*m_latch)(this, tempAddr);
+				if (!m_latch.isnull())
+					m_latch(tempAddr);
 
 				/* if there's a callback, call it now */
-				if (m_vidaccess_callback_proc)
-					data = (*m_vidaccess_callback_proc)(this, tempAddr, data);
+				if (!m_vidaccess_callback_proc.isnull())
+					data = m_vidaccess_callback_proc(tempAddr, data);
 
 				/* see if it's on the chargen portion */
 				if (tempAddr < 0x2000)
@@ -1305,7 +1306,6 @@ void ppu2c0x_device::render( bitmap_ind16 &bitmap, int flipx, int flipy, int sx,
 
 int ppu2c0x_device::get_pixel( int x, int y )
 {
-
 	if (x >= VISIBLE_SCREEN_WIDTH)
 		x = VISIBLE_SCREEN_WIDTH - 1;
 

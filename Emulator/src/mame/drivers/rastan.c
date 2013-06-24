@@ -163,23 +163,22 @@ Note: The 'rastsagaa' set's rom numbers were named as RSxx_37 through RSxx_42
 
 WRITE8_MEMBER(rastan_state::rastan_bankswitch_w)
 {
-	machine().root_device().membank("bank1")->set_entry(data & 3);
+	membank("bank1")->set_entry(data & 3);
 }
 
 
-static void rastan_msm5205_vck( device_t *device )
+WRITE_LINE_MEMBER(rastan_state::rastan_msm5205_vck)
 {
-	rastan_state *state = device->machine().driver_data<rastan_state>();
-	if (state->m_adpcm_data != -1)
+	if (m_adpcm_data != -1)
 	{
-		msm5205_data_w(device, state->m_adpcm_data & 0x0f);
-		state->m_adpcm_data = -1;
+		m_msm->data_w(m_adpcm_data & 0x0f);
+		m_adpcm_data = -1;
 	}
 	else
 	{
-		state->m_adpcm_data = device->machine().root_device().memregion("adpcm")->base()[state->m_adpcm_pos];
-		state->m_adpcm_pos = (state->m_adpcm_pos + 1) & 0xffff;
-		msm5205_data_w(device, state->m_adpcm_data >> 4);
+		m_adpcm_data = memregion("adpcm")->base()[m_adpcm_pos];
+		m_adpcm_pos = (m_adpcm_pos + 1) & 0xffff;
+		m_msm->data_w(m_adpcm_data >> 4);
 	}
 }
 
@@ -190,14 +189,12 @@ WRITE8_MEMBER(rastan_state::rastan_msm5205_address_w)
 
 WRITE8_MEMBER(rastan_state::rastan_msm5205_start_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device, 0);
+	m_msm->reset_w(0);
 }
 
 WRITE8_MEMBER(rastan_state::rastan_msm5205_stop_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device, 1);
+	m_msm->reset_w(1);
 	m_adpcm_pos &= 0xff00;
 }
 
@@ -216,8 +213,8 @@ static ADDRESS_MAP_START( rastan_map, AS_PROGRAM, 16, rastan_state )
 	AM_RANGE(0x390008, 0x390009) AM_READ_PORT("DSWA")
 	AM_RANGE(0x39000a, 0x39000b) AM_READ_PORT("DSWB")
 	AM_RANGE(0x3c0000, 0x3c0001) AM_WRITE(watchdog_reset16_w)
-	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8_LEGACY("tc0140syt", tc0140syt_port_w, 0x00ff)
-	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8_LEGACY("tc0140syt", tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
+	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0x00ff)
+	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0x00ff)
 	AM_RANGE(0xc00000, 0xc0ffff) AM_DEVREADWRITE_LEGACY("pc080sn", pc080sn_word_r, pc080sn_word_w)
 	AM_RANGE(0xc20000, 0xc20003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_yscroll_word_w)
 	AM_RANGE(0xc40000, 0xc40003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_xscroll_word_w)
@@ -231,8 +228,8 @@ static ADDRESS_MAP_START( rastan_s_map, AS_PROGRAM, 8, rastan_state )
 	AM_RANGE(0x4000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
 	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0xa000, 0xa000) AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xa001, 0xa001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 	AM_RANGE(0xb000, 0xb000) AM_WRITE(rastan_msm5205_address_w)
 	AM_RANGE(0xc000, 0xc000) AM_WRITE(rastan_msm5205_start_w)
 	AM_RANGE(0xd000, 0xd000) AM_WRITE(rastan_msm5205_stop_w)
@@ -340,7 +337,7 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_config =
 {
-	rastan_msm5205_vck, /* VCK function */
+	DEVCB_DRIVER_LINE_MEMBER(rastan_state,rastan_msm5205_vck), /* VCK function */
 	MSM5205_S48_4B      /* 8 kHz */
 };
 
@@ -351,11 +348,6 @@ void rastan_state::machine_start()
 	membank("bank1")->configure_entry(0, &ROM[0x00000]);
 	membank("bank1")->configure_entries(1, 3, &ROM[0x10000], 0x4000);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_pc080sn = machine().device("pc080sn");
-	m_pc090oj = machine().device("pc090oj");
-
 	save_item(NAME(m_sprite_ctrl));
 	save_item(NAME(m_sprites_flipscreen));
 
@@ -365,7 +357,6 @@ void rastan_state::machine_start()
 
 void rastan_state::machine_reset()
 {
-
 	m_sprite_ctrl = 0;
 	m_sprites_flipscreen = 0;
 	m_adpcm_pos = 0;

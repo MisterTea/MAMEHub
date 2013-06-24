@@ -1,3 +1,5 @@
+#define NO_MEM_TRACKING
+
 #include "debugqtlogwindow.h"
 
 #include "debug/debugcon.h"
@@ -6,11 +8,15 @@
 
 
 LogWindow::LogWindow(running_machine* machine, QWidget* parent) :
-	WindowQt(machine, parent)
+	WindowQt(machine, NULL)
 {
-	QPoint parentPos = parent->pos();
-	setGeometry(parentPos.x()+100, parentPos.y()+100, 800, 400);
 	setWindowTitle("Debug: Machine Log");
+
+	if (parent != NULL)
+	{
+		QPoint parentPos = parent->pos();
+		setGeometry(parentPos.x()+100, parentPos.y()+100, 800, 400);
+	}
 
 	//
 	// The main frame and its input and log widgets
@@ -29,4 +35,36 @@ LogWindow::LogWindow(running_machine* machine, QWidget* parent) :
 	vLayout->addWidget(m_logView);
 
 	setCentralWidget(mainWindowFrame);
+}
+
+
+LogWindow::~LogWindow()
+{
+}
+
+
+//=========================================================================
+//  LogWindowQtConfig
+//=========================================================================
+void LogWindowQtConfig::buildFromQWidget(QWidget* widget)
+{
+	WindowQtConfig::buildFromQWidget(widget);
+}
+
+
+void LogWindowQtConfig::applyToQWidget(QWidget* widget)
+{
+	WindowQtConfig::applyToQWidget(widget);
+}
+
+
+void LogWindowQtConfig::addToXmlDataNode(xml_data_node* node) const
+{
+	WindowQtConfig::addToXmlDataNode(node);
+}
+
+
+void LogWindowQtConfig::recoverFromXmlNode(xml_data_node* node)
+{
+	WindowQtConfig::recoverFromXmlNode(node);
 }

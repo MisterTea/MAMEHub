@@ -11,22 +11,20 @@
 
 /******************************************************************************/
 
-static void register_savestate( running_machine &machine )
+void actfancr_state::register_savestate()
 {
-	actfancr_state *state = machine.driver_data<actfancr_state>();
-	state->save_item(NAME(state->m_flipscreen));
+	save_item(NAME(m_flipscreen));
 }
 
 void actfancr_state::video_start()
 {
-	register_savestate(machine());
+	register_savestate();
 }
 
 /******************************************************************************/
 
 UINT32 actfancr_state::screen_update_actfancr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	/* Draw playfield */
 	//m_flipscreen = m_control_2[0] & 0x80;
 	//machine().tilemap().set_flip_all(m_flipscreen ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);

@@ -8,10 +8,12 @@ class sonson_state : public driver_device
 {
 public:
 	sonson_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -25,7 +27,7 @@ public:
 	int        m_last_irq;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_WRITE8_MEMBER(sonson_sh_irqtrigger_w);
 	DECLARE_WRITE8_MEMBER(sonson_coin1_counter_w);
 	DECLARE_WRITE8_MEMBER(sonson_coin2_counter_w);
@@ -39,4 +41,6 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_sonson(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

@@ -46,7 +46,7 @@ static const res_net_info popper_net_info =
 
 void popper_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	rgb_t   *rgb;
 
 	rgb = compute_res_net_all(machine(), color_prom, &popper_decode_info, &popper_net_info);
@@ -57,7 +57,6 @@ void popper_state::palette_init()
 
 WRITE8_MEMBER(popper_state::popper_ol_videoram_w)
 {
-
 	m_ol_videoram[offset] = data;
 	m_ol_p123_tilemap->mark_tile_dirty(offset);
 	m_ol_p0_tilemap->mark_tile_dirty(offset);
@@ -65,7 +64,6 @@ WRITE8_MEMBER(popper_state::popper_ol_videoram_w)
 
 WRITE8_MEMBER(popper_state::popper_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_p123_tilemap->mark_tile_dirty(offset);
 	m_p0_tilemap->mark_tile_dirty(offset);
@@ -73,7 +71,6 @@ WRITE8_MEMBER(popper_state::popper_videoram_w)
 
 WRITE8_MEMBER(popper_state::popper_ol_attribram_w)
 {
-
 	m_ol_attribram[offset] = data;
 	m_ol_p123_tilemap->mark_tile_dirty(offset);
 	m_ol_p0_tilemap->mark_tile_dirty(offset);
@@ -81,7 +78,6 @@ WRITE8_MEMBER(popper_state::popper_ol_attribram_w)
 
 WRITE8_MEMBER(popper_state::popper_attribram_w)
 {
-
 	m_attribram[offset] = data;
 	m_p123_tilemap->mark_tile_dirty(offset);
 	m_p0_tilemap->mark_tile_dirty(offset);
@@ -89,7 +85,6 @@ WRITE8_MEMBER(popper_state::popper_attribram_w)
 
 WRITE8_MEMBER(popper_state::popper_flipscreen_w)
 {
-
 	m_flipscreen = data;
 	machine().tilemap().set_flip_all(m_flipscreen ? (TILEMAP_FLIPX | TILEMAP_FLIPY) : 0);
 
@@ -106,7 +101,6 @@ WRITE8_MEMBER(popper_state::popper_e002_w)
 
 WRITE8_MEMBER(popper_state::popper_gfx_bank_w)
 {
-
 	if (m_gfx_bank != data)
 	{
 		m_gfx_bank = data;
@@ -193,15 +187,14 @@ void popper_state::video_start()
 	m_tilemap_clip = machine().primary_screen->visible_area();
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect )
+void popper_state::draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect )
 {
-	popper_state *state = machine.driver_data<popper_state>();
 	int offs, sx, sy, flipx, flipy;
 
-	for (offs = 0; offs < state->m_spriteram.bytes() - 4; offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes() - 4; offs += 4)
 	{
 		//if y position is in the current strip
-		if (state->m_spriteram[offs + 1] && (((state->m_spriteram[offs] + (state->m_flipscreen ? 2 : 0)) & 0xf0) == (0x0f - offs / 0x80) << 4))
+		if (m_spriteram[offs + 1] && (((m_spriteram[offs] + (m_flipscreen ? 2 : 0)) & 0xf0) == (0x0f - offs / 0x80) << 4))
 		{
 			//offs     y pos
 			//offs+1   sprite number
@@ -213,12 +206,12 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,const r
 			//----xxxx colour
 			//offs+3   x pos
 
-			sx = state->m_spriteram[offs + 3];
-			sy = 240 - state->m_spriteram[offs];
-			flipx = (state->m_spriteram[offs + 2] & 0x40) >> 6;
-			flipy = (state->m_spriteram[offs + 2] & 0x80) >> 7;
+			sx = m_spriteram[offs + 3];
+			sy = 240 - m_spriteram[offs];
+			flipx = (m_spriteram[offs + 2] & 0x40) >> 6;
+			flipy = (m_spriteram[offs + 2] & 0x80) >> 7;
 
-			if (state->m_flipscreen)
+			if (m_flipscreen)
 			{
 				sx = 248 - sx;
 				sy = 242 - sy;
@@ -226,9 +219,9 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,const r
 				flipy = !flipy;
 			}
 
-			drawgfx_transpen(bitmap, cliprect, machine.gfx[1],
-					state->m_spriteram[offs + 1],
-					(state->m_spriteram[offs + 2] & 0x0f),
+			drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+					m_spriteram[offs + 1],
+					(m_spriteram[offs + 2] & 0x0f),
 					flipx,flipy,
 					sx,sy,0);
 		}
@@ -251,7 +244,7 @@ UINT32 popper_state::screen_update_popper(screen_device &screen, bitmap_ind16 &b
 	m_ol_p123_tilemap->draw(bitmap, finalclip, TILEMAP_DRAW_LAYER1, 0);
 	m_ol_p0_tilemap->draw(bitmap, finalclip, TILEMAP_DRAW_LAYER1, 0);
 
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 
 	m_p123_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);
 	m_p0_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);

@@ -63,14 +63,8 @@ public:
 	DECLARE_READ8_MEMBER( tpi1_pc_r );
 	DECLARE_WRITE8_MEMBER( tpi1_pc_w );
 
-	DECLARE_READ8_MEMBER( exp_dma_r );
-	DECLARE_WRITE8_MEMBER( exp_dma_w );
-	DECLARE_WRITE_LINE_MEMBER( exp_irq_w );
-	DECLARE_WRITE_LINE_MEMBER( exp_aec_w );
-
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c1551"; }
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -78,7 +72,6 @@ protected:
 	// device_plus4_expansion_card_interface overrides
 	virtual UINT8 plus4_cd_r(address_space &space, offs_t offset, UINT8 data, int ba, int cs0, int c1l, int c2l, int cs1, int c1h, int c2h);
 	virtual void plus4_cd_w(address_space &space, offs_t offset, UINT8 data, int ba, int cs0, int c1l, int c2l, int cs1, int c1h, int c2h);
-	virtual void plus4_breset_w(int state);
 
 private:
 	bool tpi1_selected(offs_t offset);

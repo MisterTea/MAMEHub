@@ -4,6 +4,10 @@
 
 *************************************************************************/
 
+#include "audio/taitosnd.h"
+#include "video/taitoic.h"
+#include "machine/taitoio.h"
+
 struct slapshot_tempsprite
 {
 	int gfx;
@@ -17,11 +21,22 @@ struct slapshot_tempsprite
 class slapshot_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_SLAPSHOT_INTERRUPT6
+	};
+
 	slapshot_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_color_ram(*this,"color_ram"),
 		m_spriteram(*this,"spriteram"),
-		m_spriteext(*this,"spriteext") { }
+		m_spriteext(*this,"spriteext"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_tc0140syt(*this, "tc0140syt"),
+		m_tc0480scp(*this, "tc0480scp"),
+		m_tc0360pri(*this, "tc0360pri"),
+		m_tc0640fio(*this, "tc0640fio") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_color_ram;
@@ -47,12 +62,12 @@ public:
 	INT32      m_banknum;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_tc0140syt;
-	device_t *m_tc0480scp;
-	device_t *m_tc0360pri;
-	device_t *m_tc0640fio;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<tc0140syt_device> m_tc0140syt;
+	required_device<tc0480scp_device> m_tc0480scp;
+	required_device<tc0360pri_device> m_tc0360pri;
+	required_device<tc0640fio_device> m_tc0640fio;
 	DECLARE_READ16_MEMBER(color_ram_word_r);
 	DECLARE_WRITE16_MEMBER(color_ram_word_w);
 	DECLARE_READ16_MEMBER(slapshot_service_input_r);
@@ -67,5 +82,12 @@ public:
 	UINT32 screen_update_slapshot(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_taito_no_buffer(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(slapshot_interrupt);
-	TIMER_CALLBACK_MEMBER(slapshot_interrupt6);
+	void reset_sound_region();
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int *primasks, int y_offset );
+	void taito_handle_sprite_buffering(  );
+	void taito_update_sprites_active_area(  );
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

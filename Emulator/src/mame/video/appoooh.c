@@ -22,7 +22,7 @@
 
 PALETTE_INIT_MEMBER(appoooh_state,appoooh)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -61,7 +61,7 @@ PALETTE_INIT_MEMBER(appoooh_state,appoooh)
 
 PALETTE_INIT_MEMBER(appoooh_state,robowres)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -132,7 +132,6 @@ TILE_GET_INFO_MEMBER(appoooh_state::get_bg_tile_info)
 
 VIDEO_START_MEMBER(appoooh_state,appoooh)
 {
-
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(appoooh_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(appoooh_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
@@ -200,11 +199,10 @@ WRITE8_MEMBER(appoooh_state::appoooh_out_w)
 	/* bit 7 unknown (used) */
 }
 
-static void appoooh_draw_sprites( bitmap_ind16 &dest_bmp, const rectangle &cliprect, gfx_element *gfx, UINT8 *sprite )
+void appoooh_state::appoooh_draw_sprites( bitmap_ind16 &dest_bmp, const rectangle &cliprect, gfx_element *gfx, UINT8 *sprite )
 {
-	appoooh_state *state = gfx->machine().driver_data<appoooh_state>();
 	int offs;
-	int flipy = state->flip_screen();
+	int flipy = flip_screen();
 
 	for (offs = 0x20 - 4; offs >= 0; offs -= 4)
 	{
@@ -232,11 +230,10 @@ static void appoooh_draw_sprites( bitmap_ind16 &dest_bmp, const rectangle &clipr
 	}
 }
 
-static void robowres_draw_sprites( bitmap_ind16 &dest_bmp, const rectangle &cliprect, gfx_element *gfx, UINT8 *sprite )
+void appoooh_state::robowres_draw_sprites( bitmap_ind16 &dest_bmp, const rectangle &cliprect, gfx_element *gfx, UINT8 *sprite )
 {
-	appoooh_state *state = gfx->machine().driver_data<appoooh_state>();
 	int offs;
-	int flipy = state->flip_screen();
+	int flipy = flip_screen();
 
 	for (offs = 0x20 - 4; offs >= 0; offs -= 4)
 	{

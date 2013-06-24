@@ -3,10 +3,13 @@ class bigevglf_state : public driver_device
 {
 public:
 	bigevglf_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_paletteram(*this, "paletteram"),
 		m_spriteram1(*this, "spriteram1"),
-		m_spriteram2(*this, "spriteram2"){ }
+		m_spriteram2(*this, "spriteram2"),
+		m_audiocpu(*this, "audiocpu"),
+		m_mcu(*this, "mcu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_paletteram;
@@ -48,8 +51,8 @@ public:
 	UINT8    m_port_select;     /* for muxed controls */
 
 	/* devices */
-	cpu_device *m_audiocpu;
-	device_t *m_mcu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_mcu;
 	DECLARE_WRITE8_MEMBER(beg_banking_w);
 	DECLARE_WRITE8_MEMBER(beg_fromsound_w);
 	DECLARE_READ8_MEMBER(beg_fromsound_r);
@@ -93,4 +96,6 @@ public:
 	TIMER_CALLBACK_MEMBER(from_sound_latch_callback);
 	TIMER_CALLBACK_MEMBER(nmi_callback);
 	TIMER_CALLBACK_MEMBER(deferred_ls74_w);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

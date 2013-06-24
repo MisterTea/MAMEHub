@@ -4,6 +4,8 @@
 
 *************************************************************************/
 
+#include "machine/pit8253.h"
+
 /*************************************
  *
  *  Typedefs
@@ -86,8 +88,15 @@ class vertigo_state : public driver_device
 public:
 	vertigo_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_vectorram(*this, "vectorram") { }
+			m_maincpu(*this, "maincpu"),
+			m_audiocpu(*this, "audiocpu"),
+			m_pit(*this, "pit8254"),
+			m_vectorram(*this, "vectorram")
+	{ }
 
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<pit8254_device> m_pit;
 	required_shared_ptr<UINT16> m_vectorram;
 	device_t *m_ttl74148;
 	device_t *m_custom;
@@ -114,16 +123,16 @@ public:
 	TIMER_CALLBACK_MEMBER(sound_command_w);
 	DECLARE_WRITE_LINE_MEMBER(v_irq4_w);
 	DECLARE_WRITE_LINE_MEMBER(v_irq3_w);
+	void vertigo_vproc_init();
+	void vertigo_vproc_reset();
+	void am2901x4 (am2901 *bsp, microcode *mc);
+	void vertigo_vgen (vector_generator *vg);
+	void vertigo_vproc(int cycles, int irq4);
+	void update_irq_encoder(int line, int state);
 };
 
 /*----------- defined in machine/vertigo.c -----------*/
 
 void vertigo_update_irq(device_t *device);
 
-extern const struct pit8253_config vertigo_pit8254_config;
-
-/*----------- defined in video/vertigo.c -----------*/
-
-void vertigo_vproc_init(running_machine &machine);
-void vertigo_vproc_reset(running_machine &machine);
-void vertigo_vproc(running_machine &machine, int cycles, int irq4);
+extern const struct pit8253_interface vertigo_pit8254_config;

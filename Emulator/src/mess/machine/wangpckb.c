@@ -383,9 +383,25 @@ ioport_constructor wangpc_keyboard_device::device_input_ports() const
 //-------------------------------------------------
 
 wangpc_keyboard_device::wangpc_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, WANGPC_KEYBOARD, "Wang PC Keyboard", tag, owner, clock),
+	: device_t(mconfig, WANGPC_KEYBOARD, "Wang PC Keyboard", tag, owner, clock, "wangpckb", __FILE__),
 		device_serial_interface(mconfig, *this),
-		m_maincpu(*this, I8051_TAG)
+		m_maincpu(*this, I8051_TAG),
+		m_y0(*this, "Y0"),
+		m_y1(*this, "Y1"),
+		m_y2(*this, "Y2"),
+		m_y3(*this, "Y3"),
+		m_y4(*this, "Y4"),
+		m_y5(*this, "Y5"),
+		m_y6(*this, "Y6"),
+		m_y7(*this, "Y7"),
+		m_y8(*this, "Y8"),
+		m_y9(*this, "Y9"),
+		m_ya(*this, "YA"),
+		m_yb(*this, "YB"),
+		m_yc(*this, "YC"),
+		m_yd(*this, "YD"),
+		m_ye(*this, "YE"),
+		m_yf(*this, "YF")
 {
 }
 
@@ -397,8 +413,8 @@ wangpc_keyboard_device::wangpc_keyboard_device(const machine_config &mconfig, co
 void wangpc_keyboard_device::device_start()
 {
 	// set serial callbacks
-	i8051_set_serial_tx_callback(m_maincpu, wangpc_keyboard_device::mcs51_tx_callback);
-	i8051_set_serial_rx_callback(m_maincpu, wangpc_keyboard_device::mcs51_rx_callback);
+	i8051_set_serial_tx_callback(m_maincpu, WRITE8_DELEGATE(wangpc_keyboard_device, mcs51_tx_callback));
+	i8051_set_serial_rx_callback(m_maincpu, READ8_DELEGATE(wangpc_keyboard_device, mcs51_rx_callback));
 	set_data_frame(8, 2, SERIAL_PARITY_NONE);
 }
 
@@ -441,11 +457,9 @@ void wangpc_keyboard_device::input_callback(UINT8 state)
 //  mcs51_rx_callback -
 //-------------------------------------------------
 
-int wangpc_keyboard_device::mcs51_rx_callback(device_t *device)
+READ8_MEMBER(wangpc_keyboard_device::mcs51_rx_callback)
 {
-	wangpc_keyboard_device *kb = static_cast<wangpc_keyboard_device *>(device->owner());
-
-	return kb->get_received_char();
+	return get_received_char();
 }
 
 
@@ -453,18 +467,16 @@ int wangpc_keyboard_device::mcs51_rx_callback(device_t *device)
 //  mcs51_tx_callback -
 //-------------------------------------------------
 
-void wangpc_keyboard_device::mcs51_tx_callback(device_t *device, int data)
+WRITE8_MEMBER(wangpc_keyboard_device::mcs51_tx_callback)
 {
-	wangpc_keyboard_device *kb = static_cast<wangpc_keyboard_device *>(device->owner());
-
 	if (LOG) logerror("Wang PC keyboard transmit data %02x\n", data);
 
-	kb->transmit_register_setup(data);
+	transmit_register_setup(data);
 
 	// HACK bang the bits out immediately
-	while (!kb->is_transmit_register_empty())
+	while (!is_transmit_register_empty())
 	{
-		kb->transmit_register_send_bit();
+		transmit_register_send_bit();
 	}
 }
 
@@ -479,22 +491,22 @@ READ8_MEMBER( wangpc_keyboard_device::kb_p1_r )
 
 	switch (m_y & 0x0f)
 	{
-		case 0: data &= ioport("Y0")->read(); break;
-		case 1: data &= ioport("Y1")->read(); break;
-		case 2: data &= ioport("Y2")->read(); break;
-		case 3: data &= ioport("Y3")->read(); break;
-		case 4: data &= ioport("Y4")->read(); break;
-		case 5: data &= ioport("Y5")->read(); break;
-		case 6: data &= ioport("Y6")->read(); break;
-		case 7: data &= ioport("Y7")->read(); break;
-		case 8: data &= ioport("Y8")->read(); break;
-		case 9: data &= ioport("Y9")->read(); break;
-		case 0xa: data &= ioport("YA")->read(); break;
-		case 0xb: data &= ioport("YB")->read(); break;
-		case 0xc: data &= ioport("YC")->read(); break;
-		case 0xd: data &= ioport("YD")->read(); break;
-		case 0xe: data &= ioport("YE")->read(); break;
-		case 0xf: data &= ioport("YF")->read(); break;
+		case 0: data &= m_y0->read(); break;
+		case 1: data &= m_y1->read(); break;
+		case 2: data &= m_y2->read(); break;
+		case 3: data &= m_y3->read(); break;
+		case 4: data &= m_y4->read(); break;
+		case 5: data &= m_y5->read(); break;
+		case 6: data &= m_y6->read(); break;
+		case 7: data &= m_y7->read(); break;
+		case 8: data &= m_y8->read(); break;
+		case 9: data &= m_y9->read(); break;
+		case 0xa: data &= m_ya->read(); break;
+		case 0xb: data &= m_yb->read(); break;
+		case 0xc: data &= m_yc->read(); break;
+		case 0xd: data &= m_yd->read(); break;
+		case 0xe: data &= m_ye->read(); break;
+		case 0xf: data &= m_yf->read(); break;
 	}
 
 	return data;

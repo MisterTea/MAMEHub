@@ -22,7 +22,6 @@
 
 #include "emu.h"
 #include "f3853.h"
-#include "devhelpr.h"
 
 /***************************************************************************
     MACROS
@@ -51,7 +50,6 @@ const device_type F3853 = &device_creator<f3853_device>;
 f3853_device::f3853_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, F3853, "F3853", tag, owner, clock)
 {
-
 }
 
 
@@ -174,12 +172,6 @@ void f3853_device::f3853_timer()
 	f3853_timer_start(0xfe);
 }
 
-
-void f3853_set_external_interrupt_in_line(device_t *device, int level)
-{
-	downcast<f3853_device*>(device)->f3853_set_external_interrupt_in_line(level);
-}
-
 void f3853_device::f3853_set_external_interrupt_in_line(int level)
 {
 	if(m_external_interrupt_line && !level && m_external_enable)
@@ -190,12 +182,6 @@ void f3853_device::f3853_set_external_interrupt_in_line(int level)
 	f3853_set_interrupt_request_line();
 }
 
-
-void f3853_set_priority_in_line(device_t *device, int level)
-{
-	downcast<f3853_device*>(device)->f3853_set_priority_in_line(level);
-}
-
 void f3853_device::f3853_set_priority_in_line(int level)
 {
 	m_priority_line = level;
@@ -203,7 +189,7 @@ void f3853_device::f3853_set_priority_in_line(int level)
 }
 
 
-READ8_DEVICE_HANDLER_TRAMPOLINE(f3853, f3853_r)
+READ8_MEMBER(f3853_device::f3853_r)
 {
 	UINT8 data = 0;
 
@@ -226,7 +212,7 @@ READ8_DEVICE_HANDLER_TRAMPOLINE(f3853, f3853_r)
 }
 
 
-WRITE8_DEVICE_HANDLER_TRAMPOLINE(f3853, f3853_w)
+WRITE8_MEMBER(f3853_device::f3853_w)
 {
 	switch(offset)
 	{

@@ -68,19 +68,18 @@ WRITE8_MEMBER(tecmo_state::tecmo_bankswitch_w)
 WRITE8_MEMBER(tecmo_state::tecmo_sound_command_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_NMI,ASSERT_LINE);
+	m_soundcpu->set_input_line(INPUT_LINE_NMI,ASSERT_LINE);
 }
 
 WRITE8_MEMBER(tecmo_state::tecmo_nmi_ack_w)
 {
-	machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_NMI,CLEAR_LINE);
+	m_soundcpu->set_input_line(INPUT_LINE_NMI,CLEAR_LINE);
 }
 
 WRITE8_MEMBER(tecmo_state::tecmo_adpcm_start_w)
 {
-	device_t *device = machine().device("msm");
 	m_adpcm_pos = data << 8;
-	msm5205_reset_w(device, 0);
+	m_msm->reset_w(0);
 }
 
 WRITE8_MEMBER(tecmo_state::tecmo_adpcm_end_w)
@@ -90,27 +89,25 @@ WRITE8_MEMBER(tecmo_state::tecmo_adpcm_end_w)
 
 WRITE8_MEMBER(tecmo_state::tecmo_adpcm_vol_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_set_volume(device,(data & 0x0f) * 100 / 15);
+	m_msm->set_volume((data & 0x0f) * 100 / 15);
 }
 
-static void tecmo_adpcm_int(device_t *device)
+WRITE_LINE_MEMBER(tecmo_state::tecmo_adpcm_int)
 {
-	tecmo_state *state = device->machine().driver_data<tecmo_state>();
-	if (state->m_adpcm_pos >= state->m_adpcm_end ||
-				state->m_adpcm_pos >= state->memregion("adpcm")->bytes())
-		msm5205_reset_w(device,1);
-	else if (state->m_adpcm_data != -1)
+	if (m_adpcm_pos >= m_adpcm_end ||
+				m_adpcm_pos >= memregion("adpcm")->bytes())
+		m_msm->reset_w(1);
+	else if (m_adpcm_data != -1)
 	{
-		msm5205_data_w(device,state->m_adpcm_data & 0x0f);
-		state->m_adpcm_data = -1;
+		m_msm->data_w(m_adpcm_data & 0x0f);
+		m_adpcm_data = -1;
 	}
 	else
 	{
-		UINT8 *ROM = device->machine().root_device().memregion("adpcm")->base();
+		UINT8 *ROM = memregion("adpcm")->base();
 
-		state->m_adpcm_data = ROM[state->m_adpcm_pos++];
-		msm5205_data_w(device,state->m_adpcm_data >> 4);
+		m_adpcm_data = ROM[m_adpcm_pos++];
+		m_msm->data_w(m_adpcm_data >> 4);
 	}
 }
 
@@ -232,7 +229,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( rygar_sound_map, AS_PROGRAM, 8, tecmo_state )
 	AM_RANGE(0x0000, 0x3fff) AM_ROM
 	AM_RANGE(0x4000, 0x47ff) AM_RAM
-	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE("ymsnd", ym3812_device, write)
 	AM_RANGE(0xc000, 0xc000) AM_READ(soundlatch_byte_r) AM_WRITE(tecmo_adpcm_start_w)
 	AM_RANGE(0xd000, 0xd000) AM_WRITE(tecmo_adpcm_end_w)
 	AM_RANGE(0xe000, 0xe000) AM_WRITE(tecmo_adpcm_vol_w)
@@ -244,7 +241,7 @@ static ADDRESS_MAP_START( tecmo_sound_map, AS_PROGRAM, 8, tecmo_state )
 												/* writes code to this area */
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
-	AM_RANGE(0xa000, 0xa001) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0xa000, 0xa001) AM_DEVWRITE("ymsnd", ym3812_device, write)
 	AM_RANGE(0xc000, 0xc000) AM_READ(soundlatch_byte_r) AM_WRITE(tecmo_adpcm_start_w)
 	AM_RANGE(0xc400, 0xc400) AM_WRITE(tecmo_adpcm_end_w)
 	AM_RANGE(0xc800, 0xc800) AM_WRITE(tecmo_adpcm_vol_w)
@@ -604,19 +601,14 @@ GFXDECODE_END
 
 
 
-static void irqhandler(device_t *device, int linestate)
+WRITE_LINE_MEMBER(tecmo_state::irqhandler)
 {
-	device->machine().device("soundcpu")->execute().set_input_line(0, linestate);
+	m_soundcpu->set_input_line(0, state);
 }
-
-static const ym3812_interface ym3812_config =
-{
-	irqhandler
-};
 
 static const msm5205_interface msm5205_config =
 {
-	tecmo_adpcm_int,    /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(tecmo_state,tecmo_adpcm_int),    /* interrupt function */
 	MSM5205_S48_4B      /* 8KHz               */
 };
 
@@ -657,7 +649,7 @@ static MACHINE_CONFIG_START( rygar, tecmo_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_4MHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(tecmo_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("msm", MSM5205, XTAL_400kHz) /* verified on pcb, even if schematics shows a 384khz resonator */
@@ -716,7 +708,7 @@ static MACHINE_CONFIG_START( backfirt, tecmo_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_4MHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(tecmo_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* no MSM on this PCB */
@@ -1141,9 +1133,9 @@ DRIVER_INIT_MEMBER(tecmo_state,backfirt)
 	m_video_type = 2;
 
 	/* no MSM */
-	machine().device("soundcpu")->memory().space(AS_PROGRAM).nop_write(0xc000, 0xc000);
-	machine().device("soundcpu")->memory().space(AS_PROGRAM).nop_write(0xc400, 0xc400);
-	machine().device("soundcpu")->memory().space(AS_PROGRAM).nop_write(0xc800, 0xc800);
+	m_soundcpu->space(AS_PROGRAM).nop_write(0xc000, 0xc000);
+	m_soundcpu->space(AS_PROGRAM).nop_write(0xc400, 0xc400);
+	m_soundcpu->space(AS_PROGRAM).nop_write(0xc800, 0xc800);
 }
 
 

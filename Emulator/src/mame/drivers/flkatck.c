@@ -12,7 +12,7 @@
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "sound/2151intf.h"
 #include "sound/k007232.h"
 #include "video/konicdev.h"
@@ -22,7 +22,6 @@
 
 INTERRUPT_GEN_MEMBER(flkatck_state::flkatck_interrupt)
 {
-
 	if (m_irq_enabled)
 		device.execute().set_input_line(HD6309_IRQ_LINE, HOLD_LINE);
 }
@@ -61,7 +60,6 @@ READ8_MEMBER(flkatck_state::flkatck_ls138_r)
 
 WRITE8_MEMBER(flkatck_state::flkatck_ls138_w)
 {
-
 	switch ((offset & 0x1c) >> 2)
 	{
 		case 0x04:  /* bankswitch */
@@ -110,7 +108,7 @@ static ADDRESS_MAP_START( flkatck_sound_map, AS_PROGRAM, 8, flkatck_state )
 	AM_RANGE(0x9004, 0x9004) AM_READNOP                                         /* ??? */
 	AM_RANGE(0x9006, 0x9006) AM_WRITENOP                                        /* ??? */
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)                             /* soundlatch_byte_r */
-	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("konami", k007232_r, k007232_w) /* 007232 registers */
+	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232", k007232_r, k007232_w) /* 007232 registers */
 	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)           /* YM2151 */
 ADDRESS_MAP_END
 
@@ -179,15 +177,15 @@ static GFXDECODE_START( flkatck )
 	GFXDECODE_ENTRY( "gfx1", 0, gfxlayout, 0, 32 )
 GFXDECODE_END
 
-static void volume_callback0(device_t *device, int v)
+WRITE8_MEMBER(flkatck_state::volume_callback0)
 {
-	k007232_set_volume(device, 0, (v >> 4) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v & 0x0f) * 0x11);
+	k007232_set_volume(m_k007232, 0, (data >> 4) * 0x11, 0);
+	k007232_set_volume(m_k007232, 1, 0, (data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_config =
 {
-	volume_callback0    /* external port callback */
+	DEVCB_DRIVER_MEMBER(flkatck_state,volume_callback0)    /* external port callback */
 };
 
 
@@ -197,9 +195,6 @@ void flkatck_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 3, &ROM[0x10000], 0x2000);
 
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k007121 = machine().device("k007121");
-
 	save_item(NAME(m_irq_enabled));
 	save_item(NAME(m_multiply_reg));
 	save_item(NAME(m_flipscreen));
@@ -207,8 +202,7 @@ void flkatck_state::machine_start()
 
 void flkatck_state::machine_reset()
 {
-
-	k007232_set_bank(machine().device("konami"), 0, 1);
+	k007232_set_bank(m_k007232, 0, 1);
 
 	m_irq_enabled = 0;
 	m_multiply_reg[0] = 0;
@@ -250,7 +244,7 @@ static MACHINE_CONFIG_START( flkatck, flkatck_state )
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("konami", K007232, 3579545)
+	MCFG_SOUND_ADD("k007232", K007232, 3579545)
 	MCFG_SOUND_CONFIG(k007232_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.50)
@@ -271,7 +265,7 @@ ROM_START( mx5000 )
 	ROM_REGION( 0x080000, "gfx1", 0 )
 	ROM_LOAD( "mask4m.5e",   0x000000, 0x080000, CRC(ff1d718b) SHA1(d44fe3ed5a3ba1b3036264e37f9cd3500b706635) ) /* tiles + sprites */
 
-	ROM_REGION( 0x040000, "konami", 0 ) /* 007232 data (chip 1) */
+	ROM_REGION( 0x040000, "k007232", 0 ) /* 007232 data (chip 1) */
 	ROM_LOAD( "mask2m.11a",  0x000000, 0x040000, CRC(6d1ea61c) SHA1(9e6eb9ac61838df6e1f74e74bb72f3edf1274aed) )
 ROM_END
 
@@ -286,7 +280,7 @@ ROM_START( flkatck )
 	ROM_REGION( 0x080000, "gfx1", 0 )
 	ROM_LOAD( "mask4m.5e",   0x000000, 0x080000, CRC(ff1d718b) SHA1(d44fe3ed5a3ba1b3036264e37f9cd3500b706635) ) /* tiles + sprites */
 
-	ROM_REGION( 0x040000, "konami", 0 ) /* 007232 data (chip 1) */
+	ROM_REGION( 0x040000, "k007232", 0 ) /* 007232 data (chip 1) */
 	ROM_LOAD( "mask2m.11a",  0x000000, 0x040000, CRC(6d1ea61c) SHA1(9e6eb9ac61838df6e1f74e74bb72f3edf1274aed) )
 ROM_END
 

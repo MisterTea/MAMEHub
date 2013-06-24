@@ -107,7 +107,7 @@
 //-------------------------------------------------
 
 gime_base_device::gime_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const UINT8 *fontdata)
-	:   mc6847_friend_device(mconfig, type, name, tag, owner, clock, fontdata, true, 263, 25+192+26+3)
+	:   mc6847_friend_device(mconfig, type, name, tag, owner, clock, fontdata, true, 263, 25+192+26+3, false)
 {
 }
 
@@ -345,6 +345,10 @@ void gime_base_device::device_reset(void)
 	m_irq = 0x00;
 	m_firq = 0x00;
 	m_is_blinking = false;
+
+	m_legacy_video = false;
+
+	m_displayed_rgb = false;
 
 	update_memory();
 	reset_timer();
@@ -661,6 +665,10 @@ UINT8 gime_base_device::read(offs_t offset)
 		case 0x20:
 			data = read_palette_register(offset);
 			break;
+
+		default:
+			data = read_floating_bus();
+			break;
 	}
 
 	return data;
@@ -679,7 +687,7 @@ ATTR_FORCE_INLINE UINT8 gime_base_device::read_gime_register(offs_t offset)
 	UINT8 result;
 	switch(offset)
 	{
-		case 2: /* Read pending IRQs */
+		case 2: // read pending IRQs
 			result = m_irq;
 			if (result != 0x00)
 			{
@@ -688,7 +696,7 @@ ATTR_FORCE_INLINE UINT8 gime_base_device::read_gime_register(offs_t offset)
 			}
 			break;
 
-		case 3: /* Read pending FIRQs */
+		case 3: // read pending FIRQs
 			result = m_firq;
 			if (result != 0x00)
 			{
@@ -697,16 +705,15 @@ ATTR_FORCE_INLINE UINT8 gime_base_device::read_gime_register(offs_t offset)
 			}
 			break;
 
-		case 4: /* Timer MSB/LSB; these arn't readable */
-		case 5:
-			/* JK tells me that these values are indeterminate; and $7E appears
-			 * to be the value most commonly returned
-			 */
-			result = 0x7E;
+		case 14:
+		case 15:
+			// these (I guess) are readable (Mametesters bug #05135)
+			result = m_gime_registers[offset];
 			break;
 
 		default:
-			result = m_gime_registers[offset];
+			// the others are not readable; read floating bus (Mametesters bug #05135)
+			result = read_floating_bus();
 			break;
 	}
 	return result;
@@ -720,7 +727,7 @@ ATTR_FORCE_INLINE UINT8 gime_base_device::read_gime_register(offs_t offset)
 
 ATTR_FORCE_INLINE UINT8 gime_base_device::read_mmu_register(offs_t offset)
 {
-	return (m_mmu[offset & 0x0F] & 0x3F);
+	return (m_mmu[offset & 0x0F] & 0x3F) | (read_floating_bus() & 0xC0);
 }
 
 
@@ -1539,6 +1546,17 @@ void gime_base_device::record_body_scanline(UINT16 physical_scanline, UINT16 log
 		m_line_in_row = 0;
 		m_video_position += pitch;
 	}
+}
+
+
+
+//-------------------------------------------------
+//  record_partial_body_scanline
+//-------------------------------------------------
+
+void gime_base_device::record_partial_body_scanline(UINT16 physical_scanline, UINT16 logical_scanline, INT32 start_clock, INT32 end_clock)
+{
+	fatalerror("NYI");
 }
 
 

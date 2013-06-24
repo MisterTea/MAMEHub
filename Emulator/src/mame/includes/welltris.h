@@ -4,12 +4,13 @@ class welltris_state : public driver_device
 {
 public:
 	welltris_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_pixelram(*this, "pixelram"),
 		m_charvideoram(*this, "charvideoram"),
-		m_spr_old(*this, "vsystem_spr_old")
-	{ }
+		m_spr_old(*this, "vsystem_spr_old"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	int m_pending_command;
 
@@ -41,4 +42,8 @@ public:
 	TILE_GET_INFO_MEMBER(get_welltris_tile_info);
 	virtual void video_start();
 	UINT32 screen_update_welltris(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_background(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };

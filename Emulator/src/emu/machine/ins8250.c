@@ -87,29 +87,41 @@ History:
 const device_type INS8250 = &device_creator<ins8250_device>;
 const device_type NS16450 = &device_creator<ns16450_device>;
 const device_type NS16550 = &device_creator<ns16550_device>;
+const device_type PC16552D = &device_creator<pc16552_device>;
 
-ins8250_uart_device::ins8250_uart_device(const machine_config &mconfig, device_type type, const char* name, const char *tag, device_t *owner, UINT32 clock)
-		: device_t(mconfig, type, name, tag, owner, clock),
+ins8250_uart_device::ins8250_uart_device(const machine_config &mconfig, device_type type, const char* name, const char *tag, device_t *owner, UINT32 clock, const char *shortname)
+		: device_t(mconfig, type, name, tag, owner, clock, shortname, __FILE__),
 			device_serial_interface(mconfig, *this)
 {
 }
 
 ins8250_device::ins8250_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: ins8250_uart_device(mconfig, INS8250, "ins8250", tag, owner, clock)
+		: ins8250_uart_device(mconfig, INS8250, "National Semiconductor INS8250", tag, owner, clock, "ins8250")
 {
 	m_device_type = TYPE_INS8250;
 }
 
 ns16450_device::ns16450_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: ins8250_uart_device(mconfig, NS16450, "ns16450", tag, owner, clock)
+		: ins8250_uart_device(mconfig, NS16450, "National Semiconductor NS16450", tag, owner, clock, "ns16450")
 {
 	m_device_type = TYPE_NS16450;
 }
 
 ns16550_device::ns16550_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: ins8250_uart_device(mconfig, NS16550, "ns16550", tag, owner, clock)
+		: ins8250_uart_device(mconfig, NS16550, "National Semiconductor NS16550", tag, owner, clock, "ns16550")
 {
 	m_device_type = TYPE_NS16550;
+}
+
+pc16552_device::pc16552_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	device_t(mconfig, PC16552D, "National Semiconductor PC16552D", tag, owner, clock, "pc16552d", __FILE__)
+{
+}
+
+void pc16552_device::device_start()
+{
+	m_chan0 = subdevice<ns16550_device>("chan0");
+	m_chan1 = subdevice<ns16550_device>("chan1");
 }
 
 /* int's pending */
@@ -475,22 +487,22 @@ void ins8250_uart_device::update_msr(int bit, UINT8 state)
 
 WRITE_LINE_MEMBER(ins8250_uart_device::dcd_w)
 {
-	update_msr(3, (state&1));
+	update_msr(3, (state ? 1 : 0));
 }
 
 WRITE_LINE_MEMBER(ins8250_uart_device::dsr_w)
 {
-	update_msr(1, (state&1));
+	update_msr(1, (state ? 1 : 0));
 }
 
 WRITE_LINE_MEMBER(ins8250_uart_device::ri_w)
 {
-	update_msr(2, (state&1));
+	update_msr(2, (state ? 1 : 0));
 }
 
 WRITE_LINE_MEMBER(ins8250_uart_device::cts_w)
 {
-	update_msr(0, (state&1));
+	update_msr(0, (state ? 1 : 0));
 }
 
 void ins8250_uart_device::device_start()
@@ -605,15 +617,17 @@ void ns16550_device::set_fcr(UINT8 data)
 	{
 		memset(&m_rfifo, '\0', sizeof(m_rfifo));
 		m_rhead = m_rtail = m_rnum = 0;
+		clear_int(COM_INT_PENDING_CHAR_TIMEOUT | COM_INT_PENDING_RECEIVED_DATA_AVAILABLE);
+		m_timeout->adjust(attotime::never);
 	}
 	if(data & 4)
 	{
 		memset(&m_tfifo, '\0', sizeof(m_tfifo));
 		m_thead = m_ttail = 0;
+		m_regs.lsr |= 0x20;
+		trigger_int(COM_INT_PENDING_TRANSMITTER_HOLDING_REGISTER_EMPTY);
 	}
 	m_rintlvl = bytes_per_int[(data>>6)&3];
 	m_regs.iir |= 0xc0;
-	m_regs.fcr = data & ~0xc9;
-	m_regs.lsr |= 0x20;
-	trigger_int(COM_INT_PENDING_TRANSMITTER_HOLDING_REGISTER_EMPTY);
+	m_regs.fcr = data & 0xc9;
 }

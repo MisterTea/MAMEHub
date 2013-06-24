@@ -47,34 +47,12 @@ const device_type D9090 = &device_creator<d9090_device>;
 
 
 //-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void base_d9060_device::device_config_complete()
-{
-	switch (m_variant)
-	{
-	default:
-	case TYPE_9060:
-		m_shortname = "d9060";
-		break;
-
-	case TYPE_9090:
-		m_shortname = "d9090";
-		break;
-	}
-}
-
-
-//-------------------------------------------------
 //  ROM( d9060 )
 //-------------------------------------------------
 
 ROM_START( d9060 )
 	ROM_REGION( 0x4000, M6502_DOS_TAG, 0 )
-	ROM_LOAD( "300516-001.7c", 0x0000, 0x2000, NO_DUMP ) // Revision A
+	ROM_LOAD( "300516-001.7c", 0x0000, 0x2000, CRC(2d758a14) SHA1(c959cc9dde84fc3d64e95e58a0a096a26d8107fd) ) // Revision A
 	ROM_LOAD( "300517-001.7d", 0x2000, 0x2000, CRC(566df630) SHA1(b1602dfff408b165ee52a6a4ca3e2ec27e689ba9) ) // Revision A
 	ROM_LOAD( "300516-002.7c", 0x0000, 0x2000, CRC(2d758a14) SHA1(c959cc9dde84fc3d64e95e58a0a096a26d8107fd) ) // Revision B
 	ROM_LOAD( "300517-002.7d", 0x2000, 0x2000, CRC(f0382bc3) SHA1(0b0a8dc520f5b41ffa832e4a636b3d226ccbb7f1) ) // Revision B
@@ -111,8 +89,8 @@ const rom_entry *base_d9060_device::device_rom_region() const
 static ADDRESS_MAP_START( d9060_main_mem, AS_PROGRAM, 8, base_d9060_device )
 	AM_RANGE(0x0000, 0x007f) AM_MIRROR(0x0100) AM_RAM // 6532 #1
 	AM_RANGE(0x0080, 0x00ff) AM_MIRROR(0x0100) AM_RAM // 6532 #2
-	AM_RANGE(0x0200, 0x021f) AM_MIRROR(0x0d60) AM_DEVREADWRITE_LEGACY(M6532_0_TAG, riot6532_r, riot6532_w)
-	AM_RANGE(0x0280, 0x029f) AM_MIRROR(0x0d60) AM_DEVREADWRITE_LEGACY(M6532_1_TAG, riot6532_r, riot6532_w)
+	AM_RANGE(0x0200, 0x021f) AM_MIRROR(0x0d60) AM_DEVREADWRITE(M6532_0_TAG, riot6532_device, read, write)
+	AM_RANGE(0x0280, 0x029f) AM_MIRROR(0x0d60) AM_DEVREADWRITE(M6532_1_TAG, riot6532_device, read, write)
 	AM_RANGE(0x1000, 0x13ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x2000, 0x23ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share2")
 	AM_RANGE(0x3000, 0x33ff) AM_MIRROR(0x0c00) AM_RAM AM_SHARE("share3")
@@ -511,8 +489,8 @@ inline void base_d9060_device::update_ieee_signals()
 //  base_d9060_device - constructor
 //-------------------------------------------------
 
-base_d9060_device::base_d9060_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant)
-	: device_t(mconfig, type, name, tag, owner, clock),
+base_d9060_device::base_d9060_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_ieee488_interface(mconfig, *this),
 		m_maincpu(*this, M6502_DOS_TAG),
 		m_hdccpu(*this, M6502_HDC_TAG),
@@ -534,7 +512,7 @@ base_d9060_device::base_d9060_device(const machine_config &mconfig, device_type 
 //-------------------------------------------------
 
 d9060_device::d9060_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: base_d9060_device(mconfig, D9060, "D9060", tag, owner, clock, TYPE_9060) { }
+	: base_d9060_device(mconfig, D9060, "D9060", tag, owner, clock, TYPE_9060, "d9060", __FILE__) { }
 
 
 //-------------------------------------------------
@@ -542,7 +520,7 @@ d9060_device::d9060_device(const machine_config &mconfig, const char *tag, devic
 //-------------------------------------------------
 
 d9090_device::d9090_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: base_d9060_device(mconfig, D9090, "D9090", tag, owner, clock, TYPE_9090) { }
+	: base_d9060_device(mconfig, D9090, "D9090", tag, owner, clock, TYPE_9090, "d9090", __FILE__) { }
 
 
 //-------------------------------------------------
@@ -581,7 +559,7 @@ void base_d9060_device::ieee488_atn(int state)
 	update_ieee_signals();
 
 	// set RIOT PA7
-	riot6532_porta_in_set(m_riot1, !state << 7, 0x80);
+	m_riot1->porta_in_set(!state << 7, 0x80);
 }
 
 
@@ -591,8 +569,10 @@ void base_d9060_device::ieee488_atn(int state)
 
 void base_d9060_device::ieee488_ifc(int state)
 {
-	if (!state)
+	if (!m_ifc && state)
 	{
 		device_reset();
 	}
+
+	m_ifc = state;
 }

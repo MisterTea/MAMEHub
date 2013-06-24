@@ -895,6 +895,9 @@ void osd_list_midi_devices(void);
 osd_midi_device *osd_open_midi_input(const char *devname);
 osd_midi_device *osd_open_midi_output(const char *devname);
 void osd_close_midi_channel(osd_midi_device *dev);
+bool osd_poll_midi_channel(osd_midi_device *dev);
+int osd_read_midi_channel(osd_midi_device *dev, UINT8 *pOut);
+void osd_write_midi_channel(osd_midi_device *dev, UINT8 data);
 
 /***************************************************************************
     UNCATEGORIZED INTERFACES

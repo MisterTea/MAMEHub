@@ -75,9 +75,10 @@ class caswin_state : public driver_device
 {
 public:
 	caswin_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_sc0_vram(*this, "sc0_vram"),
-		m_sc0_attr(*this, "sc0_attr"){ }
+		m_sc0_attr(*this, "sc0_attr"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_sc0_vram;
 	required_shared_ptr<UINT8> m_sc0_attr;
@@ -93,6 +94,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_vvillage(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -191,8 +193,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( vvillage_io, AS_IO, 8, caswin_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x01,0x01) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
-	AM_RANGE(0x02,0x03) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x01,0x01) AM_DEVREAD("aysnd", ay8910_device, data_r)
+	AM_RANGE(0x02,0x03) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x10,0x10) AM_READ_PORT("IN0")
 	AM_RANGE(0x11,0x11) AM_READ_PORT("IN1")
 	AM_RANGE(0x10,0x10) AM_WRITE(vvillage_scroll_w)
@@ -299,7 +301,7 @@ static const ay8910_interface ay8910_config =
 
 void caswin_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2 , r, g, b;
 	int i;
 

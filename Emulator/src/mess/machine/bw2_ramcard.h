@@ -35,7 +35,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "bw2_ramcard"; }
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -45,8 +44,8 @@ protected:
 	virtual void bw2_slot_w(address_space &space, offs_t offset, UINT8 data);
 
 private:
+	required_memory_region m_rom;
 	optional_shared_ptr<UINT8> m_ram;
-	const UINT8 *m_rom;
 
 	int m_en;
 	UINT8 m_bank;

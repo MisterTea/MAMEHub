@@ -10,6 +10,7 @@
 #include "video/mc6845.h"
 #include "machine/wd17xx.h"
 #include "machine/6821pia.h"
+#include "machine/ram.h"
 
 /* Tags */
 
@@ -87,7 +88,9 @@ public:
 	dgn_beta_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_mc6845(*this, "crtc"),
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_ram(*this, RAM_TAG) { }
 
 	required_device<mc6845_device> m_mc6845;
 	required_shared_ptr<UINT8> m_videoram;
@@ -143,6 +146,7 @@ public:
 	int m_Field;
 	int m_DrawInterlace;
 	virtual void machine_start();
+	virtual void machine_reset();
 	virtual void palette_init();
 	DECLARE_WRITE8_MEMBER(dgnbeta_ram_b0_w);
 	DECLARE_WRITE8_MEMBER(dgnbeta_ram_b1_w);
@@ -190,8 +194,22 @@ public:
 	DECLARE_WRITE8_MEMBER(dgn_beta_page_w);
 
 	/*  WD2797 FDC */
-	DECLARE_READ8_HANDLER(dgnbeta_wd2797_r);
-	DECLARE_WRITE8_HANDLER(dgnbeta_wd2797_w);
+	DECLARE_READ8_MEMBER(dgnbeta_wd2797_r);
+	DECLARE_WRITE8_MEMBER(dgnbeta_wd2797_w);
+	required_device<cpu_device> m_maincpu;
+	void dgnbeta_vid_set_gctrl(int data);
+	void UpdateBanks(int first, int last);
+	void SetDefaultTask();
+	void dgn_beta_bank_memory(int offset, int data, int bank);
+	int SelectedKeyrow(dgn_beta_state *state, int Rows);
+	int GetKeyRow(dgn_beta_state *state, int RowNo);
+	void cpu0_recalc_irq(int state);
+	void cpu0_recalc_firq(int state);
+	void cpu1_recalc_firq(int state);
+	void ScanInKeyboard(void);
+	void dgn_beta_frame_interrupt (int data);
+	void dgn_beta_line_interrupt (int data);
+	required_device<ram_device> m_ram;
 };
 
 
@@ -201,13 +219,7 @@ extern const wd17xx_interface dgnbeta_wd17xx_interface;
 extern const pia6821_interface dgnbeta_pia_intf[];
 
 
-void dgn_beta_frame_interrupt (running_machine &machine, int data);
-
-
 /*----------- defined in video/dgn_beta.c -----------*/
-
-/* mc6845 video display generator */
-void dgnbeta_vid_set_gctrl(running_machine &machine, int data);
 
 extern const mc6845_interface dgnbeta_crtc6845_interface;
 

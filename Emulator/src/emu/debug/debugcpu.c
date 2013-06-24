@@ -91,6 +91,7 @@ struct debugcpu_private
 
 	UINT32          bpindex;
 	UINT32          wpindex;
+	UINT32          rpindex;
 
 	UINT64          wpdata;
 	UINT64          wpaddr;
@@ -150,6 +151,7 @@ void debug_cpu_init(running_machine &machine)
 	global->execution_state = EXECUTION_STATE_STOPPED;
 	global->bpindex = 1;
 	global->wpindex = 1;
+	global->rpindex = 1;
 
 	/* create a global symbol table */
 	global->symtable = global_alloc(symbol_table(&machine));
@@ -340,7 +342,7 @@ bool debug_comment_save(running_machine &machine)
 		device_iterator iter(machine.root_device());
 		bool found_comments = false;
 		for (device_t *device = iter.first(); device != NULL; device = iter.next())
-			if (device->debug()->comment_count() > 0)
+			if (device->debug() && device->debug()->comment_count() > 0)
 			{
 				// create a node for this device
 				xml_data_node *curnode = xml_add_child(systemnode, "cpu", NULL);
@@ -1649,17 +1651,24 @@ device_debug::device_debug(device_t &device)
 		m_stopirq(0),
 		m_stopexception(0),
 		m_endexectime(attotime::zero),
+		m_total_cycles(0),
+		m_last_total_cycles(0),
 		m_pc_history_index(0),
 		m_bplist(NULL),
+		m_rplist(NULL),
 		m_trace(NULL),
 		m_hotspots(NULL),
 		m_hotspot_count(0),
-		m_hotspot_threshhold(0)
+		m_hotspot_threshhold(0),
+		m_track_pc_set(),
+		m_track_pc(false),
+		m_comment_set(),
+		m_comment_change(0),
+		m_track_mem_set(),
+		m_track_mem(false)
 {
 	memset(m_pc_history, 0, sizeof(m_pc_history));
 	memset(m_wplist, 0, sizeof(m_wplist));
-
-	m_comment_change = 0;
 
 	// find out which interfaces we have to work with
 	device.interface(m_exec);
@@ -1675,6 +1684,7 @@ device_debug::device_debug(device_t &device)
 		{
 			m_symtable.add("cycles", NULL, get_cycles);
 			m_symtable.add("totalcycles", NULL, get_totalcycles);
+			m_symtable.add("lastinstructioncycles", NULL, get_lastinstructioncycles);
 		}
 
 		// add entries to enable/disable unmap reporting for each space
@@ -1718,6 +1728,7 @@ device_debug::~device_debug()
 	// free breakpoints and watchpoints
 	breakpoint_clear_all();
 	watchpoint_clear_all();
+	registerpoint_clear_all();
 }
 
 
@@ -1856,6 +1867,17 @@ void device_debug::instruction_hook(offs_t curpc)
 
 	// update the history
 	m_pc_history[m_pc_history_index++ % HISTORY_SIZE] = curpc;
+
+	// update total cycles
+	m_last_total_cycles = m_total_cycles;
+	m_total_cycles = m_exec->total_cycles();
+
+	// are we tracking our recent pc visits?
+	if (m_track_pc)
+	{
+		const UINT32 crc = compute_opcode_crc32(curpc);
+		m_track_pc_set.insert(dasm_pc_tag(curpc, crc));
+	}
 
 	// are we tracing?
 	if (m_trace != NULL)
@@ -2003,6 +2025,15 @@ void device_debug::memory_read_hook(address_space &space, offs_t address, UINT64
 
 void device_debug::memory_write_hook(address_space &space, offs_t address, UINT64 data, UINT64 mem_mask)
 {
+	if (m_track_mem)
+	{
+		dasm_memory_access newAccess(space.spacenum(), address, data, history_pc(0));
+		if (!m_track_mem_set.insert(newAccess))
+		{
+			m_track_mem_set.remove(newAccess);
+			m_track_mem_set.insert(newAccess);
+		}
+	}
 	watchpoint_check(space, WATCHPOINT_WRITE, address, data, mem_mask);
 }
 
@@ -2450,6 +2481,95 @@ void device_debug::watchpoint_enable_all(bool enable)
 
 
 //-------------------------------------------------
+//  registerpoint_set - set a new registerpoint,
+//  returning its index
+//-------------------------------------------------
+
+int device_debug::registerpoint_set(const char *condition, const char *action)
+{
+	// allocate a new one
+	registerpoint *rp = auto_alloc(m_device.machine(), registerpoint(m_symtable, m_device.machine().debugcpu_data->rpindex++, condition, action));
+
+	// hook it into our list
+	rp->m_next = m_rplist;
+	m_rplist = rp;
+
+	// update the flags and return the index
+	breakpoint_update_flags();
+	return rp->m_index;
+}
+
+
+//-------------------------------------------------
+//  registerpoint_clear - clear a registerpoint by index,
+//  returning true if we found it
+//-------------------------------------------------
+
+bool device_debug::registerpoint_clear(int index)
+{
+	// scan the list to see if we own this registerpoint
+	for (registerpoint **rp = &m_rplist; *rp != NULL; rp = &(*rp)->m_next)
+		if ((*rp)->m_index == index)
+		{
+			registerpoint *deleteme = *rp;
+			*rp = deleteme->m_next;
+			auto_free(m_device.machine(), deleteme);
+			breakpoint_update_flags();
+			return true;
+		}
+
+	// we don't own it, return false
+	return false;
+}
+
+
+//-------------------------------------------------
+//  registerpoint_clear_all - clear all registerpoints
+//-------------------------------------------------
+
+void device_debug::registerpoint_clear_all()
+{
+	// clear the head until we run out
+	while (m_rplist != NULL)
+		registerpoint_clear(m_rplist->index());
+}
+
+
+//-------------------------------------------------
+//  registerpoint_enable - enable/disable a registerpoint
+//  by index, returning true if we found it
+//-------------------------------------------------
+
+bool device_debug::registerpoint_enable(int index, bool enable)
+{
+	// scan the list to see if we own this conditionpoint
+	for (registerpoint *rp = m_rplist; rp != NULL; rp = rp->next())
+		if (rp->m_index == index)
+		{
+			rp->m_enabled = enable;
+			breakpoint_update_flags();
+			return true;
+		}
+
+	// we don't own it, return false
+	return false;
+}
+
+
+//-------------------------------------------------
+//  registerpoint_enable_all - enable/disable all
+//  registerpoints
+//-------------------------------------------------
+
+void device_debug::registerpoint_enable_all(bool enable)
+{
+	// apply the enable to all registerpoints we own
+	for (registerpoint *rp = m_rplist; rp != NULL; rp = rp->next())
+		registerpoint_enable(rp->index(), enable);
+}
+
+
+//-------------------------------------------------
 //  hotspot_track - enable/disable tracking of
 //  hotspots
 //-------------------------------------------------
@@ -2494,6 +2614,53 @@ offs_t device_debug::history_pc(int index) const
 
 
 //-------------------------------------------------
+//  track_pc_visited - returns a boolean stating
+//  if this PC has been visited or not.  CRC32 is
+//  done in this function on currently active CPU.
+//  TODO: Take a CPU context as input
+//-------------------------------------------------
+
+bool device_debug::track_pc_visited(const offs_t& pc) const
+{
+	if (m_track_pc_set.empty())
+		return false;
+	const UINT32 crc = compute_opcode_crc32(pc);
+	return m_track_pc_set.contains(dasm_pc_tag(pc, crc));
+}
+
+
+//-------------------------------------------------
+//  set_track_pc_visited - set this pc as visited.
+//  TODO: Take a CPU context as input
+//-------------------------------------------------
+
+void device_debug::set_track_pc_visited(const offs_t& pc)
+{
+	const UINT32 crc = compute_opcode_crc32(pc);
+	m_track_pc_set.insert(dasm_pc_tag(pc, crc));
+}
+
+
+//-------------------------------------------------
+//  track_mem_pc_from_address_data - returns the pc that
+//  wrote the data to this address or (offs_t)(-1) for
+//  'not available'.
+//-------------------------------------------------
+
+offs_t device_debug::track_mem_pc_from_space_address_data(const address_spacenum& space,
+															const offs_t& address,
+															const UINT64& data) const
+{
+	const offs_t missing = (offs_t)(-1);
+	if (m_track_mem_set.empty())
+		return missing;
+	dasm_memory_access* mem_access = m_track_mem_set.find(dasm_memory_access(space, address, data, 0));
+	if (mem_access == NULL) return missing;
+	return mem_access->m_pc;
+}
+
+
+//-------------------------------------------------
 //  comment_add - adds a comment to the list at
 //  the given address
 //-------------------------------------------------
@@ -2501,34 +2668,14 @@ offs_t device_debug::history_pc(int index) const
 void device_debug::comment_add(offs_t addr, const char *comment, rgb_t color)
 {
 	// create a new item for the list
-	UINT32 crc = compute_opcode_crc32(addr);
-	dasm_comment *newcomment = auto_alloc(m_device.machine(), dasm_comment(comment, addr, color, crc));
-
-	// figure out where to insert it
-	dasm_comment *prev = NULL;
-	dasm_comment *curr;
-	for (curr = m_comment_list.first(); curr != NULL; prev = curr, curr = curr->next())
-		if (curr->m_address >= addr)
-			break;
-
-	// we could be the new head
-	if (prev == NULL)
-		m_comment_list.prepend(*newcomment);
-
-	// or else we just insert ourselves here
-	else
+	const UINT32 crc = compute_opcode_crc32(addr);
+	dasm_comment newComment = dasm_comment(addr, crc, comment, color);
+	if (!m_comment_set.insert(newComment))
 	{
-		newcomment->m_next = prev->m_next;
-		prev->m_next = newcomment;
+		// Insert returns false if comment exists
+		m_comment_set.remove(newComment);
+		m_comment_set.insert(newComment);
 	}
-
-	// scan forward from here to delete any exact matches
-	for ( ; curr != NULL && curr->m_address == addr; curr = curr->next())
-		if (curr->m_crc == crc)
-		{
-			m_comment_list.remove(*curr);
-			break;
-		}
 
 	// force an update
 	m_comment_change++;
@@ -2542,26 +2689,10 @@ void device_debug::comment_add(offs_t addr, const char *comment, rgb_t color)
 
 bool device_debug::comment_remove(offs_t addr)
 {
-	// scan the list for a match
-	UINT32 crc = compute_opcode_crc32(addr);
-	for (dasm_comment *curr = m_comment_list.first(); curr != NULL; curr = curr->next())
-	{
-		// if we're past the address, we failed
-		if (curr->m_address > addr)
-			break;
-
-		// find an exact match
-		if (curr->m_address == addr && curr->m_crc == crc)
-		{
-			// remove it and force an update
-			m_comment_list.remove(*curr);
-			m_comment_change++;
-			return true;
-		}
-	}
-
-	// failure is an option
-	return false;
+	const UINT32 crc = compute_opcode_crc32(addr);
+	bool success = m_comment_set.remove(dasm_comment(addr, crc, "", 0xffffffff));
+	if (success) m_comment_change++;
+	return success;
 }
 
 
@@ -2571,21 +2702,10 @@ bool device_debug::comment_remove(offs_t addr)
 
 const char *device_debug::comment_text(offs_t addr) const
 {
-	// scan the list for a match
-	UINT32 crc = compute_opcode_crc32(addr);
-	for (dasm_comment *curr = m_comment_list.first(); curr != NULL; curr = curr->next())
-	{
-		// if we're past the address, we failed
-		if (curr->m_address > addr)
-			break;
-
-		// find an exact match
-		if (curr->m_address == addr && curr->m_crc == crc)
-			return curr->m_text;
-	}
-
-	// failure is an option
-	return NULL;
+	const UINT32 crc = compute_opcode_crc32(addr);
+	dasm_comment* comment = m_comment_set.find(dasm_comment(addr, crc, "", 0));
+	if (comment == NULL) return NULL;
+	return comment->m_text;
 }
 
 
@@ -2598,14 +2718,15 @@ bool device_debug::comment_export(xml_data_node &curnode)
 {
 	// iterate through the comments
 	astring crc_buf;
-	for (dasm_comment *curr = m_comment_list.first(); curr != NULL; curr = curr->next())
+	simple_set_iterator<dasm_comment> iter(m_comment_set);
+	for (dasm_comment* item = iter.first(); item != iter.last(); item = iter.next())
 	{
-		xml_data_node *datanode = xml_add_child(&curnode, "comment", xml_normalize_string(curr->m_text));
+		xml_data_node *datanode = xml_add_child(&curnode, "comment", xml_normalize_string(item->m_text));
 		if (datanode == NULL)
 			return false;
-		xml_set_attribute_int(datanode, "address", curr->m_address);
-		xml_set_attribute_int(datanode, "color", curr->m_color);
-		crc_buf.printf("%08X", curr->m_crc);
+		xml_set_attribute_int(datanode, "address", item->m_address);
+		xml_set_attribute_int(datanode, "color", item->m_color);
+		crc_buf.printf("%08X", item->m_crc);
 		xml_set_attribute(datanode, "crc", crc_buf);
 	}
 	return true;
@@ -2625,38 +2746,14 @@ bool device_debug::comment_import(xml_data_node &cpunode)
 		// extract attributes
 		offs_t address = xml_get_attribute_int(datanode, "address", 0);
 		rgb_t color = xml_get_attribute_int(datanode, "color", 0);
+
 		UINT32 crc;
 		sscanf(xml_get_attribute_string(datanode, "crc", 0), "%08X", &crc);
 
-		// add the new comment; we assume they were saved ordered
-		m_comment_list.append(*auto_alloc(m_device.machine(), dasm_comment(datanode->value, address, color, crc)));
+		// add the new comment
+		m_comment_set.insert(dasm_comment(address, crc, datanode->value, color));
 	}
 	return true;
-}
-
-
-//-------------------------------------------------
-//  comment_dump - logs comments to the error.log
-//  at a given address
-//-------------------------------------------------
-
-void device_debug::comment_dump(offs_t addr)
-{
-	// determine the CRC at the given address (if valid)
-	UINT32 crc = (addr == ~0) ? 0 : compute_opcode_crc32(addr);
-
-	// dump everything that matches
-	bool found = false;
-	for (dasm_comment *curr = m_comment_list.first(); curr != NULL; curr = curr->next())
-		if (addr == ~0 || (curr->m_address == addr && curr->m_crc == crc))
-		{
-			found = true;
-			logerror("%08X %08X - %s\n", curr->m_address, curr->m_crc, curr->m_text.cstr());
-		}
-
-	// if nothing found, indicate as much
-	if (!found)
-		logerror("No comment exists for address : 0x%x\n", addr);
 }
 
 
@@ -2665,35 +2762,31 @@ void device_debug::comment_dump(offs_t addr)
 //  the opcode bytes at the given address
 //-------------------------------------------------
 
-UINT32 device_debug::compute_opcode_crc32(offs_t address) const
+UINT32 device_debug::compute_opcode_crc32(offs_t pc) const
 {
-	// no memory interface, just fail
-	if (m_memory == NULL)
-		return 0;
+	// Basically the same thing as dasm_wrapped, but with some tiny savings
+	assert(m_memory != NULL);
 
-	// no program interface, just fail
+	// determine the adjusted PC
 	address_space &space = m_memory->space(AS_PROGRAM);
-
-	// zero out the buffers
-	UINT8 opbuf[64], argbuf[64];
-	memset(opbuf, 0x00, sizeof(opbuf));
-	memset(argbuf, 0x00, sizeof(argbuf));
+	offs_t pcbyte = space.address_to_byte(pc) & space.bytemask();
 
 	// fetch the bytes up to the maximum
-	int maxbytes = m_disasm->max_opcode_bytes();
-	for (int index = 0; index < maxbytes; index++)
+	UINT8 opbuf[64], argbuf[64];
+	int maxbytes = max_opcode_bytes();
+	for (int numbytes = 0; numbytes < maxbytes; numbytes++)
 	{
-		opbuf[index] = debug_read_opcode(space, address + index, 1, false);
-		argbuf[index] = debug_read_opcode(space, address + index, 1, true);
+		opbuf[numbytes] = debug_read_opcode(space, pcbyte + numbytes, 1, false);
+		argbuf[numbytes] = debug_read_opcode(space, pcbyte + numbytes, 1, true);
 	}
 
-	// disassemble and then convert to bytes
-	char buff[256];
-	int numbytes = disassemble(buff, address & space.logaddrmask(), opbuf, argbuf) & DASMFLAG_LENGTHMASK;
-	numbytes = space.address_to_byte(numbytes);
+	// disassemble to our buffer
+	char diasmbuf[200];
+	memset(diasmbuf, 0x00, 200);
+	UINT32 numbytes = disassemble(diasmbuf, pc, opbuf, argbuf) & DASMFLAG_LENGTHMASK;
 
-	// return a CRC of the resulting bytes
-	return crc32(0, argbuf, numbytes);
+	// return a CRC of the exact count of opcode bytes
+	return crc32(0, opbuf, numbytes);
 }
 
 
@@ -2817,6 +2910,18 @@ void device_debug::breakpoint_update_flags()
 			break;
 		}
 
+	if ( ! ( m_flags & DEBUG_FLAG_LIVE_BP ) )
+	{
+		// see if there are any enabled registerpoints
+		for (registerpoint *rp = m_rplist; rp != NULL; rp = rp->m_next)
+		{
+			if (rp->m_enabled)
+			{
+				m_flags |= DEBUG_FLAG_LIVE_BP;
+			}
+		}
+	}
+
 	// push the flags out globally
 	debugcpu_private *global = m_device.machine().debugcpu_data;
 	if (global->livecpu != NULL)
@@ -2848,6 +2953,30 @@ void device_debug::breakpoint_check(offs_t pc)
 				debug_console_printf(m_device.machine(), "Stopped at breakpoint %X\n", bp->m_index);
 			break;
 		}
+
+	// see if we have any matching registerpoints
+	for (registerpoint *rp = m_rplist; rp != NULL; rp = rp->m_next)
+	{
+		if (rp->hit())
+		{
+			// halt in the debugger by default
+			debugcpu_private *global = m_device.machine().debugcpu_data;
+			global->execution_state = EXECUTION_STATE_STOPPED;
+
+			// if we hit, evaluate the action
+			if (rp->m_action)
+			{
+				debug_console_execute_command(m_device.machine(), rp->m_action, 0);
+			}
+
+			// print a notification, unless the action made us go again
+			if (global->execution_state == EXECUTION_STATE_STOPPED)
+			{
+				debug_console_printf(m_device.machine(), "Stopped at registerpoint %X\n", rp->m_index);
+			}
+			break;
+		}
+	}
 }
 
 
@@ -3075,7 +3204,20 @@ UINT64 device_debug::get_cycles(symbol_table &table, void *ref)
 UINT64 device_debug::get_totalcycles(symbol_table &table, void *ref)
 {
 	device_t *device = reinterpret_cast<device_t *>(table.globalref());
-	return device->debug()->m_exec->total_cycles();
+	return device->debug()->m_total_cycles;
+}
+
+
+//-------------------------------------------------
+//  get_lastinstructioncycles - getter callback for the
+//  'lastinstructioncycles' symbol
+//-------------------------------------------------
+
+UINT64 device_debug::get_lastinstructioncycles(symbol_table &table, void *ref)
+{
+	device_t *device = reinterpret_cast<device_t *>(table.globalref());
+	device_debug *debug = device->debug();
+	return debug->m_total_cycles - debug->m_last_total_cycles;
 }
 
 
@@ -3237,6 +3379,52 @@ bool device_debug::watchpoint::hit(int type, offs_t address, int size)
 
 
 //**************************************************************************
+//  DEBUG REGISTERPOINT
+//**************************************************************************
+
+//-------------------------------------------------
+//  registerpoint - constructor
+//-------------------------------------------------
+
+device_debug::registerpoint::registerpoint(symbol_table &symbols, int index, const char *condition, const char *action)
+	: m_next(NULL),
+		m_index(index),
+		m_enabled(true),
+		m_condition(&symbols, (condition != NULL) ? condition : "1"),
+		m_action((action != NULL) ? action : "")
+{
+}
+
+
+//-------------------------------------------------
+//  hit - detect a hit
+//-------------------------------------------------
+
+bool device_debug::registerpoint::hit()
+{
+	// don't hit if disabled
+	if (!m_enabled)
+		return false;
+
+	// must satisfy the condition
+	if (!m_condition.is_empty())
+	{
+		try
+		{
+			return (m_condition.execute() != 0);
+		}
+		catch (expression_error &)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+
+//**************************************************************************
 //  TRACER
 //**************************************************************************
 
@@ -3360,14 +3548,37 @@ void device_debug::tracer::flush()
 
 
 //-------------------------------------------------
+//  dasm_pc_tag - constructor
+//-------------------------------------------------
+
+device_debug::dasm_pc_tag::dasm_pc_tag(const offs_t& address, const UINT32& crc)
+	: m_address(address),
+		m_crc(crc)
+{
+}
+
+//-------------------------------------------------
+//  dasm_memory_access - constructor
+//-------------------------------------------------
+
+device_debug::dasm_memory_access::dasm_memory_access(const address_spacenum& address_space,
+														const offs_t& address,
+														const UINT64& data,
+														const offs_t& pc)
+	: m_address_space(address_space),
+		m_address(address),
+		m_data(data),
+		m_pc(pc)
+{
+}
+
+//-------------------------------------------------
 //  dasm_comment - constructor
 //-------------------------------------------------
 
-device_debug::dasm_comment::dasm_comment(const char *text, offs_t address, rgb_t color, UINT32 crc)
-	: m_next(NULL),
-		m_address(address),
-		m_color(color),
-		m_crc(crc),
-		m_text(text)
+device_debug::dasm_comment::dasm_comment(offs_t address, UINT32 crc, const char *text, rgb_t color)
+	: dasm_pc_tag(address, crc),
+		m_text(text),
+		m_color(color)
 {
 }

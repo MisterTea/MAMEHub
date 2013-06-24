@@ -455,15 +455,19 @@ class _5clown_state : public driver_device
 {
 public:
 	_5clown_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_colorram(*this, "colorram"){ }
+		m_colorram(*this, "colorram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_ay8910(*this, "ay8910")
+	{
+	}
 
 	UINT8 m_main_latch_d800;
 	UINT8 m_snd_latch_0800;
 	UINT8 m_snd_latch_0a02;
 	UINT8 m_ay8910_addr;
-	device_t *m_ay8910;
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
 	tilemap_t *m_bg_tilemap;
@@ -487,6 +491,9 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_fclown(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<ay8910_device> m_ay8910;
 };
 
 
@@ -513,7 +520,6 @@ WRITE8_MEMBER(_5clown_state::fclown_colorram_w)
 
 TILE_GET_INFO_MEMBER(_5clown_state::get_fclown_tile_info)
 {
-
 /*  - bits -
     7654 3210
     ---- ---x   Tiles extended address (MSB).
@@ -546,7 +552,7 @@ UINT32 _5clown_state::screen_update_fclown(screen_device &screen, bitmap_ind16 &
 
 void _5clown_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 /*
     7654 3210
     ---- ---x   RED component.
@@ -642,12 +648,12 @@ WRITE8_MEMBER(_5clown_state::trigsnd_w)
 
 	if ( (data & 0x0f) == 0x07 )
 	{
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE );
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE );
 	}
 
 	else
 	{
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE );
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE );
 	}
 
 }
@@ -686,8 +692,8 @@ WRITE8_MEMBER(_5clown_state::cpu_d800_w)
 
 WRITE8_MEMBER(_5clown_state::fclown_ay8910_w)
 {
-	ay8910_address_w(m_ay8910, space, 0, offset);
-	ay8910_data_w(m_ay8910, space, 0, data);
+	m_ay8910->address_w(space, 0, offset);
+	m_ay8910->data_w(space, 0, data);
 }
 
 
@@ -989,9 +995,10 @@ GFXDECODE_END
 *    CRTC Interface    *
 ***********************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -1219,8 +1226,8 @@ DRIVER_INIT_MEMBER(_5clown_state,fclown)
 
 	/* Decrypting GFX by segments */
 
-	UINT8 *gfx1_src = machine().root_device().memregion( "gfx1" )->base();
-	UINT8 *gfx2_src = machine().root_device().memregion( "gfx2" )->base();
+	UINT8 *gfx1_src = memregion( "gfx1" )->base();
+	UINT8 *gfx2_src = memregion( "gfx2" )->base();
 
 	for (x = 0x2000; x < 0x3000; x++)
 	{
@@ -1240,7 +1247,7 @@ DRIVER_INIT_MEMBER(_5clown_state,fclown)
 
 	/* Decrypting sound samples */
 
-	UINT8 *samples_src = machine().root_device().memregion( "oki6295" )->base();
+	UINT8 *samples_src = memregion( "oki6295" )->base();
 
 	for (x = 0x0000; x < 0x10000; x++)
 	{
@@ -1254,11 +1261,6 @@ DRIVER_INIT_MEMBER(_5clown_state,fclown)
 			samples_src[x] = samples_src[x] ^ 0x12;     /* Otherwise bit 1 & 5 XOR'ed */
 		}
 	}
-
-
-	/* Assigning AY-3-8910 sound device */
-
-	m_ay8910 = machine().device("ay8910");
 }
 
 

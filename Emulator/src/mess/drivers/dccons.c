@@ -33,14 +33,6 @@
 
 #define CPU_CLOCK (200000000)
 
-// things from mess/machine/dc.c
-void dreamcast_atapi_init(running_machine &machine);
-void dreamcast_atapi_reset(running_machine &machine);
-extern DECLARE_READ64_HANDLER( dc_mess_gdrom_r );
-extern DECLARE_WRITE64_HANDLER( dc_mess_gdrom_w );
-extern DECLARE_READ64_HANDLER( dc_mess_g1_ctrl_r );
-extern DECLARE_WRITE64_HANDLER( dc_mess_g1_ctrl_w );
-
 READ64_MEMBER(dc_cons_state::dcus_idle_skip_r )
 {
 	if (space.device().safe_pc()==0xc0ba52a)
@@ -61,19 +53,19 @@ READ64_MEMBER(dc_cons_state::dcjp_idle_skip_r )
 
 DRIVER_INIT_MEMBER(dc_cons_state,dc)
 {
-	dreamcast_atapi_init(machine());
+	dreamcast_atapi_init();
 }
 
 DRIVER_INIT_MEMBER(dc_cons_state,dcus)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xc2303b0, 0xc2303b7, read64_delegate(FUNC(dc_cons_state::dcus_idle_skip_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xc2303b0, 0xc2303b7, read64_delegate(FUNC(dc_cons_state::dcus_idle_skip_r),this));
 
 	DRIVER_INIT_CALL(dc);
 }
 
 DRIVER_INIT_MEMBER(dc_cons_state,dcjp)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xc2302f8, 0xc2302ff, read64_delegate(FUNC(dc_cons_state::dcjp_idle_skip_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xc2302f8, 0xc2302ff, read64_delegate(FUNC(dc_cons_state::dcjp_idle_skip_r),this));
 
 	DRIVER_INIT_CALL(dc);
 }
@@ -118,50 +110,19 @@ WRITE64_MEMBER(dc_cons_state::dc_arm_w )
 	COMBINE_DATA((UINT64 *)dc_sound_ram.target() + offset);
 }
 
-
-	// SB_LMMODE0
-WRITE64_MEMBER(dc_cons_state::ta_texture_directpath0_w )
-	{
-	int mode = pvrctrl_regs[SB_LMMODE0]&1;
-	if (mode&1)
-	{
-		printf("ta_texture_directpath0_w 32-bit access!\n");
-		COMBINE_DATA(&dc_framebuffer_ram[offset]);
-	}
-	else
-	{
-		COMBINE_DATA(&dc_texture_ram[offset]);
-	}
-	}
-
-	// SB_LMMODE1
-WRITE64_MEMBER(dc_cons_state::ta_texture_directpath1_w )
-	{
-	int mode = pvrctrl_regs[SB_LMMODE1]&1;
-	if (mode&1)
-	{
-		printf("ta_texture_directpath1_w 32-bit access!\n");
-		COMBINE_DATA(&dc_framebuffer_ram[offset]);
-	}
-	else
-	{
-		COMBINE_DATA(&dc_texture_ram[offset]);
-	}
-	}
-
 static ADDRESS_MAP_START( dc_map, AS_PROGRAM, 64, dc_cons_state )
 	AM_RANGE(0x00000000, 0x001fffff) AM_ROM AM_WRITENOP             // BIOS
 	AM_RANGE(0x00200000, 0x0021ffff) AM_ROM AM_REGION("maincpu", 0x200000)  // flash
-	AM_RANGE(0x005f6800, 0x005f69ff) AM_READWRITE_LEGACY(dc_sysctrl_r, dc_sysctrl_w )
+	AM_RANGE(0x005f6800, 0x005f69ff) AM_READWRITE(dc_sysctrl_r, dc_sysctrl_w )
 	AM_RANGE(0x005f6c00, 0x005f6cff) AM_DEVICE32( "maple_dc", maple_dc_device, amap, U64(0xffffffffffffffff) )
-	AM_RANGE(0x005f7000, 0x005f70ff) AM_READWRITE_LEGACY(dc_mess_gdrom_r, dc_mess_gdrom_w )
-	AM_RANGE(0x005f7400, 0x005f74ff) AM_READWRITE_LEGACY(dc_mess_g1_ctrl_r, dc_mess_g1_ctrl_w )
-	AM_RANGE(0x005f7800, 0x005f78ff) AM_READWRITE_LEGACY(dc_g2_ctrl_r, dc_g2_ctrl_w )
-	AM_RANGE(0x005f7c00, 0x005f7cff) AM_READWRITE_LEGACY(pvr_ctrl_r, pvr_ctrl_w )
-	AM_RANGE(0x005f8000, 0x005f9fff) AM_READWRITE_LEGACY(pvr_ta_r, pvr_ta_w )
-	AM_RANGE(0x00600000, 0x006007ff) AM_READWRITE_LEGACY(dc_modem_r, dc_modem_w )
+	AM_RANGE(0x005f7000, 0x005f70ff) AM_READWRITE(dc_mess_gdrom_r, dc_mess_gdrom_w )
+	AM_RANGE(0x005f7400, 0x005f74ff) AM_READWRITE(dc_mess_g1_ctrl_r, dc_mess_g1_ctrl_w )
+	AM_RANGE(0x005f7800, 0x005f78ff) AM_READWRITE(dc_g2_ctrl_r, dc_g2_ctrl_w )
+	AM_RANGE(0x005f7c00, 0x005f7cff) AM_DEVREADWRITE32("powervr2", powervr2_device, pvr_ctrl_r, pvr_ctrl_w, U64(0xffffffffffffffff))
+	AM_RANGE(0x005f8000, 0x005f9fff) AM_DEVREADWRITE32("powervr2", powervr2_device, pvr_ta_r, pvr_ta_w, U64(0xffffffffffffffff))
+	AM_RANGE(0x00600000, 0x006007ff) AM_READWRITE(dc_modem_r, dc_modem_w )
 	AM_RANGE(0x00700000, 0x00707fff) AM_READWRITE(dc_aica_reg_r, dc_aica_reg_w )
-	AM_RANGE(0x00710000, 0x0071000f) AM_READWRITE_LEGACY(dc_rtc_r, dc_rtc_w )
+	AM_RANGE(0x00710000, 0x0071000f) AM_READWRITE(dc_rtc_r, dc_rtc_w )
 	AM_RANGE(0x00800000, 0x009fffff) AM_READWRITE(dc_arm_r, dc_arm_w )
 
 	/* Area 1 */
@@ -175,13 +136,13 @@ static ADDRESS_MAP_START( dc_map, AS_PROGRAM, 64, dc_cons_state )
 	AM_RANGE(0x0f000000, 0x0fffffff) AM_RAM AM_SHARE("dc_ram")// mirror
 
 	/* Area 4 */
-	AM_RANGE(0x10000000, 0x107fffff) AM_WRITE_LEGACY(ta_fifo_poly_w )
-	AM_RANGE(0x10800000, 0x10ffffff) AM_WRITE_LEGACY(ta_fifo_yuv_w )
-	AM_RANGE(0x11000000, 0x117fffff) AM_WRITE(ta_texture_directpath0_w ) AM_MIRROR(0x00800000)  // access to texture / fraembfufer memory (either 32-bit or 64-bit area depending on SB_LMMODE0 register - cannot be written directly, only through dma / store queue
+	AM_RANGE(0x10000000, 0x107fffff) AM_DEVWRITE("powervr2", powervr2_device, ta_fifo_poly_w)
+	AM_RANGE(0x10800000, 0x10ffffff) AM_DEVWRITE("powervr2", powervr2_device, ta_fifo_yuv_w)
+	AM_RANGE(0x11000000, 0x117fffff) AM_DEVWRITE("powervr2", powervr2_device, ta_texture_directpath0_w) AM_MIRROR(0x00800000)  // access to texture / framebuffer memory (either 32-bit or 64-bit area depending on SB_LMMODE0 register - cannot be written directly, only through dma / store queue
 
-	AM_RANGE(0x12000000, 0x127fffff) AM_WRITE_LEGACY(ta_fifo_poly_w )
-	AM_RANGE(0x12800000, 0x12ffffff) AM_WRITE_LEGACY(ta_fifo_yuv_w )
-	AM_RANGE(0x13000000, 0x137fffff) AM_WRITE(ta_texture_directpath1_w ) AM_MIRROR(0x00800000) // access to texture / fraembfufer memory (either 32-bit or 64-bit area depending on SB_LMMODE1 register - cannot be written directly, only through dma / store queue
+	AM_RANGE(0x12000000, 0x127fffff) AM_DEVWRITE("powervr2", powervr2_device, ta_fifo_poly_w)
+	AM_RANGE(0x12800000, 0x12ffffff) AM_DEVWRITE("powervr2", powervr2_device, ta_fifo_yuv_w)
+	AM_RANGE(0x13000000, 0x137fffff) AM_DEVWRITE("powervr2", powervr2_device, ta_texture_directpath1_w) AM_MIRROR(0x00800000) // access to texture / framebuffer memory (either 32-bit or 64-bit area depending on SB_LMMODE1 register - cannot be written directly, only through dma / store queue
 
 	AM_RANGE(0x8c000000, 0x8cffffff) AM_RAM AM_SHARE("dc_ram")  // another RAM mirror
 
@@ -202,19 +163,19 @@ MACHINE_RESET_MEMBER(dc_cons_state,dc_console)
 	device_t *aica = machine().device("aica");
 	dc_state::machine_reset();
 	aica_set_ram_base(aica, dc_sound_ram, 2*1024*1024);
-	dreamcast_atapi_reset(machine());
+	dreamcast_atapi_reset();
 }
 
-static void aica_irq(device_t *device, int irq)
+WRITE_LINE_MEMBER(dc_cons_state::aica_irq)
 {
-	device->machine().device("soundcpu")->execute().set_input_line(ARM7_FIRQ_LINE, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu->set_input_line(ARM7_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 static const aica_interface dc_aica_interface =
 {
 	0,
 	0,
-	aica_irq
+	DEVCB_DRIVER_LINE_MEMBER(dc_cons_state,aica_irq)
 };
 
 static const struct sh4_config sh4cpu_config = {  1,  0,  1,  0,  0,  0,  1,  1,  0, CPU_CLOCK };
@@ -243,10 +204,9 @@ static MACHINE_CONFIG_START( dc, dc_cons_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
-	MCFG_SCREEN_UPDATE_DRIVER(dc_cons_state, screen_update_dc)
-
+	MCFG_SCREEN_UPDATE_DEVICE("powervr2", powervr2_device, screen_update)
 	MCFG_PALETTE_LENGTH(0x1000)
-
+	MCFG_POWERVR2_ADD("powervr2", WRITE8(dc_state, pvr_irq))
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("aica", AICA, 0)

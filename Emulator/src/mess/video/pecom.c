@@ -14,7 +14,6 @@
 
 WRITE8_MEMBER(pecom_state::pecom_cdp1869_w)
 {
-
 	UINT16 ma = m_cdp1802->get_memory_address();
 
 	switch (offset + 3)
@@ -75,7 +74,7 @@ WRITE_LINE_MEMBER(pecom_state::pecom_prd_w)
 	// every other PRD triggers a DMAOUT request
 	if (m_dma)
 	{
-		machine().device(CDP1802_TAG)->execute().set_input_line(COSMAC_INPUT_LINE_DMAOUT, HOLD_LINE);
+		m_cdp1802->set_input_line(COSMAC_INPUT_LINE_DMAOUT, HOLD_LINE);
 	}
 
 	m_dma = !m_dma;
@@ -94,7 +93,6 @@ static CDP1869_INTERFACE( pecom_cdp1869_intf )
 
 VIDEO_START_MEMBER(pecom_state,pecom)
 {
-
 	/* allocate memory */
 	m_charram = auto_alloc_array(machine(), UINT8, PECOM_CHAR_RAM_SIZE);
 
@@ -113,6 +111,6 @@ MACHINE_CONFIG_FRAGMENT( pecom_video )
 
 	MCFG_CDP1869_ADD(CDP1869_TAG, CDP1869_DOT_CLK_PAL, pecom_cdp1869_intf, cdp1869_page_ram)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END

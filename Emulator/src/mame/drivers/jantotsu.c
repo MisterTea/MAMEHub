@@ -103,7 +103,9 @@ class jantotsu_state : public driver_device
 {
 public:
 	jantotsu_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_adpcm(*this, "adpcm") { }
 
 	/* sound-related */
 	UINT32   m_adpcm_pos;
@@ -131,6 +133,9 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_jantotsu(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(jan_adpcm_int);
+	required_device<cpu_device> m_maincpu;
+	required_device<msm5205_device> m_adpcm;
 };
 
 
@@ -142,7 +147,6 @@ public:
 
 void jantotsu_state::video_start()
 {
-
 	save_item(NAME(m_bitmap));
 }
 
@@ -192,7 +196,6 @@ WRITE8_MEMBER(jantotsu_state::jantotsu_bitmap_w)
 
 WRITE8_MEMBER(jantotsu_state::bankaddr_w)
 {
-
 	m_vram_bank = ((data & 0xc0) >> 6);
 
 	m_display_on = (data & 2);
@@ -204,7 +207,7 @@ WRITE8_MEMBER(jantotsu_state::bankaddr_w)
 
 void jantotsu_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int bit0, bit1, bit2, r, g, b;
 	int i;
 
@@ -269,14 +272,12 @@ READ8_MEMBER(jantotsu_state::jantotsu_dsw2_r)
 
 WRITE8_MEMBER(jantotsu_state::jan_adpcm_w)
 {
-	device_t *device = machine().device("adpcm");
-
 	switch (offset)
 	{
 		case 0:
 			m_adpcm_pos = (data & 0xff) * 0x100;
 			m_adpcm_idle = 0;
-			msm5205_reset_w(device, 0);
+			m_adpcm->reset_w(0);
 			/* I don't think that this will ever happen, it's there just to be sure
 			   (i.e. I'll probably never do a "nagare" in my entire life ;-) ) */
 			if(data & 0x20)
@@ -286,34 +287,32 @@ WRITE8_MEMBER(jantotsu_state::jan_adpcm_w)
 		/*same write as port 2? MSM sample ack? */
 		case 1:
 //          m_adpcm_idle = 1;
-//          msm5205_reset_w(device, 1);
+//          m_adpcm->reset_w(1);
 //          printf("%02x 1\n", data);
 			break;
 	}
 }
 
-static void jan_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(jantotsu_state::jan_adpcm_int)
 {
-	jantotsu_state *state = device->machine().driver_data<jantotsu_state>();
-
-	if (state->m_adpcm_pos >= 0x10000 || state->m_adpcm_idle)
+	if (m_adpcm_pos >= 0x10000 || m_adpcm_idle)
 	{
-		//state->m_adpcm_idle = 1;
-		msm5205_reset_w(device, 1);
-		state->m_adpcm_trigger = 0;
+		//m_adpcm_idle = 1;
+		m_adpcm->reset_w(1);
+		m_adpcm_trigger = 0;
 	}
 	else
 	{
-		UINT8 *ROM = device->machine().root_device().memregion("adpcm")->base();
+		UINT8 *ROM = memregion("adpcm")->base();
 
-		state->m_adpcm_data = ((state->m_adpcm_trigger ? (ROM[state->m_adpcm_pos] & 0x0f) : (ROM[state->m_adpcm_pos] & 0xf0) >> 4));
-		msm5205_data_w(device, state->m_adpcm_data & 0xf);
-		state->m_adpcm_trigger ^= 1;
-		if (state->m_adpcm_trigger == 0)
+		m_adpcm_data = ((m_adpcm_trigger ? (ROM[m_adpcm_pos] & 0x0f) : (ROM[m_adpcm_pos] & 0xf0) >> 4));
+		m_adpcm->data_w(m_adpcm_data & 0xf);
+		m_adpcm_trigger ^= 1;
+		if (m_adpcm_trigger == 0)
 		{
-			state->m_adpcm_pos++;
-			if ((ROM[state->m_adpcm_pos] & 0xff) == 0x70)
-				state->m_adpcm_idle = 1;
+			m_adpcm_pos++;
+			if ((ROM[m_adpcm_pos] & 0xff) == 0x70)
+				m_adpcm_idle = 1;
 		}
 	}
 }
@@ -467,7 +466,7 @@ INPUT_PORTS_END
 
 static const msm5205_interface msm5205_config =
 {
-	jan_adpcm_int,  /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(jantotsu_state,jan_adpcm_int),  /* interrupt function */
 	MSM5205_S64_4B  /* 6 KHz */
 };
 
@@ -490,7 +489,6 @@ static const sn76496_config psg_intf =
 
 void jantotsu_state::machine_start()
 {
-
 	save_item(NAME(m_vram_bank));
 	save_item(NAME(m_mux_data));
 	save_item(NAME(m_adpcm_pos));
@@ -501,7 +499,6 @@ void jantotsu_state::machine_start()
 
 void jantotsu_state::machine_reset()
 {
-
 	/*Load hard-wired background color.*/
 	m_col_bank = (ioport("DSW2")->read() & 0xc0) >> 3;
 

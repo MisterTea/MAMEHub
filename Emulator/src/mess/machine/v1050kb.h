@@ -12,7 +12,6 @@
 #ifndef __V1050_KEYBOARD__
 #define __V1050_KEYBOARD__
 
-
 #include "emu.h"
 #include "cpu/mcs48/mcs48.h"
 #include "sound/discrete.h"
@@ -33,10 +32,6 @@
 
 #define MCFG_V1050_KEYBOARD_ADD() \
 	MCFG_DEVICE_ADD(V1050_KEYBOARD_TAG, V1050_KEYBOARD, 0)
-
-
-#define V1050_KEYBOARD_INTERFACE(_name) \
-	const V1050_keyboard_interface (_name) =
 
 
 
@@ -69,11 +64,22 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "v1050kb"; }
 
 private:
 	required_device<cpu_device> m_maincpu;
 	required_device<discrete_sound_device> m_discrete;
+	required_ioport m_y0;
+	required_ioport m_y1;
+	required_ioport m_y2;
+	required_ioport m_y3;
+	required_ioport m_y4;
+	required_ioport m_y5;
+	required_ioport m_y6;
+	required_ioport m_y7;
+	required_ioport m_y8;
+	required_ioport m_y9;
+	required_ioport m_ya;
+	required_ioport m_yb;
 
 	UINT8 m_y;
 	int m_so;

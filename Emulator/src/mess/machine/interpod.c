@@ -85,23 +85,6 @@ const device_type INTERPOD = &device_creator<interpod_device>;
 //**************************************************************************
 
 //-------------------------------------------------
-//  IEEE488_INTERFACE( ieee488_intf )
-//-------------------------------------------------
-
-static IEEE488_INTERFACE( ieee488_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
 //  ROM( interpod )
 //-------------------------------------------------
 
@@ -128,7 +111,7 @@ const rom_entry *interpod_device::device_rom_region() const
 
 static ADDRESS_MAP_START( interpod_mem, AS_PROGRAM, 8, interpod_device )
 	AM_RANGE(0x0000, 0x007f) AM_MIRROR(0x3b80) AM_RAM // 6532
-	AM_RANGE(0x0400, 0x041f) AM_MIRROR(0x3be0) AM_DEVREADWRITE_LEGACY(R6532_TAG, riot6532_r, riot6532_w)
+	AM_RANGE(0x0400, 0x041f) AM_MIRROR(0x3be0) AM_DEVREADWRITE(R6532_TAG, riot6532_device, read, write)
 	AM_RANGE(0x2000, 0x2000) AM_MIRROR(0x9ffe) AM_DEVREADWRITE(MC6850_TAG, acia6850_device, status_read, control_write)
 	AM_RANGE(0x2001, 0x2001) AM_MIRROR(0x9ffe) AM_DEVREADWRITE(MC6850_TAG, acia6850_device, data_read, data_write)
 	AM_RANGE(0x4000, 0x47ff) AM_MIRROR(0xb800) AM_ROM AM_REGION(R6502_TAG, 0)
@@ -203,7 +186,7 @@ static MACHINE_CONFIG_FRAGMENT( interpod )
 	MCFG_RIOT6532_ADD(R6532_TAG, 1000000, riot_intf)
 	MCFG_ACIA6850_ADD(MC6850_TAG, acia_intf)
 
-	MCFG_CBM_IEEE488_ADD(ieee488_intf, NULL)
+	MCFG_CBM_IEEE488_ADD(NULL)
 MACHINE_CONFIG_END
 
 
@@ -227,7 +210,7 @@ machine_config_constructor interpod_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 interpod_device::interpod_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, INTERPOD, "Interpod", tag, owner, clock),
+	: device_t(mconfig, INTERPOD, "Interpod", tag, owner, clock, "interpod", __FILE__),
 		device_cbm_iec_interface(mconfig, *this),
 		m_maincpu(*this, R6502_TAG),
 		m_via(*this, R6522_TAG),
@@ -236,18 +219,6 @@ interpod_device::interpod_device(const machine_config &mconfig, const char *tag,
 		m_ieee(*this, IEEE488_TAG)
 {
 }
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void interpod_device::device_config_complete()
-{
-	m_shortname = "interpod";
-}
-
 
 //-------------------------------------------------
 //  device_start - device-specific startup

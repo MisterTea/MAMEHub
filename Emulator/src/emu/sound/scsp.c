@@ -192,7 +192,7 @@ struct scsp_state
 	unsigned char *SCSPRAM;
 	UINT32 SCSPRAM_LENGTH;
 	char Master;
-	void (*Int68kCB)(device_t *device, int irq);
+	devcb_resolved_write_line Int68kCB;
 	sound_stream * stream;
 
 	INT32 *buffertmpl,*buffertmpr;
@@ -221,6 +221,9 @@ struct scsp_state
 	UINT16 scsp_dmactrl;
 
 	UINT16 dma_regs[3];
+
+	UINT16 mcieb;
+	UINT16 mcipd;
 
 	int ARTABLE[64], DRTABLE[64];
 
@@ -283,30 +286,40 @@ static void CheckPendingIRQ(scsp_state *scsp)
 	if(pend&0x40)
 		if(en&0x40)
 		{
-			scsp->Int68kCB(scsp->device, scsp->IrqTimA);
+			scsp->Int68kCB(scsp->IrqTimA);
 			return;
 		}
 	if(pend&0x80)
 		if(en&0x80)
 		{
-			scsp->Int68kCB(scsp->device, scsp->IrqTimBC);
+			scsp->Int68kCB(scsp->IrqTimBC);
 			return;
 		}
 	if(pend&0x100)
 		if(en&0x100)
 		{
-			scsp->Int68kCB(scsp->device, scsp->IrqTimBC);
+			scsp->Int68kCB(scsp->IrqTimBC);
 			return;
 		}
 	if(pend&8)
 		if (en&8)
 		{
-			scsp->Int68kCB(scsp->device, scsp->IrqMidi);
+			scsp->Int68kCB(scsp->IrqMidi);
 			scsp->udata.data[0x20/2] &= ~8;
 			return;
 		}
 
-	scsp->Int68kCB(scsp->device, 0);
+	scsp->Int68kCB(0);
+}
+
+static void MainCheckPendingIRQ(scsp_state *scsp, UINT16 irq_type)
+{
+	scsp->mcipd |= irq_type;
+
+	if(scsp->mcipd & scsp->mcieb)
+		scsp->main_irq(1);
+	else
+		scsp->main_irq(0);
 }
 
 static void ResetInterrupts(scsp_state *scsp)
@@ -315,15 +328,15 @@ static void ResetInterrupts(scsp_state *scsp)
 
 	if (reset & 0x40)
 	{
-		scsp->Int68kCB(scsp->device, -scsp->IrqTimA);
+		scsp->Int68kCB(-scsp->IrqTimA);
 	}
 	if (reset & 0x180)
 	{
-		scsp->Int68kCB(scsp->device, -scsp->IrqTimBC);
+		scsp->Int68kCB(-scsp->IrqTimBC);
 	}
 	if (reset & 0x8)
 	{
-		scsp->Int68kCB(scsp->device, -scsp->IrqMidi);
+		scsp->Int68kCB(-scsp->IrqMidi);
 	}
 
 	CheckPendingIRQ(scsp);
@@ -339,6 +352,7 @@ static TIMER_CALLBACK( timerA_cb )
 	scsp->udata.data[0x18/2]|=scsp->TimCnt[0]>>8;
 
 	CheckPendingIRQ(scsp);
+	MainCheckPendingIRQ(scsp, 0x40);
 }
 
 static TIMER_CALLBACK( timerB_cb )
@@ -725,6 +739,11 @@ static void SCSP_UpdateReg(scsp_state *scsp, address_space &space, int reg)
 		case 0x7:
 			scsp_midi_in(space.machine().device("scsp"), space, 0, scsp->udata.data[0x6/2]&0xff, 0);
 			break;
+		case 8:
+		case 9:
+			/* Only MSLC could be written. */
+			scsp->udata.data[0x8/2] &= 0x7800;
+			break;
 		case 0x12:
 		case 0x13:
 		case 0x14:
@@ -789,6 +808,24 @@ static void SCSP_UpdateReg(scsp_state *scsp, address_space &space, int reg)
 				}
 			}
 			break;
+		case 0x1e: // SCIEB
+		case 0x1f:
+			if(scsp->Master)
+			{
+				CheckPendingIRQ(scsp);
+
+				if(scsp->udata.data[0x1e/2] & 0x610)
+					popmessage("SCSP SCIEB enabled %04x, contact MAMEdev",scsp->udata.data[0x1e/2]);
+			}
+			break;
+		case 0x20: // SCIPD
+		case 0x21:
+			if(scsp->Master)
+			{
+				if(scsp->udata.data[0x1e/2] & scsp->udata.data[0x20/2] & 0x20)
+					popmessage("SCSP SCIPD write %04x, contact MAMEdev",scsp->udata.data[0x20/2]);
+			}
+			break;
 		case 0x22:  //SCIRE
 		case 0x23:
 
@@ -826,12 +863,30 @@ static void SCSP_UpdateReg(scsp_state *scsp, address_space &space, int reg)
 				scsp->IrqMidi=DecodeSCI(scsp,SCIMID);
 			}
 			break;
+		case 0x2a:
+		case 0x2b:
+			scsp->mcieb = scsp->udata.data[0x2a/2];
+
+			MainCheckPendingIRQ(scsp, 0);
+			if(scsp->mcieb & ~0x60)
+				popmessage("SCSP MCIEB enabled %04x, contact MAMEdev",scsp->mcieb);
+			break;
+		case 0x2c:
+		case 0x2d:
+			if(scsp->udata.data[0x2c/2] & 0x20)
+				MainCheckPendingIRQ(scsp, 0x20);
+			break;
+		case 0x2e:
+		case 0x2f:
+			scsp->mcipd &= ~scsp->udata.data[0x2e/2];
+			MainCheckPendingIRQ(scsp, 0);
+			break;
+
 	}
 }
 
 static void SCSP_UpdateSlotRegR(scsp_state *scsp, int slot,int reg)
 {
-
 }
 
 static void SCSP_UpdateRegR(scsp_state *scsp, address_space &space, int reg)
@@ -844,7 +899,7 @@ static void SCSP_UpdateRegR(scsp_state *scsp, address_space &space, int reg)
 				unsigned short v=scsp->udata.data[0x5/2];
 				v&=0xff00;
 				v|=scsp->MidiStack[scsp->MidiR];
-				scsp->Int68kCB(scsp->device, -scsp->IrqMidi);   // cancel the IRQ
+				scsp->Int68kCB(-scsp->IrqMidi);   // cancel the IRQ
 				logerror("Read %x from SCSP MIDI\n", v);
 				if(scsp->MidiR!=scsp->MidiW)
 				{
@@ -864,7 +919,8 @@ static void SCSP_UpdateRegR(scsp_state *scsp, address_space &space, int reg)
 				unsigned int SGC = (slot->EG.state) & 3;
 				unsigned int CA = (slot->cur_addr>>(SHIFT+12)) & 0xf;
 				unsigned int EG = (0x1f - (slot->EG.volume>>(EG_SHIFT+5))) & 0x1f;
-				scsp->udata.data[0x8/2] =  (MSLC << 11) | (CA << 7) | (SGC << 5) | EG;
+				/* note: according to the manual MSLC is write only, CA, SGC and EG read only.  */
+				scsp->udata.data[0x8/2] =  /*(MSLC << 11) |*/ (CA << 7) | (SGC << 5) | EG;
 			}
 			break;
 
@@ -878,6 +934,16 @@ static void SCSP_UpdateRegR(scsp_state *scsp, address_space &space, int reg)
 
 		case 0x1c:
 		case 0x1d:
+			break;
+
+		case 0x2a:
+		case 0x2b:
+			scsp->udata.data[0x2a/2] = scsp->mcieb;
+			break;
+
+		case 0x2c:
+		case 0x2d:
+			scsp->udata.data[0x2c/2] = scsp->mcipd;
 			break;
 	}
 }
@@ -944,6 +1010,81 @@ static unsigned short SCSP_r16(scsp_state *scsp, address_space &space, unsigned 
 	}
 	else if(addr<0x700)
 		v=scsp->RINGBUF[(addr-0x600)/2];
+	else
+	{
+		//DSP
+		if(addr<0x780)  //COEF
+			v= *((unsigned short *) (scsp->DSP.COEF+(addr-0x700)/2));
+		else if(addr<0x800)
+			v= *((unsigned short *) (scsp->DSP.MADRS+(addr-0x780)/2));
+		else if(addr<0xC00)
+			v= *((unsigned short *) (scsp->DSP.MPRO+(addr-0x800)/2));
+		else if(addr<0xE00)
+		{
+			if(addr & 2)
+				v= scsp->DSP.TEMP[(addr >> 2) & 0x7f] & 0xffff;
+			else
+				v= scsp->DSP.TEMP[(addr >> 2) & 0x7f] >> 16;
+		}
+		else if(addr<0xE80)
+		{
+			if(addr & 2)
+				v= scsp->DSP.MEMS[(addr >> 2) & 0x1f] & 0xffff;
+			else
+				v= scsp->DSP.MEMS[(addr >> 2) & 0x1f] >> 16;
+		}
+		else if(addr<0xEC0)
+		{
+			if(addr & 2)
+				v= scsp->DSP.MIXS[(addr >> 2) & 0xf] & 0xffff;
+			else
+				v= scsp->DSP.MIXS[(addr >> 2) & 0xf] >> 16;
+		}
+		else if(addr<0xEE0)
+			v= *((unsigned short *) (scsp->DSP.EFREG+(addr-0xec0)/2));
+		else
+		{
+			/*
+			TODO: Kyuutenkai reads from 0xee0/0xee2, it's an undocumented "DSP internal buffer" register ...
+			004A3A: 207C 0010 0EE0             movea.l #$100ee0, A0
+			004A40: 43EA 0090                  lea     ($90,A2), A1 ;A2=0x700
+			004A44: 6100 0254                  bsr     $4c9a
+			004A48: 207C 0010 0EE2             movea.l #$100ee2, A0
+			004A4E: 43EA 0092                  lea     ($92,A2), A1
+			004A52: 6100 0246                  bsr     $4c9a
+			004A56: 207C 0010 0ED2             movea.l #$100ed2, A0
+			004A5C: 43EA 0094                  lea     ($94,A2), A1
+			004A60: 6100 0238                  bsr     $4c9a
+			004A64: 3540 0096                  move.w  D0, ($96,A2)
+			004A68: 207C 0010 0ED4             movea.l #$100ed4, A0
+			004A6E: 43EA 0098                  lea     ($98,A2), A1
+			004A72: 6100 0226                  bsr     $4c9a
+			004A76: 3540 009A                  move.w  D0, ($9a,A2)
+			004A7A: 207C 0010 0ED6             movea.l #$100ed6, A0
+			004A80: 43EA 009C                  lea     ($9c,A2), A1
+			004A84: 6100 0214                  bsr     $4c9a
+			004A88: 3540 009E                  move.w  D0, ($9e,A2)
+			004A8C: 4E75                       rts
+
+			    004C9A: 48E7 4000                  movem.l D1, -(A7)
+			    004C9E: 3010                       move.w  (A0), D0 ;reads from 0x100ee0/ee2
+			    004CA0: 4A40                       tst.w   D0
+			    004CA2: 6A00 0004                  bpl     $4ca8
+			    004CA6: 4440                       neg.w   D0
+			    004CA8: 3211                       move.w  (A1), D1
+			    004CAA: D041                       add.w   D1, D0
+			    004CAC: E248                       lsr.w   #1, D0
+			    004CAE: 3280                       move.w  D0, (A1) ;writes to RAM buffer 0x790/0x792
+			    004CB0: 4CDF 0002                  movem.l (A7)+, D1
+			    004CB4: 4E75                       rts
+			*/
+			logerror("SCSP: Reading from unmapped register %08x\n",addr);
+			if(addr == 0xee0)
+				v= scsp->DSP.TEMP[0] >> 16;
+			if(addr == 0xee2)
+				v= scsp->DSP.TEMP[0] & 0xffff;
+		}
+	}
 	return v;
 }
 
@@ -1271,7 +1412,7 @@ static DEVICE_START( scsp )
 
 	// set up the IRQ callbacks
 	{
-		scsp->Int68kCB = intf->irq_callback;
+		scsp->Int68kCB.resolve(intf->irq_callback,*device);
 
 		scsp->stream = device->machine().sound().stream_alloc(*device, 0, 2, 44100, scsp, SCSP_Update);
 	}
@@ -1322,13 +1463,6 @@ WRITE16_DEVICE_HANDLER( scsp_w )
 			COMBINE_DATA(&scsp->dma_regs[((offset-0x412)/2) & 3]);
 			if(ACCESSING_BITS_8_15 && offset*2 == 0x416)
 				dma_scsp(space, scsp);
-			break;
-		case 0x42a:     //check main cpu IRQ
-			scsp->main_irq(1);
-			break;
-		case 0x42c:
-			break;
-		case 0x42e:
 			break;
 	}
 }

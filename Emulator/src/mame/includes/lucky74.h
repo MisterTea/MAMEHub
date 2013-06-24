@@ -1,12 +1,16 @@
+#include "sound/msm5205.h"
+
 class lucky74_state : public driver_device
 {
 public:
 	lucky74_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fg_videoram(*this, "fg_videoram"),
 		m_fg_colorram(*this, "fg_colorram"),
 		m_bg_videoram(*this, "bg_videoram"),
-		m_bg_colorram(*this, "bg_colorram"){ }
+		m_bg_colorram(*this, "bg_colorram"),
+		m_maincpu(*this, "maincpu"),
+		m_msm(*this, "msm") { }
 
 	UINT8 m_ym2149_portb;
 	UINT8 m_usart_8251;
@@ -41,4 +45,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_lucky74(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(nmi_interrupt);
+	DECLARE_WRITE_LINE_MEMBER(lucky74_adpcm_int);
+	required_device<cpu_device> m_maincpu;
+	required_device<msm5205_device> m_msm;
 };

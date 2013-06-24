@@ -85,15 +85,15 @@ class running_machine;
 // generic_ptr is a union of pointers to various sizes
 union generic_ptr
 {
-  void *      v;
-  INT8 *      i8;
-  UINT8 *     u8;
-  INT16 *     i16;
-  UINT16 *    u16;
-  INT32 *     i32;
-  UINT32 *    u32;
-  INT64 *     i64;
-  UINT64 *    u64;
+	void *      v;
+	INT8 *      i8;
+	UINT8 *     u8;
+	INT16 *     i16;
+	UINT16 *    u16;
+	INT32 *     i32;
+	UINT32 *    u32;
+	INT64 *     i64;
+	UINT64 *    u64;
 };
 
 
@@ -101,18 +101,33 @@ union generic_ptr
 union PAIR
 {
 #ifdef LSB_FIRST
-  struct { UINT8 l,h,h2,h3; } b;
-  struct { UINT16 l,h; } w;
-  struct { INT8 l,h,h2,h3; } sb;
-  struct { INT16 l,h; } sw;
+	struct { UINT8 l,h,h2,h3; } b;
+	struct { UINT16 l,h; } w;
+	struct { INT8 l,h,h2,h3; } sb;
+	struct { INT16 l,h; } sw;
 #else
-  struct { UINT8 h3,h2,h,l; } b;
-  struct { INT8 h3,h2,h,l; } sb;
-  struct { UINT16 h,l; } w;
-  struct { INT16 h,l; } sw;
+	struct { UINT8 h3,h2,h,l; } b;
+	struct { INT8 h3,h2,h,l; } sb;
+	struct { UINT16 h,l; } w;
+	struct { INT16 h,l; } sw;
 #endif
-  UINT32 d;
-  INT32 sd;
+	UINT32 d;
+	INT32 sd;
+};
+
+
+// PAIR16 is a 16-bit extension of a PAIR
+union PAIR16
+{
+#ifdef LSB_FIRST
+	struct { UINT8 l,h; } b;
+	struct { INT8 l,h; } sb;
+#else
+	struct { UINT8 h,l; } b;
+	struct { INT8 h,l; } sb;
+#endif
+	UINT16 w;
+	INT16 sw;
 };
 
 
@@ -120,22 +135,22 @@ union PAIR
 union PAIR64
 {
 #ifdef LSB_FIRST
-  struct { UINT8 l,h,h2,h3,h4,h5,h6,h7; } b;
-  struct { UINT16 l,h,h2,h3; } w;
-  struct { UINT32 l,h; } d;
-  struct { INT8 l,h,h2,h3,h4,h5,h6,h7; } sb;
-  struct { INT16 l,h,h2,h3; } sw;
-  struct { INT32 l,h; } sd;
+	struct { UINT8 l,h,h2,h3,h4,h5,h6,h7; } b;
+	struct { UINT16 l,h,h2,h3; } w;
+	struct { UINT32 l,h; } d;
+	struct { INT8 l,h,h2,h3,h4,h5,h6,h7; } sb;
+	struct { INT16 l,h,h2,h3; } sw;
+	struct { INT32 l,h; } sd;
 #else
-  struct { UINT8 h7,h6,h5,h4,h3,h2,h,l; } b;
-  struct { UINT16 h3,h2,h,l; } w;
-  struct { UINT32 h,l; } d;
-  struct { INT8 h7,h6,h5,h4,h3,h2,h,l; } sb;
-  struct { INT16 h3,h2,h,l; } sw;
-  struct { INT32 h,l; } sd;
+	struct { UINT8 h7,h6,h5,h4,h3,h2,h,l; } b;
+	struct { UINT16 h3,h2,h,l; } w;
+	struct { UINT32 h,l; } d;
+	struct { INT8 h7,h6,h5,h4,h3,h2,h,l; } sb;
+	struct { INT16 h3,h2,h,l; } sw;
+	struct { INT32 h,l; } sd;
 #endif
-  UINT64 q;
-  INT64 sq;
+	UINT64 q;
+	INT64 sq;
 };
 
 
@@ -146,10 +161,10 @@ union PAIR64
 
 // constants for expression endianness
 enum endianness_t
-  {
-    ENDIANNESS_LITTLE,
-    ENDIANNESS_BIG
-  };
+{
+	ENDIANNESS_LITTLE,
+	ENDIANNESS_BIG
+};
 
 
 // declare native endianness to be one or the other
@@ -184,18 +199,17 @@ const endianness_t ENDIANNESS_NATIVE = ENDIANNESS_BIG;
 //**************************************************************************
 
 // macro for defining a copy constructor and assignment operator to prevent copying
-#define DISABLE_COPYING(_Type)                  \
-  private:                                      \
-  _Type(const _Type &);                         \
-  _Type &operator=(const _Type &)               \
-
+#define DISABLE_COPYING(_Type) \
+private: \
+	_Type(const _Type &); \
+	_Type &operator=(const _Type &)
 
 // macro for declaring enumerator operators that increment/decrement like plain old C
-#define DECLARE_ENUM_OPERATORS(_Type)                                   \
-  inline void operator++(_Type &value) { value = (_Type)((int)value + 1); } \
-  inline void operator++(_Type &value, int) { value = (_Type)((int)value + 1); } \
-  inline void operator--(_Type &value) { value = (_Type)((int)value - 1); } \
-  inline void operator--(_Type &value, int) { value = (_Type)((int)value - 1); }
+#define DECLARE_ENUM_OPERATORS(_Type) \
+inline void operator++(_Type &value) { value = (_Type)((int)value + 1); } \
+inline void operator++(_Type &value, int) { value = (_Type)((int)value + 1); } \
+inline void operator--(_Type &value) { value = (_Type)((int)value - 1); } \
+inline void operator--(_Type &value, int) { value = (_Type)((int)value - 1); }
 
 
 // this macro passes an item followed by a string version of itself as two consecutive parameters
@@ -244,33 +258,33 @@ const endianness_t ENDIANNESS_NATIVE = ENDIANNESS_BIG;
 // useful macros to deal with bit shuffling encryptions
 #define BIT(x,n) (((x)>>(n))&1)
 
-#define BITSWAP8(val,B7,B6,B5,B4,B3,B2,B1,B0)                           \
-  ((BIT(val,B7) << 7) | (BIT(val,B6) << 6) | (BIT(val,B5) << 5) | (BIT(val,B4) << 4) | \
-   (BIT(val,B3) << 3) | (BIT(val,B2) << 2) | (BIT(val,B1) << 1) | (BIT(val,B0) << 0))
+#define BITSWAP8(val,B7,B6,B5,B4,B3,B2,B1,B0) \
+	((BIT(val,B7) << 7) | (BIT(val,B6) << 6) | (BIT(val,B5) << 5) | (BIT(val,B4) << 4) | \
+		(BIT(val,B3) << 3) | (BIT(val,B2) << 2) | (BIT(val,B1) << 1) | (BIT(val,B0) << 0))
 
 #define BITSWAP16(val,B15,B14,B13,B12,B11,B10,B9,B8,B7,B6,B5,B4,B3,B2,B1,B0) \
-  ((BIT(val,B15) << 15) | (BIT(val,B14) << 14) | (BIT(val,B13) << 13) | (BIT(val,B12) << 12) | \
-   (BIT(val,B11) << 11) | (BIT(val,B10) << 10) | (BIT(val, B9) <<  9) | (BIT(val, B8) <<  8) | \
-   (BIT(val, B7) <<  7) | (BIT(val, B6) <<  6) | (BIT(val, B5) <<  5) | (BIT(val, B4) <<  4) | \
-   (BIT(val, B3) <<  3) | (BIT(val, B2) <<  2) | (BIT(val, B1) <<  1) | (BIT(val, B0) <<  0))
+	((BIT(val,B15) << 15) | (BIT(val,B14) << 14) | (BIT(val,B13) << 13) | (BIT(val,B12) << 12) | \
+		(BIT(val,B11) << 11) | (BIT(val,B10) << 10) | (BIT(val, B9) <<  9) | (BIT(val, B8) <<  8) | \
+		(BIT(val, B7) <<  7) | (BIT(val, B6) <<  6) | (BIT(val, B5) <<  5) | (BIT(val, B4) <<  4) | \
+		(BIT(val, B3) <<  3) | (BIT(val, B2) <<  2) | (BIT(val, B1) <<  1) | (BIT(val, B0) <<  0))
 
 #define BITSWAP24(val,B23,B22,B21,B20,B19,B18,B17,B16,B15,B14,B13,B12,B11,B10,B9,B8,B7,B6,B5,B4,B3,B2,B1,B0) \
-  ((BIT(val,B23) << 23) | (BIT(val,B22) << 22) | (BIT(val,B21) << 21) | (BIT(val,B20) << 20) | \
-   (BIT(val,B19) << 19) | (BIT(val,B18) << 18) | (BIT(val,B17) << 17) | (BIT(val,B16) << 16) | \
-   (BIT(val,B15) << 15) | (BIT(val,B14) << 14) | (BIT(val,B13) << 13) | (BIT(val,B12) << 12) | \
-   (BIT(val,B11) << 11) | (BIT(val,B10) << 10) | (BIT(val, B9) <<  9) | (BIT(val, B8) <<  8) | \
-   (BIT(val, B7) <<  7) | (BIT(val, B6) <<  6) | (BIT(val, B5) <<  5) | (BIT(val, B4) <<  4) | \
-   (BIT(val, B3) <<  3) | (BIT(val, B2) <<  2) | (BIT(val, B1) <<  1) | (BIT(val, B0) <<  0))
+	((BIT(val,B23) << 23) | (BIT(val,B22) << 22) | (BIT(val,B21) << 21) | (BIT(val,B20) << 20) | \
+		(BIT(val,B19) << 19) | (BIT(val,B18) << 18) | (BIT(val,B17) << 17) | (BIT(val,B16) << 16) | \
+		(BIT(val,B15) << 15) | (BIT(val,B14) << 14) | (BIT(val,B13) << 13) | (BIT(val,B12) << 12) | \
+		(BIT(val,B11) << 11) | (BIT(val,B10) << 10) | (BIT(val, B9) <<  9) | (BIT(val, B8) <<  8) | \
+		(BIT(val, B7) <<  7) | (BIT(val, B6) <<  6) | (BIT(val, B5) <<  5) | (BIT(val, B4) <<  4) | \
+		(BIT(val, B3) <<  3) | (BIT(val, B2) <<  2) | (BIT(val, B1) <<  1) | (BIT(val, B0) <<  0))
 
 #define BITSWAP32(val,B31,B30,B29,B28,B27,B26,B25,B24,B23,B22,B21,B20,B19,B18,B17,B16,B15,B14,B13,B12,B11,B10,B9,B8,B7,B6,B5,B4,B3,B2,B1,B0) \
-  ((BIT(val,B31) << 31) | (BIT(val,B30) << 30) | (BIT(val,B29) << 29) | (BIT(val,B28) << 28) | \
-   (BIT(val,B27) << 27) | (BIT(val,B26) << 26) | (BIT(val,B25) << 25) | (BIT(val,B24) << 24) | \
-   (BIT(val,B23) << 23) | (BIT(val,B22) << 22) | (BIT(val,B21) << 21) | (BIT(val,B20) << 20) | \
-   (BIT(val,B19) << 19) | (BIT(val,B18) << 18) | (BIT(val,B17) << 17) | (BIT(val,B16) << 16) | \
-   (BIT(val,B15) << 15) | (BIT(val,B14) << 14) | (BIT(val,B13) << 13) | (BIT(val,B12) << 12) | \
-   (BIT(val,B11) << 11) | (BIT(val,B10) << 10) | (BIT(val, B9) <<  9) | (BIT(val, B8) <<  8) | \
-   (BIT(val, B7) <<  7) | (BIT(val, B6) <<  6) | (BIT(val, B5) <<  5) | (BIT(val, B4) <<  4) | \
-   (BIT(val, B3) <<  3) | (BIT(val, B2) <<  2) | (BIT(val, B1) <<  1) | (BIT(val, B0) <<  0))
+	((BIT(val,B31) << 31) | (BIT(val,B30) << 30) | (BIT(val,B29) << 29) | (BIT(val,B28) << 28) | \
+		(BIT(val,B27) << 27) | (BIT(val,B26) << 26) | (BIT(val,B25) << 25) | (BIT(val,B24) << 24) | \
+		(BIT(val,B23) << 23) | (BIT(val,B22) << 22) | (BIT(val,B21) << 21) | (BIT(val,B20) << 20) | \
+		(BIT(val,B19) << 19) | (BIT(val,B18) << 18) | (BIT(val,B17) << 17) | (BIT(val,B16) << 16) | \
+		(BIT(val,B15) << 15) | (BIT(val,B14) << 14) | (BIT(val,B13) << 13) | (BIT(val,B12) << 12) | \
+		(BIT(val,B11) << 11) | (BIT(val,B10) << 10) | (BIT(val, B9) <<  9) | (BIT(val, B8) <<  8) | \
+		(BIT(val, B7) <<  7) | (BIT(val, B6) <<  6) | (BIT(val, B5) <<  5) | (BIT(val, B4) <<  4) | \
+		(BIT(val, B3) <<  3) | (BIT(val, B2) <<  2) | (BIT(val, B1) <<  1) | (BIT(val, B0) <<  0))
 
 
 
@@ -285,45 +299,45 @@ class emu_exception : public std::exception { };
 // emu_fatalerror is a generic fatal exception that provides an error string
 class emu_fatalerror : public emu_exception
 {
- public:
- emu_fatalerror(const char *format, ...)
-   : code(0)
-    {
-      va_list ap;
-      va_start(ap, format);
-      vsprintf(text, format, ap);
-      va_end(ap);
-      //osd_break_into_debugger(text);
-    }
+public:
+	emu_fatalerror(const char *format, ...)
+		: code(0)
+	{
+		va_list ap;
+		va_start(ap, format);
+		vsprintf(text, format, ap);
+		va_end(ap);
+		osd_break_into_debugger(text);
+	}
 
- emu_fatalerror(const char *format, va_list ap)
-   : code(0)
-    {
-      vsprintf(text, format, ap);
-      //osd_break_into_debugger(text);
-    }
+	emu_fatalerror(const char *format, va_list ap)
+		: code(0)
+	{
+		vsprintf(text, format, ap);
+		osd_break_into_debugger(text);
+	}
 
- emu_fatalerror(int _exitcode, const char *format, ...)
-   : code(_exitcode)
-  {
-    va_list ap;
-    va_start(ap, format);
-    vsprintf(text, format, ap);
-    va_end(ap);
-  }
+	emu_fatalerror(int _exitcode, const char *format, ...)
+		: code(_exitcode)
+	{
+		va_list ap;
+		va_start(ap, format);
+		vsprintf(text, format, ap);
+		va_end(ap);
+	}
 
- emu_fatalerror(int _exitcode, const char *format, va_list ap)
-   : code(_exitcode)
-  {
-    vsprintf(text, format, ap);
-  }
+	emu_fatalerror(int _exitcode, const char *format, va_list ap)
+		: code(_exitcode)
+	{
+		vsprintf(text, format, ap);
+	}
 
-  const char *string() const { return text; }
-  int exitcode() const { return code; }
+	const char *string() const { return text; }
+	int exitcode() const { return code; }
 
- private:
-  char text[1024];
-  int code;
+private:
+	char text[1024];
+	int code;
 };
 
 
@@ -340,70 +354,45 @@ void report_bad_device_cast(const device_t *dev, const std::type_info &src_type,
 // template function for casting from a base class to a derived class that is checked
 // in debug builds and fast in release builds
 template<class _Dest, class _Source>
-  inline _Dest downcast(_Source *src)
+inline _Dest downcast(_Source *src)
 {
 #ifdef MAME_DEBUG
-  try {
-    if (dynamic_cast<_Dest>(src) != src)
-      {
-        if (dynamic_cast<const device_t *>(src) != NULL)
-          report_bad_device_cast(dynamic_cast<const device_t *>(src), typeid(src), typeid(_Dest));
-        else
-          report_bad_cast(typeid(src), typeid(_Dest));
-      }
-  }
-  catch (std::bad_cast &)
-    {
-      report_bad_cast(typeid(src), typeid(_Dest));
-    }
+	try {
+		if (dynamic_cast<_Dest>(src) != src)
+		{
+			if (dynamic_cast<const device_t *>(src) != NULL)
+				report_bad_device_cast(dynamic_cast<const device_t *>(src), typeid(src), typeid(_Dest));
+			else
+				report_bad_cast(typeid(src), typeid(_Dest));
+		}
+	}
+	catch (std::bad_cast &)
+	{
+		report_bad_cast(typeid(src), typeid(_Dest));
+	}
 #endif
-  return static_cast<_Dest>(src);
+	return static_cast<_Dest>(src);
 }
 
 template<class _Dest, class _Source>
-  inline _Dest downcast(_Source &src)
+inline _Dest downcast(_Source &src)
 {
 #ifdef MAME_DEBUG
-  try {
-    if (&dynamic_cast<_Dest>(src) != &src)
-      {
-        if (dynamic_cast<const device_t *>(&src) != NULL)
-          report_bad_device_cast(dynamic_cast<const device_t *>(&src), typeid(src), typeid(_Dest));
-        else
-          report_bad_cast(typeid(src), typeid(_Dest));
-      }
-  }
-  catch (std::bad_cast &)
-    {
-      report_bad_cast(typeid(src), typeid(_Dest));
-    }
+	try {
+		if (&dynamic_cast<_Dest>(src) != &src)
+		{
+			if (dynamic_cast<const device_t *>(&src) != NULL)
+				report_bad_device_cast(dynamic_cast<const device_t *>(&src), typeid(src), typeid(_Dest));
+			else
+				report_bad_cast(typeid(src), typeid(_Dest));
+		}
+	}
+	catch (std::bad_cast &)
+	{
+		report_bad_cast(typeid(src), typeid(_Dest));
+	}
 #endif
-  return static_cast<_Dest>(src);
-}
-
-
-// template function for cross-casting from one class to another that throws a bad_cast
-// exception instead of returning NULL
-template<class _Dest, class _Source>
-  inline _Dest crosscast(_Source *src)
-{
-  _Dest result;
-#ifdef MAME_DEBUG
-  try
-    {
-#endif
-      result = dynamic_cast<_Dest>(src);
-#ifdef MAME_DEBUG
-    }
-  catch (std::bad_cast &)
-    {
-      report_bad_cast(typeid(src), typeid(_Dest));
-    }
-#endif
-  assert(result != NULL);
-  if (result == NULL)
-    throw std::bad_cast();
-  return result;
+	return static_cast<_Dest>(src);
 }
 
 
@@ -417,20 +406,20 @@ DECL_NORETURN void fatalerror_exitcode(running_machine &machine, int exitcode, c
 
 inline void fatalerror(const char *format, ...)
 {
-  va_list ap;
-  va_start(ap, format);
-  emu_fatalerror error(format, ap);
-  va_end(ap);
-  throw error;
+	va_list ap;
+	va_start(ap, format);
+	emu_fatalerror error(format, ap);
+	va_end(ap);
+	throw error;
 }
 
 inline void fatalerror_exitcode(running_machine &machine, int exitcode, const char *format, ...)
 {
-  va_list ap;
-  va_start(ap, format);
-  emu_fatalerror error(exitcode, format, ap);
-  va_end(ap);
-  throw error;
+	va_list ap;
+	va_start(ap, format);
+	emu_fatalerror error(exitcode, format, ap);
+	va_end(ap);
+	throw error;
 }
 
 
@@ -443,11 +432,11 @@ inline void fatalerror_exitcode(running_machine &machine, int exitcode, const ch
 #ifndef SDLMAME_NETBSD
 inline int popcount(UINT32 val)
 {
-  int count;
+	int count;
 
-  for (count = 0; val != 0; count++)
-    val &= val - 1;
-  return count;
+	for (count = 0; val != 0; count++)
+		val &= val - 1;
+	return count;
 }
 #endif
 
@@ -455,48 +444,48 @@ inline int popcount(UINT32 val)
 // convert a series of 32 bits into a float
 inline float u2f(UINT32 v)
 {
-  union {
-    float ff;
-    UINT32 vv;
-  } u;
-  u.vv = v;
-  return u.ff;
+	union {
+		float ff;
+		UINT32 vv;
+	} u;
+	u.vv = v;
+	return u.ff;
 }
 
 
 // convert a float into a series of 32 bits
 inline UINT32 f2u(float f)
 {
-  union {
-    float ff;
-    UINT32 vv;
-  } u;
-  u.ff = f;
-  return u.vv;
+	union {
+		float ff;
+		UINT32 vv;
+	} u;
+	u.ff = f;
+	return u.vv;
 }
 
 
 // convert a series of 64 bits into a double
 inline double u2d(UINT64 v)
 {
-  union {
-    double dd;
-    UINT64 vv;
-  } u;
-  u.vv = v;
-  return u.dd;
+	union {
+		double dd;
+		UINT64 vv;
+	} u;
+	u.vv = v;
+	return u.dd;
 }
 
 
 // convert a double into a series of 64 bits
 inline UINT64 d2u(double d)
 {
-  union {
-    double dd;
-    UINT64 vv;
-  } u;
-  u.dd = d;
-  return u.vv;
+	union {
+		double dd;
+		UINT64 vv;
+	} u;
+	u.dd = d;
+	return u.vv;
 }
 
 #endif  /* __EMUCORE_H__ */

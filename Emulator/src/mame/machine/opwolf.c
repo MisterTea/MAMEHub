@@ -273,9 +273,24 @@ static const UINT16 *const level_data_lookup[] =
 };
 
 
+	void opwolf_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_OPWOLF:
+		opwolf_timer_callback(ptr, param);
+		break;
+	case TIMER_CCHIP:
+		cchip_timer(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in opwolf_state::device_timer");
+	}
+}
+
+
 TIMER_CALLBACK_MEMBER(opwolf_state::opwolf_timer_callback)
 {
-
 	// Level data command
 	if (m_current_cmd == 0xf5)
 	{
@@ -313,69 +328,67 @@ TIMER_CALLBACK_MEMBER(opwolf_state::opwolf_timer_callback)
 	m_current_cmd = 0;
 }
 
-static void updateDifficulty( running_machine &machine, int mode )
+void opwolf_state::updateDifficulty( int mode )
 {
-	opwolf_state *state = machine.driver_data<opwolf_state>();
-
 	// The game is made up of 6 rounds, when you complete the
 	// sixth you return to the start but with harder difficulty.
 	if (mode == 0)
 	{
-		switch (state->m_cchip_ram[0x15]&3) // Dipswitch B
+		switch (m_cchip_ram[0x15]&3) // Dipswitch B
 		{
 		case 3:
-			state->m_cchip_ram[0x2c] = 0x31;
-			state->m_cchip_ram[0x77] = 0x05;
-			state->m_cchip_ram[0x25] = 0x0f;
-			state->m_cchip_ram[0x26] = 0x0b;
+			m_cchip_ram[0x2c] = 0x31;
+			m_cchip_ram[0x77] = 0x05;
+			m_cchip_ram[0x25] = 0x0f;
+			m_cchip_ram[0x26] = 0x0b;
 			break;
 		case 0:
-			state->m_cchip_ram[0x2c] = 0x20;
-			state->m_cchip_ram[0x77] = 0x06;
-			state->m_cchip_ram[0x25] = 0x07;
-			state->m_cchip_ram[0x26] = 0x03;
+			m_cchip_ram[0x2c] = 0x20;
+			m_cchip_ram[0x77] = 0x06;
+			m_cchip_ram[0x25] = 0x07;
+			m_cchip_ram[0x26] = 0x03;
 			break;
 		case 1:
-			state->m_cchip_ram[0x2c] = 0x31;
-			state->m_cchip_ram[0x77] = 0x05;
-			state->m_cchip_ram[0x25] = 0x0f;
-			state->m_cchip_ram[0x26] = 0x0b;
+			m_cchip_ram[0x2c] = 0x31;
+			m_cchip_ram[0x77] = 0x05;
+			m_cchip_ram[0x25] = 0x0f;
+			m_cchip_ram[0x26] = 0x0b;
 			break;
 		case 2:
-			state->m_cchip_ram[0x2c] = 0x3c;
-			state->m_cchip_ram[0x77] = 0x04;
-			state->m_cchip_ram[0x25] = 0x13;
-			state->m_cchip_ram[0x26] = 0x0f;
+			m_cchip_ram[0x2c] = 0x3c;
+			m_cchip_ram[0x77] = 0x04;
+			m_cchip_ram[0x25] = 0x13;
+			m_cchip_ram[0x26] = 0x0f;
 			break;
 		}
 	}
 	else
 	{
-		switch (state->m_cchip_ram[0x15]&3) // Dipswitch B
+		switch (m_cchip_ram[0x15]&3) // Dipswitch B
 		{
 		case 3:
-			state->m_cchip_ram[0x2c] = 0x46;
-			state->m_cchip_ram[0x77] = 0x05;
-			state->m_cchip_ram[0x25] = 0x11;
-			state->m_cchip_ram[0x26] = 0x0e;
+			m_cchip_ram[0x2c] = 0x46;
+			m_cchip_ram[0x77] = 0x05;
+			m_cchip_ram[0x25] = 0x11;
+			m_cchip_ram[0x26] = 0x0e;
 			break;
 		case 0:
-			state->m_cchip_ram[0x2c] = 0x30;
-			state->m_cchip_ram[0x77] = 0x06;
-			state->m_cchip_ram[0x25] = 0x0b;
-			state->m_cchip_ram[0x26] = 0x03;
+			m_cchip_ram[0x2c] = 0x30;
+			m_cchip_ram[0x77] = 0x06;
+			m_cchip_ram[0x25] = 0x0b;
+			m_cchip_ram[0x26] = 0x03;
 			break;
 		case 1:
-			state->m_cchip_ram[0x2c] = 0x3a;
-			state->m_cchip_ram[0x77] = 0x05;
-			state->m_cchip_ram[0x25] = 0x0f;
-			state->m_cchip_ram[0x26] = 0x09;
+			m_cchip_ram[0x2c] = 0x3a;
+			m_cchip_ram[0x77] = 0x05;
+			m_cchip_ram[0x25] = 0x0f;
+			m_cchip_ram[0x26] = 0x09;
 			break;
 		case 2:
-			state->m_cchip_ram[0x2c] = 0x4c;
-			state->m_cchip_ram[0x77] = 0x04;
-			state->m_cchip_ram[0x25] = 0x19;
-			state->m_cchip_ram[0x26] = 0x11;
+			m_cchip_ram[0x2c] = 0x4c;
+			m_cchip_ram[0x77] = 0x04;
+			m_cchip_ram[0x25] = 0x19;
+			m_cchip_ram[0x26] = 0x11;
 			break;
 		};
 	}
@@ -396,7 +409,7 @@ WRITE16_MEMBER(opwolf_state::opwolf_cchip_status_w)
 
 	m_cchip_ram[0x3d] = 1;
 	m_cchip_ram[0x7a] = 1;
-	updateDifficulty(machine(), 0);
+	updateDifficulty(0);
 }
 
 WRITE16_MEMBER(opwolf_state::opwolf_cchip_bank_w)
@@ -406,7 +419,6 @@ WRITE16_MEMBER(opwolf_state::opwolf_cchip_bank_w)
 
 WRITE16_MEMBER(opwolf_state::opwolf_cchip_data_w)
 {
-
 	m_cchip_ram[(m_current_bank * 0x400) + offset] = data & 0xff;
 
 //  if (offset != 0x64 && offset != 0x65 && offset != 0x66 && offset != 0x67 && offset != 0x68 && offset != 0x69)
@@ -419,7 +431,7 @@ WRITE16_MEMBER(opwolf_state::opwolf_cchip_data_w)
 		if (offset == 0x14)
 		{
 #if OPWOLF_READ_COINAGE_FROM_ROM
-			UINT16* rom = (UINT16*)machine().root_device().memregion("maincpu")->base();
+			UINT16* rom = (UINT16*)memregion("maincpu")->base();
 			UINT32 coin_table[2] = {0, 0};
 			UINT8 coin_offset[2];
 			int slot;
@@ -487,7 +499,7 @@ WRITE16_MEMBER(opwolf_state::opwolf_cchip_data_w)
 		// Dip switch B
 		if (offset == 0x15)
 		{
-			updateDifficulty(machine(), 0);
+			updateDifficulty(0);
 		}
 	}
 }
@@ -510,7 +522,6 @@ READ16_MEMBER(opwolf_state::opwolf_cchip_status_r)
 
 READ16_MEMBER(opwolf_state::opwolf_cchip_data_r)
 {
-
 //  if (offset!=0x7f && offset!=0x1c && offset!=0x1d && offset!=0x1e && offset!=0x1f && offset!=0x20 && space.device().safe_pc()!=0xc18 && space.device().safe_pc()!=0xc2e && space.device().safe_pc()!=0xc9e && offset!=0x50 && offset!=0x51 && offset!=0x52 && offset!=0x53 && offset!=0x5 && offset!=0x13 && offset!=0x79 && offset!=0x12 && offset!=0x34)
 //      logerror("%08x:  opwolf c read %04x (bank %04x)\n", space.device().safe_pc(), offset, m_current_bank);
 
@@ -525,7 +536,6 @@ READ16_MEMBER(opwolf_state::opwolf_cchip_data_r)
 
 TIMER_CALLBACK_MEMBER(opwolf_state::cchip_timer)
 {
-
 	// Update input ports, these are used by both the 68k directly and by the c-chip
 	m_cchip_ram[0x4] = ioport("IN0")->read();
 	m_cchip_ram[0x5] = ioport("IN1")->read();
@@ -636,14 +646,14 @@ TIMER_CALLBACK_MEMBER(opwolf_state::cchip_timer)
 		if (m_cchip_ram[0x76] == 0)
 		{
 			m_cchip_ram[0x76] = 1;
-			updateDifficulty(machine(), 1);
+			updateDifficulty(1);
 		}
 	}
 
 	// These variables are cleared every frame during attract mode and the intro.
 	if (m_cchip_ram[0x34] < 2)
 	{
-		updateDifficulty(machine(), 0);
+		updateDifficulty(0);
 		m_cchip_ram[0x76] = 0;
 		m_cchip_ram[0x75] = 0;
 		m_cchip_ram[0x74] = 0;
@@ -689,7 +699,7 @@ TIMER_CALLBACK_MEMBER(opwolf_state::cchip_timer)
 	{
 		// Simulate time for command to execute (exact timing unknown, this is close)
 		m_current_cmd = 0xf5;
-		machine().scheduler().timer_set(m_maincpu->cycles_to_attotime(80000), timer_expired_delegate(FUNC(opwolf_state::opwolf_timer_callback),this));
+		timer_set(m_maincpu->cycles_to_attotime(80000), TIMER_OPWOLF);
 	}
 	m_cchip_last_7a = m_cchip_ram[0x7a];
 
@@ -704,6 +714,9 @@ TIMER_CALLBACK_MEMBER(opwolf_state::cchip_timer)
 	// These are set every frame
 	m_cchip_ram[0x64] = 0;
 	m_cchip_ram[0x66] = 0;
+
+	// Pulse the timer
+	timer_set(attotime::from_hz(60), TIMER_CCHIP);
 }
 
 /*************************************
@@ -712,38 +725,36 @@ TIMER_CALLBACK_MEMBER(opwolf_state::cchip_timer)
  *
  *************************************/
 
-void opwolf_cchip_init( running_machine &machine )
+void opwolf_state::opwolf_cchip_init(  )
 {
-	opwolf_state *state = machine.driver_data<opwolf_state>();
+	m_cchip_ram.allocate(0x400 * 8);
 
-	state->m_cchip_ram.allocate(0x400 * 8);
+	save_item(NAME(m_current_bank));
+	save_item(NAME(m_current_cmd));
+	save_item(NAME(m_cchip_last_7a));
+	save_item(NAME(m_cchip_last_04));
+	save_item(NAME(m_cchip_last_05));
+	save_item(NAME(m_c588));
+	save_item(NAME(m_c589));
+	save_item(NAME(m_c58a));
+	save_item(NAME(m_cchip_coins));
+	save_item(NAME(m_cchip_coins_for_credit));
+	save_item(NAME(m_cchip_credits_for_coin));
 
-	state->save_item(NAME(state->m_current_bank));
-	state->save_item(NAME(state->m_current_cmd));
-	state->save_item(NAME(state->m_cchip_last_7a));
-	state->save_item(NAME(state->m_cchip_last_04));
-	state->save_item(NAME(state->m_cchip_last_05));
-	state->save_item(NAME(state->m_c588));
-	state->save_item(NAME(state->m_c589));
-	state->save_item(NAME(state->m_c58a));
-	state->save_item(NAME(state->m_cchip_coins));
-	state->save_item(NAME(state->m_cchip_coins_for_credit));
-	state->save_item(NAME(state->m_cchip_credits_for_coin));
+	m_current_bank = 0;
+	m_current_cmd = 0;
+	m_cchip_last_7a = 0;
+	m_cchip_last_04 = 0xfc;
+	m_cchip_last_05 = 0xff;
+	m_c588 = 0;
+	m_c589 = 0;
+	m_c58a = 0;
+	m_cchip_coins[0] = 0;
+	m_cchip_coins[1] = 0;
+	m_cchip_coins_for_credit[0] = 1;
+	m_cchip_credits_for_coin[0] = 1;
+	m_cchip_coins_for_credit[1] = 1;
+	m_cchip_credits_for_coin[1] = 1;
 
-	state->m_current_bank = 0;
-	state->m_current_cmd = 0;
-	state->m_cchip_last_7a = 0;
-	state->m_cchip_last_04 = 0xfc;
-	state->m_cchip_last_05 = 0xff;
-	state->m_c588 = 0;
-	state->m_c589 = 0;
-	state->m_c58a = 0;
-	state->m_cchip_coins[0] = 0;
-	state->m_cchip_coins[1] = 0;
-	state->m_cchip_coins_for_credit[0] = 1;
-	state->m_cchip_credits_for_coin[0] = 1;
-	state->m_cchip_coins_for_credit[1] = 1;
-	state->m_cchip_credits_for_coin[1] = 1;
-
-	machine.scheduler().timer_pulse(attotime::from_hz(60), timer_expired_delegate(FUNC(opwolf_state::cchip_timer),state));
+	timer_set(attotime::from_hz(60), TIMER_CCHIP);
 }

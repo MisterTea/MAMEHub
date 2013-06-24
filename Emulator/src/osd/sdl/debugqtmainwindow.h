@@ -21,10 +21,8 @@ class MainWindow : public WindowQt
 	Q_OBJECT
 
 public:
-	MainWindow(device_t* processor,
-				running_machine* machine,
-				QWidget* parent=NULL);
-	virtual ~MainWindow() {}
+	MainWindow(running_machine* machine, QWidget* parent=NULL);
+	virtual ~MainWindow();
 
 	void setProcessor(device_t* processor);
 
@@ -44,6 +42,12 @@ private slots:
 
 	void executeCommand(bool withClear=true);
 
+	void mountImage(bool changedTo);
+	void unmountImage(bool changedTo);
+
+	// Closing the main window actually exits the program
+	void debugActClose();
+
 
 private:
 	// Widgets and docks
@@ -56,6 +60,8 @@ private:
 	int m_historyIndex;
 	std::vector<QString> m_inputHistory;
 	void addToHistory(const QString& command);
+
+	void createImagesMenu();
 };
 
 
@@ -157,6 +163,32 @@ private:
 
 	running_machine* m_machine;
 };
+
+
+//=========================================================================
+//  A way to store the configuration of a window long enough to read/write.
+//=========================================================================
+class MainWindowQtConfig : public WindowQtConfig
+{
+public:
+	MainWindowQtConfig() :
+		WindowQtConfig(WIN_TYPE_MAIN),
+		m_rightBar(0),
+		m_windowState()
+	{}
+
+	~MainWindowQtConfig() {}
+
+	// Settings
+	int m_rightBar;
+	QByteArray m_windowState;
+
+	void buildFromQWidget(QWidget* widget);
+	void applyToQWidget(QWidget* widget);
+	void addToXmlDataNode(xml_data_node* node) const;
+	void recoverFromXmlNode(xml_data_node* node);
+};
+
 
 
 #endif

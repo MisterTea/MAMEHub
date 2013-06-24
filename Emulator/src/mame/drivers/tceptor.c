@@ -89,13 +89,12 @@ WRITE8_MEMBER(tceptor_state::mcu_irq_disable_w)
 
 WRITE8_MEMBER(tceptor_state::voice_w)
 {
-	dac_device *device = machine().device<dac_device>("dac");
-	device->write_signed16(data ? (data + 1) * 0x100 : 0x8000);
+	m_dac->write_signed16(data ? (data + 1) * 0x100 : 0x8000);
 }
 
 
 /* fix dsw/input data to memory mapped data */
-static UINT8 fix_input0(UINT8 in1, UINT8 in2)
+UINT8 tceptor_state::fix_input0(UINT8 in1, UINT8 in2)
 {
 	UINT8 r = 0;
 
@@ -111,7 +110,7 @@ static UINT8 fix_input0(UINT8 in1, UINT8 in2)
 	return r;
 }
 
-static UINT8 fix_input1(UINT8 in1, UINT8 in2)
+UINT8 tceptor_state::fix_input1(UINT8 in1, UINT8 in2)
 {
 	UINT8 r = 0;
 
@@ -339,9 +338,9 @@ static const namco_interface namco_config =
 
 void tceptor_state::machine_start()
 {
-	state_save_register_global(machine(), m_m6809_irq_enable);
-	state_save_register_global(machine(), m_m68k_irq_enable);
-	state_save_register_global(machine(), m_mcu_irq_enable);
+	save_item(NAME(m_m6809_irq_enable));
+	save_item(NAME(m_m68k_irq_enable));
+	save_item(NAME(m_mcu_irq_enable));
 }
 
 

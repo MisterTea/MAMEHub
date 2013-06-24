@@ -72,8 +72,8 @@
         It has a main board with a 3Dfx video card and is hard drive based. This series started with
         GT Fore! in 2000 and continued through 2006 ending with Golden Tee Complete. This final
         version incuded all the courses from all the previous years in the Fore! series.
-        The Eagle platform also supports I.T.'s hunting series "Big Buck Hunter" and the light game
-        gun called Carnival King.
+        The Eagle platform also supports I.T.'s hunting series "Big Buck Hunter", the light game gun
+        called Carnival King as well as the limited release game Virtual Pool.
 
         Some time in 2004 I.T. introduced a new bowling game called Silver Strike Bowling on a full
         blown PC system known as "Nighthawk System Box" (AKA The Nighthawk Chassis) to replace it's
@@ -374,42 +374,41 @@ Notes:
  *
  *************************************/
 
-INLINE int determine_irq_state(itech32_state *state, int vint, int xint, int qint)
+inline int itech32_state::determine_irq_state(int vint, int xint, int qint)
 {
 	int level = 0;
 
 
 	/* determine which level is active */
-	if (state->m_vint_state) level = 1;
-	if (state->m_xint_state) level = 2;
-	if (state->m_qint_state) level = 3;
+	if (m_vint_state) level = 1;
+	if (m_xint_state) level = 2;
+	if (m_qint_state) level = 3;
 
 	/* Driver's Edge shifts the interrupts a bit */
-	if (state->m_is_drivedge && level) level += 2;
+	if (m_is_drivedge && level) level += 2;
 
 	return level;
 }
 
 
-void itech32_update_interrupts(running_machine &machine, int vint, int xint, int qint)
+void itech32_state::itech32_update_interrupts(int vint, int xint, int qint)
 {
-	itech32_state *state = machine.driver_data<itech32_state>();
 	/* update the states */
-	if (vint != -1) state->m_vint_state = vint;
-	if (xint != -1) state->m_xint_state = xint;
-	if (qint != -1) state->m_qint_state = qint;
+	if (vint != -1) m_vint_state = vint;
+	if (xint != -1) m_xint_state = xint;
+	if (qint != -1) m_qint_state = qint;
 
-	if (state->m_is_drivedge)
+	if (m_is_drivedge)
 	{
-		machine.device("maincpu")->execute().set_input_line(3, state->m_vint_state ? ASSERT_LINE : CLEAR_LINE);
-		machine.device("maincpu")->execute().set_input_line(4, state->m_xint_state ? ASSERT_LINE : CLEAR_LINE);
-		machine.device("maincpu")->execute().set_input_line(5, state->m_qint_state ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(3, m_vint_state ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(4, m_xint_state ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(5, m_qint_state ? ASSERT_LINE : CLEAR_LINE);
 	}
 	else
 	{
-		machine.device("maincpu")->execute().set_input_line(1, state->m_vint_state ? ASSERT_LINE : CLEAR_LINE);
-		machine.device("maincpu")->execute().set_input_line(2, state->m_xint_state ? ASSERT_LINE : CLEAR_LINE);
-		machine.device("maincpu")->execute().set_input_line(3, state->m_qint_state ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(1, m_vint_state ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(2, m_xint_state ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(3, m_qint_state ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
@@ -417,14 +416,14 @@ void itech32_update_interrupts(running_machine &machine, int vint, int xint, int
 INTERRUPT_GEN_MEMBER(itech32_state::generate_int1)
 {
 	/* signal the NMI */
-	itech32_update_interrupts(machine(), 1, -1, -1);
+	itech32_update_interrupts(1, -1, -1);
 	if (FULL_LOGGING) logerror("------------ VBLANK (%d) --------------\n", machine().primary_screen->vpos());
 }
 
 
 WRITE16_MEMBER(itech32_state::int1_ack_w)
 {
-	itech32_update_interrupts(machine(), 0, -1, -1);
+	itech32_update_interrupts(0, -1, -1);
 }
 
 
@@ -448,8 +447,8 @@ MACHINE_RESET_MEMBER(itech32_state,drivedge)
 {
 	itech32_state::machine_reset();
 
-	machine().device("dsp1")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
-	machine().device("dsp2")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp1->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp2->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 	STOP_TMS_SPINNING(machine(), 0);
 	STOP_TMS_SPINNING(machine(), 1);
 }
@@ -632,7 +631,7 @@ READ32_MEMBER(itech32_state::gtclass_prot_result_r)
 
 WRITE8_MEMBER(itech32_state::sound_bank_w)
 {
-	membank("bank1")->set_base(&machine().root_device().memregion("soundcpu")->base()[0x10000 + data * 0x4000]);
+	membank("bank1")->set_base(&memregion("soundcpu")->base()[0x10000 + data * 0x4000]);
 }
 
 
@@ -647,7 +646,7 @@ TIMER_CALLBACK_MEMBER(itech32_state::delayed_sound_data_w)
 {
 	m_sound_data = param;
 	m_sound_int_state = 1;
-	machine().device("soundcpu")->execute().set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
+	m_soundcpu->set_input_line(M6809_IRQ_LINE, ASSERT_LINE);
 }
 
 
@@ -673,7 +672,7 @@ WRITE32_MEMBER(itech32_state::sound_data32_w)
 
 READ8_MEMBER(itech32_state::sound_data_r)
 {
-	machine().device("soundcpu")->execute().set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
+	m_soundcpu->set_input_line(M6809_IRQ_LINE, CLEAR_LINE);
 	m_sound_int_state = 0;
 	return m_sound_data;
 }
@@ -770,7 +769,7 @@ static const via6522_interface drivedge_via_interface =
 
 WRITE8_MEMBER(itech32_state::firq_clear_w)
 {
-	machine().device("soundcpu")->execute().set_input_line(M6809_FIRQ_LINE, CLEAR_LINE);
+	m_soundcpu->set_input_line(M6809_FIRQ_LINE, CLEAR_LINE);
 }
 
 
@@ -783,8 +782,8 @@ WRITE8_MEMBER(itech32_state::firq_clear_w)
 
 WRITE32_MEMBER(itech32_state::tms_reset_assert_w)
 {
-	machine().device("dsp1")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
-	machine().device("dsp2")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp1->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp2->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 
@@ -793,12 +792,12 @@ WRITE32_MEMBER(itech32_state::tms_reset_clear_w)
 	/* kludge to prevent crash on first boot */
 	if ((m_tms1_ram[0] & 0xff000000) == 0)
 	{
-		machine().device("dsp1")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+		m_dsp1->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 		STOP_TMS_SPINNING(machine(), 0);
 	}
 	if ((m_tms2_ram[0] & 0xff000000) == 0)
 	{
-		machine().device("dsp2")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+		m_dsp2->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 		STOP_TMS_SPINNING(machine(), 1);
 	}
 }
@@ -873,15 +872,14 @@ WRITE32_MEMBER(itech32_state::int1_ack32_w)
 
 void itech32_state::nvram_init(nvram_device &nvram, void *base, size_t length)
 {
-	itech32_state *state = machine().driver_data<itech32_state>();
 	// if nvram is the main RAM, don't overwrite exception vectors
-	int start = (base == state->m_main_ram) ? 0x80 : 0x00;
+	int start = (base == m_main_ram) ? 0x80 : 0x00;
 	for (int i = start; i < length; i++)
 		((UINT8 *)base)[i] = machine().rand();
 
 	// due to accessing uninitialized RAM, we need this hack
-	if (state->m_is_drivedge)
-		((UINT32 *)state->m_main_ram.target())[0x2ce4/4] = 0x0000001e;
+	if (m_is_drivedge)
+		((UINT32 *)m_main_ram.target())[0x2ce4/4] = 0x0000001e;
 }
 
 
@@ -4111,18 +4109,17 @@ ROM_END
  *
  *************************************/
 
-static void init_program_rom(running_machine &machine)
+void itech32_state::init_program_rom()
 {
-	itech32_state *state = machine.driver_data<itech32_state>();
-	if (state->m_main_ram == NULL)
-		state->m_main_ram.set_target(state->m_nvram, state->m_nvram.bytes());
-	memcpy(state->m_main_ram, state->m_main_rom, 0x80);
+	if (m_main_ram == NULL)
+		m_main_ram.set_target(m_nvram, m_nvram.bytes());
+	memcpy(m_main_ram, m_main_rom, 0x80);
 }
 
 
 DRIVER_INIT_MEMBER(itech32_state,timekill)
 {
-	init_program_rom(machine());
+	init_program_rom();
 	m_vram_height = 512;
 	m_planes = 2;
 	m_is_drivedge = 0;
@@ -4131,7 +4128,7 @@ DRIVER_INIT_MEMBER(itech32_state,timekill)
 
 DRIVER_INIT_MEMBER(itech32_state,hardyard)
 {
-	init_program_rom(machine());
+	init_program_rom();
 	m_vram_height = 1024;
 	m_planes = 1;
 	m_is_drivedge = 0;
@@ -4140,7 +4137,7 @@ DRIVER_INIT_MEMBER(itech32_state,hardyard)
 
 DRIVER_INIT_MEMBER(itech32_state,bloodstm)
 {
-	init_program_rom(machine());
+	init_program_rom();
 	m_vram_height = 1024;
 	m_planes = 1;
 	m_is_drivedge = 0;
@@ -4149,13 +4146,13 @@ DRIVER_INIT_MEMBER(itech32_state,bloodstm)
 
 DRIVER_INIT_MEMBER(itech32_state,drivedge)
 {
-	init_program_rom(machine());
+	init_program_rom();
 	m_vram_height = 1024;
 	m_planes = 1;
 	m_is_drivedge = 1;
 
-	machine().device("dsp1")->memory().space(AS_PROGRAM).install_read_handler(0x8382, 0x8382, read32_delegate(FUNC(itech32_state::drivedge_tms1_speedup_r),this));
-	machine().device("dsp2")->memory().space(AS_PROGRAM).install_read_handler(0x8382, 0x8382, read32_delegate(FUNC(itech32_state::drivedge_tms2_speedup_r),this));
+	m_dsp1->space(AS_PROGRAM).install_read_handler(0x8382, 0x8382, read32_delegate(FUNC(itech32_state::drivedge_tms1_speedup_r),this));
+	m_dsp2->space(AS_PROGRAM).install_read_handler(0x8382, 0x8382, read32_delegate(FUNC(itech32_state::drivedge_tms2_speedup_r),this));
 }
 
 
@@ -4167,15 +4164,15 @@ DRIVER_INIT_MEMBER(itech32_state,wcbowl)
 	      ROM   P/N 1079 Rev 1 (contains graphic roms, 4MHz OSC + ITBWL-1 security PIC chip)
 	      Sound P/N 1060 Rev 0 (see Hot Memory PCB layout above)
 	*/
-	init_program_rom(machine());
+	init_program_rom();
 	m_vram_height = 1024;
 	m_planes = 1;
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x680000, 0x680001, read16_delegate(FUNC(itech32_state::trackball_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x680000, 0x680001, read16_delegate(FUNC(itech32_state::trackball_r),this));
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_read(0x578000, 0x57ffff);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x680080, 0x680081, read16_delegate(FUNC(itech32_state::wcbowl_prot_result_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0x680080, 0x680081);
+	m_maincpu->space(AS_PROGRAM).nop_read(0x578000, 0x57ffff);
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x680080, 0x680081, read16_delegate(FUNC(itech32_state::wcbowl_prot_result_r),this));
+	m_maincpu->space(AS_PROGRAM).nop_write(0x680080, 0x680081);
 }
 
 
@@ -4187,103 +4184,100 @@ DRIVER_INIT_MEMBER(itech32_state,wcbowlj)
 	      ROM   P/N 1079 Rev 1 (contains graphic roms, 4MHz OSC + ITBWL-1 security PIC chip)
 	      Sound P/N 1060 Rev 0 (see Hot Memory PCB layout above)
 	*/
-	init_program_rom(machine());
+	init_program_rom();
 	m_vram_height = 1024;
 	m_planes = 1;
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x680000, 0x680001, read16_delegate(FUNC(itech32_state::trackball_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x680040, 0x680041, read16_delegate(FUNC(itech32_state::trackball_p2_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x680000, 0x680001, read16_delegate(FUNC(itech32_state::trackball_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x680040, 0x680041, read16_delegate(FUNC(itech32_state::trackball_p2_r),this));
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_read(0x578000, 0x57ffff);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x680080, 0x680081, read16_delegate(FUNC(itech32_state::wcbowl_prot_result_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0x680080, 0x680081);
+	m_maincpu->space(AS_PROGRAM).nop_read(0x578000, 0x57ffff);
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x680080, 0x680081, read16_delegate(FUNC(itech32_state::wcbowl_prot_result_r),this));
+	m_maincpu->space(AS_PROGRAM).nop_write(0x680080, 0x680081);
 }
 
 
-static void init_sftm_common(running_machine &machine, int prot_addr)
+void itech32_state::init_sftm_common(int prot_addr)
 {
-	itech32_state *state = machine.driver_data<itech32_state>();
-	init_program_rom(machine);
-	state->m_vram_height = 1024;
-	state->m_planes = 1;
-	state->m_is_drivedge = 0;
+	init_program_rom();
+	m_vram_height = 1024;
+	m_planes = 1;
+	m_is_drivedge = 0;
 
-	state->m_itech020_prot_address = prot_addr;
+	m_itech020_prot_address = prot_addr;
 
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x300000, 0x300003, write32_delegate(FUNC(itech32_state::itech020_color2_w),state));
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x380000, 0x380003, write32_delegate(FUNC(itech32_state::itech020_color1_w),state));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x300000, 0x300003, write32_delegate(FUNC(itech32_state::itech020_color2_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x380000, 0x380003, write32_delegate(FUNC(itech32_state::itech020_color1_w),this));
 }
 
 
 DRIVER_INIT_MEMBER(itech32_state,sftm)
 {
-	init_sftm_common(machine(), 0x7a6a);
+	init_sftm_common(0x7a6a);
 }
 
 
 DRIVER_INIT_MEMBER(itech32_state,sftm110)
 {
-	init_sftm_common(machine(), 0x7a66);
+	init_sftm_common(0x7a66);
 }
 
 
-static void init_shuffle_bowl_common(running_machine &machine, int prot_addr)
+void itech32_state::init_shuffle_bowl_common(int prot_addr)
 {
-	itech32_state *state = machine.driver_data<itech32_state>();
 	/*
 	    The newest versions of World Class Bowling are on the same exact
 	    platform as Shuffle Shot. So We'll use the same general INIT
 	    routine for these two programs.  IE: PCB P/N 1083 Rev 2
 	*/
-	init_program_rom(machine);
-	state->m_vram_height = 1024;
-	state->m_planes = 1;
-	state->m_is_drivedge = 0;
+	init_program_rom();
+	m_vram_height = 1024;
+	m_planes = 1;
+	m_is_drivedge = 0;
 
-	state->m_itech020_prot_address = prot_addr;
+	m_itech020_prot_address = prot_addr;
 
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x300000, 0x300003, write32_delegate(FUNC(itech32_state::itech020_color2_w),state));
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x380000, 0x380003, write32_delegate(FUNC(itech32_state::itech020_color1_w),state));
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x180800, 0x180803, read32_delegate(FUNC(itech32_state::trackball32_4bit_p1_r),state));
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x181000, 0x181003, read32_delegate(FUNC(itech32_state::trackball32_4bit_p2_r),state));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x300000, 0x300003, write32_delegate(FUNC(itech32_state::itech020_color2_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x380000, 0x380003, write32_delegate(FUNC(itech32_state::itech020_color1_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x180800, 0x180803, read32_delegate(FUNC(itech32_state::trackball32_4bit_p1_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x181000, 0x181003, read32_delegate(FUNC(itech32_state::trackball32_4bit_p2_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(itech32_state,shufshot)
 {
-	init_shuffle_bowl_common(machine(), 0x111a);
+	init_shuffle_bowl_common(0x111a);
 }
 
 
 DRIVER_INIT_MEMBER(itech32_state,wcbowln)
 {
 	/* The security PROM is NOT interchangeable between the Deluxe and "normal" versions. */
-	init_shuffle_bowl_common(machine(), 0x1116);
+	init_shuffle_bowl_common(0x1116);
 }
 
-static void install_timekeeper(running_machine &machine)
+void itech32_state::install_timekeeper()
 {
-	device_t *device = machine.device("m48t02");
-	machine.device("maincpu")->memory().space(AS_PROGRAM).install_legacy_readwrite_handler(*device, 0x681000, 0x6817ff, FUNC(timekeeper_r), FUNC(timekeeper_w), 0xffffffff);
+	timekeeper_device *m48t02 = machine().device<timekeeper_device>("m48t02");
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x681000, 0x6817ff, read8_delegate(FUNC(timekeeper_device::read), m48t02), write8_delegate(FUNC(timekeeper_device::write), m48t02), 0xffffffff);
 }
 
 DRIVER_INIT_MEMBER(itech32_state,wcbowlt)
 {
 	/* Tournament Version, Same protection memory address as WCB Deluxe, but uses the standard WCB pic ITBWL-3 */
-	init_shuffle_bowl_common(machine(), 0x111a);
+	init_shuffle_bowl_common(0x111a);
 
-	install_timekeeper(machine());
+	install_timekeeper();
 }
 
-static void init_gt_common(running_machine &machine)
+void itech32_state::init_gt_common()
 {
-	itech32_state *state = machine.driver_data<itech32_state>();
-	init_program_rom(machine);
-	state->m_vram_height = 1024;
-	state->m_planes = 2;
-	state->m_is_drivedge = 0;
+	init_program_rom();
+	m_vram_height = 1024;
+	m_planes = 2;
+	m_is_drivedge = 0;
 
-	state->m_itech020_prot_address = 0x112f;
+	m_itech020_prot_address = 0x112f;
 }
 
 
@@ -4296,8 +4290,8 @@ DRIVER_INIT_MEMBER(itech32_state,gt3d)
 	    Hacked versions of this PCB have been found with GT97
 	    through GTClassic. This is _NOT_ a factory modification
 	*/
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x200000, 0x200003, read32_delegate(FUNC(itech32_state::trackball32_8bit_r),this));
-	init_gt_common(machine());
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x200000, 0x200003, read32_delegate(FUNC(itech32_state::trackball32_8bit_r),this));
+	init_gt_common();
 }
 
 
@@ -4309,9 +4303,9 @@ DRIVER_INIT_MEMBER(itech32_state,aama)
 	    board share the same sound CPU code and sample ROMs.
 	    This board has all versions of GT for it, GT3D through GTClassic
 	*/
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x180800, 0x180803, read32_delegate(FUNC(itech32_state::trackball32_4bit_p1_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x181000, 0x181003, read32_delegate(FUNC(itech32_state::trackball32_4bit_p2_r),this));
-	init_gt_common(machine());
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x180800, 0x180803, read32_delegate(FUNC(itech32_state::trackball32_4bit_p1_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x181000, 0x181003, read32_delegate(FUNC(itech32_state::trackball32_4bit_p2_r),this));
+	init_gt_common();
 }
 
 
@@ -4322,7 +4316,7 @@ DRIVER_INIT_MEMBER(itech32_state,aamat)
 	*/
 	DRIVER_INIT_CALL(aama);
 
-	install_timekeeper(machine());
+	install_timekeeper();
 }
 
 
@@ -4334,8 +4328,8 @@ DRIVER_INIT_MEMBER(itech32_state,s_ver)
 	    board: GT97 v1.21S, GT98, GT99, GT2K & GT Classic Versions 1.00S
 	    Trackball info is read through 200202 (actually 200203).
 	*/
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x200200, 0x200203, read32_delegate(FUNC(itech32_state::trackball32_4bit_p1_r),this));
-	init_gt_common(machine());
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x200200, 0x200203, read32_delegate(FUNC(itech32_state::trackball32_4bit_p1_r),this));
+	init_gt_common();
 }
 
 
@@ -4348,15 +4342,15 @@ DRIVER_INIT_MEMBER(itech32_state,gt3dl)
 	    Player 1 trackball read through 200003
 	    Player 2 trackball read through 200002
 	*/
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x200000, 0x200003, read32_delegate(FUNC(itech32_state::trackball32_4bit_combined_r),this));
-	init_gt_common(machine());
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x200000, 0x200003, read32_delegate(FUNC(itech32_state::trackball32_4bit_combined_r),this));
+	init_gt_common();
 }
 
 
 DRIVER_INIT_MEMBER(itech32_state,gt2kp)
 {
 	/* a little extra protection */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x680000, 0x680003, read32_delegate(FUNC(itech32_state::gt2kp_prot_result_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x680000, 0x680003, read32_delegate(FUNC(itech32_state::gt2kp_prot_result_r),this));
 	DRIVER_INIT_CALL(aama);
 
 	/* The protection code is:
@@ -4377,7 +4371,7 @@ Label1  bne.s       Label1          ; Infinite loop if result isn't 0x01
 DRIVER_INIT_MEMBER(itech32_state,gtclasscp)
 {
 	/* a little extra protection */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x680000, 0x680003, read32_delegate(FUNC(itech32_state::gtclass_prot_result_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x680000, 0x680003, read32_delegate(FUNC(itech32_state::gtclass_prot_result_r),this));
 	DRIVER_INIT_CALL(aama);
 
 	/* The protection code is:
@@ -4415,8 +4409,8 @@ GAME( 1994, bloodstm10,  bloodstm, bloodstm, bloodstm, itech32_state, bloodstm, 
 GAME( 1994, pairsred,    0,        bloodstm, pairs,    itech32_state, bloodstm, ROT0, "Strata/Incredible Technologies",   "Pairs Redemption (V1.0, 10/25/94)", 0 )
 GAME( 1994, pairs,       0,        bloodstm, pairs,    itech32_state, bloodstm, ROT0, "Strata/Incredible Technologies",   "Pairs (V1.2, 09/30/94)", 0 )
 GAME( 1994, pairsa,      pairs,    bloodstm, pairs,    itech32_state, bloodstm, ROT0, "Strata/Incredible Technologies",   "Pairs (09/07/94)", 0 )
-GAME( 1994, hotmemry,    pairs,    bloodstm, pairs,    itech32_state, bloodstm, ROT0, "Tuning/Incredible Technologies",   "Hot Memory (V1.2, Germany, 12/28/94)", 0 )
-GAME( 1994, hotmemry11,  pairs,    bloodstm, pairs,    itech32_state, bloodstm, ROT0, "Tuning/Incredible Technologies",   "Hot Memory (V1.1, Germany, 11/30/94)", 0 )
+GAME( 1994, hotmemry,    pairs,    bloodstm, pairs,    itech32_state, bloodstm, ROT0, "Incredible Technologies (Tuning license)", "Hot Memory (V1.2, Germany, 12/28/94)", 0 )
+GAME( 1994, hotmemry11,  pairs,    bloodstm, pairs,    itech32_state, bloodstm, ROT0, "Incredible Technologies (Tuning license)", "Hot Memory (V1.1, Germany, 11/30/94)", 0 )
 GAME( 1994, drivedge,    0,        drivedge, drivedge, itech32_state, drivedge, ROT0, "Strata/Incredible Technologies",   "Driver's Edge", GAME_IMPERFECT_GRAPHICS )
 GAME( 1995, wcbowl,      0,        sftm,     wcbowln,  itech32_state, wcbowln,  ROT0, "Incredible Technologies",          "World Class Bowling (v1.66)" , 0) /* PIC 16C54 labeled as ITBWL-3 */
 GAME( 1995, wcbowl165,   wcbowl,   sftm,     wcbowlo,  itech32_state, wcbowln,  ROT0, "Incredible Technologies",          "World Class Bowling (v1.65)" , 0) /* PIC 16C54 labeled as ITBWL-3 */

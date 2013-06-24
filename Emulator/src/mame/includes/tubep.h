@@ -1,12 +1,26 @@
+#include "sound/msm5205.h"
+
 class tubep_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_TUBEP_SCANLINE,
+		TIMER_RJAMMER_SCANLINE,
+		TIMER_SPRITE
+	};
+
 	tubep_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_textram(*this, "textram"),
 		m_backgroundram(*this, "backgroundram"),
 		m_sprite_colorsharedram(*this, "sprite_color"),
-		m_rjammer_backgroundram(*this, "rjammer_bgram"){ }
+		m_rjammer_backgroundram(*this, "rjammer_bgram"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_slave(*this, "slave"),
+		m_mcu(*this, "mcu"),
+		m_msm(*this, "msm") { }
 
 	UINT8 m_sound_latch;
 	UINT8 m_ls74;
@@ -81,6 +95,18 @@ public:
 	TIMER_CALLBACK_MEMBER(tubep_scanline_callback);
 	TIMER_CALLBACK_MEMBER(rjammer_scanline_callback);
 	TIMER_CALLBACK_MEMBER(sprite_timer_callback);
+	void draw_sprite();
+	void tubep_vblank_end();
+	void tubep_setup_save_state();
+	DECLARE_WRITE_LINE_MEMBER(rjammer_adpcm_vck);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	required_device<cpu_device> m_slave;
+	required_device<cpu_device> m_mcu;
+	optional_device<msm5205_device> m_msm;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 

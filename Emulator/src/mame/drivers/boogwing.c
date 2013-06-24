@@ -88,7 +88,7 @@
 #include "sound/okim6295.h"
 #include "video/deco16ic.h"
 #include "video/decocomn.h"
-#include "video/decospr.h"
+
 
 static ADDRESS_MAP_START( boogwing_map, AS_PROGRAM, 16, boogwing_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
@@ -560,8 +560,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(boogwing_state,boogwing)
 {
-	const UINT8* src = machine().root_device().memregion("gfx6")->base();
-	UINT8* dst = machine().root_device().memregion("tiles2")->base() + 0x200000;
+	const UINT8* src = memregion("gfx6")->base();
+	UINT8* dst = memregion("tiles2")->base() + 0x200000;
 
 	deco56_decrypt_gfx(machine(), "tiles1");
 	deco56_decrypt_gfx(machine(), "tiles2");

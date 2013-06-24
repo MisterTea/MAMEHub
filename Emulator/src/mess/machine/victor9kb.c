@@ -236,8 +236,22 @@ ioport_constructor victor9k_keyboard_device::device_input_ports() const
 //-------------------------------------------------
 
 victor9k_keyboard_device::victor9k_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, VICTOR9K_KEYBOARD, "Victor 9000 Keyboard", tag, owner, clock),
+	: device_t(mconfig, VICTOR9K_KEYBOARD, "Victor 9000 Keyboard", tag, owner, clock, "victor9kb", __FILE__),
 		m_maincpu(*this, I8021_TAG),
+		m_y0(*this, "Y0"),
+		m_y1(*this, "Y1"),
+		m_y2(*this, "Y2"),
+		m_y3(*this, "Y3"),
+		m_y4(*this, "Y4"),
+		m_y5(*this, "Y5"),
+		m_y6(*this, "Y6"),
+		m_y7(*this, "Y7"),
+		m_y8(*this, "Y8"),
+		m_y9(*this, "Y9"),
+		m_ya(*this, "YA"),
+		m_yb(*this, "YB"),
+		m_yc(*this, "YC"),
+		m_write_kbrdy(*this),
 		m_y(0),
 		m_kbrdy(1),
 		m_kbdata(1),
@@ -253,7 +267,7 @@ victor9k_keyboard_device::victor9k_keyboard_device(const machine_config &mconfig
 void victor9k_keyboard_device::device_start()
 {
 	// resolve callbacks
-	m_out_kbrdy_func.resolve(m_out_kbrdy_cb, *this);
+	m_write_kbrdy.resolve_safe();
 
 	// state saving
 	save_item(NAME(m_y));
@@ -312,19 +326,19 @@ READ8_MEMBER( victor9k_keyboard_device::kb_p1_r )
 
 	switch (m_y)
 	{
-		case 0: data &= ioport("Y0")->read(); break;
-		case 1: data &= ioport("Y1")->read(); break;
-		case 2: data &= ioport("Y2")->read(); break;
-		case 3: data &= ioport("Y3")->read(); break;
-		case 4: data &= ioport("Y4")->read(); break;
-		case 5: data &= ioport("Y5")->read(); break;
-		case 6: data &= ioport("Y6")->read(); break;
-		case 7: data &= ioport("Y7")->read(); break;
-		case 8: data &= ioport("Y8")->read(); break;
-		case 9: data &= ioport("Y9")->read(); break;
-		case 0xa: data &= ioport("YA")->read(); break;
-		case 0xb: data &= ioport("YB")->read(); break;
-		case 0xc: data &= ioport("YC")->read(); break;
+		case 0: data &= m_y0->read(); break;
+		case 1: data &= m_y1->read(); break;
+		case 2: data &= m_y2->read(); break;
+		case 3: data &= m_y3->read(); break;
+		case 4: data &= m_y4->read(); break;
+		case 5: data &= m_y5->read(); break;
+		case 6: data &= m_y6->read(); break;
+		case 7: data &= m_y7->read(); break;
+		case 8: data &= m_y8->read(); break;
+		case 9: data &= m_y9->read(); break;
+		case 0xa: data &= m_ya->read(); break;
+		case 0xb: data &= m_yb->read(); break;
+		case 0xc: data &= m_yc->read(); break;
 	}
 
 	return data;
@@ -368,7 +382,7 @@ WRITE8_MEMBER( victor9k_keyboard_device::kb_p2_w )
 	if (m_kbrdy != kbrdy)
 	{
 		m_kbrdy = kbrdy;
-		m_out_kbrdy_func(m_kbrdy);
+		m_write_kbrdy(m_kbrdy);
 	}
 
 	m_kbdata = BIT(data, 3);

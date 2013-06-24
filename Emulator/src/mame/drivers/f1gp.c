@@ -67,7 +67,6 @@ WRITE8_MEMBER(f1gp_state::f1gp_sh_bankswitch_w)
 
 WRITE16_MEMBER(f1gp_state::sound_command_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 		m_pending_command = 1;
@@ -153,7 +152,7 @@ static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, f1gp_state )
 	AM_RANGE(0x00, 0x00) AM_WRITE(f1gp_sh_bankswitch_w) // f1gp
 	AM_RANGE(0x0c, 0x0c) AM_WRITE(f1gp_sh_bankswitch_w) // f1gp2
 	AM_RANGE(0x14, 0x14) AM_READ(soundlatch_byte_r) AM_WRITE(pending_command_clear_w)
-	AM_RANGE(0x18, 0x1b) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
+	AM_RANGE(0x18, 0x1b) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 ADDRESS_MAP_END
 
 WRITE16_MEMBER(f1gp_state::f1gpb_misc_w)
@@ -391,16 +390,10 @@ GFXDECODE_END
 
 
 
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(f1gp_state::irqhandler)
 {
-	f1gp_state *state = device->machine().driver_data<f1gp_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	irqhandler
-};
 
 static const k053936_interface f1gp_k053936_intf =
 {
@@ -415,7 +408,6 @@ static const k053936_interface f1gp2_k053936_intf =
 
 MACHINE_START_MEMBER(f1gp_state,f1gpb)
 {
-
 	save_item(NAME(m_pending_command));
 	save_item(NAME(m_roz_bank));
 	save_item(NAME(m_flipscreen));
@@ -429,15 +421,11 @@ MACHINE_START_MEMBER(f1gp_state,f1gp)
 
 	membank("bank1")->configure_entries(0, 2, &ROM[0x10000], 0x8000);
 
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k053936 = machine().device("k053936");
-
 	MACHINE_START_CALL_MEMBER(f1gpb);
 }
 
 MACHINE_RESET_MEMBER(f1gp_state,f1gp)
 {
-
 	m_pending_command = 0;
 	m_roz_bank = 0;
 	m_flipscreen = 0;
@@ -493,7 +481,7 @@ static MACHINE_CONFIG_START( f1gp, f1gp_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_8MHz)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(f1gp_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)

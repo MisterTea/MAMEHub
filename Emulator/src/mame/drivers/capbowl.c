@@ -107,7 +107,7 @@
 
 INTERRUPT_GEN_MEMBER(capbowl_state::capbowl_interrupt)
 {
-	if (machine().root_device().ioport("SERVICE")->read() & 1)                      /* get status of the F2 key */
+	if (ioport("SERVICE")->read() & 1)                      /* get status of the F2 key */
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);    /* trigger self test */
 }
 
@@ -119,6 +119,19 @@ INTERRUPT_GEN_MEMBER(capbowl_state::capbowl_interrupt)
  *
  *************************************/
 
+void capbowl_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_CAPBOWL_UPDATE:
+		capbowl_update(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in capbowl_state::device_timer");
+	}
+}
+
+
 TIMER_CALLBACK_MEMBER(capbowl_state::capbowl_update)
 {
 	int scanline = param;
@@ -126,7 +139,7 @@ TIMER_CALLBACK_MEMBER(capbowl_state::capbowl_update)
 	machine().primary_screen->update_partial(scanline - 1);
 	scanline += 32;
 	if (scanline > 240) scanline = 32;
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(capbowl_state::capbowl_update),this), scanline);
+	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_CAPBOWL_UPDATE, scanline);
 }
 
 
@@ -164,7 +177,6 @@ READ8_MEMBER(capbowl_state::track_1_r)
 
 WRITE8_MEMBER(capbowl_state::track_reset_w)
 {
-
 	/* reset the trackball counters */
 	m_last_trackball_val[0] = ioport("TRACKY")->read();
 	m_last_trackball_val[1] = ioport("TRACKX")->read();
@@ -195,10 +207,9 @@ WRITE8_MEMBER(capbowl_state::capbowl_sndcmd_w)
  *
  *************************************/
 
-static void firqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(capbowl_state::firqhandler)
 {
-	capbowl_state *state = device->machine().driver_data<capbowl_state>();
-	state->m_audiocpu->set_input_line(M6809_FIRQ_LINE, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -261,7 +272,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, capbowl_state )
 	AM_RANGE(0x0000, 0x07ff) AM_RAM
-	AM_RANGE(0x1000, 0x1001) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w)
+	AM_RANGE(0x1000, 0x1001) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write)
 	AM_RANGE(0x2000, 0x2000) AM_WRITENOP                /* Not hooked up according to the schematics */
 	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE("dac", dac_device, write_unsigned8)
 	AM_RANGE(0x7000, 0x7000) AM_READ(soundlatch_byte_r)
@@ -313,17 +324,14 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_DEVICE_MEMBER("ticket", ticket_dispenser_device, read),
-		DEVCB_NULL,
-		DEVCB_NULL,
-		DEVCB_DEVICE_MEMBER("ticket", ticket_dispenser_device, write),  /* Also a status LED. See memory map above */
-	},
-	DEVCB_LINE(firqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_DEVICE_MEMBER("ticket", ticket_dispenser_device, read),
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_DEVICE_MEMBER("ticket", ticket_dispenser_device, write),  /* Also a status LED. See memory map above */
 };
 
 
@@ -336,10 +344,6 @@ static const ym2203_interface ym2203_config =
 
 void capbowl_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_blitter_addr));
 	save_item(NAME(m_last_trackball_val[0]));
 	save_item(NAME(m_last_trackball_val[1]));
@@ -347,8 +351,7 @@ void capbowl_state::machine_start()
 
 void capbowl_state::machine_reset()
 {
-
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(32), timer_expired_delegate(FUNC(capbowl_state::capbowl_update),this), 32);
+	timer_set(machine().primary_screen->time_until_pos(32), TIMER_CAPBOWL_UPDATE, 32);
 
 	m_blitter_addr = 0;
 	m_last_trackball_val[0] = 0;
@@ -382,7 +385,8 @@ static MACHINE_CONFIG_START( capbowl, capbowl_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, MASTER_CLOCK/2)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(capbowl_state, firqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.07)
 	MCFG_SOUND_ROUTE(1, "mono", 0.07)
 	MCFG_SOUND_ROUTE(2, "mono", 0.07)
@@ -421,19 +425,19 @@ ROM_START( capbowl )
 	ROM_LOAD( "gr2",          0x20000, 0x8000, CRC(e49238f4) SHA1(ac76f1a761d6b0765437fb7367442667da7bb373) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
-	ROM_LOAD( "sound",        0x8000, 0x8000, CRC(8c9c3b8a) SHA1(f3cdf42ef19012817e6b7966845f9ede39f61b07) )
+	ROM_LOAD( "sound.u30", 0x8000, 0x8000, CRC(8c9c3b8a) SHA1(f3cdf42ef19012817e6b7966845f9ede39f61b07) )
 ROM_END
 
 
 ROM_START( capbowl2 )
 	ROM_REGION( 0x28000, "maincpu", 0 )
-	ROM_LOAD( "progrev3.u6",  0x08000, 0x8000, CRC(9162934a) SHA1(7542dd68a2aa55ad4f03b23ae2313ed6a34ae145) )
+	ROM_LOAD( "program_rev_3_u6.u6",  0x08000, 0x8000, CRC(9162934a) SHA1(7542dd68a2aa55ad4f03b23ae2313ed6a34ae145) )
 	ROM_LOAD( "gr0",          0x10000, 0x8000, CRC(ef53ca7a) SHA1(219dc342595bfd23c1336f3e167e40ff0c5e7994) )
 	ROM_LOAD( "gr1",          0x18000, 0x8000, CRC(27ede6ce) SHA1(14aa31cbcf089419b5b2ea8d57e82fc51895fc2e) )
 	ROM_LOAD( "gr2",          0x20000, 0x8000, CRC(e49238f4) SHA1(ac76f1a761d6b0765437fb7367442667da7bb373) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
-	ROM_LOAD( "sound",        0x8000, 0x8000, CRC(8c9c3b8a) SHA1(f3cdf42ef19012817e6b7966845f9ede39f61b07) )
+	ROM_LOAD( "sound.u30", 0x8000, 0x8000, CRC(8c9c3b8a) SHA1(f3cdf42ef19012817e6b7966845f9ede39f61b07) )
 ROM_END
 
 
@@ -445,7 +449,7 @@ ROM_START( capbowl3 )
 	ROM_LOAD( "bfb.gr2",      0x20000, 0x8000, CRC(f3d2468d) SHA1(0348ee5d0000b753ad90a525048d05bfb552bee1) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
-	ROM_LOAD( "sound-r2.bin",  0x8000, 0x8000, CRC(43ac1658) SHA1(1fab23d649d0c565ef1a7f45b30806f9d1bb4afd) )
+	ROM_LOAD( "sound_v2.1_u-30.u30", 0x8000, 0x8000, CRC(43ac1658) SHA1(1fab23d649d0c565ef1a7f45b30806f9d1bb4afd) )
 ROM_END
 
 
@@ -463,13 +467,13 @@ ROM_END
 
 ROM_START( clbowl )
 	ROM_REGION( 0x28000, "maincpu", 0 )
-	ROM_LOAD( "u6.cl",        0x08000, 0x8000, CRC(91e06bc4) SHA1(efa54328417f971cc482a4529d05331a3baffc1a) )
-	ROM_LOAD( "gr0.cl",       0x10000, 0x8000, CRC(899c8f15) SHA1(dbb4a9c015b5e64c62140f0c99b87da2793ae5c1) )
-	ROM_LOAD( "gr1.cl",       0x18000, 0x8000, CRC(0ac0dc4c) SHA1(61afa3af1f84818b940b5c6f6a8cfb58ca557551) )
-	ROM_LOAD( "gr2.cl",       0x20000, 0x8000, CRC(251f5da5) SHA1(063001cfb68e3ec35baa24eed186214e26d55b82) )
+	ROM_LOAD( "cb8_prg.u6",              0x08000, 0x8000, CRC(91e06bc4) SHA1(efa54328417f971cc482a4529d05331a3baffc1a) ) /* Capcom label */
+	ROM_LOAD( "coors_bowling_grom0.gr0", 0x10000, 0x8000, CRC(899c8f15) SHA1(dbb4a9c015b5e64c62140f0c99b87da2793ae5c1) ) /* I.T. label */
+	ROM_LOAD( "coors_bowling_grom1.gr1", 0x18000, 0x8000, CRC(0ac0dc4c) SHA1(61afa3af1f84818b940b5c6f6a8cfb58ca557551) ) /* I.T. label */
+	ROM_LOAD( "coors_bowling_grom2.gr2", 0x20000, 0x8000, CRC(251f5da5) SHA1(063001cfb68e3ec35baa24eed186214e26d55b82) ) /* I.T. label */
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
-	ROM_LOAD( "sound.cl",     0x8000, 0x8000, CRC(1eba501e) SHA1(684bdc18cf5e01a86d8018a3e228ec34e5dec57d) )
+	ROM_LOAD( "coors_bowling_sound.u30", 0x8000, 0x8000, CRC(1eba501e) SHA1(684bdc18cf5e01a86d8018a3e228ec34e5dec57d) )
 ROM_END
 
 
@@ -494,10 +498,10 @@ ROM_END
 
 DRIVER_INIT_MEMBER(capbowl_state,capbowl)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
 	/* configure ROM banks in 0x0000-0x3fff */
-	machine().root_device().membank("bank1")->configure_entries(0, 6, &ROM[0x10000], 0x4000);
+	membank("bank1")->configure_entries(0, 6, &ROM[0x10000], 0x4000);
 }
 
 

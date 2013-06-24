@@ -7,6 +7,7 @@ driver by Chris Moore
 ***************************************************************************/
 
 #include "machine/6522via.h"
+#include "machine/6532riot.h"
 
 #define GAMEPLAN_MAIN_MASTER_CLOCK       (XTAL_3_579545MHz)
 #define GAMEPLAN_AUDIO_MASTER_CLOCK      (XTAL_3_579545MHz)
@@ -24,9 +25,19 @@ driver by Chris Moore
 class gameplan_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_CLEAR_SCREEN_DONE,
+		TIMER_VIA_IRQ_DELAYED,
+		TIMER_VIA_0_CAL
+	};
+
 	gameplan_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_trvquest_question(*this, "trvquest_q"),
+			m_maincpu(*this, "maincpu"),
+			m_audiocpu(*this, "audiocpu"),
+			m_riot(*this, "riot"),
 			m_via_0(*this, "via6522_0"),
 			m_via_1(*this, "via6522_1"),
 			m_via_2(*this, "via6522_2") { }
@@ -45,9 +56,9 @@ public:
 	emu_timer *m_via_0_ca1_timer;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_riot;
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<riot6532_device> m_riot;
 	required_device<via6522_device> m_via_0;
 	required_device<via6522_device> m_via_1;
 	required_device<via6522_device> m_via_2;
@@ -79,6 +90,15 @@ public:
 	DECLARE_WRITE8_MEMBER(leprechn_video_command_w);
 	DECLARE_WRITE_LINE_MEMBER(video_command_trigger_w);
 	DECLARE_READ8_MEMBER(vblank_r);
+	void gameplan_get_pens( pen_t *pens );
+	void leprechn_get_pens( pen_t *pens );
+	DECLARE_WRITE_LINE_MEMBER(via_irq);
+	DECLARE_READ8_MEMBER(trvquest_question_r);
+	DECLARE_WRITE8_MEMBER(trvquest_coin_w);
+	DECLARE_WRITE8_MEMBER(trvquest_misc_w);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 /*----------- defined in video/gameplan.c -----------*/

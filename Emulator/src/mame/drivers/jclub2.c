@@ -112,7 +112,8 @@ public:
 		m_tmapscroll2(*this, "tmapscroll2"),
 		m_spriteram(*this, "spriteram"),
 		m_gdfs_st0020(*this, "st0020_spr"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_eeprom(*this, "eeprom") { }
 
 	virtual void machine_start()
 	{
@@ -130,6 +131,7 @@ public:
 	optional_shared_ptr<UINT32> m_spriteram;
 	optional_device<st0020_device> m_gdfs_st0020;
 	required_device<cpu_device> m_maincpu;
+	required_device<eeprom_device> m_eeprom;
 	DECLARE_WRITE32_MEMBER(darkhors_tmapram_w);
 	DECLARE_WRITE32_MEMBER(darkhors_tmapram2_w);
 	DECLARE_WRITE32_MEMBER(paletteram32_xBBBBBGGGGGRRRRR_dword_w);
@@ -147,6 +149,7 @@ public:
 	UINT32 screen_update_jclub2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_jclub2o(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(darkhors_irq);
+	void draw_sprites_darkhors(bitmap_ind16 &bitmap, const rectangle &cliprect);
 };
 
 
@@ -189,11 +192,10 @@ WRITE32_MEMBER(darkhors_state::darkhors_tmapram2_w)
 	m_tmap2->mark_tile_dirty(offset);
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void darkhors_state::draw_sprites_darkhors(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	darkhors_state *state = machine.driver_data<darkhors_state>();
-	UINT32 *s       =   state->m_spriteram;
-	UINT32 *end     =   state->m_spriteram + 0x02000/4;
+	UINT32 *s       =   m_spriteram;
+	UINT32 *end     =   m_spriteram + 0x02000/4;
 
 	for ( ; s < end; s += 8/4 )
 	{
@@ -218,7 +220,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		sy  =   -sy;
 		sy  +=  0xf8;
 
-		drawgfx_transpen(   bitmap, cliprect, machine.gfx[0],
+		drawgfx_transpen(   bitmap, cliprect, machine().gfx[0],
 					code/2, color,
 					flipx,  flipy,  sx, sy, 0);
 	}
@@ -258,8 +260,8 @@ UINT32 darkhors_state::screen_update_darkhors(screen_device &screen, bitmap_ind1
 	m_tmap2->set_scrollx(0, (m_tmapscroll2[0] >> 16) - 5);
 	m_tmap2->set_scrolly(0, (m_tmapscroll2[0] & 0xffff) - 0xff );
 	if (layers_ctrl & 2)    m_tmap2->draw(bitmap, cliprect, 0, 0);
+	if (layers_ctrl & 4)    draw_sprites_darkhors(bitmap,cliprect);
 
-	if (layers_ctrl & 4)    draw_sprites(machine(),bitmap,cliprect);
 
 #if DARKHORS_DEBUG
 #if 0
@@ -286,21 +288,19 @@ UINT32 darkhors_state::screen_update_darkhors(screen_device &screen, bitmap_ind1
 
 WRITE32_MEMBER(darkhors_state::darkhors_eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (data & ~0xff000000)
 		logerror("%s: Unknown EEPROM bit written %08X\n",machine().describe_context(),data);
 
 	if ( ACCESSING_BITS_24_31 )
 	{
 		// latch the bit
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x04000000);
+		m_eeprom->write_bit(data & 0x04000000);
 
 		// reset line asserted: reset.
-		eeprom->set_cs_line((data & 0x01000000) ? CLEAR_LINE : ASSERT_LINE );
+		m_eeprom->set_cs_line((data & 0x01000000) ? CLEAR_LINE : ASSERT_LINE );
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->set_clock_line((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 
@@ -718,12 +718,10 @@ MACHINE_CONFIG_END
 
 VIDEO_START_MEMBER(darkhors_state,jclub2)
 {
-
 }
 
 UINT32 darkhors_state::screen_update_jclub2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	// this isn't an st0020..
 	m_gdfs_st0020->st0020_draw_all(machine(), bitmap, cliprect);
 
@@ -760,7 +758,7 @@ MACHINE_CONFIG_END
 static ADDRESS_MAP_START( st0016_mem, AS_PROGRAM, 8, darkhors_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xe900, 0xe9ff) AM_DEVREADWRITE_LEGACY("stsnd", st0016_snd_r, st0016_snd_w)
+	AM_RANGE(0xe900, 0xe9ff) AM_DEVREADWRITE("stsnd", st0016_device, st0016_snd_r, st0016_snd_w)
 	AM_RANGE(0xec00, 0xec1f) AM_READ(st0016_character_ram_r) AM_WRITE(st0016_character_ram_w)
 	AM_RANGE(0xf000, 0xffff) AM_RAM
 ADDRESS_MAP_END
@@ -768,12 +766,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( st0016_io, AS_IO, 8, darkhors_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0xbf) AM_READ(st0016_vregs_r) AM_WRITE(st0016_vregs_w)
-	//AM_RANGE(0xc0, 0xc0) AM_READ_LEGACY(cmd1_r)
-	//AM_RANGE(0xc1, 0xc1) AM_READ_LEGACY(cmd2_r)
-	//AM_RANGE(0xc2, 0xc2) AM_READ_LEGACY(cmd_stat8_r)
+	//AM_RANGE(0xc0, 0xc0) AM_READ(cmd1_r)
+	//AM_RANGE(0xc1, 0xc1) AM_READ(cmd2_r)
+	//AM_RANGE(0xc2, 0xc2) AM_READ(cmd_stat8_r)
 	AM_RANGE(0xe1, 0xe1) AM_WRITE(st0016_rom_bank_w)
 	//AM_RANGE(0xe7, 0xe7) AM_WRITE(st0016_rom_bank_w)
-	//AM_RANGE(0xf0, 0xf0) AM_READ_LEGACY(st0016_dma_r)
+	//AM_RANGE(0xf0, 0xf0) AM_READ(st0016_dma_r)
 ADDRESS_MAP_END
 
 static const st0016_interface st0016_config =
@@ -783,7 +781,6 @@ static const st0016_interface st0016_config =
 
 VIDEO_START_MEMBER(darkhors_state,jclub2o)
 {
-
 }
 
 UINT32 darkhors_state::screen_update_jclub2o(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -820,7 +817,7 @@ static MACHINE_CONFIG_START( jclub2o, darkhors_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("stsnd", ST0016, 0)
+	MCFG_ST0016_ADD("stsnd", 0)
 	MCFG_SOUND_CONFIG(st0016_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
@@ -998,10 +995,10 @@ DRIVER_INIT_MEMBER(darkhors_state,darkhors)
 	// the eeprom contains the game ID, which must be valid for it to boot
 	// is there a way (key sequence) to reprogram it??
 	// I bet the original sets need similar get further in their boot sequence
-	UINT8  *eeprom = (UINT8 *)  machine().root_device().memregion("eeprom")->base();
+	UINT8  *eeprom = (UINT8 *)  memregion("eeprom")->base();
 	if (eeprom != NULL)
 	{
-		size_t len = machine().root_device().memregion("eeprom")->bytes();
+		size_t len = memregion("eeprom")->bytes();
 		UINT8* temp = (UINT8*)auto_alloc_array(machine(), UINT8, len);
 		int i;
 		for (i = 0; i < len; i++)

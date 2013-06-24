@@ -11,7 +11,6 @@ the only difference of a larger gfx ROM (losing the ability to choose full or ha
 brightness for each character).
 
 
-
 Gee Bee memory map
 Navarone, Kaitei, SOS are the same but CGROM is twice as large
 
@@ -120,6 +119,9 @@ Notes:
   high score table the names are NNN AAA MMM CCC OOO. warpwarp doesn't have an
   high score table at all.
 
+- There are images/videos on the net of kaitei and geebee running in 3bpp
+  (aka 7 colors), this is assumed to be a homebrew repair or hack.
+
 
 TODO:
 - I arbitrarily assigned a uniform blue overlay to sos. I don't know how it's
@@ -141,7 +143,6 @@ TODO:
 /* Interrupt Gen */
 INTERRUPT_GEN_MEMBER(warpwarp_state::vblank_irq)
 {
-
 	if(m_ball_on)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
@@ -183,7 +184,7 @@ WRITE8_MEMBER(warpwarp_state::geebee_out6_w)
 			/* n.c. */
 			break;
 		case 3:
-			geebee_sound_w(machine().device("geebee"),space,0,data);
+			m_geebee_sound->sound_w(space,0,data);
 			break;
 	}
 }
@@ -216,7 +217,7 @@ WRITE8_MEMBER(warpwarp_state::geebee_out7_w)
 		case 6:
 			m_ball_on = data & 1;
 			if (~data & 1)
-				machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+				m_maincpu->set_input_line(0, CLEAR_LINE);
 			break;
 		case 7:
 			flip_screen_set(data & 1);
@@ -236,7 +237,7 @@ READ8_MEMBER(warpwarp_state::warpwarp_sw_r)
 /* Read Dipswitches */
 READ8_MEMBER(warpwarp_state::warpwarp_dsw1_r)
 {
-	return (machine().root_device().ioport("DSW1")->read() >> (offset & 7)) & 1;
+	return (ioport("DSW1")->read() >> (offset & 7)) & 1;
 }
 
 /* Read mux Controller Inputs */
@@ -267,7 +268,7 @@ WRITE8_MEMBER(warpwarp_state::warpwarp_out0_w)
 			m_ball_v = data;
 			break;
 		case 2:
-			warpwarp_sound_w(machine().device("warpwarp"),space,0,data);
+			m_warpwarp_sound->sound_w(space,0,data);
 			break;
 		case 3:
 			watchdog_reset_w(space,0,data);
@@ -300,7 +301,7 @@ WRITE8_MEMBER(warpwarp_state::warpwarp_out3_w)
 		case 6:
 			m_ball_on = data & 1;
 			if (~data & 1)
-				machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+				m_maincpu->set_input_line(0, CLEAR_LINE);
 			break;
 		case 7:
 			flip_screen_set(data & 1);
@@ -333,8 +334,8 @@ static ADDRESS_MAP_START( bombbee_map, AS_PROGRAM, 8, warpwarp_state )
 	AM_RANGE(0x4000, 0x47ff) AM_RAM_WRITE(warpwarp_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0x4800, 0x4fff) AM_ROM AM_REGION("gfx1", 0)
 	AM_RANGE(0x6000, 0x600f) AM_READWRITE(warpwarp_sw_r, warpwarp_out0_w)
-	AM_RANGE(0x6010, 0x601f) AM_READ(warpwarp_vol_r) AM_DEVWRITE_LEGACY("warpwarp", warpwarp_music1_w)
-	AM_RANGE(0x6020, 0x602f) AM_READ(warpwarp_dsw1_r) AM_DEVWRITE_LEGACY("warpwarp", warpwarp_music2_w)
+	AM_RANGE(0x6010, 0x601f) AM_READ(warpwarp_vol_r) AM_DEVWRITE("warpwarp_custom", warpwarp_sound_device, music1_w)
+	AM_RANGE(0x6020, 0x602f) AM_READ(warpwarp_dsw1_r) AM_DEVWRITE("warpwarp_custom", warpwarp_sound_device, music2_w)
 	AM_RANGE(0x6030, 0x603f) AM_WRITE(warpwarp_out3_w)
 ADDRESS_MAP_END
 
@@ -344,8 +345,8 @@ static ADDRESS_MAP_START( warpwarp_map, AS_PROGRAM, 8, warpwarp_state )
 	AM_RANGE(0x4000, 0x47ff) AM_RAM_WRITE(warpwarp_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0x4800, 0x4fff) AM_ROM AM_REGION("gfx1", 0)
 	AM_RANGE(0xc000, 0xc00f) AM_READWRITE(warpwarp_sw_r, warpwarp_out0_w)
-	AM_RANGE(0xc010, 0xc01f) AM_READ(warpwarp_vol_r) AM_DEVWRITE_LEGACY("warpwarp", warpwarp_music1_w)
-	AM_RANGE(0xc020, 0xc02f) AM_READ(warpwarp_dsw1_r) AM_DEVWRITE_LEGACY("warpwarp", warpwarp_music2_w)
+	AM_RANGE(0xc010, 0xc01f) AM_READ(warpwarp_vol_r) AM_DEVWRITE("warpwarp_custom", warpwarp_sound_device, music1_w)
+	AM_RANGE(0xc020, 0xc02f) AM_READ(warpwarp_dsw1_r) AM_DEVWRITE("warpwarp_custom", warpwarp_sound_device, music2_w)
 	AM_RANGE(0xc030, 0xc03f) AM_WRITE(warpwarp_out3_w)
 ADDRESS_MAP_END
 
@@ -747,7 +748,7 @@ static MACHINE_CONFIG_START( geebee, warpwarp_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("geebee", GEEBEE, 0)
+	MCFG_SOUND_ADD("geebee_custom", GEEBEE, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -782,7 +783,7 @@ static MACHINE_CONFIG_START( bombbee, warpwarp_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("warpwarp", WARPWARP, 0)
+	MCFG_SOUND_ADD("warpwarp_custom", WARPWARP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

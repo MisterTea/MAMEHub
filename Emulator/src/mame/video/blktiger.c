@@ -64,7 +64,6 @@ TILE_GET_INFO_MEMBER(blktiger_state::get_tx_tile_info)
 
 void blktiger_state::video_start()
 {
-
 	m_chon = 1;
 	m_bgon = 1;
 	m_objon = 1;
@@ -163,7 +162,6 @@ WRITE8_MEMBER(blktiger_state::blktiger_video_control_w)
 
 WRITE8_MEMBER(blktiger_state::blktiger_video_enable_w)
 {
-
 	/* not sure which is which, but I think that bit 1 and 2 enable background and sprites */
 	/* bit 1 enables bg ? */
 	m_bgon = ~data & 0x02;
@@ -187,14 +185,13 @@ WRITE8_MEMBER(blktiger_state::blktiger_screen_layout_w)
 
 ***************************************************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void blktiger_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	blktiger_state *state = machine.driver_data<blktiger_state>();
-	UINT8 *buffered_spriteram = state->m_spriteram->buffer();
+	UINT8 *buffered_spriteram = m_spriteram->buffer();
 	int offs;
 
 	/* Draw the sprites. */
-	for (offs = state->m_spriteram->bytes() - 4;offs >= 0;offs -= 4)
+	for (offs = m_spriteram->bytes() - 4;offs >= 0;offs -= 4)
 	{
 		int attr = buffered_spriteram[offs+1];
 		int sx = buffered_spriteram[offs + 3] - ((attr & 0x10) << 4);
@@ -203,31 +200,30 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		int color = attr & 0x07;
 		int flipx = attr & 0x08;
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sx = 240 - sx;
 			sy = 240 - sy;
 			flipx = !flipx;
 		}
 
-		drawgfx_transpen(bitmap,cliprect,machine.gfx[2],
+		drawgfx_transpen(bitmap,cliprect,machine().gfx[2],
 				code,
 				color,
-				flipx,state->flip_screen(),
+				flipx,flip_screen(),
 				sx,sy,15);
 	}
 }
 
 UINT32 blktiger_state::screen_update_blktiger(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(1023, cliprect);
 
 	if (m_bgon)
 		(m_screen_layout ? m_bg_tilemap8x4 : m_bg_tilemap4x8)->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
 
 	if (m_objon)
-		draw_sprites(machine(), bitmap, cliprect);
+		draw_sprites(bitmap, cliprect);
 
 	if (m_bgon)
 		(m_screen_layout ? m_bg_tilemap8x4 : m_bg_tilemap4x8)->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);

@@ -92,9 +92,11 @@ class quizpun2_state : public driver_device
 {
 public:
 	quizpun2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fg_ram(*this, "fg_ram"),
-		m_bg_ram(*this, "bg_ram"){ }
+		m_bg_ram(*this, "bg_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	struct prot_t m_prot;
 	required_shared_ptr<UINT8> m_fg_ram;
@@ -113,6 +115,8 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_quizpun2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 
 
@@ -349,13 +353,13 @@ WRITE8_MEMBER(quizpun2_state::quizpun2_rombank_w)
 
 WRITE8_MEMBER(quizpun2_state::quizpun2_irq_ack)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 }
 
 WRITE8_MEMBER(quizpun2_state::quizpun2_soundlatch_w)
 {
 	soundlatch_byte_w(space, 0, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static ADDRESS_MAP_START( quizpun2_map, AS_PROGRAM, 8, quizpun2_state )
@@ -396,7 +400,7 @@ static ADDRESS_MAP_START( quizpun2_sound_io_map, AS_IO, 8, quizpun2_state )
 	AM_RANGE( 0x00, 0x00 ) AM_WRITENOP  // IRQ end
 	AM_RANGE( 0x20, 0x20 ) AM_WRITENOP  // NMI end
 	AM_RANGE( 0x40, 0x40 ) AM_READ(soundlatch_byte_r )
-	AM_RANGE( 0x60, 0x61 ) AM_DEVREADWRITE_LEGACY("ymsnd", ym2203_r, ym2203_w )
+	AM_RANGE( 0x60, 0x61 ) AM_DEVREADWRITE("ymsnd", ym2203_device, read, write )
 ADDRESS_MAP_END
 
 

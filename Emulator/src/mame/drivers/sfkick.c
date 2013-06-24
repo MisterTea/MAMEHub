@@ -63,7 +63,9 @@ class sfkick_state : public driver_device
 public:
 	sfkick_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_v9938(*this, "v9938") { }
+			m_v9938(*this, "v9938"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu") { }
 
 	UINT8 *m_main_mem;
 	int m_bank_cfg;
@@ -80,6 +82,12 @@ public:
 	DECLARE_DRIVER_INIT(sfkick);
 	virtual void machine_reset();
 	TIMER_DEVICE_CALLBACK_MEMBER(sfkick_interrupt);
+	void sfkick_remap_banks();
+	void sfkick_bank_set(int num, int data);
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	DECLARE_WRITE_LINE_MEMBER(sfkick_vdp_interrupt);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
 };
 
 
@@ -105,127 +113,126 @@ READ8_MEMBER(sfkick_state::ppi_port_b_r)
 	return 0xff;
 }
 
-static void sfkick_remap_banks(running_machine &machine)
+void sfkick_state::sfkick_remap_banks()
 {
-	sfkick_state *state = machine.driver_data<sfkick_state>();
 	/* 0000-3ffff */
-	switch(state->m_bank_cfg&3)
+	switch(m_bank_cfg&3)
 	{
 		case 0: /* bios */
 		{
-			UINT8 *mem = state->memregion("bios")->base();
-			state->membank("bank1")->set_base(mem);
-			state->membank("bank2")->set_base(mem+0x2000);
+			UINT8 *mem = memregion("bios")->base();
+			membank("bank1")->set_base(mem);
+			membank("bank2")->set_base(mem+0x2000);
 		}
 		break;
 
 		case 1: /* ext rom */
 		{
-			UINT8 *mem = machine.root_device().memregion("extrom")->base();
-			state->membank("bank1")->set_base(mem+0x4000);
-			state->membank("bank2")->set_base(mem+0x6000);
+			UINT8 *mem = memregion("extrom")->base();
+			membank("bank1")->set_base(mem+0x4000);
+			membank("bank2")->set_base(mem+0x6000);
 		}
 		break;
 
 		case 2: /* banked */
 		{
-			UINT8 *mem = machine.root_device().memregion("banked")->base();
-			state->membank("bank1")->set_base(mem+0x2000*state->m_bank[0]);
-			state->membank("bank2")->set_base(mem+0x2000*state->m_bank[1]);
+			UINT8 *mem = memregion("banked")->base();
+			membank("bank1")->set_base(mem+0x2000*m_bank[0]);
+			membank("bank2")->set_base(mem+0x2000*m_bank[1]);
 		}
 		break;
 
 		case 3: /* unknown */
 		{
-			UINT8 *mem = machine.root_device().memregion("banked")->base();
-			state->membank("bank1")->set_base(mem+0x18000);
-			state->membank("bank2")->set_base(mem+0x18000);
+			UINT8 *mem = memregion("banked")->base();
+			membank("bank1")->set_base(mem+0x18000);
+			membank("bank2")->set_base(mem+0x18000);
 		}
 		break;
 	}
 
 	/* 4000-7ffff */
-	switch((state->m_bank_cfg>>2)&3)
+	switch((m_bank_cfg>>2)&3)
 	{
 		case 0: /* bios - upper part */
 		{
-			UINT8 *mem = machine.root_device().memregion("bios")->base();
-			state->membank("bank3")->set_base(mem+0x4000);
-			state->membank("bank4")->set_base(mem+0x6000);
+			UINT8 *mem = memregion("bios")->base();
+			membank("bank3")->set_base(mem+0x4000);
+			membank("bank4")->set_base(mem+0x6000);
 		}
 		break;
 
 		case 1:  /* unknown */
 		case 3:
 		{
-			UINT8 *mem = machine.root_device().memregion("banked")->base();
-			state->membank("bank3")->set_base(mem+0x18000);
-			state->membank("bank4")->set_base(mem+0x18000);
+			UINT8 *mem = memregion("banked")->base();
+			membank("bank3")->set_base(mem+0x18000);
+			membank("bank4")->set_base(mem+0x18000);
 		}
 		break;
 
 		case 2: /* banked */
 		{
-			UINT8 *mem = machine.root_device().memregion("banked")->base();
-			state->membank("bank3")->set_base(mem+0x2000*state->m_bank[2]);
-			state->membank("bank4")->set_base(mem+0x2000*state->m_bank[3]);
+			UINT8 *mem = memregion("banked")->base();
+			membank("bank3")->set_base(mem+0x2000*m_bank[2]);
+			membank("bank4")->set_base(mem+0x2000*m_bank[3]);
 		}
 		break;
 	}
 
 	/* 8000-bffff */
-	switch((state->m_bank_cfg>>4)&3)
+	switch((m_bank_cfg>>4)&3)
 	{
 		case 0: /* cartridge */
 		{
-			UINT8 *mem = machine.root_device().memregion("cartridge")->base();
-			state->membank("bank5")->set_base(mem+0x4000);
-			state->membank("bank6")->set_base(mem+0x6000);
+			UINT8 *mem = memregion("cartridge")->base();
+			membank("bank5")->set_base(mem+0x4000);
+			membank("bank6")->set_base(mem+0x6000);
 		}
 		break;
 
 		case 1: /* unknown */
 		case 3:
 		{
-			UINT8 *mem = machine.root_device().memregion("banked")->base();
-			state->membank("bank5")->set_base(mem+0x18000);
-			state->membank("bank6")->set_base(mem+0x18000);
+			UINT8 *mem = memregion("banked")->base();
+			membank("bank5")->set_base(mem+0x18000);
+			membank("bank6")->set_base(mem+0x18000);
 		}
 		break;
 
 		case 2: /* banked */
 		{
-			UINT8 *mem = machine.root_device().memregion("banked")->base();
-			state->membank("bank5")->set_base(mem+0x2000*state->m_bank[4]);
-			state->membank("bank6")->set_base(mem+0x2000*state->m_bank[5]);
+			UINT8 *mem = memregion("banked")->base();
+			membank("bank5")->set_base(mem+0x2000*m_bank[4]);
+			membank("bank6")->set_base(mem+0x2000*m_bank[5]);
 		}
 		break;
 	}
 
 	/* c000-fffff */
-	switch((state->m_bank_cfg>>6)&3)
+	switch((m_bank_cfg>>6)&3)
 	{
 		case 0: /* unknown */
 		case 1:
 		{
-			UINT8 *mem = machine.root_device().memregion("banked")->base();
-			state->membank("bank7")->set_base(mem+0x18000);
-			state->membank("bank8")->set_base(mem+0x18000);
+			UINT8 *mem = memregion("banked")->base();
+			membank("bank7")->set_base(mem+0x18000);
+			membank("bank8")->set_base(mem+0x18000);
 		}
 		break;
 
 		case 2: /* banked */
 		{
-			UINT8 *mem = machine.root_device().memregion("banked")->base();
-			state->membank("bank7")->set_base(mem+0x2000*state->m_bank[6]);
-			state->membank("bank8")->set_base(mem+0x2000*state->m_bank[7]);
+			UINT8 *mem = memregion("banked")->base();
+			membank("bank7")->set_base(mem+0x2000*m_bank[6]);
+			membank("bank8")->set_base(mem+0x2000*m_bank[7]);
 		}
 		break;
 
 		case 3: /* RAM */
 		{
-			state->membank("bank7")->set_base(state->m_main_mem);
-			state->membank("bank8")->set_base(state->m_main_mem+0x2000);
+			membank("bank7")->set_base(m_main_mem);
+			membank("bank8")->set_base(m_main_mem+0x2000);
 		}
 		break;
 	}
@@ -234,19 +241,18 @@ static void sfkick_remap_banks(running_machine &machine)
 WRITE8_MEMBER(sfkick_state::ppi_port_a_w)
 {
 	m_bank_cfg=data;
-	sfkick_remap_banks(machine());
+	sfkick_remap_banks();
 }
 
-static void sfkick_bank_set(running_machine &machine,int num, int data)
+void sfkick_state::sfkick_bank_set(int num, int data)
 {
-	sfkick_state *state = machine.driver_data<sfkick_state>();
 	/* ignore bit 1 */
 	data&=0xf;
 	num&=5;
-	state->m_bank[num]=data;
+	m_bank[num]=data;
 	num|=2;
-	state->m_bank[num]=data;
-	sfkick_remap_banks(machine);
+	m_bank[num]=data;
+	sfkick_remap_banks();
 }
 
 WRITE8_MEMBER(sfkick_state::page0_w)
@@ -255,11 +261,11 @@ WRITE8_MEMBER(sfkick_state::page0_w)
 	{
 		if(offset<0x2000)
 		{
-			sfkick_bank_set(machine(),0,data);
+			sfkick_bank_set(0,data);
 		}
 		else
 		{
-			sfkick_bank_set(machine(),1,data);
+			sfkick_bank_set(1,data);
 		}
 	}
 }
@@ -270,11 +276,11 @@ WRITE8_MEMBER(sfkick_state::page1_w)
 	{
 		if(offset<0x2000)
 		{
-			sfkick_bank_set(machine(),2,data);
+			sfkick_bank_set(2,data);
 		}
 		else
 		{
-			sfkick_bank_set(machine(),3,data);
+			sfkick_bank_set(3,data);
 		}
 	}
 }
@@ -285,11 +291,11 @@ WRITE8_MEMBER(sfkick_state::page2_w)
 	{
 		if(offset<0x2000)
 		{
-			sfkick_bank_set(machine(),4,data);
+			sfkick_bank_set(4,data);
 		}
 		else
 		{
-			sfkick_bank_set(machine(),5,data);
+			sfkick_bank_set(5,data);
 		}
 	}
 }
@@ -300,11 +306,11 @@ WRITE8_MEMBER(sfkick_state::page3_w)
 	{
 		if(offset<0x2000)
 		{
-			sfkick_bank_set(machine(),6,data);
+			sfkick_bank_set(6,data);
 		}
 		else
 		{
-			sfkick_bank_set(machine(),7,data);
+			sfkick_bank_set(7,data);
 		}
 	}
 	else
@@ -350,7 +356,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sfkick_sound_io_map, AS_IO, 8, sfkick_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x00) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x04, 0x05) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
+	AM_RANGE(0x04, 0x05) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
 ADDRESS_MAP_END
 
 WRITE8_MEMBER(sfkick_state::ppi_port_c_w)
@@ -431,9 +437,9 @@ static INPUT_PORTS_START( sfkick )
 	PORT_DIPSETTING(    0x08, DEF_STR( 1C_5C ) )
 INPUT_PORTS_END
 
-static void sfkick_vdp_interrupt(device_t *, v99x8_device &device, int i)
+WRITE_LINE_MEMBER(sfkick_state::sfkick_vdp_interrupt)
 {
-	device.machine().device("maincpu")->execute().set_input_line(0, (i ? HOLD_LINE : CLEAR_LINE));
+	m_maincpu->set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
 }
 
 void sfkick_state::machine_reset()
@@ -447,7 +453,7 @@ void sfkick_state::machine_reset()
 	m_bank[5]=0;
 	m_bank[6]=0;
 	m_bank[7]=0;
-	sfkick_remap_banks(machine());
+	sfkick_remap_banks();
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(sfkick_state::sfkick_interrupt)
@@ -455,19 +461,16 @@ TIMER_DEVICE_CALLBACK_MEMBER(sfkick_state::sfkick_interrupt)
 	m_v9938->interrupt();
 }
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(sfkick_state::irqhandler)
 {
-	device->machine().device("soundcpu")->execute().set_input_line_and_vector(0, irq ? ASSERT_LINE : CLEAR_LINE, 0xff);
+	m_soundcpu->set_input_line_and_vector(0, state ? ASSERT_LINE : CLEAR_LINE, 0xff);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,DEVCB_NULL,DEVCB_NULL,DEVCB_NULL,
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,DEVCB_NULL,DEVCB_NULL,DEVCB_NULL,
 };
 
 static MACHINE_CONFIG_START( sfkick, sfkick_state )
@@ -484,7 +487,7 @@ static MACHINE_CONFIG_START( sfkick, sfkick_state )
 	MCFG_CPU_IO_MAP(sfkick_sound_io_map)
 
 	MCFG_V9938_ADD("v9938", "screen", 0x80000)
-	MCFG_V99X8_INTERRUPT_CALLBACK_STATIC(sfkick_vdp_interrupt)
+	MCFG_V99X8_INTERRUPT_CALLBACK(WRITELINE(sfkick_state,sfkick_vdp_interrupt))
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -502,7 +505,8 @@ static MACHINE_CONFIG_START( sfkick, sfkick_state )
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ym1", YM2203, MASTER_CLOCK/6)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(sfkick_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)

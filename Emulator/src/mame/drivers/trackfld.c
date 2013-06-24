@@ -218,7 +218,6 @@ WRITE8_MEMBER(trackfld_state::questions_bank_w)
 
 WRITE8_MEMBER(trackfld_state::irq_mask_w)
 {
-
 	m_irq_mask = data & 1;
 }
 
@@ -252,7 +251,6 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(trackfld_state::yieartf_nmi_mask_w)
 {
-
 	m_yieartf_nmi_mask = data & 1;
 }
 
@@ -866,7 +864,6 @@ GFXDECODE_END
 
 MACHINE_START_MEMBER(trackfld_state,trackfld)
 {
-
 	/* video */
 	save_item(NAME(m_bg_bank));
 	save_item(NAME(m_sprite_bank1));
@@ -876,7 +873,6 @@ MACHINE_START_MEMBER(trackfld_state,trackfld)
 
 MACHINE_RESET_MEMBER(trackfld_state,trackfld)
 {
-
 	m_bg_bank = 0;
 	m_sprite_bank1 = 0;
 	m_sprite_bank2 = 0;
@@ -885,14 +881,12 @@ MACHINE_RESET_MEMBER(trackfld_state,trackfld)
 
 INTERRUPT_GEN_MEMBER(trackfld_state::vblank_irq)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(0, HOLD_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(trackfld_state::vblank_nmi)
 {
-
 	if(m_irq_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -953,7 +947,6 @@ MACHINE_CONFIG_END
 
 INTERRUPT_GEN_MEMBER(trackfld_state::yieartf_timer_irq)
 {
-
 	if (m_yieartf_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -1444,8 +1437,8 @@ DRIVER_INIT_MEMBER(trackfld_state,trackfld)
 
 DRIVER_INIT_MEMBER(trackfld_state,atlantol)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+	UINT8 *rom = memregion("maincpu")->base();
 	UINT8 *decrypt;
 	int A;
 
@@ -1474,7 +1467,7 @@ DRIVER_INIT_MEMBER(trackfld_state,atlantol)
 
 DRIVER_INIT_MEMBER(trackfld_state,mastkin)
 {
-	UINT8 *prom = machine().root_device().memregion("proms")->base();
+	UINT8 *prom = memregion("proms")->base();
 	int i;
 
 	/* build a fake palette so the screen won't be all black */
@@ -1495,20 +1488,20 @@ DRIVER_INIT_MEMBER(trackfld_state,mastkin)
 
 DRIVER_INIT_MEMBER(trackfld_state,wizzquiz)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base() + 0xe000;
+	UINT8 *ROM = memregion("maincpu")->base() + 0xe000;
 	int i;
 
 	/* decrypt program rom */
 	for (i = 0; i < 0x2000; i++)
 		ROM[i] = BITSWAP8(ROM[i],0,1,2,3,4,5,6,7);
 
-	ROM = machine().root_device().memregion("user1")->base();
+	ROM = memregion("user1")->base();
 
 	/* decrypt questions roms */
 	for (i = 0; i < 0x40000; i++)
 		ROM[i] = BITSWAP8(ROM[i],0,1,2,3,4,5,6,7);
 
-	machine().root_device().membank("bank1")->configure_entries(0, 8, ROM, 0x8000);
+	membank("bank1")->configure_entries(0, 8, ROM, 0x8000);
 }
 
 

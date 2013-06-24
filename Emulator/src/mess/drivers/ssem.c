@@ -24,6 +24,10 @@ public:
 	virtual void machine_reset();
 	UINT32 screen_update_ssem(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	DECLARE_INPUT_CHANGED_MEMBER(panel_check);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(ssem_store);
+	inline UINT32 reverse(UINT32 v);
+	void glyph_print(bitmap_rgb32 &bitmap, INT32 x, INT32 y, const char *msg, ...);
+	void strlower(char *buf);
 };
 
 
@@ -36,7 +40,7 @@ public:
 // The de facto snapshot format for other SSEM simulators stores the data physically in that format as well.
 // Therefore, in MESS, every 32-bit word has its bits reversed, too, and as a result the values must be
 // un-reversed before being used.
-INLINE UINT32 reverse(UINT32 v)
+inline UINT32 ssem_state::reverse(UINT32 v)
 {
 	// Taken from http://www-graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
 	// swap odd and even bits
@@ -85,12 +89,11 @@ enum
 
 INPUT_CHANGED_MEMBER(ssem_state::panel_check)
 {
-	UINT8 edit0_state = machine().root_device().ioport("EDIT0")->read();
-	UINT8 edit1_state = machine().root_device().ioport("EDIT1")->read();
-	UINT8 edit2_state = machine().root_device().ioport("EDIT2")->read();
-	UINT8 edit3_state = machine().root_device().ioport("EDIT3")->read();
-	UINT8 misc_state = machine().root_device().ioport("MISC")->read();
-	device_t *ssem_cpu = machine().device("maincpu");
+	UINT8 edit0_state = ioport("EDIT0")->read();
+	UINT8 edit1_state = ioport("EDIT1")->read();
+	UINT8 edit2_state = ioport("EDIT2")->read();
+	UINT8 edit3_state = ioport("EDIT3")->read();
+	UINT8 misc_state = ioport("MISC")->read();
 
 	switch( (int)(FPTR)param )
 	{
@@ -205,7 +208,7 @@ INPUT_CHANGED_MEMBER(ssem_state::panel_check)
 		case PANEL_HALT:
 			if(misc_state & 0x04)
 			{
-				ssem_cpu->state().set_state_int(SSEM_HALT, 1 - ssem_cpu->state().state_int(SSEM_HALT));
+				m_maincpu->set_state_int(SSEM_HALT, 1 - m_maincpu->state_int(SSEM_HALT));
 			}
 			break;
 	}
@@ -395,12 +398,12 @@ static const UINT8 char_glyphs[0x80][8] =
 	{ 0xff, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0xff },
 };
 
-static void glyph_print(running_machine &machine, bitmap_rgb32 &bitmap, INT32 x, INT32 y, const char *msg, ...)
+void ssem_state::glyph_print(bitmap_rgb32 &bitmap, INT32 x, INT32 y, const char *msg, ...)
 {
 	va_list arg_list;
 	char buf[32768];
 	INT32 index = 0;
-	screen_device *screen = machine.first_screen();
+	screen_device *screen = machine().first_screen();
 	const rectangle &visarea = screen->visible_area();
 
 	va_start( arg_list, msg );
@@ -447,8 +450,7 @@ static void glyph_print(running_machine &machine, bitmap_rgb32 &bitmap, INT32 x,
 UINT32 ssem_state::screen_update_ssem(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	UINT32 line = 0;
-	device_t *ssem_cpu = machine().device("maincpu");
-	UINT32 accum = ssem_cpu->state().state_int(SSEM_A);
+	UINT32 accum = m_maincpu->state_int(SSEM_A);
 	UINT32 bit = 0;
 	UINT32 word = 0;
 
@@ -462,11 +464,11 @@ UINT32 ssem_state::screen_update_ssem(screen_device &screen, bitmap_rgb32 &bitma
 		{
 			if(word & (1 << (31 - bit)))
 			{
-				glyph_print(machine(), bitmap, bit << 3, line << 3, "%c", line == m_store_line ? 4 : 2);
+				glyph_print(bitmap, bit << 3, line << 3, "%c", line == m_store_line ? 4 : 2);
 			}
 			else
 			{
-				glyph_print(machine(), bitmap, bit << 3, line << 3, "%c", line == m_store_line ? 3 : 1);
+				glyph_print(bitmap, bit << 3, line << 3, "%c", line == m_store_line ? 3 : 1);
 			}
 		}
 	}
@@ -475,11 +477,11 @@ UINT32 ssem_state::screen_update_ssem(screen_device &screen, bitmap_rgb32 &bitma
 	{
 		if(accum & (1 << bit))
 		{
-			glyph_print(machine(), bitmap, bit << 3, 264, "%c", 2);
+			glyph_print(bitmap, bit << 3, 264, "%c", 2);
 		}
 		else
 		{
-			glyph_print(machine(), bitmap, bit << 3, 264, "%c", 1);
+			glyph_print(bitmap, bit << 3, 264, "%c", 1);
 		}
 	}
 
@@ -487,7 +489,7 @@ UINT32 ssem_state::screen_update_ssem(screen_device &screen, bitmap_rgb32 &bitma
 					(m_store[(m_store_line << 2) | 1] << 16) |
 					(m_store[(m_store_line << 2) | 2] <<  8) |
 					(m_store[(m_store_line << 2) | 3] <<  0));
-	glyph_print(machine(), bitmap, 0, 272, "LINE:%02d  VALUE:%08x  HALT:%d", m_store_line, word, ssem_cpu->state().state_int(SSEM_HALT));
+	glyph_print(bitmap, 0, 272, "LINE:%02d  VALUE:%08x  HALT:%d", m_store_line, word, m_maincpu->state_int(SSEM_HALT));
 	return 0;
 }
 
@@ -495,7 +497,7 @@ UINT32 ssem_state::screen_update_ssem(screen_device &screen, bitmap_rgb32 &bitma
 * Image helper functions                             *
 \****************************************************/
 
-static void strlower(char *buf)
+void ssem_state::strlower(char *buf)
 {
 	if(buf)
 	{
@@ -514,9 +516,8 @@ static void strlower(char *buf)
 * Image loading                                      *
 \****************************************************/
 
-static DEVICE_IMAGE_LOAD(ssem_store)
+DEVICE_IMAGE_LOAD_MEMBER(ssem_state,ssem_store)
 {
-	ssem_state *state = image.device().machine().driver_data<ssem_state>();
 	const char* image_name = image.filename();
 	char image_ext[5] = { 0 };
 	char image_line[100] = { 0 };
@@ -557,10 +558,10 @@ static DEVICE_IMAGE_LOAD(ssem_store)
 					}
 				}
 
-				state->m_store[(line << 2) + 0] = (word >> 24) & 0x000000ff;
-				state->m_store[(line << 2) + 1] = (word >> 16) & 0x000000ff;
-				state->m_store[(line << 2) + 2] = (word >>  8) & 0x000000ff;
-				state->m_store[(line << 2) + 3] = (word >>  0) & 0x000000ff;
+				m_store[(line << 2) + 0] = (word >> 24) & 0x000000ff;
+				m_store[(line << 2) + 1] = (word >> 16) & 0x000000ff;
+				m_store[(line << 2) + 2] = (word >>  8) & 0x000000ff;
+				m_store[(line << 2) + 3] = (word >>  0) & 0x000000ff;
 			}
 			else if(strcmp(image_ext, ".asm") == 0)
 			{
@@ -611,10 +612,10 @@ static DEVICE_IMAGE_LOAD(ssem_store)
 					word = 0x00070000 | unsigned_value;
 				}
 
-				state->m_store[(line << 2) + 0] = (word >> 24) & 0x000000ff;
-				state->m_store[(line << 2) + 1] = (word >> 16) & 0x000000ff;
-				state->m_store[(line << 2) + 2] = (word >>  8) & 0x000000ff;
-				state->m_store[(line << 2) + 3] = (word >>  0) & 0x000000ff;
+				m_store[(line << 2) + 0] = (word >> 24) & 0x000000ff;
+				m_store[(line << 2) + 1] = (word >> 16) & 0x000000ff;
+				m_store[(line << 2) + 2] = (word >>  8) & 0x000000ff;
+				m_store[(line << 2) + 3] = (word >>  0) & 0x000000ff;
 			}
 		}
 	}
@@ -650,7 +651,7 @@ static MACHINE_CONFIG_START( ssem, ssem_state )
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("snp,asm")
-	MCFG_CARTSLOT_LOAD(ssem_store)
+	MCFG_CARTSLOT_LOAD(ssem_state,ssem_store)
 MACHINE_CONFIG_END
 
 ROM_START( ssem )

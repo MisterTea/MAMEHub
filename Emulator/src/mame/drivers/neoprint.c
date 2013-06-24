@@ -30,9 +30,11 @@ class neoprint_state : public driver_device
 {
 public:
 	neoprint_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_npvidram(*this, "npvidram"),
-		m_npvidregs(*this, "npvidregs"){ }
+		m_npvidregs(*this, "npvidregs"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	required_shared_ptr<UINT16> m_npvidram;
 	required_shared_ptr<UINT16> m_npvidregs;
@@ -57,6 +59,11 @@ public:
 	DECLARE_MACHINE_RESET(nprsp);
 	UINT32 screen_update_neoprint(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_nprsp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_layer(bitmap_ind16 &bitmap,const rectangle &cliprect,int layer,int data_shift);
+	void audio_cpu_assert_nmi();
+	DECLARE_WRITE_LINE_MEMBER(audio_cpu_irq);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 
 
@@ -73,16 +80,15 @@ xxxx xxxx xxxx xxxx [2] scroll Y, signed
 ---- ---- --?? ??xx [6] map register
 */
 
-static void draw_layer(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect,int layer,int data_shift)
+void neoprint_state::draw_layer(bitmap_ind16 &bitmap,const rectangle &cliprect,int layer,int data_shift)
 {
-	neoprint_state *state = machine.driver_data<neoprint_state>();
 	int i, y, x;
-	gfx_element *gfx = machine.gfx[0];
+	gfx_element *gfx = machine().gfx[0];
 	INT16 scrollx, scrolly;
 
-	i = (state->m_npvidregs[((layer*8)+0x06)/2] & 7) * 0x1000/4;
-	scrollx = ((state->m_npvidregs[((layer*8)+0x00)/2] - (0xd8 + layer*4)) & 0x03ff);
-	scrolly = ((state->m_npvidregs[((layer*8)+0x02)/2] - 0xffeb) & 0x03ff);
+	i = (m_npvidregs[((layer*8)+0x06)/2] & 7) * 0x1000/4;
+	scrollx = ((m_npvidregs[((layer*8)+0x00)/2] - (0xd8 + layer*4)) & 0x03ff);
+	scrolly = ((m_npvidregs[((layer*8)+0x02)/2] - 0xffeb) & 0x03ff);
 
 	scrollx/=2;
 	scrolly/=2;
@@ -91,14 +97,14 @@ static void draw_layer(running_machine &machine, bitmap_ind16 &bitmap,const rect
 	{
 		for (x=0;x<32;x++)
 		{
-			UINT16 dat = state->m_npvidram[i*2] >> data_shift; // a video register?
+			UINT16 dat = m_npvidram[i*2] >> data_shift; // a video register?
 			UINT16 color;
-			if(state->m_npvidram[i*2+1] & 0x0020) // TODO: 8bpp switch?
-				color = ((state->m_npvidram[i*2+1] & 0x8000) << 1) | 0x200 | ((state->m_npvidram[i*2+1] & 0xff00) >> 7);
+			if(m_npvidram[i*2+1] & 0x0020) // TODO: 8bpp switch?
+				color = ((m_npvidram[i*2+1] & 0x8000) << 1) | 0x200 | ((m_npvidram[i*2+1] & 0xff00) >> 7);
 			else
-				color = ((state->m_npvidram[i*2+1] & 0xff00) >> 8) | ((state->m_npvidram[i*2+1] & 0x0010) << 4);
-			UINT8 fx = (state->m_npvidram[i*2+1] & 0x0040);
-			UINT8 fy = (state->m_npvidram[i*2+1] & 0x0080);
+				color = ((m_npvidram[i*2+1] & 0xff00) >> 8) | ((m_npvidram[i*2+1] & 0x0010) << 4);
+			UINT8 fx = (m_npvidram[i*2+1] & 0x0040);
+			UINT8 fy = (m_npvidram[i*2+1] & 0x0080);
 
 			drawgfx_transpen(bitmap,cliprect,gfx,dat,color,fx,fy,x*16+scrollx,y*16-scrolly,0);
 			drawgfx_transpen(bitmap,cliprect,gfx,dat,color,fx,fy,x*16+scrollx-512,y*16-scrolly,0);
@@ -115,8 +121,8 @@ UINT32 neoprint_state::screen_update_neoprint(screen_device &screen, bitmap_ind1
 {
 	bitmap.fill(0, cliprect);
 
-	draw_layer(machine(),bitmap,cliprect,1,2);
-	draw_layer(machine(),bitmap,cliprect,0,2);
+	draw_layer(bitmap,cliprect,1,2);
+	draw_layer(bitmap,cliprect,0,2);
 
 	return 0;
 }
@@ -125,9 +131,9 @@ UINT32 neoprint_state::screen_update_nprsp(screen_device &screen, bitmap_ind16 &
 {
 	bitmap.fill(0, cliprect);
 
-	draw_layer(machine(),bitmap,cliprect,1,0);
-	draw_layer(machine(),bitmap,cliprect,2,0);
-	draw_layer(machine(),bitmap,cliprect,0,0);
+	draw_layer(bitmap,cliprect,1,0);
+	draw_layer(bitmap,cliprect,2,0);
+	draw_layer(bitmap,cliprect,0,0);
 
 	return 0;
 }
@@ -148,7 +154,6 @@ WRITE16_MEMBER(neoprint_state::neoprint_calendar_w)
 
 READ8_MEMBER(neoprint_state::neoprint_unk_r)
 {
-
 	/* ---x ---- tested in irq routine, odd/even field number? */
 	/* ---- xx-- one of these two must be high */
 	/* ---- --xx checked right before entering into attract mode, presumably printer/camera related */
@@ -166,15 +171,15 @@ READ16_MEMBER(neoprint_state::neoprint_audio_result_r)
 	return (m_audio_result << 8) | 0x00;
 }
 
-static void audio_cpu_assert_nmi(running_machine &machine)
+void neoprint_state::audio_cpu_assert_nmi()
 {
-	machine.device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 
 WRITE8_MEMBER(neoprint_state::audio_cpu_clear_nmi_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 }
 
 WRITE16_MEMBER(neoprint_state::audio_command_w)
@@ -184,7 +189,7 @@ WRITE16_MEMBER(neoprint_state::audio_command_w)
 	{
 		soundlatch_byte_w(space, 0, data >> 8);
 
-		audio_cpu_assert_nmi(machine());
+		audio_cpu_assert_nmi();
 
 		/* boost the interleave to let the audio CPU read the command */
 		machine().scheduler().boost_interleave(attotime::zero, attotime::from_usec(50));
@@ -210,8 +215,6 @@ READ8_MEMBER(neoprint_state::audio_command_r)
 
 WRITE8_MEMBER(neoprint_state::audio_result_w)
 {
-
-
 	//if (LOG_CPU_COMM && (m_audio_result != data)) logerror(" AUD CPU PC   %04x: audio_result_w %02x\n", space.device().safe_pc(), data);
 
 	m_audio_result = data;
@@ -280,7 +283,7 @@ WRITE8_MEMBER(neoprint_state::nprsp_bank_w)
 
 READ16_MEMBER(neoprint_state::rom_window_r)
 {
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 
 	return rom[offset | 0x80000/2 | m_bank_val*0x40000/2];
 }
@@ -332,12 +335,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( neoprint_audio_io_map, AS_IO, 8, neoprint_state )
 	/*AM_RANGE(0x00, 0x00) AM_MIRROR(0xff00) AM_READWRITE(audio_command_r, audio_cpu_clear_nmi_w);*/  /* may not and NMI clear */
 	AM_RANGE(0x00, 0x00) AM_MIRROR(0xff00) AM_READ(audio_command_r) AM_WRITENOP
-	AM_RANGE(0x04, 0x07) AM_MIRROR(0xff00) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
+	AM_RANGE(0x04, 0x07) AM_MIRROR(0xff00) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 //  AM_RANGE(0x08, 0x08) AM_MIRROR(0xff00) /* write - NMI enable / acknowledge? (the data written doesn't matter) */
-//  AM_RANGE(0x08, 0x08) AM_MIRROR(0xfff0) AM_MASK(0xfff0) AM_READ_LEGACY(audio_cpu_bank_select_f000_f7ff_r)
-//  AM_RANGE(0x09, 0x09) AM_MIRROR(0xfff0) AM_MASK(0xfff0) AM_READ_LEGACY(audio_cpu_bank_select_e000_efff_r)
-//  AM_RANGE(0x0a, 0x0a) AM_MIRROR(0xfff0) AM_MASK(0xfff0) AM_READ_LEGACY(audio_cpu_bank_select_c000_dfff_r)
-//  AM_RANGE(0x0b, 0x0b) AM_MIRROR(0xfff0) AM_MASK(0xfff0) AM_READ_LEGACY(audio_cpu_bank_select_8000_bfff_r)
+//  AM_RANGE(0x08, 0x08) AM_MIRROR(0xfff0) AM_MASK(0xfff0) AM_READ(audio_cpu_bank_select_f000_f7ff_r)
+//  AM_RANGE(0x09, 0x09) AM_MIRROR(0xfff0) AM_MASK(0xfff0) AM_READ(audio_cpu_bank_select_e000_efff_r)
+//  AM_RANGE(0x0a, 0x0a) AM_MIRROR(0xfff0) AM_MASK(0xfff0) AM_READ(audio_cpu_bank_select_c000_dfff_r)
+//  AM_RANGE(0x0b, 0x0b) AM_MIRROR(0xfff0) AM_MASK(0xfff0) AM_READ(audio_cpu_bank_select_8000_bfff_r)
 	AM_RANGE(0x0c, 0x0c) AM_MIRROR(0xff00) AM_WRITE(audio_result_w)
 //  AM_RANGE(0x18, 0x18) AM_MIRROR(0xff00) /* write - NMI disable? (the data written doesn't matter) */
 ADDRESS_MAP_END
@@ -450,15 +453,10 @@ static GFXDECODE_START( neoprint )
 	GFXDECODE_ENTRY( "gfx1", 0, neoprint_layout,   0x0, 0x1000 )
 GFXDECODE_END
 
-static void audio_cpu_irq(device_t *device, int assert)
+WRITE_LINE_MEMBER(neoprint_state::audio_cpu_irq)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, assert ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	audio_cpu_irq
-};
 
 
 static MACHINE_CONFIG_START( neoprint, neoprint_state )
@@ -489,7 +487,7 @@ static MACHINE_CONFIG_START( neoprint, neoprint_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 24000000 / 3)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(neoprint_state, audio_cpu_irq))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.60)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.60)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -531,7 +529,7 @@ static MACHINE_CONFIG_START( nprsp, neoprint_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 24000000 / 3)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(neoprint_state, audio_cpu_irq))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.60)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.60)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -596,7 +594,7 @@ ROM_END
 /* FIXME: get rid of these two, probably something to do with irq3 and camera / printer devices */
 DRIVER_INIT_MEMBER(neoprint_state,npcartv1)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion( "maincpu" )->base();
+	UINT16 *ROM = (UINT16 *)memregion( "maincpu" )->base();
 
 	ROM[0x1260/2] = 0x4e71;
 
@@ -606,14 +604,14 @@ DRIVER_INIT_MEMBER(neoprint_state,npcartv1)
 
 DRIVER_INIT_MEMBER(neoprint_state,98best44)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion( "maincpu" )->base();
+	UINT16 *ROM = (UINT16 *)memregion( "maincpu" )->base();
 
 	ROM[0x1312/2] = 0x4e71;
 }
 
 DRIVER_INIT_MEMBER(neoprint_state,nprsp)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion( "maincpu" )->base();
+	UINT16 *ROM = (UINT16 *)memregion( "maincpu" )->base();
 
 	ROM[0x13a4/2] = 0x4e71;
 	ROM[0x13bc/2] = 0x4e71;

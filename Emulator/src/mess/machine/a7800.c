@@ -23,10 +23,6 @@
 #include "emu.h"
 #include "includes/a7800.h"
 #include "cpu/m6502/m6502.h"
-#include "sound/tiasound.h"
-#include "machine/6532riot.h"
-#include "sound/pokey.h"
-#include "sound/tiaintf.h"
 
 
 
@@ -40,12 +36,12 @@
 
 READ8_MEMBER(a7800_state::riot_joystick_r)
 {
-	return machine().root_device().ioport("joysticks")->read();
+	return m_io_joysticks->read();
 }
 
 READ8_MEMBER(a7800_state::riot_console_button_r)
 {
-	return machine().root_device().ioport("console_buttons")->read();
+	return m_io_console_buttons->read();
 }
 
 WRITE8_MEMBER(a7800_state::riot_button_pullup_w)
@@ -68,62 +64,79 @@ const riot6532_interface a7800_r6532_interface =
     DRIVER INIT
 ***************************************************************************/
 
-static void a7800_driver_init(running_machine &machine, int ispal, int lines)
+void a7800_state::a7800_driver_init(int ispal, int lines)
 {
-	a7800_state *state = machine.driver_data<a7800_state>();
-	address_space& space = machine.device("maincpu")->memory().space(AS_PROGRAM);
-	state->m_ROM = state->memregion("maincpu")->base();
-	state->m_ispal = ispal;
-	state->m_lines = lines;
-	state->m_p1_one_button = 1;
-	state->m_p2_one_button = 1;
+	address_space& space = m_maincpu->space(AS_PROGRAM);
+	m_ROM = m_region_maincpu->base();
+	m_ispal = ispal;
+	m_lines = lines;
+	m_p1_one_button = 1;
+	m_p2_one_button = 1;
 
 	/* standard banks */
-	state->membank("bank5")->set_base(&state->m_ROM[0x2040]);       /* RAM0 */
-	state->membank("bank6")->set_base(&state->m_ROM[0x2140]);       /* RAM1 */
-	state->membank("bank7")->set_base(&state->m_ROM[0x2000]);       /* MAINRAM */
+	m_bank5->set_base(&m_ROM[0x2040]);       /* RAM0 */
+	m_bank6->set_base(&m_ROM[0x2140]);       /* RAM1 */
+	m_bank7->set_base(&m_ROM[0x2000]);       /* MAINRAM */
 
 	/* Brutal hack put in as a consequence of new memory system; fix this */
 	space.install_readwrite_bank(0x0480, 0x04FF,"bank10");
-	state->membank("bank10")->set_base(state->m_ROM + 0x0480);
+	m_bank10 = membank("bank10");
+	m_bank10->set_base(m_ROM + 0x0480);
 	space.install_readwrite_bank(0x1800, 0x27FF, "bank11");
-	state->membank("bank11")->set_base(state->m_ROM + 0x1800);
+	m_bank11 = membank("bank11");
+	m_bank11->set_base(m_ROM + 0x1800);
+
+	m_bios_bkup = NULL;
+	m_cart_bkup = NULL;
+
+	/* Allocate memory for BIOS bank switching */
+	m_bios_bkup = auto_alloc_array_clear(machine(), UINT8, 0x4000);
+	m_cart_bkup = auto_alloc_array(machine(), UINT8, 0x4000);
+
+	/* save the BIOS so we can switch it in and out */
+	memcpy( m_bios_bkup, m_ROM + 0xC000, 0x4000 );
+
+	/* Initialize cart area to "no data" */
+	memset( m_cart_bkup, 0xFF, 0x4000 );
+
+	/* defaults for PAL bios without cart */
+	m_cart_type = 0;
+	m_stick_type = 1;
 }
 
 
 DRIVER_INIT_MEMBER(a7800_state,a7800_ntsc)
 {
-	a7800_driver_init(machine(), FALSE, 262);
+	a7800_driver_init(FALSE, 262);
 }
 
 
 DRIVER_INIT_MEMBER(a7800_state,a7800_pal)
 {
-	a7800_driver_init(machine(), TRUE, 312);
+	a7800_driver_init(TRUE, 312);
 }
 
 
 void a7800_state::machine_reset()
 {
 	UINT8 *memory;
-	address_space& space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& space = m_maincpu->space(AS_PROGRAM);
 
 	m_ctrl_lock = 0;
 	m_ctrl_reg = 0;
 	m_maria_flag = 0;
 
 	/* set banks to default states */
-	memory = memregion("maincpu")->base();
-	membank("bank1")->set_base(memory + 0x4000 );
-	membank("bank2")->set_base(memory + 0x8000 );
-	membank("bank3")->set_base(memory + 0xA000 );
-	membank("bank4")->set_base(memory + 0xC000 );
+	memory = m_region_maincpu->base();
+	m_bank1->set_base(memory + 0x4000 );
+	m_bank2->set_base(memory + 0x8000 );
+	m_bank3->set_base(memory + 0xA000 );
+	m_bank4->set_base(memory + 0xC000 );
 
 	/* pokey cartridge */
 	if (m_cart_type & 0x01)
 	{
-		pokey_device *pokey = machine().device<pokey_device>("pokey");
-		space.install_readwrite_handler(0x4000, 0x7FFF, read8_delegate(FUNC(pokey_device::read),pokey), write8_delegate(FUNC(pokey_device::write),pokey));
+		space.install_readwrite_handler(0x4000, 0x7FFF, read8_delegate(FUNC(pokey_device::read),(pokey_device*)m_pokey), write8_delegate(FUNC(pokey_device::write),(pokey_device*)m_pokey));
 	}
 }
 
@@ -176,7 +189,7 @@ void a7800_partialhash(hash_collection &dest, const unsigned char *data,
 }
 
 
-static int a7800_verify_cart(char header[128])
+int a7800_state::a7800_verify_cart(char header[128])
 {
 	const char* tag = "ATARI7800";
 
@@ -190,29 +203,6 @@ static int a7800_verify_cart(char header[128])
 	return IMAGE_VERIFY_PASS;
 }
 
-
-DEVICE_START( a7800_cart )
-{
-	a7800_state *state = device->machine().driver_data<a7800_state>();
-	UINT8 *memory = state->memregion("maincpu")->base();
-
-	state->m_bios_bkup = NULL;
-	state->m_cart_bkup = NULL;
-
-	/* Allocate memory for BIOS bank switching */
-	state->m_bios_bkup = auto_alloc_array_clear(device->machine(), UINT8, 0x4000);
-	state->m_cart_bkup = auto_alloc_array(device->machine(), UINT8, 0x4000);
-
-	/* save the BIOS so we can switch it in and out */
-	memcpy( state->m_bios_bkup, memory + 0xC000, 0x4000 );
-
-	/* Initialize cart area to "no data" */
-	memset( state->m_cart_bkup, 0xFF, 0x4000 );
-
-	/* defaults for PAL bios without cart */
-	state->m_cart_type = 0;
-	state->m_stick_type = 1;
-}
 
 struct a7800_pcb
 {
@@ -236,7 +226,7 @@ static const a7800_pcb pcb_list[] =
 	{ 0 }
 };
 
-static UINT16 a7800_get_pcb_id(const char *pcb)
+UINT16 a7800_state::a7800_get_pcb_id(const char *pcb)
 {
 	int i;
 
@@ -249,12 +239,11 @@ static UINT16 a7800_get_pcb_id(const char *pcb)
 	return 0;
 }
 
-DEVICE_IMAGE_LOAD( a7800_cart )
+DEVICE_IMAGE_LOAD_MEMBER( a7800_state, a7800_cart )
 {
-	a7800_state *state = image.device().machine().driver_data<a7800_state>();
 	UINT32 len = 0, start = 0;
 	unsigned char header[128];
-	UINT8 *memory = image.device().machine().root_device().memregion("maincpu")->base();
+	UINT8 *memory = m_region_maincpu->base();
 	const char  *pcb_name;
 
 	// detect cart type either from xml or from header
@@ -268,43 +257,43 @@ DEVICE_IMAGE_LOAD( a7800_cart )
 			return IMAGE_INIT_FAIL;
 
 		len =(header[49] << 24) |(header[50] << 16) |(header[51] << 8) | header[52];
-		state->m_cart_size = len;
+		m_cart_size = len;
 
-		state->m_cart_type =(header[53] << 8) | header[54];
-		state->m_stick_type = header[55];
-		logerror("Cart type: %x\n", state->m_cart_type);
+		m_cart_type =(header[53] << 8) | header[54];
+		m_stick_type = header[55];
+		logerror("Cart type: %x\n", m_cart_type);
 
 		/* For now, if game support stick and gun, set it to stick */
-		if (state->m_stick_type == 3)
-			state->m_stick_type = 1;
+		if (m_stick_type == 3)
+			m_stick_type = 1;
 	}
 	else
 	{
 		len = image.get_software_region_length("rom");
-		state->m_cart_size = len;
+		m_cart_size = len;
 		// TODO: add stick/gun support to xml!
-		state->m_stick_type = 1;
+		m_stick_type = 1;
 		if ((pcb_name = image.get_feature("pcb_type")) == NULL)
-			state->m_cart_type = 0;
+			m_cart_type = 0;
 		else
-			state->m_cart_type = a7800_get_pcb_id(pcb_name);
+			m_cart_type = a7800_get_pcb_id(pcb_name);
 	}
 
-	if (state->m_cart_type == 0 || state->m_cart_type == 1)
+	if (m_cart_type == 0 || m_cart_type == 1)
 	{
 		/* Normal Cart */
 		start = 0x10000 - len;
-		state->m_cartridge_rom = memory + start;
+		m_cartridge_rom = memory + start;
 		if (image.software_entry() == NULL)
-			image.fread(state->m_cartridge_rom, len);
+			image.fread(m_cartridge_rom, len);
 		else
-			memcpy(state->m_cartridge_rom, image.get_software_region("rom"), len);
+			memcpy(m_cartridge_rom, image.get_software_region("rom"), len);
 	}
-	else if (state->m_cart_type & 0x02)
+	else if (m_cart_type & 0x02)
 	{
 		/* Super Cart */
 		/* Extra ROM at $4000 */
-		if (state->m_cart_type & 0x08)
+		if (m_cart_type & 0x08)
 		{
 			if (image.software_entry() == NULL)
 				image.fread(memory + 0x4000, 0x4000);
@@ -314,11 +303,11 @@ DEVICE_IMAGE_LOAD( a7800_cart )
 			start = 0x4000;
 		}
 
-		state->m_cartridge_rom = memory + 0x10000;
+		m_cartridge_rom = memory + 0x10000;
 		if (image.software_entry() == NULL)
-			image.fread(state->m_cartridge_rom, len);
+			image.fread(m_cartridge_rom, len);
 		else
-			memcpy(state->m_cartridge_rom, image.get_software_region("rom") + start, len);
+			memcpy(m_cartridge_rom, image.get_software_region("rom") + start, len);
 
 		/* bank 0 */
 		memcpy(memory + 0x8000, memory + 0x10000, 0x4000);
@@ -332,22 +321,22 @@ DEVICE_IMAGE_LOAD( a7800_cart )
 		*/
 
 		/* bank n-2 */
-		if (!(state->m_cart_type & 0x0d))
+		if (!(m_cart_type & 0x0d))
 		{
 			memcpy(memory + 0x4000, memory + 0x10000 + len - 0x8000, 0x4000);
 		}
 	}
-	else if (state->m_cart_type == MBANK_TYPE_ABSOLUTE)
+	else if (m_cart_type == MBANK_TYPE_ABSOLUTE)
 	{
 		/* F18 Hornet */
 
-		logerror("Cart type: %x Absolute\n",state->m_cart_type);
+		logerror("Cart type: %x Absolute\n",m_cart_type);
 
-		state->m_cartridge_rom = memory + 0x10000;
+		m_cartridge_rom = memory + 0x10000;
 		if (image.software_entry() == NULL)
-			image.fread(state->m_cartridge_rom, len);
+			image.fread(m_cartridge_rom, len);
 		else
-			memcpy(state->m_cartridge_rom, image.get_software_region("rom") + start, len);
+			memcpy(m_cartridge_rom, image.get_software_region("rom") + start, len);
 
 		/* bank 0 */
 		memcpy(memory + 0x4000, memory + 0x10000, 0x4000);
@@ -355,17 +344,17 @@ DEVICE_IMAGE_LOAD( a7800_cart )
 		/* last bank */
 		memcpy(memory + 0x8000, memory + 0x18000, 0x8000);
 	}
-	else if (state->m_cart_type == MBANK_TYPE_ACTIVISION)
+	else if (m_cart_type == MBANK_TYPE_ACTIVISION)
 	{
 		/* Activision */
 
-		logerror("Cart type: %x Activision\n",state->m_cart_type);
+		logerror("Cart type: %x Activision\n",m_cart_type);
 
-		state->m_cartridge_rom = memory + 0x10000;
+		m_cartridge_rom = memory + 0x10000;
 		if (image.software_entry() == NULL)
-			image.fread(state->m_cartridge_rom, len);
+			image.fread(m_cartridge_rom, len);
 		else
-			memcpy(state->m_cartridge_rom, image.get_software_region("rom") + start, len);
+			memcpy(m_cartridge_rom, image.get_software_region("rom") + start, len);
 
 		/* bank 0 */
 		memcpy(memory + 0xa000, memory + 0x10000, 0x4000);
@@ -384,8 +373,8 @@ DEVICE_IMAGE_LOAD( a7800_cart )
 
 	}
 
-	memcpy(state->m_cart_bkup, memory + 0xc000, 0x4000);
-	memcpy(memory + 0xc000, state->m_bios_bkup, 0x4000);
+	memcpy(m_cart_bkup, memory + 0xc000, 0x4000);
+	memcpy(memory + 0xc000, m_bios_bkup, 0x4000);
 	return IMAGE_INIT_PASS;
 }
 
@@ -399,7 +388,7 @@ WRITE8_MEMBER(a7800_state::a7800_RAM0_w)
 
 WRITE8_MEMBER(a7800_state::a7800_cart_w)
 {
-	UINT8 *memory = memregion("maincpu")->base();
+	UINT8 *memory = m_region_maincpu->base();
 
 	if(offset < 0x4000)
 	{
@@ -409,8 +398,7 @@ WRITE8_MEMBER(a7800_state::a7800_cart_w)
 		}
 		else if(m_cart_type & 0x01)
 		{
-			pokey_device *pokey = machine().device<pokey_device>("pokey");
-			pokey->write(space, offset, data);
+			m_pokey->write(space, offset, data);
 		}
 		else
 		{
@@ -429,8 +417,8 @@ WRITE8_MEMBER(a7800_state::a7800_cart_w)
 		{
 			data &= 0x07;
 		}
-		membank("bank2")->set_base(memory + 0x10000 + (data << 14));
-		membank("bank3")->set_base(memory + 0x12000 + (data << 14));
+		m_bank2->set_base(memory + 0x10000 + (data << 14));
+		m_bank3->set_base(memory + 0x12000 + (data << 14));
 	/*  logerror("BANK SEL: %d\n",data); */
 	}
 	else if(( m_cart_type == MBANK_TYPE_ABSOLUTE ) &&( offset == 0x4000 ) )
@@ -439,11 +427,11 @@ WRITE8_MEMBER(a7800_state::a7800_cart_w)
 		/*logerror( "F18 BANK SEL: %d\n", data );*/
 		if( data & 1 )
 		{
-			membank("bank1")->set_base(memory + 0x10000 );
+			m_bank1->set_base(memory + 0x10000 );
 		}
 		else if( data & 2 )
 		{
-			membank("bank1")->set_base(memory + 0x14000 );
+			m_bank1->set_base(memory + 0x14000 );
 		}
 	}
 	else if(( m_cart_type == MBANK_TYPE_ACTIVISION ) &&( offset >= 0xBF80 ) )
@@ -453,8 +441,8 @@ WRITE8_MEMBER(a7800_state::a7800_cart_w)
 
 		/*logerror( "Activision BANK SEL: %d\n", data );*/
 
-		membank("bank3")->set_base(memory + 0x10000 + ( data << 14 ) );
-		membank("bank4")->set_base(memory + 0x12000 + ( data << 14 ) );
+		m_bank3->set_base(memory + 0x10000 + ( data << 14 ) );
+		m_bank4->set_base(memory + 0x12000 + ( data << 14 ) );
 	}
 }
 
@@ -479,20 +467,20 @@ READ8_MEMBER(a7800_state::a7800_TIA_r)
 		   still return a reasonable value */
 			return 0x00;
 		case 0x08:
-				return((ioport("buttons")->read() & 0x02) << 6);
+				return((m_io_buttons->read() & 0x02) << 6);
 		case 0x09:
-				return((ioport("buttons")->read() & 0x08) << 4);
+				return((m_io_buttons->read() & 0x08) << 4);
 		case 0x0A:
-				return((ioport("buttons")->read() & 0x01) << 7);
+				return((m_io_buttons->read() & 0x01) << 7);
 		case 0x0B:
-				return((ioport("buttons")->read() & 0x04) << 5);
+				return((m_io_buttons->read() & 0x04) << 5);
 		case 0x0c:
-			if(((ioport("buttons")->read() & 0x08) ||(ioport("buttons")->read() & 0x02)) && m_p1_one_button)
+			if(((m_io_buttons->read() & 0x08) ||(m_io_buttons->read() & 0x02)) && m_p1_one_button)
 				return 0x00;
 			else
 				return 0x80;
 		case 0x0d:
-			if(((ioport("buttons")->read() & 0x01) ||(ioport("buttons")->read() & 0x04)) && m_p2_one_button)
+			if(((m_io_buttons->read() & 0x01) ||(m_io_buttons->read() & 0x04)) && m_p2_one_button)
 				return 0x00;
 			else
 				return 0x80;
@@ -524,6 +512,6 @@ WRITE8_MEMBER(a7800_state::a7800_TIA_w)
 		}
 		break;
 	}
-	tia_sound_w(machine().device("tia"), space, offset, data);
+	m_tia->tia_sound_w(space, offset, data);
 	m_ROM[offset] = data;
 }

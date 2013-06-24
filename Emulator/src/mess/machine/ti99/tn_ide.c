@@ -49,9 +49,8 @@ enum
 };
 
 nouspikel_ide_interface_device::nouspikel_ide_interface_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-: ti_expansion_card_device(mconfig, TI99_IDE, "Nouspikel IDE interface card", tag, owner, clock)
+: ti_expansion_card_device(mconfig, TI99_IDE, "Nouspikel IDE interface card", tag, owner, clock, "ti99_ide", __FILE__)
 {
-	m_shortname = "ti99_ide";
 }
 
 /*
@@ -152,7 +151,7 @@ READ8Z_MEMBER(nouspikel_ide_interface_device::readz)
 			case 2:     /* IDE registers set 1 (CS1Fx) */
 				if (m_tms9995_mode ? (!(addr & 1)) : (addr & 1))
 				{   /* first read triggers 16-bit read cycle */
-					m_input_latch = (! (addr & 0x10)) ? ide_bus_r(m_ide, 0, (addr >> 1) & 0x7) : 0;
+					m_input_latch = (! (addr & 0x10)) ? m_ide->read_cs0(space, (addr >> 1) & 0x7, 0xffff) : 0;
 				}
 
 				/* return latched input */
@@ -163,7 +162,7 @@ READ8Z_MEMBER(nouspikel_ide_interface_device::readz)
 			case 3:     /* IDE registers set 2 (CS3Fx) */
 				if (m_tms9995_mode ? (!(addr & 1)) : (addr & 1))
 				{   /* first read triggers 16-bit read cycle */
-					m_input_latch = (! (addr & 0x10)) ? ide_bus_r(m_ide, 1, (addr >> 1) & 0x7) : 0;
+					m_input_latch = (! (addr & 0x10)) ? m_ide->read_cs1(space, (addr >> 1) & 0x7, 0xffff) : 0;
 				}
 
 				/* return latched input */
@@ -233,7 +232,7 @@ WRITE8_MEMBER(nouspikel_ide_interface_device::write)
 
 				if (m_tms9995_mode ? (addr & 1) : (!(addr & 1)))
 				{   /* second write triggers 16-bit write cycle */
-					ide_bus_w(m_ide, 0, (addr >> 1) & 0x7, m_output_latch);
+					m_ide->write_cs0(space, (addr >> 1) & 0x7, m_output_latch, 0xffff);
 				}
 				break;
 			case 3:     /* IDE registers set 2 (CS3Fx) */
@@ -251,7 +250,7 @@ WRITE8_MEMBER(nouspikel_ide_interface_device::write)
 
 				if (m_tms9995_mode ? (addr & 1) : (!(addr & 1)))
 				{   /* second write triggers 16-bit write cycle */
-					ide_bus_w(m_ide, 1, (addr >> 1) & 0x7, m_output_latch);
+					m_ide->write_cs1(space, (addr >> 1) & 0x7, m_output_latch, 0xffff);
 				}
 				break;
 			}
@@ -298,7 +297,7 @@ WRITE_LINE_MEMBER(nouspikel_ide_interface_device::clock_interrupt_callback)
 void nouspikel_ide_interface_device::device_start()
 {
 	m_rtc = subdevice<rtc65271_device>("ide_rtc");
-	m_ide = subdevice("ide");
+	m_ide = subdevice<ide_controller_device>("ide");
 
 	m_ram = memregion(BUFFER_TAG)->base();
 	m_sram_enable_dip = false; // TODO: what is this?
@@ -335,8 +334,8 @@ static const rtc65271_interface ide_rtc_cfg =
 
 MACHINE_CONFIG_FRAGMENT( tn_ide )
 	MCFG_RTC65271_ADD( "ide_rtc", ide_rtc_cfg )
-	MCFG_IDE_CONTROLLER_ADD( "ide", ide_image_devices, "hdd", NULL, false)  // see idectrl.c
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF, nouspikel_ide_interface_device, ide_interrupt_callback))
+	MCFG_IDE_CONTROLLER_ADD( "ide", ide_devices, "hdd", NULL, false)  // see idectrl.c
+	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(nouspikel_ide_interface_device, ide_interrupt_callback))
 //  MCFG_IDE_CONTROLLER_REGIONS(":peribox:idehd0:drive", NULL)
 MACHINE_CONFIG_END
 

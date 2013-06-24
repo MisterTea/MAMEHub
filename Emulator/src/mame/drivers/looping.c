@@ -98,10 +98,13 @@ class looping_state : public driver_device
 {
 public:
 	looping_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_dac(*this, "dac") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -144,6 +147,10 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_looping(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(looping_interrupt);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<dac_device> m_dac;
 };
 
 
@@ -156,7 +163,7 @@ public:
 
 void looping_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[3] = { 1000, 470, 220 };
 	double rweights[3], gweights[3], bweights[2];
 	int i;
@@ -211,7 +218,6 @@ TILE_GET_INFO_MEMBER(looping_state::get_tile_info)
 
 void looping_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(looping_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8,8, 32,32);
 
 	m_bg_tilemap->set_scroll_cols(0x20);
@@ -274,12 +280,11 @@ WRITE8_MEMBER(looping_state::looping_colorram_w)
  *
  *************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void looping_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	const UINT8 *source;
-	looping_state *state = machine.driver_data<looping_state>();
 
-	for (source = state->m_spriteram; source < state->m_spriteram + 0x40; source += 4)
+	for (source = m_spriteram; source < m_spriteram + 0x40; source += 4)
 	{
 		int sx = source[3];
 		int sy = 240 - source[0];
@@ -288,19 +293,19 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		int code  = source[1] & 0x3f;
 		int color = source[2];
 
-		if (state->flip_screen_x())
+		if (flip_screen_x())
 		{
 			sx = 240 - sx;
 			flipx = !flipx;
 		}
 
-		if (state->flip_screen_y())
+		if (flip_screen_y())
 		{
 			sy = 240 - sy;
 			flipy = !flipy;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, machine.gfx[1], code, color, flipx, flipy, sx, sy, 0);
+		drawgfx_transpen(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, sx, sy, 0);
 	}
 }
 
@@ -309,7 +314,7 @@ UINT32 looping_state::screen_update_looping(screen_device &screen, bitmap_ind16 
 {
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }
 
@@ -343,34 +348,34 @@ INTERRUPT_GEN_MEMBER(looping_state::looping_interrupt)
 WRITE8_MEMBER(looping_state::level2_irq_set)
 {
 	if (!(data & 1))
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, ASSERT_LINE, 4);
+		m_maincpu->set_input_line_and_vector(0, ASSERT_LINE, 4);
 }
 
 
 WRITE8_MEMBER(looping_state::main_irq_ack_w)
 {
 	if (data == 0)
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
 WRITE8_MEMBER(looping_state::looping_souint_clr)
 {
 	if (data == 0)
-		machine().device("audiocpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_audiocpu->set_input_line(0, CLEAR_LINE);
 }
 
 
 WRITE_LINE_MEMBER(looping_state::looping_spcint)
 {
-	machine().device("audiocpu")->execute().set_input_line_and_vector(0, !state, 6);
+	m_audiocpu->set_input_line_and_vector(0, !state, 6);
 }
 
 
 WRITE8_MEMBER(looping_state::looping_soundlatch_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line_and_vector(0, ASSERT_LINE, 4);
+	m_audiocpu->set_input_line_and_vector(0, ASSERT_LINE, 4);
 }
 
 
@@ -383,7 +388,6 @@ WRITE8_MEMBER(looping_state::looping_soundlatch_w)
 
 WRITE8_MEMBER(looping_state::looping_sound_sw)
 {
-	dac_device *device = machine().device<dac_device>("dac");
 	/* this can be improved by adding the missing signals for decay etc. (see schematics)
 
 	    0001 = ASOV
@@ -396,7 +400,7 @@ WRITE8_MEMBER(looping_state::looping_sound_sw)
 	*/
 
 	m_sound[offset + 1] = data ^ 1;
-	device->write_unsigned8(((m_sound[2] << 7) + (m_sound[3] << 6)) * m_sound[7]);
+	m_dac->write_unsigned8(((m_sound[2] << 7) + (m_sound[3] << 6)) * m_sound[7]);
 }
 
 
@@ -545,11 +549,11 @@ static ADDRESS_MAP_START( looping_sound_map, AS_PROGRAM, 8, looping_state )
 	ADDRESS_MAP_GLOBAL_MASK(0x3fff)
 	AM_RANGE(0x0000, 0x37ff) AM_ROM
 	AM_RANGE(0x3800, 0x3bff) AM_RAM
-	AM_RANGE(0x3c00, 0x3c00) AM_MIRROR(0x00f4) AM_DEVREADWRITE_LEGACY("aysnd", ay8910_r, ay8910_address_w)
-	AM_RANGE(0x3c02, 0x3c02) AM_MIRROR(0x00f4) AM_READNOP AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
+	AM_RANGE(0x3c00, 0x3c00) AM_MIRROR(0x00f4) AM_DEVREADWRITE("aysnd", ay8910_device, data_r, address_w)
+	AM_RANGE(0x3c02, 0x3c02) AM_MIRROR(0x00f4) AM_READNOP AM_DEVWRITE("aysnd", ay8910_device, data_w)
 	AM_RANGE(0x3c03, 0x3c03) AM_MIRROR(0x00f6) AM_NOP
-	AM_RANGE(0x3e00, 0x3e00) AM_MIRROR(0x00f4) AM_READNOP AM_DEVWRITE("tms", tms5220n_device, write)
-	AM_RANGE(0x3e02, 0x3e02) AM_MIRROR(0x00f4) AM_DEVREAD("tms", tms5220n_device, read) AM_WRITENOP
+	AM_RANGE(0x3e00, 0x3e00) AM_MIRROR(0x00f4) AM_READNOP AM_DEVWRITE("tms", tms5220_device, data_w)
+	AM_RANGE(0x3e02, 0x3e02) AM_MIRROR(0x00f4) AM_DEVREAD("tms", tms5220_device, status_r) AM_WRITENOP
 	AM_RANGE(0x3e03, 0x3e03) AM_MIRROR(0x00f6) AM_NOP
 ADDRESS_MAP_END
 
@@ -607,12 +611,6 @@ GFXDECODE_END
  *  Sound interfaces
  *
  *************************************/
-
-static const tms52xx_config tms5220interface =
-{
-	DEVCB_DRIVER_LINE_MEMBER(looping_state,looping_spcint),     // IRQ
-	DEVCB_NULL                      // READYQ
-};
 
 static const ay8910_interface ay8910_config =
 {
@@ -672,8 +670,8 @@ static MACHINE_CONFIG_START( looping, looping_state )
 	MCFG_SOUND_CONFIG(ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
-	MCFG_SOUND_ADD("tms", TMS5220N, TMS_CLOCK)
-	MCFG_SOUND_CONFIG(tms5220interface)
+	MCFG_SOUND_ADD("tms", TMS5220, TMS_CLOCK)
+	MCFG_TMS52XX_IRQ_HANDLER(WRITELINE(looping_state, looping_spcint))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	MCFG_DAC_ADD("dac")
@@ -916,7 +914,7 @@ DRIVER_INIT_MEMBER(looping_state,looping)
 		rom[i] = BITSWAP8(rom[i], 0,1,2,3,4,5,6,7);
 
 	/* install protection handlers */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x7000, 0x7007, read8_delegate(FUNC(looping_state::protection_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x7000, 0x7007, read8_delegate(FUNC(looping_state::protection_r), this));
 }
 
 

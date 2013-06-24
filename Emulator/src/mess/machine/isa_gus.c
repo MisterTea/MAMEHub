@@ -10,6 +10,7 @@
 #include "sound/speaker.h"
 #include "machine/6850acia.h"
 
+
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
@@ -256,15 +257,16 @@ void gf1_device::sound_stream_update(sound_stream &stream, stream_sample_t **inp
 					if(!(m_voice[x].voice_ctrl & 0x08))
 					{
 						m_voice[x].voice_ctrl |= 0x01;
-//                          m_voice[x].current_addr = m_voice[x].end_addr;
+//                        m_voice[x].current_addr = m_voice[x].end_addr;
 					}
+				}
+				// looping is not supposed to happen when rollover is active, but the Windows drivers have other ideas...
+				if(m_voice[x].voice_ctrl & 0x08)
+				{
+					if(m_voice[x].voice_ctrl & 0x10)
+						m_voice[x].voice_ctrl |= 0x40; // change direction
 					else
-					{
-						if(m_voice[x].voice_ctrl & 0x10)
-							m_voice[x].voice_ctrl |= 0x40; // change direction
-						else
-							m_voice[x].current_addr = m_voice[x].start_addr; // start sample again
-					}
+						m_voice[x].current_addr = m_voice[x].start_addr; // start sample again
 				}
 			}
 			if((m_voice[x].voice_ctrl & 0x40) && (m_voice[x].current_addr <= m_voice[x].start_addr) && !m_voice[x].rollover && !(m_voice[x].voice_ctrl & 0x01))
@@ -286,13 +288,14 @@ void gf1_device::sound_stream_update(sound_stream &stream, stream_sample_t **inp
 						m_voice[x].voice_ctrl |= 0x01;
 //                          m_voice[x].current_addr = m_voice[x].start_addr;
 					}
+				}
+				// looping is not supposed to happen when rollover is active, but the Windows drivers have other ideas...
+				if(m_voice[x].voice_ctrl & 0x08)
+				{
+					if(m_voice[x].voice_ctrl & 0x10)
+						m_voice[x].voice_ctrl &= ~0x40; // change direction
 					else
-					{
-						if(m_voice[x].voice_ctrl & 0x10)
-							m_voice[x].voice_ctrl &= ~0x40; // change direction
-						else
-							m_voice[x].current_addr = m_voice[x].end_addr; // start sample again
-					}
+						m_voice[x].current_addr = m_voice[x].end_addr; // start sample again
 				}
 			}
 			if(!(m_voice[x].voice_ctrl & 0x01))
@@ -489,7 +492,7 @@ READ8_MEMBER(gf1_device::global_reg_data_r)
  * bit 6 - 1 if addresses are decreasing, can change when looping is enabled
  * bit 7 - 1 if Wavetable IRQ is pending */
 		if(offset == 1)
-			return m_voice[m_current_voice].voice_ctrl;
+			return m_voice[m_current_voice].voice_ctrl & 0xff;
 	case 0x81:  // Frequency Control
 		ret = m_voice[m_current_voice].freq_ctrl;
 		if(offset == 0)
@@ -591,12 +594,10 @@ WRITE8_MEMBER(gf1_device::global_reg_data_w)
  * bit 5 - set to 1 to enable wavetable IRQ when end address is reached */
 		if(offset == 1)
 		{
-			m_voice[m_current_voice].voice_ctrl = data & 0x7f;
+			m_voice[m_current_voice].voice_ctrl = data & 0xff;
 			m_voice[m_current_voice].rollover = false;
 			if(data & 0x02)
-			{
 				m_voice[m_current_voice].voice_ctrl |= 0x01;
-			}
 		}
 		logerror("GUS: Ch%i Voice control write %02x\n", m_current_voice,data);
 		break;
@@ -923,6 +924,7 @@ WRITE8_MEMBER(gf1_device::adlib_cmd_w)
 					m_gf1_irq = 15;
 					break;
 				default:
+					m_gf1_irq = 0;
 					logerror("GUS: Invalid GF1 IRQ set! [%02x]\n",data);
 				}
 				switch((data >> 3) & 0x07)
@@ -1129,6 +1131,7 @@ void gf1_device::set_irq(UINT8 source, UINT8 voice)
 		m_wave_irq_func(1);
 		m_voice_irq_fifo[m_voice_irq_ptr % 32] = m_irq_source;
 		m_voice_irq_ptr++;
+		m_voice[voice].voice_ctrl |= 0x80;
 	}
 	if(source & IRQ_VOLUME_RAMP)
 	{
@@ -1199,18 +1202,35 @@ void gf1_device::eop_w(int state)
 
 static const acia6850_interface gus_midi_interface =
 {
-	GF1_CLOCK,
-	GF1_CLOCK,  // a guess for now
+	31250 * 16,
+	0,
+
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, isa16_gus_device, rx_in),   // rx in
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, isa16_gus_device, tx_out),  // tx out
 
 	DEVCB_NULL,
 	DEVCB_NULL,
-
-	DEVCB_NULL,
-	DEVCB_NULL,
 	DEVCB_NULL,
 
-	DEVCB_NULL
-	//DEVCB_LINE_MEMBER(isa16_gus_device,midi_irq)
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER,isa16_gus_device,midi_irq)
+};
+
+static SLOT_INTERFACE_START(midiin_slot)
+	SLOT_INTERFACE("midiin", MIDIIN_PORT)
+SLOT_INTERFACE_END
+
+static const serial_port_interface midiin_intf =
+{
+	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, isa16_gus_device, midi_rx_w)
+};
+
+static SLOT_INTERFACE_START(midiout_slot)
+	SLOT_INTERFACE("midiout", MIDIOUT_PORT)
+SLOT_INTERFACE_END
+
+static const serial_port_interface midiout_intf =
+{
+	DEVCB_NULL  // midi out ports don't transmit inward
 };
 
 static const gf1_interface gus_gf1_config =
@@ -1232,7 +1252,9 @@ static MACHINE_CONFIG_FRAGMENT( gus_config )
 	MCFG_SOUND_CONFIG(gus_gf1_config)
 	MCFG_SOUND_ROUTE(0,"lspeaker",0.50)
 	MCFG_SOUND_ROUTE(1,"rspeaker",0.50)
-//  MCFG_ACIA6850_ADD("midi",gus_midi_interface)
+	MCFG_ACIA6850_ADD("midi",gus_midi_interface)
+	MCFG_SERIAL_PORT_ADD("mdin", midiin_intf, midiin_slot, "midiin")
+	MCFG_SERIAL_PORT_ADD("mdout", midiout_intf, midiout_slot, "midiout")
 MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( gus_joy )
@@ -1267,7 +1289,7 @@ ioport_constructor isa16_gus_device::device_input_ports() const
 
 
 isa16_gus_device::isa16_gus_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: device_t(mconfig, ISA16_GUS, "Gravis Ultrasound", tag, owner, clock),
+		: device_t(mconfig, ISA16_GUS, "Gravis Ultrasound", tag, owner, clock, "isa_gus", __FILE__),
 		device_isa16_card_interface( mconfig, *this )
 {
 }
@@ -1275,7 +1297,8 @@ isa16_gus_device::isa16_gus_device(const machine_config &mconfig, const char *ta
 void isa16_gus_device::device_start()
 {
 	m_gf1 = subdevice<gf1_device>("gf1");
-	//m_midi = subdevice<acia6850_device>("midi");
+	m_midi = subdevice<acia6850_device>("midi");
+	m_mdout = subdevice<serial_port_device>("mdout");
 	set_isa_device();
 	m_isa->install_device(0x0200, 0x0201, 0, 0, read8_delegate(FUNC(isa16_gus_device::joy_r),this), write8_delegate(FUNC(isa16_gus_device::joy_w),this) );
 	m_isa->install_device(0x0220, 0x022f, 0, 0, read8_delegate(FUNC(isa16_gus_device::board_r),this), write8_delegate(FUNC(isa16_gus_device::board_w),this) );
@@ -1355,6 +1378,7 @@ WRITE8_MEMBER(isa16_gus_device::board_w)
 		break;
 	case 0x0f:
 		m_gf1->stat_w(space,offset-15,data);
+		break;
 	default:
 		logerror("GUS: Invalid or unimplemented register write %02x of port 0x2X%01x\n",data,offset);
 	}
@@ -1364,10 +1388,10 @@ READ8_MEMBER(isa16_gus_device::synth_r)
 {
 	switch(offset)
 	{
-//  case 0x00:
-//      return m_midi->status_read(space,0);
-//  case 0x01:
-//      return m_midi->data_read(space,0);
+	case 0x00:
+		return m_midi->status_read(space,0);
+	case 0x01:
+		return m_midi->data_read(space,0);
 	case 0x02:
 	case 0x03:
 		return m_gf1->global_reg_select_r(space,offset-2);
@@ -1389,10 +1413,10 @@ WRITE8_MEMBER(isa16_gus_device::synth_w)
 	switch(offset)
 	{
 	case 0x00:
-//      m_midi->control_write(space,0,data);
+		m_midi->control_write(space,0,data);
 		break;
 	case 0x01:
-//      m_midi->data_write(space,0,data);
+		m_midi->data_write(space,0,data);
 		break;
 	case 0x02:
 	case 0x03:
@@ -1673,10 +1697,44 @@ void isa16_gus_device::reset_midi_irq(UINT8 source)
 
 WRITE_LINE_MEMBER( isa16_gus_device::midi_irq )
 {
-	if(state)
-		set_irq(IRQ_MIDI_TRANSMIT);
+	UINT8 irq_type;
+	UINT8 st = m_midi->get_status();
+
+	if(state == ASSERT_LINE)
+	{
+		if(st & 0x01) // receive
+			irq_type = IRQ_MIDI_RECEIVE;
+		else
+			if(st & 0x02) // transmit
+				irq_type = IRQ_MIDI_TRANSMIT;
+			else
+			{
+				logerror("GUS: MIDI IRQ unknown: %02x\n",st);
+				return;  // Should never reach here...
+			}
+		set_midi_irq(irq_type);
+	}
 	else
-		reset_irq(IRQ_MIDI_TRANSMIT);
+		reset_midi_irq(IRQ_MIDI_TRANSMIT | IRQ_MIDI_RECEIVE);
+}
+
+WRITE_LINE_MEMBER( isa16_gus_device::midi_rx_w )
+{
+	m_rx_state = state;
+	for (int i = 0; i < 16; i++)    // divider is set to 16
+	{
+		m_midi->rx_clock_in();
+	}
+}
+
+READ_LINE_MEMBER( isa16_gus_device::rx_in )
+{
+	return m_rx_state;
+}
+
+WRITE_LINE_MEMBER( isa16_gus_device::tx_out )
+{
+	m_mdout->tx(state);
 }
 
 WRITE_LINE_MEMBER( isa16_gus_device::nmi_w)

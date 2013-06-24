@@ -208,20 +208,8 @@ static const floppy_interface osborne1_floppy_interface =
 	DEVCB_NULL,
 	FLOPPY_STANDARD_5_25_SSDD_40,
 	LEGACY_FLOPPY_OPTIONS_NAME(osborne1),
-	NULL,
+	"floppy_5_25",
 	NULL
-};
-
-static IEEE488_INTERFACE( ieee488_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER("pia_0", pia6821_device, ca2_w),
-	DEVCB_NULL,
-	DEVCB_NULL
 };
 
 /* F4 Character Displayer */
@@ -258,7 +246,7 @@ static MACHINE_CONFIG_START( osborne1, osborne1_state )
 	MCFG_PALETTE_LENGTH( 3 )
 
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD( BEEPER_TAG, BEEP, 0 )
+	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
 	MCFG_PIA6821_ADD( "pia_0", osborne1_ieee_pia_config )
@@ -267,7 +255,9 @@ static MACHINE_CONFIG_START( osborne1, osborne1_state )
 	MCFG_MB8877_ADD("mb8877", default_wd17xx_interface_2_drives )
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(osborne1_floppy_interface)
-	MCFG_IEEE488_BUS_ADD(ieee488_intf)
+	MCFG_IEEE488_BUS_ADD()
+	MCFG_IEEE488_SRQ_CALLBACK(DEVWRITELINE("pia_0", pia6821_device, ca2_w))
+	MCFG_SOFTWARE_LIST_ADD("flop_list","osborne1")
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

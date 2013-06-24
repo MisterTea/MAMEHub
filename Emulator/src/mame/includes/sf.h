@@ -3,14 +3,19 @@
     Street Fighter
 
 *************************************************************************/
+#include "sound/msm5205.h"
 
 class sf_state : public driver_device
 {
 public:
 	sf_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_objectram(*this, "objectram"){ }
+		m_objectram(*this, "objectram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_msm1(*this, "msm1"),
+		m_msm2(*this, "msm2"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_videoram;
@@ -26,8 +31,8 @@ public:
 	UINT16      m_fgscroll;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_READ16_MEMBER(dummy_r);
 	DECLARE_WRITE16_MEMBER(sf_coin_w);
 	DECLARE_WRITE16_MEMBER(soundcmd_w);
@@ -48,4 +53,9 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_sf(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	inline int sf_invert( int nb );
+	void draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect );
+	void write_dword( address_space &space, offs_t offset, UINT32 data );
+	required_device<msm5205_device> m_msm1;
+	required_device<msm5205_device> m_msm2;
 };

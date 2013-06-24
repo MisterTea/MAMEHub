@@ -179,20 +179,20 @@ Measurements -
 
 void badlands_state::update_interrupts()
 {
-	machine().device("maincpu")->execute().set_input_line(1, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
-	machine().device("maincpu")->execute().set_input_line(2, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(1, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(2, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
 void badlands_state::scanline_update(screen_device &screen, int scanline)
 {
-	address_space &space = subdevice("audiocpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_audiocpu->space(AS_PROGRAM);
 
 	/* sound IRQ is on 32V */
 	if (scanline & 32)
 		m6502_irq_ack_r(space, 0);
 	else if (!(ioport("FE4000")->read() & 0x40))
-		m6502_irq_gen(*screen.machine().device("audiocpu"));
+		m6502_irq_gen(m_audiocpu);
 }
 
 
@@ -381,7 +381,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, badlands_state )
 	AM_RANGE(0xfe6006, 0xfe6007) AM_READ(pedal_1_r)
 	AM_RANGE(0xfe8000, 0xfe9fff) AM_WRITE8(sound_w, 0xff00)
 	AM_RANGE(0xfea000, 0xfebfff) AM_READ8(sound_r, 0xff00)
-	AM_RANGE(0xfec000, 0xfedfff) AM_WRITE_LEGACY(badlands_pf_bank_w)
+	AM_RANGE(0xfec000, 0xfedfff) AM_WRITE(badlands_pf_bank_w)
 	AM_RANGE(0xfee000, 0xfeffff) AM_WRITE(eeprom_enable_w)
 	AM_RANGE(0xffc000, 0xffc3ff) AM_RAM_WRITE(expanded_paletteram_666_w) AM_SHARE("paletteram")
 	AM_RANGE(0xffe000, 0xffefff) AM_RAM_WRITE(playfield_w) AM_SHARE("playfield")
@@ -576,7 +576,6 @@ ROM_END
 
 DRIVER_INIT_MEMBER(badlands_state,badlands)
 {
-
 	/* initialize the audio system */
 	m_bank_base = &memregion("audiocpu")->base()[0x03000];
 	m_bank_source_data = &memregion("audiocpu")->base()[0x10000];
@@ -621,7 +620,6 @@ GAME( 1989, badlands, 0, badlands, badlands, badlands_state, badlands, ROT0, "At
 
 READ16_MEMBER(badlands_state::badlandsb_unk_r)
 {
-
 	return 0xffff;
 }
 
@@ -643,7 +641,7 @@ static ADDRESS_MAP_START( bootleg_map, AS_PROGRAM, 16, badlands_state )
 	//AM_RANGE(0xfe0000, 0xfe1fff) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0xfe2000, 0xfe3fff) AM_WRITE(video_int_ack_w)
 
-	AM_RANGE(0xfec000, 0xfedfff) AM_WRITE_LEGACY(badlands_pf_bank_w)
+	AM_RANGE(0xfec000, 0xfedfff) AM_WRITE(badlands_pf_bank_w)
 	AM_RANGE(0xfee000, 0xfeffff) AM_WRITE(eeprom_enable_w)
 	AM_RANGE(0xffc000, 0xffc3ff) AM_RAM_WRITE(expanded_paletteram_666_w) AM_SHARE("paletteram")
 	AM_RANGE(0xffe000, 0xffefff) AM_RAM_WRITE(playfield_w) AM_SHARE("playfield")

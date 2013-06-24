@@ -2,10 +2,14 @@ class retofinv_state : public driver_device
 {
 public:
 	retofinv_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fg_videoram(*this, "fg_videoram"),
 		m_sharedram(*this, "sharedram"),
-		m_bg_videoram(*this, "bg_videoram"){ }
+		m_bg_videoram(*this, "bg_videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_68705(*this, "68705") { }
 
 	UINT8 m_cpu2_m6000;
 	required_shared_ptr<UINT8> m_fg_videoram;
@@ -64,4 +68,9 @@ public:
 	UINT32 screen_update_retofinv(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(main_vblank_irq);
 	INTERRUPT_GEN_MEMBER(sub_vblank_irq);
+	void draw_sprites(bitmap_ind16 &bitmap);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_subcpu;
+	optional_device<cpu_device> m_68705;
 };

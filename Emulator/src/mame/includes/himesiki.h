@@ -8,9 +8,11 @@ class himesiki_state : public driver_device
 {
 public:
 	himesiki_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg_ram(*this, "bg_ram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_subcpu(*this, "sub"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_bg_ram;
@@ -23,7 +25,7 @@ public:
 	int        m_flipscreen;
 
 	/* devices */
-	cpu_device *m_subcpu;
+	required_device<cpu_device> m_subcpu;
 	DECLARE_WRITE8_MEMBER(himesiki_rombank_w);
 	DECLARE_WRITE8_MEMBER(himesiki_sound_w);
 	DECLARE_WRITE8_MEMBER(himesiki_bg_ram_w);
@@ -34,4 +36,6 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_himesiki(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void himesiki_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

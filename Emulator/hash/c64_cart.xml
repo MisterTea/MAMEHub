@@ -4,66 +4,62 @@
 
 <!--
 
-	Hardware to be emulated
+    Hardware to be emulated
 
-	CPU replacements:
-	- Turbo Master CPU (R65C02P4 @ 4.09 MHz)
-	- Turbo Process Accelerator (65C816P-4  @ 50kHz-4MHz)
-	- Flash 8 (65816 @ 8 MHz, 4/8 MB RAM)
-	- CMD SuperCPU 64 (65C816S, 64 KB RAM)
-	- Data 20 Z-80 Video Pak (Z80, 80 column video)
+    CPU replacements:
+    - Turbo Master CPU (R65C02P4 @ 4.09 MHz)
+    - Turbo Process Accelerator (65C816P-4  @ 50kHz-4MHz)
+    - Flash 8 (65816 @ 8 MHz, 4/8 MB RAM)
+    - CMD SuperCPU 64 (65C816S, 64 KB RAM)
+    - Data 20 Z-80 Video Pak (Z80, 80 column video)
 
-	Serial I/O:
-	- CMD SwiftLink (6551 @ 3.6864 MHz)
-	- CMD Turbo232
-	- HART (8251)
+    Serial I/O:
+    - HART (8251)
 
-	RAM expansions:
-	- CMD RAMLink
-	- CMD RAMDrive
-	- Commodore REU 1700/1750/1764
-	- Rex RAM-Floppy 256K
-	- Rex Goliath 1MB
-	- RAM-Cart
+    RAM expansions:
+    - CMD RAMLink
+    - CMD RAMDrive
+    - CMD REU 1750XL
+    - Commodore REU 1700/1750/1764
+    - Rex RAM-Floppy 256K
+    - Rex Goliath 1MB
+    - RAM-Cart
+    - Silicon Disk System
 
-	Hard disks:
-	- Lt. Kernal
+    Hard disks:
+    - Lt. Kernal
 
-	Audio:
-	- Currah Speech 64 (Currah, 1984)
-	- Easy Speech 64 (Currah, 1984)
-	- Voice Messenger (Currah, 1984)
-	- Votalker (Votrax, 1986)
-	- ProVoice (Genesis, 1986)
-	- SID Symphony
-	- MSSIAH
-	- Synthetiseur Vocal
-	- 64er MIDI
-	- FB-MIDI
-	- C-LAB MIDI
-	- JMS MIDI
-	- Datel MIDI
-	- Passport MIDI
-	- Speech Maker (Adman)
-	- Song Producer (Moog, 1983)
+    Audio:
+    - Easy Speech 64 (Currah, 1984)
+    - Voice Messenger (Currah, 1984)
+    - Votalker (Votrax, 1986)
+    - ProVoice (Genesis, 1986)
+    - SID Symphony
+    - MSSIAH
+    - Synthetiseur Vocal
+    - 64er MIDI
+    - FB-MIDI
+    - C-LAB MIDI
+    - Speech Maker (Adman)
+    - Song Producer (Moog, 1983)
 
-	EPROM burners:
-	- J-R Promenade C1
-	- Rex Quickbyte 2
-	- Rex Goliath Eprommer
+    EPROM burners:
+    - J-R Promenade C1
+    - Rex Quickbyte 2
+    - Rex Goliath Eprommer
 
-	Missing dumps that exist as .crt but are missing from this list:
+    Missing dumps that exist as .crt but are missing from this list:
 
-	- Ariolasoft Structured BASIC
-	- MSSIAH
-	- Rex Diashow-Maker
+    - Ariolasoft Structured BASIC
+    - MSSIAH
+    - Rex Diashow-Maker
 
-	If you have any of these, please forward them to messdev :)
+    If you have any of these, please forward them to messdev :)
 
-	List of mostly undumped cartridges:
-	http://www.retroport.de/C64_C128_Hardware.html
-	http://members.optusnet.com.au/spacetaxi64/DRIVERS/DRIVERS.htm
-	http://members.optusnet.com.au/spacetaxi64/SPEED-UP-CARTS/SPEED-C64-CPU.htm
+    List of mostly undumped cartridges:
+    http://www.retroport.de/C64_C128_Hardware.html
+    http://members.optusnet.com.au/spacetaxi64/DRIVERS/DRIVERS.htm
+    http://members.optusnet.com.au/spacetaxi64/SPEED-UP-CARTS/SPEED-C64-CPU.htm
 
 -->
 
@@ -460,7 +456,7 @@
 			</dataarea>
 		</part>
 
-		<part name="flop" interface="floppy_5_25">
+		<part name="flop1" interface="floppy_5_25">
 			<dataarea name="flop" size="174848">
 				<rom name="xl 80 system software.d64" size="174848" crc="7fc45fca" sha1="c8c890ecd826dd9c3b1a1254793f73dc0ef9ef95" offset="0" />
 			</dataarea>
@@ -747,7 +743,7 @@
 		<part name="cart" interface="c64_cart">
 			<feature name="slot" value="mach5" />
 			<feature name="game" value="1" />
-			<feature name="exrom" value="0" />
+			<feature name="exrom" value="1" />
 
 			<dataarea name="roml" size="0x2000">
 				<rom name="mach_5_v1a.bin" size="0x2000" crc="46c0a547" sha1="fb30893f80abb0e7463adbda979e0ebe386022e8" offset="0x0000" />
@@ -762,7 +758,7 @@
 		<part name="cart" interface="c64_cart">
 			<feature name="slot" value="mach5" />
 			<feature name="game" value="1" />
-			<feature name="exrom" value="0" />
+			<feature name="exrom" value="1" />
 
 			<dataarea name="roml" size="0x2000">
 				<rom name="mach_5_v1b_v1.bin" size="0x1000" crc="f1444e48" sha1="4236ad371a5df7046e770b858291b42fe14b8a18" offset="0x0000" />
@@ -777,7 +773,7 @@
 		<part name="cart" interface="c64_cart">
 			<feature name="slot" value="mach5" />
 			<feature name="game" value="1" />
-			<feature name="exrom" value="0" />
+			<feature name="exrom" value="1" />
 
 			<dataarea name="roml" size="0x2000">
 				<rom name="mach_5_v1b_v2.bin" size="0x2000" crc="c320e154" sha1="59de7347b61d39cfd0b89306e9e898b1452d3a20" offset="0x0000" />
@@ -792,7 +788,7 @@
 		<part name="cart" interface="c64_cart">
 			<feature name="slot" value="mach5" />
 			<feature name="game" value="1" />
-			<feature name="exrom" value="0" />
+			<feature name="exrom" value="1" />
 
 			<dataarea name="roml" size="0x2000">
 				<rom name="mach_5_v2a.bin" size="0x2000" crc="8d5b2d06" sha1="2b53dd5d6cf46fd7c90f4e2c4300d5d5bb970014" offset="0x0000" />
@@ -807,10 +803,26 @@
 		<part name="cart" interface="c64_cart">
 			<feature name="slot" value="mach5" />
 			<feature name="game" value="1" />
-			<feature name="exrom" value="0" />
+			<feature name="exrom" value="1" />
 
 			<dataarea name="roml" size="0x2000">
 				<rom name="mach_5_v3a.bin" size="0x2000" crc="c2449aea" sha1="99b702275373480269cde747e774d54ca5d2e1dd" offset="0x0000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="m128" cloneof="mach5">
+		<description>M-128 (Arg)</description>
+		<year>1985</year>
+		<publisher>HAL Sociedad Anonima</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="mach5" />
+			<feature name="game" value="1" />
+			<feature name="exrom" value="1" />
+
+			<dataarea name="roml" size="0x2000">
+				<rom name="halm128.bin" size="0x2000" crc="ea6b27c0" sha1="63a69db5f64228d51a49d656d52360006382ee1e" offset="0x0000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1150,7 +1162,7 @@
 				<rom name="msd cie (telesys) ieee interface.bin" size="0x400" crc="2ff6de42" sha1="f43654fc264d0a6f8229119bf149f1443024d0f5" offset="0x0000" />
 			</dataarea>
 		</part>
-		<part name="flop" interface="floppy_5_25">
+		<part name="flop1" interface="floppy_5_25">
 			<dataarea name="flop" size="174848">
 				<rom name="cie utilities.d64" size="174848" status="nodump" offset="0" />
 			</dataarea>
@@ -1431,7 +1443,7 @@
 			</dataarea>
 		</part>
 
-		<part name="flop" interface="floppy_5_25">
+		<part name="flop1" interface="floppy_5_25">
 			<dataarea name="flop" size="174848">
 				<rom name="s'more.d64" size="174848" crc="268eb91b" sha1="c8672643441a6714093382fd018fc3ead722bc5a" offset="0" />
 			</dataarea>
@@ -1602,7 +1614,7 @@
 				<rom name="adventure series - viking raider (1984)(interphase).80" size="0x4000" crc="ed963ee9" sha1="d47a46efa1210ae503e16dd711b5235dccd4f70f" offset="0x0000" />
 			</dataarea>
 		</part>
-		<part name="flop" interface="floppy_5_25">
+		<part name="flop1" interface="floppy_5_25">
 			<dataarea name="flop" size="174848">
 				<rom name="vikingraider.d64" size="174848" crc="f3489d8f" sha1="1b85f123d9bab8c2cb7168f5d019427e79073530" offset="0" />
 			</dataarea>
@@ -4291,7 +4303,7 @@
 		</part>
 	</software>
 
-	<software name="ghostb">
+	<software name="ghostbst">
 		<description>Ghostbusters</description>
 		<year>1984</year>
 		<publisher>Activision</publisher>
@@ -4852,7 +4864,7 @@
 				<rom name="calc result (1983)(handic software).80" size="0x2000" crc="18fb50c0" sha1="d5a1c81357d4867e5179dec617a8eaff8f8dc38b" offset="0x0000" />
 			</dataarea>
 		</part>
-		<part name="flop" interface="floppy_5_25">
+		<part name="flop1" interface="floppy_5_25">
 			<dataarea name="flop" size="174848">
 				<rom name="calc_result.d64" size="174848" crc="ed84c27b" sha1="b5d6169e4e42701ee4ddef17dbc1049754642a19" offset="0" />
 			</dataarea>
@@ -6333,44 +6345,245 @@
 		</part>
 	</software>
 
-	<software name="sprsnap5">
-		<description>Super Snapshot 5 (NTSC)</description>
-		<year>1989</year>
+	<software name="codebust">
+		<description>Codebuster</description>
+		<year>198?</year>
 		<publisher>LMS Tech</publisher>
+
 		<part name="cart" interface="c64_cart">
-			<feature name="slot" value="super_snapshot_5" />
+			<feature name="slot" value="codebuster" />
 			<feature name="exrom" value="1" />
 			<feature name="game" value="1" />
-			<dataarea name="roml" size="0x10000">
-				<rom name="super snapshot 5 ntsc (1989)(lms tech).80" size="0x10000" crc="8d281cf8" sha1="2420ad183577371d323fb9efa81adc513acbd682" offset="0x0000" />
+
+			<dataarea name="roml" size="0x1000">
+				<rom name="codebuster.bin" size="0x1000" crc="f549da3e" sha1="6a1cdc9f51c0df5cc2b4833b6002443c4e54565b" offset="0" />
 			</dataarea>
 		</part>
 	</software>
 
-	<software name="sprsnap5p" cloneof="sprsnap5">
-		<description>Super Snapshot 5 (PAL)</description>
-		<year>1989</year>
+	<software name="snapshot">
+		<description>Snapshot 64 (v1)</description>
+		<year>1985</year>
 		<publisher>LMS Tech</publisher>
+
 		<part name="cart" interface="c64_cart">
-			<feature name="slot" value="super_snapshot_5" />
+			<feature name="slot" value="snapshot" />
 			<feature name="exrom" value="1" />
 			<feature name="game" value="1" />
-			<dataarea name="roml" size="0x10000">
-				<rom name="super snapshot 5 pal (1989)(lms tech).80" size="0x10000" crc="ed5cb065" sha1="10c34bd6d4651c2549e62cc448412e6d2b193609" offset="0x0000" />
+
+			<dataarea name="roml" size="0x1000">
+				<rom name="snapshot64_v1_1985.bin" size="0x1000" crc="2a29a872" sha1="0f0096c25246123a236b61540d38949290d887d2" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="snapshot64.d64" size="174848" crc="f86a0bfc" sha1="2d5f5bdb4711a02662bc18e75bd056abc81086e7" offset="0" />
 			</dataarea>
 		</part>
 	</software>
 
-	<software name="sprsnap5pa" cloneof="sprsnap5">
-		<description>Super Snapshot 5 (PAL, Alt)</description>
-		<year>1989</year>
+	<software name="snapshot2" cloneof="snapshot">
+		<description>Snapshot 64 (v2)</description>
+		<year>1985</year>
 		<publisher>LMS Tech</publisher>
+
 		<part name="cart" interface="c64_cart">
-			<feature name="slot" value="super_snapshot_5" />
+			<feature name="slot" value="snapshot" />
 			<feature name="exrom" value="1" />
 			<feature name="game" value="1" />
+
+			<dataarea name="roml" size="0x1000">
+				<rom name="snapshot64_v2_1985.bin" size="0x1000" crc="ea336bcb" sha1="3010ae8189e2f78fe5e94841ec0d33cfa6f8d0c7" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="snapshot64.d64" size="174848" crc="f86a0bfc" sha1="2d5f5bdb4711a02662bc18e75bd056abc81086e7" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="supsnap2" cloneof="snapshot">
+		<description>Super Snapshot (v2.0)</description>
+		<year>198</year>
+		<publisher>LMS Tech</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="snapshot" />
+			<feature name="exrom" value="1" />
+			<feature name="game" value="1" />
+
+			<dataarea name="roml" size="0x8000">
+				<rom name="super_snapshot_v2.0_plus_b.bin" size="0x8000" crc="86b17f3c" sha1="a19a9a6dcfd99a91b23422494359783f7ea2f138" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="supsnap3" cloneof="snapshot">
+		<description>Super Snapshot (v3.0, NTSC)</description>
+		<year>1988</year>
+		<publisher>LMS Tech</publisher>
+		<sharedfeat name="compatibility" value="NTSC"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="supersnap3" />
+			<feature name="exrom" value="1" />
+			<feature name="game" value="1" />
+
+			<dataarea name="roml" size="0x8000">
+				<rom name="super_snapshot_v3.0_1988_ntsc.bin" size="0x8000" crc="1ea0d9f9" sha1="c3f907ff40ab8c8179fa322e3c361eadf949e818" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="supsnap4" cloneof="snapshot">
+		<description>Super Snapshot (v4.0, NTSC)</description>
+		<year>1989</year>
+		<publisher>LMS Tech</publisher>
+		<sharedfeat name="compatibility" value="NTSC"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="supersnap4" />
+			<feature name="exrom" value="1" />
+			<feature name="game" value="1" />
+
+			<dataarea name="roml" size="0x8000">
+				<rom name="super_snapshot_v4.0_1989_ntsc.bin" size="0x8000" crc="8f7e9eef" sha1="0c33e86cf98eb23f4a866efff0bf1c007d5fc422" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="supsnap4p" cloneof="snapshot">
+		<description>Super Snapshot (v4.0, PAL)</description>
+		<year>1989</year>
+		<publisher>LMS Tech</publisher>
+		<sharedfeat name="compatibility" value="PAL"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="supersnap4" />
+			<feature name="exrom" value="1" />
+			<feature name="game" value="1" />
+
+			<dataarea name="roml" size="0x8000">
+				<rom name="super_snapshot_v4.0_1989_pal.bin" size="0x8000" crc="bf736f28" sha1="6819c655b7b3e08346236f649de5245bc9a41d25" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="supsnap501" cloneof="snapshot">
+		<description>Super Snapshot (v5.01, NTSC)</description>
+		<year>1990</year>
+		<publisher>LMS Tech</publisher>
+		<sharedfeat name="compatibility" value="NTSC"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="supersnap5" />
+			<feature name="exrom" value="1" />
+			<feature name="game" value="1" />
+
 			<dataarea name="roml" size="0x10000">
-				<rom name="super snapshot 5 pal (1989)(lms tech)[a].80" size="0x10000" crc="58b404e8" sha1="0eae11f615090fd38c049865f494a0cd2922679f" offset="0x0000" />
+				<rom name="super_snapshot_v5.01_1990_ntsc.bin" size="0x10000" crc="8d281cf8" sha1="2420ad183577371d323fb9efa81adc513acbd682" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="super_snapshot_v5.00_system_a_ntsc.d64" size="174848" crc="3e4734ba" sha1="6b4595ad96b97412a46253b335b5ae6e5cb828d5" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="super_snapshot_v5.00_system_b.d64" size="174848" crc="ec09a1e4" sha1="cb5213f272e80b882c6b8673667d2928428a8337" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="supsnap522" cloneof="snapshot">
+		<description>Super Snapshot (v5.22, NTSC)</description>
+		<year>1990</year>
+		<publisher>LMS Tech</publisher>
+		<sharedfeat name="compatibility" value="NTSC"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="supersnap5" />
+			<feature name="exrom" value="1" />
+			<feature name="game" value="1" />
+
+			<dataarea name="roml" size="0x10000">
+				<rom name="super_snapshot_v5.22_1990_ntsc.bin" size="0x10000" crc="fece58ea" sha1="63aa52b3b76c7a844109e43516a655b7373e602c" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="super_snapshot_v5.00_system_a_ntsc.d64" size="174848" crc="3e4734ba" sha1="6b4595ad96b97412a46253b335b5ae6e5cb828d5" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="super_snapshot_v5.00_system_b.d64" size="174848" crc="ec09a1e4" sha1="cb5213f272e80b882c6b8673667d2928428a8337" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="supsnap522p1" cloneof="snapshot">
+		<description>Super Snapshot (v5.22 v1, PAL)</description>
+		<year>1990</year>
+		<publisher>LMS Tech</publisher>
+		<sharedfeat name="compatibility" value="PAL"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="supersnap5" />
+			<feature name="exrom" value="1" />
+			<feature name="game" value="1" />
+
+			<dataarea name="roml" size="0x10000">
+				<rom name="super_snapshot_v5.22_v1_1990_pal.bin" size="0x10000" crc="58b404e8" sha1="0eae11f615090fd38c049865f494a0cd2922679f" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="super_snapshot_v5.00_system_a_pal.d64" size="174848" crc="82cf52bd" sha1="f9d5067d6a1b77ce6453b940e37fed3b2ea582f3" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="super_snapshot_v5.00_system_b.d64" size="174848" crc="ec09a1e4" sha1="cb5213f272e80b882c6b8673667d2928428a8337" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="supsnap522p2" cloneof="snapshot">
+		<description>Super Snapshot (v5.22 v2, PAL)</description>
+		<year>1990</year>
+		<publisher>LMS Tech</publisher>
+		<sharedfeat name="compatibility" value="PAL"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="supersnap5" />
+			<feature name="exrom" value="1" />
+			<feature name="game" value="1" />
+
+			<dataarea name="roml" size="0x10000">
+				<rom name="super_snapshot_v5.22_v2_1990_pal.bin" size="0x10000" crc="ed5cb065" sha1="10c34bd6d4651c2549e62cc448412e6d2b193609" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="super_snapshot_v5.00_system_a_pal.d64" size="174848" crc="82cf52bd" sha1="f9d5067d6a1b77ce6453b940e37fed3b2ea582f3" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="super_snapshot_v5.00_system_b.d64" size="174848" crc="ec09a1e4" sha1="cb5213f272e80b882c6b8673667d2928428a8337" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -6413,18 +6626,20 @@
 	</software>
 
 	<software name="fcc" supported="no">
-		<description>The Final ChessCard</description>
+		<description>The Final ChessCard (Ger)</description>
 		<year>1989</year>
 		<publisher>Tasc</publisher>
 
 		<part name="cart" interface="c64_cart">
 			<feature name="slot" value="fcc" />
 			<feature name="exrom" value="0" />
-			<feature name="game" value="1" />
+			<feature name="game" value="0" />
 
 			<dataarea name="roml" size="0x8000">
 				<rom name="fcc_rom2" size="0x8000" crc="8fc0f156" sha1="c843729870e7ce59bb64b60ebec028f7200f93d1" offset="0x0000" />
 			</dataarea>
+
+			<dataarea name="nvram" size="0x2000" />
 		</part>
 	</software>
 
@@ -6473,7 +6688,7 @@
 		<sharedfeat name="compatibility" value="NTSC,PAL"/>
 
 		<part name="cart" interface="c64_cart">
-			<feature name="slot" value="scim64s" />
+			<feature name="slot" value="midisci" />
 			<feature name="game" value="0" />
 			<feature name="exrom" value="0" />
 
@@ -6566,6 +6781,153 @@
 
 			<dataarea name="roml" size="0x2000">
 				<rom name="sean's diag cart for c64 cs=87e7" size="0x2000" crc="653ec679" sha1="b2d3e90113d7360c7d01a1f017a8edd8ae4441b7" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="vizastar">
+		<description>VizaStar 64: The Information Processor (XL4)</description>
+		<year>1984</year>
+		<publisher>Viza</publisher>
+		<sharedfeat name="compatibility" value="NTSC,PAL"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="vizastar" />
+			<feature name="game" value="1" />
+			<feature name="exrom" value="0" />
+
+			<dataarea name="roml" size="0x1000">
+				<rom name="v" size="0x1000" crc="d17689a0" sha1="4df4d254d7fae916c473d421515b2b74d77e9fd9" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="350952">
+				<rom name="vizastar 64 xl4.g64" size="350952" crc="c4f327ac" sha1="c4d35b895f73d7133a72a5d7642e3a588df5370f" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="vizastar8" cloneof="vizastar">
+		<description>VizaStar 64: The Information Processor (XL8)</description>
+		<year>1984</year>
+		<publisher>Viza</publisher>
+		<sharedfeat name="compatibility" value="NTSC,PAL"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="game" value="1" />
+			<feature name="exrom" value="0" />
+
+			<dataarea name="roml" size="0x2000">
+				<rom name="vizastar xl8" size="0x2000" crc="a1e961c9" sha1="d1f2eb048ea2db005f6fb00e88030b7b42b28499" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="vizastar 64 xl8.d64" status="nodump" size="174848" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="final1" supported="partial">
+		<!-- missing on/off and reset switch -->
+		<description>Final I (Pol)</description>
+		<year>198?</year>
+		<publisher>&lt;unknown&gt;</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="game" value="1" />
+			<feature name="exrom" value="0" />
+
+			<dataarea name="roml" size="0x2000">
+				<rom name="final1.bin" size="0x1000" crc="2637962a" sha1="bfcf38cd187a84093e822bd7cf991a6751c8524b" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="futurbox" supported="partial">
+		<!-- missing reset switch -->
+		<description>Future Box I (Pol)</description>
+		<year>1992</year>
+		<publisher>&lt;unknown&gt;</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="game" value="0" />
+			<feature name="exrom" value="0" />
+
+			<dataarea name="roml" size="0x4000">
+				<rom name="bbv1.bin" size="0x4000" crc="47930727" sha1="e0cedb54023b5ac6ed9adf5c1cf5a37e4f58c301" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="bb3d" supported="partial">
+		<!-- missing reset switch -->
+		<description>Black Box III (Pol)</description>
+		<year>198?</year>
+		<publisher>Domainsoft</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="game" value="1" />
+			<feature name="exrom" value="0" />
+
+			<dataarea name="roml" size="0x2000">
+				<rom name="bb3d.bin" size="0x2000" crc="36d882ca" sha1="06c7a49080a6103c39739e82b06c5699a596f9ab" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="bisplus" supported="partial">
+		<!-- missing reset switch -->
+		<description>Bis-Plus</description>
+		<year>1990</year>
+		<publisher>Micro-LUC</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="game" value="1" />
+			<feature name="exrom" value="0" />
+
+			<dataarea name="roml" size="0x2000">
+				<rom name="bisplus.bin" size="0x2000" crc="26328a96" sha1="27cecacba10cf88c42940350413a3c7e82c9e0ec" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<!-- Dummy cartridge entries to allow requirement mappings from c64_flop -->
+
+	<software name="cpm">
+		<description>CP/M</description>
+		<year>1982</year>
+		<publisher>Commodore</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="cpm" />
+			<dataarea name="roml" size="0x2000">
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="sfxse">
+		<description>SFX Sound Expander</description>
+		<year>1985</year>
+		<publisher>Commodore</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="sfxse" />
+			<dataarea name="roml" size="0x2000">
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="midipp">
+		<description>Passport MIDI Interface (MH-01C)</description>
+		<year>1984</year>
+		<publisher>Passport Designs</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="midipp" />
+			<dataarea name="roml" size="0x2000">
 			</dataarea>
 		</part>
 	</software>

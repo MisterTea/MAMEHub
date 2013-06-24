@@ -12,7 +12,7 @@
 
 void marineb_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -47,7 +47,6 @@ void marineb_state::palette_init()
 
 TILE_GET_INFO_MEMBER(marineb_state::get_tile_info)
 {
-
 	UINT8 code = m_videoram[tile_index];
 	UINT8 col = m_colorram[tile_index];
 
@@ -67,7 +66,6 @@ TILE_GET_INFO_MEMBER(marineb_state::get_tile_info)
 
 void marineb_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(marineb_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_bg_tilemap->set_scroll_cols(32);
 
@@ -87,7 +85,6 @@ void marineb_state::video_start()
 
 WRITE8_MEMBER(marineb_state::marineb_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
@@ -95,7 +92,6 @@ WRITE8_MEMBER(marineb_state::marineb_videoram_w)
 
 WRITE8_MEMBER(marineb_state::marineb_colorram_w)
 {
-
 	m_colorram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
@@ -135,7 +131,6 @@ WRITE8_MEMBER(marineb_state::marineb_palette_bank_1_w)
 
 WRITE8_MEMBER(marineb_state::marineb_flipscreen_x_w)
 {
-
 	m_flipscreen_x = data ^ m_marineb_active_low_flipscreen;
 	m_bg_tilemap->set_flip((m_flipscreen_x ? TILEMAP_FLIPX : 0) | (m_flipscreen_y ? TILEMAP_FLIPY : 0));
 }
@@ -143,7 +138,6 @@ WRITE8_MEMBER(marineb_state::marineb_flipscreen_x_w)
 
 WRITE8_MEMBER(marineb_state::marineb_flipscreen_y_w)
 {
-
 	m_flipscreen_y = data ^ m_marineb_active_low_flipscreen;
 	m_bg_tilemap->set_flip((m_flipscreen_x ? TILEMAP_FLIPX : 0) | (m_flipscreen_y ? TILEMAP_FLIPY : 0));
 }
@@ -156,16 +150,15 @@ WRITE8_MEMBER(marineb_state::marineb_flipscreen_y_w)
  *
  *************************************/
 
-static void set_tilemap_scrolly( running_machine &machine, int cols )
+void marineb_state::set_tilemap_scrolly( int cols )
 {
-	marineb_state *state = machine.driver_data<marineb_state>();
 	int col;
 
 	for (col = 0; col < cols; col++)
-		state->m_bg_tilemap->set_scrolly(col, state->m_column_scroll);
+		m_bg_tilemap->set_scrolly(col, m_column_scroll);
 
 	for (; col < 32; col++)
-		state->m_bg_tilemap->set_scrolly(col, 0);
+		m_bg_tilemap->set_scrolly(col, 0);
 }
 
 
@@ -173,7 +166,7 @@ UINT32 marineb_state::screen_update_marineb(screen_device &screen, bitmap_ind16 
 {
 	int offs;
 
-	set_tilemap_scrolly(machine(), 24);
+	set_tilemap_scrolly(24);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	/* draw the sprites */
@@ -234,7 +227,7 @@ UINT32 marineb_state::screen_update_changes(screen_device &screen, bitmap_ind16 
 {
 	int offs, sx, sy, code, col, flipx, flipy;
 
-	set_tilemap_scrolly(machine(), 26);
+	set_tilemap_scrolly(26);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	/* draw the small sprites */
@@ -312,7 +305,7 @@ UINT32 marineb_state::screen_update_springer(screen_device &screen, bitmap_ind16
 {
 	int offs;
 
-	set_tilemap_scrolly(machine(), 0);
+	set_tilemap_scrolly(0);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	/* draw the sprites */
@@ -371,7 +364,7 @@ UINT32 marineb_state::screen_update_hoccer(screen_device &screen, bitmap_ind16 &
 {
 	int offs;
 
-	set_tilemap_scrolly(machine(), 0);
+	set_tilemap_scrolly(0);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	/* draw the sprites */
@@ -414,7 +407,7 @@ UINT32 marineb_state::screen_update_hopprobo(screen_device &screen, bitmap_ind16
 {
 	int offs;
 
-	set_tilemap_scrolly(machine(), 0);
+	set_tilemap_scrolly(0);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	/* draw the sprites */

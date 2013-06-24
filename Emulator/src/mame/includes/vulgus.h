@@ -2,12 +2,13 @@ class vulgus_state : public driver_device
 {
 public:
 	vulgus_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_scroll_low(*this, "scroll_low"),
 		m_scroll_high(*this, "scroll_high"),
 		m_spriteram(*this, "spriteram"),
 		m_fgvideoram(*this, "fgvideoram"),
-		m_bgvideoram(*this, "bgvideoram"){ }
+		m_bgvideoram(*this, "bgvideoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_scroll_low;
 	required_shared_ptr<UINT8> m_scroll_high;
@@ -27,4 +28,6 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_vulgus(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vulgus_vblank_irq);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };

@@ -9,26 +9,23 @@
 #include "machine/idectrl.h"
 #include "imagedev/harddriv.h"
 
-static READ16_DEVICE_HANDLER( ide16_r )
+READ8_MEMBER(isa16_ide_device::ide16_alt_r )
 {
-	return ide_controller16_r(device, space, 0x1f0/2 + offset, mem_mask);
+	return m_ide->read_cs1_pc(space, 6/2, 0xff);
 }
 
-static WRITE16_DEVICE_HANDLER( ide16_w )
+WRITE8_MEMBER(isa16_ide_device::ide16_alt_w )
 {
-	ide_controller16_w(device, space, 0x1f0/2 + offset, data, mem_mask);
+	m_ide->write_cs1_pc(space, 6/2, data, 0xff);
 }
 
+DEVICE_ADDRESS_MAP_START(map, 16, isa16_ide_device)
+	AM_RANGE(0x0, 0x7) AM_DEVREADWRITE("ide", ide_controller_device, read_cs0_pc, write_cs0_pc)
+ADDRESS_MAP_END
 
-static READ16_DEVICE_HANDLER( ide16_alt_r )
-{
-	return ide_controller16_r(device, space, 0x3f6/2 + offset, 0x00ff);
-}
-
-static WRITE16_DEVICE_HANDLER( ide16_alt_w )
-{
-	ide_controller16_w(device, space, 0x3f6/2 + offset, data, 0x00ff);
-}
+DEVICE_ADDRESS_MAP_START(alt_map, 8, isa16_ide_device)
+	AM_RANGE(0x6, 0x6) AM_READWRITE(ide16_alt_r, ide16_alt_w)
+ADDRESS_MAP_END
 
 WRITE_LINE_MEMBER(isa16_ide_device::ide_interrupt)
 {
@@ -43,8 +40,8 @@ WRITE_LINE_MEMBER(isa16_ide_device::ide_interrupt)
 }
 
 static MACHINE_CONFIG_FRAGMENT( ide )
-	MCFG_IDE_CONTROLLER_ADD("ide", ide_image_devices, "hdd", "hdd", false)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE(DEVICE_SELF, isa16_ide_device, ide_interrupt))
+	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", "hdd", false)
+	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(isa16_ide_device, ide_interrupt))
 MACHINE_CONFIG_END
 
 static INPUT_PORTS_START( ide )
@@ -88,9 +85,10 @@ ioport_constructor isa16_ide_device::device_input_ports() const
 //-------------------------------------------------
 
 isa16_ide_device::isa16_ide_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-		: device_t(mconfig, ISA16_IDE, "IDE Fixed Drive Adapter", tag, owner, clock),
+		: device_t(mconfig, ISA16_IDE, "IDE Fixed Drive Adapter", tag, owner, clock, "isa_ide", __FILE__),
 		device_isa16_card_interface( mconfig, *this ),
-		m_is_primary(true)
+		m_is_primary(true),
+		m_ide(*this, "ide")
 {
 }
 
@@ -111,10 +109,10 @@ void isa16_ide_device::device_reset()
 {
 	m_is_primary = (ioport("DSW")->read() & 1) ? false : true;
 	if (m_is_primary) {
-		m_isa->install16_device(subdevice("ide"), 0x01f0, 0x01f7, 0, 0, FUNC(ide16_r), FUNC(ide16_w) );
-		//m_isa->install16_device(subdevice("ide"), 0x03f6, 0x03f7, 0, 0, FUNC(ide16_alt_r), FUNC(ide16_alt_w) );
+		m_isa->install_device(0x01f0, 0x01f7, *this, &isa16_ide_device::map, 16);
+		m_isa->install_device(0x03f0, 0x03f7, *this, &isa16_ide_device::alt_map);
 	} else {
-		m_isa->install16_device(subdevice("ide"), 0x0170, 0x0177, 0, 0, FUNC(ide16_r), FUNC(ide16_w) );
-		m_isa->install16_device(subdevice("ide"), 0x0376, 0x0377, 0, 0, FUNC(ide16_alt_r), FUNC(ide16_alt_w) );
+		m_isa->install_device(0x0170, 0x0177, *this, &isa16_ide_device::map, 16);
+		m_isa->install_device(0x0370, 0x0377, *this, &isa16_ide_device::alt_map);
 	}
 }

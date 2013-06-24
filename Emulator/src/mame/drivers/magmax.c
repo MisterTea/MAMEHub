@@ -35,13 +35,13 @@ WRITE16_MEMBER(magmax_state::magmax_sound_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		m_sound_latch = (data & 0xff) << 1;
-		machine().device("audiocpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_audiocpu->set_input_line(0, ASSERT_LINE);
 	}
 }
 
 READ8_MEMBER(magmax_state::magmax_sound_irq_ack)
 {
-	machine().device("audiocpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_audiocpu->set_input_line(0, CLEAR_LINE);
 	return 0;
 }
 
@@ -79,10 +79,10 @@ void magmax_state::machine_start()
 	m_interrupt_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(magmax_state::scanline_callback),this));
 
 	/* Set up save state */
-	state_save_register_global(machine(), m_sound_latch);
-	state_save_register_global(machine(), m_LS74_clr);
-	state_save_register_global(machine(), m_LS74_q);
-	state_save_register_global(machine(), m_gain_control);
+	save_item(NAME(m_sound_latch));
+	save_item(NAME(m_LS74_clr));
+	save_item(NAME(m_LS74_q));
+	save_item(NAME(m_gain_control));
 }
 
 void magmax_state::machine_reset()
@@ -220,9 +220,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( magmax_sound_io_map, AS_IO, 8, magmax_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x02, 0x03) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x04, 0x05) AM_DEVWRITE_LEGACY("ay3", ay8910_address_data_w)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x02, 0x03) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x04, 0x05) AM_DEVWRITE("ay3", ay8910_device, address_data_w)
 	AM_RANGE(0x06, 0x06) AM_READ(magmax_sound_r)
 ADDRESS_MAP_END
 

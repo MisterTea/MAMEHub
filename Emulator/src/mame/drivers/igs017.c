@@ -58,13 +58,15 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_spriteram(*this, "spriteram", 0),
 		m_fg_videoram(*this, "fg_videoram", 0),
-		m_bg_videoram(*this, "bg_videoram", 0){ }
+		m_bg_videoram(*this, "bg_videoram", 0),
+		m_oki(*this, "oki"){ }
 
 	int m_input_addr;
 	required_device<cpu_device> m_maincpu;
 	optional_shared_ptr<UINT8> m_spriteram;
 	optional_shared_ptr<UINT8> m_fg_videoram;
 	optional_shared_ptr<UINT8> m_bg_videoram;
+	required_device<okim6295_device> m_oki;
 
 	int m_toggle;
 	int m_debug_addr;
@@ -159,6 +161,23 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(irqblocka_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(mgcs_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(mgdh_interrupt);
+	void expand_sprites();
+	void draw_sprite(bitmap_ind16 &bitmap,const rectangle &cliprect, int sx, int sy, int dimx, int dimy, int flipx, int flipy, int color, int addr);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	int debug_viewer(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void decrypt_program_rom(int mask, int a7, int a6, int a5, int a4, int a3, int a2, int a1, int a0);
+	void iqblocka_patch_rom();
+	void tjsb_decrypt_sprites();
+	void mgcs_decrypt_program_rom();
+	void mgcs_decrypt_tiles();
+	void mgcs_flip_sprites();
+	void mgcs_patch_rom();
+	void starzan_decrypt(UINT8 *ROM, int size, bool isOpcode);
+	void lhzb2_patch_rom();
+	void lhzb2_decrypt_tiles();
+	void lhzb2_decrypt_sprites();
+	void slqz2_patch_rom();
+	void slqz2_decrypt_tiles();
 };
 
 
@@ -249,23 +268,22 @@ WRITE16_MEMBER(igs017_state::spriteram_lsb_w)
 
 // Eeach 16 bit word in the sprites gfx roms contains three 5 bit pens: x-22222-11111-00000 (little endian!).
 // This routine expands each word into three bytes.
-static void expand_sprites(running_machine &machine)
+void igs017_state::expand_sprites()
 {
-	igs017_state *state = machine.driver_data<igs017_state>();
-	UINT8 *rom  =   state->memregion("sprites")->base();
-	int size    =   state->memregion("sprites")->bytes();
+	UINT8 *rom  =   memregion("sprites")->base();
+	int size    =   memregion("sprites")->bytes();
 	int i;
 
-	state->m_sprites_gfx_size   =   size / 2 * 3;
-	state->m_sprites_gfx        =   auto_alloc_array(machine, UINT8, state->m_sprites_gfx_size);
+	m_sprites_gfx_size   =   size / 2 * 3;
+	m_sprites_gfx        =   auto_alloc_array(machine(), UINT8, m_sprites_gfx_size);
 
 	for (i = 0; i < size / 2 ; i++)
 	{
 		UINT16 pens = (rom[i*2+1] << 8) | rom[i*2];
 
-		state->m_sprites_gfx[i * 3 + 0] = (pens >>  0) & 0x1f;
-		state->m_sprites_gfx[i * 3 + 1] = (pens >>  5) & 0x1f;
-		state->m_sprites_gfx[i * 3 + 2] = (pens >> 10) & 0x1f;
+		m_sprites_gfx[i * 3 + 0] = (pens >>  0) & 0x1f;
+		m_sprites_gfx[i * 3 + 1] = (pens >>  5) & 0x1f;
+		m_sprites_gfx[i * 3 + 2] = (pens >> 10) & 0x1f;
 	}
 }
 
@@ -281,7 +299,7 @@ void igs017_state::video_start()
 	m_debug_addr = 0;
 	m_debug_width = 512;
 
-	expand_sprites(machine());
+	expand_sprites();
 }
 
 /***************************************************************************
@@ -317,16 +335,15 @@ void igs017_state::video_start()
 
 ***************************************************************************/
 
-static void draw_sprite(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect, int sx, int sy, int dimx, int dimy, int flipx, int flipy, int color, int addr)
+void igs017_state::draw_sprite(bitmap_ind16 &bitmap,const rectangle &cliprect, int sx, int sy, int dimx, int dimy, int flipx, int flipy, int color, int addr)
 {
-	igs017_state *state = machine.driver_data<igs017_state>();
 	// prepare GfxElement on the fly
 
 	// Bounds checking
-	if ( addr + dimx * dimy >= state->m_sprites_gfx_size )
+	if ( addr + dimx * dimy >= m_sprites_gfx_size )
 		return;
 
-	gfx_element gfx(machine, state->m_sprites_gfx + addr, dimx, dimy, dimx, 0x100, 32);
+	gfx_element gfx(machine(), m_sprites_gfx + addr, dimx, dimy, dimx, 0x100, 32);
 
 	drawgfx_transpen(   bitmap,cliprect, &gfx,
 				0, color,
@@ -334,11 +351,10 @@ static void draw_sprite(running_machine &machine, bitmap_ind16 &bitmap,const rec
 				sx, sy, 0x1f    );
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect)
+void igs017_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
-	igs017_state *state = machine.driver_data<igs017_state>();
-	UINT8 *s    =   state->m_spriteram;
-	UINT8 *end  =   state->m_spriteram + 0x800;
+	UINT8 *s    =   m_spriteram;
+	UINT8 *end  =   m_spriteram + 0x800;
 
 	for ( ; s < end; s += 8 )
 	{
@@ -365,47 +381,46 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const re
 
 		color = (s[7] & 0xe0) >> 5;
 
-		draw_sprite(machine, bitmap, cliprect, sx, sy, dimx, dimy, flipx, flipy, color, addr);
+		draw_sprite(bitmap, cliprect, sx, sy, dimx, dimy, flipx, flipy, color, addr);
 	}
 }
 
 // A simple gfx viewer (toggle with T)
-static int debug_viewer(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect)
+int igs017_state::debug_viewer(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
 #ifdef MAME_DEBUG
-	igs017_state *state = machine.driver_data<igs017_state>();
-	if (machine.input().code_pressed_once(KEYCODE_T))   state->m_toggle = 1-state->m_toggle;
-	if (state->m_toggle)    {
-		int h = 256, w = state->m_debug_width, a = state->m_debug_addr;
+	if (machine().input().code_pressed_once(KEYCODE_T))   m_toggle = 1-m_toggle;
+	if (m_toggle)    {
+		int h = 256, w = m_debug_width, a = m_debug_addr;
 
-		if (machine.input().code_pressed(KEYCODE_O))        w += 1;
-		if (machine.input().code_pressed(KEYCODE_I))        w -= 1;
+		if (machine().input().code_pressed(KEYCODE_O))        w += 1;
+		if (machine().input().code_pressed(KEYCODE_I))        w -= 1;
 
-		if (machine.input().code_pressed(KEYCODE_U))        w += 8;
-		if (machine.input().code_pressed(KEYCODE_Y))        w -= 8;
+		if (machine().input().code_pressed(KEYCODE_U))        w += 8;
+		if (machine().input().code_pressed(KEYCODE_Y))        w -= 8;
 
-		if (machine.input().code_pressed(KEYCODE_RIGHT))    a += 1;
-		if (machine.input().code_pressed(KEYCODE_LEFT))     a -= 1;
+		if (machine().input().code_pressed(KEYCODE_RIGHT))    a += 1;
+		if (machine().input().code_pressed(KEYCODE_LEFT))     a -= 1;
 
-		if (machine.input().code_pressed(KEYCODE_DOWN))     a += w;
-		if (machine.input().code_pressed(KEYCODE_UP))       a -= w;
+		if (machine().input().code_pressed(KEYCODE_DOWN))     a += w;
+		if (machine().input().code_pressed(KEYCODE_UP))       a -= w;
 
-		if (machine.input().code_pressed(KEYCODE_PGDN))     a += w * h;
-		if (machine.input().code_pressed(KEYCODE_PGUP))     a -= w * h;
+		if (machine().input().code_pressed(KEYCODE_PGDN))     a += w * h;
+		if (machine().input().code_pressed(KEYCODE_PGUP))     a -= w * h;
 
 		if (a < 0)      a = 0;
-		if (a > state->m_sprites_gfx_size)  a = state->m_sprites_gfx_size;
+		if (a > m_sprites_gfx_size)  a = m_sprites_gfx_size;
 
 		if (w <= 0)     w = 0;
 		if (w > 1024)   w = 1024;
 
 		bitmap.fill(0, cliprect);
 
-		draw_sprite(machine, bitmap, cliprect, 0,0, w,h, 0,0, 0, a);
+		draw_sprite(bitmap, cliprect, 0,0, w,h, 0,0, 0, a);
 
-		popmessage("a: %08X w: %03X p: %02x-%02x-%02x",a,w,state->m_sprites_gfx[a/3*3+0],state->m_sprites_gfx[a/3*3+1],state->m_sprites_gfx[a/3*3+2]);
-		state->m_debug_addr = a;
-		state->m_debug_width = w;
+		popmessage("a: %08X w: %03X p: %02x-%02x-%02x",a,w,m_sprites_gfx[a/3*3+0],m_sprites_gfx[a/3*3+1],m_sprites_gfx[a/3*3+2]);
+		m_debug_addr = a;
+		m_debug_width = w;
 		osd_sleep(200000);
 		return 1;
 	}
@@ -428,7 +443,7 @@ UINT32 igs017_state::screen_update_igs017(screen_device &screen, bitmap_ind16 &b
 	}
 #endif
 
-	if (debug_viewer(machine(), bitmap,cliprect))
+	if (debug_viewer(bitmap,cliprect))
 		return 0;
 
 	bitmap.fill(get_black_pen(machine()), cliprect);
@@ -438,7 +453,7 @@ UINT32 igs017_state::screen_update_igs017(screen_device &screen, bitmap_ind16 &b
 
 	if (layers_ctrl & 1)    m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 
-	if (layers_ctrl & 4)    draw_sprites(machine(), bitmap, cliprect);
+	if (layers_ctrl & 4)    draw_sprites(bitmap, cliprect);
 
 	if (layers_ctrl & 2)    m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
 
@@ -449,11 +464,11 @@ UINT32 igs017_state::screen_update_igs017(screen_device &screen, bitmap_ind16 &b
                                 Decryption
 ***************************************************************************/
 
-static void decrypt_program_rom(running_machine &machine, int mask, int a7, int a6, int a5, int a4, int a3, int a2, int a1, int a0)
+void igs017_state::decrypt_program_rom(int mask, int a7, int a6, int a5, int a4, int a3, int a2, int a1, int a0)
 {
-	int length = machine.root_device().memregion("maincpu")->bytes();
-	UINT8 *rom = machine.root_device().memregion("maincpu")->base();
-	UINT8 *tmp = auto_alloc_array(machine, UINT8, length);
+	int length = memregion("maincpu")->bytes();
+	UINT8 *rom = memregion("maincpu")->base();
+	UINT8 *tmp = auto_alloc_array(machine(), UINT8, length);
 	int i;
 
 	// decrypt the program ROM
@@ -502,9 +517,9 @@ static void decrypt_program_rom(running_machine &machine, int mask, int a7, int 
 
 // iqblocka
 
-static void iqblocka_patch_rom(running_machine &machine)
+void igs017_state::iqblocka_patch_rom()
 {
-	UINT8 *rom = machine.root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 //  rom[0x7b64] = 0xc9;
 
@@ -529,25 +544,25 @@ static void iqblocka_patch_rom(running_machine &machine)
 
 DRIVER_INIT_MEMBER(igs017_state,iqblocka)
 {
-	decrypt_program_rom(machine(), 0x11, 7, 6, 5, 4, 3, 2, 1, 0);
-	iqblocka_patch_rom(machine());
+	decrypt_program_rom(0x11, 7, 6, 5, 4, 3, 2, 1, 0);
+	iqblocka_patch_rom();
 }
 
 // iqblockf
 
 DRIVER_INIT_MEMBER(igs017_state,iqblockf)
 {
-	decrypt_program_rom(machine(), 0x11, 7, 6, 5, 4, 3, 2, 1, 0);
-//  iqblockf_patch_rom(machine());
+	decrypt_program_rom(0x11, 7, 6, 5, 4, 3, 2, 1, 0);
+//  iqblockf_patch_rom();
 }
 
 // tjsb
 
-static void tjsb_decrypt_sprites(running_machine &machine)
+void igs017_state::tjsb_decrypt_sprites()
 {
-	int length = machine.root_device().memregion("sprites")->bytes();
-	UINT8 *rom = machine.root_device().memregion("sprites")->base();
-	UINT8 *tmp = auto_alloc_array(machine, UINT8, length);
+	int length = memregion("sprites")->bytes();
+	UINT8 *rom = memregion("sprites")->base();
+	UINT8 *tmp = auto_alloc_array(machine(), UINT8, length);
 	int i, addr;
 
 	// address lines swap
@@ -570,18 +585,18 @@ static void tjsb_decrypt_sprites(running_machine &machine)
 
 DRIVER_INIT_MEMBER(igs017_state,tjsb)
 {
-	decrypt_program_rom(machine(), 0x05, 7, 6, 3, 2, 5, 4, 1, 0);
+	decrypt_program_rom(0x05, 7, 6, 3, 2, 5, 4, 1, 0);
 
-	tjsb_decrypt_sprites(machine());
+	tjsb_decrypt_sprites();
 }
 
 
 // mgcs
 
-static void mgcs_decrypt_program_rom(running_machine &machine)
+void igs017_state::mgcs_decrypt_program_rom()
 {
 	int i;
-	UINT16 *src = (UINT16 *)machine.root_device().memregion("maincpu")->base();
+	UINT16 *src = (UINT16 *)memregion("maincpu")->base();
 
 	int rom_size = 0x80000;
 
@@ -628,11 +643,11 @@ static void mgcs_decrypt_program_rom(running_machine &machine)
 	}
 }
 
-static void mgcs_decrypt_tiles(running_machine &machine)
+void igs017_state::mgcs_decrypt_tiles()
 {
-	int length = machine.root_device().memregion("tilemaps")->bytes();
-	UINT8 *rom = machine.root_device().memregion("tilemaps")->base();
-	UINT8 *tmp = auto_alloc_array(machine, UINT8, length);
+	int length = memregion("tilemaps")->bytes();
+	UINT8 *rom = memregion("tilemaps")->base();
+	UINT8 *tmp = auto_alloc_array(machine(), UINT8, length);
 	int i;
 
 	memcpy(tmp,rom,length);
@@ -642,13 +657,13 @@ static void mgcs_decrypt_tiles(running_machine &machine)
 		rom[i] = tmp[addr];
 	}
 
-	auto_free(machine, tmp);
+	auto_free(machine(), tmp);
 }
 
-static void mgcs_flip_sprites(running_machine &machine)
+void igs017_state::mgcs_flip_sprites()
 {
-	int length = machine.root_device().memregion("sprites")->bytes();
-	UINT8 *rom = machine.root_device().memregion("sprites")->base();
+	int length = memregion("sprites")->bytes();
+	UINT8 *rom = memregion("sprites")->base();
 	int i;
 
 	for (i = 0;i < length;i+=2)
@@ -666,9 +681,9 @@ static void mgcs_flip_sprites(running_machine &machine)
 	}
 }
 
-static void mgcs_patch_rom(running_machine &machine)
+void igs017_state::mgcs_patch_rom()
 {
-	UINT16 *rom = (UINT16 *)machine.root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 
 	rom[0x4e036/2] = 0x6006;
 
@@ -681,11 +696,11 @@ static void mgcs_patch_rom(running_machine &machine)
 
 DRIVER_INIT_MEMBER(igs017_state,mgcs)
 {
-	mgcs_decrypt_program_rom(machine());
-	mgcs_patch_rom(machine());
+	mgcs_decrypt_program_rom();
+	mgcs_patch_rom();
 
-	mgcs_decrypt_tiles(machine());
-	mgcs_flip_sprites(machine());
+	mgcs_decrypt_tiles();
+	mgcs_flip_sprites();
 }
 
 
@@ -694,7 +709,7 @@ DRIVER_INIT_MEMBER(igs017_state,mgcs)
 // decryption is incomplete, the first part of code doesn't seem right.
 DRIVER_INIT_MEMBER(igs017_state,tarzan)
 {
-	UINT16 *ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *ROM = (UINT16 *)memregion("maincpu")->base();
 	int i;
 	int size = 0x40000;
 
@@ -720,7 +735,7 @@ DRIVER_INIT_MEMBER(igs017_state,tarzan)
 // by iq_132
 DRIVER_INIT_MEMBER(igs017_state,tarzana)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 	int i;
 	int size = 0x80000;
 
@@ -741,7 +756,7 @@ DRIVER_INIT_MEMBER(igs017_state,tarzana)
 
 // decryption is incomplete: data decryption is correct but opcodes are encrypted differently.
 
-static void starzan_decrypt(UINT8 *ROM, int size, bool isOpcode)
+void igs017_state::starzan_decrypt(UINT8 *ROM, int size, bool isOpcode)
 {
 	for(int i=0; i<size; i++)
 	{
@@ -793,16 +808,16 @@ DRIVER_INIT_MEMBER(igs017_state,starzan)
 {
 	int size = 0x040000;
 
-	UINT8 *data = machine().root_device().memregion("maincpu")->base();
+	UINT8 *data = memregion("maincpu")->base();
 	UINT8 *code = auto_alloc_array(machine(), UINT8, size);
 	memcpy(code, data, size);
 
 	starzan_decrypt(data, size, false); // data
 	starzan_decrypt(code, size, true);  // opcodes
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).set_decrypted_region(0x00000, 0x3ffff, code);
+	m_maincpu->space(AS_PROGRAM).set_decrypted_region(0x00000, 0x3ffff, code);
 
-	mgcs_flip_sprites(machine());
+	mgcs_flip_sprites();
 }
 
 
@@ -811,7 +826,7 @@ DRIVER_INIT_MEMBER(igs017_state,starzan)
 DRIVER_INIT_MEMBER(igs017_state,sdmg2)
 {
 	int i;
-	UINT16 *src = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *src = (UINT16 *)memregion("maincpu")->base();
 
 	int rom_size = 0x80000;
 
@@ -868,7 +883,7 @@ DRIVER_INIT_MEMBER(igs017_state,sdmg2)
 DRIVER_INIT_MEMBER(igs017_state,mgdha)
 {
 	int i;
-	UINT16 *src = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *src = (UINT16 *)memregion("maincpu")->base();
 
 	int rom_size = 0x80000;
 
@@ -896,14 +911,14 @@ DRIVER_INIT_MEMBER(igs017_state,mgdha)
 		src[i] = x;
 	}
 
-	mgcs_flip_sprites(machine());
+	mgcs_flip_sprites();
 }
 
 DRIVER_INIT_MEMBER(igs017_state,mgdh)
 {
 	DRIVER_INIT_CALL(mgdha);
 
-	UINT16 *rom = (UINT16 *)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 
 	// additional protection
 	rom[0x4ad50/2] = 0x4e71;
@@ -913,9 +928,9 @@ DRIVER_INIT_MEMBER(igs017_state,mgdh)
 // lhzb2
 
 
-static void lhzb2_patch_rom(running_machine &machine)
+void igs017_state::lhzb2_patch_rom()
 {
-	UINT16 *rom = (UINT16 *)machine.root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 
 	// Prot. checks:
 	rom[0x14786/2] = 0x6044;    // 014786: 6744    beq $147cc
@@ -924,11 +939,11 @@ static void lhzb2_patch_rom(running_machine &machine)
 	rom[0x0b48a/2] = 0x604e;    // 00B48A: 674E    beq $b4da
 }
 
-static void lhzb2_decrypt_tiles(running_machine &machine)
+void igs017_state::lhzb2_decrypt_tiles()
 {
-	int length = machine.root_device().memregion("tilemaps")->bytes();
-	UINT8 *rom = machine.root_device().memregion("tilemaps")->base();
-	UINT8 *tmp = auto_alloc_array(machine, UINT8, length);
+	int length = memregion("tilemaps")->bytes();
+	UINT8 *rom = memregion("tilemaps")->base();
+	UINT8 *tmp = auto_alloc_array(machine(), UINT8, length);
 	int i;
 
 	int addr;
@@ -939,14 +954,14 @@ static void lhzb2_decrypt_tiles(running_machine &machine)
 		rom[i] = tmp[addr];
 	}
 
-	auto_free(machine, tmp);
+	auto_free(machine(), tmp);
 }
 
-static void lhzb2_decrypt_sprites(running_machine &machine)
+void igs017_state::lhzb2_decrypt_sprites()
 {
-	int length = machine.root_device().memregion("sprites")->bytes();
-	UINT8 *rom = machine.root_device().memregion("sprites")->base();
-	UINT8 *tmp = auto_alloc_array(machine, UINT8, length);
+	int length = memregion("sprites")->bytes();
+	UINT8 *rom = memregion("sprites")->base();
+	UINT8 *tmp = auto_alloc_array(machine(), UINT8, length);
 	int i, addr;
 
 	// address lines swap
@@ -970,7 +985,7 @@ static void lhzb2_decrypt_sprites(running_machine &machine)
 DRIVER_INIT_MEMBER(igs017_state,lhzb2)
 {
 	int i;
-	UINT16 *src = (UINT16 *) (machine().root_device().memregion("maincpu")->base());
+	UINT16 *src = (UINT16 *) (memregion("maincpu")->base());
 
 	int rom_size = 0x80000;
 
@@ -1053,9 +1068,9 @@ DRIVER_INIT_MEMBER(igs017_state,lhzb2)
 		src[i] = x;
 	}
 
-	lhzb2_decrypt_tiles(machine());
-	lhzb2_decrypt_sprites(machine());
-	lhzb2_patch_rom(machine());
+	lhzb2_decrypt_tiles();
+	lhzb2_decrypt_sprites();
+	lhzb2_patch_rom();
 }
 
 
@@ -1064,7 +1079,7 @@ DRIVER_INIT_MEMBER(igs017_state,lhzb2)
 DRIVER_INIT_MEMBER(igs017_state,lhzb2a)
 {
 	int i;
-	UINT16 *src = (UINT16 *) (machine().root_device().memregion("maincpu")->base());
+	UINT16 *src = (UINT16 *) (memregion("maincpu")->base());
 
 	int rom_size = 0x80000;
 
@@ -1119,16 +1134,16 @@ DRIVER_INIT_MEMBER(igs017_state,lhzb2a)
 		src[i] = x;
 	}
 
-	lhzb2_decrypt_tiles(machine());
-	lhzb2_decrypt_sprites(machine());
+	lhzb2_decrypt_tiles();
+	lhzb2_decrypt_sprites();
 }
 
 
 //slqz2
 
-static void slqz2_patch_rom(running_machine &machine)
+void igs017_state::slqz2_patch_rom()
 {
-	UINT16 *rom = (UINT16 *)machine.root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16 *)memregion("maincpu")->base();
 
 	// Prot. checks:
 	rom[0x1489c/2] = 0x6044;    // 01489C: 6744    beq $148e2
@@ -1137,11 +1152,11 @@ static void slqz2_patch_rom(running_machine &machine)
 	rom[0x0b77a/2] = 0x604e;    // 00B77A: 674E    beq $b7ca
 }
 
-static void slqz2_decrypt_tiles(running_machine &machine)
+void igs017_state::slqz2_decrypt_tiles()
 {
-	int length = machine.root_device().memregion("tilemaps")->bytes();
-	UINT8 *rom = machine.root_device().memregion("tilemaps")->base();
-	UINT8 *tmp = auto_alloc_array(machine, UINT8, length);
+	int length = memregion("tilemaps")->bytes();
+	UINT8 *rom = memregion("tilemaps")->base();
+	UINT8 *tmp = auto_alloc_array(machine(), UINT8, length);
 	int i;
 
 	memcpy(tmp,rom,length);
@@ -1151,13 +1166,13 @@ static void slqz2_decrypt_tiles(running_machine &machine)
 		rom[i] = tmp[addr];
 	}
 
-	auto_free(machine, tmp);
+	auto_free(machine(), tmp);
 }
 
 DRIVER_INIT_MEMBER(igs017_state,slqz2)
 {
 	int i;
-	UINT16 *src = (UINT16 *) (machine().root_device().memregion("maincpu")->base());
+	UINT16 *src = (UINT16 *) (memregion("maincpu")->base());
 
 	int rom_size = 0x80000;
 
@@ -1230,9 +1245,9 @@ DRIVER_INIT_MEMBER(igs017_state,slqz2)
 		src[i] = x;
 	}
 
-	slqz2_decrypt_tiles(machine());
-	lhzb2_decrypt_sprites(machine());
-	slqz2_patch_rom(machine());
+	slqz2_decrypt_tiles();
+	lhzb2_decrypt_sprites();
+	slqz2_patch_rom();
 }
 
 /***************************************************************************
@@ -1332,7 +1347,7 @@ static ADDRESS_MAP_START( iqblocka_io, AS_IO, 8, igs017_state )
 
 	AM_RANGE( 0xa000, 0xa000 ) AM_READ_PORT( "BUTTONS" )
 
-	AM_RANGE( 0xb000, 0xb001 ) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w )
+	AM_RANGE( 0xb000, 0xb001 ) AM_DEVWRITE("ymsnd", ym2413_device, write)
 ADDRESS_MAP_END
 
 
@@ -1498,8 +1513,7 @@ WRITE16_MEMBER(igs017_state::sdmg2_magic_w)
 		case 0x02:
 			if (ACCESSING_BITS_0_7)
 			{
-				okim6295_device *oki = machine().device<okim6295_device>("oki");
-				oki->set_bank_base((data & 0x80) ? 0x40000 : 0);
+				m_oki->set_bank_base((data & 0x80) ? 0x40000 : 0);
 			}
 			break;
 
@@ -1600,8 +1614,7 @@ WRITE16_MEMBER(igs017_state::mgdha_magic_w)
 			if (ACCESSING_BITS_0_7)
 			{
 				// bit 7?
-				okim6295_device *oki = machine().device<okim6295_device>("oki");
-				oki->set_bank_base((data & 0x40) ? 0x40000 : 0);
+				m_oki->set_bank_base((data & 0x40) ? 0x40000 : 0);
 			}
 			break;
 
@@ -1697,7 +1710,7 @@ WRITE8_MEMBER(igs017_state::tjsb_output_w)
 			break;
 
 		case 0x02:
-			machine().device<okim6295_device>("oki")->set_bank_base((data & 0x10) ? 0x40000 : 0);   // oki bank (0x20/0x30)
+			m_oki->set_bank_base((data & 0x10) ? 0x40000 : 0);   // oki bank (0x20/0x30)
 			if (!(data & ~0x30))
 				return;
 			break;
@@ -1759,7 +1772,7 @@ static ADDRESS_MAP_START( tjsb_io, AS_IO, 8, igs017_state )
 
 	AM_RANGE( 0x9000, 0x9000 ) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 
-	AM_RANGE( 0xb000, 0xb001 ) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w )
+	AM_RANGE( 0xb000, 0xb001 ) AM_DEVWRITE("ymsnd", ym2413_device, write)
 ADDRESS_MAP_END
 
 
@@ -1788,8 +1801,7 @@ WRITE16_MEMBER(igs017_state::lhzb2_magic_w)
 		case 0x01:
 			if (ACCESSING_BITS_0_7)
 			{
-				okim6295_device *oki = machine().device<okim6295_device>("oki");
-				oki->set_bank_base((data & 0x80) ? 0x40000 : 0);
+				m_oki->set_bank_base((data & 0x80) ? 0x40000 : 0);
 
 				if ( data & 0x7f )
 					logerror("%s: warning, unknown bits written in oki bank = %04x\n", machine().describe_context(), data);
@@ -2149,8 +2161,7 @@ WRITE16_MEMBER(igs017_state::lhzb2a_input_select_w)
 	}
 	if (ACCESSING_BITS_8_15)
 	{
-		okim6295_device *oki = machine().device<okim6295_device>("oki");
-		oki->set_bank_base((data & 0x0100) ? 0x40000 : 0);
+		m_oki->set_bank_base((data & 0x0100) ? 0x40000 : 0);
 
 		if ( data & 0x0fe00 )
 			logerror("%s: warning, unknown bits written in input_select = %04x\n", machine().describe_context(), data);
@@ -2207,8 +2218,7 @@ WRITE16_MEMBER(igs017_state::slqz2_magic_w)
 		case 0x00:
 			if (ACCESSING_BITS_0_7)
 			{
-				okim6295_device *oki = machine().device<okim6295_device>("oki");
-				oki->set_bank_base((data & 0x01) ? 0x40000 : 0);
+				m_oki->set_bank_base((data & 0x01) ? 0x40000 : 0);
 
 //              m_hopper            =           data & 0x20;    // hopper motor
 //              coin_counter_w(machine(), 1,    data & 0x40);   // coin out counter

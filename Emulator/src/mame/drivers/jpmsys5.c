@@ -30,6 +30,7 @@
 
 #include "emu.h"
 #include "includes/jpmsys5.h"
+#include "sound/saa1099.h"
 #include "jpmsys5.lh"
 
 enum state { IDLE, START, DATA, STOP1, STOP2 };
@@ -60,7 +61,8 @@ enum int_levels
 
 static void tms_interrupt(running_machine &machine, int state)
 {
-	machine.device("maincpu")->execute().set_input_line(INT_TMS34061, state);
+	jpmsys5_state *drvstate = machine.driver_data<jpmsys5_state>();
+	drvstate->m_maincpu->set_input_line(INT_TMS34061, state);
 }
 
 static const struct tms34061_interface tms34061intf =
@@ -315,19 +317,18 @@ READ16_MEMBER(jpmsys5_state::jpm_upd7759_r)
 	AM_RANGE(0x04608e, 0x04608f) AM_DEVREADWRITE8("acia6850_2", acia6850_device, data_read, data_write, 0xff) \
 	AM_RANGE(0x0460c0, 0x0460c1) AM_WRITENOP \
 	AM_RANGE(0x048000, 0x04801f) AM_READWRITE(coins_r, coins_w) \
-	AM_RANGE(0x04c000, 0x04c0ff) AM_READ(mux_r) AM_WRITE(mux_w) \
-
+	AM_RANGE(0x04c000, 0x04c0ff) AM_READ(mux_r) AM_WRITE(mux_w)
 
 static ADDRESS_MAP_START( 68000_awp_map, AS_PROGRAM, 16, jpmsys5_state )
 	JPM_SYS5_COMMON_MAP
-	AM_RANGE(0x0460a0, 0x0460a3) AM_DEVWRITE8_LEGACY("ym2413", ym2413_w, 0x00ff)
+	AM_RANGE(0x0460a0, 0x0460a3) AM_DEVWRITE8("ym2413", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x04c100, 0x04c105) AM_READWRITE(jpm_upd7759_r, jpm_upd7759_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( 68000_awp_map_saa, AS_PROGRAM, 16, jpmsys5_state )
 	JPM_SYS5_COMMON_MAP
-	AM_RANGE(0x0460a0, 0x0460a1) AM_DEVWRITE8_LEGACY("saa", saa1099_data_w, 0x00ff)
-	AM_RANGE(0x0460a2, 0x0460a3) AM_DEVWRITE8_LEGACY("saa", saa1099_control_w, 0x00ff)
+	AM_RANGE(0x0460a0, 0x0460a1) AM_DEVWRITE8("saa", saa1099_device, saa1099_data_w, 0x00ff)
+	AM_RANGE(0x0460a2, 0x0460a3) AM_DEVWRITE8("saa", saa1099_device, saa1099_control_w, 0x00ff)
 	AM_RANGE(0x04c100, 0x04c105) AM_READWRITE(jpm_upd7759_r, jpm_upd7759_w) // do the SAA boards have the UPD?
 ADDRESS_MAP_END
 
@@ -335,7 +336,7 @@ static ADDRESS_MAP_START( 68000_map, AS_PROGRAM, 16, jpmsys5_state )
 	JPM_SYS5_COMMON_MAP
 	AM_RANGE(0x01fffe, 0x01ffff) AM_WRITE(rombank_w) // extra on video system (rom board?) (although regular games do write here?)
 	AM_RANGE(0x020000, 0x03ffff) AM_ROMBANK("bank1") // extra on video system (rom board?)
-	AM_RANGE(0x0460a0, 0x0460a3) AM_DEVWRITE8_LEGACY("ym2413", ym2413_w, 0x00ff)
+	AM_RANGE(0x0460a0, 0x0460a3) AM_DEVWRITE8("ym2413", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x0460e0, 0x0460e5) AM_WRITE(ramdac_w)  // extra on video system (rom board?)
 	AM_RANGE(0x04c100, 0x04c105) AM_READWRITE(jpm_upd7759_r, jpm_upd7759_w)
 	AM_RANGE(0x800000, 0xcfffff) AM_READWRITE(sys5_tms34061_r, sys5_tms34061_w) // extra on video system (rom board?)
@@ -498,7 +499,7 @@ INPUT_PORTS_END
 
 WRITE_LINE_MEMBER(jpmsys5_state::ptm_irq)
 {
-	machine().device("maincpu")->execute().set_input_line(INT_6840PTM, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(INT_6840PTM, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE8_MEMBER(jpmsys5_state::u26_o1_callback)
@@ -536,7 +537,7 @@ static const ptm6840_interface ptm_intf =
 
 WRITE_LINE_MEMBER(jpmsys5_state::acia_irq)
 {
-	machine().device("maincpu")->execute().set_input_line(INT_6850ACIA, state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(INT_6850ACIA, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 /* Clocks are incorrect */
@@ -828,7 +829,7 @@ INPUT_PORTS_END
 
 MACHINE_START_MEMBER(jpmsys5_state,jpmsys5)
 {
-//  machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base()+0x20000);
+//  membank("bank1")->set_base(memregion("maincpu")->base()+0x20000);
 }
 
 MACHINE_RESET_MEMBER(jpmsys5_state,jpmsys5)
@@ -891,7 +892,7 @@ MACHINE_CONFIG_START( jpmsys5, jpmsys5_state )
 	MCFG_SOUND_ADD("upd7759", UPD7759, UPD7759_STANDARD_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 
-	MCFG_SOUND_ADD("saa", SAA1099, 4000000 /* guess */)
+	MCFG_SAA1099_ADD("saa", 4000000 /* guess */)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	/* 6840 PTM */

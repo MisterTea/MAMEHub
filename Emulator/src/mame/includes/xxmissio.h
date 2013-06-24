@@ -2,10 +2,12 @@ class xxmissio_state : public driver_device
 {
 public:
 	xxmissio_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bgram(*this, "bgram"),
 		m_fgram(*this, "fgram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub") { }
 
 	UINT8 m_status;
 	required_shared_ptr<UINT8> m_bgram;
@@ -33,4 +35,7 @@ public:
 	INTERRUPT_GEN_MEMBER(xxmissio_interrupt_s);
 	DECLARE_WRITE8_MEMBER(xxmissio_scroll_x_w);
 	DECLARE_WRITE8_MEMBER(xxmissio_scroll_y_w);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 };

@@ -451,9 +451,9 @@ void arcadia_state::palette_init()
 		colortable_entry_set_value(machine().colortable, i, arcadia_palette[i]);
 }
 
-static DEVICE_IMAGE_LOAD( arcadia_cart )
+DEVICE_IMAGE_LOAD_MEMBER( arcadia_state, arcadia_cart )
 {
-	UINT8 *rom = image.device().machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 	int size;
 
 	memset(rom, 0, 0x8000);
@@ -461,8 +461,8 @@ static DEVICE_IMAGE_LOAD( arcadia_cart )
 	{
 		size = image.length();
 
-		if (size > image.device().machine().root_device().memregion("maincpu")->bytes())
-			size = image.device().machine().root_device().memregion("maincpu")->bytes();
+		if (size > memregion("maincpu")->bytes())
+			size = memregion("maincpu")->bytes();
 
 		if (image.fread(rom, size) != size)
 			return IMAGE_INIT_FAIL;
@@ -555,7 +555,7 @@ static MACHINE_CONFIG_START( arcadia, arcadia_state )
 	MCFG_CARTSLOT_EXTENSION_LIST("bin")
 	MCFG_CARTSLOT_NOT_MANDATORY
 	MCFG_CARTSLOT_INTERFACE("arcadia_cart")
-	MCFG_CARTSLOT_LOAD(arcadia_cart)
+	MCFG_CARTSLOT_LOAD(arcadia_state,arcadia_cart)
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","arcadia")
@@ -731,13 +731,13 @@ ROM_END
 DRIVER_INIT_MEMBER(arcadia_state,arcadia)
 {
 	int i;
-	UINT8 *gfx=machine().root_device().memregion("gfx1")->base();
+	UINT8 *gfx=memregion("gfx1")->base();
 	for (i=0; i<256; i++) gfx[i]=i;
 #if 0
 	// this is here to allow developement of some simple testroutines
 	// for a real console
 	{
-		UINT8 *rom=machine().root_device().memregion("maincpu")->base();
+		UINT8 *rom=memregion("maincpu")->base();
 		/* this is a simple routine to display all rom characters
 		   on the display for a snapshot */
 		static const UINT8 prog[]={ // address 0 of course

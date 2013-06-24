@@ -35,9 +35,10 @@ class ettrivia_state : public driver_device
 {
 public:
 	ettrivia_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fg_videoram(*this, "fg_videoram"),
-		m_bg_videoram(*this, "bg_videoram"){ }
+		m_bg_videoram(*this, "bg_videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	int m_palreg;
 	int m_gfx_bank;
@@ -62,6 +63,8 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_ettrivia(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(ettrivia_interrupt);
+	inline void get_tile_info(tile_data &tileinfo, int tile_index, UINT8 *vidram, int gfx_code);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -117,20 +120,20 @@ WRITE8_MEMBER(ettrivia_state::b800_w)
 		/* special case to return the value written to 0xb000 */
 		/* does it reset the chips too ? */
 		case 0: break;
-		case 0xc4: m_b000_ret = ay8910_r(machine().device("ay1"), space, 0);    break;
-		case 0x94: m_b000_ret = ay8910_r(machine().device("ay2"), space, 0);    break;
-		case 0x86: m_b000_ret = ay8910_r(machine().device("ay3"), space, 0);    break;
+		case 0xc4: m_b000_ret = machine().device<ay8910_device>("ay1")->data_r(space, 0);    break;
+		case 0x94: m_b000_ret = machine().device<ay8910_device>("ay2")->data_r(space, 0);    break;
+		case 0x86: m_b000_ret = machine().device<ay8910_device>("ay3")->data_r(space, 0);    break;
 
 		case 0x80:
 			switch(m_b800_prev)
 			{
-				case 0xe0: ay8910_address_w(machine().device("ay1"),space,0,m_b000_val);    break;
-				case 0x98: ay8910_address_w(machine().device("ay2"),space,0,m_b000_val);    break;
-				case 0x83: ay8910_address_w(machine().device("ay3"),space,0,m_b000_val);    break;
+				case 0xe0: machine().device<ay8910_device>("ay1")->address_w(space,0,m_b000_val);    break;
+				case 0x98: machine().device<ay8910_device>("ay2")->address_w(space,0,m_b000_val);    break;
+				case 0x83: machine().device<ay8910_device>("ay3")->address_w(space,0,m_b000_val);    break;
 
-				case 0xa0: ay8910_data_w(machine().device("ay1"),space,0,m_b000_val);   break;
-				case 0x88: ay8910_data_w(machine().device("ay2"),space,0,m_b000_val);   break;
-				case 0x81: ay8910_data_w(machine().device("ay3"),space,0,m_b000_val);   break;
+				case 0xa0: machine().device<ay8910_device>("ay1")->data_w(space,0,m_b000_val);   break;
+				case 0x88: machine().device<ay8910_device>("ay2")->data_w(space,0,m_b000_val);   break;
+				case 0x81: machine().device<ay8910_device>("ay3")->data_w(space,0,m_b000_val);   break;
 
 			}
 		break;
@@ -196,30 +199,29 @@ static GFXDECODE_START( ettrivia )
 	GFXDECODE_ENTRY( "gfx2", 0, charlayout, 32*4, 32 )
 GFXDECODE_END
 
-INLINE void get_tile_info(running_machine &machine, tile_data &tileinfo, int tile_index, UINT8 *vidram, int gfx_code)
+void ettrivia_state::get_tile_info(tile_data &tileinfo, int tile_index, UINT8 *vidram, int gfx_code)
 {
-	ettrivia_state *state = machine.driver_data<ettrivia_state>();
 	int code = vidram[tile_index];
-	int color = (code >> 5) + 8 * state->m_palreg;
+	int color = (code >> 5) + 8 * m_palreg;
 
-	code += state->m_gfx_bank * 0x100;
+	code += m_gfx_bank * 0x100;
 
-	SET_TILE_INFO(gfx_code,code,color,0);
+	SET_TILE_INFO_MEMBER(gfx_code,code,color,0);
 }
 
 TILE_GET_INFO_MEMBER(ettrivia_state::get_tile_info_bg)
 {
-	get_tile_info(machine(), tileinfo, tile_index, m_bg_videoram, 0);
+	get_tile_info(tileinfo, tile_index, m_bg_videoram, 0);
 }
 
 TILE_GET_INFO_MEMBER(ettrivia_state::get_tile_info_fg)
 {
-	get_tile_info(machine(), tileinfo, tile_index, m_fg_videoram, 1);
+	get_tile_info(tileinfo, tile_index, m_fg_videoram, 1);
 }
 
 void ettrivia_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances[2] = { 270, 130 };
 	double weights[2];
 	int i;
@@ -292,7 +294,7 @@ static const ay8910_interface ay8912_interface_3 =
 
 INTERRUPT_GEN_MEMBER(ettrivia_state::ettrivia_interrupt)
 {
-	if( machine().root_device().ioport("COIN")->read() & 0x01 )
+	if( ioport("COIN")->read() & 0x01 )
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	else
 		device.execute().set_input_line(0, HOLD_LINE);

@@ -24,7 +24,7 @@ const cassette_interface default_cassette_interface =
 	cassette_default_formats,
 	NULL,
 	CASSETTE_PLAY,
-	NULL,
+	"cass",
 	NULL
 };
 
@@ -40,7 +40,6 @@ cassette_image_device::cassette_image_device(const machine_config &mconfig, cons
 	: device_t(mconfig, CASSETTE, "Cassette", tag, owner, clock),
 		device_image_interface(mconfig, *this)
 {
-
 }
 
 //-------------------------------------------------
@@ -264,6 +263,7 @@ void cassette_image_device::device_start()
 	/* set to default state */
 	m_cassette = NULL;
 	m_state = m_default_state;
+	m_value = 0;
 }
 
 bool cassette_image_device::call_create(int format_type, option_resolution *format_options)
@@ -333,6 +333,26 @@ bool cassette_image_device::call_load()
 	return IMAGE_INIT_PASS;
 
 error:
+	image_error_t imgerr = IMAGE_ERROR_UNSPECIFIED;
+	switch(err)
+	{
+		case CASSETTE_ERROR_INTERNAL:
+			imgerr = IMAGE_ERROR_INTERNAL;
+			break;
+		case CASSETTE_ERROR_UNSUPPORTED:
+			imgerr = IMAGE_ERROR_UNSUPPORTED;
+			break;
+		case CASSETTE_ERROR_OUTOFMEMORY:
+			imgerr = IMAGE_ERROR_OUTOFMEMORY;
+			break;
+		case CASSETTE_ERROR_INVALIDIMAGE:
+			imgerr = IMAGE_ERROR_INVALIDIMAGE;
+			break;
+		default:
+			imgerr = IMAGE_ERROR_UNSPECIFIED;
+			break;
+	}
+	image->seterror(imgerr, "" );
 	return IMAGE_INIT_FAIL;
 }
 
@@ -340,7 +360,6 @@ error:
 
 void cassette_image_device::call_unload()
 {
-
 	/* if we are recording, write the value to the image */
 	if ((m_state & CASSETTE_MASK_UISTATE) == CASSETTE_RECORD)
 		update();

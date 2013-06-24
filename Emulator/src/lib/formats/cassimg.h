@@ -65,8 +65,7 @@ typedef enum
 	CASSETTE_ERROR_INTERNAL,        /* fatal internal error */
 	CASSETTE_ERROR_UNSUPPORTED,     /* this operation is unsupported */
 	CASSETTE_ERROR_OUTOFMEMORY,     /* ran out of memory */
-	CASSETTE_ERROR_INVALIDIMAGE,    /* invalid image */
-	CASSETTE_ERROR_INVALIDARG
+	CASSETTE_ERROR_INVALIDIMAGE     /* invalid image */
 }
 casserr_t;
 
@@ -148,11 +147,9 @@ extern const struct CassetteFormat wavfile_format;
 #define CASSETTE_FORMATLIST_START(name)     \
 	const struct CassetteFormat *const name[] = \
 	{                                       \
-		&wavfile_format,                    \
-
+		&wavfile_format,
 #define CASSETTE_FORMAT(name)               \
-		&(name),                            \
-
+		&(name),
 #define CASSETTE_FORMATLIST_END             \
 		NULL                                \
 	};

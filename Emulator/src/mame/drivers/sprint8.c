@@ -11,14 +11,13 @@ Atari Sprint 8 driver
 
 
 
-void sprint8_set_collision(running_machine &machine, int n)
+void sprint8_state::sprint8_set_collision(int n)
 {
-	sprint8_state *state = machine.driver_data<sprint8_state>();
-	if (state->m_collision_reset == 0)
+	if (m_collision_reset == 0)
 	{
-		machine.device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 
-		state->m_collision_index = n;
+		m_collision_index = n;
 	}
 }
 
@@ -31,7 +30,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(sprint8_state::input_callback)
 
 	for (i = 0; i < 8; i++)
 	{
-		UINT8 val = machine().root_device().ioport(dialnames[i])->read() >> 4;
+		UINT8 val = ioport(dialnames[i])->read() >> 4;
 
 		signed char delta = (val - m_dial[i]) & 15;
 
@@ -93,7 +92,7 @@ WRITE8_MEMBER(sprint8_state::sprint8_int_reset_w)
 	m_collision_reset = !(data & 1);
 
 	if (m_collision_reset)
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 

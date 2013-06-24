@@ -1,16 +1,19 @@
 #include "sound/discrete.h"
+#include "sound/samples.h"
 
 class galaga_state : public driver_device
 {
 public:
 	galaga_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_galaga_ram1(*this, "galaga_ram1"),
 		m_galaga_ram2(*this, "galaga_ram2"),
 		m_galaga_ram3(*this, "galaga_ram3"),
-		m_galaga_starcontrol(*this, "starcontrol")
-		{ }
+		m_galaga_starcontrol(*this, "starcontrol"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"),
+		m_subcpu2(*this, "sub2") { }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT8> m_videoram;
@@ -61,6 +64,19 @@ public:
 	INTERRUPT_GEN_MEMBER(main_vblank_irq);
 	INTERRUPT_GEN_MEMBER(sub_vblank_irq);
 	TIMER_CALLBACK_MEMBER(cpu3_interrupt_callback);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_stars(bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void bosco_latch_reset();
+	struct star
+	{
+		UINT16 x,y;
+		UINT8 col,set;
+	};
+
+	static struct star m_star_seed_tab[];
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
+	required_device<cpu_device> m_subcpu2;
 };
 
 class xevious_state : public galaga_state
@@ -74,7 +90,9 @@ public:
 		m_xevious_fg_colorram(*this, "fg_colorram"),
 		m_xevious_bg_colorram(*this, "bg_colorram"),
 		m_xevious_fg_videoram(*this, "fg_videoram"),
-		m_xevious_bg_videoram(*this, "bg_videoram") { }
+		m_xevious_bg_videoram(*this, "bg_videoram"),
+		m_samples(*this, "samples"),
+		m_subcpu3(*this, "sub3") { }
 
 	required_shared_ptr<UINT8> m_xevious_sr1;
 	required_shared_ptr<UINT8> m_xevious_sr2;
@@ -83,6 +101,7 @@ public:
 	required_shared_ptr<UINT8> m_xevious_bg_colorram;
 	required_shared_ptr<UINT8> m_xevious_fg_videoram;
 	required_shared_ptr<UINT8> m_xevious_bg_videoram;
+	optional_device<samples_device> m_samples;
 
 	INT32 m_xevious_bs[2];
 	DECLARE_DRIVER_INIT(xevious);
@@ -98,6 +117,39 @@ public:
 	UINT32 screen_update_xevious(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(battles_interrupt_4);
 	TIMER_DEVICE_CALLBACK_MEMBER(battles_nmi_generate);
+	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	DECLARE_WRITE8_MEMBER( xevious_fg_videoram_w );
+	DECLARE_WRITE8_MEMBER( xevious_fg_colorram_w );
+	DECLARE_WRITE8_MEMBER( xevious_bg_videoram_w );
+	DECLARE_WRITE8_MEMBER( xevious_bg_colorram_w );
+	DECLARE_WRITE8_MEMBER( xevious_vh_latch_w );
+	DECLARE_WRITE8_MEMBER( xevious_bs_w );
+	DECLARE_READ8_MEMBER( xevious_bb_r );
+
+	// Custom I/O
+	void battles_customio_init();
+
+	DECLARE_READ8_MEMBER( battles_customio0_r );
+	DECLARE_READ8_MEMBER( battles_customio_data0_r );
+	DECLARE_READ8_MEMBER( battles_customio3_r );
+	DECLARE_READ8_MEMBER( battles_customio_data3_r );
+	DECLARE_READ8_MEMBER( battles_input_port_r );
+
+	DECLARE_WRITE8_MEMBER( battles_customio0_w );
+	DECLARE_WRITE8_MEMBER( battles_customio_data0_w );
+	DECLARE_WRITE8_MEMBER( battles_customio3_w );
+	DECLARE_WRITE8_MEMBER( battles_customio_data3_w );
+	DECLARE_WRITE8_MEMBER( battles_CPU4_coin_w );
+	DECLARE_WRITE8_MEMBER( battles_noise_sound_w );
+
+	UINT8 m_customio[16];
+	char m_battles_customio_command;
+	char m_battles_customio_prev_command;
+	char m_battles_customio_command_count;
+	char m_battles_customio_data;
+	char m_battles_sound_played;
+
+	optional_device<cpu_device> m_subcpu3;
 };
 
 
@@ -129,6 +181,15 @@ public:
 	DECLARE_PALETTE_INIT(bosco);
 	UINT32 screen_update_bosco(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_bosco(screen_device &screen, bool state);
+
+	inline void get_tile_info_bosco(tile_data &tileinfo,int tile_index,int ram_offs);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_bullets(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_stars(bitmap_ind16 &bitmap, const rectangle &cliprect, int flip);
+	DECLARE_WRITE8_MEMBER( bosco_videoram_w );
+	DECLARE_WRITE8_MEMBER( bosco_scrollx_w );
+	DECLARE_WRITE8_MEMBER( bosco_scrolly_w );
+	DECLARE_WRITE8_MEMBER( bosco_starclr_w );
 };
 
 class digdug_state : public galaga_state
@@ -155,59 +216,12 @@ public:
 	DECLARE_VIDEO_START(digdug);
 	DECLARE_PALETTE_INIT(digdug);
 	UINT32 screen_update_digdug(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE8_MEMBER( digdug_videoram_w );
+	DECLARE_WRITE8_MEMBER( digdug_PORT_w );
 };
-
-/*----------- defined in video/bosco.c -----------*/
-
-DECLARE_WRITE8_HANDLER( bosco_videoram_w );
-DECLARE_WRITE8_HANDLER( bosco_scrollx_w );
-DECLARE_WRITE8_HANDLER( bosco_scrolly_w );
-DECLARE_WRITE8_HANDLER( bosco_starclr_w );
 
 /*----------- defined in audio/galaga.c -----------*/
 
 DISCRETE_SOUND_EXTERN( bosco );
 DISCRETE_SOUND_EXTERN( galaga );
-
-
-/*----------- defined in video/galaga.c -----------*/
-
-struct star
-{
-	UINT16 x,y;
-	UINT8 col,set;
-};
-
-extern const struct star star_seed_tab[];
-
-/*----------- defined in video/xevious.c -----------*/
-
-DECLARE_WRITE8_HANDLER( xevious_fg_videoram_w );
-DECLARE_WRITE8_HANDLER( xevious_fg_colorram_w );
-DECLARE_WRITE8_HANDLER( xevious_bg_videoram_w );
-DECLARE_WRITE8_HANDLER( xevious_bg_colorram_w );
-DECLARE_WRITE8_HANDLER( xevious_vh_latch_w );
-DECLARE_WRITE8_HANDLER( xevious_bs_w );
-DECLARE_READ8_HANDLER( xevious_bb_r );
-
-/*----------- defined in machine/xevious.c -----------*/
-
-void battles_customio_init(running_machine &machine);
-
-DECLARE_READ8_HANDLER( battles_customio0_r );
-DECLARE_READ8_HANDLER( battles_customio_data0_r );
-DECLARE_READ8_HANDLER( battles_customio3_r );
-DECLARE_READ8_HANDLER( battles_customio_data3_r );
-DECLARE_READ8_HANDLER( battles_input_port_r );
-
-DECLARE_WRITE8_HANDLER( battles_customio0_w );
-DECLARE_WRITE8_HANDLER( battles_customio_data0_w );
-DECLARE_WRITE8_HANDLER( battles_customio3_w );
-DECLARE_WRITE8_HANDLER( battles_customio_data3_w );
-DECLARE_WRITE8_HANDLER( battles_CPU4_coin_w );
-DECLARE_WRITE8_HANDLER( battles_noise_sound_w );
-
-/*----------- defined in video/digdug.c -----------*/
-
-DECLARE_WRITE8_HANDLER( digdug_videoram_w );
-DECLARE_WRITE8_HANDLER( digdug_PORT_w );

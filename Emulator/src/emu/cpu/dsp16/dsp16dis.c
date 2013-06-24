@@ -111,7 +111,7 @@ astring disasmF2Field(const UINT8& F2, const UINT8& D, const UINT8& S)
 
 		default: return "UNKNOWN";
 	}
-	return "";
+	return ret;
 }
 
 astring disasmCONField(const UINT8& CON)
@@ -270,13 +270,15 @@ CPU_DISASSEMBLE( dsp16a )
 		{
 			// F1 Y=a0[1] | F1 Y=a1[1]
 			const UINT8 Y = (op & 0x000f);
+			const UINT8 X = (op & 0x0010) >> 4;
 			const UINT8 S = (op & 0x0200) >> 9;
 			const UINT8 D = (op & 0x0400) >> 10;
 			const UINT8 F1 = (op & 0x01e0) >> 5;
 			astring yString = disasmYField(Y);
 			astring fString = disasmF1Field(F1, D, S);
 			astring aString = (opcode == 0x1c) ? "a0" : "a1";
-			sprintf(buffer, "%s = %s, %s", yString.cstr(), aString.cstr(), fString.cstr());
+			astring xString = (X) ? "" : "l";
+			sprintf(buffer, "%s = %s%s, %s", yString.cstr(), aString.cstr(), xString.cstr(), fString.cstr());
 			break;
 		}
 		case 0x16:
@@ -503,6 +505,7 @@ CPU_DISASSEMBLE( dsp16a )
 			const UINT8 R = (op & 0x03f0) >> 4;
 			astring yString = disasmYField(Y);
 			astring rString = disasmRField(R);
+			// TODO: page 3-31 "special function encoding"
 			sprintf(buffer, "%s = %s", yString.cstr(), rString.cstr());
 			break;
 		}

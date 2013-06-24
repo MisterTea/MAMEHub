@@ -225,9 +225,16 @@ WRITE32_MEMBER(undrfire_state::color_ram_w)
                 INTERRUPTS
 ***********************************************************/
 
-TIMER_CALLBACK_MEMBER(undrfire_state::interrupt5)
+void undrfire_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(5, HOLD_LINE);
+	switch (id)
+	{
+	case TIMER_INTERRUPT5:
+		m_maincpu->set_input_line(5, HOLD_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in undrfire_state::device_timer");
+	}
 }
 
 
@@ -287,10 +294,9 @@ WRITE32_MEMBER(undrfire_state::undrfire_input_w)
 
 			if (ACCESSING_BITS_0_7)
 			{
-				eeprom_device *eeprom = machine().device<eeprom_device>("eeprom");
-				eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
-				eeprom->write_bit(data & 0x40);
-				eeprom->set_cs_line((data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
+				m_eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+				m_eeprom->write_bit(data & 0x40);
+				m_eeprom->set_cs_line((data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
 				return;
 			}
 
@@ -359,7 +365,7 @@ READ32_MEMBER(undrfire_state::unknown_hardware_r)
 WRITE32_MEMBER(undrfire_state::unknown_int_req_w)
 {
 	/* 10000 cycle delay is arbitrary */
-	machine().scheduler().timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(10000), timer_expired_delegate(FUNC(undrfire_state::interrupt5),this));
+	timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(10000), TIMER_INTERRUPT5);
 }
 
 
@@ -452,7 +458,7 @@ WRITE32_MEMBER(undrfire_state::cbombers_cpua_ctrl_w)
 	output_set_value("Lamp_6", (data >> 5) & 1 );
 	output_set_value("Wheel_vibration", (data >> 6) & 1 );
 
-	machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, (data & 0x1000) ? CLEAR_LINE : ASSERT_LINE);
+	m_subcpu->set_input_line(INPUT_LINE_RESET, (data & 0x1000) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 READ32_MEMBER(undrfire_state::cbombers_adc_r)
@@ -464,7 +470,7 @@ WRITE32_MEMBER(undrfire_state::cbombers_adc_w)
 {
 	/* One interrupt per input port (4 per frame, though only 2 used).
 	    1000 cycle delay is arbitrary */
-	machine().scheduler().timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(1000), timer_expired_delegate(FUNC(undrfire_state::interrupt5),this));
+	timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(1000), TIMER_INTERRUPT5);
 }
 
 /***********************************************************
@@ -726,7 +732,7 @@ static const tc0480scp_interface undrfire_tc0480scp_intf =
 static MACHINE_CONFIG_START( undrfire, undrfire_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68EC020, 16000000) /* 16 MHz */
+	MCFG_CPU_ADD("maincpu", M68EC020, XTAL_40MHz/2) /* 20 MHz - NOT verified */
 	MCFG_CPU_PROGRAM_MAP(undrfire_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", undrfire_state,  undrfire_interrupt)
 
@@ -755,11 +761,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( cbombers, undrfire_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68EC020, 16000000) /* 16 MHz */
+	MCFG_CPU_ADD("maincpu", M68EC020, XTAL_40MHz/2) /* 20 MHz - NOT verified */
 	MCFG_CPU_PROGRAM_MAP(cbombers_cpua_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", undrfire_state,  irq4_line_hold)
 
-	MCFG_CPU_ADD("sub", M68000, 16000000)   /* 16 MHz */
+	MCFG_CPU_ADD("sub", M68000, XTAL_32MHz/2)   /* 16 MHz */
 	MCFG_CPU_PROGRAM_MAP(cbombers_cpub_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", undrfire_state,  irq4_line_hold)
 
@@ -967,8 +973,8 @@ ROM_END
 DRIVER_INIT_MEMBER(undrfire_state,undrfire)
 {
 	UINT32 offset,i;
-	UINT8 *gfx = machine().root_device().memregion("gfx3")->base();
-	int size=machine().root_device().memregion("gfx3")->bytes();
+	UINT8 *gfx = memregion("gfx3")->base();
+	int size=memregion("gfx3")->bytes();
 	int data;
 
 	/* make piv tile GFX format suitable for gfxdecode */
@@ -996,8 +1002,8 @@ DRIVER_INIT_MEMBER(undrfire_state,undrfire)
 DRIVER_INIT_MEMBER(undrfire_state,cbombers)
 {
 	UINT32 offset,i;
-	UINT8 *gfx = machine().root_device().memregion("gfx3")->base();
-	int size=machine().root_device().memregion("gfx3")->bytes();
+	UINT8 *gfx = memregion("gfx3")->base();
+	int size=memregion("gfx3")->bytes();
 	int data;
 
 

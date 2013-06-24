@@ -56,7 +56,7 @@ READ8_MEMBER(orao_state::orao_io_r)
 		case 0x03FF : return ioport("LINE19")->read();
 		/* Tape */
 		case 0x07FF :
-					level = (machine().device<cassette_image_device>(CASSETTE_TAG)->input());
+					level = m_cassette->input();
 					if (level <  0) {
 						return 0x00;
 					}
@@ -72,7 +72,6 @@ WRITE8_MEMBER(orao_state::orao_io_w)
 {
 	if (offset == 0x0800)
 	{
-		dac_device *dac = machine().device<dac_device>("dac");
-		dac->write_unsigned8(data); //beeper
+		m_dac->write_unsigned8(data); //beeper
 	}
 }

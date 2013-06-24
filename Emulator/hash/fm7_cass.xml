@@ -7,22 +7,22 @@
 <!--
 
 Titles, serial #s, publishers and release dates taken from:
-	- Oh!FM-7 ( http://retropc.net/fm-7/ )
+  - Oh!FM-7 ( http://retropc.net/fm-7/ )
 
 -->
 
 
 <!--
-	Loading instructions:
-	At the F-Basic Ready prompt, type run"" and press Return.
-	If a Bad File Mode error occurs, then you must type loadm"",r and press Return.  Once the loader has loaded,
-	type exec and press Return, and the application will run, or continue to load.
-	Some games which are written in machine language actually need loadm"",,r to load!
+    Loading instructions:
+    At the F-Basic Ready prompt, type run"" and press Return.
+    If a Bad File Mode error occurs, then you must type loadm"",r and press Return.  Once the loader has loaded,
+    type exec and press Return, and the application will run, or continue to load.
+    Some games which are written in machine language actually need loadm"",,r to load!
 
-	If you are using a disk version of F-Basic, then put CAS0: in the quotes.  Note that this is case-sensitive.
+    If you are using a disk version of F-Basic, then put CAS0: in the quotes.  Note that this is case-sensitive.
 -->
 
-<softwarelist name="fm7_cass" description="Fujitsu FM-7 cassette images">
+<softwarelist name="fm7_cass" description="Fujitsu FM-7 cassettes">
 
 	<software name="alde">
 		<description>Aldebaran</description>
@@ -631,7 +631,7 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
-	<software name="flighsim">
+	<software name="fsim">
 		<description>Flight Simulator</description>
 		<year>1983</year>
 		<publisher>キャリーラボ (Carry Lab)</publisher>
@@ -942,7 +942,7 @@ Titles, serial #s, publishers and release dates taken from:
 	</software>
 
 	<software name="kaguya">
-		<description>Ooi! Kaguya Hime - Kinuginu no Wakare</description>
+		<description>Ohi! Kaguya Hime - Kinuginu no Wakare</description>
 		<year>1983</year>
 		<publisher>ポニカ (PonyCa)</publisher>
 		<info name="serial" value="K40M5047"/>
@@ -2123,7 +2123,7 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
-	<software name="wldgolf">
+	<software name="worldglf">
 		<description>World Golf</description>
 		<year>1985</year>
 		<publisher>エニックス (Enix)</publisher>
@@ -2142,7 +2142,7 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
-	<software name="yakyu">
+	<software name="yakyukyo">
 		<description>Yakyu Kyo</description>
 		<year>1985</year>
 		<publisher>ハドソン (Hudson Soft)</publisher>

@@ -113,10 +113,10 @@ static ADDRESS_MAP_START( decocass_sound_map, AS_PROGRAM, 8, decocass_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
 	AM_RANGE(0x1000, 0x17ff) AM_READWRITE(decocass_sound_nmi_enable_r, decocass_sound_nmi_enable_w)
 	AM_RANGE(0x1800, 0x1fff) AM_READWRITE(decocass_sound_data_ack_reset_r, decocass_sound_data_ack_reset_w)
-	AM_RANGE(0x2000, 0x2fff) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0x4000, 0x4fff) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x6000, 0x6fff) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
-	AM_RANGE(0x8000, 0x8fff) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x2000, 0x2fff) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0x4000, 0x4fff) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x6000, 0x6fff) AM_DEVWRITE("ay2", ay8910_device, data_w)
+	AM_RANGE(0x8000, 0x8fff) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0xa000, 0xafff) AM_READ(decocass_sound_command_r)
 	AM_RANGE(0xc000, 0xcfff) AM_WRITE(decocass_sound_data_w)
 	AM_RANGE(0xf800, 0xffff) AM_ROM
@@ -993,8 +993,7 @@ MACHINE_CONFIG_END
 	ROM_REGION( 0x00060, "proms", 0 )     /* PROMS */ \
 	ROM_LOAD( "v2.3m",      0x0000, 0x0020, CRC(238fdb40) SHA1(b88e8fabb82092105c3828154608ea067acbf2e5) ) /* from DSP-8 board: M3-7603-5 (82s123 equiv, 32x8 TS) PROM @3M w/'V2' stamp, unknown purpose (gfx related: row/interrupt/vblank related? vertical counter related) */ \
 	ROM_LOAD( "v4.10d",     0x0020, 0x0020, CRC(3b5836b4) SHA1(b630bb277d9ec09d46ef26b944014dd6165b35d8) ) /* from DSP-8 board: M3-7603-5 (82s123 equiv, 32x8 TS) PROM @10D w/'V4' stamp, unknown purpose (gfx related: tile banking? horizontal counter related) */ \
-	ROM_LOAD( "v3.3j",      0x0040, 0x0020, CRC(51eef657) SHA1(eaedce5caf55624ad6ae706aedf82c5717c60f1f) ) /* from RMS-8 board: M3-7603-5 (82s123 equiv, 32x8 TS) PROM @3J w/'V3' stamp, handles DRAM banking and timing */ \
-
+	ROM_LOAD( "v3.3j",      0x0040, 0x0020, CRC(51eef657) SHA1(eaedce5caf55624ad6ae706aedf82c5717c60f1f) ) /* from RMS-8 board: M3-7603-5 (82s123 equiv, 32x8 TS) PROM @3J w/'V3' stamp, handles DRAM banking and timing */
 
 #define DECOCASS_BIOS_A_ROMS    \
 	/* v0a.7e, New boardset bios, revision A */ \
@@ -1002,8 +1001,7 @@ MACHINE_CONFIG_END
 	ROM_REGION( 0x10000, "maincpu", 0 ) \
 	ROM_LOAD( "v0a-.7e",    0xf000, 0x1000, CRC(3D33AC34) SHA1(909D59E7A993AFFD10224402B4370E82A5F5545C) ) /* from RMS-8 board: 2732 EPROM @7E w/'V0A-' label (has HDRA01HDR string inside it), bios code */ \
 \
-	DECOCASS_COMMON_ROMS \
-
+	DECOCASS_COMMON_ROMS
 
 #define DECOCASS_BIOS_B_ROMS    \
 	/* rms8.7e, New boardset bios, revision B */ \
@@ -1011,8 +1009,7 @@ MACHINE_CONFIG_END
 	ROM_REGION( 0x10000, "maincpu", 0 ) \
 	ROM_LOAD( "v0b-.7e",    0xf000, 0x1000, CRC(23d929b7) SHA1(063f83020ba3d6f43ab8471f95ca919767b93aa4) ) /* from RMS-8 board: 2732 EPROM @7E w/'V0B-' label (has HDRB01HDR string inside it), bios code */ \
 \
-	DECOCASS_COMMON_ROMS \
-
+	DECOCASS_COMMON_ROMS
 
 #define DECOCASS_BIOS_B2_ROMS   \
 	/* dsp3.p0b/p1b, Old boardset bios, revision B?; from DSP-3 board? has HDRB01x string in it, 2x 2716 EPROM? */ \
@@ -1021,8 +1018,7 @@ MACHINE_CONFIG_END
 	ROM_LOAD( "dsp3.p0b",   0xf000, 0x0800, CRC(b67a91d9) SHA1(681c040be0f0ed1ba0a50161b36d0ad8e1c8c5cb) ) \
 	ROM_LOAD( "dsp3.p1b",   0xf800, 0x0800, CRC(3bfff5f3) SHA1(4e9437cb1b76d64da6b37f01bd6e879fb399e8ce) ) \
 \
-	DECOCASS_COMMON_ROMS \
-
+	DECOCASS_COMMON_ROMS
 
 ROM_START( decocass )
 	DECOCASS_BIOS_B_ROMS
@@ -1129,6 +1125,17 @@ ROM_START( cprogolfj ) // version 1-A
 
 	ROM_REGION( 0x10000, "cassette", 0 )      /* (max) 64k for cassette image */
 	ROM_LOAD( "dt-113_a.cas",   0x0000, 0x8000, CRC(8408248f) SHA1(8b78c379bf6879916bc9b284d7a0956edfac78be) )
+ROM_END
+
+// version number is DT-1134-A-0 (Japanese, version 4 of Pro Golf, no revision number)
+ROM_START( cprogolf18 )
+	DECOCASS_BIOS_A_ROMS
+
+	ROM_REGION( 0x00020, "dongle", 0 )    /* dongle data */
+	ROM_LOAD( "de-0061-a-0.rom",   0x0000, 0x0020, CRC(1bc9fccb) SHA1(ffc59c7660d5c87a8deca294f80260b6bc7c3027) )
+
+	ROM_REGION( 0x10000, "cassette", 0 )      /* (max) 64k for cassette image */
+	ROM_LOAD( "progolf18.cas",   0x0000, 0x6700, CRC(3024396c) SHA1(c49d878bae46bf8bf0b0b098a5d94d9ec68b526d) )
 ROM_END
 
 /* 14 */
@@ -1591,14 +1598,14 @@ DRIVER_INIT_MEMBER(decocass_state,decocrom)
 	DRIVER_INIT_CALL(decocass);
 
 	/* convert charram to a banked ROM */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(0x6000, 0xafff, "bank1");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x6000, 0xafff, write8_delegate(FUNC(decocass_state::decocass_de0091_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_bank(0x6000, 0xafff, "bank1");
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x6000, 0xafff, write8_delegate(FUNC(decocass_state::decocass_de0091_w),this));
 	membank("bank1")->configure_entry(0, m_charram);
 	membank("bank1")->configure_entry(1, memregion("user3")->base());
 	membank("bank1")->set_entry(0);
 
 	/* install the bank selector */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xe900, 0xe900, write8_delegate(FUNC(decocass_state::decocass_e900_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xe900, 0xe900, write8_delegate(FUNC(decocass_state::decocass_e900_w),this));
 }
 
 READ8_MEMBER(decocass_state::cdsteljn_input_r )
@@ -1611,7 +1618,7 @@ READ8_MEMBER(decocass_state::cdsteljn_input_r )
 	if(offset & 6)
 		return decocass_input_r(space,offset);
 
-	res = machine().root_device().ioport(portnames[offset & 1][m_mux_data])->read();
+	res = ioport(portnames[offset & 1][m_mux_data])->read();
 
 	return res;
 }
@@ -1631,8 +1638,8 @@ DRIVER_INIT_MEMBER(decocass_state,cdsteljn)
 	DRIVER_INIT_CALL(decocass);
 
 	/* install custom mahjong panel */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xe413, 0xe413, write8_delegate(FUNC(decocass_state::cdsteljn_mux_w), this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xe600, 0xe6ff, read8_delegate(FUNC(decocass_state::cdsteljn_input_r), this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xe413, 0xe413, write8_delegate(FUNC(decocass_state::cdsteljn_mux_w), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xe600, 0xe6ff, read8_delegate(FUNC(decocass_state::cdsteljn_input_r), this));
 }
 
 /* -- */ GAME( 1981, decocass,  0,        decocass, decocass, decocass_state, decocass, ROT270, "Data East Corporation", "DECO Cassette System", GAME_IS_BIOS_ROOT )
@@ -1663,7 +1670,7 @@ DRIVER_INIT_MEMBER(decocass_state,cdsteljn)
 /* 20 */ GAME( 1982, ctornado,  decocass, ctornado, ctornado, decocass_state, decocass, ROT270, "Data East Corporation", "Tornado (DECO Cassette)", 0 )
 /* 21 */ GAME( 1982, cmissnx,   decocass, cmissnx,  cmissnx, decocass_state,  decocass, ROT270, "Data East Corporation", "Mission-X (DECO Cassette)", 0 )
 /* 22 */ GAME( 1982, cptennis,  decocass, cptennis, decocass, decocass_state, decocass, ROT270, "Data East Corporation", "Pro Tennis (DECO Cassette)", 0 )
-/* 23 */ // 1982.?? 18 Hole Pro Golf
+/* 23 */ GAME( 1982, cprogolf18,cprogolf, cprogolfj,cprogolf, decocass_state, decocass, ROT270, "Data East Corporation", "18 Challenge Pro Golf (DECO Cassette, Japan)", 0 ) // 1982.?? 18 Hole Pro Golf
 /* 24 */ // 1982.07 Tsumego Kaisyou
 /* 25 */ GAME( 1982, cadanglr,  decocass, cfishing, cfishing, decocass_state, decocass, ROT270, "Data East Corporation", "Angler Dangler (DECO Cassette)", 0 )
 /* 25 */ GAME( 1982, cfishing,  cadanglr, cfishing, cfishing, decocass_state, decocass, ROT270, "Data East Corporation", "Fishing (DECO Cassette)", 0 )

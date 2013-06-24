@@ -34,32 +34,47 @@ midvunit_renderer::midvunit_renderer(midvunit_state &state)
  *
  *************************************/
 
+void midvunit_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_ADC_READY:
+		m_maincpu->set_input_line(3, ASSERT_LINE);
+		break;
+	case TIMER_SCANLINE:
+		scanline_timer_cb(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in midvunit_state::device_timer");
+	}
+}
+
 TIMER_CALLBACK_MEMBER(midvunit_state::scanline_timer_cb)
 {
 	int scanline = param;
 
 	if (scanline != -1)
 	{
-		machine().device("maincpu")->execute().set_input_line(0, ASSERT_LINE);
+		m_maincpu->set_input_line(0, ASSERT_LINE);
 		m_scanline_timer->adjust(machine().primary_screen->time_until_pos(scanline + 1), scanline);
-		machine().scheduler().timer_set(attotime::from_hz(25000000), timer_expired_delegate(FUNC(midvunit_state::scanline_timer_cb),this), -1);
+		timer_set(attotime::from_hz(25000000), TIMER_SCANLINE, -1);
 	}
 	else
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
 void midvunit_state::video_start()
 {
-	m_scanline_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(midvunit_state::scanline_timer_cb),this));
+	m_scanline_timer = timer_alloc(TIMER_SCANLINE);
 
 	m_poly = auto_alloc(machine(), midvunit_renderer(*this));
 
-	state_save_register_global_array(machine(), m_video_regs);
-	state_save_register_global_array(machine(), m_dma_data);
-	state_save_register_global(machine(), m_dma_data_index);
-	state_save_register_global(machine(), m_page_control);
-	state_save_register_global(machine(), m_video_changed);
+	save_item(NAME(m_video_regs));
+	save_item(NAME(m_dma_data));
+	save_item(NAME(m_dma_data_index));
+	save_item(NAME(m_page_control));
+	save_item(NAME(m_video_changed));
 }
 
 

@@ -1,3 +1,11 @@
+/*************************************************************************
+
+  Taito JC System
+
+  functions to emulate the video hardware
+
+*************************************************************************/
+
 #include "emu.h"
 #include "video/polynew.h"
 #include "includes/taitojc.h"
@@ -15,7 +23,6 @@ static const gfx_layout taitojc_char_layout =
 
 TILE_GET_INFO_MEMBER(taitojc_state::taitojc_tile_info)
 {
-
 	UINT32 val = m_tile_ram[tile_index];
 	int color = (val >> 22) & 0xff;
 	int tile = (val >> 2) & 0x7f;
@@ -111,9 +118,8 @@ WRITE32_MEMBER(taitojc_state::taitojc_char_w)
 
 */
 
-static void draw_object(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 w1, UINT32 w2, UINT8 bank_type)
+void taitojc_state::draw_object(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 w1, UINT32 w2, UINT8 bank_type)
 {
-	taitojc_state *state = machine.driver_data<taitojc_state>();
 	int x, y, width, height, palette;
 	int i, j;
 	int x1, x2, y1, y2;
@@ -144,13 +150,13 @@ static void draw_object(running_machine &machine, bitmap_ind16 &bitmap, const re
 
 	/* TODO: untangle this! */
 	if(address >= 0xff000)
-		v = (UINT8*)&state->m_objlist[(address-0xff000)/4];
+		v = (UINT8*)&m_objlist[(address-0xff000)/4];
 	if(address >= 0xfc000)
-		v = (UINT8*)&state->m_char_ram[(address-0xfc000)/4];
+		v = (UINT8*)&m_char_ram[(address-0xfc000)/4];
 	else if(address >= 0xf8000)
-		v = (UINT8*)&state->m_tile_ram[(address-0xf8000)/4];
+		v = (UINT8*)&m_tile_ram[(address-0xf8000)/4];
 	else
-		v = (UINT8*)&state->m_vram[address/4];
+		v = (UINT8*)&m_vram[address/4];
 
 	/* guess, but it's probably doable via a vreg ... */
 	if ((width == 0 || height == 0) && bank_type == 2)
@@ -266,43 +272,34 @@ static void draw_object(running_machine &machine, bitmap_ind16 &bitmap, const re
 	}
 }
 
-static void draw_object_bank(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 bank_type, UINT8 pri)
+void taitojc_state::draw_object_bank(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 bank_type, UINT8 pri)
 {
-	taitojc_state *state = machine.driver_data<taitojc_state>();
 	UINT16 start_offs;
 //  UINT8 double_xy;
 	int i;
 
 	start_offs = ((bank_type+1)*0x400)/4;
-//  double_xy = (state->m_objlist[(0xd1c+bank_type*0x10)/4] & 0x20000000) >> 29;
+//  double_xy = (m_objlist[(0xd1c+bank_type*0x10)/4] & 0x20000000) >> 29;
 
 	/* probably a core bug in there (otherwise objects sticks on screen in Densha de Go) */
-	if(bank_type == 1 && (!(state->m_objlist[0xfc4/4] & 0x2000)))
+	if(bank_type == 1 && (!(m_objlist[0xfc4/4] & 0x2000)))
 		return;
 
 	for (i=start_offs-2; i >= (start_offs-0x400/4); i-=2)
 	{
-		UINT32 w1 = state->m_objlist[i + 0];
-		UINT32 w2 = state->m_objlist[i + 1];
+		UINT32 w1 = m_objlist[i + 0];
+		UINT32 w2 = m_objlist[i + 1];
 
 		if (((w2 & 0x200000) >> 21) == pri)
 		{
-			draw_object(machine, bitmap, cliprect, w1, w2, bank_type);
+			draw_object(bitmap, cliprect, w1, w2, bank_type);
 		}
 	}
 }
 
 
-
-static void taitojc_exit(running_machine &machine)
-{
-}
-
 void taitojc_state::video_start()
 {
-
-	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(taitojc_exit), &machine()));
-
 	/* find first empty slot to decode gfx */
 	for (m_gfx_index = 0; m_gfx_index < MAX_GFX_ELEMENTS; m_gfx_index++)
 		if (machine().gfx[m_gfx_index] == 0)
@@ -331,21 +328,20 @@ void taitojc_state::video_start()
 
 UINT32 taitojc_state::screen_update_taitojc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(0, cliprect);
 
 	// low priority objects
-	draw_object_bank(machine(), bitmap, cliprect, 0, 0);
-	draw_object_bank(machine(), bitmap, cliprect, 1, 0);
-	draw_object_bank(machine(), bitmap, cliprect, 2, 0);
+	draw_object_bank(bitmap, cliprect, 0, 0);
+	draw_object_bank(bitmap, cliprect, 1, 0);
+	draw_object_bank(bitmap, cliprect, 2, 0);
 
 	// 3D layer
 	copybitmap_trans(bitmap, m_framebuffer, 0, 0, 0, 0, cliprect, 0);
 
 	// high priority objects
-	draw_object_bank(machine(), bitmap, cliprect, 0, 1);
-	draw_object_bank(machine(), bitmap, cliprect, 1, 1);
-	draw_object_bank(machine(), bitmap, cliprect, 2, 1);
+	draw_object_bank(bitmap, cliprect, 0, 1);
+	draw_object_bank(bitmap, cliprect, 1, 1);
+	draw_object_bank(bitmap, cliprect, 2, 1);
 
 	// text layer
 	if (m_objlist[0xfc4/4] & 0x10000)
@@ -356,8 +352,10 @@ UINT32 taitojc_state::screen_update_taitojc(screen_device &screen, bitmap_ind16 
 
 UINT32 taitojc_state::screen_update_dendego(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	// update controller state in artwork
+	static const UINT8 dendego_mascon_table[6] = { 0x76, 0x67, 0x75, 0x57, 0x73, 0x37 };
+	static const UINT8 dendego_brake_table[11] = { 0x00, 0x05, 0x1d, 0x35, 0x4d, 0x65, 0x7d, 0x95, 0xad, 0xc5, 0xd4 };
+
 	UINT8 btn = (ioport("BUTTONS")->read() & 0x77);
 	int level;
 	for (level = 5; level > 0; level--)
@@ -764,10 +762,8 @@ void taitojc_renderer::render_polygons(running_machine &machine, UINT16 *polygon
 	wait("Finished render");
 }
 
-void taitojc_clear_frame(running_machine &machine)
+void taitojc_state::taitojc_clear_frame()
 {
-	taitojc_state *state = machine.driver_data<taitojc_state>();
-
-	state->m_framebuffer.fill(0, machine.primary_screen->visible_area());
-	state->m_zbuffer.fill(0xffff, machine.primary_screen->visible_area());
+	m_framebuffer.fill(0, machine().primary_screen->visible_area());
+	m_zbuffer.fill(0xffff, machine().primary_screen->visible_area());
 }

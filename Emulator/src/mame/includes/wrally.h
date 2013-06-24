@@ -2,11 +2,12 @@ class wrally_state : public driver_device
 {
 public:
 	wrally_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_vregs(*this, "vregs"),
 		m_spriteram(*this, "spriteram"),
-		m_shareram(*this, "shareram"){ }
+		m_shareram(*this, "shareram"),
+		m_maincpu(*this, "maincpu") { }
 
 	tilemap_t *m_pant[2];
 	required_shared_ptr<UINT16> m_videoram;
@@ -25,4 +26,6 @@ public:
 	TILE_GET_INFO_MEMBER(get_tile_info_wrally_screen1);
 	virtual void video_start();
 	UINT32 screen_update_wrally(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority);
+	required_device<cpu_device> m_maincpu;
 };

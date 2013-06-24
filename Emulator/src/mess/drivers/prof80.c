@@ -23,7 +23,6 @@
 */
 
 #include "includes/prof80.h"
-#include "formats/mfi_dsk.h"
 
 
 //**************************************************************************
@@ -50,7 +49,7 @@ void prof80_state::bankswitch()
 {
 	address_space &program = m_maincpu->space(AS_PROGRAM);
 	UINT8 *ram = m_ram->pointer();
-	UINT8 *rom = memregion(Z80_TAG)->base();
+	UINT8 *rom = m_rom->base();
 	int bank;
 
 	for (bank = 0; bank < 16; bank++)
@@ -101,10 +100,8 @@ void prof80_state::bankswitch()
 
 void prof80_state::floppy_motor_off()
 {
-	if(m_floppy0)
-		m_floppy0->mon_w(true);
-	if(m_floppy1)
-		m_floppy1->mon_w(true);
+	if (m_floppy0->get_device()) m_floppy0->get_device()->mon_w(1);
+	if (m_floppy1->get_device()) m_floppy1->get_device()->mon_w(1);
 
 	m_motor = 0;
 }
@@ -157,10 +154,8 @@ void prof80_state::ls259_w(int fa, int sa, int fb, int sb)
 		else
 		{
 			// turn on floppy motor
-			if(m_floppy0)
-				m_floppy0->mon_w(false);
-			if(m_floppy1)
-				m_floppy1->mon_w(false);
+			if (m_floppy0->get_device()) m_floppy0->get_device()->mon_w(0);
+			if (m_floppy1->get_device()) m_floppy1->get_device()->mon_w(0);
 
 			m_motor = 1;
 
@@ -183,9 +178,11 @@ void prof80_state::ls259_w(int fa, int sa, int fb, int sb)
 		break;
 
 	case 2: // _RTS
+		m_rs232a->rts_w(fb);
 		break;
 
 	case 3: // TX
+		m_rs232a->tx(fb);
 		break;
 
 	case 4: // _MSTOP
@@ -197,6 +194,7 @@ void prof80_state::ls259_w(int fa, int sa, int fb, int sb)
 		break;
 
 	case 5: // TXP
+		m_rs232b->tx(fb);
 		break;
 
 	case 6: // TSTB
@@ -267,16 +265,14 @@ READ8_MEMBER( prof80_state::status_r )
 	UINT8 data = 0;
 
 	// serial receive
+	data |= !m_rs232a->rx();
 
 	// clear to send
-	data |= 0x10;
+	data |= m_rs232a->cts_r() << 4;
+	data |= m_rs232b->cts_r() << 7;
 
 	// floppy index
-	if(m_floppy0)
-		data |= m_floppy0->idx_r() << 5;
-
-	if(m_floppy1)
-		data |= m_floppy1->idx_r() << 5;
+	data |= (m_floppy0->get_device() ? m_floppy0->get_device()->idx_r() : m_floppy1->get_device() ? m_floppy1->get_device()->idx_r() : 1) << 5;
 
 	return data;
 }
@@ -310,7 +306,7 @@ READ8_MEMBER( prof80_state::status2_r )
 	data |= !m_motor;
 
 	// JS4
-	switch (ioport("J4")->read())
+	switch (m_j4->read())
 	{
 	case 0: js4 = 0; break;
 	case 1: js4 = 1; break;
@@ -322,7 +318,7 @@ READ8_MEMBER( prof80_state::status2_r )
 	data |= js4 << 4;
 
 	// JS5
-	switch (ioport("J5")->read())
+	switch (m_j5->read())
 	{
 	case 0: js5 = 0; break;
 	case 1: js5 = 1; break;
@@ -493,22 +489,11 @@ INPUT_PORTS_END
 //**************************************************************************
 
 //-------------------------------------------------
-//  UPD1990A_INTERFACE( rtc_intf )
-//-------------------------------------------------
-
-static UPD1990A_INTERFACE( rtc_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
 //  upd765_interface fdc_intf
 //-------------------------------------------------
 
 static SLOT_INTERFACE_START( prof80_floppies )
-	SLOT_INTERFACE( "525hd", FLOPPY_525_HD )
+	SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
 SLOT_INTERFACE_END
 
 
@@ -530,6 +515,20 @@ static SLOT_INTERFACE_START( prof80_ecb_cards )
     SLOT_INTERFACE("grip562", ECB_GRIP562)
     SLOT_INTERFACE("grips115", ECB_GRIPS115)*/
 SLOT_INTERFACE_END
+
+
+//-------------------------------------------------
+//  rs232_port_interface rs232_intf
+//-------------------------------------------------
+
+static const rs232_port_interface rs232_intf =
+{
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
+};
 
 
 
@@ -606,22 +605,29 @@ static MACHINE_CONFIG_START( prof80, prof80_state )
 	MCFG_CPU_IO_MAP(prof80_io)
 
 	// devices
-	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, rtc_intf)
+	MCFG_UPD1990A_ADD(UPD1990A_TAG, XTAL_32_768kHz, NULL, NULL)
 	MCFG_UPD765A_ADD(UPD765_TAG, false, true)
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", prof80_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":1", prof80_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", prof80_floppies, "525qd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":1", prof80_floppies, "525qd", floppy_image_device::default_floppy_formats)
 
 	// ECB bus
 	MCFG_ECBBUS_ADD(Z80_TAG, ecb_intf)
-	MCFG_ECBBUS_SLOT_ADD(1, "ecb_1", prof80_ecb_cards, "grip21", NULL)
-	MCFG_ECBBUS_SLOT_ADD(2, "ecb_2", prof80_ecb_cards, NULL, NULL)
-	MCFG_ECBBUS_SLOT_ADD(3, "ecb_3", prof80_ecb_cards, NULL, NULL)
-	MCFG_ECBBUS_SLOT_ADD(4, "ecb_4", prof80_ecb_cards, NULL, NULL)
-	MCFG_ECBBUS_SLOT_ADD(5, "ecb_5", prof80_ecb_cards, NULL, NULL)
+	MCFG_ECBBUS_SLOT_ADD(1, "ecb_1", prof80_ecb_cards, "grip21")
+	MCFG_ECBBUS_SLOT_ADD(2, "ecb_2", prof80_ecb_cards, NULL)
+	MCFG_ECBBUS_SLOT_ADD(3, "ecb_3", prof80_ecb_cards, NULL)
+	MCFG_ECBBUS_SLOT_ADD(4, "ecb_4", prof80_ecb_cards, NULL)
+	MCFG_ECBBUS_SLOT_ADD(5, "ecb_5", prof80_ecb_cards, NULL)
+
+	// V24
+	MCFG_RS232_PORT_ADD(RS232_A_TAG, rs232_intf, default_rs232_devices, NULL)
+	MCFG_RS232_PORT_ADD(RS232_B_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("128K")
+
+	// software lists
+	MCFG_SOFTWARE_LIST_ADD("flop_list", "prof80")
 MACHINE_CONFIG_END
 
 

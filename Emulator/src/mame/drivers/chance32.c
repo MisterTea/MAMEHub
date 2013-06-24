@@ -30,9 +30,8 @@ public:
 	chance32_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_fgram(*this, "fgram"),
-		m_bgram(*this, "bgram")
-
-	{ }
+		m_bgram(*this, "bgram"),
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_WRITE8_MEMBER(chance32_fgram_w)
 	{
@@ -63,6 +62,7 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_chance32(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -91,7 +91,6 @@ TILE_GET_INFO_MEMBER(chance32_state::get_bg_tile_info)
 
 void chance32_state::video_start()
 {
-
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(chance32_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 8, 35, 29);
 	m_fg_tilemap->set_transparent_pen(0);
 
@@ -104,7 +103,6 @@ void chance32_state::video_start()
 
 UINT32 chance32_state::screen_update_chance32(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	/* TODO: wtf? */
 	m_bg_tilemap->set_scrollx(0, 352);
 	m_bg_tilemap->set_scrolly(0, 160);
@@ -441,18 +439,17 @@ GFXDECODE_END
 
 void chance32_state::machine_start()
 {
-
 }
 
 void chance32_state::machine_reset()
 {
-
 }
 
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	16,         /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */

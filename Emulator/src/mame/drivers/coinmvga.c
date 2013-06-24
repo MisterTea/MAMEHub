@@ -223,8 +223,9 @@ class coinmvga_state : public driver_device
 {
 public:
 	coinmvga_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_vram(*this, "vram"){ }
+		: driver_device(mconfig, type, tag),
+		m_vram(*this, "vram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_vram;
 	struct { int r,g,b,offs,offs_internal; } m_bgpal, m_fgpal;
@@ -238,6 +239,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_coinmvga(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -278,7 +280,6 @@ UINT32 coinmvga_state::screen_update_coinmvga(screen_device &screen, bitmap_ind1
 
 void coinmvga_state::palette_init()
 {
-
 }
 
 
@@ -373,7 +374,7 @@ static ADDRESS_MAP_START( coinmvga_map, AS_PROGRAM, 16, coinmvga_state )
 
 	AM_RANGE(0x600000, 0x600001) AM_WRITE(ramdac_bg_w)
 	AM_RANGE(0x600004, 0x600005) AM_WRITE(ramdac_fg_w)
-	AM_RANGE(0x600008, 0x600009) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0xffff)
+	AM_RANGE(0x600008, 0x600009) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0xffff)
 	AM_RANGE(0x610000, 0x61000f) AM_RAM //touch screen i/o
 
 	AM_RANGE(0x700000, 0x7fffff) AM_ROM AM_REGION("maincpu", 0) // ?
@@ -654,11 +655,6 @@ GFXDECODE_END
 *    Sound Interface     *
 *************************/
 
-static const ymz280b_interface ymz280b_intf =
-{
-	0   // irq ?
-};
-
 INTERRUPT_GEN_MEMBER(coinmvga_state::vblank_irq)
 {
 	//printf("1\n");
@@ -697,7 +693,6 @@ static MACHINE_CONFIG_START( coinmvga, coinmvga_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, SND_CLOCK)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -876,33 +871,10 @@ ROM_END
 
 DRIVER_INIT_MEMBER(coinmvga_state,colorama)
 {
-	UINT16 *ROM;
-	ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
-
-	// rte in non-irq routines? wtf? patch them to rts...
-	ROM[0x02B476/2] = 0x5470;
-	ROM[0x02AE3A/2] = 0x5470;
-	ROM[0x02A9FC/2] = 0x5470;
-	ROM[0x02AA3A/2] = 0x5470;
-
-	ROM[0x02729e/2] = 0x5470;
-	ROM[0x029fb4/2] = 0x5470;
-	ROM[0x02a224/2] = 0x5470;
-	ROM[0x02a94e/2] = 0x5470;
 }
 
 DRIVER_INIT_MEMBER(coinmvga_state,cmrltv75)
 {
-	UINT16 *ROM;
-	ROM = (UINT16 *)machine().root_device().memregion("maincpu")->base();
-
-	// rte in non-irq routines? wtf? patch them to rts...
-	ROM[0x056fd6/2] = 0x5470;
-	ROM[0x05655c/2] = 0x5470;
-	ROM[0x05659a/2] = 0x5470;
-	ROM[0x05699a/2] = 0x5470;
-
-	//...
 }
 
 

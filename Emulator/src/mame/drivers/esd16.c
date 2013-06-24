@@ -71,7 +71,7 @@ ToDo:
 #include "sound/okim6295.h"
 #include "sound/3812intf.h"
 #include "includes/esd16.h"
-#include "video/decospr.h"
+
 
 /***************************************************************************
 
@@ -86,7 +86,7 @@ WRITE16_MEMBER(esd16_state::esd16_sound_command_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data & 0xff);
-		m_audio_cpu->execute().set_input_line(0, ASSERT_LINE);      // Generate an IRQ
+		m_audiocpu->set_input_line(0, ASSERT_LINE);      // Generate an IRQ
 		space.device().execute().spin_until_time(attotime::from_usec(50));  // Allow the other CPU to reply
 	}
 }
@@ -128,8 +128,7 @@ WRITE16_MEMBER(esd16_state::esd_eeprom_w)
 	AM_RANGE(_BASE + 0x8, _BASE + 0x9) AM_WRITE(esd16_tilemap0_color_w) \
 	AM_RANGE(_BASE + 0xa, _BASE + 0xb) AM_WRITENOP /* Unknown */ \
 	AM_RANGE(_BASE + 0xc, _BASE + 0xd) AM_WRITE(esd16_sound_command_w) \
-	AM_RANGE(_BASE + 0xe, _BASE + 0xf) AM_WRITENOP /* n/c */ \
-
+	AM_RANGE(_BASE + 0xe, _BASE + 0xf) AM_WRITENOP /* n/c */
 #define ESD16_IO_AREA_EEPROM( _BASE ) \
 	AM_RANGE(_BASE + 0x0, _BASE + 0x1) AM_WRITENOP /* Irq Ack */ \
 	AM_RANGE(_BASE + 0x2, _BASE + 0x3) AM_READ_PORT("P1_P2") \
@@ -138,26 +137,21 @@ WRITE16_MEMBER(esd16_state::esd_eeprom_w)
 	AM_RANGE(_BASE + 0x8, _BASE + 0x9) AM_WRITE(esd16_tilemap0_color_w) \
 	AM_RANGE(_BASE + 0xa, _BASE + 0xb) AM_WRITENOP /* Unknown */ \
 	AM_RANGE(_BASE + 0xc, _BASE + 0xd) AM_WRITE(esd16_sound_command_w) \
-	AM_RANGE(_BASE + 0xe, _BASE + 0xf) AM_WRITE(esd_eeprom_w) \
-
+	AM_RANGE(_BASE + 0xe, _BASE + 0xf) AM_WRITE(esd_eeprom_w)
 #define ESD16_VID_ATTR_AREA( _BASE ) \
 	AM_RANGE(_BASE + 0x0, _BASE + 0x3) AM_WRITEONLY AM_SHARE("scroll_0") \
 	AM_RANGE(_BASE + 0x4, _BASE + 0x7) AM_WRITEONLY AM_SHARE("scroll_1") \
 	AM_RANGE(_BASE + 0x8, _BASE + 0x9) AM_WRITEONLY AM_SHARE("platform_x") \
 	AM_RANGE(_BASE + 0xa, _BASE + 0xb) AM_WRITEONLY AM_SHARE("platform_y") \
 	AM_RANGE(_BASE + 0xc, _BASE + 0xd) AM_WRITENOP \
-	AM_RANGE(_BASE + 0xe, _BASE + 0xf) AM_WRITEONLY AM_SHARE("head_layersize") \
-
+	AM_RANGE(_BASE + 0xe, _BASE + 0xf) AM_WRITEONLY AM_SHARE("head_layersize")
 #define ESD16_PALETTE_AREA( _BASE ) \
-	AM_RANGE(_BASE + 0x000, _BASE + 0xfff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram") \
-
+	AM_RANGE(_BASE + 0x000, _BASE + 0xfff) AM_RAM_WRITE(paletteram_xRRRRRGGGGGBBBBB_word_w) AM_SHARE("paletteram")
 #define ESD16_SPRITE_AREA( _BASE ) \
-	AM_RANGE(_BASE + 0x000, _BASE + 0x7ff) AM_WRITEONLY AM_SHARE("spriteram") AM_MIRROR(0x000800) \
-
+	AM_RANGE(_BASE + 0x000, _BASE + 0x7ff) AM_WRITEONLY AM_SHARE("spriteram") AM_MIRROR(0x000800)
 #define ESD16_VRAM_AREA( _BASE ) \
 	AM_RANGE(_BASE + 0x00000, _BASE + 0x03fff) AM_WRITE(esd16_vram_0_w) AM_SHARE("vram_0") AM_MIRROR(0x4000) \
-	AM_RANGE(_BASE + 0x20000, _BASE + 0x23fff) AM_WRITE(esd16_vram_1_w) AM_SHARE("vram_1") AM_MIRROR(0x4000) \
-
+	AM_RANGE(_BASE + 0x20000, _BASE + 0x23fff) AM_WRITE(esd16_vram_1_w) AM_SHARE("vram_1") AM_MIRROR(0x4000)
 /*** Memory Maps ***/
 
 static ADDRESS_MAP_START( multchmp_map, AS_PROGRAM, 16, esd16_state )
@@ -252,15 +246,14 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(esd16_state::esd16_sound_command_r)
 {
-
 	/* Clear IRQ only after reading the command, or some get lost */
-	m_audio_cpu->execute().set_input_line(0, CLEAR_LINE);
+	m_audiocpu->set_input_line(0, CLEAR_LINE);
 	return soundlatch_byte_r(space, 0);
 }
 
 static ADDRESS_MAP_START( multchmp_sound_io_map, AS_IO, 8, esd16_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)          // YM3812
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ymsnd", ym3812_device, write)          // YM3812
 	AM_RANGE(0x02, 0x02) AM_DEVREADWRITE("oki", okim6295_device, read, write)   // M6295
 	AM_RANGE(0x03, 0x03) AM_READ(esd16_sound_command_r)             // From Main CPU
 	AM_RANGE(0x04, 0x04) AM_WRITENOP                        // ? $00, $30
@@ -591,19 +584,15 @@ void esd16_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 16, &AUDIO[0x0000], 0x4000);
 
-	m_audio_cpu = machine().device("audiocpu");
-	m_eeprom = machine().device<eeprom_device>("eeprom");
-
 	save_item(NAME(m_tilemap0_color));
 }
 
 void esd16_state::machine_reset()
 {
-
 	m_tilemap0_color = 0;
 }
 
-static UINT16 hedpanic_pri_callback(UINT16 x)
+UINT16 esd16_state::hedpanic_pri_callback(UINT16 x)
 {
 	if (x & 0x8000)
 		return 0xfffe; // under "tilemap 1"
@@ -635,7 +624,7 @@ static MACHINE_CONFIG_START( esd16, esd16_state )
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
 	decospr_device::set_gfx_region(*device, 0);
 	decospr_device::set_is_bootleg(*device, true);
-	decospr_device::set_pri_callback(*device, hedpanic_pri_callback);
+	decospr_device::set_pri_callback(*device, esd16_state::hedpanic_pri_callback);
 	decospr_device::set_flipallx(*device, 1);
 
 	MCFG_GFXDECODE(esd16)

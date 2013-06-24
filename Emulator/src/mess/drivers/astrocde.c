@@ -25,7 +25,6 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER(set_write_protect);
 };
 
-
 /*************************************
  *
  *  Memory maps
@@ -100,7 +99,7 @@ ADDRESS_MAP_END
 INPUT_CHANGED_MEMBER(astrocde_mess_state::set_write_protect)  // run when RAM expansion write protect switch is changed
 {
 	int ram_expansion_installed = 0, write_protect_on = 0, expansion_ram_start = 0, expansion_ram_end = 0, shadow_ram_end = 0;
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *expram = machine().device<ram_device>("ram_tag")->pointer();
 
 	get_ram_expansion_settings(ram_expansion_installed, write_protect_on, expansion_ram_start, expansion_ram_end, shadow_ram_end);  // passing by reference
@@ -320,7 +319,7 @@ DRIVER_INIT_MEMBER(astrocde_state,astrocde)
 MACHINE_RESET_MEMBER(astrocde_mess_state, astrocde)
 {
 	int ram_expansion_installed = 0, write_protect_on = 0, expansion_ram_start = 0, expansion_ram_end = 0, shadow_ram_end = 0;
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *expram = machine().device<ram_device>("ram_tag")->pointer();
 	space.unmap_readwrite(0x5000, 0xffff);  // unmap any previously installed expansion RAM
 
@@ -343,14 +342,14 @@ MACHINE_RESET_MEMBER(astrocde_mess_state, astrocde)
 
 void astrocde_mess_state::get_ram_expansion_settings(int &ram_expansion_installed, int &write_protect_on, int &expansion_ram_start, int &expansion_ram_end, int &shadow_ram_end)
 {
-	if (machine().root_device().ioport("PROTECT")->read() == 0x01)
+	if (ioport("PROTECT")->read() == 0x01)
 		write_protect_on = 1;
 	else
 		write_protect_on = 0;
 
 	ram_expansion_installed = 1;
 
-	switch(machine().root_device().ioport("CFG")->read())  // check RAM expansion configuration and set address ranges
+	switch(ioport("CFG")->read())  // check RAM expansion configuration and set address ranges
 	{
 		case 0x00:  // No RAM Expansion
 				ram_expansion_installed = 0;

@@ -26,7 +26,6 @@ static void pokey_reset(running_machine &machine);
 
 void atari_interrupt_cb(pokey_device *device, int mask)
 {
-
 	if (VERBOSE_POKEY)
 	{
 		if (mask & 0x80)
@@ -169,7 +168,7 @@ POKEY_KEYBOARD_HANDLER(atari_a800_keyboard)
 	{
 	case pokey_device::POK_KEY_BREAK:
 		/* special case ... */
-		ret |= ((device->machine().root_device().ioport(tag[0])->read_safe(0) & 0x04) ? 0x02 : 0x00);
+		ret |= ((device->machine().root_device().ioport(tag[0])->read_safe(0) & 0x08) ? 0x02 : 0x00);
 		break;
 	case pokey_device::POK_KEY_CTRL:
 		/* CTRL */
@@ -316,8 +315,8 @@ void atari_machine_start(running_machine &machine)
 	machine.add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(_antic_reset), &machine));
 
 	/* save states */
-	state_save_register_global_pointer(machine, ((UINT8 *) &antic.r), sizeof(antic.r));
-	state_save_register_global_pointer(machine, ((UINT8 *) &antic.w), sizeof(antic.w));
+	machine.save().save_pointer(NAME((UINT8 *) &antic.r), sizeof(antic.r));
+	machine.save().save_pointer(NAME((UINT8 *) &antic.w), sizeof(antic.w));
 }
 
 

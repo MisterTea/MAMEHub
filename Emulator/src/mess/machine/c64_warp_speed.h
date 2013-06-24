@@ -34,11 +34,8 @@ public:
 	// optional information overrides
 	virtual ioport_constructor device_input_ports() const;
 
-	DECLARE_INPUT_CHANGED_MEMBER( reset );
-
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c64_warp_speed"; }
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -47,7 +44,7 @@ protected:
 	virtual void c64_cd_w(address_space &space, offs_t offset, UINT8 data, int sphi2, int ba, int roml, int romh, int io1, int io2);
 
 private:
-	UINT8 m_bank;
+	//UINT8 m_bank;
 };
 
 

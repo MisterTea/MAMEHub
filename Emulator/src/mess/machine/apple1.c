@@ -133,10 +133,10 @@ static const UINT8 apple1_control_keymap[] =
 
 DRIVER_INIT_MEMBER(apple1_state,apple1)
 {
-	address_space& space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& space = m_maincpu->space(AS_PROGRAM);
 	/* Set up the handlers for MESS's dynamically-sized RAM. */
-	space.install_readwrite_bank(0x0000, machine().device<ram_device>(RAM_TAG)->size() - 1, "bank1");
-	membank("bank1")->set_base(machine().device<ram_device>(RAM_TAG)->pointer());
+	space.install_readwrite_bank(0x0000, m_ram->size() - 1, "bank1");
+	membank("bank1")->set_base(m_ram->pointer());
 
 	/* Poll the keyboard input ports periodically.  These include both
 	   ordinary keys and the RESET and CLEAR SCREEN pushbutton
@@ -159,14 +159,14 @@ DRIVER_INIT_MEMBER(apple1_state,apple1)
 void apple1_state::machine_reset()
 {
 	/* Reset the display hardware. */
-	apple1_vh_dsp_clr(machine());
+	apple1_vh_dsp_clr();
 }
 
 
 /*****************************************************************************
 **  apple1_verify_header
 *****************************************************************************/
-static int apple1_verify_header (UINT8 *data)
+int apple1_state::apple1_verify_header (UINT8 *data)
 {
 	/* Verify the format for the snapshot */
 	if ((data[0] == 'L') &&
@@ -203,7 +203,7 @@ static int apple1_verify_header (UINT8 *data)
 **  The image can be of arbitrary length, but it must fit in available
 **  memory.
 *****************************************************************************/
-SNAPSHOT_LOAD(apple1)
+SNAPSHOT_LOAD_MEMBER( apple1_state,apple1)
 {
 	UINT64 filesize, datasize;
 	UINT8 *snapbuf, *snapptr;
@@ -233,7 +233,7 @@ SNAPSHOT_LOAD(apple1)
 
 	end_addr = start_addr + datasize - 1;
 
-	if ((start_addr < 0xE000 && end_addr > image.device().machine().device<ram_device>(RAM_TAG)->size() - 1)
+	if ((start_addr < 0xE000 && end_addr > m_ram->size() - 1)
 		|| end_addr > 0xEFFF)
 	{
 		logerror("apple1 - Snapshot won't fit in this memory configuration;\n"
@@ -245,7 +245,7 @@ SNAPSHOT_LOAD(apple1)
 	for (addr = start_addr, snapptr = snapbuf + SNAP_HEADER_LEN;
 			addr <= end_addr;
 			addr++, snapptr++)
-		image.device().machine().device("maincpu")->memory().space(AS_PROGRAM).write_byte(addr, *snapptr);
+		m_maincpu->space(AS_PROGRAM).write_byte(addr, *snapptr);
 
 
 	return IMAGE_INIT_PASS;
@@ -281,29 +281,29 @@ TIMER_CALLBACK_MEMBER(apple1_state::apple1_kbd_poll)
 	/* First we check the RESET and CLEAR SCREEN pushbutton switches. */
 
 	/* The RESET switch resets the CPU and the 6820 PIA. */
-	if (machine().root_device().ioport("KEY5")->read() & 0x0001)
+	if (ioport("KEY5")->read() & 0x0001)
 	{
 		if (!m_reset_flag) {
 			m_reset_flag = 1;
 			/* using PULSE_LINE does not allow us to press and hold key */
-			machine().device("maincpu")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+			m_maincpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 			pia->reset();
 		}
 	}
 	else if (m_reset_flag) {
 		/* RESET released--allow the processor to continue. */
 		m_reset_flag = 0;
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 	}
 
 	/* The CLEAR SCREEN switch clears the video hardware. */
-	if (machine().root_device().ioport("KEY5")->read() & 0x0002)
+	if (ioport("KEY5")->read() & 0x0002)
 	{
 		if (!m_vh_clrscrn_pressed)
 		{
 			/* Ignore further video writes, and clear the screen. */
 			m_vh_clrscrn_pressed = 1;
-			apple1_vh_dsp_clr(machine());
+			apple1_vh_dsp_clr();
 		}
 	}
 	else if (m_vh_clrscrn_pressed)
@@ -322,14 +322,14 @@ TIMER_CALLBACK_MEMBER(apple1_state::apple1_kbd_poll)
 	/* The keyboard strobe line should always be low when a scan starts. */
 	pia->ca1_w(0);
 
-	shiftkeys = machine().root_device().ioport("KEY4")->read() & 0x0003;
-	ctrlkeys = machine().root_device().ioport("KEY4")->read() & 0x000c;
+	shiftkeys = ioport("KEY4")->read() & 0x0003;
+	ctrlkeys = ioport("KEY4")->read() & 0x000c;
 
 	for (port = 0; port < 4; port++)
 	{
 		UINT32 portval, newkeys;
 
-		portval = machine().root_device().ioport(keynames[port])->read();
+		portval = ioport(keynames[port])->read();
 		newkeys = portval & ~(m_kbd_last_scan[port]);
 
 		if (newkeys)
@@ -381,7 +381,7 @@ READ8_MEMBER(apple1_state::apple1_pia0_kbdin)
 WRITE8_MEMBER(apple1_state::apple1_pia0_dspout)
 {
 	/* Send an ASCII character to the video hardware. */
-	apple1_vh_dsp_w(machine(), data);
+	apple1_vh_dsp_w(data);
 }
 
 WRITE8_MEMBER(apple1_state::apple1_pia0_dsp_write_signal)
@@ -402,7 +402,7 @@ WRITE8_MEMBER(apple1_state::apple1_pia0_dsp_write_signal)
 	   write.  Thus the write delay depends on the cursor position and
 	   where the display is in the refresh cycle. */
 	if (!data)
-		machine().scheduler().timer_set(apple1_vh_dsp_time_to_ready(machine()), timer_expired_delegate(FUNC(apple1_state::apple1_dsp_ready_start),this));
+		machine().scheduler().timer_set(apple1_vh_dsp_time_to_ready(), timer_expired_delegate(FUNC(apple1_state::apple1_dsp_ready_start),this));
 }
 
 TIMER_CALLBACK_MEMBER(apple1_state::apple1_dsp_ready_start)
@@ -479,25 +479,19 @@ TIMER_CALLBACK_MEMBER(apple1_state::apple1_dsp_ready_end)
 **  could be placed on a single tape.
 *****************************************************************************/
 
-static cassette_image_device *cassette_device_image(running_machine &machine)
-{
-	return machine.device<cassette_image_device>(CASSETTE_TAG);
-}
-
 /* The cassette output signal for writing tapes is generated by a
    flip-flop which is toggled to produce the output waveform.  Any
    access to the cassette I/O range, whether a read or a write,
    toggles this flip-flop. */
-static void cassette_toggle_output(running_machine &machine)
+void apple1_state::cassette_toggle_output()
 {
-	apple1_state *state = machine.driver_data<apple1_state>();
-	state->m_cassette_output_flipflop = !state->m_cassette_output_flipflop;
-	cassette_device_image(machine)->output(state->m_cassette_output_flipflop ? 1.0 : -1.0);
+	m_cassette_output_flipflop = !m_cassette_output_flipflop;
+	m_cassette->output(m_cassette_output_flipflop ? 1.0 : -1.0);
 }
 
 READ8_MEMBER(apple1_state::apple1_cassette_r)
 {
-	cassette_toggle_output(machine());
+	cassette_toggle_output();
 
 	if (offset <= 0x7f)
 	{
@@ -523,7 +517,7 @@ READ8_MEMBER(apple1_state::apple1_cassette_r)
 		/* (Don't try putting a non-zero "noise threshhold" here,
 		   because it can cause tape header bits on real cassette
 		   images to be misread as data bits.) */
-		if (cassette_device_image(machine())->input() > 0.0)
+		if (m_cassette->input() > 0.0)
 			return space.read_byte(0xc100 + (offset & ~1));
 		else
 			return space.read_byte(0xc100 + offset);
@@ -539,5 +533,5 @@ WRITE8_MEMBER(apple1_state::apple1_cassette_w)
 	   However, we still have to handle writes, since they may be done
 	   by user code. */
 
-	cassette_toggle_output(machine());
+	cassette_toggle_output();
 }

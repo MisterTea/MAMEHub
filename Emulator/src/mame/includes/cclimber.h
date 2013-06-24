@@ -2,7 +2,7 @@ class cclimber_state : public driver_device
 {
 public:
 	cclimber_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bigsprite_videoram(*this, "bigspriteram"),
 		m_videoram(*this, "videoram"),
 		m_column_scroll(*this, "column_scroll"),
@@ -14,7 +14,9 @@ public:
 		m_swimmer_palettebank(*this, "palettebank"),
 		m_swimmer_background_color(*this, "bgcolor"),
 		m_toprollr_bg_videoram(*this, "bg_videoram"),
-		m_toprollr_bg_coloram(*this, "bg_coloram"){ }
+		m_toprollr_bg_coloram(*this, "bg_coloram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	required_shared_ptr<UINT8> m_bigsprite_videoram;
 	required_shared_ptr<UINT8> m_videoram;
@@ -72,4 +74,15 @@ public:
 	UINT32 screen_update_yamato(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_toprollr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	void swimmer_set_background_pen();
+	void draw_playfield(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void cclimber_draw_bigsprite(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void toprollr_draw_bigsprite(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void cclimber_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx);
+	void toprollr_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx);
+	void swimmer_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx);
+	void cclimber_decode(const UINT8 convtable[8][16]);
+	void cannonb_patch();
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
 };

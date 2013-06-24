@@ -36,8 +36,8 @@ public:
 		m_igs_cg_videoram(*this, "igs_cg_videoram"),
 		m_igs_palette32(*this, "igs_palette32"),
 		m_igs_tx_videoram(*this, "igs_tx_videoram"),
-		m_igs_bg_videoram(*this, "igs_bg_videoram")
-	{ }
+		m_igs_bg_videoram(*this, "igs_bg_videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT32> m_igs_mainram;
 	required_shared_ptr<UINT32> m_igs_cg_videoram;
@@ -69,6 +69,9 @@ public:
 	UINT32 screen_update_igs_majhong(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_fearless(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(igs_majhong_interrupt);
+	void sdwx_gfx_decrypt();
+	void pgm_create_dummy_internal_arm_region();
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -278,12 +281,12 @@ static const UINT8 sdwx_tab[] =
 
 
 
-static void sdwx_gfx_decrypt(running_machine &machine)
+void igs_m027_state::sdwx_gfx_decrypt()
 {
 	int i;
 	unsigned rom_size = 0x80000;
-	UINT8 *src = (UINT8 *) (machine.root_device().memregion("gfx1")->base());
-	UINT8 *result_data = auto_alloc_array(machine, UINT8, rom_size);
+	UINT8 *src = (UINT8 *) (memregion("gfx1")->base());
+	UINT8 *result_data = auto_alloc_array(machine(), UINT8, rom_size);
 
 	for (i=0; i<rom_size; i++)
 		result_data[i] = src[BITSWAP24(i, 23,22,21,20,19,18,17,16,15,14,13,12,11,8,7,6,10,9,5,4,3,2,1,0)];
@@ -295,7 +298,7 @@ static void sdwx_gfx_decrypt(running_machine &machine)
 		memcpy(src+i+0x100,result_data+i+0x080,0x80);
 		memcpy(src+i+0x180,result_data+i+0x180,0x80);
 	}
-	auto_free(machine, result_data);
+	auto_free(machine(), result_data);
 }
 
 /***************************************************************************
@@ -840,9 +843,9 @@ ROM_END
 
 
 
-static void pgm_create_dummy_internal_arm_region(running_machine &machine)
+void igs_m027_state::pgm_create_dummy_internal_arm_region()
 {
-	UINT16 *temp16 = (UINT16 *)machine.root_device().memregion("maincpu")->base();
+	UINT16 *temp16 = (UINT16 *)memregion("maincpu")->base();
 
 	// fill with RX 14
 	int i;
@@ -875,36 +878,36 @@ DRIVER_INIT_MEMBER(igs_m027_state,igs_m027)
 DRIVER_INIT_MEMBER(igs_m027_state,sdwx)
 {
 	sdwx_decrypt(machine());
-	sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	sdwx_gfx_decrypt();
+	pgm_create_dummy_internal_arm_region();
 }
 
 DRIVER_INIT_MEMBER(igs_m027_state,klxyj)
 {
 	klxyj_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 DRIVER_INIT_MEMBER(igs_m027_state,chessc2)
 {
 	chessc2_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 DRIVER_INIT_MEMBER(igs_m027_state,hauntedh)
 {
 	hauntedh_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 DRIVER_INIT_MEMBER(igs_m027_state,fearless)
 {
 	fearless_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 
@@ -912,42 +915,42 @@ DRIVER_INIT_MEMBER(igs_m027_state,lhzb4)
 {
 	lhzb4_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 DRIVER_INIT_MEMBER(igs_m027_state,mgfx)
 {
 	mgfx_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 DRIVER_INIT_MEMBER(igs_m027_state,lhzb3)
 {
 	lhzb3_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 DRIVER_INIT_MEMBER(igs_m027_state,sddz)
 {
 	sddz_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 DRIVER_INIT_MEMBER(igs_m027_state,gonefsh2)
 {
 	gonefsh2_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 DRIVER_INIT_MEMBER(igs_m027_state,bigd2)
 {
 	big2_decrypt(machine());
 	//sdwx_gfx_decrypt(machine());
-	pgm_create_dummy_internal_arm_region(machine());
+	pgm_create_dummy_internal_arm_region();
 }
 
 /***************************************************************************

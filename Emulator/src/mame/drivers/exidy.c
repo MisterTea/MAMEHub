@@ -793,7 +793,7 @@ GFXDECODE_END
 
 MACHINE_START_MEMBER(exidy_state,teetert)
 {
-	state_save_register_global(machine(), m_last_dial);
+	save_item(NAME(m_last_dial));
 }
 
 /*************************************
@@ -1432,7 +1432,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(exidy_state,sidetrac)
 {
-	exidy_video_config(machine(), 0x00, 0x00, FALSE);
+	exidy_video_config(0x00, 0x00, FALSE);
 
 	/* hard-coded palette controlled via 8x3 DIP switches on the board */
 	m_color_latch[2] = 0xf8;
@@ -1443,7 +1443,7 @@ DRIVER_INIT_MEMBER(exidy_state,sidetrac)
 
 DRIVER_INIT_MEMBER(exidy_state,targ)
 {
-	exidy_video_config(machine(), 0x00, 0x00, FALSE);
+	exidy_video_config(0x00, 0x00, FALSE);
 
 	/* hard-coded palette controlled via 8x3 DIP switches on the board */
 	m_color_latch[2] = 0x5c;
@@ -1454,7 +1454,7 @@ DRIVER_INIT_MEMBER(exidy_state,targ)
 
 DRIVER_INIT_MEMBER(exidy_state,spectar)
 {
-	exidy_video_config(machine(), 0x00, 0x00, FALSE);
+	exidy_video_config(0x00, 0x00, FALSE);
 
 	/* hard-coded palette controlled via 8x3 DIP switches on the board */
 	m_color_latch[2] = 0x58;
@@ -1464,7 +1464,7 @@ DRIVER_INIT_MEMBER(exidy_state,spectar)
 
 DRIVER_INIT_MEMBER(exidy_state,rallys)
 {
-	exidy_video_config(machine(), 0x00, 0x00, FALSE);
+	exidy_video_config(0x00, 0x00, FALSE);
 
 	/* hard-coded palette controlled via 8x3 DIP switches on the board */
 	m_color_latch[2] = 0x58;
@@ -1474,7 +1474,7 @@ DRIVER_INIT_MEMBER(exidy_state,rallys)
 
 DRIVER_INIT_MEMBER(exidy_state,phantoma)
 {
-	exidy_video_config(machine(), 0x00, 0x00, FALSE);
+	exidy_video_config(0x00, 0x00, FALSE);
 
 	/* hard-coded palette controlled via 8x3 DIP switches on the board */
 	m_color_latch[2] = 0x58;
@@ -1482,40 +1482,40 @@ DRIVER_INIT_MEMBER(exidy_state,phantoma)
 	m_color_latch[0] = 0x09;
 
 	/* the ROM is actually mapped high */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(0xf800, 0xffff, "bank1");
+	m_maincpu->space(AS_PROGRAM).install_read_bank(0xf800, 0xffff, "bank1");
 	membank("bank1")->set_base(memregion("maincpu")->base() + 0xf800);
 }
 
 
 DRIVER_INIT_MEMBER(exidy_state,mtrap)
 {
-	exidy_video_config(machine(), 0x14, 0x00, FALSE);
+	exidy_video_config(0x14, 0x00, FALSE);
 }
 
 
 DRIVER_INIT_MEMBER(exidy_state,venture)
 {
-	exidy_video_config(machine(), 0x04, 0x04, FALSE);
+	exidy_video_config(0x04, 0x04, FALSE);
 }
 
 
 DRIVER_INIT_MEMBER(exidy_state,teetert)
 {
-	exidy_video_config(machine(), 0x0c, 0x0c, FALSE);
+	exidy_video_config(0x0c, 0x0c, FALSE);
 }
 
 
 DRIVER_INIT_MEMBER(exidy_state,pepper2)
 {
-	exidy_video_config(machine(), 0x14, 0x04, TRUE);
+	exidy_video_config(0x14, 0x04, TRUE);
 }
 
 
 DRIVER_INIT_MEMBER(exidy_state,fax)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	exidy_video_config(machine(), 0x04, 0x04, TRUE);
+	exidy_video_config(0x04, 0x04, TRUE);
 
 	/* reset the ROM bank */
 	fax_bank_select_w(space,0,0);

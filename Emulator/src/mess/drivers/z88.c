@@ -547,7 +547,7 @@ INPUT_PORTS_END
 
 void z88_state::machine_start()
 {
-	m_bios = (UINT8*)machine().root_device().memregion("bios")->base();
+	m_bios = (UINT8*)memregion("bios")->base();
 	m_ram_base = (UINT8*)m_ram->pointer();
 
 	// configure the memory banks
@@ -622,7 +622,7 @@ static UPD65031_INTERFACE( z88_blink_intf )
 	DEVCB_DRIVER_MEMBER(z88_state, kb_r),                   // kb read input
 	DEVCB_CPU_INPUT_LINE("maincpu", 0),                     // INT line out
 	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_NMI),        // NMI line out
-	DEVCB_DEVICE_LINE(SPEAKER_TAG, speaker_level_w)         // Speaker line out
+	DEVCB_DEVICE_LINE_MEMBER("speaker", speaker_sound_device, level_w)         // Speaker line out
 };
 
 static const z88cart_interface z88_cart_interface =
@@ -663,7 +663,7 @@ static MACHINE_CONFIG_START( z88, z88_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	// internal ram
@@ -672,9 +672,9 @@ static MACHINE_CONFIG_START( z88, z88_state )
 	MCFG_RAM_EXTRA_OPTIONS("32K,64K,256K,512k")
 
 	// cartridges
-	MCFG_Z88_CARTRIDGE_ADD("slot1", z88_cart_interface, z88_cart, NULL, NULL)
-	MCFG_Z88_CARTRIDGE_ADD("slot2", z88_cart_interface, z88_cart, NULL, NULL)
-	MCFG_Z88_CARTRIDGE_ADD("slot3", z88_cart_interface, z88_cart, NULL, NULL)
+	MCFG_Z88_CARTRIDGE_ADD("slot1", z88_cart_interface, z88_cart, NULL)
+	MCFG_Z88_CARTRIDGE_ADD("slot2", z88_cart_interface, z88_cart, NULL)
+	MCFG_Z88_CARTRIDGE_ADD("slot3", z88_cart_interface, z88_cart, NULL)
 MACHINE_CONFIG_END
 
 

@@ -95,7 +95,6 @@ Are the OKI M6295 clocks from Heavy Smash are correct at least for the Mitchell 
 #include "machine/eeprom.h"
 #include "sound/okim6295.h"
 #include "video/deco16ic.h"
-#include "video/decospr.h"
 
 static INPUT_PORTS_START( simpl156 )
 	PORT_START("IN0")
@@ -1021,8 +1020,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(simpl156_state,simpl156)
 {
-	UINT8 *rom = machine().root_device().memregion("okimusic")->base();
-	int length = machine().root_device().memregion("okimusic")->bytes();
+	UINT8 *rom = memregion("okimusic")->base();
+	int length = memregion("okimusic")->bytes();
 	UINT8 *buf1 = auto_alloc_array(machine(), UINT8, length);
 
 	UINT32 x;
@@ -1061,7 +1060,7 @@ READ32_MEMBER(simpl156_state::joemacr_speedup_r)
 
 DRIVER_INIT_MEMBER(simpl156_state,joemacr)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x0201018, 0x020101b, read32_delegate(FUNC(simpl156_state::joemacr_speedup_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x0201018, 0x020101b, read32_delegate(FUNC(simpl156_state::joemacr_speedup_r),this));
 	DRIVER_INIT_CALL(simpl156);
 }
 
@@ -1074,7 +1073,7 @@ READ32_MEMBER(simpl156_state::chainrec_speedup_r)
 
 DRIVER_INIT_MEMBER(simpl156_state,chainrec)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x0201018, 0x020101b, read32_delegate(FUNC(simpl156_state::chainrec_speedup_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x0201018, 0x020101b, read32_delegate(FUNC(simpl156_state::chainrec_speedup_r),this));
 	DRIVER_INIT_CALL(simpl156);
 }
 
@@ -1087,7 +1086,7 @@ READ32_MEMBER(simpl156_state::prtytime_speedup_r)
 
 DRIVER_INIT_MEMBER(simpl156_state,prtytime)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x0201ae0, 0x0201ae3, read32_delegate(FUNC(simpl156_state::prtytime_speedup_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x0201ae0, 0x0201ae3, read32_delegate(FUNC(simpl156_state::prtytime_speedup_r),this));
 	DRIVER_INIT_CALL(simpl156);
 }
 
@@ -1101,7 +1100,7 @@ READ32_MEMBER(simpl156_state::charlien_speedup_r)
 
 DRIVER_INIT_MEMBER(simpl156_state,charlien)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x0201010, 0x0201013, read32_delegate(FUNC(simpl156_state::charlien_speedup_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x0201010, 0x0201013, read32_delegate(FUNC(simpl156_state::charlien_speedup_r),this));
 	DRIVER_INIT_CALL(simpl156);
 }
 
@@ -1114,7 +1113,7 @@ READ32_MEMBER(simpl156_state::osman_speedup_r)
 
 DRIVER_INIT_MEMBER(simpl156_state,osman)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x0201010, 0x0201013, read32_delegate(FUNC(simpl156_state::osman_speedup_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x0201010, 0x0201013, read32_delegate(FUNC(simpl156_state::osman_speedup_r),this));
 	DRIVER_INIT_CALL(simpl156);
 
 }

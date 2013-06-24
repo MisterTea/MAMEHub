@@ -31,12 +31,12 @@ public:
 	pb1000_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
-			m_beep(*this, BEEPER_TAG),
+			m_beeper(*this, "beeper"),
 			m_hd44352(*this, "hd44352")
 		{ }
 
 	required_device<hd61700_cpu_device> m_maincpu;
-	required_device<beep_device> m_beep;
+	required_device<beep_device> m_beeper;
 	required_device<hd44352_device> m_hd44352;
 
 	emu_timer *m_kb_timer;
@@ -305,11 +305,11 @@ WRITE16_MEMBER( pb1000_state::gatearray_w )
 	m_gatearray[offset] = data&0xff;
 
 	if (m_gatearray[0])
-		membank("bank1")->set_base(machine().root_device().memregion("card1")->base());
+		membank("bank1")->set_base(memregion("card1")->base());
 	else if (m_gatearray[1])
-		membank("bank1")->set_base(machine().root_device().memregion("card2")->base());
+		membank("bank1")->set_base(memregion("card2")->base());
 	else
-		membank("bank1")->set_base(machine().root_device().memregion("rom")->base());
+		membank("bank1")->set_base(memregion("rom")->base());
 }
 
 static void lcd_control(hd61700_cpu_device &device, UINT8 data)
@@ -443,7 +443,8 @@ static UINT8 pb2000c_port_r(hd61700_cpu_device &device)
 
 static void port_w(hd61700_cpu_device &device, UINT8 data)
 {
-	beep_set_state(device.machine().device(BEEPER_TAG), (BIT(data,7) ^ BIT(data,6)));
+	pb1000_state *state = device.machine().driver_data<pb1000_state>();
+	state->m_beeper->set_state((BIT(data,7) ^ BIT(data,6)));
 	//printf("%x\n", data);
 }
 
@@ -485,13 +486,13 @@ static const hd61700_config pb2000c_config =
 
 TIMER_CALLBACK_MEMBER(pb1000_state::keyboard_timer)
 {
-	machine().device("maincpu")->execute().set_input_line(HD61700_KEY_INT, ASSERT_LINE);
-	machine().device("maincpu")->execute().set_input_line(HD61700_KEY_INT, CLEAR_LINE);
+	m_maincpu->set_input_line(HD61700_KEY_INT, ASSERT_LINE);
+	m_maincpu->set_input_line(HD61700_KEY_INT, CLEAR_LINE);
 }
 
 void pb1000_state::machine_start()
 {
-	membank("bank1")->set_base(machine().root_device().memregion("rom")->base());
+	membank("bank1")->set_base(memregion("rom")->base());
 
 	m_kb_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(pb1000_state::keyboard_timer),this));
 	m_kb_timer->adjust(attotime::from_hz(192), 0, attotime::from_hz(192));
@@ -526,7 +527,7 @@ static MACHINE_CONFIG_START( pb1000, pb1000_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD( BEEPER_TAG, BEEP, 0 )
+	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 MACHINE_CONFIG_END
 

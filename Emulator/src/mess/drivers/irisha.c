@@ -19,8 +19,8 @@ static ADDRESS_MAP_START( irisha_io , AS_IO, 8, irisha_state )
 	AM_RANGE( 0x04, 0x05) AM_READ(irisha_keyboard_r)
 	AM_RANGE( 0x06, 0x06) AM_DEVREADWRITE("uart",i8251_device, data_r, data_w)
 	AM_RANGE( 0x07, 0x07) AM_DEVREADWRITE("uart", i8251_device, status_r, control_w)
-	AM_RANGE( 0x08, 0x0B) AM_DEVREADWRITE_LEGACY("pit8253", pit8253_r, pit8253_w )
-	AM_RANGE( 0x0C, 0x0F) AM_DEVREADWRITE_LEGACY("pic8259", pic8259_r, pic8259_w ) AM_MASK( 0x01 )
+	AM_RANGE( 0x08, 0x0B) AM_DEVREADWRITE("pit8253", pit8253_device, read, write )
+	AM_RANGE( 0x0C, 0x0F) AM_DEVREADWRITE("pic8259", pic8259_device, read, write ) AM_MASK( 0x01 )
 	AM_RANGE( 0x10, 0x13) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
 ADDRESS_MAP_END
 
@@ -157,7 +157,7 @@ static MACHINE_CONFIG_START( irisha, irisha_state )
 
 	MCFG_PIT8253_ADD( "pit8253", irisha_pit8253_intf )
 
-	MCFG_PIC8259_ADD( "pic8259", irisha_pic8259_config )
+	MCFG_PIC8259_ADD( "pic8259", WRITELINE(irisha_state,irisha_pic_set_int_line), VCC, NULL )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -177,7 +177,7 @@ static MACHINE_CONFIG_START( irisha, irisha_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

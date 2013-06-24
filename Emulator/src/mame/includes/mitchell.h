@@ -6,6 +6,8 @@
 
 #include "sound/okim6295.h"
 #include "machine/nvram.h"
+#include "machine/eeprom.h"
+#include "sound/msm5205.h"
 
 class mitchell_state : public driver_device
 {
@@ -17,7 +19,9 @@ public:
 			m_oki(*this, "oki") ,
 			m_nvram(*this, "nvram"),
 		m_colorram(*this, "colorram"),
-		m_videoram(*this, "videoram"){ }
+		m_videoram(*this, "videoram"),
+		m_eeprom(*this, "eeprom"),
+		m_msm(*this, "msm"){ }
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
@@ -27,6 +31,9 @@ public:
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_colorram;
 	required_shared_ptr<UINT8> m_videoram;
+
+	optional_device<eeprom_device> m_eeprom;
+	optional_device<msm5205_device> m_msm;
 
 	/* video-related */
 	tilemap_t    *m_bg_tilemap;
@@ -104,4 +111,8 @@ public:
 	DECLARE_VIDEO_START(pang);
 	UINT32 screen_update_pang(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(mitchell_irq);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void bootleg_decode(  );
+	void configure_banks(  );
+	DECLARE_WRITE_LINE_MEMBER(spangbl_adpcm_int);
 };

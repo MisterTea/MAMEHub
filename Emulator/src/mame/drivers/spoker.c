@@ -26,10 +26,11 @@ class spoker_state : public driver_device
 {
 public:
 	spoker_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg_tile_ram(*this, "bg_tile_ram"),
 		m_fg_tile_ram(*this, "fg_tile_ram"),
-		m_fg_color_ram(*this, "fg_color_ram"){ }
+		m_fg_color_ram(*this, "fg_color_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_bg_tile_ram;
 	tilemap_t *m_bg_tilemap;
@@ -60,11 +61,11 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_spoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(spoker_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 WRITE8_MEMBER(spoker_state::bg_tile_w)
 {
-
 	m_bg_tile_ram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
@@ -83,21 +84,18 @@ TILE_GET_INFO_MEMBER(spoker_state::get_fg_tile_info)
 
 WRITE8_MEMBER(spoker_state::fg_tile_w)
 {
-
 	m_fg_tile_ram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(spoker_state::fg_color_w)
 {
-
 	m_fg_color_ram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
 }
 
 void spoker_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spoker_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  32, 128, 8);
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(spoker_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8,  8,  128, 32);
 	m_fg_tilemap->set_transparent_pen(0);
@@ -105,7 +103,6 @@ void spoker_state::video_start()
 
 UINT32 spoker_state::screen_update_spoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	bitmap.fill(get_black_pen(machine()), cliprect);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
@@ -131,7 +128,6 @@ static void show_out(UINT8 *out)
 
 WRITE8_MEMBER(spoker_state::spoker_nmi_and_coins_w)
 {
-
 	if ((data) & (0x22))
 	{
 		logerror("PC %06X: nmi_and_coins = %02x\n",space.device().safe_pc(),data);
@@ -146,7 +142,7 @@ WRITE8_MEMBER(spoker_state::spoker_nmi_and_coins_w)
 	set_led_status(machine(), 6,        data & 0x40);   // led for coin out / hopper active
 
 	if(((m_nmi_ack & 0x80) == 0) && data & 0x80)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 
 	m_nmi_ack = data & 0x80;     // nmi acknowledge, 0 -> 1
 
@@ -156,7 +152,6 @@ WRITE8_MEMBER(spoker_state::spoker_nmi_and_coins_w)
 
 WRITE8_MEMBER(spoker_state::spoker_video_and_leds_w)
 {
-
 	set_led_status(machine(), 4,      data & 0x01); // start?
 	set_led_status(machine(), 5,      data & 0x04); // l_bet?
 
@@ -169,7 +164,6 @@ WRITE8_MEMBER(spoker_state::spoker_video_and_leds_w)
 
 WRITE8_MEMBER(spoker_state::spoker_leds_w)
 {
-
 	set_led_status(machine(), 0, data & 0x01);  // stop_1
 	set_led_status(machine(), 1, data & 0x02);  // stop_2
 	set_led_status(machine(), 2, data & 0x04);  // stop_3
@@ -182,7 +176,6 @@ WRITE8_MEMBER(spoker_state::spoker_leds_w)
 
 WRITE8_MEMBER(spoker_state::spoker_magic_w)
 {
-
 	m_igs_magic[offset] = data;
 
 	if (offset == 0)
@@ -201,7 +194,6 @@ WRITE8_MEMBER(spoker_state::spoker_magic_w)
 
 READ8_MEMBER(spoker_state::spoker_magic_r)
 {
-
 	switch(m_igs_magic[0])
 	{
 		case 0x00:
@@ -250,7 +242,7 @@ static ADDRESS_MAP_START( spoker_portmap, AS_IO, 8, spoker_state )
 
 	AM_RANGE( 0x64a0, 0x64a0 ) AM_READ_PORT( "BUTTONS2" )
 
-	AM_RANGE( 0x64b0, 0x64b1 ) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w )
+	AM_RANGE( 0x64b0, 0x64b1 ) AM_DEVWRITE("ymsnd", ym2413_device, write)
 
 	AM_RANGE( 0x64c0, 0x64c0 ) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 
@@ -514,7 +506,6 @@ GFXDECODE_END
 
 void spoker_state::machine_reset()
 {
-
 	m_nmi_ack       =   0;
 	m_hopper            =   0;
 	m_video_enable  =   1;
@@ -522,7 +513,6 @@ void spoker_state::machine_reset()
 
 INTERRUPT_GEN_MEMBER(spoker_state::spoker_interrupt)
 {
-
 	device.execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
@@ -575,7 +565,7 @@ MACHINE_CONFIG_END
 DRIVER_INIT_MEMBER(spoker_state,spk116it)
 {
 	int A;
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 
 	for (A = 0;A < 0x10000;A++)
@@ -682,7 +672,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(spoker_state,3super8)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 	int i;
 
 	/* Decryption is probably done using one macrocell/output on an address decoding pal which we do not have a dump of */
@@ -700,8 +690,8 @@ DRIVER_INIT_MEMBER(spoker_state,3super8)
 
 	/* cheesy hack: take gfx roms from spk116it and rearrange them for this game needs */
 	{
-		UINT8 *src = machine().root_device().memregion("rep_gfx")->base();
-		UINT8 *dst = machine().root_device().memregion("gfx1")->base();
+		UINT8 *src = memregion("rep_gfx")->base();
+		UINT8 *dst = memregion("gfx1")->base();
 		UINT8 x;
 
 		for(x=0;x<3;x++)

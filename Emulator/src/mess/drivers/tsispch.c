@@ -129,17 +129,17 @@ static NECDSP_INTERFACE( upd7720_config )
 *****************************************************************************/
 WRITE_LINE_MEMBER(tsispch_state::i8251_rxrdy_int)
 {
-	pic8259_ir1_w(machine().device("pic8259"), state);
+	machine().device<pic8259_device>("pic8259")->ir1_w(state);
 }
 
 WRITE_LINE_MEMBER(tsispch_state::i8251_txempty_int)
 {
-	pic8259_ir2_w(machine().device("pic8259"), state);
+	machine().device<pic8259_device>("pic8259")->ir2_w(state);
 }
 
 WRITE_LINE_MEMBER(tsispch_state::i8251_txrdy_int)
 {
-	pic8259_ir3_w(machine().device("pic8259"), state);
+	machine().device<pic8259_device>("pic8259")->ir3_w(state);
 }
 
 const i8251_interface i8251_config =
@@ -170,19 +170,12 @@ static GENERIC_TERMINAL_INTERFACE( tsispch_terminal_intf )
 *****************************************************************************/
 WRITE_LINE_MEMBER(tsispch_state::pic8259_set_int_line)
 {
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
 }
 
-static const struct pic8259_interface pic8259_config =
+IRQ_CALLBACK_MEMBER(tsispch_state::irq_callback)
 {
-	DEVCB_DRIVER_LINE_MEMBER(tsispch_state,pic8259_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_NULL
-};
-
-static IRQ_CALLBACK(irq_callback)
-{
-	return pic8259_acknowledge(device->machine().device("pic8259"));
+	return machine().device<pic8259_device>("pic8259")->acknowledge();
 }
 
 /*****************************************************************************
@@ -208,9 +201,8 @@ WRITE8_MEMBER( tsispch_state::peripheral_w )
 	unknown and seemingly unused bits as well.
 	see the top of the file for more info.
 	*/
-	tsispch_state *state = machine().driver_data<tsispch_state>();
-	state->m_paramReg = data;
-	machine().device("dsp")->execute().set_input_line(INPUT_LINE_RESET, BIT(data,6)?CLEAR_LINE:ASSERT_LINE);
+	m_paramReg = data;
+	m_dsp->set_input_line(INPUT_LINE_RESET, BIT(data,6)?CLEAR_LINE:ASSERT_LINE);
 #ifdef DEBUG_PARAM
 	//fprintf(stderr,"8086: Parameter Reg written: UNK7: %d, DSPRST6: %d; UNK5: %d; LED4: %d; LED3: %d; LED2: %d; LED1: %d; DSPIRQMASK: %d\n", BIT(data,7), BIT(data,6), BIT(data,5), BIT(data,4), BIT(data,3), BIT(data,2), BIT(data,1), BIT(data,0));
 	logerror("8086: Parameter Reg written: UNK7: %d, DSPRST6: %d; UNK5: %d; LED4: %d; LED3: %d; LED2: %d; LED1: %d; DSPIRQMASK: %d\n", BIT(data,7), BIT(data,6), BIT(data,5), BIT(data,4), BIT(data,3), BIT(data,2), BIT(data,1), BIT(data,0));
@@ -272,14 +264,14 @@ void tsispch_state::machine_reset()
 	int i;
 	for (i=0; i<32; i++) m_infifo[i] = 0;
 	m_infifo_tail_ptr = m_infifo_head_ptr = 0;
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(tsispch_state::irq_callback),this));
 	fprintf(stderr,"machine reset\n");
 }
 
 DRIVER_INIT_MEMBER(tsispch_state,prose2k)
 {
-	UINT8 *dspsrc = (UINT8 *)(*machine().root_device().memregion("dspprgload"));
-	UINT32 *dspprg = (UINT32 *)(*machine().root_device().memregion("dspprg"));
+	UINT8 *dspsrc = (UINT8 *)(*memregion("dspprgload"));
+	UINT32 *dspprg = (UINT32 *)(*memregion("dspprg"));
 	fprintf(stderr,"driver init\n");
 	// unpack 24 bit 7720 data into 32 bit space and shuffle it so it can run as 7725 code
 	// data format as-is in dspsrc: (L = always 0, X = doesn't matter)
@@ -320,7 +312,7 @@ DRIVER_INIT_MEMBER(tsispch_state,prose2k)
 			dspprg++;
 		}
 	m_paramReg = 0x00; // on power up, all leds on, reset to upd7720 is high
-	machine().device("dsp")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE); // starts in reset
+	m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE); // starts in reset
 }
 
 /******************************************************************************
@@ -348,7 +340,7 @@ static ADDRESS_MAP_START(i8086_mem, AS_PROGRAM, 16, tsispch_state)
 	AM_RANGE(0x00000, 0x02FFF) AM_MIRROR(0x34000) AM_RAM // verified; 6264*2 sram, only first 3/4 used
 	AM_RANGE(0x03000, 0x03001) AM_MIRROR(0x341FC) AM_DEVREADWRITE8("i8251a_u15", i8251_device, data_r, data_w, 0x00FF)
 	AM_RANGE(0x03002, 0x03003) AM_MIRROR(0x341FC) AM_DEVREADWRITE8("i8251a_u15", i8251_device, status_r, control_w, 0x00FF)
-	AM_RANGE(0x03200, 0x03203) AM_MIRROR(0x341FC) AM_DEVREADWRITE8_LEGACY("pic8259", pic8259_r, pic8259_w, 0x00FF) // AMD P8259 PIC @ U5 (reads as 04 and 7c, upper byte is open bus)
+	AM_RANGE(0x03200, 0x03203) AM_MIRROR(0x341FC) AM_DEVREADWRITE8("pic8259", pic8259_device, read, write, 0x00FF) // AMD P8259 PIC @ U5 (reads as 04 and 7c, upper byte is open bus)
 	AM_RANGE(0x03400, 0x03401) AM_MIRROR(0x341FE) AM_READ8(dsw_r, 0x00FF) // verified, read from dipswitch s4
 	AM_RANGE(0x03400, 0x03401) AM_MIRROR(0x341FE) AM_WRITE8(peripheral_w, 0xFF00) // verified, write to the 4 leds, plus 4 control bits
 	AM_RANGE(0x03600, 0x03601) AM_MIRROR(0x341FC) AM_READWRITE(dsp_data_r, dsp_data_w) // verified; UPD77P20 data reg r/w
@@ -419,7 +411,7 @@ static MACHINE_CONFIG_START( prose2k, tsispch_state )
 	MCFG_CPU_CONFIG(upd7720_config)
 
 	/* PIC 8259 */
-	MCFG_PIC8259_ADD("pic8259", pic8259_config)
+	MCFG_PIC8259_ADD("pic8259", WRITELINE(tsispch_state,pic8259_set_int_line), VCC, NULL)
 
 	/* uarts */
 	MCFG_I8251_ADD("i8251a_u15", i8251_config)

@@ -275,15 +275,10 @@ SamRam
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "sound/speaker.h"
 #include "sound/wave.h"
 #include "includes/spectrum.h"
-#include "imagedev/snapquik.h"
-#include "imagedev/cartslot.h"
-#include "imagedev/cassette.h"
-#include "machine/ram.h"
 #include "formats/tzx_cas.h"
-#include "formats/spec_snqk.h"
+#include "machine/spec_snqk.h"
 
 
 /****************************************************************************************************/
@@ -298,7 +293,6 @@ SamRam
 
 WRITE8_MEMBER(spectrum_state::spectrum_port_fe_w)
 {
-	device_t *speaker = machine().device(SPEAKER_TAG);
 	unsigned char Changed;
 
 	Changed = m_port_fe_data^data;
@@ -306,19 +300,19 @@ WRITE8_MEMBER(spectrum_state::spectrum_port_fe_w)
 	/* border colour changed? */
 	if ((Changed & 0x07)!=0)
 	{
-		spectrum_UpdateBorderBitmap(machine());
+		spectrum_UpdateBorderBitmap();
 	}
 
 	if ((Changed & (1<<4))!=0)
 	{
 		/* DAC output state */
-		speaker_level_w(speaker,(data>>4) & 0x01);
+		m_speaker->level_w(BIT(data, 4));
 	}
 
 	if ((Changed & (1<<3))!=0)
 	{
 		/* write cassette data */
-		machine().device<cassette_image_device>(CASSETTE_TAG)->output((data & (1<<3)) ? -1.0 : +1.0);
+		m_cassette->output((data & (1<<3)) ? -1.0 : +1.0);
 	}
 
 	m_port_fe_data = data;
@@ -333,16 +327,16 @@ READ8_MEMBER(spectrum_state::spectrum_port_fe_r)
 	int lines = offset >> 8;
 	int data = 0xff;
 
-	int cs_extra1 = ioport("PLUS0")->read_safe(0xff) & 0x1f;
-	int cs_extra2 = ioport("PLUS1")->read_safe(0xff) & 0x1f;
-	int cs_extra3 = ioport("PLUS2")->read_safe(0xff) & 0x1f;
-	int ss_extra1 = ioport("PLUS3")->read_safe(0xff) & 0x1f;
-	int ss_extra2 = ioport("PLUS4")->read_safe(0xff) & 0x1f;
+	int cs_extra1 = m_io_plus0 ? m_io_plus0->read() & 0x1f : 0x1f;
+	int cs_extra2 = m_io_plus1 ? m_io_plus1->read() & 0x1f : 0x1f;
+	int cs_extra3 = m_io_plus2 ? m_io_plus2->read() & 0x1f : 0x1f;
+	int ss_extra1 = m_io_plus3 ? m_io_plus3->read() & 0x1f : 0x1f;
+	int ss_extra2 = m_io_plus4 ? m_io_plus4->read() & 0x1f : 0x1f;
 
 	/* Caps - V */
 	if ((lines & 1) == 0)
 	{
-		data &= ioport("LINE0")->read();
+		data &= m_io_line0->read();
 		/* CAPS for extra keys */
 		if (cs_extra1 != 0x1f || cs_extra2 != 0x1f || cs_extra3 != 0x1f)
 			data &= ~0x01;
@@ -350,32 +344,32 @@ READ8_MEMBER(spectrum_state::spectrum_port_fe_r)
 
 	/* A - G */
 	if ((lines & 2) == 0)
-		data &= ioport("LINE1")->read();
+		data &= m_io_line1->read();
 
 	/* Q - T */
 	if ((lines & 4) == 0)
-		data &= ioport("LINE2")->read();
+		data &= m_io_line2->read();
 
 	/* 1 - 5 */
 	if ((lines & 8) == 0)
-		data &= ioport("LINE3")->read() & cs_extra1;
+		data &= m_io_line3->read() & cs_extra1;
 
 	/* 6 - 0 */
 	if ((lines & 16) == 0)
-		data &= ioport("LINE4")->read() & cs_extra2;
+		data &= m_io_line4->read() & cs_extra2;
 
 	/* Y - P */
 	if ((lines & 32) == 0)
-		data &= ioport("LINE5")->read() & ss_extra1;
+		data &= m_io_line5->read() & ss_extra1;
 
 	/* H - Enter */
 	if ((lines & 64) == 0)
-		data &= ioport("LINE6")->read();
+		data &= m_io_line6->read();
 
 		/* B - Space */
 	if ((lines & 128) == 0)
 	{
-		data &= ioport("LINE7")->read() & cs_extra3 & ss_extra2;
+		data &= m_io_line7->read() & cs_extra3 & ss_extra2;
 		/* SYMBOL SHIFT for extra keys */
 		if (ss_extra1 != 0x1f || ss_extra2 != 0x1f)
 			data &= ~0x02;
@@ -384,14 +378,14 @@ READ8_MEMBER(spectrum_state::spectrum_port_fe_r)
 	data |= (0xe0); /* Set bits 5-7 - as reset above */
 
 	/* cassette input from wav */
-	if ((machine().device<cassette_image_device>(CASSETTE_TAG))->input() > 0.0038 )
+	if (m_cassette->input() > 0.0038 )
 	{
 		data &= ~0x40;
 	}
 
 	/* Issue 2 Spectrums default to having bits 5, 6 & 7 set.
 	Issue 3 Spectrums default to having bits 5 & 7 set and bit 6 reset. */
-	if (ioport("CONFIG")->read() & 0x80)
+	if (m_io_config->read() & 0x80)
 		data ^= (0x40);
 
 	return data;
@@ -400,19 +394,19 @@ READ8_MEMBER(spectrum_state::spectrum_port_fe_r)
 /* kempston joystick interface */
 READ8_MEMBER(spectrum_state::spectrum_port_1f_r)
 {
-	return ioport("KEMPSTON")->read() & 0x1f;
+	return m_io_kempston->read() & 0x1f;
 }
 
 /* fuller joystick interface */
 READ8_MEMBER(spectrum_state::spectrum_port_7f_r)
 {
-	return ioport("FULLER")->read() | (0xff^0x8f);
+	return m_io_fuller->read() | (0xff^0x8f);
 }
 
 /* mikrogen joystick interface */
 READ8_MEMBER(spectrum_state::spectrum_port_df_r)
 {
-	return ioport("MIKROGEN")->read() | (0xff^0x1f);
+	return m_io_mikrogen->read() | (0xff^0x1f);
 }
 
 READ8_MEMBER(spectrum_state::spectrum_port_ula_r)
@@ -613,9 +607,9 @@ INPUT_PORTS_END
 
 DRIVER_INIT_MEMBER(spectrum_state,spectrum)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
-	switch (machine().device<ram_device>(RAM_TAG)->size())
+	switch (m_ram->size())
 	{
 		case 48*1024:
 		space.install_ram(0x8000, 0xffff, NULL); // Fall through
@@ -663,7 +657,7 @@ static const cassette_interface spectrum_cassette_interface =
 	NULL
 };
 
-static DEVICE_IMAGE_LOAD( spectrum_cart )
+DEVICE_IMAGE_LOAD_MEMBER( spectrum_state,spectrum_cart )
 {
 	UINT32 filesize;
 
@@ -677,7 +671,7 @@ static DEVICE_IMAGE_LOAD( spectrum_cart )
 			return IMAGE_INIT_FAIL;
 		}
 
-		if (image.fread(image.device().machine().root_device().memregion("maincpu")->base(), filesize) != filesize)
+		if (image.fread(memregion("maincpu")->base(), filesize) != filesize)
 		{
 			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Error loading file");
 			return IMAGE_INIT_FAIL;
@@ -686,7 +680,7 @@ static DEVICE_IMAGE_LOAD( spectrum_cart )
 	else
 	{
 		filesize = image.get_software_region_length("rom");
-		memcpy(image.device().machine().root_device().memregion("maincpu")->base(), image.get_software_region("rom"), filesize);
+		memcpy(memregion("maincpu")->base(), image.get_software_region("rom"), filesize);
 	}
 	return IMAGE_INIT_PASS;
 }
@@ -717,22 +711,22 @@ MACHINE_CONFIG_START( spectrum_common, spectrum_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
-	MCFG_SNAPSHOT_ADD("snapshot", spectrum, "ach,frz,plusd,prg,sem,sit,sna,snp,snx,sp,z80,zx", 0)
-	MCFG_QUICKLOAD_ADD("quickload", spectrum, "raw,scr", 2) // The delay prevents the screen from being cleared by the RAM test at boot
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, spectrum_cassette_interface )
+	MCFG_SNAPSHOT_ADD("snapshot", spectrum_state, spectrum, "ach,frz,plusd,prg,sem,sit,sna,snp,snx,sp,z80,zx", 0)
+	MCFG_QUICKLOAD_ADD("quickload", spectrum_state, spectrum, "raw,scr", 2) // The delay prevents the screen from being cleared by the RAM test at boot
+	MCFG_CASSETTE_ADD( "cassette", spectrum_cassette_interface )
 	MCFG_SOFTWARE_LIST_ADD("cass_list","spectrum_cass")
 
 	/* cartridge */
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("rom")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(spectrum_cart)
+	MCFG_CARTSLOT_LOAD(spectrum_state,spectrum_cart)
 	MCFG_CARTSLOT_INTERFACE("spectrum_cart")
 	MCFG_SOFTWARE_LIST_ADD("cart_list","spectrum")
 MACHINE_CONFIG_END

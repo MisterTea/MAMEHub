@@ -11,14 +11,13 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "video/ppu2c0x.h"
 #include "includes/nes.h"
-//#include "includes/nes_mmc.h"
 #include "cpu/m6502/n2a03.h"
-#include "imagedev/cartslot.h"
 #include "sound/nes_apu.h"
 #include "imagedev/flopdrv.h"
 #include "formats/nes_dsk.h"
+
+#include "machine/nes_slot.h"
 
 
 READ8_MEMBER(nes_state::psg_4015_r)
@@ -53,14 +52,16 @@ static ADDRESS_MAP_START( nes_map, AS_PROGRAM, 8, nes_state )
 	AM_RANGE(0x4016, 0x4016) AM_READWRITE(nes_IN0_r, nes_IN0_w)         /* IN0 - input port 1 */
 	AM_RANGE(0x4017, 0x4017) AM_READ(nes_IN1_r)                         /* IN1 - input port 2 */
 	AM_RANGE(0x4017, 0x4017) AM_WRITE(psg_4017_w)       /* PSG second control register */
-	AM_RANGE(0x4100, 0x5fff) AM_READWRITE(nes_low_mapper_r, nes_low_mapper_w)   /* Perform unholy acts on the machine */
+	// 0x4100-0x5fff -> LOW HANDLER defined on a pcb base
+	// 0x6000-0x7fff -> MID HANDLER defined on a pcb base
+	// 0x8000-0xffff -> HIGH HANDLER defined on a pcb base
 ADDRESS_MAP_END
 
 
 static INPUT_PORTS_START( nes_controllers )
 	PORT_START("PAD1")  /* Joypad 1 */
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("P1 A") PORT_PLAYER(1)  PORT_CONDITION("CTRLSEL", 0x000f, EQUALS, 0x0001)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("P1 B") PORT_PLAYER(1)  PORT_CONDITION("CTRLSEL", 0x000f, EQUALS, 0x0001)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("P1 A") PORT_PLAYER(1)  PORT_CONDITION("CTRLSEL", 0x000f, EQUALS, 0x0001)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("P1 B") PORT_PLAYER(1)  PORT_CONDITION("CTRLSEL", 0x000f, EQUALS, 0x0001)
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_SELECT ) PORT_PLAYER(1)                     PORT_CONDITION("CTRLSEL", 0x000f, EQUALS, 0x0001)
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_START ) PORT_PLAYER(1)                      PORT_CONDITION("CTRLSEL", 0x000f, EQUALS, 0x0001)
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_PLAYER(1)                PORT_CONDITION("CTRLSEL", 0x000f, EQUALS, 0x0001)
@@ -69,8 +70,8 @@ static INPUT_PORTS_START( nes_controllers )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(1)             PORT_CONDITION("CTRLSEL", 0x000f, EQUALS, 0x0001)
 
 	PORT_START("PAD2")  /* Joypad 2 */
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("P2 A") PORT_PLAYER(2)  PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0010)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("P2 B") PORT_PLAYER(2)  PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0010)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("P2 A") PORT_PLAYER(2)  PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0010)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("P2 B") PORT_PLAYER(2)  PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0010)
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_SELECT ) PORT_PLAYER(2)                     PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0010)
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_START ) PORT_PLAYER(2)                      PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0010)
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_PLAYER(2)                PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0010)
@@ -79,8 +80,8 @@ static INPUT_PORTS_START( nes_controllers )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(2)             PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0010)
 
 	PORT_START("PAD3")  /* Joypad 3 */
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("P3 A") PORT_PLAYER(3)  PORT_CONDITION("CTRLSEL", 0x0f00, EQUALS, 0x0100)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("P3 B") PORT_PLAYER(3)  PORT_CONDITION("CTRLSEL", 0x0f00, EQUALS, 0x0100)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("P3 A") PORT_PLAYER(3)  PORT_CONDITION("CTRLSEL", 0x0f00, EQUALS, 0x0100)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("P3 B") PORT_PLAYER(3)  PORT_CONDITION("CTRLSEL", 0x0f00, EQUALS, 0x0100)
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_SELECT ) PORT_PLAYER(3)                     PORT_CONDITION("CTRLSEL", 0x0f00, EQUALS, 0x0100)
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_START ) PORT_PLAYER(3)                      PORT_CONDITION("CTRLSEL", 0x0f00, EQUALS, 0x0100)
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_PLAYER(3)                PORT_CONDITION("CTRLSEL", 0x0f00, EQUALS, 0x0100)
@@ -89,8 +90,8 @@ static INPUT_PORTS_START( nes_controllers )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(3)             PORT_CONDITION("CTRLSEL", 0x0f00, EQUALS, 0x0100)
 
 	PORT_START("PAD4")  /* Joypad 4 */
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("P4 A") PORT_PLAYER(4)  PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x1000)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("P4 B") PORT_PLAYER(4)  PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x1000)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_NAME("P4 A") PORT_PLAYER(4)  PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x1000)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("P4 B") PORT_PLAYER(4)  PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x1000)
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_SELECT ) PORT_PLAYER(4)                     PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x1000)
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_START ) PORT_PLAYER(4)                      PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x1000)
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_PLAYER(4)                PORT_CONDITION("CTRLSEL", 0xf000, EQUALS, 0x1000)
@@ -356,6 +357,40 @@ static INPUT_PORTS_START( subor_keyboard )
 
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( mahjong_panel )
+	PORT_START("MAH0")
+	PORT_BIT( 0xff, IP_ACTIVE_HIGH, IPT_UNUSED )
+
+	PORT_START("MAH1")
+	PORT_BIT( 0x03, IP_ACTIVE_HIGH, IPT_UNUSED )
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_MAHJONG_N ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_MAHJONG_M ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_MAHJONG_L ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_MAHJONG_K ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_MAHJONG_J ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_MAHJONG_I ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+
+	PORT_START("MAH2")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_MAHJONG_H ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_MAHJONG_G ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_MAHJONG_F ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_MAHJONG_E ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_MAHJONG_D ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_MAHJONG_C ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_MAHJONG_B ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_MAHJONG_A ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+
+	PORT_START("MAH3")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNUSED )
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_MAHJONG_RON ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_MAHJONG_REACH ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_MAHJONG_CHI ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_MAHJONG_PON ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_MAHJONG_KAN ) PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SELECT ) PORT_NAME("P1 Mahjong Select") PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_START ) PORT_NAME("P1 Mahjong Start") PORT_CONDITION("CTRLSEL", 0x00f0, EQUALS, 0x0070)
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( nes )
 	PORT_INCLUDE( nes_controllers )
 
@@ -391,6 +426,7 @@ static INPUT_PORTS_START( famicom )
 	PORT_INCLUDE( nes )
 	PORT_INCLUDE( fc_keyboard )
 	PORT_INCLUDE( subor_keyboard )
+	PORT_INCLUDE( mahjong_panel )
 
 	PORT_MODIFY("CTRLSEL")  /* Select Controller Type */
 	PORT_CONFNAME( 0x000f, 0x0001, "P1 Controller")
@@ -400,6 +436,13 @@ static INPUT_PORTS_START( famicom )
 	PORT_CONFSETTING(  0x0006, "Crazy Climber pad" )
 	PORT_CONFSETTING(  0x0008, "FC Keyboard" )
 	PORT_CONFSETTING(  0x0009, "Subor Keyboard" )
+	PORT_CONFNAME( 0x00f0, 0x0010, "P2 Controller")
+	PORT_CONFSETTING(  0x0000, "Unconnected" )
+	PORT_CONFSETTING(  0x0010, "Gamepad" )
+	PORT_CONFSETTING(  0x0030, "Zapper" )
+	PORT_CONFSETTING(  0x0040, "Arkanoid paddle" )
+//  PORT_CONFSETTING(  0x0050, "Family Trainer" )
+	PORT_CONFSETTING(  0x0070, "Mahjong Panel" )
 
 	PORT_START("FLIPDISK") /* fake keys */
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_BUTTON3) PORT_NAME("Change Disk Side")
@@ -412,9 +455,9 @@ static const nes_interface nes_apu_interface =
 };
 
 
-static void ppu_nmi(device_t *device, int *ppu_regs)
+void nes_state::ppu_nmi(int *ppu_regs)
 {
-	device->machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
@@ -424,8 +467,7 @@ static const ppu2c0x_interface nes_ppu_interface =
 	"screen",
 	0,
 	0,
-	PPU_MIRROR_NONE,
-	ppu_nmi
+	PPU_MIRROR_NONE
 };
 
 static const floppy_interface nes_floppy_interface =
@@ -442,11 +484,15 @@ static const floppy_interface nes_floppy_interface =
 };
 
 
+static const nes_cart_interface nes_crt_interface =
+{
+};
+
+
 static MACHINE_CONFIG_START( nes, nes_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", N2A03, NTSC_CLOCK)
 	MCFG_CPU_PROGRAM_MAP(nes_map)
-
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60.098)
@@ -462,7 +508,8 @@ static MACHINE_CONFIG_START( nes, nes_state )
 
 	MCFG_PALETTE_LENGTH(4*16*8)
 
-	MCFG_PPU2C02_ADD( "ppu", nes_ppu_interface )
+	MCFG_PPU2C02_ADD("ppu", nes_ppu_interface)
+	MCFG_PPU2C0X_SET_NMI(nes_state, ppu_nmi)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -470,23 +517,20 @@ static MACHINE_CONFIG_START( nes, nes_state )
 	MCFG_SOUND_CONFIG(nes_apu_interface)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("nes,unf")
-	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("nes_cart")
-	MCFG_CARTSLOT_LOAD(nes_cart)
-	MCFG_CARTSLOT_PARTIALHASH(nes_partialhash)
+	MCFG_NES_CARTRIDGE_ADD("nes_slot", nes_crt_interface, nes_cart, NULL)
 	MCFG_SOFTWARE_LIST_ADD("cart_list","nes")
+	MCFG_SOFTWARE_LIST_ADD("ntb_list","nes_ntbrom") // Nantettate Baseball mini_carts
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( nespal, nes )
 
 	/* basic machine hardware */
-	MCFG_CPU_MODIFY( "maincpu" )
-	MCFG_CPU_CLOCK( PAL_CLOCK )
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_CLOCK(PAL_CLOCK)
 
-	MCFG_DEVICE_REMOVE( "ppu" )
-	MCFG_PPU2C07_ADD( "ppu", nes_ppu_interface )
+	MCFG_DEVICE_REMOVE("ppu")
+	MCFG_PPU2C07_ADD("ppu", nes_ppu_interface)
+	MCFG_PPU2C0X_SET_NMI(nes_state, ppu_nmi)
 
 	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")
@@ -507,8 +551,9 @@ static MACHINE_CONFIG_DERIVED( dendy, nes )
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_CLOCK( 26601712/15 ) /* 26.601712MHz / 15 == 1.77344746666... MHz */
 
-	MCFG_DEVICE_REMOVE( "ppu" )
-	MCFG_PPU2C07_ADD( "ppu", nes_ppu_interface )
+	MCFG_DEVICE_REMOVE("ppu")
+	MCFG_PPU2C07_ADD("ppu", nes_ppu_interface)
+	MCFG_PPU2C0X_SET_NMI(nes_state, ppu_nmi)
 
 	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")
@@ -522,52 +567,38 @@ static MACHINE_CONFIG_DERIVED( dendy, nes )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( famicom, nes )
-
-	MCFG_CARTSLOT_MODIFY("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("nes,unf")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(nes_cart)
-	MCFG_CARTSLOT_PARTIALHASH(nes_partialhash)
+	MCFG_DEVICE_REMOVE("nes_slot")
+	MCFG_NES_CARTRIDGE_ADD("nes_slot", nes_crt_interface, nes_cart, NULL)
+	MCFG_NES_CARTRIDGE_NOT_MANDATORY
 
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, nes_floppy_interface)
 	MCFG_SOFTWARE_LIST_ADD("flop_list","famicom_flop")
 MACHINE_CONFIG_END
 
-//static MACHINE_CONFIG_DERIVED( nes_test, nes )
-//MACHINE_CONFIG_END
-
 
 /* rom regions are just place-holders: they get removed and re-allocated when a cart is loaded */
 ROM_START( nes )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )  /* Main RAM */
-	ROM_REGION( 0x800,   "ciram", ROMREGION_ERASE00 )  /* CI RAM */
 ROM_END
 
 ROM_START( nespal )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )  /* Main RAM */
-	ROM_REGION( 0x800,   "ciram", ROMREGION_ERASE00 )  /* CI RAM */
 ROM_END
 
 ROM_START( famicom )
 	ROM_REGION( 0x10000, "maincpu", 0 )  /* Main RAM */
 	ROM_LOAD_OPTIONAL( "disksys.rom", 0xe000, 0x2000, CRC(5e607dcf) SHA1(57fe1bdee955bb48d357e463ccbf129496930b62) )
-
-	ROM_REGION( 0x800,   "ciram", ROMREGION_ERASE00 )  /* CI RAM */
 ROM_END
 
 ROM_START( famitwin )
 	ROM_REGION( 0x10000, "maincpu", 0 )  /* Main RAM */
 	ROM_LOAD_OPTIONAL( "disksyst.rom", 0xe000, 0x2000, CRC(4df24a6c) SHA1(e4e41472c454f928e53eb10e0509bf7d1146ecc1) )
-
-	ROM_REGION( 0x800,   "ciram", ROMREGION_ERASE00 )  /* CI RAM */
 ROM_END
 
 ROM_START( m82 )
 	ROM_REGION( 0x14000, "maincpu", 0 )  /* Main RAM + program banks */
 	/* Banks to be mapped at 0xe000? More investigations needed... */
 	ROM_LOAD( "m82_v1_0.bin", 0x10000, 0x4000, CRC(7d56840a) SHA1(cbd2d14fa073273ba58367758f40d67fd8a9106d) )
-
-	ROM_REGION( 0x800,   "ciram", ROMREGION_ERASE00 )  /* CI RAM */
 ROM_END
 
 // see http://www.disgruntleddesigner.com/chrisc/drpcjr/index.html
@@ -579,16 +610,12 @@ ROM_START( drpcjr )
 	ROM_LOAD("drpcjr_bios.bin", 0x10000, 0x8000, CRC(c8fbef89) SHA1(2cb0a817b31400cdf27817d09bae7e69f41b062b) ) // bios vers. 1.0a
 	// Not sure if we should support this: hacked version 1.5a by Chris Covell with bugfixes and GameGenie support
 //  ROM_LOAD("drpcjr_v1_5_gg.bin", 0x10000, 0x8000, CRC(98f2033b) SHA1(93c114da787a19279d1a46667c2f69b49e25d4f1) )
-
-	ROM_REGION( 0x800,   "ciram", ROMREGION_ERASE00 )  /* CI RAM */
 ROM_END
 
 ROM_START( dendy )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )  /* Main RAM */
-	ROM_REGION( 0x800,   "ciram", ROMREGION_ERASE00 )  /* CI RAM */
 ROM_END
 
-//#define rom_nes_test rom_nes
 
 /***************************************************************************
 
@@ -597,12 +624,10 @@ ROM_END
 ***************************************************************************/
 
 /*     YEAR  NAME      PARENT  COMPAT MACHINE   INPUT    INIT    COMPANY       FULLNAME */
-CONS( 1985, nes,       0,      0,     nes,      nes, driver_device,     0,       "Nintendo",  "Nintendo Entertainment System / Famicom (NTSC)", GAME_IMPERFECT_GRAPHICS )
-CONS( 1987, nespal,    nes,    0,     nespal,   nes, driver_device,     0,       "Nintendo",  "Nintendo Entertainment System (PAL)", GAME_IMPERFECT_GRAPHICS )
-CONS( 1983, famicom,   nes,    0,     famicom,  famicom, nes_state, famicom, "Nintendo",  "Famicom (w/ Disk System add-on)", GAME_IMPERFECT_GRAPHICS )
-CONS( 1986, famitwin,  nes,    0,     famicom,  famicom, nes_state, famicom, "Sharp",     "Famicom Twin", GAME_IMPERFECT_GRAPHICS )
-CONS( 198?, m82,       nes,    0,     nes,      nes, driver_device,     0,       "Nintendo",  "M82 Display Unit", GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING )
-CONS( 1996, drpcjr,    nes,    0,     famicom,  famicom, nes_state, famicom, "Bung",      "Doctor PC Jr", GAME_IMPERFECT_GRAPHICS )
-CONS( 1992, dendy,     nes,    0,     dendy,    nes, driver_device,     0,       "Steepler",  "Dendy Classic", GAME_IMPERFECT_GRAPHICS )
-
-//CONS( 1985, nes_test,  0,      0,     nes_test, nes, driver_device,     0,       "Nintendo",  "Nintendo Entertainment System (Testdriver)", GAME_IMPERFECT_GRAPHICS )
+CONS( 1985, nes,       0,      0,     nes,      nes, driver_device,     0,       "Nintendo",  "Nintendo Entertainment System / Famicom (NTSC)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+CONS( 1987, nespal,    nes,    0,     nespal,   nes, driver_device,     0,       "Nintendo",  "Nintendo Entertainment System (PAL)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+CONS( 1983, famicom,   nes,    0,     famicom,  famicom, nes_state, famicom, "Nintendo",  "Famicom (w/ Disk System add-on)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+CONS( 1986, famitwin,  nes,    0,     famicom,  famicom, nes_state, famicom, "Sharp",     "Famicom Twin", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+CONS( 198?, m82,       nes,    0,     nes,      nes, driver_device,     0,       "Nintendo",  "M82 Display Unit", GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
+CONS( 1996, drpcjr,    nes,    0,     famicom,  famicom, nes_state, famicom, "Bung",      "Doctor PC Jr", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+CONS( 1992, dendy,     nes,    0,     dendy,    nes, driver_device,     0,       "Steepler",  "Dendy Classic", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )

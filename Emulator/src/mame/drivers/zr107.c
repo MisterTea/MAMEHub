@@ -10,7 +10,7 @@
     ZR107 CPU board:
     ----------------
         IBM PowerPC 403GA at 32MHz (main CPU)
-        Motorola MC68EC000 at 16MHz (sound CPU)
+        Motorola MC68EC000 at 8MHz (sound CPU)
         Konami K056800 (MIRAC), sound system interface
         Konami K056230 (LANC), LAN interface
         Konami K058141 sound chip (same as 2x K054539)
@@ -180,15 +180,26 @@ Check gticlub.c for details on the bottom board.
 class zr107_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_IRQ_OFF
+	};
+
 	zr107_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_workram(*this, "workram"){ }
+		: driver_device(mconfig, type, tag),
+		m_workram(*this, "workram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_dsp(*this, "dsp"),
+		m_k001604(*this, "k001604"),
+		m_k056832(*this, "k056832") { }
 
 	UINT8 m_led_reg0;
 	UINT8 m_led_reg1;
 	int m_ccu_vcth;
 	int m_ccu_vctl;
 	optional_shared_ptr<UINT32> m_workram;
+	emu_timer *m_sound_irq_timer;
 	UINT32 *m_sharc_dataram;
 	DECLARE_WRITE32_MEMBER(paletteram32_w);
 	DECLARE_READ8_MEMBER(sysreg_r);
@@ -208,7 +219,14 @@ public:
 	UINT32 screen_update_zr107(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_jetwave(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(zr107_vblank);
-	TIMER_CALLBACK_MEMBER(irq_off);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_dsp;
+	optional_device<k001604_device> m_k001604;
+	optional_device<k056832_device> m_k056832;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -224,13 +242,13 @@ VIDEO_START_MEMBER(zr107_state,jetwave)
 
 UINT32 zr107_state::screen_update_jetwave(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	device_t *k001604 = machine().device("k001604");
-
 	bitmap.fill(machine().pens[0], cliprect);
+
+	k001604_draw_back_layer(m_k001604, bitmap, cliprect);
 
 	K001005_draw(bitmap, cliprect);
 
-	k001604_draw_front_layer(k001604, bitmap, cliprect);
+	k001604_draw_front_layer(m_k001604, bitmap, cliprect);
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
 	draw_7segment_led(bitmap, 9, 3, m_led_reg1);
@@ -259,16 +277,14 @@ static void game_tile_callback(running_machine &machine, int layer, int *code, i
 
 VIDEO_START_MEMBER(zr107_state,zr107)
 {
-	device_t *k056832 = machine().device("k056832");
-
-	k056832_set_layer_offs(k056832, 0, -29, -27);
-	k056832_set_layer_offs(k056832, 1, -29, -27);
-	k056832_set_layer_offs(k056832, 2, -29, -27);
-	k056832_set_layer_offs(k056832, 3, -29, -27);
-	k056832_set_layer_offs(k056832, 4, -29, -27);
-	k056832_set_layer_offs(k056832, 5, -29, -27);
-	k056832_set_layer_offs(k056832, 6, -29, -27);
-	k056832_set_layer_offs(k056832, 7, -29, -27);
+	k056832_set_layer_offs(m_k056832, 0, -29, -27);
+	k056832_set_layer_offs(m_k056832, 1, -29, -27);
+	k056832_set_layer_offs(m_k056832, 2, -29, -27);
+	k056832_set_layer_offs(m_k056832, 3, -29, -27);
+	k056832_set_layer_offs(m_k056832, 4, -29, -27);
+	k056832_set_layer_offs(m_k056832, 5, -29, -27);
+	k056832_set_layer_offs(m_k056832, 6, -29, -27);
+	k056832_set_layer_offs(m_k056832, 7, -29, -27);
 
 	K001006_init(machine());
 	K001005_init(machine());
@@ -276,12 +292,11 @@ VIDEO_START_MEMBER(zr107_state,zr107)
 
 UINT32 zr107_state::screen_update_zr107(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	device_t *k056832 = machine().device("k056832");
 	bitmap.fill(machine().pens[0], cliprect);
 
-	k056832_tilemap_draw(k056832, bitmap, cliprect, 1, 0, 0);
+	k056832_tilemap_draw(m_k056832, bitmap, cliprect, 1, 0, 0);
 	K001005_draw(bitmap, cliprect);
-	k056832_tilemap_draw(k056832, bitmap, cliprect, 0, 0, 0);
+	k056832_tilemap_draw(m_k056832, bitmap, cliprect, 0, 0, 0);
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
 	draw_7segment_led(bitmap, 9, 3, m_led_reg1);
@@ -341,7 +356,7 @@ WRITE8_MEMBER(zr107_state::sysreg_w)
 			    0x01 = EEPDI
 			*/
 			ioport("EEPROMOUT")->write(data & 0x07, 0xff);
-			machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, (data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_RESET, (data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
 			mame_printf_debug("System register 0 = %02X\n", data);
 			break;
 
@@ -357,9 +372,9 @@ WRITE8_MEMBER(zr107_state::sysreg_w)
 			    0x01 = ADDSCLK (ADC SCLK)
 			*/
 			if (data & 0x80)    /* CG Board 1 IRQ Ack */
-				machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ1, CLEAR_LINE);
+				m_maincpu->set_input_line(INPUT_LINE_IRQ1, CLEAR_LINE);
 			if (data & 0x40)    /* CG Board 0 IRQ Ack */
-				machine().device("maincpu")->execute().set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
+				m_maincpu->set_input_line(INPUT_LINE_IRQ0, CLEAR_LINE);
 			set_cgboard_id((data >> 4) & 3);
 			ioport("OUT4")->write(data, 0xff);
 			mame_printf_debug("System register 1 = %02X\n", data);
@@ -410,10 +425,12 @@ WRITE32_MEMBER(zr107_state::ccu_w)
 void zr107_state::machine_start()
 {
 	/* set conservative DRC options */
-	ppcdrc_set_options(machine().device("maincpu"), PPCDRC_COMPATIBLE_OPTIONS);
+	ppcdrc_set_options(m_maincpu, PPCDRC_COMPATIBLE_OPTIONS);
+
+	m_sound_irq_timer = timer_alloc(TIMER_IRQ_OFF);
 
 	/* configure fast RAM regions for DRC */
-	ppcdrc_add_fastram(machine().device("maincpu"), 0x00000000, 0x000fffff, FALSE, m_workram);
+	ppcdrc_add_fastram(m_maincpu, 0x00000000, 0x000fffff, FALSE, m_workram);
 }
 
 static ADDRESS_MAP_START( zr107_map, AS_PROGRAM, 32, zr107_state )
@@ -428,8 +445,8 @@ static ADDRESS_MAP_START( zr107_map, AS_PROGRAM, 32, zr107_state )
 	AM_RANGE(0x78040000, 0x7804000f) AM_READWRITE_LEGACY(K001006_0_r, K001006_0_w)
 	AM_RANGE(0x780c0000, 0x780c0007) AM_READWRITE_LEGACY(cgboard_dsp_comm_r_ppc, cgboard_dsp_comm_w_ppc)
 	AM_RANGE(0x7e000000, 0x7e003fff) AM_READWRITE8(sysreg_r, sysreg_w, 0xffffffff)
-	AM_RANGE(0x7e008000, 0x7e009fff) AM_DEVREADWRITE8_LEGACY("k056230", k056230_r, k056230_w, 0xffffffff)               /* LANC registers */
-	AM_RANGE(0x7e00a000, 0x7e00bfff) AM_DEVREADWRITE_LEGACY("k056230", lanc_ram_r, lanc_ram_w)      /* LANC Buffer RAM (27E) */
+	AM_RANGE(0x7e008000, 0x7e009fff) AM_DEVREADWRITE8("k056230", k056230_device, k056230_r, k056230_w, 0xffffffff)               /* LANC registers */
+	AM_RANGE(0x7e00a000, 0x7e00bfff) AM_DEVREADWRITE("k056230", k056230_device, lanc_ram_r, lanc_ram_w)      /* LANC Buffer RAM (27E) */
 	AM_RANGE(0x7e00c000, 0x7e00c007) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
 	AM_RANGE(0x7e00c008, 0x7e00c00f) AM_DEVREAD_LEGACY("k056800", k056800_host_r)
 	AM_RANGE(0x7f800000, 0x7f9fffff) AM_ROM AM_SHARE("share2")
@@ -456,8 +473,8 @@ static ADDRESS_MAP_START( jetwave_map, AS_PROGRAM, 32, zr107_state )
 	AM_RANGE(0x78080000, 0x7808000f) AM_MIRROR(0x80000000) AM_READWRITE_LEGACY(K001006_1_r, K001006_1_w)
 	AM_RANGE(0x780c0000, 0x780c0007) AM_MIRROR(0x80000000) AM_READWRITE_LEGACY(cgboard_dsp_comm_r_ppc, cgboard_dsp_comm_w_ppc)
 	AM_RANGE(0x7e000000, 0x7e003fff) AM_MIRROR(0x80000000) AM_READWRITE8(sysreg_r, sysreg_w, 0xffffffff)
-	AM_RANGE(0x7e008000, 0x7e009fff) AM_MIRROR(0x80000000) AM_DEVREADWRITE8_LEGACY("k056230", k056230_r, k056230_w, 0xffffffff)             /* LANC registers */
-	AM_RANGE(0x7e00a000, 0x7e00bfff) AM_MIRROR(0x80000000) AM_DEVREADWRITE_LEGACY("k056230", lanc_ram_r, lanc_ram_w)    /* LANC Buffer RAM (27E) */
+	AM_RANGE(0x7e008000, 0x7e009fff) AM_MIRROR(0x80000000) AM_DEVREADWRITE8("k056230", k056230_device, k056230_r, k056230_w, 0xffffffff)             /* LANC registers */
+	AM_RANGE(0x7e00a000, 0x7e00bfff) AM_MIRROR(0x80000000) AM_DEVREADWRITE("k056230", k056230_device, lanc_ram_r, lanc_ram_w)    /* LANC Buffer RAM (27E) */
 	AM_RANGE(0x7e00c000, 0x7e00c007) AM_MIRROR(0x80000000) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
 	AM_RANGE(0x7e00c008, 0x7e00c00f) AM_MIRROR(0x80000000) AM_DEVREAD_LEGACY("k056800", k056800_host_r)
 	AM_RANGE(0x7f000000, 0x7f3fffff) AM_MIRROR(0x80000000) AM_ROM AM_REGION("user2", 0)
@@ -472,8 +489,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_memmap, AS_PROGRAM, 16, zr107_state )
 	AM_RANGE(0x000000, 0x01ffff) AM_ROM
 	AM_RANGE(0x100000, 0x103fff) AM_RAM     /* Work RAM */
-	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("konami1", k054539_device, read, write, 0xff00)
-	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("konami2", k054539_device, read, write, 0x00ff)
+	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("k054539_1", k054539_device, read, write, 0xff00)
+	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("k054539_2", k054539_device, read, write, 0x00ff)
 	AM_RANGE(0x400000, 0x40000f) AM_DEVWRITE_LEGACY("k056800", k056800_sound_w)
 	AM_RANGE(0x400010, 0x40001f) AM_DEVREAD_LEGACY("k056800", k056800_sound_r)
 	AM_RANGE(0x580000, 0x580001) AM_WRITENOP
@@ -521,13 +538,13 @@ static INPUT_PORTS_START( zr107 )
 
 	PORT_START("IN2")
 	PORT_BIT( 0x7f, IP_ACTIVE_HIGH, IPT_UNKNOWN )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE("adc0838", adc083x_do_read)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("adc0838", adc083x_device, do_read)
 
 	PORT_START("IN4")
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) /* PARAACK */
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE("adc0838",adc083x_sars_read)
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom",eeprom_device,read_bit)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("adc0838", adc083x_device, sars_read)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
 
 	PORT_START("EEPROMOUT")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
@@ -535,9 +552,9 @@ static INPUT_PORTS_START( zr107 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
 
 	PORT_START("OUT4")
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE("adc0838", adc083x_cs_write)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE("adc0838", adc083x_di_write)
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE("adc0838", adc083x_clk_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("adc0838", adc083x_device, cs_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("adc0838", adc083x_device, di_write)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("adc0838", adc083x_device, clk_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( midnrun )
@@ -673,14 +690,16 @@ static double adc0838_callback( device_t *device, UINT8 input )
 }
 
 
-static const adc083x_interface zr107_adc_interface = {
-	adc0838_callback
-};
-
-
-TIMER_CALLBACK_MEMBER(zr107_state::irq_off)
+void zr107_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("audiocpu")->execute().set_input_line(param, CLEAR_LINE);
+	switch (id)
+	{
+	case TIMER_IRQ_OFF:
+		m_audiocpu->set_input_line(param, CLEAR_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in zr107_state::device_timer");
+	}
 }
 
 static void sound_irq_callback( running_machine &machine, int irq )
@@ -688,8 +707,8 @@ static void sound_irq_callback( running_machine &machine, int irq )
 	zr107_state *state = machine.driver_data<zr107_state>();
 	int line = (irq == 0) ? INPUT_LINE_IRQ1 : INPUT_LINE_IRQ2;
 
-	machine.device("audiocpu")->execute().set_input_line(line, ASSERT_LINE);
-	machine.scheduler().timer_set(attotime::from_usec(1), timer_expired_delegate(FUNC(zr107_state::irq_off),state), line);
+	state->m_audiocpu->set_input_line(line, ASSERT_LINE);
+	state->timer_set(attotime::from_usec(5), zr107_state::TIMER_IRQ_OFF, line);
 }
 
 static const k056800_interface zr107_k056800_interface =
@@ -726,20 +745,20 @@ INTERRUPT_GEN_MEMBER(zr107_state::zr107_vblank)
 
 void zr107_state::machine_reset()
 {
-	machine().device("dsp")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
 static MACHINE_CONFIG_START( zr107, zr107_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", PPC403GA, 64000000/2)   /* PowerPC 403GA 32MHz */
+	MCFG_CPU_ADD("maincpu", PPC403GA, XTAL_64MHz/2)   /* PowerPC 403GA 32MHz */
 	MCFG_CPU_PROGRAM_MAP(zr107_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", zr107_state,  zr107_vblank)
 
-	MCFG_CPU_ADD("audiocpu", M68000, 64000000/8)    /* 8MHz */
+	MCFG_CPU_ADD("audiocpu", M68000, XTAL_64MHz/8)    /* 8MHz */
 	MCFG_CPU_PROGRAM_MAP(sound_memmap)
 
-	MCFG_CPU_ADD("dsp", ADSP21062, 36000000)
+	MCFG_CPU_ADD("dsp", ADSP21062, XTAL_36MHz)
 	MCFG_CPU_CONFIG(sharc_cfg)
 	MCFG_CPU_DATA_MAP(sharc_map)
 
@@ -762,40 +781,42 @@ static MACHINE_CONFIG_START( zr107, zr107_state )
 
 	MCFG_K056832_ADD("k056832", zr107_k056832_intf)
 
-	MCFG_K056800_ADD("k056800", zr107_k056800_interface)
+	MCFG_K056800_ADD("k056800", zr107_k056800_interface, XTAL_64MHz/4)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_K054539_ADD("konami1", 48000, k054539_config)
+	MCFG_K054539_ADD("k054539_1", 48000, k054539_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
-	MCFG_K054539_ADD("konami2", 48000, k054539_config)
+	MCFG_K054539_ADD("k054539_2", 48000, k054539_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
-	MCFG_ADC0838_ADD("adc0838", zr107_adc_interface)
+	MCFG_DEVICE_ADD("adc0838", ADC0838, 0)
+	MCFG_ADC083X_INPUT_CALLBACK(adc0838_callback)
 MACHINE_CONFIG_END
 
 
 static const k001604_interface jetwave_k001604_intf =
 {
 	0, 1,   /* gfx index 1 & 2 */
-	0, 1,       /* layer_size, roz_size */
-	0       /* slrasslt hack */
+	0, 0,       /* layer_size, roz_size */
+	0,      /* text layer mem offset */
+	16384,  /* roz layer mem offset */
 };
 
 static MACHINE_CONFIG_START( jetwave, zr107_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", PPC403GA, 64000000/2)   /* PowerPC 403GA 32MHz */
+	MCFG_CPU_ADD("maincpu", PPC403GA, XTAL_64MHz/2)   /* PowerPC 403GA 32MHz */
 	MCFG_CPU_PROGRAM_MAP(jetwave_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", zr107_state,  zr107_vblank)
 
-	MCFG_CPU_ADD("audiocpu", M68000, 64000000/8)    /* 8MHz */
+	MCFG_CPU_ADD("audiocpu", M68000, XTAL_64MHz/8)    /* 8MHz */
 	MCFG_CPU_PROGRAM_MAP(sound_memmap)
 
-	MCFG_CPU_ADD("dsp", ADSP21062, 36000000)
+	MCFG_CPU_ADD("dsp", ADSP21062, XTAL_36MHz)
 	MCFG_CPU_CONFIG(sharc_cfg)
 	MCFG_CPU_DATA_MAP(sharc_map)
 
@@ -818,20 +839,21 @@ static MACHINE_CONFIG_START( jetwave, zr107_state )
 
 	MCFG_K001604_ADD("k001604", jetwave_k001604_intf)
 
-	MCFG_K056800_ADD("k056800", zr107_k056800_interface)
+	MCFG_K056800_ADD("k056800", zr107_k056800_interface, XTAL_64MHz/4)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_K054539_ADD("konami1", 48000, k054539_config)
+	MCFG_K054539_ADD("k054539_1", 48000, k054539_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
-	MCFG_K054539_ADD("konami2", 48000, k054539_config)
+	MCFG_K054539_ADD("k054539_2", 48000, k054539_config)
 	MCFG_SOUND_CONFIG(k054539_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.75)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.75)
 
-	MCFG_ADC0838_ADD("adc0838", zr107_adc_interface)
+	MCFG_DEVICE_ADD("adc0838", ADC0838, 0)
+	MCFG_ADC083X_INPUT_CALLBACK(adc0838_callback)
 MACHINE_CONFIG_END
 
 /*****************************************************************************/

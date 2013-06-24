@@ -60,7 +60,7 @@ static SOUND_RESET( jedi )
 
 WRITE8_MEMBER(jedi_state::irq_ack_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+	m_audiocpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
 }
 
 
@@ -73,7 +73,7 @@ WRITE8_MEMBER(jedi_state::irq_ack_w)
 
 WRITE8_MEMBER(jedi_state::jedi_audio_reset_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, (data & 1) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 
@@ -94,7 +94,6 @@ WRITE8_MEMBER(jedi_state::jedi_audio_latch_w)
 
 READ8_MEMBER(jedi_state::audio_latch_r)
 {
-
 	*m_audio_comm_stat &= ~0x80;
 	return m_audio_latch;
 }
@@ -115,7 +114,6 @@ CUSTOM_INPUT_MEMBER(jedi_state::jedi_audio_comm_stat_r)
 
 READ8_MEMBER(jedi_state::jedi_audio_ack_latch_r)
 {
-
 	*m_audio_comm_stat &= ~0x40;
 	return m_audio_ack_latch;
 }
@@ -123,7 +121,6 @@ READ8_MEMBER(jedi_state::jedi_audio_ack_latch_r)
 
 WRITE8_MEMBER(jedi_state::audio_ack_latch_w)
 {
-
 	m_audio_ack_latch = data;
 	*m_audio_comm_stat |= 0x40;
 }
@@ -142,8 +139,8 @@ WRITE8_MEMBER(jedi_state::speech_strobe_w)
 
 	if ((new_speech_strobe_state != m_speech_strobe_state) && new_speech_strobe_state)
 	{
-		device_t *tms = machine().device("tms");
-		tms5220_data_w(tms, space, 0, *m_speech_data);
+		tms5220_device *tms5220 = machine().device<tms5220_device>("tms");
+		tms5220->data_w(space, 0, *m_speech_data);
 	}
 	m_speech_strobe_state = new_speech_strobe_state;
 }
@@ -151,7 +148,8 @@ WRITE8_MEMBER(jedi_state::speech_strobe_w)
 
 READ8_MEMBER(jedi_state::speech_ready_r)
 {
-	return (tms5220_readyq_r(machine().device("tms"))) << 7;
+	tms5220_device *tms5220 = machine().device<tms5220_device>("tms");
+	return (tms5220->readyq_r()) << 7;
 }
 
 

@@ -32,19 +32,19 @@ Notes:
 WRITE8_MEMBER(spdodgeb_state::sound_command_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(M6809_IRQ_LINE, HOLD_LINE);
+	m_audiocpu->set_input_line(M6809_IRQ_LINE, HOLD_LINE);
 }
 
 WRITE8_MEMBER(spdodgeb_state::spd_adpcm_w)
 {
 	int chip = offset & 1;
-	device_t *adpcm = machine().device((chip == 0) ? "msm1" : "msm2");
+	msm5205_device *adpcm = chip ? m_msm2 : m_msm1;
 
 	switch (offset/2)
 	{
 		case 3:
 			m_adpcm_idle[chip] = 1;
-			msm5205_reset_w(adpcm,1);
+			adpcm->reset_w(1);
 			break;
 
 		case 2:
@@ -57,39 +57,45 @@ WRITE8_MEMBER(spdodgeb_state::spd_adpcm_w)
 
 		case 0:
 			m_adpcm_idle[chip] = 0;
-			msm5205_reset_w(adpcm,0);
+			adpcm->reset_w(0);
 			break;
 	}
 }
 
-static void spd_adpcm_int(device_t *device)
+void spdodgeb_state::spd_adpcm_int( msm5205_device *device, int chip )
 {
-	spdodgeb_state *state = device->machine().driver_data<spdodgeb_state>();
-	int chip = (strcmp(device->tag(), ":msm1") == 0) ? 0 : 1;
-	if (state->m_adpcm_pos[chip] >= state->m_adpcm_end[chip] || state->m_adpcm_pos[chip] >= 0x10000)
+	if (m_adpcm_pos[chip] >= m_adpcm_end[chip] || m_adpcm_pos[chip] >= 0x10000)
 	{
-		state->m_adpcm_idle[chip] = 1;
-		msm5205_reset_w(device,1);
+		m_adpcm_idle[chip] = 1;
+		device->reset_w(1);
 	}
-	else if (state->m_adpcm_data[chip] != -1)
+	else if (m_adpcm_data[chip] != -1)
 	{
-		msm5205_data_w(device,state->m_adpcm_data[chip] & 0x0f);
-		state->m_adpcm_data[chip] = -1;
+		device->data_w(m_adpcm_data[chip] & 0x0f);
+		m_adpcm_data[chip] = -1;
 	}
 	else
 	{
-		UINT8 *ROM = device->machine().root_device().memregion("adpcm")->base() + 0x10000 * chip;
+		UINT8 *ROM = memregion("adpcm")->base() + 0x10000 * chip;
 
-		state->m_adpcm_data[chip] = ROM[state->m_adpcm_pos[chip]++];
-		msm5205_data_w(device,state->m_adpcm_data[chip] >> 4);
+		m_adpcm_data[chip] = ROM[m_adpcm_pos[chip]++];
+		device->data_w(m_adpcm_data[chip] >> 4);
 	}
 }
 
+WRITE_LINE_MEMBER(spdodgeb_state::spd_adpcm_int_1)
+{
+	spd_adpcm_int(m_msm1, 0);
+}
+
+WRITE_LINE_MEMBER(spdodgeb_state::spd_adpcm_int_2)
+{
+	spd_adpcm_int(m_msm2, 1);
+}
 
 #if 0   // default - more sensitive (state change and timing measured on real board?)
-static void mcu63705_update_inputs(running_machine &machine)
+void spdodgeb_state::mcu63705_update_inputs()
 {
-	spdodgeb_state *state = machine.driver_data<spdodgeb_state>();
 	int buttons[2];
 	int p,j;
 
@@ -98,34 +104,34 @@ static void mcu63705_update_inputs(running_machine &machine)
 	{
 		int curr[2][2];
 
-		curr[p][0] = state->ioport(p ? "P2" : "P1")->read() & 0x01;
-		curr[p][1] = state->ioport(p ? "P2" : "P1")->read() & 0x02;
+		curr[p][0] = ioport(p ? "P2" : "P1")->read() & 0x01;
+		curr[p][1] = ioport(p ? "P2" : "P1")->read() & 0x02;
 
 		for (j = 0;j <= 1;j++)
 		{
 			if (curr[p][j] == 0)
 			{
-				if (state->m_prev[p][j] != 0)
-					state->m_countup[p][j] = 0;
+				if (m_prev[p][j] != 0)
+					m_countup[p][j] = 0;
 				if (curr[p][j^1])
-					state->m_countup[p][j] = 100;
-				state->m_countup[p][j]++;
-				state->m_running[p] &= ~(1 << j);
+					m_countup[p][j] = 100;
+				m_countup[p][j]++;
+				m_running[p] &= ~(1 << j);
 			}
 			else
 			{
-				if (state->m_prev[p][j] == 0)
+				if (m_prev[p][j] == 0)
 				{
-					if (state->m_countup[p][j] < 10 && state->m_countdown[p][j] < 5)
-						state->m_running[p] |= 1 << j;
-					state->m_countdown[p][j] = 0;
+					if (m_countup[p][j] < 10 && m_countdown[p][j] < 5)
+						m_running[p] |= 1 << j;
+					m_countdown[p][j] = 0;
 				}
-				state->m_countdown[p][j]++;
+				m_countdown[p][j]++;
 			}
 		}
 
-		state->m_prev[p][0] = curr[p][0];
-		state->m_prev[p][1] = curr[p][1];
+		m_prev[p][0] = curr[p][0];
+		m_prev[p][1] = curr[p][1];
 	}
 
 	/* update jumping and buttons state */
@@ -133,26 +139,25 @@ static void mcu63705_update_inputs(running_machine &machine)
 	{
 		int curr[2];
 
-		curr[p] = machine.root_device().ioport(p ? "P2" : "P1")->read() & 0x30;
+		curr[p] = ioport(p ? "P2" : "P1")->read() & 0x30;
 
-		if (state->m_jumped[p]) buttons[p] = 0; /* jump only momentarily flips the buttons */
+		if (m_jumped[p]) buttons[p] = 0; /* jump only momentarily flips the buttons */
 		else buttons[p] = curr[p];
 
-		if (buttons[p] == 0x30) state->m_jumped[p] = 1;
-		if (curr[p] == 0x00) state->m_jumped[p] = 0;
+		if (buttons[p] == 0x30) m_jumped[p] = 1;
+		if (curr[p] == 0x00) m_jumped[p] = 0;
 
-		state->m_prev[p] = curr[p];
+		m_prev[p] = curr[p];
 	}
 
-	state->m_inputs[0] = machine.root_device().ioport("P1")->read() & 0xcf;
-	state->m_inputs[1] = machine.root_device().ioport("P2")->read() & 0x0f;
-	state->m_inputs[2] = state->m_running[0] | buttons[0];
-	state->m_inputs[3] = state->m_running[1] | buttons[1];
+	m_inputs[0] = ioport("P1")->read() & 0xcf;
+	m_inputs[1] = ioport("P2")->read() & 0x0f;
+	m_inputs[2] = m_running[0] | buttons[0];
+	m_inputs[3] = m_running[1] | buttons[1];
 }
 #else   // alternate - less sensitive
-static void mcu63705_update_inputs(running_machine &machine)
+void spdodgeb_state::mcu63705_update_inputs()
 {
-	spdodgeb_state *state = machine.driver_data<spdodgeb_state>();
 #define DBLTAP_TOLERANCE 5
 
 #define R 0x01
@@ -166,40 +171,40 @@ static void mcu63705_update_inputs(running_machine &machine)
 
 	for (p=0; p<=1; p++)
 	{
-		curr_port[p] = state->ioport(p ? "P2" : "P1")->read();
+		curr_port[p] = ioport(p ? "P2" : "P1")->read();
 		curr_dash[p] = 0;
 
 		if (curr_port[p] & R)
 		{
-			if (!(state->m_last_port[p] & R))
+			if (!(m_last_port[p] & R))
 			{
-				if (state->m_tapc[p]) curr_dash[p] |= R; else state->m_tapc[p] = DBLTAP_TOLERANCE;
+				if (m_tapc[p]) curr_dash[p] |= R; else m_tapc[p] = DBLTAP_TOLERANCE;
 			}
-			else if (state->m_last_dash[p] & R) curr_dash[p] |= R;
+			else if (m_last_dash[p] & R) curr_dash[p] |= R;
 		}
 		else if (curr_port[p] & L)
 		{
-			if (!(state->m_last_port[p] & L))
+			if (!(m_last_port[p] & L))
 			{
-				if (state->m_tapc[p+2]) curr_dash[p] |= L; else state->m_tapc[p+2] = DBLTAP_TOLERANCE;
+				if (m_tapc[p+2]) curr_dash[p] |= L; else m_tapc[p+2] = DBLTAP_TOLERANCE;
 			}
-			else if (state->m_last_dash[p] & L) curr_dash[p] |= L;
+			else if (m_last_dash[p] & L) curr_dash[p] |= L;
 		}
 
-		if (curr_port[p] & A && !(state->m_last_port[p] & A)) curr_dash[p] |= A;
-		if (curr_port[p] & D && !(state->m_last_port[p] & D)) curr_dash[p] |= D;
+		if (curr_port[p] & A && !(m_last_port[p] & A)) curr_dash[p] |= A;
+		if (curr_port[p] & D && !(m_last_port[p] & D)) curr_dash[p] |= D;
 
-		state->m_last_port[p] = curr_port[p];
-		state->m_last_dash[p] = curr_dash[p];
+		m_last_port[p] = curr_port[p];
+		m_last_dash[p] = curr_dash[p];
 
-		if (state->m_tapc[p  ]) state->m_tapc[p  ]--;
-		if (state->m_tapc[p+2]) state->m_tapc[p+2]--;
+		if (m_tapc[p  ]) m_tapc[p  ]--;
+		if (m_tapc[p+2]) m_tapc[p+2]--;
 	}
 
-	state->m_inputs[0] = curr_port[0] & 0xcf;
-	state->m_inputs[1] = curr_port[1] & 0x0f;
-	state->m_inputs[2] = curr_dash[0];
-	state->m_inputs[3] = curr_dash[1];
+	m_inputs[0] = curr_port[0] & 0xcf;
+	m_inputs[1] = curr_port[1] & 0x0f;
+	m_inputs[2] = curr_dash[0];
+	m_inputs[3] = curr_dash[1];
 
 #undef DBLTAP_TOLERANCE
 #undef R
@@ -229,7 +234,7 @@ WRITE8_MEMBER(spdodgeb_state::mcu63701_w)
 {
 //  logerror("CPU #0 PC %04x: write %02x to 63701 control address 3800\n",space.device().safe_pc(),data);
 	m_mcu63701_command = data;
-	mcu63705_update_inputs(machine());
+	mcu63705_update_inputs();
 }
 
 
@@ -264,7 +269,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( spdodgeb_sound_map, AS_PROGRAM, 8, spdodgeb_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
 	AM_RANGE(0x1000, 0x1000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x2800, 0x2801) AM_DEVWRITE_LEGACY("ymsnd", ym3812_w)
+	AM_RANGE(0x2800, 0x2801) AM_DEVWRITE("ymsnd", ym3812_device, write)
 	AM_RANGE(0x3800, 0x3807) AM_WRITE(spd_adpcm_w)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -377,22 +382,22 @@ static GFXDECODE_START( spdodgeb )
 GFXDECODE_END
 
 
-static void irq_handler(device_t *device, int irq)
+WRITE_LINE_MEMBER(spdodgeb_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(M6809_FIRQ_LINE, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(M6809_FIRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym3812_interface ym3812_config =
+static const msm5205_interface msm5205_config_1 =
 {
-	irq_handler
-};
-
-static const msm5205_interface msm5205_config =
-{
-	spd_adpcm_int,  /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(spdodgeb_state,spd_adpcm_int_1),  /* interrupt function */
 	MSM5205_S48_4B  /* 8kHz? */
 };
 
+static const msm5205_interface msm5205_config_2 =
+{
+	DEVCB_DRIVER_LINE_MEMBER(spdodgeb_state,spd_adpcm_int_2),  /* interrupt function */
+	MSM5205_S48_4B  /* 8kHz? */
+};
 
 void spdodgeb_state::machine_reset()
 {
@@ -432,17 +437,17 @@ static MACHINE_CONFIG_START( spdodgeb, spdodgeb_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, 3000000)
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(spdodgeb_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("msm1", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_SOUND_CONFIG(msm5205_config_1)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 
 	MCFG_SOUND_ADD("msm2", MSM5205, 384000)
-	MCFG_SOUND_CONFIG(msm5205_config)
+	MCFG_SOUND_CONFIG(msm5205_config_2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 MACHINE_CONFIG_END

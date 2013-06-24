@@ -43,14 +43,13 @@ WRITE8_MEMBER(dogfgt_state::dogfgt_soundlatch_w)
 
 WRITE8_MEMBER(dogfgt_state::dogfgt_soundcontrol_w)
 {
-
 	/* bit 5 goes to 8910 #0 BDIR pin  */
 	if ((m_last_snd_ctrl & 0x20) == 0x20 && (data & 0x20) == 0x00)
-		ay8910_data_address_w(machine().device("ay1"), space, m_last_snd_ctrl >> 4, m_soundlatch);
+		machine().device<ay8910_device>("ay1")->data_address_w(space, m_last_snd_ctrl >> 4, m_soundlatch);
 
 	/* bit 7 goes to 8910 #1 BDIR pin  */
 	if ((m_last_snd_ctrl & 0x80) == 0x80 && (data & 0x80) == 0x00)
-		ay8910_data_address_w(machine().device("ay2"), space, m_last_snd_ctrl >> 6, m_soundlatch);
+		machine().device<ay8910_device>("ay2")->data_address_w(space, m_last_snd_ctrl >> 6, m_soundlatch);
 
 	m_last_snd_ctrl = data;
 }
@@ -208,9 +207,6 @@ GFXDECODE_END
 
 void dogfgt_state::machine_start()
 {
-
-	m_subcpu = machine().device<cpu_device>("sub");
-
 	save_item(NAME(m_bm_plane));
 	save_item(NAME(m_lastflip));
 	save_item(NAME(m_pixcolor));
@@ -249,7 +245,6 @@ static MACHINE_CONFIG_START( dogfgt, dogfgt_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -260,7 +255,6 @@ static MACHINE_CONFIG_START( dogfgt, dogfgt_state )
 
 	MCFG_GFXDECODE(dogfgt)
 	MCFG_PALETTE_LENGTH(16+64)
-
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -378,6 +372,6 @@ ROM_END
 
 
 
-GAME( 1984, dogfgt,  0,      dogfgt, dogfgt, driver_device, 0, ROT0, "Technos Japan",       "Acrobatic Dog-Fight", GAME_SUPPORTS_SAVE )
-GAME( 1985, dogfgtu, dogfgt, dogfgt, dogfgt, driver_device, 0, ROT0, "Data East USA, Inc.", "Acrobatic Dog-Fight (USA)", GAME_SUPPORTS_SAVE )
-GAME( 1984, dogfgtj, dogfgt, dogfgt, dogfgt, driver_device, 0, ROT0, "Technos Japan",       "Dog-Fight (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1984, dogfgt,  0,      dogfgt, dogfgt, driver_device, 0, ROT0, "Technos Japan", "Acrobatic Dog-Fight", GAME_SUPPORTS_SAVE )
+GAME( 1985, dogfgtu, dogfgt, dogfgt, dogfgt, driver_device, 0, ROT0, "Technos Japan (Data East USA, Inc. license)", "Acrobatic Dog-Fight (USA)", GAME_SUPPORTS_SAVE )
+GAME( 1984, dogfgtj, dogfgt, dogfgt, dogfgt, driver_device, 0, ROT0, "Technos Japan", "Dog-Fight (Japan)", GAME_SUPPORTS_SAVE )

@@ -54,11 +54,17 @@ INTERRUPT_GEN_MEMBER(galastrm_state::galastrm_interrupt)
 	device.execute().set_input_line(5, HOLD_LINE);
 }
 
-TIMER_CALLBACK_MEMBER(galastrm_state::galastrm_interrupt6)
+void galastrm_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(6, HOLD_LINE);
+	switch (id)
+	{
+	case TIMER_GALASTRM_INTERRUPT6:
+		m_maincpu->set_input_line(6, HOLD_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in galastrm_state::device_timer");
+	}
 }
-
 
 
 WRITE32_MEMBER(galastrm_state::galastrm_palette_w)
@@ -98,7 +104,6 @@ CUSTOM_INPUT_MEMBER(galastrm_state::coin_word_r)
 
 WRITE32_MEMBER(galastrm_state::galastrm_input_w)
 {
-
 #if 0
 {
 char t[64];
@@ -120,10 +125,9 @@ popmessage(t);
 
 			if (ACCESSING_BITS_0_7)
 			{
-				eeprom_device *eeprom = machine().device<eeprom_device>("eeprom");
-				eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
-				eeprom->write_bit(data & 0x40);
-				eeprom->set_cs_line((data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
+				m_eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+				m_eeprom->write_bit(data & 0x40);
+				m_eeprom->set_cs_line((data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
 				return;
 			}
 			return;
@@ -158,7 +162,7 @@ READ32_MEMBER(galastrm_state::galastrm_adstick_ctrl_r)
 
 WRITE32_MEMBER(galastrm_state::galastrm_adstick_ctrl_w)
 {
-	machine().scheduler().timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(1000), timer_expired_delegate(FUNC(galastrm_state::galastrm_interrupt6),this));
+	timer_set(downcast<cpu_device *>(&space.device())->cycles_to_attotime(1000), TIMER_GALASTRM_INTERRUPT6);
 }
 
 /***********************************************************

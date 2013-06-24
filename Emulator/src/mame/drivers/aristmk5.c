@@ -96,7 +96,6 @@ TIMER_CALLBACK_MEMBER(aristmk5_state::mk5_VSYNC_callback)
 
 WRITE32_MEMBER(aristmk5_state::Ns5w48)
 {
-
 	/*
 	There is one writeable register which is written with the Ns5w48 strobe. It contains four bits which are
 	taken from bits 16 to 19 of the word being written. The register is cleared whenever the chip is reset. The
@@ -184,7 +183,7 @@ READ32_MEMBER(aristmk5_state::Ns5x58)
 	// reset 2KHz timer
 	m_mk5_2KHz_timer->adjust(attotime::from_hz(1953.125));
 	m_ioc_regs[IRQ_STATUS_A] &= ~0x01;
-	machine().device("maincpu")->execute().set_input_line(ARM_IRQ_LINE, CLEAR_LINE);
+	m_maincpu->set_input_line(ARM_IRQ_LINE, CLEAR_LINE);
 	return 0xffffffff;
 }
 
@@ -362,13 +361,13 @@ INPUT_PORTS_END
 
 DRIVER_INIT_MEMBER(aristmk5_state,aristmk5)
 {
-	UINT8 *SRAM    = machine().root_device().memregion("sram")->base();
-	UINT8 *SRAM_NZ = machine().root_device().memregion("sram")->base();
+	UINT8 *SRAM    = memregion("sram")->base();
+	UINT8 *SRAM_NZ = memregion("sram")->base();
 
 	archimedes_driver_init();
 
-	machine().root_device().membank("sram_bank")->configure_entries(0, 4,    &SRAM[0],    0x20000);
-	machine().root_device().membank("sram_bank_nz")->configure_entries(0, 4, &SRAM_NZ[0], 0x20000);
+	membank("sram_bank")->configure_entries(0, 4,    &SRAM[0],    0x20000);
+	membank("sram_bank_nz")->configure_entries(0, 4, &SRAM_NZ[0], 0x20000);
 }
 
 
@@ -377,7 +376,7 @@ void aristmk5_state::machine_start()
 	archimedes_init();
 
 	// reset the DAC to centerline
-	//machine().device<dac_device>("dac")->write_signed8(0x80);
+	//m_dac->write_signed8(0x80);
 
 	m_mk5_2KHz_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(aristmk5_state::mk5_2KHz_callback),this));
 	m_mk5_VSYNC_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(aristmk5_state::mk5_VSYNC_callback),this));
@@ -399,9 +398,9 @@ void aristmk5_state::machine_reset()
 		UINT8 op_mode;
 		static const char *const rom_region[] = { "set_chip_4.04", "set_chip_4.4", "clear_chip", "game_prg" };
 
-		op_mode = machine().root_device().ioport("ROM_LOAD")->read();
+		op_mode = ioport("ROM_LOAD")->read();
 
-		PRG = machine().root_device().memregion(rom_region[op_mode & 3])->base();
+		PRG = memregion(rom_region[op_mode & 3])->base();
 
 		if(PRG!=NULL)
 
@@ -526,8 +525,7 @@ MACHINE_CONFIG_END
 	ROM_REGION( 0x400000, "clear_chip", ROMREGION_ERASEFF ) \
 	/* clear chip */ \
 	ROM_LOAD32_WORD( "clear.u7",  0x000000, 0x80000, CRC(5a254b22) SHA1(8444f237b392df2a3cb42ea349e7af32f47dd544) ) \
-	ROM_LOAD32_WORD( "clear.u11", 0x000002, 0x80000, CRC(def36617) SHA1(c7ba5b08e884a8fb36c9fb51c08e243e32c81f89) ) \
-
+	ROM_LOAD32_WORD( "clear.u11", 0x000002, 0x80000, CRC(def36617) SHA1(c7ba5b08e884a8fb36c9fb51c08e243e32c81f89) )
 ROM_START( aristmk5 )
 	ARISTOCRAT_MK5_BIOS
 

@@ -122,28 +122,24 @@ WRITE8_MEMBER(xain_state::xain_charram_w)
 
 WRITE8_MEMBER(xain_state::xain_scrollxP0_w)
 {
-
 	m_scrollxP0[offset] = data;
 	m_bgram0_tilemap->set_scrollx(0, m_scrollxP0[0]|(m_scrollxP0[1]<<8));
 }
 
 WRITE8_MEMBER(xain_state::xain_scrollyP0_w)
 {
-
 	m_scrollyP0[offset] = data;
 	m_bgram0_tilemap->set_scrolly(0, m_scrollyP0[0]|(m_scrollyP0[1]<<8));
 }
 
 WRITE8_MEMBER(xain_state::xain_scrollxP1_w)
 {
-
 	m_scrollxP1[offset] = data;
 	m_bgram1_tilemap->set_scrollx(0, m_scrollxP1[0]|(m_scrollxP1[1]<<8));
 }
 
 WRITE8_MEMBER(xain_state::xain_scrollyP1_w)
 {
-
 	m_scrollyP1[offset] = data;
 	m_bgram1_tilemap->set_scrolly(0, m_scrollyP1[0]|(m_scrollyP1[1]<<8));
 }
@@ -161,13 +157,12 @@ WRITE8_MEMBER(xain_state::xain_flipscreen_w)
 
 ***************************************************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const rectangle &cliprect)
+void xain_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
-	xain_state *state = machine.driver_data<xain_state>();
-	UINT8 *spriteram = state->m_spriteram;
+	UINT8 *spriteram = m_spriteram;
 	int offs;
 
-	for (offs = 0; offs < state->m_spriteram.bytes();offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes();offs += 4)
 	{
 		int sx,sy,flipx,flipy;
 		int attr = spriteram[offs+1];
@@ -180,7 +175,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const re
 		if (sy <= -7) sy += 256;
 		flipx = attr & 0x40;
 		flipy = 0;
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			sx = 238 - sx;
 			sy = 240 - sy;
@@ -190,12 +185,12 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const re
 
 		if (attr & 0x80)    /* double height */
 		{
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[3],
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[3],
 					numtile,
 					color,
 					flipx,flipy,
 					sx,flipy ? sy+16:sy-16,0);
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[3],
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[3],
 					numtile+1,
 					color,
 					flipx,flipy,
@@ -203,7 +198,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap,const re
 		}
 		else
 		{
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[3],
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[3],
 					numtile,
 					color,
 					flipx,flipy,
@@ -219,48 +214,48 @@ UINT32 xain_state::screen_update_xain(screen_device &screen, bitmap_ind16 &bitma
 	case 0:
 		m_bgram0_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
 		m_bgram1_tilemap->draw(bitmap, cliprect, 0,0);
-		draw_sprites(machine(), bitmap,cliprect);
+		draw_sprites(bitmap,cliprect);
 		m_char_tilemap->draw(bitmap, cliprect, 0,0);
 		break;
 	case 1:
 		m_bgram1_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
 		m_bgram0_tilemap->draw(bitmap, cliprect, 0,0);
-		draw_sprites(machine(), bitmap,cliprect);
+		draw_sprites(bitmap,cliprect);
 		m_char_tilemap->draw(bitmap, cliprect, 0,0);
 		break;
 	case 2:
 		m_char_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
 		m_bgram0_tilemap->draw(bitmap, cliprect, 0,0);
-		draw_sprites(machine(), bitmap,cliprect);
+		draw_sprites(bitmap,cliprect);
 		m_bgram1_tilemap->draw(bitmap, cliprect, 0,0);
 		break;
 	case 3:
 		m_char_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
 		m_bgram1_tilemap->draw(bitmap, cliprect, 0,0);
-		draw_sprites(machine(), bitmap,cliprect);
+		draw_sprites(bitmap,cliprect);
 		m_bgram0_tilemap->draw(bitmap, cliprect, 0,0);
 		break;
 	case 4:
 		m_bgram0_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
 		m_char_tilemap->draw(bitmap, cliprect, 0,0);
-		draw_sprites(machine(), bitmap,cliprect);
+		draw_sprites(bitmap,cliprect);
 		m_bgram1_tilemap->draw(bitmap, cliprect, 0,0);
 		break;
 	case 5:
 		m_bgram1_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
 		m_char_tilemap->draw(bitmap, cliprect, 0,0);
-		draw_sprites(machine(), bitmap,cliprect);
+		draw_sprites(bitmap,cliprect);
 		m_bgram0_tilemap->draw(bitmap, cliprect, 0,0);
 		break;
 	case 6:
 		m_bgram0_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
-		draw_sprites(machine(), bitmap,cliprect);
+		draw_sprites(bitmap,cliprect);
 		m_bgram1_tilemap->draw(bitmap, cliprect, 0,0);
 		m_char_tilemap->draw(bitmap, cliprect, 0,0);
 		break;
 	case 7:
 		m_bgram1_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
-		draw_sprites(machine(), bitmap,cliprect);
+		draw_sprites(bitmap,cliprect);
 		m_bgram0_tilemap->draw(bitmap, cliprect, 0,0);
 		m_char_tilemap->draw(bitmap, cliprect, 0,0);
 		break;

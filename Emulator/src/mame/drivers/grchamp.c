@@ -79,7 +79,7 @@
 void grchamp_state::machine_reset()
 {
 	/* if the coin system is 1 way, lock Coin B (Page 40) */
-	coin_lockout_w(machine(), 1, (machine().root_device().ioport("DSWB")->read() & 0x10) ? 1 : 0);
+	coin_lockout_w(machine(), 1, (ioport("DSWB")->read() & 0x10) ? 1 : 0);
 }
 
 
@@ -92,7 +92,6 @@ void grchamp_state::machine_reset()
 
 INTERRUPT_GEN_MEMBER(grchamp_state::grchamp_cpu0_interrupt)
 {
-
 	if (m_cpu0_out[0] & 0x01)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
@@ -100,7 +99,6 @@ INTERRUPT_GEN_MEMBER(grchamp_state::grchamp_cpu0_interrupt)
 
 INTERRUPT_GEN_MEMBER(grchamp_state::grchamp_cpu1_interrupt)
 {
-
 	if (m_cpu1_out[4] & 0x01)
 		device.execute().set_input_line(0, ASSERT_LINE);
 }
@@ -129,7 +127,7 @@ WRITE8_MEMBER(grchamp_state::cpu0_outputs_w)
 			/* bit 6: FOG OUT */
 			/* bit 7: RADARON */
 			if ((diff & 0x01) && !(data & 0x01))
-				machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+				m_maincpu->set_input_line(0, CLEAR_LINE);
 			if ((diff & 0x02) && !(data & 0x02))
 				m_collide = m_collmode = 0;
 			break;
@@ -188,7 +186,7 @@ WRITE8_MEMBER(grchamp_state::cpu0_outputs_w)
 		case 0x0e:  /* OUT14 */
 			/* O-21 connector */
 			soundlatch_byte_w(space, 0, data);
-			machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+			m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 			break;
 	}
 }
@@ -240,7 +238,6 @@ WRITE8_MEMBER(grchamp_state::led_board_w)
 
 WRITE8_MEMBER(grchamp_state::cpu1_outputs_w)
 {
-	device_t *discrete = machine().device("discrete");
 	UINT8 diff = data ^ m_cpu1_out[offset];
 	m_cpu1_out[offset] = data;
 
@@ -267,7 +264,7 @@ WRITE8_MEMBER(grchamp_state::cpu1_outputs_w)
 		case 0x04:  /* OUT4 */
 			/* bit 0:   interrupt enable for CPU 1 */
 			if ((diff & 0x01) && !(data & 0x01))
-				machine().device("sub")->execute().set_input_line(0, CLEAR_LINE);
+				m_subcpu->set_input_line(0, CLEAR_LINE);
 			break;
 
 		case 0x05:  /* OUT5 - unused */
@@ -303,18 +300,18 @@ WRITE8_MEMBER(grchamp_state::cpu1_outputs_w)
 			/* bit 2-4: ATTACK UP 1-3 */
 			/* bit 5-6: SIFT 1-2 */
 			/* bit 7:   ENGINE CS */
-			discrete_sound_w(discrete, space, GRCHAMP_ENGINE_CS_EN, data & 0x80);
-			discrete_sound_w(discrete, space, GRCHAMP_SIFT_DATA, (data >> 5) & 0x03);
-			discrete_sound_w(discrete, space, GRCHAMP_ATTACK_UP_DATA, (data >> 2) & 0x07);
-			discrete_sound_w(discrete, space, GRCHAMP_IDLING_EN, data & 0x02);
-			discrete_sound_w(discrete, space, GRCHAMP_FOG_EN, data & 0x01);
+			discrete_sound_w(m_discrete, space, GRCHAMP_ENGINE_CS_EN, data & 0x80);
+			discrete_sound_w(m_discrete, space, GRCHAMP_SIFT_DATA, (data >> 5) & 0x03);
+			discrete_sound_w(m_discrete, space, GRCHAMP_ATTACK_UP_DATA, (data >> 2) & 0x07);
+			discrete_sound_w(m_discrete, space, GRCHAMP_IDLING_EN, data & 0x02);
+			discrete_sound_w(m_discrete, space, GRCHAMP_FOG_EN, data & 0x01);
 			break;
 
 		case 0x0d: /* OUTD */
 			/* bit 0-3: ATTACK SPEED 1-4 */
 			/* bit 4-7: PLAYER SPEED 1-4 */
-			discrete_sound_w(discrete, space, GRCHAMP_PLAYER_SPEED_DATA, (data >> 4) & 0x0f);
-			discrete_sound_w(discrete, space, GRCHAMP_ATTACK_SPEED_DATA,  data & 0x0f);
+			discrete_sound_w(m_discrete, space, GRCHAMP_PLAYER_SPEED_DATA, (data >> 4) & 0x0f);
+			discrete_sound_w(m_discrete, space, GRCHAMP_ATTACK_SPEED_DATA,  data & 0x0f);
 			break;
 
 		default:
@@ -412,14 +409,12 @@ READ8_MEMBER(grchamp_state::main_to_sub_comm_r)
 
 WRITE8_MEMBER(grchamp_state::grchamp_portA_0_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, GRCHAMP_A_DATA, data);
+	discrete_sound_w(m_discrete, space, GRCHAMP_A_DATA, data);
 }
 
 WRITE8_MEMBER(grchamp_state::grchamp_portB_0_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, GRCHAMP_B_DATA, 255-data);
+	discrete_sound_w(m_discrete, space, GRCHAMP_B_DATA, 255-data);
 }
 
 WRITE8_MEMBER(grchamp_state::grchamp_portA_2_w)
@@ -556,12 +551,12 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, grchamp_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x4000, 0x43ff) AM_RAM
-	AM_RANGE(0x4800, 0x4801) AM_MIRROR(0x07f8) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x4801, 0x4801) AM_MIRROR(0x07f8) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x4802, 0x4803) AM_MIRROR(0x07f8) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x4803, 0x4803) AM_MIRROR(0x07f8) AM_DEVREAD_LEGACY("ay2", ay8910_r)
-	AM_RANGE(0x4804, 0x4805) AM_MIRROR(0x07fa) AM_DEVWRITE_LEGACY("ay3", ay8910_address_data_w)
-	AM_RANGE(0x4805, 0x4805) AM_MIRROR(0x07fa) AM_DEVREAD_LEGACY("ay3", ay8910_r)
+	AM_RANGE(0x4800, 0x4801) AM_MIRROR(0x07f8) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x4801, 0x4801) AM_MIRROR(0x07f8) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x4802, 0x4803) AM_MIRROR(0x07f8) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x4803, 0x4803) AM_MIRROR(0x07f8) AM_DEVREAD("ay2", ay8910_device, data_r)
+	AM_RANGE(0x4804, 0x4805) AM_MIRROR(0x07fa) AM_DEVWRITE("ay3", ay8910_device, address_data_w)
+	AM_RANGE(0x4805, 0x4805) AM_MIRROR(0x07fa) AM_DEVREAD("ay3", ay8910_device, data_r)
 	AM_RANGE(0x5000, 0x5000) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
 

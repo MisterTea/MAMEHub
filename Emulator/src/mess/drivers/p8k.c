@@ -85,6 +85,32 @@ public:
 	void fdc_drq(bool state);
 
 	virtual void machine_start();
+
+	DECLARE_WRITE_LINE_MEMBER( p8k_daisy_interrupt );
+	DECLARE_WRITE_LINE_MEMBER( p8k_dma_irq_w );
+	DECLARE_WRITE16_MEMBER( pk8_sio_0_serial_transmit );
+	DECLARE_WRITE16_MEMBER( pk8_sio_1_serial_transmit );
+	DECLARE_READ16_MEMBER( p8k_16_sio0_r );
+	DECLARE_WRITE16_MEMBER( p8k_16_sio0_w );
+	DECLARE_READ16_MEMBER( p8k_16_sio1_r );
+	DECLARE_WRITE16_MEMBER( p8k_16_sio1_w );
+	DECLARE_READ16_MEMBER( p8k_16_pio0_r );
+	DECLARE_WRITE16_MEMBER( p8k_16_pio0_w );
+	DECLARE_READ16_MEMBER( p8k_16_pio1_r );
+	DECLARE_WRITE16_MEMBER( p8k_16_pio1_w );
+	DECLARE_READ16_MEMBER( p8k_16_pio2_r );
+	DECLARE_WRITE16_MEMBER( p8k_16_pio2_w );
+	DECLARE_READ16_MEMBER( p8k_16_ctc0_r );
+	DECLARE_WRITE16_MEMBER( p8k_16_ctc0_w );
+	DECLARE_READ16_MEMBER( p8k_16_ctc1_r );
+	DECLARE_WRITE16_MEMBER( p8k_16_ctc1_w );
+	DECLARE_WRITE_LINE_MEMBER( p8k_16_daisy_interrupt );
+	DECLARE_WRITE16_MEMBER( pk8_16_sio_0_serial_transmit );
+	DECLARE_WRITE16_MEMBER( pk8_16_sio_1_serial_transmit );
+	DECLARE_READ8_MEMBER(memory_read_byte);
+	DECLARE_WRITE8_MEMBER(memory_write_byte);
+	DECLARE_READ8_MEMBER(io_read_byte);
+	DECLARE_WRITE8_MEMBER(io_write_byte);
 };
 
 /***************************************************************************
@@ -204,33 +230,54 @@ static GENERIC_TERMINAL_INTERFACE( terminal_intf )
 
 ****************************************************************************/
 
-static WRITE_LINE_DEVICE_HANDLER( p8k_daisy_interrupt )
+WRITE_LINE_MEMBER( p8k_state::p8k_daisy_interrupt )
 {
-	device->machine().device("maincpu")->execute().set_input_line(0, state);
+	m_maincpu->set_input_line(0, state);
 }
 
 /* Z80 DMA */
 
-static WRITE_LINE_DEVICE_HANDLER( p8k_dma_irq_w )
+WRITE_LINE_MEMBER( p8k_state::p8k_dma_irq_w )
 {
-	i8272a_device *i8272 = device->machine().device<i8272a_device>("i8272");
+	i8272a_device *i8272 = machine().device<i8272a_device>("i8272");
 	i8272->tc_w(state);
 
-	p8k_daisy_interrupt(device, state);
+	p8k_daisy_interrupt(state);
 }
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(p8k_state::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(p8k_state::memory_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.write_byte(offset, data);
+}
+
+READ8_MEMBER(p8k_state::io_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(p8k_state::io_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_IO);
+	return prog_space.write_byte(offset, data);
+}
 
 static Z80DMA_INTERFACE( p8k_dma_intf )
 {
-	DEVCB_LINE(p8k_dma_irq_w),
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_dma_irq_w),
 	DEVCB_CPU_INPUT_LINE("maincpu", INPUT_LINE_IRQ0),
 	DEVCB_NULL,
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_read_byte),
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_write_byte),
-	DEVCB_MEMORY_HANDLER("maincpu", IO, memory_read_byte),
-	DEVCB_MEMORY_HANDLER("maincpu", IO, memory_write_byte)
+	DEVCB_DRIVER_MEMBER(p8k_state, memory_read_byte),
+	DEVCB_DRIVER_MEMBER(p8k_state, memory_write_byte),
+	DEVCB_DRIVER_MEMBER(p8k_state, io_read_byte),
+	DEVCB_DRIVER_MEMBER(p8k_state, io_write_byte)
 };
 
 /* Z80 CTC 0 */
@@ -300,35 +347,35 @@ static Z80PIO_INTERFACE( p8k_pio_2_intf )
 
 /* Z80 SIO 0 */
 
-static WRITE16_DEVICE_HANDLER( pk8_sio_0_serial_transmit )
+WRITE16_MEMBER( p8k_state::pk8_sio_0_serial_transmit )
 {
 // send character to terminal
 }
 
 static const z80sio_interface p8k_sio_0_intf =
 {
-	DEVCB_LINE(p8k_daisy_interrupt),            /* interrupt handler */
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_daisy_interrupt),            /* interrupt handler */
 	DEVCB_NULL,                 /* DTR changed handler */
 	DEVCB_NULL,                 /* RTS changed handler */
 	DEVCB_NULL,                 /* BREAK changed handler */
-	DEVCB_HANDLER(pk8_sio_0_serial_transmit),   /* transmit handler */
+	DEVCB_DRIVER_MEMBER16(p8k_state, pk8_sio_0_serial_transmit),   /* transmit handler */
 	DEVCB_NULL                  /* receive handler */
 };
 
 /* Z80 SIO 1 */
 
-static WRITE16_DEVICE_HANDLER( pk8_sio_1_serial_transmit )
+WRITE16_MEMBER( p8k_state::pk8_sio_1_serial_transmit )
 {
 // send character to terminal
 }
 
 static const z80sio_interface p8k_sio_1_intf =
 {
-	DEVCB_LINE(p8k_daisy_interrupt),            /* interrupt handler */
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_daisy_interrupt),            /* interrupt handler */
 	DEVCB_NULL,                 /* DTR changed handler */
 	DEVCB_NULL,                 /* RTS changed handler */
 	DEVCB_NULL,                 /* BREAK changed handler */
-	DEVCB_HANDLER(pk8_sio_1_serial_transmit),   /* transmit handler */
+	DEVCB_DRIVER_MEMBER16(p8k_state, pk8_sio_1_serial_transmit),   /* transmit handler */
 	DEVCB_NULL                  /* receive handler */
 };
 
@@ -460,62 +507,93 @@ MACHINE_RESET_MEMBER(p8k_state,p8k_16)
 
 // TODO: all of this needs upgrading to current standards
 
-static READ16_DEVICE_HANDLER( p8k_16_sio_r )
+READ16_MEMBER( p8k_state::p8k_16_sio1_r )
 {
+	z80sio_device *device = machine().device<z80sio_device>("z80sio_1");
 	switch (offset & 0x06)
 	{
 	case 0x00:
-		return (UINT16)dynamic_cast<z80sio_device*>(device)->data_read(0);
+		return (UINT16)device->data_read(0);
 	case 0x02:
-		return (UINT16)dynamic_cast<z80sio_device*>(device)->data_read(1);
+		return (UINT16)device->data_read(1);
 	case 0x04:
-		return (UINT16)dynamic_cast<z80sio_device*>(device)->control_read(0);
+		return (UINT16)device->control_read(0);
 	case 0x06:
-		return (UINT16)dynamic_cast<z80sio_device*>(device)->control_read(1);
+		return (UINT16)device->control_read(1);
 	}
 
 	return 0;
 }
 
-static WRITE16_DEVICE_HANDLER( p8k_16_sio_w )
+WRITE16_MEMBER( p8k_state::p8k_16_sio1_w )
 {
+	z80sio_device *device = machine().device<z80sio_device>("z80sio_1");
 	data &= 0xff;
 
 	switch (offset & 0x06)
 	{
 	case 0x00:
-		dynamic_cast<z80sio_device*>(device)->data_write(0, (UINT8)data);
+		device->data_write(0, (UINT8)data);
 		break;
 	case 0x02:
-		dynamic_cast<z80sio_device*>(device)->data_write(1, (UINT8)data);
+		device->data_write(1, (UINT8)data);
 		break;
 	case 0x04:
-		dynamic_cast<z80sio_device*>(device)->control_write(0, (UINT8)data);
+		device->control_write(0, (UINT8)data);
 		break;
 	case 0x06:
-		dynamic_cast<z80sio_device*>(device)->control_write(1, (UINT8)data);
+		device->control_write(1, (UINT8)data);
 		break;
 	}
 }
 
-static READ16_DEVICE_HANDLER( p8k_16_pio_r )
+READ16_MEMBER( p8k_state::p8k_16_pio0_r )
 {
-	return 0; //(UINT16)z80pio_r(device, (offset & 0x06) >> 1);
+	return 0; //(UINT16)z80pio_r(machine().device("z80pio_0"), (offset & 0x06) >> 1);
 }
 
-static WRITE16_DEVICE_HANDLER( p8k_16_pio_w )
+WRITE16_MEMBER( p8k_state::p8k_16_pio0_w )
 {
-	//z80pio_w(device, (offset & 0x06) >> 1, (UINT8)(data & 0xff));
+	//z80pio_w(machine().device("z80pio_0"), (offset & 0x06) >> 1, (UINT8)(data & 0xff));
 }
 
-static READ16_DEVICE_HANDLER( p8k_16_ctc_r )
+READ16_MEMBER( p8k_state::p8k_16_pio1_r )
 {
-	return (UINT16)downcast<z80ctc_device *>(device)->read(space.machine().driver_data()->generic_space(),(offset & 0x06) >> 1);
+	return 0; //(UINT16)z80pio_r(machine().device("z80pio_1"), (offset & 0x06) >> 1);
 }
 
-static WRITE16_DEVICE_HANDLER( p8k_16_ctc_w )
+WRITE16_MEMBER( p8k_state::p8k_16_pio1_w )
 {
-	downcast<z80ctc_device *>(device)->write(space.machine().driver_data()->generic_space(), (offset & 0x06) >> 1, (UINT8)(data & 0xff));
+	//z80pio_w(machine().device("z80pio_1"), (offset & 0x06) >> 1, (UINT8)(data & 0xff));
+}
+READ16_MEMBER( p8k_state::p8k_16_pio2_r )
+{
+	return 0; //(UINT16)z80pio_r(machine().device("z80pio_2"), (offset & 0x06) >> 1);
+}
+
+WRITE16_MEMBER( p8k_state::p8k_16_pio2_w )
+{
+	//z80pio_w(machine().device("z80pio_2"), (offset & 0x06) >> 1, (UINT8)(data & 0xff));
+}
+
+READ16_MEMBER( p8k_state::p8k_16_ctc0_r )
+{
+	return (UINT16)machine().device<z80ctc_device>("z80ctc_0")->read(space,(offset & 0x06) >> 1);
+}
+
+WRITE16_MEMBER( p8k_state::p8k_16_ctc0_w )
+{
+	machine().device<z80ctc_device>("z80ctc_0")->write(space, (offset & 0x06) >> 1, (UINT8)(data & 0xff));
+}
+
+READ16_MEMBER( p8k_state::p8k_16_ctc1_r )
+{
+	return (UINT16)machine().device<z80ctc_device>("z80ctc_1")->read(space,(offset & 0x06) >> 1);
+}
+
+WRITE16_MEMBER( p8k_state::p8k_16_ctc1_w )
+{
+	machine().device<z80ctc_device>("z80ctc_1")->write(space, (offset & 0x06) >> 1, (UINT8)(data & 0xff));
 }
 
 READ16_MEMBER( p8k_state::portff82_r )
@@ -552,14 +630,14 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(p8k_16_iomap, AS_IO, 16, p8k_state)
 //  AM_RANGE(0x0fef0, 0x0feff) // clock
-	//AM_RANGE(0x0ff80, 0x0ff87) AM_DEVREADWRITE_LEGACY("z80sio_0", p8k_16_sio_r, p8k_16_sio_w)
+	//AM_RANGE(0x0ff80, 0x0ff87) AM_READWRITE(p8k_16_sio0_r, p8k_16_sio0_w)
 	AM_RANGE(0x0ff80, 0x0ff87) AM_READWRITE(portff82_r,portff82_w)
-	AM_RANGE(0x0ff88, 0x0ff8f) AM_DEVREADWRITE_LEGACY("z80sio_1", p8k_16_sio_r, p8k_16_sio_w)
-	AM_RANGE(0x0ff90, 0x0ff97) AM_DEVREADWRITE_LEGACY("z80pio_0", p8k_16_pio_r, p8k_16_pio_w)
-	AM_RANGE(0x0ff98, 0x0ff9f) AM_DEVREADWRITE_LEGACY("z80pio_1", p8k_16_pio_r, p8k_16_pio_w)
-	AM_RANGE(0x0ffa0, 0x0ffa7) AM_DEVREADWRITE_LEGACY("z80pio_2", p8k_16_pio_r, p8k_16_pio_w)
-	AM_RANGE(0x0ffa8, 0x0ffaf) AM_DEVREADWRITE_LEGACY("z80ctc_0", p8k_16_ctc_r, p8k_16_ctc_w)
-	AM_RANGE(0x0ffb0, 0x0ffb7) AM_DEVREADWRITE_LEGACY("z80ctc_1", p8k_16_ctc_r, p8k_16_ctc_w)
+	AM_RANGE(0x0ff88, 0x0ff8f) AM_READWRITE(p8k_16_sio1_r, p8k_16_sio1_w)          //"z80sio_1",
+	AM_RANGE(0x0ff90, 0x0ff97) AM_READWRITE(p8k_16_pio0_r, p8k_16_pio0_w)          //"z80pio_0",
+	AM_RANGE(0x0ff98, 0x0ff9f) AM_READWRITE(p8k_16_pio1_r, p8k_16_pio1_w)          //"z80pio_1",
+	AM_RANGE(0x0ffa0, 0x0ffa7) AM_READWRITE(p8k_16_pio2_r, p8k_16_pio2_w)          //"z80pio_2",
+	AM_RANGE(0x0ffa8, 0x0ffaf) AM_READWRITE(p8k_16_ctc0_r, p8k_16_ctc0_w)        //"z80ctc_0",
+	AM_RANGE(0x0ffb0, 0x0ffb7) AM_READWRITE(p8k_16_ctc1_r, p8k_16_ctc1_w)        //"z80ctc_1",
 //  AM_RANGE(0x0ffc0, 0x0ffc1) // SCR
 //  AM_RANGE(0x0ffc8, 0x0ffc9) // SBR
 //  AM_RANGE(0x0ffd0, 0x0ffd1) // NBR
@@ -576,7 +654,7 @@ ADDRESS_MAP_END
 
 ****************************************************************************/
 
-static WRITE_LINE_DEVICE_HANDLER( p8k_16_daisy_interrupt )
+WRITE_LINE_MEMBER( p8k_state::p8k_16_daisy_interrupt )
 {
 	// this must be studied a little bit more :-)
 }
@@ -585,7 +663,7 @@ static WRITE_LINE_DEVICE_HANDLER( p8k_16_daisy_interrupt )
 
 static Z80CTC_INTERFACE( p8k_16_ctc_0_intf )
 {
-	DEVCB_LINE(p8k_16_daisy_interrupt), /* interrupt handler */
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_16_daisy_interrupt), /* interrupt handler */
 	DEVCB_NULL,             /* ZC/TO0 callback */
 	DEVCB_NULL,             /* ZC/TO1 callback */
 	DEVCB_NULL              /* ZC/TO2 callback */
@@ -595,7 +673,7 @@ static Z80CTC_INTERFACE( p8k_16_ctc_0_intf )
 
 static Z80CTC_INTERFACE( p8k_16_ctc_1_intf )
 {
-	DEVCB_LINE(p8k_16_daisy_interrupt), /* interrupt handler */
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_16_daisy_interrupt), /* interrupt handler */
 	DEVCB_NULL,             /* ZC/TO0 callback */
 	DEVCB_NULL,             /* ZC/TO1 callback */
 	DEVCB_NULL              /* ZC/TO2 callback */
@@ -605,7 +683,7 @@ static Z80CTC_INTERFACE( p8k_16_ctc_1_intf )
 
 static const z80pio_interface p8k_16_pio_0_intf =
 {
-	DEVCB_LINE(p8k_16_daisy_interrupt),
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_16_daisy_interrupt),
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
@@ -618,7 +696,7 @@ static const z80pio_interface p8k_16_pio_0_intf =
 
 static const z80pio_interface p8k_16_pio_1_intf =
 {
-	DEVCB_LINE(p8k_16_daisy_interrupt),
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_16_daisy_interrupt),
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
@@ -631,7 +709,7 @@ static const z80pio_interface p8k_16_pio_1_intf =
 
 static const z80pio_interface p8k_16_pio_2_intf =
 {
-	DEVCB_LINE(p8k_16_daisy_interrupt),
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_16_daisy_interrupt),
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
@@ -642,35 +720,35 @@ static const z80pio_interface p8k_16_pio_2_intf =
 
 /* Z80 SIO 0 */
 
-static WRITE16_DEVICE_HANDLER( pk8_16_sio_0_serial_transmit )
+WRITE16_MEMBER( p8k_state::pk8_16_sio_0_serial_transmit )
 {
 // send character to terminal
 }
 
 static const z80sio_interface p8k_16_sio_0_intf =
 {
-	DEVCB_LINE(p8k_16_daisy_interrupt),         /* interrupt handler */
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_16_daisy_interrupt),         /* interrupt handler */
 	DEVCB_NULL,                 /* DTR changed handler */
 	DEVCB_NULL,                 /* RTS changed handler */
 	DEVCB_NULL,                 /* BREAK changed handler */
-	DEVCB_HANDLER(pk8_16_sio_0_serial_transmit),    /* transmit handler */
+	DEVCB_DRIVER_MEMBER16(p8k_state, pk8_16_sio_0_serial_transmit),    /* transmit handler */
 	DEVCB_NULL                  /* receive handler */
 };
 
 /* Z80 SIO 1 */
 
-static WRITE16_DEVICE_HANDLER( pk8_16_sio_1_serial_transmit )
+WRITE16_MEMBER( p8k_state::pk8_16_sio_1_serial_transmit )
 {
 // send character to terminal
 }
 
 static const z80sio_interface p8k_16_sio_1_intf =
 {
-	DEVCB_LINE(p8k_16_daisy_interrupt),         /* interrupt handler */
+	DEVCB_DRIVER_LINE_MEMBER(p8k_state, p8k_16_daisy_interrupt),         /* interrupt handler */
 	DEVCB_NULL,                 /* DTR changed handler */
 	DEVCB_NULL,                 /* RTS changed handler */
 	DEVCB_NULL,                 /* BREAK changed handler */
-	DEVCB_HANDLER(pk8_16_sio_1_serial_transmit),    /* transmit handler */
+	DEVCB_DRIVER_MEMBER16(p8k_state, pk8_16_sio_1_serial_transmit),    /* transmit handler */
 	DEVCB_NULL                  /* receive handler */
 };
 
@@ -733,13 +811,13 @@ static MACHINE_CONFIG_START( p8k, p8k_state )
 	MCFG_Z80PIO_ADD("z80pio_1", 1229000, p8k_pio_1_intf)
 	MCFG_Z80PIO_ADD("z80pio_2", 1229000, p8k_pio_2_intf)
 	MCFG_I8272A_ADD("i8272", true)
-	MCFG_FLOPPY_DRIVE_ADD("i8272:0", p8k_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("i8272:1", p8k_floppies, "525hd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("i8272:0", p8k_floppies, "525hd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("i8272:1", p8k_floppies, "525hd", floppy_image_device::default_floppy_formats)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
 	/* video hardware */
@@ -766,7 +844,7 @@ static MACHINE_CONFIG_START( p8k_16, p8k_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
 	/* video hardware */

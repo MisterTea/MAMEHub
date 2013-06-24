@@ -8,6 +8,9 @@
 #define VECTREX_H_
 
 #include "machine/6522via.h"
+#include "sound/dac.h"
+#include "sound/ay8910.h"
+
 
 #define NVECT 10000
 
@@ -21,9 +24,34 @@ struct vectrex_point
 class vectrex_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_VECTREX_IMAGER_CHANGE_COLOR,
+		TIMER_UPDATE_LEVEL,
+		TIMER_VECTREX_IMAGER_EYE,
+		TIMER_LIGHTPEN_TRIGGER,
+		TIMER_VECTREX_REFRESH,
+		TIMER_VECTREX_ZERO_INTEGRATORS,
+		TIMER_UPDATE_SIGNAL
+	};
+
 	vectrex_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_gce_vectorram(*this, "gce_vectorram"){ }
+		: driver_device(mconfig, type, tag),
+		m_gce_vectorram(*this, "gce_vectorram"),
+		m_maincpu(*this, "maincpu"),
+		m_via6522_0(*this, "via6522_0"),
+		m_dac(*this, "dac"),
+		m_ay8912(*this, "ay8912"),
+		m_io_contr1x(*this, "CONTR1X"),
+		m_io_contr1y(*this, "CONTR1Y"),
+		m_io_contr2x(*this, "CONTR2X"),
+		m_io_contr2y(*this, "CONTR2Y"),
+		m_io_buttons(*this, "BUTTONS"),
+		m_io_3dconf(*this, "3DCONF"),
+		m_io_lpenconf(*this, "LPENCONF"),
+		m_io_lpenx(*this, "LPENX"),
+		m_io_lpeny(*this, "LPENY"),
+		m_io_coin(*this, "COIN") { }
 
 	required_shared_ptr<UINT8> m_gce_vectorram;
 	int m_64k_cart;
@@ -61,7 +89,7 @@ public:
 	UINT16 m_via_timer2;
 	attotime m_vector_start_time;
 	UINT8 m_cb2;
-	void (*vector_add_point_function) (running_machine &, int, int, rgb_t, int);
+	void (vectrex_state::*vector_add_point_function)(int, int, rgb_t, int);
 	DECLARE_WRITE8_MEMBER(vectrex_psg_port_w);
 	DECLARE_READ8_MEMBER(vectrex_via_r);
 	DECLARE_WRITE8_MEMBER(vectrex_via_w);
@@ -84,21 +112,37 @@ public:
 	DECLARE_WRITE8_MEMBER(v_via_pa_w);
 	DECLARE_WRITE8_MEMBER(v_via_ca2_w);
 	DECLARE_WRITE8_MEMBER(v_via_cb2_w);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( vectrex_cart );
+	DECLARE_WRITE_LINE_MEMBER(vectrex_via_irq);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+
+	required_device<cpu_device> m_maincpu;
+	required_device<via6522_device> m_via6522_0;
+	required_device<dac_device> m_dac;
+	required_device<ay8910_device> m_ay8912;
+	optional_ioport m_io_contr1x;
+	optional_ioport m_io_contr1y;
+	optional_ioport m_io_contr2x;
+	optional_ioport m_io_contr2y;
+	required_ioport m_io_buttons;
+	required_ioport m_io_3dconf;
+	required_ioport m_io_lpenconf;
+	required_ioport m_io_lpenx;
+	required_ioport m_io_lpeny;
+	optional_ioport m_io_coin;
+
+	void vectrex_configuration();
+	void vectrex_multiplexer(int mux);
+	void vectrex_add_point(int x, int y, rgb_t color, int intensity);
+	void vectrex_add_point_stereo(int x, int y, rgb_t color, int intensity);
+	int vectrex_verify_cart(char *data);
 };
 
-
-/*----------- defined in machine/vectrex.c -----------*/
-
-DEVICE_IMAGE_LOAD( vectrex_cart );
-void vectrex_configuration(running_machine &machine);
-void vectrex_via_irq (device_t *device, int level);
-
-/*----------- defined in video/vectrex.c -----------*/
+/*---------- defined in video/vectrex.c -----------*/
 
 extern const via6522_interface vectrex_via6522_interface;
 extern const via6522_interface spectrum1_via6522_interface;
-
-void vectrex_add_point_stereo (running_machine &machine, int x, int y, rgb_t color, int intensity);
-void vectrex_add_point (running_machine &machine, int x, int y, rgb_t color, int intensity);
 
 #endif /* VECTREX_H_ */

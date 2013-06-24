@@ -44,12 +44,17 @@
 class h19_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_BEEP_OFF
+	};
+
 	h19_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_crtc(*this, "crtc"),
 			m_ace(*this, "ins8250"),
-			m_beep(*this, BEEPER_TAG),
+			m_beep(*this, "beeper"),
 			m_p_videoram(*this, "p_videoram")
 	{ }
 
@@ -66,14 +71,23 @@ public:
 	UINT8 m_term_data;
 	virtual void machine_reset();
 	virtual void video_start();
-	TIMER_CALLBACK_MEMBER(h19_beepoff);
 	DECLARE_WRITE_LINE_MEMBER(h19_ace_irq);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
-TIMER_CALLBACK_MEMBER(h19_state::h19_beepoff)
+void h19_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	beep_set_state(m_beep, 0);
+	switch (id)
+	{
+	case TIMER_BEEP_OFF:
+		m_beep->set_state(0);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in h19_state::device_timer");
+	}
 }
 
 READ8_MEMBER( h19_state::h19_80_r )
@@ -87,7 +101,7 @@ READ8_MEMBER( h19_state::h19_80_r )
 READ8_MEMBER( h19_state::h19_a0_r )
 {
 // keyboard status
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 	return 0x7f; // says that a key is ready and no modifier keys are pressed
 }
 
@@ -99,8 +113,8 @@ WRITE8_MEMBER( h19_state::h19_c0_w )
     offset 20-3F = terminal bell */
 
 	UINT8 length = (offset & 0x20) ? 200 : 4;
-	beep_set_state(m_beep, 1);
-	machine().scheduler().timer_set(attotime::from_msec(length), timer_expired_delegate(FUNC(h19_state::h19_beepoff),this));
+	m_beep->set_state(1);
+	timer_set(attotime::from_msec(length), TIMER_BEEP_OFF);
 }
 
 static ADDRESS_MAP_START(h19_mem, AS_PROGRAM, 8, h19_state)
@@ -291,7 +305,7 @@ INPUT_PORTS_END
 
 void h19_state::machine_reset()
 {
-	beep_set_frequency(m_beep, H19_BEEP_FRQ);
+	m_beep->set_frequency(H19_BEEP_FRQ);
 }
 
 void h19_state::video_start()
@@ -337,7 +351,7 @@ static MC6845_UPDATE_ROW( h19_update_row )
 
 WRITE_LINE_MEMBER(h19_state::h19_ace_irq)
 {
-	machine().device("maincpu")->execute().set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
+	m_maincpu->set_input_line(0, (state ? HOLD_LINE : CLEAR_LINE));
 }
 
 static const ins8250_interface h19_ace_interface =
@@ -350,9 +364,11 @@ static const ins8250_interface h19_ace_interface =
 	DEVCB_NULL
 };
 
-static const mc6845_interface h19_crtc6845_interface =
+
+static MC6845_INTERFACE( h19_crtc6845_interface )
 {
 	"screen",
+	false,
 	8 /*?*/,
 	NULL,
 	h19_update_row,
@@ -385,7 +401,7 @@ GFXDECODE_END
 WRITE8_MEMBER( h19_state::h19_kbd_put )
 {
 	m_term_data = data;
-	machine().device("maincpu")->execute().set_input_line(0, HOLD_LINE);
+	m_maincpu->set_input_line(0, HOLD_LINE);
 }
 
 static ASCII_KEYBOARD_INTERFACE( keyboard_intf )
@@ -417,7 +433,7 @@ static MACHINE_CONFIG_START( h19, h19_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(BEEPER_TAG, BEEP, 0)
+	MCFG_SOUND_ADD("beeper", BEEP, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 MACHINE_CONFIG_END
 

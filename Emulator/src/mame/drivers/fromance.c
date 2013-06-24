@@ -75,7 +75,6 @@ WRITE8_MEMBER(fromance_state::fromance_commanddata_w)
 
 READ8_MEMBER(fromance_state::fromance_busycheck_main_r)
 {
-
 	/* set a timer to force synchronization after the read */
 	machine().scheduler().synchronize();
 
@@ -88,7 +87,6 @@ READ8_MEMBER(fromance_state::fromance_busycheck_main_r)
 
 READ8_MEMBER(fromance_state::fromance_busycheck_sub_r)
 {
-
 	if (m_directionflag)
 		return 0xff;        // standby
 	else
@@ -124,11 +122,10 @@ WRITE8_MEMBER(fromance_state::fromance_rombank_w)
 
 WRITE8_MEMBER(fromance_state::fromance_adpcm_reset_w)
 {
-	device_t *device = machine().device("msm");
 	m_adpcm_reset = (data & 0x01);
 	m_vclk_left = 0;
 
-	msm5205_reset_w(device, !(data & 0x01));
+	m_msm->reset_w(!(data & 0x01));
 }
 
 
@@ -139,25 +136,23 @@ WRITE8_MEMBER(fromance_state::fromance_adpcm_w)
 }
 
 
-static void fromance_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(fromance_state::fromance_adpcm_int)
 {
-	fromance_state *state = device->machine().driver_data<fromance_state>();
-
 	/* skip if we're reset */
-	if (!state->m_adpcm_reset)
+	if (!m_adpcm_reset)
 		return;
 
 	/* clock the data through */
-	if (state->m_vclk_left)
+	if (m_vclk_left)
 	{
-		msm5205_data_w(device, (state->m_adpcm_data >> 4));
-		state->m_adpcm_data <<= 4;
-		state->m_vclk_left--;
+		m_msm->data_w(m_adpcm_data >> 4);
+		m_adpcm_data <<= 4;
+		m_vclk_left--;
 	}
 
 	/* generate an NMI if we're out of data */
-	if (!state->m_vclk_left)
-		state->m_subcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	if (!m_vclk_left)
+		m_subcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
@@ -279,7 +274,7 @@ static ADDRESS_MAP_START( nekkyoku_sub_io_map, AS_IO, 8, fromance_state )
 	AM_RANGE(0xe6, 0xe6) AM_READWRITE(fromance_commanddata_r, fromance_busycheck_sub_w)
 	AM_RANGE(0xe7, 0xe7) AM_WRITE(fromance_adpcm_reset_w)
 	AM_RANGE(0xe8, 0xe8) AM_WRITE(fromance_adpcm_w)
-	AM_RANGE(0xe9, 0xea) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0xe9, 0xea) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( idolmj_sub_io_map, AS_IO, 8, fromance_state )
@@ -293,7 +288,7 @@ static ADDRESS_MAP_START( idolmj_sub_io_map, AS_IO, 8, fromance_state )
 	AM_RANGE(0x26, 0x26) AM_READWRITE(fromance_commanddata_r, fromance_busycheck_sub_w)
 	AM_RANGE(0x27, 0x27) AM_WRITE(fromance_adpcm_reset_w)
 	AM_RANGE(0x28, 0x28) AM_WRITE(fromance_adpcm_w)
-	AM_RANGE(0x29, 0x2a) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x29, 0x2a) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( fromance_sub_io_map, AS_IO, 8, fromance_state )
@@ -307,7 +302,7 @@ static ADDRESS_MAP_START( fromance_sub_io_map, AS_IO, 8, fromance_state )
 	AM_RANGE(0x26, 0x26) AM_READWRITE(fromance_commanddata_r, fromance_busycheck_sub_w)
 	AM_RANGE(0x27, 0x27) AM_WRITE(fromance_adpcm_reset_w)
 	AM_RANGE(0x28, 0x28) AM_WRITE(fromance_adpcm_w)
-	AM_RANGE(0x2a, 0x2b) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w)
+	AM_RANGE(0x2a, 0x2b) AM_DEVWRITE("ymsnd", ym2413_device, write)
 ADDRESS_MAP_END
 
 
@@ -939,7 +934,7 @@ GFXDECODE_END
 
 static const msm5205_interface msm5205_config =
 {
-	fromance_adpcm_int, /* IRQ handler */
+	DEVCB_DRIVER_LINE_MEMBER(fromance_state,fromance_adpcm_int), /* IRQ handler */
 	MSM5205_S48_4B      /* 8 KHz */
 };
 
@@ -956,7 +951,6 @@ MACHINE_START_MEMBER(fromance_state,fromance)
 
 	membank("bank1")->configure_entries(0, 0x100, &ROM[0x10000], 0x4000);
 
-	m_subcpu = machine().device<cpu_device>("sub");
 
 	save_item(NAME(m_directionflag));
 	save_item(NAME(m_commanddata));

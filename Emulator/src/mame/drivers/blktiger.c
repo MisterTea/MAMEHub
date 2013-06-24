@@ -33,13 +33,13 @@ READ8_MEMBER(blktiger_state::blktiger_from_mcu_r)
 
 WRITE8_MEMBER(blktiger_state::blktiger_to_mcu_w)
 {
-	m_mcu->execute().set_input_line(MCS51_INT1_LINE, ASSERT_LINE);
+	m_mcu->set_input_line(MCS51_INT1_LINE, ASSERT_LINE);
 	m_z80_latch = data;
 }
 
 READ8_MEMBER(blktiger_state::blktiger_from_main_r)
 {
-	m_mcu->execute().set_input_line(MCS51_INT1_LINE, CLEAR_LINE);
+	m_mcu->set_input_line(MCS51_INT1_LINE, CLEAR_LINE);
 	//printf("%02x read\n",latch);
 	return m_z80_latch;
 }
@@ -116,8 +116,8 @@ static ADDRESS_MAP_START( blktiger_sound_map, AS_PROGRAM, 8, blktiger_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
 	AM_RANGE(0xc800, 0xc800) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0xe002, 0xe003) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r, ym2203_w)
+	AM_RANGE(0xe000, 0xe001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0xe002, 0xe003) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( blktiger_mcu_map, AS_PROGRAM, 8, blktiger_state )
@@ -259,28 +259,20 @@ GFXDECODE_END
 
 
 /* handler called by the 2203 emulator when the internal timers cause an IRQ */
-static void irqhandler( device_t *device, int irq )
+WRITE_LINE_MEMBER(blktiger_state::irqhandler)
 {
-	blktiger_state *state = device->machine().driver_data<blktiger_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-			AY8910_LEGACY_OUTPUT,
-			AY8910_DEFAULT_LOADS,
-			DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 };
 
 void blktiger_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_mcu = machine().device("mcu");
-
 	/* configure bankswitching */
 	membank("bank1")->configure_entries(0, 16, memregion("maincpu")->base() + 0x10000, 0x4000);
 
@@ -297,7 +289,6 @@ void blktiger_state::machine_start()
 
 void blktiger_state::machine_reset()
 {
-
 	/* configure bankswitching */
 	membank("bank1")->configure_entries(0, 16, memregion("maincpu")->base() + 0x10000, 0x4000);
 
@@ -347,7 +338,8 @@ static MACHINE_CONFIG_START( blktiger, blktiger_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, XTAL_3_579545MHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(blktiger_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)
 
 	MCFG_SOUND_ADD("ym2", YM2203, XTAL_3_579545MHz) /* verified on pcb */

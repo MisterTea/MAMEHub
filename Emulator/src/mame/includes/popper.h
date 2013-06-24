@@ -8,12 +8,14 @@ class popper_state : public driver_device
 {
 public:
 	popper_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_ol_videoram(*this, "ol_videoram"),
 		m_videoram(*this, "videoram"),
 		m_ol_attribram(*this, "ol_attribram"),
 		m_attribram(*this, "attribram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_ol_videoram;
@@ -33,7 +35,7 @@ public:
 	rectangle m_tilemap_clip;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_audiocpu;
 
 	UINT8 m_nmi_mask;
 	DECLARE_READ8_MEMBER(popper_input_ports_r);
@@ -56,4 +58,6 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_popper(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	void draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

@@ -38,7 +38,10 @@ class bingoc_state : public driver_device
 {
 public:
 	bingoc_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_upd7759(*this, "upd") { }
 
 	UINT8 m_x;
 	DECLARE_READ16_MEMBER(bingoc_rand_r);
@@ -47,6 +50,9 @@ public:
 	DECLARE_WRITE8_MEMBER(bingoc_play_w);
 	virtual void video_start();
 	UINT32 screen_update_bingoc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	required_device<upd7759_device> m_upd7759;
 };
 
 
@@ -54,7 +60,6 @@ public:
 
 void bingoc_state::video_start()
 {
-
 }
 
 UINT32 bingoc_state::screen_update_bingoc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -76,7 +81,6 @@ READ16_MEMBER(bingoc_state::bingoc_rand_r)
 */
 READ8_MEMBER(bingoc_state::sound_test_r)
 {
-
 	if(machine().input().code_pressed_once(KEYCODE_Z))
 		m_x++;
 
@@ -93,20 +97,19 @@ READ8_MEMBER(bingoc_state::sound_test_r)
 WRITE16_MEMBER(bingoc_state::main_sound_latch_w)
 {
 	soundlatch_byte_w(space,0,data&0xff);
-	machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 #endif
 
 WRITE8_MEMBER(bingoc_state::bingoc_play_w)
 {
-	device_t *device = machine().device("upd");
 	/*
 	---- --x- sound rom banking
 	---- ---x start-stop sample
 	*/
-	UINT8 *upd = machine().root_device().memregion("upd")->base();
+	UINT8 *upd = memregion("upd")->base();
 	memcpy(&upd[0x00000], &upd[0x20000 + (((data & 2)>>1) * 0x20000)], 0x20000);
-	upd7759_start_w(device, data & 1);
+	upd7759_start_w(m_upd7759, data & 1);
 //  printf("%02x\n",data);
 }
 

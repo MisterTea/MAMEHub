@@ -44,7 +44,7 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_crtc(*this, "crtc"),
-			m_speaker(*this, SPEAKER_TAG)
+			m_speaker(*this, "speaker")
 	,
 		m_ram(*this, "ram"){ }
 
@@ -98,14 +98,14 @@ READ16_MEMBER( dim68k_state::dim68k_speaker_r )
 // Any read or write of this address will toggle the position of the speaker cone
 {
 	m_speaker_bit ^= 1;
-	speaker_level_w(m_speaker, m_speaker_bit);
+	m_speaker->level_w(m_speaker_bit);
 	return 0;
 }
 
 WRITE16_MEMBER( dim68k_state::dim68k_speaker_w )
 {
 	m_speaker_bit ^= 1;
-	speaker_level_w(m_speaker, m_speaker_bit);
+	m_speaker->level_w(m_speaker_bit);
 }
 
 WRITE16_MEMBER( dim68k_state::dim68k_fdc_w )
@@ -204,7 +204,7 @@ void dim68k_state::machine_reset()
 
 	memcpy((UINT8*)m_ram.target(), ROM, 0x2000);
 
-	machine().device("maincpu")->reset();
+	m_maincpu->reset();
 }
 
 void dim68k_state::video_start()
@@ -283,8 +283,10 @@ static GFXDECODE_START( dim68k )
 	GFXDECODE_ENTRY( "chargen", 0x0000, dim68k_charlayout, 0, 1 )
 GFXDECODE_END
 
-static const mc6845_interface dim68k_crtc = {
+static MC6845_INTERFACE( dim68k_crtc )
+{
 	"screen",           /* name of screen */
+	false,
 	8,          /* number of dots per character - switchable 7 or 8 */
 	NULL,
 	dim68k_update_row,      /* handler to display a scanline */
@@ -314,7 +316,7 @@ static MACHINE_CONFIG_START( dim68k, dim68k_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */

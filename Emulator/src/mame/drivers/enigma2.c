@@ -60,8 +60,10 @@ class enigma2_state : public driver_device
 {
 public:
 	enigma2_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -77,8 +79,8 @@ public:
 	emu_timer *m_interrupt_assert_timer;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	DECLARE_READ8_MEMBER(dip_switch_r);
 	DECLARE_WRITE8_MEMBER(sound_data_w);
 	DECLARE_WRITE8_MEMBER(enigma2_flip_screen_w);
@@ -93,6 +95,11 @@ public:
 	UINT32 screen_update_enigma2a(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_clear_callback);
 	TIMER_CALLBACK_MEMBER(interrupt_assert_callback);
+	inline UINT16 vpos_to_vysnc_chain_counter( int vpos );
+	inline int vysnc_chain_counter_to_vpos( UINT16 counter );
+	void create_interrupt_timers(  );
+	void start_interrupt_timers(  );
+	void get_pens(pen_t *pens);
 };
 
 
@@ -103,13 +110,13 @@ public:
  *************************************/
 
 
-INLINE UINT16 vpos_to_vysnc_chain_counter( int vpos )
+UINT16 enigma2_state::vpos_to_vysnc_chain_counter( int vpos )
 {
 	return vpos + VCOUNTER_START;
 }
 
 
-INLINE int vysnc_chain_counter_to_vpos( UINT16 counter )
+int enigma2_state::vysnc_chain_counter_to_vpos( UINT16 counter )
 {
 	return counter - VCOUNTER_START;
 }
@@ -144,29 +151,25 @@ TIMER_CALLBACK_MEMBER(enigma2_state::interrupt_assert_callback)
 }
 
 
-static void create_interrupt_timers( running_machine &machine )
+void enigma2_state::create_interrupt_timers(  )
 {
-	enigma2_state *state = machine.driver_data<enigma2_state>();
-	state->m_interrupt_clear_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(enigma2_state::interrupt_clear_callback),state));
-	state->m_interrupt_assert_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(enigma2_state::interrupt_assert_callback),state));
+	m_interrupt_clear_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(enigma2_state::interrupt_clear_callback),this));
+	m_interrupt_assert_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(enigma2_state::interrupt_assert_callback),this));
 }
 
 
-static void start_interrupt_timers( running_machine &machine )
+void enigma2_state::start_interrupt_timers(  )
 {
-	enigma2_state *state = machine.driver_data<enigma2_state>();
 	int vpos = vysnc_chain_counter_to_vpos(INT_TRIGGER_COUNT_1);
-	state->m_interrupt_assert_timer->adjust(machine.primary_screen->time_until_pos(vpos));
+	m_interrupt_assert_timer->adjust(machine().primary_screen->time_until_pos(vpos));
 }
 
 
 
 void enigma2_state::machine_start()
 {
-	create_interrupt_timers(machine());
+	create_interrupt_timers();
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 
 	save_item(NAME(m_blink_count));
 	save_item(NAME(m_sound_latch));
@@ -178,14 +181,14 @@ void enigma2_state::machine_start()
 
 void enigma2_state::machine_reset()
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 
 	m_last_sound_data = 0;
 	m_flip_screen = 0;
 	m_sound_latch = 0;
 	m_blink_count = 0;
 
-	start_interrupt_timers(machine());
+	start_interrupt_timers();
 }
 
 
@@ -195,7 +198,7 @@ void enigma2_state::machine_reset()
  *
  *************************************/
 
-static void get_pens(pen_t *pens)
+void enigma2_state::get_pens(pen_t *pens)
 {
 	offs_t i;
 
@@ -487,8 +490,8 @@ static ADDRESS_MAP_START( engima2_audio_cpu_map, AS_PROGRAM, 8, enigma2_state )
 	AM_RANGE(0x0000, 0x0fff) AM_MIRROR(0x1000) AM_ROM AM_WRITENOP
 	AM_RANGE(0x2000, 0x7fff) AM_NOP
 	AM_RANGE(0x8000, 0x83ff) AM_MIRROR(0x1c00) AM_RAM
-	AM_RANGE(0xa000, 0xa001) AM_MIRROR(0x1ffc) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w)
-	AM_RANGE(0xa002, 0xa002) AM_MIRROR(0x1ffc) AM_DEVREAD_LEGACY("aysnd", ay8910_r)
+	AM_RANGE(0xa000, 0xa001) AM_MIRROR(0x1ffc) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0xa002, 0xa002) AM_MIRROR(0x1ffc) AM_DEVREAD("aysnd", ay8910_device, data_r)
 	AM_RANGE(0xa003, 0xa003) AM_MIRROR(0x1ffc) AM_NOP
 	AM_RANGE(0xc000, 0xffff) AM_NOP
 ADDRESS_MAP_END
@@ -704,7 +707,7 @@ ROM_END
 DRIVER_INIT_MEMBER(enigma2_state,enigma2)
 {
 	offs_t i;
-	UINT8 *rom = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *rom = memregion("audiocpu")->base();
 
 	for(i = 0; i < 0x2000; i++)
 	{

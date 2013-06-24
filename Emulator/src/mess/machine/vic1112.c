@@ -28,23 +28,6 @@ const device_type VIC1112 = &device_creator<vic1112_device>;
 
 
 //-------------------------------------------------
-//  IEEE488_INTERFACE( ieee488_intf )
-//-------------------------------------------------
-
-static IEEE488_INTERFACE( ieee488_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_NULL,
-	DEVCB_DEVICE_LINE_MEMBER(M6522_1_TAG, via6522_device, write_cb1),
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
-
-//-------------------------------------------------
 //  via6522_interface via0_intf
 //-------------------------------------------------
 
@@ -164,7 +147,8 @@ static MACHINE_CONFIG_FRAGMENT( vic1112 )
 	MCFG_VIA6522_ADD(M6522_0_TAG, 0, via0_intf)
 	MCFG_VIA6522_ADD(M6522_1_TAG, 0, via1_intf)
 
-	MCFG_CBM_IEEE488_ADD(ieee488_intf, NULL)
+	MCFG_CBM_IEEE488_ADD(NULL)
+	MCFG_IEEE488_SRQ_CALLBACK(DEVWRITELINE(M6522_1_TAG, via6522_device, write_cb1))
 MACHINE_CONFIG_END
 
 
@@ -189,7 +173,7 @@ machine_config_constructor vic1112_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 vic1112_device::vic1112_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, VIC1112, "VIC1112", tag, owner, clock),
+	: device_t(mconfig, VIC1112, "VIC1112", tag, owner, clock, "vic1112", __FILE__),
 		device_vic20_expansion_card_interface(mconfig, *this),
 		m_via0(*this, M6522_0_TAG),
 		m_via1(*this, M6522_1_TAG),

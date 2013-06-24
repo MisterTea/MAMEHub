@@ -49,7 +49,8 @@ class mk1_state : public driver_device
 {
 public:
 	mk1_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_READ8_MEMBER(mk1_f8_r);
 	DECLARE_WRITE8_MEMBER(mk1_f8_w);
@@ -57,6 +58,7 @@ public:
 	UINT8 m_led[4];
 	virtual void machine_start();
 	TIMER_DEVICE_CALLBACK_MEMBER(mk1_update_leds);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -107,7 +109,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mk1_io, AS_IO, 8, mk1_state )
 	AM_RANGE( 0x0, 0x1 ) AM_READWRITE( mk1_f8_r, mk1_f8_w )
-	AM_RANGE( 0xc, 0xf ) AM_DEVREADWRITE_LEGACY("f3853", f3853_r, f3853_w )
+	AM_RANGE( 0xc, 0xf ) AM_DEVREADWRITE("f3853", f3853_device, f3853_r, f3853_w )
 ADDRESS_MAP_END
 
 
@@ -167,9 +169,10 @@ void mk1_state::machine_start()
 
 static void mk1_interrupt( device_t *device, UINT16 addr, int level )
 {
-	device->machine().device("maincpu")->execute().set_input_line_vector(F8_INPUT_LINE_INT_REQ, addr );
+	mk1_state *drvstate = device->machine().driver_data<mk1_state>();
+	drvstate->m_maincpu->set_input_line_vector(F8_INPUT_LINE_INT_REQ, addr );
 
-	device->machine().device("maincpu")->execute().set_input_line(F8_INPUT_LINE_INT_REQ, level ? ASSERT_LINE : CLEAR_LINE );
+	drvstate->m_maincpu->set_input_line(F8_INPUT_LINE_INT_REQ, level ? ASSERT_LINE : CLEAR_LINE );
 }
 
 

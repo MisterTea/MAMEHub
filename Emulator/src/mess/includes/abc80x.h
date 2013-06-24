@@ -11,11 +11,12 @@
 #include "cpu/z80/z80daisy.h"
 #include "cpu/mcs48/mcs48.h"
 #include "imagedev/cassette.h"
-#include "machine/abc77.h"
+#include "machine/abckb.h"
 #include "machine/abc800kb.h"
 #include "machine/abc830.h"
 #include "machine/abcbus.h"
 #include "machine/e0516.h"
+#include "machine/serial.h"
 #include "machine/z80ctc.h"
 #include "machine/z80dart.h"
 #include "machine/ram.h"
@@ -58,6 +59,8 @@
 #define Z80SIO_TAG          "z80sio"
 #define Z80DART_TAG         "z80dart"
 #define DISCRETE_TAG        "discrete"
+#define RS232_A_TAG         "rs232a"
+#define RS232_B_TAG         "rs232b"
 
 
 //**************************************************************************
@@ -76,10 +79,12 @@ public:
 			m_dart(*this, Z80DART_TAG),
 			m_sio(*this, Z80SIO_TAG),
 			m_discrete(*this, "discrete"),
-			m_cassette(*this, CASSETTE_TAG),
+			m_cassette(*this, "cassette"),
 			m_ram(*this, RAM_TAG),
+			m_rom(*this, Z80_TAG),
 			m_video_ram(*this, "video_ram"),
 			m_char_ram(*this, "char_ram"),
+			m_io_sb(*this, "SB"),
 			m_ctc_z0(0),
 			m_sio_rxdb(1),
 			m_sio_txcb(0),
@@ -89,13 +94,17 @@ public:
 			m_tape_ctr(4)
 	{ }
 
-	required_device<cpu_device> m_maincpu;
+	required_device<legacy_cpu_device> m_maincpu;
 	required_device<z80ctc_device> m_ctc;
 	required_device<z80dart_device> m_dart;
-	required_device<z80dart_device> m_sio;
+	required_device<z80sio2_device> m_sio;
 	optional_device<discrete_sound_device> m_discrete;
 	optional_device<cassette_image_device> m_cassette;
 	required_device<ram_device> m_ram;
+	required_memory_region m_rom;
+	optional_shared_ptr<UINT8> m_video_ram;
+	optional_shared_ptr<UINT8> m_char_ram;
+	required_ioport m_io_sb;
 
 	enum
 	{
@@ -133,10 +142,6 @@ public:
 	int m_fetch_charram;            // opcode fetched from character RAM region (0x7800-0x7fff)
 
 	// video state
-	optional_shared_ptr<UINT8> m_video_ram;
-	optional_shared_ptr<UINT8> m_char_ram;
-	const UINT8 *m_char_rom;        // character generator ROM
-	const UINT8 *m_fgctl_prom;      // foreground control PROM
 	UINT8 m_hrs;                    // HR picture start scanline
 	UINT8 m_fgctl;                  // HR foreground control
 
@@ -165,10 +170,14 @@ class abc800m_state : public abc800_state
 public:
 	abc800m_state(const machine_config &mconfig, device_type type, const char *tag)
 		: abc800_state(mconfig, type, tag),
-			m_crtc(*this, MC6845_TAG)
+			m_crtc(*this, MC6845_TAG),
+			m_fgctl_prom(*this, "hru2"),
+			m_char_rom(*this, MC6845_TAG)
 	{ }
 
 	required_device<mc6845_device> m_crtc;
+	required_memory_region m_fgctl_prom;
+	required_memory_region m_char_rom;
 
 	DECLARE_DRIVER_INIT(driver_init);
 
@@ -184,10 +193,12 @@ class abc800c_state : public abc800_state
 public:
 	abc800c_state(const machine_config &mconfig, device_type type, const char *tag)
 		: abc800_state(mconfig, type, tag),
-			m_trom(*this, SAA5052_TAG)
+			m_trom(*this, SAA5052_TAG),
+			m_fgctl_prom(*this, "hru2")
 	{ }
 
 	required_device<saa5052_device> m_trom;
+	required_memory_region m_fgctl_prom;
 
 	DECLARE_DRIVER_INIT(driver_init);
 
@@ -208,11 +219,13 @@ public:
 	abc802_state(const machine_config &mconfig, device_type type, const char *tag)
 		: abc800_state(mconfig, type, tag),
 			m_crtc(*this, MC6845_TAG),
-			m_abc77(*this, ABC77_TAG)
+			m_char_rom(*this, MC6845_TAG),
+			m_config(*this, "CONFIG")
 	{ }
 
 	required_device<mc6845_device> m_crtc;
-	optional_device<abc77_device> m_abc77;
+	required_memory_region m_char_rom;
+	required_ioport m_config;
 
 	DECLARE_DRIVER_INIT(driver_init);
 	virtual void machine_start();
@@ -233,8 +246,6 @@ public:
 	int m_lrs;                  // low RAM select
 
 	// video state
-	const UINT8 *m_char_rom;    // character generator ROM
-
 	int m_flshclk_ctr;          // flash clock counter
 	int m_flshclk;              // flash clock
 	int m_80_40_mux;            // 40/80 column mode
@@ -250,12 +261,16 @@ public:
 		: abc800_state(mconfig, type, tag),
 			m_crtc(*this, MC6845_TAG),
 			m_rtc(*this, E0516_TAG),
-			m_abc77(*this, ABC77_TAG)
+			m_rad_prom(*this, "rad"),
+			m_hru2_prom(*this, "hru"),
+			m_char_rom(*this, MC6845_TAG)
 	{ }
 
 	required_device<mc6845_device> m_crtc;
 	required_device<e0516_device> m_rtc;
-	optional_device<abc77_device> m_abc77;
+	required_memory_region m_rad_prom;
+	required_memory_region m_hru2_prom;
+	required_memory_region m_char_rom;
 
 	DECLARE_DRIVER_INIT(driver_init);
 	virtual void machine_start();
@@ -292,9 +307,6 @@ public:
 
 	// video state
 	UINT8 *m_color_ram;         // attribute RAM
-	const UINT8 *m_rad_prom;    // line address PROM
-	const UINT8 *m_hru2_prom;   // HR palette PROM
-	const UINT8 *m_char_rom;    // character generator ROM
 
 	int m_txoff;                // text display enable
 	int m_40;                   // 40/80 column mode

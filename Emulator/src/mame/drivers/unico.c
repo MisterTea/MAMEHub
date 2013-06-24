@@ -50,11 +50,10 @@ Year + Game         PCB             Notes
 
 WRITE16_MEMBER(unico_state::burglarx_sound_bank_w)
 {
-	device_t *device = machine().device("oki");
 	if (ACCESSING_BITS_8_15)
 	{
 		int bank = (data >> 8 ) & 1;
-		downcast<okim6295_device *>(device)->set_bank_base(0x40000 * bank );
+		m_oki->set_bank_base(0x40000 * bank );
 	}
 }
 
@@ -68,8 +67,8 @@ static ADDRESS_MAP_START( burglarx_map, AS_PROGRAM, 16, unico_state )
 	AM_RANGE(0x800030, 0x800031) AM_WRITENOP                                                // ? 0
 	AM_RANGE(0x80010c, 0x800121) AM_WRITEONLY AM_SHARE("scroll")                // Scroll
 	AM_RANGE(0x800188, 0x800189) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
-	AM_RANGE(0x80018a, 0x80018b) AM_DEVWRITE8_LEGACY("ymsnd", ym3812_write_port_w, 0xff00           )   //
-	AM_RANGE(0x80018c, 0x80018d) AM_DEVREADWRITE8_LEGACY("ymsnd", ym3812_status_port_r, ym3812_control_port_w, 0xff00       )   //
+	AM_RANGE(0x80018a, 0x80018b) AM_DEVWRITE8("ymsnd", ym3812_device, write_port_w, 0xff00)
+	AM_RANGE(0x80018c, 0x80018d) AM_DEVREADWRITE8("ymsnd", ym3812_device, status_port_r, control_port_w, 0xff00)
 	AM_RANGE(0x80018e, 0x80018f) AM_WRITE(burglarx_sound_bank_w)                    //
 	AM_RANGE(0x8001e0, 0x8001e1) AM_WRITENOP                                                // IRQ Ack
 	AM_RANGE(0x904000, 0x90ffff) AM_RAM_WRITE(unico_vram_w) AM_SHARE("vram")        // Layers 1, 2, 0
@@ -156,8 +155,8 @@ static ADDRESS_MAP_START( zeropnt_map, AS_PROGRAM, 16, unico_state )
 	AM_RANGE(0x800178, 0x800179) AM_READ(unico_guny_1_msb_r         )   //
 	AM_RANGE(0x80017c, 0x80017d) AM_READ(unico_gunx_1_msb_r         )   //
 	AM_RANGE(0x800188, 0x800189) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff               )   // Sound
-	AM_RANGE(0x80018a, 0x80018b) AM_DEVWRITE8_LEGACY("ymsnd", ym3812_write_port_w, 0xff00           )   //
-	AM_RANGE(0x80018c, 0x80018d) AM_DEVREADWRITE8_LEGACY("ymsnd", ym3812_status_port_r, ym3812_control_port_w, 0xff00       )   //
+	AM_RANGE(0x80018a, 0x80018b) AM_DEVWRITE8("ymsnd", ym3812_device, write_port_w, 0xff00)
+	AM_RANGE(0x80018c, 0x80018d) AM_DEVREADWRITE8("ymsnd", ym3812_device, status_port_r, control_port_w, 0xff00)
 	AM_RANGE(0x80018e, 0x80018f) AM_WRITE(zeropnt_sound_bank_w              )   //
 	AM_RANGE(0x8001e0, 0x8001e1) AM_WRITEONLY   // ? IRQ Ack
 	AM_RANGE(0x904000, 0x90ffff) AM_RAM_WRITE(unico_vram_w) AM_SHARE("vram")    // Layers 1, 2, 0
@@ -199,21 +198,19 @@ WRITE32_MEMBER(unico_state::zeropnt2_leds_w)
 
 WRITE32_MEMBER(unico_state::zeropnt2_eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	if (data & ~0xfe00000)
 		logerror("%s - Unknown EEPROM bit written %04X\n",machine().describe_context(),data);
 
 	if ( ACCESSING_BITS_24_31 )
 	{
 		// latch the bit
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->write_bit(data & 0x04000000);
+		m_eeprom->write_bit(data & 0x04000000);
 
 		// reset line asserted: reset.
-		eeprom->set_cs_line((data & 0x01000000) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_cs_line((data & 0x01000000) ? CLEAR_LINE : ASSERT_LINE);
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->set_clock_line((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 

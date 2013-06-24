@@ -1,3 +1,5 @@
+#include "machine/eeprom.h"
+
 static const UINT16 dsp56k_bank00_size = 0x1000;
 static const UINT16 dsp56k_bank01_size = 0x1000;
 static const UINT16 dsp56k_bank02_size = 0x4000;
@@ -8,10 +10,15 @@ class polygonet_state : public driver_device
 {
 public:
 	polygonet_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_shared_ram(*this, "shared_ram"),
 		m_dsp56k_p_mirror(*this, "dsp56k_p_mirror"),
-		m_dsp56k_p_8000(*this, "dsp56k_p_8000"){ }
+		m_dsp56k_p_8000(*this, "dsp56k_p_8000"),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_dsp(*this, "dsp"),
+		m_eeprom(*this, "eeprom"),
+		m_k053936(*this, "k053936") { }
 
 	/* 68k-side shared ram */
 	required_shared_ptr<UINT32> m_shared_ram;
@@ -75,4 +82,10 @@ public:
 	UINT32 screen_update_polygonet(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(polygonet_interrupt);
 	INTERRUPT_GEN_MEMBER(audio_interrupt);
+	void reset_sound_region();
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	required_device<cpu_device> m_dsp;
+	required_device<eeprom_device> m_eeprom;
+	required_device<k053936_device> m_k053936;
 };

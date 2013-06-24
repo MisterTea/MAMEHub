@@ -14,16 +14,19 @@ class n64_state : public driver_device
 {
 public:
 	n64_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu") { }
 
 	/* video-related */
 	n64_rdp *m_rdp;
-	DECLARE_DRIVER_INIT(aleck64);
 
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
+	void n64_machine_stop();
+
 	UINT32 screen_update_n64(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 /*----------- devices -----------*/
@@ -120,7 +123,6 @@ public:
 	void poll_reset_button(bool button);
 
 	UINT32 dp_clock;
-
 protected:
 	// device-level overrides
 	virtual void device_start();
@@ -200,7 +202,6 @@ private:
 	emu_timer *pi_dma_timer;
 	UINT32 pi_dram_addr;
 	UINT32 pi_cart_addr;
-	UINT32 pi_first_dma;
 	UINT32 pi_rd_len;
 	UINT32 pi_wr_len;
 	UINT32 pi_status;
@@ -227,6 +228,7 @@ private:
 	UINT32 si_pif_addr_wr64b;
 	UINT32 si_status;
 	UINT32 cic_status;
+	int cic_type;
 
 	n64_savable_data_t savable_data;
 

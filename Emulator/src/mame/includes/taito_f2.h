@@ -1,4 +1,4 @@
-
+#include "machine/taitoio.h"
 #include "sound/okim6295.h"
 
 struct f2_tempsprite
@@ -13,12 +13,29 @@ struct f2_tempsprite
 class taitof2_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_TAITOF2_INTERRUPT6
+	};
+
 	taitof2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_sprite_extension(*this, "sprite_ext"),
 			m_spriteram(*this, "spriteram"),
 			m_cchip2_ram(*this, "cchip2_ram"),
-			m_oki(*this, "oki") { }
+			m_maincpu(*this, "maincpu"),
+			m_audiocpu(*this, "audiocpu"),
+			m_oki(*this, "oki"),
+			m_tc0100scn(*this, "tc0100scn"),
+			m_tc0100scn_1(*this, "tc0100scn_1"),
+			m_tc0100scn_2(*this, "tc0100scn_2"),
+			m_tc0360pri(*this, "tc0360pri"),
+			m_tc0280grd(*this, "tc0280grd"),
+			m_tc0430grw(*this, "tc0430grw"),
+			m_tc0480scp(*this, "tc0480scp"),
+			m_tc0220ioc(*this, "tc0220ioc"),
+			m_tc0510nio(*this, "tc0510nio")
+			{ }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_sprite_extension;
@@ -71,16 +88,18 @@ public:
 	INT32           m_oki_bank;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 	optional_device<okim6295_device> m_oki;
-	device_t *m_tc0100scn;
-	device_t *m_tc0100scn_1;
-	device_t *m_tc0100scn_2;
-	device_t *m_tc0360pri;
-	device_t *m_tc0280grd;
-	device_t *m_tc0430grw;
-	device_t *m_tc0480scp;
+	optional_device<tc0100scn_device> m_tc0100scn;
+	optional_device<tc0100scn_device> m_tc0100scn_1;
+	optional_device<tc0100scn_device> m_tc0100scn_2;
+	optional_device<tc0360pri_device> m_tc0360pri;
+	optional_device<tc0280grd_device> m_tc0280grd;
+	optional_device<tc0280grd_device> m_tc0430grw;
+	optional_device<tc0480scp_device> m_tc0480scp;
+	optional_device<tc0220ioc_device> m_tc0220ioc;
+	optional_device<tc0510nio_device> m_tc0510nio;
 	DECLARE_WRITE16_MEMBER(growl_coin_word_w);
 	DECLARE_WRITE16_MEMBER(taitof2_4p_coin_word_w);
 	DECLARE_WRITE16_MEMBER(ninjak_coin_word_w);
@@ -143,5 +162,17 @@ public:
 	void screen_eof_taitof2_full_buffer_delayed(screen_device &screen, bool state);
 	void screen_eof_taitof2_partial_buffer_delayed_qzchikyu(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(taitof2_interrupt);
-	TIMER_CALLBACK_MEMBER(taitof2_interrupt6);
+	void reset_driveout_sound_region();
+	void taitof2_core_vh_start (int sprite_type, int hide, int flip_hide );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int *primasks, int uses_tc360_mixer );
+	void update_spritebanks(  );
+	void taitof2_handle_sprite_buffering(  );
+	void taitof2_update_sprites_active_area(  );
+	void draw_roz_layer( bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 priority);
+	void taito_f2_tc360_spritemixdraw(bitmap_ind16 &dest_bmp, const rectangle &clip, gfx_element *gfx,
+	UINT32 code, UINT32 color, int flipx, int flipy, int sx, int sy, int scalex, int scaley );
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };

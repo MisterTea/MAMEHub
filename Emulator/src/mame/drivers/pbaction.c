@@ -78,7 +78,6 @@ WRITE8_MEMBER(pbaction_state::pbaction_sh_command_w)
 
 WRITE8_MEMBER(pbaction_state::nmi_mask_w)
 {
-
 	m_nmi_mask = data & 1;
 }
 
@@ -111,9 +110,9 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pbaction_sound_io_map, AS_IO, 8, pbaction_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x10, 0x11) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x20, 0x21) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x30, 0x31) AM_DEVWRITE_LEGACY("ay3", ay8910_address_data_w)
+	AM_RANGE(0x10, 0x11) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x20, 0x21) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x30, 0x31) AM_DEVWRITE("ay3", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -257,22 +256,16 @@ INTERRUPT_GEN_MEMBER(pbaction_state::pbaction_interrupt)
 
 void pbaction_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_scroll));
 }
 
 void pbaction_state::machine_reset()
 {
-
 	m_scroll = 0;
 }
 
 INTERRUPT_GEN_MEMBER(pbaction_state::vblank_irq)
 {
-
 	if(m_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
@@ -464,7 +457,6 @@ ROM_END
 
 READ8_MEMBER(pbaction_state::pbactio3_prot_kludge_r)
 {
-
 	/* on startup, the game expect this location to NOT act as RAM */
 	if (space.device().safe_pc() == 0xab80)
 		return 0;
@@ -475,7 +467,7 @@ READ8_MEMBER(pbaction_state::pbactio3_prot_kludge_r)
 DRIVER_INIT_MEMBER(pbaction_state,pbactio3)
 {
 	int i;
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
+	UINT8 *rom = memregion("maincpu")->base();
 
 	/* first of all, do a simple bitswap */
 	for (i = 0; i < 0xc000; i++)
@@ -487,7 +479,7 @@ DRIVER_INIT_MEMBER(pbaction_state,pbactio3)
 	pbaction_decode(machine(), "maincpu");
 
 	/* install a protection (?) workaround */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xc000, 0xc000, read8_delegate(FUNC(pbaction_state::pbactio3_prot_kludge_r),this) );
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xc000, 0xc000, read8_delegate(FUNC(pbaction_state::pbactio3_prot_kludge_r),this) );
 }
 
 DRIVER_INIT_MEMBER(pbaction_state,pbactio4)

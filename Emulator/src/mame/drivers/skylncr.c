@@ -43,7 +43,7 @@ class skylncr_state : public driver_device
 {
 public:
 	skylncr_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
 		m_reeltiles_1_ram(*this, "reeltiles_1_ram"),
@@ -57,7 +57,8 @@ public:
 		m_reelscroll1(*this, "reelscroll1"),
 		m_reelscroll2(*this, "reelscroll2"),
 		m_reelscroll3(*this, "reelscroll3"),
-		m_reelscroll4(*this, "reelscroll4"){ }
+		m_reelscroll4(*this, "reelscroll4"),
+		m_maincpu(*this, "maincpu") { }
 
 	tilemap_t *m_tmap;
 	required_shared_ptr<UINT8> m_videoram;
@@ -110,6 +111,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_skylncr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(skylncr_vblank_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -163,7 +165,6 @@ TILE_GET_INFO_MEMBER(skylncr_state::get_reel_4_tile_info)
 
 void skylncr_state::video_start()
 {
-
 	m_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skylncr_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 0x40, 0x20    );
 
 	m_reel_1_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(skylncr_state::get_reel_1_tile_info),this), TILEMAP_SCAN_ROWS, 8, 32, 64, 8 );
@@ -263,7 +264,6 @@ WRITE8_MEMBER(skylncr_state::reeltileshigh_4_w)
 
 WRITE8_MEMBER(skylncr_state::skylncr_paletteram_w)
 {
-
 	if (offset == 0)
 	{
 		m_color = data;
@@ -287,7 +287,6 @@ WRITE8_MEMBER(skylncr_state::skylncr_paletteram_w)
 
 WRITE8_MEMBER(skylncr_state::skylncr_paletteram2_w)
 {
-
 	if (offset == 0)
 	{
 		m_color2 = data;
@@ -427,8 +426,8 @@ static ADDRESS_MAP_START( io_map_skylncr, AS_IO, 8, skylncr_state )
 
 	AM_RANGE(0x20, 0x20) AM_WRITE(skylncr_coin_w )
 
-	AM_RANGE(0x30, 0x31) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_data_w )
-	AM_RANGE(0x31, 0x31) AM_DEVREAD_LEGACY("aysnd", ay8910_r )
+	AM_RANGE(0x30, 0x31) AM_DEVWRITE("aysnd", ay8910_device, address_data_w)
+	AM_RANGE(0x31, 0x31) AM_DEVREAD("aysnd", ay8910_device, data_r)
 
 	AM_RANGE(0x40, 0x41) AM_WRITE(skylncr_paletteram_w )
 	AM_RANGE(0x50, 0x51) AM_WRITE(skylncr_paletteram2_w )

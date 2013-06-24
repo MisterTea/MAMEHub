@@ -125,13 +125,14 @@ class dreamwld_state : public driver_device
 {
 public:
 	dreamwld_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_paletteram(*this, "paletteram"),
 		m_bg_videoram(*this, "bg_videoram"),
 		m_bg2_videoram(*this, "bg2_videoram"),
 		m_vregs(*this, "vregs"),
-		m_workram(*this, "workram"){ }
+		m_workram(*this, "workram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT32> m_spriteram;
@@ -165,17 +166,18 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_dreamwld(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_dreamwld(screen_device &screen, bool state);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };
 
 
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void dreamwld_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	dreamwld_state *state = machine.driver_data<dreamwld_state>();
-	gfx_element *gfx = machine.gfx[0];
-	UINT32 *source = state->m_spritebuf1;
-	UINT32 *finish = state->m_spritebuf1 + 0x1000 / 4;
-	UINT16 *redirect = (UINT16 *)state->memregion("spritelut")->base();
+	gfx_element *gfx = machine().gfx[0];
+	UINT32 *source = m_spritebuf1;
+	UINT32 *finish = m_spritebuf1 + 0x1000 / 4;
+	UINT16 *redirect = (UINT16 *)memregion("spritelut")->base();
 
 	while (source < finish)
 	{
@@ -269,7 +271,6 @@ TILE_GET_INFO_MEMBER(dreamwld_state::get_dreamwld_bg2_tile_info)
 
 void dreamwld_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dreamwld_state::get_dreamwld_bg_tile_info),this),TILEMAP_SCAN_ROWS, 16, 16, 64,32);
 	m_bg2_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dreamwld_state::get_dreamwld_bg2_tile_info),this),TILEMAP_SCAN_ROWS, 16, 16, 64,32);
 	m_bg2_tilemap->set_transparent_pen(0);
@@ -395,7 +396,7 @@ UINT32 dreamwld_state::screen_update_dreamwld(screen_device &screen, bitmap_ind1
 	tmptilemap0->draw(bitmap, cliprect, 0, 0);
 	tmptilemap1->draw(bitmap, cliprect, 0, 0);
 
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 
 	return 0;
 }
@@ -567,7 +568,6 @@ GFXDECODE_END
 
 void dreamwld_state::machine_start()
 {
-
 	save_item(NAME(m_protindex));
 	save_item(NAME(m_tilebank));
 	save_item(NAME(m_tilebankold));
@@ -575,7 +575,6 @@ void dreamwld_state::machine_start()
 
 void dreamwld_state::machine_reset()
 {
-
 	m_tilebankold[0] = m_tilebankold[1] = -1;
 	m_tilebank[0] = m_tilebank[1] = 0;
 	m_protindex = 0;

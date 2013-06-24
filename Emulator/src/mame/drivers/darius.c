@@ -139,24 +139,22 @@ sounds.
 #include "darius.lh"
 
 
-static void parse_control( running_machine &machine )   /* assumes Z80 sandwiched between 68Ks */
+void darius_state::parse_control(  )   /* assumes Z80 sandwiched between 68Ks */
 {
 	/* bit 0 enables cpu B */
 	/* however this fails when recovering from a save state
 	   if cpu B is disabled !! */
-	darius_state *state = machine.driver_data<darius_state>();
-	state->m_cpub->execute().set_input_line(INPUT_LINE_RESET, (state->m_cpua_ctrl & 0x01) ? CLEAR_LINE : ASSERT_LINE);
+	m_cpub->set_input_line(INPUT_LINE_RESET, (m_cpua_ctrl & 0x01) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE16_MEMBER(darius_state::cpua_ctrl_w)
 {
-
 	if ((data & 0xff00) && ((data & 0xff) == 0))
 		data = data >> 8;
 
 	m_cpua_ctrl = data;
 
-	parse_control(machine());
+	parse_control();
 
 	logerror("CPU #0 PC %06x: write %04x to cpu control\n", space.device().safe_pc(), data);
 }
@@ -173,11 +171,10 @@ WRITE16_MEMBER(darius_state::darius_watchdog_w)
 
 READ16_MEMBER(darius_state::darius_ioc_r)
 {
-
 	switch (offset)
 	{
 		case 0x01:
-			return (tc0140syt_comm_r(m_tc0140syt, space, 0) & 0xff);    /* sound interface read */
+			return (m_tc0140syt->tc0140syt_comm_r(space, 0) & 0xff);    /* sound interface read */
 
 		case 0x04:
 			return ioport("P1")->read();
@@ -202,17 +199,16 @@ logerror("CPU #0 PC %06x: warning - read unmapped ioc offset %06x\n",space.devic
 
 WRITE16_MEMBER(darius_state::darius_ioc_w)
 {
-
 	switch (offset)
 	{
 		case 0x00:  /* sound interface write */
 
-			tc0140syt_port_w(m_tc0140syt, space, 0, data & 0xff);
+			m_tc0140syt->tc0140syt_port_w(space, 0, data & 0xff);
 			return;
 
 		case 0x01:  /* sound interface write */
 
-			tc0140syt_comm_w(m_tc0140syt, space, 0, data & 0xff);
+			m_tc0140syt->tc0140syt_comm_w(space, 0, data & 0xff);
 			return;
 
 		case 0x28:  /* unknown, written by both cpus - always 0? */
@@ -271,17 +267,15 @@ ADDRESS_MAP_END
                         SOUND
 *****************************************************/
 
-static void reset_sound_region( running_machine &machine )
+void darius_state::reset_sound_region(  )
 {
-	darius_state *state = machine.driver_data<darius_state>();
-	state->membank("bank1")->set_entry(state->m_banknum);
+	membank("bank1")->set_entry(m_banknum);
 }
 
 WRITE8_MEMBER(darius_state::sound_bankswitch_w)
 {
-
 	m_banknum = data & 0x03;
-	reset_sound_region(machine());
+	reset_sound_region();
 //  banknum = data;
 //  reset_sound_region();
 }
@@ -304,171 +298,162 @@ WRITE8_MEMBER(darius_state::display_value)
                Sound mixer/pan control
 *****************************************************/
 
-static void update_fm0( running_machine &machine )
+void darius_state::update_fm0(  )
 {
-	darius_state *state = machine.driver_data<darius_state>();
-	int left  = (        state->m_pan[0]  * state->m_vol[6]) >> 8;
-	int right = ((0xff - state->m_pan[0]) * state->m_vol[6]) >> 8;
+	int left  = (        m_pan[0]  * m_vol[6]) >> 8;
+	int right = ((0xff - m_pan[0]) * m_vol[6]) >> 8;
 
-	if (state->m_filter0_3l != NULL)
-		flt_volume_set_volume(state->m_filter0_3l, left / 100.0);
-	if (state->m_filter0_3r != NULL)
-		flt_volume_set_volume(state->m_filter0_3r, right / 100.0); /* FM #0 */
+	if (m_filter0_3l != NULL)
+		m_filter0_3l->flt_volume_set_volume(left / 100.0);
+	if (m_filter0_3r != NULL)
+		m_filter0_3r->flt_volume_set_volume(right / 100.0); /* FM #0 */
 }
 
-static void update_fm1( running_machine &machine )
+void darius_state::update_fm1(  )
 {
-	darius_state *state = machine.driver_data<darius_state>();
-	int left  = (        state->m_pan[1]  * state->m_vol[7]) >> 8;
-	int right = ((0xff - state->m_pan[1]) * state->m_vol[7]) >> 8;
+	int left  = (        m_pan[1]  * m_vol[7]) >> 8;
+	int right = ((0xff - m_pan[1]) * m_vol[7]) >> 8;
 
-	if (state->m_filter1_3l != NULL)
-		flt_volume_set_volume(state->m_filter1_3l, left / 100.0);
-	if (state->m_filter1_3r != NULL)
-		flt_volume_set_volume(state->m_filter1_3r, right / 100.0); /* FM #1 */
+	if (m_filter1_3l != NULL)
+		m_filter1_3l->flt_volume_set_volume(left / 100.0);
+	if (m_filter1_3r != NULL)
+		m_filter1_3r->flt_volume_set_volume(right / 100.0); /* FM #1 */
 }
 
-static void update_psg0( running_machine &machine, int port )
+void darius_state::update_psg0( int port )
 {
-	darius_state *state = machine.driver_data<darius_state>();
-	device_t *lvol = NULL, *rvol = NULL;
+	filter_volume_device *lvol = NULL, *rvol = NULL;
 	int left, right;
 
 	switch (port)
 	{
-		case 0: lvol = state->m_filter0_0l; rvol = state->m_filter0_0r; break;
-		case 1: lvol = state->m_filter0_1l; rvol = state->m_filter0_1r; break;
-		case 2: lvol = state->m_filter0_2l; rvol = state->m_filter0_2r; break;
+		case 0: lvol = m_filter0_0l; rvol = m_filter0_0r; break;
+		case 1: lvol = m_filter0_1l; rvol = m_filter0_1r; break;
+		case 2: lvol = m_filter0_2l; rvol = m_filter0_2r; break;
 		default: break;
 	}
 
-	left  = (        state->m_pan[2]  * state->m_vol[port]) >> 8;
-	right = ((0xff - state->m_pan[2]) * state->m_vol[port]) >> 8;
+	left  = (        m_pan[2]  * m_vol[port]) >> 8;
+	right = ((0xff - m_pan[2]) * m_vol[port]) >> 8;
 
 	if (lvol != NULL)
-		flt_volume_set_volume(lvol, left / 100.0);
+		lvol->flt_volume_set_volume(left / 100.0);
 	if (rvol != NULL)
-		flt_volume_set_volume(rvol, right / 100.0);
+		rvol->flt_volume_set_volume(right / 100.0);
 }
 
-static void update_psg1( running_machine &machine, int port )
+void darius_state::update_psg1( int port )
 {
-	darius_state *state = machine.driver_data<darius_state>();
-	device_t *lvol = NULL, *rvol = NULL;
+	filter_volume_device *lvol = NULL, *rvol = NULL;
 	int left, right;
 
 	switch (port)
 	{
-		case 0: lvol = state->m_filter1_0l; rvol = state->m_filter1_0r; break;
-		case 1: lvol = state->m_filter1_1l; rvol = state->m_filter1_1r; break;
-		case 2: lvol = state->m_filter1_2l; rvol = state->m_filter1_2r; break;
+		case 0: lvol = m_filter1_0l; rvol = m_filter1_0r; break;
+		case 1: lvol = m_filter1_1l; rvol = m_filter1_1r; break;
+		case 2: lvol = m_filter1_2l; rvol = m_filter1_2r; break;
 		default: break;
 	}
 
-	left  = (        state->m_pan[3]  * state->m_vol[port + 3]) >> 8;
-	right = ((0xff - state->m_pan[3]) * state->m_vol[port + 3]) >> 8;
+	left  = (        m_pan[3]  * m_vol[port + 3]) >> 8;
+	right = ((0xff - m_pan[3]) * m_vol[port + 3]) >> 8;
 
 	if (lvol != NULL)
-		flt_volume_set_volume(lvol, left / 100.0);
+		lvol->flt_volume_set_volume(left / 100.0);
 	if (rvol != NULL)
-		flt_volume_set_volume(rvol, right / 100.0);
+		rvol->flt_volume_set_volume(right / 100.0);
 }
 
-static void update_da( running_machine &machine )
+void darius_state::update_da(  )
 {
-	darius_state *state = machine.driver_data<darius_state>();
-	int left  = state->m_def_vol[(state->m_pan[4] >> 4) & 0x0f];
-	int right = state->m_def_vol[(state->m_pan[4] >> 0) & 0x0f];
+	int left  = m_def_vol[(m_pan[4] >> 4) & 0x0f];
+	int right = m_def_vol[(m_pan[4] >> 0) & 0x0f];
 
-	if (state->m_msm5205_l != NULL)
-		flt_volume_set_volume(state->m_msm5205_l, left / 100.0);
-	if (state->m_msm5205_r != NULL)
-		flt_volume_set_volume(state->m_msm5205_r, right / 100.0);
+	if (m_msm5205_l != NULL)
+		m_msm5205_l->flt_volume_set_volume(left / 100.0);
+	if (m_msm5205_r != NULL)
+		m_msm5205_r->flt_volume_set_volume(right / 100.0);
 }
 
 WRITE8_MEMBER(darius_state::darius_fm0_pan)
 {
 	m_pan[0] = data & 0xff;  /* data 0x00:right 0xff:left */
-	update_fm0(machine());
+	update_fm0();
 }
 
 WRITE8_MEMBER(darius_state::darius_fm1_pan)
 {
 	m_pan[1] = data & 0xff;
-	update_fm1(machine());
+	update_fm1();
 }
 
 WRITE8_MEMBER(darius_state::darius_psg0_pan)
 {
 	m_pan[2] = data & 0xff;
-	update_psg0(machine(), 0);
-	update_psg0(machine(), 1);
-	update_psg0(machine(), 2);
+	update_psg0(0);
+	update_psg0(1);
+	update_psg0(2);
 }
 
 WRITE8_MEMBER(darius_state::darius_psg1_pan)
 {
 	m_pan[3] = data & 0xff;
-	update_psg1(machine(), 0);
-	update_psg1(machine(), 1);
-	update_psg1(machine(), 2);
+	update_psg1( 0);
+	update_psg1( 1);
+	update_psg1( 2);
 }
 
 WRITE8_MEMBER(darius_state::darius_da_pan)
 {
 	m_pan[4] = data & 0xff;
-	update_da(machine());
+	update_da();
 }
 
 /**** Mixer Control ****/
 
 WRITE8_MEMBER(darius_state::darius_write_portA0)
 {
-
 	// volume control FM #0 PSG #0 A
 	//popmessage(" pan %02x %02x %02x %02x %02x", m_pan[0], m_pan[1], m_pan[2], m_pan[3], m_pan[4] );
 	//popmessage(" A0 %02x A1 %02x B0 %02x B1 %02x", port[0], port[1], port[2], port[3] );
 
 	m_vol[0] = m_def_vol[(data >> 4) & 0x0f];
 	m_vol[6] = m_def_vol[(data >> 0) & 0x0f];
-	update_fm0(machine());
-	update_psg0(machine(), 0);
+	update_fm0();
+	update_psg0(0);
 }
 
 WRITE8_MEMBER(darius_state::darius_write_portA1)
 {
-
 	// volume control FM #1 PSG #1 A
 	//popmessage(" pan %02x %02x %02x %02x %02x", m_pan[0], m_pan[1], m_pan[2], m_pan[3], m_pan[4] );
 
 	m_vol[3] = m_def_vol[(data >> 4) & 0x0f];
 	m_vol[7] = m_def_vol[(data >> 0) & 0x0f];
-	update_fm1(machine());
-	update_psg1(machine(), 0);
+	update_fm1();
+	update_psg1( 0);
 }
 
 WRITE8_MEMBER(darius_state::darius_write_portB0)
 {
-
 	// volume control PSG #0 B/C
 	//popmessage(" pan %02x %02x %02x %02x %02x", m_pan[0], m_pan[1], m_pan[2], m_pan[3], m_pan[4] );
 
 	m_vol[1] = m_def_vol[(data >> 4) & 0x0f];
 	m_vol[2] = m_def_vol[(data >> 0) & 0x0f];
-	update_psg0(machine(), 1);
-	update_psg0(machine(), 2);
+	update_psg0(1);
+	update_psg0(2);
 }
 
 WRITE8_MEMBER(darius_state::darius_write_portB1)
 {
-
 	// volume control PSG #1 B/C
 	//popmessage(" pan %02x %02x %02x %02x %02x", m_pan[0], m_pan[1], m_pan[2], m_pan[3], m_pan[4] );
 
 	m_vol[4] = m_def_vol[(data >> 4) & 0x0f];
 	m_vol[5] = m_def_vol[(data >> 0) & 0x0f];
-	update_psg1(machine(), 1);
-	update_psg1(machine(), 2);
+	update_psg1( 1);
+	update_psg1( 2);
 }
 
 
@@ -479,10 +464,10 @@ WRITE8_MEMBER(darius_state::darius_write_portB1)
 static ADDRESS_MAP_START( darius_sound_map, AS_PROGRAM, 8, darius_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x8000, 0x8fff) AM_RAM
-	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r, ym2203_w)
-	AM_RANGE(0xb000, 0xb000) AM_READNOP AM_DEVWRITE_LEGACY("tc0140syt", tc0140syt_slave_port_w)
-	AM_RANGE(0xb001, 0xb001) AM_DEVREADWRITE_LEGACY("tc0140syt", tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
+	AM_RANGE(0x9000, 0x9001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
+	AM_RANGE(0xb000, 0xb000) AM_READNOP AM_DEVWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_port_w)
+	AM_RANGE(0xb001, 0xb001) AM_DEVREADWRITE("tc0140syt", tc0140syt_device, tc0140syt_slave_comm_r, tc0140syt_slave_comm_w)
 	AM_RANGE(0xc000, 0xc000) AM_WRITE(darius_fm0_pan)
 	AM_RANGE(0xc400, 0xc400) AM_WRITE(darius_fm1_pan)
 	AM_RANGE(0xc800, 0xc800) AM_WRITE(darius_psg0_pan)
@@ -499,23 +484,20 @@ static ADDRESS_MAP_START( darius_sound2_map, AS_PROGRAM, 8, darius_state )
 ADDRESS_MAP_END
 
 
-static void darius_adpcm_int( device_t *device )
+WRITE_LINE_MEMBER(darius_state::darius_adpcm_int)
 {
-	darius_state *state = device->machine().driver_data<darius_state>();
-
-	if (state->m_nmi_enable)
-		state->m_adpcm->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	if (m_nmi_enable)
+		m_adpcm->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 static const msm5205_interface msm5205_config =
 {
-	darius_adpcm_int,   /* interrupt function */
+	DEVCB_DRIVER_LINE_MEMBER(darius_state,darius_adpcm_int),   /* interrupt function */
 	MSM5205_S48_4B      /* 8KHz   */
 };
 
 READ8_MEMBER(darius_state::adpcm_command_read)
 {
-
 	/* logerror("read port 0: %02x  PC=%4x\n",adpcm_command, space.device().safe_pc() ); */
 	return m_adpcm_command;
 }
@@ -532,7 +514,6 @@ READ8_MEMBER(darius_state::readport3)
 
 WRITE8_MEMBER(darius_state::adpcm_nmi_disable)
 {
-
 	m_nmi_enable = 0;
 	/* logerror("write port 0: NMI DISABLE  PC=%4x\n", data, space.device().safe_pc() ); */
 }
@@ -545,9 +526,8 @@ WRITE8_MEMBER(darius_state::adpcm_nmi_enable)
 
 WRITE8_MEMBER(darius_state::adpcm_data_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_data_w(device, data);
-	msm5205_reset_w(device, !(data & 0x20));    /* my best guess, but it could be output enable as well */
+	m_msm->data_w(data);
+	m_msm->reset_w(!(data & 0x20));    /* my best guess, but it could be output enable as well */
 }
 
 static ADDRESS_MAP_START( darius_sound2_io_map, AS_IO, 8, darius_state )
@@ -782,36 +762,29 @@ GFXDECODE_END
 **************************************************************/
 
 /* handler called by the YM2203 emulator when the internal timers cause an IRQ */
-static void irqhandler( device_t *device, int irq ) /* assumes Z80 sandwiched between 68Ks */
+WRITE_LINE_MEMBER(darius_state::irqhandler) /* assumes Z80 sandwiched between 68Ks */
 {
-	darius_state *state = device->machine().driver_data<darius_state>();
-	state->m_audiocpu->set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_interface_1 =
+static const ay8910_interface ay8910_config_1 =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,                 /* portA read */
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(darius_state,darius_write_portA0),  /* portA write */
-		DEVCB_DRIVER_MEMBER(darius_state,darius_write_portB0),  /* portB write */
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,                 /* portA read */
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(darius_state,darius_write_portA0),  /* portA write */
+	DEVCB_DRIVER_MEMBER(darius_state,darius_write_portB0),  /* portB write */
 };
 
-static const ym2203_interface ym2203_interface_2 =
+static const ay8910_interface ay8910_config_2 =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL,                 /* portA read */
-		DEVCB_NULL,
-		DEVCB_DRIVER_MEMBER(darius_state,darius_write_portA1),  /* portA write */
-		DEVCB_DRIVER_MEMBER(darius_state,darius_write_portB1)       /* portB write */
-	},
-	DEVCB_NULL
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL,                 /* portA read */
+	DEVCB_NULL,
+	DEVCB_DRIVER_MEMBER(darius_state,darius_write_portA1),  /* portA write */
+	DEVCB_DRIVER_MEMBER(darius_state,darius_write_portB1)       /* portB write */
 };
 
 
@@ -830,50 +803,17 @@ static const tc0140syt_interface darius_tc0140syt_intf =
 	"maincpu", "audiocpu"
 };
 
-static void darius_postload(running_machine &machine)
+void darius_state::darius_postload()
 {
-	parse_control(machine);
-	reset_sound_region(machine);
+	parse_control();
+	reset_sound_region();
 }
 
 void darius_state::machine_start()
 {
-
 	membank("bank1")->configure_entries(0, 4, memregion("audiocpu")->base() + 0x10000, 0x8000);
 	membank("bank1")->configure_entry(4, memregion("audiocpu")->base());
 	membank("bank1")->set_entry(4);
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_cpub = machine().device("cpub");
-	m_adpcm = machine().device("adpcm");
-	m_pc080sn = machine().device("pc080sn");
-	m_tc0140syt = machine().device("tc0140syt");
-
-	m_lscreen = machine().device("lscreen");
-	m_mscreen = machine().device("mscreen");
-	m_rscreen = machine().device("rscreen");
-
-	m_filter0_0l = machine().device("filter0.0l");
-	m_filter0_0r = machine().device("filter0.0r");
-	m_filter0_1l = machine().device("filter0.1l");
-	m_filter0_1r = machine().device("filter0.1r");
-	m_filter0_2l = machine().device("filter0.2l");
-	m_filter0_2r = machine().device("filter0.2r");
-	m_filter0_3l = machine().device("filter0.3l");
-	m_filter0_3r = machine().device("filter0.3r");
-
-	m_filter1_0l = machine().device("filter1.0l");
-	m_filter1_0r = machine().device("filter1.0r");
-	m_filter1_1l = machine().device("filter1.1l");
-	m_filter1_1r = machine().device("filter1.1r");
-	m_filter1_2l = machine().device("filter1.2l");
-	m_filter1_2r = machine().device("filter1.2r");
-	m_filter1_3l = machine().device("filter1.3l");
-	m_filter1_3r = machine().device("filter1.3r");
-
-	m_msm5205_l = machine().device("msm5205.l");
-	m_msm5205_r = machine().device("msm5205.r");
 
 	save_item(NAME(m_cpua_ctrl));
 	save_item(NAME(m_coin_word));
@@ -883,7 +823,7 @@ void darius_state::machine_start()
 	save_item(NAME(m_nmi_enable));
 	save_item(NAME(m_vol));
 	save_item(NAME(m_pan));
-	machine().save().register_postload(save_prepost_delegate(FUNC(darius_postload), &machine()));
+	machine().save().register_postload(save_prepost_delegate(FUNC(darius_state::darius_postload), this));
 }
 
 
@@ -967,7 +907,8 @@ static MACHINE_CONFIG_START( darius, darius_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 4000000)
-	MCFG_SOUND_CONFIG(ym2203_interface_1)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(darius_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config_1)
 	MCFG_SOUND_ROUTE(0, "filter0.0l", 0.08)
 	MCFG_SOUND_ROUTE(0, "filter0.0r", 0.08)
 	MCFG_SOUND_ROUTE(1, "filter0.1l", 0.08)
@@ -978,7 +919,7 @@ static MACHINE_CONFIG_START( darius, darius_state )
 	MCFG_SOUND_ROUTE(3, "filter0.3r", 0.60)
 
 	MCFG_SOUND_ADD("ym2", YM2203, 4000000)
-	MCFG_SOUND_CONFIG(ym2203_interface_2)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config_2)
 	MCFG_SOUND_ROUTE(0, "filter1.0l", 0.08)
 	MCFG_SOUND_ROUTE(0, "filter1.0r", 0.08)
 	MCFG_SOUND_ROUTE(1, "filter1.1l", 0.08)
@@ -993,43 +934,43 @@ static MACHINE_CONFIG_START( darius, darius_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "msm5205.l", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "msm5205.r", 1.0)
 
-	MCFG_SOUND_ADD("filter0.0l", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter0.0l", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("filter0.0r", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter0.0r", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-	MCFG_SOUND_ADD("filter0.1l", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter0.1l", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("filter0.1r", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter0.1r", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-	MCFG_SOUND_ADD("filter0.2l", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter0.2l", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("filter0.2r", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter0.2r", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-	MCFG_SOUND_ADD("filter0.3l", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter0.3l", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("filter0.3r", FILTER_VOLUME, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-
-	MCFG_SOUND_ADD("filter1.0l", FILTER_VOLUME, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("filter1.0r", FILTER_VOLUME, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-	MCFG_SOUND_ADD("filter1.1l", FILTER_VOLUME, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("filter1.1r", FILTER_VOLUME, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-	MCFG_SOUND_ADD("filter1.2l", FILTER_VOLUME, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("filter1.2r", FILTER_VOLUME, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
-	MCFG_SOUND_ADD("filter1.3l", FILTER_VOLUME, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("filter1.3r", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter0.3r", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
-	MCFG_SOUND_ADD("msm5205.l", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter1.0l", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
-	MCFG_SOUND_ADD("msm5205.r", FILTER_VOLUME, 0)
+	MCFG_FILTER_VOLUME_ADD("filter1.0r", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
+	MCFG_FILTER_VOLUME_ADD("filter1.1l", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
+	MCFG_FILTER_VOLUME_ADD("filter1.1r", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
+	MCFG_FILTER_VOLUME_ADD("filter1.2l", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
+	MCFG_FILTER_VOLUME_ADD("filter1.2r", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
+	MCFG_FILTER_VOLUME_ADD("filter1.3l", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
+	MCFG_FILTER_VOLUME_ADD("filter1.3r", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
+
+	MCFG_FILTER_VOLUME_ADD("msm5205.l", 0)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
+	MCFG_FILTER_VOLUME_ADD("msm5205.r", 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
 	MCFG_TC0140SYT_ADD("tc0140syt", darius_tc0140syt_intf)
@@ -1268,7 +1209,7 @@ ROM_END
 DRIVER_INIT_MEMBER(darius_state,darius)
 {
 	/**** setup sound bank image ****/
-	UINT8 *RAM = machine().root_device().memregion("audiocpu")->base();
+	UINT8 *RAM = memregion("audiocpu")->base();
 	int  i;
 
 	for (i = 3; i >= 0; i--)

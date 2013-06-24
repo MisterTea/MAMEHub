@@ -30,7 +30,7 @@
 
 void bking_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 220, 390, 820 };
 	static const int resistances_b [2] = { 220, 390 };
 	double rweights[3], gweights[3], bweights[2];
@@ -116,7 +116,6 @@ WRITE8_MEMBER(bking_state::bking_yld3_w)
 
 WRITE8_MEMBER(bking_state::bking_cont1_w)
 {
-
 	/* D0 = COIN LOCK */
 	/* D1 = BALL 5 (Controller selection) */
 	/* D2 = VINV (flip screen) */
@@ -136,7 +135,6 @@ WRITE8_MEMBER(bking_state::bking_cont1_w)
 
 WRITE8_MEMBER(bking_state::bking_cont2_w)
 {
-
 	/* D0-D2 = BALL10 - BALL12 (Selects player 1 ball picture) */
 	/* D3-D5 = BALL20 - BALL22 (Selects player 2 ball picture) */
 	/* D6 = HIT1 */
@@ -150,7 +148,6 @@ WRITE8_MEMBER(bking_state::bking_cont2_w)
 
 WRITE8_MEMBER(bking_state::bking_cont3_w)
 {
-
 	/* D0 = CROW INV (inverts Crow picture and coordinates) */
 	/* D1-D2 = COLOR 0 - COLOR 1 (switches 4 color palettes, global across all graphics) */
 	/* D3 = SOUND STOP */
@@ -235,7 +232,6 @@ void bking_state::video_start()
 
 UINT32 bking_state::screen_update_bking(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	/* draw the balls */
@@ -311,7 +307,7 @@ void bking_state::screen_eof_bking(screen_device &screen, bool state)
 
 		if (latch != 0)
 		{
-			const UINT8* MASK = machine().root_device().memregion("user1")->base() + 8 * m_hit;
+			const UINT8* MASK = memregion("user1")->base() + 8 * m_hit;
 
 			int x;
 			int y;

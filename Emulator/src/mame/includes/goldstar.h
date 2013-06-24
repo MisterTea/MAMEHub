@@ -2,7 +2,7 @@ class goldstar_state : public driver_device
 {
 public:
 	goldstar_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fg_vidram(*this, "fg_vidram"),
 		m_fg_atrram(*this, "fg_atrram"),
 		m_reel1_ram(*this, "reel1_ram"),
@@ -13,7 +13,8 @@ public:
 		m_reel3_scroll(*this, "reel3_scroll"),
 		m_reel1_attrram(*this, "reel1_attrram"),
 		m_reel2_attrram(*this, "reel2_attrram"),
-		m_reel3_attrram(*this, "reel3_attrram"){ }
+		m_reel3_attrram(*this, "reel3_attrram"),
+		m_maincpu(*this, "maincpu") { }
 
 	int m_dataoffset;
 
@@ -79,6 +80,7 @@ public:
 	DECLARE_READ8_MEMBER(fixedval74_r);
 	DECLARE_READ8_MEMBER(fixedvale4_r);
 	DECLARE_READ8_MEMBER(fixedvalc7_r);
+	DECLARE_READ8_MEMBER(fixedval7d_r);
 	DECLARE_WRITE8_MEMBER(cm_girl_scroll_w);
 	DECLARE_WRITE8_MEMBER(cm_outport0_w);
 	DECLARE_WRITE8_MEMBER(goldstar_fg_vidram_w);
@@ -123,6 +125,7 @@ public:
 	DECLARE_DRIVER_INIT(rp36c3);
 	DECLARE_DRIVER_INIT(magoddsc);
 	DECLARE_DRIVER_INIT(nfb96_c1);
+	DECLARE_DRIVER_INIT(fb2010);
 	TILE_GET_INFO_MEMBER(get_goldstar_fg_tile_info);
 	TILE_GET_INFO_MEMBER(get_magical_fg_tile_info);
 	TILE_GET_INFO_MEMBER(get_cherrym_fg_tile_info);
@@ -148,4 +151,9 @@ public:
 	UINT32 screen_update_amcoe1a(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_unkch(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(lucky8_irq);
+	void do_blockswaps(UINT8* ROM);
+	void dump_to_file( UINT8* ROM);
+	UINT8 decrypt(UINT8 cipherText, UINT16 address);
+	UINT8 chry10_decrypt(UINT8 cipherText);
+	required_device<cpu_device> m_maincpu;
 };

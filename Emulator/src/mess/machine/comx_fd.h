@@ -41,7 +41,6 @@ public:
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "comx_fd"; }
 	virtual void device_start();
 	virtual void device_reset();
 
@@ -57,9 +56,9 @@ private:
 	required_device<wd1770_t> m_fdc;
 	required_device<floppy_connector> m_floppy0;
 	required_device<floppy_connector> m_floppy1;
+	required_memory_region m_rom;
 
 	// floppy state
-	const UINT8 *m_rom;
 	int m_q;                // FDC register select
 	int m_addr;             // FDC address
 	int m_disb;             // data request disable

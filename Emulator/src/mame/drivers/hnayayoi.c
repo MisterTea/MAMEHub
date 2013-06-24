@@ -69,26 +69,22 @@ WRITE8_MEMBER(hnayayoi_state::keyboard_w)
 
 WRITE8_MEMBER(hnayayoi_state::adpcm_data_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_data_w(device, data);
+	m_msm->data_w(data);
 }
 
 WRITE8_MEMBER(hnayayoi_state::adpcm_vclk_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_vclk_w(device, data & 1);
+	m_msm->vclk_w(data & 1);
 }
 
 WRITE8_MEMBER(hnayayoi_state::adpcm_reset_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device, data & 1);
+	m_msm->reset_w(data & 1);
 }
 
 WRITE8_MEMBER(hnayayoi_state::adpcm_reset_inv_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device, ~data & 1);
+	m_msm->reset_w(~data & 1);
 }
 
 
@@ -100,8 +96,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( hnayayoi_io_map, AS_IO, 8, hnayayoi_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x01) AM_DEVWRITE_LEGACY("ymsnd", ym2203_w)
-	AM_RANGE(0x02, 0x03) AM_DEVREAD_LEGACY("ymsnd", ym2203_r)
+	AM_RANGE(0x00, 0x01) AM_DEVWRITE("ymsnd", ym2203_device, write)
+	AM_RANGE(0x02, 0x03) AM_DEVREAD("ymsnd", ym2203_device, read)
 	AM_RANGE(0x04, 0x04) AM_READ_PORT("DSW3")
 	AM_RANGE(0x06, 0x06) AM_WRITE(adpcm_data_w)
 //  AM_RANGE(0x08, 0x08) AM_WRITENOP // CRT Controller
@@ -122,8 +118,8 @@ static ADDRESS_MAP_START( hnfubuki_map, AS_PROGRAM, 8, hnayayoi_state )
 	AM_RANGE(0x0000, 0x77ff) AM_ROM
 	AM_RANGE(0x7800, 0x7fff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0x8000, 0xfeff) AM_ROM
-	AM_RANGE(0xff00, 0xff01) AM_DEVWRITE_LEGACY("ymsnd", ym2203_w)
-	AM_RANGE(0xff02, 0xff03) AM_DEVREAD_LEGACY("ymsnd", ym2203_r)
+	AM_RANGE(0xff00, 0xff01) AM_DEVWRITE("ymsnd", ym2203_device, write)
+	AM_RANGE(0xff02, 0xff03) AM_DEVREAD("ymsnd", ym2203_device, read)
 	AM_RANGE(0xff04, 0xff04) AM_READ_PORT("DSW3")
 	AM_RANGE(0xff06, 0xff06) AM_WRITE(adpcm_data_w)
 //  AM_RANGE(0xff08, 0xff08) AM_WRITENOP // CRT Controller
@@ -148,8 +144,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( untoucha_io_map, AS_IO, 8, hnayayoi_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x10, 0x10) AM_DEVWRITE_LEGACY("ymsnd", ym2203_control_port_w)
-	AM_RANGE(0x11, 0x11) AM_DEVREAD_LEGACY("ymsnd", ym2203_status_port_r)
+	AM_RANGE(0x10, 0x10) AM_DEVWRITE("ymsnd", ym2203_device, control_port_w)
+	AM_RANGE(0x11, 0x11) AM_DEVREAD("ymsnd", ym2203_device, status_port_r)
 //  AM_RANGE(0x12, 0x12) AM_WRITENOP // CRT Controller
 	AM_RANGE(0x13, 0x13) AM_WRITE(adpcm_data_w)
 	AM_RANGE(0x14, 0x14) AM_READ_PORT("COIN")
@@ -162,8 +158,8 @@ static ADDRESS_MAP_START( untoucha_io_map, AS_IO, 8, hnayayoi_state )
 	AM_RANGE(0x28, 0x28) AM_WRITE(dynax_blitter_rev1_start_w)
 	AM_RANGE(0x31, 0x31) AM_WRITE(adpcm_vclk_w)
 	AM_RANGE(0x32, 0x32) AM_WRITE(adpcm_reset_inv_w)
-	AM_RANGE(0x50, 0x50) AM_DEVWRITE_LEGACY("ymsnd", ym2203_write_port_w)
-	AM_RANGE(0x51, 0x51) AM_DEVREAD_LEGACY("ymsnd", ym2203_read_port_r)
+	AM_RANGE(0x50, 0x50) AM_DEVWRITE("ymsnd", ym2203_device, write_port_w)
+	AM_RANGE(0x51, 0x51) AM_DEVREAD("ymsnd", ym2203_device, read_port_r)
 //  AM_RANGE(0x52, 0x52) AM_WRITENOP // CRT Controller
 ADDRESS_MAP_END
 
@@ -502,29 +498,26 @@ INPUT_PORTS_END
 
 
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(hnayayoi_state::irqhandler)
 {
 	popmessage("irq");
-//  device->machine().device("maincpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+//  m_maincpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_INPUT_PORT("DSW1"),
-		DEVCB_INPUT_PORT("DSW2"),
-		DEVCB_NULL,
-		DEVCB_NULL,
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_INPUT_PORT("DSW1"),
+	DEVCB_INPUT_PORT("DSW2"),
+	DEVCB_NULL,
+	DEVCB_NULL,
 };
 
 static const msm5205_interface msm5205_config =
 {
-	0,                  /* IRQ handler */
+	DEVCB_NULL,                  /* IRQ handler */
 	MSM5205_SEX_4B
 };
 
@@ -532,7 +525,6 @@ static const msm5205_interface msm5205_config =
 
 void hnayayoi_state::machine_start()
 {
-
 	save_item(NAME(m_palbank));
 	save_item(NAME(m_blit_layer));
 	save_item(NAME(m_blit_dest));
@@ -542,9 +534,8 @@ void hnayayoi_state::machine_start()
 
 void hnayayoi_state::machine_reset()
 {
-
 	/* start with the MSM5205 reset */
-	msm5205_reset_w(machine().device("msm"), 1);
+	m_msm->reset_w(1);
 
 	m_palbank = 0;
 	m_blit_layer = 0;
@@ -582,7 +573,8 @@ static MACHINE_CONFIG_START( hnayayoi, hnayayoi_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM2203, 20000000/8)
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(hnayayoi_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 	MCFG_SOUND_ROUTE(2, "mono", 0.25)
@@ -673,8 +665,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(hnayayoi_state,hnfubuki)
 {
-	UINT8 *rom = machine().root_device().memregion("gfx1")->base();
-	int len = machine().root_device().memregion("gfx1")->bytes();
+	UINT8 *rom = memregion("gfx1")->base();
+	int len = memregion("gfx1")->bytes();
 	int i, j;
 
 	/* interestingly, the blitter data has a slight encryption */

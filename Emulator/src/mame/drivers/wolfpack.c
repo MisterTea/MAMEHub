@@ -9,24 +9,38 @@ Atari Wolf Pack (prototype) driver
 #include "sound/s14001a.h"
 #include "includes/wolfpack.h"
 
+
+void wolfpack_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_PERIODIC:
+		periodic_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in wolfpack_state::device_timer");
+	}
+}
+
+
 TIMER_CALLBACK_MEMBER(wolfpack_state::periodic_callback)
 {
 	int scanline = param;
 
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 
 	scanline += 64;
 
 	if (scanline >= 262)
 		scanline = 0;
 
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(wolfpack_state::periodic_callback),this), scanline);
+	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_PERIODIC, scanline);
 }
 
 
 void wolfpack_state::machine_reset()
 {
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(0), timer_expired_delegate(FUNC(wolfpack_state::periodic_callback),this));
+	timer_set(machine().primary_screen->time_until_pos(0), TIMER_PERIODIC);
 }
 
 

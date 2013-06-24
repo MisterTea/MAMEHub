@@ -1,28 +1,30 @@
 <?xml version="1.0"?>
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
 <softwarelist name="v1050" description="Visual Technology Visual 1050 Disk Images">
+
 	<software name="cpm3">
-		<description>CP/M Plus v3.0 (BIOS 1.1)</description>
+		<description>CP/M Plus BIOS 2.0 (v3.0)</description>
 		<year>1982</year>
 		<publisher>Digital Research</publisher>
 		<info name="serial" value="CP2768-1"/>
 
 		<part name="flop1" interface="floppy_5_25">
-			<dataarea name="flop" size="333493">
-				<rom name="cpm disk1.imd" size="333493" crc="63d4df2c" sha1="4b54c6dbca25ce7dcf5f129c89363ad5120633de" offset="0"/>
+			<feature name="part_id" value="CP/M Plus BIOS 2.0"/>
+			<dataarea name="flop" size="709312">
+				<rom name="bios20.imd" size="709312" crc="7283244a" sha1="e7acaa95d21da76b7098e3277267f89db12961d0" offset="0"/>
 			</dataarea>
 		</part>
 
 		<part name="flop2" interface="floppy_5_25">
-			<feature name="part_id" value="Additional Files"/>
-			<dataarea name="flop" size="331979">
-				<rom name="cpm disk2.imd" size="331979" crc="39b9bd5a" sha1="c4c6ea52c983eda9282954e5fc9c7935bedfac14" offset="0"/>
+			<feature name="part_id" value="Winchester Setup"/>
+			<dataarea name="flop" size="109151">
+				<rom name="winch.imd" size="109151" crc="dc112146" sha1="02d773e561a5abda680a8ebdfafc35058fdb5a09" offset="0"/>
 			</dataarea>
 		</part>
 	</software>
 
 	<software name="cpm3b14" cloneof="cpm3">
-		<description>CP/M Plus v3.0 (BIOS 1.4)</description>
+		<description>CP/M Plus BIOS 1.4 (v3.0)</description>
 		<year>1982</year>
 		<publisher>Digital Research</publisher>
 		<info name="serial" value="CP2768-1"/>
@@ -48,8 +50,28 @@
 		</part>
 	</software>
 
+	<software name="cpm3b11" cloneof="cpm3">
+		<description>CP/M Plus BIOS 1.1 (v3.0)</description>
+		<year>1982</year>
+		<publisher>Digital Research</publisher>
+		<info name="serial" value="CP2768-1"/>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="333493">
+				<rom name="cpm disk1.imd" size="333493" crc="63d4df2c" sha1="4b54c6dbca25ce7dcf5f129c89363ad5120633de" offset="0"/>
+			</dataarea>
+		</part>
+
+		<part name="flop2" interface="floppy_5_25">
+			<feature name="part_id" value="Additional Files"/>
+			<dataarea name="flop" size="331979">
+				<rom name="cpm disk2.imd" size="331979" crc="39b9bd5a" sha1="c4c6ea52c983eda9282954e5fc9c7935bedfac14" offset="0"/>
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="multplan">
-		<description>Multiplan v1.06</description>
+		<description>Multiplan (v1.06)</description>
 		<year>1982</year>
 		<publisher>Microsoft</publisher>
 		<info name="serial" value="12768"/>
@@ -62,7 +84,7 @@
 	</software>
 
 	<software name="wordstar">
-		<description>WordStar v3.30</description>
+		<description>Word Star (v3.30)</description>
 		<year>1982</year>
 		<publisher>MicroPro</publisher>
 		<info name="serial" value="XW8293FJ"/>
@@ -75,7 +97,7 @@
 	</software>
 
 	<software name="drgraph">
-		<description>DR Graph v1.01P</description>
+		<description>DR Graph (v1.01P)</description>
 		<!-- Date: 06 Sept 1983 -->
 		<year>1983</year>
 		<publisher>Digital Research</publisher>
@@ -89,7 +111,7 @@
 	</software>
 
 	<software name="cbasic">
-		<description>CBASIC and Demonstration v2.8</description>
+		<description>CBASIC and Demonstration (v2.8)</description>
 		<!-- Compiled: May 1983 -->
 		<year>1983</year>
 		<publisher>Digital Research</publisher>
@@ -101,4 +123,5 @@
 			</dataarea>
 		</part>
 	</software>
+
 </softwarelist>

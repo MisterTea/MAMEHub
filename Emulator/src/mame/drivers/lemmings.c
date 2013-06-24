@@ -21,11 +21,9 @@
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "includes/lemmings.h"
-#include "video/decospr.h"
 
 WRITE16_MEMBER(lemmings_state::lemmings_control_w)
 {
-
 	/* Offset==0 Pixel layer X scroll */
 	if (offset == 4)
 		return; /* Watchdog or IRQ ack */
@@ -243,8 +241,6 @@ GFXDECODE_END
 
 void lemmings_state::machine_start()
 {
-
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
 }
 
 static MACHINE_CONFIG_START( lemmings, lemmings_state )

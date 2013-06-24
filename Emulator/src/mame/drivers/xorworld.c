@@ -46,36 +46,30 @@ EEPROM chip: 93C46
 
 WRITE16_MEMBER(xorworld_state::eeprom_chip_select_w)
 {
-	device_t *device = machine().device("eeprom");
 	/* bit 0 is CS (active low) */
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->set_cs_line((data & 0x01) ? CLEAR_LINE : ASSERT_LINE);
+	m_eeprom->set_cs_line((data & 0x01) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE16_MEMBER(xorworld_state::eeprom_serial_clock_w)
 {
-	device_t *device = machine().device("eeprom");
 	/* bit 0 is SK (active high) */
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->set_clock_line((data & 0x01) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->set_clock_line((data & 0x01) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE16_MEMBER(xorworld_state::eeprom_data_w)
 {
-	device_t *device = machine().device("eeprom");
 	/* bit 0 is EEPROM data (DIN) */
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	eeprom->write_bit(data & 0x01);
+	m_eeprom->write_bit(data & 0x01);
 }
 
 WRITE16_MEMBER(xorworld_state::xorworld_irq2_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(2, CLEAR_LINE);
+	m_maincpu->set_input_line(2, CLEAR_LINE);
 }
 
 WRITE16_MEMBER(xorworld_state::xorworld_irq6_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(6, CLEAR_LINE);
+	m_maincpu->set_input_line(6, CLEAR_LINE);
 }
 
 static ADDRESS_MAP_START( xorworld_map, AS_PROGRAM, 16, xorworld_state )
@@ -83,8 +77,8 @@ static ADDRESS_MAP_START( xorworld_map, AS_PROGRAM, 16, xorworld_state )
 	AM_RANGE(0x200000, 0x200001) AM_READ_PORT("P1")
 	AM_RANGE(0x400000, 0x400001) AM_READ_PORT("P2")
 	AM_RANGE(0x600000, 0x600001) AM_READ_PORT("DSW")
-	AM_RANGE(0x800000, 0x800001) AM_DEVWRITE8_LEGACY("saa", saa1099_data_w, 0x00ff)
-	AM_RANGE(0x800002, 0x800003) AM_DEVWRITE8_LEGACY("saa", saa1099_control_w, 0x00ff)
+	AM_RANGE(0x800000, 0x800001) AM_DEVWRITE8("saa", saa1099_device, saa1099_data_w, 0x00ff)
+	AM_RANGE(0x800002, 0x800003) AM_DEVWRITE8("saa", saa1099_device, saa1099_control_w, 0x00ff)
 	AM_RANGE(0xa00008, 0xa00009) AM_WRITE(eeprom_chip_select_w)
 	AM_RANGE(0xa0000a, 0xa0000b) AM_WRITE(eeprom_serial_clock_w)
 	AM_RANGE(0xa0000c, 0xa0000d) AM_WRITE(eeprom_data_w)
@@ -196,7 +190,7 @@ static MACHINE_CONFIG_START( xorworld, xorworld_state )
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("saa", SAA1099, 8000000 /* guess */)
+	MCFG_SAA1099_ADD("saa", 8000000 /* guess */)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -224,7 +218,7 @@ DRIVER_INIT_MEMBER(xorworld_state,xorworld)
 	/*  patch some strange protection (without this, strange characters appear
 	    after level 5 and some pieces don't rotate properly some times) */
 
-	UINT16 *rom = (UINT16 *)(machine().root_device().memregion("maincpu")->base() + 0x1390);
+	UINT16 *rom = (UINT16 *)(memregion("maincpu")->base() + 0x1390);
 
 	PATCH(0x4239); PATCH(0x00ff); PATCH(0xe196);    /* clr.b $ffe196 */
 	PATCH(0x4239); PATCH(0x00ff); PATCH(0xe197);    /* clr.b $ffe197 */

@@ -4,17 +4,24 @@
 
 *************************************************************************/
 
+#include "video/kan_pand.h"
+
 class airbustr_state : public driver_device
 {
 public:
 	airbustr_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_devram(*this, "devram"),
 		m_videoram2(*this, "videoram2"),
 		m_colorram2(*this, "colorram2"),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_paletteram(*this, "paletteram"){ }
+		m_paletteram(*this, "paletteram"),
+		m_master(*this, "master"),
+		m_slave(*this, "slave"),
+		m_audiocpu(*this, "audiocpu"),
+		m_pandora(*this, "pandora")
+		{ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_devram;
@@ -39,10 +46,10 @@ public:
 	int        m_soundlatch2_status;
 
 	/* devices */
-	device_t *m_master;
-	device_t *m_slave;
-	cpu_device *m_audiocpu;
-	device_t *m_pandora;
+	required_device<cpu_device> m_master;
+	required_device<cpu_device> m_slave;
+	required_device<cpu_device> m_audiocpu;
+	required_device<kaneko_pandora_device> m_pandora;
 	DECLARE_READ8_MEMBER(devram_r);
 	DECLARE_WRITE8_MEMBER(master_nmi_trigger_w);
 	DECLARE_WRITE8_MEMBER(master_bankswitch_w);

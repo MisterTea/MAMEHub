@@ -89,6 +89,13 @@ enum
 	REGISTER_FAST
 };
 
+static int UNUSED_BITS[0x40] =
+{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00, 0x01, 0x70, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xf0, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+};
 
 // VICE palette
 static const rgb_t PALETTE[] =
@@ -260,7 +267,7 @@ inline void mos6566_device::set_interrupt( int mask )
 		{
 			DBG_LOG(2, "vic2", ("irq start %.2x\n", mask));
 			m_reg[0x19] |= 0x80;
-			m_out_irq_func(ASSERT_LINE);
+			m_write_irq(ASSERT_LINE);
 		}
 	}
 	m_reg[0x19] |= mask;
@@ -273,7 +280,7 @@ inline void mos6566_device::clear_interrupt( int mask )
 	{
 		DBG_LOG(2, "vic2", ("irq end %.2x\n", mask));
 		m_reg[0x19] &= ~0x80;
-		m_out_irq_func(CLEAR_LINE);
+		m_write_irq(CLEAR_LINE);
 	}
 }
 
@@ -579,17 +586,26 @@ mos6566_device::mos6566_device(const machine_config &mconfig, const char *tag, d
 		m_icount(0),
 		m_variant(TYPE_6566),
 		m_videoram_space_config("videoram", ENDIANNESS_LITTLE, 8, 14, 0, NULL, *ADDRESS_MAP_NAME(mos6566_videoram_map)),
-		m_colorram_space_config("colorram", ENDIANNESS_LITTLE, 8, 10, 0, NULL, *ADDRESS_MAP_NAME(mos6566_colorram_map))
+		m_colorram_space_config("colorram", ENDIANNESS_LITTLE, 8, 10, 0, NULL, *ADDRESS_MAP_NAME(mos6566_colorram_map)),
+		m_write_irq(*this),
+		m_write_ba(*this),
+		m_write_aec(*this),
+		m_write_k(*this)
 {
 }
 
-mos6566_device::mos6566_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
+mos6566_device::mos6566_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant)
 	: device_t(mconfig, type, name, tag, owner, clock),
 		device_memory_interface(mconfig, *this),
 		device_execute_interface(mconfig, *this),
 		m_icount(0),
+		m_variant(variant),
 		m_videoram_space_config("videoram", ENDIANNESS_LITTLE, 8, 14, 0, NULL, *ADDRESS_MAP_NAME(mos6566_videoram_map)),
 		m_colorram_space_config("colorram", ENDIANNESS_LITTLE, 8, 10, 0, NULL, *ADDRESS_MAP_NAME(mos6566_colorram_map)),
+		m_write_irq(*this),
+		m_write_ba(*this),
+		m_write_aec(*this),
+		m_write_k(*this),
 		m_phi0(1),
 		m_ba(ASSERT_LINE),
 		m_aec(ASSERT_LINE)
@@ -597,52 +613,28 @@ mos6566_device::mos6566_device(const machine_config &mconfig, device_type type, 
 }
 
 mos6567_device::mos6567_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	:mos6566_device(mconfig, MOS6567, "MOS6567", tag, owner, clock) { m_variant = TYPE_6567; }
+	:mos6566_device(mconfig, MOS6567, "MOS6567", tag, owner, clock, TYPE_6567) { }
 
-mos6567_device::mos6567_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	:mos6566_device(mconfig, type, name, tag, owner, clock) { }
+mos6567_device::mos6567_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant)
+	:mos6566_device(mconfig, type, name, tag, owner, clock, TYPE_6567) { }
 
 mos8562_device::mos8562_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	:mos6567_device(mconfig, MOS8562, "MOS8562", tag, owner, clock) { m_variant = TYPE_8562; }
+	:mos6567_device(mconfig, MOS8562, "MOS8562", tag, owner, clock, TYPE_8562) { }
 
 mos8564_device::mos8564_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	:mos6567_device(mconfig, MOS8564, "MOS8564", tag, owner, clock) { m_variant = TYPE_8564; }
+	:mos6567_device(mconfig, MOS8564, "MOS8564", tag, owner, clock, TYPE_8564) { }
 
 mos6569_device::mos6569_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	:mos6566_device(mconfig, MOS6566, "MOS6569", tag, owner, clock) { m_variant = TYPE_6569; }
+	:mos6566_device(mconfig, MOS6566, "MOS6569", tag, owner, clock, TYPE_6569) { }
 
-mos6569_device::mos6569_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	:mos6566_device(mconfig, type, name, tag, owner, clock) { }
+mos6569_device::mos6569_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant)
+	:mos6566_device(mconfig, type, name, tag, owner, clock, TYPE_6569) { }
 
 mos8565_device::mos8565_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	:mos6569_device(mconfig, MOS8565, "MOS8565", tag, owner, clock) { m_variant = TYPE_8565; }
+	:mos6569_device(mconfig, MOS8565, "MOS8565", tag, owner, clock, TYPE_8565) { }
 
 mos8566_device::mos8566_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	:mos6569_device(mconfig, MOS8566, "MOS8566", tag, owner, clock) { m_variant = TYPE_8566; }
-
-
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void mos6566_device::device_config_complete()
-{
-	// inherit a copy of the static data
-	const mos6566_interface *intf = reinterpret_cast<const mos6566_interface *>(static_config());
-	if (intf != NULL)
-		*static_cast<mos6566_interface *>(this) = *intf;
-
-	// or initialize to defaults if none provided
-	else
-	{
-		memset(&m_out_irq_cb, 0, sizeof(m_out_irq_cb));
-		memset(&m_out_ba_cb, 0, sizeof(m_out_ba_cb));
-		memset(&m_out_aec_cb, 0, sizeof(m_out_aec_cb));
-		memset(&m_out_k_cb, 0, sizeof(m_out_k_cb));
-	}
-}
+	:mos6569_device(mconfig, MOS8566, "MOS8566", tag, owner, clock, TYPE_8566) { }
 
 
 //-------------------------------------------------
@@ -655,12 +647,15 @@ void mos6566_device::device_start()
 	m_icountptr = &m_icount;
 
 	// resolve callbacks
-	m_out_irq_func.resolve(m_out_irq_cb, *this);
-	m_out_ba_func.resolve(m_out_ba_cb, *this);
-	m_out_aec_func.resolve(m_out_aec_cb, *this);
-	m_out_k_func.resolve(m_out_k_cb, *this);
+	m_write_irq.resolve_safe();
+	m_write_ba.resolve_safe();
+	m_write_aec.resolve_safe();
+	m_write_k.resolve_safe();
 
-	m_cpu = machine().device<cpu_device>(m_cpu_tag);
+	if (m_cpu_tag != NULL)
+		m_cpu = machine().device<cpu_device>(m_cpu_tag);
+	else
+		m_cpu = machine().firstcpu;
 
 	m_screen = machine().device<screen_device>(m_screen_tag);
 	m_screen->register_screen_bitmap(m_bitmap);
@@ -779,7 +774,7 @@ void mos6566_device::device_start()
 
 void mos6566_device::device_reset()
 {
-	memset(m_reg, 0, ARRAY_LENGTH(m_reg));
+	memset(m_reg, 0, sizeof(m_reg));
 
 	for (int i = 0; i < ARRAY_LENGTH(m_mc); i++)
 		m_mc[i] = 63;
@@ -789,8 +784,12 @@ void mos6566_device::device_reset()
 
 	m_cycle = 14;
 	m_raster_x = 0x004;
+	m_graphic_x = 0;
+	m_last_data = 0;
 
 	m_on = 1;
+
+	m_chargenaddr = m_videoaddr = m_bitmapaddr = 0;
 
 	m_dy_start = ROW24_YSTART;
 	m_dy_stop = ROW24_YSTOP;
@@ -822,13 +821,13 @@ void mos6566_device::device_reset()
 	m_first_ba_cycle = 0;
 	m_device_suspended = 0;
 
-	memset(m_matrix_line, 0, ARRAY_LENGTH(m_matrix_line));
-	memset(m_color_line, 0, ARRAY_LENGTH(m_color_line));
+	memset(m_matrix_line, 0, sizeof(m_matrix_line));
+	memset(m_color_line, 0, sizeof(m_color_line));
 
-	memset(m_spr_coll_buf, 0, ARRAY_LENGTH(m_spr_coll_buf));
-	memset(m_fore_coll_buf, 0, ARRAY_LENGTH(m_fore_coll_buf));
-	memset(m_border_on_sample, 0, ARRAY_LENGTH(m_border_on_sample));
-	memset(m_border_color_sample, 0, ARRAY_LENGTH(m_border_color_sample));
+	memset(m_spr_coll_buf, 0, sizeof(m_spr_coll_buf));
+	memset(m_fore_coll_buf, 0, sizeof(m_fore_coll_buf));
+	memset(m_border_on_sample, 0, sizeof(m_border_on_sample));
+	memset(m_border_color_sample, 0, sizeof(m_border_color_sample));
 
 	for (int i = 0; i < 8; i++)
 	{
@@ -1431,8 +1430,8 @@ void mos6566_device::execute_run()
 		m_phi0 = 1;
 		set_aec(BIT(m_aec_delay, 2));
 
-		m_out_ba_func(m_ba);
-		m_out_aec_func(m_aec);
+		m_write_ba(m_ba);
+		m_write_aec(m_aec);
 
 		m_raster_x += 8;
 		if (m_raster_x == 0x1fc) m_raster_x = 0x004;
@@ -2000,8 +1999,8 @@ void mos6569_device::execute_run()
 		m_phi0 = 1;
 		set_aec(BIT(m_aec_delay, 2));
 
-		m_out_ba_func(m_ba);
-		m_out_aec_func(m_aec);
+		m_write_ba(m_ba);
+		m_write_aec(m_aec);
 
 		m_raster_x += 8;
 		if (m_raster_x == 0x1fc) m_raster_x = 0x004;
@@ -2459,39 +2458,47 @@ READ8_MEMBER( mos6566_device::read )
 	{
 	case 0x11:
 		val = (m_reg[offset] & ~0x80) | ((m_rasterline & 0x100) >> 1);
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case 0x12:
 		val = m_rasterline & 0xff;
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case 0x16:
 		val = m_reg[offset] | 0xc0;
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case 0x18:
 		val = m_reg[offset] | 0x01;
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case 0x19:                          /* interrupt flag register */
 		/* clear_interrupt(0xf); */
 		val = m_reg[offset] | 0x70;
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case 0x1a:
 		val = m_reg[offset] | 0xf0;
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case 0x1e:                          /* sprite to sprite collision detect */
 		val = m_reg[offset];
 		m_reg[offset] = 0;
 		clear_interrupt(4);
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case 0x1f:                          /* sprite to background collision detect */
 		val = m_reg[offset];
 		m_reg[offset] = 0;
 		clear_interrupt(2);
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case 0x20:
@@ -2500,6 +2507,7 @@ READ8_MEMBER( mos6566_device::read )
 	case 0x23:
 	case 0x24:
 		val = m_reg[offset];
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case 0x00:
@@ -2534,6 +2542,7 @@ READ8_MEMBER( mos6566_device::read )
 	case 0x2d:
 	case 0x2e:
 		val = m_reg[offset];
+		val |= UNUSED_BITS[offset];
 		break;
 
 	case REGISTER_KCR:
@@ -2544,7 +2553,9 @@ READ8_MEMBER( mos6566_device::read )
 			DBG_LOG(2, "vic read", ("%.2x:%.2x\n", offset, val));
 		}
 		else
-			val = 0xff;
+		{
+			val |= UNUSED_BITS[offset];
+		}
 		break;
 
 	case 0x31:
@@ -2562,13 +2573,13 @@ READ8_MEMBER( mos6566_device::read )
 	case 0x3d:
 	case 0x3e:
 	case 0x3f:                          /* not used */
-		// val = m_reg[offset]; //
-		val = 0xff;
 		DBG_LOG(2, "vic read", ("%.2x:%.2x\n", offset, val));
+		val |= UNUSED_BITS[offset];
 		break;
 
 	default:
 		val = m_reg[offset];
+		val |= UNUSED_BITS[offset];
 	}
 
 	if ((offset != 0x11) && (offset != 0x12))
@@ -2769,7 +2780,7 @@ WRITE8_MEMBER( mos6566_device::write )
 		{
 			m_reg[offset] = data | 0xf8;
 
-			m_out_k_func(0, data & 0x07);
+			m_write_k((offs_t)0, data & 0x07);
 		}
 		break;
 

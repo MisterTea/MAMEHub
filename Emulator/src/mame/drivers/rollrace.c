@@ -24,13 +24,11 @@ WRITE8_MEMBER(rollrace_state::ra_fake_d800_w)
 
 WRITE8_MEMBER(rollrace_state::nmi_mask_w)
 {
-
 	m_nmi_mask = data & 1;
 }
 
 WRITE8_MEMBER(rollrace_state::sound_nmi_mask_w)
 {
-
 	m_sound_nmi_mask = data & 1;
 }
 
@@ -65,9 +63,9 @@ static ADDRESS_MAP_START( rollrace_sound_map, AS_PROGRAM, 8, rollrace_state )
 	AM_RANGE(0x0000, 0x0fff) AM_ROM
 	AM_RANGE(0x2000, 0x2fff) AM_RAM
 	AM_RANGE(0x3000, 0x3000) AM_READ(soundlatch_byte_r) AM_WRITE(sound_nmi_mask_w)
-	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x5000, 0x5001) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
-	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE_LEGACY("ay3", ay8910_address_data_w)
+	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x5000, 0x5001) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
+	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE("ay3", ay8910_device, address_data_w)
 ADDRESS_MAP_END
 
 
@@ -210,14 +208,12 @@ GFXDECODE_END
 
 INTERRUPT_GEN_MEMBER(rollrace_state::vblank_irq)
 {
-
 	if(m_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(rollrace_state::sound_timer_irq)
 {
-
 	if(m_sound_nmi_mask)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }

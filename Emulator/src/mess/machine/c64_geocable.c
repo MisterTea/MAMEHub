@@ -32,7 +32,7 @@ const device_type C64_GEOCABLE = &device_creator<c64_geocable_device>;
 
 WRITE_LINE_MEMBER( c64_geocable_device::busy_w )
 {
-	m_slot->flag2_w(state);
+	m_slot->cia_flag2_w(state);
 }
 
 static const centronics_interface centronics_intf =
@@ -73,7 +73,7 @@ machine_config_constructor c64_geocable_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 c64_geocable_device::c64_geocable_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, C64_GEOCABLE, "C64 geoCable", tag, owner, clock),
+	device_t(mconfig, C64_GEOCABLE, "C64 geoCable", tag, owner, clock, "c64_geocable", __FILE__),
 	device_c64_user_port_interface(mconfig, *this),
 	m_centronics(*this, CENTRONICS_TAG)
 {

@@ -43,7 +43,6 @@ READ8_MEMBER(ladyfrog_state::ladyfrog_videoram_r)
 
 WRITE8_MEMBER(ladyfrog_state::ladyfrog_palette_w)
 {
-
 	if (offset & 0x100)
 		paletteram_xxxxBBBBGGGGRRRR_byte_split_hi_w(space, (offset & 0xff) + (m_palette_bank << 8), data);
 	else
@@ -52,7 +51,6 @@ WRITE8_MEMBER(ladyfrog_state::ladyfrog_palette_w)
 
 READ8_MEMBER(ladyfrog_state::ladyfrog_palette_r)
 {
-
 	if (offset & 0x100)
 		return m_generic_paletteram2_8[(offset & 0xff) + (m_palette_bank << 8)];
 	else
@@ -87,37 +85,35 @@ READ8_MEMBER(ladyfrog_state::ladyfrog_scrlram_r)
 
 WRITE8_MEMBER(ladyfrog_state::ladyfrog_scrlram_w)
 {
-
 	m_scrlram[offset] = data;
 	m_bg_tilemap->set_scrolly(offset, data);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void ladyfrog_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	ladyfrog_state *state = machine.driver_data<ladyfrog_state>();
 	int i;
 	for (i = 0; i < 0x20; i++)
 	{
-		int pr = state->m_spriteram[0x9f - i];
+		int pr = m_spriteram[0x9f - i];
 		int offs = (pr & 0x1f) * 4;
 		{
 			int code, sx, sy, flipx, flipy, pal;
-			code = state->m_spriteram[offs + 2] + ((state->m_spriteram[offs + 1] & 0x10) << 4) + state->m_spritetilebase;
-			pal = state->m_spriteram[offs + 1] & 0x0f;
-			sx = state->m_spriteram[offs + 3];
-			sy = 238 - state->m_spriteram[offs + 0];
-			flipx = ((state->m_spriteram[offs + 1] & 0x40)>>6);
-			flipy = ((state->m_spriteram[offs + 1] & 0x80)>>7);
-			drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+			code = m_spriteram[offs + 2] + ((m_spriteram[offs + 1] & 0x10) << 4) + m_spritetilebase;
+			pal = m_spriteram[offs + 1] & 0x0f;
+			sx = m_spriteram[offs + 3];
+			sy = 238 - m_spriteram[offs + 0];
+			flipx = ((m_spriteram[offs + 1] & 0x40)>>6);
+			flipy = ((m_spriteram[offs + 1] & 0x80)>>7);
+			drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 					code,
 					pal,
 					flipx,flipy,
 					sx,sy,15);
 
-			if (state->m_spriteram[offs + 3] > 240)
+			if (m_spriteram[offs + 3] > 240)
 			{
-				sx = (state->m_spriteram[offs + 3] - 256);
-				drawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+				sx = (m_spriteram[offs + 3] - 256);
+				drawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 						code,
 						pal,
 						flipx,flipy,
@@ -129,7 +125,6 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 VIDEO_START_MEMBER(ladyfrog_state,ladyfrog_common)
 {
-
 	m_spriteram = auto_alloc_array(machine(), UINT8, 160);
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ladyfrog_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
@@ -143,7 +138,6 @@ VIDEO_START_MEMBER(ladyfrog_state,ladyfrog_common)
 
 void ladyfrog_state::video_start()
 {
-
 	// weird, there are sprite tiles at 0x000 and 0x400, but they don't contain all the sprites!
 	m_spritetilebase = 0x800;
 	VIDEO_START_CALL_MEMBER(ladyfrog_common);
@@ -151,7 +145,6 @@ void ladyfrog_state::video_start()
 
 VIDEO_START_MEMBER(ladyfrog_state,toucheme)
 {
-
 	m_spritetilebase = 0x000;
 	VIDEO_START_CALL_MEMBER(ladyfrog_common);
 }
@@ -159,8 +152,7 @@ VIDEO_START_MEMBER(ladyfrog_state,toucheme)
 
 UINT32 ladyfrog_state::screen_update_ladyfrog(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }

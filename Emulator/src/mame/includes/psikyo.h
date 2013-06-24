@@ -3,17 +3,21 @@
     Psikyo Games
 
 *************************************************************************/
+#include "sound/okim6295.h"
 
 class psikyo_state : public driver_device
 {
 public:
 	psikyo_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
 		m_vram_0(*this, "vram_0"),
 		m_vram_1(*this, "vram_1"),
 		m_vregs(*this, "vregs"),
-		m_bootleg_spritebuffer(*this, "boot_spritebuf"){ }
+		m_bootleg_spritebuffer(*this, "boot_spritebuf"),
+		m_audiocpu(*this, "audiocpu"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT32> m_spriteram;
@@ -44,7 +48,7 @@ public:
 	int            m_mcu_status;
 
 	/* devices */
-	cpu_device *m_audiocpu;
+	optional_device<cpu_device> m_audiocpu;
 
 	/* game-specific */
 	// 1945 MCU
@@ -93,6 +97,15 @@ public:
 	UINT32 screen_update_psikyo_bootleg(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_psikyo(screen_device &screen, bool state);
 	TIMER_CALLBACK_MEMBER(psikyo_soundlatch_callback);
+	void psikyo_switch_banks( int tmap, int bank );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int trans_pen );
+	void draw_sprites_bootleg( bitmap_ind16 &bitmap, const rectangle &cliprect, int trans_pen );
+	int tilemap_width( int size );
+	void s1945_mcu_init(  );
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
+	DECLARE_WRITE_LINE_MEMBER(sound_irq);
+	required_device<cpu_device> m_maincpu;
+	optional_device<okim6295_device> m_oki;
 };
 
 /*----------- defined in video/psikyo.c -----------*/

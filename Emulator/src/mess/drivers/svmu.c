@@ -27,7 +27,7 @@ public:
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
 			m_flash(*this, "flash"),
-			m_speaker(*this, SPEAKER_TAG)
+			m_speaker(*this, "speaker")
 		{ }
 
 	required_device<lc8670_cpu_device> m_maincpu;
@@ -43,6 +43,7 @@ public:
 	DECLARE_READ8_MEMBER(p1_r);
 	DECLARE_WRITE8_MEMBER(p1_w);
 	DECLARE_READ8_MEMBER(p7_r);
+	DECLARE_QUICKLOAD_LOAD_MEMBER( svmu );
 
 private:
 	UINT8 *     m_bios;
@@ -94,7 +95,7 @@ READ8_MEMBER(svmu_state::p1_r)
 
 WRITE8_MEMBER(svmu_state::p1_w)
 {
-	speaker_level_w(m_speaker, BIT(data, 7));
+	m_speaker->level_w(BIT(data, 7));
 }
 
 
@@ -126,12 +127,12 @@ ADDRESS_MAP_END
 /* Input ports */
 static INPUT_PORTS_START( svmu )
 	PORT_START( "P3" )
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("UP")     PORT_CODE( KEYCODE_UP )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("DOWN")   PORT_CODE( KEYCODE_DOWN )
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("LEFT")   PORT_CODE( KEYCODE_LEFT )
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("RIGHT")  PORT_CODE( KEYCODE_RIGHT )
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("A")      PORT_CODE( KEYCODE_A )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("B")      PORT_CODE( KEYCODE_B )
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_UP) PORT_NAME("Up")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN) PORT_NAME("Down")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT) PORT_NAME("Left")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT) PORT_NAME("Right")
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1) PORT_NAME("Button A")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2) PORT_NAME("Button B")
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("MODE")   PORT_CODE( KEYCODE_M )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYPAD ) PORT_NAME("SLEEP")  PORT_CODE( KEYCODE_S )
 	PORT_START("BATTERY")
@@ -191,12 +192,10 @@ inline void vmufat_write_word(UINT8* flash, UINT8 block, offs_t offset, UINT16 d
 	flash[(block * 512) + offset + 1] = (data>>8) & 0xff;
 }
 
-static QUICKLOAD_LOAD( svmu )
+QUICKLOAD_LOAD_MEMBER( svmu_state, svmu )
 {
-	running_machine &machine = image.device().machine();
-	svmu_state *state = machine.driver_data<svmu_state>();
 	UINT32 size = image.length();
-	UINT8 *flash = (UINT8*)state->m_flash->space().get_read_ptr(0);
+	UINT8 *flash = (UINT8*)m_flash->space().get_read_ptr(0);
 
 	image.fread(flash, size);
 
@@ -317,12 +316,16 @@ static MACHINE_CONFIG_START( svmu, svmu_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* devices */
 	MCFG_ATMEL_29C010_ADD("flash")
-	MCFG_QUICKLOAD_ADD("quickload", svmu, "vms,bin", 0)
+	MCFG_QUICKLOAD_ADD("quickload", svmu_state, svmu, "vms,bin", 0)
+	MCFG_QUICKLOAD_INTERFACE("svmu_quik")
+
+	/* Software lists */
+	MCFG_SOFTWARE_LIST_ADD("quik_list", "svmu")
 MACHINE_CONFIG_END
 
 

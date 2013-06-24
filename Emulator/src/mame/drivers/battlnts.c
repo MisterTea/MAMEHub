@@ -11,7 +11,7 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/hd6309/hd6309.h"
+#include "cpu/m6809/hd6309.h"
 #include "cpu/z80/z80.h"
 #include "sound/3812intf.h"
 #include "video/konicdev.h"
@@ -78,8 +78,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( battlnts_sound_map, AS_PROGRAM, 8, battlnts_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM                         /* ROM 777c01.rom */
 	AM_RANGE(0x8000, 0x87ff) AM_RAM                         /* RAM */
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE_LEGACY("ym1", ym3812_r, ym3812_w)      /* YM3812 (chip 1) */
-	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE_LEGACY("ym2", ym3812_r, ym3812_w)      /* YM3812 (chip 2) */
+	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ym1", ym3812_device, read, write)      /* YM3812 (chip 1) */
+	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ym2", ym3812_device, read, write)      /* YM3812 (chip 2) */
 	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)         /* soundlatch_byte_r */
 ADDRESS_MAP_END
 
@@ -226,17 +226,12 @@ void battlnts_state::machine_start()
 
 	membank("bank1")->configure_entries(0, 4, &ROM[0x10000], 0x4000);
 
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k007342 = machine().device("k007342");
-	m_k007420 = machine().device("k007420");
-
 	save_item(NAME(m_spritebank));
 	save_item(NAME(m_layer_colorbase));
 }
 
 void battlnts_state::machine_reset()
 {
-
 	m_layer_colorbase[0] = 0;
 	m_layer_colorbase[1] = 0;
 	m_spritebank = 0;
@@ -414,7 +409,7 @@ static void shuffle( UINT8 *buf, int len )
 DRIVER_INIT_MEMBER(battlnts_state,rackemup)
 {
 	/* rearrange char ROM */
-	shuffle(machine().root_device().memregion("gfx1")->base(), machine().root_device().memregion("gfx1")->bytes());
+	shuffle(memregion("gfx1")->base(), memregion("gfx1")->bytes());
 }
 
 

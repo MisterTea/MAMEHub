@@ -1,19 +1,24 @@
 #include "video/decbac06.h"
 #include "video/decmxc06.h"
+#include "sound/msm5205.h"
 
 class dec0_state : public driver_device
 {
 public:
 	dec0_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_ram(*this, "ram"),
 		m_spriteram(*this, "spriteram"),
 		m_robocop_shared_ram(*this, "robocop_shared"),
 		m_tilegen1(*this, "tilegen1"),
 		m_tilegen2(*this, "tilegen2"),
 		m_tilegen3(*this, "tilegen3"),
-		m_spritegen(*this, "spritegen")
-	{ }
+		m_spritegen(*this, "spritegen"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_subcpu(*this, "sub"),
+		m_mcu(*this, "mcu"),
+		m_msm(*this, "msm") { }
 
 	required_shared_ptr<UINT16> m_ram;
 	required_shared_ptr<UINT16> m_spriteram;
@@ -82,6 +87,20 @@ public:
 	UINT32 screen_update_hippodrm(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_slyspy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_midres(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void update_24bitcol(int offset);
+	void baddudes_i8751_write(int data);
+	void birdtry_i8751_write(int data);
+	void dec0_i8751_write(int data);
+	void dec0_i8751_reset();
+	void h6280_decrypt(const char *cputag);
+	void slyspy_set_protection_map( int type);
+	DECLARE_WRITE_LINE_MEMBER(sound_irq);
+	DECLARE_WRITE_LINE_MEMBER(sound_irq2);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_subcpu;
+	optional_device<cpu_device> m_mcu;
+	optional_device<msm5205_device> m_msm;
 };
 
 
@@ -90,7 +109,6 @@ class dec0_automat_state : public dec0_state
 public:
 	dec0_automat_state(const machine_config &mconfig, device_type type, const char *tag)
 		: dec0_state(mconfig, type, tag) {
-
 	}
 
 	UINT8 m_automat_adpcm_byte;
@@ -108,11 +126,5 @@ public:
 	DECLARE_VIDEO_START(automat);
 	UINT32 screen_update_automat(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_secretab(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	DECLARE_WRITE_LINE_MEMBER(automat_vclk_cb);
 };
-
-/*----------- defined in machine/dec0.c -----------*/
-
-DECLARE_READ16_HANDLER( slyspy_controls_r );
-
-extern void dec0_i8751_write(running_machine &machine, int data);
-extern void dec0_i8751_reset(running_machine &machine);

@@ -22,11 +22,10 @@ WRITE16_MEMBER(sslam_state::sslam_paletteram_w)
 	palette_set_color_rgb(machine(), offset, pal5bit(r), pal5bit(g), pal5bit(b));
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void sslam_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	sslam_state *state = machine.driver_data<sslam_state>();
-	gfx_element *gfx = machine.gfx[0];
-	UINT16 *source = state->m_spriteram;
+	gfx_element *gfx = machine().gfx[0];
+	UINT16 *source = m_spriteram;
 	UINT16 *finish = source + 0x1000/2;
 
 	source += 3; // strange
@@ -44,7 +43,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		flipx = source[0] & 0x4000;
 		number = source[3];
 
-		xpos -=16; xpos -=7; xpos += state->m_sprites_x_offset;
+		xpos -=16; xpos -=7; xpos += m_sprites_x_offset;
 		ypos = 0xff - ypos;
 		ypos -=16; ypos -=7;
 
@@ -101,7 +100,6 @@ TILE_GET_INFO_MEMBER(sslam_state::get_sslam_tx_tile_info)
 
 WRITE16_MEMBER(sslam_state::sslam_tx_tileram_w)
 {
-
 	COMBINE_DATA(&m_tx_tileram[offset]);
 	m_tx_tilemap->mark_tile_dirty(offset);
 }
@@ -118,7 +116,6 @@ TILE_GET_INFO_MEMBER(sslam_state::get_sslam_md_tile_info)
 
 WRITE16_MEMBER(sslam_state::sslam_md_tileram_w)
 {
-
 	COMBINE_DATA(&m_md_tileram[offset]);
 	m_md_tilemap->mark_tile_dirty(offset);
 }
@@ -135,7 +132,6 @@ TILE_GET_INFO_MEMBER(sslam_state::get_sslam_bg_tile_info)
 
 WRITE16_MEMBER(sslam_state::sslam_bg_tileram_w)
 {
-
 	COMBINE_DATA(&m_bg_tileram[offset]);
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
@@ -153,14 +149,12 @@ TILE_GET_INFO_MEMBER(sslam_state::get_powerbls_bg_tile_info)
 
 WRITE16_MEMBER(sslam_state::powerbls_bg_tileram_w)
 {
-
 	COMBINE_DATA(&m_bg_tileram[offset]);
 	m_bg_tilemap->mark_tile_dirty(offset>>1);
 }
 
 VIDEO_START_MEMBER(sslam_state,sslam)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sslam_state::get_sslam_bg_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 	m_md_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sslam_state::get_sslam_md_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 32, 32);
 	m_tx_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sslam_state::get_sslam_tx_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 64);
@@ -174,7 +168,6 @@ VIDEO_START_MEMBER(sslam_state,sslam)
 
 VIDEO_START_MEMBER(sslam_state,powerbls)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(sslam_state::get_powerbls_bg_tile_info),this),TILEMAP_SCAN_ROWS,8,8,64,64);
 
 	m_sprites_x_offset = -21;
@@ -183,7 +176,6 @@ VIDEO_START_MEMBER(sslam_state,powerbls)
 
 UINT32 sslam_state::screen_update_sslam(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	if (!(m_regs[6] & 1))
 	{
 		bitmap.fill(get_black_pen(machine()), cliprect);
@@ -215,14 +207,13 @@ UINT32 sslam_state::screen_update_sslam(screen_device &screen, bitmap_ind16 &bit
 		m_md_tilemap->draw(bitmap, cliprect, 0,0);
 	}
 
-	draw_sprites(machine(), bitmap,cliprect);
+	draw_sprites(bitmap,cliprect);
 	m_tx_tilemap->draw(bitmap, cliprect, 0,0);
 	return 0;
 }
 
 UINT32 sslam_state::screen_update_powerbls(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	if (!(m_regs[6] & 1))
 	{
 		bitmap.fill(get_black_pen(machine()), cliprect);
@@ -233,6 +224,6 @@ UINT32 sslam_state::screen_update_powerbls(screen_device &screen, bitmap_ind16 &
 	m_bg_tilemap->set_scrolly(0, m_regs[1]-240);
 
 	m_bg_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(machine(), bitmap,cliprect);
+	draw_sprites(bitmap,cliprect);
 	return 0;
 }

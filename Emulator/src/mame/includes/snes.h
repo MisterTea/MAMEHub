@@ -1,7 +1,6 @@
 #ifndef _SNES_H_
 #define _SNES_H_
 
-#include "devlegcy.h"
 #include "devcb.h"
 #include "cpu/spc700/spc700.h"
 #include "cpu/g65816/g65816.h"
@@ -28,12 +27,6 @@
 #define DOTCLK_PAL  (MCLK_PAL/4)
 
 #define SNES_LAYER_DEBUG  0
-
-#define SNES_DSP1B_OFFSET (0x0000)
-#define SNES_DSP1_OFFSET  (0x3000)
-#define SNES_DSP2_OFFSET  (0x6000)
-#define SNES_DSP3_OFFSET  (0x9000)
-#define SNES_DSP4_OFFSET  (0xc000)
 
 /* Debug definitions */
 #ifdef MAME_DEBUG
@@ -368,13 +361,196 @@
 #define DSP_FIR_C6      0x6F
 #define DSP_FIR_C7      0x7F
 
+
+#define SNES_CPU_REG(a) m_cpu_regs[a - 0x4200]  // regs 0x4200-0x421f
+
+/* (PPU) Video related */
+
+struct SNES_SCANLINE
+{
+	int enable, clip;
+
+	UINT16 buffer[SNES_SCR_WIDTH];
+	UINT8  priority[SNES_SCR_WIDTH];
+	UINT8  layer[SNES_SCR_WIDTH];
+	UINT8  blend_exception[SNES_SCR_WIDTH];
+};
+
+class snes_ppu_class  /* once all the regs are saved in this structure, it would be better to reorganize it a bit... */
+{
+public:
+	UINT8 m_regs[0x40];
+
+	SNES_SCANLINE m_scanlines[2];
+
+	struct
+	{
+		/* clipmasks */
+		UINT8 window1_enabled, window1_invert;
+		UINT8 window2_enabled, window2_invert;
+		UINT8 wlog_mask;
+		/* color math enabled */
+		UINT8 color_math;
+
+		UINT8 charmap;
+		UINT8 tilemap;
+		UINT8 tilemap_size;
+
+		UINT8 tile_size;
+		UINT8 mosaic_enabled;   // actually used only for layers 0->3!
+
+		UINT8 main_window_enabled;
+		UINT8 sub_window_enabled;
+		UINT8 main_bg_enabled;
+		UINT8 sub_bg_enabled;
+
+		UINT16 hoffs;
+		UINT16 voffs;
+	} m_layer[6]; // this is for the BG1 - BG2 - BG3 - BG4 - OBJ - color layers
+
+	struct
+	{
+		UINT8 address_low;
+		UINT8 address_high;
+		UINT8 saved_address_low;
+		UINT8 saved_address_high;
+		UINT16 address;
+		UINT16 priority_rotation;
+		UINT8 next_charmap;
+		UINT8 next_size;
+		UINT8 size;
+		UINT32 next_name_select;
+		UINT32 name_select;
+		UINT8 first_sprite;
+		UINT8 flip;
+		UINT16 write_latch;
+	} m_oam;
+
+	struct
+	{
+		UINT16 latch_horz;
+		UINT16 latch_vert;
+		UINT16 current_horz;
+		UINT16 current_vert;
+		UINT8 last_visible_line;
+		UINT8 interlace_count;
+	} m_beam;
+
+	struct
+	{
+		UINT8 repeat;
+		UINT8 hflip;
+		UINT8 vflip;
+		INT16 matrix_a;
+		INT16 matrix_b;
+		INT16 matrix_c;
+		INT16 matrix_d;
+		INT16 origin_x;
+		INT16 origin_y;
+		UINT16 hor_offset;
+		UINT16 ver_offset;
+		UINT8 extbg;
+	} m_mode7;
+
+	UINT8 m_mosaic_size;
+	UINT8 m_clip_to_black;
+	UINT8 m_prevent_color_math;
+	UINT8 m_sub_add_mode;
+	UINT8 m_bg3_priority_bit;
+	UINT8 m_direct_color;
+	UINT8 m_ppu_last_scroll;      /* as per Anomie's doc and Theme Park, all scroll regs shares (but mode 7 ones) the same
+                                 'previous' scroll value */
+	UINT8 m_mode7_last_scroll;    /* as per Anomie's doc mode 7 scroll regs use a different value, shared with mode 7 matrix! */
+
+	UINT8 m_ppu1_open_bus, m_ppu2_open_bus;
+	UINT8 m_ppu1_version, m_ppu2_version;
+	UINT8 m_window1_left, m_window1_right, m_window2_left, m_window2_right;
+
+	UINT16 m_mosaic_table[16][4096];
+	UINT8 m_clipmasks[6][SNES_SCR_WIDTH];
+	UINT8 m_update_windows;
+	UINT8 m_update_offsets;
+	UINT8 m_update_oam_list;
+	UINT8 m_mode;
+	UINT8 m_interlace; //doubles the visible resolution
+	UINT8 m_obj_interlace;
+	UINT8 m_screen_brightness;
+	UINT8 m_screen_disabled;
+	UINT8 m_pseudo_hires;
+	UINT8 m_color_modes;
+	UINT8 m_stat77;
+	UINT8 m_stat78;
+
+	UINT16                m_htmult;     /* in 512 wide, we run HTOTAL double and halve it on latching */
+	UINT16                m_cgram_address;  /* CGRAM address */
+	UINT8                 m_read_ophct;
+	UINT8                 m_read_opvct;
+	UINT16                m_vram_fgr_high;
+	UINT16                m_vram_fgr_increment;
+	UINT16                m_vram_fgr_count;
+	UINT16                m_vram_fgr_mask;
+	UINT16                m_vram_fgr_shift;
+	UINT16                m_vram_read_buffer;
+	UINT16                m_vmadd;
+
+	inline UINT16 get_bgcolor(UINT8 direct_colors, UINT16 palette, UINT8 color);
+	inline void set_scanline_pixel(int screen, INT16 x, UINT16 color, UINT8 priority, UINT8 layer, int blend);
+	inline void draw_bgtile_lores(UINT8 layer, INT16 ii, UINT8 colour, UINT16 pal, UINT8 direct_colors, UINT8 priority);
+	inline void draw_bgtile_hires(UINT8 layer, INT16 ii, UINT8 colour, UINT16 pal, UINT8 direct_colors, UINT8 priority);
+	inline void draw_oamtile(INT16 ii, UINT8 colour, UINT16 pal, UINT8 priority);
+	inline void draw_tile(UINT8 planes, UINT8 layer, UINT32 tileaddr, INT16 x, UINT8 priority, UINT8 flip, UINT8 direct_colors, UINT16 pal, UINT8 hires);
+	inline UINT32 get_tmap_addr(UINT8 layer, UINT8 tile_size, UINT32 base, UINT32 x, UINT32 y);
+	inline void update_line(UINT16 curline, UINT8 layer, UINT8 priority_b, UINT8 priority_a, UINT8 color_depth, UINT8 hires, UINT8 offset_per_tile, UINT8 direct_colors);
+	void update_line_mode7(UINT16 curline, UINT8 layer, UINT8 priority_b, UINT8 priority_a);
+	void update_obsel(void);
+	void oam_list_build(void);
+	int is_sprite_on_scanline(UINT16 curline, UINT8 sprite);
+	void update_objects_rto(UINT16 curline);
+	void update_objects(UINT8 priority_oam0, UINT8 priority_oam1, UINT8 priority_oam2, UINT8 priority_oam3);
+	void update_mode_0(UINT16 curline);
+	void update_mode_1(UINT16 curline);
+	void update_mode_2(UINT16 curline);
+	void update_mode_3(UINT16 curline);
+	void update_mode_4(UINT16 curline);
+	void update_mode_5(UINT16 curline);
+	void update_mode_6(UINT16 curline);
+	void update_mode_7(UINT16 curline);
+	void draw_screens(UINT16 curline);
+	void update_windowmasks(void);
+	void update_offsets(void);
+	inline void draw_blend(UINT16 offset, UINT16 *colour, UINT8 prevent_color_math, UINT8 black_pen_clip, int switch_screens);
+	void refresh_scanline(running_machine &machine, bitmap_rgb32 &bitmap, UINT16 curline);
+
+	void latch_counters(running_machine &machine);
+	void dynamic_res_change(running_machine &machine);
+	inline UINT32 get_vram_address(running_machine &machine);
+	UINT8 dbg_video(running_machine &machine, UINT16 curline);
+
+	void ppu_start(running_machine &machine);
+	UINT8 read(address_space &space, UINT32 offset, UINT8 wrio_bit7);
+	void write(address_space &space, UINT32 offset, UINT8 data);
+
+	DECLARE_READ8_MEMBER( oam_read );
+	DECLARE_WRITE8_MEMBER( oam_write );
+	DECLARE_READ8_MEMBER( cgram_read );
+	DECLARE_WRITE8_MEMBER( cgram_write );
+	DECLARE_READ8_MEMBER( vram_read );
+	DECLARE_WRITE8_MEMBER( vram_write );
+	UINT16 *m_oam_ram;     /* Object Attribute Memory */
+	UINT16 *m_cgram;   /* Palette RAM */
+	UINT8  *m_vram;    /* Video RAM (TODO: Should be 16-bit, but it's easier this way) */
+};
+
 struct snes_cart_info
 {
+	UINT8 *m_rom;
+	UINT32 m_rom_size;
+	UINT8 *m_nvram;
+	UINT32 m_nvram_size;
 	UINT8  mode;        /* ROM memory mode */
-	UINT32 sram;        /* Amount of sram in cart */
 	UINT32 sram_max;    /* Maximum amount sram in cart (based on ROM mode) */
-	int    small_sram;
 	int    slot_in_use; /* this is needed by Sufami Turbo slots (to check if SRAM has to be saved) */
+	UINT8 rom_bank_map[0x100];
 };
 
 struct snes_joypad
@@ -398,34 +574,33 @@ struct snes_superscope
 	int offscreen;
 };
 
-typedef void (*snes_io_read)(running_machine &machine);
-typedef UINT8 (*snes_oldjoy_read)(running_machine &machine);
-
 class snes_state : public driver_device
 {
 public:
-	snes_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag)
-		{ }
+	enum
+	{
+		TIMER_NMI_TICK,
+		TIMER_HIRQ_TICK,
+		TIMER_RESET_OAM_ADDRESS,
+		TIMER_RESET_HDMA,
+		TIMER_UPDATE_IO,
+		TIMER_SCANLINE_TICK,
+		TIMER_HBLANK_TICK,
+		TIMER_SNES_LAST
+	};
 
+	snes_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_spc700(*this, "spc700"),
+		m_superfx(*this, "superfx") { }
 
 	/* misc */
-	UINT16                m_htmult;     /* in 512 wide, we run HTOTAL double and halve it on latching */
-	UINT16                m_cgram_address;  /* CGRAM address */
-	UINT8                 m_vram_read_offset;   /* VRAM read offset */
-	UINT8                 m_read_ophct;
-	UINT8                 m_read_opvct;
 	UINT16                m_hblank_offset;
-	UINT16                m_vram_fgr_high;
-	UINT16                m_vram_fgr_increment;
-	UINT16                m_vram_fgr_count;
-	UINT16                m_vram_fgr_mask;
-	UINT16                m_vram_fgr_shift;
-	UINT16                m_vram_read_buffer;
 	UINT32                m_wram_address;
 	UINT16                m_htime;
 	UINT16                m_vtime;
-	UINT16                m_vmadd;
 
 	/* non-SNES HW-specific flags / variables */
 	UINT8                 m_is_nss;
@@ -460,18 +635,13 @@ public:
 		int    do_transfer;
 
 		int    dma_disabled;    // used to stop DMA if HDMA is enabled (currently not implemented, see machine/snes.c)
-	}m_dma_channel[8];
+	} m_dma_channel[8];
 	UINT8                 m_hdmaen; /* channels enabled for HDMA */
+	UINT8                 m_dma_regs[0x80];
+	UINT8                 m_cpu_regs[0x20];
+	UINT8                 m_oldjoy1_latch;
 
 	/* input-related */
-	UINT8                 m_joy1l;
-	UINT8                 m_joy1h;
-	UINT8                 m_joy2l;
-	UINT8                 m_joy2h;
-	UINT8                 m_joy3l;
-	UINT8                 m_joy3h;
-	UINT8                 m_joy4l;
-	UINT8                 m_joy4h;
 	UINT16                m_data1[2];
 	UINT16                m_data2[2];
 	UINT8                 m_read_idx[2];
@@ -480,22 +650,22 @@ public:
 	snes_superscope       m_scope[2];
 
 	/* input callbacks (to allow MESS to have its own input handlers) */
-	snes_io_read          m_io_read;
-	snes_oldjoy_read      m_oldjoy1_read;
-	snes_oldjoy_read      m_oldjoy2_read;
+	write8_delegate     m_io_read;
+	read8_delegate      m_oldjoy1_read;
+	read8_delegate      m_oldjoy2_read;
 
 	/* cart related */
-	UINT8 m_has_addon_chip;
-	UINT32 m_cart_size;
-	snes_cart_info m_cart[2];   // the second one is used by MESS for Sufami Turbo and, eventually, BS-X
+	snes_cart_info m_cart;   // used by NSS/SFCBox only! to be moved in a derived class!
+	void rom_map_setup(UINT32 size);
+
+	snes_ppu_class        m_ppu;
+	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	/* devices */
-	_5a22_device *m_maincpu;
-	spc700_device *m_soundcpu;
-	snes_sound_device *m_spc700;
-	cpu_device *m_superfx;
-	upd7725_device *m_upd7725;
-	upd96050_device *m_upd96050;
+	required_device<_5a22_device> m_maincpu;
+	required_device<spc700_device> m_soundcpu;
+	required_device<snes_sound_device> m_spc700;
+	optional_device<cpu_device> m_superfx;
 
 	DECLARE_DIRECT_UPDATE_MEMBER(snes_spc_direct);
 	DECLARE_DIRECT_UPDATE_MEMBER(snes_direct);
@@ -504,46 +674,33 @@ public:
 	DECLARE_DRIVER_INIT(snes_mess);
 	DECLARE_DRIVER_INIT(snesst);
 
-	inline UINT16 snes_get_bgcolor( UINT8 direct_colors, UINT16 palette, UINT8 color );
-	inline void snes_set_scanline_pixel( int screen, INT16 x, UINT16 color, UINT8 priority, UINT8 layer, int blend );
-	inline void snes_draw_bgtile_lores( UINT8 layer, INT16 ii, UINT8 colour, UINT16 pal, UINT8 direct_colors, UINT8 priority );
-	inline void snes_draw_bgtile_hires( UINT8 layer, INT16 ii, UINT8 colour, UINT16 pal, UINT8 direct_colors, UINT8 priority );
-	inline void snes_draw_oamtile( INT16 ii, UINT8 colour, UINT16 pal, UINT8 priority );
-	inline void snes_draw_tile( UINT8 planes, UINT8 layer, UINT32 tileaddr, INT16 x, UINT8 priority, UINT8 flip, UINT8 direct_colors, UINT16 pal, UINT8 hires );
-	inline UINT32 snes_get_tmap_addr( UINT8 layer, UINT8 tile_size, UINT32 base, UINT32 x, UINT32 y );
-	inline void snes_update_line( UINT16 curline, UINT8 layer, UINT8 priority_b, UINT8 priority_a, UINT8 color_depth, UINT8 hires, UINT8 offset_per_tile, UINT8 direct_colors );
-	void snes_update_line_mode7( UINT16 curline, UINT8 layer, UINT8 priority_b, UINT8 priority_a );
-	void snes_update_obsel( void );
-	void snes_oam_list_build( void );
-	int is_sprite_on_scanline( UINT16 curline, UINT8 sprite );
-	void snes_update_objects_rto( UINT16 curline );
-	void snes_update_objects( UINT8 priority_oam0, UINT8 priority_oam1, UINT8 priority_oam2, UINT8 priority_oam3 );
-	void snes_update_mode_0( UINT16 curline );
-	void snes_update_mode_1( UINT16 curline );
-	void snes_update_mode_2( UINT16 curline );
-	void snes_update_mode_3( UINT16 curline );
-	void snes_update_mode_4( UINT16 curline );
-	void snes_update_mode_5( UINT16 curline );
-	void snes_update_mode_6( UINT16 curline );
-	void snes_update_mode_7( UINT16 curline );
-	void snes_draw_screens( UINT16 curline );
-	void snes_update_windowmasks( void );
-	void snes_update_offsets( void );
-	inline void snes_draw_blend( UINT16 offset, UINT16 *colour, UINT8 prevent_color_math, UINT8 black_pen_clip, int switch_screens );
-	void snes_refresh_scanline( running_machine &machine, bitmap_rgb32 &bitmap, UINT16 curline );
+	inline int dma_abus_valid(UINT32 address);
+	inline UINT8 abus_read(address_space &space, UINT32 abus);
+	inline void dma_transfer(address_space &space, UINT8 dma, UINT32 abus, UINT16 bbus);
+	inline int is_last_active_channel(int dma);
+	inline UINT32 get_hdma_addr(int dma);
+	inline UINT32 get_hdma_iaddr(int dma);
+	void dma(address_space &space, UINT8 channels);
+	void hdma(address_space &space);
+	void hdma_init(address_space &space);
+	void hdma_update(address_space &space, int dma);
+	void hirq_tick();
+	inline UINT8 snes_rom_access(UINT32 offset);
 
-	UINT32 snes_screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void snes_init_ram();
 
-	DECLARE_READ8_MEMBER( snes_oam_read );
-	DECLARE_WRITE8_MEMBER( snes_oam_write );
-	DECLARE_READ8_MEMBER( snes_cgram_read );
-	DECLARE_WRITE8_MEMBER( snes_cgram_write );
-	DECLARE_READ8_MEMBER( snes_vram_read );
-	DECLARE_WRITE8_MEMBER( snes_vram_write );
-	UINT16 *m_snes_oam;     /* Object Attribute Memory */
-	UINT16 *m_snes_cgram;   /* Palette RAM */
-	UINT8  *m_snes_vram;    /* Video RAM (TODO: Should be 16-bit, but it's easier this way) */
+	DECLARE_WRITE8_MEMBER(nss_io_read);
+	DECLARE_READ8_MEMBER(nss_oldjoy1_read);
+	DECLARE_READ8_MEMBER(nss_oldjoy2_read);
 
+	DECLARE_READ8_MEMBER(snes_r_io);
+	DECLARE_WRITE8_MEMBER(snes_w_io);
+	DECLARE_READ8_MEMBER(snes_io_dma_r);
+	DECLARE_WRITE8_MEMBER(snes_io_dma_w);
+	DECLARE_READ8_MEMBER(snes_r_bank1);
+	DECLARE_READ8_MEMBER(snes_r_bank2);
+	DECLARE_WRITE8_MEMBER(snes_w_bank1);
+	DECLARE_WRITE8_MEMBER(snes_w_bank2);
 	TIMER_CALLBACK_MEMBER(snes_nmi_tick);
 	TIMER_CALLBACK_MEMBER(snes_hirq_tick_callback);
 	TIMER_CALLBACK_MEMBER(snes_reset_oam_address);
@@ -552,6 +709,15 @@ public:
 	TIMER_CALLBACK_MEMBER(snes_scanline_tick);
 	TIMER_CALLBACK_MEMBER(snes_hblank_tick);
 	DECLARE_WRITE_LINE_MEMBER(snes_extern_irq_w);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(snes_cart);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(sufami_cart);
+	virtual void video_start();
+	void snes_init_timers();
+	virtual void machine_start();
+	virtual void machine_reset();
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 /* Special chips, checked at init and used in memory handlers */
@@ -597,160 +763,6 @@ enum
 	SNES_COLOR
 };
 
-/*----------- defined in machine/snes.c -----------*/
-
-
-extern MACHINE_START( snes );
-extern MACHINE_RESET( snes );
-
 DECLARE_READ8_HANDLER( snes_open_bus_r );
-
-extern DECLARE_READ8_HANDLER( snes_r_io );
-extern DECLARE_WRITE8_HANDLER( snes_w_io );
-
-extern DECLARE_READ8_HANDLER( snes_r_bank1 );
-extern DECLARE_READ8_HANDLER( snes_r_bank2 );
-extern DECLARE_READ8_HANDLER( snes_r_bank3 );
-extern DECLARE_READ8_HANDLER( snes_r_bank4 );
-extern DECLARE_READ8_HANDLER( snes_r_bank5 );
-extern DECLARE_READ8_HANDLER( snes_r_bank6 );
-extern DECLARE_READ8_HANDLER( snes_r_bank7 );
-extern DECLARE_WRITE8_HANDLER( snes_w_bank1 );
-extern DECLARE_WRITE8_HANDLER( snes_w_bank2 );
-extern DECLARE_WRITE8_HANDLER( snes_w_bank4 );
-extern DECLARE_WRITE8_HANDLER( snes_w_bank5 );
-extern DECLARE_WRITE8_HANDLER( snes_w_bank6 );
-extern DECLARE_WRITE8_HANDLER( snes_w_bank7 );
-
-extern DECLARE_READ8_HANDLER( superfx_r_bank1 );
-extern DECLARE_READ8_HANDLER( superfx_r_bank2 );
-extern DECLARE_READ8_HANDLER( superfx_r_bank3 );
-extern DECLARE_WRITE8_HANDLER( superfx_w_bank1 );
-extern DECLARE_WRITE8_HANDLER( superfx_w_bank2 );
-extern DECLARE_WRITE8_HANDLER( superfx_w_bank3 );
-
-extern UINT8  *snes_ram;            /* Main memory */
-
-
-/* (PPU) Video related */
-struct SNES_PPU_STRUCT  /* once all the regs are saved in this structure, it would be better to reorganize it a bit... */
-{
-	struct
-	{
-		/* clipmasks */
-		UINT8 window1_enabled, window1_invert;
-		UINT8 window2_enabled, window2_invert;
-		UINT8 wlog_mask;
-		/* color math enabled */
-		UINT8 color_math;
-
-		UINT8 charmap;
-		UINT8 tilemap;
-		UINT8 tilemap_size;
-
-		UINT8 tile_size;
-		UINT8 mosaic_enabled;   // actually used only for layers 0->3!
-
-		UINT8 main_window_enabled;
-		UINT8 sub_window_enabled;
-		UINT8 main_bg_enabled;
-		UINT8 sub_bg_enabled;
-
-		UINT16 hoffs;
-		UINT16 voffs;
-	} layer[6]; // this is for the BG1 - BG2 - BG3 - BG4 - OBJ - color layers
-
-	struct
-	{
-		UINT8 address_low;
-		UINT8 address_high;
-		UINT8 saved_address_low;
-		UINT8 saved_address_high;
-		UINT16 address;
-		UINT16 priority_rotation;
-		UINT8 next_charmap;
-		UINT8 next_size;
-		UINT8 size;
-		UINT32 next_name_select;
-		UINT32 name_select;
-		UINT8 first_sprite;
-		UINT8 flip;
-		UINT16 write_latch;
-	} oam;
-
-	struct
-	{
-		UINT16 horizontal[4];
-		UINT16 vertical[4];
-	} bgd_offset;
-
-	struct
-	{
-		UINT16 latch_horz;
-		UINT16 latch_vert;
-		UINT16 current_horz;
-		UINT16 current_vert;
-		UINT8 last_visible_line;
-		UINT8 interlace_count;
-	} beam;
-
-	struct
-	{
-		UINT8 repeat;
-		UINT8 hflip;
-		UINT8 vflip;
-		INT16 matrix_a;
-		INT16 matrix_b;
-		INT16 matrix_c;
-		INT16 matrix_d;
-		INT16 origin_x;
-		INT16 origin_y;
-		UINT16 hor_offset;
-		UINT16 ver_offset;
-		UINT8 extbg;
-	} mode7;
-
-	UINT8 mosaic_size;
-	UINT8 clip_to_black;
-	UINT8 prevent_color_math;
-	UINT8 sub_add_mode;
-	UINT8 bg3_priority_bit;
-	UINT8 direct_color;
-	UINT8 ppu_last_scroll;      /* as per Anomie's doc and Theme Park, all scroll regs shares (but mode 7 ones) the same
-                                    'previous' scroll value */
-	UINT8 mode7_last_scroll;    /* as per Anomie's doc mode 7 scroll regs use a different value, shared with mode 7 matrix! */
-
-	UINT8 ppu1_open_bus, ppu2_open_bus;
-	UINT8 ppu1_version, ppu2_version;
-	UINT8 window1_left, window1_right, window2_left, window2_right;
-
-	UINT16 mosaic_table[16][4096];
-	UINT8 clipmasks[6][SNES_SCR_WIDTH];
-	UINT8 update_windows;
-	UINT8 update_offsets;
-	UINT8 update_oam_list;
-	UINT8 mode;
-	UINT8 interlace; //doubles the visible resolution
-	UINT8 obj_interlace;
-	UINT8 screen_brightness;
-	UINT8 screen_disabled;
-	UINT8 pseudo_hires;
-	UINT8 color_modes;
-	UINT8 stat77_flags;
-};
-
-extern struct snes_cart_info snes_cart;
-
-/*----------- defined in video/snes.c -----------*/
-
-extern struct SNES_PPU_STRUCT snes_ppu;
-
-extern void snes_latch_counters(running_machine &machine);
-
-extern VIDEO_START( snes );
-extern SCREEN_UPDATE_RGB32( snes );
-
-extern DECLARE_READ8_HANDLER( snes_ppu_read );
-extern DECLARE_WRITE8_HANDLER( snes_ppu_write );
 
 #endif /* _SNES_H_ */

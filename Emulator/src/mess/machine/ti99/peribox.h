@@ -64,8 +64,8 @@ public:
 	void set_genmod(bool set);
 
 protected:
-	void device_start(void);
-	void device_config_complete(void);
+	virtual void device_start(void);
+	virtual void device_config_complete(void);
 
 	virtual machine_config_constructor device_mconfig_additions() const;
 
@@ -103,7 +103,7 @@ public:
 	peribox_ev_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 protected:
-	machine_config_constructor device_mconfig_additions() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 /*
@@ -115,7 +115,7 @@ public:
 	peribox_sg_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 protected:
-	machine_config_constructor device_mconfig_additions() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 /*
@@ -127,7 +127,7 @@ public:
 	peribox_gen_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 protected:
-	machine_config_constructor device_mconfig_additions() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 /*****************************************************************************
@@ -159,8 +159,8 @@ public:
 	device_t*   get_drive(const char* name);
 
 protected:
-	void device_start(void);
-	void device_config_complete(void);
+	virtual void device_start(void);
+	virtual void device_config_complete(void);
 
 private:
 	int get_index_from_tagname();
@@ -178,8 +178,8 @@ class ti_expansion_card_device : public bus8z_device, public device_slot_card_in
 	friend class peribox_slot_device;
 
 public:
-	ti_expansion_card_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: bus8z_device(mconfig, type, name, tag, owner, clock),
+	ti_expansion_card_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: bus8z_device(mconfig, type, name, tag, owner, clock, shortname, source),
 	device_slot_card_interface(mconfig, *this)
 	{
 		m_slot = static_cast<peribox_slot_device*>(owner);
@@ -231,11 +231,11 @@ protected:
 
 #define MCFG_PERIBOX_SLOT_ADD(_tag, _slot_intf) \
 	MCFG_DEVICE_ADD(_tag, PERIBOX_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, NULL, NULL, false)
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, NULL, false)
 
 #define MCFG_PERIBOX_SLOT_ADD_DEF(_tag, _slot_intf, _default) \
 	MCFG_DEVICE_ADD(_tag, PERIBOX_SLOT, 0) \
-	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _default, NULL, false)
+	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _default, false)
 
 /*
     The following defines are required because the WD17xx DEVICE_START implementation

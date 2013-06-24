@@ -15,12 +15,21 @@
 class micro3d_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_MAC_DONE,
+		TIMER_ADC_DONE
+	};
+
 	micro3d_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_shared_ram(*this, "shared_ram"),
 		m_mac_sram(*this, "mac_sram"),
-		m_micro3d_sprite_vram(*this, "sprite_vram")
-	{ }
+		m_micro3d_sprite_vram(*this, "sprite_vram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_drmath(*this, "drmath"),
+		m_vgb(*this, "vgb") { }
 
 	required_shared_ptr<UINT16> m_shared_ram;
 	device_t            *m_duart68681;
@@ -118,6 +127,15 @@ public:
 	TIMER_CALLBACK_MEMBER(mac_done_callback);
 	TIMER_CALLBACK_MEMBER(adc_done_callback);
 	DECLARE_WRITE8_MEMBER(micro3d_upd7759_w);
+	DECLARE_WRITE8_MEMBER(data_from_i8031);
+	DECLARE_READ8_MEMBER(data_to_i8031);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_drmath;
+	required_device<cpu_device> m_vgb;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 struct micro3d_vtx

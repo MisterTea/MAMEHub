@@ -60,11 +60,13 @@ class dmndrby_state : public driver_device
 {
 public:
 	dmndrby_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_scroll_ram(*this, "scroll_ram"),
 		m_sprite_ram(*this, "sprite_ram"),
 		m_dderby_vidchars(*this, "vidchars"),
-		m_dderby_vidattribs(*this, "vidattribs"){ }
+		m_dderby_vidattribs(*this, "vidattribs"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	required_shared_ptr<UINT8> m_scroll_ram;
 	required_shared_ptr<UINT8> m_sprite_ram;
@@ -83,13 +85,15 @@ public:
 	UINT32 screen_update_dderby(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(dderby_irq);
 	INTERRUPT_GEN_MEMBER(dderby_timer_irq);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 
 
 WRITE8_MEMBER(dmndrby_state::dderby_sound_w)
 {
 	soundlatch_byte_w(space,0,data);
-	machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 
@@ -147,9 +151,9 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( dderby_sound_map, AS_PROGRAM, 8, dmndrby_state )
 	AM_RANGE(0x0000, 0x0fff) AM_ROM
 	AM_RANGE(0x1000, 0x1000) AM_RAM //???
-	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
+	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
 	AM_RANGE(0x4000, 0x4000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0x4001, 0x4001) AM_DEVREAD_LEGACY("ay1", ay8910_r)
+	AM_RANGE(0x4001, 0x4001) AM_DEVREAD("ay1", ay8910_device, data_r)
 	AM_RANGE(0x6000, 0x67ff) AM_RAM
 ADDRESS_MAP_END
 
@@ -447,7 +451,7 @@ wouldnt like to say its the most effective way though...
 // copied from elsewhere. surely incorrect
 void dmndrby_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	static const int resistances_rg[3] = { 1000, 470, 220 };
 	static const int resistances_b [2] = { 470, 220 };
 	double rweights[3], gweights[3], bweights[2];
@@ -489,7 +493,7 @@ void dmndrby_state::palette_init()
 	}
 
 	/* color_prom now points to the beginning of the lookup table */
-	color_prom = machine().root_device().memregion("proms2")->base();
+	color_prom = memregion("proms2")->base();
 
 	/* normal tiles use colors 0-15 */
 	for (i = 0x000; i < 0x300; i++)
@@ -502,12 +506,12 @@ void dmndrby_state::palette_init()
 /*Main Z80 is IM 0,HW-latched irqs. */
 INTERRUPT_GEN_MEMBER(dmndrby_state::dderby_irq)
 {
-	machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xd7); /* RST 10h */
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xd7); /* RST 10h */
 }
 
 INTERRUPT_GEN_MEMBER(dmndrby_state::dderby_timer_irq)
 {
-	machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, 0xcf); /* RST 08h */
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, 0xcf); /* RST 08h */
 }
 
 static MACHINE_CONFIG_START( dderby, dmndrby_state )

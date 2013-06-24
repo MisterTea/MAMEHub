@@ -11,7 +11,7 @@
 #include "cpu/z80/z80.h"
 #include "cpu/mcs48/mcs48.h"
 #include "machine/upd765.h"
-#include "machine/8237dma.h"
+#include "machine/am9517a.h"
 #include "video/upd7220.h"
 #include "dmv.lh"
 
@@ -31,7 +31,7 @@ public:
 
 	required_device<cpu_device> m_maincpu;
 	required_device<upd7220_device> m_hgdc;
-	required_device<i8237_device> m_dmac;
+	required_device<am9517a_device> m_dmac;
 	required_device<upd765a_device> m_fdc;
 	required_device<floppy_image_device> m_floppy0;
 	required_device<floppy_image_device> m_floppy1;
@@ -48,6 +48,8 @@ public:
 	DECLARE_WRITE8_MEMBER(kb_ctrl_mcu_w);
 	DECLARE_READ8_MEMBER(fdc_dma_r);
 	DECLARE_WRITE8_MEMBER(fdc_dma_w);
+	DECLARE_READ8_MEMBER(memory_read_byte);
+	DECLARE_WRITE8_MEMBER(memory_write_byte);
 
 	void fdc_irq(bool state);
 	void fdc_drq(bool state);
@@ -84,7 +86,7 @@ void dmv_state::fdc_irq(bool state)
 
 void dmv_state::fdc_drq(bool state)
 {
-	m_dmac->i8237_drq_write(3, state);
+	m_dmac->dreq3_w(state);
 }
 
 READ8_MEMBER(dmv_state::fdc_dma_r)
@@ -196,7 +198,7 @@ static ADDRESS_MAP_START( dmv_io , AS_IO, 8, dmv_state)
 	AM_RANGE(0x00, 0x00) AM_WRITE(leds_w)
 	AM_RANGE(0x13, 0x13) AM_READ(sys_status_r)
 	AM_RANGE(0x14, 0x14) AM_WRITE(fdd_motor_w)
-	AM_RANGE(0x20, 0x2f) AM_DEVREADWRITE_LEGACY("dma8237", i8237_r, i8237_w)
+	AM_RANGE(0x20, 0x2f) AM_DEVREADWRITE("dma8237", am9517a_device, read, write)
 	AM_RANGE(0x40, 0x41) AM_READWRITE(kb_ctrl_mcu_r, kb_ctrl_mcu_w)
 	AM_RANGE(0x50, 0x51) AM_DEVICE("upd765", upd765a_device, map)
 	AM_RANGE(0xa0, 0xa1) AM_DEVREADWRITE("upd7220", upd7220_device, read, write)
@@ -280,18 +282,27 @@ WRITE_LINE_MEMBER( dmv_state::dma_hrq_changed )
 	m_maincpu->set_input_line(INPUT_LINE_HALT, state ? ASSERT_LINE : CLEAR_LINE);
 
 	// Assert HLDA
-	i8237_hlda_w(m_dmac, state);
+	m_dmac->hack_w(state);
 }
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask)             { return space.read_byte(address); }
-static void memory_write_byte(address_space &space, offs_t address, UINT8 data, UINT8 mem_mask) { space.write_byte(address, data); }
+READ8_MEMBER(dmv_state::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
+
+WRITE8_MEMBER(dmv_state::memory_write_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.write_byte(offset, data);
+}
 
 static I8237_INTERFACE( dmv_dma8237_config )
 {
 	DEVCB_DRIVER_LINE_MEMBER(dmv_state, dma_hrq_changed),
 	DEVCB_NULL,
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_read_byte),
-	DEVCB_MEMORY_HANDLER("maincpu", PROGRAM, memory_write_byte),
+	DEVCB_DRIVER_MEMBER(dmv_state, memory_read_byte),
+	DEVCB_DRIVER_MEMBER(dmv_state, memory_write_byte),
 	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(dmv_state, fdc_dma_r) },
 	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_DRIVER_MEMBER(dmv_state, fdc_dma_w) },
 	{ DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL }
@@ -328,8 +339,8 @@ static MACHINE_CONFIG_START( dmv, dmv_state )
 	MCFG_UPD7220_ADD( "upd7220", XTAL_5MHz/2, hgdc_intf, upd7220_map ) // unk clock
 	MCFG_I8237_ADD( "dma8237", XTAL_4MHz, dmv_dma8237_config )
 	MCFG_UPD765A_ADD( "upd765", true, true )
-	MCFG_FLOPPY_DRIVE_ADD("upd765:0", dmv_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("upd765:1", dmv_floppies, "525dd", 0, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:0", dmv_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("upd765:1", dmv_floppies, "525dd", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
 
 /* ROM definition */

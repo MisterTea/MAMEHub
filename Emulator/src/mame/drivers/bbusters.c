@@ -239,13 +239,11 @@ Country :
 
 READ16_MEMBER(bbusters_state::sound_status_r)
 {
-
 	return m_sound_status;
 }
 
 WRITE8_MEMBER(bbusters_state::sound_status_w)
 {
-
 	m_sound_status = data;
 }
 
@@ -254,14 +252,13 @@ WRITE16_MEMBER(bbusters_state::sound_cpu_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_byte_w(space, 0, data&0xff);
-		machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 }
 
 /* Eprom is byte wide, top half of word _must_ be 0xff */
 READ16_MEMBER(bbusters_state::eprom_r)
 {
-
 	return (m_eprom_data[offset]&0xff) | 0xff00;
 }
 
@@ -278,7 +275,6 @@ READ16_MEMBER(bbusters_state::control_3_r)
 
 WRITE16_MEMBER(bbusters_state::gun_select_w)
 {
-
 	logerror("%08x: gun r\n",space.device().safe_pc());
 
 	space.device().execute().set_input_line(2, HOLD_LINE);
@@ -381,13 +377,13 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_portmap, AS_IO, 8, bbusters_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY("ymsnd", ym2610_r, ym2610_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ymsnd", ym2610_device, read, write)
 	AM_RANGE(0xc0, 0xc1) AM_WRITENOP /* -> Main CPU */
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sounda_portmap, AS_IO, 8, bbusters_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY("ymsnd", ym2608_r, ym2608_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ymsnd", ym2608_device, read, write)
 	AM_RANGE(0xc0, 0xc1) AM_WRITENOP /* -> Main CPU */
 ADDRESS_MAP_END
 
@@ -637,24 +633,16 @@ GFXDECODE_END
 
 /******************************************************************************/
 
-static void sound_irq( device_t *device, int irq )
+WRITE_LINE_MEMBER(bbusters_state::sound_irq)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2608_interface ym2608_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
-	},
-	sound_irq
-};
-
-static const ym2610_interface ym2610_config =
-{
-	sound_irq
+	AY8910_LEGACY_OUTPUT | AY8910_SINGLE_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL
 };
 
 /******************************************************************************/
@@ -698,7 +686,7 @@ static MACHINE_CONFIG_START( bbusters, bbusters_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(bbusters_state, sound_irq))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  1.0)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -735,7 +723,8 @@ static MACHINE_CONFIG_START( mechatt, bbusters_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2608, 8000000)
-	MCFG_SOUND_CONFIG(ym2608_config)
+	MCFG_YM2608_IRQ_HANDLER(WRITELINE(bbusters_state, sound_irq))
+	MCFG_YM2608_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.50)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.50)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)

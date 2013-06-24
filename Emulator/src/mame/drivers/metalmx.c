@@ -275,7 +275,6 @@ Logic:
 
 void metalmx_state::video_start()
 {
-
 }
 
 UINT32 metalmx_state::screen_update_metalmx(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -318,17 +317,14 @@ READ32_MEMBER(metalmx_state::watchdog_r)
 
 WRITE32_MEMBER(metalmx_state::shifter_w)
 {
-
 }
 
 WRITE32_MEMBER(metalmx_state::motor_w)
 {
-
 }
 
 WRITE32_MEMBER(metalmx_state::reset_w)
 {
-
 	if (ACCESSING_BITS_16_31)
 	{
 		data >>= 16;
@@ -376,7 +372,6 @@ static void cage_irq_callback(running_machine &machine, int reason)
 
 WRITE32_MEMBER(metalmx_state::dsp32c_1_w)
 {
-
 	offset <<= 1;
 
 	if (ACCESSING_BITS_0_15)
@@ -406,7 +401,6 @@ READ32_MEMBER(metalmx_state::dsp32c_1_r)
 
 WRITE32_MEMBER(metalmx_state::dsp32c_2_w)
 {
-
 	offset <<= 1;
 
 	if (ACCESSING_BITS_0_15)
@@ -443,7 +437,7 @@ READ32_MEMBER(metalmx_state::dsp32c_2_r)
 
 WRITE32_MEMBER(metalmx_state::host_gsp_w)
 {
-	address_space &gsp_space = machine().device("gsp")->memory().space(AS_PROGRAM);
+	address_space &gsp_space = m_gsp->space(AS_PROGRAM);
 
 	gsp_space.write_word((0xc0000000 + (offset << 5) + 0x10) / 8, data);
 	gsp_space.write_word((0xc0000000 + (offset << 5))/ 8 , data >> 16);
@@ -451,7 +445,7 @@ WRITE32_MEMBER(metalmx_state::host_gsp_w)
 
 READ32_MEMBER(metalmx_state::host_gsp_r)
 {
-	address_space &gsp_space = machine().device("gsp")->memory().space(AS_PROGRAM);
+	address_space &gsp_space = m_gsp->space(AS_PROGRAM);
 	UINT32 val;
 
 	val  = gsp_space.read_word((0xc0000000 + (offset << 5) + 0x10) / 8);
@@ -462,13 +456,11 @@ READ32_MEMBER(metalmx_state::host_gsp_r)
 
 READ32_MEMBER(metalmx_state::host_dram_r)
 {
-
 	return (m_gsp_dram[offset * 2] << 16) | m_gsp_dram[offset * 2 + 1];
 }
 
 WRITE32_MEMBER(metalmx_state::host_dram_w)
 {
-
 	COMBINE_DATA(m_gsp_dram + offset * 2 + 1);
 	data >>= 16;
 	mem_mask >>= 16;
@@ -477,13 +469,11 @@ WRITE32_MEMBER(metalmx_state::host_dram_w)
 
 READ32_MEMBER(metalmx_state::host_vram_r)
 {
-
 	return (m_gsp_vram[offset * 2] << 16) | m_gsp_vram[offset * 2 + 1];
 }
 
 WRITE32_MEMBER(metalmx_state::host_vram_w)
 {
-
 	COMBINE_DATA(m_gsp_vram + offset * 2 + 1);
 	data >>= 16;
 	mem_mask >>= 16;
@@ -492,7 +482,8 @@ WRITE32_MEMBER(metalmx_state::host_vram_w)
 
 static void tms_interrupt(device_t *device, int state)
 {
-	device->machine().device("maincpu")->execute().set_input_line(4, state ? HOLD_LINE : CLEAR_LINE);
+	metalmx_state *drvstate = device->machine().driver_data<metalmx_state>();
+	drvstate->m_maincpu->set_input_line(4, state ? HOLD_LINE : CLEAR_LINE);
 }
 
 
@@ -767,7 +758,7 @@ MACHINE_CONFIG_END
 
 DRIVER_INIT_MEMBER(metalmx_state,metalmx)
 {
-	UINT8 *adsp_boot = (UINT8*)machine().root_device().memregion("adsp")->base();
+	UINT8 *adsp_boot = (UINT8*)memregion("adsp")->base();
 
 	m_adsp->load_boot_data(adsp_boot, m_adsp_internal_program_ram);
 
@@ -777,7 +768,6 @@ DRIVER_INIT_MEMBER(metalmx_state,metalmx)
 
 void metalmx_state::machine_reset()
 {
-
 	m_dsp32c_1->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 	m_dsp32c_2->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }

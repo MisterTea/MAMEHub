@@ -5,13 +5,17 @@ class playmark_state : public driver_device
 {
 public:
 	playmark_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bgvideoram(*this, "bgvideoram"),
 		m_videoram1(*this, "videoram1"),
 		m_videoram2(*this, "videoram2"),
 		m_videoram3(*this, "videoram3"),
 		m_spriteram(*this, "spriteram"),
-		m_rowscroll(*this, "rowscroll"){ }
+		m_rowscroll(*this, "rowscroll"),
+		m_oki(*this, "oki"),
+		m_eeprom(*this, "eeprom"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu") { }
 
 	/* memory pointers */
 	optional_shared_ptr<UINT16> m_bgvideoram;
@@ -36,12 +40,9 @@ public:
 	int         m_xoffset;
 	int         m_yoffset;
 	int         m_txt_tile_offset;
+	int         m_fg_tile_offset;
 	int         m_pri_masks[3];
 	UINT16      m_scroll[7];
-
-	/* powerbal-specific */
-	int         m_tilebank;
-	int         m_bg_yoffset;
 
 	/* misc */
 	UINT16      m_snd_command;
@@ -51,8 +52,8 @@ public:
 	int         m_old_oki_bank;
 
 	/* devices */
-	okim6295_device *m_oki;
-	eeprom_device *m_eeprom;
+	required_device<okim6295_device> m_oki;
+	optional_device<eeprom_device> m_eeprom;
 	DECLARE_WRITE16_MEMBER(coinctrl_w);
 	DECLARE_WRITE16_MEMBER(wbeachvl_coin_eeprom_w);
 	DECLARE_WRITE16_MEMBER(hotmind_coin_eeprom_w);
@@ -76,8 +77,6 @@ public:
 	DECLARE_WRITE16_MEMBER(hrdtimes_scroll_w);
 	DECLARE_WRITE8_MEMBER(playmark_oki_banking_w);
 	DECLARE_DRIVER_INIT(bigtwin);
-	DECLARE_DRIVER_INIT(powerbal);
-	DECLARE_DRIVER_INIT(magicstk);
 	TILE_GET_INFO_MEMBER(bigtwin_get_tx_tile_info);
 	TILE_GET_INFO_MEMBER(bigtwin_get_fg_tile_info);
 	TILE_GET_INFO_MEMBER(wbeachvl_get_tx_tile_info);
@@ -87,7 +86,6 @@ public:
 	TILE_GET_INFO_MEMBER(bigtwinb_get_tx_tile_info);
 	TILE_GET_INFO_MEMBER(hrdtimes_get_fg_tile_info);
 	TILE_GET_INFO_MEMBER(hrdtimes_get_bg_tile_info);
-	TILE_GET_INFO_MEMBER(powerbal_get_bg_tile_info);
 	DECLARE_MACHINE_START(playmark);
 	DECLARE_MACHINE_RESET(playmark);
 	DECLARE_VIDEO_START(bigtwin);
@@ -96,13 +94,16 @@ public:
 	DECLARE_VIDEO_START(excelsr);
 	DECLARE_VIDEO_START(hotmind);
 	DECLARE_VIDEO_START(hrdtimes);
-	DECLARE_MACHINE_START(powerbal);
-	DECLARE_MACHINE_RESET(powerbal);
-	DECLARE_VIDEO_START(powerbal);
+	DECLARE_VIDEO_START(luckboomh);
 	UINT32 screen_update_bigtwin(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_bigtwinb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_wbeachvl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_excelsr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_hrdtimes(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	UINT32 screen_update_powerbal(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int codeshift );
+	void bigtwinb_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int codeshift );
+	void draw_bitmap( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	UINT8 playmark_asciitohex(UINT8 data);
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
 };

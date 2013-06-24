@@ -8,11 +8,13 @@ class metlclsh_state : public driver_device
 {
 public:
 	metlclsh_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_fgram(*this, "fgram"),
 		m_spriteram(*this, "spriteram"),
 		m_bgram(*this, "bgram"),
-		m_scrollx(*this, "scrollx"){ }
+		m_scrollx(*this, "scrollx"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_fgram;
@@ -30,8 +32,8 @@ public:
 	UINT8          m_gfxbank;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_subcpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 	DECLARE_WRITE8_MEMBER(metlclsh_cause_irq);
 	DECLARE_WRITE8_MEMBER(metlclsh_ack_nmi);
 	DECLARE_WRITE8_MEMBER(metlclsh_cause_nmi2);
@@ -50,4 +52,5 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_metlclsh(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 };

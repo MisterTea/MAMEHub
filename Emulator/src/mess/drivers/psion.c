@@ -25,7 +25,7 @@
 TIMER_DEVICE_CALLBACK_MEMBER(psion_state::nmi_timer)
 {
 	if (m_enable_nmi)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 UINT8 psion_state::kb_read(running_machine &machine)
@@ -141,7 +141,7 @@ void psion_state::io_rw(address_space &space, UINT16 offset)
 		/* switch off, CPU goes into standby mode */
 		m_enable_nmi = 0;
 		m_stby_pwr = 1;
-		space.machine().device<cpu_device>("maincpu")->suspend(SUSPEND_REASON_HALT, 1);
+		m_maincpu->suspend(SUSPEND_REASON_HALT, 1);
 		break;
 	case 0x100:
 		m_pulse = 1;
@@ -153,10 +153,10 @@ void psion_state::io_rw(address_space &space, UINT16 offset)
 		m_kb_counter = 0;
 		break;
 	case 0x180:
-		beep_set_state(m_beep, 1);
+		m_beep->set_state(1);
 		break;
 	case 0x1c0:
-		beep_set_state(m_beep, 0);
+		m_beep->set_state(0);
 		break;
 	case 0x240:
 		if (offset == 0x260 && (m_rom_bank_count || m_ram_bank_count))
@@ -194,10 +194,7 @@ WRITE8_MEMBER( psion_state::io_w )
 	switch (offset & 0x0ffc0)
 	{
 	case 0x80:
-		if (offset & 1)
-			m_lcdc->data_write(space, offset, data);
-		else
-			m_lcdc->control_write(space, offset, data);
+		m_lcdc->write(space, offset & 0x01, data);
 		break;
 	default:
 		io_rw(space, offset);
@@ -209,10 +206,7 @@ READ8_MEMBER( psion_state::io_r )
 	switch (offset & 0xffc0)
 	{
 	case 0x80:
-		if (offset & 1)
-			return m_lcdc->data_read(space, offset);
-		else
-			return m_lcdc->control_read(space, offset);
+		return m_lcdc->read(space, offset & 0x01);
 	default:
 		io_rw(space, offset);
 	}
@@ -222,11 +216,9 @@ READ8_MEMBER( psion_state::io_r )
 
 INPUT_CHANGED_MEMBER(psion_state::psion_on)
 {
-	cpu_device *cpu = machine().device<cpu_device>("maincpu");
-
 	/* reset the CPU for resume from standby */
-	if (cpu->suspended(SUSPEND_REASON_HALT))
-		cpu->reset();
+	if (m_maincpu->suspended(SUSPEND_REASON_HALT))
+		m_maincpu->reset();
 }
 
 static ADDRESS_MAP_START(psioncm_mem, AS_PROGRAM, 8, psion_state)
@@ -397,7 +389,7 @@ void psion_state::machine_start()
 
 	if (m_rom_bank_count)
 	{
-		UINT8* rom_base = (UINT8 *)machine().root_device().memregion("maincpu")->base();
+		UINT8* rom_base = (UINT8 *)memregion("maincpu")->base();
 
 		membank("rombank")->configure_entry(0, rom_base + 0x8000);
 		membank("rombank")->configure_entries(1, m_rom_bank_count-1, rom_base + 0x10000, 0x4000);
@@ -407,6 +399,7 @@ void psion_state::machine_start()
 	if (m_ram_bank_count)
 	{
 		m_paged_ram = auto_alloc_array(machine(), UINT8, m_ram_bank_count * 0x4000);
+		memset(m_paged_ram, 0, sizeof(UINT8) * (m_ram_bank_count * 0x4000));
 		membank("rambank")->configure_entries(0, m_ram_bank_count, m_paged_ram, 0x4000);
 		membank("rambank")->set_entry(0);
 	}
@@ -437,6 +430,24 @@ void psion_state::machine_reset()
 		update_banks(machine());
 }
 
+
+HD44780_PIXEL_UPDATE(psion_state::lz_pixel_update)
+{
+	if (pos < 40)
+	{
+		static const UINT8 psion_display_layout[] =
+		{
+			0x00, 0x01, 0x02, 0x03, 0x28, 0x29, 0x2a, 0x2b, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x2c, 0x2d, 0x2e, 0x2f,
+			0x30, 0x31, 0x32, 0x33, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b,
+			0x14, 0x15, 0x16, 0x17, 0x3c, 0x3d, 0x3e, 0x3f, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x40, 0x41, 0x42, 0x43,
+			0x44, 0x45, 0x46, 0x47, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f
+		};
+
+		UINT8 char_pos = psion_display_layout[line*40 + pos];
+		bitmap.pix16((char_pos / 20) * 9 + y, (char_pos % 20) * 6 + x) = state;
+	}
+}
+
 void psion_state::palette_init()
 {
 	palette_set_color(machine(), 0, MAKE_RGB(138, 146, 148));
@@ -455,15 +466,8 @@ static const gfx_layout psion_charlayout =
 };
 
 static GFXDECODE_START( psion )
-	GFXDECODE_ENTRY( "hd44780", 0x0000, psion_charlayout, 0, 1 )
+	GFXDECODE_ENTRY( "hd44780:cgrom", 0x0000, psion_charlayout, 0, 1 )
 GFXDECODE_END
-
-static HD44780_INTERFACE( psion_2line_display )
-{
-	2,                  // number of lines
-	16,                 // chars for line
-	NULL                // pixel update callback
-};
 
 /* basic configuration for 2 lines display */
 static MACHINE_CONFIG_START( psion_2lines, psion_state )
@@ -481,11 +485,12 @@ static MACHINE_CONFIG_START( psion_2lines, psion_state )
 	MCFG_PALETTE_LENGTH(2)
 	MCFG_GFXDECODE(psion)
 
-	MCFG_HD44780_ADD("hd44780", psion_2line_display)
+	MCFG_HD44780_ADD("hd44780")
+	MCFG_HD44780_LCD_SIZE(2, 16)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO( "mono" )
-	MCFG_SOUND_ADD( BEEPER_TAG, BEEP, 0 )
+	MCFG_SOUND_ADD( "beeper", BEEP, 0 )
 	MCFG_SOUND_ROUTE( ALL_OUTPUTS, "mono", 1.00 )
 
 	MCFG_NVRAM_HANDLER(psion)
@@ -500,14 +505,6 @@ static MACHINE_CONFIG_START( psion_2lines, psion_state )
 	MCFG_SOFTWARE_LIST_ADD("pack_list", "psion")
 MACHINE_CONFIG_END
 
-
-static HD44780_INTERFACE( psion_4line_display )
-{
-	4,                  // number of lines
-	20,                 // chars for line
-	NULL                // pixel update callback
-};
-
 /* basic configuration for 4 lines display */
 static MACHINE_CONFIG_DERIVED( psion_4lines, psion_2lines )
 	/* video hardware */
@@ -515,8 +512,9 @@ static MACHINE_CONFIG_DERIVED( psion_4lines, psion_2lines )
 	MCFG_SCREEN_SIZE(6*20, 9*4)
 	MCFG_SCREEN_VISIBLE_AREA(0, 6*20-1, 0, 9*4-1)
 
-	MCFG_DEVICE_REMOVE("hd44780")
-	MCFG_PSION_CUSTOM_LCDC_ADD("hd44780", psion_4line_display)
+	MCFG_DEVICE_MODIFY("hd44780")
+	MCFG_HD44780_LCD_SIZE(4, 20)
+	MCFG_HD44780_PIXEL_UPDATE_CB(psion_state::lz_pixel_update)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( psioncm, psion_2lines )
@@ -554,18 +552,12 @@ ROM_START( psioncm )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
 	ROM_SYSTEM_BIOS(0, "v24", "CM v2.4")
 	ROMX_LOAD( "24-cm.dat",    0x8000, 0x8000,  CRC(f6798394) SHA1(736997f0db9a9ee50d6785636bdc3f8ff1c33c66), ROM_BIOS(1))
-
-	ROM_REGION( 0x0860, "hd44780", ROMREGION_ERASE )
-	ROM_LOAD( "44780a00.bin",    0x0000, 0x0860,  BAD_DUMP CRC(3a89024c) SHA1(5a87b68422a916d1b37b5be1f7ad0b3fb3af5a8d))
 ROM_END
 
 ROM_START( psionla )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
 	ROM_SYSTEM_BIOS(0, "v33", "LA v3.3")
 	ROMX_LOAD( "33-la.dat",    0x8000, 0x8000,  CRC(02668ed4) SHA1(e5d4ee6b1cde310a2970ffcc6f29a0ce09b08c46), ROM_BIOS(1))
-
-	ROM_REGION( 0x0860, "hd44780", ROMREGION_ERASE )
-	ROM_LOAD( "44780a00.bin",    0x0000, 0x0860,  BAD_DUMP CRC(3a89024c) SHA1(5a87b68422a916d1b37b5be1f7ad0b3fb3af5a8d))
 ROM_END
 
 ROM_START( psionp350 )
@@ -574,18 +566,12 @@ ROM_START( psionp350 )
 	ROMX_LOAD( "36-p350.dat",  0x8000, 0x8000,  CRC(3a371a74) SHA1(9167210b2c0c3bd196afc08ca44ab23e4e62635e), ROM_BIOS(1))
 	ROM_SYSTEM_BIOS(1, "v38", "POS350 v3.8")
 	ROMX_LOAD( "38-p350.dat",  0x8000, 0x8000,  CRC(1b8b082f) SHA1(a3e875a59860e344f304a831148a7980f28eaa4a), ROM_BIOS(2))
-
-	ROM_REGION( 0x0860, "hd44780", ROMREGION_ERASE )
-	ROM_LOAD( "44780a00.bin",    0x0000, 0x0860,  BAD_DUMP CRC(3a89024c) SHA1(5a87b68422a916d1b37b5be1f7ad0b3fb3af5a8d))
 ROM_END
 
 ROM_START( psionlam )
 	ROM_REGION( 0x18000, "maincpu", ROMREGION_ERASEFF )
 	ROM_SYSTEM_BIOS(0, "v37", "LA v3.7")
 	ROMX_LOAD( "37-lam.dat",   0x8000, 0x10000, CRC(7ee3a1bc) SHA1(c7fbd6c8e47c9b7d5f636e9f56e911b363d6796b), ROM_BIOS(1))
-
-	ROM_REGION( 0x0860, "hd44780", ROMREGION_ERASE )
-	ROM_LOAD( "44780a00.bin",    0x0000, 0x0860,  BAD_DUMP CRC(3a89024c) SHA1(5a87b68422a916d1b37b5be1f7ad0b3fb3af5a8d))
 ROM_END
 
 ROM_START( psionlz64 )
@@ -593,8 +579,8 @@ ROM_START( psionlz64 )
 	ROM_SYSTEM_BIOS(0, "v44", "LZ64 v4.4")
 	ROMX_LOAD( "44-lz64.dat",  0x8000, 0x10000, CRC(aa487913) SHA1(5a44390f63fc8c1bc94299ab2eb291bc3a5b989a), ROM_BIOS(1))
 
-	ROM_REGION( 0x0860, "hd44780", ROMREGION_ERASE )
-	ROM_LOAD( "44780a00.bin",    0x0000, 0x0860,  BAD_DUMP CRC(3a89024c) SHA1(5a87b68422a916d1b37b5be1f7ad0b3fb3af5a8d))
+	ROM_REGION( 0x1000, "hd44780", 0 )
+	ROM_LOAD( "psion_lz_charset.bin",    0x0000, 0x1000,  BAD_DUMP CRC(44bff6f6) SHA1(aef544548b783d608a7d55456f6c46f421a11ed7))
 ROM_END
 
 ROM_START( psionlz64s )
@@ -602,8 +588,8 @@ ROM_START( psionlz64s )
 	ROM_SYSTEM_BIOS(0, "v46", "LZ64 v4.6")
 	ROMX_LOAD( "46-lz64s.dat", 0x8000, 0x10000, CRC(328d9772) SHA1(7f9e2d591d59ecfb0822d7067c2fe59542ea16dd), ROM_BIOS(1))
 
-	ROM_REGION( 0x0860, "hd44780", ROMREGION_ERASE )
-	ROM_LOAD( "44780a00.bin",    0x0000, 0x0860,  BAD_DUMP CRC(3a89024c) SHA1(5a87b68422a916d1b37b5be1f7ad0b3fb3af5a8d))
+	ROM_REGION( 0x1000, "hd44780", 0 )
+	ROM_LOAD( "psion_lz_charset.bin",    0x0000, 0x1000,  BAD_DUMP CRC(44bff6f6) SHA1(aef544548b783d608a7d55456f6c46f421a11ed7))
 ROM_END
 
 ROM_START( psionlz )
@@ -611,8 +597,8 @@ ROM_START( psionlz )
 	ROM_SYSTEM_BIOS(0, "v46", "LZ v4.6")
 	ROMX_LOAD( "46-lz.dat",    0x8000, 0x10000, CRC(22715f48) SHA1(cf460c81cadb53eddb7afd8dadecbe8c38ea3fc2), ROM_BIOS(1))
 
-	ROM_REGION( 0x0860, "hd44780", ROMREGION_ERASE )
-	ROM_LOAD( "44780a00.bin",    0x0000, 0x0860,  BAD_DUMP CRC(3a89024c) SHA1(5a87b68422a916d1b37b5be1f7ad0b3fb3af5a8d))
+	ROM_REGION( 0x1000, "hd44780", 0 )
+	ROM_LOAD( "psion_lz_charset.bin",    0x0000, 0x1000,  BAD_DUMP CRC(44bff6f6) SHA1(aef544548b783d608a7d55456f6c46f421a11ed7))
 ROM_END
 
 ROM_START( psionp464 )
@@ -620,8 +606,8 @@ ROM_START( psionp464 )
 	ROM_SYSTEM_BIOS(0, "v46", "POS464 v4.6")
 	ROMX_LOAD( "46-p464.dat",  0x8000, 0x10000, CRC(672a0945) SHA1(d2a6e3fe1019d1bd7ae4725e33a0b9973f8cd7d8), ROM_BIOS(1))
 
-	ROM_REGION( 0x0860, "hd44780", ROMREGION_ERASE )
-	ROM_LOAD( "44780a00.bin",    0x0000, 0x0860,  BAD_DUMP CRC(3a89024c) SHA1(5a87b68422a916d1b37b5be1f7ad0b3fb3af5a8d))
+	ROM_REGION( 0x1000, "hd44780", 0 )
+	ROM_LOAD( "psion_lz_charset.bin",    0x0000, 0x1000,  BAD_DUMP CRC(44bff6f6) SHA1(aef544548b783d608a7d55456f6c46f421a11ed7))
 ROM_END
 
 /* Driver */

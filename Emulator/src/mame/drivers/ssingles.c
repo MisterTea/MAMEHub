@@ -155,7 +155,8 @@ class ssingles_state : public driver_device
 {
 public:
 	ssingles_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_videoram[VMEM_SIZE];
 	UINT8 m_colorram[VMEM_SIZE];
@@ -174,6 +175,7 @@ public:
 	DECLARE_DRIVER_INIT(ssingles);
 	virtual void video_start();
 	INTERRUPT_GEN_MEMBER(atamanot_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 //fake palette
@@ -265,9 +267,11 @@ static MC6845_UPDATE_ROW( atamanot_update_row )
 	}
 }
 
-static const mc6845_interface ssingles_mc6845_intf =
+
+static MC6845_INTERFACE( ssingles_mc6845_intf )
 {
 	"screen",
+	false,
 	8,
 	NULL,                       /* before pixel update callback */
 	ssingles_update_row,        /* row update callback */
@@ -279,9 +283,10 @@ static const mc6845_interface ssingles_mc6845_intf =
 	NULL                        /* update address callback */
 };
 
-static const mc6845_interface atamanot_mc6845_intf =
+static MC6845_INTERFACE( atamanot_mc6845_intf )
 {
 	"screen",
+	false,
 	8,
 	NULL,                       /* before pixel update callback */
 	atamanot_update_row,        /* row update callback */
@@ -311,7 +316,6 @@ WRITE8_MEMBER(ssingles_state::ssingles_colorram_w)
 
 void ssingles_state::video_start()
 {
-
 	{
 		int i;
 		for(i=0;i<NUM_PENS;++i)
@@ -324,20 +328,17 @@ void ssingles_state::video_start()
 
 READ8_MEMBER(ssingles_state::c000_r)
 {
-
 	return m_prot_data;
 }
 
 READ8_MEMBER(ssingles_state::c001_r)
 {
-
 	m_prot_data=0xc4;
 	return 0;
 }
 
 WRITE8_MEMBER(ssingles_state::c001_w)
 {
-
 	m_prot_data^=data^0x11;
 }
 
@@ -392,7 +393,6 @@ READ8_MEMBER(ssingles_state::atamanot_prot_r)
 
 WRITE8_MEMBER(ssingles_state::atamanot_prot_w)
 {
-
 	m_atamanot_prot_state = data;
 }
 
@@ -412,11 +412,11 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ssingles_io_map, AS_IO, 8, ssingles_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x04, 0x04) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0x06, 0x06) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x00, 0x00) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x04, 0x04) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0x06, 0x06) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0x08, 0x08) AM_READNOP
-	AM_RANGE(0x0a, 0x0a) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
+	AM_RANGE(0x0a, 0x0a) AM_DEVWRITE("ay2", ay8910_device, data_w)
 	AM_RANGE(0x16, 0x16) AM_READ_PORT("DSW0")
 	AM_RANGE(0x18, 0x18) AM_READ_PORT("DSW1")
 	AM_RANGE(0x1c, 0x1c) AM_READ_PORT("INPUTS")
@@ -427,11 +427,11 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( atamanot_io_map, AS_IO, 8, ssingles_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x04, 0x04) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0x06, 0x06) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x00, 0x00) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x04, 0x04) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0x06, 0x06) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0x08, 0x08) AM_READNOP
-	AM_RANGE(0x0a, 0x0a) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
+	AM_RANGE(0x0a, 0x0a) AM_DEVWRITE("ay2", ay8910_device, data_w)
 	AM_RANGE(0x16, 0x16) AM_READ_PORT("DSW0")
 	AM_RANGE(0x18, 0x18) AM_READ_PORT("DSW1") AM_WRITE(atamanot_prot_w)
 	AM_RANGE(0x1c, 0x1c) AM_READ_PORT("INPUTS")
@@ -686,7 +686,6 @@ ROM_END
 
 DRIVER_INIT_MEMBER(ssingles_state,ssingles)
 {
-
 	save_item(NAME(m_videoram));
 	save_item(NAME(m_colorram));
 }

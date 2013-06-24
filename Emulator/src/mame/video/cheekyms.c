@@ -17,7 +17,7 @@ Functions to emulate the video hardware of the machine.
 
 void cheekyms_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i, j, bit, r, g, b;
 
 	for (i = 0; i < 6; i++)
@@ -42,7 +42,6 @@ void cheekyms_state::palette_init()
 
 WRITE8_MEMBER(cheekyms_state::cheekyms_port_40_w)
 {
-
 	/* the lower bits probably trigger sound samples */
 	m_dac->write_unsigned8(data ? 0x80 : 0);
 }
@@ -50,7 +49,6 @@ WRITE8_MEMBER(cheekyms_state::cheekyms_port_40_w)
 
 WRITE8_MEMBER(cheekyms_state::cheekyms_port_80_w)
 {
-
 	/* d0-d1 - sound enables, not sure which bit is which */
 	/* d3-d5 - man scroll amount */
 	/* d6 - palette select (selects either 0 = PROM M9, 1 = PROM M8) */
@@ -105,23 +103,22 @@ void cheekyms_state::video_start()
 }
 
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx, int flip )
+void cheekyms_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx, int flip )
 {
-	cheekyms_state *state = machine.driver_data<cheekyms_state>();
 	offs_t offs;
 
 	for (offs = 0; offs < 0x20; offs += 4)
 	{
 		int x, y, code, color;
 
-		if ((state->m_spriteram[offs + 3] & 0x08) == 0x00) continue;
+		if ((m_spriteram[offs + 3] & 0x08) == 0x00) continue;
 
-		x  = 256 - state->m_spriteram[offs + 2];
-		y  = state->m_spriteram[offs + 1];
-		code =  (~state->m_spriteram[offs + 0] & 0x0f) << 1;
-		color = (~state->m_spriteram[offs + 3] & 0x07);
+		x  = 256 - m_spriteram[offs + 2];
+		y  = m_spriteram[offs + 1];
+		code =  (~m_spriteram[offs + 0] & 0x0f) << 1;
+		color = (~m_spriteram[offs + 3] & 0x07);
 
-		if (state->m_spriteram[offs + 0] & 0x80)
+		if (m_spriteram[offs + 0] & 0x80)
 		{
 			if (!flip)
 				code++;
@@ -130,7 +127,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 		}
 		else
 		{
-			if (state->m_spriteram[offs + 0] & 0x02)
+			if (m_spriteram[offs + 0] & 0x02)
 			{
 				drawgfx_transpen(bitmap, cliprect, gfx, code | 0x20, color, 0, 0,        x, y, 0);
 				drawgfx_transpen(bitmap, cliprect, gfx, code | 0x21, color, 0, 0, 0x10 + x, y, 0);
@@ -158,7 +155,7 @@ UINT32 cheekyms_state::screen_update_cheekyms(screen_device &screen, bitmap_ind1
 	m_bitmap_buffer->fill(0, cliprect);
 
 	/* sprites go under the playfield */
-	draw_sprites(machine(), bitmap, cliprect, machine().gfx[1], flip);
+	draw_sprites(bitmap, cliprect, machine().gfx[1], flip);
 
 	/* draw the tilemap to a temp bitmap */
 	m_cm_tilemap->draw(*m_bitmap_buffer, cliprect, 0, 0);

@@ -16,21 +16,21 @@
 INTERRUPT_GEN_MEMBER(asteroid_state::asteroid_interrupt)
 {
 	/* Turn off interrupts if self-test is enabled */
-	if (!(machine().root_device().ioport("IN0")->read() & 0x80))
+	if (!(ioport("IN0")->read() & 0x80))
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(asteroid_state::asterock_interrupt)
 {
 	/* Turn off interrupts if self-test is enabled */
-	if ((machine().root_device().ioport("IN0")->read() & 0x80))
+	if ((ioport("IN0")->read() & 0x80))
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 INTERRUPT_GEN_MEMBER(asteroid_state::llander_interrupt)
 {
 	/* Turn off interrupts if self-test is enabled */
-	if (machine().root_device().ioport("IN0")->read() & 0x02)
+	if (ioport("IN0")->read() & 0x02)
 		device.execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
@@ -133,6 +133,6 @@ WRITE8_MEMBER(asteroid_state::astdelux_led_w)
 
 void asteroid_state::machine_reset()
 {
-	asteroid_bank_switch_w(machine().device("maincpu")->memory().space(AS_PROGRAM), 0, 0);
-	avgdvg_reset_w(machine().device("maincpu")->memory().space(AS_PROGRAM), 0, 0);
+	asteroid_bank_switch_w(m_maincpu->space(AS_PROGRAM), 0, 0);
+	avgdvg_reset_w(m_maincpu->space(AS_PROGRAM), 0, 0);
 }

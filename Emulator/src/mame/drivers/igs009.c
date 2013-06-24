@@ -34,7 +34,7 @@ class igs009_state : public driver_device
 {
 public:
 	igs009_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg_scroll(*this, "bg_scroll"),
 		m_gp98_reel1_ram(*this, "gp98_reel1_ram"),
 		m_gp98_reel2_ram(*this, "gp98_reel2_ram"),
@@ -42,7 +42,8 @@ public:
 		m_gp98_reel4_ram(*this, "gp98_reel4_ram"),
 		m_bg_scroll2(*this, "bg_scroll2"),
 		m_fg_tile_ram(*this, "fg_tile_ram"),
-		m_fg_color_ram(*this, "fg_color_ram"){ }
+		m_fg_color_ram(*this, "fg_color_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_bg_scroll;
 	required_shared_ptr<UINT8> m_gp98_reel1_ram;
@@ -91,6 +92,7 @@ public:
 	DECLARE_VIDEO_START(gp98);
 	UINT32 screen_update_jingbell(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(jingbell_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -492,7 +494,7 @@ static ADDRESS_MAP_START( jingbell_portmap, AS_IO, 8, igs009_state )
 	AM_RANGE( 0x6492, 0x6492 ) AM_WRITE(jingbell_leds_w )
 	AM_RANGE( 0x64a0, 0x64a0 ) AM_READ_PORT( "BUTTONS2" )
 
-	AM_RANGE( 0x64b0, 0x64b1 ) AM_DEVWRITE_LEGACY("ymsnd", ym2413_w )
+	AM_RANGE( 0x64b0, 0x64b1 ) AM_DEVWRITE("ymsnd", ym2413_device, write)
 
 	AM_RANGE( 0x64c0, 0x64c0 ) AM_DEVREADWRITE("oki", okim6295_device, read, write)
 
@@ -844,8 +846,8 @@ ROM_END
 DRIVER_INIT_MEMBER(igs009_state,jingbell)
 {
 	int i;
-	UINT8 *rom  = (UINT8 *)machine().root_device().memregion("maincpu")->base();
-	size_t size = machine().root_device().memregion("maincpu")->bytes();
+	UINT8 *rom  = (UINT8 *)memregion("maincpu")->base();
+	size_t size = memregion("maincpu")->bytes();
 
 	for (i=0; i<size; i++)
 	{

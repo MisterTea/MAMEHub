@@ -55,7 +55,6 @@ Nascom Memory map
 /* Components */
 #include "cpu/z80/z80.h"
 #include "machine/wd17xx.h"
-#include "machine/ay31015.h"
 #include "machine/z80pio.h"
 
 /* Devices */
@@ -254,7 +253,6 @@ INPUT_PORTS_END
 
 static const ay31015_config nascom1_ay31015_config =
 {
-	AY_3_1015,
 	( XTAL_16MHz / 16 ) / 256,
 	( XTAL_16MHz / 16 ) / 256,
 	DEVCB_DRIVER_MEMBER(nascom1_state, nascom1_hd6402_si),
@@ -299,9 +297,9 @@ static MACHINE_CONFIG_START( nascom1, nascom1_state )
 	MCFG_Z80PIO_ADD( "z80pio", XTAL_16MHz/8, nascom1_z80pio_intf )
 
 	/* devices */
-	MCFG_SNAPSHOT_ADD("snapshot", nascom1, "nas", 0.5)
+	MCFG_SNAPSHOT_ADD("snapshot", nascom1_state, nascom1, "nas", 0.5)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

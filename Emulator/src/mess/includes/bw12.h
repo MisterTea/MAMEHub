@@ -11,6 +11,7 @@
 #include "machine/pit8253.h"
 #include "machine/ram.h"
 #include "machine/rescap.h"
+#include "machine/serial.h"
 #include "machine/upd765.h"
 #include "machine/z80dart.h"
 #include "video/mc6845.h"
@@ -27,6 +28,8 @@
 #define AY3600PRO002_TAG    "ic74"
 #define CENTRONICS_TAG      "centronics"
 #define FLOPPY_TIMER_TAG    "motor_off"
+#define RS232_A_TAG         "rs232a"
+#define RS232_B_TAG         "rs232b"
 
 #define BW12_VIDEORAM_MASK  0x7ff
 #define BW12_CHARROM_MASK   0xfff
@@ -42,30 +45,37 @@ public:
 			m_fdc(*this, UPD765_TAG),
 			m_kbc(*this, AY3600PRO002_TAG),
 			m_crtc(*this, MC6845_TAG),
+			m_pit(*this, PIT8253_TAG),
 			m_centronics(*this, CENTRONICS_TAG),
 			m_ram(*this, RAM_TAG),
 			m_floppy0(*this, UPD765_TAG ":1:525dd"),
 			m_floppy1(*this, UPD765_TAG ":2:525dd"),
 			m_floppy_timer(*this, FLOPPY_TIMER_TAG),
-			m_video_ram(*this, "video_ram")
+			m_rom(*this, Z80_TAG),
+			m_char_rom(*this, "chargen"),
+			m_video_ram(*this, "video_ram"),
+			m_modifiers(*this, "MODIFIERS")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<pia6821_device> m_pia;
-	required_device<z80dart_device> m_sio;
+	required_device<z80sio0_device> m_sio;
 	required_device<upd765a_device> m_fdc;
 	required_device<ay3600_device> m_kbc;
 	required_device<mc6845_device> m_crtc;
+	required_device<pit8253_device> m_pit;
 	required_device<centronics_device> m_centronics;
 	required_device<ram_device> m_ram;
 	required_device<floppy_image_device> m_floppy0;
 	required_device<floppy_image_device> m_floppy1;
 	required_device<timer_device> m_floppy_timer;
+	required_memory_region m_rom;
+	required_memory_region m_char_rom;
+	required_shared_ptr<UINT8> m_video_ram;
+	required_ioport m_modifiers;
 
 	virtual void machine_start();
 	virtual void machine_reset();
-
-	virtual void video_start();
 
 	void bankswitch();
 	void floppy_motor_off();
@@ -84,10 +94,6 @@ public:
 
 	/* memory state */
 	int m_bank;
-
-	/* video state */
-	required_shared_ptr<UINT8> m_video_ram;
-	UINT8 *m_char_rom;
 
 	/* PIT state */
 	int m_pit_out2;

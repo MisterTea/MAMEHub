@@ -33,7 +33,8 @@ public:
 		m_obj_ram(*this, "obj_ram"),
 		m_out_ram(*this, "out_ram"),
 		m_color_ram(*this, "color_ram"),
-		m_fix_ram(*this, "fix_ram"){ }
+		m_fix_ram(*this, "fix_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_nmi_enable;
 
@@ -59,12 +60,14 @@ public:
 	DECLARE_DRIVER_INIT(astron);
 	virtual void machine_start();
 	UINT32 screen_update_astron(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void astron_draw_characters(bitmap_rgb32 &bitmap,const rectangle &cliprect);
+	void astron_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 /* VIDEO GOODS */
-static void astron_draw_characters(running_machine &machine, bitmap_rgb32 &bitmap,const rectangle &cliprect)
+void segald_state::astron_draw_characters(bitmap_rgb32 &bitmap,const rectangle &cliprect)
 {
-	segald_state *state = machine.driver_data<segald_state>();
 	UINT8 characterX, characterY;
 
 	for (characterX = 0; characterX < 32; characterX++)
@@ -72,13 +75,13 @@ static void astron_draw_characters(running_machine &machine, bitmap_rgb32 &bitma
 		for (characterY = 0; characterY < 32; characterY++)
 		{
 			int current_screen_character = (characterY*32) + characterX;
-			drawgfx_transpen(bitmap, cliprect, machine.gfx[0], state->m_fix_ram[current_screen_character],
+			drawgfx_transpen(bitmap, cliprect, machine().gfx[0], m_fix_ram[current_screen_character],
 					1, 0, 0, characterX*8, characterY*8, 0);
 		}
 	}
 }
 
-static void astron_draw_sprites(running_machine &machine, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+void segald_state::astron_draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	/* Heisted from Daphne */
 	const UINT8 SPR_Y_TOP     = 0;
@@ -90,7 +93,6 @@ static void astron_draw_sprites(running_machine &machine, bitmap_rgb32 &bitmap, 
 /*  const UINT8 SPR_GFXOFS_LO = 6;*/
 /*  const UINT8 SPR_GFXOFS_HI = 7;*/
 
-	segald_state *state = machine.driver_data<segald_state>();
 	int sx,sy;
 	int spr_number;
 	int spr_base;
@@ -98,8 +100,8 @@ static void astron_draw_sprites(running_machine &machine, bitmap_rgb32 &bitmap, 
 	for (spr_number = 0; spr_number < 32; spr_number++)
 	{
 		spr_base = 0x10 * spr_number;
-		sy = state->m_obj_ram[spr_base + SPR_Y_TOP];
-		sx = state->m_obj_ram[spr_base + SPR_X_LO];
+		sy = m_obj_ram[spr_base + SPR_Y_TOP];
+		sx = m_obj_ram[spr_base + SPR_X_LO];
 
 		if (sx != 0 || sy != 0)
 			logerror("Hey!  A sprite's not at 0,0 : %d %d", sx, sy);
@@ -111,8 +113,8 @@ UINT32 segald_state::screen_update_astron(screen_device &screen, bitmap_rgb32 &b
 {
 	bitmap.fill(0, cliprect);
 
-	astron_draw_characters(machine(), bitmap, cliprect);
-	astron_draw_sprites(machine(), bitmap, cliprect);
+	astron_draw_characters(bitmap, cliprect);
+	astron_draw_sprites(bitmap, cliprect);
 
 	return 0;
 }
@@ -123,7 +125,6 @@ UINT32 segald_state::screen_update_astron(screen_device &screen, bitmap_rgb32 &b
 /* READS */
 READ8_MEMBER(segald_state::astron_DISC_read)
 {
-
 	if (m_nmi_enable)
 		m_ldv1000_input_latch = m_laserdisc->status_r();
 
@@ -134,21 +135,18 @@ READ8_MEMBER(segald_state::astron_DISC_read)
 
 READ8_MEMBER(segald_state::astron_OUT_read)
 {
-
 	logerror("OUT read   (0x%04x) @ 0x%04x [0x%x]\n", m_out_ram[offset], offset, space.device().safe_pc());
 	return m_out_ram[offset];
 }
 
 READ8_MEMBER(segald_state::astron_OBJ_read)
 {
-
 	logerror("OBJ read   (0x%04x) @ 0x%04x [0x%x]\n", m_obj_ram[offset], offset, space.device().safe_pc());
 	return m_obj_ram[offset];
 }
 
 READ8_MEMBER(segald_state::astron_COLOR_read)
 {
-
 	logerror("COLOR read   (0x%04x) @ 0x%04x [0x%x]\n", m_color_ram[offset], offset, space.device().safe_pc());
 	return m_color_ram[offset];
 }
@@ -157,7 +155,6 @@ READ8_MEMBER(segald_state::astron_COLOR_read)
 /* WRITES */
 WRITE8_MEMBER(segald_state::astron_DISC_write)
 {
-
 	logerror("DISC write : 0x%04x @  0x%04x [0x%x]\n", data, offset, space.device().safe_pc());
 
 	m_ldv1000_output_latch = data;
@@ -168,7 +165,6 @@ WRITE8_MEMBER(segald_state::astron_DISC_write)
 
 WRITE8_MEMBER(segald_state::astron_OUT_write)
 {
-
 	logerror("OUT write : 0x%04x @  0x%04x [0x%x]\n", data, offset, space.device().safe_pc());
 
 	switch(offset)
@@ -205,7 +201,6 @@ WRITE8_MEMBER(segald_state::astron_OUT_write)
 
 WRITE8_MEMBER(segald_state::astron_OBJ_write)
 {
-
 	m_obj_ram[offset] = data;
 	logerror("OBJ write : 0x%04x @ 0x%04x [0x%x]\n", data, offset, space.device().safe_pc());
 }
@@ -235,7 +230,6 @@ WRITE8_MEMBER(segald_state::astron_COLOR_write)
 
 WRITE8_MEMBER(segald_state::astron_FIX_write)
 {
-
 	m_fix_ram[offset] = data;
 	/* logerror("FIX write : 0x%04x @ 0x%04x [0x%x]\n", data, offset, space.device().safe_pc()); */
 }
@@ -599,8 +593,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(segald_state,astron)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 2, &ROM[0x8000], 0x4000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 2, &ROM[0x8000], 0x4000);
 }
 
 

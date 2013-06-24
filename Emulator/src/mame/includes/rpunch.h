@@ -1,11 +1,16 @@
+#include "sound/upd7759.h"
+
 class rpunch_state : public driver_device
 {
 public:
 	rpunch_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_bitmapram(*this, "bitmapram"),
-		m_spriteram(*this, "spriteram"){ }
+		m_spriteram(*this, "spriteram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_upd7759(*this, "upd") { }
 
 	required_shared_ptr<UINT16> m_videoram;
 	UINT8 m_sound_data;
@@ -43,4 +48,9 @@ public:
 	UINT32 screen_update_rpunch(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(sound_command_w_callback);
 	TIMER_CALLBACK_MEMBER(crtc_interrupt_gen);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int start, int stop);
+	void draw_bitmap(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<upd7759_device> m_upd7759;
 };

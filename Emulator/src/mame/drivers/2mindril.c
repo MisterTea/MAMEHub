@@ -43,7 +43,8 @@ class _2mindril_state : public taito_f3_state
 public:
 	_2mindril_state(const machine_config &mconfig, device_type type, const char *tag)
 		: taito_f3_state(mconfig, type, tag),
-			m_iodata(*this, "iodata") { }
+		m_iodata(*this, "iodata"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_iodata;
@@ -54,7 +55,7 @@ public:
 	UINT16        irq_reg;
 
 	/* devices */
-	cpu_device *m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	DECLARE_READ16_MEMBER(drill_io_r);
 	DECLARE_WRITE16_MEMBER(drill_io_w);
 	DECLARE_WRITE16_MEMBER(sensors_w);
@@ -68,13 +69,12 @@ public:
 	TIMER_CALLBACK_MEMBER(shutter_req);
 	TIMER_CALLBACK_MEMBER(defender_req);
 	void tile_decode();
+	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 };
 
 
 READ16_MEMBER(_2mindril_state::drill_io_r)
 {
-
-
 //  if (offset * 2 == 0x4)
 	/*popmessage("PC=%08x %04x %04x %04x %04x %04x %04x %04x %04x", space.device().safe_pc(), m_iodata[0/2], m_iodata[2/2], m_iodata[4/2], m_iodata[6/2],
 	                                    m_iodata[8/2], m_iodata[0xa/2], m_iodata[0xc/2], m_iodata[0xe/2]);*/
@@ -103,7 +103,6 @@ READ16_MEMBER(_2mindril_state::drill_io_r)
 
 WRITE16_MEMBER(_2mindril_state::drill_io_w)
 {
-
 	COMBINE_DATA(&m_iodata[offset]);
 
 	switch(offset)
@@ -148,8 +147,6 @@ TIMER_CALLBACK_MEMBER(_2mindril_state::defender_req)
 
 WRITE16_MEMBER(_2mindril_state::sensors_w)
 {
-
-
 	/*---- xxxx ---- ---- select "lamps" (guess)*/
 	/*---- ---- ---- -x-- lamp*/
 	if (data & 1)
@@ -177,13 +174,11 @@ WRITE16_MEMBER(_2mindril_state::sensors_w)
 
 READ16_MEMBER(_2mindril_state::drill_irq_r)
 {
-
 	return irq_reg;
 }
 
 WRITE16_MEMBER(_2mindril_state::drill_irq_w)
 {
-
 	/*
 	(note: could rather be irq mask)
 	---- ---- ---x ---- irq lv 5 ack, 0->1 latch
@@ -191,10 +186,10 @@ WRITE16_MEMBER(_2mindril_state::drill_irq_w)
 	---- ---- -??- -??? connected to the other levels?
 	*/
 	if(((irq_reg & 8) == 0) && data & 8)
-		machine().device("maincpu")->execute().set_input_line(4, CLEAR_LINE);
+		m_maincpu->set_input_line(4, CLEAR_LINE);
 
 	if(((irq_reg & 0x10) == 0) && data & 0x10)
-		machine().device("maincpu")->execute().set_input_line(5, CLEAR_LINE);
+		m_maincpu->set_input_line(5, CLEAR_LINE);
 
 	if(data & 0xffe7)
 		printf("%04x\n",data);
@@ -216,7 +211,7 @@ static ADDRESS_MAP_START( drill_map, AS_PROGRAM, 16, _2mindril_state )
 	AM_RANGE(0x460010, 0x46001f) AM_WRITE(f3_control_1_w)
 	AM_RANGE(0x500000, 0x501fff) AM_RAM_WRITE(paletteram_RRRRGGGGBBBBRGBx_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x502022, 0x502023) AM_WRITENOP //countinously switches between 0 and 2
-	AM_RANGE(0x600000, 0x600007) AM_DEVREADWRITE8_LEGACY("ymsnd", ym2610_r, ym2610_w, 0x00ff)
+	AM_RANGE(0x600000, 0x600007) AM_DEVREADWRITE8("ymsnd", ym2610_device, read, write, 0x00ff)
 	AM_RANGE(0x60000c, 0x60000d) AM_READWRITE(drill_irq_r,drill_irq_w)
 	AM_RANGE(0x60000e, 0x60000f) AM_RAM // unknown purpose, zeroed at start-up and nothing else
 	AM_RANGE(0x700000, 0x70000f) AM_READWRITE(drill_io_r,drill_io_w) AM_SHARE("iodata") // i/o
@@ -415,30 +410,20 @@ INTERRUPT_GEN_MEMBER(_2mindril_state::drill_device_irq)
 #endif
 
 /* WRONG,it does something with 60000c & 700002,likely to be called when the player throws the ball.*/
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(_2mindril_state::irqhandler)
 {
-//  _2mindril_state *state = machine.driver_data<_2mindril_state>();
-//  state->m_maincpu->set_input_line(5, irq ? ASSERT_LINE : CLEAR_LINE);
+//  m_maincpu->set_input_line(5, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym2610_interface ym2610_config =
-{
-	irqhandler
-};
 
 
 MACHINE_START_MEMBER(_2mindril_state,drill)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_defender_sensor));
 	save_item(NAME(m_shutter_sensor));
 }
 
 MACHINE_RESET_MEMBER(_2mindril_state,drill)
 {
-
 	m_defender_sensor = 0;
 	m_shutter_sensor = 0;
 	irq_reg = 0;
@@ -470,7 +455,7 @@ static MACHINE_CONFIG_START( drill, _2mindril_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymsnd", YM2610B, 16000000/2)
-	MCFG_SOUND_CONFIG(ym2610_config)
+	MCFG_YM2610_IRQ_HANDLER(WRITELINE(_2mindril_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "lspeaker",  0.25)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "lspeaker",  1.0)
@@ -499,8 +484,8 @@ void _2mindril_state::tile_decode()
 {
 	UINT8 lsb,msb;
 	UINT32 offset,i;
-	UINT8 *gfx = machine().root_device().memregion("gfx2")->base();
-	int size=machine().root_device().memregion("gfx2")->bytes();
+	UINT8 *gfx = memregion("gfx2")->base();
+	int size=memregion("gfx2")->bytes();
 	int data;
 
 	/* Setup ROM formats:
@@ -532,8 +517,8 @@ void _2mindril_state::tile_decode()
 		offset+=4;
 	}
 
-	gfx = machine().root_device().memregion("gfx1")->base();
-	size=machine().root_device().memregion("gfx1")->bytes();
+	gfx = memregion("gfx1")->base();
+	size=memregion("gfx1")->bytes();
 
 	offset = size/2;
 	for (i = size/2+size/4; i<size; i++)

@@ -52,11 +52,11 @@ Games on this system include....
 | |Sega Network Taisen Mahjong MJ 3 Evolution         | Sega, 2006      | GDROM  GDX-0021   |              |
 | |Sega Network Taisen Mahjong MJ 3 Evolution (Rev A) | Sega, 2006      | GDROM  GDX-0021A  |              |
 | |Firmware Update For Compact Flash Box              | Sega, 200x      | GDROM  GDX-0024   |              |
-| |Firmware Update For Compact Flash Box (Rev A)      | Sega, 200x      | GDROM  GDX-0024A  |              |
+|*|Firmware Update For Compact Flash Box (Rev A)      | Sega, 200x      | GDROM  GDX-0024A  | 317-0567-EXP |
 |*|Quest Of D (Ver.1.01C)                             | Sega, 2004      | CDROM  CDV-10005C |              |
 |*|Sangokushi Taisen (Ver.1.002)                      | Sega, 2005      | DVDROM CDV-10009D |              |
 |*|Sangokushi Taisen 2 (Ver.2.007)                    | Sega, 2006      | DVDROM CDV-10019A |              |
-|*|Sangokushi Taisen                                   | Sega, 2005      | DVDROM CDV-10022  |              |
+|*|Sangokushi Taisen                                  | Sega, 2005      | DVDROM CDV-10022  |              |
 |*|Sangokushi Taisen 2 Firmware Update                | Sega, 2006      | DVDROM CDV-10023  |              |
 |*|Sangokushi Taisen 2                                | Sega, 2006      | DVDROM CDV-10029  |              |
 |*|Sangokushi Taisen 3                                | Sega, 2008      | DVDROM CDV-10036  |              |
@@ -92,7 +92,7 @@ Games on this system include....
 | |Sega Golf Club Network Pro Tour 2005               | Sega, 2005      |
 +-+---------------------------------------------------+-----------------+
 If you can help with the undumped games or know of missing Chihiro games, please contact...
-http://guru.mameworld.info/  or  http://www.mamedev.org
+http://members.iinet.net.au/~lantra9jp1/gurudumps/ or http://www.mamedev.org
 
 A Chihiro system consists of several boards.
 The system is in 2 separate metal boxes that fit together to form one box.
@@ -371,9 +371,11 @@ Thanks to Alex, Mr Mudkips, and Philip Burke for this info.
 #include "debug/debugcon.h"
 #include "debug/debugcmd.h"
 #include "debug/debugcpu.h"
+#include "osdcore.h"
 
 #define LOG_PCI
-#define LOG_OHCI
+//#define LOG_OHCI
+//#define LOG_NV2A
 
 class nv2a_renderer; // forw. dec.
 struct nvidia_object_data
@@ -385,14 +387,13 @@ class chihiro_state : public driver_device
 {
 public:
 	chihiro_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
 
 	DECLARE_READ32_MEMBER( geforce_r );
 	DECLARE_WRITE32_MEMBER( geforce_w );
 	DECLARE_READ32_MEMBER( usbctrl_r );
 	DECLARE_WRITE32_MEMBER( usbctrl_w );
-	DECLARE_READ32_MEMBER( ide_r );
-	DECLARE_WRITE32_MEMBER( ide_w );
 	DECLARE_READ32_MEMBER( smbus_r );
 	DECLARE_WRITE32_MEMBER( smbus_w );
 	DECLARE_READ32_MEMBER( dummy_r );
@@ -407,9 +408,9 @@ public:
 	UINT32 screen_update_callback(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	struct chihiro_devices {
-		device_t    *pic8259_1;
-		device_t    *pic8259_2;
-		device_t    *ide;
+		pic8259_device    *pic8259_1;
+		pic8259_device    *pic8259_2;
+		bus_master_ide_controller_device *ide;
 	} chihiro_devs;
 
 	nv2a_renderer *nvidia_nv2a;
@@ -418,13 +419,15 @@ public:
 	DECLARE_READ8_MEMBER(get_slave_ack);
 	DECLARE_WRITE_LINE_MEMBER(chihiro_pit8254_out0_changed);
 	DECLARE_WRITE_LINE_MEMBER(chihiro_pit8254_out2_changed);
+	IRQ_CALLBACK_MEMBER(irq_callback);
+	required_device<cpu_device> m_maincpu;
 };
 
 /*
- * geforce 3d (NV2A) accelkerator
+ * geforce 3d (NV2A) accellerator
  */
 /* very simplified view
-there is a set a set of context objects
+there is a set of context objects
 
 context objects are stored in RAMIN
 each context object is identified by an handle stored in RAMHT
@@ -439,10 +442,10 @@ offset in ramht+4 contains in the lower 16 bits the offset in RAMIN divided by 1
 objects have methods used to do drawing
 most methods set parameters, others actually draw
 */
-class nv2a_renderer : public poly_manager<float, nvidia_object_data, 5, 6000>
+class nv2a_renderer : public poly_manager<float, nvidia_object_data, 12, 6000>
 {
 public:
-	nv2a_renderer(running_machine &machine) : poly_manager<float, nvidia_object_data, 5, 6000>(machine)
+	nv2a_renderer(running_machine &machine) : poly_manager<float, nvidia_object_data, 12, 6000>(machine)
 	{
 		memset(channel,0,sizeof(channel));
 		memset(pfifo,0,sizeof(pfifo));
@@ -450,28 +453,53 @@ public:
 		memset(pmc,0,sizeof(pmc));
 		memset(ramin,0,sizeof(ramin));
 		computedilated();
-		video_memory=(UINT32 *)machine.firstcpu->space().get_read_ptr(0xf0000000);
 		fb.allocate(640,480);
 		objectdata=&(object_data_alloc());
 		objectdata->data=this;
+		combiner.used=0;
+		combiner.lock=osd_lock_alloc();
 	}
 	DECLARE_READ32_MEMBER( geforce_r );
 	DECLARE_WRITE32_MEMBER( geforce_w );
 	void vblank_callback(screen_device &screen, bool state);
 	UINT32 screen_update_callback(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	void render_tex(INT32 scanline, const extent_t &extent, const nvidia_object_data &extradata, int threadid);
+	void render_texture_simple(INT32 scanline, const extent_t &extent, const nvidia_object_data &extradata, int threadid);
+	void render_color(INT32 scanline, const extent_t &extent, const nvidia_object_data &extradata, int threadid);
+	void render_register_combiners(INT32 scanline, const extent_t &extent, const nvidia_object_data &objectdata, int threadid);
 
 	int geforce_commandkind(UINT32 word);
 	UINT32 geforce_object_offset(UINT32 handle);
 	void geforce_read_dma_object(UINT32 handle,UINT32 &offset,UINT32 &size);
 	void geforce_exec_method(address_space &space,UINT32 channel,UINT32 subchannel,UINT32 method,UINT32 data);
+	void combiner_initialize_registers(UINT32 argb8[6]);
+	void combiner_initialize_stage(int stage_number);
+	void combiner_initialize_final();
+	void combiner_map_input(int stage_number); // map combiner registers to variables A..D
+	void combiner_map_output(int stage_number); // map combiner calculation results to combiner registers
+	void combiner_map_final_input(); // map final combiner registers to variables A..F
+	void combiner_final_output(); // generate final combiner output
+	float combiner_map_input_select(int code,int index); // get component index in register code
+	float *combiner_map_input_select3(int code); // get pointer to register code
+	float *combiner_map_output_select3(int code); // get pointer to register code for output
+	float combiner_map_input_function(int code,float value); // apply input mapping function code to value
+	void combiner_map_input_function3(int code,float *data); // apply input mapping function code to data
+	void combiner_function_AB(float result[4]);
+	void combiner_function_AdotB(float result[4]);
+	void combiner_function_CD(float result[4]);
+	void combiner_function_CdotD(float result[4]);
+	void combiner_function_ABmuxCD(float result[4]);
+	void combiner_function_ABsumCD(float result[4]);
+	void combiner_compute_rgb_outputs(int index);
+	void combiner_compute_a_outputs(int index);
+	void combiner_argb8_float(UINT32 color,float reg[4]);
+	UINT32 combiner_float_argb8(float reg[4]);
 	UINT32 dilate0(UINT32 value,int bits);
 	UINT32 dilate1(UINT32 value,int bits);
 	void computedilated(void);
 	void putpixtex(int xp,int yp,int up,int vp);
+	int toggle_register_combiners_usage();
 
-	UINT32 *video_memory;
 	struct {
 		UINT32 regs[0x80/4];
 		struct {
@@ -490,8 +518,112 @@ public:
 		int sizev;
 		int sizew;
 		int dilate;
+		int format;
 		void *buffer;
-	} texture;
+	} texture[4];
+	struct {
+		float variable_A[4]; // 0=R 1=G 2=B 3=A
+		float variable_B[4];
+		float variable_C[4];
+		float variable_D[4];
+		float variable_E[4];
+		float variable_F[4];
+		float variable_G;
+		float variable_EF[4];
+		float variable_sumclamp[4];
+		float function_RGBop1[4]; // 0=R 1=G 2=B
+		float function_RGBop2[4];
+		float function_RGBop3[4];
+		float function_Aop1;
+		float function_Aop2;
+		float function_Aop3;
+		float register_primarycolor[4]; // rw
+		float register_secondarycolor[4];
+		float register_texture0color[4];
+		float register_texture1color[4];
+		float register_texture2color[4];
+		float register_texture3color[4];
+		float register_color0[4];
+		float register_color1[4];
+		float register_spare0[4];
+		float register_spare1[4];
+		float register_fogcolor[4]; // ro
+		float register_zero[4];
+		float output[4];
+		struct {
+			float register_constantcolor0[4];
+			float register_constantcolor1[4];
+			int mapin_aA_input;
+			int mapin_aA_component;
+			int mapin_aA_mapping;
+			int mapin_aB_input;
+			int mapin_aB_component;
+			int mapin_aB_mapping;
+			int mapin_aC_input;
+			int mapin_aC_component;
+			int mapin_aC_mapping;
+			int mapin_aD_input;
+			int mapin_aD_component;
+			int mapin_aD_mapping;
+			int mapin_rgbA_input;
+			int mapin_rgbA_component;
+			int mapin_rgbA_mapping;
+			int mapin_rgbB_input;
+			int mapin_rgbB_component;
+			int mapin_rgbB_mapping;
+			int mapin_rgbC_input;
+			int mapin_rgbC_component;
+			int mapin_rgbC_mapping;
+			int mapin_rgbD_input;
+			int mapin_rgbD_component;
+			int mapin_rgbD_mapping;
+			int mapout_aCD_output;
+			int mapout_aAB_output;
+			int mapout_aSUM_output;
+			int mapout_aCD_dotproduct;
+			int mapout_aAB_dotproduct;
+			int mapout_a_muxsum;
+			int mapout_a_bias;
+			int mapout_a_scale;
+			int mapout_rgbCD_output;
+			int mapout_rgbAB_output;
+			int mapout_rgbSUM_output;
+			int mapout_rgbCD_dotproduct;
+			int mapout_rgbAB_dotproduct;
+			int mapout_rgb_muxsum;
+			int mapout_rgb_bias;
+			int mapout_rgb_scale;
+		} stage[8];
+		struct {
+			float register_constantcolor0[4];
+			float register_constantcolor1[4];
+			int color_sum_clamp;
+			int mapin_rgbA_input;
+			int mapin_rgbA_component;
+			int mapin_rgbA_mapping;
+			int mapin_rgbB_input;
+			int mapin_rgbB_component;
+			int mapin_rgbB_mapping;
+			int mapin_rgbC_input;
+			int mapin_rgbC_component;
+			int mapin_rgbC_mapping;
+			int mapin_rgbD_input;
+			int mapin_rgbD_component;
+			int mapin_rgbD_mapping;
+			int mapin_rgbE_input;
+			int mapin_rgbE_component;
+			int mapin_rgbE_mapping;
+			int mapin_rgbF_input;
+			int mapin_rgbF_component;
+			int mapin_rgbF_mapping;
+			int mapin_aG_input;
+			int mapin_aG_component;
+			int mapin_aG_mapping;
+		} final;
+		int stages;
+		int used;
+		osd_lock *lock;
+	} combiner;
 	bitmap_rgb32 fb;
 	UINT32 dilated0[16][2048];
 	UINT32 dilated1[16][2048];
@@ -843,6 +975,18 @@ static void dump_list_command(running_machine &machine, int ref, int params, con
 	}
 }
 
+static void nv2a_combiners_command(running_machine &machine, int ref, int params, const char **param)
+{
+	int en;
+
+	chihiro_state *chst=machine.driver_data<chihiro_state>();
+	en=chst->nvidia_nv2a->toggle_register_combiners_usage();
+	if (en != 0)
+		debug_console_printf(machine,"Register combiners enabled\n");
+	else
+		debug_console_printf(machine,"Register combiners disabled\n");
+}
+
 static void help_command(running_machine &machine, int ref, int params, const char **param)
 {
 	debug_console_printf(machine,"Available Chihiro commands:\n");
@@ -850,6 +994,7 @@ static void help_command(running_machine &machine, int ref, int params, const ch
 	debug_console_printf(machine,"  chihiro dump_string,<address> -- Dump _STRING object at <address>\n");
 	debug_console_printf(machine,"  chihiro dump_process,<address> -- Dump _PROCESS object at <address>\n");
 	debug_console_printf(machine,"  chihiro dump_list,<address>[,<offset>] -- Dump _LIST_ENTRY chain starting at <address>\n");
+	debug_console_printf(machine,"  chihiro nv2a_combiners -- Toggle use of register combiners\n");
 	debug_console_printf(machine,"  chihiro help -- this list\n");
 }
 
@@ -865,6 +1010,8 @@ static void chihiro_debug_commands(running_machine &machine, int ref, int params
 		dump_process_command(machine,ref,params-1,param+1);
 	else if (strcmp("dump_list",param[0]) == 0)
 		dump_list_command(machine,ref,params-1,param+1);
+	else if (strcmp("nv2a_combiners",param[0]) == 0)
+		nv2a_combiners_command(machine,ref,params-1,param+1);
 	else
 		help_command(machine,ref,params-1,param+1);
 }
@@ -948,35 +1095,270 @@ void nv2a_renderer::geforce_read_dma_object(UINT32 handle,UINT32 &offset,UINT32 
     }
 }*/
 
-void nv2a_renderer::render_tex(INT32 scanline, const extent_t &extent, const nvidia_object_data &objectdata, int threadid)
+void nv2a_renderer::render_color(INT32 scanline, const extent_t &extent, const nvidia_object_data &objectdata, int threadid)
 {
 	int x;
 
-	x=extent.stopx-extent.startx;
+	x=extent.stopx-extent.startx; // number of pixels to draw
 	while (x >= 0) {
-		int to;
-		UINT32 a8r8g8b8,a4r4g4b4;
-		int up,vp;
-		int xp=extent.startx+x;
-		if (objectdata.data->texture.enabled) {
-			up=(extent.param[3].start+(float)x*extent.param[3].dpdx)*(float)(objectdata.data->texture.sizeu-1);
-			vp=extent.param[4].start*(float)(objectdata.data->texture.sizev-1);
-			to=(objectdata.data->dilated0[objectdata.data->texture.dilate][up]+objectdata.data->dilated1[objectdata.data->texture.dilate][vp]);
-			a4r4g4b4=*(((UINT16 *)objectdata.data->texture.buffer)+to);
-			a8r8g8b8=((a4r4g4b4 & 0xf) << 4)+((a4r4g4b4 & 0xf0) << 8)+((a4r4g4b4 & 0xf00) << 12);
-			*((UINT32 *)objectdata.data->fb.raw_pixptr(scanline,xp))=a8r8g8b8;
-		} else {
-		}
+		UINT32 a8r8g8b8;
+		int ca,cr,cg,cb;
+		int xp=extent.startx+x; // x coordinate of current pixel
+
+		cb=(extent.param[0].start+(float)x*extent.param[0].dpdx);
+		cg=(extent.param[1].start+(float)x*extent.param[1].dpdx);
+		cr=(extent.param[2].start+(float)x*extent.param[2].dpdx);
+		ca=(extent.param[3].start+(float)x*extent.param[3].dpdx);
+		a8r8g8b8=(ca << 24)+(cr << 16)+(cg << 8)+cb; // pixel color obtained by interpolating the colors of the vertices
+		*((UINT32 *)objectdata.data->fb.raw_pixptr(scanline,xp))=a8r8g8b8;
 		x--;
 	}
 }
 
+UINT32 convert_a4r4g4b4_a8r8g8b8(UINT32 a4r4g4b4)
+{
+	UINT32 a8r8g8b8;
+	int ca,cr,cg,cb;
+
+	cb=pal4bit(a4r4g4b4 & 0x000f);//(a4r4g4b4 & 0xf)*17; // ((a4r4g4b4 & 0xf)*255)/15
+	cg=pal4bit((a4r4g4b4 & 0x00f0) >> 4);//((a4r4g4b4 & 0xf0)*816)/3; // (((a4r4g4b4 & 0xf0) >> 4)*255)/15) << 8
+	cr=pal4bit((a4r4g4b4 & 0x0f00) >> 8);//(a4r4g4b4 & 0xf00)*17*256; // (((a4r4g4b4 & 0xf00) >> 8)*255)/15) << 16
+	ca=pal4bit((a4r4g4b4 & 0xf000) >> 12);//(a4r4g4b4 & 0xf000)*4096*17; //((a4r4g4b4 & 0xf000) >> 12)*255/15 << 24
+	a8r8g8b8=(ca<<24)|(cr<<16)|(cg<<8)|(cb); // color converted to 8 bits per component
+	return a8r8g8b8;
+}
+
+void nv2a_renderer::render_texture_simple(INT32 scanline, const extent_t &extent, const nvidia_object_data &objectdata, int threadid)
+{
+	int x;
+
+	if (!objectdata.data->texture[0].enabled) {
+		return;
+	}
+	x=extent.stopx-extent.startx;
+	while (x >= 0) {
+		int to;
+		UINT32 a4r4g4b4;
+		int up,vp;
+		int xp=extent.startx+x; // x coordinate of current pixel
+
+		up=(extent.param[4].start+(float)x*extent.param[4].dpdx)*(float)(objectdata.data->texture[0].sizeu-1); // x coordinate of texel in texture
+		vp=extent.param[5].start*(float)(objectdata.data->texture[0].sizev-1); // y coordinate of texel in texture
+		to=(objectdata.data->dilated0[objectdata.data->texture[0].dilate][up]+objectdata.data->dilated1[objectdata.data->texture[0].dilate][vp]); // offset of texel in texture memory
+		a4r4g4b4=*(((UINT16 *)objectdata.data->texture[0].buffer)+to); // get texel color
+		*((UINT32 *)objectdata.data->fb.raw_pixptr(scanline,xp))=convert_a4r4g4b4_a8r8g8b8(a4r4g4b4);
+		x--;
+	}
+}
+
+void nv2a_renderer::render_register_combiners(INT32 scanline, const extent_t &extent, const nvidia_object_data &objectdata, int threadid)
+{
+	int x,xp;
+	int to;
+	int up,vp;
+	int ca,cr,cg,cb;
+	UINT32 color[6];
+	UINT32 a8r8g8b8;
+	int n;//,m,i,j,k;
+
+	color[0] = color[1] = color[2] = color[3] = color[4] = color[5] = 0;
+
+	osd_lock_acquire(combiner.lock); // needed since multithreading is not supported yet
+	x=extent.stopx-extent.startx; // number of pixels to draw
+	while (x >= 0) {
+		xp=extent.startx+x;
+		// 1: fetch data
+		// 1.1: interpolated color from vertices
+		cb=(extent.param[0].start+(float)x*extent.param[0].dpdx);
+		cg=(extent.param[1].start+(float)x*extent.param[1].dpdx);
+		cr=(extent.param[2].start+(float)x*extent.param[2].dpdx);
+		ca=(extent.param[3].start+(float)x*extent.param[3].dpdx);
+		color[0]=(ca << 24)+(cr << 16)+(cg << 8)+cb; // pixel color obtained by interpolating the colors of the vertices
+		color[1]=0; // lighting not yet
+		// 1.2: color for each of the 4 possible textures
+		for (n=0;n < 4;n++) {
+			if (texture[n].enabled) {
+				up=(extent.param[4+n*2].start+(float)x*extent.param[4+n*2].dpdx)*(float)(objectdata.data->texture[n].sizeu-1);
+				vp=extent.param[5+n*2].start*(float)(objectdata.data->texture[n].sizev-1);
+				to=(objectdata.data->dilated0[objectdata.data->texture[n].dilate][up]+objectdata.data->dilated1[objectdata.data->texture[n].dilate][vp]);
+				color[n+2]=*(((UINT16 *)objectdata.data->texture[n].buffer)+to);
+				color[n+2]=convert_a4r4g4b4_a8r8g8b8(color[n+2]);
+			}
+		}
+		// 2: compute
+		// 2.1: initialize
+		combiner_initialize_registers(color);
+		// 2.2: general cmbiner stages
+		for (n=0;n < combiner.stages;n++) {
+			// 2.2.1 initialize
+			combiner_initialize_stage(n);
+			// 2.2.2 map inputs
+			combiner_map_input(n);
+			// 2.2.3 compute possible outputs
+			combiner_compute_rgb_outputs(n);
+			combiner_compute_a_outputs(n);
+			// 2.2.4 map outputs to registers
+			combiner_map_output(n);
+		}
+		// 2.3: final cmbiner stage
+		combiner_initialize_final();
+		combiner_map_final_input();
+		combiner_final_output();
+		a8r8g8b8=combiner_float_argb8(combiner.output);
+		// 3: write pixel
+		*((UINT32 *)objectdata.data->fb.raw_pixptr(scanline,xp))=a8r8g8b8;
+		x--;
+		}
+	osd_lock_release(combiner.lock);
+}
+
+#if 0
+const char *rc_mapping_str[]={
+	"UNSIGNED_IDENTITY",
+	"UNSIGNED_INVERT",
+	"EXPAND_NORMAL",
+	"EXPAND_NEGATE",
+	"HALF_BIAS_NORMAL",
+	"HALF_BIAS_NEGATE",
+	"SIGNED_IDENTITY",
+	"SIGNED_NEGATE"
+};
+
+const char *rc_usage_rgb_str[]={
+	"RGB",
+	"ALPHA"
+};
+
+const char *rc_usage_alpha_str[]={
+	"BLUE",
+	"ALPHA"
+};
+
+const char *rc_variable_str[]={
+	"ZERO",
+	"CONSTANT_COLOR0",
+	"CONSTANT_COLOR1",
+	"FOG",
+	"PRIMARY_COLOR",
+	"SECONDARY_COLOR",
+	"???",
+	"???",
+	"TEXTURE0",
+	"TEXTURE1",
+	"TEXTURE2",
+	"TEXTURE3",
+	"SPARE0",
+	"SPARE1",
+	"SPARE0_PLUS_SECONDARY_COLOR",
+	"E_TIMES_F"
+};
+
+const char *rc_bias_str[]={
+	"NONE",
+	"BIAS_BY_NEGATIVE_ONE_HALF"
+};
+
+const char *rc_scale_str[]={
+	"NONE",
+	"SCALE_BY_TWO",
+	"SCALE_BY_FOUR",
+	"SCALE_BY_ONE_HALF"
+};
+
+/* Dump the current setup of the register combiners */
+void dumpcombiners(UINT32 *m)
+{
+	int a,b,n,v;
+
+	n=m[0x1e60/4] & 0xf;
+	printf("Combiners active: %d\n\r",n);
+	for (a=0;a < n;a++) {
+		printf("Combiner %d\n\r",a+1);
+		printf(" RC_IN_ALPHA %08X\n\r",m[0x0260/4+a]);
+		for (b=24;b >= 0;b=b-8) {
+			v=(m[0x0260/4+a] >> b) & 0xf;
+			printf("  %c_INPUT %s\n\r",'A'+3-b/8,rc_variable_str[v]);
+			v=(m[0x0260/4+a] >> (b+4)) & 1;
+			printf("  %c_COMPONENT_USAGE %s\n\r",'A'+3-b/8,rc_usage_alpha_str[v]);
+			v=(m[0x0260/4+a] >> (b+5)) & 7;
+			printf("  %c_MAPPING %s\n\r",'A'+3-b/8,rc_mapping_str[v]);
+		}
+		printf(" RC_IN_RGB %08X\n\r",m[0x0ac0/4+a]);
+		for (b=24;b >= 0;b=b-8) {
+			v=(m[0x0ac0/4+a] >> b) & 0xf;
+			printf("  %c_INPUT %s\n\r",'A'+3-b/8,rc_variable_str[v]);
+			v=(m[0x0ac0/4+a] >> (b+4)) & 1;
+			printf("  %c_COMPONENT_USAGE %s\n\r",'A'+3-b/8,rc_usage_rgb_str[v]);
+			v=(m[0x0ac0/4+a] >> (b+5)) & 7;
+			printf("  %c_MAPPING %s\n\r",'A'+3-b/8,rc_mapping_str[v]);
+		}
+		printf(" RC_OUT_ALPHA %08X\n\r",m[0x0aa0/4+a]);
+		v=m[0x0aa0/4+a] & 0xf;
+		printf("  CD_OUTPUT %s\n\r",rc_variable_str[v]);
+		v=(m[0x0aa0/4+a] >> 4) & 0xf;
+		printf("  AB_OUTPUT %s\n\r",rc_variable_str[v]);
+		v=(m[0x0aa0/4+a] >> 8) & 0xf;
+		printf("  SUM_OUTPUT %s\n\r",rc_variable_str[v]);
+		v=(m[0x0aa0/4+a] >> 12) & 1;
+		printf("  CD_DOT_PRODUCT %d\n\r",v);
+		v=(m[0x0aa0/4+a] >> 13) & 1;
+		printf("  AB_DOT_PRODUCT %d\n\r",v);
+		v=(m[0x0aa0/4+a] >> 14) & 1;
+		printf("  MUX_SUM %d\n\r",v);
+		v=(m[0x0aa0/4+a] >> 15) & 1;
+		printf("  BIAS %s\n\r",rc_bias_str[v]);
+		v=(m[0x0aa0/4+a] >> 16) & 3;
+		printf("  SCALE %s\n\r",rc_scale_str[v]);
+		//v=(m[0x0aa0/4+a] >> 27) & 7;
+		printf(" RC_OUT_RGB %08X\n\r",m[0x1e40/4+a]);
+		v=m[0x1e40/4+a] & 0xf;
+		printf("  CD_OUTPUT %s\n\r",rc_variable_str[v]);
+		v=(m[0x1e40/4+a] >> 4) & 0xf;
+		printf("  AB_OUTPUT %s\n\r",rc_variable_str[v]);
+		v=(m[0x1e40/4+a] >> 8) & 0xf;
+		printf("  SUM_OUTPUT %s\n\r",rc_variable_str[v]);
+		v=(m[0x1e40/4+a] >> 12) & 1;
+		printf("  CD_DOT_PRODUCT %d\n\r",v);
+		v=(m[0x1e40/4+a] >> 13) & 1;
+		printf("  AB_DOT_PRODUCT %d\n\r",v);
+		v=(m[0x1e40/4+a] >> 14) & 1;
+		printf("  MUX_SUM %d\n\r",v);
+		v=(m[0x1e40/4+a] >> 15) & 1;
+		printf("  BIAS %s\n\r",rc_bias_str[v]);
+		v=(m[0x1e40/4+a] >> 16) & 3;
+		printf("  SCALE %s\n\r",rc_scale_str[v]);
+		//v=(m[0x1e40/4+a] >> 27) & 7;
+		printf("\n\r");
+	}
+	printf("Combiner final %08X %08X\n\r",m[0x0288/4],m[0x028c/4]);
+	for (a=24;a >= 0;a=a-8) {
+		n=(m[0x0288/4] >> a) & 0xf;
+		printf("  %c_INPUT %s\n\r",'A'+3-a/8,rc_variable_str[n]);
+		n=(m[0x0288/4] >> (a+4)) & 1;
+		printf("  %c_COMPONENT_USAGE %s\n\r",'A'+3-a/8,rc_usage_rgb_str[n]);
+		n=(m[0x0288/4] >> (a+5)) & 7;
+		printf("  %c_MAPPING %s\n\r",'A'+3-a/8,rc_mapping_str[n]);
+	}
+	for (a=24;a >= 8;a=a-8) {
+		n=(m[0x028c/4] >> a) & 0xf;
+		printf("  %c_INPUT %s\n\r",'E'+3-a/8,rc_variable_str[n]);
+		n=(m[0x028c/4] >> (a+4)) & 1;
+		printf("  %c_COMPONENT_USAGE %s\n\r",'E'+3-a/8,rc_usage_rgb_str[n]);
+		n=(m[0x028c/4] >> (a+5)) & 7;
+		printf("  %c_MAPPING %s\n\r",'E'+3-a/8,rc_mapping_str[n]);
+	}
+	n=(m[0x028c/4] >> 7) & 1;
+	printf(" color sum clamp: %d\n\r",n);
+}
+#endif
+
 void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT32 subchannel,UINT32 method,UINT32 data)
 {
+	UINT32 maddress=method*4;
 	channel[chanel][subchannel].object.method[method]=data;
-	if ((method*4 == 0x1d6c) || (method*4 == 0x1d70) || (method*4 == 0x1a4))
+	if ((maddress == 0x1d6c) || (maddress == 0x1d70) || (maddress == 0x1a4))
 		method=method+0;
-	if (method*4 == 0x1d70) {
+	if (maddress == 0x1d70) {
 		// with 1d70 write the value at offest [1d6c] inside dma object [1a4]
 		UINT32 offset,base;
 		UINT32 dmahand,dmaoff,smasiz;
@@ -987,39 +1369,31 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 		base=dmaoff;
 		space.write_dword(base+offset,data);
 	}
-	if (method*4 == 0x1d94) {
+	if (maddress == 0x1d94) {
 		// clear framebuffer
-		UINT32 color=channel[chanel][subchannel].object.method[0x1d90/4];
-		fb.fill(color & 0xffffff);
+		if (data & 0xf0) {
+			// clear colors
+			UINT32 color=channel[chanel][subchannel].object.method[0x1d90/4];
+			fb.fill(color & 0xffffff);
+			printf("clearscreen\n\r");
+		}
+		if (data & 0x03) {
+			// clear stencil+zbuffer
+		}
 	}
-	if (method*4 == 0x1b0c) {
-		// enable texture
-		int enable;
-		//int dma0,dma1,cubic,noborder,dims,format,mipmap;
-		int basesizeu,basesizev,basesizew;
+	// Texture Units
+	if ((maddress >= 0x1b00) && (maddress < 0x1c00)) {
+		int unit;//,off;
+
+		unit=(maddress >> 6) & 3;
+		//off=maddress & 0xc0;
+		maddress=maddress & ~0xc0;
+		if (maddress == 0x1b00) {
 		UINT32 offset;//,base;
 		//UINT32 dmahand,dmaoff,dmasiz;
-		UINT32 tmp;
 
-		enable=(data >> 30) & 1;
-		offset=channel[chanel][subchannel].object.method[0x1b00/4];
-		tmp=channel[chanel][subchannel].object.method[0x1b04/4];
-		//dma0=(tmp >> 0) & 1;
-		//dma1=(tmp >> 1) & 1;
-		//cubic=(tmp >> 2) & 1;
-		//noborder=(tmp >> 3) & 1;
-		//dims=(tmp >> 4) & 15;
-		//format=(tmp >> 8) & 255;
-		//mipmap=(tmp >> 19) & 1;
-		basesizeu=(tmp >> 20) & 15;
-		basesizev=(tmp >> 24) & 15;
-		basesizew=(tmp >> 28) & 15;
-		texture.enabled=enable;
-		texture.sizeu=1 << basesizeu;
-		texture.sizev=1 << basesizev;
-		texture.sizew=1 << basesizew;
-		texture.dilate=dilatechose[(basesizeu << 4)+basesizev];
-		texture.buffer=space.get_read_ptr(offset);
+			offset=data;
+			texture[unit].buffer=space.get_read_ptr(offset);
 		/*if (dma0 != 0) {
 		    dmahand=channel[channel][subchannel].object.method[0x184/4];
 		    geforce_read_dma_object(dmahand,dmaoff,smasiz);
@@ -1028,14 +1402,43 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 		    geforce_read_dma_object(dmahand,dmaoff,smasiz);
 		}*/
 	}
-	if (method*4 == 0x1810) {
+		if (maddress == 0x1b04) {
+			//int dma0,dma1,cubic,noborder,dims,mipmap;
+			int basesizeu,basesizev,basesizew,format;
+
+			//dma0=(data >> 0) & 1;
+			//dma1=(data >> 1) & 1;
+			//cubic=(data >> 2) & 1;
+			//noborder=(data >> 3) & 1;
+			//dims=(data >> 4) & 15;
+			//mipmap=(data >> 19) & 1;
+			format=(data >> 8) & 255;
+			basesizeu=(data >> 20) & 15;
+			basesizev=(data >> 24) & 15;
+			basesizew=(data >> 28) & 15;
+			texture[unit].sizeu=1 << basesizeu;
+			texture[unit].sizev=1 << basesizev;
+			texture[unit].sizew=1 << basesizew;
+			texture[unit].dilate=dilatechose[(basesizeu << 4)+basesizev];
+			texture[unit].format=format;
+		}
+		if (maddress == 0x1b0c) {
+			// enable texture
+			int enable;
+
+			enable=(data >> 30) & 1;
+			texture[unit].enabled=enable;
+		}
+	}
+	if (maddress == 0x1810) {
 		// draw vertices
 		int offset,count,type;
 		//int vtxbuf_kind[16],vtxbuf_size[16];
 		int vtxbuf_stride[16];
 		UINT32 vtxbuf_address[16];
 		UINT32 dmahand[2],dmaoff[2],smasiz[2];
-		UINT32 tmp,n,m;
+		UINT32 tmp,n,m,u;
+		render_delegate renderspans;
 
 		offset=data & 0xffffff;
 		count=(data >> 24) & 0xff;
@@ -1045,9 +1448,19 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 		dmahand[1]=channel[chanel][subchannel].object.method[0x01a0/4];
 		geforce_read_dma_object(dmahand[0],dmaoff[0],smasiz[0]);
 		geforce_read_dma_object(dmahand[1],dmaoff[1],smasiz[1]);
-		//printf("vertex %d %d %d\n\r",type,offset,count);
-		for (n=0;n<16;n++) {
-			//printf(" %08X %08X\n\r",channel[chanel][subchannel].object.method[0x1720/4+n],channel[chanel][subchannel].object.method[0x1760/4+n]);
+		if (((channel[chanel][subchannel].object.method[0x1e60/4] & 7) > 0) && (combiner.used != 0)) {
+			renderspans=render_delegate(FUNC(nv2a_renderer::render_register_combiners),this);
+		} else if (texture[0].enabled) {
+			renderspans=render_delegate(FUNC(nv2a_renderer::render_texture_simple),this);
+		} else
+			renderspans=render_delegate(FUNC(nv2a_renderer::render_color),this);
+#ifdef LOG_NV2A
+		printf("vertex %d %d %d\n\r",type,offset,count);
+#endif
+		for (n=0;n < 16;n++) {
+#ifdef LOG_NV2A
+			printf(" %08X %08X\n\r",channel[chanel][subchannel].object.method[0x1720/4+n],channel[chanel][subchannel].object.method[0x1760/4+n]);
+#endif
 			tmp=channel[chanel][subchannel].object.method[0x1760/4+n];
 			//vtxbuf_kind[n]=tmp & 15;
 			//vtxbuf_size[n]=(tmp >> 4) & 15;
@@ -1059,44 +1472,832 @@ void nv2a_renderer::geforce_exec_method(address_space & space,UINT32 chanel,UINT
 				vtxbuf_address[n]=(tmp & 0x0fffffff)+dmaoff[0];
 		}
 		if (type == nv2a_renderer::QUADS) {
+#if 0
+			n=0;
+			if (n == 1)
+				dumpcombiners(channel[chanel][subchannel].object.method);
+#endif
 			for (n=0;n <= count;n+=4) {
 				vertex_t xy[4];
 				float z[4],w[4];
 				UINT32 c[4];
-				/*float u[4],v[4];
-				int   xi,yi,xf,yf,dx,dy,xp,yp,up,vp;
-				float ui,vi,uf,vf,du,dv;
-				rectangle clip(0,0,639,479);*/
-				render_delegate rend;
 
+				//printf("draw quad\n\r");
 				for (m=0;m < 4;m++) {
 					*((UINT32 *)(&xy[m].x))=space.read_dword(vtxbuf_address[0]+(n+m+offset)*vtxbuf_stride[0]+0);
 					*((UINT32 *)(&xy[m].y))=space.read_dword(vtxbuf_address[0]+(n+m+offset)*vtxbuf_stride[0]+4);
 					*((UINT32 *)(&z[m]))=space.read_dword(vtxbuf_address[0]+(n+m+offset)*vtxbuf_stride[0]+8);
 					*((UINT32 *)(&w[m]))=space.read_dword(vtxbuf_address[0]+(n+m+offset)*vtxbuf_stride[0]+12);
 					c[m]=space.read_dword(vtxbuf_address[3]+(n+m+offset)*vtxbuf_stride[0]+0); // color
-					xy[m].p[0]=c[m] & 0xff;
-					xy[m].p[1]=(c[m] & 0xff00) >> 8;
-					xy[m].p[2]=(c[m] & 0xff000) >> 16;
-					if (texture.enabled) {
-						*((UINT32 *)(&xy[m].p[3]))=space.read_dword(vtxbuf_address[9]+(n+m+offset)*vtxbuf_stride[9]+0);
-						*((UINT32 *)(&xy[m].p[4]))=space.read_dword(vtxbuf_address[9]+(n+m+offset)*vtxbuf_stride[9]+4);
+					xy[m].p[0]=c[m] & 0xff; // b
+					xy[m].p[1]=(c[m] & 0xff00) >> 8; // g
+					xy[m].p[2]=(c[m] & 0xff0000) >> 16; // r
+					xy[m].p[3]=(c[m] & 0xff000000) >> 24; // a
+					for (u=0;u < 4;u++) {
+						xy[m].p[4+u*2]=0;
+						xy[m].p[5+u*2]=0;
+						if (texture[u].enabled) {
+							*((UINT32 *)(&xy[m].p[4+u*2]))=space.read_dword(vtxbuf_address[9+u]+(n+m+offset)*vtxbuf_stride[9+u]+0);
+							*((UINT32 *)(&xy[m].p[5+u*2]))=space.read_dword(vtxbuf_address[9+u]+(n+m+offset)*vtxbuf_stride[9+u]+4);
+						}
 					}
 				}
 
-				rend=render_delegate(FUNC(nv2a_renderer::render_tex),this);
-				render_polygon<4>(fb.cliprect(),rend,3+texture.enabled*2,xy);
+				render_polygon<4>(fb.cliprect(),renderspans,4+4*2,xy); // 4 rgba, 4 texture units 2 uv
 				wait();
 				/*myline(fb,xy[0].x,xy[0].y,xy[1].x,xy[1].y);
 				myline(fb,xy[1].x,xy[1].y,xy[2].x,xy[2].y);
 				myline(fb,xy[2].x,xy[2].y,xy[3].x,xy[3].y);
 				myline(fb,xy[3].x,xy[3].y,xy[0].x,xy[0].y);*/
-				//printf(" (%f,%f,%f)-(%f,%f,%f)-(%f,%f,%f)-(%f,%f,%f)\n\r",x[0],y[0],z[0],x[1],y[1],z[1],x[2],y[2],z[2],x[3],y[3],z[3]);
+#ifdef LOG_NV2A
+				printf(" (%f,%f,%f)-(%f,%f,%f)-(%f,%f,%f)-(%f,%f,%f)\n\r",xy[0].x,xy[0].y,z[0],xy[1].x,xy[1].y,z[1],xy[2].x,xy[2].y,z[2],xy[3].x,xy[3].y,z[3]);
+#endif
+			}
+		} else if (type == nv2a_renderer::TRIANGLE_STRIP) {
+			vertex_t xy[3];
+			float z[3],w[3];
+			UINT32 c[3];
+
+			printf("draw triangle\n\r");
+			// put first 2 vertices data in elements 0,1 of arrays
+			for (m=0;m < 2;m++) {
+				*((UINT32 *)(&xy[m].x))=space.read_dword(vtxbuf_address[0]+(m+offset)*vtxbuf_stride[0]+0);
+				*((UINT32 *)(&xy[m].y))=space.read_dword(vtxbuf_address[0]+(m+offset)*vtxbuf_stride[0]+4);
+				*((UINT32 *)(&z[m]))=space.read_dword(vtxbuf_address[0]+(m+offset)*vtxbuf_stride[0]+8);
+				*((UINT32 *)(&w[m]))=space.read_dword(vtxbuf_address[0]+(m+offset)*vtxbuf_stride[0]+12);
+				c[m]=space.read_dword(vtxbuf_address[3]+(m+offset)*vtxbuf_stride[0]+0); // color
+				xy[m].p[0]=c[m] & 0xff; // b
+				xy[m].p[1]=(c[m] & 0xff00) >> 8;  // g
+				xy[m].p[2]=(c[m] & 0xff0000) >> 16;  // r
+				xy[m].p[3]=(c[m] & 0xff000000) >> 24;  // a
+				for (u=0;u < 4;u++) {
+					xy[m].p[4+u*2]=0;
+					xy[m].p[5+u*2]=0;
+					if (texture[u].enabled) {
+						*((UINT32 *)(&xy[m].p[4+u*2]))=space.read_dword(vtxbuf_address[9+u]+(m+offset)*vtxbuf_stride[9+u]+0);
+						*((UINT32 *)(&xy[m].p[5+u*2]))=space.read_dword(vtxbuf_address[9+u]+(m+offset)*vtxbuf_stride[9+u]+4);
+					}
+				}
+			}
+			for (n=2;n <= count;n++) {
+				// put vertex n data in element 2 of arrays
+				*((UINT32 *)(&xy[2].x))=space.read_dword(vtxbuf_address[0]+(n+offset)*vtxbuf_stride[0]+0);
+				*((UINT32 *)(&xy[2].y))=space.read_dword(vtxbuf_address[0]+(n+offset)*vtxbuf_stride[0]+4);
+				*((UINT32 *)(&z[2]))=space.read_dword(vtxbuf_address[0]+(n+offset)*vtxbuf_stride[0]+8);
+				*((UINT32 *)(&w[2]))=space.read_dword(vtxbuf_address[0]+(n+offset)*vtxbuf_stride[0]+12);
+				c[2]=space.read_dword(vtxbuf_address[3]+(n+offset)*vtxbuf_stride[0]+0); // color
+				xy[2].p[0]=c[2] & 0xff; // b
+				xy[2].p[1]=(c[2] & 0xff00) >> 8; // g
+				xy[2].p[2]=(c[2] & 0xff0000) >> 16; // r
+				xy[2].p[3]=(c[2] & 0xff000000) >> 24; // a
+				for (u=0;u < 4;u++) {
+					xy[2].p[4+u*2]=0;
+					xy[2].p[5+u*2]=0;
+					if (texture[u].enabled) {
+						*((UINT32 *)(&xy[2].p[4+u*2]))=space.read_dword(vtxbuf_address[9+u]+(n+offset)*vtxbuf_stride[9+u]+0);
+						*((UINT32 *)(&xy[2].p[5+u*2]))=space.read_dword(vtxbuf_address[9+u]+(n+offset)*vtxbuf_stride[9+u]+4);
+					}
+				}
+				// draw triangle
+				render_triangle(fb.cliprect(),renderspans,4+4*2,xy[n & 1],xy[~n & 1],xy[2]); // 012,102,012,102...
+				wait();
+				// move elements 1,2 to 0,1
+				xy[0]=xy[1];
+				xy[1]=xy[2];
+				z[0]=z[1];
+				z[1]=z[2];
+				w[0]=w[1];
+				w[1]=w[2];
 			}
 		} else {
-			type=type+0;
+			type=type+0; // dummy, you can put a breakpoint here while debugging
 		}
 	}
+	if (maddress == 0x1e60)
+		combiner.stages=data & 15;
+	if (maddress == 0x0288) {
+		combiner.final.mapin_rgbD_input=data & 15;
+		combiner.final.mapin_rgbD_component=(data >> 4) & 1;
+		combiner.final.mapin_rgbD_mapping=(data >> 5) & 7;
+		combiner.final.mapin_rgbC_input=(data >> 8) & 15;
+		combiner.final.mapin_rgbC_component=(data >> 12) & 1;
+		combiner.final.mapin_rgbC_mapping=(data >> 13) & 7;
+		combiner.final.mapin_rgbB_input=(data >> 16) & 15;
+		combiner.final.mapin_rgbB_component=(data >> 20) & 1;
+		combiner.final.mapin_rgbB_mapping=(data >> 21) & 7;
+		combiner.final.mapin_rgbA_input=(data >> 24) & 15;
+		combiner.final.mapin_rgbA_component=(data >> 28) & 1;
+		combiner.final.mapin_rgbA_mapping=(data >> 29) & 7;
+	}
+	if (maddress == 0x028c) {
+		combiner.final.color_sum_clamp=(data >> 7) & 1;
+		combiner.final.mapin_aG_input=(data >> 8) & 15;
+		combiner.final.mapin_aG_component=(data >> 12) & 1;
+		combiner.final.mapin_aG_mapping=(data >> 13) & 7;
+		combiner.final.mapin_rgbF_input=(data >> 16) & 15;
+		combiner.final.mapin_rgbF_component=(data >> 20) & 1;
+		combiner.final.mapin_rgbF_mapping=(data >> 21) & 7;
+		combiner.final.mapin_rgbE_input=(data >> 24) & 15;
+		combiner.final.mapin_rgbE_component=(data >> 28) & 1;
+		combiner.final.mapin_rgbE_mapping=(data >> 29) & 7;
+	}
+	if (maddress == 0x1e20) {
+		combiner_argb8_float(data,combiner.final.register_constantcolor0);
+	}
+	if (maddress == 0x1e24) {
+		combiner_argb8_float(data,combiner.final.register_constantcolor1);
+	}
+	if ((maddress >= 0x0260) && (maddress < 0x0280)) {
+		int n;
+
+		n=(maddress-0x0260) >> 2;
+		combiner.stage[n].mapin_aD_input=data & 15;
+		combiner.stage[n].mapin_aD_component=(data >> 4) & 1;
+		combiner.stage[n].mapin_aD_mapping=(data >> 5) & 7;
+		combiner.stage[n].mapin_aC_input=(data >> 8) & 15;
+		combiner.stage[n].mapin_aC_component=(data >> 12) & 1;
+		combiner.stage[n].mapin_aC_mapping=(data >> 13) & 7;
+		combiner.stage[n].mapin_aB_input=(data >> 16) & 15;
+		combiner.stage[n].mapin_aB_component=(data >> 20) & 1;
+		combiner.stage[n].mapin_aB_mapping=(data >> 21) & 7;
+		combiner.stage[n].mapin_aA_input=(data >> 24) & 15;
+		combiner.stage[n].mapin_aA_component=(data >> 28) & 1;
+		combiner.stage[n].mapin_aA_mapping=(data >> 29) & 7;
+	}
+	if ((maddress >= 0x0ac0) && (maddress < 0x0ae0)) {
+		int n;
+
+		n=(maddress-0x0ac0) >> 2;
+		combiner.stage[n].mapin_rgbD_input=data & 15;
+		combiner.stage[n].mapin_rgbD_component=(data >> 4) & 1;
+		combiner.stage[n].mapin_rgbD_mapping=(data >> 5) & 7;
+		combiner.stage[n].mapin_rgbC_input=(data >> 8) & 15;
+		combiner.stage[n].mapin_rgbC_component=(data >> 12) & 1;
+		combiner.stage[n].mapin_rgbC_mapping=(data >> 13) & 7;
+		combiner.stage[n].mapin_rgbB_input=(data >> 16) & 15;
+		combiner.stage[n].mapin_rgbB_component=(data >> 20) & 1;
+		combiner.stage[n].mapin_rgbB_mapping=(data >> 21) & 7;
+		combiner.stage[n].mapin_rgbA_input=(data >> 24) & 15;
+		combiner.stage[n].mapin_rgbA_component=(data >> 28) & 1;
+		combiner.stage[n].mapin_rgbA_mapping=(data >> 29) & 7;
+	}
+	if ((maddress >= 0x0a60) && (maddress < 0x0a80)) {
+		int n;
+
+		n=(maddress-0x0a60) >> 2;
+		combiner_argb8_float(data,combiner.stage[n].register_constantcolor0);
+	}
+	if ((maddress >= 0x0a80) && (maddress < 0x0aa0)) {
+		int n;
+
+		n=(maddress-0x0a80) >> 2;
+		combiner_argb8_float(data,combiner.stage[n].register_constantcolor1);
+	}
+	if ((maddress >= 0x0aa0) && (maddress < 0x0ac0)) {
+		int n;
+
+		n=(maddress-0x0aa0) >> 2;
+		combiner.stage[n].mapout_aCD_output=data & 15;
+		combiner.stage[n].mapout_aAB_output=(data >> 4) & 15;
+		combiner.stage[n].mapout_aSUM_output=(data >> 8) & 15;
+		combiner.stage[n].mapout_aCD_dotproduct=(data >> 12) & 1;
+		combiner.stage[n].mapout_aAB_dotproduct=(data >> 13) & 1;
+		combiner.stage[n].mapout_a_muxsum=(data >> 14) & 1;
+		combiner.stage[n].mapout_a_bias=(data >> 15) & 1;
+		combiner.stage[n].mapout_a_scale=(data >> 16) & 3;
+		//combiner.=(data >> 27) & 7;
+	}
+	if ((maddress >= 0x1e40) && (maddress < 0x1e60)) {
+		int n;
+
+		n=(maddress-0x1e40) >> 2;
+		combiner.stage[n].mapout_rgbCD_output=data & 15;
+		combiner.stage[n].mapout_rgbAB_output=(data >> 4) & 15;
+		combiner.stage[n].mapout_rgbSUM_output=(data >> 8) & 15;
+		combiner.stage[n].mapout_rgbCD_dotproduct=(data >> 12) & 1;
+		combiner.stage[n].mapout_rgbAB_dotproduct=(data >> 13) & 1;
+		combiner.stage[n].mapout_rgb_muxsum=(data >> 14) & 1;
+		combiner.stage[n].mapout_rgb_bias=(data >> 15) & 1;
+		combiner.stage[n].mapout_rgb_scale=(data >> 16) & 3;
+		//combiner.=(data >> 27) & 7;
+	}
+}
+
+int nv2a_renderer::toggle_register_combiners_usage()
+{
+	combiner.used=1-combiner.used;
+	return combiner.used;
+}
+
+void nv2a_renderer::combiner_argb8_float(UINT32 color,float reg[4])
+{
+	reg[0]=(float)(color & 0xff)/255.0;
+	reg[1]=(float)((color >> 8) & 0xff)/255.0;
+	reg[2]=(float)((color >> 16) & 0xff)/255.0;
+	reg[3]=(float)((color >> 24) & 0xff)/255.0;
+}
+
+UINT32 nv2a_renderer::combiner_float_argb8(float reg[4])
+{
+	UINT32 r,g,b,a;
+
+	a=reg[3]*255.0;
+	b=reg[2]*255.0;
+	g=reg[1]*255.0;
+	r=reg[0]*255.0;
+	return (a << 24) | (r << 16) | (g << 8) | b;
+}
+
+float nv2a_renderer::combiner_map_input_select(int code,int index)
+{
+	switch (code) {
+		case 0:
+		default:
+			return combiner.register_zero[index];
+		break;
+		case 1:
+			return combiner.register_color0[index];
+		break;
+		case 2:
+			return combiner.register_color1[index];
+		break;
+		case 3:
+			return combiner.register_fogcolor[index];
+		break;
+		case 4:
+			return combiner.register_primarycolor[index];
+		break;
+		case 5:
+			return combiner.register_secondarycolor[index];
+		break;
+		case 8:
+			return combiner.register_texture0color[index];
+		break;
+		case 9:
+			return combiner.register_texture1color[index];
+		break;
+		case 10:
+			return combiner.register_texture2color[index];
+		break;
+		case 11:
+			return combiner.register_texture3color[index];
+		break;
+		case 12:
+			return combiner.register_spare0[index];
+		break;
+		case 13:
+			return combiner.register_spare1[index];
+		break;
+		case 14:
+			return combiner.variable_sumclamp[index];
+		break;
+		case 15:
+			return combiner.variable_EF[index];
+		break;
+	}
+}
+
+float *nv2a_renderer::combiner_map_input_select3(int code)
+{
+	switch (code) {
+		case 0:
+		default:
+			return combiner.register_zero;
+		break;
+		case 1:
+			return combiner.register_color0;
+		break;
+		case 2:
+			return combiner.register_color1;
+		break;
+		case 3:
+			return combiner.register_fogcolor;
+		break;
+		case 4:
+			return combiner.register_primarycolor;
+		break;
+		case 5:
+			return combiner.register_secondarycolor;
+		break;
+		case 8:
+			return combiner.register_texture0color;
+		break;
+		case 9:
+			return combiner.register_texture1color;
+		break;
+		case 10:
+			return combiner.register_texture2color;
+		break;
+		case 11:
+			return combiner.register_texture3color;
+		break;
+		case 12:
+			return combiner.register_spare0;
+		break;
+		case 13:
+			return combiner.register_spare1;
+		break;
+		case 14:
+			return combiner.variable_sumclamp;
+		break;
+		case 15:
+			return combiner.variable_EF;
+		break;
+	}
+}
+
+float *nv2a_renderer::combiner_map_output_select3(int code)
+{
+	switch (code) {
+		case 0:
+			return 0;
+		break;
+		case 1:
+			return 0;
+		break;
+		case 2:
+			return 0;
+		break;
+		case 3:
+			return 0;
+		break;
+		case 4:
+			return combiner.register_primarycolor;
+		break;
+		case 5:
+			return combiner.register_secondarycolor;
+		break;
+		case 8:
+			return combiner.register_texture0color;
+		break;
+		case 9:
+			return combiner.register_texture1color;
+		break;
+		case 10:
+			return combiner.register_texture2color;
+		break;
+		case 11:
+			return combiner.register_texture3color;
+		break;
+		case 12:
+			return combiner.register_spare0;
+		break;
+		case 13:
+			return combiner.register_spare1;
+		break;
+		case 14:
+			return 0;
+		break;
+		case 15:
+		default:
+			return 0;
+		break;
+	}
+}
+
+float nv2a_renderer::combiner_map_input_function(int code,float value)
+{
+	float t;
+
+	switch (code) {
+		case 0:
+			return MAX(0.0,value);
+		break;
+		case 1:
+			t=MAX(value, 0.0);
+			return 1.0 - MIN(t, 1.0);
+		break;
+		case 2:
+			return 2.0 * MAX(0.0, value) - 1.0;
+		break;
+		case 3:
+			return -2.0 * MAX(0.0, value) + 1.0;
+		break;
+		case 4:
+			return MAX(0.0, value) - 0.5;
+		break;
+		case 5:
+			return -MAX(0.0, value) + 0.5;
+		break;
+		case 6:
+			return value;
+		break;
+		case 7:
+		default:
+			return -value;
+		break;
+	}
+}
+
+void nv2a_renderer::combiner_map_input_function3(int code,float *data)
+{
+	float t;
+
+	switch (code) {
+		case 0:
+			data[0]=MAX(0.0,data[0]);
+			data[1]=MAX(0.0,data[1]);
+			data[2]=MAX(0.0,data[2]);
+		break;
+		case 1:
+			t=MAX(data[0], 0.0);
+			data[0]=1.0 - MIN(t, 1.0);
+			t=MAX(data[1], 0.0);
+			data[1]=1.0 - MIN(t, 1.0);
+			t=MAX(data[2], 0.0);
+			data[2]=1.0 - MIN(t, 1.0);
+		break;
+		case 2:
+			data[0]=2.0 * MAX(0.0, data[0]) - 1.0;
+			data[1]=2.0 * MAX(0.0, data[1]) - 1.0;
+			data[2]=2.0 * MAX(0.0, data[2]) - 1.0;
+		break;
+		case 3:
+			data[0]=-2.0 * MAX(0.0, data[0]) + 1.0;
+			data[1]=-2.0 * MAX(0.0, data[1]) + 1.0;
+			data[2]=-2.0 * MAX(0.0, data[2]) + 1.0;
+		break;
+		case 4:
+			data[0]=MAX(0.0, data[0]) - 0.5;
+			data[1]=MAX(0.0, data[1]) - 0.5;
+			data[2]=MAX(0.0, data[2]) - 0.5;
+		break;
+		case 5:
+			data[0]=-MAX(0.0, data[0]) + 0.5;
+			data[1]=-MAX(0.0, data[1]) + 0.5;
+			data[2]=-MAX(0.0, data[2]) + 0.5;
+		break;
+		case 6:
+			return;
+		break;
+		case 7:
+		default:
+			data[0]=-data[0];
+			data[1]=-data[1];
+			data[2]=-data[2];
+		break;
+	}
+}
+
+void nv2a_renderer::combiner_initialize_registers(UINT32 argb8[6])
+{
+	combiner_argb8_float(argb8[0],combiner.register_primarycolor);
+	combiner_argb8_float(argb8[1],combiner.register_secondarycolor);
+	combiner_argb8_float(argb8[2],combiner.register_texture0color);
+	combiner_argb8_float(argb8[3],combiner.register_texture1color);
+	combiner_argb8_float(argb8[4],combiner.register_texture2color);
+	combiner_argb8_float(argb8[5],combiner.register_texture3color);
+	combiner.register_spare0[3]=combiner.register_texture0color[3];
+	combiner.register_zero[0]=combiner.register_zero[1]=combiner.register_zero[2]=combiner.register_zero[3]=0;
+}
+
+void nv2a_renderer::combiner_initialize_stage(int stage_number)
+{
+	int n=stage_number;
+
+	// put register_constantcolor0 in register_color0
+	combiner.register_color0[0]=combiner.stage[n].register_constantcolor0[0];
+	combiner.register_color0[1]=combiner.stage[n].register_constantcolor0[1];
+	combiner.register_color0[2]=combiner.stage[n].register_constantcolor0[2];
+	combiner.register_color0[3]=combiner.stage[n].register_constantcolor0[3];
+	// put register_constantcolor1 in register_color1
+	combiner.register_color1[0]=combiner.stage[n].register_constantcolor1[0];
+	combiner.register_color1[1]=combiner.stage[n].register_constantcolor1[1];
+	combiner.register_color1[2]=combiner.stage[n].register_constantcolor1[2];
+	combiner.register_color1[3]=combiner.stage[n].register_constantcolor1[3];
+}
+
+void nv2a_renderer::combiner_initialize_final()
+{
+	// put register_constantcolor0 in register_color0
+	combiner.register_color0[0]=combiner.final.register_constantcolor0[0];
+	combiner.register_color0[1]=combiner.final.register_constantcolor0[1];
+	combiner.register_color0[2]=combiner.final.register_constantcolor0[2];
+	combiner.register_color0[3]=combiner.final.register_constantcolor0[3];
+	// put register_constantcolor1 in register_color1
+	combiner.register_color1[0]=combiner.final.register_constantcolor1[0];
+	combiner.register_color1[1]=combiner.final.register_constantcolor1[1];
+	combiner.register_color1[2]=combiner.final.register_constantcolor1[2];
+	combiner.register_color1[3]=combiner.final.register_constantcolor1[3];
+}
+
+void nv2a_renderer::combiner_map_input(int stage_number)
+{
+	int n=stage_number;
+	int c,d,i;
+	float v,*pv;
+
+	// A
+	v=combiner_map_input_select(combiner.stage[n].mapin_aA_input,2+combiner.stage[n].mapin_aA_component);
+	combiner.variable_A[3]=combiner_map_input_function(combiner.stage[n].mapin_aA_mapping,v);
+	// B
+	v=combiner_map_input_select(combiner.stage[n].mapin_aB_input,2+combiner.stage[n].mapin_aB_component);
+	combiner.variable_B[3]=combiner_map_input_function(combiner.stage[n].mapin_aB_mapping,v);
+	// C
+	v=combiner_map_input_select(combiner.stage[n].mapin_aC_input,2+combiner.stage[n].mapin_aC_component);
+	combiner.variable_C[3]=combiner_map_input_function(combiner.stage[n].mapin_aC_mapping,v);
+	// D
+	v=combiner_map_input_select(combiner.stage[n].mapin_aD_input,2+combiner.stage[n].mapin_aD_component);
+	combiner.variable_D[3]=combiner_map_input_function(combiner.stage[n].mapin_aD_mapping,v);
+
+	// A
+	pv=combiner_map_input_select3(combiner.stage[n].mapin_rgbA_input);
+	c=combiner.stage[n].mapin_rgbA_component*3;
+	i=~combiner.stage[n].mapin_rgbA_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_A[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.stage[n].mapin_rgbA_mapping,combiner.variable_A);
+	// B
+	pv=combiner_map_input_select3(combiner.stage[n].mapin_rgbB_input);
+	c=combiner.stage[n].mapin_rgbB_component*3;
+	i=~combiner.stage[n].mapin_rgbB_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_B[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.stage[n].mapin_rgbB_mapping,combiner.variable_B);
+	// C
+	pv=combiner_map_input_select3(combiner.stage[n].mapin_rgbC_input);
+	c=combiner.stage[n].mapin_rgbC_component*3;
+	i=~combiner.stage[n].mapin_rgbC_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_C[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.stage[n].mapin_rgbC_mapping,combiner.variable_C);
+	// D
+	pv=combiner_map_input_select3(combiner.stage[n].mapin_rgbD_input);
+	c=combiner.stage[n].mapin_rgbD_component*3;
+	i=~combiner.stage[n].mapin_rgbD_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_D[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.stage[n].mapin_rgbD_mapping,combiner.variable_D);
+}
+
+void nv2a_renderer::combiner_map_output(int stage_number)
+{
+	int n=stage_number;
+	float *f;
+
+	// rgb
+	f=combiner_map_output_select3(combiner.stage[n].mapout_rgbAB_output);
+	if (f) {
+		f[0]=combiner.function_RGBop1[0];
+		f[1]=combiner.function_RGBop1[1];
+		f[2]=combiner.function_RGBop1[2];
+	}
+	f=combiner_map_output_select3(combiner.stage[n].mapout_rgbCD_output);
+	if (f) {
+		f[0]=combiner.function_RGBop2[0];
+		f[1]=combiner.function_RGBop2[1];
+		f[2]=combiner.function_RGBop2[2];
+	}
+	if ((combiner.stage[n].mapout_rgbAB_dotproduct | combiner.stage[n].mapout_rgbCD_dotproduct) == 0) {
+		f=combiner_map_output_select3(combiner.stage[n].mapout_rgbSUM_output);
+		if (f) {
+			f[0]=combiner.function_RGBop3[0];
+			f[1]=combiner.function_RGBop3[1];
+			f[2]=combiner.function_RGBop3[2];
+		}
+	}
+	// a
+	f=combiner_map_output_select3(combiner.stage[n].mapout_aAB_output);
+	if (f)
+		f[3]=combiner.function_Aop1;
+	f=combiner_map_output_select3(combiner.stage[n].mapout_aCD_output);
+	if (f)
+		f[3]=combiner.function_Aop2;
+	f=combiner_map_output_select3(combiner.stage[n].mapout_aSUM_output);
+	if (f)
+		f[3]=combiner.function_Aop3;
+}
+
+void nv2a_renderer::combiner_map_final_input()
+{
+	int i,c,d;
+	float *pv;
+
+	// E
+	pv=combiner_map_input_select3(combiner.final.mapin_rgbE_input);
+	c=combiner.final.mapin_rgbE_component*3;
+	i=~combiner.final.mapin_rgbE_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_E[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.final.mapin_rgbE_mapping,combiner.variable_E);
+	// F
+	pv=combiner_map_input_select3(combiner.final.mapin_rgbF_input);
+	c=combiner.final.mapin_rgbF_component*3;
+	i=~combiner.final.mapin_rgbF_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_F[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.final.mapin_rgbF_mapping,combiner.variable_F);
+	// EF
+	combiner.variable_EF[0]=combiner.variable_E[0]*combiner.variable_F[0];
+	combiner.variable_EF[1]=combiner.variable_E[1]*combiner.variable_F[1];
+	combiner.variable_EF[2]=combiner.variable_E[2]*combiner.variable_F[2];
+	// sumclamp
+	combiner.variable_sumclamp[0]=MAX(0,combiner.register_spare0[0])+MAX(0,combiner.register_secondarycolor[0]);
+	combiner.variable_sumclamp[1]=MAX(0,combiner.register_spare0[1])+MAX(0,combiner.register_secondarycolor[1]);
+	combiner.variable_sumclamp[2]=MAX(0,combiner.register_spare0[2])+MAX(0,combiner.register_secondarycolor[2]);
+	if (combiner.final.color_sum_clamp != 0) {
+		combiner.variable_sumclamp[0]=MIN(combiner.variable_sumclamp[0],1.0);
+		combiner.variable_sumclamp[1]=MIN(combiner.variable_sumclamp[1],1.0);
+		combiner.variable_sumclamp[2]=MIN(combiner.variable_sumclamp[2],1.0);
+	}
+	// A
+	pv=combiner_map_input_select3(combiner.final.mapin_rgbA_input);
+	c=combiner.final.mapin_rgbA_component*3;
+	i=~combiner.final.mapin_rgbA_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_A[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.final.mapin_rgbA_mapping,combiner.variable_A);
+	// B
+	pv=combiner_map_input_select3(combiner.final.mapin_rgbB_input);
+	c=combiner.final.mapin_rgbB_component*3;
+	i=~combiner.final.mapin_rgbB_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_B[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.final.mapin_rgbB_mapping,combiner.variable_B);
+	// C
+	pv=combiner_map_input_select3(combiner.final.mapin_rgbC_input);
+	c=combiner.final.mapin_rgbC_component*3;
+	i=~combiner.final.mapin_rgbC_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_C[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.final.mapin_rgbC_mapping,combiner.variable_C);
+	// D
+	pv=combiner_map_input_select3(combiner.final.mapin_rgbD_input);
+	c=combiner.final.mapin_rgbD_component*3;
+	i=~combiner.final.mapin_rgbD_component & 1;
+	for (d=0;d < 3;d++) {
+		combiner.variable_D[d]=pv[c];
+		c=c+i;
+	}
+	combiner_map_input_function3(combiner.final.mapin_rgbD_mapping,combiner.variable_D);
+	// G
+	combiner.variable_G=combiner_map_input_select(combiner.final.mapin_aG_input,2+combiner.final.mapin_aG_component);
+}
+
+void nv2a_renderer::combiner_final_output()
+{
+	// rgb
+	combiner.output[0]=combiner.variable_A[0]*combiner.variable_B[0]+(1.0-combiner.variable_A[0])*combiner.variable_C[0]+combiner.variable_D[0];
+	combiner.output[1]=combiner.variable_A[1]*combiner.variable_B[1]+(1.0-combiner.variable_A[1])*combiner.variable_C[1]+combiner.variable_D[1];
+	combiner.output[2]=combiner.variable_A[2]*combiner.variable_B[2]+(1.0-combiner.variable_A[2])*combiner.variable_C[2]+combiner.variable_D[2];
+	combiner.output[0]=MIN(combiner.output[0],1.0);
+	combiner.output[1]=MIN(combiner.output[1],1.0);
+	combiner.output[2]=MIN(combiner.output[2],1.0);
+	// a
+	combiner.output[3]=combiner_map_input_function(combiner.final.mapin_aG_mapping,combiner.variable_G);
+}
+
+void nv2a_renderer::combiner_function_AB(float result[4])
+{
+	result[0]=combiner.variable_A[0]*combiner.variable_B[0];
+	result[1]=combiner.variable_A[1]*combiner.variable_B[1];
+	result[2]=combiner.variable_A[2]*combiner.variable_B[2];
+}
+
+void nv2a_renderer::combiner_function_AdotB(float result[4])
+{
+	result[0]=combiner.variable_A[0]*combiner.variable_B[0]+combiner.variable_A[1]*combiner.variable_B[1]+combiner.variable_A[2]*combiner.variable_B[2];
+	result[1]=result[0];
+	result[2]=result[0];
+}
+
+void nv2a_renderer::combiner_function_CD(float result[4])
+{
+	result[0]=combiner.variable_C[0]*combiner.variable_D[0];
+	result[1]=combiner.variable_C[1]*combiner.variable_D[1];
+	result[2]=combiner.variable_C[2]*combiner.variable_D[2];
+}
+
+void nv2a_renderer::combiner_function_CdotD(float result[4])
+{
+	result[0]=combiner.variable_C[0]*combiner.variable_D[0]+combiner.variable_C[1]*combiner.variable_D[1]+combiner.variable_C[2]*combiner.variable_D[2];
+	result[1]=result[0];
+	result[2]=result[0];
+}
+
+void nv2a_renderer::combiner_function_ABmuxCD(float result[4])
+{
+	if (combiner.register_spare0[3] >= 0.5)
+		combiner_function_AB(result);
+	else
+		combiner_function_CD(result);
+}
+
+void nv2a_renderer::combiner_function_ABsumCD(float result[4])
+{
+	result[0]=combiner.variable_A[0]*combiner.variable_B[0]+combiner.variable_C[0]*combiner.variable_D[0];
+	result[1]=combiner.variable_A[1]*combiner.variable_B[1]+combiner.variable_C[1]*combiner.variable_D[1];
+	result[2]=combiner.variable_A[2]*combiner.variable_B[2]+combiner.variable_C[2]*combiner.variable_D[2];
+}
+
+void nv2a_renderer::combiner_compute_rgb_outputs(int stage_number)
+{
+	int n=stage_number;
+	int m;
+	float biasrgb,scalergb;
+
+	if (combiner.stage[n].mapout_rgb_bias)
+		biasrgb= -0.5;
+	else
+		biasrgb=0;
+	switch (combiner.stage[n].mapout_rgb_scale) {
+		case 0:
+		default:
+			scalergb=1.0;
+		break;
+		case 1:
+			scalergb=2.0;
+		break;
+		case 2:
+			scalergb=4.0;
+		break;
+		case 3:
+			scalergb=0.5;
+		break;
+	}
+	if (combiner.stage[n].mapout_rgbAB_dotproduct) {
+		m=1;
+		combiner_function_AdotB(combiner.function_RGBop1);
+	} else {
+		m=0;
+		combiner_function_AB(combiner.function_RGBop1);
+		}
+	combiner.function_RGBop1[0]=MAX(MIN((combiner.function_RGBop1[0] + biasrgb) * scalergb, 1.0), -1.0);
+	combiner.function_RGBop1[1]=MAX(MIN((combiner.function_RGBop1[1] + biasrgb) * scalergb, 1.0), -1.0);
+	combiner.function_RGBop1[2]=MAX(MIN((combiner.function_RGBop1[2] + biasrgb) * scalergb, 1.0), -1.0);
+	if (combiner.stage[n].mapout_rgbCD_dotproduct) {
+		m=m | 1;
+		combiner_function_CdotD(combiner.function_RGBop2);
+	} else
+		combiner_function_CD(combiner.function_RGBop2);
+	combiner.function_RGBop2[0]=MAX(MIN((combiner.function_RGBop2[0] + biasrgb) * scalergb, 1.0), -1.0);
+	combiner.function_RGBop2[1]=MAX(MIN((combiner.function_RGBop2[1] + biasrgb) * scalergb, 1.0), -1.0);
+	combiner.function_RGBop2[2]=MAX(MIN((combiner.function_RGBop2[2] + biasrgb) * scalergb, 1.0), -1.0);
+	if (m == 0) {
+		if (combiner.stage[n].mapout_rgb_muxsum)
+			combiner_function_ABmuxCD(combiner.function_RGBop3);
+		else
+			combiner_function_ABsumCD(combiner.function_RGBop3);
+		combiner.function_RGBop3[0]=MAX(MIN((combiner.function_RGBop3[0] + biasrgb) * scalergb, 1.0), -1.0);
+		combiner.function_RGBop3[1]=MAX(MIN((combiner.function_RGBop3[1] + biasrgb) * scalergb, 1.0), -1.0);
+		combiner.function_RGBop3[2]=MAX(MIN((combiner.function_RGBop3[2] + biasrgb) * scalergb, 1.0), -1.0);
+	}
+}
+
+void nv2a_renderer::combiner_compute_a_outputs(int stage_number)
+{
+	int n=stage_number;
+	float biasa,scalea;
+
+	if (combiner.stage[n].mapout_a_bias)
+		biasa= -0.5;
+	else
+		biasa=0;
+	switch (combiner.stage[n].mapout_a_scale) {
+		case 0:
+		default:
+			scalea=1.0;
+		break;
+		case 1:
+			scalea=2.0;
+		break;
+		case 2:
+			scalea=4.0;
+		break;
+		case 3:
+			scalea=0.5;
+		break;
+	}
+	combiner.function_Aop1=combiner.variable_A[3]*combiner.variable_B[3];
+	combiner.function_Aop1=MAX(MIN((combiner.function_Aop1 + biasa) * scalea, 1.0), -1.0);
+	combiner.function_Aop2=combiner.variable_C[3]*combiner.variable_D[3];
+	combiner.function_Aop2=MAX(MIN((combiner.function_Aop2 + biasa) * scalea, 1.0), -1.0);
+	if (combiner.stage[n].mapout_a_muxsum) {
+		if (combiner.register_spare0[3] >= 0.5)
+			combiner.function_Aop3=combiner.variable_A[3]*combiner.variable_B[3];
+		else
+			combiner.function_Aop3=combiner.variable_C[3]*combiner.variable_D[3];
+	} else
+		combiner.function_Aop3=combiner.variable_A[3]*combiner.variable_B[3]+combiner.variable_C[3]*combiner.variable_D[3];
+	combiner.function_Aop3=MAX(MIN((combiner.function_Aop3 + biasa) * scalea, 1.0), -1.0);
 }
 
 void nv2a_renderer::vblank_callback(screen_device &screen, bool state)
@@ -1114,9 +2315,9 @@ void nv2a_renderer::vblank_callback(screen_device &screen, bool state)
 		pmc[0x100/4] &= ~0x1000000;
 	if ((pmc[0x100/4] != 0) && (pmc[0x140/4] != 0)) {
 		// send interrupt
-		pic8259_ir3_w(chst->chihiro_devs.pic8259_1, 1); // IRQ 3
+		chst->chihiro_devs.pic8259_1->ir3_w(1); // IRQ 3
 	} else
-		pic8259_ir3_w(chst->chihiro_devs.pic8259_1, 0); // IRQ 3
+		chst->chihiro_devs.pic8259_1->ir3_w(0); // IRQ 3
 }
 
 UINT32 nv2a_renderer::screen_update_callback(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -1124,6 +2325,7 @@ UINT32 nv2a_renderer::screen_update_callback(screen_device &screen, bitmap_rgb32
 	UINT32 *dst=(UINT32 *)bitmap.raw_pixptr(0,0);
 	UINT32 *src=(UINT32 *)fb.raw_pixptr(0,0);
 
+	printf("updatescreen\n\r");
 	memcpy(dst,src,bitmap.rowbytes()*bitmap.height());
 	return 0;
 }
@@ -1163,8 +2365,8 @@ static int x,ret;
 	} else if ((offset >= 0x00600000/4) && (offset < 0x00601000/4)) {
 		ret=pcrtc[offset-0x00600000/4];
 		logerror("NV_2A: read PCRTC[%06X] value %08X\n",offset*4-0x00600000,ret);
-	} else if (                             offset < 0x00001000/4) {
-		ret=pmc[offset];
+	} else if ((offset >= 0x00000000/4) && (offset < 0x00001000/4)) {
+		ret=pmc[offset-0x00000000/4];
 		logerror("NV_2A: read PMC[%06X] value %08X\n",offset*4-0x00000000,ret);
 	} else if ((offset >= 0x00800000/4) && (offset < 0x00900000/4)) {
 		// 32 channels size 0x10000 each, 8 subchannels per channel size 0x2000 each
@@ -1198,13 +2400,16 @@ WRITE32_MEMBER( nv2a_renderer::geforce_w )
 	} else if ((offset >= 0x00600000/4) && (offset < 0x00601000/4)) {
 		COMBINE_DATA(pcrtc+offset-0x00600000/4);
 		logerror("NV_2A: write PCRTC[%06X]=%08X\n",offset*4-0x00600000,data & mem_mask);
-	} else if (                             offset < 0x00001000/4) {
-		COMBINE_DATA(pmc+offset);
+	} else if ((offset >= 0x00000000/4) && (offset < 0x00001000/4)) {
+		COMBINE_DATA(pmc+offset-0x00000000/4);
 		logerror("NV_2A: write PMC[%06X]=%08X\n",offset*4-0x00000000,data & mem_mask);
 	} else if ((offset >= 0x00800000/4) && (offset < 0x00900000/4)) {
 		// 32 channels size 0x10000 each, 8 subchannels per channel size 0x2000 each
 		int chanel,subchannel,suboffset;
-		int method,subch,count,handle,objclass;
+		int method,count,handle,objclass;
+#ifdef LOG_NV2A
+		int subch;
+#endif
 
 		suboffset=offset-0x00800000/4;
 		chanel=(suboffset >> (16-2)) & 31;
@@ -1220,7 +2425,7 @@ WRITE32_MEMBER( nv2a_renderer::geforce_w )
 
 			dmaput=&channel[chanel][subchannel].regs[0x40/4];
 			dmaget=&channel[chanel][subchannel].regs[0x44/4];
-			printf("dmaget %08X dmaput %08X\n\r",*dmaget,*dmaput); // 7fcbe08 7f4d018
+			//printf("dmaget %08X dmaput %08X\n\r",*dmaget,*dmaput);
 			while (*dmaget != *dmaput) {
 				cmd=space.read_dword(*dmaget);
 				*dmaget += 4;
@@ -1228,25 +2433,35 @@ WRITE32_MEMBER( nv2a_renderer::geforce_w )
 				switch (cmdtype)
 				{
 					case 6: // jump
+#ifdef LOG_NV2A
 						printf("jump dmaget %08X",*dmaget);
+#endif
 						*dmaget=cmd & 0xfffffffc;
+#ifdef LOG_NV2A
 						printf(" -> %08X\n\r",*dmaget);
+#endif
 						break;
 					case 0: // increasing method
 						method=(cmd >> 2) & 2047; // method*4 is address // if method >= 0x40 send it to assigned object
+#ifdef LOG_NV2A
 						subch=(cmd >> 13) & 7;
+#endif
 						count=(cmd >> 18) & 2047;
 						if ((method == 0) && (count == 1)) {
 							handle=space.read_dword(*dmaget);
 							handle=geforce_object_offset(handle);
+#ifdef LOG_NV2A
 							logerror("  assign to subchannel %d object at %d\n",subch,handle);
+#endif
 							channel[chanel][subchannel].object.objhandle=handle;
 							handle=ramin[handle/4];
 							objclass=handle & 0xff;
 							channel[chanel][subchannel].object.objclass=objclass;
 							*dmaget += 4;
 						} else {
+#ifdef LOG_NV2A
 							logerror("  subch. %d method %04x offset %04x count %d\n",subch,method,method*4,count);
+#endif
 							while (count > 0) {
 								geforce_exec_method(space,chanel,subchannel,method,space.read_dword(*dmaget));
 								count--;
@@ -1257,20 +2472,28 @@ WRITE32_MEMBER( nv2a_renderer::geforce_w )
 						break;
 					case 5: // non-increasing method
 						method=(cmd >> 2) & 2047;
+#ifdef LOG_NV2A
 						subch=(cmd >> 13) & 7;
+#endif
 						count=(cmd >> 18) & 2047;
 						if ((method == 0) && (count == 1)) {
+#ifdef LOG_NV2A
 							logerror("  assign channel %d\n",subch);
+#endif
 							handle=space.read_dword(*dmaget);
 							handle=geforce_object_offset(handle);
+#ifdef LOG_NV2A
 							logerror("  assign to subchannel %d object at %d\n",subch,handle);
+#endif
 							channel[chanel][subchannel].object.objhandle=handle;
 							handle=ramin[handle/4];
 							objclass=handle & 0xff;
 							channel[chanel][subchannel].object.objclass=objclass;
 							*dmaget += 4;
 						} else {
+#ifdef LOG_NV2A
 							logerror("  subch. %d method %04x offset %04x count %d\n",subch,method,method*4,count);
+#endif
 							while (count > 0) {
 								geforce_exec_method(space,chanel,subchannel,method,space.read_dword(*dmaget));
 								count--;
@@ -1280,20 +2503,26 @@ WRITE32_MEMBER( nv2a_renderer::geforce_w )
 						break;
 					case 3: // long non-increasing method
 						method=(cmd >> 2) & 2047;
+#ifdef LOG_NV2A
 						subch=(cmd >> 13) & 7;
+#endif
 						count=space.read_dword(*dmaget);
 						*dmaget += 4;
 						if ((method == 0) && (count == 1)) {
 							handle=space.read_dword(*dmaget);
 							handle=geforce_object_offset(handle);
+#ifdef LOG_NV2A
 							logerror("  assign to subchannel %d object at %d\n",subch,handle);
+#endif
 							channel[chanel][subchannel].object.objhandle=handle;
 							handle=ramin[handle/4];
 							objclass=handle & 0xff;
 							channel[chanel][subchannel].object.objclass=objclass;
 							*dmaget += 4;
 						} else {
+#ifdef LOG_NV2A
 							logerror("  subch. %d method %04x offset %04x count %d\n",subch,method,method*4,count);
+#endif
 							while (count > 0) {
 								geforce_exec_method(space,chanel,subchannel,method,space.read_dword(*dmaget));
 								count--;
@@ -1417,60 +2646,6 @@ WRITE32_MEMBER( chihiro_state::dummy_w )
 {
 }
 
-/*
- * IDE
- */
-
-INLINE int convert_to_offset_and_size32(offs_t *offset, UINT32 mem_mask)
-{
-	int size = 4;
-
-	/* determine which real offset */
-	if (!ACCESSING_BITS_0_7)
-	{
-		(*offset)++, size = 3;
-		if (!ACCESSING_BITS_8_15)
-		{
-			(*offset)++, size = 2;
-			if (!ACCESSING_BITS_16_23)
-				(*offset)++, size = 1;
-		}
-	}
-
-	/* determine the real size */
-	if (ACCESSING_BITS_24_31)
-		return size;
-	size--;
-	if (ACCESSING_BITS_16_23)
-		return size;
-	size--;
-	if (ACCESSING_BITS_8_15)
-		return size;
-	size--;
-	return size;
-}
-
-READ32_MEMBER( chihiro_state::ide_r )
-{
-	int size;
-
-	offset *= 4;
-	size = convert_to_offset_and_size32(&offset, mem_mask);
-
-	return ide_controller_r(chihiro_devs.ide, offset+0x01f0, size) << ((offset & 3) * 8);
-}
-
-WRITE32_MEMBER( chihiro_state::ide_w )
-{
-	int size;
-
-	offset *= 4;
-	size = convert_to_offset_and_size32(&offset, mem_mask);
-	data = data >> ((offset & 3) * 8);
-
-	ide_controller_w(chihiro_devs.ide, offset+0x01f0, size, data);
-}
-
 // ======================> ide_baseboard_device
 
 class ide_baseboard_device : public ide_hdd_device
@@ -1487,7 +2662,6 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
-	virtual void device_config_complete() { m_shortname = "ide_baseboard"; }
 };
 
 //**************************************************************************
@@ -1502,7 +2676,7 @@ const device_type IDE_BASEBOARD = &device_creator<ide_baseboard_device>;
 //-------------------------------------------------
 
 ide_baseboard_device::ide_baseboard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ide_hdd_device(mconfig, IDE_BASEBOARD, "IDE Baseboard", tag, owner, clock)
+	: ide_hdd_device(mconfig, IDE_BASEBOARD, "IDE Baseboard", tag, owner, clock, "ide_baseboard", __FILE__)
 {
 }
 
@@ -1533,7 +2707,7 @@ int ide_baseboard_device::read_sector(UINT32 lba, void *buffer)
 
 	logerror("baseboard: read sector lba %08x\n",lba);
 	off=(lba&0x7ff)*512;
-	data=machine().root_device().memregion("others")->base();
+	data=memregion(":others")->base();
 	memcpy(buffer,data+off,512);
 	return 1;
 }
@@ -1550,48 +2724,33 @@ int ide_baseboard_device::write_sector(UINT32 lba, const void *buffer)
 
 WRITE_LINE_MEMBER(chihiro_state::chihiro_pic8259_1_set_int_line)
 {
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
 }
 
 READ8_MEMBER(chihiro_state::get_slave_ack)
 {
 	if (offset==2) { // IRQ = 2
-		return pic8259_acknowledge(chihiro_devs.pic8259_2);
+		return chihiro_devs.pic8259_2->acknowledge();
 	}
 	return 0x00;
 }
 
-static const struct pic8259_interface chihiro_pic8259_1_config =
+IRQ_CALLBACK_MEMBER(chihiro_state::irq_callback)
 {
-	DEVCB_DRIVER_LINE_MEMBER(chihiro_state, chihiro_pic8259_1_set_int_line),
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_MEMBER(chihiro_state,get_slave_ack)
-};
-
-static const struct pic8259_interface chihiro_pic8259_2_config =
-{
-	DEVCB_DEVICE_LINE("pic8259_1", pic8259_ir2_w),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
-
-static IRQ_CALLBACK(irq_callback)
-{
-	chihiro_state *chst=device->machine().driver_data<chihiro_state>();
 	int r = 0;
-	r = pic8259_acknowledge(chst->chihiro_devs.pic8259_2);
+	r = chihiro_devs.pic8259_2->acknowledge();
 	if (r==0)
 	{
-		r = pic8259_acknowledge(chst->chihiro_devs.pic8259_1);
+		r = chihiro_devs.pic8259_1->acknowledge();
 	}
 	return r;
 }
 
 WRITE_LINE_MEMBER(chihiro_state::chihiro_pit8254_out0_changed)
 {
-	if ( machine().device("pic8259_1") )
+	if ( machine().device<pic8259_device>("pic8259_1") )
 	{
-		pic8259_ir0_w(machine().device("pic8259_1"), state);
+		machine().device<pic8259_device>("pic8259_1")->ir0_w(state);
 	}
 }
 
@@ -1600,7 +2759,7 @@ WRITE_LINE_MEMBER(chihiro_state::chihiro_pit8254_out2_changed)
 	//chihiro_speaker_set_input( state ? 1 : 0 );
 }
 
-static const struct pit8253_config chihiro_pit8254_config =
+static const struct pit8253_interface chihiro_pit8254_config =
 {
 	{
 		{
@@ -1734,7 +2893,7 @@ WRITE32_MEMBER( chihiro_state::smbus_w )
 	if ((offset == 0) && (mem_mask == 0xff)) // 0 smbus status
 	{
 		if (!((smbusst.status ^ data) & 0x10)) // clearing interrupt
-			pic8259_ir3_w(chihiro_devs.pic8259_2, 0); // IRQ 11
+			chihiro_devs.pic8259_2->ir3_w(0); // IRQ 11
 		smbusst.status &= ~data;
 	}
 	if ((offset == 0) && (mem_mask == 0xff0000)) // 2 smbus control
@@ -1755,7 +2914,7 @@ WRITE32_MEMBER( chihiro_state::smbus_w )
 				smbusst.status |= 0x10;
 				if (smbusst.control & 0x10)
 				{
-					pic8259_ir3_w(chihiro_devs.pic8259_2, 1); // IRQ 11
+					chihiro_devs.pic8259_2->ir3_w(1); // IRQ 11
 				}
 			}
 		}
@@ -1783,14 +2942,14 @@ static ADDRESS_MAP_START( xbox_map, AS_PROGRAM, 32, chihiro_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(xbox_map_io, AS_IO, 32, chihiro_state )
-	AM_RANGE(0x0020, 0x0023) AM_DEVREADWRITE8_LEGACY("pic8259_1", pic8259_r, pic8259_w, 0xffffffff)
-	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8_LEGACY("pit8254", pit8253_r, pit8253_w, 0xffffffff)
-	AM_RANGE(0x00a0, 0x00a3) AM_DEVREADWRITE8_LEGACY("pic8259_2", pic8259_r, pic8259_w, 0xffffffff)
-	AM_RANGE(0x01f0, 0x01f7) AM_READWRITE(ide_r, ide_w)
+	AM_RANGE(0x0020, 0x0023) AM_DEVREADWRITE8("pic8259_1", pic8259_device, read, write, 0xffffffff)
+	AM_RANGE(0x0040, 0x0043) AM_DEVREADWRITE8("pit8254", pit8254_device, read, write, 0xffffffff)
+	AM_RANGE(0x00a0, 0x00a3) AM_DEVREADWRITE8("pic8259_2", pic8259_device, read, write, 0xffffffff)
+	AM_RANGE(0x01f0, 0x01f7) AM_DEVREADWRITE16("ide", bus_master_ide_controller_device, read_cs0_pc, write_cs0_pc, 0xffffffff)
 	AM_RANGE(0x0cf8, 0x0cff) AM_DEVREADWRITE("pcibus", pci_bus_legacy_device, read, write)
 	AM_RANGE(0x8000, 0x80ff) AM_READWRITE(dummy_r, dummy_w)
 	AM_RANGE(0xc000, 0xc0ff) AM_READWRITE(smbus_r, smbus_w)
-	AM_RANGE(0xff60, 0xff67) AM_DEVREADWRITE_LEGACY("ide", ide_bus_master32_r, ide_bus_master32_w)
+	AM_RANGE(0xff60, 0xff67) AM_DEVREADWRITE("ide", bus_master_ide_controller_device, ide_bus_master32_r, ide_bus_master32_w)
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START( chihiro )
@@ -1805,10 +2964,10 @@ void chihiro_state::machine_start()
 	smbus_register_device(0x10,smbus_callback_pic16lc);
 	smbus_register_device(0x45,smbus_callback_cx25871);
 	smbus_register_device(0x54,smbus_callback_eeprom);
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(irq_callback);
-	chihiro_devs.pic8259_1 = machine().device( "pic8259_1" );
-	chihiro_devs.pic8259_2 = machine().device( "pic8259_2" );
-	chihiro_devs.ide = machine().device( "ide" );
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(chihiro_state::irq_callback),this));
+	chihiro_devs.pic8259_1 = machine().device<pic8259_device>( "pic8259_1" );
+	chihiro_devs.pic8259_2 = machine().device<pic8259_device>( "pic8259_2" );
+	chihiro_devs.ide = machine().device<bus_master_ide_controller_device>( "ide" );
 	if (machine().debug_flags & DEBUG_FLAG_ENABLED)
 		debug_console_register_command(machine(),"chihiro",CMDFLAG_NONE,0,1,4,chihiro_debug_commands);
 }
@@ -1835,12 +2994,12 @@ static MACHINE_CONFIG_START( chihiro_base, chihiro_state )
 	MCFG_PCI_BUS_LEGACY_ADD("agpbus", 1)
 	MCFG_PCI_BUS_LEGACY_SIBLING("pcibus")
 	MCFG_PCI_BUS_LEGACY_DEVICE(0, "NV2A GeForce 3MX Integrated GPU/Northbridge", geforce_pci_r, geforce_pci_w)
-	MCFG_PIC8259_ADD( "pic8259_1", chihiro_pic8259_1_config )
-	MCFG_PIC8259_ADD( "pic8259_2", chihiro_pic8259_2_config )
+	MCFG_PIC8259_ADD( "pic8259_1", WRITELINE(chihiro_state, chihiro_pic8259_1_set_int_line), VCC, READ8(chihiro_state,get_slave_ack) )
+	MCFG_PIC8259_ADD( "pic8259_2", DEVWRITELINE("pic8259_1", pic8259_device, ir2_w), GND, NULL )
 	MCFG_PIT8254_ADD( "pit8254", chihiro_pit8254_config )
-	MCFG_IDE_CONTROLLER_ADD( "ide", ide_baseboard, NULL, "bb", true)
+	MCFG_BUS_MASTER_IDE_CONTROLLER_ADD( "ide", ide_baseboard, NULL, "bb", true)
 	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
-	MCFG_IDE_CONTROLLER_BUS_MASTER("maincpu", AS_PROGRAM)
+	MCFG_BUS_MASTER_IDE_CONTROLLER_SPACE("maincpu", AS_PROGRAM)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1856,7 +3015,7 @@ static MACHINE_CONFIG_START( chihiro_base, chihiro_state )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( chihirogd, chihiro_base )
-	MCFG_NAOMI_GDROM_BOARD_ADD("rom_board", ":gdrom", "pic", NULL, "maincpu", NULL)
+	MCFG_NAOMI_GDROM_BOARD_ADD("rom_board", ":gdrom", "pic", NULL, NOOP)
 MACHINE_CONFIG_END
 
 #define ROM_LOAD16_WORD_SWAP_BIOS(bios,name,offset,length,hash) \
@@ -1874,8 +3033,7 @@ MACHINE_CONFIG_END
 	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "ic10_g24lc64.bin", 0x200000, 0x2000, CRC(cfc5e06f) SHA1(3ababd4334d8d57abb22dd98bd2d347df39648d9) ) \
 	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "ic11_24lc024.bin", 0x202000, 0x80, CRC(8dc8374e) SHA1(cc03a0650bfac4bf6cb66e414bbef121cba53efe) ) \
 	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "pc20_g24lc64.bin", 0x202080, 0x2000, CRC(7742ab62) SHA1(82dad6e2a75bab4a4840dc6939462f1fb9b95101) ) \
-	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "ver1305.bin", 0x204080, 0x200000, CRC(a738ea1c) SHA1(45d94d0c39be1cb3db9fab6610a88a550adda4e9) ) \
-
+	ROM_LOAD16_WORD_SWAP_BIOS( 0,  "ver1305.bin", 0x204080, 0x200000, CRC(a738ea1c) SHA1(45d94d0c39be1cb3db9fab6610a88a550adda4e9) )
 ROM_START( chihiro )
 	CHIHIRO_BIOS
 

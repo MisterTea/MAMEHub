@@ -14,12 +14,27 @@
 #include "imagedev/cassette.h"
 #include "sound/speaker.h"
 #include "sound/wave.h"
+#include "machine/ram.h"
+
 
 class pk8020_state : public driver_device
 {
 public:
 	pk8020_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_ppi8255_1(*this, "ppi8255_1"),
+		m_ppi8255_2(*this, "ppi8255_2"),
+		m_ppi8255_3(*this, "ppi8255_3"),
+		m_rs232(*this, "rs232"),
+		m_lan(*this, "lan"),
+		m_ram(*this, RAM_TAG),
+		m_wd1793(*this, "wd1793"),
+		m_pit8253(*this, "pit8253"),
+		m_pic8259(*this, "pic8259"),
+		m_speaker(*this, "speaker"),
+		m_region_maincpu(*this, "maincpu"),
+		m_region_gfx1(*this, "gfx1") { }
 
 	UINT8 m_color;
 	UINT8 m_video_page;
@@ -41,6 +56,7 @@ public:
 	DECLARE_WRITE8_MEMBER(gzu_w);
 	DECLARE_READ8_MEMBER(devices_r);
 	DECLARE_WRITE8_MEMBER(devices_w);
+	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
 	virtual void palette_init();
@@ -54,6 +70,25 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(pk8020_pit_out0);
 	DECLARE_WRITE_LINE_MEMBER(pk8020_pit_out1);
 	DECLARE_WRITE_LINE_MEMBER(pk8020_pic_set_int_line);
+	IRQ_CALLBACK_MEMBER(pk8020_irq_callback);
+
+protected:
+	required_device<cpu_device> m_maincpu;
+	required_device<i8255_device> m_ppi8255_1;
+	required_device<i8255_device> m_ppi8255_2;
+	required_device<i8255_device> m_ppi8255_3;
+	required_device<i8251_device> m_rs232;
+	required_device<i8251_device> m_lan;
+	required_device<ram_device> m_ram;
+	required_device<device_t> m_wd1793;
+	required_device<pit8253_device> m_pit8253;
+	required_device<pic8259_device> m_pic8259;
+	required_device<speaker_sound_device> m_speaker;
+	required_memory_region m_region_maincpu;
+	required_memory_region m_region_gfx1;
+	ioport_port *m_io_port[16];
+
+	void pk8020_set_bank(UINT8 data);
 };
 
 
@@ -61,7 +96,6 @@ public:
 extern const i8255_interface pk8020_ppi8255_interface_1;
 extern const i8255_interface pk8020_ppi8255_interface_2;
 extern const i8255_interface pk8020_ppi8255_interface_3;
-extern const struct pit8253_config pk8020_pit8253_intf;
-extern const struct pic8259_interface pk8020_pic8259_config;
+extern const struct pit8253_interface pk8020_pit8253_intf;
 
 #endif /* pk8020_H_ */

@@ -45,6 +45,11 @@
 class mekd2_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_TRACE
+	};
+
 	mekd2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
@@ -65,7 +70,10 @@ public:
 	UINT8 m_segment;
 	UINT8 m_digit;
 	UINT8 m_keydata;
-	TIMER_CALLBACK_MEMBER(mekd2_trace);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(mekd2_cart);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -160,17 +168,25 @@ INPUT_PORTS_END
 
 ************************************************************/
 
-TIMER_CALLBACK_MEMBER(mekd2_state::mekd2_trace)
+void mekd2_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+	switch (id)
+	{
+	case TIMER_TRACE:
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in mekd2_state::device_timer");
+	}
 }
+
 
 WRITE_LINE_MEMBER( mekd2_state::mekd2_nmi_w )
 {
 	if (state)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 	else
-		machine().scheduler().timer_set(attotime::from_usec(18), timer_expired_delegate(FUNC(mekd2_state::mekd2_trace),this));
+		timer_set(attotime::from_usec(18), TIMER_TRACE);
 }
 
 
@@ -295,12 +311,12 @@ static ACIA6850_INTERFACE( mekd2_acia_intf )
 	DEVCB_NULL                      /* out irq func */
 };
 
-static DEVICE_IMAGE_LOAD( mekd2_cart )
+DEVICE_IMAGE_LOAD_MEMBER( mekd2_state,mekd2_cart )
 {
 	static const char magic[] = "MEK6800D2";
 	char buff[9];
 	UINT16 addr, size;
-	UINT8 ident, *RAM = image.device().machine().root_device().memregion("maincpu")->base();
+	UINT8 ident, *RAM = memregion("maincpu")->base();
 
 	image.fread( buff, sizeof (buff));
 	if (memcmp(buff, magic, sizeof (buff)))
@@ -335,16 +351,16 @@ static MACHINE_CONFIG_START( mekd2, mekd2_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, default_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", default_cassette_interface )
 
 	/* Cartslot ?? does not come with one.. */
 	MCFG_CARTSLOT_ADD("cart")
 	MCFG_CARTSLOT_EXTENSION_LIST("d2")
 	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(mekd2_cart)
+	MCFG_CARTSLOT_LOAD(mekd2_state,mekd2_cart)
 
 	/* Devices */
 	MCFG_PIA6821_ADD("pia_s", mekd2_s_mc6821_intf)

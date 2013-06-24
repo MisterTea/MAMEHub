@@ -7,6 +7,9 @@
 #include "machine/isa.h"
 #include "sound/dac.h"
 #include "machine/pc_joy.h"
+#include "machine/serial.h"
+#include "machine/midiinport.h"
+#include "machine/midioutport.h"
 
 #define SIXTEENBIT  0x01
 #define STEREO      0x02
@@ -86,18 +89,19 @@ struct sb16_mixer
 	UINT8 bass[2];
 };
 
-// ======================> sb8_device (parent)
+// ======================> sb_device (parent)
 
 class sb_device :
-		public device_t
+		public device_t, public device_serial_interface
 {
 public:
 		// construction/destruction
-		sb_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name);
+		sb_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name, const char *shortname, const char *source);
 
 		required_device<dac_device> m_dacl;
 		required_device<dac_device> m_dacr;
-	required_device<pc_joy_device> m_joy;
+		required_device<pc_joy_device> m_joy;
+		required_device<serial_port_device> m_mdout;
 
 		void process_fifo(UINT8 cmd);
 		void queue(UINT8 data);
@@ -113,6 +117,8 @@ public:
 		DECLARE_WRITE8_MEMBER(dsp_rbuf_status_w);
 		DECLARE_WRITE8_MEMBER(dsp_cmd_w);
 
+		DECLARE_WRITE_LINE_MEMBER( midi_rx_w ) { check_for_start((UINT8)state); }
+
 protected:
 		// device-level overrides
 		virtual void device_reset();
@@ -125,8 +131,24 @@ protected:
 		virtual void mixer_reset() {}
 		void adpcm_decode(UINT8 sample, int size);
 
+		// serial overrides
+		virtual void rcv_complete();    // Rx completed receiving byte
+		virtual void tra_complete();    // Tx completed sending byte
+		virtual void tra_callback();    // Tx send bit
+		void input_callback(UINT8 state) {}
+
+		static const int MIDI_RING_SIZE = 2048;
+
 		struct sb8_dsp_state m_dsp;
 		UINT8 m_dack_out;
+		void xmit_char(UINT8 data);
+		bool m_onebyte_midi, m_uart_midi, m_uart_irq, m_mpu_midi;
+		int m_rx_waiting, m_tx_waiting;
+		UINT8 m_recvring[MIDI_RING_SIZE];
+		UINT8 m_xmitring[MIDI_RING_SIZE];
+		int m_xmit_read, m_xmit_write;
+		int m_recv_read, m_recv_write;
+		bool m_tx_busy;
 
 		emu_timer *m_timer;
 };
@@ -136,7 +158,7 @@ class sb8_device : public sb_device,
 {
 public:
 		// construction/destruction
-		sb8_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name);
+		sb8_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name, const char *shortname, const char *source);
 protected:
 		virtual void device_start();
 		virtual void drq_w(int state) { m_isa->drq1_w(state); }
@@ -156,7 +178,6 @@ public:
 protected:
 		// device-level overrides
 		virtual void device_start();
-		virtual void device_config_complete() { m_shortname = "isa_sblaster1_0"; }
 private:
 		// internal state
 };
@@ -172,7 +193,6 @@ public:
 protected:
 		// device-level overrides
 		virtual void device_start();
-		virtual void device_config_complete() { m_shortname = "isa_sblaster1_5"; }
 private:
 		// internal state
 };
@@ -182,7 +202,7 @@ class sb16_device : public sb_device,
 {
 public:
 		// construction/destruction
-		sb16_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name);
+		sb16_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, const char *name, const char *shortname, const char *source);
 		DECLARE_READ8_MEMBER(mpu401_r);
 		DECLARE_WRITE8_MEMBER(mpu401_w);
 		DECLARE_READ8_MEMBER(mixer_r);
@@ -198,10 +218,8 @@ protected:
 		virtual void irq_w(int state, int source) { (state?m_dsp.irq_active|=source:m_dsp.irq_active&=~source); m_isa->irq5_w(m_dsp.irq_active);  }
 		virtual void mixer_reset();
 		void mixer_set();
+		virtual void rcv_complete();    // Rx completed receiving byte
 private:
-		UINT8 m_mpu_queue[16];
-		UINT8 m_tail;
-		UINT8 m_head;
 		struct sb16_mixer m_mixer;
 };
 
@@ -216,7 +234,6 @@ public:
 protected:
 		// device-level overrides
 		virtual void device_start();
-		virtual void device_config_complete() { m_shortname = "isa_sblaster_16"; }
 private:
 		// internal state
 };

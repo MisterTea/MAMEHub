@@ -49,12 +49,13 @@ class galaxi_state : public driver_device
 {
 public:
 	galaxi_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bg1_ram(*this, "bg1_ram"),
 		m_bg2_ram(*this, "bg2_ram"),
 		m_bg3_ram(*this, "bg3_ram"),
 		m_bg4_ram(*this, "bg4_ram"),
-		m_fg_ram(*this, "fg_ram"){ }
+		m_fg_ram(*this, "fg_ram"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_bg1_ram;
@@ -95,6 +96,8 @@ public:
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_galaxi(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void show_out(  );
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -164,7 +167,6 @@ WRITE16_MEMBER(galaxi_state::galaxi_fg_w)
 
 void galaxi_state::video_start()
 {
-
 	m_bg1_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galaxi_state::get_bg1_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
 	m_bg2_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galaxi_state::get_bg2_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
 	m_bg3_tmap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(galaxi_state::get_bg3_tile_info),this), TILEMAP_SCAN_ROWS, 16, 16, 0x20, 0x10);
@@ -214,27 +216,25 @@ UINT32 galaxi_state::screen_update_galaxi(screen_device &screen, bitmap_ind16 &b
                             Memory Maps
 ***************************************************************************/
 
-static void show_out( running_machine &machine )
+void galaxi_state::show_out(  )
 {
-//  galaxi_state *state = machine.driver_data<galaxi_state>();
-//  popmessage("%04x %04x %04x", state->m_out[0], state->m_out[1], state->m_out[2]);
+//  popmessage("%04x %04x %04x", m_out[0], m_out[1], m_out[2]);
 }
 
 WRITE16_MEMBER(galaxi_state::galaxi_500000_w)
 {
 	COMBINE_DATA(&m_out[0]);
-	show_out(machine());
+	show_out();
 }
 
 WRITE16_MEMBER(galaxi_state::galaxi_500002_w)
 {
 	COMBINE_DATA(&m_out[1]);
-	show_out(machine());
+	show_out();
 }
 
 WRITE16_MEMBER(galaxi_state::galaxi_500004_w)
 {
-
 	if (ACCESSING_BITS_0_7)
 	{
 	/*
@@ -265,7 +265,7 @@ WRITE16_MEMBER(galaxi_state::galaxi_500004_w)
 	}
 
 	COMBINE_DATA(&m_out[2]);
-	show_out(machine());
+	show_out();
 }
 
 CUSTOM_INPUT_MEMBER(galaxi_state::ticket_r)
@@ -385,7 +385,6 @@ GFXDECODE_END
 
 void galaxi_state::machine_start()
 {
-
 	save_item(NAME(m_hopper));
 	save_item(NAME(m_ticket));
 	save_item(NAME(m_out));
@@ -393,7 +392,6 @@ void galaxi_state::machine_start()
 
 void galaxi_state::machine_reset()
 {
-
 	m_hopper = 0;
 	m_ticket = 0;
 	m_out[0] = 0;

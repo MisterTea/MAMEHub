@@ -9,7 +9,7 @@ Preliminary driver by:
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "cpu/konami/konami.h" /* for the callback and the firq irq definition */
+#include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
 #include "sound/k007232.h"
 #include "sound/2151intf.h"
 #include "video/konicdev.h"
@@ -21,7 +21,6 @@ static KONAMI_SETLINES_CALLBACK( aliens_banking );
 
 INTERRUPT_GEN_MEMBER(aliens_state::aliens_interrupt)
 {
-
 	if (k051960_is_irq_enabled(m_k051960))
 		device.execute().set_input_line(KONAMI_IRQ_LINE, HOLD_LINE);
 }
@@ -44,7 +43,6 @@ WRITE8_MEMBER(aliens_state::bankedram_w)
 
 WRITE8_MEMBER(aliens_state::aliens_coin_counter_w)
 {
-
 	/* bits 0-1 = coin counters */
 	coin_counter_w(machine(), 0, data & 0x01);
 	coin_counter_w(machine(), 1, data & 0x02);
@@ -67,14 +65,12 @@ WRITE8_MEMBER(aliens_state::aliens_coin_counter_w)
 
 WRITE8_MEMBER(aliens_state::aliens_sh_irqtrigger_w)
 {
-
 	soundlatch_byte_w(space, offset, data);
 	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 WRITE8_MEMBER(aliens_state::aliens_snd_bankswitch_w)
 {
-
 	/* b1: bank for chanel A */
 	/* b0: bank for chanel B */
 
@@ -87,7 +83,6 @@ WRITE8_MEMBER(aliens_state::aliens_snd_bankswitch_w)
 
 READ8_MEMBER(aliens_state::k052109_051960_r)
 {
-
 	if (k052109_get_rmrd_line(m_k052109) == CLEAR_LINE)
 	{
 		if (offset >= 0x3800 && offset < 0x3808)
@@ -103,7 +98,6 @@ READ8_MEMBER(aliens_state::k052109_051960_r)
 
 WRITE8_MEMBER(aliens_state::k052109_051960_w)
 {
-
 	if (offset >= 0x3800 && offset < 0x3808)
 		k051937_w(m_k051960, space, offset - 0x3800, data);
 	else if (offset < 0x3c00)
@@ -191,15 +185,15 @@ INPUT_PORTS_END
 
 ***************************************************************************/
 
-static void volume_callback( device_t *device, int v )
+WRITE8_MEMBER(aliens_state::volume_callback)
 {
-	k007232_set_volume(device, 0, (v & 0x0f) * 0x11, 0);
-	k007232_set_volume(device, 1, 0, (v >> 4) * 0x11);
+	k007232_set_volume(m_k007232, 0, (data & 0x0f) * 0x11, 0);
+	k007232_set_volume(m_k007232, 1, 0, (data >> 4) * 0x11);
 }
 
 static const k007232_interface k007232_config =
 {
-	volume_callback /* external port callback */
+	DEVCB_DRIVER_MEMBER(aliens_state,volume_callback) /* external port callback */
 };
 
 
@@ -226,19 +220,12 @@ void aliens_state::machine_start()
 	membank("bank1")->configure_entries(0, 20, &ROM[0x10000], 0x2000);
 	membank("bank1")->set_entry(0);
 
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_k007232 = machine().device("k007232");
-	m_k052109 = machine().device("k052109");
-	m_k051960 = machine().device("k051960");
-
 	save_item(NAME(m_palette_selected));
 }
 
 void aliens_state::machine_reset()
 {
-
-	konami_configure_set_lines(machine().device("maincpu"), aliens_banking);
+	konami_configure_set_lines(m_maincpu, aliens_banking);
 
 	m_palette_selected = 0;
 }

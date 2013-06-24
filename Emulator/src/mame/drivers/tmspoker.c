@@ -218,8 +218,9 @@ class tmspoker_state : public driver_device
 {
 public:
 	tmspoker_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t *m_bg_tilemap;
@@ -234,6 +235,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_tmspoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(tmspoker_interrupt);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -298,18 +300,18 @@ INTERRUPT_GEN_MEMBER(tmspoker_state::tmspoker_interrupt)
 
 void tmspoker_state::machine_start()
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 2, &ROM[0], 0x1000);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 2, &ROM[0], 0x1000);
 }
 
 
 void tmspoker_state::machine_reset()
 {
-	UINT8 seldsw = (machine().root_device().ioport("SELDSW")->read() );
+	UINT8 seldsw = (ioport("SELDSW")->read() );
 
 	popmessage("ROM Bank: %02X", seldsw);
 
-	machine().root_device().membank("bank1")->set_entry(seldsw);
+	membank("bank1")->set_entry(seldsw);
 }
 
 
@@ -544,9 +546,10 @@ GFXDECODE_END
 *    CRTC Interface    *
 ************************/
 
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -616,8 +619,8 @@ DRIVER_INIT_MEMBER(tmspoker_state,bus)
 {
 	/* decode the TMS9980 ROMs */
 	offs_t offs;
-	UINT8 *rom = machine().root_device().memregion("maincpu")->base();
-	const size_t len = machine().root_device().memregion("maincpu")->bytes();
+	UINT8 *rom = memregion("maincpu")->base();
+	const size_t len = memregion("maincpu")->bytes();
 
 	for (offs = 0; offs < len; offs++)
 	{

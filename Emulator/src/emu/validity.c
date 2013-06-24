@@ -336,7 +336,6 @@ void validity_checker::validate_one(const game_driver &driver)
 
 void validity_checker::validate_core()
 {
-
 	// basic system checks
 	UINT8 a = 0xff;
 	UINT8 b = a + 1;
@@ -1078,6 +1077,8 @@ void validity_checker::validate_inputs()
 void validity_checker::validate_devices()
 {
 	int_map device_map;
+
+	m_current_config->root_device().findit(true);
 
 	// iterate over devices
 	device_iterator iter(m_current_config->root_device());

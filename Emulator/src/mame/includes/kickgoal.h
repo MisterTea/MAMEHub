@@ -18,7 +18,9 @@ public:
 		m_scrram(*this, "scrram"),
 		m_spriteram(*this, "spriteram"),
 		m_adpcm(*this, "oki"),
-		m_eeprom(*this, "eeprom") { }
+		m_eeprom(*this, "eeprom") ,
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_fgram;
@@ -76,4 +78,8 @@ public:
 	DECLARE_VIDEO_START(actionhw);
 	UINT32 screen_update_kickgoal(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(kickgoal_interrupt);
+	void kickgoal_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void kickgoal_play(okim6295_device *oki, int melody, int data);
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki;
 };

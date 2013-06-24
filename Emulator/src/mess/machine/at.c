@@ -16,26 +16,10 @@
 READ8_MEMBER( at_state::get_slave_ack )
 {
 	if (offset==2) // IRQ = 2
-		return pic8259_acknowledge(m_pic8259_slave);
+		return m_pic8259_slave->inta_r();
 
 	return 0x00;
 }
-
-const struct pic8259_interface at_pic8259_master_config =
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", 0),
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_MEMBER(at_state, get_slave_ack)
-};
-
-const struct pic8259_interface at_pic8259_slave_config =
-{
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir2_w),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
-
-
 
 /*************************************************************************
  *
@@ -46,13 +30,13 @@ const struct pic8259_interface at_pic8259_slave_config =
 void at_state::at_speaker_set_spkrdata(UINT8 data)
 {
 	m_at_spkrdata = data ? 1 : 0;
-	speaker_level_w( m_speaker, m_at_spkrdata & m_at_speaker_input);
+	m_speaker->level_w(m_at_spkrdata & m_at_speaker_input);
 }
 
 void at_state::at_speaker_set_input(UINT8 data)
 {
 	m_at_speaker_input = data ? 1 : 0;
-	speaker_level_w( m_speaker, m_at_spkrdata & m_at_speaker_input);
+	m_speaker->level_w(m_at_spkrdata & m_at_speaker_input);
 }
 
 
@@ -65,8 +49,7 @@ void at_state::at_speaker_set_input(UINT8 data)
 
 WRITE_LINE_MEMBER( at_state::at_pit8254_out0_changed )
 {
-	if (m_pic8259_master)
-		pic8259_ir0_w(m_pic8259_master, state);
+	m_pic8259_master->ir0_w(state);
 }
 
 
@@ -76,7 +59,7 @@ WRITE_LINE_MEMBER( at_state::at_pit8254_out2_changed )
 }
 
 
-const struct pit8253_config at_pit8254_config =
+const struct pit8253_interface at_pit8254_config =
 {
 	{
 		{
@@ -293,7 +276,7 @@ READ8_MEMBER( at_state::at_portb_r )
 	}
 	data = (data & ~0x10) | ( m_at_offset1 & 0x10 );
 
-	if ( pit8253_get_output(m_pit8254, 2 ) )
+	if (m_pit8254->get_output(2))
 		data |= 0x20;
 	else
 		data &= ~0x20; /* ps2m30 wants this */
@@ -304,7 +287,7 @@ READ8_MEMBER( at_state::at_portb_r )
 WRITE8_MEMBER( at_state::at_portb_w )
 {
 	m_at_speaker = data;
-	pit8253_gate2_w(m_pit8254, BIT(data, 0));
+	m_pit8254->gate2_w(BIT(data, 0));
 	at_speaker_set_spkrdata( BIT(data, 1));
 	m_channel_check = BIT(data, 3);
 	m_isabus->set_nmi_state((m_nmi_enabled==0) && (m_channel_check==0));
@@ -317,48 +300,46 @@ WRITE8_MEMBER( at_state::at_portb_w )
  *
  **********************************************************/
 
-static void init_at_common(running_machine &machine)
+void at_state::init_at_common()
 {
-	at_state *state = machine.driver_data<at_state>();
-	address_space& space = machine.device("maincpu")->memory().space(AS_PROGRAM);
+	address_space& space = m_maincpu->space(AS_PROGRAM);
 
 	// The CS4031 chipset does this itself
-	if (machine.device("cs4031") == NULL)
+	if (machine().device("cs4031") == NULL)
 	{
 		/* MESS managed RAM */
-		state->membank("bank10")->set_base(machine.device<ram_device>(RAM_TAG)->pointer());
+		membank("bank10")->set_base(m_ram->pointer());
 
-		if (machine.device<ram_device>(RAM_TAG)->size() > 0x0a0000)
+		if (m_ram->size() > 0x0a0000)
 		{
-			offs_t ram_limit = 0x100000 + machine.device<ram_device>(RAM_TAG)->size() - 0x0a0000;
+			offs_t ram_limit = 0x100000 + m_ram->size() - 0x0a0000;
 			space.install_read_bank(0x100000,  ram_limit - 1, "bank1");
 			space.install_write_bank(0x100000,  ram_limit - 1, "bank1");
-			state->membank("bank1")->set_base(machine.device<ram_device>(RAM_TAG)->pointer() + 0xa0000);
+			membank("bank1")->set_base(m_ram->pointer() + 0xa0000);
 		}
 	}
 
-	state->m_at_offset1 = 0xff;
+	m_at_offset1 = 0xff;
 }
 
 DRIVER_INIT_MEMBER(at_state,atcga)
 {
-	init_at_common(machine());
+	init_at_common();
 }
 
 DRIVER_INIT_MEMBER(at_state,atvga)
 {
-	init_at_common(machine());
+	init_at_common();
 }
 
-static IRQ_CALLBACK(at_irq_callback)
+IRQ_CALLBACK_MEMBER(at_state::at_irq_callback)
 {
-	at_state *st = device->machine().driver_data<at_state>();
-	return pic8259_acknowledge(st->m_pic8259_master);
+	return m_pic8259_master->inta_r();
 }
 
 MACHINE_START_MEMBER(at_state,at)
 {
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(at_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(at_state::at_irq_callback),this));
 }
 
 MACHINE_RESET_MEMBER(at_state,at)

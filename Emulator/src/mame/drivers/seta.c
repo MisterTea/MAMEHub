@@ -1403,7 +1403,7 @@ static void uPD71054_update_timer( running_machine &machine, device_t *cpu, int 
 ------------------------------*/
 TIMER_CALLBACK_MEMBER(seta_state::uPD71054_timer_callback)
 {
-	machine().device("maincpu")->execute().set_input_line(4, HOLD_LINE );
+	m_maincpu->set_input_line(4, HOLD_LINE );
 	uPD71054_update_timer( machine(), NULL, param );
 }
 
@@ -1412,10 +1412,9 @@ TIMER_CALLBACK_MEMBER(seta_state::uPD71054_timer_callback)
 /*------------------------------
     initialize
 ------------------------------*/
-static void uPD71054_timer_init( running_machine &machine )
+void seta_state::uPD71054_timer_init(  )
 {
-	seta_state *state = machine.driver_data<seta_state>();
-	uPD71054_state *uPD71054 = &state->m_uPD71054;
+	uPD71054_state *uPD71054 = &m_uPD71054;
 	int no;
 
 	uPD71054->write_select = 0;
@@ -1424,7 +1423,7 @@ static void uPD71054_timer_init( running_machine &machine )
 		uPD71054->max[no] = 0xffff;
 	}
 	for( no = 0; no < USED_TIMER_NUM; no++ ) {
-		uPD71054->timer[no] = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(seta_state::uPD71054_timer_callback),state));
+		uPD71054->timer[no] = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(seta_state::uPD71054_timer_callback),this));
 	}
 }
 
@@ -1488,15 +1487,10 @@ static const x1_010_interface seta_sound_intf2 =
 	0x1000,     /* address */
 };
 
-static void utoukond_ym3438_interrupt(device_t *device, int linestate)
+WRITE_LINE_MEMBER(seta_state::utoukond_ym3438_interrupt)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, linestate);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, state);
 }
-
-static const ym3438_interface utoukond_ym3438_intf =
-{
-	utoukond_ym3438_interrupt   // IRQ handler
-};
 
 /***************************************************************************
 
@@ -1518,7 +1512,6 @@ static const ym3438_interface utoukond_ym3438_intf =
 
 READ16_MEMBER(seta_state::sharedram_68000_r)
 {
-
 	return ((UINT16)m_sharedram[offset]) & 0xff;
 }
 
@@ -1546,9 +1539,8 @@ WRITE16_MEMBER(seta_state::sub_ctrl_w)
 		case 0/2:   // bit 0: reset sub cpu?
 			if (ACCESSING_BITS_0_7)
 			{
-
 				if ( !(m_sub_ctrl_data & 1) && (data & 1) )
-					machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+					m_subcpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
 				m_sub_ctrl_data = data;
 			}
 			break;
@@ -1581,12 +1573,12 @@ READ16_MEMBER(seta_state::seta_dsw_r)
 
 READ8_MEMBER(seta_state::dsw1_r)
 {
-	return (machine().root_device().ioport("DSW")->read() >> 8) & 0xff;
+	return (ioport("DSW")->read() >> 8) & 0xff;
 }
 
 READ8_MEMBER(seta_state::dsw2_r)
 {
-	return (machine().root_device().ioport("DSW")->read() >> 0) & 0xff;
+	return (ioport("DSW")->read() >> 0) & 0xff;
 }
 
 
@@ -1707,7 +1699,7 @@ WRITE16_MEMBER(seta_state::calibr50_soundlatch_w)
 	if (ACCESSING_BITS_0_7)
 	{
 		soundlatch_word_w(space, 0, data, mem_mask);
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 		space.device().execute().spin_until_time(attotime::from_usec(50));  // Allow the other cpu to reply
 	}
 }
@@ -1789,7 +1781,7 @@ WRITE16_MEMBER(seta_state::usclssic_lockout_w)
 			machine().tilemap().mark_all_dirty();
 		m_tiles_offset = tiles_offset;
 
-		seta_coin_lockout_w(machine(), data);
+		seta_coin_lockout_w(data);
 	}
 }
 
@@ -1926,7 +1918,6 @@ READ16_MEMBER(seta_state::zombraid_gun_r)// Serial interface
 // Bit 0 is clock, 1 is data, 2 is reset
 WRITE16_MEMBER(seta_state::zombraid_gun_w)
 {
-
 	if(data&4) { m_gun_bit_count = 0; return; } // Reset
 
 	if((data&1) == m_gun_old_clock) return; // No change
@@ -2761,15 +2752,13 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(seta_state::wiggie_soundlatch_r)
 {
-
 	return m_wiggie_soundlatch;
 }
 
 WRITE16_MEMBER(seta_state::wiggie_soundlatch_w)
 {
-
 	m_wiggie_soundlatch = data >> 8;
-	machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+	m_audiocpu->set_input_line(0, HOLD_LINE);
 }
 
 
@@ -2835,7 +2824,7 @@ WRITE16_MEMBER(seta_state::utoukond_soundlatch_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-		machine().device("audiocpu")->execute().set_input_line(0, HOLD_LINE);
+		m_audiocpu->set_input_line(0, HOLD_LINE);
 		soundlatch_byte_w(space, 0, data & 0xff);
 	}
 }
@@ -2915,7 +2904,7 @@ static ADDRESS_MAP_START( crazyfgt_map, AS_PROGRAM, 16, seta_state )
 	AM_RANGE(0x620000, 0x620003) AM_WRITENOP    // protection
 	AM_RANGE(0x630000, 0x630003) AM_READ(seta_dsw_r)
 	AM_RANGE(0x640400, 0x640fff) AM_WRITEONLY AM_SHARE("paletteram")    // Palette
-	AM_RANGE(0x650000, 0x650003) AM_DEVWRITE8_LEGACY("ymsnd", ym3812_w, 0x00ff)
+	AM_RANGE(0x650000, 0x650003) AM_DEVWRITE8("ymsnd", ym3812_device, write, 0x00ff)
 	AM_RANGE(0x658000, 0x658001) AM_DEVWRITE8("oki", okim6295_device, write, 0x00ff)
 	AM_RANGE(0x670000, 0x670001) AM_READNOP     // watchdog?
 	AM_RANGE(0x800000, 0x803fff) AM_WRITE(seta_vram_2_w) AM_SHARE("vram_2") // VRAM 2
@@ -2943,7 +2932,6 @@ READ16_MEMBER(seta_state::inttoote_dsw_r)
 
 READ16_MEMBER(seta_state::inttoote_key_r)
 {
-
 	switch( *m_inttoote_key_select )
 	{
 		case 0x08:  return ioport("BET0")->read();
@@ -2959,7 +2947,6 @@ READ16_MEMBER(seta_state::inttoote_key_r)
 
 READ16_MEMBER(seta_state::inttoote_700000_r)
 {
-
 	return m_inttoote_700000[offset] & 0x3f;
 }
 
@@ -3000,7 +2987,6 @@ ADDRESS_MAP_END
 
 READ16_MEMBER(seta_state::jockeyc_mux_r)
 {
-
 	switch( m_jockeyc_key_select )
 	{
 		case 0x08:  return ioport("BET0")->read();
@@ -3015,7 +3001,6 @@ READ16_MEMBER(seta_state::jockeyc_mux_r)
 
 WRITE16_MEMBER(seta_state::jockeyc_mux_w)
 {
-
 	/* other bits used too */
 	m_jockeyc_key_select = data & 0xf8;
 }
@@ -3082,7 +3067,7 @@ WRITE8_MEMBER(seta_state::sub_bankswitch_w)
 WRITE8_MEMBER(seta_state::sub_bankswitch_lockout_w)
 {
 	sub_bankswitch_w(space,offset,data);
-	seta_coin_lockout_w(machine(), data);
+	seta_coin_lockout_w(data);
 }
 
 
@@ -3101,8 +3086,8 @@ static ADDRESS_MAP_START( tndrcade_sub_map, AS_PROGRAM, 8, seta_state )
 	AM_RANGE(0x1000, 0x1000) AM_WRITE(sub_bankswitch_lockout_w) // ROM Bank + Coin Lockout
 	AM_RANGE(0x1001, 0x1001) AM_READ_PORT("P2")                 // P2
 	AM_RANGE(0x1002, 0x1002) AM_READ_PORT("COINS")              // Coins
-	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r,ym2203_w)
-	AM_RANGE(0x3000, 0x3001) AM_DEVWRITE_LEGACY("ym2", ym3812_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0x3000, 0x3001) AM_DEVWRITE("ym2", ym3812_device, write)
 	AM_RANGE(0x5000, 0x57ff) AM_RAM AM_SHARE("sharedram")       // Shared RAM
 	AM_RANGE(0x6000, 0x7fff) AM_ROM                             // ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")                        // Banked ROM
@@ -3175,7 +3160,7 @@ ADDRESS_MAP_END
 
 MACHINE_RESET_MEMBER(seta_state,calibr50)
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	sub_bankswitch_w(space, 0, 0);
 }
 
@@ -3227,7 +3212,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( utoukond_sound_io_map, AS_IO, 8, seta_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE_LEGACY("ymsnd", ym3438_r, ym3438_w)
+	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE("ymsnd", ym3438_device, read, write)
 	AM_RANGE(0x80, 0x80) AM_WRITENOP //?
 	AM_RANGE(0xc0, 0xc0) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -7449,16 +7434,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(seta_state::seta_sub_interrupt)
                                 Thundercade
 ***************************************************************************/
 
-static const ym2203_interface tndrcade_ym2203_interface =
+static const ay8910_interface ay8910_config =
 {
-	{
-		AY8910_LEGACY_OUTPUT,
-		AY8910_DEFAULT_LOADS,
-		DEVCB_DRIVER_MEMBER(seta_state,dsw1_r),     /* input A: DSW 1 */
-		DEVCB_DRIVER_MEMBER(seta_state,dsw2_r),     /* input B: DSW 2 */
-		DEVCB_NULL,
-		DEVCB_NULL
-	},
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_DRIVER_MEMBER(seta_state,dsw1_r),     /* input A: DSW 1 */
+	DEVCB_DRIVER_MEMBER(seta_state,dsw2_r),     /* input B: DSW 2 */
+	DEVCB_NULL,
 	DEVCB_NULL
 };
 
@@ -7504,7 +7486,7 @@ static MACHINE_CONFIG_START( tndrcade, seta_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ym1", YM2203, 16000000/4)   /* 4 MHz */
-	MCFG_SOUND_CONFIG(tndrcade_ym2203_interface)
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.35)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.35)
 
@@ -8050,7 +8032,7 @@ static MACHINE_CONFIG_START( setaroul, seta_state )
 	MCFG_PALETTE_LENGTH(512)
 	MCFG_PALETTE_INIT_OVERRIDE(seta_state,setaroul)
 
-	MCFG_VIDEO_START_OVERRIDE(seta_state,seta_1_layer)
+	MCFG_VIDEO_START_OVERRIDE(seta_state,setaroul_1_layer)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -8149,7 +8131,7 @@ INTERRUPT_GEN_MEMBER(seta_state::wrofaero_interrupt)
 	device.execute().set_input_line(2, HOLD_LINE );
 }
 
-MACHINE_START_MEMBER(seta_state,wrofaero){ uPD71054_timer_init(machine()); }
+MACHINE_START_MEMBER(seta_state,wrofaero){ uPD71054_timer_init(); }
 #endif  // __uPD71054_TIMER
 
 
@@ -8922,7 +8904,7 @@ static MACHINE_CONFIG_START( utoukond, seta_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("ymsnd", YM3438, 16000000/4) /* 4 MHz */
-	MCFG_SOUND_CONFIG(utoukond_ym3438_intf)
+	MCFG_YM2612_IRQ_HANDLER(WRITELINE(seta_state, utoukond_ym3438_interrupt))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.30)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.30)
 MACHINE_CONFIG_END
@@ -10694,7 +10676,6 @@ READ16_MEMBER(seta_state::twineagl_debug_r)
 /* 2000F8 = A3 enables it, 2000F8 = 00 disables? see downtown too */
 READ16_MEMBER(seta_state::twineagl_200100_r)
 {
-
 	// protection check at boot
 	logerror("%04x: twineagl_200100_r %d\n",space.device().safe_pc(),offset);
 	return m_twineagl_xram[offset];
@@ -10712,10 +10693,10 @@ WRITE16_MEMBER(seta_state::twineagl_200100_w)
 DRIVER_INIT_MEMBER(seta_state,twineagl)
 {
 	/* debug? */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x800000, 0x8000ff, read16_delegate(FUNC(seta_state::twineagl_debug_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x800000, 0x8000ff, read16_delegate(FUNC(seta_state::twineagl_debug_r),this));
 
 	/* This allows 2 simultaneous players and the use of the "Copyright" Dip Switch. */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x200100, 0x20010f, read16_delegate(FUNC(seta_state::twineagl_200100_r),this), write16_delegate(FUNC(seta_state::twineagl_200100_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x200100, 0x20010f, read16_delegate(FUNC(seta_state::twineagl_200100_r),this), write16_delegate(FUNC(seta_state::twineagl_200100_w),this));
 }
 
 
@@ -10744,7 +10725,7 @@ WRITE16_MEMBER(seta_state::downtown_protection_w)
 
 DRIVER_INIT_MEMBER(seta_state,downtown)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0x200000, 0x2001ff, read16_delegate(FUNC(seta_state::downtown_protection_r),this), write16_delegate(FUNC(seta_state::downtown_protection_w),this));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x200000, 0x2001ff, read16_delegate(FUNC(seta_state::downtown_protection_r),this), write16_delegate(FUNC(seta_state::downtown_protection_w),this));
 }
 
 
@@ -10764,16 +10745,16 @@ READ16_MEMBER(seta_state::arbalest_debug_r)
 
 DRIVER_INIT_MEMBER(seta_state,arbalest)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x80000, 0x8000f, read16_delegate(FUNC(seta_state::arbalest_debug_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x80000, 0x8000f, read16_delegate(FUNC(seta_state::arbalest_debug_r),this));
 }
 
 
 DRIVER_INIT_MEMBER(seta_state,metafox)
 {
-	UINT16 *RAM = (UINT16 *) machine().root_device().memregion("maincpu")->base();
+	UINT16 *RAM = (UINT16 *) memregion("maincpu")->base();
 
 	/* This game uses the 21c000-21ffff area for protection? */
-//  machine().device("maincpu")->memory().space(AS_PROGRAM).nop_readwrite(0x21c000, 0x21ffff);
+//  m_maincpu->space(AS_PROGRAM).nop_readwrite(0x21c000, 0x21ffff);
 
 	RAM[0x8ab1c/2] = 0x4e71;    // patch protection test: "cp error"
 	RAM[0x8ab1e/2] = 0x4e71;
@@ -10793,7 +10774,7 @@ DRIVER_INIT_MEMBER(seta_state,blandia)
 	rom_size = 0x80000;
 	buf = auto_alloc_array(machine(), UINT8, rom_size);
 
-	rom = machine().root_device().memregion("gfx2")->base() + 0x40000;
+	rom = memregion("gfx2")->base() + 0x40000;
 
 	for (rpos = 0; rpos < rom_size/2; rpos++) {
 		buf[rpos+0x40000] = rom[rpos*2];
@@ -10802,7 +10783,7 @@ DRIVER_INIT_MEMBER(seta_state,blandia)
 
 	memcpy( rom, buf, rom_size );
 
-	rom = machine().root_device().memregion("gfx3")->base() + 0x40000;
+	rom = memregion("gfx3")->base() + 0x40000;
 
 	for (rpos = 0; rpos < rom_size/2; rpos++) {
 		buf[rpos+0x40000] = rom[rpos*2];
@@ -10817,20 +10798,20 @@ DRIVER_INIT_MEMBER(seta_state,blandia)
 
 DRIVER_INIT_MEMBER(seta_state,eightfrc)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_read(0x500004, 0x500005);   // watchdog??
+	m_maincpu->space(AS_PROGRAM).nop_read(0x500004, 0x500005);   // watchdog??
 }
 
 
 DRIVER_INIT_MEMBER(seta_state,zombraid)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xf00002, 0xf00003, read16_delegate(FUNC(seta_state::zombraid_gun_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xf00000, 0xf00001, write16_delegate(FUNC(seta_state::zombraid_gun_w),this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0xf00002, 0xf00003, read16_delegate(FUNC(seta_state::zombraid_gun_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xf00000, 0xf00001, write16_delegate(FUNC(seta_state::zombraid_gun_w),this));
 }
 
 
 DRIVER_INIT_MEMBER(seta_state,kiwame)
 {
-	UINT16 *RAM = (UINT16 *) machine().root_device().memregion("maincpu")->base();
+	UINT16 *RAM = (UINT16 *) memregion("maincpu")->base();
 
 	/* WARNING: This game writes to the interrupt vector
 	   table. Lev 1 routine address is stored at $100 */
@@ -10842,7 +10823,7 @@ DRIVER_INIT_MEMBER(seta_state,kiwame)
 
 DRIVER_INIT_MEMBER(seta_state,rezon)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_read(0x500006, 0x500007);   // irq ack?
+	m_maincpu->space(AS_PROGRAM).nop_read(0x500006, 0x500007);   // irq ack?
 }
 
 DRIVER_INIT_MEMBER(seta_state,wiggie)
@@ -10852,8 +10833,8 @@ DRIVER_INIT_MEMBER(seta_state,wiggie)
 	UINT8 temp[16];
 	int i,j;
 
-	src = machine().root_device().memregion("maincpu")->base();
-	len = machine().root_device().memregion("maincpu")->bytes();
+	src = memregion("maincpu")->base();
+	len = memregion("maincpu")->bytes();
 	for (i = 0;i < len;i += 16)
 	{
 		memcpy(temp,&src[i],16);
@@ -10874,8 +10855,8 @@ DRIVER_INIT_MEMBER(seta_state,wiggie)
 	}
 
 	/* X1_010 is not used. */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_readwrite(0x100000, 0x103fff);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xB00008, 0xB00009, write16_delegate(FUNC(seta_state::wiggie_soundlatch_w),this));
+	m_maincpu->space(AS_PROGRAM).nop_readwrite(0x100000, 0x103fff);
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xB00008, 0xB00009, write16_delegate(FUNC(seta_state::wiggie_soundlatch_w),this));
 
 }
 

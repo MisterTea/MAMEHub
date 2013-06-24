@@ -76,7 +76,7 @@ WRITE8_MEMBER( jtc_state::p3_w )
 	m_cassette->output( BIT(data, 6) ? +1.0 : -1.0);
 
 	/* speaker */
-	speaker_level_w(m_speaker, BIT(data, 7));
+	m_speaker->level_w(BIT(data, 7));
 }
 
 READ8_MEMBER( jtces40_state::videoram_r )
@@ -641,14 +641,14 @@ static MACHINE_CONFIG_START( basic, jtc_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(1, "mono", 0.25)
 
 	/* cassette */
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, jtc_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", jtc_cassette_interface)
 
 	/* printer */
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)

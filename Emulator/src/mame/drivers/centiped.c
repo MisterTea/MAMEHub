@@ -447,7 +447,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(centiped_state::generate_interrupt)
 
 	/* IRQ is clocked on the rising edge of 16V, equal to the previous 32V */
 	if (scanline & 16)
-		machine().device("maincpu")->execute().set_input_line(0, ((scanline - 1) & 32) ? ASSERT_LINE : CLEAR_LINE);
+		m_maincpu->set_input_line(0, ((scanline - 1) & 32) ? ASSERT_LINE : CLEAR_LINE);
 
 	/* do a partial update now to handle sprite multiplexing (Maze Invaders) */
 	machine().primary_screen->update_partial(scanline);
@@ -456,7 +456,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(centiped_state::generate_interrupt)
 
 MACHINE_START_MEMBER(centiped_state,centiped)
 {
-
 	save_item(NAME(m_oldpos));
 	save_item(NAME(m_sign));
 	save_item(NAME(m_dsw_select));
@@ -466,8 +465,7 @@ MACHINE_START_MEMBER(centiped_state,centiped)
 
 MACHINE_RESET_MEMBER(centiped_state,centiped)
 {
-
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 	m_dsw_select = 0;
 	m_control_select = 0;
 	m_prg_bank = 0;
@@ -476,7 +474,6 @@ MACHINE_RESET_MEMBER(centiped_state,centiped)
 
 MACHINE_RESET_MEMBER(centiped_state,magworm)
 {
-
 	MACHINE_RESET_CALL_MEMBER(centiped);
 
 	/* kludge: clear RAM so that magworm can be reset cleanly */
@@ -486,7 +483,7 @@ MACHINE_RESET_MEMBER(centiped_state,magworm)
 
 WRITE8_MEMBER(centiped_state::irq_ack_w)
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 
@@ -515,49 +512,48 @@ WRITE8_MEMBER(centiped_state::irq_ack_w)
  * to prevent the counter from wrapping around between reads.
  */
 
-INLINE int read_trackball(running_machine &machine, int idx, int switch_port)
+inline int centiped_state::read_trackball(int idx, int switch_port)
 {
-	centiped_state *state = machine.driver_data<centiped_state>();
 	UINT8 newpos;
 	static const char *const portnames[] = { "IN0", "IN1", "IN2" };
 	static const char *const tracknames[] = { "TRACK0_X", "TRACK0_Y", "TRACK1_X", "TRACK1_Y" };
 
 	/* adjust idx if we're cocktail flipped */
-	if (state->m_flipscreen)
+	if (m_flipscreen)
 		idx += 2;
 
 	/* if we're to read the dipswitches behind the trackball data, do it now */
-	if (state->m_dsw_select)
-		return (machine.root_device().ioport(portnames[switch_port])->read() & 0x7f) | state->m_sign[idx];
+	if (m_dsw_select)
+		return (ioport(portnames[switch_port])->read() & 0x7f) | m_sign[idx];
 
 	/* get the new position and adjust the result */
-	newpos = machine.root_device().ioport(tracknames[idx])->read();
-	if (newpos != state->m_oldpos[idx])
+	newpos = ioport(tracknames[idx])->read();
+	if (newpos != m_oldpos[idx])
 	{
-		state->m_sign[idx] = (newpos - state->m_oldpos[idx]) & 0x80;
-		state->m_oldpos[idx] = newpos;
+		m_sign[idx] = (newpos - m_oldpos[idx]) & 0x80;
+		m_oldpos[idx] = newpos;
 	}
 
 	/* blend with the bits from the switch port */
-	return (machine.root_device().ioport(portnames[switch_port])->read() & 0x70) | (state->m_oldpos[idx] & 0x0f) | state->m_sign[idx];
+	return (ioport(portnames[switch_port])->read() & 0x70) | (m_oldpos[idx] & 0x0f) | m_sign[idx];
 }
 
 
 READ8_MEMBER(centiped_state::centiped_IN0_r)
 {
-	return read_trackball(machine(), 0, 0);
+	return read_trackball(0, 0);
 }
 
 
 READ8_MEMBER(centiped_state::centiped_IN2_r)
 {
-	return read_trackball(machine(), 1, 2);
+	return read_trackball(1, 2);
 }
 
 
 READ8_MEMBER(centiped_state::milliped_IN1_r)
 {
-	return read_trackball(machine(), 1, 1);
+	return read_trackball(1, 1);
 }
 
 READ8_MEMBER(centiped_state::milliped_IN2_r)
@@ -704,8 +700,8 @@ static ADDRESS_MAP_START( centipdb_map, AS_PROGRAM, 8, centiped_state )
 	AM_RANGE(0x0c01, 0x0c01) AM_MIRROR(0x4000) AM_READ_PORT("IN1")      /* IN1 */
 	AM_RANGE(0x0c02, 0x0c02) AM_MIRROR(0x4000) AM_READ(centiped_IN2_r)  /* IN2 */
 	AM_RANGE(0x0c03, 0x0c03) AM_MIRROR(0x4000) AM_READ_PORT("IN3")      /* IN3 */
-	AM_RANGE(0x1000, 0x1001) AM_MIRROR(0x4000) AM_DEVWRITE_LEGACY("pokey", ay8910_data_address_w)
-	AM_RANGE(0x1001, 0x1001) AM_MIRROR(0x4000) AM_DEVREAD_LEGACY("pokey", ay8910_r)
+	AM_RANGE(0x1000, 0x1001) AM_MIRROR(0x4000) AM_DEVWRITE("pokey", ay8910_device, data_address_w)
+	AM_RANGE(0x1001, 0x1001) AM_MIRROR(0x4000) AM_DEVREAD("pokey", ay8910_device, data_r)
 	AM_RANGE(0x1400, 0x140f) AM_MIRROR(0x4000) AM_WRITE(centiped_paletteram_w) AM_SHARE("paletteram")
 	AM_RANGE(0x1600, 0x163f) AM_MIRROR(0x4000) AM_DEVWRITE("earom", atari_vg_earom_device, write)
 	AM_RANGE(0x1680, 0x1680) AM_MIRROR(0x4000) AM_DEVWRITE("earom", atari_vg_earom_device, ctrl_w)
@@ -722,8 +718,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( magworm_map, AS_PROGRAM, 8, centiped_state )
 	AM_IMPORT_FROM(centiped_base_map)
-	AM_RANGE(0x1001, 0x1001) AM_DEVWRITE_LEGACY("pokey", ay8910_address_w)
-	AM_RANGE(0x1003, 0x1003) AM_DEVREADWRITE_LEGACY("pokey", ay8910_r, ay8910_data_w)
+	AM_RANGE(0x1001, 0x1001) AM_DEVWRITE("pokey", ay8910_device, address_w)
+	AM_RANGE(0x1003, 0x1003) AM_DEVREADWRITE("pokey", ay8910_device, data_r, data_w)
 ADDRESS_MAP_END
 
 
@@ -735,16 +731,16 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(centiped_state::caterplr_AY8910_w)
 {
-	device_t *device = machine().device("pokey");
-	ay8910_address_w(device, space, 0, offset);
-	ay8910_data_w(device, space, 0, data);
+	ay8910_device *ay8910 = machine().device<ay8910_device>("pokey");
+	ay8910->address_w(space, 0, offset);
+	ay8910->data_w(space, 0, data);
 }
 
 READ8_MEMBER(centiped_state::caterplr_AY8910_r)
 {
-	device_t *device = machine().device("pokey");
-	ay8910_address_w(device, space, 0, offset);
-	return ay8910_r(device, space, 0);
+	ay8910_device *ay8910 = machine().device<ay8910_device>("pokey");
+	ay8910->address_w(space, 0, offset);
+	return ay8910->data_r(space, 0);
 }
 
 
@@ -835,14 +831,11 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(centiped_state::multiped_eeprom_r)
 {
-	eeprom_device *eeprom = machine().device<eeprom_device>("eeprom");
-	return eeprom->read_bit() ? 0x80 : 0;
+	return m_eeprom->read_bit() ? 0x80 : 0;
 }
 
 WRITE8_MEMBER(centiped_state::multiped_eeprom_w)
 {
-	eeprom_device *eeprom = machine().device<eeprom_device>("eeprom");
-
 	// a0: always high
 	// a3-a7: always low
 	// a8-a10: same as a0-a2
@@ -850,15 +843,15 @@ WRITE8_MEMBER(centiped_state::multiped_eeprom_w)
 
 	// a1 low: latch bit
 	if (~offset & 2)
-		eeprom->write_bit((data & 0x80) ? 1 : 0);
+		m_eeprom->write_bit((data & 0x80) ? 1 : 0);
 
 	// a2 low: write latch or select next bit to read
 	if (~offset & 4)
-		eeprom->set_clock_line((~data & 0x80) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->set_clock_line((~data & 0x80) ? ASSERT_LINE : CLEAR_LINE);
 
 	// both high: reset
 	else if (offset & 2)
-		eeprom->set_cs_line((data & 0x80) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_cs_line((data & 0x80) ? CLEAR_LINE : ASSERT_LINE);
 }
 
 WRITE8_MEMBER(centiped_state::multiped_prgbank_w)
@@ -2177,15 +2170,14 @@ ROM_END
 
 DRIVER_INIT_MEMBER(centiped_state,bullsdrt)
 {
-
 	m_dsw_select = 0;
 }
 
 
 DRIVER_INIT_MEMBER(centiped_state,multiped)
 {
-	UINT8 *src = machine().root_device().memregion("user1")->base();
-	UINT8 *dest = machine().root_device().memregion("maincpu")->base();
+	UINT8 *src = memregion("user1")->base();
+	UINT8 *dest = memregion("maincpu")->base();
 
 	// descramble rom and put in maincpu region
 	for (int i = 0; i < 0x10000; i++)

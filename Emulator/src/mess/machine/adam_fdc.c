@@ -126,7 +126,7 @@ static MACHINE_CONFIG_FRAGMENT( adam_fdc )
 
 	MCFG_WD2793x_ADD(WD2793_TAG, XTAL_4MHz/4)
 
-	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":0", adam_fdc_floppies, "525dd", 0, adam_fdc_device::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD2793_TAG":0", adam_fdc_floppies, "525dd", adam_fdc_device::floppy_formats)
 MACHINE_CONFIG_END
 
 
@@ -173,7 +173,7 @@ ioport_constructor adam_fdc_device::device_input_ports() const
 //-------------------------------------------------
 
 adam_fdc_device::adam_fdc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, ADAM_FDC, "Adam FDC", tag, owner, clock),
+	: device_t(mconfig, ADAM_FDC, "Adam FDC", tag, owner, clock, "adam_fdc", __FILE__),
 		device_adamnet_card_interface(mconfig, *this),
 		m_maincpu(*this, M6801_TAG),
 		m_fdc(*this, WD2793_TAG),

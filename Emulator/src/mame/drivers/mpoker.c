@@ -178,8 +178,9 @@ class mpoker_state : public driver_device
 {
 public:
 	mpoker_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_video(*this, "video"){ }
+		: driver_device(mconfig, type, tag),
+		m_video(*this, "video"),
+		m_maincpu(*this, "maincpu") { }
 
 	UINT8 m_output[8];
 	required_shared_ptr<UINT8> m_video;
@@ -198,12 +199,12 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_mpoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
 void mpoker_state::video_start()
 {
-
 }
 
 UINT32 mpoker_state::screen_update_mpoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
@@ -469,7 +470,7 @@ WRITE8_MEMBER(mpoker_state::outport7_w)
 
 WRITE8_MEMBER(mpoker_state::sound_w)
 //{
-//  machine().device<dac_device>("dac")->write_unsigned8(data);
+//  m_dac->write_unsigned8(data);
 //}
 */
 

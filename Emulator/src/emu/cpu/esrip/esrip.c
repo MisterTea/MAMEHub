@@ -327,7 +327,6 @@ void esrip_device::device_reset()
 
 void esrip_device::device_stop()
 {
-
 }
 
 
@@ -402,7 +401,7 @@ UINT32 esrip_device::disasm_max_opcode_bytes() const
 offs_t esrip_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options)
 {
 	extern CPU_DISASSEMBLE( esrip );
-	return disassemble(buffer, pc, oprom, opram, 0);
+	return CPU_DISASSEMBLE_NAME(esrip)(this, buffer, pc, oprom, opram, options);
 }
 
 

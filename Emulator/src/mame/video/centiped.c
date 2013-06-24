@@ -63,9 +63,8 @@ TILE_GET_INFO_MEMBER(centiped_state::bullsdrt_get_tile_info)
  *
  *************************************/
 
-static void init_penmask(running_machine &machine)
+void centiped_state::init_penmask()
 {
-	centiped_state *state = machine.driver_data<centiped_state>();
 	int i;
 
 	for (i = 0; i < 64; i++)
@@ -74,29 +73,27 @@ static void init_penmask(running_machine &machine)
 		if (((i >> 0) & 3) == 0) mask |= 2;
 		if (((i >> 2) & 3) == 0) mask |= 4;
 		if (((i >> 4) & 3) == 0) mask |= 8;
-		state->m_penmask[i] = mask;
+		m_penmask[i] = mask;
 	}
 }
 
 
-static void init_common(running_machine &machine)
+void centiped_state::init_common()
 {
-	centiped_state *state = machine.driver_data<centiped_state>();
+	save_item(NAME(m_flipscreen));
+	save_item(NAME(m_gfx_bank));
+	save_item(NAME(m_bullsdrt_sprites_bank));
 
-	state->save_item(NAME(state->m_flipscreen));
-	state->save_item(NAME(state->m_gfx_bank));
-	state->save_item(NAME(state->m_bullsdrt_sprites_bank));
-
-	state->m_flipscreen = 0;
-	state->m_gfx_bank = 0;
-	state->m_bullsdrt_sprites_bank = 0;
+	m_flipscreen = 0;
+	m_gfx_bank = 0;
+	m_bullsdrt_sprites_bank = 0;
 }
 
 
 VIDEO_START_MEMBER(centiped_state,centiped)
 {
-	init_common(machine());
-	init_penmask(machine());
+	init_common();
+	init_penmask();
 
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(centiped_state::centiped_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
@@ -104,7 +101,7 @@ VIDEO_START_MEMBER(centiped_state,centiped)
 
 VIDEO_START_MEMBER(centiped_state,warlords)
 {
-	init_common(machine());
+	init_common();
 
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(centiped_state::warlords_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
@@ -112,8 +109,8 @@ VIDEO_START_MEMBER(centiped_state,warlords)
 
 VIDEO_START_MEMBER(centiped_state,milliped)
 {
-	init_common(machine());
-	init_penmask(machine());
+	init_common();
+	init_penmask();
 
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(centiped_state::milliped_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
@@ -121,8 +118,8 @@ VIDEO_START_MEMBER(centiped_state,milliped)
 
 VIDEO_START_MEMBER(centiped_state,bullsdrt)
 {
-	init_common(machine());
-	init_penmask(machine());
+	init_common();
+	init_penmask();
 
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(centiped_state::bullsdrt_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
@@ -281,7 +278,7 @@ WRITE8_MEMBER(centiped_state::centiped_paletteram_w)
 
 PALETTE_INIT_MEMBER(centiped_state,warlords)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -339,7 +336,7 @@ PALETTE_INIT_MEMBER(centiped_state,warlords)
 
 ***************************************************************************/
 
-static void milliped_set_color(running_machine &machine, offs_t offset, UINT8 data)
+void centiped_state::milliped_set_color(offs_t offset, UINT8 data)
 {
 	rgb_t color;
 	int bit0, bit1, bit2;
@@ -367,7 +364,7 @@ static void milliped_set_color(running_machine &machine, offs_t offset, UINT8 da
 
 	/* character colors, set directly */
 	if (offset < 0x10)
-		palette_set_color(machine, offset, color);
+		palette_set_color(machine(), offset, color);
 
 	/* sprite colors - set all the applicable ones */
 	else
@@ -381,13 +378,13 @@ static void milliped_set_color(running_machine &machine, offs_t offset, UINT8 da
 		for (i = (base << 6); i < (base << 6) + 0x100; i += 4)
 		{
 			if (offset == ((i >> 2) & 0x03))
-				palette_set_color(machine, i + 0x10 + 1, color);
+				palette_set_color(machine(), i + 0x10 + 1, color);
 
 			if (offset == ((i >> 4) & 0x03))
-				palette_set_color(machine, i + 0x10 + 2, color);
+				palette_set_color(machine(), i + 0x10 + 2, color);
 
 			if (offset == ((i >> 6) & 0x03))
-				palette_set_color(machine, i + 0x10 + 3, color);
+				palette_set_color(machine(), i + 0x10 + 3, color);
 		}
 	}
 }
@@ -397,7 +394,7 @@ WRITE8_MEMBER(centiped_state::milliped_paletteram_w)
 {
 	m_generic_paletteram_8[offset] = data;
 
-	milliped_set_color(machine(), offset, data);
+	milliped_set_color(offset, data);
 }
 
 
@@ -406,7 +403,7 @@ WRITE8_MEMBER(centiped_state::mazeinv_paletteram_w)
 	m_generic_paletteram_8[offset] = data;
 
 	/* the value passed in is a look-up index into the color PROM */
-	milliped_set_color(machine(), offset, ~machine().root_device().memregion("proms")->base()[~data & 0x0f]);
+	milliped_set_color(offset, ~memregion("proms")->base()[~data & 0x0f]);
 }
 
 
@@ -451,7 +448,7 @@ UINT32 centiped_state::screen_update_centiped(screen_device &screen, bitmap_ind1
 UINT32 centiped_state::screen_update_warlords(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	UINT8 *spriteram = m_spriteram;
-	int upright_mode = machine().root_device().ioport("IN0")->read() & 0x80;
+	int upright_mode = ioport("IN0")->read() & 0x80;
 	int offs;
 
 	/* if the cocktail/upright switch flipped, force refresh */

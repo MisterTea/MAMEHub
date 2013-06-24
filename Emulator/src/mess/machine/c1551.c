@@ -367,39 +367,6 @@ static C64H156_INTERFACE( ga_intf )
 
 
 //-------------------------------------------------
-//  PLUS4_EXPANSION_INTERFACE( expansion_intf )
-//-------------------------------------------------
-
-READ8_MEMBER( c1551_device::exp_dma_r )
-{
-	return m_slot->dma_cd_r(offset);
-}
-
-WRITE8_MEMBER( c1551_device::exp_dma_w )
-{
-	m_slot->dma_cd_w(offset, data);
-}
-
-WRITE_LINE_MEMBER( c1551_device::exp_irq_w )
-{
-	m_slot->irq_w(state);
-}
-
-WRITE_LINE_MEMBER( c1551_device::exp_aec_w )
-{
-	m_slot->aec_w(state);
-}
-
-static PLUS4_EXPANSION_INTERFACE( expansion_intf )
-{
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1551_device, exp_dma_r),
-	DEVCB_DEVICE_MEMBER(DEVICE_SELF_OWNER, c1551_device, exp_dma_w),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1551_device, exp_irq_w),
-	DEVCB_DEVICE_LINE_MEMBER(DEVICE_SELF_OWNER, c1551_device, exp_aec_w)
-};
-
-
-//-------------------------------------------------
 //  MACHINE_DRIVER( c1551 )
 //-------------------------------------------------
 
@@ -416,7 +383,7 @@ static MACHINE_CONFIG_FRAGMENT( c1551 )
 	MCFG_LEGACY_FLOPPY_DRIVE_ADD(FLOPPY_0, c1541_floppy_interface)
 	MCFG_64H156_ADD(C64H156_TAG, XTAL_16MHz, ga_intf)
 
-	MCFG_PLUS4_EXPANSION_SLOT_ADD(PLUS4_EXPANSION_SLOT_TAG, 0, expansion_intf, plus4_expansion_cards, NULL, NULL)
+	MCFG_PLUS4_PASSTHRU_EXPANSION_SLOT_ADD()
 MACHINE_CONFIG_END
 
 
@@ -463,7 +430,7 @@ ioport_constructor c1551_device::device_input_ports() const
 //-------------------------------------------------
 
 c1551_device::c1551_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, C1551, "C1551", tag, owner, clock),
+	: device_t(mconfig, C1551, "C1551", tag, owner, clock, "c1551", __FILE__),
 		device_plus4_expansion_card_interface(mconfig, *this),
 		m_maincpu(*this, M6510T_TAG),
 		m_tpi0(*this, M6523_0_TAG),
@@ -513,6 +480,8 @@ void c1551_device::device_reset()
 	m_maincpu->reset();
 
 	m_tpi0->reset();
+
+	m_exp->reset();
 
 	// initialize gate array
 	m_ga->test_w(1);
@@ -596,19 +565,4 @@ void c1551_device::plus4_cd_w(address_space &space, offs_t offset, UINT8 data, i
 	}
 
 	m_exp->cd_w(space, offset, data, ba, cs0, c1l, c2l, cs1, c1h, c2h);
-}
-
-
-//-------------------------------------------------
-//  plus4_breset_w - buffered reset write
-//-------------------------------------------------
-
-void c1551_device::plus4_breset_w(int state)
-{
-	if (state == ASSERT_LINE)
-	{
-		device_reset();
-	}
-
-	m_exp->breset_w(state);
 }

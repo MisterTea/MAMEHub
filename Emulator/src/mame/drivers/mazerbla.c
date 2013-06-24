@@ -5,8 +5,57 @@ Great Guns by Stern Electronics (c) 1983
 
 
 Driver by Jarek Burczynski
+Added notes by Lord Nightmare
 2003.03.19
 
+Notes:
+======
+Mazer blazer consists of four boards in a cage:
+ZPU-2000 - main cpu board
+ - this board has the main cpu on it and four roms (seven sockets for roms, three empty)
+   - roms in sockets "ROM0"@H1 "ROM1"@H2 "ROM2"@H3 "ROM3"@H4
+   - "ROM4"@H5 "ROM5"@H6 "ROM6"@H7 are empty
+   - roms are marked "MAZER BLAZER // ZPU <rom#> RA<revision#> // 1983 STERN"
+ - 32 dipswitches in 4 banks of 8
+ - four 'test button' style switches
+ - one 4Mhz xtal @A1
+ - this same board is shared with cliff hanger (clifhgr.c)
+
+CFB-1000 - video/subcpu board
+ - this board has a sub-cpu on it and four roms (six sockets for roms, two empty)
+   - the roms go in sockets "ROM0"@G8, "ROM2"@K8, "ROM3"@K10, "ROM4"@K11
+   - "ROM1"@G6 and "ROM5"@K12 are empty
+   - roms are marked "MAZER BLAZER // CFB <rom#> RA<revision#> // 1983 STERN"
+ - "shared ram" ?6116? SRAM @G3
+ - DIP64 custom framebuffer controller "Video Controller"@E11
+ - "Parameter ram" ?6116? SRAM @K13
+ - "Frame buffer" 16x ?4116? DRAM @ right edge of pcb
+ - "Erase PROM" @A16 (UNDUMPED)
+ - 22.1164Mhz xtal @K14
+ - 8 dipswitches in 2 banks of 4, @B5 and @B7
+ - LED @B7
+
+VSB-2000 - sound/speech/subcpu board
+ - this board has a sub-cpu on it, a digitalker speech chip, 4 roms (2 dumped, 2 undumped) and 4 PROMs (all dumped)
+ - Z80 CPU @E6
+   - Roms at "ROM0"@D2, "ROM1"@D4
+ - MM54104 Digitalker "SPU" @A6
+   - Roms at "ROM2"@A2, "ROM3"@A4 (UNDUMPED)
+ - roms are marked "MAZER BLAZER // VSB <rom#> RA<revision#> // 1983 STERN"
+ - Sound section
+   - PROMS: 82s123: @B8 @B9; 82s129: @G8 @G9 (all dumped)
+
+CRF-1001 - RF Filter board for video/audio output
+ - this same board is shared with cliff hanger (clifhgr.c)
+
+Versions:
+======
+Mazer blazer's zpu-2000 roms are known to exist in at least the following versions:
+RA3
+and probably exist in versions RA1 and RA2 as well.
+It is currently unknown what versions the two sets correspond to.
+The other roms are likely always version RA1, as the RA3-zpu-2000 board has RA1
+roms for all roms except the zpu-2000 board.
 
 Issues:
 ======
@@ -52,9 +101,11 @@ class mazerbla_state : public driver_device
 {
 public:
 	mazerbla_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
-		m_cfb_ram(*this, "cfb_ram"){ }
+		m_cfb_ram(*this, "cfb_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub"){ }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -98,8 +149,8 @@ public:
 	UINT8 m_soundlatch;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_subcpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 
 #if 0
 	int m_dbg_info;
@@ -149,6 +200,7 @@ public:
 	TIMER_CALLBACK_MEMBER(deferred_ls670_0_w);
 	TIMER_CALLBACK_MEMBER(deferred_ls670_1_w);
 	TIMER_CALLBACK_MEMBER(delayed_sound_w);
+	IRQ_CALLBACK_MEMBER(irq_callback);
 };
 
 
@@ -186,7 +238,6 @@ void mazerbla_state::palette_init()
 
 void mazerbla_state::video_start()
 {
-
 #if 0
 	m_planes_enabled[0] = m_planes_enabled[1] = m_planes_enabled[2] = m_planes_enabled[3] = 1;
 	m_dbg_info = 1;
@@ -329,7 +380,6 @@ UINT32 mazerbla_state::screen_update_mazerbla(screen_device &screen, bitmap_ind1
 
 WRITE8_MEMBER(mazerbla_state::cfb_backgnd_color_w)
 {
-
 	if (m_bknd_col != data)
 	{
 		int r, g, b, bit0, bit1, bit2;
@@ -361,7 +411,6 @@ WRITE8_MEMBER(mazerbla_state::cfb_backgnd_color_w)
 
 WRITE8_MEMBER(mazerbla_state::cfb_vbank_w)
 {
-
 	/* only bit 6 connected */
 	m_vbank = BIT(data, 6);
 }
@@ -371,14 +420,14 @@ WRITE8_MEMBER(mazerbla_state::cfb_rom_bank_sel_w)/* mazer blazer */
 {
 	m_gfx_rom_bank = data;
 
-	membank("bank1")->set_base(machine().root_device().memregion("sub2")->base() + (m_gfx_rom_bank * 0x2000) + 0x10000);
+	membank("bank1")->set_base(memregion("sub2")->base() + (m_gfx_rom_bank * 0x2000) + 0x10000);
 }
 
 WRITE8_MEMBER(mazerbla_state::cfb_rom_bank_sel_w_gg)/* great guns */
 {
 	m_gfx_rom_bank = data >> 1;
 
-	membank("bank1")->set_base(machine().root_device().memregion("sub2")->base() + (m_gfx_rom_bank * 0x2000) + 0x10000);
+	membank("bank1")->set_base(memregion("sub2")->base() + (m_gfx_rom_bank * 0x2000) + 0x10000);
 }
 
 
@@ -510,7 +559,6 @@ READ8_MEMBER(mazerbla_state::vcu_set_gfx_addr_r)
 //      {
 //          if (m_vbank == m_dbg_vbank)
 		{
-
 			for (y = 0; y <= m_pix_ysize; y++)
 			{
 				for (x = 0; x <= m_pix_xsize; x++)
@@ -766,7 +814,6 @@ READ8_MEMBER(mazerbla_state::vcu_set_clr_addr_r)
 
 WRITE8_MEMBER(mazerbla_state::cfb_zpu_int_req_set_w)
 {
-
 	m_zpu_int_vector &= ~2; /* clear D1 on INTA (interrupt acknowledge) */
 
 	m_maincpu->set_input_line(0, ASSERT_LINE);  /* main cpu interrupt (comes from CFB (generated at the start of INT routine on CFB) - vblank?) */
@@ -774,7 +821,6 @@ WRITE8_MEMBER(mazerbla_state::cfb_zpu_int_req_set_w)
 
 READ8_MEMBER(mazerbla_state::cfb_zpu_int_req_clr)
 {
-
 	m_zpu_int_vector |= 2;
 
 	/* clear the INT line when there are no more interrupt requests */
@@ -786,7 +832,6 @@ READ8_MEMBER(mazerbla_state::cfb_zpu_int_req_clr)
 
 READ8_MEMBER(mazerbla_state::ls670_0_r)
 {
-
 	/* set a timer to force synchronization after the read */
 	machine().scheduler().synchronize();
 
@@ -809,7 +854,6 @@ WRITE8_MEMBER(mazerbla_state::ls670_0_w)
 
 READ8_MEMBER(mazerbla_state::ls670_1_r)
 {
-
 	/* set a timer to force synchronization after the read */
 	machine().scheduler().synchronize();
 
@@ -885,7 +929,6 @@ Vertical movement of gun is Strobe 9, Bits 0-7.
 
 WRITE8_MEMBER(mazerbla_state::zpu_bcd_decoder_w)
 {
-
 	/* bcd decoder used a input select (a mux) for reads from port 0x62 */
 	m_bcd_7445 = data & 0xf;
 }
@@ -1067,9 +1110,9 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( greatgun_sound_map, AS_PROGRAM, 8, mazerbla_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x2000, 0x27ff) AM_RAM
-	AM_RANGE(0x4000, 0x4000) AM_DEVREAD_LEGACY("ay1", ay8910_r)
-	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE_LEGACY("ay1", ay8910_address_data_w)
-	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE_LEGACY("ay2", ay8910_address_data_w)
+	AM_RANGE(0x4000, 0x4000) AM_DEVREAD("ay1", ay8910_device, data_r)
+	AM_RANGE(0x4000, 0x4001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
+	AM_RANGE(0x6000, 0x6001) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
 	AM_RANGE(0x8000, 0x8000) AM_WRITE(sound_int_clear_w)
 	AM_RANGE(0xa000, 0xa000) AM_WRITE(sound_nmi_clear_w)
 ADDRESS_MAP_END
@@ -1403,7 +1446,7 @@ static const ay8910_interface ay8912_interface_2 =
 	DEVCB_DRIVER_MEMBER(mazerbla_state,gg_led_ctrl_w)
 };
 
-static IRQ_CALLBACK(irq_callback)
+IRQ_CALLBACK_MEMBER(mazerbla_state::irq_callback)
 {
 	/* all data lines are tied to +5V via 10K resistors */
 	/* D1 is set to GND when INT comes from CFB */
@@ -1417,8 +1460,7 @@ static IRQ_CALLBACK(irq_callback)
 	note:
 	1111 11110 (0xfe) - cannot happen and is not handled by game */
 
-	mazerbla_state *state = device->machine().driver_data<mazerbla_state>();
-	return (state->m_zpu_int_vector & ~1);  /* D0->GND is performed on CFB board */
+	return (m_zpu_int_vector & ~1);  /* D0->GND is performed on CFB board */
 }
 
 /* frequency is 14.318 MHz/16/16/16/16 */
@@ -1436,10 +1478,6 @@ INTERRUPT_GEN_MEMBER(mazerbla_state::sound_interrupt)
 
 void mazerbla_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-
 	save_item(NAME(m_vcu_video_reg));
 	save_item(NAME(m_vcu_gfx_addr));
 	save_item(NAME(m_vcu_gfx_param_addr));
@@ -1503,7 +1541,7 @@ void mazerbla_state::machine_reset()
 
 	memset(m_lookup_ram, 0, ARRAY_LENGTH(m_lookup_ram));
 
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(mazerbla_state::irq_callback),this));
 }
 
 

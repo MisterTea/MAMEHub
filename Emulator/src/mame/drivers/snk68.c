@@ -51,13 +51,11 @@ Notes:
 
 READ16_MEMBER(snk68_state::sound_status_r)
 {
-
 	return (m_sound_status << 8);
 }
 
 WRITE8_MEMBER(snk68_state::sound_status_w)
 {
-
 	m_sound_status = data;
 }
 
@@ -109,7 +107,7 @@ WRITE16_MEMBER(snk68_state::sound_w)
 	if (ACCESSING_BITS_8_15)
 	{
 		soundlatch_byte_w(space, 0, data >> 8);
-		machine().device("soundcpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+		m_soundcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	}
 }
 
@@ -164,22 +162,20 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(snk68_state::D7759_write_port_0_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_port_w(device, space, 0, data);
-	upd7759_start_w(device, 0);
-	upd7759_start_w(device, 1);
+	upd7759_port_w(m_upd7759, space, 0, data);
+	upd7759_start_w(m_upd7759, 0);
+	upd7759_start_w(m_upd7759, 1);
 }
 
 WRITE8_MEMBER(snk68_state::D7759_upd_reset_w)
 {
-	device_t *device = machine().device("upd");
-	upd7759_reset_w(device, data & 0x80);
+	upd7759_reset_w(m_upd7759, data & 0x80);
 }
 
 static ADDRESS_MAP_START( sound_io_map, AS_IO, 8, snk68_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE_LEGACY("ymsnd", ym3812_status_port_r, ym3812_control_port_w)
-	AM_RANGE(0x20, 0x20) AM_DEVWRITE_LEGACY("ymsnd", ym3812_write_port_w)
+	AM_RANGE(0x00, 0x00) AM_DEVREADWRITE("ymsnd", ym3812_device, status_port_r, control_port_w)
+	AM_RANGE(0x20, 0x20) AM_DEVWRITE("ymsnd", ym3812_device, write_port_w)
 	AM_RANGE(0x40, 0x40) AM_WRITE(D7759_write_port_0_w)
 	AM_RANGE(0x80, 0x80) AM_WRITE(D7759_upd_reset_w)
 ADDRESS_MAP_END
@@ -576,15 +572,10 @@ GFXDECODE_END
 
 /******************************************************************************/
 
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(snk68_state::irqhandler)
 {
-	device->machine().device("soundcpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_soundcpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
-
-static const ym3812_interface ym3812_config =
-{
-	irqhandler
-};
 
 /******************************************************************************/
 
@@ -615,7 +606,7 @@ static MACHINE_CONFIG_START( pow, snk68_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_8MHz/2) /* verified on pcb  */
-	MCFG_SOUND_CONFIG(ym3812_config)
+	MCFG_YM3812_IRQ_HANDLER(WRITELINE(snk68_state, irqhandler))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("upd", UPD7759, UPD7759_STANDARD_CLOCK)
@@ -1041,7 +1032,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(snk68_state,searchar)
 {
-	machine().root_device().membank("bank1")->set_base(machine().root_device().memregion("user1")->base());
+	membank("bank1")->set_base(memregion("user1")->base());
 }
 
 /******************************************************************************/

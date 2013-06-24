@@ -17,6 +17,7 @@ Year + Game          PCB ID         CPU                Video        Chips       
 00  Show Hand        CHE-B50-4002A  68000              ASTRO V01    pLSI1016-60LJ, ASTRO 0001B   (28 pins)
 00  Wang Pai Dui J.  CHE-B50-4002A  68000              ASTRO V01    pLSI1016,      MDT2020AP MCU (28 pins)
 02  Skill Drop GA    None           JX-1689F1028N      ASTRO V02    pLSI1016-60LJ
+02? Keno 21          ?              ASTRO V102?        ASTRO V05    ASTRO F02?                              not dumped
 03  Speed Drop       None           JX-1689HP          ASTRO V05    pLSI1016-60LJ
 04? Stone Age        L1             ASTRO V102PX-012?  ASTRO V05x2  ASTRO F02 2004-09-04                    Encrypted
 05? Zoo              M1.1           ASTRO V102PX-005?  ASTRO V06    ASTRO F02 2005-02-18                    Encrypted
@@ -43,9 +44,11 @@ class astrocorp_state : public driver_device
 {
 public:
 	astrocorp_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_spriteram(*this, "spriteram"),
-		m_paletteram(*this, "paletteram"){ }
+		m_paletteram(*this, "paletteram"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_spriteram;
@@ -69,6 +72,9 @@ public:
 	DECLARE_VIDEO_START(astrocorp);
 	UINT32 screen_update_astrocorp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(skilldrp_scanline);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki;
 };
 
 /***************************************************************************
@@ -77,7 +83,6 @@ public:
 
 VIDEO_START_MEMBER(astrocorp_state,astrocorp)
 {
-
 	machine().primary_screen->register_screen_bitmap(m_bitmap);
 
 	save_item(NAME(m_bitmap));
@@ -107,11 +112,10 @@ VIDEO_START_MEMBER(astrocorp_state,astrocorp)
 
 ***************************************************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void astrocorp_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	astrocorp_state *state = machine.driver_data<astrocorp_state>();
-	UINT16 *source = state->m_spriteram;
-	UINT16 *finish = state->m_spriteram + state->m_spriteram.bytes() / 2;
+	UINT16 *source = m_spriteram;
+	UINT16 *finish = m_spriteram + m_spriteram.bytes() / 2;
 
 	for ( ; source < finish; source += 8 / 2 )
 	{
@@ -143,7 +147,7 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 				{
 					for (xwrap = 0 ; xwrap <= 0x200 ; xwrap += 0x200)
 					{
-						drawgfx_transpen(bitmap,cliprect, machine.gfx[0],
+						drawgfx_transpen(bitmap,cliprect, machine().gfx[0],
 								code, 0,
 								0, 0,
 								sx + x * 16 - xwrap, sy + y * 16 - ywrap, 0xff);
@@ -157,7 +161,6 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 UINT32 astrocorp_state::screen_update_astrocorp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	if (m_screen_enable & 1)
 		copybitmap(bitmap, m_bitmap, 0,0,0,0, cliprect);
 	else
@@ -173,12 +176,11 @@ UINT32 astrocorp_state::screen_update_astrocorp(screen_device &screen, bitmap_in
 
 WRITE16_MEMBER(astrocorp_state::astrocorp_draw_sprites_w)
 {
-
 	UINT16 old = m_draw_sprites;
 	UINT16 now = COMBINE_DATA(&m_draw_sprites);
 
 	if (!old && now)
-		draw_sprites(machine(), m_bitmap, machine().primary_screen->visible_area());
+		draw_sprites(m_bitmap, machine().primary_screen->visible_area());
 }
 
 WRITE16_MEMBER(astrocorp_state::astrocorp_eeprom_w)
@@ -191,22 +193,18 @@ WRITE16_MEMBER(astrocorp_state::astrocorp_eeprom_w)
 
 WRITE16_MEMBER(astrocorp_state::astrocorp_sound_bank_w)
 {
-	device_t *device = machine().device("oki");
 	if (ACCESSING_BITS_8_15)
 	{
-		okim6295_device *oki = downcast<okim6295_device *>(device);
-		oki->set_bank_base(0x40000 * ((data >> 8) & 1));
+		m_oki->set_bank_base(0x40000 * ((data >> 8) & 1));
 //      logerror("CPU #0 PC %06X: OKI bank %08X\n", space.device().safe_pc(), data);
 	}
 }
 
 WRITE16_MEMBER(astrocorp_state::skilldrp_sound_bank_w)
 {
-	device_t *device = machine().device("oki");
 	if (ACCESSING_BITS_0_7)
 	{
-		okim6295_device *oki = downcast<okim6295_device *>(device);
-		oki->set_bank_base(0x40000 * (data & 1));
+		m_oki->set_bank_base(0x40000 * (data & 1));
 //      logerror("CPU #0 PC %06X: OKI bank %08X\n", space.device().safe_pc(), data);
 	}
 }
@@ -517,10 +515,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(astrocorp_state::skilldrp_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq. controls sprites, sound, i/o
-		machine().device("maincpu")->execute().set_input_line(4, HOLD_LINE);
+		m_maincpu->set_input_line(4, HOLD_LINE);
 
 	if(scanline == 0) // vblank-in? controls palette
-		machine().device("maincpu")->execute().set_input_line(2, HOLD_LINE);
+		m_maincpu->set_input_line(2, HOLD_LINE);
 }
 
 static MACHINE_CONFIG_START( skilldrp, astrocorp_state )
@@ -1112,7 +1110,7 @@ ROM_END
 DRIVER_INIT_MEMBER(astrocorp_state,showhand)
 {
 #if 0
-	UINT16 *rom = (UINT16*)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16*)memregion("maincpu")->base();
 
 	rom[0x0a1a/2] = 0x6000; // hopper jam
 
@@ -1128,7 +1126,7 @@ DRIVER_INIT_MEMBER(astrocorp_state,showhand)
 DRIVER_INIT_MEMBER(astrocorp_state,showhanc)
 {
 #if 0
-	UINT16 *rom = (UINT16*)machine().root_device().memregion("maincpu")->base();
+	UINT16 *rom = (UINT16*)memregion("maincpu")->base();
 
 	rom[0x14d4/2] = 0x4e71; // enable full test mode
 	rom[0x14d6/2] = 0x4e71; // ""

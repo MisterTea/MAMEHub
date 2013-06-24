@@ -4,6 +4,7 @@
 #define __QL__
 
 #include "machine/ram.h"
+#include "machine/serial.h"
 #include "machine/wd17xx.h"
 
 #define SCREEN_TAG  "screen"
@@ -14,6 +15,8 @@
 #define ZX8301_TAG  "ic22"
 #define ZX8302_TAG  "ic23"
 #define WD1772_TAG  "wd1772"
+#define RS232_A_TAG "ser1"
+#define RS232_B_TAG "ser2"
 
 #define ROMBANK_TAG "rombank"
 #define RAMBANK_TAG "rambank"
@@ -39,7 +42,7 @@
 
 #define CART_ROM_BASE   0x0c000
 #define CART_ROM_END    0x0ffff
-#define TRUMP_ROM_BASE  0x10000
+#define TRUMP_ROM_BASE  0x14000
 #define TRUMP_ROM_LEN   0x08000
 #define TRUMP_ROM_END   (TRUMP_ROM_BASE+(TRUMP_ROM_LEN-1))
 
@@ -47,7 +50,7 @@
 #define TRUMP_IO_LEN    0x04000
 #define TRUMP_IO_END    (TRUMP_IO_BASE+(TRUMP_IO_LEN-1))
 
-#define SANDY_ROM_BASE  0x18000
+#define SANDY_ROM_BASE  0x1c000
 #define SANDY_IO_BASE   0xc3fc0
 #define SANDY_IO_LEN    0x00040
 #define SANDY_IO_END    (SANDY_IO_BASE+(SANDY_IO_LEN-1))
@@ -72,12 +75,24 @@ public:
 			m_ipc(*this, I8749_TAG),
 			m_zx8301(*this, ZX8301_TAG),
 			m_zx8302(*this, ZX8302_TAG),
-			m_speaker(*this, SPEAKER_TAG),
+			m_speaker(*this, "speaker"),
 			m_mdv1(*this, MDV_1),
 			m_mdv2(*this, MDV_2),
+			m_ser1(*this, RS232_A_TAG),
+			m_ser2(*this, RS232_A_TAG),
 			m_ram(*this, RAM_TAG),
 			m_fdc(*this, WD1772_TAG),
-			m_printer(*this, PRINTER_TAG)
+			m_printer(*this, PRINTER_TAG),
+			m_y0(*this, "Y0"),
+			m_y1(*this, "Y1"),
+			m_y2(*this, "Y2"),
+			m_y3(*this, "Y3"),
+			m_y4(*this, "Y4"),
+			m_y5(*this, "Y5"),
+			m_y6(*this, "Y6"),
+			m_y7(*this, "Y7"),
+			m_joy0(*this, "JOY0"),
+			m_joy1(*this, "JOY1")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -87,14 +102,24 @@ public:
 	required_device<speaker_sound_device> m_speaker;
 	required_device<microdrive_image_device> m_mdv1;
 	required_device<microdrive_image_device> m_mdv2;
+	required_device<rs232_port_device> m_ser1;
+	required_device<rs232_port_device> m_ser2;
 	required_device<ram_device> m_ram;
 	required_device<wd1772_device> m_fdc;
 	required_device<printer_image_device> m_printer;
+	required_ioport m_y0;
+	required_ioport m_y1;
+	required_ioport m_y2;
+	required_ioport m_y3;
+	required_ioport m_y4;
+	required_ioport m_y5;
+	required_ioport m_y6;
+	required_ioport m_y7;
+	required_ioport m_joy0;
+	required_ioport m_joy1;
 
 	virtual void machine_start();
 	virtual void machine_reset();
-
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 	DECLARE_WRITE8_MEMBER( ipc_w );
 	DECLARE_WRITE8_MEMBER( ipc_port1_w );

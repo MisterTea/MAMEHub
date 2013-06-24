@@ -59,7 +59,7 @@ CUSTOM_INPUT_MEMBER(battlex_state::battlex_in0_b4_r)
 	UINT32 ret = m_in0_b4;
 	if (m_in0_b4)
 	{
-		machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE);
+		m_maincpu->set_input_line(0, CLEAR_LINE);
 		m_in0_b4 = 0;
 	}
 
@@ -91,7 +91,7 @@ static ADDRESS_MAP_START( io_map, AS_IO, 8, battlex_state )
 	AM_RANGE(0x10, 0x10) AM_WRITE(battlex_flipscreen_w)
 
 	/* verify all of these */
-	AM_RANGE(0x22, 0x23) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_address_w)
+	AM_RANGE(0x22, 0x23) AM_DEVWRITE("aysnd", ay8910_device, data_address_w)
 	AM_RANGE(0x30, 0x30) AM_WRITE(battlex_scroll_starfield_w)
 	AM_RANGE(0x32, 0x32) AM_WRITE(battlex_scroll_x_lsb_w)
 	AM_RANGE(0x33, 0x33) AM_WRITE(battlex_scroll_x_msb_w)
@@ -226,7 +226,6 @@ static const ay8910_interface battlex_ay8910_interface =
 
 void battlex_state::machine_start()
 {
-
 	/* register for save states */
 	save_item(NAME(m_scroll_lsb));
 	save_item(NAME(m_scroll_msb));
@@ -236,7 +235,6 @@ void battlex_state::machine_start()
 
 void battlex_state::machine_reset()
 {
-
 	m_scroll_lsb = 0;
 	m_scroll_msb = 0;
 	m_starfield_enabled = 0;
@@ -309,9 +307,9 @@ ROM_END
 
 DRIVER_INIT_MEMBER(battlex_state,battlex)
 {
-	UINT8 *colormask = machine().root_device().memregion("user1")->base();
-	UINT8 *gfxdata = machine().root_device().memregion("user2")->base();
-	UINT8 *dest = machine().root_device().memregion("gfx1")->base();
+	UINT8 *colormask = memregion("user1")->base();
+	UINT8 *gfxdata = memregion("user2")->base();
+	UINT8 *dest = memregion("gfx1")->base();
 
 	int tile, line, bit;
 

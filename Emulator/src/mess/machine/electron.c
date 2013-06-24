@@ -12,11 +12,24 @@
 #include "sound/beep.h"
 #include "imagedev/cassette.h"
 
-
-static cassette_image_device *cassette_device_image( running_machine &machine )
+void electron_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	return machine.device<cassette_image_device>(CASSETTE_TAG);
+	switch (id)
+	{
+	case TIMER_TAPE_HANDLER:
+		electron_tape_timer_handler(ptr, param);
+		break;
+	case TIMER_SETUP_BEEP:
+		setup_beep(ptr, param);
+		break;
+	case TIMER_SCANLINE_INTERRUPT:
+		electron_scanline_interrupt(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in electron_state::device_timer");
+	}
 }
+
 
 void electron_state::electron_tape_start()
 {
@@ -46,7 +59,7 @@ TIMER_CALLBACK_MEMBER(electron_state::electron_tape_timer_handler)
 	if ( m_ula.cassette_motor_mode )
 	{
 		double tap_val;
-		tap_val = cassette_device_image(machine())->input();
+		tap_val = m_cassette->input();
 		if ( tap_val < -0.5 )
 		{
 			m_ula.tape_value = ( m_ula.tape_value << 8 ) | TAPE_LOW;
@@ -94,13 +107,13 @@ TIMER_CALLBACK_MEMBER(electron_state::electron_tape_timer_handler)
 				//logerror( "++ Read stop bit: %d\n", m_ula.stop_bit );
 				if ( m_ula.start_bit && m_ula.stop_bit && m_ula.tape_byte == 0xFF && ! m_ula.high_tone_set )
 				{
-					electron_interrupt_handler( machine(), INT_SET, INT_HIGH_TONE );
+					electron_interrupt_handler( INT_SET, INT_HIGH_TONE );
 					m_ula.high_tone_set = 1;
 				}
 				else if ( ! m_ula.start_bit && m_ula.stop_bit )
 				{
 					//logerror( "-- Byte read from tape: %02x\n", m_ula.tape_byte );
-					electron_interrupt_handler( machine(), INT_SET, INT_RECEIVE_FULL );
+					electron_interrupt_handler( INT_SET, INT_RECEIVE_FULL );
 				}
 				else
 				{
@@ -154,7 +167,7 @@ WRITE8_MEMBER(electron_state::electron_1mhz_w)
 
 READ8_MEMBER(electron_state::electron_ula_r)
 {
-	UINT8 data = ((UINT8 *)machine().root_device().memregion("user1")->base())[0x43E00 + offset];
+	UINT8 data = ((UINT8 *)memregion("user1")->base())[0x43E00 + offset];
 	switch ( offset & 0x0f )
 	{
 	case 0x00:  /* Interrupt status */
@@ -164,7 +177,7 @@ READ8_MEMBER(electron_state::electron_ula_r)
 	case 0x01:  /* Unknown */
 		break;
 	case 0x04:  /* Casette data shift register */
-		electron_interrupt_handler(machine(), INT_CLEAR, INT_RECEIVE_FULL );
+		electron_interrupt_handler(INT_CLEAR, INT_RECEIVE_FULL );
 		data = m_ula.tape_byte;
 		break;
 	}
@@ -177,7 +190,6 @@ static const UINT16 electron_screen_base[8] = { 0x3000, 0x3000, 0x3000, 0x4000, 
 
 WRITE8_MEMBER(electron_state::electron_ula_w)
 {
-	device_t *speaker = machine().device(BEEPER_TAG);
 	int i = electron_palette_offset[(( offset >> 1 ) & 0x03)];
 	logerror( "ULA: write offset %02x <- %02x\n", offset & 0x0f, data );
 	switch( offset & 0x0f )
@@ -220,15 +232,15 @@ WRITE8_MEMBER(electron_state::electron_ula_w)
 		}
 		if ( data & 0x10 )
 		{
-			electron_interrupt_handler( machine(), INT_CLEAR, INT_DISPLAY_END );
+			electron_interrupt_handler( INT_CLEAR, INT_DISPLAY_END );
 		}
 		if ( data & 0x20 )
 		{
-			electron_interrupt_handler( machine(), INT_CLEAR, INT_RTC );
+			electron_interrupt_handler( INT_CLEAR, INT_RTC );
 		}
 		if ( data & 0x40 )
 		{
-			electron_interrupt_handler( machine(), INT_CLEAR, INT_HIGH_TONE );
+			electron_interrupt_handler( INT_CLEAR, INT_HIGH_TONE );
 		}
 		if ( data & 0x80 )
 		{
@@ -237,7 +249,7 @@ WRITE8_MEMBER(electron_state::electron_ula_w)
 	case 0x06:  /* Counter divider */
 		if ( m_ula.communication_mode == 0x01)
 		{
-			beep_set_frequency( speaker, 1000000 / ( 16 * ( data + 1 ) ) );
+			m_beeper->set_frequency( 1000000 / ( 16 * ( data + 1 ) ) );
 		}
 		break;
 	case 0x07:  /* Misc. */
@@ -245,19 +257,19 @@ WRITE8_MEMBER(electron_state::electron_ula_w)
 		switch( m_ula.communication_mode )
 		{
 		case 0x00:  /* cassette input */
-			beep_set_state( speaker, 0 );
+			m_beeper->set_state( 0 );
 			electron_tape_start();
 			break;
 		case 0x01:  /* sound generation */
-			beep_set_state( speaker, 1 );
+			m_beeper->set_state( 1 );
 			electron_tape_stop();
 			break;
 		case 0x02:  /* cassette output */
-			beep_set_state( speaker, 0 );
+			m_beeper->set_state( 0 );
 			electron_tape_stop();
 			break;
 		case 0x03:  /* not used */
-			beep_set_state( speaker, 0 );
+			m_beeper->set_state( 0 );
 			electron_tape_stop();
 			break;
 		}
@@ -267,7 +279,7 @@ WRITE8_MEMBER(electron_state::electron_ula_w)
 		m_ula.vram = (UINT8 *)space.get_read_ptr(m_ula.screen_base );
 		logerror( "ULA: screen mode set to %d\n", m_ula.screen_mode );
 		m_ula.cassette_motor_mode = ( data >> 6 ) & 0x01;
-		cassette_device_image(machine())->change_state(m_ula.cassette_motor_mode ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED, CASSETTE_MOTOR_DISABLED );
+		m_cassette->change_state(m_ula.cassette_motor_mode ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED, CASSETTE_MOTOR_DISABLED );
 		m_ula.capslock_mode = ( data >> 7 ) & 0x01;
 		break;
 	case 0x08: case 0x0A: case 0x0C: case 0x0E:
@@ -287,26 +299,25 @@ WRITE8_MEMBER(electron_state::electron_ula_w)
 	}
 }
 
-void electron_interrupt_handler(running_machine &machine, int mode, int interrupt)
+void electron_state::electron_interrupt_handler(int mode, int interrupt)
 {
-	electron_state *state = machine.driver_data<electron_state>();
 	if ( mode == INT_SET )
 	{
-		state->m_ula.interrupt_status |= interrupt;
+		m_ula.interrupt_status |= interrupt;
 	}
 	else
 	{
-		state->m_ula.interrupt_status &= ~interrupt;
+		m_ula.interrupt_status &= ~interrupt;
 	}
-	if ( state->m_ula.interrupt_status & state->m_ula.interrupt_control & ~0x83 )
+	if ( m_ula.interrupt_status & m_ula.interrupt_control & ~0x83 )
 	{
-		state->m_ula.interrupt_status |= 0x01;
-		machine.device("maincpu")->execute().set_input_line(0, ASSERT_LINE );
+		m_ula.interrupt_status |= 0x01;
+		m_maincpu->set_input_line(0, ASSERT_LINE );
 	}
 	else
 	{
-		state->m_ula.interrupt_status &= ~0x01;
-		machine.device("maincpu")->execute().set_input_line(0, CLEAR_LINE );
+		m_ula.interrupt_status &= ~0x01;
+		m_maincpu->set_input_line(0, CLEAR_LINE );
 	}
 }
 
@@ -316,27 +327,25 @@ void electron_interrupt_handler(running_machine &machine, int mode, int interrup
 
 TIMER_CALLBACK_MEMBER(electron_state::setup_beep)
 {
-	device_t *speaker = machine().device(BEEPER_TAG);
-	beep_set_state( speaker, 0 );
-	beep_set_frequency( speaker, 300 );
+	m_beeper->set_state( 0 );
+	m_beeper->set_frequency( 300 );
 }
 
-static void electron_reset(running_machine &machine)
+void electron_state::machine_reset()
 {
-	electron_state *state = machine.driver_data<electron_state>();
-	state->membank("bank2")->set_entry(0);
+	membank("bank2")->set_entry(0);
 
-	state->m_ula.communication_mode = 0x04;
-	state->m_ula.screen_mode = 0;
-	state->m_ula.cassette_motor_mode = 0;
-	state->m_ula.capslock_mode = 0;
-	state->m_ula.screen_mode = 0;
-	state->m_ula.screen_start = 0x3000;
-	state->m_ula.screen_base = 0x3000;
-	state->m_ula.screen_size = 0x8000 - 0x3000;
-	state->m_ula.screen_addr = 0;
-	state->m_ula.tape_running = 0;
-	state->m_ula.vram = (UINT8 *)machine.device("maincpu")->memory().space(AS_PROGRAM).get_read_ptr(state->m_ula.screen_base);
+	m_ula.communication_mode = 0x04;
+	m_ula.screen_mode = 0;
+	m_ula.cassette_motor_mode = 0;
+	m_ula.capslock_mode = 0;
+	m_ula.screen_mode = 0;
+	m_ula.screen_start = 0x3000;
+	m_ula.screen_base = 0x3000;
+	m_ula.screen_size = 0x8000 - 0x3000;
+	m_ula.screen_addr = 0;
+	m_ula.tape_running = 0;
+	m_ula.vram = (UINT8 *)m_maincpu->space(AS_PROGRAM).get_read_ptr(m_ula.screen_base);
 }
 
 void electron_state::machine_start()
@@ -345,7 +354,57 @@ void electron_state::machine_start()
 
 	m_ula.interrupt_status = 0x82;
 	m_ula.interrupt_control = 0x00;
-	machine().scheduler().timer_set(attotime::zero, timer_expired_delegate(FUNC(electron_state::setup_beep),this));
-	m_tape_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(electron_state::electron_tape_timer_handler),this));
-	machine().add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(electron_reset),&machine()));
+	timer_set(attotime::zero, TIMER_SETUP_BEEP);
+	m_tape_timer = timer_alloc(TIMER_TAPE_HANDLER);
+}
+
+DEVICE_IMAGE_LOAD_MEMBER( electron_state, electron_cart )
+{
+	UINT8 *user1 = memregion("user1")->base() + 0x4000;
+
+	if (image.software_entry() == NULL)
+	{
+		UINT32 filesize = image.length();
+
+		if ( filesize != 16384 )
+		{
+			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Invalid size. Only size 16384 is supported");
+			return IMAGE_INIT_FAIL;
+		}
+
+		if (image.fread( user1 + 12 * 16384, filesize) != filesize)
+		{
+			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Error loading file");
+			return IMAGE_INIT_FAIL;
+		}
+
+		return IMAGE_INIT_PASS;
+	}
+
+	int upsize = image.get_software_region_length("uprom");
+	int losize = image.get_software_region_length("lorom");
+
+	if ( upsize != 16384 && upsize != 0 )
+	{
+		image.seterror(IMAGE_ERROR_UNSPECIFIED, "Invalid size for uprom");
+		return IMAGE_INIT_FAIL;
+	}
+
+	if ( losize != 16384 && losize != 0 )
+	{
+		image.seterror(IMAGE_ERROR_UNSPECIFIED, "Invalid size for lorom");
+		return IMAGE_INIT_FAIL;
+	}
+
+	if ( upsize )
+	{
+		memcpy( user1 + 12 * 16384, image.get_software_region("uprom"), upsize );
+	}
+
+	if ( losize )
+	{
+		memcpy( user1 + 0 * 16384, image.get_software_region("lorom"), losize );
+	}
+
+	return IMAGE_INIT_PASS;
 }

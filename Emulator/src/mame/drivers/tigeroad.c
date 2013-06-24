@@ -79,9 +79,8 @@ static const int f1dream_2450_lookup[32] = {
 0x0003, 0x0080, 0x0006, 0x0060, 0x0000, 0x00e0, 0x000a, 0x00c0, 0x0003, 0x0080, 0x0006, 0x0060, 0x0000, 0x00e0, 0x000a, 0x00c0,
 0x0003, 0x0080, 0x0006, 0x0060, 0x0000, 0x00e0, 0x000a, 0x00c0, 0x0003, 0x0080, 0x0006, 0x0060, 0x0000, 0x00e0, 0x000a, 0x00c0 };
 
-static void f1dream_protection_w(address_space &space)
+void tigeroad_state::f1dream_protection_w(address_space &space)
 {
-	tigeroad_state *state = space.machine().driver_data<tigeroad_state>();
 	int indx;
 	int value = 255;
 	int prevpc = space.device().safe_pcbase();
@@ -89,57 +88,57 @@ static void f1dream_protection_w(address_space &space)
 	if (prevpc == 0x244c)
 	{
 		/* Called once, when a race is started.*/
-		indx = state->m_ram16[0x3ff0/2];
-		state->m_ram16[0x3fe6/2] = f1dream_2450_lookup[indx];
-		state->m_ram16[0x3fe8/2] = f1dream_2450_lookup[++indx];
-		state->m_ram16[0x3fea/2] = f1dream_2450_lookup[++indx];
-		state->m_ram16[0x3fec/2] = f1dream_2450_lookup[++indx];
+		indx = m_ram16[0x3ff0/2];
+		m_ram16[0x3fe6/2] = f1dream_2450_lookup[indx];
+		m_ram16[0x3fe8/2] = f1dream_2450_lookup[++indx];
+		m_ram16[0x3fea/2] = f1dream_2450_lookup[++indx];
+		m_ram16[0x3fec/2] = f1dream_2450_lookup[++indx];
 	}
 	else if (prevpc == 0x613a)
 	{
 		/* Called for every sprite on-screen.*/
-		if (state->m_ram16[0x3ff6/2] < 15)
+		if (m_ram16[0x3ff6/2] < 15)
 		{
-			indx = f1dream_613ea_lookup[state->m_ram16[0x3ff6/2]] - state->m_ram16[0x3ff4/2];
+			indx = f1dream_613ea_lookup[m_ram16[0x3ff6/2]] - m_ram16[0x3ff4/2];
 			if (indx > 255)
 			{
 				indx <<= 4;
-				indx += state->m_ram16[0x3ff6/2] & 0x00ff;
+				indx += m_ram16[0x3ff6/2] & 0x00ff;
 				value = f1dream_613eb_lookup[indx];
 			}
 		}
 
-		state->m_ram16[0x3ff2/2] = value;
+		m_ram16[0x3ff2/2] = value;
 	}
 	else if (prevpc == 0x17b70)
 	{
 		/* Called only before a real race, not a time trial.*/
-		if (state->m_ram16[0x3ff0/2] >= 0x04) indx = 128;
-		else if (state->m_ram16[0x3ff0/2] > 0x02) indx = 96;
-		else if (state->m_ram16[0x3ff0/2] == 0x02) indx = 64;
-		else if (state->m_ram16[0x3ff0/2] == 0x01) indx = 32;
+		if (m_ram16[0x3ff0/2] >= 0x04) indx = 128;
+		else if (m_ram16[0x3ff0/2] > 0x02) indx = 96;
+		else if (m_ram16[0x3ff0/2] == 0x02) indx = 64;
+		else if (m_ram16[0x3ff0/2] == 0x01) indx = 32;
 		else indx = 0;
 
-		indx += state->m_ram16[0x3fee/2];
+		indx += m_ram16[0x3fee/2];
 		if (indx < 128)
 		{
-			state->m_ram16[0x3fe6/2] = f1dream_17b74_lookup[indx];
-			state->m_ram16[0x3fe8/2] = f1dream_17b74_lookup[++indx];
-			state->m_ram16[0x3fea/2] = f1dream_17b74_lookup[++indx];
-			state->m_ram16[0x3fec/2] = f1dream_17b74_lookup[++indx];
+			m_ram16[0x3fe6/2] = f1dream_17b74_lookup[indx];
+			m_ram16[0x3fe8/2] = f1dream_17b74_lookup[++indx];
+			m_ram16[0x3fea/2] = f1dream_17b74_lookup[++indx];
+			m_ram16[0x3fec/2] = f1dream_17b74_lookup[++indx];
 		}
 		else
 		{
-			state->m_ram16[0x3fe6/2] = 0x00ff;
-			state->m_ram16[0x3fe8/2] = 0x00ff;
-			state->m_ram16[0x3fea/2] = 0x00ff;
-			state->m_ram16[0x3fec/2] = 0x00ff;
+			m_ram16[0x3fe6/2] = 0x00ff;
+			m_ram16[0x3fe8/2] = 0x00ff;
+			m_ram16[0x3fea/2] = 0x00ff;
+			m_ram16[0x3fec/2] = 0x00ff;
 		}
 	}
 	else if ((prevpc == 0x27f8) || (prevpc == 0x511a) || (prevpc == 0x5142) || (prevpc == 0x516a))
 	{
 		/* The main CPU stuffs the byte for the soundlatch into 0xfffffd.*/
-		state->soundlatch_byte_w(space,2,state->m_ram16[0x3ffc/2]);
+		soundlatch_byte_w(space,2,m_ram16[0x3ffc/2]);
 	}
 }
 
@@ -157,11 +156,10 @@ WRITE16_MEMBER(tigeroad_state::tigeroad_soundcmd_w)
 
 WRITE8_MEMBER(tigeroad_state::msm5205_w)
 {
-	device_t *device = machine().device("msm");
-	msm5205_reset_w(device,(data>>7)&1);
-	msm5205_data_w(device,data);
-	msm5205_vclk_w(device,1);
-	msm5205_vclk_w(device,0);
+	m_msm->reset_w(BIT(data, 7));
+	m_msm->data_w(data);
+	m_msm->vclk_w(1);
+	m_msm->vclk_w(0);
 }
 
 
@@ -185,8 +183,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, tigeroad_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r, ym2203_w)
-	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE_LEGACY("ym2", ym2203_r, ym2203_w)
+	AM_RANGE(0x8000, 0x8001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
+	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ym2", ym2203_device, read, write)
 	AM_RANGE(0xc000, 0xc7ff) AM_RAM
 	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
@@ -493,24 +491,21 @@ GFXDECODE_END
 
 
 /* handler called by the 2203 emulator when the internal timers cause an IRQ */
-static void irqhandler(device_t *device, int irq)
+WRITE_LINE_MEMBER(tigeroad_state::irqhandler)
 {
-	device->machine().device("audiocpu")->execute().set_input_line(0, irq ? ASSERT_LINE : CLEAR_LINE);
+	m_audiocpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const ym2203_interface ym2203_config =
+static const ay8910_interface ay8910_config =
 {
-	{
-			AY8910_LEGACY_OUTPUT,
-			AY8910_DEFAULT_LOADS,
-			DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
-	},
-	DEVCB_LINE(irqhandler)
+	AY8910_LEGACY_OUTPUT,
+	AY8910_DEFAULT_LOADS,
+	DEVCB_NULL, DEVCB_NULL, DEVCB_NULL, DEVCB_NULL,
 };
 
 static const msm5205_interface msm5205_config =
 {
-	0,              /* interrupt function */
+	DEVCB_NULL,              /* interrupt function */
 	MSM5205_SEX_4B  /* 4KHz playback ?  */
 };
 
@@ -547,7 +542,8 @@ static MACHINE_CONFIG_START( tigeroad, tigeroad_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ym1", YM2203, XTAL_3_579545MHz) /* verified on pcb */
-	MCFG_SOUND_CONFIG(ym2203_config)
+	MCFG_YM2203_IRQ_HANDLER(WRITELINE(tigeroad_state, irqhandler))
+	MCFG_YM2203_AY8910_INTF(&ay8910_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_SOUND_ADD("ym2", YM2203, XTAL_3_579545MHz) /* verified on pcb */
@@ -764,12 +760,12 @@ ROM_END
 
 DRIVER_INIT_MEMBER(tigeroad_state,tigeroad)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xfe4002, 0xfe4003, write16_delegate(FUNC(tigeroad_state::tigeroad_soundcmd_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xfe4002, 0xfe4003, write16_delegate(FUNC(tigeroad_state::tigeroad_soundcmd_w),this));
 }
 
 DRIVER_INIT_MEMBER(tigeroad_state,f1dream)
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xfe4002, 0xfe4003, write16_delegate(FUNC(tigeroad_state::f1dream_control_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xfe4002, 0xfe4003, write16_delegate(FUNC(tigeroad_state::f1dream_control_w),this));
 }
 
 

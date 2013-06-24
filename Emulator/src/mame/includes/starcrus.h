@@ -1,8 +1,11 @@
+#include "sound/samples.h"
 class starcrus_state : public driver_device
 {
 public:
 	starcrus_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) { }
+		: driver_device(mconfig, type, tag) ,
+		m_maincpu(*this, "maincpu"),
+		m_samples(*this, "samples") { }
 
 	bitmap_ind16 *m_ship1_vid;
 	bitmap_ind16 *m_ship2_vid;
@@ -51,4 +54,10 @@ public:
 	DECLARE_READ8_MEMBER(starcrus_coll_det_r);
 	virtual void video_start();
 	UINT32 screen_update_starcrus(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	int collision_check_s1s2();
+	int collision_check_p1p2();
+	int collision_check_s1p1p2();
+	int collision_check_s2p1p2();
+	required_device<cpu_device> m_maincpu;
+	required_device<samples_device> m_samples;
 };

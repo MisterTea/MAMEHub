@@ -28,17 +28,16 @@ WRITE8_MEMBER(bogeyman_state::bogeyman_8910_latch_w)
 
 WRITE8_MEMBER(bogeyman_state::bogeyman_8910_control_w)
 {
-
 	// bit 0 is flipscreen
 	flip_screen_set(data & 0x01);
 
 	// bit 5 goes to 8910 #0 BDIR pin
 	if ((m_last_write & 0x20) == 0x20 && (data & 0x20) == 0x00)
-		ay8910_data_address_w(machine().device("ay1"), space, m_last_write >> 4, m_psg_latch);
+		machine().device<ay8910_device>("ay1")->data_address_w(space, m_last_write >> 4, m_psg_latch);
 
 	// bit 7 goes to 8910 #1 BDIR pin
 	if ((m_last_write & 0x80) == 0x80 && (data & 0x80) == 0x00)
-		ay8910_data_address_w(machine().device("ay2"), space, m_last_write >> 6, m_psg_latch);
+		machine().device<ay8910_device>("ay2")->data_address_w(space, m_last_write >> 6, m_psg_latch);
 
 	m_last_write = data;
 }
@@ -204,21 +203,18 @@ GFXDECODE_END
 
 void bogeyman_state::machine_start()
 {
-
 	save_item(NAME(m_psg_latch));
 	save_item(NAME(m_last_write));
 }
 
 void bogeyman_state::machine_reset()
 {
-
 	m_psg_latch = 0;
 	m_last_write = 0;
 }
 
 WRITE8_MEMBER(bogeyman_state::bogeyman_colbank_w)
 {
-
 	if((data & 1) != (m_colbank & 1))
 	{
 		m_colbank = data & 1;

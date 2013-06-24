@@ -87,7 +87,7 @@ public:
 	camplynx_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 	m_maincpu(*this, "maincpu"),
-	//m_cass(*this, CASSETTE_TAG),
+	//m_cass(*this, "cassette"),
 	//m_wave(*this, WAVE_TAG),
 	//m_printer(*this, "centronics"),
 	m_crtc(*this, "crtc")
@@ -130,8 +130,7 @@ WRITE8_MEMBER( camplynx_state::lynx48k_bank_w )
 WRITE8_MEMBER( camplynx_state::lynx128k_bank_w )
 {
 	/* get address space */
-	address_space &mem = m_maincpu->space(AS_PROGRAM);
-	UINT8 *base = mem.machine().root_device().memregion("maincpu")->base();
+	UINT8 *base = memregion("maincpu")->base();
 
 	/* Set read banks */
 	UINT8 bank = data & 0x0f;
@@ -353,7 +352,7 @@ MACHINE_RESET_MEMBER(camplynx_state,lynx128k)
 
 WRITE8_MEMBER( camplynx_state::lynx128k_irq )
 {
-	machine().device("maincpu")->execute().set_input_line(0, data);
+	m_maincpu->set_input_line(0, data);
 }
 
 
@@ -432,8 +431,10 @@ void camplynx_state::video_start()
 {
 }
 
-static const mc6845_interface lynx48k_crtc6845_interface = {
+static MC6845_INTERFACE( lynx48k_crtc6845_interface )
+{
 	"screen",
+	false,
 	8,
 	NULL,
 	lynx48k_update_row,
@@ -445,8 +446,11 @@ static const mc6845_interface lynx48k_crtc6845_interface = {
 	NULL
 };
 
-static const mc6845_interface lynx128k_crtc6845_interface = {
+
+static MC6845_INTERFACE( lynx128k_crtc6845_interface )
+{
 	"screen",           /* screen name */
+	false,
 	8,              /* dots per character */
 	NULL,
 	lynx128k_update_row,        /* callback to display one scanline */

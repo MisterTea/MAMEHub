@@ -33,7 +33,9 @@ public:
 			m_laserdisc(*this, "laserdisc") ,
 		m_tile_ram(*this, "tile_ram"),
 		m_tile_control_ram(*this, "tile_ctrl_ram"),
-		m_sprite_ram(*this, "sprite_ram"){ }
+		m_sprite_ram(*this, "sprite_ram"),
+		m_maincpu(*this, "maincpu"),
+		m_subcpu(*this, "sub") { }
 
 	required_device<pioneer_ldv1000_device> m_laserdisc;
 	required_shared_ptr<UINT8> m_tile_ram;
@@ -55,6 +57,8 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_istellar(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_callback_istellar);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_subcpu;
 };
 
 
@@ -112,7 +116,7 @@ WRITE8_MEMBER(istellar_state::z80_0_latch2_write)
 	if (m_z80_2_nmi_enable)
 	{
 		logerror("Executing an NMI on CPU2\n");
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);      /* Maybe this is a ASSERT_LINE, CLEAR_LINE combo? */
+		m_subcpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);      /* Maybe this is a ASSERT_LINE, CLEAR_LINE combo? */
 		m_z80_2_nmi_enable = 0;
 	}
 }
@@ -189,15 +193,15 @@ static ADDRESS_MAP_START( z80_0_io, AS_IO, 8, istellar_state )
 	AM_RANGE(0x00,0x00) AM_READ_PORT("IN0")
 	AM_RANGE(0x02,0x02) AM_READ_PORT("DSW1")
 	AM_RANGE(0x03,0x03) AM_READ_PORT("DSW2")
-	/*AM_RANGE(0x04,0x04) AM_WRITE_LEGACY(volatile_palette_write)*/
+	/*AM_RANGE(0x04,0x04) AM_WRITE(volatile_palette_write)*/
 	AM_RANGE(0x05,0x05) AM_READWRITE(z80_0_latch1_read,z80_0_latch2_write)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( z80_1_io, AS_IO, 8, istellar_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00,0x00) AM_NOP /*AM_READWRITE_LEGACY(z80_1_slatch_read,z80_1_slatch_write)*/
-	AM_RANGE(0x01,0x01) AM_NOP /*AM_READWRITE_LEGACY(z80_1_nmienable,z80_1_soundwrite_front)*/
-	AM_RANGE(0x02,0x02) AM_NOP /*AM_WRITE_LEGACY(z80_1_soundwrite_rear)*/
+	AM_RANGE(0x00,0x00) AM_NOP /*AM_READWRITE(z80_1_slatch_read,z80_1_slatch_write)*/
+	AM_RANGE(0x01,0x01) AM_NOP /*AM_READWRITE(z80_1_nmienable,z80_1_soundwrite_front)*/
+	AM_RANGE(0x02,0x02) AM_NOP /*AM_WRITE(z80_1_soundwrite_rear)*/
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( z80_2_io, AS_IO, 8, istellar_state )
@@ -205,7 +209,7 @@ static ADDRESS_MAP_START( z80_2_io, AS_IO, 8, istellar_state )
 	AM_RANGE(0x00,0x00) AM_READWRITE(z80_2_ldp_read,z80_2_ldp_write)
 	AM_RANGE(0x01,0x01) AM_READWRITE(z80_2_latch2_read,z80_2_latch1_write)
 	AM_RANGE(0x02,0x02) AM_READ(z80_2_nmienable)
-/*  AM_RANGE(0x03,0x03) AM_WRITE_LEGACY(z80_2_ldtrans_write)*/
+/*  AM_RANGE(0x03,0x03) AM_WRITE(z80_2_ldtrans_write)*/
 ADDRESS_MAP_END
 
 
@@ -267,7 +271,7 @@ INPUT_PORTS_END
 
 void istellar_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	for (i = 0; i < machine().total_colors(); i++)
@@ -323,7 +327,7 @@ INTERRUPT_GEN_MEMBER(istellar_state::vblank_callback_istellar)
 	device.execute().set_input_line(0, HOLD_LINE);
 
 	/* Interrupt presumably comes from the LDP's status strobe */
-	machine().device("sub")->execute().set_input_line(0, ASSERT_LINE);
+	m_subcpu->set_input_line(0, ASSERT_LINE);
 }
 
 
@@ -406,7 +410,7 @@ DRIVER_INIT_MEMBER(istellar_state,istellar)
 
 	#if 0
 	{
-		UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+		UINT8 *ROM = memregion("maincpu")->base();
 
 		ROM[0x4465] = 0x00;
 		ROM[0x4466] = 0x00;

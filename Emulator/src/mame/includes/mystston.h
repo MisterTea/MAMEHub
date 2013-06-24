@@ -14,7 +14,7 @@ class mystston_state : public driver_device
 {
 public:
 	mystston_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_ay8910_data(*this, "ay8910_data"),
 		m_ay8910_select(*this, "ay8910_select"),
 		m_bg_videoram(*this, "bg_videoram"),
@@ -22,7 +22,8 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_paletteram(*this, "paletteram"),
 		m_scroll(*this, "scroll"),
-		m_video_control(*this, "video_control") { }
+		m_video_control(*this, "video_control") ,
+		m_maincpu(*this, "maincpu") { }
 
 	/* machine state */
 	required_shared_ptr<UINT8> m_ay8910_data;
@@ -48,11 +49,11 @@ public:
 	DECLARE_VIDEO_RESET(mystston);
 	UINT32 screen_update_mystston(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(interrupt_callback);
+	void set_palette();
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, gfx_element *gfx, int flip);
+	void mystston_on_scanline_interrupt();
+	required_device<cpu_device> m_maincpu;
 };
-
-/*----------- defined in drivers/mystston.c -----------*/
-
-void mystston_on_scanline_interrupt(running_machine &machine);
 
 /*----------- defined in video/mystston.c -----------*/
 

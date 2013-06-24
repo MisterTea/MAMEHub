@@ -319,8 +319,8 @@ UINT32 jchan_state::screen_update_jchan(screen_device &screen, bitmap_ind16 &bit
 	m_sprite_bitmap_1->fill(0x0000, cliprect);
 	m_sprite_bitmap_2->fill(0x0000, cliprect);
 
-	m_spritegen1->skns_draw_sprites(machine(), *m_sprite_bitmap_1, cliprect, m_sprite_ram32_1, 0x4000, machine().root_device().memregion("gfx1")->base(), machine().root_device().memregion ("gfx1")->bytes(), m_sprite_regs32_1 );
-	m_spritegen2->skns_draw_sprites(machine(), *m_sprite_bitmap_2, cliprect, m_sprite_ram32_2, 0x4000, machine().root_device().memregion("gfx2")->base(), memregion ("gfx2")->bytes(), m_sprite_regs32_2 );
+	m_spritegen1->skns_draw_sprites(machine(), *m_sprite_bitmap_1, cliprect, m_sprite_ram32_1, 0x4000, memregion("gfx1")->base(), memregion ("gfx1")->bytes(), m_sprite_regs32_1 );
+	m_spritegen2->skns_draw_sprites(machine(), *m_sprite_bitmap_2, cliprect, m_sprite_ram32_2, 0x4000, memregion("gfx2")->base(), memregion ("gfx2")->bytes(), m_sprite_regs32_2 );
 
 	// ignoring priority bits for now - might use alpha too, check 0x8000 of palette writes
 	for (y=0;y<240;y++)
@@ -363,13 +363,11 @@ UINT32 jchan_state::screen_update_jchan(screen_device &screen, bitmap_ind16 &bit
 
 WRITE16_MEMBER(jchan_state::jchan_ctrl_w)
 {
-
 	m_irq_sub_enable = data & 0x8000; // hack / guess!
 }
 
 READ16_MEMBER(jchan_state::jchan_ctrl_r)
 {
-
 	switch(offset)
 	{
 		case 0/2: return ioport("P1")->read();
@@ -390,23 +388,20 @@ READ16_MEMBER(jchan_state::jchan_ctrl_r)
 /* communications - hacky! */
 WRITE16_MEMBER(jchan_state::main2sub_cmd_w)
 {
-
 	COMBINE_DATA(&m_mainsub_shared_ram[0x03ffe/2]);
-	machine().device("sub")->execute().set_input_line(4, HOLD_LINE);
+	m_subcpu->set_input_line(4, HOLD_LINE);
 }
 
 // is this called?
 WRITE16_MEMBER(jchan_state::sub2main_cmd_w)
 {
-
 	COMBINE_DATA(&m_mainsub_shared_ram[0x0000/2]);
-	machine().device("maincpu")->execute().set_input_line(3, HOLD_LINE);
+	m_maincpu->set_input_line(3, HOLD_LINE);
 }
 
 /* ram convert for suprnova (requires 32-bit stuff) */
 WRITE16_MEMBER(jchan_state::jchan_suprnova_sprite32_1_w)
 {
-
 	COMBINE_DATA(&m_spriteram_1[offset]);
 	offset>>=1;
 	m_sprite_ram32_1[offset]=(m_spriteram_1[offset*2+1]<<16) | (m_spriteram_1[offset*2]);
@@ -414,7 +409,6 @@ WRITE16_MEMBER(jchan_state::jchan_suprnova_sprite32_1_w)
 
 WRITE16_MEMBER(jchan_state::jchan_suprnova_sprite32regs_1_w)
 {
-
 	COMBINE_DATA(&m_sprregs_1[offset]);
 	offset>>=1;
 	m_sprite_regs32_1[offset]=(m_sprregs_1[offset*2+1]<<16) | (m_sprregs_1[offset*2]);
@@ -422,7 +416,6 @@ WRITE16_MEMBER(jchan_state::jchan_suprnova_sprite32regs_1_w)
 
 WRITE16_MEMBER(jchan_state::jchan_suprnova_sprite32_2_w)
 {
-
 	COMBINE_DATA(&m_spriteram_2[offset]);
 	offset>>=1;
 	m_sprite_ram32_2[offset]=(m_spriteram_2[offset*2+1]<<16) | (m_spriteram_2[offset*2]);
@@ -430,7 +423,6 @@ WRITE16_MEMBER(jchan_state::jchan_suprnova_sprite32_2_w)
 
 WRITE16_MEMBER(jchan_state::jchan_suprnova_sprite32regs_2_w)
 {
-
 	COMBINE_DATA(&m_sprregs_2[offset]);
 	offset>>=1;
 	m_sprite_regs32_2[offset]=(m_sprregs_2[offset*2+1]<<16) | (m_sprregs_2[offset*2]);
@@ -476,7 +468,7 @@ static ADDRESS_MAP_START( jchan_sub, AS_PROGRAM, 16, jchan_state )
 	AM_RANGE(0x700000, 0x703fff) AM_RAM_WRITE(jchan_suprnova_sprite32_2_w) AM_SHARE("spriteram_2")
 	AM_RANGE(0x780000, 0x78003f) AM_RAM_WRITE(jchan_suprnova_sprite32regs_2_w) AM_SHARE("sprregs_2")
 
-	AM_RANGE(0x800000, 0x800003) AM_DEVWRITE8_LEGACY("ymz", ymz280b_w, 0x00ff) // sound
+	AM_RANGE(0x800000, 0x800003) AM_DEVWRITE8("ymz", ymz280b_device, write, 0x00ff) // sound
 
 	AM_RANGE(0xa00000, 0xa00001) AM_READWRITE(watchdog_reset16_r, watchdog_reset16_w)   // watchdog
 ADDRESS_MAP_END
@@ -585,14 +577,6 @@ static INPUT_PORTS_START( jchan2 )
 INPUT_PORTS_END
 
 
-/* sound stuff */
-
-static const ymz280b_interface ymz280b_intf =
-{
-	0   // irq ?
-};
-
-
 /* machine driver */
 
 static MACHINE_CONFIG_START( jchan, jchan_state )
@@ -634,7 +618,6 @@ static MACHINE_CONFIG_START( jchan, jchan_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, 16000000)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -722,8 +705,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER( jchan_state, jchan )
 {
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0x403ffe, 0x403fff, write16_delegate(FUNC(jchan_state::main2sub_cmd_w),this));
-	machine().device("sub")->memory().space(AS_PROGRAM).install_write_handler(0x400000, 0x400001, write16_delegate(FUNC(jchan_state::sub2main_cmd_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x403ffe, 0x403fff, write16_delegate(FUNC(jchan_state::main2sub_cmd_w),this));
+	m_subcpu->space(AS_PROGRAM).install_write_handler(0x400000, 0x400001, write16_delegate(FUNC(jchan_state::sub2main_cmd_w),this));
 }
 
 

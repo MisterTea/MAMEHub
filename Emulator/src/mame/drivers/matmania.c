@@ -93,8 +93,8 @@ static ADDRESS_MAP_START( maniach_map, AS_PROGRAM, 8, matmania_state )
 	AM_RANGE(0x3010, 0x3010) AM_READ_PORT("IN1") AM_WRITE(maniach_sh_command_w)
 	AM_RANGE(0x3020, 0x3020) AM_READ_PORT("DSW2") AM_WRITEONLY AM_SHARE("scroll")
 	AM_RANGE(0x3030, 0x3030) AM_READ_PORT("DSW1") AM_WRITENOP   /* ?? */
-	AM_RANGE(0x3040, 0x3040) AM_READWRITE_LEGACY(maniach_mcu_r,maniach_mcu_w)
-	AM_RANGE(0x3041, 0x3041) AM_READ_LEGACY(maniach_mcu_status_r)
+	AM_RANGE(0x3040, 0x3040) AM_READWRITE(maniach_mcu_r,maniach_mcu_w)
+	AM_RANGE(0x3041, 0x3041) AM_READ(maniach_mcu_status_r)
 	AM_RANGE(0x3050, 0x307f) AM_WRITE(matmania_paletteram_w) AM_SHARE("paletteram")
 	AM_RANGE(0x4000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -102,8 +102,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( matmania_sound_map, AS_PROGRAM, 8, matmania_state )
 	AM_RANGE(0x0000, 0x01ff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE_LEGACY("ay1", ay8910_data_address_w)
-	AM_RANGE(0x2002, 0x2003) AM_DEVWRITE_LEGACY("ay2", ay8910_data_address_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE("ay1", ay8910_device, data_address_w)
+	AM_RANGE(0x2002, 0x2003) AM_DEVWRITE("ay2", ay8910_device, data_address_w)
 	AM_RANGE(0x2004, 0x2004) AM_DEVWRITE("dac", dac_device, write_signed8)
 	AM_RANGE(0x2007, 0x2007) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
@@ -111,7 +111,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( maniach_sound_map, AS_PROGRAM, 8, matmania_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
-	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE_LEGACY("ymsnd", ym3526_w)
+	AM_RANGE(0x2000, 0x2001) AM_DEVWRITE("ymsnd", ym3526_device, write)
 	AM_RANGE(0x2002, 0x2002) AM_DEVWRITE("dac", dac_device, write_signed8)
 	AM_RANGE(0x2004, 0x2004) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0x4000, 0xffff) AM_ROM
@@ -120,12 +120,12 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( maniach_mcu_map, AS_PROGRAM, 8, matmania_state )
 	ADDRESS_MAP_GLOBAL_MASK(0x7ff)
-	AM_RANGE(0x0000, 0x0000) AM_READWRITE_LEGACY(maniach_68705_port_a_r,maniach_68705_port_a_w)
-	AM_RANGE(0x0001, 0x0001) AM_READWRITE_LEGACY(maniach_68705_port_b_r,maniach_68705_port_b_w)
-	AM_RANGE(0x0002, 0x0002) AM_READWRITE_LEGACY(maniach_68705_port_c_r,maniach_68705_port_c_w)
-	AM_RANGE(0x0004, 0x0004) AM_WRITE_LEGACY(maniach_68705_ddr_a_w)
-	AM_RANGE(0x0005, 0x0005) AM_WRITE_LEGACY(maniach_68705_ddr_b_w)
-	AM_RANGE(0x0006, 0x0006) AM_WRITE_LEGACY(maniach_68705_ddr_c_w)
+	AM_RANGE(0x0000, 0x0000) AM_READWRITE(maniach_68705_port_a_r,maniach_68705_port_a_w)
+	AM_RANGE(0x0001, 0x0001) AM_READWRITE(maniach_68705_port_b_r,maniach_68705_port_b_w)
+	AM_RANGE(0x0002, 0x0002) AM_READWRITE(maniach_68705_port_c_r,maniach_68705_port_c_w)
+	AM_RANGE(0x0004, 0x0004) AM_WRITE(maniach_68705_ddr_a_w)
+	AM_RANGE(0x0005, 0x0005) AM_WRITE(maniach_68705_ddr_b_w)
+	AM_RANGE(0x0006, 0x0006) AM_WRITE(maniach_68705_ddr_c_w)
 	AM_RANGE(0x0010, 0x007f) AM_RAM
 	AM_RANGE(0x0080, 0x07ff) AM_ROM
 ADDRESS_MAP_END
@@ -298,10 +298,6 @@ GFXDECODE_END
 
 MACHINE_START_MEMBER(matmania_state,matmania)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-	m_mcu = machine().device("mcu");
 }
 
 static MACHINE_CONFIG_START( matmania, matmania_state )
@@ -345,15 +341,8 @@ static MACHINE_CONFIG_START( matmania, matmania_state )
 MACHINE_CONFIG_END
 
 
-static const ym3526_interface ym3526_config =
-{
-	DEVCB_CPU_INPUT_LINE("audiocpu", M6809_FIRQ_LINE)
-};
-
-
 MACHINE_START_MEMBER(matmania_state,maniach)
 {
-
 	MACHINE_START_CALL_MEMBER(matmania);
 
 	save_item(NAME(m_port_a_in));
@@ -373,7 +362,6 @@ MACHINE_START_MEMBER(matmania_state,maniach)
 
 MACHINE_RESET_MEMBER(matmania_state,maniach)
 {
-
 	m_port_a_in = 0;
 	m_port_a_out = 0;
 	m_ddr_a = 0;
@@ -424,7 +412,7 @@ static MACHINE_CONFIG_START( maniach, matmania_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3526, 3600000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("audiocpu", m6809_device, firq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_DAC_ADD("dac")

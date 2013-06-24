@@ -16,16 +16,16 @@
 #include "elf2.lh"
 
 #define RUN \
-	BIT(ioport("SPECIAL")->read(), 0)
+	BIT(m_special->read(), 0)
 
 #define LOAD \
-	BIT(ioport("SPECIAL")->read(), 1)
+	BIT(m_special->read(), 1)
 
 #define MEMORY_PROTECT \
-	BIT(ioport("SPECIAL")->read(), 2)
+	BIT(m_special->read(), 2)
 
 #define INPUT \
-	BIT(ioport("SPECIAL")->read(), 3)
+	BIT(m_special->read(), 3)
 
 /* Read/Write Handlers */
 
@@ -221,17 +221,6 @@ static MM74C923_INTERFACE( keyboard_intf )
 	DEVCB_NULL
 };
 
-/* CDP1861 Interface */
-
-static CDP1861_INTERFACE( elf2_cdp1861_intf )
-{
-	CDP1802_TAG,
-	SCREEN_TAG,
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT),
-	DEVCB_CPU_INPUT_LINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1)
-};
-
 /* Machine Initialization */
 
 void elf2_state::machine_start()
@@ -277,44 +266,40 @@ static DM9368_INTERFACE( led_l_intf )
 	DEVCB_NULL
 };
 
-static QUICKLOAD_LOAD( elf )
+QUICKLOAD_LOAD_MEMBER( elf2_state, elf )
 {
-	elf2_state *state = image.device().machine().driver_data<elf2_state>();
-
 	int size = image.length();
 
-	if (size > state->m_ram->size())
+	if (size > m_ram->size())
 	{
 		return IMAGE_INIT_FAIL;
 	}
 
-	image.fread(state->m_ram->pointer(), size);
+	image.fread(m_ram->pointer(), size);
 
 	return IMAGE_INIT_PASS;
 }
 
 static MACHINE_CONFIG_START( elf2, elf2_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD(CDP1802_TAG, COSMAC, XTAL_3_579545MHz/2)
+	MCFG_CPU_ADD(CDP1802_TAG, CDP1802, XTAL_3_579545MHz/2)
 	MCFG_CPU_PROGRAM_MAP(elf2_mem)
 	MCFG_CPU_IO_MAP(elf2_io)
 	MCFG_CPU_CONFIG(elf2_config)
 
 	/* video hardware */
 	MCFG_DEFAULT_LAYOUT( layout_elf2 )
-
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
 	MCFG_SCREEN_UPDATE_DEVICE(CDP1861_TAG, cdp1861_device, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_3_579545MHz/2, CDP1861_SCREEN_WIDTH, CDP1861_HBLANK_END, CDP1861_HBLANK_START, CDP1861_TOTAL_SCANLINES, CDP1861_SCANLINE_VBLANK_END, CDP1861_SCANLINE_VBLANK_START)
 
+	/* devices */
 	MCFG_MM74C923_ADD(MM74C923_TAG, keyboard_intf)
 	MCFG_DM9368_ADD(DM9368_H_TAG, led_h_intf)
 	MCFG_DM9368_ADD(DM9368_L_TAG, led_l_intf)
-	MCFG_CDP1861_ADD(CDP1861_TAG, XTAL_3_579545MHz/2, elf2_cdp1861_intf)
-
-	/* devices */
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, elf_cassette_interface)
-	MCFG_QUICKLOAD_ADD("quickload", elf, "bin", 0)
+	MCFG_CDP1861_ADD(CDP1861_TAG, SCREEN_TAG, XTAL_3_579545MHz/2, INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_INT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_DMAOUT), INPUTLINE(CDP1802_TAG, COSMAC_INPUT_LINE_EF1))
+	MCFG_CASSETTE_ADD("cassette", elf_cassette_interface)
+	MCFG_QUICKLOAD_ADD("quickload", elf2_state, elf, "bin", 0)
 
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)

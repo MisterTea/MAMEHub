@@ -25,50 +25,49 @@ TODO:
 #include "includes/ladybug.h"
 
 
-static WRITE8_HANDLER( irqack_w )
+WRITE8_MEMBER( ladybug_state::irqack_w )
 {
-	ladybug_state *state = space.machine().driver_data<ladybug_state>();
-	state->m_maincpu->set_input_line(0, CLEAR_LINE);
+	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
 
 static ADDRESS_MAP_START( zerohour_map, AS_PROGRAM, 8, ladybug_state )
 	AM_RANGE(0x0000, 0x2fff) AM_ROM
 	AM_RANGE(0x3000, 0x37ff) AM_RAM
 	AM_RANGE(0x3800, 0x3bff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x4000, 0x43ff) AM_RAM_WRITE_LEGACY(redclash_videoram_w) AM_SHARE("videoram")
+	AM_RANGE(0x4000, 0x43ff) AM_RAM_WRITE(redclash_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0x4800, 0x4800) AM_READ_PORT("IN0")    /* IN0 */
 	AM_RANGE(0x4801, 0x4801) AM_READ_PORT("IN1")    /* IN1 */
 	AM_RANGE(0x4802, 0x4802) AM_READ_PORT("DSW1")   /* DSW0 */
 	AM_RANGE(0x4803, 0x4803) AM_READ_PORT("DSW2")   /* DSW1 */
 	AM_RANGE(0x5000, 0x5007) AM_WRITENOP    /* to sound board */
-	AM_RANGE(0x5800, 0x5800) AM_WRITE_LEGACY(redclash_star0_w)
+	AM_RANGE(0x5800, 0x5800) AM_WRITE(redclash_star0_w)
 	AM_RANGE(0x5801, 0x5804) AM_WRITENOP    /* to sound board */
-	AM_RANGE(0x5805, 0x5805) AM_WRITE_LEGACY(redclash_star1_w)
-	AM_RANGE(0x5806, 0x5806) AM_WRITE_LEGACY(redclash_star2_w)
-	AM_RANGE(0x5807, 0x5807) AM_WRITE_LEGACY(redclash_flipscreen_w)
-	AM_RANGE(0x7000, 0x7000) AM_WRITE_LEGACY(redclash_star_reset_w)
-	AM_RANGE(0x7800, 0x7800) AM_WRITE_LEGACY(irqack_w)
+	AM_RANGE(0x5805, 0x5805) AM_WRITE(redclash_star1_w)
+	AM_RANGE(0x5806, 0x5806) AM_WRITE(redclash_star2_w)
+	AM_RANGE(0x5807, 0x5807) AM_WRITE(redclash_flipscreen_w)
+	AM_RANGE(0x7000, 0x7000) AM_WRITE(redclash_star_reset_w)
+	AM_RANGE(0x7800, 0x7800) AM_WRITE(irqack_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( redclash_map, AS_PROGRAM, 8, ladybug_state )
 	AM_RANGE(0x0000, 0x2fff) AM_ROM
 //  AM_RANGE(0x3000, 0x3000) AM_WRITENOP
 //  AM_RANGE(0x3800, 0x3800) AM_WRITENOP
-	AM_RANGE(0x4000, 0x43ff) AM_RAM_WRITE_LEGACY(redclash_videoram_w) AM_SHARE("videoram")
+	AM_RANGE(0x4000, 0x43ff) AM_RAM_WRITE(redclash_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0x4800, 0x4800) AM_READ_PORT("IN0")    /* IN0 */
 	AM_RANGE(0x4801, 0x4801) AM_READ_PORT("IN1")    /* IN1 */
 	AM_RANGE(0x4802, 0x4802) AM_READ_PORT("DSW1")   /* DSW0 */
 	AM_RANGE(0x4803, 0x4803) AM_READ_PORT("DSW2")   /* DSW1 */
 	AM_RANGE(0x5000, 0x5007) AM_WRITENOP    /* to sound board */
-	AM_RANGE(0x5800, 0x5800) AM_WRITE_LEGACY(redclash_star0_w)
-	AM_RANGE(0x5801, 0x5801) AM_WRITE_LEGACY(redclash_gfxbank_w)
-	AM_RANGE(0x5805, 0x5805) AM_WRITE_LEGACY(redclash_star1_w)
-	AM_RANGE(0x5806, 0x5806) AM_WRITE_LEGACY(redclash_star2_w)
-	AM_RANGE(0x5807, 0x5807) AM_WRITE_LEGACY(redclash_flipscreen_w)
+	AM_RANGE(0x5800, 0x5800) AM_WRITE(redclash_star0_w)
+	AM_RANGE(0x5801, 0x5801) AM_WRITE(redclash_gfxbank_w)
+	AM_RANGE(0x5805, 0x5805) AM_WRITE(redclash_star1_w)
+	AM_RANGE(0x5806, 0x5806) AM_WRITE(redclash_star2_w)
+	AM_RANGE(0x5807, 0x5807) AM_WRITE(redclash_flipscreen_w)
 	AM_RANGE(0x6000, 0x67ff) AM_RAM
 	AM_RANGE(0x6800, 0x6bff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x7000, 0x7000) AM_WRITE_LEGACY(redclash_star_reset_w)
-	AM_RANGE(0x7800, 0x7800) AM_WRITE_LEGACY(irqack_w)
+	AM_RANGE(0x7000, 0x7000) AM_WRITE(redclash_star_reset_w)
+	AM_RANGE(0x7800, 0x7800) AM_WRITE(irqack_w)
 ADDRESS_MAP_END
 
 /*
@@ -326,9 +325,6 @@ GFXDECODE_END
 
 MACHINE_START_MEMBER(ladybug_state,redclash)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-
 	save_item(NAME(m_star_speed));
 	save_item(NAME(m_gfxbank));
 	save_item(NAME(m_stars_enable));
@@ -340,7 +336,6 @@ MACHINE_START_MEMBER(ladybug_state,redclash)
 
 MACHINE_RESET_MEMBER(ladybug_state,redclash)
 {
-
 	m_star_speed = 0;
 	m_gfxbank = 0;
 	m_stars_enable = 0;
@@ -539,9 +534,9 @@ ROM_END
 DRIVER_INIT_MEMBER(ladybug_state,redclash)
 {
 	int i,j;
-	const UINT8 *src = machine().root_device().memregion("gfx2")->base();
-	UINT8 *dst = machine().root_device().memregion("gfx3")->base();
-	int len = machine().root_device().memregion("gfx3")->bytes();
+	const UINT8 *src = memregion("gfx2")->base();
+	UINT8 *dst = memregion("gfx3")->base();
+	int len = memregion("gfx3")->bytes();
 
 	/* rearrange the sprite graphics */
 	for (i = 0;i < len;i++)

@@ -184,7 +184,7 @@ static Z80PIO_INTERFACE( babbage_z80pio1_intf )
 
 READ8_MEMBER( babbage_state::pio2_a_r )
 {
-	machine().device("maincpu")->execute().set_input_line(0, CLEAR_LINE); // release interrupt
+	m_maincpu->set_input_line(0, CLEAR_LINE); // release interrupt
 	return m_key;
 }
 
@@ -223,7 +223,6 @@ static const z80_daisy_config babbage_daisy_chain[] =
 
 TIMER_DEVICE_CALLBACK_MEMBER(babbage_state::keyboard_callback)
 {
-
 	UINT8 i, j, inp;
 	char kbdrow[6];
 	UINT8 data = 0xff;
@@ -231,7 +230,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(babbage_state::keyboard_callback)
 	for (i = 0; i < 4; i++)
 	{
 		sprintf(kbdrow,"X%X",i);
-		inp = machine().root_device().ioport(kbdrow)->read();
+		inp = ioport(kbdrow)->read();
 
 		for (j = 0; j < 5; j++)
 			if (BIT(inp, j))

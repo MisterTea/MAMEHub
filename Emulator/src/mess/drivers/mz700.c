@@ -122,7 +122,7 @@ static ADDRESS_MAP_START( mz800_io, AS_IO, 8, mz_state )
 	AM_RANGE(0xce, 0xce) AM_READWRITE(mz800_crtc_r, mz800_display_mode_w )
 	AM_RANGE(0xcf, 0xcf) AM_WRITE(mz800_scroll_border_w )
 	AM_RANGE(0xd0, 0xd3) AM_DEVREADWRITE("ppi8255", i8255_device, read, write)
-	AM_RANGE(0xd4, 0xd7) AM_DEVREADWRITE_LEGACY("pit8253", pit8253_r, pit8253_w)
+	AM_RANGE(0xd4, 0xd7) AM_DEVREADWRITE("pit8253", pit8253_device, read, write)
 	AM_RANGE(0xe0, 0xe0) AM_READWRITE(mz800_bank_0_r, mz800_bank_0_w)
 	AM_RANGE(0xe1, 0xe1) AM_READWRITE(mz800_bank_1_r, mz700_bank_1_w)
 	AM_RANGE(0xe2, 0xe2) AM_WRITE(mz700_bank_2_w)
@@ -362,9 +362,9 @@ static MACHINE_CONFIG_START( mz700, mz_state )
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, CASSETTE_TAG)
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-	MCFG_SOUND_ADD(SPEAKER_TAG, SPEAKER_SOUND, 0)
+	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* ne556 timers */
@@ -376,7 +376,7 @@ static MACHINE_CONFIG_START( mz700, mz_state )
 	MCFG_I8255_ADD("ppi8255", mz700_ppi8255_interface)
 	MCFG_TTL74145_ADD("ls145", default_ttl74145)
 
-	MCFG_CASSETTE_ADD( CASSETTE_TAG, mz700_cassette_interface )
+	MCFG_CASSETTE_ADD( "cassette", mz700_cassette_interface )
 	MCFG_SOFTWARE_LIST_ADD("cass_list","mz700_cass")
 
 	/* internal ram */
@@ -401,6 +401,9 @@ static MACHINE_CONFIG_DERIVED( mz800, mz700 )
 	MCFG_SOUND_ADD("sn76489n", SN76489, XTAL_17_73447MHz/5)
 	MCFG_SOUND_CONFIG(psg_intf)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+
+	MCFG_DEVICE_REMOVE("cass_list")
+	MCFG_SOFTWARE_LIST_ADD("cass_list","mz800_cass")
 
 	/* devices */
 	MCFG_DEVICE_REMOVE("pit8253")

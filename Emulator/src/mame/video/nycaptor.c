@@ -15,12 +15,10 @@
  spot number isn't set to 0 in main menu ; lives - yes
  sprites in main menu req priority 'type' 0
 */
-static int nycaptor_spot( running_machine &machine )
+int nycaptor_state::nycaptor_spot(  )
 {
-	nycaptor_state *state = machine.driver_data<nycaptor_state>();
-
-	if (state->m_gametype == 0 || state->m_gametype == 2)
-		return state->m_sharedram[0x299] ? state->m_sharedram[0x298] : 0;
+	if (m_gametype == 0 || m_gametype == 2)
+		return m_sharedram[0x299] ? m_sharedram[0x298] : 0;
 	else
 		return 0;
 
@@ -44,19 +42,19 @@ TILE_GET_INFO_MEMBER(nycaptor_state::get_tile_info)
 
 	tileinfo.group = 0;
 
-	if ((!nycaptor_spot(machine())) && (pal == 6))
+	if ((!nycaptor_spot()) && (pal == 6))
 		tileinfo.group = 1;
 
-	if (((nycaptor_spot(machine()) == 3) && (pal == 8)) || ((nycaptor_spot(machine()) == 1) && (pal == 0xc)))
+	if (((nycaptor_spot() == 3) && (pal == 8)) || ((nycaptor_spot() == 1) && (pal == 0xc)))
 		tileinfo.group = 2;
 
-	if ((nycaptor_spot(machine()) == 1) && (tileinfo.category == 2))
+	if ((nycaptor_spot() == 1) && (tileinfo.category == 2))
 		tileinfo.group = 3;
 
 #if NYCAPTOR_DEBUG
 	if (m_mask & (1 << tileinfo.category))
 	{
-		if (nycaptor_spot(machine()))
+		if (nycaptor_spot())
 			pal = 0xe;
 		else
 			pal = 4;
@@ -73,7 +71,6 @@ TILE_GET_INFO_MEMBER(nycaptor_state::get_tile_info)
 
 void nycaptor_state::video_start()
 {
-
 	m_spriteram = auto_alloc_array(machine(), UINT8, 160);
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(nycaptor_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32 );
 
@@ -102,7 +99,6 @@ READ8_MEMBER(nycaptor_state::nycaptor_videoram_r)
 
 WRITE8_MEMBER(nycaptor_state::nycaptor_palette_w)
 {
-
 	if (m_gametype == 2) //colt
 		return;
 
@@ -114,7 +110,6 @@ WRITE8_MEMBER(nycaptor_state::nycaptor_palette_w)
 
 READ8_MEMBER(nycaptor_state::nycaptor_palette_r)
 {
-
 	if (offset & 0x100)
 		return m_generic_paletteram2_8[(offset & 0xff) + (m_palette_bank << 8)];
 	else
@@ -123,7 +118,6 @@ READ8_MEMBER(nycaptor_state::nycaptor_palette_r)
 
 WRITE8_MEMBER(nycaptor_state::nycaptor_gfxctrl_w)
 {
-
 	if (m_gfxctrl == data)
 		return;
 
@@ -155,41 +149,40 @@ WRITE8_MEMBER(nycaptor_state::nycaptor_scrlram_w)
 	m_bg_tilemap->set_scrolly(offset, data);
 }
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int pri )
+void nycaptor_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int pri )
 {
-	nycaptor_state *state = machine.driver_data<nycaptor_state>();
 	int i;
 
 	for (i = 0; i < 0x20; i++)
 	{
-		int pr = state->m_spriteram[0x9f - i];
+		int pr = m_spriteram[0x9f - i];
 		int offs = (pr & 0x1f) * 4;
 		int code, sx, sy, flipx, flipy, pal, priori;
 
-		code = state->m_spriteram[offs + 2] + ((state->m_spriteram[offs + 1] & 0x10) << 4);//1 bit wolny = 0x20
-		pal  = state->m_spriteram[offs + 1] & 0x0f;
-		sx   = state->m_spriteram[offs + 3];
-		sy   = 240 - state->m_spriteram[offs + 0];
+		code = m_spriteram[offs + 2] + ((m_spriteram[offs + 1] & 0x10) << 4);//1 bit wolny = 0x20
+		pal  = m_spriteram[offs + 1] & 0x0f;
+		sx   = m_spriteram[offs + 3];
+		sy   = 240 - m_spriteram[offs + 0];
 		priori = (pr & 0xe0) >> 5;
 
 		if (priori == pri)
 		{
 #if NYCAPTOR_DEBUG
-			if (state->m_mask & (1 << (pri + 4))) pal = 0xd;
+			if (m_mask & (1 << (pri + 4))) pal = 0xd;
 #endif
-			flipx = BIT(state->m_spriteram[offs + 1], 6);
-			flipy = BIT(state->m_spriteram[offs + 1], 7);
+			flipx = BIT(m_spriteram[offs + 1], 6);
+			flipy = BIT(m_spriteram[offs + 1], 7);
 
-			drawgfx_transpen(bitmap, cliprect, machine.gfx[1],
+			drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
 					code,
 					pal,
 					flipx,flipy,
 					sx,sy,15);
 
-			if (state->m_spriteram[offs + 3] > 240)
+			if (m_spriteram[offs + 3] > 240)
 			{
-				sx = (state->m_spriteram[offs + 3] - 256);
-				drawgfx_transpen(bitmap, cliprect, machine.gfx[1],
+				sx = (m_spriteram[offs + 3] - 256);
+				drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
 					code,
 					pal,
 					flipx,flipy,
@@ -214,10 +207,8 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 #define mKEY_MASK(x,y) if (machine.input().code_pressed_once(x)) { state->m_mask |= y; state->m_bg_tilemap->mark_all_dirty(); }
 
-static void nycaptor_setmask( running_machine &machine )
+void nycaptor_state::nycaptor_setmask(  )
 {
-	nycaptor_state *state = machine.driver_data<nycaptor_state>();
-
 	mKEY_MASK(KEYCODE_Q, 1); /* bg */
 	mKEY_MASK(KEYCODE_W, 2);
 	mKEY_MASK(KEYCODE_E, 4);
@@ -232,14 +223,13 @@ static void nycaptor_setmask( running_machine &machine )
 	mKEY_MASK(KEYCODE_J, 0x400);
 	mKEY_MASK(KEYCODE_K, 0x800);
 
-	if (machine.input().code_pressed_once(KEYCODE_Z)){state->m_mask = 0; state->m_bg_tilemap->mark_all_dirty();} /* disable */
-	if (machine.input().code_pressed_once(KEYCODE_X)){state->m_mask |= 0x1000; state->m_bg_tilemap->mark_all_dirty();} /* no layers */
+	if (machine().input().code_pressed_once(KEYCODE_Z)){m_mask = 0; m_bg_tilemap->mark_all_dirty();} /* disable */
+	if (machine().input().code_pressed_once(KEYCODE_X)){m_mask |= 0x1000; m_bg_tilemap->mark_all_dirty();} /* no layers */
 }
 #endif
 
 UINT32 nycaptor_state::screen_update_nycaptor(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 #if NYCAPTOR_DEBUG
 	nycaptor_setmask(machine());
 	if (m_mask & 0x1000)
@@ -263,35 +253,35 @@ UINT32 nycaptor_state::screen_update_nycaptor(screen_device &screen, bitmap_ind1
 	}
 	else
 #endif
-	switch (nycaptor_spot(machine()) & 3)
+	switch (nycaptor_spot() & 3)
 	{
 	case 0:
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 3, 0);
-		draw_sprites(machine(), bitmap, cliprect, 6);
+		draw_sprites(bitmap, cliprect, 6);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 3, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 2, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 2, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 1, 0);
-		draw_sprites(machine(), bitmap, cliprect, 3);
+		draw_sprites(bitmap, cliprect, 3);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 1, 0);
-		draw_sprites(machine(), bitmap, cliprect, 0);
-		draw_sprites(machine(), bitmap, cliprect, 2);
+		draw_sprites(bitmap, cliprect, 0);
+		draw_sprites(bitmap, cliprect, 2);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 0, 0);
-		draw_sprites(machine(), bitmap, cliprect, 1);
+		draw_sprites(bitmap, cliprect, 1);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 0, 0);
 		break;
 
 	case 1:
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 3, 0);
-		draw_sprites(machine(), bitmap, cliprect, 3);
+		draw_sprites(bitmap, cliprect, 3);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 3, 0);
-		draw_sprites(machine(), bitmap, cliprect, 2);
+		draw_sprites(bitmap, cliprect, 2);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 2, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 1, 0);
-		draw_sprites(machine(), bitmap, cliprect, 1);
+		draw_sprites(bitmap, cliprect, 1);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 1, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 2, 0);
-		draw_sprites(machine(), bitmap, cliprect, 0);
+		draw_sprites(bitmap, cliprect, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 0, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 0, 0);
 		break;
@@ -300,20 +290,20 @@ UINT32 nycaptor_state::screen_update_nycaptor(screen_device &screen, bitmap_ind1
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 3, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 3, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 1, 0);
-		draw_sprites(machine(), bitmap, cliprect, 1);
+		draw_sprites(bitmap, cliprect, 1);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 1, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 2, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 2, 0);
-		draw_sprites(machine(), bitmap, cliprect, 0);
+		draw_sprites(bitmap, cliprect, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 0, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 0, 0);
 		break;
 
 	case 3:
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 1, 0);
-		draw_sprites(machine(), bitmap, cliprect, 1);
+		draw_sprites(bitmap, cliprect, 1);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 1, 0);
-		draw_sprites(machine(), bitmap, cliprect, 0);
+		draw_sprites(bitmap, cliprect, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1 | 0, 0);
 		m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0 | 0, 0);
 		break;

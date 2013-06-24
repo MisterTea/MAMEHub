@@ -87,19 +87,25 @@ VIDEO_START_MEMBER(blstroid_state,blstroid)
  *
  *************************************/
 
-TIMER_CALLBACK_MEMBER(blstroid_state::irq_off)
+void blstroid_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	/* clear the interrupt */
-	address_space &space = subdevice("maincpu")->memory().space(AS_PROGRAM);
-	scanline_int_ack_w(space, 0, 0);
-}
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 
-
-TIMER_CALLBACK_MEMBER(blstroid_state::irq_on)
-{
-	/* generate the interrupt */
-	scanline_int_gen(*subdevice("maincpu"));
-	update_interrupts();
+	switch (id)
+	{
+	case TIMER_IRQ_OFF:
+		/* clear the interrupt */
+		scanline_int_ack_w(space, 0, 0);
+		break;
+	case TIMER_IRQ_ON:
+		/* generate the interrupt */
+		scanline_int_gen(m_maincpu);
+		update_interrupts();
+		break;
+	default:
+		atarigen_state::device_timer(timer, id, param, ptr);
+		break;
+	}
 }
 
 
@@ -127,8 +133,8 @@ void blstroid_state::scanline_update(screen_device &screen, int scanline)
 			period_on  = screen.time_until_pos(vpos + 7, width * 0.9);
 			period_off = screen.time_until_pos(vpos + 8, width * 0.9);
 
-			screen.machine().scheduler().timer_set(period_on, timer_expired_delegate(FUNC(blstroid_state::irq_on), this));
-			screen.machine().scheduler().timer_set(period_off, timer_expired_delegate(FUNC(blstroid_state::irq_off), this));
+			timer_set(period_on, TIMER_IRQ_ON);
+			timer_set(period_off, TIMER_IRQ_OFF);
 		}
 }
 

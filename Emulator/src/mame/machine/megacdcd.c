@@ -34,7 +34,6 @@ lc89510_temp_device::lc89510_temp_device(const machine_config &mconfig, const ch
 
 void lc89510_temp_device::dummy_interrupt_callback(void)
 {
-
 }
 
 void lc89510_temp_device::set_CDC_Do_DMA(device_t &device,segacd_dma_delegate new_segacd_dma_callback)
@@ -85,7 +84,6 @@ void lc89510_temp_device::device_start()
 
 void lc89510_temp_device::device_reset()
 {
-
 }
 
 
@@ -203,7 +201,7 @@ void lc89510_temp_device::CDD_Stop(running_machine &machine)
 	SCD_STATUS = CDD_STOPPED;
 	CDD_STATUS = 0x0000;
 	SET_CDD_DATA_MODE
-	cdda_stop_audio( m_cdda ); //stop any pending CD-DA
+	m_cdda->stop_audio(); //stop any pending CD-DA
 
 	//neocd
 	NeoCD_StatusHack = 0x0E;
@@ -368,7 +366,7 @@ void lc89510_temp_device::CDD_Play(running_machine &machine)
 	printf("%d Track played\n",SCD_CURTRK);
 	CDD_MIN = to_bcd(SCD_CURTRK, false);
 	if(!(CURRENT_TRACK_IS_DATA))
-		cdda_start_audio( m_cdda, SCD_CURLBA, end_msf - SCD_CURLBA );
+		m_cdda->start_audio(SCD_CURLBA, end_msf - SCD_CURLBA);
 	SET_CDC_READ
 
 
@@ -401,7 +399,7 @@ void lc89510_temp_device::CDD_Pause(running_machine &machine)
 
 	//segacd.current_frame = cdda_get_audio_lba( machine.device( "cdda" ) );
 	//if(!(CURRENT_TRACK_IS_DATA))
-	cdda_pause_audio( m_cdda, 1 );
+	m_cdda->pause_audio(1);
 
 
 	NeoCD_StatusHack = 4;
@@ -420,7 +418,7 @@ void lc89510_temp_device::CDD_Resume(running_machine &machine)
 	CDD_MIN = to_bcd (SCD_CURTRK, false);
 	SET_CDC_READ
 	//if(!(CURRENT_TRACK_IS_DATA))
-	cdda_pause_audio( m_cdda, 0 );
+	m_cdda->pause_audio(0);
 
 	NeoCD_StatusHack = 1;
 }
@@ -490,7 +488,6 @@ void lc89510_temp_device::CDD_Reset(void)
 void lc89510_temp_device::CDC_Reset(void)
 {
 	memset(CDC_BUFFER, 0x00, ((16 * 1024 * 2) + SECTOR_SIZE));
-	LC8951UpdateHeader();
 
 	LC8951RegistersW[REG_W_DACL] = LC8951RegistersW[REG_W_DACH] = LC8951RegistersW[REG_W_DBCL] = LC8951RegistersW[REG_W_DBCH] = LC8951RegistersW[REG_W_PTH] = LC8951RegistersW[REG_W_PTL] = LC8951RegistersW[REG_W_SBOUT] = LC8951RegistersW[REG_W_IFCTRL] = LC8951RegistersW[REG_W_CTRL0] = LC8951RegistersW[REG_W_CTRL1] =
 		LC8951RegistersW[REG_W_CTRL2] = LC8951RegistersR[REG_R_HEAD1] = LC8951RegistersR[REG_R_HEAD2] = LC8951RegistersR[REG_R_HEAD3] = LC8951RegistersR[REG_R_STAT0] = LC8951RegistersR[REG_R_STAT1] = LC8951RegistersR[REG_R_STAT2] = CDC_DECODE = 0;
@@ -501,7 +498,7 @@ void lc89510_temp_device::CDC_Reset(void)
 	LC8951RegistersR[REG_R_HEAD0] = 0x01;
 	LC8951RegistersR[REG_R_STAT3] = 0x80;
 
-
+	LC8951UpdateHeader();
 }
 
 
@@ -859,7 +856,6 @@ READ16_MEMBER( lc89510_temp_device::cdc_data_main_r )
 
 READ16_MEMBER( lc89510_temp_device::segacd_irq_mask_r )
 {
-
 	return segacd_irq_mask;
 }
 
@@ -888,7 +884,6 @@ WRITE16_MEMBER( lc89510_temp_device::segacd_irq_mask_w )
 	}
 	else
 	{
-
 		printf("segacd_irq_mask_w only MSB written\n");
 
 	}
@@ -896,7 +891,6 @@ WRITE16_MEMBER( lc89510_temp_device::segacd_irq_mask_w )
 
 READ16_MEMBER( lc89510_temp_device::segacd_cdd_ctrl_r )
 {
-
 	return CDD_CONTROL;
 }
 
@@ -999,7 +993,7 @@ WRITE16_MEMBER( lc89510_temp_device::segacd_cdfader_w )
 
 	//printf("%f\n",cdfader_vol);
 
-	cdda_set_volume( m_cdda, cdfader_vol);
+	m_cdda->set_volume(cdfader_vol);
 }
 
 void lc89510_temp_device::reset_cd(void)
@@ -1016,8 +1010,8 @@ void lc89510_temp_device::reset_cd(void)
 			if ( segacd.cd )
 			{
 				segacd.toc = cdrom_get_toc( segacd.cd );
-				cdda_set_cdrom( m_cdda, segacd.cd );
-				cdda_stop_audio(m_cdda ); //stop any pending CD-DA
+				m_cdda->set_cdrom(segacd.cd);
+				m_cdda->stop_audio(); //stop any pending CD-DA
 			}
 		}
 	}
@@ -1129,9 +1123,7 @@ void lc89510_temp_device::NeoCDCommsControl(UINT8 clock, UINT8 send)
 
 void lc89510_temp_device::LC8951UpdateHeader() // neocd
 {
-
 	if (LC8951RegistersW[REG_W_CTRL1] & 1) {
-
 		// HEAD registers have sub-header
 
 		LC8951RegistersR[REG_R_HEAD0] = 0;                                                  // HEAD0
@@ -1140,7 +1132,6 @@ void lc89510_temp_device::LC8951UpdateHeader() // neocd
 		LC8951RegistersR[REG_R_HEAD3] = 0;                                                  // HEAD3
 
 	} else {
-
 		// HEAD registers have header
 		UINT32 msf = lba_to_msf_alt(SCD_CURLBA+150);
 
@@ -1177,7 +1168,6 @@ void lc89510_temp_device::LC8915EndTransfer()
 
 	LC8951RegistersR[REG_R_IFSTAT] |= 0x48;                                             //   set DTEI & DTBSY
 	if (LC8951RegistersW[REG_W_IFCTRL] & 0x40) {
-
 		// trigger DTE interrupt
 
 		// the Neo Geo CD doesn't use the DTE interrupt
@@ -1216,7 +1206,6 @@ void lc89510_temp_device::scd_ctrl_checks(running_machine& machine)
 
 	if (LC8951RegistersW[REG_W_IFCTRL] & 0x20)
 	{
-
 		if (is_neoCD)
 		{
 			type1_interrupt_callback();

@@ -46,10 +46,14 @@ public:
 	DECLARE_WRITE32_MEMBER( write );
 	DECLARE_READ32_MEMBER( read );
 
+	UINT32 *m_ram;
+	size_t m_ramsize;
+
 protected:
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_post_load();
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 private:
 	void dma_start_timer( int n_channel, UINT32 n_ticks );
@@ -64,8 +68,6 @@ private:
 	psx_dma_channel m_channel[7];
 	UINT32 m_dpcp;
 	UINT32 m_dicr;
-	UINT32 *m_ram;
-	size_t m_ramsize;
 
 	devcb2_write_line m_irq_handler;
 };

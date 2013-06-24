@@ -68,9 +68,9 @@ static MACHINE_CONFIG_FRAGMENT( pf10 )
 	MCFG_CPU_IO_MAP(cpu_io)
 
 	MCFG_UPD765A_ADD("upd765a", false, true)
-	MCFG_FLOPPY_DRIVE_ADD("upd765a:0", pf10_floppies, "35dd", 0, floppy_image_device::default_floppy_formats) // SMD-165
+	MCFG_FLOPPY_DRIVE_ADD("upd765a:0", pf10_floppies, "35dd", floppy_image_device::default_floppy_formats) // SMD-165
 
-	MCFG_EPSON_SIO_ADD("sio")
+	MCFG_EPSON_SIO_ADD("sio", NULL)
 MACHINE_CONFIG_END
 
 machine_config_constructor epson_pf10_device::device_mconfig_additions() const
@@ -88,7 +88,7 @@ machine_config_constructor epson_pf10_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 epson_pf10_device::epson_pf10_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, EPSON_PF10, "EPSON PF-10 floppy drive", tag, owner, clock),
+	device_t(mconfig, EPSON_PF10, "EPSON PF-10 floppy drive", tag, owner, clock, "epson_pf10", __FILE__),
 	device_epson_sio_interface(mconfig, *this),
 	m_cpu(*this, "maincpu"),
 	m_fdc(*this, "upd765a"),

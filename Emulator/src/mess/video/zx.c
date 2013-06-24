@@ -18,12 +18,25 @@
 
 #include "includes/zx.h"
 
-emu_timer *ula_nmi = NULL;
-//emu_timer *ula_irq = NULL;
-//int ula_nmi_active;
-int ula_frame_vsync = 0;
-//int ula_scancode_count = 0;
-int ula_scanline_count = 0;
+
+void zx_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_TAPE_PULSE:
+		zx_tape_pulse(ptr, param);
+		break;
+	case TIMER_ULA_NMI:
+		zx_ula_nmi(ptr, param);
+		break;
+	case TIMER_ULA_IRQ:
+		zx_ula_irq(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in zx_state::device_timer");
+	}
+}
+
 
 /*
  * Toggle the video output between black and white.
@@ -98,15 +111,14 @@ TIMER_CALLBACK_MEMBER(zx_state::zx_ula_nmi)
 	bitmap_ind16 &bitmap = m_bitmap;
 	r.set(r1.min_x, r1.max_x, m_ula_scanline_count, m_ula_scanline_count);
 	bitmap.fill(1, r);
-//  logerror("ULA %3d[%d] NMI, R:$%02X, $%04x\n", machine().primary_screen->vpos(), ula_scancode_count, (unsigned) machine().device("maincpu")->state().state_int(Z80_R), (unsigned) machine().device("maincpu")->state().state_int(Z80_PC));
-	machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+//  logerror("ULA %3d[%d] NMI, R:$%02X, $%04x\n", machine().primary_screen->vpos(), ula_scancode_count, (unsigned) m_maincpu->state_int(Z80_R), (unsigned) m_maincpu->state_int(Z80_PC));
+	m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 	if (++m_ula_scanline_count == height)
 		m_ula_scanline_count = 0;
 }
 
 TIMER_CALLBACK_MEMBER(zx_state::zx_ula_irq)
 {
-
 	/*
 	 * An IRQ is issued on the ZX80/81 whenever the R registers
 	 * bit 6 goes low. In MESS this IRQ timed from the first read
@@ -114,62 +126,60 @@ TIMER_CALLBACK_MEMBER(zx_state::zx_ula_irq)
 	 */
 	if (m_ula_irq_active)
 	{
-//      logerror("ULA %3d[%d] IRQ, R:$%02X, $%04x\n", machine().primary_screen->vpos(), ula_scancode_count, (unsigned) machine().device("maincpu")->state().state_int(Z80_R), (unsigned) machine().device("maincpu")->state().state_int(Z80_PC));
+//      logerror("ULA %3d[%d] IRQ, R:$%02X, $%04x\n", machine().primary_screen->vpos(), ula_scancode_count, (unsigned) m_maincpu->state_int(Z80_R), (unsigned) m_maincpu->state_int(Z80_PC));
 
 		m_ula_irq_active = 0;
-		machine().device("maincpu")->execute().set_input_line(0, HOLD_LINE);
+		m_maincpu->set_input_line(0, HOLD_LINE);
 	}
 }
 
-void zx_ula_r(running_machine &machine, int offs, const char *region, const UINT8 param)
+void zx_state::zx_ula_r(int offs, memory_region *region, const UINT8 param)
 {
-	zx_state *state = machine.driver_data<zx_state>();
-	screen_device *screen = machine.first_screen();
 	int offs0 = offs & 0x7fff;
-	UINT8 *rom = machine.root_device().memregion("maincpu")->base();
+	UINT8 *rom = m_region_maincpu->base();
 	UINT8 chr = rom[offs0];
 
-	if ((!state->m_ula_irq_active) && (chr == 0x76))
+	if ((!m_ula_irq_active) && (chr == 0x76))
 	{
-		bitmap_ind16 &bitmap = state->m_bitmap;
+		bitmap_ind16 &bitmap = m_bitmap;
 		UINT16 y, *scanline;
-		UINT16 ireg = machine.device("maincpu")->state().state_int(Z80_I) << 8;
+		UINT16 ireg = m_maincpu->state_int(Z80_I) << 8;
 		UINT8 data, *chrgen, creg;
 
 		if (param)
-			creg = machine.device("maincpu")->state().state_int(Z80_B);
+			creg = m_maincpu->state_int(Z80_B);
 		else
-			creg = machine.device("maincpu")->state().state_int(Z80_C);
+			creg = m_maincpu->state_int(Z80_C);
 
-		chrgen = state->memregion(region)->base();
+		chrgen = region->base();
 
-		if ((++state->m_ula_scanline_count == screen->height()) || (creg == 32))
+		if ((++m_ula_scanline_count == m_screen->height()) || (creg == 32))
 		{
-			state->m_ula_scanline_count = 0;
-			state->m_offs1 = offs0;
+			m_ula_scanline_count = 0;
+			m_offs1 = offs0;
 		}
 
-		state->m_ula_frame_vsync = 3;
+		m_ula_frame_vsync = 3;
 
-		state->m_charline_ptr = 0;
+		m_charline_ptr = 0;
 
-		for (y = state->m_offs1+1; ((y < offs0) && (state->m_charline_ptr < ARRAY_LENGTH(state->m_charline))); y++)
+		for (y = m_offs1+1; ((y < offs0) && (m_charline_ptr < ARRAY_LENGTH(m_charline))); y++)
 		{
-			state->m_charline[state->m_charline_ptr] = rom[y];
-			state->m_charline_ptr++;
+			m_charline[m_charline_ptr] = rom[y];
+			m_charline_ptr++;
 		}
-		for (y = state->m_charline_ptr; y < ARRAY_LENGTH(state->m_charline); y++)
-			state->m_charline[y] = 0;
+		for (y = m_charline_ptr; y < ARRAY_LENGTH(m_charline); y++)
+			m_charline[y] = 0;
 
-		machine.scheduler().timer_set(machine.device<cpu_device>("maincpu")->cycles_to_attotime(((32 - state->m_charline_ptr) << 2)), timer_expired_delegate(FUNC(zx_state::zx_ula_irq),state));
-		state->m_ula_irq_active++;
+		timer_set(m_maincpu->cycles_to_attotime(((32 - m_charline_ptr) << 2)), TIMER_ULA_IRQ);
+		m_ula_irq_active++;
 
-		scanline = &bitmap.pix16(state->m_ula_scanline_count);
+		scanline = &bitmap.pix16(m_ula_scanline_count);
 		y = 0;
 
-		for (state->m_charline_ptr = 0; state->m_charline_ptr < ARRAY_LENGTH(state->m_charline); state->m_charline_ptr++)
+		for (m_charline_ptr = 0; m_charline_ptr < ARRAY_LENGTH(m_charline); m_charline_ptr++)
 		{
-			chr = state->m_charline[state->m_charline_ptr];
+			chr = m_charline[m_charline_ptr];
 			data = chrgen[ireg | ((chr & 0x3f) << 3) | ((8 - creg)&7) ];
 			if (chr & 0x80) data ^= 0xff;
 
@@ -181,18 +191,18 @@ void zx_ula_r(running_machine &machine, int offs, const char *region, const UINT
 			scanline[y++] = (data >> 2) & 1;
 			scanline[y++] = (data >> 1) & 1;
 			scanline[y++] = (data >> 0) & 1;
-			state->m_charline[state->m_charline_ptr] = 0;
+			m_charline[m_charline_ptr] = 0;
 		}
 
-		if (creg == 1) state->m_offs1 = offs0;
+		if (creg == 1) m_offs1 = offs0;
 	}
 }
 
 void zx_state::video_start()
 {
-	m_ula_nmi = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(zx_state::zx_ula_nmi),this));
+	m_ula_nmi = timer_alloc(TIMER_ULA_NMI);
 	m_ula_irq_active = 0;
-	machine().primary_screen->register_screen_bitmap(m_bitmap);
+	m_screen->register_screen_bitmap(m_bitmap);
 }
 
 void zx_state::screen_eof_zx(screen_device &screen, bool state)

@@ -50,9 +50,10 @@ class cb2001_state : public driver_device
 {
 public:
 	cb2001_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_vram_fg(*this, "vrafg"),
-		m_vram_bg(*this, "vrabg"){ }
+		m_vram_bg(*this, "vrabg"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT16> m_vram_fg;
 	required_shared_ptr<UINT16> m_vram_bg;
@@ -73,6 +74,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_cb2001(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -568,8 +570,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( cb2001_io, AS_IO, 16, cb2001_state )
 	AM_RANGE(0x00, 0x03) AM_DEVREADWRITE8("ppi8255_0", i8255_device, read, write, 0xffff)   /* Input Ports */
 	AM_RANGE(0x10, 0x13) AM_DEVREADWRITE8("ppi8255_1", i8255_device, read, write, 0xffff)   /* DIP switches */
-	AM_RANGE(0x20, 0x21) AM_DEVREAD8_LEGACY("aysnd", ay8910_r, 0xff00)
-	AM_RANGE(0x22, 0x23) AM_DEVWRITE8_LEGACY("aysnd", ay8910_data_address_w, 0xffff)
+	AM_RANGE(0x20, 0x21) AM_DEVREAD8("aysnd", ay8910_device, data_r, 0xff00)
+	AM_RANGE(0x22, 0x23) AM_DEVWRITE8("aysnd", ay8910_device, data_address_w, 0xffff)
 
 	AM_RANGE(0x30, 0x31) AM_WRITE(cb2001_vidctrl_w)
 	AM_RANGE(0x32, 0x33) AM_WRITE(cb2001_vidctrl2_w)
@@ -778,8 +780,8 @@ void cb2001_state::palette_init()
 	{
 		int r,g,b;
 
-		UINT8*proms = machine().root_device().memregion("proms")->base();
-		int length = machine().root_device().memregion("proms")->bytes();
+		UINT8*proms = memregion("proms")->base();
+		int length = memregion("proms")->bytes();
 		UINT16 dat;
 
 		dat = (proms[0x000+i] << 8) | proms[0x200+i];

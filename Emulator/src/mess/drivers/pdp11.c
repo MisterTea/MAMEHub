@@ -92,6 +92,7 @@ public:
 	virtual void machine_reset();
 	DECLARE_MACHINE_RESET(pdp11ub2);
 	DECLARE_MACHINE_RESET(pdp11qb);
+	void load9312prom(UINT8 *desc, UINT8 *src, int size);
 };
 
 WRITE16_MEMBER(pdp11_state::term_w)
@@ -167,8 +168,7 @@ PORT_CONFSETTING ( 0x1c, "'XL' DECNET 1/3 (DECnet DDCMP DL11-E)") \
 PORT_CONFSETTING ( 0x1d, "'XL' DECNET 2/3 (DECnet DDCMP DL11-E)") \
 PORT_CONFSETTING ( 0x1e, "'XL' DECNET 3/3 (DECnet DDCMP DL11-E)") \
 PORT_CONFSETTING ( 0x1f, "'XE' DEUNA DECnet Ethernet") \
-PORT_CONFSETTING ( 0x20, "'MU' TMSCP tapes, including TK50, TU81") \
-
+PORT_CONFSETTING ( 0x20, "'MU' TMSCP tapes, including TK50, TU81")
 /* Input ports */
 static INPUT_PORTS_START( pdp11 )
 	PORT_START("S1")
@@ -225,8 +225,8 @@ INPUT_PORTS_END
 void pdp11_state::machine_reset()
 {
 	// Load M9301-YA
-	UINT8* user1 = machine().root_device().memregion("user1")->base();
-	UINT8* maincpu = machine().root_device().memregion("maincpu")->base();
+	UINT8* user1 = memregion("user1")->base();
+	UINT8* maincpu = memregion("maincpu")->base();
 	int i;
 
 	for(i=0;i<0x100;i++) {
@@ -249,7 +249,7 @@ void pdp11_state::machine_reset()
 	}
 }
 
-static void load9312prom(UINT8 *desc, UINT8 *src, int size)
+void pdp11_state::load9312prom(UINT8 *desc, UINT8 *src, int size)
 {
 	//   3   2   1   8
 	//   7   6   5   4
@@ -269,37 +269,37 @@ static void load9312prom(UINT8 *desc, UINT8 *src, int size)
 MACHINE_RESET_MEMBER(pdp11_state,pdp11ub2)
 {
 	// Load M9312
-	UINT8* user1 = machine().root_device().memregion("consproms")->base() + machine().root_device().ioport("CONSPROM")->read() * 0x0400;
-	UINT8* maincpu = machine().root_device().memregion("maincpu")->base();
+	UINT8* user1 = memregion("consproms")->base() + ioport("CONSPROM")->read() * 0x0400;
+	UINT8* maincpu = memregion("maincpu")->base();
 
 	//0165000
 	load9312prom(maincpu + 0165000,user1,0x100);
 
-	UINT8 s1 = machine().root_device().ioport("S1")->read();
+	UINT8 s1 = ioport("S1")->read();
 
 	if (s1 & 0x02) { // if boot enabled
 		UINT16 addr = 0173000;
 		if (s1 & 1) {
 			addr = 0165000;
 		}
-		addr += machine().root_device().ioport("S1_2")->read() * 2;
-		machine().device("maincpu")->state().set_state_int(T11_PC, addr);
+		addr += ioport("S1_2")->read() * 2;
+		m_maincpu->set_state_int(T11_PC, addr);
 	}
 
 	//0173000
-	load9312prom(maincpu + 0173000,machine().root_device().memregion("devproms")->base() + machine().root_device().ioport("DEVPROM1")->read() * 0x0200,0x080);
+	load9312prom(maincpu + 0173000,memregion("devproms")->base() + ioport("DEVPROM1")->read() * 0x0200,0x080);
 	//0173200
-	load9312prom(maincpu + 0173200,machine().root_device().memregion("devproms")->base() + machine().root_device().ioport("DEVPROM2")->read() * 0x0200,0x080);
+	load9312prom(maincpu + 0173200,memregion("devproms")->base() + ioport("DEVPROM2")->read() * 0x0200,0x080);
 	//0173400
-	load9312prom(maincpu + 0173400,machine().root_device().memregion("devproms")->base() + machine().root_device().ioport("DEVPROM3")->read() * 0x0200,0x080);
+	load9312prom(maincpu + 0173400,memregion("devproms")->base() + ioport("DEVPROM3")->read() * 0x0200,0x080);
 	//0173600
-	load9312prom(maincpu + 0173600,machine().root_device().memregion("devproms")->base() + machine().root_device().ioport("DEVPROM4")->read() * 0x0200,0x080);
+	load9312prom(maincpu + 0173600,memregion("devproms")->base() + ioport("DEVPROM4")->read() * 0x0200,0x080);
 
 }
 
 MACHINE_RESET_MEMBER(pdp11_state,pdp11qb)
 {
-	machine().device("maincpu")->state().set_state_int(T11_PC, 0xea00);
+	m_maincpu->set_state_int(T11_PC, 0xea00);
 }
 
 static const struct t11_setup pdp11_data =

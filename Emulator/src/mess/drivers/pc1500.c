@@ -68,19 +68,19 @@ UINT8 pc1500_state::pc1500_kb_r(device_t *device)
 	if (!device->started()) return 0;
 
 	if (!(state->m_kb_matrix & 0x01))
-		data &= device->machine().root_device().ioport("KEY0")->read();
+		data &= state->ioport("KEY0")->read();
 	if (!(state->m_kb_matrix & 0x02))
-		data &= device->machine().root_device().ioport("KEY1")->read();
+		data &= state->ioport("KEY1")->read();
 	if (!(state->m_kb_matrix & 0x04))
-		data &= device->machine().root_device().ioport("KEY2")->read();
+		data &= state->ioport("KEY2")->read();
 	if (!(state->m_kb_matrix & 0x08))
-		data &= device->machine().root_device().ioport("KEY3")->read();
+		data &= state->ioport("KEY3")->read();
 	if (!(state->m_kb_matrix & 0x10))
-		data &= device->machine().root_device().ioport("KEY4")->read();
+		data &= state->ioport("KEY4")->read();
 	if (!(state->m_kb_matrix & 0x20))
-		data &= device->machine().root_device().ioport("KEY5")->read();
+		data &= state->ioport("KEY5")->read();
 	if (!(state->m_kb_matrix & 0x40))
-		data &= device->machine().root_device().ioport("KEY6")->read();
+		data &= state->ioport("KEY6")->read();
 	if (!(state->m_kb_matrix & 0x80))
 		data &= state->ioport("KEY7")->read();
 
@@ -278,13 +278,6 @@ static const lh5810_interface lh5810_pc1500_config =
 	DEVCB_CPU_INPUT_LINE("maincpu", LH5801_LINE_MI)     //IRQ callback
 };
 
-
-static UPD1990A_INTERFACE( pc1500_upd1990a_intf )
-{
-	DEVCB_NULL,
-	DEVCB_NULL
-};
-
 static MACHINE_CONFIG_START( pc1500, pc1500_state )
 	MCFG_CPU_ADD("maincpu", LH5801, 1300000)            //1.3 MHz
 	MCFG_CPU_PROGRAM_MAP( pc1500_mem )
@@ -302,7 +295,7 @@ static MACHINE_CONFIG_START( pc1500, pc1500_state )
 
 	MCFG_LH5810_ADD("lh5810", lh5810_pc1500_config)
 
-	MCFG_UPD1990A_ADD("upd1990a", XTAL_32_768kHz, pc1500_upd1990a_intf)
+	MCFG_UPD1990A_ADD("upd1990a", XTAL_32_768kHz, NULL, NULL)
 MACHINE_CONFIG_END
 
 

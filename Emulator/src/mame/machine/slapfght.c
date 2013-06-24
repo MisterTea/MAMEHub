@@ -23,7 +23,7 @@ MACHINE_RESET_MEMBER(slapfght_state,slapfight)
 	m_getstar_sh_intenabled = 0;    /* disable sound cpu interrupts */
 
 	/* SOUND CPU */
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
 	/* MCU */
 	m_mcu_val = 0;
@@ -38,27 +38,25 @@ MACHINE_RESET_MEMBER(slapfght_state,slapfight)
 /* Reset and hold sound CPU */
 WRITE8_MEMBER(slapfght_state::slapfight_port_00_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 	m_getstar_sh_intenabled = 0;
 }
 
 /* Release reset on sound CPU */
 WRITE8_MEMBER(slapfght_state::slapfight_port_01_w)
 {
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
 }
 
 /* Disable and clear hardware interrupt */
 WRITE8_MEMBER(slapfght_state::slapfight_port_06_w)
 {
-
 	m_irq_mask = 0;
 }
 
 /* Enable hardware interrupt */
 WRITE8_MEMBER(slapfght_state::slapfight_port_07_w)
 {
-
 	m_irq_mask = 1;
 }
 
@@ -117,7 +115,7 @@ WRITE8_MEMBER(slapfght_state::slapfight_68705_portB_w)
 		m_portA_in = m_from_main;
 
 		if (m_main_sent)
-			machine().device("mcu")->execute().set_input_line(0, CLEAR_LINE);
+			m_mcu->set_input_line(0, CLEAR_LINE);
 
 		m_main_sent = 0;
 	}
@@ -169,7 +167,7 @@ WRITE8_MEMBER(slapfght_state::slapfight_mcu_w)
 {
 	m_from_main = data;
 	m_main_sent = 1;
-	machine().device("mcu")->execute().set_input_line(0, ASSERT_LINE);
+	m_mcu->set_input_line(0, ASSERT_LINE);
 }
 
 READ8_MEMBER(slapfght_state::slapfight_mcu_r)
@@ -805,11 +803,10 @@ READ8_MEMBER(slapfght_state::tigerh_68705_portB_r)
 
 WRITE8_MEMBER(slapfght_state::tigerh_68705_portB_w)
 {
-
 	if ((m_ddrB & 0x02) && (~data & 0x02) && (m_portB_out & 0x02))
 	{
 		m_portA_in = m_from_main;
-		if (m_main_sent) machine().device("mcu")->execute().set_input_line(0, CLEAR_LINE);
+		if (m_main_sent) m_mcu->set_input_line(0, CLEAR_LINE);
 		m_main_sent = 0;
 	}
 	if ((m_ddrB & 0x04) && (data & 0x04) && (~m_portB_out & 0x04))
@@ -850,7 +847,7 @@ WRITE8_MEMBER(slapfght_state::tigerh_mcu_w)
 	m_from_main = data;
 	m_main_sent = 1;
 	m_mcu_sent = 0;
-	machine().device("mcu")->execute().set_input_line(0, ASSERT_LINE);
+	m_mcu->set_input_line(0, ASSERT_LINE);
 }
 
 READ8_MEMBER(slapfght_state::tigerh_mcu_r)

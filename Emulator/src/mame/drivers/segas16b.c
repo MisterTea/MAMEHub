@@ -1170,7 +1170,7 @@ WRITE16_MEMBER( segas16b_state::standard_io_w )
 
 WRITE16_MEMBER( segas16b_state::atomicp_sound_w )
 {
-	ym2413_w(m_ym2413, space, offset, data >> 8);
+	m_ym2413->write(space, offset, data >> 8);
 }
 
 
@@ -5783,7 +5783,7 @@ ROM_START( sjryuko )
 	ROM_LOAD( "epr-12248.a11",0x40000, 0x8000, CRC(d1eabdab) SHA1(f255a66e082353768e8d2bb574e883a4a45f7670) )
 
 	ROM_REGION( 0x2000, "maincpu:key", 0 ) // decryption key
-	ROM_LOAD( "317-5021.key", 0x0000, 0x2000, BAD_DUMP CRC(4a3422e4) SHA1(69a32a6987ff2481f6d6cbbe399269a2461b8bad) )
+	ROM_LOAD( "317-5021.key", 0x0000, 0x2000, CRC(c3e32937) SHA1(22bccea1c3d97adca3dce2fa418f7e7b058c0837) )
 ROM_END
 
 
@@ -6652,9 +6652,9 @@ GAME( 1987, bullet,     0,        system16b_fd1094,    bullet,   segas16b_state,
 
 // Charon
 
-GAME( 1991, cotton,     0,        system16b_fd1094,    cotton,   segas16b_state,generic_5704,       ROT0,   "Sega / Success", "Cotton (set 3, World, FD1094 317-0181a)", 0 )
-GAME( 1991, cottonu,    cotton,   system16b_fd1094,    cotton,   segas16b_state,generic_5704,       ROT0,   "Sega / Success", "Cotton (set 2, US, FD1094 317-0180)", 0 )
-GAME( 1991, cottonj,    cotton,   system16b_fd1094,    cotton,   segas16b_state,generic_5704,       ROT0,   "Sega / Success", "Cotton (set 1, Japan, FD1094 317-0179a)", 0 )
+GAME( 1991, cotton,     0,        system16b_fd1094,    cotton,   segas16b_state,generic_5704,       ROT0,   "Success / Sega", "Cotton (set 3, World, FD1094 317-0181a)", 0 )
+GAME( 1991, cottonu,    cotton,   system16b_fd1094,    cotton,   segas16b_state,generic_5704,       ROT0,   "Success / Sega", "Cotton (set 2, US, FD1094 317-0180)", 0 )
+GAME( 1991, cottonj,    cotton,   system16b_fd1094,    cotton,   segas16b_state,generic_5704,       ROT0,   "Success / Sega", "Cotton (set 1, Japan, FD1094 317-0179a)", 0 )
 
 GAME( 1988, ddux,       0,        system16b_fd1094,    ddux,     segas16b_state,generic_5521,       ROT0,   "Sega", "Dynamite Dux (set 2, FD1094 317-0096)", 0 )
 GAME( 1988, ddux1,      ddux,     system16b_i8751,     ddux,     segas16b_state,ddux_5704,          ROT0,   "Sega", "Dynamite Dux (set 1, 8751 317-0095)", 0 )
@@ -6731,7 +6731,7 @@ GAME( 2008, fantzn2xp,  fantzn2x, system16c,           fz2,      segas16b_state,
 
 // Custom Korean Board - these probably belong with the bootlegs...
 GAME( 1990, atomicp,    0,        atomicp,             atomicp,  segas16b_state,generic_korean,     ROT0,   "Philko", "Atomic Point (Korea)", 0) // korean clone board..
-GAME( 1990, snapper,    0,        atomicp,             snapper,  segas16b_state,snapper,             ROT0,   "Philko", "Snapper (Korea)", 0) // korean clone board..
+GAME( 1990, snapper,    0,        atomicp,             snapper,  segas16b_state,snapper,            ROT0,   "Philko", "Snapper (Korea)", 0) // korean clone board..
 
 
 
@@ -7225,8 +7225,7 @@ DRIVER_INIT_MEMBER(isgsm_state,tetrbx)
 	ROM_REGION( 0x100000, "maincpu", ROMREGION_ERASE00 ) \
 	ROM_REGION( 0x60000, "gfx1", ROMREGION_ERASE00 ) \
 	ROM_REGION16_BE( 0x200000, "sprites", ROMREGION_ERASE00 ) \
-	ROM_REGION( 0x40000, "soundcpu", ROMREGION_ERASE00 ) \
-
+	ROM_REGION( 0x40000, "soundcpu", ROMREGION_ERASE00 )
 
 ROM_START( isgsm )
 	ISGSM_BIOS

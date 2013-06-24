@@ -97,17 +97,17 @@ READ8_MEMBER( vidbrain_state::keyboard_r )
 
 	*/
 
-	UINT8 data = ioport("JOY-R")->read();
+	UINT8 data = m_joy_r->read();
 
-	if (BIT(m_keylatch, 0)) data |= ioport("IO00")->read();
-	if (BIT(m_keylatch, 1)) data |= ioport("IO01")->read();
-	if (BIT(m_keylatch, 2)) data |= ioport("IO02")->read();
-	if (BIT(m_keylatch, 3)) data |= ioport("IO03")->read();
-	if (BIT(m_keylatch, 4)) data |= ioport("IO04")->read();
-	if (BIT(m_keylatch, 5)) data |= ioport("IO05")->read();
-	if (BIT(m_keylatch, 6)) data |= ioport("IO06")->read();
-	if (BIT(m_keylatch, 7)) data |= ioport("IO07")->read();
-	if (!m_uv->kbd_r()) data |= ioport("UV201-31")->read();
+	if (BIT(m_keylatch, 0)) data |= m_io00->read();
+	if (BIT(m_keylatch, 1)) data |= m_io01->read();
+	if (BIT(m_keylatch, 2)) data |= m_io02->read();
+	if (BIT(m_keylatch, 3)) data |= m_io03->read();
+	if (BIT(m_keylatch, 4)) data |= m_io04->read();
+	if (BIT(m_keylatch, 5)) data |= m_io05->read();
+	if (BIT(m_keylatch, 6)) data |= m_io06->read();
+	if (BIT(m_keylatch, 7)) data |= m_io07->read();
+	if (!m_uv->kbd_r()) data |= m_uv201_31->read();
 
 	return data;
 }
@@ -252,7 +252,7 @@ static ADDRESS_MAP_START( vidbrain_io, AS_IO, 8, vidbrain_state )
 	AM_RANGE(0x00, 0x00) AM_WRITE(keyboard_w)
 	AM_RANGE(0x01, 0x01) AM_READWRITE(keyboard_r, sound_w)
 	AM_RANGE(0x0c, 0x0f) AM_WRITE(f3853_w)
-//  AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE_LEGACY(F3853_TAG, f3853_r, f3853_w)
+//  AM_RANGE(0x0c, 0x0f) AM_DEVREADWRITE(F3853_TAG, f3853_device, f3853_r, f3853_w)
 ADDRESS_MAP_END
 
 
@@ -430,14 +430,14 @@ WRITE_LINE_MEMBER( vidbrain_state::hblank_w )
 	{
 		UINT8 joydata = 0;
 
-		if (!BIT(m_keylatch, 0)) joydata = ioport("JOY1-X")->read();
-		if (!BIT(m_keylatch, 1)) joydata = ioport("JOY1-Y")->read();
-		if (!BIT(m_keylatch, 2)) joydata = ioport("JOY2-X")->read();
-		if (!BIT(m_keylatch, 3)) joydata = ioport("JOY2-Y")->read();
-		if (!BIT(m_keylatch, 4)) joydata = ioport("JOY3-X")->read();
-		if (!BIT(m_keylatch, 5)) joydata = ioport("JOY3-Y")->read();
-		if (!BIT(m_keylatch, 6)) joydata = ioport("JOY4-X")->read();
-		if (!BIT(m_keylatch, 7)) joydata = ioport("JOY4-Y")->read();
+		if (!BIT(m_keylatch, 0)) joydata = m_joy1_x->read();
+		if (!BIT(m_keylatch, 1)) joydata = m_joy1_y->read();
+		if (!BIT(m_keylatch, 2)) joydata = m_joy2_x->read();
+		if (!BIT(m_keylatch, 3)) joydata = m_joy2_y->read();
+		if (!BIT(m_keylatch, 4)) joydata = m_joy3_x->read();
+		if (!BIT(m_keylatch, 5)) joydata = m_joy3_y->read();
+		if (!BIT(m_keylatch, 6)) joydata = m_joy4_x->read();
+		if (!BIT(m_keylatch, 7)) joydata = m_joy4_y->read();
 
 		// NE555 in monostable mode
 		// R = 3K9 + 100K linear pot
@@ -449,14 +449,18 @@ WRITE_LINE_MEMBER( vidbrain_state::hblank_w )
 	}
 }
 
-static UINT8 memory_read_byte(address_space &space, offs_t address, UINT8 mem_mask) { return space.read_byte(address); }
+READ8_MEMBER(vidbrain_state::memory_read_byte)
+{
+	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
+	return prog_space.read_byte(offset);
+}
 
 static UV201_INTERFACE( uv_intf )
 {
 	SCREEN_TAG,
 	DEVCB_DRIVER_LINE_MEMBER(vidbrain_state, ext_int_w),
 	DEVCB_DRIVER_LINE_MEMBER(vidbrain_state, hblank_w),
-	DEVCB_MEMORY_HANDLER(F3850_TAG, PROGRAM, memory_read_byte)
+	DEVCB_DRIVER_MEMBER(vidbrain_state, memory_read_byte)
 };
 
 
@@ -482,29 +486,27 @@ static VIDEOBRAIN_EXPANSION_INTERFACE( expansion_intf )
 //**************************************************************************
 
 //-------------------------------------------------
-//  IRQ_CALLBACK( vidbrain_int_ack )
+//      IRQ_CALLBACK_MEMBER(vidbrain_int_ack)
 //-------------------------------------------------
 
-static IRQ_CALLBACK( vidbrain_int_ack )
+IRQ_CALLBACK_MEMBER(vidbrain_state::vidbrain_int_ack)
 {
-	vidbrain_state *state = device->machine().driver_data<vidbrain_state>();
+	UINT16 vector = m_vector;
 
-	UINT16 vector = state->m_vector;
-
-	switch (state->m_int_enable)
+	switch (m_int_enable)
 	{
 	case 1:
 		vector |= 0x80;
-		state->m_ext_int_latch = 0;
+		m_ext_int_latch = 0;
 		break;
 
 	case 3:
 		vector &= ~0x80;
-		state->m_timer_int_latch = 0;
+		m_timer_int_latch = 0;
 		break;
 	}
 
-	state->interrupt_check();
+	interrupt_check();
 
 	return vector;
 }
@@ -530,7 +532,7 @@ void vidbrain_state::device_timer(emu_timer &timer, device_timer_id id, int para
 void vidbrain_state::machine_start()
 {
 	// register IRQ callback
-	m_maincpu->set_irq_acknowledge_callback(vidbrain_int_ack);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(vidbrain_state::vidbrain_int_ack),this));
 
 	// allocate timers
 	m_timer_ne555 = timer_alloc(TIMER_JOYSTICK);
@@ -589,7 +591,7 @@ static MACHINE_CONFIG_START( vidbrain, vidbrain_state )
 	MCFG_F3853_ADD(F3853_TAG, XTAL_4MHz/2, smi_intf)
 
 	// cartridge
-	MCFG_VIDEOBRAIN_EXPANSION_SLOT_ADD(VIDEOBRAIN_EXPANSION_SLOT_TAG, expansion_intf, expansion_cards, NULL, NULL)
+	MCFG_VIDEOBRAIN_EXPANSION_SLOT_ADD(VIDEOBRAIN_EXPANSION_SLOT_TAG, expansion_intf, expansion_cards, NULL)
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("cart_list", "vidbrain")

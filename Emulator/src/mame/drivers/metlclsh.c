@@ -67,9 +67,9 @@ static ADDRESS_MAP_START( metlclsh_master_map, AS_PROGRAM, 8, metlclsh_state )
 	AM_RANGE(0xc0c3, 0xc0c3) AM_WRITE(metlclsh_ack_nmi)             // nmi ack
 /**/AM_RANGE(0xc800, 0xc82f) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_lo_w) AM_SHARE("paletteram")
 /**/AM_RANGE(0xcc00, 0xcc2f) AM_RAM_WRITE(paletteram_xxxxBBBBGGGGRRRR_byte_split_hi_w) AM_SHARE("paletteram2")
-	AM_RANGE(0xd000, 0xd001) AM_DEVREADWRITE_LEGACY("ym1", ym2203_r,ym2203_w)
+	AM_RANGE(0xd000, 0xd001) AM_DEVREADWRITE("ym1", ym2203_device, read, write)
 /**/AM_RANGE(0xd800, 0xdfff) AM_RAM_WRITE(metlclsh_fgram_w) AM_SHARE("fgram")
-	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE_LEGACY("ym2", ym3526_w )
+	AM_RANGE(0xe000, 0xe001) AM_DEVWRITE("ym2", ym3526_device, write)
 	AM_RANGE(0xe800, 0xe9ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0xfff0, 0xffff) AM_ROM                                 // Reset/IRQ vectors
 ADDRESS_MAP_END
@@ -131,7 +131,7 @@ ADDRESS_MAP_END
 INPUT_CHANGED_MEMBER(metlclsh_state::coin_inserted)
 {
 	if (oldval)
-		machine().device("sub")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_subcpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 }
 
 static INPUT_PORTS_START( metlclsh )
@@ -254,25 +254,14 @@ GFXDECODE_END
 
 ***************************************************************************/
 
-static const ym3526_interface ym3526_config =
-{
-	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE)
-};
-
-
 void metlclsh_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-
 	save_item(NAME(m_write_mask));
 	save_item(NAME(m_gfxbank));
 }
 
 void metlclsh_state::machine_reset()
 {
-
 	flip_screen_set(0);
 
 	m_write_mask = 0;
@@ -313,7 +302,7 @@ static MACHINE_CONFIG_START( metlclsh, metlclsh_state )
 	MCFG_SOUND_ROUTE(3, "mono", 0.50)
 
 	MCFG_SOUND_ADD("ym2", YM3526, 3000000)
-	MCFG_SOUND_CONFIG(ym3526_config)
+	MCFG_YM3526_IRQ_HANDLER(DEVWRITELINE("maincpu", m6809_device, irq_line))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

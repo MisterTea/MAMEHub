@@ -56,9 +56,11 @@ static MC6845_UPDATE_ROW( fp_update_row )
 {
 }
 
-static const mc6845_interface crtc_intf =
+
+static MC6845_INTERFACE( crtc_intf )
 {
 	SCREEN_CRT_TAG,
+	false,
 	8,
 	NULL,
 	fp_update_row,
@@ -153,7 +155,7 @@ READ8_MEMBER( fp_state::prtr_snd_r )
 
 WRITE8_MEMBER( fp_state::pint_clr_w )
 {
-	pic8259_ir6_w(m_pic, CLEAR_LINE);
+	m_pic->ir6_w(CLEAR_LINE);
 }
 
 
@@ -165,7 +167,6 @@ WRITE8_MEMBER( fp_state::ls_w )
 
 WRITE8_MEMBER( fp_state::contrast_w )
 {
-
 }
 
 
@@ -345,8 +346,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( fp_io, AS_IO, 16, fp_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000, 0x007) AM_DEVREADWRITE8(WD2797_TAG, wd2797_t, read, write, 0x00ff)
-	AM_RANGE(0x008, 0x00f) AM_DEVREADWRITE8_LEGACY(I8253A5_TAG, pit8253_r, pit8253_w, 0x00ff)
-	AM_RANGE(0x018, 0x01f) AM_DEVREADWRITE8_LEGACY(Z80SIO0_TAG, z80dart_ba_cd_r, z80dart_ba_cd_w, 0x00ff)
+	AM_RANGE(0x008, 0x00f) AM_DEVREADWRITE8(I8253A5_TAG, pit8253_device, read, write, 0x00ff)
+	AM_RANGE(0x018, 0x01f) AM_DEVREADWRITE8(Z80SIO0_TAG, z80sio0_device, ba_cd_r, ba_cd_w, 0x00ff)
 	AM_RANGE(0x020, 0x021) AM_DEVWRITE8(CENTRONICS_TAG, centronics_device, write, 0x00ff)
 	AM_RANGE(0x022, 0x023) AM_WRITE8(pint_clr_w, 0x00ff)
 	AM_RANGE(0x024, 0x025) AM_READ8(prtr_snd_r, 0x00ff)
@@ -355,7 +356,7 @@ static ADDRESS_MAP_START( fp_io, AS_IO, 16, fp_state )
 	AM_RANGE(0x02a, 0x02b) AM_WRITE8(palette_w, 0x00ff)
 	AM_RANGE(0x02e, 0x02f) AM_WRITE(video_w)
 	AM_RANGE(0x040, 0x05f) AM_DEVREADWRITE8(I8237_TAG, am9517a_device, read, write, 0x00ff)
-	AM_RANGE(0x068, 0x06b) AM_DEVREADWRITE8_LEGACY(I8259A_TAG, pic8259_r, pic8259_w, 0x00ff)
+	AM_RANGE(0x068, 0x06b) AM_DEVREADWRITE8(I8259A_TAG, pic8259_device, read, write, 0x00ff)
 	AM_RANGE(0x06c, 0x06d) AM_DEVWRITE8(MC6845_TAG, mc6845_device, address_w, 0x00ff)
 	AM_RANGE(0x06e, 0x06f) AM_DEVREADWRITE8(MC6845_TAG, mc6845_device, register_r, register_w, 0x00ff)
 ADDRESS_MAP_END
@@ -415,11 +416,9 @@ static APRICOT_KEYBOARD_INTERFACE( kb_intf )
 //  pic8259_interface pic_intf
 //-------------------------------------------------
 
-static IRQ_CALLBACK( fp_irq_callback )
+	IRQ_CALLBACK_MEMBER(fp_state::fp_irq_callback)
 {
-	fp_state *state = device->machine().driver_data<fp_state>();
-
-	return pic8259_acknowledge(state->m_pic);
+	return m_pic->inta_r();
 }
 
 /*
@@ -435,25 +434,17 @@ static IRQ_CALLBACK( fp_irq_callback )
 
 */
 
-static const struct pic8259_interface pic_intf =
-{
-	DEVCB_CPU_INPUT_LINE(I8086_TAG, INPUT_LINE_IRQ0),
-	DEVCB_LINE_VCC,
-	DEVCB_NULL
-};
-
-
 //-------------------------------------------------
 //  pit8253_config pit_intf
 //-------------------------------------------------
 
-static const struct pit8253_config pit_intf =
+static const struct pit8253_interface pit_intf =
 {
 	{
 		{
 			2000000,
 			DEVCB_LINE_VCC,
-			DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir0_w)
+			DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir0_w)
 		}, {
 			2000000,
 			DEVCB_LINE_VCC,
@@ -474,7 +465,7 @@ static const struct pit8253_config pit_intf =
 static I8237_INTERFACE( dmac_intf )
 {
 	DEVCB_NULL,
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir7_w),
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir7_w),
 	DEVCB_NULL,
 	DEVCB_NULL,
 	{ DEVCB_NULL, DEVCB_DEVICE_MEMBER(WD2797_TAG, wd_fdc_t, data_r), DEVCB_NULL, DEVCB_NULL },
@@ -484,10 +475,10 @@ static I8237_INTERFACE( dmac_intf )
 
 
 //-------------------------------------------------
-//  Z80DART_INTERFACE( sio_intf )
+//  Z80SIO_INTERFACE( sio_intf )
 //-------------------------------------------------
 
-static Z80DART_INTERFACE( sio_intf )
+static Z80SIO_INTERFACE( sio_intf )
 {
 	0, 0, 0, 0,
 
@@ -505,7 +496,7 @@ static Z80DART_INTERFACE( sio_intf )
 	DEVCB_NULL,
 	DEVCB_NULL,
 
-	DEVCB_DEVICE_LINE(I8259A_TAG, pic8259_ir4_w)
+	DEVCB_DEVICE_LINE_MEMBER(I8259A_TAG, pic8259_device, ir4_w)
 };
 
 
@@ -544,7 +535,7 @@ void fp_state::fdc_drq_w(bool state)
 
 WRITE_LINE_MEMBER( fp_state::busy_w )
 {
-	if (!state) pic8259_ir6_w(m_pic, ASSERT_LINE);
+	if (!state) m_pic->ir6_w(ASSERT_LINE);
 }
 
 static const centronics_interface centronics_intf =
@@ -587,7 +578,7 @@ void fp_state::machine_start()
 	m_fdc->setup_drq_cb(wd_fdc_t::line_cb(FUNC(fp_state::fdc_drq_w), this));
 
 	// register CPU IRQ callback
-	m_maincpu->set_irq_acknowledge_callback(fp_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(fp_state::fp_irq_callback),this));
 
 	// allocate memory
 	m_work_ram.allocate(m_ram->size() / 2);
@@ -661,12 +652,12 @@ static MACHINE_CONFIG_START( fp, fp_state )
 	/* Devices */
 	MCFG_APRICOT_KEYBOARD_ADD(kb_intf)
 	MCFG_I8237_ADD(I8237_TAG, 250000, dmac_intf)
-	MCFG_PIC8259_ADD(I8259A_TAG, pic_intf)
+	MCFG_PIC8259_ADD(I8259A_TAG, INPUTLINE(I8086_TAG, INPUT_LINE_IRQ0), VCC, NULL)
 	MCFG_PIT8253_ADD(I8253A5_TAG, pit_intf)
-	MCFG_Z80DART_ADD(Z80SIO0_TAG, 2500000, sio_intf)
+	MCFG_Z80SIO0_ADD(Z80SIO0_TAG, 2500000, sio_intf)
 	MCFG_WD2797x_ADD(WD2797_TAG, 2000000)
-	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":0", fp_floppies, "35dd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":1", fp_floppies, NULL,   NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":0", fp_floppies, "35dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD2797_TAG":1", fp_floppies, NULL,   floppy_image_device::default_floppy_formats)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
 
 	/* internal ram */

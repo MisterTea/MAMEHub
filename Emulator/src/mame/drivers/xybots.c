@@ -34,8 +34,8 @@
 
 void xybots_state::update_interrupts()
 {
-	subdevice("maincpu")->execute().set_input_line(1, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
-	subdevice("maincpu")->execute().set_input_line(2, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(1, m_video_int_state ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(2, m_sound_int_state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -380,7 +380,7 @@ ROM_END
 DRIVER_INIT_MEMBER(xybots_state,xybots)
 {
 	m_h256 = 0x0400;
-	slapstic_configure(*machine().device<cpu_device>("maincpu"), 0x008000, 0, 107);
+	slapstic_configure(*m_maincpu, 0x008000, 0, 107);
 	atarijsa_init(machine(), "FFE200", 0x0100);
 }
 

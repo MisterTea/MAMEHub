@@ -86,8 +86,8 @@ const rom_entry *c8280_device::device_rom_region() const
 static ADDRESS_MAP_START( c8280_main_mem, AS_PROGRAM, 8, c8280_device )
 	AM_RANGE(0x0000, 0x007f) AM_MIRROR(0x100) AM_RAM // 6532 #1
 	AM_RANGE(0x0080, 0x00ff) AM_MIRROR(0x100) AM_RAM // 6532 #2
-	AM_RANGE(0x0200, 0x021f) AM_MIRROR(0xd60) AM_DEVREADWRITE_LEGACY(M6532_0_TAG, riot6532_r, riot6532_w)
-	AM_RANGE(0x0280, 0x029f) AM_MIRROR(0xd60) AM_DEVREADWRITE_LEGACY(M6532_1_TAG, riot6532_r, riot6532_w)
+	AM_RANGE(0x0200, 0x021f) AM_MIRROR(0xd60) AM_DEVREADWRITE(M6532_0_TAG, riot6532_device, read, write)
+	AM_RANGE(0x0280, 0x029f) AM_MIRROR(0xd60) AM_DEVREADWRITE(M6532_1_TAG, riot6532_device, read, write)
 	AM_RANGE(0x1000, 0x13ff) AM_MIRROR(0xc00) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x2000, 0x23ff) AM_MIRROR(0xc00) AM_RAM AM_SHARE("share2")
 	AM_RANGE(0x3000, 0x33ff) AM_MIRROR(0xc00) AM_RAM AM_SHARE("share3")
@@ -341,8 +341,8 @@ static MACHINE_CONFIG_FRAGMENT( c8280 )
 
 	MCFG_FD1797x_ADD(WD1797_TAG, XTAL_12MHz/6) // clock?
 
-	MCFG_FLOPPY_DRIVE_ADD(WD1797_TAG":0", c8280_floppies, "8dsdd", NULL, floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(WD1797_TAG":1", c8280_floppies, "8dsdd", NULL, floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1797_TAG":0", c8280_floppies, "8dsdd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(WD1797_TAG":1", c8280_floppies, "8dsdd", floppy_image_device::default_floppy_formats)
 MACHINE_CONFIG_END
 
 
@@ -386,7 +386,7 @@ inline void c8280_device::update_ieee_signals()
 //-------------------------------------------------
 
 c8280_device::c8280_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, C8280, "C8280", tag, owner, clock),
+	: device_t(mconfig, C8280, "C8280", tag, owner, clock, "c8280", __FILE__),
 		device_ieee488_interface(mconfig, *this),
 		m_maincpu(*this, M6502_DOS_TAG),
 		m_fdccpu(*this, M6502_FDC_TAG),
@@ -455,7 +455,7 @@ void c8280_device::ieee488_atn(int state)
 	update_ieee_signals();
 
 	// set RIOT PA7
-	riot6532_porta_in_set(m_riot1, !state << 7, 0x80);
+	m_riot1->porta_in_set(!state << 7, 0x80);
 }
 
 
@@ -465,10 +465,12 @@ void c8280_device::ieee488_atn(int state)
 
 void c8280_device::ieee488_ifc(int state)
 {
-	if (!state)
+	if (!m_ifc && state)
 	{
 		device_reset();
 	}
+
+	m_ifc = state;
 }
 
 READ8_MEMBER( c8280_device::fk5_r )

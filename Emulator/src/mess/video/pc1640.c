@@ -128,7 +128,7 @@ READ8_MEMBER( pc1640_state::iga_r )
 		*/
 
 		// switch sense
-		data |= BIT(ioport("SW")->read(), ((m_egc_ctrl >> 2) & 0x03) ^ 0x03);
+		data |= BIT(m_sw->read(), ((m_egc_ctrl >> 2) & 0x03) ^ 0x03);
 		break;
 
 	case 0x15: // Sequencer Data Register
@@ -347,9 +347,10 @@ static MC6845_UPDATE_ROW( pc1640_update_row )
 {
 }
 
-static const mc6845_interface crtc_intf =
+static MC6845_INTERFACE( crtc_intf )
 {
 	SCREEN_TAG,
+	false,
 	8,
 	NULL,
 	pc1640_update_row,
@@ -363,7 +364,7 @@ static const mc6845_interface crtc_intf =
 
 
 //-------------------------------------------------
-//  VIDEO_START( pc1640 )
+//  VIDEO_START( pc1640 )s
 //-------------------------------------------------
 
 void pc1640_state::video_start()
@@ -379,7 +380,7 @@ void pc1640_state::video_start()
 
 UINT32 pc1640_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	return false;
+	return 0;
 }
 
 

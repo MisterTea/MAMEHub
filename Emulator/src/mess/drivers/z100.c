@@ -206,6 +206,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_z100(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_INPUT_CHANGED_MEMBER(key_stroke);
+	IRQ_CALLBACK_MEMBER(z100_irq_callback);
 };
 
 #define mc6845_h_char_total     (m_crtc_vreg[0])
@@ -228,7 +229,6 @@ public:
 
 void z100_state::video_start()
 {
-
 	m_gvram = auto_alloc_array_clear(machine(), UINT8, 0x30000);
 }
 
@@ -409,8 +409,8 @@ static ADDRESS_MAP_START(z100_io, AS_IO, 8, z100_state)
 //  AM_RANGE (0xe4, 0xe7) 8253 PIT
 //  AM_RANGE (0xe8, 0xeb) First 2661-2 serial port (printer)
 //  AM_RANGE (0xec, 0xef) Second 2661-2 serial port (modem)
-	AM_RANGE (0xf0, 0xf1) AM_DEVREADWRITE_LEGACY("pic8259_slave", pic8259_r, pic8259_w)
-	AM_RANGE (0xf2, 0xf3) AM_DEVREADWRITE_LEGACY("pic8259_master", pic8259_r, pic8259_w)
+	AM_RANGE (0xf0, 0xf1) AM_DEVREADWRITE("pic8259_slave", pic8259_device, read, write)
+	AM_RANGE (0xf2, 0xf3) AM_DEVREADWRITE("pic8259_master", pic8259_device, read, write)
 	AM_RANGE (0xf4, 0xf4) AM_READ(keyb_data_r) // -> 8041 MCU
 	AM_RANGE (0xf5, 0xf5) AM_READWRITE(keyb_status_r,keyb_command_w)
 //  AM_RANGE (0xf6, 0xf6) expansion ROM is present (bit 0, active low)
@@ -423,7 +423,6 @@ ADDRESS_MAP_END
 
 INPUT_CHANGED_MEMBER(z100_state::key_stroke)
 {
-
 	if(newval && !oldval)
 	{
 		/* TODO: table */
@@ -596,42 +595,29 @@ INPUT_PORTS_START( z100 )
 	PORT_CONFSETTING( 0x01, "Color" )
 INPUT_PORTS_END
 
-static IRQ_CALLBACK(z100_irq_callback)
+IRQ_CALLBACK_MEMBER(z100_state::z100_irq_callback)
 {
-	return pic8259_acknowledge( device->machine().device( "pic8259_master" ) );
+	return m_picm->inta_r();
 }
 
 WRITE_LINE_MEMBER( z100_state::z100_pic_irq )
 {
-	machine().device("maincpu")->execute().set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(0, state ? HOLD_LINE : CLEAR_LINE);
 //  logerror("PIC#1: set IRQ line to %i\n",interrupt);
 }
 
 READ8_MEMBER( z100_state::get_slave_ack )
 {
 	if (offset==7) { // IRQ = 7
-		return pic8259_acknowledge(m_pics);
+		return m_pics->inta_r();
 	}
 	return 0;
 }
 
-static const struct pic8259_interface z100_pic8259_master_config =
-{
-	DEVCB_DRIVER_LINE_MEMBER(z100_state, z100_pic_irq),
-	DEVCB_LINE_VCC,
-	DEVCB_DRIVER_MEMBER(z100_state, get_slave_ack)
-};
-
-static const struct pic8259_interface z100_pic8259_slave_config =
-{
-	DEVCB_DEVICE_LINE("pic8259_master", pic8259_ir3_w),
-	DEVCB_LINE_GND,
-	DEVCB_NULL
-};
-
-static const mc6845_interface mc6845_intf =
+static MC6845_INTERFACE( mc6845_intf )
 {
 	"screen",   /* screen we are acting on */
+	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
 	NULL,       /* row update callback */
@@ -751,8 +737,7 @@ void z100_state::palette_init()
 
 void z100_state::machine_start()
 {
-
-	machine().device("maincpu")->execute().set_irq_acknowledge_callback(z100_irq_callback);
+	m_maincpu->set_irq_acknowledge_callback(device_irq_acknowledge_delegate(FUNC(z100_state::z100_irq_callback),this));
 	m_mc6845 = machine().device<mc6845_device>("crtc");
 }
 
@@ -760,7 +745,7 @@ void z100_state::machine_reset()
 {
 	int i;
 
-	if(machine().root_device().ioport("CONFIG")->read() & 1)
+	if(ioport("CONFIG")->read() & 1)
 	{
 		for(i=0;i<8;i++)
 			palette_set_color_rgb(machine(), i,pal1bit(i >> 1),pal1bit(i >> 2),pal1bit(i >> 0));
@@ -791,8 +776,8 @@ static MACHINE_CONFIG_START( z100, z100_state )
 	/* Devices */
 	MCFG_MC6845_ADD("crtc", MC6845, XTAL_14_31818MHz/8, mc6845_intf)    /* unknown clock, hand tuned to get ~50/~60 fps */
 
-	MCFG_PIC8259_ADD( "pic8259_master", z100_pic8259_master_config )
-	MCFG_PIC8259_ADD( "pic8259_slave", z100_pic8259_slave_config )
+	MCFG_PIC8259_ADD( "pic8259_master", WRITELINE(z100_state, z100_pic_irq), VCC, READ8(z100_state, get_slave_ack) )
+	MCFG_PIC8259_ADD( "pic8259_slave", DEVWRITELINE("pic8259_master", pic8259_device, ir3_w), GND, NULL )
 
 	MCFG_PIA6821_ADD("pia0", pia0_intf)
 	MCFG_PIA6821_ADD("pia1", pia1_intf)
@@ -812,7 +797,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(z100_state,z100)
 {
-	UINT8 *ROM = machine().root_device().memregion("ipl")->base();
+	UINT8 *ROM = memregion("ipl")->base();
 
 	ROM[0xfc116 & 0x3fff] = 0x90; // patch parity IRQ check
 	ROM[0xfc117 & 0x3fff] = 0x90;

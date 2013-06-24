@@ -38,8 +38,6 @@
 #define READ_RDATA_1(r,a,p)   ((p) ? (((((UINT8 *)&m_blitter_regs[r])[BYTE4_XOR_BE(((UINT32)a##_x >> 19) & 7)]) >> PIXEL_SHIFT_1(a)) & 0x01) : (m_blitter_regs[r] & 0x01))
 #define READ_PIXEL_1(a)       (((((UINT8 *)a##_base_mem)[PIXEL_OFFSET_1(a)]) >> PIXEL_SHIFT_1(a)) & 0x01)
 #define READ_ZDATA_1(a)       0 /* huh? */
-#define WRITE_PIXEL_1(a,d)    do { UINT8 *pix = &((UINT8 *)a##_base_mem)[PIXEL_OFFSET_1(a)]; *pix = (*pix & ~(0x01 << PIXEL_SHIFT_1(a))) | ((d) << PIXEL_SHIFT_1(a)); } while (0)
-#define WRITE_ZDATA_1(a,d)    /* huh? */
 
 #define PIXEL_SHIFT_2(a)      ((~a##_x >> 15) & 6)
 #define PIXEL_OFFSET_2(a)     BYTE4_XOR_BE(((UINT32)a##_y >> 16) * a##_width / 4 + (((UINT32)a##_x >> 18) & ~7) * (1 + a##_pitch) + (((UINT32)a##_x >> 18) & 7))
@@ -47,8 +45,6 @@
 #define READ_RDATA_2(r,a,p)   ((p) ? (((((UINT8 *)&m_blitter_regs[r])[BYTE4_XOR_BE(((UINT32)a##_x >> 18) & 7)]) >> PIXEL_SHIFT_2(a)) & 0x03) : (m_blitter_regs[r] & 0x03))
 #define READ_PIXEL_2(a)       (((((UINT8 *)a##_base_mem)[PIXEL_OFFSET_2(a)]) >> PIXEL_SHIFT_2(a)) & 0x03)
 #define READ_ZDATA_2(a)       0 /* huh? */
-#define WRITE_PIXEL_2(a,d)    do { UINT8 *pix = &((UINT8 *)a##_base_mem)[PIXEL_OFFSET_2(a)]; *pix = (*pix & ~(0x03 << PIXEL_SHIFT_2(a))) | ((d) << PIXEL_SHIFT_2(a)); } while (0)
-#define WRITE_ZDATA_2(a,d)    /* huh? */
 
 #define PIXEL_SHIFT_4(a)      ((~a##_x >> 14) & 4)
 #define PIXEL_OFFSET_4(a)     BYTE4_XOR_BE(((UINT32)a##_y >> 16) * a##_width / 2 + (((UINT32)a##_x >> 17) & ~7) * (1 + a##_pitch) + (((UINT32)a##_x >> 17) & 7))
@@ -56,32 +52,24 @@
 #define READ_RDATA_4(r,a,p)   ((p) ? (((((UINT8 *)&m_blitter_regs[r])[BYTE4_XOR_BE(((UINT32)a##_x >> 17) & 7)]) >> PIXEL_SHIFT_4(a)) & 0x0f) : (m_blitter_regs[r] & 0x0f))
 #define READ_PIXEL_4(a)       (((((UINT8 *)a##_base_mem)[PIXEL_OFFSET_4(a)]) >> PIXEL_SHIFT_4(a)) & 0x0f)
 #define READ_ZDATA_4(a)       0 /* huh? */
-#define WRITE_PIXEL_4(a,d)    do { UINT8 *pix = &((UINT8 *)a##_base_mem)[PIXEL_OFFSET_4(a)]; *pix = (*pix & ~(0x0f << PIXEL_SHIFT_4(a))) | ((d) << PIXEL_SHIFT_4(a)); } while (0)
-#define WRITE_ZDATA_4(a,d)    /* huh? */
 
 #define PIXEL_OFFSET_8(a)     BYTE4_XOR_BE(((UINT32)a##_y >> 16) * a##_width + (((UINT32)a##_x >> 16) & ~7) * (1 + a##_pitch) + (((UINT32)a##_x >> 16) & 7))
 #define ZDATA_OFFSET_8(a)     (PIXEL_OFFSET_8(a) + a##_zoffs * 8)
 #define READ_RDATA_8(r,a,p)   ((p) ? (((UINT8 *)&m_blitter_regs[r])[BYTE4_XOR_BE(((UINT32)a##_x >> 16) & 7)]) : (m_blitter_regs[r] & 0xff))
 #define READ_PIXEL_8(a)       (((UINT8 *)a##_base_mem)[PIXEL_OFFSET_8(a)])
 #define READ_ZDATA_8(a)       (((UINT8 *)a##_base_mem)[ZDATA_OFFSET_8(a)])
-#define WRITE_PIXEL_8(a,d)    do { ((UINT8 *)a##_base_mem)[PIXEL_OFFSET_8(a)] = (d); } while (0)
-#define WRITE_ZDATA_8(a,d)    do { ((UINT8 *)a##_base_mem)[ZDATA_OFFSET_8(a)] = (d); } while (0)
 
 #define PIXEL_OFFSET_16(a)    BYTE_XOR_BE(((UINT32)a##_y >> 16) * a##_width + (((UINT32)a##_x >> 16) & ~3) * (1 + a##_pitch) + (((UINT32)a##_x >> 16) & 3))
 #define ZDATA_OFFSET_16(a)    (PIXEL_OFFSET_16(a) + a##_zoffs * 4)
 #define READ_RDATA_16(r,a,p)  ((p) ? (((UINT16 *)&m_blitter_regs[r])[BYTE_XOR_BE(((UINT32)a##_x >> 16) & 3)]) : (m_blitter_regs[r] & 0xffff))
 #define READ_PIXEL_16(a)      (((UINT16 *)a##_base_mem)[PIXEL_OFFSET_16(a)])
 #define READ_ZDATA_16(a)      (((UINT16 *)a##_base_mem)[ZDATA_OFFSET_16(a)])
-#define WRITE_PIXEL_16(a,d)   do { ((UINT16 *)a##_base_mem)[PIXEL_OFFSET_16(a)] = (d); } while (0)
-#define WRITE_ZDATA_16(a,d)   do { ((UINT16 *)a##_base_mem)[ZDATA_OFFSET_16(a)] = (d); } while (0)
 
 #define PIXEL_OFFSET_32(a)    (((UINT32)a##_y >> 16) * a##_width + (((UINT32)a##_x >> 16) & ~1) * (1 + a##_pitch) + (((UINT32)a##_x >> 16) & 1))
 #define ZDATA_OFFSET_32(a)    (PIXEL_OFFSET_32(a) + a##_zoffs * 2)
 #define READ_RDATA_32(r,a,p)  ((p) ? (m_blitter_regs[r + (((UINT32)a##_x >> 16) & 1)]) : m_blitter_regs[r])
 #define READ_PIXEL_32(a)      (((UINT32 *)a##_base_mem)[PIXEL_OFFSET_32(a)])
 #define READ_ZDATA_32(a)      (((UINT32 *)a##_base_mem)[ZDATA_OFFSET_32(a)])
-#define WRITE_PIXEL_32(a,d)   do { ((UINT32 *)a##_base_mem)[PIXEL_OFFSET_32(a)] = (d); } while (0)
-#define WRITE_ZDATA_32(a,d)   do { ((UINT32 *)a##_base_mem)[ZDATA_OFFSET_32(a)] = (d); } while (0)
 
 #define READ_RDATA(r,a,f,p) \
 	((((f) & 0x38) == (0 << 3)) ? (READ_RDATA_1(r,a,p)) : \
@@ -107,32 +95,66 @@
 		(((f) & 0x38) == (4 << 3)) ? (READ_ZDATA_16(a)) : \
 		(((f) & 0x38) == (5 << 3)) ? (READ_ZDATA_32(a)) : 0)
 
-#define WRITE_PIXEL(a,f,d) \
+#define PIXEL_SHIFT_WRITE_1      ((~adest_x >> 16) & 7)
+#define PIXEL_SHIFT_WRITE_2      ((~adest_x >> 15) & 6)
+#define PIXEL_SHIFT_WRITE_4      ((~adest_x >> 14) & 4)
+
+#define PIXEL_OFFSET_WRITE_1     (((UINT32)adest_y >> 16) * adest_width / 8 + (((UINT32)adest_x >> 19) & ~7) * (1 + adest_pitch) + (((UINT32)adest_x >> 19) & 7))
+#define PIXEL_OFFSET_WRITE_2     (((UINT32)adest_y >> 16) * adest_width / 4 + (((UINT32)adest_x >> 18) & ~7) * (1 + adest_pitch) + (((UINT32)adest_x >> 18) & 7))
+#define PIXEL_OFFSET_WRITE_4     (((UINT32)adest_y >> 16) * adest_width / 2 + (((UINT32)adest_x >> 17) & ~7) * (1 + adest_pitch) + (((UINT32)adest_x >> 17) & 7))
+#define PIXEL_OFFSET_WRITE_8     (((UINT32)adest_y >> 16) * adest_width + (((UINT32)adest_x >> 16) & ~7) * (1 + adest_pitch) + (((UINT32)adest_x >> 16) & 7))
+#define PIXEL_OFFSET_WRITE_16    (((UINT32)adest_y >> 16) * adest_width + (((UINT32)adest_x >> 16) & ~3) * (1 + adest_pitch) + (((UINT32)adest_x >> 16) & 3))
+#define PIXEL_OFFSET_WRITE_32    (((UINT32)adest_y >> 16) * adest_width + (((UINT32)adest_x >> 16) & ~1) * (1 + adest_pitch) + (((UINT32)adest_x >> 16) & 1))
+
+#define ZDATA_OFFSET_WRITE_1     0 /* huh? */
+#define ZDATA_OFFSET_WRITE_2     0 /* huh? */
+#define ZDATA_OFFSET_WRITE_4     0 /* huh? */
+#define ZDATA_OFFSET_WRITE_8     (PIXEL_OFFSET_WRITE_8 + adest_zoffs * 8)
+#define ZDATA_OFFSET_WRITE_16    (PIXEL_OFFSET_WRITE_16 + adest_zoffs * 4)
+#define ZDATA_OFFSET_WRITE_32    (PIXEL_OFFSET_WRITE_32 + adest_zoffs * 2)
+
+
+#define WRITE_PIXEL_1(d)    do { int writeoffs = PIXEL_OFFSET_WRITE_1; int shift = PIXEL_SHIFT_WRITE_1; UINT8 pix = m_gpu->space(AS_PROGRAM).read_byte(adest_base + (writeoffs)); pix = (pix & ~(0x01 << shift)) | ((d) << shift); m_gpu->space(AS_PROGRAM).write_byte(adest_base + (writeoffs), pix); } while (0)
+#define WRITE_ZDATA_1(d)    /* huh? */
+#define WRITE_PIXEL_2(d)    do { int writeoffs = PIXEL_OFFSET_WRITE_2; int shift = PIXEL_SHIFT_WRITE_2; UINT8 pix = m_gpu->space(AS_PROGRAM).read_byte(adest_base + (writeoffs)); pix = (pix & ~(0x03 << shift)) | ((d) << shift); m_gpu->space(AS_PROGRAM).write_byte(adest_base + (writeoffs), pix); } while (0)
+#define WRITE_ZDATA_2(d)    /* huh? */
+#define WRITE_PIXEL_4(d)    do { int writeoffs = PIXEL_OFFSET_WRITE_4; int shift = PIXEL_SHIFT_WRITE_4; UINT8 pix = m_gpu->space(AS_PROGRAM).read_byte(adest_base + (writeoffs)); pix = (pix & ~(0x0f << shift)) | ((d) << shift); m_gpu->space(AS_PROGRAM).write_byte(adest_base + (writeoffs), pix); } while (0)
+#define WRITE_ZDATA_4(d)    /* huh? */
+#define WRITE_PIXEL_8(d)    do { int writeoffs = PIXEL_OFFSET_WRITE_8;  m_gpu->space(AS_PROGRAM).write_byte(adest_base + (writeoffs), (d)); } while (0)
+#define WRITE_ZDATA_8(d)    do { int writeoffs = ZDATA_OFFSET_WRITE_8;  m_gpu->space(AS_PROGRAM).write_byte(adest_base + (writeoffs), (d)); } while (0)
+#define WRITE_PIXEL_16(d)   do { int writeoffs = PIXEL_OFFSET_WRITE_16; m_gpu->space(AS_PROGRAM).write_word(adest_base + (writeoffs<<1), (d)); } while (0)
+#define WRITE_ZDATA_16(d)   do { int writeoffs = ZDATA_OFFSET_WRITE_16; m_gpu->space(AS_PROGRAM).write_word(adest_base + (writeoffs<<1), (d)); } while (0)
+#define WRITE_PIXEL_32(d)   do { int writeoffs = PIXEL_OFFSET_WRITE_32; m_gpu->space(AS_PROGRAM).write_dword(adest_base + (writeoffs<<2), (d)); } while (0)
+#define WRITE_ZDATA_32(d)   do { int writeoffs = ZDATA_OFFSET_WRITE_32; m_gpu->space(AS_PROGRAM).write_dword(adest_base + (writeoffs<<2), (d)); } while (0)
+
+
+
+#define WRITE_PIXEL(f,d) \
 	do \
 	{ \
-				if (((f) & 0x38) == (0 << 3)) WRITE_PIXEL_1(a,d); \
-		else if (((f) & 0x38) == (1 << 3)) WRITE_PIXEL_2(a,d); \
-		else if (((f) & 0x38) == (2 << 3)) WRITE_PIXEL_4(a,d); \
-		else if (((f) & 0x38) == (3 << 3)) WRITE_PIXEL_8(a,d); \
-		else if (((f) & 0x38) == (4 << 3)) WRITE_PIXEL_16(a,d); \
-		else if (((f) & 0x38) == (5 << 3)) WRITE_PIXEL_32(a,d); \
+				if (((f) & 0x38) == (0 << 3)) WRITE_PIXEL_1(d); \
+		else if (((f) & 0x38) == (1 << 3)) WRITE_PIXEL_2(d); \
+		else if (((f) & 0x38) == (2 << 3)) WRITE_PIXEL_4(d); \
+		else if (((f) & 0x38) == (3 << 3)) WRITE_PIXEL_8(d); \
+		else if (((f) & 0x38) == (4 << 3)) WRITE_PIXEL_16(d); \
+		else if (((f) & 0x38) == (5 << 3)) WRITE_PIXEL_32(d); \
 	} while (0)
 
-#define WRITE_ZDATA(a,f,d) \
+#define WRITE_ZDATA(f,d) \
 	do \
 	{ \
-				if (((f) & 0x38) == (0 << 3)) WRITE_ZDATA_1(a,d); \
-		else if (((f) & 0x38) == (1 << 3)) WRITE_ZDATA_2(a,d); \
-		else if (((f) & 0x38) == (2 << 3)) WRITE_ZDATA_4(a,d); \
-		else if (((f) & 0x38) == (3 << 3)) WRITE_ZDATA_8(a,d); \
-		else if (((f) & 0x38) == (4 << 3)) WRITE_ZDATA_16(a,d); \
-		else if (((f) & 0x38) == (5 << 3)) WRITE_ZDATA_32(a,d); \
+				if (((f) & 0x38) == (0 << 3)) WRITE_ZDATA_1(d); \
+		else if (((f) & 0x38) == (1 << 3)) WRITE_ZDATA_2(d); \
+		else if (((f) & 0x38) == (2 << 3)) WRITE_ZDATA_4(d); \
+		else if (((f) & 0x38) == (3 << 3)) WRITE_ZDATA_8(d); \
+		else if (((f) & 0x38) == (4 << 3)) WRITE_ZDATA_16(d); \
+		else if (((f) & 0x38) == (5 << 3)) WRITE_ZDATA_32(d); \
 	} while (0)
 #endif
 
 void jaguar_state::FUNCNAME(UINT32 command, UINT32 a1flags, UINT32 a2flags)
 {
-	UINT32 a1_base = m_blitter_regs[A1_BASE];
+	UINT32 a1_base = m_blitter_regs[A1_BASE] & ~0x7;
 	INT32 a1_pitch = (A1FIXED & 3) ^ ((A1FIXED & 2) >> 1);
 	INT32 a1_zoffs = (A1FIXED >> 6) & 7;
 	INT32 a1_width = ((4 | ((a1flags >> 9) & 3)) << ((a1flags >> 11) & 15)) >> 2;
@@ -145,12 +167,12 @@ void jaguar_state::FUNCNAME(UINT32 command, UINT32 a1flags, UINT32 a2flags)
 	UINT32 a1_xmask = 0xffffffff;
 	UINT32 a1_ymask = 0xffffffff;
 
-	UINT32 a2_base = m_blitter_regs[A2_BASE];
+	UINT32 a2_base = m_blitter_regs[A2_BASE] & ~0x7;
 	INT32 a2_pitch = (A2FIXED & 3) ^ ((A2FIXED & 2) >> 1);
 	INT32 a2_zoffs = (A2FIXED >> 6) & 7;
 	INT32 a2_width = ((4 | ((a2flags >> 9) & 3)) << ((a2flags >> 11) & 15)) >> 2;
 	INT32 a2_xadd = (A2FIXED >> 16) & 0x03;
-	INT32 a2_yadd = (A2FIXED >> 18) & 0x01;
+	INT32 a2_yadd = (A1FIXED >> 18) & 0x01;     // From Jaguar HW errata: "If the A1 Y add control bit is set it will affect both address generators."
 	INT32 a2_x = (m_blitter_regs[A2_PIXEL] << 16);
 	INT32 a2_y = (m_blitter_regs[A2_PIXEL] & 0xffff0000);
 	INT32 a2_xstep = 0;
@@ -169,6 +191,7 @@ void jaguar_state::FUNCNAME(UINT32 command, UINT32 a1flags, UINT32 a2flags)
 	void *a2_base_mem = memory_base(a2_base);
 
 	void *asrc_base_mem =   (COMMAND & 0x00000800) ? a1_base_mem : a2_base_mem;
+	void *adest_base_mem =  (COMMAND & 0x00000800) ? a2_base_mem : a1_base_mem;
 	UINT32 asrcflags =      (COMMAND & 0x00000800) ? A1FIXED : A2FIXED;
 	INT32 asrc_x =          (COMMAND & 0x00000800) ? a1_x : a2_x;
 	INT32 asrc_y =          (COMMAND & 0x00000800) ? a1_y : a2_y;
@@ -179,7 +202,7 @@ void jaguar_state::FUNCNAME(UINT32 command, UINT32 a1flags, UINT32 a2flags)
 	INT32 asrc_xadd, asrc_xstep, asrc_yadd, asrc_ystep;
 	UINT32 asrc_xmask, asrc_ymask;
 
-	void *adest_base_mem =  (COMMAND & 0x00000800) ? a2_base_mem : a1_base_mem;
+	UINT32 adest_base =  (COMMAND & 0x00000800) ? a2_base : a1_base;
 	UINT32 adestflags =     (COMMAND & 0x00000800) ? A2FIXED : A1FIXED;
 	INT32 adest_x =         (COMMAND & 0x00000800) ? a2_x : a1_x;
 	INT32 adest_y =         (COMMAND & 0x00000800) ? a2_y : a1_y;
@@ -273,6 +296,22 @@ void jaguar_state::FUNCNAME(UINT32 command, UINT32 a1flags, UINT32 a2flags)
 	adest_xmask         = (COMMAND & 0x00000800) ? a2_xmask : a1_xmask;
 	adest_ymask         = (COMMAND & 0x00000800) ? a2_ymask : a1_ymask;
 
+	int gouraud_color[4];
+	gouraud_color[0] = (m_blitter_regs[B_PATD_H] >> 16) & 0xff00;
+	gouraud_color[1] = m_blitter_regs[B_PATD_H] & 0xff00;
+	gouraud_color[2] = (m_blitter_regs[B_PATD_L] >> 16) & 0xff00;
+	gouraud_color[3] = m_blitter_regs[B_PATD_L] & 0xff00;
+
+	int gouraud_inten[4];
+	gouraud_inten[3] = m_blitter_regs[B_I0] & 0xffffff;
+	gouraud_inten[2] = m_blitter_regs[B_I1] & 0xffffff;
+	gouraud_inten[1] = m_blitter_regs[B_I2] & 0xffffff;
+	gouraud_inten[0] = m_blitter_regs[B_I3] & 0xffffff;
+
+	int gouraud_iinc = m_blitter_regs[B_IINC] & 0xffffff;
+	if (gouraud_iinc & 0x800000)
+		gouraud_iinc |= 0xff000000;
+
 	if (LOG_BLITS)
 	{
 	logerror("%s:Blit!\n", machine().describe_context());
@@ -324,41 +363,41 @@ void jaguar_state::FUNCNAME(UINT32 command, UINT32 a1flags, UINT32 a2flags)
 				/* load src data and Z */
 				if (COMMAND & 0x00000001)
 				{
-				srcdata = READ_PIXEL(asrc, asrcflags);
+					srcdata = READ_PIXEL(asrc, asrcflags);
 					if (COMMAND & 0x00000002)
-					srczdata = READ_ZDATA(asrc, asrcflags);
+						srczdata = READ_ZDATA(asrc, asrcflags);
 					else if (COMMAND & 0x001c020)
-					srczdata = READ_RDATA(B_SRCZ1_H, asrc, asrcflags, asrc_phrase_mode);
+						srczdata = READ_RDATA(B_SRCZ1_H, asrc, asrcflags, asrc_phrase_mode);
 				}
 				else
 				{
-				srcdata = READ_RDATA(B_SRCD_H, asrc, asrcflags, asrc_phrase_mode);
+					srcdata = READ_RDATA(B_SRCD_H, asrc, asrcflags, asrc_phrase_mode);
 					if (COMMAND & 0x001c020)
-					srczdata = READ_RDATA(B_SRCZ1_H, asrc, asrcflags, asrc_phrase_mode);
+						srczdata = READ_RDATA(B_SRCZ1_H, asrc, asrcflags, asrc_phrase_mode);
 				}
 
 				/* load dst data and Z */
 				if (COMMAND & 0x00000008)
 				{
-				dstdata = READ_PIXEL(adest, adestflags);
+					dstdata = READ_PIXEL(adest, adestflags);
 					if (COMMAND & 0x00000010)
-					dstzdata = READ_ZDATA(adest, adestflags);
+						dstzdata = READ_ZDATA(adest, adestflags);
 					else
-					dstzdata = READ_RDATA(B_DSTZ_H, adest, adestflags, adest_phrase_mode);
+						dstzdata = READ_RDATA(B_DSTZ_H, adest, adestflags, adest_phrase_mode);
 				}
 				else
 				{
-				dstdata = READ_RDATA(B_DSTD_H, adest, adestflags, adest_phrase_mode);
+					dstdata = READ_RDATA(B_DSTD_H, adest, adestflags, adest_phrase_mode);
 					if (COMMAND & 0x00000010)
-					dstzdata = READ_RDATA(B_DSTZ_H, adest, adestflags, adest_phrase_mode);
+						dstzdata = READ_RDATA(B_DSTZ_H, adest, adestflags, adest_phrase_mode);
 				}
 
 				/* handle clipping */
 				if (COMMAND & 0x00000040)
 				{
-				if (adest_x < 0 || adest_y < 0 ||
-					(adest_x >> 16) >= (m_blitter_regs[A1_CLIP] & 0x7fff) ||
-					(adest_y >> 16) >= ((m_blitter_regs[A1_CLIP] >> 16) & 0x7fff))
+					if (adest_x < 0 || adest_y < 0 ||
+						(adest_x >> 16) >= (m_blitter_regs[A1_CLIP] & 0x7fff) ||
+						(adest_y >> 16) >= ((m_blitter_regs[A1_CLIP] >> 16) & 0x7fff))
 						inhibit = 1;
 				}
 
@@ -375,12 +414,12 @@ void jaguar_state::FUNCNAME(UINT32 command, UINT32 a1flags, UINT32 a2flags)
 				{
 					if (!(COMMAND & 0x02000000))
 					{
-					if (srcdata == READ_RDATA(B_PATD_H, asrc, asrcflags, asrc_phrase_mode))
+						if (srcdata == READ_RDATA(B_PATD_H, asrc, asrcflags, asrc_phrase_mode))
 							inhibit = 1;
 					}
 					else
 					{
-					if (dstdata == READ_RDATA(B_PATD_H, adest, adestflags, adest_phrase_mode))
+						if (dstdata == READ_RDATA(B_PATD_H, adest, adestflags, adest_phrase_mode))
 							inhibit = 1;
 					}
 				}
@@ -390,7 +429,7 @@ void jaguar_state::FUNCNAME(UINT32 command, UINT32 a1flags, UINT32 a2flags)
 				{
 					/* handle patterns/additive/LFU */
 					if (COMMAND & 0x00010000)
-					writedata = READ_RDATA(B_PATD_H, adest, adestflags, adest_phrase_mode);
+						writedata = READ_RDATA(B_PATD_H, adest, adestflags, adest_phrase_mode);
 					else if (COMMAND & 0x00020000)
 					{
 						writedata = (srcdata & 0xff) + (dstdata & 0xff);
@@ -413,28 +452,41 @@ void jaguar_state::FUNCNAME(UINT32 command, UINT32 a1flags, UINT32 a2flags)
 							writedata |= srcdata & dstdata;
 					}
 
-				/* handle source shading */
-				if (COMMAND & 0x40000000)
-				{
-					int intensity = srcdata & 0x00ff;
-					intensity += (INT8) (m_blitter_regs[B_Z3] >> 16);
-					if (intensity < 0)
-						intensity = 0;
-					else if (intensity > 0xff)
-						intensity = 0xff;
-					writedata = (srcdata & 0xff00) | intensity;
-				}
+					/* handle source shading */
+					if (COMMAND & 0x40000000)
+					{
+						int intensity = srcdata & 0x00ff;
+						intensity += (INT8) (m_blitter_regs[B_IINC] >> 16);
+						if (intensity < 0)
+							intensity = 0;
+						else if (intensity > 0xff)
+							intensity = 0xff;
+						writedata = (srcdata & 0xff00) | intensity;
+					}
+
+					/* handle gouraud shading */
+					if (COMMAND & 0x1000)
+					{
+						int p = asrc_phrase_mode ? (asrc_x & 3) : 3;
+						writedata = ((gouraud_inten[p] >> 16) & 0xff) | gouraud_color[p];
+
+						int intensity = gouraud_inten[p];
+						intensity += gouraud_iinc;
+						if (intensity < 0) intensity = 0;
+						if (intensity > 0xffffff) intensity = 0xffffff;
+						gouraud_inten[p] = intensity;
+					}
 				}
 				else
 					writedata = dstdata;
 
-			if (adest_phrase_mode || (command & 0x10000000) || !inhibit)
-				{
-					/* write to the destination */
-					WRITE_PIXEL(adest, adestflags, writedata);
-					if (COMMAND & 0x00000020)
-					WRITE_ZDATA(adest, adestflags, srczdata);
-				}
+			if ((command & 0x10000000) || !inhibit)
+			{
+				/* write to the destination */
+				WRITE_PIXEL(adestflags, writedata);
+				if (COMMAND & 0x00000020)
+					WRITE_ZDATA(adestflags, srczdata);
+			}
 
 				/* update X/Y */
 			asrc_x = (asrc_x + asrc_xadd) & asrc_xmask;

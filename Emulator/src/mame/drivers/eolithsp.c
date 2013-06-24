@@ -47,6 +47,7 @@ static const struct
 	/* eolith.c */
 	{ "linkypip", 0x4000825c, -1,/*0x4000ABAE,*/ 240 }, // 2nd address is used on the planet cutscene between but idle skipping between levels, but seems too aggressive
 	{ "ironfort", 0x40020854, -1, 240 },
+	{ "ironfortj",0x40020234, -1, 240 },
 	{ "hidnctch", 0x4000bba0, -1, 240 },
 	{ "raccoon",  0x40008204, -1, 240 },
 	{ "puzzlekg", 0x40029458, -1, 240 },
@@ -108,7 +109,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(eolith_state::eolith_speedup)
 
 CUSTOM_INPUT_MEMBER(eolith_state::eolith_speedup_getvblank)
 {
-
 //  printf("%s:eolith speedup_read data %02x\n",machine().describe_context(), eolith_vblank);
 
 

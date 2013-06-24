@@ -32,7 +32,7 @@ static ADDRESS_MAP_START( st0016_mem, AS_PROGRAM, 8, st0016_state )
 	AM_RANGE(0xd000, 0xdfff) AM_READ(st0016_sprite2_ram_r) AM_WRITE(st0016_sprite2_ram_w)
 	AM_RANGE(0xe000, 0xe7ff) AM_RAM
 	AM_RANGE(0xe800, 0xe87f) AM_RAM /* common ram */
-	AM_RANGE(0xe900, 0xe9ff) AM_DEVREADWRITE_LEGACY("stsnd", st0016_snd_r, st0016_snd_w) /* sound regs 8 x $20 bytes, see notes */
+	AM_RANGE(0xe900, 0xe9ff) AM_DEVREADWRITE("stsnd", st0016_device, st0016_snd_r, st0016_snd_w) /* sound regs 8 x $20 bytes, see notes */
 	AM_RANGE(0xea00, 0xebff) AM_READ(st0016_palette_ram_r) AM_WRITE(st0016_palette_ram_w)
 	AM_RANGE(0xec00, 0xec1f) AM_READ(st0016_character_ram_r) AM_WRITE(st0016_character_ram_w)
 	AM_RANGE(0xf000, 0xffff) AM_RAM /* work ram */
@@ -70,13 +70,12 @@ READ8_MEMBER(st0016_state::mux_r)
 
 WRITE8_MEMBER(st0016_state::mux_select_w)
 {
-
 	mux_port=data;
 }
 
 WRITE8_MEMBER(st0016_state::st0016_rom_bank_w)
 {
-	membank("bank1")->set_base(machine().root_device().memregion("maincpu")->base() + (data* 0x4000));
+	membank("bank1")->set_base(memregion("maincpu")->base() + (data* 0x4000));
 	st0016_rom_bank=data;
 }
 
@@ -462,7 +461,7 @@ static MACHINE_CONFIG_START( st0016, st0016_state )
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("stsnd", ST0016, 0)
+	MCFG_ST0016_ADD("stsnd", 0)
 	MCFG_SOUND_CONFIG(st0016_config)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
@@ -683,13 +682,13 @@ DRIVER_INIT_MEMBER(st0016_state,nratechu)
 DRIVER_INIT_MEMBER(st0016_state,mayjinsn)
 {
 	st0016_game=4;//|0x80;
-	machine().root_device().membank("bank2")->set_base(machine().root_device().memregion("user1")->base());
+	membank("bank2")->set_base(memregion("user1")->base());
 }
 
 DRIVER_INIT_MEMBER(st0016_state,mayjisn2)
 {
 	st0016_game=4;
-	machine().root_device().membank("bank2")->set_base(machine().root_device().memregion("user1")->base());
+	membank("bank2")->set_base(memregion("user1")->base());
 }
 
 /*************************************

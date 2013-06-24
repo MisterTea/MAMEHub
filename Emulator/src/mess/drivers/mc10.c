@@ -43,7 +43,7 @@ public:
 	m_ef9345(*this, "ef9345"),
 	m_dac(*this, "dac"),
 	m_ram(*this, RAM_TAG),
-	m_cassette(*this, CASSETTE_TAG),
+	m_cassette(*this, "cassette"),
 	m_printer(*this, "printer")
 	{ }
 
@@ -226,7 +226,6 @@ READ8_MEMBER( mc10_state::mc10_mc6847_videoram_r )
 
 TIMER_DEVICE_CALLBACK_MEMBER(mc10_state::alice32_scanline)
 {
-
 	m_ef9345->update_scanline((UINT16)param);
 }
 
@@ -236,7 +235,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(mc10_state::alice32_scanline)
 
 DRIVER_INIT_MEMBER(mc10_state,mc10)
 {
-	address_space &prg = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &prg = m_maincpu->space(AS_PROGRAM);
 
 	/* initialize keyboard strobe */
 	m_keyboard_strobe = 0x00;
@@ -257,7 +256,7 @@ DRIVER_INIT_MEMBER(mc10_state,mc10)
 		prg.nop_readwrite(0x5000, 0x8fff);
 
 	/* register for state saving */
-	state_save_register_global(machine(), m_keyboard_strobe);
+	save_item(NAME(m_keyboard_strobe));
 
 	//for alice32 force port4 DDR to 0xff at startup
 	if (!strcmp(machine().system().name, "alice32") || !strcmp(machine().system().name, "alice90"))
@@ -519,7 +518,7 @@ static MACHINE_CONFIG_START( mc10, mc10_state )
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, mc10_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", mc10_cassette_interface)
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")
@@ -558,7 +557,7 @@ static MACHINE_CONFIG_START( alice32, mc10_state )
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 
-	MCFG_CASSETTE_ADD(CASSETTE_TAG, alice32_cassette_interface)
+	MCFG_CASSETTE_ADD("cassette", alice32_cassette_interface)
 
 	/* printer */
 	MCFG_PRINTER_ADD("printer")

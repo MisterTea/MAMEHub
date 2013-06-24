@@ -1,4 +1,6 @@
 #include "sound/discrete.h"
+#include "machine/eeprom.h"
+#include "machine/tms6100.h"
 
 /*
  * From the schematics:
@@ -80,21 +82,32 @@ class dkong_state : public driver_device
 public:
 	dkong_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_soundcpu(*this, "soundcpu"),
+		m_eeprom(*this, "eeprom"),
+		m_dev_n2a03a(*this, "n2a03a"),
+		m_dev_n2a03b(*this, "n2a03b"),
+		m_m58819(*this, "m58819"),
+		m_discrete(*this, "discrete"),
 		m_video_ram(*this,"video_ram"),
 		m_sprite_ram(*this,"sprite_ram"),
-		m_vidhw(DKONG_BOARD),
-		m_discrete(*this, "discrete")
-	{ }
+		m_vidhw(DKONG_BOARD)
+		{ }
+
+	/* devices */
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_soundcpu;
+	optional_device<eeprom_device> m_eeprom;
+	optional_device<cpu_device> m_dev_n2a03a;
+	optional_device<cpu_device> m_dev_n2a03b;
+	optional_device<m58819_device> m_m58819;
+	device_t *m_dev_vp2;        /* virtual port 2 */
+	device_t *m_dev_6h;
+	optional_device<discrete_device> m_discrete;
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_video_ram;
 	required_shared_ptr<UINT8> m_sprite_ram;
-
-	/* devices */
-	device_t *m_dev_n2a03a;
-	device_t *m_dev_n2a03b;
-	device_t *m_dev_vp2;        /* virtual port 2 */
-	device_t *m_dev_6h;
 
 	/* machine states */
 	UINT8               m_hardware_type;
@@ -111,7 +124,6 @@ public:
 	emu_timer *       m_scanline_timer;
 	INT8              m_vidhw;          /* Selected video hardware RS Conversion / TKG04 */
 
-	optional_device<discrete_device> m_discrete;
 	/* radar scope */
 
 	UINT8 *           m_gfx4;
@@ -222,9 +234,22 @@ public:
 	INTERRUPT_GEN_MEMBER(vblank_irq);
 	TIMER_CALLBACK_MEMBER(scanline_callback);
 	DECLARE_WRITE8_MEMBER(M58817_command_w);
+	DECLARE_READ8_MEMBER(M58817_status_r);
 	DECLARE_READ8_MEMBER(dkong_voice_status_r);
 	DECLARE_READ8_MEMBER(dkong_tune_r);
 	DECLARE_WRITE8_MEMBER(dkong_p1_w);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 mask_bank, UINT32 shift_bits);
+	inline double CD4049(double x);
+	void radarscp_step(int line_cnt);
+	void radarscp_draw_background(dkong_state *state, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void radarscp_scanline(int scanline);
+	void check_palette();
+	void dkong_init_device_driver_data(  );
+	void braze_decrypt_rom(UINT8 *dest);
+	void drakton_decrypt_rom(UINT8 mod, int offs, int *bs);
+	DECLARE_READ8_MEMBER(memory_read_byte);
+	DECLARE_WRITE8_MEMBER(memory_write_byte);
+
 };
 
 /*----------- defined in audio/dkong.c -----------*/

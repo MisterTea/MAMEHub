@@ -27,19 +27,22 @@
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
 #include "video/pc_vga.h"
+#include "machine/mcf5206e.h"
 
 class gaminator_state : public driver_device
 {
 public:
 	gaminator_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag){ }
+		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu") { }
+
 	DECLARE_WRITE32_MEMBER(gamtor_unk_w);
 	DECLARE_DRIVER_INIT(gaminator);
+	required_device<cpu_device> m_maincpu;
 };
 
 WRITE32_MEMBER(gaminator_state::gamtor_unk_w)
 {
-
 }
 
 
@@ -62,8 +65,7 @@ static ADDRESS_MAP_START( gaminator_map, AS_PROGRAM, 32, gaminator_state )
 //  AM_RANGE(0x440a0000, 0x440a1fff) AM_RAM AM_SHARE("tmapram2") // beetlem (like above, mirror?)
 
 	AM_RANGE(0xe0000000, 0xe00001ff) AM_RAM // nvram?
-
-	AM_RANGE(0xf0000000, 0xf00001ff) AM_RAM // coldfire peripherals?
+	AM_RANGE(0xf0000000, 0xf00003ff) AM_DEVREADWRITE("maincpu_onboard", mcf5206e_peripheral_device, dev_r, dev_w) // technically this can be moved with MBAR
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START(  gaminator )
@@ -75,6 +77,7 @@ static MACHINE_CONFIG_START( gaminator, gaminator_state )
 	MCFG_CPU_ADD("maincpu", MCF5206E, 40000000) /* definitely Coldfire, model / clock uncertain */
 	MCFG_CPU_PROGRAM_MAP(gaminator_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", gaminator_state,  irq6_line_hold) // irq6 seems to be needed to get past the ROM checking
+	MCFG_MCF5206E_PERIPHERAL_ADD("maincpu_onboard")
 
 	MCFG_FRAGMENT_ADD( pcvideo_gamtor_vga )
 

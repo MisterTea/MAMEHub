@@ -11,11 +11,13 @@ class redalert_state : public driver_device
 {
 public:
 	redalert_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_bitmap_videoram(*this, "bitmap_videoram"),
 		m_charmap_videoram(*this, "charram"),
 		m_video_control(*this, "video_control"),
-		m_bitmap_color(*this, "bitmap_color"){ }
+		m_bitmap_color(*this, "bitmap_color"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu")  { }
 
 	UINT8 m_ay8910_latch_1;
 	UINT8 m_ay8910_latch_2;
@@ -48,6 +50,10 @@ public:
 	DECLARE_WRITE8_MEMBER(demoneye_ay8910_latch_1_w);
 	DECLARE_READ8_MEMBER(demoneye_ay8910_latch_2_r);
 	DECLARE_WRITE8_MEMBER(demoneye_ay8910_data_w);
+	void get_pens(pen_t *pens);
+	void get_panther_pens(pen_t *pens);
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
 };
 /*----------- defined in audio/redalert.c -----------*/
 

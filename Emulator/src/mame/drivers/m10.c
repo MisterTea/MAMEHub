@@ -124,9 +124,9 @@ Notes (couriersud)
  *
  *************************************/
 
-#define DEBUG       (0)
+#define M10_DEBUG       (0)
 
-#define LOG(x) do { if (DEBUG) printf x; } while (0)
+#define LOG(x) do { if (M10_DEBUG) printf x; } while (0)
 
 WRITE8_MEMBER(m10_state::ic8j1_output_changed)
 {
@@ -136,7 +136,6 @@ WRITE8_MEMBER(m10_state::ic8j1_output_changed)
 
 WRITE8_MEMBER(m10_state::ic8j2_output_changed)
 {
-
 	/* written from /Q to A with slight delight */
 	LOG(("ic8j2: %d\n", data));
 	ttl74123_a_w(m_ic8j2, space, 0, data);
@@ -192,11 +191,8 @@ PALETTE_INIT_MEMBER(m10_state,m10)
 
 MACHINE_START_MEMBER(m10_state,m10)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
 	m_ic8j1 = machine().device("ic8j1");
 	m_ic8j2 = machine().device("ic8j2");
-	m_samples = machine().device<samples_device>("samples");
 
 	save_item(NAME(m_bottomline));
 	save_item(NAME(m_flip));
@@ -205,7 +201,6 @@ MACHINE_START_MEMBER(m10_state,m10)
 
 MACHINE_RESET_MEMBER(m10_state,m10)
 {
-
 	m_bottomline = 0;
 	m_flip = 0;
 	m_last = 0;
@@ -238,8 +233,7 @@ MACHINE_RESET_MEMBER(m10_state,m10)
 
 WRITE8_MEMBER(m10_state::m10_ctrl_w)
 {
-
-#if DEBUG
+#if M10_DEBUG
 	if (data & 0x40)
 		popmessage("ctrl: %02x",data);
 #endif
@@ -314,8 +308,7 @@ WRITE8_MEMBER(m10_state::m10_ctrl_w)
 
 WRITE8_MEMBER(m10_state::m11_ctrl_w)
 {
-
-#if DEBUG
+#if M10_DEBUG
 	if (data & 0x4c)
 		popmessage("M11 ctrl: %02x",data);
 #endif
@@ -346,8 +339,7 @@ WRITE8_MEMBER(m10_state::m11_ctrl_w)
 
 WRITE8_MEMBER(m10_state::m15_ctrl_w)
 {
-
-#if DEBUG
+#if M10_DEBUG
 	if (data & 0xf0)
 		popmessage("M15 ctrl: %02x",data);
 #endif
@@ -373,7 +365,7 @@ WRITE8_MEMBER(m10_state::m15_ctrl_w)
 
 WRITE8_MEMBER(m10_state::m10_a500_w)
 {
-#if DEBUG
+#if M10_DEBUG
 	if (data & 0xfc)
 		popmessage("a500: %02x",data);
 #endif
@@ -386,7 +378,7 @@ WRITE8_MEMBER(m10_state::m11_a100_w)
 
 	// should a falling bit stop a sample?
 	// This port is written to about 20x per vblank
-#if DEBUG
+#if M10_DEBUG
 	if ((m_last & 0xe8) != (data & 0xe8))
 		popmessage("A100: %02x\n", data);
 #endif
@@ -431,7 +423,7 @@ WRITE8_MEMBER(m10_state::m15_a100_w)
 	// 0x20: computer car changes lane
 	// 0x40: dot
 
-#if DEBUG
+#if M10_DEBUG
 	if ((m_last & 0x82) != (data & 0x82))
 		popmessage("A100: %02x\n", data);
 #endif
@@ -507,23 +499,34 @@ TIMER_CALLBACK_MEMBER(m10_state::interrupt_callback)
 	if (param == 0)
 	{
 		m_maincpu->set_input_line(0, ASSERT_LINE);
-		machine().scheduler().timer_set(machine().primary_screen->time_until_pos(IREMM10_VBSTART + 16), timer_expired_delegate(FUNC(m10_state::interrupt_callback),this), 1);
+		timer_set(machine().primary_screen->time_until_pos(IREMM10_VBSTART + 16), TIMER_INTERRUPT, 1);
 	}
 	if (param == 1)
 	{
 		m_maincpu->set_input_line(0, ASSERT_LINE);
-		machine().scheduler().timer_set(machine().primary_screen->time_until_pos(IREMM10_VBSTART + 24), timer_expired_delegate(FUNC(m10_state::interrupt_callback),this), 2);
+		timer_set(machine().primary_screen->time_until_pos(IREMM10_VBSTART + 24), TIMER_INTERRUPT, 2);
 	}
 	if (param == -1)
 		m_maincpu->set_input_line(0, CLEAR_LINE);
+}
 
+void m10_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_INTERRUPT:
+		interrupt_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in m10_state::device_timer");
+	}
 }
 
 #if 0
 INTERRUPT_GEN_MEMBER(m10_state::m11_interrupt)
 {
 	device.execute().set_input_line(0, ASSERT_LINE);
-	//machine().scheduler().timer_set(machine.primary_screen->time_until_pos(IREMM10_VBEND), timer_expired_delegate(FUNC(m10_state::interrupt_callback),this), -1);
+	//timer_set(machine.primary_screen->time_until_pos(IREMM10_VBEND), TIMER_INTERRUPT, -1);
 }
 
 INTERRUPT_GEN_MEMBER(m10_state::m10_interrupt)
@@ -535,7 +538,7 @@ INTERRUPT_GEN_MEMBER(m10_state::m10_interrupt)
 INTERRUPT_GEN_MEMBER(m10_state::m15_interrupt)
 {
 	device.execute().set_input_line(0, ASSERT_LINE);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(IREMM10_VBSTART + 1, 80), timer_expired_delegate(FUNC(m10_state::interrupt_callback),this), -1);
+	timer_set(machine().primary_screen->time_until_pos(IREMM10_VBSTART + 1, 80), TIMER_INTERRUPT, -1);
 }
 
 /*************************************

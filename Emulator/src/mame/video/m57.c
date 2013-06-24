@@ -32,7 +32,7 @@
 
 void m57_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	machine().colortable = colortable_alloc(machine(), 32 * 8 + 16);
@@ -112,7 +112,6 @@ void m57_state::palette_init()
 
 TILE_GET_INFO_MEMBER(m57_state::get_tile_info)
 {
-
 	UINT8 attr = m_videoram[tile_index * 2 + 0];
 	UINT16 code = m_videoram[tile_index * 2 + 1] | ((attr & 0xc0) << 2);
 
@@ -128,7 +127,6 @@ TILE_GET_INFO_MEMBER(m57_state::get_tile_info)
 
 WRITE8_MEMBER(m57_state::m57_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset / 2);
 }
@@ -142,7 +140,6 @@ WRITE8_MEMBER(m57_state::m57_videoram_w)
 
 void m57_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(m57_state::get_tile_info),this), TILEMAP_SCAN_ROWS,  8, 8, 32, 32);
 	m_bg_tilemap->set_scroll_rows(256);
 
@@ -158,7 +155,6 @@ void m57_state::video_start()
 
 WRITE8_MEMBER(m57_state::m57_flipscreen_w)
 {
-
 	/* screen flip is handled both by software and hardware */
 	m_flipscreen = (data & 0x01) ^ (~ioport("DSW2")->read() & 0x01);
 	m_bg_tilemap->set_flip(m_flipscreen ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
@@ -174,22 +170,21 @@ WRITE8_MEMBER(m57_state::m57_flipscreen_w)
  *
  *************************************/
 
-static void draw_background(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void m57_state::draw_background(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m57_state *state = machine.driver_data<m57_state>();
 	int y,x;
 	INT16 scrolly;
 
 	// from 64 to 127: not wrapped
 	for (y = 64; y < 128; y++)
-		state->m_bg_tilemap->set_scrollx(y, state->m_scrollram[0x40]);
+		m_bg_tilemap->set_scrollx(y, m_scrollram[0x40]);
 
-	state->m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 
 	// from 128 to 255: wrapped
 	for (y = 128; y <= cliprect.max_y; y++)
 	{
-		scrolly = state->m_scrollram[y] + (state->m_scrollram[y + 0x100] << 8);
+		scrolly = m_scrollram[y] + (m_scrollram[y + 0x100] << 8);
 
 		if (scrolly >= 0)
 		{
@@ -218,17 +213,16 @@ static void draw_background(running_machine &machine, bitmap_ind16 &bitmap, cons
  *
  *************************************/
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void m57_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m57_state *state = machine.driver_data<m57_state>();
 	int offs;
 
-	for (offs = state->m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
+	for (offs = m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
 	{
-		UINT8 attributes = state->m_spriteram[offs + 1];
-		int sx = state->m_spriteram[offs + 3];
-		int sy = ((224 - state->m_spriteram[offs + 0] - 32) & 0xff) + 32;
-		int code = state->m_spriteram[offs + 2];
+		UINT8 attributes = m_spriteram[offs + 1];
+		int sx = m_spriteram[offs + 3];
+		int sy = ((224 - m_spriteram[offs + 0] - 32) & 0xff) + 32;
+		int code = m_spriteram[offs + 2];
 		int color = attributes & 0x1f;
 		int flipy = attributes & 0x80;
 		int flipx = attributes & 0x40;
@@ -239,7 +233,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		if (code & 0x80) bank += 1;
 		if (attributes & 0x20) bank += 2;
 
-		if (state->m_flipscreen)
+		if (m_flipscreen)
 		{
 			sx = 240 - sx;
 			sy = 224 - sy;
@@ -247,12 +241,12 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 			flipy = !flipy;
 		}
 
-		drawgfx_transmask(bitmap, cliprect, machine.gfx[1 + bank],
+		drawgfx_transmask(bitmap, cliprect, machine().gfx[1 + bank],
 			tile_number,
 			color,
 			flipx, flipy,
 			sx, sy,
-			colortable_get_transpen_mask(machine.colortable, machine.gfx[1], color, 256 + 15));
+			colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 256 + 15));
 	}
 }
 
@@ -266,7 +260,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 
 UINT32 m57_state::screen_update_m57(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	draw_background(machine(), bitmap, cliprect);
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_background(bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 	return 0;
 }

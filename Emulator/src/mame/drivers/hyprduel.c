@@ -45,12 +45,11 @@ fix comms so it boots, it's a bit of a hack for hyperduel at the moment ;-)
                                 Interrupts
 ***************************************************************************/
 
-static void update_irq_state( running_machine &machine )
+void hyprduel_state::update_irq_state(  )
 {
-	hyprduel_state *state = machine.driver_data<hyprduel_state>();
-	int irq = state->m_requested_int & ~*state->m_irq_enable;
+	int irq = m_requested_int & ~*m_irq_enable;
 
-	state->m_maincpu->set_input_line(3, (irq & state->m_int_num) ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(3, (irq & m_int_num) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 TIMER_CALLBACK_MEMBER(hyprduel_state::vblank_end_callback)
@@ -73,7 +72,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(hyprduel_state::hyprduel_interrupt)
 	else
 		m_requested_int |= 0x12;        /* hsync */
 
-	update_irq_state(machine());
+	update_irq_state();
 }
 
 READ16_MEMBER(hyprduel_state::hyprduel_irq_cause_r)
@@ -90,14 +89,13 @@ WRITE16_MEMBER(hyprduel_state::hyprduel_irq_cause_w)
 		else
 			m_requested_int &= ~(data & *m_irq_enable);
 
-		update_irq_state(machine());
+		update_irq_state();
 	}
 }
 
 
 WRITE16_MEMBER(hyprduel_state::hyprduel_subcpu_control_w)
 {
-
 	switch (data)
 	{
 		case 0x0d:
@@ -256,10 +254,10 @@ READ16_MEMBER(hyprduel_state::hyprduel_bankedrom_r)
 TIMER_CALLBACK_MEMBER(hyprduel_state::hyprduel_blit_done)
 {
 	m_requested_int |= 1 << m_blitter_bit;
-	update_irq_state(machine());
+	update_irq_state();
 }
 
-INLINE int blt_read( const UINT8 *ROM, const int offs )
+inline int hyprduel_state::blt_read( const UINT8 *ROM, const int offs )
 {
 	return ROM[offs];
 }
@@ -491,7 +489,7 @@ static ADDRESS_MAP_START( magerror_map2, AS_PROGRAM, 16, hyprduel_state )
 	AM_RANGE(0x000000, 0x003fff) AM_RAM AM_SHARE("sharedram1")                      /* shadow ($c00000 - $c03fff : vector) */
 	AM_RANGE(0x004000, 0x007fff) AM_READONLY AM_WRITENOP AM_SHARE("sharedram3")     /* shadow ($fe4000 - $fe7fff : read only) */
 	AM_RANGE(0x400000, 0x400003) AM_NOP
-	AM_RANGE(0x800000, 0x800003) AM_READNOP AM_DEVWRITE8_LEGACY("ymsnd", ym2413_w, 0x00ff)
+	AM_RANGE(0x800000, 0x800003) AM_READNOP AM_DEVWRITE8("ymsnd", ym2413_device, write, 0x00ff)
 	AM_RANGE(0x800004, 0x800005) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0xc00000, 0xc1ffff) AM_RAM AM_SHARE("sharedram1")
 	AM_RANGE(0xfe0000, 0xfe3fff) AM_RAM AM_SHARE("sharedram2")
@@ -618,9 +616,8 @@ GFXDECODE_END
 
 void hyprduel_state::machine_reset()
 {
-
 	/* start with cpu2 halted */
-	machine().device("sub")->execute().set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+	m_subcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 	m_subcpu_resetline = 1;
 	m_cpu_trigger = 0;
 
@@ -631,10 +628,6 @@ void hyprduel_state::machine_reset()
 
 MACHINE_START_MEMBER(hyprduel_state,hyprduel)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_subcpu = machine().device<cpu_device>("sub");
-
 	save_item(NAME(m_blitter_bit));
 	save_item(NAME(m_requested_int));
 	save_item(NAME(m_subcpu_resetline));
@@ -643,7 +636,6 @@ MACHINE_START_MEMBER(hyprduel_state,hyprduel)
 
 MACHINE_START_MEMBER(hyprduel_state,magerror)
 {
-
 	MACHINE_START_CALL_MEMBER(hyprduel);
 	m_magerror_irq_timer->adjust(attotime::zero, 0, attotime::from_hz(968));        /* tempo? */
 }
@@ -780,19 +772,17 @@ ROM_END
 
 DRIVER_INIT_MEMBER(hyprduel_state,hyprduel)
 {
-
 	m_int_num = 0x02;
 
 	/* cpu synchronization (severe timings) */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xc0040e, 0xc00411, write16_delegate(FUNC(hyprduel_state::hyprduel_cpusync_trigger1_w),this));
-	machine().device("sub")->memory().space(AS_PROGRAM).install_read_handler(0xc00408, 0xc00409, read16_delegate(FUNC(hyprduel_state::hyprduel_cpusync_trigger1_r),this));
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xc00408, 0xc00409, write16_delegate(FUNC(hyprduel_state::hyprduel_cpusync_trigger2_w),this));
-	machine().device("sub")->memory().space(AS_PROGRAM).install_read_handler(0xfff34c, 0xfff34d, read16_delegate(FUNC(hyprduel_state::hyprduel_cpusync_trigger2_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xc0040e, 0xc00411, write16_delegate(FUNC(hyprduel_state::hyprduel_cpusync_trigger1_w),this));
+	m_subcpu->space(AS_PROGRAM).install_read_handler(0xc00408, 0xc00409, read16_delegate(FUNC(hyprduel_state::hyprduel_cpusync_trigger1_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xc00408, 0xc00409, write16_delegate(FUNC(hyprduel_state::hyprduel_cpusync_trigger2_w),this));
+	m_subcpu->space(AS_PROGRAM).install_read_handler(0xfff34c, 0xfff34d, read16_delegate(FUNC(hyprduel_state::hyprduel_cpusync_trigger2_r),this));
 }
 
 DRIVER_INIT_MEMBER(hyprduel_state,magerror)
 {
-
 	m_int_num = 0x01;
 	m_magerror_irq_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(hyprduel_state::magerror_irq_callback),this));
 }

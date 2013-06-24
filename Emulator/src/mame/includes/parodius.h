@@ -3,13 +3,25 @@
     Parodius
 
 *************************************************************************/
+#include "sound/k053260.h"
 
 class parodius_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_NMI
+	};
+
 	parodius_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_ram(*this, "ram"){ }
+		: driver_device(mconfig, type, tag),
+		m_ram(*this, "ram"),
+		m_maincpu(*this, "maincpu"),
+		m_audiocpu(*this, "audiocpu"),
+		m_k053260(*this, "k053260"),
+		m_k052109(*this, "k052109"),
+		m_k053245(*this, "k053245"),
+		m_k053251(*this, "k053251") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_ram;
@@ -25,12 +37,12 @@ public:
 	//int        m_nmi_enabled;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	cpu_device *m_audiocpu;
-	device_t *m_k053260;
-	device_t *m_k052109;
-	device_t *m_k053245;
-	device_t *m_k053251;
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<k053260_device> m_k053260;
+	required_device<k052109_device> m_k052109;
+	required_device<k05324x_device> m_k053245;
+	required_device<k053251_device> m_k053251;
 	DECLARE_READ8_MEMBER(bankedram_r);
 	DECLARE_WRITE8_MEMBER(bankedram_w);
 	DECLARE_READ8_MEMBER(parodius_052109_053245_r);
@@ -44,7 +56,9 @@ public:
 	virtual void machine_reset();
 	UINT32 screen_update_parodius(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(parodius_interrupt);
-	TIMER_CALLBACK_MEMBER(nmi_callback);
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 /*----------- defined in video/parodius.c -----------*/

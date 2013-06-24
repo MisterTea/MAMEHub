@@ -31,9 +31,10 @@ class timetrv_state : public driver_device
 {
 public:
 	timetrv_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_led_vram_lo(*this, "led_vralo"),
-		m_led_vram_hi(*this, "led_vrahi"){ }
+		m_led_vram_hi(*this, "led_vrahi"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_led_vram_lo;
 	required_shared_ptr<UINT8> m_led_vram_hi;
@@ -45,13 +46,13 @@ public:
 	UINT32 screen_update_timetrv(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
 	INTERRUPT_GEN_MEMBER(ld_irq);
+	required_device<cpu_device> m_maincpu;
 };
 
 
 
 void timetrv_state::video_start()
 {
-
 }
 
 UINT32 timetrv_state::screen_update_timetrv(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)

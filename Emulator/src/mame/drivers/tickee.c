@@ -31,11 +31,22 @@
 class tickee_state : public driver_device
 {
 public:
-	tickee_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_vram(*this, "vram"),
-		m_control(*this, "control"){ }
+	enum
+	{
+		TIMER_TRIGGER_GUN_INTERRUPT,
+		TIMER_CLEAR_GUN_INTERRUPT,
+		TIMER_SETUP_GUN_INTERRUPTS
+	};
 
+	tickee_state(const machine_config &mconfig, device_type type, const char *tag)
+		: driver_device(mconfig, type, tag),
+		m_tlc34076(*this, "tlc34076"),
+		m_vram(*this, "vram"),
+		m_control(*this, "control"),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki") { }
+
+	required_device<tlc34076_device> m_tlc34076;
 	required_shared_ptr<UINT16> m_vram;
 	optional_shared_ptr<UINT16> m_control;
 	emu_timer *m_setup_gun_timer;
@@ -59,6 +70,11 @@ public:
 	TIMER_CALLBACK_MEMBER(trigger_gun_interrupt);
 	TIMER_CALLBACK_MEMBER(clear_gun_interrupt);
 	TIMER_CALLBACK_MEMBER(setup_gun_interrupts);
+	required_device<cpu_device> m_maincpu;
+	optional_device<okim6295_device> m_oki;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 
@@ -89,6 +105,25 @@ INLINE void get_crosshair_xy(running_machine &machine, int player, int *x, int *
  *
  *************************************/
 
+void tickee_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_TRIGGER_GUN_INTERRUPT:
+		trigger_gun_interrupt(ptr, param);
+		break;
+	case TIMER_CLEAR_GUN_INTERRUPT:
+		clear_gun_interrupt(ptr, param);
+		break;
+	case TIMER_SETUP_GUN_INTERRUPTS:
+		setup_gun_interrupts(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in tickee_state::device_timer");
+	}
+}
+
+
 TIMER_CALLBACK_MEMBER(tickee_state::trigger_gun_interrupt)
 {
 	int which = param & 1;
@@ -98,14 +133,14 @@ TIMER_CALLBACK_MEMBER(tickee_state::trigger_gun_interrupt)
 	m_gunx[which] = beamx;
 
 	/* fire the IRQ at the correct moment */
-	machine().device("maincpu")->execute().set_input_line(param, ASSERT_LINE);
+	m_maincpu->set_input_line(param, ASSERT_LINE);
 }
 
 
 TIMER_CALLBACK_MEMBER(tickee_state::clear_gun_interrupt)
 {
 	/* clear the IRQ on the next scanline? */
-	machine().device("maincpu")->execute().set_input_line(param, CLEAR_LINE);
+	m_maincpu->set_input_line(param, CLEAR_LINE);
 }
 
 
@@ -123,13 +158,13 @@ TIMER_CALLBACK_MEMBER(tickee_state::setup_gun_interrupts)
 
 	/* generate interrupts for player 1's gun */
 	get_crosshair_xy(machine(), 0, &beamx, &beamy);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(beamy + m_beamyadd, beamx + m_beamxadd), timer_expired_delegate(FUNC(tickee_state::trigger_gun_interrupt),this), 0);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(beamy + m_beamyadd + 1, beamx + m_beamxadd), timer_expired_delegate(FUNC(tickee_state::clear_gun_interrupt),this), 0);
+	timer_set(machine().primary_screen->time_until_pos(beamy + m_beamyadd, beamx + m_beamxadd), TIMER_TRIGGER_GUN_INTERRUPT, 0);
+	timer_set(machine().primary_screen->time_until_pos(beamy + m_beamyadd + 1, beamx + m_beamxadd), TIMER_CLEAR_GUN_INTERRUPT, 0);
 
 	/* generate interrupts for player 2's gun */
 	get_crosshair_xy(machine(), 1, &beamx, &beamy);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(beamy + m_beamyadd, beamx + m_beamxadd), timer_expired_delegate(FUNC(tickee_state::trigger_gun_interrupt),this), 1);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(beamy + m_beamyadd + 1, beamx + m_beamxadd), timer_expired_delegate(FUNC(tickee_state::clear_gun_interrupt),this), 1);
+	timer_set(machine().primary_screen->time_until_pos(beamy + m_beamyadd, beamx + m_beamxadd), TIMER_TRIGGER_GUN_INTERRUPT, 1);
+	timer_set(machine().primary_screen->time_until_pos(beamy + m_beamyadd + 1, beamx + m_beamxadd), TIMER_CLEAR_GUN_INTERRUPT, 1);
 }
 
 
@@ -143,7 +178,7 @@ TIMER_CALLBACK_MEMBER(tickee_state::setup_gun_interrupts)
 VIDEO_START_MEMBER(tickee_state,tickee)
 {
 	/* start a timer going on the first scanline of every frame */
-	m_setup_gun_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(tickee_state::setup_gun_interrupts),this));
+	m_setup_gun_timer = timer_alloc(TIMER_SETUP_GUN_INTERRUPTS);
 	m_setup_gun_timer->adjust(machine().primary_screen->time_until_pos(0));
 }
 
@@ -160,7 +195,7 @@ static void scanline_update(screen_device &screen, bitmap_rgb32 &bitmap, int sca
 	tickee_state *state = screen.machine().driver_data<tickee_state>();
 	UINT16 *src = &state->m_vram[(params->rowaddr << 8) & 0x3ff00];
 	UINT32 *dest = &bitmap.pix32(scanline);
-	const rgb_t *pens = tlc34076_get_pens(screen.machine().device("tlc34076"));
+	const rgb_t *pens = state->m_tlc34076->get_pens();
 	int coladdr = params->coladdr << 1;
 	int x;
 
@@ -186,7 +221,7 @@ static void rapidfir_scanline_update(screen_device &screen, bitmap_rgb32 &bitmap
 	tickee_state *state = screen.machine().driver_data<tickee_state>();
 	UINT16 *src = &state->m_vram[(params->rowaddr << 8) & 0x3ff00];
 	UINT32 *dest = &bitmap.pix32(scanline);
-	const rgb_t *pens = tlc34076_get_pens(screen.machine().device("tlc34076"));
+	const rgb_t *pens = state->m_tlc34076->get_pens();
 	int coladdr = params->coladdr << 1;
 	int x;
 
@@ -351,23 +386,22 @@ WRITE16_MEMBER(tickee_state::rapidfir_control_w)
 
 WRITE16_MEMBER(tickee_state::sound_bank_w)
 {
-	device_t *device = machine().device("oki");
 	switch (data & 0xff)
 	{
 		case 0x2c:
-			downcast<okim6295_device *>(device)->set_bank_base(0x00000);
+			m_oki->set_bank_base(0x00000);
 			break;
 
 		case 0x2d:
-			downcast<okim6295_device *>(device)->set_bank_base(0x40000);
+			m_oki->set_bank_base(0x40000);
 			break;
 
 		case 0x1c:
-			downcast<okim6295_device *>(device)->set_bank_base(0x80000);
+			m_oki->set_bank_base(0x80000);
 			break;
 
 		case 0x1d:
-			downcast<okim6295_device *>(device)->set_bank_base(0xc0000);
+			m_oki->set_bank_base(0xc0000);
 			break;
 
 		default:
@@ -388,11 +422,11 @@ static ADDRESS_MAP_START( tickee_map, AS_PROGRAM, 16, tickee_state )
 	AM_RANGE(0x00000000, 0x003fffff) AM_RAM AM_SHARE("vram")
 	AM_RANGE(0x02000000, 0x02ffffff) AM_ROM AM_REGION("user1", 0)
 	AM_RANGE(0x04000000, 0x04003fff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x04100000, 0x041000ff) AM_DEVREADWRITE8_LEGACY("tlc34076", tlc34076_r, tlc34076_w, 0x00ff)
-	AM_RANGE(0x04200000, 0x0420000f) AM_DEVREAD8_LEGACY("ym1", ay8910_r, 0x00ff)
-	AM_RANGE(0x04200000, 0x0420001f) AM_DEVWRITE8_LEGACY("ym1", ay8910_address_data_w, 0x00ff)
-	AM_RANGE(0x04200100, 0x0420010f) AM_DEVREAD8_LEGACY("ym2", ay8910_r, 0x00ff)
-	AM_RANGE(0x04200100, 0x0420011f) AM_DEVWRITE8_LEGACY("ym2", ay8910_address_data_w, 0x00ff)
+	AM_RANGE(0x04100000, 0x041000ff) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)
+	AM_RANGE(0x04200000, 0x0420000f) AM_DEVREAD8("ym1", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0x04200000, 0x0420001f) AM_DEVWRITE8("ym1", ay8910_device, address_data_w, 0x00ff)
+	AM_RANGE(0x04200100, 0x0420010f) AM_DEVREAD8("ym2", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0x04200100, 0x0420011f) AM_DEVWRITE8("ym2", ay8910_device, address_data_w, 0x00ff)
 	AM_RANGE(0x04400000, 0x0440007f) AM_WRITE(tickee_control_w) AM_SHARE("control")
 	AM_RANGE(0x04400040, 0x0440004f) AM_READ_PORT("IN2")
 	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
@@ -406,11 +440,11 @@ static ADDRESS_MAP_START( ghoshunt_map, AS_PROGRAM, 16, tickee_state )
 	AM_RANGE(0x00000000, 0x003fffff) AM_RAM AM_SHARE("vram")
 	AM_RANGE(0x02000000, 0x02ffffff) AM_ROM AM_REGION("user1", 0)
 	AM_RANGE(0x04100000, 0x04103fff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x04200000, 0x042000ff) AM_DEVREADWRITE8_LEGACY("tlc34076", tlc34076_r, tlc34076_w, 0x00ff)
-	AM_RANGE(0x04300000, 0x0430000f) AM_DEVREAD8_LEGACY("ym1", ay8910_r, 0x00ff)
-	AM_RANGE(0x04300000, 0x0430001f) AM_DEVWRITE8_LEGACY("ym1", ay8910_address_data_w, 0x00ff)
-	AM_RANGE(0x04300100, 0x0430010f) AM_DEVREAD8_LEGACY("ym2", ay8910_r, 0x00ff)
-	AM_RANGE(0x04300100, 0x0430011f) AM_DEVWRITE8_LEGACY("ym2", ay8910_address_data_w, 0x00ff)
+	AM_RANGE(0x04200000, 0x042000ff) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)
+	AM_RANGE(0x04300000, 0x0430000f) AM_DEVREAD8("ym1", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0x04300000, 0x0430001f) AM_DEVWRITE8("ym1", ay8910_device, address_data_w, 0x00ff)
+	AM_RANGE(0x04300100, 0x0430010f) AM_DEVREAD8("ym2", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0x04300100, 0x0430011f) AM_DEVWRITE8("ym2", ay8910_device, address_data_w, 0x00ff)
 	AM_RANGE(0x04500000, 0x0450007f) AM_WRITE(tickee_control_w) AM_SHARE("control")
 	AM_RANGE(0xc0000000, 0xc00001ff) AM_READWRITE_LEGACY(tms34010_io_register_r, tms34010_io_register_w)
 	AM_RANGE(0xc0000240, 0xc000025f) AM_WRITENOP        /* seems to be a bug in their code */
@@ -422,9 +456,9 @@ static ADDRESS_MAP_START( mouseatk_map, AS_PROGRAM, 16, tickee_state )
 	AM_RANGE(0x00000000, 0x003fffff) AM_RAM AM_SHARE("vram")
 	AM_RANGE(0x02000000, 0x02ffffff) AM_ROM AM_REGION("user1", 0)
 	AM_RANGE(0x04000000, 0x04003fff) AM_RAM AM_SHARE("nvram")
-	AM_RANGE(0x04100000, 0x041000ff) AM_DEVREADWRITE8_LEGACY("tlc34076", tlc34076_r, tlc34076_w, 0x00ff)
-	AM_RANGE(0x04200000, 0x0420000f) AM_DEVREAD8_LEGACY("ym", ay8910_r, 0x00ff)
-	AM_RANGE(0x04200000, 0x0420000f) AM_DEVWRITE8_LEGACY("ym", ay8910_address_data_w, 0x00ff)
+	AM_RANGE(0x04100000, 0x041000ff) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)
+	AM_RANGE(0x04200000, 0x0420000f) AM_DEVREAD8("ym", ay8910_device, data_r, 0x00ff)
+	AM_RANGE(0x04200000, 0x0420000f) AM_DEVWRITE8("ym", ay8910_device, address_data_w, 0x00ff)
 	AM_RANGE(0x04200100, 0x0420010f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x04400000, 0x0440007f) AM_WRITE(tickee_control_w) AM_SHARE("control")
 	AM_RANGE(0x04400040, 0x0440004f) AM_READ_PORT("IN2") // ?
@@ -451,7 +485,7 @@ static ADDRESS_MAP_START( rapidfir_map, AS_PROGRAM, 16, tickee_state )
 	AM_RANGE(0xfc000b00, 0xfc000b0f) AM_READ_PORT("DSW0")
 	AM_RANGE(0xfc000c00, 0xfc000c1f) AM_READ_PORT("DSW1")
 	AM_RANGE(0xfc000e00, 0xfc000e1f) AM_READ(watchdog_reset16_r)
-	AM_RANGE(0xfc100000, 0xfc1000ff) AM_MIRROR(0x80000) AM_DEVREADWRITE8_LEGACY("tlc34076", tlc34076_r, tlc34076_w, 0x00ff)
+	AM_RANGE(0xfc100000, 0xfc1000ff) AM_MIRROR(0x80000) AM_DEVREADWRITE8("tlc34076", tlc34076_device, read, write, 0x00ff)
 	AM_RANGE(0xfc200000, 0xfc207fff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0xfc300000, 0xfc30000f) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0xfc400010, 0xfc40001f) AM_READWRITE(ff7f_r, ff7f_w)
@@ -775,7 +809,7 @@ static MACHINE_CONFIG_START( tickee, tickee_state )
 	MCFG_TICKET_DISPENSER_ADD("ticket2", attotime::from_msec(100), TICKET_MOTOR_ACTIVE_LOW, TICKET_STATUS_ACTIVE_HIGH)
 
 	/* video hardware */
-	MCFG_TLC34076_ADD("tlc34076", tlc34076_6_bit_intf)
+	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
 
 	MCFG_VIDEO_START_OVERRIDE(tickee_state,tickee)
 
@@ -815,7 +849,7 @@ static MACHINE_CONFIG_START( rapidfir, tickee_state )
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
 	/* video hardware */
-	MCFG_TLC34076_ADD("tlc34076", tlc34076_6_bit_intf)
+	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
 
 	MCFG_VIDEO_START_OVERRIDE(tickee_state,tickee)
 
@@ -845,7 +879,7 @@ static MACHINE_CONFIG_START( mouseatk, tickee_state )
 	MCFG_TICKET_DISPENSER_ADD("ticket2", attotime::from_msec(100), TICKET_MOTOR_ACTIVE_LOW, TICKET_STATUS_ACTIVE_HIGH)
 
 	/* video hardware */
-	MCFG_TLC34076_ADD("tlc34076", tlc34076_6_bit_intf)
+	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK/2, 444, 0, 320, 233, 0, 200)

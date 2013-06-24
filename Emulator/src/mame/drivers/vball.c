@@ -94,7 +94,7 @@ VBlank = 58Hz
 #define PIXEL_CLOCK     MAIN_CLOCK / 2
 
 /* Based on ddragon driver */
-INLINE int scanline_to_vcount(int scanline)
+inline int vball_state::scanline_to_vcount(int scanline)
 {
 	int vcount = scanline + 8;
 	if (vcount < 0x100)
@@ -119,13 +119,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(vball_state::vball_scanline)
 	/* IRQ fires every on every 8th scanline */
 	if (!(vcount_old & 8) && (vcount & 8))
 	{
-		machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+		m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
 	}
 
 	/* NMI fires on scanline 248 (VBL) and is latched */
 	if (vcount == 0xf8)
 	{
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
 	}
 
 	/* Save the scroll x register value */
@@ -138,10 +138,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(vball_state::vball_scanline)
 WRITE8_MEMBER(vball_state::vball_irq_ack_w)
 {
 	if (offset == 0)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+		m_maincpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
 
 	else
-		machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+		m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
 }
 
 
@@ -162,7 +162,7 @@ WRITE8_MEMBER(vball_state::vb_bankswitch_w)
 	if (m_gfxset != ((data  & 0x20) ^ 0x20))
 	{
 		m_gfxset = (data  & 0x20) ^ 0x20;
-			vb_mark_all_dirty(machine());
+			vb_mark_all_dirty();
 	}
 	m_vb_scrolly_hi = (data & 0x40) << 2;
 }
@@ -171,7 +171,7 @@ WRITE8_MEMBER(vball_state::vb_bankswitch_w)
 WRITE8_MEMBER(vball_state::cpu_sound_command_w)
 {
 	soundlatch_byte_w(space, offset, data);
-	machine().device("audiocpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
 
@@ -188,8 +188,8 @@ WRITE8_MEMBER(vball_state::vb_scrollx_hi_w)
 {
 	flip_screen_set(~data&1);
 	m_vb_scrollx_hi = (data & 0x02) << 7;
-	vb_bgprombank_w(machine(), (data >> 2) & 0x07);
-	vb_spprombank_w(machine(), (data >> 5) & 0x07);
+	vb_bgprombank_w((data >> 2) & 0x07);
+	vb_spprombank_w((data >> 5) & 0x07);
 	//logerror("%04x: vb_scrollx_hi = %d\n", space.device().safe_pcbase(), m_vb_scrollx_hi);
 }
 

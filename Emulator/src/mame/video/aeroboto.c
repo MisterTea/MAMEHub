@@ -41,7 +41,6 @@ TILE_GET_INFO_MEMBER(aeroboto_state::get_tile_info)
 
 void aeroboto_state::video_start()
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(aeroboto_state::get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 64);
 	m_bg_tilemap->set_transparent_pen(0);
 	m_bg_tilemap->set_scroll_rows(64);
@@ -84,7 +83,6 @@ READ8_MEMBER(aeroboto_state::aeroboto_in0_r)
 
 WRITE8_MEMBER(aeroboto_state::aeroboto_3000_w)
 {
-
 	/* bit 0 selects both flip screen and player1/player2 controls */
 	flip_screen_set(data & 0x01);
 
@@ -101,14 +99,12 @@ WRITE8_MEMBER(aeroboto_state::aeroboto_3000_w)
 
 WRITE8_MEMBER(aeroboto_state::aeroboto_videoram_w)
 {
-
 	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 WRITE8_MEMBER(aeroboto_state::aeroboto_tilecolor_w)
 {
-
 	if (m_tilecolor[offset] != data)
 	{
 		m_tilecolor[offset] = data;
@@ -124,26 +120,25 @@ WRITE8_MEMBER(aeroboto_state::aeroboto_tilecolor_w)
 
 ***************************************************************************/
 
-static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void aeroboto_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	aeroboto_state *state = machine.driver_data<aeroboto_state>();
 	int offs;
 
-	for (offs = 0; offs < state->m_spriteram.bytes(); offs += 4)
+	for (offs = 0; offs < m_spriteram.bytes(); offs += 4)
 	{
-		int x = state->m_spriteram[offs + 3];
-		int y = 240 - state->m_spriteram[offs];
+		int x = m_spriteram[offs + 3];
+		int y = 240 - m_spriteram[offs];
 
-		if (state->flip_screen())
+		if (flip_screen())
 		{
 			x = 248 - x;
 			y = 240 - y;
 		}
 
-		drawgfx_transpen(bitmap, cliprect, machine.gfx[1],
-				state->m_spriteram[offs + 1],
-				state->m_spriteram[offs + 2] & 0x07,
-				state->flip_screen(), state->flip_screen(),
+		drawgfx_transpen(bitmap, cliprect, machine().gfx[1],
+				m_spriteram[offs + 1],
+				m_spriteram[offs + 2] & 0x07,
+				flip_screen(), flip_screen(),
 				((x + 8) & 0xff) - 8, y, 0);
 	}
 }
@@ -151,7 +146,6 @@ static void draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const 
 
 UINT32 aeroboto_state::screen_update_aeroboto(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	const rectangle splitrect1(0, 255, 0, 39);
 	const rectangle splitrect2(0, 255, 40, 255);
 	UINT8 *src_base, *src_colptr, *src_rowptr;
@@ -214,7 +208,7 @@ UINT32 aeroboto_state::screen_update_aeroboto(screen_device &screen, bitmap_ind1
 	m_bg_tilemap->set_scrolly(0, *m_vscroll);
 	m_bg_tilemap->draw(bitmap, splitrect2, 0, 0);
 
-	draw_sprites(machine(), bitmap, cliprect);
+	draw_sprites(bitmap, cliprect);
 
 	// the status display behaves more closely to a 40-line splitscreen than an overlay
 	m_bg_tilemap->set_scrolly(0, 0);

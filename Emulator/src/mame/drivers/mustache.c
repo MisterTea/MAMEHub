@@ -162,10 +162,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(mustache_state::mustache_scanline)
 	int scanline = param;
 
 	if(scanline == 240) // vblank-out irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE,0x10); /* RST 10h */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0x10); /* RST 10h */
 
 	if(scanline == 0) // vblank-in irq
-		machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE,0x08); /* RST 08h */
+		m_maincpu->set_input_line_and_vector(0, HOLD_LINE,0x08); /* RST 08h */
 }
 
 
@@ -237,10 +237,10 @@ DRIVER_INIT_MEMBER(mustache_state,mustache)
 
 	int i;
 
-	int G1 = machine().root_device().memregion("gfx1")->bytes()/3;
-	int G2 = machine().root_device().memregion("gfx2")->bytes()/2;
-	UINT8 *gfx1 = machine().root_device().memregion("gfx1")->base();
-	UINT8 *gfx2 = machine().root_device().memregion("gfx2")->base();
+	int G1 = memregion("gfx1")->bytes()/3;
+	int G2 = memregion("gfx2")->bytes()/2;
+	UINT8 *gfx1 = memregion("gfx1")->base();
+	UINT8 *gfx2 = memregion("gfx2")->base();
 	UINT8 *buf=auto_alloc_array(machine(), UINT8, G2*2);
 
 	/* BG data lines */

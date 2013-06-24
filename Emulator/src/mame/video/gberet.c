@@ -23,7 +23,7 @@
 
 PALETTE_INIT_MEMBER(gberet_state,gberet)
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	/* allocate the colortable */
@@ -120,22 +120,20 @@ TILE_GET_INFO_MEMBER(gberet_state::get_bg_tile_info)
 
 VIDEO_START_MEMBER(gberet_state,gberet)
 {
-
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(gberet_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 64, 32);
 	colortable_configure_tilemap_groups(machine().colortable, m_bg_tilemap, machine().gfx[0], 0x10);
 	m_bg_tilemap->set_scroll_rows(32);
 }
 
-static void gberet_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void gberet_state::gberet_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	gberet_state *state = machine.driver_data<gberet_state>();
 	int offs;
 	UINT8 *sr;
 
-	if (state->m_spritebank & 0x08)
-		sr = state->m_spriteram2;
+	if (m_spritebank & 0x08)
+		sr = m_spriteram2;
 	else
-		sr = state->m_spriteram;
+		sr = m_spriteram;
 
 	for (offs = 0; offs < 0xc0; offs += 4)
 	{
@@ -149,7 +147,7 @@ static void gberet_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,
 			int flipx = attr & 0x10;
 			int flipy = attr & 0x20;
 
-			if (state->flip_screen())
+			if (flip_screen())
 			{
 				sx = 240 - sx;
 				sy = 240 - sy;
@@ -157,17 +155,16 @@ static void gberet_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap,
 				flipy = !flipy;
 			}
 
-			drawgfx_transmask(bitmap, cliprect, machine.gfx[1], code, color, flipx, flipy, sx, sy,
-				colortable_get_transpen_mask(machine.colortable, machine.gfx[1], color, 0));
+			drawgfx_transmask(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, sx, sy,
+				colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 0));
 		}
 	}
 }
 
 UINT32 gberet_state::screen_update_gberet(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES, 0);
-	gberet_draw_sprites(machine(), bitmap, cliprect);
+	gberet_draw_sprites(bitmap, cliprect);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }
@@ -185,13 +182,12 @@ WRITE8_MEMBER(gberet_state::gberetb_scroll_w)
 		m_bg_tilemap->set_scrollx(offset, scroll + 64 - 8);
 }
 
-static void gberetb_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect )
+void gberet_state::gberetb_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
-	gberet_state *state = machine.driver_data<gberet_state>();
-	UINT8 *spriteram = state->m_spriteram;
+	UINT8 *spriteram = m_spriteram;
 	int offs;
 
-	for (offs = state->m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
+	for (offs = m_spriteram.bytes() - 4; offs >= 0; offs -= 4)
 	{
 		if (spriteram[offs + 1])
 		{
@@ -203,7 +199,7 @@ static void gberetb_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap
 			int flipx = attr & 0x10;
 			int flipy = attr & 0x20;
 
-			if (state->flip_screen())
+			if (flip_screen())
 			{
 				sx = 240 - sx;
 				sy = 240 - sy;
@@ -211,8 +207,8 @@ static void gberetb_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap
 				flipy = !flipy;
 			}
 
-			drawgfx_transmask(bitmap, cliprect, machine.gfx[1], code, color, flipx, flipy, sx, sy,
-				colortable_get_transpen_mask(machine.colortable, machine.gfx[1], color, 0));
+			drawgfx_transmask(bitmap, cliprect, machine().gfx[1], code, color, flipx, flipy, sx, sy,
+				colortable_get_transpen_mask(machine().colortable, machine().gfx[1], color, 0));
 		}
 	}
 }
@@ -220,7 +216,7 @@ static void gberetb_draw_sprites( running_machine &machine, bitmap_ind16 &bitmap
 UINT32 gberet_state::screen_update_gberetb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES, 0);
-	gberetb_draw_sprites(machine(), bitmap, cliprect);
+	gberetb_draw_sprites(bitmap, cliprect);
 	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
 	return 0;
 }

@@ -312,10 +312,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( prosoccr_sound_map, AS_PROGRAM, 8, liberate_state )
 	AM_RANGE(0x0000, 0x01ff) AM_RAM
-	AM_RANGE(0x2000, 0x2000) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
-	AM_RANGE(0x8000, 0x8000) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x2000, 0x2000) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x6000, 0x6000) AM_DEVWRITE("ay2", ay8910_device, data_w)
+	AM_RANGE(0x8000, 0x8000) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0xc000, 0xc000) AM_WRITENOP //irq ack
 	AM_RANGE(0xe000, 0xffff) AM_ROM
@@ -324,10 +324,10 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( liberate_sound_map, AS_PROGRAM, 8, liberate_state )
 	AM_RANGE(0x0000, 0x01ff) AM_RAM
 	AM_RANGE(0x1000, 0x1000) AM_WRITENOP
-	AM_RANGE(0x3000, 0x3000) AM_DEVWRITE_LEGACY("ay1", ay8910_data_w)
-	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE_LEGACY("ay1", ay8910_address_w)
-	AM_RANGE(0x7000, 0x7000) AM_DEVWRITE_LEGACY("ay2", ay8910_data_w)
-	AM_RANGE(0x8000, 0x8000) AM_DEVWRITE_LEGACY("ay2", ay8910_address_w)
+	AM_RANGE(0x3000, 0x3000) AM_DEVWRITE("ay1", ay8910_device, data_w)
+	AM_RANGE(0x4000, 0x4000) AM_DEVWRITE("ay1", ay8910_device, address_w)
+	AM_RANGE(0x7000, 0x7000) AM_DEVWRITE("ay2", ay8910_device, data_w)
+	AM_RANGE(0x8000, 0x8000) AM_DEVWRITE("ay2", ay8910_device, address_w)
 	AM_RANGE(0xb000, 0xb000) AM_READ(soundlatch_byte_r)
 	AM_RANGE(0xc000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -793,10 +793,6 @@ INTERRUPT_GEN_MEMBER(liberate_state::prosport_interrupt)
 
 MACHINE_START_MEMBER(liberate_state,liberate)
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_audiocpu = machine().device<cpu_device>("audiocpu");
-
 	save_item(NAME(m_background_disable));
 	save_item(NAME(m_background_color));
 	save_item(NAME(m_gfx_rom_readback));
@@ -808,7 +804,6 @@ MACHINE_START_MEMBER(liberate_state,liberate)
 
 MACHINE_RESET_MEMBER(liberate_state,liberate)
 {
-
 	memset(m_io_ram, 0, ARRAY_LENGTH(m_io_ram));
 
 	m_background_disable = 0;
@@ -1347,7 +1342,7 @@ ROM_END
 
 DRIVER_INIT_MEMBER(liberate_state,prosport)
 {
-	UINT8 *RAM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *RAM = memregion("maincpu")->base();
 	int i;
 
 	/* Main cpu has the nibbles swapped */
@@ -1360,15 +1355,15 @@ DRIVER_INIT_MEMBER(liberate_state,yellowcb)
 {
 	DRIVER_INIT_CALL(prosport);
 
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port(0xa000, 0xa000, "IN0");
+	m_maincpu->space(AS_PROGRAM).install_read_port(0xa000, 0xa000, "IN0");
 }
 
 DRIVER_INIT_MEMBER(liberate_state,liberate)
 {
 	int A;
-	address_space &space = machine().device("maincpu")->memory().space(AS_PROGRAM);
+	address_space &space = m_maincpu->space(AS_PROGRAM);
 	UINT8 *decrypted = auto_alloc_array(machine(), UINT8, 0x10000);
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
 	space.set_decrypted_region(0x0000, 0xffff, decrypted);
 
@@ -1379,7 +1374,7 @@ DRIVER_INIT_MEMBER(liberate_state,liberate)
 		decrypted[A] = (decrypted[A] & 0x7d) | ((decrypted[A] & 0x02) << 6) | ((decrypted[A] & 0x80) >> 6);
 	}
 
-	machine().root_device().membank("bank1")->configure_decrypted_entry(0, decrypted + 0x8000);
+	membank("bank1")->configure_decrypted_entry(0, decrypted + 0x8000);
 }
 
 /*************************************

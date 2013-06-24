@@ -131,7 +131,7 @@ TIMER_CALLBACK_MEMBER(spacefb_state::interrupt_callback)
 	/* compute vector and set the interrupt line */
 	int vpos = machine().primary_screen->vpos();
 	UINT8 vector = 0xc7 | ((vpos & 0x40) >> 2) | ((~vpos & 0x40) >> 3);
-	machine().device("maincpu")->execute().set_input_line_and_vector(0, HOLD_LINE, vector);
+	m_maincpu->set_input_line_and_vector(0, HOLD_LINE, vector);
 
 	/* set up for next interrupt */
 	if (vpos == SPACEFB_INT_TRIGGER_COUNT_1)
@@ -143,17 +143,15 @@ TIMER_CALLBACK_MEMBER(spacefb_state::interrupt_callback)
 }
 
 
-static void create_interrupt_timer(running_machine &machine)
+void spacefb_state::create_interrupt_timer()
 {
-	spacefb_state *state = machine.driver_data<spacefb_state>();
-	state->m_interrupt_timer = machine.scheduler().timer_alloc(timer_expired_delegate(FUNC(spacefb_state::interrupt_callback),state));
+	m_interrupt_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(spacefb_state::interrupt_callback),this));
 }
 
 
-static void start_interrupt_timer(running_machine &machine)
+void spacefb_state::start_interrupt_timer()
 {
-	spacefb_state *state = machine.driver_data<spacefb_state>();
-	state->m_interrupt_timer->adjust(machine.primary_screen->time_until_pos(SPACEFB_INT_TRIGGER_COUNT_1));
+	m_interrupt_timer->adjust(machine().primary_screen->time_until_pos(SPACEFB_INT_TRIGGER_COUNT_1));
 }
 
 
@@ -166,7 +164,7 @@ static void start_interrupt_timer(running_machine &machine)
 
 void spacefb_state::machine_start()
 {
-	create_interrupt_timer(machine());
+	create_interrupt_timer();
 }
 
 
@@ -179,13 +177,13 @@ void spacefb_state::machine_start()
 
 void spacefb_state::machine_reset()
 {
-	address_space &space = machine().device("maincpu")->memory().space(AS_IO);
+	address_space &space = m_maincpu->space(AS_IO);
 	/* the 3 output ports are cleared on reset */
 	spacefb_port_0_w(space, 0, 0);
 	spacefb_port_1_w(space, 0, 0);
 	spacefb_port_2_w(space, 0, 0);
 
-	start_interrupt_timer(machine());
+	start_interrupt_timer();
 }
 
 

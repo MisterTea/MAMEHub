@@ -2,37 +2,40 @@
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
 
 <!--
-	Undumped games
+  Undumped games
 
-	- Game de check! Koutsuu Anzen
-	- Great Ice Hockey Jpn ? (Only 1000 copies were distributed through a
-	BEEP! magazine contest in 1987, to celebrate the release of Phantasy Star)
-	- Tec Toy SMS 3 with built-in games (74 game, 112 games, 120 games or
-	131 games)
-	- a few other pirate multigame carts (two versions of 4 in 1 carts)
+  - Game de check! Koutsuu Anzen
+  - Great Ice Hockey Jpn ? (Only 1000 copies were distributed through a
+  BEEP! magazine contest in 1987, to celebrate the release of Phantasy Star)
+  - Tec Toy SMS 3 with built-in games (74 game, 112 games, 120 games or
+  131 games)
+  - a few other pirate multigame carts (two versions of 4 in 1 carts)
 
 -->
 <!--
-	Taiwanese releases for the Aaronix Mark III
-	- White Gold Cartridges
-	GB1301 - Fantasy Zone / Kuàilè xiǎo fēidié (快樂小飛碟)  [dumped]
-	GB1303 - Hokuto no Ken / Běidǒu shén quán (北斗神拳)  [dumped]
-	GB1310 - Space Harrier / ???  [verified to be the same as the Jpn release]
-	GB1314 - Double Target / Shí miàn máifú (十面埋伏)  [verified to be the same as the Jpn release]
-	- Yellow Gold Cartridges
-	K307 - Great Soccer / Shìjiè bēi zúqiú sài (世界杯足球賽)  [dumped]
-	K313 - F-16 Fighting Falcon / F-16  [dumped]
-	K317 - Comical Machine Gun Joe / Dàzhàn hēishǒu dǎng (大戰黑手黨)  [dumped]
-	K321 - Spy Vs. Spy / Dié duì dié (諜對諜)  [dumped]
+  Taiwanese releases for the Aaronix Mark III
+  - White Gold Cartridges
+  GB1301 - Fantasy Zone / Kuàilè xiǎo fēidié (快樂小飛碟)  [dumped]
+  GB1303 - Hokuto no Ken / Běidǒu shén quán (北斗神拳)  [dumped]
+  GB1310 - Space Harrier / ???  [verified to be the same as the Jpn release]
+  GB1314 - Double Target / Shí miàn máifú (十面埋伏)  [verified to be the same as the Jpn release]
+  - Yellow Gold Cartridges
+  K307 - Great Soccer / Shìjiè bēi zúqiú sài (世界杯足球賽)  [dumped]
+  K313 - F-16 Fighting Falcon / F-16  [dumped]
+  K317 - Comical Machine Gun Joe / Dàzhàn hēishǒu dǎng (大戰黑手黨)  [dumped]
+  K321 - Spy Vs. Spy / Dié duì dié (諜對諜)  [dumped]
 -->
 
 <softwarelist name="sms" description="Sega Master System cartridges">
+
+<!-- PCB info and part numbers are taken from SMS Power and from nepereny's PCB pictures and other sources -->
+
 	<software name="4pak">
 		<description>4 PAK All Action (Aus)</description>
 		<year>1995</year>
 		<publisher>HES</publisher>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="4pak" />
+			<feature name="slot" value="4pak" />
 			<dataarea name="rom" size="1048576">
 				<rom name="4 pak all action (aus).bin" size="1048576" crc="a67f2a5c" sha1="2f8b5a66381dbbe7524af7af6372fbb6a6575ac5" offset="000000" />
 			</dataarea>
@@ -54,7 +57,8 @@
 	<software name="3dragon">
 		<description>The Three Dragon Story (Kor)</description>
 		<year>19??</year>
-		<publisher>&lt;unknown&gt;</publisher>
+		<publisher>Zemina?</publisher>
+		<info name="alt_title" value="용의 전설" />
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="three dragon story, the (k).bin" size="32768" crc="8640e7e8" sha1="a05a7a41295c38add5dfc71032d2d83b96f518b1" offset="000000" />
@@ -93,8 +97,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5055"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-11043" />
 			<dataarea name="rom" size="131072">
-				<rom name="action fighter (usa, europe) (v1.2).bin" size="131072" crc="3658f3e0" sha1="b462246fed3cbb9dc3909a2d5befaec65d7a0014" offset="000000" />
+				<rom name="mpr-11043.ic1" size="131072" crc="3658f3e0" sha1="b462246fed3cbb9dc3909a2d5befaec65d7a0014" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -131,6 +138,9 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7041"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13209-F" />
 			<dataarea name="rom" size="262144">
 				<rom name="aerial assault (europe).bin" size="262144" crc="ecf491cf" sha1="2a9090ed365e7425ca7a59f87b942c16b376f0a3" offset="000000" />
 			</dataarea>
@@ -143,8 +153,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7041"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-13299-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="aerial assault (usa).bin" size="262144" crc="15576613" sha1="e57b1d4476ca33d18d9071e022ddc9cc702d6497" offset="000000" />
+				<rom name="mpr-13299-f.ic1" size="262144" crc="15576613" sha1="e57b1d4476ca33d18d9071e022ddc9cc702d6497" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -158,8 +171,12 @@
 		<info name="release" value="19871212 (JPN)"/>
 		<info name="alt_title" value="アフターバーナー" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5559D" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-11271 W01" />
 			<dataarea name="rom" size="524288">
-				<rom name="after burner (world).bin" size="524288" crc="1c951f8e" sha1="51531df038783c84640a0cab93122e0b59e3b69a" offset="000000" />
+				<rom name="mpr-11271 w01.ic2" size="524288" crc="1c951f8e" sha1="51531df038783c84640a0cab93122e0b59e3b69a" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -236,12 +253,16 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5116, 023.020"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12408" />
 			<dataarea name="rom" size="131072">
-				<rom name="alex kidd - high-tech world (usa, europe).bin" size="131072" crc="013c0a94" sha1="2d0a581da1c787b1407fb1cfefd0571e37899978" offset="000000" />
+				<rom name="mpr-12408.ic1" size="131072" crc="013c0a94" sha1="2d0a581da1c787b1407fb1cfefd0571e37899978" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
 
+<!-- MPR-11047 according to SMS Power, but not clear which version these correspond to -->
 	<software name="alexkidd">
 		<description>Alex Kidd in Miracle World (Euro, USA, v1)</description>
 		<year>1986</year>
@@ -284,8 +305,11 @@
 		<info name="release" value="19861101"/>
 		<info name="alt_title" value="アレックスキッドのミラクルワールド" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5362" />
+			<feature name="ic1" value="MPR-10379" />
 			<dataarea name="rom" size="131072">
-				<rom name="alex kidd no miracle world (japan).bin" size="131072" crc="08c9ec91" sha1="62fdc25501e17b87c355378562c3b1966e5f9008" offset="000000" />
+				<rom name="mpr-10379.ic1" size="131072" crc="08c9ec91" sha1="62fdc25501e17b87c355378562c3b1966e5f9008" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -299,8 +323,11 @@
 		<info name="release" value="19880310 (JPN)"/>
 		<info name="alt_title" value="アレックスキッド ザ・ロストスターズ" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-11402 W09" />
 			<dataarea name="rom" size="262144">
-				<rom name="alex kidd - the lost stars (world).bin" size="262144" crc="c13896d5" sha1="6dbf2684c3dfea7442d0b40a9ff7c8b8fc9b1b98" offset="000000" />
+				<rom name="mpr-11402 w09.ic1" size="262144" crc="c13896d5" sha1="6dbf2684c3dfea7442d0b40a9ff7c8b8fc9b1b98" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -329,7 +356,7 @@
 		</part>
 	</software>
 
-	<software name="alibaba" supported="no">
+	<software name="alibaba">
 		<description>Alibaba and 40 Thieves (Kor)</description>
 		<year>1989</year>
 		<publisher>HiCom</publisher>
@@ -359,8 +386,12 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7018"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5713D" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-12534 T35" />
 			<dataarea name="rom" size="262144">
-				<rom name="altered beast (usa, europe).bin" size="262144" crc="bba2fe98" sha1="413986f174799f094a8dd776d91dcf018ee17290" offset="000000" />
+				<rom name="mpr-12534 t35.ic2" size="262144" crc="bba2fe98" sha1="413986f174799f094a8dd776d91dcf018ee17290" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -371,8 +402,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7019"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12555F" />
 			<dataarea name="rom" size="262144">
-				<rom name="american baseball (europe).bin" size="262144" crc="7b27202f" sha1="fff4006fe47de8138db246af8863e28b81718abe" offset="000000" />
+				<rom name="mpr-12555f.ic1" size="262144" crc="7b27202f" sha1="fff4006fe47de8138db246af8863e28b81718abe" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -473,8 +507,12 @@
 		<info name="release" value="19861116"/>
 		<info name="alt_title" value="アシュラ - 阿修羅" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5363-01" />
+			<!-- is there a 315-5208? -->
+			<feature name="ic1" value="MPR-10386" />
 			<dataarea name="rom" size="131072">
-				<rom name="ashura (japan).bin" size="131072" crc="ae705699" sha1="e9f90d63320295e4bd9a87e6078186c5efb7e84e" offset="000000" />
+				<rom name="mpr-10386.ic1" size="131072" crc="ae705699" sha1="e9f90d63320295e4bd9a87e6078186c5efb7e84e" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -533,8 +571,12 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9008"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5559-01D" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-14520-F" />
 			<dataarea name="rom" size="524288">
-				<rom name="asterix (europe) (en,fr).bin" size="524288" crc="147e02fa" sha1="70e311421467acd01e55f1908eae653bf20de175" offset="000000" />
+				<rom name="mpr-14520-f.ic1" size="524288" crc="147e02fa" sha1="70e311421467acd01e55f1908eae653bf20de175" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -557,21 +599,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7075"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-14254" />
 			<dataarea name="rom" size="262144">
-				<rom name="alien storm (europe).bin" size="262144" crc="7f30f793" sha1="aece64ecbfbe08b199b29df9bc75743773ea3d34" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="astrofl" cloneof="transbot">
-		<description>Astro Flash (Jpn)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-503"/>
-		<info name="release" value="19851222 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="astro flash (japan).bin" size="32768" crc="c795182d" sha1="8370957b1192349d0a610437cd5d91ea4e3892c4" offset="000000" />
+				<rom name="mpr-14254.ic1" size="262144" crc="7f30f793" sha1="aece64ecbfbe08b199b29df9bc75743773ea3d34" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -594,8 +626,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="6081, 41011"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-11070" />
 			<dataarea name="rom" size="131072">
-				<rom name="astro warrior &amp; pit pot (europe).bin" size="131072" crc="69efd483" sha1="2b3a9da256f2918b859ebcb6ffa1b36a09e7595d" offset="000000" />
+				<rom name="mpr-11070.ic1" size="131072" crc="69efd483" sha1="2b3a9da256f2918b859ebcb6ffa1b36a09e7595d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -608,8 +643,12 @@
 		<info name="release" value="19861116 (JPN)"/>
 		<info name="alt_title" value="アストロ ウォリアー" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Jpn cart), to check the cart with MPR-11048 reported as US version -->
+			<feature name="pcb" value="171-5363-01" />
+			<!-- is there a 315-5208? -->
+			<feature name="ic1" value="MPR-10387" />
 			<dataarea name="rom" size="131072">
-				<rom name="astro warrior (japan, usa).bin" size="131072" crc="299cbb74" sha1="901697a3535ad70190647f34ad5b30b695d54542" offset="000000" />
+				<rom name="mpr-10387.ic1" size="131072" crc="299cbb74" sha1="901697a3535ad70190647f34ad5b30b695d54542" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -620,8 +659,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7006"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-11384 W10" />
 			<dataarea name="rom" size="262144">
-				<rom name="alien syndrome (usa, europe).bin" size="262144" crc="5cbfe997" sha1="0da0b9755b6a6ef145ec3b95e651d2a384b3f7f9" offset="000000" />
+				<rom name="mpr-11384 w10.ic1" size="262144" crc="5cbfe997" sha1="0da0b9755b6a6ef145ec3b95e651d2a384b3f7f9" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -673,8 +715,11 @@
 		<info name="release" value="19870920 (JPN)"/>
 		<info name="alt_title" value="ナスカ'88 -THE GOLDEN ROAD TO PARADISE-" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-11121" />
 			<dataarea name="rom" size="131072">
-				<rom name="aztec adventure - the golden road to paradise (world).bin" size="131072" crc="ff614eb3" sha1="317775a17867530a8fe3a5b17b681d5ada351432" offset="000000" />
+				<rom name="mpr-11121.ic1" size="131072" crc="ff614eb3" sha1="317775a17867530a8fe3a5b17b681d5ada351432" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -720,10 +765,13 @@
 		<description>Bank Panic (Euro)</description>
 		<year>1987</year>
 		<publisher>Sega</publisher>
-		<info name="serial" value="4084 (Card), 4584 (Cart), 41022"/>
+		<info name="serial" value="4584 (Cart), 41022"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12554" />
 			<dataarea name="rom" size="32768">
-				<rom name="bank panic (europe).bin" size="32768" crc="655fb1f4" sha1="661bbe20f01b7afb242936d409fdd30420c6de5f" offset="000000" />
+				<rom name="mpr-12554.ic1" size="32768" crc="655fb1f4" sha1="661bbe20f01b7afb242936d409fdd30420c6de5f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -746,8 +794,11 @@
 		<publisher>Flying Edge</publisher>
 		<info name="serial" value="MK-27053-50, 027.210"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-15988" />
 			<dataarea name="rom" size="262144">
-				<rom name="simpsons, the - bart vs. the world (europe).bin" size="262144" crc="f6b2370a" sha1="038920e63437e05d8431e4cbab2131dd76fb3345" offset="000000" />
+				<rom name="mpr-15988.ic1" size="262144" crc="f6b2370a" sha1="038920e63437e05d8431e4cbab2131dd76fb3345" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -759,8 +810,11 @@
 		<info name="serial" value="7025"/>
 		<info name="alt_title" value="Basketball Nightmare (Box)" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12728" />
 			<dataarea name="rom" size="262144">
-				<rom name="basket ball nightmare (europe).bin" size="262144" crc="0df8597f" sha1="0fa1156931c83763bc6906efce75045327cdd7aa" offset="000000" />
+				<rom name="mpr-12728.ic1" size="262144" crc="0df8597f" sha1="0fa1156931c83763bc6906efce75045327cdd7aa" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -825,7 +879,7 @@
 		</part>
 	</software>
 
-	<!-- Notes: FM support, 3D glasses support) -->
+	<!-- Notes: FM support, 3D glasses support -->
 	<software name="bladeag">
 		<description>Blade Eagle (World)</description>
 		<year>1988</year>
@@ -834,8 +888,11 @@
 		<info name="release" value="19880326 (JPN)"/>
 		<info name="alt_title" value="ブレード イーグル" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-11421" />
 			<dataarea name="rom" size="262144">
-				<rom name="blade eagle (world).bin" size="262144" crc="8ecd201c" sha1="b786d15b26b914c24cd1c36a8fca41b215c0a4e7" offset="000000" />
+				<rom name="mpr-11421.ic1" size="262144" crc="8ecd201c" sha1="b786d15b26b914c24cd1c36a8fca41b215c0a4e7" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -851,7 +908,7 @@
 		</part>
 	</software>
 
-	<software name="blockhol" supported="no">
+	<software name="blockhol">
 		<description>Block Hole (Kor)</description>
 		<year>1990</year>
 		<publisher>Zemina</publisher>
@@ -872,8 +929,11 @@
 		<info name="release" value="19890204 (JPN)"/>
 		<info name="alt_title" value="ボンバーレイド" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12043F" />
 			<dataarea name="rom" size="262144">
-				<rom name="bomber raid (world).bin" size="262144" crc="3084cf11" sha1="d754ef2b6e05c76502c02c71dbfcf6150ee12f6f" offset="000000" />
+				<rom name="mpr-12043f.ic1" size="262144" crc="3084cf11" sha1="d754ef2b6e05c76502c02c71dbfcf6150ee12f6f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -952,12 +1012,13 @@
 		</part>
 	</software>
 
-	<software name="bublboky" supported="no">
+	<software name="bublboky">
 		<description>Bubble Bobble (Kor, YM Soft)</description>
 		<year>1990</year>
 		<publisher>YM Soft</publisher>
 		<info name="alt_title" value="파워 보글 보글 (Power Boggle Boggle, Box)" />
 		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="korean_nb" />
 			<dataarea name="rom" size="32768">
 				<rom name="power boggle boggle (kr).bin" size="32768" crc="6d309ac5" sha1="d7e67d15ccc12e9bf40611dc91a080a99716ca6e" offset="000000" />
 			</dataarea>
@@ -995,8 +1056,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7077"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-14177-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="bubble bobble (europe).bin" size="262144" crc="e843ba7e" sha1="44876b44089b4174858e54202e567e02efa76859" offset="000000" />
+				<rom name="mpr-14177-f.ic1" size="262144" crc="e843ba7e" sha1="44876b44089b4174858e54202e567e02efa76859" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1007,18 +1071,22 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9025, 028.340"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on Euro cart (nepereny's) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15984 W06" />
 			<dataarea name="rom" size="524288">
-				<rom name="buggy run (europe).bin" size="524288" crc="b0fc4577" sha1="4b1975190ac9d6281325de0925980283fdce51ca" offset="000000" />
+				<rom name="mpr-15984 w06.ic1" size="524288" crc="b0fc4577" sha1="4b1975190ac9d6281325de0925980283fdce51ca" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
 
-	<software name="cso" supported="no">
+	<software name="cso">
 		<description>C_So! (Kor)</description>
 		<year>198?</year>
 		<publisher>Joy Soft</publisher>
 		<info name="alt_title" value="시소" />
 		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="korean_nb" />
 			<dataarea name="rom" size="32768">
 				<rom name="c_so! [msx] (kr).bin" size="32768" crc="0918fba0" sha1="e7fefabd7a920fd71e87509d065080855b5b233c" offset="000000" />
 			</dataarea>
@@ -1031,8 +1099,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7105"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-15643-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="california games ii (europe).bin" size="262144" crc="c0e25d62" sha1="5c7d99ba54caf9a674328df787a89e0ab4730de8" offset="000000" />
+				<rom name="mpr-15643-f.ic1" size="262144" crc="c0e25d62" sha1="5c7d99ba54caf9a674328df787a89e0ab4730de8" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1055,8 +1126,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7014"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12342F" />
 			<dataarea name="rom" size="262144">
-				<rom name="california games (usa, europe).bin" size="262144" crc="ac6009a7" sha1="d0f8298bb2a30a3569c65372a959612df3b608db" offset="000000" />
+				<rom name="mpr-12342f.ic1" size="262144" crc="ac6009a7" sha1="d0f8298bb2a30a3569c65372a959612df3b608db" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1070,8 +1144,11 @@
 		<info name="release" value="19880702 (JPN)"/>
 		<info name="alt_title" value="キャプテン シルバー" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-11457F" />
 			<dataarea name="rom" size="262144">
-				<rom name="captain silver (japan, europe).bin" size="262144" crc="a4852757" sha1="88402392e93b220632a61e0c07731a7ed087cbef" offset="000000" />
+				<rom name="mpr-11457f.ic1" size="262144" crc="a4852757" sha1="88402392e93b220632a61e0c07731a7ed087cbef" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1094,8 +1171,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7021"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13167" />
 			<dataarea name="rom" size="262144">
-				<rom name="casino games (usa, europe).bin" size="262144" crc="3cff6e80" sha1="8353b86965a87c724b95bb768d00dc84eeadce96" offset="000000" />
+				<rom name="mpr-13167.ic1" size="262144" crc="3cff6e80" sha1="8353b86965a87c724b95bb768d00dc84eeadce96" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1118,8 +1198,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7053"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13584A" />
 			<dataarea name="rom" size="262144">
-				<rom name="castle of illusion starring mickey mouse (europe).bin" size="262144" crc="953f42e1" sha1="c200b5e585d59f8bfcbb40fd6d4314de8abcfae3" offset="000000" />
+				<rom name="mpr-13584a.ic1" size="262144" crc="953f42e1" sha1="c200b5e585d59f8bfcbb40fd6d4314de8abcfae3" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1153,8 +1236,11 @@
 		<publisher>TecMagik</publisher>
 		<info name="serial" value="27034-50, 025.430"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-14689" />
 			<dataarea name="rom" size="262144">
-				<rom name="champions of europe (europe).bin" size="262144" crc="23163a12" sha1="e1d0b1b25b7d9bb423dadfe792bd177e01bc2ca2" offset="000000" />
+				<rom name="mpr-14689.ic1" size="262144" crc="23163a12" sha1="e1d0b1b25b7d9bb423dadfe792bd177e01bc2ca2" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1213,8 +1299,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5051, 41001"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5364, 171-5519" />
+			<feature name="ic1" value="MPR-10149 W04" />
 			<dataarea name="rom" size="131072">
-				<rom name="choplifter (usa, europe).bin" size="131072" crc="4a21c15f" sha1="856e741eec9692fcc3b22c5c5642f54482e6e00b" offset="000000" />
+				<rom name="mpr-10149 w04.ic1" size="131072" crc="4a21c15f" sha1="856e741eec9692fcc3b22c5c5642f54482e6e00b" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1321,8 +1410,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5120,GB-1001, GB-1002JG"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-13293" />
 			<dataarea name="rom" size="131072">
-				<rom name="columns (usa, europe).bin" size="131072" crc="665fda92" sha1="3d16b0954b5419b071de270b44d38fc6570a8439" offset="000000" />
+				<rom name="mpr-13293.ic1" size="131072" crc="665fda92" sha1="3d16b0954b5419b071de270b44d38fc6570a8439" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1345,19 +1437,6 @@
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="comic bakery (kor).bin" size="32768" crc="7778e256" sha1="2fb857fc59cccbd3206e1beb0b9d717972320d3f" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="comical">
-		<description>Comical Machine Gun Joe (Jpn)</description>
-		<year>1986</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-511"/>
-		<info name="release" value="19860421 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="comical machine gun joe (japan).bin" size="32768" crc="9d549e08" sha1="33c21d164fd3cdf7aa9e7e0fe1a3ae5a491bd9f5" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1405,7 +1484,7 @@
 		<publisher>Codemasters</publisher>
 		<info name="serial" value="MK-27074-50"/>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="codemasters" />
+			<feature name="slot" value="codemasters" />
 			<dataarea name="rom" size="262144">
 				<rom name="cosmic spacehead (europe) (en,fr,de,es).bin" size="262144" crc="29822980" sha1="f46f716dd34a1a5013a2d8a59769f6ef7536a567" offset="000000" />
 			</dataarea>
@@ -1453,6 +1532,7 @@
 		<year>1991</year>
 		<publisher>Zemina</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="zemina" />
 			<dataarea name="rom" size="131072">
 				<rom name="cyborg z (kr).bin" size="131072" crc="77efe84a" sha1="c2e661e9b68a78e5a5fae5ae297b5d964d82491e" offset="000000" />
 			</dataarea>
@@ -1477,7 +1557,7 @@
 		<publisher>Game Line</publisher>
 		<info name="serial" value="G9511-RP4"/>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="korean" />
+			<feature name="slot" value="korean" />
 			<dataarea name="rom" size="442368">
 				<rom name="dallyeora pigu-wang (korea) (unl).bin" size="442368" crc="89b79e77" sha1="9ebd5a7b025e980795eaac206f3f6f5dc297084f" offset="000000" />
 			</dataarea>
@@ -1505,8 +1585,11 @@
 		<info name="release" value="19881001 (JPN)"/>
 		<info name="alt_title" value="双截龍(ダブルドラゴン)" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507, 171-5507D" />
+			<feature name="ic1" value="MPR-11831 T03" />
 			<dataarea name="rom" size="262144">
-				<rom name="double dragon (world).bin" size="262144" crc="a55d89f3" sha1="cad5532af94ed75c0ada8820a83fa04d22f7bef5" offset="000000" />
+				<rom name="mpr-11831 t03.ic1" size="262144" crc="a55d89f3" sha1="cad5532af94ed75c0ada8820a83fa04d22f7bef5" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1529,8 +1612,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7030"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12654F" />
 			<dataarea name="rom" size="262144">
-				<rom name="dead angle (usa, europe).bin" size="262144" crc="e2f7193e" sha1="0236c5239c924b425a99367260b9ebfa8b8e0bca" offset="000000" />
+				<rom name="mpr-12654f.ic1" size="262144" crc="e2f7193e" sha1="0236c5239c924b425a99367260b9ebfa8b8e0bca" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1556,6 +1642,8 @@
 			<dataarea name="rom" size="262144">
 				<rom name="desert speedtrap starring road runner and wile e. coyote (europe) (en,fr,de,es,it).bin" size="262144" crc="b137007a" sha1="60e2b6ec69d73dd73c1ef846634942c81800655b" offset="000000" />
 			</dataarea>
+			<dataarea name="ram" size="8192">
+			</dataarea>
 		</part>
 	</software>
 
@@ -1565,8 +1653,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7057"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-13644" />
 			<dataarea name="rom" size="262144">
-				<rom name="dick tracy (usa, europe).bin" size="262144" crc="f6fab48d" sha1="b788f0394aafbc213e6fa6dcfae40ebb7659f533" offset="000000" />
+				<rom name="mpr-13644.ic1" size="262144" crc="f6fab48d" sha1="b788f0394aafbc213e6fa6dcfae40ebb7659f533" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1576,7 +1667,7 @@
 		<year>19??</year>
 		<publisher>Codemasters</publisher>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="codemasters" />
+			<feature name="slot" value="codemasters" />
 			<dataarea name="rom" size="262144">
 				<rom name="dinobasher starring bignose the caveman (europe) (proto).bin" size="262144" crc="ea5c3a6f" sha1="05b4f23e33ada08e0a8b1fc6feccd8a97c690a21" offset="000000" />
 			</dataarea>
@@ -1603,8 +1694,11 @@
 		<info name="release" value="19870818"/>
 		<info name="alt_title" value="どきどきペンギンランド 宇宙大冒険" />
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="131072">
 				<rom name="doki doki penguin land - uchuu daibouken (japan).bin" size="131072" crc="2bcdb8fa" sha1="c01cf44eee335d509dc20a165add8514e7fbb7c4" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -1614,8 +1708,11 @@
 		<year>1987</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="131072">
 				<rom name="doki doki penguin land - uchuu daibouken (japan, proto).bin" size="131072" crc="56bd2455" sha1="c56417efd78a332a35e4d0e87c7b13c20da85391" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -1777,7 +1874,7 @@
 		</part>
 	</software>
 
-	<software name="eagles5" supported="no">
+	<software name="eagles5">
 		<description>Eagles 5 (Kor)</description>
 		<year>1990</year>
 		<publisher>Zemina</publisher>
@@ -1832,8 +1929,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5077"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-10843 W28" />
 			<dataarea name="rom" size="131072">
-				<rom name="enduro racer (usa, europe).bin" size="131072" crc="00e73541" sha1="10dc132166c1aa47ca7b89fbb1f0a4e56b428359" offset="000000" />
+				<rom name="mpr-10843 w28.ic1" size="131072" crc="00e73541" sha1="10dc132166c1aa47ca7b89fbb1f0a4e56b428359" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1846,8 +1946,11 @@
 		<info name="release" value="19870518"/>
 		<info name="alt_title" value="エンデューロレーサー" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5440" />
+			<feature name="ic1" value="MPR-10745" />
 			<dataarea name="rom" size="262144">
-				<rom name="enduro racer (japan).bin" size="262144" crc="5d5c50b3" sha1="7a0216af8d4a5aeda1d42e2703f140d08b3f92f6" offset="000000" />
+				<rom name="mpr-10745.ic1" size="262144" crc="5d5c50b3" sha1="7a0216af8d4a5aeda1d42e2703f140d08b3f92f6" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1880,7 +1983,7 @@
 		<year>19??</year>
 		<publisher>Codemasters</publisher>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="codemasters" />
+			<feature name="slot" value="codemasters" />
 			<dataarea name="rom" size="262144">
 				<rom name="excellent dizzy collection, the (usa, europe) (en,fr,de,es,it) (proto).bin" size="262144" crc="8813514b" sha1="09a2acf3ed90101be2629384c5c702f6a5408035" offset="000000" />
 			</dataarea>
@@ -1893,8 +1996,11 @@
 		<publisher>Domark</publisher>
 		<info name="serial" value="MK-27072-50, 026.330"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15830-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="f1 (europe).bin" size="262144" crc="ec788661" sha1="247fd74485073695a88f6813482f67516860b3a0" offset="000000" />
+				<rom name="mpr-15830-f.ic1" size="262144" crc="ec788661" sha1="247fd74485073695a88f6813482f67516860b3a0" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1904,7 +2010,7 @@
 		<year>1987</year>
 		<publisher>Zemina</publisher>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="zemina" />
+			<feature name="slot" value="zemina" />
 			<dataarea name="rom" size="131072">
 				<rom name="f-1 spirit - the way to formula-1 (kr)" size="131072" crc="06965ed9" sha1="5df1b4c00adb2b494f7298353d92b4d7ad3f50f6" offset="000000" />
 			</dataarea>
@@ -1919,19 +2025,6 @@
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="f-16 fighting falcon (usa).bin" size="32768" crc="184c23b7" sha1="a8f083b3db721b672b5b023d673a64577cb48ef3" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="f16falcj" cloneof="f16fight">
-		<description>F-16 Fighting Falcon (Jpn)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-508"/>
-		<info name="release" value="19851222 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="f-16 fighting falcon (japan).bin" size="32768" crc="7ce06fce" sha1="0f60f545ce99366860a94fbb115ce7d8531ab7ba" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1955,8 +2048,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="4581 (Euro Cart re-release?), 4081, 4005M, 41005"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12643" />
 			<dataarea name="rom" size="32768">
-				<rom name="f-16 fighter (usa, europe).bin" size="32768" crc="eaebf323" sha1="de63ca2f59adb94fac87623fe68de75940397449" offset="000000" />
+				<rom name="mpr-12643.ic1" size="32768" crc="eaebf323" sha1="de63ca2f59adb94fac87623fe68de75940397449" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1965,8 +2061,9 @@
 		<description>FA Tetris (Kor)</description>
 		<year>1989</year>
 		<publisher>FA Soft</publisher>
+		<info name="alt_title" value="에프에이 테트리스" />
 		<part name="cart" interface="sms_cart">
-			<feature name="pcb" value="korean_nobank" />
+			<feature name="slot" value="korean_nb" />
 			<dataarea name="rom" size="32768">
 				<rom name="fa tetris (kr).bin" size="32768" crc="17ab6883" sha1="4e35c8375aba080c416d721fa885ccc232b9a171" offset="000000" />
 			</dataarea>
@@ -1982,8 +2079,11 @@
 		<info name="release" value="19871227"/>
 		<info name="alt_title" value="ファミリーゲームズ" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5518" />
+			<feature name="ic1" value="MPR-11276" />
 			<dataarea name="rom" size="131072">
-				<rom name="family games (japan).bin" size="131072" crc="7abc70e9" sha1="dfbf0186d497cf53d1f21a9430991ed4124cc4c2" offset="000000" />
+				<rom name="mpr-11276.ic1" size="131072" crc="7abc70e9" sha1="dfbf0186d497cf53d1f21a9430991ed4124cc4c2" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -1994,7 +2094,7 @@
 		<publisher>Codemasters</publisher>
 		<info name="serial" value="MK-27074-50"/>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="codemasters" />
+			<feature name="slot" value="codemasters" />
 			<dataarea name="rom" size="262144">
 				<rom name="fantastic dizzy (europe) (en,fr,de,es,it).bin" size="262144" crc="b9664ae1" sha1="4202ce26832046c7ca8209240f097a8a0a84d981" offset="000000" />
 			</dataarea>
@@ -2007,8 +2107,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7004"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on Euro cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-10848 W05" />
 			<dataarea name="rom" size="262144">
-				<rom name="fantasy zone ii - the tears of opa-opa (usa, europe).bin" size="262144" crc="b8b141f9" sha1="b84831378c7c19798b6fd560647e2941842bb80a" offset="000000" />
+				<rom name="mpr-10848 w05.ic1" size="262144" crc="b8b141f9" sha1="b84831378c7c19798b6fd560647e2941842bb80a" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2022,8 +2125,11 @@
 		<info name="release" value="19871017"/>
 		<info name="alt_title" value="ファンタジーゾーンII オパオパの涙" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5506" />
+			<feature name="ic1" value="MPR-10847" />
 			<dataarea name="rom" size="262144">
-				<rom name="fantasy zone ii - opa-opa no namida (japan).bin" size="262144" crc="c722fb42" sha1="60d8135e8f15fe48f504d0ec69010a4b886dcda8" offset="000000" />
+				<rom name="mpr-10847.ic1" size="262144" crc="c722fb42" sha1="60d8135e8f15fe48f504d0ec69010a4b886dcda8" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2036,8 +2142,11 @@
 		<info name="release" value="19860615 (JPN)"/>
 		<info name="alt_title" value="ファンタジーゾーン" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-10118 W01" />
 			<dataarea name="rom" size="131072">
-				<rom name="fantasy zone (world) (v1.2).bin" size="131072" crc="65d7e4e0" sha1="0278cd120dc3a7707eda9314c46c7f27f9e8fdda" offset="000000" />
+				<rom name="mpr-10118 w01.ic1" size="131072" crc="65d7e4e0" sha1="0278cd120dc3a7707eda9314c46c7f27f9e8fdda" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2059,8 +2168,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="G-1301"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5363" />
+			<feature name="ic1" value="MPR-7751" />
 			<dataarea name="rom" size="131072">
-				<rom name="fantasy zone (japan).bin" size="131072" crc="0ffbcaa3" sha1="b486d8be0cf669117e134f9e53a452bf71097479" offset="000000" />
+				<rom name="mpr-7751.ic1" size="131072" crc="0ffbcaa3" sha1="b486d8be0cf669117e134f9e53a452bf71097479" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2171,6 +2283,8 @@
 			<dataarea name="rom" size="262144">
 				<rom name="flash, the (europe).bin" size="262144" crc="be31d63f" sha1="1732b4c13fd00dd5efc5bf1ccb1ab6ed3889c8ba" offset="000000" />
 			</dataarea>
+			<dataarea name="ram" size="8192">
+			</dataarea>
 		</part>
 	</software>
 
@@ -2179,7 +2293,7 @@
 		<year>199?</year>
 		<publisher>Zemina</publisher>
 		<part name="cart" interface="sms_cart">
-			<feature name="pcb" value="korean_nobank" />
+			<feature name="slot" value="korean_nb" />
 			<dataarea name="rom" size="32768">
 				<rom name="flashpoint (kr).bin" size="32768" crc="61e8806f" sha1="bfa43eaa99c470eaa542ba37033651c2759b9874" offset="000000" />
 			</dataarea>
@@ -2192,8 +2306,11 @@
 		<publisher>Grandslam</publisher>
 		<info name="serial" value="MK-27013-50"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13701-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="flintstones, the (europe).bin" size="262144" crc="ca5c78a5" sha1="a0aa76d89f6831999c328877057a99e72c6b533b" offset="000000" />
+				<rom name="mpr-13701-f.ic1" size="262144" crc="ca5c78a5" sha1="a0aa76d89f6831999c328877057a99e72c6b533b" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2216,21 +2333,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7056"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13706-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="forgotten worlds (europe).bin" size="262144" crc="38c53916" sha1="3f034429b23b6976c961595c1bcbd68826cb760d" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="pitpot">
-		<description>Fushigi no Oshiro Pit Pot (Jpn)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-507"/>
-		<info name="release" value="19851214 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="fushigi no oshiro pit pot (japan).bin" size="32768" crc="e6795c53" sha1="b1afa682b2f70bfc4ab2020d7c3047aabbaf9a24" offset="000000" />
+				<rom name="mpr-13706-f.ic1" size="262144" crc="38c53916" sha1="3f034429b23b6976c961595c1bcbd68826cb760d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2291,8 +2398,11 @@
 		<info name="release" value="19880221"/>
 		<info name="alt_title" value="ギャラクティック プロテクター" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5552" />
+			<feature name="ic1" value="MPR-11385" />
 			<dataarea name="rom" size="131072">
-				<rom name="galactic protector (japan).bin" size="131072" crc="a6fa42d0" sha1="e8bcc3621e30ee445a74e6ddbe0842d0a6753f36" offset="000000" />
+				<rom name="mpr-11385.ic1" size="131072" crc="a6fa42d0" sha1="e8bcc3621e30ee445a74e6ddbe0842d0a6753f36" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2315,8 +2425,12 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="29001"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on Euro cart (nepereny's), dump to be confirmed (possible Rev. A?) -->
+			<feature name="pcb" value="171-5559-01D" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-12566A" />
 			<dataarea name="rom" size="524288">
-				<rom name="galaxy force (europe).bin" size="524288" crc="a4ac35d8" sha1="54fe2f686fb9ec3e34b41d58778118b11f920440" offset="000000" />
+				<rom name="mpr-12566a.ic2" size="524288" crc="a4ac35d8" sha1="54fe2f686fb9ec3e34b41d58778118b11f920440" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2334,13 +2448,21 @@
 	</software>
 
 	<software name="gamebox">
-		<description>Game Box Serie Esportes Radicais (Bra)</description>
+		<description>Game Box Série Esportes Radicais (Bra)</description>
 		<year>19??</year>
 		<publisher>Tec Toy</publisher>
 		<info name="serial" value="023.480"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-6424C" />
+			<feature name="u1" value="315-5365" /> <!-- Sega Memory Controller -->
+			<feature name="u2" value="MPR-18796" />
+			<feature name="u3" value="74HC163" />
+			<feature name="u4" value="74HC04" />
+			<feature name="u5" value="74HC08" />
+			<feature name="u6" value="74HC32" />
 			<dataarea name="rom" size="262144">
-				<rom name="game box serie esportes radicais (brazil).bin" size="262144" crc="1890f407" sha1="c0ee197e93c9ec81f5b788e8d6b20b3ab57d2259" offset="000000" />
+				<rom name="mpr-18796.ic1" size="262144" crc="1890f407" sha1="c0ee197e93c9ec81f5b788e8d6b20b3ab57d2259" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2351,8 +2473,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5074, 023.120"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's), to check the cart with MPR-10577 -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-11049" />
 			<dataarea name="rom" size="131072">
-				<rom name="gangster town (usa, europe).bin" size="131072" crc="5fc74d2a" sha1="57f0972109cb6f9a74c65d70d6497bc02fdfc942" offset="000000" />
+				<rom name="mpr-11049.ic1" size="131072" crc="5fc74d2a" sha1="57f0972109cb6f9a74c65d70d6497bc02fdfc942" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2375,8 +2500,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9004, 028.060"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13166" />
 			<dataarea name="rom" size="524288">
-				<rom name="golden axe (usa, europe).bin" size="524288" crc="c08132fb" sha1="d92538cb16a7a456255fa0da2bd8d0f588cd12ab" offset="000000" />
+				<rom name="mpr-13166.ic1" size="524288" crc="c08132fb" sha1="d92538cb16a7a456255fa0da2bd8d0f588cd12ab" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2387,8 +2515,15 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7505"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5602-B" />
+			<feature name="ic1" value="MPR-13664-F" />
+
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="262144">
-				<rom name="golden axe warrior (usa, europe).bin" size="262144" crc="c7ded988" sha1="fbda0486b393708a89756bb57d116ad6007484e4" offset="000000" />
+				<rom name="mpr-13664-f.ic1" size="262144" crc="c7ded988" sha1="fbda0486b393708a89756bb57d116ad6007484e4" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -2411,8 +2546,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5065, GB1024JG"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-10516" />
 			<dataarea name="rom" size="131072">
-				<rom name="ghostbusters (usa, europe).bin" size="131072" crc="1ddc3059" sha1="8945a9dfc99a2081a6fb74bbabf8feaac83a7e1a" offset="000000" />
+				<rom name="mpr-10516.ic1" size="131072" crc="1ddc3059" sha1="8945a9dfc99a2081a6fb74bbabf8feaac83a7e1a" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2423,32 +2561,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="4002 (Card), 4502 (Cart)"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-12586" />
 			<dataarea name="rom" size="32768">
-				<rom name="ghost house (usa, europe).bin" size="32768" crc="f1f8ff2d" sha1="cbce4c5d819be524f874ec9b60ca9442047a6681" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="ghosthp" cloneof="ghosth">
-		<description>Ghost House (Prototype)</description>
-		<year>1986</year>
-		<publisher>Sega</publisher>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="ghost house (usa, europe) (beta).bin" size="32768" crc="c3e7c1ed" sha1="f341e68bad5029bf475922c2c1b79eb109f467a1" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="ghosthj" cloneof="ghosth">
-		<description>Ghost House (Jpn)</description>
-		<year>1986</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-512"/>
-		<info name="release" value="19860421 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="ghost house (japan).bin" size="32768" crc="c0f3ce7e" sha1="051e74c499c6792f891668a7be23a11c2c4087af" offset="000000" />
+				<rom name="mpr-12586.ic1" size="32768" crc="f1f8ff2d" sha1="cbce4c5d819be524f874ec9b60ca9442047a6681" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2505,8 +2622,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5102"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519D" />
+			<feature name="ic1" value="MPR-11274" />
 			<dataarea name="rom" size="131072">
-				<rom name="global defense (usa, europe).bin" size="131072" crc="b746a6f5" sha1="189ee1d4250a1f33e97053aa804a97b4e1467728" offset="000000" />
+				<rom name="mpr-11274.ic1" size="131072" crc="b746a6f5" sha1="189ee1d4250a1f33e97053aa804a97b4e1467728" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2540,8 +2660,16 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7502"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-13144" />
+			<!-- MB8464A SRAM -->
+
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="262144">
-				<rom name="golfamania (europe).bin" size="262144" crc="48651325" sha1="d0b964dd7cd8ccdd730de4d8e4bb2e87bea7686e" offset="000000" />
+				<rom name="mpr-13144.ic1" size="262144" crc="48651325" sha1="d0b964dd7cd8ccdd730de4d8e4bb2e87bea7686e" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -2551,8 +2679,11 @@
 		<year>1990</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="262144">
 				<rom name="golfamania (europe) (beta).bin" size="262144" crc="5dabfdc3" sha1="da88dc3e84daa2f8b8d803b00a13b5fb3185d8c5" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -2563,8 +2694,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7017"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-11935F" />
 			<dataarea name="rom" size="262144">
-				<rom name="golvellius (usa, europe).bin" size="262144" crc="a51376fe" sha1="cb8c2de9a8e91c0e4e60e5d4d9958e671d84da4c" offset="000000" />
+				<rom name="mpr-11935f.ic1" size="262144" crc="a51376fe" sha1="cb8c2de9a8e91c0e4e60e5d4d9958e671d84da4c" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2587,21 +2721,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5061"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-10415 W11" />
 			<dataarea name="rom" size="131072">
-				<rom name="great baseball (usa, europe).bin" size="131072" crc="10ed6b57" sha1="b332344eb529bad29dfb582633e787f7e42f71ae" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="greatbasj" cloneof="greatbas">
-		<description>Great Baseball (Jpn)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-505"/>
-		<info name="release" value="19851215 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="great baseball (japan).bin" size="32768" crc="89e98a7c" sha1="e6eaaec61bec32dee5161ae59a7a0902f0d05dc9" offset="000000" />
+				<rom name="mpr-10415 w11.ic1" size="131072" crc="10ed6b57" sha1="b332344eb529bad29dfb582633e787f7e42f71ae" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2625,8 +2749,11 @@
 		<info name="release" value="19870329 (JPN)"/>
 		<info name="alt_title" value="グレート バスケットボール" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5362" />
+			<feature name="ic1" value="MPR-11073" />
 			<dataarea name="rom" size="131072">
-				<rom name="great basketball (world).bin" size="131072" crc="2ac001eb" sha1="2fdb7ebce61e316ded27b575535d4f475c9dd822" offset="000000" />
+				<rom name="mpr-11073.ic1" size="131072" crc="2ac001eb" sha1="2fdb7ebce61e316ded27b575535d4f475c9dd822" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2639,8 +2766,11 @@
 		<info name="release" value="19870429 (JPN)"/>
 		<info name="alt_title" value="グレート フットボール" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5362" />
+			<feature name="ic1" value="MPR-10576" />
 			<dataarea name="rom" size="131072">
-				<rom name="great football (world).bin" size="131072" crc="2055825f" sha1="a768f44ce7e50083ffe8c4b5e3ac93ceb7bd3266" offset="000000" />
+				<rom name="mpr-10576.ic1" size="131072" crc="2055825f" sha1="a768f44ce7e50083ffe8c4b5e3ac93ceb7bd3266" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2654,8 +2784,11 @@
 		<info name="release" value="19871010 (JPN)"/>
 		<info name="alt_title" value="マスターズ ゴルフ" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-11192 W36" />
 			<dataarea name="rom" size="131072">
-				<rom name="great golf (world).bin" size="131072" crc="98e4ae4a" sha1="3c0b12cfb70f2515429b6e88e0753d69dbb907ab" offset="000000" />
+				<rom name="mpr-11192 w36.ic1" size="131072" crc="98e4ae4a" sha1="3c0b12cfb70f2515429b6e88e0753d69dbb907ab" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2714,8 +2847,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5062 (USA)"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Jpn cart) -->
+			<feature name="pcb" value="171-5552" />
+			<feature name="ic1" value="MPR-10389" />
 			<dataarea name="rom" size="65536">
-				<rom name="great ice hockey (japan, usa).bin" size="65536" crc="0cb7e21f" sha1="bbe6bd6b59e5ae20cd1a4a8c72276aac7d2964a3" offset="000000" />
+				<rom name="mpr-10389.ic1" size="65536" crc="0cb7e21f" sha1="bbe6bd6b59e5ae20cd1a4a8c72276aac7d2964a3" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2732,19 +2868,6 @@
 		</part>
 	</software>
 
-	<software name="greatscrj" cloneof="greatscr">
-		<description>Great Soccer (Jpn)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-504"/>
-		<info name="release" value="19851027 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="great soccer (japan).bin" size="32768" crc="2d7fd7ef" sha1="110536303b7bccc193bef4437ba5a9eb6fd4ac8e" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
 	<software name="greatscrtw" cloneof="greatscr">
 		<description>Great Soccer (Tw)</description>
 		<year>1985?</year>
@@ -2754,19 +2877,6 @@
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="great soccer (tw).bin" size="32768" crc="84665648" sha1="88611c50fcaa307bfd70b2bd5effeb39c2c4f3ae" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="greattns" cloneof="stennis">
-		<description>Great Tennis (Jpn)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-515"/>
-		<info name="release" value="19851222 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="great tennis (japan).bin" size="32768" crc="95cbf3dd" sha1="e7f3529689cd29be3fa02f94266e4ee8e0795d7d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2818,17 +2928,20 @@
 		<info name="release" value="19871018"/>
 		<info name="alt_title" value="覇邪の封印" />
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="262144">
 				<rom name="haja no fuuin (japan).bin" size="262144" crc="b9fdf6d9" sha1="46a032004d49fec58099aa6bf0dd796997e95142" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
 
-	<!-- 4080 (Card), 4580 (Cart) -->
 	<software name="hangon">
 		<description>Hang-On (Euro, Bra, Aus)</description>
 		<year>1985</year>
 		<publisher>Sega</publisher>
+		<info name="serial" value="4080 (Card), 4580 (Cart)"/>
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="hang-on (europe).bin" size="32768" crc="071b045e" sha1="e601257f6477b85eb0b25a5b6d46ebc070d8a05a" offset="000000" />
@@ -2842,21 +2955,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="6002"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-11125" />
 			<dataarea name="rom" size="131072">
-				<rom name="hang-on &amp; astro warrior (usa).bin" size="131072" crc="1c5059f0" sha1="ae29f676846fc740a2cfc69756875b6480265f97" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="hangonj" cloneof="hangon">
-		<description>Hang-On (Jpn)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-502"/>
-		<info name="release" value="19851020 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="hang-on (japan).bin" size="32768" crc="5c01adf9" sha1="43552f58f0c0c292f3e4c1b1525fd0344dc220c6" offset="000000" />
+				<rom name="mpr-11125.ic1" size="131072" crc="1c5059f0" sha1="ae29f676846fc740a2cfc69756875b6480265f97" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2867,8 +2970,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="6001"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5364" />
+			<feature name="ic1" value="MPR-10137 W02" />
 			<dataarea name="rom" size="131072">
-				<rom name="hang-on &amp; safari hunt (usa).bin" size="131072" crc="e167a561" sha1="7c741493889788d4511979bcaa3c48708d6240ed" offset="000000" />
+				<rom name="mpr-10137 w02.ic1" size="131072" crc="e167a561" sha1="7c741493889788d4511979bcaa3c48708d6240ed" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -2981,8 +3087,11 @@
 		<info name="release" value="19880402"/>
 		<info name="alt_title" value="星をさがして..." />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5564" />
+			<feature name="ic1" value="MPR-11454" />
 			<dataarea name="rom" size="262144">
-				<rom name="hoshi wo sagasite... (japan).bin" size="262144" crc="955a009e" sha1="f9ce8b80d8671db6ab38ba5b7ce46324a65ebc3d" offset="000000" />
+				<rom name="mpr-11454.ic1" size="262144" crc="955a009e" sha1="f9ce8b80d8671db6ab38ba5b7ce46324a65ebc3d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3052,8 +3161,11 @@
 		<publisher>U.S. Gold</publisher>
 		<info name="serial" value="27008-50, 027.079"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13309" />
 			<dataarea name="rom" size="262144">
-				<rom name="indiana jones and the last crusade (europe).bin" size="262144" crc="8aeb574b" sha1="68e23692a12628dde805ded9de356c5e19e4eba6" offset="000000" />
+				<rom name="mpr-13309.ic1" size="262144" crc="8aeb574b" sha1="68e23692a12628dde805ded9de356c5e19e4eba6" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3098,8 +3210,11 @@
 		<publisher>Domark</publisher>
 		<info name="serial" value="MK-27046-50"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-15484" />
 			<dataarea name="rom" size="262144">
-				<rom name="james bond 007 - the duel (europe).bin" size="262144" crc="8d23587f" sha1="89f86869b90af986bee2acff44defe420e405a1e" offset="000000" />
+				<rom name="mpr-15484.ic1" size="262144" crc="8d23587f" sha1="89f86869b90af986bee2acff44defe420e405a1e" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3122,6 +3237,7 @@
 		<publisher>Daou Infosys</publisher>
 		<info name="alt_title" value="장군의 아들"/>
 		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="janggun" />
 			<dataarea name="rom" size="524288">
 				<rom name="janggun ui adeul (kr).bin" size="524288" crc="192949d5" sha1="a290e41e0218dd54c7774229a7bf77c0e6b037f9" offset="00000" />
 			</dataarea>
@@ -3133,7 +3249,7 @@
 		<year>1994</year>
 		<publisher>Sanghun</publisher>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="korean" />
+			<feature name="slot" value="korean" />
 			<dataarea name="rom" size="1048576">
 				<rom name="jang pung 3 (kr).bin" size="1048576" crc="18fb98a3" sha1="1b2b525ef2ab2d7ea3f934f0c229dab33af56d90" offset="000000" />
 			</dataarea>
@@ -3146,8 +3262,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7062"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-13605 T35" />
 			<dataarea name="rom" size="262144">
-				<rom name="joe montana football (usa, europe).bin" size="262144" crc="0a9089e5" sha1="7452f7286cee78ce4bbd05841a4d087fdfba12e3" offset="000000" />
+				<rom name="mpr-13605 t35.ic1" size="262144" crc="0a9089e5" sha1="7452f7286cee78ce4bbd05841a4d087fdfba12e3" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3159,8 +3278,11 @@
 		<publisher>Virgin Interactive</publisher>
 		<info name="serial" value="MK-27069-50, MK-27069-09, MK-27069-18, 027.330"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-16057" />
 			<dataarea name="rom" size="262144">
-				<rom name="jungle book, the (europe).bin" size="262144" crc="695a9a15" sha1="f65b5957b4b21bd16b4aa8a6e93fed944dd7d9ac" offset="000000" />
+				<rom name="mpr-16057.ic1" size="262144" crc="695a9a15" sha1="f65b5957b4b21bd16b4aa8a6e93fed944dd7d9ac" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3198,8 +3320,11 @@
 		<info name="release" value="19880602"/>
 		<info name="alt_title" value="剣聖伝" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5564" />
+			<feature name="ic1" value="MPR-11488" />
 			<dataarea name="rom" size="262144">
-				<rom name="kenseiden (japan).bin" size="262144" crc="05ea5353" sha1="cd349833ff41821635c6242a0b8cef7e071103d5" offset="000000" />
+				<rom name="mpr-11488.ic1" size="262144" crc="05ea5353" sha1="cd349833ff41821635c6242a0b8cef7e071103d5" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3252,12 +3377,12 @@
 	</software>
 
 	<software name="knightm2">
-		<description>Knightmare II: The Maze of Galious (Kor)</description>
+		<description>Knightmare II - The Maze of Galious (Kor)</description>
 		<year>199?</year>
 		<publisher>Zemina?</publisher>
 		<info name="alt_title" value="마성전설 II (Maseong Jeonseol II)" />
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="zemina" />
+			<feature name="slot" value="zemina" />
 			<dataarea name="rom" size="131072">
 				<rom name="knightmare ii - the maze of galious [kr].bin" size="131072" crc="f89af3cc" sha1="b716266e936b7cd0a6e29785ae3e7686e1b35793" offset="000000"/>
 			</dataarea>
@@ -3297,8 +3422,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5078"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-11069" />
 			<dataarea name="rom" size="131072">
-				<rom name="kung fu kid (usa, europe).bin" size="131072" crc="1e949d1f" sha1="7e1c32f5abf9ff906ffe113ffab6eecd1c86b381" offset="000000" />
+				<rom name="mpr-11069.ic1" size="131072" crc="1e949d1f" sha1="7e1c32f5abf9ff906ffe113ffab6eecd1c86b381" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3309,8 +3437,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9014"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15163" />
 			<dataarea name="rom" size="524288">
-				<rom name="land of illusion starring mickey mouse (europe).bin" size="524288" crc="24e97200" sha1="a120f29c6bf2e733775d5b984bd3a156682699c6" offset="000000" />
+				<rom name="mpr-15163.ic1" size="524288" crc="24e97200" sha1="a120f29c6bf2e733775d5b984bd3a156682699c6" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3333,8 +3464,11 @@
 		<publisher>Tec Toy</publisher>
 		<info name="serial" value="028.750"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-20989-S" />
 			<dataarea name="rom" size="524288">
-				<rom name="legend of illusion starring mickey mouse (brazil).bin" size="524288" crc="6350e649" sha1="62adbd8e5a41d08c4745e9fbb1c51f0091c9dea6" offset="000000" />
+				<rom name="mpr-20989-s.ic1" size="524288" crc="6350e649" sha1="62adbd8e5a41d08c4745e9fbb1c51f0091c9dea6" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3345,8 +3479,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7108, 025.204, GB2032JG"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15221-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="lemmings (europe).bin" size="262144" crc="f369b2d8" sha1="f3a853cce1249a0848bfc0344f3ee2db6efa4c01" offset="000000" />
+				<rom name="mpr-15221-f.ic1" size="262144" crc="f369b2d8" sha1="f3a853cce1249a0848bfc0344f3ee2db6efa4c01" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3423,8 +3560,12 @@
 		<info name="release" value="19870218"/>
 		<info name="alt_title" value="シャーロック・ホームズ - ロレッタの肖像" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on Enri's website -->
+			<feature name="pcb" value="171-5363-01" />
+			<feature name="ic1" value="315-5208" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-10517" />
 			<dataarea name="rom" size="131072">
-				<rom name="loretta no shouzou (japan).bin" size="131072" crc="323f357f" sha1="0ddd7448f5bd437d0d33b85a44f2bcc2bf2ea05e" offset="000000" />
+				<rom name="mpr-10517.ic2" size="131072" crc="323f357f" sha1="0ddd7448f5bd437d0d33b85a44f2bcc2bf2ea05e" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3435,8 +3576,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7072"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on Euro cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-14358-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="lucky dime caper starring donald duck, the (europe).bin" size="262144" crc="a1710f13" sha1="a08815d27e431f0bee70b4ebfb870a3196c2a732" offset="000000" />
+				<rom name="mpr-14358-f.ic1" size="262144" crc="a1710f13" sha1="a08815d27e431f0bee70b4ebfb870a3196c2a732" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3460,8 +3604,11 @@
 		<info name="release" value="19871018"/>
 		<info name="alt_title" value="麻雀戦国時代" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5518" />
+			<feature name="ic1" value="MPR-11193" />
 			<dataarea name="rom" size="131072">
-				<rom name="mahjong sengoku jidai (japan).bin" size="131072" crc="bcfbfc67" sha1="9b7cd3a25b2a1fc880683dcdca81457c93d46de5" offset="000000" />
+				<rom name="mpr-11193.ic1" size="131072" crc="bcfbfc67" sha1="9b7cd3a25b2a1fc880683dcdca81457c93d46de5" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3485,8 +3632,12 @@
 		<info name="release" value="19870517"/>
 		<info name="alt_title" value="魔界列伝" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5363-01" />
+			<!-- is there a 315-5208? -->
+			<feature name="ic1" value="MPR-10742" />
 			<dataarea name="rom" size="131072">
-				<rom name="makai retsuden (japan).bin" size="131072" crc="ca860451" sha1="59d520fdb2b6cbd5736b2bd6045ad3ee3ad2e3a6" offset="000000" />
+				<rom name="mpr-10742.ic1" size="131072" crc="ca860451" sha1="59d520fdb2b6cbd5736b2bd6045ad3ee3ad2e3a6" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3535,8 +3686,12 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="6080"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="315-5208" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-10157F" />
 			<dataarea name="rom" size="131072">
-				<rom name="marksman shooting &amp; trap shooting &amp; safari hunt (europe).bin" size="131072" crc="e8215c2e" sha1="eaae5c9d9de24c0991500122042b3aa2210d50d9" offset="000000" />
+				<rom name="mpr-10157f.ic2" size="131072" crc="e8215c2e" sha1="eaae5c9d9de24c0991500122042b3aa2210d50d9" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3571,8 +3726,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7107, 7107-50, 025.112"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on Euro cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-15203-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="master of darkness (europe).bin" size="262144" crc="96fb4d4b" sha1="ed3569be5d5a49ff5a09b2b04ec0101d4edfa81e" offset="000000" />
+				<rom name="mpr-15203-f.ic1" size="262144" crc="96fb4d4b" sha1="ed3569be5d5a49ff5a09b2b04ec0101d4edfa81e" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3583,8 +3741,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="8003"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-11564" />
 			<dataarea name="rom" size="131072">
-				<rom name="maze hunter 3-d (usa, europe).bin" size="131072" crc="31b8040b" sha1="6d94c2159a67f3140d0c9158b58aa8f0474eaaba" offset="000000" />
+				<rom name="mpr-11564.ic1" size="131072" crc="31b8040b" sha1="6d94c2159a67f3140d0c9158b58aa8f0474eaaba" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3598,8 +3759,11 @@
 		<info name="release" value="19880131"/>
 		<info name="alt_title" value="メイズ ウォーカー" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5514" />
+			<feature name="ic1" value="MPR-11337" />
 			<dataarea name="rom" size="131072">
-				<rom name="maze walker (japan).bin" size="131072" crc="871562b0" sha1="ade756eccaf94c79e8b3636921b6f8669a163265" offset="000000" />
+				<rom name="mpr-11337.ic1" size="131072" crc="871562b0" sha1="ade756eccaf94c79e8b3636921b6f8669a163265" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3625,8 +3789,12 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9007"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5559-01D" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-14269-F" />
 			<dataarea name="rom" size="524288">
-				<rom name="mercs (europe).bin" size="524288" crc="d7416b83" sha1="f2cfad96a116bde9a91240eb1ad520dc448fa20f" offset="000000" />
+				<rom name="mpr-14269-f.ic1" size="524288" crc="d7416b83" sha1="f2cfad96a116bde9a91240eb1ad520dc448fa20f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3649,8 +3817,11 @@
 		<publisher>Virgin Interactive</publisher>
 		<info name="serial" value="MK-27062-50, 027.090"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15510-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="mick &amp; mack as the global gladiators (europe).bin" size="262144" crc="b67ceb76" sha1="e2e2f45e43f0d4fa5974327e96d7c3ee7f057fad" offset="000000" />
+				<rom name="mpr-15510-f.ic1" size="262144" crc="b67ceb76" sha1="e2e2f45e43f0d4fa5974327e96d7c3ee7f057fad" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3661,7 +3832,7 @@
 		<publisher>Codemasters</publisher>
 		<info name="serial" value="19001"/>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="codemasters" />
+			<feature name="slot" value="codemasters" />
 			<dataarea name="rom" size="262144">
 				<rom name="micro machines (europe).bin" size="262144" crc="a577ce46" sha1="425621f350d011fd021850238c6de9999625fd69" offset="000000" />
 			</dataarea>
@@ -3674,8 +3845,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7500"/>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="262144">
 				<rom name="miracle warriors - seal of the dark lord (usa, europe).bin" size="262144" crc="0e333b6e" sha1="f952406bca4918ee91a89b27e949e224eae96d85" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -3685,8 +3859,11 @@
 		<year>1987</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="262144">
 				<rom name="miracle warriors - seal of the dark lord (usa, europe) (beta).bin" size="262144" crc="301a59aa" sha1="5f1cfc974a8ffc965f18216a89472fd1a980d7cb" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -3697,8 +3874,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="8001, 023.230"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-10844 W29" />
 			<dataarea name="rom" size="131072">
-				<rom name="missile defense 3-d (usa, europe).bin" size="131072" crc="fbe5cfbb" sha1="86242fcc8b9f93cdad2241f40c3eebbf4c9ff213" offset="000000" />
+				<rom name="mpr-10844 w29.ic1" size="131072" crc="fbe5cfbb" sha1="86242fcc8b9f93cdad2241f40c3eebbf4c9ff213" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3709,8 +3889,11 @@
 		<publisher>Arena</publisher>
 		<info name="serial" value="MK-29021-50, 028.240"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15757" />
 			<dataarea name="rom" size="524288">
-				<rom name="mortal kombat (europe).bin" size="524288" crc="302dc686" sha1="3f67e0e702f391839b51a43125f971ae1c5fad92" offset="000000" />
+				<rom name="mpr-15757.ic1" size="524288" crc="302dc686" sha1="3f67e0e702f391839b51a43125f971ae1c5fad92" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3755,8 +3938,11 @@
 		<year>1988</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="131072">
 				<rom name="monopoly (usa, europe).bin" size="131072" crc="026d94a4" sha1="6bad7176011dd4bbd007498d167399daacde173d" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -3767,8 +3953,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5500"/>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="131072">
 				<rom name="monopoly (usa).bin" size="131072" crc="69538469" sha1="8dd7bb4f666f70f7f57687823d0068c9100af8e5" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -3778,8 +3967,11 @@
 		<year>1988</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="131072">
 				<rom name="monopoly [proto].bin" size="131072" crc="7e9d87fc" sha1="68830fb46a010cf2f2d04bdc69e3759f6d42b8de" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -3790,8 +3982,11 @@
 		<publisher>Parker Brothers</publisher>
 		<info name="serial" value="4370"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12402" />
 			<dataarea name="rom" size="131072">
-				<rom name="montezuma's revenge featuring panama joe (usa).bin" size="131072" crc="82fda895" sha1="a2665093b8588d5d6f24c6b329080fb3ebee896e" offset="000000" />
+				<rom name="mpr-12402.ic1" size="131072" crc="82fda895" sha1="a2665093b8588d5d6f24c6b329080fb3ebee896e" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3882,8 +4077,11 @@
 		<year>1989</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="262144">
 				<rom name="super golf [proto].bin" size="262144" crc="7f7b568d" sha1="ebe733ea693fa46edde43260fdb963cab71317e1" offset="000000"/>
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -3897,8 +4095,11 @@
 		<info name="release" value="19880909"/>
 		<info name="alt_title" value="熱球甲子園" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5441" />
+			<feature name="ic1" value="MPR-11886" />
 			<dataarea name="rom" size="262144">
-				<rom name="nekkyuu koushien (japan).bin" size="262144" crc="5b5f9106" sha1="35e882723189178c1dc811a04125daec4487e693" offset="000000" />
+				<rom name="mpr-11886.ic1" size="262144" crc="5b5f9106" sha1="35e882723189178c1dc811a04125daec4487e693" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3909,8 +4110,22 @@
 		<publisher>Zemina</publisher>
 		<info name="alt_title" value="그라디우스 ~ Gradius (Box)"/>
 		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="nemesis" />
 			<dataarea name="rom" size="131072">
 				<rom name="nemesis (kr).bin" size="131072" crc="e316c06d" sha1="fbee313aaa8d7acea4acbb763592f73466596113" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="nemesis2">
+		<description>Nemesis 2 (Kor)</description>
+		<year>1987</year>
+		<publisher>Zemina</publisher>
+		<info name="alt_title" value="그라디우 2 ~ Gradius 2 (Box?)"/>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="zemina" />
+			<dataarea name="rom" size="131072">
+				<rom name="nemesis 2 (kr).bin" size="131072" crc="0a77fa5e" sha1="4b0c286448bde49f9247a4f9a5add38d48021fd7" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3922,8 +4137,29 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5066"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's), according to SMS Power the Euro cart uses a diff PCB with 315-5208?? -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-11046" />
 			<dataarea name="rom" size="131072">
-				<rom name="ninja, the (usa, europe).bin" size="131072" crc="66a15bd9" sha1="76396a25902700e18adf6bc5c8668e2a8bdf03a9" offset="000000" />
+				<rom name="mpr-11046.ic1" size="131072" crc="66a15bd9" sha1="76396a25902700e18adf6bc5c8668e2a8bdf03a9" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="ninjaj" cloneof="ninja">
+		<description>The Ninja (Jpn)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="G-1308"/>
+		<info name="release" value="19861108"/>
+		<info name="alt_title" value="忍者 忍者プリンセス1メガ版" />
+		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5363-01" />
+			<!-- is there a 315-5208? -->
+			<feature name="ic1" value="MPR-10409" />
+			<dataarea name="rom" size="131072">
+				<rom name="mpr-10409.ic1" size="131072" crc="320313ec" sha1="e9acdae112a898f7db090fc0b8f1ce9b86637234" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3934,8 +4170,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7101"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-14677" />
 			<dataarea name="rom" size="262144">
-				<rom name="ninja gaiden (europe).bin" size="262144" crc="1b1d8cc2" sha1="4c65db563e8407444020ab7fd93fc45193ae923a" offset="000000" />
+				<rom name="mpr-14677.ic1" size="262144" crc="1b1d8cc2" sha1="4c65db563e8407444020ab7fd93fc45193ae923a" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -3951,28 +4190,17 @@
 		</part>
 	</software>
 
-	<software name="ninjaj" cloneof="ninja">
-		<description>The Ninja (Jpn)</description>
-		<year>1986</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="G-1308"/>
-		<info name="release" value="19861108"/>
-		<info name="alt_title" value="忍者 忍者プリンセス1メガ版" />
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="131072">
-				<rom name="ninja (japan).bin" size="131072" crc="320313ec" sha1="e9acdae112a898f7db090fc0b8f1ce9b86637234" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
 	<software name="olympgld">
 		<description>Olympic Gold (Euro)</description>
 		<year>1992</year>
 		<publisher>U.S. Gold</publisher>
 		<info name="serial" value="MK-27030-50, MK-27030-05, MK-27030-06, MK-27030-09, MK-27030-18"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-14754-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="olympic gold (europe) (en,fr,de,es,it,nl,pt,sv).bin" size="262144" crc="6a5a1e39" sha1="21d7e4d99b1d35ad7c169cc16162a0873661fcd4" offset="000000" />
+				<rom name="mpr-14754-f.ic1" size="262144" crc="6a5a1e39" sha1="21d7e4d99b1d35ad7c169cc16162a0873661fcd4" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4037,8 +4265,11 @@
 		<info name="release" value="19870630 (JPN)"/>
 		<info name="alt_title" value="アウト ラン" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's), to check the cart with MPR-10845 -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-11078 W04" />
 			<dataarea name="rom" size="262144">
-				<rom name="out run (world).bin" size="262144" crc="5589d8d2" sha1="4f9b61b24f0d9fee0448cdbbe8fc05411dbb1102" offset="000000" />
+				<rom name="mpr-11078 w04.ic1" size="262144" crc="5589d8d2" sha1="4f9b61b24f0d9fee0448cdbbe8fc05411dbb1102" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4049,8 +4280,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="8007"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12130" />
 			<dataarea name="rom" size="262144">
-				<rom name="out run 3-d (europe).bin" size="262144" crc="d6f43dda" sha1="93c3fbe23848556fc6a737db1b5182537db5961d" offset="000000" />
+				<rom name="mpr-12130.ic1" size="262144" crc="d6f43dda" sha1="93c3fbe23848556fc6a737db1b5182537db5961d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4097,8 +4331,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5121"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-13306A-M" />
 			<dataarea name="rom" size="131072">
-				<rom name="paperboy (usa).bin" size="131072" crc="327a0b4c" sha1="736718efab4737ebf9d06221ac35fa2fcc4593ce" offset="000000" />
+				<rom name="mpr-13306a-m.ic1" size="131072" crc="327a0b4c" sha1="736718efab4737ebf9d06221ac35fa2fcc4593ce" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4109,8 +4346,12 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5013"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5365-01" />
+			<feature name="ic1" value="315-5208" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-11817-S" />
 			<dataarea name="rom" size="131072">
-				<rom name="parlour games (usa, europe).bin" size="131072" crc="e030e66c" sha1="06664daf208f07cb00b603b12eccfc3f01213a17" offset="000000" />
+				<rom name="mpr-11817-s.ic2" size="131072" crc="e030e66c" sha1="06664daf208f07cb00b603b12eccfc3f01213a17" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4132,7 +4373,7 @@
 		<publisher>Zemina</publisher>
 		<info name="alt_title" value="꿈의대륙 (Kkum Ui Dai Ryuk)" />
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="zemina" />
+			<feature name="slot" value="zemina" />
 			<dataarea name="rom" size="131072">
 				<rom name="penguin adventure (kr).bin" size="131072" crc="445525e2" sha1="9d0c8fb5f1ff6f596aa156264db8d7c1c778b1bf" offset="000000" />
 			</dataarea>
@@ -4145,8 +4386,17 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5501"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-11190" />
+			<!-- Also RAM present -->
+
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="131072">
-				<rom name="penguin land (usa, europe).bin" size="131072" crc="f97e9875" sha1="8762239c339a084dfb8443cc38515301476bde28" offset="000000" />
+				<rom name="mpr-11190.ic1" size="131072" crc="f97e9875" sha1="8762239c339a084dfb8443cc38515301476bde28" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -4164,7 +4414,7 @@
 	</software>
 
 	<software name="pitfight">
-		<description>Pit Fighter (Euro)</description>
+		<description>PitFighter - The Ultimate Challenge (Euro)</description>
 		<year>1991</year>
 		<publisher>Domark</publisher>
 		<info name="serial" value="MK-29009-50"/>
@@ -4176,7 +4426,7 @@
 	</software>
 
 	<software name="pitfightb" cloneof="pitfight">
-		<description>Pit Fighter (Bra)</description>
+		<description>PitFighter - The Ultimate Challenge (Bra)</description>
 		<year>1991</year>
 		<publisher>Tec Toy</publisher>
 		<info name="serial" value="028.250"/>
@@ -4216,8 +4466,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="8006"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-12122F" />
 			<dataarea name="rom" size="262144">
-				<rom name="poseidon wars 3-d (usa, europe).bin" size="262144" crc="abd48ad2" sha1="c177effd5fd18a082393a2b4167c49bcc5db1f64" offset="000000" />
+				<rom name="mpr-12122f.ic1" size="262144" crc="abd48ad2" sha1="c177effd5fd18a082393a2b4167c49bcc5db1f64" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4228,8 +4481,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5109, GB-1004"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's), dump to be confirmed -->
+			<feature name="pcb" value="171-5519D" />
+			<feature name="ic1" value="MPR-11685 W48" />
 			<dataarea name="rom" size="131072">
-				<rom name="power strike (usa, europe).bin" size="131072" crc="4077efd9" sha1="f6f245c41163b15bce95368e4684b045790a1148" offset="000000" />
+				<rom name="mpr-11685 w48.ic1" size="131072" crc="4077efd9" sha1="f6f245c41163b15bce95368e4684b045790a1148" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4240,8 +4496,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9024"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15671" />
 			<dataarea name="rom" size="524288">
-				<rom name="power strike ii (europe).bin" size="524288" crc="a109a6fe" sha1="3bcffd47294f25b25cccb7f42c3a9c3f74333d73" offset="000000" />
+				<rom name="mpr-15671.ic1" size="524288" crc="a109a6fe" sha1="3bcffd47294f25b25cccb7f42c3a9c3f74333d73" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4287,8 +4546,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5056"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5519D" />
+			<feature name="ic1" value="MPR-10154F, MPR-10154-S" />
 			<dataarea name="rom" size="131072">
-				<rom name="pro wrestling (usa, europe).bin" size="131072" crc="fbde42d3" sha1="b0e4832af04b4fb832092ad093d982ce11160eef" offset="000000" />
+				<rom name="mpr-10154f.ic1" size="131072" crc="fbde42d3" sha1="b0e4832af04b4fb832092ad093d982ce11160eef" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4301,8 +4563,12 @@
 		<info name="release" value="19870817"/>
 		<info name="alt_title" value="ザ・プロ野球 ペナントレース" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5363-01" />
+			<!-- is there a 315-5208? -->
+			<feature name="ic1" value="MPR-10749" />
 			<dataarea name="rom" size="131072">
-				<rom name="pro yakyuu pennant race, the (japan).bin" size="131072" crc="da9be8f0" sha1="1ee602f8711d82d13b006984cef95512a93c7783" offset="000000" />
+				<rom name="mpr-10749.ic1" size="131072" crc="da9be8f0" sha1="1ee602f8711d82d13b006984cef95512a93c7783" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4313,8 +4579,18 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9500"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5603A" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-11711AT" />
+			<feature name="ic3" value="MB8464A-15LL-SK" />
+			<feature name="ic4" value="T529F" />
+
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="524288">
-				<rom name="phantasy star (usa, europe) (v1.3).bin" size="524288" crc="00bef1d7" sha1="07fcf297be4f4c9d92cd3f119a7ac48467e06838" offset="000000" />
+				<rom name="mpr-11711at.ic2" size="524288" crc="00bef1d7" sha1="07fcf297be4f4c9d92cd3f119a7ac48467e06838" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -4324,8 +4600,11 @@
 		<year>1987</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="524288">
 				<rom name="phantasy star (usa, europe) (v1.2).bin" size="524288" crc="e4a65e79" sha1="257ca76ebcd54c75a414ca7ce968fa59ea42f150" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -4336,8 +4615,11 @@
 		<publisher>Tec Toy</publisher>
 		<info name="serial" value="029.010"/>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="524288">
 				<rom name="phantasy star (brazil).bin" size="524288" crc="75971bef" sha1="fd8dad6acb6fa75dc8e9bbaea2a7e9fd486fc2dd" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -4351,8 +4633,15 @@
 		<info name="release" value="19871220"/>
 		<info name="alt_title" value="ファンタシースター" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5583" />
+			<feature name="ic1" value="MPR-11198" />
+
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="524288">
-				<rom name="phantasy star (japan).bin" size="524288" crc="6605d36a" sha1="c9a40ddd217c58dddcd6b5c0fe66c3a50d3e68e4" offset="000000" />
+				<rom name="mpr-11198.ic1" size="524288" crc="6605d36a" sha1="c9a40ddd217c58dddcd6b5c0fe66c3a50d3e68e4" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -4364,8 +4653,11 @@
 		<year>1994</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="524288">
 				<rom name="phantasy star (j) (from saturn collection cd) [!].bin" size="524288" crc="07301f83" sha1="b3ae447dc739256616b44cbd77cb903c9f19e980" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -4376,8 +4668,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="GB-4014KS"/>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="524288">
 				<rom name="phantasy star (korea).bin" size="524288" crc="747e83b5" sha1="52b2aa52a1c96e15869498a8e42b074705070007" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -4446,8 +4741,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5073"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519D" />
+			<feature name="ic1" value="MPR-10418 W15" />
 			<dataarea name="rom" size="131072">
-				<rom name="quartet (usa, europe).bin" size="131072" crc="e0f34fa6" sha1="08a3484e862a284f6038b7cd0dfc745a8b7c6c51" offset="000000" />
+				<rom name="mpr-10418 w15.ic1" size="131072" crc="e0f34fa6" sha1="08a3484e862a284f6038b7cd0dfc745a8b7c6c51" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4494,8 +4792,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5064"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-10407 W10" />
 			<dataarea name="rom" size="131072">
-				<rom name="rambo - first blood part ii (usa).bin" size="131072" crc="bbda65f0" sha1="dc44b090a01d6a4d9b5700ada764b00c62c00e91" offset="000000" />
+				<rom name="mpr-10407 w10.ic1" size="131072" crc="bbda65f0" sha1="dc44b090a01d6a4d9b5700ada764b00c62c00e91" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4506,8 +4807,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7015"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-12036F" />
 			<dataarea name="rom" size="262144">
-				<rom name="rambo iii (usa, europe).bin" size="262144" crc="da5a7013" sha1="6d9746c0e3c50e87fa773a64e2f0bb76f722d76c" offset="000000" />
+				<rom name="mpr-12036f.ic1" size="262144" crc="da5a7013" sha1="6d9746c0e3c50e87fa773a64e2f0bb76f722d76c" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4518,8 +4822,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="27005, QC-001 (USA)"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-12042F" />
 			<dataarea name="rom" size="262144">
-				<rom name="rampage (usa, europe).bin" size="262144" crc="42fc47ee" sha1="cbf5b6f06bec42db8a99c7b9c00118521aded858" offset="000000" />
+				<rom name="mpr-12042f.ic1" size="262144" crc="42fc47ee" sha1="cbf5b6f06bec42db8a99c7b9c00118521aded858" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4554,8 +4861,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="27007"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-12903 T24" />
 			<dataarea name="rom" size="262144">
-				<rom name="r.c. grand prix (usa, europe).bin" size="262144" crc="54316fea" sha1="94cc64f6febdb0fe4e89ecd9deeca96694e5bead" offset="000000" />
+				<rom name="mpr-12903 t24.ic1" size="262144" crc="54316fea" sha1="94cc64f6febdb0fe4e89ecd9deeca96694e5bead" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4601,8 +4911,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5106"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-11400" />
 			<dataarea name="rom" size="131072">
-				<rom name="rescue mission (usa, europe).bin" size="131072" crc="79ac8e7f" sha1="6a561bff2f8022261708b91722caf1ec0e63f9c4" offset="000000" />
+				<rom name="mpr-11400.ic1" size="131072" crc="79ac8e7f" sha1="6a561bff2f8022261708b91722caf1ec0e63f9c4" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4663,8 +4976,11 @@
 		<info name="release" value="19870419 (JPN)"/>
 		<info name="alt_title" value="ロッキー" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's), to check the Jpn cart on a 171-5440 PCB with MPR-10575 -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-11072 W01" />
 			<dataarea name="rom" size="262144">
-				<rom name="rocky (world).bin" size="262144" crc="1bcc7be3" sha1="8601927ca17419f5d61f757e9371ce533228f7bb" offset="000000" />
+				<rom name="mpr-11072 w01.ic1" size="262144" crc="1bcc7be3" sha1="8601927ca17419f5d61f757e9371ce533228f7bb" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4678,8 +4994,12 @@
 		<info name="release" value="19881001 (JPN)"/>
 		<info name="alt_title" value="アールタイプ" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5559-01D" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-12002 T13" />
 			<dataarea name="rom" size="524288">
-				<rom name="r-type (world).bin" size="524288" crc="bb54b6b0" sha1="08ec70a2cd98fcb2645f59857f845d41b0045115" offset="000000" />
+				<rom name="mpr-12002 t13.ic2" size="524288" crc="bb54b6b0" sha1="08ec70a2cd98fcb2645f59857f845d41b0045115" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4701,8 +5021,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7037, 024.300"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-14252-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="running battle (europe).bin" size="262144" crc="1fdae719" sha1="8f680b3a9782304a2f879f6590dc78ea4e366163" offset="000000" />
+				<rom name="mpr-14252-f.ic1" size="262144" crc="1fdae719" sha1="8f680b3a9782304a2f879f6590dc78ea4e366163" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4724,7 +5047,7 @@
 		<year>1994</year>
 		<publisher>Game Line</publisher>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="korean" />
+			<feature name="slot" value="korean" />
 			<dataarea name="rom" size="1048576">
 				<rom name="sangokushi 3 (korea) (unl).bin" size="1048576" crc="97d03541" sha1="c0256188b15271bb814bb8356b3311340e53ea3e" offset="000000" />
 			</dataarea>
@@ -4764,19 +5087,6 @@
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="262144">
 				<rom name="sapo xule vs. os invasores do brejo (brazil).bin" size="262144" crc="9a608327" sha1="fb4205bf1c1df55455a7ab4d4a6a9c5fe7d12a0b" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="satell7">
-		<description>Satellite 7 (Jpn)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-506"/>
-		<info name="release" value="19851220 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="satellite 7 (japan).bin" size="32768" crc="16249e19" sha1="88fc5596773ea31eda8ae5a8baf6f0ce5c3f7e5e" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4859,8 +5169,11 @@
 		<info name="serial" value="G-1338"/>
 		<info name="release" value="19871024"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5177" />
+			<feature name="ic1" value="MPR-11191" />
 			<dataarea name="rom" size="131072">
-				<rom name="sdi (japan).bin" size="131072" crc="1de2c2d0" sha1="2000b3b291dd7b76c3b8801a88fb0e293ca7e278" offset="000000" />
+				<rom name="mpr-11191.ic1" size="131072" crc="1de2c2d0" sha1="2000b3b291dd7b76c3b8801a88fb0e293ca7e278" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -4897,19 +5210,6 @@
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="262144">
 				<rom name="sega world tournament golf (europe).bin" size="262144" crc="296879dd" sha1="fd5a92e74a3c5fa16727637f1839b28595449bf6" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="seishun" cloneof="myhero">
-		<description>Seishun Scandal (Jpn)</description>
-		<year>1986</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-510"/>
-		<info name="release" value="19860131 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="seishun scandal (japan).bin" size="32768" crc="f0ba2bc6" sha1="6942f38e608cc7d70cf9cc8c13ee8c22e4b81679" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5002,8 +5302,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7080"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-11071" />
 			<dataarea name="rom" size="262144">
-				<rom name="space harrier (usa, europe).bin" size="262144" crc="ca1d3752" sha1="9e92d8e27fad71635c71612e8bdd632d760f9a2d" offset="000000" />
+				<rom name="mpr-11071.ic1" size="262144" crc="ca1d3752" sha1="9e92d8e27fad71635c71612e8bdd632d760f9a2d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5014,8 +5317,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="8004"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-11564" />
 			<dataarea name="rom" size="262144">
-				<rom name="space harrier 3-d (usa, europe).bin" size="262144" crc="6bd5c2bf" sha1="ce3507f62563f7d4cb4b2fc6497317685626af92" offset="000000" />
+				<rom name="mpr-11564.ic1" size="262144" crc="6bd5c2bf" sha1="ce3507f62563f7d4cb4b2fc6497317685626af92" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5043,6 +5349,12 @@
 		<info name="release" value="19861221 (JPN)"/>
 		<info name="alt_title" value="スペースハリアー" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power, dump to be split!
+			Jpn version also found on a 171-5440 PCB with single chip MPR-10412, to check the cart with MPR-11076 -->
+			<feature name="pcb" value="171-5559-01D" />
+			<feature name="ic1?" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2?" value="MPR-10410" />
+			<feature name="ic3?" value="MPR-10411" />
 			<dataarea name="rom" size="262144">
 				<rom name="space harrier (japan).bin" size="262144" crc="beddf80e" sha1="51ba2185a2b93957c1c51b0a2e2b80394463bed8" offset="000000" />
 			</dataarea>
@@ -5082,8 +5394,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5072"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-10515" />
 			<dataarea name="rom" size="131072">
-				<rom name="shooting gallery (usa, europe).bin" size="131072" crc="4b051022" sha1="6c22e3fa928c2aed468e925af65ea7f7c6292905" offset="000000" />
+				<rom name="mpr-10515.ic1" size="131072" crc="4b051022" sha1="6c22e3fa928c2aed468e925af65ea7f7c6292905" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5128,8 +5443,11 @@
 		<year>1989</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-12934" />
 			<dataarea name="rom" size="262144">
-				<rom name="slap shot (usa).bin" size="262144" crc="c93bd0e9" sha1="6327fb7129ecfcebdcd6b9c941703fda15a8a195" offset="000000" />
+				<rom name="mpr-12934.ic1" size="262144" crc="c93bd0e9" sha1="6327fb7129ecfcebdcd6b9c941703fda15a8a195" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5151,8 +5469,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7043"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13289" />
 			<dataarea name="rom" size="262144">
-				<rom name="super monaco gp (europe).bin" size="262144" crc="55bf81a0" sha1="0f11b9d7d6d16b09f7be0dace3b6c7d3524da725" offset="000000" />
+				<rom name="mpr-13289.ic1" size="262144" crc="55bf81a0" sha1="0f11b9d7d6d16b09f7be0dace3b6c7d3524da725" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5162,8 +5483,11 @@
 		<year>1990</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13295 T32" />
 			<dataarea name="rom" size="262144">
-				<rom name="super monaco gp (usa).bin" size="262144" crc="3ef12baa" sha1="fc933d9ec3a7e699c1e2cda89b957665e7321a80" offset="000000" />
+				<rom name="mpr-13295 t32.ic1" size="262144" crc="3ef12baa" sha1="fc933d9ec3a7e699c1e2cda89b957665e7321a80" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5235,8 +5559,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7076"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-14271-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="sonic the hedgehog (usa, europe).bin" size="262144" crc="b519e833" sha1="6b9677e4a9abb37765d6db4658f4324251807e07" offset="000000" />
+				<rom name="mpr-14271-f.ic1" size="262144" crc="b519e833" sha1="6b9677e4a9abb37765d6db4658f4324251807e07" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5259,8 +5586,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9015, 028.120"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15159" />
 			<dataarea name="rom" size="524288">
-				<rom name="sonic the hedgehog 2 (europe).bin" size="524288" crc="5b3b922c" sha1="acdb0b5e8bf9c1e9c9d1a8ac6d282cb8017d091c" offset="000000" />
+				<rom name="mpr-15159.ic1" size="524288" crc="5b3b922c" sha1="acdb0b5e8bf9c1e9c9d1a8ac6d282cb8017d091c" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5271,8 +5601,12 @@
 		<publisher>Tec Toy</publisher>
 		<info name="serial" value="030.030"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="TEC TOY CART 8 M" />
+			<feature name="u1" value="315-5912" /> <!-- Sega Memory Controller -->
+			<feature name="u2" value="MPR-19947-S" />
 			<dataarea name="rom" size="1048576">
-				<rom name="sonic blast (brazil).bin" size="1048576" crc="96b3f29e" sha1="4ad77a472e98002dc0d5c1463965720a257e1b8f" offset="000000" />
+				<rom name="mpr-19947-s.u2" size="1048576" crc="96b3f29e" sha1="4ad77a472e98002dc0d5c1463965720a257e1b8f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5283,8 +5617,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9021, 028.120"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on Euro cart (nepereny's) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15926-F" />
 			<dataarea name="rom" size="524288">
-				<rom name="sonic chaos (europe).bin" size="524288" crc="aedf3bdf" sha1="f64c8eea26a103582f09831c3e02c6045a6aff94" offset="000000" />
+				<rom name="mpr-15926-f.ic1" size="524288" crc="aedf3bdf" sha1="f64c8eea26a103582f09831c3e02c6045a6aff94" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5342,8 +5679,12 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9010"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5559-01D" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-15063" />
 			<dataarea name="rom" size="524288">
-				<rom name="space gun (europe).bin" size="524288" crc="a908cff5" sha1="c5afd5fa7b26da55d243df6822c16dae3a401ac1" offset="000000" />
+				<rom name="mpr-15063.ic1" size="524288" crc="a908cff5" sha1="c5afd5fa7b26da55d243df6822c16dae3a401ac1" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5390,8 +5731,12 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9003"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5559-01D" />
+			<feature name="ic1" value="315-5235" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-12532-T" />
 			<dataarea name="rom" size="524288">
-				<rom name="spellcaster (usa, europe).bin" size="524288" crc="4752cae7" sha1="eed8b01fca86dbd8291d5ca2d1e6f6ca1b60fe68" offset="000000" />
+				<rom name="mpr-12532-t.ic2" size="524288" crc="4752cae7" sha1="eed8b01fca86dbd8291d5ca2d1e6f6ca1b60fe68" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5414,8 +5759,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7065"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-13949 T42" />
 			<dataarea name="rom" size="262144">
-				<rom name="spider-man vs. the kingpin (usa, europe).bin" size="262144" crc="908ff25c" sha1="02ebee891d88bacdadd37a3e75e05763b7ad3c9b" offset="000000" />
+				<rom name="mpr-13949 t42.ic1" size="262144" crc="908ff25c" sha1="02ebee891d88bacdadd37a3e75e05763b7ad3c9b" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5459,12 +5807,12 @@
 		</part>
 	</software>
 
-	<software name="spyvsspyj" cloneof="spyvsspy">
-		<description>Spy vs Spy (Jpn, Kor)</description>
+<!-- same dump was released as a MyCard in Japan -->
+	<software name="spyvsspyk" cloneof="spyvsspy">
+		<description>Spy vs Spy (Kor)</description>
 		<year>1986</year>
 		<publisher>Sega</publisher>
-		<info name="serial" value="C-514, SG15C"/>
-		<info name="release" value="19860920 (Jpn, Card)"/>
+		<info name="serial" value="SG15C"/>
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="spy vs spy (japan).bin" size="32768" crc="d41b9a08" sha1="c5e004b34d6569e6e1d99bff6be940f308e2c39f" offset="000000" />
@@ -5549,7 +5897,7 @@
 		<year>1992</year>
 		<publisher>Zemina</publisher>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="zemina" />
+			<feature name="slot" value="zemina" />
 			<dataarea name="rom" size="131072">
 				<rom name="street master (kr).bin" size="131072" crc="83f0eede" sha1="49f9d62f121d3b7e35d38436c920a53b7070ecd4" offset="000000" />
 			</dataarea>
@@ -5562,8 +5910,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9005, GB4028JG"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-14093 W08" />
 			<dataarea name="rom" size="524288">
-				<rom name="strider (usa, europe).bin" size="524288" crc="9802ed31" sha1="051e72c8ffec7606c04409ef38244cfdd592252f" offset="000000" />
+				<rom name="mpr-14093 w08.ic1" size="524288" crc="9802ed31" sha1="051e72c8ffec7606c04409ef38244cfdd592252f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5658,8 +6009,11 @@
 		<publisher>Virgin Interactive</publisher>
 		<info name="serial" value="MK-27050-50, 027.190"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15506" />
 			<dataarea name="rom" size="262144">
-				<rom name="superman - the man of steel (europe).bin" size="262144" crc="6f9ac98f" sha1="f12b0eddfc271888bbcb1de3df25072b96b024ec" offset="000000" />
+				<rom name="mpr-15506.ic1" size="262144" crc="6f9ac98f" sha1="f12b0eddfc271888bbcb1de3df25072b96b024ec" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5706,6 +6060,7 @@
 		<publisher>Zemina</publisher>
 		<info name="alt_title" value="수퍼보이 I" />
 		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="korean" />
 			<dataarea name="rom" size="49152">
 				<rom name="super boy 1.bin" size="49152" crc="bf5a994a" sha1="f0e6a20c72f0fb0feb1681217eeec3b69950e897" offset="000000"/>
 			</dataarea>
@@ -5729,6 +6084,7 @@
 		<year>1991</year>
 		<publisher>Zemina</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="zemina" />
 			<dataarea name="rom" size="131072">
 				<rom name="super boy 3.bin" size="131072" crc="9195c34c" sha1="5d65a308bb9ec8c4b4ce334b18d699b1f53227ef" offset="000000"/>
 			</dataarea>
@@ -5753,8 +6109,11 @@
 		<publisher>U.S. Gold</publisher>
 		<info name="serial" value="27017-50"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-14397-F" />
 			<dataarea name="rom" size="262144">
-				<rom name="super kick off (europe) (en,fr,de,es,it,nl,pt,sv).bin" size="262144" crc="406aa0c2" sha1="4116e4a742e3209ca5db9887cd92219d15cf3c9a" offset="000000" />
+				<rom name="mpr-14397-f.ic1" size="262144" crc="406aa0c2" sha1="4116e4a742e3209ca5db9887cd92219d15cf3c9a" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5792,8 +6151,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="4507, 4007, 41010"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-12584" />
 			<dataarea name="rom" size="32768">
-				<rom name="super tennis (usa, europe).bin" size="32768" crc="914514e3" sha1="67787f3f29a5b5e74b5f6a636428da4517a0f992" offset="000000" />
+				<rom name="mpr-12584.ic1" size="32768" crc="914514e3" sha1="67787f3f29a5b5e74b5f6a636428da4517a0f992" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5804,8 +6166,11 @@
 		<publisher>Arena</publisher>
 		<info name="serial" value="MK-27061-50"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-16073" />
 			<dataarea name="rom" size="524288">
-				<rom name="t2 - the arcade game (europe).bin" size="524288" crc="93ca8152" sha1="cfa4a899185fced837991d14f011cdaca81e9dd7" offset="000000" />
+				<rom name="mpr-16073.ic1" size="524288" crc="93ca8152" sha1="cfa4a899185fced837991d14f011cdaca81e9dd7" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5816,8 +6181,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7111, 027.150"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-15161" />
 			<dataarea name="rom" size="262144">
-				<rom name="taz-mania (europe).bin" size="262144" crc="7cc3e837" sha1="ac98f23ddc24609cb77bb13102e0386f8c2a4a76" offset="000000" />
+				<rom name="mpr-15161.ic1" size="262144" crc="7cc3e837" sha1="ac98f23ddc24609cb77bb13102e0386f8c2a4a76" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5874,21 +6242,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="4003 (Card), 4503 (Cart), 021.060"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12668" />
 			<dataarea name="rom" size="32768">
-				<rom name="teddy boy (usa, europe).bin" size="32768" crc="2728faa3" sha1="6ae39718703dbf7126f71387ce24ad956710a315" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="teddyboyj" cloneof="teddyboy">
-		<description>Teddy Boy Blues (Jpn)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-501"/>
-		<info name="release" value="19851020 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="teddy boy blues (japan).bin" size="32768" crc="316727dd" sha1="fb61c04f30c83733fdbf503b16e17aa8086932df" offset="000000" />
+				<rom name="mpr-12668.ic1" size="32768" crc="2728faa3" sha1="6ae39718703dbf7126f71387ce24ad956710a315" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5900,17 +6258,6 @@
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="teddy boy blues (j) [hack].bin" size="32768" crc="9dfa67ee" sha1="839da36557b494299b427bda4e32d2ba61977b25" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="teddyboyjp" cloneof="teddyboy">
-		<description>Teddy Boy Blues (Jpn, Ep-MyCard, Prototype)</description>
-		<year>1985</year>
-		<publisher>Sega</publisher>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="49152">
-				<rom name="teddy boy blues (japan) (proto) (ep-mycard).bin" size="49152" crc="d7508041" sha1="51014d89cd8770df8a3d837a0208cb69d5bf7903" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5984,8 +6331,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7011"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-11820F" />
 			<dataarea name="rom" size="262144">
-				<rom name="thunder blade (usa, europe).bin" size="262144" crc="ae920e4b" sha1="c38f3eea4e7224bc6042723e88b26c85b1a56ddc" offset="000000" />
+				<rom name="mpr-11820f.ic1" size="262144" crc="ae920e4b" sha1="c38f3eea4e7224bc6042723e88b26c85b1a56ddc" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6011,8 +6361,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7024"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12129F" />
 			<dataarea name="rom" size="262144">
-				<rom name="time soldiers (usa, europe).bin" size="262144" crc="51bd14be" sha1="89842cb30cc3ba626901a5da41481f6d157ebd15" offset="000000" />
+				<rom name="mpr-12129f.ic1" size="262144" crc="51bd14be" sha1="89842cb30cc3ba626901a5da41481f6d157ebd15" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6070,8 +6423,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="4004 (Card), 4504 (Cart), 41003, 021.050"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on Euro cart (nepereny's) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-12552" />
 			<dataarea name="rom" size="32768">
-				<rom name="transbot (usa, europe).bin" size="32768" crc="4bc42857" sha1="73273e6d44ad7aea828b642d22f6f1c138be9d2b" offset="000000" />
+				<rom name="mpr-12552.ic1" size="32768" crc="4bc42857" sha1="73273e6d44ad7aea828b642d22f6f1c138be9d2b" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6112,7 +6468,7 @@
 
 	<!-- G-37 -->
 	<software name="ttoriui" cloneof="myhero">
-		<description>Ttoriui Moheom  (Kor)</description>
+		<description>Ttoriui Moheom (Kor)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
 		<part name="cart" interface="sms_cart">
@@ -6128,8 +6484,11 @@
 		<publisher>Tec Toy</publisher>
 		<info name="serial" value="026.260"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-15999" />
 			<dataarea name="rom" size="262144">
-				<rom name="turma da monica em o resgate (brazil).bin" size="262144" crc="22cca9bb" sha1="77b4ec8086d81029b596020f202df3e210df985d" offset="000000" />
+				<rom name="mpr-15999.ic1" size="262144" crc="22cca9bb" sha1="77b4ec8086d81029b596020f202df3e210df985d" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6152,8 +6511,16 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9501"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-13135" />
+			<!-- MB8464A SRAM -->
+
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="524288">
-				<rom name="ultima iv - quest of the avatar (europe).bin" size="524288" crc="b52d60c8" sha1="a90e21e5961bcf2e10b715a009c04e7c2017a3b1" offset="000000" />
+				<rom name="mpr-13135.ic1" size="524288" crc="b52d60c8" sha1="a90e21e5961bcf2e10b715a009c04e7c2017a3b1" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -6163,8 +6530,11 @@
 		<year>1990</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="524288">
 				<rom name="ultima iv - quest of the avatar (europe) (beta).bin" size="524288" crc="de9f8517" sha1="bb1ae06b62a9f7d3259c51eee4cfded781eb5d30" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -6210,8 +6580,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7023"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12138F" />
 			<dataarea name="rom" size="262144">
-				<rom name="vigilante (usa, europe).bin" size="262144" crc="dfb0b161" sha1="0dc37f1104508c2c0e2593b10dffc3f268ae8ff9" offset="000000" />
+				<rom name="mpr-12138f.ic1" size="262144" crc="dfb0b161" sha1="0dc37f1104508c2c0e2593b10dffc3f268ae8ff9" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6234,12 +6607,16 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5118"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12533F" />
 			<dataarea name="rom" size="131072">
-				<rom name="wanted (usa, europe).bin" size="131072" crc="5359762d" sha1="6135e4d0f76812f9d35ddb5b3e7d34d56a5458b3" offset="000000" />
+				<rom name="mpr-12533f.ic1" size="131072" crc="5359762d" sha1="6135e4d0f76812f9d35ddb5b3e7d34d56a5458b3" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
 
+<!-- MPR-10744F on 171-5519 according to SMS Power, but not clear which version these correspond to -->
 	<software name="wboy">
 		<description>Wonder Boy (Euro, USA, Bra, v1)</description>
 		<year>1987</year>
@@ -6272,8 +6649,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7026, GB-2004"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-12570" />
 			<dataarea name="rom" size="262144">
-				<rom name="wonder boy iii - the dragon's trap (usa, europe).bin" size="262144" crc="679e1676" sha1="99e73de2ffe5ea5d40998faec16504c226f4c1ba" offset="000000" />
+				<rom name="mpr-12570.ic1" size="262144" crc="679e1676" sha1="99e73de2ffe5ea5d40998faec16504c226f4c1ba" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6284,8 +6664,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7007"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-11487" />
 			<dataarea name="rom" size="262144">
-				<rom name="wonder boy in monster land (usa, europe).bin" size="262144" crc="8cbef0c1" sha1="51715db7a49a18452292dadb2bba0108aa6d6402" offset="000000" />
+				<rom name="mpr-11487.ic1" size="262144" crc="8cbef0c1" sha1="51715db7a49a18452292dadb2bba0108aa6d6402" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6335,8 +6718,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="9012, 9012-50, GB4021JG"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-15317" />
 			<dataarea name="rom" size="524288">
-				<rom name="wonder boy in monster world (europe).bin" size="524288" crc="7d7ce80b" sha1="da0acdb1b9e806aa67a0216a675cb02ed24abf8b" offset="000000" />
+				<rom name="mpr-15317.ic1" size="524288" crc="7d7ce80b" sha1="da0acdb1b9e806aa67a0216a675cb02ed24abf8b" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6356,8 +6742,9 @@
 		<description>Wonsiin (Kor)</description>
 		<year>1991</year>
 		<publisher>Zemina</publisher>
+		<info name="alt_title" value="원시인"/>
 		<part name="cart" interface="sms_cart">
-			<feature name="mapper" value="zemina" />
+			<feature name="slot" value="zemina" />
 			<dataarea name="rom" size="131072">
 				<rom name="wonsiin (kr).bin" size="131072" crc="a05258f5" sha1="f98f9c0fd32b2392b57b14105a9b730c8957d9b9" offset="000000" />
 			</dataarea>
@@ -6382,8 +6769,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5084, 023.340"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="171-5519" />
+			<feature name="ic1" value="MPR-13292" />
 			<dataarea name="rom" size="131072">
-				<rom name="world cup italia '90 (europe).bin" size="131072" crc="6e1ad6fd" sha1="dfa51a4f982d0bec61532e16a679edae605d0aea" offset="000000" />
+				<rom name="mpr-13292.ic1" size="131072" crc="6e1ad6fd" sha1="dfa51a4f982d0bec61532e16a679edae605d0aea" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6429,8 +6819,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7100"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="171-5507" />
+			<feature name="ic1" value="MPR-14686" />
 			<dataarea name="rom" size="262144">
-				<rom name="wimbledon (europe).bin" size="262144" crc="912d92af" sha1="07bc7896efc9eae77a9be68c190071c99eb17a8a" offset="000000" />
+				<rom name="mpr-14686.ic1" size="262144" crc="912d92af" sha1="07bc7896efc9eae77a9be68c190071c99eb17a8a" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6465,21 +6858,11 @@
 		<publisher>Virgin Interactive</publisher>
 		<info name="serial" value="MK-27060-50"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-15714" />
 			<dataarea name="rom" size="262144">
-				<rom name="wolfchild (europe).bin" size="262144" crc="1f8efa1d" sha1="92873f8d7b81a57114b135a2dfffc58d45643703" offset="000000" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="woodypop">
-		<description>Woody Pop - Shinjinrui no Block Kuzushi (Jpn)</description>
-		<year>1987</year>
-		<publisher>Sega</publisher>
-		<info name="serial" value="C-519"/>
-		<info name="release" value="19870315 (Card)"/>
-		<part name="cart" interface="sms_cart">
-			<dataarea name="rom" size="32768">
-				<rom name="woody pop - shinjinrui no block kuzushi (japan).bin" size="32768" crc="315917d4" sha1="b74078c4a3e6d20d21ca81e88c0cb3381b0c84a4" offset="000000" />
+				<rom name="mpr-15714.ic1" size="262144" crc="1f8efa1d" sha1="92873f8d7b81a57114b135a2dfffc58d45643703" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6513,8 +6896,11 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5080"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-10156" />
 			<dataarea name="rom" size="131072">
-				<rom name="world grand prix (europe).bin" size="131072" crc="4aaad0d6" sha1="650f15ebbd149f5c357f089d7bd305fcb20b068f" offset="000000" />
+				<rom name="mpr-10156.ic1" size="131072" crc="4aaad0d6" sha1="650f15ebbd149f5c357f089d7bd305fcb20b068f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6525,8 +6911,12 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="5080, GB-1304"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's), to check the cart with MPR-11074 reported at SMS Power -->
+			<feature name="pcb" value="171-5365-01" />
+			<feature name="ic1" value="315-5208" /> <!-- Sega Memory Controller -->
+			<feature name="ic2" value="MPR-10151" />
 			<dataarea name="rom" size="131072">
-				<rom name="world grand prix (usa).bin" size="131072" crc="7b369892" sha1="feff411732ca2dc17dab6d7868749d79326993d7" offset="000000" />
+				<rom name="mpr-10151.ic2" size="131072" crc="7b369892" sha1="feff411732ca2dc17dab6d7868749d79326993d7" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6550,8 +6940,11 @@
 		<info name="release" value="19870719 (JPN)"/>
 		<info name="alt_title" value="ワールド サッカー" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-10747F" />
 			<dataarea name="rom" size="131072">
-				<rom name="world soccer (world).bin" size="131072" crc="72112b75" sha1="bd385b69805c623ab9934174a19a30371584c4b0" offset="000000" />
+				<rom name="mpr-10747f.ic1" size="131072" crc="72112b75" sha1="bd385b69805c623ab9934174a19a30371584c4b0" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6633,7 +7026,7 @@
 		<year>19??</year>
 		<publisher>Taito?</publisher>
 		<part name="cart" interface="sms_cart">
-			<feature name="pcb" value="korean_nobank" />
+			<feature name="slot" value="korean_nb" />
 			<dataarea name="rom" size="49152">
 				<rom name="xyzolog (kr).sms" size="49152" crc="565c799f" sha1="202cc058ba46cc466387a67cce2ab7f5f55977d0" offset="0" />
 			</dataarea>
@@ -6649,8 +7042,11 @@
 		<info name="release" value="19881015"/>
 		<info name="alt_title" value="イース" />
 		<part name="cart" interface="sms_cart">
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="262144">
 				<rom name="ys (japan).bin" size="262144" crc="32759751" sha1="614b589080b732e17cc0d253e17216a72a268955" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -6661,8 +7057,15 @@
 		<publisher>Sega</publisher>
 		<info name="serial" value="7501"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart?) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-12044F" />
+
+			<feature name="battery" value="yes" />
 			<dataarea name="rom" size="262144">
-				<rom name="ys - the vanished omens (usa, europe).bin" size="262144" crc="b33e2827" sha1="e73e836c353543e9f48315410b0d72278899ff59" offset="000000" />
+				<rom name="mpr-12044f.ic1" size="262144" crc="b33e2827" sha1="e73e836c353543e9f48315410b0d72278899ff59" offset="000000" />
+			</dataarea>
+			<dataarea name="ram" size="8192">
 			</dataarea>
 		</part>
 	</software>
@@ -6687,8 +7090,11 @@
 		<info name="release" value="19871107 (JPN)"/>
 		<info name="alt_title" value="ザクソン3D" />
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on US cart (nepereny's) -->
+			<feature name="pcb" value="171-5507D" />
+			<feature name="ic1" value="MPR-11197" />
 			<dataarea name="rom" size="262144">
-				<rom name="zaxxon 3-d (world).bin" size="262144" crc="a3ef13cb" sha1="257946fe8a230ac1308fc60a8ed43851cfe6b915" offset="000000" />
+				<rom name="mpr-11197.ic1" size="262144" crc="a3ef13cb" sha1="257946fe8a230ac1308fc60a8ed43851cfe6b915" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -6704,6 +7110,7 @@
 		</part>
 	</software>
 
+<!-- MPR-11068 according to SMS Power, but not clear which version these correspond to -->
 	<software name="zillion">
 		<description>Zillion (Euro, v2)</description>
 		<year>1987</year>
@@ -6763,15 +7170,18 @@
 		<publisher>Gremlin Interactive</publisher>
 		<info name="serial" value="27075-50"/>
 		<part name="cart" interface="sms_cart">
+			<!-- PCB info based on SMS Power (Euro cart) -->
+			<feature name="pcb" value="??" />
+			<feature name="ic1" value="MPR-15992" />
 			<dataarea name="rom" size="262144">
-				<rom name="zool - ninja of the 'nth' dimension (europe).bin" size="262144" crc="9d9d0a5f" sha1="aed98f2fc885c9a6e121982108f843388eb46304" offset="000000" />
+				<rom name="mpr-15992.ic1" size="262144" crc="9d9d0a5f" sha1="aed98f2fc885c9a6e121982108f843388eb46304" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
 
 
 <!-- The next items have been compiled from original source code written by Jeroen Tel.
-	It is unsure if Probe has ever written any game code for these licensed titles -->
+  It is unsure if Probe has ever written any game code for these licensed titles -->
 
 	<software name="sn_ateam">
 		<description>The A-Team (Music prototype)</description>
@@ -6791,6 +7201,345 @@
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="lethal weapon 3 music [proto].bin" size="32768" crc="eb71247b" sha1="14dff343ef3c10ef06ef3fdfb4985dfa79062379" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+
+<!-- Sega Cards & MyCard dumps -->
+
+	<software name="astrofl" cloneof="transbot">
+		<description>Astro Flash (Jpn, MyCard)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-503"/>
+		<info name="release" value="19851222"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="astro flash (japan).bin" size="32768" crc="c795182d" sha1="8370957b1192349d0a610437cd5d91ea4e3892c4" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="bankpc" cloneof="bankp">
+		<description>Bank Panic (Euro, Sega Card)</description>
+		<year>1987</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4084"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="mpr-12554.ic1" size="32768" crc="655fb1f4" sha1="661bbe20f01b7afb242936d409fdd30420c6de5f" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="comical">
+		<description>Comical Machine Gun Joe (Jpn, MyCard)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-511"/>
+		<info name="release" value="19860421"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="comical machine gun joe (japan).bin" size="32768" crc="9d549e08" sha1="33c21d164fd3cdf7aa9e7e0fe1a3ae5a491bd9f5" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="f16fightc" cloneof="f16fight">
+		<description>F-16 Fighter (Euro, USA, Sega Card)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4081, 4005M"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="f-16 fighter (euro, usa).bin" size="32768" crc="eaebf323" sha1="de63ca2f59adb94fac87623fe68de75940397449" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="f16falcjc" cloneof="f16fight">
+		<description>F-16 Fighting Falcon (Jpn, MyCard)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-508"/>
+		<info name="release" value="19851222"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="f-16 fighting falcon (japan).bin" size="32768" crc="7ce06fce" sha1="0f60f545ce99366860a94fbb115ce7d8531ab7ba" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="f16falcc" cloneof="f16fight">
+		<description>F-16 Fighting Falcon (USA, Sega Card for Display Unit)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4005A"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="f-16 fighting falcon (usa).bin" size="32768" crc="184c23b7" sha1="a8f083b3db721b672b5b023d673a64577cb48ef3" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="pitpot">
+		<description>Fushigi no Oshiro Pit Pot (Jpn, MyCard)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-507"/>
+		<info name="release" value="19851214"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="fushigi no oshiro pit pot (japan).bin" size="32768" crc="e6795c53" sha1="b1afa682b2f70bfc4ab2020d7c3047aabbaf9a24" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="ghosthc" cloneof="ghosth">
+		<description>Ghost House (Euro, USA, Bra, Sega Card)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4002"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="ghost house (euro, usa, bra).bin" size="32768" crc="f1f8ff2d" sha1="cbce4c5d819be524f874ec9b60ca9442047a6681" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="ghosthcp" cloneof="ghosth">
+		<description>Ghost House (Sega Card, Prototype)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<part name="cart" interface="sms_cart">
+			<dataarea name="rom" size="32768">
+				<rom name="ghost house (usa, europe) (beta).bin" size="32768" crc="c3e7c1ed" sha1="f341e68bad5029bf475922c2c1b79eb109f467a1" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="ghosthj" cloneof="ghosth">
+		<description>Ghost House (Jpn, MyCard)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-512"/>
+		<info name="release" value="19860421"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="ghost house (japan).bin" size="32768" crc="c0f3ce7e" sha1="051e74c499c6792f891668a7be23a11c2c4087af" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="greatbasj" cloneof="greatbas">
+		<description>Great Baseball (Jpn, MyCard)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-505"/>
+		<info name="release" value="19851215"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="great baseball (japan).bin" size="32768" crc="89e98a7c" sha1="e6eaaec61bec32dee5161ae59a7a0902f0d05dc9" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="greatscrc" cloneof="greatscr">
+		<description>Great Soccer (Euro, Sega Card)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4082"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="great soccer (europe).bin" size="32768" crc="0ed170c9" sha1="7d1a381be96474f18ba1dac8eaf6710010b0e481" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="greatscrj" cloneof="greatscr">
+		<description>Great Soccer (Jpn, MyCard)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-504"/>
+		<info name="release" value="19851027"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="great soccer (japan).bin" size="32768" crc="2d7fd7ef" sha1="110536303b7bccc193bef4437ba5a9eb6fd4ac8e" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="greattns" cloneof="stennis">
+		<description>Great Tennis (Jpn, MyCard)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-515"/>
+		<info name="release" value="19851222"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="great tennis (japan).bin" size="32768" crc="95cbf3dd" sha1="e7f3529689cd29be3fa02f94266e4ee8e0795d7d" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hangonc" cloneof="hangon">
+		<description>Hang-On (Euro, Bra, Aus, Sega Card)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4080"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="hang-on (europe).bin" size="32768" crc="071b045e" sha1="e601257f6477b85eb0b25a5b6d46ebc070d8a05a" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hangonj" cloneof="hangon">
+		<description>Hang-On (Jpn, MyCard)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-502"/>
+		<info name="release" value="19851020"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="hang-on (japan).bin" size="32768" crc="5c01adf9" sha1="43552f58f0c0c292f3e4c1b1525fd0344dc220c6" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="myheroc" cloneof="myhero">
+		<description>My Hero (Euro, USA, Bra, Sega Card)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4001"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="my hero (usa, europe).bin" size="32768" crc="62f0c23d" sha1="7583c5fb1963c070b7bda72b447cc3fd611ddf1a" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="satell7">
+		<description>Satellite 7 (Jpn, MyCard)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-506"/>
+		<info name="release" value="19851220"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="satellite 7 (japan).bin" size="32768" crc="16249e19" sha1="88fc5596773ea31eda8ae5a8baf6f0ce5c3f7e5e" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="seishun" cloneof="myhero">
+		<description>Seishun Scandal (Jpn, MyCard)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-510"/>
+		<info name="release" value="19860131 (Card)"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="seishun scandal (japan).bin" size="32768" crc="f0ba2bc6" sha1="6942f38e608cc7d70cf9cc8c13ee8c22e4b81679" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="spyvsspyc" cloneof="spyvsspy">
+		<description>Spy vs. Spy (Euro, USA, Bra, Sega Card)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4083"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="spy vs. spy (usa, europe).bin" size="32768" crc="78d7faab" sha1="feab16dd8b807b88395e91c67e9ff52f8f7aa7e4" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="spyvsspyj" cloneof="spyvsspy">
+		<description>Spy vs Spy (Jpn, MyCard)</description>
+		<year>1986</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-514"/>
+		<info name="release" value="19860920"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="spy vs spy (japan).bin" size="32768" crc="d41b9a08" sha1="c5e004b34d6569e6e1d99bff6be940f308e2c39f" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="stennisc" cloneof="stennis">
+		<description>Super Tennis (Euro, USA, Sega Card)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4507, 4007"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="super tennis (euro, usa).bin" size="32768" crc="914514e3" sha1="67787f3f29a5b5e74b5f6a636428da4517a0f992" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="teddyboyc" cloneof="teddyboy">
+		<description>Teddy Boy (Euro, USA, Bra, Sega Card)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4003"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="teddy boy (euro, usa, bra).bin" size="32768" crc="2728faa3" sha1="6ae39718703dbf7126f71387ce24ad956710a315" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="teddyboyjp" cloneof="teddyboy">
+		<description>Teddy Boy Blues (Jpn, Ep-MyCard, Prototype)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="49152">
+				<rom name="teddy boy blues (japan) (proto) (ep-mycard).bin" size="49152" crc="d7508041" sha1="51014d89cd8770df8a3d837a0208cb69d5bf7903" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="teddyboyj" cloneof="teddyboy">
+		<description>Teddy Boy Blues (Jpn, MyCard)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-501"/>
+		<info name="release" value="19851020"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="teddy boy blues (japan).bin" size="32768" crc="316727dd" sha1="fb61c04f30c83733fdbf503b16e17aa8086932df" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="transbotc" cloneof="transbot">
+		<description>TransBot (Euro, USA, Bra, Sega Card)</description>
+		<year>1985</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="4004"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="transbot (euro, usa, bra).bin" size="32768" crc="4bc42857" sha1="73273e6d44ad7aea828b642d22f6f1c138be9d2b" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="woodypop">
+		<description>Woody Pop - Shinjinrui no Block Kuzushi (Jpn, MyCard)</description>
+		<year>1987</year>
+		<publisher>Sega</publisher>
+		<info name="serial" value="C-519"/>
+		<info name="release" value="19870315"/>
+		<part name="cart" interface="sms_card">
+			<dataarea name="rom" size="32768">
+				<rom name="woody pop - shinjinrui no block kuzushi (japan).bin" size="32768" crc="315917d4" sha1="b74078c4a3e6d20d21ca81e88c0cb3381b0c84a4" offset="000000" />
 			</dataarea>
 		</part>
 	</software>

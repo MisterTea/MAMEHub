@@ -26,13 +26,20 @@
 class tank8_state : public driver_device
 {
 public:
+	enum
+	{
+		TIMER_COLLISION
+	};
+
 	tank8_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_video_ram(*this, "video_ram"),
 		m_pos_h_ram(*this, "pos_h_ram"),
 		m_pos_v_ram(*this, "pos_v_ram"),
 		m_pos_d_ram(*this, "pos_d_ram"),
-		m_team(*this, "team"){ }
+		m_team(*this, "team"),
+		m_maincpu(*this, "maincpu"),
+		m_discrete(*this, "discrete") { }
 
 	int m_collision_index;
 	required_shared_ptr<UINT8> m_video_ram;
@@ -61,12 +68,19 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_tank8(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_tank8(screen_device &screen, bool state);
-	TIMER_CALLBACK_MEMBER(tank8_collision_callback);
+	void set_pens(colortable_t *colortable);
+	inline int get_x_pos(int n);
+	inline int get_y_pos(int n);
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_bullets(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void tank8_set_collision(int index);
+	required_device<cpu_device> m_maincpu;
+	required_device<discrete_device> m_discrete;
+
+protected:
+	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
 
 /*----------- defined in audio/tank8.c -----------*/
 
 DISCRETE_SOUND_EXTERN( tank8 );
-
-/*----------- defined in drivers/tank8.c -----------*/
-void tank8_set_collision(running_machine &machine, int index);

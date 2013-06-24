@@ -32,7 +32,7 @@ const device_type SOFTWARE_LIST = &device_creator<software_list_device>;
 //-------------------------------------------------
 
 software_list_device::software_list_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SOFTWARE_LIST, "Software lists", tag, owner, clock),
+	: device_t(mconfig, SOFTWARE_LIST, "Software list", tag, owner, clock),
 		m_list_name(NULL),
 		m_list_type(SOFTWARE_LIST_ORIGINAL_SYSTEM),
 		m_filter(NULL)
@@ -240,6 +240,17 @@ static void add_rom_entry(software_list *swlist, const char *name, const char *h
 					parse_error(&swlist->state, "%s: Duplicated dataarea %s in %s\n",swlist->file->filename(),name,swlist->current_software_info->shortname);
 				}
 			}
+		}
+	}
+
+	if ( part->romdata == NULL )
+	{
+		/* Allocate initial space to hold the rom information */
+		swlist->rom_entries = 3;
+		part->romdata = (struct rom_entry *)pool_malloc_lib(swlist->pool, swlist->rom_entries * sizeof(struct rom_entry));
+		if ( part->romdata == NULL )
+		{
+			fatalerror("Unable to claim memory for storing a rom entry\n");
 		}
 	}
 
@@ -675,7 +686,7 @@ static void start_handler(void *data, const char *tagname, const char **attribut
 						unknown_attribute(swlist, attributes[0]);
 				}
 
-				if ( str_name && str_interface )
+				if ( str_name && str_interface && strcmp(str_name, "") && strcmp(str_interface, "") )
 				{
 					if ( swlist->softinfo )
 					{
@@ -690,17 +701,15 @@ static void start_handler(void *data, const char *tagname, const char **attribut
 
 						add_software_part( swlist, name, interface );
 
-						/* Allocate initial space to hold the rom information */
-						swlist->rom_entries = 3;
+						/* Set up rom/dataarea information */
+						swlist->rom_entries = 0;
 						swlist->current_rom_entry = 0;
-						swlist->softinfo->partdata[swlist->softinfo->current_part_entry-1].romdata = (struct rom_entry *)pool_malloc_lib(swlist->pool, swlist->rom_entries * sizeof(struct rom_entry));
-						if ( ! swlist->softinfo->partdata[swlist->softinfo->current_part_entry-1].romdata )
-							return;
+						swlist->softinfo->partdata[swlist->softinfo->current_part_entry-1].romdata = NULL;
 					}
 				}
 				else
 				{
-					/* Incomplete/incorrect part definition */
+					/* Incomplete/incorrect part definition ("" names are invalid too) */
 					parse_error(&swlist->state, "%s: Incomplete part definition (line %lu)\n",
 						swlist->file->filename(),XML_GetCurrentLineNumber(swlist->state.parser));
 				}
@@ -729,7 +738,7 @@ static void start_handler(void *data, const char *tagname, const char **attribut
 					else
 						unknown_attribute(swlist, attributes[0]);
 				}
-				if ( str_name && str_size )
+				if ( str_name && str_size && strcmp(str_name, "") && strcmp(str_size, "") )
 				{
 					if ( swlist->softinfo )
 					{
@@ -747,7 +756,7 @@ static void start_handler(void *data, const char *tagname, const char **attribut
 				}
 				else
 				{
-					/* Missing dataarea name or size */
+					/* Missing dataarea name or size ("" are invalid too) */
 					parse_error(&swlist->state, "%s: Incomplete dataarea definition (line %lu)\n",
 						swlist->file->filename(),XML_GetCurrentLineNumber(swlist->state.parser));
 				}
@@ -1040,8 +1049,12 @@ static void end_handler(void *data, const char *name)
 		case POS_SOFT:
 			if ( ! strcmp( name, "part" ) && swlist->softinfo )
 			{
-				/* ROM_END */
-				add_rom_entry( swlist, NULL, NULL, 0, 0, ROMENTRYTYPE_END );
+				/* Was any dataarea/rom information encountered? */
+				if ( swlist->softinfo->partdata[swlist->softinfo->current_part_entry-1].romdata != NULL )
+				{
+					/* If so, force a ROM_END */
+					add_rom_entry( swlist, NULL, NULL, 0, 0, ROMENTRYTYPE_END );
+				}
 				/* Add shared_info inherited from the software_info level, if any */
 				if ( swlist->softinfo && swlist->softinfo->shared_info )
 				{
@@ -1377,7 +1390,6 @@ void software_list_find_approx_matches(software_list_device *swlistdev, software
 		software_part *part = software_find_part(swinfo, NULL, NULL);
 		if ((interface==NULL || softlist_contain_interface(interface, part->interface_)) && (is_software_compatible(part, swlistdev)))
 		{
-
 			/* pick the best match between driver name and description */
 			curpenalty = softlist_penalty_compare(name, candidate->longname);
 			tmp = softlist_penalty_compare(name, candidate->shortname);
@@ -1466,10 +1478,10 @@ static struct rom_entry *software_find_romdata(software_part *swpart, const char
 
 			data++;
 		}
-	}
 
-	if (!data->_name)
-		data = NULL;
+		if (data && !data->_name)
+			data = NULL;
+	}
 
 	return data;
 }
@@ -1590,11 +1602,11 @@ void software_display_matches(const machine_config &config,emu_options &options,
 
 		if (list)
 		{
-			software_info *matches[10] = { 0 };
+			software_info *matches[16] = { 0 };
 			int softnum;
 
 			software_list_parse(list, list->error_proc, NULL);
-			// get the top 5 approximate matches for the selected device interface (i.e. only carts for cartslot, etc.)
+			// get the top 16 approximate matches for the selected device interface (i.e. only carts for cartslot, etc.)
 			software_list_find_approx_matches(swlist, list, name, ARRAY_LENGTH(matches), matches, interface);
 
 			if (matches[0] != 0)

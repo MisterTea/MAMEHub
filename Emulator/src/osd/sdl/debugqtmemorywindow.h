@@ -6,6 +6,8 @@
 #include "debugqtview.h"
 #include "debugqtwindow.h"
 
+class DebuggerMemView;
+
 
 //============================================================
 //  The Memory Window.
@@ -16,7 +18,7 @@ class MemoryWindow : public WindowQt
 
 public:
 	MemoryWindow(running_machine* machine, QWidget* parent=NULL);
-	virtual ~MemoryWindow() {}
+	virtual ~MemoryWindow();
 
 
 private slots:
@@ -31,13 +33,63 @@ private slots:
 
 private:
 	void populateComboBox();
+	void setToCurrentCpu();
+	QAction* chunkSizeMenuItem(const QString& itemName);
 
 
 private:
 	// Widgets
 	QLineEdit* m_inputEdit;
 	QComboBox* m_memoryComboBox;
-	DebuggerView* m_memTable;
+	DebuggerMemView* m_memTable;
+};
+
+
+//=========================================================================
+//  The mem window gets its own debugger view to handle right click pop-ups
+//=========================================================================
+class DebuggerMemView : public DebuggerView
+{
+public:
+	DebuggerMemView(const debug_view_type& type,
+					running_machine* machine,
+					QWidget* parent=NULL)
+		: DebuggerView(type, machine, parent)
+	{}
+	virtual ~DebuggerMemView() {}
+
+protected:
+	void mousePressEvent(QMouseEvent* event);
+};
+
+
+//=========================================================================
+//  A way to store the configuration of a window long enough to read/write.
+//=========================================================================
+class MemoryWindowQtConfig : public WindowQtConfig
+{
+public:
+	MemoryWindowQtConfig() :
+		WindowQtConfig(WIN_TYPE_MEMORY),
+		m_reverse(0),
+		m_addressMode(0),
+		m_chunkSize(0),
+		m_memoryRegion(0)
+	{
+	}
+
+	~MemoryWindowQtConfig() {}
+
+	// Settings
+	int m_reverse;
+	int m_addressMode;
+	int m_chunkSize;
+	int m_memoryRegion;
+
+	void buildFromQWidget(QWidget* widget);
+	void applyToQWidget(QWidget* widget);
+	void addToXmlDataNode(xml_data_node* node) const;
+	void recoverFromXmlNode(xml_data_node* node);
 };
 
 

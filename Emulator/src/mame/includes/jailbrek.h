@@ -11,12 +11,13 @@ class jailbrek_state : public driver_device
 {
 public:
 	jailbrek_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_colorram(*this, "colorram"),
 		m_videoram(*this, "videoram"),
 		m_spriteram(*this, "spriteram"),
 		m_scroll_x(*this, "scroll_x"),
-		m_scroll_dir(*this, "scroll_dir"){ }
+		m_scroll_dir(*this, "scroll_dir"),
+		m_maincpu(*this, "maincpu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_colorram;
@@ -45,4 +46,6 @@ public:
 	UINT32 screen_update_jailbrek(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(jb_interrupt);
 	INTERRUPT_GEN_MEMBER(jb_interrupt_nmi);
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	required_device<cpu_device> m_maincpu;
 };

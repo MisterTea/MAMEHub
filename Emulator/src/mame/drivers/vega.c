@@ -4,6 +4,14 @@ Vega by Olympia
 
 preliminary WIP driver by Tomasz Slanina
 
+hardware seems like an evolution of Olympia's Monza GP
+
+I8035 (MCU)
+AY 3-8910 (Sound)
+PPI 8255 (I/O)
+INS 8154 (I/O + RAM)
+DP8350 (CRT controller)
+
 TODO:
 - proper scanline (with 2x scaling when needed) based renderer
 - color mixer
@@ -157,7 +165,6 @@ WRITE8_MEMBER(vega_state::extern_w)
 
 	switch((m_p2_data>>2)&7) /* 7442 = lines 2,3,4 - select device */
 	{
-
 		case 0:  /* 00-03 */
 		{
 			/* PPI 8255 /CS */
@@ -168,7 +175,7 @@ WRITE8_MEMBER(vega_state::extern_w)
 		case 1: /* 04-07 */
 		{
 			/* AY 3-8910 */
-			ay8910_address_w(m_ay8910, space, 0, offset);
+			m_ay8910->address_w(space, 0, offset);
 		}
 		break;
 
@@ -183,7 +190,7 @@ WRITE8_MEMBER(vega_state::extern_w)
 			else
 			{
 				//register w ?
-				ins8154_w(m_ins8154,space,offset&0x7f,data);
+				m_ins8154->ins8154_w(space,offset&0x7f,data);
 			}
 		}
 		break;
@@ -297,7 +304,7 @@ READ8_MEMBER(vega_state::extern_r)
 		case 1: /* 04-07 */
 		{
 			/* AY 3-8910 */
-			ay8910_data_w(m_ay8910, space, 0, offset);
+			m_ay8910->data_w(space, 0, offset);
 			return 0xff;//mame_rand(space.machine);
 
 		}
@@ -314,7 +321,7 @@ READ8_MEMBER(vega_state::extern_r)
 			else
 			{
 				//register r ?
-				return ins8154_r(m_ins8154,space,offset&0x7f);
+				return m_ins8154->ins8154_r(space,offset&0x7f);
 			}
 
 		}
@@ -322,32 +329,26 @@ READ8_MEMBER(vega_state::extern_r)
 #if 0
 		case 3: /* 0c-0f */
 		{
-
-
 		}
 		break;
 
 		case 4: /* 10-13 */
 		{
-
 		}
 		break;
 
 		case 5: /* 14-17 */
 		{
-
 		}
 		break;
 
 		case 6: /* 18-1b */
 		{
-
 		}
 		break;
 
 		case 7: /* 1c-1f */
 		{
-
 		}
 		break;
 #endif
@@ -492,7 +493,6 @@ void vega_state::palette_init()
 static void draw_tilemap(vega_state *state, screen_device& screen, bitmap_ind16& bitmap, const rectangle& cliprect)
 {
 	{
-
 	UINT8 *map_lookup = state->memregion("tilemaps")->base();
 
 	int offset_y=state->m_tilemap_offset_y;
@@ -504,8 +504,6 @@ static void draw_tilemap(vega_state *state, screen_device& screen, bitmap_ind16&
 	{
 		for(int yy=0;yy<8;yy++)
 		{
-
-
 			int x0=xx*32;
 			int y0=yy*32;
 
@@ -521,7 +519,6 @@ static void draw_tilemap(vega_state *state, screen_device& screen, bitmap_ind16&
 
 			if(bank!=3)
 			{
-
 				num+=bank*8;
 
 			num*=8*4;
@@ -565,7 +562,6 @@ UINT32 vega_state::screen_update_vega(screen_device &screen, bitmap_ind16 &bitma
 		for(y=0;y<25;++y)
 			for(x=0;x<40;++x)
 			{
-
 				int character=m_txt_ram[idx];
 				//int color=BITSWAP8(color_lookup[character],7,6,5,4,0,1,2,3)>>1;
 				int color=color_lookup[character]&0xf;
@@ -592,7 +588,6 @@ UINT32 vega_state::screen_update_vega(screen_device &screen, bitmap_ind16 &bitma
 	{
 		for(int i=OBJ_0;i<OBJ_PLAYER;++i)
 		{
-
 			int x0=255-m_obj[i].m_x;
 			int y0=255-m_obj[i].m_y;
 			int num=m_obj[i].m_type&7;
@@ -644,7 +639,6 @@ UINT32 vega_state::screen_update_vega(screen_device &screen, bitmap_ind16 &bitma
 
 				for(int y=0;y<4;++y)
 				{
-
 					drawgfx_transpen(bitmap, cliprect,  machine().gfx[3], strip_num, 0, !xor_line, 0, x*4+x0, y*8+y0, 0);
 					++strip_num;
 				}
@@ -724,7 +718,6 @@ WRITE8_MEMBER(vega_state::txtram_w)
 
 READ8_MEMBER(vega_state::txtram_r)
 {
-
 	return m_txt_ram[m_ext_offset_r+((m_p2_data&3)<<8)];
 }
 
@@ -795,7 +788,7 @@ READ8_MEMBER( vega_state::ins8154_pb_r )
 
 READ8_MEMBER(vega_state::randomizer )
 {
-	return (machine().root_device().ioport("IN1")->read()&7)|(machine().rand()&(~7));
+	return (ioport("IN1")->read()&7)|(machine().rand()&(~7));
 }
 
 
@@ -832,7 +825,6 @@ static const ay8910_interface ay8910_inf =
 
 void vega_state::machine_start()
 {
-
 }
 
 
@@ -908,8 +900,8 @@ ROM_END
 
 DRIVER_INIT_MEMBER(vega_state, vega)
 {
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
-	machine().root_device().membank("bank1")->configure_entries(0, 2, &ROM[0x1000], 0x800);
+	UINT8 *ROM = memregion("maincpu")->base();
+	membank("bank1")->configure_entries(0, 2, &ROM[0x1000], 0x800);
 }
 
 GAME( 1982, vega,   0, vega, vega, vega_state, vega, ROT270, "Olympia", "Vega", 0 )

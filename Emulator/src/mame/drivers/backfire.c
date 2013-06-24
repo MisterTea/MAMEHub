@@ -21,14 +21,26 @@
 #include "rendlay.h"
 #include "video/decospr.h"
 
+
 class backfire_state : public driver_device
 {
 public:
 	backfire_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
+		: driver_device(mconfig, type, tag),
 		m_mainram(*this, "mainram"),
 		m_left_priority(*this, "left_priority"),
-		m_right_priority(*this, "right_priority"){ }
+		m_right_priority(*this, "right_priority"),
+		m_sprgen(*this, "spritegen"),
+		m_sprgen2(*this, "spritegen2"),
+		m_maincpu(*this, "maincpu"),
+		m_deco_tilegen1(*this, "tilegen1"),
+		m_deco_tilegen2(*this, "tilegen2"),
+		m_eeprom(*this, "eeprom"),
+		m_io_in0(*this, "IN0"),
+		m_io_in1(*this, "IN1"),
+		m_io_in2(*this, "IN2"),
+		m_io_in3(*this, "IN3")
+	{ }
 
 	/* memory pointers */
 	UINT16 *  m_spriteram_1;
@@ -36,19 +48,19 @@ public:
 	required_shared_ptr<UINT32> m_mainram;
 	required_shared_ptr<UINT32> m_left_priority;
 	required_shared_ptr<UINT32> m_right_priority;
+	optional_device<decospr_device> m_sprgen;
+	optional_device<decospr_device> m_sprgen2;
 
 	/* video related */
 	bitmap_ind16  *m_left;
 	bitmap_ind16  *m_right;
 
 	/* devices */
-	cpu_device *m_maincpu;
-	device_t *m_deco_tilegen1;
-	device_t *m_deco_tilegen2;
+	required_device<cpu_device> m_maincpu;
+	required_device<device_t> m_deco_tilegen1;
+	required_device<device_t> m_deco_tilegen2;
 
-	device_t *m_lscreen;
-	device_t *m_rscreen;
-	eeprom_device *m_eeprom;
+	required_device<eeprom_device> m_eeprom;
 
 	/* memory */
 	UINT16    m_pf1_rowscroll[0x0800/2];
@@ -82,6 +94,13 @@ public:
 	UINT32 screen_update_backfire_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_backfire_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(deco32_vbl_interrupt);
+	void descramble_sound();
+
+	required_ioport m_io_in0;
+	required_ioport m_io_in1;
+	required_ioport m_io_in2;
+	required_ioport m_io_in3;
+	DECLARE_WRITE_LINE_MEMBER(sound_irq_gen);
 };
 
 //UINT32 *backfire_180010, *backfire_188010;
@@ -89,7 +108,6 @@ public:
 /* I'm using the functions in deco16ic.c ... same chips, why duplicate code? */
 void backfire_state::video_start()
 {
-
 	m_spriteram_1 = auto_alloc_array(machine(), UINT16, 0x2000/2);
 	m_spriteram_2 = auto_alloc_array(machine(), UINT16, 0x2000/2);
 
@@ -113,7 +131,6 @@ void backfire_state::video_start()
 
 UINT32 backfire_state::screen_update_backfire_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	//FIXME: flip_screen_x should not be written!
 	flip_screen_set_no_update(1);
 
@@ -129,13 +146,13 @@ UINT32 backfire_state::screen_update_backfire_left(screen_device &screen, bitmap
 	{
 		deco16ic_tilemap_1_draw(m_deco_tilegen2, bitmap, cliprect, 0, 1);
 		deco16ic_tilemap_1_draw(m_deco_tilegen1, bitmap, cliprect, 0, 2);
-		machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram_1, 0x800);
+		m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram_1, 0x800);
 	}
 	else if (m_left_priority[0] == 2)
 	{
 		deco16ic_tilemap_1_draw(m_deco_tilegen1, bitmap, cliprect, 0, 2);
 		deco16ic_tilemap_1_draw(m_deco_tilegen2, bitmap, cliprect, 0, 4);
-		machine().device<decospr_device>("spritegen")->draw_sprites(bitmap, cliprect, m_spriteram_1, 0x800);
+		m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram_1, 0x800);
 	}
 	else
 		popmessage( "unknown left priority %08x", m_left_priority[0]);
@@ -145,7 +162,6 @@ UINT32 backfire_state::screen_update_backfire_left(screen_device &screen, bitmap
 
 UINT32 backfire_state::screen_update_backfire_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-
 	//FIXME: flip_screen_x should not be written!
 	flip_screen_set_no_update(1);
 
@@ -161,13 +177,13 @@ UINT32 backfire_state::screen_update_backfire_right(screen_device &screen, bitma
 	{
 		deco16ic_tilemap_2_draw(m_deco_tilegen2, bitmap, cliprect, 0, 1);
 		deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, 0, 2);
-		machine().device<decospr_device>("spritegen2")->draw_sprites(bitmap, cliprect, m_spriteram_2, 0x800);
+		m_sprgen2->draw_sprites(bitmap, cliprect, m_spriteram_2, 0x800);
 	}
 	else if (m_right_priority[0] == 2)
 	{
 		deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, 0, 2);
 		deco16ic_tilemap_2_draw(m_deco_tilegen2, bitmap, cliprect, 0, 4);
-		machine().device<decospr_device>("spritegen2")->draw_sprites(bitmap, cliprect, m_spriteram_2, 0x800);
+		m_sprgen2->draw_sprites(bitmap, cliprect, m_spriteram_2, 0x800);
 	}
 	else
 		popmessage( "unknown right priority %08x", m_right_priority[0]);
@@ -179,42 +195,36 @@ UINT32 backfire_state::screen_update_backfire_right(screen_device &screen, bitma
 
 READ32_MEMBER(backfire_state::backfire_eeprom_r)
 {
-	device_t *device = machine().device("eeprom");
 	/* some kind of screen indicator?  checked by backfirea set before it will boot */
 	int backfire_screen = machine().rand() & 1;
-	eeprom_device *eeprom = downcast<eeprom_device *>(device);
-	return ((eeprom->read_bit() << 24) | machine().root_device().ioport("IN0")->read()
-			| ((machine().root_device().ioport("IN2")->read() & 0xbf) << 16)
-			| ((machine().root_device().ioport("IN3")->read() & 0x40) << 16)) ^ (backfire_screen << 26) ;
+	return ((m_eeprom->read_bit() << 24) | m_io_in0->read()
+			| ((m_io_in2->read() & 0xbf) << 16)
+			| ((m_io_in3->read() & 0x40) << 16)) ^ (backfire_screen << 26) ;
 }
 
 READ32_MEMBER(backfire_state::backfire_control2_r)
 {
-
 //  logerror("%08x:Read eprom %08x (%08x)\n", space.device().safe_pc(), offset << 1, mem_mask);
-	return (m_eeprom->read_bit() << 24) | ioport("IN1")->read() | (ioport("IN1")->read() << 16);
+	return (m_eeprom->read_bit() << 24) | m_io_in1->read() | (m_io_in1->read() << 16);
 }
 
 #ifdef UNUSED_FUNCTION
 READ32_MEMBER(backfire_state::backfire_control3_r)
 {
-
 //  logerror("%08x:Read eprom %08x (%08x)\n", space.device().safe_pc(), offset << 1, mem_mask);
-	return (m_eeprom->read_bit() << 24) | ioport("IN2")->read() | (ioport("IN2")->read() << 16);
+	return (m_eeprom->read_bit() << 24) | m_io_in2->read() | (m_io_in2->read() << 16);
 }
 #endif
 
 
 WRITE32_MEMBER(backfire_state::backfire_eeprom_w)
 {
-	device_t *device = machine().device("eeprom");
 	logerror("%s:write eprom %08x (%08x) %08x\n",machine().describe_context(),offset<<1,mem_mask,data);
 	if (ACCESSING_BITS_0_7)
 	{
-		eeprom_device *eeprom = downcast<eeprom_device *>(device);
-		eeprom->set_clock_line(BIT(data, 1) ? ASSERT_LINE : CLEAR_LINE);
-		eeprom->write_bit(BIT(data, 0));
-		eeprom->set_cs_line(BIT(data, 2) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->set_clock_line(BIT(data, 1) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->write_bit(BIT(data, 0));
+		m_eeprom->set_cs_line(BIT(data, 2) ? CLEAR_LINE : ASSERT_LINE);
 	}
 }
 
@@ -316,7 +326,7 @@ static ADDRESS_MAP_START( backfire_map, AS_PROGRAM, 32, backfire_state )
 //  AM_RANGE(0x1e8000, 0x1e8003) AM_READ(backfire_wheel1_r)
 //  AM_RANGE(0x1e8004, 0x1e8007) AM_READ(backfire_wheel2_r)
 
-	AM_RANGE(0x1c0000, 0x1c0007) AM_DEVREADWRITE8_LEGACY("ymz", ymz280b_r, ymz280b_w, 0x000000ff)
+	AM_RANGE(0x1c0000, 0x1c0007) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0x000000ff)
 ADDRESS_MAP_END
 
 
@@ -423,15 +433,10 @@ static GFXDECODE_START( backfire )
 GFXDECODE_END
 
 
-static void sound_irq_gen(device_t *device, int state)
+WRITE_LINE_MEMBER(backfire_state::sound_irq_gen)
 {
 	logerror("sound irq\n");
 }
-
-static const ymz280b_interface ymz280b_intf =
-{
-	sound_irq_gen
-};
 
 INTERRUPT_GEN_MEMBER(backfire_state::deco32_vbl_interrupt)
 {
@@ -475,13 +480,6 @@ static const deco16ic_interface backfire_deco16ic_tilegen2_intf =
 
 void backfire_state::machine_start()
 {
-
-	m_maincpu = machine().device<cpu_device>("maincpu");
-	m_deco_tilegen1 = machine().device("tilegen1");
-	m_deco_tilegen2 = machine().device("tilegen2");
-	m_lscreen = machine().device("lscreen");
-	m_rscreen = machine().device("rscreen");
-	m_eeprom = machine().device<eeprom_device>("eeprom");
 }
 
 UINT16 backfire_pri_callback(UINT16 x)
@@ -542,7 +540,7 @@ static MACHINE_CONFIG_START( backfire, backfire_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, 28000000 / 2)
-	MCFG_SOUND_CONFIG(ymz280b_intf)
+	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(backfire_state, sound_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -669,11 +667,11 @@ ROM_START( backfirea )
 	ROM_LOAD( "mbz-06.19l",    0x200000, 0x080000,  CRC(4a38c635) SHA1(7f0fb6a7a4aa6774c04fa38e53ceff8744fe1e9f) )
 ROM_END
 
-static void descramble_sound( running_machine &machine )
+void backfire_state::descramble_sound()
 {
-	UINT8 *rom = machine.root_device().memregion("ymz")->base();
+	UINT8 *rom = memregion("ymz")->base();
 	int length = 0x200000; // only the first rom is swapped on backfire!
-	UINT8 *buf1 = auto_alloc_array(machine, UINT8, length);
+	UINT8 *buf1 = auto_alloc_array(machine(), UINT8, length);
 	UINT32 x;
 
 	for (x = 0; x < length; x++)
@@ -692,12 +690,11 @@ static void descramble_sound( running_machine &machine )
 
 	memcpy(rom, buf1, length);
 
-	auto_free(machine, buf1);
+	auto_free(machine(), buf1);
 }
 
 READ32_MEMBER(backfire_state::backfire_speedup_r)
 {
-
 	//mame_printf_debug( "%08x\n",space.device().safe_pc());
 
 	if (space.device() .safe_pc()== 0xce44)  space.device().execute().spin_until_time(attotime::from_usec(400)); // backfire
@@ -712,9 +709,9 @@ DRIVER_INIT_MEMBER(backfire_state,backfire)
 	deco56_decrypt_gfx(machine(), "gfx1"); /* 141 */
 	deco56_decrypt_gfx(machine(), "gfx2"); /* 141 */
 	deco156_decrypt(machine());
-	machine().device("maincpu")->set_clock_scale(4.0f); /* core timings aren't accurate */
-	descramble_sound(machine());
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0x0170018, 0x017001b, read32_delegate(FUNC(backfire_state::backfire_speedup_r), this));
+	m_maincpu->set_clock_scale(4.0f); /* core timings aren't accurate */
+	descramble_sound();
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x0170018, 0x017001b, read32_delegate(FUNC(backfire_state::backfire_speedup_r), this));
 }
 
 GAME( 1995, backfire,  0,        backfire,   backfire, backfire_state, backfire, ROT0, "Data East Corporation", "Backfire! (set 1)", GAME_SUPPORTS_SAVE )

@@ -39,14 +39,14 @@ TILEMAP_MAPPER_MEMBER(deadang_state::bg_scan)
 
 TILE_GET_INFO_MEMBER(deadang_state::get_pf3_tile_info)
 {
-	const UINT16 *bgMap = (const UINT16 *)machine().root_device().memregion("gfx6")->base();
+	const UINT16 *bgMap = (const UINT16 *)memregion("gfx6")->base();
 	int code= bgMap[tile_index];
 	SET_TILE_INFO_MEMBER(4,code&0x7ff,code>>12,0);
 }
 
 TILE_GET_INFO_MEMBER(deadang_state::get_pf2_tile_info)
 {
-	const UINT16 *bgMap = (const UINT16 *)machine().root_device().memregion("gfx7")->base();
+	const UINT16 *bgMap = (const UINT16 *)memregion("gfx7")->base();
 	int code= bgMap[tile_index];
 	SET_TILE_INFO_MEMBER(3,code&0x7ff,code>>12,0);
 }
@@ -81,10 +81,9 @@ void deadang_state::video_start()
 	m_text_layer->set_transparent_pen(15);
 }
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void deadang_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	deadang_state *state = machine.driver_data<deadang_state>();
-	UINT16 *spriteram16 = state->m_spriteram;
+	UINT16 *spriteram16 = m_spriteram;
 	int offs,fx,fy,x,y,color,sprite,pri;
 
 	for (offs = 0; offs<0x800/2; offs+=4)
@@ -110,17 +109,17 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 		color = (spriteram16[offs+1]>>12)&0xf;
 		sprite = spriteram16[offs+1]&0xfff;
 
-		if (state->flip_screen()) {
+		if (flip_screen()) {
 			x=240-x;
 			y=240-y;
 			if (fx) fx=0; else fx=1;
 			if (fy) fy=0; else fy=1;
 		}
 
-		pdrawgfx_transpen(bitmap,cliprect,machine.gfx[1],
+		pdrawgfx_transpen(bitmap,cliprect,machine().gfx[1],
 				sprite,
 				color,fx,fy,x,y,
-				machine.priority_bitmap,pri,15);
+				machine().priority_bitmap,pri,15);
 	}
 }
 
@@ -154,7 +153,7 @@ UINT32 deadang_state::screen_update_deadang(screen_device &screen, bitmap_ind16 
 	m_pf3_layer->draw(bitmap, cliprect, 0,1);
 	m_pf1_layer->draw(bitmap, cliprect, 0,2);
 	m_pf2_layer->draw(bitmap, cliprect, 0,4);
-	if (!(m_scroll_ram[0x34]&0x10)) draw_sprites(machine(),bitmap,cliprect);
+	if (!(m_scroll_ram[0x34]&0x10)) draw_sprites(bitmap,cliprect);
 	m_text_layer->draw(bitmap, cliprect, 0,0);
 	return 0;
 }

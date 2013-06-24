@@ -57,8 +57,9 @@ class wallc_state : public driver_device
 {
 public:
 	wallc_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag) ,
-		m_videoram(*this, "videoram"){ }
+		: driver_device(mconfig, type, tag),
+		m_videoram(*this, "videoram"),
+		m_maincpu(*this, "maincpu") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	tilemap_t *m_bg_tilemap;
@@ -70,6 +71,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_wallc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -100,7 +102,7 @@ public:
 
 void wallc_state::palette_init()
 {
-	const UINT8 *color_prom = machine().root_device().memregion("proms")->base();
+	const UINT8 *color_prom = memregion("proms")->base();
 	int i;
 
 	static const int resistances_rg[2] = { 330, 220 };
@@ -178,8 +180,8 @@ static ADDRESS_MAP_START( wallc_map, AS_PROGRAM, 8, wallc_state )
 	AM_RANGE(0xb000, 0xb000) AM_WRITENOP
 	AM_RANGE(0xb100, 0xb100) AM_WRITE(wallc_coin_counter_w)
 	AM_RANGE(0xb200, 0xb200) AM_WRITENOP
-	AM_RANGE(0xb500, 0xb500) AM_DEVWRITE_LEGACY("aysnd", ay8910_address_w)
-	AM_RANGE(0xb600, 0xb600) AM_DEVWRITE_LEGACY("aysnd", ay8910_data_w)
+	AM_RANGE(0xb500, 0xb500) AM_DEVWRITE("aysnd", ay8910_device, address_w)
+	AM_RANGE(0xb600, 0xb600) AM_DEVWRITE("aysnd", ay8910_device, data_w)
 ADDRESS_MAP_END
 
 
@@ -262,7 +264,7 @@ DRIVER_INIT_MEMBER(wallc_state,wallc)
 	UINT8 c;
 	UINT32 i;
 
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
 	for (i=0; i<0x2000*2; i++)
 	{
@@ -277,7 +279,7 @@ DRIVER_INIT_MEMBER(wallc_state,wallca)
 	UINT8 c;
 	UINT32 i;
 
-	UINT8 *ROM = machine().root_device().memregion("maincpu")->base();
+	UINT8 *ROM = memregion("maincpu")->base();
 
 	for (i=0; i<0x4000; i++)
 	{

@@ -41,6 +41,19 @@ CUSTOM_INPUT_MEMBER(sprint4_state::get_collision)
 }
 
 
+void sprint4_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+	case TIMER_NMI:
+		nmi_callback(ptr, param);
+		break;
+	default:
+		assert_always(FALSE, "Unknown id in sprint4_state::device_timer");
+	}
+}
+
+
 TIMER_CALLBACK_MEMBER(sprint4_state::nmi_callback)
 {
 	int scanline = param;
@@ -56,10 +69,10 @@ TIMER_CALLBACK_MEMBER(sprint4_state::nmi_callback)
 	};
 	UINT8 lever[4] =
 	{
-		machine().root_device().ioport("LEVER1")->read(),
-		machine().root_device().ioport("LEVER2")->read(),
-		machine().root_device().ioport("LEVER3")->read(),
-		machine().root_device().ioport("LEVER4")->read()
+		ioport("LEVER1")->read(),
+		ioport("LEVER2")->read(),
+		ioport("LEVER3")->read(),
+		ioport("LEVER4")->read()
 	};
 
 	int i;
@@ -98,18 +111,18 @@ TIMER_CALLBACK_MEMBER(sprint4_state::nmi_callback)
 
 	/* NMI and watchdog are disabled during service mode */
 
-	machine().watchdog_enable(machine().root_device().ioport("IN0")->read() & 0x40);
+	machine().watchdog_enable(ioport("IN0")->read() & 0x40);
 
-	if (machine().root_device().ioport("IN0")->read() & 0x40)
-		machine().device("maincpu")->execute().set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+	if (ioport("IN0")->read() & 0x40)
+		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(sprint4_state::nmi_callback),this), scanline);
+	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_NMI, scanline);
 }
 
 
 void sprint4_state::machine_reset()
 {
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(32), timer_expired_delegate(FUNC(sprint4_state::nmi_callback),this), 32);
+	timer_set(machine().primary_screen->time_until_pos(32), TIMER_NMI, 32);
 
 	memset(m_steer_FF1, 0, sizeof m_steer_FF1);
 	memset(m_steer_FF2, 0, sizeof m_steer_FF2);
@@ -185,45 +198,36 @@ WRITE8_MEMBER(sprint4_state::sprint4_lockout_w)
 
 WRITE8_MEMBER(sprint4_state::sprint4_screech_1_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, SPRINT4_SCREECH_EN_1, offset & 1);
+	discrete_sound_w(m_discrete, space, SPRINT4_SCREECH_EN_1, offset & 1);
 }
 
 
 WRITE8_MEMBER(sprint4_state::sprint4_screech_2_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, SPRINT4_SCREECH_EN_2, offset & 1);
+	discrete_sound_w(m_discrete, space, SPRINT4_SCREECH_EN_2, offset & 1);
 }
 
 
 WRITE8_MEMBER(sprint4_state::sprint4_screech_3_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, SPRINT4_SCREECH_EN_3, offset & 1);
+	discrete_sound_w(m_discrete, space, SPRINT4_SCREECH_EN_3, offset & 1);
 }
 
 
 WRITE8_MEMBER(sprint4_state::sprint4_screech_4_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, SPRINT4_SCREECH_EN_4, offset & 1);
+	discrete_sound_w(m_discrete, space, SPRINT4_SCREECH_EN_4, offset & 1);
 }
-
-
-
 
 WRITE8_MEMBER(sprint4_state::sprint4_bang_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, SPRINT4_BANG_DATA, data & 0x0f);
+	discrete_sound_w(m_discrete, space, SPRINT4_BANG_DATA, data & 0x0f);
 }
 
 
 WRITE8_MEMBER(sprint4_state::sprint4_attract_w)
 {
-	device_t *device = machine().device("discrete");
-	discrete_sound_w(device, space, SPRINT4_ATTRACT_EN, data & 1);
+	discrete_sound_w(m_discrete, space, SPRINT4_ATTRACT_EN, data & 1);
 }
 
 

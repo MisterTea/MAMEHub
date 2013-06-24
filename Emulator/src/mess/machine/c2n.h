@@ -14,7 +14,8 @@
 
 
 #include "emu.h"
-#include "includes/cbm.h"
+#include "formats/cbm_tap.h"
+#include "imagedev/cassette.h"
 #include "machine/petcass.h"
 
 
@@ -28,17 +29,16 @@
 class c2n_device :  public device_t,
 					public device_pet_datassette_port_interface
 {
-
 public:
 	// construction/destruction
-	c2n_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	c2n_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
+	c2n_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	// optional information overrides
 	virtual machine_config_constructor device_mconfig_additions() const;
 
 protected:
 	// device-level overrides
-	virtual void device_config_complete() { m_shortname = "c2n"; }
 	virtual void device_start();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
@@ -77,6 +77,7 @@ public:
 
 
 // device type definition
+extern const device_type C2N;
 extern const device_type C1530;
 extern const device_type C1531;
 

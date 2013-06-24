@@ -34,11 +34,9 @@
 	MCFG_DEVICE_ADD(_tag, FMSCSI, 0)
 
 #define MCFG_FMSCSI_IRQ_HANDLER(_devcb) \
-	devcb = &fmscsi_device::set_irq_handler(*device, DEVCB2_##_devcb); \
-
+	devcb = &fmscsi_device::set_irq_handler(*device, DEVCB2_##_devcb);
 #define MCFG_FMSCSI_DRQ_HANDLER(_devcb) \
-	devcb = &fmscsi_device::set_drq_handler(*device, DEVCB2_##_devcb); \
-
+	devcb = &fmscsi_device::set_drq_handler(*device, DEVCB2_##_devcb);
 class fmscsi_device : public device_t
 {
 public:
@@ -82,7 +80,7 @@ private:
 
 	scsihle_device* m_SCSIdevices[8];
 	UINT8 m_command[32];
-	UINT8 m_result[32];
+	//UINT8 m_result[32];
 	UINT8 m_command_index;
 	int m_result_length;
 	UINT32 m_result_index;

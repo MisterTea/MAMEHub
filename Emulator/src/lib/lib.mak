@@ -23,6 +23,7 @@ OBJDIRS += \
 	$(LIBOBJ)/libflac \
 	$(LIBOBJ)/lib7z \
 	$(LIBOBJ)/portmidi \
+	$(LIBOBJ)/lua \
     $(LIBOBJ)/thrift \
     $(LIBOBJ)/thrift/transport \
     $(LIBOBJ)/thrift/protocol \
@@ -593,110 +594,116 @@ $(LIBOBJ)/expat/%.o: $(LIBSRC)/expat/%.c | $(OSPREBUILD)
 #-------------------------------------------------
 
 FORMATSOBJS = \
-	$(LIBOBJ)/formats/cassimg.o 	\
-	$(LIBOBJ)/formats/flopimg.o		\
-	$(LIBOBJ)/formats/imageutl.o	\
-	$(LIBOBJ)/formats/ioprocs.o		\
-	$(LIBOBJ)/formats/basicdsk.o	\
-	$(LIBOBJ)/formats/a26_cas.o		\
+	$(LIBOBJ)/formats/cassimg.o     \
+	$(LIBOBJ)/formats/flopimg.o     \
+	$(LIBOBJ)/formats/imageutl.o    \
+	$(LIBOBJ)/formats/ioprocs.o     \
+	$(LIBOBJ)/formats/basicdsk.o    \
+	$(LIBOBJ)/formats/a26_cas.o     \
 	$(LIBOBJ)/formats/a5105_dsk.o   \
-	$(LIBOBJ)/formats/ace_tap.o		\
-	$(LIBOBJ)/formats/adam_cas.o	\
+	$(LIBOBJ)/formats/ace_tap.o     \
+	$(LIBOBJ)/formats/adam_cas.o    \
 	$(LIBOBJ)/formats/adam_dsk.o    \
-	$(LIBOBJ)/formats/ami_dsk.o		\
-	$(LIBOBJ)/formats/ap2_dsk.o		\
-	$(LIBOBJ)/formats/apf_apt.o		\
-	$(LIBOBJ)/formats/apridisk.o	\
+	$(LIBOBJ)/formats/ami_dsk.o     \
+	$(LIBOBJ)/formats/ap2_dsk.o     \
+	$(LIBOBJ)/formats/apf_apt.o     \
+	$(LIBOBJ)/formats/apridisk.o    \
 	$(LIBOBJ)/formats/apollo_dsk.o  \
-	$(LIBOBJ)/formats/ap_dsk35.o	\
-	$(LIBOBJ)/formats/atari_dsk.o	\
-	$(LIBOBJ)/formats/atarist_dsk.o	\
-	$(LIBOBJ)/formats/atom_tap.o	\
+	$(LIBOBJ)/formats/ap_dsk35.o    \
+	$(LIBOBJ)/formats/applix_dsk.o  \
+	$(LIBOBJ)/formats/asst128_dsk.o \
+	$(LIBOBJ)/formats/atari_dsk.o   \
+	$(LIBOBJ)/formats/atarist_dsk.o \
+	$(LIBOBJ)/formats/atom_tap.o    \
+	$(LIBOBJ)/formats/bml3_dsk.o    \
 	$(LIBOBJ)/formats/bw2_dsk.o \
 	$(LIBOBJ)/formats/bw12_dsk.o    \
-	$(LIBOBJ)/formats/cbm_tap.o		\
-	$(LIBOBJ)/formats/cgen_cas.o	\
-	$(LIBOBJ)/formats/coco_cas.o	\
-	$(LIBOBJ)/formats/coco_dsk.o	\
-	$(LIBOBJ)/formats/comx35_dsk.o	\
-	$(LIBOBJ)/formats/coupedsk.o	\
-	$(LIBOBJ)/formats/cpis_dsk.o	\
-	$(LIBOBJ)/formats/cqm_dsk.o		\
-	$(LIBOBJ)/formats/csw_cas.o		\
-	$(LIBOBJ)/formats/d64_dsk.o		\
-	$(LIBOBJ)/formats/d81_dsk.o		\
-	$(LIBOBJ)/formats/d88_dsk.o		\
-	$(LIBOBJ)/formats/dfi_dsk.o		\
-	$(LIBOBJ)/formats/dim_dsk.o		\
-	$(LIBOBJ)/formats/dsk_dsk.o		\
+	$(LIBOBJ)/formats/cbm_tap.o     \
+	$(LIBOBJ)/formats/cgen_cas.o    \
+	$(LIBOBJ)/formats/coco_cas.o    \
+	$(LIBOBJ)/formats/coco_dsk.o    \
+	$(LIBOBJ)/formats/comx35_dsk.o  \
+	$(LIBOBJ)/formats/coupedsk.o    \
+	$(LIBOBJ)/formats/cpis_dsk.o    \
+	$(LIBOBJ)/formats/cqm_dsk.o     \
+	$(LIBOBJ)/formats/csw_cas.o     \
+	$(LIBOBJ)/formats/d64_dsk.o     \
+	$(LIBOBJ)/formats/d67_dsk.o     \
+	$(LIBOBJ)/formats/d80_dsk.o     \
+	$(LIBOBJ)/formats/d81_dsk.o     \
+	$(LIBOBJ)/formats/d88_dsk.o     \
+	$(LIBOBJ)/formats/dfi_dsk.o     \
+	$(LIBOBJ)/formats/dim_dsk.o     \
+	$(LIBOBJ)/formats/dsk_dsk.o     \
+	$(LIBOBJ)/formats/ep64_dsk.o    \
 	$(LIBOBJ)/formats/esq8_dsk.o    \
 	$(LIBOBJ)/formats/esq16_dsk.o   \
-	$(LIBOBJ)/formats/fdi_dsk.o		\
-	$(LIBOBJ)/formats/fm7_cas.o		\
-	$(LIBOBJ)/formats/fmsx_cas.o	\
-	$(LIBOBJ)/formats/g64_dsk.o		\
-	$(LIBOBJ)/formats/gtp_cas.o		\
-	$(LIBOBJ)/formats/hect_dsk.o	\
-	$(LIBOBJ)/formats/hect_tap.o	\
+	$(LIBOBJ)/formats/fdi_dsk.o     \
+	$(LIBOBJ)/formats/fm7_cas.o     \
+	$(LIBOBJ)/formats/fmsx_cas.o    \
+	$(LIBOBJ)/formats/g64_dsk.o     \
+	$(LIBOBJ)/formats/gtp_cas.o     \
+	$(LIBOBJ)/formats/hect_dsk.o    \
+	$(LIBOBJ)/formats/hect_tap.o    \
 	$(LIBOBJ)/formats/iq151_dsk.o   \
-	$(LIBOBJ)/formats/imd_dsk.o		\
-	$(LIBOBJ)/formats/ipf_dsk.o		\
-	$(LIBOBJ)/formats/kc_cas.o		\
+	$(LIBOBJ)/formats/imd_dsk.o     \
+	$(LIBOBJ)/formats/ipf_dsk.o     \
+	$(LIBOBJ)/formats/kc_cas.o      \
 	$(LIBOBJ)/formats/kc85_dsk.o    \
-	$(LIBOBJ)/formats/kim1_cas.o	\
-	$(LIBOBJ)/formats/lviv_lvt.o	\
+	$(LIBOBJ)/formats/kim1_cas.o    \
+	$(LIBOBJ)/formats/lviv_lvt.o    \
 	$(LIBOBJ)/formats/m20_dsk.o \
 	$(LIBOBJ)/formats/m5_dsk.o      \
 	$(LIBOBJ)/formats/mm_dsk.o      \
-	$(LIBOBJ)/formats/msx_dsk.o		\
-	$(LIBOBJ)/formats/mfi_dsk.o		\
-	$(LIBOBJ)/formats/mz_cas.o		\
+	$(LIBOBJ)/formats/msx_dsk.o     \
+	$(LIBOBJ)/formats/mfi_dsk.o     \
+	$(LIBOBJ)/formats/mz_cas.o      \
 	$(LIBOBJ)/formats/nanos_dsk.o   \
-	$(LIBOBJ)/formats/nes_dsk.o		\
-	$(LIBOBJ)/formats/orao_cas.o	\
-	$(LIBOBJ)/formats/oric_dsk.o	\
-	$(LIBOBJ)/formats/oric_tap.o	\
-	$(LIBOBJ)/formats/p6001_cas.o	\
-	$(LIBOBJ)/formats/pasti_dsk.o	\
-	$(LIBOBJ)/formats/pc_dsk.o		\
+	$(LIBOBJ)/formats/nes_dsk.o     \
+	$(LIBOBJ)/formats/orao_cas.o    \
+	$(LIBOBJ)/formats/oric_dsk.o    \
+	$(LIBOBJ)/formats/oric_tap.o    \
+	$(LIBOBJ)/formats/p6001_cas.o   \
+	$(LIBOBJ)/formats/pasti_dsk.o   \
+	$(LIBOBJ)/formats/pc_dsk.o      \
 	$(LIBOBJ)/formats/pc98fdi_dsk.o \
-	$(LIBOBJ)/formats/pmd_cas.o		\
-	$(LIBOBJ)/formats/primoptp.o	\
+	$(LIBOBJ)/formats/pmd_cas.o     \
+	$(LIBOBJ)/formats/primoptp.o    \
 	$(LIBOBJ)/formats/pyldin_dsk.o  \
-	$(LIBOBJ)/formats/rk_cas.o		\
+	$(LIBOBJ)/formats/rk_cas.o      \
 	$(LIBOBJ)/formats/sc3000_bit.o  \
 	$(LIBOBJ)/formats/sf7000_dsk.o  \
-	$(LIBOBJ)/formats/smx_dsk.o		\
-	$(LIBOBJ)/formats/sorc_dsk.o	\
-	$(LIBOBJ)/formats/sord_cas.o	\
-	$(LIBOBJ)/formats/st_dsk.o		\
-	$(LIBOBJ)/formats/svi_cas.o		\
-	$(LIBOBJ)/formats/svi_dsk.o		\
-	$(LIBOBJ)/formats/td0_dsk.o		\
-	$(LIBOBJ)/formats/thom_cas.o	\
-	$(LIBOBJ)/formats/thom_dsk.o	\
-	$(LIBOBJ)/formats/ti99_dsk.o	\
+	$(LIBOBJ)/formats/smx_dsk.o     \
+	$(LIBOBJ)/formats/sorc_dsk.o    \
+	$(LIBOBJ)/formats/sord_cas.o    \
+	$(LIBOBJ)/formats/st_dsk.o      \
+	$(LIBOBJ)/formats/svi_cas.o     \
+	$(LIBOBJ)/formats/svi_dsk.o     \
+	$(LIBOBJ)/formats/td0_dsk.o     \
+	$(LIBOBJ)/formats/thom_cas.o    \
+	$(LIBOBJ)/formats/thom_dsk.o    \
+	$(LIBOBJ)/formats/ti99_dsk.o    \
 	$(LIBOBJ)/formats/tiki100_dsk.o \
-	$(LIBOBJ)/formats/trd_dsk.o		\
-	$(LIBOBJ)/formats/trs_cas.o		\
-	$(LIBOBJ)/formats/trs_dsk.o		\
+	$(LIBOBJ)/formats/trd_dsk.o     \
+	$(LIBOBJ)/formats/trs_cas.o     \
+	$(LIBOBJ)/formats/trs_dsk.o     \
 	$(LIBOBJ)/formats/tvc_cas.o     \
 	$(LIBOBJ)/formats/tvc_dsk.o     \
-	$(LIBOBJ)/formats/tzx_cas.o		\
-	$(LIBOBJ)/formats/uef_cas.o		\
+	$(LIBOBJ)/formats/tzx_cas.o     \
+	$(LIBOBJ)/formats/uef_cas.o     \
 	$(LIBOBJ)/formats/upd765_dsk.o  \
-	$(LIBOBJ)/formats/vg5k_cas.o	\
-	$(LIBOBJ)/formats/vt_cas.o		\
-	$(LIBOBJ)/formats/vt_dsk.o		\
-	$(LIBOBJ)/formats/vtech1_dsk.o	\
-	$(LIBOBJ)/formats/wavfile.o		\
+	$(LIBOBJ)/formats/vg5k_cas.o    \
+	$(LIBOBJ)/formats/vt_cas.o      \
+	$(LIBOBJ)/formats/vt_dsk.o      \
+	$(LIBOBJ)/formats/vtech1_dsk.o  \
+	$(LIBOBJ)/formats/wavfile.o     \
 	$(LIBOBJ)/formats/wd177x_dsk.o  \
-	$(LIBOBJ)/formats/x07_cas.o		\
-	$(LIBOBJ)/formats/x1_tap.o		\
+	$(LIBOBJ)/formats/x07_cas.o     \
+	$(LIBOBJ)/formats/x1_tap.o      \
 	$(LIBOBJ)/formats/xdf_dsk.o     \
-	$(LIBOBJ)/formats/z80ne_dsk.o	\
-	$(LIBOBJ)/formats/zx81_p.o		\
-	$(LIBOBJ)/formats/hxcmfm_dsk.o	\
+	$(LIBOBJ)/formats/z80ne_dsk.o   \
+	$(LIBOBJ)/formats/zx81_p.o      \
+	$(LIBOBJ)/formats/hxcmfm_dsk.o  \
 
 $(OBJ)/libformats.a: $(FORMATSOBJS)
 
@@ -705,6 +712,10 @@ $(OBJ)/libformats.a: $(FORMATSOBJS)
 #-------------------------------------------------
 # zlib library objects
 #-------------------------------------------------
+
+ifdef DEBUG
+ZLIBOPTS=-Dverbose=-1
+endif
 
 ZLIBOBJS = \
 	$(LIBOBJ)/zlib/adler32.o \
@@ -725,7 +736,7 @@ $(OBJ)/libz.a: $(ZLIBOBJS)
 
 $(LIBOBJ)/zlib/%.o: $(LIBSRC)/zlib/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) $(ZLIBOPTS) -c $< -o $@
 
 
 
@@ -738,8 +749,8 @@ SOFTFLOAT_MACROS = $(LIBSRC)/softfloat/softfloat/bits64/softfloat-macros
 
 SOFTFLOATOBJS = \
 	$(LIBOBJ)/softfloat/softfloat.o \
-    $(LIBOBJ)/softfloat/fsincos.o \
-    $(LIBOBJ)/softfloat/fyl2x.o
+	$(LIBOBJ)/softfloat/fsincos.o \
+	$(LIBOBJ)/softfloat/fyl2x.o
 
 $(OBJ)/libsoftfloat.a: $(SOFTFLOATOBJS)
 
@@ -928,3 +939,55 @@ $(LIBOBJ)/portmidi/%.o: $(LIBSRC)/portmidi/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
 	$(CC) $(CDEFS) $(PMOPTS) $(CCOMFLAGS) $(CONLYFLAGS) -I$(LIBSRC)/portmidi/ -c $< -o $@
 
+#-------------------------------------------------
+# LUA library objects
+#-------------------------------------------------
+
+LUAOBJS = \
+	$(LIBOBJ)/lua/lapi.o \
+	$(LIBOBJ)/lua/lcode.o \
+	$(LIBOBJ)/lua/lctype.o \
+	$(LIBOBJ)/lua/ldebug.o \
+	$(LIBOBJ)/lua/ldo.o \
+	$(LIBOBJ)/lua/ldump.o \
+	$(LIBOBJ)/lua/lfunc.o \
+	$(LIBOBJ)/lua/lgc.o \
+	$(LIBOBJ)/lua/llex.o \
+	$(LIBOBJ)/lua/lmem.o \
+	$(LIBOBJ)/lua/lobject.o \
+	$(LIBOBJ)/lua/lopcodes.o \
+	$(LIBOBJ)/lua/lparser.o \
+	$(LIBOBJ)/lua/lstate.o \
+	$(LIBOBJ)/lua/lstring.o \
+	$(LIBOBJ)/lua/ltable.o \
+	$(LIBOBJ)/lua/ltm.o \
+	$(LIBOBJ)/lua/lundump.o \
+	$(LIBOBJ)/lua/lvm.o \
+	$(LIBOBJ)/lua/lzio.o \
+	$(LIBOBJ)/lua/lauxlib.o \
+	$(LIBOBJ)/lua/lbaselib.o \
+	$(LIBOBJ)/lua/lbitlib.o \
+	$(LIBOBJ)/lua/lcorolib.o \
+	$(LIBOBJ)/lua/ldblib.o \
+	$(LIBOBJ)/lua/liolib.o \
+	$(LIBOBJ)/lua/lmathlib.o \
+	$(LIBOBJ)/lua/loslib.o \
+	$(LIBOBJ)/lua/lstrlib.o \
+	$(LIBOBJ)/lua/ltablib.o \
+	$(LIBOBJ)/lua/loadlib.o \
+	$(LIBOBJ)/lua/linit.o \
+
+$(OBJ)/liblua.a: $(LUAOBJS)
+
+LUA_FLAGS =
+ifeq ($(TARGETOS),linux)
+LUA_FLAGS += -DLUA_USE_POSIX
+endif
+
+ifeq ($(TARGETOS),macosx)
+LUA_FLAGS += -DLUA_USE_POSIX
+endif
+
+$(LIBOBJ)/lua/%.o: $(LIBSRC)/lua/%.c | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -DLUA_COMPAT_ALL $(LUA_FLAGS) -c $< -o $@

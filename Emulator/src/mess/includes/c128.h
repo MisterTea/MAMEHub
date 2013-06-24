@@ -4,10 +4,8 @@
 #define __C128__
 
 #include "emu.h"
-#include "formats/cbm_snqk.h"
-#include "includes/cbm.h"
+#include "machine/cbm_snqk.h"
 #include "cpu/m6502/m8502.h"
-#include "machine/6526cia.h"
 #include "machine/c64exp.h"
 #include "machine/c64user.h"
 #include "machine/cbmiec.h"
@@ -19,7 +17,7 @@
 #include "machine/ram.h"
 #include "machine/vcsctrl.h"
 #include "sound/dac.h"
-#include "sound/sid6581.h"
+#include "sound/mos6581.h"
 #include "video/mos6566.h"
 
 #define Z80A_TAG        "u10"
@@ -58,19 +56,31 @@ public:
 			m_user(*this, C64_USER_PORT_TAG),
 			m_ram(*this, RAM_TAG),
 			m_cassette(*this, PET_DATASSETTE_PORT_TAG),
+			m_rom(*this, M8502_TAG),
+			m_from(*this, "from"),
+			m_charom(*this, "charom"),
+			m_color_ram(*this, "color_ram"),
+			m_row0(*this, "ROW0"),
+			m_row1(*this, "ROW1"),
+			m_row2(*this, "ROW2"),
+			m_row3(*this, "ROW3"),
+			m_row4(*this, "ROW4"),
+			m_row5(*this, "ROW5"),
+			m_row6(*this, "ROW6"),
+			m_row7(*this, "ROW7"),
+			m_k0(*this, "K0"),
+			m_k1(*this, "K1"),
+			m_k2(*this, "K2"),
+			m_restore(*this, "RESTORE"),
+			m_lock(*this, "LOCK"),
+			m_caps(*this, "CAPS"),
+			m_40_80(*this, "40_80"),
 			m_z80en(0),
 			m_loram(1),
 			m_hiram(1),
 			m_charen(1),
 			m_game(1),
 			m_exrom(1),
-			m_rom1(NULL),
-			m_rom2(NULL),
-			m_rom3(NULL),
-			m_rom4(NULL),
-			m_from(NULL),
-			m_charom(NULL),
-			m_color_ram(*this, "color_ram"),
 			m_va14(1),
 			m_va15(1),
 			m_clrbank(0),
@@ -94,7 +104,7 @@ public:
 	required_device<mos8721_device> m_pla;
 	required_device<mos8563_device> m_vdc;
 	required_device<mos6566_device> m_vic;
-	required_device<sid6581_device> m_sid;
+	required_device<mos6581_device> m_sid;
 	required_device<mos6526_device> m_cia1;
 	required_device<mos6526_device> m_cia2;
 	required_device<cbm_iec_device> m_iec;
@@ -104,6 +114,25 @@ public:
 	required_device<c64_user_port_device> m_user;
 	required_device<ram_device> m_ram;
 	required_device<pet_datassette_port_device> m_cassette;
+	required_memory_region m_rom;
+	required_memory_region m_from;
+	required_memory_region m_charom;
+	optional_shared_ptr<UINT8> m_color_ram;
+	required_ioport m_row0;
+	required_ioport m_row1;
+	required_ioport m_row2;
+	required_ioport m_row3;
+	required_ioport m_row4;
+	required_ioport m_row5;
+	required_ioport m_row6;
+	required_ioport m_row7;
+	required_ioport m_k0;
+	required_ioport m_k1;
+	required_ioport m_k2;
+	required_ioport m_restore;
+	required_ioport m_lock;
+	required_ioport m_caps;
+	required_ioport m_40_80;
 
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -131,7 +160,6 @@ public:
 	DECLARE_READ_LINE_MEMBER( mmu_exrom_r );
 	DECLARE_READ_LINE_MEMBER( mmu_sense40_r );
 
-	INTERRUPT_GEN_MEMBER( frame_interrupt );
 	DECLARE_WRITE_LINE_MEMBER( vic_irq_w );
 	DECLARE_WRITE8_MEMBER( vic_k_w );
 
@@ -152,13 +180,11 @@ public:
 	DECLARE_READ8_MEMBER( cpu_r );
 	DECLARE_WRITE8_MEMBER( cpu_w );
 
-	DECLARE_WRITE_LINE_MEMBER( tape_read_w );
-
 	DECLARE_WRITE_LINE_MEMBER( iec_srq_w );
 	DECLARE_WRITE_LINE_MEMBER( iec_data_w );
 
-	DECLARE_READ8_MEMBER( exp_dma_r );
-	DECLARE_WRITE8_MEMBER( exp_dma_w );
+	DECLARE_READ8_MEMBER( exp_dma_cd_r );
+	DECLARE_WRITE8_MEMBER( exp_dma_cd_w );
 	DECLARE_WRITE_LINE_MEMBER( exp_irq_w );
 	DECLARE_WRITE_LINE_MEMBER( exp_nmi_w );
 	DECLARE_WRITE_LINE_MEMBER( exp_dma_w );
@@ -167,6 +193,7 @@ public:
 	DECLARE_INPUT_CHANGED_MEMBER( restore );
 	DECLARE_INPUT_CHANGED_MEMBER( caps_lock );
 
+	DECLARE_QUICKLOAD_LOAD_MEMBER( cbm_c64 );
 	// memory state
 	int m_z80en;
 	int m_loram;
@@ -175,15 +202,8 @@ public:
 	int m_game;
 	int m_exrom;
 	int m_reset;
-	const UINT8 *m_rom1;
-	const UINT8 *m_rom2;
-	const UINT8 *m_rom3;
-	const UINT8 *m_rom4;
-	const UINT8 *m_from;
-	const UINT8 *m_charom;
 
 	// video state
-	optional_shared_ptr<UINT8> m_color_ram;
 	int m_va14;
 	int m_va15;
 	int m_clrbank;

@@ -519,7 +519,7 @@ static ADDRESS_MAP_START( defender_map, AS_PROGRAM, 8, williams_state )
 ADDRESS_MAP_END
 
 
-void defender_install_io_space(address_space &space)
+void williams_state::defender_install_io_space(address_space &space)
 {
 	williams_state *state = space.machine().driver_data<williams_state>();
 	pia6821_device *pia_0 = space.machine().device<pia6821_device>("pia_0");
@@ -534,8 +534,8 @@ void defender_install_io_space(address_space &space)
 	space.install_read_handler     (0xc800, 0xcbff, 0, 0x03e0, read8_delegate(FUNC(williams_state::williams_video_counter_r),state));
 	space.install_readwrite_handler(0xcc00, 0xcc03, 0, 0x03e0, read8_delegate(FUNC(pia6821_device::read), pia_1), write8_delegate(FUNC(pia6821_device::write), pia_1));
 	space.install_readwrite_handler(0xcc04, 0xcc07, 0, 0x03e0, read8_delegate(FUNC(pia6821_device::read), pia_0), write8_delegate(FUNC(pia6821_device::write), pia_0));
-	state->membank("bank3")->set_base(space.machine().driver_data<williams_state>()->m_nvram);
-	state->membank("bank4")->set_base(space.machine().driver_data<williams_state>()->m_generic_paletteram_8);
+	membank("bank3")->set_base(space.machine().driver_data<williams_state>()->m_nvram);
+	membank("bank4")->set_base(space.machine().driver_data<williams_state>()->m_generic_paletteram_8);
 }
 
 
@@ -1959,11 +1959,27 @@ ROM_START( maydayb )
 	ROM_REGION( 0x10000, "soundcpu", 0 )
 	ROM_LOAD( "ic28-8.bin",  0xf800, 0x0800, CRC(fefd5b48) SHA1(ceb0d18483f0691978c604db94417e6941ad7ff2) )
 
-	ROM_REGION( 0x2000, "user1", 0 )
-	ROM_LOAD( "rom11.bin",   0x0000, 0x0800, CRC(7e113979) SHA1(ac908afb6aa756fc4db1ffddbd3688aa07080693) )
-	ROM_LOAD( "rom12.bin",   0x0800, 0x0800, CRC(a562c506) SHA1(a0bae41732f05caa80b9c13fba6ae4f01647e680) )
+	ROM_REGION( 0x2000, "user1", 0 ) // what are these? alt (bad?) roms?
+	ROM_LOAD( "rom11.bin",   0x0000, 0x0800, CRC(7e113979) SHA1(ac908afb6aa756fc4db1ffddbd3688aa07080693) ) // 11xxxxxxxxx = 0x00
+	ROM_LOAD( "rom12.bin",   0x0800, 0x0800, CRC(a562c506) SHA1(a0bae41732f05caa80b9c13fba6ae4f01647e680) ) // 11xxxxxxxxx = 0x00
 	ROM_LOAD( "rom6a.bin",   0x1000, 0x0800, CRC(8e4e981f) SHA1(685c1fca9373f4129c7c6b86f18900a1bd324019) )
-	ROM_LOAD( "rom8-sos.bin",0x1800, 0x0800, CRC(6a9b383f) SHA1(10e71a3bb9492b6c34ff06760dd55c442611ca75) )
+	ROM_LOAD( "rom8-sos.bin",0x1800, 0x0800, CRC(6a9b383f) SHA1(10e71a3bb9492b6c34ff06760dd55c442611ca75) ) // FIXED BITS (xxxxxx1x)
+ROM_END
+
+
+
+ROM_START( batlzone )
+	ROM_REGION( 0x19000, "maincpu", 0 )
+	ROM_LOAD( "43-2732.rom.bin",  0x0d000, 0x1000, CRC(244334f8) SHA1(ac625a1858c372db6a748ef8aa504569aef6cad7) )
+	ROM_LOAD( "42-2732.rom.bin",  0x0e000, 0x1000, CRC(62183aea) SHA1(3843fe055ab6d3bb5a3362f57a63ce99e36cec47) )
+	ROM_LOAD( "41-2732.rom.bin",  0x0f000, 0x1000, CRC(a7e9093e) SHA1(d9d9641c9f8c060b2fa227b0620454067d0b0acc) )
+	ROM_LOAD( "44-8532.rom.bin",  0x10000, 0x1000, CRC(bba3e626) SHA1(f2a364a25ee0cf91e25f8a20173bd9fb56cc2a72) )
+	ROM_LOAD( "45-8532.rom.bin",  0x11000, 0x1000, CRC(43b3a0de) SHA1(674ff7110d07aeb09889eddb0d3dd0e7b16fe979) )
+	ROM_LOAD( "46-8532.rom.bin",  0x12000, 0x1000, CRC(3df9b901) SHA1(6b2be3292b60e197154688ffd40789e937e17b4c) )
+	ROM_LOAD( "47-8532.rom.bin",  0x16000, 0x1000, CRC(55a27e02) SHA1(23064ba59caed9b21e4ef6b944313e5bd2809dc5) )
+
+	ROM_REGION( 0x10000, "soundcpu", 0 )
+	ROM_LOAD( "48-2716.rom.bin",  0xf800, 0x0800, CRC(fefd5b48) SHA1(ceb0d18483f0691978c604db94417e6941ad7ff2) )
 ROM_END
 
 
@@ -2780,7 +2796,7 @@ DRIVER_INIT_MEMBER(williams_state,mayday)
 	CONFIGURE_BLITTER(WILLIAMS_BLITTER_NONE, 0x0000);
 
 	/* install a handler to catch protection checks */
-	m_mayday_protection = machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_handler(0xa190, 0xa191, read8_delegate(FUNC(williams_state::mayday_protection_r),this));
+	m_mayday_protection = m_maincpu->space(AS_PROGRAM).install_read_handler(0xa190, 0xa191, read8_delegate(FUNC(williams_state::mayday_protection_r),this));
 }
 
 
@@ -2814,7 +2830,7 @@ DRIVER_INIT_MEMBER(williams_state,bubbles)
 	CONFIGURE_BLITTER(WILLIAMS_BLITTER_SC01, 0xc000);
 
 	/* bubbles has a full 8-bit-wide CMOS */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_write_handler(0xcc00, 0xcfff, write8_delegate(FUNC(williams_state::bubbles_cmos_w),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xcc00, 0xcfff, write8_delegate(FUNC(williams_state::bubbles_cmos_w),this));
 }
 
 
@@ -2849,27 +2865,27 @@ DRIVER_INIT_MEMBER(williams_state,spdball)
 	CONFIGURE_BLITTER(WILLIAMS_BLITTER_SC01, 0xc000);
 
 	/* add a third PIA */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_readwrite_handler(0xc808, 0xc80b, read8_delegate(FUNC(pia6821_device::read), pia_3), write8_delegate(FUNC(pia6821_device::write), pia_3));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xc808, 0xc80b, read8_delegate(FUNC(pia6821_device::read), pia_3), write8_delegate(FUNC(pia6821_device::write), pia_3));
 
 	/* install extra input handlers */
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port(0xc800, 0xc800, "AN0");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port(0xc801, 0xc801, "AN1");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port(0xc802, 0xc802, "AN2");
-	machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_port(0xc803, 0xc803, "AN3");
+	m_maincpu->space(AS_PROGRAM).install_read_port(0xc800, 0xc800, "AN0");
+	m_maincpu->space(AS_PROGRAM).install_read_port(0xc801, 0xc801, "AN1");
+	m_maincpu->space(AS_PROGRAM).install_read_port(0xc802, 0xc802, "AN2");
+	m_maincpu->space(AS_PROGRAM).install_read_port(0xc803, 0xc803, "AN3");
 }
 
 
 DRIVER_INIT_MEMBER(williams_state,alienar)
 {
 	CONFIGURE_BLITTER(WILLIAMS_BLITTER_SC01, 0xc000);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0xcbff, 0xcbff);
+	m_maincpu->space(AS_PROGRAM).nop_write(0xcbff, 0xcbff);
 }
 
 
 DRIVER_INIT_MEMBER(williams_state,alienaru)
 {
 	CONFIGURE_BLITTER(WILLIAMS_BLITTER_SC01, 0xc000);
-	machine().device("maincpu")->memory().space(AS_PROGRAM).nop_write(0xcbff, 0xcbff);
+	m_maincpu->space(AS_PROGRAM).nop_write(0xcbff, 0xcbff);
 }
 
 
@@ -2937,6 +2953,7 @@ GAME( 1981, startrkd,   defender, defender,            defender, williams_state,
 GAME( 1980, mayday,     0,        defender,            mayday, williams_state,   mayday,   ROT0,   "Hoei", "Mayday (set 1)", GAME_SUPPORTS_SAVE ) // original by Hoei, which one of these 3 sets is bootleg/licensed/original is unknown
 GAME( 1980, maydaya,    mayday,   defender,            mayday, williams_state,   mayday,   ROT0,   "Hoei", "Mayday (set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1980, maydayb,    mayday,   defender,            mayday, williams_state,   mayday,   ROT0,   "Hoei", "Mayday (set 3)", GAME_SUPPORTS_SAVE )
+GAME( 1980, batlzone,   mayday,   defender,            mayday, williams_state,   mayday,   ROT0,   "bootleg (Video Game)", "Battle Zone (bootleg of Mayday)", GAME_SUPPORTS_SAVE )
 GAME( 1981, colony7,    0,        defender,            colony7, williams_state,  defender, ROT270, "Taito", "Colony 7 (set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1981, colony7a,   colony7,  defender,            colony7, williams_state,  defender, ROT270, "Taito", "Colony 7 (set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1982, jin,        0,        jin,                 jin, williams_state,      defender, ROT90,  "Falcon", "Jin", GAME_SUPPORTS_SAVE )
@@ -2959,7 +2976,7 @@ GAME( 1983, playball,   0,        playball,            playball, williams_state,
 GAME( 1983, blaster,    0,        blaster,             blaster, williams_state,  blaster,  ROT0,   "Williams / Vid Kidz", "Blaster", GAME_SUPPORTS_SAVE )
 GAME( 1983, blastero,   blaster,  blaster,             blaster, williams_state,  blaster,  ROT0,   "Williams / Vid Kidz", "Blaster (location test)", GAME_SUPPORTS_SAVE )
 GAME( 1983, blasterkit, blaster,  blastkit,            blastkit, williams_state, blaster,  ROT0,   "Williams / Vid Kidz", "Blaster (conversion kit)", GAME_SUPPORTS_SAVE ) // mono sound
-GAME( 1985, spdball,    0,        spdball,             spdball, williams_state,  spdball,  ROT0,   "Williams", "Speed Ball (prototype)", GAME_SUPPORTS_SAVE )
+GAME( 1985, spdball,    0,        spdball,             spdball, williams_state,  spdball,  ROT0,   "Williams", "Speed Ball - Contest at Neonworld (prototype)", GAME_SUPPORTS_SAVE )
 GAME( 1985, alienar,    0,        alienar,             alienar, williams_state,  alienar,  ROT0,   "Duncan Brown", "Alien Arena", GAME_SUPPORTS_SAVE )
 GAME( 1985, alienaru,   alienar,  alienar,             alienar, williams_state,  alienaru, ROT0,   "Duncan Brown", "Alien Arena (Stargate upgrade)", GAME_SUPPORTS_SAVE )
 GAME( 1987, lottofun,   0,        lottofun,            lottofun, williams_state, lottofun, ROT0,   "H.A.R. Management", "Lotto Fun", GAME_SUPPORTS_SAVE )
