@@ -1576,15 +1576,15 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 						 * getGameDescription(message.gameChanged) +
 						 * " has started");
 						 */
-						if (Utils.windowIsInactive(mameHubEngine)) {
-							new NotifyFrame(
-									"MAMEHub Game Started",
-									String.format(
-											"<html><body><font size='4'>%s has started.</font></body></html>",
-											getGameDescription(message.gameChanged)));
-						}
 						if (getChatStatus() == ChatStatus.ONLINE) {
 							// SoundEngine.instance.playSound("gamestart");
+							if (Utils.windowIsInactive(mameHubEngine)) {
+								new NotifyFrame(
+										"MAMEHub Game Started",
+										String.format(
+												"<html><body><font size='4'>%s has started.</font></body></html>",
+												getGameDescription(message.gameChanged)));
+							}
 						}
 					}
 					knownGames.put(message.gameChanged.id, message.gameChanged);
