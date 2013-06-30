@@ -1138,14 +1138,18 @@ void video_manager::create_snapshot_bitmap(screen_device *screen)
 	if (width == 0 || height == 0)
 		m_snap_target->compute_minimum_size(width, height);
 
-	while(width<200 || height<150) {
+	while(width<400 || height<300) {
 	    width <<= 1;
 	    height <<= 1;
 	  }
-	while(width>400 || height>300) {
+	while(width>800 || height>600) {
 	  width >>= 1;
 	  height >>= 1;
 	}
+	// Make sure it's divisible by 16
+  width = ((width>>4)<<4);
+  height = ((height>>4)<<4);
+
 	//cout << "WIDTH: " << width << " HEIGHT: " << height << endl;
 
 	m_snap_target->set_bounds(width, height);

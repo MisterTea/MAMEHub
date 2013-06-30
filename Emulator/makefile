@@ -399,6 +399,20 @@ endif
 ifeq ($(TARGETOS),os2)
 DEFS = -DCRLF=3
 endif
+#Define _USE_MATH_DEFINES for M_PI
+DEFS += -D_USE_MATH_DEFINES
+
+#Defines for boost
+DEFS += -DBOOST_THREAD_BUILD_LIB -DBOOST_ALL_NO_LIB
+
+#Define HAVE_CONFIG_H for vorbis
+DEFS += -DHAVE_CONFIG_H
+
+#Define _RAKNET_LIB for RakNet
+DEFS += -D_RAKNET_LIB
+
+# define NO_MEM_TRACKING for csmame
+DEFS += -DNO_MEM_TRACKING
 
 # map the INLINE to something digestible by GCC
 DEFS += -DINLINE="static inline"
@@ -732,6 +746,7 @@ endif
 
 ifneq (,$(findstring clang,$(CC)))
 LIBS += -lstdc++ -lpthread
+endif
 
 # add protobuf library
 INCPATH += -I$(SRC)/lib/protobuf

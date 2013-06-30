@@ -1312,19 +1312,10 @@ void render_target::compute_minimum_size(INT32 &minwidth, INT32 &minheight)
 		maxyscale = 480.0f;
 	}
 
-	// Make sure it's reasonably big
-        if(maxxscale < 640.0f && maxyscale < 480.0f) {
-	  float minScale = MIN(640.0f/maxxscale, 480.0f/maxyscale);
-	  maxxscale *= minScale;
-	  maxyscale *= minScale;
-	}
 	// round up
 	minwidth = render_round_nearest(maxxscale);
 	minheight = render_round_nearest(maxyscale);
 
-	// Make sure it's divisible by 16
-        minwidth = ((minwidth>>4)<<4);
-        minheight = ((minheight>>4)<<4);
 }
 
 

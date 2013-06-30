@@ -1741,9 +1741,9 @@ const input_seq &ioport_field::seq(bool checkMapping, input_seq_type seqtype) co
       //cout << "MAPPING " << name() << " TO " << it->second->name() << endl;
       return it->second->seq(false, seqtype);
     } else if(name()) {
-      cout << "FOUND NO MAP FOR " << name() << endl;
+      // cout << "FOUND NO MAP FOR " << name() << endl;
     } else {
-      cout << "FOUND NO MAP FOR UNKNOWN INPUT" << endl;
+      // cout << "FOUND NO MAP FOR UNKNOWN INPUT" << endl;
     }
   }
 
@@ -3158,7 +3158,7 @@ void ioport_manager::frame_update_callback()
 //-------------------------------------------------
 
 attotime lastFutureInputTime(0,0);
-int baseDelayFromPing = 50;
+int baseDelayFromPing = 40;
 extern attotime mostRecentSentReport;
 
 void ioport_manager::frame_update()
@@ -3377,7 +3377,7 @@ void ioport_manager::pollForPeerCatchup(bool printDebug) {
             
       if(framesSinceDelayCheck>=60 && netServer && !waitingForClientCatchup) {
         cout << "Decreasing base delay from " << baseDelayFromPing;
-        baseDelayFromPing = max(50,baseDelayFromPing-20);
+        baseDelayFromPing = max(40,baseDelayFromPing-20);
         framesSinceDelayCheck=0;
         cout << " to " << baseDelayFromPing << endl;
         netServer->sendBaseDelay(baseDelayFromPing);
