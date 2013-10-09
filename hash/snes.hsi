@@ -1,6 +1,7 @@
 <hashfile>
 	<!-- This MESS HASH file was auto-generated from Cowering's GoodSNES database (V3.14)  -->
 	<!-- for the exclusive use of MESS.  Keep this notice intact if editing this file  -->
+	<!--  Seiken densetsu 3 player hack added from emuparadise.me -->
 
 	<hash crc32="2f9f9da5" sha1="743512b898a3b571a0e1dd8438da898b84574e6e" name="10 Yard Fight (A&amp;S NES Hack)"> </hash>
 	<hash crc32="3d091f6a" sha1="6e615e63671ffd27749dcfc4846f18e0001108ef" name="101 Dalmatas by TegPeru (Beethoven's 2nd Hack)">
@@ -12663,7 +12664,8 @@
 	</hash>
 	<hash crc32="11c298db" sha1="df3602e453d6d9dc0efa295e66963f7b4091fcd7" name="Seiken Densetsu 3 (J) (Sample) [h1C]"> </hash>
 	<hash crc32="4801e76a" sha1="7078dbcf0b2941af59c8187eeb3b8dd392407b46" name="Seiken Densetsu 3 (J) (Sample)"> </hash>
-	<hash crc32="68363393" sha1="6a45e935f6b9c9ffcb9e1ad9bc80728a38c0d114" name="Seiken Densetsu 3 (J) (Secret of Mana 2 Title Hack)"> </hash>
+		
+<hash crc32="68363393" sha1="6a45e935f6b9c9ffcb9e1ad9bc80728a38c0d114" name="Seiken Densetsu 3 (J) (Secret of Mana 2 Title Hack)"> </hash>
 	<hash crc32="fbc00ed0" sha1="2ea703cb8c2b11887afae119f845d09a94ffb3e6" name="Seiken Densetsu 3 (J)">
 		<status>Known Bad Image</status>
 	</hash>
@@ -12704,7 +12706,8 @@
 	<hash crc32="fb3a14a9" sha1="e435712d08f7f5060025665d5289ecd3bfdbb844" name="Seiken Densetsu 3 (J) [T-Ger1.00][f1]"> </hash>
 	<hash crc32="85f3970b" sha1="5622c5827260ea3c008843491332e42f6f4d6749" name="Seiken Densetsu 3 (J) [T-Ger1.00]"> </hash>
 	<hash crc32="19e49d77" sha1="7120d7e5a829dd732c4c4a01697d02548200e087" name="Seiken Densetsu 3 (J) [T-Ger]"> </hash>
-	<hash crc32="863ed0b8" sha1="209c55fd2a8d7963905e3048b7d40094d6bea965" name="Seiken Densetsu 3 (J)"> </hash>
+	<hash crc32="863ed0b8" sha1="209c55fd2a8d7963905e3048b7d40094d6bea965" name="Seiken Densetsu 3 (J)"> </hash>	
+	<hash crc32="80d9ed26" sha1="097147dcac23473440ce32d89f2fef31668c9b1e" name="Seiken Densetsu 3 (Japan) [En by LNF+Neill Corlett+SoM2Freak v1.01] [Hack by Parlance v1.0] (3 Player Edition)"> </hash>
 	<hash crc32="4b24f650" sha1="d406a387998071c6fdf833e6a61751ea61616044" name="Sendy's World V0.2 (SMW1 Hack)">
 		<status>Known Bad Image</status>
 	</hash>
