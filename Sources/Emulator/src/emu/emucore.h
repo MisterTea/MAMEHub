@@ -85,6 +85,7 @@ class running_machine;
 // generic_ptr is a union of pointers to various sizes
 union generic_ptr
 {
+	generic_ptr(void *value) { v = value; }
 	void *      v;
 	INT8 *      i8;
 	UINT8 *     u8;
@@ -356,7 +357,7 @@ void report_bad_device_cast(const device_t *dev, const std::type_info &src_type,
 template<class _Dest, class _Source>
 inline _Dest downcast(_Source *src)
 {
-#ifdef MAME_DEBUG
+#if defined(MAME_DEBUG) && !defined(MAME_DEBUG_FAST)
 	try {
 		if (dynamic_cast<_Dest>(src) != src)
 		{
@@ -377,7 +378,7 @@ inline _Dest downcast(_Source *src)
 template<class _Dest, class _Source>
 inline _Dest downcast(_Source &src)
 {
-#ifdef MAME_DEBUG
+#if defined(MAME_DEBUG) && !defined(MAME_DEBUG_FAST)
 	try {
 		if (&dynamic_cast<_Dest>(src) != &src)
 		{
@@ -401,8 +402,8 @@ inline _Dest downcast(_Source &src)
 //  FUNCTION PROTOTYPES
 //**************************************************************************
 
-DECL_NORETURN void fatalerror(const char *format, ...) ATTR_PRINTF(1,2) ATTR_NORETURN;
-DECL_NORETURN void fatalerror_exitcode(running_machine &machine, int exitcode, const char *format, ...) ATTR_PRINTF(3,4) ATTR_NORETURN;
+ATTR_NORETURN void fatalerror(const char *format, ...) ATTR_PRINTF(1,2);
+ATTR_NORETURN void fatalerror_exitcode(running_machine &machine, int exitcode, const char *format, ...) ATTR_PRINTF(3,4);
 
 inline void fatalerror(const char *format, ...)
 {

@@ -174,7 +174,8 @@ Notes:
 #include "emu.h"
 #include "cpu/powerpc/ppc.h"
 #include "cpu/tlcs900/tlcs900.h"
-#include "machine/idectrl.h"
+#include "machine/ataintf.h"
+#include "machine/idehd.h"
 #include "machine/nvram.h"
 #include "video/polynew.h"
 
@@ -396,35 +397,79 @@ Notes:
 
     Word 0:
                     ---x---- -------- -------- --------     1: this is the last polygon of the model
+                    ------x- -------- -------- --------     ?
                     -------x -------- -------- --------     0: triangle, 1: quad
                     -------- -------- -----xxx xxxxxxxx     Texture number (* 0x4000 to address the texture)
 
     Word 1:
-                    ?
+                    x------- -------- -------- --------     ?
+                    ----xx-- -------- -------- --------     ?
+                    -------- xxxxxxxx -------- --------     Polygon Normal X (signed 1.7 fixed point)
+                    -------- -------- xxxxxxxx --------     Polygon Normal Y (signed 1.7 fixed point)
+                    -------- -------- -------- xxxxxxxx     Polygon Normal Z (signed 1.7 fixed point)
 
     Word 2:
-                    ?
+                    x------- -------- -------- --------     ?
+                    ----x--- -------- -------- --------     ?
+                    -----x-- -------- -------- --------     ?
+                    ------x- -------- -------- --------     Enable environment mapping?
+                    -------x -------- -------- --------     ?
+                    -------- xxxxxxxx -------- --------     Tangent X (signed 1.7 fixed point)
+                    -------- -------- xxxxxxxx --------     Tangent Y (signed 1.7 fixed point)
+                    -------- -------- -------- xxxxxxxx     Tangent Z (signed 1.7 fixed point)
 
     Word 3:
-                    ?
+                    x------- -------- -------- --------     ?
+                    ----xx-- -------- -------- --------     Tex mode? (more than 2 bits?)
+                                                            00: Tex 0: color, Tex 1: color with pre-lighting (used by BG2 attract mode trackpieces)
+                                                            01: Tex 0: alpha mask?, Tex 1: inverse alpha? (used by car shadow)
+                                                            10: Tex 0: alpha mask, Tex 1: color (additive alpha, used by headlights, etc.)
+                                                            11: Tex 0: color, Tex 1: environment map? (used by cars)
+                    -------x -------- -------- --------     ?
+                    -------- xxxxxxxx -------- --------     Bi-normal X (signed 1.7 fixed point)
+                    -------- -------- xxxxxxxx --------     Bi-normal Y (signed 1.7 fixed point)
+                    -------- -------- -------- xxxxxxxx     Bi-normal Z (signed 1.7 fixed point)
+
+                    e1000096 0c43cca2 02000000 0c000000     Car model (with env map?)
+                    e100009a 007f0000 000083ea 0c001784     Part with bump-mapping
+                    f1000068 0c007f00 0c7f0000 0500007f     Car shadow
+                    e100006a 0c00007f 0c000000 08000000     Light
+                    e1000127 0c00007f 0c000000 08000000     Fireworks (alpha mask?)
+                    e1000185 0cee7d03 0c000000 00000000     Trackpiece
+                    f1000068 0c007f00 0c7e0000 0400007f     Car shadow (BG2 0x1f160)
+
+
+
+
+
+
+
+
+
+
+
 
     Vertex data: 3x (triangle) or 4x (quad) 4 words
     Word 0:
                     -------- -------- -------- xxxxxxxx     Texture V coordinate (0..63 with max 4x repeat)
                     -------- -------- xxxxxxxx --------     Texture U coordinate (0..63 with max 4x repeat)
                     -------- xxxxxxxx -------- --------     Usually 0x40. HUD elements set 0xff. Self-illumination?
+                    xxxxxxxx -------- -------- --------     ? (seen 0x00, 0x83, 0x40)
 
     Word 1:
                     -------- -------- xxxxxxxx xxxxxxxx     Vertex X coordinate (signed 8.8 fixed point)
                     -------- xxxxxxxx -------- --------     Normal X (signed 1.7 fixed point)
+                    xxxxxxxx -------- -------- --------     ? (seen 0x00, 0x83, 0x40)
 
     Word 2:
                     -------- -------- xxxxxxxx xxxxxxxx     Vertex Y coordinate (signed 8.8 fixed point)
                     -------- xxxxxxxx -------- --------     Normal Y (signed 1.7 fixed point)
+                    xxxxxxxx -------- -------- --------     ? (seen 0x00, 0x83, 0x40)
 
     Word 3:
                     -------- -------- xxxxxxxx xxxxxxxx     Vertex Z coordinate (signed 8.8 fixed point)
                     -------- xxxxxxxx -------- --------     Normal Z (signed 1.7 fixed point)
+                    xxxxxxxx -------- -------- --------     ? (seen 0x00, 0x83, 0x40)
 
     3D registers
     ------------
@@ -442,14 +487,19 @@ Notes:
 
     0x00000104:
 
-    0x10000100:
+    0x10000100:     -------x xxxxxxxx -------- --------     \ Screen space light vector? (changes during camera movement)
+                    -------- -------- -------x xxxxxxxx     / (int)(N * 127.0f)
 
-    0x10000101:
+    0x10000101:     -------- -------x -------- --------     ?
+                    -------- -------- -------- -xxxxxxx     ? (int)(N * 127.0f)
 
     0x10000102:     xxxxxxxx xxxxxxxx -------- --------     Diffuse light color (ARGB1555)
                     -------- -------- xxxxxxxx xxxxxxxx     Ambient light color (ARGB1555)
 
-    0x10000103:
+    0x10000103:     x------- -------- -------- --------     ?
+                    -xxxxxxx xxxxxxxx -------- --------     ?
+                    -------- -------- ---xxxxx --------     \ ? converted from floats to int 0..31
+                    -------- -------- -------- ---xxxxx     /
 
     0x10000104:
 
@@ -460,18 +510,10 @@ Notes:
 #define LOG_TLCS_TO_PPC_COMMANDS        1
 
 #define LOG_DISPLAY_LIST                0
+#define ENABLE_LIGHTING                 1
 
 #define PPC_TLCS_COMM_TRIGGER           12345
 #define TLCS_PPC_COMM_TRIGGER           12346
-
-struct taitotz_polydata
-{
-	UINT32 texture;
-	UINT32 alpha;
-	int diffuse_r, diffuse_g, diffuse_b;
-	int ambient_r, ambient_g, ambient_b;
-	int specular_r, specular_g, specular_b;
-};
 
 struct PLANE
 {
@@ -480,83 +522,18 @@ struct PLANE
 
 typedef float VECTOR3[3];
 
-class taitotz_renderer : public poly_manager<float, taitotz_polydata, 6, 50000>
+struct taitotz_polydata
 {
-public:
-	taitotz_renderer(running_machine &machine, int width, int height, UINT32 *texram)
-		: poly_manager<float, taitotz_polydata, 6, 50000>(machine)
-	{
-		m_zbuffer = auto_bitmap_ind32_alloc(machine, width, height);
-		m_texture = texram;
-
-		m_light_vector[0] = 0.0f;
-		m_light_vector[1] = 0.0f;
-		m_light_vector[2] = -1.0f;
-
-		m_diffuse_intensity = 224;
-		m_ambient_intensity = 32;
-		m_specular_intensity = 256;
-		m_specular_power = 10;
-	}
-
-	void set_fb(bitmap_rgb32 *fb) { m_fb = fb; }
-	void render_displaylist(running_machine &machine, const rectangle &cliprect);
-	void draw_object(running_machine &machine, UINT32 address, float scale, UINT8 alpha);
-	float line_plane_intersection(const vertex_t *v1, const vertex_t *v2, PLANE cp);
-	int clip_polygon(const vertex_t *v, int num_vertices, PLANE cp, vertex_t *vout);
-	void setup_viewport(int x, int y, int width, int height, int center_x, int center_y);
-	void draw_scanline_noz(INT32 scanline, const extent_t &extent, const taitotz_polydata &extradata, int threadid);
-	void draw_scanline(INT32 scanline, const extent_t &extent, const taitotz_polydata &extradata, int threadid);
-
-private:
-	enum
-	{
-		POLY_Z      = 0,
-		POLY_U      = 1,
-		POLY_V      = 2,
-		POLY_NX     = 3,
-		POLY_NY     = 4,
-		POLY_NZ     = 5,
-	};
-
-	//static const float ZBUFFER_MAX = 10000000000.0f;
-
-	bitmap_rgb32 *m_fb;
-	bitmap_ind32 *m_zbuffer;
-	UINT32 *m_texture;
-
-	PLANE m_clip_plane[6];
-	float m_matrix[4][3];
-
-	VECTOR3 m_light_vector;
-	float m_diffuse_intensity;
-	float m_ambient_intensity;
-	float m_specular_intensity;
-	float m_specular_power;
-
-	int m_ambient_r;
-	int m_ambient_g;
-	int m_ambient_b;
-	int m_diffuse_r;
-	int m_diffuse_g;
-	int m_diffuse_b;
-	int m_specular_r;
-	int m_specular_g;
-	int m_specular_b;
-
-	float m_vp_center_x;
-	float m_vp_center_y;
-	float m_vp_focus;
-	float m_vp_x;
-	float m_vp_y;
-	float m_vp_mul;
-
-	UINT32 m_reg_100;
-	UINT32 m_reg_101;
-	UINT32 m_reg_102;
+	UINT32 texture;
+	UINT32 alpha;
+	UINT32 flags;
+	int diffuse_r, diffuse_g, diffuse_b;
+	int ambient_r, ambient_g, ambient_b;
+	int specular_r, specular_g, specular_b;
+	VECTOR3 light;
 };
 
-
+class taitotz_renderer;
 
 class taitotz_state : public driver_device
 {
@@ -567,15 +544,15 @@ public:
 		m_iocpu(*this, "iocpu"),
 		m_work_ram(*this, "work_ram"),
 		m_mbox_ram(*this, "mbox_ram"),
-		m_ide(*this, "ide")
+		m_ata(*this, "ata")
 	{
 	}
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_iocpu;
 	required_shared_ptr<UINT64> m_work_ram;
-	required_shared_ptr<UINT8>  m_mbox_ram;
-	required_device<ide_controller_device> m_ide;
+	required_shared_ptr<UINT16> m_mbox_ram;
+	required_device<ata_interface_device> m_ata;
 
 	DECLARE_READ64_MEMBER(ppc_common_r);
 	DECLARE_WRITE64_MEMBER(ppc_common_w);
@@ -606,10 +583,6 @@ public:
 	DECLARE_WRITE8_MEMBER(tlcs_common_w);
 	DECLARE_READ8_MEMBER(tlcs_rtc_r);
 	DECLARE_WRITE8_MEMBER(tlcs_rtc_w);
-	DECLARE_WRITE8_MEMBER(tlcs900_to1);
-	DECLARE_WRITE8_MEMBER(tlcs900_to3);
-	DECLARE_READ8_MEMBER(tlcs900_port_read);
-	DECLARE_WRITE8_MEMBER(tlcs900_port_write);
 
 	UINT8 m_rtcdata[8];
 
@@ -629,15 +602,14 @@ public:
 	DECLARE_DRIVER_INIT(batlgear);
 	DECLARE_DRIVER_INIT(landhigh);
 	DECLARE_DRIVER_INIT(raizpin);
+	DECLARE_DRIVER_INIT(styphp);
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_taitotz(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(taitotz_vbi);
-	DECLARE_READ8_MEMBER(tlcs_ide0_r);
-	DECLARE_WRITE8_MEMBER(tlcs_ide0_w);
-	DECLARE_READ8_MEMBER(tlcs_ide1_r);
-	DECLARE_WRITE8_MEMBER(tlcs_ide1_w);
+	DECLARE_READ16_MEMBER(tlcs_ide0_r);
+	DECLARE_READ16_MEMBER(tlcs_ide1_r);
 	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
 	void taitotz_exit();
 	void draw_tile(taitotz_state *state, UINT32 pos, UINT32 tile);
@@ -648,6 +620,84 @@ public:
 	void init_taitotz_152();
 	void init_taitotz_111a();
 };
+
+class taitotz_renderer : public poly_manager<float, taitotz_polydata, 6, 50000>
+{
+public:
+	taitotz_renderer(taitotz_state &state, int width, int height, UINT32 *texram)
+		: poly_manager<float, taitotz_polydata, 6, 50000>(state.machine()),
+			m_state(state)
+	{
+		m_zbuffer = auto_bitmap_ind32_alloc(state.machine(), width, height);
+		m_texture = texram;
+
+		m_diffuse_intensity = 224;
+		m_ambient_intensity = 32;
+		m_specular_intensity = 256;
+		m_specular_power = 20;
+	}
+
+	void set_fb(bitmap_rgb32 *fb) { m_fb = fb; }
+	void render_displaylist(running_machine &machine, const rectangle &cliprect);
+	void draw_object(running_machine &machine, UINT32 address, float scale, UINT8 alpha);
+	float line_plane_intersection(const vertex_t *v1, const vertex_t *v2, PLANE cp);
+	int clip_polygon(const vertex_t *v, int num_vertices, PLANE cp, vertex_t *vout);
+	void setup_viewport(int x, int y, int width, int height, int center_x, int center_y);
+	void draw_scanline_noz(INT32 scanline, const extent_t &extent, const taitotz_polydata &extradata, int threadid);
+	void draw_scanline(INT32 scanline, const extent_t &extent, const taitotz_polydata &extradata, int threadid);
+
+private:
+	enum
+	{
+		POLY_Z      = 0,
+		POLY_U      = 1,
+		POLY_V      = 2,
+		POLY_NX     = 3,
+		POLY_NY     = 4,
+		POLY_NZ     = 5,
+	};
+
+	//static const float ZBUFFER_MAX = 10000000000.0f;
+
+	taitotz_state &m_state;
+	bitmap_rgb32 *m_fb;
+	bitmap_ind32 *m_zbuffer;
+	UINT32 *m_texture;
+
+	PLANE m_clip_plane[6];
+	float m_matrix[4][3];
+
+	float m_diffuse_intensity;
+	float m_ambient_intensity;
+	float m_specular_intensity;
+	float m_specular_power;
+
+	int m_ambient_r;
+	int m_ambient_g;
+	int m_ambient_b;
+	int m_diffuse_r;
+	int m_diffuse_g;
+	int m_diffuse_b;
+	int m_specular_r;
+	int m_specular_g;
+	int m_specular_b;
+
+	float m_vp_center_x;
+	float m_vp_center_y;
+	float m_vp_focus;
+	float m_vp_x;
+	float m_vp_y;
+	float m_vp_mul;
+
+	UINT32 m_reg_100;
+	UINT32 m_reg_101;
+	UINT32 m_reg_102;
+
+	UINT32 m_reg_10000100;
+	UINT32 m_reg_10000101;
+};
+
+
 
 /*
 void taitotz_state::taitotz_exit()
@@ -691,15 +741,15 @@ void taitotz_state::taitotz_exit()
 */
 void taitotz_state::video_start()
 {
-	int width = machine().primary_screen->width();
-	int height = machine().primary_screen->height();
+	int width = m_screen->width();
+	int height = m_screen->height();
 
 	m_screen_ram = auto_alloc_array(machine(), UINT32, 0x200000);
 	m_frame_ram = auto_alloc_array(machine(), UINT32, 0x80000);
 	m_texture_ram = auto_alloc_array(machine(), UINT32, 0x800000);
 
 	/* create renderer */
-	m_renderer = auto_alloc(machine(), taitotz_renderer(machine(), width, height, m_texture_ram));
+	m_renderer = auto_alloc(machine(), taitotz_renderer(*this, width, height, m_texture_ram));
 
 	//machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(taitotz_exit), &machine()));
 }
@@ -818,6 +868,10 @@ void taitotz_renderer::draw_scanline(INT32 scanline, const extent_t &extent, con
 	UINT32 *texram = &m_texture[extradata.texture * 0x1000];
 	UINT32 alpha = extradata.alpha & 0x1f;
 	UINT32 alpha_enable = extradata.alpha & 0x80;
+
+	int texmode = extradata.flags & 0x3;
+
+#if ENABLE_LIGHTING
 	int diff_r = extradata.diffuse_r;
 	int diff_g = extradata.diffuse_g;
 	int diff_b = extradata.diffuse_b;
@@ -828,11 +882,24 @@ void taitotz_renderer::draw_scanline(INT32 scanline, const extent_t &extent, con
 	int spec_g = extradata.specular_g;
 	int spec_b = extradata.specular_b;
 
-	// TODO: these might get swapped around, the color texture doesn't always seem to be tex0
-	int tex0_shift = 0;
-	int tex1_shift = 16;
-
 	VECTOR3 view = { -0.0f, -0.0f, -1.0f };
+
+	VECTOR3 light_vector;
+	light_vector[0] = extradata.light[0];
+	light_vector[1] = extradata.light[1];
+	light_vector[2] = extradata.light[2];
+#endif
+
+	// TODO: these might get swapped around, the color texture doesn't always seem to be tex0
+	//int tex0_shift = (extradata.flags & 1) ? 16 : 0;
+	int tex0_shift, tex1_shift;
+	switch (texmode)
+	{
+		case 0: tex0_shift = 16;  tex1_shift = 0; break;
+		case 1: tex0_shift = 16; tex1_shift = 0; break;
+		case 2: tex0_shift = 16; tex1_shift = 0;  break;
+		default: tex0_shift = 0;  tex1_shift = 16; break;
+	}
 
 	for (int x = extent.startx; x < extent.stopx; x++)
 	{
@@ -850,11 +917,18 @@ void taitotz_renderer::draw_scanline(INT32 scanline, const extent_t &extent, con
 			UINT32 texel0 = (texel >> tex0_shift) & 0xffff;
 			if (!(texel0 & 0x8000))
 			{
+				// extract texel0 RGB
+				int r0 = (texel0 & 0x7c00) >> 7;
+				int g0 = (texel0 & 0x03e0) >> 2;
+				int b0 = (texel0 & 0x001f) << 3;
+
+#if ENABLE_LIGHTING
+				// fetch texture1 and apply normal map
+				UINT32 texel1 = (texel >> tex1_shift) & 0xffff;
+
 				VECTOR3 normal;
 				VECTOR3 half;
 
-				// fetch texture1 and apply normal map
-				UINT32 texel1 = (texel >> tex1_shift) & 0xffff;
 				float bumpx = dot3_tex_table[(texel1 & 0x7c00) >> 10];
 				float bumpy = dot3_tex_table[(texel1 & 0x03e0) >>  5];
 				float bumpz = dot3_tex_table[(texel1 & 0x001f)];
@@ -871,13 +945,13 @@ void taitotz_renderer::draw_scanline(INT32 scanline, const extent_t &extent, con
 				normal[2] *= l;
 
 				// calculate per-pixel lighting
-				float dot = dot_product_vec3(normal, m_light_vector);
+				float dot = dot_product_vec3(normal, light_vector);
 
 
 				// calculate half-angle vector for specular
-				half[0] =  m_light_vector[0] + view[0];
-				half[1] =  m_light_vector[1] + view[1];
-				half[2] =  m_light_vector[2] + view[2];
+				half[0] = light_vector[0] + view[0];
+				half[1] = light_vector[1] + view[1];
+				half[2] = light_vector[2] + view[2];
 				// normalize it
 				l = finvsqrt(half[0] * half[0] + half[1] * half[1] + half[2] * half[2]);
 				half[0] *= l;
@@ -886,41 +960,105 @@ void taitotz_renderer::draw_scanline(INT32 scanline, const extent_t &extent, con
 
 				// calculate specularity
 				int specular = (int)(pow(clamp_pos(dot_product_vec3(normal, half)), m_specular_power) * m_specular_intensity);
-
 				int intensity = (int)(dot * m_diffuse_intensity);
 
-				// extract texel RGB
-				int r = (texel0 & 0x7c00) >> 7;
-				int g = (texel0 & 0x03e0) >> 2;
-				int b = (texel0 & 0x001f) << 3;
-
 				// apply lighting
-				r = ((r * intensity * diff_r) >> 16) + ((r * amb_r) >> 8) + ((specular * spec_r) >> 8);
-				g = ((g * intensity * diff_g) >> 16) + ((g * amb_g) >> 8) + ((specular * spec_g) >> 8);
-				b = ((b * intensity * diff_b) >> 16) + ((b * amb_b) >> 8) + ((specular * spec_b) >> 8);
+				r0 = ((r0 * intensity * diff_r) >> 16) + ((r0 * amb_r) >> 8) + ((specular * spec_r) >> 8);
+				g0 = ((g0 * intensity * diff_g) >> 16) + ((g0 * amb_g) >> 8) + ((specular * spec_g) >> 8);
+				b0 = ((b0 * intensity * diff_b) >> 16) + ((b0 * amb_b) >> 8) + ((specular * spec_b) >> 8);
 
-				if (r > 255) r = 255;
-				if (g > 255) g = 255;
-				if (b > 255) b = 255;
-				if (r < 0) r = 0;
-				if (g < 0) g = 0;
-				if (b < 0) b = 0;
+				if (r0 > 255) r0 = 255;
+				if (g0 > 255) g0 = 255;
+				if (b0 > 255) b0 = 255;
+				if (r0 < 0) r0 = 0;
+				if (g0 < 0) g0 = 0;
+				if (b0 < 0) b0 = 0;
+#endif
 
-				// alpha blending
-				if (alpha_enable && alpha < 0x1f)
+				// texture alpha mask
+				if (texmode == 2)
 				{
+					// extract texel0 RGB
+					int r0 = (texel0 & 0x7c00) >> 7;
+					int g0 = (texel0 & 0x03e0) >> 2;
+					int b0 = (texel0 & 0x001f) << 3;
+
+					// fetch texture1
+					UINT32 texel1 = (texel >> tex1_shift) & 0xffff;
+
+					if (!(texel1 & 0x8000))
+					{
+						int sr = (fb[x] >> 16) & 0xff;
+						int sg = (fb[x] >>  8) & 0xff;
+						int sb = fb[x] & 0xff;
+
+						sr += r0;
+						sg += g0;
+						sb += b0;
+
+						if (sr > 255) sr = 255;
+						if (sg > 255) sg = 255;
+						if (sb > 255) sb = 255;
+
+						// write to framebuffer
+						fb[x] = 0xff000000 | (sr << 16) | (sg << 8) | sb;
+					}
+				}
+				else if (texmode == 1)
+				{
+					// TEXEL0: RGB alpha levels
+					// TEXEL1: RGB color
+
+					int r0 = (texel0 >> 10) & 0x1f;
+					int g0 = (texel0 >> 5) & 0x1f;
+					int b0 = texel0 & 0x1f;
+
+					// fetch texture1
+					UINT32 texel1 = (texel >> tex1_shift) & 0xffff;
+
+					int r1 = (texel1 & 0x7c00) >> 7;
+					int g1 = (texel1 & 0x03e0) >> 2;
+					int b1 = (texel1 & 0x001f) << 3;
+
 					int sr = (fb[x] >> 16) & 0xff;
 					int sg = (fb[x] >>  8) & 0xff;
 					int sb = fb[x] & 0xff;
-					int a = alpha + 1;
-					r = ((r * a) >> 5) + ((sr * (31 - a)) >> 5);
-					g = ((g * a) >> 5) + ((sg * (31 - a)) >> 5);
-					b = ((b * a) >> 5) + ((sb * (31 - a)) >> 5);
+
+					r0 = ((r1 * (31 - r0)) >> 5) + ((sr * r0) >> 5);
+					g0 = ((g1 * (31 - g0)) >> 5) + ((sg * g0) >> 5);
+					b0 = ((b1 * (31 - b0)) >> 5) + ((sb * b0) >> 5);
+
+					// write to framebuffer
+					fb[x] = 0xff000000 | (r0 << 16) | (g0 << 8) | b0;
 				}
+				else if (texmode == 0)
+				{
+					// extract texel0 RGB
+					int r0 = (texel0 & 0x7c00) >> 7;
+					int g0 = (texel0 & 0x03e0) >> 2;
+					int b0 = (texel0 & 0x001f) << 3;
+
+					// write to framebuffer
+					fb[x] = 0xff000000 | (r0 << 16) | (g0 << 8) | b0;
+				}
+				else
+				{
+					// polygon alpha blending
+					if (alpha_enable && alpha < 0x1f)
+					{
+						int sr = (fb[x] >> 16) & 0xff;
+						int sg = (fb[x] >>  8) & 0xff;
+						int sb = fb[x] & 0xff;
+						int a = alpha + 1;
+						r0 = ((r0 * a) >> 5) + ((sr * (31 - a)) >> 5);
+						g0 = ((g0 * a) >> 5) + ((sg * (31 - a)) >> 5);
+						b0 = ((b0 * a) >> 5) + ((sb * (31 - a)) >> 5);
+					}
 
 
-				// write to framebuffer
-				fb[x] = 0xff000000 | (r << 16) | (g << 8) | b;
+					// write to framebuffer
+					fb[x] = 0xff000000 | (r0 << 16) | (g0 << 8) | b0;
+				}
 			}
 
 			zb[x] = ooz;
@@ -1018,11 +1156,28 @@ int taitotz_renderer::clip_polygon(const vertex_t *v, int num_vertices, PLANE cp
 
 void taitotz_renderer::draw_object(running_machine &machine, UINT32 address, float scale, UINT8 alpha)
 {
-	taitotz_state *state = machine.driver_data<taitotz_state>();
-	const rectangle& visarea = machine.primary_screen->visible_area();
+	const rectangle& visarea = m_state.m_screen->visible_area();
 
-	UINT32 *src = &state->m_screen_ram[address];
+	UINT32 *src = &m_state.m_screen_ram[address];
 	taitotz_renderer::vertex_t v[10];
+
+
+	// fetch global light vector
+	int ilx = (m_reg_10000100 >> 16) & 0x1ff;
+	if (ilx & 0x100) ilx |= 0xfffffe00;
+	int ily = m_reg_10000100 & 0x1ff;
+	if (ily & 0x100) ily |= 0xfffffe00;
+	int ilz = m_reg_10000101 & 0x7f;
+
+	float light_x = (float)(ilx) / 127.0f;
+	float light_y = (float)(ily) / 127.0f;
+	float light_z = (float)(ilz) / 127.0f;
+
+	// normalize
+	float l = finvsqrt(light_x * light_x + light_y * light_y + light_z * light_z);
+	light_x *= l;
+	light_y *= l;
+	light_z *= l;
 
 	int end = 0;
 	int index = 0;
@@ -1041,6 +1196,16 @@ void taitotz_renderer::draw_object(running_machine &machine, UINT32 address, flo
 			num_verts = 3;
 
 		int texture = src[index] & 0x7ff;
+		int tex_switch = (src[index+3] >> 26) & 3;
+
+		/*
+		INT8 polyinx = (src[index+1] >> 16) & 0xff;
+		INT8 polyiny = (src[index+1] >> 8) & 0xff;
+		INT8 polyinz = src[index+1] & 0xff;
+		float polynx = (float)(polyinx) / 128.0f;
+		float polyny = (float)(polyiny) / 128.0f;
+		float polynz = (float)(polyinz) / 128.0f;
+		*/
 
 		index += 4;
 
@@ -1100,6 +1265,7 @@ void taitotz_renderer::draw_object(running_machine &machine, UINT32 address, flo
 
 		extra.texture = texture;
 		extra.alpha = alpha;
+		extra.flags = tex_switch;
 		extra.diffuse_r = m_diffuse_r;
 		extra.diffuse_g = m_diffuse_g;
 		extra.diffuse_b = m_diffuse_b;
@@ -1109,6 +1275,9 @@ void taitotz_renderer::draw_object(running_machine &machine, UINT32 address, flo
 		extra.specular_r = m_specular_r;
 		extra.specular_g = m_specular_g;
 		extra.specular_b = m_specular_b;
+		extra.light[0] = light_x;
+		extra.light[1] = light_y;
+		extra.light[2] = -light_z;
 
 		for (int i=2; i < num_verts; i++)
 		{
@@ -1171,21 +1340,19 @@ void taitotz_renderer::setup_viewport(int x, int y, int width, int height, int c
 
 void taitotz_renderer::render_displaylist(running_machine &machine, const rectangle &cliprect)
 {
-	taitotz_state *state = machine.driver_data<taitotz_state>();
-
 	float zvalue = 0;//ZBUFFER_MAX;
 	m_zbuffer->fill(*(int*)&zvalue, cliprect);
 
-	const rectangle& visarea = machine.primary_screen->visible_area();
+	const rectangle& visarea = m_state.m_screen->visible_area();
 	vertex_t v[8];
 
-	UINT32 *src = (UINT32*)&state->m_work_ram[0];
+	UINT32 *src = (UINT32*)&m_state.m_work_ram[0];
 
 	UINT32 w[32];
 	int j;
 	int end = 0;
 
-	UINT32 index = state->m_displist_addr / 4;
+	UINT32 index = m_state.m_displist_addr / 4;
 
 	setup_viewport(0, 0, 256, 192, 256, 192);
 
@@ -1347,6 +1514,14 @@ void taitotz_renderer::render_displaylist(running_machine &machine, const rectan
 				{
 					m_reg_102 = word;
 				}
+				else if (addr == 0x10000100)
+				{
+					m_reg_10000100 = word;
+				}
+				else if (addr == 0x10000101)
+				{
+					m_reg_10000101 = word;
+				}
 				else if (addr == 0x10000102)
 				{
 					m_diffuse_r = ((word >> (16+10)) & 0x1f) << 3;
@@ -1375,6 +1550,23 @@ void taitotz_renderer::render_displaylist(running_machine &machine, const rectan
 
 				setup_viewport(xw, xh, vpw-xw, vph-xh, vpw, vph);
 			}
+
+			/*
+			if (address == 0x10000100)
+			{
+			    int in1 = (m_reg_10000100 >> 16) & 0x1ff;
+			    if (in1 & 0x100) in1 |= 0xfffffe00;
+			    int in2 = m_reg_10000100 & 0x1ff;
+			    if (in2 & 0x100) in2 |= 0xfffffe00;
+			    int in3 = m_reg_10000101 & 0x7f;
+
+			    float n1 = (float)(in1) / 127.0f;
+			    float n2 = (float)(in2) / 127.0f;
+			    float n3 = (float)(in3) / 127.0f;
+
+			    printf("UNK: %f, %f, %f\n", n1, n2, n3);
+			}
+			*/
 		}
 		else if (cmd == 0xffff0080)
 		{
@@ -1928,7 +2120,7 @@ WRITE64_MEMBER(taitotz_state::ppc_common_w)
 		/*
 		if (m_io_share_ram[0xfff] == 0x1010)
 		{
-		    printf("   %04X %04X %04X %04X\n", m_io_share_ram[0x1a02/2], m_io_share_ram[0x1a04/2], m_io_share_ram[0x1a06/2], m_io_share_ram[0x1a08/2]);
+		    printf("PPC -> TLCS cmd 1010:   %04X %04X %04X %04X\n", m_io_share_ram[0x1a02/2], m_io_share_ram[0x1a04/2], m_io_share_ram[0x1a06/2], m_io_share_ram[0x1a08/2]);
 		}
 		*/
 
@@ -1971,7 +2163,7 @@ WRITE64_MEMBER(taitotz_state::ppc_common_w)
 			// pwrshovl sometimes writes commands during command handling... make sure that doesn't happen
 			if (m_io_share_ram[0xfff] == 0x0000)
 			{
-				m_maincpu->spin_until_time(attotime::from_usec(50));
+				m_maincpu->spin_until_time(attotime::from_usec(100));
 			}
 
 			machine().scheduler().trigger(TLCS_PPC_COMM_TRIGGER);
@@ -2110,153 +2302,22 @@ WRITE8_MEMBER(taitotz_state::tlcs_rtc_w)
 	}
 }
 
-READ8_MEMBER(taitotz_state::tlcs_ide0_r)
+READ16_MEMBER(taitotz_state::tlcs_ide0_r)
 {
-	int reg = offset >> 1;
-
-	if (reg == 0)
-	{
-		if ((offset & 1) == 0)
-		{
-			ide_cs0_latch_r = m_ide->read_cs0(space, reg, 0xffff);
-			return (ide_cs0_latch_r & 0xff);
-		}
-		else
-		{
-			return (ide_cs0_latch_r >> 8) & 0xff;
-		}
-	}
-	else
-	{
-		if (offset & 1)
-			fatalerror("tlcs_ide0_r: %02X, odd offset\n", offset);
-
-		UINT8 d = m_ide->read_cs0(space, reg, 0xff);
-		if (reg == 7)
-			d &= ~0x2;      // Type Zero doesn't like the index bit. It's defined as vendor-specific, so it probably shouldn't be up...
-							// The status check explicitly checks for 0x50 (drive ready, seek complete).
-		return d;
-	}
-}
-
-WRITE8_MEMBER(taitotz_state::tlcs_ide0_w)
-{
-	int reg = offset >> 1;
-
-	if (reg == 7 || reg == 0)
-	{
-		if ((offset & 1) == 0)
-		{
-			ide_cs0_latch_w &= 0xff00;
-			ide_cs0_latch_w |= data;
-		}
-		else
-		{
-			ide_cs0_latch_w &= 0x00ff;
-			ide_cs0_latch_w |= (UINT16)(data) << 8;
-			m_ide->write_cs0(space, reg, ide_cs0_latch_w, 0xffff);
-		}
-	}
-	else
-	{
-		if (offset & 1)
-			fatalerror("tlcs_ide0_w: %02X, %02X, odd offset\n", offset, data);
-		m_ide->write_cs0(space, reg, data, 0xff);
-	}
-}
-
-READ8_MEMBER(taitotz_state::tlcs_ide1_r)
-{
-	int reg = offset >> 1;
-
-	if (reg != 6)
-		fatalerror("tlcs_ide1_r: %02X\n", offset);
-
-	if ((offset & 1) == 0)
-	{
-		UINT8 d = m_ide->read_cs1(space, reg, 0xff);
+	UINT16 d = m_ata->read_cs0(space, offset, mem_mask);
+	if (offset == 7)
 		d &= ~0x2;      // Type Zero doesn't like the index bit. It's defined as vendor-specific, so it probably shouldn't be up...
 						// The status check explicitly checks for 0x50 (drive ready, seek complete).
-		return d;
-	}
-	else
-	{
-		//fatalerror("tlcs_ide1_r: %02X, odd offset\n", offset);
-		UINT8 d = m_ide->read_cs1(space, reg, 0xff);
-		d &= ~0x2;
-		return d;
-	}
+	return d;
 }
 
-WRITE8_MEMBER(taitotz_state::tlcs_ide1_w)
+READ16_MEMBER(taitotz_state::tlcs_ide1_r)
 {
-	int reg = offset >> 1;
-
-	if (reg != 6)
-		fatalerror("tlcs_ide1_w: %02X, %02X\n", offset, data);
-
-	if ((offset & 1) == 0)
-	{
-		ide_cs1_latch_w &= 0xff00;
-		ide_cs1_latch_w |= data;
-	}
-	else
-	{
-		ide_cs1_latch_w &= 0x00ff;
-		ide_cs1_latch_w |= (UINT16)(data) << 16;
-		m_ide->write_cs1(space, reg, ide_cs1_latch_w, 0xffff);
-	}
-}
-
-READ8_MEMBER(taitotz_state::tlcs900_port_read)
-{
-	switch (offset)
-	{
-		case 0x7: return 0;     // ???
-		case 0x9: return ioport("INPUTS1")->read();
-		case 0xa: return 0;     // ???
-		case 0xb: return ioport("INPUTS2")->read();
-		case 0xd: return ioport("INPUTS3")->read();
-		case 0xe: return ioport("INPUTS4")->read();
-
-		default:
-			//printf("tlcs900_port_read %02X\n", offset);
-			break;
-	}
-
-	return 0;
-}
-
-WRITE8_MEMBER(taitotz_state::tlcs900_port_write)
-{
-	//taitotz_state *state = device->machine().driver_data<taitotz_state>();
-
-	switch (offset)
-	{
-		case 0x7:
-			//if (data != 0xff && data != 0xfa && data != 0xfe)
-			//  printf("tlcs900_port_write %02X, %02X\n", offset, data);
-			break;
-
-		case 0x8:
-			if (data & 1)
-			{
-				//state->m_mbox_ram[0x17] = 0x55;
-			}
-			break;
-
-		case 0x9:
-			//if (data != 0x00)
-			//  printf("tlcs900_port_write %02X, %02X\n", offset, data);
-			break;
-
-		case 0xb:
-			break;
-
-		default:
-			printf("tlcs900_port_write %02X, %02X\n", offset, data);
-			break;
-	}
+	UINT16 d = m_ata->read_cs1(space, offset, mem_mask);
+	if (offset == 6)
+		d &= ~0x2;      // Type Zero doesn't like the index bit. It's defined as vendor-specific, so it probably shouldn't be up...
+						// The status check explicitly checks for 0x50 (drive ready, seek complete).
+	return d;
 }
 
 // TLCS900 interrupt vectors
@@ -2284,37 +2345,28 @@ WRITE8_MEMBER(taitotz_state::tlcs900_port_write)
 // 0xfc0d55:    INTRX1          Serial 1 receive
 // 0xfc0ce1:    INTTX1          Serial 1 transmit
 
-static ADDRESS_MAP_START( tlcs900h_mem, AS_PROGRAM, 8, taitotz_state)
+static ADDRESS_MAP_START( tlcs900h_mem, AS_PROGRAM, 16, taitotz_state)
 	AM_RANGE(0x010000, 0x02ffff) AM_RAM                                                     // Work RAM
 	AM_RANGE(0x040000, 0x041fff) AM_RAM AM_SHARE("nvram")                                   // Backup RAM
-	AM_RANGE(0x044000, 0x04400f) AM_READWRITE(tlcs_rtc_r, tlcs_rtc_w)
-	AM_RANGE(0x060000, 0x061fff) AM_READWRITE(tlcs_common_r, tlcs_common_w)
+	AM_RANGE(0x044000, 0x04400f) AM_READWRITE8(tlcs_rtc_r, tlcs_rtc_w, 0xffff)
+	AM_RANGE(0x060000, 0x061fff) AM_READWRITE8(tlcs_common_r, tlcs_common_w, 0xffff)
 	AM_RANGE(0x064000, 0x064fff) AM_RAM AM_SHARE("mbox_ram")                                // MBox
-	AM_RANGE(0x068000, 0x06800f) AM_READWRITE(tlcs_ide0_r, tlcs_ide0_w)
-	AM_RANGE(0x06c000, 0x06c00f) AM_READWRITE(tlcs_ide1_r, tlcs_ide1_w)
+	AM_RANGE(0x068000, 0x06800f) AM_DEVWRITE("ata", ata_interface_device, write_cs0) AM_READ(tlcs_ide0_r)
+	AM_RANGE(0x06c000, 0x06c00f) AM_DEVWRITE("ata", ata_interface_device, write_cs1) AM_READ(tlcs_ide1_r)
 	AM_RANGE(0xfc0000, 0xffffff) AM_ROM AM_REGION("io_cpu", 0)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( landhigh_tlcs900h_mem, AS_PROGRAM, 8, taitotz_state)
+static ADDRESS_MAP_START( landhigh_tlcs900h_mem, AS_PROGRAM, 16, taitotz_state)
 	AM_RANGE(0x200000, 0x21ffff) AM_RAM                                                     // Work RAM
 	AM_RANGE(0x400000, 0x401fff) AM_RAM AM_SHARE("nvram")                                   // Backup RAM
-	AM_RANGE(0x404000, 0x40400f) AM_READWRITE(tlcs_rtc_r, tlcs_rtc_w)
-	AM_RANGE(0x900000, 0x901fff) AM_READWRITE(tlcs_common_r, tlcs_common_w)
+	AM_RANGE(0x404000, 0x40400f) AM_READWRITE8(tlcs_rtc_r, tlcs_rtc_w, 0xffff)
+	AM_RANGE(0x900000, 0x901fff) AM_READWRITE8(tlcs_common_r, tlcs_common_w, 0xffff)
 	AM_RANGE(0x910000, 0x910fff) AM_RAM AM_SHARE("mbox_ram")                                // MBox
-	AM_RANGE(0x908000, 0x90800f) AM_READWRITE(tlcs_ide0_r, tlcs_ide0_w)
-	AM_RANGE(0x918000, 0x91800f) AM_READWRITE(tlcs_ide1_r, tlcs_ide1_w)
+	AM_RANGE(0x908000, 0x90800f) AM_DEVWRITE("ata", ata_interface_device, write_cs0) AM_READ(tlcs_ide0_r)
+	AM_RANGE(0x918000, 0x91800f) AM_DEVWRITE("ata", ata_interface_device, write_cs1) AM_READ(tlcs_ide1_r)
 	AM_RANGE(0xfc0000, 0xffffff) AM_ROM AM_REGION("io_cpu", 0)
 ADDRESS_MAP_END
 
-
-
-WRITE8_MEMBER(taitotz_state::tlcs900_to1)
-{
-}
-
-WRITE8_MEMBER(taitotz_state::tlcs900_to3)
-{
-}
 
 
 static INPUT_PORTS_START( taitotz )
@@ -2525,16 +2577,65 @@ static INPUT_PORTS_START( pwrshovl )
 	PORT_BIT( 0x3ff, 0x200, IPT_AD_STICK_Y ) PORT_PLAYER(4) PORT_MINMAX(0x000,0x3ff) PORT_SENSITIVITY(35) PORT_KEYDELTA(5)
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( styphp )
+	PORT_START("INPUTS1")
+	PORT_BIT( 0x00000001, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_SERVICE_NO_TOGGLE( 0x00000002, IP_ACTIVE_LOW) /* Test Button */
+	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_SERVICE ) PORT_NAME("Service") PORT_CODE(KEYCODE_7)
+	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("INPUTS2")
+	PORT_BIT( 0x00000001, IP_ACTIVE_LOW, IPT_COIN1 )                                    // Coin
+	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("INPUTS3")
+	PORT_BIT( 0x00000001, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_BUTTON2 )                                  // Shift Down
+	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_BUTTON1 )                                  // Shift Up
+	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_BUTTON3 )                                  // View
+	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_BUTTON4 )                                  // Side Brake
+	PORT_BIT( 0x000000e0, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("INPUTS4")
+	PORT_BIT( 0x00000001, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_START )                                    // Start
+	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("ANALOG1")       // Steering
+	PORT_BIT( 0x3ff, 0x200, IPT_PADDLE ) PORT_MINMAX(0x000,0x3ff) PORT_SENSITIVITY(35) PORT_KEYDELTA(5)
+
+	PORT_START("ANALOG2")       // Gas Pedal
+	PORT_BIT( 0x3ff, 0x000, IPT_PEDAL) PORT_MINMAX(0x000,0x3ff) PORT_SENSITIVITY(35) PORT_KEYDELTA(5)
+
+	PORT_START("ANALOG3")       // Brake Pedal
+	PORT_BIT( 0x3ff, 0x000, IPT_PEDAL2 ) PORT_MINMAX(0x000,0x3ff) PORT_SENSITIVITY(35) PORT_KEYDELTA(5)
+INPUT_PORTS_END
 
 void taitotz_state::machine_reset()
 {
 	if (m_hdd_serial_number != NULL)
 	{
-		UINT8 *ide_features = m_ide->ide_get_features(0);
+		ide_hdd_device *hdd = m_ata->subdevice<ata_slot_device>("0")->subdevice<ide_hdd_device>("hdd");
+		UINT16 *identify_device = hdd->identify_device_buffer();
 
-		for (int i=0; i < 20; i++)
+		for (int i=0; i < 10; i++)
 		{
-			ide_features[10*2+(i^1)] = m_hdd_serial_number[i];
+			identify_device[10+i] = (m_hdd_serial_number[i*2] << 8) | m_hdd_serial_number[i*2+1];
 		}
 	}
 }
@@ -2566,13 +2667,6 @@ static const powerpc_config ppc603e_config =
 	NULL
 };
 
-static const tlcs900_interface taitotz_tlcs900_interface =
-{
-	DEVCB_DRIVER_MEMBER(taitotz_state, tlcs900_to1),
-	DEVCB_DRIVER_MEMBER(taitotz_state, tlcs900_to3),
-	DEVCB_DRIVER_MEMBER(taitotz_state, tlcs900_port_read),
-	DEVCB_DRIVER_MEMBER(taitotz_state, tlcs900_port_write),
-};
 
 static MACHINE_CONFIG_START( taitotz, taitotz_state )
 	/* IBM EMPPC603eBG-100 */
@@ -2582,7 +2676,11 @@ static MACHINE_CONFIG_START( taitotz, taitotz_state )
 
 	/* TMP95C063F I/O CPU */
 	MCFG_CPU_ADD("iocpu", TMP95C063, 25000000)
-	MCFG_CPU_CONFIG(taitotz_tlcs900_interface)
+	MCFG_TMP95C063_PORT9_WRITE(IOPORT("INPUTS1"))
+	MCFG_TMP95C063_PORTB_WRITE(IOPORT("INPUTS2"))
+	MCFG_TMP95C063_PORTD_WRITE(IOPORT("INPUTS3"))
+	MCFG_TMP95C063_PORTE_WRITE(IOPORT("INPUTS4"))
+
 	MCFG_CPU_PROGRAM_MAP(tlcs900h_mem)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", taitotz_state,  taitotz_vbi)
 
@@ -2590,8 +2688,8 @@ static MACHINE_CONFIG_START( taitotz, taitotz_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(120))
 
-	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(taitotz_state, ide_interrupt))
+	MCFG_ATA_INTERFACE_ADD("ata", ata_devices, "hdd", NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(taitotz_state, ide_interrupt))
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
@@ -2636,6 +2734,9 @@ static const char BATLGR2A_HDD_SERIAL[] =           // "            05411645"
 
 static const char RAIZPIN_HDD_SERIAL[] =            // "691934013492        "
 	{ 0x36, 0x39, 0x31, 0x39, 0x33, 0x34, 0x30, 0x31, 0x33, 0x34, 0x39, 0x32, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+
+static const char STYPHP_HDD_SERIAL[] =             // "            05872160"
+	{ 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x35, 0x38, 0x37, 0x32, 0x31, 0x36, 0x30 };
 
 DRIVER_INIT_MEMBER(taitotz_state,landhigh)
 {
@@ -2705,6 +2806,17 @@ DRIVER_INIT_MEMBER(taitotz_state,raizpin)
 	m_displist_addr = 0x33480c;
 }
 
+DRIVER_INIT_MEMBER(taitotz_state,styphp)
+{
+	init_taitotz_152();
+
+	m_hdd_serial_number = STYPHP_HDD_SERIAL;
+
+	m_scr_base = 0x1e0000;
+
+	m_displist_addr = 0x490b70;
+}
+
 
 // Type-Zero System v1.52
 #define TAITOTZ_BIOS_V152   \
@@ -2724,7 +2836,7 @@ ROM_START( taitotz )
 	ROM_REGION( 0x40000, "io_cpu", ROMREGION_ERASE00 )
 	ROM_REGION( 0x10000, "sound_cpu", ROMREGION_ERASE00 ) /* Internal ROM :( */
 	ROM_REGION( 0x500, "plds", ROMREGION_ERASE00 )
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 ROM_END
 
 ROM_START( landhigh )
@@ -2743,7 +2855,7 @@ ROM_START( landhigh )
 	ROM_LOAD( "e82-02.ic45", 0x117, 0x2dd, CRC(f581cff5) SHA1(468e0e6a3828f2dcda35c6d523154510f9c99db7) )
 	ROM_LOAD( "e68-06.ic24", 0x3f4, 0x100, NO_DUMP )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE( "landhigh", 0, SHA1(7cea4ea5c3899e6ac774a4eb12821f44541d9c9c) )
 ROM_END
 
@@ -2758,7 +2870,7 @@ ROM_START( batlgear )
 	ROM_REGION( 0x10000, "sound_cpu", 0 ) /* Internal ROM :( */
 	ROM_LOAD( "e68-01.ic7", 0x000000, 0x010000, NO_DUMP )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE( "batlgear", 0, SHA1(eab283839ad3e0a3e6be11f6482570db334eacca) )
 ROM_END
 
@@ -2773,7 +2885,7 @@ ROM_START( batlgr2 )
 	ROM_REGION( 0x10000, "sound_cpu", 0 ) /* Internal ROM :( */
 	ROM_LOAD( "e68-01.ic7", 0x000000, 0x010000, NO_DUMP )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE( "bg2_204j", 0, SHA1(7ac100fba39ae0b93980c0af2f0212a731106912) )
 ROM_END
 
@@ -2788,7 +2900,7 @@ ROM_START( batlgr2a )
 	ROM_REGION( 0x10000, "sound_cpu", 0 ) /* Internal ROM :( */
 	ROM_LOAD( "e68-01.ic7", 0x000000, 0x010000, NO_DUMP )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE( "bg2_201j", 0, SHA1(542d12682bd0f95143368578461c6a4fcc492fcc) )
 ROM_END
 
@@ -2812,7 +2924,7 @@ ROM_START( pwrshovl )
 	ROM_REGION( 0x20000, "oki2", 0 )
 	ROM_LOAD( "e74-08.ic8", 0x000000, 0x020000, CRC(ca5baccc) SHA1(4594b7a6232b912d698fff053f7e3f51d8e1bfb6) ) // located on the I/O PCB
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE( "pwrshovl", 0, SHA1(360f63b39f645851c513b4644fb40601b9ba1412) )
 ROM_END
 
@@ -2827,8 +2939,23 @@ ROM_START( raizpin )
 	ROM_REGION( 0x10000, "sound_cpu", 0 ) /* Internal ROM :( */
 	ROM_LOAD( "e68-01.ic7", 0x000000, 0x010000, NO_DUMP )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE( "raizpin", 0, SHA1(883ebcda03026df31da1cdb95af521e100c171ed) )
+ROM_END
+
+ROM_START( styphp )
+	ROM_REGION64_BE( 0x100000, "user1", 0 )
+	TAITOTZ_BIOS_V152
+
+	ROM_REGION( 0x40000, "io_cpu", 0 )
+	ROM_LOAD16_BYTE( "e98-01.ic14", 0x000000, 0x020000, CRC(479b37ad) SHA1(a0e59d990665244a7919a104dc4b6869ccf90be1) )
+	ROM_LOAD16_BYTE( "e98-02.ic15", 0x000001, 0x020000, CRC(d8da590f) SHA1(b33a67d81e388d7863adaf03041911c7f84d193b) )
+
+	ROM_REGION( 0x10000, "sound_cpu", 0 ) /* Internal ROM :( */
+	ROM_LOAD( "e68-01.ic7", 0x000000, 0x010000, NO_DUMP )
+
+	DISK_REGION( "ata:0:hdd:image" )
+	DISK_IMAGE( "styphp", 0, SHA1(c232d3460e37523346132544b8e23a5f9b447150) )
 ROM_END
 
 GAME( 1999, taitotz,  0, taitotz, taitotz, driver_device, 0, ROT0, "Taito", "Type Zero BIOS", GAME_NO_SOUND|GAME_NOT_WORKING|GAME_IS_BIOS_ROOT)
@@ -2837,4 +2964,5 @@ GAME( 1999, batlgear, taitotz, taitotz,  batlgr2, taitotz_state,  batlgear, ROT0
 GAME( 1999, pwrshovl, taitotz, taitotz,  pwrshovl, taitotz_state, pwrshovl, ROT0, "Taito", "Power Shovel ni Norou!! - Power Shovel Simulator", GAME_NOT_WORKING | GAME_NO_SOUND )
 GAME( 2000, batlgr2,  taitotz, taitotz,  batlgr2, taitotz_state,  batlgr2,  ROT0, "Taito", "Battle Gear 2 (v2.04J)", GAME_NOT_WORKING | GAME_NO_SOUND )
 GAME( 2000, batlgr2a, batlgr2, taitotz,  batlgr2, taitotz_state,  batlgr2a, ROT0, "Taito", "Battle Gear 2 (v2.01J)", GAME_NOT_WORKING | GAME_NO_SOUND )
+GAME( 2000, styphp,   taitotz, taitotz,  styphp,  taitotz_state,  styphp,   ROT0, "Taito", "Stunt Typhoon Plus", GAME_NOT_WORKING | GAME_NO_SOUND )
 GAME( 2002, raizpin,  taitotz, taitotz,  taitotz, taitotz_state,  raizpin,  ROT0, "Taito", "Raizin Ping Pong", GAME_NOT_WORKING | GAME_NO_SOUND )

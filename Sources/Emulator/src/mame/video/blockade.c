@@ -8,7 +8,7 @@ WRITE8_MEMBER(blockade_state::blockade_videoram_w)
 
 	if (ioport("IN3")->read() & 0x80)
 	{
-		logerror("blockade_videoram_w: scanline %d\n", machine().primary_screen->vpos());
+		logerror("blockade_videoram_w: scanline %d\n", m_screen->vpos());
 		space.device().execute().spin_until_interrupt();
 	}
 }
@@ -27,6 +27,6 @@ void blockade_state::video_start()
 
 UINT32 blockade_state::screen_update_blockade(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }

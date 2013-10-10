@@ -526,7 +526,7 @@ UINT32 avt_state::screen_update_avt(screen_device &screen, bitmap_ind16 &bitmap,
 			count++;
 		}
 	}
-	//m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	//m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -849,7 +849,6 @@ GFXDECODE_END
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -909,7 +908,7 @@ static MACHINE_CONFIG_START( avt, avt_state )
 	MCFG_PALETTE_LENGTH(8*16)
 
 
-	MCFG_MC6845_ADD("crtc", MC6845, CRTC_CLOCK, mc6845_intf)    /* guess */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK, mc6845_intf)    /* guess */
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

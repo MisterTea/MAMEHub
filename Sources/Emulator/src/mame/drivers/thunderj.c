@@ -12,6 +12,23 @@
 
 ****************************************************************************
 
+    Video controller interface woes:
+
+    Sigh. CPU #1 reads the video controller register twice per frame, once at
+    the beginning of interrupt and once near the end. It stores these values in a
+    table starting at $163484. CPU #2 periodically looks at this table to make
+    sure that it is getting interrupts at the appropriate times, and that the
+    VBLANK bit is set appropriately. Unfortunately, due to all the device_yield(&space.device())
+    calls we make to synchronize the two CPUs, we occasionally get out of time
+    and generate the interrupt outside of the tight tolerances CPU #2 expects.
+
+    So we fake it. Returning scanlines $f5 and $f7 alternately provides the
+    correct answer that causes CPU #2 to be happy and not aggressively trash
+    memory (which is what it does if this interrupt test fails -- see the code
+    at $1E56 to see!)
+
+****************************************************************************
+
     Memory map (TBA)
 
 ***************************************************************************/
@@ -20,8 +37,6 @@
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
 #include "machine/atarigen.h"
-#include "audio/atarijsa.h"
-#include "video/atarimo.h"
 #include "includes/thunderj.h"
 
 
@@ -50,8 +65,6 @@ MACHINE_START_MEMBER(thunderj_state,thunderj)
 MACHINE_RESET_MEMBER(thunderj_state,thunderj)
 {
 	atarigen_state::machine_reset();
-	atarivc_reset(*machine().primary_screen, m_atarivc_eof_data, 2);
-	atarijsa_reset(machine());
 }
 
 
@@ -65,11 +78,7 @@ MACHINE_RESET_MEMBER(thunderj_state,thunderj)
 READ16_MEMBER(thunderj_state::special_port2_r)
 {
 	int result = ioport("260012")->read();
-
-	if (m_sound_to_cpu_ready) result ^= 0x0004;
-	if (m_cpu_to_sound_ready) result ^= 0x0008;
 	result ^= 0x0010;
-
 	return result;
 }
 
@@ -88,50 +97,11 @@ WRITE16_MEMBER(thunderj_state::latch_w)
 		/* bits 2-5 are the alpha bank */
 		if (m_alpha_tile_bank != ((data >> 2) & 7))
 		{
-			machine().primary_screen->update_partial(machine().primary_screen->vpos());
-			m_alpha_tilemap->mark_all_dirty();
+			m_screen->update_partial(m_screen->vpos());
+			m_vad->alpha()->mark_all_dirty();
 			m_alpha_tile_bank = (data >> 2) & 7;
 		}
 	}
-}
-
-
-
-/*************************************
- *
- *  Video Controller Hack
- *
- *************************************/
-
-READ16_MEMBER(thunderj_state::thunderj_atarivc_r)
-{
-	/* Sigh. CPU #1 reads the video controller register twice per frame, once at
-	   the beginning of interrupt and once near the end. It stores these values in a
-	   table starting at $163484. CPU #2 periodically looks at this table to make
-	   sure that it is getting interrupts at the appropriate times, and that the
-	   VBLANK bit is set appropriately. Unfortunately, due to all the device_yield(&space.device())
-	   calls we make to synchronize the two CPUs, we occasionally get out of time
-	   and generate the interrupt outside of the tight tolerances CPU #2 expects.
-
-	   So we fake it. Returning scanlines $f5 and $f7 alternately provides the
-	   correct answer that causes CPU #2 to be happy and not aggressively trash
-	   memory (which is what it does if this interrupt test fails -- see the code
-	   at $1E56 to see!) */
-
-	/* Use these lines to detect when things go south: */
-
-#if 0
-	if (read_word(0x163482) > 0xfff)
-		mame_printf_debug("You're screwed!");
-#endif
-
-	return atarivc_r(*machine().primary_screen, offset);
-}
-
-
-WRITE16_MEMBER(thunderj_state::thunderj_atarivc_w)
-{
-	atarivc_w(*machine().primary_screen, offset, data, mem_mask);
 }
 
 
@@ -144,26 +114,26 @@ WRITE16_MEMBER(thunderj_state::thunderj_atarivc_w)
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, thunderj_state )
 	AM_RANGE(0x000000, 0x09ffff) AM_ROM
-	AM_RANGE(0x0e0000, 0x0e0fff) AM_READWRITE(eeprom_r, eeprom_w) AM_SHARE("eeprom")
+	AM_RANGE(0x0e0000, 0x0e0fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
 	AM_RANGE(0x160000, 0x16ffff) AM_RAM AM_SHARE("share1")
-	AM_RANGE(0x1f0000, 0x1fffff) AM_WRITE(eeprom_enable_w)
+	AM_RANGE(0x1f0000, 0x1fffff) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
 	AM_RANGE(0x260000, 0x26000f) AM_READ_PORT("260000")
 	AM_RANGE(0x260010, 0x260011) AM_READ_PORT("260010")
 	AM_RANGE(0x260012, 0x260013) AM_READ(special_port2_r)
-	AM_RANGE(0x260030, 0x260031) AM_READ8(sound_r, 0x00ff)
+	AM_RANGE(0x260030, 0x260031) AM_DEVREAD8("jsa", atari_jsa_ii_device, main_response_r, 0x00ff)
 	AM_RANGE(0x2e0000, 0x2e0001) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x360010, 0x360011) AM_WRITE(latch_w)
-	AM_RANGE(0x360020, 0x360021) AM_WRITE(sound_reset_w)
-	AM_RANGE(0x360030, 0x360031) AM_WRITE8(sound_w, 0x00ff)
+	AM_RANGE(0x360020, 0x360021) AM_DEVWRITE("jsa", atari_jsa_ii_device, sound_reset_w)
+	AM_RANGE(0x360030, 0x360031) AM_DEVWRITE8("jsa", atari_jsa_ii_device, main_command_w, 0x00ff)
 	AM_RANGE(0x3e0000, 0x3e0fff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
-	AM_RANGE(0x3effc0, 0x3effff) AM_READWRITE(thunderj_atarivc_r, thunderj_atarivc_w) AM_SHARE("atarivc_data")
-	AM_RANGE(0x3f0000, 0x3f1fff) AM_RAM_WRITE(playfield2_latched_msb_w) AM_SHARE("playfield2")
-	AM_RANGE(0x3f2000, 0x3f3fff) AM_RAM_WRITE(playfield_latched_lsb_w) AM_SHARE("playfield")
-	AM_RANGE(0x3f4000, 0x3f5fff) AM_RAM_WRITE(playfield_dual_upper_w) AM_SHARE("playfield_up")
-	AM_RANGE(0x3f6000, 0x3f7fff) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
-	AM_RANGE(0x3f8000, 0x3f8eff) AM_RAM_WRITE(alpha_w) AM_SHARE("alpha")
-	AM_RANGE(0x3f8f00, 0x3f8f7f) AM_RAM AM_SHARE("atarivc_eof")
-	AM_RANGE(0x3f8f80, 0x3f8fff) AM_READWRITE_LEGACY(atarimo_0_slipram_r, atarimo_0_slipram_w)
+	AM_RANGE(0x3effc0, 0x3effff) AM_DEVREADWRITE("vad", atari_vad_device, control_read, control_write)
+	AM_RANGE(0x3f0000, 0x3f1fff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield2_latched_msb_w) AM_SHARE("vad:playfield2")
+	AM_RANGE(0x3f2000, 0x3f3fff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield_latched_lsb_w) AM_SHARE("vad:playfield")
+	AM_RANGE(0x3f4000, 0x3f5fff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield_upper_w) AM_SHARE("vad:playfield_ext")
+	AM_RANGE(0x3f6000, 0x3f7fff) AM_RAM AM_SHARE("vad:mob")
+	AM_RANGE(0x3f8000, 0x3f8eff) AM_RAM_DEVWRITE("vad", atari_vad_device, alpha_w) AM_SHARE("vad:alpha")
+	AM_RANGE(0x3f8f00, 0x3f8f7f) AM_RAM AM_SHARE("vad:eof")
+	AM_RANGE(0x3f8f80, 0x3f8fff) AM_RAM AM_SHARE("vad:mob:slip")
 	AM_RANGE(0x3f9000, 0x3fffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -182,11 +152,11 @@ static ADDRESS_MAP_START( extra_map, AS_PROGRAM, 16, thunderj_state )
 	AM_RANGE(0x260000, 0x26000f) AM_READ_PORT("260000")
 	AM_RANGE(0x260010, 0x260011) AM_READ_PORT("260010")
 	AM_RANGE(0x260012, 0x260013) AM_READ(special_port2_r)
-	AM_RANGE(0x260030, 0x260031) AM_READ8(sound_r, 0x00ff)
+	AM_RANGE(0x260030, 0x260031) AM_DEVREAD8("jsa", atari_jsa_ii_device, main_response_r, 0x00ff)
 	AM_RANGE(0x360000, 0x360001) AM_WRITE(video_int_ack_w)
 	AM_RANGE(0x360010, 0x360011) AM_WRITE(latch_w)
-	AM_RANGE(0x360020, 0x360021) AM_WRITE(sound_reset_w)
-	AM_RANGE(0x360030, 0x360031) AM_WRITE8(sound_w, 0x00ff)
+	AM_RANGE(0x360020, 0x360021) AM_DEVWRITE("jsa", atari_jsa_ii_device, sound_reset_w)
+	AM_RANGE(0x360030, 0x360031) AM_DEVWRITE8("jsa", atari_jsa_ii_device, main_command_w, 0x00ff)
 ADDRESS_MAP_END
 
 
@@ -214,8 +184,8 @@ static INPUT_PORTS_START( thunderj )
 	PORT_START("260012")
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_SERVICE( 0x0002, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_UNUSED )   /* Input buffer full (@260030) */
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_UNUSED )   /* Output buffer full (@360030) */
+	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_ATARI_JSA_SOUND_TO_MAIN_READY("jsa")   /* Input buffer full (@260030) */
+	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_UNUSED ) PORT_ATARI_JSA_MAIN_TO_SOUND_READY("jsa")  /* Output buffer full (@360030) */
 	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x00e0, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
@@ -225,8 +195,6 @@ static INPUT_PORTS_START( thunderj )
 	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(2)
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(2)
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(2)
-
-	PORT_INCLUDE( atarijsa_ii )     /* audio board port */
 INPUT_PORTS_END
 
 
@@ -286,7 +254,8 @@ static MACHINE_CONFIG_START( thunderj, thunderj_state )
 
 	MCFG_MACHINE_START_OVERRIDE(thunderj_state,thunderj)
 	MCFG_MACHINE_RESET_OVERRIDE(thunderj_state,thunderj)
-	MCFG_NVRAM_ADD_1FILL("eeprom")
+
+	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* perfect synchronization due to shared RAM */
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
@@ -295,6 +264,12 @@ static MACHINE_CONFIG_START( thunderj, thunderj_state )
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_GFXDECODE(thunderj)
 	MCFG_PALETTE_LENGTH(2048)
+
+	MCFG_ATARI_VAD_ADD("vad", "screen", WRITELINE(atarigen_state, scanline_int_write_line))
+	MCFG_ATARI_VAD_PLAYFIELD(thunderj_state, get_playfield_tile_info)
+	MCFG_ATARI_VAD_PLAYFIELD2(thunderj_state, get_playfield2_tile_info)
+	MCFG_ATARI_VAD_ALPHA(thunderj_state, get_alpha_tile_info)
+	MCFG_ATARI_VAD_MOB(thunderj_state::s_mob_config)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */
@@ -305,7 +280,11 @@ static MACHINE_CONFIG_START( thunderj, thunderj_state )
 	MCFG_VIDEO_START_OVERRIDE(thunderj_state,thunderj)
 
 	/* sound hardware */
-	MCFG_FRAGMENT_ADD(jsa_ii_mono)
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_ATARI_JSA_II_ADD("jsa", WRITELINE(atarigen_state, sound_int_write_line))
+	MCFG_ATARI_JSA_TEST_PORT("260012", 1)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
 
@@ -334,7 +313,7 @@ ROM_START( thunderj )
 	ROM_LOAD16_BYTE( "136076-1012.17n",    0x00001, 0x10000, CRC(53e5e638) SHA1(75593e5d328ede105b8db64005dd5d1c5cae11ed) )
 	ROM_COPY( "maincpu", 0x60000, 0x60000, 0x20000 )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k + 16k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k + 16k for 6502 code */
 	ROM_LOAD( "136076-2015.1b", 0x10000, 0x4000, CRC(d8feb7fb) SHA1(684ebf2f0c0df742c98e7f45f74de86a11c8d6e8) ) /* Rev 2 program rom */
 	ROM_CONTINUE(               0x04000, 0xc000 )
 
@@ -377,7 +356,7 @@ ROM_START( thunderj )
 	ROM_REGION( 0x010000, "gfx3", 0 )
 	ROM_LOAD( "136076-1020.4m",   0x000000, 0x10000, CRC(65470354) SHA1(9895d26fa9e01c254a3d15e657152cac717c68a3) ) /* alphanumerics */
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM */
 	ROM_LOAD( "136076-1016.7k",  0x00000, 0x10000, CRC(c10bdf73) SHA1(a0371c6ddef2a95193c68879044b3338d481fc96) )
 	ROM_LOAD( "136076-1017.7j",  0x10000, 0x10000, CRC(4e5e25e8) SHA1(373c946abd24ce8dd5221f1a0409af4537610d3d) )
 	ROM_LOAD( "136076-1018.7e",  0x20000, 0x10000, CRC(ec81895d) SHA1(56acffb0700d3b70ca705fba9d240a82950fd320) )
@@ -411,7 +390,7 @@ ROM_START( thunderja )
 	ROM_LOAD16_BYTE( "136076-1012.17n",    0x00001, 0x10000, CRC(53e5e638) SHA1(75593e5d328ede105b8db64005dd5d1c5cae11ed) )
 	ROM_COPY( "maincpu", 0x60000, 0x60000, 0x20000 )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k + 16k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k + 16k for 6502 code */
 	ROM_LOAD( "136076-2015.1b", 0x10000, 0x4000, CRC(d8feb7fb) SHA1(684ebf2f0c0df742c98e7f45f74de86a11c8d6e8) ) /* Rev 2 program rom */
 	ROM_CONTINUE(               0x04000, 0xc000 )
 
@@ -454,7 +433,7 @@ ROM_START( thunderja )
 	ROM_REGION( 0x010000, "gfx3", 0 )
 	ROM_LOAD( "136076-1020.4m",   0x000000, 0x10000, CRC(65470354) SHA1(9895d26fa9e01c254a3d15e657152cac717c68a3) ) /* alphanumerics */
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM */
 	ROM_LOAD( "136076-1016.7k",  0x00000, 0x10000, CRC(c10bdf73) SHA1(a0371c6ddef2a95193c68879044b3338d481fc96) )
 	ROM_LOAD( "136076-1017.7j",  0x10000, 0x10000, CRC(4e5e25e8) SHA1(373c946abd24ce8dd5221f1a0409af4537610d3d) )
 	ROM_LOAD( "136076-1018.7e",  0x20000, 0x10000, CRC(ec81895d) SHA1(56acffb0700d3b70ca705fba9d240a82950fd320) )
@@ -480,7 +459,6 @@ ROM_END
 
 DRIVER_INIT_MEMBER(thunderj_state,thunderj)
 {
-	atarijsa_init(machine(), "260012", 0x0002);
 }
 
 

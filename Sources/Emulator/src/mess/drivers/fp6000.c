@@ -284,7 +284,6 @@ void fp6000_state::machine_reset()
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -312,10 +311,10 @@ static MACHINE_CONFIG_START( fp6000, fp6000_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(fp6000_state, screen_update_fp6000)
 
-	MCFG_MC6845_ADD("crtc", H46505, 16000000/5, mc6845_intf)    /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", 16000000/5, mc6845_intf)    /* unknown clock, hand tuned to get ~60 fps */
 
 	MCFG_PALETTE_LENGTH(8)
-//  MCFG_PALETTE_INIT(black_and_white)
+//  MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 	MCFG_GFXDECODE(fp6000)
 
 MACHINE_CONFIG_END

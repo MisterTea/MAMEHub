@@ -158,10 +158,6 @@ void abc80_state::update_screen(bitmap_rgb32 &bitmap, const rectangle &cliprect)
 }
 
 
-//-------------------------------------------------
-//  VIDEO_START( abc80 )
-//-------------------------------------------------
-
 void abc80_state::video_start()
 {
 	screen_device *screen = machine().device<screen_device>(SCREEN_TAG);
@@ -187,10 +183,6 @@ void abc80_state::video_start()
 	save_item(NAME(m_latch));
 }
 
-
-//-------------------------------------------------
-//  SCREEN_UPDATE_IND16( abc80 )
-//-------------------------------------------------
 
 UINT32 abc80_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {

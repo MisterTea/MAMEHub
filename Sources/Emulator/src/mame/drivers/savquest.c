@@ -5,6 +5,21 @@
     "Savage Quest" (c) 1999 Interactive Light, developed by Angel Studios.
     Skeleton by R. Belmont
 
+    TODO:
+    - currently asserts by selecting a s3 video bank above 1M (register 0x6a)
+
+    PCI list:
+    Bus no. Device No. Func No. Vendor ID Device ID Device Class          IRQ
+    0       7          1        8086      7111      IDE Controller        14
+    0       7          2        8086      7112      Serial Bus Controller 11
+    0       9          0        5333      8901      Display Controller    10
+    0       13         0        121a      0002      Multimedia Device     NA
+    - First two are PIIX4/4E/4M IDE Controller / PIIX4/4E/4M USB Interface
+      Third is S3 trio64uv+
+      Fourth is Voodoo 2 3D Accelerator
+    Sound Blaster is ISA/PNP
+
+============================================================================
     H/W is a white-box PC consisting of:
     Pentium II 450 CPU
     DFI P2XBL motherboard (i440BX chipset)
@@ -14,6 +29,8 @@
 
     Protected by a HASP brand parallel port dongle.
     I/O board has a PIC17C43 which is not readable.
+
+    On boot it reports: S3 86C775/86C705 Video BIOS. Version 2.04.11 Copyright 1996 S3 Incorporated.
 
     Copyright Nicola Salmoria and the MAME Team.
     Visit http://mamedev.org for licensing and usage restrictions.
@@ -34,13 +51,15 @@
 #include "machine/pckeybrd.h"
 #include "machine/idectrl.h"
 #include "video/pc_vga.h"
+#include "video/voodoo.h"
 
 
 class savquest_state : public pcat_base_state
 {
 public:
 	savquest_state(const machine_config &mconfig, device_type type, const char *tag)
-		: pcat_base_state(mconfig, type, tag)
+		: pcat_base_state(mconfig, type, tag),
+		m_vga(*this, "vga")
 	{
 	}
 
@@ -49,6 +68,10 @@ public:
 	UINT32 *m_bios_e4000_ram;
 	UINT32 *m_bios_e8000_ram;
 	UINT32 *m_bios_ec000_ram;
+
+	UINT8 *m_smram;
+
+	required_device<s3_vga_device> m_vga;
 
 	int m_haspind;
 	int m_haspstate;
@@ -76,6 +99,11 @@ public:
 	DECLARE_READ32_MEMBER(parallel_port_r);
 	DECLARE_WRITE32_MEMBER(parallel_port_w);
 
+	DECLARE_WRITE_LINE_MEMBER(vblank_assert);
+
+	DECLARE_READ8_MEMBER(smram_r);
+	DECLARE_WRITE8_MEMBER(smram_w);
+
 protected:
 
 
@@ -93,6 +121,12 @@ static UINT8 mxtc_config_r(device_t *busdevice, device_t *device, int function, 
 {
 	savquest_state *state = busdevice->machine().driver_data<savquest_state>();
 //  mame_printf_debug("MXTC: read %d, %02X\n", function, reg);
+
+	if((reg & 0xfe) == 0)
+		return (reg & 1) ? 0x80 : 0x86; // Vendor ID, Intel
+
+	if((reg & 0xfe) == 2)
+		return (reg & 1) ? 0x70 : 0x00; // Device ID, MXTC
 
 	return state->m_mxtc_config_reg[reg];
 }
@@ -175,6 +209,7 @@ void savquest_state::intel82439tx_init()
 	m_mxtc_config_reg[0x63] = 0x02;
 	m_mxtc_config_reg[0x64] = 0x02;
 	m_mxtc_config_reg[0x65] = 0x02;
+	m_smram = auto_alloc_array(machine(), UINT8, 0x20000);
 }
 
 static UINT32 intel82439tx_pci_r(device_t *busdevice, device_t *device, int function, int reg, UINT32 mem_mask)
@@ -225,6 +260,19 @@ static UINT8 piix4_config_r(device_t *busdevice, device_t *device, int function,
 {
 	savquest_state *state = busdevice->machine().driver_data<savquest_state>();
 //  mame_printf_debug("PIIX4: read %d, %02X\n", function, reg);
+
+	if((reg & 0xfe) == 0)
+		return (reg & 1) ? 0x80 : 0x86; // Vendor ID, Intel
+
+	if((reg & 0xfe) == 2)
+	{
+		/* TODO: it isn't detected properly (i.e. PCI writes always goes to function == 0) */
+		if(function == 1)
+			return (reg & 1) ? 0x71 : 0x11; // Device ID, 82371AB IDE Controller
+		if(function == 2)
+			return (reg & 1) ? 0x71 : 0x12; // Device ID, 82371AB Serial Bus Controller
+	}
+
 	return state->m_piix4_config_reg[function][reg];
 }
 
@@ -528,17 +576,35 @@ WRITE32_MEMBER(savquest_state::parallel_port_w)
 	}
 }
 
+READ8_MEMBER(savquest_state::smram_r)
+{
+	/* TODO: way more complex than this */
+	if(m_mxtc_config_reg[0x72] & 0x40)
+		return m_smram[offset];
+	else
+		return m_vga->mem_r(space,offset,0xff);
+}
+
+WRITE8_MEMBER(savquest_state::smram_w)
+{
+	/* TODO: way more complex than this */
+	if(m_mxtc_config_reg[0x72] & 0x40)
+		m_smram[offset] = data;
+	else
+		m_vga->mem_w(space,offset,data,0xff);
+
+}
+
 static ADDRESS_MAP_START(savquest_map, AS_PROGRAM, 32, savquest_state)
 	AM_RANGE(0x00000000, 0x0009ffff) AM_RAM
-	AM_RANGE(0x000a0000, 0x000bffff) AM_DEVREADWRITE8("vga", vga_device, mem_r, mem_w, 0xffffffff)
+	AM_RANGE(0x000a0000, 0x000bffff) AM_READWRITE8(smram_r,smram_w,0xffffffff) //AM_DEVREADWRITE8("vga", vga_device, mem_r, mem_w, 0xffffffff)
 	AM_RANGE(0x000c0000, 0x000c7fff) AM_ROM AM_REGION("video_bios", 0)
 	AM_RANGE(0x000f0000, 0x000fffff) AM_ROMBANK("bios_f0000") AM_WRITE(bios_f0000_ram_w)
 	AM_RANGE(0x000e0000, 0x000e3fff) AM_ROMBANK("bios_e0000") AM_WRITE(bios_e0000_ram_w)
 	AM_RANGE(0x000e4000, 0x000e7fff) AM_ROMBANK("bios_e4000") AM_WRITE(bios_e4000_ram_w)
 	AM_RANGE(0x000e8000, 0x000ebfff) AM_ROMBANK("bios_e8000") AM_WRITE(bios_e8000_ram_w)
 	AM_RANGE(0x000ec000, 0x000effff) AM_ROMBANK("bios_ec000") AM_WRITE(bios_ec000_ram_w)
-	AM_RANGE(0x00100000, 0x01ffffff) AM_RAM
-//  AM_RANGE(0x02000000, 0x02000003) // protection dongle lies there?
+	AM_RANGE(0x00100000, 0x07ffffff) AM_RAM // 128MB RAM
 	AM_RANGE(0xfffc0000, 0xffffffff) AM_ROM AM_REGION("bios", 0)    /* System BIOS */
 ADDRESS_MAP_END
 
@@ -547,19 +613,26 @@ static ADDRESS_MAP_START(savquest_io, AS_IO, 32, savquest_state)
 
 	AM_RANGE(0x00e8, 0x00ef) AM_NOP
 
-	AM_RANGE(0x01f0, 0x01f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0_pc, write_cs0_pc, 0xffffffff)
+	AM_RANGE(0x0170, 0x0177) AM_DEVREADWRITE("ide2", ide_controller_32_device, read_cs0, write_cs0)
+	AM_RANGE(0x01f0, 0x01f7) AM_DEVREADWRITE("ide", ide_controller_32_device, read_cs0, write_cs0)
 	AM_RANGE(0x0378, 0x037b) AM_READWRITE(parallel_port_r, parallel_port_w)
 	AM_RANGE(0x03b0, 0x03bf) AM_DEVREADWRITE8("vga", vga_device, port_03b0_r, port_03b0_w, 0xffffffff)
 	AM_RANGE(0x03c0, 0x03cf) AM_DEVREADWRITE8("vga", vga_device, port_03c0_r, port_03c0_w, 0xffffffff)
 	AM_RANGE(0x03d0, 0x03df) AM_DEVREADWRITE8("vga", vga_device, port_03d0_r, port_03d0_w, 0xffffffff)
-	AM_RANGE(0x03f0, 0x03f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1_pc, write_cs1_pc, 0xffffffff)
+	AM_RANGE(0x0370, 0x0377) AM_DEVREADWRITE("ide2", ide_controller_32_device, read_cs1, write_cs1)
+	AM_RANGE(0x03f0, 0x03f7) AM_DEVREADWRITE("ide", ide_controller_32_device, read_cs1, write_cs1)
 
 	AM_RANGE(0x0cf8, 0x0cff) AM_DEVREADWRITE("pcibus", pci_bus_legacy_device, read, write)
 
 //  AM_RANGE(0x5000, 0x5007) // routes to port $eb
 ADDRESS_MAP_END
 
+#define AT_KEYB_HELPER(bit, text, key1) \
+	PORT_BIT( bit, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME(text) PORT_CODE(key1)
+
 static INPUT_PORTS_START( savquest )
+	PORT_START("pc_keyboard_3")
+	AT_KEYB_HELPER( 0x0800, "F1",           KEYCODE_S           ) /* F1                          3B  BB */
 INPUT_PORTS_END
 
 void savquest_state::machine_start()
@@ -583,8 +656,23 @@ void savquest_state::machine_reset()
 	membank("bios_ec000")->set_base(memregion("bios")->base() + 0x2c000);
 }
 
+WRITE_LINE_MEMBER(savquest_state::vblank_assert)
+{
+}
+
+static const voodoo_config voodoo_intf =
+{
+	2, //               fbmem;
+	4,//                tmumem0;
+	4,//                tmumem1;
+	"screen",//     screen;
+	"maincpu",//            cputag;
+	DEVCB_DRIVER_LINE_MEMBER(savquest_state,vblank_assert),//    vblank;
+	DEVCB_NULL//             stall;
+};
+
 static MACHINE_CONFIG_START( savquest, savquest_state )
-	MCFG_CPU_ADD("maincpu", PENTIUM, 450000000) // actually Pentium II 450
+	MCFG_CPU_ADD("maincpu", PENTIUM2, 450000000) // actually Pentium II 450
 	MCFG_CPU_PROGRAM_MAP(savquest_map)
 	MCFG_CPU_IO_MAP(savquest_io)
 
@@ -594,23 +682,27 @@ static MACHINE_CONFIG_START( savquest, savquest_state )
 	MCFG_PCI_BUS_LEGACY_DEVICE(0, NULL, intel82439tx_pci_r, intel82439tx_pci_w)
 	MCFG_PCI_BUS_LEGACY_DEVICE(7, NULL, intel82371ab_pci_r, intel82371ab_pci_w)
 
-	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
+	MCFG_IDE_CONTROLLER_32_ADD("ide", ata_devices, "hdd", NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
+
+	MCFG_IDE_CONTROLLER_32_ADD("ide2", ata_devices, NULL, NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir7_w))
 
 	/* video hardware */
-	MCFG_FRAGMENT_ADD( pcvideo_vga )
+	MCFG_FRAGMENT_ADD( pcvideo_s3_vga )
+
+	MCFG_3DFX_VOODOO_2_ADD("voodoo", STD_VOODOO_2_CLOCK, voodoo_intf)
 MACHINE_CONFIG_END
 
 ROM_START( savquest )
 	ROM_REGION32_LE(0x40000, "bios", 0)
-	ROM_LOAD( "sq-aflash.bin", 0x00000, 0x040000, BAD_DUMP CRC(0b4f406f) SHA1(4003b0e6d46dcb47012acc118837f0f7cf529faf) ) // first half is 1-filled
+	ROM_LOAD( "p2xbl_award_451pg.bin", 0x00000, 0x040000, CRC(37d0030e) SHA1(c6773d0e02325116f95c497b9953f59a9ac81317) )
 
-	ROM_REGION( 0x8000, "video_bios", 0 ) // TODO: needs proper video BIOS dumped
-	ROM_LOAD16_BYTE( "trident_tgui9680_bios.bin", 0x0000, 0x4000, BAD_DUMP CRC(1eebde64) SHA1(67896a854d43a575037613b3506aea6dae5d6a19) )
-	ROM_CONTINUE(                                 0x0001, 0x4000 )
+	ROM_REGION( 0x10000, "video_bios", 0 ) // 1st half is 2.04.14, second half is 2.01.11
+	ROM_LOAD( "vgabios.bin",   0x000000, 0x010000, CRC(a81423d6) SHA1(a099af621ce7fbaa55a2d9947d9f07e04f1b5fca) )
 
-	DISK_REGION( "drive_0" )
-	DISK_IMAGE( "savquest", 0, SHA1(b20cacf45e093b533c538bf4fc08f05f9475d640) )
+	DISK_REGION( "ide:0:hdd:image" )
+	DISK_IMAGE( "savquest", 0, SHA1(b7c8901172b66706a7ab5f5c91e6912855153fa9) )
 ROM_END
 
 

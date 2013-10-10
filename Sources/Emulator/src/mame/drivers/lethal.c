@@ -159,11 +159,10 @@ maybe some sprite placement issues
 ***************************************************************************/
 
 #include "emu.h"
-#include "video/konicdev.h"
 #include "cpu/m6809/m6809.h"
 #include "cpu/m6809/hd6309.h"
 #include "cpu/z80/z80.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/k054539.h"
 #include "includes/lethal.h"
 
@@ -176,17 +175,6 @@ static const char *const gunnames[] = { "LIGHT0_X", "LIGHT0_Y", "LIGHT1_X", "LIG
 /* a = 1, 2 = player # */
 #define GUNX( a ) (( ( ioport(gunnames[2 * (a - 1)])->read() * 287 ) / 0xff ) + 16)
 #define GUNY( a ) (( ( ioport(gunnames[2 * (a - 1) + 1])->read() * 223 ) / 0xff ) + 10)
-
-static const eeprom_interface eeprom_intf =
-{
-	7,          /* address bits */
-	8,          /* data bits */
-	"011000",       /* read command */
-	"011100",       /* write command */
-	"0100100000000",    /* erase command */
-	"0100000000000",    /* lock command */
-	"0100110000000"     /* unlock command */
-};
 
 WRITE8_MEMBER(lethal_state::control2_w)
 {
@@ -205,7 +193,7 @@ WRITE8_MEMBER(lethal_state::control2_w)
 
 INTERRUPT_GEN_MEMBER(lethal_state::lethalen_interrupt)
 {
-	if (k056832_is_irq_enabled(m_k056832, 0))
+	if (m_k056832->is_irq_enabled(0))
 		device.execute().set_input_line(HD6309_IRQ_LINE, HOLD_LINE);
 }
 
@@ -263,7 +251,7 @@ READ8_MEMBER(lethal_state::le_4800_r)
 				case 0x4d:
 				case 0x4e:
 				case 0x4f:
-					return k053244_r(m_k053244, space, offset - 0x40);
+					return m_k053244->k053244_r(space, offset - 0x40);
 
 				case 0x80:
 				case 0x81:
@@ -297,22 +285,22 @@ READ8_MEMBER(lethal_state::le_4800_r)
 				case 0x9d:
 				case 0x9e:
 				case 0x9f:
-					return k054000_r(m_k054000, space, offset - 0x80);
+					return m_k054000->read(space, offset - 0x80);
 
 				case 0xca:
 					return sound_status_r(space, 0);
 			}
 		}
 		else if (offset < 0x1800)
-			return k053245_r(m_k053244, space, (offset - 0x0800) & 0x07ff);
+			return m_k053244->k053245_r(space, (offset - 0x0800) & 0x07ff);
 		else if (offset < 0x2000)
-			return k056832_ram_code_lo_r(m_k056832, space, offset - 0x1800);
+			return m_k056832->ram_code_lo_r(space, offset - 0x1800);
 		else if (offset < 0x2800)
-			return k056832_ram_code_hi_r(m_k056832, space, offset - 0x2000);
+			return m_k056832->ram_code_hi_r(space, offset - 0x2000);
 		else if (offset < 0x3000)
-			return k056832_ram_attr_lo_r(m_k056832, space, offset - 0x2800);
+			return m_k056832->ram_attr_lo_r(space, offset - 0x2800);
 		else // (offset < 0x3800)
-			return k056832_ram_attr_hi_r(m_k056832, space, offset - 0x3000);
+			return m_k056832->ram_attr_hi_r(space, offset - 0x3000);
 	}
 
 	return 0;
@@ -354,7 +342,7 @@ WRITE8_MEMBER(lethal_state::le_4800_w)
 				case 0x4d:
 				case 0x4e:
 				case 0x4f:
-					k053244_w(m_k053244, space, offset - 0x40, data);
+					m_k053244->k053244_w(space, offset - 0x40, data);
 					break;
 
 				case 0x80:
@@ -389,7 +377,7 @@ WRITE8_MEMBER(lethal_state::le_4800_w)
 				case 0x9d:
 				case 0x9e:
 				case 0x9f:
-					k054000_w(m_k054000, space, offset - 0x80, data);
+					m_k054000->write(space, offset - 0x80, data);
 					break;
 
 				default:
@@ -398,15 +386,15 @@ WRITE8_MEMBER(lethal_state::le_4800_w)
 			}
 		}
 		else if (offset < 0x1800)
-			k053245_w(m_k053244, space, (offset - 0x0800) & 0x07ff, data);
+			m_k053244->k053245_w(space, (offset - 0x0800) & 0x07ff, data);
 		else if (offset < 0x2000)
-			k056832_ram_code_lo_w(m_k056832, space, offset - 0x1800, data);
+			m_k056832->ram_code_lo_w(space, offset - 0x1800, data);
 		else if (offset < 0x2800)
-			k056832_ram_code_hi_w(m_k056832, space, offset - 0x2000, data);
+			m_k056832->ram_code_hi_w(space, offset - 0x2000, data);
 		else if (offset < 0x3000)
-			k056832_ram_attr_lo_w(m_k056832, space, offset - 0x2800, data);
+			m_k056832->ram_attr_lo_w(space, offset - 0x2800, data);
 		else // (offset < 0x3800)
-			k056832_ram_attr_hi_w(m_k056832, space, offset - 0x3000, data);
+			m_k056832->ram_attr_hi_w(space, offset - 0x3000, data);
 	}
 }
 
@@ -454,8 +442,8 @@ READ8_MEMBER(lethal_state::gunsaux_r)
 static ADDRESS_MAP_START( le_main, AS_PROGRAM, 8, lethal_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x2000, 0x3fff) AM_RAM             // work RAM
-	AM_RANGE(0x4000, 0x403f) AM_DEVWRITE_LEGACY("k056832", k056832_w)
-	AM_RANGE(0x4040, 0x404f) AM_DEVWRITE_LEGACY("k056832", k056832_b_w)
+	AM_RANGE(0x4000, 0x403f) AM_DEVWRITE("k056832", k056832_device, write)
+	AM_RANGE(0x4040, 0x404f) AM_DEVWRITE("k056832", k056832_device, b_w)
 	AM_RANGE(0x4080, 0x4080) AM_READNOP     // watchdog
 	AM_RANGE(0x4090, 0x4090) AM_READNOP
 	AM_RANGE(0x40a0, 0x40a0) AM_READNOP
@@ -492,8 +480,8 @@ static INPUT_PORTS_START( lethalen )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START2 )
 
 	PORT_START("DSW")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL )    /* it must be 1 ? */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_DIPNAME( 0x10, 0x10, DEF_STR(Language) )
@@ -510,9 +498,9 @@ static INPUT_PORTS_START( lethalen )
 	PORT_DIPSETTING(      0x0080, DEF_STR( Stereo ) )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 
 	PORT_START("LIGHT0_X")
 	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_X ) PORT_CROSSHAIR(X, 1.0, 0.0, 0) PORT_SENSITIVITY(25) PORT_KEYDELTA(15) PORT_PLAYER(1)
@@ -639,8 +627,7 @@ static MACHINE_CONFIG_START( lethalen, lethal_state )
 	MCFG_CPU_ADD("soundcpu", Z80, MAIN_CLOCK/4)  /* verified on pcb */
 	MCFG_CPU_PROGRAM_MAP(le_sound)
 
-
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	MCFG_GFXDECODE(lethal)
 

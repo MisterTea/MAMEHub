@@ -23,6 +23,8 @@ public:
 	virtual UINT32 pci_read(pci_bus_device *pcibus, int function, int offset, UINT32 mem_mask);
 	virtual void pci_write(pci_bus_device *pcibus, int function, int offset, UINT32 data, UINT32 mem_mask);
 
+	DECLARE_WRITE8_MEMBER( cirrus_42E8_w );
+
 protected:
 	// device-level overrides
 	virtual void device_start();

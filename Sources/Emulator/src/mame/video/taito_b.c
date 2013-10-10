@@ -1,6 +1,4 @@
 #include "emu.h"
-#include "video/hd63484.h"
-#include "video/taitoic.h"
 #include "includes/taito_b.h"
 
 WRITE16_MEMBER(taitob_state::hitice_pixelram_w)
@@ -100,7 +98,7 @@ VIDEO_RESET_MEMBER(taitob_state,hitice)
 
 VIDEO_START_MEMBER(taitob_state,realpunc)
 {
-	m_realpunc_bitmap = auto_bitmap_ind16_alloc(machine(), machine().primary_screen->width(), machine().primary_screen->height());
+	m_realpunc_bitmap = auto_bitmap_ind16_alloc(machine(), m_screen->width(), m_screen->height());
 
 	VIDEO_START_CALL_MEMBER(taitob_color_order0);
 }
@@ -259,8 +257,8 @@ void taitob_state::draw_framebuffer( bitmap_ind16 &bitmap, const rectangle &clip
 	rectangle myclip = cliprect;
 	int x, y;
 	address_space &space = machine().driver_data()->generic_space();
-	UINT8 video_control = tc0180vcu_get_videoctrl(m_tc0180vcu, space, 0);
-	UINT8 framebuffer_page = tc0180vcu_get_fb_page(m_tc0180vcu, space, 0);
+	UINT8 video_control = m_tc0180vcu->get_videoctrl(space, 0);
+	UINT8 framebuffer_page = m_tc0180vcu->get_fb_page(space, 0);
 
 g_profiler.start(PROFILER_USER1);
 
@@ -362,7 +360,7 @@ g_profiler.stop();
 UINT32 taitob_state::screen_update_taitob(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	address_space &space = machine().driver_data()->generic_space();
-	UINT8 video_control = tc0180vcu_get_videoctrl(m_tc0180vcu, space, 0);
+	UINT8 video_control = m_tc0180vcu->get_videoctrl(space, 0);
 
 	if ((video_control & 0x20) == 0)
 	{
@@ -371,11 +369,11 @@ UINT32 taitob_state::screen_update_taitob(screen_device &screen, bitmap_ind16 &b
 	}
 
 	/* Draw playfields */
-	tc0180vcu_tilemap_draw(m_tc0180vcu, bitmap, cliprect, 0, 1);
+	m_tc0180vcu->tilemap_draw(screen, bitmap, cliprect, 0, 1);
 
 	draw_framebuffer(bitmap, cliprect, 1);
 
-	tc0180vcu_tilemap_draw(m_tc0180vcu, bitmap, cliprect, 1, 0);
+	m_tc0180vcu->tilemap_draw(screen, bitmap, cliprect, 1, 0);
 
 	if (m_pixel_bitmap)  /* hitice only */
 	{
@@ -388,7 +386,7 @@ UINT32 taitob_state::screen_update_taitob(screen_device &screen, bitmap_ind16 &b
 
 	draw_framebuffer(bitmap, cliprect, 0);
 
-	tc0180vcu_tilemap_draw(m_tc0180vcu, bitmap, cliprect, 2, 0);
+	m_tc0180vcu->tilemap_draw(screen, bitmap, cliprect, 2, 0);
 
 	return 0;
 }
@@ -399,7 +397,7 @@ UINT32 taitob_state::screen_update_realpunc(screen_device &screen, bitmap_rgb32 
 {
 	address_space &space = machine().driver_data()->generic_space();
 	const rgb_t *palette = palette_entry_list_adjusted(machine().palette);
-	UINT8 video_control = tc0180vcu_get_videoctrl(m_tc0180vcu, space, 0);
+	UINT8 video_control = m_tc0180vcu->get_videoctrl(space, 0);
 	int x, y;
 
 	/* Video blanked? */
@@ -410,11 +408,11 @@ UINT32 taitob_state::screen_update_realpunc(screen_device &screen, bitmap_rgb32 
 	}
 
 	/* Draw the palettized playfields to an indexed bitmap */
-	tc0180vcu_tilemap_draw(m_tc0180vcu, *m_realpunc_bitmap, cliprect, 0, 1);
+	m_tc0180vcu->tilemap_draw(screen, *m_realpunc_bitmap, cliprect, 0, 1);
 
 	draw_framebuffer(*m_realpunc_bitmap, cliprect, 1);
 
-	tc0180vcu_tilemap_draw(m_tc0180vcu, *m_realpunc_bitmap, cliprect, 1, 0);
+	m_tc0180vcu->tilemap_draw(screen, *m_realpunc_bitmap, cliprect, 1, 0);
 
 	if (m_realpunc_video_ctrl & 0x0001)
 		draw_framebuffer(*m_realpunc_bitmap, cliprect, 0);
@@ -427,10 +425,8 @@ UINT32 taitob_state::screen_update_realpunc(screen_device &screen, bitmap_rgb32 
 	/* Draw the 15bpp raw CRTC frame buffer directly to the output bitmap */
 	if (m_realpunc_video_ctrl & 0x0002)
 	{
-		device_t *hd63484 = machine().device("hd63484");
-
-		int base = (hd63484_regs_r(hd63484, space, 0xcc/2, 0xffff) << 16) + hd63484_regs_r(hd63484, space, 0xce/2, 0xffff);
-		int stride = hd63484_regs_r(hd63484, space, 0xca/2, 0xffff);
+		int base = (m_hd63484->regs_r(space, 0xcc/2, 0xffff) << 16) + m_hd63484->regs_r(space, 0xce/2, 0xffff);
+		int stride = m_hd63484->regs_r(space, 0xca/2, 0xffff);
 
 //      scrollx = taitob_scroll[0];
 //      scrolly = taitob_scroll[1];
@@ -441,7 +437,7 @@ UINT32 taitob_state::screen_update_realpunc(screen_device &screen, bitmap_rgb32 
 			for (x = 0; x <= cliprect.max_x; x++)
 			{
 				int r, g, b;
-				UINT16 srcpix = hd63484_ram_r(hd63484, space, addr++, 0xffff);
+				UINT16 srcpix = m_hd63484->ram_r(space, addr++, 0xffff);
 
 				r = (BIT(srcpix, 1)) | ((srcpix >> 11) & 0x1e);
 				g = (BIT(srcpix, 2)) | ((srcpix >> 7) & 0x1e);
@@ -470,7 +466,7 @@ UINT32 taitob_state::screen_update_realpunc(screen_device &screen, bitmap_rgb32 
 	if (!(m_realpunc_video_ctrl & 0x0001))
 		draw_framebuffer(*m_realpunc_bitmap, cliprect, 0);
 
-	tc0180vcu_tilemap_draw(m_tc0180vcu, *m_realpunc_bitmap, cliprect, 2, 0);
+	m_tc0180vcu->tilemap_draw(screen, *m_realpunc_bitmap, cliprect, 2, 0);
 
 	/* Merge the indexed layers with the output bitmap */
 	for (y = 0; y <= cliprect.max_y; y++)
@@ -493,18 +489,18 @@ void taitob_state::screen_eof_taitob(screen_device &screen, bool state)
 	if (state)
 	{
 		address_space &space = machine().driver_data()->generic_space();
-		UINT8 video_control = tc0180vcu_get_videoctrl(m_tc0180vcu, space, 0);
-		UINT8 framebuffer_page = tc0180vcu_get_fb_page(m_tc0180vcu, space, 0);
+		UINT8 video_control = m_tc0180vcu->get_videoctrl(space, 0);
+		UINT8 framebuffer_page = m_tc0180vcu->get_fb_page(space, 0);
 
 		if (~video_control & 0x01)
-			m_framebuffer[framebuffer_page]->fill(0, machine().primary_screen->visible_area());
+			m_framebuffer[framebuffer_page]->fill(0, screen.visible_area());
 
 		if (~video_control & 0x80)
 		{
 			framebuffer_page ^= 1;
-			tc0180vcu_set_fb_page(m_tc0180vcu, space, 0, framebuffer_page);
+			m_tc0180vcu->set_fb_page(space, 0, framebuffer_page);
 		}
 
-		draw_sprites(*m_framebuffer[framebuffer_page], machine().primary_screen->visible_area());
+		draw_sprites(*m_framebuffer[framebuffer_page], screen.visible_area());
 	}
 }

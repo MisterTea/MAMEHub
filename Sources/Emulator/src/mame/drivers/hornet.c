@@ -312,7 +312,7 @@
 #include "cpu/powerpc/ppc.h"
 #include "cpu/sharc/sharc.h"
 #include "machine/adc1213x.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "machine/k033906.h"
 #include "machine/konppc.h"
 #include "machine/timekpr.h"
@@ -320,7 +320,7 @@
 #include "sound/rf5c400.h"
 #include "sound/k056800.h"
 #include "video/voodoo.h"
-#include "video/konicdev.h"
+#include "video/k037122.h"
 #include "rendlay.h"
 
 
@@ -329,11 +329,12 @@ class hornet_state : public driver_device
 public:
 	hornet_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_workram(*this, "workram"),
-			m_sharc_dataram0(*this, "sharc_dataram0"),
-			m_sharc_dataram1(*this, "sharc_dataram1") ,
+		m_workram(*this, "workram"),
+		m_sharc_dataram0(*this, "sharc_dataram0"),
+		m_sharc_dataram1(*this, "sharc_dataram1"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
+		m_k056800(*this, "k056800"),
 		m_gn680(*this, "gn680"),
 		m_dsp(*this, "dsp"),
 		m_dsp2(*this, "dsp2"),
@@ -349,10 +350,11 @@ public:
 	optional_shared_ptr<UINT32> m_sharc_dataram1;
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<k056800_device> m_k056800;
 	optional_device<cpu_device> m_gn680;
 	required_device<cpu_device> m_dsp;
 	optional_device<cpu_device> m_dsp2;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	optional_device<k037122_device> m_k037122_1;
 	optional_device<k037122_device> m_k037122_2;
 	required_device<adc12138_device> m_adc12138;
@@ -403,38 +405,38 @@ public:
 READ32_MEMBER(hornet_state::hornet_k037122_sram_r)
 {
 	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
-	return k037122_sram_r(k037122, space, offset, mem_mask);
+	return k037122->sram_r(space, offset, mem_mask);
 }
 
 WRITE32_MEMBER(hornet_state::hornet_k037122_sram_w)
 {
 	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
-	k037122_sram_w(k037122, space, offset, data, mem_mask);
+	k037122->sram_w(space, offset, data, mem_mask);
 }
 
 
 READ32_MEMBER(hornet_state::hornet_k037122_char_r)
 {
 	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
-	return k037122_char_r(k037122, space, offset, mem_mask);
+	return k037122->char_r(space, offset, mem_mask);
 }
 
 WRITE32_MEMBER(hornet_state::hornet_k037122_char_w)
 {
 	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
-	k037122_char_w(k037122, space, offset, data, mem_mask);
+	k037122->char_w(space, offset, data, mem_mask);
 }
 
 READ32_MEMBER(hornet_state::hornet_k037122_reg_r)
 {
 	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
-	return k037122_reg_r(k037122, space, offset, mem_mask);
+	return k037122->reg_r(space, offset, mem_mask);
 }
 
 WRITE32_MEMBER(hornet_state::hornet_k037122_reg_w)
 {
 	k037122_device *k037122 = get_cgboard_id() ? m_k037122_2 : m_k037122_1;
-	k037122_reg_w(k037122, space, offset, data, mem_mask);
+	k037122->reg_w(space, offset, data, mem_mask);
 }
 
 WRITE_LINE_MEMBER(hornet_state::voodoo_vblank_0)
@@ -452,7 +454,7 @@ UINT32 hornet_state::screen_update_hornet(screen_device &screen, bitmap_rgb32 &b
 
 	voodoo_update(voodoo, bitmap, cliprect);
 
-	k037122_tile_draw(m_k037122_1, bitmap, cliprect);
+	m_k037122_1->tile_draw(screen, bitmap, cliprect);
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
 	draw_7segment_led(bitmap, 9, 3, m_led_reg1);
@@ -467,7 +469,7 @@ UINT32 hornet_state::screen_update_hornet_2board(screen_device &screen, bitmap_r
 		voodoo_update(voodoo, bitmap, cliprect);
 
 		/* TODO: tilemaps per screen */
-		k037122_tile_draw(m_k037122_1, bitmap, cliprect);
+		m_k037122_1->tile_draw(screen, bitmap, cliprect);
 	}
 	else if (strcmp(screen.tag(), ":rscreen") == 0)
 	{
@@ -475,7 +477,7 @@ UINT32 hornet_state::screen_update_hornet_2board(screen_device &screen, bitmap_r
 		voodoo_update(voodoo, bitmap, cliprect);
 
 		/* TODO: tilemaps per screen */
-		k037122_tile_draw(m_k037122_2, bitmap, cliprect);
+		m_k037122_2->tile_draw(screen, bitmap, cliprect);
 	}
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
@@ -507,7 +509,7 @@ READ8_MEMBER(hornet_state::sysreg_r)
 			    0x02 = ADDOR (ADC DOR)
 			    0x01 = ADDO (ADC DO)
 			*/
-			r = 0xf0 | (m_eeprom->read_bit() << 3);
+			r = 0xf0 | (m_eeprom->do_read() << 3);
 			r |= m_adc12138->do_r(space, 0) | (m_adc12138->eoc_r(space, 0) << 2);
 			break;
 
@@ -657,7 +659,7 @@ static ADDRESS_MAP_START( hornet_map, AS_PROGRAM, 32, hornet_state )
 	AM_RANGE(0x7d000000, 0x7d00ffff) AM_READ8(sysreg_r, 0xffffffff)
 	AM_RANGE(0x7d010000, 0x7d01ffff) AM_WRITE8(sysreg_w, 0xffffffff)
 	AM_RANGE(0x7d020000, 0x7d021fff) AM_DEVREADWRITE8("m48t58", timekeeper_device, read, write, 0xffffffff)  /* M48T58Y RTC/NVRAM */
-	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVREADWRITE_LEGACY("k056800", k056800_host_r, k056800_host_w)
+	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVREADWRITE("k056800", k056800_device, host_r, host_w)
 	AM_RANGE(0x7d042000, 0x7d043fff) AM_RAM             /* COMM BOARD 0 */
 	AM_RANGE(0x7d044000, 0x7d044007) AM_READ(comm0_unk_r)
 	AM_RANGE(0x7d048000, 0x7d048003) AM_WRITE(comm1_w)
@@ -674,7 +676,7 @@ static ADDRESS_MAP_START( sound_memmap, AS_PROGRAM, 16, hornet_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM     /* Work RAM */
 	AM_RANGE(0x200000, 0x200fff) AM_DEVREADWRITE("rfsnd", rf5c400_device, rf5c400_r, rf5c400_w)      /* Ricoh RF5C400 */
-	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE_LEGACY("k056800", k056800_sound_r, k056800_sound_w)
+	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE("k056800", k056800_device, sound_r, sound_w)
 	AM_RANGE(0x480000, 0x480001) AM_WRITENOP
 	AM_RANGE(0x4c0000, 0x4c0001) AM_WRITENOP
 	AM_RANGE(0x500000, 0x500001) AM_WRITENOP
@@ -819,9 +821,9 @@ static INPUT_PORTS_START( hornet )
 	PORT_DIPSETTING( 0x00, "15KHz" )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( sscope )
@@ -871,9 +873,9 @@ static INPUT_PORTS_START( sscope )
 	PORT_DIPSETTING( 0x00, "15KHz" )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
 
 	PORT_START("ANALOG1")       // Gun Yaw
 	PORT_BIT( 0x7ff, 0x400, IPT_AD_STICK_X ) PORT_MINMAX(0x000, 0x7ff) PORT_SENSITIVITY(35) PORT_KEYDELTA(5)
@@ -938,8 +940,8 @@ static double adc12138_input_callback( device_t *device, UINT8 input )
 	int value = 0;
 	switch (input)
 	{
-		case 0:     value = device->machine().root_device().ioport("ANALOG1")->read(); break;
-		case 1:     value = device->machine().root_device().ioport("ANALOG2")->read(); break;
+		case 0: value = device->machine().root_device().ioport("ANALOG1")->read(); break;
+		case 1: value = device->machine().root_device().ioport("ANALOG2")->read(); break;
 	}
 
 	return (double)(value) / 2047.0;
@@ -978,21 +980,6 @@ static const k033906_interface hornet_k033906_intf_1 =
 	"voodoo1"
 };
 
-static const k037122_interface hornet_k037122_intf =
-{
-	"screen", 0
-};
-
-static const k037122_interface hornet_k037122_intf_l =
-{
-	"lscreen", 0
-};
-
-static const k037122_interface hornet_k037122_intf_r =
-{
-	"rscreen", 1
-};
-
 static const voodoo_config hornet_voodoo_intf =
 {
 	2, //               fbmem;
@@ -1007,21 +994,21 @@ static const voodoo_config hornet_voodoo_intf =
 static MACHINE_CONFIG_START( hornet, hornet_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", PPC403GA, 64000000/2)   /* PowerPC 403GA 32MHz */
+	MCFG_CPU_ADD("maincpu", PPC403GA, XTAL_64MHz/2)   /* PowerPC 403GA 32MHz */
 	MCFG_CPU_PROGRAM_MAP(hornet_map)
 	MCFG_CPU_PERIODIC_INT_DRIVER(hornet_state, irq1_line_assert,  1000)
 
-	MCFG_CPU_ADD("audiocpu", M68000, 64000000/4)    /* 16MHz */
+	MCFG_CPU_ADD("audiocpu", M68000, XTAL_64MHz/4)    /* 16MHz */
 	MCFG_CPU_PROGRAM_MAP(sound_memmap)
 
-	MCFG_CPU_ADD("dsp", ADSP21062, 36000000)
+	MCFG_CPU_ADD("dsp", ADSP21062, XTAL_36MHz)
 	MCFG_CPU_CONFIG(sharc_cfg)
 	MCFG_CPU_DATA_MAP(sharc0_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	MCFG_3DFX_VOODOO_1_ADD("voodoo0", STD_VOODOO_1_CLOCK, hornet_voodoo_intf)
 
@@ -1036,13 +1023,13 @@ static MACHINE_CONFIG_START( hornet, hornet_state )
 
 	MCFG_PALETTE_LENGTH(65536)
 
-	MCFG_K037122_ADD("k037122_1", hornet_k037122_intf)
+	MCFG_K037122_ADD("k037122_1", "screen", 0)
 
-	MCFG_K056800_ADD("k056800", hornet_k056800_interface, 64000000/4)
+	MCFG_K056800_ADD("k056800", hornet_k056800_interface, XTAL_64MHz/4)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_RF5C400_ADD("rfsnd", 16934400)  // value from Guru readme, gives 44100 Hz sample rate
+	MCFG_RF5C400_ADD("rfsnd", XTAL_16_9344MHz)  // value from Guru readme, gives 44100 Hz sample rate
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
@@ -1096,7 +1083,7 @@ static const voodoo_config voodoo_r_intf =
 
 static MACHINE_CONFIG_DERIVED( hornet_2board, hornet )
 
-	MCFG_CPU_ADD("dsp2", ADSP21062, 36000000)
+	MCFG_CPU_ADD("dsp2", ADSP21062, XTAL_36MHz)
 	MCFG_CPU_CONFIG(sharc_cfg)
 	MCFG_CPU_DATA_MAP(sharc1_map)
 
@@ -1104,8 +1091,8 @@ static MACHINE_CONFIG_DERIVED( hornet_2board, hornet )
 
 
 	MCFG_DEVICE_REMOVE("k037122_1")
-	MCFG_K037122_ADD("k037122_1", hornet_k037122_intf_l)
-	MCFG_K037122_ADD("k037122_2", hornet_k037122_intf_r)
+	MCFG_K037122_ADD("k037122_1", "lscreen", 0)
+	MCFG_K037122_ADD("k037122_2", "rscreen", 1)
 
 	MCFG_DEVICE_REMOVE("voodoo0")
 	MCFG_3DFX_VOODOO_1_ADD("voodoo0", STD_VOODOO_1_CLOCK, voodoo_l_intf)
@@ -1133,7 +1120,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( terabrst, hornet_2board )
 
-	MCFG_CPU_ADD("gn680", M68000, 32000000/2)   /* 16MHz */
+	MCFG_CPU_ADD("gn680", M68000, XTAL_32MHz/2)   /* 16MHz */
 	MCFG_CPU_PROGRAM_MAP(gn680_memmap)
 MACHINE_CONFIG_END
 
@@ -1149,7 +1136,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( sscope2, hornet_2board_v2)
 
 	MCFG_DS2401_ADD("lan_serial_id")
-	MCFG_EEPROM_93C46_ADD("lan_eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("lan_eeprom")
 MACHINE_CONFIG_END
 
 

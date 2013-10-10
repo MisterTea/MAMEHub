@@ -145,7 +145,7 @@ WRITE8_MEMBER(dc_state::pvr_irq)
 		break;
 
 	case powervr2_device::HBL_IN_IRQ:
-		dc_sysctrl_regs[SB_ISTNRM] |= IST_VBL_IN;
+		dc_sysctrl_regs[SB_ISTNRM] |= IST_HBL_IN;
 		break;
 
 	case powervr2_device::EOR_VIDEO_IRQ:
@@ -162,6 +162,14 @@ WRITE8_MEMBER(dc_state::pvr_irq)
 
 	case powervr2_device::DMA_PVR_IRQ:
 		dc_sysctrl_regs[SB_ISTNRM] |= IST_DMA_PVR;
+		break;
+
+	case powervr2_device::ERR_ISP_LIMIT_IRQ:
+		dc_sysctrl_regs[SB_ISTERR] |= IST_ERR_ISP_LIMIT;
+		break;
+
+	case powervr2_device::ERR_PVRIF_ILL_ADDR_IRQ:
+		dc_sysctrl_regs[SB_ISTERR] |= IST_ERR_PVRIF_ILL_ADDR;
 		break;
 	}
 	dc_update_interrupt_status();
@@ -180,12 +188,6 @@ TIMER_CALLBACK_MEMBER(dc_state::ch2_dma_irq)
 	dc_sysctrl_regs[SB_C2DLEN]=0;
 	dc_sysctrl_regs[SB_C2DST]=0;
 	dc_sysctrl_regs[SB_ISTNRM] |= IST_DMA_CH2;
-	dc_update_interrupt_status();
-}
-
-TIMER_CALLBACK_MEMBER(dc_state::yuv_fifo_irq)
-{
-	dc_sysctrl_regs[SB_ISTNRM] |= IST_EOXFER_YUV;
 	dc_update_interrupt_status();
 }
 
@@ -225,7 +227,7 @@ void dc_state::wave_dma_execute(address_space &space)
 	m_wave_dma.flag = (m_wave_dma.indirect & 1) ? 1 : 0;
 	/* Note: if you trigger an instant DMA IRQ trigger, sfz3upper doesn't play any bgm. */
 	/* TODO: timing of this */
-	machine().scheduler().timer_set(attotime::from_usec(300), timer_expired_delegate(FUNC(dc_state::aica_dma_irq),this));
+	machine().scheduler().timer_set(m_maincpu->cycles_to_attotime(m_wave_dma.size/4), timer_expired_delegate(FUNC(dc_state::aica_dma_irq),this));
 }
 
 // register decode helpers
@@ -431,11 +433,8 @@ WRITE64_MEMBER(dc_state::dc_sysctrl_w )
 				else //direct texture path
 					dc_sysctrl_regs[SB_C2DSTAT]=address+ddtdata.length;
 
-				/* 200 usecs breaks sfz3upper */
-				machine().scheduler().timer_set(attotime::from_usec(50), timer_expired_delegate(FUNC(dc_state::ch2_dma_irq),this));
-				/* simulate YUV FIFO processing here */
-				if((address & 0x1800000) == 0x0800000)
-					machine().scheduler().timer_set(attotime::from_usec(500), timer_expired_delegate(FUNC(dc_state::yuv_fifo_irq),this));
+				/* TODO: timing is a guess */
+				machine().scheduler().timer_set(m_maincpu->cycles_to_attotime(ddtdata.length/4), timer_expired_delegate(FUNC(dc_state::ch2_dma_irq),this));
 			}
 			break;
 
@@ -643,105 +642,14 @@ WRITE64_MEMBER(dc_state::dc_modem_w )
 	mame_printf_verbose("MODEM: [%08x=%x] write %" I64FMT "x to %x, mask %" I64FMT "x\n", 0x600000+reg*4, dat, data, offset, mem_mask);
 }
 
-READ64_MEMBER(dc_state::dc_rtc_r )
-{
-	int reg;
-	UINT64 shift;
-
-	reg = decode_reg3216_64(offset, mem_mask, &shift);
-	mame_printf_verbose("RTC:  Unmapped read %08x\n", 0x710000+reg*4);
-
-	return (UINT64)dc_rtcregister[reg] << shift;
-}
-
-WRITE64_MEMBER(dc_state::dc_rtc_w )
-{
-	int reg;
-	UINT64 shift;
-	UINT32 old,dat;
-
-	reg = decode_reg3216_64(offset, mem_mask, &shift);
-	dat = (UINT32)(data >> shift);
-	old = dc_rtcregister[reg];
-	dc_rtcregister[reg] = dat & 0xFFFF; // 5f6c00+off*4=dat
-	switch (reg)
-	{
-	case RTC1:
-		if (dc_rtcregister[RTC3])
-			dc_rtcregister[RTC3] = 0;
-		else
-			dc_rtcregister[reg] = old;
-		break;
-	case RTC2:
-		if (dc_rtcregister[RTC3] == 0)
-			dc_rtcregister[reg] = old;
-		else
-			dc_rtc_timer->adjust(attotime::zero, 0, attotime::from_seconds(1));
-		break;
-	case RTC3:
-		dc_rtcregister[RTC3] &= 1;
-		break;
-	}
-	mame_printf_verbose("RTC: [%08x=%x] write %" I64FMT "x to %x, mask %" I64FMT "x\n", 0x710000 + reg*4, dat, data, offset, mem_mask);
-}
-
-TIMER_CALLBACK_MEMBER(dc_state::dc_rtc_increment)
-{
-	dc_rtcregister[RTC2] = (dc_rtcregister[RTC2] + 1) & 0xFFFF;
-	if (dc_rtcregister[RTC2] == 0)
-		dc_rtcregister[RTC1] = (dc_rtcregister[RTC1] + 1) & 0xFFFF;
-}
-
-/* fill the RTC registers with the proper start-up values */
-void dc_state::rtc_initial_setup()
-{
-	static UINT32 current_time;
-	static int year_count,cur_year,i;
-	static const int month_to_day_conversion[12] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-	system_time systime;
-	machine().base_datetime(systime);
-
-	memset(dc_rtcregister, 0, sizeof(dc_rtcregister));
-
-	/* put the seconds */
-	current_time = systime.local_time.second;
-	/* put the minutes */
-	current_time+= systime.local_time.minute*60;
-	/* put the hours */
-	current_time+= systime.local_time.hour*60*60;
-	/* put the days (note -1) */
-	current_time+= (systime.local_time.mday-1)*60*60*24;
-	/* take the current year here for calculating leaps */
-	cur_year = (systime.local_time.year);
-
-	/* take the months - despite popular beliefs, leap years aren't just evenly divisible by 4 */
-	if(((((cur_year % 4) == 0) && ((cur_year % 100) != 0)) || ((cur_year % 400) == 0)) && systime.local_time.month > 2)
-		current_time+= (month_to_day_conversion[systime.local_time.month]+1)*60*60*24;
-	else
-		current_time+= (month_to_day_conversion[systime.local_time.month])*60*60*24;
-
-	/* put the years */
-	year_count = (cur_year-1949);
-
-	for(i=0;i<year_count-1;i++)
-		current_time += (((((i+1950) % 4) == 0) && (((i+1950) % 100) != 0)) || (((i+1950) % 400) == 0)) ? 60*60*24*366 : 60*60*24*365;
-
-	dc_rtcregister[RTC2] = current_time & 0x0000ffff;
-	dc_rtcregister[RTC1] = (current_time & 0xffff0000) >> 16;
-
-	dc_rtc_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(dc_state::dc_rtc_increment),this));
-}
 
 void dc_state::machine_start()
 {
-	rtc_initial_setup();
-
 	// dccons doesn't have a specific g1 device yet
 	if(m_naomig1)
 		m_naomig1->set_dma_cb(naomi_g1_device::dma_cb(FUNC(dc_state::generic_dma), this));
 
 	// save states
-	save_pointer(NAME(dc_rtcregister), 4);
 	save_pointer(NAME(dc_sysctrl_regs), 0x200/4);
 	save_pointer(NAME(g2bus_regs), 0x100/4);
 	save_item(NAME(m_wave_dma.aica_addr));
@@ -758,53 +666,48 @@ void dc_state::machine_start()
 void dc_state::machine_reset()
 {
 	/* halt the ARM7 */
+	m_armrst = 1;
 	m_soundcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
 	memset(dc_sysctrl_regs, 0, sizeof(dc_sysctrl_regs));
 
-	dc_rtc_timer->adjust(attotime::zero, 0, attotime::from_seconds(1));
-
 	dc_sysctrl_regs[SB_SBREV] = 0x0b;
 }
 
-READ64_MEMBER(dc_state::dc_aica_reg_r)
+READ32_MEMBER(dc_state::dc_aica_reg_r)
 {
-	//int reg;
-	UINT64 shift;
-
-	/*reg = */decode_reg32_64(offset, mem_mask, &shift);
-
 //  mame_printf_verbose("AICA REG: [%08x] read %" I64FMT "x, mask %" I64FMT "x\n", 0x700000+reg*4, (UINT64)offset, mem_mask);
 
-	return (UINT64) aica_r(machine().device("aica"), space, offset*2, 0xffff)<<shift;
+	if(offset == 0x2c00/4)
+		return m_armrst;
+
+	return aica_r(machine().device("aica"), space, offset*2, 0xffff);
 }
 
-WRITE64_MEMBER(dc_state::dc_aica_reg_w)
+WRITE32_MEMBER(dc_state::dc_aica_reg_w)
 {
-	int reg;
-	UINT64 shift;
-	UINT32 dat;
-
-	reg = decode_reg32_64(offset, mem_mask, &shift);
-	dat = (UINT32)(data >> shift);
-
-	if (reg == (0x2c00/4))
+	if (offset == (0x2c00/4))
 	{
-		if (dat & 1)
+		if(ACCESSING_BITS_0_7)
 		{
-			/* halt the ARM7 */
-			m_soundcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
-		}
-		else
-		{
-			/* it's alive ! */
-			m_soundcpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+			m_armrst = data & 1;
+
+			if (data & 1)
+			{
+				/* halt the ARM7 */
+				m_soundcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
+			}
+			else
+			{
+				/* it's alive ! */
+				m_soundcpu->set_input_line(INPUT_LINE_RESET, CLEAR_LINE);
+			}
 		}
 	}
 
-	aica_w(machine().device("aica"), space, offset*2, dat, shift ? ((mem_mask>>32)&0xffff) : (mem_mask & 0xffff));
+	aica_w(machine().device("aica"), space, offset*2, data, 0xffff);
 
-//  mame_printf_verbose("AICA REG: [%08x=%x] write %" I64FMT "x to %x, mask %" I64FMT "x\n", 0x700000+reg*4, dat, data, offset, mem_mask);
+//  mame_printf_verbose("AICA REG: [%08x=%x] write %x to %x, mask %" I64FMT "x\n", 0x700000+reg*4, data, offset, mem_mask);
 }
 
 READ32_MEMBER(dc_state::dc_arm_aica_r)
@@ -815,4 +718,9 @@ READ32_MEMBER(dc_state::dc_arm_aica_r)
 WRITE32_MEMBER(dc_state::dc_arm_aica_w)
 {
 	aica_w(machine().device("aica"), space, offset*2, data, mem_mask&0xffff);
+}
+
+TIMER_DEVICE_CALLBACK_MEMBER(dc_state::dc_scanline)
+{
+	m_powervr2->pvr_scanline_timer(param);
 }

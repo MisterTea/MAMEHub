@@ -40,6 +40,9 @@
 #define MCFG_MACRONIX_29L001MC_ADD(_tag) \
 	MCFG_DEVICE_ADD(_tag, MACRONIX_29L001MC, 0)
 
+#define MCFG_MACRONIX_29LV160TMC_ADD(_tag) \
+	MCFG_DEVICE_ADD(_tag, MACRONIX_29LV160TMC, 0)
+
 #define MCFG_PANASONIC_MN63F805MNP_ADD(_tag) \
 	MCFG_DEVICE_ADD(_tag, PANASONIC_MN63F805MNP, 0)
 
@@ -97,6 +100,7 @@ public:
 		FLASH_SHARP_LH28F016S,
 		FLASH_INTEL_E28F008SA,
 		FLASH_MACRONIX_29L001MC,
+		FLASH_MACRONIX_29LV160TMC,
 		FLASH_PANASONIC_MN63F805MNP,
 		FLASH_SANYO_LE26FV10N1TS,
 		FLASH_SST_28SF040,
@@ -113,7 +117,7 @@ public:
 
 protected:
 	// construction/destruction
-	intelfsh_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant);
+	intelfsh_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
 
 protected:
 	// device-level overrides
@@ -140,6 +144,7 @@ protected:
 	UINT8                   m_device_id;
 	UINT8                   m_maker_id;
 	bool                    m_sector_is_4k;
+	bool                    m_sector_is_16k;
 	UINT8                   m_page_size;
 
 	// internal state
@@ -159,7 +164,7 @@ class intelfsh8_device : public intelfsh_device
 {
 protected:
 	// construction/destruction
-	intelfsh8_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant);
+	intelfsh8_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
 
 public:
 	// public interface
@@ -179,7 +184,7 @@ class intelfsh16_device : public intelfsh_device
 {
 protected:
 	// construction/destruction
-	intelfsh16_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant);
+	intelfsh16_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
 
 public:
 	// public interface
@@ -256,6 +261,12 @@ public:
 	macronix_29l001mc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 };
 
+class macronix_29lv160tmc_device : public intelfsh8_device
+{
+public:
+	macronix_29lv160tmc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+};
+
 class panasonic_mn63f805mnp_device : public intelfsh8_device
 {
 public:
@@ -329,6 +340,8 @@ extern const device_type FUJITSU_29F016A;
 extern const device_type FUJITSU_29DL16X;
 extern const device_type INTEL_E28F400;
 extern const device_type MACRONIX_29L001MC;
+extern const device_type MACRONIX_29LV160TMC;
+
 extern const device_type PANASONIC_MN63F805MNP;
 extern const device_type SANYO_LE26FV10N1TS;
 extern const device_type SST_28SF040;

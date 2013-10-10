@@ -49,13 +49,13 @@ wd177x_format::wd177x_format(const format *_formats)
 
 int wd177x_format::find_size(io_generic *io, UINT32 form_factor)
 {
-	int size = io_generic_size(io);
+	UINT64 size = io_generic_size(io);
 	for(int i=0; formats[i].form_factor; i++) {
 		const format &f = formats[i];
 		if(form_factor != floppy_image::FF_UNKNOWN && form_factor != f.form_factor)
 			continue;
 
-		if(size == compute_track_size(f) * f.track_count * f.head_count)
+		if(size == (UINT64)compute_track_size(f) * f.track_count * f.head_count)
 			return i;
 	}
 	return -1;
@@ -359,6 +359,7 @@ bool wd177x_format::save(io_generic *io, floppy_image *image)
 			io_generic_write(io, sectdata, (track*f.head_count + head)*track_size, track_size);
 		}
 
+	global_free(candidates);
 	return true;
 }
 

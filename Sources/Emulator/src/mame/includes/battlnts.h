@@ -4,6 +4,9 @@
 
 *************************************************************************/
 
+#include "video/k007342.h"
+#include "video/k007420.h"
+
 class battlnts_state : public driver_device
 {
 public:

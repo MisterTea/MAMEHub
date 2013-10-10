@@ -104,9 +104,9 @@ To Do:
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
 #include "sound/okim6295.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "machine/microtch.h"
-#include "machine/68681.h"
+#include "machine/n68681.h"
 #include "machine/nvram.h"
 
 /***************************************************************************
@@ -125,13 +125,15 @@ public:
 		m_microtouch(*this,"microtouch"),
 		m_regs(*this, "regs"),
 		m_galgames_ram(*this, "galgames_ram"),
-		m_oki(*this, "oki"){ }
+		m_oki(*this, "oki"),
+		m_duart(*this, "duart68681"){ }
 
 	required_device<cpu_device> m_maincpu;
-	optional_device<microtouch_device> m_microtouch;
+	optional_device<microtouch_serial_device> m_microtouch;
 	required_shared_ptr<UINT16> m_regs;
 	optional_shared_ptr<UINT16> m_galgames_ram;
 	required_device<okim6295_device> m_oki;
+	optional_device<duartn68681_device> m_duart;
 
 	int m_okibank;
 	UINT8 m_rtc_ram[8];
@@ -145,9 +147,8 @@ public:
 	UINT32 m_palette_offset;
 	UINT8 m_palette_index;
 	UINT8 m_palette_data[3];
-	device_t *m_duart68681;
 
-	DECLARE_WRITE8_MEMBER(microtouch_tx);
+	DECLARE_WRITE_LINE_MEMBER(duart_irq_handler);
 	DECLARE_READ16_MEMBER(rtc_r);
 	DECLARE_WRITE16_MEMBER(rtc_w);
 	DECLARE_WRITE16_MEMBER(tmaster_color_w);
@@ -222,25 +223,10 @@ WRITE16_MEMBER(tmaster_state::tmaster_oki_bank_w)
 
 ***************************************************************************/
 
-static void duart_irq_handler(device_t *device, int state, UINT8 vector)
+WRITE_LINE_MEMBER(tmaster_state::duart_irq_handler)
 {
-	tmaster_state *drvstate = device->machine().driver_data<tmaster_state>();
-	drvstate->m_maincpu->set_input_line_and_vector(4, state, vector);
+	m_maincpu->set_input_line_and_vector(4, state, m_duart->get_irq_vector());
 };
-
-static void duart_tx(device_t *device, int channel, UINT8 data)
-{
-	tmaster_state *state = device->machine().driver_data<tmaster_state>();
-	if ( channel == 0 )
-	{
-		state->m_microtouch->rx(device->machine().driver_data()->generic_space(), 0, data);
-	}
-};
-
-WRITE8_MEMBER( tmaster_state::microtouch_tx )
-{
-	duart68681_rx_data(m_duart68681, 0, data);
-}
 
 /***************************************************************************
 
@@ -346,7 +332,7 @@ VIDEO_START_MEMBER(tmaster_state,tmaster)
 	{
 		for (buffer = 0; buffer < 2; buffer++)
 		{
-			machine().primary_screen->register_screen_bitmap(m_bitmap[layer][buffer]);
+			m_screen->register_screen_bitmap(m_bitmap[layer][buffer]);
 			m_bitmap[layer][buffer].fill(0xff);
 		}
 	}
@@ -545,7 +531,7 @@ static ADDRESS_MAP_START( tmaster_map, AS_PROGRAM, 16, tmaster_state )
 
 	AM_RANGE( 0x300010, 0x300011 ) AM_READ(tmaster_coins_r )
 
-	AM_RANGE( 0x300020, 0x30003f ) AM_DEVREADWRITE8_LEGACY("duart68681", duart68681_r, duart68681_w, 0xff )
+	AM_RANGE( 0x300020, 0x30003f ) AM_DEVREADWRITE8("duart68681", duartn68681_device, read, write, 0xff )
 
 	AM_RANGE( 0x300040, 0x300041 ) AM_WRITE(tmaster_oki_bank_w )
 
@@ -585,19 +571,6 @@ ADDRESS_MAP_END
 
 // NVRAM (5 x EEPROM)
 
-static const eeprom_interface galgames_eeprom_interface =
-{
-	10,                 // address bits 10
-	8,                  // data bits    8
-	"*1100",            // read         110 0aaaaaaaaaa
-	"*1010",            // write        101 0aaaaaaaaaa dddddddd
-	"*1110",            // erase        111 0aaaaaaaaaa
-	"*10000xxxxxxxxx",  // lock         100 00xxxxxxxxx
-	"*10011xxxxxxxxx",  // unlock       100 11xxxxxxxxx
-	0,                  // multi_read
-	1                   // reset_delay
-};
-
 #define GALGAMES_EEPROM_BIOS  "eeprom_bios"
 #define GALGAMES_EEPROM_CART1 "eeprom_cart1"
 #define GALGAMES_EEPROM_CART2 "eeprom_cart2"
@@ -608,9 +581,9 @@ static const char *const galgames_eeprom_names[5] = { GALGAMES_EEPROM_BIOS, GALG
 
 READ16_MEMBER(tmaster_state::galgames_eeprom_r)
 {
-	eeprom_device *eeprom = machine().device<eeprom_device>(galgames_eeprom_names[m_galgames_cart]);
+	eeprom_serial_93cxx_device *eeprom = machine().device<eeprom_serial_93cxx_device>(galgames_eeprom_names[m_galgames_cart]);
 
-	return eeprom->read_bit() ? 0x80 : 0x00;
+	return eeprom->do_read() ? 0x80 : 0x00;
 }
 
 WRITE16_MEMBER(tmaster_state::galgames_eeprom_w)
@@ -620,13 +593,13 @@ WRITE16_MEMBER(tmaster_state::galgames_eeprom_w)
 
 	if ( ACCESSING_BITS_0_7 )
 	{
-		eeprom_device *eeprom = machine().device<eeprom_device>(galgames_eeprom_names[m_galgames_cart]);
+		eeprom_serial_93cxx_device *eeprom = machine().device<eeprom_serial_93cxx_device>(galgames_eeprom_names[m_galgames_cart]);
 
 		// latch the bit
-		eeprom->write_bit(data & 0x0001);
+		eeprom->di_write(data & 0x0001);
 
 		// clock line asserted: write latch or select next bit to read
-		eeprom->set_clock_line((data & 0x0002) ? ASSERT_LINE : CLEAR_LINE );
+		eeprom->clk_write((data & 0x0002) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 
@@ -693,7 +666,7 @@ WRITE16_MEMBER(tmaster_state::galgames_cart_sel_w)
 		{
 			case 0x07:      // 7 resets the eeprom
 				for (i = 0; i < 5; i++)
-					machine().device<eeprom_device>(galgames_eeprom_names[i])->set_cs_line(ASSERT_LINE);
+					machine().device<eeprom_serial_93cxx_device>(galgames_eeprom_names[i])->cs_write(CLEAR_LINE);
 				break;
 
 			case 0x00:
@@ -701,12 +674,12 @@ WRITE16_MEMBER(tmaster_state::galgames_cart_sel_w)
 			case 0x02:
 			case 0x03:
 			case 0x04:
-				machine().device<eeprom_device>(galgames_eeprom_names[data & 0xff])->set_cs_line(CLEAR_LINE);
+				machine().device<eeprom_serial_93cxx_device>(galgames_eeprom_names[data & 0xff])->cs_write(ASSERT_LINE);
 				galgames_update_rombank(data & 0xff);
 				break;
 
 			default:
-				machine().device<eeprom_device>(galgames_eeprom_names[0])->set_cs_line(CLEAR_LINE);
+				machine().device<eeprom_serial_93cxx_device>(galgames_eeprom_names[0])->cs_write(ASSERT_LINE);
 				galgames_update_rombank(0);
 				logerror("%06x: unknown cart sel = %04x\n", space.device().safe_pc(), data);
 				break;
@@ -899,7 +872,6 @@ MACHINE_RESET_MEMBER(tmaster_state,tmaster)
 	m_gfx_offs = 0;
 	m_gfx_size = memregion("blitter")->bytes();
 
-	m_duart68681 = machine().device( "duart68681" );
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(tmaster_state::tm3k_interrupt)
@@ -914,12 +886,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(tmaster_state::tm3k_interrupt)
 	// lev 2 triggered at the end of the blit
 }
 
-static const duart68681_config tmaster_duart68681_config =
+static const duartn68681_config tmaster_duart68681_config =
 {
-	duart_irq_handler,
-	duart_tx,
-	NULL,
-	NULL
+	DEVCB_DRIVER_LINE_MEMBER(tmaster_state, duart_irq_handler),
+	DEVCB_DEVICE_LINE_MEMBER("microtouch", microtouch_serial_device, rx),
+	DEVCB_NULL,
+	DEVCB_NULL,
+	DEVCB_NULL
 };
 
 static MACHINE_CONFIG_START( tm3k, tmaster_state )
@@ -929,8 +902,8 @@ static MACHINE_CONFIG_START( tm3k, tmaster_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(tmaster_state,tmaster)
 
-	MCFG_DUART68681_ADD( "duart68681", XTAL_8_664MHz / 2 /*??*/, tmaster_duart68681_config )
-	MCFG_MICROTOUCH_ADD( "microtouch", WRITE8(tmaster_state, microtouch_tx) )
+	MCFG_DUARTN68681_ADD( "duart68681", XTAL_8_664MHz / 2 /*??*/, tmaster_duart68681_config )
+	MCFG_MICROTOUCH_SERIAL_ADD( "microtouch", 9600, DEVWRITELINE("duart68681", duartn68681_device, rx_a_w) )
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
@@ -982,11 +955,11 @@ static MACHINE_CONFIG_START( galgames, tmaster_state )
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", tmaster_state, tm3k_interrupt, "screen", 0, 1)
 
 	// 5 EEPROMs on the motherboard (for BIOS + 4 Carts)
-	MCFG_EEPROM_ADD(GALGAMES_EEPROM_BIOS,  galgames_eeprom_interface)
-	MCFG_EEPROM_ADD(GALGAMES_EEPROM_CART1, galgames_eeprom_interface)
-	MCFG_EEPROM_ADD(GALGAMES_EEPROM_CART2, galgames_eeprom_interface)
-	MCFG_EEPROM_ADD(GALGAMES_EEPROM_CART3, galgames_eeprom_interface)
-	MCFG_EEPROM_ADD(GALGAMES_EEPROM_CART4, galgames_eeprom_interface)
+	MCFG_EEPROM_SERIAL_93C76_8BIT_ADD(GALGAMES_EEPROM_BIOS)
+	MCFG_EEPROM_SERIAL_93C76_8BIT_ADD(GALGAMES_EEPROM_CART1)
+	MCFG_EEPROM_SERIAL_93C76_8BIT_ADD(GALGAMES_EEPROM_CART2)
+	MCFG_EEPROM_SERIAL_93C76_8BIT_ADD(GALGAMES_EEPROM_CART3)
+	MCFG_EEPROM_SERIAL_93C76_8BIT_ADD(GALGAMES_EEPROM_CART4)
 
 	MCFG_MACHINE_RESET_OVERRIDE(tmaster_state, galgames )
 

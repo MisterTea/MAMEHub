@@ -10,7 +10,6 @@
 
 #include "emu.h"
 #include "cpu/s2650/s2650.h"
-#include "sound/s2636.h"
 
 #include "tinv2650.lh"
 #include "includes/zac2650.h"
@@ -253,13 +252,13 @@ static MACHINE_CONFIG_START( tinvader, zac2650_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("s2636snd", S2636_SOUND, 0)
+	MCFG_SOUND_ADD("s2636snd", S2636, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
 WRITE8_MEMBER(zac2650_state::tinvader_sound_w)
 {
-	/* sounds are NOT the same as &space invaders */
+	/* sounds are NOT the same as space invaders */
 
 	logerror("Register %x = Data %d\n",data & 0xfe,data & 0x01);
 

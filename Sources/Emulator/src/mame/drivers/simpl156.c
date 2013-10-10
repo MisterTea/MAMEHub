@@ -92,9 +92,8 @@ Are the OKI M6295 clocks from Heavy Smash are correct at least for the Mitchell 
 #include "includes/decocrpt.h"
 #include "cpu/arm/arm.h"
 #include "includes/simpl156.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/okim6295.h"
-#include "video/deco16ic.h"
 
 static INPUT_PORTS_START( simpl156 )
 	PORT_START("IN0")
@@ -102,7 +101,7 @@ static INPUT_PORTS_START( simpl156 )
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_SERVICE_NO_TOGGLE( 0x0008, IP_ACTIVE_LOW )
-	PORT_BIT( 0x00f0, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen") // all bits? check..
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen") // all bits? check..
 	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_SPECIAL ) // eeprom?..
 
 
@@ -128,7 +127,7 @@ INPUT_PORTS_END
 
 READ32_MEMBER(simpl156_state::simpl156_inputs_read)
 {
-	int eep = m_eeprom->read_bit();
+	int eep = m_eeprom->do_read();
 	UINT32 returndata = ioport("IN0")->read() ^ 0xffff0000;
 
 	returndata ^= ((eep << 8));
@@ -173,9 +172,9 @@ WRITE32_MEMBER(simpl156_state::simpl156_eeprom_w)
 
 	m_okimusic->set_bank_base(0x40000 * (data & 0x7));
 
-	m_eeprom->set_clock_line(BIT(data, 5) ? ASSERT_LINE : CLEAR_LINE);
-	m_eeprom->write_bit(BIT(data, 4));
-	m_eeprom->set_cs_line(BIT(data, 6) ? CLEAR_LINE : ASSERT_LINE);
+	m_eeprom->clk_write(BIT(data, 5) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->di_write(BIT(data, 4));
+	m_eeprom->cs_write(BIT(data, 6) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -243,10 +242,10 @@ static ADDRESS_MAP_START( joemacr_map, AS_PROGRAM, 32, simpl156_state )
 	AM_RANGE(0x110000, 0x111fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
 	AM_RANGE(0x120000, 0x120fff) AM_READWRITE(simpl156_palette_r, simpl156_palette_w)
 	AM_RANGE(0x130000, 0x130003) AM_READWRITE(simpl156_system_r, simpl156_eeprom_w)
-	AM_RANGE(0x140000, 0x14001f) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf_control_dword_r, deco16ic_pf_control_dword_w)
-	AM_RANGE(0x150000, 0x151fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x152000, 0x153fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x154000, 0x155fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf2_data_dword_r, deco16ic_pf2_data_dword_w)
+	AM_RANGE(0x140000, 0x14001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
+	AM_RANGE(0x150000, 0x151fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x152000, 0x153fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x154000, 0x155fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf2_data_dword_r, pf2_data_dword_w)
 	AM_RANGE(0x160000, 0x161fff) AM_READWRITE(simpl156_pf1_rowscroll_r, simpl156_pf1_rowscroll_w)
 	AM_RANGE(0x164000, 0x165fff) AM_READWRITE(simpl156_pf2_rowscroll_r, simpl156_pf2_rowscroll_w)
 	AM_RANGE(0x170000, 0x170003) AM_READONLY AM_WRITENOP // ?
@@ -267,10 +266,10 @@ static ADDRESS_MAP_START( chainrec_map, AS_PROGRAM, 32, simpl156_state )
 	AM_RANGE(0x410000, 0x411fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
 	AM_RANGE(0x420000, 0x420fff) AM_READWRITE(simpl156_palette_r,simpl156_palette_w)
 	AM_RANGE(0x430000, 0x430003) AM_READWRITE(simpl156_system_r,simpl156_eeprom_w)
-	AM_RANGE(0x440000, 0x44001f) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf_control_dword_r, deco16ic_pf_control_dword_w)
-	AM_RANGE(0x450000, 0x451fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x452000, 0x453fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x454000, 0x455fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf2_data_dword_r, deco16ic_pf2_data_dword_w)
+	AM_RANGE(0x440000, 0x44001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
+	AM_RANGE(0x450000, 0x451fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x452000, 0x453fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x454000, 0x455fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf2_data_dword_r, pf2_data_dword_w)
 	AM_RANGE(0x460000, 0x461fff) AM_READWRITE(simpl156_pf1_rowscroll_r, simpl156_pf1_rowscroll_w)
 	AM_RANGE(0x464000, 0x465fff) AM_READWRITE(simpl156_pf2_rowscroll_r, simpl156_pf2_rowscroll_w)
 	AM_RANGE(0x470000, 0x470003) AM_READONLY AM_WRITENOP // ??
@@ -288,10 +287,10 @@ static ADDRESS_MAP_START( magdrop_map, AS_PROGRAM, 32, simpl156_state )
 	AM_RANGE(0x390000, 0x391fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
 	AM_RANGE(0x3a0000, 0x3a0fff) AM_READWRITE(simpl156_palette_r,simpl156_palette_w)
 	AM_RANGE(0x3b0000, 0x3b0003) AM_READWRITE(simpl156_system_r,simpl156_eeprom_w)
-	AM_RANGE(0x3c0000, 0x3c001f) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf_control_dword_r, deco16ic_pf_control_dword_w)
-	AM_RANGE(0x3d0000, 0x3d1fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x3d2000, 0x3d3fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x3d4000, 0x3d5fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf2_data_dword_r, deco16ic_pf2_data_dword_w)
+	AM_RANGE(0x3c0000, 0x3c001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
+	AM_RANGE(0x3d0000, 0x3d1fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x3d2000, 0x3d3fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x3d4000, 0x3d5fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf2_data_dword_r, pf2_data_dword_w)
 	AM_RANGE(0x3e0000, 0x3e1fff) AM_READWRITE(simpl156_pf1_rowscroll_r, simpl156_pf1_rowscroll_w)
 	AM_RANGE(0x3e4000, 0x3e5fff) AM_READWRITE(simpl156_pf2_rowscroll_r, simpl156_pf2_rowscroll_w)
 	AM_RANGE(0x3f0000, 0x3f0003) AM_READONLY AM_WRITENOP //?
@@ -309,10 +308,10 @@ static ADDRESS_MAP_START( magdropp_map, AS_PROGRAM, 32, simpl156_state )
 	AM_RANGE(0x690000, 0x691fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
 	AM_RANGE(0x6a0000, 0x6a0fff) AM_READWRITE(simpl156_palette_r,simpl156_palette_w)
 	AM_RANGE(0x6b0000, 0x6b0003) AM_READWRITE(simpl156_system_r,simpl156_eeprom_w)
-	AM_RANGE(0x6c0000, 0x6c001f) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf_control_dword_r, deco16ic_pf_control_dword_w)
-	AM_RANGE(0x6d0000, 0x6d1fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x6d2000, 0x6d3fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x6d4000, 0x6d5fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf2_data_dword_r, deco16ic_pf2_data_dword_w)
+	AM_RANGE(0x6c0000, 0x6c001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
+	AM_RANGE(0x6d0000, 0x6d1fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x6d2000, 0x6d3fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x6d4000, 0x6d5fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf2_data_dword_r, pf2_data_dword_w)
 	AM_RANGE(0x6e0000, 0x6e1fff) AM_READWRITE(simpl156_pf1_rowscroll_r, simpl156_pf1_rowscroll_w)
 	AM_RANGE(0x6e4000, 0x6e5fff) AM_READWRITE(simpl156_pf2_rowscroll_r, simpl156_pf2_rowscroll_w)
 	AM_RANGE(0x6f0000, 0x6f0003) AM_READONLY AM_WRITENOP // ?
@@ -329,10 +328,10 @@ static ADDRESS_MAP_START( mitchell156_map, AS_PROGRAM, 32, simpl156_state )
 	AM_RANGE(0x190000, 0x191fff) AM_READWRITE(simpl156_spriteram_r, simpl156_spriteram_w)
 	AM_RANGE(0x1a0000, 0x1a0fff) AM_READWRITE(simpl156_palette_r,simpl156_palette_w)
 	AM_RANGE(0x1b0000, 0x1b0003) AM_READWRITE(simpl156_system_r,simpl156_eeprom_w)
-	AM_RANGE(0x1c0000, 0x1c001f) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf_control_dword_r, deco16ic_pf_control_dword_w)
-	AM_RANGE(0x1d0000, 0x1d1fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x1d2000, 0x1d3fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x1d4000, 0x1d5fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf2_data_dword_r, deco16ic_pf2_data_dword_w)
+	AM_RANGE(0x1c0000, 0x1c001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
+	AM_RANGE(0x1d0000, 0x1d1fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x1d2000, 0x1d3fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x1d4000, 0x1d5fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf2_data_dword_r, pf2_data_dword_w)
 	AM_RANGE(0x1e0000, 0x1e1fff) AM_READWRITE(simpl156_pf1_rowscroll_r, simpl156_pf1_rowscroll_w)
 	AM_RANGE(0x1e4000, 0x1e5fff) AM_READWRITE(simpl156_pf2_rowscroll_r, simpl156_pf2_rowscroll_w)
 	AM_RANGE(0x1f0000, 0x1f0003) AM_READONLY AM_WRITENOP // ?
@@ -395,7 +394,6 @@ static int simpl156_bank_callback(const int bank)
 
 static const deco16ic_interface simpl156_deco16ic_tilegen1_intf =
 {
-	"screen",
 	0, 1,
 	0x0f, 0x0f, /* trans masks (default values) */
 	0, 16,/* color base (default values) */
@@ -426,7 +424,7 @@ static MACHINE_CONFIG_START( chainrec, simpl156_state )
 	MCFG_CPU_PROGRAM_MAP(chainrec_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", simpl156_state,  simpl156_vbl_interrupt)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")  // 93C45
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")  // 93C45
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)

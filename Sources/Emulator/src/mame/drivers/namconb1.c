@@ -25,7 +25,7 @@ Known games using this hardware:
 - Super World Stadium '95
 - Super World Stadium '96
 - Super World Stadium '97
-- OutFoxies
+- The Outfoxies
 - Mach Breakers
 
 *****************************************************
@@ -194,7 +194,7 @@ Location      Setting       Alt. Setting
 Namco System NB2
 
 Games running on this hardware:
-- Outfoxies
+- The Outfoxies
 - Mach Breakers
 
 Changes from Namcon System NB1 include:
@@ -275,6 +275,7 @@ GFX:                Custom 145     ( 80 pin PQFP)
 #include "includes/namcoic.h"
 #include "sound/c352.h"
 #include "cpu/m37710/m37710.h"
+#include "mcfglgcy.h"
 
 #define NB1_NVMEM_SIZE (0x800)
 
@@ -301,7 +302,7 @@ TIMER_CALLBACK_MEMBER(namconb1_state::namconb1_TriggerPOSIRQ)
 	if(m_pos_irq_active || !(m_namconb_cpureg[0x02] & 0xf0))
 		return;
 
-	machine().primary_screen->update_partial(param);
+	m_screen->update_partial(param);
 	m_pos_irq_active = 1;
 	m_maincpu->set_input_line(m_namconb_cpureg[0x02] & 0xf, ASSERT_LINE);
 }
@@ -355,14 +356,14 @@ INTERRUPT_GEN_MEMBER(namconb1_state::namconb1_interrupt)
 	}
 	if( scanline < NAMCONB1_VBSTART )
 	{
-		machine().scheduler().timer_set( machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(namconb1_state::namconb1_TriggerPOSIRQ),this), scanline);
+		machine().scheduler().timer_set( m_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(namconb1_state::namconb1_TriggerPOSIRQ),this), scanline);
 	}
 } /* namconb1_interrupt */
 
 
 TIMER_CALLBACK_MEMBER(namconb1_state::namconb2_TriggerPOSIRQ)
 {
-	machine().primary_screen->update_partial(param);
+	m_screen->update_partial(param);
 	m_pos_irq_active = 1;
 	m_maincpu->set_input_line(m_namconb_cpureg[0x02], ASSERT_LINE);
 }
@@ -409,7 +410,7 @@ INTERRUPT_GEN_MEMBER(namconb1_state::namconb2_interrupt)
 		scanline = 0;
 
 	if( scanline < NAMCONB1_VBSTART )
-		machine().scheduler().timer_set( machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(namconb1_state::namconb2_TriggerPOSIRQ),this), scanline);
+		machine().scheduler().timer_set( m_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(namconb1_state::namconb2_TriggerPOSIRQ),this), scanline);
 } /* namconb2_interrupt */
 
 static void namconb1_cpureg8_w(running_machine &machine, int reg, UINT8 data)
@@ -2030,6 +2031,6 @@ GAME( 1997, sws97,    0,        namconb1, nbsports, namconb1_state, sws97,    RO
 GAME( 1994, vshoot,   0,        namconb1, namconb1, namconb1_state, vshoot,   ROT0,  "Namco", "J-League Soccer V-Shoot (Japan)", GAME_IMPERFECT_SOUND )
 
 /*     YEAR, NAME,     PARENT,   MACHINE,  INPUT,    INIT,     MNTR,  COMPANY, FULLNAME,   FLAGS */
-GAME( 1994, outfxies, 0,        namconb2, outfxies, namconb1_state, outfxies, ROT0, "Namco", "Outfoxies (World, OU2)", GAME_IMPERFECT_SOUND )
-GAME( 1994, outfxiesj,outfxies, namconb2, outfxies, namconb1_state, outfxies, ROT0, "Namco", "Outfoxies (Japan, OU1)", GAME_IMPERFECT_SOUND )
+GAME( 1994, outfxies, 0,        namconb2, outfxies, namconb1_state, outfxies, ROT0, "Namco", "The Outfoxies (World, OU2)", GAME_IMPERFECT_SOUND )
+GAME( 1994, outfxiesj,outfxies, namconb2, outfxies, namconb1_state, outfxies, ROT0, "Namco", "The Outfoxies (Japan, OU1)", GAME_IMPERFECT_SOUND )
 GAME( 1995, machbrkr, 0,        namconb2, namconb1, namconb1_state, machbrkr, ROT0, "Namco", "Mach Breakers - Numan Athletics 2 (Japan)", GAME_IMPERFECT_SOUND )

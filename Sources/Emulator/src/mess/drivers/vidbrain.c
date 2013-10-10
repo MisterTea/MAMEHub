@@ -7,8 +7,9 @@
     http://www.seanriddle.com/videobrain.html
     http://www.google.com/patents/US4232374
     http://www.google.com/patents/US4177462
-
-    07/04/2009 Skeleton driver.
+    http://www.orphanedgames.com/videobrain/
+    http://www.datalytixllc.com/videobrain/
+    http://blog.kevtris.org/blogfiles/videobrain/videobrain_unwrapped.txt
 
 ****************************************************************************/
 
@@ -457,7 +458,6 @@ READ8_MEMBER(vidbrain_state::memory_read_byte)
 
 static UV201_INTERFACE( uv_intf )
 {
-	SCREEN_TAG,
 	DEVCB_DRIVER_LINE_MEMBER(vidbrain_state, ext_int_w),
 	DEVCB_DRIVER_LINE_MEMBER(vidbrain_state, hblank_w),
 	DEVCB_DRIVER_MEMBER(vidbrain_state, memory_read_byte)
@@ -547,10 +547,6 @@ void vidbrain_state::machine_start()
 	save_item(NAME(m_sound_clk));
 }
 
-
-//-------------------------------------------------
-//  MACHINE_RESET( vidbrain )
-//-------------------------------------------------
 
 void vidbrain_state::machine_reset()
 {

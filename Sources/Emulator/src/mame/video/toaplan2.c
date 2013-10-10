@@ -81,7 +81,7 @@ VIDEO_START_MEMBER(toaplan2_state,toaplan2)
 	m_vdp1 = machine().device<gp9001vdp_device>("gp9001vdp1");
 
 	/* our current VDP implementation needs this bitmap to work with */
-	machine().primary_screen->register_screen_bitmap(m_custom_priority_bitmap);
+	m_screen->register_screen_bitmap(m_custom_priority_bitmap);
 
 	if (m_vdp0 != NULL)
 	{
@@ -91,7 +91,7 @@ VIDEO_START_MEMBER(toaplan2_state,toaplan2)
 
 	if (m_vdp1 != NULL)
 	{
-		machine().primary_screen->register_screen_bitmap(m_secondary_render_bitmap);
+		m_screen->register_screen_bitmap(m_secondary_render_bitmap);
 		m_vdp1->custom_priority_bitmap = &m_custom_priority_bitmap;
 	}
 
@@ -181,7 +181,7 @@ WRITE16_MEMBER(toaplan2_state::toaplan2_txvideoram16_w)
 WRITE16_MEMBER(toaplan2_state::toaplan2_txvideoram16_offs_w)
 {
 	// FIXME: implement line select and per-line flipping for all games
-	// see SCREEN_UPDATE_IND16( batrider )
+	// see toaplan2_state::screen_update_batrider()
 
 	UINT16 oldword = m_txvideoram16_offs[offset];
 
@@ -409,7 +409,7 @@ UINT32 toaplan2_state::screen_update_toaplan2(screen_device &screen, bitmap_ind1
 UINT32 toaplan2_state::screen_update_truxton2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	screen_update_toaplan2(screen, bitmap, cliprect);
-	m_tx_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_tx_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -437,7 +437,7 @@ UINT32 toaplan2_state::screen_update_batrider(screen_device &screen, bitmap_ind1
 			clip.min_y = clip.max_y = line;
 			m_tx_tilemap->set_scrolly(0,     - line + m_txvideoram16_offs[      line]);
 		}
-		m_tx_tilemap->draw(bitmap, clip, 0, 0);
+		m_tx_tilemap->draw(screen, bitmap, clip, 0, 0);
 	}
 	return 0;
 }

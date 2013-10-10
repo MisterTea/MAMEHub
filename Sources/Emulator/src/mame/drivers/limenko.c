@@ -24,7 +24,7 @@
 
 #include "emu.h"
 #include "cpu/e132xs/e132xs.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/qs1000.h"
 #include "sound/okim6295.h"
 
@@ -519,7 +519,7 @@ UINT32 limenko_state::screen_update_limenko(screen_device &screen, bitmap_ind16 
 {
 	// m_videoreg[4] ???? It always has this value: 0xffeffff8 (2 signed bytes? values: -17 and -8 ?)
 
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
 	m_bg_tilemap->enable(m_videoreg[0] & 4);
 	m_md_tilemap->enable(m_videoreg[0] & 2);
@@ -533,12 +533,12 @@ UINT32 limenko_state::screen_update_limenko(screen_device &screen, bitmap_ind16 
 	m_md_tilemap->set_scrollx(0, (m_videoreg[2] & 0xffff0000) >> 16);
 	m_fg_tilemap->set_scrollx(0, (m_videoreg[1] & 0xffff0000) >> 16);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0,0);
-	m_md_tilemap->draw(bitmap, cliprect, 0,0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0,1);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	m_md_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0,1);
 
 	if(m_videoreg[0] & 8)
-		copy_sprites(bitmap, m_sprites_bitmap, machine().priority_bitmap, cliprect);
+		copy_sprites(bitmap, m_sprites_bitmap, screen.priority(), cliprect);
 
 	return 0;
 }
@@ -594,7 +594,7 @@ static INPUT_PORTS_START( legendoh )
 	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_SERVICE_NO_TOGGLE( 0x00200000, IP_ACTIVE_LOW )
 	PORT_BIT( 0x00400000, IP_ACTIVE_HIGH, IPT_SPECIAL ) //security bit
-	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x01000000, IP_ACTIVE_LOW, IPT_START3 )
 	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_START4 )
 	PORT_BIT( 0x04000000, IP_ACTIVE_LOW, IPT_COIN3 )
@@ -607,9 +607,9 @@ static INPUT_PORTS_START( legendoh )
 	PORT_BIT( 0x4000ffff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x00010000, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x00020000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x00040000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
+	PORT_BIT( 0x00010000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x00020000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x00040000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
 //  PORT_BIT( 0x00080000, IP_ACTIVE_HIGH, IPT_UNKNOWN ) // 0x80000 -> video disabled?
 INPUT_PORTS_END
 
@@ -643,7 +643,7 @@ static INPUT_PORTS_START( sb2003 )
 	PORT_BIT( 0x00080000, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_SERVICE_NO_TOGGLE( 0x00200000, IP_ACTIVE_LOW )
 	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_SPECIAL ) //security bit
-	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_DIPNAME( 0x20000000, 0x00000000, "Sound Enable" )
 	PORT_DIPSETTING(          0x20000000, DEF_STR( Off ) )
 	PORT_DIPSETTING(          0x00000000, DEF_STR( On ) )
@@ -652,9 +652,9 @@ static INPUT_PORTS_START( sb2003 )
 	PORT_BIT( 0x5f00ffff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x00010000, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x00020000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x00040000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
+	PORT_BIT( 0x00010000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x00020000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x00040000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
 //  PORT_BIT( 0x00080000, IP_ACTIVE_HIGH, IPT_UNKNOWN ) // 0x80000 -> video disabled?
 INPUT_PORTS_END
 
@@ -688,7 +688,7 @@ static INPUT_PORTS_START( spotty )
 	PORT_BIT( 0x00080000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, limenko_state,spriteram_bit_r, NULL) //changes spriteram location
 	PORT_SERVICE_NO_TOGGLE( 0x00200000, IP_ACTIVE_LOW )
 	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_SPECIAL ) //security bit
-	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_DIPNAME( 0x20000000, 0x20000000, DEF_STR( Demo_Sounds ) )
 	PORT_DIPSETTING(          0x00000000, DEF_STR( Off ) )
 	PORT_DIPSETTING(          0x20000000, DEF_STR( On ) )
@@ -696,9 +696,9 @@ static INPUT_PORTS_START( spotty )
 	PORT_BIT( 0x5f10ffff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x00010000, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x00020000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x00040000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
+	PORT_BIT( 0x00010000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x00020000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x00040000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
 //  PORT_BIT( 0x00080000, IP_ACTIVE_HIGH, IPT_UNKNOWN ) // 0x80000 -> video disabled?
 INPUT_PORTS_END
 
@@ -754,7 +754,7 @@ static MACHINE_CONFIG_START( limenko, limenko_state )
 	MCFG_CPU_IO_MAP(limenko_io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", limenko_state,  irq0_line_hold)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -785,7 +785,7 @@ static MACHINE_CONFIG_START( spotty, limenko_state )
 	MCFG_CPU_ADD("audiocpu", AT89C4051, 4000000)    /* 4 MHz */
 	MCFG_CPU_IO_MAP(spotty_sound_io_map)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)

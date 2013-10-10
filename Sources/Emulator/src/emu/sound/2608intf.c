@@ -148,7 +148,7 @@ void ym2608_device::device_start()
 	const ay8910_interface *ay8910_config = m_ay8910_config != NULL ? m_ay8910_config : &default_ay8910_config;
 
 	m_irq_handler.resolve();
-	/* FIXME: Force to use simgle output */
+	/* FIXME: Force to use single output */
 	m_psg = ay8910_start_ym(this, ay8910_config);
 	assert_always(m_psg != NULL, "Error creating YM2608/AY8910 chip");
 
@@ -202,7 +202,7 @@ WRITE8_MEMBER( ym2608_device::write )
 const device_type YM2608 = &device_creator<ym2608_device>;
 
 ym2608_device::ym2608_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, YM2608, "YM2608", tag, owner, clock),
+	: device_t(mconfig, YM2608, "YM2608", tag, owner, clock, "ym2608", __FILE__),
 		device_sound_interface(mconfig, *this),
 		m_irq_handler(*this),
 		m_ay8910_config(NULL)

@@ -772,6 +772,7 @@ CPU_GET_INFO( v25 )
 
 		/* --- the following bits of info are returned as NULL-terminated strings --- */
 		case CPUINFO_STR_NAME:                          strcpy(info->s, "V25");                 break;
+		case CPUINFO_STR_SHORTNAME:                     strcpy(info->s, "v25");                 break;
 
 		default:                                        CPU_GET_INFO_CALL(v25v35);              break;
 	}
@@ -795,6 +796,7 @@ CPU_GET_INFO( v35 )
 
 		/* --- the following bits of info are returned as NULL-terminated strings --- */
 		case CPUINFO_STR_NAME:                          strcpy(info->s, "V35");                 break;
+		case CPUINFO_STR_SHORTNAME:                     strcpy(info->s, "v35");                 break;
 
 		default:                                        CPU_GET_INFO_CALL(v25v35);              break;
 	}

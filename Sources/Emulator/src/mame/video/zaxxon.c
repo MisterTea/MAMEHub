@@ -131,8 +131,8 @@ void zaxxon_state::video_start_common(tilemap_get_info_delegate fg_tile_info)
 
 	/* configure the foreground tilemap */
 	m_fg_tilemap->set_transparent_pen(0);
-	m_fg_tilemap->set_scrolldx(0, machine().primary_screen->width() - 256);
-	m_fg_tilemap->set_scrolldy(0, machine().primary_screen->height() - 256);
+	m_fg_tilemap->set_scrolldx(0, m_screen->width() - 256);
+	m_fg_tilemap->set_scrolldy(0, m_screen->height() - 256);
 
 	/* register for save states */
 	save_item(NAME(m_bg_enable));
@@ -449,7 +449,7 @@ UINT32 zaxxon_state::screen_update_zaxxon(screen_device &screen, bitmap_ind16 &b
 {
 	draw_background(bitmap, cliprect, TRUE);
 	draw_sprites(bitmap, cliprect, 0x140, 0x180);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -458,7 +458,7 @@ UINT32 zaxxon_state::screen_update_futspy(screen_device &screen, bitmap_ind16 &b
 {
 	draw_background(bitmap, cliprect, TRUE);
 	draw_sprites(bitmap, cliprect, 0x180, 0x180);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -467,7 +467,7 @@ UINT32 zaxxon_state::screen_update_razmataz(screen_device &screen, bitmap_ind16 
 {
 	draw_background(bitmap, cliprect, FALSE);
 	draw_sprites(bitmap, cliprect, 0x140, 0x180);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -476,6 +476,6 @@ UINT32 zaxxon_state::screen_update_congo(screen_device &screen, bitmap_ind16 &bi
 {
 	draw_background(bitmap, cliprect, TRUE);
 	draw_sprites(bitmap, cliprect, 0x280, 0x180);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }

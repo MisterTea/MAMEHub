@@ -103,6 +103,8 @@ video HW too.
 #include "machine/ram.h"
 #include "machine/pc_keyboards.h"
 
+#include "mcfglgcy.h"
+
 
 static ADDRESS_MAP_START( pc8_map, AS_PROGRAM, 8, pc_state )
 	ADDRESS_MAP_UNMAP_HIGH
@@ -197,12 +199,12 @@ static ADDRESS_MAP_START(pc8_io, AS_IO, 8, pc_state )
 	AM_RANGE(0x00a0, 0x00a0) AM_WRITE(pc_nmi_enable_w )
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE("pc_joy", pc_joy_device, joy_port_r, joy_port_w)
 	AM_RANGE(0x0240, 0x0257) AM_READWRITE(pc_rtc_r,             pc_rtc_w)
-	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE_LEGACY("lpt_2", pc_lpt_r, pc_lpt_w)
+	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE("lpt_2", pc_lpt_device, read, write)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE("ins8250_3", ins8250_device, ins8250_r, ins8250_w)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE("ins8250_1", ins8250_device, ins8250_r, ins8250_w)
 	AM_RANGE(0x0340, 0x0357) AM_NOP /* anonymous bios should not recogniced realtimeclock */
-	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE_LEGACY("lpt_1", pc_lpt_r, pc_lpt_w)
-	AM_RANGE(0x03bc, 0x03be) AM_DEVREADWRITE_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w)
+	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE("lpt_1", pc_lpt_device, read, write)
+	AM_RANGE(0x03bc, 0x03be) AM_DEVREADWRITE("lpt_0", pc_lpt_device, read, write)
 	AM_RANGE(0x03e8, 0x03ef) AM_DEVREADWRITE("ins8250_2", ins8250_device, ins8250_r, ins8250_w)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE("fdc", pc_fdc_interface, map)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE("ins8250_0", ins8250_device, ins8250_r, ins8250_w)
@@ -223,12 +225,12 @@ static ADDRESS_MAP_START(pc16_io, AS_IO, 16, pc_state )
 	AM_RANGE(0x00a0, 0x00a1) AM_WRITE8(pc_nmi_enable_w, 0x00ff )
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x0240, 0x0257) AM_READWRITE8(pc_rtc_r,                pc_rtc_w, 0xffff)
-	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE8_LEGACY("lpt_2", pc_lpt_r, pc_lpt_w, 0xffff)
+	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE8("lpt_2", pc_lpt_device, read, write, 0xffff)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE8("ins8250_3", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x0340, 0x0357) AM_NOP /* anonymous bios should not recogniced realtimeclock */
-	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8_LEGACY("lpt_1", pc_lpt_r, pc_lpt_w, 0xffff)
-	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
+	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8("lpt_1", pc_lpt_device, read, write, 0xffff)
+	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8("lpt_0", pc_lpt_device, read, write, 0xffff)
 	AM_RANGE(0x03e8, 0x03ef) AM_DEVREADWRITE8("ins8250_2", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_interface, map, 0xffff)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
@@ -247,12 +249,12 @@ static ADDRESS_MAP_START(ec1841_io, AS_IO, 16, pc_state)
 //  AM_RANGE(0x0230, 0x021f)    // mouse
 	AM_RANGE(0x0240, 0x0257) AM_READWRITE8(pc_rtc_r,                pc_rtc_w, 0xffff)
 	AM_RANGE(0x02b0, 0x02b3) AM_READWRITE8(ec1841_memboard_r, ec1841_memboard_w, 0xffff);
-//  AM_RANGE(0x02f8, 0x02f8) AM_DEVREADWRITE8_LEGACY("upd8251_1", i8251_device, data_r, data_w, 0x00ff)
-//  AM_RANGE(0x02f9, 0x02f9) AM_DEVREADWRITE8_LEGACY("upd8251_1", i8251_device, status_r, control_w, 0xff00)
-	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
+//  AM_RANGE(0x02f8, 0x02f8) AM_DEVREADWRITE8("upd8251_1", i8251_device, data_r, data_w, 0x00ff)
+//  AM_RANGE(0x02f9, 0x02f9) AM_DEVREADWRITE8("upd8251_1", i8251_device, status_r, control_w, 0xff00)
+	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8("lpt_0", pc_lpt_device, read, write, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_interface, map, 0xffff)
-//  AM_RANGE(0x03f8, 0x03f9) AM_DEVREADWRITE8_LEGACY("upd8251_0", i8251_device, data_r, data_w, 0x00ff)
-//  AM_RANGE(0x03f8, 0x03f9) AM_DEVREADWRITE8_LEGACY("upd8251_0", i8251_device, status_r, control_w, 0xff00)
+//  AM_RANGE(0x03f8, 0x03f9) AM_DEVREADWRITE8("upd8251_0", i8251_device, data_r, data_w, 0x00ff)
+//  AM_RANGE(0x03f8, 0x03f9) AM_DEVREADWRITE8("upd8251_0", i8251_device, status_r, control_w, 0xff00)
 ADDRESS_MAP_END
 
 
@@ -264,12 +266,12 @@ static ADDRESS_MAP_START(iskr1031_io, AS_IO, 16, pc_state)
 	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xffff)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r,               pc_page_w, 0xffff)
 	AM_RANGE(0x00a0, 0x00a1) AM_WRITE8( pc_nmi_enable_w, 0x00ff )
-//  AM_RANGE(0x0200, 0x0207) AM_READWRITE8_LEGACY(pc_JOY_r, pc_JOY_w, 0xffff)
+//  AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x0240, 0x0257) AM_READWRITE8(pc_rtc_r,                pc_rtc_w, 0xffff)
 //  AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE8("ins8250_3", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x0340, 0x0357) AM_NOP /* anonymous bios should not recogniced realtimeclock */
-	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
+	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8("lpt_0", pc_lpt_device, read, write, 0xffff)
 //  AM_RANGE(0x03e8, 0x03ef) AM_DEVREADWRITE8("ins8250_2", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_interface, map, 0xffff)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
@@ -282,12 +284,12 @@ static ADDRESS_MAP_START(asst128_io, AS_IO, 16, pc_state)
 	AM_RANGE(0x0060, 0x0063) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xffff)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r,               pc_page_w, 0xffff)
 	AM_RANGE(0x00a0, 0x00a1) AM_WRITE8( pc_nmi_enable_w, 0x00ff )
-//  AM_RANGE(0x0200, 0x0207) AM_READWRITE8_LEGACY(pc_JOY_r, pc_JOY_w, 0xffff)
+//  AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x0240, 0x0257) AM_READWRITE8(pc_rtc_r,                pc_rtc_w, 0xffff)
 //  AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE8("ins8250_3", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x0340, 0x0357) AM_NOP /* anonymous bios should not recogniced realtimeclock */
-	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
+	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8("lpt_0", pc_lpt_device, read, write, 0xffff)
 //  AM_RANGE(0x03e8, 0x03ef) AM_DEVREADWRITE8("ins8250_2", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x03f2, 0x03f3) AM_WRITE8(asst128_fdc_dor_w, 0xffff)
 	AM_RANGE(0x03f4, 0x03f5) AM_DEVICE8("fdc:upd765", upd765a_device, map, 0xffff)
@@ -316,12 +318,12 @@ static ADDRESS_MAP_START(ibm5550_io, AS_IO, 16, pc_state )
 	AM_RANGE(0x00a0, 0x00a1) AM_READWRITE8(unk_r, pc_nmi_enable_w, 0x00ff )
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x0240, 0x0257) AM_READWRITE8(pc_rtc_r,                pc_rtc_w, 0xffff)
-	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE8_LEGACY("lpt_2", pc_lpt_r, pc_lpt_w, 0xffff)
+	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE8("lpt_2", pc_lpt_device, read, write, 0xffff)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE8("ins8250_3", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x0340, 0x0357) AM_NOP /* anonymous bios should not recogniced realtimeclock */
-	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8_LEGACY("lpt_1", pc_lpt_r, pc_lpt_w, 0xffff)
-	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
+	AM_RANGE(0x0378, 0x037f) AM_DEVREADWRITE8("lpt_1", pc_lpt_device, read, write, 0xffff)
+	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8("lpt_0", pc_lpt_device, read, write, 0xffff)
 	AM_RANGE(0x03e8, 0x03ef) AM_DEVREADWRITE8("ins8250_2", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_interface, map, 0xffff)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
@@ -347,12 +349,12 @@ static ADDRESS_MAP_START(europc_io, AS_IO, 8, europc_pc_state )
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE(pc_page_r,            pc_page_w)
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE("pc_joy", pc_joy_device, joy_port_r, joy_port_w)
 	AM_RANGE(0x0250, 0x025f) AM_READWRITE(europc_jim_r,          europc_jim_w)
-	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE_LEGACY("lpt_2", pc_lpt_r, pc_lpt_w)
+	AM_RANGE(0x0278, 0x027b) AM_DEVREADWRITE("lpt_2", pc_lpt_device, read, write)
 	AM_RANGE(0x02e0, 0x02e0) AM_READ(europc_jim2_r)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE("ins8250_3", ins8250_device, ins8250_r, ins8250_w)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE("ins8250_1", ins8250_device, ins8250_r, ins8250_w)
-	AM_RANGE(0x0378, 0x037b) AM_DEVREADWRITE_LEGACY("lpt_1", pc_lpt_r, pc_lpt_w)
-//  AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w)
+	AM_RANGE(0x0378, 0x037b) AM_DEVREADWRITE("lpt_1", pc_lpt_device, read, write)
+//  AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE("lpt_0", pc_lpt_device, read, write)
 	AM_RANGE(0x03e8, 0x03ef) AM_DEVREADWRITE("ins8250_2", ins8250_device, ins8250_r, ins8250_w)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE("fdc", pc_fdc_interface, map)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE("ins8250_0", ins8250_device, ins8250_r, ins8250_w)
@@ -383,7 +385,7 @@ static ADDRESS_MAP_START(tandy1000_io, AS_IO, 8, tandy_pc_state )
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE("pc_joy", pc_joy_device, joy_port_r, joy_port_w)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE("ins8250_1", ins8250_device, ins8250_r, ins8250_w)
 	AM_RANGE(0x0378, 0x037f) AM_READWRITE(pc_t1t_p37x_r,         pc_t1t_p37x_w)
-	AM_RANGE(0x03bc, 0x03be) AM_DEVREADWRITE_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w)
+	AM_RANGE(0x03bc, 0x03be) AM_DEVREADWRITE("lpt_0", pc_lpt_device, read, write)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE("fdc", pc_fdc_interface, map)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE("ins8250_0", ins8250_device, ins8250_r, ins8250_w)
 ADDRESS_MAP_END
@@ -412,7 +414,7 @@ static ADDRESS_MAP_START(tandy1000_16_io, AS_IO, 16, tandy_pc_state )
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x0378, 0x037f) AM_READWRITE8(pc_t1t_p37x_r,            pc_t1t_p37x_w, 0xffff)
-	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
+	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8("lpt_0", pc_lpt_device, read, write, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_interface, map, 0xffff)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0xffea, 0xffeb) AM_READWRITE8(tandy1000_bank_r, tandy1000_bank_w, 0xffff)
@@ -444,7 +446,7 @@ static ADDRESS_MAP_START(tandy1000_286_io, AS_IO, 16, tandy_pc_state )
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x0378, 0x037f) AM_READWRITE8(pc_t1t_p37x_r,           pc_t1t_p37x_w, 0xffff)
-	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0xffff)
+	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8("lpt_0", pc_lpt_device, read, write, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_interface, map, 0xffff)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 ADDRESS_MAP_END
@@ -476,7 +478,7 @@ static ADDRESS_MAP_START(ibmpcjr_io, AS_IO, 8, tandy_pc_state )
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE("pc_joy", pc_joy_device, joy_port_r, joy_port_w)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE("ins8250_1", ins8250_device, ins8250_r, ins8250_w)
 	AM_RANGE(0x0378, 0x037f) AM_READWRITE(pc_t1t_p37x_r,         pc_t1t_p37x_w)
-	AM_RANGE(0x03bc, 0x03be) AM_DEVREADWRITE_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w)
+	AM_RANGE(0x03bc, 0x03be) AM_DEVREADWRITE("lpt_0", pc_lpt_device, read, write)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE("ins8250_0", ins8250_device, ins8250_r, ins8250_w)
 ADDRESS_MAP_END
 
@@ -870,8 +872,6 @@ static INPUT_PORTS_START( mc1502 )          /* fix */
 INPUT_PORTS_END
 
 
-static const unsigned i86_address_mask = 0x000fffff;
-
 static const pc_lpt_interface pc_lpt_config =
 {
 	DEVCB_CPU_INPUT_LINE("maincpu", 0)
@@ -907,7 +907,6 @@ SLOT_INTERFACE_END
 	MCFG_CPU_ADD("maincpu", type, clock)                \
 	MCFG_CPU_PROGRAM_MAP(mem##_map) \
 	MCFG_CPU_IO_MAP(port##_io)  \
-	MCFG_CPU_CONFIG(i86_address_mask)   \
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", pc_state, vblankfunc, "screen", 0, 1)
 
 
@@ -1034,6 +1033,29 @@ static MACHINE_CONFIG_START( pccga, pc_state )
 	/* internal ram */
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("640K")
+MACHINE_CONFIG_END
+
+static const gfx_layout pc10iii_16_charlayout =
+{
+	8, 16,                  /* 8 x 16 characters */
+	2048,                    /* 2048 characters */
+	1,                  /* 1 bits per pixel */
+	{ 0 },                  /* no bitplanes */
+	/* x offsets */
+	{ 7, 6, 5, 4, 3, 2, 1, 0 },
+	/* y offsets */
+	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8, 8*8, 9*8, 10*8, 11*8, 12*8, 13*8, 14*8, 15*8 },
+	8*16                    /* every char takes 16 bytes */
+};
+
+// 8-byte chars: 080-0FF, 180-27F, 300-37F, 480-4FF, 580-67F, 700-77F
+// 16-byte chars: 000-07F, 100-17F, 280-2FF, 380-47F, 500-57F, 680-6FF, 780-7FF
+static GFXDECODE_START( pc10iii )
+	GFXDECODE_ENTRY( "gfx1", 0x0000, pc10iii_16_charlayout, 3, 1 )
+GFXDECODE_END
+
+static MACHINE_CONFIG_DERIVED( pc10iii, pccga )
+	MCFG_GFXDECODE(pc10iii)
 MACHINE_CONFIG_END
 
 static const gfx_layout europc_8_charlayout =
@@ -1408,7 +1430,6 @@ static MACHINE_CONFIG_START( mc1502, pc_state )
 	MCFG_CPU_ADD("maincpu", I8088, XTAL_16MHz/3)
 	MCFG_CPU_PROGRAM_MAP(mc1502_map)
 	MCFG_CPU_IO_MAP(mc1502_io)
-	MCFG_CPU_CONFIG(i86_address_mask)
 
 	MCFG_MACHINE_START_OVERRIDE(pc_state,mc1502)
 	MCFG_MACHINE_RESET_OVERRIDE(pc_state,pc)
@@ -1966,12 +1987,6 @@ ROM_START( ibmpcjx )
 	ROMX_LOAD("basicjx.rom",   0xe8000, 0x08000, NO_DUMP, ROM_BIOS(1)) // boot fails due of this.
 	ROM_SYSTEM_BIOS( 1, "unk", "unk" )
 	ROMX_LOAD("ipljx.rom", 0xe0000, 0x20000, CRC(36a7b2de) SHA1(777db50c617725e149bca9b18cf51ce78f6dc548), ROM_BIOS(2))
-	ROM_FILL(0xff195, 1, 0x20) // the bios has a bug that causes an interrupt
-	ROM_FILL(0xff196, 1, 0x06) // to arrive before a flag is set causing the boot to hang
-	ROM_FILL(0xff197, 1, 0x84) // technically this should be fixed in the PIC by delaying
-	ROM_FILL(0xff198, 1, 0x04) // sending an irq after the mask is changed but there is
-	ROM_FILL(0xff199, 1, 0xe6) // a strong possiblility that will cause problems with later
-	ROM_FILL(0xff19a, 1, 0x21) // faster x86 machines.
 
 	ROM_REGION(0x08100,"gfx1", 0) //TODO: needs a different charset
 	ROM_LOAD("cga.chr",     0x00000, 0x01000, BAD_DUMP CRC(42009069) SHA1(ed08559ce2d7f97f68b9f540bddad5b6295294dd)) // from an unknown clone cga card
@@ -2201,8 +2216,8 @@ ROM_START( ec1840 )
 ROM_END
 
 ROM_START( ec1841 )
-	ROM_DEFAULT_BIOS("v2")
 	ROM_REGION16_LE(0x100000,"maincpu", 0)
+	ROM_DEFAULT_BIOS("v2")
 	ROM_SYSTEM_BIOS(0, "v1", "EC-1841.01")
 	ROMX_LOAD( "012-01-3107.bin", 0xfc000, 0x0800, CRC(77957396) SHA1(785f1dceb6e2b4618f5c5f0af15eb74a8c951448), ROM_SKIP(1) | ROM_BIOS(1))
 	ROMX_LOAD( "013-01-203f.bin", 0xfc001, 0x0800, CRC(768bd3d5) SHA1(2e948f2ad262de306d889b7964c3f1aad45ff5bc), ROM_SKIP(1) | ROM_BIOS(1))
@@ -2435,17 +2450,32 @@ ROM_START( sx16 )
 ROM_END
 
 ROM_START( compc1 )
-	ROM_REGION(0x100000,"maincpu", 0)
-	ROM_LOAD( "compc1.bin",0xfc000, 0x4000, CRC(75135d37) SHA1(177283642240fee191ba2d87e1d0c2a377c78ccb))
-	ROM_REGION(0x8000,"gfx1", 0)
-	ROM_LOAD("pc1_char.bin", 0x00000, 0x8000, CRC(4773a945) SHA1(bcc38abecc75d3f641d42987cb0d2ed71d71bc4c))
+	ROM_REGION(0x100000, "maincpu", 0)
+	ROM_LOAD("380270-01.bin", 0xfc000, 0x4000, BAD_DUMP CRC(75135d37) SHA1(177283642240fee191ba2d87e1d0c2a377c78ccb))
+	ROM_REGION(0x8000, "gfx1", 0)
+	ROM_LOAD("pc1_char.bin", 0x0000, 0x8000, CRC(4773a945) SHA1(bcc38abecc75d3f641d42987cb0d2ed71d71bc4c))
 ROM_END
 
+// Note: Commodore PC20-III, PC10-III and COLT share the same BIOS
 ROM_START( pc10iii )
-	ROM_REGION(0x100000,"maincpu", 0)
-	ROM_LOAD( "pc10iii_bios.bin",0xf8000, 0x8000, CRC(ae9e6a31) SHA1(853ee251cf230818c407a8d13ef060a21c90a8c1))
-	ROM_REGION(0x8000,"gfx1", 0)
-	ROM_LOAD("pc10iii_char.bin", 0x00000, 0x8000, CRC(b406651c) SHA1(856f58353391a74a06ebb8ec9f8333d7d69e5fd6))
+	ROM_REGION(0x100000, "maincpu", 0)
+	ROM_DEFAULT_BIOS("v441")
+	ROM_SYSTEM_BIOS(0, "v435", "v4.35")
+	ROMX_LOAD("318085-01.u201", 0xf8000, 0x8000, NO_DUMP, ROM_BIOS(1))
+	ROM_SYSTEM_BIOS(1, "v436", "v4.36")
+	ROMX_LOAD("318085-02.u201", 0xf8000, 0x8000, NO_DUMP, ROM_BIOS(2))
+	ROM_SYSTEM_BIOS(2, "v436c", "v4.36c")
+	ROMX_LOAD("318085-04.u201", 0xf8000, 0x8000, NO_DUMP, ROM_BIOS(3))
+	ROM_SYSTEM_BIOS(3, "v438", "v4.38")
+	ROMX_LOAD("318085-05.u201", 0xf8000, 0x8000, CRC(ae9e6a31) SHA1(853ee251cf230818c407a8d13ef060a21c90a8c1), ROM_BIOS(4))
+	ROM_SYSTEM_BIOS(4, "v439", "v4.39")
+	ROMX_LOAD("318085-06.u201", 0xf8000, 0x8000, NO_DUMP, ROM_BIOS(5))
+	ROM_SYSTEM_BIOS(5, "v440", "v4.40")
+	ROMX_LOAD("318085-07.u201", 0xf8000, 0x8000, NO_DUMP, ROM_BIOS(6))
+	ROM_SYSTEM_BIOS(6, "v441", "v4.41")
+	ROMX_LOAD("318085-08.u201", 0xf8000, 0x8000, CRC(7e228dc8) SHA1(958dfdd637bd31c01b949fac729d6973a7e630bc), ROM_BIOS(7))
+	ROM_REGION(0x8000, "gfx1", 0)
+	ROM_LOAD("318086-02.u607", 0x0000, 0x8000, CRC(b406651c) SHA1(856f58353391a74a06ebb8ec9f8333d7d69e5fd6))
 ROM_END
 
 ROM_START( mbc16 )
@@ -2480,7 +2510,7 @@ COMP( 1984, dgone,      ibm5150,    0,          pccga,      pccga, pc_state,    
 COMP( 1985, bw230,      ibm5150,    0,          pccga,      bondwell, pc_state,   bondwell,   "Bondwell Holding", "BW230 (PRO28 Series)", 0 )
 COMP( 1988, europc,     ibm5150,    0,          europc,     europc, europc_pc_state,     europc,     "Schneider Rdf. AG", "EURO PC", GAME_NOT_WORKING)
 COMP( 1984, compc1,     ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Commodore Business Machines", "Commodore PC-1" , GAME_NOT_WORKING)
-COMP( 1987, pc10iii,    ibm5150,    0,          pccga,      pccga, pc_state,      pccga,      "Commodore Business Machines", "Commodore PC-10 III" , GAME_NOT_WORKING)
+COMP( 1987, pc10iii,    ibm5150,    0,          pc10iii,    pccga, pc_state,      pccga,      "Commodore Business Machines", "Commodore PC-10 III" , GAME_NOT_WORKING)
 
 // pcjr (better graphics, better sound)
 COMP( 1983, ibmpcjr,    ibm5150,    0,          ibmpcjr,    ibmpcjr,  pc_state,    pcjr,       "International Business Machines", "IBM PC Jr", GAME_IMPERFECT_COLORS )

@@ -5,7 +5,9 @@
     driver by Nicola Salmoria
 
 ***************************************************************************/
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
+#include "sound/namco.h"
+#include "machine/intelfsh.h"
 
 class _20pacgal_state : public driver_device
 {
@@ -32,7 +34,7 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 
 	/* memory */
 	UINT8 m_sprite_gfx_ram[0x2000];
@@ -69,6 +71,17 @@ public:
 
 };
 
+
+class _25pacman_state : public _20pacgal_state
+{
+public:
+	_25pacman_state(const machine_config &mconfig, device_type type, const char *tag)
+		: _20pacgal_state(mconfig, type, tag)
+	{ }
+
+	DECLARE_READ8_MEMBER( _25pacman_io_87_r );
+
+};
 
 /*----------- defined in video/20pacgal.c -----------*/
 MACHINE_CONFIG_EXTERN( 20pacgal_video );

@@ -50,6 +50,8 @@
 #include "sound/pokey.h"
 #include "sound/discrete.h"
 #include "machine/nvram.h"
+#include "drivlgcy.h"
+#include "scrlegcy.h"
 
 
 class quantum_state : public driver_device

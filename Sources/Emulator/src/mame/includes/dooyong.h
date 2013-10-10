@@ -71,6 +71,8 @@ public:
 	TILE_GET_INFO_MEMBER(get_fg2_tile_info);
 	TILE_GET_INFO_MEMBER(flytiger_get_fg_tile_info);
 	TILE_GET_INFO_MEMBER(get_tx_tile_info);
+	inline void lastday_get_tile_info(tile_data &tileinfo, int tile_index, const UINT8 *tilerom, UINT8 *scroll, int graphics);
+	inline void rshark_get_tile_info(tile_data &tileinfo, int tile_index, const UINT8 *tilerom1, const UINT8 *tilerom2, UINT8 *scroll, int graphics);
 	DECLARE_MACHINE_START(lastday);
 	DECLARE_MACHINE_RESET(sound_ym2203);
 	DECLARE_VIDEO_START(lastday);
@@ -91,8 +93,8 @@ public:
 	UINT32 screen_update_popbingo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(rshark_scanline);
 	inline void dooyong_scroll8_w(offs_t offset, UINT8 data, UINT8 *scroll, tilemap_t *map);
-	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int pollux_extensions);
-	void rshark_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int pollux_extensions);
+	void rshark_draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_WRITE_LINE_MEMBER(irqhandler_2203_1);
 	DECLARE_WRITE_LINE_MEMBER(irqhandler_2203_2);
 	required_device<cpu_device> m_maincpu;

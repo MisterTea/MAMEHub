@@ -12,6 +12,7 @@
 
 #include "video/ppu2c0x.h"
 #include "machine/nes_slot.h"
+#include "imagedev/cassette.h"
 
 // official PCBs
 #include "machine/nes_nxrom.h"
@@ -447,17 +448,18 @@ class nes_state : public driver_device
 public:
 	enum
 	{
+		TIMER_ZAPPER_TICK,
 		TIMER_LIGHTGUN_TICK
 	};
 
 	nes_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_cartslot(*this, "nes_slot")
-	{ }
-
-	/* input_related - this part has to be cleaned up (e.g. in_2 and in_3 are not really necessary here...) */
-	nes_input m_in_0, m_in_1, m_in_2, m_in_3;
-	UINT8 m_fck_scan, m_fck_mode;
+			m_maincpu(*this, "maincpu"),
+			m_ppu(*this, "ppu"),
+			m_sound(*this, "nessound"),
+			m_cartslot(*this, "nes_slot"),
+			m_cassette(*this, "tape")
+		{ }
 
 	/* video-related */
 	int m_last_frame_flip;
@@ -468,7 +470,9 @@ public:
 	ioport_port       *m_io_fckey[9];
 	ioport_port       *m_io_subkey[13];
 	ioport_port       *m_io_pad[4];
+	ioport_port       *m_io_powerpad[2];
 	ioport_port       *m_io_mahjong[4];
+	ioport_port       *m_io_ftrainer[4];
 	ioport_port       *m_io_cc_left;
 	ioport_port       *m_io_cc_right;
 	ioport_port       *m_io_zapper1_t;
@@ -478,19 +482,28 @@ public:
 	ioport_port       *m_io_zapper2_x;
 	ioport_port       *m_io_zapper2_y;
 	ioport_port       *m_io_paddle;
+	ioport_port       *m_io_paddle_btn;
+	ioport_port       *m_io_exp;
 
 	UINT8      *m_vram;
 	UINT8      *m_ciram; //PPU nametable RAM - external to PPU!
 
-	optional_device<nes_cart_slot_device> m_cartslot;   //mandatory
+	required_device<cpu_device> m_maincpu;
+	required_device<ppu2c0x_device> m_ppu;
+	required_device<device_t> m_sound;
+	optional_device<nes_cart_slot_device> m_cartslot;
+	optional_device<cassette_image_device> m_cassette;
 
 	int nes_ppu_vidaccess(int address, int data);
 	void ppu_nmi(int *ppu_regs);
 
-	DECLARE_READ8_MEMBER(nes_IN0_r);
-	DECLARE_READ8_MEMBER(nes_IN1_r);
-	DECLARE_WRITE8_MEMBER(nes_IN0_w);
-	DECLARE_WRITE8_MEMBER(nes_IN1_w);
+	DECLARE_READ8_MEMBER(nes_in0_r);
+	DECLARE_READ8_MEMBER(nes_in1_r);
+	DECLARE_WRITE8_MEMBER(nes_in0_w);
+	DECLARE_WRITE8_MEMBER(nes_in1_w);
+	DECLARE_READ8_MEMBER(fc_in0_r);
+	DECLARE_READ8_MEMBER(fc_in1_r);
+	DECLARE_WRITE8_MEMBER(fc_in0_w);
 	DECLARE_WRITE8_MEMBER(nes_vh_sprite_dma_w);
 	virtual void machine_start();
 	virtual void machine_reset();
@@ -498,10 +511,10 @@ public:
 	virtual void video_reset();
 	virtual void palette_init();
 	UINT32 screen_update_nes(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	TIMER_CALLBACK_MEMBER(lightgun_tick);
 	DECLARE_READ8_MEMBER(psg_4015_r);
 	DECLARE_WRITE8_MEMBER(psg_4015_w);
 	DECLARE_WRITE8_MEMBER(psg_4017_w);
+	void state_register();
 
 	/***** FDS-floppy related *****/
 
@@ -541,14 +554,20 @@ public:
 
 	void fds_irq(int scanline, int vblank, int blanked);
 
+	// input related
+	UINT32 m_pad_latch[4];
+	UINT8 m_zapper_latch[2][3];
+	UINT8 m_paddle_latch, m_paddle_btn_latch;
+	UINT8 m_mjpanel_latch;
+	UINT8 m_fck_scan, m_fck_mode;
+	UINT8 m_mic_obstruct;
+	UINT8 m_powerpad_latch[2];
+	UINT8 m_ftrainer_scan;
+
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 private:
-	/* devices */
-	cpu_device        *m_maincpu;
-	ppu2c0x_device    *m_ppu;
-	device_t          *m_sound;
 	memory_bank       *m_prg_bank_mem[5];
 };
 

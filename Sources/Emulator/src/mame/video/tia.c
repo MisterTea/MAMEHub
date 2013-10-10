@@ -45,7 +45,7 @@ static void extend_palette(running_machine &machine) {
 	}
 }
 
-PALETTE_INIT( tia_NTSC )
+PALETTE_INIT_MEMBER(tia_ntsc_video_device, tia_ntsc)
 {
 	int i, j;
 
@@ -94,17 +94,17 @@ PALETTE_INIT( tia_NTSC )
 			if (G > 1) G = 1;
 			if (B > 1) B = 1;
 
-			palette_set_color_rgb(machine,8 * i + j,
+			palette_set_color_rgb(machine(),8 * i + j,
 				(UINT8) (255 * R + 0.5),
 				(UINT8) (255 * G + 0.5),
 				(UINT8) (255 * B + 0.5));
 		}
 	}
-	extend_palette( machine );
+	extend_palette( machine() );
 }
 
 
-PALETTE_INIT( tia_PAL )
+PALETTE_INIT_MEMBER(tia_pal_video_device, tia_pal)
 {
 	int i, j;
 
@@ -153,27 +153,72 @@ PALETTE_INIT( tia_PAL )
 			if (G > 1) G = 1;
 			if (B > 1) B = 1;
 
-			palette_set_color_rgb(machine,8 * i + j,
+			palette_set_color_rgb(machine(),8 * i + j,
 				(UINT8) (255 * R + 0.5),
 				(UINT8) (255 * G + 0.5),
 				(UINT8) (255 * B + 0.5));
 		}
 	}
-	extend_palette( machine );
+	extend_palette( machine() );
 }
 
-// device type definition
-const device_type TIA_VIDEO = &device_creator<tia_video_device>;
-
-//-------------------------------------------------
-//  tia_video_device - constructor
-//-------------------------------------------------
-
-tia_video_device::tia_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TIA_VIDEO, "TIA Video", tag, owner, clock)
+tia_video_device::tia_video_device(const machine_config &mconfig, device_type type, const char *name, const char *shortname, const char *tag, device_t *owner, UINT32 clock)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, __FILE__),
+		device_video_interface(mconfig, *this)
 {
 }
 
+// device type definition
+const device_type TIA_PAL_VIDEO = &device_creator<tia_pal_video_device>;
+
+//-------------------------------------------------
+//  tia_pal_video_device - constructor
+//-------------------------------------------------
+
+tia_pal_video_device::tia_pal_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tia_video_device(mconfig, TIA_PAL_VIDEO, "TIA Video (PAL)", "tia_pal_video", tag, owner, clock)
+{
+}
+
+static MACHINE_CONFIG_FRAGMENT( tia_pal )
+	MCFG_PALETTE_INIT_OVERRIDE(tia_pal_video_device, tia_pal)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor tia_pal_video_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( tia_pal );
+}
+
+// device type definition
+const device_type TIA_NTSC_VIDEO = &device_creator<tia_ntsc_video_device>;
+
+//-------------------------------------------------
+//  tia_ntsc_video_device - constructor
+//-------------------------------------------------
+
+tia_ntsc_video_device::tia_ntsc_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tia_video_device(mconfig, TIA_NTSC_VIDEO, "TIA Video (NTSC)", "tia_ntsc_video", tag, owner, clock)
+{
+}
+
+static MACHINE_CONFIG_FRAGMENT( tia_ntsc )
+	MCFG_PALETTE_INIT_OVERRIDE(tia_ntsc_video_device, tia_ntsc)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor tia_ntsc_video_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( tia_ntsc );
+}
 
 //-------------------------------------------------
 //  device_config_complete - perform any
@@ -208,9 +253,9 @@ void tia_video_device::device_start()
 	m_vsync_callback_func.resolve(m_vsync_callback_cb, *this);
 
 
-	int cx = machine().primary_screen->width();
+	int cx = m_screen->width();
 
-	screen_height = machine().primary_screen->height();
+	screen_height = m_screen->height();
 	helper[0] = auto_bitmap_ind16_alloc(machine(), cx, TIA_MAX_SCREEN_HEIGHT);
 	helper[1] = auto_bitmap_ind16_alloc(machine(), cx, TIA_MAX_SCREEN_HEIGHT);
 	helper[2] = auto_bitmap_ind16_alloc(machine(), cx, TIA_MAX_SCREEN_HEIGHT);
@@ -813,8 +858,8 @@ WRITE8_MEMBER( tia_video_device::VSYNC_w )
 
 			if ( curr_y > 5 )
 				update_bitmap(
-					machine().primary_screen->width(),
-					machine().primary_screen->height());
+					m_screen->width(),
+					m_screen->height());
 
 			if ( !m_vsync_callback_func.isnull() ) {
 				m_vsync_callback_func(0, curr_y, 0xFFFF );
@@ -835,7 +880,7 @@ WRITE8_MEMBER( tia_video_device::VBLANK_w )
 {
 	if (data & 0x80)
 	{
-		paddle_cycles = machine().firstcpu->total_cycles();
+		paddle_start = machine().firstcpu->total_cycles();
 	}
 	if ( ! ( VBLANK & 0x40 ) ) {
 		INPT4 = 0x80;
@@ -1588,8 +1633,8 @@ WRITE8_MEMBER( tia_video_device::GRP1_w )
 
 READ8_MEMBER( tia_video_device::INPT_r )
 {
-	UINT64 elapsed = machine().firstcpu->total_cycles() - paddle_cycles;
-	int input = TIA_INPUT_PORT_ALWAYS_ON;
+	UINT64 elapsed = machine().firstcpu->total_cycles() - paddle_start;
+	UINT16 input = TIA_INPUT_PORT_ALWAYS_ON;
 	if ( !m_read_input_port_func.isnull() )
 	{
 		input = m_read_input_port_func(offset & 3, 0xFFFF);
@@ -1600,7 +1645,8 @@ READ8_MEMBER( tia_video_device::INPT_r )
 	if ( input == TIA_INPUT_PORT_ALWAYS_OFF )
 		return 0x00;
 
-	return elapsed > 76 * input ? 0x80 : 0x00;
+	UINT16 paddle_cycles = input * 76;
+	return elapsed > paddle_cycles ? 0x80 : 0x00;
 }
 
 

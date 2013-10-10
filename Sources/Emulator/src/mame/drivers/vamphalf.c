@@ -11,7 +11,7 @@
     Minigame Cool Collection        (c) 1999 SemiCom
     Jumping Break                   (c) 1999 F2 System
     Lup Lup Puzzle                  (c) 1999 Omega System       (version 3.0 and 2.9)
-    Puzzle Bang Bang                (c) 1999 Omega System       (version 2.8)
+    Puzzle Bang Bang                (c) 1999 Omega System       (version 2.8 and 2.9)
     Super Lup Lup Puzzle            (c) 1999 Omega System       (version 4.0)
     Vamf 1/2                        (c) 1999 Danbi & F2 System  (Europe version)
     Vamp 1/2                        (c) 1999 Danbi & F2 System  (Korea version)
@@ -61,7 +61,7 @@ TODO:
 #include "emu.h"
 #include "cpu/mcs51/mcs51.h"
 #include "cpu/e132xs/e132xs.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "machine/nvram.h"
 #include "sound/qs1000.h"
 #include "sound/2151intf.h"
@@ -121,6 +121,7 @@ public:
 	DECLARE_READ16_MEMBER(luplup_speedup_r);
 	DECLARE_READ16_MEMBER(luplup29_speedup_r);
 	DECLARE_READ16_MEMBER(puzlbang_speedup_r);
+	DECLARE_READ16_MEMBER(puzlbanga_speedup_r);
 	DECLARE_READ32_MEMBER(wyvernwg_speedup_r);
 	DECLARE_READ32_MEMBER(wyvernwga_speedup_r);
 	DECLARE_READ32_MEMBER(finalgdr_speedup_r);
@@ -150,6 +151,7 @@ public:
 
 	DECLARE_READ8_MEMBER(qs1000_p1_r);
 	DECLARE_WRITE8_MEMBER(qs1000_p3_w);
+	DECLARE_DRIVER_INIT(vamphalf);
 	DECLARE_DRIVER_INIT(vamphafk);
 	DECLARE_DRIVER_INIT(coolmini);
 	DECLARE_DRIVER_INIT(mrkicker);
@@ -157,30 +159,29 @@ public:
 	DECLARE_DRIVER_INIT(jmpbreak);
 	DECLARE_DRIVER_INIT(dtfamily);
 	DECLARE_DRIVER_INIT(dquizgo2);
-	DECLARE_DRIVER_INIT(puzlbang);
+	DECLARE_DRIVER_INIT(suplup);
+	DECLARE_DRIVER_INIT(luplup);
 	DECLARE_DRIVER_INIT(luplup29);
+	DECLARE_DRIVER_INIT(puzlbang);
 	DECLARE_DRIVER_INIT(toyland);
 	DECLARE_DRIVER_INIT(aoh);
 	DECLARE_DRIVER_INIT(finalgdr);
-	DECLARE_DRIVER_INIT(suplup);
 	DECLARE_DRIVER_INIT(misncrft);
 	DECLARE_DRIVER_INIT(boonggab);
-	DECLARE_DRIVER_INIT(vamphalf);
 	DECLARE_DRIVER_INIT(wyvernwg);
-	DECLARE_DRIVER_INIT(luplup);
 	UINT32 screen_update_common(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_aoh(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	optional_device<okim6295_device> m_oki;
 	optional_device<okim6295_device> m_oki2;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 };
 
 READ16_MEMBER(vamphalf_state::eeprom_r)
 {
 	if(offset)
 	{
-		return m_eeprom->read_bit();
+		return m_eeprom->do_read();
 	}
 	else
 		return 0;
@@ -188,16 +189,16 @@ READ16_MEMBER(vamphalf_state::eeprom_r)
 
 READ32_MEMBER(vamphalf_state::eeprom32_r)
 {
-	return m_eeprom->read_bit();
+	return m_eeprom->do_read();
 }
 
 WRITE16_MEMBER(vamphalf_state::eeprom_w)
 {
 	if(offset)
 	{
-		m_eeprom->write_bit(data & 0x01);
-		m_eeprom->set_cs_line((data & 0x04) ? CLEAR_LINE : ASSERT_LINE );
-		m_eeprom->set_clock_line((data & 0x02) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->di_write(data & 0x01);
+		m_eeprom->cs_write((data & 0x04) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->clk_write((data & 0x02) ? ASSERT_LINE : CLEAR_LINE );
 
 		// data & 8?
 	}
@@ -205,16 +206,16 @@ WRITE16_MEMBER(vamphalf_state::eeprom_w)
 
 WRITE32_MEMBER(vamphalf_state::eeprom32_w)
 {
-	m_eeprom->write_bit(data & 0x01);
-	m_eeprom->set_cs_line((data & 0x04) ? CLEAR_LINE : ASSERT_LINE );
-	m_eeprom->set_clock_line((data & 0x02) ? ASSERT_LINE : CLEAR_LINE );
+	m_eeprom->di_write(data & 0x01);
+	m_eeprom->cs_write((data & 0x04) ? ASSERT_LINE : CLEAR_LINE );
+	m_eeprom->clk_write((data & 0x02) ? ASSERT_LINE : CLEAR_LINE );
 }
 
 WRITE32_MEMBER(vamphalf_state::finalgdr_eeprom_w)
 {
-	m_eeprom->write_bit(data & 0x4000);
-	m_eeprom->set_cs_line((data & 0x1000) ? CLEAR_LINE : ASSERT_LINE );
-	m_eeprom->set_clock_line((data & 0x2000) ? ASSERT_LINE : CLEAR_LINE );
+	m_eeprom->di_write((data & 0x4000) >> 14);
+	m_eeprom->cs_write((data & 0x1000) ? ASSERT_LINE : CLEAR_LINE );
+	m_eeprom->clk_write((data & 0x2000) ? ASSERT_LINE : CLEAR_LINE );
 }
 
 WRITE16_MEMBER(vamphalf_state::flipscreen_w)
@@ -738,13 +739,13 @@ void vamphalf_handle_flipped_visible_area( screen_device &screen )
 	{
 		rectangle visarea;
 		visarea.set(31, 350, 16, 251);
-		screen.machine().primary_screen->configure(512, 256, visarea, HZ_TO_ATTOSECONDS(60));
+		screen.configure(512, 256, visarea, HZ_TO_ATTOSECONDS(60));
 	}
 	else
 	{
 		rectangle visarea;
 		visarea.set(31, 350, 20, 255);
-		screen.machine().primary_screen->configure(512, 256, visarea, HZ_TO_ATTOSECONDS(60));
+		screen.configure(512, 256, visarea, HZ_TO_ATTOSECONDS(60));
 	}
 }
 
@@ -885,7 +886,7 @@ static INPUT_PORTS_START( aoh )
 	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_START2 )
 	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x00000010, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit) // eeprom bit
+	PORT_BIT( 0x00000010, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read) // eeprom bit
 	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x00000080, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -982,7 +983,9 @@ static MACHINE_CONFIG_START( common, vamphalf_state )
 	MCFG_CPU_PROGRAM_MAP(common_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vamphalf_state,  irq1_line_hold)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
+	MCFG_EEPROM_ERASE_TIME(attotime::from_usec(250))    // coolmini requires fast erase
+	MCFG_EEPROM_WRITE_TIME(attotime::from_usec(250))    // dtfamily requires fast write
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -999,11 +1002,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_FRAGMENT( sound_ym_oki )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_YM2151_ADD("ymsnd", 28000000/8)
+	MCFG_YM2151_ADD("ymsnd", XTAL_28MHz/8) /* 3.5MHz */
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_OKIM6295_ADD("oki", 28000000/16 , OKIM6295_PIN7_HIGH)
+	MCFG_OKIM6295_ADD("oki", XTAL_28MHz/16 , OKIM6295_PIN7_HIGH) /* 1.75MHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -1011,11 +1014,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_FRAGMENT( sound_suplup )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_YM2151_ADD("ymsnd", 14318180/4)
+	MCFG_YM2151_ADD("ymsnd", XTAL_14_31818MHz/4) /* 3.579545 MHz */
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_OKIM6295_ADD("oki", 1789772.5 , OKIM6295_PIN7_HIGH)
+	MCFG_OKIM6295_ADD("oki", XTAL_14_31818MHz/8, OKIM6295_PIN7_HIGH) /* 1.7897725 MHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -1037,7 +1040,7 @@ static MACHINE_CONFIG_DERIVED( vamphalf, common )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( misncrft, common )
-	MCFG_CPU_REPLACE("maincpu", GMS30C2116, 50000000)   /* 50 MHz */
+	MCFG_CPU_REPLACE("maincpu", GMS30C2116, XTAL_50MHz)   /* 50 MHz */
 	MCFG_CPU_PROGRAM_MAP(common_map)
 	MCFG_CPU_IO_MAP(misncrft_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vamphalf_state,  irq1_line_hold)
@@ -1067,7 +1070,7 @@ static MACHINE_CONFIG_DERIVED( jmpbreak, common )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mrdig, common )
-	MCFG_CPU_REPLACE("maincpu", GMS30C2116, 50000000)   /* 50 MHz */
+	MCFG_CPU_REPLACE("maincpu", GMS30C2116, XTAL_50MHz)   /* 50 MHz */
 	MCFG_CPU_PROGRAM_MAP(common_map)
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_IO_MAP(mrdig_io)
@@ -1077,7 +1080,7 @@ static MACHINE_CONFIG_DERIVED( mrdig, common )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( wyvernwg, common )
-	MCFG_CPU_REPLACE("maincpu", E132T, 50000000)    /* 50 MHz */
+	MCFG_CPU_REPLACE("maincpu", E132T, XTAL_50MHz)    /* 50 MHz */
 	MCFG_CPU_PROGRAM_MAP(common_32bit_map)
 	MCFG_CPU_IO_MAP(wyvernwg_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vamphalf_state,  irq1_line_hold)
@@ -1086,7 +1089,7 @@ static MACHINE_CONFIG_DERIVED( wyvernwg, common )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( finalgdr, common )
-	MCFG_CPU_REPLACE("maincpu", E132T, 50000000)    /* 50 MHz */
+	MCFG_CPU_REPLACE("maincpu", E132T, XTAL_50MHz)    /* 50 MHz */
 	MCFG_CPU_PROGRAM_MAP(common_32bit_map)
 	MCFG_CPU_IO_MAP(finalgdr_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vamphalf_state,  irq1_line_hold)
@@ -1097,7 +1100,7 @@ static MACHINE_CONFIG_DERIVED( finalgdr, common )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( mrkicker, common )
-	MCFG_CPU_REPLACE("maincpu", E132T, 50000000)    /* 50 MHz */
+	MCFG_CPU_REPLACE("maincpu", E132T, XTAL_50MHz)    /* 50 MHz */
 	MCFG_CPU_PROGRAM_MAP(common_32bit_map)
 	MCFG_CPU_IO_MAP(mrkicker_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vamphalf_state,  irq1_line_hold)
@@ -1108,12 +1111,12 @@ static MACHINE_CONFIG_DERIVED( mrkicker, common )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( aoh, vamphalf_state )
-	MCFG_CPU_ADD("maincpu", E132XN, 20000000*4) /* 4x internal multiplier */
+	MCFG_CPU_ADD("maincpu", E132XN, XTAL_20MHz*4) /* 4x internal multiplier */
 	MCFG_CPU_PROGRAM_MAP(aoh_map)
 	MCFG_CPU_IO_MAP(aoh_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", vamphalf_state,  irq1_line_hold)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -1129,15 +1132,15 @@ static MACHINE_CONFIG_START( aoh, vamphalf_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_YM2151_ADD("ymsnd", 3579545)
+	MCFG_YM2151_ADD("ymsnd", XTAL_3_579545MHz)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
-	MCFG_OKIM6295_ADD("oki_1", 32000000/8, OKIM6295_PIN7_HIGH)
+	MCFG_OKIM6295_ADD("oki_1", XTAL_32MHz/8, OKIM6295_PIN7_HIGH) /* 4MHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 
-	MCFG_OKIM6295_ADD("oki_2", 32000000/32, OKIM6295_PIN7_HIGH)
+	MCFG_OKIM6295_ADD("oki_2", XTAL_32MHz/32, OKIM6295_PIN7_HIGH) /* 1MHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -1290,10 +1293,10 @@ ROM_START( luplup ) /* version 3.0 / 990128 */
 	ROM_LOAD( "luplup-rom2.v30", 0x80000, 0x80000, CRC(99840155) SHA1(e208f8731c06b634e84fb73e04f6cdbb8b504b94) )
 
 	ROM_REGION( 0x800000, "gfx1", 0 ) /* 16x16x8 Sprites */
-	ROM_LOAD32_WORD( "luplup-roml00", 0x000000, 0x200000, CRC(8e2c4453) SHA1(fbf7d72263beda2ef90bccf0369d6e93e76d45b2) )
-	ROM_LOAD32_WORD( "luplup-romu00", 0x000002, 0x200000, CRC(b57f4ca5) SHA1(b968c44a0ceb3274e066fa1d057fb6b017bb3fd3) )
-	ROM_LOAD32_WORD( "luplup-roml01", 0x400000, 0x200000, CRC(40e85f94) SHA1(531e67eb4eedf47b0dded52ba2f4942b12cbbe2f) )
-	ROM_LOAD32_WORD( "luplup-romu01", 0x400002, 0x200000, CRC(f2645b78) SHA1(b54c3047346c0f40dba0ba23b0d607cc53384edb) )
+	ROM_LOAD32_WORD( "luplup-roml00",   0x000000, 0x200000, CRC(08b2aa75) SHA1(7577b3ab79c54980307a83186dd1500f044c1bc8) )
+	ROM_LOAD32_WORD( "luplup-romu00",   0x000002, 0x200000, CRC(b57f4ca5) SHA1(b968c44a0ceb3274e066fa1d057fb6b017bb3fd3) )
+	ROM_LOAD32_WORD( "luplup30-roml01", 0x400000, 0x200000, CRC(40e85f94) SHA1(531e67eb4eedf47b0dded52ba2f4942b12cbbe2f) ) /* This one changed between v2.9 & v3.0 */
+	ROM_LOAD32_WORD( "luplup30-romu01", 0x400002, 0x200000, CRC(f2645b78) SHA1(b54c3047346c0f40dba0ba23b0d607cc53384edb) ) /* This one changed between v2.9 & v3.0 */
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Oki Samples */
 	ROM_LOAD( "vrom1.bin", 0x00000, 0x40000, CRC(34a56987) SHA1(4d8983648a7f0acf43ff4c9c8aa6c8640ee2bbfe) )
@@ -1309,27 +1312,42 @@ ROM_START( luplup29 ) /* version 2.9 / 990108 */
 	ROM_LOAD( "luplup-rom2.v29", 0x80000, 0x80000, CRC(50dac70f) SHA1(0e313114a988cb633a89508fda17eb09023827a2) )
 
 	ROM_REGION( 0x800000, "gfx1", 0 ) /* 16x16x8 Sprites */
-	ROM_LOAD32_WORD( "luplup29-roml00", 0x000000, 0x200000, CRC(08b2aa75) SHA1(7577b3ab79c54980307a83186dd1500f044c1bc8) )
-	ROM_LOAD32_WORD( "luplup29-romu00", 0x000002, 0x200000, CRC(b57f4ca5) SHA1(b968c44a0ceb3274e066fa1d057fb6b017bb3fd3) )
-	ROM_LOAD32_WORD( "luplup29-roml01", 0x400000, 0x200000, CRC(41c7ca8c) SHA1(55704f9d54f31bbaa044cd9d10ac2d9cb5e8fb70) )
-	ROM_LOAD32_WORD( "luplup29-romu01", 0x400002, 0x200000, CRC(16746158) SHA1(a5036a7aaa717fde89d62b7ff7a3fded8b7f5cda) )
+	ROM_LOAD32_WORD( "luplup-roml00", 0x000000, 0x200000, CRC(08b2aa75) SHA1(7577b3ab79c54980307a83186dd1500f044c1bc8) )
+	ROM_LOAD32_WORD( "luplup-romu00", 0x000002, 0x200000, CRC(b57f4ca5) SHA1(b968c44a0ceb3274e066fa1d057fb6b017bb3fd3) )
+	ROM_LOAD32_WORD( "luplup-roml01", 0x400000, 0x200000, CRC(41c7ca8c) SHA1(55704f9d54f31bbaa044cd9d10ac2d9cb5e8fb70) )
+	ROM_LOAD32_WORD( "luplup-romu01", 0x400002, 0x200000, CRC(16746158) SHA1(a5036a7aaa717fde89d62b7ff7a3fded8b7f5cda) )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Oki Samples */
 	ROM_LOAD( "vrom1.bin", 0x00000, 0x40000, CRC(34a56987) SHA1(4d8983648a7f0acf43ff4c9c8aa6c8640ee2bbfe) )
 ROM_END
 
 
-ROM_START( puzlbang ) /* version 2.8 / 990106 - Korea only, cannot select title or language */
+ROM_START( puzlbang ) /* version 2.9 / 990108 - Korea only, cannot select title, language and limited selection of background choices, EI: censored  */
+	ROM_REGION16_BE( 0x100000, "user1", ROMREGION_ERASE00 ) /* Hyperstone CPU Code */
+	ROM_LOAD( "pbb-rom1.v29", 0x00000, 0x80000, CRC(eb829586) SHA1(1f8a6af7c51c715724f5a242f4e22f7f6fb1f0ee) )
+	ROM_LOAD( "pbb-rom2.v29", 0x80000, 0x80000, CRC(fb84c793) SHA1(a2d27caecdae457d12b48d88d19ce417f69507c6) )
+
+	ROM_REGION( 0x800000, "gfx1", 0 ) /* 16x16x8 Sprites */
+	ROM_LOAD32_WORD( "luplup-roml00", 0x000000, 0x200000, CRC(08b2aa75) SHA1(7577b3ab79c54980307a83186dd1500f044c1bc8) )
+	ROM_LOAD32_WORD( "luplup-romu00", 0x000002, 0x200000, CRC(b57f4ca5) SHA1(b968c44a0ceb3274e066fa1d057fb6b017bb3fd3) )
+	ROM_LOAD32_WORD( "luplup-roml01", 0x400000, 0x200000, CRC(41c7ca8c) SHA1(55704f9d54f31bbaa044cd9d10ac2d9cb5e8fb70) )
+	ROM_LOAD32_WORD( "luplup-romu01", 0x400002, 0x200000, CRC(16746158) SHA1(a5036a7aaa717fde89d62b7ff7a3fded8b7f5cda) )
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Oki Samples */
+	ROM_LOAD( "vrom1.bin", 0x00000, 0x40000, CRC(34a56987) SHA1(4d8983648a7f0acf43ff4c9c8aa6c8640ee2bbfe) )
+ROM_END
+
+
+ROM_START( puzlbanga ) /* version 2.8 / 990106 - Korea only, cannot select title, language or change background selection, EI: censored */
 	ROM_REGION16_BE( 0x100000, "user1", ROMREGION_ERASE00 ) /* Hyperstone CPU Code */
 	ROM_LOAD( "pbb-rom1.v28", 0x00000, 0x80000, CRC(fd21c5ff) SHA1(bc6314bbb2495c140788025153c893d5fd00bdc1) )
 	ROM_LOAD( "pbb-rom2.v28", 0x80000, 0x80000, CRC(490ecaeb) SHA1(2b0f25e3d681ddf95b3c65754900c046b5b50b09) )
 
 	ROM_REGION( 0x800000, "gfx1", 0 ) /* 16x16x8 Sprites */
-	ROM_LOAD32_WORD( "pbbang28-roml00", 0x000000, 0x200000, CRC(08b2aa75) SHA1(7577b3ab79c54980307a83186dd1500f044c1bc8) )
-	ROM_LOAD32_WORD( "pbbang28-romu00", 0x000002, 0x200000, CRC(b57f4ca5) SHA1(b968c44a0ceb3274e066fa1d057fb6b017bb3fd3) )
-	ROM_LOAD32_WORD( "pbbang28-roml01", 0x400000, 0x200000, CRC(41c7ca8c) SHA1(55704f9d54f31bbaa044cd9d10ac2d9cb5e8fb70) )
-	ROM_LOAD32_WORD( "pbbang28-romu01", 0x400002, 0x200000, CRC(16746158) SHA1(a5036a7aaa717fde89d62b7ff7a3fded8b7f5cda) )
-
+	ROM_LOAD32_WORD( "luplup-roml00", 0x000000, 0x200000, CRC(08b2aa75) SHA1(7577b3ab79c54980307a83186dd1500f044c1bc8) )
+	ROM_LOAD32_WORD( "luplup-romu00", 0x000002, 0x200000, CRC(b57f4ca5) SHA1(b968c44a0ceb3274e066fa1d057fb6b017bb3fd3) )
+	ROM_LOAD32_WORD( "luplup-roml01", 0x400000, 0x200000, CRC(41c7ca8c) SHA1(55704f9d54f31bbaa044cd9d10ac2d9cb5e8fb70) )
+	ROM_LOAD32_WORD( "luplup-romu01", 0x400002, 0x200000, CRC(16746158) SHA1(a5036a7aaa717fde89d62b7ff7a3fded8b7f5cda) )
 	ROM_REGION( 0x40000, "oki", 0 ) /* Oki Samples */
 	ROM_LOAD( "vrom1.bin", 0x00000, 0x40000, CRC(34a56987) SHA1(4d8983648a7f0acf43ff4c9c8aa6c8640ee2bbfe) )
 ROM_END
@@ -2351,14 +2369,25 @@ READ16_MEMBER(vamphalf_state::puzlbang_speedup_r)
 			space.device().execute().eat_cycles(50);
 	}
 
+	return m_wram[(0x113f14/2)+offset];
+}
+
+READ16_MEMBER(vamphalf_state::puzlbanga_speedup_r)
+{
+	if(space.device().safe_pc() == 0xae6d2 )
+	{
+		if(irq_active(space))
+			space.device().execute().spin_until_interrupt();
+		else
+			space.device().execute().eat_cycles(50);
+	}
+
 	return m_wram[(0x113ecc/2)+offset];
 }
 
 READ32_MEMBER(vamphalf_state::wyvernwg_speedup_r)
 {
-	int pc = space.device().safe_pc();
-
-	if(pc == 0x10758)
+	if(space.device().safe_pc() == 0x10758 )
 	{
 		if(irq_active(space))
 			space.device().execute().spin_until_interrupt();
@@ -2371,9 +2400,7 @@ READ32_MEMBER(vamphalf_state::wyvernwg_speedup_r)
 
 READ32_MEMBER(vamphalf_state::wyvernwga_speedup_r)
 {
-	int pc = space.device().safe_pc();
-
-	if(pc == 0x10758)
+	if(space.device().safe_pc() == 0x10758 )
 	{
 		if(irq_active(space))
 			space.device().execute().spin_until_interrupt();
@@ -2470,9 +2497,7 @@ READ16_MEMBER(vamphalf_state::mrdig_speedup_r)
 
 READ16_MEMBER(vamphalf_state::dtfamily_speedup_r)
 {
-	int pc = space.device().safe_pc();
-
-	if (pc == 0x12fa6)
+	if(space.device().safe_pc() == 0x12fa6 )
 		space.device().execute().spin_until_interrupt();
 
 	return m_wram[0xcc2a8 / 2];
@@ -2561,7 +2586,8 @@ DRIVER_INIT_MEMBER(vamphalf_state,luplup29)
 
 DRIVER_INIT_MEMBER(vamphalf_state,puzlbang)
 {
-	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00113ecc, 0x00113ecf, read16_delegate(FUNC(vamphalf_state::puzlbang_speedup_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00113f14, 0x00113f17, read16_delegate(FUNC(vamphalf_state::puzlbang_speedup_r), this));
+	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00113ecc, 0x00113ecf, read16_delegate(FUNC(vamphalf_state::puzlbanga_speedup_r), this));
 
 	m_palshift = 8;
 	/* no flipscreen */
@@ -2679,7 +2705,8 @@ GAME( 1999, jmpbreak, 0,        jmpbreak, common, vamphalf_state,   jmpbreak, RO
 GAME( 1999, suplup,   0,        suplup,   common, vamphalf_state,   suplup,   ROT0,   "Omega System",      "Super Lup Lup Puzzle / Zhuan Zhuan Puzzle (version 4.0 / 990518)" , 0 )
 GAME( 1999, luplup,   suplup,   suplup,   common, vamphalf_state,   luplup,   ROT0,   "Omega System",      "Lup Lup Puzzle / Zhuan Zhuan Puzzle (version 3.0 / 990128)", 0 )
 GAME( 1999, luplup29, suplup,   suplup,   common, vamphalf_state,   luplup29, ROT0,   "Omega System",      "Lup Lup Puzzle / Zhuan Zhuan Puzzle (version 2.9 / 990108)", 0 )
-GAME( 1999, puzlbang, suplup,   suplup,   common, vamphalf_state,   puzlbang, ROT0,   "Omega System",      "Puzzle Bang Bang (Korea, version 2.8 / 990106)", 0 )
+GAME( 1999, puzlbang, suplup,   suplup,   common, vamphalf_state,   puzlbang, ROT0,   "Omega System",      "Puzzle Bang Bang (Korea, version 2.9 / 990108)", 0 )
+GAME( 1999, puzlbanga,suplup,   suplup,   common, vamphalf_state,   puzlbang, ROT0,   "Omega System",      "Puzzle Bang Bang (Korea, version 2.8 / 990106)", 0 )
 GAME( 1999, vamphalf, 0,        vamphalf, common, vamphalf_state,   vamphalf, ROT0,   "Danbi / F2 System", "Vamf x1/2 (Europe)", 0 )
 GAME( 1999, vamphalfk,vamphalf, vamphalf, common, vamphalf_state,   vamphafk, ROT0,   "Danbi / F2 System", "Vamp x1/2 (Korea)", 0 )
 GAME( 2000, dquizgo2, 0,        coolmini, common, vamphalf_state,   dquizgo2, ROT0,   "SemiCom",           "Date Quiz Go Go Episode 2" , 0)

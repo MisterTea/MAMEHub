@@ -23,8 +23,8 @@ DEVICE_ADDRESS_MAP_START(amap, 32, naomi_g1_device)
 	AM_RANGE(0xf8, 0xfb) AM_READ(sb_gdlend_r)
 ADDRESS_MAP_END
 
-naomi_g1_device::naomi_g1_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock),
+naomi_g1_device::naomi_g1_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		irq_cb(*this)
 {
 }
@@ -153,7 +153,9 @@ WRITE32_MEMBER(naomi_g1_device::sb_gdst_w)
 			len -= tlen;
 		}
 
-		timer->adjust(attotime::from_usec(500));
+		/* 12x * 75 Hz = 0,00(1) secs per sector */
+		/* TODO: make DMA to be single step */
+		timer->adjust(attotime::from_usec(1111*(gdlen/2048)));
 	}
 }
 

@@ -176,7 +176,7 @@ UINT32 pturn_state::screen_update_pturn(screen_device &screen, bitmap_ind16 &bit
 	int flipx, flipy;
 
 	bitmap.fill(m_bgcolor, cliprect);
-	m_bgmap->draw(bitmap, cliprect, 0,0);
+	m_bgmap->draw(screen, bitmap, cliprect, 0,0);
 	for ( offs = 0x80-4 ; offs >=0 ; offs -= 4)
 	{
 		sy=256-spriteram[offs]-16 ;
@@ -207,7 +207,7 @@ UINT32 pturn_state::screen_update_pturn(screen_device &screen, bitmap_ind16 &bit
 			sx,sy,0);
 		}
 	}
-	m_fgmap->draw(bitmap, cliprect, 0,0);
+	m_fgmap->draw(screen, bitmap, cliprect, 0,0);
 	return 0;
 }
 
@@ -503,7 +503,7 @@ static MACHINE_CONFIG_START( pturn, pturn_state )
 	MCFG_SCREEN_UPDATE_DRIVER(pturn_state, screen_update_pturn)
 
 	MCFG_PALETTE_LENGTH(0x100)
-	MCFG_PALETTE_INIT(RRRR_GGGG_BBBB)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRR_GGGG_BBBB)
 
 	MCFG_GFXDECODE(pturn)
 

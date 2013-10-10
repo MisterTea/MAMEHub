@@ -74,7 +74,6 @@ void if800_state::machine_reset()
 
 static UPD7220_INTERFACE( hgdc_intf )
 {
-	"screen",
 	hgdc_display_pixels,
 	NULL,
 	DEVCB_NULL,
@@ -105,7 +104,7 @@ static MACHINE_CONFIG_START( if800, if800_state )
 	MCFG_SCREEN_UPDATE_DEVICE("upd7220", upd7220_device, screen_update)
 
 	MCFG_PALETTE_LENGTH(8)
-//  MCFG_PALETTE_INIT(black_and_white)
+//  MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 
 //  MCFG_VIDEO_START_OVERRIDE(if800_state,if800)
 MACHINE_CONFIG_END

@@ -77,10 +77,9 @@ struct device;
 struct surface;
 struct texture;
 struct vertex_buffer;
-struct effect;
+class effect;
 typedef D3DXVECTOR4 vector;
 typedef D3DMATRIX matrix;
-
 
 //============================================================
 //  Abstracted presentation parameters
@@ -175,7 +174,6 @@ struct device_interface
 	HRESULT (*begin_scene)(device *dev);
 	HRESULT (*clear)(device *dev, DWORD count, const D3DRECT *rects, DWORD flags, D3DCOLOR color, float z, DWORD stencil);
 	HRESULT (*create_offscreen_plain_surface)(device *dev, UINT width, UINT height, D3DFORMAT format, D3DPOOL pool, surface **surface);
-	HRESULT (*create_effect)(device *dev, const WCHAR *name, effect **effect);
 	HRESULT (*create_texture)(device *dev, UINT width, UINT height, UINT levels, DWORD usage, D3DFORMAT format, D3DPOOL pool, texture **texture);
 	HRESULT (*create_vertex_buffer)(device *dev, UINT length, DWORD usage, DWORD fvf, D3DPOOL pool, vertex_buffer **buf);
 	HRESULT (*create_render_target)(device *dev, UINT width, UINT height, D3DFORMAT format, surface **surface);
@@ -237,26 +235,6 @@ struct vertex_buffer_interface
 
 
 //============================================================
-//  Direct3DEffect interfaces
-//============================================================
-
-struct effect_interface
-{
-	void     (*begin)(effect *effect, UINT *passes, DWORD flags);
-	void     (*end)(effect *effect);
-	void     (*begin_pass)(effect *effect, UINT pass);
-	void     (*end_pass)(effect *effect);
-	void     (*set_technique)(effect *effect, const char *name);
-	void     (*set_vector)(effect *effect, const char *name, int count, float *vector);
-	void     (*set_float)(effect *effect, const char *name, float value);
-	void     (*set_int)(effect *effect, const char *name, int value);
-	void     (*set_matrix)(effect *effect, const char *name, matrix *matrix);
-	void     (*set_texture)(effect *effect, const char *name, texture *tex);
-	ULONG    (*release)(effect *effect);
-};
-
-
-//============================================================
 //  Core D3D object
 //============================================================
 
@@ -267,6 +245,7 @@ struct base
 	void *                      d3dobj;
 	HINSTANCE                   dllhandle;
 	bool                        post_fx_available;
+	HINSTANCE                   libhandle;
 
 	// interface pointers
 	interface               d3d;
@@ -274,7 +253,6 @@ struct base
 	surface_interface       surface;
 	texture_interface       texture;
 	vertex_buffer_interface vertexbuf;
-	effect_interface        effect;
 };
 
 

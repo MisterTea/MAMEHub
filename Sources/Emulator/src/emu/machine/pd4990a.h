@@ -9,7 +9,6 @@
 #ifndef __PD4990A_OLD_H__
 #define __PD4990A_OLD_H__
 
-#include "devlegcy.h"
 
 
 /***************************************************************************
@@ -34,7 +33,7 @@ private:
 	void *m_token;
 };
 
-extern const device_type UPD4990A_OLD;
+extern ATTR_DEPRECATED const device_type UPD4990A_OLD;
 
 
 #define MCFG_UPD4990A_OLD_ADD(_tag) \

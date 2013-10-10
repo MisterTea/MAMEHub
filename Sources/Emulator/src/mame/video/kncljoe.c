@@ -183,7 +183,7 @@ void kncljoe_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 	gfx_element *gfx = machine().gfx[1 + m_sprite_bank];
 	int i, j;
 	static const int pribase[4]={0x0180, 0x0080, 0x0100, 0x0000};
-	const rectangle &visarea = machine().primary_screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 
 	/* score covers sprites */
 	if (m_flipscreen)
@@ -235,7 +235,7 @@ void kncljoe_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 
 UINT32 kncljoe_state::screen_update_kncljoe(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap, cliprect);
 	return 0;
 }

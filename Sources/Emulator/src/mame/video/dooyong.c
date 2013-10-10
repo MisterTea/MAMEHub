@@ -203,7 +203,7 @@ WRITE16_MEMBER(dooyong_state::rshark_ctrl_w)
    when the x scroll moves out of range (trying to decode the whole lot
    at once uses hundreds of megabytes of RAM). */
 
-INLINE void lastday_get_tile_info(running_machine &machine, tile_data &tileinfo, int tile_index,
+inline void dooyong_state::lastday_get_tile_info(tile_data &tileinfo, int tile_index,
 		const UINT8 *tilerom, UINT8 *scroll, int graphics)
 {
 	int offs = (tile_index + ((int)scroll[1] << 6)) * 2;
@@ -238,10 +238,10 @@ INLINE void lastday_get_tile_info(running_machine &machine, tile_data &tileinfo,
 		flags = ((attr & 0x40) ? TILE_FLIPX : 0) | ((attr & 0x80) ? TILE_FLIPY : 0);
 	}
 
-	SET_TILE_INFO(graphics, code, color, flags);
+	SET_TILE_INFO_MEMBER(graphics, code, color, flags);
 }
 
-INLINE void rshark_get_tile_info(running_machine &machine, tile_data &tileinfo, int tile_index,
+inline void dooyong_state::rshark_get_tile_info(tile_data &tileinfo, int tile_index,
 		const UINT8 *tilerom1, const UINT8 *tilerom2, UINT8 *scroll, int graphics)
 {
 		/* Tiles take two bytes in tile ROM 1:
@@ -258,39 +258,39 @@ INLINE void rshark_get_tile_info(running_machine &machine, tile_data &tileinfo, 
 	int color = tilerom2[offs] & 0x0f;
 	int flags = ((attr & 0x40) ? TILE_FLIPX : 0) | ((attr & 0x80) ? TILE_FLIPY : 0);
 
-	SET_TILE_INFO(graphics, code, color, flags);
+	SET_TILE_INFO_MEMBER(graphics, code, color, flags);
 }
 
 TILE_GET_INFO_MEMBER(dooyong_state::get_bg_tile_info)
 {
 	if (m_bg_tilerom2 != NULL)
-		rshark_get_tile_info(machine(), tileinfo, tile_index, m_bg_tilerom, m_bg_tilerom2, m_bgscroll8, m_bg_gfx);
+		rshark_get_tile_info(tileinfo, tile_index, m_bg_tilerom, m_bg_tilerom2, m_bgscroll8, m_bg_gfx);
 	else
-		lastday_get_tile_info(machine(), tileinfo, tile_index, m_bg_tilerom, m_bgscroll8, m_bg_gfx);
+		lastday_get_tile_info(tileinfo, tile_index, m_bg_tilerom, m_bgscroll8, m_bg_gfx);
 }
 
 TILE_GET_INFO_MEMBER(dooyong_state::get_bg2_tile_info)
 {
 	if (m_bg2_tilerom2 != NULL)
-		rshark_get_tile_info(machine(), tileinfo, tile_index, m_bg2_tilerom, m_bg2_tilerom2, m_bg2scroll8, m_bg2_gfx);
+		rshark_get_tile_info(tileinfo, tile_index, m_bg2_tilerom, m_bg2_tilerom2, m_bg2scroll8, m_bg2_gfx);
 	else
-		lastday_get_tile_info(machine(), tileinfo, tile_index, m_bg2_tilerom, m_bg2scroll8, m_bg2_gfx);
+		lastday_get_tile_info(tileinfo, tile_index, m_bg2_tilerom, m_bg2scroll8, m_bg2_gfx);
 }
 
 TILE_GET_INFO_MEMBER(dooyong_state::get_fg_tile_info)
 {
 	if (m_fg_tilerom2 != NULL)
-		rshark_get_tile_info(machine(), tileinfo, tile_index, m_fg_tilerom, m_fg_tilerom2, m_fgscroll8, m_fg_gfx);
+		rshark_get_tile_info(tileinfo, tile_index, m_fg_tilerom, m_fg_tilerom2, m_fgscroll8, m_fg_gfx);
 	else
-		lastday_get_tile_info(machine(), tileinfo, tile_index, m_fg_tilerom, m_fgscroll8, m_fg_gfx);
+		lastday_get_tile_info(tileinfo, tile_index, m_fg_tilerom, m_fgscroll8, m_fg_gfx);
 }
 
 TILE_GET_INFO_MEMBER(dooyong_state::get_fg2_tile_info)
 {
 	if (m_fg2_tilerom2 != NULL)
-		rshark_get_tile_info(machine(), tileinfo, tile_index, m_fg2_tilerom, m_fg2_tilerom2, m_fg2scroll8, m_fg2_gfx);
+		rshark_get_tile_info(tileinfo, tile_index, m_fg2_tilerom, m_fg2_tilerom2, m_fg2scroll8, m_fg2_gfx);
 	else
-		lastday_get_tile_info(machine(), tileinfo, tile_index, m_fg2_tilerom, m_fg2scroll8, m_fg2_gfx);
+		lastday_get_tile_info(tileinfo, tile_index, m_fg2_tilerom, m_fg2scroll8, m_fg2_gfx);
 }
 
 /* flytiger uses some palette banking technique or something maybe a trash protection */
@@ -334,7 +334,7 @@ TILE_GET_INFO_MEMBER(dooyong_state::get_tx_tile_info)
 }
 
 
-void dooyong_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int pollux_extensions)
+void dooyong_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int pollux_extensions)
 {
 	/* Sprites take 32 bytes each in memory:
 	                 MSB   LSB
@@ -418,13 +418,13 @@ void dooyong_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 					color,
 					flipx, flipy,
 					sx, sy + (16 * (flipy ? (height - y) : y)),
-					machine().priority_bitmap,
+					screen.priority(),
 					pri, 15);
 		}
 	}
 }
 
-void dooyong_state::rshark_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
+void dooyong_state::rshark_draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	UINT16 *buffered_spriteram16 = m_spriteram16->buffer();
 
@@ -486,7 +486,7 @@ void dooyong_state::rshark_draw_sprites(bitmap_ind16 &bitmap, const rectangle &c
 							color,
 							flipx, flipy,
 							_x, _y,
-							machine().priority_bitmap,
+							screen.priority(),
 							pri, 15);
 					code++;
 				}
@@ -499,61 +499,61 @@ void dooyong_state::rshark_draw_sprites(bitmap_ind16 &bitmap, const rectangle &c
 UINT32 dooyong_state::screen_update_lastday(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 1);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 2);
-	m_tx_tilemap->draw(bitmap, cliprect, 0, 4);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 1);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 2);
+	m_tx_tilemap->draw(screen, bitmap, cliprect, 0, 4);
 
 	if (!m_sprites_disabled)
-		draw_sprites(bitmap, cliprect, 0);
+		draw_sprites(screen, bitmap, cliprect, 0);
 	return 0;
 }
 
 UINT32 dooyong_state::screen_update_gulfstrm(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 1);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 2);
-	m_tx_tilemap->draw(bitmap, cliprect, 0, 4);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 1);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 2);
+	m_tx_tilemap->draw(screen, bitmap, cliprect, 0, 4);
 
-	draw_sprites(bitmap, cliprect, 1);
+	draw_sprites(screen, bitmap, cliprect, 1);
 	return 0;
 }
 
 UINT32 dooyong_state::screen_update_pollux(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 1);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 2);
-	m_tx_tilemap->draw(bitmap, cliprect, 0, 4);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 1);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 2);
+	m_tx_tilemap->draw(screen, bitmap, cliprect, 0, 4);
 
-	draw_sprites(bitmap, cliprect, 2);
+	draw_sprites(screen, bitmap, cliprect, 2);
 	return 0;
 }
 
 UINT32 dooyong_state::screen_update_flytiger(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
 	if (m_flytiger_pri)
 	{
-		m_fg_tilemap->draw(bitmap, cliprect, 0, 1);
-		m_bg_tilemap->draw(bitmap, cliprect, 0, 2);
+		m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 1);
+		m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 2);
 	}
 	else
 	{
-		m_bg_tilemap->draw(bitmap, cliprect, 0, 1);
-		m_fg_tilemap->draw(bitmap, cliprect, 0, 2);
+		m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 1);
+		m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 2);
 	}
-	m_tx_tilemap->draw(bitmap, cliprect, 0, 4);
+	m_tx_tilemap->draw(screen, bitmap, cliprect, 0, 4);
 
-	draw_sprites(bitmap, cliprect, 4);
+	draw_sprites(screen, bitmap, cliprect, 4);
 	return 0;
 }
 
@@ -561,14 +561,14 @@ UINT32 dooyong_state::screen_update_flytiger(screen_device &screen, bitmap_ind16
 UINT32 dooyong_state::screen_update_bluehawk(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 1);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 2);
-	m_fg2_tilemap->draw(bitmap, cliprect, 0, 4);
-	m_tx_tilemap->draw(bitmap, cliprect, 0, 4);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 1);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 2);
+	m_fg2_tilemap->draw(screen, bitmap, cliprect, 0, 4);
+	m_tx_tilemap->draw(screen, bitmap, cliprect, 0, 4);
 
-	draw_sprites(bitmap, cliprect, 3);
+	draw_sprites(screen, bitmap, cliprect, 3);
 	return 0;
 }
 
@@ -576,35 +576,35 @@ UINT32 dooyong_state::screen_update_primella(screen_device &screen, bitmap_ind16
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	if (m_tx_pri) m_tx_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
-	if (!m_tx_pri) m_tx_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	if (m_tx_pri) m_tx_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	if (!m_tx_pri) m_tx_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
 UINT32 dooyong_state::screen_update_rshark(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 1);
-	m_bg2_tilemap->draw(bitmap, cliprect, 0, (m_rshark_pri ? 2 : 1));
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 2);
-	m_fg2_tilemap->draw(bitmap, cliprect, 0, 2);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 1);
+	m_bg2_tilemap->draw(screen, bitmap, cliprect, 0, (m_rshark_pri ? 2 : 1));
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 2);
+	m_fg2_tilemap->draw(screen, bitmap, cliprect, 0, 2);
 
-	rshark_draw_sprites(bitmap, cliprect);
+	rshark_draw_sprites(screen, bitmap, cliprect);
 	return 0;
 }
 
 UINT32 dooyong_state::screen_update_popbingo(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 1);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 1);
 
-	rshark_draw_sprites(bitmap, cliprect);
+	rshark_draw_sprites(screen, bitmap, cliprect);
 	return 0;
 }
 

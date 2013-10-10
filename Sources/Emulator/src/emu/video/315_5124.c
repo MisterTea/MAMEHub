@@ -89,7 +89,7 @@ const device_type SEGA315_5246 = &device_creator<sega315_5246_device>;
 const device_type SEGA315_5378 = &device_creator<sega315_5378_device>;
 
 
-PALETTE_INIT( sega315_5124 )
+PALETTE_INIT_MEMBER(sega315_5124_device, sega315_5124)
 {
 	int i;
 	for (i = 0; i < 64; i++)
@@ -97,29 +97,29 @@ PALETTE_INIT( sega315_5124 )
 		int r = i & 0x03;
 		int g = (i & 0x0c) >> 2;
 		int b = (i & 0x30) >> 4;
-		palette_set_color_rgb(machine, i, pal2bit(r), pal2bit(g), pal2bit(b));
+		palette_set_color_rgb(machine(), i, pal2bit(r), pal2bit(g), pal2bit(b));
 	}
 	/* TMS9918 palette */
-	palette_set_color_rgb(machine, 64+ 0,   0,   0,   0);
-	palette_set_color_rgb(machine, 64+ 1,   0,   0,   0);
-	palette_set_color_rgb(machine, 64+ 2,  33, 200,  66);
-	palette_set_color_rgb(machine, 64+ 3,  94, 220, 120);
-	palette_set_color_rgb(machine, 64+ 4,  84,  85, 237);
-	palette_set_color_rgb(machine, 64+ 5, 125, 118, 252);
-	palette_set_color_rgb(machine, 64+ 6, 212,  82,  77);
-	palette_set_color_rgb(machine, 64+ 7,  66, 235, 245);
-	palette_set_color_rgb(machine, 64+ 8, 252,  85,  84);
-	palette_set_color_rgb(machine, 64+ 9, 255, 121, 120);
-	palette_set_color_rgb(machine, 64+10, 212, 193,  84);
-	palette_set_color_rgb(machine, 64+11, 230, 206, 128);
-	palette_set_color_rgb(machine, 64+12,  33, 176,  59);
-	palette_set_color_rgb(machine, 64+13, 201,  91, 186);
-	palette_set_color_rgb(machine, 64+14, 204, 204, 204);
-	palette_set_color_rgb(machine, 64+15, 255, 255, 255);
+	palette_set_color_rgb(machine(), 64+ 0,   0,   0,   0);
+	palette_set_color_rgb(machine(), 64+ 1,   0,   0,   0);
+	palette_set_color_rgb(machine(), 64+ 2,  33, 200,  66);
+	palette_set_color_rgb(machine(), 64+ 3,  94, 220, 120);
+	palette_set_color_rgb(machine(), 64+ 4,  84,  85, 237);
+	palette_set_color_rgb(machine(), 64+ 5, 125, 118, 252);
+	palette_set_color_rgb(machine(), 64+ 6, 212,  82,  77);
+	palette_set_color_rgb(machine(), 64+ 7,  66, 235, 245);
+	palette_set_color_rgb(machine(), 64+ 8, 252,  85,  84);
+	palette_set_color_rgb(machine(), 64+ 9, 255, 121, 120);
+	palette_set_color_rgb(machine(), 64+10, 212, 193,  84);
+	palette_set_color_rgb(machine(), 64+11, 230, 206, 128);
+	palette_set_color_rgb(machine(), 64+12,  33, 176,  59);
+	palette_set_color_rgb(machine(), 64+13, 201,  91, 186);
+	palette_set_color_rgb(machine(), 64+14, 204, 204, 204);
+	palette_set_color_rgb(machine(), 64+15, 255, 255, 255);
 }
 
 
-PALETTE_INIT( sega315_5378 )
+PALETTE_INIT_MEMBER(sega315_5378_device, sega315_5378)
 {
 	int i;
 	for (i = 0; i < 4096; i++)
@@ -127,7 +127,7 @@ PALETTE_INIT( sega315_5378 )
 		int r = i & 0x000f;
 		int g = (i & 0x00f0) >> 4;
 		int b = (i & 0x0f00) >> 8;
-		palette_set_color_rgb(machine, i, pal4bit(r), pal4bit(g), pal4bit(b));
+		palette_set_color_rgb(machine(), i, pal4bit(r), pal4bit(g), pal4bit(b));
 	}
 }
 
@@ -139,8 +139,9 @@ ADDRESS_MAP_END
 
 
 sega315_5124_device::sega315_5124_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t( mconfig, SEGA315_5124, "Sega 315-5124", tag, owner, clock )
+	: device_t( mconfig, SEGA315_5124, "Sega 315-5124", tag, owner, clock, "sega315_5124", __FILE__)
 	, device_memory_interface(mconfig, *this)
+	, device_video_interface(mconfig, *this)
 	, m_cram_size( SEGA315_5124_CRAM_SIZE )
 	, m_palette_offset( 0 )
 	, m_supports_224_240( false )
@@ -149,9 +150,10 @@ sega315_5124_device::sega315_5124_device(const machine_config &mconfig, const ch
 }
 
 
-sega315_5124_device::sega315_5124_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT8 cram_size, UINT8 palette_offset, bool supports_224_240)
-	: device_t( mconfig, type, name, tag, owner, clock )
+sega315_5124_device::sega315_5124_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT8 cram_size, UINT8 palette_offset, bool supports_224_240, const char *shortname, const char *source)
+	: device_t( mconfig, type, name, tag, owner, clock, shortname, source)
 	, device_memory_interface(mconfig, *this)
+	, device_video_interface(mconfig, *this)
 	, m_cram_size( cram_size )
 	, m_palette_offset( palette_offset )
 	, m_supports_224_240( supports_224_240 )
@@ -161,13 +163,13 @@ sega315_5124_device::sega315_5124_device(const machine_config &mconfig, device_t
 
 
 sega315_5246_device::sega315_5246_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: sega315_5124_device( mconfig, SEGA315_5246, "Sega 315-5246", tag, owner, clock, SEGA315_5124_CRAM_SIZE, 0, true )
+	: sega315_5124_device( mconfig, SEGA315_5246, "Sega 315-5246", tag, owner, clock, SEGA315_5124_CRAM_SIZE, 0, true, "sega315_5246", __FILE__)
 {
 }
 
 
 sega315_5378_device::sega315_5378_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: sega315_5124_device( mconfig, SEGA315_5378, "Sega 315-5378", tag, owner, clock, SEGA315_5378_CRAM_SIZE, 0x10, true )
+	: sega315_5124_device( mconfig, SEGA315_5378, "Sega 315-5378", tag, owner, clock, SEGA315_5378_CRAM_SIZE, 0x10, true, "sega315_5378", __FILE__)
 {
 }
 
@@ -845,9 +847,12 @@ void sega315_5124_device::select_sprites( int line )
 		if (m_reg[0x01] & 0x01)                         /* Check if MAG is set */
 			m_sprite_height = m_sprite_height * 2;
 
-		for (sprite_index = 0; (sprite_index < 32 * 4) && (space().read_byte( m_sprite_base + sprite_index ) != 0xd0) && (m_sprite_count < max_sprites + 1); sprite_index += 4)
+		for (sprite_index = 0; (sprite_index < 32 * 4) && (m_sprite_count <= max_sprites); sprite_index += 4)
 		{
-			int sprite_y = space().read_byte( m_sprite_base + sprite_index ) + 1;
+			int sprite_y = space().read_byte(m_sprite_base + sprite_index);
+			if (sprite_y == 0xd0)
+				break;
+			sprite_y += 1;
 
 			if (sprite_y > 240)
 			{
@@ -856,7 +861,7 @@ void sega315_5124_device::select_sprites( int line )
 
 			if ((line >= sprite_y) && (line < (sprite_y + m_sprite_height)))
 			{
-				if (m_sprite_count < max_sprites + 1)
+				if (m_sprite_count < max_sprites)
 				{
 					m_selected_sprite[m_sprite_count] = sprite_index;
 				}
@@ -874,9 +879,12 @@ void sega315_5124_device::select_sprites( int line )
 		m_sprite_height = (m_reg[0x01] & 0x02) ? 16 : 8;
 		m_sprite_zoom = (m_reg[0x01] & 0x01) ? 2 : 1;
 
-		for (sprite_index = 0; (sprite_index < 64) && (space().read_byte(m_sprite_base + sprite_index ) != 0xd0 || m_y_pixels != 192) && (m_sprite_count < max_sprites + 1); sprite_index++)
+		for (sprite_index = 0; (sprite_index < 64) && (m_sprite_count <= max_sprites); sprite_index++)
 		{
-			int sprite_y = space().read_byte( m_sprite_base + sprite_index ) + 1; /* sprite y position starts at line 1 */
+			int sprite_y = space().read_byte(m_sprite_base + sprite_index);
+			if (m_y_pixels == 192 && sprite_y == 0xd0)
+				break;
+			sprite_y += 1; /* sprite y position starts at line 1 */
 
 			if (sprite_y > 240)
 			{
@@ -885,7 +893,7 @@ void sega315_5124_device::select_sprites( int line )
 
 			if ((line >= sprite_y) && (line < (sprite_y + m_sprite_height * m_sprite_zoom)))
 			{
-				if (m_sprite_count < max_sprites + 1)
+				if (m_sprite_count < max_sprites)
 				{
 					m_selected_sprite[m_sprite_count] = sprite_index;
 				}
@@ -1703,8 +1711,6 @@ void sega315_5124_device::vdp_postload()
 
 void sega315_5124_device::device_start()
 {
-	m_screen = machine().device<screen_device>( m_screen_tag );
-
 	/* Resolve callbacks */
 	m_cb_int.resolve( m_int_callback, *this );
 	m_cb_pause.resolve( m_pause_callback, *this );
@@ -1796,9 +1802,37 @@ void sega315_5124_device::device_reset()
 	memset(m_line_buffer, 0, 256 * 5 * sizeof(int));
 }
 
+static MACHINE_CONFIG_FRAGMENT( sega315_5124 )
+	MCFG_PALETTE_INIT_OVERRIDE(sega315_5124_device, sega315_5124)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor sega315_5124_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( sega315_5124 );
+}
+
 
 void sega315_5378_device::device_reset()
 {
 	sega315_5124_device::device_reset();
 	m_draw_time = DRAW_TIME_GG;
+}
+
+static MACHINE_CONFIG_FRAGMENT( sega315_5378 )
+	MCFG_PALETTE_INIT_OVERRIDE(sega315_5378_device, sega315_5378)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor sega315_5378_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( sega315_5378 );
 }

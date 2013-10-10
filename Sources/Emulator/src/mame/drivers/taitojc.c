@@ -380,7 +380,7 @@ Notes:
 #include "cpu/mc68hc11/mc68hc11.h"
 #include "sound/es5506.h"
 #include "sound/okim6295.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "audio/taito_en.h"
 #include "includes/taitojc.h"
 
@@ -1074,7 +1074,7 @@ static INPUT_PORTS_START( common )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("COINS")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_DIPNAME( 0x02, 0x02, "Dev Skip RAM Test" ) // skips mainram test on page 1 of POST
 	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
@@ -1118,9 +1118,9 @@ static INPUT_PORTS_START( common )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("EEPROMOUT")
-	PORT_BIT( 0x04000000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x08000000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x10000000, IP_ACTIVE_LOW,  IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
+	PORT_BIT( 0x04000000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x08000000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x10000000, IP_ACTIVE_HIGH,  IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
 INPUT_PORTS_END
 
 // Mascon must always be in a defined state, Densha de Go 2 in particular returns black screen if the Mascon input is undefined
@@ -1248,12 +1248,6 @@ static const tc0640fio_interface taitojc_io_intf =
 	DEVCB_INPUT_PORT("START"), DEVCB_INPUT_PORT("UNUSED"), DEVCB_INPUT_PORT("BUTTONS")
 };
 
-static const hc11_config taitojc_hc11_config =
-{
-	1,      // has extended I/O
-	1280,   // internal RAM size
-	0x00    // INIT defaults to 0x00
-};
 
 static MACHINE_CONFIG_START( taitojc, taitojc_state )
 
@@ -1265,7 +1259,7 @@ static MACHINE_CONFIG_START( taitojc, taitojc_state )
 	MCFG_CPU_ADD("sub", MC68HC11, XTAL_16MHz/2) // 8MHz, MC68HC11M0
 	MCFG_CPU_PROGRAM_MAP(hc11_pgm_map)
 	MCFG_CPU_IO_MAP(hc11_io_map)
-	MCFG_CPU_CONFIG(taitojc_hc11_config)
+	MCFG_MC68HC11_CONFIG( 1, 1280, 0x00 )
 
 	MCFG_CPU_ADD("dsp", TMS32051, XTAL_10MHz*4) // 40MHz, clock source = CY7C991
 	MCFG_CPU_PROGRAM_MAP(tms_program_map)
@@ -1273,7 +1267,7 @@ static MACHINE_CONFIG_START( taitojc, taitojc_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	MCFG_TC0640FIO_ADD("tc0640fio", taitojc_io_intf)
 

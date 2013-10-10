@@ -1,5 +1,7 @@
 #include "sound/okim9810.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
+#include "sound/x1_010.h"
+#include "machine/tmp68301.h"
 
 class seta2_state : public driver_device
 {
@@ -7,15 +9,18 @@ public:
 	seta2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 			m_maincpu(*this,"maincpu"),
+			m_tmp68301(*this, "tmp68301"),
 			m_nvram(*this, "nvram") ,
 		m_spriteram(*this, "spriteram", 0),
 		m_vregs(*this, "vregs", 0),
 		m_funcube_outputs(*this, "funcube_outputs"),
 		m_funcube_leds(*this, "funcube_leds"),
+		m_x1(*this, "x1snd"),
 		m_oki(*this, "oki"),
 		m_eeprom(*this, "eeprom"){ }
 
 	required_device<cpu_device> m_maincpu;
+	optional_device<tmp68301_device> m_tmp68301;
 	optional_shared_ptr<UINT16> m_nvram;
 
 	optional_shared_ptr<UINT16> m_spriteram;
@@ -23,6 +28,11 @@ public:
 
 	optional_shared_ptr<UINT8> m_funcube_outputs;
 	optional_shared_ptr<UINT8> m_funcube_leds;
+
+	optional_device<x1_010_device> m_x1;
+	optional_device<okim9810_device> m_oki;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
+
 	int m_xoffset;
 	int m_yoffset;
 	int m_keyboard_row;
@@ -80,6 +90,4 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(funcube_interrupt);
 	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
 	void funcube_debug_outputs();
-	optional_device<okim9810_device> m_oki;
-	optional_device<eeprom_device> m_eeprom;
 };

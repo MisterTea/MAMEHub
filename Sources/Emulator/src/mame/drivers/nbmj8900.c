@@ -24,7 +24,6 @@ TODO:
 ******************************************************************************/
 
 #include "emu.h"
-#include "includes/nb1413m3.h"
 #include "cpu/z80/z80.h"
 #include "sound/dac.h"
 #include "sound/ay8910.h"
@@ -59,8 +58,6 @@ DRIVER_INIT_MEMBER(nbmj8900_state,ohpaipee)
 	ROM[0x025c] = 0x00;
 	ROM[0x025d] = 0x00;
 #endif
-
-	nb1413m3_type = NB1413M3_OHPAIPEE;
 }
 
 DRIVER_INIT_MEMBER(nbmj8900_state,togenkyo)
@@ -89,8 +86,6 @@ DRIVER_INIT_MEMBER(nbmj8900_state,togenkyo)
 //  ROM[0x025c] = 0x00;
 //  ROM[0x025d] = 0x00;
 #endif
-
-	nb1413m3_type = NB1413M3_TOGENKYO;
 }
 
 
@@ -110,8 +105,8 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ohpaipee_io_map, AS_IO, 8, nbmj8900_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0x7f) AM_READ_LEGACY(nb1413m3_sndrom_r)
-	AM_RANGE(0x00, 0x00) AM_WRITE_LEGACY(nb1413m3_nmi_clock_w)
+	AM_RANGE(0x00, 0x7f) AM_DEVREAD("nb1413m3", nb1413m3_device, sndrom_r)
+	AM_RANGE(0x00, 0x00) AM_DEVWRITE("nb1413m3", nb1413m3_device, nmi_clock_w)
 	AM_RANGE(0x20, 0x27) AM_WRITE(nbmj8900_blitter_w)
 
 	AM_RANGE(0x40, 0x40) AM_WRITE(nbmj8900_clutsel_w)
@@ -120,15 +115,15 @@ static ADDRESS_MAP_START( ohpaipee_io_map, AS_IO, 8, nbmj8900_state )
 
 	AM_RANGE(0x80, 0x81) AM_DEVREADWRITE("ymsnd", ym3812_device, read, write)
 
-	AM_RANGE(0x90, 0x90) AM_READ_LEGACY(nb1413m3_inputport0_r)
+	AM_RANGE(0x90, 0x90) AM_DEVREAD("nb1413m3", nb1413m3_device, inputport0_r)
 
-	AM_RANGE(0xa0, 0xa0) AM_READWRITE_LEGACY(nb1413m3_inputport1_r,nb1413m3_inputportsel_w)
-	AM_RANGE(0xb0, 0xb0) AM_READWRITE_LEGACY(nb1413m3_inputport2_r,nb1413m3_sndrombank1_w)
-	AM_RANGE(0xc0, 0xc0) AM_READ_LEGACY(nb1413m3_inputport3_r)
+	AM_RANGE(0xa0, 0xa0) AM_DEVREADWRITE("nb1413m3", nb1413m3_device, inputport1_r, inputportsel_w)
+	AM_RANGE(0xb0, 0xb0) AM_DEVREADWRITE("nb1413m3", nb1413m3_device, inputport2_r, sndrombank1_w)
+	AM_RANGE(0xc0, 0xc0) AM_DEVREAD("nb1413m3", nb1413m3_device, inputport3_r)
 	AM_RANGE(0xd0, 0xd0) AM_DEVWRITE("dac", dac_device, write_unsigned8)
 	AM_RANGE(0xe0, 0xe0) AM_WRITE(nbmj8900_vramsel_w)
-	AM_RANGE(0xf0, 0xf0) AM_READ_LEGACY(nb1413m3_dipsw1_r)
-	AM_RANGE(0xf1, 0xf1) AM_READWRITE_LEGACY(nb1413m3_dipsw2_r, nb1413m3_outcoin_w)
+	AM_RANGE(0xf0, 0xf0) AM_DEVREAD("nb1413m3", nb1413m3_device, dipsw1_r)
+	AM_RANGE(0xf1, 0xf1) AM_DEVREADWRITE("nb1413m3", nb1413m3_device, dipsw2_r, outcoin_w)
 ADDRESS_MAP_END
 
 
@@ -308,10 +303,10 @@ static MACHINE_CONFIG_START( ohpaipee, nbmj8900_state )
 	MCFG_CPU_ADD("maincpu", Z80, 20000000/4)    /* 5.00 MHz ? */
 	MCFG_CPU_PROGRAM_MAP(ohpaipee_map)
 	MCFG_CPU_IO_MAP(ohpaipee_io_map)
-	MCFG_CPU_VBLANK_INT("screen", nb1413m3_interrupt)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", nbmj8900_state, irq0_line_hold)
 
-	MCFG_MACHINE_START(nb1413m3)
-	MCFG_MACHINE_RESET(nb1413m3)
+	MCFG_NB1413M3_ADD("nb1413m3")
+	MCFG_NB1413M3_TYPE( NB1413M3_OHPAIPEE )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -338,6 +333,9 @@ static MACHINE_CONFIG_DERIVED( togenkyo, ohpaipee )
 	/* basic machine hardware */
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(togenkyo_map)
+
+	MCFG_DEVICE_MODIFY("nb1413m3")
+	MCFG_NB1413M3_TYPE( NB1413M3_TOGENKYO )
 MACHINE_CONFIG_END
 
 

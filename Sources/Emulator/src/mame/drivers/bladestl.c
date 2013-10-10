@@ -30,8 +30,6 @@
 #include "cpu/m6809/m6809.h"
 #include "cpu/m6809/hd6309.h"
 #include "sound/2203intf.h"
-#include "sound/upd7759.h"
-#include "video/konicdev.h"
 #include "includes/konamipt.h"
 #include "includes/bladestl.h"
 
@@ -40,7 +38,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(bladestl_state::bladestl_scanline)
 {
 	int scanline = param;
 
-	if(scanline == 240 && k007342_is_int_enabled(m_k007342)) // vblank-out irq
+	if(scanline == 240 && m_k007342->is_int_enabled()) // vblank-out irq
 		m_maincpu->set_input_line(HD6309_FIRQ_LINE, HOLD_LINE);
 
 	if(scanline == 0) // vblank-in or timer irq
@@ -95,18 +93,18 @@ WRITE8_MEMBER(bladestl_state::bladestl_sh_irqtrigger_w)
 WRITE8_MEMBER(bladestl_state::bladestl_port_B_w)
 {
 	/* bit 1, 2 unknown */
-	upd7759_set_bank_base(m_upd7759, ((data & 0x38) >> 3) * 0x20000);
+	m_upd7759->set_bank_base(((data & 0x38) >> 3) * 0x20000);
 }
 
 READ8_MEMBER(bladestl_state::bladestl_speech_busy_r)
 {
-	return upd7759_busy_r(m_upd7759) ? 1 : 0;
+	return m_upd7759->busy_r() ? 1 : 0;
 }
 
 WRITE8_MEMBER(bladestl_state::bladestl_speech_ctrl_w)
 {
-	upd7759_reset_w(m_upd7759, data & 1);
-	upd7759_start_w(m_upd7759, data & 2);
+	m_upd7759->reset_w(data & 1);
+	m_upd7759->start_w(data & 2);
 }
 
 /*************************************
@@ -116,11 +114,11 @@ WRITE8_MEMBER(bladestl_state::bladestl_speech_ctrl_w)
  *************************************/
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, bladestl_state )
-	AM_RANGE(0x0000, 0x1fff) AM_DEVREADWRITE_LEGACY("k007342", k007342_r, k007342_w)    /* Color RAM + Video RAM */
-	AM_RANGE(0x2000, 0x21ff) AM_DEVREADWRITE_LEGACY("k007420", k007420_r, k007420_w)    /* Sprite RAM */
-	AM_RANGE(0x2200, 0x23ff) AM_DEVREADWRITE_LEGACY("k007342", k007342_scroll_r, k007342_scroll_w)  /* Scroll RAM */
+	AM_RANGE(0x0000, 0x1fff) AM_DEVREADWRITE("k007342", k007342_device, read, write)    /* Color RAM + Video RAM */
+	AM_RANGE(0x2000, 0x21ff) AM_DEVREADWRITE("k007420", k007420_device, read, write)    /* Sprite RAM */
+	AM_RANGE(0x2200, 0x23ff) AM_DEVREADWRITE("k007342", k007342_device, scroll_r, scroll_w)  /* Scroll RAM */
 	AM_RANGE(0x2400, 0x245f) AM_RAM AM_SHARE("paletteram")      /* palette */
-	AM_RANGE(0x2600, 0x2607) AM_DEVWRITE_LEGACY("k007342", k007342_vreg_w)          /* Video Registers */
+	AM_RANGE(0x2600, 0x2607) AM_DEVWRITE("k007342", k007342_device, vreg_w)          /* Video Registers */
 	AM_RANGE(0x2e00, 0x2e00) AM_READ_PORT("COINSW")             /* DIPSW #3, coinsw, startsw */
 	AM_RANGE(0x2e01, 0x2e01) AM_READ_PORT("P1")                 /* 1P controls */
 	AM_RANGE(0x2e02, 0x2e02) AM_READ_PORT("P2")                 /* 2P controls */
@@ -130,7 +128,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, bladestl_state )
 	AM_RANGE(0x2ec0, 0x2ec0) AM_WRITE(watchdog_reset_w)         /* watchdog reset */
 	AM_RANGE(0x2f00, 0x2f03) AM_READ(trackball_r)               /* Trackballs */
 	AM_RANGE(0x2f40, 0x2f40) AM_WRITE(bladestl_bankswitch_w)    /* bankswitch control */
-	AM_RANGE(0x2f80, 0x2f9f) AM_DEVREADWRITE_LEGACY("k051733", k051733_r, k051733_w)    /* Protection: 051733 */
+	AM_RANGE(0x2f80, 0x2f9f) AM_DEVREADWRITE("k051733", k051733_device, read, write)    /* Protection: 051733 */
 	AM_RANGE(0x2fc0, 0x2fc0) AM_WRITENOP                        /* ??? */
 	AM_RANGE(0x4000, 0x5fff) AM_RAM                             /* Work RAM */
 	AM_RANGE(0x6000, 0x7fff) AM_ROMBANK("bank1")                        /* banked ROM */
@@ -277,7 +275,7 @@ static const ay8910_interface ay8910_config =
 	AY8910_DEFAULT_LOADS,
 	DEVCB_NULL,
 	DEVCB_NULL,
-	DEVCB_DEVICE_HANDLER("upd", upd7759_port_w),
+	DEVCB_DEVICE_MEMBER("upd", upd775x_device, port_w),
 	DEVCB_DRIVER_MEMBER(bladestl_state,bladestl_port_B_w)
 };
 

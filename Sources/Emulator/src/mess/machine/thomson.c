@@ -670,7 +670,7 @@ const device_type TO7_IO_LINE = &device_creator<to7_io_line_device>;
 //-------------------------------------------------
 
 to7_io_line_device::to7_io_line_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TO7_IO_LINE, "Serial source", tag, owner, clock),
+	: device_t(mconfig, TO7_IO_LINE, "T07 Serial source", tag, owner, clock, "to7_io_line", __FILE__),
 		device_serial_interface(mconfig, *this)
 {
 }
@@ -855,7 +855,7 @@ void thomson_state::to7_modem_reset()
 	LOG (( "to7_modem_reset called\n" ));
 	m_to7_modem_rx = 0;
 	m_to7_modem_tx = 0;
-	/* pia_reset() is called in MACHINE_RESET */
+	/* pia_reset() is called in machine_reset */
 	/* acia_6850 has no reset (?) */
 }
 
@@ -1854,8 +1854,8 @@ WRITE8_MEMBER( thomson_state::mo5_gatearray_w )
 DEVICE_IMAGE_LOAD_MEMBER( thomson_state, mo5_cartridge )
 {
 	UINT8* pos = memregion("maincpu")->base() + 0x10000;
-	UINT64 size;
-	int i,j;
+	UINT64 size, i;
+	int j;
 	char name[129];
 
 	if (image.software_entry() == NULL)
@@ -1899,9 +1899,9 @@ DEVICE_IMAGE_LOAD_MEMBER( thomson_state, mo5_cartridge )
 	name[j] = 0;
 
 	/* sanitize name */
-	for ( i = 0; name[i]; i++)
+	for ( j = 0; name[j]; j++)
 	{
-		if ( name[i] < ' ' || name[i] >= 127 ) name[i] = '?';
+		if ( name[j] < ' ' || name[j] >= 127 ) name[j] = '?';
 	}
 
 	PRINT (( "mo5_cartridge_load: cartridge \"%s\" banks=%i, size=%u\n", name, m_thom_cart_nb_banks, (unsigned) size ));

@@ -270,10 +270,8 @@ static MACHINE_CONFIG_START( ti990_4, ti990_4_state )
 #endif
 
 #if VIDEO_911
-	MCFG_PALETTE_INIT(vdt911)
 	MCFG_VDT911_VIDEO_ADD("vdt911", vdt911_intf)
 #else
-	MCFG_PALETTE_INIT(asr733)
 	MCFG_ASR733_VIDEO_ADD("asr733", asr733_intf)
 #endif
 

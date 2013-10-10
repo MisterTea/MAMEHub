@@ -22,7 +22,6 @@
 #include "machine/atarigen.h"
 #include "sound/okim6295.h"
 #include "sound/2413intf.h"
-#include "video/atarimo.h"
 #include "includes/relief.h"
 
 
@@ -41,25 +40,6 @@ void relief_state::update_interrupts()
 
 /*************************************
  *
- *  Video controller access
- *
- *************************************/
-
-READ16_MEMBER(relief_state::relief_atarivc_r)
-{
-	return atarivc_r(*machine().primary_screen, offset);
-}
-
-
-WRITE16_MEMBER(relief_state::relief_atarivc_w)
-{
-	atarivc_w(*machine().primary_screen, offset, data, mem_mask);
-}
-
-
-
-/*************************************
- *
  *  Initialization
  *
  *************************************/
@@ -67,7 +47,6 @@ WRITE16_MEMBER(relief_state::relief_atarivc_w)
 MACHINE_RESET_MEMBER(relief_state,relief)
 {
 	atarigen_state::machine_reset();
-	atarivc_reset(*machine().primary_screen, m_atarivc_eof_data, 2);
 
 	m_oki->set_bank_base(0);
 	m_ym2413_volume = 15;
@@ -86,8 +65,7 @@ MACHINE_RESET_MEMBER(relief_state,relief)
 READ16_MEMBER(relief_state::special_port2_r)
 {
 	int result = ioport("260010")->read();
-	if (m_cpu_to_sound_ready) result ^= 0x0020;
-	if (!(result & 0x0080) || get_hblank(*machine().primary_screen)) result ^= 0x0001;
+	if (!(result & 0x0080) || get_hblank(*m_screen)) result ^= 0x0001;
 	return result;
 }
 
@@ -140,22 +118,22 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, relief_state )
 	AM_RANGE(0x140010, 0x140011) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x140020, 0x140021) AM_WRITE(audio_volume_w)
 	AM_RANGE(0x140030, 0x140031) AM_WRITE(audio_control_w)
-	AM_RANGE(0x180000, 0x180fff) AM_READWRITE(eeprom_r, eeprom_w) AM_SHARE("eeprom")
-	AM_RANGE(0x1c0030, 0x1c0031) AM_WRITE(eeprom_enable_w)
+	AM_RANGE(0x180000, 0x180fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0xff00)
+	AM_RANGE(0x1c0030, 0x1c0031) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
 	AM_RANGE(0x260000, 0x260001) AM_READ_PORT("260000")
 	AM_RANGE(0x260002, 0x260003) AM_READ_PORT("260002")
 	AM_RANGE(0x260010, 0x260011) AM_READ(special_port2_r)
 	AM_RANGE(0x260012, 0x260013) AM_READ_PORT("260012")
 	AM_RANGE(0x2a0000, 0x2a0001) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x3e0000, 0x3e0fff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
-	AM_RANGE(0x3effc0, 0x3effff) AM_READWRITE(relief_atarivc_r, relief_atarivc_w) AM_SHARE("atarivc_data")
-	AM_RANGE(0x3f0000, 0x3f1fff) AM_RAM_WRITE(playfield2_latched_msb_w) AM_SHARE("playfield2")
-	AM_RANGE(0x3f2000, 0x3f3fff) AM_RAM_WRITE(playfield_latched_lsb_w) AM_SHARE("playfield")
-	AM_RANGE(0x3f4000, 0x3f5fff) AM_RAM_WRITE(playfield_dual_upper_w) AM_SHARE("playfield_up")
-	AM_RANGE(0x3f6000, 0x3f67ff) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
+	AM_RANGE(0x3effc0, 0x3effff) AM_DEVREADWRITE("vad", atari_vad_device, control_read, control_write)
+	AM_RANGE(0x3f0000, 0x3f1fff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield2_latched_msb_w) AM_SHARE("vad:playfield2")
+	AM_RANGE(0x3f2000, 0x3f3fff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield_latched_lsb_w) AM_SHARE("vad:playfield")
+	AM_RANGE(0x3f4000, 0x3f5fff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield_upper_w) AM_SHARE("vad:playfield_ext")
+	AM_RANGE(0x3f6000, 0x3f67ff) AM_RAM AM_SHARE("vad:mob")
 	AM_RANGE(0x3f6800, 0x3f8eff) AM_RAM
-	AM_RANGE(0x3f8f00, 0x3f8f7f) AM_RAM AM_SHARE("atarivc_eof")
-	AM_RANGE(0x3f8f80, 0x3f8fff) AM_READWRITE_LEGACY(atarimo_0_slipram_r, atarimo_0_slipram_w)
+	AM_RANGE(0x3f8f00, 0x3f8f7f) AM_RAM AM_SHARE("vad:eof")
+	AM_RANGE(0x3f8f80, 0x3f8fff) AM_SHARE("vad:mob:slip")
 	AM_RANGE(0x3f9000, 0x3fffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -222,7 +200,7 @@ static INPUT_PORTS_START( relief )
 
 	PORT_START("260010")    /* 260010 */
 	PORT_BIT( 0x001f, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )   /* tested before writing to 260040 */
+	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
 	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -287,12 +265,18 @@ static MACHINE_CONFIG_START( relief, relief_state )
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(relief_state,relief)
-	MCFG_NVRAM_ADD_1FILL("eeprom")
+
+	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_GFXDECODE(relief)
 	MCFG_PALETTE_LENGTH(2048)
+
+	MCFG_ATARI_VAD_ADD("vad", "screen", WRITELINE(atarigen_state, scanline_int_write_line))
+	MCFG_ATARI_VAD_PLAYFIELD(relief_state, get_playfield_tile_info)
+	MCFG_ATARI_VAD_PLAYFIELD2(relief_state, get_playfield2_tile_info)
+	MCFG_ATARI_VAD_MOB(relief_state::s_mob_config)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */
@@ -340,8 +324,8 @@ ROM_START( relief )
 	ROM_LOAD( "136093-0030a.9b",  0x100000, 0x80000, CRC(f4c567f5) SHA1(7e8c1d54d918b0b41625eacbaf6dcb5bd99d1949) )
 	ROM_LOAD( "136093-0031a.10b", 0x180000, 0x80000, CRC(ba908d73) SHA1(a83afd86f4c39394cf624b728a87b8d8b6de1944) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "relief-eeprom.bin", 0x0000, 0x1000, CRC(71090711) SHA1(fc516dd84635e544c5f89640f77645e4a7d5bcc0) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "relief-eeprom.bin", 0x0000, 0x800, CRC(66069f60) SHA1(fac3797888f7ffe972f642aca44c6ca7d208c814) )
 
 	ROM_REGION( 0x001000, "plds", 0 )
 	ROM_LOAD( "gal16v8a-136093-0002.15f", 0x0000, 0x0117, CRC(b111d5f2) SHA1(0fe5b4ca786e839e6927a485109d33fe31c737a2) )
@@ -375,9 +359,8 @@ ROM_START( relief2 )
 	ROM_LOAD( "136093-0030a.9b",  0x100000, 0x80000, CRC(f4c567f5) SHA1(7e8c1d54d918b0b41625eacbaf6dcb5bd99d1949) )
 	ROM_LOAD( "136093-0031a.10b", 0x180000, 0x80000, CRC(ba908d73) SHA1(a83afd86f4c39394cf624b728a87b8d8b6de1944) )
 
-	ROM_REGION( 0x1000, "eeprom", ROMREGION_ERASEFF )
-	/* todo */
-//  ROM_LOAD( "relief_26apr-eeprom.bin", 0x0000, 0x1000, CRC(6cd70719) SHA1(1bbc52924931b68a546c85f689419200a4b6547b) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "relief2-eeprom.bin", 0x0000, 0x800, CRC(2131fc40) SHA1(72a9f5f6647fbc74e645b6639db2fdbfbe6456e2) )
 
 	ROM_REGION( 0x001000, "plds", 0 )
 	ROM_LOAD( "gal16v8a-136093-0002.15f", 0x0000, 0x0117, CRC(b111d5f2) SHA1(0fe5b4ca786e839e6927a485109d33fe31c737a2) )
@@ -410,8 +393,8 @@ ROM_START( relief3 )
 	ROM_LOAD( "136093-0030a.9b",  0x100000, 0x80000, CRC(f4c567f5) SHA1(7e8c1d54d918b0b41625eacbaf6dcb5bd99d1949) )
 	ROM_LOAD( "136093-0031a.10b", 0x180000, 0x80000, CRC(ba908d73) SHA1(a83afd86f4c39394cf624b728a87b8d8b6de1944) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "relief2-eeprom.bin", 0x0000, 0x1000, CRC(6cd70719) SHA1(1bbc52924931b68a546c85f689419200a4b6547b) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "relief3-eeprom.bin", 0x0000, 0x800, CRC(2131fc40) SHA1(72a9f5f6647fbc74e645b6639db2fdbfbe6456e2) )
 
 	ROM_REGION( 0x001000, "plds", 0 )
 	ROM_LOAD( "gal16v8a-136093-0002.15f", 0x0000, 0x0117, CRC(b111d5f2) SHA1(0fe5b4ca786e839e6927a485109d33fe31c737a2) )
@@ -423,6 +406,8 @@ ROM_START( relief3 )
 	ROM_LOAD( "gal16v8a-136093-0009.8a",  0x0c00, 0x0117, CRC(b8679030) SHA1(09ab39c9c293381bbc082780f00d112c71e9c889) )
 	ROM_LOAD( "gal16v8a-136093-0010.15a", 0x0e00, 0x0117, CRC(5f49c736) SHA1(91ff18e4780ee6c904735fc0f0e73ffb5a80b49a) )
 ROM_END
+
+
 
 /*************************************
  *

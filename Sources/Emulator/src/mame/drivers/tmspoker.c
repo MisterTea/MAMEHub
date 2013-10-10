@@ -270,7 +270,7 @@ void tmspoker_state::video_start()
 
 UINT32 tmspoker_state::screen_update_tmspoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -548,7 +548,6 @@ GFXDECODE_END
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -589,7 +588,7 @@ static MACHINE_CONFIG_START( tmspoker, tmspoker_state )
 
 	MCFG_SCREEN_UPDATE_DRIVER(tmspoker_state, screen_update_tmspoker)
 
-	MCFG_MC6845_ADD("crtc", MC6845, MASTER_CLOCK/4, mc6845_intf) /* guess */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/4, mc6845_intf) /* guess */
 
 MACHINE_CONFIG_END
 

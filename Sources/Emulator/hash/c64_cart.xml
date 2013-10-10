@@ -604,7 +604,7 @@
 		</part>
 	</software>
 
-	<software name="magicvce" supported="no">
+	<software name="magicvce" supported="partial">
 		<description>Magic Voice</description>
 		<year>1984</year>
 		<publisher>Commodore</publisher>
@@ -614,7 +614,7 @@
 			<feature name="game" value="0" />
 			<feature name="exrom" value="1" />
 
-			<dataarea name="roml" size="0x4000">
+			<dataarea name="romh" size="0x4000">
 				<rom name="251476" size="0x4000" crc="c741fa77" sha1="2044028d42def60df79b8ab57d005721b41190fa" offset="0x0000" />
 			</dataarea>
 		</part>
@@ -2372,6 +2372,7 @@
 	</software>
 
 	<software name="gorf">
+		<!-- supports Magic Voice -->
 		<description>Gorf</description>
 		<year>1983</year>
 		<publisher>Commodore</publisher>
@@ -4092,7 +4093,8 @@
 		</part>
 	</software>
 
-	<software name="wow">
+	<software name="wowmv">
+		<!-- supports Magic Voice -->
 		<description>Wizard of Wor</description>
 		<year>1984</year>
 		<publisher>Commodore</publisher>
@@ -6894,6 +6896,24 @@
 		</part>
 	</software>
 
+	<software name="abc">
+		<!-- requires Magic Voice to run -->
+		<description>A Bee Cee's</description>
+		<year>198?</year>
+		<publisher>Commodore</publisher>
+		<info name="serial" value="C-64320" />
+		<sharedfeat name="compatibility" value="NTSC,PAL"/>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="game" value="0" />
+			<feature name="exrom" value="0" />
+
+			<dataarea name="roml" size="0x4000">
+				<rom name="a-bee-c.rom" size="0x4000" crc="5cfe999c" sha1="57202c3829f1d668c445ae7e792ae80245682a99" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
 	<!-- Dummy cartridge entries to allow requirement mappings from c64_flop -->
 
 	<software name="cpm">
@@ -6927,6 +6947,18 @@
 
 		<part name="cart" interface="c64_cart">
 			<feature name="slot" value="midipp" />
+			<dataarea name="roml" size="0x2000">
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="music64">
+		<description>Wersiboard Music 64</description>
+		<year>1985</year>
+		<publisher>Wersi</publisher>
+
+		<part name="cart" interface="c64_cart">
+			<feature name="slot" value="music64" />
 			<dataarea name="roml" size="0x2000">
 			</dataarea>
 		</part>

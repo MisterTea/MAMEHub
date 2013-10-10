@@ -187,7 +187,7 @@ class psxgpu_device : public device_t
 {
 public:
 	// construction/destruction
-	psxgpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	psxgpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	virtual machine_config_constructor device_mconfig_additions() const;
 
 	// static configuration helpers
@@ -201,11 +201,13 @@ public:
 	void lightgun_set( int, int );
 	int vramSize;
 	void vblank(screen_device &screen, bool vblank_state);
+	DECLARE_PALETTE_INIT( psx );
 
 protected:
 	virtual void device_start();
 	virtual void device_reset();
 
+private:
 	void updatevisiblearea();
 	void decode_tpage( UINT32 tpage );
 	void FlatPolygon( int n_points );

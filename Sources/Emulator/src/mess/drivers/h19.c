@@ -16,7 +16,7 @@
         Either device will signal an interrupt to the CPU when a key
         is pressed/sent.
 
-        For the moment, the "terminal" device is used for the keyboard.
+        For the moment, the "ascii keyboard" device is used for the keyboard.
 
         TODO:
         - Create device or HLE of MM5740N keyboard controller
@@ -25,7 +25,10 @@
         - Finish connecting up the 8250
         - Verify beep lengths
         - Verify ram size
-        - When the internal keyboard works, get rid of the generic_terminal.
+        - When the internal keyboard works, get rid of the "ascii_keyboard".
+
+        Bios 1 (super19) has the videoram at D800. This is not emulated.
+        However, a keyclick can be heard, to assure you it does in fact work.
 
 ****************************************************************************/
 
@@ -55,7 +58,7 @@ public:
 			m_crtc(*this, "crtc"),
 			m_ace(*this, "ins8250"),
 			m_beep(*this, "beeper"),
-			m_p_videoram(*this, "p_videoram")
+			m_p_videoram(*this, "videoram")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
@@ -121,7 +124,7 @@ static ADDRESS_MAP_START(h19_mem, AS_PROGRAM, 8, h19_state)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
 	AM_RANGE(0x2000, 0xf7ff) AM_RAM
-	AM_RANGE(0xf800, 0xffff) AM_RAM AM_SHARE("p_videoram")
+	AM_RANGE(0xf800, 0xffff) AM_RAM AM_SHARE("videoram")
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( h19_io, AS_IO, 8, h19_state)
@@ -367,7 +370,6 @@ static const ins8250_interface h19_ace_interface =
 
 static MC6845_INTERFACE( h19_crtc6845_interface )
 {
-	"screen",
 	false,
 	8 /*?*/,
 	NULL,
@@ -425,9 +427,9 @@ static MACHINE_CONFIG_START( h19, h19_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640 - 1, 0, 200 - 1)
 	MCFG_GFXDECODE(h19)
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(monochrome_green)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
 
-	MCFG_MC6845_ADD("crtc", MC6845, XTAL_12_288MHz / 8, h19_crtc6845_interface) // clk taken from schematics
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_12_288MHz / 8, h19_crtc6845_interface) // clk taken from schematics
 	MCFG_INS8250_ADD( "ins8250", h19_ace_interface, XTAL_12_288MHz / 4) // 3.072mhz clock which gets divided down for the various baud rates
 	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
 
@@ -445,7 +447,7 @@ ROM_START( h19 )
 	ROMX_LOAD( "2732_444-46_h19code.bin", 0x0000, 0x1000, CRC(F4447DA0) SHA1(fb4093d5b763be21a9580a0defebed664b1f7a7b), ROM_BIOS(1))
 	// Super H19 ROM (
 	ROM_SYSTEM_BIOS(1, "super", "Super 19")
-	ROMX_LOAD( "2732_super19_h447.bin", 0x0000, 0x1000, CRC(68FBFF54) SHA1(c0aa7199900709d717b07e43305dfdf36824da9b), ROM_BIOS(2))
+	ROMX_LOAD( "2732_super19_h447.bin", 0x0000, 0x1000, CRC(6c51aaa6) SHA1(5e368b39fe2f1af44a905dc474663198ab630117), ROM_BIOS(2))
 	// Watzman ROM
 	ROM_SYSTEM_BIOS(2, "watzman", "Watzman")
 	ROMX_LOAD( "watzman.bin", 0x0000, 0x1000, CRC(8168b6dc) SHA1(bfaebb9d766edbe545d24bc2b6630be4f3aa0ce9), ROM_BIOS(3))

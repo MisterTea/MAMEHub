@@ -226,6 +226,8 @@
 
 #include "includes/bwidow.h"
 
+#include "drivlgcy.h"
+#include "scrlegcy.h"
 
 
 

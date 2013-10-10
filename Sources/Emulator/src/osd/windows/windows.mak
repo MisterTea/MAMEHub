@@ -57,9 +57,6 @@
 # uncomment next line to use cygwin compiler
 # CYGWIN_BUILD = 1
 
-# set this to the minimum Direct3D version to support (8 or 9)
-# DIRECT3D = 9
-
 # set this to the minimum DirectInput version to support (7 or 8)
 # DIRECTINPUT = 8
 
@@ -132,11 +129,11 @@ else
 CCOMFLAGS += /MT
 endif
 
-# turn on link-time codegen if the MAXOPT flag is also set
-ifdef MAXOPT
-CCOMFLAGS += /GL
-LDFLAGS += /LTCG
+# use link-time optimizations when enabled
+ifneq ($(OPTIMIZE),0)
+ifdef LTO
 AR += /LTCG
+endif
 endif
 
 # disable warnings and link against bufferoverflowu for 64-bit targets
@@ -147,7 +144,12 @@ endif
 
 # enable basic run-time checks in non-optimized build
 ifeq ($(OPTIMIZE),0)
+ifndef FASTDEBUG
 CCOMFLAGS += /RTC1
+else
+# disable the stack check since it has quite a speed impact
+CCOMFLAGS += /RTCu
+endif
 endif
 
 ifdef MSVC_ANALYSIS
@@ -177,6 +179,11 @@ CCOMFLAGS += /wd4005
 
 # disable behavior change: 'member1' called instead of 'member2' warning
 CCOMFLAGS += /wd4350
+
+# only show deprecation warnings when enabled
+ifndef DEPRECATED
+CCOMFLAGS += /wd4996
+endif
 
 # explicitly set the entry point for UNICODE builds
 LDFLAGS += /ENTRY:wmainCRTStartup

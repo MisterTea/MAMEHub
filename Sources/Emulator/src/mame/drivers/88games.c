@@ -7,9 +7,7 @@
 #include "emu.h"
 #include "cpu/m6809/konami.h"
 #include "cpu/z80/z80.h"
-#include "video/konicdev.h"
 #include "sound/2151intf.h"
-#include "sound/upd7759.h"
 #include "machine/nvram.h"
 #include "includes/88games.h"
 
@@ -24,7 +22,7 @@
 
 INTERRUPT_GEN_MEMBER(_88games_state::k88games_interrupt)
 {
-	if (k052109_is_irq_enabled(m_k052109))
+	if (m_k052109->is_irq_enabled())
 		irq0_line_hold(device);
 }
 
@@ -35,9 +33,9 @@ READ8_MEMBER(_88games_state::bankedram_r)
 	else
 	{
 		if (m_zoomreadroms)
-			return k051316_rom_r(m_k051316, space, offset);
+			return m_k051316->rom_r(space, offset);
 		else
-			return k051316_r(m_k051316, space, offset);
+			return m_k051316->read(space, offset);
 	}
 }
 
@@ -46,7 +44,7 @@ WRITE8_MEMBER(_88games_state::bankedram_w)
 	if (m_videobank)
 		m_ram[offset] = data;
 	else
-		k051316_w(m_k051316, space, offset, data);
+		m_k051316->write(space, offset, data);
 }
 
 WRITE8_MEMBER(_88games_state::k88games_5f84_w)
@@ -74,41 +72,41 @@ WRITE8_MEMBER(_88games_state::speech_control_w)
 	m_speech_chip = (data & 4) ? 1 : 0;
 	upd7759_device *upd = m_speech_chip ? m_upd7759_2 : m_upd7759_1;
 
-	upd7759_reset_w(upd, data & 2);
-	upd7759_start_w(upd, data & 1);
+	upd->reset_w(data & 2);
+	upd->start_w(data & 1);
 }
 
 WRITE8_MEMBER(_88games_state::speech_msg_w)
 {
 	upd7759_device *upd = m_speech_chip ? m_upd7759_2 : m_upd7759_1;
 
-	upd7759_port_w(upd, space, 0, data);
+	upd->port_w(space, 0, data);
 }
 
 /* special handlers to combine 052109 & 051960 */
 READ8_MEMBER(_88games_state::k052109_051960_r)
 {
-	if (k052109_get_rmrd_line(m_k052109) == CLEAR_LINE)
+	if (m_k052109->get_rmrd_line() == CLEAR_LINE)
 	{
 		if (offset >= 0x3800 && offset < 0x3808)
-			return k051937_r(m_k051960, space, offset - 0x3800);
+			return m_k051960->k051937_r(space, offset - 0x3800);
 		else if (offset < 0x3c00)
-			return k052109_r(m_k052109, space, offset);
+			return m_k052109->read(space, offset);
 		else
-			return k051960_r(m_k051960, space, offset - 0x3c00);
+			return m_k051960->k051960_r(space, offset - 0x3c00);
 	}
 	else
-		return k052109_r(m_k052109, space, offset);
+		return m_k052109->read(space, offset);
 }
 
 WRITE8_MEMBER(_88games_state::k052109_051960_w)
 {
 	if (offset >= 0x3800 && offset < 0x3808)
-		k051937_w(m_k051960, space, offset - 0x3800, data);
+		m_k051960->k051937_w(space, offset - 0x3800, data);
 	else if (offset < 0x3c00)
-		k052109_w(m_k052109, space, offset, data);
+		m_k052109->write(space, offset, data);
 	else
-		k051960_w(m_k051960, space, offset - 0x3c00, data);
+		m_k051960->k051960_w(space, offset - 0x3c00, data);
 }
 
 /*************************************
@@ -132,7 +130,7 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, _88games_state )
 	AM_RANGE(0x5f96, 0x5f96) AM_READ_PORT("IN2")
 	AM_RANGE(0x5f97, 0x5f97) AM_READ_PORT("DSW1")
 	AM_RANGE(0x5f9b, 0x5f9b) AM_READ_PORT("DSW2")
-	AM_RANGE(0x5fc0, 0x5fcf) AM_DEVWRITE_LEGACY("k051316", k051316_ctrl_w)
+	AM_RANGE(0x5fc0, 0x5fcf) AM_DEVWRITE("k051316", k051316_device, ctrl_w)
 	AM_RANGE(0x4000, 0x7fff) AM_READWRITE(k052109_051960_r, k052109_051960_w)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -288,7 +286,7 @@ static KONAMI_SETLINES_CALLBACK( k88games_banking )
 	state->m_videobank = lines & 0x10;
 
 	/* bit 5 = enable char ROM reading through the video RAM */
-	k052109_set_rmrd_line(state->m_k052109, (lines & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+	state->m_k052109->set_rmrd_line((lines & 0x20) ? ASSERT_LINE : CLEAR_LINE);
 
 	/* bit 6 is unknown, 1 most of the time */
 

@@ -11,8 +11,6 @@
 
 #include "emu.h"
 #include "cpu/m6809/hd6309.h"
-#include "sound/k007232.h"
-#include "video/konicdev.h"
 #include "includes/konamipt.h"
 #include "includes/fastlane.h"
 
@@ -21,9 +19,9 @@ TIMER_DEVICE_CALLBACK_MEMBER(fastlane_state::fastlane_scanline)
 	int scanline = param;
 
 	address_space &space = generic_space();
-	if(scanline == 240 && k007121_ctrlram_r(m_k007121, space, 7) & 0x02) // vblank irq
+	if(scanline == 240 && m_k007121->ctrlram_r(space, 7) & 0x02) // vblank irq
 		m_maincpu->set_input_line(HD6309_IRQ_LINE, HOLD_LINE);
-	else if(((scanline % 32) == 0) && k007121_ctrlram_r(m_k007121, space, 7) & 0x01) // timer irq
+	else if(((scanline % 32) == 0) && m_k007121->ctrlram_r(space, 7) & 0x01) // timer irq
 		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
@@ -31,7 +29,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(fastlane_state::fastlane_scanline)
 WRITE8_MEMBER(fastlane_state::k007121_registers_w)
 {
 	if (offset < 8)
-		k007121_ctrl_w(m_k007121, space, offset, data);
+		m_k007121->ctrl_w(space, offset, data);
 	else    /* scroll registers */
 		m_k007121_regs[offset] = data;
 }
@@ -46,7 +44,7 @@ WRITE8_MEMBER(fastlane_state::fastlane_bankswitch_w)
 	membank("bank1")->set_entry((data & 0x0c) >> 2);
 
 	/* bit 4: bank # for the 007232 (chip 2) */
-	k007232_set_bank(m_k007232_2, 0 + ((data & 0x10) >> 4), 2 + ((data & 0x10) >> 4));
+	m_k007232_2->set_bank(0 + ((data & 0x10) >> 4), 2 + ((data & 0x10) >> 4));
 
 	/* other bits seems to be unused */
 }
@@ -56,22 +54,22 @@ WRITE8_MEMBER(fastlane_state::fastlane_bankswitch_w)
 
 READ8_MEMBER(fastlane_state::fastlane_k1_k007232_r)
 {
-	return k007232_r(m_k007232_1, space, offset ^ 1);
+	return m_k007232_1->read(space, offset ^ 1);
 }
 
 WRITE8_MEMBER(fastlane_state::fastlane_k1_k007232_w)
 {
-	k007232_w(m_k007232_1, space, offset ^ 1, data);
+	m_k007232_1->write(space, offset ^ 1, data);
 }
 
 READ8_MEMBER(fastlane_state::fastlane_k2_k007232_r)
 {
-	return k007232_r(m_k007232_2, space, offset ^ 1);
+	return m_k007232_2->read(space, offset ^ 1);
 }
 
 WRITE8_MEMBER(fastlane_state::fastlane_k2_k007232_w)
 {
-	k007232_w(m_k007232_2, space, offset ^ 1, data);
+	m_k007232_2->write(space, offset ^ 1, data);
 }
 static ADDRESS_MAP_START( fastlane_map, AS_PROGRAM, 8, fastlane_state )
 	AM_RANGE(0x0000, 0x005f) AM_RAM_WRITE(k007121_registers_w) AM_SHARE("k007121_regs") /* 007121 registers */
@@ -85,7 +83,7 @@ static ADDRESS_MAP_START( fastlane_map, AS_PROGRAM, 8, fastlane_state )
 	AM_RANGE(0x0c00, 0x0c00) AM_WRITE(fastlane_bankswitch_w)                                    /* bankswitch control */
 	AM_RANGE(0x0d00, 0x0d0d) AM_READWRITE(fastlane_k1_k007232_r, fastlane_k1_k007232_w) /* 007232 registers (chip 1) */
 	AM_RANGE(0x0e00, 0x0e0d) AM_READWRITE(fastlane_k2_k007232_r, fastlane_k2_k007232_w) /* 007232 registers (chip 2) */
-	AM_RANGE(0x0f00, 0x0f1f) AM_DEVREADWRITE_LEGACY("k051733", k051733_r, k051733_w)                                    /* 051733 (protection) */
+	AM_RANGE(0x0f00, 0x0f1f) AM_DEVREADWRITE("k051733", k051733_device, read, write)                                    /* 051733 (protection) */
 	AM_RANGE(0x1000, 0x17ff) AM_RAM AM_SHARE("paletteram")                                      /* Palette RAM */
 	AM_RANGE(0x1800, 0x1fff) AM_RAM                                                             /* Work RAM */
 	AM_RANGE(0x2000, 0x27ff) AM_RAM_WRITE(fastlane_vram1_w) AM_SHARE("videoram1")       /* Video RAM (chip 1) */
@@ -177,14 +175,14 @@ GFXDECODE_END
 
 WRITE8_MEMBER(fastlane_state::volume_callback0)
 {
-	k007232_set_volume(m_k007232_1, 0, (data >> 4) * 0x11, 0);
-	k007232_set_volume(m_k007232_1, 1, 0, (data & 0x0f) * 0x11);
+	m_k007232_1->set_volume(0, (data >> 4) * 0x11, 0);
+	m_k007232_1->set_volume(1, 0, (data & 0x0f) * 0x11);
 }
 
 WRITE8_MEMBER(fastlane_state::volume_callback1)
 {
-	k007232_set_volume(m_k007232_2, 0, (data >> 4) * 0x11, 0);
-	k007232_set_volume(m_k007232_2, 1, 0, (data & 0x0f) * 0x11);
+	m_k007232_2->set_volume(0, (data >> 4) * 0x11, 0);
+	m_k007232_2->set_volume(1, 0, (data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_interface_1 =

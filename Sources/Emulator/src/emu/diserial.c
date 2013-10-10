@@ -40,8 +40,8 @@ device_serial_interface::device_serial_interface(const machine_config &mconfig, 
 	}
 	m_rcv_clock = NULL;
 	m_tra_clock = NULL;
-	m_tra_baud = 0;
-	m_rcv_baud = 0;
+	m_tra_rate = attotime::never;
+	m_rcv_rate = attotime::never;
 	m_tra_flags = 0;
 	m_rcv_register_data = 0x8000;
 	m_rcv_bit_count = 0;
@@ -65,16 +65,16 @@ void device_serial_interface::interface_pre_start()
 	m_tra_clock = device().machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(device_serial_interface::tra_timer), this));
 }
 
-void device_serial_interface::set_rcv_rate(int baud)
+void device_serial_interface::set_rcv_rate(attotime rate)
 {
-	m_rcv_baud = baud;
+	m_rcv_rate = rate;
 	receive_register_reset();
 	m_rcv_clock->adjust(attotime::never);
 }
 
-void device_serial_interface::set_tra_rate(int baud)
+void device_serial_interface::set_tra_rate(attotime rate)
 {
-	m_tra_baud = baud;
+	m_tra_rate = rate;
 	transmit_register_reset();
 	m_tra_clock->adjust(attotime::never);
 }
@@ -131,20 +131,19 @@ void device_serial_interface::receive_register_reset()
 	m_rcv_flags |= RECEIVE_REGISTER_WAITING_FOR_START_BIT;
 }
 
-UINT8 device_serial_interface::check_for_start(UINT8 bit)
+WRITE_LINE_MEMBER(device_serial_interface::rx_w)
 {
-	m_rcv_line = bit;
+	m_rcv_line = state;
 	if(m_rcv_flags & RECEIVE_REGISTER_SYNCHRONISED)
-		return 0;
-	receive_register_update_bit(bit);
+		return;
+	receive_register_update_bit(state);
 	if(m_rcv_flags & RECEIVE_REGISTER_SYNCHRONISED)
 	{
-		if(m_rcv_clock && m_rcv_baud)
+		if(m_rcv_clock && !(m_rcv_rate.is_never()))
 			// make start delay just a bit longer to make sure we are called after the sender
-			m_rcv_clock->adjust(attotime::from_hz((m_rcv_baud*2)/3), 0, attotime::from_hz(m_rcv_baud));
-		return 1;
+			m_rcv_clock->adjust(((m_rcv_rate*3)/2), 0, m_rcv_rate);
 	}
-	return 0;
+	return;
 }
 
 /* this is generic code to be used in serial chip implementations */
@@ -283,8 +282,8 @@ void device_serial_interface::transmit_register_setup(UINT8 data_byte)
 	int i;
 	unsigned char transmit_data;
 
-	if(m_tra_clock && m_tra_baud)
-		m_tra_clock->adjust(attotime::from_hz(m_tra_baud), 0, attotime::from_hz(m_tra_baud));
+	if(m_tra_clock && !m_tra_rate.is_never())
+		m_tra_clock->adjust(m_tra_rate, 0, m_tra_rate);
 
 	m_tra_bit_count_transmitted = 0;
 	m_tra_bit_count = 0;
@@ -449,7 +448,7 @@ const device_type SERIAL_SOURCE = &device_creator<serial_source_device>;
 //-------------------------------------------------
 
 serial_source_device::serial_source_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SERIAL_SOURCE, "Serial source", tag, owner, clock),
+	: device_t(mconfig, SERIAL_SOURCE, "Serial source", tag, owner, clock, "serial_source", __FILE__),
 		device_serial_interface(mconfig, *this)
 {
 }

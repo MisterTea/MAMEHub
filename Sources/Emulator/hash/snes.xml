@@ -90,15 +90,6 @@ Undumped
           o   PCB pic    Adventures of Dr. Franken / Prototype
           ?              Plok! / Prototype 19930403
 
-  Voice-Kun audio discs
-  The Voice-Kun, often called Voicer Kun,
-  is a device which connects to the second controller port and acts as a remote control for CD players.
-          o   WP         Angelique - Voice Fantasy (Japan)
-          o   Box pic    Emit Vol. 1 - Toki no Maigo (Japan) (2 discs?)
-          o   Box pic    Emit Vol. 2 - Inochigake no Tabi (Japan) (2 discs?)
-          o   Box pic    Emit Vol. 3 - Watashi ni Sayonara wo (Japan) (2 discs?)
-          x   WP         Emit Value Set (Vol. 1-3)
-
   Cancelled (most of these titles are probably lost forever)
 
   - Asterix - USA, for 1993, Electro Brain
@@ -2066,7 +2057,6 @@ List of documented non retail cartridges
 
 	<software name="ppersia2p" cloneof="ppersia2">
 		<!-- legrospixel.com -->
-		<!-- Notes: identical to the final release, except it has full save capability -->
 		<description>Prince of Persia 2 - The Shadow &amp; The Flame (Euro, Prototype 19950417)</description>
 		<year>1995</year>
 		<publisher>Titus</publisher>
@@ -2274,7 +2264,7 @@ List of documented non retail cartridges
 		</part>
 	</software>
 
-	<software name="sdf1gpp" cloneof="sdf1gp" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="sdf1gpp" cloneof="sdf1gp">
 		<!-- John Weidman -->
 		<description>SD F-1 Grand Prix (Jpn, Prototype)</description>
 		<year>1995</year>
@@ -2607,6 +2597,34 @@ List of documented non retail cartridges
 				<rom name="driftout rom-2 usa 05-18-95 fe18.u2" size="524288" crc="6f9c1e99" sha1="6e8848a7aaac8bace38cb7f56be750beb786c949" offset="0x080000" />
 				<rom name="driftout rom-3 usa 05-18-95 e157.u3" size="524288" crc="54802853" sha1="789ec05b4236d2fc1e01cf5006607fcd68a76822" offset="0x100000" />
 				<rom name="driftout rom-4 usa 05-18-95 45e5.u4" size="524288" crc="1f1d34a3" sha1="c448199840340ead46cb3aa9bd24ffce7a9f6fa7" offset="0x180000" />
+			</dataarea>
+			<dataarea name="nvram" size="8192">
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="fireprw2p" cloneof="fireprw2">
+		<!-- snescentral.com -->
+		<!-- Notes: 99% identical to the final release -->
+		<description>Super Fire Pro Wrestling 2 (Jpn, Final Prototype)</description>
+		<year>1992</year>
+		<publisher>Human Entertainment</publisher>
+		<info name="serial" value="HUMAN No. 138" />
+		<info name="alt_title" value="スーパーファイヤープロレスリング2" />
+		<part name="cart" interface="snes_cart">
+			<feature name="pcb" value="SHVC-2P3B-01" />
+			<feature name="u1" value="U1 EPROM(J)" />
+			<feature name="u2" value="U2 EPROM(J)" />
+			<feature name="u3" value="U3 SRAM" />
+			<feature name="u4" value="U4 74F139" /> <!-- HD74LS139P -->
+			<feature name="u5" value="U5 CIC" />
+			<feature name="lockout" value="D411 C126 06B" />
+			<feature name="battery" value="BATT CR2032" />
+			<feature name="cart_model" value="unknown" />
+			<feature name="slot" value="lorom" />
+			<dataarea name="rom" size="1048576">
+				<rom name="u1" size="524288" crc="f4274ab3" sha1="8a420aa508d876508aa14878f2d5c77c4248a5c5" offset="0x000000" />
+				<rom name="u2" size="524288" crc="a6de134a" sha1="f2359829253b258e842f6a8f921c3272efd24d61" offset="0x080000" />
 			</dataarea>
 			<dataarea name="nvram" size="8192">
 			</dataarea>
@@ -8128,7 +8146,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="bsxsore" supported="no"> <!-- unemulated additional hardware (BSX) -->
+	<software name="bsxsore" supported="partial">
 		<description>BS-X - Sore wa Namae o Nusumareta Machi no Monogatari (Jpn, Rev. AB)</description>
 		<year>1995</year>
 		<publisher>Nintendo</publisher>
@@ -10055,7 +10073,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="dstall96" supported="no"> <!-- unemulated additional hardware (BSX) -->
+	<software name="dstall96" supported="partial">
 		<description>Derby Stallion 96 (Jpn)</description>
 		<year>1996</year>
 		<publisher>ASCII Entertainment</publisher>
@@ -14040,7 +14058,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="kirbysdb" cloneof="kirbyfun" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="kirbysdb" cloneof="kirbyfun">
 		<description>Hoshi no Kirby - Super Deluxe (Jpn)</description>
 		<year>1996</year>
 		<publisher>Nintendo</publisher>
@@ -14566,7 +14584,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="itoibass" supported="no"> <!-- unemulated additional hardware (BSX) -->
+	<software name="itoibass" supported="partial"> <!-- unemulated additional hardware (BSX) -->
 		<description>Itoi Shigesato no Bass Tsuri No. 1 (Jpn)</description>
 		<year>1997</year>
 		<publisher>Nintendo</publisher>
@@ -14609,7 +14627,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 <!-- wip-j -->
-	<software name="jl96drem" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="jl96drem" supported="partial">
 		<description>J.League '96 Dream Stadium (Jpn)</description>
 		<year>1996</year>
 		<publisher>Hudson</publisher>
@@ -15322,7 +15340,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="joushomj" supported="no"> <!-- unemulated additional hardware (BSX) -->
+	<software name="joushomj" supported="partial">
 		<description>Joushou Mahjong Tenpai (Jpn)</description>
 		<year>1995</year>
 		<publisher>Enix</publisher>
@@ -16045,7 +16063,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="kirbyss" cloneof="kirbyfun" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="kirbyss" cloneof="kirbyfun">
 		<description>Kirby Super Star (USA)</description>
 		<year>1996</year>
 		<publisher>Nintendo</publisher>
@@ -16116,7 +16134,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="kirbyfun" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="kirbyfun">
 		<description>Kirby's Fun Pak (Euro)</description>
 		<year>1996</year>
 		<publisher>Nintendo</publisher>
@@ -17383,7 +17401,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="haruaug3a" cloneof="haruaug3" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="haruaug3a" cloneof="haruaug3" supported="partial">
 		<description>Masters New - Harukanaru Augusta 3 (Jpn)</description>
 		<year>1995</year>
 		<publisher>T&amp;E Soft</publisher>
@@ -17847,7 +17865,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="miniyonk" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="miniyonk">
 		<description>Mini Yonku Shining Scorpion - Let's &amp; Go!! (Jpn)</description>
 		<year>1996</year>
 		<publisher>ASCII Entertainment</publisher>
@@ -19230,7 +19248,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="ongaku" supported="no"> <!-- unemulated additional hardware (BSX) -->
+	<software name="ongaku" supported="partial">
 		<description>Ongaku Tsukuru Kanadeeru (Jpn)</description>
 		<year>1996</year>
 		<publisher>ASCII Entertainment</publisher>
@@ -19859,7 +19877,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="pebble" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="pebble" supported="partial">
 		<description>Pebble Beach no Hatou New - Tournament Edition (Jpn)</description>
 		<year>1996</year>
 		<publisher>T&amp;E Soft</publisher>
@@ -19885,7 +19903,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="pgaeuro" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="pgaeuro">
 		<description>PGA European Tour (Euro)</description>
 		<year>1996</year>
 		<publisher>Black Pearl</publisher>
@@ -19909,7 +19927,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="pgaeurou" cloneof="pgaeuro" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="pgaeurou" cloneof="pgaeuro">
 		<description>PGA European Tour (USA)</description>
 		<year>1996</year>
 		<publisher>Black Pearl</publisher>
@@ -20297,7 +20315,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="przeo" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="przeo">
 		<description>Power Rangers Zeo - Battle Racers (Euro)</description>
 		<year>1996</year>
 		<publisher>Bandai</publisher>
@@ -21456,7 +21474,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="rpgtsuk2" supported="no"> <!-- unemulated additional hardware (BSX) -->
+	<software name="rpgtsuk2" supported="partial">
 		<description>RPG Tsukuru 2 (Jpn)</description>
 		<year>1996</year>
 		<publisher>ASCII Entertainment</publisher>
@@ -21600,7 +21618,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="samegame" supported="no"> <!-- unemulated additional hardware (BSX) -->
+	<software name="samegame">
 		<description>Same Game (Jpn)</description>
 		<year>1996</year>
 		<publisher>Hudson</publisher>
@@ -21846,7 +21864,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="sdgungnx" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="sdgungnx">
 		<description>SD Gundam G Next (Jpn)</description>
 		<year>1995</year>
 		<publisher>Bandai</publisher>
@@ -23212,7 +23230,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="soundtsu" supported="no"> <!-- unemulated additional hardware (BSX) -->
+	<software name="soundtsu" supported="partial">
 		<description>Sound Novel Tsukuru (Jpn)</description>
 		<year>1996</year>
 		<publisher>ASCII Entertainment</publisher>
@@ -23742,7 +23760,8 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="sfa2u" cloneof="sfa2" supported="no"> <!-- unemulated additional hardware (S-DD1) -->
+<!-- Even if S-DD1 is supported (see sfa2 & sfa2j), this game is not working... -->
+	<software name="sfa2u" cloneof="sfa2" supported="no">
 		<description>Street Fighter Alpha 2 (USA)</description>
 		<year>1996</year>
 		<publisher>Capcom</publisher>
@@ -24468,7 +24487,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="panicbw" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="panicbw">
 		<description>Super Bomberman - Panic Bomber W (Jpn)</description>
 		<year>1995</year>
 		<publisher>Hudson</publisher>
@@ -26533,7 +26552,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="smrpgj" cloneof="smrpg" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="smrpgj" cloneof="smrpg" supported="partial">
 		<description>Super Mario RPG (Jpn)</description>
 		<year>1996</year>
 		<publisher>Nintendo</publisher>
@@ -26559,7 +26578,7 @@ List of perfect retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="smrpg" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="smrpg" supported="partial">
 		<description>Super Mario RPG - Legend of the Seven Stars (USA)</description>
 		<year>1996</year>
 		<publisher>Nintendo</publisher>
@@ -32090,7 +32109,7 @@ List of verified retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="kirbysd" cloneof="kirbyfun" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="kirbysd" cloneof="kirbyfun">
 		<!-- single cartridge source: The Dumper (supplier: Y~K) -->
 		<description>Hoshi no Kirby - Super Deluxe (Jpn, Rev. B)</description>
 		<year>1996</year>
@@ -32421,7 +32440,7 @@ List of verified retail cartridges rom dumps
 		</part>
 	</software>
 
-	<software name="haruaug3" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="haruaug3" supported="partial">
 		<!-- single cartridge source: The Dumper (supplier: Y~K) -->
 		<description>Masters New - Harukanaru Augusta 3 (Jpn, Rev. A)</description>
 		<year>1993</year>
@@ -34089,7 +34108,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="asahishi" supported="no">
+	<software name="asahishi">
 		<description>Asahi Shinbun Rensai - Katou Hifumi Kudan Shougi - Shingiryuu (Jpn)</description>
 		<year>1995</year>
 		<publisher>Varie</publisher>
@@ -34097,7 +34116,8 @@ List of unclassified roms
 		<info name="release" value="19950922" />
 		<info name="alt_title" value="朝日新聞連載 加藤一二三九段将棋 心技流" />
 		<part name="cart" interface="snes_cart">
-			<feature name="slot" value="lorom" />
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
 			<dataarea name="rom" size="1048576">
 				<rom name="asahi shinbun rensai - katou hifumi kudan shougi - shingiryuu (japan).sfc" size="1048576" crc="506a8f77" sha1="eb1f8139d1490c268eb2c2cca3634bf1676e1c48" offset="0x000000" />
 			</dataarea>
@@ -36428,7 +36448,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="daisenx2" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="daisenx2">
 		<description>Daisenryaku Expert WWII - War in Europe (Jpn)</description>
 		<year>1997</year>
 		<publisher>ASCII Entertainment</publisher>
@@ -36781,7 +36801,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="derbyjo2" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="derbyjo2" supported="partial">
 		<description>Derby Jockey 2 (Jpn)</description>
 		<year>1995</year>
 		<publisher>Asmik</publisher>
@@ -37393,7 +37413,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="dbzhypd" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="dbzhypd">
 		<description>Dragon Ball Z - Hyper Dimension (Fra)</description>
 		<year>1996</year>
 		<publisher>Bandai</publisher>
@@ -37408,7 +37428,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="dbzhypdj" cloneof="dbzhypd" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="dbzhypdj" cloneof="dbzhypd">
 		<description>Dragon Ball Z - Hyper Dimension (Jpn)</description>
 		<year>1996</year>
 		<publisher>Bandai</publisher>
@@ -41731,7 +41751,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="kirbysda" cloneof="kirbyfun" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="kirbysda" cloneof="kirbyfun">
 		<description>Hoshi no Kirby - Super Deluxe (Jpn, Rev. A)</description>
 		<year>1996</year>
 		<publisher>Nintendo</publisher>
@@ -41749,7 +41769,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="kirby3j" cloneof="kirby3" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="kirby3j" cloneof="kirby3" supported="partial">
 		<description>Hoshi no Kirby 3 (Jpn)</description>
 		<year>1998</year>
 		<publisher>Nintendo</publisher>
@@ -42786,7 +42806,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="jikkparo" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="jikkparo">
 		<description>Jikkyou Oshaberi Parodius (Jpn)</description>
 		<year>1995</year>
 		<publisher>Konami</publisher>
@@ -43307,7 +43327,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="jumpind" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="jumpind" supported="partial">
 		<description>Jumpin' Derby (Jpn)</description>
 		<year>1996</year>
 		<publisher>Naxat Soft</publisher>
@@ -43687,7 +43707,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="kakinoki" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="kakinoki" supported="partial">
 		<description>Kakinoki Shougi (Jpn)</description>
 		<year>1995</year>
 		<publisher>ASCII Entertainment</publisher>
@@ -44379,7 +44399,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="kirby3" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="kirby3" supported="partial">
 		<description>Kirby's Dream Land 3 (USA)</description>
 		<year>1997</year>
 		<publisher>Nintendo</publisher>
@@ -46373,7 +46393,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="marvelou" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="marvelou" supported="partial">
 		<description>Marvelous - Mou Hitotsu no Takarajima (Jpn)</description>
 		<year>1996</year>
 		<publisher>Nintendo</publisher>
@@ -49917,7 +49937,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="pga96" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="pga96">
 		<description>PGA Tour 96 (Euro)</description>
 		<year>1996</year>
 		<publisher>Black Pearl</publisher>
@@ -49932,7 +49952,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="pga96u" cloneof="pga96" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="pga96u" cloneof="pga96">
 		<description>PGA Tour 96 (USA)</description>
 		<year>1996</year>
 		<publisher>Black Pearl</publisher>
@@ -49948,7 +49968,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="pga" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="pga">
 		<description>PGA Tour Golf (Euro)</description>
 		<year>1992</year>
 		<publisher>Electronic Arts</publisher>
@@ -50910,7 +50930,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="przeou" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="przeou" cloneof="przeo">
 		<description>Power Rangers Zeo - Battle Racers (USA)</description>
 		<year>1996</year>
 		<publisher>Bandai</publisher>
@@ -51077,7 +51097,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="prokishi" supported="no">
+	<software name="prokishi">
 		<description>Pro Kishi Jinsei Simulation - Shougi no Hanamichi (Jpn)</description>
 		<year>1996</year>
 		<publisher>Atlus</publisher>
@@ -51085,7 +51105,8 @@ List of unclassified roms
 		<info name="release" value="19960216" />
 		<info name="alt_title" value="プロ棋士人生シミュレーション 将棋の 花道" />
 		<part name="cart" interface="snes_cart">
-			<feature name="slot" value="lorom" />
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
 			<dataarea name="rom" size="1048576">
 				<rom name="pro kishi jinsei simulation - shougi no hanamichi (japan).sfc" size="1048576" crc="d10439d4" sha1="21b2741f3f6967cb28ee2b8f4a02822fb48bc82f" offset="0x000000" />
 			</dataarea>
@@ -51892,7 +51913,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="rinkaiho" supported="no">
+	<software name="rinkaiho">
 		<description>Rin Kaihou Kudan no Igo Taidou (Jpn)</description>
 		<year>1996</year>
 		<publisher>ASK Kodansha</publisher>
@@ -51900,7 +51921,8 @@ List of unclassified roms
 		<info name="release" value="19960322" />
 		<info name="alt_title" value="林海峯九段の囲碁大道" />
 		<part name="cart" interface="snes_cart">
-			<feature name="slot" value="lorom" />
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
 			<dataarea name="rom" size="1572864">
 				<rom name="rin kaihou kudan no igo taidou (japan).sfc" size="1572864" crc="b56ec084" sha1="1dbc6af7bb19a5e704955967955409c1eb1eb1f6" offset="0x000000" />
 			</dataarea>
@@ -52325,7 +52347,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="saikouso" supported="no">
+	<software name="saikouso">
 		<description>Saikousoku Shikou Shougi Mahjong (Jpn)</description>
 		<year>1995</year>
 		<publisher>Varie</publisher>
@@ -52333,7 +52355,8 @@ List of unclassified roms
 		<info name="release" value="19950331" />
 		<info name="alt_title" value="最高速思考 将棋麻雀" />
 		<part name="cart" interface="snes_cart">
-			<feature name="slot" value="lorom" />
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
 			<dataarea name="rom" size="524288">
 				<rom name="saikousoku shikou shougi mahjong (japan).sfc" size="524288" crc="a16cc0a7" sha1="d6d22bfdbb821b18bb0859e545355d0919424496" offset="0x000000" />
 			</dataarea>
@@ -52525,7 +52548,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="sdf1gp" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="sdf1gp">
 		<description>SD F-1 Grand Prix (Jpn)</description>
 		<year>1995</year>
 		<publisher>Video System</publisher>
@@ -53239,7 +53262,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="shinshog" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="shinshog">
 		<description>Shin Shougi Club (Jpn)</description>
 		<year>1995</year>
 		<publisher>Hect</publisher>
@@ -53486,7 +53509,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="shogisai" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="shogisai">
 		<description>Shougi Saikyou (Jpn)</description>
 		<year>1995</year>
 		<publisher>Magical</publisher>
@@ -53504,7 +53527,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="shogisa2" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="shogisa2">
 		<description>Shougi Saikyou II - Jissen Taikyoku Hen (Jpn)</description>
 		<year>1996</year>
 		<publisher>Magical</publisher>
@@ -57566,7 +57589,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="srobotg" supported="no"> <!-- unemulated additional hardware (SA1) -->
+	<software name="srobotg" supported="partial">
 		<description>Super Robot Taisen Gaiden - Masou Kishin - The Lord of Elemental (Jpn)</description>
 		<year>1996</year>
 		<publisher>Banpresto</publisher>
@@ -57654,7 +57677,8 @@ List of unclassified roms
 		<info name="release" value="19951229" />
 		<info name="alt_title" value="スーパー 将棋3 棋太平" />
 		<part name="cart" interface="snes_cart">
-			<feature name="slot" value="lorom" />
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
 			<dataarea name="rom" size="1572864">
 				<rom name="super shougi 3 - kitaihei (japan).sfc" size="1572864" crc="323c6265" sha1="43745f23d0e8a42c68f36c318894cab143bc3aae" offset="0x000000" />
 			</dataarea>
@@ -58648,7 +58672,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="taikyoid" supported="no">
+	<software name="taikyoid">
 		<description>Taikyoku Igo - Idaten (Jpn)</description>
 		<year>1995</year>
 		<publisher>Bullet-Proof Software</publisher>
@@ -58656,7 +58680,8 @@ List of unclassified roms
 		<info name="release" value="19951229" />
 		<info name="alt_title" value="対局囲碁 韋駄天" />
 		<part name="cart" interface="snes_cart">
-			<feature name="slot" value="lorom" />
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
 			<dataarea name="rom" size="1048576">
 				<rom name="taikyoku igo - idaten (japan).sfc" size="1048576" crc="b5db72b6" sha1="ab83bf94b9830e7335090f00980a16934e3acff7" offset="0x000000" />
 			</dataarea>
@@ -58711,7 +58736,7 @@ List of unclassified roms
 		</part>
 	</software>
 
-	<software name="takemiya" supported="no">
+	<software name="takemiya">
 		<description>Takemiya Masaki Kudan no Igo Taishou (Jpn)</description>
 		<year>1995</year>
 		<publisher>KSS</publisher>
@@ -58719,7 +58744,8 @@ List of unclassified roms
 		<info name="release" value="19950811" />
 		<info name="alt_title" value="武宮正樹九段の囲碁大将" />
 		<part name="cart" interface="snes_cart">
-			<feature name="slot" value="lorom" />
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
 			<dataarea name="rom" size="524288">
 				<rom name="takemiya masaki kudan no igo taishou (japan).sfc" size="524288" crc="639022ab" sha1="4f396648c9c60cd92769c1789f37b06cd1cfcd13" offset="0x000000" />
 			</dataarea>

@@ -1,12 +1,19 @@
 #include "imagedev/chd_cd.h"
 #include "machine/gdrom.h"
+#include "machine/ataintf.h"
+#include "machine/intelfsh.h"
 
 class dc_cons_state : public dc_state
 {
 public:
 	dc_cons_state(const machine_config &mconfig, device_type type, const char *tag)
-		: dc_state(mconfig, type, tag)
+		: dc_state(mconfig, type, tag),
+		m_ata(*this, "ata")
+//        m_dcflash(*this, "dcflash")
 		{ }
+
+	required_device<ata_interface_device> m_ata;
+//  required_device<macronix_29lv160tmc_device> m_dcflash;
 
 	DECLARE_DRIVER_INIT(dc);
 	DECLARE_DRIVER_INIT(dcus);
@@ -21,26 +28,19 @@ public:
 	DECLARE_READ64_MEMBER(dc_arm_r);
 	DECLARE_WRITE64_MEMBER(dc_arm_w);
 	DECLARE_WRITE_LINE_MEMBER(aica_irq);
-	void gdrom_raise_irq();
+	DECLARE_WRITE_LINE_MEMBER(sh4_aica_irq);
+	DECLARE_WRITE_LINE_MEMBER(ata_interrupt);
+
 	TIMER_CALLBACK_MEMBER( atapi_xfer_end );
-	READ32_MEMBER( atapi_r );
-	WRITE32_MEMBER( atapi_w );
+
 	void dreamcast_atapi_init();
-	void dreamcast_atapi_reset();
-	inline int decode_reg32_64(UINT32 offset, UINT64 mem_mask, UINT64 *shift);
-	READ64_MEMBER( dc_mess_gdrom_r );
-	WRITE64_MEMBER( dc_mess_gdrom_w );
-	READ64_MEMBER( dc_mess_g1_ctrl_r );
-	WRITE64_MEMBER( dc_mess_g1_ctrl_w );
+	DECLARE_READ32_MEMBER( dc_mess_g1_ctrl_r );
+	DECLARE_WRITE32_MEMBER( dc_mess_g1_ctrl_w );
+//  DECLARE_READ8_MEMBER( dc_flash_r );
+//  DECLARE_WRITE8_MEMBER( dc_flash_w );
 
 private:
 	UINT64 PDTRA, PCTRA;
-
-	UINT8 *atapi_regs;
 	emu_timer *atapi_timer;
-	gdrom_device *gdrom;
-	UINT8 *atapi_data;
-	int atapi_data_ptr, atapi_data_len, atapi_xferlen, atapi_xferbase, atapi_cdata_wait, atapi_xfermod;
-	UINT32 gdrom_alt_status;
-	UINT8 xfer_mode;
+	int atapi_xferlen, atapi_xferbase;
 };

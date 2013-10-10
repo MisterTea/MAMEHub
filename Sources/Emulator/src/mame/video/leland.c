@@ -29,22 +29,21 @@
 
 TIMER_CALLBACK_MEMBER(leland_state::scanline_callback)
 {
-	device_t *audio = machine().device("custom");
 	int scanline = param;
 
 	/* update the DACs */
 	if (!(m_dac_control & 0x01))
-		leland_dac_update(audio, 0, m_video_ram[(m_last_scanline) * 256 + 160]);
+		m_dac0->write_unsigned8(m_video_ram[(m_last_scanline) * 256 + 160]);
 
 	if (!(m_dac_control & 0x02))
-		leland_dac_update(audio, 1, m_video_ram[(m_last_scanline) * 256 + 161]);
+		m_dac1->write_unsigned8(m_video_ram[(m_last_scanline) * 256 + 161]);
 
 	m_last_scanline = scanline;
 
 	scanline = (scanline+1) % 256;
 
 	/* come back at the next appropriate scanline */
-	m_scanline_timer->adjust(machine().primary_screen->time_until_pos(scanline), scanline);
+	m_scanline_timer->adjust(m_screen->time_until_pos(scanline), scanline);
 }
 
 
@@ -61,15 +60,14 @@ VIDEO_START_MEMBER(leland_state,leland)
 
 	/* scanline timer */
 	m_scanline_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(leland_state::scanline_callback),this));
-	m_scanline_timer->adjust(machine().primary_screen->time_until_pos(0));
+	m_scanline_timer->adjust(m_screen->time_until_pos(0));
 
 }
-
 
 VIDEO_START_MEMBER(leland_state,ataxx)
 {
 	/* first do the standard stuff */
-	VIDEO_START_CALL_MEMBER(leland);
+	m_video_ram = auto_alloc_array_clear(machine(), UINT8, VRAM_SIZE);
 
 	/* allocate memory */
 	m_ataxx_qram = auto_alloc_array_clear(machine(), UINT8, QRAM_SIZE);
@@ -85,9 +83,9 @@ VIDEO_START_MEMBER(leland_state,ataxx)
 
 WRITE8_MEMBER(leland_state::leland_scroll_w)
 {
-	int scanline = machine().primary_screen->vpos();
+	int scanline = m_screen->vpos();
 	if (scanline > 0)
-		machine().primary_screen->update_partial(scanline - 1);
+		m_screen->update_partial(scanline - 1);
 
 	/* adjust the proper scroll value */
 	switch (offset)
@@ -117,7 +115,7 @@ WRITE8_MEMBER(leland_state::leland_scroll_w)
 
 WRITE8_MEMBER(leland_state::leland_gfx_port_w)
 {
-	machine().primary_screen->update_partial(machine().primary_screen->vpos());
+	m_screen->update_partial(m_screen->vpos());
 	m_gfxbank = data;
 }
 
@@ -204,9 +202,9 @@ void leland_state::leland_vram_port_w(address_space &space, int offset, int data
 
 	/* don't fully understand why this is needed.  Isn't the
 	   video RAM just one big RAM? */
-	int scanline = space.machine().primary_screen->vpos();
+	int scanline = m_screen->vpos();
 	if (scanline > 0)
-		space.machine().primary_screen->update_partial(scanline - 1);
+		m_screen->update_partial(scanline - 1);
 
 	if (LOG_COMM && addr >= 0xf000)
 		logerror("%s:%s comm write %04X = %02X\n", space.machine().describe_context(), num ? "slave" : "master", addr, data);
@@ -526,7 +524,6 @@ MACHINE_CONFIG_FRAGMENT( leland_video )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_UPDATE_DRIVER(leland_state, screen_update_leland)
 MACHINE_CONFIG_END
-
 
 MACHINE_CONFIG_DERIVED( ataxx_video, leland_video )
 	MCFG_VIDEO_START_OVERRIDE(leland_state,ataxx)

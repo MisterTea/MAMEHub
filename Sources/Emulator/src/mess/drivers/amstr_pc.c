@@ -88,11 +88,11 @@ static ADDRESS_MAP_START(ppc512_io, AS_IO, 16, amstrad_pc_state )
 	AM_RANGE(0x007a, 0x007b) AM_READWRITE8(pc1640_mouse_y_r, pc1640_mouse_y_w, 0xffff)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r, pc_page_w, 0xffff)
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
-	AM_RANGE(0x0278, 0x027b) AM_READ8(pc200_port278_r, 0xffff) AM_DEVWRITE8_LEGACY("lpt_2", pc_lpt_w, 0x00ff)
+	AM_RANGE(0x0278, 0x027b) AM_READ8(pc200_port278_r, 0xffff) AM_DEVWRITE8("lpt_2", pc_lpt_device, write, 0x00ff)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE8("ins8250_3", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
-	AM_RANGE(0x0378, 0x037b) AM_READ8(pc200_port378_r, 0xffff) AM_DEVWRITE8_LEGACY("lpt_1", pc_lpt_w, 0x00ff)
-	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0x00ff)
+	AM_RANGE(0x0378, 0x037b) AM_READ8(pc200_port378_r, 0xffff) AM_DEVWRITE8("lpt_1", pc_lpt_device, write, 0x00ff)
+	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8("lpt_0", pc_lpt_device, read, write, 0x00ff)
 	AM_RANGE(0x03e8, 0x03ef) AM_DEVREADWRITE8("ins8250_2", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_xt_device, map, 0xffff)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
@@ -116,11 +116,11 @@ static ADDRESS_MAP_START(pc200_io, AS_IO, 16, amstrad_pc_state )
 	AM_RANGE(0x007a, 0x007b) AM_READWRITE8(pc1640_mouse_y_r, pc1640_mouse_y_w, 0xffff)
 	AM_RANGE(0x0080, 0x0087) AM_READWRITE8(pc_page_r, pc_page_w, 0xffff)
 	AM_RANGE(0x0200, 0x0207) AM_DEVREADWRITE8("pc_joy", pc_joy_device, joy_port_r, joy_port_w, 0xffff)
-	AM_RANGE(0x0278, 0x027b) AM_READ8(pc200_port278_r, 0xffff) AM_DEVWRITE8_LEGACY("lpt_2", pc_lpt_w, 0x00ff)
+	AM_RANGE(0x0278, 0x027b) AM_READ8(pc200_port278_r, 0xffff) AM_DEVWRITE8("lpt_2", pc_lpt_device, write, 0x00ff)
 	AM_RANGE(0x02e8, 0x02ef) AM_DEVREADWRITE8("ins8250_3", ins8250_device, ins8250_r,  ins8250_w, 0xffff)
 	AM_RANGE(0x02f8, 0x02ff) AM_DEVREADWRITE8("ins8250_1", ins8250_device, ins8250_r, ins8250_w, 0xffff)
-	AM_RANGE(0x0378, 0x037b) AM_READ8(pc200_port378_r, 0xffff) AM_DEVWRITE8_LEGACY("lpt_1", pc_lpt_w, 0x00ff)
-	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8_LEGACY("lpt_0", pc_lpt_r, pc_lpt_w, 0x00ff)
+	AM_RANGE(0x0378, 0x037b) AM_READ8(pc200_port378_r, 0xffff) AM_DEVWRITE8("lpt_1", pc_lpt_device, write, 0x00ff)
+	AM_RANGE(0x03bc, 0x03bf) AM_DEVREADWRITE8("lpt_0", pc_lpt_device, read, write, 0x00ff)
 	AM_RANGE(0x03e8, 0x03ef) AM_DEVREADWRITE8("ins8250_2", ins8250_device, ins8250_r, ins8250_w, 0xffff)
 	AM_RANGE(0x03f0, 0x03f7) AM_DEVICE8("fdc", pc_fdc_xt_device, map, 0xffff)
 	AM_RANGE(0x03f8, 0x03ff) AM_DEVREADWRITE8("ins8250_0", ins8250_device, ins8250_r, ins8250_w, 0xffff)
@@ -210,8 +210,6 @@ Since pc200 is anyway NOT_WORKING, I comment out this one */
 
 INPUT_PORTS_END
 
-static const unsigned i86_address_mask = 0x000fffff;
-
 static const pc_lpt_interface pc_lpt_config =
 {
 	DEVCB_CPU_INPUT_LINE("maincpu", 0)
@@ -236,8 +234,7 @@ SLOT_INTERFACE_END
 	MCFG_CPU_ADD("maincpu", type, clock)                \
 	MCFG_CPU_PROGRAM_MAP(mem##_map) \
 	MCFG_CPU_IO_MAP(port##_io)  \
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", amstrad_pc_state, vblankfunc, "screen", 0, 1) \
-	MCFG_CPU_CONFIG(i86_address_mask)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", amstrad_pc_state, vblankfunc, "screen", 0, 1)
 
 
 static const gfx_layout pc200_charlayout =
@@ -414,9 +411,12 @@ ROM_START( pc200 )
 	ROM_SYSTEM_BIOS(0, "v15", "v1.5")
 	ROMX_LOAD("40185-2.ic129", 0xfc001, 0x2000, CRC(41302eb8) SHA1(8b4b2afea543b96b45d6a30365281decc15f2932), ROM_SKIP(1) | ROM_BIOS(1)) // v2
 	ROMX_LOAD("40184-2.ic132", 0xfc000, 0x2000, CRC(71b84616) SHA1(4135102a491b25fc659d70b957e07649f3eacf24), ROM_SKIP(1) | ROM_BIOS(1)) // v2
-	ROM_SYSTEM_BIOS(1, "v12", "v1.2")
-	ROMX_LOAD("40185.ic129", 0xfc001, 0x2000, CRC(c2b4eeac) SHA1(f11015fadf0c16d86ce2c5047be3e6a4782044f7), ROM_SKIP(1) | ROM_BIOS(2))
-	ROMX_LOAD("40184.ic132", 0xfc000, 0x2000, CRC(b22704a6) SHA1(dadd573db6cd34f339f2f0ae55b07537924c024a), ROM_SKIP(1) | ROM_BIOS(2))
+	ROM_SYSTEM_BIOS(1, "v13", "v1.3")
+	ROMX_LOAD("40185v13.ic129", 0xfc001, 0x2000, CRC(f082f08e) SHA1(b332db419033588a7380bfecdf46104974347341), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD("40184v13.ic132", 0xfc000, 0x2000, CRC(5daf6068) SHA1(93a2ccfb0e29c8f2c98f06c64bb0ea0b3acafb13), ROM_SKIP(1) | ROM_BIOS(2))
+	ROM_SYSTEM_BIOS(2, "v12", "v1.2")
+	ROMX_LOAD("40185.ic129", 0xfc001, 0x2000, CRC(c2b4eeac) SHA1(f11015fadf0c16d86ce2c5047be3e6a4782044f7), ROM_SKIP(1) | ROM_BIOS(3))
+	ROMX_LOAD("40184.ic132", 0xfc000, 0x2000, CRC(b22704a6) SHA1(dadd573db6cd34f339f2f0ae55b07537924c024a), ROM_SKIP(1) | ROM_BIOS(3))
 	// also mapped to f0000, f4000, f8000
 	ROM_REGION(0x08100,"gfx1", 0)
 	ROM_LOAD("40109.ic159",     0x00000, 0x08000, CRC(a8b67639) SHA1(99663bfb61798526e092205575370c2ad34249a1))

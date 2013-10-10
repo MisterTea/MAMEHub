@@ -95,6 +95,7 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_SNAPNAME,                                   "%g/%i",     OPTION_STRING,     "override of the default snapshot/movie naming; %g == gamename, %i == index" },
 	{ OPTION_SNAPSIZE,                                   "auto",      OPTION_STRING,     "specify snapshot/movie resolution (<width>x<height>) or 'auto' to use minimal size " },
 	{ OPTION_SNAPVIEW,                                   "internal",  OPTION_STRING,     "specify snapshot/movie view or 'internal' to use internal pixel-aspect views" },
+	{ OPTION_STATENAME,                                  "%g",        OPTION_STRING,     "override of the default state subfolder naming; %g == gamename" },
 	{ OPTION_BURNIN,                                     "0",         OPTION_BOOLEAN,    "create burn-in snapshots for each screen" },
 
 	// performance options
@@ -188,6 +189,8 @@ const options_entry emu_options::s_option_entries[] =
 
 	// misc options
 	{ NULL,                                              NULL,        OPTION_HEADER,     "CORE MISC OPTIONS" },
+	{ OPTION_DRC,                                        "1",         OPTION_BOOLEAN,    "enable DRC cpu core if available" },
+	{ OPTION_DRC_USE_C,                                  "0",         OPTION_BOOLEAN,    "force DRC use C backend" },
 	{ OPTION_BIOS,                                       NULL,        OPTION_STRING,     "select the system BIOS to use" },
 	{ OPTION_CHEAT ";c",                                 "0",         OPTION_BOOLEAN,    "enable cheat subsystem" },
 	{ OPTION_SKIP_GAMEINFO,                              "0",         OPTION_BOOLEAN,    "skip displaying the information screen at startup" },
@@ -198,7 +201,9 @@ const options_entry emu_options::s_option_entries[] =
 	{ OPTION_AUTOBOOT_COMMAND ";ab",                     NULL,        OPTION_STRING,     "command to execute after machine boot" },
 	{ OPTION_AUTOBOOT_DELAY,                             "2",         OPTION_INTEGER,    "timer delay in sec to trigger command execution on autoboot" },
 	{ OPTION_AUTOBOOT_SCRIPT ";script",                  NULL,        OPTION_STRING,     "lua script to execute after machine boot" },
-
+	{ OPTION_HTTP,                                       "0",         OPTION_BOOLEAN,    "enable local http server" },
+	{ OPTION_HTTP_PORT,                                  "8080",      OPTION_INTEGER,    "http server listener port" },
+	{ OPTION_HTTP_PATH,                                  "web",       OPTION_STRING,     "path to web files" },
 
     // net options
 	{ "username",               "Player",         OPTION_STRING,    "Username for displaying network info" },
@@ -209,7 +214,6 @@ const options_entry emu_options::s_option_entries[] =
 	{ "selfport",               "5805",         OPTION_INTEGER,    "local port for other peers to connect to" },
 	{ "secondsbetweensync",               "30",         OPTION_INTEGER,    "Number of seconds to wait between syncs" },
 	{ "synctransferseconds",               "10",         OPTION_INTEGER,    "Number of seconds to spend transfering the sync" },
-
 
 	{ NULL }
 };

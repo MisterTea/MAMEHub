@@ -112,8 +112,8 @@ void device_sega8_cart_interface::ram_alloc(running_machine &machine, UINT32 siz
 //  sega8_cart_slot_device - constructor
 //-------------------------------------------------
 
-sega8_cart_slot_device::sega8_cart_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, bool is_card) :
-						device_t(mconfig, type, name, tag, owner, clock),
+sega8_cart_slot_device::sega8_cart_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, bool is_card, const char *shortname, const char *source) :
+						device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 						device_image_interface(mconfig, *this),
 						device_slot_interface(mconfig, *this),
 						m_type(SEGA8_BASE_ROM),
@@ -125,7 +125,7 @@ sega8_cart_slot_device::sega8_cart_slot_device(const machine_config &mconfig, de
 }
 
 sega8_cart_slot_device::sega8_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-						device_t(mconfig, SEGA8_CART_SLOT, "Sega Master System / Game Gear / SG1000 Cartridge Slot", tag, owner, clock),
+						device_t(mconfig, SEGA8_CART_SLOT, "Sega Master System / Game Gear / SG1000 Cartridge Slot", tag, owner, clock, "sega8_cart_slot", __FILE__),
 						device_image_interface(mconfig, *this),
 						device_slot_interface(mconfig, *this),
 						m_type(SEGA8_BASE_ROM),
@@ -137,7 +137,7 @@ sega8_cart_slot_device::sega8_cart_slot_device(const machine_config &mconfig, co
 }
 
 sega8_card_slot_device::sega8_card_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-						sega8_cart_slot_device(mconfig, SEGA8_CARD_SLOT, "Sega Master System / Game Gear / SG1000 Card Slot", tag, owner, clock, TRUE)
+						sega8_cart_slot_device(mconfig, SEGA8_CARD_SLOT, "Sega Master System / Game Gear / SG1000 Card Slot", tag, owner, clock, TRUE, "sega8_card_slot", __FILE__)
 {
 }
 
@@ -234,7 +234,7 @@ int sega8_cart_slot_device::verify_cart( UINT8 *magic, int size )
 
 void sega8_cart_slot_device::set_lphaser_xoffset( UINT8 *rom, int size )
 {
-	static const UINT8 signatures[6][16] =
+	static const UINT8 signatures[7][16] =
 	{
 		/* Spacegun */
 		{ 0x54, 0x4d, 0x52, 0x20, 0x53, 0x45, 0x47, 0x41, 0xff, 0xff, 0x9d, 0x99, 0x10, 0x90, 0x00, 0x40 },
@@ -248,27 +248,31 @@ void sega8_cart_slot_device::set_lphaser_xoffset( UINT8 *rom, int size )
 		{ 0x54, 0x4d, 0x52, 0x20, 0x53, 0x45, 0x47, 0x41, 0x00, 0x00, 0xb7, 0x55, 0x74, 0x70, 0x00, 0x40 },
 		/* Assault City */
 		{ 0x54, 0x4d, 0x52, 0x20, 0x53, 0x45, 0x47, 0x41, 0xff, 0xff, 0x9f, 0x74, 0x34, 0x70, 0x00, 0x40 },
+		/* Missile Defense 3-D */
+		{ 0x54, 0x4d, 0x52, 0x20, 0x53, 0x45, 0x47, 0x41, 0x41, 0x4c, 0x15, 0x4a, 0x01, 0x80, 0x00, 0x4f }
 	};
 
-	int xoff = 51;
+	int xoff = 44;
 
 	if (size >= 0x8000)
 	{
 		if (!memcmp(&rom[0x7ff0], signatures[0], 16) || !memcmp(&rom[0x7ff0], signatures[1], 16))
-			xoff = 41;
+			xoff = 34;
 
 		if (!memcmp(&rom[0x7ff0], signatures[2], 16))
-			xoff = 50;
+			xoff = 44;
 
 		if (!memcmp(&rom[0x7ff0], signatures[3], 16))
-			xoff = 48;
+			xoff = 40;
 
 		if (!memcmp(&rom[0x7ff0], signatures[4], 16))
-			xoff = 45;
+			xoff = 38;
 
 		if (!memcmp(&rom[0x7ff0], signatures[5], 16))
-			xoff = 54;
+			xoff = 47;
 
+		if (!memcmp(&rom[0x7ff0], signatures[6], 16))
+			xoff = 46;
 	}
 
 	m_cart->set_lphaser_xoffs(xoff);

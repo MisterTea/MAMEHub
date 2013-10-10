@@ -314,11 +314,12 @@
 #include "emu.h"
 #include "cpu/powerpc/ppc.h"
 #include "machine/pci.h"
-#include "machine/idectrl.h"
-#include "machine/timekpr.h"
+#include "machine/ataintf.h"
+#include "machine/idehd.h"
 #include "machine/jvshost.h"
 #include "machine/jvsdev.h"
-#include "video/konicdev.h"
+#include "machine/timekpr.h"
+#include "video/k001604.h"
 #include "video/polynew.h"
 #include "video/rgbgen.h"
 #include "sound/rf5c400.h"
@@ -352,18 +353,18 @@ struct cobra_polydata
 class cobra_renderer : public poly_manager<float, cobra_polydata, 8, 10000>
 {
 public:
-	cobra_renderer(running_machine &machine)
-		: poly_manager<float, cobra_polydata, 8, 10000>(machine)
+	cobra_renderer(screen_device &screen)
+		: poly_manager<float, cobra_polydata, 8, 10000>(screen)
 	{
-		m_texture_ram = auto_alloc_array(machine, UINT32, 0x100000);
+		m_texture_ram = auto_alloc_array(machine(), UINT32, 0x100000);
 
-		m_framebuffer = auto_bitmap_rgb32_alloc(machine, 1024, 1024);
-		m_backbuffer = auto_bitmap_rgb32_alloc(machine, 1024, 1024);
-		m_overlay = auto_bitmap_rgb32_alloc(machine, 1024, 1024);
-		m_zbuffer = auto_bitmap_ind32_alloc(machine, 1024, 1024);
-		m_stencil = auto_bitmap_ind32_alloc(machine, 1024, 1024);
+		m_framebuffer = auto_bitmap_rgb32_alloc(machine(), 1024, 1024);
+		m_backbuffer = auto_bitmap_rgb32_alloc(machine(), 1024, 1024);
+		m_overlay = auto_bitmap_rgb32_alloc(machine(), 1024, 1024);
+		m_zbuffer = auto_bitmap_ind32_alloc(machine(), 1024, 1024);
+		m_stencil = auto_bitmap_ind32_alloc(machine(), 1024, 1024);
 
-		m_gfx_regmask = auto_alloc_array(machine, UINT32, 0x100);
+		m_gfx_regmask = auto_alloc_array(machine(), UINT32, 0x100);
 		for (int i=0; i < 0x100; i++)
 		{
 			UINT32 mask = 0;
@@ -385,7 +386,7 @@ public:
 	void draw_point(const rectangle &visarea, vertex_t &v, UINT32 color);
 	void draw_line(const rectangle &visarea, vertex_t &v1, vertex_t &v2);
 
-	void gfx_init(running_machine &machine);
+	void gfx_init();
 	void gfx_exit(running_machine &machine);
 	void gfx_reset(running_machine &machine);
 	void gfx_fifo_exec(running_machine &machine);
@@ -498,7 +499,7 @@ protected:
 const device_type COBRA_JVS = &device_creator<cobra_jvs>;
 
 cobra_jvs::cobra_jvs(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: jvs_device(mconfig, COBRA_JVS, "COBRA_JVS", tag, owner, clock)
+	: jvs_device(mconfig, COBRA_JVS, "COBRA_JVS", tag, owner, clock, "cobra_jvs", __FILE__)
 {
 }
 
@@ -556,7 +557,7 @@ private:
 const device_type COBRA_JVS_HOST = &device_creator<cobra_jvs_host>;
 
 cobra_jvs_host::cobra_jvs_host(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: jvs_host(mconfig, COBRA_JVS_HOST, "COBRA_JVS_HOST", tag, owner, clock)
+	: jvs_host(mconfig, COBRA_JVS_HOST, "COBRA_JVS_HOST", tag, owner, clock, "cobra_jvs_host", __FILE__)
 {
 	m_send_ptr = 0;
 }
@@ -609,7 +610,7 @@ public:
 		m_gfxcpu(*this, "gfxcpu"),
 		m_gfx_pagetable(*this, "pagetable"),
 		m_k001604(*this, "k001604"),
-		m_ide(*this, "ide")
+		m_ata(*this, "ata")
 	{
 	}
 
@@ -618,7 +619,7 @@ public:
 	required_device<cpu_device> m_gfxcpu;
 	required_shared_ptr<UINT64> m_gfx_pagetable;
 	required_device<k001604_device> m_k001604;
-	required_device<ide_controller_device> m_ide;
+	required_device<ata_interface_device> m_ata;
 
 	DECLARE_READ64_MEMBER(main_comram_r);
 	DECLARE_WRITE64_MEMBER(main_comram_w);
@@ -998,16 +999,16 @@ void cobra_state::video_start()
 {
 	machine().add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(cobra_state::cobra_video_exit), this));
 
-	m_renderer = auto_alloc(machine(), cobra_renderer(machine()));
-	m_renderer->gfx_init(machine());
+	m_renderer = auto_alloc(machine(), cobra_renderer(*m_screen));
+	m_renderer->gfx_init();
 }
 
 UINT32 cobra_state::screen_update_cobra(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	if (m_has_psac)
 	{
-		k001604_draw_back_layer(m_k001604, bitmap, cliprect);
-		k001604_draw_front_layer(m_k001604, bitmap, cliprect);
+		m_k001604->draw_back_layer(bitmap, cliprect);
+		m_k001604->draw_front_layer(screen, bitmap, cliprect);
 	}
 
 	m_renderer->display(&bitmap, cliprect);
@@ -1819,7 +1820,7 @@ READ16_MEMBER(cobra_state::sub_ata0_r)
 {
 	mem_mask = ( mem_mask << 8 ) | ( mem_mask >> 8 );
 
-	UINT32 data = m_ide->read_cs0(space, offset, mem_mask);
+	UINT32 data = m_ata->read_cs0(space, offset, mem_mask);
 	data = ( data << 8 ) | ( data >> 8 );
 
 	return data;
@@ -1830,14 +1831,14 @@ WRITE16_MEMBER(cobra_state::sub_ata0_w)
 	mem_mask = ( mem_mask << 8 ) | ( mem_mask >> 8 );
 	data = ( data << 8 ) | ( data >> 8 );
 
-	m_ide->write_cs0(space, offset, data, mem_mask);
+	m_ata->write_cs0(space, offset, data, mem_mask);
 }
 
 READ16_MEMBER(cobra_state::sub_ata1_r)
 {
 	mem_mask = ( mem_mask << 8 ) | ( mem_mask >> 8 );
 
-	UINT32 data = m_ide->read_cs1(space, offset, mem_mask);
+	UINT32 data = m_ata->read_cs1(space, offset, mem_mask);
 
 	return ( data << 8 ) | ( data >> 8 );
 }
@@ -1847,7 +1848,7 @@ WRITE16_MEMBER(cobra_state::sub_ata1_w)
 	mem_mask = ( mem_mask << 8 ) | ( mem_mask >> 8 );
 	data = ( data << 8 ) | ( data >> 8 );
 
-	m_ide->write_cs1(space, offset, data, mem_mask);
+	m_ata->write_cs1(space, offset, data, mem_mask);
 }
 
 READ32_MEMBER(cobra_state::sub_comram_r)
@@ -1957,10 +1958,10 @@ static ADDRESS_MAP_START( cobra_sub_map, AS_PROGRAM, 32, cobra_state )
 	AM_RANGE(0x78040000, 0x7804ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE16("rfsnd", rf5c400_device, rf5c400_r, rf5c400_w, 0xffffffff)
 	AM_RANGE(0x78080000, 0x7808000f) AM_MIRROR(0x80000000) AM_READWRITE16(sub_ata0_r, sub_ata0_w, 0xffffffff)
 	AM_RANGE(0x780c0010, 0x780c001f) AM_MIRROR(0x80000000) AM_READWRITE16(sub_ata1_r, sub_ata1_w, 0xffffffff)
-	AM_RANGE(0x78200000, 0x782000ff) AM_MIRROR(0x80000000) AM_DEVREADWRITE_LEGACY("k001604", k001604_reg_r, k001604_reg_w)              // PSAC registers
+	AM_RANGE(0x78200000, 0x782000ff) AM_MIRROR(0x80000000) AM_DEVREADWRITE("k001604", k001604_device, reg_r, reg_w)              // PSAC registers
 	AM_RANGE(0x78210000, 0x78217fff) AM_MIRROR(0x80000000) AM_RAM_WRITE(sub_psac_palette_w) AM_SHARE("paletteram")                      // PSAC palette RAM
-	AM_RANGE(0x78220000, 0x7823ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE_LEGACY("k001604", k001604_tile_r, k001604_tile_w)            // PSAC tile RAM
-	AM_RANGE(0x78240000, 0x7827ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE_LEGACY("k001604", k001604_char_r, k001604_char_w)            // PSAC character RAM
+	AM_RANGE(0x78220000, 0x7823ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE("k001604", k001604_device, tile_r, tile_w)            // PSAC tile RAM
+	AM_RANGE(0x78240000, 0x7827ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE("k001604", k001604_device, char_r, char_w)            // PSAC character RAM
 	AM_RANGE(0x78280000, 0x7828000f) AM_MIRROR(0x80000000) AM_NOP                                           // ???
 	AM_RANGE(0x78300000, 0x7830000f) AM_MIRROR(0x80000000) AM_READWRITE(sub_psac2_r, sub_psac2_w)           // PSAC
 	AM_RANGE(0x7e000000, 0x7e000003) AM_MIRROR(0x80000000) AM_READWRITE(sub_unk7e_r, sub_debug_w)
@@ -2016,13 +2017,13 @@ void cobra_renderer::display(bitmap_rgb32 *bitmap, const rectangle &cliprect)
 	}
 }
 
-void cobra_renderer::gfx_init(running_machine &machine)
+void cobra_renderer::gfx_init()
 {
-	const rectangle& visarea = machine.primary_screen->visible_area();
+	const rectangle& visarea = screen().visible_area();
 
-	m_gfx_gram = auto_alloc_array(machine, UINT32, 0x40000);
+	m_gfx_gram = auto_alloc_array(machine(), UINT32, 0x40000);
 
-	m_gfx_register = auto_alloc_array(machine, UINT64, 0x3000);
+	m_gfx_register = auto_alloc_array(machine(), UINT64, 0x3000);
 	m_gfx_register_select = 0;
 
 	float zvalue = 10000000.0f;
@@ -2133,7 +2134,7 @@ void cobra_renderer::gfx_write_reg(running_machine &machine, UINT64 data)
 	{
 		case 0x0000:
 		{
-			const rectangle& visarea = machine.primary_screen->visible_area();
+			const rectangle& visarea = screen().visible_area();
 
 			copybitmap_trans(*m_framebuffer, *m_backbuffer, 0, 0, 0, 0, visarea, 0);
 			m_backbuffer->fill(0xff000000, visarea);
@@ -2154,7 +2155,7 @@ void cobra_renderer::gfx_fifo_exec(running_machine &machine)
 	if (cobra->m_gfx_fifo_loopback != 0)
 		return;
 
-	const rectangle& visarea = machine.primary_screen->visible_area();
+	const rectangle& visarea = screen().visible_area();
 	vertex_t vert[32];
 
 	cobra_fifo *fifo_in = cobra->m_gfxfifo_in;
@@ -2833,7 +2834,7 @@ READ64_MEMBER(cobra_state::gfx_fifo_r)
 
 	if (ACCESSING_BITS_32_63)
 	{
-		UINT64 data;
+		UINT64 data = 0;
 		m_gfxfifo_out->pop(&space.device(), &data);
 
 		data &= 0xffffffff;
@@ -2842,7 +2843,7 @@ READ64_MEMBER(cobra_state::gfx_fifo_r)
 	}
 	if (ACCESSING_BITS_0_31)
 	{
-		UINT64 data;
+		UINT64 data = 0;
 		m_gfxfifo_out->pop(&space.device(), &data);
 
 		data &= 0xffffffff;
@@ -3163,13 +3164,12 @@ void cobra_state::machine_reset()
 {
 	m_sub_interrupt = 0xff;
 
-	UINT8 *ide_features = m_ide->ide_get_features(0);
+	ide_hdd_device *hdd = m_ata->subdevice<ata_slot_device>("0")->subdevice<ide_hdd_device>("hdd");
+	UINT16 *identify_device = hdd->identify_device_buffer();
 
 	// Cobra expects these settings or the BIOS fails
-	ide_features[51*2+0] = 0;           /* 51: PIO data transfer cycle timing mode */
-	ide_features[51*2+1] = 2;
-	ide_features[67*2+0] = 0xe0;        /* 67: minimum PIO transfer cycle time without flow control */
-	ide_features[67*2+1] = 0x01;
+	identify_device[51] = 0x0200;        /* 51: PIO data transfer cycle timing mode */
+	identify_device[67] = 0x01e0;        /* 67: minimum PIO transfer cycle time without flow control */
 
 	m_renderer->gfx_reset(machine());
 
@@ -3204,8 +3204,8 @@ static MACHINE_CONFIG_START( cobra, cobra_state )
 	MCFG_PCI_BUS_LEGACY_ADD("pcibus", 0)
 	MCFG_PCI_BUS_LEGACY_DEVICE(0, NULL, mpc106_pci_r, mpc106_pci_w)
 
-	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(cobra_state, ide_interrupt))
+	MCFG_ATA_INTERFACE_ADD("ata", ata_devices, "hdd", NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(cobra_state, ide_interrupt))
 
 	/* video hardware */
 
@@ -3487,7 +3487,7 @@ ROM_START(bujutsu)
 
 	ROM_REGION(0x1000000, "rfsnd", ROMREGION_ERASE00)
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE_READONLY( "645c04", 0, SHA1(c0aabe69f6eb4e4cf748d606ae50674297af6a04) )
 ROM_END
 
@@ -3506,7 +3506,7 @@ ROM_START(racjamdx)
 
 	ROM_REGION(0x1000000, "rfsnd", ROMREGION_ERASE00)
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE_READONLY( "676a04", 0, SHA1(8e89d3e5099e871b99fccba13adaa3cf8a6b71f0) )
 ROM_END
 

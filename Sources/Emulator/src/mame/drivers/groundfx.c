@@ -64,8 +64,7 @@
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "video/taitoic.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/es5506.h"
 #include "audio/taito_en.h"
 #include "includes/groundfx.h"
@@ -109,22 +108,6 @@ void groundfx_state::device_timer(emu_timer &timer, device_timer_id id, int para
 		assert_always(FALSE, "Unknown id in groundfx_state::device_timer");
 	}
 }
-
-
-/**********************************************************
-                EPROM
-**********************************************************/
-
-static const eeprom_interface groundfx_eeprom_interface =
-{
-	6,              /* address bits */
-	16,             /* data bits */
-	"0110",         /* read command */
-	"0101",         /* write command */
-	"0111",         /* erase command */
-	"0100000000",   /* unlock command */
-	"0100110000",   /* lock command */
-};
 
 
 /**********************************************************
@@ -228,10 +211,10 @@ static ADDRESS_MAP_START( groundfx_map, AS_PROGRAM, 32, groundfx_state )
 	AM_RANGE(0x500000, 0x500007) AM_WRITE(groundfx_input_w) /* eeprom etc. */
 	AM_RANGE(0x600000, 0x600003) AM_READWRITE(groundfx_adc_r,groundfx_adc_w)
 	AM_RANGE(0x700000, 0x7007ff) AM_RAM AM_SHARE("snd_shared")
-	AM_RANGE(0x800000, 0x80ffff) AM_DEVREADWRITE_LEGACY("tc0480scp", tc0480scp_long_r, tc0480scp_long_w)      /* tilemaps */
-	AM_RANGE(0x830000, 0x83002f) AM_DEVREADWRITE_LEGACY("tc0480scp", tc0480scp_ctrl_long_r, tc0480scp_ctrl_long_w)  // debugging
-	AM_RANGE(0x900000, 0x90ffff) AM_DEVREADWRITE_LEGACY("tc0100scn", tc0100scn_long_r, tc0100scn_long_w)    /* piv tilemaps */
-	AM_RANGE(0x920000, 0x92000f) AM_DEVREADWRITE_LEGACY("tc0100scn", tc0100scn_ctrl_long_r, tc0100scn_ctrl_long_w)
+	AM_RANGE(0x800000, 0x80ffff) AM_DEVREADWRITE("tc0480scp", tc0480scp_device, long_r, long_w)      /* tilemaps */
+	AM_RANGE(0x830000, 0x83002f) AM_DEVREADWRITE("tc0480scp", tc0480scp_device, ctrl_long_r, ctrl_long_w)  // debugging
+	AM_RANGE(0x900000, 0x90ffff) AM_DEVREADWRITE("tc0100scn", tc0100scn_device, long_r, long_w)    /* piv tilemaps */
+	AM_RANGE(0x920000, 0x92000f) AM_DEVREADWRITE("tc0100scn", tc0100scn_device, ctrl_long_r, ctrl_long_w)
 	AM_RANGE(0xa00000, 0xa0ffff) AM_RAM_WRITE(color_ram_w) AM_SHARE("paletteram") /* palette ram */
 	AM_RANGE(0xb00000, 0xb003ff) AM_RAM                     // ?? single bytes, blending ??
 	AM_RANGE(0xc00000, 0xc00007) AM_READNOP /* Network? */
@@ -252,7 +235,7 @@ static INPUT_PORTS_START( groundfx )
 	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x00000080, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x00000080, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x00000100, IP_ACTIVE_LOW, IPT_BUTTON3 )      /* shift hi */
 	PORT_BIT( 0x00000200, IP_ACTIVE_LOW, IPT_BUTTON1 )      /* brake */
 	PORT_BIT( 0x00000400, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -264,9 +247,9 @@ static INPUT_PORTS_START( groundfx )
 	PORT_BIT( 0xffff0000, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x00000020, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x00000040, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
+	PORT_BIT( 0x00000010, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x00000020, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x00000040, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
 
 	PORT_START("SYSTEM")
 	PORT_SERVICE_NO_TOGGLE( 0x00000001, IP_ACTIVE_LOW )
@@ -343,7 +326,6 @@ GFXDECODE_END
 
 static const tc0100scn_interface groundfx_tc0100scn_intf =
 {
-	"screen",
 	2, 3,       /* gfxnum, txnum */
 	50, 8,      /* x_offset, y_offset */
 	0, 0,       /* flip_xoff, flip_yoff */
@@ -374,7 +356,7 @@ static MACHINE_CONFIG_START( groundfx, groundfx_state )
 	MCFG_CPU_PROGRAM_MAP(groundfx_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", groundfx_state,  groundfx_interrupt)
 
-	MCFG_EEPROM_ADD("eeprom", groundfx_eeprom_interface)
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)

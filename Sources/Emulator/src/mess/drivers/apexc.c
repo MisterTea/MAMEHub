@@ -93,7 +93,7 @@ private:
 const device_type APEXC_CYLINDER = &device_creator<apexc_cylinder_image_device>;
 
 apexc_cylinder_image_device::apexc_cylinder_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, APEXC_CYLINDER, "APEXC Cylinder", tag, owner, clock),
+	: device_t(mconfig, APEXC_CYLINDER, "APEXC Cylinder", tag, owner, clock, "apexc_cylinder_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -223,7 +223,7 @@ protected:
 const device_type APEXC_TAPE_PUNCHER = &device_creator<apexc_tape_puncher_image_device>;
 
 apexc_tape_puncher_image_device::apexc_tape_puncher_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, APEXC_TAPE_PUNCHER, "APEXC Tape Puncher", tag, owner, clock),
+	: device_t(mconfig, APEXC_TAPE_PUNCHER, "APEXC Tape Puncher", tag, owner, clock, "apexc_tape_puncher_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -257,7 +257,7 @@ protected:
 const device_type APEXC_TAPE_READER = &device_creator<apexc_tape_reader_image_device>;
 
 apexc_tape_reader_image_device::apexc_tape_reader_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, APEXC_TAPE_READER, "APEXC Tape Reader", tag, owner, clock),
+	: device_t(mconfig, APEXC_TAPE_READER, "APEXC Tape Reader", tag, owner, clock, "apexc_tape_reader_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -873,7 +873,6 @@ static MACHINE_CONFIG_START( apexc, apexc_state )
 	MCFG_CPU_IO_MAP(apexc_io_map)
 	/* dummy interrupt: handles the control panel */
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", apexc_state,  apexc_interrupt)
-	/*MCFG_CPU_PERIODIC_INT(func, rate)*/
 
 
 	/* video hardware does not exist, but we display a control panel and the typewriter output */

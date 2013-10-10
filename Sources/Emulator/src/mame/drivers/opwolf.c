@@ -278,7 +278,6 @@ register. So what is controlling priority.
 #include "cpu/z80/z80.h"
 #include "cpu/m68000/m68000.h"
 #include "includes/taitoipt.h"
-#include "video/taitoic.h"
 #include "audio/taitosnd.h"
 #include "sound/2151intf.h"
 #include "sound/msm5205.h"
@@ -369,12 +368,12 @@ static ADDRESS_MAP_START( opwolf_map, AS_PROGRAM, 16, opwolf_state )
 	AM_RANGE(0x3c0000, 0x3c0001) AM_WRITENOP                    /* watchdog ?? */
 	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
 	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
-	AM_RANGE(0xc00000, 0xc0ffff) AM_DEVREADWRITE_LEGACY("pc080sn", pc080sn_word_r, pc080sn_word_w)
+	AM_RANGE(0xc00000, 0xc0ffff) AM_DEVREADWRITE("pc080sn", pc080sn_device, word_r, word_w)
 	AM_RANGE(0xc10000, 0xc1ffff) AM_WRITEONLY                   /* error in init code (?) */
-	AM_RANGE(0xc20000, 0xc20003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_yscroll_word_w)
-	AM_RANGE(0xc40000, 0xc40003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_xscroll_word_w)
-	AM_RANGE(0xc50000, 0xc50003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_ctrl_word_w)
-	AM_RANGE(0xd00000, 0xd03fff) AM_DEVREADWRITE_LEGACY("pc090oj", pc090oj_word_r, pc090oj_word_w)  /* sprite ram */
+	AM_RANGE(0xc20000, 0xc20003) AM_DEVWRITE("pc080sn", pc080sn_device, yscroll_word_w)
+	AM_RANGE(0xc40000, 0xc40003) AM_DEVWRITE("pc080sn", pc080sn_device, xscroll_word_w)
+	AM_RANGE(0xc50000, 0xc50003) AM_DEVWRITE("pc080sn", pc080sn_device, ctrl_word_w)
+	AM_RANGE(0xd00000, 0xd03fff) AM_DEVREADWRITE("pc090oj", pc090oj_device, word_r, word_w)  /* sprite ram */
 ADDRESS_MAP_END
 
 
@@ -390,12 +389,12 @@ static ADDRESS_MAP_START( opwolfb_map, AS_PROGRAM, 16, opwolf_state )
 	AM_RANGE(0x3c0000, 0x3c0001) AM_WRITENOP                    /* watchdog ?? */
 	AM_RANGE(0x3e0000, 0x3e0001) AM_READNOP AM_DEVWRITE8("tc0140syt", tc0140syt_device, tc0140syt_port_w, 0xff00)
 	AM_RANGE(0x3e0002, 0x3e0003) AM_DEVREADWRITE8("tc0140syt", tc0140syt_device, tc0140syt_comm_r, tc0140syt_comm_w, 0xff00)
-	AM_RANGE(0xc00000, 0xc0ffff) AM_DEVREADWRITE_LEGACY("pc080sn", pc080sn_word_r, pc080sn_word_w)
+	AM_RANGE(0xc00000, 0xc0ffff) AM_DEVREADWRITE("pc080sn", pc080sn_device, word_r, word_w)
 	AM_RANGE(0xc10000, 0xc1ffff) AM_WRITEONLY                   /* error in init code (?) */
-	AM_RANGE(0xc20000, 0xc20003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_yscroll_word_w)
-	AM_RANGE(0xc40000, 0xc40003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_xscroll_word_w)
-	AM_RANGE(0xc50000, 0xc50003) AM_DEVWRITE_LEGACY("pc080sn", pc080sn_ctrl_word_w)
-	AM_RANGE(0xd00000, 0xd03fff) AM_DEVREADWRITE_LEGACY("pc090oj", pc090oj_word_r, pc090oj_word_w)  /* sprite ram */
+	AM_RANGE(0xc20000, 0xc20003) AM_DEVWRITE("pc080sn", pc080sn_device, yscroll_word_w)
+	AM_RANGE(0xc40000, 0xc40003) AM_DEVWRITE("pc080sn", pc080sn_device, xscroll_word_w)
+	AM_RANGE(0xc50000, 0xc50003) AM_DEVWRITE("pc080sn", pc080sn_device, ctrl_word_w)
+	AM_RANGE(0xd00000, 0xd03fff) AM_DEVREADWRITE("pc090oj", pc090oj_device, word_r, word_w)  /* sprite ram */
 ADDRESS_MAP_END
 
 
@@ -991,6 +990,6 @@ DRIVER_INIT_MEMBER(opwolf_state,opwolfb)
 /*    year  rom       parent    machine   inp       init */
 GAME( 1987, opwolf,   0,        opwolf,   opwolf, opwolf_state,   opwolf,   ROT0, "Taito Corporation Japan", "Operation Wolf (World, set 1)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1987, opwolfa,  opwolf,   opwolf,   opwolf, opwolf_state,   opwolf,   ROT0, "Taito Corporation Japan", "Operation Wolf (World, set 2)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1987, opwolfj,  opwolf,   opwolf,   opwolf, opwolf_state,   opwolf,   ROT0, "Taito Corporation", "Operation Wolf (Japan)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1987, opwolfj,  opwolf,   opwolf,   opwolfu, opwolf_state,   opwolf,   ROT0, "Taito Corporation", "Operation Wolf (Japan)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1987, opwolfu,  opwolf,   opwolf,   opwolfu, opwolf_state,  opwolf,   ROT0, "Taito America Corporation", "Operation Wolf (US)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1987, opwolfb,  opwolf,   opwolfb,  opwolfb, opwolf_state,  opwolfb,  ROT0, "bootleg (Bear Corporation Korea)", "Operation Bear (bootleg of Operation Wolf)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )

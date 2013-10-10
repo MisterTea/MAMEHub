@@ -18,9 +18,6 @@
 #define HUC6260_LPF         263     /* max number of lines in a single frame */
 
 
-PALETTE_INIT( huc6260 );
-
-
 #define MCFG_HUC6260_ADD( _tag, clock, _intrf ) \
 	MCFG_DEVICE_ADD( _tag, HUC6260, clock )     \
 	MCFG_DEVICE_CONFIG( _intrf )
@@ -28,9 +25,6 @@ PALETTE_INIT( huc6260 );
 
 struct huc6260_interface
 {
-	/* Tag for the screen we will be drawing on */
-	const char *screen_tag;
-
 	/* Callback function to retrieve pixel data */
 	devcb_read16                    get_next_pixel_data;
 
@@ -47,6 +41,7 @@ struct huc6260_interface
 
 
 class huc6260_device :  public device_t,
+						public device_video_interface,
 						public huc6260_interface
 {
 public:
@@ -56,6 +51,7 @@ public:
 	void video_update(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_READ8_MEMBER( read );
 	DECLARE_WRITE8_MEMBER( write );
+	DECLARE_PALETTE_INIT(huc6260);
 
 protected:
 	// device-level overrides
@@ -63,9 +59,9 @@ protected:
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+	virtual machine_config_constructor device_mconfig_additions() const;
 
 private:
-	screen_device *m_screen;
 	int     m_last_h;
 	int     m_last_v;
 	int     m_height;

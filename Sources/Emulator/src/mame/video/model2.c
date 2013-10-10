@@ -855,56 +855,56 @@ INLINE UINT16 get_texel( UINT32 base_x, UINT32 base_y, int x, int y, UINT32 *she
 /* checker = 0, textured = 0, transparent = 0 */
 #define MODEL2_FUNC 0
 #define MODEL2_FUNC_NAME    model2_3d_render_0
-#include "model2rd.c"
+#include "model2rd.inc"
 #undef MODEL2_FUNC
 #undef MODEL2_FUNC_NAME
 
 /* checker = 0, textured = 0, translucent = 1 */
 #define MODEL2_FUNC 1
 #define MODEL2_FUNC_NAME    model2_3d_render_1
-#include "model2rd.c"
+#include "model2rd.inc"
 #undef MODEL2_FUNC
 #undef MODEL2_FUNC_NAME
 
 /* checker = 0, textured = 1, translucent = 0 */
 #define MODEL2_FUNC 2
 #define MODEL2_FUNC_NAME    model2_3d_render_2
-#include "model2rd.c"
+#include "model2rd.inc"
 #undef MODEL2_FUNC
 #undef MODEL2_FUNC_NAME
 
 /* checker = 0, textured = 1, translucent = 1 */
 #define MODEL2_FUNC 3
 #define MODEL2_FUNC_NAME    model2_3d_render_3
-#include "model2rd.c"
+#include "model2rd.inc"
 #undef MODEL2_FUNC
 #undef MODEL2_FUNC_NAME
 
 /* checker = 1, textured = 0, translucent = 0 */
 #define MODEL2_FUNC 4
 #define MODEL2_FUNC_NAME    model2_3d_render_4
-#include "model2rd.c"
+#include "model2rd.inc"
 #undef MODEL2_FUNC
 #undef MODEL2_FUNC_NAME
 
 /* checker = 1, textured = 0, translucent = 1 */
 #define MODEL2_FUNC 5
 #define MODEL2_FUNC_NAME    model2_3d_render_5
-#include "model2rd.c"
+#include "model2rd.inc"
 #undef MODEL2_FUNC
 #undef MODEL2_FUNC_NAME
 
 /* checker = 1, textured = 1, translucent = 0 */
 #define MODEL2_FUNC 6
 #define MODEL2_FUNC_NAME    model2_3d_render_6
-#include "model2rd.c"
+#include "model2rd.inc"
 #undef MODEL2_FUNC
 #undef MODEL2_FUNC_NAME
 
 /* checker = 1, textured = 1, translucent = 1 */
 #define MODEL2_FUNC 7
 #define MODEL2_FUNC_NAME    model2_3d_render_7
-#include "model2rd.c"
+#include "model2rd.inc"
 #undef MODEL2_FUNC
 #undef MODEL2_FUNC_NAME
 
@@ -2699,7 +2699,7 @@ void model2_state::model2_exit()
 
 VIDEO_START_MEMBER(model2_state,model2)
 {
-	const rectangle &visarea = machine().primary_screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 	int width = visarea.width();
 	int height = visarea.height();
 
@@ -2723,10 +2723,10 @@ UINT32 model2_state::screen_update_model2(screen_device &screen, bitmap_rgb32 &b
 	m_sys24_bitmap.fill(0, cliprect);
 
 	segas24_tile *tile = machine().device<segas24_tile>("tile");
-	tile->draw(m_sys24_bitmap, cliprect, 7, 0, 0);
-	tile->draw(m_sys24_bitmap, cliprect, 6, 0, 0);
-	tile->draw(m_sys24_bitmap, cliprect, 5, 0, 0);
-	tile->draw(m_sys24_bitmap, cliprect, 4, 0, 0);
+	tile->draw(screen, m_sys24_bitmap, cliprect, 7, 0, 0);
+	tile->draw(screen, m_sys24_bitmap, cliprect, 6, 0, 0);
+	tile->draw(screen, m_sys24_bitmap, cliprect, 5, 0, 0);
+	tile->draw(screen, m_sys24_bitmap, cliprect, 4, 0, 0);
 
 	copybitmap_trans(bitmap, m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
 
@@ -2740,10 +2740,10 @@ UINT32 model2_state::screen_update_model2(screen_device &screen, bitmap_rgb32 &b
 	model2_3d_frame_end( this, bitmap, cliprect );
 
 	m_sys24_bitmap.fill(0, cliprect);
-	tile->draw(m_sys24_bitmap, cliprect, 3, 0, 0);
-	tile->draw(m_sys24_bitmap, cliprect, 2, 0, 0);
-	tile->draw(m_sys24_bitmap, cliprect, 1, 0, 0);
-	tile->draw(m_sys24_bitmap, cliprect, 0, 0, 0);
+	tile->draw(screen, m_sys24_bitmap, cliprect, 3, 0, 0);
+	tile->draw(screen, m_sys24_bitmap, cliprect, 2, 0, 0);
+	tile->draw(screen, m_sys24_bitmap, cliprect, 1, 0, 0);
+	tile->draw(screen, m_sys24_bitmap, cliprect, 0, 0, 0);
 
 	copybitmap_trans(bitmap, m_sys24_bitmap, 0, 0, 0, 0, cliprect, 0);
 

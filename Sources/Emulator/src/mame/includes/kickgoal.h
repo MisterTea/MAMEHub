@@ -5,7 +5,7 @@
 *************************************************************************/
 
 #include "sound/okim6295.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 
 class kickgoal_state : public driver_device
 {
@@ -56,7 +56,7 @@ public:
 
 	/* devices */
 	required_device<okim6295_device> m_adpcm;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	DECLARE_READ16_MEMBER(kickgoal_eeprom_r);
 	DECLARE_WRITE16_MEMBER(kickgoal_eeprom_w);
 	DECLARE_WRITE16_MEMBER(kickgoal_fgram_w);

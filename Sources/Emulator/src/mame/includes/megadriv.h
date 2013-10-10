@@ -1,5 +1,4 @@
 
-#include "emu.h"
 #include "coreutil.h"
 #include "cpu/m68000/m68000.h"
 #include "cpu/sh2/sh2.h"
@@ -18,6 +17,7 @@
 #include "machine/mega32x.h"
 #include "machine/megacd.h"
 #include "video/315_5124.h"
+#include "cpu/m68000/m68000.h"
 
 #define MASTER_CLOCK_NTSC 53693175
 #define MASTER_CLOCK_PAL  53203424
@@ -68,7 +68,7 @@ public:
 		m_segacd(*this,"segacd"),
 		m_megadrive_ram(*this,"megadrive_ram")
 	{ }
-	required_device<cpu_device> m_maincpu;
+	required_device<m68000_base_device> m_maincpu;
 	optional_device<cpu_device> m_z80snd;
 	optional_device<ym2612_device> m_ymsnd;
 	required_device<sega_genesis_vdp_device> m_vdp;
@@ -128,6 +128,9 @@ public:
 	read8_delegate m_megadrive_io_read_data_port_ptr;
 	write16_delegate m_megadrive_io_write_data_port_ptr;
 
+	WRITE_LINE_MEMBER(genesis_vdp_sndirqline_callback_genesis_z80);
+	WRITE_LINE_MEMBER(genesis_vdp_lv6irqline_callback_genesis_68k);
+	WRITE_LINE_MEMBER(genesis_vdp_lv4irqline_callback_genesis_68k);
 
 	TIMER_CALLBACK_MEMBER( io_timeout_timer_callback );
 	void megadrive_reset_io();
@@ -255,6 +258,10 @@ public:
 	int m_segac2_bg_pal_lookup[4];
 	int m_segac2_sp_pal_lookup[4];
 	void recompute_palette_tables();
+
+	DECLARE_WRITE_LINE_MEMBER(genesis_vdp_sndirqline_callback_segac2);
+	DECLARE_WRITE_LINE_MEMBER(genesis_vdp_lv6irqline_callback_segac2);
+	DECLARE_WRITE_LINE_MEMBER(genesis_vdp_lv4irqline_callback_segac2);
 
 	DECLARE_WRITE16_MEMBER( segac2_upd7759_w );
 	DECLARE_READ16_MEMBER( palette_r );

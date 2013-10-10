@@ -92,7 +92,6 @@
 #include "cpu/m68000/m68000.h"
 #include "sound/msm5205.h"
 #include "sound/2151intf.h"
-#include "sound/upd7759.h"
 #include "sound/2612intf.h"
 #include "sound/rf5c68.h"
 #include "video/segaic16.h"
@@ -454,10 +453,9 @@ ADDRESS_MAP_END
 
 WRITE8_MEMBER(segas1x_bootleg_state::upd7759_bank_w)//*
 {
-	device_t *device = machine().device("7759");
 	int offs, size = memregion("soundcpu")->bytes() - 0x10000;
 
-	upd7759_reset_w(device, data & 0x40);
+	m_upd7759->reset_w(data & 0x40);
 	offs = 0x10000 + (data * 0x4000) % size;
 	membank("bank1")->set_base(memregion("soundcpu")->base() + offs);
 }
@@ -467,7 +465,7 @@ static ADDRESS_MAP_START( sound_7759_io_map, AS_IO, 8, segas1x_bootleg_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x00, 0x01) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0x40, 0x40) AM_WRITE(upd7759_bank_w)
-	AM_RANGE(0x80, 0x80) AM_DEVWRITE_LEGACY("7759", upd7759_port_w)
+	AM_RANGE(0x80, 0x80) AM_DEVWRITE("7759", upd7759_device, port_w)
 	AM_RANGE(0xc0, 0xc0) AM_READ(soundlatch_byte_r)
 ADDRESS_MAP_END
 
@@ -943,11 +941,13 @@ static ADDRESS_MAP_START( beautyb_map, AS_PROGRAM, 16, segas1x_bootleg_state )
 	AM_RANGE(0x440000, 0x440fff) AM_RAM AM_SHARE("sprites")
 	AM_RANGE(0x840000, 0x840fff) AM_RAM_WRITE(paletteram_w) AM_SHARE("paletteram")
 
-	AM_RANGE(0xC41000, 0xC41001) AM_READ(beautyb_unkx_r )
-	AM_RANGE(0xC41002, 0xC41003) AM_READ(beautyb_unkx_r )
+	AM_RANGE(0xc41000, 0xc41001) AM_READ_PORT("SERVICE")
+	AM_RANGE(0xc41002, 0xc41003) AM_READ_PORT("P1")
+	AM_RANGE(0xc41004, 0xc41005) AM_READ_PORT("P2")
+	AM_RANGE(0xc42006, 0xc42007) AM_WRITE(sound_command_w)
 
 	AM_RANGE(0xc40000, 0xc40001) AM_WRITENOP
-	AM_RANGE(0xc80000, 0xc80001) AM_WRITENOP
+	AM_RANGE(0xc80000, 0xc80001) AM_WRITENOP // vblank irq ack
 
 	AM_RANGE(0xffc000, 0xffffff) AM_RAM // work ram
 ADDRESS_MAP_END
@@ -2003,7 +2003,7 @@ static MACHINE_CONFIG_START( system16, segas1x_bootleg_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
-	MCFG_SCREEN_SIZE(40*8, 28*8)
+	MCFG_SCREEN_SIZE(40*8, 36*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(segas1x_bootleg_state, screen_update_system16)
 
@@ -2030,7 +2030,7 @@ static void sound_cause_nmi( device_t *device, int chip )
 }
 
 
-const upd7759_interface sys16_upd7759_interface  =
+const upd775x_interface sys16_upd7759_interface  =
 {
 	sound_cause_nmi
 };
@@ -2160,7 +2160,7 @@ static MACHINE_CONFIG_START( goldnaxeb1, segas1x_bootleg_state )
 	MCFG_BOOTLEG_SYS16B_SPRITES_ADD("sprites")
 	MCFG_BOOTLEG_SYS16B_SPRITES_XORIGIN(189-121)
 
-	MCFG_PALETTE_INIT( all_black )
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 	MCFG_VIDEO_START_OVERRIDE(segas1x_bootleg_state,system16)
 MACHINE_CONFIG_END
 
@@ -3420,6 +3420,62 @@ DRIVER_INIT_MEMBER(segas1x_bootleg_state,fpointbl)
 	m_fore_yscroll = 2;
 }
 
+WRITE16_MEMBER(segas1x_bootleg_state::altbeastbl_gfx_w)
+{
+	switch (offset) {
+		case 0x00: {
+			m_bg_scrolly = data + 1;
+			break;
+		}
+
+		case 0x04: {
+			m_bg_scrollx = ((data ^ 0xffff) & 0x3ff) + 2;
+			break;
+		}
+
+		case 0x08: {
+			m_fg_scrolly = data + 1;
+			break;
+		}
+
+		case 0x0c: {
+			m_fg_scrollx = ((data ^ 0xffff) & 0x3ff) + 4;
+			break;
+		}
+
+		case 0x10: {
+			m_bg_page[0] = (data >> 0) & 0x0f;
+			m_fg_page[0] = (data >> 4) & 0x0f;
+			break;
+		}
+
+		case 0x11: {
+			m_bg_page[1] = (data >> 0) & 0x0f;
+			m_fg_page[1] = (data >> 4) & 0x0f;
+			break;
+		}
+
+		case 0x12: {
+			m_bg_page[2] = (data >> 0) & 0x0f;
+			m_fg_page[2] = (data >> 4) & 0x0f;
+			break;
+		}
+
+		case 0x13: {
+			m_bg_page[3] = (data >> 0) & 0x0f;
+			m_fg_page[3] = (data >> 4) & 0x0f;
+			break;
+		}
+	}
+}
+
+DRIVER_INIT_MEMBER(segas1x_bootleg_state,altbeastbl)
+{
+	DRIVER_INIT_CALL(common);
+
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x418000, 0x418029, write16_delegate(FUNC(segas1x_bootleg_state::altbeastbl_gfx_w),this));
+}
+
 /* Tetris-based */
 DRIVER_INIT_MEMBER(segas1x_bootleg_state,beautyb)
 {
@@ -3514,7 +3570,7 @@ GAME( 1989, goldnaxeb1,  goldnaxe,  goldnaxeb1,  goldnaxe, segas1x_bootleg_state
 GAME( 1989, goldnaxeb2,  goldnaxe,  goldnaxeb2,  goldnaxe, segas1x_bootleg_state,  goldnaxeb2, ROT0,   "bootleg", "Golden Axe (bootleg)", GAME_NOT_WORKING|GAME_NO_SOUND )
 GAME( 1989, tturfbl,     tturf,     tturfbl,     tturf, segas1x_bootleg_state,     tturfbl,    ROT0,   "bootleg (Datsu)", "Tough Turf (Datsu bootleg)", GAME_NOT_WORKING | GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 GAME( 1989, dduxbl,      ddux,      dduxbl,      ddux, segas1x_bootleg_state,      dduxbl,     ROT0,   "bootleg (Datsu)", "Dynamite Dux (Datsu bootleg)", GAME_NOT_WORKING )
-GAME( 1988, altbeastbl,  altbeast,  tetrisbl,    tetris, segas1x_bootleg_state,    dduxbl,     ROT0,   "bootleg (Datsu)", "Altered Beast (Datsu bootleg)", GAME_NOT_WORKING )
+GAME( 1988, altbeastbl,  altbeast,  tetrisbl,    tetris, segas1x_bootleg_state,    altbeastbl, ROT0,   "bootleg (Datsu)", "Altered Beast (Datsu bootleg)", GAME_NOT_WORKING )
 GAME( 1989, eswatbl,     eswat,     eswatbl,     eswat, segas1x_bootleg_state,     eswatbl,    ROT0,   "bootleg", "E-Swat - Cyber Police (bootleg)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND )
 GAME( 1989, fpointbl,    fpoint,    fpointbl,    fpointbl, segas1x_bootleg_state,  fpointbl,   ROT0,   "bootleg (Datsu)", "Flash Point (World, bootleg)", GAME_NOT_WORKING )
 GAME( 1989, fpointbj,    fpoint,    fpointbl,    fpointbl, segas1x_bootleg_state,  fpointbl,   ROT0,   "bootleg (Datsu)", "Flash Point (Japan, bootleg)", GAME_NOT_WORKING )

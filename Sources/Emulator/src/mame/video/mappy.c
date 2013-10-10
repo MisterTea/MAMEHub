@@ -321,7 +321,7 @@ TILE_GET_INFO_MEMBER(mappy_state::mappy_get_tile_info)
 VIDEO_START_MEMBER(mappy_state,superpac)
 {
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(mappy_state::superpac_get_tile_info),this),tilemap_mapper_delegate(FUNC(mappy_state::superpac_tilemap_scan),this),8,8,36,28);
-	machine().primary_screen->register_screen_bitmap(m_sprite_bitmap);
+	m_screen->register_screen_bitmap(m_sprite_bitmap);
 
 	colortable_configure_tilemap_groups(machine().colortable, m_bg_tilemap, machine().gfx[0], 31);
 }
@@ -530,14 +530,14 @@ UINT32 mappy_state::screen_update_superpac(screen_device &screen, bitmap_ind16 &
 	bitmap_ind16 &sprite_bitmap = m_sprite_bitmap;
 	int x,y;
 
-	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES,0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES,0);
 
 	sprite_bitmap.fill(15, cliprect);
 	mappy_draw_sprites(sprite_bitmap,cliprect,m_spriteram);
 	copybitmap_trans(bitmap,sprite_bitmap,0,0,0,0,cliprect,15);
 
 	/* Redraw the high priority characters */
-	m_bg_tilemap->draw(bitmap, cliprect, 1,0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 1,0);
 
 	/* sprite color 0/1 still has priority over that (ghost eyes in Pac 'n Pal) */
 	for (y = 0;y < sprite_bitmap.height();y++)
@@ -558,12 +558,12 @@ UINT32 mappy_state::screen_update_phozon(screen_device &screen, bitmap_ind16 &bi
 	/* flip screen control is embedded in RAM */
 	flip_screen_set(m_spriteram[0x1f7f-0x800] & 1);
 
-	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES,0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES,0);
 
 	phozon_draw_sprites(bitmap,cliprect,m_spriteram);
 
 	/* Redraw the high priority characters */
-	m_bg_tilemap->draw(bitmap, cliprect, 1,0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 1,0);
 	return 0;
 }
 
@@ -574,11 +574,11 @@ UINT32 mappy_state::screen_update_mappy(screen_device &screen, bitmap_ind16 &bit
 	for (offs = 2;offs < 34;offs++)
 		m_bg_tilemap->set_scrolly(offs,m_scroll);
 
-	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES,0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE | TILEMAP_DRAW_ALL_CATEGORIES,0);
 
 	mappy_draw_sprites(bitmap,cliprect,m_spriteram);
 
 	/* Redraw the high priority characters */
-	m_bg_tilemap->draw(bitmap, cliprect, 1,0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 1,0);
 	return 0;
 }

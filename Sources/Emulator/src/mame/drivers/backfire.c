@@ -13,7 +13,7 @@
 #define DE156CPU ARM
 #include "emu.h"
 #include "includes/decocrpt.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/okim6295.h"
 #include "sound/ymz280b.h"
 #include "cpu/arm/arm.h"
@@ -57,10 +57,10 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
-	required_device<device_t> m_deco_tilegen1;
-	required_device<device_t> m_deco_tilegen2;
+	required_device<deco16ic_device> m_deco_tilegen1;
+	required_device<deco16ic_device> m_deco_tilegen2;
 
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 
 	/* memory */
 	UINT16    m_pf1_rowscroll[0x0800/2];
@@ -136,22 +136,22 @@ UINT32 backfire_state::screen_update_backfire_left(screen_device &screen, bitmap
 
 	/* screen 1 uses pf1 as the forground and pf3 as the background */
 	/* screen 2 uses pf2 as the foreground and pf4 as the background */
-	deco16ic_pf_update(m_deco_tilegen1, m_pf1_rowscroll, m_pf2_rowscroll);
-	deco16ic_pf_update(m_deco_tilegen2, m_pf3_rowscroll, m_pf4_rowscroll);
+	m_deco_tilegen1->pf_update(m_pf1_rowscroll, m_pf2_rowscroll);
+	m_deco_tilegen2->pf_update(m_pf3_rowscroll, m_pf4_rowscroll);
 
-	machine().priority_bitmap.fill(0);
+	screen.priority().fill(0);
 	bitmap.fill(0x100, cliprect);
 
 	if (m_left_priority[0] == 0)
 	{
-		deco16ic_tilemap_1_draw(m_deco_tilegen2, bitmap, cliprect, 0, 1);
-		deco16ic_tilemap_1_draw(m_deco_tilegen1, bitmap, cliprect, 0, 2);
+		m_deco_tilegen2->tilemap_1_draw(screen, bitmap, cliprect, 0, 1);
+		m_deco_tilegen1->tilemap_1_draw(screen, bitmap, cliprect, 0, 2);
 		m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram_1, 0x800);
 	}
 	else if (m_left_priority[0] == 2)
 	{
-		deco16ic_tilemap_1_draw(m_deco_tilegen1, bitmap, cliprect, 0, 2);
-		deco16ic_tilemap_1_draw(m_deco_tilegen2, bitmap, cliprect, 0, 4);
+		m_deco_tilegen1->tilemap_1_draw(screen, bitmap, cliprect, 0, 2);
+		m_deco_tilegen2->tilemap_1_draw(screen, bitmap, cliprect, 0, 4);
 		m_sprgen->draw_sprites(bitmap, cliprect, m_spriteram_1, 0x800);
 	}
 	else
@@ -167,22 +167,22 @@ UINT32 backfire_state::screen_update_backfire_right(screen_device &screen, bitma
 
 	/* screen 1 uses pf1 as the forground and pf3 as the background */
 	/* screen 2 uses pf2 as the foreground and pf4 as the background */
-	deco16ic_pf_update(m_deco_tilegen1, m_pf1_rowscroll, m_pf2_rowscroll);
-	deco16ic_pf_update(m_deco_tilegen2, m_pf3_rowscroll, m_pf4_rowscroll);
+	m_deco_tilegen1->pf_update(m_pf1_rowscroll, m_pf2_rowscroll);
+	m_deco_tilegen2->pf_update(m_pf3_rowscroll, m_pf4_rowscroll);
 
-	machine().priority_bitmap.fill(0);
+	screen.priority().fill(0);
 	bitmap.fill(0x500, cliprect);
 
 	if (m_right_priority[0] == 0)
 	{
-		deco16ic_tilemap_2_draw(m_deco_tilegen2, bitmap, cliprect, 0, 1);
-		deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, 0, 2);
+		m_deco_tilegen2->tilemap_2_draw(screen, bitmap, cliprect, 0, 1);
+		m_deco_tilegen1->tilemap_2_draw(screen, bitmap, cliprect, 0, 2);
 		m_sprgen2->draw_sprites(bitmap, cliprect, m_spriteram_2, 0x800);
 	}
 	else if (m_right_priority[0] == 2)
 	{
-		deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, 0, 2);
-		deco16ic_tilemap_2_draw(m_deco_tilegen2, bitmap, cliprect, 0, 4);
+		m_deco_tilegen1->tilemap_2_draw(screen, bitmap, cliprect, 0, 2);
+		m_deco_tilegen2->tilemap_2_draw(screen, bitmap, cliprect, 0, 4);
 		m_sprgen2->draw_sprites(bitmap, cliprect, m_spriteram_2, 0x800);
 	}
 	else
@@ -197,7 +197,7 @@ READ32_MEMBER(backfire_state::backfire_eeprom_r)
 {
 	/* some kind of screen indicator?  checked by backfirea set before it will boot */
 	int backfire_screen = machine().rand() & 1;
-	return ((m_eeprom->read_bit() << 24) | m_io_in0->read()
+	return ((m_eeprom->do_read() << 24) | m_io_in0->read()
 			| ((m_io_in2->read() & 0xbf) << 16)
 			| ((m_io_in3->read() & 0x40) << 16)) ^ (backfire_screen << 26) ;
 }
@@ -205,14 +205,14 @@ READ32_MEMBER(backfire_state::backfire_eeprom_r)
 READ32_MEMBER(backfire_state::backfire_control2_r)
 {
 //  logerror("%08x:Read eprom %08x (%08x)\n", space.device().safe_pc(), offset << 1, mem_mask);
-	return (m_eeprom->read_bit() << 24) | m_io_in1->read() | (m_io_in1->read() << 16);
+	return (m_eeprom->do_read() << 24) | m_io_in1->read() | (m_io_in1->read() << 16);
 }
 
 #ifdef UNUSED_FUNCTION
 READ32_MEMBER(backfire_state::backfire_control3_r)
 {
 //  logerror("%08x:Read eprom %08x (%08x)\n", space.device().safe_pc(), offset << 1, mem_mask);
-	return (m_eeprom->read_bit() << 24) | m_io_in2->read() | (m_io_in2->read() << 16);
+	return (m_eeprom->do_read() << 24) | m_io_in2->read() | (m_io_in2->read() << 16);
 }
 #endif
 
@@ -222,9 +222,9 @@ WRITE32_MEMBER(backfire_state::backfire_eeprom_w)
 	logerror("%s:write eprom %08x (%08x) %08x\n",machine().describe_context(),offset<<1,mem_mask,data);
 	if (ACCESSING_BITS_0_7)
 	{
-		m_eeprom->set_clock_line(BIT(data, 1) ? ASSERT_LINE : CLEAR_LINE);
-		m_eeprom->write_bit(BIT(data, 0));
-		m_eeprom->set_cs_line(BIT(data, 2) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->clk_write(BIT(data, 1) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->di_write(BIT(data, 0));
+		m_eeprom->cs_write(BIT(data, 2) ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
@@ -295,14 +295,14 @@ WRITE32_MEMBER(backfire_state::backfire_spriteram2_w)
 
 static ADDRESS_MAP_START( backfire_map, AS_PROGRAM, 32, backfire_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
-	AM_RANGE(0x100000, 0x10001f) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf_control_dword_r, deco16ic_pf_control_dword_w)
-	AM_RANGE(0x110000, 0x111fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x114000, 0x115fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf2_data_dword_r, deco16ic_pf2_data_dword_w)
+	AM_RANGE(0x100000, 0x10001f) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
+	AM_RANGE(0x110000, 0x111fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x114000, 0x115fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf2_data_dword_r, pf2_data_dword_w)
 	AM_RANGE(0x120000, 0x120fff) AM_READWRITE(backfire_pf1_rowscroll_r, backfire_pf1_rowscroll_w)
 	AM_RANGE(0x124000, 0x124fff) AM_READWRITE(backfire_pf2_rowscroll_r, backfire_pf2_rowscroll_w)
-	AM_RANGE(0x130000, 0x13001f) AM_DEVREADWRITE_LEGACY("tilegen2", deco16ic_pf_control_dword_r, deco16ic_pf_control_dword_w)
-	AM_RANGE(0x140000, 0x141fff) AM_DEVREADWRITE_LEGACY("tilegen2", deco16ic_pf1_data_dword_r, deco16ic_pf1_data_dword_w)
-	AM_RANGE(0x144000, 0x145fff) AM_DEVREADWRITE_LEGACY("tilegen2", deco16ic_pf2_data_dword_r, deco16ic_pf2_data_dword_w)
+	AM_RANGE(0x130000, 0x13001f) AM_DEVREADWRITE("tilegen2", deco16ic_device, pf_control_dword_r, pf_control_dword_w)
+	AM_RANGE(0x140000, 0x141fff) AM_DEVREADWRITE("tilegen2", deco16ic_device, pf1_data_dword_r, pf1_data_dword_w)
+	AM_RANGE(0x144000, 0x145fff) AM_DEVREADWRITE("tilegen2", deco16ic_device, pf2_data_dword_r, pf2_data_dword_w)
 	AM_RANGE(0x150000, 0x150fff) AM_READWRITE(backfire_pf3_rowscroll_r, backfire_pf3_rowscroll_w)
 	AM_RANGE(0x154000, 0x154fff) AM_READWRITE(backfire_pf4_rowscroll_r, backfire_pf4_rowscroll_w)
 	AM_RANGE(0x160000, 0x161fff) AM_WRITE(backfire_nonbuffered_palette_w) AM_SHARE("paletteram")
@@ -456,7 +456,6 @@ static int backfire_bank_callback( int bank )
 
 static const deco16ic_interface backfire_deco16ic_tilegen1_intf =
 {
-	"lscreen",
 	0, 1,
 	0x0f, 0x0f, /* trans masks (default values) */
 	0x00, 0x40, /* color base */
@@ -468,7 +467,6 @@ static const deco16ic_interface backfire_deco16ic_tilegen1_intf =
 
 static const deco16ic_interface backfire_deco16ic_tilegen2_intf =
 {
-	"lscreen",
 	0, 1,
 	0x0f, 0x0f, /* trans masks (default values) */
 	0x10, 0x50, /* color base */
@@ -501,7 +499,7 @@ static MACHINE_CONFIG_START( backfire, backfire_state )
 	MCFG_CPU_PROGRAM_MAP(backfire_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("lscreen", backfire_state,  deco32_vbl_interrupt)    /* or is it "rscreen?" */
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 
 	/* video hardware */
@@ -525,13 +523,17 @@ static MACHINE_CONFIG_START( backfire, backfire_state )
 
 
 	MCFG_DECO16IC_ADD("tilegen1", backfire_deco16ic_tilegen1_intf)
+	MCFG_DECO16IC_SET_SCREEN("lscreen")
 	MCFG_DECO16IC_ADD("tilegen2", backfire_deco16ic_tilegen2_intf)
+	MCFG_DECO16IC_SET_SCREEN("lscreen")
 
 	MCFG_DEVICE_ADD("spritegen", DECO_SPRITE, 0)
+	MCFG_VIDEO_SET_SCREEN("lscreen")
 	decospr_device::set_gfx_region(*device, 4);
 	decospr_device::set_pri_callback(*device, backfire_pri_callback);
 
 	MCFG_DEVICE_ADD("spritegen2", DECO_SPRITE, 0)
+	MCFG_VIDEO_SET_SCREEN("rscreen")
 	decospr_device::set_gfx_region(*device, 5);
 	decospr_device::set_pri_callback(*device, backfire_pri_callback);
 

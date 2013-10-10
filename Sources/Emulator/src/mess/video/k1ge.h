@@ -2,37 +2,37 @@
 #ifndef __K2GE_H_
 #define __K2GE_H_
 
-#include "devcb.h"
-
 
 #define MCFG_K1GE_ADD(_tag, _clock, _screen, _vblank, _hblank ) \
 	MCFG_DEVICE_ADD( _tag, K1GE, _clock ) \
-	k1ge_device::static_set_screen( *device, _screen ); \
+	MCFG_VIDEO_SET_SCREEN( _screen ) \
 	devcb = &k1ge_device::static_set_vblank_callback( *device, DEVCB2_##_vblank ); \
 	devcb = &k1ge_device::static_set_hblank_callback( *device, DEVCB2_##_hblank );
 
 #define MCFG_K2GE_ADD(_tag, _clock, _screen, _vblank, _hblank ) \
 	MCFG_DEVICE_ADD( _tag, K2GE, _clock ) \
-	k1ge_device::static_set_screen( *device, _screen ); \
+	MCFG_VIDEO_SET_SCREEN( _screen ) \
 	devcb = &k1ge_device::static_set_vblank_callback( *device, DEVCB2_##_vblank ); \
 	devcb = &k1ge_device::static_set_hblank_callback( *device, DEVCB2_##_hblank );
 
 
-class k1ge_device : public device_t
+class k1ge_device : public device_t,
+					public device_video_interface
 {
 public:
 	k1ge_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	k1ge_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	k1ge_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	DECLARE_READ8_MEMBER( reg_read );
 	DECLARE_WRITE8_MEMBER( reg_write );
 	DECLARE_READ8_MEMBER( vram_read );
 	DECLARE_WRITE8_MEMBER( vram_write );
 
+	DECLARE_PALETTE_INIT(k1ge);
+
 	void update( bitmap_ind16 &bitmap, const rectangle &cliprect );
 
 	// Static methods
-	static void static_set_screen(device_t &device, const char *screen_name) { downcast<k1ge_device &>(device).m_screen_tag = screen_name; }
 	template<class _Object> static devcb2_base &static_set_vblank_callback(device_t &device, _Object object) { return downcast<k1ge_device &>(device).m_vblank_pin_w.set_callback(object); }
 	template<class _Object> static devcb2_base &static_set_hblank_callback(device_t &device, _Object object) { return downcast<k1ge_device &>(device).m_hblank_pin_w.set_callback(object); }
 
@@ -41,9 +41,8 @@ protected:
 	// device-level overrides
 	virtual void device_start();
 	virtual void device_reset();
+	virtual machine_config_constructor device_mconfig_additions() const;
 
-	const char *m_screen_tag;
-	screen_device *m_screen;
 	devcb2_write_line m_vblank_pin_w;
 	devcb2_write_line m_hblank_pin_w;
 	UINT8 *m_vram;
@@ -68,7 +67,10 @@ class k2ge_device : public k1ge_device
 public:
 	k2ge_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	DECLARE_PALETTE_INIT(k2ge);
 protected:
+	virtual machine_config_constructor device_mconfig_additions() const;
+
 	virtual void draw(int line);
 
 	void draw_scroll_plane( UINT16 *p, UINT16 base, int line, int scroll_x, int scroll_y, UINT16 pal_base );
@@ -77,11 +79,6 @@ protected:
 	void k1ge_draw_sprite_plane( UINT16 *p, UINT16 priority, int line, int scroll_x, int scroll_y );
 
 };
-
-
-PALETTE_INIT( k1ge );
-PALETTE_INIT( k2ge );
-
 
 extern const device_type K1GE;
 extern const device_type K2GE;

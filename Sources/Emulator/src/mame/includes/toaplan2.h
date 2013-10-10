@@ -1,4 +1,4 @@
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "machine/nmk112.h"
 
 /**************** Machine stuff ******************/
@@ -11,6 +11,7 @@
 // VDP related
 #include "video/gp9001.h"
 #include "sound/okim6295.h"
+#include "cpu/m68000/m68000.h"
 // Cache the CPUs and VDPs for faster access
 class toaplan2_state : public driver_device
 {
@@ -148,12 +149,12 @@ public:
 	void toaplan2_vblank_irq(int irq_line);
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 	DECLARE_WRITE_LINE_MEMBER(bbakraid_irqhandler);
-	required_device<cpu_device> m_maincpu;
+	required_device<m68000_base_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
 	optional_device<nmk112_device> m_nmk112;
 	optional_device<okim6295_device> m_oki;
 	optional_device<okim6295_device> m_oki1;
-	optional_device<eeprom_device> m_eeprom;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

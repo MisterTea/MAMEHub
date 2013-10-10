@@ -140,7 +140,7 @@ void jubilee_state::video_start()
 
 UINT32 jubilee_state::screen_update_jubileep(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -189,8 +189,8 @@ READ8_MEMBER(jubilee_state::unk_r)
 
 static ADDRESS_MAP_START( jubileep_cru_map, AS_IO, 8, jubilee_state )
 //  AM_RANGE(0x0000, 0xffff) AM_READ(unk_r)
-//  AM_RANGE(0x00, 0x00) AM_DEVREADWRITE_LEGACY("crtc",  mc6845_status_r, mc6845_address_w)
-//  AM_RANGE(0x01, 0x01) AM_DEVREADWRITE_LEGACY("crtc", mc6845_register_r, mc6845_register_w)
+//  AM_RANGE(0x00, 0x00) AM_DEVREADWRITE("crtc", mc6845_device, status_r, address_w)
+//  AM_RANGE(0x01, 0x01) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w)
 	AM_RANGE(0xc8, 0xc8) AM_READ(unk_r)
 ADDRESS_MAP_END
 
@@ -396,7 +396,6 @@ GFXDECODE_END
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -435,7 +434,7 @@ static MACHINE_CONFIG_START( jubileep, jubilee_state )
 	MCFG_PALETTE_LENGTH(256)
 
 
-	MCFG_MC6845_ADD("crtc", MC6845, MASTER_CLOCK/4, mc6845_intf) /* guess */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/4, mc6845_intf) /* guess */
 
 MACHINE_CONFIG_END
 

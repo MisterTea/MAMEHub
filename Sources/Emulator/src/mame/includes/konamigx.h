@@ -1,5 +1,10 @@
 #include "sound/k054539.h"
 #include "cpu/tms57002/tms57002.h"
+#include "video/k054156_k054157_k056832.h"
+#include "video/k053246_k053247_k055673.h"
+#include "video/k055555.h"
+#include "video/k054338.h"
+#include "video/k053936.h"
 
 class konamigx_state : public driver_device
 {
@@ -10,6 +15,9 @@ public:
 		m_workram(*this,"workram"),
 		m_psacram(*this,"psacram"),
 		m_subpaletteram32(*this,"subpaletteram"),
+		m_k055673(*this, "k055673"),
+		m_k055555(*this, "k055555"),
+		m_k056832(*this, "k056832"),
 		m_k053936_0_ctrl(*this,"k053936_0_ctrl",32),
 		m_k053936_0_linectrl(*this,"k053936_0_line",32),
 		m_k053936_0_ctrl_16(*this,"k053936_0_ct16",16),
@@ -25,6 +33,9 @@ public:
 	optional_shared_ptr<UINT32> m_workram;
 	optional_shared_ptr<UINT32> m_psacram;
 	optional_shared_ptr<UINT32> m_subpaletteram32;
+	required_device<k055673_device> m_k055673;
+	required_device<k055555_device> m_k055555;
+	required_device<k056832_device> m_k056832;
 	optional_shared_ptr<UINT16> m_k053936_0_ctrl;
 	optional_shared_ptr<UINT16> m_k053936_0_linectrl;
 	optional_shared_ptr<UINT16> m_k053936_0_ctrl_16;
@@ -97,17 +108,38 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(konamigx_hbinterrupt);
 	optional_device<cpu_device> m_soundcpu;
 	optional_device<tms57002_device> m_dasp;
+
+	void _gxcommoninitnosprites(running_machine &machine);
+	void _gxcommoninit(running_machine &machine);
+	DECLARE_READ32_MEMBER( k_6bpp_rom_long_r );
+	void konamigx_mixer     (screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect,tilemap_t *sub1, int sub1flags,tilemap_t *sub2, int sub2flags,int mixerflags, bitmap_ind16 *extra_bitmap, int rushingheroes_hack);
+	void konamigx_mixer_draw(screen_device &Screen, bitmap_rgb32 &bitmap, const rectangle &cliprect,
+						tilemap_t *sub1, int sub1flags,
+						tilemap_t *sub2, int sub2flags,
+						int mixerflags, bitmap_ind16 *extra_bitmap, int rushingheroes_hack,
+						struct GX_OBJ *objpool,
+						int *objbuf,
+						int nobj
+						);
+
+
+	void gx_draw_basic_tilemaps(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int mixerflags, int code);
+	void gx_draw_basic_extended_tilemaps_1(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int mixerflags, int code, tilemap_t *sub1, int sub1flags, int rushingheroes_hack, int offs);
+	void gx_draw_basic_extended_tilemaps_2(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int mixerflags, int code, tilemap_t *sub2, int sub2flags, bitmap_ind16 *extra_bitmap, int offs);
+
+	void konamigx_esc_alert(UINT32 *srcbase, int srcoffs, int count, int mode);
+	void konamigx_precache_registers(void);
+
+	void dmastart_callback(int data);
+
+	void konamigx_mixer_init(screen_device &screen, int objdma);
+	void konamigx_objdma(void);
+
+
 };
 
 
 /*----------- defined in video/konamigx.c -----------*/
-
-// 2nd-Tier GX/MW Hardware Functions
-
-void K053936GP_set_offset(int chip, int xoffs, int yoffs);
-void K053936GP_clip_enable(int chip, int status);
-void K053936GP_set_cliprect(int chip, int minx, int maxx, int miny, int maxy);
-
 
 
 // 1st-Tier GX/MW Variables and Functions
@@ -158,17 +190,17 @@ extern UINT16 konamigx_wrport2;
 #define GXSUB_5BPP      0x05    //  32 colors
 #define GXSUB_8BPP      0x08    // 256 colors
 
-void konamigx_mixer(running_machine &machine, bitmap_rgb32 &bitmap, const rectangle &cliprect,
+void konamigx_mixer(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect,
 					tilemap_t *sub1, int sub1flags,
 					tilemap_t *sub2, int sub2flags,
 					int mixerflags, bitmap_ind16* extra_bitmap, int rushingheroes_hack);
 
-void konamigx_mixer_init(running_machine &machine, int objdma);
+void konamigx_mixer_init(screen_device &screen, int objdma);
 void konamigx_mixer_primode(int mode);
 
 
-void konamigx_objdma(void);
-extern UINT16 *K053247_ram;
+
+
 
 extern int konamigx_current_frame;
 
@@ -176,6 +208,6 @@ extern int konamigx_current_frame;
 /*----------- defined in machine/konamigx.c -----------*/
 
 // K055550/K053990/ESC protection devices handlers
-void konamigx_esc_alert(UINT32 *srcbase, int srcoffs, int count, int mode);
+
 
 void fantjour_dma_install(running_machine &machine);

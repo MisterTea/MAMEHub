@@ -99,9 +99,8 @@
 
 #include "emu.h"
 #include "includes/decocrpt.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/ymz280b.h"
-#include "includes/decoprot.h"
 #include "cpu/arm/arm.h"
 #include "cpu/sh2/sh2.h"
 #include "includes/deco_mlc.h"
@@ -175,8 +174,8 @@ READ32_MEMBER(deco_mlc_state::mlc_20007c_r)
 
 READ32_MEMBER(deco_mlc_state::mlc_scanline_r)
 {
-//  logerror("read scanline counter (%d)\n", machine().primary_screen->vpos());
-	return machine().primary_screen->vpos();
+//  logerror("read scanline counter (%d)\n", m_screen->vpos());
+	return m_screen->vpos();
 }
 
 
@@ -185,9 +184,9 @@ WRITE32_MEMBER(deco_mlc_state::avengrs_eprom_w)
 	if (ACCESSING_BITS_8_15) {
 		UINT8 ebyte=(data>>8)&0xff;
 //      if (ebyte&0x80) {
-			m_eeprom->set_clock_line((ebyte & 0x2) ? ASSERT_LINE : CLEAR_LINE);
-			m_eeprom->write_bit(ebyte & 0x1);
-			m_eeprom->set_cs_line((ebyte & 0x4) ? CLEAR_LINE : ASSERT_LINE);
+			m_eeprom->clk_write((ebyte & 0x2) ? ASSERT_LINE : CLEAR_LINE);
+			m_eeprom->di_write(ebyte & 0x1);
+			m_eeprom->cs_write((ebyte & 0x4) ? ASSERT_LINE : CLEAR_LINE);
 //      }
 	}
 	else if (ACCESSING_BITS_0_7) {
@@ -207,13 +206,13 @@ WRITE32_MEMBER(deco_mlc_state::avengrs_palette_w)
 
 TIMER_DEVICE_CALLBACK_MEMBER(deco_mlc_state::interrupt_gen)
 {
-//  logerror("hit scanline IRQ %d (%08x)\n", machine.primary_screen->vpos(), info.i);
+//  logerror("hit scanline IRQ %d (%08x)\n", m_screen->vpos(), info.i);
 	m_maincpu->set_input_line(m_mainCpuIsArm ? ARM_IRQ_LINE : 1, HOLD_LINE);
 }
 
 WRITE32_MEMBER(deco_mlc_state::mlc_irq_w)
 {
-//  int scanline=machine().primary_screen->vpos();
+//  int scanline=m_screen->vpos();
 	COMBINE_DATA(&m_irq_ram[offset]);
 
 
@@ -223,8 +222,8 @@ WRITE32_MEMBER(deco_mlc_state::mlc_irq_w)
 		m_maincpu->set_input_line(m_mainCpuIsArm ? ARM_IRQ_LINE : 1, CLEAR_LINE);
 		return;
 	case 0x14: /* Prepare scanline interrupt */
-		m_raster_irq_timer->adjust(machine().primary_screen->time_until_pos(m_irq_ram[0x14/4]));
-		//logerror("prepare scanline to fire at %d (currently on %d)\n", m_irq_ram[0x14/4], machine().primary_screen->vpos());
+		m_raster_irq_timer->adjust(m_screen->time_until_pos(m_irq_ram[0x14/4]));
+		//logerror("prepare scanline to fire at %d (currently on %d)\n", m_irq_ram[0x14/4], m_screen->vpos());
 		return;
 
 	default:
@@ -241,37 +240,7 @@ READ32_MEMBER(deco_mlc_state::mlc_vram_r)
 	return m_mlc_vram[offset]&0xffff;
 }
 
-// there is more to this, it controls the runner on the attract screen before the title should appear at least
-READ32_MEMBER(deco_mlc_state::stadhr96_prot_146_r)
-{
-	/*
-	    cpu #0 (PC=00041BD0): unmapped program memory dword write to 00708004 = 000F0000 & FFFFFFFF
-	    cpu #0 (PC=00041BFC): unmapped program memory dword write to 0070F0C8 = 00028800 & FFFFFFFF
-	    cpu #0 (PC=00041C08): unmapped program memory dword write to 0070F010 = 00081920 & FFFFFFFF
-	    cpu #0 (PC=00041C14): unmapped program memory dword write to 0070F020 = 00040960 & FFFFFFFF
-	    cpu #0 (PC=00041C20): unmapped program memory dword write to 0070F03C = 5A5A5A5A & FFFFFFFF
-	*/
-	offset<<=1;
 
-
-	if (offset==0x5c4)
-		return 0xaa55 << 16;
-	if (offset==0x7a4)
-		return 0x0001 << 16; // "2" makes OUT count to add by 2.
-	if (offset==0x53c)
-		return 0x0008 << 16;
-	if (offset==0x304)
-		return 0x0001 << 16; // Unknown, is either 0,1,2,3
-
-	printf("%08x:  Read prot %08x\n", space.device().safe_pc(), offset);
-
-	return 0;
-}
-
-WRITE32_MEMBER(deco_mlc_state::stadhr96_prot_146_w)
-{
-	printf("%08x:  Write prot %04x %08x\n", space.device().safe_pc(), offset, data);
-}
 
 READ32_MEMBER( deco_mlc_state::mlc_spriteram_r )
 {
@@ -303,6 +272,25 @@ WRITE32_MEMBER( deco_mlc_state::mlc_spriteram_w )
 		COMBINE_DATA(&m_mlc_spriteram[offset]);
 	}
 }
+
+READ16_MEMBER( deco_mlc_state::sh96_protection_region_0_146_r )
+{
+	int real_address = 0 + (offset *2);
+	int deco146_addr = BITSWAP32(real_address, /* NC */31,30,29,28,27,26,25,24,23,22,21,20,19,18, 13,12,11,/**/      17,16,15,14,    10,9,8, 7,6,5,4, 3,2,1,0) & 0x7fff;
+	UINT8 cs = 0;
+	UINT16 data = m_deco146->read_data( deco146_addr, mem_mask, cs );
+	return data;
+}
+
+WRITE16_MEMBER( deco_mlc_state::sh96_protection_region_0_146_w )
+{
+	int real_address = 0 + (offset *2);
+	int deco146_addr = BITSWAP32(real_address, /* NC */31,30,29,28,27,26,25,24,23,22,21,20,19,18, 13,12,11,/**/      17,16,15,14,    10,9,8, 7,6,5,4, 3,2,1,0) & 0x7fff;
+	UINT8 cs = 0;
+	m_deco146->write_data( space, deco146_addr, data, mem_mask, cs );
+}
+
+
 /******************************************************************************/
 
 static ADDRESS_MAP_START( decomlc_map, AS_PROGRAM, 32, deco_mlc_state )
@@ -325,7 +313,7 @@ static ADDRESS_MAP_START( decomlc_map, AS_PROGRAM, 32, deco_mlc_state )
 	AM_RANGE(0x044001c, 0x044001f) AM_READWRITE(mlc_44001c_r, mlc_44001c_w) AM_MIRROR(0xff000000)
 	AM_RANGE(0x0500000, 0x0500003) AM_WRITE(avengrs_eprom_w) AM_MIRROR(0xff000000)
 	AM_RANGE(0x0600000, 0x0600007) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0xff000000) AM_MIRROR(0xff000000)
-	AM_RANGE(0x070f000, 0x070ffff) AM_READWRITE(stadhr96_prot_146_r, stadhr96_prot_146_w) AM_MIRROR(0xff000000)
+	AM_RANGE(0x070f000, 0x070ffff) AM_READWRITE16(sh96_protection_region_0_146_r, sh96_protection_region_0_146_w, 0xffff0000) AM_MIRROR(0xff000000)
 ADDRESS_MAP_END
 
 /******************************************************************************/
@@ -356,7 +344,7 @@ static INPUT_PORTS_START( mlc )
 	PORT_BIT( 0x00100000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x00200000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x00400000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x01000000, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_PLAYER(1)
 	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x04000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -432,7 +420,7 @@ static MACHINE_CONFIG_START( avengrgs, deco_mlc_state )
 	MCFG_CPU_PROGRAM_MAP(decomlc_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(deco_mlc_state,mlc)
-	MCFG_EEPROM_93C46_ADD("eeprom") /* Actually 93c45 */
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom") /* Actually 93c45 */
 
 	MCFG_TIMER_DRIVER_ADD("int_timer", deco_mlc_state, interrupt_gen)
 
@@ -465,7 +453,7 @@ static MACHINE_CONFIG_START( mlc, deco_mlc_state )
 	MCFG_CPU_PROGRAM_MAP(decomlc_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(deco_mlc_state,mlc)
-	MCFG_EEPROM_93C46_ADD("eeprom") /* Actually 93c45 */
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom") /* Actually 93c45 */
 
 	MCFG_TIMER_DRIVER_ADD("int_timer", deco_mlc_state, interrupt_gen)
 
@@ -482,6 +470,9 @@ static MACHINE_CONFIG_START( mlc, deco_mlc_state )
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_SCANLINE)
 
 	MCFG_VIDEO_START_OVERRIDE(deco_mlc_state,mlc)
+
+	MCFG_DECO146_ADD("ioprot")
+	MCFG_DECO146_SET_USE_MAGIC_ADDRESS_XOR
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

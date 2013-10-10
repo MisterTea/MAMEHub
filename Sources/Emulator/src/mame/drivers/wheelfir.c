@@ -208,7 +208,7 @@ suspicious code:
 
 
 #include "emu.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "cpu/m68000/m68000.h"
 #include "sound/dac.h"
 
@@ -235,7 +235,6 @@ public:
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
-	device_t *m_screen;
 
 	INT32 *m_zoom_table;
 	UINT16 *m_blitter_data;
@@ -386,8 +385,8 @@ WRITE16_MEMBER(wheelfir_state::wheelfir_blit_w)
 		{
 			UINT8 *rom = memregion("gfx1")->base();
 
-			int width = machine().primary_screen->width();
-			int height = machine().primary_screen->height();
+			int width = m_screen->width();
+			int height = m_screen->height();
 
 			int src_x0=(m_blitter_data[0]>>8)+((m_blitter_data[6]&0x100)?256:0);
 			int src_y0=(m_blitter_data[2]>>8)+((m_blitter_data[6]&0x200)?256:0);
@@ -764,8 +763,6 @@ void wheelfir_state::machine_reset()
 
 void wheelfir_state::machine_start()
 {
-	m_screen = machine().device("screen");
-
 	m_zoom_table = auto_alloc_array(machine(), INT32, ZOOM_TABLE_SIZE);
 	m_blitter_data = auto_alloc_array(machine(), UINT16, 16);
 
@@ -821,7 +818,7 @@ static MACHINE_CONFIG_START( wheelfir, wheelfir_state )
 
 	MCFG_PALETTE_LENGTH(NUM_COLORS)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 
 

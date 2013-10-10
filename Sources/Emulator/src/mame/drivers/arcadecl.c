@@ -106,7 +106,7 @@ void arcadecl_state::scanline_update(screen_device &screen, int scanline)
 MACHINE_RESET_MEMBER(arcadecl_state,arcadecl)
 {
 	atarigen_state::machine_reset();
-	scanline_timer_reset(*machine().primary_screen, 32);
+	scanline_timer_reset(*m_screen, 32);
 }
 
 
@@ -145,9 +145,9 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, arcadecl_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x200000, 0x21ffff) AM_RAM AM_SHARE("bitmap")
 	AM_RANGE(0x3c0000, 0x3c07ff) AM_RAM_WRITE(expanded_paletteram_666_w) AM_SHARE("paletteram")
-	AM_RANGE(0x3e0000, 0x3e07ff) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
+	AM_RANGE(0x3e0000, 0x3e07ff) AM_RAM AM_SHARE("mob")
 	AM_RANGE(0x3e0800, 0x3effbf) AM_RAM
-	AM_RANGE(0x3effc0, 0x3effff) AM_READWRITE_LEGACY(atarimo_0_slipram_r, atarimo_0_slipram_w)
+	AM_RANGE(0x3effc0, 0x3effff) AM_RAM AM_SHARE("mob:slip")
 	AM_RANGE(0x640000, 0x640001) AM_READ_PORT("PLAYER1")
 	AM_RANGE(0x640002, 0x640003) AM_READ_PORT("PLAYER2")
 	AM_RANGE(0x640010, 0x640011) AM_READ_PORT("STATUS")
@@ -157,8 +157,8 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, arcadecl_state )
 	AM_RANGE(0x640024, 0x640025) AM_READ_PORT("TRACKX1")
 	AM_RANGE(0x640026, 0x640027) AM_READ_PORT("TRACKY1")
 	AM_RANGE(0x640040, 0x64004f) AM_WRITE(latch_w)
-	AM_RANGE(0x640060, 0x64006f) AM_WRITE(eeprom_enable_w)
-	AM_RANGE(0x641000, 0x641fff) AM_READWRITE(eeprom_r, eeprom_w) AM_SHARE("eeprom")
+	AM_RANGE(0x640060, 0x64006f) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
+	AM_RANGE(0x641000, 0x641fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
 	AM_RANGE(0x642000, 0x642001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0xff00)
 	AM_RANGE(0x646000, 0x646fff) AM_WRITE(scanline_int_ack_w)
 	AM_RANGE(0x647000, 0x647fff) AM_WRITE(watchdog_reset16_w)
@@ -321,12 +321,14 @@ static MACHINE_CONFIG_START( arcadecl, arcadecl_state )
 	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", atarigen_state, video_int_gen)
 
 	MCFG_MACHINE_RESET_OVERRIDE(arcadecl_state,arcadecl)
-	MCFG_NVRAM_ADD_1FILL("eeprom")
+	MCFG_ATARI_EEPROM_2804_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_GFXDECODE(arcadecl)
 	MCFG_PALETTE_LENGTH(512)
+
+	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", arcadecl_state::s_mob_config)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */
@@ -341,6 +343,10 @@ static MACHINE_CONFIG_START( arcadecl, arcadecl_state )
 
 	MCFG_OKIM6295_ADD("oki", MASTER_CLOCK/4/3, OKIM6295_PIN7_LOW)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( sparkz, arcadecl )
+	MCFG_DEVICE_REMOVE("mob")
 MACHINE_CONFIG_END
 
 
@@ -369,7 +375,7 @@ ROM_START( sparkz )
 	ROM_LOAD16_BYTE( "sparkzpg.0", 0x00000, 0x80000, CRC(a75c331c) SHA1(855ed44bd23c1dd0ca64926cacc8be62aca82fe2) )
 	ROM_LOAD16_BYTE( "sparkzpg.1", 0x00001, 0x80000, CRC(1af1fc04) SHA1(6d92edb1a881ba6b63e0144c9c3e631b654bf8ae) )
 
-	ROM_REGION( 0x20, "gfx1", ROMREGION_ERASEFF )
+	ROM_REGION( 0x20, "gfx1", ROMREGION_ERASE00 )
 	/* empty */
 
 	ROM_REGION( 0x80000, "oki", 0 )
@@ -380,22 +386,9 @@ ROM_END
 
 /*************************************
  *
- *  Driver initialization
- *
- *************************************/
-
-DRIVER_INIT_MEMBER(arcadecl_state,sparkz)
-{
-	memset(memregion("gfx1")->base(), 0, memregion("gfx1")->bytes());
-}
-
-
-
-/*************************************
- *
  *  Game driver(s)
  *
  *************************************/
 
-GAME( 1992, arcadecl, 0, arcadecl, arcadecl, driver_device, 0,      ROT0, "Atari Games", "Arcade Classics (prototype)", GAME_SUPPORTS_SAVE )
-GAME( 1992, sparkz,   0, arcadecl, sparkz, arcadecl_state,   sparkz, ROT0, "Atari Games", "Sparkz (prototype)", GAME_SUPPORTS_SAVE )
+GAME( 1992, arcadecl, 0, arcadecl, arcadecl, driver_device, 0, ROT0, "Atari Games", "Arcade Classics (prototype)", GAME_SUPPORTS_SAVE )
+GAME( 1992, sparkz,   0, sparkz,   sparkz,   driver_device, 0, ROT0, "Atari Games", "Sparkz (prototype)", GAME_SUPPORTS_SAVE )

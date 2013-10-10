@@ -90,7 +90,7 @@ WRITE32_MEMBER(unico_state::unico_palette32_w)
 
 TILE_GET_INFO_MEMBER(unico_state::get_tile_info)
 {
-	UINT16 *vram = (UINT16 *)param;
+	UINT16 *vram = (UINT16 *)tilemap.user_data();
 	UINT16 code = vram[2 * tile_index + 0 ];
 	UINT16 attr = vram[2 * tile_index + 1 ];
 	SET_TILE_INFO_MEMBER(1, code, attr & 0x1f, TILE_FLIPYX( attr >> 5 ));
@@ -98,7 +98,7 @@ TILE_GET_INFO_MEMBER(unico_state::get_tile_info)
 
 TILE_GET_INFO_MEMBER(unico_state::get_tile_info32)
 {
-	UINT32 *vram = (UINT32 *)param;
+	UINT32 *vram = (UINT32 *)tilemap.user_data();
 	UINT16 code = vram[tile_index] >> 16;
 	UINT16 attr = vram[tile_index] & 0xff;
 	SET_TILE_INFO_MEMBER(1, code, attr & 0x1f, TILE_FLIPYX( attr >> 5 ));
@@ -217,7 +217,7 @@ VIDEO_START_MEMBER(unico_state,zeropnt2)
 
 ***************************************************************************/
 
-void unico_state::unico_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
+void unico_state::unico_draw_sprites(screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
 	UINT16 *spriteram16 = m_spriteram;
 	int offs;
@@ -265,13 +265,13 @@ void unico_state::unico_draw_sprites(bitmap_ind16 &bitmap,const rectangle &clipr
 						attr & 0x1f,
 						flipx, flipy,
 						x, sy,
-						machine().priority_bitmap,
+						screen.priority(),
 						pri_mask,0x00   );
 		}
 	}
 }
 
-void unico_state::zeropnt2_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
+void unico_state::zeropnt2_draw_sprites(screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
 	UINT32 *spriteram32 = reinterpret_cast<UINT32 *>(m_spriteram.target());
 	int offs;
@@ -319,7 +319,7 @@ void unico_state::zeropnt2_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cl
 						attr & 0x1f,
 						flipx, flipy,
 						x, sy,
-						machine().priority_bitmap,
+						screen.priority(),
 						pri_mask,0x00   );
 		}
 	}
@@ -362,14 +362,14 @@ if ( machine().input().code_pressed(KEYCODE_Z) || machine().input().code_pressed
 
 	/* The background color is the first of the last palette */
 	bitmap.fill(0x1f00, cliprect);
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
-	if (layers_ctrl & 1)    m_tilemap[0]->draw(bitmap, cliprect, 0,1);
-	if (layers_ctrl & 2)    m_tilemap[1]->draw(bitmap, cliprect, 0,2);
-	if (layers_ctrl & 4)    m_tilemap[2]->draw(bitmap, cliprect, 0,4);
+	if (layers_ctrl & 1)    m_tilemap[0]->draw(screen, bitmap, cliprect, 0,1);
+	if (layers_ctrl & 2)    m_tilemap[1]->draw(screen, bitmap, cliprect, 0,2);
+	if (layers_ctrl & 4)    m_tilemap[2]->draw(screen, bitmap, cliprect, 0,4);
 
 	/* Sprites are drawn last, using pdrawgfx */
-	if (layers_ctrl & 8)    unico_draw_sprites(bitmap,cliprect);
+	if (layers_ctrl & 8)    unico_draw_sprites(screen,bitmap,cliprect);
 
 	return 0;
 }
@@ -401,14 +401,14 @@ if ( machine().input().code_pressed(KEYCODE_Z) || machine().input().code_pressed
 
 	/* The background color is the first of the last palette */
 	bitmap.fill(0x1f00, cliprect);
-	screen.machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
-	if (layers_ctrl & 1)    m_tilemap[0]->draw(bitmap, cliprect, 0,1);
-	if (layers_ctrl & 2)    m_tilemap[1]->draw(bitmap, cliprect, 0,2);
-	if (layers_ctrl & 4)    m_tilemap[2]->draw(bitmap, cliprect, 0,4);
+	if (layers_ctrl & 1)    m_tilemap[0]->draw(screen, bitmap, cliprect, 0,1);
+	if (layers_ctrl & 2)    m_tilemap[1]->draw(screen, bitmap, cliprect, 0,2);
+	if (layers_ctrl & 4)    m_tilemap[2]->draw(screen, bitmap, cliprect, 0,4);
 
 	/* Sprites are drawn last, using pdrawgfx */
-	if (layers_ctrl & 8)    zeropnt2_draw_sprites(bitmap,cliprect);
+	if (layers_ctrl & 8)    zeropnt2_draw_sprites(screen,bitmap,cliprect);
 
 	return 0;
 }

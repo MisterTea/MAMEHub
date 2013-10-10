@@ -77,6 +77,8 @@ Sonic Hedgehog 2           171-6215A   837-6963-62       610-0239-62         MPR
 #include "includes/megadriv.h"
 #include "imagedev/cartslot.h"
 
+#include "scrlegcy.h"
+
 #define MASTER_CLOCK        53693100
 
 /* not currently used */
@@ -492,7 +494,6 @@ WRITE_LINE_MEMBER( mtech_state::int_callback )
 static const sega315_5124_interface _vdp_intf =
 {
 	false,
-	"menu",
 	DEVCB_DRIVER_LINE_MEMBER(mtech_state, int_callback),
 	DEVCB_NULL,
 };
@@ -513,10 +514,8 @@ static MACHINE_CONFIG_START( megatech, mtech_state )
 	MCFG_CPU_PROGRAM_MAP(megatech_bios_map)
 	MCFG_CPU_IO_MAP(megatech_bios_portmap)
 
-	MCFG_MACHINE_RESET(0)
 	MCFG_MACHINE_RESET_OVERRIDE(mtech_state,mtnew)
 
-	MCFG_VIDEO_START(0)
 	MCFG_VIDEO_START_OVERRIDE(mtech_state,mtnew)
 
 	MCFG_DEFAULT_LAYOUT(layout_dualhovu)
@@ -529,9 +528,9 @@ static MACHINE_CONFIG_START( megatech, mtech_state )
 	MCFG_SCREEN_UPDATE_DRIVER(mtech_state, screen_update_megatech_menu)
 
 	MCFG_PALETTE_LENGTH(SEGA315_5124_PALETTE_SIZE)
-	MCFG_PALETTE_INIT(sega315_5124)
 
 	MCFG_SEGA315_5246_ADD("vdp1", _vdp_intf)
+	MCFG_SEGA315_5246_SET_SCREEN("menu")
 
 
 	MCFG_SCREEN_MODIFY("megadriv")

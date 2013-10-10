@@ -16,7 +16,7 @@
         TMS9929   - Video
         TMS9911   - DMA to floppy
         TMS9909   - Floppy Disk Controller
-    AY-5-2376 - Keyboard controller
+        AY-5-2376 - Keyboard controller
 
 ****************************************************************************/
 
@@ -81,7 +81,6 @@ static const struct tms9995reset_param cortex_processor_config =
 
 static TMS9928A_INTERFACE(cortex_tms9929a_interface)
 {
-	"screen",   // screen tag
 	0x4000,     // vram size
 	DEVCB_NULL  // write line if int changes
 };

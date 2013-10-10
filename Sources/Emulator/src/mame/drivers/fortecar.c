@@ -314,7 +314,7 @@
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/ay8910.h"
 #include "machine/i8255.h"
 #include "machine/v3021.h"
@@ -345,7 +345,7 @@ public:
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_fortecar(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 };
 
 
@@ -442,15 +442,15 @@ CK   PPI_PC1
 DIN  PPI_PC2
 DOUT PPI_PC4
 */
-	m_eeprom->write_bit((data & 0x04) >> 2);
-	m_eeprom->set_cs_line((data & 0x01) ? CLEAR_LINE : ASSERT_LINE);
-	m_eeprom->set_clock_line((data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->di_write((data & 0x04) >> 2);
+	m_eeprom->cs_write((data & 0x01) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->clk_write((data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 READ8_MEMBER(fortecar_state::ppi0_portc_r)
 {
 //  popmessage("%s",machine().describe_context());
-	return ((m_eeprom->read_bit()<<4) & 0x10);
+	return ((m_eeprom->do_read()<<4) & 0x10);
 }
 
 static I8255A_INTERFACE( ppi8255_intf )
@@ -535,7 +535,6 @@ static const ay8910_interface ay8910_config =
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -546,21 +545,6 @@ static MC6845_INTERFACE( mc6845_intf )
 	DEVCB_NULL, /* HSYNC callback */
 	DEVCB_NULL, /* VSYNC callback */
 	NULL        /* update address callback */
-};
-
-
-static const eeprom_interface forte_eeprom_intf =
-{/*
-    Preliminary interface for NM93CS56N Serial EEPROM.
-    Correct address & data. Using 93C46 similar protocol.
-*/
-	8,                /* address bits */
-	16,               /* data bits */
-	"*110",           /* read command */
-	"*101",           /* write command */
-	"*111",           /* erase command */
-	"*10000xxxxxx",   /* lock command */
-	"*10011xxxxxx",   /* unlock command */
 };
 
 
@@ -703,8 +687,8 @@ static MACHINE_CONFIG_START( fortecar, fortecar_state )
 	MCFG_SCREEN_UPDATE_DRIVER(fortecar_state, screen_update_fortecar)
 
 
-	MCFG_EEPROM_ADD("eeprom", forte_eeprom_intf)
-	MCFG_EEPROM_DEFAULT_VALUE(0)
+	MCFG_EEPROM_SERIAL_93C56_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_DEFAULT_VALUE(0)
 
 	MCFG_I8255A_ADD( "fcppi0", ppi8255_intf )
 	MCFG_V3021_ADD("rtc")
@@ -713,7 +697,7 @@ static MACHINE_CONFIG_START( fortecar, fortecar_state )
 	MCFG_PALETTE_LENGTH(0x200)
 
 
-	MCFG_MC6845_ADD("crtc", MC6845, CRTC_CLOCK, mc6845_intf)    /* 1.5 MHz, measured */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CRTC_CLOCK, mc6845_intf)    /* 1.5 MHz, measured */
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
@@ -736,7 +720,7 @@ ROM_START( fortecar )
 	ROM_REGION( 0x0800, "nvram", 0 )    /* default NVRAM */
 	ROM_LOAD( "fortecrd_nvram.u6", 0x0000, 0x0800, BAD_DUMP CRC(7d3e7eb5) SHA1(788fe7adc381bcc6eaefed33f5aa1081340608a0) )
 
-	ROM_REGION( 0x0200, "eeprom", 0 )   /* default serial EEPROM */
+	ROM_REGION( 0x0100, "eeprom", 0 )   /* default serial EEPROM */
 	ROM_LOAD16_WORD_SWAP( "forte_card_93cs56_serial_12345678.u13", 0x0000, 0x0100, BAD_DUMP CRC(2fc5961d) SHA1(f958c8b2b4e48cc6e5a607a6751acde5592bd27f) )
 
 	ROM_REGION( 0x200, "proms", 0 )
@@ -755,7 +739,7 @@ ROM_START( fortecrd )
 	ROM_REGION( 0x0800, "nvram", 0 )    /* default NVRAM */
 	ROM_LOAD( "fortecrd_nvram.u6", 0x0000, 0x0800, CRC(7d3e7eb5) SHA1(788fe7adc381bcc6eaefed33f5aa1081340608a0) )
 
-	ROM_REGION( 0x0200, "eeprom", 0 )   /* default serial EEPROM */
+	ROM_REGION( 0x0100, "eeprom", 0 )   /* default serial EEPROM */
 	ROM_LOAD16_WORD_SWAP( "forte_card_93cs56_serial_12345678.u13", 0x0000, 0x0100, CRC(2fc5961d) SHA1(f958c8b2b4e48cc6e5a607a6751acde5592bd27f) )
 
 	ROM_REGION( 0x0200, "proms", 0 )

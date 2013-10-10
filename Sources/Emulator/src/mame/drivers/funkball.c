@@ -105,8 +105,8 @@ public:
 	DECLARE_WRITE8_MEMBER( flash_data_w );
 //  DECLARE_WRITE8_MEMBER( bios_ram_w );
 	DECLARE_READ8_MEMBER( test_r );
-	DECLARE_READ8_MEMBER( fdc_r );
-	DECLARE_WRITE8_MEMBER( fdc_w );
+	DECLARE_READ8_MEMBER( serial_r );
+	DECLARE_WRITE8_MEMBER( serial_w );
 
 	UINT8 funkball_config_reg_r();
 	void funkball_config_reg_w(UINT8 data);
@@ -125,8 +125,8 @@ public:
 	DECLARE_READ32_MEMBER(biu_ctrl_r);
 	DECLARE_WRITE32_MEMBER(biu_ctrl_w);
 	DECLARE_WRITE8_MEMBER(bios_ram_w);
-	DECLARE_READ32_MEMBER(fdc_r);
-	DECLARE_WRITE32_MEMBER(fdc_w);
+	DECLARE_READ32_MEMBER(serial_r);
+	DECLARE_WRITE32_MEMBER(serial_w);
 	DECLARE_READ8_MEMBER(io20_r);
 	DECLARE_WRITE8_MEMBER(io20_w);
 	virtual void machine_start();
@@ -210,18 +210,18 @@ static void cx5510_pci_w(device_t *busdevice, device_t *device, int function, in
 	COMBINE_DATA(state->m_cx5510_regs + (reg/4));
 }
 
-READ8_MEMBER( funkball_state::fdc_r )
+READ8_MEMBER( funkball_state::serial_r )
 {
 	//printf("%02x\n",offset);
-	if(offset == 0xd)
+	if(offset == 5)
 		return 0x20;
 
 	return 0;
 }
 
-WRITE8_MEMBER( funkball_state::fdc_w )
+WRITE8_MEMBER( funkball_state::serial_w )
 {
-	if(offset == 8)
+	if(offset == 0)
 	{
 		if(data == 0x0d)
 			printf("\n");
@@ -247,16 +247,12 @@ READ8_MEMBER(funkball_state::io20_r)
 	UINT8 r = 0;
 
 	// 0x22, 0x23, Cyrix configuration registers
-	if (offset == 0x02)
+	if (offset == 0x00)
 	{
 	}
-	else if (offset == 0x03)
+	else if (offset == 0x01)
 	{
 		r = funkball_config_reg_r();
-	}
-	else
-	{
-		r = m_pic8259_1->read(space, offset);
 	}
 	return r;
 }
@@ -264,17 +260,13 @@ READ8_MEMBER(funkball_state::io20_r)
 WRITE8_MEMBER(funkball_state::io20_w)
 {
 	// 0x22, 0x23, Cyrix configuration registers
-	if (offset == 0x02)
+	if (offset == 0x00)
 	{
 		m_funkball_config_reg_sel = data;
 	}
-	else if (offset == 0x03)
+	else if (offset == 0x01)
 	{
 		funkball_config_reg_w(data);
-	}
-	else
-	{
-		m_pic8259_1->write(space, offset, data);
 	}
 }
 
@@ -405,13 +397,13 @@ static ADDRESS_MAP_START(funkball_map, AS_PROGRAM, 32, funkball_state)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(funkball_io, AS_IO, 32, funkball_state)
+	AM_RANGE(0x0020, 0x0023) AM_READWRITE8(io20_r, io20_w, 0xffff0000)
 	AM_IMPORT_FROM(pcat32_io_common)
-	AM_RANGE(0x0020, 0x003f) AM_READWRITE8(io20_r, io20_w, 0xffffffff)
 	AM_RANGE(0x00e8, 0x00ef) AM_NOP
 
-//  AM_RANGE(0x01f0, 0x01f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0_pc, write_cs0_pc, 0xffffffff)
-//  AM_RANGE(0x03f0, 0x03f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1_pc, write_cs1_pc, 0xffffffff)
-	AM_RANGE(0x03f0, 0x03ff) AM_READWRITE8(fdc_r,fdc_w,0xffffffff)
+	AM_RANGE(0x01f0, 0x01f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0, write_cs0, 0xffffffff)
+	AM_RANGE(0x03f0, 0x03f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1, write_cs1, 0xffffffff)
+	AM_RANGE(0x03f8, 0x03ff) AM_READWRITE8(serial_r,serial_w,0xffffffff)
 
 	AM_RANGE(0x0cf8, 0x0cff) AM_DEVREADWRITE("pcibus", pci_bus_legacy_device, read, write)
 
@@ -877,8 +869,8 @@ static MACHINE_CONFIG_START( funkball, funkball_state )
 	MCFG_PCI_BUS_LEGACY_DEVICE(7, "voodoo_0", voodoo_0_pci_r, voodoo_0_pci_w)
 	MCFG_PCI_BUS_LEGACY_DEVICE(18, NULL, cx5510_pci_r, cx5510_pci_w)
 
-	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
+	MCFG_IDE_CONTROLLER_ADD("ide", ata_devices, "hdd", NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
 
 	/* video hardware */
 	MCFG_3DFX_VOODOO_1_ADD("voodoo_0", STD_VOODOO_1_CLOCK, voodoo_intf)

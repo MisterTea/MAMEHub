@@ -19,8 +19,6 @@
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "audio/atarijsa.h"
-#include "video/atarimo.h"
 #include "includes/skullxbo.h"
 
 
@@ -47,11 +45,10 @@ TIMER_DEVICE_CALLBACK_MEMBER(skullxbo_state::scanline_timer)
 
 void skullxbo_state::scanline_update(screen_device &screen, int scanline)
 {
-	UINT16 *check = &m_alpha[(scanline / 8) * 64 + 42];
-
 	/* check for interrupts in the alpha ram */
 	/* the interrupt occurs on the HBLANK of the 6th scanline following */
-	if (check < &m_alpha[0x7c0] && (*check & 0x8000))
+	int offset = (scanline / 8) * 64 + 42;
+	if (offset < 0x7c0 && (m_alpha_tilemap->basemem_read(offset) & 0x8000))
 	{
 		int width = screen.width();
 		attotime period = screen.time_until_pos(screen.vpos() + 6, width * 0.9);
@@ -65,31 +62,14 @@ void skullxbo_state::scanline_update(screen_device &screen, int scanline)
 
 WRITE16_MEMBER(skullxbo_state::skullxbo_halt_until_hblank_0_w)
 {
-	halt_until_hblank_0(space.device(), *machine().primary_screen);
+	halt_until_hblank_0(space.device(), *m_screen);
 }
 
 
 MACHINE_RESET_MEMBER(skullxbo_state,skullxbo)
 {
 	atarigen_state::machine_reset();
-	scanline_timer_reset(*machine().primary_screen, 8);
-	atarijsa_reset(machine());
-}
-
-
-
-/*************************************
- *
- *  I/O read dispatch.
- *
- *************************************/
-
-READ16_MEMBER(skullxbo_state::special_port1_r)
-{
-	int temp = ioport("FF5802")->read();
-	if (m_cpu_to_sound_ready) temp ^= 0x0040;
-	if (get_hblank(*machine().primary_screen)) temp ^= 0x0010;
-	return temp;
+	scanline_timer_reset(*m_screen, 8);
 }
 
 
@@ -117,31 +97,30 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, skullxbo_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0xff0000, 0xff07ff) AM_WRITE(skullxbo_mobmsb_w)
 	AM_RANGE(0xff0800, 0xff0bff) AM_WRITE(skullxbo_halt_until_hblank_0_w)
-	AM_RANGE(0xff0c00, 0xff0fff) AM_WRITE(eeprom_enable_w)
+	AM_RANGE(0xff0c00, 0xff0fff) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
 	AM_RANGE(0xff1000, 0xff13ff) AM_WRITE(video_int_ack_w)
-	AM_RANGE(0xff1400, 0xff17ff) AM_WRITE8(sound_w, 0x00ff)
-	AM_RANGE(0xff1800, 0xff1bff) AM_WRITE(sound_reset_w)
-	AM_RANGE(0xff1c00, 0xff1c7f) AM_WRITE(skullxbo_playfieldlatch_w)
+	AM_RANGE(0xff1400, 0xff17ff) AM_DEVWRITE8("jsa", atari_jsa_ii_device, main_command_w, 0x00ff)
+	AM_RANGE(0xff1800, 0xff1bff) AM_DEVWRITE("jsa", atari_jsa_ii_device, sound_reset_w)
+	AM_RANGE(0xff1c00, 0xff1c7f) AM_WRITE(playfield_latch_w)
 	AM_RANGE(0xff1c80, 0xff1cff) AM_WRITE(skullxbo_xscroll_w) AM_SHARE("xscroll")
 	AM_RANGE(0xff1d00, 0xff1d7f) AM_WRITE(scanline_int_ack_w)
 	AM_RANGE(0xff1d80, 0xff1dff) AM_WRITE(watchdog_reset16_w)
-	AM_RANGE(0xff1e00, 0xff1e7f) AM_WRITE(skullxbo_playfieldlatch_w)
+	AM_RANGE(0xff1e00, 0xff1e7f) AM_WRITE(playfield_latch_w)
 	AM_RANGE(0xff1e80, 0xff1eff) AM_WRITE(skullxbo_xscroll_w)
 	AM_RANGE(0xff1f00, 0xff1f7f) AM_WRITE(scanline_int_ack_w)
 	AM_RANGE(0xff1f80, 0xff1fff) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
 	AM_RANGE(0xff4000, 0xff47ff) AM_WRITE(skullxbo_yscroll_w) AM_SHARE("yscroll")
 	AM_RANGE(0xff4800, 0xff4fff) AM_WRITE(skullxbo_mobwr_w)
-	AM_RANGE(0xff6000, 0xff6fff) AM_WRITE(eeprom_w) AM_SHARE("eeprom")
-	AM_RANGE(0xff5000, 0xff5001) AM_READ8(sound_r, 0x00ff)
+	AM_RANGE(0xff5000, 0xff5001) AM_DEVREAD8("jsa", atari_jsa_ii_device, main_response_r, 0x00ff)
 	AM_RANGE(0xff5800, 0xff5801) AM_READ_PORT("FF5800")
-	AM_RANGE(0xff5802, 0xff5803) AM_READ(special_port1_r)
-	AM_RANGE(0xff6000, 0xff6fff) AM_READ(eeprom_r)
-	AM_RANGE(0xff8000, 0xff9fff) AM_RAM_WRITE(playfield_latched_lsb_w) AM_SHARE("playfield")
-	AM_RANGE(0xffa000, 0xffbfff) AM_RAM_WRITE(playfield_upper_w) AM_SHARE("playfield_up")
-	AM_RANGE(0xffc000, 0xffcf7f) AM_RAM_WRITE(alpha_w) AM_SHARE("alpha")
-	AM_RANGE(0xffcf80, 0xffcfff) AM_READWRITE_LEGACY(atarimo_0_slipram_r, atarimo_0_slipram_w)
-	AM_RANGE(0xffd000, 0xffdfff) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
+	AM_RANGE(0xff5802, 0xff5803) AM_READ_PORT("FF5802")
+	AM_RANGE(0xff6000, 0xff6fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
+	AM_RANGE(0xff8000, 0xff9fff) AM_RAM_WRITE(playfield_latched_w) AM_SHARE("playfield")
+	AM_RANGE(0xffa000, 0xffbfff) AM_RAM_DEVWRITE("playfield", tilemap_device, write_ext) AM_SHARE("playfield_ext")
+	AM_RANGE(0xffc000, 0xffcf7f) AM_RAM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
+	AM_RANGE(0xffcf80, 0xffcfff) AM_RAM AM_SHARE("mob:slip")
+	AM_RANGE(0xffd000, 0xffdfff) AM_RAM AM_SHARE("mob")
 	AM_RANGE(0xffe000, 0xffffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -167,9 +146,9 @@ static INPUT_PORTS_START( skullxbo )
 
 	PORT_START("FF5802")
 	PORT_BIT( 0x000f, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_UNUSED )  /* HBLANK */
+	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_HBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNUSED )   /* /AUDBUSY */
+	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_ATARI_JSA_MAIN_TO_SOUND_READY("jsa")  /* /AUDBUSY */
 	PORT_SERVICE( 0x0080, IP_ACTIVE_LOW )
 	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
 	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
@@ -179,8 +158,6 @@ static INPUT_PORTS_START( skullxbo )
 	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(2)
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(2)
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(2)
-
-	PORT_INCLUDE( atarijsa_ii )     /* audio board port */
 INPUT_PORTS_END
 
 
@@ -251,12 +228,17 @@ static MACHINE_CONFIG_START( skullxbo, skullxbo_state )
 
 	MCFG_TIMER_DRIVER_ADD("scan_timer", skullxbo_state, scanline_timer)
 	MCFG_MACHINE_RESET_OVERRIDE(skullxbo_state,skullxbo)
-	MCFG_NVRAM_ADD_1FILL("eeprom")
+
+	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_GFXDECODE(skullxbo)
 	MCFG_PALETTE_LENGTH(2048)
+
+	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, skullxbo_state, get_playfield_tile_info, 16,8, SCAN_COLS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, skullxbo_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
+	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", skullxbo_state::s_mob_config)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */
@@ -267,7 +249,11 @@ static MACHINE_CONFIG_START( skullxbo, skullxbo_state )
 	MCFG_VIDEO_START_OVERRIDE(skullxbo_state,skullxbo)
 
 	/* sound hardware */
-	MCFG_FRAGMENT_ADD(jsa_ii_mono)
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_ATARI_JSA_II_ADD("jsa", WRITELINE(atarigen_state, sound_int_write_line))
+	MCFG_ATARI_JSA_TEST_PORT("FF5802", 7)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
 
@@ -289,7 +275,7 @@ ROM_START( skullxbo )
 	ROM_LOAD16_BYTE( "136072-1156.185a", 0x070000, 0x008000, CRC(cde16b55) SHA1(bf5059f0f73a8819551fb3ded3cb6a3123841481) )
 	ROM_LOAD16_BYTE( "136072-1157.185c", 0x070001, 0x008000, CRC(31c77376) SHA1(19eb54d73edb25fda6803df896e182d05c5bad7e) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "136072-1149.1b",  0x010000, 0x004000, CRC(8d730e7a) SHA1(b89fb9cadcf813ea5cba55f1efcdcdd2517944c7) )
 	ROM_CONTINUE(                0x004000, 0x00c000 )
 
@@ -334,7 +320,7 @@ ROM_START( skullxbo )
 	ROM_REGION( 0x008000, "gfx3", 0 )
 	ROM_LOAD( "136072-2141.250k", 0x000000, 0x008000, CRC(60d6d6df) SHA1(a8d56092f014a0a93742c701effaec86c75772e1) )
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM samples */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM samples */
 	ROM_LOAD( "136072-1145.7k",  0x000000, 0x010000, CRC(d9475d58) SHA1(5a4a0094c83f5d0e26f0c35feb0b1f15a5f5c3f9) )
 	ROM_LOAD( "136072-1146.7j",  0x010000, 0x010000, CRC(133e6aef) SHA1(e393d0b246889779029443a19e3859d45cb900db) )
 	ROM_LOAD( "136072-1147.7e",  0x020000, 0x010000, CRC(ba4d556e) SHA1(af4364f2c456abc20f1742c945a3acfeb5e192c4) )
@@ -353,7 +339,7 @@ ROM_START( skullxbo4 )
 	ROM_LOAD16_BYTE( "136072-1156.185a", 0x070000, 0x008000, CRC(cde16b55) SHA1(bf5059f0f73a8819551fb3ded3cb6a3123841481) )
 	ROM_LOAD16_BYTE( "136072-1157.185c", 0x070001, 0x008000, CRC(31c77376) SHA1(19eb54d73edb25fda6803df896e182d05c5bad7e) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "136072-1149.1b",  0x010000, 0x004000, CRC(8d730e7a) SHA1(b89fb9cadcf813ea5cba55f1efcdcdd2517944c7) )
 	ROM_CONTINUE(                0x004000, 0x00c000 )
 
@@ -398,7 +384,7 @@ ROM_START( skullxbo4 )
 	ROM_REGION( 0x008000, "gfx3", 0 )
 	ROM_LOAD( "136072-2141.250k", 0x000000, 0x008000, CRC(60d6d6df) SHA1(a8d56092f014a0a93742c701effaec86c75772e1) )
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM samples */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM samples */
 	ROM_LOAD( "136072-1145.7k",  0x000000, 0x010000, CRC(d9475d58) SHA1(5a4a0094c83f5d0e26f0c35feb0b1f15a5f5c3f9) )
 	ROM_LOAD( "136072-1146.7j",  0x010000, 0x010000, CRC(133e6aef) SHA1(e393d0b246889779029443a19e3859d45cb900db) )
 	ROM_LOAD( "136072-1147.7e",  0x020000, 0x010000, CRC(ba4d556e) SHA1(af4364f2c456abc20f1742c945a3acfeb5e192c4) )
@@ -417,7 +403,7 @@ ROM_START( skullxbo3 )
 	ROM_LOAD16_BYTE( "136072-1156.185a", 0x070000, 0x008000, CRC(cde16b55) SHA1(bf5059f0f73a8819551fb3ded3cb6a3123841481) )
 	ROM_LOAD16_BYTE( "136072-1157.185c", 0x070001, 0x008000, CRC(31c77376) SHA1(19eb54d73edb25fda6803df896e182d05c5bad7e) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "136072-1149.1b",  0x010000, 0x004000, CRC(8d730e7a) SHA1(b89fb9cadcf813ea5cba55f1efcdcdd2517944c7) )
 	ROM_CONTINUE(                0x004000, 0x00c000 )
 
@@ -462,7 +448,7 @@ ROM_START( skullxbo3 )
 	ROM_REGION( 0x008000, "gfx3", 0 )
 	ROM_LOAD( "136072-2141.250k", 0x000000, 0x008000, CRC(60d6d6df) SHA1(a8d56092f014a0a93742c701effaec86c75772e1) )
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM samples */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM samples */
 	ROM_LOAD( "136072-1145.7k",  0x000000, 0x010000, CRC(d9475d58) SHA1(5a4a0094c83f5d0e26f0c35feb0b1f15a5f5c3f9) )
 	ROM_LOAD( "136072-1146.7j",  0x010000, 0x010000, CRC(133e6aef) SHA1(e393d0b246889779029443a19e3859d45cb900db) )
 	ROM_LOAD( "136072-1147.7e",  0x020000, 0x010000, CRC(ba4d556e) SHA1(af4364f2c456abc20f1742c945a3acfeb5e192c4) )
@@ -481,7 +467,7 @@ ROM_START( skullxbo2 )
 	ROM_LOAD16_BYTE( "136072-1156.185a", 0x070000, 0x008000, CRC(cde16b55) SHA1(bf5059f0f73a8819551fb3ded3cb6a3123841481) )
 	ROM_LOAD16_BYTE( "136072-1157.185c", 0x070001, 0x008000, CRC(31c77376) SHA1(19eb54d73edb25fda6803df896e182d05c5bad7e) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "136072-1149.1b",  0x010000, 0x004000, CRC(8d730e7a) SHA1(b89fb9cadcf813ea5cba55f1efcdcdd2517944c7) )
 	ROM_CONTINUE(                0x004000, 0x00c000 )
 
@@ -526,7 +512,7 @@ ROM_START( skullxbo2 )
 	ROM_REGION( 0x008000, "gfx3", 0 )
 	ROM_LOAD( "136072-2141.250k", 0x000000, 0x008000, CRC(60d6d6df) SHA1(a8d56092f014a0a93742c701effaec86c75772e1) )
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM samples */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM samples */
 	ROM_LOAD( "136072-1145.7k",  0x000000, 0x010000, CRC(d9475d58) SHA1(5a4a0094c83f5d0e26f0c35feb0b1f15a5f5c3f9) )
 	ROM_LOAD( "136072-1146.7j",  0x010000, 0x010000, CRC(133e6aef) SHA1(e393d0b246889779029443a19e3859d45cb900db) )
 	ROM_LOAD( "136072-1147.7e",  0x020000, 0x010000, CRC(ba4d556e) SHA1(af4364f2c456abc20f1742c945a3acfeb5e192c4) )
@@ -545,7 +531,7 @@ ROM_START( skullxbo1 )
 	ROM_LOAD16_BYTE( "136072-1156.185a", 0x070000, 0x008000, CRC(cde16b55) SHA1(bf5059f0f73a8819551fb3ded3cb6a3123841481) )
 	ROM_LOAD16_BYTE( "136072-1157.185c", 0x070001, 0x008000, CRC(31c77376) SHA1(19eb54d73edb25fda6803df896e182d05c5bad7e) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "136072-1149.1b",  0x010000, 0x004000, CRC(8d730e7a) SHA1(b89fb9cadcf813ea5cba55f1efcdcdd2517944c7) )
 	ROM_CONTINUE(                0x004000, 0x00c000 )
 
@@ -590,7 +576,7 @@ ROM_START( skullxbo1 )
 	ROM_REGION( 0x008000, "gfx3", 0 )
 	ROM_LOAD( "136072-2141.250k", 0x000000, 0x008000, CRC(60d6d6df) SHA1(a8d56092f014a0a93742c701effaec86c75772e1) )
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM samples */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM samples */
 	ROM_LOAD( "136072-1145.7k",  0x000000, 0x010000, CRC(d9475d58) SHA1(5a4a0094c83f5d0e26f0c35feb0b1f15a5f5c3f9) )
 	ROM_LOAD( "136072-1146.7j",  0x010000, 0x010000, CRC(133e6aef) SHA1(e393d0b246889779029443a19e3859d45cb900db) )
 	ROM_LOAD( "136072-1147.7e",  0x020000, 0x010000, CRC(ba4d556e) SHA1(af4364f2c456abc20f1742c945a3acfeb5e192c4) )
@@ -607,7 +593,6 @@ ROM_END
 
 DRIVER_INIT_MEMBER(skullxbo_state,skullxbo)
 {
-	atarijsa_init(machine(), "FF5802", 0x0080);
 	memset(memregion("gfx1")->base() + 0x170000, 0, 0x20000);
 }
 

@@ -5,6 +5,9 @@
 *************************************************************************/
 #include "sound/k054539.h"
 #include "machine/k053252.h"
+#include "video/k053246_k053247_k055673.h"
+#include "video/k053936.h"
+#include "video/konami_helper.h"
 
 class rungun_state : public driver_device
 {

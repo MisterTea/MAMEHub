@@ -34,7 +34,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( dsr_w );
 	DECLARE_WRITE_LINE_MEMBER( ri_w );
 	DECLARE_WRITE_LINE_MEMBER( cts_w );
-	DECLARE_WRITE_LINE_MEMBER( rx_w ) { check_for_start(state); }
+	DECLARE_WRITE_LINE_MEMBER( rx_w ) { device_serial_interface::rx_w(state); }
 	void input_callback(UINT8 state) { m_input_state = state; }
 
 protected:
@@ -84,7 +84,6 @@ private:
 	devcb_resolved_write_line   m_out_out2_func;
 
 	void update_interrupt();
-	void update_clock();
 	void update_msr(int bit, UINT8 state);
 };
 

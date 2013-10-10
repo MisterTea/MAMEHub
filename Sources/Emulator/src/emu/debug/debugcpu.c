@@ -2303,7 +2303,7 @@ void device_debug::halt_on_next_instruction(const char *fmt, ...)
 int device_debug::breakpoint_set(offs_t address, const char *condition, const char *action)
 {
 	// allocate a new one
-	breakpoint *bp = auto_alloc(m_device.machine(), breakpoint(m_symtable, m_device.machine().debugcpu_data->bpindex++, address, condition, action));
+	breakpoint *bp = auto_alloc(m_device.machine(), breakpoint(this, m_symtable, m_device.machine().debugcpu_data->bpindex++, address, condition, action));
 
 	// hook it into our list
 	bp->m_next = m_bplist;
@@ -2394,7 +2394,7 @@ int device_debug::watchpoint_set(address_space &space, int type, offs_t address,
 	assert(space.spacenum() < ARRAY_LENGTH(m_wplist));
 
 	// allocate a new one
-	watchpoint *wp = auto_alloc(m_device.machine(), watchpoint(m_symtable, m_device.machine().debugcpu_data->bpindex++, space, type, address, length, condition, action));
+	watchpoint *wp = auto_alloc(m_device.machine(), watchpoint(this, m_symtable, m_device.machine().debugcpu_data->wpindex++, space, type, address, length, condition, action));
 
 	// hook it into our list
 	wp->m_next = m_wplist[space.spacenum()];
@@ -3278,8 +3278,14 @@ void device_debug::set_state(symbol_table &table, void *ref, UINT64 value)
 //  breakpoint - constructor
 //-------------------------------------------------
 
-device_debug::breakpoint::breakpoint(symbol_table &symbols, int index, offs_t address, const char *condition, const char *action)
-	: m_next(NULL),
+device_debug::breakpoint::breakpoint(device_debug* debugInterface,
+										symbol_table &symbols,
+										int index,
+										offs_t address,
+										const char *condition,
+										const char *action)
+	: m_debugInterface(debugInterface),
+		m_next(NULL),
 		m_index(index),
 		m_enabled(true),
 		m_address(address),
@@ -3329,8 +3335,17 @@ bool device_debug::breakpoint::hit(offs_t pc)
 //  watchpoint - constructor
 //-------------------------------------------------
 
-device_debug::watchpoint::watchpoint(symbol_table &symbols, int index, address_space &space, int type, offs_t address, offs_t length, const char *condition, const char *action)
-	: m_next(NULL),
+device_debug::watchpoint::watchpoint(device_debug* debugInterface,
+										symbol_table &symbols,
+										int index,
+										address_space &space,
+										int type,
+										offs_t address,
+										offs_t length,
+										const char *condition,
+										const char *action)
+	: m_debugInterface(debugInterface),
+		m_next(NULL),
 		m_space(space),
 		m_index(index),
 		m_enabled(true),

@@ -26,10 +26,10 @@
  * Core software takes care of traversing the netlist in the correct
  * order
  *
- * DEVICE_START(discrete)      - Read Node list, initialise & reset
- * DEVICE_STOP(discrete)       - Shutdown discrete sound system
- * DEVICE_RESET(discrete)      - Put sound system back to time 0
- * discrete_stream_update() - This does the real update to the sim
+ * device_start                - Read Node list, initialise & reset
+ * device_stop                 - Shutdown discrete sound system
+ * device_reset                - Put sound system back to time 0
+ * discrete_stream_update()    - This does the real update to the sim
  *
  ************************************************************************/
 
@@ -825,7 +825,7 @@ void discrete_device::static_set_intf(device_t &device, const discrete_block *in
 //-------------------------------------------------
 
 discrete_device::discrete_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock),
+	: device_t(mconfig, type, name, tag, owner, clock, "discrete", __FILE__),
 		m_intf(NULL),
 		m_sample_rate(0),
 		m_sample_time(0),

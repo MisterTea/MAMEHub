@@ -48,10 +48,10 @@
 	downcast<cbm_iec_device *>(device)->set_reset_callback(DEVCB2_##_write);
 
 
-#define MCFG_CBM_IEC_SLOT_ADD(_tag, _num, _slot_intf, _def_slot) \
+#define MCFG_CBM_IEC_SLOT_ADD(_tag, _address, _slot_intf, _def_slot) \
 	MCFG_DEVICE_ADD(_tag, CBM_IEC_SLOT, 0) \
 	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false) \
-	cbm_iec_slot_device::static_set_slot(*device, _num);
+	downcast<cbm_iec_slot_device *>(device)->set_address(_address);
 
 
 
@@ -61,6 +61,7 @@
 
 // ======================> cbm_iec_device
 
+class cbm_iec_slot_device;
 class device_cbm_iec_interface;
 
 class cbm_iec_device : public device_t
@@ -75,28 +76,28 @@ public:
 	template<class _write> void set_data_callback(_write wr) { m_write_data.set_callback(wr); }
 	template<class _write> void set_reset_callback(_write wr) { m_write_reset.set_callback(wr); }
 
-	void add_device(device_t *target, int address);
+	void add_device(cbm_iec_slot_device *slot, device_t *target);
 
 	// reads for both host and peripherals
-	DECLARE_READ_LINE_MEMBER( srq_r );
-	DECLARE_READ_LINE_MEMBER( atn_r );
-	DECLARE_READ_LINE_MEMBER( clk_r );
-	DECLARE_READ_LINE_MEMBER( data_r );
-	DECLARE_READ_LINE_MEMBER( reset_r );
+	DECLARE_READ_LINE_MEMBER( srq_r ) { return get_signal(SRQ); }
+	DECLARE_READ_LINE_MEMBER( atn_r ) { return get_signal(ATN); }
+	DECLARE_READ_LINE_MEMBER( clk_r ) { return get_signal(CLK); }
+	DECLARE_READ_LINE_MEMBER( data_r ) { return get_signal(DATA); }
+	DECLARE_READ_LINE_MEMBER( reset_r ) { return get_signal(RESET); }
 
 	// writes for host (driver_device)
-	DECLARE_WRITE_LINE_MEMBER( srq_w );
-	DECLARE_WRITE_LINE_MEMBER( atn_w );
-	DECLARE_WRITE_LINE_MEMBER( clk_w );
-	DECLARE_WRITE_LINE_MEMBER( data_w );
-	DECLARE_WRITE_LINE_MEMBER( reset_w );
+	DECLARE_WRITE_LINE_MEMBER( srq_w ) { set_signal(this, SRQ, state); }
+	DECLARE_WRITE_LINE_MEMBER( atn_w ) { set_signal(this, ATN, state); }
+	DECLARE_WRITE_LINE_MEMBER( clk_w ) { set_signal(this, CLK, state); }
+	DECLARE_WRITE_LINE_MEMBER( data_w ) { set_signal(this, DATA, state); }
+	DECLARE_WRITE_LINE_MEMBER( reset_w ) { set_signal(this, RESET, state); }
 
 	// writes for peripherals (device_t)
-	void srq_w(device_t *device, int state);
-	void atn_w(device_t *device, int state);
-	void clk_w(device_t *device, int state);
-	void data_w(device_t *device, int state);
-	void reset_w(device_t *device, int state);
+	void srq_w(device_t *device, int state) { set_signal(device, SRQ, state); }
+	void atn_w(device_t *device, int state) { set_signal(device, ATN, state); }
+	void clk_w(device_t *device, int state) { set_signal(device, CLK, state); }
+	void data_w(device_t *device, int state) { set_signal(device, DATA, state); }
+	void reset_w(device_t *device, int state) { set_signal(device, RESET, state); }
 
 protected:
 	enum
@@ -136,8 +137,8 @@ private:
 	devcb2_write_line   m_write_data;
 	devcb2_write_line   m_write_reset;
 
-	inline void set_signal(device_t *device, int signal, int state);
-	inline int get_signal(int signal);
+	void set_signal(device_t *device, int signal, int state);
+	int get_signal(int signal);
 
 	int m_line[SIGNAL_COUNT];
 };
@@ -152,16 +153,14 @@ public:
 	// construction/destruction
 	cbm_iec_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	void set_address(int address) { m_address = address; }
+	int get_address() { return m_address; }
+
 	// device-level overrides
 	virtual void device_start();
 
-	// inline configuration
-	static void static_set_slot(device_t &device, int address);
-
-private:
-	// configuration
+protected:
 	int m_address;
-	cbm_iec_device  *m_bus;
 };
 
 
@@ -186,8 +185,8 @@ public:
 	virtual void cbm_iec_data(int state) { };
 	virtual void cbm_iec_reset(int state) { };
 
-	cbm_iec_device  *m_bus;
-	int m_address;
+	cbm_iec_device *m_bus;
+	cbm_iec_slot_device *m_slot;
 };
 
 

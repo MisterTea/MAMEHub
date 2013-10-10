@@ -71,7 +71,6 @@ void playch10_state::ppu_irq(int *ppu_regs)
 const ppu2c0x_interface playch10_ppu_interface =
 {
 	"cart",
-	"bottom",
 	1,                  /* gfxlayout num */
 	256,                /* color base */
 	PPU_MIRROR_NONE     /* mirroring */
@@ -134,7 +133,7 @@ UINT32 playch10_state::screen_update_playch10_single(screen_device &screen, bitm
 	{
 		/* When the bios is accessing vram, the video circuitry can't access it */
 		if ( !m_pc10_sdcs )
-			m_bg_tilemap->draw(bitmap, top_monitor, 0, 0);
+			m_bg_tilemap->draw(screen, bitmap, top_monitor, 0, 0);
 	}
 	return 0;
 }
@@ -165,7 +164,7 @@ UINT32 playch10_state::screen_update_playch10_bottom(screen_device &screen, bitm
 	/* When the bios is accessing vram, the video circuitry can't access it */
 
 	if ( !m_pc10_sdcs )
-		m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+		m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	else
 		bitmap.fill(0, cliprect);
 

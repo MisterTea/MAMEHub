@@ -319,8 +319,8 @@ void taitojc_state::video_start()
 
 	m_texture = auto_alloc_array(machine(), UINT8, 0x400000);
 
-	machine().primary_screen->register_screen_bitmap(m_framebuffer);
-	machine().primary_screen->register_screen_bitmap(m_zbuffer);
+	m_screen->register_screen_bitmap(m_framebuffer);
+	m_screen->register_screen_bitmap(m_zbuffer);
 
 	/* create renderer */
 	m_renderer = auto_alloc(machine(), taitojc_renderer(machine(), &m_framebuffer, &m_zbuffer, m_texture));
@@ -345,7 +345,7 @@ UINT32 taitojc_state::screen_update_taitojc(screen_device &screen, bitmap_ind16 
 
 	// text layer
 	if (m_objlist[0xfc4/4] & 0x10000)
-		m_tilemap->draw(bitmap, cliprect, 0, 0);
+		m_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
 }
@@ -764,6 +764,6 @@ void taitojc_renderer::render_polygons(running_machine &machine, UINT16 *polygon
 
 void taitojc_state::taitojc_clear_frame()
 {
-	m_framebuffer.fill(0, machine().primary_screen->visible_area());
-	m_zbuffer.fill(0xffff, machine().primary_screen->visible_area());
+	m_framebuffer.fill(0, m_screen->visible_area());
+	m_zbuffer.fill(0xffff, m_screen->visible_area());
 }

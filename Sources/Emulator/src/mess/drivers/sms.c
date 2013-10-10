@@ -10,9 +10,15 @@
  To do:
 
  - SIO interface for Game Gear (needs netplay, I guess)
- - SMS lightgun support
- - LCD persistence emulation for GG
- - SMS 3D glass support
+ - SMS Store Display Unit
+ - Keyboard support for Sega Mark-III (sg1000m3 driver)
+ - Mark-III expansion slot, used by keyboard and FM module
+ - Japanese Sports Pad model used by the game Sports Pad Soccer
+   (info: http://www.smspower.org/forums/viewtopic.php?t=11876)
+ - Software compatibility flags, by region and/or BIOS
+ - Emulate SRAM cartridges? (for use with Bock's dump tool)
+ - Support for other DE-9 compatible controllers, like the Mega Drive 6-Button
+   that has software support (at least a test tool made by Charles MacDonald)
 
  The Game Gear SIO hardware is not emulated but has some
  placeholders in 'machine/sms.c'
@@ -276,41 +282,41 @@ static ADDRESS_MAP_START( sms_io, AS_IO, 8, sms_state )
 	AM_RANGE(0x40, 0x7f)                 AM_DEVWRITE("segapsg", segapsg_device, write)
 	AM_RANGE(0x80, 0x80) AM_MIRROR(0x3e) AM_DEVREADWRITE("sms_vdp", sega315_5124_device, vram_read, vram_write)
 	AM_RANGE(0x81, 0x81) AM_MIRROR(0x3e) AM_DEVREADWRITE("sms_vdp", sega315_5124_device, register_read, register_write)
-	AM_RANGE(0xc0, 0xc0) AM_MIRROR(0x1e) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xc1, 0xc1) AM_MIRROR(0x1e) AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x0e) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xe1, 0xe1) AM_MIRROR(0x0e) AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xf0, 0xf0)                 AM_READWRITE(sms_input_port_0_r, sms_ym2413_register_port_0_w)
-	AM_RANGE(0xf1, 0xf1)                 AM_READWRITE(sms_input_port_1_r, sms_ym2413_data_port_0_w)
+	AM_RANGE(0xc0, 0xc0) AM_MIRROR(0x1e) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xc1, 0xc1) AM_MIRROR(0x1e) AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x0e) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xe1, 0xe1) AM_MIRROR(0x0e) AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xf0, 0xf0)                 AM_READWRITE(sms_input_port_dc_r, sms_ym2413_register_port_w)
+	AM_RANGE(0xf1, 0xf1)                 AM_READWRITE(sms_input_port_dd_r, sms_ym2413_data_port_w)
 	AM_RANGE(0xf2, 0xf2)                 AM_READWRITE(sms_fm_detect_r, sms_fm_detect_w)
-	AM_RANGE(0xf3, 0xf3)                 AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xf4, 0xf4) AM_MIRROR(0x02) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xf5, 0xf5) AM_MIRROR(0x02) AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xf8, 0xf8) AM_MIRROR(0x06) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xf9, 0xf9) AM_MIRROR(0x06) AM_READ(sms_input_port_1_r)
+	AM_RANGE(0xf3, 0xf3)                 AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xf4, 0xf4) AM_MIRROR(0x02) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xf5, 0xf5) AM_MIRROR(0x02) AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xf8, 0xf8) AM_MIRROR(0x06) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xf9, 0xf9) AM_MIRROR(0x06) AM_READ(sms_input_port_dd_r)
 ADDRESS_MAP_END
 
 
-// I/O ports $3E and $3F do not exist o Mark-III
-static ADDRESS_MAP_START( sms_no3e3f_io, AS_IO, 8, sms_state )
+// I/O ports $3E and $3F do not exist on Mark-III
+static ADDRESS_MAP_START( sg1000m3_io, AS_IO, 8, sms_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x40, 0x7f)                 AM_READ(sms_count_r)
 	AM_RANGE(0x40, 0x7f)                 AM_DEVWRITE("segapsg", segapsg_device, write)
 	AM_RANGE(0x80, 0x80) AM_MIRROR(0x3e) AM_DEVREADWRITE("sms_vdp", sega315_5124_device, vram_read, vram_write)
 	AM_RANGE(0x81, 0x81) AM_MIRROR(0x3e) AM_DEVREADWRITE("sms_vdp", sega315_5124_device, register_read, register_write)
-	AM_RANGE(0xc0, 0xc0) AM_MIRROR(0x1e) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xc1, 0xc1) AM_MIRROR(0x1e) AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x0e) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xe1, 0xe1) AM_MIRROR(0x0e) AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xf0, 0xf0)                 AM_READWRITE(sms_input_port_0_r, sms_ym2413_register_port_0_w)
-	AM_RANGE(0xf1, 0xf1)                 AM_READWRITE(sms_input_port_1_r, sms_ym2413_data_port_0_w)
+	AM_RANGE(0xc0, 0xc0) AM_MIRROR(0x1e) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xc1, 0xc1) AM_MIRROR(0x1e) AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x0e) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xe1, 0xe1) AM_MIRROR(0x0e) AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xf0, 0xf0)                 AM_READWRITE(sms_input_port_dc_r, sms_ym2413_register_port_w)
+	AM_RANGE(0xf1, 0xf1)                 AM_READWRITE(sms_input_port_dd_r, sms_ym2413_data_port_w)
 	AM_RANGE(0xf2, 0xf2)                 AM_READWRITE(sms_fm_detect_r, sms_fm_detect_w)
-	AM_RANGE(0xf3, 0xf3)                 AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xf4, 0xf4) AM_MIRROR(0x02) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xf5, 0xf5) AM_MIRROR(0x02) AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xf8, 0xf8) AM_MIRROR(0x06) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xf9, 0xf9) AM_MIRROR(0x06) AM_READ(sms_input_port_1_r)
+	AM_RANGE(0xf3, 0xf3)                 AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xf4, 0xf4) AM_MIRROR(0x02) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xf5, 0xf5) AM_MIRROR(0x02) AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xf8, 0xf8) AM_MIRROR(0x06) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xf9, 0xf9) AM_MIRROR(0x06) AM_READ(sms_input_port_dd_r)
 ADDRESS_MAP_END
 
 
@@ -318,27 +324,28 @@ ADDRESS_MAP_END
 // addresses.
 // At least the mirrors for I/O ports $3E/$3F don't seem to exist there.
 // Leaving the mirrors breaks the Korean cartridge bublboky.
-static ADDRESS_MAP_START( sms_kor_io, AS_IO, 8, sms_state )
+// The version is derived from japanene SMS, that has no output on its
+// controller ports, so port $3F probably does not exist, like on Mark-III.
+static ADDRESS_MAP_START( sms_fm_io, AS_IO, 8, sms_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x3e, 0x3e)                 AM_WRITE(sms_bios_w)
-	AM_RANGE(0x3f, 0x3f)                 AM_WRITE(sms_io_control_w)
 	AM_RANGE(0x40, 0x7f)                 AM_READ(sms_count_r)
 	AM_RANGE(0x40, 0x7f)                 AM_DEVWRITE("segapsg", segapsg_device, write)
 	AM_RANGE(0x80, 0x80) AM_MIRROR(0x3e) AM_DEVREADWRITE("sms_vdp", sega315_5124_device, vram_read, vram_write)
 	AM_RANGE(0x81, 0x81) AM_MIRROR(0x3e) AM_DEVREADWRITE("sms_vdp", sega315_5124_device, register_read, register_write)
-	AM_RANGE(0xc0, 0xc0) AM_MIRROR(0x1e) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xc1, 0xc1) AM_MIRROR(0x1e) AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x0e) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xe1, 0xe1) AM_MIRROR(0x0e) AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xf0, 0xf0)                 AM_READWRITE(sms_input_port_0_r, sms_ym2413_register_port_0_w)
-	AM_RANGE(0xf1, 0xf1)                 AM_READWRITE(sms_input_port_1_r, sms_ym2413_data_port_0_w)
+	AM_RANGE(0xc0, 0xc0) AM_MIRROR(0x1e) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xc1, 0xc1) AM_MIRROR(0x1e) AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xe0, 0xe0) AM_MIRROR(0x0e) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xe1, 0xe1) AM_MIRROR(0x0e) AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xf0, 0xf0)                 AM_READWRITE(sms_input_port_dc_r, sms_ym2413_register_port_w)
+	AM_RANGE(0xf1, 0xf1)                 AM_READWRITE(sms_input_port_dd_r, sms_ym2413_data_port_w)
 	AM_RANGE(0xf2, 0xf2)                 AM_READWRITE(sms_fm_detect_r, sms_fm_detect_w)
-	AM_RANGE(0xf3, 0xf3)                 AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xf4, 0xf4) AM_MIRROR(0x02) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xf5, 0xf5) AM_MIRROR(0x02) AM_READ(sms_input_port_1_r)
-	AM_RANGE(0xf8, 0xf8) AM_MIRROR(0x06) AM_READ(sms_input_port_0_r)
-	AM_RANGE(0xf9, 0xf9) AM_MIRROR(0x06) AM_READ(sms_input_port_1_r)
+	AM_RANGE(0xf3, 0xf3)                 AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xf4, 0xf4) AM_MIRROR(0x02) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xf5, 0xf5) AM_MIRROR(0x02) AM_READ(sms_input_port_dd_r)
+	AM_RANGE(0xf8, 0xf8) AM_MIRROR(0x06) AM_READ(sms_input_port_dc_r)
+	AM_RANGE(0xf9, 0xf9) AM_MIRROR(0x06) AM_READ(sms_input_port_dd_r)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( gg_io, AS_IO, 8, sms_state )
@@ -358,108 +365,21 @@ static ADDRESS_MAP_START( gg_io, AS_IO, 8, sms_state )
 	AM_RANGE(0x40, 0x7f)                 AM_DEVWRITE("gamegear", gamegear_device, write)
 	AM_RANGE(0x80, 0x80) AM_MIRROR(0x3e) AM_DEVREADWRITE("sms_vdp", sega315_5124_device, vram_read, vram_write)
 	AM_RANGE(0x81, 0x81) AM_MIRROR(0x3e) AM_DEVREADWRITE("sms_vdp", sega315_5124_device, register_read, register_write)
-	AM_RANGE(0xc0, 0xc0)                 AM_READ_PORT("PORT_DC")
-	AM_RANGE(0xc1, 0xc1)                 AM_READ_PORT("PORT_DD")
-	AM_RANGE(0xdc, 0xdc)                 AM_READ_PORT("PORT_DC")
-	AM_RANGE(0xdd, 0xdd)                 AM_READ_PORT("PORT_DD")
+	AM_RANGE(0xc0, 0xc0)                 AM_READ_PORT("GG_PORT_DC")
+	AM_RANGE(0xc1, 0xc1)                 AM_READ_PORT("GG_PORT_DD")
+	AM_RANGE(0xdc, 0xdc)                 AM_READ_PORT("GG_PORT_DC")
+	AM_RANGE(0xdd, 0xdd)                 AM_READ_PORT("GG_PORT_DD")
 ADDRESS_MAP_END
 
 
 static INPUT_PORTS_START( sms )
-	PORT_START("PORT_DC")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(1) PORT_8WAY PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x00)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(1) PORT_8WAY PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x00)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(1) PORT_8WAY PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x00)
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(1) PORT_8WAY PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x00)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x00)
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x00)
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(2) PORT_8WAY PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x00)
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(2) PORT_8WAY PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x00)
-
-	PORT_START("PORT_DD")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(2) PORT_8WAY PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x00)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(2) PORT_8WAY PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x00)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x00)
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x00)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED ) /* Software Reset bit */
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED ) /* Port A TH */
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED ) /* Port B TH */
-
 	PORT_START("PAUSE")
 	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START ) PORT_NAME(DEF_STR(Pause))
-
-	PORT_START("LPHASER0")  /* Light phaser X - player 1 */
-	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_X ) PORT_CROSSHAIR( X, 1.0, 0.0, 0 ) PORT_SENSITIVITY(50) PORT_KEYDELTA(15) PORT_PLAYER(1) PORT_CHANGED_MEMBER(DEVICE_SELF, sms_state, lgun1_changed, NULL) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x01)
-
-	PORT_START("LPHASER1")  /* Light phaser Y - player 1 */
-	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR( Y, 1.0, 0.0, 0 ) PORT_SENSITIVITY(50) PORT_KEYDELTA(15) PORT_PLAYER(1) PORT_CHANGED_MEMBER(DEVICE_SELF, sms_state, lgun1_changed, NULL) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x01)
-
-	PORT_START("LPHASER2")  /* Light phaser X - player 2 */
-	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_X ) PORT_CROSSHAIR( X, 1.0, 0.0, 0 ) PORT_SENSITIVITY(50) PORT_KEYDELTA(15) PORT_PLAYER(2) PORT_CHANGED_MEMBER(DEVICE_SELF, sms_state, lgun2_changed, NULL) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x10)
-
-	PORT_START("LPHASER3")  /* Light phaser Y - player 2 */
-	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR( Y, 1.0, 0.0, 0 ) PORT_SENSITIVITY(50) PORT_KEYDELTA(15) PORT_PLAYER(2) PORT_CHANGED_MEMBER(DEVICE_SELF, sms_state, lgun2_changed, NULL) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x10)
-
-	PORT_START("RFU")   /* Rapid Fire Unit */
-	PORT_CONFNAME( 0x03, 0x00, "Rapid Fire Unit - Player 1" )
-	PORT_CONFSETTING(   0x00, DEF_STR( Off ) )
-	PORT_CONFSETTING(   0x01, "Button A" )
-	PORT_CONFSETTING(   0x02, "Button B" )
-	PORT_CONFSETTING(   0x03, "Button A + B" )
-	PORT_CONFNAME( 0x0c, 0x00, "Rapid Fire Unit - Player 2" )
-	PORT_CONFSETTING(   0x00, DEF_STR( Off ) )
-	PORT_CONFSETTING(   0x04, "Button A" )
-	PORT_CONFSETTING(   0x08, "Button B" )
-	PORT_CONFSETTING(   0x0c, "Button A + B" )
-
-	PORT_START("PADDLE0")   /* Paddle player 1 */
-	PORT_BIT( 0xff, 0x80, IPT_PADDLE) PORT_SENSITIVITY(40) PORT_KEYDELTA(20) PORT_CENTERDELTA(0) PORT_MINMAX(0,255) PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x02)
-
-	PORT_START("PADDLE1")   /* Paddle player 2 */
-	PORT_BIT( 0xff, 0x80, IPT_PADDLE) PORT_SENSITIVITY(40) PORT_KEYDELTA(20) PORT_CENTERDELTA(0) PORT_MINMAX(0,255) PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x20)
-
-	PORT_START("CTRLIPT")   /* Light Phaser and Paddle Control buttons */
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x01)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x02)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x04)
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x04)
-	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x10)
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x20)
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x40)
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x40)
-
-	PORT_START("CTRLSEL")   /* Controller selection */
-	PORT_CONFNAME( 0x0f, 0x00, "Player 1 Controller" )
-	PORT_CONFSETTING( 0x00, DEF_STR( Joystick ) )
-	PORT_CONFSETTING( 0x01, "Light Phaser" )
-	PORT_CONFSETTING( 0x02, "Sega Paddle Control" )
-	PORT_CONFSETTING( 0x04, "Sega Sports Pad" )
-	PORT_CONFNAME( 0xf0, 0x00, "Player 2 Controller" )
-	PORT_CONFSETTING( 0x00, DEF_STR( Joystick ) )
-	PORT_CONFSETTING( 0x10, "Light Phaser" )
-	PORT_CONFSETTING( 0x20, "Sega Paddle Control" )
-	PORT_CONFSETTING( 0x40, "Sega Sports Pad" )
-
-	PORT_START("SPORT0")    /* Player 1 Sports Pad X axis */
-	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_X ) PORT_SENSITIVITY(50) PORT_KEYDELTA(40) PORT_RESET PORT_REVERSE PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x04)
-
-	PORT_START("SPORT1")    /* Player 1 Sports Pad Y axis */
-	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(50) PORT_KEYDELTA(40) PORT_RESET PORT_REVERSE PORT_PLAYER(1) PORT_CONDITION("CTRLSEL", 0x0f, EQUALS, 0x04)
-
-	PORT_START("SPORT2")    /* Player 2 Sports Pad X axis */
-	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_X ) PORT_SENSITIVITY(50) PORT_KEYDELTA(40) PORT_RESET PORT_REVERSE PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x40)
-
-	PORT_START("SPORT3")    /* Player 2 Sports Pad Y axis */
-	PORT_BIT( 0xff, 0x00, IPT_TRACKBALL_Y ) PORT_SENSITIVITY(50) PORT_KEYDELTA(40) PORT_RESET PORT_REVERSE PORT_PLAYER(2) PORT_CONDITION("CTRLSEL", 0xf0, EQUALS, 0x40)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME(DEF_STR(Pause)) PORT_CODE(KEYCODE_1)
 INPUT_PORTS_END
 
-static INPUT_PORTS_START( sms1 )
+static INPUT_PORTS_START( sg1000m3 )
 	PORT_INCLUDE( sms )
-
-	PORT_START("RESET")
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SERVICE1 ) PORT_NAME("Reset Button")
 
 	PORT_START("SEGASCOPE")
 	PORT_CONFNAME( 0x01, 0x00, "SegaScope (3-D Glasses)" )
@@ -475,8 +395,15 @@ static INPUT_PORTS_START( sms1 )
 	PORT_BIT( 0x03, 0x00, IPT_UNUSED ) PORT_CONDITION("SEGASCOPE", 0x01, EQUALS, 0x00)
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( sms1 )
+	PORT_INCLUDE( sg1000m3 )
+
+	PORT_START("RESET")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_SERVICE1 ) PORT_NAME("Reset Button")
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( gg )
-	PORT_START("PORT_DC")
+	PORT_START("GG_PORT_DC")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(1) PORT_8WAY
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(1) PORT_8WAY
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(1) PORT_8WAY
@@ -485,7 +412,7 @@ static INPUT_PORTS_START( gg )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1)
 	PORT_BIT( 0xc0, IP_ACTIVE_LOW, IPT_UNUSED )
 
-	PORT_START("PORT_DD")
+	PORT_START("GG_PORT_DD")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("START")
@@ -507,7 +434,6 @@ WRITE_LINE_MEMBER(sms_state::sms_int_callback)
 static const sega315_5124_interface _315_5124_ntsc_intf =
 {
 	false,
-	"screen",
 	DEVCB_DRIVER_LINE_MEMBER(sms_state,sms_int_callback),
 	DEVCB_DRIVER_LINE_MEMBER(sms_state,sms_pause_callback)
 };
@@ -515,7 +441,6 @@ static const sega315_5124_interface _315_5124_ntsc_intf =
 static const sega315_5124_interface _315_5124_pal_intf =
 {
 	true,
-	"screen",
 	DEVCB_DRIVER_LINE_MEMBER(sms_state,sms_int_callback),
 	DEVCB_DRIVER_LINE_MEMBER(sms_state,sms_pause_callback)
 };
@@ -523,7 +448,6 @@ static const sega315_5124_interface _315_5124_pal_intf =
 static const sega315_5124_interface sms_store_intf =
 {
 	false,
-	"screen",
 	DEVCB_DRIVER_LINE_MEMBER(smssdisp_state,sms_store_int_callback),
 	DEVCB_DRIVER_LINE_MEMBER(sms_state,sms_pause_callback)
 };
@@ -595,6 +519,14 @@ static MACHINE_CONFIG_START( sms_ntsc_base, sms_state )
 	MCFG_SMS_CARTRIDGE_ADD("slot", sms_cart, NULL)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","sms")
+
+	MCFG_SMS_CONTROL_PORT_ADD(CONTROL1_TAG, sms_control_port_devices, "joypad")
+	MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(WRITELINE(sms_state, sms_ctrl1_th_input))
+	MCFG_SMS_CONTROL_PORT_PIXEL_HANDLER(READ32(sms_state, sms_pixel_color))
+
+	MCFG_SMS_CONTROL_PORT_ADD(CONTROL2_TAG, sms_control_port_devices, "joypad")
+	MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(WRITELINE(sms_state, sms_ctrl2_th_input))
+	MCFG_SMS_CONTROL_PORT_PIXEL_HANDLER(READ32(sms_state, sms_pixel_color))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( sms2_ntsc, sms_ntsc_base )
@@ -606,9 +538,9 @@ static MACHINE_CONFIG_DERIVED( sms2_ntsc, sms_ntsc_base )
 	MCFG_SCREEN_UPDATE_DRIVER(sms_state, screen_update_sms)
 
 	MCFG_PALETTE_LENGTH(SEGA315_5124_PALETTE_SIZE)
-	MCFG_PALETTE_INIT(sega315_5124)
 
 	MCFG_SEGA315_5246_ADD("sms_vdp", _315_5124_ntsc_intf)
+	MCFG_SEGA315_5246_SET_SCREEN("screen")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( sms1_ntsc, sms_ntsc_base )
@@ -640,16 +572,17 @@ static MACHINE_CONFIG_DERIVED( sms1_ntsc, sms_ntsc_base )
 
 	MCFG_DEFAULT_LAYOUT(layout_sms1)
 
-	MCFG_PALETTE_LENGTH(SEGA315_5124_PALETTE_SIZE)
-	MCFG_PALETTE_INIT(sega315_5124)
-
 	MCFG_VIDEO_START_OVERRIDE(sms_state,sms1)
+	MCFG_VIDEO_RESET_OVERRIDE(sms_state,sms1)
+
+	MCFG_PALETTE_LENGTH(SEGA315_5124_PALETTE_SIZE)
 
 	MCFG_SEGA315_5124_ADD("sms_vdp", _315_5124_ntsc_intf)
+	MCFG_SEGA315_5124_SET_SCREEN("screen")
 
-	// cardslot, not present in Master System II
+	// card and expansion slots, not present in Master System II
 	MCFG_SMS_CARD_ADD("mycard", sms_cart, NULL)
-
+	MCFG_SMS_EXPANSION_ADD("exp", sms_expansion_devices, NULL)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( sms_sdisp, smssdisp_state )
@@ -677,9 +610,9 @@ static MACHINE_CONFIG_START( sms_sdisp, smssdisp_state )
 	MCFG_SCREEN_UPDATE_DRIVER(sms_state, screen_update_sms)
 
 	MCFG_PALETTE_LENGTH(SEGA315_5124_PALETTE_SIZE)
-	MCFG_PALETTE_INIT(sega315_5124)
 
 	MCFG_SEGA315_5246_ADD("sms_vdp", sms_store_intf)
+	MCFG_SEGA315_5246_SET_SCREEN("screen")
 
 	MCFG_CPU_ADD("control", Z80, XTAL_53_693175MHz/15)
 	MCFG_CPU_PROGRAM_MAP(sms_store_mem)
@@ -721,6 +654,14 @@ static MACHINE_CONFIG_START( sms_sdisp, smssdisp_state )
 	MCFG_SMS_CARD_ADD("slot32", sms_cart, NULL)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","sms")
+
+	MCFG_SMS_CONTROL_PORT_ADD(CONTROL1_TAG, sms_control_port_devices, "joypad")
+	MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(WRITELINE(sms_state, sms_ctrl1_th_input))
+	MCFG_SMS_CONTROL_PORT_PIXEL_HANDLER(READ32(sms_state, sms_pixel_color))
+
+	MCFG_SMS_CONTROL_PORT_ADD(CONTROL2_TAG, sms_control_port_devices, "joypad")
+	MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(WRITELINE(sms_state, sms_ctrl2_th_input))
+	MCFG_SMS_CONTROL_PORT_PIXEL_HANDLER(READ32(sms_state, sms_pixel_color))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( sms_pal_base, sms_state )
@@ -743,6 +684,14 @@ static MACHINE_CONFIG_START( sms_pal_base, sms_state )
 	MCFG_SMS_CARTRIDGE_ADD("slot", sms_cart, NULL)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","sms")
+
+	MCFG_SMS_CONTROL_PORT_ADD(CONTROL1_TAG, sms_control_port_devices, "joypad")
+	MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(WRITELINE(sms_state, sms_ctrl1_th_input))
+	MCFG_SMS_CONTROL_PORT_PIXEL_HANDLER(READ32(sms_state, sms_pixel_color))
+
+	MCFG_SMS_CONTROL_PORT_ADD(CONTROL2_TAG, sms_control_port_devices, "joypad")
+	MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(WRITELINE(sms_state, sms_ctrl2_th_input))
+	MCFG_SMS_CONTROL_PORT_PIXEL_HANDLER(READ32(sms_state, sms_pixel_color))
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( sms2_pal, sms_pal_base )
@@ -755,9 +704,9 @@ static MACHINE_CONFIG_DERIVED( sms2_pal, sms_pal_base )
 	MCFG_SCREEN_UPDATE_DRIVER(sms_state, screen_update_sms)
 
 	MCFG_PALETTE_LENGTH(SEGA315_5124_PALETTE_SIZE)
-	MCFG_PALETTE_INIT(sega315_5124)
 
 	MCFG_SEGA315_5246_ADD("sms_vdp", _315_5124_pal_intf)
+	MCFG_SEGA315_5246_SET_SCREEN("screen")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( sms1_pal, sms_pal_base )
@@ -789,18 +738,28 @@ static MACHINE_CONFIG_DERIVED( sms1_pal, sms_pal_base )
 
 	MCFG_DEFAULT_LAYOUT(layout_sms1)
 
-	MCFG_PALETTE_LENGTH(SEGA315_5124_PALETTE_SIZE)
-	MCFG_PALETTE_INIT(sega315_5124)
-
 	MCFG_VIDEO_START_OVERRIDE(sms_state,sms1)
+	MCFG_VIDEO_RESET_OVERRIDE(sms_state,sms1)
+
+	MCFG_PALETTE_LENGTH(SEGA315_5124_PALETTE_SIZE)
 
 	MCFG_SEGA315_5124_ADD("sms_vdp", _315_5124_pal_intf)
+	MCFG_SEGA315_5124_SET_SCREEN("screen")
 
-	// cardslot, not present in Master System II
+	// card and expansion slots, not present in Master System II
 	MCFG_SMS_CARD_ADD("mycard", sms_cart, NULL)
+	MCFG_SMS_EXPANSION_ADD("exp", sms_expansion_devices, NULL)
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( sms_fm, sms1_ntsc )
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_IO_MAP(sms_fm_io)
+
+	// Japanese sms and sg1000m3 consoles do not have TH input
+	MCFG_SMS_CONTROL_PORT_MODIFY(CONTROL1_TAG)
+	MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(NULL)
+	MCFG_SMS_CONTROL_PORT_MODIFY(CONTROL2_TAG)
+	MCFG_SMS_CONTROL_PORT_TH_INPUT_HANDLER(NULL)
 
 	MCFG_SOUND_ADD("ym2413", YM2413, XTAL_53_693175MHz/15)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
@@ -808,7 +767,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( sg1000m3, sms_fm )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_IO_MAP(sms_no3e3f_io)
+	MCFG_CPU_IO_MAP(sg1000m3_io)
 
 	MCFG_DEVICE_REMOVE("slot")
 	MCFG_SG1000MK3_CARTRIDGE_ADD("slot", sg1000mk3_cart, NULL)
@@ -816,7 +775,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( sms2_fm, sms2_ntsc )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_IO_MAP(sms_kor_io)
+	MCFG_CPU_IO_MAP(sms_fm_io)
 
 	MCFG_SOUND_ADD("ym2413", YM2413, XTAL_53_693175MHz/15)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
@@ -840,12 +799,12 @@ static MACHINE_CONFIG_START( gamegear, sms_state )
 		SEGA315_5124_HEIGHT_NTSC, SEGA315_5124_TBORDER_START + SEGA315_5124_NTSC_192_TBORDER_HEIGHT + 3*8, SEGA315_5124_TBORDER_START + SEGA315_5124_NTSC_192_TBORDER_HEIGHT + 21*8 )
 	MCFG_SCREEN_UPDATE_DRIVER(sms_state, screen_update_gamegear)
 
-	MCFG_PALETTE_LENGTH(SEGA315_5378_PALETTE_SIZE)
-	MCFG_PALETTE_INIT(sega315_5378)
-
 	MCFG_VIDEO_START_OVERRIDE(sms_state,gamegear)
 
+	MCFG_PALETTE_LENGTH(SEGA315_5378_PALETTE_SIZE)
+
 	MCFG_SEGA315_5378_ADD("sms_vdp", _315_5124_ntsc_intf)
+	MCFG_SEGA315_5378_SET_SCREEN("screen")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker","rspeaker")
@@ -1007,15 +966,15 @@ ROM_END
 
 ***************************************************************************/
 
-/*    YEAR  NAME        PARENT      COMPAT  MACHINE      INPUT   INIT      COMPANY     FULLNAME                            FLAGS */
-CONS( 1984, sg1000m3,   sms,        0,      sg1000m3,    sms1, sms_state,      sg1000m3, "Sega",     "SG-1000 Mark III",                 GAME_SUPPORTS_SAVE )
-CONS( 1986, sms1,       sms,        0,      sms1_ntsc,   sms1, sms_state,      sms1,     "Sega",     "Master System I",                  GAME_SUPPORTS_SAVE )
-CONS( 1986, sms1pal,    sms,        0,      sms1_pal,    sms1, sms_state,      sms1,     "Sega",     "Master System I (PAL)" ,           GAME_SUPPORTS_SAVE )
-CONS( 1986, smssdisp,   sms,        0,      sms_sdisp,   sms,  smssdisp_state, smssdisp, "Sega",     "Master System Store Display Unit", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
-CONS( 1987, smsj,       sms,        0,      sms_fm,      sms1, sms_state,      smsj,     "Sega",     "Master System (Japan)",            GAME_SUPPORTS_SAVE )
-CONS( 1990, sms,        0,          0,      sms2_ntsc,   sms,  sms_state,      sms1,     "Sega",     "Master System II",                 GAME_SUPPORTS_SAVE )
-CONS( 1990, smspal,     sms,        0,      sms2_pal,    sms,  sms_state,      sms1,     "Sega",     "Master System II (PAL)",           GAME_SUPPORTS_SAVE )
-CONS( 1990, sms2kr,     sms,        0,      sms2_fm,     sms,  sms_state,      sms2kr,   "Samsung",  "Gam*Boy II (Korea)",               GAME_SUPPORTS_SAVE )
+/*    YEAR  NAME        PARENT      COMPAT  MACHINE      INPUT     CLASS           INIT      COMPANY     FULLNAME                            FLAGS */
+CONS( 1984, sg1000m3,   sms,        0,      sg1000m3,    sg1000m3, sms_state,      sg1000m3, "Sega",     "SG-1000 Mark III",                 GAME_SUPPORTS_SAVE )
+CONS( 1986, sms1,       sms,        0,      sms1_ntsc,   sms1,     sms_state,      sms1,     "Sega",     "Master System I",                  GAME_SUPPORTS_SAVE )
+CONS( 1986, sms1pal,    sms,        0,      sms1_pal,    sms1,     sms_state,      sms1,     "Sega",     "Master System I (PAL)" ,           GAME_SUPPORTS_SAVE )
+CONS( 1986, smssdisp,   sms,        0,      sms_sdisp,   sms,      smssdisp_state, smssdisp, "Sega",     "Master System Store Display Unit", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )
+CONS( 1987, smsj,       sms,        0,      sms_fm,      sms1,     sms_state,      smsj,     "Sega",     "Master System (Japan)",            GAME_SUPPORTS_SAVE )
+CONS( 1990, sms,        0,          0,      sms2_ntsc,   sms,      sms_state,      sms1,     "Sega",     "Master System II",                 GAME_SUPPORTS_SAVE )
+CONS( 1990, smspal,     sms,        0,      sms2_pal,    sms,      sms_state,      sms1,     "Sega",     "Master System II (PAL)",           GAME_SUPPORTS_SAVE )
+CONS( 1990, sms2kr,     sms,        0,      sms2_fm,     sms,      sms_state,      sms2kr,   "Samsung",  "Gam*Boy II (Korea)",               GAME_SUPPORTS_SAVE )
 
-CONS( 1990, gamegear,   0,          sms,    gamegear,    gg,   sms_state,      gamegear, "Sega",     "Game Gear (Europe/America)",       GAME_SUPPORTS_SAVE )
-CONS( 1990, gamegeaj,   gamegear,   0,      gamegear,    gg,   sms_state,      gamegeaj, "Sega",     "Game Gear (Japan)",                GAME_SUPPORTS_SAVE )
+CONS( 1990, gamegear,   0,          sms,    gamegear,    gg,       sms_state,      gamegear, "Sega",     "Game Gear (Europe/America)",       GAME_SUPPORTS_SAVE )
+CONS( 1990, gamegeaj,   gamegear,   0,      gamegear,    gg,       sms_state,      gamegeaj, "Sega",     "Game Gear (Japan)",                GAME_SUPPORTS_SAVE )

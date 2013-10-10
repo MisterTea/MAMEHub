@@ -174,8 +174,8 @@ void mermaid_state::video_start()
 	m_fg_tilemap->set_scroll_cols(32);
 	m_fg_tilemap->set_transparent_pen(0);
 
-	machine().primary_screen->register_screen_bitmap(m_helper);
-	machine().primary_screen->register_screen_bitmap(m_helper2);
+	m_screen->register_screen_bitmap(m_helper);
+	m_screen->register_screen_bitmap(m_helper2);
 }
 
 void mermaid_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
@@ -221,8 +221,8 @@ void mermaid_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 
 UINT32 mermaid_state::screen_update_mermaid(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap, cliprect);
 	return 0;
 }
@@ -253,7 +253,7 @@ void mermaid_state::screen_eof_mermaid(screen_device &screen, bool state)
 	// rising edge
 	if (state)
 	{
-		const rectangle &visarea = machine().primary_screen->visible_area();
+		const rectangle &visarea = m_screen->visible_area();
 		UINT8 *spriteram = m_spriteram;
 
 		int offs, offs2;
@@ -308,7 +308,7 @@ void mermaid_state::screen_eof_mermaid(screen_device &screen, bool state)
 			m_helper.fill(0, rect);
 			m_helper2.fill(0, rect);
 
-			m_bg_tilemap->draw(m_helper, rect, 0, 0);
+			m_bg_tilemap->draw(screen, m_helper, rect, 0, 0);
 
 			drawgfx_transpen(m_helper2, rect, machine().gfx[1], code, 0, flipx, flipy, sx, sy, 0);
 
@@ -319,7 +319,7 @@ void mermaid_state::screen_eof_mermaid(screen_device &screen, bool state)
 			m_helper.fill(0, rect);
 			m_helper2.fill(0, rect);
 
-			m_fg_tilemap->draw(m_helper, rect, 0, 0);
+			m_fg_tilemap->draw(screen, m_helper, rect, 0, 0);
 
 			drawgfx_transpen(m_helper2, rect, machine().gfx[1], code, 0, flipx, flipy, sx, sy, 0);
 

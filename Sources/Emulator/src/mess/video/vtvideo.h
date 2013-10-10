@@ -17,7 +17,6 @@
 
 struct vt_video_interface
 {
-	const char *m_screen_tag;     /* screen we are acting on */
 	const char *m_char_rom_tag; /* character rom region */
 
 	/* this gets called for every memory read */
@@ -27,10 +26,11 @@ struct vt_video_interface
 
 
 class vt100_video_device : public device_t,
+							public device_video_interface,
 							public vt_video_interface
 {
 public:
-	vt100_video_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	vt100_video_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	vt100_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	~vt100_video_device() {}
 
@@ -55,7 +55,6 @@ protected:
 	devcb_resolved_read8        m_in_ram_func;
 	devcb_resolved_write8       m_clear_video_interrupt;
 
-	screen_device *m_screen;  /* screen */
 	UINT8 *m_gfx;     /* content of char rom */
 
 	int m_lba7;
@@ -68,6 +67,7 @@ protected:
 	// dc011 attributes
 	UINT8 m_columns;
 	UINT8 m_height;
+	UINT8 m_height_MAX;
 	UINT8 m_skip_lines;
 	UINT8 m_frequency;
 	UINT8 m_interlaced;
@@ -83,7 +83,7 @@ public:
 
 protected:
 	virtual void display_char(bitmap_ind16 &bitmap, UINT8 code, int x, int y, UINT8 scroll_region, UINT8 display_type);
-
+	virtual void device_reset();
 };
 
 extern const device_type VT100_VIDEO;

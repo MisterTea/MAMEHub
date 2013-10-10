@@ -18,8 +18,8 @@ const device_type CXD8561BQ = &device_creator<cxd8561bq_device>;
 const device_type CXD8561CQ = &device_creator<cxd8561cq_device>;
 const device_type CXD8654Q = &device_creator<cxd8654q_device>;
 
-psxgpu_device::psxgpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, type, name, tag, owner, clock),
+psxgpu_device::psxgpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+	device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 	m_vblank_handler(*this)
 {
 }
@@ -44,32 +44,32 @@ void psxgpu_device::device_reset( void )
 }
 
 cxd8514q_device::cxd8514q_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8514Q, "CXD8514Q", tag, owner, clock)
+	: psxgpu_device(mconfig, CXD8514Q, "CXD8514Q", tag, owner, clock, "cxd8514q", __FILE__)
 {
 }
 
 cxd8538q_device::cxd8538q_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8538Q, "CXD8538Q", tag, owner, clock)
+	: psxgpu_device(mconfig, CXD8538Q, "CXD8538Q", tag, owner, clock, "cxd8538q", __FILE__)
 {
 }
 
 cxd8561q_device::cxd8561q_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8561Q, "CXD8561Q", tag, owner, clock)
+	: psxgpu_device(mconfig, CXD8561Q, "CXD8561Q", tag, owner, clock, "cxd8561q", __FILE__)
 {
 }
 
 cxd8561bq_device::cxd8561bq_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8561BQ, "CXD8561BQ", tag, owner, clock)
+	: psxgpu_device(mconfig, CXD8561BQ, "CXD8561BQ", tag, owner, clock, "cxd8561bq", __FILE__)
 {
 }
 
 cxd8561cq_device::cxd8561cq_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8561CQ, "CXD8561CQ", tag, owner, clock)
+	: psxgpu_device(mconfig, CXD8561CQ, "CXD8561CQ", tag, owner, clock, "cxd8561cq", __FILE__)
 {
 }
 
 cxd8654q_device::cxd8654q_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxgpu_device(mconfig, CXD8654Q, "CXD8654Q", tag, owner, clock)
+	: psxgpu_device(mconfig, CXD8654Q, "CXD8654Q", tag, owner, clock, "cxd8654q", __FILE__)
 {
 }
 
@@ -3778,13 +3778,13 @@ void psxgpu_device::lightgun_set( int n_x, int n_y )
 	n_lightgun_y = n_y;
 }
 
-PALETTE_INIT( psx )
+PALETTE_INIT_MEMBER( psxgpu_device, psx )
 {
 	UINT32 n_colour;
 
 	for( n_colour = 0; n_colour < 0x10000; n_colour++ )
 	{
-		palette_set_color_rgb( machine, n_colour, pal5bit(n_colour >> 0), pal5bit(n_colour >> 5), pal5bit(n_colour >> 10) );
+		palette_set_color_rgb( machine(), n_colour, pal5bit(n_colour >> 0), pal5bit(n_colour >> 5), pal5bit(n_colour >> 10) );
 	}
 }
 
@@ -3798,12 +3798,7 @@ MACHINE_CONFIG_FRAGMENT( psxgpu )
 	((screen_device *)device)->register_vblank_callback(vblank_state_delegate(FUNC(psxgpu_device::vblank), (psxgpu_device *) owner));
 
 	MCFG_PALETTE_LENGTH( 65536 )
-	{
-		device_t *original_owner = owner;
-		owner = owner->owner();
-		MCFG_PALETTE_INIT(psx)
-		owner = original_owner;
-	}
+	MCFG_PALETTE_INIT_OVERRIDE(psxgpu_device, psx)
 MACHINE_CONFIG_END
 
 //-------------------------------------------------

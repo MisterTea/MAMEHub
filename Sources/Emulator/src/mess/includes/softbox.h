@@ -12,6 +12,7 @@
 #include "machine/i8251.h"
 #include "machine/i8255.h"
 #include "machine/ieee488.h"
+#include "machine/imi5000h.h"
 #include "machine/serial.h"
 
 #define Z80_TAG         "z80"
@@ -26,14 +27,20 @@ class softbox_state : public driver_device
 public:
 	softbox_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+			m_maincpu(*this, Z80_TAG),
 			m_dbrg(*this, COM8116_TAG),
 			m_ieee(*this, IEEE488_TAG)
 	{ }
 
+	required_device<cpu_device> m_maincpu;
 	required_device<com8116_device> m_dbrg;
 	required_device<ieee488_device> m_ieee;
 
 	virtual void machine_start();
+	virtual void device_reset_after_children();
+
+	// device_ieee488_interface overrides
+	virtual void ieee488_ifc(int state);
 
 	DECLARE_WRITE8_MEMBER( dbrg_w );
 
@@ -51,6 +58,8 @@ public:
 		LED_B,
 		LED_READY
 	};
+
+	int m_ifc;  // Tracks previous state of IEEE-488 IFC line
 };
 
 #endif

@@ -35,7 +35,7 @@
 const device_type ADC12130 = &device_creator<adc12130_device>;
 
 adc12130_device::adc12130_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: adc12138_device(mconfig, ADC12130, "A/D Converter 12130", tag, owner, clock)
+	: adc12138_device(mconfig, ADC12130, "A/D Converter 12130", tag, owner, clock, "adc12130", __FILE__)
 {
 }
 
@@ -43,7 +43,7 @@ adc12130_device::adc12130_device(const machine_config &mconfig, const char *tag,
 const device_type ADC12132 = &device_creator<adc12132_device>;
 
 adc12132_device::adc12132_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: adc12138_device(mconfig, ADC12132, "A/D Converter 12132", tag, owner, clock)
+	: adc12138_device(mconfig, ADC12132, "A/D Converter 12132", tag, owner, clock, "adc12132", __FILE__)
 {
 }
 
@@ -51,13 +51,14 @@ adc12132_device::adc12132_device(const machine_config &mconfig, const char *tag,
 const device_type ADC12138 = &device_creator<adc12138_device>;
 
 adc12138_device::adc12138_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, ADC12138, "A/D Converter 12138", tag, owner, clock)
+	: device_t(mconfig, ADC12138, "A/D Converter 12138", tag, owner, clock, "adc12138", __FILE__)
 {
 }
-adc12138_device::adc12138_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock)
+adc12138_device::adc12138_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
+
 
 //-------------------------------------------------
 //  device_config_complete - perform any
@@ -85,6 +86,15 @@ void adc12138_device::device_config_complete()
 
 void adc12138_device::device_start()
 {
+	m_cycle = 0;
+	m_data_out = 0;
+	m_data_in = 0;
+	m_auto_cal = 0;
+	m_auto_zero = 0;
+	m_input_shift_reg = 0;
+	m_output_shift_reg = 0;
+	m_end_conv = 0;
+
 	/* resolve callbacks */
 	m_input_callback_r_func = input_callback_r;
 
@@ -97,7 +107,6 @@ void adc12138_device::device_start()
 	save_item(NAME(m_auto_zero));
 	save_item(NAME(m_acq_time));
 	save_item(NAME(m_data_out_sign));
-	save_item(NAME(m_mode));
 	save_item(NAME(m_input_shift_reg));
 	save_item(NAME(m_output_shift_reg));
 	save_item(NAME(m_end_conv));

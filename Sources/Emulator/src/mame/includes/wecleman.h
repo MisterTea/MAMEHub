@@ -1,4 +1,5 @@
 #include "sound/k007232.h"
+#include "video/k051316.h"
 
 class wecleman_state : public driver_device
 {

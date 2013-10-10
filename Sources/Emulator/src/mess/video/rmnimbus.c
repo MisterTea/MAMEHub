@@ -608,7 +608,7 @@ void rmnimbus_state::video_start()
 {
 	m_debug_video=0;
 
-	logerror("VIDEO_START\n");
+	logerror("video_start\n");
 
 	if (machine().debug_flags & DEBUG_FLAG_ENABLED)
 	{
@@ -629,7 +629,7 @@ void rmnimbus_state::video_reset()
 
 void rmnimbus_state::screen_eof_nimbus(screen_device &screen, bool state)
 {
-//    logerror("SCREEN_VBLANK( nimbus )\n");
+//    logerror("screen_eof_nimbus\n");
 }
 
 UINT32 rmnimbus_state::screen_update_nimbus(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)

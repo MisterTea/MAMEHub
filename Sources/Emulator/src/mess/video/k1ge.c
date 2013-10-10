@@ -11,7 +11,7 @@ used in the Neogeo pocket color.
 #include "k1ge.h"
 
 
-PALETTE_INIT( k1ge )
+PALETTE_INIT_MEMBER(k1ge_device, k1ge)
 {
 	int i;
 
@@ -19,12 +19,12 @@ PALETTE_INIT( k1ge )
 	{
 		int j = ( i << 5 ) | ( i << 2 ) | ( i >> 1 );
 
-		palette_set_color_rgb( machine, 7-i, j, j, j );
+		palette_set_color_rgb( machine(), 7-i, j, j, j );
 	}
 }
 
 
-PALETTE_INIT( k2ge )
+PALETTE_INIT_MEMBER(k2ge_device, k2ge)
 {
 	int r,g,b;
 
@@ -34,7 +34,7 @@ PALETTE_INIT( k2ge )
 		{
 			for ( r = 0; r < 16; r++ )
 			{
-				palette_set_color_rgb( machine, ( b << 8 ) | ( g << 4 ) | r, ( r << 4 ) | r, ( g << 4 ) | g, ( b << 4 ) | b );
+				palette_set_color_rgb( machine(), ( b << 8 ) | ( g << 4 ) | r, ( r << 4 ) | r, ( g << 4 ) | g, ( b << 4 ) | b );
 			}
 		}
 	}
@@ -810,7 +810,6 @@ void k1ge_device::device_start()
 
 	m_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(k1ge_device::timer_callback), this));
 	m_hblank_on_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(k1ge_device::hblank_on_timer_callback), this));
-	m_screen = machine().device<screen_device>(m_screen_tag);
 	m_vram = auto_alloc_array_clear(machine(), UINT8, 0x4000);
 	m_bitmap = auto_bitmap_ind16_alloc( machine(), m_screen->width(), m_screen->height() );
 
@@ -873,23 +872,53 @@ void k1ge_device::device_reset()
 const device_type K1GE = &device_creator<k1ge_device>;
 
 k1ge_device::k1ge_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, K1GE, "K1GE Monochrome Graphics + LCD", tag, owner, clock)
+	: device_t(mconfig, K1GE, "K1GE Monochrome Graphics + LCD", tag, owner, clock, "k1ge", __FILE__)
+	, device_video_interface(mconfig, *this)
 	, m_vblank_pin_w(*this)
 	, m_hblank_pin_w(*this)
 {
 }
 
-k1ge_device::k1ge_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock)
+k1ge_device::k1ge_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
+	, device_video_interface(mconfig, *this)
 	, m_vblank_pin_w(*this)
 	, m_hblank_pin_w(*this)
 {
+}
+
+static MACHINE_CONFIG_FRAGMENT( k1ge )
+	MCFG_PALETTE_INIT_OVERRIDE(k1ge_device, k1ge)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor k1ge_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( k1ge );
 }
 
 
 const device_type K2GE = &device_creator<k2ge_device>;
 
 k2ge_device::k2ge_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: k1ge_device(mconfig, K2GE, "K2GE Color Graphics + LCD", tag, owner, clock)
+	: k1ge_device(mconfig, K2GE, "K2GE Color Graphics + LCD", tag, owner, clock, "k2ge", __FILE__)
 {
+}
+
+static MACHINE_CONFIG_FRAGMENT( k2ge )
+	MCFG_PALETTE_INIT_OVERRIDE(k2ge_device, k2ge)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor k2ge_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( k2ge );
 }

@@ -1495,7 +1495,8 @@ static void execute_wplist(running_machine &machine, int ref, int params, const 
 			{
 				static const char *const types[] = { "unkn ", "read ", "write", "r/w  " };
 
-				debug_console_printf(machine, "Device '%s' %s space watchpoints:\n", device->tag(), device->debug()->watchpoint_first(spacenum)->space().name());
+				debug_console_printf(machine, "Device '%s' %s space watchpoints:\n", device->tag(),
+																						device->debug()->watchpoint_first(spacenum)->space().name());
 
 				/* loop over the watchpoints */
 				for (device_debug::watchpoint *wp = device->debug()->watchpoint_first(spacenum); wp != NULL; wp = wp->next())
@@ -1504,9 +1505,9 @@ static void execute_wplist(running_machine &machine, int ref, int params, const 
 							core_i64_hex_format(wp->space().byte_to_address(wp->address()), wp->space().addrchars()),
 							core_i64_hex_format(wp->space().byte_to_address_end(wp->address() + wp->length()) - 1, wp->space().addrchars()),
 							types[wp->type() & 3]);
-					if (wp->condition() != NULL)
+					if (astring(wp->condition()) != astring("1"))
 						buffer.catprintf(" if %s", wp->condition());
-					if (wp->action() != NULL)
+					if (astring(wp->action()) != astring(""))
 						buffer.catprintf(" do %s", wp->action());
 					debug_console_printf(machine, "%s\n", buffer.cstr());
 					printed++;
@@ -2061,7 +2062,7 @@ static void execute_cheatinit(running_machine &machine, int ref, int params, con
 			return;
 
 		cheat_map *newmap = auto_alloc_array(machine, cheat_map, cheat.length + real_length);
-		for (int item = 0; item < cheat.length; item++)
+		for (UINT64 item = 0; item < cheat.length; item++)
 			newmap[item] = cheat.cheatmap[item];
 		auto_free(machine, cheat.cheatmap);
 		cheat.cheatmap = newmap;
@@ -2373,7 +2374,7 @@ static void execute_find(running_machine &machine, int ref, int params, const ch
 	int cur_data_size;
 	int data_count = 0;
 	int found = 0;
-	UINT64 i, j;
+	int j;
 
 	/* validate parameters */
 	if (!debug_command_parameter_number(machine, param[0], &offset))
@@ -2391,7 +2392,7 @@ static void execute_find(running_machine &machine, int ref, int params, const ch
 		cur_data_size = 1;
 
 	/* parse the data parameters */
-	for (i = 2; i < params; i++)
+	for (int i = 2; i < params; i++)
 	{
 		const char *pdata = param[i];
 
@@ -2426,7 +2427,7 @@ static void execute_find(running_machine &machine, int ref, int params, const ch
 	}
 
 	/* now search */
-	for (i = offset; i <= endoffset; i += data_size[0])
+	for (UINT64 i = offset; i <= endoffset; i += data_size[0])
 	{
 		int suboffset = 0;
 		int match = 1;
@@ -2469,7 +2470,7 @@ static void execute_dasm(running_machine &machine, int ref, int params, const ch
 	int minbytes, maxbytes, byteswidth;
 	address_space *space;
 	FILE *f = NULL;
-	int i, j;
+	int j;
 
 	/* validate parameters */
 	if (!debug_command_parameter_number(machine, param[1], &offset))
@@ -2501,7 +2502,7 @@ static void execute_dasm(running_machine &machine, int ref, int params, const ch
 	}
 
 	/* now write the data out */
-	for (i = 0; i < length; )
+	for (UINT64 i = 0; i < length; )
 	{
 		int pcbyte = space->address_to_byte(offset + i) & space->bytemask();
 		char output[512], disasm[200];
@@ -2677,7 +2678,7 @@ static void execute_history(running_machine &machine, int ref, int params, const
 
 	/* loop over lines */
 	int maxbytes = debug->max_opcode_bytes();
-	for (int index = 0; index < count; index++)
+	for (int index = 0; index < (int) count; index++)
 	{
 		offs_t pc = debug->history_pc(-index);
 

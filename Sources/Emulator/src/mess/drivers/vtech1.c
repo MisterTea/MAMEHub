@@ -139,7 +139,7 @@ Notes:
 #define VZ_BASIC 0xf0
 #define VZ_MCODE 0xf1
 
-#define TRKSIZE_VZ  0x9b0   /* arbitrary (actually from analyzing format) */
+#define TRKSIZE_VZ  0x9a0   /* arbitrary (actually from analyzing format) */
 #define TRKSIZE_FM  3172    /* size of a standard FM mode track */
 
 #define PHI0(n) (((n)>>0)&1)
@@ -300,7 +300,8 @@ void vtech1_state::vtech1_get_track()
 		size = TRKSIZE_VZ;
 		offs = TRKSIZE_VZ * m_fdc_track_x2[m_drive]/2;
 		image->fseek(offs, SEEK_SET);
-		size = image->fread(m_fdc_data, size);
+			// some disks have slightly larger header, make sure we capture the checksum at the end of the track
+		size = image->fread(m_fdc_data, size+4);
 		if (LOG_VTECH1_FDC)
 			logerror("get track @$%05x $%04x bytes\n", offs, size);
 	}
@@ -1021,6 +1022,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( laser310, laser200 )
 	MCFG_CPU_REPLACE("maincpu", Z80, VZ300_XTAL1_CLK / 5)  /* 3.546894 MHz */
 	MCFG_CPU_PROGRAM_MAP(laser310_mem)
+	MCFG_CPU_IO_MAP(vtech1_io)
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)

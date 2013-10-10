@@ -163,6 +163,7 @@ Notes:
 #include "includes/namcona1.h"
 #include "sound/c140.h"
 #include "cpu/m37710/m37710.h"
+#include "mcfglgcy.h"
 
 
 /*************************************************************************/
@@ -973,7 +974,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(namcona1_state::namcona1_interrupt)
 	if (scanline == posirq_scanline && enabled & 4)
 	{
 		if (posirq_scanline)
-			machine().primary_screen->update_partial(posirq_scanline);
+			m_screen->update_partial(posirq_scanline);
 
 		m_maincpu->set_input_line(3, HOLD_LINE);
 	}

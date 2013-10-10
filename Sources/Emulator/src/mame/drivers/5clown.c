@@ -546,7 +546,7 @@ void _5clown_state::video_start()
 
 UINT32 _5clown_state::screen_update_fclown(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -997,7 +997,6 @@ GFXDECODE_END
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -1094,7 +1093,7 @@ static MACHINE_CONFIG_START( fclown, _5clown_state )
 	MCFG_PALETTE_LENGTH(256)
 
 
-	MCFG_MC6845_ADD("crtc", MC6845, MASTER_CLOCK/16, mc6845_intf) /* guess */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/16, mc6845_intf) /* guess */
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1116,7 +1115,7 @@ MACHINE_CONFIG_END
 ROM_START( 5clown )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "4.u2",       0x2000, 0x8000, CRC(96e3e8ab) SHA1(fec20b9a8bde5306162f8288cdc9580f445cadf5) )
-	ROM_COPY( "maincpu",    0x2000, 0x8000, 0x8000 )
+	ROM_COPY( "maincpu",    0x8000, 0xe000, 0x2000 )
 
 
 	ROM_REGION( 0x8000,  "gfxbanks", 0 )
@@ -1179,7 +1178,7 @@ ROM_END
 ROM_START( 5clownsp )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "five_clown_sp.u2",   0x2000, 0x8000, CRC(fa18090d) SHA1(47feb5dbc77ae8621fc35b707c24d64a95227a39) )
-	ROM_COPY( "maincpu",            0x2000, 0x8000, 0x8000 )
+	ROM_COPY( "maincpu",    0x8000, 0xe000, 0x2000 )
 
 
 	ROM_REGION( 0x8000,  "gfxbanks", 0 )

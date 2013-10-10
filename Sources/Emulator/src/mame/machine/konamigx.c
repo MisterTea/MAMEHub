@@ -5,7 +5,6 @@
  */
 
 #include "emu.h"
-#include "video/konamiic.h"
 #include "includes/konamigx.h"
 
 /***************************************************************************/
@@ -13,6 +12,33 @@
 /*                           GX/MW Protections                             */
 /*                                                                         */
 /***************************************************************************/
+
+/*
+
+
+K055550
+-------
+
+Protection chip which performs a memset() operation.
+
+Used in Violent Storm and Ultimate Battler to clear VRAM between scenes, among
+other things.  May also perform other functions since Violent Storm still isn't
+happy...
+
+Has word-wide registers as follows:
+
+0: Count of units to transfer.  The write here triggers the transfer.
+1-6: Unknown
+7: Destination address, MSW
+8: Destination address, LSW
+9: Unknown
+10: Size of transfer units, MSW
+11: Size of transfer units, LSW
+12: Unknown
+13: Value to fill destination region with
+14-15: Unknown
+
+*/
 
 // K055550/K053990 protection chips, perform simple memset() and other game logic operations
 static UINT16 prot_data[0x20];
@@ -234,8 +260,12 @@ WRITE16_MEMBER(konamigx_state::K053990_martchmp_word_w)
 	}
 }
 
-void konamigx_esc_alert(UINT32 *srcbase, int srcoffs, int count, int mode) // (WARNING: assumed big endianess)
+void konamigx_state::konamigx_esc_alert(UINT32 *srcbase, int srcoffs, int count, int mode) // (WARNING: assumed big endianess)
 {
+	UINT16* k053247_ram;
+	m_k055673->k053247_get_ram(&k053247_ram);
+
+
 // hand-filled but should be close
 static const UINT8 ztable[7][8] =
 {
@@ -269,7 +299,7 @@ static const UINT8 ptable[7][8] =
 	if (mode == 0)
 	{
 		src = srcbase + srcoffs;
-		dst = K053247_ram;
+		dst = k053247_ram;
 		data1 = count<<2;
 		data2 = count<<3;
 		src += data1; dst += data2; i = -data1; j = -data2;
@@ -354,7 +384,7 @@ if((data1=obj[0])&0x80000000)\
 				case 0x11010010: i = 5; vmask = 0x1ff; break;
 				case 0x01111018: i = 4; break;
 				case 0x10010011: i = 3;
-					if ((srcbase[0x1c75]&0xff)==32) K055555_write_reg(K55_BLEND_ENABLES,36); // (TEMPORARY)
+					if ((srcbase[0x1c75]&0xff)==32) m_k055555->K055555_write_reg(K55_BLEND_ENABLES,36); // (TEMPORARY)
 				break;
 				case 0x11010811: i = 2; break;
 				case 0x10000010: i = 1; break;
@@ -370,7 +400,7 @@ if((data1=obj[0])&0x80000000)\
 		zcode = ztable[i];
 		pcode = ptable[i];
 
-		dst = K053247_ram;
+		dst = k053247_ram;
 		j = 256;
 
 		// decode Vic-Viper

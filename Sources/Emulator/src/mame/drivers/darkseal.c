@@ -20,7 +20,6 @@
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "includes/darkseal.h"
-#include "video/deco16ic.h"
 
 /******************************************************************************/
 
@@ -66,17 +65,17 @@ static ADDRESS_MAP_START( darkseal_map, AS_PROGRAM, 16, darkseal_state )
 	AM_RANGE(0x141000, 0x141fff) AM_RAM_WRITE(darkseal_palette_24bit_b_w) AM_SHARE("paletteram2")
 	AM_RANGE(0x180000, 0x18000f) AM_READWRITE(darkseal_control_r, darkseal_control_w)
 
-	AM_RANGE(0x200000, 0x201fff) AM_DEVREADWRITE_LEGACY("tilegen2", deco16ic_pf1_data_r, deco16ic_pf1_data_w)
-	AM_RANGE(0x202000, 0x203fff) AM_DEVREADWRITE_LEGACY("tilegen2", deco16ic_pf2_data_r, deco16ic_pf2_data_w)
-	AM_RANGE(0x240000, 0x24000f) AM_DEVWRITE_LEGACY("tilegen2", deco16ic_pf_control_w)
+	AM_RANGE(0x200000, 0x201fff) AM_DEVREADWRITE("tilegen2", deco16ic_device, pf1_data_r, pf1_data_w)
+	AM_RANGE(0x202000, 0x203fff) AM_DEVREADWRITE("tilegen2", deco16ic_device, pf2_data_r, pf2_data_w)
+	AM_RANGE(0x240000, 0x24000f) AM_DEVWRITE("tilegen2", deco16ic_device, pf_control_w)
 
 	AM_RANGE(0x220000, 0x220fff) AM_RAM AM_SHARE("pf1_rowscroll")
 	// pf2 & 4 rowscrolls are where? (maybe don't exist?)
 	AM_RANGE(0x222000, 0x222fff) AM_RAM AM_SHARE("pf3_rowscroll")
 
-	AM_RANGE(0x260000, 0x261fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf1_data_r, deco16ic_pf1_data_w)
-	AM_RANGE(0x262000, 0x263fff) AM_DEVREADWRITE_LEGACY("tilegen1", deco16ic_pf2_data_r, deco16ic_pf2_data_w)
-	AM_RANGE(0x2a0000, 0x2a000f) AM_DEVWRITE_LEGACY("tilegen1", deco16ic_pf_control_w)
+	AM_RANGE(0x260000, 0x261fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf1_data_r, pf1_data_w)
+	AM_RANGE(0x262000, 0x263fff) AM_DEVREADWRITE("tilegen1", deco16ic_device, pf2_data_r, pf2_data_w)
+	AM_RANGE(0x2a0000, 0x2a000f) AM_DEVWRITE("tilegen1", deco16ic_device, pf_control_w)
 ADDRESS_MAP_END
 
 /******************************************************************************/
@@ -223,7 +222,6 @@ GFXDECODE_END
 
 static const deco16ic_interface darkseal_deco16ic_tilegen1_intf =
 {
-	"screen",
 	0, 3, // both these tilemaps need to be twice the y size of usual!
 	0x0f, 0x0f, /* trans masks (default values) */
 	0x00, 0x00, /* color base */
@@ -236,7 +234,6 @@ static const deco16ic_interface darkseal_deco16ic_tilegen1_intf =
 
 static const deco16ic_interface darkseal_deco16ic_tilegen2_intf =
 {
-	"screen",
 	0, 1,
 	0x0f, 0x0f, /* trans masks (default values) */
 	0x00, 0x00, /* color base */

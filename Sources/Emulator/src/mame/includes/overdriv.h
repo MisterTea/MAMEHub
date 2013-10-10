@@ -4,6 +4,11 @@
 
 *************************************************************************/
 #include "sound/k053260.h"
+#include "machine/k053252.h"
+#include "video/k051316.h"
+#include "video/k053246_k053247_k055673.h"
+#include "video/k053251.h"
+#include "video/konami_helper.h"
 
 class overdriv_state : public driver_device
 {
@@ -18,7 +23,10 @@ public:
 		m_k051316_1(*this, "k051316_1"),
 		m_k051316_2(*this, "k051316_2"),
 		m_k053246(*this, "k053246"),
-		m_k053251(*this, "k053251") { }
+		m_k053251(*this, "k053251"),
+		m_k053252(*this, "k053252"),
+		m_sprram(*this, "sprram")
+	{ }
 
 	/* memory pointers */
 //  UINT16 *   m_paletteram;    // currently this uses generic palette handling
@@ -41,13 +49,15 @@ public:
 	required_device<k051316_device> m_k051316_2;
 	required_device<k053247_device> m_k053246;
 	required_device<k053251_device> m_k053251;
+	required_device<k053252_device> m_k053252;
+	required_shared_ptr<UINT16> m_sprram;
 	DECLARE_WRITE16_MEMBER(eeprom_w);
 	DECLARE_WRITE16_MEMBER(cpuA_ctrl_w);
 	DECLARE_READ16_MEMBER(cpuB_ctrl_r);
 	DECLARE_WRITE16_MEMBER(cpuB_ctrl_w);
 	DECLARE_WRITE16_MEMBER(overdriv_soundirq_w);
-	DECLARE_WRITE16_MEMBER(overdriv_cpuB_irq5_w);
-	DECLARE_WRITE16_MEMBER(overdriv_cpuB_irq6_w);
+	DECLARE_WRITE16_MEMBER(overdriv_cpuB_irq_x_w);
+	DECLARE_WRITE16_MEMBER(overdriv_cpuB_irq_y_w);
 	DECLARE_READ8_MEMBER(overdriv_1_sound_r);
 	DECLARE_READ8_MEMBER(overdriv_2_sound_r);
 	virtual void machine_start();
@@ -55,6 +65,8 @@ public:
 	UINT32 screen_update_overdriv(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(cpuB_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(overdriv_cpuA_scanline);
+
+	DECLARE_WRITE16_MEMBER( overdriv_k053246_word_w );
 };
 
 /*----------- defined in video/overdriv.c -----------*/

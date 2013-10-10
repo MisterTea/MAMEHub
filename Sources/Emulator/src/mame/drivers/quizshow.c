@@ -114,7 +114,7 @@ void quizshow_state::video_start()
 
 UINT32 quizshow_state::screen_update_quizshow(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
+	m_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 	return 0;
 }
 
@@ -194,7 +194,7 @@ READ8_MEMBER(quizshow_state::quizshow_timing_r)
 	ret |= m_clocks >> 2 & 0x60;
 
 	// d7: display busy/idle, during in-between tilerows(?) and blanking
-	if (machine().primary_screen->vpos() >= VBSTART || (machine().primary_screen->vpos() + 4) & 8)
+	if (m_screen->vpos() >= VBSTART || (m_screen->vpos() + 4) & 8)
 		ret &= 0x7f;
 
 	return ret;

@@ -70,7 +70,8 @@ OBJDIRS += \
 	$(LIBOBJ)/webm/vpx_scale \
 	$(LIBOBJ)/webm/vpx_scale/generic \
 	$(LIBOBJ)/webm/libwebm \
-
+	$(LIBOBJ)/web \
+	$(LIBOBJ)/web/json \
 
 
 #-------------------------------------------------
@@ -615,8 +616,7 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/atari_dsk.o   \
 	$(LIBOBJ)/formats/atarist_dsk.o \
 	$(LIBOBJ)/formats/atom_tap.o    \
-	$(LIBOBJ)/formats/bml3_dsk.o    \
-	$(LIBOBJ)/formats/bw2_dsk.o \
+	$(LIBOBJ)/formats/bw2_dsk.o     \
 	$(LIBOBJ)/formats/bw12_dsk.o    \
 	$(LIBOBJ)/formats/cbm_tap.o     \
 	$(LIBOBJ)/formats/cgen_cas.o    \
@@ -648,12 +648,14 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/iq151_dsk.o   \
 	$(LIBOBJ)/formats/imd_dsk.o     \
 	$(LIBOBJ)/formats/ipf_dsk.o     \
+	$(LIBOBJ)/formats/kaypro_dsk.o  \
 	$(LIBOBJ)/formats/kc_cas.o      \
 	$(LIBOBJ)/formats/kc85_dsk.o    \
 	$(LIBOBJ)/formats/kim1_cas.o    \
 	$(LIBOBJ)/formats/lviv_lvt.o    \
-	$(LIBOBJ)/formats/m20_dsk.o \
+	$(LIBOBJ)/formats/m20_dsk.o     \
 	$(LIBOBJ)/formats/m5_dsk.o      \
+	$(LIBOBJ)/formats/mbee_dsk.o    \
 	$(LIBOBJ)/formats/mm_dsk.o      \
 	$(LIBOBJ)/formats/msx_dsk.o     \
 	$(LIBOBJ)/formats/mfi_dsk.o     \
@@ -666,6 +668,7 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/p6001_cas.o   \
 	$(LIBOBJ)/formats/pasti_dsk.o   \
 	$(LIBOBJ)/formats/pc_dsk.o      \
+	$(LIBOBJ)/formats/pc98_dsk.o    \
 	$(LIBOBJ)/formats/pc98fdi_dsk.o \
 	$(LIBOBJ)/formats/pmd_cas.o     \
 	$(LIBOBJ)/formats/primoptp.o    \
@@ -716,6 +719,8 @@ $(OBJ)/libformats.a: $(FORMATSOBJS)
 ifdef DEBUG
 ZLIBOPTS=-Dverbose=-1
 endif
+
+ZLIBOPTS += -DZLIB_CONST -Wno-strict-prototypes
 
 ZLIBOBJS = \
 	$(LIBOBJ)/zlib/adler32.o \
@@ -833,7 +838,7 @@ else
 ARCHFLAGS = -DWORDS_BIGENDIAN=0
 endif
 
-FLACOPTS=-DFLAC__NO_ASM -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H=0 -DFLAC__HAS_OGG=0 -Wno-unused-function $(ARCHFLAGS)
+FLACOPTS=-DFLAC__NO_ASM -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -DHAVE_CONFIG_H=0 -DFLAC__HAS_OGG=0 -Wno-unused-function $(ARCHFLAGS) -O0
 
 LIBFLACOBJS = \
 	$(LIBOBJ)/libflac/bitmath.o \
@@ -991,3 +996,19 @@ endif
 $(LIBOBJ)/lua/%.o: $(LIBSRC)/lua/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
 	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -DLUA_COMPAT_ALL $(LUA_FLAGS) -c $< -o $@
+
+#-------------------------------------------------
+# web library objects
+#-------------------------------------------------
+
+WEBOBJS = \
+	$(LIBOBJ)/web/mongoose.o \
+	$(LIBOBJ)/web/json/json_reader.o \
+	$(LIBOBJ)/web/json/json_value.o \
+	$(LIBOBJ)/web/json/json_writer.o \
+
+$(OBJ)/libweb.a: $(WEBOBJS)
+
+$(LIBOBJ)/web/%.o: $(LIBSRC)/web/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CFLAGS) -I$(LIBSRC)/web -c $< -o $@

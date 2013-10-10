@@ -6,7 +6,7 @@
 
 #include "sound/okim6295.h"
 #include "machine/nvram.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/msm5205.h"
 
 class mitchell_state : public driver_device
@@ -32,7 +32,7 @@ public:
 	required_shared_ptr<UINT8> m_colorram;
 	required_shared_ptr<UINT8> m_videoram;
 
-	optional_device<eeprom_device> m_eeprom;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 	optional_device<msm5205_device> m_msm;
 
 	/* video-related */

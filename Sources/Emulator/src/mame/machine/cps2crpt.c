@@ -721,7 +721,7 @@ static void cps2_decrypt(running_machine &machine, const UINT32 *master_key, UIN
 	}
 
 	space.set_decrypted_region(0x000000, length - 1, dec);
-	m68k_set_encrypted_opcode_range(machine.device("maincpu"), 0, length);
+	m68k_set_encrypted_opcode_range((m68000_base_device*)machine.device("maincpu"), 0, length);
 }
 
 
@@ -770,6 +770,7 @@ static const struct game_keys keys_table[] =
 	{ "ddtodjr1", { 0x4510e79c,0xf36b8a2d }, 0x180000 },    // 0C78 1019 4000  cmpi.w  #$1019,$4000
 	{ "ddtodjr2", { 0x4510e79c,0xf36b8a2d }, 0x180000 },    // 0C78 1019 4000  cmpi.w  #$1019,$4000
 	{ "ddtoda",   { 0xdecac105,0x19710411 }, 0x180000 },    // 0C78 1019 4000  cmpi.w  #$1019,$4000
+	{ "ddtodar1", { 0xdecac105,0x19710411 }, 0x180000 },    // 0C78 1019 4000  cmpi.w  #$1019,$4000
 	{ "ddtodh",   { 0x19691019,0xe825dde0 }, 0x180000 },    // 0C78 1019 4000  cmpi.w  #$1019,$4000
 	{ "ddtodhr1", { 0x19691019,0xe825dde0 }, 0x180000 },    // 0C78 1019 4000  cmpi.w  #$1019,$4000
 	{ "ddtodhr2", { 0x19691019,0xe825dde0 }, 0x180000 },    // 0C78 1019 4000  cmpi.w  #$1019,$4000
@@ -846,6 +847,7 @@ static const struct game_keys keys_table[] =
 	{ "sfar3",    { 0x0f895d6e,0xc4273a1b }, 0x080000 },    // 0C80 0564 2194  cmpi.l  #$05642194,D0
 	{ "sfau",     { 0x25bead36,0x97cf4018 }, 0x080000 },    // 0C80 0564 2194  cmpi.l  #$05642194,D0
 	{ "sfza",     { 0xe43dc508,0x621b9a7f }, 0x080000 },    // 0C80 0564 2194  cmpi.l  #$05642194,D0
+	{ "sfzar1",   { 0xe43dc508,0x621b9a7f }, 0x080000 },    // 0C80 0564 2194  cmpi.l  #$05642194,D0
 	{ "sfzj",     { 0x8db3167a,0xc29e0f45 }, 0x080000 },    // 0C80 0564 2194  cmpi.l  #$05642194,D0
 	{ "sfzjr1",   { 0x8db3167a,0xc29e0f45 }, 0x080000 },    // 0C80 0564 2194  cmpi.l  #$05642194,D0
 	{ "sfzjr2",   { 0x8db3167a,0xc29e0f45 }, 0x080000 },    // 0C80 0564 2194  cmpi.l  #$05642194,D0

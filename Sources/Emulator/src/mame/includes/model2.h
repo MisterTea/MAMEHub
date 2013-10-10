@@ -1,6 +1,8 @@
 #include "video/poly.h"
 #include "audio/dsbz80.h"
-#include "machine/eeprom.h"
+#include "audio/segam1audio.h"
+#include "machine/eepromser.h"
+#include "cpu/i960/i960.h"
 
 struct raster_state;
 struct geo_state;
@@ -11,7 +13,6 @@ class model2_state : public driver_device
 public:
 	model2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this,"maincpu"),
 		m_workram(*this, "workram"),
 		m_bufferram(*this, "bufferram"),
 		m_paletteram32(*this, "paletteram32"),
@@ -20,15 +21,16 @@ public:
 		m_textureram1(*this, "textureram1"),
 		m_lumaram(*this, "lumaram"),
 		m_soundram(*this, "soundram"),
-		m_dsbz80(*this, DSBZ80_TAG),
 		m_tgp_program(*this, "tgp_program"),
+		m_maincpu(*this,"maincpu"),
+		m_dsbz80(*this, DSBZ80_TAG),
+		m_m1audio(*this, "m1audio"),
 		m_audiocpu(*this, "audiocpu"),
 		m_tgp(*this, "tgp"),
 		m_dsp(*this, "dsp"),
 		m_drivecpu(*this, "drivecpu"),
 		m_eeprom(*this, "eeprom") { }
 
-	required_device<cpu_device> m_maincpu;
 	required_shared_ptr<UINT32> m_workram;
 	required_shared_ptr<UINT32> m_bufferram;
 	required_shared_ptr<UINT32> m_paletteram32;
@@ -37,8 +39,16 @@ public:
 	required_shared_ptr<UINT32> m_textureram1;
 	required_shared_ptr<UINT32> m_lumaram;
 	optional_shared_ptr<UINT16> m_soundram;
-	optional_device<dsbz80_device> m_dsbz80;    // Z80-based MPEG Digital Sound Board
 	optional_shared_ptr<UINT32> m_tgp_program;
+
+	required_device<i960_cpu_device> m_maincpu;
+	optional_device<dsbz80_device> m_dsbz80;    // Z80-based MPEG Digital Sound Board
+	optional_device<segam1audio_device> m_m1audio;  // Model 1 standard sound board
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<cpu_device> m_tgp;
+	optional_device<cpu_device> m_dsp;
+	optional_device<cpu_device> m_drivecpu;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 
 	UINT32 m_intreq;
 	UINT32 m_intena;
@@ -158,6 +168,7 @@ public:
 	DECLARE_DRIVER_INIT(rchase2);
 	DECLARE_DRIVER_INIT(genprot);
 	DECLARE_DRIVER_INIT(daytonam);
+	DECLARE_DRIVER_INIT(manxttdx);
 	DECLARE_DRIVER_INIT(srallyc);
 	DECLARE_DRIVER_INIT(doa);
 	DECLARE_DRIVER_INIT(zerogun);
@@ -176,11 +187,9 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(model2c_interrupt);
 	void model2_exit();
 	DECLARE_WRITE_LINE_MEMBER(scsp_irq);
-	required_device<cpu_device> m_audiocpu;
-	optional_device<cpu_device> m_tgp;
-	optional_device<cpu_device> m_dsp;
-	optional_device<cpu_device> m_drivecpu;
-	required_device<eeprom_device> m_eeprom;
+	DECLARE_READ_LINE_MEMBER(copro_tgp_fifoin_pop_ok);
+	DECLARE_READ32_MEMBER(copro_tgp_fifoin_pop);
+	DECLARE_WRITE32_MEMBER(copro_tgp_fifoout_push);
 };
 
 /*----------- defined in video/model2.c -----------*/

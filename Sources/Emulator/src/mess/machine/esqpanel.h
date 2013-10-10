@@ -50,6 +50,7 @@
 struct esqpanel_interface
 {
 	devcb_write_line    m_out_tx_cb;
+	devcb_write16       m_analog_value_cb;
 };
 
 // ======================> esqpanel_device
@@ -60,11 +61,10 @@ public:
 	// construction/destruction
 	esqpanel_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
-	DECLARE_WRITE_LINE_MEMBER( rx_w ) { check_for_start(state); }
-
 	virtual void send_to_display(UINT8 data) = 0;
 
 	void xmit_char(UINT8 data);
+	void set_analog_value(offs_t offset, UINT16 value);
 
 protected:
 	// device-level overrides
@@ -84,8 +84,10 @@ private:
 	static const int XMIT_RING_SIZE = 16;
 
 	bool  m_bCalibSecondByte;
+	bool  m_bButtonLightSecondByte;
 
 	devcb_resolved_write_line m_out_tx_func;
+	devcb_resolved_write16 m_analog_value_func;
 	UINT8 m_xmitring[XMIT_RING_SIZE];
 	int m_xmit_read, m_xmit_write;
 	bool m_tx_busy;

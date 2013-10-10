@@ -40,8 +40,6 @@ struct vdt911_init_params_t
 	void (*int_callback)(running_machine &machine, int state);
 };
 
-PALETTE_INIT( vdt911 );
-
 void vdt911_init(running_machine &machine);
 class vdt911_device : public device_t
 {
@@ -49,12 +47,15 @@ public:
 	vdt911_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	~vdt911_device() { global_free(m_token); }
 
+	DECLARE_PALETTE_INIT(vdt911);
+
 	// access to legacy token
 	void *token() const { assert(m_token != NULL); return m_token; }
 protected:
 	// device-level overrides
 	virtual void device_config_complete();
 	virtual void device_start();
+	virtual machine_config_constructor device_mconfig_additions() const;
 private:
 	// internal state
 	void *m_token;

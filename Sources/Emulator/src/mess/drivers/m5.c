@@ -440,7 +440,6 @@ WRITE_LINE_MEMBER(m5_state::sordm5_video_interrupt_callback)
 
 static TMS9928A_INTERFACE(m5_tms9928a_interface)
 {
-	"screen",
 	0x4000,
 	DEVCB_DRIVER_LINE_MEMBER(m5_state,sordm5_video_interrupt_callback)
 };
@@ -619,10 +618,6 @@ void m5_state::machine_start()
 	save_item(NAME(m_obfa));
 }
 
-
-//-------------------------------------------------
-//  MACHINE_RESET( m5 )
-//-------------------------------------------------
 
 void m5_state::machine_reset()
 {

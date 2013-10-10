@@ -9,7 +9,7 @@
     TODO:
     -When you use the "gun card" the game gives "minus" points,but points are always added,inaccurate protection?
     -Understand better the video emulation and convert it to tilemaps;
-    -A Double Dealer manual is needed for the coinage settings and coin/credit simulation;
+    -Coinage settings based on those listed at www.crazykong.com/dips/DoubleDealer.txt - coin/credit simulation need fixing;
     -Decap + emulate MCU, required if the random number generation is going to be accurate;
 
 ==========================================================================================================
@@ -275,7 +275,7 @@ UINT32 ddealer_state::screen_update_ddealer(screen_device &screen, bitmap_ind16 
 {
 	m_back_tilemap->set_scrollx(0, m_flipscreen ? -192 : -64);
 	m_back_tilemap->set_flip(m_flipscreen ? TILEMAP_FLIPY | TILEMAP_FLIPX : 0);
-	m_back_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_back_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* the fg tilemap handling is a little hacky right now,
 	   i'm not sure if it should be a single tilemap with
@@ -521,55 +521,45 @@ static INPUT_PORTS_START( ddealer )
 
 	/*bits 0-7 are almost surely to be coinage.*/
 	PORT_START("DSW1")
-	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-
-	PORT_DIPNAME( 0x0100, 0x0100, DEF_STR( Flip_Screen ) )
-	PORT_DIPSETTING(    0x0100, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0200, 0x0000, DEF_STR( Demo_Sounds ) )
-	PORT_DIPSETTING(    0x0200, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0400, 0x0000, DEF_STR( Language ) )
-	PORT_DIPSETTING(    0x0400, DEF_STR( Japanese ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( English ) )
-	PORT_DIPNAME( 0x0800, 0x0800, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x0800, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x1000, 0x1000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x1000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x2000, 0x2000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x2000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x4000, 0x4000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x4000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x8000, 0x8000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x8000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
+	PORT_DIPUNUSED_DIPLOC( 0x0001, IP_ACTIVE_LOW, "SW1:8" ) /* Listed as "Always Off" */
+	PORT_DIPUNUSED_DIPLOC( 0x0002, IP_ACTIVE_LOW, "SW1:7" ) /* Listed as "Always Off" */
+	PORT_DIPNAME( 0x001c, 0x001c, DEF_STR( Coin_B ) )       PORT_DIPLOCATION("SW1:6,5,4")
+	PORT_DIPSETTING(      0x0010, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(      0x0008, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(      0x0018, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(      0x001c, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(      0x000c, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(      0x0014, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(      0x0004, DEF_STR( 1C_4C ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( Free_Play ) )
+	PORT_DIPNAME( 0x00e0, 0x00e0, DEF_STR( Coin_A ) )       PORT_DIPLOCATION("SW1:3,2,1")
+	PORT_DIPSETTING(      0x0080, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(      0x0040, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(      0x00c0, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(      0x00e0, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(      0x0060, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(      0x00a0, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(      0x0020, DEF_STR( 1C_4C ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( Free_Play ) ) /* Not listed in "dips" text, but current effect is FREE PLAY. Is this correct? */
+	PORT_DIPNAME( 0x0100, 0x0100, DEF_STR( Flip_Screen ) )      PORT_DIPLOCATION("SW2:8")
+	PORT_DIPSETTING(      0x0100, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0200, 0x0000, DEF_STR( Demo_Sounds ) )      PORT_DIPLOCATION("SW2:7")
+	PORT_DIPSETTING(      0x0200, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0400, 0x0000, DEF_STR( Language ) )     PORT_DIPLOCATION("SW2:6")
+	PORT_DIPSETTING(      0x0400, DEF_STR( Japanese ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( English ) )
+	PORT_DIPNAME( 0x1800, 0x1800, DEF_STR( Difficulty ) )       PORT_DIPLOCATION("SW2:5,4")
+	PORT_DIPSETTING(      0x0800, DEF_STR( Easy ) )
+	PORT_DIPSETTING(      0x1800, DEF_STR( Normal ) )
+	PORT_DIPSETTING(      0x1000, DEF_STR( Hard ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( Hardest ) )
+	PORT_DIPNAME( 0x2000, 0x2000, "Lady Stripping" )        PORT_DIPLOCATION("SW2:3")
+	PORT_DIPSETTING(      0x0000, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x2000, DEF_STR( On ) )
+	PORT_DIPUNUSED_DIPLOC( 0x4000, IP_ACTIVE_LOW, "SW2:2" ) /* Listed as "Always Off" */
+	PORT_DIPUNUSED_DIPLOC( 0x8000, IP_ACTIVE_LOW, "SW2:1" ) /* Listed as "Always Off" */
 
 	PORT_START("UNK")
 INPUT_PORTS_END
@@ -626,7 +616,7 @@ INTERRUPT_GEN_MEMBER(ddealer_state::ddealer_interrupt)
 
 static MACHINE_CONFIG_START( ddealer, ddealer_state )
 
-	MCFG_CPU_ADD("maincpu" , M68000, 10000000)
+	MCFG_CPU_ADD("maincpu" , M68000, XTAL_16MHz/2) /* 8MHz */
 	MCFG_CPU_PROGRAM_MAP(ddealer)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", ddealer_state,  ddealer_interrupt)
 	MCFG_CPU_PERIODIC_INT_DRIVER(ddealer_state, irq1_line_hold,  90)//guess,controls music tempo,112 is way too fast
@@ -649,7 +639,7 @@ static MACHINE_CONFIG_START( ddealer, ddealer_state )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("coinsim", ddealer_state, ddealer_mcu_sim, attotime::from_hz(10000))
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_ADD("ymsnd", YM2203, 6000000 / 4)//guess
+	MCFG_SOUND_ADD("ymsnd", YM2203, XTAL_6MHz / 8) /* 7.5KHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 MACHINE_CONFIG_END
 
@@ -659,6 +649,7 @@ READ16_MEMBER(ddealer_state::ddealer_mcu_r)
 {
 	static const int resp[] =
 	{
+		0x00, /* performs a clr.l when doing the ram test, triggering a read here */
 		0x93, 0xc7, 0x00, 0x8000,
 		0x2d, 0x6d, 0x00, 0x8000,
 		0x99, 0xc7, 0x00, 0x8000,
@@ -682,7 +673,7 @@ DRIVER_INIT_MEMBER(ddealer_state,ddealer)
 
 ROM_START( ddealer )
 	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 Code */
-	ROM_LOAD16_BYTE( "1.ic6", 0x00001, 0x20000, CRC(ce0dff50) SHA1(2d7a03f6b9609aea7511a4dc49560a901b0b9f19) )
+	ROM_LOAD16_BYTE( "1.ic6",  0x00001, 0x20000, CRC(ce0dff50) SHA1(2d7a03f6b9609aea7511a4dc49560a901b0b9f19) )
 	ROM_LOAD16_BYTE( "2.ic28", 0x00000, 0x20000, CRC(f00c346f) SHA1(bd73efb19d5f9efc88210d92a82a3f4595b41097) )
 
 	ROM_REGION( 0x40000, "mcu", 0 ) /* M50747? MCU Code */

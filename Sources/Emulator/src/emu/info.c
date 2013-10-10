@@ -153,6 +153,10 @@ const char info_xml_creator::s_dtd_string[] =
 "\t\t\t\t<!ATTLIST confsetting name CDATA #REQUIRED>\n"
 "\t\t\t\t<!ATTLIST confsetting value CDATA #REQUIRED>\n"
 "\t\t\t\t<!ATTLIST confsetting default (yes|no) \"no\">\n"
+"\t\t<!ELEMENT port (portbit*)>\n"
+"\t\t\t<!ATTLIST port tag CDATA #REQUIRED>\n"
+"\t\t\t<!ELEMENT analog EMPTY>\n"
+"\t\t\t\t<!ATTLIST analog mask CDATA #REQUIRED>\n"
 "\t\t<!ELEMENT adjuster EMPTY>\n"
 "\t\t\t<!ATTLIST adjuster name CDATA #REQUIRED>\n"
 "\t\t\t<!ATTLIST adjuster default CDATA #REQUIRED>\n"
@@ -324,6 +328,7 @@ void info_xml_creator::output_one()
 	output_input(portlist);
 	output_switches(portlist, "", IPT_DIPSWITCH, "dipswitch", "dipvalue");
 	output_switches(portlist, "", IPT_CONFIG, "configuration", "confsetting");
+	output_ports(portlist);
 	output_adjusters(portlist);
 	output_driver();
 	output_images(m_drivlist.config().root_device(), "");
@@ -373,7 +378,10 @@ void info_xml_creator::output_one_device(device_t &device, const char *devtag)
 	fprintf(m_output, "\t\t<description>%s</description>\n", xml_normalize_string(device.name()));
 
 	output_rom(device);
-	output_sample(device);
+
+	samples_device *samples = dynamic_cast<samples_device*>(&device);
+	if (samples==NULL) output_sample(device); // ignore samples_device itself
+
 	output_chips(device, devtag);
 	output_display(device, devtag);
 	if (has_speaker)
@@ -408,7 +416,7 @@ void info_xml_creator::output_devices()
 		device_iterator deviter(m_drivlist.config().root_device());
 		for (device_t *device = deviter.first(); device != NULL; device = deviter.next())
 		{
-			if (device->owner() != NULL && device->rom_region() != NULL && device->shortname()!= NULL)
+			if (device->owner() != NULL && device->shortname()!= NULL && strlen(device->shortname())!=0)
 			{
 				if (shortnames.add(device->shortname(), 0, FALSE) != TMERR_DUPLICATE)
 					output_one_device(*device, device->tag());
@@ -452,7 +460,7 @@ void info_xml_creator::output_device_roms()
 {
 	device_iterator deviter(m_drivlist.config().root_device());
 	for (device_t *device = deviter.first(); device != NULL; device = deviter.next())
-		if (device->owner() != NULL && device->rom_region() != NULL && device->shortname()!= NULL)
+		if (device->owner() != NULL && device->shortname()!= NULL && strlen(device->shortname())!=0)
 			fprintf(m_output, "\t\t<device_ref name=\"%s\"/>\n", xml_normalize_string(device->shortname()));
 }
 
@@ -1119,6 +1127,26 @@ void info_xml_creator::output_switches(const ioport_list &portlist, const char *
 			}
 }
 
+//-------------------------------------------------
+//  output_ports - print the structure of input
+//  ports in the driver
+//-------------------------------------------------
+void info_xml_creator::output_ports(const ioport_list &portlist)
+{
+	// cycle through ports
+	for (ioport_port *port = portlist.first(); port != NULL; port = port->next())
+	{
+		fprintf(m_output,"\t\t<port tag=\"%s\">\n",port->tag());
+		for (ioport_field *field = port->first_field(); field != NULL; field = field->next())
+		{
+			if(field->is_analog())
+				fprintf(m_output,"\t\t\t<analog mask=\"%u\"/>\n",field->mask());
+		}
+		// close element
+		fprintf(m_output,"\t\t</port>\n");
+	}
+
+}
 
 //-------------------------------------------------
 //  output_adjusters - print the Analog

@@ -1,53 +1,53 @@
 #include "ataflash.h"
 
+#define IDE_COMMAND_TAITO_GNET_UNLOCK_1     0xfe
+#define IDE_COMMAND_TAITO_GNET_UNLOCK_2     0xfc
+#define IDE_COMMAND_TAITO_GNET_UNLOCK_3     0x0f
+
 const device_type ATA_FLASH_PCCARD = &device_creator<ata_flash_pccard_device>;
 
 ata_flash_pccard_device::ata_flash_pccard_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, ATA_FLASH_PCCARD, "ATA Flash PCCARD", tag, owner, clock, "ataflash", __FILE__),
-	device_slot_card_interface(mconfig, *this),
-	m_card(*this,"card")
+	ide_hdd_device(mconfig, ATA_FLASH_PCCARD, "ATA Flash PCCARD", tag, owner, clock, "ataflash", __FILE__)
 {
-}
-
-static MACHINE_CONFIG_FRAGMENT( ata_flash_pccard_device )
-	MCFG_IDE_CONTROLLER_ADD( "card", ide_devices, "hdd", NULL, true)
-MACHINE_CONFIG_END
-
-machine_config_constructor ata_flash_pccard_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( ata_flash_pccard_device );
 }
 
 void ata_flash_pccard_device::device_start()
 {
-	UINT32 metalength;
-	memset(m_cis, 0xff, 512);
+	ide_hdd_device::device_start();
 
-	astring drive_tag;
-	subtag(drive_tag, "drive_0");
-
-	m_chd_file = get_disk_handle(machine(), drive_tag);
-	if(m_chd_file != NULL)
-	{
-		m_chd_file->read_metadata(PCMCIA_CIS_METADATA_TAG, 0, m_cis, 512, metalength);
-	}
+	save_item(NAME(m_locked));
+	save_item(NAME(m_gnetreadlock));
 }
 
-void ata_flash_pccard_device::device_reset_after_children()
+void ata_flash_pccard_device::device_reset()
 {
-	m_locked = 0x1ff;
-	m_card->ide_set_gnet_readlock(1);
+	ide_hdd_device::device_reset();
+
+	UINT32 metalength;
+	memset(m_key, 0, sizeof(m_key));
+	memset(m_cis, 0xff, 512);
+
+	if (m_handle != NULL)
+	{
+		m_handle->read_metadata(PCMCIA_CIS_METADATA_TAG, 0, m_cis, 512, metalength);
+
+		if (m_handle->read_metadata(HARD_DISK_KEY_METADATA_TAG, 0, m_key, 5, metalength) == CHDERR_NONE)
+		{
+			m_locked = 0x1ff;
+			m_gnetreadlock = 1;
+		}
+	}
 }
 
 READ16_MEMBER( ata_flash_pccard_device::read_memory )
 {
 	if(offset <= 7)
 	{
-		return m_card->read_cs0(space, offset, mem_mask);
+		return read_cs0(space, offset, mem_mask);
 	}
 	else if(offset <= 15)
 	{
-		return m_card->read_cs1(space, offset & 7, mem_mask);
+		return read_cs1(space, offset & 7, mem_mask);
 	}
 	else
 	{
@@ -59,11 +59,11 @@ WRITE16_MEMBER( ata_flash_pccard_device::write_memory )
 {
 	if(offset <= 7)
 	{
-		m_card->write_cs0(space, offset, data, mem_mask);
+		write_cs0(space, offset, data, mem_mask);
 	}
 	else if( offset <= 15)
 	{
-		m_card->write_cs1(space, offset & 7, data, mem_mask);
+		write_cs1(space, offset & 7, data, mem_mask);
 	}
 }
 
@@ -84,7 +84,7 @@ READ16_MEMBER( ata_flash_pccard_device::read_reg )
 		return 0x002e;
 
 	case 0x201:
-		return m_locked ? 0x0001 : 0;
+		return m_gnetreadlock;
 
 	default:
 		return 0;
@@ -93,14 +93,11 @@ READ16_MEMBER( ata_flash_pccard_device::read_reg )
 
 WRITE16_MEMBER( ata_flash_pccard_device::write_reg )
 {
-	if(offset >= 0x280 && offset <= 0x288 && m_chd_file != NULL)
+	if(offset >= 0x280 && offset <= 0x288 && m_handle != NULL)
 	{
-		dynamic_buffer key(m_chd_file->hunk_bytes());
-		m_chd_file->read_metadata(HARD_DISK_KEY_METADATA_TAG, 0, key);
-
 		UINT8 v = data;
 		int pos = offset - 0x280;
-		UINT8 k = pos < key.count() ? key[pos] : 0;
+		UINT8 k = pos < sizeof(m_key) ? m_key[pos] : 0;
 
 		if(v == k)
 		{
@@ -113,7 +110,89 @@ WRITE16_MEMBER( ata_flash_pccard_device::write_reg )
 
 		if (!m_locked)
 		{
-			m_card->ide_set_gnet_readlock(0);
+			m_gnetreadlock = 0;
 		}
+	}
+}
+
+bool ata_flash_pccard_device::is_ready()
+{
+	return !m_gnetreadlock;
+}
+
+void ata_flash_pccard_device::process_command()
+{
+	switch (m_command)
+	{
+	case IDE_COMMAND_TAITO_GNET_UNLOCK_1:
+		//LOGPRINT(("IDE GNET Unlock 1\n"));
+
+		m_sector_count = 1;
+		m_status |= IDE_STATUS_DRDY;
+
+		set_irq(ASSERT_LINE);
+		break;
+
+	case IDE_COMMAND_TAITO_GNET_UNLOCK_2:
+		//LOGPRINT(("IDE GNET Unlock 2\n"));
+
+		/* mark the buffer ready */
+		m_status |= IDE_STATUS_DRQ;
+
+		set_irq(ASSERT_LINE);
+		break;
+
+	case IDE_COMMAND_TAITO_GNET_UNLOCK_3:
+		//LOGPRINT(("IDE GNET Unlock 3\n"));
+
+		/* key check */
+		if (m_feature == m_key[0] && m_sector_count == m_key[1] && m_sector_number == m_key[2] && m_cylinder_low == m_key[3] && m_cylinder_high == m_key[4])
+		{
+			m_gnetreadlock = 0;
+		}
+		else
+		{
+			m_status &= ~IDE_STATUS_DRDY;
+		}
+
+		set_irq(ASSERT_LINE);
+		break;
+
+	default:
+		if (m_gnetreadlock)
+		{
+			m_status |= IDE_STATUS_ERR;
+			m_error = IDE_ERROR_NONE;
+			m_status &= ~IDE_STATUS_DRDY;
+			break;
+		}
+
+		ide_hdd_device::process_command();
+		break;
+	}
+}
+
+void ata_flash_pccard_device::process_buffer()
+{
+	if (m_command == IDE_COMMAND_TAITO_GNET_UNLOCK_2)
+	{
+		int i, bad = 0;
+
+		for (i=0; !bad && i<512; i++)
+			bad = ((i < 2 || i >= 7) && m_buffer[i]) || ((i >= 2 && i < 7) && m_buffer[i] != m_key[i-2]);
+
+		if (bad)
+		{
+			m_status |= IDE_STATUS_ERR;
+			m_error = IDE_ERROR_NONE;
+		}
+		else
+		{
+			m_gnetreadlock= 0;
+		}
+	}
+	else
+	{
+		ide_hdd_device::process_buffer();
 	}
 }

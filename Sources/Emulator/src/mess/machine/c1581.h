@@ -12,11 +12,11 @@
 #ifndef __C1581__
 #define __C1581__
 
-
 #include "emu.h"
 #include "cpu/m6502/m6502.h"
 #include "formats/d81_dsk.h"
 #include "machine/cbmiec.h"
+#include "machine/cbmipt.h"
 #include "machine/mos6526.h"
 #include "machine/wd_fdc.h"
 
@@ -41,18 +41,13 @@ class c1581_device :  public device_t,
 {
 public:
 	// construction/destruction
-	c1581_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
+	c1581_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	c1581_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-
-	enum
-	{
-		TYPE_1563,
-		TYPE_1581
-	};
 
 	// optional information overrides
 	virtual const rom_entry *device_rom_region() const;
 	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual ioport_constructor device_input_ports() const;
 
 	// not really public
 	DECLARE_WRITE_LINE_MEMBER( cnt_w );
@@ -75,20 +70,25 @@ protected:
 	virtual void cbm_iec_data(int state);
 	virtual void cbm_iec_reset(int state);
 
+	enum
+	{
+		LED_POWER = 0,
+		LED_ACT
+	};
+
 	void update_iec();
 
 	required_device<cpu_device> m_maincpu;
 	required_device<mos6526_device> m_cia;
 	required_device<wd1772_t> m_fdc;
 	required_device<floppy_image_device> m_floppy;
+	required_ioport m_address;
 
 	int m_data_out;             // serial data out
 	int m_atn_ack;              // attention acknowledge
 	int m_fast_ser_dir;         // fast serial direction
 	int m_sp_out;               // fast serial data out
 	int m_cnt_out;              // fast serial clock out
-
-	int m_variant;
 };
 
 
@@ -99,6 +99,9 @@ class c1563_device :  public c1581_device
 public:
 	// construction/destruction
 	c1563_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
 };
 
 

@@ -4,9 +4,6 @@ Raiden 2 / DX V33 Version
 
 Temporary split from raiden2.c, it'll be re-merged at some point.
 
-Note:
-Please don't do any state machine refactoring of this.
-
 0x430-0x433
 1) appears to control where the first enemies turns, if clockwise or anticlockwise
 2) ...
@@ -19,8 +16,7 @@ Then it puts settings at 0x9e08 and 0x9e0a (bp 91acb)
 #include "emu.h"
 #include "cpu/nec/nec.h"
 #include "cpu/z80/z80.h"
-#include "audio/seibu.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/okim6295.h"
 #include "includes/raiden2.h"
 
@@ -36,9 +32,19 @@ public:
 		m_fg_vram(*this, "fg_vram"),
 		m_tx_vram(*this, "tx_vram"),
 		m_maincpu(*this, "maincpu"),
+		m_seibu_sound(*this, "seibu_sound"),
 		m_eeprom(*this, "eeprom") { }
 
 	required_shared_ptr<UINT16> m_spriteram;
+	required_shared_ptr<UINT16> m_bg_vram;
+	required_shared_ptr<UINT16> m_md_vram;
+	required_shared_ptr<UINT16> m_fg_vram;
+	required_shared_ptr<UINT16> m_tx_vram;
+
+	required_device<cpu_device> m_maincpu;
+	optional_device<seibu_sound_device> m_seibu_sound;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
+
 	DECLARE_WRITE16_MEMBER(rdx_bg_vram_w);
 	DECLARE_WRITE16_MEMBER(rdx_md_vram_w);
 	DECLARE_WRITE16_MEMBER(rdx_fg_vram_w);
@@ -62,10 +68,6 @@ public:
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
 	TILE_GET_INFO_MEMBER(get_tx_tile_info);
 
-	required_shared_ptr<UINT16> m_bg_vram;
-	required_shared_ptr<UINT16> m_md_vram;
-	required_shared_ptr<UINT16> m_fg_vram;
-	required_shared_ptr<UINT16> m_tx_vram;
 	tilemap_t *m_bg_tilemap;
 	tilemap_t *m_md_tilemap;
 	tilemap_t *m_fg_tilemap;
@@ -74,8 +76,6 @@ public:
 	UINT32 screen_update_rdx_v33(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(rdx_v33_interrupt);
 	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect,int pri);
-	required_device<cpu_device> m_maincpu;
-	optional_device<eeprom_device> m_eeprom;
 };
 
 
@@ -222,13 +222,13 @@ UINT32 r2dx_v33_state::screen_update_rdx_v33(screen_device &screen, bitmap_ind16
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_md_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_md_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	draw_sprites(bitmap,cliprect,0);
 
-	m_tx_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_tx_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* debug DMA processing */
 	if(0)
@@ -274,9 +274,9 @@ WRITE16_MEMBER(r2dx_v33_state::rdx_v33_eeprom_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-		m_eeprom->set_clock_line((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
-		m_eeprom->write_bit(data & 0x20);
-		m_eeprom->set_cs_line((data & 0x08) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->clk_write((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->di_write((data & 0x20) >> 5);
+		m_eeprom->cs_write((data & 0x08) ? ASSERT_LINE : CLEAR_LINE);
 
 		if (data&0xc7) logerror("eeprom_w extra bits used %04x\n",data);
 	}
@@ -442,9 +442,9 @@ READ16_MEMBER(r2dx_v33_state::nzerotea_sound_comms_r)
 {
 	switch(offset+0x780)
 	{
-		case (0x788/2): return seibu_main_word_r(space,2,0xffff);
-		case (0x78c/2): return seibu_main_word_r(space,3,0xffff);
-		case (0x794/2): return seibu_main_word_r(space,5,0xffff);
+		case (0x788/2): return m_seibu_sound->main_word_r(space,2,0xffff);
+		case (0x78c/2): return m_seibu_sound->main_word_r(space,3,0xffff);
+		case (0x794/2): return m_seibu_sound->main_word_r(space,5,0xffff);
 	}
 
 	return 0xffff;
@@ -455,11 +455,11 @@ WRITE16_MEMBER(r2dx_v33_state::nzerotea_sound_comms_w)
 {
 	switch(offset+0x780)
 	{
-		case (0x780/2): { seibu_main_word_w(space,0,data,0x00ff); break; }
-		case (0x784/2): { seibu_main_word_w(space,1,data,0x00ff); break; }
-		//case (0x790/2): { seibu_main_word_w(space,4,data,0x00ff); break; }
-		case (0x794/2): { seibu_main_word_w(space,4,data,0x00ff); break; }
-		case (0x798/2): { seibu_main_word_w(space,6,data,0x00ff); break; }
+		case (0x780/2): { m_seibu_sound->main_word_w(space,0,data,0x00ff); break; }
+		case (0x784/2): { m_seibu_sound->main_word_w(space,1,data,0x00ff); break; }
+		//case (0x790/2): { m_seibu_sound->main_word_w(space,4,data,0x00ff); break; }
+		case (0x794/2): { m_seibu_sound->main_word_w(space,4,data,0x00ff); break; }
+		case (0x798/2): { m_seibu_sound->main_word_w(space,6,data,0x00ff); break; }
 	}
 }
 
@@ -570,7 +570,7 @@ static INPUT_PORTS_START( rdx_v33 )
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_START2 )
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_DIPNAME( 0x0040, 0x0040, "Test Mode" )
 	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
@@ -608,7 +608,7 @@ static INPUT_PORTS_START( nzerotea )
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_START2 )
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_UNUSED )
-	//PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	//PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_DIPNAME( 0x0040, 0x0040, "Test Mode" )
 	PORT_DIPSETTING(      0x0040, DEF_STR( Off ) )
@@ -698,7 +698,7 @@ static MACHINE_CONFIG_START( rdx_v33, r2dx_v33_state )
 
 	//MCFG_MACHINE_RESET_OVERRIDE(r2dx_v33_state,rdx_v33)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -726,9 +726,7 @@ static MACHINE_CONFIG_START( nzerotea, r2dx_v33_state )
 	MCFG_CPU_PROGRAM_MAP(nzerotea_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", r2dx_v33_state,  rdx_v33_interrupt)
 
-	MCFG_MACHINE_RESET(seibu_sound)
-
-//  SEIBU2_RAIDEN2_SOUND_SYSTEM_CPU(14318180/4)
+	//  SEIBU2_RAIDEN2_SOUND_SYSTEM_CPU(14318180/4)
 	SEIBU_NEWZEROTEAM_SOUND_SYSTEM_CPU(14318180/4)
 
 	/* video hardware */

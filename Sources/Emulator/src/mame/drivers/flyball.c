@@ -126,7 +126,7 @@ UINT32 flyball_state::screen_update_flyball(screen_device &screen, bitmap_ind16 
 	m_tmap->mark_all_dirty();
 
 	/* draw playfield */
-	m_tmap->draw(bitmap, cliprect, 0, 0);
+	m_tmap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* draw pitcher */
 	drawgfx_transpen(bitmap, cliprect, machine().gfx[1], m_pitcher_pic ^ 0xf, 0, 1, 0, pitcherx, pitchery, 1);
@@ -182,12 +182,12 @@ TIMER_CALLBACK_MEMBER(flyball_state::flyball_quarter_callback)
 
 	for (i = 0; i < 64; i++)
 		if (potsense[i] != 0)
-			timer_set(machine().primary_screen->time_until_pos(scanline + i), TIMER_FLYBALL_JOYSTICK, potsense[i]);
+			timer_set(m_screen->time_until_pos(scanline + i), TIMER_FLYBALL_JOYSTICK, potsense[i]);
 
 	scanline += 0x40;
 	scanline &= 0xff;
 
-	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_FLYBALL_QUARTER, scanline);
+	timer_set(m_screen->time_until_pos(scanline), TIMER_FLYBALL_QUARTER, scanline);
 
 	m_potsense = 0;
 	m_potmask = 0;
@@ -208,7 +208,7 @@ READ8_MEMBER(flyball_state::flyball_input_r)
 
 READ8_MEMBER(flyball_state::flyball_scanline_r)
 {
-	return machine().primary_screen->vpos() & 0x3f;
+	return m_screen->vpos() & 0x3f;
 }
 
 READ8_MEMBER(flyball_state::flyball_potsense_r)
@@ -421,7 +421,7 @@ void flyball_state::machine_reset()
 
 	m_maincpu->reset();
 
-	timer_set(machine().primary_screen->time_until_pos(0), TIMER_FLYBALL_QUARTER);
+	timer_set(m_screen->time_until_pos(0), TIMER_FLYBALL_QUARTER);
 
 	m_pitcher_vert = 0;
 	m_pitcher_horz = 0;

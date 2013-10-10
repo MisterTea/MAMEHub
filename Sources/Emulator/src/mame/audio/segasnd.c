@@ -13,6 +13,7 @@
 #include "cpu/mcs48/mcs48.h"
 #include "sound/sp0250.h"
 #include "segasnd.h"
+#include "devlegcy.h"
 
 #define VERBOSE 0
 #define LOG(x) do { if (VERBOSE) logerror x; } while (0)
@@ -179,7 +180,7 @@ static DEVICE_START( speech_sound )
 const device_type SEGASPEECH = &device_creator<speech_sound_device>;
 
 speech_sound_device::speech_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SEGASPEECH, "Sega Speech Sound Board", tag, owner, clock),
+	: device_t(mconfig, SEGASPEECH, "Sega Speech Sound Board", tag, owner, clock, "sega_speech_sound", __FILE__),
 		device_sound_interface(mconfig, *this)
 {
 	m_token = global_alloc_clear(speech_state);
@@ -339,7 +340,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( speech_portmap, AS_IO, 8, driver_device )
 	AM_RANGE(0x00, 0xff) AM_DEVREAD_LEGACY("segaspeech", speech_rom_r)
-	AM_RANGE(0x00, 0xff) AM_DEVWRITE_LEGACY("speech", sp0250_w)
+	AM_RANGE(0x00, 0xff) AM_DEVWRITE("speech", sp0250_device, write)
 	AM_RANGE(MCS48_PORT_P1, MCS48_PORT_P1) AM_DEVREADWRITE_LEGACY("segaspeech", speech_p1_r, speech_p1_w)
 	AM_RANGE(MCS48_PORT_P2, MCS48_PORT_P2) AM_DEVWRITE_LEGACY("segaspeech", speech_p2_w)
 	AM_RANGE(MCS48_PORT_T0, MCS48_PORT_T0) AM_DEVREAD_LEGACY("segaspeech", speech_t0_r)
@@ -882,7 +883,7 @@ static DEVICE_START( usb_sound )
 const device_type SEGAUSB = &device_creator<usb_sound_device>;
 
 usb_sound_device::usb_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SEGAUSB, "Sega Universal Sound Board", tag, owner, clock),
+	: device_t(mconfig, SEGAUSB, "Sega Universal Sound Board", tag, owner, clock, "usb_sound", __FILE__),
 		device_sound_interface(mconfig, *this)
 {
 	m_token = global_alloc_clear(usb_state);

@@ -376,7 +376,6 @@ WRITE8_MEMBER( vt100_state::vt100_clear_video_interrupt )
 
 static const vt_video_interface vt100_video_interface =
 {
-	"screen",
 	"chargen",
 	DEVCB_DRIVER_MEMBER(vt100_state, vt100_read_video_ram_r),
 	DEVCB_DRIVER_MEMBER(vt100_state, vt100_clear_video_interrupt)
@@ -446,7 +445,7 @@ static MACHINE_CONFIG_START( vt100, vt100_state )
 
 	MCFG_GFXDECODE(vt100)
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(monochrome_green)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
 
 	MCFG_DEFAULT_LAYOUT( layout_vt100 )
 

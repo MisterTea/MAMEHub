@@ -19,7 +19,8 @@
 #include "machine/7200fifo.h"
 #include "machine/znsec.h"
 #include "machine/zndip.h"
-#include "machine/idectrl.h"
+#include "machine/ataintf.h"
+#include "machine/vt83c461.h"
 #include "audio/taitosnd.h"
 #include "sound/2610intf.h"
 #include "sound/ymz280b.h"
@@ -36,6 +37,7 @@ public:
 	zn_state(const machine_config &mconfig, device_type type, const char *tag) :
 		driver_device(mconfig, type, tag),
 		m_gpu(*this, "gpu"),
+		m_gpu_screen(*this, "gpu:screen"),
 		m_znsec0(*this,"maincpu:sio0:znsec0"),
 		m_znsec1(*this,"maincpu:sio0:znsec1"),
 		m_zndip(*this,"maincpu:sio0:zndip"),
@@ -45,7 +47,7 @@ public:
 		m_cbaj_fifo1(*this, "cbaj_fifo1"),
 		m_cbaj_fifo2(*this, "cbaj_fifo2"),
 		m_mb3773(*this, "mb3773"),
-		m_ide(*this, "ide")
+		m_vt83c461(*this, "ide")
 	{
 	}
 
@@ -82,16 +84,18 @@ public:
 	DECLARE_WRITE8_MEMBER(coh1002m_bank_w);
 	DECLARE_READ8_MEMBER(cbaj_sound_main_status_r);
 	DECLARE_READ8_MEMBER(cbaj_sound_z80_status_r);
+	DECLARE_READ16_MEMBER(vt83c461_16_r);
+	DECLARE_WRITE16_MEMBER(vt83c461_16_w);
+	DECLARE_READ16_MEMBER(vt83c461_32_r);
+	DECLARE_WRITE16_MEMBER(vt83c461_32_w);
 	DECLARE_DRIVER_INIT(coh1000ta);
 	DECLARE_DRIVER_INIT(coh1000tb);
 	DECLARE_DRIVER_INIT(coh1000c);
 	DECLARE_MACHINE_RESET(coh1000c);
 	DECLARE_MACHINE_RESET(coh1000ta);
 	DECLARE_MACHINE_RESET(coh1000tb);
-	DECLARE_MACHINE_RESET(coh1000w);
 	DECLARE_MACHINE_RESET(coh1002e);
 	DECLARE_MACHINE_RESET(bam2);
-	DECLARE_MACHINE_RESET(jdredd);
 	DECLARE_MACHINE_RESET(coh1001l);
 	DECLARE_MACHINE_RESET(coh1002v);
 	DECLARE_MACHINE_RESET(coh1002m);
@@ -117,7 +121,10 @@ private:
 	size_t m_nbajamex_eeprom_size;
 	UINT8 *m_nbajamex_eeprom;
 
+	UINT16 vt83c461_latch;
+
 	required_device<psxgpu_device> m_gpu;
+	required_device<screen_device> m_gpu_screen;
 	required_device<znsec_device> m_znsec0;
 	required_device<znsec_device> m_znsec1;
 	required_device<zndip_device> m_zndip;
@@ -127,7 +134,7 @@ private:
 	optional_device<fifo7200_device> m_cbaj_fifo1;
 	optional_device<fifo7200_device> m_cbaj_fifo2;
 	optional_device<mb3773_device> m_mb3773;
-	optional_device<ide_controller_device> m_ide;
+	optional_device<vt83c461_device> m_vt83c461;
 };
 
 inline void ATTR_PRINTF(3,4) zn_state::verboselog( int n_level, const char *s_fmt, ... )
@@ -228,6 +235,7 @@ static const struct
 	{ "sfexp",    cp01, cp04 }, /* OK */
 	{ "sfexpu1",  cp01, cp04 }, /* OK */
 	{ "sfexpj",   cp01, cp04 }, /* OK */
+	{ "sfexpj1",  cp01, cp04 }, /* OK */
 	{ "glpracr",  cp01, cp05 }, /* OK */
 	{ "rvschool", cp10, cp06 }, /* OK */
 	{ "rvschoolu",cp10, cp06 }, /* OK */
@@ -354,7 +362,7 @@ READ8_MEMBER(zn_state::boardconfig_r)
 
 	int boardconfig = 64 | 32;
 
-	if( machine().primary_screen->height() == 1024 )
+	if( m_gpu_screen->height() == 1024 )
 	{
 		boardconfig |= 8;
 	}
@@ -1338,11 +1346,13 @@ void zn_state::atpsx_dma_read( UINT32 *p_n_psxram, UINT32 n_address, INT32 n_siz
 		return;
 	}
 
+	address_space &space = m_maincpu->space(AS_PROGRAM);
+
 	/* dma size is in 32-bit words, convert to words */
 	n_size <<= 1;
 	while( n_size > 0 )
 	{
-		psxwriteword( p_n_psxram, n_address, m_ide->read_dma() );
+		psxwriteword( p_n_psxram, n_address, m_vt83c461->read_cs0(space, (UINT32) 0, (UINT32) 0xffff) );
 		n_address += 2;
 		n_size--;
 	}
@@ -1353,23 +1363,83 @@ void zn_state::atpsx_dma_write( UINT32 *p_n_psxram, UINT32 n_address, INT32 n_si
 	logerror("DMA write from %08x for %d bytes\n", n_address, n_size<<2);
 }
 
+READ16_MEMBER(zn_state::vt83c461_16_r)
+{
+	int shift = (16 * (offset & 1));
+
+	if( offset >= 0x30 / 2 && offset < 0x40 / 2 )
+	{
+		return m_vt83c461->read_config( space, ( offset / 2 ) & 3, mem_mask << shift ) >> shift;
+	}
+	else if( offset >= 0x1f0 / 2 && offset < 0x1f8 / 2 )
+	{
+		return m_vt83c461->read_cs0( space, ( offset / 2 ) & 1, (UINT32) mem_mask << shift ) >> shift;
+	}
+	else if( offset >= 0x3f0 / 2 && offset < 0x3f8 / 2 )
+	{
+		return m_vt83c461->read_cs1( space, ( offset / 2 ) & 1, (UINT32) mem_mask << shift ) >> shift;
+	}
+	else
+	{
+		logerror( "unhandled 16 bit read %04x %04x\n", offset, mem_mask );
+		return 0xffff;
+	}
+}
+
+WRITE16_MEMBER(zn_state::vt83c461_16_w)
+{
+	int shift = (16 * (offset & 1));
+
+	if( offset >= 0x30 / 2 && offset < 0x40 / 2 )
+	{
+		m_vt83c461->write_config( space, ( offset / 2 ) & 3, data << shift, mem_mask << shift );
+	}
+	else if( offset >= 0x1f0 / 2 && offset < 0x1f8 / 2 )
+	{
+		m_vt83c461->write_cs0( space, ( offset / 2 ) & 1, (UINT32) data << shift, (UINT32) mem_mask << shift );
+	}
+	else if( offset >= 0x3f0 / 2 && offset < 0x3f8 / 2 )
+	{
+		m_vt83c461->write_cs1( space, ( offset / 2 ) & 1, (UINT32) data << shift, (UINT32) mem_mask << shift );
+	}
+	else
+	{
+		logerror( "unhandled 16 bit write %04x %04x %04x\n", offset, data, mem_mask );
+	}
+}
+
+READ16_MEMBER(zn_state::vt83c461_32_r)
+{
+	if( offset == 0x1f0/2 )
+	{
+		UINT32 data = m_vt83c461->read_cs0(space, 0, 0xffffffff);
+		vt83c461_latch = data >> 16;
+		return data & 0xffff;
+	}
+	else if( offset == 0x1f2/2 )
+	{
+		return vt83c461_latch;
+	}
+	else
+	{
+		logerror( "unhandled 32 bit read %04x %04x\n", offset, mem_mask );
+		return 0xffff;
+	}
+}
+
+WRITE16_MEMBER(zn_state::vt83c461_32_w)
+{
+	logerror( "unhandled 32 bit write %04x %04x %04x\n", offset, data, mem_mask );
+}
+
 static ADDRESS_MAP_START(coh1000w_map, AS_PROGRAM, 32, zn_state)
 	AM_RANGE(0x1f000000, 0x1f1fffff) AM_ROM AM_REGION("roms", 0)
 	AM_RANGE(0x1f000000, 0x1f000003) AM_WRITENOP
 	AM_RANGE(0x1f7e8000, 0x1f7e8003) AM_NOP
-	AM_RANGE(0x1f7e4030, 0x1f7e403f) AM_DEVREADWRITE8("ide", ide_controller_device, read_via_config, write_via_config, 0xffffffff)
-	AM_RANGE(0x1f7e41f0, 0x1f7e41f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0_pc, write_cs0_pc, 0xffffffff)
-	AM_RANGE(0x1f7e43f0, 0x1f7e43f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1_pc, write_cs1_pc, 0xffffffff)
-	AM_RANGE(0x1f7f41f0, 0x1f7f41f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0_pc, write_cs0_pc, 0xffffffff)
-	AM_RANGE(0x1f7f43f0, 0x1f7f43f7) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1_pc, write_cs1_pc, 0xffffffff)
-
+	AM_RANGE(0x1f7e4000, 0x1f7e4fff) AM_READWRITE16(vt83c461_16_r, vt83c461_16_w, 0xffffffff)
+	AM_RANGE(0x1f7f4000, 0x1f7f4fff) AM_READWRITE16(vt83c461_32_r, vt83c461_32_w, 0xffffffff)
 	AM_IMPORT_FROM(zn_map)
 ADDRESS_MAP_END
-
-MACHINE_RESET_MEMBER(zn_state,coh1000w)
-{
-	m_ide->reset();
-}
 
 static MACHINE_CONFIG_DERIVED( coh1000w, zn1_2mb_vram )
 	MCFG_CPU_MODIFY("maincpu")
@@ -1378,10 +1448,8 @@ static MACHINE_CONFIG_DERIVED( coh1000w, zn1_2mb_vram )
 	MCFG_RAM_MODIFY("maincpu:ram")
 	MCFG_RAM_DEFAULT_SIZE("8M")
 
-	MCFG_MACHINE_RESET_OVERRIDE(zn_state, coh1000w )
-
-	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE("maincpu:irq", psxirq_device, intin10))
+	MCFG_VT83C461_ADD("ide", ata_devices, "hdd", NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("maincpu:irq", psxirq_device, intin10))
 	MCFG_PSX_DMA_CHANNEL_READ( "maincpu", 5, psx_dma_read_delegate( FUNC( zn_state::atpsx_dma_read ), (zn_state *) owner ) )
 	MCFG_PSX_DMA_CHANNEL_WRITE( "maincpu", 5, psx_dma_write_delegate( FUNC( zn_state::atpsx_dma_write ), (zn_state *) owner ) )
 MACHINE_CONFIG_END
@@ -1954,16 +2022,11 @@ static ADDRESS_MAP_START(nbajamex_map, AS_PROGRAM, 32, zn_state)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(jdredd_map, AS_PROGRAM, 32, zn_state)
-	AM_RANGE(0x1fbfff80, 0x1fbfff8f) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs1, write_cs1, 0xffffffff)
-	AM_RANGE(0x1fbfff90, 0x1fbfff9f) AM_DEVREADWRITE16("ide", ide_controller_device, read_cs0, write_cs0, 0xffffffff)
+	AM_RANGE(0x1fbfff80, 0x1fbfff8f) AM_DEVREADWRITE16("ata", ata_interface_device, read_cs1, write_cs1, 0xffffffff)
+	AM_RANGE(0x1fbfff90, 0x1fbfff9f) AM_DEVREADWRITE16("ata", ata_interface_device, read_cs0, write_cs0, 0xffffffff)
 
 	AM_IMPORT_FROM(coh1000a_map)
 ADDRESS_MAP_END
-
-MACHINE_RESET_MEMBER(zn_state,jdredd)
-{
-	m_ide->reset();
-}
 
 static MACHINE_CONFIG_DERIVED( coh1000a, zn1_2mb_vram )
 	MCFG_CPU_MODIFY("maincpu")
@@ -1984,10 +2047,8 @@ static MACHINE_CONFIG_DERIVED( jdredd, zn1_2mb_vram )
 	MCFG_DEVICE_MODIFY("gpu")
 	MCFG_PSXGPU_VBLANK_CALLBACK(vblank_state_delegate( FUNC( zn_state::jdredd_vblank ), (zn_state *) owner))
 
-	MCFG_MACHINE_RESET_OVERRIDE(zn_state, jdredd)
-
-	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE("maincpu:irq", psxirq_device, intin10))
+	MCFG_ATA_INTERFACE_ADD("ata", ata_devices, "hdd", NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("maincpu:irq", psxirq_device, intin10))
 MACHINE_CONFIG_END
 
 /*
@@ -2915,6 +2976,30 @@ ROM_START( sfexpj )
 	CPZN1_BIOS
 
 	ROM_REGION32_LE( 0x80000, "countryrom", 0 )
+	ROM_LOAD( "sfpj_04a.2h", 0x0000000, 0x080000, CRC(6e99a0f7) SHA1(8f22bc545dd0e3eff24ab62ce5af1998d48d3770) )
+
+	ROM_REGION32_LE( 0x2400000, "maskroms", 0 )
+	ROM_LOAD( "sfp-05m.3h", 0x0000000, 0x400000, CRC(ac7dcc5e) SHA1(216de2de691a9bd7982d5d6b5b1e3e35ff381a2f) )
+	ROM_LOAD( "sfp-06m.4h", 0x0400000, 0x400000, CRC(1d504758) SHA1(bd56141aba35dbb5b318445ba5db12eff7442221) )
+	ROM_LOAD( "sfp-07m.5h", 0x0800000, 0x400000, CRC(0f585f30) SHA1(24ffdbc360f8eddb702905c99d315614327861a7) )
+	ROM_LOAD( "sfp-08m.2k", 0x0c00000, 0x400000, CRC(65eabc61) SHA1(bbeb3bcd8dd8f7f88ed82412a81134a3d6f6ffd9) )
+	ROM_LOAD( "sfp-09m.3k", 0x1000000, 0x400000, CRC(15f8b71e) SHA1(efb28fbe750f443550ee9718385355aae7e858c9) )
+	ROM_LOAD( "sfp-10m.4k", 0x1400000, 0x400000, CRC(c1ecf652) SHA1(616e14ff63d38272730c810b933a6b3412e2da17) )
+
+	ROM_REGION( 0x50000, "audiocpu", 0 ) /* 64k for the audio CPU (+banks) */
+	ROM_LOAD( "sfe_02.2e",  0x00000, 0x08000, CRC(1908475c) SHA1(99f68cff2d92f5697eec0846201f6fb317d5dc08) )
+	ROM_CONTINUE(           0x10000, 0x18000 )
+	ROM_LOAD( "sfe_03.3e",  0x28000, 0x20000, CRC(95c1e2e0) SHA1(383bbe9613798a3ac6944d18768280a840994e40) )
+
+	ROM_REGION( 0x400000, "qsound", 0 ) /* Q Sound Samples */
+	ROM_LOAD16_WORD_SWAP( "sfe-01m.3b", 0x0000000, 0x400000, CRC(f5afff0d) SHA1(7f9ac32ba0a3d9c6fef367e36a92d47c9ac1feb3) )
+ROM_END
+
+/* 95681-2 */
+ROM_START( sfexpj1 )
+	CPZN1_BIOS
+
+	ROM_REGION32_LE( 0x80000, "countryrom", 0 )
 	ROM_LOAD( "sfpj_04.2h", 0x0000000, 0x080000, CRC(18d043f5) SHA1(9e6e24a722d13888fbfd391ddb1a5045b162488c) )
 
 	ROM_REGION32_LE( 0x2400000, "maskroms", 0 )
@@ -3738,6 +3823,20 @@ ROM_START( vspsx )
 	ROM_REGION32_LE( 0x1800000, "bankedroms", ROMREGION_ERASE00 )
 ROM_END
 
+/*
+
+There is known to exist (but not dumped) USA version with hand written labels:
+
+1/8 PROG 0 USA AA9E @ IC5
+1/8 PROG 1 USA 0A1E @ IC6
+1/8 PROG 2 USA C3B3 @ IC7
+1/8 PROG 3 USA E108 @ IC8
+1/8 PROG 4 USA 9127 @ IC9
+
+The SUM16 values differ from both the Japanese and Taiwanese versions.
+
+*/
+
 ROM_START( aerofgts )
 	KN_BIOS
 
@@ -4397,7 +4496,7 @@ ROM_START( bam2 )
 	ROM_LOAD( "mtr-bam-a09.u31", 0x2400000, 0x400000, CRC(e4bd7cec) SHA1(794d10b15a22aeed89082f4db2f3cb94aa7d807d) )
 	ROM_LOAD( "mtr-bam-a10.u32", 0x2800000, 0x400000, CRC(37fd1fa0) SHA1(afe846a817e499c405a5fd4ad83094270640faf3) )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE("bam2", 0, SHA1(634d9a745a82c567fc4d7ce48e3570d88326c5f9) )
 ROM_END
 
@@ -4421,7 +4520,7 @@ ROM_START( primrag2 )
 	ROM_LOAD16_BYTE( "pr2_036.u17",  0x100001, 0x080000, CRC(3681516c) SHA1(714f73ea4ac190c36a6eb2308616a4aecabc4e69) )
 	ROM_LOAD16_BYTE( "pr2_036.u15",  0x100000, 0x080000, CRC(4b24bd54) SHA1(7f27cd524d10e5869aab6d4dc6a4217d049c475d) )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ide:0:hdd:image" )
 	DISK_IMAGE( "primrag2", 0, SHA1(bc615068ddf4fd967f770ee01c02f285c052c4c5) )
 ROM_END
 
@@ -4473,7 +4572,7 @@ ROM_START( jdredd )
 	ROM_LOAD16_BYTE( "j-dread.u36",  0x000001, 0x020000, CRC(37addbf9) SHA1(a4061a1ba9e230f080f0bfea69bf77efe9264a92) )
 	ROM_LOAD16_BYTE( "j-dread.u35",  0x000000, 0x020000, CRC(c1e17191) SHA1(82901439b1a51b9aadb4df4b9d944f26697a1460) )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE( "jdreddc", 0, SHA1(eee205f83e5f590f8baf36452c873d7063156bd0) )
 ROM_END
 
@@ -4484,7 +4583,7 @@ ROM_START( jdreddb )
 	ROM_LOAD16_BYTE( "j-dread.u36",  0x000001, 0x020000, CRC(37addbf9) SHA1(a4061a1ba9e230f080f0bfea69bf77efe9264a92) )
 	ROM_LOAD16_BYTE( "j-dread.u35",  0x000000, 0x020000, CRC(c1e17191) SHA1(82901439b1a51b9aadb4df4b9d944f26697a1460) )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE( "jdreddb", 0, SHA1(20f696fa6e1fbf97793bac2a794631c5dd4fb39a) )
 ROM_END
 
@@ -4540,7 +4639,8 @@ GAME( 1996, sfexa,     sfex,     coh1002c, zn6b, zn_state, coh1000c, ROT0, "Capc
 GAME( 1996, sfexj,     sfex,     coh1002c, zn6b, zn_state, coh1000c, ROT0, "Capcom / Arika", "Street Fighter EX (Japan 961130)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 GAME( 1997, sfexp,     cpzn1,    coh1002c, zn6b, zn_state, coh1000c, ROT0, "Capcom / Arika", "Street Fighter EX Plus (USA 970407)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 GAME( 1997, sfexpu1,   sfexp,    coh1002c, zn6b, zn_state, coh1000c, ROT0, "Capcom / Arika", "Street Fighter EX Plus (USA 970311)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1997, sfexpj,    sfexp,    coh1002c, zn6b, zn_state, coh1000c, ROT0, "Capcom / Arika", "Street Fighter EX Plus (Japan 970311)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1997, sfexpj,    sfexp,    coh1002c, zn6b, zn_state, coh1000c, ROT0, "Capcom / Arika", "Street Fighter EX Plus (Japan 970407)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1997, sfexpj1,   sfexp,    coh1002c, zn6b, zn_state, coh1000c, ROT0, "Capcom / Arika", "Street Fighter EX Plus (Japan 970311)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 
 /* Capcom ZN2 */
 

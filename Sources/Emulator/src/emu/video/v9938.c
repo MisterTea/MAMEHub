@@ -16,6 +16,7 @@ todo:
 
 #include "emu.h"
 #include "v9938.h"
+#include "drivlgcy.h"
 
 #define VERBOSE 0
 #define LOG(x)  do { if (VERBOSE) logerror x; } while (0)
@@ -64,6 +65,7 @@ const device_type V9958 = &device_creator<v9958_device>;
 v99x8_device::v99x8_device(const machine_config &mconfig, device_type type, const char *name, const char *shortname, const char *tag, device_t *owner, UINT32 clock)
 :   device_t(mconfig, type, name, tag, owner, clock, shortname, __FILE__),
 	device_memory_interface(mconfig, *this),
+	device_video_interface(mconfig, *this),
 	m_space_config("vram", ENDIANNESS_BIG, 8, 18),
 	m_model(0),
 	m_offset_x(0),
@@ -89,8 +91,6 @@ v99x8_device::v99x8_device(const machine_config &mconfig, device_type type, cons
 	m_mx_delta(0),
 	m_my_delta(0),
 	m_button_state(0),
-	m_screen(NULL),
-	m_screen_name(NULL),
 	m_vdp_ops_count(0),
 	m_vdp_engine(NULL)
 {
@@ -243,13 +243,13 @@ b0 is set if b2 and b1 are set (remember, color bus is 3 bits)
 
 */
 
-PALETTE_INIT( v9938 )
+PALETTE_INIT_MEMBER(v99x8_device, v9938)
 {
 	int i;
 
 	// create the full 512 colour palette
 	for (i=0;i<512;i++)
-		palette_set_color_rgb(machine, i, pal3bit(i >> 6), pal3bit(i >> 3), pal3bit(i >> 0));
+		palette_set_color_rgb(machine(), i, pal3bit(i >> 6), pal3bit(i >> 3), pal3bit(i >> 0));
 }
 
 /*
@@ -265,16 +265,16 @@ to emulate this. Also it keeps the palette a reasonable size. :)
 
 UINT16 *v99x8_device::s_pal_indYJK;
 
-PALETTE_INIT( v9958 )
+PALETTE_INIT_MEMBER(v9958_device, v9958)
 {
 	int r,g,b,y,j,k,i,k0,j0,n;
 	UINT8 pal[19268*3];
 
 	// init v9938 512-color palette
-	PALETTE_INIT_CALL(v9938);
+	PALETTE_INIT_CALL_MEMBER(v9938);
 
 	if (v99x8_device::s_pal_indYJK == NULL)
-		v99x8_device::s_pal_indYJK = auto_alloc_array(machine,UINT16, 0x20000);
+		v99x8_device::s_pal_indYJK = auto_alloc_array(machine(),UINT16, 0x20000);
 
 	// set up YJK table
 	LOG(("Building YJK table for V9958 screens, may take a while ... \n"));
@@ -312,7 +312,7 @@ PALETTE_INIT( v9958 )
 			pal[i*3+0] = r;
 			pal[i*3+1] = g;
 			pal[i*3+2] = b;
-			palette_set_color(machine, i+512, MAKE_RGB(r, g, b));
+			palette_set_color(machine(), i+512, MAKE_RGB(r, g, b));
 			v99x8_device::s_pal_indYJK[y | j << 5 | k << (5 + 6)] = i + 512;
 			i++;
 		}
@@ -567,11 +567,6 @@ void v99x8_device::register_w(UINT8 data)
 		m_cont_reg[17] = (m_cont_reg[17] + 1) & 0x3f;
 }
 
-void v99x8_device::static_set_screen(device_t &device, const char *screen_name)
-{
-	downcast<v99x8_device &>(device).m_screen_name = screen_name;
-}
-
 void v99x8_device::static_set_vram_size(device_t &device, UINT32 vram_size)
 {
 	downcast<v99x8_device &>(device).m_vram_size = vram_size;
@@ -585,12 +580,6 @@ void v99x8_device::static_set_vram_size(device_t &device, UINT32 vram_size)
 
 void v99x8_device::device_start()
 {
-	// find our devices
-	m_screen = machine().device<screen_device>(m_screen_name);
-	assert(m_screen != NULL);
-	if (!m_screen->started())
-		throw device_missing_dependencies();
-
 	m_int_callback.resolve_safe();
 	m_vdp_ops_count = 1;
 	m_vdp_engine = NULL;
@@ -3203,4 +3192,32 @@ void v99x8_device::update_command()
 		m_vdp_ops_count=13662;
 		if(m_vdp_engine) (this->*m_vdp_engine)();
 	}
+}
+
+static MACHINE_CONFIG_FRAGMENT( v9938 )
+	MCFG_PALETTE_INIT_OVERRIDE(v9938_device, v9938)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor v9938_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( v9938 );
+}
+
+static MACHINE_CONFIG_FRAGMENT( v9958 )
+	MCFG_PALETTE_INIT_OVERRIDE(v9958_device, v9958)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor v9958_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( v9958 );
 }

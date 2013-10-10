@@ -8,6 +8,7 @@
 
 #include "emu.h"
 #include "68681.h"
+#include "devlegcy.h"
 
 #define VERBOSE 0
 #define LOG(x)  do { if (VERBOSE) logerror x; } while (0)
@@ -906,7 +907,7 @@ static DEVICE_RESET(duart68681)
 const device_type DUART68681 = &device_creator<duart68681_device>;
 
 duart68681_device::duart68681_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, DUART68681, "DUART 68681", tag, owner, clock)
+	: device_t(mconfig, DUART68681, "DUART 68681", tag, owner, clock, "duart68681", __FILE__)
 {
 	m_token = global_alloc_clear(duart68681_state);
 }

@@ -14,9 +14,7 @@
 #include "cpu/z80/z80.h"
 #include "cpu/m6809/m6809.h"
 #include "cpu/m6809/konami.h"
-#include "video/konicdev.h"
 #include "sound/2151intf.h"
-#include "sound/k007232.h"
 #include "includes/ajax.h"
 #include "includes/konamipt.h"
 
@@ -27,8 +25,8 @@
 
 static ADDRESS_MAP_START( ajax_main_map, AS_PROGRAM, 8, ajax_state )
 	AM_RANGE(0x0000, 0x01c0) AM_READWRITE(ajax_ls138_f10_r, ajax_ls138_f10_w)   /* bankswitch + sound command + FIRQ command */
-	AM_RANGE(0x0800, 0x0807) AM_DEVREADWRITE_LEGACY("k051960", k051937_r, k051937_w)                    /* sprite control registers */
-	AM_RANGE(0x0c00, 0x0fff) AM_DEVREADWRITE_LEGACY("k051960", k051960_r, k051960_w)                    /* sprite RAM 2128SL at J7 */
+	AM_RANGE(0x0800, 0x0807) AM_DEVREADWRITE("k051960", k051960_device, k051937_r, k051937_w)                    /* sprite control registers */
+	AM_RANGE(0x0c00, 0x0fff) AM_DEVREADWRITE("k051960", k051960_device, k051960_r, k051960_w)                    /* sprite RAM 2128SL at J7 */
 	AM_RANGE(0x1000, 0x1fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_byte_be_w) AM_SHARE("paletteram")/* palette */
 	AM_RANGE(0x2000, 0x3fff) AM_RAM AM_SHARE("share1")                                  /* shared RAM with the 6809 */
 	AM_RANGE(0x4000, 0x5fff) AM_RAM                                             /* RAM 6264L at K10 */
@@ -37,12 +35,12 @@ static ADDRESS_MAP_START( ajax_main_map, AS_PROGRAM, 8, ajax_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ajax_sub_map, AS_PROGRAM, 8, ajax_state )
-	AM_RANGE(0x0000, 0x07ff) AM_DEVREADWRITE_LEGACY("k051316", k051316_r, k051316_w)    /* 051316 zoom/rotation layer */
-	AM_RANGE(0x0800, 0x080f) AM_DEVWRITE_LEGACY("k051316", k051316_ctrl_w)              /* 051316 control registers */
-	AM_RANGE(0x1000, 0x17ff) AM_DEVREAD_LEGACY("k051316", k051316_rom_r)                /* 051316 (ROM test) */
+	AM_RANGE(0x0000, 0x07ff) AM_DEVREADWRITE("k051316", k051316_device, read, write)    /* 051316 zoom/rotation layer */
+	AM_RANGE(0x0800, 0x080f) AM_DEVWRITE("k051316", k051316_device, ctrl_w)              /* 051316 control registers */
+	AM_RANGE(0x1000, 0x17ff) AM_DEVREAD("k051316", k051316_device, rom_r)                /* 051316 (ROM test) */
 	AM_RANGE(0x1800, 0x1800) AM_WRITE(ajax_bankswitch_2_w)          /* bankswitch control */
 	AM_RANGE(0x2000, 0x3fff) AM_RAM AM_SHARE("share1")                      /* shared RAM with the 052001 */
-	AM_RANGE(0x4000, 0x7fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_r, k052109_w)        /* video RAM + color RAM + video registers */
+	AM_RANGE(0x4000, 0x7fff) AM_DEVREADWRITE("k052109", k052109_device, read, write)        /* video RAM + color RAM + video registers */
 	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("bank1")                            /* banked ROM */
 	AM_RANGE(0xa000, 0xffff) AM_ROM                                 /* ROM I16 */
 ADDRESS_MAP_END
@@ -51,8 +49,8 @@ static ADDRESS_MAP_START( ajax_sound_map, AS_PROGRAM, 8, ajax_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM                             /* ROM F6 */
 	AM_RANGE(0x8000, 0x87ff) AM_RAM                             /* RAM 2128SL at D16 */
 	AM_RANGE(0x9000, 0x9000) AM_WRITE(sound_bank_w)             /* 007232 bankswitch */
-	AM_RANGE(0xa000, 0xa00d) AM_DEVREADWRITE_LEGACY("k007232_1", k007232_r, k007232_w)      /* 007232 registers (chip 1) */
-	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232_2", k007232_r, k007232_w)      /* 007232 registers (chip 2) */
+	AM_RANGE(0xa000, 0xa00d) AM_DEVREADWRITE("k007232_1", k007232_device, read, write)      /* 007232 registers (chip 1) */
+	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE("k007232_2", k007232_device, read, write)      /* 007232 registers (chip 2) */
 	AM_RANGE(0xb80c, 0xb80c) AM_WRITE(k007232_extvol_w)         /* extra volume, goes to the 007232 w/ A11 */
 																/* selecting a different latch for the external port */
 	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)       /* YM2151 */
@@ -142,30 +140,30 @@ WRITE8_MEMBER(ajax_state::sound_bank_w)
 	/* banks # for the 007232 (chip 1) */
 	bank_A = BIT(data, 1);
 	bank_B = BIT(data, 0);
-	k007232_set_bank(m_k007232_1, bank_A, bank_B);
+	m_k007232_1->set_bank(bank_A, bank_B);
 
 	/* banks # for the 007232 (chip 2) */
 	bank_A = ((data >> 4) & 0x03);
 	bank_B = ((data >> 2) & 0x03);
-	k007232_set_bank(m_k007232_2, bank_A, bank_B);
+	m_k007232_2->set_bank(bank_A, bank_B);
 }
 
 WRITE8_MEMBER(ajax_state::volume_callback0)
 {
-	k007232_set_volume(m_k007232_1, 0, (data >> 4) * 0x11, 0);
-	k007232_set_volume(m_k007232_1, 1, 0, (data & 0x0f) * 0x11);
+	m_k007232_1->set_volume(0, (data >> 4) * 0x11, 0);
+	m_k007232_1->set_volume(1, 0, (data & 0x0f) * 0x11);
 }
 
 WRITE8_MEMBER(ajax_state::k007232_extvol_w)
 {
 	/* channel A volume (mono) */
-	k007232_set_volume(m_k007232_2, 0, (data & 0x0f) * 0x11/2, (data & 0x0f) * 0x11/2);
+	m_k007232_2->set_volume(0, (data & 0x0f) * 0x11/2, (data & 0x0f) * 0x11/2);
 }
 
 WRITE8_MEMBER(ajax_state::volume_callback1)
 {
 	/* channel B volume/pan */
-	k007232_set_volume(m_k007232_2, 1, (data & 0x0f) * 0x11/2, (data >> 4) * 0x11/2);
+	m_k007232_2->set_volume(1, (data & 0x0f) * 0x11/2, (data >> 4) * 0x11/2);
 }
 
 static const k007232_interface k007232_interface_1 =

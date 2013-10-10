@@ -24,7 +24,7 @@ Year + Game         PCB             Notes
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "includes/unico.h"
 #include "sound/2151intf.h"
 #include "sound/3812intf.h"
@@ -110,7 +110,7 @@ READ16_MEMBER(unico_state::unico_gunx_0_msb_r)
 	if (x<0x160) x=0x30 + (x*0xd0/0x15f);
 	else x=((x-0x160) * 0x20)/0x1f;
 
-	return ((x&0xff) ^ (machine().primary_screen->frame_number()&1))<<8;
+	return ((x&0xff) ^ (m_screen->frame_number()&1))<<8;
 }
 
 READ16_MEMBER(unico_state::unico_guny_0_msb_r)
@@ -119,7 +119,7 @@ READ16_MEMBER(unico_state::unico_guny_0_msb_r)
 
 	y=0x18+((y*0xe0)/0xff);
 
-	return ((y&0xff) ^ (machine().primary_screen->frame_number()&1))<<8;
+	return ((y&0xff) ^ (m_screen->frame_number()&1))<<8;
 }
 
 READ16_MEMBER(unico_state::unico_gunx_1_msb_r)
@@ -130,7 +130,7 @@ READ16_MEMBER(unico_state::unico_gunx_1_msb_r)
 	if (x<0x160) x=0x30 + (x*0xd0/0x15f);
 	else x=((x-0x160) * 0x20)/0x1f;
 
-	return ((x&0xff) ^ (machine().primary_screen->frame_number()&1))<<8;
+	return ((x&0xff) ^ (m_screen->frame_number()&1))<<8;
 }
 
 READ16_MEMBER(unico_state::unico_guny_1_msb_r)
@@ -139,7 +139,7 @@ READ16_MEMBER(unico_state::unico_guny_1_msb_r)
 
 	y=0x18+((y*0xe0)/0xff);
 
-	return ((y&0xff) ^ (machine().primary_screen->frame_number()&1))<<8;
+	return ((y&0xff) ^ (m_screen->frame_number()&1))<<8;
 }
 
 static ADDRESS_MAP_START( zeropnt_map, AS_PROGRAM, 16, unico_state )
@@ -204,13 +204,13 @@ WRITE32_MEMBER(unico_state::zeropnt2_eeprom_w)
 	if ( ACCESSING_BITS_24_31 )
 	{
 		// latch the bit
-		m_eeprom->write_bit(data & 0x04000000);
+		m_eeprom->di_write((data & 0x04000000) >> 26);
 
 		// reset line asserted: reset.
-		m_eeprom->set_cs_line((data & 0x01000000) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->cs_write((data & 0x01000000) ? ASSERT_LINE : CLEAR_LINE);
 
 		// clock line asserted: write latch or select next bit to read
-		m_eeprom->set_clock_line((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->clk_write((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 
@@ -507,7 +507,7 @@ static INPUT_PORTS_START( zeropnt2 )
 	PORT_BIT( 0x10000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x20000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x40000000, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x80000000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit) // EEPROM
+	PORT_BIT( 0x80000000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read) // EEPROM
 
 	PORT_START("Y0")    /* $800140.b */
 	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_Y ) PORT_CROSSHAIR(Y, 1.0, 0.0, 0) PORT_SENSITIVITY(35) PORT_KEYDELTA(15) PORT_PLAYER(2)
@@ -567,20 +567,6 @@ MACHINE_RESET_MEMBER(unico_state,unico)
 }
 
 
-static const eeprom_interface zeropnt2_eeprom_interface =
-{
-	7,              // address bits 7
-	8,              // data bits    8
-	"*110",         // read         1 10 aaaaaaa
-	"*101",         // write        1 01 aaaaaaa dddddddd
-	"*111",         // erase        1 11 aaaaaaa
-	"*10000xxxx",   // lock         1 00 00xxxx
-	"*10011xxxx",   // unlock       1 00 11xxxx
-//  "*10001xxxx"    // write all    1 00 01xxxx dddddddd
-//  "*10010xxxx"    // erase all    1 00 10xxxx
-};
-
-
 /***************************************************************************
                                 Burglar X
 ***************************************************************************/
@@ -588,7 +574,7 @@ static const eeprom_interface zeropnt2_eeprom_interface =
 static MACHINE_CONFIG_START( burglarx, unico_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 16000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_32MHz/2) /* 16MHz */
 	MCFG_CPU_PROGRAM_MAP(burglarx_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", unico_state,  irq2_line_hold)
 
@@ -610,11 +596,11 @@ static MACHINE_CONFIG_START( burglarx, unico_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("ymsnd", YM3812, 3579545) /* 14.31818MHz OSC divided by 4 */
+	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_14_31818MHz/4) /* 3.579545 MHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.40)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.40)
 
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
+	MCFG_OKIM6295_ADD("oki", XTAL_32MHz/32, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.80)
 MACHINE_CONFIG_END
@@ -633,7 +619,7 @@ MACHINE_RESET_MEMBER(unico_state,zeropt)
 static MACHINE_CONFIG_START( zeropnt, unico_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 16000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_32MHz/2) /* 16MHz */
 	MCFG_CPU_PROGRAM_MAP(zeropnt_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", unico_state,  irq2_line_hold)
 
@@ -655,11 +641,11 @@ static MACHINE_CONFIG_START( zeropnt, unico_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("ymsnd", YM3812, 3579545) /* 14.31818MHz OSC divided by 4 */
+	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_14_31818MHz/4) /* 3.579545 MHz */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.40)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.40)
 
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
+	MCFG_OKIM6295_ADD("oki", XTAL_32MHz/32, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.80)
 MACHINE_CONFIG_END
@@ -673,13 +659,13 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( zeropnt2, unico_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68EC020, 16000000)
+	MCFG_CPU_ADD("maincpu", M68EC020, XTAL_32MHz/2) /* 16MHz */
 	MCFG_CPU_PROGRAM_MAP(zeropnt2_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", unico_state,  irq2_line_hold)
 
 	MCFG_MACHINE_RESET_OVERRIDE(unico_state,zeropt)
 
-	MCFG_EEPROM_ADD("eeprom", zeropnt2_eeprom_interface)
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -697,14 +683,14 @@ static MACHINE_CONFIG_START( zeropnt2, unico_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_YM2151_ADD("ymsnd", 3579545)
+	MCFG_YM2151_ADD("ymsnd", XTAL_14_31818MHz/4) /* 3.579545 MHz */
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.70)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.70)
 
-	MCFG_OKIM6295_ADD("oki1", 1056000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
+	MCFG_OKIM6295_ADD("oki1", XTAL_32MHz/32, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.40)
 
-	MCFG_OKIM6295_ADD("oki2", 3960000, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
+	MCFG_OKIM6295_ADD("oki2", XTAL_14_31818MHz/4, OKIM6295_PIN7_HIGH) // clock frequency & pin 7 not verified
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.20)
 MACHINE_CONFIG_END
 

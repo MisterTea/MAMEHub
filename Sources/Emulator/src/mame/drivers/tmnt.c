@@ -65,8 +65,7 @@ Updates:
 ***************************************************************************/
 
 #include "emu.h"
-#include "video/konicdev.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "cpu/m68000/m68000.h"
 #include "cpu/z80/z80.h"
 #include "sound/2151intf.h"
@@ -74,8 +73,6 @@ Updates:
 #include "sound/samples.h"
 #include "sound/k053260.h"
 #include "sound/k054539.h"
-#include "sound/k007232.h"
-#include "sound/upd7759.h"
 #include "machine/nvram.h"
 #include "includes/tmnt.h"
 #include "includes/konamipt.h"
@@ -85,7 +82,7 @@ READ16_MEMBER(tmnt_state::k052109_word_noA12_r)
 	/* some games have the A12 line not connected, so the chip spans */
 	/* twice the memory range, with mirroring */
 	offset = ((offset & 0x3000) >> 1) | (offset & 0x07ff);
-	return k052109_word_r(m_k052109, space, offset, mem_mask);
+	return m_k052109->word_r(space, offset, mem_mask);
 }
 
 WRITE16_MEMBER(tmnt_state::k052109_word_noA12_w)
@@ -93,7 +90,7 @@ WRITE16_MEMBER(tmnt_state::k052109_word_noA12_w)
 	/* some games have the A12 line not connected, so the chip spans */
 	/* twice the memory range, with mirroring */
 	offset = ((offset & 0x3000) >> 1) | (offset & 0x07ff);
-	k052109_word_w(m_k052109, space, offset, data, mem_mask);
+	m_k052109->word_w(space, offset, data, mem_mask);
 }
 
 WRITE16_MEMBER(tmnt_state::punkshot_k052109_word_w)
@@ -101,9 +98,9 @@ WRITE16_MEMBER(tmnt_state::punkshot_k052109_word_w)
 	/* it seems that a word write is supposed to affect only the MSB. The */
 	/* "ROUND 1" text in punkshtj goes lost otherwise. */
 	if (ACCESSING_BITS_8_15)
-		k052109_w(m_k052109, space, offset, (data >> 8) & 0xff);
+		m_k052109->write(space, offset, (data >> 8) & 0xff);
 	else if (ACCESSING_BITS_0_7)
-		k052109_w(m_k052109, space, offset + 0x2000, data & 0xff);
+		m_k052109->write(space, offset + 0x2000, data & 0xff);
 }
 
 WRITE16_MEMBER(tmnt_state::punkshot_k052109_word_noA12_w)
@@ -125,7 +122,7 @@ READ16_MEMBER(tmnt_state::k053245_scattered_word_r)
 	else
 	{
 		offset = ((offset & 0x000e) >> 1) | ((offset & 0x1fc0) >> 3);
-		return k053245_word_r(m_k053245, space, offset, mem_mask);
+		return m_k053245->k053245_word_r(space, offset, mem_mask);
 	}
 }
 
@@ -136,7 +133,7 @@ WRITE16_MEMBER(tmnt_state::k053245_scattered_word_w)
 	if (!(offset & 0x0031))
 	{
 		offset = ((offset & 0x000e) >> 1) | ((offset & 0x1fc0) >> 3);
-		k053245_word_w(m_k053245, space, offset, data, mem_mask);
+		m_k053245->k053245_word_w(space, offset, data, mem_mask);
 	}
 }
 
@@ -144,7 +141,7 @@ READ16_MEMBER(tmnt_state::k053244_word_noA1_r)
 {
 	offset &= ~1;   /* handle mirror address */
 
-	return k053244_r(m_k053245, space, offset + 1) | (k053244_r(m_k053245, space, offset) << 8);
+	return m_k053245->k053244_r(space, offset + 1) | (m_k053245->k053244_r(space, offset) << 8);
 }
 
 WRITE16_MEMBER(tmnt_state::k053244_word_noA1_w)
@@ -152,9 +149,9 @@ WRITE16_MEMBER(tmnt_state::k053244_word_noA1_w)
 	offset &= ~1;   /* handle mirror address */
 
 	if (ACCESSING_BITS_8_15)
-		k053244_w(m_k053245, space, offset, (data >> 8) & 0xff);
+		m_k053245->k053244_w(space, offset, (data >> 8) & 0xff);
 	if (ACCESSING_BITS_0_7)
-		k053244_w(m_k053245, space, offset + 1, data & 0xff);
+		m_k053245->k053244_w(space, offset + 1, data & 0xff);
 }
 
 INTERRUPT_GEN_MEMBER(tmnt_state::cuebrick_interrupt)
@@ -165,13 +162,13 @@ INTERRUPT_GEN_MEMBER(tmnt_state::cuebrick_interrupt)
 
 INTERRUPT_GEN_MEMBER(tmnt_state::punkshot_interrupt)
 {
-	if (k052109_is_irq_enabled(m_k052109))
+	if (m_k052109->is_irq_enabled())
 		irq4_line_hold(device);
 }
 
 INTERRUPT_GEN_MEMBER(tmnt_state::lgtnfght_interrupt)
 {
-	if (k052109_is_irq_enabled(m_k052109))
+	if (m_k052109->is_irq_enabled())
 		irq5_line_hold(device);
 }
 
@@ -234,7 +231,7 @@ READ8_MEMBER(tmnt_state::tmnt_sres_r)
 WRITE8_MEMBER(tmnt_state::tmnt_sres_w)
 {
 	/* bit 1 resets the UPD7795C sound chip */
-	upd7759_reset_w(m_upd7759, data & 2);
+	m_upd7759->reset_w(data & 2);
 
 	/* bit 2 plays the title music */
 	if (data & 0x04)
@@ -249,12 +246,12 @@ WRITE8_MEMBER(tmnt_state::tmnt_sres_w)
 
 WRITE8_MEMBER(tmnt_state::tmnt_upd_start_w)
 {
-	upd7759_start_w(m_upd7759, data & 1);
+	m_upd7759->start_w(data & 1);
 }
 
 READ8_MEMBER(tmnt_state::tmnt_upd_busy_r)
 {
-	return upd7759_busy_r(m_upd7759) ? 1 : 0;
+	return m_upd7759->busy_r() ? 1 : 0;
 }
 
 
@@ -364,7 +361,7 @@ READ16_MEMBER(tmnt_state::ssriders_protection_r)
 			data = -space.read_word(0x105818);
 			data = ((data / 8 - 4) & 0x1f) * 0x40;
 			data += ((space.read_word(0x105cb0) +
-						256 * k052109_r(m_k052109, space, 0x1a01) + k052109_r(m_k052109, space, 0x1a00) - 6) / 8 + 12) & 0x3f;
+						256 * m_k052109->read(space, 0x1a01) + m_k052109->read(space, 0x1a00) - 6) / 8 + 12) & 0x3f;
 			return data;
 
 		default:
@@ -390,7 +387,7 @@ WRITE16_MEMBER(tmnt_state::ssriders_protection_w)
 			{
 				if ((space.read_word(0x180006 + 128 * i) >> 8) == logical_pri)
 				{
-					k053245_word_w(m_k053245, space, 8 * i, hardware_pri, 0x00ff);
+					m_k053245->k053245_word_w(space, 8 * i, hardware_pri, 0x00ff);
 					hardware_pri++;
 				}
 			}
@@ -405,18 +402,6 @@ WRITE16_MEMBER(tmnt_state::ssriders_protection_w)
   EEPROM
 
 ***************************************************************************/
-
-static const eeprom_interface eeprom_intf =
-{
-	7,              /* address bits */
-	8,              /* data bits */
-	"011000",       /*  read command */
-	"011100",       /* write command */
-	0,              /* erase command */
-	"0100000000000",/* lock command */
-	"0100110000000" /* unlock command */
-};
-
 
 READ16_MEMBER(tmnt_state::blswhstl_coin_r)
 {
@@ -469,17 +454,6 @@ WRITE16_MEMBER(tmnt_state::blswhstl_eeprom_w)
 	}
 }
 
-static const eeprom_interface thndrx2_eeprom_intf =
-{
-	7,              /* address bits */
-	8,              /* data bits */
-	"011000",       /*  read command */
-	"010100",       /* write command */
-	0,              /* erase command */
-	"0100000000000",/* lock command */
-	"0100110000000" /* unlock command */
-};
-
 READ16_MEMBER(tmnt_state::thndrx2_eeprom_r)
 {
 	int res;
@@ -508,7 +482,7 @@ WRITE16_MEMBER(tmnt_state::thndrx2_eeprom_w)
 		m_last = data & 0x20;
 
 		/* bit 6 = enable char ROM reading through the video RAM */
-		k052109_set_rmrd_line(m_k052109, (data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
+		m_k052109->set_rmrd_line((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
@@ -559,8 +533,8 @@ static ADDRESS_MAP_START( cuebrick_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0b0400, 0x0b0401) AM_WRITE(cuebrick_nvbank_w)
 	AM_RANGE(0x0c0000, 0x0c0003) AM_DEVREADWRITE8("ymsnd", ym2151_device, read, write, 0xff00)
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
-	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE_LEGACY("k051960", k051937_word_r, k051937_word_w)
-	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE_LEGACY("k051960", k051960_word_r, k051960_word_w)
+	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
+	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
 ADDRESS_MAP_END
 
 
@@ -581,8 +555,8 @@ static ADDRESS_MAP_START( mia_main_map, AS_PROGRAM, 16, tmnt_state )
 #endif
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
 //  AM_RANGE(0x10e800, 0x10e801) AM_WRITENOP ???
-	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE_LEGACY("k051960", k051937_word_r, k051937_word_w)
-	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE_LEGACY("k051960", k051960_word_r, k051960_word_w)
+	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
+	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
 ADDRESS_MAP_END
 
 
@@ -602,8 +576,8 @@ static ADDRESS_MAP_START( tmnt_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0c0000, 0x0c0001) AM_WRITE(tmnt_priority_w)
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
 //  AM_RANGE(0x10e800, 0x10e801) AM_WRITENOP ???
-	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE_LEGACY("k051960", k051937_word_r, k051937_word_w)
-	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE_LEGACY("k051960", k051960_word_r, k051960_word_w)
+	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
+	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
 ADDRESS_MAP_END
 
 
@@ -618,11 +592,11 @@ static ADDRESS_MAP_START( punkshot_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0a0020, 0x0a0021) AM_WRITE(punkshot_0a0020_w)
 	AM_RANGE(0x0a0040, 0x0a0043) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
 	AM_RANGE(0x0a0040, 0x0a0041) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
-	AM_RANGE(0x0a0060, 0x0a007f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
+	AM_RANGE(0x0a0060, 0x0a007f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
 	AM_RANGE(0x0a0080, 0x0a0081) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, punkshot_k052109_word_noA12_w)
-	AM_RANGE(0x110000, 0x110007) AM_DEVREADWRITE_LEGACY("k051960", k051937_word_r, k051937_word_w)
-	AM_RANGE(0x110400, 0x1107ff) AM_DEVREADWRITE_LEGACY("k051960", k051960_word_r, k051960_word_w)
+	AM_RANGE(0x110000, 0x110007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
+	AM_RANGE(0x110400, 0x1107ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
 	AM_RANGE(0xfffffc, 0xffffff) AM_READ(punkshot_kludge_r)
 ADDRESS_MAP_END
 
@@ -643,7 +617,7 @@ static ADDRESS_MAP_START( lgtnfght_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0a0028, 0x0a0029) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x0b0000, 0x0b3fff) AM_READWRITE(k053245_scattered_word_r, k053245_scattered_word_w) AM_SHARE("spriteram")
 	AM_RANGE(0x0c0000, 0x0c001f) AM_READWRITE(k053244_word_noA1_r, k053244_word_noA1_w)
-	AM_RANGE(0x0e0000, 0x0e001f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
+	AM_RANGE(0x0e0000, 0x0e001f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
 ADDRESS_MAP_END
 
@@ -656,11 +630,11 @@ WRITE16_MEMBER(tmnt_state::ssriders_soundkludge_w)
 
 static ADDRESS_MAP_START( blswhstl_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
-	AM_RANGE(0x180000, 0x183fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_word_r, k052109_word_w)
+	AM_RANGE(0x180000, 0x183fff) AM_DEVREADWRITE("k052109", k052109_device, word_r, word_w)
 	AM_RANGE(0x204000, 0x207fff) AM_RAM /* main RAM */
 	AM_RANGE(0x300000, 0x303fff) AM_READWRITE(k053245_scattered_word_r, k053245_scattered_word_w) AM_SHARE("spriteram")
 	AM_RANGE(0x400000, 0x400fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x500000, 0x50003f) AM_DEVREADWRITE_LEGACY("k054000", k054000_lsb_r, k054000_lsb_w)
+	AM_RANGE(0x500000, 0x50003f) AM_DEVREADWRITE("k054000", k054000_device, lsb_r, lsb_w)
 	AM_RANGE(0x680000, 0x68001f) AM_READWRITE(k053244_word_noA1_r, k053244_word_noA1_w)
 	AM_RANGE(0x700000, 0x700001) AM_READ_PORT("P1")
 	AM_RANGE(0x700002, 0x700003) AM_READ_PORT("P2")
@@ -672,7 +646,7 @@ static ADDRESS_MAP_START( blswhstl_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x780600, 0x780603) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
 	AM_RANGE(0x780600, 0x780601) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x780604, 0x780605) AM_WRITE(ssriders_soundkludge_w)
-	AM_RANGE(0x780700, 0x78071f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
+	AM_RANGE(0x780700, 0x78071f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
 ADDRESS_MAP_END
 
 
@@ -682,16 +656,16 @@ WRITE16_MEMBER(tmnt_state::k053251_glfgreat_w)
 
 	if (ACCESSING_BITS_8_15)
 	{
-		k053251_w(m_k053251, space, offset, (data >> 8) & 0xff);
+		m_k053251->write(space, offset, (data >> 8) & 0xff);
 
 		/* FIXME: in the old code k052109 tilemaps were tilemaps 2,3,4 for k053251
 		and got marked as dirty in the write above... how was the original hardware working?!? */
 		for (i = 0; i < 3; i++)
 		{
-			if (k053251_get_tmap_dirty(m_k053251, 2 + i))
+			if (m_k053251->get_tmap_dirty(2 + i))
 			{
-				k052109_tilemap_mark_dirty(m_k052109, i);
-				k053251_set_tmap_dirty(m_k053251, 2 + i, 0);
+				m_k052109->tilemap_mark_dirty(i);
+				m_k053251->set_tmap_dirty(2 + i, 0);
 			}
 		}
 	}
@@ -702,11 +676,11 @@ static ADDRESS_MAP_START( glfgreat_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x100000, 0x103fff) AM_RAM /* main RAM */
 	AM_RANGE(0x104000, 0x107fff) AM_READWRITE(k053245_scattered_word_r, k053245_scattered_word_w) AM_SHARE("spriteram")
 	AM_RANGE(0x108000, 0x108fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x10c000, 0x10cfff) AM_DEVREADWRITE_LEGACY("k053936", k053936_linectrl_r, k053936_linectrl_w)  /* 053936? */
+	AM_RANGE(0x10c000, 0x10cfff) AM_DEVREADWRITE("k053936", k053936_device, linectrl_r, linectrl_w)  /* 053936? */
 	AM_RANGE(0x110000, 0x11001f) AM_WRITE(k053244_word_noA1_w)              /* duplicate! */
-	AM_RANGE(0x114000, 0x11401f) AM_DEVREADWRITE_LEGACY("k053245", k053244_lsb_r, k053244_lsb_w)    /* duplicate! */
-	AM_RANGE(0x118000, 0x11801f) AM_DEVWRITE_LEGACY("k053936", k053936_ctrl_w)
-	AM_RANGE(0x11c000, 0x11c01f) AM_DEVWRITE_LEGACY("k053251", k053251_msb_w)
+	AM_RANGE(0x114000, 0x11401f) AM_DEVREADWRITE("k053245", k05324x_device, k053244_lsb_r, k053244_lsb_w)    /* duplicate! */
+	AM_RANGE(0x118000, 0x11801f) AM_DEVWRITE("k053936", k053936_device, ctrl_w)
+	AM_RANGE(0x11c000, 0x11c01f) AM_DEVWRITE("k053251", k053251_device, msb_w)
 	AM_RANGE(0x11c000, 0x11c01f) AM_WRITE(k053251_glfgreat_w)
 	AM_RANGE(0x120000, 0x120001) AM_READ_PORT("P1/P2")
 	AM_RANGE(0x120002, 0x120003) AM_READ_PORT("P3/P4")
@@ -726,11 +700,11 @@ static ADDRESS_MAP_START( prmrsocr_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x100000, 0x103fff) AM_RAM /* main RAM */
 	AM_RANGE(0x104000, 0x107fff) AM_READWRITE(k053245_scattered_word_r, k053245_scattered_word_w) AM_SHARE("spriteram")
 	AM_RANGE(0x108000, 0x108fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x10c000, 0x10cfff) AM_DEVREADWRITE_LEGACY("k053936", k053936_linectrl_r, k053936_linectrl_w)
+	AM_RANGE(0x10c000, 0x10cfff) AM_DEVREADWRITE("k053936", k053936_device, linectrl_r, linectrl_w)
 	AM_RANGE(0x110000, 0x11001f) AM_WRITE(k053244_word_noA1_w)              /* duplicate! */
-	AM_RANGE(0x114000, 0x11401f) AM_DEVREADWRITE_LEGACY("k053245", k053244_lsb_r, k053244_lsb_w)    /* duplicate! */
-	AM_RANGE(0x118000, 0x11801f) AM_DEVWRITE_LEGACY("k053936", k053936_ctrl_w)
-	AM_RANGE(0x11c000, 0x11c01f) AM_DEVWRITE_LEGACY("k053251", k053251_msb_w)
+	AM_RANGE(0x114000, 0x11401f) AM_DEVREADWRITE("k053245", k05324x_device, k053244_lsb_r, k053244_lsb_w)    /* duplicate! */
+	AM_RANGE(0x118000, 0x11801f) AM_DEVWRITE("k053936", k053936_device, ctrl_w)
+	AM_RANGE(0x11c000, 0x11c01f) AM_DEVWRITE("k053251", k053251_device, msb_w)
 	AM_RANGE(0x11c000, 0x11c01f) AM_WRITE(k053251_glfgreat_w)
 	AM_RANGE(0x120000, 0x120001) AM_READ_PORT("P1/COINS")
 	AM_RANGE(0x120002, 0x120003) AM_READ_PORT("P2/EEPROM")
@@ -766,7 +740,7 @@ void tmnt_state::tmnt2_put_word( address_space &space, UINT32 addr, UINT16 data 
 		if (!(offs & 0x0031))
 		{
 			offs = ((offs & 0x000e) >> 1) | ((offs & 0x1fc0) >> 3);
-			k053245_word_w(m_k053245, space, offs, data, 0xffff);
+			m_k053245->k053245_word_w(space, offs, data, 0xffff);
 		}
 	}
 	else if (addr >= 0x104000 / 2 && addr <= 0x107fff / 2)
@@ -1001,8 +975,8 @@ static ADDRESS_MAP_START( tmnt2_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x5c0600, 0x5c0603) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
 	AM_RANGE(0x5c0600, 0x5c0601) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x5c0604, 0x5c0605) AM_WRITE(ssriders_soundkludge_w)
-	AM_RANGE(0x5c0700, 0x5c071f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
-	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_word_r, k052109_word_w)
+	AM_RANGE(0x5c0700, 0x5c071f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
+	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE("k052109", k052109_device, word_r, word_w)
 ADDRESS_MAP_END
 
 
@@ -1027,8 +1001,8 @@ static ADDRESS_MAP_START( ssriders_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x5c0600, 0x5c0603) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
 	AM_RANGE(0x5c0600, 0x5c0601) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
 	AM_RANGE(0x5c0604, 0x5c0605) AM_WRITE(ssriders_soundkludge_w)
-	AM_RANGE(0x5c0700, 0x5c071f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
-	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_word_r, k052109_word_w)
+	AM_RANGE(0x5c0700, 0x5c071f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
+	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE("k052109", k052109_device, word_r, word_w)
 ADDRESS_MAP_END
 
 
@@ -1036,13 +1010,13 @@ static ADDRESS_MAP_START( sunsetbl_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x000000, 0x0bffff) AM_ROM
 	AM_RANGE(0x104000, 0x107fff) AM_RAM /* main RAM */
 	AM_RANGE(0x14c000, 0x14cfff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x14e700, 0x14e71f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
+	AM_RANGE(0x14e700, 0x14e71f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
 	AM_RANGE(0x180000, 0x183fff) AM_READWRITE(k053245_scattered_word_r, k053245_scattered_word_w) AM_SHARE("spriteram")
 	AM_RANGE(0x184000, 0x18ffff) AM_RAM
 	AM_RANGE(0x1c0300, 0x1c0301) AM_WRITE(ssriders_1c0300_w)
 	AM_RANGE(0x1c0400, 0x1c0401) AM_WRITENOP
 	AM_RANGE(0x5a0000, 0x5a001f) AM_READWRITE(k053244_word_noA1_r, k053244_word_noA1_w)
-	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_word_r, k052109_word_w)
+	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE("k052109", k052109_device, word_r, word_w)
 	AM_RANGE(0x604020, 0x60402f) AM_WRITENOP    /* written every frame */
 	AM_RANGE(0x604200, 0x604201) AM_WRITENOP    /* watchdog */
 	AM_RANGE(0x6119e2, 0x6119e3) AM_WRITENOP    /* written a lot in some test menus (PC=18204) */
@@ -1062,17 +1036,17 @@ static ADDRESS_MAP_START( thndrx2_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x100000, 0x103fff) AM_RAM /* main RAM */
 	AM_RANGE(0x200000, 0x200fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x300000, 0x30001f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
+	AM_RANGE(0x300000, 0x30001f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
 	AM_RANGE(0x400000, 0x400003) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
 	AM_RANGE(0x400000, 0x400001) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
-	AM_RANGE(0x500000, 0x50003f) AM_DEVREADWRITE_LEGACY("k054000", k054000_lsb_r, k054000_lsb_w)
+	AM_RANGE(0x500000, 0x50003f) AM_DEVREADWRITE("k054000", k054000_device, lsb_r, lsb_w)
 	AM_RANGE(0x500100, 0x500101) AM_WRITE(thndrx2_eeprom_w)
 	AM_RANGE(0x500200, 0x500201) AM_READ_PORT("P1/COINS")
 	AM_RANGE(0x500202, 0x500203) AM_READ(thndrx2_eeprom_r)
 	AM_RANGE(0x500300, 0x500301) AM_WRITENOP    /* watchdog reset? irq enable? */
 	AM_RANGE(0x600000, 0x607fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
-	AM_RANGE(0x700000, 0x700007) AM_DEVREADWRITE_LEGACY("k051960", k051937_word_r, k051937_word_w)
-	AM_RANGE(0x700400, 0x7007ff) AM_DEVREADWRITE_LEGACY("k051960", k051960_word_r, k051960_word_w)
+	AM_RANGE(0x700000, 0x700007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
+	AM_RANGE(0x700400, 0x7007ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
 ADDRESS_MAP_END
 
 
@@ -1081,7 +1055,7 @@ static ADDRESS_MAP_START( mia_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232", k007232_r, k007232_w)
+	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE("k007232", k007232_device, read, write)
 	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 ADDRESS_MAP_END
 
@@ -1091,9 +1065,9 @@ static ADDRESS_MAP_START( tmnt_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0x9000, 0x9000) AM_READWRITE(tmnt_sres_r, tmnt_sres_w) /* title music & UPD7759C reset */
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r)
-	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232", k007232_r, k007232_w)
+	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE("k007232", k007232_device, read, write)
 	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xd000, 0xd000) AM_DEVWRITE_LEGACY("upd", upd7759_port_w)
+	AM_RANGE(0xd000, 0xd000) AM_DEVWRITE("upd", upd7759_device, port_w)
 	AM_RANGE(0xe000, 0xe000) AM_WRITE(tmnt_upd_start_w)
 	AM_RANGE(0xf000, 0xf000) AM_READ(tmnt_upd_busy_r)
 ADDRESS_MAP_END
@@ -1627,14 +1601,14 @@ static INPUT_PORTS_START( blswhstl )
 	KONAMI16_LSB( 2, IPT_UNKNOWN, IPT_UNKNOWN )
 
 	PORT_START("EEPROM")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL )    /* EEPROM status? - always 1 */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_BIT( 0xfc, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( glfgreat )
@@ -1771,8 +1745,8 @@ static INPUT_PORTS_START( ssriders )
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("EEPROM")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL )    /* EEPROM status? - always 1 */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* ?? TMNT2: OBJMPX */
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")  /* ?? TMNT2: NVBLK */
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* ?? TMNT2: IPL0 */
@@ -1780,9 +1754,9 @@ static INPUT_PORTS_START( ssriders )
 	PORT_SERVICE_NO_TOGGLE( 0x80, IP_ACTIVE_LOW )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( ssridr4p )
@@ -1809,8 +1783,8 @@ static INPUT_PORTS_START( ssridr4p )
 	KONAMI16_LSB( 4, IPT_UNKNOWN, IPT_UNKNOWN )
 
 	PORT_START("EEPROM")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL )    /* EEPROM status? - always 1 */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* ?? TMNT2: OBJMPX */
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")  /* ?? TMNT2: NVBLK */
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* ?? TMNT2: IPL0 */
@@ -1818,9 +1792,9 @@ static INPUT_PORTS_START( ssridr4p )
 	PORT_SERVICE_NO_TOGGLE( 0x80, IP_ACTIVE_LOW )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 INPUT_PORTS_END
 
 /* Same as 'ssridr4p', but additional Start button for each player.
@@ -1849,8 +1823,8 @@ static INPUT_PORTS_START( ssrid4ps )
 	KONAMI16_LSB( 4, IPT_UNKNOWN, IPT_START4 )
 
 	PORT_START("EEPROM")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL )    /* EEPROM status? - always 1 */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* ?? TMNT2: OBJMPX */
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")  /* ?? TMNT2: NVBLK */
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* ?? TMNT2: IPL0 */
@@ -1858,9 +1832,9 @@ static INPUT_PORTS_START( ssrid4ps )
 	PORT_SERVICE_NO_TOGGLE( 0x80, IP_ACTIVE_LOW )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 INPUT_PORTS_END
 
 /* Version for the bootleg, which has the service switch a little different */
@@ -1888,16 +1862,16 @@ static INPUT_PORTS_START( sunsetbl )
 	KONAMI16_LSB( 4, IPT_UNKNOWN, IPT_START4 )
 
 	PORT_START("EEPROM")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL )    /* EEPROM status? - always 1 */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_SERVICE_NO_TOGGLE( 0x08, IP_ACTIVE_LOW )
 	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* unused? */
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( qgakumon )
@@ -1938,8 +1912,8 @@ static INPUT_PORTS_START( qgakumon )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("EEPROM")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL )    /* EEPROM status? - always 1 */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* ?? TMNT2: OBJMPX */
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")  /* ?? TMNT2: NVBLK (needs to be ACTIVE_HIGH to avoid problems) */
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* ?? TMNT2: IPL0 */
@@ -1947,9 +1921,9 @@ static INPUT_PORTS_START( qgakumon )
 	PORT_SERVICE_NO_TOGGLE( 0x80, IP_ACTIVE_LOW )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( thndrx2 )
@@ -1966,8 +1940,8 @@ static INPUT_PORTS_START( thndrx2 )
 
 	PORT_START("P2/EEPROM")
 	KONAMI16_LSB( 2, IPT_UNKNOWN, IPT_START2 )
-	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_SPECIAL )  /* EEPROM status? - always 1 */
+	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x0200, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN )  /* VBLK?? */
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -1976,9 +1950,9 @@ static INPUT_PORTS_START( thndrx2 )
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( prmrsocr )
@@ -1997,8 +1971,8 @@ static INPUT_PORTS_START( prmrsocr )
 
 	PORT_START("P2/EEPROM")
 	KONAMI16_LSB( 2, IPT_UNKNOWN, IPT_START2 )
-	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_SPECIAL )  /* EEPROM status? - always 1 */
+	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x0200, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -2007,16 +1981,16 @@ static INPUT_PORTS_START( prmrsocr )
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x0400, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x0200, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x0400, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 INPUT_PORTS_END
 
 
 WRITE8_MEMBER(tmnt_state::volume_callback)
 {
-	k007232_set_volume(m_k007232, 0, (data >> 4) * 0x11, 0);
-	k007232_set_volume(m_k007232, 1, 0, (data & 0x0f) * 0x11);
+	m_k007232->set_volume(0, (data >> 4) * 0x11, 0);
+	m_k007232->set_volume(1, 0, (data & 0x0f) * 0x11);
 }
 
 static const k007232_interface k007232_config =
@@ -2287,8 +2261,8 @@ MACHINE_CONFIG_END
 MACHINE_RESET_MEMBER(tmnt_state,tmnt)
 {
 	/* the UPD7759 control flip-flops are cleared: /ST is 1, /RESET is 0 */
-	upd7759_start_w(m_upd7759, 0);
-	upd7759_reset_w(m_upd7759, 1);
+	m_upd7759->start_w(0);
+	m_upd7759->reset_w(1);
 }
 
 static MACHINE_CONFIG_START( tmnt, tmnt_state )
@@ -2443,7 +2417,7 @@ static MACHINE_CONFIG_START( blswhstl, tmnt_state )
 	MCFG_MACHINE_START_OVERRIDE(tmnt_state,common)
 	MCFG_MACHINE_RESET_OVERRIDE(tmnt_state,common)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_AFTER_VBLANK)
@@ -2572,7 +2546,7 @@ static MACHINE_CONFIG_START( prmrsocr, tmnt_state )
 	MCFG_MACHINE_START_OVERRIDE(tmnt_state,prmrsocr)
 	MCFG_MACHINE_RESET_OVERRIDE(tmnt_state,common)
 
-	MCFG_EEPROM_ADD("eeprom", thndrx2_eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_AFTER_VBLANK)
@@ -2621,7 +2595,7 @@ static MACHINE_CONFIG_START( tmnt2, tmnt_state )
 	MCFG_MACHINE_START_OVERRIDE(tmnt_state,common)
 	MCFG_MACHINE_RESET_OVERRIDE(tmnt_state,common)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_AFTER_VBLANK)
@@ -2668,7 +2642,7 @@ static MACHINE_CONFIG_START( ssriders, tmnt_state )
 	MCFG_MACHINE_START_OVERRIDE(tmnt_state,common)
 	MCFG_MACHINE_RESET_OVERRIDE(tmnt_state,common)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_AFTER_VBLANK)
@@ -2711,7 +2685,7 @@ static MACHINE_CONFIG_START( sunsetbl, tmnt_state )
 	MCFG_MACHINE_START_OVERRIDE(tmnt_state,common)
 	MCFG_MACHINE_RESET_OVERRIDE(tmnt_state,common)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_AFTER_VBLANK)
@@ -2751,7 +2725,7 @@ static MACHINE_CONFIG_START( thndrx2, tmnt_state )
 	MCFG_MACHINE_START_OVERRIDE(tmnt_state,common)
 	MCFG_MACHINE_RESET_OVERRIDE(tmnt_state,common)
 
-	MCFG_EEPROM_ADD("eeprom", thndrx2_eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS)

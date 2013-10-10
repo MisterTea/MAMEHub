@@ -1,5 +1,6 @@
 #include "sound/okim6295.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
+#include "cpu/pic16c5x/pic16c5x.h"
 
 class playmark_state : public driver_device
 {
@@ -53,7 +54,7 @@ public:
 
 	/* devices */
 	required_device<okim6295_device> m_oki;
-	optional_device<eeprom_device> m_eeprom;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 	DECLARE_WRITE16_MEMBER(coinctrl_w);
 	DECLARE_WRITE16_MEMBER(wbeachvl_coin_eeprom_w);
 	DECLARE_WRITE16_MEMBER(hotmind_coin_eeprom_w);
@@ -95,15 +96,16 @@ public:
 	DECLARE_VIDEO_START(hotmind);
 	DECLARE_VIDEO_START(hrdtimes);
 	DECLARE_VIDEO_START(luckboomh);
+	TILEMAP_MAPPER_MEMBER(playmark_tilemap_scan_pages);
 	UINT32 screen_update_bigtwin(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_bigtwinb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_wbeachvl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_excelsr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_hrdtimes(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int codeshift );
-	void bigtwinb_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int codeshift );
-	void draw_bitmap( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int codeshift );
+	void bigtwinb_draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int codeshift );
+	void draw_bitmap( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect );
 	UINT8 playmark_asciitohex(UINT8 data);
 	required_device<cpu_device> m_maincpu;
-	optional_device<cpu_device> m_audiocpu;
+	optional_device<pic16c57_device> m_audiocpu;
 };

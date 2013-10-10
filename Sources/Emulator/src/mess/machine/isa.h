@@ -88,6 +88,10 @@
 	MCFG_DEVICE_ADD(_tag, ISA16_SLOT, 0) \
 	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, _fixed) \
 	isa16_slot_device::static_set_isa16_slot(*device, owner, _isatag);
+
+#define MCFG_ISA_BUS_IOCHCK(_iochck) \
+	downcast<isa8_device *>(device)->set_iochck_callback(DEVCB2_##_iochck);
+
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
@@ -100,7 +104,7 @@ class isa8_slot_device : public device_t,
 public:
 	// construction/destruction
 	isa8_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	isa8_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	isa8_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	// device-level overrides
 	virtual void device_start();
@@ -139,13 +143,14 @@ class isa8_device : public device_t,
 public:
 	// construction/destruction
 	isa8_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	isa8_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	isa8_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	// inline configuration
 	static void static_set_cputag(device_t &device, const char *tag);
+	template<class _iochck> void set_iochck_callback(_iochck iochck) { m_write_iochck.set_callback(iochck); }
 
-	void install_device(device_t *dev, offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_device_func rhandler, const char* rhandler_name, write8_device_func whandler, const char *whandler_name);
+	ATTR_DEPRECATED void install_device(device_t *dev, offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_device_func rhandler, const char* rhandler_name, write8_device_func whandler, const char *whandler_name);
 	void install_device(offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_delegate rhandler, write8_delegate whandler);
-	void install_device(offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_space_func rhandler, const char* rhandler_name, write8_space_func whandler, const char *whandler_name);
+	ATTR_DEPRECATED void install_device(offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_space_func rhandler, const char* rhandler_name, write8_space_func whandler, const char *whandler_name);
 	template<typename T> void install_device(offs_t addrstart, offs_t addrend, T &device, void (T::*map)(address_map &map, device_t &device), int bits = 8, UINT64 unitmask = U64(0xffffffffffffffff)) {
 		m_maincpu->space(AS_IO).install_device(addrstart, addrend, device, map, bits, unitmask);
 	}
@@ -177,8 +182,8 @@ public:
 
 	virtual void set_dma_channel(UINT8 channel, device_isa8_card_interface *dev, bool do_eop);
 protected:
-	void install_space(address_spacenum spacenum, device_t *dev, offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_device_func rhandler, const char* rhandler_name, write8_device_func whandler, const char *whandler_name);
-	void install_space(address_spacenum spacenum, offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_space_func rhandler, const char* rhandler_name, write8_space_func whandler, const char *whandler_name);
+	ATTR_DEPRECATED void install_space(address_spacenum spacenum, device_t *dev, offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_device_func rhandler, const char* rhandler_name, write8_device_func whandler, const char *whandler_name);
+	ATTR_DEPRECATED void install_space(address_spacenum spacenum, offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_space_func rhandler, const char* rhandler_name, write8_space_func whandler, const char *whandler_name);
 	void install_space(address_spacenum spacenum, offs_t start, offs_t end, offs_t mask, offs_t mirror, read8_delegate rhandler, write8_delegate whandler);
 
 	// device-level overrides
@@ -204,6 +209,9 @@ protected:
 	bool                        m_dma_eop[8];
 	const char                 *m_cputag;
 	bool                        m_nmi_enabled;
+
+private:
+	devcb2_write_line m_write_iochck;
 };
 
 

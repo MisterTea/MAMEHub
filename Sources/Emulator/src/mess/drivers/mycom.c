@@ -333,7 +333,6 @@ GFXDECODE_END
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",           /* screen we are acting on */
 	false,              /* show border area */
 	8,                  /* number of pixels per video memory address */
 	NULL,               /* before pixel update callback */
@@ -599,12 +598,12 @@ static MACHINE_CONFIG_START( mycom, mycom_state )
 	MCFG_SCREEN_SIZE(640, 480)
 	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 192-1)
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(black_and_white)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 	MCFG_GFXDECODE(mycom)
 
 	/* Manual states clock is 1.008mhz for 40 cols, and 2.016 mhz for 80 cols.
 	The CRTC is a HD46505S - same as a 6845. The start registers need to be readable. */
-	MCFG_MC6845_ADD("crtc", MC6845, 1008000, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", 1008000, mc6845_intf)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")

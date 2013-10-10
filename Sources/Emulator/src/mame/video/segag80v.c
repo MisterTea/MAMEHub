@@ -7,6 +7,7 @@
 #include "emu.h"
 #include "video/vector.h"
 #include "includes/segag80v.h"
+#include "scrlegcy.h"
 
 #define VECTOR_CLOCK        15468480            /* master clock */
 #define U34_CLOCK           (VECTOR_CLOCK/3)    /* clock for interrupt chain */
@@ -326,8 +327,8 @@ void segag80v_state::video_start()
 {
 	assert_always(m_vectorram.bytes() != 0, "vectorram==0");
 
-	m_min_x =machine().primary_screen->visible_area().min_x;
-	m_min_y =machine().primary_screen->visible_area().min_y;
+	m_min_x =m_screen->visible_area().min_x;
+	m_min_y =m_screen->visible_area().min_y;
 
 	VIDEO_START_CALL_LEGACY(vector);
 }

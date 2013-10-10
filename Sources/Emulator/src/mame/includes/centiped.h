@@ -3,7 +3,8 @@
     Atari Centipede hardware
 
 *************************************************************************/
-#include "machine/eeprom.h"
+
+#include "machine/eepromser.h"
 
 class centiped_state : public driver_device
 {
@@ -87,5 +88,5 @@ public:
 	void milliped_set_color(offs_t offset, UINT8 data);
 	inline int read_trackball(int idx, int switch_port);
 	required_device<cpu_device> m_maincpu;
-	optional_device<eeprom_device> m_eeprom;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 };

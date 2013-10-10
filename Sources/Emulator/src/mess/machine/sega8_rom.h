@@ -2,7 +2,7 @@
 #define __SEGA8_ROM_H
 
 #include "machine/sega8_slot.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 
 // ======================> sega8_rom_device
 
@@ -213,7 +213,7 @@ public:
 protected:
 	UINT8 m_rom_bank_base[3];
 
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	int m_93c46_enabled;
 	UINT8 m_93c46_lines;
 };

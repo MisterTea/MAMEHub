@@ -80,7 +80,7 @@ UINT32 mgolf_state::screen_update_mgolf(screen_device &screen, bitmap_ind16 &bit
 	int i;
 
 	/* draw playfield */
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* draw sprites */
 	for (i = 0; i < 2; i++)
@@ -150,7 +150,7 @@ TIMER_CALLBACK_MEMBER(mgolf_state::interrupt_callback)
 	if (scanline >= 262)
 		scanline = 16;
 
-	timer_set(machine().primary_screen->time_until_pos(scanline), TIMER_INTERRUPT, scanline);
+	timer_set(m_screen->time_until_pos(scanline), TIMER_INTERRUPT, scanline);
 }
 
 
@@ -335,7 +335,7 @@ void mgolf_state::machine_start()
 
 void mgolf_state::machine_reset()
 {
-	timer_set(machine().primary_screen->time_until_pos(16), TIMER_INTERRUPT, 16);
+	timer_set(m_screen->time_until_pos(16), TIMER_INTERRUPT, 16);
 
 	m_mask = 0;
 	m_prev = 0;

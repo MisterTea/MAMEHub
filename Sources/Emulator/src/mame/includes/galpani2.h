@@ -1,6 +1,6 @@
 #include "video/kaneko_spr.h"
 #include "sound/okim6295.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 
 class galpani2_state : public driver_device
 {
@@ -71,5 +71,5 @@ public:
 
 	DECLARE_WRITE16_MEMBER( galpani2_bg15_w );
 	required_device<okim6295_device> m_oki2;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 };

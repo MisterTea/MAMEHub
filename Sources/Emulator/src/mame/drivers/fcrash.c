@@ -79,8 +79,7 @@ sf2mdt, sf2mdta: ok
 sgyxz: garbage left behind. A priority problem can be seen in 3rd demo where
        the fighters walk through the crowd instead of behind.
 
-slampic: no sound. In the wrestling ring, a layer flashes on and off.
-         A priority problem between sprites and crowd in front of the ring.
+slampic: no sound. A priority problem between sprites and crowd.
 
 */
 
@@ -92,16 +91,7 @@ slampic: no sound. In the wrestling ring, a layer flashes on and off.
 #include "sound/msm5205.h"
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
-#include "machine/eeprom.h"
-
-static const eeprom_interface qsound_eeprom_interface =
-{
-	7,      /* address bits */
-	8,      /* data bits */
-	"0110", /*  read command */
-	"0101", /* write command */
-	"0111"  /* erase command */
-};
+#include "machine/eepromser.h"
 
 WRITE16_MEMBER( cps_state::fcrash_soundlatch_w )
 {
@@ -465,8 +455,8 @@ WRITE16_MEMBER(cps_state::slampic_layer_w)
 	case 0x05:
 		dinopic_layer_w(space, offset, data);
 		break;
-	case 0x06:
-		// unknown
+	case 0x06: // scroll 2 base
+		m_cps_a_regs[0x04/2] = data << 4;
 		break;
 	}
 }
@@ -492,7 +482,7 @@ void cps_state::fcrash_update_transmasks()
 	}
 }
 
-void cps_state::fcrash_render_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect )
+void cps_state::fcrash_render_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect )
 {
 	int pos;
 	int base = m_sprite_base / 2;
@@ -523,27 +513,27 @@ void cps_state::fcrash_render_sprites( bitmap_ind16 &bitmap, const rectangle &cl
 			ypos   = 256 - ypos - 16;
 			xpos   = xpos + m_sprite_x_offset + 49;
 
-			pdrawgfx_transpen(bitmap, cliprect, machine().gfx[2], tileno, colour, flipx, flipy, xpos, ypos, machine().priority_bitmap, 0x02, 15);
+			pdrawgfx_transpen(bitmap, cliprect, machine().gfx[2], tileno, colour, flipx, flipy, xpos, ypos, screen.priority(), 0x02, 15);
 		}
 	}
 }
 
-void cps_state::fcrash_render_layer( bitmap_ind16 &bitmap, const rectangle &cliprect, int layer, int primask )
+void cps_state::fcrash_render_layer( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int layer, int primask )
 {
 	switch (layer)
 	{
 		case 0:
-			fcrash_render_sprites(bitmap, cliprect);
+			fcrash_render_sprites(screen, bitmap, cliprect);
 			break;
 		case 1:
 		case 2:
 		case 3:
-			m_bg_tilemap[layer - 1]->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1, primask);
+			m_bg_tilemap[layer - 1]->draw(screen, bitmap, cliprect, TILEMAP_DRAW_LAYER1, primask);
 			break;
 	}
 }
 
-void cps_state::fcrash_render_high_layer( bitmap_ind16 &bitmap, const rectangle &cliprect, int layer )
+void cps_state::fcrash_render_high_layer( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int layer )
 {
 	bitmap_ind16 dummy_bitmap;
 
@@ -555,7 +545,7 @@ void cps_state::fcrash_render_high_layer( bitmap_ind16 &bitmap, const rectangle 
 		case 1:
 		case 2:
 		case 3:
-			m_bg_tilemap[layer - 1]->draw(dummy_bitmap, cliprect, TILEMAP_DRAW_LAYER0, 1);
+			m_bg_tilemap[layer - 1]->draw(screen, dummy_bitmap, cliprect, TILEMAP_DRAW_LAYER0, 1);
 			break;
 	}
 }
@@ -637,28 +627,28 @@ UINT32 cps_state::screen_update_fcrash(screen_device &screen, bitmap_ind16 &bitm
 	/* Blank screen */
 	bitmap.fill(0xbff, cliprect);
 
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 	l0 = (layercontrol >> 0x06) & 03;
 	l1 = (layercontrol >> 0x08) & 03;
 	l2 = (layercontrol >> 0x0a) & 03;
 	l3 = (layercontrol >> 0x0c) & 03;
 
-	fcrash_render_layer(bitmap, cliprect, l0, 0);
+	fcrash_render_layer(screen, bitmap, cliprect, l0, 0);
 
 	if (l1 == 0)
-		fcrash_render_high_layer(bitmap, cliprect, l0);
+		fcrash_render_high_layer(screen, bitmap, cliprect, l0);
 
-	fcrash_render_layer(bitmap, cliprect, l1, 0);
+	fcrash_render_layer(screen, bitmap, cliprect, l1, 0);
 
 	if (l2 == 0)
-		fcrash_render_high_layer(bitmap, cliprect, l1);
+		fcrash_render_high_layer(screen, bitmap, cliprect, l1);
 
-	fcrash_render_layer(bitmap, cliprect, l2, 0);
+	fcrash_render_layer(screen, bitmap, cliprect, l2, 0);
 
 	if (l3 == 0)
-		fcrash_render_high_layer(bitmap, cliprect, l2);
+		fcrash_render_high_layer(screen, bitmap, cliprect, l2);
 
-	fcrash_render_layer(bitmap, cliprect, l3, 0);
+	fcrash_render_layer(screen, bitmap, cliprect, l3, 0);
 
 	return 0;
 }
@@ -1322,12 +1312,12 @@ static INPUT_PORTS_START( sgyxz )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_START3 )
 
 	PORT_START( "EEPROMIN" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
 INPUT_PORTS_END
 
 
@@ -1976,7 +1966,7 @@ static MACHINE_CONFIG_START( dinopic, cps_state )
 
 	MCFG_MACHINE_START_OVERRIDE(cps_state, dinopic)
 
-	MCFG_EEPROM_ADD("eeprom", qsound_eeprom_interface)
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -2143,7 +2133,7 @@ static MACHINE_CONFIG_START( sgyxz, cps_state )
 	MCFG_PALETTE_LENGTH(0xc00)
 	MCFG_VIDEO_START_OVERRIDE(cps_state,cps1)
 
-	MCFG_EEPROM_ADD("eeprom", qsound_eeprom_interface)
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -2221,7 +2211,7 @@ static MACHINE_CONFIG_START( punipic, cps_state )
 
 	MCFG_MACHINE_START_OVERRIDE(cps_state, punipic)
 
-	MCFG_EEPROM_ADD("eeprom", qsound_eeprom_interface)
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -2611,7 +2601,7 @@ static MACHINE_CONFIG_START( slampic, cps_state )
 
 	MCFG_MACHINE_START_OVERRIDE(cps_state, slampic)
 
-	MCFG_EEPROM_ADD("eeprom", qsound_eeprom_interface)
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -2642,19 +2632,6 @@ ROM_START( slampic )
 	ROM_LOAD16_BYTE( "2.bin",      0x100001, 0x80000,  CRC(38063cd8) SHA1(e647433414ff4fdc0b2c4c7036b8995a95289efa) )
 
 	ROM_REGION( 0x600000, "gfx", 0 )
-	ROMX_LOAD( "mb-1m.3a",  0x000000, 0x80000, CRC(41468e06) SHA1(fb365798f2889a20eebaea2393c9c2c8827003c4) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-3m.5a",  0x000002, 0x80000, CRC(f453aa9e) SHA1(24a103dc6f0dc96f8d0f6164ad732909c9cd2d6a) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-2m.4a",  0x000004, 0x80000, CRC(2ffbfea8) SHA1(13e30133664a009686e1114c92b558bdbb91ea32) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-4m.6a",  0x000006, 0x80000, CRC(1eb9841d) SHA1(685da3e011a96b36be9f639a241b2f8f27da4629) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-5m.7a",  0x200000, 0x80000, CRC(506b9dc9) SHA1(933bf2fb9bcc1a408f961f0e7052da80144bddad) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-7m.9a",  0x200002, 0x80000, CRC(aff8c2fb) SHA1(ce37a6d5b1eb58c2d74f23f84ec824c214c93217) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-6m.8a",  0x200004, 0x80000, CRC(b76c70e9) SHA1(c21e255815ec9a985919dbd760ed266c28bd47cd) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-8m.10a", 0x200006, 0x80000, CRC(e60c9556) SHA1(b91c14092aa8dbb0922d96998123ef1970a658f6) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-10m.3c", 0x400000, 0x80000, CRC(97976ff5) SHA1(ec9d3460816ab971a02fbce42960283091777e47) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-12m.5c", 0x400002, 0x80000, CRC(b350a840) SHA1(2b8b996cd08051e7e8e134bff5448775d78058a0) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-11m.4c", 0x400004, 0x80000, CRC(8fb94743) SHA1(294f6182c8a41b640d1f57cb5e3a2abce3b06482) , ROM_GROUPWORD | ROM_SKIP(6) )
-	ROMX_LOAD( "mb-13m.6c", 0x400006, 0x80000, CRC(da810d5f) SHA1(392bbd405244b8c99024c9228cfec6a7ef0accdb) , ROM_GROUPWORD | ROM_SKIP(6) )
-
 	ROMX_LOAD( "9.bin",    0x000000, 0x40000, CRC(dc140351) SHA1(0e69e1c8ded85ba26eb8236449d38ead0243ae78), ROM_SKIP(7) )
 	ROM_CONTINUE(          0x000004, 0x40000)
 	ROMX_LOAD( "8.bin",    0x000001, 0x40000, CRC(9ae88035) SHA1(3329e9582ca052940e115e759bb3d96f4a9c87fa), ROM_SKIP(7) )

@@ -1,5 +1,10 @@
 #include "machine/taitoio.h"
 #include "sound/okim6295.h"
+#include "video/tc0100scn.h"
+#include "video/tc0110pcr.h"
+#include "video/tc0280grd.h"
+#include "video/tc0360pri.h"
+#include "video/tc0480scp.h"
 
 struct f2_tempsprite
 {
@@ -29,6 +34,7 @@ public:
 			m_tc0100scn(*this, "tc0100scn"),
 			m_tc0100scn_1(*this, "tc0100scn_1"),
 			m_tc0100scn_2(*this, "tc0100scn_2"),
+			m_tc0110pcr(*this, "tc0110pcr"),
 			m_tc0360pri(*this, "tc0360pri"),
 			m_tc0280grd(*this, "tc0280grd"),
 			m_tc0430grw(*this, "tc0430grw"),
@@ -94,6 +100,7 @@ public:
 	optional_device<tc0100scn_device> m_tc0100scn;
 	optional_device<tc0100scn_device> m_tc0100scn_1;
 	optional_device<tc0100scn_device> m_tc0100scn_2;
+	optional_device<tc0110pcr_device> m_tc0110pcr;
 	optional_device<tc0360pri_device> m_tc0360pri;
 	optional_device<tc0280grd_device> m_tc0280grd;
 	optional_device<tc0280grd_device> m_tc0430grw;
@@ -164,12 +171,12 @@ public:
 	INTERRUPT_GEN_MEMBER(taitof2_interrupt);
 	void reset_driveout_sound_region();
 	void taitof2_core_vh_start (int sprite_type, int hide, int flip_hide );
-	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int *primasks, int uses_tc360_mixer );
+	void draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int *primasks, int uses_tc360_mixer );
 	void update_spritebanks(  );
 	void taitof2_handle_sprite_buffering(  );
 	void taitof2_update_sprites_active_area(  );
-	void draw_roz_layer( bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 priority);
-	void taito_f2_tc360_spritemixdraw(bitmap_ind16 &dest_bmp, const rectangle &clip, gfx_element *gfx,
+	void draw_roz_layer( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 priority);
+	void taito_f2_tc360_spritemixdraw(screen_device &screen, bitmap_ind16 &dest_bmp, const rectangle &clip, gfx_element *gfx,
 	UINT32 code, UINT32 color, int flipx, int flipy, int sx, int sy, int scalex, int scaley );
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 

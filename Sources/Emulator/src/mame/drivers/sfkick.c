@@ -500,9 +500,6 @@ static MACHINE_CONFIG_START( sfkick, sfkick_state )
 
 	MCFG_I8255A_ADD( "ppi8255", ppi8255_intf )
 
-
-	MCFG_PALETTE_INIT( v9938 )
-
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("ym1", YM2203, MASTER_CLOCK/6)
 	MCFG_YM2203_IRQ_HANDLER(WRITELINE(sfkick_state, irqhandler))

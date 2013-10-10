@@ -94,7 +94,7 @@ To do:
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/okim6295.h"
 #include "sound/st0016.h"
 #include "includes/st0016.h"
@@ -131,7 +131,7 @@ public:
 	optional_shared_ptr<UINT32> m_spriteram;
 	optional_device<st0020_device> m_gdfs_st0020;
 	required_device<cpu_device> m_maincpu;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	DECLARE_WRITE32_MEMBER(darkhors_tmapram_w);
 	DECLARE_WRITE32_MEMBER(darkhors_tmapram2_w);
 	DECLARE_WRITE32_MEMBER(paletteram32_xBBBBBGGGGGRRRRR_dword_w);
@@ -255,11 +255,11 @@ UINT32 darkhors_state::screen_update_darkhors(screen_device &screen, bitmap_ind1
 
 	m_tmap->set_scrollx(0, (m_tmapscroll[0] >> 16) - 5);
 	m_tmap->set_scrolly(0, (m_tmapscroll[0] & 0xffff) - 0xff );
-	if (layers_ctrl & 1)    m_tmap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
+	if (layers_ctrl & 1)    m_tmap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 
 	m_tmap2->set_scrollx(0, (m_tmapscroll2[0] >> 16) - 5);
 	m_tmap2->set_scrolly(0, (m_tmapscroll2[0] & 0xffff) - 0xff );
-	if (layers_ctrl & 2)    m_tmap2->draw(bitmap, cliprect, 0, 0);
+	if (layers_ctrl & 2)    m_tmap2->draw(screen, bitmap, cliprect, 0, 0);
 	if (layers_ctrl & 4)    draw_sprites_darkhors(bitmap,cliprect);
 
 
@@ -294,13 +294,13 @@ WRITE32_MEMBER(darkhors_state::darkhors_eeprom_w)
 	if ( ACCESSING_BITS_24_31 )
 	{
 		// latch the bit
-		m_eeprom->write_bit(data & 0x04000000);
+		m_eeprom->di_write((data & 0x04000000) >> 26);
 
 		// reset line asserted: reset.
-		m_eeprom->set_cs_line((data & 0x01000000) ? CLEAR_LINE : ASSERT_LINE );
+		m_eeprom->cs_write((data & 0x01000000) ? ASSERT_LINE : CLEAR_LINE );
 
 		// clock line asserted: write latch or select next bit to read
-		m_eeprom->set_clock_line((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->clk_write((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 
@@ -474,7 +474,7 @@ static INPUT_PORTS_START( darkhors )
 	PORT_BIT( 0x00100000, IP_ACTIVE_LOW,  IPT_SERVICE  ) PORT_NAME(DEF_STR( Test )) PORT_CODE(KEYCODE_F1) // test
 	PORT_BIT( 0x00200000, IP_ACTIVE_LOW,  IPT_UNKNOWN  )    // door 1
 	PORT_BIT( 0x00400000, IP_ACTIVE_LOW,  IPT_UNKNOWN  )    // door 2
-	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL  ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x00800000, IP_ACTIVE_HIGH, IPT_SPECIAL  ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x01000000, IP_ACTIVE_LOW,  IPT_START1   )    // start
 	PORT_BIT( 0x02000000, IP_ACTIVE_LOW,  IPT_OTHER ) PORT_NAME("P1 Payout") PORT_CODE(KEYCODE_LCONTROL)    // payout
 	PORT_BIT( 0x04000000, IP_ACTIVE_LOW,  IPT_OTHER ) PORT_NAME("P1 Cancel") PORT_CODE(KEYCODE_LALT)        // cancel
@@ -692,7 +692,7 @@ static MACHINE_CONFIG_START( darkhors, darkhors_state )
 	MCFG_CPU_PROGRAM_MAP(darkhors_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", darkhors_state, darkhors_irq, "screen", 0, 1)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_interface_93C46_8bit)
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -733,7 +733,7 @@ static MACHINE_CONFIG_START( jclub2, darkhors_state )
 	MCFG_CPU_PROGRAM_MAP(jclub2_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", darkhors_state, darkhors_irq, "screen", 0, 1)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_interface_93C46_8bit)
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -799,7 +799,7 @@ static MACHINE_CONFIG_START( jclub2o, darkhors_state )
 	MCFG_CPU_IO_MAP(st0016_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", darkhors_state,  irq0_line_hold)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_interface_93C46_8bit)
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)

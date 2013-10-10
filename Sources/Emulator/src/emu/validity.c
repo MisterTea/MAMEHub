@@ -216,6 +216,24 @@ void validity_checker::check_all()
 	validate_core();
 	validate_inlines();
 
+	// if we had warnings or errors, output
+	if (m_errors > 0 || m_warnings > 0)
+	{
+		astring tempstr;
+		output_via_delegate(m_saved_error_output, "Core: %d errors, %d warnings\n", m_errors, m_warnings);
+		if (m_errors > 0)
+		{
+			m_error_text.replace("\n", "\n   ");
+			output_via_delegate(m_saved_error_output, "Errors:\n   %s", m_error_text.cstr());
+		}
+		if (m_warnings > 0)
+		{
+			m_warning_text.replace("\n", "\n   ");
+			output_via_delegate(m_saved_error_output, "Warnings:\n   %s", m_warning_text.cstr());
+		}
+		output_via_delegate(m_saved_error_output, "\n");
+	}
+
 	// then iterate over all drivers and check them
 	m_drivlist.reset();
 	while (m_drivlist.next())
@@ -1094,9 +1112,13 @@ void validity_checker::validate_devices()
 		if (device_map.add(device->tag(), 0, false) == TMERR_DUPLICATE)
 			mame_printf_error("Multiple devices with the same tag '%s' defined\n", device->tag());
 
-		// if we have a ROM region, we must have a shortname
-		if (device->rom_region() != NULL && strcmp(device->shortname(), "") == 0)
-			mame_printf_error("Device has ROM definition but does not have short name defined\n");
+		// all devices must have a shortname
+		if (strcmp(device->shortname(), "") == 0)
+			mame_printf_error("Device does not have short name defined\n");
+
+		// all devices must have a source file defined
+		if (strcmp(device->source(), "") == 0)
+			mame_printf_error("Device does not have source file location defined\n");
 
 		// check for device-specific validity check
 		device->validity_check(*this);

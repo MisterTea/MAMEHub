@@ -339,21 +339,6 @@ READ16_MEMBER(atarisy1_state::trakball_r)
 
 /*************************************
  *
- *  Sound status I/O
- *
- *************************************/
-
-READ16_MEMBER(atarisy1_state::port4_r)
-{
-	int temp = ioport("F60000")->read();
-	if (m_cpu_to_sound_ready) temp ^= 0x0080;
-	return temp;
-}
-
-
-
-/*************************************
- *
  *  Sound input
  *
  *************************************/
@@ -361,11 +346,7 @@ READ16_MEMBER(atarisy1_state::port4_r)
 READ8_MEMBER(atarisy1_state::switch_6502_r)
 {
 	int temp = ioport("1820")->read();
-
-	if (m_cpu_to_sound_ready) temp ^= 0x08;
-	if (m_sound_to_cpu_ready) temp ^= 0x10;
 	if (!(ioport("F60000")->read() & 0x0040)) temp ^= 0x80;
-
 	return temp;
 }
 
@@ -469,19 +450,19 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, atarisy1_state )
 	AM_RANGE(0x860000, 0x860001) AM_WRITE(atarisy1_bankselect_w) AM_SHARE("bankselect")
 	AM_RANGE(0x880000, 0x880001) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x8a0000, 0x8a0001) AM_WRITE(video_int_ack_w)
-	AM_RANGE(0x8c0000, 0x8c0001) AM_WRITE(eeprom_enable_w)
+	AM_RANGE(0x8c0000, 0x8c0001) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
 	AM_RANGE(0x900000, 0x9fffff) AM_RAM
-	AM_RANGE(0xa00000, 0xa01fff) AM_RAM_WRITE(playfield_w) AM_SHARE("playfield")
-	AM_RANGE(0xa02000, 0xa02fff) AM_READ_LEGACY(atarimo_0_spriteram_r) AM_WRITE(atarisy1_spriteram_w)
-	AM_RANGE(0xa03000, 0xa03fff) AM_RAM_WRITE(alpha_w) AM_SHARE("alpha")
+	AM_RANGE(0xa00000, 0xa01fff) AM_RAM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
+	AM_RANGE(0xa02000, 0xa02fff) AM_RAM_WRITE(atarisy1_spriteram_w) AM_SHARE("mob")
+	AM_RANGE(0xa03000, 0xa03fff) AM_RAM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
 	AM_RANGE(0xb00000, 0xb007ff) AM_RAM_WRITE(paletteram_IIIIRRRRGGGGBBBB_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0xf00000, 0xf00fff) AM_READWRITE(eeprom_r, eeprom_w) AM_SHARE("eeprom")
+	AM_RANGE(0xf00000, 0xf00fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
 	AM_RANGE(0xf20000, 0xf20007) AM_READ(trakball_r)
 	AM_RANGE(0xf40000, 0xf4001f) AM_READWRITE(joystick_r, joystick_w)
-	AM_RANGE(0xf60000, 0xf60003) AM_READ(port4_r)
-	AM_RANGE(0xf80000, 0xf80001) AM_WRITE8(sound_w, 0x00ff) /* used by roadbls2 */
-	AM_RANGE(0xfc0000, 0xfc0001) AM_READ8(sound_r, 0x00ff)
-	AM_RANGE(0xfe0000, 0xfe0001) AM_WRITE8(sound_w, 0x00ff)
+	AM_RANGE(0xf60000, 0xf60003) AM_READ_PORT("F60000")
+	AM_RANGE(0xf80000, 0xf80001) AM_DEVWRITE8("soundcomm", atari_sound_comm_device, main_command_w, 0x00ff) /* used by roadbls2 */
+	AM_RANGE(0xfc0000, 0xfc0001) AM_DEVREAD8("soundcomm", atari_sound_comm_device, main_response_r, 0x00ff)
+	AM_RANGE(0xfe0000, 0xfe0001) AM_DEVWRITE8("soundcomm", atari_sound_comm_device, main_command_w, 0x00ff)
 ADDRESS_MAP_END
 
 
@@ -496,7 +477,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, atarisy1_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM
 	AM_RANGE(0x1000, 0x100f) AM_DEVREADWRITE("via6522_0", via6522_device, read, write)
 	AM_RANGE(0x1800, 0x1801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0x1810, 0x1810) AM_READWRITE(m6502_sound_r, m6502_sound_w)
+	AM_RANGE(0x1810, 0x1810) AM_DEVREADWRITE("soundcomm", atari_sound_comm_device, sound_command_r, sound_response_w)
 	AM_RANGE(0x1820, 0x1820) AM_READ(switch_6502_r)
 	AM_RANGE(0x1824, 0x1825) AM_WRITE(led_w)
 	AM_RANGE(0x1870, 0x187f) AM_DEVREADWRITE("pokey", pokey_device, read, write)
@@ -532,15 +513,15 @@ static INPUT_PORTS_START( marble )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("1820")  /* 1820 (sound) */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_SPECIAL )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
 INPUT_PORTS_END
@@ -571,15 +552,15 @@ static INPUT_PORTS_START( peterpak )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("1820")  /* 1820 (sound) */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_SPECIAL )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
 INPUT_PORTS_END
@@ -610,15 +591,15 @@ static INPUT_PORTS_START( indytemp )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("1820")  /* 1820 (sound) */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_SPECIAL )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
 INPUT_PORTS_END
@@ -658,15 +639,15 @@ static INPUT_PORTS_START( roadrunn )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("1820")  /* 1820 (sound) */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_SPECIAL )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
 INPUT_PORTS_END
@@ -693,15 +674,15 @@ static INPUT_PORTS_START( roadblst )
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("1820")  /* 1820 (sound) */
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 )
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_SPECIAL )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL )
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_ATARI_COMM_SOUND_TO_MAIN_READY("soundcomm")
 	PORT_BIT( 0x60, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_SPECIAL )
 INPUT_PORTS_END
@@ -750,7 +731,8 @@ static MACHINE_CONFIG_START( atarisy1, atarisy1_state )
 
 	MCFG_MACHINE_START_OVERRIDE(atarisy1_state,atarisy1)
 	MCFG_MACHINE_RESET_OVERRIDE(atarisy1_state,atarisy1)
-	MCFG_NVRAM_ADD_1FILL("eeprom")
+
+	MCFG_ATARI_EEPROM_2804_ADD("eeprom")
 
 	MCFG_TIMER_DRIVER_ADD("joystick_timer", atarisy1_state, delayed_joystick_int)
 	MCFG_TIMER_DRIVER_ADD("scan_timer", atarisy1_state, atarisy1_int3_callback)
@@ -762,6 +744,11 @@ static MACHINE_CONFIG_START( atarisy1, atarisy1_state )
 	MCFG_GFXDECODE(atarisy1)
 	MCFG_PALETTE_LENGTH(1024)
 
+	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, atarisy1_state, get_playfield_tile_info, 8,8, SCAN_ROWS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, atarisy1_state, get_alpha_tile_info, 8,8, SCAN_ROWS, 64,32, 0)
+
+	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", atarisy1_state::s_mob_config)
+
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */
 	/* video timing comes from an 82S163 (H) and an 82S129 (V) */
@@ -771,10 +758,11 @@ static MACHINE_CONFIG_START( atarisy1, atarisy1_state )
 	MCFG_VIDEO_START_OVERRIDE(atarisy1_state,atarisy1)
 
 	/* sound hardware */
+	MCFG_ATARI_SOUND_COMM_ADD("soundcomm", "audiocpu", WRITELINE(atarigen_state, sound_int_write_line))
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_YM2151_ADD("ymsnd", ATARI_CLOCK_14MHz/4)
-	MCFG_YM2151_IRQ_HANDLER(WRITELINE(atarigen_state, ym2151_irq_gen))
+	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("soundcomm", atari_sound_comm_device, ym2151_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.80)
 

@@ -10,6 +10,7 @@
 
 #include "emu.h"
 #include "upd7002.h"
+#include "devlegcy.h"
 
 
 struct uPD7002_t
@@ -211,7 +212,7 @@ static DEVICE_RESET( uPD7002 )
 const device_type UPD7002 = &device_creator<uPD7002_device>;
 
 uPD7002_device::uPD7002_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, UPD7002, "uPD7002", tag, owner, clock)
+	: device_t(mconfig, UPD7002, "uPD7002", tag, owner, clock, "upd7002", __FILE__)
 {
 	m_token = global_alloc_clear(uPD7002_t);
 }

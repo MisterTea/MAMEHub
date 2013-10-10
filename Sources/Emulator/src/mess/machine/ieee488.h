@@ -58,10 +58,10 @@
 	downcast<ieee488_device *>(device)->set_ren_callback(DEVCB2_##_write);
 
 
-#define MCFG_IEEE488_SLOT_ADD(_tag, _num, _slot_intf, _def_slot) \
+#define MCFG_IEEE488_SLOT_ADD(_tag, _address, _slot_intf, _def_slot) \
 	MCFG_DEVICE_ADD(_tag, IEEE488_SLOT, 0) \
 	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false) \
-	ieee488_slot_device::static_set_slot(*device, _num);
+	downcast<ieee488_slot_device *>(device)->set_address(_address);
 
 
 
@@ -71,6 +71,7 @@
 
 // ======================> ieee488_device
 
+class ieee488_slot_device;
 class device_ieee488_interface;
 
 class ieee488_device : public device_t
@@ -88,42 +89,42 @@ public:
 	template<class _write> void set_atn_callback(_write wr) { m_write_atn.set_callback(wr); }
 	template<class _write> void set_ren_callback(_write wr) { m_write_ren.set_callback(wr); }
 
-	void add_device(device_t *target, int address);
+	void add_device(ieee488_slot_device *slot, device_t *target);
 
 	// reads for both host and peripherals
-	UINT8 dio_r();
-	DECLARE_READ8_MEMBER( dio_r );
-	DECLARE_READ_LINE_MEMBER( eoi_r );
-	DECLARE_READ_LINE_MEMBER( dav_r );
-	DECLARE_READ_LINE_MEMBER( nrfd_r );
-	DECLARE_READ_LINE_MEMBER( ndac_r );
-	DECLARE_READ_LINE_MEMBER( ifc_r );
-	DECLARE_READ_LINE_MEMBER( srq_r );
-	DECLARE_READ_LINE_MEMBER( atn_r );
-	DECLARE_READ_LINE_MEMBER( ren_r );
+	UINT8 dio_r() { return get_data(); }
+	DECLARE_READ8_MEMBER( dio_r ) { return get_data(); }
+	DECLARE_READ_LINE_MEMBER( eoi_r ) { return get_signal(EOI); }
+	DECLARE_READ_LINE_MEMBER( dav_r ) { return get_signal(DAV); }
+	DECLARE_READ_LINE_MEMBER( nrfd_r ) { return get_signal(NRFD); }
+	DECLARE_READ_LINE_MEMBER( ndac_r ) { return get_signal(NDAC); }
+	DECLARE_READ_LINE_MEMBER( ifc_r ) { return get_signal(IFC); }
+	DECLARE_READ_LINE_MEMBER( srq_r ) { return get_signal(SRQ); }
+	DECLARE_READ_LINE_MEMBER( atn_r ) { return get_signal(ATN); }
+	DECLARE_READ_LINE_MEMBER( ren_r ) { return get_signal(REN); }
 
 	// writes for host (driver_device)
-	void dio_w(UINT8 data);
-	DECLARE_WRITE8_MEMBER( dio_w );
-	DECLARE_WRITE_LINE_MEMBER( eoi_w );
-	DECLARE_WRITE_LINE_MEMBER( dav_w );
-	DECLARE_WRITE_LINE_MEMBER( nrfd_w );
-	DECLARE_WRITE_LINE_MEMBER( ndac_w );
-	DECLARE_WRITE_LINE_MEMBER( ifc_w );
-	DECLARE_WRITE_LINE_MEMBER( srq_w );
-	DECLARE_WRITE_LINE_MEMBER( atn_w );
-	DECLARE_WRITE_LINE_MEMBER( ren_w );
+	void dio_w(UINT8 data) { return set_data(this, data); }
+	DECLARE_WRITE8_MEMBER( dio_w ) { set_data(this, data); }
+	DECLARE_WRITE_LINE_MEMBER( eoi_w ) { set_signal(this, EOI, state); }
+	DECLARE_WRITE_LINE_MEMBER( dav_w ) { set_signal(this, DAV, state); }
+	DECLARE_WRITE_LINE_MEMBER( nrfd_w ) { set_signal(this, NRFD, state); }
+	DECLARE_WRITE_LINE_MEMBER( ndac_w ) { set_signal(this, NDAC, state); }
+	DECLARE_WRITE_LINE_MEMBER( ifc_w ) { set_signal(this, IFC, state); }
+	DECLARE_WRITE_LINE_MEMBER( srq_w ) { set_signal(this, SRQ, state); }
+	DECLARE_WRITE_LINE_MEMBER( atn_w ) { set_signal(this, ATN, state); }
+	DECLARE_WRITE_LINE_MEMBER( ren_w ) { set_signal(this, REN, state); }
 
 	// writes for peripherals (device_t)
-	void dio_w(device_t *device, UINT8 data);
-	void eoi_w(device_t *device, int state);
-	void dav_w(device_t *device, int state);
-	void nrfd_w(device_t *device, int state);
-	void ndac_w(device_t *device, int state);
-	void ifc_w(device_t *device, int state);
-	void srq_w(device_t *device, int state);
-	void atn_w(device_t *device, int state);
-	void ren_w(device_t *device, int state);
+	void dio_w(device_t *device, UINT8 data) { set_data(device, data); }
+	void eoi_w(device_t *device, int state) { set_signal(device, EOI, state); }
+	void dav_w(device_t *device, int state) { set_signal(device, DAV, state); }
+	void nrfd_w(device_t *device, int state) { set_signal(device, NRFD, state); }
+	void ndac_w(device_t *device, int state) { set_signal(device, NDAC, state); }
+	void ifc_w(device_t *device, int state) { set_signal(device, IFC, state); }
+	void srq_w(device_t *device, int state) { set_signal(device, SRQ, state); }
+	void atn_w(device_t *device, int state) { set_signal(device, ATN, state); }
+	void ren_w(device_t *device, int state) { set_signal(device, REN, state); }
 
 protected:
 	enum
@@ -169,10 +170,10 @@ private:
 	devcb2_write_line   m_write_atn;
 	devcb2_write_line   m_write_ren;
 
-	inline void set_signal(device_t *device, int signal, int state);
-	inline int get_signal(int signal);
-	inline void set_data(device_t *device, UINT8 data);
-	inline UINT8 get_data();
+	void set_signal(device_t *device, int signal, int state);
+	int get_signal(int signal);
+	void set_data(device_t *device, UINT8 data);
+	UINT8 get_data();
 
 	int m_line[SIGNAL_COUNT];
 	UINT8 m_dio;
@@ -188,14 +189,13 @@ public:
 	// construction/destruction
 	ieee488_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
+	void set_address(int address) { m_address = address; }
+	int get_address() { return m_address; }
+
 	// device-level overrides
 	virtual void device_start();
 
-	// inline configuration
-	static void static_set_slot(device_t &device, int address);
-
-private:
-	// configuration
+protected:
 	int m_address;
 };
 
@@ -224,8 +224,8 @@ public:
 	virtual void ieee488_atn(int state) { };
 	virtual void ieee488_ren(int state) { };
 
-	ieee488_device  *m_bus;
-	int m_address;
+	ieee488_device *m_bus;
+	ieee488_slot_device *m_slot;
 };
 
 

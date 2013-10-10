@@ -170,6 +170,76 @@ enum
 	MMX_MM7=X87_ST7
 };
 
+enum smram
+{
+	SMRAM_SMBASE = 0xF8,
+	SMRAM_SMREV  = 0xFC,
+	SMRAM_IORSRT = 0x100,
+	SMRAM_AHALT  = 0x102,
+	SMRAM_IOEDI  = 0x104,
+	SMRAM_IOECX  = 0x108,
+	SMRAM_IOESI  = 0x10C,
+
+	SMRAM_ES     = 0x1A8,
+	SMRAM_CS     = 0x1AC,
+	SMRAM_SS     = 0x1B0,
+	SMRAM_DS     = 0x1B4,
+	SMRAM_FS     = 0x1B8,
+	SMRAM_GS     = 0x1BC,
+	SMRAM_LDTR   = 0x1C0,
+	SMRAM_TR     = 0x1C4,
+	SMRAM_DR7    = 0x1C8,
+	SMRAM_DR6    = 0x1CC,
+	SMRAM_EAX    = 0x1D0,
+	SMRAM_ECX    = 0x1D4,
+	SMRAM_EDX    = 0x1D8,
+	SMRAM_EBX    = 0x1DC,
+	SMRAM_ESP    = 0x1E0,
+	SMRAM_EBP    = 0x1E4,
+	SMRAM_ESI    = 0x1E8,
+	SMRAM_EDI    = 0x1EC,
+	SMRAM_EIP    = 0x1F0,
+	SMRAM_EFLAGS = 0x1F4,
+	SMRAM_CR3    = 0x1F8,
+	SMRAM_CR0    = 0x1FC,
+};
+
+enum smram_intel_p5
+{
+	SMRAM_IP5_IOEIP   = 0x110,
+	SMRAM_IP5_CR4     = 0x128,
+	SMRAM_IP5_ESLIM   = 0x130,
+	SMRAM_IP5_ESBASE  = 0x134,
+	SMRAM_IP5_ESACC   = 0x138,
+	SMRAM_IP5_CSLIM   = 0x13C,
+	SMRAM_IP5_CSBASE  = 0x140,
+	SMRAM_IP5_CSACC   = 0x144,
+	SMRAM_IP5_SSLIM   = 0x148,
+	SMRAM_IP5_SSBASE  = 0x14C,
+	SMRAM_IP5_SSACC   = 0x150,
+	SMRAM_IP5_DSLIM   = 0x154,
+	SMRAM_IP5_DSBASE  = 0x158,
+	SMRAM_IP5_DSACC   = 0x15C,
+	SMRAM_IP5_FSLIM   = 0x160,
+	SMRAM_IP5_FSBASE  = 0x164,
+	SMRAM_IP5_FSACC   = 0x168,
+	SMRAM_IP5_GSLIM   = 0x16C,
+	SMRAM_IP5_GSBASE  = 0x170,
+	SMRAM_IP5_GSACC   = 0x174,
+	SMRAM_IP5_LDTLIM  = 0x178,
+	SMRAM_IP5_LDTBASE = 0x17C,
+	SMRAM_IP5_LDTACC  = 0x180,
+	SMRAM_IP5_GDTLIM  = 0x184,
+	SMRAM_IP5_GDTBASE = 0x188,
+	SMRAM_IP5_GDTACC  = 0x18C,
+	SMRAM_IP5_IDTLIM  = 0x190,
+	SMRAM_IP5_IDTBASE = 0x194,
+	SMRAM_IP5_IDTACC  = 0x198,
+	SMRAM_IP5_TRLIM   = 0x19C,
+	SMRAM_IP5_TRBASE  = 0x1A0,
+	SMRAM_IP5_TRACC   = 0x1A4,
+};
+
 /* Protected mode exceptions */
 #define FAULT_UD 6   // Invalid Opcode
 #define FAULT_NM 7   // Coprocessor not available
@@ -236,19 +306,29 @@ union I386_GPR {
 	UINT8 b[32];
 };
 
-union X87_REG {
-	UINT64 i;
-	double f;
+union MMX_REG {
+	UINT32 d[2];
+	INT32  i[2];
+	UINT16 w[4];
+	INT16  s[4];
+	UINT8  b[8];
+	INT8   c[8];
+	float  f[2];
+	UINT64 q;
+	INT64  l;
 };
 
-typedef UINT64 MMX_REG;
-
 union XMM_REG {
-	UINT32 d[4];
+	UINT8  b[16];
 	UINT16 w[8];
-	UINT8 b[16];
+	UINT32 d[4];
 	UINT64 q[2];
-	float f[4];
+	INT8   c[16];
+	INT16  s[8];
+	INT32  i[4];
+	INT64  l[2];
+	float  f[4];
+	double  f64[2];
 };
 
 struct i386_state
@@ -363,6 +443,14 @@ struct i386_state
 
 	vtlb_state *vtlb;
 
+	bool smm;
+	bool smi;
+	bool smi_latched;
+	bool nmi_masked;
+	bool nmi_latched;
+	UINT32 smbase;
+	devcb_resolved_write_line smiact;
+
 	// bytes in current opcode, debug only
 #ifdef DEBUG_MISSING_OPCODE
 	UINT8 opcode_bytes[16];
@@ -420,7 +508,7 @@ static int i386_limit_check(i386_state *cpustate, int seg, UINT32 offset);
 #define SetSZPF16(x)        {cpustate->ZF = ((UINT16)(x)==0);  cpustate->SF = ((x)&0x8000) ? 1 : 0; cpustate->PF = i386_parity_table[x & 0xFF]; }
 #define SetSZPF32(x)        {cpustate->ZF = ((UINT32)(x)==0);  cpustate->SF = ((x)&0x80000000) ? 1 : 0; cpustate->PF = i386_parity_table[x & 0xFF]; }
 
-#define MMX(n)              cpustate->fpu_reg[(n)].i
+#define MMX(n)              (*((MMX_REG *)(&cpustate->x87_reg[(n)].low)))
 #define XMM(n)              cpustate->sse_reg[(n)]
 
 /***********************************************************************************/
@@ -658,8 +746,8 @@ INLINE UINT16 FETCH16(i386_state *cpustate)
 	UINT32 address = cpustate->pc, error;
 
 	if( address & 0x1 ) {       /* Unaligned read */
-		value = (FETCH(cpustate) << 0) |
-				(FETCH(cpustate) << 8);
+		value = (FETCH(cpustate) << 0);
+		value |= (FETCH(cpustate) << 8);
 	} else {
 		if(!translate_address(cpustate,cpustate->CPL,TRANSLATE_FETCH,&address,&error))
 			PF_THROW(error);
@@ -676,10 +764,10 @@ INLINE UINT32 FETCH32(i386_state *cpustate)
 	UINT32 address = cpustate->pc, error;
 
 	if( cpustate->pc & 0x3 ) {      /* Unaligned read */
-		value = (FETCH(cpustate) << 0) |
-				(FETCH(cpustate) << 8) |
-				(FETCH(cpustate) << 16) |
-				(FETCH(cpustate) << 24);
+		value = (FETCH(cpustate) << 0);
+		value |= (FETCH(cpustate) << 8);
+		value |= (FETCH(cpustate) << 16);
+		value |= (FETCH(cpustate) << 24);
 	} else {
 		if(!translate_address(cpustate,cpustate->CPL,TRANSLATE_FETCH,&address,&error))
 			PF_THROW(error);
@@ -708,8 +796,8 @@ INLINE UINT16 READ16(i386_state *cpustate,UINT32 ea)
 	UINT32 address = ea, error;
 
 	if( ea & 0x1 ) {        /* Unaligned read */
-		value = (READ8( cpustate, address+0 ) << 0) |
-				(READ8( cpustate, address+1 ) << 8);
+		value = (READ8( cpustate, address+0 ) << 0);
+		value |= (READ8( cpustate, address+1 ) << 8);
 	} else {
 		if(!translate_address(cpustate,cpustate->CPL,TRANSLATE_READ,&address,&error))
 			PF_THROW(error);
@@ -725,10 +813,10 @@ INLINE UINT32 READ32(i386_state *cpustate,UINT32 ea)
 	UINT32 address = ea, error;
 
 	if( ea & 0x3 ) {        /* Unaligned read */
-		value = (READ8( cpustate, address+0 ) << 0) |
-				(READ8( cpustate, address+1 ) << 8) |
-				(READ8( cpustate, address+2 ) << 16) |
-				(READ8( cpustate, address+3 ) << 24);
+		value = (READ8( cpustate, address+0 ) << 0);
+		value |= (READ8( cpustate, address+1 ) << 8);
+		value |= (READ8( cpustate, address+2 ) << 16),
+		value |= (READ8( cpustate, address+3 ) << 24);
 	} else {
 		if(!translate_address(cpustate,cpustate->CPL,TRANSLATE_READ,&address,&error))
 			PF_THROW(error);
@@ -745,21 +833,21 @@ INLINE UINT64 READ64(i386_state *cpustate,UINT32 ea)
 	UINT32 address = ea, error;
 
 	if( ea & 0x7 ) {        /* Unaligned read */
-		value = (((UINT64) READ8( cpustate, address+0 )) << 0) |
-				(((UINT64) READ8( cpustate, address+1 )) << 8) |
-				(((UINT64) READ8( cpustate, address+2 )) << 16) |
-				(((UINT64) READ8( cpustate, address+3 )) << 24) |
-				(((UINT64) READ8( cpustate, address+4 )) << 32) |
-				(((UINT64) READ8( cpustate, address+5 )) << 40) |
-				(((UINT64) READ8( cpustate, address+6 )) << 48) |
-				(((UINT64) READ8( cpustate, address+7 )) << 56);
+		value = (((UINT64) READ8( cpustate, address+0 )) << 0);
+		value |= (((UINT64) READ8( cpustate, address+1 )) << 8);
+		value |= (((UINT64) READ8( cpustate, address+2 )) << 16);
+		value |= (((UINT64) READ8( cpustate, address+3 )) << 24);
+		value |= (((UINT64) READ8( cpustate, address+4 )) << 32);
+		value |= (((UINT64) READ8( cpustate, address+5 )) << 40);
+		value |= (((UINT64) READ8( cpustate, address+6 )) << 48);
+		value |= (((UINT64) READ8( cpustate, address+7 )) << 56);
 	} else {
 		if(!translate_address(cpustate,cpustate->CPL,TRANSLATE_READ,&address,&error))
 			PF_THROW(error);
 
 		address &= cpustate->a20_mask;
-		value = (((UINT64) cpustate->program->read_dword( address+0 )) << 0) |
-				(((UINT64) cpustate->program->read_dword( address+4 )) << 32);
+		value = (((UINT64) cpustate->program->read_dword( address+0 )) << 0);
+		value |= (((UINT64) cpustate->program->read_dword( address+4 )) << 32);
 	}
 	return value;
 }
@@ -779,8 +867,8 @@ INLINE UINT16 READ16PL0(i386_state *cpustate,UINT32 ea)
 	UINT32 address = ea, error;
 
 	if( ea & 0x1 ) {        /* Unaligned read */
-		value = (READ8PL0( cpustate, address+0 ) << 0) |
-				(READ8PL0( cpustate, address+1 ) << 8);
+		value = (READ8PL0( cpustate, address+0 ) << 0);
+		value |= (READ8PL0( cpustate, address+1 ) << 8);
 	} else {
 		if(!translate_address(cpustate,0,TRANSLATE_READ,&address,&error))
 			PF_THROW(error);
@@ -790,16 +878,17 @@ INLINE UINT16 READ16PL0(i386_state *cpustate,UINT32 ea)
 	}
 	return value;
 }
+
 INLINE UINT32 READ32PL0(i386_state *cpustate,UINT32 ea)
 {
 	UINT32 value;
 	UINT32 address = ea, error;
 
 	if( ea & 0x3 ) {        /* Unaligned read */
-		value = (READ8PL0( cpustate, address+0 ) << 0) |
-				(READ8PL0( cpustate, address+1 ) << 8) |
-				(READ8PL0( cpustate, address+2 ) << 16) |
-				(READ8PL0( cpustate, address+3 ) << 24);
+		value = (READ8PL0( cpustate, address+0 ) << 0);
+		value |= (READ8PL0( cpustate, address+1 ) << 8);
+		value |= (READ8PL0( cpustate, address+2 ) << 16);
+		value |= (READ8PL0( cpustate, address+3 ) << 24);
 	} else {
 		if(!translate_address(cpustate,0,TRANSLATE_READ,&address,&error))
 			PF_THROW(error);
@@ -1225,8 +1314,9 @@ INLINE UINT16 READPORT16(i386_state *cpustate, offs_t port)
 {
 	if (port & 1)
 	{
-		return  READPORT8(cpustate, port) |
-				(READPORT8(cpustate, port + 1) << 8);
+		UINT16 value = READPORT8(cpustate, port);
+		value |= (READPORT8(cpustate, port + 1) << 8);
+		return value;
 	}
 	else
 	{
@@ -1253,10 +1343,11 @@ INLINE UINT32 READPORT32(i386_state *cpustate, offs_t port)
 {
 	if (port & 3)
 	{
-		return  READPORT8(cpustate, port) |
-				(READPORT8(cpustate, port + 1) << 8) |
-				(READPORT8(cpustate, port + 2) << 16) |
-				(READPORT8(cpustate, port + 3) << 24);
+		UINT32 value = READPORT8(cpustate, port);
+		value |= (READPORT8(cpustate, port + 1) << 8);
+		value |= (READPORT8(cpustate, port + 2) << 16);
+		value |= (READPORT8(cpustate, port + 3) << 24);
+		return value;
 	}
 	else
 	{

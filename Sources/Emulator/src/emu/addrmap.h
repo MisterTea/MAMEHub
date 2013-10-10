@@ -440,10 +440,6 @@ void _class :: _name(::address_map &map, device_t &device) \
 // legacy space writes
 #define AM_WRITE_LEGACY(_handler) \
 	curentry->set_handler(_handler, #_handler);
-#define AM_WRITE8_LEGACY(_handler, _unitmask) \
-	curentry->set_handler(_handler, #_handler, _unitmask);
-
-
 
 // legacy space reads/writes
 #define AM_READWRITE_LEGACY(_rhandler, _whandler) \
@@ -456,17 +452,10 @@ void _class :: _name(::address_map &map, device_t &device) \
 // legacy device reads
 #define AM_DEVREAD_LEGACY(_tag, _handler) \
 	curentry->set_handler(device, read_delegate(&_handler, #_handler, _tag, (device_t *)0));
-#define AM_DEVREAD8_LEGACY(_tag, _handler, _unitmask) \
-	curentry->set_handler(device, read8_delegate(&_handler, #_handler, _tag, (device_t *)0), _unitmask);
-
-
 
 // legacy device writes
 #define AM_DEVWRITE_LEGACY(_tag, _handler) \
 	curentry->set_handler(device, write_delegate(&_handler, #_handler, _tag, (device_t *)0));
-#define AM_DEVWRITE8_LEGACY(_tag, _handler, _unitmask) \
-	curentry->set_handler(device, write8_delegate(&_handler, #_handler, _tag, (device_t *)0), _unitmask);
-
 
 // legacy device reads/writes
 #define AM_DEVREADWRITE_LEGACY(_tag, _rhandler, _whandler) \
@@ -600,11 +589,6 @@ void _class :: _name(::address_map &map, device_t &device) \
 #define AM_RAM_WRITE(_write)                AM_READONLY AM_WRITE(_write)
 #define AM_RAM_DEVREAD(_tag, _class, _read) AM_DEVREAD(_tag, _class, _read) AM_WRITEONLY
 #define AM_RAM_DEVWRITE(_tag, _class, _write) AM_READONLY AM_DEVWRITE(_tag, _class, _write)
-
-#define AM_RAM_WRITE_LEGACY(_write)         AM_READONLY AM_WRITE_LEGACY(_write)
-#define AM_RAM_DEVWRITE_LEGACY(_tag, _write) AM_READONLY AM_DEVWRITE_LEGACY(_tag, _write)
-
-
 
 
 //**************************************************************************

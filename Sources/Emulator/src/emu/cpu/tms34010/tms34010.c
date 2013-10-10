@@ -1071,17 +1071,16 @@ void tms34010_get_display_params(device_t *cpu, tms34010_display_params *params)
 	}
 }
 
-
-SCREEN_UPDATE_IND16( tms340x0_ind16 )
+UINT32 tms34010_device::tms340x0_ind16(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	pen_t blackpen = get_black_pen(screen.machine());
+	pen_t blackpen = get_black_pen(machine());
 	tms34010_display_params params;
 	tms34010_state *tms = NULL;
 	device_t *cpu;
 	int x;
 
 	/* find the owning CPU */
-	device_iterator iter(screen.machine().root_device());
+	device_iterator iter(machine().root_device());
 	for (cpu = iter.first(); cpu != NULL; cpu = iter.next())
 	{
 		device_type type = cpu->type();
@@ -1121,16 +1120,16 @@ SCREEN_UPDATE_IND16( tms340x0_ind16 )
 
 }
 
-SCREEN_UPDATE_RGB32( tms340x0_rgb32 )
+UINT32 tms34010_device::tms340x0_rgb32(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	pen_t blackpen = get_black_pen(screen.machine());
+	pen_t blackpen = get_black_pen(machine());
 	tms34010_display_params params;
 	tms34010_state *tms = NULL;
 	device_t *cpu;
 	int x;
 
 	/* find the owning CPU */
-	device_iterator iter(screen.machine().root_device());
+	device_iterator iter(machine().root_device());
 	for (cpu = iter.first(); cpu != NULL; cpu = iter.next())
 	{
 		device_type type = cpu->type();
@@ -1791,6 +1790,7 @@ CPU_GET_INFO( tms34010 )
 
 		/* --- the following bits of info are returned as NULL-terminated strings --- */
 		case CPUINFO_STR_NAME:                          strcpy(info->s, "TMS34010");        break;
+		case CPUINFO_STR_SHORTNAME:                     strcpy(info->s, "tms34010");        break;
 		case CPUINFO_STR_FAMILY:                    strcpy(info->s, "Texas Instruments 340x0"); break;
 		case CPUINFO_STR_VERSION:                   strcpy(info->s, "1.0");             break;
 		case CPUINFO_STR_SOURCE_FILE:                       strcpy(info->s, __FILE__);          break;
@@ -1816,10 +1816,29 @@ CPU_GET_INFO( tms34020 )
 
 		/* --- the following bits of info are returned as NULL-terminated strings --- */
 		case CPUINFO_STR_NAME:                          strcpy(info->s, "TMS34020");        break;
+		case CPUINFO_STR_SHORTNAME:                     strcpy(info->s, "tms34020");        break;
 
 		default:                                        CPU_GET_INFO_CALL(tms34010);        break;
 	}
 }
 
-DEFINE_LEGACY_CPU_DEVICE(TMS34010, tms34010);
-DEFINE_LEGACY_CPU_DEVICE(TMS34020, tms34020);
+tms34010_device::tms34010_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock)
+	: legacy_cpu_device(mconfig, type, tag, owner, clock, CPU_GET_INFO_NAME(tms34010))
+{
+}
+
+tms34010_device::tms34010_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock, cpu_get_info_func get_info)
+	: legacy_cpu_device(mconfig, type, tag, owner, clock, get_info)
+{
+}
+
+const device_type TMS34010 = &legacy_device_creator<tms34010_device>;
+
+
+
+tms34020_device::tms34020_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, UINT32 clock)
+	: tms34010_device(mconfig, type, tag, owner, clock, CPU_GET_INFO_NAME(tms34020))
+{
+}
+
+const device_type TMS34020 = &legacy_device_creator<tms34020_device>;

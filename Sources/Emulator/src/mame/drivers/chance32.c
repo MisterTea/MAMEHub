@@ -109,8 +109,8 @@ UINT32 chance32_state::screen_update_chance32(screen_device &screen, bitmap_ind1
 	m_fg_tilemap->set_scrollx(0, 352);
 	m_fg_tilemap->set_scrolly(0, 160);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
 }
@@ -448,7 +448,6 @@ void chance32_state::machine_reset()
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	16,         /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -480,7 +479,7 @@ static MACHINE_CONFIG_START( chance32, chance32_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 35*16-1, 0, 29*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(chance32_state, screen_update_chance32)
 
-	MCFG_MC6845_ADD("crtc", H46505, 12000000/16, mc6845_intf)   /* 52.786 Hz (similar to Major Poker) */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", 12000000/16, mc6845_intf)   /* 52.786 Hz (similar to Major Poker) */
 
 	MCFG_GFXDECODE(chance32)
 	MCFG_PALETTE_LENGTH(0x800)

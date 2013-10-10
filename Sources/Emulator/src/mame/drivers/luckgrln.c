@@ -359,10 +359,10 @@ UINT32 luckgrln_state::screen_update_luckgrln(screen_device &screen, bitmap_ind1
 #if 0 // treat bit as fg enable
 			if (tileattr&0x04)
 			{
-				if (bgenable==0) m_reel1_tilemap->draw(bitmap, clip, 0, 0);
-				if (bgenable==1) m_reel2_tilemap->draw(bitmap, clip, 0, 0);
-				if (bgenable==2) m_reel3_tilemap->draw(bitmap, clip, 0, 0);
-				if (bgenable==3) m_reel4_tilemap->draw(bitmap, clip, 0, 0);
+				if (bgenable==0) m_reel1_tilemap->draw(screen, bitmap, clip, 0, 0);
+				if (bgenable==1) m_reel2_tilemap->draw(screen, bitmap, clip, 0, 0);
+				if (bgenable==2) m_reel3_tilemap->draw(screen, bitmap, clip, 0, 0);
+				if (bgenable==3) m_reel4_tilemap->draw(screen, bitmap, clip, 0, 0);
 			}
 
 			if (tileattr&0x08) drawgfx_transpen(bitmap,clip,machine().gfx[region],tile,col,0,0,x*8,y*8, 0);
@@ -372,10 +372,10 @@ UINT32 luckgrln_state::screen_update_luckgrln(screen_device &screen, bitmap_ind1
 
 			if (tileattr&0x04)
 			{
-				if (bgenable==0) m_reel1_tilemap->draw(bitmap, clip, 0, 0);
-				if (bgenable==1) m_reel2_tilemap->draw(bitmap, clip, 0, 0);
-				if (bgenable==2) m_reel3_tilemap->draw(bitmap, clip, 0, 0);
-				if (bgenable==3) m_reel4_tilemap->draw(bitmap, clip, 0, 0);
+				if (bgenable==0) m_reel1_tilemap->draw(screen, bitmap, clip, 0, 0);
+				if (bgenable==1) m_reel2_tilemap->draw(screen, bitmap, clip, 0, 0);
+				if (bgenable==2) m_reel3_tilemap->draw(screen, bitmap, clip, 0, 0);
+				if (bgenable==3) m_reel4_tilemap->draw(screen, bitmap, clip, 0, 0);
 			}
 
 			if ((tileattr&0x08)) drawgfx_transpen(bitmap,clip,machine().gfx[region],tile,col,0,0,x*8,y*8, 0);
@@ -977,7 +977,6 @@ GFXDECODE_END
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -1002,7 +1001,7 @@ static MACHINE_CONFIG_START( luckgrln, luckgrln_state )
 	MCFG_CPU_IO_MAP(portmap)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", luckgrln_state,  luckgrln_irq)
 
-	MCFG_MC6845_ADD("crtc", H46505, 6000000/4, mc6845_intf) /* unknown clock, hand tuned to get ~60 fps */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", 6000000/4, mc6845_intf) /* unknown clock, hand tuned to get ~60 fps */
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)

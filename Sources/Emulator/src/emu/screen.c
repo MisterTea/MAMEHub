@@ -73,7 +73,7 @@ UINT32 screen_device::m_id_counter = 0;
 //-------------------------------------------------
 
 screen_device::screen_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SCREEN, "Video Screen", tag, owner, clock),
+	: device_t(mconfig, SCREEN, "Video Screen", tag, owner, clock, "screen", __FILE__),
 		m_type(SCREEN_TYPE_RASTER),
 		m_oldstyle_vblank_supplied(false),
 		m_refresh(0),
@@ -210,7 +210,7 @@ void screen_device::static_set_default_position(device_t &device, double xscale,
 
 
 //-------------------------------------------------
-//  static_set_screen_update - set the legacy
+//  static_set_screen_update - set the legacy(?)
 //  screen update callback in the device
 //  configuration
 //-------------------------------------------------
@@ -287,6 +287,7 @@ void screen_device::device_start()
 		m_bitmap[index].set_format(format(), texformat);
 		register_screen_bitmap(m_bitmap[index]);
 	}
+	register_screen_bitmap(m_priority);
 
 	// allocate raw textures
 	m_texture[0] = machine().render().texture_alloc();
@@ -594,7 +595,6 @@ bool screen_device::update_partial(int scanline)
 		g_profiler.start(PROFILER_VIDEO);
 		LOG_PARTIAL_UPDATES(("updating %d-%d\n", clip.min_y, clip.max_y));
 
-		flags = 0;
 		screen_bitmap &curbitmap = m_bitmap[m_curbitmap];
 		switch (curbitmap.format())
 		{
@@ -782,17 +782,6 @@ void screen_device::register_screen_bitmap(bitmap_t &bitmap)
 	// if allocating now, just do it
 	bitmap.allocate(width(), height());
 	bitmap.set_palette(machine().palette);
-}
-
-
-//-------------------------------------------------
-//  vblank_port_read - custom port handler to
-//  return a VBLANK state
-//-------------------------------------------------
-
-int screen_device::vblank_port_read()
-{
-	return vblank() ? -1 : 0;
 }
 
 

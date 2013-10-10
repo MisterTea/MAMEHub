@@ -54,7 +54,7 @@ const device_type LR35902 = &device_creator<lr35902_cpu_device>;
 
 
 lr35902_cpu_device::lr35902_cpu_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: cpu_device(mconfig, LR35902, "LR35902", tag, owner, clock)
+	: cpu_device(mconfig, LR35902, "LR35902 CPU", tag, owner, clock, "lr35902", __FILE__)
 	, m_program_config("program", ENDIANNESS_LITTLE, 8, 16, 0)
 	, m_A(0)
 	, m_F(0)
@@ -177,10 +177,10 @@ void lr35902_cpu_device::state_string_export(const device_state_entry &entry, as
 
 		case STATE_GENFLAGS:
 			string.printf("%c%c%c%c",
-				m_F & FLAG_Z   ? 'Z' : '.',
-				m_F & FLAG_N   ? 'N' : '.',
-				m_F & FLAG_H   ? 'H' : '.',
-				m_F & FLAG_C   ? 'C' : '.'
+				m_F & LR35902_FLAG_Z   ? 'Z' : '.',
+				m_F & LR35902_FLAG_N   ? 'N' : '.',
+				m_F & LR35902_FLAG_H   ? 'H' : '.',
+				m_F & LR35902_FLAG_C   ? 'C' : '.'
 			);
 			break;
 	}

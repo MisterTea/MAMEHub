@@ -7,7 +7,6 @@
 ******************************************************************************/
 
 #include "emu.h"
-#include "includes/nb1413m3.h"
 #include "includes/nbmj8688.h"
 
 
@@ -136,14 +135,14 @@ WRITE8_MEMBER(nbmj8688_state::mjsikaku_gfxflag2_w)
 {
 	m_mjsikaku_gfxflag2 = data;
 
-	if (nb1413m3_type == NB1413M3_SEIHAM
-			|| nb1413m3_type == NB1413M3_KORINAI
-			|| nb1413m3_type == NB1413M3_KORINAIM
-			|| nb1413m3_type == NB1413M3_LIVEGAL)
+	if (m_nb1413m3->m_nb1413m3_type == NB1413M3_SEIHAM
+			|| m_nb1413m3->m_nb1413m3_type == NB1413M3_KORINAI
+			|| m_nb1413m3->m_nb1413m3_type == NB1413M3_KORINAIM
+			|| m_nb1413m3->m_nb1413m3_type == NB1413M3_LIVEGAL)
 		m_mjsikaku_gfxflag2 ^= 0x20;
 
-	if (nb1413m3_type == NB1413M3_OJOUSANM
-			|| nb1413m3_type == NB1413M3_RYUUHA)
+	if (m_nb1413m3->m_nb1413m3_type == NB1413M3_OJOUSANM
+			|| m_nb1413m3->m_nb1413m3_type == NB1413M3_RYUUHA)
 		m_mjsikaku_gfxflag2 |= 0x20;
 }
 
@@ -268,7 +267,7 @@ void nbmj8688_state::device_timer(emu_timer &timer, device_timer_id id, int para
 	switch (id)
 	{
 	case TIMER_BLITTER:
-		nb1413m3_busyflag = 1;
+		m_nb1413m3->m_busyflag = 1;
 		break;
 	default:
 		assert_always(FALSE, "Unknown id in nbmj8688_state::device_timer");
@@ -293,7 +292,7 @@ void nbmj8688_state::mbmj8688_gfxdraw(int gfxtype)
 		if (m_mjsikaku_gfxflag2 & 0x20) return;
 	}
 
-	nb1413m3_busyctr = 0;
+	m_nb1413m3->m_busyctr = 0;
 
 	startx = m_blitter_destx + m_blitter_sizex;
 	starty = m_blitter_desty + m_blitter_sizey;
@@ -523,16 +522,16 @@ void nbmj8688_state::mbmj8688_gfxdraw(int gfxtype)
 				}
 			}
 
-			nb1413m3_busyctr++;
+			m_nb1413m3->m_busyctr++;
 		}
 	}
 
-	nb1413m3_busyflag = 0;
+	m_nb1413m3->m_busyflag = 0;
 
 	if (gfxtype == GFXTYPE_8BIT)
-		timer_set(attotime::from_hz(400000) * nb1413m3_busyctr, TIMER_BLITTER);
+		timer_set(attotime::from_hz(400000) * m_nb1413m3->m_busyctr, TIMER_BLITTER);
 	else
-		timer_set(attotime::from_hz(400000) * nb1413m3_busyctr, TIMER_BLITTER);
+		timer_set(attotime::from_hz(400000) * m_nb1413m3->m_busyctr, TIMER_BLITTER);
 }
 
 

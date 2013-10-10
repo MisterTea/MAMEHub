@@ -25,7 +25,8 @@ struct tempsprite
 
 
 
-class kaneko16_sprite_device : public device_t
+class kaneko16_sprite_device : public device_t,
+								public device_video_interface
 {
 public:
 	kaneko16_sprite_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock,  device_type type);
@@ -38,7 +39,7 @@ public:
 	// (legacy) used in the bitmap clear functions
 	virtual int get_sprite_type(void) =0;
 
-	void kaneko16_render_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT16* spriteram16, int spriteram16_bytes);
+	void kaneko16_render_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes);
 
 
 	DECLARE_READ16_MEMBER(kaneko16_sprites_regs_r);
@@ -78,11 +79,11 @@ private:
 	int m_keep_sprites;
 	bitmap_ind16 m_sprites_bitmap;
 
-	void kaneko16_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT16* spriteram16, int spriteram16_bytes);
+	void kaneko16_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes);
 
 	void kaneko16_draw_sprites_custom(bitmap_ind16 &dest_bmp,const rectangle &clip,gfx_element *gfx,
 			UINT32 code,UINT32 color,int flipx,int flipy,int sx,int sy,
-			int priority);
+			bitmap_ind8 &priority_bitmap, int priority);
 
 	int kaneko16_parse_sprite_type012(running_machine &machine, int i, struct tempsprite *s, UINT16* spriteram16, int spriteram16_bytes);
 

@@ -293,7 +293,7 @@ WRITE8_MEMBER(m52_state::alpha1v_flipscreen_w)
 void m52_state::draw_background(bitmap_ind16 &bitmap, const rectangle &cliprect, int xpos, int ypos, int image)
 {
 	rectangle rect;
-	const rectangle &visarea = machine().primary_screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 
 
 	if (flip_screen())
@@ -368,7 +368,7 @@ UINT32 m52_state::screen_update_m52(screen_device &screen, bitmap_ind16 &bitmap,
 
 	m_bg_tilemap->set_flip(flip_screen() ? TILEMAP_FLIPX | TILEMAP_FLIPY : 0);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* draw the sprites */
 	for (offs = 0xfc; offs >= 0; offs -= 4)

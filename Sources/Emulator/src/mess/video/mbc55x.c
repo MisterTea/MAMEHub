@@ -160,7 +160,6 @@ WRITE_LINE_MEMBER( mbc55x_state::vid_vsync_changed )
 
 MC6845_INTERFACE( mb55x_mc6845_intf )
 {
-	SCREEN_TAG,                     /* screen number */
 	false,                          /* show border area */
 	8,                              /* numbers of pixels per video memory address */
 	NULL,                           /* begin_update */
@@ -177,7 +176,7 @@ void mbc55x_state::video_start()
 {
 	m_debug_video=0;
 
-	logerror("VIDEO_START\n");
+	logerror("video_start\n");
 
 	if (machine().debug_flags & DEBUG_FLAG_ENABLED)
 	{
@@ -195,5 +194,5 @@ void mbc55x_state::video_reset()
 
 void mbc55x_state::screen_eof_mbc55x(screen_device &screen, bool state)
 {
-//  logerror("SCREEN_VBLANK( mbc55x )\n");
+//  logerror("screen_eof_mbc55x\n");
 }

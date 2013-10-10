@@ -445,7 +445,7 @@ READ16_MEMBER(ssv_state::gdfs_eeprom_r)
 {
 	ioport_port *gun[] = { m_io_gunx1, m_io_guny1, m_io_gunx2, m_io_guny2 };
 
-	return (((m_gdfs_lightgun_select & 1) ? 0 : 0xff) ^ gun[m_gdfs_lightgun_select]->read()) | (m_eeprom->read_bit() << 8);
+	return (((m_gdfs_lightgun_select & 1) ? 0 : 0xff) ^ gun[m_gdfs_lightgun_select]->read()) | (m_eeprom->do_read() << 8);
 }
 
 WRITE16_MEMBER(ssv_state::gdfs_eeprom_w)
@@ -459,13 +459,13 @@ WRITE16_MEMBER(ssv_state::gdfs_eeprom_w)
 //      data & 0x0001 ?
 
 		// latch the bit
-		m_eeprom->write_bit(data & 0x4000);
+		m_eeprom->di_write((data & 0x4000) >> 14);
 
 		// reset line asserted: reset.
-		m_eeprom->set_cs_line((data & 0x1000) ? CLEAR_LINE : ASSERT_LINE );
+		m_eeprom->cs_write((data & 0x1000) ? ASSERT_LINE : CLEAR_LINE );
 
 		// clock line asserted: write latch or select next bit to read
-		m_eeprom->set_clock_line((data & 0x2000) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->clk_write((data & 0x2000) ? ASSERT_LINE : CLEAR_LINE );
 
 		if (!(m_gdfs_eeprom_old & 0x0800) && (data & 0x0800))   // rising clock
 			m_gdfs_lightgun_select = (data & 0x0300) >> 8;
@@ -2491,7 +2491,8 @@ static const es5506_interface es5506_config =
 	"ensoniq.0",
 	"ensoniq.1",
 	"ensoniq.2",
-	"ensoniq.3"
+	"ensoniq.3",
+	1              /* channels */
 };
 
 /***************************************************************************
@@ -2600,8 +2601,8 @@ static MACHINE_CONFIG_START( ssv, ssv_state )
 
 	MCFG_SOUND_ADD("ensoniq", ES5506, SSV_MASTER_CLOCK)
 	MCFG_SOUND_CONFIG(es5506_config)
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
+	MCFG_SOUND_ROUTE(0, "lspeaker", 0.1)
+	MCFG_SOUND_ROUTE(1, "rspeaker", 0.1)
 MACHINE_CONFIG_END
 
 
@@ -2633,7 +2634,7 @@ static MACHINE_CONFIG_DERIVED( gdfs, ssv )
 	MCFG_TIMER_MODIFY("scantimer")
 	MCFG_TIMER_DRIVER_CALLBACK(ssv_state, gdfs_interrupt)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")

@@ -7,7 +7,6 @@
 ******************************************************************************/
 
 #include "emu.h"
-#include "includes/nb1413m3.h"
 #include "includes/nbmj8900.h"
 
 
@@ -134,7 +133,7 @@ WRITE8_MEMBER(nbmj8900_state::nbmj8900_scrolly_w)
 WRITE8_MEMBER(nbmj8900_state::nbmj8900_vramsel_w)
 {
 	/* protection - not sure about this */
-	nb1413m3_sndromrgntag = (data & 0x20) ? "protdata" : "voice";
+	m_nb1413m3->m_sndromrgntag = (data & 0x20) ? "protdata" : "voice";
 
 	m_vram = data;
 }
@@ -161,8 +160,8 @@ void nbmj8900_state::nbmj8900_vramflip(int vram)
 	int x, y;
 	unsigned char color1, color2;
 	unsigned char *vidram;
-	int width = machine().primary_screen->width();
-	int height = machine().primary_screen->height();
+	int width = m_screen->width();
+	int height = m_screen->height();
 
 	if (m_flipscreen == m_flipscreen_old) return;
 
@@ -201,7 +200,7 @@ void nbmj8900_state::device_timer(emu_timer &timer, device_timer_id id, int para
 	switch (id)
 	{
 	case TIMER_BLITTER:
-		nb1413m3_busyflag = 1;
+		m_nb1413m3->m_busyflag = 1;
 		break;
 	default:
 		assert_always(FALSE, "Unknown id in nbmj8900_state::device_timer");
@@ -221,7 +220,7 @@ void nbmj8900_state::nbmj8900_gfxdraw()
 	unsigned char color, color1, color2;
 	int gfxaddr;
 
-	nb1413m3_busyctr = 0;
+	m_nb1413m3->m_busyctr = 0;
 
 	startx = m_blitter_destx + m_blitter_sizex;
 	starty = m_blitter_desty + m_blitter_sizey;
@@ -265,7 +264,7 @@ void nbmj8900_state::nbmj8900_gfxdraw()
 			color = GFX[gfxaddr++];
 
 			// for hanamomo
-			if ((nb1413m3_type == NB1413M3_HANAMOMO) && ((gfxaddr >= 0x20000) && (gfxaddr < 0x28000)))
+			if ((m_nb1413m3->m_nb1413m3_type == NB1413M3_HANAMOMO) && ((gfxaddr >= 0x20000) && (gfxaddr < 0x28000)))
 			{
 				color |= ((color & 0x0f) << 4);
 			}
@@ -351,12 +350,12 @@ void nbmj8900_state::nbmj8900_gfxdraw()
 				}
 			}
 
-			nb1413m3_busyctr++;
+			m_nb1413m3->m_busyctr++;
 		}
 	}
 
-	nb1413m3_busyflag = 0;
-	timer_set(attotime::from_nsec(2500) * nb1413m3_busyctr, TIMER_BLITTER);
+	m_nb1413m3->m_busyflag = 0;
+	timer_set(attotime::from_nsec(2500) * m_nb1413m3->m_busyctr, TIMER_BLITTER);
 }
 
 /******************************************************************************
@@ -365,11 +364,11 @@ void nbmj8900_state::nbmj8900_gfxdraw()
 ******************************************************************************/
 void nbmj8900_state::video_start()
 {
-	m_screen_width = machine().primary_screen->width();
-	m_screen_height = machine().primary_screen->height();
+	m_screen_width = m_screen->width();
+	m_screen_height = m_screen->height();
 
-	machine().primary_screen->register_screen_bitmap(m_tmpbitmap0);
-	machine().primary_screen->register_screen_bitmap(m_tmpbitmap1);
+	m_screen->register_screen_bitmap(m_tmpbitmap0);
+	m_screen->register_screen_bitmap(m_tmpbitmap1);
 	m_videoram0 = auto_alloc_array(machine(), UINT8, m_screen_width * m_screen_height);
 	m_videoram1 = auto_alloc_array(machine(), UINT8, m_screen_width * m_screen_height);
 	m_palette = auto_alloc_array(machine(), UINT8, 0x200);

@@ -163,9 +163,9 @@ WRITE16_MEMBER(segac2_state::segac2_upd7759_w )
 	/* only works if we're accessing the low byte */
 	if (ACCESSING_BITS_0_7)
 	{
-		upd7759_port_w(m_upd7759, space, 0, data & 0xff);
-		upd7759_start_w(m_upd7759, 0);
-		upd7759_start_w(m_upd7759, 1);
+		m_upd7759->port_w(space, 0, data & 0xff);
+		m_upd7759->start_w(0);
+		m_upd7759->start_w(1);
 	}
 }
 
@@ -325,7 +325,7 @@ READ16_MEMBER(segac2_state::io_chip_r )
 
 			/* otherwise, return an input port */
 			if (offset == 0x04/2 && m_sound_banks)
-				return (ioport(portnames[offset])->read() & 0xbf) | (upd7759_busy_r(m_upd7759) << 6);
+				return (ioport(portnames[offset])->read() & 0xbf) | (m_upd7759->busy_r() << 6);
 			return ioport(portnames[offset])->read();
 
 		/* 'SEGA' protection */
@@ -406,14 +406,14 @@ WRITE16_MEMBER(segac2_state::io_chip_w )
 			newbank = data & 3;
 			if (newbank != m_palbank)
 			{
-				//space.machine().primary_screen->update_partial(space.machine().primary_screen->vpos() + 1);
+				//m_screen->update_partial(m_screen->vpos() + 1);
 				m_palbank = newbank;
 				recompute_palette_tables();
 			}
 			if (m_sound_banks > 1)
 			{
 				newbank = (data >> 2) & (m_sound_banks - 1);
-				upd7759_set_bank_base(m_upd7759, newbank * 0x20000);
+				m_upd7759->set_bank_base(newbank * 0x20000);
 			}
 			break;
 
@@ -421,7 +421,7 @@ WRITE16_MEMBER(segac2_state::io_chip_w )
 		case 0x1c/2:
 			if (m_sound_banks > 1)
 			{
-				upd7759_reset_w(m_upd7759, (data >> 1) & 1);
+				m_upd7759->reset_w((data >> 1) & 1);
 			}
 			break;
 	}
@@ -505,11 +505,11 @@ WRITE16_MEMBER(segac2_state::prot_w )
 	/* if the palette changed, force an update */
 	if (new_sp_palbase != m_sp_palbase || new_bg_palbase != m_bg_palbase)
 	{
-		//space.machine().primary_screen->update_partial(space.machine().primary_screen->vpos() + 1);
+		//m_screen->update_partial(m_screen->vpos() + 1);
 		m_sp_palbase = new_sp_palbase;
 		m_bg_palbase = new_bg_palbase;
 		recompute_palette_tables();
-		if (LOG_PALETTE) logerror("Set palbank: %d/%d (scan=%d)\n", m_bg_palbase, m_sp_palbase, space.machine().primary_screen->vpos());
+		if (LOG_PALETTE) logerror("Set palbank: %d/%d (scan=%d)\n", m_bg_palbase, m_sp_palbase, m_screen->vpos());
 	}
 }
 
@@ -1308,34 +1308,30 @@ UINT32 segac2_state::screen_update_segac2_new(screen_device &screen, bitmap_rgb3
 
 
 // the main interrupt on C2 comes from the vdp line used to drive the z80 interrupt on a regular genesis(!)
-void genesis_vdp_sndirqline_callback_segac2(running_machine &machine, bool state)
+WRITE_LINE_MEMBER(segac2_state::genesis_vdp_sndirqline_callback_segac2)
 {
-	segac2_state *drvstate = machine.driver_data<segac2_state>();
-
-	if (state==true)
-		drvstate->m_maincpu->set_input_line(6, HOLD_LINE);
+	if (state==ASSERT_LINE)
+		m_maincpu->set_input_line(6, HOLD_LINE);
 }
 
 // the line usually used to drive irq6 is not connected
-void genesis_vdp_lv6irqline_callback_segac2(running_machine &machine, bool state)
+WRITE_LINE_MEMBER(segac2_state::genesis_vdp_lv6irqline_callback_segac2)
 {
 	//
 }
 
 // the scanline interrupt seems connected as usual
-void genesis_vdp_lv4irqline_callback_segac2(running_machine &machine, bool state)
+WRITE_LINE_MEMBER(segac2_state::genesis_vdp_lv4irqline_callback_segac2)
 {
-	segac2_state *drvstate = machine.driver_data<segac2_state>();
-	if (state==true)
-		drvstate->m_maincpu->set_input_line(4, HOLD_LINE);
+	if (state==ASSERT_LINE)
+		m_maincpu->set_input_line(4, HOLD_LINE);
 	else
-		drvstate->m_maincpu->set_input_line(4, CLEAR_LINE);
+		m_maincpu->set_input_line(4, CLEAR_LINE);
 }
 
 static const sega315_5124_interface sms_vdp_ntsc_intf =
 {
 	false,
-	"megadriv",
 	DEVCB_NULL,
 	DEVCB_NULL,
 };
@@ -1358,10 +1354,11 @@ static MACHINE_CONFIG_START( segac, segac2_state )
 //  MCFG_FRAGMENT_ADD(megadriv_timers)
 
 	MCFG_DEVICE_ADD("gen_vdp", SEGA_GEN_VDP, 0)
+	MCFG_VIDEO_SET_SCREEN("megadriv")
 	MCFG_DEVICE_CONFIG( sms_vdp_ntsc_intf )
-	sega_genesis_vdp_device::set_genesis_vdp_sndirqline_callback(*device, genesis_vdp_sndirqline_callback_segac2);
-	sega_genesis_vdp_device::set_genesis_vdp_lv6irqline_callback(*device, genesis_vdp_lv6irqline_callback_segac2);
-	sega_genesis_vdp_device::set_genesis_vdp_lv4irqline_callback(*device, genesis_vdp_lv4irqline_callback_segac2);
+	sega_genesis_vdp_device::set_genesis_vdp_sndirqline_callback(*device, DEVCB2_WRITELINE(segac2_state, genesis_vdp_sndirqline_callback_segac2));
+	sega_genesis_vdp_device::set_genesis_vdp_lv6irqline_callback(*device, DEVCB2_WRITELINE(segac2_state, genesis_vdp_lv6irqline_callback_segac2));
+	sega_genesis_vdp_device::set_genesis_vdp_lv4irqline_callback(*device, DEVCB2_WRITELINE(segac2_state, genesis_vdp_lv4irqline_callback_segac2));
 	sega_genesis_vdp_device::set_genesis_vdp_alt_timing(*device, 1);
 
 	MCFG_TIMER_ADD_SCANLINE("scantimer", megadriv_scanline_timer_callback_alt_timing, "megadriv", 0, 1)

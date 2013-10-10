@@ -30,7 +30,7 @@ public:
 	/* devices */
 	required_device<cpu_device> m_mastercpu;
 	required_device<cpu_device> m_slavecpu;
-	DECLARE_READ8_MEMBER(topgunbl_rotary_r);
+	DECLARE_READ8_MEMBER(jackalr_rotary_r);
 	DECLARE_WRITE8_MEMBER(jackal_flipscreen_w);
 	DECLARE_READ8_MEMBER(jackal_zram_r);
 	DECLARE_READ8_MEMBER(jackal_voram_r);
@@ -48,7 +48,7 @@ public:
 	INTERRUPT_GEN_MEMBER(jackal_interrupt);
 	void set_pens(  );
 	void jackal_mark_tile_dirty( int offset );
-	void draw_background( bitmap_ind16 &bitmap, const rectangle &cliprect );
+	void draw_background( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect );
 	void draw_sprites_region( bitmap_ind16 &bitmap, const rectangle &cliprect, const UINT8 *sram, int length, int bank );
 	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect );
 };

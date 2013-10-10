@@ -94,7 +94,7 @@ READ8_MEMBER(esripsys_state::uart_r)
 READ8_MEMBER(esripsys_state::g_status_r)
 {
 	int bank4 = BIT(m_videocpu->get_rip_status(), 2);
-	int vblank = machine().primary_screen->vblank();
+	int vblank = m_screen->vblank();
 
 	return (!vblank << 7) | (bank4 << 6) | (m_f_status & 0x2f);
 }
@@ -141,7 +141,7 @@ WRITE8_MEMBER(esripsys_state::g_status_w)
 
 READ8_MEMBER(esripsys_state::f_status_r)
 {
-	int vblank = machine().primary_screen->vblank();
+	int vblank = m_screen->vblank();
 	UINT8 rip_status = m_videocpu->get_rip_status();
 
 	rip_status = (rip_status & 0x18) | (BIT(rip_status, 6) << 1) |  BIT(rip_status, 7);
@@ -235,19 +235,19 @@ static WRITE16_DEVICE_HANDLER( fdt_rip_w )
    D7 = /FDONE
 */
 
-static UINT8 rip_status_in(running_machine &machine)
+UINT8 esripsys_state::static_rip_status_in(running_machine &machine) { return machine.driver_data<esripsys_state>()->rip_status_in(); }
+UINT8 esripsys_state::rip_status_in()
 {
-	esripsys_state *state = machine.driver_data<esripsys_state>();
-	int vpos =  machine.primary_screen->vpos();
+	int vpos =  m_screen->vpos();
 	UINT8 _vblank = !(vpos >= ESRIPSYS_VBLANK_START);
-//  UINT8 _hblank = !machine.primary_screen->hblank();
+//  UINT8 _hblank = !m_screen->hblank();
 
 	return  _vblank
-			| (state->m_hblank << 1)
-			| (state->m_12sel << 2)
-			| (state->m_fbsel << 4)
+			| (m_hblank << 1)
+			| (m_12sel << 2)
+			| (m_fbsel << 4)
 			| ((vpos & 1) << 5)
-			| (state->m_f_status & 0x80);
+			| (m_f_status & 0x80);
 }
 
 /*************************************
@@ -685,7 +685,7 @@ static const esrip_config rip_config =
 {
 	fdt_rip_r,
 	fdt_rip_w,
-	rip_status_in,
+	&esripsys_state::static_rip_status_in,
 	esripsys_draw,
 	"proms"
 };

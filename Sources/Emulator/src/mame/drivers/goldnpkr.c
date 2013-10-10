@@ -1144,7 +1144,7 @@ VIDEO_START_MEMBER(goldnpkr_state,wcrdxtnd)
 
 UINT32 goldnpkr_state::screen_update_goldnpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -3642,7 +3642,6 @@ static const pia6821_interface bchancep_pia1_intf =
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -3831,7 +3830,7 @@ static MACHINE_CONFIG_START( goldnpkr_base, goldnpkr_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 29*8-1)    /* From MC6845 init, registers 01 & 06. */
 	MCFG_SCREEN_UPDATE_DRIVER(goldnpkr_state, screen_update_goldnpkr)
 
-	MCFG_MC6845_ADD("crtc", MC6845, CPU_CLOCK, mc6845_intf) /* 68B45 or 6845s @ CPU clock */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CPU_CLOCK, mc6845_intf) /* 68B45 or 6845s @ CPU clock */
 
 	MCFG_GFXDECODE(goldnpkr)
 	MCFG_PALETTE_LENGTH(256)

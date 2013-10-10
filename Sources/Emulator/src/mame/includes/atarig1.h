@@ -5,6 +5,7 @@
 *************************************************************************/
 
 #include "machine/atarigen.h"
+#include "audio/atarijsa.h"
 #include "cpu/m68000/m68000.h"
 
 class atarig1_state : public atarigen_state
@@ -13,9 +14,17 @@ public:
 	atarig1_state(const machine_config &mconfig, device_type type, const char *tag)
 		: atarigen_state(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
+			m_jsa(*this, "jsa"),
+			m_playfield_tilemap(*this, "playfield"),
+			m_alpha_tilemap(*this, "alpha"),
+			m_rle(*this, "rle"),
 			m_mo_command(*this, "mo_command") { }
 
-	required_device<m68000_device> m_maincpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<atari_jsa_ii_device> m_jsa;
+	required_device<tilemap_device> m_playfield_tilemap;
+	required_device<tilemap_device> m_alpha_tilemap;
+	required_device<atari_rle_objects_device> m_rle;
 
 	bool            m_is_pitfight;
 
@@ -33,7 +42,6 @@ public:
 	UINT16          m_playfield_xscroll;
 	UINT16          m_playfield_yscroll;
 
-	device_t *      m_rle;
 	virtual void device_post_load();
 	virtual void update_interrupts();
 	virtual void scanline_update(screen_device &screen, int scanline);
@@ -57,7 +65,6 @@ public:
 	DECLARE_MACHINE_RESET(atarig1);
 	DECLARE_VIDEO_START(atarig1);
 	UINT32 screen_update_atarig1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void screen_eof_atarig1(screen_device &screen, bool state);
 private:
 	void init_common(offs_t slapstic_base, int slapstic, bool is_pitfight);
 	void pitfightb_cheap_slapstic_init();

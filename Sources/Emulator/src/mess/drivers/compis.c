@@ -83,41 +83,11 @@ void compis_state::palette_init()
 	palette_set_color(machine(), 2, MAKE_RGB(0x00, 0xff, 0x00)); // highlight
 }
 
-UINT32 compis_state::screen_update_compis2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)// temporary
+UINT32 compis_state::screen_update_compis2(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	UINT8 *m_p_chargen;
-	m_p_chargen = memregion("maincpu")->base()+0xca70; //bios0
-	if (m_p_chargen[0x214] != 0x08) m_p_chargen+= 0x10; //bios1
-	UINT8 y,ra,chr,gfx;
-	UINT16 sy=0,ma=0,x;
+	bitmap.fill(get_black_pen(machine()), cliprect);
 
-	for (y = 0; y < 25; y++)
-	{
-		for (ra = 0; ra < 16; ra++)
-		{
-			UINT16 *p = &bitmap.pix16(sy++);
-
-			for (x = ma; x < ma + 240; x+=3)
-			{
-				chr = m_video_ram[x & 0x1ffff];
-
-				if (chr < 0x20)
-					gfx = 0;
-				else
-					gfx = m_p_chargen[(chr<<4) | ra ];
-
-				*p++ = BIT(gfx, 0);
-				*p++ = BIT(gfx, 1);
-				*p++ = BIT(gfx, 2);
-				*p++ = BIT(gfx, 3);
-				*p++ = BIT(gfx, 4);
-				*p++ = BIT(gfx, 5);
-				*p++ = BIT(gfx, 6);
-				*p++ = BIT(gfx, 7);
-			}
-		}
-		ma+=240;
-	}
+	m_crtc->screen_update(screen, bitmap, cliprect);
 
 	return 0;
 }
@@ -126,16 +96,14 @@ static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
 {
 	compis_state *state = device->machine().driver_data<compis_state>();
 	const rgb_t *palette = palette_entry_list_raw(bitmap.palette());
-	UINT8 i,gfx = state->m_video_ram[address & 0x1ffff];
+	UINT8 i,gfx = state->m_video_ram[address];
 
 	for(i=0; i<8; i++)
 		bitmap.pix32(y, x + i) = palette[BIT((gfx >> i), 0)];
 }
 
-
 static UPD7220_INTERFACE( hgdc_intf )
 {
-	"screen",
 	hgdc_display_pixels,
 	NULL,
 	DEVCB_NULL,
@@ -146,7 +114,7 @@ static UPD7220_INTERFACE( hgdc_intf )
 /* TODO: why it writes to ROM region? */
 WRITE8_MEMBER( compis_state::vram_w )
 {
-	m_video_ram[offset] = data;
+	m_video_ram[offset+0x20000] = data;
 }
 
 static ADDRESS_MAP_START( compis_mem , AS_PROGRAM, 16, compis_state )
@@ -155,7 +123,7 @@ static ADDRESS_MAP_START( compis_mem , AS_PROGRAM, 16, compis_state )
 	AM_RANGE( 0x50000, 0x5ffff) AM_RAM
 	AM_RANGE( 0x60000, 0x6ffff) AM_RAM
 	AM_RANGE( 0x70000, 0x7ffff) AM_RAM
-	AM_RANGE( 0xe8000, 0xeffff) AM_ROM AM_REGION("maincpu",0) AM_WRITE8(vram_w, 0xffff)
+	AM_RANGE( 0xe8000, 0xeffff) AM_ROM AM_REGION("maincpu",0)
 	AM_RANGE( 0xf0000, 0xfffff) AM_ROM AM_REGION("maincpu",0) AM_WRITE8(vram_w, 0xffff)
 ADDRESS_MAP_END
 
@@ -163,13 +131,13 @@ static ADDRESS_MAP_START( compis_io, AS_IO, 16, compis_state )
 	AM_RANGE( 0x0000, 0x0007) AM_DEVREADWRITE8("ppi8255", i8255_device, read, write, 0xff00)
 	AM_RANGE( 0x0080, 0x0087) AM_DEVREADWRITE8("pit8253", pit8253_device, read, write, 0xffff)
 	AM_RANGE( 0x0100, 0x011b) AM_DEVREADWRITE8("mm58274c", mm58274c_device, read, write, 0xffff)
-	AM_RANGE( 0x0280, 0x0283) AM_DEVREADWRITE8("pic8259_master", pic8259_device, read, write, 0xffff) /* 80150/80130 */
-	//AM_RANGE( 0x0288, 0x028f) AM_DEVREADWRITE_LEGACY("pit8254", compis_osp_pit_r, compis_osp_pit_w ) /* PIT 8254 (80150/80130)  */
-	AM_RANGE( 0x0310, 0x031f) AM_READWRITE( compis_usart_r, compis_usart_w )    /* USART 8251 Keyboard      */
+	AM_RANGE( 0x0280, 0x0283) AM_DEVREADWRITE8("pic8259_master", pic8259_device, read, write, 0x00ff) /* 80150/80130 */
+	//AM_RANGE( 0x0288, 0x028f) AM_READWRITE( compis_osp_pit_r, compis_osp_pit_w ) /* PIT 8254 (80150/80130)  */
+	AM_RANGE( 0x0310, 0x031f) AM_READWRITE8( compis_usart_r, compis_usart_w, 0xff00)    /* USART 8251 Keyboard      */
 	AM_RANGE( 0x0330, 0x0333) AM_DEVREADWRITE8("upd7220", upd7220_device, read, write, 0x00ff) /* GDC 82720 PCS6:6     */
 	AM_RANGE( 0x0340, 0x0343) AM_DEVICE8("i8272a", i8272a_device, map, 0x00ff)  /* iSBX0 (J8) FDC 8272      */
 	AM_RANGE( 0x0350, 0x0351) AM_DEVREADWRITE8("i8272a", i8272a_device, mdma_r, mdma_w, 0x00ff) /* iSBX0 (J8) DMA ACK       */
-	AM_RANGE( 0xff00, 0xffff) AM_READWRITE( compis_i186_internal_port_r, compis_i186_internal_port_w)/* CPU 80186         */
+	AM_RANGE( 0x034e, 0x034f) AM_READWRITE8(fdc_mon_r, fdc_mon_w, 0x00ff)
 //{ 0x0100, 0x017e, compis_null_r },    /* RTC              */
 //{ 0x0180, 0x01ff, compis_null_r },    /* PCS3?            */
 //{ 0x0200, 0x027f, compis_null_r },    /* Reserved         */
@@ -313,6 +281,7 @@ static INPUT_PORTS_START (compis)
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad ,") PORT_CODE(KEYCODE_DEL_PAD) PORT_CHAR(UCHAR_MAMEKEY(DEL_PAD))
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad -") PORT_CODE(KEYCODE_MINUS_PAD) PORT_CHAR(UCHAR_MAMEKEY(MINUS_PAD))
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_KEYBOARD) PORT_NAME("Keypad +") PORT_CODE(KEYCODE_PLUS_PAD) PORT_CHAR(UCHAR_MAMEKEY(PLUS_PAD))
+	PORT_BIT( 0xE000, IP_ACTIVE_LOW, IPT_UNUSED)
 
 	PORT_START("DSW0")
 	PORT_DIPNAME( 0x18, 0x00, "S8 Test mode")
@@ -328,21 +297,30 @@ static INPUT_PORTS_START (compis)
 INPUT_PORTS_END
 
 
-//static const unsigned i86_address_mask = 0x000fffff;
-
 static const mm58274c_interface compis_mm58274c_interface =
 {
 	0,  /*  mode 24*/
 	1   /*  first day of week */
 };
 
+const floppy_format_type compis_floppy_formats[] = {
+	FLOPPY_D88_FORMAT,
+	FLOPPY_DFI_FORMAT,
+	FLOPPY_IMD_FORMAT,
+	FLOPPY_IPF_FORMAT,
+	FLOPPY_MFI_FORMAT,
+	FLOPPY_MFM_FORMAT,
+	FLOPPY_TD0_FORMAT,
+	FLOPPY_CPIS_FORMAT,
+	NULL
+};
 static SLOT_INTERFACE_START( compis_floppies )
 	SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
 SLOT_INTERFACE_END
 
 static ADDRESS_MAP_START( upd7220_map, AS_0, 8, compis_state )
-	ADDRESS_MAP_GLOBAL_MASK(0x1ffff)
-	AM_RANGE(0x00000, 0x1ffff) AM_RAM AM_SHARE("video_ram")
+	ADDRESS_MAP_GLOBAL_MASK(0x3ffff)
+	AM_RANGE(0x00000, 0x3ffff) AM_RAM AM_SHARE("video_ram")
 ADDRESS_MAP_END
 
 static MACHINE_CONFIG_START( compis, compis_state )
@@ -351,7 +329,7 @@ static MACHINE_CONFIG_START( compis, compis_state )
 	MCFG_CPU_PROGRAM_MAP(compis_mem)
 	MCFG_CPU_IO_MAP(compis_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", compis_state,  compis_vblank_int)
-	//MCFG_CPU_CONFIG(i86_address_mask)
+	MCFG_80186_IRQ_SLAVE_ACK(DEVREAD8(DEVICE_SELF, compis_state, compis_irq_callback))
 
 	//MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
@@ -373,17 +351,16 @@ static MACHINE_CONFIG_START( compis, compis_state )
 	/* Devices */
 	MCFG_PIT8253_ADD( "pit8253", compis_pit8253_config )
 	MCFG_PIT8254_ADD( "pit8254", compis_pit8254_config )
-	MCFG_PIC8259_ADD( "pic8259_master", WRITELINE(compis_state, compis_pic8259_master_set_int_line), VCC, READ8(compis_state, get_slave_ack) )
-	MCFG_PIC8259_ADD( "pic8259_slave", WRITELINE(compis_state, compis_pic8259_slave_set_int_line), GND, NULL )
+	MCFG_PIC8259_ADD( "pic8259_master", DEVWRITELINE("maincpu", i80186_cpu_device, int0_w), VCC, NULL )
 	MCFG_I8255_ADD( "ppi8255", compis_ppi_interface )
 	MCFG_UPD7220_ADD("upd7220", XTAL_4_433619MHz/2, hgdc_intf, upd7220_map) //unknown clock
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
 	MCFG_I8251_ADD("uart", compis_usart_interface)
 	MCFG_MM58274C_ADD("mm58274c", compis_mm58274c_interface)
 	MCFG_I8272A_ADD("i8272a", true)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", floppy_image_device::default_floppy_formats)
-	MCFG_COMPIS_KEYBOARD_ADD()
+	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", compis_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", compis_floppy_formats)
+	MCFG_COMPIS_KEYBOARD_ADD(NULL)
 
 	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "compis")
@@ -395,7 +372,7 @@ static MACHINE_CONFIG_START( compis2, compis_state )
 	MCFG_CPU_PROGRAM_MAP(compis_mem)
 	MCFG_CPU_IO_MAP(compis_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", compis_state,  compis_vblank_int)
-	//MCFG_CPU_CONFIG(i86_address_mask)
+	MCFG_80186_IRQ_SLAVE_ACK(DEVREAD8(DEVICE_SELF, compis_state, compis_irq_callback))
 
 	//MCFG_QUANTUM_TIME(attotime::from_hz(60))
 
@@ -413,17 +390,16 @@ static MACHINE_CONFIG_START( compis2, compis_state )
 	/* Devices */
 	MCFG_PIT8253_ADD( "pit8253", compis_pit8253_config )
 	MCFG_PIT8254_ADD( "pit8254", compis_pit8254_config )
-	MCFG_PIC8259_ADD( "pic8259_master", WRITELINE(compis_state, compis_pic8259_master_set_int_line), VCC, READ8(compis_state, get_slave_ack) )
-	MCFG_PIC8259_ADD( "pic8259_slave", WRITELINE(compis_state, compis_pic8259_slave_set_int_line), GND, NULL )
+	MCFG_PIC8259_ADD( "pic8259_master", DEVWRITELINE("maincpu", i80186_cpu_device, int0_w), VCC, NULL )
 	MCFG_I8255_ADD( "ppi8255", compis_ppi_interface )
 	MCFG_UPD7220_ADD("upd7220", XTAL_4_433619MHz/2, hgdc_intf, upd7220_map) //unknown clock
 	MCFG_CENTRONICS_PRINTER_ADD("centronics", standard_centronics)
 	MCFG_I8251_ADD("uart", compis_usart_interface)
 	MCFG_MM58274C_ADD("mm58274c", compis_mm58274c_interface)
 	MCFG_I8272A_ADD("i8272a", true)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", floppy_image_device::default_floppy_formats)
-	MCFG_COMPIS_KEYBOARD_ADD()
+	MCFG_FLOPPY_DRIVE_ADD("i8272a:0", compis_floppies, "525qd", compis_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("i8272a:1", compis_floppies, "525qd", compis_floppy_formats)
+	MCFG_COMPIS_KEYBOARD_ADD(NULL)
 
 	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "compis")

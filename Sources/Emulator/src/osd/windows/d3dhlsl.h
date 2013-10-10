@@ -48,8 +48,6 @@
 //  CONSTANTS
 //============================================================
 
-#define HLSL_VECTOR         (1)
-#define CRT_BLOOM           (1)
 
 //============================================================
 //  TYPE DEFINITIONS
@@ -57,6 +55,154 @@
 
 namespace d3d
 {
+class effect;
+class shaders;
+
+class uniform
+{
+public:
+	typedef enum
+	{
+		UT_VEC4,
+		UT_VEC3,
+		UT_VEC2,
+		UT_FLOAT,
+		UT_INT,
+		UT_MATRIX,
+		UT_SAMPLER,
+	} uniform_type;
+
+	enum
+	{
+		CU_SCREEN_DIMS = 0,
+		CU_SOURCE_DIMS,
+		CU_SOURCE_RECT,
+
+		CU_NTSC_CCFREQ,
+		CU_NTSC_A,
+		CU_NTSC_B,
+		CU_NTSC_O,
+		CU_NTSC_P,
+		CU_NTSC_NOTCH,
+		CU_NTSC_YFREQ,
+		CU_NTSC_IFREQ,
+		CU_NTSC_QFREQ,
+		CU_NTSC_HTIME,
+		CU_NTSC_ENABLE,
+
+		CU_COLOR_RED_RATIOS,
+		CU_COLOR_GRN_RATIOS,
+		CU_COLOR_BLU_RATIOS,
+		CU_COLOR_OFFSET,
+		CU_COLOR_SCALE,
+		CU_COLOR_SATURATION,
+
+		CU_CONVERGE_LINEAR_X,
+		CU_CONVERGE_LINEAR_Y,
+		CU_CONVERGE_RADIAL_X,
+		CU_CONVERGE_RADIAL_Y,
+
+		CU_FOCUS_SIZE,
+
+		CU_PHOSPHOR_LIFE,
+		CU_PHOSPHOR_IGNORE,
+
+		CU_POST_PINCUSHION,
+		CU_POST_CURVATURE,
+		CU_POST_SHADOW_ALPHA,
+		CU_POST_SHADOW_COUNT,
+		CU_POST_SHADOW_UV,
+		CU_POST_SHADOW_DIMS,
+		CU_POST_SCANLINE_ALPHA,
+		CU_POST_SCANLINE_SCALE,
+		CU_POST_SCANLINE_HEIGHT,
+		CU_POST_SCANLINE_BRIGHT_SCALE,
+		CU_POST_SCANLINE_BRIGHT_OFFSET,
+		CU_POST_POWER,
+		CU_POST_FLOOR,
+
+		CU_BLOOM_TARGET_SIZE,
+		CU_BLOOM_RESCALE,
+		CU_BLOOM_LVL0123_WEIGHTS,
+		CU_BLOOM_LVL4567_WEIGHTS,
+		CU_BLOOM_LVL89A_WEIGHTS,
+
+		CU_COUNT,
+	};
+
+	uniform(effect *shader, const char *name, uniform_type type, int id);
+
+	void        set_next(uniform *next);
+	uniform *   get_next() { return m_next; }
+
+	void        set(float x, float y, float z, float w);
+	void        set(float x, float y, float z);
+	void        set(float x, float y);
+	void        set(float x);
+	void        set(int x);
+	void        set(matrix *mat);
+	void        set(texture *tex);
+
+	void        upload();
+	void        update();
+
+protected:
+	uniform     *m_next;
+
+	float       m_vec[4];
+	int         m_ival;
+	matrix      *m_mval;
+	texture     *m_texture;
+	int         m_count;
+	uniform_type    m_type;
+	int         m_id;
+
+	effect      *m_shader;
+	D3DXHANDLE  m_handle;
+};
+
+class effect
+{
+	friend class uniform;
+
+public:
+	effect(shaders *shadersys, device *dev, const char *name, const char *path);
+	~effect();
+
+	void        begin(UINT *passes, DWORD flags);
+	void        begin_pass(UINT pass);
+
+	void        end();
+	void        end_pass();
+
+	void        set_technique(const char *name);
+
+	void        set_vector(D3DXHANDLE param, int count, float *vector);
+	void        set_float(D3DXHANDLE param, float value);
+	void        set_int(D3DXHANDLE param, int value);
+	void        set_matrix(D3DXHANDLE param, matrix *matrix);
+	void        set_texture(D3DXHANDLE param, texture *tex);
+
+	void        add_uniform(const char *name, uniform::uniform_type type, int id);
+	void        update_uniforms();
+
+	D3DXHANDLE  get_parameter(D3DXHANDLE param, const char *name);
+
+	ULONG       release();
+
+	shaders*    get_shaders() { return m_shaders; }
+
+	bool        is_valid() { return m_valid; }
+
+private:
+	uniform     *m_uniform_head;
+	uniform     *m_uniform_tail;
+	ID3DXEffect *m_effect;
+	shaders     *m_shaders;
+
+	bool        m_valid;
+};
+
 class render_target;
 class cache_target;
 class renderer;
@@ -80,7 +226,7 @@ struct hlsl_options
 	float                   scanline_bright_scale;
 	float                   scanline_bright_offset;
 	float                   scanline_offset;
-	float                   defocus[4];
+	float                   defocus[2];
 	float                   converge_x[3];
 	float                   converge_y[3];
 	float                   radial_converge_x[3];
@@ -131,6 +277,9 @@ struct hlsl_options
 
 class shaders
 {
+	friend class effect;
+	friend class uniform;
+
 public:
 	// construction/destruction
 	shaders();
@@ -141,7 +290,7 @@ public:
 	bool enabled() { return master_enable; }
 	void toggle();
 
-	bool vector_enabled() { return master_enable && vector_enable && (bool)HLSL_VECTOR; }
+	bool vector_enabled() { return master_enable && vector_enable; }
 	render_target* get_vector_target();
 	void create_vector_target(render_primitive *prim);
 
@@ -207,6 +356,17 @@ private:
 	cache_target *          find_cache_target(UINT32 screen_index, int width, int height);
 	void                    remove_cache_target(cache_target *cache);
 
+	// Shader passes
+	void                    ntsc_pass(render_target *rt, vec2f &texsize, vec2f &delta);
+	void                    color_convolution_pass(render_target *rt, vec2f &texsize, vec2f &sourcedims);
+	void                    prescale_pass(render_target *rt, vec2f &texsize, vec2f &sourcedims);
+	void                    deconverge_pass(render_target *rt, vec2f &texsize, vec2f &delta, vec2f &sourcedims);
+	void                    defocus_pass(render_target *rt, vec2f &texsize);
+	void                    phosphor_pass(render_target *rt, cache_target *ct, vec2f &texsize, bool focus_enable);
+	void                    screen_post_pass(render_target *rt, vec2f &texsize, vec2f &delta, vec2f &sourcedims, poly_info *poly, int vertnum);
+	void                    avi_post_pass(render_target *rt, vec2f &texsize, vec2f &delta, vec2f &sourcedims, poly_info *poly, int vertnum);
+	void                    raster_bloom_pass(render_target *rt, vec2f &texsize, vec2f &delta, poly_info *poly, int vertnum);
+
 	base *                  d3dintf;                    // D3D interface
 	win_window_info *       window;                     // D3D window info
 
@@ -262,21 +422,20 @@ private:
 	effect *                default_effect;             // pointer to the primary-effect object
 	effect *                prescale_effect;            // pointer to the prescale-effect object
 	effect *                post_effect;                // pointer to the post-effect object
-	effect *                pincushion_effect;          // pointer to the pincushion-effect object
 	effect *                focus_effect;               // pointer to the focus-effect object
 	effect *                phosphor_effect;            // pointer to the phosphor-effect object
 	effect *                deconverge_effect;          // pointer to the deconvergence-effect object
 	effect *                color_effect;               // pointer to the color-effect object
 	effect *                yiq_encode_effect;          // pointer to the YIQ encoder effect object
 	effect *                yiq_decode_effect;          // pointer to the YIQ decoder effect object
-#if (HLSL_VECTOR || CRT_BLOOM)
 	effect *                bloom_effect;               // pointer to the bloom composite effect
 	effect *                downsample_effect;          // pointer to the bloom downsample effect
-#endif
-#if (HLSL_VECTOR)
 	effect *                vector_effect;              // pointer to the vector-effect object
-#endif
 	vertex *                fsfx_vertices;              // pointer to our full-screen-quad object
+
+	texture_info *          curr_texture;
+	bool                    phosphor_passthrough;
+	float                   target_size[2];
 
 public:
 	render_target *         targethead;

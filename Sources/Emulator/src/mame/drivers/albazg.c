@@ -34,7 +34,7 @@ PCB:
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/ay8910.h"
 #include "video/mc6845.h"
 #include "machine/i8255.h"
@@ -101,7 +101,7 @@ void albazg_state::video_start()
 
 UINT32 albazg_state::screen_update_yumefuda(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -211,7 +211,6 @@ static const ay8910_interface ay8910_config =
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -269,7 +268,7 @@ static INPUT_PORTS_START( yumefuda )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Coin Out")
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Pay Out")
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SERVICE3 ) PORT_NAME("Init SW")
-	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("IN0")
@@ -323,9 +322,9 @@ static INPUT_PORTS_START( yumefuda )
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
 
 	/* Unused, on the PCB there's just one bank */
 	PORT_START("DSW1")
@@ -385,8 +384,7 @@ static MACHINE_CONFIG_START( yumefuda, albazg_state )
 	MCFG_CPU_IO_MAP(port_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", albazg_state,  irq0_line_hold)
 
-
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	MCFG_WATCHDOG_VBLANK_INIT(8) // timing is unknown
 
@@ -400,7 +398,7 @@ static MACHINE_CONFIG_START( yumefuda, albazg_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 32*8-1, 0, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(albazg_state, screen_update_yumefuda)
 
-	MCFG_MC6845_ADD("crtc", H46505, MASTER_CLOCK/16, mc6845_intf)   /* hand tuned to get ~60 fps */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", MASTER_CLOCK/16, mc6845_intf)   /* hand tuned to get ~60 fps */
 
 	MCFG_GFXDECODE( yumefuda )
 	MCFG_PALETTE_LENGTH(0x80)

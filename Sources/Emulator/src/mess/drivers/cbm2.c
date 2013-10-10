@@ -1130,7 +1130,6 @@ static MC6845_UPDATE_ROW( crtc_update_row )
 
 static MC6845_INTERFACE( crtc_intf )
 {
-	SCREEN_TAG,
 	false,
 	9,
 	NULL,
@@ -2088,10 +2087,6 @@ MACHINE_START_MEMBER( p500_state, p500_pal )
 }
 
 
-//-------------------------------------------------
-//  MACHINE_RESET( cbm2 )
-//-------------------------------------------------
-
 MACHINE_RESET_MEMBER( cbm2_state, cbm2 )
 {
 	m_dramon = 1;
@@ -2116,10 +2111,6 @@ m_ext_cia_pb = 0xff;
 	m_ieee->reset();
 }
 
-
-//-------------------------------------------------
-//  MACHINE_RESET( p500 )
-//-------------------------------------------------
 
 MACHINE_RESET_MEMBER( p500_state, p500 )
 {
@@ -2296,7 +2287,7 @@ static MACHINE_CONFIG_START( cbm2lp_ntsc, cbm2_state )
 	MCFG_SCREEN_SIZE(768, 312)
 	MCFG_SCREEN_VISIBLE_AREA(0, 768-1, 0, 312-1)
 
-	MCFG_MC6845_ADD(MC68B45_TAG, MC6845, XTAL_18MHz/9, crtc_intf)
+	MCFG_MC6845_ADD(MC68B45_TAG, MC6845, SCREEN_TAG, XTAL_18MHz/9, crtc_intf)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")

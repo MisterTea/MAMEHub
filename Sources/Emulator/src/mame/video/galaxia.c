@@ -7,7 +7,6 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "video/s2636.h"
 #include "includes/galaxia.h"
 
 #define SPRITE_PEN_BASE     (0x10)
@@ -15,7 +14,7 @@
 #define BULLET_PEN          (0x19)
 
 
-// Colors are 1bpp, but how they are generated is a mystery
+// Colors are 3bpp, but how they are generated is a mystery
 // there's no color prom on the pcb, nor palette ram
 
 PALETTE_INIT_MEMBER(galaxia_state,galaxia)
@@ -101,7 +100,7 @@ VIDEO_START_MEMBER(galaxia_state,astrowar)
 	m_bg_tilemap->set_scroll_cols(8);
 	m_bg_tilemap->set_scrolldx(8, 8);
 
-	machine().primary_screen->register_screen_bitmap(m_temp_bitmap);
+	m_screen->register_screen_bitmap(m_temp_bitmap);
 }
 
 
@@ -111,13 +110,13 @@ UINT32 galaxia_state::screen_update_galaxia(screen_device &screen, bitmap_ind16 
 {
 	int x, y;
 
-	bitmap_ind16 &s2636_0_bitmap = s2636_update(machine().device("s2636_0"), cliprect);
-	bitmap_ind16 &s2636_1_bitmap = s2636_update(machine().device("s2636_1"), cliprect);
-	bitmap_ind16 &s2636_2_bitmap = s2636_update(machine().device("s2636_2"), cliprect);
+	bitmap_ind16 *s2636_0_bitmap = &m_s2636_0->update(cliprect);
+	bitmap_ind16 *s2636_1_bitmap = &m_s2636_1->update(cliprect);
+	bitmap_ind16 *s2636_2_bitmap = &m_s2636_2->update(cliprect);
 
 	bitmap.fill(0, cliprect);
 	cvs_update_stars(bitmap, cliprect, STAR_PEN, 1);
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	for (y = cliprect.min_y; y <= cliprect.max_y; y++)
 	{
@@ -138,9 +137,9 @@ UINT32 galaxia_state::screen_update_galaxia(screen_device &screen, bitmap_ind16 
 			}
 
 			// copy the S2636 images into the main bitmap and check collision
-			int pixel0 = s2636_0_bitmap.pix16(y, x);
-			int pixel1 = s2636_1_bitmap.pix16(y, x);
-			int pixel2 = s2636_2_bitmap.pix16(y, x);
+			int pixel0 = s2636_0_bitmap->pix16(y, x);
+			int pixel1 = s2636_1_bitmap->pix16(y, x);
+			int pixel2 = s2636_2_bitmap->pix16(y, x);
 
 			int pixel = pixel0 | pixel1 | pixel2;
 
@@ -177,11 +176,11 @@ UINT32 galaxia_state::screen_update_astrowar(screen_device &screen, bitmap_ind16
 	// astrowar has only one S2636
 	int x, y;
 
-	bitmap_ind16 &s2636_0_bitmap = s2636_update(machine().device("s2636_0"), cliprect);
+	bitmap_ind16 &s2636_0_bitmap = m_s2636_0->update(cliprect);
 
 	bitmap.fill(0, cliprect);
 	cvs_update_stars(bitmap, cliprect, STAR_PEN, 1);
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	copybitmap(m_temp_bitmap, bitmap, 0, 0, 0, 0, cliprect);
 
 	for (y = cliprect.min_y; y <= cliprect.max_y; y++)

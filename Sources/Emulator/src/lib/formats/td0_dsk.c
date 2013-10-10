@@ -293,7 +293,7 @@ static floperr_t td0_get_sector_length(floppy_image_legacy *floppy, int head, in
 static floperr_t td0_get_indexed_sector_info(floppy_image_legacy *floppy, int head, int track, int sector_index, int *cylinder, int *side, int *sector, UINT32 *sector_length, unsigned long *flags)
 {
 	floperr_t retVal;
-	UINT64 offset;
+	UINT64 offset = 0;
 	UINT8 *sector_info;
 
 	retVal = get_offset(floppy, head, track, sector_index, FALSE, &offset);
@@ -318,8 +318,9 @@ static floperr_t td0_get_indexed_sector_info(floppy_image_legacy *floppy, int he
 
 int td0dsk_t::data_read(UINT8 *buf, UINT16 size)
 {
-	if (floppy_file_offset + size > io_generic_size(floppy_file) ) {
-		size = io_generic_size(floppy_file) - floppy_file_offset;
+	UINT64 image_size = io_generic_size(floppy_file);
+	if (size > image_size - floppy_file_offset) {
+		size = image_size - floppy_file_offset;
 	}
 	io_generic_read(floppy_file,buf,floppy_file_offset,size);
 	floppy_file_offset += size;
@@ -972,17 +973,17 @@ bool td0_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 							}
 							break;
 					}
-
-					sects[i].actual_size = size;
-
-					if(size)
-					{
-						sects[i].data = &sect_data[sdatapos];
-						sdatapos += size;
-					}
-					else
-						sects[i].data = NULL;
 				}
+
+				sects[i].actual_size = size;
+
+				if(size)
+				{
+					sects[i].data = &sect_data[sdatapos];
+					sdatapos += size;
+				}
+				else
+					sects[i].data = NULL;
 			}
 			track_count = track;
 

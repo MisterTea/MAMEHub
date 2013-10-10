@@ -1,4 +1,5 @@
 
+#include "cpu/mcs51/mcs51.h"
 #include "sound/qs1000.h"
 
 class eolith_state : public driver_device
@@ -26,7 +27,7 @@ public:
 	UINT8 m_data_to_qs1000;
 
 	required_device<cpu_device> m_maincpu;
-	optional_device<cpu_device> m_soundcpu;
+	optional_device<i8032_device> m_soundcpu;
 	optional_device<qs1000_device> m_qs1000;
 	optional_ioport m_in0; // klondkp doesn't have it
 	optional_ioport m_eepromoutport;
@@ -56,6 +57,7 @@ public:
 	DECLARE_DRIVER_INIT(landbrk);
 	DECLARE_DRIVER_INIT(hidctch3);
 	DECLARE_DRIVER_INIT(hidctch2);
+	DECLARE_DRIVER_INIT(hidnc2k);
 	DECLARE_DRIVER_INIT(landbrka);
 	DECLARE_MACHINE_RESET(eolith);
 	DECLARE_VIDEO_START(eolith);

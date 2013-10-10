@@ -25,7 +25,7 @@ class esqvfd_t : public device_t {
 public:
 	typedef delegate<void (bool state)> line_cb;
 
-	esqvfd_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	esqvfd_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	DECLARE_WRITE8_MEMBER( write ) { write_char(data); }
 
@@ -46,6 +46,7 @@ protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 
 	int m_cursx, m_cursy;
+	int m_savedx, m_savedy;
 	int m_rows, m_cols;
 	UINT8 m_curattr;
 	UINT8 m_lastchar;

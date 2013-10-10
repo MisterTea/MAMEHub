@@ -2,20 +2,14 @@
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
 <softwarelist name="pet_rom" description="Commodore PET Function ROMs">
 
-	<software name="batpro">
-		<description>BATPRO (v4.8)</description>
+	<software name="arrow">
+		<description>Arrow</description>
 		<year>198?</year>
 		<publisher>&lt;unknown&gt;</publisher>
 
-		<part name="rom1" interface="pet_9000_rom">
-			<dataarea name="rom" size="0x1000">
-				<rom name="bat4_8$9.bin" size="0x1000" crc="da80481b" sha1="d9ebc8a0b0eab81fcb867b1a89f603bef0fb8509" offset="0" />
-			</dataarea>
-		</part>
-
-		<part name="rom2" interface="pet_a000_rom">
-			<dataarea name="rom" size="0x1000">
-				<rom name="bat4_8$a.bin" size="0x1000" crc="a19433a9" sha1="266c323a1254cdaecbcc9b10e606f1c16ea9ef64" offset="0" />
+		<part name="rom" interface="pet_a000_rom">
+			<dataarea name="rom" size="0x800">
+				<rom name="arrow-a000.bin" size="0x800" crc="b80a2dd3" sha1="dedbe978d4df904a06c7b1f6f90d038dc72af4b3" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -32,58 +26,28 @@
 		</part>
 	</software>
 
-	<software name="orgabasi">
-		<description>OrgaBASIC 101 (v1.4.015)</description>
-		<year>198?</year>
-		<publisher>&lt;unknown&gt;</publisher>
+	<software name="batpro">
+		<description>BATPRO (v4.8)</description>
+		<year>1983</year>
+		<publisher>North American Rockwell</publisher>
 
-		<part name="rom" interface="pet_a000_rom">
+		<part name="rom1" interface="pet_9000_rom">
 			<dataarea name="rom" size="0x1000">
-				<rom name="orgabasic101-a000.bin" size="0x1000" crc="3bc24624" sha1="0071e0db215caf6333152bc874d85315eebc95c4" offset="0" />
+				<rom name="bat4_8$9.bin" size="0x1000" crc="da80481b" sha1="d9ebc8a0b0eab81fcb867b1a89f603bef0fb8509" offset="0" />
 			</dataarea>
 		</part>
-	</software>
 
-	<software name="spellmst">
-		<description>Spellmaster</description>
-		<year>198?</year>
-		<publisher>&lt;unknown&gt;</publisher>
-
-		<part name="rom" interface="pet_9000_rom">
+		<part name="rom2" interface="pet_a000_rom">
 			<dataarea name="rom" size="0x1000">
-				<rom name="spellmaster-9000.bin" size="0x1000" crc="b9b768c7" sha1="83275c32c04cad2e1ea81dab1428f64406b6bd52" offset="0" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="wordpro">
-		<description>Wordpro</description>
-		<year>198?</year>
-		<publisher>&lt;unknown&gt;</publisher>
-
-		<part name="rom" interface="pet_a000_rom">
-			<dataarea name="rom" size="0x1000">
-				<rom name="wordpro-a000.bin" size="0x1000" crc="8fb42b4d" sha1="906d8ec3a0918d123e7d87bd3ebf6b0bc1bd87e0" offset="0" />
-			</dataarea>
-		</part>
-	</software>
-
-	<software name="arrow">
-		<description>Arrow</description>
-		<year>198?</year>
-		<publisher>&lt;unknown&gt;</publisher>
-
-		<part name="rom" interface="pet_a000_rom">
-			<dataarea name="rom" size="0x800">
-				<rom name="arrow-a000.bin" size="0x800" crc="b80a2dd3" sha1="dedbe978d4df904a06c7b1f6f90d038dc72af4b3" offset="0" />
+				<rom name="bat4_8$a.bin" size="0x1000" crc="a19433a9" sha1="266c323a1254cdaecbcc9b10e606f1c16ea9ef64" offset="0" />
 			</dataarea>
 		</part>
 	</software>
 
 	<software name="commando">
-		<description>Command-O</description>
-		<year>198?</year>
-		<publisher>&lt;unknown&gt;</publisher>
+		<description>Command-O (for 4016/4032, except "Fat-40")</description>
+		<year>1980</year>
+		<publisher>Skyles Electric Works Inc.</publisher>
 
 		<part name="rom" interface="pet_rom">
 			<dataarea name="rom" size="0x1000">
@@ -128,14 +92,14 @@
 		</part>
 	</software>
 
-	<software name="ud11">
-		<description>UD11</description>
+	<software name="orgabasi">
+		<description>OrgaBASIC 101 (v1.4.015)</description>
 		<year>198?</year>
 		<publisher>&lt;unknown&gt;</publisher>
 
 		<part name="rom" interface="pet_a000_rom">
 			<dataarea name="rom" size="0x1000">
-				<rom name="pet8032sk_sv-ud11-2732-104883b.bin" size="0x1000" crc="43b25b7e" sha1="5ee1daac9101866cda0ab298aa870be9888fbc7f" offset="0" />
+				<rom name="orgabasic101-a000.bin" size="0x1000" crc="3bc24624" sha1="0071e0db215caf6333152bc874d85315eebc95c4" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -152,6 +116,30 @@
 		</part>
 	</software>
 
+	<software name="spellmst">
+		<description>Spellmaster</description>
+		<year>198?</year>
+		<publisher>&lt;unknown&gt;</publisher>
+
+		<part name="rom" interface="pet_9000_rom">
+			<dataarea name="rom" size="0x1000">
+				<rom name="spellmaster-9000.bin" size="0x1000" crc="b9b768c7" sha1="83275c32c04cad2e1ea81dab1428f64406b6bd52" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="superchp">
+		<description>PetMaster Superchip</description>
+		<year>1980</year>
+		<publisher>Supersoft</publisher>
+
+		<part name="rom" interface="pet_9000_rom">
+			<dataarea name="rom" size="0x800">
+				<rom name="superchip-9000.bin" size="0x800" crc="5919a8a7" sha1="ab71be435241fbe462b7ef7c7f84c7b93103e53e" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="suo9000">
 		<description>SUO 001024</description>
 		<year>198?</year>
@@ -164,22 +152,10 @@
 		</part>
 	</software>
 
-	<software name="superchp">
-		<description>PetMaster Superchip</description>
-		<year>198?</year>
-		<publisher>&lt;unknown&gt;</publisher>
-
-		<part name="rom" interface="pet_9000_rom">
-			<dataarea name="rom" size="0x800">
-				<rom name="superchip-9000.bin" size="0x800" crc="5919a8a7" sha1="ab71be435241fbe462b7ef7c7f84c7b93103e53e" offset="0" />
-			</dataarea>
-		</part>
-	</software>
-
 	<software name="toolkit">
 		<description>The BASIC Programmer's Toolkit</description>
-		<year>198?</year>
-		<publisher>&lt;unknown&gt;</publisher>
+		<year>1979</year>
+		<publisher>Palo Alto ICs Inc.</publisher>
 
 		<part name="rom" interface="pet_b000_rom">
 			<dataarea name="rom" size="0x800">
@@ -188,14 +164,14 @@
 		</part>
 	</software>
 
-	<software name="visicalc">
-		<description>VisiCalc</description>
+	<software name="ud11">
+		<description>UD11</description>
 		<year>198?</year>
 		<publisher>&lt;unknown&gt;</publisher>
 
-		<part name="rom" interface="pet_9000_rom">
+		<part name="rom" interface="pet_a000_rom">
 			<dataarea name="rom" size="0x1000">
-				<rom name="visicalc-9000.901472-04.bin" size="0x1000" crc="9bf3c9f8" sha1="62be6bcf3a3aa844d629e8a52b30e01864cc8266" offset="0" />
+				<rom name="pet8032sk_sv-ud11-2732-104883b.bin" size="0x1000" crc="43b25b7e" sha1="5ee1daac9101866cda0ab298aa870be9888fbc7f" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -208,6 +184,18 @@
 		<part name="rom" interface="pet_9000_rom">
 			<dataarea name="rom" size="0x1000">
 				<rom name="wordcraft-9000.bin" size="0x1000" crc="d185aeb1" sha1="c02decd74cbb2f1e59548d181201abafdc97bf13" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="wordpro">
+		<description>WordPro 4 Plus</description>
+		<year>198?</year>
+		<publisher>Professional Software Inc.</publisher>
+
+		<part name="rom" interface="pet_a000_rom">
+			<dataarea name="rom" size="0x1000">
+				<rom name="wordpro-a000.bin" size="0x1000" crc="8fb42b4d" sha1="906d8ec3a0918d123e7d87bd3ebf6b0bc1bd87e0" offset="0" />
 			</dataarea>
 		</part>
 	</software>

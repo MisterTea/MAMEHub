@@ -188,7 +188,7 @@ void pinball2k_state::draw_framebuffer(bitmap_rgb32 &bitmap, const rectangle &cl
 		m_frame_height = height;
 
 		visarea.set(0, width - 1, 0, height - 1);
-		machine().primary_screen->configure(width, height * 262 / 240, visarea, machine().primary_screen->frame_period().attoseconds);
+		m_screen->configure(width, height * 262 / 240, visarea, m_screen->frame_period().attoseconds);
 	}
 
 	if (m_disp_ctrl_reg[DC_OUTPUT_CFG] & 0x1)        // 8-bit mode
@@ -299,7 +299,7 @@ READ32_MEMBER(pinball2k_state::disp_ctrl_r)
 		case DC_TIMING_CFG:
 			r |= 0x40000000;
 
-			if (machine().primary_screen->vpos() >= m_frame_height)
+			if (m_screen->vpos() >= m_frame_height)
 				r &= ~0x40000000;
 			break;
 	}
@@ -386,16 +386,12 @@ READ8_MEMBER(pinball2k_state::io20_r)
 	UINT8 r = 0;
 
 	// 0x22, 0x23, Cyrix configuration registers
-	if (offset == 0x02)
+	if (offset == 0x00)
 	{
 	}
-	else if (offset == 0x03)
+	else if (offset == 0x01)
 	{
 		r = m_mediagx_config_regs[m_mediagx_config_reg_sel];
-	}
-	else
-	{
-		r = m_pic8259_1->read(space, offset);
 	}
 	return r;
 }
@@ -403,17 +399,13 @@ READ8_MEMBER(pinball2k_state::io20_r)
 WRITE8_MEMBER(pinball2k_state::io20_w)
 {
 	// 0x22, 0x23, Cyrix configuration registers
-	if (offset == 0x02)
+	if (offset == 0x00)
 	{
 		m_mediagx_config_reg_sel = data;
 	}
-	else if (offset == 0x03)
+	else if (offset == 0x01)
 	{
 		m_mediagx_config_regs[m_mediagx_config_reg_sel] = data;
-	}
-	else
-	{
-		m_pic8259_1->write(space, offset, data);
 	}
 }
 
@@ -465,8 +457,8 @@ static ADDRESS_MAP_START( mediagx_map, AS_PROGRAM, 32, pinball2k_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(mediagx_io, AS_IO, 32, pinball2k_state )
+	AM_RANGE(0x0020, 0x0023) AM_READWRITE8(io20_r, io20_w, 0xffff0000)
 	AM_IMPORT_FROM(pcat32_io_common)
-	AM_RANGE(0x0020, 0x003f) AM_READWRITE8(io20_r, io20_w, 0xffffffff)
 	AM_RANGE(0x00e8, 0x00eb) AM_NOP     // I/O delay port
 	AM_RANGE(0x0378, 0x037b) AM_READWRITE(parallel_port_r, parallel_port_w)
 	AM_RANGE(0x0cf8, 0x0cff) AM_DEVREADWRITE("pcibus", pci_bus_legacy_device, read, write)
@@ -587,8 +579,8 @@ static MACHINE_CONFIG_START( mediagx, pinball2k_state )
 	MCFG_PCI_BUS_LEGACY_ADD("pcibus", 0)
 	MCFG_PCI_BUS_LEGACY_DEVICE(18, NULL, cx5510_pci_r, cx5510_pci_w)
 
-	MCFG_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
+	MCFG_IDE_CONTROLLER_ADD("ide", ata_devices, "hdd", NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
 
 	MCFG_RAMDAC_ADD("ramdac", ramdac_intf, ramdac_map)
 

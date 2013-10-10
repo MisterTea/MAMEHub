@@ -8,10 +8,10 @@
 **********************************************************************
 
     D9060: Tandon TM602S
-    chdman -createblankhd d9060.chd 153 4 32 256
+    chdman createhd -o d9060.chd -chs 153,4,32 -ss 256
 
     D9090: Tandon TM603S
-    chdman -createblankhd d9090.chd 153 6 32 256
+    chdman createhd -o d9090.chd -chs 153,6,32 -ss 256
 
     How to format the disk:
     HEADER "LABEL",D0,I01
@@ -28,6 +28,7 @@
 #include "cpu/m6502/m6502.h"
 #include "machine/6522via.h"
 #include "machine/6532riot.h"
+#include "machine/cbmipt.h"
 #include "machine/ieee488.h"
 #include "machine/scsicb.h"
 
@@ -56,6 +57,7 @@ public:
 	// optional information overrides
 	virtual const rom_entry *device_rom_region() const;
 	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual ioport_constructor device_input_ports() const;
 
 	// not really public
 	DECLARE_WRITE_LINE_MEMBER( req_w );
@@ -90,6 +92,7 @@ private:
 	required_device<riot6532_device> m_riot1;
 	required_device<via6522_device> m_via;
 	required_device<scsicb_device> m_sasibus;
+	required_ioport m_address;
 
 	// IEEE-488 bus
 	int m_rfdo;                         // not ready for data output

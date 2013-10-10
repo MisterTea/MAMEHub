@@ -13,7 +13,6 @@
     - CRT9007
     - CRT9212 Double Row Buffer
     - CRT9021B Attribute Generator
-    - 80186
     - keyboard ROM
     - hires graphics board
     - floppy 720K DSQD
@@ -25,7 +24,6 @@
 */
 
 #include "includes/tandy2k.h"
-#include "formats/mfi_dsk.h"
 
 enum
 {
@@ -121,10 +119,10 @@ WRITE8_MEMBER( tandy2k_state::enable_w )
 		m_fdc->reset();
 
 	// timer 0 enable
-	m_maincpu->set_input_line(INPUT_LINE_TMRIN0, BIT(data, 6));
+	m_maincpu->tmrin0_w(BIT(data, 6));
 
 	// timer 1 enable
-	m_maincpu->set_input_line(INPUT_LINE_TMRIN1, BIT(data, 7));
+	m_maincpu->tmrin1_w(BIT(data, 7));
 }
 
 WRITE8_MEMBER( tandy2k_state::dma_mux_w )
@@ -354,7 +352,6 @@ WRITE_LINE_MEMBER( tandy2k_state::vpac_drb_w )
 
 static CRT9007_INTERFACE( vpac_intf )
 {
-	SCREEN_TAG,
 	10,
 	DEVCB_DEVICE_LINE_MEMBER(I8259A_1_TAG, pic8259_device, ir1_w),
 	DEVCB_NULL, // DMAR     80186 HOLD
@@ -388,7 +385,6 @@ static CRT9212_INTERFACE( drb1_intf )
 
 static CRT9021_INTERFACE( vac_intf )
 {
-	SCREEN_TAG,
 	DEVCB_DEVICE_MEMBER(CRT9212_0_TAG, crt9212_device, read), // data
 	DEVCB_DEVICE_MEMBER(CRT9212_1_TAG, crt9212_device, read), // attributes
 	DEVCB_LINE_VCC // ATTEN
@@ -642,6 +638,11 @@ WRITE_LINE_MEMBER( tandy2k_state::kbddat_w )
 	m_kbddat = state;
 }
 
+READ8_MEMBER( tandy2k_state::irq_callback )
+{
+	return (offset ? m_pic1 : m_pic0)->inta_r();
+}
+
 // Machine Initialization
 
 void tandy2k_state::machine_start()
@@ -655,11 +656,6 @@ void tandy2k_state::machine_start()
 
 	m_fdc->setup_intrq_cb(i8272a_device::line_cb(FUNC(tandy2k_state::fdc_irq), this));
 	m_fdc->setup_drq_cb(i8272a_device::line_cb(FUNC(tandy2k_state::fdc_drq), this));
-
-	// patch out i186 relocation register check
-	UINT8 *rom = memregion(I80186_TAG)->base();
-	rom[0x1f16] = 0x90;
-	rom[0x1f17] = 0x90;
 
 	// register for state saving
 	save_item(NAME(m_dma_mux));
@@ -684,6 +680,7 @@ static MACHINE_CONFIG_START( tandy2k, tandy2k_state )
 	MCFG_CPU_ADD(I80186_TAG, I80186, XTAL_16MHz)
 	MCFG_CPU_PROGRAM_MAP(tandy2k_mem)
 	MCFG_CPU_IO_MAP(tandy2k_io)
+	MCFG_80186_IRQ_SLAVE_ACK(DEVREAD8(DEVICE_SELF, tandy2k_state, irq_callback))
 
 	// video hardware
 	MCFG_SCREEN_ADD(SCREEN_TAG, RASTER)
@@ -707,8 +704,8 @@ static MACHINE_CONFIG_START( tandy2k, tandy2k_state )
 	MCFG_I8255A_ADD(I8255A_TAG, ppi_intf)
 	MCFG_I8251_ADD(I8251A_TAG, usart_intf)
 	MCFG_PIT8253_ADD(I8253_TAG, pit_intf)
-	MCFG_PIC8259_ADD(I8259A_0_TAG, INPUTLINE(I80186_TAG, INPUT_LINE_INT0), VCC, NULL)
-	MCFG_PIC8259_ADD(I8259A_1_TAG, INPUTLINE(I80186_TAG, INPUT_LINE_INT1), VCC, NULL)
+	MCFG_PIC8259_ADD(I8259A_0_TAG, DEVWRITELINE(I80186_TAG, i80186_cpu_device, int0_w), VCC, NULL)
+	MCFG_PIC8259_ADD(I8259A_1_TAG, DEVWRITELINE(I80186_TAG, i80186_cpu_device, int1_w), VCC, NULL)
 	MCFG_I8272A_ADD(I8272A_TAG, true)
 	MCFG_FLOPPY_DRIVE_ADD(I8272A_TAG ":0", tandy2k_floppies, "525qd", floppy_image_device::default_floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD(I8272A_TAG ":1", tandy2k_floppies, "525qd", floppy_image_device::default_floppy_formats)
@@ -759,5 +756,5 @@ ROM_END
 // System Drivers
 
 //    YEAR  NAME        PARENT      COMPAT  MACHINE     INPUT       INIT    COMPANY                 FULLNAME        FLAGS
-COMP( 1983, tandy2k,    0,          0,      tandy2k,    tandy2k, driver_device, 0,      "Tandy Radio Shack",    "Tandy 2000",   GAME_NOT_WORKING)
-COMP( 1983, tandy2khd,  tandy2k,    0,      tandy2k_hd, tandy2k, driver_device, 0,      "Tandy Radio Shack",    "Tandy 2000HD", GAME_NOT_WORKING)
+COMP( 1983, tandy2k,    0,          0,      tandy2k,    tandy2k, driver_device, 0,      "Tandy Radio Shack",    "Tandy 2000",   GAME_NOT_WORKING )
+COMP( 1983, tandy2khd,  tandy2k,    0,      tandy2k_hd, tandy2k, driver_device, 0,      "Tandy Radio Shack",    "Tandy 2000HD", GAME_NOT_WORKING )

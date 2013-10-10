@@ -245,7 +245,7 @@ TIMER_CALLBACK_MEMBER(fromance_state::crtc_interrupt_gen)
 {
 	m_subcpu->set_input_line(0, HOLD_LINE);
 	if (param != 0)
-		m_crtc_timer->adjust(machine().primary_screen->frame_period() / param, 0, machine().primary_screen->frame_period() / param);
+		m_crtc_timer->adjust(m_screen->frame_period() / param, 0, m_screen->frame_period() / param);
 }
 
 
@@ -257,7 +257,7 @@ WRITE8_MEMBER(fromance_state::fromance_crtc_data_w)
 	{
 		/* only register we know about.... */
 		case 0x0b:
-			m_crtc_timer->adjust(machine().primary_screen->time_until_vblank_start(), (data > 0x80) ? 2 : 1);
+			m_crtc_timer->adjust(m_screen->time_until_vblank_start(), (data > 0x80) ? 2 : 1);
 			break;
 
 		default:
@@ -289,8 +289,8 @@ UINT32 fromance_state::screen_update_fromance(screen_device &screen, bitmap_ind1
 	m_fg_tilemap->set_scrollx(0, m_scrollx[1]);
 	m_fg_tilemap->set_scrolly(0, m_scrolly[1]);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -303,10 +303,10 @@ UINT32 fromance_state::screen_update_pipedrm(screen_device &screen, bitmap_ind16
 	m_bg_tilemap->set_scrolly(0, m_scrolly[1]);
 	m_fg_tilemap->set_scrolly(0, m_scrolly[0]);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
-	m_spr_old->turbofrc_draw_sprites((UINT16*)sram, m_spriteram.bytes(), 0, machine(), bitmap, cliprect, 0);
-	m_spr_old->turbofrc_draw_sprites((UINT16*)sram, m_spriteram.bytes(), 0, machine(), bitmap, cliprect, 1);
+	m_spr_old->turbofrc_draw_sprites((UINT16*)sram, m_spriteram.bytes(), 0, machine(), bitmap, cliprect, screen.priority(), 0);
+	m_spr_old->turbofrc_draw_sprites((UINT16*)sram, m_spriteram.bytes(), 0, machine(), bitmap, cliprect, screen.priority(), 1);
 	return 0;
 }

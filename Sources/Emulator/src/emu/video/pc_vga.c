@@ -44,7 +44,7 @@
 
 #include "emu.h"
 #include "pc_vga.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "debugger.h"
 
 /***************************************************************************
@@ -124,78 +124,78 @@ const device_type CIRRUS_VGA = &device_creator<cirrus_vga_device>;
 const device_type IBM8514A = &device_creator<ibm8514a_device>;
 const device_type MACH8 = &device_creator<mach8_device>;
 
-vga_device::vga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock)
+vga_device::vga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
 
 vga_device::vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, VGA, "VGA", tag, owner, clock)
+	: device_t(mconfig, VGA, "VGA", tag, owner, clock, "vga", __FILE__)
 {
 }
 
-svga_device::svga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: vga_device(mconfig, type, name, tag, owner, clock)
+svga_device::svga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: vga_device(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
 
 tseng_vga_device::tseng_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: svga_device(mconfig, TSENG_VGA, "TSENG_VGA", tag, owner, clock)
+	: svga_device(mconfig, TSENG_VGA, "TSENG_VGA", tag, owner, clock, "tseng_vga", __FILE__)
 {
 }
 
 trident_vga_device::trident_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: svga_device(mconfig, TRIDENT_VGA, "TRIDENT_VGA", tag, owner, clock)
+	: svga_device(mconfig, TRIDENT_VGA, "TRIDENT_VGA", tag, owner, clock, "trident_vga", __FILE__)
 {
 }
 
 s3_vga_device::s3_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ati_vga_device(mconfig, S3_VGA, "S3_VGA", tag, owner, clock)
+	: ati_vga_device(mconfig, S3_VGA, "S3_VGA", tag, owner, clock, "s3_vga", __FILE__)
 {
 }
 
-s3_vga_device::s3_vga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: ati_vga_device(mconfig, type, name, tag, owner, clock)
+s3_vga_device::s3_vga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: ati_vga_device(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
 
 gamtor_vga_device::gamtor_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: svga_device(mconfig, GAMTOR_VGA, "GAMTOR_VGA", tag, owner, clock)
+	: svga_device(mconfig, GAMTOR_VGA, "GAMTOR_VGA", tag, owner, clock, "gamtor_vga", __FILE__)
 {
 }
 
 ati_vga_device::ati_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: svga_device(mconfig, ATI_VGA, "ATI_VGA", tag, owner, clock)
+	: svga_device(mconfig, ATI_VGA, "ATI_VGA", tag, owner, clock, "ati_vga", __FILE__)
 {
 }
 
-ati_vga_device::ati_vga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: svga_device(mconfig, type, name, tag, owner, clock)
+ati_vga_device::ati_vga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: svga_device(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
 
 cirrus_vga_device::cirrus_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: svga_device(mconfig, CIRRUS_VGA, "CIRRUS_VGA", tag, owner, clock)
+	: svga_device(mconfig, CIRRUS_VGA, "CIRRUS_VGA", tag, owner, clock, "cirrus_vga", __FILE__)
 {
 }
 
 ibm8514a_device::ibm8514a_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, IBM8514A, "IBM8514A", tag, owner, clock)
+	: device_t(mconfig, IBM8514A, "IBM8514A", tag, owner, clock, "ibm8514a", __FILE__)
 {
 }
 
-ibm8514a_device::ibm8514a_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock)
+ibm8514a_device::ibm8514a_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
 
-mach8_device::mach8_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: ibm8514a_device(mconfig, type, name, tag, owner, clock)
+mach8_device::mach8_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: ibm8514a_device(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
 
 mach8_device::mach8_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ibm8514a_device(mconfig, MACH8, "MACH8", tag, owner, clock)
+	: ibm8514a_device(mconfig, MACH8, "MACH8", tag, owner, clock, "mach8", __FILE__)
 {
 }
 
@@ -2104,18 +2104,6 @@ WRITE8_MEMBER(vga_device::mem_linear_w)
 	vga.memory[offset] = data;
 }
 
-
-static struct eeprom_interface ati_eeprom_interface =
-{
-	6,      /* address bits */
-	16,     /* data bits */
-	"*110", /*  read command */
-	"*101", /* write command */
-	"*111", /* erase command */
-	"*10000xxxx",   // lock         1 00 00xxxx
-	"*10011xxxx"    // unlock       1 00 11xxxx
-};
-
 MACHINE_CONFIG_FRAGMENT( pcvideo_vga )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_25_1748MHz,900,0,640,526,0,480)
@@ -2152,18 +2140,19 @@ MACHINE_CONFIG_FRAGMENT( pcvideo_gamtor_vga )
 	MCFG_DEVICE_ADD("vga", GAMTOR_VGA, 0)
 MACHINE_CONFIG_END
 
-
-MACHINE_CONFIG_FRAGMENT( pcvideo_s3_isa )
+MACHINE_CONFIG_FRAGMENT( pcvideo_s3_vga )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(XTAL_25_1748MHz,900,0,640,526,0,480)
-	//MCFG_SCREEN_UPDATE_STATIC(pc_video_s3)
+	MCFG_SCREEN_UPDATE_DEVICE("vga", s3_vga_device, screen_update)
 
 	MCFG_PALETTE_LENGTH(0x100)
+	MCFG_DEVICE_ADD("vga", S3_VGA, 0)
 MACHINE_CONFIG_END
+
 
 static MACHINE_CONFIG_FRAGMENT( ati_vga )
 	MCFG_MACH8_ADD_OWNER("8514a")
-	MCFG_EEPROM_ADD("ati_eeprom",ati_eeprom_interface)
+	MCFG_EEPROM_SERIAL_93C46_ADD("ati_eeprom")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_FRAGMENT( s3_764 )
@@ -3200,7 +3189,7 @@ bit    0  Vertical Total bit 10. Bit 10 of the Vertical Total register (3d4h
 				svga.bank_w = data & 0x3f;
 				svga.bank_r = svga.bank_w;
 				if(data & 0x60)
-					fatalerror("TODO: s3 bank selects above 1M\n");
+					popmessage("TODO: s3 bank selects above 1M\n");
 				break;
 			default:
 				if(LOG_8514) logerror("S3: 3D4 index %02x write %02x\n",index,data);
@@ -5254,9 +5243,9 @@ READ8_MEMBER(ati_vga_device::ati_port_ext_r)
 			break;
 		case 0x37:
 			{
-				eeprom_device* eep = subdevice<eeprom_device>("ati_eeprom");
+				eeprom_serial_93cxx_device* eep = subdevice<eeprom_serial_93cxx_device>("ati_eeprom");
 				ret = 0x00;
-				ret |= eep->read_bit() << 3;
+				ret |= eep->do_read() << 3;
 			}
 			break;
 		default:
@@ -5314,12 +5303,12 @@ WRITE8_MEMBER(ati_vga_device::ati_port_ext_w)
 
 			if(data & 0x04)
 			{
-				eeprom_device* eep = subdevice<eeprom_device>("ati_eeprom");
+				eeprom_serial_93cxx_device* eep = subdevice<eeprom_serial_93cxx_device>("ati_eeprom");
 				if(eep != NULL)
 				{
-					eep->write_bit((data & 0x01) ? ASSERT_LINE : CLEAR_LINE);
-					eep->set_clock_line((data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
-					eep->set_cs_line((data & 0x08) ? CLEAR_LINE : ASSERT_LINE);
+					eep->di_write((data & 0x01) ? ASSERT_LINE : CLEAR_LINE);
+					eep->clk_write((data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
+					eep->cs_write((data & 0x08) ? ASSERT_LINE : CLEAR_LINE);
 				}
 			}
 			else
@@ -5668,6 +5657,8 @@ UINT16 cirrus_vga_device::offset()
 {
 	//popmessage("Offset: %04x  %s %s **",vga.crtc.offset,vga.crtc.dw?"DW":"--",vga.crtc.word_mode?"BYTE":"WORD");
 	if(gc_mode_ext & 0x10)
+		return vga.crtc.offset << 3;
+	if ( svga.rgb8_en == 1 ) // guess
 		return vga.crtc.offset << 3;
 	return vga_device::offset();
 }

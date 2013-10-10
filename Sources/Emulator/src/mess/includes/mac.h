@@ -15,16 +15,21 @@
 #include "machine/egret.h"
 #include "machine/cuda.h"
 #include "machine/nubus.h"
+#include "machine/macpds.h"
 #include "machine/ncr539x.h"
 #include "machine/ncr5380.h"
 #include "machine/mackbd.h"
 #include "machine/macrtc.h"
 #include "sound/asc.h"
 #include "sound/awacs.h"
+#include "cpu/m68000/m68000.h"
 
 #define MAC_SCREEN_NAME "screen"
 #define MAC_539X_1_TAG "scsi:539x_1"
 #define MAC_539X_2_TAG "scsi:539x_2"
+
+// uncomment to run i8021 keyboard in orignal Mac/512(e)/Plus
+//#define MAC_USE_EMULATED_KBD (1)
 
 // model helpers
 #define ADB_IS_BITBANG  ((mac->m_model == MODEL_MAC_SE || mac->m_model == MODEL_MAC_CLASSIC) || (mac->m_model >= MODEL_MAC_II && mac->m_model <= MODEL_MAC_IICI) || (mac->m_model == MODEL_MAC_SE30) || (mac->m_model == MODEL_MAC_QUADRA_700))
@@ -141,7 +146,6 @@ extern const via6522_interface mac_via6522_intf;
 extern const via6522_interface mac_via6522_2_intf;
 extern const via6522_interface mac_via6522_adb_intf;
 
-void mac_asc_irq(device_t *device, int state);
 void mac_fdc_set_enable_lines(device_t *device, int enable_mask);
 
 /*----------- defined in audio/mac.c -----------*/
@@ -199,7 +203,6 @@ public:
 		m_egret(*this, EGRET_TAG),
 		m_cuda(*this, CUDA_TAG),
 		m_ram(*this, RAM_TAG),
-		m_screen(*this, MAC_SCREEN_NAME),
 		m_539x_1(*this, MAC_539X_1_TAG),
 		m_539x_2(*this, MAC_539X_2_TAG),
 		m_ncr5380(*this, "scsi:ncr5380"),
@@ -228,7 +231,6 @@ public:
 	optional_device<egret_device> m_egret;
 	optional_device<cuda_device> m_cuda;
 	required_device<ram_device> m_ram;
-	optional_device<screen_device> m_screen;
 	optional_device<ncr539x_device> m_539x_1;
 	optional_device<ncr539x_device> m_539x_2;
 	optional_device<ncr5380_device> m_ncr5380;
@@ -252,6 +254,7 @@ public:
 	UINT32 m_se30_vbl_enable;
 	UINT8 m_nubus_irq_state;
 
+#ifndef MAC_USE_EMULATED_KBD
 	/* used to store the reply to most keyboard commands */
 	int m_keyboard_reply;
 
@@ -264,12 +267,13 @@ public:
 	int m_kbd_shift_reg;
 	int m_kbd_shift_count;
 
-	/* keyboard matrix to detect transition */
-	int m_key_matrix[7];
-
 	/* keycode buffer (used for keypad/arrow key transition) */
 	int m_keycode_buf[2];
 	int m_keycode_buf_index;
+#endif
+
+	/* keyboard matrix to detect transition - macadb needs to stop relying on this */
+	int m_key_matrix[7];
 
 	int m_mouse_bit_x;
 	int m_mouse_bit_y;
@@ -408,6 +412,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(adb_linechange_w);
 
 	DECLARE_WRITE_LINE_MEMBER(mac_scsi_irq);
+	DECLARE_WRITE_LINE_MEMBER(mac_asc_irq);
 
 	DECLARE_DIRECT_UPDATE_MEMBER(overlay_opbaseoverride);
 private:
@@ -499,8 +504,10 @@ public:
 	UINT32 screen_update_macsonora(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_macpbwd(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(mac_rbv_vbl);
+#ifndef MAC_USE_EMULATED_KBD
 	TIMER_CALLBACK_MEMBER(kbd_clock);
 	TIMER_CALLBACK_MEMBER(inquiry_timeout_func);
+#endif
 	TIMER_CALLBACK_MEMBER(mac_6015_tick);
 	TIMER_CALLBACK_MEMBER(mac_scanline_tick);
 	TIMER_CALLBACK_MEMBER(dafb_vbl_tick);

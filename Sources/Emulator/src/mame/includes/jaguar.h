@@ -7,8 +7,8 @@
 #include "cpu/jaguar/jaguar.h"
 #include "machine/nvram.h"
 #include "sound/dac.h"
-#include "machine/eeprom.h"
-#include "machine/idectrl.h"
+#include "machine/eepromser.h"
+#include "machine/vt83c461.h"
 #include "imagedev/snapquik.h"
 
 #ifndef ENABLE_SPEEDUP_HACKS
@@ -62,8 +62,8 @@ public:
 
 	// devices
 	required_device<cpu_device> m_maincpu;
-	required_device<jaguargpu_device> m_gpu;
-	required_device<jaguardsp_device> m_dsp;
+	required_device<jaguargpu_cpu_device> m_gpu;
+	required_device<jaguardsp_cpu_device> m_dsp;
 	required_device<dac_device> m_dac1;
 	required_device<dac_device> m_dac2;
 
@@ -211,8 +211,6 @@ public:
 	DECLARE_WRITE32_MEMBER( blitter_w );
 	DECLARE_READ16_MEMBER( tom_regs_r );
 	DECLARE_WRITE16_MEMBER( tom_regs_w );
-	DECLARE_READ32_MEMBER( vt83c461_r );
-	DECLARE_WRITE32_MEMBER( vt83c461_w );
 	DECLARE_READ32_MEMBER( cojag_gun_input_r );
 	UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
@@ -324,6 +322,6 @@ protected:
 	emu_file *jaguar_nvram_fopen( UINT32 openflags);
 	void jaguar_nvram_load();
 	void jaguar_nvram_save();
-	optional_device<eeprom_device> m_eeprom;
-	optional_device<ide_controller_device> m_ide;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
+	optional_device<vt83c461_device> m_ide;
 };

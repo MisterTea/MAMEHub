@@ -101,6 +101,16 @@ ROM_END
 
 
 //-------------------------------------------------
+//  rom_region - device-specific ROM region
+//-------------------------------------------------
+
+const rom_entry *c2040_device::device_rom_region() const
+{
+	return ROM_NAME( c2040 );
+}
+
+
+//-------------------------------------------------
 //  ROM( c4040 )
 //-------------------------------------------------
 
@@ -123,6 +133,16 @@ ROM_START( c4040 ) // schematic ?
 	ROM_REGION( 0x800, "gcr", 0)
 	ROM_LOAD( "901467.uk6",    0x000, 0x800, CRC(a23337eb) SHA1(97df576397608455616331f8e837cb3404363fa2) )
 ROM_END
+
+
+//-------------------------------------------------
+//  rom_region - device-specific ROM region
+//-------------------------------------------------
+
+const rom_entry *c4040_device::device_rom_region() const
+{
+	return ROM_NAME( c4040 );
+}
 
 
 //-------------------------------------------------
@@ -175,6 +195,16 @@ ROM_END
 
 
 //-------------------------------------------------
+//  rom_region - device-specific ROM region
+//-------------------------------------------------
+
+const rom_entry *c8050_device::device_rom_region() const
+{
+	return ROM_NAME( c8050 );
+}
+
+
+//-------------------------------------------------
 //  ROM( c8250lp )
 //-------------------------------------------------
 
@@ -202,6 +232,16 @@ ROM_END
 
 
 //-------------------------------------------------
+//  rom_region - device-specific ROM region
+//-------------------------------------------------
+
+const rom_entry *c8250lp_device::device_rom_region() const
+{
+	return ROM_NAME( c8250lp );
+}
+
+
+//-------------------------------------------------
 //  ROM( sfd1001 )
 //-------------------------------------------------
 
@@ -223,28 +263,9 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const rom_entry *c2040_device::device_rom_region() const
+const rom_entry *sfd1001_device::device_rom_region() const
 {
-	switch (m_variant)
-	{
-	default:
-	case TYPE_2040:
-	case TYPE_3040:
-		return ROM_NAME( c2040 );
-
-	case TYPE_4040:
-		return ROM_NAME( c4040 );
-
-	case TYPE_8050:
-	case TYPE_8250:
-		return ROM_NAME( c8050 );
-
-	case TYPE_8250LP:
-		return ROM_NAME( c8250lp );
-
-	case TYPE_SFD1001:
-		return ROM_NAME( sfd1001 );
-	}
+	return ROM_NAME( sfd1001 );
 }
 
 
@@ -484,9 +505,9 @@ READ8_MEMBER( c2040_device::riot1_pb_r )
 	    PB0     DEVICE NUMBER SELECTION
 	    PB1     DEVICE NUMBER SELECTION
 	    PB2     DEVICE NUMBER SELECTION
-	    PB3     ACT LED 1
-	    PB4     ACT LED 0
-	    PB5     ERR LED
+	    PB3
+	    PB4
+	    PB5
 	    PB6     DACI
 	    PB7     RFDI
 
@@ -495,7 +516,7 @@ READ8_MEMBER( c2040_device::riot1_pb_r )
 	UINT8 data = 0;
 
 	// device number selection
-	data |= m_address - 8;
+	data |= m_slot->get_address() - 8;
 
 	// data accepted in
 	data |= m_bus->ndac_r() << 6;
@@ -512,14 +533,14 @@ WRITE8_MEMBER( c2040_device::riot1_pb_w )
 
 	    bit     description
 
-	    PB0     DEVICE NUMBER SELECTION
-	    PB1     DEVICE NUMBER SELECTION
-	    PB2     DEVICE NUMBER SELECTION
+	    PB0
+	    PB1
+	    PB2
 	    PB3     ACT LED 1
 	    PB4     ACT LED 0
 	    PB5     ERR LED
-	    PB6     DACI
-	    PB7     RFDI
+	    PB6
+	    PB7
 
 	*/
 
@@ -884,7 +905,7 @@ READ8_MEMBER( c8050_device::miot_pb_r )
 	data |= 0x10;
 
 	// single/dual sided
-	if (m_variant == c2040_device::TYPE_8050)
+	if (!m_double_sided)
 	{
 		data |= 0x40;
 	}
@@ -910,8 +931,7 @@ WRITE8_MEMBER( c8050_device::miot_pb_w )
 	*/
 
 	// drive select
-	if ((m_variant == c2040_device::TYPE_8050) ||
-		(m_variant == c2040_device::TYPE_8250))
+	if (m_image1)
 	{
 		m_drive = BIT(data, 0);
 	}
@@ -926,8 +946,7 @@ WRITE8_MEMBER( c8050_device::miot_pb_w )
 	}
 
 	// side select
-	if ((m_variant == c2040_device::TYPE_8250) ||
-		(m_variant == c2040_device::TYPE_SFD1001))
+	if (m_double_sided)
 	{
 		m_side = !BIT(data, 4);
 	}
@@ -1084,6 +1103,17 @@ MACHINE_CONFIG_END
 
 
 //-------------------------------------------------
+//  machine_config_additions - device-specific
+//  machine configurations
+//-------------------------------------------------
+
+machine_config_constructor c2040_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( c2040 );
+}
+
+
+//-------------------------------------------------
 //  MACHINE_CONFIG_FRAGMENT( c4040 )
 //-------------------------------------------------
 
@@ -1104,6 +1134,17 @@ static MACHINE_CONFIG_FRAGMENT( c4040 )
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(c4040_floppy_interface)
 MACHINE_CONFIG_END
+
+
+//-------------------------------------------------
+//  machine_config_additions - device-specific
+//  machine configurations
+//-------------------------------------------------
+
+machine_config_constructor c4040_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( c4040 );
+}
 
 
 //-------------------------------------------------
@@ -1130,6 +1171,17 @@ MACHINE_CONFIG_END
 
 
 //-------------------------------------------------
+//  machine_config_additions - device-specific
+//  machine configurations
+//-------------------------------------------------
+
+machine_config_constructor c8050_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( c8050 );
+}
+
+
+//-------------------------------------------------
 //  MACHINE_CONFIG_FRAGMENT( c8250 )
 //-------------------------------------------------
 
@@ -1153,6 +1205,17 @@ MACHINE_CONFIG_END
 
 
 //-------------------------------------------------
+//  machine_config_additions - device-specific
+//  machine configurations
+//-------------------------------------------------
+
+machine_config_constructor c8250_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( c8250 );
+}
+
+
+//-------------------------------------------------
 //  MACHINE_CONFIG_FRAGMENT( c8250lp )
 //-------------------------------------------------
 
@@ -1173,6 +1236,17 @@ static MACHINE_CONFIG_FRAGMENT( c8250lp )
 
 	MCFG_LEGACY_FLOPPY_2_DRIVES_ADD(c8250_floppy_interface)
 MACHINE_CONFIG_END
+
+
+//-------------------------------------------------
+//  machine_config_additions - device-specific
+//  machine configurations
+//-------------------------------------------------
+
+machine_config_constructor c8250lp_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( c8250lp );
+}
 
 
 //-------------------------------------------------
@@ -1203,30 +1277,37 @@ MACHINE_CONFIG_END
 //  machine configurations
 //-------------------------------------------------
 
-machine_config_constructor c2040_device::device_mconfig_additions() const
+machine_config_constructor sfd1001_device::device_mconfig_additions() const
 {
-	switch (m_variant)
-	{
-	default:
-	case TYPE_2040:
-	case TYPE_3040:
-		return MACHINE_CONFIG_NAME( c2040 );
+	return MACHINE_CONFIG_NAME( sfd1001 );
+}
 
-	case TYPE_4040:
-		return MACHINE_CONFIG_NAME( c4040 );
 
-	case TYPE_8050:
-		return MACHINE_CONFIG_NAME( c8050 );
+//-------------------------------------------------
+//  INPUT_PORTS( c2040 )
+//-------------------------------------------------
 
-	case TYPE_8250:
-		return MACHINE_CONFIG_NAME( c8250 );
+static INPUT_PORTS_START( c2040 )
+	PORT_START("ADDRESS")
+	PORT_DIPNAME( 0x07, 0x00, "Device Address" )
+	PORT_DIPSETTING(    0x00, "8" )
+	PORT_DIPSETTING(    0x01, "9" )
+	PORT_DIPSETTING(    0x02, "10" )
+	PORT_DIPSETTING(    0x03, "11" )
+	PORT_DIPSETTING(    0x04, "12" )
+	PORT_DIPSETTING(    0x05, "13" )
+	PORT_DIPSETTING(    0x06, "14" )
+	PORT_DIPSETTING(    0x07, "15" )
+INPUT_PORTS_END
 
-	case TYPE_8250LP:
-		return MACHINE_CONFIG_NAME( c8250lp );
 
-	case TYPE_SFD1001:
-		return MACHINE_CONFIG_NAME( sfd1001 );
-	}
+//-------------------------------------------------
+//  input_ports - device-specific input ports
+//-------------------------------------------------
+
+ioport_constructor c2040_device::device_input_ports() const
+{
+	return INPUT_PORTS_NAME( c2040 );
 }
 
 
@@ -1418,7 +1499,7 @@ inline void c2040_device::mpi_step_motor(int unit, int stp)
 //  c2040_device - constructor
 //-------------------------------------------------
 
-c2040_device::c2040_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source)
+c2040_device::c2040_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_ieee488_interface(mconfig, *this),
 		m_maincpu(*this, M6502_TAG),
@@ -1430,6 +1511,7 @@ c2040_device::c2040_device(const machine_config &mconfig, device_type type, cons
 		m_image0(*this, FLOPPY_0),
 		m_image1(*this, FLOPPY_1),
 		m_gcr(*this, "gcr"),
+		m_address(*this, "ADDRESS"),
 		m_drive(0),
 		m_side(0),
 		m_rfdo(1),
@@ -1442,8 +1524,7 @@ c2040_device::c2040_device(const machine_config &mconfig, device_type type, cons
 		m_ready(0),
 		m_mode(0),
 		m_rw(0),
-		m_miot_irq(CLEAR_LINE),
-		m_variant(variant)
+		m_miot_irq(CLEAR_LINE)
 {
 	for (int i = 0; i < 2; i++)
 	{
@@ -1468,6 +1549,7 @@ c2040_device::c2040_device(const machine_config &mconfig, const char *tag, devic
 		m_image0(*this, FLOPPY_0),
 		m_image1(*this, FLOPPY_1),
 		m_gcr(*this, "gcr"),
+		m_address(*this, "ADDRESS"),
 		m_drive(0),
 		m_side(0),
 		m_rfdo(1),
@@ -1480,8 +1562,7 @@ c2040_device::c2040_device(const machine_config &mconfig, const char *tag, devic
 		m_ready(0),
 		m_mode(0),
 		m_rw(0),
-		m_miot_irq(CLEAR_LINE),
-		m_variant(TYPE_2040)
+		m_miot_irq(CLEAR_LINE)
 {
 	for (int i = 0; i < 2; i++)
 	{
@@ -1499,7 +1580,7 @@ c2040_device::c2040_device(const machine_config &mconfig, const char *tag, devic
 //-------------------------------------------------
 
 c3040_device::c3040_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: c2040_device(mconfig, C3040, "C3040", tag, owner, clock, TYPE_3040, "c3040", __FILE__) { }
+	: c2040_device(mconfig, C3040, "C3040", tag, owner, clock, "c3040", __FILE__) { }
 
 
 //-------------------------------------------------
@@ -1507,18 +1588,24 @@ c3040_device::c3040_device(const machine_config &mconfig, const char *tag, devic
 //-------------------------------------------------
 
 c4040_device::c4040_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: c2040_device(mconfig, C4040, "C4040", tag, owner, clock, TYPE_4040, "c4040", __FILE__) { }
+	: c2040_device(mconfig, C4040, "C4040", tag, owner, clock, "c4040", __FILE__) { }
 
 
 //-------------------------------------------------
 //  c8050_device - constructor
 //-------------------------------------------------
 
-c8050_device::c8050_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source)
-	: c2040_device(mconfig, type, name, tag, owner, clock, variant, shortname, source) { }
+c8050_device::c8050_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, bool double_sided, const char *shortname, const char *source)
+	: c2040_device(mconfig, type, name, tag, owner, clock, shortname, source),
+		m_double_sided(double_sided)
+{
+}
 
 c8050_device::c8050_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: c2040_device(mconfig, C8050, "C8050", tag, owner, clock, TYPE_8050, "c8050", __FILE__) { }
+	: c2040_device(mconfig, C8050, "C8050", tag, owner, clock, "c8050", __FILE__),
+		m_double_sided(false)
+{
+}
 
 
 //-------------------------------------------------
@@ -1526,7 +1613,7 @@ c8050_device::c8050_device(const machine_config &mconfig, const char *tag, devic
 //-------------------------------------------------
 
 c8250_device::c8250_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: c8050_device(mconfig, C8250, "C8250", tag, owner, clock, TYPE_8250, "c8250", __FILE__) { }
+	: c8050_device(mconfig, C8250, "C8250", tag, owner, clock, true, "c8250", __FILE__) { }
 
 
 //-------------------------------------------------
@@ -1534,7 +1621,7 @@ c8250_device::c8250_device(const machine_config &mconfig, const char *tag, devic
 //-------------------------------------------------
 
 c8250lp_device::c8250lp_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: c8050_device(mconfig, C8250LP, "C8250LP", tag, owner, clock, TYPE_8250LP, "c8250lp", __FILE__) { }
+	: c8050_device(mconfig, C8250LP, "C8250LP", tag, owner, clock, true, "c8250lp", __FILE__) { }
 
 
 //-------------------------------------------------
@@ -1542,7 +1629,7 @@ c8250lp_device::c8250lp_device(const machine_config &mconfig, const char *tag, d
 //-------------------------------------------------
 
 sfd1001_device::sfd1001_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: c8050_device(mconfig, SFD1001, "SFD1001", tag, owner, clock, TYPE_SFD1001, "sfd1001", __FILE__) { }
+	: c8050_device(mconfig, SFD1001, "SFD1001", tag, owner, clock, true, "sfd1001", __FILE__) { }
 
 
 //-------------------------------------------------
@@ -1674,14 +1761,15 @@ void c2040_device::device_timer(emu_timer &timer, device_timer_id id, int param,
 		m_via->write_ca1(ready);
 		m_via->write_cb1(ERROR);
 
-		if ((m_variant == c2040_device::TYPE_8050) ||
-			(m_variant == c2040_device::TYPE_8250) ||
-			(m_variant == c2040_device::TYPE_SFD1001))
-		{
-			m_fdccpu->set_input_line(M6502_SET_OVERFLOW, ready ? CLEAR_LINE : ASSERT_LINE);
-		}
+		this->byte_ready(ready);
 	}
 }
+
+void c8050_device::byte_ready(int state)
+{
+	m_fdccpu->set_input_line(M6502_SET_OVERFLOW, state ? CLEAR_LINE : ASSERT_LINE);
+}
+
 
 
 //-------------------------------------------------
@@ -1725,7 +1813,7 @@ void c2040_device::on_disk0_change(device_image_interface &image)
 
 
 //-------------------------------------------------
-//  on_disk_change -
+//  on_disk1_change -
 //-------------------------------------------------
 
 void c2040_device::on_disk1_change(device_image_interface &image)

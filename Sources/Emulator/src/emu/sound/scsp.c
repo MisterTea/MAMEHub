@@ -30,6 +30,7 @@
 #include "emu.h"
 #include "scsp.h"
 #include "scspdsp.h"
+#include "devlegcy.h"
 
 
 #define ICLIP16(x) (x<-32768)?-32768:((x>32767)?32767:x)
@@ -1338,30 +1339,62 @@ static void dma_scsp(address_space &space, scsp_state *scsp)
 				"DGATE: %d  DDIR: %d\n",scsp->scsp_dmea,scsp->scsp_drga,scsp->scsp_dtlg,scsp_dgate ? 1 : 0,scsp_ddir ? 1 : 0);
 
 	/* Copy the dma values in a temp storage for resuming later */
-		/* (DMA *can't* overwrite his parameters).                  */
+		/* (DMA *can't* overwrite its parameters).                  */
 	if(!(scsp_ddir))
 	{
 		for(i=0;i<3;i++)
 			tmp_dma[i] = scsp->dma_regs[i];
 	}
 
+	/* note: we don't use space.read_word / write_word because it can happen that SH-2 enables the DMA instead of m68k. */
 	/* TODO: don't know if params auto-updates, I guess not ... */
 	if(scsp_ddir)
 	{
-		for(i=0;i < scsp->scsp_dtlg;i+=2)
+		if(scsp_dgate)
 		{
-			space.write_word(scsp->scsp_dmea, space.read_word(0x100000|scsp->scsp_drga));
-			scsp->scsp_dmea+=2;
-			scsp->scsp_drga+=2;
+			popmessage("Check: SCSP DMA DGATE enabled, contact MAME/MESSdev");
+			for(i=0;i < scsp->scsp_dtlg;i+=2)
+			{
+				scsp->SCSPRAM[scsp->scsp_dmea] = 0;
+				scsp->SCSPRAM[scsp->scsp_dmea+1] = 0;
+				scsp->scsp_dmea+=2;
+			}
+		}
+		else
+		{
+			for(i=0;i < scsp->scsp_dtlg;i+=2)
+			{
+				UINT16 tmp;
+				tmp = SCSP_r16(scsp, space, scsp->scsp_drga);
+				scsp->SCSPRAM[scsp->scsp_dmea] = tmp & 0xff;
+				scsp->SCSPRAM[scsp->scsp_dmea+1] = tmp>>8;
+				scsp->scsp_dmea+=2;
+				scsp->scsp_drga+=2;
+			}
 		}
 	}
 	else
 	{
-		for(i=0;i < scsp->scsp_dtlg;i+=2)
+		if(scsp_dgate)
 		{
-			space.write_word(0x100000|scsp->scsp_drga,space.read_word(scsp->scsp_dmea));
-			scsp->scsp_dmea+=2;
-			scsp->scsp_drga+=2;
+			popmessage("Check: SCSP DMA DGATE enabled, contact MAME/MESSdev");
+			for(i=0;i < scsp->scsp_dtlg;i+=2)
+			{
+				SCSP_w16(scsp, space, scsp->scsp_drga, 0);
+				scsp->scsp_drga+=2;
+			}
+		}
+		else
+		{
+			for(i=0;i < scsp->scsp_dtlg;i+=2)
+			{
+				UINT16 tmp;
+				tmp = scsp->SCSPRAM[scsp->scsp_dmea];
+				tmp|= scsp->SCSPRAM[scsp->scsp_dmea+1]<<8;
+				SCSP_w16(scsp, space, scsp->scsp_drga, tmp);
+				scsp->scsp_dmea+=2;
+				scsp->scsp_drga+=2;
+			}
 		}
 	}
 
@@ -1454,6 +1487,7 @@ WRITE16_DEVICE_HANDLER( scsp_w )
 	COMBINE_DATA(&tmp);
 	SCSP_w16(scsp,space,offset*2, tmp);
 
+	/* TODO: move in UpdateSlot structure */
 	switch(offset*2)
 	{
 		// check DMA
@@ -1492,7 +1526,7 @@ READ16_DEVICE_HANDLER( scsp_midi_out_r )
 const device_type SCSP = &device_creator<scsp_device>;
 
 scsp_device::scsp_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SCSP, "SCSP", tag, owner, clock),
+	: device_t(mconfig, SCSP, "SCSP", tag, owner, clock, "scsp", __FILE__),
 		device_sound_interface(mconfig, *this)
 {
 	m_token = global_alloc_clear(scsp_state);

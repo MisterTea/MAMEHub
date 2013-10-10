@@ -50,56 +50,54 @@ Namco System 1 Video Hardware
 
 ***************************************************************************/
 
-INLINE void bg_get_info(running_machine &machine,tile_data &tileinfo,int tile_index,UINT8 *info_vram)
+inline void namcos1_state::bg_get_info(tile_data &tileinfo,int tile_index,UINT8 *info_vram)
 {
-	namcos1_state *state = machine.driver_data<namcos1_state>();
 	int code;
 
 	tile_index <<= 1;
 	code = info_vram[tile_index + 1] + ((info_vram[tile_index] & 0x3f) << 8);
-	SET_TILE_INFO(0,code,0,0);
-	tileinfo.mask_data = &state->m_tilemap_maskdata[code << 3];
+	SET_TILE_INFO_MEMBER(0,code,0,0);
+	tileinfo.mask_data = &m_tilemap_maskdata[code << 3];
 }
 
-INLINE void fg_get_info(running_machine &machine,tile_data &tileinfo,int tile_index,UINT8 *info_vram)
+inline void namcos1_state::fg_get_info(tile_data &tileinfo,int tile_index,UINT8 *info_vram)
 {
-	namcos1_state *state = machine.driver_data<namcos1_state>();
 	int code;
 
 	tile_index <<= 1;
 	code = info_vram[tile_index + 1] + ((info_vram[tile_index] & 0x3f) << 8);
-	SET_TILE_INFO(0,code,0,0);
-	tileinfo.mask_data = &state->m_tilemap_maskdata[code << 3];
+	SET_TILE_INFO_MEMBER(0,code,0,0);
+	tileinfo.mask_data = &m_tilemap_maskdata[code << 3];
 }
 
 TILE_GET_INFO_MEMBER(namcos1_state::bg_get_info0)
 {
-	bg_get_info(machine(),tileinfo,tile_index,&m_videoram[0x0000]);
+	bg_get_info(tileinfo,tile_index,&m_videoram[0x0000]);
 }
 
 TILE_GET_INFO_MEMBER(namcos1_state::bg_get_info1)
 {
-	bg_get_info(machine(),tileinfo,tile_index,&m_videoram[0x2000]);
+	bg_get_info(tileinfo,tile_index,&m_videoram[0x2000]);
 }
 
 TILE_GET_INFO_MEMBER(namcos1_state::bg_get_info2)
 {
-	bg_get_info(machine(),tileinfo,tile_index,&m_videoram[0x4000]);
+	bg_get_info(tileinfo,tile_index,&m_videoram[0x4000]);
 }
 
 TILE_GET_INFO_MEMBER(namcos1_state::bg_get_info3)
 {
-	bg_get_info(machine(),tileinfo,tile_index,&m_videoram[0x6000]);
+	bg_get_info(tileinfo,tile_index,&m_videoram[0x6000]);
 }
 
 TILE_GET_INFO_MEMBER(namcos1_state::fg_get_info4)
 {
-	fg_get_info(machine(),tileinfo,tile_index,&m_videoram[0x7010]);
+	fg_get_info(tileinfo,tile_index,&m_videoram[0x7010]);
 }
 
 TILE_GET_INFO_MEMBER(namcos1_state::fg_get_info5)
 {
-	fg_get_info(machine(),tileinfo,tile_index,&m_videoram[0x7810]);
+	fg_get_info(tileinfo,tile_index,&m_videoram[0x7810]);
 }
 
 
@@ -291,13 +289,13 @@ sprite format:
 15   xxxxxxxx  Y position
 */
 
-static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+static void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	namcos1_state *state = machine.driver_data<namcos1_state>();
+	namcos1_state *state = screen.machine().driver_data<namcos1_state>();
 	UINT8 *spriteram = state->m_spriteram + 0x800;
 	const UINT8 *source = &spriteram[0x800-0x20];   /* the last is NOT a sprite */
 	const UINT8 *finish = &spriteram[0];
-	gfx_element *gfx = machine.gfx[1];
+	gfx_element *gfx = screen.machine().gfx[1];
 
 	int sprite_xoffs = spriteram[0x07f5] + ((spriteram[0x07f4] & 1) << 8);
 	int sprite_yoffs = spriteram[0x07f7];
@@ -345,7 +343,7 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 					flipx,flipy,
 					sx & 0x1ff,
 					((sy + 16) & 0xff) - 16,
-					machine.priority_bitmap, pri_mask,
+					screen.priority(), pri_mask,
 					0xf);
 		else
 			pdrawgfx_transtable( bitmap, cliprect, gfx,
@@ -354,8 +352,8 @@ static void draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const r
 					flipx,flipy,
 					sx & 0x1ff,
 					((sy + 16) & 0xff) - 16,
-					machine.priority_bitmap, pri_mask,
-					state->m_drawmode_table, machine.shadow_table);
+					screen.priority(), pri_mask,
+					state->m_drawmode_table, screen.machine().shadow_table);
 
 		source -= 0x10;
 	}
@@ -414,7 +412,7 @@ UINT32 namcos1_state::screen_update_namcos1(screen_device &screen, bitmap_ind16 
 	}
 
 
-	machine().priority_bitmap.fill(0, new_clip);
+	screen.priority().fill(0, new_clip);
 
 	/* bit 0-2 priority */
 	/* bit 3   disable  */
@@ -423,11 +421,11 @@ UINT32 namcos1_state::screen_update_namcos1(screen_device &screen, bitmap_ind16 
 		for (i = 0;i < 6;i++)
 		{
 			if (m_playfield_control[16 + i] == priority)
-				m_bg_tilemap[i]->draw(bitmap, new_clip, 0,priority,0);
+				m_bg_tilemap[i]->draw(screen, bitmap, new_clip, 0,priority,0);
 		}
 	}
 
-	draw_sprites(machine(), bitmap, new_clip);
+	draw_sprites(screen, bitmap, new_clip);
 	return 0;
 }
 

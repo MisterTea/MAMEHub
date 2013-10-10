@@ -127,7 +127,7 @@ void ninjakd2_state::video_init_common(UINT32 vram_alloc_size)
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ninjakd2_state::get_fg_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_fg_tilemap->set_transparent_pen(0xf);
 
-	machine().primary_screen->register_screen_bitmap(m_sprites_bitmap);
+	m_screen->register_screen_bitmap(m_sprites_bitmap);
 
 	m_sprites_updated = 0;
 	m_robokid_sprites = 0;
@@ -469,9 +469,9 @@ UINT32 ninjakd2_state::screen_update_ninjakd2(screen_device &screen, bitmap_ind1
 
 	bitmap.fill(0, cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	copybitmap_trans(bitmap, m_sprites_bitmap, 0, 0, 0, 0, cliprect, 0xf);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
 }
@@ -483,11 +483,11 @@ UINT32 ninjakd2_state::screen_update_robokid(screen_device &screen, bitmap_ind16
 
 	bitmap.fill(0, cliprect);
 
-	m_bg0_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_bg1_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg0_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_bg1_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	copybitmap_trans(bitmap, m_sprites_bitmap, 0, 0, 0, 0, cliprect, 0xf);
-	m_bg2_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg2_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
 }
@@ -499,11 +499,11 @@ UINT32 ninjakd2_state::screen_update_omegaf(screen_device &screen, bitmap_ind16 
 
 	bitmap.fill(0, cliprect);
 
-	m_bg0_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_bg1_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_bg2_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg0_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_bg1_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_bg2_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	copybitmap_trans(bitmap, m_sprites_bitmap, 0, 0, 0, 0, cliprect, 0xf);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
 }

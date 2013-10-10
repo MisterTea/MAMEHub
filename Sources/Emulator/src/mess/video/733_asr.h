@@ -16,14 +16,14 @@ struct asr733_init_params_t
 
 GFXDECODE_EXTERN( asr733 );
 
-PALETTE_INIT( asr733 );
-
 void asr733_init(running_machine &machine);
 class asr733_device : public device_t
 {
 public:
 	asr733_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	~asr733_device() { global_free(m_token); }
+
+	DECLARE_PALETTE_INIT(asr733);
 
 	// access to legacy token
 	void *token() const { assert(m_token != NULL); return m_token; }
@@ -32,6 +32,7 @@ protected:
 	virtual void device_config_complete();
 	virtual void device_start();
 	virtual void device_reset();
+	virtual machine_config_constructor device_mconfig_additions() const;
 private:
 	// internal state
 	void *m_token;

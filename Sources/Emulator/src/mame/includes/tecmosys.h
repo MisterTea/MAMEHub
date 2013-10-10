@@ -3,7 +3,7 @@
     tecmosys protection simulation
 
 ***************************************************************************/
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 
 class tecmosys_state : public driver_device
 {
@@ -94,5 +94,5 @@ public:
 	DECLARE_WRITE_LINE_MEMBER(sound_irq);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 };

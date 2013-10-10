@@ -52,44 +52,32 @@
 //**************************************************************************
 
 // core machine callbacks
-#define MCFG_MACHINE_START(_func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_MACHINE_START, MACHINE_START_NAME(_func));
 #define MCFG_MACHINE_START_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_MACHINE_START, driver_callback_delegate(&_class::MACHINE_START_NAME(_func), #_class "::machine_start_" #_func, downcast<_class *>(&config.root_device())));
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_MACHINE_START, driver_callback_delegate(&_class::MACHINE_START_NAME(_func), #_class "::machine_start_" #_func, downcast<_class *>(owner)));
 
-#define MCFG_MACHINE_RESET(_func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_MACHINE_RESET, MACHINE_RESET_NAME(_func));
 #define MCFG_MACHINE_RESET_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_MACHINE_RESET, driver_callback_delegate(&_class::MACHINE_RESET_NAME(_func), #_class "::machine_reset_" #_func, downcast<_class *>(&config.root_device())));
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_MACHINE_RESET, driver_callback_delegate(&_class::MACHINE_RESET_NAME(_func), #_class "::machine_reset_" #_func, downcast<_class *>(owner)));
 
+#define MCFG_MACHINE_RESET_REMOVE() \
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_MACHINE_RESET, driver_callback_delegate());
 
 // core sound callbacks
-#define MCFG_SOUND_START(_func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_SOUND_START, SOUND_START_NAME(_func));
 #define MCFG_SOUND_START_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_SOUND_START, driver_callback_delegate(&_class::_func, #_class "::" #_func, downcast<_class *>(&config.root_device())));
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_SOUND_START, driver_callback_delegate(&_class::_func, #_class "::" #_func, downcast<_class *>(owner)));
 
-#define MCFG_SOUND_RESET(_func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_SOUND_RESET, SOUND_RESET_NAME(_func));
 #define MCFG_SOUND_RESET_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_SOUND_RESET, driver_callback_delegate(&_class::_func, #_class "::" #_func, downcast<_class *>(&config.root_device())));
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_SOUND_RESET, driver_callback_delegate(&_class::_func, #_class "::" #_func, downcast<_class *>(owner)));
 
 
 // core video callbacks
-#define MCFG_PALETTE_INIT(_func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_PALETTE_INIT, PALETTE_INIT_NAME(_func));
 #define MCFG_PALETTE_INIT_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_PALETTE_INIT, driver_callback_delegate(&_class::PALETTE_INIT_NAME(_func), #_class "::palette_init_" #_func, downcast<_class *>(&config.root_device())));
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_PALETTE_INIT, driver_callback_delegate(&_class::PALETTE_INIT_NAME(_func), #_class "::palette_init_" #_func, downcast<_class *>(owner)));
 
-#define MCFG_VIDEO_START(_func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_VIDEO_START, VIDEO_START_NAME(_func));
 #define MCFG_VIDEO_START_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_VIDEO_START, driver_callback_delegate(&_class::VIDEO_START_NAME(_func), #_class "::video_start_" #_func, downcast<_class *>(&config.root_device())));
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_VIDEO_START, driver_callback_delegate(&_class::VIDEO_START_NAME(_func), #_class "::video_start_" #_func, downcast<_class *>(owner)));
 
-#define MCFG_VIDEO_RESET(_func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_VIDEO_RESET, VIDEO_RESET_NAME(_func));
 #define MCFG_VIDEO_RESET_OVERRIDE(_class, _func) \
-	driver_device::static_set_callback(*owner, driver_device::CB_VIDEO_RESET, driver_callback_delegate(&_class::VIDEO_RESET_NAME(_func), #_class "::video_reset_" #_func, downcast<_class *>(&config.root_device())));
+	driver_device::static_set_callback(config.root_device(), driver_device::CB_VIDEO_RESET, driver_callback_delegate(&_class::VIDEO_RESET_NAME(_func), #_class "::video_reset_" #_func, downcast<_class *>(owner)));
 
 
 
@@ -97,18 +85,15 @@
 //  OTHER MACROS
 //**************************************************************************
 
-// macros to wrap legacy callbacks
 #define MACHINE_START_NAME(name)    machine_start_##name
-#define MACHINE_START(name)         void MACHINE_START_NAME(name)(running_machine &machine)
-#define MACHINE_START_CALL(name)    MACHINE_START_NAME(name)(machine)
+#define MACHINE_START(name)         void MACHINE_START_NAME(name)(running_machine &machine) // legacy
 #define MACHINE_START_CALL_MEMBER(name) MACHINE_START_NAME(name)()
 #define MACHINE_START_CALL_LEGACY(name) MACHINE_START_NAME(name)(machine())
 #define DECLARE_MACHINE_START(name) void MACHINE_START_NAME(name)()
 #define MACHINE_START_MEMBER(cls,name) void cls::MACHINE_START_NAME(name)()
 
 #define MACHINE_RESET_NAME(name)    machine_reset_##name
-#define MACHINE_RESET(name)         void MACHINE_RESET_NAME(name)(running_machine &machine)
-#define MACHINE_RESET_CALL(name)    MACHINE_RESET_NAME(name)(machine)
+#define MACHINE_RESET(name)         void MACHINE_RESET_NAME(name)(running_machine &machine) // legacy
 #define MACHINE_RESET_CALL_MEMBER(name) MACHINE_RESET_NAME(name)()
 #define MACHINE_RESET_CALL_LEGACY(name) MACHINE_RESET_NAME(name)(machine())
 #define DECLARE_MACHINE_RESET(name) void MACHINE_RESET_NAME(name)()
@@ -123,23 +108,19 @@
 #define SOUND_RESET_CALL(name)      SOUND_RESET_NAME(name)(machine)
 
 #define PALETTE_INIT_NAME(name)     palette_init_##name
-#define PALETTE_INIT(name)          void PALETTE_INIT_NAME(name)(running_machine &machine)
-#define PALETTE_INIT_CALL(name)     PALETTE_INIT_NAME(name)(machine)
+#define PALETTE_INIT(name)          void PALETTE_INIT_NAME(name)(running_machine &machine) // legacy
 #define PALETTE_INIT_CALL_MEMBER(name)      PALETTE_INIT_NAME(name)()
 #define DECLARE_PALETTE_INIT(name)  void PALETTE_INIT_NAME(name)()
 #define PALETTE_INIT_MEMBER(cls,name) void cls::PALETTE_INIT_NAME(name)()
 
 #define VIDEO_START_NAME(name)      video_start_##name
-#define VIDEO_START(name)           void VIDEO_START_NAME(name)(running_machine &machine)
-#define VIDEO_START_CALL(name)      VIDEO_START_NAME(name)(machine)
+#define VIDEO_START(name)           void VIDEO_START_NAME(name)(running_machine &machine) // legacy
 #define VIDEO_START_CALL_MEMBER(name)       VIDEO_START_NAME(name)()
 #define VIDEO_START_CALL_LEGACY(name)       VIDEO_START_NAME(name)(machine())
 #define DECLARE_VIDEO_START(name)   void VIDEO_START_NAME(name)()
 #define VIDEO_START_MEMBER(cls,name) void cls::VIDEO_START_NAME(name)()
 
 #define VIDEO_RESET_NAME(name)      video_reset_##name
-#define VIDEO_RESET(name)           void VIDEO_RESET_NAME(name)(running_machine &machine)
-#define VIDEO_RESET_CALL(name)      VIDEO_RESET_NAME(name)(machine)
 #define VIDEO_RESET_CALL_MEMBER(name)       VIDEO_RESET_NAME(name)()
 #define DECLARE_VIDEO_RESET(name)   void VIDEO_RESET_NAME(name)()
 #define VIDEO_RESET_MEMBER(cls,name) void cls::VIDEO_RESET_NAME(name)()
@@ -153,7 +134,7 @@
 typedef delegate<void ()> driver_callback_delegate;
 
 // legacy callback functions
-typedef void   (*legacy_callback_func)(running_machine &machine);
+/*ATTR_DEPRECATED*/ typedef void (*legacy_callback_func)(running_machine &machine);
 
 
 // ======================> driver_device
@@ -185,7 +166,7 @@ public:
 
 	// inline configuration helpers
 	static void static_set_game(device_t &device, const game_driver &game);
-	static void static_set_callback(device_t &device, callback_type type, legacy_callback_func callback);
+	ATTR_DEPRECATED static void static_set_callback(device_t &device, callback_type type, legacy_callback_func callback);
 	static void static_set_callback(device_t &device, callback_type type, driver_callback_delegate callback);
 
 	// generic helpers
@@ -194,28 +175,6 @@ public:
 	{
 		(machine.driver_data<_DriverClass>()->*_Function)();
 	}
-
-	// member-to-legacy-static wrappers
-	template<read_line_device_func _Func>
-	DECLARE_READ_LINE_MEMBER( member_wrapper_line ) { return (*_Func)(this); }
-	template<write_line_device_func _Func>
-	DECLARE_WRITE_LINE_MEMBER( member_wrapper_line ) { (*_Func)(this, state); }
-	template<read8_device_func _Func>
-	DECLARE_READ8_MEMBER( member_wrapper8 ) { return (*_Func)(this, space, offset, mem_mask); }
-	template<write8_device_func _Func>
-	DECLARE_WRITE8_MEMBER( member_wrapper8 ) { (*_Func)(this, space, offset, data, mem_mask); }
-	template<read16_device_func _Func>
-	DECLARE_READ16_MEMBER( member_wrapper16 ) { return (*_Func)(this, space, offset, mem_mask); }
-	template<write16_device_func _Func>
-	DECLARE_WRITE16_MEMBER( member_wrapper16 ) { (*_Func)(this, space, offset, data, mem_mask); }
-	template<read32_device_func _Func>
-	DECLARE_READ32_MEMBER( member_wrapper32 ) { return (*_Func)(this, space, offset, mem_mask); }
-	template<write32_device_func _Func>
-	DECLARE_WRITE32_MEMBER( member_wrapper32 ) { (*_Func)(this, space, offset, data, mem_mask); }
-	template<read64_device_func _Func>
-	DECLARE_READ64_MEMBER( member_wrapper64 ) { return (*_Func)(this, space, offset, mem_mask); }
-	template<write64_device_func _Func>
-	DECLARE_WRITE64_MEMBER( member_wrapper64 ) { (*_Func)(this, space, offset, data, mem_mask); }
 
 	// dummy driver_init callbacks
 	void init_0() { }
@@ -402,6 +361,16 @@ public:
 	DECLARE_READ8_MEMBER( fatal_generic_read );
 	DECLARE_WRITE8_MEMBER( fatal_generic_write );
 
+	// generic palette init routines
+	DECLARE_PALETTE_INIT( all_black );
+	DECLARE_PALETTE_INIT( black_and_white );
+	DECLARE_PALETTE_INIT( monochrome_amber );
+	DECLARE_PALETTE_INIT( monochrome_green );
+	DECLARE_PALETTE_INIT( RRRR_GGGG_BBBB );
+	DECLARE_PALETTE_INIT( RRRRR_GGGGG_BBBBB );
+	DECLARE_PALETTE_INIT( BBBBB_GGGGG_RRRRR );
+	DECLARE_PALETTE_INIT( RRRRR_GGGGGG_BBBBB );
+
 protected:
 	// helpers called at startup
 	virtual void driver_start();
@@ -432,6 +401,9 @@ protected:
 	inline UINT32 paletteram32_be(offs_t offset) const { return m_generic_paletteram_16[offset | 1] | (m_generic_paletteram_16[offset & ~1] << 16); }
 
 public:
+	// generic devices
+	optional_device<screen_device> m_screen;
+
 	// generic pointers
 	optional_shared_ptr<UINT8> m_generic_paletteram_8;
 	optional_shared_ptr<UINT8> m_generic_paletteram2_8;

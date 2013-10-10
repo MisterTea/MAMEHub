@@ -503,7 +503,6 @@
 #include "machine/6522via.h"
 #include "machine/nvram.h"
 #include "machine/ticket.h"
-#include "video/tms34061.h"
 #include "video/tlc34076.h"
 #include "includes/itech8.h"
 #include "sound/2203intf.h"
@@ -615,7 +614,7 @@ INTERRUPT_GEN_MEMBER(itech8_state::generate_nmi)
 	itech8_update_interrupts(1, -1, -1);
 	machine().scheduler().timer_set(attotime::from_usec(1), timer_expired_delegate(FUNC(itech8_state::irq_off),this));
 
-	if (FULL_LOGGING) logerror("------------ VBLANK (%d) --------------\n", machine().primary_screen->vpos());
+	if (FULL_LOGGING) logerror("------------ VBLANK (%d) --------------\n", m_screen->vpos());
 }
 
 
@@ -645,7 +644,7 @@ WRITE_LINE_MEMBER(itech8_state::generate_sound_irq)
 MACHINE_START_MEMBER(itech8_state,sstrike)
 {
 	/* we need to update behind the beam as well */
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(0), timer_expired_delegate(FUNC(itech8_state::behind_the_beam_update),this), 32);
+	machine().scheduler().timer_set(m_screen->time_until_pos(0), timer_expired_delegate(FUNC(itech8_state::behind_the_beam_update),this), 32);
 }
 
 void itech8_state::machine_reset()
@@ -662,7 +661,7 @@ void itech8_state::machine_reset()
 	/* set the visible area */
 	if (m_visarea.width() > 1)
 	{
-		machine().primary_screen->set_visible_area(m_visarea.min_x, m_visarea.max_x, m_visarea.min_y, m_visarea.max_y);
+		m_screen->set_visible_area(m_visarea.min_x, m_visarea.max_x, m_visarea.min_y, m_visarea.max_y);
 		m_visarea.set(0, 0, 0, 0);
 	}
 }
@@ -681,14 +680,14 @@ TIMER_CALLBACK_MEMBER(itech8_state::behind_the_beam_update)
 	int interval = param & 0xff;
 
 	/* force a partial update to the current scanline */
-	machine().primary_screen->update_partial(scanline);
+	m_screen->update_partial(scanline);
 
 	/* advance by the interval, and wrap to 0 */
 	scanline += interval;
 	if (scanline >= 256) scanline = 0;
 
 	/* set a new timer */
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(itech8_state::behind_the_beam_update),this), (scanline << 8) + interval);
+	machine().scheduler().timer_set(m_screen->time_until_pos(scanline), timer_expired_delegate(FUNC(itech8_state::behind_the_beam_update),this), (scanline << 8) + interval);
 }
 
 
@@ -857,7 +856,7 @@ static ADDRESS_MAP_START( tmslo_map, AS_PROGRAM, 8, itech8_state )
 	AM_RANGE(0x1120, 0x1120) AM_WRITE(sound_data_w)
 	AM_RANGE(0x1140, 0x1140) AM_READ_PORT("40") AM_WRITE(grom_bank_w)
 	AM_RANGE(0x1160, 0x1160) AM_READ_PORT("60") AM_WRITE(itech8_page_w)
-	AM_RANGE(0x1180, 0x1180) AM_READ_PORT("80") AM_WRITE_LEGACY(tms34061_latch_w)
+	AM_RANGE(0x1180, 0x1180) AM_READ_PORT("80") AM_DEVWRITE("tms34061", tms34061_device, latch_w)
 	AM_RANGE(0x11a0, 0x11a0) AM_WRITE(itech8_nmi_ack_w)
 	AM_RANGE(0x11c0, 0x11df) AM_READ(itech8_blitter_r) AM_WRITE(blitter_w)
 	AM_RANGE(0x11e0, 0x11ff) AM_WRITE(itech8_palette_w)
@@ -873,7 +872,7 @@ static ADDRESS_MAP_START( tmshi_map, AS_PROGRAM, 8, itech8_state )
 	AM_RANGE(0x0120, 0x0120) AM_WRITE(sound_data_w)
 	AM_RANGE(0x0140, 0x0140) AM_READ_PORT("40") AM_WRITE(grom_bank_w)
 	AM_RANGE(0x0160, 0x0160) AM_READ_PORT("60") AM_WRITE(itech8_page_w)
-	AM_RANGE(0x0180, 0x0180) AM_READ_PORT("80") AM_WRITE_LEGACY(tms34061_latch_w)
+	AM_RANGE(0x0180, 0x0180) AM_READ_PORT("80") AM_DEVWRITE("tms34061", tms34061_device, latch_w)
 	AM_RANGE(0x01a0, 0x01a0) AM_WRITE(itech8_nmi_ack_w)
 	AM_RANGE(0x01c0, 0x01df) AM_READ(itech8_blitter_r) AM_WRITE(blitter_w)
 	AM_RANGE(0x01e0, 0x01ff) AM_WRITE(itech8_palette_w)
@@ -891,7 +890,7 @@ static ADDRESS_MAP_START( gtg2_map, AS_PROGRAM, 8, itech8_state )
 	AM_RANGE(0x0160, 0x0160) AM_WRITE(grom_bank_w)
 	AM_RANGE(0x0180, 0x019f) AM_READ(itech8_blitter_r) AM_WRITE(blitter_w)
 	AM_RANGE(0x01c0, 0x01c0) AM_WRITE(gtg2_sound_data_w)
-	AM_RANGE(0x01e0, 0x01e0) AM_WRITE_LEGACY(tms34061_latch_w)
+	AM_RANGE(0x01e0, 0x01e0) AM_DEVWRITE("tms34061", tms34061_device, latch_w)
 	AM_RANGE(0x1000, 0x1fff) AM_READWRITE(itech8_tms34061_r, itech8_tms34061_w)
 	AM_RANGE(0x2000, 0x3fff) AM_RAM AM_SHARE("nvram")
 	AM_RANGE(0x4000, 0xffff) AM_ROMBANK("bank1")
@@ -906,7 +905,7 @@ static ADDRESS_MAP_START( ninclown_map, AS_PROGRAM, 16, itech8_state )
 	AM_RANGE(0x100080, 0x100081) AM_WRITE8(sound_data_w, 0xff00)
 	AM_RANGE(0x100100, 0x100101) AM_READ_PORT("40") AM_WRITE(grom_bank16_w)
 	AM_RANGE(0x100180, 0x100181) AM_READ_PORT("60") AM_WRITE(display_page16_w)
-	AM_RANGE(0x100240, 0x100241) AM_WRITE8_LEGACY(tms34061_latch_w, 0xff00)
+	AM_RANGE(0x100240, 0x100241) AM_DEVWRITE8("tms34061", tms34061_device, latch_w, 0xff00)
 	AM_RANGE(0x100280, 0x100281) AM_READ_PORT("80") AM_WRITENOP
 	AM_RANGE(0x100300, 0x10031f) AM_READWRITE8(itech8_blitter_r, itech8_blitter_w, 0xffff)
 	AM_RANGE(0x100380, 0x1003ff) AM_WRITE(palette16_w)
@@ -1645,6 +1644,28 @@ static const ay8910_interface ay8910_config =
 	DEVCB_DRIVER_MEMBER(itech8_state,ym2203_portb_out),
 };
 
+/*************************************
+ *
+ *  TMS34061 interfacing
+ *
+ *************************************/
+
+void itech8_state::static_generate_interrupt(running_machine &machine, int state_num) { machine.driver_data<itech8_state>()->generate_interrupt(state_num); }
+void itech8_state::generate_interrupt(int state_num)
+{
+	itech8_update_interrupts(-1, state_num, -1);
+
+	if (FULL_LOGGING && state_num) logerror("------------ DISPLAY INT (%d) --------------\n", m_screen->vpos());
+}
+
+
+static const struct tms34061_interface tms34061intf =
+{
+	8,                      /* VRAM address is (row << rowshift) | col */
+	0x40000,                /* size of video RAM */
+	&itech8_state::static_generate_interrupt      /* interrupt gen callback */
+};
+
 
 
 /*************************************
@@ -1674,6 +1695,8 @@ static MACHINE_CONFIG_START( itech8_core_lo, itech8_state )
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(512, 263)
+
+	MCFG_TMS34061_ADD("tms34061", tms34061intf)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1770,6 +1793,8 @@ static MACHINE_CONFIG_DERIVED( wfortune, itech8_core_hi )
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(itech8_state, screen_update_itech8_2layer)
+
+
 MACHINE_CONFIG_END
 
 
@@ -1785,6 +1810,7 @@ static MACHINE_CONFIG_DERIVED( grmatch, itech8_core_hi )
 
 	/* palette updater */
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("palette", itech8_state, grmatch_palette_update, "screen", 0, 0)
+
 MACHINE_CONFIG_END
 
 
@@ -1797,6 +1823,7 @@ static MACHINE_CONFIG_DERIVED( stratab_hi, itech8_core_hi )
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_VISIBLE_AREA(0, 255, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(itech8_state, screen_update_itech8_2layer)
+
 MACHINE_CONFIG_END
 
 
@@ -2441,13 +2468,13 @@ ROM_START( rimrockn )
 	ROM_LOAD( "rrbsndv11.u27", 0x08000, 0x8000, CRC(59f87f0e) SHA1(46f38aca35a7c2faee227b4c950d20a6076c6fa7) ) /* Labeled as RRBSND V1.1 U27 */
 
 	ROM_REGION( 0x100000, "grom", 0 )
-	ROM_LOAD( "grom00",       0x00000, 0x40000, CRC(3eacbad9) SHA1(bff1ec6a24ccf983434e4e9453c30f36fa397534) )
-	ROM_LOAD( "grom01",       0x40000, 0x40000, CRC(864cc269) SHA1(06f92889cd20881faeb59ec06ca1578ead2294f4) )
-	ROM_LOAD( "grom02-2.st2", 0x80000, 0x40000, CRC(47904233) SHA1(6a4d10e8f7b75582f706a74b37d59788613ffc61) )
-	ROM_LOAD( "grom03-2.st2", 0xc0000, 0x40000, CRC(f005f118) SHA1(aa39f12d07827e21eceb286557e37973e519b433) )
+	ROM_LOAD( "rbb-grom00",   0x00000, 0x40000, CRC(3eacbad9) SHA1(bff1ec6a24ccf983434e4e9453c30f36fa397534) )
+	ROM_LOAD( "rbb-grom01",   0x40000, 0x40000, CRC(864cc269) SHA1(06f92889cd20881faeb59ec06ca1578ead2294f4) )
+	ROM_LOAD( "rbb-grom02-2", 0x80000, 0x40000, CRC(47904233) SHA1(6a4d10e8f7b75582f706a74b37d59788613ffc61) )
+	ROM_LOAD( "rbb-grom03-2", 0xc0000, 0x40000, CRC(f005f118) SHA1(aa39f12d07827e21eceb286557e37973e519b433) )
 
 	ROM_REGION( 0x40000, "oki", 0 )
-	ROM_LOAD( "srom0", 0x00000, 0x40000, CRC(7ad42be0) SHA1(c9b519bad3c5c9a3315d1bf3292cc30ee0771db7) )
+	ROM_LOAD( "rbb-srom0", 0x00000, 0x40000, CRC(7ad42be0) SHA1(c9b519bad3c5c9a3315d1bf3292cc30ee0771db7) )
 
 	ROM_REGION( 0x0600, "plds", 0 )
 	ROM_LOAD( "pal16l8.u14", 0x0000, 0x0104, NO_DUMP ) /* PAL is read protected */
@@ -2471,13 +2498,13 @@ ROM_START( rimrockn20 )
 	ROM_LOAD( "rrbsndv11.u27", 0x08000, 0x8000, CRC(59f87f0e) SHA1(46f38aca35a7c2faee227b4c950d20a6076c6fa7) ) /* Labeled as RRBSND V1.1 U27 */
 
 	ROM_REGION( 0x100000, "grom", 0 )
-	ROM_LOAD( "grom00",       0x00000, 0x40000, CRC(3eacbad9) SHA1(bff1ec6a24ccf983434e4e9453c30f36fa397534) )
-	ROM_LOAD( "grom01",       0x40000, 0x40000, CRC(864cc269) SHA1(06f92889cd20881faeb59ec06ca1578ead2294f4) )
-	ROM_LOAD( "grom02-2.st2", 0x80000, 0x40000, CRC(47904233) SHA1(6a4d10e8f7b75582f706a74b37d59788613ffc61) )
-	ROM_LOAD( "grom03-2.st2", 0xc0000, 0x40000, CRC(f005f118) SHA1(aa39f12d07827e21eceb286557e37973e519b433) )
+	ROM_LOAD( "rbb-grom00",   0x00000, 0x40000, CRC(3eacbad9) SHA1(bff1ec6a24ccf983434e4e9453c30f36fa397534) )
+	ROM_LOAD( "rbb-grom01",   0x40000, 0x40000, CRC(864cc269) SHA1(06f92889cd20881faeb59ec06ca1578ead2294f4) )
+	ROM_LOAD( "rbb-grom02-2", 0x80000, 0x40000, CRC(47904233) SHA1(6a4d10e8f7b75582f706a74b37d59788613ffc61) )
+	ROM_LOAD( "rbb-grom03-2", 0xc0000, 0x40000, CRC(f005f118) SHA1(aa39f12d07827e21eceb286557e37973e519b433) )
 
 	ROM_REGION( 0x40000, "oki", 0 )
-	ROM_LOAD( "srom0", 0x00000, 0x40000, CRC(7ad42be0) SHA1(c9b519bad3c5c9a3315d1bf3292cc30ee0771db7) )
+	ROM_LOAD( "rbb-srom0", 0x00000, 0x40000, CRC(7ad42be0) SHA1(c9b519bad3c5c9a3315d1bf3292cc30ee0771db7) )
 ROM_END
 
 
@@ -2496,13 +2523,13 @@ ROM_START( rimrockn16 )
 	ROM_LOAD( "rrbsndv11.u27", 0x08000, 0x8000, CRC(59f87f0e) SHA1(46f38aca35a7c2faee227b4c950d20a6076c6fa7) ) /* Labeled as RRBSND V1.1 U27 */
 
 	ROM_REGION( 0x100000, "grom", 0 )
-	ROM_LOAD( "grom00", 0x00000, 0x40000, CRC(3eacbad9) SHA1(bff1ec6a24ccf983434e4e9453c30f36fa397534) )
-	ROM_LOAD( "grom01", 0x40000, 0x40000, CRC(864cc269) SHA1(06f92889cd20881faeb59ec06ca1578ead2294f4) )
-	ROM_LOAD( "grom02", 0x80000, 0x40000, CRC(34e567d5) SHA1(d0eb6fd0da8b9c3bfe7d4ecfb4bd903e4926b63a) )
-	ROM_LOAD( "grom03", 0xc0000, 0x40000, CRC(fd18045d) SHA1(a1b98e4a2aa6f3cd33a3e2f5744160e05cc9f8d1) )
+	ROM_LOAD( "rbb-grom00", 0x00000, 0x40000, CRC(3eacbad9) SHA1(bff1ec6a24ccf983434e4e9453c30f36fa397534) )
+	ROM_LOAD( "rbb-grom01", 0x40000, 0x40000, CRC(864cc269) SHA1(06f92889cd20881faeb59ec06ca1578ead2294f4) )
+	ROM_LOAD( "rbb-grom02", 0x80000, 0x40000, CRC(34e567d5) SHA1(d0eb6fd0da8b9c3bfe7d4ecfb4bd903e4926b63a) )
+	ROM_LOAD( "rbb-grom03", 0xc0000, 0x40000, CRC(fd18045d) SHA1(a1b98e4a2aa6f3cd33a3e2f5744160e05cc9f8d1) )
 
 	ROM_REGION( 0x40000, "oki", 0 )
-	ROM_LOAD( "srom0", 0x00000, 0x40000, CRC(7ad42be0) SHA1(c9b519bad3c5c9a3315d1bf3292cc30ee0771db7) )
+	ROM_LOAD( "rbb-srom0", 0x00000, 0x40000, CRC(7ad42be0) SHA1(c9b519bad3c5c9a3315d1bf3292cc30ee0771db7) )
 ROM_END
 
 
@@ -2521,13 +2548,13 @@ ROM_START( rimrockn12 )
 	ROM_LOAD( "rrbsndv1.u27", 0x08000, 0x8000, CRC(8eda5f53) SHA1(f256544a8c87125587719460ed0fef14efef9015) )
 
 	ROM_REGION( 0x100000, "grom", 0 )
-	ROM_LOAD( "grom00", 0x00000, 0x40000, CRC(3eacbad9) SHA1(bff1ec6a24ccf983434e4e9453c30f36fa397534) )
-	ROM_LOAD( "grom01", 0x40000, 0x40000, CRC(864cc269) SHA1(06f92889cd20881faeb59ec06ca1578ead2294f4) )
-	ROM_LOAD( "grom02", 0x80000, 0x40000, CRC(34e567d5) SHA1(d0eb6fd0da8b9c3bfe7d4ecfb4bd903e4926b63a) )
-	ROM_LOAD( "grom03", 0xc0000, 0x40000, CRC(fd18045d) SHA1(a1b98e4a2aa6f3cd33a3e2f5744160e05cc9f8d1) )
+	ROM_LOAD( "rbb-grom00", 0x00000, 0x40000, CRC(3eacbad9) SHA1(bff1ec6a24ccf983434e4e9453c30f36fa397534) )
+	ROM_LOAD( "rbb-grom01", 0x40000, 0x40000, CRC(864cc269) SHA1(06f92889cd20881faeb59ec06ca1578ead2294f4) )
+	ROM_LOAD( "rbb-grom02", 0x80000, 0x40000, CRC(34e567d5) SHA1(d0eb6fd0da8b9c3bfe7d4ecfb4bd903e4926b63a) )
+	ROM_LOAD( "rbb-grom03", 0xc0000, 0x40000, CRC(fd18045d) SHA1(a1b98e4a2aa6f3cd33a3e2f5744160e05cc9f8d1) )
 
 	ROM_REGION( 0x40000, "oki", 0 )
-	ROM_LOAD( "srom0", 0x00000, 0x40000, CRC(7ad42be0) SHA1(c9b519bad3c5c9a3315d1bf3292cc30ee0771db7) )
+	ROM_LOAD( "rbb-srom0", 0x00000, 0x40000, CRC(7ad42be0) SHA1(c9b519bad3c5c9a3315d1bf3292cc30ee0771db7) )
 ROM_END
 
 

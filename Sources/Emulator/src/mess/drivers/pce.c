@@ -309,7 +309,6 @@ static const huc6270_interface pce_huc6270_config =
 
 static const huc6260_interface pce_huc6260_config =
 {
-	"screen",
 	DEVCB_DEVICE_MEMBER16( "huc6270", huc6270_device, next_pixel ),
 	DEVCB_DEVICE_MEMBER16( "huc6270", huc6270_device, time_until_next_event ),
 	DEVCB_DEVICE_LINE_MEMBER( "huc6270", huc6270_device, vsync_changed ),
@@ -350,7 +349,6 @@ static const huc6202_interface sgx_huc6202_config =
 
 static const huc6260_interface sgx_huc6260_config =
 {
-	"screen",
 	DEVCB_DEVICE_MEMBER16( "huc6202", huc6202_device, next_pixel ),
 	DEVCB_DEVICE_MEMBER16( "huc6202", huc6202_device, time_until_next_event ),
 	DEVCB_DEVICE_LINE_MEMBER( "huc6202", huc6202_device, vsync_changed ),
@@ -382,7 +380,6 @@ static MACHINE_CONFIG_START( pce_common, pce_state )
 	MCFG_SCREEN_UPDATE_DRIVER( pce_state, screen_update )
 
 	MCFG_PALETTE_LENGTH( HUC6260_PALETTE_SIZE )
-	MCFG_PALETTE_INIT( huc6260 )
 
 	MCFG_HUC6260_ADD( "huc6260", MAIN_CLOCK, pce_huc6260_config )
 	MCFG_HUC6270_ADD( "huc6270", pce_huc6270_config )
@@ -427,7 +424,6 @@ static MACHINE_CONFIG_START( sgx, pce_state )
 	MCFG_SCREEN_UPDATE_DRIVER( pce_state, screen_update )
 
 	MCFG_PALETTE_LENGTH( HUC6260_PALETTE_SIZE )
-	MCFG_PALETTE_INIT( huc6260 )
 
 	MCFG_HUC6260_ADD( "huc6260", MAIN_CLOCK, sgx_huc6260_config )
 	MCFG_HUC6270_ADD( "huc6270_0", sgx_huc6270_0_config )

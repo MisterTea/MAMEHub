@@ -42,17 +42,17 @@ const device_type PIT8254 = &device_creator<pit8254_device>;
 
 
 pit8253_device::pit8253_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-				: device_t(mconfig, PIT8253, "Intel PIT8253", tag, owner, clock)
+				: device_t(mconfig, PIT8253, "Intel PIT8253", tag, owner, clock, "pit8253", __FILE__)
 {
 }
 
-pit8253_device::pit8253_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-				: device_t(mconfig, type, name, tag, owner, clock)
+pit8253_device::pit8253_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+				: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
 
 pit8254_device::pit8254_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-				: pit8253_device(mconfig, PIT8254, "Intel PIT8254", tag, owner, clock)
+				: pit8253_device(mconfig, PIT8254, "Intel PIT8254", tag, owner, clock, "pit8254", __FILE__)
 {
 }
 
@@ -226,7 +226,7 @@ static UINT32 adjusted_count(int bcd, UINT16 val)
 void pit8253_device::decrease_counter_value(pit8253_timer *timer, UINT64 cycles)
 {
 	UINT16 value;
-	int units, tens, hundreds, thousands;
+	UINT8 units, tens, hundreds, thousands;
 
 	if (CTRL_BCD(timer->control) == 0)
 	{
@@ -282,7 +282,7 @@ void pit8253_device::decrease_counter_value(pit8253_timer *timer, UINT64 cycles)
 void pit8253_device::load_counter_value(pit8253_timer *timer)
 {
 	timer->value = timer->count;
-	timer->null_count = 1;
+	timer->null_count = 0;
 
 	if (CTRL_MODE(timer->control) == 3 && timer->output == 0)
 		timer->value &= 0xfffe;
@@ -878,7 +878,7 @@ void pit8253_device::readback(pit8253_timer *timer, int command)
 		/* readback status command */
 		if (timer->latched_status == 0)
 		{
-			timer->status = timer->control | (timer->output != 0 ? 0x80 : 0) | (timer->null_count != 0 ? 0x40 : 0);
+			timer->status = (timer->control & 0x3f) | (timer->output != 0 ? 0x80 : 0) | (timer->null_count != 0 ? 0x40 : 0);
 		}
 
 		timer->latched_status = 1;

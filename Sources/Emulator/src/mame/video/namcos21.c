@@ -124,7 +124,7 @@ VIDEO_START_MEMBER(namcos21_state,namcos21)
 		0,      /* gfx bank */
 		0xf,    /* reverse palette mapping */
 		namcos2_shared_state::c355_obj_code2tile_delegate() );
-} /* VIDEO_START( namcos21 ) */
+}
 
 static void
 update_palette( running_machine &machine )
@@ -175,16 +175,16 @@ UINT32 namcos21_state::screen_update_namcos21(screen_device &screen, bitmap_ind1
 
 	if( m_gametype != NAMCOS21_WINRUN91 )
 	{ /* draw low priority 2d sprites */
-		c355_obj_draw(bitmap, cliprect, 2 );
-		c355_obj_draw(bitmap, cliprect, 14 );   //driver's eyes
+		c355_obj_draw(screen, bitmap, cliprect, 2 );
+		c355_obj_draw(screen, bitmap, cliprect, 14 );   //driver's eyes
 	}
 
 	CopyVisiblePolyFrameBuffer( machine(), bitmap, cliprect, 0x7fc0, 0x7ffe );
 
 	if( m_gametype != NAMCOS21_WINRUN91 )
 	{ /* draw low priority 2d sprites */
-		c355_obj_draw(bitmap, cliprect, 0 );
-		c355_obj_draw(bitmap, cliprect, 1 );
+		c355_obj_draw(screen, bitmap, cliprect, 0 );
+		c355_obj_draw(screen, bitmap, cliprect, 1 );
 	}
 
 	CopyVisiblePolyFrameBuffer( machine(), bitmap, cliprect, 0, 0x7fbf );
@@ -194,9 +194,9 @@ UINT32 namcos21_state::screen_update_namcos21(screen_device &screen, bitmap_ind1
 	{ /* draw high priority 2d sprites */
 		for( pri=pivot; pri<8; pri++ )
 		{
-			c355_obj_draw(bitmap, cliprect, pri );
+			c355_obj_draw(screen, bitmap, cliprect, pri );
 		}
-			c355_obj_draw(bitmap, cliprect, 15 );   //driver's eyes
+			c355_obj_draw(screen, bitmap, cliprect, 15 );   //driver's eyes
 	}
 	else
 	{ /* winrun bitmap layer */
@@ -228,7 +228,7 @@ UINT32 namcos21_state::screen_update_namcos21(screen_device &screen, bitmap_ind1
 		}
 	} /* winrun bitmap layer */
 	return 0;
-} /* SCREEN_UPDATE_IND16( namcos21 ) */
+}
 
 /*********************************************************************************************/
 

@@ -20,6 +20,7 @@
 #include "machine/mc146818.h"
 #include "machine/nscsi_hd.h"
 #include "sound/dac.h"
+#include "mcfglgcy.h"
 
 
 /*************************************
@@ -906,7 +907,7 @@ static MACHINE_CONFIG_START( rastersp, rastersp_state )
 	MCFG_SCREEN_REFRESH_RATE(50)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500)) /* not accurate */
 
-	MCFG_PALETTE_INIT(RRRRR_GGGGGG_BBBBB)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRRR_GGGGGG_BBBBB)
 	MCFG_PALETTE_LENGTH(65536)
 
 	/* Sound */

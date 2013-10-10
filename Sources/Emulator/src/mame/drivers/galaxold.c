@@ -419,19 +419,19 @@ static ADDRESS_MAP_START( galaxold_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x6000, 0x6001) AM_WRITE(galaxold_leds_w)
 	AM_RANGE(0x6002, 0x6002) AM_WRITE(galaxold_coin_lockout_w)
 	AM_RANGE(0x6003, 0x6003) AM_WRITE(galaxold_coin_counter_w)
-	AM_RANGE(0x6004, 0x6007) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)
+	AM_RANGE(0x6004, 0x6007) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)
 	AM_RANGE(0x6800, 0x6800) AM_READ_PORT("IN1")
-	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
-	AM_RANGE(0x6803, 0x6803) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)
-	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
+	AM_RANGE(0x6803, 0x6803) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)
+	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0x7000, 0x7000) AM_READ_PORT("IN2")
 	AM_RANGE(0x7001, 0x7001) AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0x7004, 0x7004) AM_WRITE(galaxold_stars_enable_w)
 	AM_RANGE(0x7006, 0x7006) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0x7007, 0x7007) AM_WRITE(galaxold_flip_screen_y_w)
 	AM_RANGE(0x7800, 0x7fff) AM_READ(watchdog_reset_r)
-	AM_RANGE(0x7800, 0x7800) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0x7800, 0x7800) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 	AM_RANGE(0xfffc, 0xffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -448,18 +448,18 @@ static ADDRESS_MAP_START( mooncrst_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("IN0")
 	AM_RANGE(0xa002, 0xa002) AM_WRITE(galaxold_gfxbank_w)
 	AM_RANGE(0xa003, 0xa003) AM_WRITE(galaxold_coin_counter_w)
-	AM_RANGE(0xa004, 0xa007) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)
+	AM_RANGE(0xa004, 0xa007) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)
 	AM_RANGE(0xa800, 0xa800) AM_READ_PORT("IN1")
-	AM_RANGE(0xa800, 0xa802) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
-	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)
-	AM_RANGE(0xa805, 0xa805) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0xa800, 0xa802) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
+	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)
+	AM_RANGE(0xa805, 0xa805) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0xb000, 0xb000) AM_READ_PORT("DSW0") AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0xb004, 0xb004) AM_WRITE(galaxold_stars_enable_w)
 	AM_RANGE(0xb006, 0xb006) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0xb007, 0xb007) AM_WRITE(galaxold_flip_screen_y_w)
 	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r)
-	AM_RANGE(0xb800, 0xb800) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0xb800, 0xb800) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 ADDRESS_MAP_END
 
 
@@ -481,17 +481,17 @@ static ADDRESS_MAP_START( rockclim_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("IN0")
 	AM_RANGE(0xa000, 0xa002) AM_WRITE(galaxold_gfxbank_w)// a002 - sprite bank
 	AM_RANGE(0xa003, 0xa003) AM_WRITE(galaxold_coin_counter_w)
-	AM_RANGE(0xa004, 0xa007) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)
+	AM_RANGE(0xa004, 0xa007) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)
 	AM_RANGE(0xa800, 0xa800) AM_READ_PORT("IN1")
-	AM_RANGE(0xa800, 0xa802) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
-	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)
-	AM_RANGE(0xa805, 0xa805) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0xa800, 0xa802) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
+	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)
+	AM_RANGE(0xa805, 0xa805) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0xb000, 0xb000) AM_READ_PORT("DSW0") AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0xb006, 0xb006) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0xb007, 0xb007) AM_WRITE(galaxold_flip_screen_y_w)
 	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r)
-	AM_RANGE(0xb800, 0xb800) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0xb800, 0xb800) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 ADDRESS_MAP_END
 
 
@@ -507,18 +507,18 @@ static ADDRESS_MAP_START( ckongg_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0xc000, 0xc001) AM_WRITE(galaxold_leds_w)
 	AM_RANGE(0xc002, 0xc002) AM_WRITE(galaxold_coin_lockout_w)
 	AM_RANGE(0xc003, 0xc003) AM_WRITE(galaxold_coin_counter_w)
-	AM_RANGE(0xc004, 0xc007) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)
+	AM_RANGE(0xc004, 0xc007) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)
 	AM_RANGE(0xc400, 0xc400) AM_READ_PORT("IN1")
-	AM_RANGE(0xc400, 0xc402) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
-	AM_RANGE(0xc403, 0xc403) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)
-	AM_RANGE(0xc405, 0xc405) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0xc406, 0xc407) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0xc400, 0xc402) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
+	AM_RANGE(0xc403, 0xc403) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)
+	AM_RANGE(0xc405, 0xc405) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0xc406, 0xc407) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0xc800, 0xc800) AM_READ_PORT("DSW")
 	AM_RANGE(0xc801, 0xc801) AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0xc804, 0xc804) AM_WRITENOP // link cut
 	AM_RANGE(0xc806, 0xc806) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0xc807, 0xc807) AM_WRITE(galaxold_flip_screen_y_w)
-	AM_RANGE(0xcc00, 0xcc00) AM_READ(watchdog_reset_r) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0xcc00, 0xcc00) AM_READ(watchdog_reset_r) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 ADDRESS_MAP_END
 
 /* Memory map based on mooncrst_map according to Z80 code - seems to be good but needs further checking */
@@ -534,18 +534,18 @@ static ADDRESS_MAP_START( ckongmc_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0xa001, 0xa002) AM_WRITE(galaxold_leds_w)                                              /* GUESS */
 //  AM_RANGE(0xa002, 0xa002) AM_WRITE(galaxold_coin_lockout_w)                                      /* not written */
 //  AM_RANGE(0xa003, 0xa003) AM_WRITE(galaxold_coin_counter_w)                                      /* not written */
-	AM_RANGE(0xa004, 0xa007) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)                            /* GUESS */
+	AM_RANGE(0xa004, 0xa007) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)                            /* GUESS */
 	AM_RANGE(0xa800, 0xa800) AM_READ_PORT("IN1")
-	AM_RANGE(0xa800, 0xa802) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)                   /* GUESS */
-	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)                        /* GUESS */
-	AM_RANGE(0xa805, 0xa805) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)                        /* GUESS */
-	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)                                 /* GUESS */
+	AM_RANGE(0xa800, 0xa802) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)                   /* GUESS */
+	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)                        /* GUESS */
+	AM_RANGE(0xa805, 0xa805) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)                        /* GUESS */
+	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)                                 /* GUESS */
 	AM_RANGE(0xb000, 0xb000) AM_READ_PORT("DSW")
 	AM_RANGE(0xb001, 0xb001) AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0xb004, 0xb004) AM_WRITENOP                                                            /* AM_WRITE(galaxold_stars_enable_w) */
 	AM_RANGE(0xb006, 0xb006) AM_WRITE(galaxold_flip_screen_x_w)                                     /* GUESS */
 	AM_RANGE(0xb007, 0xb007) AM_WRITE(galaxold_flip_screen_y_w)                                     /* GUESS */
-	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)     /* GUESS */
+	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)     /* GUESS */
 ADDRESS_MAP_END
 
 
@@ -560,12 +560,12 @@ static ADDRESS_MAP_START( scramblb_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x6000, 0x6000) AM_READ_PORT("IN0")
 	AM_RANGE(0x6000, 0x6001) AM_WRITENOP  /* sound triggers */
 	AM_RANGE(0x6003, 0x6003) AM_WRITE(galaxold_coin_counter_w)
-	AM_RANGE(0x6004, 0x6007) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)
+	AM_RANGE(0x6004, 0x6007) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)
 	AM_RANGE(0x6800, 0x6800) AM_READ_PORT("IN1")
-	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
-	AM_RANGE(0x6803, 0x6803) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)
-	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
+	AM_RANGE(0x6803, 0x6803) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)
+	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0x7000, 0x7000) AM_READ_PORT("IN2")
 	AM_RANGE(0x7001, 0x7001) AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0x7002, 0x7002) AM_WRITE(galaxold_coin_counter_w)
@@ -574,7 +574,7 @@ static ADDRESS_MAP_START( scramblb_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x7006, 0x7006) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0x7007, 0x7007) AM_WRITE(galaxold_flip_screen_y_w)
 	AM_RANGE(0x7800, 0x7800) AM_READ(watchdog_reset_r)
-	AM_RANGE(0x7800, 0x7800) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0x7800, 0x7800) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 	AM_RANGE(0x8102, 0x8102) AM_READ(scramblb_protection_1_r)
 	AM_RANGE(0x8202, 0x8202) AM_READ(scramblb_protection_2_r)
 ADDRESS_MAP_END
@@ -605,7 +605,7 @@ static ADDRESS_MAP_START( scramb2_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x7006, 0x7006) AM_WRITENOP
 	AM_RANGE(0x7007, 0x7007) AM_WRITENOP
 	AM_RANGE(0x7800, 0x7807) AM_READ(scramb2_port2_r) // reads from 8 addresses, 1 bit per address
-	AM_RANGE(0x7800, 0x7800) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0x7800, 0x7800) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 ADDRESS_MAP_END
 
 READ8_MEMBER( galaxold_state::scrambler_protection_2_r )
@@ -630,12 +630,12 @@ static ADDRESS_MAP_START( scrambler_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x6000, 0x6000) AM_READ_PORT("IN0")
 	AM_RANGE(0x6000, 0x6001) AM_WRITENOP  /* sound triggers */
 	AM_RANGE(0x6003, 0x6003) AM_WRITE(galaxold_coin_counter_w)
-	AM_RANGE(0x6004, 0x6007) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)
+	AM_RANGE(0x6004, 0x6007) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)
 	AM_RANGE(0x6800, 0x6800) AM_READ_PORT("IN1")
-	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
-	AM_RANGE(0x6803, 0x6803) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w) // should this disable the stars too?
-	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
+	AM_RANGE(0x6803, 0x6803) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w) // should this disable the stars too?
+	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0x7000, 0x7000) AM_READ_PORT("IN2") AM_WRITE(galaxold_nmi_enable_w)
 //  AM_RANGE(0x7001, 0x7001)
 	AM_RANGE(0x7002, 0x7002) AM_WRITE(galaxold_coin_counter_w)
@@ -644,7 +644,7 @@ static ADDRESS_MAP_START( scrambler_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x7006, 0x7006) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0x7007, 0x7007) AM_WRITE(galaxold_flip_screen_y_w)
 	AM_RANGE(0x7800, 0x7800) AM_READ(watchdog_reset_r)
-	AM_RANGE(0x7800, 0x7800) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0x7800, 0x7800) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 //  AM_RANGE(0x8102, 0x8102) AM_READ(scramblb_protection_1_r)
 	AM_RANGE(0x8202, 0x8202) AM_READ(scrambler_protection_2_r)
 ADDRESS_MAP_END
@@ -679,16 +679,16 @@ static ADDRESS_MAP_START( guttang_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x6000, 0x6000) AM_READ_PORT("IN0") AM_WRITE( guttang_rombank_w )
 	AM_RANGE(0x6800, 0x6800) AM_READ_PORT("IN1")
 
-	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
-	AM_RANGE(0x6803, 0x6803) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)
-	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
+	AM_RANGE(0x6803, 0x6803) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)
+	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 
 
 	AM_RANGE(0x7000, 0x7000) AM_READ_PORT("IN2")
 	AM_RANGE(0x7001, 0x7001) AM_WRITE(galaxold_nmi_enable_w)
 
-	AM_RANGE(0x7800, 0x7800) AM_READ(watchdog_reset_r)  AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0x7800, 0x7800) AM_READ(watchdog_reset_r)  AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 
 ADDRESS_MAP_END
 
@@ -706,19 +706,19 @@ static ADDRESS_MAP_START( _4in1_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x6000, 0x6001) AM_WRITE(galaxold_leds_w)
 //  AM_RANGE(0x6002, 0x6002) AM_WRITE(galaxold_coin_lockout_w)
 	AM_RANGE(0x6003, 0x6003) AM_WRITE(galaxold_coin_counter_w)
-	AM_RANGE(0x6004, 0x6007) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)
+	AM_RANGE(0x6004, 0x6007) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)
 	AM_RANGE(0x6800, 0x6800) AM_READ_PORT("IN1")
-	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
+	AM_RANGE(0x6800, 0x6802) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
 //  AM_RANGE(0x6803, 0x6803) AM_WRITE(galaxian_noise_enable_w) /* not hooked up? */
-	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0x6805, 0x6805) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0x6806, 0x6807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0x7000, 0x7000) AM_READ_PORT("DSW0")
 	AM_RANGE(0x7001, 0x7001) AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0x7004, 0x7004) AM_WRITE(galaxold_stars_enable_w)
 	AM_RANGE(0x7006, 0x7006) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0x7007, 0x7007) AM_WRITE(galaxold_flip_screen_y_w)
 	AM_RANGE(0x7800, 0x78ff) AM_READ(watchdog_reset_r)
-	AM_RANGE(0x7800, 0x78ff) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0x7800, 0x78ff) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 	AM_RANGE(0x8000, 0x8000) AM_WRITE(_4in1_bank_w)
 	AM_RANGE(0xc000, 0xdfff) AM_ROM     /* fixed menu code */
 ADDRESS_MAP_END
@@ -736,13 +736,13 @@ static ADDRESS_MAP_START( bagmanmc_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("IN0")
 	AM_RANGE(0xa003, 0xa003) AM_WRITE(galaxold_coin_counter_w)
 	AM_RANGE(0xa800, 0xa800) AM_READ_PORT("IN1")
-	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)
+	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)
 	AM_RANGE(0xb000, 0xb000) AM_READ_PORT("DSW")
 	AM_RANGE(0xb001, 0xb001) AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0xb002, 0xb002) AM_WRITE(galaxold_gfxbank_w)
 	AM_RANGE(0xb006, 0xb006) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0xb007, 0xb007) AM_WRITE(galaxold_flip_screen_y_w)
-	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 ADDRESS_MAP_END
 
 
@@ -758,17 +758,17 @@ static ADDRESS_MAP_START( dkongjrm_map, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0xa003, 0xa003) AM_WRITE(galaxold_coin_counter_w)
 	//AM_RANGE(0xa004, 0xa007) AM_WRITE(galaxian_lfo_freq_w)
 	AM_RANGE(0xa800, 0xa8ff) AM_READ_PORT("IN1")
-	AM_RANGE(0xa800, 0xa802) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
-	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)
+	AM_RANGE(0xa800, 0xa802) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
+	AM_RANGE(0xa803, 0xa803) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)
 	//AM_RANGE(0xa805, 0xa805) AM_WRITE(galaxian)
-	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0xb000, 0xb0ff) AM_READ_PORT("DSW")
 	AM_RANGE(0xb000, 0xb000) AM_WRITE(galaxold_gfxbank_w)
 	AM_RANGE(0xb001, 0xb001) AM_WRITE(galaxold_nmi_enable_w)
 	//AM_RANGE(0xb004, 0xb004) AM_WRITE(galaxold_stars_enable_w)
 	AM_RANGE(0xb006, 0xb006) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0xb007, 0xb007) AM_WRITE(galaxold_flip_screen_y_w)
-	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 ADDRESS_MAP_END
 
 
@@ -784,16 +784,16 @@ static ADDRESS_MAP_START( tazzmang, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x9800, 0x9800) AM_READ(watchdog_reset_r)
 	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("IN0")
 	AM_RANGE(0xa7ff, 0xa7ff) AM_READ_PORT("IN0") /* mirror */
-	AM_RANGE(0xa800, 0xa800) AM_READ_PORT("IN1") AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
+	AM_RANGE(0xa800, 0xa800) AM_READ_PORT("IN1") AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
 	AM_RANGE(0xa803, 0xa803) AM_WRITE(galaxold_coin_counter_w)
-	AM_RANGE(0xa805, 0xa805) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0xa805, 0xa805) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0xa806, 0xa807) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0xb000, 0xb000) AM_READ_PORT("DSW0")
 	AM_RANGE(0xb001, 0xb001) AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0xb004, 0xb004) AM_WRITE(galaxold_stars_enable_w)
 	AM_RANGE(0xb006, 0xb006) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0xb007, 0xb007) AM_WRITE(galaxold_flip_screen_y_w)
-	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0xb800, 0xb800) AM_READ(watchdog_reset_r) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 ADDRESS_MAP_END
 
 
@@ -855,18 +855,18 @@ static ADDRESS_MAP_START( hunchbkg, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x1500, 0x1501) AM_MIRROR(0x6000) AM_WRITE(galaxold_leds_w)            /* not connected ... */
 	AM_RANGE(0x1502, 0x1502) AM_MIRROR(0x6000) AM_WRITE(galaxold_coin_lockout_w)    /* not connected ... */
 	AM_RANGE(0x1503, 0x1503) AM_MIRROR(0x6000) AM_WRITE(galaxold_coin_counter_w)
-	AM_RANGE(0x1504, 0x1507) AM_MIRROR(0x6000) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)
+	AM_RANGE(0x1504, 0x1507) AM_MIRROR(0x6000) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)
 	AM_RANGE(0x1580, 0x1580) AM_MIRROR(0x6000) AM_READ_PORT("IN1")
-	AM_RANGE(0x1580, 0x1587) AM_MIRROR(0x6000) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_sound_w)
-	AM_RANGE(0x1583, 0x1583) AM_MIRROR(0x6000) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_noise_enable_w)
-	AM_RANGE(0x1585, 0x1585) AM_MIRROR(0x6000) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_shoot_enable_w)
-	AM_RANGE(0x1586, 0x1587) AM_MIRROR(0x6000) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0x1580, 0x1587) AM_MIRROR(0x6000) AM_DEVWRITE("cust", galaxian_sound_device, sound_w)
+	AM_RANGE(0x1583, 0x1583) AM_MIRROR(0x6000) AM_DEVWRITE("cust", galaxian_sound_device, noise_enable_w)
+	AM_RANGE(0x1585, 0x1585) AM_MIRROR(0x6000) AM_DEVWRITE("cust", galaxian_sound_device, fire_enable_w)
+	AM_RANGE(0x1586, 0x1587) AM_MIRROR(0x6000) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0x1600, 0x1600) AM_MIRROR(0x6000) AM_READ_PORT("DSW0")
 	AM_RANGE(0x1601, 0x1601) AM_MIRROR(0x6000) AM_WRITE(galaxold_nmi_enable_w)
 	AM_RANGE(0x1604, 0x1604) AM_MIRROR(0x6000) AM_WRITE(galaxold_stars_enable_w)
 	AM_RANGE(0x1606, 0x1606) AM_MIRROR(0x6000) AM_WRITE(galaxold_flip_screen_x_w)
 	AM_RANGE(0x1607, 0x1607) AM_MIRROR(0x6000) AM_WRITE(galaxold_flip_screen_y_w)
-	AM_RANGE(0x1680, 0x1680) AM_MIRROR(0x6000) AM_READ(watchdog_reset_r) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0x1680, 0x1680) AM_MIRROR(0x6000) AM_READ(watchdog_reset_r) AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 	AM_RANGE(0x1800, 0x1bff) AM_MIRROR(0x6000) AM_WRITE(galaxold_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0x1c00, 0x1fff) AM_MIRROR(0x6000) AM_RAM
 	AM_RANGE(0x2000, 0x2fff) AM_ROM
@@ -890,14 +890,14 @@ static ADDRESS_MAP_START( drivfrcg, AS_PROGRAM, 8, galaxold_state )
 	AM_RANGE(0x1500, 0x1500) AM_MIRROR(0x6000) AM_READ_PORT("IN0")
 	AM_RANGE(0x1503, 0x1503) AM_MIRROR(0x6000) AM_WRITE(galaxold_coin_counter_w)
 	AM_RANGE(0x1580, 0x1580) AM_MIRROR(0x6000) AM_READ_PORT("IN1")
-	AM_RANGE(0x1580, 0x1582) AM_MIRROR(0x6000) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_background_enable_w)
+	AM_RANGE(0x1580, 0x1582) AM_MIRROR(0x6000) AM_DEVWRITE("cust", galaxian_sound_device, background_enable_w)
 	AM_RANGE(0x1583, 0x1583) AM_MIRROR(0x6000) AM_WRITENOP
 	AM_RANGE(0x1585, 0x1585) AM_MIRROR(0x6000) AM_WRITENOP
-	AM_RANGE(0x1586, 0x1587) AM_MIRROR(0x6000) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_lfo_freq_w)
-	AM_RANGE(0x1600, 0x1600) AM_MIRROR(0x6000) AM_READ_PORT("DSW0") AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_pitch_w)
+	AM_RANGE(0x1586, 0x1587) AM_MIRROR(0x6000) AM_DEVWRITE("cust", galaxian_sound_device, lfo_freq_w)
+	AM_RANGE(0x1600, 0x1600) AM_MIRROR(0x6000) AM_READ_PORT("DSW0") AM_DEVWRITE("cust", galaxian_sound_device, pitch_w)
 	AM_RANGE(0x1700, 0x1700) AM_MIRROR(0x6000) AM_READ_PORT("DSW1") AM_WRITENOP
 	AM_RANGE(0x1701, 0x1701) AM_MIRROR(0x6000) AM_WRITENOP
-	AM_RANGE(0x1704, 0x1707) AM_MIRROR(0x6000) AM_DEVWRITE_LEGACY(GAL_AUDIO, galaxian_vol_w)
+	AM_RANGE(0x1704, 0x1707) AM_MIRROR(0x6000) AM_DEVWRITE("cust", galaxian_sound_device, vol_w)
 	AM_RANGE(0x1800, 0x1bff) AM_MIRROR(0x6000) AM_WRITE(galaxold_videoram_w) AM_SHARE("videoram")
 	AM_RANGE(0x1c00, 0x1fff) AM_MIRROR(0x6000) AM_RAM
 	AM_RANGE(0x2000, 0x2fff) AM_ROM
@@ -1247,6 +1247,98 @@ static INPUT_PORTS_START( ckongmc )
 	PORT_DIPSETTING(    0x80, DEF_STR( 1C_2C ) )
 	PORT_DIPSETTING(    0x01, DEF_STR( 1C_3C ) )
 	PORT_DIPSETTING(    0x81, DEF_STR( 1C_4C ) )
+INPUT_PORTS_END
+
+
+static INPUT_PORTS_START( ckonggx )
+	PORT_START("IN0")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_COIN1 )
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_COIN2 )
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT )  PORT_4WAY
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_4WAY
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_BUTTON1 )
+	PORT_DIPNAME( 0x20, 0x20, "IN0:20" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, "IN0:40" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "IN0:80" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
+
+
+
+	PORT_START("IN1")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_START1 )
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_START2 )
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP )    PORT_4WAY
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN )    PORT_4WAY
+	PORT_DIPNAME( 0x10, 0x10, "IN0:10" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, "IN0:20" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, "IN0:40" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "IN0:80" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
+
+	PORT_START("DSW")
+	PORT_DIPNAME( 0x01, 0x00, "IN1:01" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x00, "IN1:02" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x00, "IN1:04" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x00, "IN1:08" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x00, "IN1:10" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x00, "IN1:20" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x00, "IN1:40" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x00, "IN1:80" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
+
+	PORT_START("COINAGE")
+	PORT_DIPNAME( 0x01, 0x00, "IN2:01" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x00, "IN2:02" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x00, "IN2:04" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x00, "IN2:08" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x00, "IN2:10" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x00, "IN2:20" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x00, "IN2:40" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x00, "IN2:80" )
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( On ) )
+
 INPUT_PORTS_END
 
 
@@ -2434,7 +2526,7 @@ static MACHINE_CONFIG_DERIVED( ozon1, galaxold_base )
 	MCFG_CPU_IO_MAP(ozon1_io_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", galaxold_state,  nmi_line_pulse)
 
-	MCFG_MACHINE_RESET(0)
+	MCFG_MACHINE_RESET_REMOVE()
 
 	MCFG_PALETTE_INIT_OVERRIDE(galaxold_state,rockclim)
 	MCFG_PALETTE_LENGTH(32)
@@ -2740,6 +2832,146 @@ ROM_START( ckongmc )
 	ROM_LOAD( "ck_cp.bin",     0x0000, 0x0020, CRC(7e0b79cb) SHA1(72ef3eb5f09e10c13dcf6fd568a6d16658055a16) )
 ROM_END
 
+
+DRIVER_INIT_MEMBER(galaxold_state,ckonggx)
+{
+	UINT16 ckonggx_remap[88] = {
+		0x5000, 0x0d00, 0x0e00, 0x0f00, 0x0c00, 0x0100, 0x0200, 0x0300, 0x0400, 0x0500, 0x0600, 0x0700, 0x0800, 0x0900, 0x0a00, 0x0b00,
+		0x1400, 0x1500, 0x1600, 0x1700, 0x1800, 0x1900, 0x1a00, 0x1b00, 0x1c00, 0x1d00, 0x1e00, 0x1f00, 0x1000, 0x1100, 0x1200, 0x1300,
+		0x2400, 0x2500, 0x2600, 0x2700, 0x2800, 0x2900, 0x2a00, 0x2b00, 0x2c00, 0x2d00, 0x2e00, 0x2f00, 0x2000, 0x2100, 0x2200, 0x2300,
+		0x3400, 0x3500, 0x3600, 0x3700, 0x3800, 0x3900, 0x3a00, 0x3b00, 0x3c00, 0x3d00, 0x3e00, 0x3f00, 0x3000, 0x3100, 0x3200, 0x3300,
+		0x4400, 0x4500, 0x4600, 0x4700, 0x4800, 0x4900, 0x4a00, 0x4b00, 0x4c00, 0x4d00, 0x4e00, 0x4f00, 0x4000, 0x4100, 0x4200, 0x4300,
+		0x0000, 0x5100, 0x5200, 0x5300, 0x0000, 0x5100, 0x5200, 0x5300
+		/*^ at 0x0000 there is alt startup code? does it get banked in? */
+	};
+
+	UINT8 *rom = memregion("maincpu")->base();
+	UINT8 *buffer = auto_alloc_array(machine(), UINT8, 0x5800);
+
+	for (int i=0;i<88;i++)
+	{
+		memcpy(buffer+i*0x100, rom+ckonggx_remap[i], 0x100);
+
+	}
+
+	memcpy(rom, buffer, 0x5800);
+	auto_free(machine(), buffer);
+}
+
+
+
+
+
+ROM_START( ckonggx )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "kk1.bin",  0x0000, 0x0800, CRC(615c1ddb) SHA1(68e8393da9041cf94692fc4b53b58c17086e4ebc) )
+	ROM_LOAD( "kk2.bin",  0x0800, 0x0800, CRC(72f259bc) SHA1(0afa349926f70b6c35da1dbb380ad2018f003d56) )
+	ROM_LOAD( "kk3.bin",  0x1000, 0x0800, CRC(17f5e9ac) SHA1(17218ca3582ff4498e0b2684781db24d528bff71) )
+	ROM_LOAD( "kk4.bin",  0x1800, 0x0800, CRC(7aeafd74) SHA1(b9382322367b3953498e8fbbe81b26b18cd7a745) )
+	ROM_LOAD( "kk5.bin",  0x2000, 0x1000, CRC(184b9d7e) SHA1(80159ab19233ce95e9c74d039b6777d01b32e959) )
+	ROM_LOAD( "kk6.bin",  0x3000, 0x1000, CRC(1324aeec) SHA1(22c9c2d3bc691dde05750c285d68c9b6857a2e13) )
+	ROM_LOAD( "kk7.bin",  0x4000, 0x1000, CRC(d9db69b8) SHA1(4b82ee73f7c7ccc9817f70ac4bcfe853e1a7618a) )
+	ROM_LOAD( "kk8.bin",  0x5000, 0x0800, CRC(8cd4bc17) SHA1(43c3f2575182c8f5233b9c6160aa9f41d772bb9d) )
+
+	ROM_REGION( 0x2000, "gfx1", 0 )
+	ROM_LOAD( "kk10.bin",    0x0000, 0x1000, CRC(7311a101) SHA1(49d54c8b94cae4ba81d7a7684eaa4e87815bb4da) )
+	ROM_LOAD( "kk9.bin",     0x1000, 0x1000, CRC(7866d2cb) SHA1(62dd8b80bc0459c7337d8a8cb83e53b999e7f4a9) )
+
+	ROM_REGION( 0x0020, "proms", 0 ) // had the standard PROM and ugly colours
+	ROM_LOAD( "(ckonggx__)6l.bpr",       0x0000, 0x0020, CRC(6a0c7d87) SHA1(140335d85c67c75b65689d4e76d29863c209cf32) )
+ROM_END
+
+
+/*
+
+on a cocktail galaxian pcb (eagle style)
+
+this had a CPU daughtercard with 3 unknown prom/pal/gal type things on it:
+
+Harris M3-7643-5 x2
+TI SN746471 ? (number has been partially obliterated on purpose.
+and a 74ls126
+
+The CPU has 'VIDEO STARS - V.S PRO - TEL: 03045 61541' on a sticky label on it.
+
+the cpu daughterboard is etched 'competitive video'.
+
+The rom daughtercard may not have come from this precise pcb,
+i think it was on a fullsize pcb according to the spacing of the riser pins.
+This daughterboard is also etched competitive video, and uses 4 2716's and 3 2732's.
+
+there are 8 rom sockets on this daughterboard, 7 are roms, and the final socket is actually a 6116 ram.
+
+there is a small prom in the midle of the pcb inbetween the risers,
+with a circular red labelled saying 'k'. This might be a decryption prom or somethign? i dunno.
+
+there is a TBP18s03 PROM installed at 6L which i guess is the colour prom :)
+
+I think thats about it.
+
+Dumped 26.05.04
+Andy Welburn
+www.andys-arcade.com
+
+*/
+
+/* this rom mapping probably isn't quite right
+2012-11-18 - swapped 0100-03FF with 0500-07FF
+           - rom at 51xx seems to be missing.
+           - needs its own memory map
+           - somehow execution needs to get to 0294 which sets SP and memory */
+
+// just seems to be another 'ckonggx' style Crazy Kong bootleg....
+// however maybe the extra startup code at 0 in these roms is more important because we don't have the rom that should map at 5000? (although we're also missing the other 0x300 bytes of data from there too..)
+ROM_START( ckongcv )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "c-k2.bin",       0x0000, 0x0800, CRC(b0fcf6c1) SHA1(7dc8a7b99977ea9582c1ed36fa9f1fa502a70c6e) )
+	ROM_LOAD( "c-k1.bin",       0x0800, 0x0800, CRC(ea9603b2) SHA1(f72202f17f862c7ea81e556690f8fcb9ee926e7f) )
+	ROM_LOAD( "c-k4.bin",       0x1000, 0x0800, CRC(f5743990) SHA1(defd1577b935e3597eba74344dca5626ec2993dd) )
+	ROM_LOAD( "c-k3.bin",       0x1800, 0x0800, CRC(c4338a77) SHA1(b1ca2d43340b671ef33f3a96ce8e1c286a3e6d80) )
+	ROM_LOAD( "c-k6.bin",       0x2000, 0x1000, CRC(184b9d7e) SHA1(80159ab19233ce95e9c74d039b6777d01b32e959) )
+	ROM_LOAD( "c-k5.bin",       0x3000, 0x1000, CRC(d8df2ec4) SHA1(bef1d4b404cddb8a5f9d4e3f30ee09915c602f56) )
+	ROM_LOAD( "c-k7.bin",       0x4000, 0x1000, CRC(9ddcc06f) SHA1(63bc77d8b3273681ca4e681105a117d19a0f23a5) )
+	/* rom 8? */
+	//ROM_LOAD( "kk8.bin",  0x5000, 0x0800, CRC(8cd4bc17) SHA1(43c3f2575182c8f5233b9c6160aa9f41d772bb9d) ) // works if you use this rom from ckonggx
+
+	/* Crazy Kong gfx?! */
+	ROM_REGION( 0x2000, "gfx1", 0 )
+	ROM_LOAD( "1h.bin",   0x0000, 0x1000, CRC(7866d2cb) SHA1(62dd8b80bc0459c7337d8a8cb83e53b999e7f4a9) )
+	ROM_LOAD( "1k.bin",   0x1000, 0x1000, CRC(7311a101) SHA1(49d54c8b94cae4ba81d7a7684eaa4e87815bb4da) )
+
+	ROM_REGION( 0x0020, "proms", 0 )
+	ROM_LOAD( "6l.bin",     0x0000, 0x0020, CRC(fd81e715) SHA1(eadafe88f26405e6540d4b248b940974e8c31145) )
+
+	ROM_REGION( 0x0020, "proms2", 0 )
+	ROM_LOAD( "k.bin",     0x0000, 0x0020, CRC(d46ed869) SHA1(9c0a11df11b1a24ee933d1aa435337b78c3ca643) )
+ROM_END
+
+// Main Board is an International Scientific Galaxian bootleg PCB
+// this is the same? again no rom to map at 0x5000 so maybe something strange is going on?
+ROM_START( ckongis )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "dk1.bin",       0x0000, 0x0800, CRC(b0fcf6c1) SHA1(7dc8a7b99977ea9582c1ed36fa9f1fa502a70c6e) )
+	ROM_LOAD( "dk2.bin",       0x0800, 0x0800, CRC(ea9603b2) SHA1(f72202f17f862c7ea81e556690f8fcb9ee926e7f) )
+	ROM_LOAD( "dk3.bin",       0x1000, 0x1000, CRC(6dbd515d) SHA1(f02d453e7a1f043efa7b96d525bfec52303091f3) )
+	ROM_LOAD( "dk4.bin",       0x2000, 0x1000, CRC(184b9d7e) SHA1(80159ab19233ce95e9c74d039b6777d01b32e959) )
+	ROM_LOAD( "dk5.bin",       0x3000, 0x1000, CRC(d8df2ec4) SHA1(bef1d4b404cddb8a5f9d4e3f30ee09915c602f56) )
+	ROM_LOAD( "dk6.bin",       0x4000, 0x1000, CRC(9ddcc06f) SHA1(63bc77d8b3273681ca4e681105a117d19a0f23a5) )
+
+//  ROM_LOAD( "kk8.bin",  0x5000, 0x0800, CRC(8cd4bc17) SHA1(43c3f2575182c8f5233b9c6160aa9f41d772bb9d) ) // works if you use this rom from ckonggx but it's definitely not on the PCB
+
+	ROM_REGION( 0x2000, "gfx1", 0 )
+	ROM_LOAD( "1h.bin",   0x0000, 0x1000, CRC(7866d2cb) SHA1(62dd8b80bc0459c7337d8a8cb83e53b999e7f4a9) )
+	ROM_LOAD( "1k.bin",   0x1000, 0x1000, CRC(7311a101) SHA1(49d54c8b94cae4ba81d7a7684eaa4e87815bb4da) )
+
+	ROM_REGION( 0x0020, "proms", 0 ) // wasn't in the dump
+	ROM_LOAD( "6l.bin",     0x0000, 0x0020, CRC(fd81e715) SHA1(eadafe88f26405e6540d4b248b940974e8c31145) )
+
+	ROM_REGION( 0x0020, "proms2", 0 ) // NOT the colour prom?
+	ROM_LOAD( "dkp.bin",     0x0000, 0x0020, CRC(97c473cc) SHA1(1bbb7f17b8d6a3a621e8c22d473eb26d4c1a750b) )
+ROM_END
+
+
 ROM_START( scramblb )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "scramble.1k",  0x0000, 0x0800, CRC(9e025c4a) SHA1(a8cc9391bdd01a5a2fe7f0c4e889b4e2495df891) )
@@ -2996,81 +3228,6 @@ ROM_START( ladybugg )
 
 	ROM_REGION( 0x0020, "proms", 0 )
 	ROM_LOAD( "lbuggx.clr", 0x0000, 0x0020, CRC(4e3caeab) SHA1(a25083c3e36d28afdefe4af6e6d4f3155e303625) )
-ROM_END
-
-/*
-
-on a cocktail galaxian pcb (eagle style)
-
-this had a CPU daughtercard with 3 unknown prom/pal/gal type things on it:
-
-Harris M3-7643-5 x2
-TI SN746471 ? (number has been partially obliterated on purpose.
-and a 74ls126
-
-The CPU has 'VIDEO STARS - V.S PRO - TEL: 03045 61541' on a sticky label on it.
-
-the cpu daughterboard is etched 'competitive video'.
-
-The rom daughtercard may not have come from this precise pcb,
-i think it was on a fullsize pcb according to the spacing of the riser pins.
-This daughterboard is also etched competitive video, and uses 4 2716's and 3 2732's.
-
-there are 8 rom sockets on this daughterboard, 7 are roms, and the final socket is actually a 6116 ram.
-
-there is a small prom in the midle of the pcb inbetween the risers,
-with a circular red labelled saying 'k'. This might be a decryption prom or somethign? i dunno.
-
-there is a TBP18s03 PROM installed at 6L which i guess is the colour prom :)
-
-I think thats about it.
-
-Dumped 26.05.04
-Andy Welburn
-www.andys-arcade.com
-
-*/
-
-/* this rom mapping probably isn't quite right
-2012-11-18 - swapped 0100-03FF with 0500-07FF
-           - rom at 51xx seems to be missing.
-           - needs its own memory map
-           - somehow execution needs to get to 0294 which sets SP and memory */
-ROM_START( vstars )
-	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "c-k2.bin",       0x0000, 0x0100, CRC(b0fcf6c1) SHA1(7dc8a7b99977ea9582c1ed36fa9f1fa502a70c6e) )
-	ROM_CONTINUE(               0x0500, 0x0300)
-	ROM_CONTINUE(               0x0800, 0x0400)
-	ROM_LOAD( "c-k1.bin",       0x0c00, 0x0400, CRC(ea9603b2) SHA1(f72202f17f862c7ea81e556690f8fcb9ee926e7f) )
-	ROM_CONTINUE(               0x0400, 0x0100)
-	ROM_CONTINUE(               0x0100, 0x0300)
-	ROM_LOAD( "c-k4.bin",       0x1c00, 0x0400, CRC(f5743990) SHA1(defd1577b935e3597eba74344dca5626ec2993dd) )
-	ROM_CONTINUE(               0x1000, 0x0400)
-	ROM_LOAD( "c-k3.bin",       0x1400, 0x0400, CRC(c4338a77) SHA1(b1ca2d43340b671ef33f3a96ce8e1c286a3e6d80) )
-	ROM_CONTINUE(               0x1800, 0x0400)
-	ROM_LOAD( "c-k6.bin",       0x2c00, 0x0400, CRC(184b9d7e) SHA1(80159ab19233ce95e9c74d039b6777d01b32e959) )
-	ROM_CONTINUE(               0x2000, 0x0400)
-	ROM_CONTINUE(               0x2400, 0x0400)
-	ROM_CONTINUE(               0x2800, 0x0400)
-	ROM_LOAD( "c-k5.bin",       0x3c00, 0x0400, CRC(d8df2ec4) SHA1(bef1d4b404cddb8a5f9d4e3f30ee09915c602f56) )
-	ROM_CONTINUE(               0x3000, 0x0400)
-	ROM_CONTINUE(               0x3400, 0x0400)
-	ROM_CONTINUE(               0x3800, 0x0400)
-	ROM_LOAD( "c-k7.bin",       0x4c00, 0x0400, CRC(9ddcc06f) SHA1(63bc77d8b3273681ca4e681105a117d19a0f23a5) )
-	ROM_CONTINUE(               0x4000, 0x0400)
-	ROM_CONTINUE(               0x4400, 0x0400)
-	ROM_CONTINUE(               0x4800, 0x0400)
-
-	/* Crazy Kong gfx?! */
-	ROM_REGION( 0x2000, "gfx1", 0 )
-	ROM_LOAD( "1h.bin",   0x0000, 0x1000, CRC(7866d2cb) SHA1(62dd8b80bc0459c7337d8a8cb83e53b999e7f4a9) )
-	ROM_LOAD( "1k.bin",   0x1000, 0x1000, CRC(7311a101) SHA1(49d54c8b94cae4ba81d7a7684eaa4e87815bb4da) )
-
-	ROM_REGION( 0x0020, "proms", 0 )
-	ROM_LOAD( "6l.bin",     0x0000, 0x0020, CRC(fd81e715) SHA1(eadafe88f26405e6540d4b248b940974e8c31145) )
-
-	ROM_REGION( 0x0020, "proms2", 0 )
-	ROM_LOAD( "k.bin",     0x0000, 0x0020, CRC(d46ed869) SHA1(9c0a11df11b1a24ee933d1aa435337b78c3ca643) )
 ROM_END
 
 ROM_START( hunchbkg )
@@ -3349,6 +3506,9 @@ GAME( 1981, vpool,    hustler,  mooncrst, vpool,    driver_device,  0,        RO
 GAME( 1981, rockclim, 0,        rockclim, rockclim, driver_device,  0,        ROT180, "Taito", "Rock Climber", GAME_SUPPORTS_SAVE )
 GAME( 1981, ckongg,   ckong,    ckongg,   ckongg,   driver_device,  0,        ROT90,  "bootleg", "Crazy Kong (bootleg on Galaxian hardware)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1981, ckongmc,  ckong,    ckongmc,  ckongmc,  driver_device,  0,        ROT90,  "bootleg", "Crazy Kong (bootleg on Moon Cresta hardware)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE ) // set was marked as 'King Kong on Galaxian'
+GAME( 1981, ckonggx,  ckong,    ckongg,   ckonggx,  galaxold_state,  ckonggx, ROT90,  "bootleg", "Crazy Kong (bootleg on Galaxian hardware, encrypted, set 1)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1982, ckongcv,   ckong,    ckongg,   ckonggx,  galaxold_state, ckonggx,  ROT90,  "bootleg", "Crazy Kong (bootleg on Galaxian hardware, encrypted, set 2)", GAME_NOT_WORKING )
+GAME( 1982, ckongis,  ckong,    ckongg,   ckonggx,  galaxold_state, ckonggx,  ROT90,  "bootleg", "Crazy Kong (bootleg on Galaxian hardware, encrypted, set 3)", GAME_NOT_WORKING )
 GAME( 1981, scramblb, scramble, scramblb, scramblb, driver_device,  0,        ROT90,  "bootleg", "Scramble (bootleg on Galaxian hardware)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1981, scramb2,  scramble, scramb2,  scramb2,  driver_device,  0,        ROT90,  "bootleg", "Scramble (bootleg)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
 GAME( 1981, scrambler,scramble,scrambler,scrambler, driver_device,  0,        ROT90,  "bootleg (Reben S.A.)", "Scramble (Reben S.A. Spanish bootleg)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
@@ -3361,7 +3521,6 @@ GAME( 1982, tazzmang, tazmania, tazzmang, tazzmang, driver_device,  0,        RO
 GAME( 1983, bongo,    0,        bongo,    bongo,    driver_device,  0,        ROT90,  "Jetsoft", "Bongo", GAME_SUPPORTS_SAVE )
 GAME( 1983, ozon1,    0,        ozon1,    ozon1,    driver_device,  0,        ROT90,  "Proma", "Ozon I", GAME_SUPPORTS_SAVE )
 GAME( 1983, ladybugg, ladybug,  batman2,  ladybugg, galaxold_state, ladybugg, ROT270, "bootleg", "Lady Bug (bootleg on Galaxian hardware)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1982, vstars,   0,        mooncrst, porter,   driver_device,  0,        ROT90,  "Competitive Video?", "Video Stars", GAME_NOT_WORKING )
 GAME( 1982, guttangt, locomotn, guttang,  guttangt, galaxold_state, guttangt, ROT270, "bootleg (Recreativos Franco?)", "Guttang Gottong (bootleg on Galaxian type hardware)", GAME_NOT_WORKING | GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE ) // or by 'Tren' ?
 
 /* S2650 games */

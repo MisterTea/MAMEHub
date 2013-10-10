@@ -30,6 +30,122 @@ Supported games:
         GulfWar II (Game play very similar to Twin cobra)
 
 
+Twin Cobra / Kyukyoku Tiger
+Taito 1987
+
+PCB Layout
+----------
+
+Top board
+
+TP-011 SUB
+ |---------------|
+ |      B30-22.2B|
+ |      B30-23.3B|
+ |T.T-2 B30-24.4B|
+|-|              |
+| |         2016 |
+| |         2016 |
+| |              |
+| |              |
+|-|          6264|
+ |B30_20.12D 6264|
+ |B30_19.14D 6264|
+ |B30_18.15D 6264|
+|-B30_17.16D 6264|
+| |          2016|
+| |    B30-25.18C|
+| |              |
+| |              |
+|-|              |
+ |      2148 2148|
+ |      2148 2148|
+ |      2148 2148|
+ |---------------|
+Notes:
+      T.T-2  - Custom chip (DIP40) marked 'TOAPLAN-02 M70H005'
+      2016   - 2kx8 SRAM (DIP24)
+      6264   - 8kx8 SRAM (DIP28)
+      2148   - 1kx4 SRAM (DIP18)
+      B30-22 \ 82S123 bipolar PROM(DIP16)
+      B30-25 /
+
+      B30-23 \
+      B30-24 / 82S129 bipolar PROM (DIP16)
+
+      B30_*  - OKI M27512 OTP EPROM (DIP28)
+
+
+Bottom board
+
+TP-011
+M6100292A
+KYUKYOKU TIGER
+860260927
+ |------------------------------------------|
+ |B30-21.25A          4016                  |
+ |                    4016      SW2         |
+ |                          T.T-2           |
+|-|                   5165      SW1        J|
+| | B30_16.20B B30_14.20C                  A|
+| |                   5165                 M|
+| | B30_15.18B B30_13.18C                  M|
+| | T.T-1             5165  T.T-2          A|
+|-|            B30_12.16C                   |
+ |                    5165                  |
+ |  T.T-1      B30_11.14C           68000-8 |
+ |                                          |
+|-|            B30_10.12C         5165 5165 |
+| | T.T-1             4016  T.T-2 B30_02.8J |
+| |                   4016        B30_04.8H |
+| | B30_07.10B B30_09.10C         B30_01.7J |
+| | B30_06.8B  B30_08.8C          B30_03.7H |
+|-|                                   7135  |
+ | TMS320C10             Z80          Y3014B|
+ | HD6845                B30_05.4F      VOL |
+ |28MHz 74LS163          4016  YM3812 MB3730|
+ |------------------------------------------|
+Notes:
+      68000  - Sygnetics SCN68000C8N64 68000 CPU. Clock 7.000MHz [28/4] (DIP64)
+      320C10 - Texas Instruments TMS320C10 microcontroller rebadged as a custom chip. Clock 14.000MHz [28/2]
+               There are two versions, Japan & World/US regions and the internal ROM is different.
+      Z80    - Zilog Z0840004PSC Z80 CPU. Clock 3.500MHz [28/8]
+      HD6845 - Hitachi HD6845SP CRT controller. Clock 3.500MHz [28/8] (DIP40)
+      YM3812 - Yamaha YM3812 FM OPLII Sound Generator. Clock 3.500MHz [28/8] (DIP24)
+      Y3014  - Yamaha YM3014 DAC (DIP8)
+      4016   - 2kx8 SRAM (DIP24)
+      5165   - 8kx8 SRAM (DIP28)
+      74LS163- Synchronous 4-Bit Binary Counter logic chip. This chip is used to divide the 28MHz clock.
+               28MHz input on pin 2, outputs: pin 11 1.75MHz, pin 12 3.5MHz, pin 13 7MHz, pin 14 14MHz
+      T.T-1  - Custom chip marked 'TOAPLAN GXL-01' (DIP40)
+      T.T-2  - Custom chip marked 'TOAPLAN-02 M70H005' (DIP40)
+      7135   - Intersil ICL7135 DAC (DIP8)
+      MB3730 - Fujitsu MB3730 14W BTL Audio Power Amplifier
+      SW1/2  - 8-position DIP switch
+      B30-21 - 82S123 bipolar PROM (DIP16)
+      B30_05 \
+      B30_06 |
+      B30_07 |
+      B30_08 |
+      B30_09 | Hitachi HN27256 OTP EPROM (DIP28)
+      B30_10 |
+      B30_11 |
+      B30_12 /
+
+      B30_02 \
+      B30_04 / SGS M27256 EPROM (DIP28)
+
+      B30_01 \
+      B30_03 |
+      B30_13 |
+      B30_14 |
+      B30_15 | OKI M27512 OTP EPROM (DIP28)
+      B30_16 /
+
+      VSync  - 54.8766Hz
+      HSync  - 15.2822kHz
+
+
 Difference between Twin Cobra and Kyukyoku Tiger:
     T.C. supports two simultaneous players.
     K.T. supports two players, but only one at a time.
@@ -56,7 +172,7 @@ Stephh's notes (based on the games M68000 and Z80 code and some tests) :
 1) 'twincobr' and "clones"
 
   - There is no real "test mode" : only a grid with colors ("Cross Hatch Pattern")
-    is displayed. There is a specific "Show Dip Switch Settings".
+    is displayed. There is a separate "Dip Switch Display".
 
 1a) 'twincobr'
 
@@ -90,7 +206,7 @@ Stephh's notes (based on the games M68000 and Z80 code and some tests) :
 2) 'fshark' and "clones"
 
   - There is no real "test mode" : only a grid with colors ("Cross Hatch Pattern")
-    is displayed. There is a specific "Show Dip Switches Settings".
+    is displayed. There is a separate "Dip Switch Display".
 
 2a) 'fshark'
 
@@ -102,7 +218,7 @@ Stephh's notes (based on the games M68000 and Z80 code and some tests) :
 2b) 'skyshark'
 
   - "FOR USE IN U.S.A. ONLY" notice screen.
-  - Game uses a specific coinage.
+  - Game uses a unique coinage.
   - When cabinet set to "Upright", you can use joystick and buttons from both players
     (code at 0x002436).
 
@@ -200,10 +316,8 @@ out:
 20        Coin counters / Coin lockouts
 
 TMS320C10 DSP: Harvard type architecture. RAM and ROM on separate data buses.
-0000-07ff ROM 16-bit opcodes (word access only). Moved to $8000-8fff for
-                 MAME compatibility. View this ROM in the debugger at $8000h
+0000-07ff ROM 16-bit opcodes (word access only).
 0000-0090 Internal RAM (words).
-
 
 in:
 01        data read from addressed 68K address space (Main RAM/Sprite RAM)
@@ -213,15 +327,16 @@ out:
 01        data to write to addressed 68K address space (Main RAM/Sprite RAM)
 03        bit 15 goes to BIO line of TMS320C10. BIO is a polled input line.
 
-
 MCUs used with this hardware: (TMS320C10 in custom Toaplan/Taito disguise)
 
-Twin Cobra                  Sky Shark                   Wardner
-D70016U                     D70012U                     D70012U
-GXC-04                      GXC-02                      GXC-02
-MCU (delta) 74000           MCU 71400                   MCU (delta) 71900
+Hishou Zame  Flying Shark  Sky Shark  Wardner    Kyukyoku Tiger  Twin Cobra
+D70011U      D70012U       D70012U    D70012U    D70015U         D70016U
+GXC-01       GXC-02        GXC-02     GXC-02     GXC-03          GXC-04
+MCU^64000    MCU^71001     MCU 71400  MCU^71900  MCU^74002       MCU^74000
 
-
+Only the first two lines of the MCU label seem to be significant;
+Flying Shark, Sky Shark and Wardner MCUs are all interchangeable.
+Demon's World also uses an MCU interchangeable with Twin Cobra.
 
 68K writes the following to $30000 to tell DSP to do the following:
 Twin  Kyukyoku
@@ -383,9 +498,9 @@ static INPUT_PORTS_START( twincobr )
 	PORT_DIPSETTING(    0x00, "3" )
 	PORT_DIPSETTING(    0x20, "4" )
 	PORT_DIPSETTING(    0x10, "5" )
-	PORT_DIPNAME( 0x40, 0x00, "Show Dip Switch Settings" ) PORT_DIPLOCATION("SW2:!7")
-	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x40, 0x00, "Dip Switch Display" ) PORT_DIPLOCATION("SW2:!7")
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
 	PORT_DIPUNUSED_DIPLOC( 0x80, IP_ACTIVE_HIGH, "SW2:!8" )
 
 	PORT_START("VBLANK")
@@ -453,9 +568,9 @@ static INPUT_PORTS_START( fshark )
 	PORT_DIPSETTING(    0x30, "2" )
 	PORT_DIPSETTING(    0x00, "3" )
 	PORT_DIPSETTING(    0x10, "5" )
-	PORT_DIPNAME( 0x40, 0x00, "Show Dip Switch Settings" ) PORT_DIPLOCATION("SW2:!7")
-	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
-	PORT_DIPSETTING(    0x40, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0x40, 0x00, "Dip Switch Display" ) PORT_DIPLOCATION("SW2:!7")
+	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
 	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Allow_Continue ) ) PORT_DIPLOCATION("SW2:!8")
 	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
 	PORT_DIPSETTING(    0x80, DEF_STR( Yes ) )
@@ -575,7 +690,9 @@ static MACHINE_CONFIG_START( twincobr, twincobr_state )
 	MCFG_MACHINE_RESET_OVERRIDE(twincobr_state,twincobr)
 
 	/* video hardware */
-	MCFG_MC6845_ADD("crtc", HD6845, XTAL_28MHz/8, twincobr_mc6845_intf) /* 3.5MHz measured on CLKin */
+	MCFG_MC6845_ADD("crtc", HD6845, "screen", XTAL_28MHz/8, twincobr_mc6845_intf) /* 3.5MHz measured on CLKin */
+
+	MCFG_TOAPLAN_SCU_ADD("toaplan_scu")
 
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram16")
@@ -618,13 +735,13 @@ MACHINE_CONFIG_END
 
 ROM_START( twincobr )
 	ROM_REGION( 0x30000, "maincpu", 0 ) /* Main 68K code */
-	ROM_LOAD16_BYTE( "b30-01", 0x00000, 0x10000, CRC(07f64d13) SHA1(864ce0f9369c40c3ae792fc4ab2444a168214749) )
-	ROM_LOAD16_BYTE( "b30-03", 0x00001, 0x10000, CRC(41be6978) SHA1(4784804b738a332c7f24a43bcbb7a1e607365735) )
-	ROM_LOAD16_BYTE( "tc15",   0x20000, 0x08000, CRC(3a646618) SHA1(fc1ed8f3c491f5cf16a17e5ce08c5d8f3ce03683) )
-	ROM_LOAD16_BYTE( "tc13",   0x20001, 0x08000, CRC(d7d1e317) SHA1(57b8433b1677a390a7c7e00a1464bb8ed9cbfc73) )
+	ROM_LOAD16_BYTE( "b30_01.7j", 0x00000, 0x10000, CRC(07f64d13) SHA1(864ce0f9369c40c3ae792fc4ab2444a168214749) )
+	ROM_LOAD16_BYTE( "b30_03.7h", 0x00001, 0x10000, CRC(41be6978) SHA1(4784804b738a332c7f24a43bcbb7a1e607365735) )
+	ROM_LOAD16_BYTE( "tc15",      0x20000, 0x08000, CRC(3a646618) SHA1(fc1ed8f3c491f5cf16a17e5ce08c5d8f3ce03683) )
+	ROM_LOAD16_BYTE( "tc13",      0x20001, 0x08000, CRC(d7d1e317) SHA1(57b8433b1677a390a7c7e00a1464bb8ed9cbfc73) )
 
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound Z80 code */
-	ROM_LOAD( "tc12", 0x00000, 0x08000, CRC(e37b3c44) SHA1(5fed10b29c14e27aee0cd92ecde5c5cb422273b1) )  /* slightly different from the other two sets */
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_LOAD( "tc12", 0x0000, 0x8000, CRC(e37b3c44) SHA1(5fed10b29c14e27aee0cd92ecde5c5cb422273b1) )  /* slightly different from the other two sets */
 
 	ROM_REGION( 0x2000, "dsp", 0 )  /* Co-Processor TMS320C10 MCU code */
 	ROM_LOAD16_BYTE( "dsp_22.bin",  0x0001, 0x0800, CRC(79389a71) SHA1(14ec4c1c9b06702319e89a7a250d0038393437f4) )
@@ -636,27 +753,27 @@ ROM_START( twincobr )
 */
 
 	ROM_REGION( 0x0c000, "gfx1", 0 )    /* chars */
-	ROM_LOAD( "tc11", 0x00000, 0x04000, CRC(0a254133) SHA1(17e9cc5e36fb4696012d0f9229fa172034cd843a) )
-	ROM_LOAD( "tc03", 0x04000, 0x04000, CRC(e9e2d4b1) SHA1(e0a19dd46a9ba85d95bba7fbf81d8dc36dbfeabd) )
-	ROM_LOAD( "tc04", 0x08000, 0x04000, CRC(a599d845) SHA1(732001f2d378d890f148e6b616c287d71fae832a) )
+	ROM_LOAD( "b30_08.8c",  0x00000, 0x04000, CRC(0a254133) SHA1(17e9cc5e36fb4696012d0f9229fa172034cd843a) )
+	ROM_LOAD( "b30_07.10b", 0x04000, 0x04000, CRC(e9e2d4b1) SHA1(e0a19dd46a9ba85d95bba7fbf81d8dc36dbfeabd) )
+	ROM_LOAD( "b30_06.8b",  0x08000, 0x04000, CRC(a599d845) SHA1(732001f2d378d890f148e6b616c287d71fae832a) )
 
 	ROM_REGION( 0x40000, "gfx2", 0 )    /* fg tiles */
-	ROM_LOAD( "tc01", 0x00000, 0x10000, CRC(15b3991d) SHA1(f5e7ed7a7721ed7e6dfd440634160390b7a294e4) )
-	ROM_LOAD( "tc02", 0x10000, 0x10000, CRC(d9e2e55d) SHA1(0409e6df836d1d5198b64b21b42192631aa6d096) )
-	ROM_LOAD( "tc06", 0x20000, 0x10000, CRC(13daeac8) SHA1(1cb103f434e2ecf193fa936ca7ea9194064c5b39) )
-	ROM_LOAD( "tc05", 0x30000, 0x10000, CRC(8cc79357) SHA1(31064df2b796ca85ad3caccf626b684dff1104a1) )
+	ROM_LOAD( "b30_16.20b", 0x00000, 0x10000, CRC(15b3991d) SHA1(f5e7ed7a7721ed7e6dfd440634160390b7a294e4) )
+	ROM_LOAD( "b30_15.18b", 0x10000, 0x10000, CRC(d9e2e55d) SHA1(0409e6df836d1d5198b64b21b42192631aa6d096) )
+	ROM_LOAD( "b30_13.18c", 0x20000, 0x10000, CRC(13daeac8) SHA1(1cb103f434e2ecf193fa936ca7ea9194064c5b39) )
+	ROM_LOAD( "b30_14.20c", 0x30000, 0x10000, CRC(8cc79357) SHA1(31064df2b796ca85ad3caccf626b684dff1104a1) )
 
 	ROM_REGION( 0x20000, "gfx3", 0 )    /* bg tiles */
-	ROM_LOAD( "tc07", 0x00000, 0x08000, CRC(b5d48389) SHA1(a00c5b9c231d3d580fa20c7ad3f8b6fd990e6594) )
-	ROM_LOAD( "tc08", 0x08000, 0x08000, CRC(97f20fdc) SHA1(7cb3cd0637b0db889a3d552fd7c1a916eee5ca27) )
-	ROM_LOAD( "tc09", 0x10000, 0x08000, CRC(170c01db) SHA1(f4c5a1600f6cbb48abbace66c6f7514f79138e8b) )
-	ROM_LOAD( "tc10", 0x18000, 0x08000, CRC(44f5accd) SHA1(2f9bdebe71c8be195332356df68992fd38d86994) )
+	ROM_LOAD( "b30_12.16c", 0x00000, 0x08000, CRC(b5d48389) SHA1(a00c5b9c231d3d580fa20c7ad3f8b6fd990e6594) )
+	ROM_LOAD( "b30_11.14c", 0x08000, 0x08000, CRC(97f20fdc) SHA1(7cb3cd0637b0db889a3d552fd7c1a916eee5ca27) )
+	ROM_LOAD( "b30_10.12c", 0x10000, 0x08000, CRC(170c01db) SHA1(f4c5a1600f6cbb48abbace66c6f7514f79138e8b) )
+	ROM_LOAD( "b30_09.10c", 0x18000, 0x08000, CRC(44f5accd) SHA1(2f9bdebe71c8be195332356df68992fd38d86994) )
 
 	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
-	ROM_LOAD( "tc20", 0x00000, 0x10000, CRC(cb4092b8) SHA1(35b1d1e04af760fa106124bd5a94174d63ff9705) )
-	ROM_LOAD( "tc19", 0x10000, 0x10000, CRC(9cb8675e) SHA1(559c21d505c60401f7368d4ab2b686b15075c5c5) )
-	ROM_LOAD( "tc18", 0x20000, 0x10000, CRC(806fb374) SHA1(3eebefadcbdf713bf2a65b438092746b07edd3f0) )
-	ROM_LOAD( "tc17", 0x30000, 0x10000, CRC(4264bff8) SHA1(3271b8b23f51346d1928ae01f8b547fed49181e6) )
+	ROM_LOAD( "b30_20.12d", 0x00000, 0x10000, CRC(cb4092b8) SHA1(35b1d1e04af760fa106124bd5a94174d63ff9705) )
+	ROM_LOAD( "b30_19.14d", 0x10000, 0x10000, CRC(9cb8675e) SHA1(559c21d505c60401f7368d4ab2b686b15075c5c5) )
+	ROM_LOAD( "b30_18.15d", 0x20000, 0x10000, CRC(806fb374) SHA1(3eebefadcbdf713bf2a65b438092746b07edd3f0) )
+	ROM_LOAD( "b30_17.16d", 0x30000, 0x10000, CRC(4264bff8) SHA1(3271b8b23f51346d1928ae01f8b547fed49181e6) )
 
 	ROM_REGION( 0x260, "proms", 0 ) /* nibble bproms, lo/hi order to be determined */
 	ROM_LOAD( "82s129.d3",  0x000, 0x100, CRC(24e7d62f) SHA1(1c06a1ef1b6a722794ca1d5ee2c476ecaa5178a3) )    /* sprite priority control ?? */
@@ -668,40 +785,40 @@ ROM_END
 
 ROM_START( twincobru )
 	ROM_REGION( 0x30000, "maincpu", 0 ) /* Main 68K code */
-	ROM_LOAD16_BYTE( "b30-01", 0x00000, 0x10000, CRC(07f64d13) SHA1(864ce0f9369c40c3ae792fc4ab2444a168214749) )
-	ROM_LOAD16_BYTE( "b30-03", 0x00001, 0x10000, CRC(41be6978) SHA1(4784804b738a332c7f24a43bcbb7a1e607365735) )
-	ROM_LOAD16_BYTE( "b30-26", 0x20000, 0x08000, CRC(bdd00ba4) SHA1(b76b22f03eb4b821a8c555edd9fcee814f2e66a7) )
-	ROM_LOAD16_BYTE( "b30-27", 0x20001, 0x08000, CRC(ed600907) SHA1(e5964db9eab2c334940795d71cb90f6679490227) )
+	ROM_LOAD16_BYTE( "b30_01.7j",   0x00000, 0x10000, CRC(07f64d13) SHA1(864ce0f9369c40c3ae792fc4ab2444a168214749) )
+	ROM_LOAD16_BYTE( "b30_03.7h",   0x00001, 0x10000, CRC(41be6978) SHA1(4784804b738a332c7f24a43bcbb7a1e607365735) )
+	ROM_LOAD16_BYTE( "b30_26-1.8j", 0x20000, 0x08000, CRC(bdd00ba4) SHA1(b76b22f03eb4b821a8c555edd9fcee814f2e66a7) )
+	ROM_LOAD16_BYTE( "b30_27-1.8h", 0x20001, 0x08000, CRC(ed600907) SHA1(e5964db9eab2c334940795d71cb90f6679490227) )
 
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound Z80 code */
-	ROM_LOAD( "b30-05", 0x00000, 0x08000, CRC(1a8f1e10) SHA1(0c37a7a50b2523506ad77ac03ae752eb94092ff6) )
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_LOAD( "b30_05.4f", 0x0000, 0x8000, CRC(1a8f1e10) SHA1(0c37a7a50b2523506ad77ac03ae752eb94092ff6) )
 
 	ROM_REGION( 0x2000, "dsp", 0 )  /* Co-Processor TMS320C10 MCU code */
 	ROM_LOAD16_BYTE( "dsp_22.bin", 0x0001, 0x0800, CRC(79389a71) SHA1(14ec4c1c9b06702319e89a7a250d0038393437f4) )
 	ROM_LOAD16_BYTE( "dsp_21.bin", 0x0000, 0x0800, CRC(2d135376) SHA1(67a2cc774d272ee1cd6e6bc1c5fc33fc6968837e) )
 
 	ROM_REGION( 0x0c000, "gfx1", 0 )    /* chars */
-	ROM_LOAD( "tc11", 0x00000, 0x04000, CRC(0a254133) SHA1(17e9cc5e36fb4696012d0f9229fa172034cd843a) )
-	ROM_LOAD( "tc03", 0x04000, 0x04000, CRC(e9e2d4b1) SHA1(e0a19dd46a9ba85d95bba7fbf81d8dc36dbfeabd) )
-	ROM_LOAD( "tc04", 0x08000, 0x04000, CRC(a599d845) SHA1(732001f2d378d890f148e6b616c287d71fae832a) )
+	ROM_LOAD( "b30_08.8c",  0x00000, 0x04000, CRC(0a254133) SHA1(17e9cc5e36fb4696012d0f9229fa172034cd843a) )
+	ROM_LOAD( "b30_07.10b", 0x04000, 0x04000, CRC(e9e2d4b1) SHA1(e0a19dd46a9ba85d95bba7fbf81d8dc36dbfeabd) )
+	ROM_LOAD( "b30_06.8b",  0x08000, 0x04000, CRC(a599d845) SHA1(732001f2d378d890f148e6b616c287d71fae832a) )
 
 	ROM_REGION( 0x40000, "gfx2", 0 )    /* fg tiles */
-	ROM_LOAD( "tc01", 0x00000, 0x10000, CRC(15b3991d) SHA1(f5e7ed7a7721ed7e6dfd440634160390b7a294e4) )
-	ROM_LOAD( "tc02", 0x10000, 0x10000, CRC(d9e2e55d) SHA1(0409e6df836d1d5198b64b21b42192631aa6d096) )
-	ROM_LOAD( "tc06", 0x20000, 0x10000, CRC(13daeac8) SHA1(1cb103f434e2ecf193fa936ca7ea9194064c5b39) )
-	ROM_LOAD( "tc05", 0x30000, 0x10000, CRC(8cc79357) SHA1(31064df2b796ca85ad3caccf626b684dff1104a1) )
+	ROM_LOAD( "b30_16.20b", 0x00000, 0x10000, CRC(15b3991d) SHA1(f5e7ed7a7721ed7e6dfd440634160390b7a294e4) )
+	ROM_LOAD( "b30_15.18b", 0x10000, 0x10000, CRC(d9e2e55d) SHA1(0409e6df836d1d5198b64b21b42192631aa6d096) )
+	ROM_LOAD( "b30_13.18c", 0x20000, 0x10000, CRC(13daeac8) SHA1(1cb103f434e2ecf193fa936ca7ea9194064c5b39) )
+	ROM_LOAD( "b30_14.20c", 0x30000, 0x10000, CRC(8cc79357) SHA1(31064df2b796ca85ad3caccf626b684dff1104a1) )
 
 	ROM_REGION( 0x20000, "gfx3", 0 )    /* bg tiles */
-	ROM_LOAD( "tc07", 0x00000, 0x08000, CRC(b5d48389) SHA1(a00c5b9c231d3d580fa20c7ad3f8b6fd990e6594) )
-	ROM_LOAD( "tc08", 0x08000, 0x08000, CRC(97f20fdc) SHA1(7cb3cd0637b0db889a3d552fd7c1a916eee5ca27) )
-	ROM_LOAD( "tc09", 0x10000, 0x08000, CRC(170c01db) SHA1(f4c5a1600f6cbb48abbace66c6f7514f79138e8b) )
-	ROM_LOAD( "tc10", 0x18000, 0x08000, CRC(44f5accd) SHA1(2f9bdebe71c8be195332356df68992fd38d86994) )
+	ROM_LOAD( "b30_12.16c", 0x00000, 0x08000, CRC(b5d48389) SHA1(a00c5b9c231d3d580fa20c7ad3f8b6fd990e6594) )
+	ROM_LOAD( "b30_11.14c", 0x08000, 0x08000, CRC(97f20fdc) SHA1(7cb3cd0637b0db889a3d552fd7c1a916eee5ca27) )
+	ROM_LOAD( "b30_10.12c", 0x10000, 0x08000, CRC(170c01db) SHA1(f4c5a1600f6cbb48abbace66c6f7514f79138e8b) )
+	ROM_LOAD( "b30_09.10c", 0x18000, 0x08000, CRC(44f5accd) SHA1(2f9bdebe71c8be195332356df68992fd38d86994) )
 
 	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
-	ROM_LOAD( "tc20", 0x00000, 0x10000, CRC(cb4092b8) SHA1(35b1d1e04af760fa106124bd5a94174d63ff9705) )
-	ROM_LOAD( "tc19", 0x10000, 0x10000, CRC(9cb8675e) SHA1(559c21d505c60401f7368d4ab2b686b15075c5c5) )
-	ROM_LOAD( "tc18", 0x20000, 0x10000, CRC(806fb374) SHA1(3eebefadcbdf713bf2a65b438092746b07edd3f0) )
-	ROM_LOAD( "tc17", 0x30000, 0x10000, CRC(4264bff8) SHA1(3271b8b23f51346d1928ae01f8b547fed49181e6) )
+	ROM_LOAD( "b30_20.12d", 0x00000, 0x10000, CRC(cb4092b8) SHA1(35b1d1e04af760fa106124bd5a94174d63ff9705) )
+	ROM_LOAD( "b30_19.14d", 0x10000, 0x10000, CRC(9cb8675e) SHA1(559c21d505c60401f7368d4ab2b686b15075c5c5) )
+	ROM_LOAD( "b30_18.15d", 0x20000, 0x10000, CRC(806fb374) SHA1(3eebefadcbdf713bf2a65b438092746b07edd3f0) )
+	ROM_LOAD( "b30_17.16d", 0x30000, 0x10000, CRC(4264bff8) SHA1(3271b8b23f51346d1928ae01f8b547fed49181e6) )
 
 	ROM_REGION( 0x260, "proms", 0 ) /* nibble bproms, lo/hi order to be determined */
 	ROM_LOAD( "82s129.d3",  0x000, 0x100, CRC(24e7d62f) SHA1(1c06a1ef1b6a722794ca1d5ee2c476ecaa5178a3) )    /* sprite priority control ?? */
@@ -713,40 +830,40 @@ ROM_END
 
 ROM_START( ktiger )
 	ROM_REGION( 0x30000, "maincpu", 0 ) /* Main 68K code */
-	ROM_LOAD16_BYTE( "b30-01", 0x00000, 0x10000, CRC(07f64d13) SHA1(864ce0f9369c40c3ae792fc4ab2444a168214749) )
-	ROM_LOAD16_BYTE( "b30-03", 0x00001, 0x10000, CRC(41be6978) SHA1(4784804b738a332c7f24a43bcbb7a1e607365735) )
-	ROM_LOAD16_BYTE( "b30-02", 0x20000, 0x08000, CRC(1d63e9c4) SHA1(bdf013487a6fe8f8cbb03fda5f4fae881064831c) )
-	ROM_LOAD16_BYTE( "b30-04", 0x20001, 0x08000, CRC(03957a30) SHA1(d809881a16b05595b6f184e44a36e592f46ba04a) )
+	ROM_LOAD16_BYTE( "b30_01.7j", 0x00000, 0x10000, CRC(07f64d13) SHA1(864ce0f9369c40c3ae792fc4ab2444a168214749) )
+	ROM_LOAD16_BYTE( "b30_03.7h", 0x00001, 0x10000, CRC(41be6978) SHA1(4784804b738a332c7f24a43bcbb7a1e607365735) )
+	ROM_LOAD16_BYTE( "b30_02.8j", 0x20000, 0x08000, CRC(1d63e9c4) SHA1(bdf013487a6fe8f8cbb03fda5f4fae881064831c) )
+	ROM_LOAD16_BYTE( "b30_04.8h", 0x20001, 0x08000, CRC(03957a30) SHA1(d809881a16b05595b6f184e44a36e592f46ba04a) )
 
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound Z80 code */
-	ROM_LOAD( "b30-05", 0x00000, 0x08000, CRC(1a8f1e10) SHA1(0c37a7a50b2523506ad77ac03ae752eb94092ff6) )
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_LOAD( "b30_05.4f", 0x0000, 0x8000, CRC(1a8f1e10) SHA1(0c37a7a50b2523506ad77ac03ae752eb94092ff6) )
 
 	ROM_REGION( 0x2000, "dsp", 0 )  /* Co-Processor TMS320C10 MCU code */
 	ROM_LOAD16_BYTE( "dsp-22", 0x0001, 0x0800, BAD_DUMP CRC(8a1d48d9) SHA1(f345c95a97adfbe89676f81ac83fbbec25703440) )
 	ROM_LOAD16_BYTE( "dsp-21", 0x0000, 0x0800, BAD_DUMP CRC(33d99bc2) SHA1(9372dcfc2313abc4835365ae99842f732329d4e6) )
 
 	ROM_REGION( 0x0c000, "gfx1", 0 )    /* chars */
-	ROM_LOAD( "tc11", 0x00000, 0x04000, CRC(0a254133) SHA1(17e9cc5e36fb4696012d0f9229fa172034cd843a) )
-	ROM_LOAD( "tc03", 0x04000, 0x04000, CRC(e9e2d4b1) SHA1(e0a19dd46a9ba85d95bba7fbf81d8dc36dbfeabd) )
-	ROM_LOAD( "tc04", 0x08000, 0x04000, CRC(a599d845) SHA1(732001f2d378d890f148e6b616c287d71fae832a) )
+	ROM_LOAD( "b30_08.8c", 0x00000, 0x04000, CRC(0a254133) SHA1(17e9cc5e36fb4696012d0f9229fa172034cd843a) )
+	ROM_LOAD( "b30_07.10b", 0x04000, 0x04000, CRC(e9e2d4b1) SHA1(e0a19dd46a9ba85d95bba7fbf81d8dc36dbfeabd) )
+	ROM_LOAD( "b30_06.8b", 0x08000, 0x04000, CRC(a599d845) SHA1(732001f2d378d890f148e6b616c287d71fae832a) )
 
 	ROM_REGION( 0x40000, "gfx2", 0 )    /* fg tiles */
-	ROM_LOAD( "tc01", 0x00000, 0x10000, CRC(15b3991d) SHA1(f5e7ed7a7721ed7e6dfd440634160390b7a294e4) )
-	ROM_LOAD( "tc02", 0x10000, 0x10000, CRC(d9e2e55d) SHA1(0409e6df836d1d5198b64b21b42192631aa6d096) )
-	ROM_LOAD( "tc06", 0x20000, 0x10000, CRC(13daeac8) SHA1(1cb103f434e2ecf193fa936ca7ea9194064c5b39) )
-	ROM_LOAD( "tc05", 0x30000, 0x10000, CRC(8cc79357) SHA1(31064df2b796ca85ad3caccf626b684dff1104a1) )
+	ROM_LOAD( "b30_16.20b", 0x00000, 0x10000, CRC(15b3991d) SHA1(f5e7ed7a7721ed7e6dfd440634160390b7a294e4) )
+	ROM_LOAD( "b30_15.18b", 0x10000, 0x10000, CRC(d9e2e55d) SHA1(0409e6df836d1d5198b64b21b42192631aa6d096) )
+	ROM_LOAD( "b30_13.18c", 0x20000, 0x10000, CRC(13daeac8) SHA1(1cb103f434e2ecf193fa936ca7ea9194064c5b39) )
+	ROM_LOAD( "b30_14.20c", 0x30000, 0x10000, CRC(8cc79357) SHA1(31064df2b796ca85ad3caccf626b684dff1104a1) )
 
 	ROM_REGION( 0x20000, "gfx3", 0 )    /* bg tiles */
-	ROM_LOAD( "tc07", 0x00000, 0x08000, CRC(b5d48389) SHA1(a00c5b9c231d3d580fa20c7ad3f8b6fd990e6594) )
-	ROM_LOAD( "tc08", 0x08000, 0x08000, CRC(97f20fdc) SHA1(7cb3cd0637b0db889a3d552fd7c1a916eee5ca27) )
-	ROM_LOAD( "tc09", 0x10000, 0x08000, CRC(170c01db) SHA1(f4c5a1600f6cbb48abbace66c6f7514f79138e8b) )
-	ROM_LOAD( "tc10", 0x18000, 0x08000, CRC(44f5accd) SHA1(2f9bdebe71c8be195332356df68992fd38d86994) )
+	ROM_LOAD( "b30_12.16c", 0x00000, 0x08000, CRC(b5d48389) SHA1(a00c5b9c231d3d580fa20c7ad3f8b6fd990e6594) )
+	ROM_LOAD( "b30_11.14c", 0x08000, 0x08000, CRC(97f20fdc) SHA1(7cb3cd0637b0db889a3d552fd7c1a916eee5ca27) )
+	ROM_LOAD( "b30_10.12c", 0x10000, 0x08000, CRC(170c01db) SHA1(f4c5a1600f6cbb48abbace66c6f7514f79138e8b) )
+	ROM_LOAD( "b30_09.10c", 0x18000, 0x08000, CRC(44f5accd) SHA1(2f9bdebe71c8be195332356df68992fd38d86994) )
 
 	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
-	ROM_LOAD( "tc20", 0x00000, 0x10000, CRC(cb4092b8) SHA1(35b1d1e04af760fa106124bd5a94174d63ff9705) )
-	ROM_LOAD( "tc19", 0x10000, 0x10000, CRC(9cb8675e) SHA1(559c21d505c60401f7368d4ab2b686b15075c5c5) )
-	ROM_LOAD( "tc18", 0x20000, 0x10000, CRC(806fb374) SHA1(3eebefadcbdf713bf2a65b438092746b07edd3f0) )
-	ROM_LOAD( "tc17", 0x30000, 0x10000, CRC(4264bff8) SHA1(3271b8b23f51346d1928ae01f8b547fed49181e6) )
+	ROM_LOAD( "b30_20.12d", 0x00000, 0x10000, CRC(cb4092b8) SHA1(35b1d1e04af760fa106124bd5a94174d63ff9705) )
+	ROM_LOAD( "b30_19.14d", 0x10000, 0x10000, CRC(9cb8675e) SHA1(559c21d505c60401f7368d4ab2b686b15075c5c5) )
+	ROM_LOAD( "b30_18.15d", 0x20000, 0x10000, CRC(806fb374) SHA1(3eebefadcbdf713bf2a65b438092746b07edd3f0) )
+	ROM_LOAD( "b30_17.16d", 0x30000, 0x10000, CRC(4264bff8) SHA1(3271b8b23f51346d1928ae01f8b547fed49181e6) )
 
 	ROM_REGION( 0x260, "proms", 0 ) /* nibble bproms, lo/hi order to be determined */
 	ROM_LOAD( "82s129.d3",  0x000, 0x100, CRC(24e7d62f) SHA1(1c06a1ef1b6a722794ca1d5ee2c476ecaa5178a3) )    /* sprite priority control ?? */
@@ -761,7 +878,7 @@ ROM_START( fshark )
 	ROM_LOAD16_BYTE( "b02_18-1.m8", 0x00000, 0x10000, CRC(04739e02) SHA1(8a14284adb0f0f33adf9affdec081c90de85d594) )
 	ROM_LOAD16_BYTE( "b02_17-1.p8", 0x00001, 0x10000, CRC(fd6ef7a8) SHA1(ddbc05ce694ab4d929f5f621d95800b612bc5f66) )
 
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
 	ROM_LOAD( "b02_16.l5", 0x0000, 0x8000, CRC(cdd1a153) SHA1(de9827a959039cf753ecac6756fb1925c37466d8) )
 
 	ROM_REGION( 0x2000, "dsp", 0 )  /* Co-Processor TMS320C10 MCU code */
@@ -799,8 +916,8 @@ ROM_START( fshark )
 
 	ROM_REGION( 0x260, "proms", 0 ) /* nibble bproms, lo/hi order to be determined */
 	ROM_LOAD( "b02-20.b4",  0x000, 0x100, CRC(24e7d62f) SHA1(1c06a1ef1b6a722794ca1d5ee2c476ecaa5178a3) ) /* bprom type: 82s129AN - sprite priority control ?? */
-	ROM_LOAD( "b02-19.b5",  0x100, 0x100, CRC(a50cef09) SHA1(55cafb5b2551b80ae708e9b966cf37c70a16d310) ) /* bprom type: 82s129AN - sprite priority control ?? */
-	ROM_LOAD( "b02-21.b2",  0x200, 0x020, CRC(f72482db) SHA1(b0cb911f9c81f6088a5aa8760916ddae1f8534d7) ) /* bprom type: 82s123AN - sprite control ?? */
+	ROM_LOAD( "b02-21.b5",  0x100, 0x100, CRC(a50cef09) SHA1(55cafb5b2551b80ae708e9b966cf37c70a16d310) ) /* bprom type: 82s129AN - sprite priority control ?? */
+	ROM_LOAD( "b02-19.b2",  0x200, 0x020, CRC(f72482db) SHA1(b0cb911f9c81f6088a5aa8760916ddae1f8534d7) ) /* bprom type: 82s123AN - sprite control ?? */
 	ROM_LOAD( "b02-22.c21", 0x220, 0x020, CRC(bc88cced) SHA1(5055362710c0f58823c05fb4c0e0eec638b91e3d) ) /* bprom type: 82s123AN - sprite attribute (flip/position) ?? */
 	ROM_LOAD( "b02-23.f28", 0x240, 0x020, CRC(4fb5df2a) SHA1(506ef2c8e4cf45c256d6831a0a5760732f2de422) ) /* bprom type: 82s123AN - tile to sprite priority ?? */
 ROM_END
@@ -810,8 +927,8 @@ ROM_START( skyshark )
 	ROM_LOAD16_BYTE( "b02_18-2.m8", 0x00000, 0x10000, CRC(888e90f3) SHA1(3a40d7e7653cc929af8186e48f272989fb332e14) )
 	ROM_LOAD16_BYTE( "b02_17-2.p8", 0x00001, 0x10000, CRC(066d67be) SHA1(a66be35b956da2c2ddf97cae66d79c0efd228621) )
 
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound Z80 code */
-	ROM_LOAD( "b02_16.l5",      0x0000, 0x8000, CRC(cdd1a153) SHA1(de9827a959039cf753ecac6756fb1925c37466d8) )
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_LOAD( "b02_16.l5", 0x0000, 0x8000, CRC(cdd1a153) SHA1(de9827a959039cf753ecac6756fb1925c37466d8) )
 
 	ROM_REGION( 0x2000, "dsp", 0 )  /* Co-Processor TMS320C10 MCU code */
 	ROMX_LOAD( "82s137-1.mcu",  0x0000, 0x0400, CRC(cc5b3f53) SHA1(33589665ac995cc4645b56bbcd6d1c1cd5368f88), ROM_NIBBLE | ROM_SHIFT_NIBBLE_HI | ROM_SKIP(1) )
@@ -848,8 +965,8 @@ ROM_START( skyshark )
 
 	ROM_REGION( 0x260, "proms", 0 ) /* nibble bproms, lo/hi order to be determined */
 	ROM_LOAD( "b02-20.b4",  0x000, 0x100, CRC(24e7d62f) SHA1(1c06a1ef1b6a722794ca1d5ee2c476ecaa5178a3) ) /* bprom type: 82s129AN - sprite priority control ?? */
-	ROM_LOAD( "b02-19.b5",  0x100, 0x100, CRC(a50cef09) SHA1(55cafb5b2551b80ae708e9b966cf37c70a16d310) ) /* bprom type: 82s129AN - sprite priority control ?? */
-	ROM_LOAD( "b02-21.b2",  0x200, 0x020, CRC(f72482db) SHA1(b0cb911f9c81f6088a5aa8760916ddae1f8534d7) ) /* bprom type: 82s123AN - sprite control ?? */
+	ROM_LOAD( "b02-21.b5",  0x100, 0x100, CRC(a50cef09) SHA1(55cafb5b2551b80ae708e9b966cf37c70a16d310) ) /* bprom type: 82s129AN - sprite priority control ?? */
+	ROM_LOAD( "b02-19.b2",  0x200, 0x020, CRC(f72482db) SHA1(b0cb911f9c81f6088a5aa8760916ddae1f8534d7) ) /* bprom type: 82s123AN - sprite control ?? */
 	ROM_LOAD( "b02-22.c21", 0x220, 0x020, CRC(bc88cced) SHA1(5055362710c0f58823c05fb4c0e0eec638b91e3d) ) /* bprom type: 82s123AN - sprite attribute (flip/position) ?? */
 	ROM_LOAD( "b02-23.f28", 0x240, 0x020, CRC(4fb5df2a) SHA1(506ef2c8e4cf45c256d6831a0a5760732f2de422) ) /* bprom type: 82s123AN - tile to sprite priority ?? */
 ROM_END
@@ -859,7 +976,7 @@ ROM_START( hishouza )
 	ROM_LOAD16_BYTE( "b02_18.m8", 0x00000, 0x10000, CRC(4444bb94) SHA1(5ff955a5190d1b356187de105cfb8ea181fc1282) )
 	ROM_LOAD16_BYTE( "b02_17.p8", 0x00001, 0x10000, CRC(cdac7228) SHA1(6b0d67e4b0661a858653d2eabb8936af9148167e) )
 
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
 	ROM_LOAD( "b02_16.l5", 0x0000, 0x8000, CRC(cdd1a153) SHA1(de9827a959039cf753ecac6756fb1925c37466d8) )
 
 	ROM_REGION( 0x2000, "dsp", 0 )  /* Co-Processor TMS320C10 MCU code */
@@ -897,8 +1014,8 @@ ROM_START( hishouza )
 
 	ROM_REGION( 0x260, "proms", 0 ) /* nibble bproms, lo/hi order to be determined */
 	ROM_LOAD( "b02-20.b4",  0x000, 0x100, CRC(24e7d62f) SHA1(1c06a1ef1b6a722794ca1d5ee2c476ecaa5178a3) ) /* bprom type: 82s129AN - sprite priority control ?? */
-	ROM_LOAD( "b02-19.b5",  0x100, 0x100, CRC(a50cef09) SHA1(55cafb5b2551b80ae708e9b966cf37c70a16d310) ) /* bprom type: 82s129AN - sprite priority control ?? */
-	ROM_LOAD( "b02-21.b2",  0x200, 0x020, CRC(f72482db) SHA1(b0cb911f9c81f6088a5aa8760916ddae1f8534d7) ) /* bprom type: 82s123AN - sprite control ?? */
+	ROM_LOAD( "b02-21.b5",  0x100, 0x100, CRC(a50cef09) SHA1(55cafb5b2551b80ae708e9b966cf37c70a16d310) ) /* bprom type: 82s129AN - sprite priority control ?? */
+	ROM_LOAD( "b02-19.b2",  0x200, 0x020, CRC(f72482db) SHA1(b0cb911f9c81f6088a5aa8760916ddae1f8534d7) ) /* bprom type: 82s123AN - sprite control ?? */
 	ROM_LOAD( "b02-22.c21", 0x220, 0x020, CRC(bc88cced) SHA1(5055362710c0f58823c05fb4c0e0eec638b91e3d) ) /* bprom type: 82s123AN - sprite attribute (flip/position) ?? */
 	ROM_LOAD( "b02-23.f28", 0x240, 0x020, CRC(4fb5df2a) SHA1(506ef2c8e4cf45c256d6831a0a5760732f2de422) ) /* bprom type: 82s123AN - tile to sprite priority ?? */
 ROM_END
@@ -908,7 +1025,7 @@ ROM_START( fsharkbt )
 	ROM_LOAD16_BYTE( "r18",     0x00000, 0x10000, CRC(ef30f563) SHA1(755d6ce4c1e631d7c11d3fab99dae300b6a3452e) )
 	ROM_LOAD16_BYTE( "r17",     0x00001, 0x10000, CRC(0e18d25f) SHA1(82fc94830b3087c826d07cff699af9a3638e8087) )
 
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
 	ROM_LOAD( "b02_16.l5", 0x0000, 0x8000, CRC(cdd1a153) SHA1(de9827a959039cf753ecac6756fb1925c37466d8) )
 
 	ROM_REGION( 0x2000, "dsp", 0 )  /* Co-Processor TMS320C10 MCU code */
@@ -953,73 +1070,72 @@ ROM_START( fsharkbt )
 	ROM_LOAD( "clr3.bpr",   0x200, 0x100, CRC(016fe2f7) SHA1(909f815a61e759fdf998674ee383512ecd8fee65) )    /* ?? */
 ROM_END
 
-ROM_START( fsharkbla ) // based on a different version of the game code? (only a ~70% match on the program roms compared to any other set)
+ROM_START( fnshark ) // based on a different version of the game code? (only a ~70% match on the program roms compared to any other set)
 	ROM_REGION( 0x30000, "maincpu", 0 ) /* Main 68K code */
-	ROM_LOAD16_BYTE( "18.bin",      0x00000, 0x10000, CRC(ea4bcb43) SHA1(4b5fda235908a9081fdd4cca98294e9e9a34bbf2) )
-	ROM_LOAD16_BYTE( "17.bin",      0x00001, 0x10000, CRC(d1f39ed2) SHA1(2a46a542c29a07b31a6bfa72a2f4d4d26699c13d) )
+	ROM_LOAD16_BYTE( "h.ic226", 0x00000, 0x10000, CRC(ea4bcb43) SHA1(4b5fda235908a9081fdd4cca98294e9e9a34bbf2) )
+	ROM_LOAD16_BYTE( "g.ic202", 0x00001, 0x10000, CRC(d1f39ed2) SHA1(2a46a542c29a07b31a6bfa72a2f4d4d26699c13d) )
 
 // fshark
-// 18.bin                  b02_18-1.m8             69.615173%
-// 17.bin                  b02_17-1.p8             66.320801%
+// h.ic226                 b02_18-1.m8             69.615173%
+// g.ic202                 b02_17-1.p8             66.320801%
 
 // skyshark
-// 18.bin                  b02_18-2.m8             72.662354%
-// 17.bin                  b02_17-2.p8             70.210266%
+// h.ic226                 b02_18-2.m8             72.662354%
+// g.ic202                 b02_17-2.p8             70.210266%
 
 // fsharkbt
-// 18.bin                  r18                     72.132874%
-// 17.bin                  r17                     69.287109%
+// h.ic226                 r18                     72.132874%
+// g.ic202                 r17                     69.287109%
 
 // hishouza
-// 18.bin                  b02_18.m8               70.761108%
-// 17.bin                  b02_17.p8               68.331909%
+// h.ic226                 b02_18.m8               70.761108%
+// g.ic202                 b02_17.p8               68.331909%
 
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound Z80 code */
-	ROM_LOAD( "16.bin", 0x0000, 0x8000, CRC(cdd1a153) SHA1(de9827a959039cf753ecac6756fb1925c37466d8) )
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_LOAD( "f.ic170", 0x0000, 0x8000, CRC(cdd1a153) SHA1(de9827a959039cf753ecac6756fb1925c37466d8) )
 
 	// ugly bootleg logo (and corrupt 0 text)
 	ROM_REGION( 0x0c000, "gfx1", 0 )    /* chars */
-	ROM_LOAD( "5.bin", 0x08000, 0x04000, CRC(ca8badd2) SHA1(e81863ac03c9219a8de01b03dbac522022212b14) )
-	ROM_CONTINUE(0x08000,0x04000)
-	ROM_LOAD( "6.bin", 0x04000, 0x04000, CRC(b7f717fb) SHA1(3f3cd092d13566792f0816d5b705011c89b8f662) )
-	ROM_CONTINUE(0x04000,0x04000)
-	ROM_LOAD( "7.bin", 0x00000, 0x04000, CRC(d2b05463) SHA1(25131b64e63cd3791bc84d525b7e4b2a398be6ca) )
-	ROM_CONTINUE(0x00000,0x04000)
+	ROM_LOAD( "7.ic119", 0x00000, 0x04000, CRC(a0f8890d) SHA1(ba03589524087acdf35e879b5a3b29b764da7819) )
+	ROM_LOAD( "6.ic120", 0x04000, 0x04000, CRC(c5bfca95) SHA1(ae587c4603d0e73debe4b6fb0008aedda04a40d3) )
+	ROM_LOAD( "5.ic121", 0x08000, 0x04000, CRC(b8c370bc) SHA1(cd2c28c3d3cbc2cdb871fec5b03b1c516ada2ee7) )
+
+	// same data on larger EPROMs with first half empty
+//  ROM_LOAD( "5.bin", 0x08000, 0x04000, CRC(ca8badd2) SHA1(e81863ac03c9219a8de01b03dbac522022212b14) )
+//  ROM_CONTINUE(0x08000,0x04000)
+//  ROM_LOAD( "6.bin", 0x04000, 0x04000, CRC(b7f717fb) SHA1(3f3cd092d13566792f0816d5b705011c89b8f662) )
+//  ROM_CONTINUE(0x04000,0x04000)
+//  ROM_LOAD( "7.bin", 0x00000, 0x04000, CRC(d2b05463) SHA1(25131b64e63cd3791bc84d525b7e4b2a398be6ca) )
+//  ROM_CONTINUE(0x00000,0x04000)
 
 	ROM_REGION( 0x20000, "gfx2", 0 )    /* fg tiles */
-	ROM_LOAD( "12.bin", 0x00000, 0x08000, CRC(733b9997) SHA1(75e874a1d148fcc8fa09bb724ce8346565ace4e5) )
-	ROM_LOAD( "15.bin", 0x08000, 0x08000, CRC(8b70ef32) SHA1(e1f988d650dce17e3bfbea12e5fddbb671df18d4) )
-	ROM_LOAD( "14.bin", 0x10000, 0x08000, CRC(f711ba7d) SHA1(49644a264c09fc2d743e4f801b8b82e980f2def9) )
-	ROM_LOAD( "13.bin", 0x18000, 0x08000, CRC(62532cd3) SHA1(df483db7604c0135130f92b08bad3fbffb4f5c47) )
+	ROM_LOAD( "b.ic114", 0x00000, 0x08000, CRC(733b9997) SHA1(75e874a1d148fcc8fa09bb724ce8346565ace4e5) )
+	ROM_LOAD( "e.ic111", 0x08000, 0x08000, CRC(8b70ef32) SHA1(e1f988d650dce17e3bfbea12e5fddbb671df18d4) )
+	ROM_LOAD( "d.ic112", 0x10000, 0x08000, CRC(f711ba7d) SHA1(49644a264c09fc2d743e4f801b8b82e980f2def9) )
+	ROM_LOAD( "c.ic113", 0x18000, 0x08000, CRC(62532cd3) SHA1(df483db7604c0135130f92b08bad3fbffb4f5c47) )
 
 	ROM_REGION( 0x20000, "gfx3", 0 )    /* bg tiles */
-	ROM_LOAD( "8.bin",  0x00000, 0x08000, CRC(ef0cf49c) SHA1(6fd5727462cd6c5dab4c5d780bd7504e48583894) )
-	ROM_LOAD( "11.bin", 0x08000, 0x08000, CRC(f5799422) SHA1(3f79dd849db787695a587f0db19a6782153b5955) )
-	ROM_LOAD( "10.bin", 0x10000, 0x08000, CRC(4bd099ff) SHA1(9326075f83549b0a9656f69bd4436fb1be2ac805) )
-	ROM_LOAD( "9.bin",  0x18000, 0x08000, CRC(230f1582) SHA1(0fd4156a46ed64cb6e5c59b8836382dd86c229cf) )
+	ROM_LOAD( "8.ic118",  0x00000, 0x08000, CRC(ef0cf49c) SHA1(6fd5727462cd6c5dab4c5d780bd7504e48583894) )
+	ROM_LOAD( "a.ic115",  0x08000, 0x08000, CRC(f5799422) SHA1(3f79dd849db787695a587f0db19a6782153b5955) )
+	ROM_LOAD( "10.ic116", 0x10000, 0x08000, CRC(4bd099ff) SHA1(9326075f83549b0a9656f69bd4436fb1be2ac805) )
+	ROM_LOAD( "9.ic117",  0x18000, 0x08000, CRC(230f1582) SHA1(0fd4156a46ed64cb6e5c59b8836382dd86c229cf) )
 
 	ROM_REGION( 0x40000, "gfx4", 0 )    /* sprites */
-	ROM_LOAD( "1.bin", 0x00000, 0x10000, CRC(2234b424) SHA1(bd6242b9dcdb0f582565df588106cd1ce2aad53b) )
-	ROM_LOAD( "2.bin", 0x10000, 0x10000, CRC(30d4c9a8) SHA1(96ce4f41207c5487e801a8444030ec4dc7b58b23) )
-	ROM_LOAD( "3.bin", 0x20000, 0x10000, CRC(64f3d88f) SHA1(d0155cfb0a8885d58e34141f9696b9aa208440ca) )
-	ROM_LOAD( "4.bin", 0x30000, 0x10000, CRC(3b23a9fc) SHA1(2ac34445618e17371b5eed7eb6f43da4dbb99e28) )
-
-	/* PROMs were not dumped in this set, assuming the same layout / configuration as the other bootleg */
+	ROM_LOAD( "1.ic54", 0x00000, 0x10000, CRC(2234b424) SHA1(bd6242b9dcdb0f582565df588106cd1ce2aad53b) )
+	ROM_LOAD( "2.ic53", 0x10000, 0x10000, CRC(30d4c9a8) SHA1(96ce4f41207c5487e801a8444030ec4dc7b58b23) )
+	ROM_LOAD( "3.ic52", 0x20000, 0x10000, CRC(64f3d88f) SHA1(d0155cfb0a8885d58e34141f9696b9aa208440ca) )
+	ROM_LOAD( "4.ic51", 0x30000, 0x10000, CRC(3b23a9fc) SHA1(2ac34445618e17371b5eed7eb6f43da4dbb99e28) )
 
 	ROM_REGION( 0x2000, "dsp", 0 ) /* Co-Processor TMS320C10 MCU code */
-	ROMX_LOAD( "mcu-1.bpr",  0x0000, 0x0400, CRC(45d4d1b1) SHA1(e776a056f0f72cbeb309c5a23f803330cb8b3763), ROM_NIBBLE | ROM_SHIFT_NIBBLE_HI | ROM_SKIP(1) )
-	ROMX_LOAD( "mcu-2.bpr",  0x0000, 0x0400, CRC(651336d1) SHA1(3c968d5cb58abe35794b7c88520a22fc0b45a449), ROM_NIBBLE | ROM_SHIFT_NIBBLE_LO | ROM_SKIP(1) )
-	ROMX_LOAD( "mcu-3.bpr",  0x0001, 0x0400, CRC(df88e79b) SHA1(661b057fa2eef37b9d794151381d7d74a7bfa93a), ROM_NIBBLE | ROM_SHIFT_NIBBLE_HI | ROM_SKIP(1) )
-	ROMX_LOAD( "mcu-4.bpr",  0x0001, 0x0400, CRC(a2094a7f) SHA1(0f1c173643046c76aa89eab66fba6ea51c3f2223), ROM_NIBBLE | ROM_SHIFT_NIBBLE_LO | ROM_SKIP(1) )
-	ROMX_LOAD( "mcu-5.bpr",  0x0800, 0x0400, CRC(f97a58da) SHA1(77a659943d95d5b859fab50f827f11222c3dbf1f), ROM_NIBBLE | ROM_SHIFT_NIBBLE_HI | ROM_SKIP(1) )
-	ROMX_LOAD( "mcu-6.bpr",  0x0800, 0x0400, CRC(ffcc422d) SHA1(9b4331e8bb5fe37bb8efcccc500a1d7cd026bf93), ROM_NIBBLE | ROM_SHIFT_NIBBLE_LO | ROM_SKIP(1) )
-	ROMX_LOAD( "mcu-7.bpr",  0x0801, 0x0400, CRC(0cd30d49) SHA1(65d65a199bfb740b94af19843640e625a5e67f46), ROM_NIBBLE | ROM_SHIFT_NIBBLE_HI | ROM_SKIP(1) )
-	ROMX_LOAD( "mcu-8.bpr",  0x0801, 0x0400, CRC(3379bbff) SHA1(2f577b8de6d523087b472691cdde2eb525877878), ROM_NIBBLE | ROM_SHIFT_NIBBLE_LO | ROM_SKIP(1) )
+	ROM_LOAD16_BYTE( "82s191_r.bin", 0x0001, 0x0800, CRC(5b96ae3f) SHA1(e5dca3180bc2b9a2957b55a045e6c2d74ac72873) )
+	ROM_LOAD16_BYTE( "82s191_l.bin", 0x0000, 0x0800, CRC(d5dfc8dd) SHA1(98edc7b097b031b5e1f4f32d4de001d42580816c) )
 
 	ROM_REGION( 0x300, "proms", 0 ) /* nibble bproms, lo/hi order to be determined */
-	ROM_LOAD( "clr2.bpr",   0x000, 0x100, CRC(24e7d62f) SHA1(1c06a1ef1b6a722794ca1d5ee2c476ecaa5178a3) )    /* sprite priority control ?? */
-	ROM_LOAD( "clr1.bpr",   0x100, 0x100, CRC(a50cef09) SHA1(55cafb5b2551b80ae708e9b966cf37c70a16d310) )    /* sprite priority control ?? */
-	ROM_LOAD( "clr3.bpr",   0x200, 0x100, CRC(016fe2f7) SHA1(909f815a61e759fdf998674ee383512ecd8fee65) )    /* ?? */
+	ROM_LOAD( "82s129.ic41",  0x000, 0x100, CRC(24e7d62f) SHA1(1c06a1ef1b6a722794ca1d5ee2c476ecaa5178a3) ) /* bprom type: 82s129AN - sprite priority control ?? */
+	ROM_LOAD( "82s129.ic40",  0x100, 0x100, CRC(a50cef09) SHA1(55cafb5b2551b80ae708e9b966cf37c70a16d310) ) /* bprom type: 82s129AN - sprite priority control ?? */
+	ROM_LOAD( "82s123.ic42",  0x200, 0x020, CRC(f72482db) SHA1(b0cb911f9c81f6088a5aa8760916ddae1f8534d7) ) /* bprom type: 82s123AN - sprite control ?? */
+	ROM_LOAD( "82s123.ic50", 0x220, 0x020, CRC(bc88cced) SHA1(5055362710c0f58823c05fb4c0e0eec638b91e3d) ) /* bprom type: 82s123AN - sprite attribute (flip/position) ?? */
+	ROM_LOAD( "82s123.ic99", 0x240, 0x020, CRC(4fb5df2a) SHA1(506ef2c8e4cf45c256d6831a0a5760732f2de422) ) /* bprom type: 82s123AN - tile to sprite priority ?? */
 ROM_END
 
 ROM_START( gulfwar2 )
@@ -1027,8 +1143,8 @@ ROM_START( gulfwar2 )
 	ROM_LOAD16_BYTE( "08-u119.bin", 0x00000, 0x20000, CRC(41ebf9c0) SHA1(85207dda76abded727ed95717024a2ea2bd85dac) )
 	ROM_LOAD16_BYTE( "07-u92.bin",  0x00001, 0x20000, CRC(b73e6b25) SHA1(53cde41e5a2e8f721c3f43abf1fff46479f658d8) )
 
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound Z80 code */
-	ROM_LOAD( "06-u51.bin", 0x00000, 0x08000, CRC(75504f95) SHA1(5bd23e700e1bd4f0fac622dfb7c8cc69ba764956) )
+	ROM_REGION( 0x8000, "audiocpu", 0 )    /* Sound Z80 code */
+	ROM_LOAD( "06-u51.bin", 0x0000, 0x8000, CRC(75504f95) SHA1(5bd23e700e1bd4f0fac622dfb7c8cc69ba764956) )
 
 	ROM_REGION( 0x2000, "dsp", 0 )  /* Co-Processor TMS320C10 MCU code */
 	/* ROMs are duplicated 4 times */
@@ -1083,8 +1199,8 @@ DRIVER_INIT_MEMBER(twincobr_state,twincobr)
 GAME( 1987, fshark,    0,        twincobr, fshark, twincobr_state,    twincobr, ROT270, "Toaplan / Taito Corporation", "Flying Shark (World)", 0 )
 GAME( 1987, skyshark,  fshark,   twincobr, skyshark, twincobr_state,  twincobr, ROT270, "Toaplan / Taito America Corporation (Romstar license)", "Sky Shark (US)", 0 )
 GAME( 1987, hishouza,  fshark,   twincobr, hishouza, twincobr_state,  twincobr, ROT270, "Toaplan / Taito Corporation", "Hishou Zame (Japan)", 0 )
-GAME( 1987, fsharkbt,  fshark,   fsharkbt, skyshark, twincobr_state,  twincobr, ROT270, "bootleg", "Flying Shark (bootleg, set 1)", 0 )
-GAME( 1987, fsharkbla, fshark,   twincobr, skyshark, twincobr_state,  twincobr, ROT270, "bootleg", "Flying Shark (bootleg, set 2)", 0 )
+GAME( 1987, fsharkbt,  fshark,   fsharkbt, skyshark, twincobr_state,  twincobr, ROT270, "bootleg", "Flying Shark (bootleg with 8741)", 0 )
+GAME( 1987, fnshark,   fshark,   twincobr, hishouza, twincobr_state,  twincobr, ROT270, "bootleg", "Flyin' Shark (bootleg of Hishou Zame)", 0 )
 GAME( 1987, twincobr,  0,        twincobr, twincobr, twincobr_state,  twincobr, ROT270, "Toaplan / Taito Corporation", "Twin Cobra (World)", 0 )
 GAME( 1987, twincobru, twincobr, twincobr, twincobru, twincobr_state, twincobr, ROT270, "Toaplan / Taito America Corporation (Romstar license)", "Twin Cobra (US)", 0 )
 GAME( 1987, ktiger,    twincobr, twincobr, ktiger, twincobr_state,    twincobr, ROT270, "Toaplan / Taito Corporation", "Kyukyoku Tiger (Japan)", 0 )

@@ -42,28 +42,16 @@
 
 #include "emu.h"
 
-#include "video/konicdev.h"
-#include "machine/k053252.h"
+
 #include "cpu/m68000/m68000.h"
 #include "cpu/z80/z80.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/k054539.h"
 #include "includes/konamipt.h"
 #include "includes/rungun.h"
 
 #define RNG_DEBUG 0
 
-
-static const eeprom_interface eeprom_intf =
-{
-	7,          /* address bits */
-	8,          /* data bits */
-	"011000",       /*  read command */
-	"011100",       /* write command */
-	"0100100000000",/* erase command */
-	"0100000000000",/* lock command */
-	"0100110000000" /* unlock command */
-};
 
 READ16_MEMBER(rungun_state::rng_sysregs_r)
 {
@@ -116,9 +104,9 @@ WRITE16_MEMBER(rungun_state::rng_sysregs_w)
 	{
 		case 0x08/2:
 			/*
-			    bit0  : eeprom_write_bit
-			    bit1  : eeprom_set_cs_line
-			    bit2  : eeprom_set_clock_line
+			    bit0  : eeprom_di_write
+			    bit1  : eeprom_cs_write
+			    bit2  : eeprom_clk_write
 			    bit3  : coin counter?
 			    bit7  : set before massive memory writes
 			    bit10 : IRQ5 ACK
@@ -137,7 +125,7 @@ WRITE16_MEMBER(rungun_state::rng_sysregs_w)
 			    bit 2 : OBJCHA
 			    bit 3 : enable IRQ 5
 			*/
-			k053246_set_objcha_line(m_k055673, (data & 0x04) ? ASSERT_LINE : CLEAR_LINE);
+			m_k055673->k053246_set_objcha_line((data & 0x04) ? ASSERT_LINE : CLEAR_LINE);
 		break;
 	}
 }
@@ -180,25 +168,25 @@ static ADDRESS_MAP_START( rungun_map, AS_PROGRAM, 16, rungun_state )
 	AM_RANGE(0x380000, 0x39ffff) AM_RAM                                         // work RAM
 	AM_RANGE(0x400000, 0x43ffff) AM_READNOP // AM_READ(K053936_0_rom_r )       // '936 ROM readback window
 	AM_RANGE(0x480000, 0x48001f) AM_READWRITE(rng_sysregs_r, rng_sysregs_w) AM_SHARE("sysreg")
-	AM_RANGE(0x4c0000, 0x4c001f) AM_DEVREADWRITE8_LEGACY("k053252", k053252_r, k053252_w,0x00ff)                        // CCU (for scanline and vblank polling)
+	AM_RANGE(0x4c0000, 0x4c001f) AM_DEVREADWRITE8("k053252", k053252_device, read, write, 0x00ff)                        // CCU (for scanline and vblank polling)
 	AM_RANGE(0x540000, 0x540001) AM_WRITE(sound_irq_w)
 	AM_RANGE(0x58000c, 0x58000d) AM_WRITE(sound_cmd1_w)
 	AM_RANGE(0x58000e, 0x58000f) AM_WRITE(sound_cmd2_w)
 	AM_RANGE(0x580014, 0x580015) AM_READ(sound_status_msb_r)
 	AM_RANGE(0x580000, 0x58001f) AM_RAM                                         // sound regs read/write fall-through
-	AM_RANGE(0x5c0000, 0x5c000d) AM_DEVREAD_LEGACY("k055673", k053246_word_r)                       // 246A ROM readback window
-	AM_RANGE(0x5c0010, 0x5c001f) AM_DEVWRITE_LEGACY("k055673", k053247_reg_word_w)
-	AM_RANGE(0x600000, 0x600fff) AM_DEVREADWRITE_LEGACY("k055673", k053247_word_r, k053247_word_w)  // OBJ RAM
+	AM_RANGE(0x5c0000, 0x5c000d) AM_DEVREAD("k055673", k055673_device, k053246_word_r)                       // 246A ROM readback window
+	AM_RANGE(0x5c0010, 0x5c001f) AM_DEVWRITE("k055673", k055673_device, k053247_reg_word_w)
+	AM_RANGE(0x600000, 0x600fff) AM_DEVREADWRITE("k055673", k055673_device, k053247_word_r, k053247_word_w)  // OBJ RAM
 	AM_RANGE(0x601000, 0x601fff) AM_RAM                                         // communication? second monitor buffer?
-	AM_RANGE(0x640000, 0x640007) AM_DEVWRITE_LEGACY("k055673", k053246_word_w)                      // '246A registers
-	AM_RANGE(0x680000, 0x68001f) AM_DEVWRITE_LEGACY("k053936", k053936_ctrl_w)          // '936 registers
+	AM_RANGE(0x640000, 0x640007) AM_DEVWRITE("k055673", k055673_device, k053246_word_w)                      // '246A registers
+	AM_RANGE(0x680000, 0x68001f) AM_DEVWRITE("k053936", k053936_device, ctrl_w)          // '936 registers
 	AM_RANGE(0x6c0000, 0x6cffff) AM_RAM_WRITE(rng_936_videoram_w) AM_SHARE("936_videoram")  // PSAC2 ('936) RAM (34v + 35v)
-	AM_RANGE(0x700000, 0x7007ff) AM_DEVREADWRITE_LEGACY("k053936", k053936_linectrl_r, k053936_linectrl_w)          // PSAC "Line RAM"
+	AM_RANGE(0x700000, 0x7007ff) AM_DEVREADWRITE("k053936", k053936_device, linectrl_r, linectrl_w)          // PSAC "Line RAM"
 	AM_RANGE(0x740000, 0x741fff) AM_READWRITE(rng_ttl_ram_r, rng_ttl_ram_w)     // text plane RAM
 	AM_RANGE(0x7c0000, 0x7c0001) AM_WRITENOP                                    // watchdog
 #if RNG_DEBUG
-	AM_RANGE(0x5c0010, 0x5c001f) AM_DEVREAD_LEGACY("k055673", k053247_reg_word_r)
-	AM_RANGE(0x640000, 0x640007) AM_DEVREAD_LEGACY("k055673", k053246_reg_word_r)
+	AM_RANGE(0x5c0010, 0x5c001f) AM_DEVREAD("k055673", k055673_device, k053247_reg_word_r)
+	AM_RANGE(0x640000, 0x640007) AM_DEVREAD("k055673", k055673_device, k053246_reg_word_r)
 #endif
 ADDRESS_MAP_END
 
@@ -264,8 +252,8 @@ static INPUT_PORTS_START( rng )
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("DSW")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_SPECIAL )    /* EEPROM ready (always 1) */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_SERVICE_NO_TOGGLE( 0x08, IP_ACTIVE_LOW )
 	PORT_DIPNAME( 0x10, 0x00, "Monitors" )
 	PORT_DIPSETTING(    0x00, "1" )
@@ -284,9 +272,9 @@ static INPUT_PORTS_START( rng )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 
 	PORT_START("P1")
 	KONAMI8_B123_START(1)
@@ -337,17 +325,15 @@ static const k053936_interface rng_k053936_intf =
 
 static const k053247_interface rng_k055673_intf =
 {
-	"screen",
 	"gfx2", 1,
 	K055673_LAYOUT_RNG,
 	-8, 15,
-	KONAMI_ROM_DEINTERLEAVE_NONE,   // there is some interleave in VIDEO_START...
+	KONAMI_ROM_DEINTERLEAVE_NONE,   // there is some interleave in video_start...
 	rng_sprite_callback
 };
 
 static const k053252_interface rng_k053252_intf =
 {
-	"screen",
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
@@ -392,8 +378,7 @@ static MACHINE_CONFIG_START( rng, rungun_state )
 
 	MCFG_GFXDECODE(rungun)
 
-
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_BEFORE_VBLANK)

@@ -215,21 +215,6 @@ INPUT_PORTS_END
 
 /*************************************
  *
- *  68HC11A1 configuration
- *
- *************************************/
-
-static const hc11_config skeetsht_hc11_config =
-{
-	0,
-	0x100,  /* 256 bytes RAM */
-	0x01,
-//  0x200,  /* 512 bytes EEPROM */
-};
-
-
-/*************************************
- *
  *  TMS34010 configuration
  *
  *************************************/
@@ -260,7 +245,7 @@ static MACHINE_CONFIG_START( skeetsht, skeetsht_state )
 	MCFG_CPU_ADD("68hc11", MC68HC11, 4000000) // ?
 	MCFG_CPU_PROGRAM_MAP(hc11_pgm_map)
 	MCFG_CPU_IO_MAP(hc11_io_map)
-	MCFG_CPU_CONFIG(skeetsht_hc11_config)
+	MCFG_MC68HC11_CONFIG( 0, 0x100, 0x01 )  // And 512 bytes EEPROM? (68HC11A1)
 
 	MCFG_CPU_ADD("tms", TMS34010, 48000000)
 	MCFG_CPU_CONFIG(tms_config)
@@ -271,7 +256,7 @@ static MACHINE_CONFIG_START( skeetsht, skeetsht_state )
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(48000000 / 8, 156*4, 0, 100*4, 328, 0, 300) // FIXME
-	MCFG_SCREEN_UPDATE_STATIC(tms340x0_rgb32)
+	MCFG_SCREEN_UPDATE_DEVICE("tms", tms34010_device, tms340x0_rgb32)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")

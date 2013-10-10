@@ -170,11 +170,13 @@ Check gticlub.c for details on the bottom board.
 #include "machine/konppc.h"
 #include "machine/adc083x.h"
 #include "machine/k056230.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/k056800.h"
 #include "sound/k054539.h"
-#include "video/konicdev.h"
+#include "video/k001604.h"
 #include "video/gticlub.h"
+#include "video/k054156_k054157_k056832.h"
+#include "video/konami_helper.h"
 
 
 class zr107_state : public driver_device
@@ -192,6 +194,7 @@ public:
 		m_audiocpu(*this, "audiocpu"),
 		m_dsp(*this, "dsp"),
 		m_k001604(*this, "k001604"),
+		m_k056800(*this, "k056800"),
 		m_k056832(*this, "k056832") { }
 
 	UINT8 m_led_reg0;
@@ -223,6 +226,7 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_dsp;
 	optional_device<k001604_device> m_k001604;
+	required_device<k056800_device> m_k056800;
 	optional_device<k056832_device> m_k056832;
 
 protected:
@@ -244,11 +248,11 @@ UINT32 zr107_state::screen_update_jetwave(screen_device &screen, bitmap_rgb32 &b
 {
 	bitmap.fill(machine().pens[0], cliprect);
 
-	k001604_draw_back_layer(m_k001604, bitmap, cliprect);
+	m_k001604->draw_back_layer(bitmap, cliprect);
 
 	K001005_draw(bitmap, cliprect);
 
-	k001604_draw_front_layer(m_k001604, bitmap, cliprect);
+	m_k001604->draw_front_layer(screen, bitmap, cliprect);
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
 	draw_7segment_led(bitmap, 9, 3, m_led_reg1);
@@ -277,14 +281,14 @@ static void game_tile_callback(running_machine &machine, int layer, int *code, i
 
 VIDEO_START_MEMBER(zr107_state,zr107)
 {
-	k056832_set_layer_offs(m_k056832, 0, -29, -27);
-	k056832_set_layer_offs(m_k056832, 1, -29, -27);
-	k056832_set_layer_offs(m_k056832, 2, -29, -27);
-	k056832_set_layer_offs(m_k056832, 3, -29, -27);
-	k056832_set_layer_offs(m_k056832, 4, -29, -27);
-	k056832_set_layer_offs(m_k056832, 5, -29, -27);
-	k056832_set_layer_offs(m_k056832, 6, -29, -27);
-	k056832_set_layer_offs(m_k056832, 7, -29, -27);
+	m_k056832->set_layer_offs(0, -29, -27);
+	m_k056832->set_layer_offs(1, -29, -27);
+	m_k056832->set_layer_offs(2, -29, -27);
+	m_k056832->set_layer_offs(3, -29, -27);
+	m_k056832->set_layer_offs(4, -29, -27);
+	m_k056832->set_layer_offs(5, -29, -27);
+	m_k056832->set_layer_offs(6, -29, -27);
+	m_k056832->set_layer_offs(7, -29, -27);
 
 	K001006_init(machine());
 	K001005_init(machine());
@@ -294,9 +298,9 @@ UINT32 zr107_state::screen_update_zr107(screen_device &screen, bitmap_rgb32 &bit
 {
 	bitmap.fill(machine().pens[0], cliprect);
 
-	k056832_tilemap_draw(m_k056832, bitmap, cliprect, 1, 0, 0);
+	m_k056832->tilemap_draw(screen, bitmap, cliprect, 1, 0, 0);
 	K001005_draw(bitmap, cliprect);
-	k056832_tilemap_draw(m_k056832, bitmap, cliprect, 0, 0, 0);
+	m_k056832->tilemap_draw(screen, bitmap, cliprect, 0, 0, 0);
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
 	draw_7segment_led(bitmap, 9, 3, m_led_reg1);
@@ -435,11 +439,11 @@ void zr107_state::machine_start()
 
 static ADDRESS_MAP_START( zr107_map, AS_PROGRAM, 32, zr107_state )
 	AM_RANGE(0x00000000, 0x000fffff) AM_RAM AM_SHARE("workram") /* Work RAM */
-	AM_RANGE(0x74000000, 0x74003fff) AM_DEVREADWRITE_LEGACY("k056832", k056832_ram_long_r, k056832_ram_long_w)
-	AM_RANGE(0x74020000, 0x7402003f) AM_DEVREADWRITE_LEGACY("k056832", k056832_long_r, k056832_long_w)
+	AM_RANGE(0x74000000, 0x74003fff) AM_DEVREADWRITE("k056832", k056832_device, ram_long_r, ram_long_w)
+	AM_RANGE(0x74020000, 0x7402003f) AM_DEVREADWRITE("k056832", k056832_device, long_r, long_w)
 	AM_RANGE(0x74060000, 0x7406003f) AM_READWRITE(ccu_r, ccu_w)
 	AM_RANGE(0x74080000, 0x74081fff) AM_RAM_WRITE(paletteram32_w) AM_SHARE("paletteram")
-	AM_RANGE(0x740a0000, 0x740a3fff) AM_DEVREAD_LEGACY("k056832", k056832_rom_long_r)
+	AM_RANGE(0x740a0000, 0x740a3fff) AM_DEVREAD("k056832", k056832_device, rom_long_r)
 	AM_RANGE(0x78000000, 0x7800ffff) AM_READWRITE_LEGACY(cgboard_dsp_shared_r_ppc, cgboard_dsp_shared_w_ppc)        /* 21N 21K 23N 23K */
 	AM_RANGE(0x78010000, 0x7801ffff) AM_WRITE_LEGACY(cgboard_dsp_shared_w_ppc)
 	AM_RANGE(0x78040000, 0x7804000f) AM_READWRITE_LEGACY(K001006_0_r, K001006_0_w)
@@ -447,8 +451,8 @@ static ADDRESS_MAP_START( zr107_map, AS_PROGRAM, 32, zr107_state )
 	AM_RANGE(0x7e000000, 0x7e003fff) AM_READWRITE8(sysreg_r, sysreg_w, 0xffffffff)
 	AM_RANGE(0x7e008000, 0x7e009fff) AM_DEVREADWRITE8("k056230", k056230_device, k056230_r, k056230_w, 0xffffffff)               /* LANC registers */
 	AM_RANGE(0x7e00a000, 0x7e00bfff) AM_DEVREADWRITE("k056230", k056230_device, lanc_ram_r, lanc_ram_w)      /* LANC Buffer RAM (27E) */
-	AM_RANGE(0x7e00c000, 0x7e00c007) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
-	AM_RANGE(0x7e00c008, 0x7e00c00f) AM_DEVREAD_LEGACY("k056800", k056800_host_r)
+	AM_RANGE(0x7e00c000, 0x7e00c007) AM_DEVWRITE("k056800", k056800_device, host_w)
+	AM_RANGE(0x7e00c008, 0x7e00c00f) AM_DEVREAD("k056800", k056800_device, host_r)
 	AM_RANGE(0x7f800000, 0x7f9fffff) AM_ROM AM_SHARE("share2")
 	AM_RANGE(0x7fe00000, 0x7fffffff) AM_ROM AM_REGION("user1", 0) AM_SHARE("share2")    /* Program ROM */
 ADDRESS_MAP_END
@@ -463,10 +467,10 @@ WRITE32_MEMBER(zr107_state::jetwave_palette_w)
 
 static ADDRESS_MAP_START( jetwave_map, AS_PROGRAM, 32, zr107_state )
 	AM_RANGE(0x00000000, 0x000fffff) AM_MIRROR(0x80000000) AM_RAM       /* Work RAM */
-	AM_RANGE(0x74000000, 0x740000ff) AM_MIRROR(0x80000000) AM_DEVREADWRITE_LEGACY("k001604", k001604_reg_r, k001604_reg_w)
+	AM_RANGE(0x74000000, 0x740000ff) AM_MIRROR(0x80000000) AM_DEVREADWRITE("k001604", k001604_device, reg_r, reg_w)
 	AM_RANGE(0x74010000, 0x7401ffff) AM_MIRROR(0x80000000) AM_RAM_WRITE(jetwave_palette_w) AM_SHARE("paletteram")
-	AM_RANGE(0x74020000, 0x7403ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE_LEGACY("k001604", k001604_tile_r, k001604_tile_w)
-	AM_RANGE(0x74040000, 0x7407ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE_LEGACY("k001604", k001604_char_r, k001604_char_w)
+	AM_RANGE(0x74020000, 0x7403ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE("k001604", k001604_device, tile_r, tile_w)
+	AM_RANGE(0x74040000, 0x7407ffff) AM_MIRROR(0x80000000) AM_DEVREADWRITE("k001604", k001604_device, char_r, char_w)
 	AM_RANGE(0x78000000, 0x7800ffff) AM_MIRROR(0x80000000) AM_READWRITE_LEGACY(cgboard_dsp_shared_r_ppc, cgboard_dsp_shared_w_ppc)      /* 21N 21K 23N 23K */
 	AM_RANGE(0x78010000, 0x7801ffff) AM_MIRROR(0x80000000) AM_WRITE_LEGACY(cgboard_dsp_shared_w_ppc)
 	AM_RANGE(0x78040000, 0x7804000f) AM_MIRROR(0x80000000) AM_READWRITE_LEGACY(K001006_0_r, K001006_0_w)
@@ -475,8 +479,8 @@ static ADDRESS_MAP_START( jetwave_map, AS_PROGRAM, 32, zr107_state )
 	AM_RANGE(0x7e000000, 0x7e003fff) AM_MIRROR(0x80000000) AM_READWRITE8(sysreg_r, sysreg_w, 0xffffffff)
 	AM_RANGE(0x7e008000, 0x7e009fff) AM_MIRROR(0x80000000) AM_DEVREADWRITE8("k056230", k056230_device, k056230_r, k056230_w, 0xffffffff)             /* LANC registers */
 	AM_RANGE(0x7e00a000, 0x7e00bfff) AM_MIRROR(0x80000000) AM_DEVREADWRITE("k056230", k056230_device, lanc_ram_r, lanc_ram_w)    /* LANC Buffer RAM (27E) */
-	AM_RANGE(0x7e00c000, 0x7e00c007) AM_MIRROR(0x80000000) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
-	AM_RANGE(0x7e00c008, 0x7e00c00f) AM_MIRROR(0x80000000) AM_DEVREAD_LEGACY("k056800", k056800_host_r)
+	AM_RANGE(0x7e00c000, 0x7e00c007) AM_MIRROR(0x80000000) AM_DEVWRITE("k056800", k056800_device, host_w)
+	AM_RANGE(0x7e00c008, 0x7e00c00f) AM_MIRROR(0x80000000) AM_DEVREAD("k056800", k056800_device, host_r)
 	AM_RANGE(0x7f000000, 0x7f3fffff) AM_MIRROR(0x80000000) AM_ROM AM_REGION("user2", 0)
 	AM_RANGE(0x7f800000, 0x7f9fffff) AM_MIRROR(0x80000000) AM_ROM AM_SHARE("share2")
 	AM_RANGE(0x7fe00000, 0x7fffffff) AM_MIRROR(0x80000000) AM_ROM AM_REGION("user1", 0) AM_SHARE("share2")  /* Program ROM */
@@ -491,8 +495,8 @@ static ADDRESS_MAP_START( sound_memmap, AS_PROGRAM, 16, zr107_state )
 	AM_RANGE(0x100000, 0x103fff) AM_RAM     /* Work RAM */
 	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("k054539_1", k054539_device, read, write, 0xff00)
 	AM_RANGE(0x200000, 0x2004ff) AM_DEVREADWRITE8("k054539_2", k054539_device, read, write, 0x00ff)
-	AM_RANGE(0x400000, 0x40000f) AM_DEVWRITE_LEGACY("k056800", k056800_sound_w)
-	AM_RANGE(0x400010, 0x40001f) AM_DEVREAD_LEGACY("k056800", k056800_sound_r)
+	AM_RANGE(0x400000, 0x40000f) AM_DEVWRITE("k056800", k056800_device, sound_w)
+	AM_RANGE(0x400010, 0x40001f) AM_DEVREAD("k056800", k056800_device, sound_r)
 	AM_RANGE(0x580000, 0x580001) AM_WRITENOP
 ADDRESS_MAP_END
 
@@ -544,12 +548,12 @@ static INPUT_PORTS_START( zr107 )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) /* PARAACK */
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("adc0838", adc083x_device, sars_read)
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 
 	PORT_START("EEPROMOUT")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
 
 	PORT_START("OUT4")
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("adc0838", adc083x_device, cs_write)
@@ -764,7 +768,7 @@ static MACHINE_CONFIG_START( zr107, zr107_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(30000))
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	MCFG_K056230_ADD("k056230", zr107_k056230_intf)
 
@@ -822,7 +826,7 @@ static MACHINE_CONFIG_START( jetwave, zr107_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(30000))
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	MCFG_K056230_ADD("k056230", zr107_k056230_intf)
 

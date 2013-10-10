@@ -1,5 +1,5 @@
 #include "sound/okim6295.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 
 class unico_state : public driver_device
 {
@@ -48,9 +48,9 @@ public:
 	DECLARE_VIDEO_START(zeropnt2);
 	UINT32 screen_update_unico(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_zeropnt2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void unico_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
-	void zeropnt2_draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void unico_draw_sprites(screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect);
+	void zeropnt2_draw_sprites(screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
 	optional_device<okim6295_device> m_oki;
-	optional_device<eeprom_device> m_eeprom;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 };

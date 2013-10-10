@@ -23,13 +23,13 @@ const device_type ISA8_SLOT = &device_creator<isa8_slot_device>;
 //  isa8_slot_device - constructor
 //-------------------------------------------------
 isa8_slot_device::isa8_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, ISA8_SLOT, "ISA8_SLOT", tag, owner, clock),
+		device_t(mconfig, ISA8_SLOT, "ISA8_SLOT", tag, owner, clock, "isa8_slot", __FILE__),
 		device_slot_interface(mconfig, *this)
 {
 }
 
-isa8_slot_device::isa8_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, type, name, tag, owner, clock),
+isa8_slot_device::isa8_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_slot_interface(mconfig, *this)
 {
 }
@@ -71,7 +71,7 @@ const device_type ISA16_SLOT = &device_creator<isa16_slot_device>;
 //  isa16_slot_device - constructor
 //-------------------------------------------------
 isa16_slot_device::isa16_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		isa8_slot_device(mconfig, ISA16_SLOT, "ISA16_SLOT", tag, owner, clock)
+		isa8_slot_device(mconfig, ISA16_SLOT, "ISA16_SLOT", tag, owner, clock, "isa16_slot", __FILE__)
 {
 }
 
@@ -145,7 +145,8 @@ void isa8_device::device_config_complete()
 //-------------------------------------------------
 
 isa8_device::isa8_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, ISA8, "ISA8", tag, owner, clock)
+		device_t(mconfig, ISA8, "ISA8", tag, owner, clock, "isa8", __FILE__),
+		m_write_iochck(*this)
 {
 	for(int i=0;i<8;i++)
 	{
@@ -155,8 +156,9 @@ isa8_device::isa8_device(const machine_config &mconfig, const char *tag, device_
 	m_nmi_enabled = false;
 }
 
-isa8_device::isa8_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-		device_t(mconfig, type, name, tag, owner, clock)
+isa8_device::isa8_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+		m_write_iochck(*this)
 {
 	for(int i=0;i<8;i++)
 	{
@@ -179,6 +181,8 @@ void isa8_device::set_dma_channel(UINT8 channel, device_isa8_card_interface *dev
 void isa8_device::device_start()
 {
 	// resolve callbacks
+	m_write_iochck.resolve_safe();
+
 	m_out_irq2_func.resolve(m_out_irq2_cb, *this);
 	m_out_irq3_func.resolve(m_out_irq3_cb, *this);
 	m_out_irq4_func.resolve(m_out_irq4_cb, *this);
@@ -393,11 +397,20 @@ void isa8_device::eop_w(int channel, int state)
 
 void isa8_device::nmi()
 {
-	if (m_nmi_enabled)
+	if (m_write_iochck.isnull())
 	{
-		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE );
+		if (m_nmi_enabled)
+		{
+			m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE );
+		}
+	}
+	else
+	{
+		m_write_iochck(0);
+		m_write_iochck(1);
 	}
 }
+
 //**************************************************************************
 //  DEVICE CONFIG ISA8 CARD INTERFACE
 //**************************************************************************
@@ -456,7 +469,7 @@ const device_type ISA16 = &device_creator<isa16_device>;
 //-------------------------------------------------
 
 isa16_device::isa16_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-		isa8_device(mconfig, ISA16, "ISA16", tag, owner, clock)
+		isa8_device(mconfig, ISA16, "ISA16", tag, owner, clock, "isa16", __FILE__)
 {
 }
 

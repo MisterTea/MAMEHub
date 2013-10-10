@@ -64,7 +64,7 @@ const device_type msm6242 = &device_creator<msm6242_device>;
 //-------------------------------------------------
 
 msm6242_device::msm6242_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, msm6242, "msm6242", tag, owner, clock),
+	: device_t(mconfig, msm6242, "msm6242", tag, owner, clock, "msm6242", __FILE__),
 		device_rtc_interface(mconfig, *this)
 {
 }
@@ -251,7 +251,7 @@ void msm6242_device::update_rtc_registers()
 		return;
 
 	// ticks
-	if ((m_tick % 200) != ((delta + m_tick) % 0x200))
+	if ((m_tick % 200) != (int)((delta + m_tick) % 0x200))
 		irq(IRQ_64THSECOND);
 	delta = bump(RTC_TICKS, delta, 0, 0x8000);
 	if (delta == 0)

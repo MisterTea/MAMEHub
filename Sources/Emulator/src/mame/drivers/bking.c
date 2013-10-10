@@ -20,8 +20,8 @@ DIP Locations verified for:
 #include "cpu/m6805/m6805.h"
 #include "sound/ay8910.h"
 #include "sound/dac.h"
-#include "machine/buggychl.h"
 #include "includes/bking.h"
+
 
 READ8_MEMBER(bking_state::bking_sndnmi_disable_r)
 {
@@ -65,10 +65,8 @@ READ8_MEMBER(bking_state::bking3_extrarom_r)
 
 WRITE8_MEMBER(bking_state::unk_w)
 {
-/*
-    0 = finished reading extra rom
-    1 = started reading extra rom
-*/
+	// 0 = finished reading extra rom
+	// 1 = started reading extra rom
 }
 
 READ8_MEMBER(bking_state::bking3_ext_check_r)
@@ -118,8 +116,8 @@ static ADDRESS_MAP_START( bking3_io_map, AS_IO, 8, bking_state )
 //  AM_RANGE(0x0c, 0x0c) AM_WRITE(bking_eport2_w)   this is not shown to be connected anywhere
 	AM_RANGE(0x0d, 0x0d) AM_WRITE(bking_hitclr_w)
 	AM_RANGE(0x07, 0x1f) AM_READ(bking_pos_r)
-	AM_RANGE(0x2f, 0x2f) AM_DEVREADWRITE_LEGACY("bmcu", buggychl_mcu_r, buggychl_mcu_w)
-	AM_RANGE(0x4f, 0x4f) AM_DEVREAD_LEGACY("bmcu", buggychl_mcu_status_r) AM_WRITE(unk_w)
+	AM_RANGE(0x2f, 0x2f) AM_DEVREADWRITE("bmcu", buggychl_mcu_device, buggychl_mcu_r, buggychl_mcu_w)
+	AM_RANGE(0x4f, 0x4f) AM_DEVREAD("bmcu", buggychl_mcu_device, buggychl_mcu_status_r) AM_WRITE(unk_w)
 	AM_RANGE(0x60, 0x60) AM_READ(bking3_extrarom_r)
 	AM_RANGE(0x6f, 0x6f) AM_READWRITE(bking3_ext_check_r, bking3_addr_h_w)
 	AM_RANGE(0x8f, 0x8f) AM_WRITE(bking3_addr_l_w)
@@ -406,6 +404,7 @@ void bking_state::machine_start()
 	save_item(NAME(m_palette_bank));
 	save_item(NAME(m_controller));
 	save_item(NAME(m_hit));
+
 	/* sound */
 	save_item(NAME(m_sound_nmi_enable));
 }
@@ -417,7 +416,6 @@ MACHINE_START_MEMBER(bking_state,bking3)
 	/* misc */
 	save_item(NAME(m_addr_h));
 	save_item(NAME(m_addr_l));
-
 }
 
 void bking_state::machine_reset()
@@ -441,6 +439,7 @@ void bking_state::machine_reset()
 	m_palette_bank = 0;
 	m_controller = 0;
 	m_hit = 0;
+
 	/* sound */
 	m_sound_nmi_enable = 1;
 }
@@ -472,7 +471,6 @@ static MACHINE_CONFIG_START( bking, bking_state )
 	/* - periodic IRQ, with frequency 6000000/(4*16*16*10*16) = 36.621 Hz, */
 	MCFG_CPU_PERIODIC_INT_DRIVER(bking_state, irq0_line_hold,  (double)6000000/(4*16*16*10*16))
 
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -484,7 +482,6 @@ static MACHINE_CONFIG_START( bking, bking_state )
 
 	MCFG_GFXDECODE(bking)
 	MCFG_PALETTE_LENGTH(4*8+4*4+4*2+4*2)
-
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -502,6 +499,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( bking3, bking )
 
+	/* basic machine hardware */
 	MCFG_CPU_MODIFY("main_cpu")
 	MCFG_CPU_IO_MAP(bking3_io_map)
 
@@ -514,6 +512,7 @@ static MACHINE_CONFIG_DERIVED( bking3, bking )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 MACHINE_CONFIG_END
+
 
 /***************************************************************************
 
@@ -804,6 +803,6 @@ ROM_START( bking3 )
 ROM_END
 
 
-GAME( 1982, bking,  0, bking,  bking, driver_device,  0, ROT270, "Taito Corporation", "Birdie King", GAME_SUPPORTS_SAVE )
+GAME( 1982, bking,  0, bking,  bking,  driver_device, 0, ROT270, "Taito Corporation", "Birdie King", GAME_SUPPORTS_SAVE )
 GAME( 1983, bking2, 0, bking,  bking2, driver_device, 0, ROT90,  "Taito Corporation", "Birdie King 2", GAME_SUPPORTS_SAVE )
 GAME( 1984, bking3, 0, bking3, bking2, driver_device, 0, ROT90,  "Taito Corporation", "Birdie King 3", GAME_SUPPORTS_SAVE )
