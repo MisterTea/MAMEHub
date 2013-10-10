@@ -170,9 +170,9 @@ UINT32 dacholer_state::screen_update_dacholer(screen_device &screen, bitmap_ind1
 		m_bg_tilemap->set_scrolly(0, m_scroll_y);
 	}
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap, cliprect);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -696,7 +696,7 @@ static MACHINE_CONFIG_DERIVED( itaten, dacholer )
 	MCFG_CPU_MODIFY("audiocpu")
 	MCFG_CPU_PROGRAM_MAP(itaten_snd_map)
 	MCFG_CPU_IO_MAP(itaten_snd_io_map)
-	MCFG_CPU_VBLANK_INT(NULL,NULL)
+	MCFG_CPU_VBLANK_INT_REMOVE()
 
 	MCFG_GFXDECODE(itaten)
 

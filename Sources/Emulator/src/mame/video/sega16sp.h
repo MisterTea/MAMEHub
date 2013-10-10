@@ -38,7 +38,7 @@
 #pragma once
 
 #include "sprite.h"
-
+#include "segaic16.h"
 
 #ifndef __SEGA16SP_H__
 #define __SEGA16SP_H__
@@ -93,7 +93,7 @@ class sega_16bit_sprite_device : public sprite16_device_ind16
 {
 protected:
 	// construction/destruction
-	sega_16bit_sprite_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner);
+	sega_16bit_sprite_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, const char *shortname, const char *source);
 
 public:
 	// live configuration
@@ -149,7 +149,7 @@ public:
 	// construction/destruction
 	sega_outrun_sprite_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 protected:
-	sega_outrun_sprite_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock, bool xboard_variant);
+	sega_outrun_sprite_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock, bool xboard_variant, const char *shortname, const char *source);
 
 	// subclass overrides
 	virtual void draw(bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -221,10 +221,13 @@ class sega_yboard_sprite_device : public sega_16bit_sprite_device
 public:
 	// construction/destruction
 	sega_yboard_sprite_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+	void set_rotate_ptr(rotate_info* segaic16_rotate) { m_segaic16_rotate = segaic16_rotate; }
 
 protected:
 	// subclass overrides
 	virtual void draw(bitmap_ind16 &bitmap, const rectangle &cliprect);
+
+	rotate_info*                        m_segaic16_rotate;
 };
 
 

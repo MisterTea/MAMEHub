@@ -48,7 +48,46 @@
 		-->
 		<part name="flop1" interface="floppy_5_25">
 			<dataarea name="flop" size="174848">
-				<rom name="visicalc.d64" size="174848" crc="b41f3121" sha1="aad1254ca95f03430edd63997d995c3671bc6c55" offset="0" />
+				<rom name="20910-5511.d64" size="174848" crc="b41f3121" sha1="aad1254ca95f03430edd63997d995c3671bc6c55" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="rom" interface="pet_9000_rom">
+			<dataarea name="rom" size="0x1000">
+				<rom name="901472-04.bin" size="0x1000" crc="9bf3c9f8" sha1="62be6bcf3a3aa844d629e8a52b30e01864cc8266" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="visicalc80" cloneof="visicalc">
+		<description>VisiCalc (8050 Version)</description>
+		<year>1981</year>
+		<publisher>Software Arts</publisher>
+		<info name="serial" value="20910-5612" />
+
+		<!--
+		VisiCalc(R)                                                 PET 2001, CBM 2001
+		Program Diskette                                         CBM 8032 and CBM 8096
+		                              [VisiCorp logo]          for 8050 Diskette Drive
+		One of the VisiTM programs                              by Software Arts, Inc.
+		from VisiCorp
+
+		                                VisiCorpTM
+		                            PERSONAL SOFTWARETM
+
+		Program Copyright (C) 1979, 1982
+		Software Arts, Inc. All Rights Reserved
+		                                                                    20910-5612
+		-->
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="533248">
+				<rom name="20910-5612.d80" size="533248" crc="9e0ab13f" sha1="27e6e95efbbbec00e07003a8322e9cd2cea736ad" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="rom" interface="pet_9000_rom">
+			<dataarea name="rom" size="0x1000">
+				<rom name="901472-04.bin" size="0x1000" crc="9bf3c9f8" sha1="62be6bcf3a3aa844d629e8a52b30e01864cc8266" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -246,6 +285,24 @@
 		<part name="flop1" interface="floppy_5_25">
 			<dataarea name="flop" size="533248">
 				<rom name="softbox-distrib.d80" size="533248" crc="48b070d5" sha1="acab30ea2859433bb75312936d6380dad3c61a00" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hardbox">
+		<description>HardBox Utilities</description>
+		<year>1981</year>
+		<publisher>Small Systems Engineering"</publisher>
+
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="533248">
+				<rom name="hardbox-utils.d80" size="533248" crc="13e90ead" sha1="99449d79c6bca9f291afb672a67025419cbd1199" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="hardbox-utils.d64" size="174848" crc="4e1880e3" sha1="0e6bb17f7361be3be5f05ba55fb307a89cfc1897" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -624,6 +681,32 @@
 			<feature name="part_id" value="CBM faktuur ASCII versie" />
 			<dataarea name="flop" size="533248">
 				<rom name="disk9900.d80" size="533248" crc="387442d1" sha1="31a32d33357ce58e7320674c1280d68a3292836f" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="zram">
+		<description>Z-RAM CP/M Version 2.2</description>
+		<year>1982</year>
+		<publisher>Madison Computer</publisher>
+		<info name="serial" value="CP2-620-580" />
+
+		<!--
+		          C P / M   ( R )       V e r s i o n   2 . 2
+		( C )   1 9 7 6 - 1 9 8 0   D i g i t a l   R e s e a r c h
+		s e r i a l  #  C P 2 - 6 2 0 -   5 8 0   # #
+		8050 format / 4040 on back   (C) 1982 Madison Computer
+		See Digital Research software license for restrictions.
+		-->
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="533248">
+				<rom name="madison8050_t43_s16_bad.d80" size="533248" crc="91718447" sha1="4ab1983c275c217a0f66facf4db639de04720419" status="baddump" offset="0" />
+			</dataarea>
+		</part>
+
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="174848">
+				<rom name="madison4040.d64" size="174848" crc="e4638b5a" sha1="19aa578a8eadfc95a5e30e73abcc5d80ee6b1aca" offset="0" />
 			</dataarea>
 		</part>
 	</software>

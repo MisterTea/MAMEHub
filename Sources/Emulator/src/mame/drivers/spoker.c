@@ -104,8 +104,8 @@ void spoker_state::video_start()
 UINT32 spoker_state::screen_update_spoker(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	bitmap.fill(get_black_pen(machine()), cliprect);
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -115,7 +115,7 @@ UINT32 spoker_state::screen_update_spoker(screen_device &screen, bitmap_ind16 &b
 
 CUSTOM_INPUT_MEMBER(spoker_state::hopper_r)
 {
-	if (m_hopper) return !(machine().primary_screen->frame_number()%10);
+	if (m_hopper) return !(m_screen->frame_number()%10);
 	return machine().input().code_pressed(KEYCODE_H);
 }
 

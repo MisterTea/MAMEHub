@@ -10,9 +10,7 @@ Preliminary driver by:
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
-#include "sound/k007232.h"
 #include "sound/2151intf.h"
-#include "video/konicdev.h"
 #include "includes/konamipt.h"
 #include "includes/aliens.h"
 
@@ -21,7 +19,7 @@ static KONAMI_SETLINES_CALLBACK( aliens_banking );
 
 INTERRUPT_GEN_MEMBER(aliens_state::aliens_interrupt)
 {
-	if (k051960_is_irq_enabled(m_k051960))
+	if (m_k051960->k051960_is_irq_enabled())
 		device.execute().set_input_line(KONAMI_IRQ_LINE, HOLD_LINE);
 }
 
@@ -51,7 +49,7 @@ WRITE8_MEMBER(aliens_state::aliens_coin_counter_w)
 	m_palette_selected = data & 0x20;
 
 	/* bit 6 = enable char ROM reading through the video RAM */
-	k052109_set_rmrd_line(m_k052109, (data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
+	m_k052109->set_rmrd_line((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 
 	/* other bits unknown */
 #if 0
@@ -77,33 +75,33 @@ WRITE8_MEMBER(aliens_state::aliens_snd_bankswitch_w)
 	int bank_A = BIT(data, 1);
 	int bank_B = BIT(data, 0);
 
-	k007232_set_bank(m_k007232, bank_A, bank_B);
+	m_k007232->set_bank(bank_A, bank_B);
 }
 
 
 READ8_MEMBER(aliens_state::k052109_051960_r)
 {
-	if (k052109_get_rmrd_line(m_k052109) == CLEAR_LINE)
+	if (m_k052109->get_rmrd_line() == CLEAR_LINE)
 	{
 		if (offset >= 0x3800 && offset < 0x3808)
-			return k051937_r(m_k051960, space, offset - 0x3800);
+			return m_k051960->k051937_r(space, offset - 0x3800);
 		else if (offset < 0x3c00)
-			return k052109_r(m_k052109, space, offset);
+			return m_k052109->read(space, offset);
 		else
-			return k051960_r(m_k051960, space, offset - 0x3c00);
+			return m_k051960->k051960_r(space, offset - 0x3c00);
 	}
 	else
-		return k052109_r(m_k052109, space, offset);
+		return m_k052109->read(space, offset);
 }
 
 WRITE8_MEMBER(aliens_state::k052109_051960_w)
 {
 	if (offset >= 0x3800 && offset < 0x3808)
-		k051937_w(m_k051960, space, offset - 0x3800, data);
+		m_k051960->k051937_w(space, offset - 0x3800, data);
 	else if (offset < 0x3c00)
-		k052109_w(m_k052109, space, offset, data);
+		m_k052109->write(space, offset, data);
 	else
-		k051960_w(m_k051960, space, offset - 0x3c00, data);
+		m_k051960->k051960_w(space, offset - 0x3c00, data);
 }
 
 static ADDRESS_MAP_START( aliens_map, AS_PROGRAM, 8, aliens_state )
@@ -126,7 +124,7 @@ static ADDRESS_MAP_START( aliens_sound_map, AS_PROGRAM, 8, aliens_state )
 	AM_RANGE(0x8000, 0x87ff) AM_RAM                                     /* RAM */
 	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xc000, 0xc000) AM_READ(soundlatch_byte_r)                         /* soundlatch_byte_r */
-	AM_RANGE(0xe000, 0xe00d) AM_DEVREADWRITE_LEGACY("k007232", k007232_r, k007232_w)
+	AM_RANGE(0xe000, 0xe00d) AM_DEVREADWRITE("k007232", k007232_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -187,8 +185,8 @@ INPUT_PORTS_END
 
 WRITE8_MEMBER(aliens_state::volume_callback)
 {
-	k007232_set_volume(m_k007232, 0, (data & 0x0f) * 0x11, 0);
-	k007232_set_volume(m_k007232, 1, 0, (data >> 4) * 0x11);
+	m_k007232->set_volume(0, (data & 0x0f) * 0x11, 0);
+	m_k007232->set_volume(1, 0, (data >> 4) * 0x11);
 }
 
 static const k007232_interface k007232_config =

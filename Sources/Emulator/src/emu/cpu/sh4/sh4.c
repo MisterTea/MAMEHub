@@ -2517,6 +2517,9 @@ const void FTRC(sh4_state *sh4, const UINT16 opcode)
 	UINT32 n = Rn;
 
 	if (sh4->fpu_pr) { /* PR = 1 */
+		if(n & 1)
+			fatalerror("SH-4: FTRC opcode used with n %d",n);
+
 		n = n & 14;
 		*((INT32 *)&sh4->fpul) = (INT32)FP_RFD(n);
 	} else {              /* PR = 0 */
@@ -2532,6 +2535,9 @@ const void FLOAT(sh4_state *sh4, const UINT16 opcode)
 	UINT32 n = Rn;
 
 	if (sh4->fpu_pr) { /* PR = 1 */
+		if(n & 1)
+			fatalerror("SH-4: FLOAT opcode used with n %d",n);
+
 		n = n & 14;
 		FP_RFD(n) = (double)*((INT32 *)&sh4->fpul);
 	} else {              /* PR = 0 */
@@ -3561,6 +3567,7 @@ CPU_GET_INFO( sh4 )
 
 		/* --- the following bits of info are returned as NULL-terminated strings --- */
 		case CPUINFO_STR_NAME:                      strcpy(info->s, "SH-4");                break;
+		case CPUINFO_STR_SHORTNAME:                 strcpy(info->s, "sh4");                break;
 		case CPUINFO_STR_FAMILY:                    strcpy(info->s, "Hitachi SH7750");      break;
 		case CPUINFO_STR_VERSION:                   strcpy(info->s, "1.0");             break;
 		case CPUINFO_STR_SOURCE_FILE:                   strcpy(info->s, __FILE__);              break;

@@ -3,8 +3,8 @@ Panic Road
 ----------
 
 TODO:
-- problems with bg collision
-- high priority tiles
+ - are collisions 100%, need to find reference videos of game being played properly to check things look ok (I think they are..)
+ - are priorities with sprites 100%, sprite-sprite priorities are ugly in many places, maybe the SEI0010BU are 3 sprite chips?
 
 --
 
@@ -73,15 +73,20 @@ public:
 		m_spriteram(*this, "spriteram"),
 		m_textram(*this, "textram"),
 		m_spritebank(*this, "spritebank"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_t5182(*this, "t5182") { }
 
 	required_shared_ptr<UINT8> m_mainram;
 	required_shared_ptr<UINT8> m_spriteram;
 	required_shared_ptr<UINT8> m_textram;
 	required_shared_ptr<UINT8> m_spritebank;
 
+	required_device<cpu_device> m_maincpu;
+	required_device<t5182_device> m_t5182;
+
 	tilemap_t *m_bgtilemap;
-	tilemap_t *m_infotilemap;
+	tilemap_t *m_infotilemap_2;
+
 	tilemap_t *m_txttilemap;
 	int m_scrollx;
 
@@ -95,13 +100,21 @@ public:
 	DECLARE_DRIVER_INIT(panicr);
 	TILE_GET_INFO_MEMBER(get_bgtile_info);
 	TILE_GET_INFO_MEMBER(get_infotile_info);
+	TILE_GET_INFO_MEMBER(get_infotile_info_2);
+	TILE_GET_INFO_MEMBER(get_infotile_info_3);
+	TILE_GET_INFO_MEMBER(get_infotile_info_4);
+
 	TILE_GET_INFO_MEMBER(get_txttile_info);
 	virtual void video_start();
 	virtual void palette_init();
 	UINT32 screen_update_panicr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(panicr_scanline);
 	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect );
-	required_device<cpu_device> m_maincpu;
+
+	bitmap_ind16 *m_temprender;
+
+	bitmap_ind16 *m_tempbitmap_1;
+	rectangle m_tempbitmap_clip;
 };
 
 
@@ -151,24 +164,27 @@ void panicr_state::palette_init()
 	}
 
 	// tile lookup table
-	for (i = 0x100; i < 0x200; i++)
+	for (i = 0x000; i < 0x100; i++)
 	{
-		UINT8 ctabentry = (color_prom[i] & 0x3f) | 0x00;
+		UINT8 ctabentry = (color_prom[i+0x100] & 0x3f) | 0x00;
 
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		colortable_entry_set_value(machine().colortable, ((i&0x0f) + ((i&0xf0)<<1))  +0x200, ctabentry);
+		colortable_entry_set_value(machine().colortable, ((i&0x0f) + ((i&0xf0)<<1))  +0x210, ctabentry);
+
 	}
 
 	// sprite lookup table
-	for (i = 0x200; i < 0x300; i++)
+	for (i = 0x000; i < 0x100; i++)
 	{
 		UINT8 ctabentry;
 
-		if (color_prom[i] & 0x40)
+		if (color_prom[i+0x200] & 0x40)
 			ctabentry = 0;
 		else
-			ctabentry = (color_prom[i] & 0x3f) | 0x40;
+			ctabentry = (color_prom[i+0x200] & 0x3f) | 0x40;
 
-		colortable_entry_set_value(machine().colortable, i, ctabentry);
+		colortable_entry_set_value(machine().colortable, i+0x100, ctabentry);
+
 	}
 }
 
@@ -187,7 +203,9 @@ TILE_GET_INFO_MEMBER(panicr_state::get_bgtile_info)
 		0);
 }
 
-TILE_GET_INFO_MEMBER(panicr_state::get_infotile_info)
+
+
+TILE_GET_INFO_MEMBER(panicr_state::get_infotile_info_2)
 {
 	int code,attr;
 
@@ -195,11 +213,14 @@ TILE_GET_INFO_MEMBER(panicr_state::get_infotile_info)
 	attr=memregion("user2")->base()[tile_index];
 	code+=((attr&7)<<8);
 	SET_TILE_INFO_MEMBER(
-		2,
+		3,
 		code,
-		(attr & 0xf0) >> 4,
+		0,
 		0);
 }
+
+
+
 
 TILE_GET_INFO_MEMBER(panicr_state::get_txttile_info)
 {
@@ -220,7 +241,7 @@ TILE_GET_INFO_MEMBER(panicr_state::get_txttile_info)
 void panicr_state::video_start()
 {
 	m_bgtilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(panicr_state::get_bgtile_info),this),TILEMAP_SCAN_ROWS,16,16,1024,16 );
-	m_infotilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(panicr_state::get_infotile_info),this),TILEMAP_SCAN_ROWS,16,16,1024,16 ); // 3 more bitplanes, contains collision and priority data
+	m_infotilemap_2 = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(panicr_state::get_infotile_info_2),this),TILEMAP_SCAN_ROWS,16,16,1024,16 );
 
 	m_txttilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(panicr_state::get_txttile_info),this),TILEMAP_SCAN_ROWS,8,8,32,32 );
 	colortable_configure_tilemap_groups(machine().colortable, m_txttilemap, machine().gfx[0], 0);
@@ -231,7 +252,10 @@ void panicr_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect )
 	UINT8 *spriteram = m_spriteram;
 	int offs,flipx,flipy,x,y,color,sprite;
 
-	for (offs = 0; offs<0x1000; offs+=16)
+
+	// ssss ssss | Fx-- cccc | yyyy yyyy | xxxx xxxx
+
+	for (offs = m_spriteram.bytes() - 16; offs>=0; offs-=16)
 	{
 		flipx = 0;
 		flipy = spriteram[offs+1] & 0x80;
@@ -239,24 +263,75 @@ void panicr_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect )
 		x = spriteram[offs+3];
 		if (spriteram[offs+1] & 0x40) x -= 0x100;
 
+		if (spriteram[offs+1] & 0x20)
+		{
+			// often set
+		}
+
+		if (spriteram[offs+1] & 0x10)
+		{
+			popmessage("(spriteram[offs+1] & 0x10) %02x\n", (spriteram[offs+1] & 0x10));
+		}
+
+
 		color = spriteram[offs+1] & 0x0f;
 		sprite = spriteram[offs+0] | (*m_spritebank << 8);
 
-		drawgfx_transmask(bitmap,cliprect,machine().gfx[3],
+		drawgfx_transmask(bitmap,cliprect,machine().gfx[2],
 				sprite,
 				color,flipx,flipy,x,y,
-				colortable_get_transpen_mask(machine().colortable, machine().gfx[3], color, 0));
+				colortable_get_transpen_mask(machine().colortable, machine().gfx[2], color, 0));
 	}
 }
 
 UINT32 panicr_state::screen_update_panicr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
+	m_bgtilemap->set_scrollx(0, m_scrollx);
+	m_bgtilemap->draw(screen, *m_temprender, m_tempbitmap_clip, 0,0);
+
+//  m_infotilemap_2->set_scrollx(0, m_scrollx);
+//  m_infotilemap_2->draw(screen, *m_temprender, m_tempbitmap_clip, 0,0);
+
+
 	bitmap.fill(get_black_pen(machine()), cliprect);
 	m_txttilemap->mark_all_dirty();
-	m_bgtilemap->set_scrollx(0, m_scrollx);
-	m_bgtilemap->draw(bitmap, cliprect, 0,0);
+
+
+
+	for (int y=0;y<256;y++)
+	{
+		UINT16* srcline = &m_temprender->pix16(y);
+		UINT16* dstline = &bitmap.pix16(y);
+
+		for (int x=0;x<256;x++)
+		{
+			UINT16 dat = srcline[x];
+
+			dstline[x] = ((dat & 0x00f) | ((dat & 0x1e0)>>0)) + 0x200;
+
+		}
+
+	}
+
 	draw_sprites(bitmap,cliprect);
-	m_txttilemap->draw(bitmap, cliprect, 0,0);
+
+	for (int y=0;y<256;y++)
+	{
+		UINT16* srcline = &m_temprender->pix16(y);
+		UINT16* dstline = &bitmap.pix16(y);
+
+		for (int x=0;x<256;x++)
+		{
+			UINT16 dat = srcline[x];
+			if (dat & 0x10)
+				dstline[x] = ((dat & 0x00f) | ((dat & 0x1e0)>>0)) + 0x200;
+
+		}
+
+	}
+
+
+	m_txttilemap->draw(screen, bitmap, cliprect, 0,0);
 
 	return 0;
 }
@@ -270,34 +345,57 @@ UINT32 panicr_state::screen_update_panicr(screen_device &screen, bitmap_ind16 &b
 
 READ8_MEMBER(panicr_state::panicr_collision_r)
 {
-	// 0x40 bytes per line, 2 bits per x
-	// implementation is still wrong though :(
-	const bitmap_ind16 &src_bitmap = m_infotilemap->pixmap();
-	int width_mask = src_bitmap.width() - 1;
-	int height_mask = src_bitmap.height() - 1;
-	int y = offset >> 6;
-	int x = (offset & 0x3f) * 4;
-	UINT8 data = 0;
+	// re-render the collision data here
+	// collisions are based on 2 bits from the tile data, relative to a page of tiles
+	//
+	// the 2 collision bits represent
+	// solid areas of the playfield
+	// areas where flippers affect the ball
+	//
+	// there is a 3rd additional bit that is used as priority, we're not concerned about that here
 
-	for (int i = 0; i < 4; i++)
-	{
-		int p = src_bitmap.pix16(y & height_mask, (i + x + m_scrollx) & width_mask);
-		data <<= 2;
-		data |= p&3;
-	}
+	m_infotilemap_2->set_scrollx(0, m_scrollx & 0xffff);
+	m_infotilemap_2->draw(m_screen, *m_tempbitmap_1, m_tempbitmap_clip, 0,0);
 
-	return data;
+
+	int actual_column = offset&0x3f;
+	int actual_line = offset >> 6;
+
+
+	actual_column = actual_column * 4;
+
+	actual_column -= m_scrollx;
+	actual_column &= 0xff;
+
+
+	UINT8 ret = 0;
+	UINT16* srcline = &m_tempbitmap_1->pix16(actual_line);
+
+
+	ret |= (srcline[(actual_column+0)&0xff]&3) << 6;
+	ret |= (srcline[(actual_column+1)&0xff]&3) << 4;
+	ret |= (srcline[(actual_column+2)&0xff]&3) << 2;
+	ret |= (srcline[(actual_column+3)&0xff]&3) << 0;
+
+	logerror("%06x: (scroll x upper bits is %04x (full %04x)) read %d %d\n", space.device().safe_pc(), (m_scrollx&0xff00)>>8, m_scrollx,  actual_line, actual_column);
+
+
+	return ret;
+
+
 }
 
 
 WRITE8_MEMBER(panicr_state::panicr_scrollx_lo_w)
 {
+	logerror("panicr_scrollx_lo_w %02x\n", data);
 	m_scrollx = (m_scrollx & 0xff00) | (data << 1 & 0xfe) | (data >> 7 & 0x01);
 }
 
 WRITE8_MEMBER(panicr_state::panicr_scrollx_hi_w)
 {
-	m_scrollx = (m_scrollx & 0xff) | (data << 4 & 0x0f00) | (data << 12 & 0xf000);
+	logerror("panicr_scrollx_hi_w %02x\n", data);
+	m_scrollx = (m_scrollx & 0xff) | ((data &0xf0) << 4) | ((data & 0x0f) << 12);
 }
 
 WRITE8_MEMBER(panicr_state::panicr_output_w)
@@ -306,13 +404,15 @@ WRITE8_MEMBER(panicr_state::panicr_output_w)
 	coin_counter_w(machine(), 0, (data & 0x40) ? 1 : 0);
 	coin_counter_w(machine(), 1, (data & 0x80) ? 1 : 0);
 
+	logerror("panicr_output_w %02x\n", data);
+
 	// other bits: ?
 }
 
 READ8_MEMBER(panicr_state::t5182shared_r)
 {
 	if ((offset & 1) == 0)
-		return t5182_sharedram_r(space, offset/2);
+		return m_t5182->sharedram_r(space, offset/2);
 	else
 		return 0;
 }
@@ -320,20 +420,20 @@ READ8_MEMBER(panicr_state::t5182shared_r)
 WRITE8_MEMBER(panicr_state::t5182shared_w)
 {
 	if ((offset & 1) == 0)
-		t5182_sharedram_w(space, offset/2, data);
+		m_t5182->sharedram_w(space, offset/2, data);
 }
 
 
 static ADDRESS_MAP_START( panicr_map, AS_PROGRAM, 8, panicr_state )
 	AM_RANGE(0x00000, 0x01fff) AM_RAM AM_SHARE("mainram")
-	AM_RANGE(0x02000, 0x02fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x03000, 0x03fff) AM_RAM
+	AM_RANGE(0x02000, 0x03cff) AM_RAM AM_SHARE("spriteram") // how big is sprite ram, some places definitely have sprites at 3000+
+	AM_RANGE(0x03d00, 0x03fff) AM_RAM
 	AM_RANGE(0x08000, 0x0bfff) AM_READ(panicr_collision_r)
 	AM_RANGE(0x0c000, 0x0cfff) AM_RAM AM_SHARE("textram")
-	AM_RANGE(0x0d000, 0x0d000) AM_WRITE_LEGACY(t5182_sound_irq_w)
-	AM_RANGE(0x0d002, 0x0d002) AM_WRITE_LEGACY(t5182_sharedram_semaphore_main_acquire_w)
-	AM_RANGE(0x0d004, 0x0d004) AM_READ_LEGACY(t5182_sharedram_semaphore_snd_r)
-	AM_RANGE(0x0d006, 0x0d006) AM_WRITE_LEGACY(t5182_sharedram_semaphore_main_release_w)
+	AM_RANGE(0x0d000, 0x0d000) AM_DEVWRITE("t5182", t5182_device, sound_irq_w)
+	AM_RANGE(0x0d002, 0x0d002) AM_DEVWRITE("t5182", t5182_device, sharedram_semaphore_main_acquire_w)
+	AM_RANGE(0x0d004, 0x0d004) AM_DEVREAD("t5182", t5182_device, sharedram_semaphore_snd_r)
+	AM_RANGE(0x0d006, 0x0d006) AM_DEVWRITE("t5182", t5182_device, sharedram_semaphore_main_release_w)
 	AM_RANGE(0x0d200, 0x0d2ff) AM_READWRITE(t5182shared_r, t5182shared_w)
 	AM_RANGE(0x0d400, 0x0d400) AM_READ_PORT("P1")
 	AM_RANGE(0x0d402, 0x0d402) AM_READ_PORT("P2")
@@ -412,10 +512,10 @@ static INPUT_PORTS_START( panicr )
 	PORT_DIPSETTING(    0x10, "10k 20k" )
 	PORT_DIPSETTING(    0x08, "20k 40k" )
 	PORT_DIPSETTING(    0x00, "50k 100k" )
-	PORT_DIPNAME( 0x60, 0x40, DEF_STR( Lives ) )            PORT_DIPLOCATION("SW2:6,7")
+	PORT_DIPNAME( 0x60, 0x20, DEF_STR( Lives ) )            PORT_DIPLOCATION("SW2:6,7")
 	PORT_DIPSETTING(    0x00, "4" )
-	PORT_DIPSETTING(    0x20, "2" )
-	PORT_DIPSETTING(    0x40, "3" )
+	PORT_DIPSETTING(    0x20, "3" )
+	PORT_DIPSETTING(    0x40, "2" )
 	PORT_DIPSETTING(    0x60, "1" )
 	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Cabinet ) )          PORT_DIPLOCATION("SW2:8")
 	PORT_DIPSETTING(    0x80, DEF_STR( Upright ) )
@@ -448,8 +548,8 @@ static const gfx_layout bgtilelayout =
 {
 	16,16,
 	RGN_FRAC(1,4),
-	4,
-	{ RGN_FRAC(2,4)+0, RGN_FRAC(2,4)+4, RGN_FRAC(3,4)+0, RGN_FRAC(3,4)+4 },
+	5,
+	{  /* priority bit -> */ RGN_FRAC(1,4)+0 , /* colour bits -> */ RGN_FRAC(2,4)+0, RGN_FRAC(2,4)+4, RGN_FRAC(3,4)+0, RGN_FRAC(3,4)+4},
 	{ 0, 1, 2, 3, 8+0, 8+1, 8+2, 8+3,
 			16+0, 16+1, 16+2, 16+3, 24+0, 24+1, 24+2, 24+3 },
 	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32,
@@ -457,18 +557,22 @@ static const gfx_layout bgtilelayout =
 	32*16
 };
 
-static const gfx_layout infotilelayout =
+
+static const gfx_layout infotilelayout_2 =
 {
 	16,16,
 	RGN_FRAC(1,4),
-	4,
-	{ 0, 4, RGN_FRAC(1,4)+0, RGN_FRAC(1,4)+4 },
+	2,
+	{ /* collision bits -> */ RGN_FRAC(1,4)+4, 4  },
 	{ 0, 1, 2, 3, 8+0, 8+1, 8+2, 8+3,
 			16+0, 16+1, 16+2, 16+3, 24+0, 24+1, 24+2, 24+3 },
 	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32,
 			8*32, 9*32, 10*32, 11*32, 12*32, 13*32, 14*32, 15*32 },
 	32*16
 };
+
+
+
 
 static const gfx_layout spritelayout =
 {
@@ -485,9 +589,10 @@ static const gfx_layout spritelayout =
 
 static GFXDECODE_START( panicr )
 	GFXDECODE_ENTRY( "gfx1", 0, charlayout,     0x000,  8 )
-	GFXDECODE_ENTRY( "gfx2", 0, bgtilelayout,   0x100, 16 )
-	GFXDECODE_ENTRY( "gfx2", 0, infotilelayout, 0x100, 16 ) // palette is just to make it viewable with F4
-	GFXDECODE_ENTRY( "gfx3", 0, spritelayout,   0x200, 16 )
+	GFXDECODE_ENTRY( "gfx2", 0, bgtilelayout,   0x200, 32 )
+	GFXDECODE_ENTRY( "gfx3", 0, spritelayout,   0x100, 16 )
+	GFXDECODE_ENTRY( "gfx2", 0, infotilelayout_2, 0x100, 16 ) // palette is just to make it viewable with F4
+
 GFXDECODE_END
 
 
@@ -507,26 +612,27 @@ static MACHINE_CONFIG_START( panicr, panicr_state )
 	MCFG_CPU_PROGRAM_MAP(panicr_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", panicr_state, panicr_scanline, "screen", 0, 1)
 
-	MCFG_CPU_ADD(CPUTAG_T5182,Z80,SOUND_CLOCK/4)    /* 3.579545 MHz */
-	MCFG_CPU_PROGRAM_MAP(t5182_map)
-	MCFG_CPU_IO_MAP(t5182_io)
+	MCFG_T5182_ADD("t5182")
+	MCFG_FRAGMENT_ADD(t5182)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
+//  MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
+
 	MCFG_SCREEN_UPDATE_DRIVER(panicr_state, screen_update_panicr)
 
 	MCFG_GFXDECODE(panicr)
-	MCFG_PALETTE_LENGTH(256*3)
+	MCFG_PALETTE_LENGTH(256*4)
 
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_YM2151_ADD("ymsnd", SOUND_CLOCK/4) /* 3.579545 MHz */
-	MCFG_YM2151_IRQ_HANDLER(WRITELINE(driver_device, member_wrapper_line<t5182_ym2151_irq_handler>))
+	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("t5182", t5182_device, ym2151_irq_handler))
 	MCFG_SOUND_ROUTE(0, "mono", 1.0)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
 
@@ -538,7 +644,7 @@ ROM_START( panicr )
 	ROM_LOAD16_BYTE("2.19m",   0x0f0000, 0x08000, CRC(3d48b0b5) SHA1(a6e8b38971a8964af463c16f32bb7dbd301dd314) )
 	ROM_LOAD16_BYTE("1.19n",   0x0f0001, 0x08000, CRC(674131b9) SHA1(63499cd5ad39e79e70f3ba7060680f0aa133f095) )
 
-	ROM_REGION( 0x10000, "t5182", 0 ) /* Toshiba T5182 module */
+	ROM_REGION( 0x10000, "t5182_z80", 0 ) /* Toshiba T5182 module */
 	ROM_LOAD( "t5182.rom", 0x0000, 0x2000, CRC(d354c8fc) SHA1(a1c9e1ac293f107f69cc5788cf6abc3db1646e33) )
 	ROM_LOAD( "22d.bin",   0x8000, 0x8000, CRC(eb1a46e1) SHA1(278859ae4bca9f421247e646d789fa1206dcd8fc) )
 
@@ -577,7 +683,7 @@ ROM_START( panicrg ) /* Distributed by TV-Tuning Videospiele GMBH */
 	ROM_LOAD16_BYTE("2g.19m",   0x0f0000, 0x08000, CRC(cf759403) SHA1(1a0911c943ecc752e46873c9a5da981745f7562d) )
 	ROM_LOAD16_BYTE("1g.19n",   0x0f0001, 0x08000, CRC(06877f9b) SHA1(8b92209d6422ff2b1f3cb66bd39a3ff84e399eec) )
 
-	ROM_REGION( 0x10000, "t5182", 0 ) /* Toshiba T5182 module */
+	ROM_REGION( 0x10000, "t5182_z80", 0 ) /* Toshiba T5182 module */
 	ROM_LOAD( "t5182.rom", 0x0000, 0x2000, CRC(d354c8fc) SHA1(a1c9e1ac293f107f69cc5788cf6abc3db1646e33) )
 	ROM_LOAD( "22d.bin",   0x8000, 0x8000, CRC(eb1a46e1) SHA1(278859ae4bca9f421247e646d789fa1206dcd8fc) )
 
@@ -618,8 +724,6 @@ DRIVER_INIT_MEMBER(panicr_state,panicr)
 	UINT8 *rom;
 	int size;
 	int i,j;
-
-	t5182_init(machine());
 
 	rom = memregion("gfx1")->base();
 	size = memregion("gfx1")->bytes();
@@ -721,8 +825,15 @@ DRIVER_INIT_MEMBER(panicr_state,panicr)
 	}
 
 	auto_free(machine(), buf);
+
+	m_tempbitmap_1 = auto_bitmap_ind16_alloc(machine(),256,256);
+	m_temprender = auto_bitmap_ind16_alloc(machine(),256,256);
+	m_tempbitmap_clip.set(0, 256-1, 0, 256-1);
+
+	m_tempbitmap_1->fill(0, m_tempbitmap_clip);
+
 }
 
 
-GAME( 1986, panicr,  0,      panicr,  panicr, panicr_state,  panicr, ROT270, "Seibu Kaihatsu (Taito license)", "Panic Road (Japan)", GAME_NOT_WORKING )
-GAME( 1986, panicrg, panicr, panicr,  panicr, panicr_state,  panicr, ROT270, "Seibu Kaihatsu (Tuning license)", "Panic Road (Germany)", GAME_NOT_WORKING )
+GAME( 1986, panicr,  0,      panicr,  panicr, panicr_state,  panicr, ROT270, "Seibu Kaihatsu (Taito license)", "Panic Road (Japan)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1986, panicrg, panicr, panicr,  panicr, panicr_state,  panicr, ROT270, "Seibu Kaihatsu (Tuning license)", "Panic Road (Germany)", GAME_IMPERFECT_GRAPHICS )

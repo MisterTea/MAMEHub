@@ -88,10 +88,9 @@
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "video/konicdev.h"
-#include "machine/k053252.h"
+
 #include "cpu/m6809/konami.h" /* for the callback and the firq irq definition */
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/2151intf.h"
 #include "sound/k053260.h"
 #include "includes/konamipt.h"
@@ -105,17 +104,6 @@ static KONAMI_SETLINES_CALLBACK( vendetta_banking );
   EEPROM
 
 ***************************************************************************/
-
-static const eeprom_interface eeprom_intf =
-{
-	7,              /* address bits */
-	8,              /* data bits */
-	"011000",       /*  read command */
-	"011100",       /* write command */
-	0,              /* erase command */
-	"0100000000000",/* lock command */
-	"0100110000000" /* unlock command */
-};
 
 WRITE8_MEMBER(vendetta_state::vendetta_eeprom_w)
 {
@@ -144,7 +132,7 @@ WRITE8_MEMBER(vendetta_state::vendetta_eeprom_w)
 
 READ8_MEMBER(vendetta_state::vendetta_K052109_r)
 {
-	return k052109_r(m_k052109, space, offset + 0x2000);
+	return m_k052109->read(space, offset + 0x2000);
 }
 
 WRITE8_MEMBER(vendetta_state::vendetta_K052109_w)
@@ -154,8 +142,8 @@ WRITE8_MEMBER(vendetta_state::vendetta_K052109_w)
 	// *  Tilemap MASK-ROM Test       (0x1d80<->0x3d80, 0x1e00<->0x3e00, 0x1f00<->0x3f00)  *
 	// *************************************************************************************
 	if ((offset == 0x1d80) || (offset == 0x1e00) || (offset == 0x1f00))
-		k052109_w(m_k052109, space, offset, data);
-	k052109_w(m_k052109, space, offset + 0x2000, data);
+		m_k052109->write(space, offset, data);
+	m_k052109->write(space, offset + 0x2000, data);
 }
 
 
@@ -167,13 +155,13 @@ void vendetta_state::vendetta_video_banking( int select )
 	{
 		space.install_read_bank(m_video_banking_base + 0x2000, m_video_banking_base + 0x2fff, "bank4" );
 		space.install_write_handler(m_video_banking_base + 0x2000, m_video_banking_base + 0x2fff, write8_delegate(FUNC(vendetta_state::paletteram_xBBBBBGGGGGRRRRR_byte_be_w), this) );
-		space.install_legacy_readwrite_handler(*m_k053246, m_video_banking_base + 0x0000, m_video_banking_base + 0x0fff, FUNC(k053247_r), FUNC(k053247_w) );
+		space.install_readwrite_handler(m_video_banking_base + 0x0000, m_video_banking_base + 0x0fff, read8_delegate(FUNC(k053247_device::k053247_r), (k053247_device*)m_k053246), write8_delegate(FUNC(k053247_device::k053247_w), (k053247_device*)m_k053246) );
 		membank("bank4")->set_base(m_generic_paletteram_8);
 	}
 	else
 	{
 		space.install_readwrite_handler(m_video_banking_base + 0x2000, m_video_banking_base + 0x2fff, read8_delegate(FUNC(vendetta_state::vendetta_K052109_r),this), write8_delegate(FUNC(vendetta_state::vendetta_K052109_w),this) );
-		space.install_legacy_readwrite_handler(*m_k052109, m_video_banking_base + 0x0000, m_video_banking_base + 0x0fff, FUNC(k052109_r), FUNC(k052109_w) );
+		space.install_readwrite_handler(m_video_banking_base + 0x0000, m_video_banking_base + 0x0fff, read8_delegate(FUNC(k052109_device::read), (k052109_device*)m_k052109), write8_delegate(FUNC(k052109_device::write), (k052109_device*)m_k052109));
 	}
 }
 
@@ -186,12 +174,12 @@ WRITE8_MEMBER(vendetta_state::vendetta_5fe0_w)
 	/* bit 2 = BRAMBK ?? */
 
 	/* bit 3 = enable char ROM reading through the video RAM */
-	k052109_set_rmrd_line(m_k052109, (data & 0x08) ? ASSERT_LINE : CLEAR_LINE);
+	m_k052109->set_rmrd_line((data & 0x08) ? ASSERT_LINE : CLEAR_LINE);
 
 	/* bit 4 = INIT ?? */
 
 	/* bit 5 = enable sprite ROM reading */
-	k053246_set_objcha_line(m_k053246, (data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+	m_k053246->k053246_set_objcha_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 void vendetta_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
@@ -234,9 +222,9 @@ READ8_MEMBER(vendetta_state::vendetta_sound_r)
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, vendetta_state )
 	AM_RANGE(0x0000, 0x1fff) AM_ROMBANK("bank1")
 	AM_RANGE(0x2000, 0x3fff) AM_RAM
-	AM_RANGE(0x5f80, 0x5f9f) AM_DEVREADWRITE_LEGACY("k054000", k054000_r, k054000_w)
-	AM_RANGE(0x5fa0, 0x5faf) AM_DEVWRITE_LEGACY("k053251", k053251_w)
-	AM_RANGE(0x5fb0, 0x5fb7) AM_DEVWRITE_LEGACY("k053246", k053246_w)
+	AM_RANGE(0x5f80, 0x5f9f) AM_DEVREADWRITE("k054000", k054000_device, read, write)
+	AM_RANGE(0x5fa0, 0x5faf) AM_DEVWRITE("k053251", k053251_device, write)
+	AM_RANGE(0x5fb0, 0x5fb7) AM_DEVWRITE("k053246", k053247_device, k053246_w)
 	AM_RANGE(0x5fc0, 0x5fc0) AM_READ_PORT("P1")
 	AM_RANGE(0x5fc1, 0x5fc1) AM_READ_PORT("P2")
 	AM_RANGE(0x5fc2, 0x5fc2) AM_READ_PORT("P3")
@@ -247,12 +235,12 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, vendetta_state )
 	AM_RANGE(0x5fe2, 0x5fe2) AM_WRITE(vendetta_eeprom_w)
 	AM_RANGE(0x5fe4, 0x5fe4) AM_READWRITE(vendetta_sound_interrupt_r, z80_irq_w)
 	AM_RANGE(0x5fe6, 0x5fe7) AM_READ(vendetta_sound_r) AM_DEVWRITE("k053260", k053260_device, k053260_w)
-	AM_RANGE(0x5fe8, 0x5fe9) AM_DEVREAD_LEGACY("k053246", k053246_r)
+	AM_RANGE(0x5fe8, 0x5fe9) AM_DEVREAD("k053246", k053247_device, k053246_r)
 	AM_RANGE(0x5fea, 0x5fea) AM_READ(watchdog_reset_r)
 	/* what is the desired effect of overlapping these memory regions anyway? */
 	AM_RANGE(0x4000, 0x4fff) AM_RAMBANK("bank3")
 	AM_RANGE(0x6000, 0x6fff) AM_RAMBANK("bank2")
-	AM_RANGE(0x4000, 0x7fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_r, k052109_w)
+	AM_RANGE(0x4000, 0x7fff) AM_DEVREADWRITE("k052109", k052109_device, read, write)
 	AM_RANGE(0x8000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -264,19 +252,19 @@ static ADDRESS_MAP_START( esckids_map, AS_PROGRAM, 8, vendetta_state )
 	AM_RANGE(0x3f83, 0x3f83) AM_READ_PORT("P4")             // ???  (But not used)
 	AM_RANGE(0x3f92, 0x3f92) AM_READ_PORT("EEPROM")
 	AM_RANGE(0x3f93, 0x3f93) AM_READ_PORT("SERVICE")
-	AM_RANGE(0x3fa0, 0x3fa7) AM_DEVWRITE_LEGACY("k053246", k053246_w)           // 053246 (Sprite)
-	AM_RANGE(0x3fb0, 0x3fbf) AM_DEVWRITE_LEGACY("k053251", k053251_w)           // 053251 (Priority Encoder)
-	AM_RANGE(0x3fc0, 0x3fcf) AM_DEVREADWRITE_LEGACY("k053252",k053252_r,k053252_w)              // Not Emulated (053252 ???)
+	AM_RANGE(0x3fa0, 0x3fa7) AM_DEVWRITE("k053246", k053247_device, k053246_w)           // 053246 (Sprite)
+	AM_RANGE(0x3fb0, 0x3fbf) AM_DEVWRITE("k053251", k053251_device, write)           // 053251 (Priority Encoder)
+	AM_RANGE(0x3fc0, 0x3fcf) AM_DEVREADWRITE("k053252", k053252_device, read, write)              // Not Emulated (053252 ???)
 	AM_RANGE(0x3fd0, 0x3fd0) AM_WRITE(vendetta_5fe0_w)      // Coin Counter, 052109 RMRD, 053246 OBJCHA
 	AM_RANGE(0x3fd2, 0x3fd2) AM_WRITE(vendetta_eeprom_w)    // EEPROM, Video banking
 	AM_RANGE(0x3fd4, 0x3fd4) AM_READWRITE(vendetta_sound_interrupt_r, z80_irq_w)            // Sound
 	AM_RANGE(0x3fd6, 0x3fd7) AM_READ(vendetta_sound_r) AM_DEVWRITE("k053260", k053260_device, k053260_w)     // Sound
-	AM_RANGE(0x3fd8, 0x3fd9) AM_DEVREAD_LEGACY("k053246", k053246_r)                // 053246 (Sprite)
+	AM_RANGE(0x3fd8, 0x3fd9) AM_DEVREAD("k053246", k053247_device, k053246_r)                // 053246 (Sprite)
 	AM_RANGE(0x3fda, 0x3fda) AM_WRITENOP                // Not Emulated (Watchdog ???)
 	/* what is the desired effect of overlapping these memory regions anyway? */
 	AM_RANGE(0x2000, 0x2fff) AM_RAMBANK("bank3")                    // 052109 (Tilemap) 0x0000-0x0fff
 	AM_RANGE(0x4000, 0x4fff) AM_RAMBANK("bank2")                    // 052109 (Tilemap) 0x2000-0x3fff, Tilemap MASK-ROM bank selector (MASK-ROM Test)
-	AM_RANGE(0x2000, 0x5fff) AM_DEVREADWRITE_LEGACY("k052109", k052109_r, k052109_w)            // 052109 (Tilemap)
+	AM_RANGE(0x2000, 0x5fff) AM_DEVREADWRITE("k052109", k052109_device, read, write)            // 052109 (Tilemap)
 	AM_RANGE(0x6000, 0x7fff) AM_ROMBANK("bank1")                    // 053248 '975r01' 1M ROM (Banked)
 	AM_RANGE(0x8000, 0xffff) AM_ROM                         // 053248 '975r01' 1M ROM (0x18000-0x1ffff)
 ADDRESS_MAP_END
@@ -321,16 +309,16 @@ static INPUT_PORTS_START( vendet4p )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("EEPROM")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNKNOWN ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* EEPROM ready */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNKNOWN ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_SERVICE_NO_TOGGLE(0x04, IP_ACTIVE_LOW)
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen") /* not really vblank, object related. Its timed, otherwise sprites flicker */
 	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( vendetta )
@@ -377,16 +365,16 @@ static INPUT_PORTS_START( esckids )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("EEPROM")
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNKNOWN ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNKNOWN )    /* EEPROM ready */
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNKNOWN ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_SERVICE_NO_TOGGLE(0x04, IP_ACTIVE_LOW)
 	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen") /* not really vblank, object related. Its timed, otherwise sprites flicker */
 	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( esckidsj )
@@ -429,7 +417,6 @@ static const k052109_interface esckids_k052109_intf =
 
 static const k053247_interface vendetta_k053246_intf =
 {
-	"screen",
 	"gfx2", 1,
 	NORMAL_PLANE_ORDER,
 	53, 6,
@@ -439,7 +426,6 @@ static const k053247_interface vendetta_k053246_intf =
 
 static const k053247_interface esckids_k053246_intf =
 {
-	"screen",
 	"gfx2", 1,
 	NORMAL_PLANE_ORDER,
 	101, 6,
@@ -449,7 +435,6 @@ static const k053247_interface esckids_k053246_intf =
 
 static const k053252_interface esckids_k053252_intf =
 {
-	"screen",
 	DEVCB_NULL,
 	DEVCB_NULL,
 	DEVCB_NULL,
@@ -502,8 +487,7 @@ static MACHINE_CONFIG_START( vendetta, vendetta_state )
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 							/* interrupts are triggered by the main CPU */
 
-
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS)

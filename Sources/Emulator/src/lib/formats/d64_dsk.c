@@ -113,12 +113,12 @@ const int d64_format::speed_zone[] =
 
 int d64_format::find_size(io_generic *io, UINT32 form_factor)
 {
-	int size = io_generic_size(io);
+	UINT64 size = io_generic_size(io);
 	for(int i=0; formats[i].sector_count; i++) {
 		const format &f = formats[i];
-		if(size == f.sector_count*f.sector_base_size)
+		if(size == (UINT32) f.sector_count*f.sector_base_size)
 			return i;
-		if(size == (f.sector_count*f.sector_base_size) + f.sector_count)
+		if(size == (UINT32) (f.sector_count*f.sector_base_size) + f.sector_count)
 			return i;
 	}
 	return -1;
@@ -218,10 +218,10 @@ bool d64_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 		return false;
 
 	const format &f = formats[type];
-	int size = io_generic_size(io);
+	UINT64 size = io_generic_size(io);
 	UINT8 *img;
 
-	if(size == f.sector_count*f.sector_base_size) {
+	if(size == (UINT32)f.sector_count*f.sector_base_size) {
 		img = global_alloc_array(UINT8, size + f.sector_count);
 		memset(&img[size], ERROR_00, f.sector_count);
 	}
@@ -826,14 +826,14 @@ static floperr_t d64_read_track(floppy_image_legacy *floppy, int head, int track
 
 		memset(((UINT8*)buffer) + gcr_track_size, speed_byte, G64_SPEED_BLOCK_SIZE);
 
-		LOG_FORMATS("D64 track %.1f length %u\n", get_dos_track(track), gcr_track_size);
+		LOG_FORMATS("D64 side %u track %.1f length %u\n", head, get_dos_track(track), gcr_track_size);
 	}
 	else    /* half tracks */
 	{
 		/* set track length to 0 */
 		memset(buffer, 0, buflen);
 
-		LOG_FORMATS("D64 track %.1f length %u\n", get_dos_track(track), 0);
+		LOG_FORMATS("D64 side %u track %.1f length %u\n", head, get_dos_track(track), 0);
 	}
 
 	return FLOPPY_ERROR_SUCCESS;

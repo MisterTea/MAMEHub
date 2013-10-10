@@ -2,7 +2,7 @@
 #include "machine/scsibus.h"
 #include "machine/53c810.h"
 #include "audio/dsbz80.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 
 typedef float MATRIX[4][4];
 typedef float VECTOR[4];
@@ -209,7 +209,7 @@ public:
 	void model3_exit();
 	DECLARE_WRITE_LINE_MEMBER(scsp_irq);
 	required_device<cpu_device> m_audiocpu;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 };
 
 

@@ -44,7 +44,7 @@ extern const device_type PV1000;
 const device_type PV1000 = &device_creator<pv1000_sound_device>;
 
 pv1000_sound_device::pv1000_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-				: device_t(mconfig, PV1000, "NEC D65010G031", tag, owner, clock),
+				: device_t(mconfig, PV1000, "NEC D65010G031", tag, owner, clock, "pv1000_sound", __FILE__),
 					device_sound_interface(mconfig, *this)
 {
 }
@@ -143,7 +143,6 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this, "maincpu"),
 		m_sound(*this, "pv1000_sound"),
-		m_screen(*this, "screen"),
 		m_p_videoram(*this, "p_videoram")
 		{ }
 
@@ -165,7 +164,6 @@ public:
 
 	required_device<cpu_device> m_maincpu;
 	required_device<pv1000_sound_device> m_sound;
-	required_device<screen_device> m_screen;
 	required_shared_ptr<UINT8> m_p_videoram;
 	virtual void machine_start();
 	virtual void machine_reset();

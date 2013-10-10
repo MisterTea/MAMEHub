@@ -528,7 +528,6 @@ static MC6845_UPDATE_ROW( pc1512_update_row )
 
 static MC6845_INTERFACE( crtc_intf )
 {
-	SCREEN_TAG,
 	false,
 	8,
 	NULL,
@@ -542,20 +541,12 @@ static MC6845_INTERFACE( crtc_intf )
 };
 
 
-//-------------------------------------------------
-//  VIDEO_START( pc1512 )
-//-------------------------------------------------
-
 void pc1512_state::video_start()
 {
 	// allocate memory
 	m_video_ram.allocate(0x10000);
 }
 
-
-//-------------------------------------------------
-//  SCREEN_UPDATE_RGB32( pc1512 )
-//-------------------------------------------------
 
 UINT32 pc1512_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
@@ -623,5 +614,5 @@ MACHINE_CONFIG_FRAGMENT( pc1512_video )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
 	MCFG_SCREEN_REFRESH_RATE(50)
 
-	MCFG_MC6845_ADD(AMS40041_TAG, AMS40041, XTAL_28_63636MHz/32, crtc_intf)
+	MCFG_MC6845_ADD(AMS40041_TAG, AMS40041, SCREEN_TAG, XTAL_28_63636MHz/32, crtc_intf)
 MACHINE_CONFIG_END

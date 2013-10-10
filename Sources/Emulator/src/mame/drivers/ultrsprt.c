@@ -12,7 +12,7 @@ TODO:
 #include "cpu/m68000/m68000.h"
 #include "cpu/powerpc/ppc.h"
 #include "sound/k054539.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "machine/konppc.h"
 #include "sound/k056800.h"
 
@@ -125,8 +125,8 @@ static ADDRESS_MAP_START( ultrsprt_map, AS_PROGRAM, 32, ultrsprt_state )
 	AM_RANGE(0x70000000, 0x70000003) AM_READWRITE(eeprom_r, eeprom_w)
 	AM_RANGE(0x70000020, 0x70000023) AM_READ_PORT("P1")
 	AM_RANGE(0x70000040, 0x70000043) AM_READ_PORT("P2")
-	AM_RANGE(0x70000080, 0x70000087) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
-	AM_RANGE(0x70000088, 0x7000008f) AM_DEVREAD_LEGACY("k056800", k056800_host_r)
+	AM_RANGE(0x70000080, 0x70000087) AM_DEVWRITE("k056800", k056800_device, host_w)
+	AM_RANGE(0x70000088, 0x7000008f) AM_DEVREAD("k056800", k056800_device, host_r)
 	AM_RANGE(0x700000e0, 0x700000e3) AM_WRITE(int_ack_w)
 	AM_RANGE(0x7f000000, 0x7f01ffff) AM_RAM AM_SHARE("workram")
 	AM_RANGE(0x7f700000, 0x7f703fff) AM_RAM_WRITE(palette_w) AM_SHARE("paletteram")
@@ -142,10 +142,10 @@ READ16_MEMBER(ultrsprt_state::K056800_68k_r)
 	UINT16 r = 0;
 
 	if (ACCESSING_BITS_8_15)
-		r |= k056800_sound_r(m_k056800, space, (offset*2)+0, 0xffff) << 8;
+		r |= m_k056800->sound_r(space, (offset*2)+0, 0xffff) << 8;
 
 	if (ACCESSING_BITS_0_7)
-		r |= k056800_sound_r(m_k056800, space, (offset*2)+1, 0xffff) << 0;
+		r |= m_k056800->sound_r(space, (offset*2)+1, 0xffff) << 0;
 
 	return r;
 }
@@ -153,10 +153,10 @@ READ16_MEMBER(ultrsprt_state::K056800_68k_r)
 WRITE16_MEMBER(ultrsprt_state::K056800_68k_w)
 {
 	if (ACCESSING_BITS_8_15)
-		k056800_sound_w(m_k056800, space, (offset*2)+0, (data >> 8) & 0xff, 0x00ff);
+		m_k056800->sound_w(space, (offset*2)+0, (data >> 8) & 0xff, 0x00ff);
 
 	if (ACCESSING_BITS_0_7)
-		k056800_sound_w(m_k056800, space, (offset*2)+1, (data >> 0) & 0xff, 0x00ff);
+		m_k056800->sound_w(space, (offset*2)+1, (data >> 0) & 0xff, 0x00ff);
 }
 
 static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 16, ultrsprt_state )
@@ -185,13 +185,13 @@ static INPUT_PORTS_START( ultrsprt )
 	PORT_BIT( 0x10000000, IP_ACTIVE_HIGH, IPT_START2 )
 
 	PORT_START("SERVICE")
-	PORT_BIT( 0x02000000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x02000000, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_SERVICE_NO_TOGGLE( 0x08000000, IP_ACTIVE_LOW )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01000000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x04000000, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
+	PORT_BIT( 0x01000000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x02000000, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x04000000, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
 
 	PORT_START("STICKX1")
 	PORT_BIT( 0xfff, 0x800, IPT_AD_STICK_X ) PORT_MINMAX(0x000,0xfff) PORT_SENSITIVITY(70) PORT_KEYDELTA(10) PORT_PLAYER(1)
@@ -240,7 +240,7 @@ static MACHINE_CONFIG_START( ultrsprt, ultrsprt_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(12000))
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)

@@ -299,7 +299,6 @@ static MC6845_UPDATE_ROW( victor9k_update_row )
 
 static MC6845_INTERFACE( hd46505s_intf )
 {
-	SCREEN_TAG,
 	false,
 	10,
 	NULL,
@@ -417,7 +416,7 @@ static MC6852_INTERFACE( ssda_intf )
 	0,
 	0,
 	DEVCB_NULL,
-	DEVCB_DEVICE_LINE(HC55516_TAG, hc55516_digit_w),
+	DEVCB_DEVICE_LINE_MEMBER(HC55516_TAG, hc55516_device, digit_w),
 	DEVCB_DRIVER_LINE_MEMBER(victor9k_state, ssda_irq_w),
 	DEVCB_NULL,
 	DEVCB_NULL,
@@ -1255,9 +1254,9 @@ static MACHINE_CONFIG_START( victor9k, victor9k_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(monochrome_green)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
 
-	MCFG_MC6845_ADD(HD46505S_TAG, HD6845, 1000000, hd46505s_intf) // HD6845 == HD46505S
+	MCFG_MC6845_ADD(HD46505S_TAG, HD6845, SCREEN_TAG, 1000000, hd46505s_intf) // HD6845 == HD46505S
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1288,6 +1287,9 @@ static MACHINE_CONFIG_START( victor9k, victor9k_state )
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("128K")
 	MCFG_RAM_EXTRA_OPTIONS("256K,384K,512K,640K,768K,896K")
+
+	// software list
+	MCFG_SOFTWARE_LIST_ADD("flop_list", "victor9k_flop")
 MACHINE_CONFIG_END
 
 

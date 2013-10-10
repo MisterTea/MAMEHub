@@ -126,7 +126,7 @@ static ADDRESS_MAP_START( cd32_map, AS_PROGRAM, 32, cd32_state )
 	AM_RANGE(0x000000, 0x1fffff) AM_RAMBANK("bank1") AM_SHARE("chip_ram")
 	AM_RANGE(0x800000, 0x800003) AM_READ_PORT("DIPSW1")
 	AM_RANGE(0x800010, 0x800013) AM_READ_PORT("DIPSW2")
-	AM_RANGE(0xb80000, 0xb8003f) AM_DEVREADWRITE_LEGACY("akiko", amiga_akiko32_r, amiga_akiko32_w)
+	AM_RANGE(0xb80000, 0xb8003f) AM_DEVREADWRITE("akiko", akiko_device, read, write)
 	AM_RANGE(0xbfa000, 0xbfa003) AM_WRITE(aga_overlay_w)
 	AM_RANGE(0xbfd000, 0xbfefff) AM_READWRITE16(amiga_cia_r, amiga_cia_w, 0xffffffff)
 	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE16(amiga_custom_r, amiga_custom_w, 0xffffffff) AM_SHARE("custom_regs")
@@ -1245,8 +1245,9 @@ ROM_END
 static void cndypuzl_input_hack(running_machine &machine)
 {
 	cd32_state *state = machine.driver_data<cd32_state>();
+	cpu_device* thiscpu = (cpu_device*)state->m_maincpu;
 
-	if (state->m_maincpu->pc() < state->m_chip_ram.bytes())
+	if (thiscpu->pc() < state->m_chip_ram.bytes())
 	{
 		//(*state->m_chip_ram_w)(0x051c02, 0x0000);
 
@@ -1264,8 +1265,9 @@ DRIVER_INIT_MEMBER(cd32_state,cndypuzl)
 static void haremchl_input_hack(running_machine &machine)
 {
 	cd32_state *state = machine.driver_data<cd32_state>();
+	cpu_device* thiscpu = (cpu_device*)state->m_maincpu;
 
-	if (state->m_maincpu->pc() < state->m_chip_ram.bytes())
+	if (thiscpu->pc() < state->m_chip_ram.bytes())
 	{
 		//amiga_chip_ram_w8(state, 0x002907, 0x00);
 
@@ -1284,8 +1286,9 @@ DRIVER_INIT_MEMBER(cd32_state,haremchl)
 static void lsrquiz_input_hack(running_machine &machine)
 {
 	cd32_state *state = machine.driver_data<cd32_state>();
+	cpu_device* thiscpu = (cpu_device*)state->m_maincpu;
 
-	if (state->m_maincpu->pc() < state->m_chip_ram.bytes())
+	if (thiscpu->pc() < state->m_chip_ram.bytes())
 	{
 		//amiga_chip_ram_w8(state, 0x001e1b, 0x00);
 
@@ -1305,8 +1308,9 @@ DRIVER_INIT_MEMBER(cd32_state,lsrquiz)
 static void lsrquiz2_input_hack(running_machine &machine)
 {
 	cd32_state *state = machine.driver_data<cd32_state>();
+	cpu_device* thiscpu = (cpu_device*)state->m_maincpu;
 
-	if (state->m_maincpu->pc() < state->m_chip_ram.bytes())
+	if (thiscpu->pc() < state->m_chip_ram.bytes())
 	{
 		//amiga_chip_ram_w8(state, 0x046107, 0x00);
 
@@ -1325,8 +1329,9 @@ DRIVER_INIT_MEMBER(cd32_state,lsrquiz2)
 static void lasstixx_input_hack(running_machine &machine)
 {
 	cd32_state *state = machine.driver_data<cd32_state>();
+	cpu_device* thiscpu = (cpu_device*)state->m_maincpu;
 
-	if (state->m_maincpu->pc() < state->m_chip_ram.bytes())
+	if (thiscpu->pc() < state->m_chip_ram.bytes())
 	{
 		//amiga_chip_ram_w8(state, 0x00281c, 0x00);
 
@@ -1345,8 +1350,9 @@ DRIVER_INIT_MEMBER(cd32_state,lasstixx)
 static void mgnumber_input_hack(running_machine &machine)
 {
 	cd32_state *state = machine.driver_data<cd32_state>();
+	cpu_device* thiscpu = (cpu_device*)state->m_maincpu;
 
-	if (state->m_maincpu->pc() < state->m_chip_ram.bytes())
+	if (thiscpu->pc() < state->m_chip_ram.bytes())
 	{
 		//(*state->m_chip_ram_w)(0x04bfa0, 0x0000);
 
@@ -1364,8 +1370,9 @@ DRIVER_INIT_MEMBER(cd32_state,mgnumber)
 static void mgprem11_input_hack(running_machine &machine)
 {
 	cd32_state *state = machine.driver_data<cd32_state>();
+	cpu_device* thiscpu = (cpu_device*)state->m_maincpu;
 
-	if (state->m_maincpu->pc() < state->m_chip_ram.bytes())
+	if (thiscpu->pc() < state->m_chip_ram.bytes())
 	{
 		//amiga_chip_ram_w8(state, 0x044f7e, 0x00);
 

@@ -13,8 +13,76 @@
 
     - adjust mouse speed
     - RTC should not be y2k compliant
-    - V3 VDU check fails
+    - pc1512 V3 VDU check fails
+    - Amstrad SM2400 internal modem
+    - Amstrad RP4 diagnostic ISA card (PC1512)
+    - Amstrad RP5-2 diagnostic ISA card (PC1640)
+    - 40291/8908 B ROM on PC1640 HD30 controller card
 
+*/
+
+/*
+HARD DISC INSTALLATION INSTRUCTIONS
+
+Applies to both ten and twenty megabyte versions.
+
+1. Turn on machine
+2. Insert disc 1 (the red disc) and press a key.
+3. Type fdisk (RETURN)
+4. At each prompt press the RETURN key (another three times).
+5. The A> will now appear so now type format c:/s (RETURN).
+6. Now push the Y key (RETURN).
+7. The hard disc will now begin to format, if you have a 10Mb machine then it will count up to 305
+   cylinders. If you have a 20 Mb machine then 610 cylinders will be counted.
+8. Once this is done, take out disc 1 and insert disc 5 (the maroon disc).
+9. Now type config(RETURN). This procedure will copy all five discs (order 5,1,2,3,4) onto the hard disc.
+   Once finished the screen will show some information about the size of the disc and the number of files and
+   directories present.
+10. To now use the hard disc remove the floppy disc from the drive and store in a safe place with the other
+    four discs then restart the computer by pushing Alt Ctrl and Del.
+11. After a short while the AMSTRAD PC info will come up and tell you when the machine was last used
+    and then after a little longer the screen will clear and will display this message,
+
+F1=DOSPLUS.SYS
+F2=DOS.SYS
+
+Select operating system:
+
+If you choose F1 then DOS Plus and GEM will be booted, or if you press F2 then MS-DOS will be booted.
+*/
+
+/*
+HARD DISC INSTALLATION ON PC1640
+
+PC1640 hard disc comes ready installed with the necessary software. That is discs 1 to 4 that are
+supplied ready with the machine.
+
+Howevere in the case of a disc failure it may be necessary to reinstall the supplied software.
+
+This is done in the following way:
+1. Put disc one into drive A: and boot up the system
+2. Put disc four into drive A: and type CD\SUPPLEME and press return.
+3. Type HDFORMAT and press return.
+4. Answer YES to the screen prompt.
+5. When HDFORMAT is completed remove disc four and replace with disc one.
+6. Type CD\ and press return.
+7. Type FDISC and press return.
+8. Press return key every time you are asked a question.
+9. With disc one still in drive A: type FORMAT C:/S and press return.
+10. When formatting is finished replace disc one with disc four.
+11. Type CD\SUPPLEME and press return.
+12. Type CONFIG and press return.
+
+After typing CONFIG the machine will proceed to copy the four system discs to the hard disc.
+After copying each disc you will be prompted to insert the next disc.
+You do not noeed to know in which order to insert the discs because the machine will tell you which disc is
+needed next.
+
+The system is now installed and should be tested by rebooting the machine.
+
+It should be noted that if the hard disc is ok but the software has been corrupted or deleted you can
+reinstall the software without reformatting.
+This is done by following steps 11 and 12.
 */
 
 #include "includes/pc1512.h"
@@ -480,7 +548,7 @@ READ8_MEMBER( pc1640_state::io_r )
 	else if (addr >= 0x070 && addr <= 0x073) { data = m_rtc->read(space, offset & 0x01); decoded = true; }
 	else if (addr >= 0x078 && addr <= 0x07f) { data = mouse_r(space, offset & 0x07); decoded = true; }
 	else if (addr >= 0x378 && addr <= 0x37b) { data = printer_r(space, offset & 0x03); decoded = true; }
-	else if (addr >= 0x3b0 && addr <= 0x3df) { data = iga_r(space, addr - 0x3b0); decoded = true; }
+	else if (addr >= 0x3b0 && addr <= 0x3df) { decoded = true; }
 	else if (addr >= 0x3f4 && addr <= 0x3f4) { data = m_fdc->fdc->msr_r(space, offset & 0x01); decoded = true; }
 	else if (addr >= 0x3f5 && addr <= 0x3f5) { data = m_fdc->fdc->fifo_r(space, offset & 0x01); decoded = true; }
 	else if (addr >= 0x3f8 && addr <= 0x3ff) { data = m_uart->ins8250_r(space, offset & 0x07); decoded = true; }
@@ -556,9 +624,6 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( pc1640_mem, AS_PROGRAM, 16, pc1640_state )
 	AM_RANGE(0x00000, 0x9ffff) AM_RAM
-	AM_RANGE(0xa0000, 0xbffff) AM_READWRITE8(video_ram_r, video_ram_w, 0xffff)
-	AM_RANGE(0xc0000, 0xc7fff) AM_ROM AM_REGION("iga", 0)
-//  AM_RANGE(0xc8000, 0xc9fff) AM_ROM AM_REGION("hdc", 0)
 	AM_RANGE(0xf0000, 0xf3fff) AM_MIRROR(0xc000) AM_ROM AM_REGION(I8086_TAG, 0)
 ADDRESS_MAP_END
 
@@ -579,7 +644,6 @@ static ADDRESS_MAP_START( pc1640_io, AS_IO, 16, pc1640_state )
 	AM_RANGE(0x080, 0x083) AM_WRITE8(dma_page_w, 0xffff)
 	AM_RANGE(0x0a0, 0x0a1) AM_WRITE8(nmi_mask_w, 0xff00)
 	AM_RANGE(0x378, 0x37b) AM_WRITE8(printer_w, 0xffff)
-	AM_RANGE(0x3b0, 0x3df) AM_WRITE8(iga_w, 0xffff)
 	AM_RANGE(0x3f2, 0x3f3) AM_DEVWRITE8(PC_FDC_XT_TAG, pc_fdc_xt_device, dor_w, 0x00ff)
 	AM_RANGE(0x3f4, 0x3f5) AM_DEVWRITE8(PC_FDC_XT_TAG ":upd765", upd765_family_device, fifo_w, 0xff00)
 	AM_RANGE(0x3f8, 0x3ff) AM_DEVWRITE8(INS8250_TAG, ins8250_device, ins8250_w, 0xffff)
@@ -962,16 +1026,6 @@ static const struct pit8253_interface pit_intf =
 
 
 //-------------------------------------------------
-//  mc146818_interface rtc_intf
-//-------------------------------------------------
-
-static const struct mc146818_interface rtc_intf =
-{
-	DEVCB_DEVICE_LINE_MEMBER(I8259A2_TAG, pic8259_device, ir2_w)
-};
-
-
-//-------------------------------------------------
 //  upd765_interface fdc_intf
 //-------------------------------------------------
 
@@ -1049,9 +1103,8 @@ static const centronics_interface centronics_intf =
 //  isa8bus_interface isabus_intf
 //-------------------------------------------------
 
-static SLOT_INTERFACE_START( pc1512_isa8_cards )
-	SLOT_INTERFACE("wdxt_gen", WDXT_GEN)
-	SLOT_INTERFACE("ega", ISA8_EGA)
+SLOT_INTERFACE_START( pc1640_isa8_cards )
+	SLOT_INTERFACE_INTERNAL("iga", ISA8_PC1640_IGA)
 SLOT_INTERFACE_END
 
 static const isa8bus_interface isabus_intf =
@@ -1074,8 +1127,8 @@ FLOPPY_FORMATS_MEMBER( pc1512_state::floppy_formats )
 	FLOPPY_PC_FORMAT
 FLOPPY_FORMATS_END
 
-static SLOT_INTERFACE_START( ibmpc_floppies )
-	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
+static SLOT_INTERFACE_START( pc1512_floppies )
+	SLOT_INTERFACE( "525dd", FLOPPY_525_DD ) // Tandon TM65-2L
 SLOT_INTERFACE_END
 
 
@@ -1156,10 +1209,6 @@ void pc1512_state::machine_start()
 }
 
 
-//-------------------------------------------------
-//  MACHINE_RESET( pc1512 )
-//-------------------------------------------------
-
 void pc1512_state::machine_reset()
 {
 	m_nmi_enable = 0;
@@ -1219,10 +1268,6 @@ void pc1640_state::machine_start()
 }
 
 
-//-------------------------------------------------
-//  MACHINE_RESET( pc1640 )
-//-------------------------------------------------
-
 void pc1640_state::machine_reset()
 {
 	m_nmi_enable = 0;
@@ -1258,19 +1303,19 @@ static MACHINE_CONFIG_START( pc1512, pc1512_state )
 	MCFG_I8237_ADD(I8237A5_TAG, XTAL_24MHz/6, dmac_intf)
 	MCFG_PIC8259_ADD(I8259A2_TAG, INPUTLINE(I8086_TAG, INPUT_LINE_IRQ0), VCC, NULL)
 	MCFG_PIT8253_ADD(I8253_TAG, pit_intf)
-	MCFG_MC146818_IRQ_ADD(MC146818_TAG, MC146818_STANDARD, rtc_intf)
+	MCFG_MC146818_IRQ_ADD(MC146818_TAG, MC146818_STANDARD, DEVWRITELINE(I8259A2_TAG, pic8259_device, ir2_w))
 	MCFG_PC_FDC_XT_ADD(PC_FDC_XT_TAG)
+	MCFG_FLOPPY_DRIVE_ADD(PC_FDC_XT_TAG ":0", pc1512_floppies, "525dd", pc1512_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(PC_FDC_XT_TAG ":1", pc1512_floppies, NULL,    pc1512_state::floppy_formats)
 	MCFG_INS8250_ADD(INS8250_TAG, uart_intf, XTAL_1_8432MHz)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
-	MCFG_FLOPPY_DRIVE_ADD(PC_FDC_XT_TAG ":0", ibmpc_floppies, "525dd", pc1512_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(PC_FDC_XT_TAG ":1", ibmpc_floppies, "525dd", pc1512_state::floppy_formats)
 	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	// ISA8 bus
 	MCFG_ISA8_BUS_ADD(ISA_BUS_TAG, ":" I8086_TAG, isabus_intf)
-	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa1", pc1512_isa8_cards, NULL, false)
-	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa2", pc1512_isa8_cards, NULL, false)
-	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa3", pc1512_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa1", pc_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa2", pc_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa3", pc_isa8_cards, NULL, false)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1283,6 +1328,26 @@ MACHINE_CONFIG_END
 
 
 //-------------------------------------------------
+//  MACHINE_CONFIG( pc1512dd )
+//-------------------------------------------------
+
+static MACHINE_CONFIG_DERIVED( pc1512dd, pc1512 )
+	MCFG_DEVICE_MODIFY(PC_FDC_XT_TAG ":1")
+	MCFG_DEVICE_SLOT_INTERFACE(pc1512_floppies, "525dd", false)
+MACHINE_CONFIG_END
+
+
+//-------------------------------------------------
+//  MACHINE_CONFIG( pc1512hd )
+//-------------------------------------------------
+
+static MACHINE_CONFIG_DERIVED( pc1512hd, pc1512 )
+	MCFG_DEVICE_MODIFY("isa1")
+	MCFG_DEVICE_SLOT_INTERFACE(pc_isa8_cards, "wdxt_gen", false)
+MACHINE_CONFIG_END
+
+
+//-------------------------------------------------
 //  MACHINE_CONFIG( pc1640 )
 //-------------------------------------------------
 
@@ -1290,9 +1355,6 @@ static MACHINE_CONFIG_START( pc1640, pc1640_state )
 	MCFG_CPU_ADD(I8086_TAG, I8086, XTAL_24MHz/3)
 	MCFG_CPU_PROGRAM_MAP(pc1640_mem)
 	MCFG_CPU_IO_MAP(pc1640_io)
-
-	// video
-	MCFG_FRAGMENT_ADD(pc1640_video)
 
 	// sound
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1304,19 +1366,21 @@ static MACHINE_CONFIG_START( pc1640, pc1640_state )
 	MCFG_I8237_ADD(I8237A5_TAG, XTAL_24MHz/6, dmac_intf)
 	MCFG_PIC8259_ADD(I8259A2_TAG, INPUTLINE(I8086_TAG, INPUT_LINE_IRQ0), VCC, NULL)
 	MCFG_PIT8253_ADD(I8253_TAG, pit_intf)
-	MCFG_MC146818_IRQ_ADD(MC146818_TAG, MC146818_STANDARD, rtc_intf)
+	MCFG_MC146818_IRQ_ADD(MC146818_TAG, MC146818_STANDARD, DEVWRITELINE(I8259A2_TAG, pic8259_device, ir2_w))
 	MCFG_PC_FDC_XT_ADD(PC_FDC_XT_TAG)
+	MCFG_FLOPPY_DRIVE_ADD(PC_FDC_XT_TAG ":0", pc1512_floppies, "525dd", pc1512_state::floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD(PC_FDC_XT_TAG ":1", pc1512_floppies, NULL,    pc1512_state::floppy_formats)
 	MCFG_INS8250_ADD(INS8250_TAG, uart_intf, XTAL_1_8432MHz)
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, centronics_intf)
-	MCFG_FLOPPY_DRIVE_ADD(PC_FDC_XT_TAG ":0", ibmpc_floppies, "525dd", pc1512_state::floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD(PC_FDC_XT_TAG ":1", ibmpc_floppies, "525dd", pc1512_state::floppy_formats)
 	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 
 	// ISA8 bus
 	MCFG_ISA8_BUS_ADD(ISA_BUS_TAG, ":" I8086_TAG, isabus_intf)
-	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa1", pc1512_isa8_cards, "wdxt_gen", false)
-	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa2", pc1512_isa8_cards, NULL, false)
-	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa3", pc1512_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa1", pc_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa2", pc_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa3", pc_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa4", pc_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa5", pc1640_isa8_cards, "iga", false)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -1324,6 +1388,26 @@ static MACHINE_CONFIG_START( pc1640, pc1640_state )
 
 	// software list
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "pc1640")
+MACHINE_CONFIG_END
+
+
+//-------------------------------------------------
+//  MACHINE_CONFIG( pc1640dd )
+//-------------------------------------------------
+
+static MACHINE_CONFIG_DERIVED( pc1640dd, pc1640 )
+	MCFG_DEVICE_MODIFY(PC_FDC_XT_TAG ":1")
+	MCFG_DEVICE_SLOT_INTERFACE(pc1512_floppies, "525dd", false)
+MACHINE_CONFIG_END
+
+
+//-------------------------------------------------
+//  MACHINE_CONFIG( pc1640hd )
+//-------------------------------------------------
+
+static MACHINE_CONFIG_DERIVED( pc1640hd, pc1640 )
+	MCFG_DEVICE_MODIFY("isa1")
+	MCFG_DEVICE_SLOT_INTERFACE(pc_isa8_cards, "wdxt_gen", false)
 MACHINE_CONFIG_END
 
 
@@ -1338,40 +1422,25 @@ MACHINE_CONFIG_END
 
 ROM_START( pc1512 )
 	ROM_REGION16_LE( 0x4000, I8086_TAG, 0)
-	ROM_LOAD16_BYTE( "40044.ic132", 0x0000, 0x2000, CRC(f72f1582) SHA1(7781d4717917262805d514b331ba113b1e05a247) )
-	ROM_LOAD16_BYTE( "40043.ic129", 0x0001, 0x2000, CRC(668fcc94) SHA1(74002f5cc542df442eec9e2e7a18db3598d8c482) )
+	ROM_SYSTEM_BIOS( 0, "v1", "Version 1" )
+	ROMX_LOAD( "40044.ic132", 0x0000, 0x2000, CRC(f72f1582) SHA1(7781d4717917262805d514b331ba113b1e05a247), ROM_SKIP(1) | ROM_BIOS(1) )
+	ROMX_LOAD( "40043.ic129", 0x0001, 0x2000, CRC(668fcc94) SHA1(74002f5cc542df442eec9e2e7a18db3598d8c482), ROM_SKIP(1) | ROM_BIOS(1) )
+	ROM_SYSTEM_BIOS( 1, "v2", "Version 2" )
+	ROMX_LOAD( "40044v2.ic132", 0x0000, 0x2000, CRC(1aec54fa) SHA1(b12fd73cfc35a240ed6da4dcc4b6c9910be611e0), ROM_SKIP(1) | ROM_BIOS(2) )
+	ROMX_LOAD( "40043v2.ic129", 0x0001, 0x2000, CRC(d2d4d2de) SHA1(c376fd1ad23025081ae16c7949e88eea7f56e1bb), ROM_SKIP(1) | ROM_BIOS(2) )
+	ROM_SYSTEM_BIOS( 2, "v3", "Version 3" )
+	ROMX_LOAD( "40044-2.ic132", 0x0000, 0x2000, CRC(ea527e6e) SHA1(b77fa44767a71a0b321a88bb0a394f1125b7c220), ROM_SKIP(1) | ROM_BIOS(3) )
+	ROMX_LOAD( "40043-2.ic129", 0x0001, 0x2000, CRC(532c3854) SHA1(18a17b710f9eb079d9d7216d07807030f904ceda), ROM_SKIP(1) | ROM_BIOS(3) )
 
 	ROM_REGION( 0x2000, AMS40041_TAG, 0 )
-	ROM_LOAD( "40045.ic127", 0x0000, 0x2000, CRC(dd5e030f) SHA1(7d858bbb2e8d6143aa67ab712edf5f753c2788a7) )
+	ROMX_LOAD( "40045.ic127", 0x0000, 0x2000, CRC(dd5e030f) SHA1(7d858bbb2e8d6143aa67ab712edf5f753c2788a7), ROM_BIOS(1) )
+	ROMX_LOAD( "40078.ic127", 0x0000, 0x2000, CRC(ae9c0d04) SHA1(bc8dc4dcedeea5bc1c04986b1f105ad93cb2ebcd), ROM_BIOS(2) )
+	ROMX_LOAD( "40078.ic127", 0x0000, 0x2000, CRC(ae9c0d04) SHA1(bc8dc4dcedeea5bc1c04986b1f105ad93cb2ebcd), ROM_BIOS(3) )
 ROM_END
 
-
-//-------------------------------------------------
-//  ROM( pc1512v2 )
-//-------------------------------------------------
-
-ROM_START( pc1512v2 )
-	ROM_REGION16_LE( 0x4000, I8086_TAG, 0)
-	ROM_LOAD16_BYTE( "40044v2.ic132", 0x0000, 0x2000, CRC(1aec54fa) SHA1(b12fd73cfc35a240ed6da4dcc4b6c9910be611e0) )
-	ROM_LOAD16_BYTE( "40043v2.ic129", 0x0001, 0x2000, CRC(d2d4d2de) SHA1(c376fd1ad23025081ae16c7949e88eea7f56e1bb) )
-
-	ROM_REGION( 0x2000, AMS40041_TAG, 0 )
-	ROM_LOAD( "40078.ic127", 0x0000, 0x2000, CRC(ae9c0d04) SHA1(bc8dc4dcedeea5bc1c04986b1f105ad93cb2ebcd) )
-ROM_END
-
-
-//-------------------------------------------------
-//  ROM( pc1512v3 )
-//-------------------------------------------------
-
-ROM_START( pc1512v3 )
-	ROM_REGION16_LE( 0x4000, I8086_TAG, 0)
-	ROM_LOAD16_BYTE( "40044-2.ic132", 0x0000, 0x2000, CRC(ea527e6e) SHA1(b77fa44767a71a0b321a88bb0a394f1125b7c220) )
-	ROM_LOAD16_BYTE( "40043-2.ic129", 0x0001, 0x2000, CRC(532c3854) SHA1(18a17b710f9eb079d9d7216d07807030f904ceda) )
-
-	ROM_REGION( 0x2000, AMS40041_TAG, 0 )
-	ROM_LOAD( "40078.ic127", 0x0000, 0x2000, CRC(ae9c0d04) SHA1(bc8dc4dcedeea5bc1c04986b1f105ad93cb2ebcd) )
-ROM_END
+#define rom_pc1512dd    rom_pc1512
+#define rom_pc1512hd10  rom_pc1512
+#define rom_pc1512hd20  rom_pc1512
 
 
 //-------------------------------------------------
@@ -1389,10 +1458,11 @@ ROM_START( pc1640 )
 	ROM_SYSTEM_BIOS( 2, "88xx", "Week ?/1988" )
 	ROMX_LOAD( "40044 88xx.ic132", 0x0000, 0x2000, CRC(6090f782) SHA1(e21ae524d5b4d00696d293dbd4fe4d7bca22e277), ROM_SKIP(1) | ROM_BIOS(3) )
 	ROMX_LOAD( "40043 88xx.ic129", 0x0001, 0x2000, CRC(9219d0aa) SHA1(dde1a46c8f83e413d7070f1356fc91b9f595a8b6), ROM_SKIP(1) | ROM_BIOS(3) )
-
-	ROM_REGION16_LE( 0x8000, "iga", 0)
-	ROM_LOAD( "40100.ic913", 0x0000, 0x8000, CRC(d2d1f1ae) SHA1(98302006ee38a17c09bd75504cc18c0649174e33) ) // 8736 E
 ROM_END
+
+#define rom_pc1640dd    rom_pc1640
+#define rom_pc1640hd20  rom_pc1640
+#define rom_pc1640hd30  rom_pc1640
 
 
 
@@ -1401,7 +1471,11 @@ ROM_END
 //**************************************************************************
 
 //    YEAR  NAME        PARENT      COMPAT  MACHINE     INPUT       INIT    COMPANY         FULLNAME        FLAGS
-COMP( 1986, pc1512,     0,          0,      pc1512,     pc1512, driver_device,      0,      "Amstrad plc",  "PC1512 (V1)",  GAME_SUPPORTS_SAVE )
-COMP( 1987, pc1512v2,   pc1512,     0,      pc1512,     pc1512, driver_device,      0,      "Amstrad plc",  "PC1512 (V2)",  GAME_SUPPORTS_SAVE )
-COMP( 1989, pc1512v3,   pc1512,     0,      pc1512,     pc1512, driver_device,      0,      "Amstrad plc",  "PC1512 (V3)",  GAME_NOT_WORKING )
-COMP( 1987, pc1640,     0,          0,      pc1640,     pc1640, driver_device,      0,      "Amstrad plc",  "PC1640",       GAME_NOT_WORKING )
+COMP( 1986, pc1512,     0,          0,      pc1512,     pc1512, driver_device,      0,      "Amstrad plc",  "PC1512 SD",    GAME_SUPPORTS_SAVE )
+COMP( 1986, pc1512dd,   pc1512,     0,      pc1512dd,   pc1512, driver_device,      0,      "Amstrad plc",  "PC1512 DD",    GAME_SUPPORTS_SAVE )
+COMP( 1986, pc1512hd10, pc1512,     0,      pc1512hd,   pc1512, driver_device,      0,      "Amstrad plc",  "PC1512 HD10",  GAME_SUPPORTS_SAVE )
+COMP( 1986, pc1512hd20, pc1512,     0,      pc1512hd,   pc1512, driver_device,      0,      "Amstrad plc",  "PC1512 HD20",  GAME_SUPPORTS_SAVE )
+COMP( 1987, pc1640,     0,          0,      pc1640,     pc1640, driver_device,      0,      "Amstrad plc",  "PC1640 SD",    GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+COMP( 1987, pc1640dd,   pc1640,     0,      pc1640dd,   pc1640, driver_device,      0,      "Amstrad plc",  "PC1640 DD",    GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+COMP( 1987, pc1640hd20, pc1640,     0,      pc1640hd,   pc1640, driver_device,      0,      "Amstrad plc",  "PC1640 HD20",  GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+COMP( 1987, pc1640hd30, pc1640,     0,      pc1640hd,   pc1640, driver_device,      0,      "Amstrad plc",  "PC1640 HD30",  GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )

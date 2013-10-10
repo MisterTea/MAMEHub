@@ -79,7 +79,7 @@ UINT32 hitme_state::screen_update_hitme(screen_device &screen, bitmap_ind16 &bit
 	offs_t offs = 0;
 
 	/* start by drawing the tilemap */
-	m_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* now loop over and invert anything */
 	for (y = 0; y < 19; y++)
@@ -114,7 +114,7 @@ UINT32 hitme_state::screen_update_hitme(screen_device &screen, bitmap_ind16 &bit
 
 UINT32 hitme_state::screen_update_barricad(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -140,7 +140,7 @@ UINT8 hitme_state::read_port_and_t0( int port )
 UINT8 hitme_state::read_port_and_t0_and_hblank( int port )
 {
 	UINT8 val = read_port_and_t0(port);
-	if (machine().primary_screen->hpos() < (machine().primary_screen->width() * 9 / 10))
+	if (m_screen->hpos() < (m_screen->width() * 9 / 10))
 		val ^= 0x04;
 	return val;
 }
@@ -325,7 +325,7 @@ static MACHINE_CONFIG_START( hitme, hitme_state )
 	MCFG_GFXDECODE(hitme)
 	MCFG_PALETTE_LENGTH(2)
 
-	MCFG_PALETTE_INIT(black_and_white)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

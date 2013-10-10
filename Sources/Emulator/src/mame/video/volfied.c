@@ -1,5 +1,4 @@
 #include "emu.h"
-#include "video/taitoic.h"
 #include "includes/volfied.h"
 
 /******************************************************
@@ -58,7 +57,7 @@ WRITE16_MEMBER(volfied_state::volfied_video_mask_w)
 
 WRITE16_MEMBER(volfied_state::volfied_sprite_ctrl_w)
 {
-	pc090oj_set_sprite_ctrl(m_pc090oj, (data & 0x3c) >> 2);
+	m_pc090oj->set_sprite_ctrl((data & 0x3c) >> 2);
 }
 
 
@@ -91,8 +90,8 @@ void volfied_state::refresh_pixel_layer( bitmap_ind16 &bitmap )
 	*********************************************************/
 
 	UINT16* p = m_video_ram;
-	int width = machine().primary_screen->width();
-	int height = machine().primary_screen->height();
+	int width = m_screen->width();
+	int height = m_screen->height();
 
 	if (m_video_ctrl & 1)
 		p += 0x20000;
@@ -122,8 +121,8 @@ void volfied_state::refresh_pixel_layer( bitmap_ind16 &bitmap )
 
 UINT32 volfied_state::screen_update_volfied(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 	refresh_pixel_layer(bitmap);
-	pc090oj_draw_sprites(m_pc090oj, bitmap, cliprect, 0);
+	m_pc090oj->draw_sprites(bitmap, cliprect, screen.priority(), 0);
 	return 0;
 }

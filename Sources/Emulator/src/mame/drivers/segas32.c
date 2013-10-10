@@ -12,7 +12,7 @@
 ****************************************************************************
 
 
-Slip Stream (950515 HISPANIC)
+Slip Stream (Hispanic 950515)
 Sega, 1995
 
 This game runs on Sega System 32 hardware.
@@ -335,10 +335,9 @@ orunners:  Interleaved with the dj and << >> buttons is the data the drives the 
 #include "cpu/nec/nec.h"
 #include "rendlay.h"
 #include "includes/segas32.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/2612intf.h"
 #include "sound/rf5c68.h"
-#include "sound/multipcm.h"
 
 #include "radr.lh"
 
@@ -569,7 +568,7 @@ INTERRUPT_GEN_MEMBER(segas32_state::start_of_vblank_int)
 {
 	signal_v60_irq(MAIN_IRQ_VBSTART);
 	system32_set_vblank(1);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_pos(0), timer_expired_delegate(FUNC(segas32_state::end_of_vblank_int),this));
+	machine().scheduler().timer_set(m_screen->time_until_pos(0), timer_expired_delegate(FUNC(segas32_state::end_of_vblank_int),this));
 	if (m_system32_prot_vblank)
 		(*m_system32_prot_vblank)(&device);
 }
@@ -666,9 +665,9 @@ void segas32_state::common_io_chip_w(address_space &space, int which, offs_t off
 
 			if (which == 0)
 			{
-				m_eeprom->write_bit(data & 0x80);
-				m_eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE);
-				m_eeprom->set_clock_line((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
+				m_eeprom->di_write((data & 0x80) >> 7);
+				m_eeprom->cs_write((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+				m_eeprom->clk_write((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 			}
 /*            coin_lockout_w(machine(), 1 + 2*which, data & 0x08);
             coin_lockout_w(machine(), 0 + 2*which, data & 0x04);*/
@@ -683,9 +682,9 @@ void segas32_state::common_io_chip_w(address_space &space, int which, offs_t off
 			else
 			{
 				/* multi-32 EEPROM access */
-				m_eeprom->write_bit(data & 0x80);
-				m_eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE);
-				m_eeprom->set_clock_line((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
+				m_eeprom->di_write((data & 0x80) >> 7);
+				m_eeprom->cs_write((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+				m_eeprom->clk_write((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 			}
 			break;
 
@@ -1133,15 +1132,13 @@ WRITE8_MEMBER(segas32_state::sound_bank_hi_w)
 
 WRITE8_MEMBER(segas32_state::multipcm_bank_w)
 {
-	device_t *device = machine().device("sega");
-	multipcm_set_bank(device, 0x80000 * ((data >> 3) & 7), 0x80000 * (data & 7));
+	m_multipcm->set_bank(0x80000 * ((data >> 3) & 7), 0x80000 * (data & 7));
 }
 
 
 WRITE8_MEMBER(segas32_state::scross_bank_w)
 {
-	multipcm_device *multipcm = machine().device<multipcm_device>("sega");
-	multipcm_set_bank(multipcm, 0x80000 * (data & 7), 0x80000 * (data & 7));
+	m_multipcm->set_bank(0x80000 * (data & 7), 0x80000 * (data & 7));
 }
 
 
@@ -1243,7 +1240,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( multi32_sound_map, AS_PROGRAM, 8, segas32_state )
 	AM_RANGE(0x0000, 0x9fff) AM_ROM AM_REGION("soundcpu", 0x100000)
 	AM_RANGE(0xa000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xdfff) AM_DEVREADWRITE_LEGACY("sega", multipcm_r, multipcm_w)
+	AM_RANGE(0xc000, 0xdfff) AM_DEVREADWRITE("sega", multipcm_device, read, write)
 	AM_RANGE(0xe000, 0xffff) AM_RAM AM_SHARE("z80_shared_ram")
 ADDRESS_MAP_END
 
@@ -1321,7 +1318,7 @@ static INPUT_PORTS_START( system32_generic )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_SERVICE3 )   /* sometimes mirrors SERVICE1 */
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_SERVICE4 )   /* tends to also work as a test switch */
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 
 	PORT_START("PORTG_A")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -1356,7 +1353,7 @@ static INPUT_PORTS_START( multi32_generic )
 
 	PORT_START("SERVICE34_B")
 	PORT_BIT( 0x7f, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 
 	PORT_START("PORTG_B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -2178,7 +2175,7 @@ static MACHINE_CONFIG_START( system32, segas32_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(segas32_state,system32)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	MCFG_TIMER_DRIVER_ADD("v60_irq0", segas32_state, signal_v60_irq_callback)
 	MCFG_TIMER_DRIVER_ADD("v60_irq1", segas32_state, signal_v60_irq_callback)
@@ -2229,7 +2226,7 @@ static MACHINE_CONFIG_START( multi32, segas32_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", V70, MULTI32_CLOCK/2)
 	MCFG_CPU_PROGRAM_MAP(multi32_map)
-	MCFG_CPU_VBLANK_INT_DRIVER("lscreen", segas32_state,  start_of_vblank_int)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", segas32_state,  start_of_vblank_int)
 
 	MCFG_CPU_ADD("soundcpu", Z80, MASTER_CLOCK/4)
 	MCFG_CPU_PROGRAM_MAP(multi32_sound_map)
@@ -2237,7 +2234,7 @@ static MACHINE_CONFIG_START( multi32, segas32_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(segas32_state,system32)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	MCFG_TIMER_DRIVER_ADD("v60_irq0", segas32_state, signal_v60_irq_callback)
 	MCFG_TIMER_DRIVER_ADD("v60_irq1", segas32_state, signal_v60_irq_callback)
@@ -2247,13 +2244,13 @@ static MACHINE_CONFIG_START( multi32, segas32_state )
 	MCFG_PALETTE_LENGTH(0x8000)
 	MCFG_DEFAULT_LAYOUT(layout_dualhsxs)
 
-	MCFG_SCREEN_ADD("lscreen", RASTER)
+	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(52*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 52*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(segas32_state, screen_update_multi32_left)
 
-	MCFG_SCREEN_ADD("rscreen", RASTER)
+	MCFG_SCREEN_ADD("screen2", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(52*8, 262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 52*8-1, 0*8, 28*8-1)
@@ -3120,6 +3117,36 @@ ROM_END
 
 ROM_START( jparkj )
 	ROM_REGION( 0x200000, "maincpu", 0 ) /* v60 code + data */
+	ROM_LOAD_x2( "epr-16400a.ic8",     0x000000, 0x80000, CRC(1e03dbfe) SHA1(b7c274769ff483e687749ff20b1dc0fc38e8ef82) )
+	ROM_LOAD16_BYTE( "epr-16395.ic18", 0x100000, 0x80000, CRC(ac5a01d6) SHA1(df6bffdf5723cb8790a9c1c0ab271989a758bdd8) )
+	ROM_LOAD16_BYTE( "epr-16394.ic9",  0x100001, 0x80000, CRC(c08c3a8a) SHA1(923cf256d863656336401fa75103b42298cb3822) )
+
+	ROM_REGION( 0x500000, "soundcpu", 0 ) /* sound CPU */
+	ROM_LOAD_x4( "epr-16399.ic36", 0x100000, 0x040000, CRC(b09b2fe3) SHA1(bf8d646bab65fcc4ece8c2bd9a3df389e5860ed6) )
+	ROM_LOAD( "mpr-16398.ic35",    0x200000, 0x100000, CRC(fa710ca6) SHA1(1fd625070eef5f99d7be07606aeeff9282e32532) )
+	ROM_LOAD( "mpr-16397.ic34",    0x300000, 0x100000, CRC(6e96e0be) SHA1(422b783b72127b80a23043b2dd1c04f5772f436e) )
+	ROM_LOAD( "mpr-16396.ic24",    0x400000, 0x100000, CRC(f69a2dc4) SHA1(3f02b10976852916c58e852f3161a857784fe36b) )
+
+	ROM_REGION( 0x400000, "gfx1", 0 ) /* tiles */
+	ROM_LOAD16_BYTE( "mpr-16404.ic14", 0x000000, 0x200000, CRC(11283807) SHA1(99e465c3fc31e640740b8257a349e203f026754a) )
+	ROM_LOAD16_BYTE( "mpr-16403.ic5",  0x000001, 0x200000, CRC(02530a9b) SHA1(b43e1b47f74c801bfc599cbe893fb8dc13453dd0) )
+
+	ROM_REGION32_BE( 0x1000000, "gfx2", 0 ) /* sprites */
+	ROMX_LOAD( "mpr-16405.ic32", 0x000000, 0x200000, CRC(b425f182) SHA1(66c6bd29dd3450db816b895c4c9c5208a66aae67) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16407.ic30", 0x000002, 0x200000, CRC(bc49ffd9) SHA1(a50ba7ddccfdfd7638c4041978b39c1559afbbb4) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16409.ic28", 0x000004, 0x200000, CRC(fe73660d) SHA1(ec1a3ea5303d2ccb9e327da18476969953626e1c) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16411.ic26", 0x000006, 0x200000, CRC(71cabbc5) SHA1(9760f57ef43eb251488dadd37711d5682d902434) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16406.ic31", 0x800000, 0x200000, CRC(b9ed73d6) SHA1(0dd22e7a21e95d84fc91acd742c737f96529f515) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16408.ic29", 0x800002, 0x200000, CRC(7b2f476b) SHA1(da99a9911982ba8aaef8c9aecc2977c9fd6da094) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16410.ic27", 0x800004, 0x200000, CRC(49c8f952) SHA1(f26b818711910b10bf520e5f849a1478a6b1d6e6) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16412.ic25", 0x800006, 0x200000, CRC(105dc26e) SHA1(fd2ef8c9fe1a78b4f9cc891a6fbd060184e58a1f) , ROM_SKIP(6)|ROM_GROUPWORD )
+
+	ROM_REGION( 0x10000, "cpu2", 0 ) /* unused */
+	ROM_LOAD( "epr-13908.xx", 0x00000, 0x8000, CRC(6228c1d2) SHA1(bd37fe775534fb94c9af80546948ce5f9c47bbf5) ) /* cabinet movement */
+ROM_END
+
+ROM_START( jparkja )
+	ROM_REGION( 0x200000, "maincpu", 0 ) /* v60 code + data */
 	ROM_LOAD_x2( "epr-16400.ic8",      0x000000, 0x80000, CRC(321c3411) SHA1(c53e7ed5f2e523741a521c9cd271123ab557cc4a) )
 	ROM_LOAD16_BYTE( "epr-16395.ic18", 0x100000, 0x80000, CRC(ac5a01d6) SHA1(df6bffdf5723cb8790a9c1c0ab271989a758bdd8) )
 	ROM_LOAD16_BYTE( "epr-16394.ic9",  0x100001, 0x80000, CRC(c08c3a8a) SHA1(923cf256d863656336401fa75103b42298cb3822) )
@@ -3148,6 +3175,38 @@ ROM_START( jparkj )
 	ROM_LOAD( "epr-13908.xx", 0x00000, 0x8000, CRC(6228c1d2) SHA1(bd37fe775534fb94c9af80546948ce5f9c47bbf5) ) /* cabinet movement */
 ROM_END
 
+/**************************************************************************************************************************
+    Jurassic Park Japan (Conversion)
+    not protected
+     Game: 833-10544-03 JURASSIC PARK CVT
+   ROM BD: 834-10545-03
+*/
+ROM_START( jparkjc )
+	ROM_REGION( 0x200000, "maincpu", 0 ) /* v60 code + data */
+	ROM_LOAD_x2( "epr-16400a.ic8",     0x000000, 0x80000, CRC(1e03dbfe) SHA1(b7c274769ff483e687749ff20b1dc0fc38e8ef82) )
+	ROM_LOAD16_BYTE( "epr-16395.ic18", 0x100000, 0x80000, CRC(ac5a01d6) SHA1(df6bffdf5723cb8790a9c1c0ab271989a758bdd8) )
+	ROM_LOAD16_BYTE( "epr-16394.ic9",  0x100001, 0x80000, CRC(c08c3a8a) SHA1(923cf256d863656336401fa75103b42298cb3822) )
+
+	ROM_REGION( 0x500000, "soundcpu", 0 ) /* sound CPU */
+	ROM_LOAD_x4( "epr-16630.ic36", 0x100000, 0x040000, CRC(955855eb) SHA1(c7a325ba0009139c2cc263cd457dbc0d527c7582) )
+	ROM_LOAD( "mpr-16398.ic35",    0x200000, 0x100000, CRC(fa710ca6) SHA1(1fd625070eef5f99d7be07606aeeff9282e32532) )
+	ROM_LOAD( "mpr-16397.ic34",    0x300000, 0x100000, CRC(6e96e0be) SHA1(422b783b72127b80a23043b2dd1c04f5772f436e) )
+	ROM_LOAD( "mpr-16396.ic24",    0x400000, 0x100000, CRC(f69a2dc4) SHA1(3f02b10976852916c58e852f3161a857784fe36b) )
+
+	ROM_REGION( 0x400000, "gfx1", 0 ) /* tiles */
+	ROM_LOAD16_BYTE( "mpr-16404.ic14", 0x000000, 0x200000, CRC(11283807) SHA1(99e465c3fc31e640740b8257a349e203f026754a) )
+	ROM_LOAD16_BYTE( "mpr-16403.ic5",  0x000001, 0x200000, CRC(02530a9b) SHA1(b43e1b47f74c801bfc599cbe893fb8dc13453dd0) )
+
+	ROM_REGION32_BE( 0x1000000, "gfx2", 0 ) /* sprites */
+	ROMX_LOAD( "mpr-16405.ic32", 0x000000, 0x200000, CRC(b425f182) SHA1(66c6bd29dd3450db816b895c4c9c5208a66aae67) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16407.ic30", 0x000002, 0x200000, CRC(bc49ffd9) SHA1(a50ba7ddccfdfd7638c4041978b39c1559afbbb4) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16409.ic28", 0x000004, 0x200000, CRC(fe73660d) SHA1(ec1a3ea5303d2ccb9e327da18476969953626e1c) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16411.ic26", 0x000006, 0x200000, CRC(71cabbc5) SHA1(9760f57ef43eb251488dadd37711d5682d902434) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16406.ic31", 0x800000, 0x200000, CRC(b9ed73d6) SHA1(0dd22e7a21e95d84fc91acd742c737f96529f515) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16408.ic29", 0x800002, 0x200000, CRC(7b2f476b) SHA1(da99a9911982ba8aaef8c9aecc2977c9fd6da094) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16410.ic27", 0x800004, 0x200000, CRC(49c8f952) SHA1(f26b818711910b10bf520e5f849a1478a6b1d6e6) , ROM_SKIP(6)|ROM_GROUPWORD )
+	ROMX_LOAD( "mpr-16412.ic25", 0x800006, 0x200000, CRC(105dc26e) SHA1(fd2ef8c9fe1a78b4f9cc891a6fbd060184e58a1f) , ROM_SKIP(6)|ROM_GROUPWORD )
+ROM_END
 
 /**************************************************************************************************************************
  **************************************************************************************************************************
@@ -3324,7 +3383,7 @@ ROM_END
         EPR-13691.ic37 (not dumped)
         EPR-13692.ic38 (not dumped)
 
-Exprot: EPR-13693.ic21 (dumped)
+Export: EPR-13693.ic21 (dumped)
         EPR-13694.ic37 (not dumped)
         EPR-13695.ic38 (not dumped)
 
@@ -4452,15 +4511,17 @@ GAME( 1992, ga2u,     ga2,      system32_v25, ga2u, segas32_state,     ga2,     
 GAME( 1992, ga2j,     ga2,      system32_v25, ga2, segas32_state,      ga2,      ROT0, "Sega",   "Golden Axe: The Revenge of Death Adder (Japan)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1992, holo,     0,        system32,     holo, segas32_state,     holo,     ORIENTATION_FLIP_Y, "Sega",   "Holosseum (US)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1993, jpark,    0,        system32,     jpark, segas32_state,    jpark,    ROT0, "Sega",   "Jurassic Park (World)", GAME_IMPERFECT_GRAPHICS )  /* Released in 02.1994 */
-GAME( 1993, jparkj,   jpark,    system32,     jpark, segas32_state,    jpark,    ROT0, "Sega",   "Jurassic Park (Japan)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1993, jparkj,   jpark,    system32,     jpark, segas32_state,    jpark,    ROT0, "Sega",   "Jurassic Park (Japan, Rev A, Deluxe)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1993, jparkja,  jpark,    system32,     jpark, segas32_state,    jpark,    ROT0, "Sega",   "Jurassic Park (Japan, Deluxe)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1993, jparkjc,  jpark,    system32,     jpark, segas32_state,    jpark,    ROT0, "Sega",   "Jurassic Park (Japan, Rev A, Conversion)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1994, kokoroj2, 0,        system32,     radr, segas32_state,     radr,     ROT0, "Sega",   "Kokoroji 2", GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING) /* uses an Audio CD */
 GAME( 1990, radm,     0,        system32,     radm, segas32_state,     radm,     ROT0, "Sega",   "Rad Mobile (World)", GAME_IMPERFECT_GRAPHICS )  /* Released in 02.1991 */
 GAME( 1990, radmu,    radm,     system32,     radm, segas32_state,     radm,     ROT0, "Sega",   "Rad Mobile (US)", GAME_IMPERFECT_GRAPHICS )
 GAMEL(1991, radr,     0,        system32,     radr, segas32_state,     radr,     ROT0, "Sega",   "Rad Rally (World)", GAME_IMPERFECT_GRAPHICS, layout_radr )
 GAMEL(1991, radru,    radr,     system32,     radr, segas32_state,     radr,     ROT0, "Sega",   "Rad Rally (US)", GAME_IMPERFECT_GRAPHICS, layout_radr )
 GAMEL(1991, radrj,    radr,     system32,     radr, segas32_state,     radr,     ROT0, "Sega",   "Rad Rally (Japan)", GAME_IMPERFECT_GRAPHICS, layout_radr )
-GAMEL(1995, slipstrm, 0,        system32,     slipstrm, segas32_state, slipstrm, ROT0, "Capcom", "Slip Stream (950515 Brazil)", GAME_IMPERFECT_GRAPHICS, layout_radr )
-GAMEL(1995, slipstrmh,slipstrm, system32,     slipstrm, segas32_state, slipstrm, ROT0, "Capcom", "Slip Stream (950515 Hispanic)", GAME_IMPERFECT_GRAPHICS, layout_radr )
+GAMEL(1995, slipstrm, 0,        system32,     slipstrm, segas32_state, slipstrm, ROT0, "Capcom", "Slip Stream (Brazil 950515)", GAME_IMPERFECT_GRAPHICS, layout_radr )
+GAMEL(1995, slipstrmh,slipstrm, system32,     slipstrm, segas32_state, slipstrm, ROT0, "Capcom", "Slip Stream (Hispanic 950515)", GAME_IMPERFECT_GRAPHICS, layout_radr )
 GAME( 1992, sonic,    0,        system32,     sonic, segas32_state,    sonic,    ROT0, "Sega",   "SegaSonic The Hedgehog (Japan, rev. C)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1992, sonicp,   sonic,    system32,     sonic, segas32_state,    sonicp,   ROT0, "Sega",   "SegaSonic The Hedgehog (Japan, prototype)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1991, spidman,  0,        system32,     spidman, segas32_state,  spidman,  ROT0, "Sega",   "Spider-Man: The Videogame (World)", GAME_IMPERFECT_GRAPHICS )

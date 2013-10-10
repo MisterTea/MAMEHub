@@ -364,7 +364,7 @@ void blitz_state::video_start()
 
 UINT32 blitz_state::screen_update_megadpkr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -481,8 +481,8 @@ static ADDRESS_MAP_START( megadpkr_map, AS_PROGRAM, 8, blitz_state )
 //  ADDRESS_MAP_GLOBAL_MASK(0x7fff) // seems that hardware is playing with A14 & A15 CPU lines...
 
 	AM_RANGE(0x0000, 0x07ff) AM_RAM //AM_SHARE("nvram")   /* battery backed RAM */
-//  AM_RANGE(0x0800, 0x0800) AM_DEVWRITE_LEGACY("crtc", mc6845_address_w)
-//  AM_RANGE(0x0801, 0x0801) AM_DEVREADWRITE_LEGACY("crtc", mc6845_register_r, mc6845_register_w)
+//  AM_RANGE(0x0800, 0x0800) AM_DEVWRITE("crtc", mc6845_device, address_w)
+//  AM_RANGE(0x0801, 0x0801) AM_DEVREADWRITE("crtc", mc6845_device, register_r, register_w)
 	AM_RANGE(0x0844, 0x0847) AM_DEVREADWRITE("pia0", pia6821_device, read, write)
 	AM_RANGE(0x0848, 0x084b) AM_DEVREADWRITE("pia1", pia6821_device, read, write)
 
@@ -742,7 +742,6 @@ static const pia6821_interface megadpkr_pia1_intf =
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -815,7 +814,7 @@ static MACHINE_CONFIG_START( megadpkr, blitz_state )
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 0*8, 32*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(blitz_state, screen_update_megadpkr)
 
-	MCFG_MC6845_ADD("crtc", MC6845, CPU_CLOCK, mc6845_intf)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CPU_CLOCK, mc6845_intf)
 
 	MCFG_GFXDECODE(megadpkr)
 	MCFG_PALETTE_LENGTH(256)

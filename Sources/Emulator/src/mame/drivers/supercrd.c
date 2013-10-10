@@ -270,7 +270,7 @@ VIDEO_START_MEMBER(supercrd_state, supercrd)
 
 UINT32 supercrd_state::screen_update_supercrd(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 
@@ -408,7 +408,6 @@ GFXDECODE_END
 
 //static MC6845_INTERFACE( mc6845_intf )
 //{
-//  "screen",   /* screen we are acting on */
 //  false,
 //  4,          /* number of pixels per video memory address */
 //  NULL,       /* before pixel update callback */
@@ -477,7 +476,7 @@ static MACHINE_CONFIG_START( supercrd, supercrd_state )
 	MCFG_PALETTE_INIT_OVERRIDE(supercrd_state, supercrd)
 	MCFG_VIDEO_START_OVERRIDE(supercrd_state, supercrd)
 
-//  MCFG_MC6845_ADD("crtc", MC6845, MASTER_CLOCK/8, mc6845_intf)
+//  MCFG_MC6845_ADD("crtc", MC6845, "screen", MASTER_CLOCK/8, mc6845_intf)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

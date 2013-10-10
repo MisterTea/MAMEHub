@@ -133,7 +133,6 @@ void vt240_state::machine_reset()
 
 static UPD7220_INTERFACE( hgdc_intf )
 {
-	"screen",
 	NULL,
 	hgdc_draw_text,
 	DEVCB_NULL,
@@ -178,7 +177,7 @@ static MACHINE_CONFIG_START( vt240, vt240_state )
 //  MCFG_VIDEO_START_OVERRIDE(vt240_state,vt240)
 	MCFG_SCREEN_UPDATE_DEVICE("upd7220", upd7220_device, screen_update)
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(black_and_white)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 	MCFG_GFXDECODE(vt240)
 
 	MCFG_UPD7220_ADD("upd7220", XTAL_4MHz / 4, hgdc_intf, upd7220_map) //unknown clock

@@ -61,8 +61,7 @@ TODO:
 */
 
 #include "emu.h"
-#include "video/s2636.h"
-#include "sound/s2636.h"
+#include "machine/s2636.h"
 #include "cpu/s2650/s2650.h"
 #include "includes/galaxia.h"
 
@@ -82,14 +81,14 @@ INTERRUPT_GEN_MEMBER(galaxia_state::galaxia_interrupt)
 
 WRITE8_MEMBER(galaxia_state::galaxia_video_w)
 {
-//  machine().primary_screen->update_partial(machine().primary_screen->vpos());
+//  m_screen->update_partial(m_screen->vpos());
 	m_bg_tilemap->mark_tile_dirty(offset);
 	cvs_video_or_color_ram_w(space, offset, data);
 }
 
 WRITE8_MEMBER(galaxia_state::galaxia_scroll_w)
 {
-	machine().primary_screen->update_partial(machine().primary_screen->vpos());
+	m_screen->update_partial(m_screen->vpos());
 
 	// fixed scrolling area
 	for (int i = 1; i < 6; i++)
@@ -109,13 +108,13 @@ WRITE8_MEMBER(galaxia_state::galaxia_dataport_w)
 
 READ8_MEMBER(galaxia_state::galaxia_collision_r)
 {
-	machine().primary_screen->update_partial(machine().primary_screen->vpos());
+	m_screen->update_partial(m_screen->vpos());
 	return m_collision_register;
 }
 
 READ8_MEMBER(galaxia_state::galaxia_collision_clear)
 {
-	machine().primary_screen->update_partial(machine().primary_screen->vpos());
+	m_screen->update_partial(m_screen->vpos());
 	m_collision_register = 0;
 	return 0xff;
 }
@@ -123,9 +122,9 @@ READ8_MEMBER(galaxia_state::galaxia_collision_clear)
 static ADDRESS_MAP_START( galaxia_mem_map, AS_PROGRAM, 8, galaxia_state )
 	AM_RANGE(0x0000, 0x13ff) AM_ROM
 	AM_RANGE(0x1400, 0x14ff) AM_MIRROR(0x6000) AM_RAM AM_SHARE("bullet_ram")
-	AM_RANGE(0x1500, 0x15ff) AM_MIRROR(0x6000) AM_DEVREADWRITE_LEGACY("s2636_0", s2636_work_ram_r, s2636_work_ram_w)
-	AM_RANGE(0x1600, 0x16ff) AM_MIRROR(0x6000) AM_DEVREADWRITE_LEGACY("s2636_1", s2636_work_ram_r, s2636_work_ram_w)
-	AM_RANGE(0x1700, 0x17ff) AM_MIRROR(0x6000) AM_DEVREADWRITE_LEGACY("s2636_2", s2636_work_ram_r, s2636_work_ram_w)
+	AM_RANGE(0x1500, 0x15ff) AM_MIRROR(0x6000) AM_DEVREADWRITE("s2636_0", s2636_device, work_ram_r, work_ram_w)
+	AM_RANGE(0x1600, 0x16ff) AM_MIRROR(0x6000) AM_DEVREADWRITE("s2636_1", s2636_device, work_ram_r, work_ram_w)
+	AM_RANGE(0x1700, 0x17ff) AM_MIRROR(0x6000) AM_DEVREADWRITE("s2636_2", s2636_device, work_ram_r, work_ram_w)
 	AM_RANGE(0x1800, 0x1bff) AM_MIRROR(0x6000) AM_READ(cvs_video_or_color_ram_r) AM_WRITE(galaxia_video_w) AM_SHARE("video_ram")
 	AM_RANGE(0x1c00, 0x1fff) AM_MIRROR(0x6000) AM_RAM
 	AM_RANGE(0x2000, 0x33ff) AM_ROM
@@ -135,7 +134,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( astrowar_mem_map, AS_PROGRAM, 8, galaxia_state )
 	AM_RANGE(0x0000, 0x13ff) AM_ROM
 	AM_RANGE(0x1400, 0x14ff) AM_MIRROR(0x6000) AM_RAM
-	AM_RANGE(0x1500, 0x15ff) AM_MIRROR(0x6000) AM_DEVREADWRITE_LEGACY("s2636_0", s2636_work_ram_r, s2636_work_ram_w)
+	AM_RANGE(0x1500, 0x15ff) AM_MIRROR(0x6000) AM_DEVREADWRITE("s2636_0", s2636_device, work_ram_r, work_ram_w)
 	AM_RANGE(0x1800, 0x1bff) AM_MIRROR(0x6000) AM_READ(cvs_video_or_color_ram_r) AM_WRITE(galaxia_video_w)  AM_SHARE("video_ram")
 	AM_RANGE(0x1c00, 0x1cff) AM_MIRROR(0x6000) AM_RAM AM_SHARE("bullet_ram")
 	AM_RANGE(0x2000, 0x33ff) AM_ROM
@@ -277,17 +276,15 @@ GFXDECODE_END
 
 static const s2636_interface galaxia_s2636_config[3] =
 {
-	{ "screen", 0x100, 3, -26, "s2636snd_0" },
-	{ "screen", 0x100, 3, -26, "s2636snd_1" },
-	{ "screen", 0x100, 3, -26, "s2636snd_2" }
+	{ 0x100, 3, -26 },
+	{ 0x100, 3, -26 },
+	{ 0x100, 3, -26 }
 };
 
 static const s2636_interface astrowar_s2636_config =
 {
-	"screen",
 	0x100,
-	3, 0,
-	"s2636snd_0"
+	3, 0
 };
 
 
@@ -314,20 +311,15 @@ static MACHINE_CONFIG_START( galaxia, galaxia_state )
 	MCFG_VIDEO_START_OVERRIDE(galaxia_state,galaxia)
 
 	MCFG_S2636_ADD("s2636_0", galaxia_s2636_config[0])
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_S2636_ADD("s2636_1", galaxia_s2636_config[1])
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_S2636_ADD("s2636_2", galaxia_s2636_config[2])
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("s2636snd_0", S2636_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-
-	MCFG_SOUND_ADD("s2636snd_1", S2636_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
-
-	MCFG_SOUND_ADD("s2636snd_2", S2636_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
 
@@ -354,12 +346,12 @@ static MACHINE_CONFIG_START( astrowar, galaxia_state )
 	MCFG_VIDEO_START_OVERRIDE(galaxia_state,astrowar)
 
 	MCFG_S2636_ADD("s2636_0", astrowar_s2636_config)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("s2636snd_0", S2636_SOUND, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
+
 MACHINE_CONFIG_END
 
 

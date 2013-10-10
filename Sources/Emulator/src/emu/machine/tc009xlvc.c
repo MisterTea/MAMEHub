@@ -163,7 +163,7 @@ static ADDRESS_MAP_START( tc0091lvc_map8, AS_0, 8, tc0091lvc_device )
 ADDRESS_MAP_END
 
 tc0091lvc_device::tc0091lvc_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TC0091LVC, "TC0091LVC", tag, owner, clock),
+	: device_t(mconfig, TC0091LVC, "TC0091LVC", tag, owner, clock, "tc0091lvc", __FILE__),
 		device_memory_interface(mconfig, *this),
 		m_space_config("tc0091lvc", ENDIANNESS_LITTLE, 8,20, 0, NULL, *ADDRESS_MAP_NAME(tc0091lvc_map8))
 {
@@ -286,9 +286,9 @@ const address_space_config *tc0091lvc_device::memory_space_config(address_spacen
 }
 
 
-void tc0091lvc_device::draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 global_flip )
+void tc0091lvc_device::draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 global_flip )
 {
-	gfx_element *gfx = machine.gfx[1];
+	gfx_element *gfx = screen.machine().gfx[1];
 	int count;
 
 	for(count=0;count<0x3e7;count+=8)
@@ -312,7 +312,7 @@ void tc0091lvc_device::draw_sprites( running_machine &machine, bitmap_ind16 &bit
 			fy = !fy;
 		}
 
-		pdrawgfx_transpen(bitmap,cliprect,gfx,spr_offs,col,fx,fy,x,y,machine.priority_bitmap,(col & 0x08) ? 0xaa : 0x00,0);
+		pdrawgfx_transpen(bitmap,cliprect,gfx,spr_offs,col,fx,fy,x,y,screen.priority(),(col & 0x08) ? 0xaa : 0x00,0);
 	}
 }
 
@@ -342,7 +342,7 @@ UINT32 tc0091lvc_device::screen_update(screen_device &screen, bitmap_ind16 &bitm
 				res_x = (global_flip) ? 320-x : x;
 				res_y = (global_flip) ? 256-y : y;
 
-				if(machine().primary_screen->visible_area().contains(res_x, res_y))
+				if(screen.visible_area().contains(res_x, res_y))
 					bitmap.pix16(res_y, res_x) = screen.machine().pens[m_bitmap_ram[count]];
 
 				count++;
@@ -371,11 +371,11 @@ UINT32 tc0091lvc_device::screen_update(screen_device &screen, bitmap_ind16 &bitm
 
 		tx_tilemap->set_scrollx(0, (global_flip) ? -192 : 0);
 
-		machine().priority_bitmap.fill(0, cliprect);
-		bg1_tilemap->draw(bitmap, cliprect, 0,0);
-		bg0_tilemap->draw(bitmap, cliprect, 0,(m_vregs[4] & 0x8) ? 0 : 1);
-		draw_sprites(machine(), bitmap, cliprect, global_flip);
-		tx_tilemap->draw(bitmap, cliprect, 0,0);
+		screen.priority().fill(0, cliprect);
+		bg1_tilemap->draw(screen, bitmap, cliprect, 0,0);
+		bg0_tilemap->draw(screen, bitmap, cliprect, 0,(m_vregs[4] & 0x8) ? 0 : 1);
+		draw_sprites(screen, bitmap, cliprect, global_flip);
+		tx_tilemap->draw(screen, bitmap, cliprect, 0,0);
 	}
 	return 0;
 }

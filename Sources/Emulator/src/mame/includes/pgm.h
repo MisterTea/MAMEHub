@@ -254,6 +254,38 @@ public:
 	DECLARE_WRITE16_MEMBER( pgm_arm7_type1_sim_w );
 	DECLARE_READ16_MEMBER( pgm_arm7_type1_sim_protram_r );
 	DECLARE_READ16_MEMBER( pstars_arm7_type1_sim_protram_r );
+	int m_simregion;
+
+	/* puzzli2 protection internal state stuff */
+	int stage;
+	int tableoffs;
+	int tableoffs2;
+	int entries_left;
+	int currentcolumn;
+	int currentrow;
+	int num_entries;
+	int full_entry;
+	int prev_tablloc;
+	int numbercolumns;
+	int depth;
+	UINT16 m_row_bitmask;
+	int hackcount;
+	int hackcount2;
+	int hack_47_value;
+	int hack_31_table_offset;
+	int hack_31_table_offset2;
+	int p2_31_retcounter;
+
+	UINT8 coverage[256]; // coverage is how much of the table we've managed to verify using known facts about the table structure
+
+	int command_31_write_type;
+
+
+	// the maximum level size returned or read by the device appears to be this size
+	UINT16 level_structure[8][10];
+
+
+	int puzzli2_take_leveldata_value(UINT8 datvalue);
 };
 
 /* for machine/pgmprot2.c type games */
@@ -293,6 +325,7 @@ public:
 	void kov2_latch_init();
 	DECLARE_WRITE32_MEMBER( martmast_arm_region_w );
 	DECLARE_WRITE32_MEMBER( kov2_arm_region_w );
+	DECLARE_WRITE32_MEMBER( kov2p_arm_region_w );
 	DECLARE_READ32_MEMBER( ddp2_speedup_r );
 	DECLARE_READ16_MEMBER( ddp2_main_speedup_r );
 };
@@ -355,8 +388,6 @@ public:
 
 	const UINT8 (*m_kb_source_data)[0xec];
 	INT32 m_kb_source_data_offset;
-
-	DECLARE_WRITE16_MEMBER( killbld_mainram_w ); // debug
 
 	UINT32 m_kb_game_id;
 

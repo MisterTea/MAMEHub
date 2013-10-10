@@ -17,7 +17,7 @@
 
 TILE_GET_INFO_MEMBER(foodf_state::get_playfield_tile_info)
 {
-	UINT16 data = m_playfield[tile_index];
+	UINT16 data = tilemap.basemem_read(tile_index);
 	int code = (data & 0xff) | ((data >> 7) & 0x100);
 	int color = (data >> 8) & 0x3f;
 	SET_TILE_INFO_MEMBER(0, code, color, m_playfield_flip ? (TILE_FLIPX | TILE_FLIPY) : 0);
@@ -34,10 +34,6 @@ TILE_GET_INFO_MEMBER(foodf_state::get_playfield_tile_info)
 VIDEO_START_MEMBER(foodf_state,foodf)
 {
 	static const int resistances[3] = { 1000, 470, 220 };
-
-	/* initialize the playfield */
-	m_playfield_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(foodf_state::get_playfield_tile_info),this), TILEMAP_SCAN_COLS,  8,8, 32,32);
-	m_playfield_tilemap->set_transparent_pen(0);
 
 	/* adjust the playfield for the 8 pixel offset */
 	m_playfield_tilemap->set_scrollx(0, -8);
@@ -115,15 +111,15 @@ UINT32 foodf_state::screen_update_foodf(screen_device &screen, bitmap_ind16 &bit
 {
 	int offs;
 	gfx_element *gfx = machine().gfx[1];
-	bitmap_ind8 &priority_bitmap = machine().priority_bitmap;
+	bitmap_ind8 &priority_bitmap = screen.priority();
 	UINT16 *spriteram16 = m_spriteram;
 
 	/* first draw the playfield opaquely */
-	m_playfield_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
+	m_playfield_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 
 	/* then draw the non-transparent parts with a priority of 1 */
 	priority_bitmap.fill(0);
-	m_playfield_tilemap->draw(bitmap, cliprect, 0, 1);
+	m_playfield_tilemap->draw(screen, bitmap, cliprect, 0, 1);
 
 	/* draw the motion objects front-to-back */
 	for (offs = 0x80-2; offs >= 0x20; offs -= 2)

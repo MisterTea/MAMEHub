@@ -5,21 +5,7 @@
 *************************************************************************/
 
 #include "emu.h"
-#include "machine/74148.h"
-#include "machine/pit8253.h"
-#include "audio/exidy440.h"
 #include "includes/vertigo.h"
-
-
-/*************************************
- *
- *  Prototypes
- *
- *************************************/
-
-
-
-
 
 
 /*************************************
@@ -72,7 +58,7 @@ void vertigo_update_irq(device_t *device)
 	if (state->m_irq_state < 7)
 		state->m_maincpu->set_input_line(state->m_irq_state ^ 7, CLEAR_LINE);
 
-	state->m_irq_state = ttl74148_output_r(device);
+	state->m_irq_state = state->m_ttl74148->output_r();
 
 	if (state->m_irq_state < 7)
 		state->m_maincpu->set_input_line(state->m_irq_state ^ 7, ASSERT_LINE);
@@ -81,8 +67,8 @@ void vertigo_update_irq(device_t *device)
 
 void vertigo_state::update_irq_encoder(int line, int state)
 {
-	ttl74148_input_line_w(m_ttl74148, line, !state);
-	ttl74148_update(m_ttl74148);
+	m_ttl74148->input_line_w(line, !state);
+	m_ttl74148->update();
 }
 
 
@@ -165,7 +151,7 @@ WRITE16_MEMBER(vertigo_state::vertigo_wsot_w)
 
 TIMER_CALLBACK_MEMBER(vertigo_state::sound_command_w)
 {
-	exidy440_sound_command(m_custom, param);
+	m_custom->exidy440_sound_command(param);
 
 	/* It is important that the sound cpu ACKs the sound command
 	   quickly. Otherwise the main CPU gives up with sound. Boosting
@@ -184,7 +170,7 @@ WRITE16_MEMBER(vertigo_state::vertigo_audio_w)
 
 READ16_MEMBER(vertigo_state::vertigo_sio_r)
 {
-	return exidy440_sound_command_ack(m_custom) ? 0xfc : 0xfd;
+	return m_custom->exidy440_sound_command_ack() ? 0xfc : 0xfd;
 }
 
 
@@ -197,9 +183,6 @@ READ16_MEMBER(vertigo_state::vertigo_sio_r)
 
 void vertigo_state::machine_start()
 {
-	m_custom = machine().device("custom");
-	m_ttl74148 = machine().device("74148");
-
 	save_item(NAME(m_irq_state));
 	save_item(NAME(m_adc_result));
 	save_item(NAME(m_irq4_time));
@@ -211,12 +194,12 @@ void vertigo_state::machine_reset()
 {
 	int i;
 
-	ttl74148_enable_input_w(m_ttl74148, 0);
+	m_ttl74148->enable_input_w(0);
 
 	for (i = 0; i < 8; i++)
-		ttl74148_input_line_w(m_ttl74148, i, 1);
+		m_ttl74148->input_line_w(i, 1);
 
-	ttl74148_update(m_ttl74148);
+	m_ttl74148->update();
 	vertigo_vproc_reset();
 
 	m_irq4_time = machine().time();

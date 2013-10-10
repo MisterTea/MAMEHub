@@ -1,5 +1,5 @@
 #include "emu.h"
-#include "video/konicdev.h"
+
 #include "includes/xmen.h"
 
 
@@ -53,7 +53,7 @@ void xmen_sprite_callback( running_machine &machine, int *code, int *color, int 
 
 VIDEO_START_MEMBER(xmen_state,xmen6p)
 {
-	k053247_get_ram(m_k053246, &m_k053247_ram);
+	m_k053246->k053247_get_ram( &m_k053247_ram);
 
 	m_screen_left  = auto_bitmap_ind16_alloc(machine(), 64 * 8, 32 * 8);
 	m_screen_right = auto_bitmap_ind16_alloc(machine(), 64 * 8, 32 * 8);
@@ -73,33 +73,33 @@ UINT32 xmen_state::screen_update_xmen(screen_device &screen, bitmap_ind16 &bitma
 {
 	int layer[3], bg_colorbase;
 
-	bg_colorbase = k053251_get_palette_index(m_k053251, K053251_CI4);
-	m_sprite_colorbase = k053251_get_palette_index(m_k053251, K053251_CI1);
-	m_layer_colorbase[0] = k053251_get_palette_index(m_k053251, K053251_CI3);
-	m_layer_colorbase[1] = k053251_get_palette_index(m_k053251, K053251_CI0);
-	m_layer_colorbase[2] = k053251_get_palette_index(m_k053251, K053251_CI2);
+	bg_colorbase = m_k053251->get_palette_index(K053251_CI4);
+	m_sprite_colorbase = m_k053251->get_palette_index(K053251_CI1);
+	m_layer_colorbase[0] = m_k053251->get_palette_index(K053251_CI3);
+	m_layer_colorbase[1] = m_k053251->get_palette_index(K053251_CI0);
+	m_layer_colorbase[2] = m_k053251->get_palette_index(K053251_CI2);
 
-	k052109_tilemap_update(m_k052109);
+	m_k052109->tilemap_update();
 
 	layer[0] = 0;
-	m_layerpri[0] = k053251_get_priority(m_k053251, K053251_CI3);
+	m_layerpri[0] = m_k053251->get_priority(K053251_CI3);
 	layer[1] = 1;
-	m_layerpri[1] = k053251_get_priority(m_k053251, K053251_CI0);
+	m_layerpri[1] = m_k053251->get_priority(K053251_CI0);
 	layer[2] = 2;
-	m_layerpri[2] = k053251_get_priority(m_k053251, K053251_CI2);
+	m_layerpri[2] = m_k053251->get_priority(K053251_CI2);
 
 	konami_sortlayers3(layer, m_layerpri);
 
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 	/* note the '+1' in the background color!!! */
 	bitmap.fill(16 * bg_colorbase + 1, cliprect);
-	k052109_tilemap_draw(m_k052109, bitmap, cliprect, layer[0], 0, 1);
-	k052109_tilemap_draw(m_k052109, bitmap, cliprect, layer[1], 0, 2);
-	k052109_tilemap_draw(m_k052109, bitmap, cliprect, layer[2], 0, 4);
+	m_k052109->tilemap_draw(screen, bitmap, cliprect, layer[0], 0, 1);
+	m_k052109->tilemap_draw(screen, bitmap, cliprect, layer[1], 0, 2);
+	m_k052109->tilemap_draw(screen, bitmap, cliprect, layer[2], 0, 4);
 
 /* this isn't supported anymore and it is unsure if still needed; keeping here for reference
     pdrawgfx_shadow_lowpri = 1; fix shadows of boulders in front of feet */
-	k053247_sprites_draw(m_k053246, bitmap, cliprect);
+	m_k053246->k053247_sprites_draw( bitmap, cliprect);
 	return 0;
 }
 
@@ -147,14 +147,14 @@ void xmen_state::screen_eof_xmen6p(screen_device &screen, bool state)
 		rectangle cliprect;
 		int offset;
 
-	//  const rectangle *visarea = machine().primary_screen->visible_area();
+	//  const rectangle *visarea = m_screen->visible_area();
 	//  cliprect = *visarea;
 
 		cliprect.set(0, 64 * 8 - 1, 2 * 8, 30 * 8 - 1);
 
 
 		address_space &space = machine().driver_data()->generic_space();
-		if (machine().primary_screen->frame_number() & 0x01)
+		if (m_screen->frame_number() & 0x01)
 		{
 			/* copy the desired spritelist to the chip */
 			memcpy(m_k053247_ram, m_xmen6p_spriteramright, 0x1000);
@@ -165,8 +165,8 @@ void xmen_state::screen_eof_xmen6p(screen_device &screen, bool state)
 			   */
 			for (offset = 0; offset < (0xc000 / 2); offset++)
 			{
-	//          K052109_lsb_w
-				k052109_w(m_k052109, space, offset, m_xmen6p_tilemapright[offset] & 0x00ff);
+	//          m_k052109->lsb_w
+				m_k052109->write(space, offset, m_xmen6p_tilemapright[offset] & 0x00ff);
 			}
 
 
@@ -184,8 +184,8 @@ void xmen_state::screen_eof_xmen6p(screen_device &screen, bool state)
 			   */
 			for (offset = 0; offset < (0xc000 / 2); offset++)
 			{
-	//          K052109_lsb_w
-				k052109_w(m_k052109, space, offset, m_xmen6p_tilemapleft[offset] & 0x00ff);
+	//          m_k052109->lsb_w
+				m_k052109->write(space, offset, m_xmen6p_tilemapleft[offset] & 0x00ff);
 			}
 
 
@@ -193,32 +193,32 @@ void xmen_state::screen_eof_xmen6p(screen_device &screen, bool state)
 		}
 
 
-		bg_colorbase = k053251_get_palette_index(m_k053251, K053251_CI4);
-		m_sprite_colorbase = k053251_get_palette_index(m_k053251, K053251_CI1);
-		m_layer_colorbase[0] = k053251_get_palette_index(m_k053251, K053251_CI3);
-		m_layer_colorbase[1] = k053251_get_palette_index(m_k053251, K053251_CI0);
-		m_layer_colorbase[2] = k053251_get_palette_index(m_k053251, K053251_CI2);
+		bg_colorbase = m_k053251->get_palette_index(K053251_CI4);
+		m_sprite_colorbase = m_k053251->get_palette_index(K053251_CI1);
+		m_layer_colorbase[0] = m_k053251->get_palette_index(K053251_CI3);
+		m_layer_colorbase[1] = m_k053251->get_palette_index(K053251_CI0);
+		m_layer_colorbase[2] = m_k053251->get_palette_index(K053251_CI2);
 
-		k052109_tilemap_update(m_k052109);
+		m_k052109->tilemap_update();
 
 		layer[0] = 0;
-		m_layerpri[0] = k053251_get_priority(m_k053251, K053251_CI3);
+		m_layerpri[0] = m_k053251->get_priority(K053251_CI3);
 		layer[1] = 1;
-		m_layerpri[1] = k053251_get_priority(m_k053251, K053251_CI0);
+		m_layerpri[1] = m_k053251->get_priority(K053251_CI0);
 		layer[2] = 2;
-		m_layerpri[2] = k053251_get_priority(m_k053251, K053251_CI2);
+		m_layerpri[2] = m_k053251->get_priority(K053251_CI2);
 
 		konami_sortlayers3(layer, m_layerpri);
 
-		machine().priority_bitmap.fill(0, cliprect);
+		screen.priority().fill(0, cliprect);
 		/* note the '+1' in the background color!!! */
 		renderbitmap->fill(16 * bg_colorbase + 1, cliprect);
-		k052109_tilemap_draw(m_k052109, *renderbitmap, cliprect, layer[0], 0, 1);
-		k052109_tilemap_draw(m_k052109, *renderbitmap, cliprect, layer[1], 0, 2);
-		k052109_tilemap_draw(m_k052109, *renderbitmap, cliprect, layer[2], 0, 4);
+		m_k052109->tilemap_draw(screen, *renderbitmap, cliprect, layer[0], 0, 1);
+		m_k052109->tilemap_draw(screen, *renderbitmap, cliprect, layer[1], 0, 2);
+		m_k052109->tilemap_draw(screen, *renderbitmap, cliprect, layer[2], 0, 4);
 
 	/* this isn't supported anymore and it is unsure if still needed; keeping here for reference
 	    pdrawgfx_shadow_lowpri = 1; fix shadows of boulders in front of feet */
-		k053247_sprites_draw(m_k053246, *renderbitmap, cliprect);
+		m_k053246->k053247_sprites_draw( *renderbitmap, cliprect);
 	}
 }

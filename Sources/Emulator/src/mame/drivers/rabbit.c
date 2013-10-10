@@ -33,9 +33,6 @@ Notes:
     again later, once the chip is better understood.
 
 
-*/
-
-/*
 
 Rabbit PCB Layout
 -----------------
@@ -67,6 +64,9 @@ Notes:
 
       Only ROMs positions 60, 50, 40, 02, 03, 10, 11, 01, 00 are populated.
 
+      There is known to exist a version of Rabbit with program rom labels
+      printed as ASIA 3/6 which is currently not dumped.
+
 Tokimeki Mahjong Paradise - Dear My Love Board Notes
 ----------------------------------------------------
 
@@ -82,7 +82,7 @@ Custom: Imagetek I5000 (2ch video & 2ch sound)
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/i5000.h"
 
 
@@ -149,10 +149,10 @@ public:
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect );
 	void rabbit_clearspritebitmap( bitmap_ind16 &bitmap, const rectangle &cliprect );
 	void draw_sprite_bitmap( bitmap_ind16 &bitmap, const rectangle &cliprect );
-	void rabbit_drawtilemap( bitmap_ind16 &bitmap, const rectangle &cliprect, int whichtilemap );
+	void rabbit_drawtilemap( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int whichtilemap );
 	void rabbit_do_blit();
 	required_device<cpu_device> m_maincpu;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -450,7 +450,7 @@ each line represents the differences on each tilemap for unknown variables
 
 */
 
-void rabbit_state::rabbit_drawtilemap( bitmap_ind16 &bitmap, const rectangle &cliprect, int whichtilemap )
+void rabbit_state::rabbit_drawtilemap( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int whichtilemap )
 {
 	INT32 startx, starty, incxx, incxy, incyx, incyy, tran;
 
@@ -467,7 +467,7 @@ void rabbit_state::rabbit_drawtilemap( bitmap_ind16 &bitmap, const rectangle &cl
 	   startx/starty are also 16.16 scrolling
 	  */
 
-	m_tilemap[whichtilemap]->draw_roz(bitmap, cliprect, startx << 12,starty << 12,
+	m_tilemap[whichtilemap]->draw_roz(screen, bitmap, cliprect, startx << 12,starty << 12,
 			incxx << 5,incxy << 8,incyx << 8,incyy << 5,
 			1,  /* wraparound */
 			tran ? 0 : TILEMAP_DRAW_OPAQUE,0);
@@ -495,10 +495,10 @@ UINT32 rabbit_state::screen_update_rabbit(screen_device &screen, bitmap_ind16 &b
 	/* prio isnt certain but seems to work.. */
 	for (prilevel = 0xf; prilevel >0; prilevel--)
 	{
-		if (prilevel == ((m_tilemap_regs[3][0]&0x0f000000)>>24)) rabbit_drawtilemap(bitmap,cliprect, 3);
-		if (prilevel == ((m_tilemap_regs[2][0]&0x0f000000)>>24)) rabbit_drawtilemap(bitmap,cliprect, 2);
-		if (prilevel == ((m_tilemap_regs[1][0]&0x0f000000)>>24)) rabbit_drawtilemap(bitmap,cliprect, 1);
-		if (prilevel == ((m_tilemap_regs[0][0]&0x0f000000)>>24)) rabbit_drawtilemap(bitmap,cliprect, 0);
+		if (prilevel == ((m_tilemap_regs[3][0]&0x0f000000)>>24)) rabbit_drawtilemap(screen,bitmap,cliprect, 3);
+		if (prilevel == ((m_tilemap_regs[2][0]&0x0f000000)>>24)) rabbit_drawtilemap(screen,bitmap,cliprect, 2);
+		if (prilevel == ((m_tilemap_regs[1][0]&0x0f000000)>>24)) rabbit_drawtilemap(screen,bitmap,cliprect, 1);
+		if (prilevel == ((m_tilemap_regs[0][0]&0x0f000000)>>24)) rabbit_drawtilemap(screen,bitmap,cliprect, 0);
 
 		if (prilevel == 0x09) // should it be selectable?
 		{
@@ -692,13 +692,13 @@ WRITE32_MEMBER(rabbit_state::rabbit_eeprom_write)
 	if (mem_mask == 0xff000000)
 	{
 		// latch the bit
-		m_eeprom->write_bit(data & 0x01000000);
+		m_eeprom->di_write((data & 0x01000000) >> 24);
 
 		// reset line asserted: reset.
-		m_eeprom->set_cs_line((data & 0x04000000) ? CLEAR_LINE : ASSERT_LINE );
+		m_eeprom->cs_write((data & 0x04000000) ? ASSERT_LINE : CLEAR_LINE );
 
 		// clock line asserted: write latch or select next bit to read
-		m_eeprom->set_clock_line((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->clk_write((data & 0x02000000) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 
@@ -740,7 +740,7 @@ ADDRESS_MAP_END
 
 static INPUT_PORTS_START( rabbit )
 	PORT_START("INPUTS")
-	PORT_BIT( 0x00000001, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit) // as per code at 4d932
+	PORT_BIT( 0x00000001, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read) // as per code at 4d932
 	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_UNKNOWN ) // unlabeled in input test
 	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_START1 )
 	PORT_BIT( 0x00000008, IP_ACTIVE_LOW, IPT_START2 )
@@ -893,7 +893,7 @@ static MACHINE_CONFIG_START( rabbit, rabbit_state )
 	MCFG_CPU_PROGRAM_MAP(rabbit_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", rabbit_state,  rabbit_vblank_interrupt)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	MCFG_GFXDECODE(rabbit)
 
@@ -907,7 +907,7 @@ static MACHINE_CONFIG_START( rabbit, rabbit_state )
 	MCFG_SCREEN_UPDATE_DRIVER(rabbit_state, screen_update_rabbit)
 
 	MCFG_PALETTE_LENGTH(0x4000)
-	MCFG_PALETTE_INIT( all_black )
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 
 	/* sound hardware */

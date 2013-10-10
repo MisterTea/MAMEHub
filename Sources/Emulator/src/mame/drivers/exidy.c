@@ -3,7 +3,7 @@
     Exidy 6502 hardware
 
     Games supported:
-        * Side Track
+        * Side Trak
         * Targ
         * Spectar
         * Mouse Trap
@@ -21,7 +21,7 @@
 
 Name                 Year  CPU    board/rom numbers
 
-Side Track           1979  6502   STL, STA
+Side Trak            1979  6502   STL, STA
 Targ                 1980  6502   HRL, HRA
 Spectar              1980  6502   SPL, SPA
 Mouse Trap           1981  6502   MTL, MTA
@@ -145,7 +145,6 @@ Fax                  1982  6502   FXL, FLA
 #include "cpu/m6502/m6502.h"
 #include "machine/6821pia.h"
 #include "audio/exidy.h"
-#include "includes/targ.h"
 #include "includes/exidy.h"
 
 
@@ -220,8 +219,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sidetrac_map, AS_PROGRAM, 8, exidy_state )
 	AM_RANGE(0x0800, 0x3fff) AM_ROM
 	AM_RANGE(0x4800, 0x4fff) AM_ROM AM_SHARE("characterram")
-	AM_RANGE(0x5200, 0x5200) AM_WRITE_LEGACY(targ_audio_1_w)
-	AM_RANGE(0x5201, 0x5201) AM_WRITE_LEGACY(spectar_audio_2_w)
+	AM_RANGE(0x5200, 0x5200) AM_WRITE(targ_audio_1_w)
+	AM_RANGE(0x5201, 0x5201) AM_WRITE(spectar_audio_2_w)
 	AM_RANGE(0xff00, 0xffff) AM_ROM AM_REGION("maincpu", 0x3f00)
 	AM_IMPORT_FROM(exidy_map)
 ADDRESS_MAP_END
@@ -230,8 +229,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( targ_map, AS_PROGRAM, 8, exidy_state )
 	AM_RANGE(0x0800, 0x3fff) AM_ROM
 	AM_RANGE(0x4800, 0x4fff) AM_RAM AM_SHARE("characterram")
-	AM_RANGE(0x5200, 0x5200) AM_WRITE_LEGACY(targ_audio_1_w)
-	AM_RANGE(0x5201, 0x5201) AM_WRITE_LEGACY(targ_audio_2_w)
+	AM_RANGE(0x5200, 0x5200) AM_WRITE(targ_audio_1_w)
+	AM_RANGE(0x5201, 0x5201) AM_WRITE(targ_audio_2_w)
 	AM_RANGE(0xff00, 0xffff) AM_ROM AM_REGION("maincpu", 0x3f00)
 	AM_IMPORT_FROM(exidy_map)
 ADDRESS_MAP_END
@@ -240,8 +239,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( spectar_map, AS_PROGRAM, 8, exidy_state )
 	AM_RANGE(0x0800, 0x3fff) AM_ROM
 	AM_RANGE(0x4800, 0x4fff) AM_RAM AM_SHARE("characterram")
-	AM_RANGE(0x5200, 0x5200) AM_WRITE_LEGACY(targ_audio_1_w)
-	AM_RANGE(0x5201, 0x5201) AM_WRITE_LEGACY(spectar_audio_2_w)
+	AM_RANGE(0x5200, 0x5200) AM_WRITE(targ_audio_1_w)
+	AM_RANGE(0x5201, 0x5201) AM_WRITE(spectar_audio_2_w)
 	AM_RANGE(0xff00, 0xffff) AM_ROM AM_REGION("maincpu", 0x3f00)
 	AM_IMPORT_FROM(exidy_map)
 ADDRESS_MAP_END
@@ -259,8 +258,8 @@ static ADDRESS_MAP_START( rallys_map, AS_PROGRAM, 8, exidy_state )
 	AM_RANGE(0x5101, 0x5101) AM_MIRROR(0x00fc) AM_READ_PORT("IN0")
 	AM_RANGE(0x5101, 0x5101) AM_MIRROR(0x00fc) AM_WRITEONLY AM_SHARE("sprite_enable")
 	AM_RANGE(0x5103, 0x5103) AM_MIRROR(0x00fc) AM_READ(exidy_interrupt_r)
-	AM_RANGE(0x5200, 0x5200) AM_WRITE_LEGACY(targ_audio_1_w)
-	AM_RANGE(0x5201, 0x5201) AM_WRITE_LEGACY(spectar_audio_2_w)
+	AM_RANGE(0x5200, 0x5200) AM_WRITE(targ_audio_1_w)
+	AM_RANGE(0x5201, 0x5201) AM_WRITE(spectar_audio_2_w)
 	AM_RANGE(0x5210, 0x5212) AM_WRITEONLY AM_SHARE("color_latch")
 	AM_RANGE(0x5213, 0x5213) AM_READ_PORT("IN2")
 	AM_RANGE(0x5300, 0x5300) AM_WRITEONLY AM_SHARE("sprite2_xpos")
@@ -1529,13 +1528,13 @@ DRIVER_INIT_MEMBER(exidy_state,fax)
  *
  *************************************/
 
-GAME( 1979, sidetrac, 0,       sidetrac, sidetrac, exidy_state, sidetrac, ROT0, "Exidy",   "Side Track", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, sidetrac, 0,       sidetrac, sidetrac, exidy_state, sidetrac, ROT0, "Exidy",   "Side Trak", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE ) // "Side Track" on title screen, but cabinet/flyers/documentation clearly indicates otherwise, "Side Trak" it is
 GAME( 1980, targ,     0,       targ,     targ, exidy_state,     targ,     ROT0, "Exidy",   "Targ", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, targc,    targ,    targ,     targ, exidy_state,     targ,     ROT0, "Exidy",   "Targ (cocktail?)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, spectar,  0,       spectar,  spectar, exidy_state,  spectar,  ROT0, "Exidy",   "Spectar (revision 3)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, spectar1, spectar, spectar,  spectar, exidy_state,  spectar,  ROT0, "Exidy",   "Spectar (revision 1?)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1980, rallys,   spectar, rallys,   rallys, exidy_state,   rallys,   ROT0, "bootleg (Novar)", "Rallys (bootleg of Spectar)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1980, rallysa,  spectar, rallys,   rallys, exidy_state,   rallys,   ROT0, "bootleg (Musik Box Brescia)", "Rallys (alternate bootleg of Spectar)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1980, rallys,   spectar, rallys,   rallys, exidy_state,   rallys,   ROT0, "bootleg (Novar)", "Rallys (bootleg of Spectar, set 1)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1980, rallysa,  spectar, rallys,   rallys, exidy_state,   rallys,   ROT0, "bootleg (Musik Box Brescia)", "Rallys (bootleg of Spectar, set 2)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, panzer,   spectar, rallys,   rallys, exidy_state,   rallys,   ROT0, "bootleg (Proel)", "Panzer (bootleg of Spectar)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, phantoma, spectar, rallys,   phantoma, exidy_state, phantoma, ROT0, "bootleg (Jeutel)", "Phantomas (bootleg of Spectar)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, phantom,  spectar, rallys,   phantoma, exidy_state, phantoma, ROT0, "bootleg (Proel)", "Phantom (bootleg of Spectar)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )

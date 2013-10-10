@@ -260,10 +260,8 @@ TODO:
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/m68000/m68000.h"
-#include "video/konicdev.h"
 #include "cpu/m6809/m6809.h"
 #include "sound/2151intf.h"
-#include "sound/k007232.h"
 #include "wecleman.lh"
 #include "includes/wecleman.h"
 
@@ -529,10 +527,10 @@ static ADDRESS_MAP_START( hotchase_map, AS_PROGRAM, 16, wecleman_state )
 	AM_RANGE(0x040000, 0x041fff) AM_RAM                                 // RAM
 	AM_RANGE(0x060000, 0x063fff) AM_RAM                                 // RAM
 	AM_RANGE(0x080000, 0x080011) AM_RAM_WRITE(blitter_w) AM_SHARE("blitter_regs")   // Blitter
-	AM_RANGE(0x100000, 0x100fff) AM_DEVREADWRITE8_LEGACY("k051316_1", k051316_r, k051316_w, 0x00ff) // Background
-	AM_RANGE(0x101000, 0x10101f) AM_DEVWRITE8_LEGACY("k051316_1", k051316_ctrl_w, 0x00ff)   // Background Ctrl
-	AM_RANGE(0x102000, 0x102fff) AM_DEVREADWRITE8_LEGACY("k051316_2", k051316_r, k051316_w, 0x00ff) // Foreground
-	AM_RANGE(0x103000, 0x10301f) AM_DEVWRITE8_LEGACY("k051316_2", k051316_ctrl_w, 0x00ff)   // Foreground Ctrl
+	AM_RANGE(0x100000, 0x100fff) AM_DEVREADWRITE8("k051316_1", k051316_device, read, write, 0x00ff) // Background
+	AM_RANGE(0x101000, 0x10101f) AM_DEVWRITE8("k051316_1", k051316_device, ctrl_w, 0x00ff)   // Background Ctrl
+	AM_RANGE(0x102000, 0x102fff) AM_DEVREADWRITE8("k051316_2", k051316_device, read, write, 0x00ff) // Foreground
+	AM_RANGE(0x103000, 0x10301f) AM_DEVWRITE8("k051316_2", k051316_device, ctrl_w, 0x00ff)   // Foreground Ctrl
 	AM_RANGE(0x110000, 0x111fff) AM_RAM_WRITE(hotchase_paletteram16_SBGRBBBBGGGGRRRR_word_w) AM_SHARE("paletteram")
 	AM_RANGE(0x120000, 0x123fff) AM_RAM AM_SHARE("share1")                  // Shared with sub CPU
 	AM_RANGE(0x130000, 0x130fff) AM_RAM AM_SHARE("spriteram")   // Sprites
@@ -617,7 +615,7 @@ WRITE8_MEMBER(wecleman_state::multiply_w)
 
 WRITE8_MEMBER(wecleman_state::wecleman_K00723216_bank_w)
 {
-	k007232_set_bank(m_k007232, 0, ~data&1 );  //* (wecleman062gre)
+	m_k007232->set_bank(0, ~data&1 );  //* (wecleman062gre)
 }
 
 static ADDRESS_MAP_START( wecleman_sound_map, AS_PROGRAM, 8, wecleman_state )
@@ -628,7 +626,7 @@ static ADDRESS_MAP_START( wecleman_sound_map, AS_PROGRAM, 8, wecleman_state )
 	AM_RANGE(0x9000, 0x9001) AM_WRITE(multiply_w)   // Protection
 	AM_RANGE(0x9006, 0x9006) AM_WRITENOP    // ?
 	AM_RANGE(0xa000, 0xa000) AM_READ(soundlatch_byte_r) // From main CPU
-	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232", k007232_r, k007232_w) // K007232 (Reading offset 5/b triggers the sample)
+	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE("k007232", k007232_device, read, write) // K007232 (Reading offset 5/b triggers the sample)
 	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xf000, 0xf000) AM_WRITE(wecleman_K00723216_bank_w)    // Samples banking
 ADDRESS_MAP_END
@@ -650,13 +648,8 @@ WRITE16_MEMBER(wecleman_state::hotchase_soundlatch_w)
 
 WRITE8_MEMBER(wecleman_state::hotchase_sound_control_w)
 {
-	k007232_device *sound[3];
-
 //  int reg[8];
 
-	sound[0] = m_k007232_1;
-	sound[1] = m_k007232_2;
-	sound[2] = m_k007232_3;
 
 //  reg[offset] = data;
 
@@ -673,7 +666,9 @@ WRITE8_MEMBER(wecleman_state::hotchase_sound_control_w)
 			    ++------ chip select ( 0:chip 1, 1:chip2, 2:chip3)
 			    data&0x0f left volume  (data>>4)&0x0f right volume
 			*/
-			k007232_set_volume( sound[offset>>1], offset&1,  (data&0x0f) * 0x08, (data>>4) * 0x08 );
+			m_k007232_1->set_volume( offset&1,  (data&0x0f) * 0x08, (data>>4) * 0x08 );
+			m_k007232_2->set_volume( offset&1,  (data&0x0f) * 0x08, (data>>4) * 0x08 );
+			m_k007232_3->set_volume( offset&1,  (data&0x0f) * 0x08, (data>>4) * 0x08 );
 			break;
 
 		case 0x06:  /* Bankswitch for chips 0 & 1 */
@@ -685,8 +680,8 @@ WRITE8_MEMBER(wecleman_state::hotchase_sound_control_w)
 			// bit 6: chip 2 - ch0 ?
 			// bit 7: chip 2 - ch1 ?
 
-			k007232_set_bank( sound[0], bank0_a, bank0_b );
-			k007232_set_bank( sound[1], bank1_a, bank1_b );
+			m_k007232_1->set_bank( bank0_a, bank0_b );
+			m_k007232_2->set_bank( bank1_a, bank1_b );
 		}
 		break;
 
@@ -695,7 +690,7 @@ WRITE8_MEMBER(wecleman_state::hotchase_sound_control_w)
 			int bank2_a = (data >> 0) & 7;
 			int bank2_b = (data >> 3) & 7;
 
-			k007232_set_bank( sound[2], bank2_a, bank2_b );
+			m_k007232_3->set_bank( bank2_a, bank2_b );
 		}
 		break;
 	}
@@ -705,32 +700,32 @@ WRITE8_MEMBER(wecleman_state::hotchase_sound_control_w)
    even and odd register are mapped swapped */
 READ8_MEMBER(wecleman_state::hotchase_1_k007232_r)
 {
-	return k007232_r(m_k007232_1, space, offset ^ 1);
+	return m_k007232_1->read(space, offset ^ 1);
 }
 
 WRITE8_MEMBER(wecleman_state::hotchase_1_k007232_w)
 {
-	k007232_w(m_k007232_1, space, offset ^ 1, data);
+	m_k007232_1->write(space, offset ^ 1, data);
 }
 
 READ8_MEMBER(wecleman_state::hotchase_2_k007232_r)
 {
-	return k007232_r(m_k007232_2, space, offset ^ 1);
+	return m_k007232_2->read(space, offset ^ 1);
 }
 
 WRITE8_MEMBER(wecleman_state::hotchase_2_k007232_w)
 {
-	k007232_w(m_k007232_2, space, offset ^ 1, data);
+	m_k007232_2->write(space, offset ^ 1, data);
 }
 
 READ8_MEMBER(wecleman_state::hotchase_3_k007232_r)
 {
-	return k007232_r(m_k007232_3, space, offset ^ 1);
+	return m_k007232_3->read(space, offset ^ 1);
 }
 
 WRITE8_MEMBER(wecleman_state::hotchase_3_k007232_w)
 {
-	k007232_w(m_k007232_3, space, offset ^ 1, data);
+	m_k007232_3->write(space, offset ^ 1, data);
 }
 
 static ADDRESS_MAP_START( hotchase_sound_map, AS_PROGRAM, 8, wecleman_state )
@@ -1040,7 +1035,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(wecleman_state::hotchase_scanline)
 
 MACHINE_RESET_MEMBER(wecleman_state,wecleman)
 {
-	k007232_set_bank( m_k007232, 0, 1 );
+	m_k007232->set_bank( 0, 1 );
 }
 
 static MACHINE_CONFIG_START( wecleman, wecleman_state )

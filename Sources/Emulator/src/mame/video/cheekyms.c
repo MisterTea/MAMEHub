@@ -94,8 +94,8 @@ void cheekyms_state::video_start()
 {
 	int width, height;
 
-	width = machine().primary_screen->width();
-	height = machine().primary_screen->height();
+	width = m_screen->width();
+	height = m_screen->height();
 	m_bitmap_buffer = auto_bitmap_ind16_alloc(machine(), width, height);
 
 	m_cm_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(cheekyms_state::cheekyms_get_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
@@ -158,7 +158,7 @@ UINT32 cheekyms_state::screen_update_cheekyms(screen_device &screen, bitmap_ind1
 	draw_sprites(bitmap, cliprect, machine().gfx[1], flip);
 
 	/* draw the tilemap to a temp bitmap */
-	m_cm_tilemap->draw(*m_bitmap_buffer, cliprect, 0, 0);
+	m_cm_tilemap->draw(screen, *m_bitmap_buffer, cliprect, 0, 0);
 
 	/* draw the tilemap to the final bitmap applying the scroll to the man character */
 	for (y = cliprect.min_y; y <= cliprect.max_y; y++)

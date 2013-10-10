@@ -112,8 +112,8 @@ static const UINT16 font[]=
 	0x0000, // 0000 0000 0000 0000 (DEL)
 };
 
-esqvfd_t::esqvfd_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, type, name, tag, owner, clock)
+esqvfd_t::esqvfd_t(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+	device_t(mconfig, type, name, tag, owner, clock, shortname, source)
 {
 }
 
@@ -124,6 +124,7 @@ void esqvfd_t::device_start()
 void esqvfd_t::device_reset()
 {
 	m_cursx = m_cursy = 0;
+	m_savedx = m_savedy = 0;
 	m_curattr = AT_NORMAL;
 	m_lastchar = 0;
 	memset(m_chars, 0, sizeof(m_chars));
@@ -241,6 +242,17 @@ void esq2x40_t::write_char(int data)
 				memset(m_dirty, 1, sizeof(m_dirty));
 				break;
 
+			case 0xf5:  // save cursor position
+				m_savedx = m_cursx;
+				m_savedy = m_cursy;
+				break;
+
+			case 0xf6:  // restore cursor position
+				m_cursx = m_savedx;
+				m_cursy = m_savedy;
+				m_curattr = m_attrs[m_cursy][m_cursx];
+				break;
+
 			default:
 //                printf("Unknown control code %02x\n", data);
 				break;
@@ -265,7 +277,7 @@ void esq2x40_t::write_char(int data)
 	update_display();
 }
 
-esq2x40_t::esq2x40_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) : esqvfd_t(mconfig, ESQ2x40, "Ensoniq 2x40 VFD", tag, owner, clock)
+esq2x40_t::esq2x40_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) : esqvfd_t(mconfig, ESQ2x40, "Ensoniq 2x40 VFD", tag, owner, clock, "esq2x40", __FILE__)
 {
 	m_rows = 2;
 	m_cols = 40;
@@ -318,7 +330,7 @@ void esq1x22_t::write_char(int data)
 	update_display();
 }
 
-esq1x22_t::esq1x22_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) : esqvfd_t(mconfig, ESQ1x22, "Ensoniq 1x22 VFD", tag, owner, clock)
+esq1x22_t::esq1x22_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) : esqvfd_t(mconfig, ESQ1x22, "Ensoniq 1x22 VFD", tag, owner, clock, "esq1x22", __FILE__)
 {
 	m_rows = 1;
 	m_cols = 22;
@@ -382,7 +394,7 @@ void esq2x40_sq1_t::write_char(int data)
 	}
 }
 
-esq2x40_sq1_t::esq2x40_sq1_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) : esqvfd_t(mconfig, ESQ2x40_SQ1, "Ensoniq 2x40 VFD (SQ-1 variant)", tag, owner, clock)
+esq2x40_sq1_t::esq2x40_sq1_t(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) : esqvfd_t(mconfig, ESQ2x40_SQ1, "Ensoniq 2x40 VFD (SQ-1 variant)", tag, owner, clock, "esq2x40_sq1", __FILE__)
 {
 	m_rows = 2;
 	m_cols = 40;

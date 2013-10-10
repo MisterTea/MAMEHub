@@ -5,6 +5,7 @@
 *************************************************************************/
 #include "sound/upd7759.h"
 #include "sound/msm5205.h"
+#include "video/k007121.h"
 
 class combatsc_state : public driver_device
 {
@@ -50,6 +51,9 @@ public:
 	required_device<cpu_device> m_audiocpu;
 	optional_device<k007121_device> m_k007121_1;
 	optional_device<k007121_device> m_k007121_2;
+	required_device<cpu_device> m_maincpu;
+	optional_device<upd7759_device> m_upd7759;
+	optional_device<msm5205_device> m_msm5205;
 	DECLARE_WRITE8_MEMBER(combatsc_vreg_w);
 	DECLARE_WRITE8_MEMBER(combatscb_sh_irqtrigger_w);
 	DECLARE_READ8_MEMBER(combatscb_io_r);
@@ -90,9 +94,6 @@ public:
 	UINT32 screen_update_combatsc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_combatscb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void set_pens(  );
-	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, const UINT8 *source, int circuit, UINT32 pri_mask );
+	void draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, const UINT8 *source, int circuit, bitmap_ind8 &priority_bitmap, UINT32 pri_mask );
 	void bootleg_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, const UINT8 *source, int circuit );
-	required_device<cpu_device> m_maincpu;
-	optional_device<upd7759_device> m_upd7759;
-	optional_device<msm5205_device> m_msm5205;
 };

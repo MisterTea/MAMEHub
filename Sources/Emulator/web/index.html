@@ -1,0 +1,171 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="pragma" content="no-cache">
+	<meta http-equiv="expires" content="-1">  
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">
+	<title>MAME</title>
+	<link rel="shortcut icon" href="favicon.ico">  
+	<link rel="stylesheet" href="css/jquery.mobile.css">    
+	<!-- jQuery and jQuery Mobile -->
+	<script src="js/jquery.js"></script>
+	<script src="js/jquery.mobile.js"></script>   
+</head>
+<body>
+<script language="javascript" type="text/javascript">
+
+  var writeToScreen = function(message) {
+    document.getElementById('current').innerHTML = message;
+  };
+  
+  function takeScreenshot()
+  {
+	document.getElementById('main').innerHTML = '<center><img src="/screenshot.png"/></center>';
+  }
+  
+  function loadContent(htmlName)
+  {  
+	$("#main").load(htmlName+'.html', function () {
+		$(this).trigger('create');
+	});
+  }
+  function executeCommands(command)
+  {
+	$.ajax({
+	  url: "/cmd?name="+command,
+	  cache: false,
+	  dataType: "text",
+	  success: function(data) {
+	  },
+	  error: function (request, status, error) { alert(status + ", " + error); }
+	});	
+  }
+
+  function executeSlider()
+  {
+	$.ajax({
+		  url: "/json/slider",
+		  cache: false,
+		  dataType: "json",
+		  success: function(data) {
+			var items = [];
+			for (var i in data) {
+			   items.push('<label for="slider-mini-'+i+'">'+data[i].description +':</label>');
+			   items.push('<input type="range" name="slider-mini-'+i+'" id="slider-mini-'+i+'" value="'+data[i].curval+'" min="'+data[i].minval+'" max="'+data[i].maxval+'" step=="'+data[i].incval+'" data-highlight="true" data-mini="true" />');
+            }
+			$('#main').html('');
+			$('#main').append(items.join('')).trigger('create'); 
+			for (var i in data) {
+				$('#slider-mini-' + i).bind( "slidestop", function(event, ui) { setSliderValue($(this).attr('id').replace('slider-mini-',''),$(this).slider().val()); });
+			}
+
+		  },
+		  error: function (request, status, error) { alert(status + ", " + error); }
+		});	
+  }
+
+  function setSliderValue(id,val)
+  {
+	$.ajax({
+	  url: "/slider?id="+id+"&val="+val,
+	  cache: false,
+	  dataType: "text",
+	  success: function(data) {
+	  },
+	  error: function (request, status, error) { alert(status + ", " + error); }
+	});	
+  }
+  
+  function startWebSocket() {
+    var url = 'ws://localhost:8080/foo';
+    websocket = new WebSocket(url);
+    websocket.onopen = function(ev) {
+	  writeToScreen('<b style="color: green;">Connected</b>');
+    };
+    websocket.onclose = function(ev) {      
+      writeToScreen('<b style="color: red;">Disconnected</b>');
+    };
+    websocket.onmessage = function(ev) {
+	if (ev.data=='update_machine') 
+	{
+		$.ajax({
+		  url: "json/game",
+		  cache: false,
+		  dataType: "json",
+		  success: function(data) {
+			var items = [];
+			if(data.name =='__empty') {
+				items.push('No driver running');
+			} else {
+				items.push('Currently running : ' + data.description + ' [' + data.manufacturer+']');
+
+			}
+			document.getElementById('current').innerHTML = items.join('');
+		  },
+		  error: function (request, status, error) { alert(status + ", " + error); }
+		});	
+	}
+
+    };
+    websocket.onerror = function(ev) {
+      writeToScreen('<b style="color: red; ">Error</b>');
+    };
+  }
+
+  window.onload = function() {
+	startWebSocket();
+  };
+</script>
+<!-- Home -->
+<div data-role="page" id="page1">
+    <div data-theme="a" data-role="header">
+        <div style="width: 320px; height: 120px; position: relative;">
+            <img src="images/logo-mame-small.png" alt="image" style="position: absolute; top: 50%; left: 50%; margin-left: 0px; margin-top: -50px">
+        </div>
+        <a data-role="button" href="#page1" data-icon="home" data-iconpos="left" class="ui-btn-right">Home </a>
+        <div data-role="navbar" data-iconpos="top">
+            <ul>
+                <li>
+                    <a href="javascript:loadContent('driver');" data-transition="fade" data-icon="bars">Driver</a>
+                </li>
+                <li>
+                    <a href="javascript:loadContent('options');" data-transition="fade" data-icon="gear">Options</a>
+                </li>
+                <li>
+                    <a href="javascript:loadContent('image');" data-transition="fade" data-icon="grid">Image</a>
+                </li>
+                <li>
+                    <a href="javascript:loadContent('commands');" data-transition="fade" data-icon="star">Commands</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div data-role="content" id ="main">		
+    </div>
+    <div data-theme="a" data-role="footer" data-position="fixed">
+		<div  data-role="navbar" data-iconpos="top">
+			<ul>
+				<li>
+					<a href="javascript:loadContent('info');" data-transition="fade" data-icon="info">Info</a>
+				</li>
+				<li>
+					<a href="javascript:loadContent('logs');" data-transition="fade" data-icon="check">Logs</a>
+				</li>
+				<li>
+					<a href="javascript:takeScreenshot();" data-transition="fade" data-icon="search">Screenshot</a>
+				</li>
+				<li>
+					<a href="javascript:startWebSocket();" data-transition="fade" data-icon="refresh">Reconnect</a>
+				</li>
+			</ul>
+		</div>
+		<h3>
+			<div id="current"></div>
+		</h3>
+    </div>
+</div>
+</body>
+</html>

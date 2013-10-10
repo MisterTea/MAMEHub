@@ -7,7 +7,6 @@
 ******************************************************************************/
 
 #include "emu.h"
-#include "includes/nb1413m3.h"
 #include "includes/nbmj8991.h"
 
 /******************************************************************************
@@ -132,8 +131,8 @@ void nbmj8991_state::nbmj8991_vramflip()
 {
 	int x, y;
 	UINT8 color1, color2;
-	int width = machine().primary_screen->width();
-	int height = machine().primary_screen->height();
+	int width = m_screen->width();
+	int height = m_screen->height();
 
 	if (m_flipscreen == m_flipscreen_old) return;
 
@@ -160,19 +159,19 @@ void nbmj8991_state::nbmj8991_vramflip()
 
 void nbmj8991_state::update_pixel(int x, int y)
 {
-	UINT8 color = m_videoram[(y * machine().primary_screen->width()) + x];
+	UINT8 color = m_videoram[(y * m_screen->width()) + x];
 	m_tmpbitmap.pix16(y, x) = color;
 }
 
 TIMER_CALLBACK_MEMBER(nbmj8991_state::blitter_timer_callback)
 {
-	nb1413m3_busyflag = 1;
+	m_nb1413m3->m_busyflag = 1;
 }
 
 void nbmj8991_state::nbmj8991_gfxdraw()
 {
 	UINT8 *GFX = memregion("gfx1")->base();
-	int width = machine().primary_screen->width();
+	int width = m_screen->width();
 
 	int x, y;
 	int dx1, dx2, dy;
@@ -183,7 +182,7 @@ void nbmj8991_state::nbmj8991_gfxdraw()
 	UINT8 color, color1, color2;
 	int gfxaddr, gfxlen;
 
-	nb1413m3_busyctr = 0;
+	m_nb1413m3->m_busyctr = 0;
 
 	if (m_blitter_direction_x)
 	{
@@ -266,12 +265,12 @@ void nbmj8991_state::nbmj8991_gfxdraw()
 				update_pixel(dx2, dy);
 			}
 
-			nb1413m3_busyctr++;
+			m_nb1413m3->m_busyctr++;
 		}
 	}
 
-	nb1413m3_busyflag = 0;
-	machine().scheduler().timer_set(attotime::from_nsec(1650) * nb1413m3_busyctr, timer_expired_delegate(FUNC(nbmj8991_state::blitter_timer_callback),this));
+	m_nb1413m3->m_busyflag = 0;
+	machine().scheduler().timer_set(attotime::from_nsec(1650) * m_nb1413m3->m_busyctr, timer_expired_delegate(FUNC(nbmj8991_state::blitter_timer_callback),this));
 }
 
 /******************************************************************************
@@ -280,10 +279,10 @@ void nbmj8991_state::nbmj8991_gfxdraw()
 ******************************************************************************/
 void nbmj8991_state::video_start()
 {
-	int width = machine().primary_screen->width();
-	int height = machine().primary_screen->height();
+	int width = m_screen->width();
+	int height = m_screen->height();
 
-	machine().primary_screen->register_screen_bitmap(m_tmpbitmap);
+	m_screen->register_screen_bitmap(m_tmpbitmap);
 	m_videoram = auto_alloc_array(machine(), UINT8, width * height);
 	m_clut = auto_alloc_array(machine(), UINT8, 0x800);
 	memset(m_videoram, 0x00, (width * height * sizeof(UINT8)));
@@ -295,8 +294,8 @@ UINT32 nbmj8991_state::screen_update_nbmj8991_type1(screen_device &screen, bitma
 
 	if (m_screen_refresh)
 	{
-		int width = machine().primary_screen->width();
-		int height = machine().primary_screen->height();
+		int width = m_screen->width();
+		int height = m_screen->height();
 
 		m_screen_refresh = 0;
 
@@ -344,7 +343,7 @@ UINT32 nbmj8991_state::screen_update_nbmj8991_type2(screen_device &screen, bitma
 				update_pixel(x, y);
 	}
 
-	if (nb1413m3_inputport & 0x20)
+	if (m_nb1413m3->m_inputport & 0x20)
 	{
 		int scrollx, scrolly;
 

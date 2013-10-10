@@ -5,7 +5,7 @@
 
 #include "video/mc6845.h"
 #include "video/bufsprite.h"
-
+#include "video/toaplan_scu.h"
 
 class twincobr_state : public driver_device
 {
@@ -17,7 +17,9 @@ public:
 		m_spriteram16(*this, "spriteram16"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_dsp(*this, "dsp") { }
+		m_dsp(*this, "dsp"),
+		m_spritegen(*this, "toaplan_scu")
+	{ }
 
 	optional_shared_ptr<UINT8> m_sharedram;
 	optional_device<buffered_spriteram8_device> m_spriteram8;
@@ -27,7 +29,6 @@ public:
 	int m_wardner_membank;
 	INT32 m_fg_rom_bank;
 	INT32 m_bg_ram_bank;
-	INT32 m_wardner_sprite_hack;
 	int m_intenable;
 	int m_dsp_on;
 	int m_dsp_BIO;
@@ -106,6 +107,7 @@ public:
 	DECLARE_MACHINE_RESET(twincobr);
 	DECLARE_VIDEO_START(toaplan0);
 	DECLARE_MACHINE_RESET(wardner);
+	void copy_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority);
 	UINT32 screen_update_toaplan0(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(twincobr_interrupt);
 	INTERRUPT_GEN_MEMBER(wardner_interrupt);
@@ -114,9 +116,8 @@ public:
 	void twincobr_create_tilemaps();
 	void twincobr_display(int enable);
 	void twincobr_flipscreen(int flip);
-	void wardner_sprite_priority_hack();
 	void twincobr_log_vram();
-	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority );
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void twincobr_dsp(int enable);
 	void toaplan0_control_w(int offset, int data);
 	void toaplan0_coin_dsp_w(address_space &space, int offset, int data);
@@ -125,6 +126,8 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_dsp;
+	required_device<toaplan_scu_device> m_spritegen;
+
 };
 
 

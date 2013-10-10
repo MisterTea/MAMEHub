@@ -37,7 +37,6 @@
 
 ***************************************************************************/
 
-
 #include "emu.h"
 #include "cpu/m6502/m6502.h"
 #include "sound/2151intf.h"
@@ -80,6 +79,902 @@ inline const atarigen_screen_timer *get_screen_timer(screen_device &screen)
 
 
 
+//**************************************************************************
+//  SOUND COMMUNICATIONS DEVICE
+//**************************************************************************
+
+// device type definition
+const device_type ATARI_SOUND_COMM = &device_creator<atari_sound_comm_device>;
+
+//-------------------------------------------------
+//  atari_sound_comm_device - constructor
+//-------------------------------------------------
+
+atari_sound_comm_device::atari_sound_comm_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: device_t(mconfig, ATARI_SOUND_COMM, "Atari Sound Communications", tag, owner, clock, "atarscom", __FILE__),
+		m_sound_cpu_tag(NULL),
+		m_main_int_cb(*this),
+		m_sound_cpu(NULL),
+		m_main_to_sound_ready(false),
+		m_sound_to_main_ready(false),
+		m_main_to_sound_data(0),
+		m_sound_to_main_data(0),
+		m_timed_int(0),
+		m_ym2151_int(0)
+{
+}
+
+
+//-------------------------------------------------
+//  static_set_sound_cpu: Set the tag of the
+//  sound CPU
+//-------------------------------------------------
+
+void atari_sound_comm_device::static_set_sound_cpu(device_t &device, const char *cputag)
+{
+	downcast<atari_sound_comm_device &>(device).m_sound_cpu_tag = cputag;
+}
+
+
+//-------------------------------------------------
+//  device_start: Start up the device
+//-------------------------------------------------
+
+void atari_sound_comm_device::device_start()
+{
+	// find the sound CPU
+	if (m_sound_cpu_tag == NULL)
+		throw emu_fatalerror("No sound CPU specified!");
+	m_sound_cpu = siblingdevice<m6502_device>(m_sound_cpu_tag);
+	if (m_sound_cpu == NULL)
+		throw emu_fatalerror("Sound CPU '%s' not found!", m_sound_cpu_tag);
+
+	// resolve callbacks
+	m_main_int_cb.resolve_safe();
+
+	// register for save states
+	save_item(NAME(m_main_to_sound_ready));
+	save_item(NAME(m_sound_to_main_ready));
+	save_item(NAME(m_main_to_sound_data));
+	save_item(NAME(m_sound_to_main_data));
+	save_item(NAME(m_timed_int));
+	save_item(NAME(m_ym2151_int));
+}
+
+
+//-------------------------------------------------
+//  device_reset: Handle a device reset by
+//  clearing the interrupt lines and states
+//-------------------------------------------------
+
+void atari_sound_comm_device::device_reset()
+{
+	// reset the internal interrupts states
+	m_timed_int = m_ym2151_int = 0;
+
+	// reset the sound I/O states
+	m_main_to_sound_data = m_sound_to_main_data = 0;
+	m_main_to_sound_ready = m_sound_to_main_ready = false;
+}
+
+
+//-------------------------------------------------
+//  device_timer: Handle device-specific timer
+//  calbacks
+//-------------------------------------------------
+
+void atari_sound_comm_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+		case TID_SOUND_RESET:
+			delayed_sound_reset(param);
+			break;
+
+		case TID_SOUND_WRITE:
+			delayed_sound_write(param);
+			break;
+
+		case TID_6502_WRITE:
+			delayed_6502_write(param);
+			break;
+	}
+}
+
+
+//-------------------------------------------------
+//  sound_irq_gen: Generates an IRQ signal to the
+//  6502 sound processor.
+//-------------------------------------------------
+
+INTERRUPT_GEN_MEMBER(atari_sound_comm_device::sound_irq_gen)
+{
+	m_timed_int = 1;
+	update_sound_irq();
+}
+
+
+//-------------------------------------------------
+//  sound_irq_ack_r: Resets the IRQ signal to the
+//  6502 sound processor. Both reads and writes
+//  can be used.
+//-------------------------------------------------
+
+READ8_MEMBER(atari_sound_comm_device::sound_irq_ack_r)
+{
+	m_timed_int = 0;
+	update_sound_irq();
+	return 0;
+}
+
+WRITE8_MEMBER(atari_sound_comm_device::sound_irq_ack_w)
+{
+	m_timed_int = 0;
+	update_sound_irq();
+}
+
+
+//-------------------------------------------------
+//  atarigen_ym2151_irq_gen: Sets the state of the
+//  YM2151's IRQ line.
+//-------------------------------------------------
+
+WRITE_LINE_MEMBER(atari_sound_comm_device::ym2151_irq_gen)
+{
+	m_ym2151_int = state;
+	update_sound_irq();
+}
+
+
+//-------------------------------------------------
+//  sound_reset_w: Write handler which resets the
+//  sound CPU in response.
+//-------------------------------------------------
+
+WRITE16_MEMBER(atari_sound_comm_device::sound_reset_w)
+{
+	synchronize(TID_SOUND_RESET);
+}
+
+
+//-------------------------------------------------
+//  main_command_w: Handles communication from the main CPU
+//  to the sound CPU. Two versions are provided, one with the
+//  data byte in the low 8 bits, and one with the data byte in
+//  the upper 8 bits.
+//-------------------------------------------------
+
+WRITE8_MEMBER(atari_sound_comm_device::main_command_w)
+{
+	synchronize(TID_SOUND_WRITE, data);
+}
+
+
+//-------------------------------------------------
+//  main_response_r: Handles reading data communicated from the
+//  sound CPU to the main CPU. Two versions are provided, one
+//  with the data byte in the low 8 bits, and one with the data
+//  byte in the upper 8 bits.
+//-------------------------------------------------
+
+READ8_MEMBER(atari_sound_comm_device::main_response_r)
+{
+	m_sound_to_main_ready = false;
+	m_main_int_cb(CLEAR_LINE);
+	return m_sound_to_main_data;
+}
+
+
+//-------------------------------------------------
+//  sound_response_w: Handles communication from the
+//  sound CPU to the main CPU.
+//-------------------------------------------------
+
+WRITE8_MEMBER(atari_sound_comm_device::sound_response_w)
+{
+	synchronize(TID_6502_WRITE, data);
+}
+
+
+//-------------------------------------------------
+//  sound_command_r: Handles reading data
+//  communicated from the main CPU to the sound
+//  CPU.
+//-------------------------------------------------
+
+READ8_MEMBER(atari_sound_comm_device::sound_command_r)
+{
+	m_main_to_sound_ready = false;
+	m_sound_cpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
+	return m_main_to_sound_data;
+}
+
+
+//-------------------------------------------------
+//  update_sound_irq: Called whenever the IRQ state
+//  changes. An interrupt is generated if either
+//  sound_irq_gen() was called, or if the YM2151
+//  generated an interrupt via the
+//  ym2151_irq_gen() callback.
+//-------------------------------------------------
+
+void atari_sound_comm_device::update_sound_irq()
+{
+	if (m_timed_int || m_ym2151_int)
+		m_sound_cpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+	else
+		m_sound_cpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+}
+
+
+//-------------------------------------------------
+//  delayed_sound_reset: Synchronizes the sound
+//  reset command between the two CPUs.
+//-------------------------------------------------
+
+void atari_sound_comm_device::delayed_sound_reset(int param)
+{
+	// unhalt and reset the sound CPU
+	if (param == 0)
+	{
+		m_sound_cpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
+		m_sound_cpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
+	}
+
+	// reset the sound write state
+	m_sound_to_main_ready = false;
+	m_main_int_cb(CLEAR_LINE);
+
+	// allocate a high frequency timer until a response is generated
+	// the main CPU is *very* sensistive to the timing of the response
+	machine().scheduler().boost_interleave(SOUND_TIMER_RATE, SOUND_TIMER_BOOST);
+}
+
+
+//-------------------------------------------------
+//  delayed_sound_write: Synchronizes a data write
+//  from the main CPU to the sound CPU.
+//-------------------------------------------------
+
+void atari_sound_comm_device::delayed_sound_write(int data)
+{
+	// warn if we missed something
+	if (m_main_to_sound_ready)
+		logerror("Missed command from 68010\n");
+
+	// set up the states and signal an NMI to the sound CPU
+	m_main_to_sound_data = data;
+	m_main_to_sound_ready = true;
+	m_sound_cpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
+
+	// allocate a high frequency timer until a response is generated
+	// the main CPU is *very* sensistive to the timing of the response
+	machine().scheduler().boost_interleave(SOUND_TIMER_RATE, SOUND_TIMER_BOOST);
+}
+
+
+//-------------------------------------------------
+//  delayed_6502_write: Synchronizes a data write
+//  from the sound CPU to the main CPU.
+//-------------------------------------------------
+
+void atari_sound_comm_device::delayed_6502_write(int data)
+{
+	// warn if we missed something
+	if (m_sound_to_main_ready)
+		logerror("Missed result from 6502\n");
+
+	// set up the states and signal the sound interrupt to the main CPU
+	m_sound_to_main_data = data;
+	m_sound_to_main_ready = true;
+	m_main_int_cb(ASSERT_LINE);
+}
+
+
+
+//**************************************************************************
+//  VAD VIDEO CONTROLLER DEVICE
+//**************************************************************************
+
+// device type definition
+const device_type ATARI_VAD = &device_creator<atari_vad_device>;
+
+//-------------------------------------------------
+//  atari_vad_device - constructor
+//-------------------------------------------------
+
+atari_vad_device::atari_vad_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: device_t(mconfig, ATARI_VAD, "Atari VAD", tag, owner, clock, "atarivad", __FILE__),
+		device_video_interface(mconfig, *this),
+		m_scanline_int_cb(*this),
+		m_alpha_tilemap(*this, "alpha"),
+		m_playfield_tilemap(*this, "playfield"),
+		m_playfield2_tilemap(*this, "playfield2"),
+		m_mob(*this, "mob"),
+		m_eof_data(*this, "eof"),
+		m_scanline_int_timer(NULL),
+		m_tilerow_update_timer(NULL),
+		m_eof_timer(NULL),
+		m_palette_bank(0),
+		m_pf0_xscroll_raw(0),
+		m_pf0_yscroll(0),
+		m_pf1_xscroll_raw(0),
+		m_pf1_yscroll(0),
+		m_mo_xscroll(0),
+		m_mo_yscroll(0)
+{
+}
+
+
+//-------------------------------------------------
+//  control_write: Does the bulk of the word for an I/O
+//  write.
+//-------------------------------------------------
+
+WRITE16_MEMBER(atari_vad_device::control_write)
+{
+	UINT16 newword = m_control[offset];
+	COMBINE_DATA(&newword);
+	internal_control_write(offset, newword);
+}
+
+
+//-------------------------------------------------
+//  control_read: Handles an I/O read from the video controller.
+//-------------------------------------------------
+
+READ16_MEMBER(atari_vad_device::control_read)
+{
+	logerror("vc_r(%02X)\n", offset);
+
+	// a read from offset 0 returns the current scanline
+	// also sets bit 0x4000 if we're in VBLANK
+	if (offset == 0)
+	{
+		int result = m_screen->vpos();
+		if (result > 255)
+			result = 255;
+		if (result > m_screen->visible_area().max_y)
+			result |= 0x4000;
+		return result;
+	}
+	else
+		return m_control[offset];
+}
+
+
+//-------------------------------------------------
+//  alpha_w: Generic write handler for alpha RAM.
+//-------------------------------------------------
+
+WRITE16_MEMBER(atari_vad_device::alpha_w)
+{
+	m_alpha_tilemap->write(space, offset, data, mem_mask);
+}
+
+
+//-------------------------------------------------
+//  playfield_upper_w: Generic write handler for
+//  upper word of split playfield RAM.
+//-------------------------------------------------
+
+WRITE16_MEMBER(atari_vad_device::playfield_upper_w)
+{
+	m_playfield_tilemap->write_ext(space, offset, data, mem_mask);
+	if (m_playfield2_tilemap != NULL)
+		m_playfield2_tilemap->write_ext(space, offset, data, mem_mask);
+}
+
+
+//-------------------------------------------------
+//  playfield_latched_lsb_w: Generic write handler for
+//  lower word of playfield RAM with a latch in the LSB of the
+//  upper word.
+//-------------------------------------------------
+
+WRITE16_MEMBER(atari_vad_device::playfield_latched_lsb_w)
+{
+	m_playfield_tilemap->write(space, offset, data, mem_mask);
+	if ((m_control[0x0a] & 0x80) != 0)
+		m_playfield_tilemap->write_ext(space, offset, m_control[0x1d], UINT16(0x00ff));
+}
+
+
+//-------------------------------------------------
+//  playfield_latched_msb_w: Generic write handler for
+//  lower word of playfield RAM with a latch in the MSB of the
+//  upper word.
+//-------------------------------------------------
+
+WRITE16_MEMBER(atari_vad_device::playfield_latched_msb_w)
+{
+	m_playfield_tilemap->write(space, offset, data, mem_mask);
+	if ((m_control[0x0a] & 0x80) != 0)
+		m_playfield_tilemap->write_ext(space, offset, m_control[0x1c], UINT16(0xff00));
+}
+
+
+//-------------------------------------------------
+//  playfield2_latched_msb_w: Generic write handler for
+//  lower word of second playfield RAM with a latch in the MSB
+//  of the upper word.
+//-------------------------------------------------
+
+WRITE16_MEMBER(atari_vad_device::playfield2_latched_msb_w)
+{
+	m_playfield2_tilemap->write(space, offset, data, mem_mask);
+	if ((m_control[0x0a] & 0x80) != 0)
+		m_playfield2_tilemap->write_ext(space, offset, m_control[0x1c], UINT16(0xff00));
+}
+
+
+//-------------------------------------------------
+//  device_start: Start up the device
+//-------------------------------------------------
+
+void atari_vad_device::device_start()
+{
+	// verify configuration
+	if (m_playfield_tilemap == NULL)
+		throw emu_fatalerror("Playfield tilemap not found!");
+	if (m_eof_data == NULL)
+		throw emu_fatalerror("EOF data not found!");
+
+	// resolve callbacks
+	m_scanline_int_cb.resolve_safe();
+
+	// allocate timers
+	m_scanline_int_timer = timer_alloc(TID_SCANLINE_INT);
+	m_tilerow_update_timer = timer_alloc(TID_TILEROW_UPDATE);
+	m_eof_timer = timer_alloc(TID_EOF);
+
+	// register for save states
+	save_item(NAME(m_palette_bank));          // which palette bank is enabled
+	save_item(NAME(m_pf0_xscroll_raw));       // playfield 1 xscroll raw value
+	save_item(NAME(m_pf0_yscroll));           // playfield 1 yscroll
+	save_item(NAME(m_pf1_xscroll_raw));       // playfield 2 xscroll raw value
+	save_item(NAME(m_pf1_yscroll));           // playfield 2 yscroll
+	save_item(NAME(m_mo_xscroll));            // sprite xscroll
+	save_item(NAME(m_mo_yscroll));            // sprite xscroll
+}
+
+
+//-------------------------------------------------
+//  device_reset: Handle a device reset by
+//  clearing the interrupt lines and states
+//-------------------------------------------------
+
+void atari_vad_device::device_reset()
+{
+	// share extended memory between the two tilemaps
+	if (m_playfield2_tilemap != NULL)
+		m_playfield2_tilemap->extmem().set(m_playfield_tilemap->extmem());
+
+	// reset the state
+	m_palette_bank = 0;
+	m_pf0_xscroll_raw = m_pf1_xscroll_raw = 0;
+	m_pf0_yscroll = m_pf1_yscroll = 0;
+	m_mo_xscroll = m_mo_yscroll = 0;
+	memset(m_control, 0, sizeof(m_control));
+
+	// start the timers
+	m_tilerow_update_timer->adjust(m_screen->time_until_pos(0));
+	m_eof_timer->adjust(m_screen->time_until_pos(0));
+}
+
+
+//-------------------------------------------------
+//  device_timer: Handle device-specific timer
+//  calbacks
+//-------------------------------------------------
+
+void atari_vad_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+		case TID_SCANLINE_INT:
+			m_scanline_int_cb(ASSERT_LINE);
+			break;
+
+		case TID_TILEROW_UPDATE:
+			update_tilerow(timer, param);
+			break;
+
+		case TID_EOF:
+			eof_update(timer);
+			break;
+	}
+}
+
+
+//-------------------------------------------------
+//  internal_control_write: Handle writes to the
+//  control registers and EOF updates
+//-------------------------------------------------
+
+void atari_vad_device::internal_control_write(offs_t offset, UINT16 newword)
+{
+	// switch off the offset
+	UINT16 oldword = m_control[offset];
+	m_control[offset] = newword;
+	switch (offset)
+	{
+		//
+		//  VAD register map:
+		//
+		//      00 = HDW_ENABLE
+		//              A000 = enable other VAD params
+		//              E000 = enable other VAD params but disable update from ALPHA RAM
+		//      01 = HDW_VSY_LD (standard = 0x795)
+		//              0FF8 = V_SY_S
+		//              0007 = V_SY_E
+		//      02 = HDW_VBL_LD (standard = 0xAEF)
+		//              FE00 = VLAST
+		//              01FF = V_BL_S
+		//      03 = HDW_VINT
+		//      04 = HDW_HSY_LD (standard = 0x5EEF)
+		//              FC00 = H_SY_E/2
+		//              03FF = H_SY_S
+		//      05 = HDW_HBL_LD (relief = 0x72AC, batman/thunderj = 0xBEB1, shuuz/offtwall = 0xCEB1)
+		//              F000 = LB_CLR
+		//              0800 = H_BL_E/16
+		//              0400 = H_BL_E/1
+		//              03FF = H_BL_S
+		//      06 = HDW_SLIP_LD (relief/batman/shuuz = 0x6F05, shuuz/offtwall = 0x0F05)
+		//              7F00 = SLIP_S
+		//              0080 = SLIP_E_SE1
+		//              007F = SLIP_E
+		//      07 = HDW_APDMA_LD (relief/batman/shuuz = 0xBE84, shuuz = 0xB90E, offtwall = 0xB90D)
+		//              C000 = OPFPIC
+		//              3800 = PF_HRESET/16
+		//              0780 = PFAT
+		//              0070 = AL_HRESET (depending on ALHSIZ)
+		//              000F = ALPHA_DMA
+		//      08 = HDW_PMBASE_LD (relief/batman/shuuz = 0x0519, shuuz/offtwall = 0x49B4)
+		//              E000 = P1BASE/0x2000
+		//              1C00 = P2BASE/0x2000
+		//              0380 = PABASE/0x2000
+		//              0040 = PMASK
+		//              003E = MOBASE/0x800
+		//              0001 = MOMASK
+		//      09 = HDW_ALBASE_LD (relief/batman/shuuz = 0x061F, shuuz/offtwall = 0x017F)
+		//              0400 = OPMINUS1
+		//              03C0 = ALBASE/0x1000
+		//              003F = SLIPBASE/0x80
+		//      0A = HDW_OPT_LD (relief/batman/shuuz = 0x4410, shuuz = 0x0250, offtwall = 0x0A10)
+		//              8000 = OPFHSIZ - subtract 1 from PF2 attribute horizontal stamp address
+		//              4000 = OPIUM - playfield 2 enable
+		//              2000 = OLS_EN - linescroll enable
+		//              1000 = OSLPINK - split links enable
+		//              0800 = OSLORAM - slow MO DMA cycles
+		//              0400 = O_DCDMA - enable double time color RAM DMA cycles
+		//              0200 = O_DVDMA - enable double time video RAM DMA cycles
+		//              0100 = OADROEN - tristate address bus
+		//              0080 = OAS_EN - enable autostore of playfield attributes
+		//              0040 = OCRDWE - enable 8-bit color RAM
+		//              0020 = OVRDTACK - wait for VRAM DMA on writes
+		//              0010 = OCRDTACK - wait for CRAM DMA on writes
+		//              0008 = OALHSIZ - alpha horiz stamp size (0=8)
+		//              0004 = OPFHSIZ - PF horiz stamp size (0=8)
+		//              0002 = OPFVSIZ - PF vertical stamp size (0=8)
+		//              0001 = OMOVSIZ - MO vertical stamp size (0=8)
+		//      10 = HDW_MOCON (MOB chip MOB code)
+		//      11 = HDW_PCON (MOB chip PF code)
+		//      12 = HDW_GRCON (MOB chip GR code)
+		//      13 = MO_hscroll (9)
+		//      14 = PF1_hscroll (A)
+		//      15 = PF2_hscroll (B)
+		//      16 = MO_vscroll (D)
+		//      17 = PF1_vscroll (E)
+		//      18 = PF2_vscroll (F)
+		//
+		//  3efffe = reset to wrong configuration?
+		//
+
+		case 0:
+//if (oldword != newword) printf("Word 0 = %04X\n", newword);
+			break;
+
+		// set the scanline interrupt here
+		case 0x03:
+			if (oldword != newword || !m_scanline_int_timer->enabled())
+				m_scanline_int_timer->adjust(m_screen->time_until_pos(newword & 0x1ff));
+			break;
+
+		// latch enable
+		case 0x0a:
+			// check for palette banking
+			if (m_palette_bank != (((newword & 0x0400) >> 10) ^ 1))
+			{
+				m_screen->update_partial(m_screen->vpos());
+				m_palette_bank = ((newword & 0x0400) >> 10) ^ 1;
+			}
+//if ((oldword & ~0x0080) != (newword & ~0x0080)) printf("Latch control = %04X\n", newword);
+			break;
+
+		// indexed parameters
+		case 0x10: case 0x11: case 0x12: case 0x13:
+		case 0x14: case 0x15: case 0x16: case 0x17:
+		case 0x18: case 0x19: case 0x1a: case 0x1b:
+			update_parameter(newword);
+			break;
+
+		// scanline IRQ ack here
+		case 0x1e:
+			m_scanline_int_cb(CLEAR_LINE);
+			break;
+
+		// log anything else
+		default:
+			if (oldword != newword)
+				logerror("vc_w(%02X, %04X) ** [prev=%04X]\n", offset, newword, oldword);
+			break;
+	}
+}
+
+
+//-------------------------------------------------
+//  update_pf_xscrolls: Update the playfield
+//  scroll values.
+//-------------------------------------------------
+
+inline void atari_vad_device::update_pf_xscrolls()
+{
+	m_playfield_tilemap->set_scrollx(0, m_pf0_xscroll_raw + ((m_pf1_xscroll_raw) & 7));
+	if (m_playfield2_tilemap != NULL)
+		m_playfield2_tilemap->set_scrollx(0, m_pf1_xscroll_raw + 4);
+}
+
+
+//-------------------------------------------------
+//  update_parameter: Update parameters, shared
+//  between end-of-frame, tilerow updates, and
+//  direct control writes.
+//-------------------------------------------------
+
+void atari_vad_device::update_parameter(UINT16 newword)
+{
+	switch (newword & 15)
+	{
+		case 9:
+			m_mo_xscroll = (newword >> 7) & 0x1ff;
+			if (m_mob != NULL)
+				m_mob->set_xscroll(m_mo_xscroll);
+			break;
+
+		case 10:
+			m_pf1_xscroll_raw = (newword >> 7) & 0x1ff;
+			update_pf_xscrolls();
+			break;
+
+		case 11:
+			m_pf0_xscroll_raw = (newword >> 7) & 0x1ff;
+			update_pf_xscrolls();
+			break;
+
+		case 13:
+			m_mo_yscroll = (newword >> 7) & 0x1ff;
+			if (m_mob != NULL)
+				m_mob->set_yscroll(m_mo_yscroll);
+			break;
+
+		case 14:
+			m_pf1_yscroll = (newword >> 7) & 0x1ff;
+			if (m_playfield2_tilemap != NULL)
+				m_playfield2_tilemap->set_scrolly(0, m_pf1_yscroll);
+			break;
+
+		case 15:
+			m_pf0_yscroll = (newword >> 7) & 0x1ff;
+			m_playfield_tilemap->set_scrolly(0, m_pf0_yscroll);
+			break;
+	}
+}
+
+
+//-------------------------------------------------
+//  update_tilerow: Fetch parameters stored at
+//  the end of the current tilerow, which affect
+//  rowscrolling.
+//-------------------------------------------------
+
+void atari_vad_device::update_tilerow(emu_timer &timer, int scanline)
+{
+	// skip if out of bounds, or not enabled
+	if (scanline <= m_screen->visible_area().max_y && (m_control[0x0a] & 0x2000) != 0 && m_alpha_tilemap != NULL)
+	{
+		// iterate over non-visible alpha tiles in this row
+		int offset = scanline / 8 * 64 + 48 + 2 * (scanline % 8);
+		int data0 = m_alpha_tilemap->basemem_read(offset++);
+		int data1 = m_alpha_tilemap->basemem_read(offset++);
+
+		// force an update if we have data
+		if (scanline > 0 && ((data0 | data1) & 15) != 0)
+			m_screen->update_partial(scanline - 1);
+
+		// write the data
+		if ((data0 & 15) != 0)
+			update_parameter(data0);
+		if ((data1 & 15) != 0)
+			update_parameter(data1);
+	}
+
+	// update the timer to go off at the start of the next row
+	scanline += ((m_control[0x0a] & 0x2000) != 0) ? 1 : 8;
+	if (scanline >= m_screen->height())
+		scanline = 0;
+	timer.adjust(m_screen->time_until_pos(scanline), scanline);
+}
+
+
+//-------------------------------------------------
+//  eof_update: Callback that slurps up data and
+//  feeds it into the video controller registers
+//  every refresh.
+//-------------------------------------------------
+
+void atari_vad_device::eof_update(emu_timer &timer)
+{
+	// echo all the commands to the video controller
+	for (int i = 0; i < 0x1c; i++)
+		if (m_eof_data[i] != 0)
+			internal_control_write(i, m_eof_data[i]);
+
+	// update the scroll positions
+/*  atarimo_set_xscroll(0, m_mo_xscroll);
+    atarimo_set_yscroll(0, m_mo_yscroll);
+
+    update_pf_xscrolls();
+
+    m_playfield_tilemap->set_scrolly(0, m_pf0_yscroll);
+    if (m_playfield2_tilemap != NULL)
+        m_playfield2_tilemap->set_scrolly(0, m_pf1_yscroll);*/
+	timer.adjust(m_screen->time_until_pos(0));
+
+	// use this for debugging the video controller values
+#if 0
+	if (machine().input().code_pressed(KEYCODE_8))
+	{
+		static FILE *out;
+		if (!out) out = fopen("scroll.log", "w");
+		if (out)
+		{
+			for (i = 0; i < 64; i++)
+				fprintf(out, "%04X ", data[i]);
+			fprintf(out, "\n");
+		}
+	}
+#endif
+}
+
+
+
+//**************************************************************************
+//  EEPROM INTERFACE DEVICE
+//**************************************************************************
+
+// device type definition
+const device_type ATARI_EEPROM_2804 = &device_creator<atari_eeprom_2804_device>;
+const device_type ATARI_EEPROM_2816 = &device_creator<atari_eeprom_2816_device>;
+
+//-------------------------------------------------
+//  atari_eeprom_device - constructor
+//-------------------------------------------------
+
+atari_eeprom_device::atari_eeprom_device(const machine_config &mconfig, device_type devtype, const char *name, const char *tag, device_t *owner, const char *shortname, const char *file)
+	: device_t(mconfig, devtype, name, tag, owner, 0, shortname, file),
+		m_eeprom(*this, "eeprom"),
+		m_unlocked(false)
+{
+}
+
+
+//-------------------------------------------------
+//  unlock_read/unlock_write - unlock read/write
+//  handlers
+//-------------------------------------------------
+
+READ8_MEMBER(atari_eeprom_device::unlock_read) { m_unlocked = true; return space.unmap(); }
+WRITE8_MEMBER(atari_eeprom_device::unlock_write) { m_unlocked = true; }
+READ16_MEMBER(atari_eeprom_device::unlock_read) { m_unlocked = true; return space.unmap(); }
+WRITE16_MEMBER(atari_eeprom_device::unlock_write) { m_unlocked = true; }
+READ32_MEMBER(atari_eeprom_device::unlock_read) { m_unlocked = true; return space.unmap(); }
+WRITE32_MEMBER(atari_eeprom_device::unlock_write) { m_unlocked = true; }
+
+
+//-------------------------------------------------
+//  read/write - data read/write handlers
+//-------------------------------------------------
+
+READ8_MEMBER(atari_eeprom_device::read)
+{
+	return m_eeprom->read(space, offset);
+}
+
+WRITE8_MEMBER(atari_eeprom_device::write)
+{
+	if (m_unlocked)
+		m_eeprom->write(space, offset, data, mem_mask);
+	else
+		logerror("%s: Attemptedt to write to EEPROM while not unlocked\n", machine().describe_context());
+	m_unlocked = false;
+}
+
+
+//-------------------------------------------------
+//  device_start: Start up the device
+//-------------------------------------------------
+
+void atari_eeprom_device::device_start()
+{
+	// register for save states
+	save_item(NAME(m_unlocked));
+}
+
+
+//-------------------------------------------------
+//  device_reset: Handle a device reset by
+//  clearing the interrupt lines and states
+//-------------------------------------------------
+
+void atari_eeprom_device::device_reset()
+{
+	// reset unlocked state
+	m_unlocked = false;
+}
+
+
+//-------------------------------------------------
+//  atari_eeprom_2804_device - constructor
+//-------------------------------------------------
+
+atari_eeprom_2804_device::atari_eeprom_2804_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: atari_eeprom_device(mconfig, ATARI_EEPROM_2804, "Atari EEPROM Interface (2804)", tag, owner, "atari2804", __FILE__)
+{
+}
+
+
+//-------------------------------------------------
+//  device_mconfig_additions - return machine
+//  config fragment
+//-------------------------------------------------
+
+MACHINE_CONFIG_FRAGMENT(atari_eeprom_2804_config)
+	MCFG_EEPROM_2804_ADD("eeprom")
+MACHINE_CONFIG_END
+
+machine_config_constructor atari_eeprom_2804_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME(atari_eeprom_2804_config);
+}
+
+
+//-------------------------------------------------
+//  atari_eeprom_2816_device - constructor
+//-------------------------------------------------
+
+atari_eeprom_2816_device::atari_eeprom_2816_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: atari_eeprom_device(mconfig, ATARI_EEPROM_2816, "Atari EEPROM Interface (2816)", tag, owner, "atari2816", __FILE__)
+{
+}
+
+
+//-------------------------------------------------
+//  device_mconfig_additions - return machine
+//  config fragment
+//-------------------------------------------------
+
+MACHINE_CONFIG_FRAGMENT(atari_eeprom_2816_config)
+	MCFG_EEPROM_2816_ADD("eeprom")
+MACHINE_CONFIG_END
+
+machine_config_constructor atari_eeprom_2816_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME(atari_eeprom_2816_config);
+}
+
+
+
 /***************************************************************************
     OVERALL INIT
 ***************************************************************************/
@@ -89,30 +984,11 @@ atarigen_state::atarigen_state(const machine_config &mconfig, device_type type, 
 		m_earom(*this, "earom"),
 		m_earom_data(0),
 		m_earom_control(0),
-		m_eeprom(*this, "eeprom"),
-		m_eeprom32(*this, "eeprom"),
 		m_scanline_int_state(0),
 		m_sound_int_state(0),
 		m_video_int_state(0),
-		m_eeprom_default(NULL),
-		m_cpu_to_sound_ready(0),
-		m_sound_to_cpu_ready(0),
-		m_playfield(*this, "playfield"),
-		m_playfield2(*this, "playfield2"),
-		m_playfield_upper(*this, "playfield_up"),
-		m_alpha(*this, "alpha"),
-		m_alpha2(*this, "alpha2"),
 		m_xscroll(*this, "xscroll"),
 		m_yscroll(*this, "yscroll"),
-		m_playfield32(*this, "playfield32"),
-		m_alpha32(*this, "alpha32"),
-		m_playfield_tilemap(NULL),
-		m_playfield2_tilemap(NULL),
-		m_alpha_tilemap(NULL),
-		m_alpha2_tilemap(NULL),
-		m_atarivc_data(*this, "atarivc_data"),
-		m_atarivc_eof_data(*this, "atarivc_eof"),
-		m_eeprom_unlocked(false),
 		m_slapstic_num(0),
 		m_slapstic(NULL),
 		m_slapstic_bank(0),
@@ -120,33 +996,16 @@ atarigen_state::atarigen_state(const machine_config &mconfig, device_type type, 
 		m_slapstic_last_address(0),
 		m_slapstic_base(0),
 		m_slapstic_mirror(0),
-		m_sound_cpu(*this, "audiocpu"),
-		m_cpu_to_sound(0),
-		m_sound_to_cpu(0),
-		m_timed_int(0),
-		m_ym2151_int(0),
 		m_scanlines_per_callback(0),
-		m_actual_vc_latch0(0),
-		m_actual_vc_latch1(0),
-		m_atarivc_playfields(0),
-		m_playfield_latch(0),
-		m_playfield2_latch(0),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
-		m_jsacpu(*this, "jsa"),
-		m_oki(*this, "oki")
+		m_oki(*this, "oki"),
+		m_soundcomm(*this, "soundcomm")
 {
 }
 
 void atarigen_state::machine_start()
 {
-	// find the sound CPU, until JSA is moved to be independent
-	if (m_sound_cpu == NULL)
-	{
-		if (m_jsacpu != NULL)
-			m_sound_cpu.set_target(m_jsacpu);
-	}
-
 	screen_device *screen;
 	int i;
 
@@ -158,48 +1017,18 @@ void atarigen_state::machine_start()
 		m_screen_timer[i].screen = screen;
 		m_screen_timer[i].scanline_interrupt_timer = timer_alloc(TID_SCANLINE_INTERRUPT, (void *)screen);
 		m_screen_timer[i].scanline_timer = timer_alloc(TID_SCANLINE_TIMER, (void *)screen);
-		m_screen_timer[i].atarivc_eof_update_timer = timer_alloc(TID_ATARIVC_EOF, (void *)screen);
 	}
 
 	save_item(NAME(m_scanline_int_state));
 	save_item(NAME(m_sound_int_state));
 	save_item(NAME(m_video_int_state));
 
-	save_item(NAME(m_cpu_to_sound_ready));
-	save_item(NAME(m_sound_to_cpu_ready));
-
-	save_item(NAME(m_atarivc_state.latch1));                // latch #1 value (-1 means disabled)
-	save_item(NAME(m_atarivc_state.latch2));                // latch #2 value (-1 means disabled)
-	save_item(NAME(m_atarivc_state.rowscroll_enable));      // true if row-scrolling is enabled
-	save_item(NAME(m_atarivc_state.palette_bank));          // which palette bank is enabled
-	save_item(NAME(m_atarivc_state.pf0_xscroll));           // playfield 1 xscroll
-	save_item(NAME(m_atarivc_state.pf0_xscroll_raw));       // playfield 1 xscroll raw value
-	save_item(NAME(m_atarivc_state.pf0_yscroll));           // playfield 1 yscroll
-	save_item(NAME(m_atarivc_state.pf1_xscroll));           // playfield 2 xscroll
-	save_item(NAME(m_atarivc_state.pf1_xscroll_raw));       // playfield 2 xscroll raw value
-	save_item(NAME(m_atarivc_state.pf1_yscroll));           // playfield 2 yscroll
-	save_item(NAME(m_atarivc_state.mo_xscroll));            // sprite xscroll
-	save_item(NAME(m_atarivc_state.mo_yscroll));            // sprite xscroll
-
-	save_item(NAME(m_eeprom_unlocked));
-
 	save_item(NAME(m_slapstic_num));
 	save_item(NAME(m_slapstic_bank));
 	save_item(NAME(m_slapstic_last_pc));
 	save_item(NAME(m_slapstic_last_address));
 
-	save_item(NAME(m_cpu_to_sound));
-	save_item(NAME(m_sound_to_cpu));
-	save_item(NAME(m_timed_int));
-	save_item(NAME(m_ym2151_int));
-
 	save_item(NAME(m_scanlines_per_callback));
-
-	save_item(NAME(m_actual_vc_latch0));
-	save_item(NAME(m_actual_vc_latch1));
-
-	save_item(NAME(m_playfield_latch));
-	save_item(NAME(m_playfield2_latch));
 
 	save_item(NAME(m_earom_data));
 	save_item(NAME(m_earom_control));
@@ -215,20 +1044,12 @@ void atarigen_state::machine_reset()
 	if (m_earom != NULL)
 		m_earom->set_control(0, 1, 1, 0, 0);
 
-	// reset the EEPROM
-	m_eeprom_unlocked = false;
-	if (m_eeprom == NULL && m_eeprom32 != NULL)
-		m_eeprom.set_target(reinterpret_cast<UINT16 *>(m_eeprom32.target()), m_eeprom32.bytes());
-
 	// reset the slapstic
 	if (m_slapstic_num != 0)
 	{
 		slapstic_reset();
 		slapstic_update_bank(slapstic_bank());
 	}
-
-	// reset sound I/O
-	sound_io_reset();
 }
 
 
@@ -246,23 +1067,6 @@ void atarigen_state::device_timer(emu_timer &timer, device_timer_id id, int para
 
 		case TID_SCANLINE_TIMER:
 			scanline_timer(timer, *reinterpret_cast<screen_device *>(ptr), param);
-			break;
-
-		case TID_ATARIVC_EOF:
-			atarivc_eof_update(timer, *reinterpret_cast<screen_device *>(ptr));
-			break;
-
-		// sound I/O
-		case TID_SOUND_RESET:
-			delayed_sound_reset(param);
-			break;
-
-		case TID_SOUND_WRITE:
-			delayed_sound_write(param);
-			break;
-
-		case TID_6502_WRITE:
-			delayed_6502_write(param);
 			break;
 
 		// unhalt the CPU that was passed as a pointer
@@ -294,6 +1098,18 @@ void atarigen_state::scanline_int_set(screen_device &screen, int scanline)
 
 
 //-------------------------------------------------
+//  sound_int_write_line: Standard write line
+//  callback for the scanline interrupt
+//-------------------------------------------------
+
+WRITE_LINE_MEMBER(atarigen_state::scanline_int_write_line)
+{
+	m_scanline_int_state = state;
+	update_interrupts();
+}
+
+
+//-------------------------------------------------
 //  scanline_int_gen: Standard interrupt routine
 //  which sets the scanline interrupt state.
 //-------------------------------------------------
@@ -313,6 +1129,18 @@ INTERRUPT_GEN_MEMBER(atarigen_state::scanline_int_gen)
 WRITE16_MEMBER(atarigen_state::scanline_int_ack_w)
 {
 	m_scanline_int_state = 0;
+	update_interrupts();
+}
+
+
+//-------------------------------------------------
+//  sound_int_write_line: Standard write line
+//  callback for the sound interrupt
+//-------------------------------------------------
+
+WRITE_LINE_MEMBER(atarigen_state::sound_int_write_line)
+{
+	m_sound_int_state = state;
 	update_interrupts();
 }
 
@@ -367,75 +1195,13 @@ WRITE16_MEMBER(atarigen_state::video_int_ack_w)
 
 
 /***************************************************************************
-    EEPROM HANDLING
-***************************************************************************/
-
-//-------------------------------------------------
-//  eeprom_enable_w: Any write to this handler will
-//  allow one byte to be written to the EEPROM data area the
-//  next time.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::eeprom_enable_w)
-{
-	m_eeprom_unlocked = true;
-}
-
-
-//-------------------------------------------------
-//  eeprom_w: Writes a "word" to the EEPROM, which is
-//  almost always accessed via the low byte of the word only.
-//  If the EEPROM hasn't been unlocked, the write attempt is
-//  ignored.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::eeprom_w)
-{
-	if (!m_eeprom_unlocked)
-		return;
-
-	COMBINE_DATA(&m_eeprom[offset]);
-	m_eeprom_unlocked = false;
-}
-
-WRITE32_MEMBER(atarigen_state::eeprom32_w)
-{
-	if (!m_eeprom_unlocked)
-		return;
-
-	COMBINE_DATA(&m_eeprom[offset * 2 + 1]);
-	data >>= 16;
-	mem_mask >>= 16;
-	COMBINE_DATA(&m_eeprom[offset * 2]);
-	m_eeprom_unlocked = false;
-}
-
-
-//-------------------------------------------------
-//  eeprom_r: Reads a "word" from the EEPROM, which is
-//  almost always accessed via the low byte of the word only.
-//-------------------------------------------------
-
-READ16_MEMBER(atarigen_state::eeprom_r)
-{
-	return m_eeprom[offset] | 0xff00;
-}
-
-READ32_MEMBER(atarigen_state::eeprom_upper32_r)
-{
-	return (m_eeprom[offset * 2] << 16) | m_eeprom[offset * 2 + 1] | 0x00ff00ff;
-}
-
-
-
-/***************************************************************************
     SLAPSTIC HANDLING
 ***************************************************************************/
 
 inline void atarigen_state::slapstic_update_bank(int bank)
 {
 	// if the bank has changed, copy the memory; Pit Fighter needs this
-	if (m_slapstic && bank != m_slapstic_bank)
+	if (bank != m_slapstic_bank)
 	{
 		// bank 0 comes from the copy we made earlier
 		if (bank == 0)
@@ -543,224 +1309,6 @@ READ16_MEMBER(atarigen_state::slapstic_r)
 
 
 /***************************************************************************
-    SOUND I/O
-***************************************************************************/
-
-//-------------------------------------------------
-//  sound_io_reset: Resets the state of the sound I/O.
-//-------------------------------------------------
-
-void atarigen_state::sound_io_reset()
-{
-	// reset the internal interrupts states
-	m_timed_int = m_ym2151_int = 0;
-
-	// reset the sound I/O states
-	m_cpu_to_sound = m_sound_to_cpu = 0;
-	m_cpu_to_sound_ready = m_sound_to_cpu_ready = 0;
-}
-
-
-//-------------------------------------------------
-//  m6502_irq_gen: Generates an IRQ signal to the
-//  6502 sound processor.
-//-------------------------------------------------
-
-INTERRUPT_GEN_MEMBER(atarigen_state::m6502_irq_gen)
-{
-	m_timed_int = 1;
-	update_m6502_irq();
-}
-
-
-//-------------------------------------------------
-//  m6502_irq_ack_r: Resets the IRQ signal to the 6502
-//  sound processor. Both reads and writes can be used.
-//-------------------------------------------------
-
-READ8_MEMBER(atarigen_state::m6502_irq_ack_r)
-{
-	m_timed_int = 0;
-	update_m6502_irq();
-	return 0;
-}
-
-WRITE8_MEMBER(atarigen_state::m6502_irq_ack_w)
-{
-	m_timed_int = 0;
-	update_m6502_irq();
-}
-
-
-//-------------------------------------------------
-//  atarigen_ym2151_irq_gen: Sets the state of the YM2151's
-//  IRQ line.
-//-------------------------------------------------
-
-WRITE_LINE_MEMBER(atarigen_state::ym2151_irq_gen)
-{
-	m_ym2151_int = state;
-	update_m6502_irq();
-}
-
-
-//-------------------------------------------------
-//  sound_reset_w: Write handler which resets the
-//  sound CPU in response.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::sound_reset_w)
-{
-	synchronize(TID_SOUND_RESET);
-}
-
-
-//-------------------------------------------------
-//  sound_cpu_reset: Resets the state of the sound
-//  CPU manually.
-//-------------------------------------------------
-
-void atarigen_state::sound_cpu_reset()
-{
-	synchronize(TID_SOUND_RESET, 1);
-}
-
-
-//-------------------------------------------------
-//  atarigen_sound_w: Handles communication from the main CPU
-//  to the sound CPU. Two versions are provided, one with the
-//  data byte in the low 8 bits, and one with the data byte in
-//  the upper 8 bits.
-//-------------------------------------------------
-
-WRITE8_MEMBER(atarigen_state::sound_w)
-{
-	synchronize(TID_SOUND_WRITE, data);
-}
-
-
-//-------------------------------------------------
-//  sound_r: Handles reading data communicated from the
-//  sound CPU to the main CPU. Two versions are provided, one
-//  with the data byte in the low 8 bits, and one with the data
-//  byte in the upper 8 bits.
-//-------------------------------------------------
-
-READ8_MEMBER(atarigen_state::sound_r)
-{
-	m_sound_to_cpu_ready = 0;
-	sound_int_ack_w(space, 0, 0);
-	return m_sound_to_cpu;
-}
-
-
-//-------------------------------------------------
-//  m6502_sound_w: Handles communication from the
-//  sound CPU to the main CPU.
-//-------------------------------------------------
-
-WRITE8_MEMBER(atarigen_state::m6502_sound_w)
-{
-	synchronize(TID_6502_WRITE, data);
-}
-
-
-//-------------------------------------------------
-//  m6502_sound_r: Handles reading data
-//  communicated from the main CPU to the sound
-//  CPU.
-//-------------------------------------------------
-
-READ8_MEMBER(atarigen_state::m6502_sound_r)
-{
-	m_cpu_to_sound_ready = 0;
-	m_sound_cpu->set_input_line(INPUT_LINE_NMI, CLEAR_LINE);
-	return m_cpu_to_sound;
-}
-
-
-//-------------------------------------------------
-//  update_m6502_irq: Called whenever the IRQ state changes. An
-//  interrupt is generated if either m6502_irq_gen()
-//  was called, or if the YM2151 generated an interrupt via
-//  the atarigen_ym2151_irq_gen() callback.
-//-------------------------------------------------
-
-void atarigen_state::update_m6502_irq()
-{
-	if (m_timed_int || m_ym2151_int)
-		m_sound_cpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
-	else
-		m_sound_cpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
-}
-
-
-//-------------------------------------------------
-//  delayed_sound_reset: Synchronizes the sound reset command
-//  between the two CPUs.
-//-------------------------------------------------
-
-void atarigen_state::delayed_sound_reset(int param)
-{
-	// unhalt and reset the sound CPU
-	if (param == 0)
-	{
-		m_sound_cpu->set_input_line(INPUT_LINE_HALT, CLEAR_LINE);
-		m_sound_cpu->set_input_line(INPUT_LINE_RESET, PULSE_LINE);
-	}
-
-	// reset the sound write state
-	m_sound_to_cpu_ready = 0;
-	sound_int_ack_w(m_sound_cpu->space(AS_PROGRAM), 0, 0);
-
-	// allocate a high frequency timer until a response is generated
-	// the main CPU is *very* sensistive to the timing of the response
-	machine().scheduler().boost_interleave(SOUND_TIMER_RATE, SOUND_TIMER_BOOST);
-}
-
-
-//-------------------------------------------------
-//  delayed_sound_write: Synchronizes a data write
-//  from the main CPU to the sound CPU.
-//-------------------------------------------------
-
-void atarigen_state::delayed_sound_write(int data)
-{
-	// warn if we missed something
-	if (m_cpu_to_sound_ready)
-		logerror("Missed command from 68010\n");
-
-	// set up the states and signal an NMI to the sound CPU
-	m_cpu_to_sound = data;
-	m_cpu_to_sound_ready = 1;
-	m_sound_cpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
-
-	// allocate a high frequency timer until a response is generated
-	// the main CPU is *very* sensistive to the timing of the response
-	machine().scheduler().boost_interleave(SOUND_TIMER_RATE, SOUND_TIMER_BOOST);
-}
-
-
-//-------------------------------------------------
-//  delayed_6502_write: Synchronizes a data write
-//  from the sound CPU to the main CPU.
-//-------------------------------------------------
-
-void atarigen_state::delayed_6502_write(int data)
-{
-	// warn if we missed something
-	if (m_sound_to_cpu_ready)
-		logerror("Missed result from 6502\n");
-
-	// set up the states and signal the sound interrupt to the main CPU
-	m_sound_to_cpu = data;
-	m_sound_to_cpu_ready = 1;
-	sound_int_gen(*m_maincpu);
-}
-
-
-
-/***************************************************************************
     SOUND HELPERS
 ***************************************************************************/
 
@@ -846,404 +1394,6 @@ void atarigen_state::scanline_timer(emu_timer &timer, screen_device &screen, int
 	if (scanline >= screen.height())
 		scanline = 0;
 	timer.adjust(screen.time_until_pos(scanline), scanline);
-}
-
-
-
-/***************************************************************************
-    VIDEO CONTROLLER
-***************************************************************************/
-
-//-------------------------------------------------
-//  atarivc_eof_update: Callback that slurps up data and feeds
-//  it into the video controller registers every refresh.
-//-------------------------------------------------
-
-void atarigen_state::atarivc_eof_update(emu_timer &timer, screen_device &screen)
-{
-	// echo all the commands to the video controller
-	for (int i = 0; i < 0x1c; i++)
-		if (m_atarivc_eof_data[i])
-			atarivc_common_w(screen, i, m_atarivc_eof_data[i]);
-
-	// update the scroll positions
-	atarimo_set_xscroll(0, m_atarivc_state.mo_xscroll);
-	atarimo_set_yscroll(0, m_atarivc_state.mo_yscroll);
-
-	m_playfield_tilemap->set_scrollx(0, m_atarivc_state.pf0_xscroll);
-	m_playfield_tilemap->set_scrolly(0, m_atarivc_state.pf0_yscroll);
-
-	if (m_atarivc_playfields > 1)
-	{
-		m_playfield2_tilemap->set_scrollx(0, m_atarivc_state.pf1_xscroll);
-		m_playfield2_tilemap->set_scrolly(0, m_atarivc_state.pf1_yscroll);
-	}
-	timer.adjust(screen.time_until_pos(0));
-
-	// use this for debugging the video controller values
-#if 0
-	if (machine().input().code_pressed(KEYCODE_8))
-	{
-		static FILE *out;
-		if (!out) out = fopen("scroll.log", "w");
-		if (out)
-		{
-			for (i = 0; i < 64; i++)
-				fprintf(out, "%04X ", data[i]);
-			fprintf(out, "\n");
-		}
-	}
-#endif
-}
-
-
-//-------------------------------------------------
-//  atarivc_reset: Initializes the video controller.
-//-------------------------------------------------
-
-void atarigen_state::atarivc_reset(screen_device &screen, UINT16 *eof_data, int playfields)
-{
-	// this allows us to manually reset eof_data to NULL if it's not used
-	m_atarivc_eof_data.set_target(eof_data, 0x100);
-	m_atarivc_playfields = playfields;
-
-	// clear the RAM we use
-	memset(m_atarivc_data, 0, 0x40);
-	memset(&m_atarivc_state, 0, sizeof(m_atarivc_state));
-
-	// reset the latches
-	m_atarivc_state.latch1 = m_atarivc_state.latch2 = -1;
-	m_actual_vc_latch0 = m_actual_vc_latch1 = -1;
-
-	// start a timer to go off a little before scanline 0
-	if (m_atarivc_eof_data != NULL)
-		get_screen_timer(screen)->atarivc_eof_update_timer->adjust(screen.time_until_pos(0));
-}
-
-
-//-------------------------------------------------
-//  atarivc_w: Handles an I/O write to the video controller.
-//-------------------------------------------------
-
-void atarigen_state::atarivc_w(screen_device &screen, offs_t offset, UINT16 data, UINT16 mem_mask)
-{
-	int oldword = m_atarivc_data[offset];
-	int newword = oldword;
-
-	COMBINE_DATA(&newword);
-	atarivc_common_w(screen, offset, newword);
-}
-
-
-
-//-------------------------------------------------
-//  atarivc_common_w: Does the bulk of the word for an I/O
-//  write.
-//-------------------------------------------------
-
-void atarigen_state::atarivc_common_w(screen_device &screen, offs_t offset, UINT16 newword)
-{
-	int oldword = m_atarivc_data[offset];
-	m_atarivc_data[offset] = newword;
-
-	// switch off the offset
-	switch (offset)
-	{
-		//
-		//  additional registers:
-		//
-		//      01 = vertical start (for centering)
-		//      04 = horizontal start (for centering)
-		//
-
-		// set the scanline interrupt here
-		case 0x03:
-			if (oldword != newword)
-				scanline_int_set(screen, newword & 0x1ff);
-			break;
-
-		// latch enable
-		case 0x0a:
-
-			// reset the latches when disabled
-			set_playfield_latch((newword & 0x0080) ? m_actual_vc_latch0 : -1);
-			set_playfield2_latch((newword & 0x0080) ? m_actual_vc_latch1 : -1);
-
-			// check for rowscroll enable
-			m_atarivc_state.rowscroll_enable = (newword & 0x2000) >> 13;
-
-			// check for palette banking
-			if (m_atarivc_state.palette_bank != (((newword & 0x0400) >> 10) ^ 1))
-			{
-				screen.update_partial(screen.vpos());
-				m_atarivc_state.palette_bank = ((newword & 0x0400) >> 10) ^ 1;
-			}
-			break;
-
-		// indexed parameters
-		case 0x10: case 0x11: case 0x12: case 0x13:
-		case 0x14: case 0x15: case 0x16: case 0x17:
-		case 0x18: case 0x19: case 0x1a: case 0x1b:
-			switch (newword & 15)
-			{
-				case 9:
-					m_atarivc_state.mo_xscroll = (newword >> 7) & 0x1ff;
-					break;
-
-				case 10:
-					m_atarivc_state.pf1_xscroll_raw = (newword >> 7) & 0x1ff;
-					atarivc_update_pf_xscrolls();
-					break;
-
-				case 11:
-					m_atarivc_state.pf0_xscroll_raw = (newword >> 7) & 0x1ff;
-					atarivc_update_pf_xscrolls();
-					break;
-
-				case 13:
-					m_atarivc_state.mo_yscroll = (newword >> 7) & 0x1ff;
-					break;
-
-				case 14:
-					m_atarivc_state.pf1_yscroll = (newword >> 7) & 0x1ff;
-					break;
-
-				case 15:
-					m_atarivc_state.pf0_yscroll = (newword >> 7) & 0x1ff;
-					break;
-			}
-			break;
-
-		// latch 1 value
-		case 0x1c:
-			m_actual_vc_latch0 = -1;
-			m_actual_vc_latch1 = newword;
-			set_playfield_latch((m_atarivc_data[0x0a] & 0x80) ? m_actual_vc_latch0 : -1);
-			set_playfield2_latch((m_atarivc_data[0x0a] & 0x80) ? m_actual_vc_latch1 : -1);
-			break;
-
-		// latch 2 value
-		case 0x1d:
-			m_actual_vc_latch0 = newword;
-			m_actual_vc_latch1 = -1;
-			set_playfield_latch((m_atarivc_data[0x0a] & 0x80) ? m_actual_vc_latch0 : -1);
-			set_playfield2_latch((m_atarivc_data[0x0a] & 0x80) ? m_actual_vc_latch1 : -1);
-			break;
-
-		// scanline IRQ ack here
-		case 0x1e:
-			// hack: this should be a device
-			scanline_int_ack_w(m_maincpu->space(AS_PROGRAM), 0, 0, 0xffff);
-			break;
-
-		// log anything else
-		case 0x00:
-		default:
-			if (oldword != newword)
-				logerror("vc_w(%02X, %04X) ** [prev=%04X]\n", offset, newword, oldword);
-			break;
-	}
-}
-
-
-//-------------------------------------------------
-//  atarivc_r: Handles an I/O read from the video controller.
-//-------------------------------------------------
-
-UINT16 atarigen_state::atarivc_r(screen_device &screen, offs_t offset)
-{
-	logerror("vc_r(%02X)\n", offset);
-
-	// a read from offset 0 returns the current scanline
-	// also sets bit 0x4000 if we're in VBLANK
-	if (offset == 0)
-	{
-		int result = screen.vpos();
-
-		if (result > 255)
-			result = 255;
-		if (result > screen.visible_area().max_y)
-			result |= 0x4000;
-
-		return result;
-	}
-	else
-		return m_atarivc_data[offset];
-}
-
-
-
-/***************************************************************************
-    PLAYFIELD/ALPHA MAP HELPERS
-***************************************************************************/
-
-//-------------------------------------------------
-//  alpha_w: Generic write handler for alpha RAM.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::alpha_w)
-{
-	COMBINE_DATA(&m_alpha[offset]);
-	m_alpha_tilemap->mark_tile_dirty(offset);
-}
-
-WRITE32_MEMBER(atarigen_state::alpha32_w)
-{
-	COMBINE_DATA(&m_alpha32[offset]);
-	if (ACCESSING_BITS_16_31)
-		m_alpha_tilemap->mark_tile_dirty(offset * 2);
-	if (ACCESSING_BITS_0_15)
-		m_alpha_tilemap->mark_tile_dirty(offset * 2 + 1);
-}
-
-WRITE16_MEMBER(atarigen_state::alpha2_w)
-{
-	COMBINE_DATA(&m_alpha2[offset]);
-	m_alpha2_tilemap->mark_tile_dirty(offset);
-}
-
-
-
-//-------------------------------------------------
-//  set_playfield_latch: Sets the latch for the latched
-//  playfield handlers below.
-//-------------------------------------------------
-
-void atarigen_state::set_playfield_latch(int data)
-{
-	m_playfield_latch = data;
-}
-
-void atarigen_state::set_playfield2_latch(int data)
-{
-	m_playfield2_latch = data;
-}
-
-
-
-//-------------------------------------------------
-//  playfield_w: Generic write handler for PF RAM.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::playfield_w)
-{
-	COMBINE_DATA(&m_playfield[offset]);
-	m_playfield_tilemap->mark_tile_dirty(offset);
-}
-
-WRITE32_MEMBER(atarigen_state::playfield32_w)
-{
-	COMBINE_DATA(&m_playfield32[offset]);
-	if (ACCESSING_BITS_16_31)
-		m_playfield_tilemap->mark_tile_dirty(offset * 2);
-	if (ACCESSING_BITS_0_15)
-		m_playfield_tilemap->mark_tile_dirty(offset * 2 + 1);
-}
-
-WRITE16_MEMBER(atarigen_state::playfield2_w)
-{
-	COMBINE_DATA(&m_playfield2[offset]);
-	m_playfield2_tilemap->mark_tile_dirty(offset);
-}
-
-
-
-//-------------------------------------------------
-//  playfield_large_w: Generic write handler for
-//  large (2-word) playfield RAM.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::playfield_large_w)
-{
-	atarigen_state *state = space.machine().driver_data<atarigen_state>();
-	COMBINE_DATA(&state->m_playfield[offset]);
-	state->m_playfield_tilemap->mark_tile_dirty(offset / 2);
-}
-
-
-
-//-------------------------------------------------
-//  playfield_upper_w: Generic write handler for
-//  upper word of split playfield RAM.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::playfield_upper_w)
-{
-	atarigen_state *state = space.machine().driver_data<atarigen_state>();
-	COMBINE_DATA(&state->m_playfield_upper[offset]);
-	state->m_playfield_tilemap->mark_tile_dirty(offset);
-}
-
-
-
-//-------------------------------------------------
-//  playfield_dual_upper_w: Generic write handler for
-//  upper word of split dual playfield RAM.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::playfield_dual_upper_w)
-{
-	atarigen_state *state = space.machine().driver_data<atarigen_state>();
-	COMBINE_DATA(&state->m_playfield_upper[offset]);
-	state->m_playfield_tilemap->mark_tile_dirty(offset);
-	state->m_playfield2_tilemap->mark_tile_dirty(offset);
-}
-
-
-
-//-------------------------------------------------
-//  playfield_latched_lsb_w: Generic write handler for
-//  lower word of playfield RAM with a latch in the LSB of the
-//  upper word.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::playfield_latched_lsb_w)
-{
-	atarigen_state *state = space.machine().driver_data<atarigen_state>();
-
-	COMBINE_DATA(&state->m_playfield[offset]);
-	state->m_playfield_tilemap->mark_tile_dirty(offset);
-
-	if (state->m_playfield_latch != -1)
-		state->m_playfield_upper[offset] = (state->m_playfield_upper[offset] & ~0x00ff) | (state->m_playfield_latch & 0x00ff);
-}
-
-
-
-//-------------------------------------------------
-//  playfield_latched_msb_w: Generic write handler for
-//  lower word of playfield RAM with a latch in the MSB of the
-//  upper word.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::playfield_latched_msb_w)
-{
-	atarigen_state *state = space.machine().driver_data<atarigen_state>();
-
-	COMBINE_DATA(&state->m_playfield[offset]);
-	state->m_playfield_tilemap->mark_tile_dirty(offset);
-
-	if (state->m_playfield_latch != -1)
-		state->m_playfield_upper[offset] = (state->m_playfield_upper[offset] & ~0xff00) | (state->m_playfield_latch & 0xff00);
-}
-
-
-
-//-------------------------------------------------
-//  playfield2_latched_msb_w: Generic write handler for
-//  lower word of second playfield RAM with a latch in the MSB
-//  of the upper word.
-//-------------------------------------------------
-
-WRITE16_MEMBER(atarigen_state::playfield2_latched_msb_w)
-{
-	atarigen_state *state = space.machine().driver_data<atarigen_state>();
-
-	COMBINE_DATA(&state->m_playfield2[offset]);
-	state->m_playfield2_tilemap->mark_tile_dirty(offset);
-
-	if (state->m_playfield2_latch != -1)
-		state->m_playfield_upper[offset] = (state->m_playfield_upper[offset] & ~0xff00) | (state->m_playfield2_latch & 0xff00);
 }
 
 

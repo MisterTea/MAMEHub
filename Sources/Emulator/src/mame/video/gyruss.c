@@ -94,7 +94,7 @@ void gyruss_state::palette_init()
 
 WRITE8_MEMBER(gyruss_state::gyruss_spriteram_w)
 {
-	machine().primary_screen->update_now();
+	m_screen->update_now();
 	m_spriteram[offset] = data;
 }
 
@@ -123,7 +123,7 @@ void gyruss_state::video_start()
 READ8_MEMBER(gyruss_state::gyruss_scanline_r)
 {
 	/* reads 1V - 128V */
-	return machine().primary_screen->vpos();
+	return m_screen->vpos();
 }
 
 
@@ -155,9 +155,9 @@ UINT32 gyruss_state::screen_update_gyruss(screen_device &screen, bitmap_ind16 &b
 		machine().tilemap().set_flip_all((*m_flipscreen & 0x01) ? (TILEMAP_FLIPX | TILEMAP_FLIPY) : 0);
 	}
 
-	m_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
+	m_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 	draw_sprites(bitmap, cliprect, machine().gfx);
-	m_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
 }

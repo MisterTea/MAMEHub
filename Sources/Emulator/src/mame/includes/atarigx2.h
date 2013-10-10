@@ -5,19 +5,30 @@
 *************************************************************************/
 
 #include "machine/atarigen.h"
+#include "audio/atarijsa.h"
 
 class atarigx2_state : public atarigen_state
 {
 public:
 	atarigx2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: atarigen_state(mconfig, type, tag),
+			m_jsa(*this, "jsa"),
 			m_mo_command(*this, "mo_command"),
-			m_protection_base(*this, "protection_base") { }
+			m_protection_base(*this, "protection_base"),
+			m_playfield_tilemap(*this, "playfield"),
+			m_alpha_tilemap(*this, "alpha"),
+			m_rle(*this, "rle") { }
 
 	UINT16          m_playfield_base;
 
+	required_device<atari_jsa_iiis_device> m_jsa;
+
 	required_shared_ptr<UINT32> m_mo_command;
 	required_shared_ptr<UINT32> m_protection_base;
+
+	required_device<tilemap_device> m_playfield_tilemap;
+	required_device<tilemap_device> m_alpha_tilemap;
+	required_device<atari_rle_objects_device> m_rle;
 
 	UINT16          m_current_control;
 	UINT8           m_playfield_tile_bank;
@@ -28,7 +39,6 @@ public:
 	UINT16          m_last_write;
 	UINT16          m_last_write_offset;
 
-	device_t *      m_rle;
 	virtual void update_interrupts();
 	virtual void scanline_update(screen_device &screen, int scanline);
 	DECLARE_READ32_MEMBER(special_port2_r);
@@ -49,6 +59,5 @@ public:
 	DECLARE_MACHINE_RESET(atarigx2);
 	DECLARE_VIDEO_START(atarigx2);
 	UINT32 screen_update_atarigx2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void screen_eof_atarigx2(screen_device &screen, bool state);
 	DECLARE_WRITE16_MEMBER( atarigx2_mo_control_w );
 };

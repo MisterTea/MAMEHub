@@ -40,38 +40,40 @@ protected:
 private:
 	struct YMF271Slot
 	{
-		INT8  ext_en;
-		INT8  ext_out;
+		UINT8 ext_en;
+		UINT8 ext_out;
 		UINT8 lfoFreq;
-		INT8  lfowave;
-		INT8  pms, ams;
-		INT8  detune;
-		INT8  multiple;
-		INT8  tl;
-		INT8  keyscale;
-		INT8  ar;
-		INT8  decay1rate, decay2rate;
-		INT8  decay1lvl;
-		INT8  relrate;
-		INT32 fns;
-		INT8  block;
-		INT8  feedback;
-		INT8  waveform;
-		INT8  accon;
-		INT8  algorithm;
-		INT8  ch0_level, ch1_level, ch2_level, ch3_level;
+		UINT8 lfowave;
+		UINT8 pms, ams;
+		UINT8 detune;
+		UINT8 multiple;
+		UINT8 tl;
+		UINT8 keyscale;
+		UINT8 ar;
+		UINT8 decay1rate, decay2rate;
+		UINT8 decay1lvl;
+		UINT8 relrate;
+		UINT8 block;
+		UINT8 fns_hi;
+		UINT32 fns;
+		UINT8 feedback;
+		UINT8 waveform;
+		UINT8 accon;
+		UINT8 algorithm;
+		UINT8 ch0_level, ch1_level, ch2_level, ch3_level;
 
 		UINT32 startaddr;
 		UINT32 loopaddr;
 		UINT32 endaddr;
-		INT8   altloop;
-		INT8   fs, srcnote, srcb;
+		UINT8 altloop;
+		UINT8 fs;
+		UINT8 srcnote, srcb;
 
-		INT64 step;
-		INT64 stepptr;
+		UINT32 step;
+		UINT64 stepptr;
 
-		INT8 active;
-		INT8 bits;
+		UINT8 active;
+		UINT8 bits;
 
 		// envelope generator
 		INT32 volume;
@@ -84,50 +86,61 @@ private:
 		INT64 feedback_modulation0;
 		INT64 feedback_modulation1;
 
-		INT32 lfo_phase, lfo_step;
-		INT32 lfo_amplitude;
+		int lfo_phase, lfo_step;
+		int lfo_amplitude;
 		double lfo_phasemod;
 	};
 
 	struct YMF271Group
 	{
-		INT8 sync, pfm;
+		UINT8 sync, pfm;
 	};
 
 	void init_state();
+	void init_tables();
 	void calculate_step(YMF271Slot *slot);
 	void update_envelope(YMF271Slot *slot);
 	void init_envelope(YMF271Slot *slot);
 	void init_lfo(YMF271Slot *slot);
 	void update_lfo(YMF271Slot *slot);
-	int calculate_slot_volume(YMF271Slot *slot);
+	INT64 calculate_slot_volume(YMF271Slot *slot);
 	void update_pcm(int slotnum, INT32 *mixp, int length);
-	INT32 calculate_2op_fm_0(int slotnum1, int slotnum2);
-	INT32 calculate_2op_fm_1(int slotnum1, int slotnum2);
-	INT32 calculate_1op_fm_0(int slotnum, int phase_modulation);
-	INT32 calculate_1op_fm_1(int slotnum);
-	void write_register(int slotnum, int reg, int data);
-	void ymf271_write_fm(int grp, int adr, int data);
-	void ymf271_write_pcm(int data);
+	INT64 calculate_op(int slotnum, INT64 inp);
+	void set_feedback(int slotnum, INT64 inp);
+	void write_register(int slotnum, int reg, UINT8 data);
+	void ymf271_write_fm(int bank, UINT8 address, UINT8 data);
+	void ymf271_write_pcm(UINT8 address, UINT8 data);
+	void ymf271_write_timer(UINT8 address, UINT8 data);
 	UINT8 ymf271_read_memory(UINT32 offset);
-	void ymf271_write_timer(int data);
+
+	inline int get_keyscaled_rate(int rate, int keycode, int keyscale);
+	inline int get_internal_keycode(int block, int fns);
+	inline int get_external_keycode(int block, int fns);
+	inline bool check_envelope_end(YMF271Slot *slot);
+
+	// lookup tables
+	INT16 *m_lut_waves[8];
+	double *m_lut_plfo[4][8];
+	int *m_lut_alfo[4];
+	double m_lut_ar[64];
+	double m_lut_dc[64];
+	double m_lut_lfo[256];
+	int m_lut_attenuation[16];
+	int m_lut_total_level[128];
+	int m_lut_env_volume[256];
 
 	// internal state
 	YMF271Slot m_slots[48];
 	YMF271Group m_groups[12];
 
-	INT32 m_timerA;
-	INT32 m_timerB;
-	INT32 m_irqstate;
-	INT8  m_status;
-	INT8  m_enable;
+	UINT8 m_regs_main[0x10];
 
-	INT8  m_reg0;
-	INT8  m_reg1;
-	INT8  m_reg2;
-	INT8  m_reg3;
-	INT8  m_pcmreg;
-	INT8  m_timerreg;
+	UINT32 m_timerA;
+	UINT32 m_timerB;
+	UINT8 m_irqstate;
+	UINT8 m_status;
+	UINT8 m_enable;
+
 	UINT32 m_ext_address;
 	UINT8 m_ext_rw;
 	UINT8 m_ext_readlatch;
@@ -138,6 +151,7 @@ private:
 
 	emu_timer *m_timA, *m_timB;
 	sound_stream *m_stream;
+	INT32 *m_mix_buffer;
 
 	devcb2_write_line m_irq_handler;
 	devcb2_read8 m_ext_read_handler;

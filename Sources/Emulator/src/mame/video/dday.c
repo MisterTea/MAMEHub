@@ -211,7 +211,7 @@ void dday_state::video_start()
 	m_text_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dday_state::get_text_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 	m_sl_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(dday_state::get_sl_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 
-	machine().primary_screen->register_screen_bitmap(m_main_bitmap);
+	m_screen->register_screen_bitmap(m_main_bitmap);
 
 	m_bg_tilemap->set_transmask(0, 0x00f0, 0xff0f); /* pens 0-3 have priority over the foreground layer */
 	m_fg_tilemap->set_transparent_pen(0);
@@ -297,10 +297,10 @@ WRITE8_MEMBER(dday_state::dday_control_w)
 
 UINT32 dday_state::screen_update_dday(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(m_main_bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
-	m_fg_tilemap->draw(m_main_bitmap, cliprect, 0, 0);
-	m_bg_tilemap->draw(m_main_bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);
-	m_text_tilemap->draw(m_main_bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, m_main_bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
+	m_fg_tilemap->draw(screen, m_main_bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, m_main_bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);
+	m_text_tilemap->draw(screen, m_main_bitmap, cliprect, 0, 0);
 
 	if (m_sl_enable)
 	{

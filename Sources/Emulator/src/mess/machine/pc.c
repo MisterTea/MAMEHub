@@ -301,9 +301,10 @@ TIMER_CALLBACK_MEMBER(pc_state::pcjr_delayed_pic8259_irq)
 
 WRITE_LINE_MEMBER(pc_state::pcjr_pic8259_set_int_line)
 {
-	if ( machine().firstcpu->pc() == 0xF0454 )
+	UINT32 pc = machine().firstcpu->pc();
+	if ( (pc == 0xF0453) || (pc == 0xFF196) )
 	{
-		pc_int_delay_timer->adjust( machine().firstcpu->cycles_to_attotime(1), state );
+		pc_int_delay_timer->adjust( machine().firstcpu->cycles_to_attotime(20), state );
 	}
 	else
 	{
@@ -1544,7 +1545,7 @@ DEVICE_IMAGE_LOAD_MEMBER( pc_state, pcjr_cartridge )
 	UINT32  address;
 	UINT32  size;
 
-	address = (!strcmp(":cart2", image.device().tag())) ? 0xd0000 : 0xe6000;
+	address = (!strcmp(":cart2", image.device().tag())) ? 0xd0000 : 0xe0000;
 
 	if ( image.software_entry() )
 	{
@@ -1558,15 +1559,33 @@ DEVICE_IMAGE_LOAD_MEMBER( pc_state, pcjr_cartridge )
 	{
 		UINT8   header[0x200];
 
+		unsigned header_size = 0;
 		unsigned image_size = image.length();
+		bool imagic_hack = false;
+
+		/* Check for supported header sizes */
+		switch( image_size & 0x3ff )
+		{
+		case 0x80:
+			header_size = 0x80;
+			break;
+		case 0x200:
+			header_size = 0x200;
+			break;
+		default:
+			image.seterror(IMAGE_ERROR_UNSUPPORTED, "Invalid header size" );
+			return IMAGE_INIT_FAIL;
+		}
 
 		/* Check for supported image sizes */
-		switch( image_size )
+		switch( image_size - header_size )
 		{
-		case 0x2200:
-		case 0x4200:
-		case 0x8200:
-		case 0x10200:
+		case 0xa000:
+			imagic_hack = true;
+		case 0x2000:
+		case 0x4000:
+		case 0x8000:
+		case 0x10000:
 			break;
 		default:
 			image.seterror(IMAGE_ERROR_UNSUPPORTED, "Invalid rom file size" );
@@ -1574,17 +1593,30 @@ DEVICE_IMAGE_LOAD_MEMBER( pc_state, pcjr_cartridge )
 		}
 
 		/* Read and verify the header */
-		if ( 512 != image.fread( header, 512 ) )
+		if ( header_size != image.fread( header, header_size ) )
 		{
 			image.seterror(IMAGE_ERROR_UNSUPPORTED, "Unable to read header" );
 			return IMAGE_INIT_FAIL;
 		}
 
 		/* Read the cartridge contents */
-		if ( ( image_size - 0x200 ) != image.fread(memregion("maincpu")->base() + address, image_size - 0x200 ) )
+		if ( ( image_size - header_size ) != image.fread(memregion("maincpu")->base() + address, image_size - header_size ) )
 		{
 			image.seterror(IMAGE_ERROR_UNSUPPORTED, "Unable to read cartridge contents" );
 			return IMAGE_INIT_FAIL;
+		}
+
+		if (imagic_hack)
+		{
+			UINT8 *cart_area = memregion("maincpu")->base() + address;
+
+			memcpy( cart_area + 0xe000, cart_area + 0x2000, 0x2000 );
+			memcpy( cart_area + 0xc000, cart_area + 0x2000, 0x2000 );
+			memcpy( cart_area + 0xa000, cart_area + 0x2000, 0x2000 );
+			memcpy( cart_area + 0x8000, cart_area + 0x2000, 0x2000 );
+			memcpy( cart_area + 0x6000, cart_area, 0x2000 );
+			memcpy( cart_area + 0x4000, cart_area, 0x2000 );
+			memcpy( cart_area + 0x2000, cart_area, 0x2000 );
 		}
 	}
 

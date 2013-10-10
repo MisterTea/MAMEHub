@@ -18,7 +18,6 @@
 
 #include "emu.h"
 #include "machine/cbmipt.h"
-#include "machine/c64_neoram.h"
 
 
 /***************************** Commodore 64 ****************************************
@@ -1065,6 +1064,7 @@ SLOT_INTERFACE_START( cbm_iec_devices )
 	SLOT_INTERFACE("minichief", MINI_CHIEF)
 	SLOT_INTERFACE("serialbox", SERIAL_BOX)
 	SLOT_INTERFACE("diag264", DIAG264_SERIAL_LOOPBACK)
+	SLOT_INTERFACE("nl10", C64_NL10_INTERFACE)
 SLOT_INTERFACE_END
 
 SLOT_INTERFACE_START( sx1541_iec_devices )
@@ -1092,6 +1092,8 @@ SLOT_INTERFACE_START( cbm_ieee488_devices )
 	SLOT_INTERFACE("d9060", D9060)
 	SLOT_INTERFACE("d9090", D9090)
 	SLOT_INTERFACE("softbox", SOFTBOX)
+	SLOT_INTERFACE("hardbox", HARDBOX)
+	SLOT_INTERFACE("shark", SHARK)
 SLOT_INTERFACE_END
 
 SLOT_INTERFACE_START( cbm8296d_ieee488_devices )
@@ -1131,6 +1133,7 @@ SLOT_INTERFACE_START( c64_expansion_cards )
 	SLOT_INTERFACE("midipp", C64_MIDI_PASSPORT)
 	SLOT_INTERFACE("midisci", C64_MIDI_SCI)
 	SLOT_INTERFACE("midisiel", C64_MIDI_SIEL)
+	SLOT_INTERFACE("music64", C64_MUSIC64)
 	SLOT_INTERFACE("neoram", C64_NEORAM)
 	SLOT_INTERFACE("reu1700", C64_REU1700)
 	SLOT_INTERFACE("reu1750", C64_REU1750)

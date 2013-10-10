@@ -35,27 +35,14 @@ Known Issues
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "video/konicdev.h"
 #include "cpu/z80/z80.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/k054539.h"
 #include "includes/konamipt.h"
 #include "includes/gijoe.h"
 
 #define JOE_DEBUG 0
 #define JOE_DMADELAY (attotime::from_nsec(42700 + 341300))
-
-
-static const eeprom_interface eeprom_intf =
-{
-	7,              /* address bits */
-	8,              /* data bits */
-	"011000",       /*  read command */
-	"011100",       /* write command */
-	"0100100000000",/* erase command */
-	"0100000000000",/* lock command */
-	"0100110000000" /* unlock command */
-};
 
 
 READ16_MEMBER(gijoe_state::control2_r)
@@ -78,7 +65,7 @@ WRITE16_MEMBER(gijoe_state::control2_w)
 		m_cur_control2 = data;
 
 		/* bit 6 = enable sprite ROM reading */
-		k053246_set_objcha_line(m_k053246, (data & 0x0040) ? ASSERT_LINE : CLEAR_LINE);
+		m_k053246->k053246_set_objcha_line( (data & 0x0040) ? ASSERT_LINE : CLEAR_LINE);
 	}
 }
 
@@ -88,7 +75,7 @@ void gijoe_state::gijoe_objdma(  )
 
 	src_head = m_spriteram;
 	src_tail = m_spriteram + 255 * 8;
-	k053247_get_ram(m_k053246, &dst_head);
+	m_k053246->k053247_get_ram( &dst_head);
 	dst_tail = dst_head + 255 * 8;
 
 	for (; src_head <= src_tail; src_head += 8)
@@ -115,10 +102,10 @@ TIMER_CALLBACK_MEMBER(gijoe_state::dmaend_callback)
 INTERRUPT_GEN_MEMBER(gijoe_state::gijoe_interrupt)
 {
 	// global interrupt masking (*this game only)
-	if (!k056832_is_irq_enabled(m_k056832, 0))
+	if (!m_k056832->is_irq_enabled(0))
 		return;
 
-	if (k053246_is_irq_enabled(m_k053246))
+	if (m_k053246->k053246_is_irq_enabled())
 	{
 		gijoe_objdma();
 
@@ -159,16 +146,16 @@ static void sound_nmi( device_t *device )
 static ADDRESS_MAP_START( gijoe_map, AS_PROGRAM, 16, gijoe_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM
 	AM_RANGE(0x100000, 0x100fff) AM_RAM AM_SHARE("spriteram")                               // Sprites
-	AM_RANGE(0x110000, 0x110007) AM_DEVWRITE_LEGACY("k053246", k053246_word_w)
-	AM_RANGE(0x120000, 0x121fff) AM_DEVREADWRITE_LEGACY("k056832", k056832_ram_word_r, k056832_ram_word_w)      // Graphic planes
-	AM_RANGE(0x122000, 0x123fff) AM_DEVREADWRITE_LEGACY("k056832", k056832_ram_word_r, k056832_ram_word_w)      // Graphic planes mirror read
-	AM_RANGE(0x130000, 0x131fff) AM_DEVREAD_LEGACY("k056832", k056832_rom_word_r)                               // Passthrough to tile roms
-	AM_RANGE(0x160000, 0x160007) AM_DEVWRITE_LEGACY("k056832", k056832_b_word_w)                                    // VSCCS (board dependent)
+	AM_RANGE(0x110000, 0x110007) AM_DEVWRITE("k053246", k053247_device, k053246_word_w)
+	AM_RANGE(0x120000, 0x121fff) AM_DEVREADWRITE("k056832", k056832_device, ram_word_r, ram_word_w)      // Graphic planes
+	AM_RANGE(0x122000, 0x123fff) AM_DEVREADWRITE("k056832", k056832_device, ram_word_r, ram_word_w)      // Graphic planes mirror read
+	AM_RANGE(0x130000, 0x131fff) AM_DEVREAD("k056832", k056832_device, rom_word_r)                               // Passthrough to tile roms
+	AM_RANGE(0x160000, 0x160007) AM_DEVWRITE("k056832", k056832_device, b_word_w)                                    // VSCCS (board dependent)
 	AM_RANGE(0x170000, 0x170001) AM_WRITENOP                                                // Watchdog
 	AM_RANGE(0x180000, 0x18ffff) AM_RAM AM_SHARE("workram")                 // Main RAM.  Spec. 180000-1803ff, 180400-187fff
 	AM_RANGE(0x190000, 0x190fff) AM_RAM_WRITE(paletteram_xBBBBBGGGGGRRRRR_word_w) AM_SHARE("paletteram")
-	AM_RANGE(0x1a0000, 0x1a001f) AM_DEVWRITE_LEGACY("k053251", k053251_lsb_w)
-	AM_RANGE(0x1b0000, 0x1b003f) AM_DEVWRITE_LEGACY("k056832", k056832_word_w)
+	AM_RANGE(0x1a0000, 0x1a001f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
+	AM_RANGE(0x1b0000, 0x1b003f) AM_DEVWRITE("k056832", k056832_device, word_w)
 	AM_RANGE(0x1c000c, 0x1c000d) AM_WRITE(sound_cmd_w)
 	AM_RANGE(0x1c0014, 0x1c0015) AM_READ(sound_status_r)
 	AM_RANGE(0x1c0000, 0x1c001f) AM_RAM
@@ -178,12 +165,12 @@ static ADDRESS_MAP_START( gijoe_map, AS_PROGRAM, 16, gijoe_state )
 	AM_RANGE(0x1e4000, 0x1e4001) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x1e4002, 0x1e4003) AM_READ_PORT("START")
 	AM_RANGE(0x1e8000, 0x1e8001) AM_READWRITE(control2_r, control2_w)
-	AM_RANGE(0x1f0000, 0x1f0001) AM_DEVREAD_LEGACY("k053246", k053246_word_r)
+	AM_RANGE(0x1f0000, 0x1f0001) AM_DEVREAD("k053246", k053247_device, k053246_word_r)
 #if JOE_DEBUG
-	AM_RANGE(0x110000, 0x110007) AM_DEVREAD_LEGACY("k053246", k053246_reg_word_r)
-	AM_RANGE(0x160000, 0x160007) AM_DEVREAD_LEGACY("k056832", k056832_b_word_r)
-	AM_RANGE(0x1a0000, 0x1a001f) AM_DEVREAD_LEGACY("k053251", k053251_lsb_r)
-	AM_RANGE(0x1b0000, 0x1b003f) AM_DEVREAD_LEGACY("k056832", k056832_word_r)
+	AM_RANGE(0x110000, 0x110007) AM_DEVREAD("k053246", k053247_device, k053246_reg_word_r)
+	AM_RANGE(0x160000, 0x160007) AM_DEVREAD("k056832", k056832_device, b_word_r)
+	AM_RANGE(0x1a0000, 0x1a001f) AM_DEVREAD("k053251", k053251_device, lsb_r)
+	AM_RANGE(0x1b0000, 0x1b003f) AM_DEVREAD("k056832", k056832_device, word_r)
 #endif
 ADDRESS_MAP_END
 
@@ -201,14 +188,14 @@ static INPUT_PORTS_START( gijoe )
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW,  IPT_START2 )
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW,  IPT_START3 )
 	PORT_BIT( 0x0008, IP_ACTIVE_LOW,  IPT_START4 )
-	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW,  IPT_SPECIAL ) // EEPROM ready (always 1)
+	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, do_read)
+	PORT_BIT( 0x0200, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, ready_read)
 	PORT_SERVICE_NO_TOGGLE( 0x0800, IP_ACTIVE_LOW )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_er5911_device, clk_write)
 
 	PORT_START("SYSTEM")
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW,  IPT_COIN1 )
@@ -257,7 +244,6 @@ static const k056832_interface gijoe_k056832_intf =
 
 static const k053247_interface gijoe_k053247_intf =
 {
-	"screen",
 	"gfx2", 1,
 	NORMAL_PLANE_ORDER,
 	-37, 20,
@@ -287,8 +273,7 @@ static MACHINE_CONFIG_START( gijoe, gijoe_state )
 	MCFG_CPU_ADD("audiocpu", Z80, 8000000)  /* Amuse & confirmed. z80e */
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 
-
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_ER5911_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_UPDATE_BEFORE_VBLANK)

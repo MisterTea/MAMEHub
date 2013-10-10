@@ -9,7 +9,6 @@
 #ifndef __MIDIOUT_H__
 #define __MIDIOUT_H__
 
-#include "image.h"
 
 /***************************************************************************
     CONSTANTS
@@ -47,7 +46,7 @@ public:
 	virtual bool core_opens_image_file() const { return FALSE; }
 	virtual const option_guide *create_option_guide() const { return NULL; }
 
-	virtual void tx(UINT8 state) { check_for_start(state); }
+	virtual void tx(UINT8 state) { rx_w(state); }
 
 protected:
 	// device-level overrides

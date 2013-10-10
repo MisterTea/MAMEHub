@@ -33,17 +33,11 @@ Original Bugs:
 TODO:
 - World Beach Volley sound is controlled by a pic16c57 whose ROM is missing for this game.
 
-- One stage in Hard Times has large white blocks instead of GFX in places, are they using an
-  invalid tile number that should be invisible?
-
-- In Hard Times the last boss appears on left side of screen as it scrolls into view, are we
-  missing part of the X co-ordinate?
-
 ***************************************************************************/
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "cpu/pic16c5x/pic16c5x.h"
 #include "sound/okim6295.h"
 #include "includes/playmark.h"
@@ -67,19 +61,6 @@ WRITE16_MEMBER(playmark_state::coinctrl_w)
 
 ***************************************************************************/
 
-static const eeprom_interface eeprom_intf =
-{
-	6,              /* address bits */
-	16,             /* data bits */
-	"*110",         /*  read command */
-	"*101",         /* write command */
-	0,              /* erase command */
-	"*10000xxxx",   /* lock command */
-	"*10011xxxx",   /* unlock command */
-	0,              /* enable_multi_read */
-	5               /* reset_delay (otherwise wbeachvl will hang when saving settings) */
-};
-
 WRITE16_MEMBER(playmark_state::wbeachvl_coin_eeprom_w)
 {
 	if (ACCESSING_BITS_0_7)
@@ -91,9 +72,9 @@ WRITE16_MEMBER(playmark_state::wbeachvl_coin_eeprom_w)
 		coin_counter_w(machine(), 3, data & 0x08);
 
 		/* bits 5-7 control EEPROM */
-		m_eeprom->set_cs_line((data & 0x20) ? CLEAR_LINE : ASSERT_LINE);
-		m_eeprom->write_bit(data & 0x80);
-		m_eeprom->set_clock_line((data & 0x40) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->cs_write((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->di_write((data & 0x80) >> 7);
+		m_eeprom->clk_write((data & 0x40) ? CLEAR_LINE : ASSERT_LINE);
 	}
 }
 
@@ -103,9 +84,9 @@ WRITE16_MEMBER(playmark_state::hotmind_coin_eeprom_w)
 	{
 		coin_counter_w(machine(), 0,data & 0x20);
 
-		m_eeprom->set_cs_line((data & 1) ? CLEAR_LINE : ASSERT_LINE);
-		m_eeprom->write_bit(data & 4);
-		m_eeprom->set_clock_line((data & 2) ? ASSERT_LINE : CLEAR_LINE );
+		m_eeprom->cs_write((data & 1) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->di_write((data & 4) >> 2);
+		m_eeprom->clk_write((data & 2) ? ASSERT_LINE : CLEAR_LINE );
 	}
 }
 
@@ -315,9 +296,12 @@ static ADDRESS_MAP_START( hrdtimes_main_map, AS_PROGRAM, 16, playmark_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x080000, 0x0bffff) AM_RAM
 	AM_RANGE(0x0c0000, 0x0fffff) AM_ROM AM_REGION("maincpu", 0x0c0000)
-	AM_RANGE(0x100000, 0x103fff) AM_RAM_WRITE(hrdtimes_bgvideoram_w) AM_SHARE("videoram3")
-	AM_RANGE(0x104000, 0x107fff) AM_RAM_WRITE(hrdtimes_fgvideoram_w) AM_SHARE("videoram2")
-	AM_RANGE(0x108000, 0x10ffff) AM_RAM_WRITE(hrdtimes_txvideoram_w) AM_SHARE("videoram1")
+	AM_RANGE(0x100000, 0x1007ff) AM_RAM_WRITE(hrdtimes_bgvideoram_w) AM_SHARE("videoram3") // 32*32?
+	AM_RANGE(0x100800, 0x103fff) AM_RAM
+	AM_RANGE(0x104000, 0x105fff) AM_RAM_WRITE(hrdtimes_fgvideoram_w) AM_SHARE("videoram2") // 128*32?
+	AM_RANGE(0x106000, 0x107fff) AM_RAM
+	AM_RANGE(0x108000, 0x109fff) AM_RAM_WRITE(hrdtimes_txvideoram_w) AM_SHARE("videoram1") // 64*64?
+	AM_RANGE(0x10a000, 0x10bfff) AM_RAM
 	AM_RANGE(0x110000, 0x11000d) AM_WRITE(hrdtimes_scroll_w)
 	AM_RANGE(0x200000, 0x200fff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x280000, 0x2807ff) AM_RAM_WRITE(bigtwin_paletteram_w) AM_SHARE("paletteram")
@@ -553,7 +537,7 @@ static INPUT_PORTS_START( wbeachvl )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_SERVICE1 )
 	PORT_SERVICE_NO_TOGGLE(0x20, IP_ACTIVE_LOW)
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_SPECIAL )   /* ?? see code at 746a. sound status? */
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)   /* EEPROM data */
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)   /* EEPROM data */
 
 	PORT_START("P1")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1)
@@ -719,7 +703,7 @@ static INPUT_PORTS_START( hotmind )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)   /* EEPROM data */
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)   /* EEPROM data */
 
 	PORT_START("DSW1")
 	PORT_DIPNAME( 0x07, 0x07, DEF_STR( Difficulty ) )
@@ -1131,8 +1115,8 @@ static MACHINE_CONFIG_START( wbeachvl, playmark_state )
 	/* Program and Data Maps are internal to the MCU */
 //  MCFG_CPU_IO_MAP(playmark_sound_io_map)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
-	MCFG_EEPROM_DEFAULT_VALUE(0)
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_DEFAULT_VALUE(0)
 
 	MCFG_MACHINE_START_OVERRIDE(playmark_state,playmark)
 	MCFG_MACHINE_RESET_OVERRIDE(playmark_state,playmark)
@@ -1160,11 +1144,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( excelsr, playmark_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 12000000)   /* 12 MHz */
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_24MHz/2)   /* 12 MHz */
 	MCFG_CPU_PROGRAM_MAP(excelsr_main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", playmark_state,  irq2_line_hold)
 
-	MCFG_CPU_ADD("audiocpu", PIC16C57, 12000000)    /* 3MHz */
+	MCFG_CPU_ADD("audiocpu", PIC16C57, XTAL_24MHz/2)    /* 12MHz with internal 4x divisor */
 	/* Program and Data Maps are internal to the MCU */
 	MCFG_CPU_IO_MAP(playmark_sound_io_map)
 
@@ -1187,7 +1171,7 @@ static MACHINE_CONFIG_START( excelsr, playmark_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_OKIM6295_ADD("oki", 1000000, OKIM6295_PIN7_HIGH)
+	MCFG_OKIM6295_ADD("oki", XTAL_1MHz, OKIM6295_PIN7_HIGH) /* 1MHz resonator */
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1202,8 +1186,8 @@ static MACHINE_CONFIG_START( hotmind, playmark_state )
 	/* Program and Data Maps are internal to the MCU */
 	MCFG_CPU_IO_MAP(playmark_sound_io_map)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
-	MCFG_EEPROM_DEFAULT_VALUE(0)
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_DEFAULT_VALUE(0)
 
 	MCFG_MACHINE_START_OVERRIDE(playmark_state,playmark)
 	MCFG_MACHINE_RESET_OVERRIDE(playmark_state,playmark)
@@ -1512,6 +1496,47 @@ ROM_START( excelsr )
 	ROM_COPY( "user2", 0x060000, 0x0a0000, 0x020000)
 ROM_END
 
+ROM_START( excelsra )
+	ROM_REGION( 0x300000, "maincpu", 0 )    /* 68000 code */
+	ROM_LOAD16_BYTE( "22(__excelsra).u301", 0x000001, 0x80000, CRC(55dca2da) SHA1(b16ce3c12f635e165740b0a72a6cfd838e4ce701) )
+	ROM_LOAD16_BYTE( "19(__excelsra).u302", 0x000000, 0x80000, CRC(d13990a8) SHA1(4f002c4a9003af9963a601c78be446815e9bae92) )
+	ROM_LOAD16_BYTE( "21.u303", 0x100001, 0x80000, CRC(fdf9bd64) SHA1(783e3b8b70f8751915715e2455990c1c8eec6a71) )
+	ROM_LOAD16_BYTE( "18.u304", 0x100000, 0x80000, CRC(fe517e0e) SHA1(fa074c3848046b59f1026f9ce1f264b49560668d) )
+	ROM_LOAD16_BYTE( "20.u305", 0x200001, 0x80000, CRC(8692afe9) SHA1(b4411bad64a9a6efd8eb13dcf7c5eebfb5681f3d) )
+	ROM_LOAD16_BYTE( "17.u306", 0x200000, 0x80000, CRC(978f9a6b) SHA1(9514b97f071fd20740218a58af877765beffedad) )
+
+	ROM_REGION( 0x1000, "audiocpu", ROMREGION_ERASE00 ) /* sound (PIC16C57) */
+	/* ROM will be copied here by the init code from "user1" */
+
+	ROM_REGION( 0x3000, "user1", 0 )
+	ROM_LOAD( "pic16c57-hs.i015", 0x0000, 0x2d4c, CRC(022c6941) SHA1(8ead40bfa7aa783b1ce62bd6cfa673cb876e29e7) )
+
+	ROM_REGION( 0x200000, "gfx1", 0 )
+	ROM_LOAD( "26.u311",      0x000000, 0x80000, CRC(c171c059) SHA1(7bc45ef1d588f5f55a461adb91bca382155c1059) )
+	ROM_LOAD( "30.u312",      0x080000, 0x80000, CRC(b4a4c510) SHA1(07951a4c18bb25b10f650fd85b6bab566d0ef971) )
+	ROM_LOAD( "25.u313",      0x100000, 0x80000, CRC(667eec1b) SHA1(9e5ed82a4966244a97d18c27466179771012b305) )
+	ROM_LOAD( "29.u314",      0x180000, 0x80000, CRC(4acb0745) SHA1(6b5feaa5aa088f0cc5799f73ee5f90ed390165a9) )
+
+	ROM_REGION( 0x200000, "gfx2", 0 )
+	ROM_LOAD( "24.u321",      0x000000, 0x80000, CRC(17f46825) SHA1(6ac0e71498ac668641c0b7134ddd19cc4cc97005) )
+	ROM_LOAD( "28.u322",      0x080000, 0x80000, CRC(a823f2bd) SHA1(c7f1b1ee8f7069522787b6916b8c6e4591b55782) )
+	ROM_LOAD( "23.u323",      0x100000, 0x80000, CRC(d8e1453b) SHA1(a3edb05abe486d4cce30f5caf14be619b6886f7c) )
+	ROM_LOAD( "27.u324",      0x180000, 0x80000, CRC(eca2c079) SHA1(a07957b427d55c8ca1efb0e83ee3b603f06bed58) )
+
+	ROM_REGION( 0x80000, "user2", 0 )   /* OKIM6295 samples */
+	ROM_LOAD( "16.i013",      0x000000, 0x80000, CRC(7ed9da5d) SHA1(352f1e89613feb1902b6d87adb996ed1c1d8108e) )
+
+	/* $00000-$20000 stays the same in all sound banks, */
+	/* the second half of the bank is what gets switched */
+	ROM_REGION( 0xc0000, "oki", 0 ) /* Samples */
+	ROM_COPY( "user2", 0x000000, 0x000000, 0x020000)
+	ROM_COPY( "user2", 0x020000, 0x020000, 0x020000)
+	ROM_COPY( "user2", 0x000000, 0x040000, 0x020000)
+	ROM_COPY( "user2", 0x040000, 0x060000, 0x020000)
+	ROM_COPY( "user2", 0x000000, 0x080000, 0x020000)
+	ROM_COPY( "user2", 0x060000, 0x0a0000, 0x020000)
+ROM_END
+
 /*
 
 Hot Mind
@@ -1756,7 +1781,7 @@ DRIVER_INIT_MEMBER(playmark_state,bigtwin)
 			data_lo = playmark_asciitohex((playmark_PICROM_HEX[src_pos + 3]));
 			data |= (data_hi << 12) | (data_lo << 8);
 
-			pic16c5x_set_config(m_audiocpu, data);
+			m_audiocpu->pic16c5x_set_config(data);
 
 			src_pos = 0x7fff;       /* Force Exit */
 		}
@@ -1769,7 +1794,8 @@ GAME( 1995, bigtwinb,  bigtwin,  bigtwinb, bigtwinb, playmark_state, bigtwin, RO
 GAME( 1995, wbeachvl,  0,        wbeachvl, wbeachvl, driver_device,  0,       ROT0, "Playmark", "World Beach Volley (set 1)", GAME_NO_COCKTAIL | GAME_NO_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1995, wbeachvl2, wbeachvl, wbeachvl, wbeachvl, driver_device,  0,       ROT0, "Playmark", "World Beach Volley (set 2)",  GAME_NO_COCKTAIL | GAME_NO_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1995, wbeachvl3, wbeachvl, wbeachvl, wbeachvl, driver_device,  0,       ROT0, "Playmark", "World Beach Volley (set 3)",  GAME_NO_COCKTAIL | GAME_NO_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 1996, excelsr,   0,        excelsr,  excelsr,  playmark_state, bigtwin, ROT0, "Playmark", "Excelsior", GAME_SUPPORTS_SAVE )
+GAME( 1996, excelsr,   0,        excelsr,  excelsr,  playmark_state, bigtwin, ROT0, "Playmark", "Excelsior (set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1996, excelsra,  excelsr,  excelsr,  excelsr,  playmark_state, bigtwin, ROT0, "Playmark", "Excelsior (set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1995, hotmind,   0,        hotmind,  hotmind,  playmark_state, bigtwin, ROT0, "Playmark", "Hot Mind (Hard Times hardware)", GAME_SUPPORTS_SAVE )
 GAME( 1995, luckboomh, luckboom, luckboomh,hotmind,  playmark_state, bigtwin, ROT0, "Playmark", "Lucky Boom (Hard Times hardware)", GAME_NOT_WORKING )
 GAME( 1994, hrdtimes,  0,        hrdtimes, hrdtimes, driver_device,  0,       ROT0, "Playmark", "Hard Times (set 1)", GAME_NO_SOUND | GAME_SUPPORTS_SAVE )

@@ -740,7 +740,7 @@ INPUT_PORTS_START( petb )
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_M)          PORT_CHAR('m') PORT_CHAR('M')
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_SPACE)      PORT_CHAR(' ')
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_X)          PORT_CHAR('x') PORT_CHAR('X')
-	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Rvs Off") PORT_CODE(KEYCODE_INSERT)
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("Rvs Off") PORT_CODE(KEYCODE_LCONTROL) PORT_CODE(KEYCODE_RCONTROL) PORT_CHAR(UCHAR_SHIFT_2)
 
 	PORT_START( "ROW9" )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -1193,7 +1193,6 @@ static MC6845_UPDATE_ROW( pet80_update_row )
 
 static MC6845_INTERFACE( crtc_intf )
 {
-	SCREEN_TAG,
 	false,
 	2*8,
 	NULL,
@@ -1257,7 +1256,6 @@ static MC6845_UPDATE_ROW( cbm8296_update_row )
 
 static MC6845_INTERFACE( cbm8296_crtc_intf )
 {
-	SCREEN_TAG,
 	false,
 	2*8,
 	NULL,
@@ -1328,10 +1326,6 @@ MACHINE_START_MEMBER( pet_state, pet2001 )
 }
 
 
-//-------------------------------------------------
-//  MACHINE_RESET( pet )
-//-------------------------------------------------
-
 MACHINE_RESET_MEMBER( pet_state, pet )
 {
 	m_maincpu->reset();
@@ -1358,10 +1352,6 @@ MACHINE_START_MEMBER( pet80_state, pet80 )
 }
 
 
-//-------------------------------------------------
-//  MACHINE_RESET( pet80 )
-//-------------------------------------------------
-
 MACHINE_RESET_MEMBER( pet80_state, pet80 )
 {
 	MACHINE_RESET_CALL_MEMBER(pet);
@@ -1383,10 +1373,6 @@ MACHINE_START_MEMBER( cbm8296_state, cbm8296 )
 	save_item(NAME(m_via_pa));
 }
 
-
-//-------------------------------------------------
-//  MACHINE_RESET( cbm8296 )
-//-------------------------------------------------
 
 MACHINE_RESET_MEMBER( cbm8296_state, cbm8296 )
 {
@@ -1738,7 +1724,7 @@ static MACHINE_CONFIG_START( pet80, pet80_state )
 	MCFG_SCREEN_SIZE(640, 250)
 	MCFG_SCREEN_VISIBLE_AREA(0, 640 - 1, 0, 250 - 1)
 	MCFG_SCREEN_UPDATE_DEVICE(MC6845_TAG, mc6845_device, screen_update)
-	MCFG_MC6845_ADD(MC6845_TAG, MC6845, XTAL_16MHz/16, crtc_intf)
+	MCFG_MC6845_ADD(MC6845_TAG, MC6845, SCREEN_TAG, XTAL_16MHz/16, crtc_intf)
 
 	// sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -1759,9 +1745,18 @@ static MACHINE_CONFIG_START( pet80, pet80_state )
 	MCFG_PET_USER_PORT_ADD(PET_USER_PORT_TAG, user_intf, pet_user_port_cards, NULL)
 	MCFG_QUICKLOAD_ADD("quickload", pet_state, cbm_pet, "p00,prg", CBM_QUICKLOAD_DELAY_SECONDS)
 
+	MCFG_CARTSLOT_ADD("9000")
+	MCFG_CARTSLOT_EXTENSION_LIST("bin,rom")
+	MCFG_CARTSLOT_INTERFACE("pet_9000_rom")
+
+	MCFG_CARTSLOT_ADD("a000")
+	MCFG_CARTSLOT_EXTENSION_LIST("bin,rom")
+	MCFG_CARTSLOT_INTERFACE("pet_a000_rom")
+
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("cass_list", "pet_cass")
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "pet_flop")
+	MCFG_SOFTWARE_LIST_ADD("rom_list", "pet_rom")
 MACHINE_CONFIG_END
 
 
@@ -1820,8 +1815,8 @@ static MACHINE_CONFIG_DERIVED_CLASS( cbm8296, pet80, cbm8296_state )
 	MCFG_DEVICE_MODIFY(MC6845_TAG)
 	MCFG_DEVICE_CONFIG(cbm8296_crtc_intf)
 
-	MCFG_DEVICE_REMOVE("ieee8")
-	MCFG_IEEE488_SLOT_ADD("ieee8", 8, cbm_ieee488_devices, "c8250")
+	MCFG_DEVICE_MODIFY("ieee8")
+	MCFG_DEVICE_SLOT_INTERFACE(cbm_ieee488_devices, "c8250", false)
 
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("128K")
@@ -1835,8 +1830,8 @@ MACHINE_CONFIG_END
 //-------------------------------------------------
 
 static MACHINE_CONFIG_DERIVED( cbm8296d, cbm8296 )
-	MCFG_DEVICE_REMOVE("ieee8")
-	MCFG_IEEE488_SLOT_ADD("ieee8", 8, cbm8296d_ieee488_devices, "c8250lp")
+	MCFG_DEVICE_MODIFY("ieee8")
+	MCFG_DEVICE_SLOT_INTERFACE(cbm8296d_ieee488_devices, "c8250lp", false)
 MACHINE_CONFIG_END
 
 

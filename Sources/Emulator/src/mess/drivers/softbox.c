@@ -5,6 +5,14 @@
     http://mikenaberezny.com/hardware/pet-cbm/sse-softbox-z80-computer/
 
 
+    Standalone vs. PET/CBM Peripheral Mode
+    --------------------------------------
+
+    The SoftBox can be used as a standalone computer with an RS-232 terminal,
+    or as a PET/CBM peripheral.  This is an emulation of the standalone mode.
+    For the peripheral mode, see: src/mess/machine/softbox.c.
+
+
     Using the Corvus hard disk
     --------------------------
 
@@ -142,15 +150,18 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 static INPUT_PORTS_START( softbox )
+	/* An 8-position DIP switch may be installed at SW1.  Some
+	   SoftBox units have it and some do not.  The switches are
+	   not used by the SoftBox BIOS. */
 	PORT_START("SW1")
-	PORT_DIPUNKNOWN_DIPLOC( 0x01, IP_ACTIVE_LOW, "SW1:1" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x02, IP_ACTIVE_LOW, "SW1:2" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x04, IP_ACTIVE_LOW, "SW1:3" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x08, IP_ACTIVE_LOW, "SW1:4" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW1:5" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x40, IP_ACTIVE_LOW, "SW1:7" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x80, IP_ACTIVE_LOW, "SW1:8" )
+	PORT_DIPUNUSED_DIPLOC( 0x01, IP_ACTIVE_LOW, "SW1:1" )
+	PORT_DIPUNUSED_DIPLOC( 0x02, IP_ACTIVE_LOW, "SW1:2" )
+	PORT_DIPUNUSED_DIPLOC( 0x04, IP_ACTIVE_LOW, "SW1:3" )
+	PORT_DIPUNUSED_DIPLOC( 0x08, IP_ACTIVE_LOW, "SW1:4" )
+	PORT_DIPUNUSED_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW1:5" )
+	PORT_DIPUNUSED_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
+	PORT_DIPUNUSED_DIPLOC( 0x40, IP_ACTIVE_LOW, "SW1:7" )
+	PORT_DIPUNUSED_DIPLOC( 0x80, IP_ACTIVE_LOW, "SW1:8" )
 INPUT_PORTS_END
 
 
@@ -357,6 +368,42 @@ void softbox_state::machine_start()
 }
 
 
+//-------------------------------------------------
+//  device_reset_after_children - device-specific
+//    reset that must happen after child devices
+//    have performed their resets
+//-------------------------------------------------
+
+void softbox_state::device_reset_after_children()
+{
+	/* The Z80 starts at address 0x0000 but the SoftBox has RAM there and
+	   needs to start from the BIOS at 0xf000.  The PCB has logic and a
+	   74S287 PROM that temporarily changes the memory map so that the
+	   IC3 EPROM at 0xf000 is mapped to 0x0000 for the first instruction
+	   fetch only.  The instruction normally at 0xf000 is an absolute jump
+	   into the BIOS.  On reset, the Z80 will fetch it from 0x0000 and set
+	   its PC, then the normal map will be restored before the next
+	   instruction fetch.  Here we just set the PC to 0xf000 after the Z80
+	   resets, which has the same effect. */
+
+	m_maincpu->set_state_int(Z80_PC, 0xf000);
+}
+
+
+//-------------------------------------------------
+//  ieee488_ifc - interface clear (reset)
+//-------------------------------------------------
+
+void softbox_state::ieee488_ifc(int state)
+{
+	if (!m_ifc && state)
+	{
+		device_reset();
+	}
+
+	m_ifc = state;
+}
+
 
 //**************************************************************************
 //  MACHINE CONFIGURATION
@@ -368,7 +415,7 @@ void softbox_state::machine_start()
 
 static MACHINE_CONFIG_START( softbox, softbox_state )
 	// basic machine hardware
-	MCFG_CPU_ADD(Z80_TAG, Z80, 4000000) // ???
+	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_8MHz/2)
 	MCFG_CPU_PROGRAM_MAP(softbox_mem)
 	MCFG_CPU_IO_MAP(softbox_io)
 
@@ -379,8 +426,12 @@ static MACHINE_CONFIG_START( softbox, softbox_state )
 	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, NULL, DEVWRITELINE(I8251_TAG, i8251_device, rxc_w), DEVWRITELINE(I8251_TAG, i8251_device, txc_w))
 	MCFG_CBM_IEEE488_ADD("c8050")
 	MCFG_HARDDISK_ADD("harddisk1")
+	MCFG_HARDDISK_ADD("harddisk2")
+	MCFG_HARDDISK_ADD("harddisk3")
+	MCFG_HARDDISK_ADD("harddisk4")
 	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, "serial_terminal")
 	MCFG_DEVICE_CARD_DEVICE_INPUT_DEFAULTS("serial_terminal", terminal)
+	MCFG_IMI5000H_ADD("corvus1")
 
 	// software lists
 	MCFG_SOFTWARE_LIST_ADD("flop_list", "softbox")

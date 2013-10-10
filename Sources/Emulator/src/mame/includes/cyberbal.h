@@ -5,6 +5,8 @@
 *************************************************************************/
 
 #include "machine/atarigen.h"
+#include "audio/atarijsa.h"
+#include "video/atarimo.h"
 #include "cpu/m68000/m68000.h"
 #include "cpu/m6502/m6502.h"
 #include "sound/dac.h"
@@ -20,15 +22,33 @@ public:
 			m_daccpu(*this, "dac"),
 			m_dac1(*this, "dac1"),
 			m_dac2(*this, "dac2"),
+			m_jsa(*this, "jsa"),
+			m_playfield_tilemap(*this, "playfield"),
+			m_alpha_tilemap(*this, "alpha"),
+			m_mob(*this, "mob"),
+			m_playfield2_tilemap(*this, "playfield2"),
+			m_alpha2_tilemap(*this, "alpha2"),
+			m_mob2(*this, "mob2"),
+			m_lscreen(*this, "lscreen"),
+			m_rscreen(*this, "rscreen"),
 			m_paletteram_0(*this, "paletteram_0"),
 			m_paletteram_1(*this, "paletteram_1") { }
 
-	required_device<m68000_device> m_maincpu;
+	required_device<cpu_device> m_maincpu;
 	optional_device<m6502_device> m_audiocpu;
-	optional_device<m68000_device> m_extracpu;
-	optional_device<m68000_device> m_daccpu;
+	optional_device<cpu_device> m_extracpu;
+	optional_device<cpu_device> m_daccpu;
 	optional_device<dac_device> m_dac1;
 	optional_device<dac_device> m_dac2;
+	optional_device<atari_jsa_ii_device> m_jsa;
+	required_device<tilemap_device> m_playfield_tilemap;
+	required_device<tilemap_device> m_alpha_tilemap;
+	required_device<atari_motion_objects_device> m_mob;
+	optional_device<tilemap_device> m_playfield2_tilemap;
+	optional_device<tilemap_device> m_alpha2_tilemap;
+	optional_device<atari_motion_objects_device> m_mob2;
+	optional_device<screen_device> m_lscreen;
+	optional_device<screen_device> m_rscreen;
 	optional_shared_ptr<UINT16> m_paletteram_0;
 	optional_shared_ptr<UINT16> m_paletteram_1;
 	UINT16          m_current_slip[2];
@@ -45,8 +65,6 @@ public:
 	UINT8           m_sound_data_from_6502_ready;
 	virtual void update_interrupts();
 	virtual void scanline_update(screen_device &screen, int scanline);
-	DECLARE_READ16_MEMBER(special_port0_r);
-	DECLARE_READ16_MEMBER(special_port2_r);
 	DECLARE_READ16_MEMBER(sound_state_r);
 	DECLARE_WRITE16_MEMBER(p2_reset_w);
 	DECLARE_READ8_MEMBER(special_port3_r);
@@ -78,6 +96,9 @@ public:
 	DECLARE_READ16_MEMBER(paletteram_1_r);
 	DECLARE_WRITE16_MEMBER(paletteram_0_w);
 	DECLARE_WRITE16_MEMBER(paletteram_1_w);
+
+	static const atari_motion_objects_config s_mob_config;
+
 private:
 	void video_start_common(int screens);
 	void cyberbal_sound_reset();

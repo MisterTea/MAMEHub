@@ -20,7 +20,6 @@
 /* 6845 used for video sync signals only */
 MC6845_INTERFACE( twincobr_mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	2,          /* number of pixels per video memory address */ /* Horizontal Display programmed to 160 characters */
 	NULL,       /* before pixel update callback */
@@ -97,6 +96,9 @@ void twincobr_state::twincobr_create_tilemaps()
 
 VIDEO_START_MEMBER(twincobr_state,toaplan0)
 {
+	m_spritegen->alloc_sprite_bitmap(*m_screen);
+	m_spritegen->set_gfx_region(3);
+
 	/* the video RAM is accessed via ports, it's not memory mapped */
 	m_txvideoram_size = 0x0800;
 	m_bgvideoram_size = 0x2000; /* banked two times 0x1000 */
@@ -129,7 +131,6 @@ VIDEO_START_MEMBER(twincobr_state,toaplan0)
 	save_item(NAME(m_fg_rom_bank));
 	save_item(NAME(m_bg_ram_bank));
 	save_item(NAME(m_flip_screen));
-	save_item(NAME(m_wardner_sprite_hack));
 	machine().save().register_postload(save_prepost_delegate(FUNC(twincobr_state::twincobr_restore_screen), this));
 }
 
@@ -342,36 +343,6 @@ WRITE8_MEMBER(twincobr_state::wardner_sprite_w)
 
 
 
-/***************************************************************************
-    Ugly sprite hack for Wardner when hero is in shop
-***************************************************************************/
-
-void twincobr_state::wardner_sprite_priority_hack()
-{
-	if (m_fgscrollx != m_bgscrollx) {
-		UINT16 *buffered_spriteram16 = reinterpret_cast<UINT16 *>(m_spriteram8->buffer());
-		if ((m_fgscrollx==0x1c9) || (m_flip_screen && (m_fgscrollx==0x17a))) { /* in the shop ? */
-			int wardner_hack = buffered_spriteram16[0x0b04/2];
-		/* sprite position 0x6300 to 0x8700 -- hero on shop keeper (normal) */
-		/* sprite position 0x3900 to 0x5e00 -- hero on shop keeper (flip) */
-			if ((wardner_hack > 0x3900) && (wardner_hack < 0x8700)) {   /* hero at shop keeper ? */
-				wardner_hack = buffered_spriteram16[0x0b02/2];
-				wardner_hack |= 0x0400;         /* make hero top priority */
-				buffered_spriteram16[0x0b02/2] = wardner_hack;
-				wardner_hack = buffered_spriteram16[0x0b0a/2];
-				wardner_hack |= 0x0400;
-				buffered_spriteram16[0x0b0a/2] = wardner_hack;
-				wardner_hack = buffered_spriteram16[0x0b12/2];
-				wardner_hack |= 0x0400;
-				buffered_spriteram16[0x0b12/2] = wardner_hack;
-				wardner_hack = buffered_spriteram16[0x0b1a/2];
-				wardner_hack |= 0x0400;
-				buffered_spriteram16[0x0b1a/2] = wardner_hack;
-			}
-		}
-	}
-}
-
 
 
 void twincobr_state::twincobr_log_vram()
@@ -414,73 +385,35 @@ void twincobr_state::twincobr_log_vram()
 }
 
 
-/***************************************************************************
-    Sprite Handlers
-***************************************************************************/
-
-void twincobr_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority )
-{
-	int offs;
-
-	if (m_display_on)
-	{
-		UINT16 *buffered_spriteram16;
-		UINT32 bytes;
-		if (m_spriteram16 != NULL)
-		{
-			buffered_spriteram16 = m_spriteram16->buffer();
-			bytes = m_spriteram16->bytes();
-		}
-		else
-		{
-			buffered_spriteram16 = reinterpret_cast<UINT16 *>(m_spriteram8->buffer());
-			bytes = m_spriteram8->bytes();
-		}
-		for (offs = 0;offs < bytes/2;offs += 4)
-		{
-			int attribute,sx,sy,flipx,flipy;
-			int sprite, color;
-
-			attribute = buffered_spriteram16[offs + 1];
-			if ((attribute & 0x0c00) == priority) { /* low priority */
-				sy = buffered_spriteram16[offs + 3] >> 7;
-				if (sy != 0x0100) {     /* sx = 0x01a0 or 0x0040*/
-					sprite = buffered_spriteram16[offs] & 0x7ff;
-					color  = attribute & 0x3f;
-					sx = buffered_spriteram16[offs + 2] >> 7;
-					flipx = attribute & 0x100;
-					if (flipx) sx -= 14;        /* should really be 15 */
-					flipy = attribute & 0x200;
-					drawgfx_transpen(bitmap,cliprect,machine().gfx[3],
-						sprite,
-						color,
-						flipx,flipy,
-						sx-32,sy-16,0);
-				}
-			}
-		}
-	}
-}
-
-
-/***************************************************************************
-    Draw the game screen in the given bitmap_ind16.
-***************************************************************************/
-
 UINT32 twincobr_state::screen_update_toaplan0(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	twincobr_log_vram();
 
-	if (m_wardner_sprite_hack) wardner_sprite_priority_hack();
+	UINT16 *buffered_spriteram16;
+	UINT32 bytes;
+	if (m_spriteram16 != NULL)
+	{
+		buffered_spriteram16 = m_spriteram16->buffer();
+		bytes = m_spriteram16->bytes();
+	}
+	else
+	{
+		buffered_spriteram16 = reinterpret_cast<UINT16 *>(m_spriteram8->buffer());
+		bytes = m_spriteram8->bytes();
+	}
 
 	bitmap.fill(0, cliprect);
 
-	m_bg_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
-	draw_sprites(bitmap,cliprect,0x0400);
-	m_fg_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(bitmap,cliprect,0x0800);
-	m_tx_tilemap->draw(bitmap, cliprect, 0,0);
-	draw_sprites(bitmap,cliprect,0x0c00);
+
+	if (m_display_on) m_spritegen->draw_sprites_to_tempbitmap(cliprect, buffered_spriteram16, bytes);
+
+
+	m_bg_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE,0);
+	if (m_display_on) m_spritegen->copy_sprites_from_tempbitmap(bitmap,cliprect,1);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	if (m_display_on) m_spritegen->copy_sprites_from_tempbitmap(bitmap,cliprect,2);
+	m_tx_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	if (m_display_on) m_spritegen->copy_sprites_from_tempbitmap(bitmap,cliprect,3);
 	return 0;
 }
 

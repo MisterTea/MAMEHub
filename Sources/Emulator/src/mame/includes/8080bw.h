@@ -6,7 +6,7 @@
 
 #include "includes/mw8080bw.h"
 #include "sound/speaker.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 /* for games in 8080bw.c */
 #define CABINET_PORT_TAG                  "CAB"
 
@@ -28,7 +28,7 @@ public:
 	optional_device<timer_device> m_claybust_gun_on;
 	optional_device<discrete_device> m_discrete;
 	optional_device<speaker_sound_device> m_speaker;
-	optional_device<eeprom_device> m_eeprom;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 
 
 	/* misc game specific */
@@ -92,9 +92,6 @@ public:
 	DECLARE_WRITE8_MEMBER(shuttlei_ff_w);
 	DECLARE_WRITE8_MEMBER(shuttlei_sh_port_1_w);
 	DECLARE_WRITE8_MEMBER(shuttlei_sh_port_2_w);
-	DECLARE_WRITE8_MEMBER(galactic_07_w);
-	DECLARE_WRITE8_MEMBER(galactic_sh_port_1_w);
-	DECLARE_WRITE8_MEMBER(galactic_sh_port_2_w);
 	DECLARE_READ8_MEMBER(claybust_gun_lo_r);
 	DECLARE_READ8_MEMBER(claybust_gun_hi_r);
 	DECLARE_READ8_MEMBER(invmulti_eeprom_r);
@@ -118,6 +115,8 @@ public:
 	DECLARE_MACHINE_START(schaser_sh);
 	DECLARE_MACHINE_RESET(schaser_sh);
 	DECLARE_MACHINE_START(claybust);
+
+	DECLARE_PALETTE_INIT(rollingc);
 
 	UINT32 screen_update_invadpt2(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_cosmo(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -144,9 +143,9 @@ public:
 	void invadpt2_get_pens( pen_t *pens );
 	void sflush_get_pens( pen_t *pens );
 	void cosmo_get_pens( pen_t *pens );
-	inline void set_pixel( bitmap_rgb32 &bitmap, UINT8 y, UINT8 x, pen_t *pens, UINT8 color );
-	inline void set_8_pixels( bitmap_rgb32 &bitmap, UINT8 y, UINT8 x, UINT8 data, pen_t *pens, UINT8 fore_color, UINT8 back_color );
-	void clear_extra_columns( bitmap_rgb32 &bitmap, pen_t *pens, UINT8 color );
+	inline void set_pixel( bitmap_rgb32 &bitmap, UINT8 y, UINT8 x, const pen_t *pens, UINT8 color );
+	inline void set_8_pixels( bitmap_rgb32 &bitmap, UINT8 y, UINT8 x, UINT8 data, const pen_t *pens, UINT8 fore_color, UINT8 back_color );
+	void clear_extra_columns( bitmap_rgb32 &bitmap, const pen_t *pens, UINT8 color );
 };
 
 
@@ -156,7 +155,6 @@ extern const samples_interface lupin3_samples_interface;
 
 DISCRETE_SOUND_EXTERN( ballbomb );
 DISCRETE_SOUND_EXTERN( indianbt );
-DISCRETE_SOUND_EXTERN( galactic );
 DISCRETE_SOUND_EXTERN( polaris );
 
 extern const sn76477_interface lupin3_sn76477_interface;

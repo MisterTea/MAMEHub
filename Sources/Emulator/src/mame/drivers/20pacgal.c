@@ -83,8 +83,7 @@ Graphics: CY37256P160-83AC x 2 (Ultra37000 CPLD family - 160 pin TQFP, 256 Macro
 
 #include "emu.h"
 #include "cpu/z180/z180.h"
-#include "machine/eeprom.h"
-#include "sound/namco.h"
+#include "machine/eepromser.h"
 #include "sound/dac.h"
 #include "includes/20pacgal.h"
 
@@ -132,24 +131,6 @@ static const namco_interface namco_config =
 	0       /* stereo */
 };
 
-
-
-/*************************************
- *
- *  Non-volatile memory
- *
- *************************************/
-
-static const eeprom_interface _20pacgal_eeprom_intf =
-{
-	7,                /* address bits */
-	8,                /* data bits */
-	"*110",           /* read command */
-	"*101",           /* write command */
-	0,                /* erase command */
-	"*10000xxxxx",    /* lock command */
-	"*10011xxxxx",    /* unlock command */
-};
 
 
 /*************************************
@@ -220,6 +201,29 @@ WRITE8_MEMBER(_20pacgal_state::sprite_lookup_w)
 	m_sprite_color_lookup[offset] = data;
 }
 
+// this is wrong
+// where does the clut (sprite_lookup_w) get uploaded? even if I set a WP on that data in ROM it isn't hit?
+// likewise the sound table.. is it being uploaded in a different format at 0x0c000?
+// we also need the palette data because there is only a single rom on this pcb?
+static ADDRESS_MAP_START( 25pacman_map, AS_PROGRAM, 8, _25pacman_state )
+
+	AM_RANGE(0x00000, 0x3ffff) AM_ROM AM_REGION("flash", 0)
+
+	AM_RANGE(0x08000, 0x09fff) AM_READ_BANK("bank1") AM_WRITE(ram_48000_w)
+
+	AM_RANGE(0x04000, 0x047ff) AM_RAM AM_SHARE("video_ram")
+	AM_RANGE(0x04800, 0x05fff) AM_RAM
+	AM_RANGE(0x06000, 0x06fff) AM_WRITEONLY AM_SHARE("char_gfx_ram")
+	AM_RANGE(0x0a000, 0x0bfff) AM_WRITE(sprite_gfx_w)
+//  AM_RANGE(0x0fffe, 0x0ffff) AM_WRITENOP
+
+//  AM_RANGE(0x0c000, 0x0dfff) // is this the sound waveforms in a different format?
+	AM_RANGE(0x07000, 0x0717f) AM_WRITE(sprite_ram_w)
+
+//  AM_RANGE(0x00000, 0x3ffff) AM_DEVREADWRITE("flash", sst_39vf020_device, read, write )  // (always fall through if nothing else is mapped?)
+
+ADDRESS_MAP_END
+
 static ADDRESS_MAP_START( 20pacgal_map, AS_PROGRAM, 8, _20pacgal_state )
 	AM_RANGE(0x00000, 0x03fff) AM_ROM
 	AM_RANGE(0x04000, 0x07fff) AM_ROM
@@ -227,9 +231,9 @@ static ADDRESS_MAP_START( 20pacgal_map, AS_PROGRAM, 8, _20pacgal_state )
 	AM_RANGE(0x0a000, 0x0ffff) AM_MIRROR(0x40000) AM_ROM
 	AM_RANGE(0x10000, 0x3ffff) AM_ROM
 	AM_RANGE(0x44000, 0x447ff) AM_RAM AM_SHARE("video_ram")
-	AM_RANGE(0x45040, 0x4505f) AM_DEVWRITE_LEGACY("namco", pacman_sound_w)
+	AM_RANGE(0x45040, 0x4505f) AM_DEVWRITE("namco", namco_cus30_device, pacman_sound_w)
 	AM_RANGE(0x44800, 0x45eff) AM_RAM
-	AM_RANGE(0x45f00, 0x45fff) AM_DEVWRITE_LEGACY("namco", namcos1_cus30_w)
+	AM_RANGE(0x45f00, 0x45fff) AM_DEVWRITE("namco", namco_cus30_device, namcos1_cus30_w)
 	AM_RANGE(0x46000, 0x46fff) AM_WRITEONLY AM_SHARE("char_gfx_ram")
 	AM_RANGE(0x47100, 0x47100) AM_RAM   /* leftover from original Galaga code */
 	AM_RANGE(0x48000, 0x49fff) AM_READ_BANK("bank1") AM_WRITE(ram_48000_w)  /* this should be a mirror of 08000-09ffff */
@@ -240,12 +244,36 @@ static ADDRESS_MAP_START( 20pacgal_map, AS_PROGRAM, 8, _20pacgal_state )
 ADDRESS_MAP_END
 
 
-
 /*************************************
  *
  *  I/O port handlers
  *
  *************************************/
+
+READ8_MEMBER( _25pacman_state::_25pacman_io_87_r )
+{
+	return 0xff;
+}
+
+	static ADDRESS_MAP_START( 25pacman_io_map, AS_IO, 8, _25pacman_state )
+	ADDRESS_MAP_GLOBAL_MASK(0xff)
+	AM_RANGE(0x00, 0x3f) AM_NOP /* Z180 internal registers */
+	AM_RANGE(0x40, 0x7f) AM_NOP /* Z180 internal registers */
+	AM_RANGE(0x80, 0x80) AM_READ_PORT("P1")
+	AM_RANGE(0x81, 0x81) AM_READ_PORT("P2")
+	AM_RANGE(0x82, 0x82) AM_READ_PORT("SERVICE")
+	AM_RANGE(0x80, 0x80) AM_WRITE(watchdog_reset_w)
+	AM_RANGE(0x81, 0x81) AM_WRITE(timer_pulse_w)        /* ??? pulsed by the timer irq */
+	AM_RANGE(0x82, 0x82) AM_WRITE(irqack_w)
+//  AM_RANGE(0x84, 0x84) AM_NOP /* ?? */
+	AM_RANGE(0x85, 0x86) AM_WRITEONLY AM_SHARE("stars_seed")    /* stars: rng seed (lo/hi) */
+	AM_RANGE(0x87, 0x87) AM_READ( _25pacman_io_87_r ) // not eeprom on this
+	AM_RANGE(0x88, 0x88) AM_WRITE(ram_bank_select_w)
+	AM_RANGE(0x89, 0x89) AM_DEVWRITE("dac", dac_device, write_signed8)
+	AM_RANGE(0x8a, 0x8a) AM_WRITEONLY AM_SHARE("stars_ctrl")    /* stars: bits 3-4 = active set; bit 5 = enable */
+	AM_RANGE(0x8b, 0x8b) AM_WRITEONLY AM_SHARE("flip")
+	AM_RANGE(0x8f, 0x8f) AM_WRITE(_20pacgal_coin_counter_w)
+ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( 20pacgal_io_map, AS_IO, 8, _20pacgal_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
@@ -307,12 +335,12 @@ static INPUT_PORTS_START( 20pacgal )
 	PORT_SERVICE_NO_TOGGLE( 0x80, IP_ACTIVE_LOW )
 
 	PORT_START( "EEPROMIN" )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)   /* bit 7 is EEPROM data */
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)   /* bit 7 is EEPROM data */
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)     /* bit 5 is cs (active low) */
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line) /* bit 6 is clock (active high) */
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)      /* bit 7 is data */
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)    /* bit 5 is cs (active high) */
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)     /* bit 6 is clock (active high) */
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)    /* bit 7 is data */
 INPUT_PORTS_END
 
 
@@ -369,7 +397,7 @@ static MACHINE_CONFIG_START( 20pacgal, _20pacgal_state )
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", _20pacgal_state,  vblank_irq)
 
 
-	MCFG_EEPROM_ADD("eeprom", _20pacgal_eeprom_intf)
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD(20pacgal_video)
@@ -377,12 +405,24 @@ static MACHINE_CONFIG_START( 20pacgal, _20pacgal_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("namco", NAMCO, NAMCO_AUDIO_CLOCK)
+	MCFG_SOUND_ADD("namco", NAMCO_CUS30, NAMCO_AUDIO_CLOCK)
 	MCFG_SOUND_CONFIG(namco_config)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_DAC_ADD("dac")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+MACHINE_CONFIG_END
+
+
+static MACHINE_CONFIG_DERIVED_CLASS( 25pacman, 20pacgal, _25pacman_state )
+
+	/* basic machine hardware */
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_PROGRAM_MAP(25pacman_map)
+	MCFG_CPU_IO_MAP(25pacman_io_map)
+
+
+	MCFG_SST_39VF020_ADD("flash") // wrong type, should be AM29LV20
 MACHINE_CONFIG_END
 
 
@@ -398,12 +438,25 @@ MACHINE_CONFIG_END
      Pacman - 25th Anniversary Edition
 */
 
-ROM_START( 25pacman ) /* Revision 2.00 */
+ROM_START( 25pacmano ) /* Revision 2.00 */
 	ROM_REGION( 0x100000, "maincpu", 0 )
 	ROM_LOAD( "pacman_25th_rev2.0.u13", 0x00000, 0x40000, CRC(99a52784) SHA1(6222c2eb686e65ba23ca376ff4392be1bc826a03) ) /* Label printed Rev 2.0, program says Rev 2.00 */
 
 	ROM_REGION( 0x8000, "proms", 0 )    /* palette */
 	ROM_LOAD( "pacman_25th.u14", 0x0000, 0x8000, CRC(c19d9ad0) SHA1(002581fbc2c32cdf7cfb0b0f64061591a462ec14) ) /* Same as the MS. Pacman / Galaga graphics rom */
+ROM_END
+
+// guzuta v2.2 PCB
+// this uses the main FLASH rom to save things instead of eeprom (type is AM29LV20)
+// different memory map.. no palette rom
+ROM_START( 25pacman ) /* Revision 3.00 */
+	ROM_REGION( 0x40000, "flash", 0 )
+	ROM_LOAD( "pacman25ver3.u1", 0x00000, 0x40000, CRC(55b0076e) SHA1(4544cc193bdd22bfc88d096083ccc4069cac4607) ) /* program says Rev 3.00 */
+	ROM_REGION( 0x100000, "maincpu", ROMREGION_ERASE00 )
+
+	ROM_REGION( 0x8000, "proms", 0 )    /* palette */
+	// shouldn't be loading this! must be uploaded somewhere
+	ROM_LOAD( "pacman_25th.u14", 0x0000, 0x8000, CRC(c19d9ad0) SHA1(002581fbc2c32cdf7cfb0b0f64061591a462ec14) )
 ROM_END
 
 /*
@@ -459,6 +512,8 @@ ROM_START( 20pacgalr0 ) /* Version 1.00 */
 ROM_END
 
 
+
+
 DRIVER_INIT_MEMBER(_20pacgal_state,20pacgal)
 {
 	m_sprite_pal_base = 0x00<<2;
@@ -477,7 +532,8 @@ DRIVER_INIT_MEMBER(_20pacgal_state,25pacman)
  *
  *************************************/
 
-GAME( 2005, 25pacman,          0, 20pacgal, 25pacman, _20pacgal_state, 25pacman, ROT90, "Namco", "Pac-Man - 25th Anniversary Edition (Rev 2.00)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE)
+GAME( 2006, 25pacman,          0, 25pacman, 25pacman, _20pacgal_state, 25pacman, ROT90, "Namco", "Pac-Man - 25th Anniversary Edition (Rev 3.00)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE | GAME_NOT_WORKING )
+GAME( 2005, 25pacmano,  25pacman, 20pacgal, 25pacman, _20pacgal_state, 25pacman, ROT90, "Namco", "Pac-Man - 25th Anniversary Edition (Rev 2.00)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE)
 
 GAME( 2000, 20pacgal,          0, 20pacgal, 20pacgal, _20pacgal_state, 20pacgal, ROT90, "Namco / Cosmodog", "Ms. Pac-Man/Galaga - 20th Anniversary Class of 1981 Reunion (V1.08)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE)
 GAME( 2000, 20pacgalr4, 20pacgal, 20pacgal, 20pacgal, _20pacgal_state, 20pacgal, ROT90, "Namco / Cosmodog", "Ms. Pac-Man/Galaga - 20th Anniversary Class of 1981 Reunion (V1.04)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE)

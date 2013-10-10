@@ -20,7 +20,6 @@
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
 #include "sound/okim6295.h"
-#include "video/atarimo.h"
 #include "includes/klax.h"
 
 
@@ -62,7 +61,7 @@ WRITE16_MEMBER(klax_state::interrupt_ack_w)
 MACHINE_RESET_MEMBER(klax_state,klax)
 {
 	atarigen_state::machine_reset();
-	scanline_timer_reset(*machine().primary_screen, 32);
+	scanline_timer_reset(*m_screen, 32);
 }
 
 
@@ -75,18 +74,18 @@ MACHINE_RESET_MEMBER(klax_state,klax)
 
 static ADDRESS_MAP_START( klax_map, AS_PROGRAM, 16, klax_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0x0e0000, 0x0e0fff) AM_READWRITE(eeprom_r, eeprom_w) AM_SHARE("eeprom")
-	AM_RANGE(0x1f0000, 0x1fffff) AM_WRITE(eeprom_enable_w)
+	AM_RANGE(0x0e0000, 0x0e0fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
+	AM_RANGE(0x1f0000, 0x1fffff) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
 	AM_RANGE(0x260000, 0x260001) AM_READ_PORT("P1") AM_WRITE(klax_latch_w)
 	AM_RANGE(0x260002, 0x260003) AM_READ_PORT("P2")
 	AM_RANGE(0x270000, 0x270001) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)
 	AM_RANGE(0x2e0000, 0x2e0001) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x360000, 0x360001) AM_WRITE(interrupt_ack_w)
 	AM_RANGE(0x3e0000, 0x3e07ff) AM_RAM_WRITE(expanded_paletteram_666_w) AM_SHARE("paletteram")
-	AM_RANGE(0x3f0000, 0x3f0f7f) AM_RAM_WRITE(playfield_w) AM_SHARE("playfield")
-	AM_RANGE(0x3f0f80, 0x3f0fff) AM_READWRITE_LEGACY(atarimo_0_slipram_r, atarimo_0_slipram_w)
-	AM_RANGE(0x3f1000, 0x3f1fff) AM_RAM_WRITE(playfield_upper_w) AM_SHARE("playfield_up")
-	AM_RANGE(0x3f2000, 0x3f27ff) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
+	AM_RANGE(0x3f0000, 0x3f0f7f) AM_RAM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
+	AM_RANGE(0x3f0f80, 0x3f0fff) AM_RAM AM_SHARE("mob:slip")
+	AM_RANGE(0x3f1000, 0x3f1fff) AM_RAM_DEVWRITE("playfield", tilemap_device, write_ext) AM_SHARE("playfield_ext")
+	AM_RANGE(0x3f2000, 0x3f27ff) AM_RAM AM_SHARE("mob")
 	AM_RANGE(0x3f2800, 0x3f3fff) AM_RAM
 ADDRESS_MAP_END
 
@@ -163,12 +162,16 @@ static MACHINE_CONFIG_START( klax, klax_state )
 	MCFG_DEVICE_VBLANK_INT_DRIVER("screen", atarigen_state, video_int_gen)
 
 	MCFG_MACHINE_RESET_OVERRIDE(klax_state,klax)
-	MCFG_NVRAM_ADD_1FILL("eeprom")
+
+	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_GFXDECODE(klax)
 	MCFG_PALETTE_LENGTH(512)
+
+	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, klax_state, get_playfield_tile_info, 8,8, SCAN_COLS, 64,32)
+	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", klax_state::s_mob_config)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */

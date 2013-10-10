@@ -31,7 +31,7 @@ class adc12138_device : public device_t,
 {
 public:
 	adc12138_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	adc12138_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	adc12138_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	~adc12138_device() {}
 
 	DECLARE_WRITE8_MEMBER( di_w );
@@ -61,7 +61,6 @@ protected:
 	int m_auto_zero;
 	int m_acq_time;
 	int m_data_out_sign;
-	int m_mode;
 	int m_input_shift_reg;
 	int m_output_shift_reg;
 	int m_end_conv;

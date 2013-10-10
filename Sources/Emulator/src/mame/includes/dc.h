@@ -9,6 +9,7 @@
 
 #include "video/powervr2.h"
 #include "machine/naomig1.h"
+#include "machine/maple-dc.h"
 
 class dc_state : public driver_device
 {
@@ -22,6 +23,7 @@ class dc_state : public driver_device
 		m_maincpu(*this, "maincpu"),
 		m_soundcpu(*this, "soundcpu"),
 		m_powervr2(*this, "powervr2"),
+		m_maple(*this, "maple_dc"),
 		m_naomig1(*this, "rom_board") { }
 
 	required_shared_ptr<UINT64> dc_framebuffer_ram; // '32-bit access area'
@@ -31,12 +33,10 @@ class dc_state : public driver_device
 	required_shared_ptr<UINT64> dc_ram;
 
 	/* machine related */
-	UINT32 dc_rtcregister[4];
 	UINT32 dc_sysctrl_regs[0x200/4];
 	UINT32 g1bus_regs[0x100/4]; // DC-only
 	UINT32 g2bus_regs[0x100/4];
-
-	emu_timer *dc_rtc_timer;
+	UINT8 m_armrst;
 
 	struct {
 		UINT32 aica_addr;
@@ -54,9 +54,8 @@ class dc_state : public driver_device
 	TIMER_CALLBACK_MEMBER(aica_dma_irq);
 	TIMER_CALLBACK_MEMBER(ch2_dma_irq);
 	TIMER_CALLBACK_MEMBER(yuv_fifo_irq);
-	TIMER_CALLBACK_MEMBER(dc_rtc_increment);
-	DECLARE_READ64_MEMBER(dc_aica_reg_r);
-	DECLARE_WRITE64_MEMBER(dc_aica_reg_w);
+	DECLARE_READ32_MEMBER(dc_aica_reg_r);
+	DECLARE_WRITE32_MEMBER(dc_aica_reg_w);
 	DECLARE_READ32_MEMBER(dc_arm_aica_r);
 	DECLARE_WRITE32_MEMBER(dc_arm_aica_w);
 	void wave_dma_execute(address_space &space);
@@ -65,7 +64,6 @@ class dc_state : public driver_device
 	int dc_compute_interrupt_level();
 	void dc_update_interrupt_status();
 	inline int decode_reg_64(UINT32 offset, UINT64 mem_mask, UINT64 *shift);
-	void rtc_initial_setup();
 	DECLARE_READ64_MEMBER( dc_sysctrl_r );
 	DECLARE_WRITE64_MEMBER( dc_sysctrl_w );
 	DECLARE_READ64_MEMBER( dc_gdrom_r );
@@ -74,17 +72,17 @@ class dc_state : public driver_device
 	DECLARE_WRITE64_MEMBER( dc_g2_ctrl_w );
 	DECLARE_READ64_MEMBER( dc_modem_r );
 	DECLARE_WRITE64_MEMBER( dc_modem_w );
-	DECLARE_READ64_MEMBER( dc_rtc_r );
-	DECLARE_WRITE64_MEMBER( dc_rtc_w );
 	DECLARE_WRITE8_MEMBER( g1_irq );
 	DECLARE_WRITE8_MEMBER( pvr_irq );
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_soundcpu;
 	required_device<powervr2_device> m_powervr2;
+	required_device<maple_dc_device> m_maple;
 	optional_device<naomi_g1_device> m_naomig1;
 
 	void generic_dma(UINT32 main_adr, void *dma_ptr, UINT32 length, UINT32 size, bool to_mainram);
+	TIMER_DEVICE_CALLBACK_MEMBER(dc_scanline);
 };
 
 /*--------- Ch2-DMA Control Registers ----------*/
@@ -162,6 +160,9 @@ class dc_state : public driver_device
 #define SB_G1SYSM   ((0x005f74b0-0x005f7400)/4)
 #define SB_G1CRDYC  ((0x005f74b4-0x005f7400)/4)
 #define SB_GDAPRO   ((0x005f74b8-0x005f7400)/4)
+
+/*-------- Unknown/Special Registers ---------*/
+#define GD_UNLOCK   ((0x005f74e4-0x005f7400)/4)
 /*---------- GD-DMA Debug Registers ------------*/
 #define SB_GDSTARD  ((0x005f74f4-0x005f7400)/4)
 #define SB_GDLEND   ((0x005f74f8-0x005f7400)/4)
@@ -231,95 +232,10 @@ class dc_state : public driver_device
 #define SB_DDSTARD  ((0x005f78f4-0x005f7800)/4)
 #define SB_DDLEND   ((0x005f78f8-0x005f7800)/4)
 
-/*------------- PowerVR Interface -------------*/
-#define SB_PDSTAP   ((0x005f7c00-0x005f7c00)/4)
-#define SB_PDSTAR   ((0x005f7c04-0x005f7c00)/4)
-#define SB_PDLEN    ((0x005f7c08-0x005f7c00)/4)
-#define SB_PDDIR    ((0x005f7c0c-0x005f7c00)/4)
-#define SB_PDTSEL   ((0x005f7c10-0x005f7c00)/4)
-#define SB_PDEN     ((0x005f7c14-0x005f7c00)/4)
-#define SB_PDST     ((0x005f7c18-0x005f7c00)/4)
-#define SB_PDAPRO   ((0x005f7c80-0x005f7c00)/4)
-
 #define RTC1        ((0x00710000-0x00710000)/4)
 #define RTC2        ((0x00710004-0x00710000)/4)
 #define RTC3        ((0x00710008-0x00710000)/4)
 
-
-/*--------------- CORE registers --------------*/
-#define PVRID               ((0x005f8000-0x005f8000)/4)
-#define REVISION            ((0x005f8004-0x005f8000)/4)
-#define SOFTRESET           ((0x005f8008-0x005f8000)/4)
-#define STARTRENDER         ((0x005f8014-0x005f8000)/4)
-#define TEST_SELECT         ((0x005f8018-0x005f8000)/4)
-#define PARAM_BASE          ((0x005f8020-0x005f8000)/4)
-#define REGION_BASE         ((0x005f802c-0x005f8000)/4)
-#define SPAN_SORT_CFG       ((0x005f8030-0x005f8000)/4)
-#define VO_BORDER_COL       ((0x005f8040-0x005f8000)/4)
-#define FB_R_CTRL           ((0x005f8044-0x005f8000)/4)
-#define FB_W_CTRL           ((0x005f8048-0x005f8000)/4)
-#define FB_W_LINESTRIDE     ((0x005f804c-0x005f8000)/4)
-#define FB_R_SOF1           ((0x005f8050-0x005f8000)/4)
-#define FB_R_SOF2           ((0x005f8054-0x005f8000)/4)
-#define FB_R_SIZE           ((0x005f805c-0x005f8000)/4)
-#define FB_W_SOF1           ((0x005f8060-0x005f8000)/4)
-#define FB_W_SOF2           ((0x005f8064-0x005f8000)/4)
-#define FB_X_CLIP           ((0x005f8068-0x005f8000)/4)
-#define FB_Y_CLIP           ((0x005f806c-0x005f8000)/4)
-#define FPU_SHAD_SCALE      ((0x005f8074-0x005f8000)/4)
-#define FPU_CULL_VAL        ((0x005f8078-0x005f8000)/4)
-#define FPU_PARAM_CFG       ((0x005f807c-0x005f8000)/4)
-#define HALF_OFFSET         ((0x005f8080-0x005f8000)/4)
-#define FPU_PERP_VAL        ((0x005f8084-0x005f8000)/4)
-#define ISP_BACKGND_D       ((0x005f8088-0x005f8000)/4)
-#define ISP_BACKGND_T       ((0x005f808c-0x005f8000)/4)
-#define ISP_FEED_CFG        ((0x005f8098-0x005f8000)/4)
-#define SDRAM_REFRESH       ((0x005f80a0-0x005f8000)/4)
-#define SDRAM_ARB_CFG       ((0x005f80a4-0x005f8000)/4)
-#define SDRAM_CFG           ((0x005f80a8-0x005f8000)/4)
-#define FOG_COL_RAM         ((0x005f80b0-0x005f8000)/4)
-#define FOG_COL_VERT        ((0x005f80b4-0x005f8000)/4)
-#define FOG_DENSITY         ((0x005f80b8-0x005f8000)/4)
-#define FOG_CLAMP_MAX       ((0x005f80bc-0x005f8000)/4)
-#define FOG_CLAMP_MIN       ((0x005f80c0-0x005f8000)/4)
-#define SPG_TRIGGER_POS     ((0x005f80c4-0x005f8000)/4)
-#define SPG_HBLANK_INT      ((0x005f80c8-0x005f8000)/4)
-#define SPG_VBLANK_INT      ((0x005f80cc-0x005f8000)/4)
-#define SPG_CONTROL         ((0x005f80d0-0x005f8000)/4)
-#define SPG_HBLANK          ((0x005f80d4-0x005f8000)/4)
-#define SPG_LOAD            ((0x005f80d8-0x005f8000)/4)
-#define SPG_VBLANK          ((0x005f80dc-0x005f8000)/4)
-#define SPG_WIDTH           ((0x005f80e0-0x005f8000)/4)
-#define TEXT_CONTROL        ((0x005f80e4-0x005f8000)/4)
-#define VO_CONTROL          ((0x005f80e8-0x005f8000)/4)
-#define VO_STARTX           ((0x005f80ec-0x005f8000)/4)
-#define VO_STARTY           ((0x005f80f0-0x005f8000)/4)
-#define SCALER_CTL          ((0x005f80f4-0x005f8000)/4)
-#define PAL_RAM_CTRL        ((0x005f8108-0x005f8000)/4)
-#define ISP_BACKGND_T       ((0x005f808c-0x005f8000)/4)
-#define SPG_STATUS          ((0x005f810c-0x005f8000)/4)
-#define FB_BURSTCTRL        ((0x005f8110-0x005f8000)/4)
-#define Y_COEFF             ((0x005f8118-0x005f8000)/4)
-#define PT_ALPHA_REF        ((0x005f811c-0x005f8000)/4)
-/* 0x005f8200 - 0x005f83ff fog_table */
-/* 0x005f9000 - 0x005f9fff palette_ram */
-
-/*--------- Tile Accelerator registers ---------*/
-#define TA_OL_BASE          ((0x005f8124-0x005f8000)/4)
-#define TA_ISP_BASE         ((0x005f8128-0x005f8000)/4)
-#define TA_OL_LIMIT         ((0x005f812c-0x005f8000)/4)
-#define TA_ISP_LIMIT        ((0x005f8130-0x005f8000)/4)
-#define TA_NEXT_OPB         ((0x005f8134-0x005f8000)/4)
-#define TA_ITP_CURRENT      ((0x005f8138-0x005f8000)/4)
-#define TA_GLOB_TILE_CLIP   ((0x005f813c-0x005f8000)/4)
-#define TA_ALLOC_CTRL       ((0x005f8140-0x005f8000)/4)
-#define TA_LIST_INIT        ((0x005f8144-0x005f8000)/4)
-#define TA_YUV_TEX_BASE     ((0x005f8148-0x005f8000)/4)
-#define TA_YUV_TEX_CTRL     ((0x005f814c-0x005f8000)/4)
-#define TA_YUV_TEX_CNT      ((0x005f8150-0x005f8000)/4)
-#define TA_LIST_CONT        ((0x005f8160-0x005f8000)/4)
-#define TA_NEXT_OPB_INIT    ((0x005f8164-0x005f8000)/4)
-/* 0x005f8600 - 0x005f8f5c TA_OL_POINTERS (read only) */
 
 /* ------------- normal interrupts ------------- */
 #define IST_EOR_VIDEO    0x00000001
@@ -351,6 +267,9 @@ class dc_state : public driver_device
 #define IST_EXT_MODEM   0x00000004
 #define IST_EXT_AICA    0x00000002
 #define IST_EXT_GDROM   0x00000001
+/* -------------- error interrupts ------------- */
+#define IST_ERR_ISP_LIMIT        0x00000004
+#define IST_ERR_PVRIF_ILL_ADDR   0x00000040
 
 void dc_maple_irq(running_machine &machine);
 

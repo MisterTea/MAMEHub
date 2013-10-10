@@ -1,4 +1,5 @@
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
+#include "video/tc0480scp.h"
 
 struct tempsprite
 {
@@ -21,6 +22,7 @@ public:
 	gunbustr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
 		m_maincpu(*this,"maincpu"),
+		m_tc0480scp(*this, "tc0480scp"),
 		m_ram(*this,"ram"),
 		m_spriteram(*this,"spriteram"),
 		m_eeprom(*this, "eeprom")
@@ -29,9 +31,10 @@ public:
 	}
 
 	required_device<cpu_device> m_maincpu;
+	required_device<tc0480scp_device> m_tc0480scp;
 	required_shared_ptr<UINT32> m_ram;
 	required_shared_ptr<UINT32> m_spriteram;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 
 	bool m_coin_lockout;
 	UINT16 m_coin_word;
@@ -50,7 +53,7 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_gunbustr(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(gunbustr_interrupt);
-	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect,const int *primasks,int x_offs,int y_offs);
+	void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect,const int *primasks,int x_offs,int y_offs);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

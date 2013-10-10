@@ -32,7 +32,7 @@
 
 void snes_state::video_start()
 {
-	m_ppu.ppu_start(machine());
+	m_ppu.ppu_start(m_screen);
 }
 
 UINT32 snes_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -128,7 +128,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_reset_hdma)
 
 TIMER_CALLBACK_MEMBER(snes_state::snes_update_io)
 {
-	m_io_read(m_maincpu->space(AS_PROGRAM),0,0,0);
+	io_read(m_maincpu->space(AS_PROGRAM),0,0,0);
 	SNES_CPU_REG(HVBJOY) &= 0xfe;       /* Clear busy bit */
 
 	m_io_timer->adjust(attotime::never);
@@ -137,7 +137,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_update_io)
 TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 {
 	/* Increase current line - we want to latch on this line during it, not after it */
-	m_ppu.m_beam.current_vert = machine().primary_screen->vpos();
+	m_ppu.m_beam.current_vert = m_screen->vpos();
 
 	// not in hblank
 	SNES_CPU_REG(HVBJOY) &= ~0x40;
@@ -177,7 +177,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 			}
 			else
 			{
-				m_hirq_timer->adjust(machine().primary_screen->time_until_pos(m_ppu.m_beam.current_vert, pixel * m_ppu.m_htmult));
+				m_hirq_timer->adjust(m_screen->time_until_pos(m_ppu.m_beam.current_vert, pixel * m_ppu.m_htmult));
 			}
 		}
 	}
@@ -185,7 +185,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 	/* Start of VBlank */
 	if (m_ppu.m_beam.current_vert == m_ppu.m_beam.last_visible_line)
 	{
-		timer_set(machine().primary_screen->time_until_pos(m_ppu.m_beam.current_vert, 10), TIMER_RESET_OAM_ADDRESS);
+		timer_set(m_screen->time_until_pos(m_ppu.m_beam.current_vert, 10), TIMER_RESET_OAM_ADDRESS);
 
 		SNES_CPU_REG(HVBJOY) |= 0x81;       /* Set vblank bit to on & indicate controllers being read */
 		SNES_CPU_REG(RDNMI) |= 0x80;        /* Set NMI occurred bit */
@@ -197,7 +197,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 		}
 
 		/* three lines after start of vblank we update the controllers (value from snes9x) */
-		m_io_timer->adjust(machine().primary_screen->time_until_pos(m_ppu.m_beam.current_vert + 2, m_hblank_offset * m_ppu.m_htmult));
+		m_io_timer->adjust(m_screen->time_until_pos(m_ppu.m_beam.current_vert + 2, m_hblank_offset * m_ppu.m_htmult));
 	}
 
 	// hdma reset happens at scanline 0, H=~6
@@ -218,7 +218,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 	}
 
 	m_scanline_timer->adjust(attotime::never);
-	m_hblank_timer->adjust(machine().primary_screen->time_until_pos(m_ppu.m_beam.current_vert, m_hblank_offset * m_ppu.m_htmult));
+	m_hblank_timer->adjust(m_screen->time_until_pos(m_ppu.m_beam.current_vert, m_hblank_offset * m_ppu.m_htmult));
 
 //  printf("%02x %d\n",SNES_CPU_REG(HVBJOY),m_ppu.m_beam.current_vert);
 }
@@ -229,7 +229,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_hblank_tick)
 	address_space &cpu0space = m_maincpu->space(AS_PROGRAM);
 	int nextscan;
 
-	m_ppu.m_beam.current_vert = machine().primary_screen->vpos();
+	m_ppu.m_beam.current_vert = m_screen->vpos();
 
 	/* make sure we halt */
 	m_hblank_timer->adjust(attotime::never);
@@ -237,13 +237,13 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_hblank_tick)
 	/* draw a scanline */
 	if (m_ppu.m_beam.current_vert <= m_ppu.m_beam.last_visible_line)
 	{
-		if (machine().primary_screen->vpos() > 0)
+		if (m_screen->vpos() > 0)
 		{
 			/* Do HDMA */
 			if (SNES_CPU_REG(HDMAEN))
 				hdma(cpu0space);
 
-			machine().primary_screen->update_partial((m_ppu.m_interlace == 2) ? (m_ppu.m_beam.current_vert * m_ppu.m_interlace) : m_ppu.m_beam.current_vert - 1);
+			m_screen->update_partial((m_ppu.m_interlace == 2) ? (m_ppu.m_beam.current_vert * m_ppu.m_interlace) : m_ppu.m_beam.current_vert - 1);
 		}
 	}
 
@@ -257,7 +257,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_hblank_tick)
 		nextscan = 0;
 	}
 
-	m_scanline_timer->adjust(machine().primary_screen->time_until_pos(nextscan));
+	m_scanline_timer->adjust(m_screen->time_until_pos(nextscan));
 }
 
 
@@ -423,20 +423,13 @@ READ8_MEMBER( snes_state::snes_r_io )
 			value = space.read_byte(0x7e0000 + m_wram_address++);
 			m_wram_address &= 0x1ffff;
 			return value;
+
 		case OLDJOY1:   /* Data for old NES controllers (JOYSER1) */
-			if (m_oldjoy1_latch & 0x1)
-				return 0 | (snes_open_bus_r(space, 0) & 0xfc); //correct?
+			return (oldjoy1_read(m_oldjoy1_latch & 0x1) & 0x03) | (snes_open_bus_r(space, 0) & 0xfc);
 
-			value = m_oldjoy1_read(space,0,0);
-
-			return (value & 0x03) | (snes_open_bus_r(space, 0) & 0xfc); //correct?
 		case OLDJOY2:   /* Data for old NES controllers (JOYSER2) */
-			if (m_oldjoy1_latch & 0x1)
-				return 0 | 0x1c | (snes_open_bus_r(space, 0) & 0xe0); //correct?
+			return (oldjoy2_read(m_oldjoy1_latch & 0x1) & 0x03) | 0x1c | (snes_open_bus_r(space, 0) & 0xe0);
 
-			value = m_oldjoy2_read(space,0,0);
-
-			return value | 0x1c | (snes_open_bus_r(space, 0) & 0xe0); //correct?
 		case RDNMI:         /* NMI flag by v-blank and version number */
 			value = (SNES_CPU_REG(RDNMI) & 0x80) | (snes_open_bus_r(space, 0) & 0x70);
 			SNES_CPU_REG(RDNMI) &= 0x70;   /* NMI flag is reset on read */
@@ -448,7 +441,7 @@ READ8_MEMBER( snes_state::snes_r_io )
 			return value;
 		case HVBJOY:        /* H/V blank and joypad controller enable */
 			// electronics test says hcounter 272 is start of hblank, which is beampos 363
-//          if (space.machine().primary_screen->hpos() >= 363) SNES_CPU_REG(HVBJOY) |= 0x40;
+//          if (m_screen->hpos() >= 363) SNES_CPU_REG(HVBJOY) |= 0x40;
 //              else SNES_CPU_REG(HVBJOY) &= ~0x40;
 			return (SNES_CPU_REG(HVBJOY) & 0xc1) | (snes_open_bus_r(space, 0) & 0x3e);
 		case RDIO:          /* Programmable I/O port - echos back what's written to WRIO */
@@ -461,17 +454,14 @@ READ8_MEMBER( snes_state::snes_r_io )
 		case JOY3H:         /* Joypad 3 status register (high) */
 		case JOY4L:         /* Joypad 4 status register (low) */
 		case JOY4H:         /* Joypad 4 status register (high) */
-			if(m_is_nss && m_input_disabled)
+			if (m_is_nss && m_input_disabled)
 				return 0;
 			return SNES_CPU_REG(offset);
 
 		case 0x4100:        /* NSS Dip-Switches */
-			{
-				if (m_is_nss)
-					return ioport("DSW")->read();
-
-				return snes_open_bus_r(space, 0);
-			}
+			if (m_is_nss)
+				return ioport("DSW")->read();
+			break;
 //      case 0x4101: //PC: a104 - a10e - a12a   //only nss_actr (DSW actually reads in word units ...)
 
 		default:
@@ -538,16 +528,9 @@ WRITE8_MEMBER( snes_state::snes_w_io )
 			m_wram_address &= 0x1ffff;
 			return;
 		case OLDJOY1:   /* Old NES joystick support */
-			if (((!(data & 0x1)) && (m_oldjoy1_latch & 0x1)))
-			{
-				m_read_idx[0] = 0;
-				m_read_idx[1] = 0;
-			}
+			write_joy_latch(data);
 			if (m_is_nss)
-			{
 				m_game_over_flag = (data & 4) >> 2;
-			}
-			m_oldjoy1_latch = data;
 			return;
 		case OLDJOY2:   /* Old NES joystick support */
 			return;
@@ -589,7 +572,7 @@ WRITE8_MEMBER( snes_state::snes_w_io )
 			return;
 		case HDMAEN:    /* HDMA channel designation */
 			if (data) //if a HDMA is enabled, data is inited at the next scanline
-				timer_set(space.machine().primary_screen->time_until_pos(m_ppu.m_beam.current_vert + 1), TIMER_RESET_HDMA);
+				timer_set(m_screen->time_until_pos(m_ppu.m_beam.current_vert + 1), TIMER_RESET_HDMA);
 			SNES_CPU_REG(HDMAEN) = data;
 			return;
 		case TIMEUP:    // IRQ Flag is cleared on both read and write
@@ -621,6 +604,19 @@ WRITE8_MEMBER( snes_state::snes_w_io )
 	}
 
 }
+
+void snes_state::write_joy_latch(UINT8 data)
+{
+	if (m_oldjoy1_latch == (data & 0x01))
+		return;
+
+	m_oldjoy1_latch = data & 0x01;
+	m_read_idx[0] = 0;
+	m_read_idx[1] = 0;
+	m_read_idx[2] = 0;
+	m_read_idx[3] = 0;
+}
+
 
 WRITE_LINE_MEMBER(snes_state::snes_extern_irq_w)
 {
@@ -943,19 +939,18 @@ WRITE8_MEMBER(snes_state::snes_w_bank2)
 
 *************************************/
 
-WRITE8_MEMBER(snes_state::nss_io_read)
+WRITE8_MEMBER(snes_state::io_read)
 {
-	static const char *const portnames[2][4] =
-			{
-				{ "SERIAL1_DATA1_L", "SERIAL1_DATA1_H", "SERIAL1_DATA2_L", "SERIAL1_DATA2_H" },
-				{ "SERIAL2_DATA1_L", "SERIAL2_DATA1_H", "SERIAL2_DATA2_L", "SERIAL2_DATA2_H" },
-			};
-	int port;
-
-	for (port = 0; port < 2; port++)
+	static const char *const portnames[2][2] =
 	{
-		m_data1[port] = ioport(portnames[port][0])->read() | (ioport(portnames[port][1])->read() << 8);
-		m_data2[port] = ioport(portnames[port][2])->read() | (ioport(portnames[port][3])->read() << 8);
+		{ "SERIAL1_DATA1", "SERIAL1_DATA2" },
+		{ "SERIAL2_DATA1", "SERIAL2_DATA2" }
+	};
+
+	for (int port = 0; port < 2; port++)
+	{
+		m_data1[port] = ioport(portnames[port][0])->read();
+		m_data2[port] = ioport(portnames[port][1])->read();
 
 		// avoid sending signals that could crash games
 		// if left, no right
@@ -964,8 +959,12 @@ WRITE8_MEMBER(snes_state::nss_io_read)
 		// if up, no down
 		if (m_data1[port] & 0x800)
 			m_data1[port] &= ~0x400;
-
-		m_joypad[port].buttons = m_data1[port];
+		// if left, no right
+		if (m_data2[port] & 0x200)
+			m_data2[port] &= ~0x100;
+		// if up, no down
+		if (m_data2[port] & 0x800)
+			m_data2[port] &= ~0x400;
 	}
 
 	// is automatic reading on? if so, copy port data1/data2 to joy1l->joy4h
@@ -991,30 +990,28 @@ WRITE8_MEMBER(snes_state::nss_io_read)
 }
 
 
-
-READ8_MEMBER(snes_state::nss_oldjoy1_read)
+UINT8 snes_state::oldjoy1_read(int latched)
 {
-	UINT8 res;
+	if (latched)
+		return 0;
 
 	if (m_read_idx[0] >= 16)
-		res = 0x01;
+		return 1;
 	else
-		res = (m_joypad[0].buttons >> (15 - m_read_idx[0]++)) & 0x01;
-
-	return res;
+		return (m_data1[0] >> (15 - m_read_idx[0]++)) & 0x01;
 }
 
-READ8_MEMBER(snes_state::nss_oldjoy2_read)
+UINT8 snes_state::oldjoy2_read(int latched)
 {
-	UINT8 res;
+	if (latched)
+		return 0;
 
 	if (m_read_idx[1] >= 16)
-		res = 0x01;
+		return 1;
 	else
-		res = (m_joypad[1].buttons >> (15 - m_read_idx[1]++)) & 0x01;
-
-	return res;
+		return (m_data1[1] >> (15 - m_read_idx[1]++)) & 0x01;
 }
+
 
 /*************************************
 
@@ -1043,7 +1040,7 @@ void snes_state::snes_init_timers()
 	// SNES hcounter has a 0-339 range.  hblank starts at counter 260.
 	// clayfighter sets an HIRQ at 260, apparently it wants it to be before hdma kicks off, so we'll delay 2 pixels.
 	m_hblank_offset = 274;
-	m_hblank_timer->adjust(machine().primary_screen->time_until_pos(((m_ppu.m_stat78 & 0x10) == SNES_NTSC) ? SNES_VTOTAL_NTSC - 1 : SNES_VTOTAL_PAL - 1, m_hblank_offset));
+	m_hblank_timer->adjust(m_screen->time_until_pos(((m_ppu.m_stat78 & 0x10) == SNES_NTSC) ? SNES_VTOTAL_NTSC - 1 : SNES_VTOTAL_PAL - 1, m_hblank_offset));
 }
 
 void snes_state::snes_init_ram()
@@ -1065,15 +1062,11 @@ void snes_state::snes_init_ram()
 	SNES_CPU_REG(JOY4L) = SNES_CPU_REG(JOY4H) = 0;
 	m_data1[0] = m_data2[0] = m_data1[1] = m_data2[1] = 0;
 
-	m_io_read = write8_delegate(FUNC(snes_state::nss_io_read),this);
-	m_oldjoy1_read = read8_delegate(FUNC(snes_state::nss_oldjoy1_read),this);
-	m_oldjoy2_read = read8_delegate(FUNC(snes_state::nss_oldjoy2_read),this);
-
 	// set up some known register power-up defaults
 	SNES_CPU_REG(WRIO) = 0xff;
 
 	// init frame counter so first line is 0
-	if (ATTOSECONDS_TO_HZ(machine().primary_screen->frame_period().attoseconds) >= 59)
+	if (ATTOSECONDS_TO_HZ(m_screen->frame_period().attoseconds) >= 59)
 		m_ppu.m_beam.current_vert = SNES_VTOTAL_NTSC;
 	else
 		m_ppu.m_beam.current_vert = SNES_VTOTAL_PAL;
@@ -1091,17 +1084,17 @@ void snes_state::machine_start()
 
 	for (int i = 0; i < 6; i++)
 	{
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].dmap);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].dest_addr);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].src_addr);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].bank);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].trans_size);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].ibank);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].hdma_addr);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].hdma_line_counter);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].unk);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].do_transfer);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_dma_channel[i].dma_disabled);
+		save_item(NAME(m_dma_channel[i].dmap), i);
+		save_item(NAME(m_dma_channel[i].dest_addr), i);
+		save_item(NAME(m_dma_channel[i].src_addr), i);
+		save_item(NAME(m_dma_channel[i].bank), i);
+		save_item(NAME(m_dma_channel[i].trans_size), i);
+		save_item(NAME(m_dma_channel[i].ibank), i);
+		save_item(NAME(m_dma_channel[i].hdma_addr), i);
+		save_item(NAME(m_dma_channel[i].hdma_line_counter), i);
+		save_item(NAME(m_dma_channel[i].unk), i);
+		save_item(NAME(m_dma_channel[i].do_transfer), i);
+		save_item(NAME(m_dma_channel[i].dma_disabled), i);
 	}
 
 	save_item(NAME(m_hblank_offset));
@@ -1116,38 +1109,16 @@ void snes_state::machine_start()
 	save_item(NAME(m_cpu_regs));
 	save_item(NAME(m_oldjoy1_latch));
 
-	for (int i = 0; i < 2; i++)
-	{
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_joypad[i].buttons);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_mouse[i].x);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_mouse[i].oldx);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_mouse[i].y);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_mouse[i].oldy);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_mouse[i].buttons);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_mouse[i].deltax);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_mouse[i].deltay);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_mouse[i].speed);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_scope[i].x);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_scope[i].y);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_scope[i].buttons);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_scope[i].turbo_lock);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_scope[i].pause_lock);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_scope[i].fire_lock);
-		state_save_register_item(machine(), "snes_dma", NULL, i, m_scope[i].offscreen);
-	}
-
 	m_is_nss = 0;
 	m_is_sfcbox = 0;
 }
 
 void snes_state::machine_reset()
 {
-	int i;
-
 	snes_init_ram();
 
 	/* init DMA regs to be 0xff */
-	for(i = 0; i < 8; i++)
+	for (int i = 0; i < 8; i++)
 	{
 		m_dma_channel[i].dmap = 0xff;
 		m_dma_channel[i].dest_addr = 0xff;
@@ -1161,9 +1132,9 @@ void snes_state::machine_reset()
 	}
 
 	/* Set STAT78 to NTSC or PAL */
-	if (ATTOSECONDS_TO_HZ(machine().primary_screen->frame_period().attoseconds) >= 59.0f)
+	if (ATTOSECONDS_TO_HZ(m_screen->frame_period().attoseconds) >= 59.0f)
 		m_ppu.m_stat78 = SNES_NTSC;
-	else /* if (ATTOSECONDS_TO_HZ(machine.primary_screen->frame_period().attoseconds) == 50.0f) */
+	else /* if (ATTOSECONDS_TO_HZ(m_screen->frame_period().attoseconds) == 50.0f) */
 		m_ppu.m_stat78 = SNES_PAL;
 
 	// reset does this to these registers

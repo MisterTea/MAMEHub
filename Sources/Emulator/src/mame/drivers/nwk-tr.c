@@ -223,7 +223,7 @@ Thrill Drive 713A13  -       713A14  -
 #include "sound/rf5c400.h"
 #include "sound/k056800.h"
 #include "video/voodoo.h"
-#include "video/konicdev.h"
+#include "video/k001604.h"
 
 
 class nwktr_state : public driver_device
@@ -235,6 +235,7 @@ public:
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_dsp(*this, "dsp"),
+		m_k056800(*this, "k056800"),
 		m_k001604(*this, "k001604"),
 		m_adc12138(*this, "adc12138") { }
 
@@ -244,6 +245,7 @@ public:
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
 	required_device<cpu_device> m_dsp;
+	required_device<k056800_device> m_k056800;
 	required_device<k001604_device> m_k001604;
 	required_device<adc12138_device> m_adc12138;
 	emu_timer *m_sound_irq_timer;
@@ -298,7 +300,7 @@ UINT32 nwktr_state::screen_update_nwktr(screen_device &screen, bitmap_rgb32 &bit
 	const rectangle &visarea = screen.visible_area();
 	const rectangle tilemap_rect(visarea.min_x, visarea.max_x, visarea.min_y+16, visarea.max_y);
 
-	k001604_draw_front_layer(m_k001604, bitmap, tilemap_rect);
+	m_k001604->draw_front_layer(screen, bitmap, tilemap_rect);
 
 	draw_7segment_led(bitmap, 3, 3, m_led_reg0);
 	draw_7segment_led(bitmap, 9, 3, m_led_reg1);
@@ -537,18 +539,18 @@ void nwktr_state::machine_start()
 
 static ADDRESS_MAP_START( nwktr_map, AS_PROGRAM, 32, nwktr_state )
 	AM_RANGE(0x00000000, 0x003fffff) AM_RAM AM_SHARE("work_ram")        /* Work RAM */
-	AM_RANGE(0x74000000, 0x740000ff) AM_DEVREADWRITE_LEGACY("k001604", k001604_reg_r, k001604_reg_w)
+	AM_RANGE(0x74000000, 0x740000ff) AM_DEVREADWRITE("k001604", k001604_device, reg_r, reg_w)
 	AM_RANGE(0x74010000, 0x74017fff) AM_RAM_WRITE(paletteram32_w) AM_SHARE("paletteram")
-	AM_RANGE(0x74020000, 0x7403ffff) AM_DEVREADWRITE_LEGACY("k001604", k001604_tile_r, k001604_tile_w)
-	AM_RANGE(0x74040000, 0x7407ffff) AM_DEVREADWRITE_LEGACY("k001604", k001604_char_r, k001604_char_w)
+	AM_RANGE(0x74020000, 0x7403ffff) AM_DEVREADWRITE("k001604", k001604_device, tile_r, tile_w)
+	AM_RANGE(0x74040000, 0x7407ffff) AM_DEVREADWRITE("k001604", k001604_device, char_r, char_w)
 	AM_RANGE(0x78000000, 0x7800ffff) AM_READWRITE_LEGACY(cgboard_dsp_shared_r_ppc, cgboard_dsp_shared_w_ppc)
 	AM_RANGE(0x780c0000, 0x780c0003) AM_READWRITE_LEGACY(cgboard_dsp_comm_r_ppc, cgboard_dsp_comm_w_ppc)
 	AM_RANGE(0x7d000000, 0x7d00ffff) AM_READ(sysreg_r)
 	AM_RANGE(0x7d010000, 0x7d01ffff) AM_WRITE(sysreg_w)
 	AM_RANGE(0x7d020000, 0x7d021fff) AM_DEVREADWRITE8("m48t58", timekeeper_device, read, write, 0xffffffff)  /* M48T58Y RTC/NVRAM */
-	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVREAD_LEGACY("k056800", k056800_host_r)
-	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
-	AM_RANGE(0x7d030008, 0x7d03000f) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
+	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVREAD("k056800", k056800_device, host_r)
+	AM_RANGE(0x7d030000, 0x7d030007) AM_DEVWRITE("k056800", k056800_device, host_w)
+	AM_RANGE(0x7d030008, 0x7d03000f) AM_DEVWRITE("k056800", k056800_device, host_w)
 	AM_RANGE(0x7d040000, 0x7d04ffff) AM_READWRITE(lanc1_r, lanc1_w)
 	AM_RANGE(0x7d050000, 0x7d05ffff) AM_READWRITE(lanc2_r, lanc2_w)
 	AM_RANGE(0x7e000000, 0x7e7fffff) AM_ROM AM_REGION("user2", 0)   /* Data ROM */
@@ -562,7 +564,7 @@ static ADDRESS_MAP_START( sound_memmap, AS_PROGRAM, 16, nwktr_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x100000, 0x10ffff) AM_RAM     /* Work RAM */
 	AM_RANGE(0x200000, 0x200fff) AM_DEVREADWRITE("rfsnd", rf5c400_device, rf5c400_r, rf5c400_w)      /* Ricoh RF5C400 */
-	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE_LEGACY("k056800", k056800_sound_r, k056800_sound_w)
+	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE("k056800", k056800_device, sound_r, sound_w)
 	AM_RANGE(0x600000, 0x600001) AM_NOP
 ADDRESS_MAP_END
 

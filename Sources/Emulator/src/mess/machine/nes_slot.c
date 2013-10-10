@@ -786,8 +786,6 @@ void device_nes_cart_interface::nes_banks_restore()
 
 	for (int i = 0; i < 4; i++)
 		set_nt_page(i, m_nt_src[i], m_nt_orig[i] / 0x400, m_nt_writable[i]);
-
-	set_nt_mirroring(m_mirroring);
 }
 
 
@@ -799,7 +797,7 @@ void device_nes_cart_interface::nes_banks_restore()
 //  nes_cart_slot_device - constructor
 //-------------------------------------------------
 nes_cart_slot_device::nes_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-						device_t(mconfig, NES_CART_SLOT, "NES Cartridge Slot", tag, owner, clock),
+						device_t(mconfig, NES_CART_SLOT, "NES Cartridge Slot", tag, owner, clock, "nes_cart_slot", __FILE__),
 						device_image_interface(mconfig, *this),
 						device_slot_interface(mconfig, *this),
 						m_crc_hack(0),
@@ -862,7 +860,7 @@ void nes_cart_slot_device::pcb_reset()
  -------------------------------------------------*/
 
 /* Include emulation of NES PCBs for softlist */
-#include "machine/nes_pcb.c"
+#include "machine/nes_pcb.inc"
 
 
 /*-------------------------------------------------
@@ -872,7 +870,7 @@ void nes_cart_slot_device::pcb_reset()
  -------------------------------------------------*/
 
 /* Include emulation of UNIF Boards for .unf files */
-#include "machine/nes_unif.c"
+#include "machine/nes_unif.inc"
 
 
 /*-------------------------------------------------
@@ -882,7 +880,7 @@ void nes_cart_slot_device::pcb_reset()
  -------------------------------------------------*/
 
 /* Include emulation of iNES Mappers for .nes files */
-#include "machine/nes_ines.c"
+#include "machine/nes_ines.inc"
 
 
 bool nes_cart_slot_device::call_load()

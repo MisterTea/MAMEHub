@@ -40,6 +40,8 @@
 #include "sound/dac.h"
 #include "machine/ram.h"
 #include "hashfile.h"
+#include "drivlgcy.h"
+#include "scrlegcy.h"
 
 
 /******************************************************************************

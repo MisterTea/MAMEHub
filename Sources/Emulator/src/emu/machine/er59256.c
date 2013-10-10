@@ -9,6 +9,7 @@
 
 #include "emu.h"
 #include "er59256.h"
+#include "devlegcy.h"
 
 /* LOGLEVEL 0=no logging, 1=just commands and data, 2=everything ! */
 
@@ -109,11 +110,6 @@ static DEVICE_START( er59256 )
 	er59256->command=CMD_INVALID;
 
 	er59256->flags&= ~FLAG_DATA_LOADED;
-}
-
-static DEVICE_STOP( er59256 )
-{
-	/* Save contents of eerom */
 }
 
 void er59256_set_iobits(device_t *device, UINT8 newbits)
@@ -225,7 +221,7 @@ static void decode_command(er59256_t *er59256)
 const device_type ER59256 = &device_creator<er59256_device>;
 
 er59256_device::er59256_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, ER59256, "Microchip ER59256 serial eeprom.", tag, owner, clock)
+	: device_t(mconfig, ER59256, "Microchip ER59256 serial eeprom.", tag, owner, clock, "er59256", __FILE__)
 {
 	m_token = global_alloc_clear(er59256_t);
 }
@@ -255,5 +251,5 @@ void er59256_device::device_start()
 
 void er59256_device::device_stop()
 {
-	DEVICE_STOP_NAME( er59256 )(this);
+	/* Save contents of eerom */
 }

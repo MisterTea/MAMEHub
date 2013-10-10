@@ -416,8 +416,6 @@ uLong ZEXPORT crc32_combine(crc1, crc2, len2)
 	return crc32_combine_(crc1, crc2, len2);
 }
 
-#ifdef Z_LARGE64
-
 uLong ZEXPORT crc32_combine64(crc1, crc2, len2)
 	uLong crc1;
 	uLong crc2;
@@ -425,5 +423,3 @@ uLong ZEXPORT crc32_combine64(crc1, crc2, len2)
 {
 	return crc32_combine_(crc1, crc2, len2);
 }
-
-#endif

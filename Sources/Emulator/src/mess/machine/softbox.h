@@ -56,6 +56,10 @@ public:
 protected:
 	// device-level overrides
 	virtual void device_start();
+	virtual void device_reset_after_children();
+
+	// device_ieee488_interface overrides
+	virtual void ieee488_ifc(int state);
 
 private:
 	enum
@@ -65,7 +69,10 @@ private:
 		LED_READY
 	};
 
+	required_device<cpu_device> m_maincpu;
 	required_device<com8116_device> m_dbrg;
+
+	int m_ifc;  // Tracks previous state of IEEE-488 IFC line
 };
 
 

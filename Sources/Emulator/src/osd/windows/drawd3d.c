@@ -646,67 +646,6 @@ texture_info *texture_manager::find_texinfo(const render_texinfo *texinfo, UINT3
 		}
 	}
 
-	// Nothing found
-	/*int checkidx = 0;
-	for (texture = m_renderer->get_texture_manager()->get_texlist(); texture != NULL; texture = texture->get_next())
-	{
-	    printf("Checking texture index %d\n", checkidx);
-	    UINT32 test_screen = (UINT32)texture->get_texinfo().osddata >> 1;
-	    UINT32 test_page = (UINT32)texture->get_texinfo().osddata & 1;
-	    UINT32 prim_screen = (UINT32)texinfo->osddata >> 1;
-	    UINT32 prim_page = (UINT32)texinfo->osddata & 1;
-	    if (test_screen != prim_screen || test_page != prim_page)
-	    {
-	        printf("No screen/page match: %d vs. %d, %d vs. %d\n", test_screen, prim_screen, test_page, prim_page);
-	        continue;
-	    }
-
-	    if (texture->get_hash() == hash &&
-	        texture->get_texinfo().base == texinfo->base &&
-	        texture->get_texinfo().width == texinfo->width &&
-	        texture->get_texinfo().height == texinfo->height &&
-	        ((texture->get_flags() ^ flags) & (PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK)) == 0)
-	    {
-	        // Reject a texture if it belongs to an out-of-date render target, so as to cause the HLSL system to re-cache
-	        if (m_renderer->get_shaders()->enabled() && texinfo->width != 0 && texinfo->height != 0 && (flags & PRIMFLAG_SCREENTEX_MASK) != 0)
-	        {
-	            if (m_renderer->get_shaders()->find_render_target(texture) != NULL)
-	            {
-	                return texture;
-	            }
-	        }
-	        else
-	        {
-	            return texture;
-	        }
-	    }
-
-	    if (texture->get_hash() != hash)
-	    {
-	        printf("No hash match: %d vs. %d\n", texture->get_hash(), hash);
-	    }
-	    if (texture->get_texinfo().base != texinfo->base)
-	    {
-	        printf("No base match\n");
-	    }
-	    if (texture->get_texinfo().width != texinfo->width)
-	    {
-	        printf("No width match: %d vs. %d\n", texture->get_texinfo().width, texinfo->width);
-	    }
-	    if (texture->get_texinfo().height != texinfo->height)
-	    {
-	        printf("No height match: %d vs. %d\n", texture->get_texinfo().height, texinfo->height);
-	    }
-	    if (((texture->get_flags() ^ flags) & (PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK)) != 0)
-	    {
-	        printf("No flag match: %08x & %08x = %08x\n", texture->get_flags(), flags, ((texture->get_flags() ^ flags) & (PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK)));
-	    }
-	    printf("\n");
-	    checkidx++;
-	}
-
-	printf("\n\n\n\n");*/
-
 	// Nothing found, check if we need to unregister something with HLSL
 	if (m_renderer->get_shaders()->enabled())
 	{
@@ -879,10 +818,18 @@ mtlog_add("drawd3d_window_draw: begin_scene");
 
 void renderer::process_primitives()
 {
-	if (m_line_count && m_shaders->enabled() && d3dintf->post_fx_available)
+	for (render_primitive *prim = m_window->primlist->first(); prim != NULL; prim = prim->next())
 	{
-		batch_vectors();
+		if (prim->type == render_primitive::QUAD)
+		{
+			if (PRIMFLAG_GET_SCREENTEX(prim->flags) || PRIMFLAG_GET_VECTORBUF(prim->flags))
+			{
+				draw_quad(prim);
+			}
+		}
 	}
+
+	batch_vectors();
 
 	// Rotating index for vector time offsets
 	for (render_primitive *prim = m_window->primlist->first(); prim != NULL; prim = prim->next())
@@ -901,17 +848,15 @@ void renderer::process_primitives()
 				break;
 
 			case render_primitive::QUAD:
-				draw_quad(prim);
+				if (!PRIMFLAG_GET_SCREENTEX(prim->flags) && !PRIMFLAG_GET_VECTORBUF(prim->flags))
+				{
+					draw_quad(prim);
+				}
 				break;
 
 			default:
 				throw emu_fatalerror("Unexpected render_primitive type");
 		}
-	}
-
-	if (m_line_count && !(m_shaders->enabled() && d3dintf->post_fx_available))
-	{
-		batch_vectors();
 	}
 }
 
@@ -1265,6 +1210,7 @@ int renderer::device_test_cooperative()
 		mame_printf_verbose("Direct3D: resetting device\n");
 
 		// free all existing resources and call reset on the device
+		//device_delete();
 		device_delete_resources();
 		m_shaders->delete_resources(true);
 		result = (*d3dintf->device.reset)(m_device, &m_presentation);
@@ -1630,6 +1576,17 @@ void renderer::batch_vector(const render_primitive *prim, float line_time)
 		INT32 g = (INT32)(prim->color.g * step->weight * 255.0f);
 		INT32 b = (INT32)(prim->color.b * step->weight * 255.0f);
 		INT32 a = (INT32)(prim->color.a * 255.0f);
+		if (r > 255 || g > 255 || b > 255)
+		{
+			if (r > 2*255 || g > 2*255 || b > 2*255)
+			{
+				r >>= 2; g >>= 2; b >>= 2;
+			}
+			else
+			{
+				r >>= 1; g >>= 1; b >>= 1;
+			}
+		}
 		if (r > 255) r = 255;
 		if (g > 255) g = 255;
 		if (b > 255) b = 255;
@@ -1879,7 +1836,6 @@ vertex *renderer::mesh_alloc(int numverts)
 	// if we're going to overflow, flush
 	if (m_lockedbuf != NULL && m_numverts + numverts >= VERTEX_BUFFER_SIZE)
 	{
-		printf("request for %d verts\n", numverts);
 		primitive_flush_pending();
 
 		if(m_shaders->enabled())
@@ -3017,6 +2973,9 @@ bool render_target::init(renderer *d3d, base *d3dintf, int width, int height, in
 		(*d3dintf->texture.get_surface_level)(bloom_texture[bloom_index], 0, &bloom_target[bloom_index]);
 		bloom_index++;
 	}
+
+	this->width = width;
+	this->height = height;
 
 	target_width = width * prescale_x;
 	target_height = height * prescale_y;

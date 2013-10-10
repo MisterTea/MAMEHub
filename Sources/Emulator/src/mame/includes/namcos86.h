@@ -1,3 +1,5 @@
+#include "sound/namco.h"
+
 class namcos86_state : public driver_device
 {
 public:
@@ -7,7 +9,8 @@ public:
 		m_rthunder_videoram2(*this, "videoram2"),
 		m_rthunder_spriteram(*this, "spriteram"),
 		m_cpu1(*this, "cpu1"),
-		m_cpu2(*this, "cpu2"){ }
+		m_cpu2(*this, "cpu2"),
+		m_cus30(*this, "namco") { }
 
 	UINT8 *m_spriteram;
 	int m_wdog;
@@ -16,6 +19,7 @@ public:
 	required_shared_ptr<UINT8> m_rthunder_spriteram;
 	required_device<cpu_device> m_cpu1;
 	required_device<cpu_device> m_cpu2;
+	required_device<namco_cus30_device> m_cus30;
 	int m_tilebank;
 	int m_xscroll[4];
 	int m_yscroll[4];
@@ -58,4 +62,7 @@ public:
 	virtual void palette_init();
 	UINT32 screen_update_namcos86(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void screen_eof_namcos86(screen_device &screen, bool state);
+
+private:
+	inline void get_tile_info(tile_data &tileinfo,int tile_index,int layer,UINT8 *vram);
 };

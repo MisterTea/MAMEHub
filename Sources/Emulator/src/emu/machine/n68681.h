@@ -1,7 +1,6 @@
 #ifndef _N68681_H
 #define _N68681_H
 
-#include "diserial.h"
 
 #define MCFG_DUARTN68681_ADD(_tag, _clock, _config) \
 	MCFG_DEVICE_ADD(_tag, DUARTN68681, _clock) \
@@ -106,8 +105,8 @@ public:
 	DECLARE_WRITE8_HANDLER(write);
 	UINT8 get_irq_vector() { return IVR; }
 
-	DECLARE_WRITE_LINE_MEMBER( rx_a_w ) { m_chanA->check_for_start((UINT8)state); }
-	DECLARE_WRITE_LINE_MEMBER( rx_b_w ) { m_chanB->check_for_start((UINT8)state); }
+	DECLARE_WRITE_LINE_MEMBER( rx_a_w ) { m_chanA->device_serial_interface::rx_w((UINT8)state); }
+	DECLARE_WRITE_LINE_MEMBER( rx_b_w ) { m_chanB->device_serial_interface::rx_w((UINT8)state); }
 
 protected:
 	// device-level overrides

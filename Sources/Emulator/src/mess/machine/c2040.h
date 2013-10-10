@@ -21,6 +21,7 @@
 #include "formats/g64_dsk.h"
 #include "machine/6522via.h"
 #include "machine/6532riot.h"
+#include "machine/cbmipt.h"
 #include "machine/mos6530.h"
 #include "machine/ieee488.h"
 
@@ -36,20 +37,14 @@ class c2040_device :  public device_t,
 						public device_ieee488_interface
 {
 public:
-	enum
-	{
-		TYPE_2040,
-		TYPE_3040,
-		TYPE_4040,
-		TYPE_8050,
-		TYPE_8250,
-		TYPE_8250LP,
-		TYPE_SFD1001
-	};
-
 	// construction/destruction
-	c2040_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
+	c2040_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	c2040_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual ioport_constructor device_input_ports() const;
 
 	// not really public
 	static void on_disk0_change(device_image_interface &image);
@@ -72,10 +67,6 @@ public:
 	DECLARE_READ8_MEMBER( miot_pb_r );
 	DECLARE_WRITE8_MEMBER( miot_pb_w );
 
-	// optional information overrides
-	virtual const rom_entry *device_rom_region() const;
-	virtual machine_config_constructor device_mconfig_additions() const;
-
 protected:
 	// device-level overrides
 	virtual void device_start();
@@ -86,6 +77,7 @@ protected:
 	virtual void ieee488_atn(int state);
 	virtual void ieee488_ifc(int state);
 
+	virtual void byte_ready(int state) { }
 	inline void update_ieee_signals();
 	inline void update_gcr_data();
 	inline void read_current_track(int unit);
@@ -102,6 +94,7 @@ protected:
 	required_device<legacy_floppy_image_device> m_image0;
 	optional_device<legacy_floppy_image_device> m_image1;
 	required_memory_region m_gcr;
+	required_ioport m_address;
 
 	struct {
 		// motors
@@ -143,8 +136,6 @@ protected:
 
 	// timers
 	emu_timer *m_bit_timer;
-
-	int m_variant;
 };
 
 
@@ -165,6 +156,10 @@ class c4040_device :  public c2040_device
 public:
 	// construction/destruction
 	c4040_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 
@@ -175,12 +170,21 @@ class c8050_device :  public c2040_device
 public:
 	// construction/destruction
 	c8050_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	c8050_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
+	c8050_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, bool double_sided, const char *shortname, const char *source);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 
 	DECLARE_READ8_MEMBER( via_pb_r );
 	DECLARE_WRITE8_MEMBER( via_pb_w );
 	DECLARE_READ8_MEMBER( miot_pb_r );
 	DECLARE_WRITE8_MEMBER( miot_pb_w );
+
+protected:
+	virtual void byte_ready(int state);
+
+	bool m_double_sided;
 };
 
 
@@ -191,6 +195,9 @@ class c8250_device :  public c8050_device
 public:
 	// construction/destruction
 	c8250_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 
@@ -201,6 +208,10 @@ class c8250lp_device :  public c8050_device
 public:
 	// construction/destruction
 	c8250lp_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 
@@ -211,6 +222,10 @@ class sfd1001_device :  public c8050_device
 public:
 	// construction/destruction
 	sfd1001_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 

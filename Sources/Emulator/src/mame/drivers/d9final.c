@@ -71,7 +71,7 @@ void d9final_state::video_start()
 
 UINT32 d9final_state::screen_update_d9final(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_sc0_tilemap->draw(bitmap, cliprect, 0,0);
+	m_sc0_tilemap->draw(screen, bitmap, cliprect, 0,0);
 	return 0;
 }
 
@@ -299,7 +299,7 @@ static MACHINE_CONFIG_START( d9final, d9final_state )
 
 	MCFG_GFXDECODE(d9final)
 	MCFG_PALETTE_LENGTH(0x400)
-	MCFG_PALETTE_INIT(all_black)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")

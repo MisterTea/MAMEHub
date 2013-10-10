@@ -220,7 +220,7 @@ TIMER_CALLBACK_MEMBER(neogeo_state::auto_animation_timer_callback)
 	else
 		m_auto_animation_frame_counter = m_auto_animation_frame_counter - 1;
 
-	m_auto_animation_timer->adjust(machine().primary_screen->time_until_pos(NEOGEO_VSSTART));
+	m_auto_animation_timer->adjust(m_screen->time_until_pos(NEOGEO_VSSTART));
 }
 
 
@@ -232,7 +232,7 @@ void neogeo_state::create_auto_animation_timer(  )
 
 void neogeo_state::start_auto_animation_timer(  )
 {
-	m_auto_animation_timer->adjust(machine().primary_screen->time_until_pos(NEOGEO_VSSTART));
+	m_auto_animation_timer->adjust(m_screen->time_until_pos(NEOGEO_VSSTART));
 }
 
 
@@ -627,14 +627,14 @@ TIMER_CALLBACK_MEMBER(neogeo_state::sprite_line_timer_callback)
 	/* we are at the beginning of a scanline -
 	   we need to draw the previous scanline and parse the sprites on the current one */
 	if (scanline != 0)
-		machine().primary_screen->update_partial(scanline - 1);
+		m_screen->update_partial(scanline - 1);
 
 	parse_sprites(scanline);
 
 	/* let's come back at the beginning of the next line */
 	scanline = (scanline + 1) % NEOGEO_VTOTAL;
 
-	m_sprite_line_timer->adjust(machine().primary_screen->time_until_pos(scanline), scanline);
+	m_sprite_line_timer->adjust(m_screen->time_until_pos(scanline), scanline);
 }
 
 
@@ -646,7 +646,7 @@ void neogeo_state::create_sprite_line_timer(  )
 
 void neogeo_state::start_sprite_line_timer(  )
 {
-	m_sprite_line_timer->adjust(machine().primary_screen->time_until_pos(0));
+	m_sprite_line_timer->adjust(m_screen->time_until_pos(0));
 }
 
 
@@ -654,40 +654,42 @@ void neogeo_state::optimize_sprite_data()
 {
 	/* convert the sprite graphics data into a format that
 	   allows faster blitting */
-	int i;
-	int len;
 	UINT8 *src;
 	UINT8 *dest;
+	UINT32 mask;
+	UINT32 len;
 	UINT32 bit;
 
 	/* get mask based on the length rounded up to the nearest
 	   power of 2 */
-	m_sprite_gfx_address_mask = 0xffffffff;
+	mask = 0xffffffff;
 
 	len = m_region_sprites->bytes();
 
 	for (bit = 0x80000000; bit != 0; bit >>= 1)
 	{
-		if (((len * 2) - 1) & bit)
+		if ((len * 2 - 1) & bit)
 			break;
 
-		m_sprite_gfx_address_mask >>= 1;
+		mask >>= 1;
 	}
 
-	m_sprite_gfx = auto_alloc_array_clear(machine(), UINT8, m_sprite_gfx_address_mask + 1);
+	if (mask > m_sprite_gfx_address_mask)
+	{
+		if (m_sprite_gfx != NULL)
+			auto_free(machine(), m_sprite_gfx);
+		m_sprite_gfx = auto_alloc_array_clear(machine(), UINT8, mask + 1);
+		m_sprite_gfx_address_mask = mask;
+	}
 
 	src = m_region_sprites->base();
 	dest = m_sprite_gfx;
 
-	for (i = 0; i < len; i += 0x80, src += 0x80)
+	for (unsigned i = 0; i < len; i += 0x80, src += 0x80)
 	{
-		int y;
-
-		for (y = 0; y < 0x10; y++)
+		for (unsigned y = 0; y < 0x10; y++)
 		{
-			int x;
-
-			for (x = 0; x < 8; x++)
+			for (unsigned x = 0; x < 8; x++)
 			{
 				*(dest++) = (((src[0x43 | (y << 2)] >> x) & 0x01) << 3) |
 							(((src[0x41 | (y << 2)] >> x) & 0x01) << 2) |
@@ -695,7 +697,7 @@ void neogeo_state::optimize_sprite_data()
 							(((src[0x40 | (y << 2)] >> x) & 0x01) << 0);
 			}
 
-			for (x = 0; x < 8; x++)
+			for (unsigned x = 0; x < 8; x++)
 			{
 				*(dest++) = (((src[0x03 | (y << 2)] >> x) & 0x01) << 3) |
 							(((src[0x01 | (y << 2)] >> x) & 0x01) << 2) |
@@ -741,7 +743,7 @@ UINT16 neogeo_state::get_video_control(  )
 	*/
 
 	/* the vertical counter chain goes from 0xf8 - 0x1ff */
-	v_counter = machine().primary_screen->vpos() + 0x100;
+	v_counter = m_screen->vpos() + 0x100;
 
 	if (v_counter >= 0x200)
 		v_counter = v_counter - NEOGEO_VTOTAL;
@@ -837,6 +839,9 @@ void neogeo_state::video_start()
 	compute_rgb_weights();
 	create_sprite_line_timer();
 	create_auto_animation_timer();
+
+	m_sprite_gfx = NULL;
+	m_sprite_gfx_address_mask = 0;
 	optimize_sprite_data();
 
 	/* initialize values that are not modified on a reset */
@@ -880,7 +885,6 @@ void neogeo_state::video_reset()
 {
 	start_sprite_line_timer();
 	start_auto_animation_timer();
-	optimize_sprite_data();
 }
 
 

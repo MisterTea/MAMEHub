@@ -303,6 +303,7 @@ public:
 	DECLARE_READ8_MEMBER( to9_floppy_r );
 	DECLARE_WRITE8_MEMBER( to9_floppy_w );
 	void thomson_index_callback(device_t *device, int state);
+	DECLARE_PALETTE_INIT(thom);
 
 protected:
 	required_device<cpu_device> m_maincpu;
@@ -413,7 +414,7 @@ protected:
 	INT16 m_thom_border_l[THOM_TOTAL_HEIGHT+1];
 	INT16 m_thom_border_r[THOM_TOTAL_HEIGHT+1];
 	/* active area, updated one scan-line at a time every 64us,
-	   then blitted in SCREEN_UPDATE_IND16
+	   then blitted in screen_update
 	*/
 	UINT16 m_thom_vbody[640*200];
 	UINT8 m_thom_vmode; /* current vide mode */
@@ -602,8 +603,6 @@ extern const mc6846_interface to9p_timer;
 /*********************** video signals *****************************/
 
 /***************************** commons *****************************/
-
-extern PALETTE_INIT ( thom );
 
 
 /* video modes */

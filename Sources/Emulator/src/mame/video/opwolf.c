@@ -6,7 +6,6 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "video/taitoic.h"
 #include "includes/opwolf.h"
 
 
@@ -18,7 +17,7 @@ WRITE16_MEMBER(opwolf_state::opwolf_spritectrl_w)
 		/* bits 5-7 are the sprite palette bank */
 		/* other bits unknown */
 
-		pc090oj_set_sprite_ctrl(m_pc090oj, (data & 0xe0) >> 5);
+		m_pc090oj->set_sprite_ctrl((data & 0xe0) >> 5);
 
 		/* If data = 4, the Piston Motor is off, otherwise it's on. */
 		if (data == 4)
@@ -38,17 +37,17 @@ UINT32 opwolf_state::screen_update_opwolf(screen_device &screen, bitmap_ind16 &b
 {
 	int layer[2];
 
-	pc080sn_tilemap_update(m_pc080sn);
+	m_pc080sn->tilemap_update();
 
 	layer[0] = 0;
 	layer[1] = 1;
 
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
-	pc080sn_tilemap_draw(m_pc080sn, bitmap, cliprect, layer[0], TILEMAP_DRAW_OPAQUE, 1);
-	pc080sn_tilemap_draw(m_pc080sn, bitmap, cliprect, layer[1], 0, 2);
+	m_pc080sn->tilemap_draw(screen, bitmap, cliprect, layer[0], TILEMAP_DRAW_OPAQUE, 1);
+	m_pc080sn->tilemap_draw(screen, bitmap, cliprect, layer[1], 0, 2);
 
-	pc090oj_draw_sprites(m_pc090oj, bitmap, cliprect, 1);
+	m_pc090oj->draw_sprites(bitmap, cliprect, screen.priority(), 1);
 
 //  if (ioport("P1X")->read())
 //  popmessage("%d %d", machine(), "P1X"), ioport("P1Y")->read());

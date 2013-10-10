@@ -222,7 +222,7 @@ const device_type UPD1771C = &device_creator<upd1771c_device>;
 
 
 upd1771c_device::upd1771c_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-				: device_t(mconfig, UPD1771C, "NEC uPD1771C 017", tag, owner, clock),
+				: device_t(mconfig, UPD1771C, "NEC uPD1771C 017", tag, owner, clock, "upd1771c", __FILE__),
 					device_sound_interface(mconfig, *this)
 {
 }
@@ -292,6 +292,12 @@ void upd1771c_device::device_reset()
 	m_index = 0;
 	m_expected_bytes = 0;
 	m_pc3 = 0;
+	m_t_tpos = 0;
+	m_t_ppos = 0;
+	m_state = 0;
+	m_nw_tpos = 0;
+	memset(m_n_value, 0x00, sizeof(m_n_value));
+	memset(m_n_ppos, 0x00, sizeof(m_n_ppos));
 }
 
 

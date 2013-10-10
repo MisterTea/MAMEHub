@@ -3,7 +3,6 @@
 Taito Air System
 ----------------
 
-Midnight Landing        *** not dumped, 1987? ***
 Top Landing             (c) 1988 Taito
 Air Inferno             (c) 1990 Taito
 
@@ -134,12 +133,15 @@ Video section hung off TaitoH driver, it should be separate.
 hardware which creates the 3d background scenes? It seems
 the TMS320C25 is being used as a co-processor to relieve the
 68000 of 3d calculations... it has direct access to line ram
-along with the 68000. Seems gradiation ram is responsibility
-of 68000. Unless - unlikely IMO - there is banking
-allowing the 32025 to select this area in its address map.
+along with the 68000.
 
-"Power common ram" is presumably for communication with an MCU
+Gradiation RAM is used to display a rotatable gradient background.
+The rotation is most likely handled by the TC0430GRW ROZ chip.
+
+"Power common ram" is for communication with a processor
 controlling the sit-in-cabinet (deluxe mechanized version only).
+The interface is similar to that used by Midnight Landing
+and though undumped, the motor CPU program may be identical.
 
 [Offer dip-selectable kludge of the analogue stick inputs so that
 keyboard play is possible?]
@@ -221,7 +223,6 @@ cpu #2 (PC=0000060E): unmapped memory word read from 0000683A & FFFF
 #include "includes/taitoipt.h"
 #include "includes/taitoair.h"
 #include "audio/taitosnd.h"
-#include "video/taitoic.h"
 #include "cpu/tms32025/tms32025.h"
 #include "sound/2610intf.h"
 
@@ -252,7 +253,7 @@ WRITE16_MEMBER(taitoair_state::lineram_w)
 		m_line_ram[offset] = data;
 
 	//if(offset == 0x3fff)
-	//  printf("LineRAM go %d\n",(int)machine().primary_screen->frame_number());
+	//  printf("LineRAM go %d\n",(int)m_screen->frame_number());
 }
 
 READ16_MEMBER(taitoair_state::dspram_r)
@@ -392,11 +393,11 @@ static ADDRESS_MAP_START( airsys_map, AS_PROGRAM, 16, taitoair_state )
 	AM_RANGE(0x140000, 0x140001) AM_WRITE(system_control_w) /* Pause the TMS32025 */
 	AM_RANGE(0x180000, 0x187fff) AM_RAM_WRITE(airsys_gradram_w) AM_SHARE("gradram")                 /* "gradiation ram (0/1)" */
 	AM_RANGE(0x188000, 0x189fff) AM_MIRROR(0x2000) AM_RAM_WRITE(airsys_paletteram16_w) AM_SHARE("paletteram")
-	AM_RANGE(0x800000, 0x820fff) AM_DEVREADWRITE_LEGACY("tc0080vco", tc0080vco_word_r, tc0080vco_word_w)    /* tilemaps, sprites */
+	AM_RANGE(0x800000, 0x820fff) AM_DEVREADWRITE("tc0080vco", tc0080vco_device, word_r, word_w)    /* tilemaps, sprites */
 	AM_RANGE(0x906000, 0x906007) AM_RAM // DMA?
 	AM_RANGE(0x908000, 0x90ffff) AM_RAM AM_SHARE("line_ram")    /* "line ram" */
 	AM_RANGE(0x910000, 0x91ffff) AM_RAM AM_SHARE("dsp_ram") /* "dsp common ram" (TMS320C25) */
-	AM_RANGE(0x980000, 0x98000f) AM_RAM AM_SHARE("backregs")
+	AM_RANGE(0x980000, 0x98000f) AM_RAM AM_SHARE("backregs") /* TC0430GRW? */
 	AM_RANGE(0xa00000, 0xa00007) AM_READ(stick_input_r)
 	AM_RANGE(0xa00100, 0xa00107) AM_READ(stick2_input_r)
 	AM_RANGE(0xa00200, 0xa0020f) AM_DEVREADWRITE8("tc0220ioc", tc0220ioc_device, read, write, 0x00ff) /* other I/O */
@@ -690,20 +691,19 @@ void taitoair_state::machine_reset()
 static MACHINE_CONFIG_START( airsys, taitoair_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000,24000000 / 2)        /* 12 MHz ??? */
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_12MHz) // MC68000P12
 	MCFG_CPU_PROGRAM_MAP(airsys_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", taitoair_state,  irq5_line_hold)
 
-	MCFG_CPU_ADD("audiocpu", Z80,8000000 / 2)           /* 4 MHz ??? */
+	MCFG_CPU_ADD("audiocpu", Z80, XTAL_16MHz / 4)   // Z8400AB1
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 
-	MCFG_CPU_ADD("dsp", TMS32025,24000000)          /* 24 MHz ??? *///
+	MCFG_CPU_ADD("dsp", TMS32025, XTAL_36MHz) // Unverified
 	MCFG_CPU_PROGRAM_MAP(DSP_map_program)
 	MCFG_CPU_DATA_MAP(DSP_map_data)
 	MCFG_CPU_IO_MAP(DSP_map_io)
 
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
-
 
 	MCFG_TC0220IOC_ADD("tc0220ioc", airsys_io_intf)
 
@@ -717,14 +717,14 @@ static MACHINE_CONFIG_START( airsys, taitoair_state )
 
 	MCFG_GFXDECODE(airsys)
 	MCFG_PALETTE_LENGTH(512*16+512*16)
-	MCFG_PALETTE_INIT(all_black)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 	MCFG_TC0080VCO_ADD("tc0080vco", airsys_tc0080vco_intf)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
+	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_16MHz / 2)
 	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitoair_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.30)
 	MCFG_SOUND_ROUTE(1, "mono", 0.60)
@@ -737,8 +737,24 @@ MACHINE_CONFIG_END
 /*************************************************************
                    DRIVERS
 
-Ainferno may be missing an 0x2000 byte rom from the video
-board - possibly?
+Both games use near-identical CPU boards but different video
+boards. Top Landing has a video board ROM (b62-28.22) which is
+not present on Air Inferno.
+
+Air Inferno video customs:
+
+TC0460LRN - 3D related?
+TC0440ENZ - 3D related?
+
+[Used also by F2/H/Z System games]
+TC0430GRW - Rotation/Zoom
+TC0300FLA
+TC0080VCO
+TC0130LNB
+TC0130LNB
+TC0160ROM
+TC0270MOD
+
 *************************************************************/
 
 ROM_START( topland )
@@ -825,9 +841,6 @@ ROM_START( ainferno )
 	ROM_REGION( 0x20000, "ymsnd.deltat", 0 )    /* Delta-T samples */
 	ROM_LOAD( "c45-06.31", 0x00000, 0x20000, CRC(6a7976d4) SHA1(a465f9bb874b1eff08742b33cc3c364703b281ca) )
 
-	ROM_REGION( 0x02000, "user1", 0 )
-	ROM_LOAD( "c45-xx.22", 0x00000, 0x02000, NO_DUMP )  // video board
-
 	ROM_REGION( 0x1c00, "plds", 0 )
 	ROM_LOAD( "pal16l8b-c45-07.ic6",   0x0000, 0x0104, CRC(a139114f) SHA1(d21f0c02c34a59b2cea925a9a417d5c2db27a30e) )
 	ROM_LOAD( "pal16l8b-c45-08.ic62",  0x0200, 0x0104, CRC(6f8ec860) SHA1(25161f6e5a5a76c35e697312567abe995b08b945) )
@@ -880,9 +893,6 @@ ROM_START( ainfernoj )
 
 	ROM_REGION( 0x20000, "ymsnd.deltat", 0 )    /* Delta-T samples */
 	ROM_LOAD( "c45-06.31", 0x00000, 0x20000, CRC(6a7976d4) SHA1(a465f9bb874b1eff08742b33cc3c364703b281ca) )
-
-	ROM_REGION( 0x02000, "user1", 0 )
-	ROM_LOAD( "c45-xx.22", 0x00000, 0x02000, NO_DUMP )  // video board
 
 	ROM_REGION( 0x1c00, "plds", 0 )
 	ROM_LOAD( "pal16l8b-c45-07.ic6",   0x0000, 0x0104, CRC(a139114f) SHA1(d21f0c02c34a59b2cea925a9a417d5c2db27a30e) )

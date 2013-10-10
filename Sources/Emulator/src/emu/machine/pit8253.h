@@ -23,7 +23,6 @@
 #ifndef __PIT8253_H__
 #define __PIT8253_H__
 
-#include "devcb.h"
 
 #define PIT8253_MAX_TIMER       3
 
@@ -84,7 +83,7 @@ class pit8253_device : public device_t,
 {
 public:
 	pit8253_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	pit8253_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	pit8253_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	~pit8253_device() {}
 
 

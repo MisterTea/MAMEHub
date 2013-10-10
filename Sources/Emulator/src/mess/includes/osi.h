@@ -75,6 +75,8 @@ public:
 	int m_fdc_index;
 	DECLARE_WRITE_LINE_MEMBER(osi470_index_callback);
 
+	DECLARE_PALETTE_INIT(osi630);
+
 	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cassette;
 	optional_device<discrete_sound_device> m_discrete;

@@ -13,8 +13,10 @@ ifeq ($(TARGET),mame)
 # In order to keep dependencies reasonable, we exclude objects in the base of
 # $(SRC)/emu, as well as all the OSD objects and anything in the $(OBJ) tree
 depend: maketree $(MAKEDEP_TARGET)
+	@echo Rebuilding depend_emu.mak...
+	$(MAKEDEP) -I. $(INCPATH) -X$(SRC)/emu -X$(SRC)/osd/... -X$(OBJ)/... $(SRC)/emu > depend_emu.mak
 	@echo Rebuilding depend_$(TARGET).mak...
-	$(MAKEDEP) -I. $(INCPATH) -X$(SRC)/emu -X$(SRC)/osd/... -X$(OBJ)/... src/$(TARGET) > depend_$(TARGET).mak
+	$(MAKEDEP) -I. $(INCPATH) -X$(SRC)/emu -X$(SRC)/osd/... -X$(OBJ)/... $(SRC)/$(TARGET) > depend_$(TARGET).mak
 endif
 
 MAMESRC = $(SRC)/mame
@@ -41,6 +43,7 @@ OBJDIRS += \
 CPUS += Z80
 CPUS += Z180
 CPUS += I8085
+CPUS += I8089
 CPUS += M6502
 CPUS += H6280
 CPUS += I86
@@ -70,6 +73,7 @@ CPUS += TMS32010
 CPUS += TMS32025
 CPUS += TMS32031
 CPUS += TMS32051
+CPUS += TMS32082
 CPUS += TMS57002
 CPUS += CCPU
 CPUS += ADSP21XX
@@ -195,6 +199,7 @@ SOUNDS += OKIM6258
 SOUNDS += OKIM6295
 SOUNDS += OKIM6376
 SOUNDS += OKIM9810
+#SOUNDS += UPD7752
 SOUNDS += UPD7759
 SOUNDS += HC55516
 SOUNDS += TC8830F
@@ -212,6 +217,7 @@ SOUNDS += RF5C68
 SOUNDS += RF5C400
 SOUNDS += CEM3394
 SOUNDS += QSOUND
+SOUNDS += QS1000
 SOUNDS += SAA1099
 SOUNDS += IREMGA20
 SOUNDS += ES5503
@@ -243,7 +249,6 @@ SOUNDS += CDP1863
 SOUNDS += CDP1864
 SOUNDS += ZSG2
 SOUNDS += MOS656X
-SOUNDS += S2636
 SOUNDS += ASC
 SOUNDS += MAS3507D
 SOUNDS += SOCRATES
@@ -273,7 +278,7 @@ VIDEOS += BUFSPRITE
 #VIDEOS += CRT9021
 #VIDEOS += CRT9212
 #VIDEOS += DL1416
-#VIDEOS += DM9368
+VIDEOS += DM9368
 #VIDEOS += EF9340_1
 VIDEOS += H63484
 #VIDEOS += HD44102
@@ -300,7 +305,6 @@ VIDEOS += PC_VGA
 VIDEOS += POLY
 VIDEOS += PSX
 VIDEOS += RAMDAC
-VIDEOS += S2636
 VIDEOS += SAA5050
 #VIDEOS += SED1330
 VIDEOS += STVVDP
@@ -343,6 +347,7 @@ MACHINES += ADC0808
 MACHINES += ADC083X
 MACHINES += ADC1038
 MACHINES += ADC1213X
+MACHINES += AICARTC
 MACHINES += AM53CF96
 MACHINES += AM9517A
 MACHINES += AMIGAFDC
@@ -406,6 +411,8 @@ MACHINES += MC6852
 MACHINES += MC6854
 MACHINES += MC68901
 MACHINES += MCCS1850
+MACHINES += M68307
+MACHINES += M68340
 MACHINES += MCF5206E
 MACHINES += MICROTOUCH
 MACHINES += MM58274C
@@ -435,6 +442,7 @@ MACHINES += RP5H01
 MACHINES += RTC4543
 MACHINES += RTC65271
 MACHINES += RTC9701
+MACHINES += S2636
 MACHINES += S3520CF
 MACHINES += S3C2400
 MACHINES += S3C2410
@@ -595,6 +603,8 @@ $(MAMEOBJ)/shared.a: \
 	$(MACHINE)/segacrp2.o \
 	$(MACHINE)/ticket.o \
 	$(VIDEO)/avgdvg.o \
+	$(AUDIO)/decobsmt.o \
+	$(AUDIO)/segam1audio.o \
 
 #-------------------------------------------------
 # manufacturer-specific groupings for drivers
@@ -868,7 +878,6 @@ $(MAMEOBJ)/dataeast.a: \
 	$(DRIVERS)/deco_mlc.o $(VIDEO)/deco_mlc.o \
 	$(DRIVERS)/deco156.o $(MACHINE)/deco156.o \
 	$(DRIVERS)/deco32.o $(VIDEO)/deco32.o $(VIDEO)/dvi.o \
-	$(AUDIO)/decobsmt.o \
 	$(DRIVERS)/decocass.o $(MACHINE)/decocass.o $(MACHINE)/decocass_tape.o $(VIDEO)/decocass.o \
 	$(DRIVERS)/deshoros.o \
 	$(DRIVERS)/dietgo.o $(VIDEO)/dietgo.o \
@@ -901,7 +910,8 @@ $(MAMEOBJ)/dataeast.a: \
 	$(DRIVERS)/vaportra.o $(VIDEO)/vaportra.o \
 	$(MACHINE)/deco102.o \
 	$(MACHINE)/decocrpt.o \
-	$(MACHINE)/decoprot.o \
+	$(MACHINE)/deco104.o \
+	$(MACHINE)/deco146.o \
 	$(VIDEO)/decbac06.o \
 	$(VIDEO)/deco16ic.o \
 	$(VIDEO)/decocomn.o \
@@ -1030,13 +1040,13 @@ $(MAMEOBJ)/igs.a: \
 	$(DRIVERS)/pgm2.o \
 	$(DRIVERS)/spoker.o \
 	$(MACHINE)/pgmcrypt.o \
-	$(MACHINE)/pgmprot.o \
-	$(MACHINE)/pgmprot1.o \
-	$(MACHINE)/pgmprot2.o \
-	$(MACHINE)/pgmprot3.o \
-	$(MACHINE)/pgmprot4.o \
-	$(MACHINE)/pgmprot5.o \
-	$(MACHINE)/pgmprot6.o \
+	$(MACHINE)/pgmprot_orlegend.o \
+	$(MACHINE)/pgmprot_igs027a_type1.o \
+	$(MACHINE)/pgmprot_igs027a_type2.o \
+	$(MACHINE)/pgmprot_igs027a_type3.o \
+	$(MACHINE)/pgmprot_igs025_igs012.o \
+	$(MACHINE)/pgmprot_igs025_igs022.o \
+	$(MACHINE)/pgmprot_igs025_igs028.o \
 
 $(MAMEOBJ)/irem.a: \
 	$(DRIVERS)/m10.o $(VIDEO)/m10.o \
@@ -1217,7 +1227,27 @@ $(MAMEOBJ)/konami.a: \
 	$(DRIVERS)/xmen.o $(VIDEO)/xmen.o \
 	$(DRIVERS)/yiear.o $(VIDEO)/yiear.o \
 	$(DRIVERS)/zr107.o \
-	$(VIDEO)/konamiic.o $(VIDEO)/konicdev.o \
+	$(VIDEO)/konami_helper.o \
+	$(VIDEO)/k007121.o \
+	$(VIDEO)/k007342.o \
+	$(VIDEO)/k007420.o \
+	$(VIDEO)/k037122.o \
+	$(VIDEO)/k051316.o \
+	$(VIDEO)/k051733.o \
+	$(VIDEO)/k051960.o \
+	$(VIDEO)/k052109.o \
+	$(VIDEO)/k053251.o \
+	$(VIDEO)/k054156_k054157_k056832.o \
+	$(VIDEO)/k053244_k053245.o \
+	$(VIDEO)/k053246_k053247_k055673.o \
+	$(VIDEO)/k055555.o \
+	$(VIDEO)/k054000.o \
+	$(VIDEO)/k054338.o \
+	$(VIDEO)/k053936.o \
+	$(VIDEO)/k001006.o \
+	$(VIDEO)/k001005.o \
+	$(VIDEO)/k001604.o \
+
 
 $(MAMEOBJ)/maygay.a: \
 	$(DRIVERS)/maygay1b.o \
@@ -1490,6 +1520,7 @@ $(MAMEOBJ)/sega.a: \
 	$(DRIVERS)/hikaru.o \
 	$(DRIVERS)/hshavoc.o \
 	$(DRIVERS)/kopunch.o $(VIDEO)/kopunch.o \
+	$(DRIVERS)/lindbergh.o \
 	$(MACHINE)/megadriv.o \
 	$(MACHINE)/megacd.o \
 	$(MACHINE)/megacdcd.o \
@@ -1547,6 +1578,7 @@ $(MAMEOBJ)/sega.a: \
 	$(AUDIO)/pulsar.o \
 	$(AUDIO)/segasnd.o \
 	$(VIDEO)/segaic16.o \
+	$(VIDEO)/segaic16_road.o \
 	$(VIDEO)/sega16sp.o \
 	$(VIDEO)/segaic24.o \
 	$(MACHINE)/gdrom.o \
@@ -1576,7 +1608,7 @@ $(MAMEOBJ)/seibu.a: \
 	$(MACHINE)/seicop.o \
 	$(MACHINE)/spisprit.o \
 	$(AUDIO)/seibu.o \
-	$(VIDEO)/sei_crtc.o \
+	$(VIDEO)/seibu_crtc.o \
 
 $(MAMEOBJ)/seta.a: \
 	$(DRIVERS)/aleck64.o $(MACHINE)/n64.o $(VIDEO)/n64.o $(VIDEO)/rdpblend.o $(VIDEO)/rdpspn16.o $(VIDEO)/rdptpipe.o \
@@ -1722,6 +1754,7 @@ $(MAMEOBJ)/taito.a: \
 	$(DRIVERS)/taitopjc.o $\
 	$(DRIVERS)/taitosj.o $(MACHINE)/taitosj.o $(VIDEO)/taitosj.o \
 	$(DRIVERS)/taitotz.o \
+	$(DRIVERS)/taitotx.o \
 	$(DRIVERS)/taitowlf.o \
 	$(DRIVERS)/tnzs.o $(MACHINE)/tnzs.o $(VIDEO)/tnzs.o \
 	$(DRIVERS)/topspeed.o $(VIDEO)/topspeed.o \
@@ -1733,7 +1766,17 @@ $(MAMEOBJ)/taito.a: \
 	$(AUDIO)/taitosnd.o \
 	$(AUDIO)/t5182.o \
 	$(MACHINE)/taitoio.o \
-	$(VIDEO)/taitoic.o \
+	$(VIDEO)/taito_helper.o \
+	$(VIDEO)/pc080sn.o \
+	$(VIDEO)/pc090oj.o \
+	$(VIDEO)/tc0080vco.o \
+	$(VIDEO)/tc0100scn.o \
+	$(VIDEO)/tc0150rod.o \
+	$(VIDEO)/tc0280grd.o \
+	$(VIDEO)/tc0360pri.o \
+	$(VIDEO)/tc0480scp.o \
+	$(VIDEO)/tc0110pcr.o \
+	$(VIDEO)/tc0180vcu.o \
 	$(AUDIO)/taito_zm.o \
 
 $(MAMEOBJ)/tatsumi.a: \
@@ -1773,7 +1816,6 @@ $(MAMEOBJ)/technos.a: \
 	$(DRIVERS)/tagteam.o $(VIDEO)/tagteam.o \
 	$(DRIVERS)/vball.o $(VIDEO)/vball.o \
 	$(DRIVERS)/wwfsstar.o $(VIDEO)/wwfsstar.o \
-	$(DRIVERS)/wwfwfest.o $(VIDEO)/wwfwfest.o \
 	$(DRIVERS)/xain.o $(VIDEO)/xain.o \
 
 $(MAMEOBJ)/tehkan.a: \
@@ -1805,6 +1847,7 @@ $(MAMEOBJ)/toaplan.a: \
 	$(DRIVERS)/toaplan2.o $(VIDEO)/toaplan2.o $(VIDEO)/gp9001.o \
 	$(DRIVERS)/twincobr.o $(MACHINE)/twincobr.o $(VIDEO)/twincobr.o \
 	$(DRIVERS)/wardner.o \
+	$(VIDEO)/toaplan_scu.o \
 
 $(MAMEOBJ)/tong.a: \
 	$(DRIVERS)/beezer.o $(MACHINE)/beezer.o $(VIDEO)/beezer.o \
@@ -1888,9 +1931,12 @@ $(MAMEOBJ)/pinball.a: \
 	$(DRIVERS)/by68701.o  \
 	$(DRIVERS)/byvid.o  \
 	$(DRIVERS)/capcom.o  \
-	$(DRIVERS)/de_1.o  \
 	$(DRIVERS)/de_2.o  \
 	$(DRIVERS)/de_3.o  \
+	$(MACHINE)/decopincpu.o \
+	$(VIDEO)/decodmd1.o \
+	$(VIDEO)/decodmd2.o \
+	$(VIDEO)/decodmd3.o \
 	$(DRIVERS)/de_3b.o  \
 	$(DRIVERS)/flicker.o  \
 	$(DRIVERS)/g627.o  \
@@ -1973,7 +2019,7 @@ $(MAMEOBJ)/misc.a: \
 	$(DRIVERS)/amspdwy.o $(VIDEO)/amspdwy.o \
 	$(DRIVERS)/artmagic.o $(VIDEO)/artmagic.o \
 	$(DRIVERS)/astrafr.o \
-	$(DRIVERS)/astrocorp.o \
+	$(DRIVERS)/astrcorp.o \
 	$(DRIVERS)/astropc.o \
 	$(DRIVERS)/atronic.o \
 	$(DRIVERS)/attckufo.o \
@@ -1991,6 +2037,7 @@ $(MAMEOBJ)/misc.a: \
 	$(DRIVERS)/carrera.o \
 	$(DRIVERS)/castle.o \
 	$(DRIVERS)/cave.o $(VIDEO)/cave.o \
+	$(DRIVERS)/cavepc.o \
 	$(DRIVERS)/cb2001.o \
 	$(DRIVERS)/cdi.o $(VIDEO)/mcd212.o $(MACHINE)/cdi070.o $(MACHINE)/cdislave.o $(MACHINE)/cdicdic.o \
 	$(DRIVERS)/cesclass.o \
@@ -2294,6 +2341,8 @@ $(DRIVERS)/bzone.o:     $(LAYOUT)/bzone.lh \
 
 $(DRIVERS)/cardline.o:  $(LAYOUT)/cardline.lh
 
+$(DRIVERS)/cave.o:      $(LAYOUT)/ppsatan.lh
+
 $(DRIVERS)/cdi.o:       $(LAYOUT)/cdi.lh
 
 $(DRIVERS)/chance32.o:  $(LAYOUT)/chance32.lh
@@ -2325,7 +2374,8 @@ $(DRIVERS)/corona.o:    $(LAYOUT)/re800.lh \
 
 $(DRIVERS)/darius.o:    $(LAYOUT)/darius.lh
 
-$(DRIVERS)/de_2.o:      $(LAYOUT)/de2.lh
+$(DRIVERS)/de_2.o:      $(LAYOUT)/de2.lh \
+			$(LAYOUT)/de2a3.lh
 
 $(DRIVERS)/destroyr.o:  $(LAYOUT)/destroyr.lh
 
@@ -2523,6 +2573,8 @@ $(DRIVERS)/sderby.o:    $(LAYOUT)/sderby.lh \
 			$(LAYOUT)/spacewin.lh \
 			$(LAYOUT)/pmroulet.lh
 
+$(DRIVERS)/seabattl.o:  $(LAYOUT)/seabattl.lh
+
 $(DRIVERS)/segaorun.o:  $(LAYOUT)/outrun.lh
 
 $(DRIVERS)/segas32.o:   $(LAYOUT)/radr.lh
@@ -2627,16 +2679,15 @@ $(MACHINE)/megacd.o:  $(LAYOUT)/megacd.lh
 # misc dependencies
 #-------------------------------------------------
 
-$(DRIVERS)/galaxian.o:  $(MAMESRC)/drivers/galdrvr.c
-$(DRIVERS)/neogeo.o:    $(MAMESRC)/drivers/neodrvr.c
-$(VIDEO)/jaguar.o:  $(MAMESRC)/video/jagobj.c \
-			$(MAMESRC)/video/jagblit.c
+$(DRIVERS)/neogeo.o:    $(MAMESRC)/drivers/neogeo.inc
+$(VIDEO)/jaguar.o:  $(MAMESRC)/video/jagobj.inc \
+			$(MAMESRC)/video/jagblit.inc
 $(DRIVERS)/model1.o: $(MAMESRC)/includes/model1.h $(MAMESRC)/audio/dsbz80.h
 $(VIDEO)/model1.o: $(MAMESRC)/includes/model1.h $(MAMESRC)/audio/dsbz80.h
 $(MACHINE)/model1.o: $(MAMESRC)/includes/model1.h $(MAMESRC)/audio/dsbz80.h
-$(VIDEO)/model2.o:  $(MAMESRC)/video/model2rd.c
-$(VIDEO)/model3.o:  $(MAMESRC)/video/m3raster.c
-$(VIDEO)/n64.o:     $(MAMESRC)/video/rdpfiltr.c
+$(VIDEO)/model2.o:  $(MAMESRC)/video/model2rd.inc
+$(VIDEO)/model3.o:  $(MAMESRC)/video/m3raster.inc
+$(VIDEO)/n64.o:     $(MAMESRC)/video/rdpfiltr.inc
 $(DRIVERS)/bfm_sc4.o: $(MAMESRC)/includes/bfm_sc45.h
 $(DRIVERS)/bfm_sc5.o: $(MAMESRC)/includes/bfm_sc45.h
 $(DRIVERS)/namcos2.o: $(MAMESRC)/includes/namcos2.h

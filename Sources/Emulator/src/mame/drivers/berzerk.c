@@ -15,6 +15,7 @@
 #include "machine/nvram.h"
 #include "sound/s14001a.h"
 #include "video/resnet.h"
+#include "drivlgcy.h"
 
 
 class berzerk_state : public driver_device
@@ -24,10 +25,21 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_videoram(*this, "videoram"),
 		m_colorram(*this, "colorram"),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_s14001a(*this, "speech"),
+		m_ls181_10c(*this, "ls181_10c"),
+		m_ls181_12c(*this, "ls181_12c"),
+		m_custom(*this, "exidy") { }
 
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
+
+	required_device<cpu_device> m_maincpu;
+	required_device<s14001a_device> m_s14001a;
+	required_device<ttl74181_device> m_ls181_10c;
+	required_device<ttl74181_device> m_ls181_12c;
+	required_device<exidy_sound_device> m_custom;
+
 	UINT8 m_magicram_control;
 	UINT8 m_last_shift_data;
 	UINT8 m_intercept;
@@ -69,7 +81,6 @@ public:
 	void create_nmi_timer();
 	void start_nmi_timer();
 	void get_pens(pen_t *pens);
-	required_device<cpu_device> m_maincpu;
 };
 
 
@@ -210,7 +221,7 @@ TIMER_CALLBACK_MEMBER(berzerk_state::irq_callback)
 	next_v256 = irq_trigger_v256s[next_irq_number];
 
 	next_vpos = vsync_chain_counter_to_vpos(next_counter, next_v256);
-	m_irq_timer->adjust(machine().primary_screen->time_until_pos(next_vpos), next_irq_number);
+	m_irq_timer->adjust(m_screen->time_until_pos(next_vpos), next_irq_number);
 }
 
 
@@ -223,7 +234,7 @@ void berzerk_state::create_irq_timer()
 void berzerk_state::start_irq_timer()
 {
 	int vpos = vsync_chain_counter_to_vpos(irq_trigger_counts[0], irq_trigger_v256s[0]);
-	m_irq_timer->adjust(machine().primary_screen->time_until_pos(vpos));
+	m_irq_timer->adjust(m_screen->time_until_pos(vpos));
 }
 
 
@@ -287,7 +298,7 @@ TIMER_CALLBACK_MEMBER(berzerk_state::nmi_callback)
 	next_v256 = nmi_trigger_v256s[next_nmi_number];
 
 	next_vpos = vsync_chain_counter_to_vpos(next_counter, next_v256);
-	m_nmi_timer->adjust(machine().primary_screen->time_until_pos(next_vpos), next_nmi_number);
+	m_nmi_timer->adjust(m_screen->time_until_pos(next_vpos), next_nmi_number);
 }
 
 
@@ -300,7 +311,7 @@ void berzerk_state::create_nmi_timer()
 void berzerk_state::start_nmi_timer()
 {
 	int vpos = vsync_chain_counter_to_vpos(nmi_trigger_counts[0], nmi_trigger_v256s[0]);
-	m_nmi_timer->adjust(machine().primary_screen->time_until_pos(vpos));
+	m_nmi_timer->adjust(m_screen->time_until_pos(vpos));
 }
 
 
@@ -353,17 +364,11 @@ void berzerk_state::machine_reset()
 
 #define NUM_PENS    (0x10)
 
-#define LS181_12C   (0)
-#define LS181_10C   (1)
-
 
 void berzerk_state::video_start()
 {
-	TTL74181_config(machine(), LS181_12C, 0);
-	TTL74181_write(LS181_12C, TTL74181_INPUT_M, 1, 1);
-
-	TTL74181_config(machine(), LS181_10C, 0);
-	TTL74181_write(LS181_10C, TTL74181_INPUT_M, 1, 1);
+	m_ls181_10c->mode_w(1);
+	m_ls181_12c->mode_w(1);
 }
 
 
@@ -388,15 +393,14 @@ WRITE8_MEMBER(berzerk_state::magicram_w)
 		m_intercept = 0;
 
 	/* perform ALU step */
-	TTL74181_write(LS181_12C, TTL74181_INPUT_A0, 4, shift_flop_output & 0x0f);
-	TTL74181_write(LS181_10C, TTL74181_INPUT_A0, 4, shift_flop_output >> 4);
-	TTL74181_write(LS181_12C, TTL74181_INPUT_B0, 4, current_video_data & 0x0f);
-	TTL74181_write(LS181_10C, TTL74181_INPUT_B0, 4, current_video_data >> 4);
-	TTL74181_write(LS181_12C, TTL74181_INPUT_S0, 4, m_magicram_control >> 4);
-	TTL74181_write(LS181_10C, TTL74181_INPUT_S0, 4, m_magicram_control >> 4);
+	m_ls181_12c->input_a_w(shift_flop_output >> 0);
+	m_ls181_10c->input_a_w(shift_flop_output >> 4);
+	m_ls181_12c->input_b_w(current_video_data >> 0);
+	m_ls181_10c->input_b_w(current_video_data >> 4);
+	m_ls181_12c->select_w(m_magicram_control >> 4);
+	m_ls181_10c->select_w(m_magicram_control >> 4);
 
-	alu_output = (TTL74181_read(LS181_10C, TTL74181_OUTPUT_F0, 4) << 4) |
-					(TTL74181_read(LS181_12C, TTL74181_OUTPUT_F0, 4) << 0);
+	alu_output = m_ls181_10c->function_r() << 4 | m_ls181_12c->function_r();
 
 	m_videoram[offset] = alu_output ^ 0xff;
 
@@ -420,7 +424,7 @@ READ8_MEMBER(berzerk_state::intercept_v256_r)
 	UINT8 counter;
 	UINT8 v256;
 
-	vpos_to_vsync_chain_counter(machine().primary_screen->vpos(), &counter, &v256);
+	vpos_to_vsync_chain_counter(m_screen->vpos(), &counter, &v256);
 
 	return (!m_intercept << 7) | v256;
 }
@@ -510,40 +514,37 @@ UINT32 berzerk_state::screen_update_berzerk(screen_device &screen, bitmap_rgb32 
 
 WRITE8_MEMBER(berzerk_state::berzerk_audio_w)
 {
-	device_t *device;
 	int clock_divisor;
 
 	switch (offset)
 	{
 	/* offset 4 writes to the S14001A */
 	case 4:
-		device = machine().device("speech");
 		switch (data >> 6)
 		{
 		/* write data to the S14001 */
 		case 0:
 			/* only if not busy */
-			if (!s14001a_bsy_r(device))
+			if (!m_s14001a->bsy_r())
 			{
-				s14001a_reg_w(device, data & 0x3f);
+				m_s14001a->reg_w(data & 0x3f);
 
 				/* clock the chip -- via a 555 timer */
-				s14001a_rst_w(device, 1);
-				s14001a_rst_w(device, 0);
+				m_s14001a->rst_w(1);
+				m_s14001a->rst_w(0);
 			}
 
 			break;
 
 		case 1:
-			device = machine().device("speech");
 			/* volume */
-			s14001a_set_volume(device, ((data & 0x38) >> 3) + 1);
+			m_s14001a->set_volume(((data & 0x38) >> 3) + 1);
 
 			/* clock control - the first LS161 divides the clock by 9 to 16, the 2nd by 8,
 			   giving a final clock from 19.5kHz to 34.7kHz */
 			clock_divisor = 16 - (data & 0x07);
 
-			s14001a_set_clock(device, S14001_CLOCK / clock_divisor / 8);
+			m_s14001a->set_clock(S14001_CLOCK / clock_divisor / 8);
 			break;
 
 		default: break; /* 2 and 3 are not connected */
@@ -553,12 +554,12 @@ WRITE8_MEMBER(berzerk_state::berzerk_audio_w)
 
 	/* offset 6 writes to the sfxcontrol latch */
 	case 6:
-		exidy_sfxctrl_w(machine().device("exidy"), space, data >> 6, data);
+		m_custom->sfxctrl_w(space, data >> 6, data);
 		break;
 
 	/* everything else writes to the 6840 */
 	default:
-		exidy_sh6840_w(machine().device("exidy"), space, offset, data);
+		m_custom->sh6840_w(space, offset, data);
 		break;
 
 	}
@@ -567,19 +568,18 @@ WRITE8_MEMBER(berzerk_state::berzerk_audio_w)
 
 READ8_MEMBER(berzerk_state::berzerk_audio_r)
 {
-	device_t *device = machine().device("speech");
 	switch (offset)
 	{
 	/* offset 4 reads from the S14001A */
 	case 4:
-		return (!s14001a_bsy_r(device)) ? 0x40 : 0x00;
+		return (!m_s14001a->bsy_r()) ? 0x40 : 0x00;
 	/* offset 6 is open bus */
 	case 6:
 		logerror("attempted read from berzerk audio reg 6 (sfxctrl)!\n");
 		return 0;
 	/* everything else reads from the 6840 */
 	default:
-		return exidy_sh6840_r(machine().device("exidy"), space, offset);
+		return m_custom->sh6840_r(space, offset);
 	}
 }
 
@@ -1090,8 +1090,10 @@ static MACHINE_CONFIG_START( berzerk, berzerk_state )
 	MCFG_CPU_PROGRAM_MAP(berzerk_map)
 	MCFG_CPU_IO_MAP(berzerk_io_map)
 
-
 	MCFG_NVRAM_ADD_0FILL("nvram")
+
+	MCFG_TTL74181_ADD("ls181_10c")
+	MCFG_TTL74181_ADD("ls181_12c")
 
 	/* video hardware */
 

@@ -425,7 +425,7 @@ protected:
 const device_type TX0_READTAPE = &device_creator<tx0_readtape_image_device>;
 
 tx0_readtape_image_device::tx0_readtape_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TX0_READTAPE, "TX0 Tape Reader", tag, owner, clock),
+	: device_t(mconfig, TX0_READTAPE, "TX0 Tape Reader", tag, owner, clock, "tx0_readtape_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -460,7 +460,7 @@ protected:
 const device_type TX0_PUNCHTAPE = &device_creator<tx0_punchtape_image_device>;
 
 tx0_punchtape_image_device::tx0_punchtape_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TX0_PUNCHTAPE, "TX0 Tape Puncher", tag, owner, clock),
+	: device_t(mconfig, TX0_PUNCHTAPE, "TX0 Tape Puncher", tag, owner, clock, "tx0_punchtape_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -496,7 +496,7 @@ protected:
 const device_type TX0_PRINTER = &device_creator<tx0_printer_image_device>;
 
 tx0_printer_image_device::tx0_printer_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TX0_PRINTER, "TX0 Typewriter", tag, owner, clock),
+	: device_t(mconfig, TX0_PRINTER, "TX0 Typewriter", tag, owner, clock, "tx0_printer_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -531,7 +531,7 @@ protected:
 const device_type TX0_MAGTAPE = &device_creator<tx0_magtape_image_device>;
 
 tx0_magtape_image_device::tx0_magtape_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TX0_MAGTAPE, "TX0 Magnetic Tape", tag, owner, clock),
+	: device_t(mconfig, TX0_MAGTAPE, "TX0 Magnetic Tape", tag, owner, clock, "tx0_magtape_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -661,7 +661,7 @@ TIMER_CALLBACK_MEMBER(tx0_state::reader_callback)
 				if (m_tape_reader.rc == 0)
 				{   /* IO complete */
 					m_tape_reader.rcl = 0;
-					m_maincpu->set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+					m_maincpu->set_state_int(TX0_IOS,1);
 				}
 			}
 		}
@@ -697,7 +697,7 @@ void tx0_punchtape_image_device::call_unload()
 
 TIMER_CALLBACK_MEMBER(tx0_state::puncher_callback)
 {
-	m_maincpu->set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+	m_maincpu->set_state_int(TX0_IOS,1);
 }
 
 /*
@@ -791,7 +791,7 @@ void tx0_state::typewriter_out(UINT8 data)
 */
 TIMER_CALLBACK_MEMBER(tx0_state::prt_callback)
 {
-	m_maincpu->set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+	m_maincpu->set_state_int(TX0_IOS,1);
 }
 
 /*
@@ -818,7 +818,7 @@ static void tx0_io_prt(device_t *device)
 */
 TIMER_CALLBACK_MEMBER(tx0_state::dis_callback)
 {
-	m_maincpu->set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+	m_maincpu->set_state_int(TX0_IOS,1);
 }
 
 /*
@@ -978,7 +978,7 @@ static void magtape_callback(device_t *device)
 			}
 
 			state->m_magtape.sel_pending = FALSE;
-			device->state().set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+			device->state().set_state_int(TX0_IOS,1);
 		}
 		break;
 
@@ -1163,7 +1163,7 @@ static void magtape_callback(device_t *device)
 						if (state->m_magtape.cpy_pending)
 						{   /* read command */
 							state->m_magtape.u.read.space_flag = FALSE;
-							device->state().set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+							device->state().set_state_int(TX0_IOS,1);
 							device->state().set_state_int(TX0_LR, ((device->state().state_int(TX0_LR) >> 1) & 0333333)
 														| ((buf & 040) << 12) | ((buf & 020) << 10) | ((buf & 010) << 8) | ((buf & 004) << 6) | ((buf & 002) << 4) | ((buf & 001) << 2));
 							/* check parity */
@@ -1212,7 +1212,7 @@ static void magtape_callback(device_t *device)
 							device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_PC);
 						/* synchronize with cpy instruction */
 						if (state->m_magtape.cpy_pending)
-							device->state().set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+							device->state().set_state_int(TX0_IOS,1);
 						else
 							device->state().set_state_int(TX0_PF, device->state().state_int(TX0_PF) | PF_RWC);
 					}
@@ -1321,7 +1321,7 @@ static void magtape_callback(device_t *device)
 				{
 					if (state->m_magtape.cpy_pending)
 					{
-						device->state().set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+						device->state().set_state_int(TX0_IOS,1);
 						lr = device->state().state_int(TX0_LR);
 						buf = ((lr >> 10) & 040) | ((lr >> 8) & 020) | ((lr >> 6) & 010) | ((lr >> 4) & 004) | ((lr >> 2) & 002) | (lr & 001);
 						buf |= ((buf << 1) ^ (buf << 2) ^ (buf << 3) ^ (buf << 4) ^ (buf << 5) ^ (buf << 6) ^ ((!state->m_magtape.binary_flag) << 6)) & 0100;
@@ -1404,7 +1404,7 @@ static void tx0_io_cpy(device_t *device)
 	case MTS_UNSELECTED:
 	case MTS_UNSELECTING:
 		/* ignore instruction and set rwc flag? */
-		device->state().set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+		device->state().set_state_int(TX0_IOS,1);
 		break;
 
 	case MTS_SELECTING:
@@ -1414,7 +1414,7 @@ static void tx0_io_cpy(device_t *device)
 		case 0: /* backspace */
 		case 2: /* rewind */
 			/* ignore instruction and set rwc flag? */
-			device->state().set_state_int(TX0_IO_COMPLETE, (UINT64)0);
+			device->state().set_state_int(TX0_IOS,1);
 			break;
 		case 1: /* read */
 		case 3: /* write */

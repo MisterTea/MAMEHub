@@ -14,7 +14,7 @@
 struct internal_state      {int dummy;}; /* for buggy compilers */
 #endif
 
-const char * const z_errmsg[10] = {
+z_const char * const z_errmsg[10] = {
 "need dictionary",     /* Z_NEED_DICT       2  */
 "stream end",          /* Z_STREAM_END      1  */
 "",                    /* Z_OK              0  */
@@ -123,7 +123,7 @@ uLong ZEXPORT zlibCompileFlags()
 int ZLIB_INTERNAL z_verbose = verbose;
 
 void ZLIB_INTERNAL z_error (m)
-	const char *m;
+	char *m;
 {
 	fprintf(stderr, "%s\n", m);
 	exit(1);

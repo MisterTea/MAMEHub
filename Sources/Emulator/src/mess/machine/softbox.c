@@ -7,6 +7,14 @@
 
 **********************************************************************/
 
+/*
+    This is an emulation of the SoftBox as a PET/CBM peripheral, where
+    the PET is used as a terminal over IEEE-488.  For the standalone
+    mode where an RS-232 terminal is used, and also information on
+    how to set up the Corvus drive, see: src/mess/drivers/softbox.c.
+*/
+
+
 #include "softbox.h"
 
 
@@ -267,7 +275,7 @@ static const rs232_port_interface rs232_intf =
 
 static MACHINE_CONFIG_FRAGMENT( softbox )
 	// basic machine hardware
-	MCFG_CPU_ADD(Z80_TAG, Z80, 4000000) // ???
+	MCFG_CPU_ADD(Z80_TAG, Z80, XTAL_8MHz/2)
 	MCFG_CPU_PROGRAM_MAP(softbox_mem)
 	MCFG_CPU_IO_MAP(softbox_io)
 
@@ -277,6 +285,9 @@ static MACHINE_CONFIG_FRAGMENT( softbox )
 	MCFG_I8255A_ADD(I8255_1_TAG, ppi1_intf)
 	MCFG_COM8116_ADD(COM8116_TAG, XTAL_5_0688MHz, NULL, DEVWRITELINE(I8251_TAG, i8251_device, rxc_w), DEVWRITELINE(I8251_TAG, i8251_device, txc_w))
 	MCFG_HARDDISK_ADD("harddisk1")
+	MCFG_HARDDISK_ADD("harddisk2")
+	MCFG_HARDDISK_ADD("harddisk3")
+	MCFG_HARDDISK_ADD("harddisk4")
 	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 MACHINE_CONFIG_END
 
@@ -297,15 +308,18 @@ machine_config_constructor softbox_device::device_mconfig_additions() const
 //-------------------------------------------------
 
 INPUT_PORTS_START( softbox )
+	/* An 8-position DIP switch may be installed at SW1.  Some
+	   SoftBox units have it and some do not.  The switches are
+	   not used by the SoftBox BIOS. */
 	PORT_START("SW1")
-	PORT_DIPUNKNOWN_DIPLOC( 0x01, IP_ACTIVE_LOW, "SW1:1" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x02, IP_ACTIVE_LOW, "SW1:2" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x04, IP_ACTIVE_LOW, "SW1:3" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x08, IP_ACTIVE_LOW, "SW1:4" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW1:5" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x40, IP_ACTIVE_LOW, "SW1:7" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x80, IP_ACTIVE_LOW, "SW1:8" )
+	PORT_DIPUNUSED_DIPLOC( 0x01, IP_ACTIVE_LOW, "SW1:1" )
+	PORT_DIPUNUSED_DIPLOC( 0x02, IP_ACTIVE_LOW, "SW1:2" )
+	PORT_DIPUNUSED_DIPLOC( 0x04, IP_ACTIVE_LOW, "SW1:3" )
+	PORT_DIPUNUSED_DIPLOC( 0x08, IP_ACTIVE_LOW, "SW1:4" )
+	PORT_DIPUNUSED_DIPLOC( 0x10, IP_ACTIVE_LOW, "SW1:5" )
+	PORT_DIPUNUSED_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW1:6" )
+	PORT_DIPUNUSED_DIPLOC( 0x40, IP_ACTIVE_LOW, "SW1:7" )
+	PORT_DIPUNUSED_DIPLOC( 0x80, IP_ACTIVE_LOW, "SW1:8" )
 INPUT_PORTS_END
 
 
@@ -331,6 +345,7 @@ ioport_constructor softbox_device::device_input_ports() const
 softbox_device::softbox_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, SOFTBOX, "PET SoftBox", tag, owner, clock, "pet_softbox", __FILE__),
 		device_ieee488_interface(mconfig, *this),
+		m_maincpu(*this, Z80_TAG),
 		m_dbrg(*this, COM8116_TAG)
 {
 }
@@ -342,7 +357,44 @@ softbox_device::softbox_device(const machine_config &mconfig, const char *tag, d
 
 void softbox_device::device_start()
 {
-	corvus_hdc_init(machine());
+	corvus_hdc_init(this);
+}
+
+
+//-------------------------------------------------
+//  device_reset_after_children - device-specific
+//    reset that must happen after child devices
+//    have performed their resets
+//-------------------------------------------------
+
+void softbox_device::device_reset_after_children()
+{
+	/* The Z80 starts at address 0x0000 but the SoftBox has RAM there and
+	   needs to start from the BIOS at 0xf000.  The PCB has logic and a
+	   74S287 PROM that temporarily changes the memory map so that the
+	   IC3 EPROM at 0xf000 is mapped to 0x0000 for the first instruction
+	   fetch only.  The instruction normally at 0xf000 is an absolute jump
+	   into the BIOS.  On reset, the Z80 will fetch it from 0x0000 and set
+	   its PC, then the normal map will be restored before the next
+	   instruction fetch.  Here we just set the PC to 0xf000 after the Z80
+	   resets, which has the same effect. */
+
+	m_maincpu->set_state_int(Z80_PC, 0xf000);
+}
+
+
+//-------------------------------------------------
+//  ieee488_ifc - interface clear (reset)
+//-------------------------------------------------
+
+void softbox_device::ieee488_ifc(int state)
+{
+	if (!m_ifc && state)
+	{
+		device_reset();
+	}
+
+	m_ifc = state;
 }
 
 

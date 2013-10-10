@@ -430,7 +430,8 @@ public:
 		m_asic_reset(*this, "asic_reset"),
 		m_rombase(*this, "rombase"),
 		m_maincpu(*this, "maincpu"),
-		m_ide(*this, "ide")
+		m_ide(*this, "ide"),
+		m_ethernet(*this, "ethernet")
 	{
 	}
 
@@ -440,6 +441,9 @@ public:
 	required_shared_ptr<UINT32> m_interrupt_config;
 	required_shared_ptr<UINT32> m_asic_reset;
 	required_shared_ptr<UINT32> m_rombase;
+	required_device<cpu_device> m_maincpu;
+	required_device<bus_master_ide_controller_device> m_ide;
+	optional_device<smc91c94_device> m_ethernet;
 	galileo_data m_galileo;
 	widget_data m_widget;
 	device_t *m_voodoo;
@@ -482,7 +486,7 @@ public:
 	DECLARE_WRITE32_MEMBER(ethernet_w);
 	DECLARE_READ32_MEMBER(widget_r);
 	DECLARE_WRITE32_MEMBER(widget_w);
-	DECLARE_READ16_MEMBER(seattle_ide_r);
+	DECLARE_READ32_MEMBER(seattle_ide_r);
 	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
 	DECLARE_WRITE_LINE_MEMBER(vblank_assert);
 	DECLARE_WRITE_LINE_MEMBER(voodoo_stall);
@@ -517,8 +521,6 @@ public:
 	void widget_reset();
 	void update_widget_irq();
 	void init_common(int ioasic, int serialnum, int yearoffs, int config);
-	required_device<cpu_device> m_maincpu;
-	required_device<bus_master_ide_controller_device> m_ide;
 };
 
 /*************************************
@@ -1518,21 +1520,19 @@ WRITE32_MEMBER(seattle_state::carnevil_gun_w)
 
 READ32_MEMBER(seattle_state::ethernet_r)
 {
-	device_t *device = machine().device("ethernet");
 	if (!(offset & 8))
-		return smc91c9x_r(device, space, offset & 7, mem_mask & 0xffff);
+		return m_ethernet->read(space, offset & 7, mem_mask & 0xffff);
 	else
-		return smc91c9x_r(device, space, offset & 7, mem_mask & 0x00ff);
+		return m_ethernet->read(space, offset & 7, mem_mask & 0x00ff);
 }
 
 
 WRITE32_MEMBER(seattle_state::ethernet_w)
 {
-	device_t *device = machine().device("ethernet");
 	if (!(offset & 8))
-		smc91c9x_w(device, space, offset & 7, data & 0xffff, mem_mask | 0xffff);
+		m_ethernet->write(space, offset & 7, data & 0xffff, mem_mask | 0xffff);
 	else
-		smc91c9x_w(device, space, offset & 7, data & 0x00ff, mem_mask | 0x00ff);
+		m_ethernet->write(space, offset & 7, data & 0x00ff, mem_mask | 0x00ff);
 }
 
 
@@ -1565,7 +1565,6 @@ void seattle_state::update_widget_irq()
 
 READ32_MEMBER(seattle_state::widget_r)
 {
-	device_t *device = machine().device("ethernet");
 	UINT32 result = ~0;
 
 	switch (offset)
@@ -1584,7 +1583,7 @@ READ32_MEMBER(seattle_state::widget_r)
 			break;
 
 		case WREG_ETHER_DATA:
-			result = smc91c9x_r(device, space, m_widget.ethernet_addr & 7, mem_mask & 0xffff);
+			result = m_ethernet->read(space, m_widget.ethernet_addr & 7, mem_mask & 0xffff);
 			break;
 	}
 
@@ -1596,7 +1595,6 @@ READ32_MEMBER(seattle_state::widget_r)
 
 WRITE32_MEMBER(seattle_state::widget_w)
 {
-	device_t *device = machine().device("ethernet");
 	if (LOG_WIDGET)
 		logerror("Widget write (%02X) = %08X & %08X\n", offset*4, data, mem_mask);
 
@@ -1616,7 +1614,7 @@ WRITE32_MEMBER(seattle_state::widget_w)
 			break;
 
 		case WREG_ETHER_DATA:
-			smc91c9x_w(device, space, m_widget.ethernet_addr & 7, data & 0xffff, mem_mask & 0xffff);
+			m_ethernet->write(space, m_widget.ethernet_addr & 7, data & 0xffff, mem_mask & 0xffff);
 			break;
 	}
 }
@@ -1773,22 +1771,22 @@ PCI Mem  = 08000000-09FFFFFF
 
 */
 
-READ16_MEMBER(seattle_state::seattle_ide_r)
+READ32_MEMBER(seattle_state::seattle_ide_r)
 {
 	/* note that blitz times out if we don't have this cycle stealing */
-	if (offset == 6/2)
+	if (offset == 6/4)
 		m_maincpu->eat_cycles(100);
-	return m_ide->read_cs1_pc(space, offset, mem_mask);
+	return m_ide->read_cs1(space, offset, mem_mask);
 }
 
 static ADDRESS_MAP_START( seattle_map, AS_PROGRAM, 32, seattle_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x00000000, 0x007fffff) AM_RAM AM_SHARE("rambase") // wg3dh only has 4MB; sfrush, blitz99 8MB
 	AM_RANGE(0x08000000, 0x08ffffff) AM_DEVREAD_LEGACY("voodoo", voodoo_r) AM_WRITE(seattle_voodoo_w)
-	AM_RANGE(0x0a0001f0, 0x0a0001f7) AM_DEVREADWRITE16("ide", bus_master_ide_controller_device, read_cs0_pc, write_cs0_pc, 0xffffffff)
-	AM_RANGE(0x0a0003f0, 0x0a0003f7) AM_READ16(seattle_ide_r, 0xffffffff) AM_DEVWRITE16("ide", bus_master_ide_controller_device, write_cs1_pc, 0xffffffff)
+	AM_RANGE(0x0a0001f0, 0x0a0001f7) AM_DEVREADWRITE("ide", bus_master_ide_controller_device, read_cs0, write_cs0)
+	AM_RANGE(0x0a0003f0, 0x0a0003f7) AM_READ(seattle_ide_r) AM_DEVWRITE("ide", bus_master_ide_controller_device, write_cs1)
 	AM_RANGE(0x0a00040c, 0x0a00040f) AM_NOP                     // IDE-related, but annoying
-	AM_RANGE(0x0a000f00, 0x0a000f07) AM_DEVREADWRITE("ide", bus_master_ide_controller_device, ide_bus_master32_r, ide_bus_master32_w)
+	AM_RANGE(0x0a000f00, 0x0a000f07) AM_DEVREADWRITE("ide", bus_master_ide_controller_device, bmdma_r, bmdma_w)
 	AM_RANGE(0x0c000000, 0x0c000fff) AM_READWRITE(galileo_r, galileo_w)
 	AM_RANGE(0x13000000, 0x13000003) AM_WRITE(asic_fifo_w)
 	AM_RANGE(0x16000000, 0x1600003f) AM_READWRITE_LEGACY(midway_ioasic_r, midway_ioasic_w)
@@ -2535,8 +2533,8 @@ static MACHINE_CONFIG_START( seattle_common, seattle_state )
 
 	MCFG_NVRAM_ADD_1FILL("nvram")
 
-	MCFG_BUS_MASTER_IDE_CONTROLLER_ADD("ide", ide_devices, "hdd", NULL, true)
-	MCFG_IDE_CONTROLLER_IRQ_HANDLER(WRITELINE(seattle_state, ide_interrupt))
+	MCFG_BUS_MASTER_IDE_CONTROLLER_ADD("ide", ata_devices, "hdd", NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(WRITELINE(seattle_state, ide_interrupt))
 	MCFG_BUS_MASTER_IDE_CONTROLLER_SPACE("maincpu", AS_PROGRAM)
 
 	MCFG_3DFX_VOODOO_1_ADD("voodoo", STD_VOODOO_1_CLOCK, voodoo_intf)
@@ -2569,7 +2567,7 @@ static MACHINE_CONFIG_DERIVED( seattle150, seattle_common )
 	MCFG_CPU_PROGRAM_MAP(seattle_map)
 MACHINE_CONFIG_END
 
-static const smc91c9x_config ethernet_intf =
+static const smc91c9x_interface ethernet_intf =
 {
 	ethernet_interrupt
 };
@@ -2628,7 +2626,7 @@ ROM_START( wg3dh )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )  /* Boot Code Version L1.2 (10/8/96) */
 	ROM_LOAD( "wg3dh_12.u32", 0x000000, 0x80000, CRC(15e4cea2) SHA1(72c0db7dc53ce645ba27a5311b5ce803ad39f131) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive Version 1.3 (Guts 10/15/96, Main 10/15/96) */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive Version 1.3 (Guts 10/15/96, Main 10/15/96) */
 	DISK_IMAGE( "wg3dh", 0, SHA1(4fc6f25d7f043d9bcf8743aa8df1d9be3cbc375b) )
 
 	ROM_REGION16_LE( 0x10000, "dcs", 0 )    /* ADSP-2115 data Version L1.1 */
@@ -2640,7 +2638,7 @@ ROM_START( mace )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )  /* Boot Code Version 1.0ce 7/2/97 */
 	ROM_LOAD( "mace10ce.u32", 0x000000, 0x80000, CRC(7a50b37e) SHA1(33788835f84a9443566c80bee9f20a1691490c6d) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive Version 1.0B 6/10/97 (Guts 7/2/97, Main 7/2/97) */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive Version 1.0B 6/10/97 (Guts 7/2/97, Main 7/2/97) */
 	DISK_IMAGE( "mace", 0, SHA1(96ec8d3ff5dd894e21aa81403bcdbeba44bb97ea) )
 
 	ROM_REGION16_LE( 0x10000, "dcs", 0 )    /* ADSP-2115 data Version L1.1, Labeled as Version 1.0 */
@@ -2652,7 +2650,7 @@ ROM_START( macea )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )  /* Boot Code Version ??? 5/7/97 */
 	ROM_LOAD( "maceboot.u32", 0x000000, 0x80000, CRC(effe3ebc) SHA1(7af3ca3580d6276ffa7ab8b4c57274e15ee6bcbb) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive Version 1.0a (Guts 6/9/97, Main 5/12/97) */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive Version 1.0a (Guts 6/9/97, Main 5/12/97) */
 	DISK_IMAGE( "macea", 0, BAD_DUMP SHA1(9bd4a60627915d71932cab24f89c48ea21f4c1cb) )
 
 	ROM_REGION16_LE( 0x10000, "dcs", 0 )    /* ADSP-2115 data Version L1.1 */
@@ -2673,7 +2671,7 @@ ROM_START( sfrush )
 	ROM_LOAD32_WORD( "sfrush.u53",  0x800000, 0x200000, CRC(71f8ddb0) SHA1(c24bef801f43bae68fda043c4356e8cf1298ca97) )
 	ROM_LOAD32_WORD( "sfrush.u49",  0x800002, 0x200000, CRC(dfb0a54c) SHA1(ed34f9485f7a7e5bb73bf5c6428b27548e12db12) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive Version L1.06 */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive Version L1.06 */
 	DISK_IMAGE( "sfrush", 0, SHA1(e2db0270a707fb2115207f988d5751081d6b4994) )
 ROM_END
 
@@ -2691,7 +2689,7 @@ ROM_START( sfrushrk )
 	ROM_LOAD32_WORD( "audio.u53",  0x800000, 0x200000, CRC(51c89a14) SHA1(6bc62bcda224040a4596d795132874828011a038) )
 	ROM_LOAD32_WORD( "audio.u49",  0x800002, 0x200000, CRC(e6b684d3) SHA1(1f5bab7fae974cecc8756dd23e3c7aa2cf6e7dc7) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive Version 1.2 */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive Version 1.2 */
 	DISK_IMAGE( "sfrushrk", 0, SHA1(e763f26aca67ebc17fe8b8df4fba91d492cf7837) )
 ROM_END
 
@@ -2700,7 +2698,7 @@ ROM_START( calspeed )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )  /* Boot Code Version 1.2 (2/18/98) */
 	ROM_LOAD( "caspd1_2.u32", 0x000000, 0x80000, CRC(0a235e4e) SHA1(b352f10fad786260b58bd344b5002b6ea7aaf76d) )
 
-	DISK_REGION( "drive_0" )    /* Release version 2.1a (4/17/98) (Guts 1.25 4/17/98, Main 4/17/98) */
+	DISK_REGION( "ide:0:hdd:image" )    /* Release version 2.1a (4/17/98) (Guts 1.25 4/17/98, Main 4/17/98) */
 	DISK_IMAGE( "calspeed", 0, SHA1(08d411c591d4b8bbdd6437ea80d01c4cec8516f8) )
 
 	ROM_REGION16_LE( 0x10000, "dcs", 0 )    /* ADSP-2115 data Version 1.02 */
@@ -2712,7 +2710,7 @@ ROM_START( calspeeda )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )  /* Boot Code Version 1.2 (2/18/98) */
 	ROM_LOAD( "caspd1_2.u32", 0x000000, 0x80000, CRC(0a235e4e) SHA1(b352f10fad786260b58bd344b5002b6ea7aaf76d) )
 
-	DISK_REGION( "drive_0" )    /* Release version 1.0r7a (3/4/98) (Guts 3/3/98, Main 1/19/98) */
+	DISK_REGION( "ide:0:hdd:image" )    /* Release version 1.0r7a (3/4/98) (Guts 3/3/98, Main 1/19/98) */
 	DISK_IMAGE( "calspeda", 0, SHA1(6b1c3a7530195ef7309b06a651b01c8b3ece92c6) )
 
 	ROM_REGION16_LE( 0x10000, "dcs", 0 )    /* ADSP-2115 data Version 1.02 */
@@ -2724,7 +2722,7 @@ ROM_START( vaportrx )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )
 	ROM_LOAD( "vtrxboot.bin", 0x000000, 0x80000, CRC(ee487a6c) SHA1(fb9efda85047cf615f24f7276a9af9fd542f3354) )
 
-	DISK_REGION( "drive_0" )
+	DISK_REGION( "ide:0:hdd:image" )
 	DISK_IMAGE( "vaportrx", 0, SHA1(fe53ca7643d2ed2745086abb7f2243c69678cab1) )
 
 	ROM_REGION16_LE( 0x10000, "dcs", 0 )    /* ADSP-2115 data Version 1.02 */
@@ -2736,7 +2734,7 @@ ROM_START( vaportrxp )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )
 	ROM_LOAD( "vtrxboot.bin", 0x000000, 0x80000, CRC(ee487a6c) SHA1(fb9efda85047cf615f24f7276a9af9fd542f3354) )
 
-	DISK_REGION( "drive_0" ) /* Guts: Apr 10 1998 11:03:14  Main: Apr 10 1998 11:27:44 */
+	DISK_REGION( "ide:0:hdd:image" ) /* Guts: Apr 10 1998 11:03:14  Main: Apr 10 1998 11:27:44 */
 	DISK_IMAGE( "vaportrp", 0, SHA1(6c86637c442ebd6994eee8c0ae0dce343c35dbe9) )
 
 	ROM_REGION16_LE( 0x10000, "dcs", 0 )    /* ADSP-2115 data Version 1.02 */
@@ -2751,7 +2749,7 @@ ROM_START( biofreak )
 	ROM_REGION32_LE( 0x80000, "user1", 0 ) /* Seattle System Boot ROM Version 0.1i Apr 14 1997  14:52:53 */
 	ROM_LOAD( "biofreak.u32", 0x000000, 0x80000, CRC(cefa00bb) SHA1(7e171610ede1e8a448fb8d175f9cb9e7d549de28) )
 
-	DISK_REGION( "drive_0" ) /* Build Date 12/11/97 */
+	DISK_REGION( "ide:0:hdd:image" ) /* Build Date 12/11/97 */
 	DISK_IMAGE( "biofreak", 0, SHA1(711241642f92ded8eaf20c418ea748989183fe10) )
 ROM_END
 
@@ -2763,7 +2761,7 @@ ROM_START( blitz )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )  /* Boot Code Version 1.2 */
 	ROM_LOAD( "blitz1_2.u32", 0x000000, 0x80000, CRC(38dbecf5) SHA1(7dd5a5b3baf83a7f8f877ff4cd3f5e8b5201b36f) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive Version 1.21 */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive Version 1.21 */
 	DISK_IMAGE( "blitz", 0, SHA1(9131c7888e89b3c172780156ed3fe1fe46f78b0a) )
 ROM_END
 
@@ -2775,7 +2773,7 @@ ROM_START( blitz11 )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )  /* Boot Code Version 1.1 */
 	ROM_LOAD( "blitz1_1.u32", 0x000000, 0x80000, CRC(8163ce02) SHA1(89b432d8879052f6c5534ee49599f667f50a010f) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive Version 1.21 */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive Version 1.21 */
 	DISK_IMAGE( "blitz", 0, SHA1(9131c7888e89b3c172780156ed3fe1fe46f78b0a) )
 ROM_END
 
@@ -2787,7 +2785,7 @@ ROM_START( blitz99 )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )  /* Boot Code Version 1.0 */
 	ROM_LOAD( "bltz9910.u32", 0x000000, 0x80000, CRC(777119b2) SHA1(40d255181c2f3a787919c339e83593fd506779a5) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive Version 1.30 */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive Version 1.30 */
 	DISK_IMAGE( "blitz99", 0, SHA1(19877e26ffce81dd525031e9e2b4f83ff982e2d9) )
 ROM_END
 
@@ -2799,7 +2797,7 @@ ROM_START( blitz2k )
 	ROM_REGION32_LE( 0x80000, "user1", 0 )  /* Boot Code Version 1.4 */
 	ROM_LOAD( "bltz2k14.u32", 0x000000, 0x80000, CRC(ac4f0051) SHA1(b8125c17370db7bfd9b783230b4ef3d5b22a2025) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive Version 1.5 */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive Version 1.5 */
 	DISK_IMAGE( "blitz2k", 0, SHA1(e89b7fbd4b4a9854d47ae97493e0afffbd1f69e7) )
 ROM_END
 
@@ -2811,7 +2809,7 @@ ROM_START( carnevil )
 	ROM_REGION32_LE( 0x80000, "user1", 0 ) /* Boot Rom Version 1.9 */
 	ROM_LOAD( "carnevil1_9.u32", 0x000000, 0x80000, CRC(82c07f2e) SHA1(fa51c58022ce251c53bad12fc6ffadb35adb8162) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive v1.0.3  Diagnostics v3.4 / Feb 1 1999 16:00:07 */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive v1.0.3  Diagnostics v3.4 / Feb 1 1999 16:00:07 */
 	DISK_IMAGE( "carnevil", 0, SHA1(5cffb0de63ad36eb01c5951bab04d3f8a9e23e16) )
 ROM_END
 
@@ -2823,7 +2821,7 @@ ROM_START( carnevil1 )
 	ROM_REGION32_LE( 0x80000, "user1", 0 ) /* Boot Rom Version 1.9 */
 	ROM_LOAD( "carnevil1_9.u32", 0x000000, 0x80000, CRC(82c07f2e) SHA1(fa51c58022ce251c53bad12fc6ffadb35adb8162) )
 
-	DISK_REGION( "drive_0" )    /* Hard Drive v1.0.1  Diagnostics v3.3 / Oct 20 1998 11:44:41 */
+	DISK_REGION( "ide:0:hdd:image" )    /* Hard Drive v1.0.1  Diagnostics v3.3 / Oct 20 1998 11:44:41 */
 	DISK_IMAGE( "carnevi1", 0, BAD_DUMP SHA1(94532727512280930a100fe473bf3a938fe2d44f) )
 ROM_END
 
@@ -2835,7 +2833,7 @@ ROM_START( hyprdriv )
 	ROM_REGION32_LE( 0x80000, "user1", 0 ) /* Boot Rom Version 9. */
 	ROM_LOAD( "hyprdrve.u32", 0x000000, 0x80000, CRC(3e18cb80) SHA1(b18cc4253090ee1d65d72a7ec0c426ed08c4f238) )
 
-	DISK_REGION( "drive_0" )    /* Version 1.40  Oct 23 1998  15:16:00 */
+	DISK_REGION( "ide:0:hdd:image" )    /* Version 1.40  Oct 23 1998  15:16:00 */
 	DISK_IMAGE( "hyprdriv", 0, SHA1(8cfa343797575b32f46cc24150024be48963a03e) )
 ROM_END
 

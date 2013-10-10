@@ -4,6 +4,9 @@
 
 ***************************************************************************/
 
+#include "sound/x1_010.h"
+#include "video/seta001.h"
+
 #define __uPD71054_TIMER    1
 
 struct uPD71054_state
@@ -30,6 +33,8 @@ public:
 		m_maincpu(*this,"maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_subcpu(*this,"sub"),
+		m_seta001(*this, "spritegen"),
+		m_x1(*this, "x1snd"),
 		m_sharedram(*this,"sharedram"),
 		m_workram(*this,"workram"),
 		m_vregs(*this,"vregs"),
@@ -46,6 +51,8 @@ public:
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_subcpu;
+	required_device<seta001_device> m_seta001;
+	optional_device<x1_010_device> m_x1;
 
 	optional_shared_ptr<UINT8> m_sharedram;
 	optional_shared_ptr<UINT16> m_workram;

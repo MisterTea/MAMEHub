@@ -15,7 +15,6 @@
 **********************************************************************/
 
 #include "emu.h"
-#include "profiler.h"
 #include "huc6260.h"
 
 #define LOG 0
@@ -24,7 +23,7 @@
 #define HUC6260_HSYNC_START     ( HUC6260_WPF - HUC6260_HSYNC_LENGTH )
 
 
-PALETTE_INIT( huc6260 )
+PALETTE_INIT_MEMBER(huc6260_device, huc6260)
 {
 	int i;
 
@@ -35,8 +34,8 @@ PALETTE_INIT( huc6260 )
 		int b = pal3bit( ( i      ) & 7 );
 		int y = ( ( 66 * r + 129 * g + 25 * b + 128 ) >> 8 ) + 16;
 
-		palette_set_color_rgb( machine, i, r, g, b );
-		palette_set_color_rgb( machine, 512 + i, y, y, y );
+		palette_set_color_rgb( machine(), i, r, g, b );
+		palette_set_color_rgb( machine(), 512 + i, y, y, y );
 	}
 }
 
@@ -63,7 +62,8 @@ void huc6260_device::device_config_complete()
 
 
 huc6260_device::huc6260_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, HUC6260, "HuC6260", tag, owner, clock)
+	:   device_t(mconfig, HUC6260, "HuC6260", tag, owner, clock, "huc6260", __FILE__),
+		device_video_interface(mconfig, *this)
 {
 }
 
@@ -251,11 +251,7 @@ WRITE8_MEMBER( huc6260_device::write )
 
 void huc6260_device::device_start()
 {
-	/* Make sure we are supplied a screen tag */
-	assert( screen_tag != NULL );
-
 	m_timer = timer_alloc();
-	m_screen = machine().device<screen_device>( screen_tag );
 	m_bmp = auto_bitmap_ind16_alloc( machine(), HUC6260_WPF, HUC6260_LPF );
 
 	/* Resolve callbacks */
@@ -265,7 +261,6 @@ void huc6260_device::device_start()
 	m_get_time_til_next_event.resolve( get_time_til_next_event, *this );
 
 	/* We want to have a valid screen and valid callbacks */
-	assert( m_screen != NULL );
 	assert( ! m_hsync_changed.isnull() );
 	assert( ! m_vsync_changed.isnull() );
 	assert( ! m_get_next_pixel_data.isnull() );
@@ -296,4 +291,18 @@ void huc6260_device::device_reset()
 	m_last_v = m_screen->vpos();
 	m_last_h = m_screen->hpos();
 	m_timer->adjust( m_screen->time_until_pos( ( m_screen->vpos() + 1 ) % 263, 0 ) );
+}
+
+static MACHINE_CONFIG_FRAGMENT( huc6260 )
+	MCFG_PALETTE_INIT_OVERRIDE(huc6260_device, huc6260)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor huc6260_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( huc6260 );
 }

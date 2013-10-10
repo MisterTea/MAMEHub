@@ -4,7 +4,7 @@
 #include "machine/konppc.h"
 #include "video/voodoo.h"
 #include "video/poly.h"
-#include "video/konicdev.h"
+#include "video/k001604.h"
 #include "video/gticlub.h"
 
 /*
@@ -50,12 +50,6 @@ struct poly_extra_data
 	UINT32 flags;
 };
 
-static UINT8 gticlub_led_reg[2];
-
-void gticlub_led_setreg(int offset, UINT8 data)
-{
-	gticlub_led_reg[offset] = data;
-}
 
 
 /*****************************************************************************/
@@ -1597,117 +1591,3 @@ static int tick = 0;
 static int debug_tex_page = 0;
 static int debug_tex_palette = 0;
 */
-
-VIDEO_START( gticlub )
-{
-	gticlub_led_reg[0] = gticlub_led_reg[1] = 0x7f;
-	/*
-	tick = 0;
-	debug_tex_page = 0;
-	debug_tex_palette = 0;
-	*/
-
-	K001006_init(machine);
-	K001005_init(machine);
-}
-
-SCREEN_UPDATE_RGB32( gticlub )
-{
-	device_t *k001604 = screen.machine().device("k001604_1");
-
-	k001604_draw_back_layer(k001604, bitmap, cliprect);
-
-	K001005_draw(bitmap, cliprect);
-
-	k001604_draw_front_layer(k001604, bitmap, cliprect);
-
-#if 0
-	tick++;
-	if( tick >= 5 ) {
-		tick = 0;
-
-		if( screen.machine().input().code_pressed(KEYCODE_O) )
-			debug_tex_page++;
-
-		if( screen.machine().input().code_pressed(KEYCODE_I) )
-			debug_tex_page--;
-
-		if (screen.machine().input().code_pressed(KEYCODE_U))
-			debug_tex_palette++;
-		if (screen.machine().input().code_pressed(KEYCODE_Y))
-			debug_tex_palette--;
-
-		if (debug_tex_page < 0)
-			debug_tex_page = 32;
-		if (debug_tex_page > 32)
-			debug_tex_page = 0;
-
-		if (debug_tex_palette < 0)
-			debug_tex_palette = 15;
-		if (debug_tex_palette > 15)
-			debug_tex_palette = 0;
-	}
-
-	if (debug_tex_page > 0)
-	{
-		char string[200];
-		int x,y;
-		int index = (debug_tex_page - 1) * 0x40000;
-		int pal = debug_tex_palette & 7;
-		int tp = (debug_tex_palette >> 3) & 1;
-		UINT8 *rom = machine.root_device().memregion("gfx1")->base();
-
-		for (y=0; y < 384; y++)
-		{
-			for (x=0; x < 512; x++)
-			{
-				UINT8 pixel = rom[index + (y*512) + x];
-				bitmap.pix32(y, x) = K001006_palette[tp][(pal * 256) + pixel];
-			}
-		}
-
-		sprintf(string, "Texture page %d\nPalette %d", debug_tex_page, debug_tex_palette);
-		//popmessage("%s", string);
-	}
-#endif
-
-	draw_7segment_led(bitmap, 3, 3, gticlub_led_reg[0]);
-	draw_7segment_led(bitmap, 9, 3, gticlub_led_reg[1]);
-
-	//screen.machine().device("dsp")->execute().set_input_line(SHARC_INPUT_FLAG1, ASSERT_LINE);
-	sharc_set_flag_input(screen.machine().device("dsp"), 1, ASSERT_LINE);
-	return 0;
-}
-
-SCREEN_UPDATE_RGB32( hangplt )
-{
-	bitmap.fill(screen.machine().pens[0], cliprect);
-
-	if (strcmp(screen.tag(), ":lscreen") == 0)
-	{
-		device_t *k001604 = screen.machine().device("k001604_1");
-		device_t *voodoo = screen.machine().device("voodoo0");
-
-	//  k001604_draw_back_layer(k001604, bitmap, cliprect);
-
-		voodoo_update(voodoo, bitmap, cliprect);
-
-		k001604_draw_front_layer(k001604, bitmap, cliprect);
-	}
-	else if (strcmp(screen.tag(), ":rscreen") == 0)
-	{
-		device_t *k001604 = screen.machine().device("k001604_2");
-		device_t *voodoo = screen.machine().device("voodoo1");
-
-	//  k001604_draw_back_layer(k001604, bitmap, cliprect);
-
-		voodoo_update(voodoo, bitmap, cliprect);
-
-		k001604_draw_front_layer(k001604, bitmap, cliprect);
-	}
-
-	draw_7segment_led(bitmap, 3, 3, gticlub_led_reg[0]);
-	draw_7segment_led(bitmap, 9, 3, gticlub_led_reg[1]);
-
-	return 0;
-}

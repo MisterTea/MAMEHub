@@ -84,8 +84,8 @@
 #define OR_V_ADD(a,b,r)     do { UINT32 temp = ((((a) ^ (r)) & ((b) ^ (r))) >> 30) & VFLAG; IREG(TMR_ST) |= temp | (temp << 4); } while (0)
 #define OR_C_SUB(a,b,r)     do { IREG(TMR_ST) |= ((UINT32)(b) > (UINT32)(a)); } while (0)
 #define OR_C_ADD(a,b,r)     do { IREG(TMR_ST) |= ((UINT32)(a) > (UINT32)(r)); } while (0)
-#define OR_C_SBB(a,b,c)     do { INT64 temp = (UINT32)(a) - (UINT32)(b) - (UINT32)(c); IREG(TMR_ST) |= (temp < 0); } while (0)
-#define OR_C_ADC(a,b,c)     do { UINT64 temp = (UINT32)(a) + (UINT32)(b) + (UINT32)(c); IREG(TMR_ST) |= (temp > 0xffffffffUL); } while (0)
+#define OR_C_SBB(a,b,c)     do { INT64 temp = (INT64)(a) - (UINT32)(b) - (UINT32)(c); IREG(TMR_ST) |= (temp < 0); } while (0)
+#define OR_C_ADC(a,b,c)     do { UINT64 temp = (UINT64)(a) + (UINT32)(b) + (UINT32)(c); IREG(TMR_ST) |= (temp > 0xffffffff); } while (0)
 
 #define OVM()               (IREG(TMR_ST) & OVMFLAG)
 
@@ -120,8 +120,7 @@ inline void tms3203x_device::execute_one()
 	m_icount -= 2;  // 2 clocks per cycle
 	m_pc++;
 #if (TMS_3203X_LOG_OPCODE_USAGE)
-	if (machine.primary_screen->frame_number() == 2003)
-		m_hits[op >> 21]++;
+	m_hits[op >> 21]++;
 #endif
 	(this->*s_tms32031ops[op >> 21])(op);
 }

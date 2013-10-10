@@ -428,7 +428,7 @@ each direction to assign the boundries.
 #include "emu.h"
 #include "cpu/m6502/m6502.h"
 #include "cpu/s2650/s2650.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "machine/atari_vg.h"
 #include "includes/centiped.h"
 #include "sound/ay8910.h"
@@ -450,7 +450,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(centiped_state::generate_interrupt)
 		m_maincpu->set_input_line(0, ((scanline - 1) & 32) ? ASSERT_LINE : CLEAR_LINE);
 
 	/* do a partial update now to handle sprite multiplexing (Maze Invaders) */
-	machine().primary_screen->update_partial(scanline);
+	m_screen->update_partial(scanline);
 }
 
 
@@ -831,7 +831,7 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(centiped_state::multiped_eeprom_r)
 {
-	return m_eeprom->read_bit() ? 0x80 : 0;
+	return m_eeprom->do_read() ? 0x80 : 0;
 }
 
 WRITE8_MEMBER(centiped_state::multiped_eeprom_w)
@@ -843,15 +843,15 @@ WRITE8_MEMBER(centiped_state::multiped_eeprom_w)
 
 	// a1 low: latch bit
 	if (~offset & 2)
-		m_eeprom->write_bit((data & 0x80) ? 1 : 0);
+		m_eeprom->di_write((data & 0x80) ? 1 : 0);
 
 	// a2 low: write latch or select next bit to read
 	if (~offset & 4)
-		m_eeprom->set_clock_line((~data & 0x80) ? ASSERT_LINE : CLEAR_LINE);
+		m_eeprom->clk_write((~data & 0x80) ? ASSERT_LINE : CLEAR_LINE);
 
 	// both high: reset
 	else if (offset & 2)
-		m_eeprom->set_cs_line((data & 0x80) ? CLEAR_LINE : ASSERT_LINE);
+		m_eeprom->cs_write((data & 0x80) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE8_MEMBER(centiped_state::multiped_prgbank_w)
@@ -1859,7 +1859,7 @@ static MACHINE_CONFIG_DERIVED( multiped, milliped )
 	MCFG_CPU_PROGRAM_MAP(multiped_map)
 
 	MCFG_DEVICE_REMOVE("earom")
-	MCFG_EEPROM_93C46_8BIT_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 MACHINE_CONFIG_END
 
 

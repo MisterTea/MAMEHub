@@ -5,7 +5,6 @@
 /*************************************************************/
 
 #include "emu.h"
-#include "sound/s2636.h"
 #include "includes/zac2650.h"
 
 
@@ -35,7 +34,7 @@ WRITE8_MEMBER(zac2650_state::zac_s2636_w)
 	machine().gfx[2]->mark_dirty(offset/8);
 	if (offset == 0xc7)
 	{
-		s2636_soundport_w(machine().device("s2636snd"), 0, data);
+		m_s2636_sound->soundport_w(0, data);
 	}
 }
 
@@ -52,7 +51,7 @@ int zac2650_state::SpriteCollision(int first,int second)
 {
 	int Checksum=0;
 	int x,y;
-	const rectangle &visarea = machine().primary_screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 
 	if((m_s2636_0_ram[first * 0x10 + 10] < 0xf0) && (m_s2636_0_ram[second * 0x10 + 10] < 0xf0))
 	{
@@ -123,8 +122,8 @@ void zac2650_state::video_start()
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(zac2650_state::get_bg_tile_info),this), TILEMAP_SCAN_ROWS,
 			24, 24, 32, 32);
 
-	machine().primary_screen->register_screen_bitmap(m_bitmap);
-	machine().primary_screen->register_screen_bitmap(m_spritebitmap);
+	m_screen->register_screen_bitmap(m_bitmap);
+	m_screen->register_screen_bitmap(m_spritebitmap);
 
 	machine().gfx[1]->set_source(m_s2636_0_ram);
 	machine().gfx[2]->set_source(m_s2636_0_ram);
@@ -133,7 +132,7 @@ void zac2650_state::video_start()
 void zac2650_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	int offs;
-	const rectangle &visarea = machine().primary_screen->visible_area();
+	const rectangle &visarea = m_screen->visible_area();
 
 	/* -------------------------------------------------------------- */
 	/* There seems to be a strange setup with this board, in that it  */
@@ -201,7 +200,7 @@ void zac2650_state::draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect
 
 UINT32 zac2650_state::screen_update_tinvader(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap, cliprect);
 	return 0;
 }

@@ -14,8 +14,8 @@
 #include "cpu/i8085/i8085.h"
 #include "machine/6821pia.h"
 #include "sound/ay8910.h"
-#include "sound/hc55516.h"
 #include "includes/redalert.h"
+#include "drivlgcy.h"
 
 
 
@@ -161,23 +161,14 @@ WRITE8_MEMBER(redalert_state::redalert_voice_command_w)
 
 WRITE_LINE_MEMBER(redalert_state::sod_callback)
 {
-	hc55516_digit_w(machine().device("cvsd"), state);
+	m_cvsd->digit_w(state);
 }
 
 
 READ_LINE_MEMBER(redalert_state::sid_callback)
 {
-	return hc55516_clock_state_r(machine().device("cvsd"));
+	return m_cvsd->clock_state_r();
 }
-
-
-static I8085_CONFIG( redalert_voice_i8085_config )
-{
-	DEVCB_NULL,                 /* STATUS changed callback */
-	DEVCB_NULL,                 /* INTE changed callback */
-	DEVCB_DRIVER_LINE_MEMBER(redalert_state,sid_callback),  /* SID changed callback (8085A only) */
-	DEVCB_DRIVER_LINE_MEMBER(redalert_state,sod_callback)   /* SOD changed callback (8085A only) */
-};
 
 
 static ADDRESS_MAP_START( redalert_voice_map, AS_PROGRAM, 8, redalert_state )
@@ -231,8 +222,9 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_FRAGMENT( redalert_audio_voice )
 
 	MCFG_CPU_ADD("voice", I8085A, REDALERT_VOICE_CPU_CLOCK)
-	MCFG_CPU_CONFIG(redalert_voice_i8085_config)
 	MCFG_CPU_PROGRAM_MAP(redalert_voice_map)
+	MCFG_I8085A_SID(READLINE(redalert_state,sid_callback))
+	MCFG_I8085A_SOD(WRITELINE(redalert_state,sod_callback))
 
 	MCFG_SOUND_ADD("cvsd", HC55516, REDALERT_HC55516_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)

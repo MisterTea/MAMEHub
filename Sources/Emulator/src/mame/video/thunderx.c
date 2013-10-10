@@ -1,5 +1,5 @@
 #include "emu.h"
-#include "video/konicdev.h"
+
 #include "includes/thunderx.h"
 
 /***************************************************************************
@@ -67,24 +67,24 @@ void thunderx_state::video_start()
 
 UINT32 thunderx_state::screen_update_scontra(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	k052109_tilemap_update(m_k052109);
+	m_k052109->tilemap_update();
 
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
 	/* The background color is always from layer 1 - but it's always black anyway */
 //  bitmap.fill(16 * m_layer_colorbase[1], cliprect);
 	if (m_priority)
 	{
-		k052109_tilemap_draw(m_k052109, bitmap, cliprect, 2, TILEMAP_DRAW_OPAQUE, 1);
-		k052109_tilemap_draw(m_k052109, bitmap, cliprect, 1, 0, 2);
+		m_k052109->tilemap_draw(screen, bitmap, cliprect, 2, TILEMAP_DRAW_OPAQUE, 1);
+		m_k052109->tilemap_draw(screen, bitmap, cliprect, 1, 0, 2);
 	}
 	else
 	{
-		k052109_tilemap_draw(m_k052109, bitmap, cliprect, 1, TILEMAP_DRAW_OPAQUE, 1);
-		k052109_tilemap_draw(m_k052109, bitmap, cliprect, 2, 0, 2);
+		m_k052109->tilemap_draw(screen, bitmap, cliprect, 1, TILEMAP_DRAW_OPAQUE, 1);
+		m_k052109->tilemap_draw(screen, bitmap, cliprect, 2, 0, 2);
 	}
-	k052109_tilemap_draw(m_k052109, bitmap, cliprect, 0, 0, 4);
+	m_k052109->tilemap_draw(screen, bitmap, cliprect, 0, 0, 4);
 
-	k051960_sprites_draw(m_k051960, bitmap, cliprect, -1, -1);
+	m_k051960->k051960_sprites_draw(bitmap, cliprect, screen.priority(), -1, -1);
 	return 0;
 }

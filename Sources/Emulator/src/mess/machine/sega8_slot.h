@@ -99,7 +99,7 @@ class sega8_cart_slot_device : public device_t,
 {
 public:
 	// construction/destruction
-	sega8_cart_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, bool is_card);
+	sega8_cart_slot_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, bool is_card, const char *shortname, const char *source);
 	sega8_cart_slot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	virtual ~sega8_cart_slot_device();
 
@@ -193,7 +193,7 @@ public:
 #define MCFG_SG1000MK3_CARTRIDGE_ADD(_tag,_slot_intf,_def_slot) \
 	MCFG_DEVICE_ADD(_tag, SEGA8_CART_SLOT, 0) \
 	MCFG_DEVICE_SLOT_INTERFACE(_slot_intf, _def_slot, false) \
-	static_cast<sega8_cart_slot_device *>(device)->set_mandatory(TRUE); \
+	static_cast<sega8_cart_slot_device *>(device)->set_mandatory(FALSE); \
 	static_cast<sega8_cart_slot_device *>(device)->set_intf("sms_cart"); \
 	static_cast<sega8_cart_slot_device *>(device)->set_ext("bin,sms,sg");
 

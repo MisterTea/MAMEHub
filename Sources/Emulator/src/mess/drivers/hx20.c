@@ -537,7 +537,7 @@ WRITE8_MEMBER( hx20_state::slave_p4_w )
 //-------------------------------------------------
 
 static ADDRESS_MAP_START( hx20_mem, AS_PROGRAM, 8, hx20_state )
-	AM_RANGE(0x0000, 0x001f) AM_READWRITE_LEGACY(m6801_io_r, m6801_io_w)
+	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE(HD6301V1_MAIN_TAG, hd63701_cpu_device, m6801_io_r, m6801_io_w)
 	AM_RANGE(0x0020, 0x0020) AM_WRITE(ksc_w)
 	AM_RANGE(0x0022, 0x0022) AM_READ(krtn07_r)
 	AM_RANGE(0x0026, 0x0026) AM_WRITE(lcd_cs_w)
@@ -568,7 +568,7 @@ ADDRESS_MAP_END
 //-------------------------------------------------
 
 static ADDRESS_MAP_START( hx20_sub_mem, AS_PROGRAM, 8, hx20_state )
-	AM_RANGE(0x0000, 0x001f) AM_READWRITE_LEGACY(m6801_io_r, m6801_io_w)
+	AM_RANGE(0x0000, 0x001f) AM_DEVREADWRITE(HD6301V1_SLAVE_TAG, hd63701_cpu_device, m6801_io_r, m6801_io_w)
 	AM_RANGE(0x0080, 0x00ff) AM_RAM
 	AM_RANGE(0xf000, 0xffff) AM_ROM AM_REGION(HD6301V1_SLAVE_TAG, 0)
 ADDRESS_MAP_END
@@ -752,11 +752,6 @@ WRITE_LINE_MEMBER( hx20_state::rtc_irq_w )
 	update_interrupt();
 }
 
-static const struct mc146818_interface rtc_intf =
-{
-	DEVCB_DRIVER_LINE_MEMBER(hx20_state, rtc_irq_w)
-};
-
 
 //-------------------------------------------------
 //  rs232_port_interface rs232_intf
@@ -776,10 +771,6 @@ static const rs232_port_interface rs232_intf =
 //**************************************************************************
 //  VIDEO
 //**************************************************************************
-
-//-------------------------------------------------
-//  PALETTE_INIT( hx20 )
-//-------------------------------------------------
 
 void hx20_state::palette_init()
 {
@@ -867,7 +858,7 @@ static MACHINE_CONFIG_START( hx20, hx20_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	// devices
-	MCFG_MC146818_IRQ_ADD(MC146818_TAG, MC146818_STANDARD, rtc_intf)
+	MCFG_MC146818_IRQ_ADD(MC146818_TAG, MC146818_STANDARD, WRITELINE(hx20_state, rtc_irq_w))
 	MCFG_RS232_PORT_ADD(RS232_TAG, rs232_intf, default_rs232_devices, NULL)
 	MCFG_CASSETTE_ADD(CASSETTE_TAG, default_cassette_interface)
 	MCFG_EPSON_SIO_ADD("sio", "tf20")

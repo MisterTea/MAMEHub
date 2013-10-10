@@ -133,12 +133,12 @@ READ8_MEMBER(dmv_state::sys_status_r)
 
 READ8_MEMBER(dmv_state::kb_ctrl_mcu_r)
 {
-	return upi41_master_r(machine().device("kb_ctrl_mcu"), offset);
+	return machine().device<upi41_cpu_device>("kb_ctrl_mcu")->upi41_master_r(space, offset);
 }
 
 WRITE8_MEMBER(dmv_state::kb_ctrl_mcu_w)
 {
-	upi41_master_w(machine().device("kb_ctrl_mcu"), offset, data);
+	machine().device<upi41_cpu_device>("kb_ctrl_mcu")->upi41_master_w(space, offset, data);
 }
 
 static UPD7220_DISPLAY_PIXELS( hgdc_display_pixels )
@@ -264,7 +264,6 @@ GFXDECODE_END
 
 static UPD7220_INTERFACE( hgdc_intf )
 {
-	"screen",
 	hgdc_display_pixels,
 	hgdc_draw_text,
 	DEVCB_NULL,
@@ -332,7 +331,7 @@ static MACHINE_CONFIG_START( dmv, dmv_state )
 
 	MCFG_GFXDECODE(dmv)
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(black_and_white)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 	MCFG_DEFAULT_LAYOUT(layout_dmv)
 
 	// devices

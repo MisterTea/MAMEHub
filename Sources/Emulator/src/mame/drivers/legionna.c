@@ -1065,8 +1065,6 @@ static MACHINE_CONFIG_START( legionna, legionna_state )
 
 	SEIBU_SOUND_SYSTEM_CPU(14318180/4)
 
-	MCFG_MACHINE_RESET(seibu_sound)
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1077,7 +1075,7 @@ static MACHINE_CONFIG_START( legionna, legionna_state )
 
 	MCFG_GFXDECODE(legionna)
 	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT(all_black)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,legionna)
 
@@ -1095,8 +1093,6 @@ static MACHINE_CONFIG_START( heatbrl, legionna_state )
 
 	SEIBU_SOUND_SYSTEM_CPU(14318180/4)
 
-	MCFG_MACHINE_RESET(seibu_sound)
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1107,7 +1103,7 @@ static MACHINE_CONFIG_START( heatbrl, legionna_state )
 
 	MCFG_GFXDECODE(heatbrl)
 	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT(all_black)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,legionna)
 
@@ -1124,19 +1120,18 @@ static MACHINE_CONFIG_START( godzilla, legionna_state )
 
 	SEIBU2_SOUND_SYSTEM_CPU(14318180/4)
 
-	MCFG_MACHINE_RESET(seibu_sound)
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(61)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
-	MCFG_SCREEN_SIZE(42*8, 36*8)
-	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
+//  MCFG_SCREEN_REFRESH_RATE(61)
+//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500))
+//  MCFG_SCREEN_SIZE(42*8, 36*8)
+//  MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
+	MCFG_SCREEN_RAW_PARAMS(14318180/2,442,0,320,262,0,224) // ~61 Hz
 	MCFG_SCREEN_UPDATE_DRIVER(legionna_state, screen_update_godzilla)
 
 	MCFG_GFXDECODE(heatbrl)
 	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT(all_black)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,godzilla)
 
@@ -1153,8 +1148,6 @@ static MACHINE_CONFIG_START( denjinmk, legionna_state )
 
 	SEIBU2_SOUND_SYSTEM_CPU(14318180/4)
 
-	MCFG_MACHINE_RESET(seibu_sound)
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_SIZE(42*8, 36*8)
@@ -1165,7 +1158,7 @@ static MACHINE_CONFIG_START( denjinmk, legionna_state )
 
 	MCFG_GFXDECODE(heatbrl)
 	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT(all_black)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,denjinmk)
 
@@ -1182,8 +1175,6 @@ static MACHINE_CONFIG_START( grainbow, legionna_state )
 
 	SEIBU2_SOUND_SYSTEM_CPU(14318180/4)
 
-	MCFG_MACHINE_RESET(seibu_sound)
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1194,7 +1185,7 @@ static MACHINE_CONFIG_START( grainbow, legionna_state )
 
 	MCFG_GFXDECODE(grainbow)
 	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT(all_black)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,grainbow)
 
@@ -1212,8 +1203,6 @@ static MACHINE_CONFIG_START( cupsoc, legionna_state )
 
 	SEIBU_SOUND_SYSTEM_CPU(14318180/4)
 
-	MCFG_MACHINE_RESET(seibu_sound)
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1224,7 +1213,7 @@ static MACHINE_CONFIG_START( cupsoc, legionna_state )
 
 	MCFG_GFXDECODE(cupsoc)
 	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT(all_black)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,cupsoc)
 
@@ -1250,8 +1239,6 @@ static MACHINE_CONFIG_START( cupsocbl, legionna_state )
 	MCFG_CPU_PROGRAM_MAP(cupsocbl_sound_mem)
 	//MCFG_PERIODIC_INT("screen", nmi_line_pulse)
 
-	//MCFG_MACHINE_INIT(seibu_sound)
-
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -1262,7 +1249,7 @@ static MACHINE_CONFIG_START( cupsocbl, legionna_state )
 
 	MCFG_GFXDECODE(heatbrl_csb)
 	MCFG_PALETTE_LENGTH(128*16)
-	MCFG_PALETTE_INIT(all_black)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, all_black)
 
 	MCFG_VIDEO_START_OVERRIDE(legionna_state,cupsoc)
 

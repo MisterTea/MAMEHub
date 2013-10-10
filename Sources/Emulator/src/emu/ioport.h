@@ -1621,6 +1621,7 @@ ATTR_COLD void INPUT_PORTS_NAME(_name)(device_t &owner, ioport_list &portlist, a
 #define DEVICE_INPUT_DEFAULTS_NAME(_name) device_iptdef_##_name
 
 #define device_iptdef_0 NULL
+#define device_iptdef_0LL NULL
 #define device_iptdef___null NULL
 
 // start of table
@@ -1661,7 +1662,10 @@ ATTR_COLD void INPUT_PORTS_NAME(_name)(device_t &owner, ioport_list &portlist, a
 	PORT_BIT( _mask, _mask & _default, IPT_SERVICE ) PORT_NAME( DEF_STR( Service_Mode ))
 
 #define PORT_VBLANK(_screen) \
-	PORT_READ_LINE_DEVICE_MEMBER(_screen, screen_device, vblank_port_read)
+	PORT_READ_LINE_DEVICE_MEMBER(_screen, screen_device, vblank)
+
+#define PORT_HBLANK(_screen) \
+	PORT_READ_LINE_DEVICE_MEMBER(_screen, screen_device, hblank)
 
 
 
@@ -1672,13 +1676,13 @@ ATTR_COLD void INPUT_PORTS_NAME(_name)(device_t &owner, ioport_list &portlist, a
 template<int (*_FunctionPointer)(device_t *)>
 ioport_value ioport_read_line_wrapper(device_t &device, ioport_field &field, void *param)
 {
-	return (*_FunctionPointer)(&device);
+	return ((*_FunctionPointer)(&device) & 1) ? ~ioport_value(0) : 0;
 }
 
 template<class _FunctionClass, int (_FunctionClass::*_FunctionPointer)()>
 ioport_value ioport_read_line_wrapper(_FunctionClass &device, ioport_field &field, void *param)
 {
-	return (device.*_FunctionPointer)();
+	return ((device.*_FunctionPointer)() & 1) ? ~ioport_value(0) : 0;
 }
 
 template<void (*_FunctionPointer)(device_t *, int)>

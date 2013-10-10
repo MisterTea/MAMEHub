@@ -394,10 +394,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(vixen_state::vsync_tick)
 }
 
 
-//-------------------------------------------------
-//  VIDEO_START( vixen )
-//-------------------------------------------------
-
 void vixen_state::video_start()
 {
 	// register for state saving
@@ -772,10 +768,6 @@ void vixen_state::machine_start()
 	save_item(NAME(m_fdint));
 }
 
-
-//-------------------------------------------------
-//  MACHINE_RESET( vixen )
-//-------------------------------------------------
 
 void vixen_state::machine_reset()
 {

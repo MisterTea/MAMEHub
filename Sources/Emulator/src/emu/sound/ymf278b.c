@@ -251,9 +251,8 @@ void ymf278b_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 	INT16 sample = 0;
 	INT32 *mixp;
 	INT32 vl, vr;
-	INT32 mix[44100*2];
 
-	memset(mix, 0, sizeof(mix[0])*samples*2);
+	memset(m_mix_buffer, 0, sizeof(m_mix_buffer[0])*samples*2);
 
 	for (i = 0; i < 24; i++)
 	{
@@ -261,7 +260,7 @@ void ymf278b_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 
 		if (slot->active)
 		{
-			mixp = mix;
+			mixp = m_mix_buffer;
 
 			for (j = 0; j < samples; j++)
 			{
@@ -320,7 +319,7 @@ void ymf278b_device::sound_stream_update(sound_stream &stream, stream_sample_t *
 		}
 	}
 
-	mixp = mix;
+	mixp = m_mix_buffer;
 	vl = m_mix_level[m_pcm_l];
 	vr = m_mix_level[m_pcm_r];
 	for (i = 0; i < samples; i++)
@@ -972,6 +971,7 @@ void ymf278b_device::device_start()
 	}
 
 	m_stream = machine().sound().stream_alloc(*this, 0, 2, clock()/768);
+	m_mix_buffer = auto_alloc_array(machine(), INT32, 44100*2);
 
 	// rate tables
 	precompute_rate_tables();
@@ -1002,7 +1002,7 @@ void ymf278b_device::device_start()
 const device_type YMF278B = &device_creator<ymf278b_device>;
 
 ymf278b_device::ymf278b_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, YMF278B, "YMF278B", tag, owner, clock),
+	: device_t(mconfig, YMF278B, "YMF278B", tag, owner, clock, "ymf278b", __FILE__),
 		device_sound_interface(mconfig, *this),
 		m_irq_handler(*this)
 {

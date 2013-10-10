@@ -1,3 +1,5 @@
+#include "audio/timeplt.h"
+#include "sound/namco.h"
 #include "sound/samples.h"
 
 struct jungler_star
@@ -15,7 +17,9 @@ public:
 		m_videoram(*this, "videoram"),
 		m_radarattr(*this, "radarattr"),
 		m_maincpu(*this, "maincpu"),
-		m_samples(*this, "samples") { }
+		m_namco_sound(*this, "namco"),
+		m_samples(*this, "samples"),
+		m_timeplt_audio(*this, "timeplt_audio") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_videoram;
@@ -39,7 +43,9 @@ public:
 
 	/* devices */
 	required_device<cpu_device> m_maincpu;
+	optional_device<namco_device> m_namco_sound;
 	optional_device<samples_device> m_samples;
+	optional_device<timeplt_audio_device> m_timeplt_audio;
 
 	UINT8    m_main_irq_mask;
 	DECLARE_WRITE8_MEMBER(rallyx_interrupt_vector_w);
@@ -74,8 +80,8 @@ public:
 	void rallyx_video_start_common(  );
 	void plot_star( bitmap_ind16 &bitmap, const rectangle &cliprect, int x, int y, int color );
 	void draw_stars( bitmap_ind16 &bitmap, const rectangle &cliprect );
-	void rallyx_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int displacement );
-	void locomotn_draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, int displacement );
+	void rallyx_draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int displacement );
+	void locomotn_draw_sprites( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int displacement );
 	void rallyx_draw_bullets( bitmap_ind16 &bitmap, const rectangle &cliprect, int transpen );
 	void jungler_draw_bullets( bitmap_ind16 &bitmap, const rectangle &cliprect, int transpen );
 	void locomotn_draw_bullets( bitmap_ind16 &bitmap, const rectangle &cliprect, int transpen );

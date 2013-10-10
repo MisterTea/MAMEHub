@@ -1,10 +1,17 @@
+#include "includes/nb1413m3.h"
+
 class nbmj8991_state : public driver_device
 {
 public:
 	nbmj8991_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag) ,
 		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu") { }
+		m_audiocpu(*this, "audiocpu"),
+		m_nb1413m3(*this, "nb1413m3")   { }
+
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	required_device<nb1413m3_device> m_nb1413m3;
 
 	int m_scrollx;
 	int m_scrolly;
@@ -33,24 +40,11 @@ public:
 	DECLARE_WRITE8_MEMBER(nbmj8991_blitter_w);
 	DECLARE_READ8_MEMBER(nbmj8991_clut_r);
 	DECLARE_WRITE8_MEMBER(nbmj8991_clut_w);
-	DECLARE_DRIVER_INIT(triplew1);
-	DECLARE_DRIVER_INIT(mjlstory);
-	DECLARE_DRIVER_INIT(mjgottub);
-	DECLARE_DRIVER_INIT(ntopstar);
-	DECLARE_DRIVER_INIT(galkoku);
-	DECLARE_DRIVER_INIT(triplew2);
-	DECLARE_DRIVER_INIT(uchuuai);
-	DECLARE_DRIVER_INIT(pstadium);
-	DECLARE_DRIVER_INIT(av2mj2rg);
+	DECLARE_CUSTOM_INPUT_MEMBER(nb1413m3_busyflag_r);
 	DECLARE_DRIVER_INIT(galkaika);
-	DECLARE_DRIVER_INIT(hyouban);
-	DECLARE_DRIVER_INIT(vanilla);
-	DECLARE_DRIVER_INIT(av2mj1bb);
 	DECLARE_DRIVER_INIT(tokimbsj);
 	DECLARE_DRIVER_INIT(tokyogal);
-	DECLARE_DRIVER_INIT(mcontest);
 	DECLARE_DRIVER_INIT(finalbny);
-	DECLARE_DRIVER_INIT(qmhayaku);
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_nbmj8991_type1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -59,6 +53,4 @@ public:
 	void nbmj8991_vramflip();
 	void update_pixel(int x, int y);
 	void nbmj8991_gfxdraw();
-	required_device<cpu_device> m_maincpu;
-	optional_device<cpu_device> m_audiocpu;
 };

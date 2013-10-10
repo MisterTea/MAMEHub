@@ -42,6 +42,15 @@ For more documentation look at the source for the driver,
 and the cpu/pdp1/pdp1.c file (information about the whereabouts of information
 and the java source).
 
+
+To load and play a game:
+- Load a .rim file into the first tape reader
+- Hold down Left Control, and press Enter. Let go.
+- The lights will flash while the paper tape is being read.
+- At the end, the game will start.
+
+
+
 */
 
 #include "emu.h"
@@ -692,7 +701,7 @@ protected:
 const device_type PDP1_READTAPE = &device_creator<pdp1_readtape_image_device>;
 
 pdp1_readtape_image_device::pdp1_readtape_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, PDP1_READTAPE, "PDP1 Tape Reader", tag, owner, clock),
+	: device_t(mconfig, PDP1_READTAPE, "PDP1 Tape Reader", tag, owner, clock, "pdp1_readtape_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -727,7 +736,7 @@ protected:
 const device_type PDP1_PUNCHTAPE = &device_creator<pdp1_punchtape_image_device>;
 
 pdp1_punchtape_image_device::pdp1_punchtape_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, PDP1_PUNCHTAPE, "PDP1 Tape Puncher", tag, owner, clock),
+	: device_t(mconfig, PDP1_PUNCHTAPE, "PDP1 Tape Puncher", tag, owner, clock, "pdp1_punchtape_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -763,7 +772,7 @@ protected:
 const device_type PDP1_PRINTER = &device_creator<pdp1_printer_image_device>;
 
 pdp1_printer_image_device::pdp1_printer_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, PDP1_PRINTER, "PDP1 Typewriter", tag, owner, clock),
+	: device_t(mconfig, PDP1_PRINTER, "PDP1 Typewriter", tag, owner, clock, "pdp1_printer_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -798,7 +807,7 @@ protected:
 const device_type PDP1_CYLINDER = &device_creator<pdp1_cylinder_image_device>;
 
 pdp1_cylinder_image_device::pdp1_cylinder_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, PDP1_CYLINDER, "PDP1 Cylinder", tag, owner, clock),
+	: device_t(mconfig, PDP1_CYLINDER, "PDP1 Cylinder", tag, owner, clock, "pdp1_cylinder_image", __FILE__),
 		device_image_interface(mconfig, *this)
 {
 }
@@ -924,7 +933,7 @@ TIMER_CALLBACK_MEMBER(pdp1_state::reader_callback)
 					if (m_tape_reader.rcp)
 					{
 						m_maincpu->set_state_int(PDP1_IO, m_tape_reader.rb);  /* transfer reader buffer to IO */
-						pdp1_pulse_iot_done(m_maincpu);
+						m_maincpu->set_state_int(PDP1_IOS,1);
 					}
 					else
 						m_io_status |= io_st_ptr;
@@ -1076,7 +1085,7 @@ TIMER_CALLBACK_MEMBER(pdp1_state::puncher_callback)
 	m_io_status |= io_st_ptp;
 	if (nac)
 	{
-		pdp1_pulse_iot_done(m_maincpu);
+		m_maincpu->set_state_int(PDP1_IOS,1);
 	}
 }
 
@@ -1284,7 +1293,7 @@ TIMER_CALLBACK_MEMBER(pdp1_state::tyo_callback)
 	m_io_status |= io_st_tyo;
 	if (nac)
 	{
-		pdp1_pulse_iot_done(m_maincpu);
+		m_maincpu->set_state_int(PDP1_IOS,1);
 	}
 }
 
@@ -1402,7 +1411,7 @@ static void iot_tyi(device_t *device, int op2, int nac, int mb, int *io, int ac)
 */
 TIMER_CALLBACK_MEMBER(pdp1_state::dpy_callback)
 {
-	pdp1_pulse_iot_done(m_maincpu);
+	m_maincpu->set_state_int(PDP1_IOS,1);
 }
 
 

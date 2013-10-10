@@ -873,7 +873,6 @@ GFXDECODE_END
 
 static MC6845_INTERFACE( vdc_intf )
 {
-	SCREEN_VDC_TAG,
 	false,
 	8,
 	NULL,
@@ -1376,10 +1375,6 @@ void c128_state::machine_start()
 }
 
 
-//-------------------------------------------------
-//  MACHINE_RESET( c128 )
-//-------------------------------------------------
-
 void c128_state::machine_reset()
 {
 	m_maincpu->reset();
@@ -1499,12 +1494,7 @@ MACHINE_CONFIG_END
 //-------------------------------------------------
 
 static MACHINE_CONFIG_DERIVED( c128dcr, ntsc )
-	MCFG_CBM_IEC_SLOT_ADD("iec4", 4, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_SLOT_ADD("iec8", 8, c128dcr_iec_devices, "c1571") // TODO c1571cr
-	MCFG_CBM_IEC_SLOT_ADD("iec9", 9, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_SLOT_ADD("iec10", 10, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_SLOT_ADD("iec11", 11, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_BUS_ADD()
+	MCFG_CBM_IEC_ADD("c1571") // TODO c1571cr
 	MCFG_CBM_IEC_BUS_SRQ_CALLBACK(WRITELINE(c128_state, iec_srq_w))
 	MCFG_CBM_IEC_BUS_DATA_CALLBACK(WRITELINE(c128_state, iec_data_w))
 MACHINE_CONFIG_END
@@ -1515,14 +1505,12 @@ MACHINE_CONFIG_END
 //-------------------------------------------------
 
 static MACHINE_CONFIG_DERIVED( c128d81, ntsc )
-	MCFG_CBM_IEC_SLOT_ADD("iec4", 4, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_SLOT_ADD("iec8", 8, c128d81_iec_devices, "c1563")
-	MCFG_CBM_IEC_SLOT_ADD("iec9", 9, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_SLOT_ADD("iec10", 10, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_SLOT_ADD("iec11", 11, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_BUS_ADD()
+	MCFG_CBM_IEC_ADD(NULL)
 	MCFG_CBM_IEC_BUS_SRQ_CALLBACK(WRITELINE(c128_state, iec_srq_w))
 	MCFG_CBM_IEC_BUS_DATA_CALLBACK(WRITELINE(c128_state, iec_data_w))
+
+	MCFG_DEVICE_MODIFY("iec8")
+	MCFG_DEVICE_SLOT_INTERFACE(c128d81_iec_devices, "c1563", false)
 MACHINE_CONFIG_END
 
 
@@ -1622,12 +1610,7 @@ MACHINE_CONFIG_END
 //-------------------------------------------------
 
 static MACHINE_CONFIG_DERIVED( c128dcrp, pal )
-	MCFG_CBM_IEC_SLOT_ADD("iec4", 4, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_SLOT_ADD("iec8", 8, c128dcr_iec_devices, "c1571") // TODO c1571cr
-	MCFG_CBM_IEC_SLOT_ADD("iec9", 9, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_SLOT_ADD("iec10", 10, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_SLOT_ADD("iec11", 11, cbm_iec_devices, NULL)
-	MCFG_CBM_IEC_BUS_ADD()
+	MCFG_CBM_IEC_ADD("c1571") // TODO c1571cr
 	MCFG_CBM_IEC_BUS_SRQ_CALLBACK(WRITELINE(c128_state, iec_srq_w))
 	MCFG_CBM_IEC_BUS_DATA_CALLBACK(WRITELINE(c128_state, iec_data_w))
 MACHINE_CONFIG_END

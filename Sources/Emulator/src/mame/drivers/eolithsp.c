@@ -62,6 +62,7 @@ static const struct
 	{ "penfan",   0x4001FA66, -1, 240 },
 	{ "penfana",  0x4001FAb6, -1, 240 },
 	{ "candy",    0x4001990C, -1, 240 },
+	{ "hidnc2k",  0x40016824, -1, 240 },
 	/* eolith16.c */
 	{ "klondkp",  0x0001a046, -1, 240 },
 	/* vegaeo.c */
@@ -112,7 +113,7 @@ CUSTOM_INPUT_MEMBER(eolith_state::eolith_speedup_getvblank)
 //  printf("%s:eolith speedup_read data %02x\n",machine().describe_context(), eolith_vblank);
 
 
-	return (machine().primary_screen->vpos() >= 240);
+	return (m_screen->vpos() >= 240);
 }
 
 // StealSee doesn't use interrupts, just the vblank
@@ -124,5 +125,5 @@ CUSTOM_INPUT_MEMBER(eolith_state::stealsee_speedup_getvblank)
 		if(!eolith_vblank)
 			m_maincpu->eat_cycles(500);
 
-	return (machine().primary_screen->vpos() >= 240);
+	return (m_screen->vpos() >= 240);
 }

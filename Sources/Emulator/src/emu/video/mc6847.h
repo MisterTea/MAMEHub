@@ -78,9 +78,6 @@ INPUT_PORTS_EXTERN(mc6847_artifacting);
 //  MC6847 CORE
 //**************************************************************************
 
-PALETTE_INIT( mc6847 );
-PALETTE_INIT( mc6847_bw );
-
 // base class so that the GIME emulation can access mc6847 stuff
 class mc6847_friend_device : public device_t
 {
@@ -91,7 +88,7 @@ public:
 
 protected:
 	mc6847_friend_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock,
-		const UINT8 *fontdata, bool is_mc6847t1, double tpfs, int field_sync_falling_edge_scanline, bool supports_partial_body_scanlines);
+		const UINT8 *fontdata, bool is_mc6847t1, double tpfs, int field_sync_falling_edge_scanline, bool supports_partial_body_scanlines, const char *shortname, const char *source);
 
 	// video mode constants
 	static const UINT8 MODE_AG      = 0x80;
@@ -510,7 +507,7 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( inv_w )      { change_mode(MODE_INV, state); }
 
 protected:
-	mc6847_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const UINT8 *fontdata, double tpfs);
+	mc6847_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const UINT8 *fontdata, double tpfs, const char *shortname, const char *source);
 
 	// device-level overrides
 	virtual void device_start();

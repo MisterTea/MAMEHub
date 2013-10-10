@@ -17,6 +17,8 @@
 #define VERBOSE 0
 
 #include "includes/apollo.h"
+#include "drivlgcy.h"
+#include "scrlegcy.h"
 
 #include "apollo.lh"
 #include "apollo_15i.lh"
@@ -113,18 +115,22 @@ public:
 	void device_reset();
 	void device_reset_mono19i();
 
-	// monochrome
+	// monochrome control
 	READ8_DEVICE_HANDLER( apollo_mcr_r );
 	WRITE8_DEVICE_HANDLER( apollo_mcr_w );
-	READ16_DEVICE_HANDLER( apollo_mgm_r );
-	WRITE16_DEVICE_HANDLER( apollo_mgm_w );
 
-	// color
+	// monochrome and color memory
+	READ16_DEVICE_HANDLER( apollo_mem_r );
+	WRITE16_DEVICE_HANDLER( apollo_mem_w );
+
+	// color control
 	READ8_DEVICE_HANDLER( apollo_ccr_r );
 	WRITE8_DEVICE_HANDLER( apollo_ccr_w );
 
 	UINT32 screen_update(bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void vblank_state_changed(device_t *device, screen_device &screen, bool vblank_state);
+
+	int is_mono() { return m_n_planes == 1; }
 
 private:
 	class lut_fifo;
@@ -1368,7 +1374,7 @@ void apollo_graphics::blt(UINT32 dest_addr, UINT16 mem_mask)
  Color graphics memory space at A0000 - BFFFF
  ***************************************************************************/
 
-READ16_DEVICE_HANDLER( apollo_graphics::apollo_mgm_r )
+READ16_DEVICE_HANDLER( apollo_graphics::apollo_mem_r )
 {
 	UINT16 data;
 	UINT32 src_addr;
@@ -1407,7 +1413,7 @@ READ16_DEVICE_HANDLER( apollo_graphics::apollo_mgm_r )
 	return data;
 }
 
-WRITE16_DEVICE_HANDLER( apollo_graphics::apollo_mgm_w )
+WRITE16_DEVICE_HANDLER( apollo_graphics::apollo_mem_w )
 {
 	UINT32 dest_addr;
 	UINT32 src_addr;
@@ -1892,9 +1898,10 @@ WRITE8_DEVICE_HANDLER( apollo_graphics::apollo_ccr_w )
 
 READ16_DEVICE_HANDLER( apollo_cgm_r )
 {
-	if (!apollo_config(APOLLO_CONF_MONO_15I))
+	apollo_graphics *apollo_graphics = get_safe_token(device);
+	if (!apollo_graphics->is_mono())
 	{
-		return apollo_mgm_r(device, space, offset, mem_mask);
+		return apollo_graphics->apollo_mem_r(device, space, offset, mem_mask);
 	}
 	else
 	{
@@ -1904,9 +1911,10 @@ READ16_DEVICE_HANDLER( apollo_cgm_r )
 
 WRITE16_DEVICE_HANDLER( apollo_cgm_w )
 {
-	if (!apollo_config(APOLLO_CONF_MONO_15I))
+	apollo_graphics *apollo_graphics = get_safe_token(device);
+	if (!apollo_graphics->is_mono())
 	{
-		apollo_mgm_w(device, space, offset, data, mem_mask);
+		apollo_graphics->apollo_mem_w(device, space, offset, data, mem_mask);
 	}
 }
 
@@ -2089,11 +2097,7 @@ static void register_vblank_callback(device_t *device)
 			FUNC(vblank_state_changed),device) );
 }
 
-VIDEO_START( apollo_screen )
-{
-}
-
-SCREEN_UPDATE_RGB32( apollo_screen )
+static SCREEN_UPDATE_RGB32( apollo_screen )
 {
 	// FIXME: omit using APOLLO_SCREEN_TAG
 	device_t *apollo_screen = screen.machine().device(APOLLO_SCREEN_TAG);
@@ -2114,7 +2118,6 @@ MACHINE_CONFIG_FRAGMENT( apollo_graphics )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(657))
 	MCFG_SCREEN_SIZE(1024, 800)
 	MCFG_SCREEN_VISIBLE_AREA(0, 1023, 0, 799)
-	MCFG_VIDEO_START(apollo_screen)
 	MCFG_SCREEN_UPDATE_STATIC(apollo_screen)
 	MACHINE_CONFIG_END
 
@@ -2192,12 +2195,11 @@ MACHINE_CONFIG_FRAGMENT( apollo_mono19i )
 	MCFG_SCREEN_ADD(VIDEO_SCREEN_TAG, RASTER)
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_AFTER_VBLANK)
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(black_and_white)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 	MCFG_SCREEN_REFRESH_RATE(64)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(616))
 	MCFG_SCREEN_SIZE(1280, 1024)
 	MCFG_SCREEN_VISIBLE_AREA(0, 1279, 0, 1023)
-	MCFG_VIDEO_START(apollo_screen)
 	MCFG_SCREEN_UPDATE_STATIC(apollo_screen)
 	MACHINE_CONFIG_END
 
@@ -2261,11 +2263,21 @@ WRITE8_DEVICE_HANDLER( apollo_mcr_w )
 READ16_DEVICE_HANDLER( apollo_mgm_r )
 {
 	apollo_graphics *apollo_graphics = get_safe_token(device);
-	return apollo_graphics->apollo_mgm_r(device, space, offset, mem_mask);
+	if (apollo_graphics->is_mono())
+	{
+		return apollo_graphics->apollo_mem_r(device, space, offset, mem_mask);
+	}
+	else
+	{
+		return 0xffff;
+	}
 }
 
 WRITE16_DEVICE_HANDLER( apollo_mgm_w )
 {
 	apollo_graphics *apollo_graphics = get_safe_token(device);
-	apollo_graphics->apollo_mgm_w(device, space, offset, data, mem_mask);
+	if (apollo_graphics->is_mono())
+	{
+		apollo_graphics->apollo_mem_w(device, space, offset, data, mem_mask);
+	}
 }

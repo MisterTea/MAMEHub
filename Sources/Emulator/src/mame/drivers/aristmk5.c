@@ -200,7 +200,7 @@ READ32_MEMBER(aristmk5_state::mk5_ioc_r)
 	{
 		int vert_pos;
 
-		vert_pos = machine().primary_screen->vpos();
+		vert_pos = m_screen->vpos();
 		m_flyback = (vert_pos <= m_vidc_regs[VIDC_VDSR] || vert_pos >= m_vidc_regs[VIDC_VDER]) ? 0x80 : 0x00;
 
 		//i2c_data = (i2cmem_sda_read(machine().device("i2cmem")) & 1);
@@ -250,7 +250,7 @@ WRITE32_MEMBER(aristmk5_state::sram_banksel_w)
 	checked against the other to verify that the stored data is correct.
 	Each chip is mapped to the same address, and the chip selected depends on the bank
 	select register. Access is mutually exclusive, increasing security with only one chip
-	visible in the CPU address &space at a time. If the CPU crashes and overwrites
+	visible in the CPU address space at a time. If the CPU crashes and overwrites
 	memory only one of the three devices can be corrupted. On reset the bank select
 	register selects bank 0, which does not exist. The SRAMs are at banks 1,2,3.
 	Each of the SRAM chips may be powered from a separate battery, further reducing
@@ -476,6 +476,7 @@ static MACHINE_CONFIG_START( aristmk5_usa, aristmk5_state )
 	MCFG_WATCHDOG_TIME_INIT(attotime::from_seconds(2))  /* 1.6 - 2 seconds */
 
 //  MCFG_I2CMEM_ADD("i2cmem",i2cmem_interface)
+	MCFG_AAKART_ADD("kart", 12000000/128, kart_interface) // TODO: frequency
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
@@ -525,7 +526,13 @@ MACHINE_CONFIG_END
 	ROM_REGION( 0x400000, "clear_chip", ROMREGION_ERASEFF ) \
 	/* clear chip */ \
 	ROM_LOAD32_WORD( "clear.u7",  0x000000, 0x80000, CRC(5a254b22) SHA1(8444f237b392df2a3cb42ea349e7af32f47dd544) ) \
-	ROM_LOAD32_WORD( "clear.u11", 0x000002, 0x80000, CRC(def36617) SHA1(c7ba5b08e884a8fb36c9fb51c08e243e32c81f89) )
+	ROM_LOAD32_WORD( "clear.u11", 0x000002, 0x80000, CRC(def36617) SHA1(c7ba5b08e884a8fb36c9fb51c08e243e32c81f89) ) \
+	/* GALs */ \
+	ROM_REGION( 0x600, "gals", 0 ) \
+	ROM_LOAD( "a562837.u36",  0x000000, 0x000157, CRC(1f269234) SHA1(29940dd50fb55c632935f62ff44ca724379c7a43) ) \
+	ROM_LOAD( "a562838.u65",  0x000200, 0x000157, CRC(f2f3c40a) SHA1(b795dfa5cc4e8127c3f3a0906664910d1325ec92) ) \
+	ROM_LOAD( "a562840.u22",  0x000400, 0x000157, CRC(941d4cdb) SHA1(1ca091fba69e92f262dbb3d40f515703c8981793) )
+
 ROM_START( aristmk5 )
 	ARISTOCRAT_MK5_BIOS
 

@@ -37,7 +37,7 @@ const device_type HARDDISK = &device_creator<harddisk_image_device>;
 //-------------------------------------------------
 
 harddisk_image_device::harddisk_image_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, HARDDISK, "Harddisk", tag, owner, clock),
+	: device_t(mconfig, HARDDISK, "Harddisk", tag, owner, clock, "harddisk_image", __FILE__),
 		device_image_interface(mconfig, *this),
 		m_chd(NULL),
 		m_hard_disk_handle(NULL)
@@ -102,7 +102,7 @@ void harddisk_image_device::device_start()
 	m_chd = NULL;
 
 	// try to locate the CHD from a DISK_REGION
-	chd_file *handle = get_disk_handle(machine(), owner()->tag());
+	chd_file *handle = get_disk_handle(machine(), tag());
 	if (handle != NULL)
 	{
 		m_hard_disk_handle = hard_disk_open(handle);

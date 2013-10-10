@@ -4,6 +4,9 @@
 
   Functions to emulate the video hardware of the machine.
 
+  I have a feeling sprite area masking should be done based on tile
+  attributes, not a custom cliprect.
+
 ***************************************************************************/
 
 #include "emu.h"
@@ -228,9 +231,6 @@ static void draw_sprites(running_machine &machine,
 							const rectangle &cliprect,
 							int priority_to_draw)
 {
-	const rectangle spritevisiblearea(2*8+1, 32*8-1, 2*8, 30*8-1);
-	const rectangle spritevisibleareaflipx(0*8, 30*8-2, 2*8, 30*8-1);
-
 	thepit_state *state = machine.driver_data<thepit_state>();
 	int offs;
 
@@ -266,11 +266,18 @@ static void draw_sprites(running_machine &machine,
 			/* sprites 0-3 are drawn one pixel down */
 			if (offs < 16) y++;
 
-			drawgfx_transpen(bitmap, state->m_flip_screen_x ? spritevisibleareaflipx : spritevisiblearea,
+			drawgfx_transpen(bitmap, cliprect,
 					machine.gfx[2 * state->m_graphics_bank + 1],
 					state->m_spriteram[offs + 1] & 0x3f,
 					state->m_spriteram[offs + 2],
 					flipx, flipy, x, y, 0);
+
+			drawgfx_transpen(bitmap, cliprect,
+					machine.gfx[2 * state->m_graphics_bank + 1],
+					state->m_spriteram[offs + 1] & 0x3f,
+					state->m_spriteram[offs + 2],
+					flipx, flipy, x-256, y, 0);
+
 		}
 	}
 }
@@ -278,6 +285,9 @@ static void draw_sprites(running_machine &machine,
 
 UINT32 thepit_state::screen_update_thepit(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
+	const rectangle spritevisiblearea(2*8+1, 32*8-1, 2*8, 30*8-1);
+	const rectangle spritevisibleareaflipx(0*8, 30*8-2, 2*8, 30*8-1);
+
 	offs_t offs;
 
 	for (offs = 0; offs < 32; offs++)
@@ -293,17 +303,55 @@ UINT32 thepit_state::screen_update_thepit(screen_device &screen, bitmap_ind16 &b
 	}
 
 	/* low priority tiles */
-	m_solid_tilemap->draw(bitmap, cliprect, 0, 0);
-	m_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_solid_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* low priority sprites */
-	draw_sprites(machine(), bitmap, cliprect, 0);
+	draw_sprites(machine(), bitmap, m_flip_screen_x ? spritevisibleareaflipx : spritevisiblearea, 0);
 
 	/* high priority tiles */
-	m_solid_tilemap->draw(bitmap, cliprect, 1, 1);
+	m_solid_tilemap->draw(screen, bitmap, cliprect, 1, 1);
 
 	/* high priority sprites */
-	draw_sprites(machine(), bitmap, cliprect, 1);
+	draw_sprites(machine(), bitmap, m_flip_screen_x ? spritevisibleareaflipx : spritevisiblearea, 1);
+
+	return 0;
+}
+
+UINT32 thepit_state::screen_update_desertdan(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+{
+	offs_t offs;
+	const rectangle spritevisiblearea(0*8+1, 24*8-1, 2*8, 30*8-1);
+	const rectangle spritevisibleareaflipx(8*8, 32*8-2, 2*8, 30*8-1);
+
+	for (offs = 0; offs < 32; offs++)
+	{
+		int xshift = m_flip_screen_x ? 128 : 0;
+		int yshift = m_flip_screen_y ? -8 : 0;
+
+		m_tilemap->set_scrollx(offs, xshift);
+		m_solid_tilemap->set_scrollx(offs, xshift);
+
+		m_tilemap->set_scrolly(offs, yshift + m_attributesram[offs << 1]);
+		m_solid_tilemap->set_scrolly(offs, yshift + m_attributesram[offs << 1]);
+	}
+
+	/* low priority tiles */
+	m_graphics_bank = 0;
+	m_solid_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+	m_tilemap->draw(screen, bitmap, cliprect, 0, 0);
+
+	/* low priority sprites */
+	m_graphics_bank = 1;
+	draw_sprites(machine(), bitmap, m_flip_screen_y ? spritevisibleareaflipx : spritevisiblearea, 0);
+
+	/* high priority tiles */ // not sure about this, draws a white block over the title logo sprite, looks like it should be behind?
+	m_graphics_bank = 0;
+	m_solid_tilemap->draw(screen, bitmap, cliprect, 1, 1);
+
+	/* high priority sprites */
+	m_graphics_bank = 1;
+	draw_sprites(machine(), bitmap, m_flip_screen_y ? spritevisibleareaflipx : spritevisiblearea, 1);
 
 	return 0;
 }

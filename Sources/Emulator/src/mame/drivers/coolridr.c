@@ -547,15 +547,15 @@ void coolridr_state::video_start()
 		if (machine().gfx[m_gfx_index] == 0)
 			break;
 
-	machine().primary_screen->register_screen_bitmap(m_temp_bitmap_sprites);
-	machine().primary_screen->register_screen_bitmap(m_temp_bitmap_sprites2);
-	//machine().primary_screen->register_screen_bitmap(m_zbuffer_bitmap);
-	//machine().primary_screen->register_screen_bitmap(m_zbuffer_bitmap2);
-	machine().primary_screen->register_screen_bitmap(m_bg_bitmap);
-	machine().primary_screen->register_screen_bitmap(m_bg_bitmap2);
+	m_screen->register_screen_bitmap(m_temp_bitmap_sprites);
+	m_screen->register_screen_bitmap(m_temp_bitmap_sprites2);
+	//m_screen->register_screen_bitmap(m_zbuffer_bitmap);
+	//m_screen->register_screen_bitmap(m_zbuffer_bitmap2);
+	m_screen->register_screen_bitmap(m_bg_bitmap);
+	m_screen->register_screen_bitmap(m_bg_bitmap2);
 
-	machine().primary_screen->register_screen_bitmap(m_screen1_bitmap);
-	machine().primary_screen->register_screen_bitmap(m_screen2_bitmap);
+	m_screen->register_screen_bitmap(m_screen1_bitmap);
+	m_screen->register_screen_bitmap(m_screen2_bitmap);
 
 	machine().gfx[m_gfx_index] = auto_alloc(machine(), gfx_element(machine(), h1_tile_layout, m_h1_pcg, 8, 0));
 }
@@ -2546,7 +2546,7 @@ WRITE32_MEMBER(coolridr_state::sysh1_fb_data_w)
 			printf("Blitter Clear Count == 3 used with param %08x\n",data);
 
 		{
-			const rectangle& visarea = machine().primary_screen->visible_area();
+			const rectangle& visarea = m_screen->visible_area();
 
 			if(m_blitterClearMode == 0x8c200000)
 			{
@@ -3581,47 +3581,38 @@ static const scsp_interface scsp2_interface =
 };
 
 
-PALETTE_INIT( RRRRR_GGGGG_BBBBB_double )
-{
-	int i;
-
-	for (i = 0; i < 0x10000; i++)
-		palette_set_color(machine, i, MAKE_RGB( pal5bit((i >> 10)&0x1f), pal5bit(((i >> 5))&0x1f), pal5bit((i >> 0)&0x1f)));
-}
-
-
 #define MAIN_CLOCK XTAL_28_63636MHz
 
 static MACHINE_CONFIG_START( coolridr, coolridr_state )
 	MCFG_CPU_ADD("maincpu", SH2, MAIN_CLOCK)  // 28 mhz
 	MCFG_CPU_PROGRAM_MAP(system_h1_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", coolridr_state, system_h1_main, "lscreen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", coolridr_state, system_h1_main, "screen", 0, 1)
 
 	MCFG_CPU_ADD("soundcpu", M68000, 11289600) //256 x 44100 Hz = 11.2896 MHz
 	MCFG_CPU_PROGRAM_MAP(system_h1_sound_map)
 
 	MCFG_CPU_ADD("sub", SH1, 16000000)  // SH7032 HD6417032F20!! 16 mhz
 	MCFG_CPU_PROGRAM_MAP(coolridr_submap)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer2", coolridr_state, system_h1_sub, "lscreen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer2", coolridr_state, system_h1_sub, "screen", 0, 1)
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
 
 	MCFG_GFXDECODE(coolridr)
 
-	MCFG_SCREEN_ADD("lscreen", RASTER)
+	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(640, 512)
 	MCFG_SCREEN_VISIBLE_AREA(CLIPMINX_FULL,CLIPMAXX_FULL, CLIPMINY_FULL, CLIPMAXY_FULL)
 	MCFG_SCREEN_UPDATE_DRIVER(coolridr_state, screen_update_coolridr1)
 
-	MCFG_SCREEN_ADD("rscreen", RASTER)
+	MCFG_SCREEN_ADD("screen2", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(640, 512)
 	MCFG_SCREEN_VISIBLE_AREA(CLIPMINX_FULL,CLIPMAXX_FULL, CLIPMINY_FULL, CLIPMAXY_FULL)
 	MCFG_SCREEN_UPDATE_DRIVER(coolridr_state, screen_update_coolridr2)
 
 	MCFG_PALETTE_LENGTH(0x10000)
-	MCFG_PALETTE_INIT( RRRRR_GGGGG_BBBBB )
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRRR_GGGGG_BBBBB)
 
 	MCFG_DEFAULT_LAYOUT(layout_dualhsxs)
 

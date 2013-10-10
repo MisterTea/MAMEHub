@@ -48,7 +48,7 @@ TIMER_CALLBACK_MEMBER(orbit_state::irq_off)
 INTERRUPT_GEN_MEMBER(orbit_state::orbit_interrupt)
 {
 	device.execute().set_input_line(0, ASSERT_LINE);
-	machine().scheduler().timer_set(machine().primary_screen->time_until_vblank_end(), timer_expired_delegate(FUNC(orbit_state::irq_off),this));
+	machine().scheduler().timer_set(m_screen->time_until_vblank_end(), timer_expired_delegate(FUNC(orbit_state::irq_off),this));
 }
 
 
@@ -303,7 +303,7 @@ static MACHINE_CONFIG_START( orbit, orbit_state )
 
 	MCFG_GFXDECODE(orbit)
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(black_and_white)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")

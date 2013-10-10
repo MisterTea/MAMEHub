@@ -22,8 +22,6 @@
 #include "emu.h"
 #include "sound/2151intf.h"
 #include "rendlay.h"
-#include "audio/atarijsa.h"
-#include "video/atarimo.h"
 #include "includes/cyberbal.h"
 
 
@@ -64,7 +62,7 @@ MACHINE_START_MEMBER(cyberbal_state,cyberbal)
 MACHINE_RESET_MEMBER(cyberbal_state,cyberbal)
 {
 	atarigen_state::machine_reset();
-	scanline_timer_reset(*machine().primary_screen, 8);
+	scanline_timer_reset(*m_lscreen, 8);
 
 	cyberbal_sound_reset();
 
@@ -76,8 +74,7 @@ MACHINE_RESET_MEMBER(cyberbal_state,cyberbal)
 MACHINE_RESET_MEMBER(cyberbal_state,cyberbal2p)
 {
 	atarigen_state::machine_reset();
-	scanline_timer_reset(*machine().primary_screen, 8);
-	atarijsa_reset(machine());
+	scanline_timer_reset(*m_screen, 8);
 }
 
 
@@ -88,26 +85,10 @@ MACHINE_RESET_MEMBER(cyberbal_state,cyberbal2p)
  *
  *************************************/
 
-READ16_MEMBER(cyberbal_state::special_port0_r)
-{
-	int temp = ioport("IN0")->read();
-	if (m_cpu_to_sound_ready) temp ^= 0x0080;
-	return temp;
-}
-
-
-READ16_MEMBER(cyberbal_state::special_port2_r)
-{
-	int temp = ioport("IN2")->read();
-	if (m_cpu_to_sound_ready) temp ^= 0x2000;
-	return temp;
-}
-
-
 READ16_MEMBER(cyberbal_state::sound_state_r)
 {
 	int temp = 0xffff;
-	if (m_cpu_to_sound_ready) temp ^= 0xffff;
+	if (m_jsa->main_to_sound_ready()) temp ^= 0xffff;
 	return temp;
 }
 
@@ -134,27 +115,27 @@ WRITE16_MEMBER(cyberbal_state::p2_reset_w)
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, cyberbal_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
-	AM_RANGE(0xfc0000, 0xfc0fff) AM_READWRITE(eeprom_r, eeprom_w) AM_SHARE("eeprom")
-	AM_RANGE(0xfc8000, 0xfcffff) AM_READ8(sound_r, 0xff00)
-	AM_RANGE(0xfd0000, 0xfd1fff) AM_WRITE(eeprom_enable_w)
-	AM_RANGE(0xfd2000, 0xfd3fff) AM_WRITE(sound_reset_w)
+	AM_RANGE(0xfc0000, 0xfc0fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
+	AM_RANGE(0xfc8000, 0xfcffff) AM_DEVREAD8("soundcomm", atari_sound_comm_device, main_response_r, 0xff00)
+	AM_RANGE(0xfd0000, 0xfd1fff) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
+	AM_RANGE(0xfd2000, 0xfd3fff) AM_DEVWRITE("soundcomm", atari_sound_comm_device, sound_reset_w)
 	AM_RANGE(0xfd4000, 0xfd5fff) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0xfd6000, 0xfd7fff) AM_WRITE(p2_reset_w)
-	AM_RANGE(0xfd8000, 0xfd9fff) AM_WRITE8(sound_w, 0xff00)
-	AM_RANGE(0xfe0000, 0xfe0fff) AM_READ(special_port0_r)
+	AM_RANGE(0xfd8000, 0xfd9fff) AM_DEVWRITE8("soundcomm", atari_sound_comm_device, main_command_w, 0xff00)
+	AM_RANGE(0xfe0000, 0xfe0fff) AM_READ_PORT("IN0")
 	AM_RANGE(0xfe1000, 0xfe1fff) AM_READ_PORT("IN1")
 	AM_RANGE(0xfe8000, 0xfe8fff) AM_RAM_WRITE(paletteram_1_w) AM_SHARE("paletteram_1")
 	AM_RANGE(0xfec000, 0xfecfff) AM_RAM_WRITE(paletteram_0_w) AM_SHARE("paletteram_0")
-	AM_RANGE(0xff0000, 0xff1fff) AM_RAM_WRITE(playfield2_w)   AM_SHARE("playfield2")
-	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_WRITE(alpha2_w)       AM_SHARE("alpha2")
-	AM_RANGE(0xff3000, 0xff37ff) AM_READWRITE_LEGACY(atarimo_1_spriteram_r, atarimo_1_spriteram_w)
-	AM_RANGE(0xff3800, 0xff3fff) AM_RAM                                           AM_SHARE("share6")
-	AM_RANGE(0xff4000, 0xff5fff) AM_RAM_WRITE(playfield_w)    AM_SHARE("playfield")
-	AM_RANGE(0xff6000, 0xff6fff) AM_RAM_WRITE(alpha_w)        AM_SHARE("alpha")
-	AM_RANGE(0xff7000, 0xff77ff) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
-	AM_RANGE(0xff7800, 0xff9fff) AM_RAM                                           AM_SHARE("share10")
-	AM_RANGE(0xffa000, 0xffbfff) AM_READONLY AM_WRITENOP               AM_SHARE("share11")
-	AM_RANGE(0xffc000, 0xffffff) AM_RAM                                           AM_SHARE("share12")
+	AM_RANGE(0xff0000, 0xff1fff) AM_RAM_DEVWRITE("playfield2", tilemap_device, write) AM_SHARE("playfield2")
+	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_DEVWRITE("alpha2", tilemap_device, write) AM_SHARE("alpha2")
+	AM_RANGE(0xff3000, 0xff37ff) AM_RAM AM_SHARE("mob2")
+	AM_RANGE(0xff3800, 0xff3fff) AM_RAM AM_SHARE("ff3800")
+	AM_RANGE(0xff4000, 0xff5fff) AM_RAM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
+	AM_RANGE(0xff6000, 0xff6fff) AM_RAM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
+	AM_RANGE(0xff7000, 0xff77ff) AM_RAM AM_SHARE("mob")
+	AM_RANGE(0xff7800, 0xff9fff) AM_RAM AM_SHARE("sharedram")
+	AM_RANGE(0xffa000, 0xffbfff) AM_READONLY AM_WRITENOP AM_SHARE("extraram")
+	AM_RANGE(0xffc000, 0xffffff) AM_RAM AM_SHARE("mainram")
 ADDRESS_MAP_END
 
 
@@ -168,20 +149,20 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( extra_map, AS_PROGRAM, 16, cyberbal_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0xfc0000, 0xfdffff) AM_WRITE(video_int_ack_w)
-	AM_RANGE(0xfe0000, 0xfe0fff) AM_READ(special_port0_r)
+	AM_RANGE(0xfe0000, 0xfe0fff) AM_READ_PORT("IN0")
 	AM_RANGE(0xfe1000, 0xfe1fff) AM_READ_PORT("IN1")
 	AM_RANGE(0xfe8000, 0xfe8fff) AM_RAM_WRITE(paletteram_1_w) AM_SHARE("paletteram_1")
 	AM_RANGE(0xfec000, 0xfecfff) AM_RAM_WRITE(paletteram_0_w) AM_SHARE("paletteram_0")
-	AM_RANGE(0xff0000, 0xff1fff) AM_RAM_WRITE(playfield2_w)   AM_SHARE("playfield2")
-	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_WRITE(alpha2_w)       AM_SHARE("alpha2")
-	AM_RANGE(0xff3000, 0xff37ff) AM_READWRITE_LEGACY(atarimo_1_spriteram_r, atarimo_1_spriteram_w)
-	AM_RANGE(0xff3800, 0xff3fff) AM_RAM                                           AM_SHARE("share6")
-	AM_RANGE(0xff4000, 0xff5fff) AM_RAM_WRITE(playfield_w)    AM_SHARE("playfield")
-	AM_RANGE(0xff6000, 0xff6fff) AM_RAM_WRITE(alpha_w)        AM_SHARE("alpha")
-	AM_RANGE(0xff7000, 0xff77ff) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
-	AM_RANGE(0xff7800, 0xff9fff) AM_RAM                                           AM_SHARE("share10")
-	AM_RANGE(0xffa000, 0xffbfff) AM_RAM                                           AM_SHARE("share11")
-	AM_RANGE(0xffc000, 0xffffff) AM_READONLY AM_WRITENOP               AM_SHARE("share12")
+	AM_RANGE(0xff0000, 0xff1fff) AM_RAM_DEVWRITE("playfield2", tilemap_device, write) AM_SHARE("playfield2")
+	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_DEVWRITE("alpha2", tilemap_device, write) AM_SHARE("alpha2")
+	AM_RANGE(0xff3000, 0xff37ff) AM_RAM AM_SHARE("mob2")
+	AM_RANGE(0xff3800, 0xff3fff) AM_RAM AM_SHARE("ff3800")
+	AM_RANGE(0xff4000, 0xff5fff) AM_RAM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
+	AM_RANGE(0xff6000, 0xff6fff) AM_RAM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
+	AM_RANGE(0xff7000, 0xff77ff) AM_RAM AM_SHARE("mob")
+	AM_RANGE(0xff7800, 0xff9fff) AM_RAM AM_SHARE("sharedram")
+	AM_RANGE(0xffa000, 0xffbfff) AM_RAM AM_SHARE("extraram")
+	AM_RANGE(0xffc000, 0xffffff) AM_READONLY AM_WRITENOP AM_SHARE("mainram")
 ADDRESS_MAP_END
 
 
@@ -196,10 +177,10 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, cyberbal_state )
 	AM_RANGE(0x0000, 0x1fff) AM_RAM
 	AM_RANGE(0x2000, 0x2001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0x2800, 0x2801) AM_WRITE(sound_68k_6502_w)
-	AM_RANGE(0x2802, 0x2803) AM_READWRITE(m6502_irq_ack_r, m6502_irq_ack_w)
-	AM_RANGE(0x2804, 0x2805) AM_WRITE(m6502_sound_w)
+	AM_RANGE(0x2802, 0x2803) AM_DEVREADWRITE("soundcomm", atari_sound_comm_device, sound_irq_ack_r, sound_irq_ack_w)
+	AM_RANGE(0x2804, 0x2805) AM_DEVWRITE("soundcomm", atari_sound_comm_device, sound_response_w)
 	AM_RANGE(0x2806, 0x2807) AM_WRITE(sound_bank_select_w)
-	AM_RANGE(0x2c00, 0x2c01) AM_READ(m6502_sound_r)
+	AM_RANGE(0x2c00, 0x2c01) AM_DEVREAD("soundcomm", atari_sound_comm_device, sound_command_r)
 	AM_RANGE(0x2c02, 0x2c03) AM_READ(special_port3_r)
 	AM_RANGE(0x2c04, 0x2c05) AM_READ(sound_68k_6502_r)
 	AM_RANGE(0x2c06, 0x2c07) AM_READ(sound_6502_stat_r)
@@ -236,19 +217,19 @@ static ADDRESS_MAP_START( cyberbal2p_map, AS_PROGRAM, 16, cyberbal_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0xfc0000, 0xfc0003) AM_READ_PORT("IN0")
 	AM_RANGE(0xfc2000, 0xfc2003) AM_READ_PORT("IN1")
-	AM_RANGE(0xfc4000, 0xfc4003) AM_READ(special_port2_r)
-	AM_RANGE(0xfc6000, 0xfc6003) AM_READ8(sound_r, 0xff00)
-	AM_RANGE(0xfc8000, 0xfc8fff) AM_READWRITE(eeprom_r, eeprom_w) AM_SHARE("eeprom")
+	AM_RANGE(0xfc4000, 0xfc4003) AM_READ_PORT("IN2")
+	AM_RANGE(0xfc6000, 0xfc6003) AM_DEVREAD8("jsa", atari_jsa_ii_device, main_response_r, 0xff00)
+	AM_RANGE(0xfc8000, 0xfc8fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
 	AM_RANGE(0xfca000, 0xfcafff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
-	AM_RANGE(0xfd0000, 0xfd0003) AM_WRITE(eeprom_enable_w)
-	AM_RANGE(0xfd2000, 0xfd2003) AM_WRITE(sound_reset_w)
+	AM_RANGE(0xfd0000, 0xfd0003) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
+	AM_RANGE(0xfd2000, 0xfd2003) AM_DEVWRITE("jsa", atari_jsa_ii_device, sound_reset_w)
 	AM_RANGE(0xfd4000, 0xfd4003) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0xfd6000, 0xfd6003) AM_WRITE(video_int_ack_w)
-	AM_RANGE(0xfd8000, 0xfd8003) AM_WRITE8(sound_w, 0xff00)
+	AM_RANGE(0xfd8000, 0xfd8003) AM_DEVWRITE8("jsa", atari_jsa_ii_device, main_command_w, 0xff00)
 	AM_RANGE(0xfe0000, 0xfe0003) AM_READ(sound_state_r)
-	AM_RANGE(0xff0000, 0xff1fff) AM_RAM_WRITE(playfield_w) AM_SHARE("playfield")
-	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_WRITE(alpha_w) AM_SHARE("alpha")
-	AM_RANGE(0xff3000, 0xff37ff) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
+	AM_RANGE(0xff0000, 0xff1fff) AM_RAM_DEVWRITE("playfield", tilemap_device, write) AM_SHARE("playfield")
+	AM_RANGE(0xff2000, 0xff2fff) AM_RAM_DEVWRITE("alpha", tilemap_device, write) AM_SHARE("alpha")
+	AM_RANGE(0xff3000, 0xff37ff) AM_RAM AM_SHARE("mob")
 	AM_RANGE(0xff3800, 0xffffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -268,7 +249,8 @@ static INPUT_PORTS_START( cyberbal )
 	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(4)
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(4)
-	PORT_BIT( 0x00c0, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_ATARI_COMM_MAIN_TO_SOUND_READY("soundcomm")
 	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(3)
 	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(3)
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(3)
@@ -299,7 +281,7 @@ static INPUT_PORTS_START( cyberbal )
 	PORT_BIT( 0xffff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	/* 2008-06 FP: I tag this as JSAII (even if it's not) to simplify cyberbal_special_port3_r */
-	PORT_START("JSAII")     /* audio board port */
+	PORT_START("jsa:JSAII")     /* audio board port */
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_COIN2 )
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_COIN1 )
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_COIN4 )
@@ -332,11 +314,9 @@ static INPUT_PORTS_START( cyberbal2p )
 
 	PORT_START("IN2")       /* fc4000 */
 	PORT_BIT( 0x1fff, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_ATARI_JSA_MAIN_TO_SOUND_READY("jsa")
 	PORT_BIT( 0x4000, IP_ACTIVE_HIGH, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_SERVICE( 0x8000, IP_ACTIVE_LOW )
-
-	PORT_INCLUDE( atarijsa_ii )     /* audio board port */
 INPUT_PORTS_END
 
 
@@ -409,7 +389,7 @@ static MACHINE_CONFIG_START( cyberbal, cyberbal_state )
 
 	MCFG_CPU_ADD("audiocpu", M6502, ATARI_CLOCK_14MHz/8)
 	MCFG_CPU_PROGRAM_MAP(sound_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(atarigen_state, m6502_irq_gen, (double)ATARI_CLOCK_14MHz/4/4/16/16/14)
+	MCFG_DEVICE_PERIODIC_INT_DEVICE("soundcomm", atari_sound_comm_device, sound_irq_gen, (double)ATARI_CLOCK_14MHz/4/4/16/16/14)
 
 	MCFG_CPU_ADD("extra", M68000, ATARI_CLOCK_14MHz/2)
 	MCFG_CPU_PROGRAM_MAP(extra_map)
@@ -423,12 +403,21 @@ static MACHINE_CONFIG_START( cyberbal, cyberbal_state )
 
 	MCFG_MACHINE_START_OVERRIDE(cyberbal_state,cyberbal)
 	MCFG_MACHINE_RESET_OVERRIDE(cyberbal_state,cyberbal)
-	MCFG_NVRAM_ADD_1FILL("eeprom")
+
+	MCFG_ATARI_EEPROM_2804_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_GFXDECODE(interleaved)
 	MCFG_PALETTE_LENGTH(4096)
+
+	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, cyberbal_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, cyberbal_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
+	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "lscreen", cyberbal_state::s_mob_config)
+
+	MCFG_TILEMAP_ADD_STANDARD("playfield2", 2, cyberbal_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha2", 2, cyberbal_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
+	MCFG_ATARI_MOTION_OBJECTS_ADD("mob2", "rscreen", cyberbal_state::s_mob_config)
 
 	MCFG_SCREEN_ADD("lscreen", RASTER)
 	/* note: these parameters are from published specs, not derived */
@@ -445,10 +434,11 @@ static MACHINE_CONFIG_START( cyberbal, cyberbal_state )
 	MCFG_VIDEO_START_OVERRIDE(cyberbal_state,cyberbal)
 
 	/* sound hardware */
+	MCFG_ATARI_SOUND_COMM_ADD("soundcomm", "audiocpu", WRITELINE(atarigen_state, sound_int_write_line))
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_YM2151_ADD("ymsnd", ATARI_CLOCK_14MHz/4)
-	MCFG_YM2151_IRQ_HANDLER(WRITELINE(atarigen_state, ym2151_irq_gen))
+	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("soundcomm", atari_sound_comm_device, ym2151_irq_gen))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.60)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.60)
 
@@ -457,6 +447,12 @@ static MACHINE_CONFIG_START( cyberbal, cyberbal_state )
 
 	MCFG_DAC_ADD("dac2")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
+MACHINE_CONFIG_END
+
+
+static MACHINE_CONFIG_DERIVED( cyberbalt, cyberbal )
+	MCFG_DEVICE_REMOVE("eeprom")
+	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 MACHINE_CONFIG_END
 
 
@@ -469,12 +465,17 @@ static MACHINE_CONFIG_START( cyberbal2p, cyberbal_state )
 
 	MCFG_MACHINE_START_OVERRIDE(cyberbal_state,cyberbal)
 	MCFG_MACHINE_RESET_OVERRIDE(cyberbal_state,cyberbal2p)
-	MCFG_NVRAM_ADD_1FILL("eeprom")
+
+	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_GFXDECODE(cyberbal)
 	MCFG_PALETTE_LENGTH(2048)
+
+	MCFG_TILEMAP_ADD_STANDARD("playfield", 2, cyberbal_state, get_playfield_tile_info, 16,8, SCAN_ROWS, 64,64)
+	MCFG_TILEMAP_ADD_STANDARD_TRANSPEN("alpha", 2, cyberbal_state, get_alpha_tile_info, 16,8, SCAN_ROWS, 64,32, 0)
+	MCFG_ATARI_MOTION_OBJECTS_ADD("mob", "screen", cyberbal_state::s_mob_config)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */
@@ -485,7 +486,11 @@ static MACHINE_CONFIG_START( cyberbal2p, cyberbal_state )
 	MCFG_VIDEO_START_OVERRIDE(cyberbal_state,cyberbal2p)
 
 	/* sound hardware */
-	MCFG_FRAGMENT_ADD(jsa_ii_mono)
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_ATARI_JSA_II_ADD("jsa", WRITELINE(atarigen_state, sound_int_write_line))
+	MCFG_ATARI_JSA_TEST_PORT("IN2", 15)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
 
@@ -552,8 +557,8 @@ ROM_START( cyberbal )
 	ROM_LOAD( "gal16v8-136064-1029.d58", 0x0600, 0x0117, CRC(fd39d238) SHA1(55c1b9a56c9b2bfa434eed54f7baea436ea141b8) )
 	ROM_LOAD( "gal16v8-136064-1030.d91", 0x0800, 0x0117, CRC(84102588) SHA1(b6bffb47e5975c96b056d07357eb020caf3f0a0a) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x1000, CRC(72334788) SHA1(101a8057d616969ece4050a1e15593280099c5a5) )
+	ROM_REGION( 0x200, "eeprom:eeprom", 0 )
+	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x200, CRC(c6f256b2) SHA1(e0c62adcd9fd38e9d3ac60e6b08d468e04a350c6) )
 ROM_END
 
 
@@ -606,8 +611,8 @@ ROM_START( cyberbal2 )
 	ROM_LOAD( "136064-1121.15n", 0x000000, 0x010000, CRC(0ca1e3b3) SHA1(d934bc9a1def4404fb86175878404cbb18127a11) )
 	ROM_LOAD( "136064-1122.16n", 0x010000, 0x010000, CRC(882f4e1c) SHA1(f7517ff03502ff029fb375260a35e45414567433) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x1000, CRC(72334788) SHA1(101a8057d616969ece4050a1e15593280099c5a5) )
+	ROM_REGION( 0x200, "eeprom:eeprom", 0 )
+	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x200, CRC(c6f256b2) SHA1(e0c62adcd9fd38e9d3ac60e6b08d468e04a350c6) )
 ROM_END
 
 
@@ -660,8 +665,8 @@ ROM_START( cyberbalp )
 	ROM_LOAD( "136064-1121.15n", 0x000000, 0x010000, CRC(0ca1e3b3) SHA1(d934bc9a1def4404fb86175878404cbb18127a11) )
 	ROM_LOAD( "136064-1122.16n", 0x010000, 0x010000, CRC(882f4e1c) SHA1(f7517ff03502ff029fb375260a35e45414567433) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x1000, CRC(72334788) SHA1(101a8057d616969ece4050a1e15593280099c5a5) )
+	ROM_REGION( 0x200, "eeprom:eeprom", 0 )
+	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x200, CRC(c6f256b2) SHA1(e0c62adcd9fd38e9d3ac60e6b08d468e04a350c6) )
 ROM_END
 
 
@@ -676,7 +681,7 @@ ROM_START( cyberbal2p )
 	ROM_LOAD16_BYTE( "136071-1025.27c", 0x060000, 0x010000, CRC(95ff68c6) SHA1(43f716a4c44fe1a38fcc6e2600bac948bb603504) )
 	ROM_LOAD16_BYTE( "136071-1026.27d", 0x060001, 0x010000, CRC(f61c4898) SHA1(9e4a14eac6d197f63c3392af3d804e81c034cb09) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "136071-1042.1b",  0x010000, 0x004000, CRC(e63cf125) SHA1(449880f561660ba67ac2d7f8ce6333768e0ae0be) )
 	ROM_CONTINUE(                0x004000, 0x00c000 )
 
@@ -704,14 +709,14 @@ ROM_START( cyberbal2p )
 	ROM_LOAD( "136071-1017.32n", 0x000000, 0x010000, CRC(a4c116f9) SHA1(fc7becef35306ef99ffbd0cd9202759352eb6cbe) )
 	ROM_LOAD( "136071-1018.32l", 0x010000, 0x010000, CRC(e25d7847) SHA1(3821c62f9bdc04eb774c2210a84e26b36f2e163d) )
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM samples */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM samples */
 	ROM_LOAD( "136071-1043.7k",  0x000000, 0x010000, CRC(94f24575) SHA1(b93b326e15cd328362ce409b7c0cc42b8a28c701) )
 	ROM_LOAD( "136071-1044.7j",  0x010000, 0x010000, CRC(87208e1e) SHA1(3647867ddc36df7633ed740c0b9365a979ef5621) )
 	ROM_LOAD( "136071-1045.7e",  0x020000, 0x010000, CRC(f82558b9) SHA1(afbecccc6203db9bdcf60638e0f4e95040d7aaf2) )
 	ROM_LOAD( "136071-1046.7d",  0x030000, 0x010000, CRC(d96437ad) SHA1(b0b5cd75de4048e54b9d7d09a75381eb73c22ee1) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x1000, CRC(72334788) SHA1(101a8057d616969ece4050a1e15593280099c5a5) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "cyberbal2p-eeprom.bin", 0x0000, 0x800, CRC(3753f0e2) SHA1(26feab263a4d2d1dfcdf62e1225e0596cc036e1d) )
 ROM_END
 
 
@@ -726,7 +731,7 @@ ROM_START( cyberbal2p3 )
 	ROM_LOAD16_BYTE( "136071-1025.27c", 0x060000, 0x010000, CRC(95ff68c6) SHA1(43f716a4c44fe1a38fcc6e2600bac948bb603504) )
 	ROM_LOAD16_BYTE( "136071-1026.27d", 0x060001, 0x010000, CRC(f61c4898) SHA1(9e4a14eac6d197f63c3392af3d804e81c034cb09) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "136071-1042.1b",  0x010000, 0x004000, CRC(e63cf125) SHA1(449880f561660ba67ac2d7f8ce6333768e0ae0be) )
 	ROM_CONTINUE(                0x004000, 0x00c000 )
 
@@ -754,14 +759,14 @@ ROM_START( cyberbal2p3 )
 	ROM_LOAD( "136071-1017.32n", 0x000000, 0x010000, CRC(a4c116f9) SHA1(fc7becef35306ef99ffbd0cd9202759352eb6cbe) )
 	ROM_LOAD( "136071-1018.32l", 0x010000, 0x010000, CRC(e25d7847) SHA1(3821c62f9bdc04eb774c2210a84e26b36f2e163d) )
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM samples */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM samples */
 	ROM_LOAD( "136071-1043.7k",  0x000000, 0x010000, CRC(94f24575) SHA1(b93b326e15cd328362ce409b7c0cc42b8a28c701) )
 	ROM_LOAD( "136071-1044.7j",  0x010000, 0x010000, CRC(87208e1e) SHA1(3647867ddc36df7633ed740c0b9365a979ef5621) )
 	ROM_LOAD( "136071-1045.7e",  0x020000, 0x010000, CRC(f82558b9) SHA1(afbecccc6203db9bdcf60638e0f4e95040d7aaf2) )
 	ROM_LOAD( "136071-1046.7d",  0x030000, 0x010000, CRC(d96437ad) SHA1(b0b5cd75de4048e54b9d7d09a75381eb73c22ee1) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x1000, CRC(72334788) SHA1(101a8057d616969ece4050a1e15593280099c5a5) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "cyberbal2p-eeprom.bin", 0x0000, 0x800, CRC(3753f0e2) SHA1(26feab263a4d2d1dfcdf62e1225e0596cc036e1d) )
 ROM_END
 
 
@@ -776,7 +781,7 @@ ROM_START( cyberbal2p2 )
 	ROM_LOAD16_BYTE( "136071-1025.27c", 0x060000, 0x010000, CRC(95ff68c6) SHA1(43f716a4c44fe1a38fcc6e2600bac948bb603504) )
 	ROM_LOAD16_BYTE( "136071-1026.27d", 0x060001, 0x010000, CRC(f61c4898) SHA1(9e4a14eac6d197f63c3392af3d804e81c034cb09) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "136071-1042.1b",  0x010000, 0x004000, CRC(e63cf125) SHA1(449880f561660ba67ac2d7f8ce6333768e0ae0be) )
 	ROM_CONTINUE(             0x004000, 0x00c000 )
 
@@ -804,14 +809,14 @@ ROM_START( cyberbal2p2 )
 	ROM_LOAD( "136071-1017.32n", 0x000000, 0x010000, CRC(a4c116f9) SHA1(fc7becef35306ef99ffbd0cd9202759352eb6cbe) )
 	ROM_LOAD( "136071-1018.32l", 0x010000, 0x010000, CRC(e25d7847) SHA1(3821c62f9bdc04eb774c2210a84e26b36f2e163d) )
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM samples */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM samples */
 	ROM_LOAD( "136071-1043.7k",  0x000000, 0x010000, CRC(94f24575) SHA1(b93b326e15cd328362ce409b7c0cc42b8a28c701) )
 	ROM_LOAD( "136071-1044.7j",  0x010000, 0x010000, CRC(87208e1e) SHA1(3647867ddc36df7633ed740c0b9365a979ef5621) )
 	ROM_LOAD( "136071-1045.7e",  0x020000, 0x010000, CRC(f82558b9) SHA1(afbecccc6203db9bdcf60638e0f4e95040d7aaf2) )
 	ROM_LOAD( "136071-1046.7d",  0x030000, 0x010000, CRC(d96437ad) SHA1(b0b5cd75de4048e54b9d7d09a75381eb73c22ee1) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x1000, CRC(72334788) SHA1(101a8057d616969ece4050a1e15593280099c5a5) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "cyberbal2p-eeprom.bin", 0x0000, 0x800, CRC(3753f0e2) SHA1(26feab263a4d2d1dfcdf62e1225e0596cc036e1d) )
 ROM_END
 
 
@@ -826,7 +831,7 @@ ROM_START( cyberbal2p1 )
 	ROM_LOAD16_BYTE( "136071-1025.27c", 0x060000, 0x010000, CRC(95ff68c6) SHA1(43f716a4c44fe1a38fcc6e2600bac948bb603504) )
 	ROM_LOAD16_BYTE( "136071-1026.27d", 0x060001, 0x010000, CRC(f61c4898) SHA1(9e4a14eac6d197f63c3392af3d804e81c034cb09) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "136071-1042.1b",  0x010000, 0x004000, CRC(e63cf125) SHA1(449880f561660ba67ac2d7f8ce6333768e0ae0be) )
 	ROM_CONTINUE(                0x004000, 0x00c000 )
 
@@ -854,14 +859,14 @@ ROM_START( cyberbal2p1 )
 	ROM_LOAD( "136071-1017.32n", 0x000000, 0x010000, CRC(a4c116f9) SHA1(fc7becef35306ef99ffbd0cd9202759352eb6cbe) )
 	ROM_LOAD( "136071-1018.32l", 0x010000, 0x010000, CRC(e25d7847) SHA1(3821c62f9bdc04eb774c2210a84e26b36f2e163d) )
 
-	ROM_REGION( 0x40000, "adpcm", 0 )   /* 256k for ADPCM samples */
+	ROM_REGION( 0x40000, "jsa:oki1", 0 )   /* 256k for ADPCM samples */
 	ROM_LOAD( "136071-1043.7k",  0x000000, 0x010000, CRC(94f24575) SHA1(b93b326e15cd328362ce409b7c0cc42b8a28c701) )
 	ROM_LOAD( "136071-1044.7j",  0x010000, 0x010000, CRC(87208e1e) SHA1(3647867ddc36df7633ed740c0b9365a979ef5621) )
 	ROM_LOAD( "136071-1045.7e",  0x020000, 0x010000, CRC(f82558b9) SHA1(afbecccc6203db9bdcf60638e0f4e95040d7aaf2) )
 	ROM_LOAD( "136071-1046.7d",  0x030000, 0x010000, CRC(d96437ad) SHA1(b0b5cd75de4048e54b9d7d09a75381eb73c22ee1) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x1000, CRC(72334788) SHA1(101a8057d616969ece4050a1e15593280099c5a5) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "cyberbal2p-eeprom.bin", 0x0000, 0x800, CRC(3753f0e2) SHA1(26feab263a4d2d1dfcdf62e1225e0596cc036e1d) )
 ROM_END
 
 
@@ -912,8 +917,8 @@ ROM_START( cyberbalt )
 	ROM_LOAD( "136073-1005.15n", 0x000000, 0x010000, CRC(833b4768) SHA1(754f00089d439fb0aa1f650c1fef73cf7e5f33a1) )
 	ROM_LOAD( "136073-1006.16n", 0x010000, 0x010000, CRC(4976cffd) SHA1(4cac8d9bd30743da6e6e4f013e6101ebc27060b6) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x1000, CRC(72334788) SHA1(101a8057d616969ece4050a1e15593280099c5a5) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "cyberbalt-eeprom.bin", 0x0000, 0x800, CRC(0743c0a6) SHA1(0b7421484f640b528e96aed103775e81bbb60f62) )
 ROM_END
 
 
@@ -964,8 +969,8 @@ ROM_START( cyberbalt1 )
 	ROM_LOAD( "136073-1005.15n", 0x000000, 0x010000, CRC(833b4768) SHA1(754f00089d439fb0aa1f650c1fef73cf7e5f33a1) )
 	ROM_LOAD( "136073-1006.16n", 0x010000, 0x010000, CRC(4976cffd) SHA1(4cac8d9bd30743da6e6e4f013e6101ebc27060b6) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "cyberbal-eeprom.bin", 0x0000, 0x1000, CRC(72334788) SHA1(101a8057d616969ece4050a1e15593280099c5a5) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "cyberbalt-eeprom.bin", 0x0000, 0x800, CRC(0743c0a6) SHA1(0b7421484f640b528e96aed103775e81bbb60f62) )
 ROM_END
 
 
@@ -990,7 +995,6 @@ DRIVER_INIT_MEMBER(cyberbal_state,cyberbalt)
 
 DRIVER_INIT_MEMBER(cyberbal_state,cyberbal2p)
 {
-	atarijsa_init(machine(), "IN2", 0x8000);
 }
 
 
@@ -1001,14 +1005,14 @@ DRIVER_INIT_MEMBER(cyberbal_state,cyberbal2p)
  *
  *************************************/
 
-GAMEL(1988, cyberbal,  0,        cyberbal, cyberbal, cyberbal_state, cyberbal, ROT0, "Atari Games", "Cyberball (rev 4)", 0, layout_dualhsxs )
-GAMEL(1988, cyberbal2, cyberbal, cyberbal, cyberbal, cyberbal_state, cyberbal, ROT0, "Atari Games", "Cyberball (rev 2)", 0, layout_dualhsxs )
-GAMEL(1988, cyberbalp, cyberbal, cyberbal, cyberbal, cyberbal_state, cyberbal, ROT0, "Atari Games", "Cyberball (prototype)", 0, layout_dualhsxs )
+GAMEL(1988, cyberbal,    0,        cyberbal,   cyberbal, cyberbal_state, cyberbal, ROT0, "Atari Games", "Cyberball (rev 4)", 0, layout_dualhsxs )
+GAMEL(1988, cyberbal2,   cyberbal, cyberbal,   cyberbal, cyberbal_state, cyberbal, ROT0, "Atari Games", "Cyberball (rev 2)", 0, layout_dualhsxs )
+GAMEL(1988, cyberbalp,   cyberbal, cyberbal,   cyberbal, cyberbal_state, cyberbal, ROT0, "Atari Games", "Cyberball (prototype)", 0, layout_dualhsxs )
 
 GAME( 1989, cyberbal2p,  cyberbal, cyberbal2p, cyberbal2p, cyberbal_state, cyberbal2p, ROT0, "Atari Games", "Cyberball 2072 (2 player, rev 4)", 0 )
 GAME( 1989, cyberbal2p3, cyberbal, cyberbal2p, cyberbal2p, cyberbal_state, cyberbal2p, ROT0, "Atari Games", "Cyberball 2072 (2 player, rev 3)", 0 )
 GAME( 1989, cyberbal2p2, cyberbal, cyberbal2p, cyberbal2p, cyberbal_state, cyberbal2p, ROT0, "Atari Games", "Cyberball 2072 (2 player, rev 2)", 0 )
 GAME( 1989, cyberbal2p1, cyberbal, cyberbal2p, cyberbal2p, cyberbal_state, cyberbal2p, ROT0, "Atari Games", "Cyberball 2072 (2 player, rev 1)", 0 )
 
-GAMEL(1989, cyberbalt,  cyberbal, cyberbal, cyberbal, cyberbal_state, cyberbalt,  ROT0, "Atari Games", "Tournament Cyberball 2072 (rev 2)", 0, layout_dualhsxs )
-GAMEL(1989, cyberbalt1, cyberbal, cyberbal, cyberbal, cyberbal_state, cyberbalt,  ROT0, "Atari Games", "Tournament Cyberball 2072 (rev 1)", 0, layout_dualhsxs )
+GAMEL(1989, cyberbalt,   cyberbal, cyberbalt,  cyberbal, cyberbal_state, cyberbalt,  ROT0, "Atari Games", "Tournament Cyberball 2072 (rev 2)", 0, layout_dualhsxs )
+GAMEL(1989, cyberbalt1,  cyberbal, cyberbalt,  cyberbal, cyberbal_state, cyberbalt,  ROT0, "Atari Games", "Tournament Cyberball 2072 (rev 1)", 0, layout_dualhsxs )

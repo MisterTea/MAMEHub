@@ -15,12 +15,9 @@
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/m6809/konami.h"
-#include "video/konicdev.h"
 #include "sound/2151intf.h"
-#include "sound/k007232.h"
 #include "includes/chqflag.h"
 #include "includes/konamipt.h"
-
 #include "chqflag.lh"
 
 
@@ -30,9 +27,9 @@ TIMER_DEVICE_CALLBACK_MEMBER(chqflag_state::chqflag_scanline)
 {
 	int scanline = param;
 
-	if(scanline == 240 && k051960_is_irq_enabled(m_k051960)) // vblank irq
+	if(scanline == 240 && m_k051960->k051960_is_irq_enabled()) // vblank irq
 		m_maincpu->set_input_line(KONAMI_IRQ_LINE, HOLD_LINE);
-	else if(((scanline % 32) == 0) && (k051960_is_nmi_enabled(m_k051960))) // timer irq
+	else if(((scanline % 32) == 0) && (m_k051960->k051960_is_nmi_enabled())) // timer irq
 		m_maincpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
 }
 
@@ -53,9 +50,9 @@ WRITE8_MEMBER(chqflag_state::chqflag_bankswitch_w)
 		membank("bank5")->set_base(m_generic_paletteram_8);
 
 		if (m_k051316_readroms)
-			space.install_legacy_readwrite_handler(*m_k051316_1, 0x1000, 0x17ff, FUNC(k051316_rom_r), FUNC(k051316_w)); /* 051316 #1 (ROM test) */
+			space.install_readwrite_handler(0x1000, 0x17ff, read8_delegate(FUNC(k051316_device::rom_r), (k051316_device*)m_k051316_1), write8_delegate(FUNC(k051316_device::write), (k051316_device*)m_k051316_1)); /* 051316 #1 (ROM test) */
 		else
-			space.install_legacy_readwrite_handler(*m_k051316_1, 0x1000, 0x17ff, FUNC(k051316_r), FUNC(k051316_w));     /* 051316 #1 */
+			space.install_readwrite_handler(0x1000, 0x17ff, read8_delegate(FUNC(k051316_device::read), (k051316_device*)m_k051316_1), write8_delegate(FUNC(k051316_device::write), (k051316_device*)m_k051316_1));     /* 051316 #1 */
 	}
 	else
 	{
@@ -76,9 +73,9 @@ WRITE8_MEMBER(chqflag_state::chqflag_vreg_w)
 	m_k051316_readroms = (data & 0x10);
 
 	if (m_k051316_readroms)
-		space.install_legacy_read_handler(*m_k051316_2, 0x2800, 0x2fff, FUNC(k051316_rom_r));   /* 051316 (ROM test) */
+		space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(k051316_device::rom_r), (k051316_device*)m_k051316_2));   /* 051316 (ROM test) */
 	else
-		space.install_legacy_read_handler(*m_k051316_2, 0x2800, 0x2fff, FUNC(k051316_r));       /* 051316 */
+		space.install_read_handler(0x2800, 0x2fff, read8_delegate(FUNC(k051316_device::read), (k051316_device*)m_k051316_2));       /* 051316 */
 
 	/* Bits 3-7 probably control palette dimming in a similar way to TMNT2/Sunset Riders, */
 	/* however I don't have enough evidence to determine the exact behaviour. */
@@ -140,9 +137,9 @@ static ADDRESS_MAP_START( chqflag_map, AS_PROGRAM, 8, chqflag_state )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM                                             /* RAM */
 	AM_RANGE(0x1000, 0x17ff) AM_RAMBANK("bank1")                                /* banked RAM (RAM/051316 (chip 1)) */
 	AM_RANGE(0x1800, 0x1fff) AM_RAMBANK("bank2")                                /* palette + RAM */
-	AM_RANGE(0x2000, 0x2007) AM_DEVREADWRITE_LEGACY("k051960", k051937_r, k051937_w)                    /* Sprite control registers */
-	AM_RANGE(0x2400, 0x27ff) AM_DEVREADWRITE_LEGACY("k051960", k051960_r, k051960_w)                    /* Sprite RAM */
-	AM_RANGE(0x2800, 0x2fff) AM_READ_BANK("bank3") AM_DEVWRITE_LEGACY("k051316_2", k051316_w)       /* 051316 zoom/rotation (chip 2) */
+	AM_RANGE(0x2000, 0x2007) AM_DEVREADWRITE("k051960", k051960_device, k051937_r, k051937_w)                    /* Sprite control registers */
+	AM_RANGE(0x2400, 0x27ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_r, k051960_w)                    /* Sprite RAM */
+	AM_RANGE(0x2800, 0x2fff) AM_READ_BANK("bank3") AM_DEVWRITE("k051316_2", k051316_device, write)       /* 051316 zoom/rotation (chip 2) */
 	AM_RANGE(0x3000, 0x3000) AM_WRITE(soundlatch_byte_w)                                /* sound code # */
 	AM_RANGE(0x3001, 0x3001) AM_WRITE(chqflag_sh_irqtrigger_w)                  /* cause interrupt on audio CPU */
 	AM_RANGE(0x3002, 0x3002) AM_WRITE(chqflag_bankswitch_w)                     /* bankswitch control */
@@ -152,9 +149,9 @@ static ADDRESS_MAP_START( chqflag_map, AS_PROGRAM, 8, chqflag_state )
 	AM_RANGE(0x3201, 0x3201) AM_READ_PORT("IN0")                                /* DIPSW #3, SW 4 */
 	AM_RANGE(0x3203, 0x3203) AM_READ_PORT("DSW2")                               /* DIPSW #2 */
 	AM_RANGE(0x3300, 0x3300) AM_WRITE(watchdog_reset_w)                         /* watchdog timer */
-	AM_RANGE(0x3400, 0x341f) AM_DEVREADWRITE_LEGACY("k051733", k051733_r, k051733_w)                    /* 051733 (protection) */
-	AM_RANGE(0x3500, 0x350f) AM_DEVWRITE_LEGACY("k051316_1", k051316_ctrl_w)                            /* 051316 control registers (chip 1) */
-	AM_RANGE(0x3600, 0x360f) AM_DEVWRITE_LEGACY("k051316_2", k051316_ctrl_w)                            /* 051316 control registers (chip 2) */
+	AM_RANGE(0x3400, 0x341f) AM_DEVREADWRITE("k051733", k051733_device, read, write)                    /* 051733 (protection) */
+	AM_RANGE(0x3500, 0x350f) AM_DEVWRITE("k051316_1", k051316_device, ctrl_w)                            /* 051316 control registers (chip 1) */
+	AM_RANGE(0x3600, 0x360f) AM_DEVWRITE("k051316_2", k051316_device, ctrl_w)                            /* 051316 control registers (chip 2) */
 	AM_RANGE(0x3700, 0x3700) AM_WRITE(select_analog_ctrl_w)                     /* select accelerator/wheel */
 	AM_RANGE(0x3701, 0x3701) AM_READ_PORT("IN2")                                /* Brake + Shift + ? */
 	AM_RANGE(0x3702, 0x3702) AM_READWRITE(analog_read_r, select_analog_ctrl_w)  /* accelerator/wheel */
@@ -169,21 +166,21 @@ WRITE8_MEMBER(chqflag_state::k007232_bankswitch_w)
 	/* banks # for the 007232 (chip 1) */
 	bank_A = ((data >> 4) & 0x03);
 	bank_B = ((data >> 6) & 0x03);
-	k007232_set_bank(m_k007232_1, bank_A, bank_B);
+	m_k007232_1->set_bank(bank_A, bank_B);
 
 	/* banks # for the 007232 (chip 2) */
 	bank_A = ((data >> 0) & 0x03);
 	bank_B = ((data >> 2) & 0x03);
-	k007232_set_bank(m_k007232_2, bank_A, bank_B);
+	m_k007232_2->set_bank(bank_A, bank_B);
 }
 
 static ADDRESS_MAP_START( chqflag_sound_map, AS_PROGRAM, 8, chqflag_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM /* ROM */
 	AM_RANGE(0x8000, 0x87ff) AM_RAM /* RAM */
 	AM_RANGE(0x9000, 0x9000) AM_WRITE(k007232_bankswitch_w) /* 007232 bankswitch */
-	AM_RANGE(0xa000, 0xa00d) AM_DEVREADWRITE_LEGACY("k007232_1", k007232_r, k007232_w)  /* 007232 (chip 1) */
+	AM_RANGE(0xa000, 0xa00d) AM_DEVREADWRITE("k007232_1", k007232_device, read, write)  /* 007232 (chip 1) */
 	AM_RANGE(0xa01c, 0xa01c) AM_WRITE(k007232_extvolume_w)  /* extra volume, goes to the 007232 w/ A11 */
-	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE_LEGACY("k007232_2", k007232_r, k007232_w)  /* 007232 (chip 2) */
+	AM_RANGE(0xb000, 0xb00d) AM_DEVREADWRITE("k007232_2", k007232_device, read, write)  /* 007232 (chip 2) */
 	AM_RANGE(0xc000, 0xc001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)   /* YM2151 */
 	AM_RANGE(0xd000, 0xd000) AM_READ(soundlatch_byte_r)         /* soundlatch_byte_r */
 	AM_RANGE(0xe000, 0xe000) AM_READ(soundlatch2_byte_r)         /* engine sound volume */
@@ -257,18 +254,18 @@ INPUT_PORTS_END
 
 WRITE8_MEMBER(chqflag_state::volume_callback0)
 {
-	k007232_set_volume(m_k007232_1, 0, (data & 0x0f) * 0x11, 0);
-	k007232_set_volume(m_k007232_1, 1, 0, (data >> 4) * 0x11);
+	m_k007232_1->set_volume(0, (data & 0x0f) * 0x11, 0);
+	m_k007232_1->set_volume(1, 0, (data >> 4) * 0x11);
 }
 
 WRITE8_MEMBER(chqflag_state::k007232_extvolume_w)
 {
-	k007232_set_volume(m_k007232_2, 1, (data & 0x0f) * 0x11/2, (data >> 4) * 0x11/2);
+	m_k007232_2->set_volume(1, (data & 0x0f) * 0x11/2, (data >> 4) * 0x11/2);
 }
 
 WRITE8_MEMBER(chqflag_state::volume_callback1)
 {
-	k007232_set_volume(m_k007232_2, 0, (data & 0x0f) * 0x11/2, (data >> 4) * 0x11/2);
+	m_k007232_2->set_volume(0, (data & 0x0f) * 0x11/2, (data >> 4) * 0x11/2);
 }
 
 static const k007232_interface k007232_interface_1 =

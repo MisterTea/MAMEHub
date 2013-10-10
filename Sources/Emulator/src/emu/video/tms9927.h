@@ -13,18 +13,18 @@
 /* interface */
 struct tms9927_interface
 {
-	const char *m_screen_tag;         /* screen we are acting on */
 	int m_hpixels_per_column;         /* number of pixels per video memory address */
 	const char *m_selfload_region;    /* name of the region with self-load data */
 };
 
 
 class tms9927_device : public device_t,
+						public device_video_interface,
 						public tms9927_interface
 {
 public:
 	tms9927_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	tms9927_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock);
+	tms9927_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	~tms9927_device() {}
 
 	DECLARE_WRITE8_MEMBER(write);
@@ -48,7 +48,6 @@ private:
 	void generic_access(address_space &space, offs_t offset);
 
 	// internal state
-	screen_device *m_screen;
 	const UINT8 *m_selfload;
 
 	/* live state */

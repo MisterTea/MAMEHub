@@ -13,465 +13,78 @@
 #define ENABLE_CART      3
 #define ENABLE_BIOS      4
 
-#define LGUN_RADIUS           6
-#define LGUN_X_INTERVAL       4
 
-void sms_state::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
-{
-	switch (id)
-	{
-	case TIMER_RAPID_FIRE:
-		rapid_fire_callback(ptr, param);
-		break;
-	case TIMER_LIGHTGUN_TICK:
-		lightgun_tick(ptr, param);
-		break;
-	case TIMER_LPHASER_1:
-		lphaser_1_callback(ptr, param);
-		break;
-	case TIMER_LPHASER_2:
-		lphaser_2_callback(ptr, param);
-		break;
-	default:
-		assert_always(FALSE, "Unknown id in sms_state::device_timer");
-	}
-}
-
-
-TIMER_CALLBACK_MEMBER(sms_state::rapid_fire_callback)
-{
-	m_rapid_fire_state_1 ^= 0xff;
-	m_rapid_fire_state_2 ^= 0xff;
-}
-
-
-
-WRITE8_MEMBER(sms_state::sms_input_write)
-{
-	switch (offset)
-	{
-	case 0:
-		switch (m_port_ctrlsel->read_safe(0x00) & 0x0f)
-		{
-		case 0x04:  /* Sports Pad */
-			if (data != m_sports_pad_last_data_1)
-			{
-				UINT32 cpu_cycles = m_maincpu->total_cycles();
-
-				m_sports_pad_last_data_1 = data;
-				if (cpu_cycles - m_last_sports_pad_time_1 > 512)
-				{
-					m_sports_pad_state_1 = 3;
-					m_sports_pad_1_x = m_port_sport0->read();
-					m_sports_pad_1_y = m_port_sport1->read();
-				}
-				m_last_sports_pad_time_1 = cpu_cycles;
-				m_sports_pad_state_1 = (m_sports_pad_state_1 + 1) & 3;
-			}
-			break;
-		}
-		break;
-
-	case 1:
-		switch (m_port_ctrlsel->read_safe(0x00) & 0xf0)
-		{
-		case 0x40:  /* Sports Pad */
-			if (data != m_sports_pad_last_data_2)
-			{
-				UINT32 cpu_cycles = m_maincpu->total_cycles();
-
-				m_sports_pad_last_data_2 = data;
-				if (cpu_cycles - m_last_sports_pad_time_2 > 2048)
-				{
-					m_sports_pad_state_2 = 3;
-					m_sports_pad_2_x = m_port_sport2->read();
-					m_sports_pad_2_y = m_port_sport3->read();
-				}
-				m_last_sports_pad_time_2 = cpu_cycles;
-				m_sports_pad_state_2 = (m_sports_pad_state_2 + 1) & 3;
-			}
-			break;
-		}
-		break;
-	}
-}
-
-
-/*
-    Light Phaser (light gun) emulation notes:
-    - The sensor is activated based on color brightness of some individual
-      pixels being drawn by the beam, at circular area where the gun is aiming.
-    - Currently, brightness is calculated based only on single pixels.
-    - In general, after the trigger is pressed, games draw the next frame using
-      a light color pattern, to make sure sensor will be activated. If emulation
-      skips that frame, sensor may stay deactivated. Frameskip set to 0 (no skip) is
-      recommended to avoid problems.
-    - When sensor switches from off to on, a value is latched for HCount register
-      and a flag is set. The emulation uses the flag to avoid sequential latches and
-      to signal that TH line is activated when the status of the input port is read.
-      When the status is read, the flag is cleared, or else it is cleared later when
-      the Pause status is read (end of a frame). This is necessary because the
-      "Color & Switch Test" ROM only reads the TH bit after the VINT line.
-    - The gun test of "Color & Switch Test" is an example that requires checks
-      of sensor status independent of other events, like trigger press or TH bit
-      reads. Another example is the title screen of "Hang-On & Safari Hunt", where
-      the game only reads HCount register in a loop, expecting a latch by the gun.
-    - The whole procedure is managed by a timer callback, that always reschedule
-      itself to run in some intervals when the beam is at the circular area.
-*/
-int sms_state::lgun_bright_aim_area( emu_timer *timer, int lgun_x, int lgun_y )
-{
-	const int r_x_r = LGUN_RADIUS * LGUN_RADIUS;
-	const rectangle &visarea = m_main_scr->visible_area();
-	int beam_x = m_main_scr->hpos();
-	int beam_y = m_main_scr->vpos();
-	int dx, dy;
-	int result = 0;
-	int pos_changed = 0;
-	double dx_radius;
-
-	while (1)
-	{
-		/* If beam's y isn't at a line where the aim area is, change it
-		   the next line it enters that area. */
-		dy = abs(beam_y - lgun_y);
-		if (dy > LGUN_RADIUS || beam_y < visarea.min_y || beam_y > visarea.max_y)
-		{
-			beam_y = lgun_y - LGUN_RADIUS;
-			if (beam_y < visarea.min_y)
-				beam_y = visarea.min_y;
-			dy = abs(beam_y - lgun_y);
-			pos_changed = 1;
-		}
-
-		/* Caculate distance in x of the radius, relative to beam's y distance.
-		   First try some shortcuts. */
-		switch (dy)
-		{
-		case LGUN_RADIUS:
-			dx_radius = 0;
-			break;
-		case 0:
-			dx_radius = LGUN_RADIUS;
-			break;
-		default:
-			/* step 1: r^2 = dx^2 + dy^2 */
-			/* step 2: dx^2 = r^2 - dy^2 */
-			/* step 3: dx = sqrt(r^2 - dy^2) */
-			dx_radius = ceil((float) sqrt((float) (r_x_r - (dy * dy))));
-		}
-
-		/* If beam's x isn't in the circular aim area, change it
-		   to the next point it enters that area. */
-		dx = abs(beam_x - lgun_x);
-		if (dx > dx_radius || beam_x < visarea.min_x || beam_x > visarea.max_x)
-		{
-			/* If beam's x has passed the aim area, advance to
-			   next line and recheck y/x coordinates. */
-			if (beam_x > lgun_x)
-			{
-				beam_x = 0;
-				beam_y++;
-				continue;
-			}
-			beam_x = lgun_x - dx_radius;
-			if (beam_x < visarea.min_x)
-				beam_x = visarea.min_x;
-			pos_changed = 1;
-		}
-
-		if (!pos_changed)
-		{
-			bitmap_rgb32 &bitmap = m_vdp->get_bitmap();
-
-			/* brightness of the lightgray color in the frame drawn by Light Phaser games */
-			const UINT8 sensor_min_brightness = 0x7f;
-
-			/* TODO: Check how Light Phaser behaves for border areas. For Gangster Town, should */
-			/* a shot at right border (HC~=0x90) really appear at active scr, near to left border? */
-			if (beam_x < SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH || beam_x >= SEGA315_5124_LBORDER_START + SEGA315_5124_LBORDER_WIDTH + 256)
-				return 0;
-
-			rgb_t color = bitmap.pix32(beam_y, beam_x);
-
-			/* reference: http://www.w3.org/TR/AERT#color-contrast */
-			UINT8 brightness = (RGB_RED(color) * 0.299) + (RGB_GREEN(color) * 0.587) + (RGB_BLUE(color) * 0.114);
-			//printf ("color brightness: %2X for x %d y %d\n", brightness, beam_x, beam_y);
-
-			result = (brightness >= sensor_min_brightness) ? 1 : 0;
-
-			/* next check at same line */
-			beam_x += LGUN_X_INTERVAL;
-			pos_changed = 1;
-		}
-		else
-			break;
-	}
-	timer->adjust(m_main_scr->time_until_pos(beam_y, beam_x));
-
-	return result;
-}
-
-
-void sms_state::lphaser_hcount_latch( int hpos )
+void sms_state::lphaser_hcount_latch()
 {
 	/* A delay seems to occur when the Light Phaser latches the
 	   VDP hcount, then an offset is added here to the hpos. */
-	m_vdp->hcount_latch_at_hpos(hpos + m_lphaser_x_offs);
+	m_vdp->hcount_latch_at_hpos(m_main_scr->hpos() + m_lphaser_x_offs);
 }
 
 
-UINT16 sms_state::screen_hpos_nonscaled(int scaled_hpos)
+WRITE_LINE_MEMBER(sms_state::sms_ctrl1_th_input)
 {
-	const rectangle &visarea = m_main_scr->visible_area();
-	int offset_x = (scaled_hpos * (visarea.max_x - visarea.min_x)) / 255;
-	return visarea.min_x + offset_x;
-}
-
-
-UINT16 sms_state::screen_vpos_nonscaled(int scaled_vpos)
-{
-	const rectangle &visarea = m_main_scr->visible_area();
-	int offset_y = (scaled_vpos * (visarea.max_y - visarea.min_y)) / 255;
-	return visarea.min_y + offset_y;
-}
-
-
-void sms_state::lphaser1_sensor_check()
-{
-	const int x = screen_hpos_nonscaled(m_port_lphas0->read());
-	const int y = screen_vpos_nonscaled(m_port_lphas1->read());
-
-	if (lgun_bright_aim_area(m_lphaser_1_timer, x, y))
+	// Check if TH of controller port 1 is set to input (1)
+	if (m_is_korean || (m_io_ctrl_reg & 0x02))
 	{
-		if (m_lphaser_1_latch == 0)
+		if (state == 0)
 		{
-			m_lphaser_1_latch = 1;
-			lphaser_hcount_latch(x);
+			m_ctrl1_th_latch = 1;
 		}
-	}
-}
-
-void sms_state::lphaser2_sensor_check()
-{
-	const int x = screen_hpos_nonscaled(m_port_lphas2->read());
-	const int y = screen_vpos_nonscaled(m_port_lphas3->read());
-
-	if (lgun_bright_aim_area(m_lphaser_2_timer, x, y))
-	{
-		if (m_lphaser_2_latch == 0)
+		else
 		{
-			m_lphaser_2_latch = 1;
-			lphaser_hcount_latch(x);
+			// If previous state was 0 and now is 1, latch hcount.
+			if (m_ctrl1_th_state == 0)
+				lphaser_hcount_latch();
 		}
+		m_ctrl1_th_state = state;
 	}
 }
 
 
-// at each input port read we check if lightguns are enabled in one of the ports:
-// if so, we turn on crosshair and the lightgun timer
-TIMER_CALLBACK_MEMBER(sms_state::lightgun_tick)
+WRITE_LINE_MEMBER(sms_state::sms_ctrl2_th_input)
 {
-	if ((m_port_ctrlsel->read_safe(0x00) & 0x0f) == 0x01)
+	// Check if TH of controller port 2 is set to input (1)
+	if (m_is_korean || (m_io_ctrl_reg & 0x08))
 	{
-		/* enable crosshair */
-		crosshair_set_screen(machine(), 0, CROSSHAIR_SCREEN_ALL);
-		if (!m_lphaser_1_timer->enabled())
-			lphaser1_sensor_check();
+		if (state == 0)
+		{
+			m_ctrl2_th_latch = 1;
+		}
+		else
+		{
+			// If previous state was 0 and now is 1, latch hcount.
+			if (m_ctrl2_th_state == 0)
+				lphaser_hcount_latch();
+		}
+		m_ctrl2_th_state = state;
 	}
-	else
-	{
-		/* disable crosshair */
-		crosshair_set_screen(machine(), 0, CROSSHAIR_SCREEN_NONE);
-		m_lphaser_1_timer->enable(0);
-	}
-
-	if ((m_port_ctrlsel->read_safe(0x00) & 0xf0) == 0x10)
-	{
-		/* enable crosshair */
-		crosshair_set_screen(machine(), 1, CROSSHAIR_SCREEN_ALL);
-		if (!m_lphaser_2_timer->enabled())
-			lphaser2_sensor_check();
-	}
-	else
-	{
-		/* disable crosshair */
-		crosshair_set_screen(machine(), 1, CROSSHAIR_SCREEN_NONE);
-		m_lphaser_2_timer->enable(0);
-	}
-}
-
-
-TIMER_CALLBACK_MEMBER(sms_state::lphaser_1_callback)
-{
-	lphaser1_sensor_check();
-}
-
-
-TIMER_CALLBACK_MEMBER(sms_state::lphaser_2_callback)
-{
-	lphaser2_sensor_check();
-}
-
-
-INPUT_CHANGED_MEMBER(sms_state::lgun1_changed)
-{
-	if (!m_lphaser_1_timer ||
-		(m_port_ctrlsel->read_safe(0x00) & 0x0f) != 0x01)
-		return;
-
-	if (newval != oldval)
-		lphaser1_sensor_check();
-}
-
-INPUT_CHANGED_MEMBER(sms_state::lgun2_changed)
-{
-	if (!m_lphaser_2_timer ||
-		(m_port_ctrlsel->read_safe(0x00) & 0xf0) != 0x10)
-		return;
-
-	if (newval != oldval)
-		lphaser2_sensor_check();
 }
 
 
 void sms_state::sms_get_inputs( address_space &space )
 {
-	UINT8 data = 0x00;
-	UINT32 cpu_cycles = m_maincpu->total_cycles();
+	UINT8 data1, data2;
 
-	m_input_port0 = 0xff;
-	m_input_port1 = 0xff;
+	m_port_dc_reg = 0xff;
+	m_port_dd_reg = 0xff;
 
-	if (cpu_cycles - m_last_paddle_read_time > 256)
+	data1 = m_port_ctrl1->port_r();
+	m_port_dc_reg &= ~0x0f | data1; // Up, Down, Left, Right
+	m_port_dc_reg &= ~0x10 | (data1 >> 1); // TL (Button 1)
+	m_port_dc_reg &= ~0x20 | (data1 >> 2); // TR (Button 2)
+
+	data2 = m_port_ctrl2->port_r();
+	m_port_dc_reg &= ~0xc0 | (data2 << 6); // Up, Down
+	m_port_dd_reg &= ~0x03 | (data2 >> 2); // Left, Right
+	m_port_dd_reg &= ~0x04 | (data2 >> 3); // TL (Button 1)
+	m_port_dd_reg &= ~0x08 | (data2 >> 4); // TR (Button 2)
+
+	// Japanese consoles do not have TH line connected.
+	if (!m_is_region_japan || m_is_korean)
 	{
-		m_paddle_read_state ^= 0xff;
-		m_last_paddle_read_time = cpu_cycles;
-	}
-
-	/* Check if lightgun has been chosen as input: if so, enable crosshair */
-	timer_set(attotime::zero, TIMER_LIGHTGUN_TICK);
-
-	/* Player 1 */
-	switch (m_port_ctrlsel->read_safe(0x00) & 0x0f)
-	{
-	case 0x00:  /* Joystick */
-		data = m_port_dc->read();
-		/* Check Rapid Fire setting for Button A */
-		if (!(data & 0x10) && (m_port_rfu->read() & 0x01))
-			data |= m_rapid_fire_state_1 & 0x10;
-
-		/* Check Rapid Fire setting for Button B */
-		if (!(data & 0x20) && (m_port_rfu->read() & 0x02))
-			data |= m_rapid_fire_state_1 & 0x20;
-
-		m_input_port0 = (m_input_port0 & 0xc0) | (data & 0x3f);
-		break;
-
-	case 0x01:  /* Light Phaser */
-		data = (m_port_ctrlipt->read() & 0x01) << 4;
-		/* Check Rapid Fire setting for Trigger */
-		if (!(data & 0x10) && (m_port_rfu->read() & 0x01))
-			data |= m_rapid_fire_state_1 & 0x10;
-
-		/* just consider the trigger (button) bit */
-		data |= ~0x10;
-
-		m_input_port0 = (m_input_port0 & 0xc0) | (data & 0x3f);
-		break;
-
-	case 0x02:  /* Paddle Control */
-		/* Get button A state */
-		data = m_port_paddle0->read();
-
-		if (m_paddle_read_state)
-			data = data >> 4;
-
-		m_input_port0 = (m_input_port0 & 0xc0) | (data & 0x0f) | (m_paddle_read_state & 0x20)
-						| ((m_port_ctrlipt->read() & 0x02) << 3);
-		break;
-
-	case 0x04:  /* Sega Sports Pad */
-		switch (m_sports_pad_state_1)
-		{
-		case 0:
-			data = (m_sports_pad_1_x >> 4) & 0x0f;
-			break;
-		case 1:
-			data = m_sports_pad_1_x & 0x0f;
-			break;
-		case 2:
-			data = (m_sports_pad_1_y >> 4) & 0x0f;
-			break;
-		case 3:
-			data = m_sports_pad_1_y & 0x0f;
-			break;
-		}
-		m_input_port0 = (m_input_port0 & 0xc0) | data | ((m_port_ctrlipt->read() & 0x0c) << 2);
-		break;
-	}
-
-	/* Player 2 */
-	switch (m_port_ctrlsel->read_safe(0x00)  & 0xf0)
-	{
-	case 0x00:  /* Joystick */
-		data = m_port_dc->read();
-		m_input_port0 = (m_input_port0 & 0x3f) | (data & 0xc0);
-
-		data = m_port_dd->read();
-		/* Check Rapid Fire setting for Button A */
-		if (!(data & 0x04) && (m_port_rfu->read() & 0x04))
-			data |= m_rapid_fire_state_2 & 0x04;
-
-		/* Check Rapid Fire setting for Button B */
-		if (!(data & 0x08) && (m_port_rfu->read() & 0x08))
-			data |= m_rapid_fire_state_2 & 0x08;
-
-		m_input_port1 = (m_input_port1 & 0xf0) | (data & 0x0f);
-		break;
-
-	case 0x10:  /* Light Phaser */
-		data = (m_port_ctrlipt->read() & 0x10) >> 2;
-		/* Check Rapid Fire setting for Trigger */
-		if (!(data & 0x04) && (m_port_rfu->read() & 0x04))
-			data |= m_rapid_fire_state_2 & 0x04;
-
-		/* just consider the trigger (button) bit */
-		data |= ~0x04;
-
-		m_input_port1 = (m_input_port1 & 0xf0) | (data & 0x0f);
-		break;
-
-	case 0x20:  /* Paddle Control */
-		/* Get button A state */
-		data = m_port_paddle1->read();
-		if (m_paddle_read_state)
-			data = data >> 4;
-
-		m_input_port0 = (m_input_port0 & 0x3f) | ((data & 0x03) << 6);
-		m_input_port1 = (m_input_port1 & 0xf0) | ((data & 0x0c) >> 2) | (m_paddle_read_state & 0x08)
-						| ((m_port_ctrlipt->read() & 0x20) >> 3);
-		break;
-
-	case 0x40:  /* Sega Sports Pad */
-		switch (m_sports_pad_state_2)
-		{
-		case 0:
-			data = m_sports_pad_2_x & 0x0f;
-			break;
-		case 1:
-			data = (m_sports_pad_2_x >> 4) & 0x0f;
-			break;
-		case 2:
-			data = m_sports_pad_2_y & 0x0f;
-			break;
-		case 3:
-			data = (m_sports_pad_2_y >> 4) & 0x0f;
-			break;
-		}
-		m_input_port0 = (m_input_port0 & 0x3f) | ((data & 0x03) << 6);
-		m_input_port1 = (m_input_port1 & 0xf0) | (data >> 2) | ((m_port_ctrlipt->read() & 0xc0) >> 4);
-		break;
+		m_port_dd_reg &= ~0x40 | data1; // TH ctrl1
+		m_port_dd_reg &= ~0x80 | (data2 << 1); // TH ctrl2
 	}
 }
 
@@ -498,40 +111,77 @@ READ8_MEMBER(sms_state::sms_fm_detect_r)
 		else
 		{
 			sms_get_inputs(space);
-			return m_input_port0;
+			return m_port_dc_reg;
 		}
 	}
 }
 
+
 WRITE8_MEMBER(sms_state::sms_io_control_w)
 {
 	bool latch_hcount = false;
+	UINT8 ctrl1_port_data = 0xff;
+	UINT8 ctrl2_port_data = 0xff;
 
-	if (data & 0x08)
+	// Controller Port 1:
+
+	// check if TR or TH are set to output (0).
+	if ((data & 0x03) != 0x03)
 	{
-		/* check if TH pin level is high (1) and was low last time */
-		if (data & 0x80 && !(m_ctrl_reg & 0x80))
+		if (!(data & 0x01)) // TR set to output
 		{
-			latch_hcount = true;
+			ctrl1_port_data &= ~0x80 | (data << 3);
 		}
-		sms_input_write(space, 0, (data & 0x20) >> 5);
+		if (!(data & 0x02)) // TH set to output
+		{
+			ctrl1_port_data &= ~0x40 | (data << 1);
+		}
+		if (!m_is_gamegear)
+			m_port_ctrl1->port_w(ctrl1_port_data);
 	}
-
+	// check if TH is set to input (1).
 	if (data & 0x02)
 	{
-		if (data & 0x20 && !(m_ctrl_reg & 0x20))
-		{
+		if (!m_is_gamegear)
+			ctrl1_port_data &= ~0x40 | m_port_ctrl1->port_r();
+
+		// check if TH input level is high (1) and was output/low (0)
+		if ((ctrl1_port_data & 0x40) && !(m_io_ctrl_reg & 0x22))
 			latch_hcount = true;
+	}
+
+	// Controller Port 2:
+
+	// check if TR or TH are set to output (0).
+	if ((data & 0x0c) != 0x0c)
+	{
+		if (!(data & 0x04)) // TR set to output
+		{
+			ctrl2_port_data &= ~0x80 | (data << 1);
 		}
-		sms_input_write(space, 1, (data & 0x80) >> 7);
+		if (!(data & 0x08)) // TH set to output
+		{
+			ctrl2_port_data &= ~0x40 | (data >> 1);
+		}
+		if (!m_is_gamegear)
+			m_port_ctrl2->port_w(ctrl2_port_data);
+	}
+	// check if TH is set to input (1).
+	if (data & 0x08)
+	{
+		if (!m_is_gamegear)
+			ctrl2_port_data &= ~0x40 | m_port_ctrl2->port_r();
+
+		// check if TH input level is high (1) and was output/low (0)
+		if ((ctrl2_port_data & 0x40) && !(m_io_ctrl_reg & 0x88))
+			latch_hcount = true;
 	}
 
 	if (latch_hcount)
 	{
 		m_vdp->hcount_latch();
 	}
-
-	m_ctrl_reg = data;
+	m_io_ctrl_reg = data;
 }
 
 
@@ -563,12 +213,13 @@ WRITE_LINE_MEMBER(sms_state::sms_pause_callback)
 	else
 		m_paused = 0;
 
-	/* clear Light Phaser latch flags for next frame */
-	m_lphaser_1_latch = 0;
-	m_lphaser_2_latch = 0;
+	// clear TH latch of the controller ports
+	m_ctrl1_th_latch = 0;
+	m_ctrl2_th_latch = 0;
 }
 
-READ8_MEMBER(sms_state::sms_input_port_0_r)
+
+READ8_MEMBER(sms_state::sms_input_port_dc_r)
 {
 	if (m_bios_port & IO_CHIP)
 	{
@@ -577,63 +228,85 @@ READ8_MEMBER(sms_state::sms_input_port_0_r)
 	else
 	{
 		sms_get_inputs(space);
-		return m_input_port0;
+
+		// Check if TR of controller port 1 is set to output (0)
+		if (!m_is_region_japan && !(m_io_ctrl_reg & 0x01))
+		{
+			// Read TR state set through IO control port
+			m_port_dc_reg &= ~0x20 | ((m_io_ctrl_reg & 0x10) << 1);
+		}
+
+		return m_port_dc_reg;
 	}
 }
 
 
-READ8_MEMBER(sms_state::sms_input_port_1_r)
+READ8_MEMBER(sms_state::sms_input_port_dd_r)
 {
 	if (m_bios_port & IO_CHIP)
 		return 0xff;
 
 	sms_get_inputs(space);
 
-	/* Reset Button */
-	m_input_port1 = (m_input_port1 & 0xef) | (m_port_reset->read_safe(0x01) & 0x01) << 4;
-
-	/* Do region detection if TH of ports A and B are set to output (0) */
-	if (!(m_ctrl_reg & 0x0a))
+	// Reset Button
+	if ( m_port_reset )
 	{
-		/* Move bits 7,5 of IO control port into bits 7, 6 */
-		m_input_port1 = (m_input_port1 & 0x3f) | (m_ctrl_reg & 0x80) | (m_ctrl_reg & 0x20) << 1;
-
-		/* Inverse region detect value for Japanese machines */
-		if (m_is_region_japan)
-			m_input_port1 ^= 0xc0;
-	}
-	else
-	{
-		if (m_ctrl_reg & 0x02 && m_lphaser_1_latch)
-		{
-			m_input_port1 &= ~0x40;
-			m_lphaser_1_latch = 0;
-		}
-
-		if (m_ctrl_reg & 0x08 && m_lphaser_2_latch)
-		{
-			m_input_port1 &= ~0x80;
-			m_lphaser_2_latch = 0;
-		}
+		m_port_dd_reg &= ~0x10 | (m_port_reset->read() & 0x01) << 4;
 	}
 
-	return m_input_port1;
+	// Check if TR of controller port 2 is set to output (0)
+	if (!m_is_region_japan && !(m_io_ctrl_reg & 0x04))
+	{
+		// Read TR state set through IO control port
+		m_port_dd_reg &= ~0x08 | ((m_io_ctrl_reg & 0x40) >> 3);
+	}
+
+	// Check if TH of controller port 1 is set to output (0)
+	if (!m_is_region_japan && !(m_io_ctrl_reg & 0x02))
+	{
+		// Read TH state set through IO control port
+		m_port_dd_reg &= ~0x40 | ((m_io_ctrl_reg & 0x20) << 1);
+	}
+	else  // TH set to input (1)
+	{
+		if (m_ctrl1_th_latch)
+		{
+			m_port_dd_reg &= ~0x40;
+			m_ctrl1_th_latch = 0;
+		}
+	}
+
+	// Check if TH of controller port 2 is set to output (0)
+	if (!m_is_region_japan && !(m_io_ctrl_reg & 0x08))
+	{
+		// Read TH state set through IO control port
+		m_port_dd_reg &= ~0x80 | (m_io_ctrl_reg & 0x80);
+	}
+	else  // TH set to input (1)
+	{
+		if (m_ctrl2_th_latch)
+		{
+			m_port_dd_reg &= ~0x80;
+			m_ctrl2_th_latch = 0;
+		}
+	}
+
+	return m_port_dd_reg;
 }
 
 
-
-WRITE8_MEMBER(sms_state::sms_ym2413_register_port_0_w)
+WRITE8_MEMBER(sms_state::sms_ym2413_register_port_w)
 {
 	if (m_has_fm)
 		m_ym->write(space, 0, (data & 0x3f));
 }
 
 
-WRITE8_MEMBER(sms_state::sms_ym2413_data_port_0_w)
+WRITE8_MEMBER(sms_state::sms_ym2413_data_port_w)
 {
 	if (m_has_fm)
 	{
-		logerror("data_port_0_w %x %x\n", offset, data);
+		//logerror("data_port_w %x %x\n", offset, data);
 		m_ym->write(space, 1, data);
 	}
 }
@@ -648,7 +321,7 @@ READ8_MEMBER(sms_state::gg_input_port_2_r)
 
 READ8_MEMBER(sms_state::sms_sscope_r)
 {
-	int sscope = m_port_scope->read_safe(0x00);
+	int sscope = m_port_scope->read();
 
 	if ( sscope )
 	{
@@ -664,7 +337,7 @@ WRITE8_MEMBER(sms_state::sms_sscope_w)
 {
 	m_mainram[0x1FF8 + offset] = data;
 
-	int sscope = m_port_scope->read_safe(0x00);
+	int sscope = m_port_scope->read();
 
 	if ( sscope )
 	{
@@ -694,6 +367,8 @@ WRITE8_MEMBER(sms_state::sms_mapper_w)
 {
 	bool bios_selected = false;
 	bool cartridge_selected = false;
+	bool card_selected = false;
+	bool expansion_selected = false;
 
 	m_mapper[offset] = data;
 	m_mainram[0x1ffc + offset] = data;
@@ -702,6 +377,10 @@ WRITE8_MEMBER(sms_state::sms_mapper_w)
 	{
 		if (!(m_bios_port & IO_CARTRIDGE) || (m_is_gamegear && m_BIOS == NULL))
 			cartridge_selected = true;
+		else if (!(m_bios_port & IO_CARD))
+			card_selected = true;
+		else if (!(m_bios_port & IO_EXPANSION))
+			expansion_selected = true;
 		else
 			return; // nothing to page in
 	}
@@ -728,6 +407,16 @@ WRITE8_MEMBER(sms_state::sms_mapper_w)
 				m_bank_enabled[2] = ENABLE_CART;
 				m_cartslot->write_mapper(space, offset, data);
 			}
+			else if (card_selected)    // CARD ROM/RAM
+			{
+				m_bank_enabled[2] = ENABLE_CARD;
+				m_cardslot->write_mapper(space, offset, data);
+			}
+			else if (expansion_selected)    // expansion slot
+			{
+				m_bank_enabled[2] = ENABLE_EXPANSION;
+				m_expslot->write_mapper(space, offset, data);
+			}
 			break;
 
 		case 1: // Select 16k ROM bank for 0400-3fff
@@ -746,6 +435,16 @@ WRITE8_MEMBER(sms_state::sms_mapper_w)
 				m_bank_enabled[offset - 1] = ENABLE_CART;
 				m_cartslot->write_mapper(space, offset, data);
 			}
+			else if (card_selected)
+			{
+				m_bank_enabled[offset - 1] = ENABLE_CARD;
+				m_cardslot->write_mapper(space, offset, data);
+			}
+			else if (expansion_selected)
+			{
+				m_bank_enabled[offset - 1] = ENABLE_EXPANSION;
+				m_expslot->write_mapper(space, offset, data);
+			}
 			break;
 	}
 }
@@ -762,8 +461,10 @@ READ8_MEMBER(sms_state::read_0000)
 		}
 		if (m_bank_enabled[3] == ENABLE_CART)
 			return m_cartslot->read_cart(space, offset);
-		if (m_card && m_bank_enabled[3] == ENABLE_CARD)
-			return m_card->read_cart(space, offset);
+		if (m_cardslot && m_bank_enabled[3] == ENABLE_CARD)
+			return m_cardslot->read_cart(space, offset);
+		if (m_expslot && m_bank_enabled[3] == ENABLE_EXPANSION)
+			return m_expslot->read(space, offset);
 	}
 	else
 	{
@@ -774,8 +475,10 @@ READ8_MEMBER(sms_state::read_0000)
 		}
 		if (m_bank_enabled[0] == ENABLE_CART)
 			return m_cartslot->read_cart(space, offset);
-		if (m_card && m_bank_enabled[0] == ENABLE_CARD)
-			return m_card->read_cart(space, offset);
+		if (m_cardslot && m_bank_enabled[0] == ENABLE_CARD)
+			return m_cardslot->read_cart(space, offset);
+		if (m_expslot && m_bank_enabled[0] == ENABLE_EXPANSION)
+			return m_expslot->read(space, offset);
 	}
 	return m_region_maincpu->base()[offset];
 }
@@ -790,8 +493,10 @@ READ8_MEMBER(sms_state::read_4000)
 
 	if (m_bank_enabled[1] == ENABLE_CART)
 		return m_cartslot->read_cart(space, offset + 0x4000);
-	if (m_card && m_bank_enabled[1] == ENABLE_CARD)
-		return m_card->read_cart(space, offset + 0x4000);
+	if (m_cardslot && m_bank_enabled[1] == ENABLE_CARD)
+		return m_cardslot->read_cart(space, offset + 0x4000);
+	if (m_expslot && m_bank_enabled[1] == ENABLE_EXPANSION)
+		return m_expslot->read(space, offset + 0x4000);
 
 	return m_region_maincpu->base()[offset];
 }
@@ -806,15 +511,22 @@ READ8_MEMBER(sms_state::read_8000)
 
 	if (m_bank_enabled[2] == ENABLE_CART)
 		return m_cartslot->read_cart(space, offset + 0x8000);
-	if (m_card && m_bank_enabled[2] == ENABLE_CARD)
-		return m_card->read_cart(space, offset + 0x8000);
+	if (m_cardslot && m_bank_enabled[2] == ENABLE_CARD)
+		return m_cardslot->read_cart(space, offset + 0x8000);
+	if (m_expslot && m_bank_enabled[2] == ENABLE_EXPANSION)
+		return m_expslot->read(space, offset + 0x8000);
 
 	return m_region_maincpu->base()[offset];
 }
 
 WRITE8_MEMBER(sms_state::write_cart)
 {
-	m_cartslot->write_cart(space, offset, data);
+	if (m_bank_enabled[0] == ENABLE_CART)
+		m_cartslot->write_cart(space, offset, data);
+	if (m_cardslot && m_bank_enabled[0] == ENABLE_CARD)
+		m_cardslot->write_cart(space, offset, data);
+	if (m_expslot && m_bank_enabled[0] == ENABLE_EXPANSION)
+		m_expslot->write(space, offset, data);
 }
 
 READ8_MEMBER(smssdisp_state::store_read_0000)
@@ -917,7 +629,7 @@ WRITE8_MEMBER(sms_state::gg_sio_w)
 		case 0x00: /* Parallel Data */
 			break;
 
-		case 0x01: /* Data Direction/ NMI Enable */
+		case 0x01: /* Data Direction / NMI Enable */
 			break;
 
 		case 0x02: /* Serial Output */
@@ -941,7 +653,7 @@ READ8_MEMBER(sms_state::gg_sio_r)
 		case 0x00: /* Parallel Data */
 			break;
 
-		case 0x01: /* Data Direction/ NMI Enable */
+		case 0x01: /* Data Direction / NMI Enable */
 			break;
 
 		case 0x02: /* Serial Output */
@@ -968,23 +680,21 @@ void sms_state::setup_rom()
 	/* 2. check and set up expansion port */
 	if (!(m_bios_port & IO_EXPANSION) && (m_bios_port & IO_CARTRIDGE) && (m_bios_port & IO_CARD))
 	{
-		/* TODO: Implement me */
 		m_bank_enabled[3] = ENABLE_EXPANSION;
 		m_bank_enabled[0] = ENABLE_EXPANSION;
 		m_bank_enabled[1] = ENABLE_EXPANSION;
 		m_bank_enabled[2] = ENABLE_EXPANSION;
-		logerror("Switching to unsupported expansion port.\n");
+		logerror("Switching to expansion port.\n");
 	}
 
 	/* 3. check and set up card rom */
 	if (!(m_bios_port & IO_CARD) && (m_bios_port & IO_CARTRIDGE) && (m_bios_port & IO_EXPANSION))
 	{
-		/* TODO: Implement me */
 		m_bank_enabled[3] = ENABLE_CARD;
 		m_bank_enabled[0] = ENABLE_CARD;
 		m_bank_enabled[1] = ENABLE_CARD;
 		m_bank_enabled[2] = ENABLE_CARD;
-		logerror("Switching to unsupported card rom port.\n");
+		logerror("Switching to card rom port.\n");
 	}
 
 	/* 4. check and set up cartridge rom */
@@ -1040,7 +750,6 @@ void sms_state::setup_bios()
 		m_has_bios_0400 = 0;
 		m_has_bios_2000 = 0;
 		m_has_bios_full = 0;
-		m_has_bios = 0;
 	}
 
 	if (m_BIOS)
@@ -1056,18 +765,9 @@ MACHINE_START_MEMBER(sms_state,sms)
 {
 	char str[7];
 
-	m_rapid_fire_timer = timer_alloc(TIMER_RAPID_FIRE);
-	m_rapid_fire_timer->adjust(attotime::from_hz(10), 0, attotime::from_hz(10));
-
-	m_lphaser_1_timer = timer_alloc(TIMER_LPHASER_1);
-	m_lphaser_2_timer = timer_alloc(TIMER_LPHASER_2);
-
 	m_left_lcd = machine().device("left_lcd");
 	m_right_lcd = machine().device("right_lcd");
 	m_space = &m_maincpu->space(AS_PROGRAM);
-
-	/* Check if lightgun has been chosen as input: if so, enable crosshair */
-	timer_set(attotime::zero, TIMER_LIGHTGUN_TICK);
 
 	// alibaba and blockhol are ports of games for the MSX system. The
 	// MSX bios usually initializes callback "vectors" at the top of RAM.
@@ -1083,32 +783,20 @@ MACHINE_START_MEMBER(sms_state,sms)
 	}
 
 	save_item(NAME(m_fm_detect));
-	save_item(NAME(m_ctrl_reg));
+	save_item(NAME(m_io_ctrl_reg));
 	save_item(NAME(m_paused));
 	save_item(NAME(m_bios_port));
 	save_item(NAME(m_mapper));
-	save_item(NAME(m_input_port0));
-	save_item(NAME(m_input_port1));
+	save_item(NAME(m_port_dc_reg));
+	save_item(NAME(m_port_dd_reg));
 	save_item(NAME(m_gg_sio));
 	save_item(NAME(m_bank_enabled));
 	save_item(NAME(m_bios_page));
 
-	save_item(NAME(m_rapid_fire_state_1));
-	save_item(NAME(m_rapid_fire_state_2));
-	save_item(NAME(m_last_paddle_read_time));
-	save_item(NAME(m_paddle_read_state));
-	save_item(NAME(m_last_sports_pad_time_1));
-	save_item(NAME(m_last_sports_pad_time_2));
-	save_item(NAME(m_sports_pad_state_1));
-	save_item(NAME(m_sports_pad_state_2));
-	save_item(NAME(m_sports_pad_last_data_1));
-	save_item(NAME(m_sports_pad_last_data_2));
-	save_item(NAME(m_sports_pad_1_x));
-	save_item(NAME(m_sports_pad_1_y));
-	save_item(NAME(m_sports_pad_2_x));
-	save_item(NAME(m_sports_pad_2_y));
-	save_item(NAME(m_lphaser_1_latch));
-	save_item(NAME(m_lphaser_2_latch));
+	save_item(NAME(m_ctrl1_th_state));
+	save_item(NAME(m_ctrl2_th_state));
+	save_item(NAME(m_ctrl1_th_latch));
+	save_item(NAME(m_ctrl2_th_latch));
 	save_item(NAME(m_sscope_state));
 	save_item(NAME(m_frame_sscope_state));
 
@@ -1142,11 +830,21 @@ MACHINE_START_MEMBER(sms_state,sms)
 
 MACHINE_RESET_MEMBER(sms_state,sms)
 {
-	m_ctrl_reg = 0xff;
+	m_io_ctrl_reg = 0xff;
 	if (m_has_fm)
 		m_fm_detect = 0x01;
 
+	if (m_is_sdisp)
+	{
+		m_store_control = 0;
+		m_current_cartridge = 0;
+	}
+
 	m_bios_port = 0;
+
+	setup_bios();
+	setup_sms_cart();
+	setup_rom();
 
 	if (m_cartslot->m_cart && m_cartslot->m_cart->get_sms_mode())
 		m_vdp->set_sega315_5124_compatibility_mode(true);
@@ -1158,36 +856,11 @@ MACHINE_RESET_MEMBER(sms_state,sms)
 	m_gg_sio[3] = 0xff;
 	m_gg_sio[4] = 0x00;
 
-	if (m_is_sdisp)
-	{
-		m_store_control = 0;
-		m_current_cartridge = 0;
-	}
-
-	setup_bios();
-
-	setup_rom();
-
-	m_rapid_fire_state_1 = 0;
-	m_rapid_fire_state_2 = 0;
-
-	m_last_paddle_read_time = 0;
-	m_paddle_read_state = 0;
-
-	m_last_sports_pad_time_1 = 0;
-	m_last_sports_pad_time_2 = 0;
-	m_sports_pad_state_1 = 0;
-	m_sports_pad_state_2 = 0;
-	m_sports_pad_last_data_1 = 0;
-	m_sports_pad_last_data_2 = 0;
-	m_sports_pad_1_x = 0;
-	m_sports_pad_1_y = 0;
-	m_sports_pad_2_x = 0;
-	m_sports_pad_2_y = 0;
-
-	m_lphaser_1_latch = 0;
-	m_lphaser_2_latch = 0;
-	m_lphaser_x_offs = (m_cartslot->m_cart) ? m_cartslot->m_cart->get_lphaser_xoffs() : 51;
+	m_ctrl1_th_state = 1;
+	m_ctrl2_th_state = 1;
+	m_ctrl1_th_latch = 0;
+	m_ctrl2_th_latch = 0;
+	m_lphaser_x_offs = (m_cartslot->m_cart) ? m_cartslot->m_cart->get_lphaser_xoffs() : 44;
 
 	m_sscope_state = 0;
 	m_frame_sscope_state = 0;
@@ -1206,8 +879,8 @@ WRITE8_MEMBER(smssdisp_state::sms_store_cart_select_w)
 
 	logerror("switching in part of %s slot #%d\n", slottype ? "card" : "cartridge", slot );
 	/* cartridge? slot #0 */
-//  if (slottype == 0)
-//      m_current_cartridge = slot;
+	//if (slottype == 0)
+	//  m_current_cartridge = slot;
 
 	setup_rom();
 }
@@ -1262,10 +935,15 @@ WRITE_LINE_MEMBER(smssdisp_state::sms_store_int_callback)
 void sms_state::setup_sms_cart()
 {
 	m_bios_port = (IO_EXPANSION | IO_CARTRIDGE | IO_CARD);
-	if (!m_is_gamegear && !m_has_bios)
+	if (!m_is_gamegear && !m_BIOS)
 	{
-		m_bios_port &= ~(IO_CARTRIDGE);
 		m_bios_port |= IO_BIOS_ROM;
+
+		// Mark-III has hardware method that prioritizes cartridge slot.
+		if (m_cartslot && m_cartslot->m_cart)
+			m_bios_port &= ~(IO_CARTRIDGE);
+		else
+			m_bios_port &= ~(IO_CARD);
 	}
 }
 
@@ -1274,14 +952,12 @@ DRIVER_INIT_MEMBER(sms_state,sg1000m3)
 {
 	m_is_region_japan = 1;
 	m_has_fm = 1;
-	setup_sms_cart();
 }
 
 
 DRIVER_INIT_MEMBER(sms_state,sms1)
 {
 	m_has_bios_full = 1;
-	setup_sms_cart();
 }
 
 
@@ -1290,7 +966,6 @@ DRIVER_INIT_MEMBER(sms_state,smsj)
 	m_is_region_japan = 1;
 	m_has_bios_2000 = 1;
 	m_has_fm = 1;
-	setup_sms_cart();
 }
 
 
@@ -1299,14 +974,13 @@ DRIVER_INIT_MEMBER(sms_state,sms2kr)
 	m_is_region_japan = 1;
 	m_has_bios_full = 1;
 	m_has_fm = 1;
-	setup_sms_cart();
+	m_is_korean = 1;
 }
 
 
 DRIVER_INIT_MEMBER(smssdisp_state,smssdisp)
 {
 	m_is_sdisp = 1;
-	setup_sms_cart();
 }
 
 
@@ -1314,7 +988,6 @@ DRIVER_INIT_MEMBER(sms_state,gamegear)
 {
 	m_is_gamegear = 1;
 	m_has_bios_0400 = 1;
-	setup_sms_cart();
 }
 
 
@@ -1323,7 +996,6 @@ DRIVER_INIT_MEMBER(sms_state,gamegeaj)
 	m_is_region_japan = 1;
 	m_is_gamegear = 1;
 	m_has_bios_0400 = 1;
-	setup_sms_cart();
 }
 
 
@@ -1333,6 +1005,33 @@ VIDEO_START_MEMBER(sms_state,sms1)
 	m_main_scr->register_screen_bitmap(m_prevright_bitmap);
 	save_item(NAME(m_prevleft_bitmap));
 	save_item(NAME(m_prevright_bitmap));
+
+	// Allow sscope screens to have crosshair, useful for the game missil3d
+	crosshair_set_screen(machine(), 0, CROSSHAIR_SCREEN_ALL);
+}
+
+
+VIDEO_RESET_MEMBER(sms_state,sms1)
+{
+	if (m_port_scope->read())
+	{
+		UINT8 sscope_binocular_hack = m_port_scope_binocular->read();
+
+		if (sscope_binocular_hack & 0x01)
+			m_prevleft_bitmap.fill(RGB_BLACK);
+		if (sscope_binocular_hack & 0x02)
+			m_prevright_bitmap.fill(RGB_BLACK);
+	}
+}
+
+
+READ32_MEMBER(sms_state::sms_pixel_color)
+{
+	bitmap_rgb32 &vdp_bitmap = m_vdp->get_bitmap();
+	int beam_x = m_main_scr->hpos();
+	int beam_y = m_main_scr->vpos();
+
+	return vdp_bitmap.pix32(beam_y, beam_x);
 }
 
 
@@ -1360,7 +1059,7 @@ UINT32 sms_state::screen_update_sms1(screen_device &screen, bitmap_rgb32 &bitmap
 
 	if (&screen != m_main_scr)
 	{
-		sscope = m_port_scope->read_safe(0x00);
+		sscope = m_port_scope->read();
 		if (!sscope)
 		{
 			// without SegaScope, both LCDs for glasses go black
@@ -1388,7 +1087,7 @@ UINT32 sms_state::screen_update_sms1(screen_device &screen, bitmap_rgb32 &bitmap
 		// save a copy of current bitmap for the binocular hack
 		if (sscope)
 		{
-			sscope_binocular_hack = ioport("SSCOPE_BINOCULAR")->read_safe(0x00);
+			sscope_binocular_hack = m_port_scope_binocular->read();
 
 			if (&screen == m_left_lcd)
 			{
@@ -1408,7 +1107,7 @@ UINT32 sms_state::screen_update_sms1(screen_device &screen, bitmap_rgb32 &bitmap
 		// use the copied bitmap for the binocular hack
 		if (sscope)
 		{
-			sscope_binocular_hack = ioport("SSCOPE_BINOCULAR")->read_safe(0x00);
+			sscope_binocular_hack = m_port_scope_binocular->read();
 
 			if (&screen == m_left_lcd)
 			{
@@ -1427,7 +1126,7 @@ UINT32 sms_state::screen_update_sms1(screen_device &screen, bitmap_rgb32 &bitmap
 				}
 			}
 		}
-		bitmap.fill(RGB_BLACK);
+		bitmap.fill(RGB_BLACK, cliprect);
 	}
 
 	return 0;
@@ -1449,11 +1148,22 @@ UINT32 sms_state::screen_update_gamegear(screen_device &screen, bitmap_rgb32 &bi
 {
 	int x, y;
 	bitmap_rgb32 &vdp_bitmap = m_vdp->get_bitmap();
+	static bool prev_bitmap_copied = false;
 
 	if (!m_port_persist->read())
 	{
 		copybitmap(bitmap, vdp_bitmap, 0, 0, 0, 0, cliprect);
+		if (prev_bitmap_copied)
+		{
+			m_prev_bitmap.fill(RGB_BLACK);
+			prev_bitmap_copied = false;
+		}
+	}
+	else if (!prev_bitmap_copied)
+	{
+		copybitmap(bitmap, vdp_bitmap, 0, 0, 0, 0, cliprect);
 		copybitmap(m_prev_bitmap, vdp_bitmap, 0, 0, 0, 0, cliprect);
+		prev_bitmap_copied = true;
 	}
 	else
 	{

@@ -13,7 +13,7 @@
 CUSTOM_INPUT_MEMBER(homerun_state::homerun_sprite0_r)
 {
 	// sprite-0 vs background collision status, similar to NES
-	return (machine().primary_screen->vpos() > (m_spriteram[0] - 15)) ? 1 : 0;
+	return (m_screen->vpos() > (m_spriteram[0] - 15)) ? 1 : 0;
 }
 
 WRITE8_MEMBER(homerun_state::homerun_scrollhi_w)
@@ -38,8 +38,8 @@ WRITE8_MEMBER(homerun_state::homerun_scrollx_w)
 WRITE8_MEMBER(homerun_state::homerun_banking_w)
 {
 	// games do mid-screen gfx bank switching
-	int vpos = machine().primary_screen->vpos();
-	machine().primary_screen->update_partial(vpos);
+	int vpos = m_screen->vpos();
+	m_screen->update_partial(vpos);
 
 	// d0-d1: gfx bank
 	// d2-d4: ?
@@ -142,7 +142,7 @@ UINT32 homerun_state::screen_update_homerun(screen_device &screen, bitmap_ind16 
 	m_tilemap->set_scrolly(0, m_scrolly);
 	m_tilemap->set_scrollx(0, m_scrollx);
 
-	m_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap, cliprect);
 
 	return 0;

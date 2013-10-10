@@ -44,7 +44,7 @@
 
 TILE_GET_INFO_MEMBER(atarigt_state::get_alpha_tile_info)
 {
-	UINT16 data = m_alpha32[tile_index / 2] >> (16 * (~tile_index & 1));
+	UINT16 data = tilemap.basemem_read(tile_index);
 	int code = data & 0xfff;
 	int color = (data >> 12) & 0x0f;
 	SET_TILE_INFO_MEMBER(1, code, color, 0);
@@ -53,7 +53,7 @@ TILE_GET_INFO_MEMBER(atarigt_state::get_alpha_tile_info)
 
 TILE_GET_INFO_MEMBER(atarigt_state::get_playfield_tile_info)
 {
-	UINT16 data = m_playfield32[tile_index / 2] >> (16 * (~tile_index & 1));
+	UINT16 data = tilemap.basemem_read(tile_index);
 	int code = (m_playfield_tile_bank << 12) | (data & 0xfff);
 	int color = (data >> 12) & 7;
 	SET_TILE_INFO_MEMBER(0, code, color, (data >> 15) & 1);
@@ -82,18 +82,9 @@ VIDEO_START_MEMBER(atarigt_state,atarigt)
 	/* blend the playfields and free the temporary one */
 	blend_gfx(0, 2, 0x0f, 0x30);
 
-	/* initialize the playfield */
-	m_playfield_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(atarigt_state::get_playfield_tile_info),this), tilemap_mapper_delegate(FUNC(atarigt_state::atarigt_playfield_scan),this),  8,8, 128,64);
-
-	/* initialize the motion objects */
-	m_rle = machine().device("rle");
-
-	/* initialize the alphanumerics */
-	m_alpha_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(atarigt_state::get_alpha_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 64,32);
-
 	/* allocate temp bitmaps */
-	width = machine().primary_screen->width();
-	height = machine().primary_screen->height();
+	width = m_screen->width();
+	height = m_screen->height();
 
 	m_pf_bitmap = auto_bitmap_ind16_alloc(machine(), width, height);
 	m_an_bitmap = auto_bitmap_ind16_alloc(machine(), width, height);
@@ -164,22 +155,22 @@ UINT16 atarigt_state::atarigt_colorram_r(offs_t address)
 
 void atarigt_state::scanline_update(screen_device &screen, int scanline)
 {
-	UINT32 *base = &m_alpha32[(scanline / 8) * 32 + 24];
 	int i;
 
 	/* keep in range */
-	if (base >= &m_alpha32[0x400])
+	int offset = (scanline / 8) * 64 + 48;
+	if (offset >= 0x800)
 		return;
 
 	/* update the playfield scrolls */
 	for (i = 0; i < 8; i++)
 	{
-		UINT32 word = *base++;
+		UINT16 word = m_alpha_tilemap->basemem_read(offset++);
 
-		if (word & 0x80000000)
+		if (word & 0x8000)
 		{
-			int newscroll = (word >> 21) & 0x3ff;
-			int newbank = (word >> 16) & 0x1f;
+			int newscroll = (word >> 5) & 0x3ff;
+			int newbank = (word >> 0) & 0x1f;
 			if (newscroll != m_playfield_xscroll)
 			{
 				if (scanline + i > 0)
@@ -196,7 +187,8 @@ void atarigt_state::scanline_update(screen_device &screen, int scanline)
 			}
 		}
 
-		if (word & 0x00008000)
+		word = m_alpha_tilemap->basemem_read(offset++);
+		if (word & 0x8000)
 		{
 			int newscroll = ((word >> 6) - (scanline + i)) & 0x1ff;
 			int newbank = word & 15;
@@ -504,18 +496,18 @@ PrimRage GALs:
 
 UINT32 atarigt_state::screen_update_atarigt(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	bitmap_ind16 *mo_bitmap = atarirle_get_vram(m_rle, 0);
-	bitmap_ind16 *tm_bitmap = atarirle_get_vram(m_rle, 1);
+	bitmap_ind16 &mo_bitmap = m_rle->vram(0);
+	bitmap_ind16 &tm_bitmap = m_rle->vram(1);
 	UINT16 *cram, *tram;
 	int color_latch;
 	UINT32 *mram;
 	int x, y;
 
 	/* draw the playfield */
-	m_playfield_tilemap->draw(*m_pf_bitmap, cliprect, 0, 0);
+	m_playfield_tilemap->draw(screen, *m_pf_bitmap, cliprect, 0, 0);
 
 	/* draw the alpha layer */
-	m_alpha_tilemap->draw(*m_an_bitmap, cliprect, 0, 0);
+	m_alpha_tilemap->draw(screen, *m_an_bitmap, cliprect, 0, 0);
 
 	/* cache pointers */
 	color_latch = m_colorram[0x30000/2];
@@ -528,8 +520,8 @@ UINT32 atarigt_state::screen_update_atarigt(screen_device &screen, bitmap_rgb32 
 	{
 		UINT16 *an = &m_an_bitmap->pix16(y);
 		UINT16 *pf = &m_pf_bitmap->pix16(y);
-		UINT16 *mo = &mo_bitmap->pix16(y);
-		UINT16 *tm = &tm_bitmap->pix16(y);
+		UINT16 *mo = &mo_bitmap.pix16(y);
+		UINT16 *tm = &tm_bitmap.pix16(y);
 		UINT32 *dst = &bitmap.pix32(y);
 
 		/* Primal Rage: no TRAM, slightly different priorities */
@@ -625,13 +617,4 @@ UINT32 atarigt_state::screen_update_atarigt(screen_device &screen, bitmap_rgb32 
 		}
 	}
 	return 0;
-}
-
-void atarigt_state::screen_eof_atarigt(screen_device &screen, bool state)
-{
-	// rising edge
-	if (state)
-	{
-		atarirle_eof(m_rle);
-	}
 }

@@ -98,7 +98,7 @@ Note:   if MAME_DEBUG is defined, pressing Z or X with:
 #define cischeat_tmap_DRAW(_n_) \
 	if ( (m_tmap[_n_]) && (m_active_layers & (1 << _n_) ) ) \
 	{ \
-		m_tmap[_n_]->draw(bitmap, cliprect, flag, 0 ); \
+		m_tmap[_n_]->draw(screen, bitmap, cliprect, flag, 0 ); \
 		flag = 0; \
 	}
 
@@ -168,14 +168,14 @@ TILEMAP_MAPPER_MEMBER(cischeat_state::cischeat_scan_16x16)
 
 TILE_GET_INFO_MEMBER(cischeat_state::cischeat_get_scroll_tile_info_8x8)
 {
-	int tmap = (FPTR)param;
+	int tmap = (FPTR)tilemap.user_data();
 	UINT16 code = m_scrollram[tmap][tile_index];
 	SET_TILE_INFO_MEMBER(tmap, (code & 0xfff), code >> (16 - m_bits_per_color_code), 0);
 }
 
 TILE_GET_INFO_MEMBER(cischeat_state::cischeat_get_scroll_tile_info_16x16)
 {
-	int tmap = (FPTR)param;
+	int tmap = (FPTR)tilemap.user_data();
 	UINT16 code = m_scrollram[tmap][tile_index/4];
 	SET_TILE_INFO_MEMBER(tmap, (code & 0xfff) * 4 + (tile_index & 3), code >> (16 - m_bits_per_color_code), 0);
 }

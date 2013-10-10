@@ -2453,6 +2453,11 @@ static void I386OP(aam)(i386_state *cpustate)               // Opcode 0xd4
 	UINT8 tempAL = REG8(AL);
 	UINT8 i = FETCH(cpustate);
 
+	if(!i)
+	{
+		i386_trap(cpustate, 0, 0, 0);
+		return;
+	}
 	REG8(AH) = tempAL / i;
 	REG8(AL) = tempAL % i;
 	SetSZPF8( REG8(AL) );
@@ -2496,12 +2501,6 @@ static void I386OP(mov_tr_r32)(i386_state *cpustate)        // Opcode 0x0f 26
 static void I386OP(loadall)(i386_state *cpustate)       // Opcode 0x0f 0x07 (0x0f 0x05 on 80286), undocumented
 {
 	fatalerror("i386: LOADALL unimplemented at %08X\n", cpustate->pc - 1);
-}
-
-static void I386OP(rsm)(i386_state *cpustate)
-{
-	logerror("i386: Invalid RSM outside SMM at %08X\n", cpustate->pc - 1);
-	i386_trap(cpustate, 6, 0, 0);
 }
 
 static void I386OP(invalid)(i386_state *cpustate)

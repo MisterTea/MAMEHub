@@ -34,7 +34,7 @@ const device_type PC9801_KBD = &device_creator<pc9801_kbd_device>;
 //-------------------------------------------------
 
 pc9801_kbd_device::pc9801_kbd_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, PC9801_KBD, "pc9801_kbd", tag, owner, clock)
+	: device_t(mconfig, PC9801_KBD, "pc9801_kbd", tag, owner, clock, "pc9801_kbd_", __FILE__)
 {
 }
 
@@ -345,7 +345,9 @@ void pc9801_kbd_device::device_timer(emu_timer &timer, device_timer_id id, int p
 READ8_MEMBER( pc9801_kbd_device::rx_r )
 {
 	m_irq_func(CLEAR_LINE);
-	return m_keyb_tx;
+	if(!offset)
+		return m_keyb_tx;
+	return 1 | 4 | 2;
 }
 
 WRITE8_MEMBER( pc9801_kbd_device::tx_w )

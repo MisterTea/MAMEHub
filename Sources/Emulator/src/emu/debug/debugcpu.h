@@ -79,9 +79,15 @@ public:
 
 	public:
 		// construction/destruction
-		breakpoint(symbol_table &symbols, int index, offs_t address, const char *condition = NULL, const char *action = NULL);
+		breakpoint(device_debug* debugInterface,
+					symbol_table &symbols,
+					int index,
+					offs_t address,
+					const char *condition = NULL,
+					const char *action = NULL);
 
 		// getters
+		const device_debug *debugInterface() const { return m_debugInterface; }
 		breakpoint *next() const { return m_next; }
 		int index() const { return m_index; }
 		bool enabled() const { return m_enabled; }
@@ -89,16 +95,20 @@ public:
 		const char *condition() const { return m_condition.original_string(); }
 		const char *action() const { return m_action; }
 
+		// setters
+		void setEnabled(bool value) { m_enabled = value; }
+
 	private:
 		// internals
 		bool hit(offs_t pc);
 
-		breakpoint *        m_next;                     // next in the list
-		int                 m_index;                    // user reported index
-		UINT8               m_enabled;                  // enabled?
-		offs_t              m_address;                  // execution address
-		parsed_expression   m_condition;                // condition
-		astring             m_action;                   // action
+		const device_debug * m_debugInterface;           // the interface we were created from
+		breakpoint *         m_next;                     // next in the list
+		int                  m_index;                    // user reported index
+		UINT8                m_enabled;                  // enabled?
+		offs_t               m_address;                  // execution address
+		parsed_expression    m_condition;                // condition
+		astring              m_action;                   // action
 	};
 
 	// watchpoint class
@@ -108,9 +118,18 @@ public:
 
 	public:
 		// construction/destruction
-		watchpoint(symbol_table &symbols, int index, address_space &space, int type, offs_t address, offs_t length, const char *condition = NULL, const char *action = NULL);
+		watchpoint(device_debug* debugInterface,
+					symbol_table &symbols,
+					int index,
+					address_space &space,
+					int type,
+					offs_t address,
+					offs_t length,
+					const char *condition = NULL,
+					const char *action = NULL);
 
 		// getters
+		const device_debug *debugInterface() const { return m_debugInterface; }
 		watchpoint *next() const { return m_next; }
 		address_space &space() const { return m_space; }
 		int index() const { return m_index; }
@@ -121,19 +140,23 @@ public:
 		const char *condition() const { return m_condition.original_string(); }
 		const char *action() const { return m_action; }
 
+		// setters
+		void setEnabled(bool value) { m_enabled = value; }
+
 	private:
 		// internals
 		bool hit(int type, offs_t address, int size);
 
-		watchpoint *        m_next;                     // next in the list
-		address_space &     m_space;                    // address space
-		int                 m_index;                    // user reported index
-		bool                m_enabled;                  // enabled?
-		UINT8               m_type;                     // type (read/write)
-		offs_t              m_address;                  // start address
-		offs_t              m_length;                   // length of watch area
-		parsed_expression   m_condition;                // condition
-		astring             m_action;                   // action
+		const device_debug * m_debugInterface;           // the interface we were created from
+		watchpoint *         m_next;                     // next in the list
+		address_space &      m_space;                    // address space
+		int                  m_index;                    // user reported index
+		bool                 m_enabled;                  // enabled?
+		UINT8                m_type;                     // type (read/write)
+		offs_t               m_address;                  // start address
+		offs_t               m_length;                   // length of watch area
+		parsed_expression    m_condition;                // condition
+		astring              m_action;                   // action
 	};
 
 	// registerpoint class
@@ -176,6 +199,8 @@ public:
 	int logaddrchars(address_spacenum spacenum = AS_0) const { return (m_memory != NULL && m_memory->has_space(spacenum)) ? m_memory->space(spacenum).logaddrchars() : 8; }
 	int min_opcode_bytes() const { return (m_disasm != NULL) ? m_disasm->max_opcode_bytes() : 1; }
 	int max_opcode_bytes() const { return (m_disasm != NULL) ? m_disasm->max_opcode_bytes() : 1; }
+	device_t& device() const { return m_device; }
+
 
 	// hooks used by the rest of the system
 	void start_hook(attotime endtime);

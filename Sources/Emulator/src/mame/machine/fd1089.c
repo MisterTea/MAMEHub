@@ -117,9 +117,9 @@
     317-0033  FD1089A [1] Alien Syndrome       400013 030000-ffffff
     317-0037  FD1089B [2] Alien Syndrome       400013 030000-ffffff
     317-0034  FD1089B [1] Super Hang-On        400015 030000-06ffff + 100000-2fffff + ff0000-ffffff
+    317-0086  FD1089A [2] Wonder Boy III       400043 ?
     317-0167  FD1089A [2] Aurail               400030 010000-ffffff
     317-0168  FD1089B [1] Aurail               400030 010000-ffffff
-    317-????  FD1089A [2] Wonder Boy III       400043 ?
     317-5021  FD1089B [1] Sukeban Jansi Ryuko  40004b 000000-00ffff
 
 
@@ -214,20 +214,20 @@ const fd1089_base_device::decrypt_parameters fd1089_base_device::s_data_params_a
 //  fd1089_base_device - constructor
 //-------------------------------------------------
 
-fd1089_base_device::fd1089_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: m68000_device(mconfig, M68000, tag, owner, clock)
+fd1089_base_device::fd1089_base_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: m68000_device(mconfig, tag, owner, clock, shortname, source)
 {
 	// override the name after the m68000 initializes
 	m_name.cpy(name);
 }
 
 fd1089a_device::fd1089a_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: fd1089_base_device(mconfig, FD1089A, "FD1089A", tag, owner, clock)
+	: fd1089_base_device(mconfig, FD1089A, "FD1089A", tag, owner, clock, "fd1089a", __FILE__)
 {
 }
 
 fd1089b_device::fd1089b_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: fd1089_base_device(mconfig, FD1089B, "FD1089B", tag, owner, clock)
+	: fd1089_base_device(mconfig, FD1089B, "FD1089B", tag, owner, clock, "fd1089b", __FILE__)
 {
 }
 

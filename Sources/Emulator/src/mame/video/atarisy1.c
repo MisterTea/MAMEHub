@@ -5,7 +5,6 @@
 ****************************************************************************/
 
 #include "emu.h"
-#include "video/atarimo.h"
 #include "includes/atarisy1.h"
 
 
@@ -72,6 +71,8 @@ static const gfx_layout objlayout_6bpp =
 	8*8     /* every sprite takes 8 consecutive bytes */
 };
 
+
+
 /*************************************
  *
  *  Tilemap callbacks
@@ -80,7 +81,7 @@ static const gfx_layout objlayout_6bpp =
 
 TILE_GET_INFO_MEMBER(atarisy1_state::get_alpha_tile_info)
 {
-	UINT16 data = m_alpha[tile_index];
+	UINT16 data = tilemap.basemem_read(tile_index);
 	int code = data & 0x3ff;
 	int color = (data >> 10) & 0x07;
 	int opaque = data & 0x2000;
@@ -90,7 +91,7 @@ TILE_GET_INFO_MEMBER(atarisy1_state::get_alpha_tile_info)
 
 TILE_GET_INFO_MEMBER(atarisy1_state::get_playfield_tile_info)
 {
-	UINT16 data = m_playfield[tile_index];
+	UINT16 data = tilemap.basemem_read(tile_index);
 	UINT16 lookup = m_playfield_lookup[((data >> 8) & 0x7f) | (m_playfield_tile_bank << 7)];
 	int gfxindex = (lookup >> 8) & 15;
 	int code = ((lookup & 0xff) << 8) | (data & 0xff);
@@ -106,79 +107,62 @@ TILE_GET_INFO_MEMBER(atarisy1_state::get_playfield_tile_info)
  *
  *************************************/
 
+const atari_motion_objects_config atarisy1_state::s_mob_config =
+{
+	0,                  /* index to which gfx system */
+	8,                  /* number of motion object banks */
+	1,                  /* are the entries linked? */
+	1,                  /* are the entries split? */
+	0,                  /* render in reverse order? */
+	0,                  /* render in swapped X/Y order? */
+	0,                  /* does the neighbor bit affect the next object? */
+	0,                  /* pixels per SLIP entry (0 for no-slip) */
+	0,                  /* pixel offset for SLIPs */
+	0x38,               /* maximum number of links to visit/scanline (0=all) */
+
+	0x100,              /* base palette entry */
+	0x100,              /* maximum number of colors */
+	0,                  /* transparent pen index */
+
+	{{ 0,0,0,0x003f }}, /* mask for the link */
+	{{ 0,0xffff,0,0 }}, /* mask for the code index */
+	{{ 0,0xff00,0,0 }}, /* mask for the color */
+	{{ 0,0,0x3fe0,0 }}, /* mask for the X position */
+	{{ 0x3fe0,0,0,0 }}, /* mask for the Y position */
+	{{ 0 }},            /* mask for the width, in tiles*/
+	{{ 0x000f,0,0,0 }}, /* mask for the height, in tiles */
+	{{ 0x8000,0,0,0 }}, /* mask for the horizontal flip */
+	{{ 0 }},            /* mask for the vertical flip */
+	{{ 0,0,0x8000,0 }}, /* mask for the priority */
+	{{ 0 }},            /* mask for the neighbor */
+	{{ 0 }},            /* mask for absolute coordinates */
+
+	{{ 0,0xffff,0,0 }}, /* mask for the special value */
+	0xffff              /* resulting value to indicate "special" */
+};
+
 VIDEO_START_MEMBER(atarisy1_state,atarisy1)
 {
-	static const atarimo_desc modesc =
-	{
-		0,                  /* index to which gfx system */
-		8,                  /* number of motion object banks */
-		1,                  /* are the entries linked? */
-		1,                  /* are the entries split? */
-		0,                  /* render in reverse order? */
-		0,                  /* render in swapped X/Y order? */
-		0,                  /* does the neighbor bit affect the next object? */
-		0,                  /* pixels per SLIP entry (0 for no-slip) */
-		0,                  /* pixel offset for SLIPs */
-		0x38,               /* maximum number of links to visit/scanline (0=all) */
-
-		0x100,              /* base palette entry */
-		0x100,              /* maximum number of colors */
-		0,                  /* transparent pen index */
-
-		{{ 0,0,0,0x003f }}, /* mask for the link */
-		{{ 0,0xff00,0,0 }}, /* mask for the graphics bank */
-		{{ 0,0xffff,0,0 }}, /* mask for the code index */
-		{{ 0 }},            /* mask for the upper code index */
-		{{ 0,0xff00,0,0 }}, /* mask for the color */
-		{{ 0,0,0x3fe0,0 }}, /* mask for the X position */
-		{{ 0x3fe0,0,0,0 }}, /* mask for the Y position */
-		{{ 0 }},            /* mask for the width, in tiles*/
-		{{ 0x000f,0,0,0 }}, /* mask for the height, in tiles */
-		{{ 0x8000,0,0,0 }}, /* mask for the horizontal flip */
-		{{ 0 }},            /* mask for the vertical flip */
-		{{ 0,0,0x8000,0 }}, /* mask for the priority */
-		{{ 0 }},            /* mask for the neighbor */
-		{{ 0 }},            /* mask for absolute coordinates */
-
-		{{ 0,0xffff,0,0 }}, /* mask for the special value */
-		0xffff,             /* resulting value to indicate "special" */
-		0                   /* callback routine for special entries */
-	};
-
-	UINT16 motable[256];
-	UINT16 *codelookup;
-	UINT8 *colorlookup, *gfxlookup;
-	int i, size;
-
 	/* first decode the graphics */
+	UINT16 motable[256];
 	decode_gfx(m_playfield_lookup, motable);
 
-	/* initialize the playfield */
-	m_playfield_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(atarisy1_state::get_playfield_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 64,64);
-
-	/* initialize the motion objects */
-	atarimo_init(machine(), 0, &modesc);
-
-	/* initialize the alphanumerics */
-	m_alpha_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(atarisy1_state::get_alpha_tile_info),this), TILEMAP_SCAN_ROWS,  8,8, 64,32);
-	m_alpha_tilemap->set_transparent_pen(0);
-
 	/* modify the motion object code lookup */
-	codelookup = atarimo_get_code_lookup(0, &size);
-	for (i = 0; i < size; i++)
+	dynamic_array<UINT16> &codelookup = m_mob->code_lookup();
+	for (int i = 0; i < codelookup.count(); i++)
 		codelookup[i] = (i & 0xff) | ((motable[i >> 8] & 0xff) << 8);
 
 	/* modify the motion object color and gfx lookups */
-	colorlookup = atarimo_get_color_lookup(0, &size);
-	gfxlookup = atarimo_get_gfx_lookup(0, &size);
-	for (i = 0; i < size; i++)
+	dynamic_array<UINT8> &colorlookup = m_mob->color_lookup();
+	dynamic_array<UINT8> &gfxlookup = m_mob->gfx_lookup();
+	for (int i = 0; i < colorlookup.count(); i++)
 	{
 		colorlookup[i] = ((motable[i] >> 12) & 15) << 1;
 		gfxlookup[i] = (motable[i] >> 8) & 15;
 	}
 
 	/* reset the statics */
-	atarimo_set_yscroll(0, 256);
+	m_mob->set_yscroll(256);
 	m_next_timer_scanline = -1;
 
 	/* save state */
@@ -199,7 +183,7 @@ WRITE16_MEMBER( atarisy1_state::atarisy1_bankselect_w )
 {
 	UINT16 oldselect = *m_bankselect;
 	UINT16 newselect = oldselect, diff;
-	int scanline = machine().primary_screen->vpos();
+	int scanline = m_screen->vpos();
 
 	/* update memory */
 	COMBINE_DATA(&newselect);
@@ -209,15 +193,15 @@ WRITE16_MEMBER( atarisy1_state::atarisy1_bankselect_w )
 	if (diff & 0x0080)
 	{
 		m_audiocpu->set_input_line(INPUT_LINE_RESET, (newselect & 0x0080) ? CLEAR_LINE : ASSERT_LINE);
-		if (!(newselect & 0x0080)) sound_cpu_reset();
+		if (!(newselect & 0x0080)) m_soundcomm->sound_cpu_reset();
 	}
 
 	/* if MO or playfield banks change, force a partial update */
 	if (diff & 0x003c)
-		machine().primary_screen->update_partial(scanline);
+		m_screen->update_partial(scanline);
 
 	/* motion object bank select */
-	atarimo_set_bank(0, (newselect >> 3) & 7);
+	m_mob->set_bank((newselect >> 3) & 7);
 	update_timers(scanline);
 
 	/* playfield bank select */
@@ -247,7 +231,7 @@ WRITE16_MEMBER( atarisy1_state::atarisy1_priority_w )
 	/* force a partial update in case this changes mid-screen */
 	COMBINE_DATA(&newpens);
 	if (oldpens != newpens)
-		machine().primary_screen->update_partial(machine().primary_screen->vpos());
+		m_screen->update_partial(m_screen->vpos());
 	m_playfield_priority_pens = newpens;
 }
 
@@ -267,7 +251,7 @@ WRITE16_MEMBER( atarisy1_state::atarisy1_xscroll_w )
 	/* force a partial update in case this changes mid-screen */
 	COMBINE_DATA(&newscroll);
 	if (oldscroll != newscroll)
-		machine().primary_screen->update_partial(machine().primary_screen->vpos());
+		m_screen->update_partial(m_screen->vpos());
 
 	/* set the new scroll value */
 	m_playfield_tilemap->set_scrollx(0, newscroll);
@@ -294,23 +278,23 @@ WRITE16_MEMBER( atarisy1_state::atarisy1_yscroll_w )
 {
 	UINT16 oldscroll = *m_yscroll;
 	UINT16 newscroll = oldscroll;
-	int scanline = machine().primary_screen->vpos();
+	int scanline = m_screen->vpos();
 	int adjusted_scroll;
 
 	/* force a partial update in case this changes mid-screen */
 	COMBINE_DATA(&newscroll);
-	machine().primary_screen->update_partial(scanline);
+	m_screen->update_partial(scanline);
 
 	/* because this latches a new value into the scroll base,
 	   we need to adjust for the scanline */
 	adjusted_scroll = newscroll;
-	if (scanline <= machine().primary_screen->visible_area().max_y)
+	if (scanline <= m_screen->visible_area().max_y)
 		adjusted_scroll -= (scanline + 1);
 	m_playfield_tilemap->set_scrolly(0, adjusted_scroll);
 
 	/* but since we've adjusted it, we must reset it to the normal value
 	   once we hit scanline 0 again */
-	m_yscroll_reset_timer->adjust(machine().primary_screen->time_until_pos(0), newscroll);
+	m_yscroll_reset_timer->adjust(m_screen->time_until_pos(0), newscroll);
 
 	/* update the data */
 	*m_yscroll = newscroll;
@@ -326,8 +310,9 @@ WRITE16_MEMBER( atarisy1_state::atarisy1_yscroll_w )
 
 WRITE16_MEMBER( atarisy1_state::atarisy1_spriteram_w )
 {
-	int active_bank = atarimo_get_bank(0);
-	int oldword = atarimo_0_spriteram_r(space, offset, mem_mask);
+	int active_bank = m_mob->bank();
+	UINT16 *spriteram = m_mob->spriteram();
+	int oldword = spriteram[offset];
 	int newword = oldword;
 	COMBINE_DATA(&newword);
 
@@ -335,12 +320,12 @@ WRITE16_MEMBER( atarisy1_state::atarisy1_spriteram_w )
 	if (oldword != newword && (offset >> 8) == active_bank)
 	{
 		/* if modifying a timer, beware */
-		if (((offset & 0xc0) == 0x00 && atarimo_0_spriteram_r(space, offset | 0x40, mem_mask) == 0xffff) ||
+		if (((offset & 0xc0) == 0x00 && spriteram[offset | 0x40] == 0xffff) ||
 			((offset & 0xc0) == 0x40 && (newword == 0xffff || oldword == 0xffff)))
 		{
 			/* if the timer is in the active bank, update the display list */
-			atarimo_0_spriteram_w(space, offset, data, 0xffff);
-			update_timers(machine().primary_screen->vpos());
+			spriteram[offset] = data;
+			update_timers(m_screen->vpos());
 		}
 
 		/* if we're about to modify data in the active sprite bank, make sure the video is up-to-date */
@@ -348,11 +333,11 @@ WRITE16_MEMBER( atarisy1_state::atarisy1_spriteram_w )
 		/* renders the next scanline's sprites to the line buffers, but Road Runner still glitches */
 		/* without the extra +1 */
 		else
-			machine().primary_screen->update_partial(machine().primary_screen->vpos() + 2);
+			m_screen->update_partial(m_screen->vpos() + 2);
 	}
 
 	/* let the MO handler do the basic work */
-	atarimo_0_spriteram_w(space, offset, data, 0xffff);
+	spriteram[offset] = data;
 }
 
 
@@ -380,7 +365,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(atarisy1_state::atarisy1_int3_callback)
 	scanline_int_gen(m_maincpu);
 
 	/* set a timer to turn it off */
-	m_int3off_timer->adjust(machine().primary_screen->scan_period());
+	m_int3off_timer->adjust(m_screen->scan_period());
 
 	/* determine the time of the next one */
 	m_next_timer_scanline = -1;
@@ -410,9 +395,7 @@ READ16_MEMBER( atarisy1_state::atarisy1_int3state_r )
 
 void atarisy1_state::update_timers(int scanline)
 {
-	address_space &space = generic_space();
-	UINT16 mem_mask = 0xffff;
-	int offset = atarimo_get_bank(0) * 64 * 4;
+	int offset = m_mob->bank() * 64 * 4;
 	int link = 0, best = scanline, found = 0;
 	UINT8 spritevisit[64];
 
@@ -423,9 +406,9 @@ void atarisy1_state::update_timers(int scanline)
 	while (!spritevisit[link])
 	{
 		/* timers are indicated by 0xffff in entry 2 */
-		if (atarimo_0_spriteram_r(space, offset + link + 0x40, mem_mask) == 0xffff)
+		if (m_mob->spriteram()[offset + link + 0x40] == 0xffff)
 		{
-			int data = atarimo_0_spriteram_r(space, offset + link, mem_mask);
+			int data = m_mob->spriteram()[offset + link];
 			int vsize = (data & 15) + 1;
 			int ypos = (256 - (data >> 5) - vsize * 8 - 1) & 0x1ff;
 
@@ -447,7 +430,7 @@ void atarisy1_state::update_timers(int scanline)
 
 		/* link to the next */
 		spritevisit[link] = 1;
-		link = atarimo_0_spriteram_r(space, offset + link + 0xc0, mem_mask) & 0x3f;
+		link = m_mob->spriteram()[offset + link + 0xc0] & 0x3f;
 	}
 
 	/* if nothing was found, use scanline -1 */
@@ -461,7 +444,7 @@ void atarisy1_state::update_timers(int scanline)
 
 		/* set a new one */
 		if (best != -1)
-			m_scanline_timer->adjust(machine().primary_screen->time_until_pos(best), best);
+			m_scanline_timer->adjust(m_screen->time_until_pos(best), best);
 		else
 			m_scanline_timer->reset();
 	}
@@ -477,25 +460,24 @@ void atarisy1_state::update_timers(int scanline)
 
 UINT32 atarisy1_state::screen_update_atarisy1(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	atarimo_rect_list rectlist;
-	bitmap_ind16 *mobitmap;
-	int x, y, r;
+	// start drawing
+	m_mob->draw_async(cliprect);
 
-	/* draw the playfield */
-	m_playfield_tilemap->draw(bitmap, cliprect, 0, 0);
+	// draw the playfield
+	m_playfield_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
-	/* draw and merge the MO */
-	mobitmap = atarimo_render(0, cliprect, &rectlist);
-	for (r = 0; r < rectlist.numrects; r++, rectlist.rect++)
-		for (y = rectlist.rect->min_y; y <= rectlist.rect->max_y; y++)
+	// draw and merge the MO
+	bitmap_ind16 &mobitmap = m_mob->bitmap();
+	for (const sparse_dirty_rect *rect = m_mob->first_dirty_rect(cliprect); rect != NULL; rect = rect->next())
+		for (int y = rect->min_y; y <= rect->max_y; y++)
 		{
-			UINT16 *mo = &mobitmap->pix16(y);
+			UINT16 *mo = &mobitmap.pix16(y);
 			UINT16 *pf = &bitmap.pix16(y);
-			for (x = rectlist.rect->min_x; x <= rectlist.rect->max_x; x++)
-				if (mo[x])
+			for (int x = rect->min_x; x <= rect->max_x; x++)
+				if (mo[x] != 0xffff)
 				{
 					/* high priority MO? */
-					if (mo[x] & ATARIMO_PRIORITY_MASK)
+					if (mo[x] & atari_motion_objects_device::PRIORITY_MASK)
 					{
 						/* only gets priority if MO pen is not 1 */
 						if ((mo[x] & 0x0f) != 1)
@@ -509,14 +491,11 @@ UINT32 atarisy1_state::screen_update_atarisy1(screen_device &screen, bitmap_ind1
 						if ((pf[x] & 0xf8) != 0 || !(m_playfield_priority_pens & (1 << (pf[x] & 0x07))))
 							pf[x] = mo[x];
 					}
-
-					/* erase behind ourselves */
-					mo[x] = 0;
 				}
 		}
 
 	/* add the alpha on top */
-	m_alpha_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_alpha_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }
 

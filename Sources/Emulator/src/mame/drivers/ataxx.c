@@ -26,12 +26,11 @@
 
 
 #include "emu.h"
-#include "cpu/i86/i86.h"
-#include "machine/eeprom.h"
+#include "cpu/i86/i186.h"
+#include "machine/eepromser.h"
 #include "machine/nvram.h"
 #include "cpu/z80/z80.h"
 #include "includes/leland.h"
-#include "sound/2151intf.h"
 
 
 #define MASTER_CLOCK        XTAL_28_63636MHz
@@ -56,10 +55,10 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( master_map_io, AS_IO, 8, leland_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x04, 0x04) AM_DEVREAD_LEGACY("custom", leland_80186_response_r)
-	AM_RANGE(0x05, 0x05) AM_DEVWRITE_LEGACY("custom", leland_80186_command_hi_w)
-	AM_RANGE(0x06, 0x06) AM_DEVWRITE_LEGACY("custom", leland_80186_command_lo_w)
-	AM_RANGE(0x0c, 0x0c) AM_DEVWRITE_LEGACY("custom", ataxx_80186_control_w)
+	AM_RANGE(0x04, 0x04) AM_DEVREAD("custom", leland_80186_sound_device, leland_80186_response_r)
+	AM_RANGE(0x05, 0x05) AM_DEVWRITE("custom", leland_80186_sound_device, leland_80186_command_hi_w)
+	AM_RANGE(0x06, 0x06) AM_DEVWRITE("custom", leland_80186_sound_device, leland_80186_command_lo_w)
+	AM_RANGE(0x0c, 0x0c) AM_DEVWRITE("custom", leland_80186_sound_device, ataxx_80186_control_w)
 	AM_RANGE(0x20, 0x20) AM_READWRITE(ataxx_eeprom_r, ataxx_eeprom_w)
 	AM_RANGE(0xd0, 0xef) AM_READWRITE(ataxx_mvram_port_r, ataxx_mvram_port_w)
 	AM_RANGE(0xf0, 0xff) AM_READWRITE(ataxx_master_input_r, ataxx_master_output_w)
@@ -119,7 +118,7 @@ static INPUT_PORTS_START( ataxx )
 	PORT_BIT( 0xfc, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("IN2")       /* 0x20 */
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0xfe, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("AN0")       /* 0x00 - analog X */
@@ -150,7 +149,7 @@ static INPUT_PORTS_START( wsf )
 	PORT_BIT( 0xfc, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("IN2")       /* 0x20 */
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_SERVICE_NO_TOGGLE( 0x04, IP_ACTIVE_LOW )
 	PORT_BIT( 0xf8, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -202,7 +201,7 @@ static INPUT_PORTS_START( indyheat )
 	PORT_BIT( 0xfc, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("IN2")       /* 0x20 */
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0xfe, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("AN0")       /* Analog wheel 1 */
@@ -248,7 +247,7 @@ static INPUT_PORTS_START( brutforc )
 	PORT_BIT( 0xfc, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("IN2")       /* 0x20 */
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0xfe, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("P1")        /* 0x0E */
@@ -286,26 +285,6 @@ INPUT_PORTS_END
 
 /*************************************
  *
- *  EEPROM interface
- *
- *************************************/
-
-static const eeprom_interface eeprom_intf =
-{
-	7,
-	16,
-	"000001100",
-	"000001010",
-	0,
-	"0000010000000000",
-	"0000010011000000",
-	1
-};
-
-
-
-/*************************************
- *
  *  Machine driver
  *
  *************************************/
@@ -321,35 +300,34 @@ static MACHINE_CONFIG_START( ataxx, leland_state )
 	MCFG_CPU_PROGRAM_MAP(slave_map_program)
 	MCFG_CPU_IO_MAP(slave_map_io)
 
-	MCFG_CPU_ADD("audiocpu", I80186, XTAL_16MHz)
+	MCFG_CPU_ADD("audiocpu", I80186, XTAL_16MHz/2)
 	MCFG_CPU_PROGRAM_MAP(leland_80186_map_program)
 	MCFG_CPU_IO_MAP(ataxx_80186_map_io)
+	MCFG_80186_CHIP_SELECT_CB(DEVWRITE16("custom", leland_80186_sound_device, peripheral_ctrl))
+	MCFG_80186_TMROUT0_HANDLER(DEVWRITELINE("custom", leland_80186_sound_device, i80186_tmr0_w))
 
 	MCFG_MACHINE_START_OVERRIDE(leland_state,ataxx)
 	MCFG_MACHINE_RESET_OVERRIDE(leland_state,ataxx)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_93C56_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_ENABLE_STREAMING()
+
 	MCFG_NVRAM_ADD_0FILL("battery")
 
 	/* video hardware */
 	MCFG_FRAGMENT_ADD(ataxx_video)
 
 	/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-
-	MCFG_SOUND_ADD("custom", LELAND_80186, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_DEVICE_ADD("custom", ATAXX_80186, 0)
 MACHINE_CONFIG_END
 
 
 static MACHINE_CONFIG_DERIVED( wsf, ataxx )
+	MCFG_CPU_MODIFY("audiocpu")
+	MCFG_80186_TMROUT1_HANDLER(DEVWRITELINE("custom", leland_80186_sound_device, i80186_tmr1_w))
 
-	/* basic machine hardware */
-
-	/* sound hardware */
-	MCFG_YM2151_ADD("ymsnd", 4000000)
-	MCFG_SOUND_ROUTE(0, "mono", 0.40)
-	MCFG_SOUND_ROUTE(1, "mono", 0.40)
+	MCFG_DEVICE_REMOVE("custom")
+	MCFG_DEVICE_ADD("custom", WSF_80186, 0)
 MACHINE_CONFIG_END
 
 

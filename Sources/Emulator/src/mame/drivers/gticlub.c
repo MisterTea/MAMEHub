@@ -220,7 +220,7 @@ Hang Pilot (uses an unknown but similar video board)                12W         
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "cpu/powerpc/ppc.h"
 #include "cpu/sharc/sharc.h"
 #include "machine/konppc.h"
@@ -231,7 +231,8 @@ Hang Pilot (uses an unknown but similar video board)                12W         
 #include "sound/k056800.h"
 #include "video/voodoo.h"
 #include "video/gticlub.h"
-#include "video/konicdev.h"
+#include "video/k001604.h"
+
 
 #include "rendlay.h"
 
@@ -248,6 +249,7 @@ public:
 		m_work_ram(*this, "work_ram"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
+		m_k056800(*this, "k056800"),
 		m_dsp(*this, "dsp"),
 		m_dsp2(*this, "dsp2"),
 		m_adc1038(*this, "adc1038"),
@@ -256,10 +258,11 @@ public:
 	required_shared_ptr<UINT32> m_work_ram;
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	required_device<k056800_device> m_k056800;
 	required_device<cpu_device> m_dsp;
 	optional_device<cpu_device> m_dsp2;
 	required_device<adc1038_device> m_adc1038;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	UINT32 *m_sharc_dataram_0;
 	UINT32 *m_sharc_dataram_1;
 	DECLARE_WRITE32_MEMBER(paletteram32_w);
@@ -284,10 +287,18 @@ public:
 	DECLARE_MACHINE_START(gticlub);
 	DECLARE_MACHINE_RESET(gticlub);
 	DECLARE_MACHINE_RESET(hangplt);
+	DECLARE_VIDEO_START(gticlub);
 	INTERRUPT_GEN_MEMBER(gticlub_vblank);
+
+	UINT32 screen_update_gticlub(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	UINT32 screen_update_hangplt(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+private:
+	void gticlub_led_setreg(int offset, UINT8 data);
+
+	UINT8 gticlub_led_reg[2];
 };
 
 
@@ -310,57 +321,43 @@ WRITE_LINE_MEMBER(gticlub_state::voodoo_vblank_1)
 
 READ32_MEMBER(gticlub_state::gticlub_k001604_tile_r)
 {
-	device_t *k001604 = machine().device(get_cgboard_id() ? "k001604_2" : "k001604_1");
-	return k001604_tile_r(k001604, space, offset, mem_mask);
+	k001604_device *k001604 = machine().device<k001604_device>(get_cgboard_id() ? "k001604_2" : "k001604_1");
+	return k001604->tile_r(space, offset, mem_mask);
 }
 
 WRITE32_MEMBER(gticlub_state::gticlub_k001604_tile_w)
 {
-	device_t *k001604 = machine().device(get_cgboard_id() ? "k001604_2" : "k001604_1");
-	k001604_tile_w(k001604, space, offset, data, mem_mask);
+	k001604_device *k001604 = machine().device<k001604_device>(get_cgboard_id() ? "k001604_2" : "k001604_1");
+	k001604->tile_w(space, offset, data, mem_mask);
 }
 
 
 READ32_MEMBER(gticlub_state::gticlub_k001604_char_r)
 {
-	device_t *k001604 = machine().device(get_cgboard_id() ? "k001604_2" : "k001604_1");
-	return k001604_char_r(k001604, space, offset, mem_mask);
+	k001604_device *k001604 = machine().device<k001604_device>(get_cgboard_id() ? "k001604_2" : "k001604_1");
+	return k001604->char_r(space, offset, mem_mask);
 }
 
 WRITE32_MEMBER(gticlub_state::gticlub_k001604_char_w)
 {
-	device_t *k001604 = machine().device(get_cgboard_id() ? "k001604_2" : "k001604_1");
-	k001604_char_w(k001604, space, offset, data, mem_mask);
+	k001604_device *k001604 = machine().device<k001604_device>(get_cgboard_id() ? "k001604_2" : "k001604_1");
+	k001604->char_w(space, offset, data, mem_mask);
 }
 
 READ32_MEMBER(gticlub_state::gticlub_k001604_reg_r)
 {
-	device_t *k001604 = machine().device(get_cgboard_id() ? "k001604_2" : "k001604_1");
-	return k001604_reg_r(k001604, space, offset, mem_mask);
+	k001604_device *k001604 = machine().device<k001604_device>(get_cgboard_id() ? "k001604_2" : "k001604_1");
+	return k001604->reg_r(space, offset, mem_mask);
 }
 
 WRITE32_MEMBER(gticlub_state::gticlub_k001604_reg_w)
 {
-	device_t *k001604 = machine().device(get_cgboard_id() ? "k001604_2" : "k001604_1");
-	k001604_reg_w(k001604, space, offset, data, mem_mask);
+	k001604_device *k001604 = machine().device<k001604_device>(get_cgboard_id() ? "k001604_2" : "k001604_1");
+	k001604->reg_w(space, offset, data, mem_mask);
 }
 
 
 /******************************************************************/
-
-/* 93C56 EEPROM */
-static const eeprom_interface eeprom_intf =
-{
-	8,              /* address bits */
-	16,             /* data bits */
-	"*110",         /*  read command */
-	"*101",         /* write command */
-	"*111",         /* erase command */
-	"*10000xxxxxx", /* lock command */
-	"*10011xxxxxx", /* unlock command */
-	1,              /* enable_multi_read */
-	0               /* reset_delay */
-};
 
 READ8_MEMBER(gticlub_state::sysreg_r)
 {
@@ -383,7 +380,7 @@ READ8_MEMBER(gticlub_state::sysreg_r)
 			// a = ADC readout
 			// e = EEPROM data out
 
-			UINT32 eeprom_bit = (m_eeprom->read_bit() << 1);
+			UINT32 eeprom_bit = (m_eeprom->do_read() << 1);
 			UINT32 adc_bit = (m_adc1038->do_read() << 2);
 			return (eeprom_bit | adc_bit);
 		}
@@ -405,9 +402,9 @@ WRITE8_MEMBER(gticlub_state::sysreg_w)
 			break;
 
 		case 3:
-			m_eeprom->write_bit((data & 0x01) ? 1 : 0);
-			m_eeprom->set_clock_line((data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
-			m_eeprom->set_cs_line((data & 0x04) ? CLEAR_LINE : ASSERT_LINE);
+			m_eeprom->di_write((data & 0x01) ? 1 : 0);
+			m_eeprom->clk_write((data & 0x02) ? ASSERT_LINE : CLEAR_LINE);
+			m_eeprom->cs_write((data & 0x04) ? ASSERT_LINE : CLEAR_LINE);
 			break;
 
 		case 4:
@@ -449,9 +446,9 @@ static ADDRESS_MAP_START( gticlub_map, AS_PROGRAM, 32, gticlub_state )
 	AM_RANGE(0x7e000000, 0x7e003fff) AM_READWRITE8(sysreg_r, sysreg_w, 0xffffffff)
 	AM_RANGE(0x7e008000, 0x7e009fff) AM_DEVREADWRITE8("k056230", k056230_device, k056230_r, k056230_w, 0xffffffff)
 	AM_RANGE(0x7e00a000, 0x7e00bfff) AM_DEVREADWRITE("k056230", k056230_device, lanc_ram_r, lanc_ram_w)
-	AM_RANGE(0x7e00c000, 0x7e00c007) AM_DEVWRITE_LEGACY("k056800", k056800_host_w)
-	AM_RANGE(0x7e00c000, 0x7e00c007) AM_DEVREAD_LEGACY("k056800", k056800_host_r)       // Hang Pilot
-	AM_RANGE(0x7e00c008, 0x7e00c00f) AM_DEVREAD_LEGACY("k056800", k056800_host_r)
+	AM_RANGE(0x7e00c000, 0x7e00c007) AM_DEVWRITE("k056800", k056800_device, host_w)
+	AM_RANGE(0x7e00c000, 0x7e00c007) AM_DEVREAD("k056800", k056800_device, host_r)       // Hang Pilot
+	AM_RANGE(0x7e00c008, 0x7e00c00f) AM_DEVREAD("k056800", k056800_device, host_r)
 	AM_RANGE(0x7f000000, 0x7f3fffff) AM_ROM AM_REGION("user2", 0)   /* Data ROM */
 	AM_RANGE(0x7f800000, 0x7f9fffff) AM_ROM AM_SHARE("share2")
 	AM_RANGE(0x7fe00000, 0x7fffffff) AM_ROM AM_REGION("user1", 0) AM_SHARE("share2")    /* Program ROM */
@@ -462,7 +459,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sound_memmap, AS_PROGRAM, 16, gticlub_state )
 	AM_RANGE(0x000000, 0x07ffff) AM_ROM
 	AM_RANGE(0x200000, 0x20ffff) AM_RAM
-	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE_LEGACY("k056800", k056800_sound_r, k056800_sound_w)
+	AM_RANGE(0x300000, 0x30000f) AM_DEVREADWRITE("k056800", k056800_device, sound_r, sound_w)
 	AM_RANGE(0x400000, 0x400fff) AM_DEVREADWRITE("rfsnd", rf5c400_device, rf5c400_r, rf5c400_w)      /* Ricoh RF5C400 */
 	AM_RANGE(0x580000, 0x580001) AM_WRITENOP
 	AM_RANGE(0x600000, 0x600001) AM_WRITENOP
@@ -832,6 +829,125 @@ MACHINE_RESET_MEMBER(gticlub_state,gticlub)
 	m_dsp->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 }
 
+void gticlub_state::gticlub_led_setreg(int offset, UINT8 data)
+{
+	gticlub_led_reg[offset] = data;
+}
+
+
+VIDEO_START_MEMBER(gticlub_state,gticlub)
+{
+	gticlub_led_reg[0] = gticlub_led_reg[1] = 0x7f;
+	/*
+	tick = 0;
+	debug_tex_page = 0;
+	debug_tex_palette = 0;
+	*/
+
+	K001006_init(machine());
+	K001005_init(machine());
+}
+
+UINT32 gticlub_state::screen_update_gticlub(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+{
+	k001604_device *k001604 = machine().device<k001604_device>("k001604_1");
+
+	k001604->draw_back_layer(bitmap, cliprect);
+
+	K001005_draw(bitmap, cliprect);
+
+	k001604->draw_front_layer(screen, bitmap, cliprect);
+
+#if 0
+	tick++;
+	if( tick >= 5 ) {
+		tick = 0;
+
+		if( machine().input().code_pressed(KEYCODE_O) )
+			debug_tex_page++;
+
+		if( machine().input().code_pressed(KEYCODE_I) )
+			debug_tex_page--;
+
+		if (machine().input().code_pressed(KEYCODE_U))
+			debug_tex_palette++;
+		if (machine().input().code_pressed(KEYCODE_Y))
+			debug_tex_palette--;
+
+		if (debug_tex_page < 0)
+			debug_tex_page = 32;
+		if (debug_tex_page > 32)
+			debug_tex_page = 0;
+
+		if (debug_tex_palette < 0)
+			debug_tex_palette = 15;
+		if (debug_tex_palette > 15)
+			debug_tex_palette = 0;
+	}
+
+	if (debug_tex_page > 0)
+	{
+		char string[200];
+		int x,y;
+		int index = (debug_tex_page - 1) * 0x40000;
+		int pal = debug_tex_palette & 7;
+		int tp = (debug_tex_palette >> 3) & 1;
+		UINT8 *rom = machine.root_device().memregion("gfx1")->base();
+
+		for (y=0; y < 384; y++)
+		{
+			for (x=0; x < 512; x++)
+			{
+				UINT8 pixel = rom[index + (y*512) + x];
+				bitmap.pix32(y, x) = K001006_palette[tp][(pal * 256) + pixel];
+			}
+		}
+
+		sprintf(string, "Texture page %d\nPalette %d", debug_tex_page, debug_tex_palette);
+		//popmessage("%s", string);
+	}
+#endif
+
+	draw_7segment_led(bitmap, 3, 3, gticlub_led_reg[0]);
+	draw_7segment_led(bitmap, 9, 3, gticlub_led_reg[1]);
+
+	//machine().device("dsp")->execute().set_input_line(SHARC_INPUT_FLAG1, ASSERT_LINE);
+	sharc_set_flag_input(machine().device("dsp"), 1, ASSERT_LINE);
+	return 0;
+}
+
+UINT32 gticlub_state::screen_update_hangplt(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+{
+	bitmap.fill(machine().pens[0], cliprect);
+
+	if (strcmp(screen.tag(), ":lscreen") == 0)
+	{
+		k001604_device *k001604 = machine().device<k001604_device>("k001604_1");
+		device_t *voodoo = machine().device("voodoo0");
+
+	//  k001604->draw_back_layer(bitmap, cliprect);
+
+		voodoo_update(voodoo, bitmap, cliprect);
+
+		k001604->draw_front_layer(screen, bitmap, cliprect);
+	}
+	else if (strcmp(screen.tag(), ":rscreen") == 0)
+	{
+		k001604_device *k001604 = machine().device<k001604_device>("k001604_2");
+		device_t *voodoo = machine().device("voodoo1");
+
+	//  k001604->draw_back_layer(bitmap, cliprect);
+
+		voodoo_update(voodoo, bitmap, cliprect);
+
+		k001604->draw_front_layer(screen, bitmap, cliprect);
+	}
+
+	draw_7segment_led(bitmap, 3, 3, gticlub_led_reg[0]);
+	draw_7segment_led(bitmap, 9, 3, gticlub_led_reg[1]);
+
+	return 0;
+}
 static MACHINE_CONFIG_START( gticlub, gticlub_state )
 
 	/* basic machine hardware */
@@ -848,7 +964,7 @@ static MACHINE_CONFIG_START( gticlub, gticlub_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_93C56_ADD("eeprom")
 
 	MCFG_MACHINE_START_OVERRIDE(gticlub_state,gticlub)
 	MCFG_MACHINE_RESET_OVERRIDE(gticlub_state,gticlub)
@@ -862,11 +978,11 @@ static MACHINE_CONFIG_START( gticlub, gticlub_state )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(512, 384)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 383)
-	MCFG_SCREEN_UPDATE_STATIC(gticlub)
+	MCFG_SCREEN_UPDATE_DRIVER(gticlub_state, screen_update_gticlub)
 
 	MCFG_PALETTE_LENGTH(65536)
 
-	MCFG_VIDEO_START(gticlub)
+	MCFG_VIDEO_START_OVERRIDE(gticlub_state,gticlub)
 
 	MCFG_K001604_ADD("k001604_1", gticlub_k001604_intf)
 
@@ -955,7 +1071,7 @@ static MACHINE_CONFIG_START( hangplt, gticlub_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_93C56_ADD("eeprom")
 
 	MCFG_MACHINE_START_OVERRIDE(gticlub_state,gticlub)
 	MCFG_MACHINE_RESET_OVERRIDE(gticlub_state,hangplt)
@@ -976,13 +1092,13 @@ static MACHINE_CONFIG_START( hangplt, gticlub_state )
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(512, 384)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 383)
-	MCFG_SCREEN_UPDATE_STATIC(hangplt)
+	MCFG_SCREEN_UPDATE_DRIVER(gticlub_state, screen_update_hangplt)
 
 	MCFG_SCREEN_ADD("rscreen", RASTER)
 	MCFG_SCREEN_REFRESH_RATE(60)
 	MCFG_SCREEN_SIZE(512, 384)
 	MCFG_SCREEN_VISIBLE_AREA(0, 511, 0, 383)
-	MCFG_SCREEN_UPDATE_STATIC(hangplt)
+	MCFG_SCREEN_UPDATE_DRIVER(gticlub_state, screen_update_hangplt)
 
 	MCFG_K001604_ADD("k001604_1", hangplt_k001604_intf_l)
 	MCFG_K001604_ADD("k001604_2", hangplt_k001604_intf_r)
@@ -1024,8 +1140,8 @@ ROM_START( gticlub ) /* Euro version EAA - Reports: GTI CLUB(TM) System ver 1.00
 	ROM_LOAD64_WORD( "688a15.9d",  0x000004, 0x200000, CRC(8aadee51) SHA1(be9020a47583da9d4ff586d227836dc5b7dc31f0) )
 	ROM_LOAD64_WORD( "688a16.4d",  0x000006, 0x200000, CRC(7f4e1893) SHA1(585be7b31ab7a48300c22b00443b00d631f4c49d) )
 
-	ROM_REGION16_BE( 0x200, "eeprom", 0 )
-	ROM_LOAD( "gticlub.nv", 0x0000, 0x0200, CRC(eca78a49) SHA1(3dcaccc4bee58f7ff5d6ecae551887cc967deaf7) )
+	ROM_REGION16_BE( 0x100, "eeprom", 0 )
+	ROM_LOAD( "gticlub.nv", 0x0000, 0x0100, CRC(ee5c9149) SHA1(cf4fda82c7d01eab664f21b062c55a3dd0234556) )
 ROM_END
 
 ROM_START( gticlubu ) /* USA version UAA - Reports: GTI CLUB(TM) System ver 1.02(USA) */
@@ -1054,8 +1170,8 @@ ROM_START( gticlubu ) /* USA version UAA - Reports: GTI CLUB(TM) System ver 1.02
 	ROM_LOAD64_WORD( "688a15.9d",  0x000004, 0x200000, CRC(8aadee51) SHA1(be9020a47583da9d4ff586d227836dc5b7dc31f0) )
 	ROM_LOAD64_WORD( "688a16.4d",  0x000006, 0x200000, CRC(7f4e1893) SHA1(585be7b31ab7a48300c22b00443b00d631f4c49d) )
 
-	ROM_REGION16_BE( 0x200, "eeprom", 0 )
-	ROM_LOAD( "gticlub.nv", 0x0000, 0x0200, CRC(eca78a49) SHA1(3dcaccc4bee58f7ff5d6ecae551887cc967deaf7) )
+	ROM_REGION16_BE( 0x100, "eeprom", 0 )
+	ROM_LOAD( "gticlub.nv", 0x0000, 0x0100, CRC(ee5c9149) SHA1(cf4fda82c7d01eab664f21b062c55a3dd0234556) )
 ROM_END
 
 ROM_START( gticluba ) /* Asia version AAA - Reports: GTI CLUB(TM) System ver 1.00(ASI) */
@@ -1084,8 +1200,8 @@ ROM_START( gticluba ) /* Asia version AAA - Reports: GTI CLUB(TM) System ver 1.0
 	ROM_LOAD64_WORD( "688a15.9d",  0x000004, 0x200000, CRC(8aadee51) SHA1(be9020a47583da9d4ff586d227836dc5b7dc31f0) )
 	ROM_LOAD64_WORD( "688a16.4d",  0x000006, 0x200000, CRC(7f4e1893) SHA1(585be7b31ab7a48300c22b00443b00d631f4c49d) )
 
-	ROM_REGION16_BE( 0x200, "eeprom", 0 )
-	ROM_LOAD( "gticlub.nv", 0x0000, 0x0200, CRC(eca78a49) SHA1(3dcaccc4bee58f7ff5d6ecae551887cc967deaf7) )
+	ROM_REGION16_BE( 0x100, "eeprom", 0 )
+	ROM_LOAD( "gticlub.nv", 0x0000, 0x0100, CRC(ee5c9149) SHA1(cf4fda82c7d01eab664f21b062c55a3dd0234556) )
 ROM_END
 
 ROM_START( gticlubj ) /* Japan version JAA - Reports: GTI CLUB(TM) System ver 1.00(JPN) */
@@ -1114,8 +1230,8 @@ ROM_START( gticlubj ) /* Japan version JAA - Reports: GTI CLUB(TM) System ver 1.
 	ROM_LOAD64_WORD( "688a15.9d",  0x000004, 0x200000, CRC(8aadee51) SHA1(be9020a47583da9d4ff586d227836dc5b7dc31f0) )
 	ROM_LOAD64_WORD( "688a16.4d",  0x000006, 0x200000, CRC(7f4e1893) SHA1(585be7b31ab7a48300c22b00443b00d631f4c49d) )
 
-	ROM_REGION16_BE( 0x200, "eeprom", 0 )
-	ROM_LOAD( "gticlub.nv", 0x0000, 0x0200, CRC(eca78a49) SHA1(3dcaccc4bee58f7ff5d6ecae551887cc967deaf7) )
+	ROM_REGION16_BE( 0x100, "eeprom", 0 )
+	ROM_LOAD( "gticlub.nv", 0x0000, 0x0100, CRC(ee5c9149) SHA1(cf4fda82c7d01eab664f21b062c55a3dd0234556) )
 ROM_END
 
 ROM_START( thunderh ) /* Euro version EAA */
@@ -1204,8 +1320,8 @@ ROM_START( slrasslt ) /* USA version UAA */
 	ROM_LOAD64_WORD( "792a15.9d",  0x000004, 0x200000, CRC(1c5531cb) SHA1(1b514f181c92e16d07bfe4719604f1e4caf15377) )
 	ROM_LOAD64_WORD( "792a16.4d",  0x000006, 0x200000, CRC(df89e392) SHA1(af37c5460d43bf8d8a1ab4213c4528083a7363c2) )
 
-	ROM_REGION16_BE(0x200, "eeprom", 0) /* default eeprom with magic number */
-	ROM_LOAD16_WORD( "eeprom-slrasslt.bin", 0x0000, 0x0200, CRC(924b4ed8) SHA1(247bf0c1394cbab3af03c26b9c016302b9b5723c) )
+	ROM_REGION16_BE(0x100, "eeprom", 0) /* default eeprom with magic number */
+	ROM_LOAD16_WORD( "eeprom-slrasslt.bin", 0x0000, 0x0100, CRC(51eb4d93) SHA1(bc1359daccad80b0e16eb144a0bae715a4fb2e8d) )
 ROM_END
 
 ROM_START( hangplt ) /* Japan version JAB */
@@ -1230,8 +1346,8 @@ ROM_START( hangplt ) /* Japan version JAB */
 	ROM_LOAD32_WORD( "685a13.4w",  0x000002, 0x400000, CRC(06329af4) SHA1(76cad9db604751ce48bb67bfd29e57bac0ee9a16) )
 	ROM_LOAD32_WORD( "685a14.12w", 0x000000, 0x400000, CRC(87437739) SHA1(0d45637af40938a54d5efd29c125b0fafd55f9a4) )
 
-	ROM_REGION16_BE( 0x200, "eeprom", 0 )
-	ROM_LOAD( "hangplt.nv", 0x0000, 0x0200, CRC(35f482c8) SHA1(445918156770449dce1a010aab9d310f15670092) )
+	ROM_REGION16_BE( 0x100, "eeprom", 0 )
+	ROM_LOAD( "hangplt.nv", 0x0000, 0x0100, CRC(30285221) SHA1(a08d06a0d7966f483e4c691a9bd5a98e48294aab) )
 ROM_END
 
 ROM_START( hangpltu ) /* USA version UAA */
@@ -1256,8 +1372,8 @@ ROM_START( hangpltu ) /* USA version UAA */
 	ROM_LOAD32_WORD( "685a13.4w",  0x000002, 0x400000, CRC(06329af4) SHA1(76cad9db604751ce48bb67bfd29e57bac0ee9a16) )
 	ROM_LOAD32_WORD( "685a14.12w", 0x000000, 0x400000, CRC(87437739) SHA1(0d45637af40938a54d5efd29c125b0fafd55f9a4) )
 
-	ROM_REGION16_BE( 0x200, "eeprom", 0 )
-	ROM_LOAD( "hangpltu.nv", 0x0000, 0x0200, CRC(8d74baf0) SHA1(297c0a064c6f8f8281d566629d896b49c6e85096) )
+	ROM_REGION16_BE( 0x100, "eeprom", 0 )
+	ROM_LOAD( "hangpltu.nv", 0x0000, 0x0100, CRC(cfea8a2b) SHA1(94162441d401c95b8c6a761d32b656ce22c3eeb6) )
 ROM_END
 
 

@@ -56,7 +56,7 @@ TIMER_CALLBACK_MEMBER(mystston_state::interrupt_callback)
 		scanline = FIRST_INT_VPOS;
 
 	/* the vertical synch chain is clocked by H256 -- this is probably not important, but oh well */
-	m_interrupt_timer->adjust(machine().primary_screen->time_until_pos(scanline - 1, INT_HPOS), scanline);
+	m_interrupt_timer->adjust(m_screen->time_until_pos(scanline - 1, INT_HPOS), scanline);
 }
 
 
@@ -231,7 +231,7 @@ VIDEO_START_MEMBER(mystston_state,mystston)
 
 VIDEO_RESET_MEMBER(mystston_state,mystston)
 {
-	m_interrupt_timer->adjust(machine().primary_screen->time_until_pos(FIRST_INT_VPOS - 1, INT_HPOS), FIRST_INT_VPOS);
+	m_interrupt_timer->adjust(m_screen->time_until_pos(FIRST_INT_VPOS - 1, INT_HPOS), FIRST_INT_VPOS);
 }
 
 
@@ -252,9 +252,9 @@ UINT32 mystston_state::screen_update_mystston(screen_device &screen, bitmap_ind1
 	m_bg_tilemap->set_scrolly(0, *m_scroll);
 	machine().tilemap().set_flip_all(flip ? (TILEMAP_FLIPY | TILEMAP_FLIPX) : 0);
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap, cliprect, machine().gfx[2], flip);
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
 }

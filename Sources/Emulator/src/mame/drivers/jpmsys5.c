@@ -67,7 +67,6 @@ static void tms_interrupt(running_machine &machine, int state)
 
 static const struct tms34061_interface tms34061intf =
 {
-	"screen",       /* The screen we are acting on */
 	8,              /* VRAM address is (row << rowshift) | col */
 	0x40000,        /* Size of video RAM - FIXME: Should be 128kB + 32kB */
 	tms_interrupt   /* Interrupt gen callback */
@@ -90,10 +89,10 @@ WRITE16_MEMBER(jpmsys5_state::sys5_tms34061_w)
 	}
 
 	if (ACCESSING_BITS_8_15)
-		tms34061_w(space, col, row, func, data >> 8);
+		m_tms34061->write(space, col, row, func, data >> 8);
 
 	if (ACCESSING_BITS_0_7)
-		tms34061_w(space, col | 1, row, func, data & 0xff);
+		m_tms34061->write(space, col | 1, row, func, data & 0xff);
 }
 
 READ16_MEMBER(jpmsys5_state::sys5_tms34061_r)
@@ -114,10 +113,10 @@ READ16_MEMBER(jpmsys5_state::sys5_tms34061_r)
 	}
 
 	if (ACCESSING_BITS_8_15)
-		data |= tms34061_r(space, col, row, func) << 8;
+		data |= m_tms34061->read(space, col, row, func) << 8;
 
 	if (ACCESSING_BITS_0_7)
-		data |= tms34061_r(space, col | 1, row, func);
+		data |= m_tms34061->read(space, col | 1, row, func);
 
 	return data;
 }
@@ -147,19 +146,13 @@ WRITE16_MEMBER(jpmsys5_state::ramdac_w)
 	}
 }
 
-VIDEO_START_MEMBER(jpmsys5_state,jpmsys5v)
-{
-	tms34061_start(machine(), &tms34061intf);
-}
-
 UINT32 jpmsys5_state::screen_update_jpmsys5v(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	int x, y;
-	struct tms34061_display state;
 
-	tms34061_get_display_state(&state);
+	m_tms34061->get_display_state();
 
-	if (state.blanked)
+	if (m_tms34061->m_display.blanked)
 	{
 		bitmap.fill(get_black_pen(machine()), cliprect);
 		return 0;
@@ -167,7 +160,7 @@ UINT32 jpmsys5_state::screen_update_jpmsys5v(screen_device &screen, bitmap_rgb32
 
 	for (y = cliprect.min_y; y <= cliprect.max_y; ++y)
 	{
-		UINT8 *src = &state.vram[(state.dispstart & 0xffff)*2 + 256 * y];
+		UINT8 *src = &m_tms34061->m_display.vram[(m_tms34061->m_display.dispstart & 0xffff)*2 + 256 * y];
 		UINT32 *dest = &bitmap.pix32(y, cliprect.min_x);
 
 		for (x = cliprect.min_x; x <= cliprect.max_x; x +=2)
@@ -240,14 +233,13 @@ READ16_MEMBER(jpmsys5_state::mux_r)
 
 WRITE16_MEMBER(jpmsys5_state::jpm_upd7759_w)
 {
-	device_t *device = machine().device("upd7759");
 	switch (offset)
 	{
 		case 0:
 		{
-			upd7759_port_w(device, space, 0, data & 0xff);
-			upd7759_start_w(device, 0);
-			upd7759_start_w(device, 1);
+			m_upd7759->port_w(space, 0, data & 0xff);
+			m_upd7759->start_w(0);
+			m_upd7759->start_w(1);
 			break;
 		}
 		case 1:
@@ -273,8 +265,8 @@ WRITE16_MEMBER(jpmsys5_state::jpm_upd7759_w)
 		}
 		case 2:
 		{
-			upd7759_reset_w(device, ~data & 0x04);
-			upd7759_set_bank_base(device, (data & 2) ? 0x20000 : 0);
+			m_upd7759->reset_w(~data & 0x04);
+			m_upd7759->set_bank_base((data & 2) ? 0x20000 : 0);
 			break;
 		}
 		default:
@@ -287,8 +279,7 @@ WRITE16_MEMBER(jpmsys5_state::jpm_upd7759_w)
 
 READ16_MEMBER(jpmsys5_state::jpm_upd7759_r)
 {
-	device_t *device = machine().device("upd7759");
-	return 0x14 | upd7759_busy_r(device);
+	return 0x14 | m_upd7759->busy_r();
 }
 
 
@@ -672,7 +663,7 @@ static MACHINE_CONFIG_START( jpmsys5v, jpmsys5_state )
 	MCFG_SCREEN_RAW_PARAMS(XTAL_40MHz / 4, 676, 20*4, 147*4, 256, 0, 254)
 	MCFG_SCREEN_UPDATE_DRIVER(jpmsys5_state, screen_update_jpmsys5v)
 
-	MCFG_VIDEO_START_OVERRIDE(jpmsys5_state,jpmsys5v)
+	MCFG_TMS34061_ADD("tms34061", tms34061intf)
 
 	MCFG_PALETTE_LENGTH(16)
 

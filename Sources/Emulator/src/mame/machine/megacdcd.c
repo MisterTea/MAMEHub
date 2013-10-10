@@ -11,7 +11,7 @@
 const device_type LC89510_TEMP = &device_creator<lc89510_temp_device>;
 
 lc89510_temp_device::lc89510_temp_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, LC89510_TEMP, "lc89510_temp_device", tag, owner, clock)
+	: device_t(mconfig, LC89510_TEMP, "lc89510_temp_device", tag, owner, clock, "lc89510_temp", __FILE__)
 {
 	segacd_dma_callback =  segacd_dma_delegate(FUNC(lc89510_temp_device::Fake_CDC_Do_DMA), this);
 	type1_interrupt_callback =  interrupt_delegate(FUNC(lc89510_temp_device::dummy_interrupt_callback), this);
@@ -357,6 +357,8 @@ void lc89510_temp_device::CDD_Play(running_machine &machine)
 	CLEAR_CDD_RESULT
 	UINT32 msf = getmsf_from_regs();
 	SCD_CURLBA = msf_to_lba(msf)-150;
+	if(segacd.cd == NULL) // no cd is there, bail out
+		return;
 	UINT32 end_msf = segacd.toc->tracks[ cdrom_get_track(segacd.cd, SCD_CURLBA) + 1 ].logframeofs;
 	SCD_CURTRK = cdrom_get_track(segacd.cd, SCD_CURLBA)+1;
 	LC8951UpdateHeader();
@@ -380,6 +382,8 @@ void lc89510_temp_device::CDD_Seek(void)
 	CLEAR_CDD_RESULT
 	UINT32 msf = getmsf_from_regs();
 	SCD_CURLBA = msf_to_lba(msf)-150;
+	if(segacd.cd == NULL) // no cd is there, bail out
+		return;
 	SCD_CURTRK = cdrom_get_track(segacd.cd, SCD_CURLBA)+1;
 	LC8951UpdateHeader();
 	STOP_CDC_READ
@@ -411,6 +415,8 @@ void lc89510_temp_device::CDD_Resume(running_machine &machine)
 {
 	CLEAR_CDD_RESULT
 	STOP_CDC_READ
+	if(segacd.cd == NULL) // no cd is there, bail out
+		return;
 	SCD_CURTRK = cdrom_get_track(segacd.cd, SCD_CURLBA)+1;
 	SCD_STATUS = CDD_PLAYINGCDDA;
 	CDD_STATUS = 0x0102;

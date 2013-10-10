@@ -59,7 +59,7 @@ TODO:
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "cpu/sh2/sh2.h"
 #include "machine/scudsp.h"
 #include "sound/scsp.h"
@@ -73,6 +73,8 @@ TODO:
 #include "machine/sat_rom.h"
 #include "machine/sat_dram.h"
 #include "machine/sat_bram.h"
+
+#include "mcfglgcy.h"
 
 
 class sat_console_state : public saturn_state

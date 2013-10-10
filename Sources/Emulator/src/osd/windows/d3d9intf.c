@@ -61,10 +61,6 @@
 
 typedef IDirect3D9 *(WINAPI *direct3dcreate9_ptr)(UINT SDKVersion);
 
-typedef HRESULT (WINAPI *direct3dx9_loadeffect_ptr)(LPDIRECT3DDEVICE9 pDevice, LPCTSTR pSrcFile, const D3DXMACRO *pDefines, LPD3DXINCLUDE pInclude, DWORD Flags, LPD3DXEFFECTPOOL pPool, LPD3DXEFFECT *ppEffect, LPD3DXBUFFER *ppCompilationErrors);
-static direct3dx9_loadeffect_ptr g_load_effect = NULL;
-
-
 namespace d3d
 {
 //============================================================
@@ -104,14 +100,10 @@ INLINE void convert_present_params(const present_parameters *params, D3DPRESENT_
 
 base *drawd3d9_init(void)
 {
-	direct3dcreate9_ptr direct3dcreate9;
-	HINSTANCE dllhandle;
-	IDirect3D9 *d3d9;
-	base *d3dptr;
 	bool post_available = true;
 
 	// dynamically grab the create function from d3d9.dll
-	dllhandle = LoadLibrary(TEXT("d3d9.dll"));
+	HINSTANCE dllhandle = LoadLibrary(TEXT("d3d9.dll"));
 	if (dllhandle == NULL)
 	{
 		mame_printf_verbose("Direct3D: Unable to access d3d9.dll\n");
@@ -119,7 +111,7 @@ base *drawd3d9_init(void)
 	}
 
 	// import the create function
-	direct3dcreate9 = (direct3dcreate9_ptr)GetProcAddress(dllhandle, "Direct3DCreate9");
+	direct3dcreate9_ptr direct3dcreate9 = (direct3dcreate9_ptr)GetProcAddress(dllhandle, "Direct3DCreate9");
 	if (direct3dcreate9 == NULL)
 	{
 		mame_printf_verbose("Direct3D: Unable to find Direct3DCreate9\n");
@@ -129,7 +121,7 @@ base *drawd3d9_init(void)
 	}
 
 	// create our core direct 3d object
-	d3d9 = (*direct3dcreate9)(D3D_SDK_VERSION);
+	IDirect3D9 *d3d9 = (*direct3dcreate9)(D3D_SDK_VERSION);
 	if (d3d9 == NULL)
 	{
 		mame_printf_verbose("Direct3D: Error attempting to initialize Direct3D9\n");
@@ -139,39 +131,30 @@ base *drawd3d9_init(void)
 	}
 
 	// dynamically grab the shader load function from d3dx9.dll
-	HINSTANCE fxhandle = LoadLibrary(TEXT("d3dx9_43.dll"));
-	if (fxhandle == NULL)
+	HINSTANCE fxhandle = NULL;
+	for (int idx = 99; idx >= 0; idx--) // a shameful moogle
 	{
-		post_available = false;
-		mame_printf_verbose("Direct3D: Warning - Unable to access d3dx9_43.dll; disabling post-effect rendering\n");
-	}
-
-	// import the create function
-	if(post_available)
-	{
-		g_load_effect = (direct3dx9_loadeffect_ptr)GetProcAddress(fxhandle, "D3DXCreateEffectFromFileW");
-		if (g_load_effect == NULL)
+		wchar_t dllbuf[13];
+		wsprintf(dllbuf, TEXT("d3dx9_%d.dll"), idx);
+		fxhandle = LoadLibrary(dllbuf);
+		if (fxhandle != NULL)
 		{
-			printf("Direct3D: Unable to find D3DXCreateEffectFromFileW\n");
-			FreeLibrary(dllhandle);
-			fxhandle = NULL;
-			dllhandle = NULL;
-			return NULL;
+			break;
 		}
 	}
-	else
+	if (fxhandle == NULL)
 	{
-		g_load_effect = NULL;
+		mame_printf_verbose("Direct3D: Warning - Unable find any D3D9 DLLs; disabling post-effect rendering\n");
 		post_available = false;
-		mame_printf_verbose("Direct3D: Warning - Unable to get a handle to D3DXCreateEffectFromFileW; disabling post-effect rendering\n");
 	}
 
 	// allocate an object to hold our data
-	d3dptr = global_alloc(base);
+	base *d3dptr = global_alloc(base);
 	d3dptr->version = 9;
 	d3dptr->d3dobj = d3d9;
 	d3dptr->dllhandle = dllhandle;
 	d3dptr->post_fx_available = post_available;
+	d3dptr->libhandle = fxhandle;
 	set_interfaces(d3dptr);
 
 	mame_printf_verbose("Direct3D: Using Direct3D 9\n");
@@ -333,30 +316,6 @@ static HRESULT device_create_offscreen_plain_surface(device *dev, UINT width, UI
 	IDirect3DDevice9 *device = (IDirect3DDevice9 *)dev;
 	return IDirect3DDevice9_CreateOffscreenPlainSurface(device, width, height, format, pool, (IDirect3DSurface9 **)surface, NULL);
 }
-
-
-static HRESULT device_create_effect(device *dev, const WCHAR *name, effect **effect)
-{
-	IDirect3DDevice9 *device = (IDirect3DDevice9 *)dev;
-
-	LPD3DXBUFFER buffer_errors = NULL;
-	HRESULT hr = (*g_load_effect)(device, name, NULL, NULL, 0, NULL, (ID3DXEffect**)effect, &buffer_errors);
-	if(FAILED(hr))
-	{
-		if(buffer_errors != NULL)
-		{
-			LPVOID compile_errors = buffer_errors->GetBufferPointer();
-			printf("Unable to compile shader: %s\n", (const char*)compile_errors);
-		}
-		else
-		{
-			printf("Unable to compile shader (unspecified reason)\n");
-		}
-	}
-
-	return hr;
-}
-
 
 static HRESULT device_create_texture(device *dev, UINT width, UINT height, UINT levels, DWORD usage, D3DFORMAT format, D3DPOOL pool, texture **texture)
 {
@@ -545,7 +504,6 @@ static const device_interface d3d9_device_interface =
 	device_begin_scene,
 	device_clear,
 	device_create_offscreen_plain_surface,
-	device_create_effect,
 	device_create_texture,
 	device_create_vertex_buffer,
 	device_create_render_target,
@@ -679,114 +637,6 @@ static const vertex_buffer_interface d3d9_vertex_buffer_interface =
 };
 
 
-
-//============================================================
-//  Direct3DEffect interfaces
-//============================================================
-
-static void effect_begin(effect *effect, UINT *passes, DWORD flags)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	d3dfx->Begin(passes, flags);
-}
-
-
-static void effect_end(effect *effect)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	d3dfx->End();
-}
-
-
-static void effect_begin_pass(effect *effect, UINT pass)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	d3dfx->BeginPass(pass);
-}
-
-
-static void effect_end_pass(effect *effect)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	d3dfx->EndPass();
-}
-
-
-static void effect_set_technique(effect *effect, const char *name)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	d3dfx->SetTechnique(name);
-}
-
-
-static void effect_set_vector(effect *effect, const char *name, int count, float *vector)
-{
-	static D3DXVECTOR4 out_vector;
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	if (count > 0)
-		out_vector.x = vector[0];
-	if (count > 1)
-		out_vector.y = vector[1];
-	if (count > 2)
-		out_vector.z = vector[2];
-	if (count > 3)
-		out_vector.w = vector[3];
-	d3dfx->SetVector(name, &out_vector);
-}
-
-
-static void effect_set_float(effect *effect, const char *name, float value)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	d3dfx->SetFloat(name, value);
-}
-
-
-static void effect_set_int(effect *effect, const char *name, int value)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	d3dfx->SetInt(name, value);
-}
-
-
-static void effect_set_matrix(effect *effect, const char *name, matrix *matrix)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	d3dfx->SetMatrix(name, (D3DXMATRIX*)matrix);
-}
-
-
-static void effect_set_texture(effect *effect, const char *name, texture *tex)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	d3dfx->SetTexture(name, (IDirect3DTexture9*)tex);
-}
-
-
-static ULONG effect_release(effect *effect)
-{
-	ID3DXEffect *d3dfx = (ID3DXEffect*)effect;
-	return d3dfx->Release();
-}
-
-
-static const effect_interface d3d9_effect_interface =
-{
-	effect_begin,
-	effect_end,
-	effect_begin_pass,
-	effect_end_pass,
-	effect_set_technique,
-	effect_set_vector,
-	effect_set_float,
-	effect_set_int,
-	effect_set_matrix,
-	effect_set_texture,
-	effect_release
-};
-
-
-
 //============================================================
 //  set_interfaces
 //============================================================
@@ -798,7 +648,6 @@ static void set_interfaces(base *d3dptr)
 	d3dptr->surface = d3d9_surface_interface;
 	d3dptr->texture = d3d9_texture_interface;
 	d3dptr->vertexbuf = d3d9_vertex_buffer_interface;
-	d3dptr->effect = d3d9_effect_interface;
 }
 
 };

@@ -1,5 +1,7 @@
-#include "video/taitoic.h"
+#include "machine/mb87078.h"
 #include "machine/taitoio.h"
+#include "video/hd63484.h"
+#include "video/tc0180vcu.h"
 
 class taitob_state : public driver_device
 {
@@ -25,10 +27,12 @@ public:
 		m_pixelram(*this, "pixelram"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
+		m_hd63484(*this, "hd63484"),
 		m_tc0180vcu(*this, "tc0180vcu"),
 		m_tc0640fio(*this, "tc0640fio"),
 		m_tc0220ioc(*this, "tc0220ioc"),
-		m_tc0510nio(*this, "tc0510nio") { }
+		m_tc0510nio(*this, "tc0510nio"),
+		m_mb87078(*this, "mb87078") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT16> m_spriteram;
@@ -55,12 +59,14 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
-	device_t *m_mb87078;
 	device_t *m_ym;
+	optional_device<hd63484_device> m_hd63484;
 	required_device<tc0180vcu_device> m_tc0180vcu;
 	optional_device<tc0640fio_device> m_tc0640fio;
 	optional_device<tc0220ioc_device> m_tc0220ioc;
 	optional_device<tc0510nio_device> m_tc0510nio;
+	optional_device<mb87078_device> m_mb87078;
+
 	DECLARE_WRITE8_MEMBER(bankswitch_w);
 	DECLARE_READ16_MEMBER(tracky1_hi_r);
 	DECLARE_READ16_MEMBER(tracky1_lo_r);

@@ -1,5 +1,6 @@
 #include "video/vsystem_spr.h"
 #include "video/vsystem_spr2.h"
+#include "video/k053936.h"
 
 class f1gp_state : public driver_device
 {
@@ -94,7 +95,7 @@ public:
 	UINT32 screen_update_f1gp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_f1gpb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_f1gp2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void f1gpb_draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect );
+	void f1gpb_draw_sprites( screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect );
 	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 	required_device<cpu_device> m_maincpu;
 };

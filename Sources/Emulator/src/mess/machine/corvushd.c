@@ -57,7 +57,6 @@
 //  TODO:
 //      Implement READY line glitch after last byte of command (Disk System Tech Ref pp. 3)
 //      Implement Read-after-Write (always happens on Rev B/H drives per Mass Storage GTI pp. 12)
-//      Implement Multiple physical drive support - Up to four
 //      Implement Drive Illegal Addresses (seek past last sector)
 //      Implement Switches on front of drive (LSI-11, MUX, Format, Reset)
 //      Implement an inter-sector delay during the FORMAT command (format happens too quickly now)
@@ -97,6 +96,7 @@ struct dadr_t {
 
 // Controller structure
 struct corvus_hdc_t {
+	device_t *root_device;
 	UINT8   status;             // Controller status byte (DIRECTION + BUSY/READY)
 	char    prep_mode;          // Whether the controller is in Prep Mode or not
 	// Physical drive info
@@ -465,7 +465,7 @@ static UINT8 parse_hdc_command(UINT8 data) {
 			case PREP_MODE_SELECT:
 				c->recv_bytes = corvus_cmd[data][0].recv_bytes;
 				c->xmit_bytes = corvus_cmd[data][0].xmit_bytes;
-				LOG(("parse_hdc_command: Single byte command recoginized: 0x%2.2x, to recv: %d, to xmit: %d\n", data,
+				LOG(("parse_hdc_command: Single byte command recognized: 0x%2.2x, to recv: %d, to xmit: %d\n", data,
 					c->recv_bytes, c->xmit_bytes));
 				break;
 			//
@@ -488,7 +488,7 @@ static UINT8 parse_hdc_command(UINT8 data) {
 		//  case DELACTIVENUM_OMNI_CODE:
 		//  case FINDACTIVE_CODE:
 				c->awaiting_modifier = TRUE;
-				LOG(("parse_hdc_command: Double byte command recoginized: 0x%2.2x\n", data));
+				LOG(("parse_hdc_command: Double byte command recognized: 0x%2.2x\n", data));
 				break;
 
 			default:                            // This is an INVALID command
@@ -623,6 +623,9 @@ static UINT8 corvus_write_logical_sector(running_machine &machine, dadr_t *dadr,
 	LOG(("corvus_write_logical_sector: Writing based on DADR: 0x%6.6x, logical sector: 0x%5.5x, drive: %d\n",
 		dadr->address_msn_and_drive << 16 | dadr->address_lsb << 8 | dadr->address_mid, sector, drv));
 
+	// Set up the global corvus_hdc so c->tracks_per_cylinder and c->sectors_per_track are valid
+	corvus_hdc_file(machine, drv);
+
 	//
 	// Shift the logical sector address forward by the number of firmware cylinders (2) + the number of spare tracks (7)
 	//
@@ -720,6 +723,9 @@ static UINT8 corvus_read_logical_sector(running_machine &machine, dadr_t *dadr, 
 
 	LOG(("corvus_read_logical_sector: Reading based on DADR: 0x%6.6x, logical sector: 0x%5.5x, drive: %d\n",
 		dadr->address_msn_and_drive << 16 | dadr->address_lsb << 8 | dadr->address_mid, sector, drv));
+
+	// Set up the global corvus_hdc so c->tracks_per_cylinder and c->sectors_per_track are valid
+	corvus_hdc_file(machine, drv);
 
 	//
 	// Shift the logical sector address forward by the number of firmware cylinders (2) + the number of spare tracks (7)
@@ -1120,6 +1126,9 @@ static UINT8 corvus_format_drive(running_machine &machine, UINT8 *pattern, UINT1
 	UINT8   status = 0;
 	UINT8   tbuffer[512];
 
+	// Set up the global corvus_hdc so c->tracks_per_cylinder and c->sectors_per_track are valid
+	corvus_hdc_file(machine, 0);
+
 	max_sector = c->sectors_per_track * c->tracks_per_cylinder * c->cylinders_per_drive;
 
 	//
@@ -1159,15 +1168,17 @@ static UINT8 corvus_format_drive(running_machine &machine, UINT8 *pattern, UINT1
 //      hard_disk_file object
 //
 static hard_disk_file *corvus_hdc_file(running_machine &machine, int id) {
+	corvus_hdc_t
+			*c = &corvus_hdc;
 	static const char *const tags[] = {
-		"harddisk1"
+		"harddisk1", "harddisk2", "harddisk3", "harddisk4"
 	};
 	harddisk_image_device *img;
 
-	/* Only one harddisk supported right now */
-	assert ( id == 0 );
-
-	img = dynamic_cast<harddisk_image_device *>(machine.device(tags[id]));
+	if (c->root_device)
+		img = dynamic_cast<harddisk_image_device *>(c->root_device->subdevice(tags[id]));
+	else
+		img = dynamic_cast<harddisk_image_device *>(machine.device(tags[id]));
 
 	if ( !img )
 		return NULL;
@@ -1175,7 +1186,16 @@ static hard_disk_file *corvus_hdc_file(running_machine &machine, int id) {
 	if (!img->exists())
 		return NULL;
 
-	return img->get_hard_disk_file();
+	// Pick up the Head/Cylinder/Sector info
+	hard_disk_file *file = img->get_hard_disk_file();
+	hard_disk_info *info = hard_disk_get_info(file);
+	c->sectors_per_track = info->sectors;
+	c->tracks_per_cylinder = info->heads;
+	c->cylinders_per_drive = info->cylinders;
+
+	LOG(("corvus_hdc_file: Attached to drive %u image: H:%d, C:%d, S:%d\n", id, info->heads, info->cylinders, info->sectors));
+
+	return file;
 }
 
 
@@ -1328,7 +1348,7 @@ static void corvus_process_command_packet(running_machine &machine, UINT8 invali
 		c->buffer.single_byte_response.status =
 			STAT_FATAL_ERR | STAT_ILL_CMD_OP_CODE;      // Respond with an Illegal Op Code
 
-		logerror("corvus_hdc_data_w: Illegal Command %02x, status: 0x%2.2x\n", c->buffer.single_byte_response.status, c->buffer.command.code);
+		logerror("corvus_hdc_data_w: Illegal command 0x%2.2x, status: 0x%2.2x\n", c->buffer.command.code, c->buffer.single_byte_response.status);
 	}
 	//
 	// Command execution complete, free up the controller
@@ -1420,19 +1440,9 @@ static TIMER_CALLBACK(corvus_hdc_callback)
 //
 UINT8 corvus_hdc_init(running_machine &machine) {
 	corvus_hdc_t            *c = &corvus_hdc;   // Pick up global controller structure
-	hard_disk_file  *disk;              // Structures for interface to CHD routines
-	hard_disk_info  *info;
-
-	if((disk = corvus_hdc_file(machine, 0)))                // Attach to the CHD file
-		info = hard_disk_get_info(disk);        // Pick up the Head/Cylinder/Sector info
-	else
-		return 0;
 
 	c->status &= ~(CONTROLLER_DIRECTION | CONTROLLER_BUSY); // Host-to-controller mode, Idle (awaiting command from Host mode)
 	c->prep_mode = FALSE;                       // We're not in Prep Mode
-	c->sectors_per_track = info->sectors;
-	c->tracks_per_cylinder = info->heads;
-	c->cylinders_per_drive = info->cylinders;
 	c->offset = 0;                              // Buffer is empty
 	c->awaiting_modifier = FALSE;               // We're not in the middle of a two-byte command
 	c->xmit_bytes = 0;                          // We don't have anything to say to the host
@@ -1441,8 +1451,6 @@ UINT8 corvus_hdc_init(running_machine &machine) {
 	c->timeout_timer = machine.scheduler().timer_alloc(FUNC(corvus_hdc_callback));  // Set up a timer to handle the four-second host-to-controller timeout
 	c->timeout_timer->adjust(attotime::from_seconds(4), CALLBACK_TIMEOUT);
 	c->timeout_timer->enable(0);        // Start this timer out disabled
-
-	LOG(("corvus_hdc_init: Attached to drive image: H:%d, C:%d, S:%d\n", info->heads, info->cylinders, info->sectors));
 
 	//
 	// Define all of the packet sizes for the commands
@@ -1547,6 +1555,15 @@ UINT8 corvus_hdc_init(running_machine &machine) {
 	return TRUE;
 }
 
+
+UINT8 corvus_hdc_init( device_t *device )
+{
+	corvus_hdc_t            *c = &corvus_hdc;   // Pick up global controller structure
+
+	c->root_device = device;
+
+	return corvus_hdc_init(device->machine());
+}
 
 
 //

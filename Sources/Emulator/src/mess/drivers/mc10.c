@@ -47,7 +47,7 @@ public:
 	m_printer(*this, "printer")
 	{ }
 
-	required_device<cpu_device> m_maincpu;
+	required_device<m6803_cpu_device> m_maincpu;
 	optional_device<mc6847_base_device> m_mc6847;
 	optional_device<ef9345_device> m_ef9345;
 	required_device<dac_device> m_dac;
@@ -260,7 +260,7 @@ DRIVER_INIT_MEMBER(mc10_state,mc10)
 
 	//for alice32 force port4 DDR to 0xff at startup
 	if (!strcmp(machine().system().name, "alice32") || !strcmp(machine().system().name, "alice90"))
-		m6801_io_w(prg, 0x05, 0xff);
+		m_maincpu->m6801_io_w(prg, 0x05, 0xff);
 }
 
 
@@ -529,11 +529,6 @@ static MACHINE_CONFIG_START( mc10, mc10_state )
 	MCFG_RAM_EXTRA_OPTIONS("4K")
 MACHINE_CONFIG_END
 
-static const ef9345_interface alice32_ef9345_config =
-{
-	"screen"            /* screen we are acting on */
-};
-
 static MACHINE_CONFIG_START( alice32, mc10_state )
 
 	/* basic machine hardware */
@@ -549,7 +544,7 @@ static MACHINE_CONFIG_START( alice32, mc10_state )
 	MCFG_SCREEN_VISIBLE_AREA(00, 336-1, 00, 270-1)
 	MCFG_PALETTE_LENGTH(8)
 
-	MCFG_EF9345_ADD("ef9345", alice32_ef9345_config)
+	MCFG_EF9345_ADD("ef9345", "screen")
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("alice32_sl", mc10_state, alice32_scanline, "screen", 0, 10)
 
 	/* sound hardware */

@@ -225,14 +225,14 @@ TIMER_DEVICE_CALLBACK_MEMBER(pkscram_state::scanline_callback)
 	{
 		if (m_out & 0x2000)
 			m_maincpu->set_input_line(1, ASSERT_LINE);
-		timer.adjust(machine().primary_screen->time_until_pos(param + 1), param+1);
+		timer.adjust(m_screen->time_until_pos(param + 1), param+1);
 		m_interrupt_line_active = 1;
 	}
 	else
 	{
 		if (m_interrupt_line_active)
 			m_maincpu->set_input_line(1, CLEAR_LINE);
-		timer.adjust(machine().primary_screen->time_until_pos(interrupt_scanline), interrupt_scanline);
+		timer.adjust(m_screen->time_until_pos(interrupt_scanline), interrupt_scanline);
 		m_interrupt_line_active = 0;
 	}
 }
@@ -249,9 +249,9 @@ void pkscram_state::video_start()
 
 UINT32 pkscram_state::screen_update_pkscramble(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0,0);
-	m_md_tilemap->draw(bitmap, cliprect, 0,0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0,0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	m_md_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0,0);
 	return 0;
 }
 
@@ -295,7 +295,7 @@ void pkscram_state::machine_reset()
 	m_out = 0;
 	m_interrupt_line_active=0;
 	timer_device *scanline_timer = machine().device<timer_device>("scan_timer");
-	scanline_timer->adjust(machine().primary_screen->time_until_pos(interrupt_scanline), interrupt_scanline);
+	scanline_timer->adjust(m_screen->time_until_pos(interrupt_scanline), interrupt_scanline);
 }
 
 static MACHINE_CONFIG_START( pkscramble, pkscram_state )

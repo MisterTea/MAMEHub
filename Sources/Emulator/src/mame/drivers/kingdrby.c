@@ -244,10 +244,10 @@ UINT32 kingdrby_state::screen_update_kingdrby(screen_device &screen, bitmap_ind1
 	clip.set(visarea.min_x, 256, 192, visarea.max_y);
 
 	/*TILEMAP_DRAW_CATEGORY + TILEMAP_DRAW_OPAQUE doesn't suit well?*/
-	m_sc0_tilemap->draw(bitmap, cliprect, 0,0);
+	m_sc0_tilemap->draw(screen, bitmap, cliprect, 0,0);
 	draw_sprites(bitmap,cliprect);
-	m_sc1_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_CATEGORY(1),0);
-	m_sc0w_tilemap->draw(bitmap, clip, 0,0);
+	m_sc1_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_CATEGORY(1),0);
+	m_sc0w_tilemap->draw(screen, bitmap, clip, 0,0);
 
 	return 0;
 }
@@ -916,7 +916,6 @@ GFXDECODE_END
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -1047,7 +1046,7 @@ static MACHINE_CONFIG_START( kingdrby, kingdrby_state )
 	MCFG_SCREEN_UPDATE_DRIVER(kingdrby_state, screen_update_kingdrby)
 
 
-	MCFG_MC6845_ADD("crtc", MC6845, CLK_1/32, mc6845_intf)  /* 53.333 Hz. guess */
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", CLK_1/32, mc6845_intf)  /* 53.333 Hz. guess */
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
@@ -1145,7 +1144,7 @@ ROM_START( kingdrbb ) // has 'Made in Taiwan' on the PCB.
 	ROM_REGION( 0x4000, "raw_prom", 0 )
 	ROM_LOAD( "kingdrbb_u1.bin", 0x0000, 0x4000, CRC(97931952) SHA1(a0ef3be105f2ed7f744c73e92c583d25bb322e6a) ) // palette but in a normal rom?
 
-	ROM_REGION( 0x200, "proms", ROMREGION_ERASE00 ) // address shuffled, decoded inside PALETTE_INIT
+	ROM_REGION( 0x200, "proms", ROMREGION_ERASE00 ) // address shuffled, decoded inside palette_init
 //  ROM_COPY( "raw_prom", 0x1000, 0x000, 0x200 )
 //  ROM_COPY( "raw_prom", 0x3000, 0x200, 0x200 ) //identical to 0x1000 bank
 

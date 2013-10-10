@@ -101,7 +101,7 @@
 #include "cpu/e132xs/e132xs.h"
 #include "cpu/mcs51/mcs51.h"
 
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "includes/eolith.h"
 #include "includes/eolithsp.h"
 
@@ -280,7 +280,7 @@ static INPUT_PORTS_START( common )
 	PORT_BIT( 0x00000001, IP_ACTIVE_LOW, IPT_START1 )
 	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_START2 )
 	PORT_BIT( 0x00000004, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x00000008, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x00000008, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNUSED )
 	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, eolith_state, eolith_speedup_getvblank, NULL)
@@ -316,9 +316,9 @@ static INPUT_PORTS_START( common )
 	PORT_BIT( 0xffffff00, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x00000002, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x00000004, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x00000008, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
+	PORT_BIT( 0x00000002, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x00000004, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x00000008, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( linkypip )
@@ -353,7 +353,6 @@ static INPUT_PORTS_START( linkypip )
 	PORT_DIPNAME( 0x00000080, 0x00000080, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW3:4")
 	PORT_DIPSETTING(          0x00000080, DEF_STR( Off ) )
 	PORT_DIPSETTING(          0x00000000, DEF_STR( On ) )
-
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( ironfort )
@@ -414,6 +413,22 @@ static INPUT_PORTS_START( hidnctch )
 	PORT_DIPSETTING(          0x00000000, DEF_STR( On ) )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( hidctch2 )
+	PORT_INCLUDE(common)
+
+	PORT_MODIFY("IN0")
+	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_COIN2 )
+
+	PORT_MODIFY("DSW1")
+	PORT_SERVICE_DIPLOC( 0x00000001, IP_ACTIVE_LOW, "SW4:1" )
+	PORT_DIPNAME( 0x00000002, 0x00000002, "Show Counters" ) PORT_DIPLOCATION("SW4:2")
+	PORT_DIPSETTING(          0x00000002, DEF_STR( Off ) )
+	PORT_DIPSETTING(          0x00000000, DEF_STR( On ) )
+	PORT_DIPNAME( 0x00000008, 0x00000008, "Skip ROM DATA Check" ) PORT_DIPLOCATION("SW4:4")
+	PORT_DIPSETTING(          0x00000008, DEF_STR( Off ) )
+	PORT_DIPSETTING(          0x00000000, DEF_STR( On ) )
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( candy )
 	PORT_INCLUDE(common)
 
@@ -445,9 +460,7 @@ static INPUT_PORTS_START( candy )
 	PORT_DIPNAME( 0x00000080, 0x00000080, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW3:4")
 	PORT_DIPSETTING(          0x00000080, DEF_STR( Off ) )
 	PORT_DIPSETTING(          0x00000000, DEF_STR( On ) )
-
 INPUT_PORTS_END
-
 
 static INPUT_PORTS_START( hidctch3 )
 	PORT_INCLUDE(common)
@@ -496,6 +509,13 @@ static INPUT_PORTS_START( landbrk )
 	PORT_DIPSETTING(          0x00000000, DEF_STR( On ) )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( penfan )
+	PORT_INCLUDE(common)
+
+	PORT_MODIFY("DSW1")
+	PORT_SERVICE_DIPLOC( 0x00000008, IP_ACTIVE_LOW, "SW4:4" )
+INPUT_PORTS_END
+
 
 static INPUT_PORTS_START( stealsee )
 	PORT_INCLUDE(common)
@@ -515,25 +535,6 @@ static INPUT_PORTS_START( puzzlekg )
 	PORT_MODIFY("DSW1")
 	PORT_SERVICE_DIPLOC( 0x0000000f, IP_ACTIVE_LOW, "SW4:1,2,3,4" ) // every bit enables it
 INPUT_PORTS_END
-
-
-/*************************************
- *
- *  EEPROM interface
- *
- *************************************/
-
-// It's configured for 512 bytes
-static const eeprom_interface eeprom_interface_93C66 =
-{
-	9,              // address bits 9
-	8,              // data bits    8
-	"*110",         // read         110 aaaaaaaaa
-	"*101",         // write        101 aaaaaaaaa dddddddd
-	"*111",         // erase        111 aaaaaaaaa
-	"*10000xxxxxx", // lock         100 00xxxxxxx
-	"*10011xxxxxx"  // unlock       100 11xxxxxxx
-};
 
 
 /*************************************
@@ -577,7 +578,7 @@ static MACHINE_CONFIG_START( eolith45, eolith_state )
 
 	MCFG_MACHINE_RESET_OVERRIDE(eolith_state,eolith)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_interface_93C66)
+	MCFG_EEPROM_SERIAL_93C66_8BIT_ADD("eeprom")
 
 //  for testing sound sync
 //  MCFG_QUANTUM_PERFECT_CPU("maincpu")
@@ -591,7 +592,7 @@ static MACHINE_CONFIG_START( eolith45, eolith_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 319, 0, 239)
 	MCFG_SCREEN_UPDATE_DRIVER(eolith_state, screen_update_eolith)
 
-	MCFG_PALETTE_INIT(RRRRR_GGGGG_BBBBB)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, RRRRR_GGGGG_BBBBB)
 	MCFG_PALETTE_LENGTH(32768)
 
 	MCFG_VIDEO_START_OVERRIDE(eolith_state,eolith)
@@ -968,6 +969,40 @@ ROM_START( hidctch2a )
 	ROM_LOAD( "qs1001a.u96", 0x80000, 0x80000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) )
 ROM_END
 
+
+ROM_START( hidnc2k )
+	ROM_REGION( 0x80000, "maincpu", 0 ) /* Hyperstone CPU Code */
+	ROM_LOAD( "27c040.u43",        0x00000, 0x80000, CRC(05063136) SHA1(9c1b3066a571b1e52d57cfe790a55257b37d5b89) )
+
+	ROM_REGION32_BE( 0x2000000, "user1", ROMREGION_ERASE00 ) /* Game Data - banked ROM, swapping necessary */
+	ROM_LOAD32_WORD_SWAP( "hc2000-0.u39", 0x0000000, 0x400000, CRC(10d4fd9a) SHA1(8ecbc0708a41d27ddd5fa1b01eed6411a4f3e6ec) )
+	ROM_LOAD32_WORD_SWAP( "hc2000-1.u34", 0x0000002, 0x400000, CRC(6e029c0a) SHA1(e217f6269e1c2a38f414c7220005e8bb6c636c57) )
+	ROM_LOAD32_WORD_SWAP( "hc2000-2.u40", 0x0800000, 0x400000, CRC(1dc3fb7f) SHA1(c0cc5cac0be5e4e01fa1eaa9dc30f652431263ce) )
+	ROM_LOAD32_WORD_SWAP( "hc2000-3.u35", 0x0800002, 0x400000, CRC(665a884e) SHA1(d0b2c4a531e8f23d5e41dc49a4fb76d5bd53f2cb) )
+	ROM_LOAD32_WORD_SWAP( "hc2000-4.u41", 0x1000000, 0x400000, CRC(242ec5b6) SHA1(e1321768086c67980dd63a84ddd1b2197bc5d53a) )
+	ROM_LOAD32_WORD_SWAP( "hc2000-5.u36", 0x1000002, 0x400000, CRC(f9c514cd) SHA1(6dd1f269a43e9a23d1ad65c33cf437f8855287a4) )
+	ROM_LOAD32_WORD_SWAP( "hc2000-6.u42", 0x1800000, 0x400000, CRC(8be32533) SHA1(46a84a088144f5c1eb5799b86e4f1a84d018c8f3) )
+	ROM_LOAD32_WORD_SWAP( "hc2000-7.u37", 0x1800002, 0x400000, CRC(baa9eb90) SHA1(3d449c96d50cfa1f86866d222c148572b5925853) )
+
+	ROM_REGION( 0x008000, "soundcpu", 0 ) /* AT89c52 */
+	/* PROTECTED MCU - This is the first 2K of hc2j.u111 from hidctch2a, verify against the internal dump when decapped */
+	/* we have no unprotected version of hidnc2k so this could give completely wrong results */
+	ROM_LOAD( "sound.mcu", 0x0000, 0x0800, BAD_DUMP CRC(92797034) SHA1(b600f19972986b2e09c56be0ea0c09f92a9fe422) ) /* MCU internal 2K flash */
+
+	ROM_REGION( 0x080000, "sounddata", 0 ) /* Music data */
+	ROM_LOAD( "27c4000.u108",        0x00000, 0x80000, CRC(776c7906) SHA1(9b8062c944e96f8f9905e1af87b29c80a3b25a10) )
+
+	ROM_REGION( 0x008000, "qs1000:cpu", 0 ) /* QDSP (8052) Code */
+	ROM_LOAD( "275308.u107",        0x0000, 0x8000, CRC(afd5263d) SHA1(71ace1b749d8a6b84d08b97185e7e512d04e4b8d) )
+
+	ROM_REGION( 0x1000000, "qs1000", 0 ) /* QDSP sample ROMs */
+	ROM_LOAD( "27c040.u97",  0x00000, 0x80000, CRC(0997a385) SHA1(b4c569143d08179dd84ede70c3c80d9e36648f77) )
+	ROM_LOAD( "qs1001a.u96", 0x80000, 0x80000, CRC(d13c6407) SHA1(57b14f97c7d4f9b5d9745d3571a0b7115fbe3176) )
+
+	// Gradiation Gift Ver 2.0   99. 6.15 plugin sound board
+	ROM_REGION( 0x1000000, "oki", 0 ) /* QDSP sample ROMs */
+	ROM_LOAD( "27c040.u1top",  0x00000, 0x80000, CRC(d2fece37) SHA1(599908f995bfc55559cc200c07e981d49d6851ff) )
+ROM_END
 
 /*
 
@@ -1477,7 +1512,7 @@ DRIVER_INIT_MEMBER(eolith_state,eolith)
 	init_eolith_speedup(machine());
 
 	// Sound CPU -> QS1000 CPU serial link
-	i8051_set_serial_tx_callback(m_soundcpu, write8_delegate(FUNC(eolith_state::soundcpu_to_qs1000),this));
+	m_soundcpu->i8051_set_serial_tx_callback(write8_delegate(FUNC(eolith_state::soundcpu_to_qs1000),this));
 
 	// Configure the sound ROM banking
 	membank("sound_bank")->configure_entries(0, 16, memregion("sounddata")->base(), 0x8000);
@@ -1490,6 +1525,10 @@ DRIVER_INIT_MEMBER(eolith_state,landbrk)
 	DRIVER_INIT_CALL(eolith);
 }
 
+
+// the protected sets all have an extra startup check (to prevent you swapping in an external ROM?)
+// currently not fully understood, and possibly not possible to make work without the MCU dump so we patch it.
+// to work with the unprotected code.
 DRIVER_INIT_MEMBER(eolith_state,landbrka)
 {
 	//it fails compares with memories:
@@ -1511,6 +1550,20 @@ DRIVER_INIT_MEMBER(eolith_state,hidctch2)
 
 	DRIVER_INIT_CALL(eolith);
 }
+
+
+DRIVER_INIT_MEMBER(eolith_state,hidnc2k)
+{
+	UINT32 *rombase = (UINT32*)memregion("maincpu")->base();
+	rombase[0x17b2c/4] = (rombase[0x17b2c/4] & 0x0000ffff) | 0x03000000; /* Change BR to NOP */
+	DRIVER_INIT_CALL(eolith);
+}
+
+
+
+
+
+
 
 DRIVER_INIT_MEMBER(eolith_state,hidctch3)
 {
@@ -1534,21 +1587,22 @@ DRIVER_INIT_MEMBER(eolith_state,hidctch3)
  *
  *************************************/
 
-GAME( 1998, linkypip,  0,        eolith45, linkypip, eolith_state,  eolith,   ROT0, "Eolith", "Linky Pipe", GAME_IMPERFECT_SOUND )
-GAME( 1998, ironfort,  0,        ironfort, ironfort, eolith_state,  eolith,   ROT0, "Eolith", "Iron Fortress", GAME_IMPERFECT_SOUND )
+GAME( 1998, linkypip,  0,        eolith45, linkypip,  eolith_state, eolith,   ROT0, "Eolith", "Linky Pipe", GAME_IMPERFECT_SOUND )
+GAME( 1998, ironfort,  0,        ironfort, ironfort,  eolith_state, eolith,   ROT0, "Eolith", "Iron Fortress", GAME_IMPERFECT_SOUND )
 GAME( 1998, ironfortj, ironfort, ironfort, ironfortj, eolith_state, eolith,   ROT0, "Eolith", "Iron Fortress (Japan)", GAME_IMPERFECT_SOUND )
-GAME( 1998, hidnctch,  0,        eolith45, hidnctch, eolith_state,  eolith,   ROT0, "Eolith", "Hidden Catch (World) / Tul Lin Gu Lim Chat Ki '98 (Korea) (pcb ver 3.03)",  GAME_IMPERFECT_SOUND ) // or Teurrin Geurim Chajgi '98
-GAME( 1998, raccoon,   0,        eolith45, raccoon, eolith_state,   eolith,   ROT0, "Eolith", "Raccoon World", GAME_IMPERFECT_SOUND )
-GAME( 1998, puzzlekg,  0,        eolith45, puzzlekg, eolith_state,  eolith,   ROT0, "Eolith", "Puzzle King (Dance & Puzzle)",  GAME_IMPERFECT_SOUND )
-GAME( 1999, candy,     0,        eolith50, candy, eolith_state,     eolith,   ROT0, "Eolith", "Candy Candy",  GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
-GAME( 1999, hidctch2,  0,        eolith50, hidnctch, eolith_state,  hidctch2, ROT0, "Eolith", "Hidden Catch 2 (pcb ver 3.03) (Kor/Eng) (AT89c52 protected)", GAME_IMPERFECT_SOUND )
-GAME( 1999, hidctch2a, hidctch2, eolith50, hidnctch, eolith_state,  eolith,   ROT0, "Eolith", "Hidden Catch 2 (pcb ver 1.00) (Kor/Eng/Jpn/Chi)", GAME_IMPERFECT_SOUND )
-GAME( 1999, landbrk,   0,        eolith45, landbrk, eolith_state,   landbrk,  ROT0, "Eolith", "Land Breaker (World) / Miss Tang Ja Ru Gi (Korea) (pcb ver 3.02)",  GAME_IMPERFECT_SOUND ) // or Miss Ttang Jjareugi
-GAME( 1999, landbrka,  landbrk,  eolith45, landbrk, eolith_state,   landbrka, ROT0, "Eolith", "Land Breaker (World) / Miss Tang Ja Ru Gi (Korea) (pcb ver 3.03) (AT89c52 protected)",  GAME_IMPERFECT_SOUND ) // or Miss Ttang Jjareugi
-GAME( 1999, nhidctch,  0,        eolith45, hidnctch, eolith_state,  eolith,   ROT0, "Eolith", "New Hidden Catch (World) / New Tul Lin Gu Lim Chat Ki '98 (Korea) (pcb ver 3.02)", GAME_IMPERFECT_SOUND ) // or New Teurrin Geurim Chajgi '98
-GAME( 1999, penfan,    0,        eolith45, landbrk, eolith_state,   eolith,   ROT0, "Eolith", "Penfan Girls - Step1. Mild Mind (set 1)",  GAME_IMPERFECT_SOUND ) // alt title of Ribbon
-GAME( 1999, penfana,   penfan,   eolith45, landbrk, eolith_state,   eolith,   ROT0, "Eolith", "Penfan Girls - Step1. Mild Mind (set 2)",  GAME_IMPERFECT_SOUND )
-GAME( 2000, stealsee,  0,        eolith45, stealsee, eolith_state,  eolith,   ROT0, "Moov Generation / Eolith", "Steal See (& Get Land)",  GAME_IMPERFECT_SOUND )
-GAME( 2000, hidctch3,  0,        eolith50, hidctch3, eolith_state,  hidctch3, ROT0, "Eolith", "Hidden Catch 3 (ver 1.00 / pcb ver 3.05)", GAME_IMPERFECT_SOUND )
-GAME( 2001, fort2b,    0,        eolith50, common, eolith_state,    eolith,   ROT0, "Eolith", "Fortress 2 Blue Arcade (ver 1.01 / pcb ver 3.05)",  GAME_IMPERFECT_SOUND )
-GAME( 2001, fort2ba,   fort2b,   eolith50, common, eolith_state,    eolith,   ROT0, "Eolith", "Fortress 2 Blue Arcade (ver 1.00 / pcb ver 3.05)",  GAME_IMPERFECT_SOUND )
+GAME( 1998, hidnctch,  0,        eolith45, hidnctch,  eolith_state, eolith,   ROT0, "Eolith", "Hidden Catch (World) / Tul Lin Gu Lim Chat Ki '98 (Korea) (pcb ver 3.03)",  GAME_IMPERFECT_SOUND ) // or Teurrin Geurim Chajgi '98
+GAME( 1998, raccoon,   0,        eolith45, raccoon,   eolith_state, eolith,   ROT0, "Eolith", "Raccoon World", GAME_IMPERFECT_SOUND )
+GAME( 1998, puzzlekg,  0,        eolith45, puzzlekg,  eolith_state, eolith,   ROT0, "Eolith", "Puzzle King (Dance & Puzzle)",  GAME_IMPERFECT_SOUND )
+GAME( 1999, candy,     0,        eolith50, candy,     eolith_state, eolith,   ROT0, "Eolith", "Candy Candy",  GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1999, hidctch2,  0,        eolith50, hidctch2,  eolith_state, hidctch2, ROT0, "Eolith", "Hidden Catch 2 (pcb ver 3.03) (Kor/Eng) (AT89c52 protected)", GAME_IMPERFECT_SOUND )
+GAME( 1999, hidctch2a, hidctch2, eolith50, hidctch2,  eolith_state, eolith,   ROT0, "Eolith", "Hidden Catch 2 (pcb ver 1.00) (Kor/Eng/Jpn/Chi)", GAME_IMPERFECT_SOUND )
+GAME( 1999, hidnc2k,   0,        eolith50, hidctch2,  eolith_state, hidnc2k,  ROT0, "Eolith", "Hidden Catch 2000 (AT89c52 protected)", GAME_IMPERFECT_SOUND )
+GAME( 1999, landbrk,   0,        eolith45, landbrk,   eolith_state, landbrk,  ROT0, "Eolith", "Land Breaker (World) / Miss Tang Ja Ru Gi (Korea) (pcb ver 3.02)",  GAME_IMPERFECT_SOUND ) // or Miss Ttang Jjareugi
+GAME( 1999, landbrka,  landbrk,  eolith45, landbrk,   eolith_state, landbrka, ROT0, "Eolith", "Land Breaker (World) / Miss Tang Ja Ru Gi (Korea) (pcb ver 3.03) (AT89c52 protected)",  GAME_IMPERFECT_SOUND ) // or Miss Ttang Jjareugi
+GAME( 1999, nhidctch,  0,        eolith45, hidctch2,  eolith_state, eolith,   ROT0, "Eolith", "New Hidden Catch (World) / New Tul Lin Gu Lim Chat Ki '98 (Korea) (pcb ver 3.02)", GAME_IMPERFECT_SOUND ) // or New Teurrin Geurim Chajgi '98
+GAME( 1999, penfan,    0,        eolith45, penfan,    eolith_state, eolith,   ROT0, "Eolith", "Penfan Girls - Step1. Mild Mind (set 1)",  GAME_IMPERFECT_SOUND ) // alt title of Ribbon
+GAME( 1999, penfana,   penfan,   eolith45, penfan,    eolith_state, eolith,   ROT0, "Eolith", "Penfan Girls - Step1. Mild Mind (set 2)",  GAME_IMPERFECT_SOUND )
+GAME( 2000, stealsee,  0,        eolith45, stealsee,  eolith_state, eolith,   ROT0, "Moov Generation / Eolith", "Steal See (& Get Land)",  GAME_IMPERFECT_SOUND )
+GAME( 2000, hidctch3,  0,        eolith50, hidctch3,  eolith_state, hidctch3, ROT0, "Eolith", "Hidden Catch 3 (ver 1.00 / pcb ver 3.05)", GAME_IMPERFECT_SOUND )
+GAME( 2001, fort2b,    0,        eolith50, common,    eolith_state, eolith,   ROT0, "Eolith", "Fortress 2 Blue Arcade (ver 1.01 / pcb ver 3.05)",  GAME_IMPERFECT_SOUND )
+GAME( 2001, fort2ba,   fort2b,   eolith50, common,    eolith_state, eolith,   ROT0, "Eolith", "Fortress 2 Blue Arcade (ver 1.00 / pcb ver 3.05)",  GAME_IMPERFECT_SOUND )

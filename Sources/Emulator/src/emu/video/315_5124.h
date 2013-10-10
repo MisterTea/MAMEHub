@@ -9,8 +9,6 @@
 #ifndef __SEGA315_5124_H__
 #define __SEGA315_5124_H__
 
-#include "devcb.h"
-
 
 /***************************************************************************
     CONSTANTS
@@ -38,9 +36,6 @@
 #define SEGA315_5124_PALETTE_SIZE   (64+16)
 #define SEGA315_5378_PALETTE_SIZE   4096
 
-PALETTE_INIT( sega315_5124 );
-PALETTE_INIT( sega315_5378 );
-
 
 #define SEGA315_5378_CRAM_SIZE    0x40  /* 32 colors x 2 bytes per color = 64 bytes */
 #define SEGA315_5124_CRAM_SIZE    0x20  /* 32 colors x 1 bytes per color = 32 bytes */
@@ -55,7 +50,6 @@ PALETTE_INIT( sega315_5378 );
 struct sega315_5124_interface
 {
 	bool               m_is_pal;             /* false = NTSC, true = PAL */
-	const char         *m_screen_tag;
 	devcb_write_line   m_int_callback;       /* Interrupt callback function */
 	devcb_write_line   m_pause_callback;     /* Pause callback function */
 };
@@ -68,12 +62,13 @@ extern const device_type SEGA315_5378;      /* aka Gamegear vdp */
 
 class sega315_5124_device : public device_t,
 							public sega315_5124_interface,
-							public device_memory_interface
+							public device_memory_interface,
+							public device_video_interface
 {
 public:
 	// construction/destruction
 	sega315_5124_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	sega315_5124_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT8 cram_size, UINT8 palette_offset, bool supports_224_240);
+	sega315_5124_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT8 cram_size, UINT8 palette_offset, bool supports_224_240, const char *shortname, const char *source);
 
 	DECLARE_READ8_MEMBER( vram_read );
 	DECLARE_WRITE8_MEMBER( vram_write );
@@ -81,6 +76,8 @@ public:
 	DECLARE_WRITE8_MEMBER( register_write );
 	DECLARE_READ8_MEMBER( vcount_read );
 	DECLARE_READ8_MEMBER( hcount_read );
+
+	DECLARE_PALETTE_INIT( sega315_5124 );
 
 	void hcount_latch() { hcount_latch_at_hpos( m_screen->hpos() ); };
 	void hcount_latch_at_hpos( int hpos );
@@ -112,6 +109,7 @@ protected:
 	virtual void device_start();
 	virtual void device_reset();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+	virtual machine_config_constructor device_mconfig_additions() const;
 
 	virtual const address_space_config *memory_space_config(address_spacenum spacenum = AS_0) const { return (spacenum == AS_0) ? &m_space_config : NULL; }
 
@@ -160,7 +158,6 @@ protected:
 	emu_timer        *m_check_hint_timer;
 	emu_timer        *m_check_vint_timer;
 	emu_timer        *m_draw_timer;
-	screen_device    *m_screen;
 
 	const address_space_config  m_space_config;
 
@@ -187,11 +184,14 @@ class sega315_5378_device : public sega315_5124_device
 public:
 	sega315_5378_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	virtual void device_reset();
+	DECLARE_PALETTE_INIT( sega315_5378 );
 
 	virtual void set_sega315_5124_compatibility_mode( bool sega315_5124_compatibility_mode );
 
 protected:
+	virtual void device_reset();
+	virtual machine_config_constructor device_mconfig_additions() const;
+
 	virtual void update_palette();
 	virtual void draw_scanline( int pixel_offset_x, int pixel_plot_y, int line );
 	virtual UINT16 get_name_table_address();
@@ -206,12 +206,18 @@ protected:
 	MCFG_DEVICE_ADD(_tag, SEGA315_5124, 0) \
 	MCFG_DEVICE_CONFIG(_interface)
 
+#define MCFG_SEGA315_5124_SET_SCREEN MCFG_VIDEO_SET_SCREEN
+
 #define MCFG_SEGA315_5246_ADD(_tag, _interface) \
 	MCFG_DEVICE_ADD(_tag, SEGA315_5246, 0) \
 	MCFG_DEVICE_CONFIG(_interface)
 
+#define MCFG_SEGA315_5246_SET_SCREEN MCFG_VIDEO_SET_SCREEN
+
 #define MCFG_SEGA315_5378_ADD(_tag, _interface) \
 	MCFG_DEVICE_ADD(_tag, SEGA315_5378, 0) \
 	MCFG_DEVICE_CONFIG(_interface)
+
+#define MCFG_SEGA315_5378_SET_SCREEN MCFG_VIDEO_SET_SCREEN
 
 #endif /* __SEGA315_5124_H__ */

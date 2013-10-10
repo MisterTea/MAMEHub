@@ -462,7 +462,6 @@ WRITE_LINE_MEMBER(sg1000_state::sg1000_vdp_interrupt)
 
 static TMS9928A_INTERFACE(sg1000_tms9918a_interface)
 {
-	SCREEN_TAG,
 	0x4000,
 	DEVCB_DRIVER_LINE_MEMBER(sg1000_state,sg1000_vdp_interrupt)
 };
@@ -763,10 +762,6 @@ void sf7000_state::machine_start()
 	membank("bank1")->configure_entry(1, m_ram->pointer());
 	membank("bank2")->configure_entry(0, m_ram->pointer());
 }
-
-/*-------------------------------------------------
-    MACHINE_RESET( sf7000 )
--------------------------------------------------*/
 
 void sf7000_state::machine_reset()
 {

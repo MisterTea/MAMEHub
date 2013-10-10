@@ -225,8 +225,8 @@ void suna8_state::draw_normal_sprites(bitmap_ind16 &bitmap,const rectangle &clip
 	int i;
 	int mx = 0; // multisprite x counter
 
-	int max_x = machine().primary_screen->width() - 8;
-	int max_y = machine().primary_screen->height() - 8;
+	int max_x = m_screen->width() - 8;
+	int max_y = m_screen->height() - 8;
 
 	for (i = 0x1d00; i < 0x2000; i += 4)
 	{
@@ -394,8 +394,8 @@ void suna8_state::draw_text_sprites(bitmap_ind16 &bitmap,const rectangle &clipre
 	UINT8 *spriteram = m_spriteram;
 	int i;
 
-	int max_x = machine().primary_screen->width() - 8;
-	int max_y = machine().primary_screen->height() - 8;
+	int max_x = m_screen->width() - 8;
+	int max_y = m_screen->height() - 8;
 
 	for (i = 0x1900; i < 0x19ff; i += 4)
 	{
@@ -486,7 +486,7 @@ UINT32 suna8_state::screen_update_suna8(screen_device &screen, bitmap_ind16 &bit
 
 		m_bg_tilemap->set_scrollx(0, 0x100 * m_page);
 		m_bg_tilemap->set_scrolly(0, 0);
-		m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+		m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 #if 1
 	popmessage("%02X %02X %02X - p%2X g%02X r%02X",
 						m_rombank, m_palettebank, m_spritebank,

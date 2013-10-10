@@ -73,7 +73,7 @@
     Constructor
 */
 ti99_datamux_device::ti99_datamux_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-: device_t(mconfig, DATAMUX, "Databus multiplexer", tag, owner, clock)
+: device_t(mconfig, DATAMUX, "Databus multiplexer", tag, owner, clock, "ti99_datamux", __FILE__)
 {
 }
 
@@ -249,7 +249,11 @@ void ti99_datamux_device::device_reset(void)
 	m_use32k = (ioport("RAM")->read()==1);
 
 	// better use a region?
-	if (m_ram16b==NULL) m_ram16b = (UINT16*)malloc(32768);
+	if (m_ram16b==NULL)
+	{
+		m_ram16b = (UINT16*)malloc(32768);
+		memset(m_ram16b, 0, 32768);
+	}
 
 	// Now building the list of active devices at this databus multiplex.
 	// We allow for turning off devices according to configuration switch settings.

@@ -68,6 +68,9 @@ $(DRCOBJ): $(DRCDEPS)
 
 #-------------------------------------------------
 # Acorn ARM series
+#
+#@src/emu/cpu/arm/arm.h,CPUS += ARM
+#@src/emu/cpu/arm7/arm7.h,CPUS += ARM7
 #-------------------------------------------------
 
 ifneq ($(filter ARM,$(CPUS)),)
@@ -92,7 +95,9 @@ $(CPUOBJ)/arm7/arm7.o:  $(CPUSRC)/arm7/arm7.c \
 						$(CPUSRC)/arm7/arm7help.h \
 						$(CPUSRC)/arm7/arm7thmb.c \
 						$(CPUSRC)/arm7/arm7ops.c \
-						$(CPUSRC)/arm7/arm7core.c
+						$(CPUSRC)/arm7/arm7core.c \
+						$(CPUSRC)/arm7/arm7drc.c \
+						$(CPUSRC)/arm7/arm7tdrc.c
 
 $(CPUOBJ)/arm7/arm7ops.o:   $(CPUSRC)/arm7/arm7ops.c \
 						$(CPUSRC)/arm7/arm7.h \
@@ -106,6 +111,7 @@ $(CPUOBJ)/arm7/arm7thmb.o:  $(CPUSRC)/arm7/arm7thmb.c \
 
 #-------------------------------------------------
 # Advanced Digital Chips SE3208
+#@src/emu/cpu/se3208/se3208.h,CPUS += SE3208
 #-------------------------------------------------
 
 ifneq ($(filter SE3208,$(CPUS)),)
@@ -121,6 +127,7 @@ $(CPUOBJ)/se3208/se3208.o:  $(CPUSRC)/se3208/se3208.c \
 
 #-------------------------------------------------
 # Alpha 8201
+#@src/emu/cpu/alph8201/alph8201.h,CPUS += ALPHA8201
 #-------------------------------------------------
 
 ifneq ($(filter ALPHA8201,$(CPUS)),)
@@ -136,6 +143,7 @@ $(CPUOBJ)/alph8201/alph8201.o:  $(CPUSRC)/alph8201/alph8201.c \
 
 #-------------------------------------------------
 # Analog Devices ADSP21xx series
+#@src/emu/cpu/adsp2100/adsp2100.h,CPUS += ADSP21XX
 #-------------------------------------------------
 
 ifneq ($(filter ADSP21XX,$(CPUS)),)
@@ -152,6 +160,7 @@ $(CPUOBJ)/adsp2100/adsp2100.o:  $(CPUSRC)/adsp2100/adsp2100.c \
 
 #-------------------------------------------------
 # Analog Devices "Sharc" ADSP21062
+#@src/emu/cpu/sharc/sharc.h,CPUS += ADSP21062
 #-------------------------------------------------
 
 ifneq ($(filter ADSP21062,$(CPUS)),)
@@ -174,6 +183,7 @@ $(CPUOBJ)/sharc/sharc.o:    $(CPUSRC)/sharc/sharc.c \
 
 #-------------------------------------------------
 # APEXC
+#@src/emu/cpu/apexc/apexc.h,CPUS += APEXC
 #-------------------------------------------------
 
 ifneq ($(filter APEXC,$(CPUS)),)
@@ -189,6 +199,7 @@ $(CPUOBJ)/apexc/apexc.o:    $(CPUSRC)/apexc/apexc.c \
 
 #-------------------------------------------------
 # AT&T DSP16A
+#@src/emu/cpu/dsp16/dsp16.h,CPUS += DSP16A
 #-------------------------------------------------
 
 ifneq ($(filter DSP16A,$(CPUS)),)
@@ -204,6 +215,7 @@ $(CPUOBJ)/dsp16/dsp16.o:    $(CPUSRC)/dsp16/dsp16ops.c \
 
 #-------------------------------------------------
 # AT&T DSP32C
+#@src/emu/cpu/dsp32/dsp32.h,CPUS += DSP32C
 #-------------------------------------------------
 
 ifneq ($(filter DSP32C,$(CPUS)),)
@@ -220,6 +232,7 @@ $(CPUOBJ)/dsp32/dsp32.o:    $(CPUSRC)/dsp32/dsp32.c \
 
 #-------------------------------------------------
 # Atari custom RISC processor
+#@src/emu/cpu/asap/asap.h,CPUS += ASAP
 #-------------------------------------------------
 
 ifneq ($(filter ASAP,$(CPUS)),)
@@ -235,6 +248,7 @@ $(CPUOBJ)/asap/asap.o:  $(CPUSRC)/asap/asap.c \
 
 #-------------------------------------------------
 # AMD Am29000
+#@src/emu/cpu/am29000/am29000.h,CPUS += AM29000
 #-------------------------------------------------
 
 ifneq ($(filter AM29000,$(CPUS)),)
@@ -251,6 +265,7 @@ $(CPUOBJ)/am29000/am29000.o:    $(CPUSRC)/am29000/am29000.c \
 
 #-------------------------------------------------
 # Atari Jaguar custom DSPs
+#@src/emu/cpu/jaguar/jaguar.h,CPUS += JAGUAR
 #-------------------------------------------------
 
 ifneq ($(filter JAGUAR,$(CPUS)),)
@@ -266,6 +281,7 @@ $(CPUOBJ)/jaguar/jaguar.o:  $(CPUSRC)/jaguar/jaguar.c \
 
 #-------------------------------------------------
 # Simutrek Cube Quest bit-sliced CPUs
+#@src/emu/cpu/cubeqcpu/cubeqcpu.h,CPUS += CUBEQCPU
 #-------------------------------------------------
 
 ifneq ($(filter CUBEQCPU,$(CPUS)),)
@@ -280,6 +296,7 @@ $(CPUOBJ)/cubeqcpu/cubeqcpu.o:  $(CPUSRC)/cubeqcpu/cubeqcpu.c \
 
 #-------------------------------------------------
 # Ensoniq ES5510 ('ESP') DSP
+#@src/emu/cpu/es5510/es5510.h,CPUS += ES5510
 #-------------------------------------------------
 
 ifneq ($(filter ES5510,$(CPUS)),)
@@ -293,6 +310,7 @@ $(CPUOBJ)/es5510.o: $(CPUSRC)/es5510/es5510.c \
 
 #-------------------------------------------------
 # Entertainment Sciences AM29116-based RIP
+#@src/emu/cpu/esrip/esrip.h,CPUS += ESRIP
 #-------------------------------------------------
 
 ifneq ($(filter ESRIP,$(CPUS)),)
@@ -308,6 +326,7 @@ $(CPUOBJ)/esrip/esrip.o:    $(CPUSRC)/esrip/esrip.c \
 
 #-------------------------------------------------
 # RCA COSMAC
+#@src/emu/cpu/cosmac/cosmac.h,CPUS += COSMAC
 #-------------------------------------------------
 
 ifneq ($(filter COSMAC,$(CPUS)),)
@@ -323,6 +342,7 @@ $(CPUOBJ)/cosmac/cosmac.o:  $(CPUSRC)/cosmac/cosmac.c \
 
 #-------------------------------------------------
 # National Semiconductor COP400 family
+#@src/emu/cpu/cop400/cop400.h,CPUS += COP400
 #-------------------------------------------------
 
 ifneq ($(filter COP400,$(CPUS)),)
@@ -341,6 +361,7 @@ $(CPUOBJ)/cop400/cop400.o:  $(CPUSRC)/cop400/cop400.c \
 
 #-------------------------------------------------
 # CP1610
+#@src/emu/cpu/cp1610/cp1610.h,CPUS += CP1610
 #-------------------------------------------------
 
 ifneq ($(filter CP1610,$(CPUS)),)
@@ -356,6 +377,7 @@ $(CPUOBJ)/cp1610/cp1610.o:  $(CPUSRC)/cp1610/cp1610.c \
 
 #-------------------------------------------------
 # Cinematronics vector "CPU"
+#@src/emu/cpu/ccpu/ccpu.h,CPUS += CCPU
 #-------------------------------------------------
 
 ifneq ($(filter CCPU,$(CPUS)),)
@@ -371,6 +393,7 @@ $(CPUOBJ)/ccpu/ccpu.o:  $(CPUSRC)/ccpu/ccpu.c \
 
 #-------------------------------------------------
 # DEC T-11
+#@src/emu/cpu/t11/t11.h,CPUS += T11
 #-------------------------------------------------
 
 ifneq ($(filter T11,$(CPUS)),)
@@ -388,6 +411,7 @@ $(CPUOBJ)/t11/t11.o:    $(CPUSRC)/t11/t11.c \
 
 #-------------------------------------------------
 # F8
+#@src/emu/cpu/f8/f8.h,CPUS += F8
 #-------------------------------------------------
 
 ifneq ($(filter F8,$(CPUS)),)
@@ -403,6 +427,7 @@ $(CPUOBJ)/f8/f8.o:  $(CPUSRC)/f8/f8.c \
 
 #-------------------------------------------------
 # G65816
+#@src/emu/cpu/g65816/g65816.h,CPUS += G65816
 #-------------------------------------------------
 
 ifneq ($(filter G65816,$(CPUS)),)
@@ -444,6 +469,7 @@ $(CPUOBJ)/g65816/g65816o4.o:    $(CPUSRC)/g65816/g65816o4.c \
 
 #-------------------------------------------------
 # Hitachi H8/30xx (16/32-bit H8/3xx series)
+#@src/emu/cpu/h83002/h8.h,CPUS += H83002
 #-------------------------------------------------
 
 ifneq ($(filter H83002,$(CPUS)),)
@@ -470,6 +496,7 @@ $(CPUOBJ)/h83002/h8speriph.o:   $(CPUSRC)/h83002/h8speriph.c \
 
 #-------------------------------------------------
 # Hitachi H8/3334 (8/16-bit H8/3xx series)
+#@src/emu/cpu/h83002/h8.h,CPUS += H83334
 #-------------------------------------------------
 
 ifneq ($(filter H83334,$(CPUS)),)
@@ -495,6 +522,7 @@ $(CPUOBJ)/h83002/h8speriph.o:   $(CPUSRC)/h83002/h8speriph.c \
 
 #-------------------------------------------------
 # Hitachi HCD62121
+#@src/emu/cpu/hcd62121/hcd62121.h,CPUS += HCD62121
 #-------------------------------------------------
 
 ifneq ($(filter HCD62121,$(CPUS)),)
@@ -510,6 +538,7 @@ $(CPUOBJ)/hcd62121/hcd62121.o:  $(CPUSRC)/hcd62121/hcd62121.c \
 
 #-------------------------------------------------
 # Hitachi SH1/SH2
+#@src/emu/cpu/sh2/sh2.h,CPUS += SH2
 #-------------------------------------------------
 
 ifneq ($(filter SH2,$(CPUS)),)
@@ -537,6 +566,7 @@ $(CPUOBJ)/sh2/sh2fe.o:  $(CPUSRC)/sh2/sh2fe.c \
 
 #-------------------------------------------------
 # Hitachi SH4
+#@src/emu/cpu/sh4/sh4.h,CPUS += SH4
 #-------------------------------------------------
 
 ifneq ($(filter SH4,$(CPUS)),)
@@ -581,6 +611,7 @@ $(CPUOBJ)/sh4/sh4dmac.o: $(CPUSRC)/sh4/sh4dmac.c \
 
 #-------------------------------------------------
 # Hudsonsoft 6280
+#@src/emu/cpu/h6280/h6280.h,CPUS += H6280
 #-------------------------------------------------
 
 ifneq ($(filter H6280,$(CPUS)),)
@@ -592,12 +623,12 @@ endif
 $(CPUOBJ)/h6280/h6280.o:    $(CPUSRC)/h6280/h6280.c \
 							$(CPUSRC)/h6280/h6280.h \
 							$(CPUSRC)/h6280/h6280ops.h \
-							$(CPUSRC)/h6280/tblh6280.c
 
 
 
 #-------------------------------------------------
 # Hyperstone E1 series
+#@src/emu/cpu/e132xs/e132xs.h,CPUS += E1
 #-------------------------------------------------
 
 ifneq ($(filter E1,$(CPUS)),)
@@ -614,6 +645,7 @@ $(CPUOBJ)/e132xs/e132xs.o:  $(CPUSRC)/e132xs/e132xs.c \
 
 #-------------------------------------------------
 # 15IE-00-013 CPU ("Microprogrammed Control Device")
+#@src/emu/cpu/ie15/ie15.h,CPUS += IE15
 #-------------------------------------------------
 
 ifneq ($(filter IE15,$(CPUS)),)
@@ -628,6 +660,7 @@ $(CPUOBJ)/ie15/ie15.o:      $(CPUSRC)/ie15/ie15.c \
 
 #-------------------------------------------------
 # Intel 4004
+#@src/emu/cpu/i4004/i4004.h,CPUS += I4004
 #-------------------------------------------------
 
 ifneq ($(filter I4004,$(CPUS)),)
@@ -642,6 +675,7 @@ $(CPUOBJ)/i4004/i4004.o:    $(CPUSRC)/i4004/i4004.c \
 
 #-------------------------------------------------
 # Intel 8008
+#@src/emu/cpu/i8008/i8008.h,CPUS += I8008
 #-------------------------------------------------
 
 ifneq ($(filter I8008,$(CPUS)),)
@@ -655,6 +689,7 @@ $(CPUOBJ)/i8008/i8008.o:    $(CPUSRC)/i8008/i8008.c \
 
 #-------------------------------------------------
 #  National Semiconductor SC/MP
+#@src/emu/cpu/scmp/scmp.h,CPUS += SCMP
 #-------------------------------------------------
 
 ifneq ($(filter SCMP,$(CPUS)),)
@@ -669,6 +704,7 @@ $(CPUOBJ)/scmp/scmp.o:      $(CPUSRC)/scmp/scmp.c \
 
 #-------------------------------------------------
 # Intel 8080/8085A
+#@src/emu/cpu/i8085/i8085.h,CPUS += I8085
 #-------------------------------------------------
 
 ifneq ($(filter I8085,$(CPUS)),)
@@ -682,9 +718,29 @@ $(CPUOBJ)/i8085/i8085.o:    $(CPUSRC)/i8085/i8085.c \
 							$(CPUSRC)/i8085/i8085cpu.h
 
 
+#-------------------------------------------------
+# Intel 8089
+#@src/emu/cpu/i8085/i8089.h,CPUS += I8089
+#-------------------------------------------------
+
+ifneq ($(filter I8089,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/i8089
+CPUOBJS += $(CPUOBJ)/i8089/i8089.o \
+			$(CPUOBJ)/i8089/i8089_channel.o \
+			$(CPUOBJ)/i8089/i8089_ops.o
+DASMOBJS += $(CPUOBJ)/i8089/i8089_dasm.o
+endif
+
+$(CPUOBJ)/i8089/i8089_ops.o:     $(CPUSRC)/i8089/i8089_channel.h
+$(CPUOBJ)/i8089/i8089_channel.o: $(CPUSRC)/i8089/i8089_channel.h
+
+$(CPUOBJ)/i8089/i8089.o:    $(CPUSRC)/i8089/i8089.c \
+							$(CPUSRC)/i8089/i8089.h
+
 
 #-------------------------------------------------
 # Intel MCS-48 (8039 and derivatives)
+#@src/emu/cpu/mcs48/mcs48.h,CPUS += MCS48
 #-------------------------------------------------
 
 ifneq ($(filter MCS48,$(CPUS)),)
@@ -700,6 +756,7 @@ $(CPUOBJ)/mcs48/mcs48.o:    $(CPUSRC)/mcs48/mcs48.c \
 
 #-------------------------------------------------
 # Intel 8051 and derivatives
+#@src/emu/cpu/mcs51/mcs51.h,CPUS += MCS51
 #-------------------------------------------------
 
 ifneq ($(filter MCS51,$(CPUS)),)
@@ -714,6 +771,7 @@ $(CPUOBJ)/mcs51/mcs51.o:    $(CPUSRC)/mcs51/mcs51.c \
 
 #-------------------------------------------------
 # Intel MCS-96
+#@src/emu/cpu/mcs96/mcs96.h,CPUS += MCS96
 #-------------------------------------------------
 
 ifneq ($(filter MCS96,$(CPUS)),)
@@ -751,11 +809,15 @@ $(CPUOBJ)/mcs96/i8xc196.inc: $(CPUSRC)/mcs96/mcs96make.py $(CPUSRC)/mcs96/mcs96o
 
 #-------------------------------------------------
 # Intel 80x86 series
+#@src/emu/cpu/i86/i86.h,CPUS += I86
+#@src/emu/cpu/i86/i286.h,CPUS += I86
+#@src/emu/cpu/i386/i386.h,CPUS += I386
 #-------------------------------------------------
 
 ifneq ($(filter I86,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/i86 $(CPUOBJ)/i386
 CPUOBJS += $(CPUOBJ)/i86/i86.o
+CPUOBJS += $(CPUOBJ)/i86/i186.o
 CPUOBJS += $(CPUOBJ)/i86/i286.o
 DASMOBJS += $(CPUOBJ)/i386/i386dasm.o
 endif
@@ -766,27 +828,19 @@ CPUOBJS += $(CPUOBJ)/i386/i386.o
 DASMOBJS += $(CPUOBJ)/i386/i386dasm.o
 endif
 
-I86DEPS = \
-	$(CPUSRC)/i86/i86priv.h \
-	$(CPUSRC)/i86/ea.h \
-	$(CPUSRC)/i86/host.h \
-	$(CPUSRC)/i86/modrm.h
-
 $(CPUOBJ)/i86/i86.o:    $(CPUSRC)/i86/i86.c \
 						$(CPUSRC)/i86/i86.h \
-						$(CPUSRC)/i86/i86time.c \
-						$(CPUSRC)/i86/instr86.c \
-						$(CPUSRC)/i86/instr186.c \
-						$(I86DEPS)
+						$(CPUSRC)/i86/i86inline.h
+
+$(CPUOBJ)/i86/i186.o:   $(CPUSRC)/i86/i186.c \
+						$(CPUSRC)/i86/i86.h \
+						$(CPUSRC)/i86/i186.h \
+						$(CPUSRC)/i86/i86inline.h
 
 $(CPUOBJ)/i86/i286.o:   $(CPUSRC)/i86/i286.c \
+						$(CPUSRC)/i86/i86.h \
 						$(CPUSRC)/i86/i286.h \
-						$(CPUSRC)/i86/i86time.c \
-						$(CPUSRC)/i86/instr86.c \
-						$(CPUSRC)/i86/instr186.c \
-						$(CPUSRC)/i86/instr286.c \
-						$(CPUSRC)/i86/modrm286.h \
-						$(I86DEPS)
+						$(CPUSRC)/i86/i86inline.h
 
 $(CPUOBJ)/i386/i386.o:  $(CPUSRC)/i386/i386.c \
 						$(CPUSRC)/i386/i386.h \
@@ -804,6 +858,7 @@ $(CPUOBJ)/i386/i386.o:  $(CPUSRC)/i386/i386.c \
 
 #-------------------------------------------------
 # Intel i860
+#@src/emu/cpu/i860/i860.h,CPUS += I860
 #-------------------------------------------------
 
 ifneq ($(filter I860,$(CPUS)),)
@@ -818,6 +873,7 @@ $(CPUOBJ)/i860/i860.o:  $(CPUSRC)/i860/i860.c \
 
 #-------------------------------------------------
 # Intel i960
+#@src/emu/cpu/i960/i960.h,CPUS += I960
 #-------------------------------------------------
 
 ifneq ($(filter I960,$(CPUS)),)
@@ -833,6 +889,7 @@ $(CPUOBJ)/i960/i960.o:  $(CPUSRC)/i960/i960.c \
 
 #-------------------------------------------------
 # LH5801
+#@src/emu/cpu/lh5801/lh5801.h,CPUS += LH5801
 #-------------------------------------------------
 
 ifneq ($(filter LH5801,$(CPUS)),)
@@ -849,6 +906,7 @@ $(CPUOBJ)/lh5801/lh5801.o:  $(CPUSRC)/lh5801/lh5801.c \
 
 #-------------------------------------------------
 # Manchester Small-Scale Experimental Machine
+#@src/emu/cpu/ssem/ssem.h,CPUS += SSEM
 #-------------------------------------------------
 
 ifneq ($(filter SSEM,$(CPUS)),)
@@ -864,6 +922,7 @@ $(CPUOBJ)/ssem/ssem.o:  $(CPUSRC)/ssem/ssem.c \
 
 #-------------------------------------------------
 # Fujitsu MB88xx
+#@src/emu/cpu/mb88xx/mb88xx.h,CPUS += MB88XX
 #-------------------------------------------------
 
 ifneq ($(filter MB88XX,$(CPUS)),)
@@ -879,6 +938,7 @@ $(CPUOBJ)/mb88xx/mb88xx.o:  $(CPUSRC)/mb88xx/mb88xx.c \
 
 #-------------------------------------------------
 # Fujitsu MB86233
+#@src/emu/cpu/mb86233/mb86233.h,CPUS += MB86233
 #-------------------------------------------------
 
 ifneq ($(filter MB86233,$(CPUS)),)
@@ -894,6 +954,7 @@ $(CPUOBJ)/mb86233/mb86233.o:    $(CPUSRC)/mb86233/mb86233.c \
 
 #-------------------------------------------------
 # Microchip PIC16C5x
+#@src/emu/cpu/pic16c5x/pic16c5x.h,CPUS += PIC16C5X
 #-------------------------------------------------
 
 ifneq ($(filter PIC16C5X,$(CPUS)),)
@@ -909,6 +970,7 @@ $(CPUOBJ)/pic16c5x/pic16c5x.o:  $(CPUSRC)/pic16c5x/pic16c5x.c \
 
 #-------------------------------------------------
 # Microchip PIC16C62x
+#@src/emu/cpu/pic16c62x/pic16c62x.h,CPUS += PIC16C62X
 #-------------------------------------------------
 
 ifneq ($(filter PIC16C62X,$(CPUS)),)
@@ -925,6 +987,7 @@ $(CPUOBJ)/pic16c62x/pic16c62x.o:    $(CPUSRC)/pic16c62x/pic16c62x.c \
 #-------------------------------------------------
 # MIPS R3000 (MIPS I/II) series
 # MIPS R4000 (MIPS III/IV) series
+#@src/emu/cpu/mips/mips3.h,CPUS += MIPS
 #-------------------------------------------------
 
 ifneq ($(filter MIPS,$(CPUS)),)
@@ -958,6 +1021,7 @@ $(CPUOBJ)/mips/mips3drc.o:  $(CPUSRC)/mips/mips3drc.c \
 
 #-------------------------------------------------
 # Sony PlayStation CPU (R3000-based + GTE)
+#@src/emu/cpu/psx/psx.h,CPUS += PSX
 #-------------------------------------------------
 
 ifneq ($(filter PSX,$(CPUS)),)
@@ -990,6 +1054,7 @@ $(CPUOBJ)/psx/sio.o:    $(CPUSRC)/psx/sio.c \
 
 #-------------------------------------------------
 # Mitsubishi M37702 and M37710 (based on 65C816)
+#@src/emu/cpu/m37710/m37710.h,CPUS += M37710
 #-------------------------------------------------
 
 ifneq ($(filter M37710,$(CPUS)),)
@@ -1030,6 +1095,24 @@ $(CPUOBJ)/m37710/m7700ds.o:     $(CPUSRC)/m37710/m7700ds.c \
 
 #-------------------------------------------------
 # Mostek 6502 and its many derivatives
+#@src/emu/cpu/m6502/m6502.h,CPUS += M6502
+#@src/emu/cpu/m6502/deco16.h,CPUS += M6502
+#@src/emu/cpu/m6502/m4510.h,CPUS += M6502
+#@src/emu/cpu/m6502/m65ce02.h,CPUS += M6502
+#@src/emu/cpu/m6502/m65c02.h,CPUS += M6502
+#@src/emu/cpu/m6502/r65c02.h,CPUS += M6502
+#@src/emu/cpu/m6502/m65sc02.h,CPUS += M6502
+#@src/emu/cpu/m6502/m6504.h,CPUS += M6502
+#@src/emu/cpu/m6502/m6509.h,CPUS += M6502
+#@src/emu/cpu/m6502/m6510.h,CPUS += M6502
+#@src/emu/cpu/m6502/m6510t.h,CPUS += M6502
+#@src/emu/cpu/m6502/m7501.h,CPUS += M6502
+#@src/emu/cpu/m6502/m8502.h,CPUS += M6502
+#@src/emu/cpu/m6502/n2a03.h,CPUS += M6502
+#@src/emu/cpu/m6502/m740.h,CPUS += M6502
+#@src/emu/cpu/m6502/m3745x.h,CPUS += M6502
+#@src/emu/cpu/m6502/m5074x.h,CPUS += M6502
+
 #-------------------------------------------------
 
 ifneq ($(filter M6502,$(CPUS)),)
@@ -1140,47 +1223,48 @@ $(CPUOBJ)/m6502/m5074x.o:   $(CPUSRC)/m6502/m5074x.c \
 
 # rule to generate the C files
 $(CPUOBJ)/m6502/deco16.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/odeco16.lst $(CPUSRC)/m6502/ddeco16.lst
-	@echo Generating DECO16 source file...
+	@echo Generating deco16 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py deco16_device $(CPUSRC)/m6502/odeco16.lst $(CPUSRC)/m6502/ddeco16.lst $@
 
 $(CPUOBJ)/m6502/m4510.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/om4510.lst $(CPUSRC)/m6502/dm4510.lst
-	@echo Generating M4510 source file...
+	@echo Generating m4510 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py m4510_device $(CPUSRC)/m6502/om4510.lst $(CPUSRC)/m6502/dm4510.lst $@
 
 $(CPUOBJ)/m6502/m6502.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/om6502.lst $(CPUSRC)/m6502/dm6502.lst
-	@echo Generating M6502 source file...
+	@echo Generating m6502 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py m6502_device $(CPUSRC)/m6502/om6502.lst $(CPUSRC)/m6502/dm6502.lst $@
 
 $(CPUOBJ)/m6502/m65c02.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/om65c02.lst $(CPUSRC)/m6502/dm65c02.lst
-	@echo Generating M65C02 source file...
+	@echo Generating m65c02 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py m65c02_device $(CPUSRC)/m6502/om65c02.lst $(CPUSRC)/m6502/dm65c02.lst $@
 
 $(CPUOBJ)/m6502/m65ce02.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/om65ce02.lst $(CPUSRC)/m6502/dm65ce02.lst
-	@echo Generating M65CE02 source file...
+	@echo Generating m65ce02 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py m65ce02_device $(CPUSRC)/m6502/om65ce02.lst $(CPUSRC)/m6502/dm65ce02.lst $@
 
 $(CPUOBJ)/m6502/m6509.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/om6509.lst $(CPUSRC)/m6502/dm6509.lst
-	@echo Generating M6509 source file...
+	@echo Generating m6509 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py m6509_device $(CPUSRC)/m6502/om6509.lst $(CPUSRC)/m6502/dm6509.lst $@
 
 $(CPUOBJ)/m6502/m6510.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/om6510.lst $(CPUSRC)/m6502/dm6510.lst
-	@echo Generating M6510 source file...
+	@echo Generating m6510 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py m6510_device $(CPUSRC)/m6502/om6510.lst $(CPUSRC)/m6502/dm6510.lst $@
 
 $(CPUOBJ)/m6502/n2a03.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/on2a03.lst $(CPUSRC)/m6502/dn2a03.lst
-	@echo Generating N2A03 source file...
+	@echo Generating n2a03 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py n2a03_device $(CPUSRC)/m6502/on2a03.lst $(CPUSRC)/m6502/dn2a03.lst $@
 
 $(CPUOBJ)/m6502/r65c02.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/dr65c02.lst
-	@echo Generating R65C02 source file...
+	@echo Generating r65c02 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py r65c02_device - $(CPUSRC)/m6502/dr65c02.lst $@
 
 $(CPUOBJ)/m6502/m740.inc: $(CPUSRC)/m6502/m6502make.py $(CPUSRC)/m6502/om740.lst $(CPUSRC)/m6502/dm740.lst
-	@echo Generating M740 source file...
+	@echo Generating m740 source file...
 	$(PYTHON) $(CPUSRC)/m6502/m6502make.py m740_device $(CPUSRC)/m6502/om740.lst $(CPUSRC)/m6502/dm740.lst $@
 
 #-------------------------------------------------
 # Motorola 680x
+#@src/emu/cpu/m6800/m6800.h,CPUS += M6800
 #-------------------------------------------------
 
 ifneq ($(filter M6800,$(CPUS)),)
@@ -1198,6 +1282,7 @@ $(CPUOBJ)/m6800/m6800.o:    $(CPUSRC)/m6800/m6800.c \
 
 #-------------------------------------------------
 # Motorola 6805
+#@src/emu/cpu/m6805/m6805.h,CPUS += M6805
 #-------------------------------------------------
 
 ifneq ($(filter M6805,$(CPUS)),)
@@ -1214,6 +1299,9 @@ $(CPUOBJ)/m6805/m6805.o:    $(CPUSRC)/m6805/m6805.c \
 
 #-------------------------------------------------
 # Motorola 6809
+#@src/emu/cpu/m6809/m6809.h,CPUS += M6809
+#@src/emu/cpu/m6809/hd6309.h,CPUS += M6809
+#@src/emu/cpu/m6809/konami.h,CPUS += M6809
 #-------------------------------------------------
 
 ifneq ($(filter M6809,$(CPUS)),)
@@ -1256,6 +1344,7 @@ $(CPUOBJ)/m6809/konami.inc: $(CPUSRC)/m6809/m6809make.py $(CPUSRC)/m6809/konami.
 
 #-------------------------------------------------
 # Motorola 68HC11
+#@src/emu/cpu/mc68hc11/mc68hc11.h,CPUS += MC68HC11
 #-------------------------------------------------
 
 ifneq ($(filter MC68HC11,$(CPUS)),)
@@ -1271,19 +1360,12 @@ $(CPUOBJ)/mc68hc11/mc68hc11.o:  $(CPUSRC)/mc68hc11/mc68hc11.c \
 
 #-------------------------------------------------
 # Motorola 68000 series
+#@src/emu/cpu/m68000/m68000.h,CPUS += M680X0
 #-------------------------------------------------
 
 ifneq ($(filter M680X0,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/m68000
 CPUOBJS += $(CPUOBJ)/m68000/m68kcpu.o $(CPUOBJ)/m68000/m68kops.o \
-	$(CPUOBJ)/m68000/68307sim.o \
-	$(CPUOBJ)/m68000/68307bus.o \
-	$(CPUOBJ)/m68000/68307ser.o \
-	$(CPUOBJ)/m68000/68307tmu.o \
-	$(CPUOBJ)/m68000/68340sim.o \
-	$(CPUOBJ)/m68000/68340dma.o \
-	$(CPUOBJ)/m68000/68340ser.o \
-	$(CPUOBJ)/m68000/68340tmu.o \
 
 DASMOBJS += $(CPUOBJ)/m68000/m68kdasm.o
 ifndef M68KMAKE
@@ -1322,18 +1404,12 @@ $(CPUOBJ)/m68000/m68kcpu.o:     $(CPUOBJ)/m68000/m68kops.c \
 
 # m68kcpu.h now includes m68kops.h; m68kops.h won't exist until m68kops.c has been made
 $(CPUSRC)/m68000/m68kcpu.h: $(CPUOBJ)/m68000/m68kops.c
-$(CPUSRC)/m68000/68307sim.c: $(CPUOBJ)/m68000/m68kops.c
-$(CPUSRC)/m68000/68307bus.c: $(CPUOBJ)/m68000/m68kops.c
-$(CPUSRC)/m68000/68307ser.c: $(CPUOBJ)/m68000/m68kops.c
-$(CPUSRC)/m68000/68307tmu.c: $(CPUOBJ)/m68000/m68kops.c
-$(CPUSRC)/m68000/68340sim.c: $(CPUOBJ)/m68000/m68kops.c
-$(CPUSRC)/m68000/68340dma.c: $(CPUOBJ)/m68000/m68kops.c
-$(CPUSRC)/m68000/68340ser.c: $(CPUOBJ)/m68000/m68kops.c
-$(CPUSRC)/m68000/68340tmu.c: $(CPUOBJ)/m68000/m68kops.c
+
 
 
 #-------------------------------------------------
 # Motorola/Freescale dsp56k
+#@src/emu/cpu/dsp56k/dsp56k.h,CPUS += DSP56156
 #-------------------------------------------------
 
 ifneq ($(filter DSP56156,$(CPUS)),)
@@ -1382,6 +1458,8 @@ $(CPUOBJ)/dsp56k/dsp56dsm.o:    $(CPUSRC)/dsp56k/opcode.c \
 #-------------------------------------------------
 # PDP-1
 # TX0
+#@src/emu/cpu/pdp1/pdp1.h,CPUS += PDP1
+#@src/emu/cpu/pdp1/tx0.h,CPUS += PDP1
 #-------------------------------------------------
 
 ifneq ($(filter PDP1,$(CPUS)),)
@@ -1404,6 +1482,7 @@ $(CPUOBJ)/pdp1/tx0dasm.o:   $(CPUSRC)/pdp1/tx0.h \
 
 #-------------------------------------------------
 # Motorola PowerPC series
+#@src/emu/cpu/powerpc/ppc.h,CPUS += POWERPC
 #-------------------------------------------------
 
 ifneq ($(filter POWERPC,$(CPUS)),)
@@ -1429,6 +1508,8 @@ $(CPUOBJ)/powerpc/ppcdrc.o: $(CPUSRC)/powerpc/ppcdrc.c \
 
 #-------------------------------------------------
 # NEC V-series Intel-compatible
+#@src/emu/cpu/nec/nec.h,CPUS += NEC
+#@src/emu/cpu/v30mz/v30mz.h,CPUS += V30MZ
 #-------------------------------------------------
 
 ifneq ($(filter NEC,$(CPUS)),)
@@ -1475,6 +1556,7 @@ $(CPUOBJ)/v30mz/v30mz.o:    $(CPUSRC)/v30mz/v30mz.c \
 
 #-------------------------------------------------
 # NEC V60/V70
+#@src/emu/cpu/v60/v60.h,CPUS += V60
 #-------------------------------------------------
 
 ifneq ($(filter V60,$(CPUS)),)
@@ -1503,6 +1585,7 @@ $(CPUOBJ)/v60/v60.o:    $(CPUSRC)/v60/am.c \
 
 #-------------------------------------------------
 # NEC V810 (uPD70732)
+#@src/emu/cpu/v810/v810.h,CPUS += V810
 #-------------------------------------------------
 
 ifneq ($(filter V810,$(CPUS)),)
@@ -1517,6 +1600,7 @@ $(CPUOBJ)/v810/v810.o:  $(CPUSRC)/v810/v810.c \
 
 #-------------------------------------------------
 # NEC uPD7725
+#@src/emu/cpu/upd7725/upd7725.h,CPUS += UPD7725
 #-------------------------------------------------
 
 ifneq ($(filter UPD7725,$(CPUS)),)
@@ -1531,6 +1615,7 @@ $(CPUOBJ)/upd7725/upd7725.o:    $(CPUSRC)/upd7725/upd7725.c \
 
 #-------------------------------------------------
 # NEC uPD7810 series
+#@src/emu/cpu/upd7810/upd7810.h,CPUS += UPD7810
 #-------------------------------------------------
 
 ifneq ($(filter UPD7810,$(CPUS)),)
@@ -1548,6 +1633,7 @@ $(CPUOBJ)/upd7810/upd7810.o:    $(CPUSRC)/upd7810/upd7810.c \
 
 #-------------------------------------------------
 # Nintendo Minx
+#@src/emu/cpu/minx/minx.h,CPUS += MINX
 #-------------------------------------------------
 
 ifneq ($(filter MINX,$(CPUS)),)
@@ -1567,6 +1653,7 @@ $(CPUOBJ)/minx/minx.o:      $(CPUSRC)/minx/minx.c \
 
 #-------------------------------------------------
 # Nintendo/SGI RSP (R3000-based + vector processing)
+#@src/emu/cpu/rsp/rsp.h,CPUS += RSP
 #-------------------------------------------------
 
 ifneq ($(filter RSP,$(CPUS)),)
@@ -1589,6 +1676,7 @@ $(CPUOBJ)/rsp/rspfe.o:  $(CPUSRC)/rsp/rspfe.c \
 
 #-------------------------------------------------
 # Panasonic MN10200
+#@src/emu/cpu/mn10200/mn10200.h,CPUS += MN10200
 #-------------------------------------------------
 
 ifneq ($(filter MN10200,$(CPUS)),)
@@ -1603,6 +1691,7 @@ $(CPUOBJ)/mn10200/mn10200.o:    $(CPUSRC)/mn10200/mn10200.c \
 
 #-------------------------------------------------
 # Saturn
+#@src/emu/cpu/saturn/saturn.h,CPUS += SATURN
 #-------------------------------------------------
 
 ifneq ($(filter SATURN,$(CPUS)),)
@@ -1620,6 +1709,7 @@ $(CPUOBJ)/saturn/saturn.o:  $(CPUSRC)/saturn/saturn.c \
 
 #-------------------------------------------------
 # Signetics 2650
+#@src/emu/cpu/s2650/s2650.h,CPUS += S2650
 #-------------------------------------------------
 
 ifneq ($(filter S2650,$(CPUS)),)
@@ -1636,6 +1726,7 @@ $(CPUOBJ)/s2650/s2650.o:    $(CPUSRC)/s2650/s2650.c \
 
 #-------------------------------------------------
 # SC61860
+#@src/emu/cpu/sc61860/sc61860.h,CPUS += SC61860
 #-------------------------------------------------
 
 ifneq ($(filter SC61860,$(CPUS)),)
@@ -1653,6 +1744,7 @@ $(CPUOBJ)/sc61860/sc61860.o:    $(CPUSRC)/sc61860/sc61860.h \
 
 #-------------------------------------------------
 # SM8500
+#@src/emu/cpu/sm8500/sm8500.h,CPUS += SM8500
 #-------------------------------------------------
 
 ifneq ($(filter SM8500,$(CPUS)),)
@@ -1669,6 +1761,7 @@ $(CPUOBJ)/sm8500/sm8500.o:  $(CPUSRC)/sm8500/sm8500.c \
 
 #-------------------------------------------------
 # Sony/Nintendo SPC700
+#@src/emu/cpu/spc700/spc700.h,CPUS += SPC700
 #-------------------------------------------------
 
 ifneq ($(filter SPC700,$(CPUS)),)
@@ -1685,6 +1778,7 @@ $(CPUOBJ)/spc700/spc700.o:  $(CPUSRC)/spc700/spc700.c \
 
 #-------------------------------------------------
 # SSP1601
+#@src/emu/cpu/ssp1610/ssp1601.h,CPUS += SSP1601
 #-------------------------------------------------
 
 ifneq ($(filter SSP1601,$(CPUS)),)
@@ -1700,6 +1794,7 @@ $(CPUOBJ)/ssp1610/ssp1601.o:    $(CPUSRC)/ssp1601/ssp1601.c \
 
 #-------------------------------------------------
 # SunPlus u'nSP
+#@src/emu/cpu/unsp/unsp.h,CPUS += UNSP
 #-------------------------------------------------
 
 ifneq ($(filter UNSP,$(CPUS)),)
@@ -1715,6 +1810,7 @@ $(CPUOBJ)/unsp/unsp.o:  $(CPUSRC)/unsp/unsp.c \
 
 #-------------------------------------------------
 # Atmel 8-bit AVR
+#@src/emu/cpu/avr8/avr8.h,CPUS += AVR8
 #-------------------------------------------------
 
 ifneq ($(filter AVR8,$(CPUS)),)
@@ -1730,6 +1826,7 @@ $(CPUOBJ)/avr8/avr8.o:  $(CPUSRC)/avr8/avr8.c \
 
 #-------------------------------------------------
 # Texas Instruments TMS0980
+#@src/emu/cpu/tms0980/tms0980.h,CPUS += TMS0980
 #-------------------------------------------------
 
 ifneq ($(filter TMS0980,$(CPUS)),)
@@ -1748,6 +1845,7 @@ $(CPUOBJ)/tms0980/tms0980d.o:   $(CPUSRC)/tms0980/tms0980.h \
 
 #-------------------------------------------------
 # Texas Instruments TMS7000 series
+#@src/emu/cpu/tms7000/tms7000.h,CPUS += TMS7000
 #-------------------------------------------------
 
 ifneq ($(filter TMS7000,$(CPUS)),)
@@ -1768,6 +1866,11 @@ $(CPUOBJ)/tms7000/7000dasm.o:   $(CPUSRC)/tms7000/tms7000.h \
 
 #-------------------------------------------------
 # Texas Instruments TMS99xx series
+#@src/emu/cpu/tms9900/tms9900.h,CPUS += TMS9900
+#@src/emu/cpu/tms9900/tms9900l.h,CPUS += TMS9900
+#@src/emu/cpu/tms9900/tms9980a.h,CPUS += TMS9900
+#@src/emu/cpu/tms9900/tms9995.h,CPUS += TMS9900
+
 #-------------------------------------------------
 
 ifneq ($(filter TMS9900,$(CPUS)),)
@@ -1817,6 +1920,7 @@ $(CPUOBJ)/tms9900/ti990_10l.o:  $(CPUSRC)/tms9900/ti990_10l.c \
 
 #-------------------------------------------------
 # Texas Instruments TMS340x0 graphics controllers
+#@src/emu/cpu/tms34010/tms34010.h,CPUS += TMS340X0
 #-------------------------------------------------
 
 ifneq ($(filter TMS340X0,$(CPUS)),)
@@ -1836,6 +1940,7 @@ $(CPUOBJ)/tms34010/tms34010.o:  $(CPUSRC)/tms34010/tms34010.c \
 
 #-------------------------------------------------
 # Texas Instruments TMS3201x DSP
+#@src/emu/cpu/tms32010/tms32010.h,CPUS += TMS32010
 #-------------------------------------------------
 
 ifneq ($(filter TMS32010,$(CPUS)),)
@@ -1851,6 +1956,7 @@ $(CPUOBJ)/tms32010/tms32010.o:  $(CPUSRC)/tms32010/tms32010.c \
 
 #-------------------------------------------------
 # Texas Instruments TMS3202x DSP
+#@src/emu/cpu/tms32025/tms32025.h,CPUS += TMS32025
 #-------------------------------------------------
 
 ifneq ($(filter TMS32025,$(CPUS)),)
@@ -1866,6 +1972,7 @@ $(CPUOBJ)/tms32025/tms32025.o:  $(CPUSRC)/tms32025/tms32025.c \
 
 #-------------------------------------------------
 # Texas Instruments TMS3203x DSP
+#@src/emu/cpu/tms32031/tms32031.h,CPUS += TMS32031
 #-------------------------------------------------
 
 ifneq ($(filter TMS32031,$(CPUS)),)
@@ -1882,6 +1989,7 @@ $(CPUOBJ)/tms32031/tms32031.o:  $(CPUSRC)/tms32031/tms32031.c \
 
 #-------------------------------------------------
 # Texas Instruments TMS3205x DSP
+#@src/emu/cpu/tms32051/tms32051.h,CPUS += TMS32051
 #-------------------------------------------------
 
 ifneq ($(filter TMS32051,$(CPUS)),)
@@ -1897,7 +2005,25 @@ $(CPUOBJ)/tms32051/tms32051.o:  $(CPUSRC)/tms32051/tms32051.c \
 
 
 #-------------------------------------------------
+# Texas Instruments TMS3208x DSP
+#@src/emu/cpu/tms32082/tms32082.h,CPUS += TMS32082_MP
+#-------------------------------------------------
+
+ifneq ($(filter TMS32082,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/tms32082
+CPUOBJS += $(CPUOBJ)/tms32082/tms32082.o $(CPUOBJ)/tms32082/mp_ops.o
+DASMOBJS += $(CPUOBJ)/tms32082/dis_mp.o $(CPUOBJ)/tms32082/dis_pp.o
+endif
+
+$(CPUOBJ)/tms32082/tms32082.o:  $(CPUSRC)/tms32082/tms32082.c \
+								$(CPUSRC)/tms32082/mp_ops.c \
+								$(CPUSRC)/tms32082/tms32082.h
+
+
+
+#-------------------------------------------------
 # Texas Instruments TMS57002 DSP
+#@src/emu/cpu/tms57002/tms57002.h,CPUS += TMS57002
 #-------------------------------------------------
 
 ifneq ($(filter TMS57002,$(CPUS)),)
@@ -1925,6 +2051,7 @@ $(CPUOBJ)/tms57002/tms57002.inc: $(CPUSRC)/tms57002/tmsmake.py $(CPUSRC)/tms5700
 
 #-------------------------------------------------
 # Toshiba TLCS-90 Series
+#@src/emu/cpu/tlcs90/tlcs90.h,CPUS += TLCS90
 #-------------------------------------------------
 
 ifneq ($(filter TLCS90,$(CPUS)),)
@@ -1940,6 +2067,7 @@ $(CPUOBJ)/tlcs90/tlcs90.o:  $(CPUSRC)/tlcs90/tlcs90.c \
 
 #-------------------------------------------------
 # Toshiba TLCS-900 Series
+#@src/emu/cpu/tlcs900/tlcs900.h,CPUS += TLCS900
 #-------------------------------------------------
 
 ifneq ($(filter TLCS900,$(CPUS)),)
@@ -1958,6 +2086,7 @@ $(CPUOBJ)/tlcs900/dasm900.o:    $(CPUSRC)/tlcs900/dasm900.c
 
 #-------------------------------------------------
 # Zilog Z80
+#@src/emu/cpu/z80/z80.h,CPUS += Z80
 #-------------------------------------------------
 
 ifneq ($(filter Z80,$(CPUS)),)
@@ -1973,6 +2102,7 @@ $(CPUOBJ)/z80/z80.o:    $(CPUSRC)/z80/z80.c \
 
 #-------------------------------------------------
 # Sharp LR35902 (Game Boy CPU)
+#@src/emu/cpu/lr35902/lr35902.h,CPUS += LR35902
 #-------------------------------------------------
 
 ifneq ($(filter LR35902,$(CPUS)),)
@@ -1990,6 +2120,7 @@ $(CPUOBJ)/lr35902/lr35902.o:    $(CPUSRC)/lr35902/lr35902.c \
 
 #-------------------------------------------------
 # Zilog Z180
+#@src/emu/cpu/z180/z180.h,CPUS += Z180
 #-------------------------------------------------
 
 ifneq ($(filter Z180,$(CPUS)),)
@@ -2013,6 +2144,7 @@ $(CPUOBJ)/z180/z180.o:  $(CPUSRC)/z180/z180.c \
 
 #-------------------------------------------------
 # Zilog Z8000
+#@src/emu/cpu/z8000/z8000.h,CPUS += Z8000
 #-------------------------------------------------
 
 ifneq ($(filter Z8000,$(CPUS)),)
@@ -2032,6 +2164,7 @@ $(CPUOBJ)/z8000/z8000.o:    $(CPUSRC)/z8000/z8000.c \
 
 #-------------------------------------------------
 # Zilog Z8
+#@src/emu/cpu/z8/z8.h,CPUS += Z8
 #-------------------------------------------------
 
 ifneq ($(filter Z8,$(CPUS)),)
@@ -2048,6 +2181,7 @@ $(CPUOBJ)/z8/z8.o:  $(CPUSRC)/z8/z8.c \
 
 #-------------------------------------------------
 # Argonaut SuperFX
+#@src/emu/cpu/superfx/superfx.h,CPUS += SUPERFX
 #-------------------------------------------------
 
 ifneq ($(filter SUPERFX,$(CPUS)),)
@@ -2061,6 +2195,7 @@ $(CPUOBJ)/superfx/superfx.o:$(CPUSRC)/superfx/superfx.c \
 
 #-------------------------------------------------
 # Rockwell PPS-4
+#@src/emu/cpu/pps4/pps4.h,CPUS += PPS4
 #-------------------------------------------------
 
 ifneq ($(filter PPS4,$(CPUS)),)
@@ -2074,6 +2209,7 @@ $(CPUOBJ)/pps4/pps4.o:  $(CPUSRC)/pps4/pps4.c \
 
 #-------------------------------------------------
 # Hitachi HD61700
+#@src/emu/cpu/hd61700/hd61700.h,CPUS += HD61700
 #-------------------------------------------------
 
 ifneq ($(filter HD61700,$(CPUS)),)
@@ -2087,6 +2223,7 @@ $(CPUOBJ)/hd61700/hd61700.o:    $(CPUSRC)/hd61700/hd61700.c \
 
 #-------------------------------------------------
 # Sanyo LC8670
+#@src/emu/cpu/lc8670/lc8670.h,CPUS += LC8670
 #-------------------------------------------------
 
 ifneq ($(filter LC8670,$(CPUS)),)
@@ -2100,6 +2237,7 @@ $(CPUOBJ)/lc8670/lc8670.o:  $(CPUSRC)/lc8670/lc8670.c \
 
 #-------------------------------------------------
 # Sega SCU DSP
+#@src/emu/cpu/,CPUS += SCUDSP
 #-------------------------------------------------
 
 ifneq ($(filter SCUDSP,$(CPUS)),)
@@ -2108,4 +2246,23 @@ DASMOBJS += $(CPUOBJ)/scudsp/scudspdasm.o
 endif
 
 $(CPUOBJ)/scudsp/scudspdasm.o: CPUOBJS += $(CPUOBJ)/scudsp/scudspdasm.c
+
+
+#-------------------------------------------------
+# Sunplus Technology S+core
+#@src/emu/cpu/score/score.h,CPUS += SCORE
+#-------------------------------------------------
+
+ifneq ($(filter SCORE,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/score
+CPUOBJS += $(CPUOBJ)/score/score.o
+DASMOBJS += $(CPUOBJ)/score/scoredsm.o
+endif
+
+$(CPUOBJ)/score/score.o:    $(CPUSRC)/score/score.c \
+							$(CPUSRC)/score/score.h \
+							$(CPUSRC)/score/scorem.h
+
+$(CPUOBJ)/score/scoredsm.o: $(CPUSRC)/score/scoredsm.c \
+							$(CPUSRC)/score/scorem.h
 

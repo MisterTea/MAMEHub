@@ -43,8 +43,7 @@
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "video/taitoic.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/es5506.h"
 #include "audio/taito_en.h"
 #include "includes/gunbustr.h"
@@ -101,9 +100,9 @@ WRITE32_MEMBER(gunbustr_state::gunbustr_input_w)
 
 			if (ACCESSING_BITS_0_7)
 			{
-				m_eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
-				m_eeprom->write_bit(data & 0x40);
-				m_eeprom->set_cs_line((data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
+				m_eeprom->clk_write((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+				m_eeprom->di_write((data & 0x40) >> 6);
+				m_eeprom->cs_write((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
 			}
 			break;
 		}
@@ -167,8 +166,8 @@ static ADDRESS_MAP_START( gunbustr_map, AS_PROGRAM, 32, gunbustr_state )
 	AM_RANGE(0x400004, 0x400007) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x400000, 0x400007) AM_WRITE(gunbustr_input_w)                                         /* eerom etc. */
 	AM_RANGE(0x500000, 0x500003) AM_READWRITE(gunbustr_gun_r, gunbustr_gun_w)                       /* gun coord read */
-	AM_RANGE(0x800000, 0x80ffff) AM_DEVREADWRITE_LEGACY("tc0480scp", tc0480scp_long_r, tc0480scp_long_w)
-	AM_RANGE(0x830000, 0x83002f) AM_DEVREADWRITE_LEGACY("tc0480scp", tc0480scp_ctrl_long_r, tc0480scp_ctrl_long_w)
+	AM_RANGE(0x800000, 0x80ffff) AM_DEVREADWRITE("tc0480scp", tc0480scp_device, long_r, long_w)
+	AM_RANGE(0x830000, 0x83002f) AM_DEVREADWRITE("tc0480scp", tc0480scp_device, ctrl_long_r, ctrl_long_w)
 	AM_RANGE(0x900000, 0x901fff) AM_RAM_WRITE(gunbustr_palette_w) AM_SHARE("paletteram")            /* Palette ram */
 	AM_RANGE(0xc00000, 0xc03fff) AM_RAM                                                             /* network ram ?? */
 ADDRESS_MAP_END
@@ -186,7 +185,7 @@ static INPUT_PORTS_START( gunbustr )
 	PORT_BIT( 0x00000010, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x00000020, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x00000040, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_BIT( 0x00000080, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x00000080, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x00000100, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1)
 	PORT_BIT( 0x00000200, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(1)
 	PORT_BIT( 0x00000400, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(1)
@@ -285,17 +284,6 @@ GFXDECODE_END
                  MACHINE DRIVERS
 ***********************************************************/
 
-static const eeprom_interface gunbustr_eeprom_interface =
-{
-	6,              /* address bits */
-	16,             /* data bits */
-	"0110",         /* read command */
-	"0101",         /* write command */
-	"0111",         /* erase command */
-	"0100000000",   /* unlock command */
-	"0100110000",   /* lock command */
-};
-
 static const tc0480scp_interface gunbustr_tc0480scp_intf =
 {
 	1, 2,           /* gfxnum, txnum */
@@ -313,7 +301,7 @@ static MACHINE_CONFIG_START( gunbustr, gunbustr_state )
 	MCFG_CPU_PROGRAM_MAP(gunbustr_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", gunbustr_state,  gunbustr_interrupt) /* VBL */
 
-	MCFG_EEPROM_ADD("eeprom", gunbustr_eeprom_interface)
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)

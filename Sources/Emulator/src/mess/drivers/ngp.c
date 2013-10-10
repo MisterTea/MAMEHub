@@ -185,7 +185,7 @@ public:
 
 	DECLARE_WRITE_LINE_MEMBER( ngp_vblank_pin_w );
 	DECLARE_WRITE_LINE_MEMBER( ngp_hblank_pin_w );
-	DECLARE_WRITE8_MEMBER( ngp_tlcs900_to3 );
+	DECLARE_WRITE8_MEMBER( ngp_tlcs900_porta );
 	UINT32 screen_update_ngp(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_INPUT_CHANGED_MEMBER(power_callback);
 	TIMER_CALLBACK_MEMBER(ngp_seconds_callback);
@@ -626,12 +626,13 @@ WRITE_LINE_MEMBER( ngp_state::ngp_hblank_pin_w )
 }
 
 
-WRITE8_MEMBER( ngp_state::ngp_tlcs900_to3 )
+WRITE8_MEMBER( ngp_state::ngp_tlcs900_porta )
 {
-	if ( data && ! m_old_to3 )
+	int to3 = BIT(data,3);
+	if ( to3 && ! m_old_to3 )
 		m_z80->set_input_line(0, ASSERT_LINE );
 
-	m_old_to3 = data;
+	m_old_to3 = to3;
 }
 
 
@@ -803,18 +804,12 @@ void ngp_state::nvram_write(emu_file &file)
 }
 
 
-static const tlcs900_interface ngp_tlcs900_interface =
-{
-	DEVCB_NULL,
-	DEVCB_DRIVER_MEMBER( ngp_state, ngp_tlcs900_to3 )
-};
-
-
 static MACHINE_CONFIG_START( ngp_common, ngp_state )
 
-	MCFG_CPU_ADD( "maincpu", TLCS900H, XTAL_6_144MHz )
+	MCFG_CPU_ADD( "maincpu", TMP95C061, XTAL_6_144MHz )
+	MCFG_TLCS900H_AM8_16(1)
 	MCFG_CPU_PROGRAM_MAP( ngp_mem)
-	MCFG_CPU_CONFIG( ngp_tlcs900_interface )
+	MCFG_TMP95C061_PORTA_WRITE(WRITE8(ngp_state,ngp_tlcs900_porta))
 
 	MCFG_CPU_ADD( "soundcpu", Z80, XTAL_6_144MHz/2 )
 	MCFG_CPU_PROGRAM_MAP( z80_mem)
@@ -843,7 +838,6 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( ngp, ngp_common )
 
 	MCFG_PALETTE_LENGTH( 8 )
-	MCFG_PALETTE_INIT( k1ge )
 
 	MCFG_K1GE_ADD( "k1ge", XTAL_6_144MHz, "screen", WRITELINE( ngp_state, ngp_vblank_pin_w ), WRITELINE( ngp_state, ngp_hblank_pin_w ) )
 
@@ -863,7 +857,6 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( ngpc, ngp_common )
 
 	MCFG_PALETTE_LENGTH( 4096 )
-	MCFG_PALETTE_INIT( k2ge )
 
 	MCFG_K2GE_ADD( "k1ge", XTAL_6_144MHz, "screen", WRITELINE( ngp_state, ngp_vblank_pin_w ), WRITELINE( ngp_state, ngp_hblank_pin_w ) )
 

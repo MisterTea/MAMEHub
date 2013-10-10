@@ -43,7 +43,7 @@
     - Trivia-Q: dunno what to do on the selection screen, missing inputs?
     - Turbo Alpha: has z80dma / fdc bugs, doesn't show the presentation properly and then hangs;
     - Will 2: doesn't load, fdc issue presumably (note: it's a x1turbo game ONLY);
-    - X1F Demo ("New X1 Demo"): needs partial updates, but they doesn't cope well with this system;
+    - X1F Demo ("New X1 Demo"): needs partial updates, but they doesn't cope well with current video system;
     - Ys 2: crashes after the disclaimer screen;
     - Ys 3: missing user disk, to hack it (and play with x1turboz features): bp 81ca,pc += 2
     - Ys 3: never uploads a valid 4096 palette, probably related to the fact that we don't have an user disk
@@ -211,8 +211,6 @@
 
 
 
-
-//static DEVICE_START(x1_daisy){}
 
 /*************************************
  *
@@ -1882,7 +1880,6 @@ static I8255A_INTERFACE( ppi8255_intf )
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	true,       /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -2581,7 +2578,7 @@ static MACHINE_CONFIG_START( x1, x1_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(x1_state, screen_update_x1)
 
-	MCFG_MC6845_ADD("crtc", H46505, (VDP_CLOCK/48), mc6845_intf) //unknown divider
+	MCFG_MC6845_ADD("crtc", H46505, "screen", (VDP_CLOCK/48), mc6845_intf) //unknown divider
 	MCFG_PALETTE_LENGTH(0x10+0x1000)
 	MCFG_PALETTE_INIT_OVERRIDE(x1_state,x1)
 

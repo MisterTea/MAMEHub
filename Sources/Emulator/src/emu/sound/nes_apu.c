@@ -47,6 +47,7 @@
 #include "emu.h"
 #include "nes_apu.h"
 #include "cpu/m6502/n2a03.h"
+#include "devlegcy.h"
 
 #include "nes_defs.h"
 
@@ -769,7 +770,7 @@ static DEVICE_START( nesapu )
 const device_type NES = &device_creator<nesapu_device>;
 
 nesapu_device::nesapu_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, NES, "N2A03", tag, owner, clock),
+	: device_t(mconfig, NES, "N2A03 APU", tag, owner, clock, "nesapu", __FILE__),
 		device_sound_interface(mconfig, *this)
 {
 	m_token = global_alloc_clear(nesapu_state);

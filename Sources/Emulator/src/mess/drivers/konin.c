@@ -88,7 +88,7 @@ static MACHINE_CONFIG_START( konin, konin_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640-1, 0, 480-1)
 	MCFG_SCREEN_UPDATE_DRIVER(konin_state, screen_update_konin)
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(black_and_white)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 MACHINE_CONFIG_END
 
 /* ROM definition */
@@ -109,4 +109,4 @@ ROM_END
 /* Driver */
 
 /*    YEAR  NAME    PARENT  COMPAT   MACHINE    INPUT    INIT    COMPANY       FULLNAME       FLAGS */
-COMP( ????, konin,  0,      0,       konin,     konin, driver_device,   0,    "Mera-Elzab",   "Konin", GAME_NOT_WORKING | GAME_NO_SOUND)
+COMP( 198?, konin,  0,      0,       konin,     konin, driver_device,   0,    "Mera-Elzab",   "Konin", GAME_IS_SKELETON | GAME_NOT_WORKING | GAME_NO_SOUND)

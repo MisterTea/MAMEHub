@@ -9,6 +9,7 @@
 #include "emu.h"
 #include "sound/tms36xx.h"
 #include "audio/pleiads.h"
+#include "devlegcy.h"
 
 #define VMIN    0
 #define VMAX    32767
@@ -682,14 +683,14 @@ static DEVICE_START( popflame_sound )
 const device_type PLEIADS = &device_creator<pleiads_sound_device>;
 
 pleiads_sound_device::pleiads_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, PLEIADS, "Pleiads Custom", tag, owner, clock),
+	: device_t(mconfig, PLEIADS, "Pleiads Custom", tag, owner, clock, "pleiads_sound", __FILE__),
 		device_sound_interface(mconfig, *this)
 {
 	m_token = global_alloc_clear(pleiads_sound_state);
 }
 
-pleiads_sound_device::pleiads_sound_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock),
+pleiads_sound_device::pleiads_sound_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_sound_interface(mconfig, *this)
 {
 	m_token = global_alloc_clear(pleiads_sound_state);
@@ -728,7 +729,7 @@ void pleiads_sound_device::sound_stream_update(sound_stream &stream, stream_samp
 const device_type NAUGHTYB = &device_creator<naughtyb_sound_device>;
 
 naughtyb_sound_device::naughtyb_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: pleiads_sound_device(mconfig, NAUGHTYB, "Naughty Boy Custom", tag, owner, clock)
+	: pleiads_sound_device(mconfig, NAUGHTYB, "Naughty Boy Custom", tag, owner, clock, "naughtyb_sound", __FILE__)
 {
 }
 
@@ -765,7 +766,7 @@ void naughtyb_sound_device::sound_stream_update(sound_stream &stream, stream_sam
 const device_type POPFLAME = &device_creator<popflame_sound_device>;
 
 popflame_sound_device::popflame_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: pleiads_sound_device(mconfig, POPFLAME, "Pop Flamer Custom", tag, owner, clock)
+	: pleiads_sound_device(mconfig, POPFLAME, "Pop Flamer Custom", tag, owner, clock, "popflame_sound", __FILE__)
 {
 }
 

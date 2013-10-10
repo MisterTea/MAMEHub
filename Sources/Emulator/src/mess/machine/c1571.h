@@ -19,11 +19,13 @@
 #include "formats/g64_dsk.h"
 #include "machine/64h156.h"
 #include "machine/6522via.h"
-#include "machine/c64_bn1541.h"
+#include "machine/c64/bn1541.h"
 #include "machine/cbmiec.h"
+#include "machine/cbmipt.h"
 #include "machine/isa.h"
 #include "machine/mos6526.h"
 #include "machine/wd_fdc.h"
+#include "machine/isa_wd1002a_wx1.h"
 
 
 
@@ -46,21 +48,14 @@ class c1571_device :  public device_t,
 						public device_c64_floppy_parallel_interface
 {
 public:
-	enum
-	{
-		TYPE_1570,
-		TYPE_1571,
-		TYPE_1571CR,
-		TYPE_MINI_CHIEF
-	};
-
 	// construction/destruction
-	c1571_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
+	c1571_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 	c1571_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 	// optional information overrides
 	virtual const rom_entry *device_rom_region() const;
 	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual ioport_constructor device_input_ports() const;
 
 	DECLARE_WRITE_LINE_MEMBER( via0_irq_w );
 	DECLARE_READ8_MEMBER( via0_pa_r );
@@ -102,6 +97,12 @@ protected:
 	virtual void parallel_data_w(UINT8 data);
 	virtual void parallel_strobe_w(int state);
 
+	enum
+	{
+		LED_POWER = 0,
+		LED_ACT
+	};
+
 	void update_iec();
 
 	required_device<cpu_device> m_maincpu;
@@ -112,6 +113,7 @@ protected:
 	required_device<c64h156_device> m_ga;
 	required_device<legacy_floppy_image_device> m_image;
 	//required_device<floppy_image_device> m_floppy;
+	required_ioport m_address;
 
 	// signals
 	int m_1_2mhz;                           // clock speed
@@ -126,8 +128,6 @@ protected:
 	int m_via0_irq;                         // VIA #0 interrupt request
 	int m_via1_irq;                         // VIA #1 interrupt request
 	int m_cia_irq;                          // CIA interrupt request
-
-	int m_variant;
 };
 
 
@@ -138,6 +138,10 @@ class c1570_device :  public c1571_device
 public:
 	// construction/destruction
 	c1570_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 
@@ -148,6 +152,10 @@ class c1571cr_device :  public c1571_device
 public:
 	// construction/destruction
 	c1571cr_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 
 	DECLARE_WRITE8_MEMBER( via0_pa_w );
 	DECLARE_WRITE8_MEMBER( via0_pb_w );
@@ -161,6 +169,10 @@ class mini_chief_device :  public c1571_device
 public:
 	// construction/destruction
 	mini_chief_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 
 	DECLARE_READ8_MEMBER( cia_pa_r );
 	DECLARE_WRITE8_MEMBER( cia_pa_w );

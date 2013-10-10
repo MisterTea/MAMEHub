@@ -129,13 +129,13 @@ UINT32 sandscrp_state::screen_update_sandscrp(screen_device &screen, bitmap_ind1
 
 	int i;
 
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
 	m_view2_0->kaneko16_prepare(bitmap, cliprect);
 
 	for ( i = 0; i < 8; i++ )
 	{
-		m_view2_0->render_tilemap_chip(bitmap,cliprect,i);
+		m_view2_0->render_tilemap_chip(screen,bitmap,cliprect,i);
 	}
 
 	// copy sprite bitmap to screen
@@ -374,29 +374,29 @@ static INPUT_PORTS_START( sandscrp )
 	PORT_BIT( 0xffff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
 	PORT_START("DSW1")  /* read by the Z80 through the sound chip */
-	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Lives ) )
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Lives ) )        PORT_DIPLOCATION("SW1:1,2")
 	PORT_DIPSETTING(    0x02, "1" )
 	PORT_DIPSETTING(    0x01, "2" )
 	PORT_DIPSETTING(    0x03, "3" )
 	PORT_DIPSETTING(    0x00, "5" )
-	PORT_DIPNAME( 0x0c, 0x0c, "Bombs" )
+	PORT_DIPNAME( 0x0c, 0x0c, "Bombs" )         PORT_DIPLOCATION("SW1:3,4")
 	PORT_DIPSETTING(    0x08, "1" )
 	PORT_DIPSETTING(    0x04, "2" )
 	PORT_DIPSETTING(    0x0c, "3" )
 	PORT_DIPSETTING(    0x00, "5" )
-	PORT_DIPNAME( 0x30, 0x30, DEF_STR( Difficulty ) )
+	PORT_DIPNAME( 0x30, 0x20, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("SW1:5,6")
 	PORT_DIPSETTING(    0x30, DEF_STR( Easy )    )
 	PORT_DIPSETTING(    0x20, DEF_STR( Normal )  )
 	PORT_DIPSETTING(    0x10, DEF_STR( Hard )    )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
-	PORT_DIPNAME( 0xc0, 0xc0, DEF_STR( Bonus_Life ) )
+	PORT_DIPNAME( 0xc0, 0xc0, DEF_STR( Bonus_Life ) )   PORT_DIPLOCATION("SW1:7,8")
 	PORT_DIPSETTING(    0x80, "100K, 300K" )
 	PORT_DIPSETTING(    0xc0, "200K, 500K" )
 	PORT_DIPSETTING(    0x40, "500K, 1000K" )
 	PORT_DIPSETTING(    0x00, "1000K, 3000K" )
 
 	PORT_START("DSW2")  /* read by the Z80 through the sound chip */
-	PORT_DIPNAME( 0x0f, 0x0f, DEF_STR( Coinage ) )
+	PORT_DIPNAME( 0x0f, 0x0f, DEF_STR( Coinage ) )      PORT_DIPLOCATION("SW2:1,2,3,4")
 	PORT_DIPSETTING(    0x0a, DEF_STR( 6C_1C ) )
 	PORT_DIPSETTING(    0x0b, DEF_STR( 5C_1C ) )
 	PORT_DIPSETTING(    0x0c, DEF_STR( 4C_1C ) )
@@ -413,16 +413,16 @@ static INPUT_PORTS_START( sandscrp )
 	PORT_DIPSETTING(    0x06, DEF_STR( 1C_5C ) )
 	PORT_DIPSETTING(    0x05, DEF_STR( 1C_6C ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Free_Play ) )
-	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Flip_Screen ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Flip_Screen ) )  PORT_DIPLOCATION("SW2:5")
 	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
-	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Allow_Continue ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Allow_Continue ) )   PORT_DIPLOCATION("SW2:6")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x20, DEF_STR( On ) )
-	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Demo_Sounds ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("SW2:7")
 	PORT_DIPSETTING(    0x00, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( On ) )
-	PORT_SERVICE( 0x80, IP_ACTIVE_LOW )
+	PORT_SERVICE_DIPLOC(  0x80, IP_ACTIVE_LOW, "SW2:8" )
 INPUT_PORTS_END
 
 
@@ -482,7 +482,6 @@ static const ay8910_interface ay8910_config =
 
 static const kaneko_pandora_interface sandscrp_pandora_config =
 {
-	"screen",   /* screen tag */
 	0,  /* gfx_region */
 	0, 0    /* x_offs, y_offs */
 };

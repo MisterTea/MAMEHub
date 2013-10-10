@@ -72,7 +72,7 @@ void tunhunt_state::video_start()
 	With max RLE expansion, bitmap size is 256x64.
 	*/
 
-	m_tmpbitmap.allocate(256, 64, machine().primary_screen->format());
+	m_tmpbitmap.allocate(256, 64, m_screen->format());
 
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tunhunt_state::get_fg_tile_info),this), TILEMAP_SCAN_COLS, 8, 8, 32, 32);
 
@@ -393,6 +393,6 @@ UINT32 tunhunt_state::screen_update_tunhunt(screen_device &screen, bitmap_ind16 
 		m_workram[SHL1ST],  /* vstretch */
 		m_control&0x10 ); /* hstretch */
 
-	m_fg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }

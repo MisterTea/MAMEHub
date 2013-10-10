@@ -18,7 +18,7 @@
 #define VRAM_SIZE   (0x80000)   // 512k max
 
 MACHINE_CONFIG_FRAGMENT( m2video )
-	MCFG_SCREEN_ADD( M2VIDEO_SCREEN_NAME, RASTER)
+	MCFG_SCREEN_ADD(M2VIDEO_SCREEN_NAME, RASTER)
 	MCFG_SCREEN_UPDATE_DEVICE(DEVICE_SELF, nubus_m2video_device, screen_update)
 	MCFG_SCREEN_RAW_PARAMS(25175000, 800, 0, 640, 525, 0, 480)
 	MCFG_SCREEN_SIZE(1024,768)
@@ -66,14 +66,20 @@ const rom_entry *nubus_m2video_device::device_rom_region() const
 
 nubus_m2video_device::nubus_m2video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
 		device_t(mconfig, NUBUS_M2VIDEO, "Macintosh II Video Card", tag, owner, clock, "nb_m2vc", __FILE__),
-		device_nubus_card_interface(mconfig, *this)
+		device_video_interface(mconfig, *this),
+		device_nubus_card_interface(mconfig, *this),
+		m_assembled_tag(tag, ":", M2VIDEO_SCREEN_NAME)
 {
+	m_screen_tag = m_assembled_tag;
 }
 
 nubus_m2video_device::nubus_m2video_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
 		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_nubus_card_interface(mconfig, *this)
+		device_video_interface(mconfig, *this),
+		device_nubus_card_interface(mconfig, *this),
+		m_assembled_tag(tag, ":", M2VIDEO_SCREEN_NAME)
 {
+	m_screen_tag = m_assembled_tag;
 }
 
 //-------------------------------------------------
@@ -100,7 +106,7 @@ void nubus_m2video_device::device_start()
 	m_nubus->install_device(slotspace+0x80000, slotspace+0xeffff, read32_delegate(FUNC(nubus_m2video_device::m2video_r), this), write32_delegate(FUNC(nubus_m2video_device::m2video_w), this));
 
 	m_timer = timer_alloc(0, NULL);
-	m_screen = NULL;    // can we look this up now?
+	m_timer->adjust(m_screen->time_until_pos(479, 0), 0);
 }
 
 //-------------------------------------------------
@@ -142,13 +148,6 @@ UINT32 nubus_m2video_device::screen_update(screen_device &screen, bitmap_rgb32 &
 	UINT32 *scanline;
 	int x, y;
 	UINT8 pixels, *vram;
-
-	// first time?  kick off the VBL timer
-	if (!m_screen)
-	{
-		m_screen = &screen;
-		m_timer->adjust(m_screen->time_until_pos(479, 0), 0);
-	}
 
 	vram = m_vram + 0x20;
 
@@ -282,7 +281,7 @@ WRITE32_MEMBER( nubus_m2video_device::m2video_w )
 			break;
 
 		default:
-			printf("m2video_w: %08x @ %x, mask %08x (PC=%x)\n", data, offset, mem_mask, space.device().safe_pc());
+//          printf("m2video_w: %08x @ %x, mask %08x (PC=%x)\n", data, offset, mem_mask, space.device().safe_pc());
 			break;
 	}
 }
@@ -296,7 +295,7 @@ READ32_MEMBER( nubus_m2video_device::m2video_r )
 	}
 	else
 	{
-		printf("m2video_r: @ %x, mask %08x (PC=%x)\n", offset, mem_mask, space.device().safe_pc());
+//      printf("m2video_r: @ %x, mask %08x (PC=%x)\n", offset, mem_mask, space.device().safe_pc());
 	}
 
 	return 0;

@@ -102,8 +102,8 @@ void amspdwy_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 {
 	UINT8 *spriteram = m_spriteram;
 	int i;
-	int max_x = machine().primary_screen->width()  - 1;
-	int max_y = machine().primary_screen->height() - 1;
+	int max_x = m_screen->width()  - 1;
+	int max_y = m_screen->height() - 1;
 
 	for (i = 0; i < m_spriteram.bytes() ; i += 4)
 	{
@@ -142,7 +142,7 @@ void amspdwy_state::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprec
 
 UINT32 amspdwy_state::screen_update_amspdwy(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 	draw_sprites(bitmap, cliprect);
 	return 0;
 }

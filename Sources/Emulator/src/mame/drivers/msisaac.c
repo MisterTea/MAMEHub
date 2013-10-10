@@ -10,8 +10,6 @@
 #include "cpu/z80/z80.h"
 #include "cpu/m6805/m6805.h"
 #include "sound/ay8910.h"
-#include "sound/msm5232.h"
-#include "machine/buggychl.h"
 #include "includes/msisaac.h"
 
 /*
@@ -81,7 +79,7 @@ WRITE8_MEMBER(msisaac_state::ms_unknown_w)
 READ8_MEMBER(msisaac_state::msisaac_mcu_r)
 {
 #ifdef USE_MCU
-	return buggychl_mcu_r(offset);
+	return m_bmcu->buggychl_mcu_r(offset);
 #else
 /*
 MCU simulation TODO:
@@ -153,7 +151,7 @@ MCU simulation TODO:
 READ8_MEMBER(msisaac_state::msisaac_mcu_status_r)
 {
 #ifdef USE_MCU
-	return buggychl_mcu_status_r(offset);
+	return m_bmcu->buggychl_mcu_status_r(offset);
 #else
 	return 3;   //mcu ready / cpu data ready
 #endif
@@ -162,7 +160,7 @@ READ8_MEMBER(msisaac_state::msisaac_mcu_status_r)
 WRITE8_MEMBER(msisaac_state::msisaac_mcu_w)
 {
 #ifdef USE_MCU
-	buggychl_mcu_w(offset,data);
+	m_bmcu->buggychl_mcu_w(offset,data);
 #else
 	//if(data != 0x0a && data != 0x42 && data != 0x02)
 	//  popmessage("PC = %04x %02x", space.device().safe_pc(), data);
@@ -259,7 +257,7 @@ static ADDRESS_MAP_START( msisaac_sound_map, AS_PROGRAM, 8, msisaac_state )
 	AM_RANGE(0x4000, 0x47ff) AM_RAM
 	AM_RANGE(0x8000, 0x8001) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
 	AM_RANGE(0x8002, 0x8003) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
-	AM_RANGE(0x8010, 0x801d) AM_DEVWRITE_LEGACY("msm", msm5232_w)
+	AM_RANGE(0x8010, 0x801d) AM_DEVWRITE("msm", msm5232_device, write)
 	AM_RANGE(0x8020, 0x8020) AM_WRITE(sound_control_0_w)
 	AM_RANGE(0x8030, 0x8030) AM_WRITE(sound_control_1_w)
 	AM_RANGE(0xc000, 0xc000) AM_READ(soundlatch_byte_r)

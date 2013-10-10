@@ -111,8 +111,7 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_vfd0(*this, "vfd0"),
 		m_maincpu(*this, "maincpu"),
-		m_upd7759(*this, "upd"),
-		m_adder2(*this, "adder2") { }
+		m_upd7759(*this, "upd") { }
 
 	optional_device<bfm_bd1_t> m_vfd0;
 
@@ -165,10 +164,6 @@ public:
 	DECLARE_READ8_MEMBER(aciadata_r);
 	DECLARE_WRITE8_MEMBER(triac_w);
 	DECLARE_READ8_MEMBER(triac_r);
-	DECLARE_WRITE8_MEMBER(vid_uart_tx_w);
-	DECLARE_WRITE8_MEMBER(vid_uart_ctrl_w);
-	DECLARE_READ8_MEMBER(vid_uart_rx_r);
-	DECLARE_READ8_MEMBER(vid_uart_ctrl_r);
 	DECLARE_READ8_MEMBER(nec_r);
 	DECLARE_WRITE8_MEMBER(nec_reset_w);
 	DECLARE_WRITE8_MEMBER(nec_latch_w);
@@ -188,7 +183,6 @@ public:
 	int sc1_find_project_string( );
 	required_device<cpu_device> m_maincpu;
 	optional_device<upd7759_device> m_upd7759;
-	optional_device<cpu_device> m_adder2;
 };
 
 #define VFD_RESET  0x20
@@ -196,7 +190,6 @@ public:
 #define VFD_DATA   0x40
 
 #define MASTER_CLOCK    (XTAL_4MHz)
-#define ADDER_CLOCK     (XTAL_8MHz)
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -606,46 +599,17 @@ READ8_MEMBER(bfm_sc1_state::triac_r)
 #ifdef UNUSED_FUNCTION
 WRITE8_MEMBER(bfm_sc1_state::nec_reset_w)
 {
-	upd7759_start_w(device, 0);
-	upd7759_reset_w(device, data);
+	m_upd7759->start_w(0);
+	m_upd7759->reset_w(data);
 }
 #endif
 /////////////////////////////////////////////////////////////////////////////////////
 WRITE8_MEMBER(bfm_sc1_state::nec_latch_w)
 {
-	upd7759_port_w (m_upd7759, space, 0, data&0x3F);   // setup sample
-	upd7759_start_w(m_upd7759, 0);
-	upd7759_start_w(m_upd7759, 1);         // start
+	m_upd7759->port_w (space, 0, data&0x3F);   // setup sample
+	m_upd7759->start_w(0);
+	m_upd7759->start_w(1);         // start
 }
-
-/////////////////////////////////////////////////////////////////////////////////////
-
-WRITE8_MEMBER(bfm_sc1_state::vid_uart_tx_w)
-{
-	adder2_send(data);
-	m_adder2->set_input_line(M6809_IRQ_LINE, ASSERT_LINE );//HOLD_LINE);// trigger IRQ
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-WRITE8_MEMBER(bfm_sc1_state::vid_uart_ctrl_w)
-{
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-READ8_MEMBER(bfm_sc1_state::vid_uart_rx_r)
-{
-	return adder2_receive();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-READ8_MEMBER(bfm_sc1_state::vid_uart_ctrl_r)
-{
-	return adder2_status();
-}
-
 
 // machine start (called only once) /////////////////////////////////////////////////
 
@@ -741,8 +705,8 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( sc1_adder2, AS_PROGRAM, 8, bfm_sc1_state )
 	AM_IMPORT_FROM( sc1_base )
 
-	AM_RANGE(0x3E00, 0x3E00) AM_READWRITE(vid_uart_ctrl_r,vid_uart_ctrl_w)  // video uart control reg read
-	AM_RANGE(0x3E01, 0x3E01) AM_READWRITE(vid_uart_rx_r,vid_uart_tx_w)      // video uart receive  reg
+	AM_RANGE(0x3E00, 0x3E00) AM_DEVREADWRITE("adder2", bfm_adder2_device, vid_uart_ctrl_r,vid_uart_ctrl_w)  // video uart control reg read
+	AM_RANGE(0x3E01, 0x3E01) AM_DEVREADWRITE("adder2", bfm_adder2_device, vid_uart_rx_r,vid_uart_tx_w)      // video uart receive  reg
 ADDRESS_MAP_END
 
 
@@ -1128,23 +1092,8 @@ static MACHINE_CONFIG_DERIVED( scorpion1_adder2, scorpion1 )
 	MCFG_CPU_PROGRAM_MAP(sc1_adder2)                // setup read and write memorymap
 
 	MCFG_DEFAULT_LAYOUT(layout_sc1_vid)
-	MCFG_SCREEN_ADD("adder", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(50)
-	MCFG_SCREEN_SIZE( 400, 300)
-	MCFG_SCREEN_VISIBLE_AREA(  0, 400-1, 0, 300-1)
-	MCFG_SCREEN_UPDATE_STATIC(adder2)
 
-	MCFG_VIDEO_START( adder2)
-	MCFG_VIDEO_RESET( adder2)
-
-	MCFG_PALETTE_LENGTH(16)
-
-	MCFG_PALETTE_INIT(adder2)
-	MCFG_GFXDECODE(adder2)
-
-	MCFG_CPU_ADD("adder2", M6809, ADDER_CLOCK/4 )       // adder2 board 6809 CPU at 2 Mhz
-	MCFG_CPU_PROGRAM_MAP(adder2_memmap)             // setup adder2 board memorymap
-	MCFG_CPU_VBLANK_INT("adder",adder2_vbl)             // board has a VBL IRQ
+	MCFG_BFM_ADDER2_ADD("adder2")
 MACHINE_CONFIG_END
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -1257,7 +1206,6 @@ int bfm_sc1_state::sc1_find_project_string( )
 DRIVER_INIT_MEMBER(bfm_sc1_state,toppoker)
 {
 	sc1_common_init(3,1, 3);
-	adder2_decode_char_roms(machine()); // decode GFX roms
 	MechMtr_config(machine(),8);
 	sc1_find_project_string();
 }

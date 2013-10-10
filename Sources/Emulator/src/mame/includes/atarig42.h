@@ -5,6 +5,7 @@
 *************************************************************************/
 
 #include "machine/atarigen.h"
+#include "audio/atarijsa.h"
 #include "cpu/m68000/m68000.h"
 
 class atarig42_state : public atarigen_state
@@ -13,9 +14,18 @@ public:
 	atarig42_state(const machine_config &mconfig, device_type type, const char *tag)
 		: atarigen_state(mconfig, type, tag),
 			m_maincpu(*this, "maincpu"),
+			m_jsa(*this, "jsa"),
+			m_playfield_tilemap(*this, "playfield"),
+			m_alpha_tilemap(*this, "alpha"),
+			m_rle(*this, "rle"),
 			m_mo_command(*this, "mo_command") { }
 
-	required_device<m68000_device> m_maincpu;
+	required_device<cpu_device> m_maincpu;
+	required_device<atari_jsa_iii_device> m_jsa;
+
+	required_device<tilemap_device> m_playfield_tilemap;
+	required_device<tilemap_device> m_alpha_tilemap;
+	required_device<atari_rle_objects_device> m_rle;
 
 	UINT16          m_playfield_base;
 
@@ -34,7 +44,6 @@ public:
 	int             m_sloop_state;
 	UINT16 *        m_sloop_base;
 
-	device_t *      m_rle;
 	UINT32          m_last_accesses[8];
 	virtual void update_interrupts();
 	virtual void scanline_update(screen_device &screen, int scanline);

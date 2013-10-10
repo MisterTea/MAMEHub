@@ -23,6 +23,8 @@
     hardware currently emulated that uses external handlers.
     It also happens to be the only one using 16-bit PCM.
 
+    Some other drivers (eg. bishi.c, bfm_sc4/5.c) also use ROM readback.
+
 */
 
 
@@ -823,6 +825,8 @@ void ymz280b_device::write_to_register(int data)
 
 			case 0x86:      /* ROM readback / RAM write (low) -> update latch */
 				m_ext_mem_address = m_ext_mem_address_hi | m_ext_mem_address_mid | data;
+				if (m_ext_mem_enable)
+					m_ext_readlatch = ymz280b_read_memory(m_ext_mem_address);
 				break;
 
 			case 0x87:      /* RAM write */
@@ -941,7 +945,7 @@ WRITE8_MEMBER( ymz280b_device::write )
 const device_type YMZ280B = &device_creator<ymz280b_device>;
 
 ymz280b_device::ymz280b_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, YMZ280B, "YMZ280B", tag, owner, clock),
+	: device_t(mconfig, YMZ280B, "YMZ280B", tag, owner, clock, "ymz280b", __FILE__),
 		device_sound_interface(mconfig, *this),
 		m_current_register(0),
 		m_status_register(0),

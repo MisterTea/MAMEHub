@@ -1,15 +1,28 @@
 #include "sound/k054539.h"
+#include "machine/k053252.h"
+#include "video/k055555.h"
+#include "video/k054000.h"
+#include "video/k053246_k053247_k055673.h"
 
 class mystwarr_state : public konamigx_state
 {
 public:
 	mystwarr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: konamigx_state(mconfig, type, tag),
+		m_maincpu(*this,"maincpu"),
+		m_k053252(*this, "k053252"),
+		m_k056832(*this, "k056832"),
+		m_k055673(*this, "k055673"),
 		m_gx_workram(*this,"gx_workram"),
-		m_spriteram(*this,"spriteram"),
-		m_maincpu(*this,"maincpu") { }
+		m_spriteram(*this,"spriteram")
+		{ }
 
+	required_device<cpu_device> m_maincpu;
+	required_device<k053252_device> m_k053252;
+	required_device<k056832_device> m_k056832;
+	required_device<k055673_device> m_k055673;
 	required_shared_ptr<UINT16> m_gx_workram;
+	optional_shared_ptr<UINT16> m_spriteram;
 	UINT8 m_mw_irq_control;
 	int m_cur_sound_region;
 	int m_layer_colorbase[6];
@@ -23,9 +36,7 @@ public:
 	int m_roz_rombank;
 	tilemap_t *m_ult_936_tilemap;
 	UINT16 m_clip;
-	optional_shared_ptr<UINT16> m_spriteram;
 
-	required_device<cpu_device> m_maincpu;
 	DECLARE_READ16_MEMBER(eeprom_r);
 	DECLARE_WRITE16_MEMBER(mweeprom_w);
 	DECLARE_READ16_MEMBER(dddeeprom_r);
@@ -38,10 +49,10 @@ public:
 	DECLARE_READ16_MEMBER(sound_status_r);
 	DECLARE_READ16_MEMBER(sound_status_msb_r);
 	DECLARE_WRITE16_MEMBER(irq_ack_w);
-	DECLARE_READ16_MEMBER(K053247_scattered_word_r);
-	DECLARE_WRITE16_MEMBER(K053247_scattered_word_w);
-	DECLARE_READ16_MEMBER(K053247_martchmp_word_r);
-	DECLARE_WRITE16_MEMBER(K053247_martchmp_word_w);
+	DECLARE_READ16_MEMBER(k053247_scattered_word_r);
+	DECLARE_WRITE16_MEMBER(k053247_scattered_word_w);
+	DECLARE_READ16_MEMBER(k053247_martchmp_word_r);
+	DECLARE_WRITE16_MEMBER(k053247_martchmp_word_w);
 	DECLARE_READ16_MEMBER(mccontrol_r);
 	DECLARE_WRITE16_MEMBER(mccontrol_w);
 	DECLARE_WRITE8_MEMBER(sound_bankswitch_w);

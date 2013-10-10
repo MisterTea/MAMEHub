@@ -47,12 +47,12 @@ mcu_subcmd  = kaneko16_mcu_ram[0x0014/2];    // sub-command parameter, happens o
 
 #include "emu.h"
 #include "kaneko_toybox.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 
 const device_type KANEKO_TOYBOX = &device_creator<kaneko_toybox_device>;
 
 kaneko_toybox_device::kaneko_toybox_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, KANEKO_TOYBOX, "kaneko_toybox_device", tag, owner, clock)
+	: device_t(mconfig, KANEKO_TOYBOX, "kaneko_toybox_device", tag, owner, clock, "kaneko_toybox", __FILE__)
 {
 	m_tabletype = TABLE_NORMAL;
 	m_gametype = GAME_NORMAL;
@@ -199,7 +199,7 @@ void kaneko_toybox_device::toybox_mcu_run(running_machine &machine)
 		{
 			UINT8* nvdat = (UINT8*)&kaneko16_mcu_ram[mcu_offset];
 
-			address_space &eeprom_space = machine.device<eeprom_device>(":eeprom")->space();
+			address_space &eeprom_space = machine.device<eeprom_serial_93cxx_device>(":eeprom")->space();
 
 			for (int i=0;i<0x80;i++)
 			{
@@ -213,7 +213,7 @@ void kaneko_toybox_device::toybox_mcu_run(running_machine &machine)
 
 		case 0x42:  // Write to NVRAM
 		{
-			address_space &eeprom_space = machine.device<eeprom_device>(":eeprom")->space();
+			address_space &eeprom_space = machine.device<eeprom_serial_93cxx_device>(":eeprom")->space();
 			UINT8* nvdat = (UINT8*)&kaneko16_mcu_ram[mcu_offset];
 			for (int i=0;i<0x80;i++)
 			{
@@ -232,7 +232,7 @@ void kaneko_toybox_device::toybox_mcu_run(running_machine &machine)
 				//memcpy(m_nvram_save, bonkadv_mcu_43, sizeof(bonkadv_mcu_43));
 
 
-				address_space &eeprom_space = machine.device<eeprom_device>(":eeprom")->space();
+				address_space &eeprom_space = machine.device<eeprom_serial_93cxx_device>(":eeprom")->space();
 				UINT8* nvdat = (UINT8*)&bonkadv_mcu_43[0];
 				for (int i=0;i<0x80;i++)
 				{

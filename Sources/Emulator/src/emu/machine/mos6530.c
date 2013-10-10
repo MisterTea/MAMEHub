@@ -17,6 +17,7 @@ and should be verified against real hardware.
 
 #include "emu.h"
 #include "mos6530.h"
+#include "devlegcy.h"
 
 
 /***************************************************************************
@@ -435,7 +436,7 @@ static DEVICE_RESET( mos6530 )
 const device_type MOS6530 = &device_creator<mos6530_device>;
 
 mos6530_device::mos6530_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, MOS6530, "MOS6530", tag, owner, clock)
+	: device_t(mconfig, MOS6530, "MOS6530", tag, owner, clock, "mos6530", __FILE__)
 {
 	m_token = global_alloc_clear(mos6530_state);
 }

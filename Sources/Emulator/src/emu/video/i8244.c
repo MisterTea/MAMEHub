@@ -98,12 +98,11 @@ static const UINT8 bgr2rgb[8] =
 //-------------------------------------------------
 
 i8244_device::i8244_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, I8244, "I8244", tag, owner, clock)
+	: device_t(mconfig, I8244, "I8244", tag, owner, clock, "i8244", __FILE__)
 	, device_sound_interface(mconfig, *this)
+	, device_video_interface(mconfig, *this)
 	, m_irq_func(*this)
 	, m_postprocess_func(*this)
-	, m_screen_tag(NULL)
-	, m_screen(NULL)
 	, m_start_vpos(START_Y)
 	, m_start_vblank(START_Y + SCREEN_HEIGHT)
 	, m_screen_lines(LINES)
@@ -111,13 +110,12 @@ i8244_device::i8244_device(const machine_config &mconfig, const char *tag, devic
 }
 
 
-i8244_device::i8244_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, int lines)
-	: device_t(mconfig, type, name, tag, owner, clock)
+i8244_device::i8244_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, int lines, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
 	, device_sound_interface(mconfig, *this)
+	, device_video_interface(mconfig, *this)
 	, m_irq_func(*this)
 	, m_postprocess_func(*this)
-	, m_screen_tag(NULL)
-	, m_screen(NULL)
 	, m_start_vpos(START_Y)
 	, m_start_vblank(START_Y + SCREEN_HEIGHT)
 	, m_screen_lines(lines)
@@ -126,7 +124,7 @@ i8244_device::i8244_device(const machine_config &mconfig, device_type type, cons
 
 
 i8245_device::i8245_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: i8244_device(mconfig, I8245, "I8245", tag, owner, clock, i8245_device::LINES)
+	: i8244_device(mconfig, I8245, "I8245", tag, owner, clock, i8245_device::LINES, "i8245", __FILE__)
 {
 }
 
@@ -137,10 +135,6 @@ i8245_device::i8245_device(const machine_config &mconfig, const char *tag, devic
 
 void i8244_device::device_start()
 {
-	assert( m_screen_tag != NULL );
-	m_screen = machine().device<screen_device>(m_screen_tag);
-	assert( m_screen != NULL );
-
 	// Let the screen create our temporary bitmap with the screen's dimensions
 	m_screen->register_screen_bitmap(m_tmp_bitmap);
 

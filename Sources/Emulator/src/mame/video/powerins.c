@@ -253,8 +253,8 @@ void powerins_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect
 	UINT16 *source = m_spriteram + 0x8000/2;
 	UINT16 *finish = m_spriteram + 0x9000/2;
 
-	int screen_w = machine().primary_screen->width();
-	int screen_h = machine().primary_screen->height();
+	int screen_w = m_screen->width();
+	int screen_h = m_screen->height();
 
 	for ( ; source < finish; source += 16/2 )
 	{
@@ -350,9 +350,9 @@ if (machine().input().code_pressed(KEYCODE_Z))
 }
 #endif
 
-	if (layers_ctrl&1)      m_tilemap_0->draw(bitmap, cliprect, 0, 0);
+	if (layers_ctrl&1)      m_tilemap_0->draw(screen, bitmap, cliprect, 0, 0);
 	else                    bitmap.fill(0, cliprect);
 	if (layers_ctrl&8)      draw_sprites(bitmap,cliprect);
-	if (layers_ctrl&2)      m_tilemap_1->draw(bitmap, cliprect, 0, 0);
+	if (layers_ctrl&2)      m_tilemap_1->draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }

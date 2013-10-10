@@ -11,6 +11,7 @@
 #include "emu.h"
 #include "aica.h"
 #include "aicadsp.h"
+#include "devlegcy.h"
 
 #define ICLIP16(x) (x<-32768)?-32768:((x>32767)?32767:x)
 
@@ -171,6 +172,7 @@ struct aica_state
 	UINT32 AICARAM_LENGTH, RAM_MASK, RAM_MASK16;
 	char Master;
 	devcb_resolved_write_line IntARMCB;
+	devcb_resolved_write_line IntSH4CB;
 	sound_stream * stream;
 
 	INT32 *buffertmpl, *buffertmpr;
@@ -189,19 +191,28 @@ struct aica_state
 	int TimPris[3];
 	int TimCnt[3];
 
+	UINT16 mcieb, mcipd;
+
 	// timers
 	emu_timer *timerA, *timerB, *timerC;
 
 	// DMA stuff
-	UINT32 aica_dmea;
-	UINT16 aica_drga;
-	UINT16 aica_dtlg;
+	struct{
+		UINT32 dmea;
+		UINT16 drga;
+		UINT16 dlg;
+		UINT8 dgate;
+		UINT8 ddir;
+	}dma;
+
 
 	int ARTABLE[64], DRTABLE[64];
 
 	AICADSP DSP;
 	device_t *device;
 };
+
+static void aica_exec_dma(aica_state *aica,address_space &space);       /*state DMA transfer function*/
 
 static const float SDLT[16]={-1000000.0,-42.0,-39.0,-36.0,-33.0,-30.0,-27.0,-24.0,-21.0,-18.0,-15.0,-12.0,-9.0,-6.0,-3.0,0.0};
 
@@ -280,16 +291,28 @@ static void CheckPendingIRQ(aica_state *AICA)
 		}
 }
 
+static void CheckPendingIRQ_SH4(aica_state *AICA)
+{
+	if(AICA->mcipd & AICA->mcieb)
+		AICA->IntSH4CB(1);
+
+	if((AICA->mcipd & AICA->mcieb) == 0)
+		AICA->IntSH4CB(0);
+}
+
 static TIMER_CALLBACK( timerA_cb )
 {
 	aica_state *AICA = (aica_state *)ptr;
 
 	AICA->TimCnt[0] = 0xFFFF;
 	AICA->udata.data[0xa0/2]|=0x40;
+	AICA->mcipd |= 0x40;
 	AICA->udata.data[0x90/2]&=0xff00;
 	AICA->udata.data[0x90/2]|=AICA->TimCnt[0]>>8;
 
 	CheckPendingIRQ(AICA);
+	CheckPendingIRQ_SH4(AICA);
+
 }
 
 static TIMER_CALLBACK( timerB_cb )
@@ -298,10 +321,12 @@ static TIMER_CALLBACK( timerB_cb )
 
 	AICA->TimCnt[1] = 0xFFFF;
 	AICA->udata.data[0xa0/2]|=0x80;
+	AICA->mcipd |= 0x80;
 	AICA->udata.data[0x94/2]&=0xff00;
 	AICA->udata.data[0x94/2]|=AICA->TimCnt[1]>>8;
 
 	CheckPendingIRQ(AICA);
+	CheckPendingIRQ_SH4(AICA);
 }
 
 static TIMER_CALLBACK( timerC_cb )
@@ -310,10 +335,12 @@ static TIMER_CALLBACK( timerC_cb )
 
 	AICA->TimCnt[2] = 0xFFFF;
 	AICA->udata.data[0xa0/2]|=0x100;
+	AICA->mcipd |= 0x100;
 	AICA->udata.data[0x98/2]&=0xff00;
 	AICA->udata.data[0x98/2]|=AICA->TimCnt[2]>>8;
 
 	CheckPendingIRQ(AICA);
+	CheckPendingIRQ_SH4(AICA);
 }
 
 static int Get_AR(aica_state *AICA,int base,int R)
@@ -704,6 +731,12 @@ static void AICA_UpdateReg(aica_state *AICA, address_space &space, int reg)
 		case 0x9:
 			aica_midi_in(AICA->device, space, 0, AICA->udata.data[0x8/2]&0xff, 0xffff);
 			break;
+
+		//case 0x0c:
+		//case 0x0d:
+		//  printf("%04x\n",AICA->udata.data[0xc/2]);
+		//  break;
+
 		case 0x12:
 		case 0x13:
 		case 0x14:
@@ -711,6 +744,32 @@ static void AICA_UpdateReg(aica_state *AICA, address_space &space, int reg)
 		case 0x16:
 		case 0x17:
 			break;
+
+		case 0x80:
+		case 0x81:
+			AICA->dma.dmea = ((AICA->udata.data[0x80/2] & 0xfe00) << 7) | (AICA->dma.dmea & 0xfffc);
+			/* TODO: $TSCD - MRWINH regs */
+			break;
+
+		case 0x84:
+		case 0x85:
+			AICA->dma.dmea = (AICA->udata.data[0x84/2] & 0xfffc) | (AICA->dma.dmea & 0x7f0000);
+			break;
+
+		case 0x88:
+		case 0x89:
+			AICA->dma.drga = (AICA->udata.data[0x88/2] & 0x7ffc);
+			AICA->dma.dgate = (AICA->udata.data[0x88/2] & 0x8000) >> 15;
+			break;
+
+		case 0x8c:
+		case 0x8d:
+			AICA->dma.dlg = (AICA->udata.data[0x8c/2] & 0x7ffc);
+			AICA->dma.ddir = (AICA->udata.data[0x8c/2] & 0x8000) >> 15;
+			if(AICA->udata.data[0x8c/2] & 1) // dexe
+				aica_exec_dma(AICA,space);
+			break;
+
 		case 0x90:
 		case 0x91:
 			if(AICA->Master)
@@ -768,6 +827,13 @@ static void AICA_UpdateReg(aica_state *AICA, address_space &space, int reg)
 				}
 			}
 			break;
+
+		case 0x9c: //SCIEB
+		case 0x9d:
+			if(AICA->udata.data[0x9c/2] & 0x631)
+				popmessage("AICA: SCIEB enabled %04x, contact MAME/MESSdev",AICA->udata.data[0x9c/2]);
+			break;
+
 		case 0xa4:  //SCIRE
 		case 0xa5:
 
@@ -806,14 +872,25 @@ static void AICA_UpdateReg(aica_state *AICA, address_space &space, int reg)
 			}
 			break;
 
-		case 0xb4:
+		case 0xb4: //MCIEB
 		case 0xb5:
-		case 0xb6:
-		case 0xb7:
-			if (MCIEB(AICA) & 0x20)
-			{
-				logerror("AICA: Interrupt requested on SH-4!\n");
-			}
+			if(AICA->udata.data[0xb4/2] & 0x7df)
+				popmessage("AICA: MCIEB enabled %04x, contact MAME/MESSdev",AICA->udata.data[0xb4/2]);
+			AICA->mcieb = AICA->udata.data[0xb4/2];
+			CheckPendingIRQ_SH4(AICA);
+			break;
+
+		case 0xb8:
+		case 0xb9:
+			if(AICA->udata.data[0xb8/2] & 0x20)
+				AICA->mcipd |= 0x20;
+			CheckPendingIRQ_SH4(AICA);
+			break;
+
+		case 0xbc:
+		case 0xbd:
+			AICA->mcipd &= ~AICA->udata.data[0xbc/2];
+			CheckPendingIRQ_SH4(AICA);
 			break;
 	}
 }
@@ -874,6 +951,7 @@ static void AICA_UpdateRegR(aica_state *AICA, address_space &space, int reg)
 		case 0x14:  // CA (slot address)
 		case 0x15:
 			{
+				//AICA->stream->update();
 				int slotnum = MSLC(AICA);
 				SLOT *slot=AICA->Slots+slotnum;
 				unsigned int CA = 0;
@@ -887,8 +965,14 @@ static void AICA_UpdateRegR(aica_state *AICA, address_space &space, int reg)
 					CA = (slot->cur_addr>>SHIFT)&AICA->RAM_MASK;
 				}
 
+				//printf("%08x %08x\n",CA,slot->cur_addr&AICA->RAM_MASK16);
+
 				AICA->udata.data[0x14/2] = CA;
 			}
+			break;
+		case 0xb8:
+		case 0xb9:
+			AICA->udata.data[0xb8/2] = AICA->mcipd;
 			break;
 	}
 }
@@ -919,19 +1003,26 @@ static void AICA_w16(aica_state *AICA,address_space &space,unsigned int addr,uns
 //          printf("%x to AICA global @ %x\n", val, addr & 0xff);
 			*((unsigned short *) (AICA->udata.datab+((addr&0xff)))) = val;
 			AICA_UpdateReg(AICA, space, addr&0xff);
+
 		}
 		else if (addr == 0x2d00)
 		{
 			AICA->IRQL = val;
+			popmessage("AICA: write to IRQL?");
 		}
 		else if (addr == 0x2d04)
 		{
 			AICA->IRQR = val;
 
-			if (val)
+			if (val & 1)
 			{
 				AICA->IntARMCB(0);
 			}
+			if (val & 0x100)
+				popmessage("AICA: SH-4 write protection enabled!");
+
+			if (val & 0xfefe)
+				popmessage("AICA: IRQR %04x!",val);
 		}
 	}
 	else
@@ -950,6 +1041,35 @@ static void AICA_w16(aica_state *AICA,address_space &space,unsigned int addr,uns
 				aica_dsp_start(&AICA->DSP);
 			}
 		}
+		else if(addr<0x4000)
+		{
+			popmessage("AICADSP write to undocumented reg %04x -> %04x",addr,val);
+		}
+		else if(addr<0x4400)
+		{
+			if(addr & 4)
+				AICA->DSP.TEMP[(addr >> 3) & 0x7f] = (AICA->DSP.TEMP[(addr >> 3) & 0x7f] & 0xffff0000) | (val & 0xffff);
+			else
+				AICA->DSP.TEMP[(addr >> 3) & 0x7f] = (AICA->DSP.TEMP[(addr >> 3) & 0x7f] & 0xffff) | (val << 16);
+		}
+		else if(addr<0x4500)
+		{
+			if(addr & 4)
+				AICA->DSP.MEMS[(addr >> 3) & 0x1f] = (AICA->DSP.MEMS[(addr >> 3) & 0x1f] & 0xffff0000) | (val & 0xffff);
+			else
+				AICA->DSP.MEMS[(addr >> 3) & 0x1f] = (AICA->DSP.MEMS[(addr >> 3) & 0x1f] & 0xffff) | (val << 16);
+		}
+		else if(addr<0x4580)
+		{
+			if(addr & 4)
+				AICA->DSP.MIXS[(addr >> 3) & 0xf] = (AICA->DSP.MIXS[(addr >> 3) & 0xf] & 0xffff0000) | (val & 0xffff);
+			else
+				AICA->DSP.MIXS[(addr >> 3) & 0xf] = (AICA->DSP.MIXS[(addr >> 3) & 0xf] & 0xffff) | (val << 16);
+		}
+		else if(addr<0x45c0)
+			*((unsigned short *) (AICA->DSP.EFREG+(addr-0x4580)/2))=val;
+		else if(addr<0x45c8)
+			*((unsigned short *) (AICA->DSP.EXTS+(addr-0x45c0)/2))=val;
 	}
 }
 
@@ -982,8 +1102,48 @@ static unsigned short AICA_r16(aica_state *AICA, address_space &space, unsigned 
 		}
 		else if (addr == 0x2d04)
 		{
+			//popmessage("AICA: read to IRQR?");
 			return AICA->IRQR;
 		}
+	}
+	else
+	{
+		if(addr<0x3200) //COEF
+			v= *((unsigned short *) (AICA->DSP.COEF+(addr-0x3000)/2));
+		else if(addr<0x3400)
+			v= *((unsigned short *) (AICA->DSP.MADRS+(addr-0x3200)/2));
+		else if(addr<0x3c00)
+			v= *((unsigned short *) (AICA->DSP.MPRO+(addr-0x3400)/2));
+		else if(addr<0x4000)
+		{
+			v= 0xffff;
+			popmessage("AICADSP read to undocumented reg %04x",addr);
+		}
+		else if(addr<0x4400)
+		{
+			if(addr & 4)
+				v= AICA->DSP.TEMP[(addr >> 3) & 0x7f] & 0xffff;
+			else
+				v= AICA->DSP.TEMP[(addr >> 3) & 0x7f] >> 16;
+		}
+		else if(addr<0x4500)
+		{
+			if(addr & 4)
+				v= AICA->DSP.MEMS[(addr >> 3) & 0x1f] & 0xffff;
+			else
+				v= AICA->DSP.MEMS[(addr >> 3) & 0x1f] >> 16;
+		}
+		else if(addr<0x4580)
+		{
+			if(addr & 4)
+				v= AICA->DSP.MIXS[(addr >> 3) & 0xf] & 0xffff;
+			else
+				v= AICA->DSP.MIXS[(addr >> 3) & 0xf] >> 16;
+		}
+		else if(addr<0x45c0)
+			v = *((unsigned short *) (AICA->DSP.EFREG+(addr-0x4580)/2));
+		else if(addr<0x45c8)
+			v = *((unsigned short *) (AICA->DSP.EXTS+(addr-0x45c0)/2));
 	}
 //  else if (addr<0x700)
 //      v=AICA->RINGBUF[(addr-0x600)/2];
@@ -1249,6 +1409,88 @@ static void AICA_DoMasterSamples(aica_state *AICA, int nsamples)
 	}
 }
 
+/* TODO: this needs to be timer-ized */
+static void aica_exec_dma(aica_state *aica,address_space &space)
+{
+	static UINT16 tmp_dma[4];
+	int i;
+
+	printf("AICA: DMA transfer START\n"
+				"DMEA: %08x DRGA: %08x DLG: %04x\n"
+				"DGATE: %d  DDIR: %d\n",aica->dma.dmea,aica->dma.drga,aica->dma.dlg,aica->dma.dgate,aica->dma.ddir);
+
+	/* Copy the dma values in a temp storage for resuming later */
+		/* (DMA *can't* overwrite its parameters).                  */
+	if(!(aica->dma.ddir))
+	{
+		for(i=0;i<4;i++)
+			tmp_dma[i] = aica->udata.data[(0x80+(i*4))/2];
+	}
+
+	/* note: we don't use space.read_word / write_word because it can happen that SH-4 enables the DMA instead of ARM like in DCLP tester. */
+	/* TODO: don't know if params auto-updates, I guess not ... */
+	if(aica->dma.ddir)
+	{
+		if(aica->dma.dgate)
+		{
+			for(i=0;i < aica->dma.dlg;i+=2)
+			{
+				aica->AICARAM[aica->dma.dmea] = 0;
+				aica->AICARAM[aica->dma.dmea+1] = 0;
+				aica->dma.dmea+=2;
+			}
+		}
+		else
+		{
+			for(i=0;i < aica->dma.dlg;i+=2)
+			{
+				UINT16 tmp;
+				tmp = AICA_r16(aica, space, aica->dma.drga);;
+				aica->AICARAM[aica->dma.dmea] = tmp & 0xff;
+				aica->AICARAM[aica->dma.dmea+1] = tmp>>8;
+				aica->dma.dmea+=4;
+				aica->dma.drga+=4;
+			}
+		}
+	}
+	else
+	{
+		if(aica->dma.dgate)
+		{
+			for(i=0;i < aica->dma.dlg;i+=2)
+			{
+				AICA_w16(aica, space, aica->dma.drga, 0);
+				aica->dma.drga+=4;
+			}
+		}
+		else
+		{
+			for(i=0;i < aica->dma.dlg;i+=2)
+			{
+				UINT16 tmp;
+				tmp = aica->AICARAM[aica->dma.dmea];
+				tmp|= aica->AICARAM[aica->dma.dmea+1]<<8;
+				AICA_w16(aica, space, aica->dma.drga, tmp);
+				aica->dma.dmea+=4;
+				aica->dma.drga+=4;
+			}
+		}
+	}
+
+	/*Resume the values*/
+	if(!(aica->dma.ddir))
+	{
+		for(i=0;i<4;i++)
+			aica->udata.data[(0x80+(i*4))/2] = tmp_dma[i];
+	}
+
+	/* Job done, clear DEXE */
+	aica->udata.data[0x8c/2] &= ~1;
+	/* request a dma end irq */
+	aica->mcipd |= 0x10;
+	CheckPendingIRQ_SH4(aica);
+}
+
 #ifdef UNUSED_FUNCTION
 static int AICA_IRQCB(void *param)
 {
@@ -1280,6 +1522,7 @@ static DEVICE_START( aica )
 	// set up the IRQ callbacks
 	{
 		AICA->IntARMCB.resolve(intf->irq_callback,*device);
+		AICA->IntSH4CB.resolve(intf->master_irq_callback,*device);
 
 		AICA->stream = device->machine().sound().stream_alloc(*device, 0, 2, 44100, AICA, AICA_Update);
 	}
@@ -1299,10 +1542,6 @@ static DEVICE_START( aica )
 		device->save_item(NAME(AICA->TimPris),3);
 		device->save_item(NAME(AICA->TimCnt),3);
 	}
-}
-
-static DEVICE_STOP( aica )
-{
 }
 
 void aica_set_ram_base(device_t *device, void *base, int size)
@@ -1355,7 +1594,7 @@ READ16_DEVICE_HANDLER( aica_midi_out_r )
 const device_type AICA = &device_creator<aica_device>;
 
 aica_device::aica_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, AICA, "AICA", tag, owner, clock),
+	: device_t(mconfig, AICA, "AICA", tag, owner, clock, "aica", __FILE__),
 		device_sound_interface(mconfig, *this)
 {
 	m_token = global_alloc_clear(aica_state);
@@ -1386,7 +1625,6 @@ void aica_device::device_start()
 
 void aica_device::device_stop()
 {
-	DEVICE_STOP_NAME( aica )(this);
 }
 
 //-------------------------------------------------

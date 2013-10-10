@@ -1,7 +1,5 @@
 #include "emu.h"
 #include "includes/boogwing.h"
-#include "video/deco16ic.h"
-#include "video/decocomn.h"
 
 
 void boogwing_state::video_start()
@@ -20,7 +18,7 @@ void boogwing_state::video_start()
 
  apparently priority is based on a PROM, that should be used if possible.
 */
-void boogwing_state::mix_boogwing(bitmap_rgb32 &bitmap, const rectangle &cliprect)
+void boogwing_state::mix_boogwing(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	int y, x;
 	const pen_t *paldata = machine().pens;
@@ -28,11 +26,11 @@ void boogwing_state::mix_boogwing(bitmap_rgb32 &bitmap, const rectangle &cliprec
 	bitmap_ind8* priority_bitmap;
 
 	address_space &space = machine().driver_data()->generic_space();
-	UINT16 priority = decocomn_priority_r(m_decocomn, space, 0, 0xffff);
+	UINT16 priority = m_decocomn->priority_r(space, 0, 0xffff);
 
 	sprite_bitmap1 = &m_sprgen1->get_sprite_temp_bitmap();
 	sprite_bitmap2 = &m_sprgen2->get_sprite_temp_bitmap();
-	priority_bitmap = &machine().priority_bitmap;
+	priority_bitmap = &screen.priority();
 
 	UINT32* dstline;
 	UINT16 *srcline1, *srcline2;
@@ -180,52 +178,52 @@ void boogwing_state::mix_boogwing(bitmap_rgb32 &bitmap, const rectangle &cliprec
 UINT32 boogwing_state::screen_update_boogwing(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
 	address_space &space = machine().driver_data()->generic_space();
-	UINT16 flip = deco16ic_pf_control_r(m_deco_tilegen1, space, 0, 0xffff);
-	UINT16 priority = decocomn_priority_r(m_decocomn, space, 0, 0xffff);
+	UINT16 flip = m_deco_tilegen1->pf_control_r(space, 0, 0xffff);
+	UINT16 priority = m_decocomn->priority_r(space, 0, 0xffff);
 
 	/* Draw sprite planes to bitmaps for later mixing */
 	m_sprgen2->draw_sprites(bitmap, cliprect, m_spriteram2->buffer(), 0x400, true);
 	m_sprgen1->draw_sprites(bitmap, cliprect, m_spriteram->buffer(), 0x400, true);
 
 	flip_screen_set(BIT(flip, 7));
-	deco16ic_pf_update(m_deco_tilegen1, m_pf1_rowscroll, m_pf2_rowscroll);
-	deco16ic_pf_update(m_deco_tilegen2, m_pf3_rowscroll, m_pf4_rowscroll);
+	m_deco_tilegen1->pf_update(m_pf1_rowscroll, m_pf2_rowscroll);
+	m_deco_tilegen2->pf_update(m_pf3_rowscroll, m_pf4_rowscroll);
 
 	/* Draw playfields */
 	bitmap.fill(machine().pens[0x400], cliprect); /* pen not confirmed */
-	machine().priority_bitmap.fill(0);
+	screen.priority().fill(0);
 
 	// bit&0x8 is definitely some kind of palette effect
 	// bit&0x4 combines playfields
 	if ((priority & 0x7) == 0x5)
 	{
-		deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-		deco16ic_tilemap_12_combine_draw(m_deco_tilegen2, bitmap, cliprect, 0, 32);
+		m_deco_tilegen1->tilemap_2_draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
+		m_deco_tilegen2->tilemap_12_combine_draw(screen, bitmap, cliprect, 0, 32);
 	}
 	else if ((priority & 0x7) == 0x1 || (priority & 0x7) == 0x2)
 	{
-		deco16ic_tilemap_2_draw(m_deco_tilegen2, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-		deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, 0, 8);
-		deco16ic_tilemap_1_draw(m_deco_tilegen2, bitmap, cliprect, 0, 32);
+		m_deco_tilegen2->tilemap_2_draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
+		m_deco_tilegen1->tilemap_2_draw(screen, bitmap, cliprect, 0, 8);
+		m_deco_tilegen2->tilemap_1_draw(screen, bitmap, cliprect, 0, 32);
 	}
 	else if ((priority & 0x7) == 0x3)
 	{
-		deco16ic_tilemap_2_draw(m_deco_tilegen2, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-		deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, 0, 8);
+		m_deco_tilegen2->tilemap_2_draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
+		m_deco_tilegen1->tilemap_2_draw(screen, bitmap, cliprect, 0, 8);
 
 		// This mode uses playfield 3 to shadow sprites & playfield 2 (instead of
 		// regular alpha-blending, the destination is inverted).  Not yet implemented.
-		// deco16ic_tilemap_3_draw(m_deco_tilegen1, bitmap, cliprect, TILEMAP_DRAW_ALPHA(0x80), 32);
+		// m_deco_tilegen1->tilemap_3_draw(screen, bitmap, cliprect, TILEMAP_DRAW_ALPHA(0x80), 32);
 	}
 	else
 	{
-		deco16ic_tilemap_2_draw(m_deco_tilegen2, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
-		deco16ic_tilemap_1_draw(m_deco_tilegen2, bitmap, cliprect, 0, 8);
-		deco16ic_tilemap_2_draw(m_deco_tilegen1, bitmap, cliprect, 0, 32);
+		m_deco_tilegen2->tilemap_2_draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
+		m_deco_tilegen2->tilemap_1_draw(screen, bitmap, cliprect, 0, 8);
+		m_deco_tilegen1->tilemap_2_draw(screen, bitmap, cliprect, 0, 32);
 	}
 
-	mix_boogwing(bitmap,cliprect);
+	mix_boogwing(screen,bitmap,cliprect);
 
-	deco16ic_tilemap_1_draw(m_deco_tilegen1, bitmap, cliprect, 0, 0);
+	m_deco_tilegen1->tilemap_1_draw(screen, bitmap, cliprect, 0, 0);
 	return 0;
 }

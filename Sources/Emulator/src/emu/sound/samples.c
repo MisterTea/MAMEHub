@@ -75,13 +75,13 @@ const device_type SAMPLES = &device_creator<samples_device>;
 //-------------------------------------------------
 
 samples_device::samples_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, SAMPLES, "Samples", tag, owner, clock),
+	: device_t(mconfig, SAMPLES, "Samples", tag, owner, clock, "samples", __FILE__),
 		device_sound_interface(mconfig, *this)
 {
 }
 
-samples_device::samples_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, type, name, tag, owner, clock),
+samples_device::samples_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_sound_interface(mconfig, *this)
 {
 }

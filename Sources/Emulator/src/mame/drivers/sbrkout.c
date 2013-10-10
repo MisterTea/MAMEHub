@@ -122,7 +122,7 @@ void sbrkout_state::machine_start()
 
 void sbrkout_state::machine_reset()
 {
-	m_scanline_timer->adjust(machine().primary_screen->time_until_pos(0));
+	m_scanline_timer->adjust(m_screen->time_until_pos(0));
 }
 
 
@@ -139,7 +139,7 @@ TIMER_CALLBACK_MEMBER(sbrkout_state::scanline_callback)
 	int scanline = param;
 
 	/* force a partial update before anything happens */
-	machine().primary_screen->update_partial(scanline);
+	m_screen->update_partial(scanline);
 
 	/* if this is a rising edge of 16V, assert the CPU interrupt */
 	if (scanline % 32 == 16)
@@ -149,17 +149,17 @@ TIMER_CALLBACK_MEMBER(sbrkout_state::scanline_callback)
 	m_dac->write_unsigned8((videoram[0x380 + 0x11] & (scanline >> 2)) ? 255 : 0);
 
 	/* on the VBLANK, read the pot and schedule an interrupt time for it */
-	if (scanline == machine().primary_screen->visible_area().max_y + 1)
+	if (scanline == m_screen->visible_area().max_y + 1)
 	{
 		UINT8 potvalue = ioport("PADDLE")->read();
-		m_pot_timer->adjust(machine().primary_screen->time_until_pos(56 + (potvalue / 2), (potvalue % 2) * 128));
+		m_pot_timer->adjust(m_screen->time_until_pos(56 + (potvalue / 2), (potvalue % 2) * 128));
 	}
 
 	/* call us back in 4 scanlines */
 	scanline += 4;
-	if (scanline >= machine().primary_screen->height())
+	if (scanline >= m_screen->height())
 		scanline = 0;
-	m_scanline_timer->adjust(machine().primary_screen->time_until_pos(scanline), scanline);
+	m_scanline_timer->adjust(m_screen->time_until_pos(scanline), scanline);
 }
 
 
@@ -284,9 +284,9 @@ WRITE8_MEMBER(sbrkout_state::coincount_w)
 
 READ8_MEMBER(sbrkout_state::sync_r)
 {
-	int hpos = machine().primary_screen->hpos();
-	m_sync2_value = (hpos >= 128 && hpos <= machine().primary_screen->visible_area().max_x);
-	return machine().primary_screen->vpos();
+	int hpos = m_screen->hpos();
+	m_sync2_value = (hpos >= 128 && hpos <= m_screen->visible_area().max_x);
+	return m_screen->vpos();
 }
 
 
@@ -337,7 +337,7 @@ UINT32 sbrkout_state::screen_update_sbrkout(screen_device &screen, bitmap_ind16 
 	UINT8 *videoram = m_videoram;
 	int ball;
 
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	for (ball = 2; ball >= 0; ball--)
 	{
@@ -520,7 +520,7 @@ static MACHINE_CONFIG_START( sbrkout, sbrkout_state )
 	MCFG_SCREEN_RAW_PARAMS(MAIN_CLOCK/2, 384, 0, 256, 262, 0, 224)
 	MCFG_SCREEN_UPDATE_DRIVER(sbrkout_state, screen_update_sbrkout)
 
-	MCFG_PALETTE_INIT(black_and_white)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")

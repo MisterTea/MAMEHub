@@ -245,7 +245,6 @@ static MC6845_UPDATE_ROW( zrt80_update_row )
 
 static MC6845_INTERFACE( zrt80_crtc6845_interface )
 {
-	"screen",
 	false,
 	8 /*?*/,
 	NULL,
@@ -313,7 +312,7 @@ static MACHINE_CONFIG_START( zrt80, zrt80_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 640 - 1, 0, 200 - 1)
 	MCFG_GFXDECODE(zrt80)
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(monochrome_green)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, monochrome_green)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -321,7 +320,7 @@ static MACHINE_CONFIG_START( zrt80, zrt80_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
 	/* Devices */
-	MCFG_MC6845_ADD("crtc", MC6845, XTAL_20MHz / 8, zrt80_crtc6845_interface)
+	MCFG_MC6845_ADD("crtc", MC6845, "screen", XTAL_20MHz / 8, zrt80_crtc6845_interface)
 	MCFG_INS8250_ADD( "ins8250", zrt80_com_interface, 2457600 )
 	MCFG_ASCII_KEYBOARD_ADD(KEYBOARD_TAG, keyboard_intf)
 MACHINE_CONFIG_END

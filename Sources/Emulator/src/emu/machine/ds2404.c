@@ -23,9 +23,16 @@ const device_type DS2404 = &device_creator<ds2404_device>;
 //-------------------------------------------------
 
 ds2404_device::ds2404_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, DS2404, "DS2404", tag, owner, clock),
-		device_nvram_interface(mconfig, *this)
+	: device_t(mconfig, DS2404, "DS2404", tag, owner, clock, "ds2404", __FILE__),
+		device_nvram_interface(mconfig, *this),
+		m_address(0),
+		m_offset(0),
+		m_end_offset(0),
+		m_a1(0),
+		m_a2(0),
+		m_state_ptr(0)
 {
+	memset(m_ram, 0, sizeof(m_ram));
 }
 
 
@@ -90,8 +97,11 @@ void ds2404_device::device_start()
 	m_rtc[3] = (current_time >> 16) & 0xff;
 	m_rtc[4] = (current_time >> 24) & 0xff;
 
-	emu_timer *timer = machine().scheduler().timer_alloc(FUNC(ds2404_tick_callback), (void *)this);
-	timer->adjust(attotime::from_hz(256), 0, attotime::from_hz(256));
+	for (int i = 0; i < 8; i++)
+		m_state[i] = DS2404_STATE_IDLE;
+
+	m_tick_timer = timer_alloc(0);
+	m_tick_timer->adjust(attotime::from_hz(256), 0, attotime::from_hz(256));
 }
 
 
@@ -336,20 +346,28 @@ WRITE8_MEMBER( ds2404_device::ds2404_clk_w )
 	}
 }
 
-TIMER_CALLBACK( ds2404_device::ds2404_tick_callback )
+void ds2404_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
 {
-	reinterpret_cast<ds2404_device*>(ptr)->ds2404_tick();
-}
-
-void ds2404_device::ds2404_tick()
-{
-	for(int i = 0; i < 5; i++)
+	switch(id)
 	{
-		m_rtc[ i ]++;
-		if(m_rtc[ i ] != 0)
+		case 0:
 		{
+			// tick
+			for(int i = 0; i < 5; i++)
+			{
+				m_rtc[ i ]++;
+				if(m_rtc[ i ] != 0)
+				{
+					break;
+				}
+			}
+
 			break;
 		}
+
+		default:
+			assert_always(FALSE, "Unknown id in ds2404_device::device_timer");
+			break;
 	}
 }
 

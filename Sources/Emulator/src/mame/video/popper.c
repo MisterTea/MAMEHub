@@ -38,12 +38,6 @@ static const res_net_info popper_net_info =
 	}
 };
 
-/***************************************************************************
- *
- * PALETTE_INIT
- *
- ***************************************************************************/
-
 void popper_state::palette_init()
 {
 	const UINT8 *color_prom = memregion("proms")->base();
@@ -184,7 +178,7 @@ void popper_state::video_start()
 	m_ol_p0_tilemap->set_transmask(0, 0x0f, 0x0e);
 	m_ol_p0_tilemap->set_transmask(1, 0x0e, 0x0f);
 
-	m_tilemap_clip = machine().primary_screen->visible_area();
+	m_tilemap_clip = m_screen->visible_area();
 }
 
 void popper_state::draw_sprites( bitmap_ind16 &bitmap,const rectangle &cliprect )
@@ -239,16 +233,16 @@ UINT32 popper_state::screen_update_popper(screen_device &screen, bitmap_ind16 &b
 	//-xxx---- colour for pen 0 (from second prom?)
 	//----xxxx colour for pens 1,2,3
 
-	m_p123_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
-	m_p0_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
-	m_ol_p123_tilemap->draw(bitmap, finalclip, TILEMAP_DRAW_LAYER1, 0);
-	m_ol_p0_tilemap->draw(bitmap, finalclip, TILEMAP_DRAW_LAYER1, 0);
+	m_p123_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
+	m_p0_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_LAYER1, 0);
+	m_ol_p123_tilemap->draw(screen, bitmap, finalclip, TILEMAP_DRAW_LAYER1, 0);
+	m_ol_p0_tilemap->draw(screen, bitmap, finalclip, TILEMAP_DRAW_LAYER1, 0);
 
 	draw_sprites(bitmap, cliprect);
 
-	m_p123_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);
-	m_p0_tilemap->draw(bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);
-	m_ol_p123_tilemap->draw(bitmap, finalclip, TILEMAP_DRAW_LAYER0, 0);
-	m_ol_p0_tilemap->draw(bitmap, finalclip, TILEMAP_DRAW_LAYER0, 0);
+	m_p123_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);
+	m_p0_tilemap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_LAYER0, 0);
+	m_ol_p123_tilemap->draw(screen, bitmap, finalclip, TILEMAP_DRAW_LAYER0, 0);
+	m_ol_p0_tilemap->draw(screen, bitmap, finalclip, TILEMAP_DRAW_LAYER0, 0);
 	return 0;
 }

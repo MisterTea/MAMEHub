@@ -33,11 +33,12 @@
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
+#include "machine/68307.h"
+#include "machine/68340.h"
 #include "includes/bfm_sc45.h"
 #include "bfm_sc4.lh"
 #include "video/awpvid.h"
 //DMD01
-#include "video/bfm_dm01.h"
 #include "cpu/m6809/m6809.h"
 #include "sc4_dmd.lh"
 
@@ -481,7 +482,7 @@ void bfm_sc45_write_serial_vfd(running_machine &machine, bool cs, bool clock, bo
 						state->vfd_ser_count = 0;
 						if (machine.device("matrix"))
 						{
-							BFM_dm01_writedata(machine,state->vfd_ser_value);
+							state->m_dm01->writedata(state->vfd_ser_value);
 						}
 						else
 						{
@@ -551,7 +552,7 @@ void bfm_sc4_68307_portb_w(address_space &space, bool dedicated, UINT16 data, UI
 //  if (dedicated == false)
 	{
 		int pc = space.device().safe_pc();
-		//m68ki_cpu_core *m68k = m68k_get_safe_token(&space.device());
+		//_m68ki_cpu_core *m68k = m68k_get_safe_token(&space.device());
 		// serial output to the VFD at least..
 		logerror("%08x bfm_sc4_68307_portb_w %04x %04x\n", pc, data, line_mask);
 
@@ -603,12 +604,15 @@ MACHINE_START_MEMBER(sc4_state,sc4)
 {
 	m_nvram->set_base(m_mainram, sizeof(m_mainram));
 
+
 	m68307_set_port_callbacks(m_maincpu,
 		bfm_sc4_68307_porta_r,
 		bfm_sc4_68307_porta_w,
 		bfm_sc4_68307_portb_r,
 		bfm_sc4_68307_portb_w );
 	m68307_set_duart68681(m_maincpu,machine().device("m68307_68681"));
+
+
 
 	int reels = 6;
 	m_reels=reels;
@@ -731,6 +735,17 @@ static const duart68681_config m68307_duart68681_config =
 	m68307_duart_output_w
 };
 
+/* default dmd */
+static void bfmdm01_busy(running_machine &machine, int state)
+{
+	// Must tie back to inputs somehow!
+}
+
+static const bfmdm01_interface dm01_interface =
+{
+	bfmdm01_busy
+};
+
 
 
 MACHINE_CONFIG_START( sc4, sc4_state )
@@ -779,9 +794,10 @@ MACHINE_CONFIG_DERIVED_CLASS( sc4dmd, sc4, sc4_state )
 	/* video hardware */
 
 	MCFG_DEFAULT_LAYOUT(layout_sc4_dmd)
+	MCFG_DM01_ADD("dm01", dm01_interface)
 	MCFG_CPU_ADD("matrix", M6809, 2000000 )             /* matrix board 6809 CPU at 2 Mhz ?? I don't know the exact freq.*/
 	MCFG_CPU_PROGRAM_MAP(bfm_dm01_memmap)
-	MCFG_CPU_PERIODIC_INT(bfm_dm01_vbl, 1500 )          /* generate 1500 NMI's per second ?? what is the exact freq?? */
+	MCFG_CPU_PERIODIC_INT_DRIVER(sc4_state, nmi_line_assert, 1500 )          /* generate 1500 NMI's per second ?? what is the exact freq?? */
 
 	MCFG_MACHINE_START_OVERRIDE(sc4_state, sc4 )
 MACHINE_CONFIG_END

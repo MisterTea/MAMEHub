@@ -431,7 +431,7 @@ READ8_MEMBER(phoenix_state::survival_protection_r)
 
 READ_LINE_MEMBER(phoenix_state::survival_sid_callback)
 {
-	return m_survival_sid_value;
+	return m_survival_sid_value ? ASSERT_LINE : CLEAR_LINE;
 }
 
 
@@ -443,7 +443,7 @@ READ_LINE_MEMBER(phoenix_state::survival_sid_callback)
 
 UINT32 phoenix_state::screen_update_phoenix(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_bg_tilemap->draw(bitmap, cliprect, 0,0);
-	m_fg_tilemap->draw(bitmap, cliprect, 0,0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0,0);
+	m_fg_tilemap->draw(screen, bitmap, cliprect, 0,0);
 	return 0;
 }

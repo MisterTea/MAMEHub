@@ -15,6 +15,7 @@ TODO:
 #include "911_chr.h"
 #include "911_key.h"
 #include "sound/beep.h"
+#include "devlegcy.h"
 
 
 
@@ -130,20 +131,20 @@ static TIMER_CALLBACK(beep_callback);
 /*
     Initialize vdt911 palette
 */
-PALETTE_INIT( vdt911 )
+PALETTE_INIT_MEMBER(vdt911_device, vdt911)
 {
 	UINT8 i, r, g, b;
 
-	machine.colortable = colortable_alloc(machine, 3);
+	machine().colortable = colortable_alloc(machine(), 3);
 
 	for ( i = 0; i < 3; i++ )
 	{
 		r = vdt911_colors[i*3]; g = vdt911_colors[i*3+1]; b = vdt911_colors[i*3+2];
-		colortable_palette_set_color(machine.colortable, i, MAKE_RGB(r, g, b));
+		colortable_palette_set_color(machine().colortable, i, MAKE_RGB(r, g, b));
 	}
 
 	for(i=0;i<8;i++)
-		colortable_entry_set_value(machine.colortable, i, vdt911_palette[i]);
+		colortable_entry_set_value(machine().colortable, i, vdt911_palette[i]);
 }
 
 /*
@@ -271,7 +272,7 @@ static DEVICE_START( vdt911 )
 const device_type VDT911 = &device_creator<vdt911_device>;
 
 vdt911_device::vdt911_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, VDT911, "911 VDT", tag, owner, clock)
+	: device_t(mconfig, VDT911, "911 VDT", tag, owner, clock, "vdt911", __FILE__)
 {
 	m_token = global_alloc_clear(vdt_t);
 }
@@ -706,4 +707,18 @@ void vdt911_keyboard(device_t *device)
 			}
 		}
 	}
+}
+
+static MACHINE_CONFIG_FRAGMENT( vdt911 )
+	MCFG_PALETTE_INIT_OVERRIDE(vdt911_device, vdt911)
+MACHINE_CONFIG_END
+
+//-------------------------------------------------
+//  machine_config_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor vdt911_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( vdt911 );
 }

@@ -51,15 +51,13 @@ Notes:
 #include "cpu/m6809/m6809.h"
 #include "cpu/m6809/hd6309.h"
 #include "sound/2151intf.h"
-#include "sound/vlm5030.h"
-#include "video/konicdev.h"
 #include "includes/rockrage.h"
 #include "includes/konamipt.h"
 
 
 INTERRUPT_GEN_MEMBER(rockrage_state::rockrage_interrupt)
 {
-	if (k007342_is_int_enabled(m_k007342))
+	if (m_k007342->is_int_enabled())
 		device.execute().set_input_line(HD6309_IRQ_LINE, HOLD_LINE);
 }
 
@@ -83,24 +81,22 @@ WRITE8_MEMBER(rockrage_state::rockrage_sh_irqtrigger_w)
 
 READ8_MEMBER(rockrage_state::rockrage_VLM5030_busy_r)
 {
-	device_t *device = machine().device("vlm");
-	return (vlm5030_bsy(device) ? 1 : 0);
+	return (m_vlm->bsy() ? 1 : 0);
 }
 
 WRITE8_MEMBER(rockrage_state::rockrage_speech_w)
 {
-	device_t *device = machine().device("vlm");
 	/* bit2 = data bus enable */
-	vlm5030_rst(device, (data >> 1) & 0x01);
-	vlm5030_st(device, (data >> 0) & 0x01);
+	m_vlm->rst((data >> 1) & 0x01);
+	m_vlm->st((data >> 0) & 0x01);
 }
 
 static ADDRESS_MAP_START( rockrage_map, AS_PROGRAM, 8, rockrage_state )
-	AM_RANGE(0x0000, 0x1fff) AM_DEVREADWRITE_LEGACY("k007342", k007342_r, k007342_w)                    /* Color RAM + Video RAM */
-	AM_RANGE(0x2000, 0x21ff) AM_DEVREADWRITE_LEGACY("k007420", k007420_r, k007420_w)                    /* Sprite RAM */
-	AM_RANGE(0x2200, 0x23ff) AM_DEVREADWRITE_LEGACY("k007342", k007342_scroll_r, k007342_scroll_w)  /* Scroll RAM */
+	AM_RANGE(0x0000, 0x1fff) AM_DEVREADWRITE("k007342", k007342_device, read, write)                    /* Color RAM + Video RAM */
+	AM_RANGE(0x2000, 0x21ff) AM_DEVREADWRITE("k007420", k007420_device, read, write)                    /* Sprite RAM */
+	AM_RANGE(0x2200, 0x23ff) AM_DEVREADWRITE("k007342", k007342_device, scroll_r, scroll_w)  /* Scroll RAM */
 	AM_RANGE(0x2400, 0x247f) AM_RAM AM_SHARE("paletteram")                      /* Palette */
-	AM_RANGE(0x2600, 0x2607) AM_DEVWRITE_LEGACY("k007342", k007342_vreg_w)                          /* Video Registers */
+	AM_RANGE(0x2600, 0x2607) AM_DEVWRITE("k007342", k007342_device, vreg_w)                          /* Video Registers */
 	AM_RANGE(0x2e00, 0x2e00) AM_READ_PORT("SYSTEM")
 	AM_RANGE(0x2e01, 0x2e01) AM_READ_PORT("P1")
 	AM_RANGE(0x2e02, 0x2e02) AM_READ_PORT("P2")
@@ -116,7 +112,7 @@ static ADDRESS_MAP_START( rockrage_map, AS_PROGRAM, 8, rockrage_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( rockrage_sound_map, AS_PROGRAM, 8, rockrage_state )
-	AM_RANGE(0x2000, 0x2000) AM_DEVWRITE_LEGACY("vlm", vlm5030_data_w)              /* VLM5030 */
+	AM_RANGE(0x2000, 0x2000) AM_DEVWRITE("vlm", vlm5030_device, data_w)              /* VLM5030 */
 	AM_RANGE(0x3000, 0x3000) AM_READ(rockrage_VLM5030_busy_r)           /* VLM5030 */
 	AM_RANGE(0x4000, 0x4000) AM_WRITE(rockrage_speech_w)                /* VLM5030 */
 	AM_RANGE(0x5000, 0x5000) AM_READ(soundlatch_byte_r)                             /* soundlatch_byte_r */

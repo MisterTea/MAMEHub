@@ -56,11 +56,11 @@ TILE_GET_INFO_MEMBER(tecmo16_state::tx_get_tile_info)
 void tecmo16_state::video_start()
 {
 	/* set up tile layers */
-	machine().primary_screen->register_screen_bitmap(m_tile_bitmap_bg);
-	machine().primary_screen->register_screen_bitmap(m_tile_bitmap_fg);
+	m_screen->register_screen_bitmap(m_tile_bitmap_bg);
+	m_screen->register_screen_bitmap(m_tile_bitmap_fg);
 
 	/* set up sprites */
-	machine().primary_screen->register_screen_bitmap(m_sprite_bitmap);
+	m_screen->register_screen_bitmap(m_sprite_bitmap);
 
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tecmo16_state::fg_get_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tecmo16_state::bg_get_tile_info),this),TILEMAP_SCAN_ROWS,16,16,32,32);
@@ -78,11 +78,11 @@ void tecmo16_state::video_start()
 VIDEO_START_MEMBER(tecmo16_state,ginkun)
 {
 	/* set up tile layers */
-	machine().primary_screen->register_screen_bitmap(m_tile_bitmap_bg);
-	machine().primary_screen->register_screen_bitmap(m_tile_bitmap_fg);
+	m_screen->register_screen_bitmap(m_tile_bitmap_bg);
+	m_screen->register_screen_bitmap(m_tile_bitmap_fg);
 
 	/* set up sprites */
-	machine().primary_screen->register_screen_bitmap(m_sprite_bitmap);
+	m_screen->register_screen_bitmap(m_sprite_bitmap);
 
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tecmo16_state::fg_get_tile_info),this),TILEMAP_SCAN_ROWS,16,16,64,32);
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tecmo16_state::bg_get_tile_info),this),TILEMAP_SCAN_ROWS,16,16,64,32);
@@ -98,11 +98,11 @@ VIDEO_START_MEMBER(tecmo16_state,ginkun)
 VIDEO_START_MEMBER(tecmo16_state,riot)
 {
 	/* set up tile layers */
-	machine().primary_screen->register_screen_bitmap(m_tile_bitmap_bg);
-	machine().primary_screen->register_screen_bitmap(m_tile_bitmap_fg);
+	m_screen->register_screen_bitmap(m_tile_bitmap_bg);
+	m_screen->register_screen_bitmap(m_tile_bitmap_fg);
 
 	/* set up sprites */
-	machine().primary_screen->register_screen_bitmap(m_sprite_bitmap);
+	m_screen->register_screen_bitmap(m_sprite_bitmap);
 
 	m_fg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tecmo16_state::fg_get_tile_info),this),TILEMAP_SCAN_ROWS,16,16,64,32);
 	m_bg_tilemap = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(tecmo16_state::bg_get_tile_info),this),TILEMAP_SCAN_ROWS,16,16,64,32);
@@ -308,22 +308,22 @@ static void blendbitmaps(running_machine &machine,
 
 UINT32 tecmo16_state::screen_update_tecmo16(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
 {
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
 	m_tile_bitmap_bg.fill(0x300, cliprect);
 	m_tile_bitmap_fg.fill(0, cliprect);
 	m_sprite_bitmap.fill(0, cliprect);
 
 	/* draw tilemaps into a 16-bit bitmap */
-	m_bg_tilemap->draw(m_tile_bitmap_bg, cliprect, 0, 1);
-	m_fg_tilemap->draw(m_tile_bitmap_fg, cliprect, 0, 2);
+	m_bg_tilemap->draw(screen, m_tile_bitmap_bg, cliprect, 0, 1);
+	m_fg_tilemap->draw(screen, m_tile_bitmap_fg, cliprect, 0, 2);
 	/* draw the blended tiles at a lower priority
 	   so sprites covered by them will still be drawn */
-	m_fg_tilemap->draw(m_tile_bitmap_fg, cliprect, 1, 0);
-	m_tx_tilemap->draw(m_tile_bitmap_fg, cliprect, 0, 4);
+	m_fg_tilemap->draw(screen, m_tile_bitmap_fg, cliprect, 1, 0);
+	m_tx_tilemap->draw(screen, m_tile_bitmap_fg, cliprect, 0, 4);
 
 	/* draw sprites into a 16-bit bitmap */
-	tecmo16_draw_sprites(machine(), m_tile_bitmap_bg, m_tile_bitmap_fg, m_sprite_bitmap, cliprect, m_spriteram, m_spriteram.bytes(), m_game_is_riot, m_flipscreen);
+	tecmo16_draw_sprites(screen, m_tile_bitmap_bg, m_tile_bitmap_fg, m_sprite_bitmap, cliprect, m_spriteram, m_spriteram.bytes(), m_game_is_riot, m_flipscreen);
 
 	/* mix & blend the tilemaps and sprites into a 32-bit bitmap */
 	blendbitmaps(machine(), bitmap, m_tile_bitmap_bg, m_tile_bitmap_fg, m_sprite_bitmap, 0, 0, cliprect);

@@ -346,14 +346,14 @@ TILEMAP_MAPPER_MEMBER(megasys1_state::megasys1_scan_16x16)
 
 TILE_GET_INFO_MEMBER(megasys1_state::megasys1_get_scroll_tile_info_8x8)
 {
-	int tmap = (FPTR)param;
+	int tmap = (FPTR)tilemap.user_data();
 	UINT16 code = m_scrollram[tmap][tile_index];
 	SET_TILE_INFO_MEMBER(tmap, (code & 0xfff) * m_8x8_scroll_factor[tmap], code >> (16 - m_bits_per_color_code), 0);
 }
 
 TILE_GET_INFO_MEMBER(megasys1_state::megasys1_get_scroll_tile_info_16x16)
 {
-	int tmap = (FPTR)param;
+	int tmap = (FPTR)tilemap.user_data();
 	UINT16 code = m_scrollram[tmap][tile_index/4];
 	SET_TILE_INFO_MEMBER(tmap, (code & 0xfff) * m_16x16_scroll_factor[tmap] + (tile_index & 3), code >> (16 - m_bits_per_color_code), 0);
 }
@@ -555,7 +555,7 @@ WRITE16_MEMBER(megasys1_state::megasys1_vregs_D_w)
     0C      Y position
     0E      Code                                            */
 
-void megasys1_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect)
+void megasys1_state::draw_sprites(screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect)
 {
 	int color,code,sx,sy,flipx,flipy,attr,sprite,offs,color_mask;
 
@@ -603,7 +603,7 @@ void megasys1_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect
 						color,
 						flipx, flipy,
 						sx, sy,
-						machine().priority_bitmap,
+						screen.priority(),
 						(attr & 0x08) ? 0x0c : 0x0a,15);
 			}   /* sprite */
 		}   /* offs */
@@ -644,7 +644,7 @@ void megasys1_state::draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect
 					color,
 					flipx, flipy,
 					sx, sy,
-					machine().priority_bitmap,
+					screen.priority(),
 					(attr & 0x08) ? 0x0c : 0x0a,15);
 		}   /* sprite */
 	}   /* Z hw */
@@ -959,7 +959,7 @@ UINT32 megasys1_state::screen_update_megasys1(screen_device &screen, bitmap_ind1
 		}
 	}
 
-	machine().priority_bitmap.fill(0, cliprect);
+	screen.priority().fill(0, cliprect);
 
 	flag = TILEMAP_DRAW_OPAQUE;
 	primask = 0;
@@ -976,7 +976,7 @@ UINT32 megasys1_state::screen_update_megasys1(screen_device &screen, bitmap_ind1
 			case 2:
 				if ( (m_tmap[layer]) && (active_layers & (1 << layer) ) )
 				{
-					m_tmap[layer]->draw(bitmap, cliprect, flag,primask);
+					m_tmap[layer]->draw(screen, bitmap, cliprect, flag,primask);
 					flag = 0;
 				}
 				break;
@@ -1002,7 +1002,7 @@ UINT32 megasys1_state::screen_update_megasys1(screen_device &screen, bitmap_ind1
 	}
 
 	if (active_layers & 0x08)
-		draw_sprites(bitmap,cliprect);
+		draw_sprites(screen,bitmap,cliprect);
 	return 0;
 }
 

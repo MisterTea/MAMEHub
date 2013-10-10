@@ -267,7 +267,7 @@ READ8_MEMBER( base_d9060_device::riot1_pb_r )
 	UINT8 data = 0;
 
 	// device number selection
-	data |= m_address - 8;
+	data |= m_slot->get_address() - 8;
 
 	// data accepted in
 	data |= m_bus->ndac_r() << 6;
@@ -460,6 +460,34 @@ machine_config_constructor base_d9060_device::device_mconfig_additions() const
 }
 
 
+//-------------------------------------------------
+//  INPUT_PORTS( d9060 )
+//-------------------------------------------------
+
+static INPUT_PORTS_START( d9060 )
+	PORT_START("ADDRESS")
+	PORT_DIPNAME( 0x07, 0x01, "Device Address" )
+	PORT_DIPSETTING(    0x00, "8" )
+	PORT_DIPSETTING(    0x01, "9" )
+	PORT_DIPSETTING(    0x02, "10" )
+	PORT_DIPSETTING(    0x03, "11" )
+	PORT_DIPSETTING(    0x04, "12" )
+	PORT_DIPSETTING(    0x05, "13" )
+	PORT_DIPSETTING(    0x06, "14" )
+	PORT_DIPSETTING(    0x07, "15" )
+INPUT_PORTS_END
+
+
+//-------------------------------------------------
+//  input_ports - device-specific input ports
+//-------------------------------------------------
+
+ioport_constructor base_d9060_device::device_input_ports() const
+{
+	return INPUT_PORTS_NAME( d9060 );
+}
+
+
 
 //**************************************************************************
 //  INLINE HELPERS
@@ -498,6 +526,7 @@ base_d9060_device::base_d9060_device(const machine_config &mconfig, device_type 
 		m_riot1(*this, M6532_1_TAG),
 		m_via(*this, M6522_TAG),
 		m_sasibus(*this, SASIBUS_TAG ":host"),
+		m_address(*this, "ADDRESS"),
 		m_rfdo(1),
 		m_daco(1),
 		m_atna(1),

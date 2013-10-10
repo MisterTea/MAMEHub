@@ -12,7 +12,6 @@
 #ifndef __C1541__
 #define __C1541__
 
-
 #include "emu.h"
 #include "cpu/m6502/m6502.h"
 #include "imagedev/flopdrv.h"
@@ -21,8 +20,9 @@
 #include "machine/64h156.h"
 #include "machine/6522via.h"
 #include "machine/6821pia.h"
-#include "machine/c64_bn1541.h"
+#include "machine/c64/bn1541.h"
 #include "machine/cbmiec.h"
+#include "machine/cbmipt.h"
 #include "machine/ctronics.h"
 
 
@@ -47,23 +47,7 @@ class base_c1541_device :  public device_t,
 {
 public:
 	// construction/destruction
-	base_c1541_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source);
-
-	enum
-	{
-		TYPE_1540 = 0,
-		TYPE_1541,
-		TYPE_1541C,
-		TYPE_1541II,
-		TYPE_SX1541,
-		TYPE_FSD2,
-		TYPE_CSD1,
-
-		// extended hardware
-		TYPE_1541_DOLPHIN_DOS,
-		TYPE_1541_PROFESSIONAL_DOS_V1,
-		TYPE_1541_PROLOGIC_DOS_CLASSIC
-	};
+	base_c1541_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
 	DECLARE_WRITE_LINE_MEMBER( via0_irq_w );
 	DECLARE_READ8_MEMBER( via0_pa_r );
@@ -79,8 +63,8 @@ public:
 	DECLARE_WRITE_LINE_MEMBER( byte_w );
 
 	// optional information overrides
-	virtual const rom_entry *device_rom_region() const;
 	virtual machine_config_constructor device_mconfig_additions() const;
+	virtual ioport_constructor device_input_ports() const;
 
 protected:
 	// device-level overrides
@@ -95,6 +79,12 @@ protected:
 	virtual void parallel_data_w(UINT8 data);
 	virtual void parallel_strobe_w(int state);
 
+	enum
+	{
+		LED_POWER = 0,
+		LED_ACT
+	};
+
 	inline void set_iec_data();
 
 	required_device<m6502_device> m_maincpu;
@@ -102,6 +92,7 @@ protected:
 	required_device<via6522_device> m_via1;
 	required_device<c64h156_device> m_ga;
 	required_device<legacy_floppy_image_device> m_image;
+	required_ioport m_address;
 
 	// IEC bus
 	int m_data_out;                         // serial data out
@@ -109,8 +100,6 @@ protected:
 	// interrupts
 	int m_via0_irq;                         // VIA #0 interrupt request
 	int m_via1_irq;                         // VIA #1 interrupt request
-
-	int m_variant;
 };
 
 
@@ -121,6 +110,9 @@ class c1540_device :  public base_c1541_device
 public:
 	// construction/destruction
 	c1540_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
 };
 
 
@@ -131,6 +123,9 @@ class c1541_device :  public base_c1541_device
 public:
 	// construction/destruction
 	c1541_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
 };
 
 
@@ -141,6 +136,10 @@ class c1541c_device :  public base_c1541_device
 public:
 	// construction/destruction
 	c1541c_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 
 	// not really public
 	DECLARE_READ8_MEMBER( via0_pa_r );
@@ -154,6 +153,9 @@ class c1541ii_device :  public base_c1541_device
 public:
 	// construction/destruction
 	c1541ii_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
 };
 
 
@@ -164,6 +166,9 @@ class sx1541_device :  public base_c1541_device
 public:
 	// construction/destruction
 	sx1541_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
 };
 
 
@@ -174,6 +179,9 @@ class fsd2_device :  public base_c1541_device
 public:
 	// construction/destruction
 	fsd2_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
 
 	// device-level overrides
 	virtual void device_start();
@@ -187,6 +195,9 @@ class csd1_device :  public base_c1541_device
 public:
 	// construction/destruction
 	csd1_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
 };
 
 
@@ -197,6 +208,10 @@ class c1541_dolphin_dos_device :  public base_c1541_device
 public:
 	// construction/destruction
 	c1541_dolphin_dos_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 
@@ -207,6 +222,10 @@ class c1541_professional_dos_v1_device :  public base_c1541_device
 public:
 	// construction/destruction
 	c1541_professional_dos_v1_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 };
 
 
@@ -217,6 +236,10 @@ class c1541_prologic_dos_classic_device :  public base_c1541_device
 public:
 	// construction/destruction
 	c1541_prologic_dos_classic_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// optional information overrides
+	virtual const rom_entry *device_rom_region() const;
+	virtual machine_config_constructor device_mconfig_additions() const;
 
 	// not really public
 	DECLARE_READ8_MEMBER( read );

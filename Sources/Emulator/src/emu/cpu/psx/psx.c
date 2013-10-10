@@ -190,13 +190,15 @@ static const UINT32 mtc0_writemask[]=
 
 READ32_MEMBER( psxcpu_device::berr_r )
 {
-	m_berr = 1;
+	if (!space.debugger_access())
+		m_berr = 1;
 	return 0;
 }
 
 WRITE32_MEMBER( psxcpu_device::berr_w )
 {
-	m_berr = 1;
+	if (!space.debugger_access())
+		m_berr = 1;
 }
 
 READ32_MEMBER( psxcpu_device::exp_base_r )
@@ -1583,6 +1585,7 @@ void psxcpu_device::common_exception( int exception, UINT32 romOffset, UINT32 ra
 
 	m_delayr = 0;
 	m_delayv = 0;
+	m_berr = 0;
 
 	if( m_cp0r[ CP0_SR ] & SR_BEV )
 	{
@@ -1729,8 +1732,8 @@ ADDRESS_MAP_END
 //  psxcpu_device - constructor
 //-------------------------------------------------
 
-psxcpu_device::psxcpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock) :
-	cpu_device(mconfig, type, name, tag, owner, clock),
+psxcpu_device::psxcpu_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+	cpu_device(mconfig, type, name, tag, owner, clock, shortname, source),
 	m_program_config("program", ENDIANNESS_LITTLE, 32, 32, 0, ADDRESS_MAP_NAME(psxcpu_internal_map)),
 	m_gpu_read_handler(*this),
 	m_gpu_write_handler(*this),
@@ -1743,32 +1746,32 @@ psxcpu_device::psxcpu_device(const machine_config &mconfig, device_type type, co
 }
 
 cxd8530aq_device::cxd8530aq_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxcpu_device(mconfig, CXD8661R, "CXD8530AQ", tag, owner, clock)
+	: psxcpu_device(mconfig, CXD8661R, "CXD8530AQ", tag, owner, clock, "cxd8530aq", __FILE__)
 {
 }
 
 cxd8530bq_device::cxd8530bq_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxcpu_device(mconfig, CXD8661R, "CXD8530BQ", tag, owner, clock)
+	: psxcpu_device(mconfig, CXD8661R, "CXD8530BQ", tag, owner, clock, "cxd8530bq", __FILE__)
 {
 }
 
 cxd8530cq_device::cxd8530cq_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxcpu_device(mconfig, CXD8661R, "CXD8530CQ", tag, owner, clock)
+	: psxcpu_device(mconfig, CXD8661R, "CXD8530CQ", tag, owner, clock, "cxd8530cq", __FILE__)
 {
 }
 
 cxd8661r_device::cxd8661r_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxcpu_device(mconfig, CXD8661R, "CXD8661R", tag, owner, clock)
+	: psxcpu_device(mconfig, CXD8661R, "CXD8661R", tag, owner, clock, "cxd8661r", __FILE__)
 {
 }
 
 cxd8606bq_device::cxd8606bq_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxcpu_device(mconfig, CXD8606BQ, "CXD8606BQ", tag, owner, clock)
+	: psxcpu_device(mconfig, CXD8606BQ, "CXD8606BQ", tag, owner, clock, "cxd8606bq", __FILE__)
 {
 }
 
 cxd8606cq_device::cxd8606cq_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: psxcpu_device(mconfig, CXD8606CQ, "CXD8606CQ", tag, owner, clock)
+	: psxcpu_device(mconfig, CXD8606CQ, "CXD8606CQ", tag, owner, clock, "cxd8606cq", __FILE__)
 {
 }
 
@@ -1953,6 +1956,7 @@ void psxcpu_device::device_reset()
 
 	m_delayr = 0;
 	m_delayv = 0;
+	m_berr = 0;
 	m_biu = 0;
 
 	m_multiplier_operation = MULTIPLIER_OPERATION_IDLE;
@@ -2284,7 +2288,6 @@ void psxcpu_device::execute_run()
 		if (LOG_BIOSCALL) log_bioscall();
 		debugger_instruction_hook( this,  m_pc );
 
-		m_berr = 0;
 		m_op = m_direct->read_decrypted_dword( m_pc );
 
 		if( m_berr )

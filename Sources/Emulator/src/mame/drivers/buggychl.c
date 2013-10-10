@@ -79,8 +79,6 @@ Dip locations and factory settings verified from dip listing
 #include "cpu/z80/z80.h"
 #include "cpu/m6805/m6805.h"
 #include "sound/ay8910.h"
-#include "sound/msm5232.h"
-#include "machine/buggychl.h"
 #include "includes/buggychl.h"
 
 #include "buggychl.lh"
@@ -139,8 +137,8 @@ static ADDRESS_MAP_START( buggychl_map, AS_PROGRAM, 8, buggychl_state )
 	AM_RANGE(0xd200, 0xd200) AM_WRITE(bankswitch_w)
 	AM_RANGE(0xd300, 0xd300) AM_WRITE(watchdog_reset_w)
 	AM_RANGE(0xd303, 0xd303) AM_WRITE(buggychl_sprite_lookup_bank_w)
-	AM_RANGE(0xd400, 0xd400) AM_DEVREADWRITE_LEGACY("bmcu", buggychl_mcu_r, buggychl_mcu_w)
-	AM_RANGE(0xd401, 0xd401) AM_DEVREAD_LEGACY("bmcu", buggychl_mcu_status_r)
+	AM_RANGE(0xd400, 0xd400) AM_DEVREADWRITE("bmcu", buggychl_mcu_device, buggychl_mcu_r, buggychl_mcu_w)
+	AM_RANGE(0xd401, 0xd401) AM_DEVREAD("bmcu", buggychl_mcu_device, buggychl_mcu_status_r)
 	AM_RANGE(0xd500, 0xd57f) AM_WRITEONLY AM_SHARE("spriteram")
 	AM_RANGE(0xd600, 0xd600) AM_READ_PORT("DSW1")
 	AM_RANGE(0xd601, 0xd601) AM_READ_PORT("DSW2")
@@ -164,7 +162,7 @@ static ADDRESS_MAP_START( sound_map, AS_PROGRAM, 8, buggychl_state )
 	AM_RANGE(0x4000, 0x47ff) AM_RAM
 	AM_RANGE(0x4800, 0x4801) AM_DEVWRITE("ay1", ay8910_device, address_data_w)
 	AM_RANGE(0x4802, 0x4803) AM_DEVWRITE("ay2", ay8910_device, address_data_w)
-	AM_RANGE(0x4810, 0x481d) AM_DEVWRITE_LEGACY("msm", msm5232_w)
+	AM_RANGE(0x4810, 0x481d) AM_DEVWRITE("msm", msm5232_device, write)
 	AM_RANGE(0x4820, 0x4820) AM_RAM /* VOL/BAL   for the 7630 on the MSM5232 output */
 	AM_RANGE(0x4830, 0x4830) AM_RAM /* TRBL/BASS for the 7630 on the MSM5232 output  */
 	AM_RANGE(0x5000, 0x5000) AM_READ(soundlatch_byte_r)

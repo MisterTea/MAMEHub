@@ -209,6 +209,10 @@ int osd_read_midi_channel(osd_midi_device *dev, UINT8 *pOut)
 				{
 					*pOut++ = status;
 					bytesOut++;
+					if (status == MIDI_EOX)
+					{
+						dev->rx_sysex = false;
+					}
 				}
 			}
 			else    // shift out the sysex bytes
@@ -242,17 +246,20 @@ int osd_read_midi_channel(osd_midi_device *dev, UINT8 *pOut)
 					switch (status & 0xf)
 					{
 						case 0: // System Exclusive
+						{
 							*pOut++ = status;   // this should be OK: the shortest legal sysex is F0 tt dd F7, I believe
 							*pOut++ = (dev->rx_evBuf[msg].message>>8) & 0xff;
 							*pOut++ = (dev->rx_evBuf[msg].message>>16) & 0xff;
-							*pOut++ = (dev->rx_evBuf[msg].message>>24) & 0xff;
+							UINT8 last = *pOut++ = (dev->rx_evBuf[msg].message>>24) & 0xff;
 							bytesOut += 4;
-							dev->rx_sysex = true;
+							dev->rx_sysex = (last != MIDI_EOX);
 							break;
+						}
 
 						case 7: // End of System Exclusive
 							*pOut++ = status;
 							bytesOut += 1;
+							dev->rx_sysex = false;
 							break;
 
 						case 2: // song pos
@@ -291,6 +298,14 @@ void osd_write_midi_channel(osd_midi_device *dev, UINT8 data)
 	PmEvent ev;
 	ev.timestamp = 0;   // use the current time
 
+//  printf("write: %02x (%d)\n", data, dev->xmit_cnt);
+
+	if (dev->xmit_cnt >= 4)
+	{
+		printf("MIDI out: packet assembly overflow, contact MAMEdev!\n");
+		return;
+	}
+
 	// handle sysex
 	if (dev->last_status == MIDI_SYSEX)
 	{
@@ -327,8 +342,8 @@ void osd_write_midi_channel(osd_midi_device *dev, UINT8 data)
 		return;
 	}
 
-	// handle running status
-	if ((dev->xmit_cnt == 0) && (data & 0x80))
+	// handle running status.  don't allow system real-time messages to be considered as running status.
+	if ((dev->xmit_cnt == 0) && (data & 0x80) && (data < 0xf8))
 	{
 		dev->last_status = data;
 	}
@@ -337,10 +352,12 @@ void osd_write_midi_channel(osd_midi_device *dev, UINT8 data)
 	{
 		dev->xmit_in[dev->xmit_cnt++] = dev->last_status;
 		dev->xmit_in[dev->xmit_cnt++] = data;
+//      printf("\trunning status: [%d] = %02x, [%d] = %02x, last_status = %02x\n", dev->xmit_cnt-2, dev->last_status, dev->xmit_cnt-1, data, dev->last_status);
 	}
 	else
 	{
 		dev->xmit_in[dev->xmit_cnt++] = data;
+//      printf("\tNRS: [%d] = %02x\n", dev->xmit_cnt-1, data);
 	}
 
 	if ((dev->xmit_cnt == 1) && (dev->xmit_in[0] == MIDI_SYSEX))
@@ -351,6 +368,7 @@ void osd_write_midi_channel(osd_midi_device *dev, UINT8 data)
 	}
 
 	// are we there yet?
+//  printf("status check: %02x\n", dev->xmit_in[0]);
 	switch ((dev->xmit_in[0]>>4) & 0xf)
 	{
 		case 0xc:   // 2-byte messages

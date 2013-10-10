@@ -458,7 +458,6 @@ GFXDECODE_END
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",   /* screen we are acting on */
 	false,      /* show border area */
 	8,          /* number of pixels per video memory address */
 	NULL,       /* before pixel update callback */
@@ -481,12 +480,6 @@ static const ay8910_interface ay8910_config =
 	DEVCB_NULL
 };
 
-static const hc11_config hitpoker_config =
-{
-	0,      //has extended internal I/O
-	0x100,  //internal RAM size
-	0x01    //INIT defaults to 0x01
-};
 
 INTERRUPT_GEN_MEMBER(hitpoker_state::hitpoker_irq)
 {
@@ -497,7 +490,7 @@ static MACHINE_CONFIG_START( hitpoker, hitpoker_state )
 	MCFG_CPU_ADD("maincpu", MC68HC11,1000000)
 	MCFG_CPU_PROGRAM_MAP(hitpoker_map)
 	MCFG_CPU_IO_MAP(hitpoker_io)
-	MCFG_CPU_CONFIG(hitpoker_config)
+	MCFG_MC68HC11_CONFIG(0, 0x100, 0x01)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", hitpoker_state,  hitpoker_irq)
 
 	MCFG_NVRAM_ADD_0FILL("nvram")
@@ -510,7 +503,7 @@ static MACHINE_CONFIG_START( hitpoker, hitpoker_state )
 	MCFG_SCREEN_VISIBLE_AREA(0, 648-1, 0, 240-1)
 	MCFG_SCREEN_UPDATE_DRIVER(hitpoker_state, screen_update_hitpoker)
 
-	MCFG_MC6845_ADD("crtc", H46505, CRTC_CLOCK/2, mc6845_intf)  /* hand tuned to get ~60 fps */
+	MCFG_MC6845_ADD("crtc", H46505, "screen", CRTC_CLOCK/2, mc6845_intf)  /* hand tuned to get ~60 fps */
 
 	MCFG_GFXDECODE(hitpoker)
 	MCFG_PALETTE_LENGTH(0x800)

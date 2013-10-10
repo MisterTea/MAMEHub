@@ -55,6 +55,7 @@ Bugs:
 
 #include "includes/megadriv.h"
 #include "includes/segamsys.h"
+#include "scrlegcy.h"
 
 #define MASTER_CLOCK        53693100
 
@@ -69,7 +70,7 @@ static UINT8 hintcount;           /* line interrupt counter, decreased each scan
 static INTERRUPT_GEN (megaplay_bios_irq)
 {
 	int sline;
-	sline = device->machine().primary_screen->vpos();
+	sline = device->m_screen->vpos();
 
 	if (sline ==0) {
 		hintcount = segae_vdp_regs[0][10];
@@ -614,7 +615,6 @@ UINT32 mplay_state::screen_update_megplay(screen_device &screen, bitmap_rgb32 &b
 }
 
 
-//extern SCREEN_VBLANK(megadriv);
 MACHINE_RESET_MEMBER(mplay_state,megaplay)
 {
 	m_bios_mode = MP_ROM;

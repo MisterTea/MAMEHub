@@ -31,12 +31,22 @@ ti_video_device::ti_video_device(const machine_config &mconfig, device_type type
 }
 
 ti_std_video_device::ti_std_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ti_video_device(mconfig, TI99VIDEO, "Video subsystem", tag, owner, clock, "ti99_video", __FILE__)
+	: ti_video_device(mconfig, TI99VIDEO, "TI99 STD Video subsystem", tag, owner, clock, "ti99_video", __FILE__)
 {
 }
 
 ti_exp_video_device::ti_exp_video_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ti_video_device(mconfig, V9938VIDEO, "Video subsystem", tag, owner, clock, "v9938_video", __FILE__)
+	: ti_video_device(mconfig, V9938VIDEO, "TI99 EXP Video subsystem", tag, owner, clock, "v9938_video", __FILE__)
+{
+}
+
+ti_sound_sn94624_device::ti_sound_sn94624_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: ti_sound_system_device(mconfig, TISOUND_94624, tag, "Onboard sound (SN94624)", owner, clock, "ti_sound_sn94624", __FILE__)
+{
+}
+
+ti_sound_sn76496_device::ti_sound_sn76496_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: ti_sound_system_device(mconfig, TISOUND_76496, tag, "Onboard sound (SN76496)", owner, clock, "ti_sound_sn76496", __FILE__)
 {
 }
 

@@ -12,8 +12,6 @@
     TODO:
 
     - modernize floppy
-        - add wpt callback to floppy.c
-        - refactor d64/g64
         - refactor 64H156
     - 1571CR
         - MOS5710
@@ -43,13 +41,6 @@
 #define ISA_BUS_TAG     "isabus"
 
 
-enum
-{
-	LED_POWER = 0,
-	LED_ACT
-};
-
-
 
 //**************************************************************************
 //  DEVICE DEFINITIONS
@@ -72,6 +63,16 @@ ROM_END
 
 
 //-------------------------------------------------
+//  rom_region - device-specific ROM region
+//-------------------------------------------------
+
+const rom_entry *c1570_device::device_rom_region() const
+{
+	return ROM_NAME( c1570 );
+}
+
+
+//-------------------------------------------------
 //  ROM( c1571 )
 //-------------------------------------------------
 
@@ -85,6 +86,16 @@ ROM_START( c1571 )
 	ROM_SYSTEM_BIOS( 2, "jiffydos", "JiffyDOS v6.01" )
 	ROMX_LOAD( "jiffydos 1571.u2", 0x0000, 0x8000, CRC(fe6cac6d) SHA1(d4b79b60cf1eaa399d0932200eb7811e00455249), ROM_BIOS(3) )
 ROM_END
+
+
+//-------------------------------------------------
+//  rom_region - device-specific ROM region
+//-------------------------------------------------
+
+const rom_entry *c1571_device::device_rom_region() const
+{
+	return ROM_NAME( c1571 );
+}
 
 
 //-------------------------------------------------
@@ -102,15 +113,22 @@ ROM_END
 
 
 //-------------------------------------------------
+//  rom_region - device-specific ROM region
+//-------------------------------------------------
+
+const rom_entry *c1571cr_device::device_rom_region() const
+{
+	return ROM_NAME( c1571cr );
+}
+
+
+//-------------------------------------------------
 //  ROM( minichief )
 //-------------------------------------------------
 
 ROM_START( minichief )
 	ROM_REGION( 0x8000, M6502_TAG, 0 )
 	ROM_LOAD( "ictdos710.u2", 0x0000, 0x8000, CRC(aaacf7e9) SHA1(c1296995238ef23f18e7fec70a144a0566a25a27) )
-
-	ROM_REGION( 0x2000, "wd1002a_wx1", 0 )
-	ROM_LOAD( "600693-001 type 5.u12", 0x0000, 0x2000, CRC(f3daf85f) SHA1(3bd29538832d3084cbddeec92593988772755283) )
 ROM_END
 
 
@@ -118,23 +136,9 @@ ROM_END
 //  rom_region - device-specific ROM region
 //-------------------------------------------------
 
-const rom_entry *c1571_device::device_rom_region() const
+const rom_entry *mini_chief_device::device_rom_region() const
 {
-	switch (m_variant)
-	{
-	case TYPE_1570:
-		return ROM_NAME( c1570 );
-
-	default:
-	case TYPE_1571:
-		return ROM_NAME( c1571 );
-
-	case TYPE_1571CR:
-		return ROM_NAME( c1571cr );
-
-	case TYPE_MINI_CHIEF:
-		return ROM_NAME( minichief );
-	}
+	return ROM_NAME( minichief );
 }
 
 
@@ -315,7 +319,7 @@ READ8_MEMBER( c1571_device::via0_pb_r )
 	data |= !m_bus->clk_r() << 2;
 
 	// serial bus address
-	data |= (m_address - 8) << 5;
+	data |= ((m_slot->get_address() - 8) & 0x03) << 5;
 
 	// attention in
 	data |= !m_bus->atn_r() << 7;
@@ -658,7 +662,7 @@ SLOT_INTERFACE_END
 //-------------------------------------------------
 
 static LEGACY_FLOPPY_OPTIONS_START( c1571 )
-	LEGACY_FLOPPY_OPTION( c1571, "g64", "Commodore 1541 GCR Disk Image", g64_dsk_identify, g64_dsk_construct, NULL, NULL )
+	LEGACY_FLOPPY_OPTION( c1571, "g64,g71", "Commodore 1541/1571 GCR Disk Image", g64_dsk_identify, g64_dsk_construct, NULL, NULL )
 	LEGACY_FLOPPY_OPTION( c1571, "d64", "Commodore 1541 Disk Image", d64_dsk_identify, d64_dsk_construct, NULL, NULL )
 	LEGACY_FLOPPY_OPTION( c1571, "d71", "Commodore 1571 Disk Image", d71_dsk_identify, d64_dsk_construct, NULL, NULL )
 LEGACY_FLOPPY_OPTIONS_END
@@ -710,7 +714,7 @@ static const floppy_interface c1570_floppy_interface =
 //-------------------------------------------------
 
 static SLOT_INTERFACE_START( mini_chief_isa8_cards )
-	//SLOT_INTERFACE("wd1002a_wx1", WD1002A_WX1)
+	SLOT_INTERFACE("wd1002a_wx1", ISA8_WD1002A_WX1)
 SLOT_INTERFACE_END
 
 static const isa8bus_interface isabus_intf =
@@ -753,6 +757,17 @@ MACHINE_CONFIG_END
 
 
 //-------------------------------------------------
+//  machine_config_additions - device-specific
+//  machine configurations
+//-------------------------------------------------
+
+machine_config_constructor c1570_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( c1570 );
+}
+
+
+//-------------------------------------------------
 //  MACHINE_DRIVER( c1571 )
 //-------------------------------------------------
 
@@ -772,6 +787,17 @@ static MACHINE_CONFIG_FRAGMENT( c1571 )
 	//MCFG_FLOPPY_DRIVE_ADD(WD1770_TAG":0", c1571_floppies, "525dd", 0, c1571_device::floppy_formats)
 	MCFG_64H156_ADD(C64H156_TAG, XTAL_16MHz, ga_intf)
 MACHINE_CONFIG_END
+
+
+//-------------------------------------------------
+//  machine_config_additions - device-specific
+//  machine configurations
+//-------------------------------------------------
+
+machine_config_constructor c1571_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( c1571 );
+}
 
 
 //-------------------------------------------------
@@ -797,6 +823,17 @@ MACHINE_CONFIG_END
 
 
 //-------------------------------------------------
+//  machine_config_additions - device-specific
+//  machine configurations
+//-------------------------------------------------
+
+machine_config_constructor c1571cr_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( c1571cr );
+}
+
+
+//-------------------------------------------------
 //  MACHINE_DRIVER( mini_chief )
 //-------------------------------------------------
 
@@ -817,7 +854,7 @@ static MACHINE_CONFIG_FRAGMENT( mini_chief )
 	MCFG_64H156_ADD(C64H156_TAG, XTAL_16MHz, ga_intf)
 
 	MCFG_ISA8_BUS_ADD(ISA_BUS_TAG, M6502_TAG, isabus_intf)
-	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa1", mini_chief_isa8_cards, NULL/*"wd1002a_wx1"*/, false)
+	MCFG_ISA8_SLOT_ADD(ISA_BUS_TAG, "isa1", mini_chief_isa8_cards, "wd1002a_wx1", false)
 MACHINE_CONFIG_END
 
 
@@ -826,23 +863,33 @@ MACHINE_CONFIG_END
 //  machine configurations
 //-------------------------------------------------
 
-machine_config_constructor c1571_device::device_mconfig_additions() const
+machine_config_constructor mini_chief_device::device_mconfig_additions() const
 {
-	switch (m_variant)
-	{
-	case TYPE_1570:
-		return MACHINE_CONFIG_NAME( c1570 );
+	return MACHINE_CONFIG_NAME( mini_chief );
+}
 
-	default:
-	case TYPE_1571:
-		return MACHINE_CONFIG_NAME( c1571 );
 
-	case TYPE_1571CR:
-		return MACHINE_CONFIG_NAME( c1571cr );
+//-------------------------------------------------
+//  INPUT_PORTS( c1571 )
+//-------------------------------------------------
 
-	case TYPE_MINI_CHIEF:
-		return MACHINE_CONFIG_NAME( mini_chief );
-	}
+static INPUT_PORTS_START( c1571 )
+	PORT_START("ADDRESS")
+	PORT_DIPNAME( 0x03, 0x00, "Device Address" )
+	PORT_DIPSETTING(    0x00, "8" )
+	PORT_DIPSETTING(    0x01, "9" )
+	PORT_DIPSETTING(    0x02, "10" )
+	PORT_DIPSETTING(    0x03, "11" )
+INPUT_PORTS_END
+
+
+//-------------------------------------------------
+//  input_ports - device-specific input ports
+//-------------------------------------------------
+
+ioport_constructor c1571_device::device_input_ports() const
+{
+	return INPUT_PORTS_NAME( c1571 );
 }
 
 
@@ -855,7 +902,7 @@ machine_config_constructor c1571_device::device_mconfig_additions() const
 //  c1571_device - constructor
 //-------------------------------------------------
 
-c1571_device::c1571_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT32 variant, const char *shortname, const char *source)
+c1571_device::c1571_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
 		device_cbm_iec_interface(mconfig, *this),
 		device_c64_floppy_parallel_interface(mconfig, *this),
@@ -866,6 +913,7 @@ c1571_device::c1571_device(const machine_config &mconfig, device_type type, cons
 		m_fdc(*this, WD1770_TAG),
 		m_ga(*this, C64H156_TAG),
 		m_image(*this, FLOPPY_0),
+		m_address(*this, "ADDRESS"),
 		m_1_2mhz(0),
 		m_data_out(1),
 		m_ser_dir(0),
@@ -873,8 +921,7 @@ c1571_device::c1571_device(const machine_config &mconfig, device_type type, cons
 		m_cnt_out(1),
 		m_via0_irq(CLEAR_LINE),
 		m_via1_irq(CLEAR_LINE),
-		m_cia_irq(CLEAR_LINE),
-		m_variant(variant)
+		m_cia_irq(CLEAR_LINE)
 {
 }
 
@@ -889,6 +936,7 @@ c1571_device::c1571_device(const machine_config &mconfig, const char *tag, devic
 		m_fdc(*this, WD1770_TAG),
 		m_ga(*this, C64H156_TAG),
 		m_image(*this, FLOPPY_0),
+		m_address(*this, "ADDRESS"),
 		m_1_2mhz(0),
 		m_data_out(1),
 		m_ser_dir(0),
@@ -896,8 +944,7 @@ c1571_device::c1571_device(const machine_config &mconfig, const char *tag, devic
 		m_cnt_out(1),
 		m_via0_irq(CLEAR_LINE),
 		m_via1_irq(CLEAR_LINE),
-		m_cia_irq(CLEAR_LINE),
-		m_variant(TYPE_1571)
+		m_cia_irq(CLEAR_LINE)
 		//m_floppy(*this, WD1770_TAG":0:525dd")
 {
 }
@@ -908,7 +955,7 @@ c1571_device::c1571_device(const machine_config &mconfig, const char *tag, devic
 //-------------------------------------------------
 
 c1570_device::c1570_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: c1571_device(mconfig, C1570, "C1570", tag, owner, clock, TYPE_1570, "c1570", __FILE__)
+	: c1571_device(mconfig, C1570, "C1570", tag, owner, clock, "c1570", __FILE__)
 		//m_floppy(*this, WD1770_TAG":0:525ssdd")
 {
 }
@@ -919,7 +966,7 @@ c1570_device::c1570_device(const machine_config &mconfig, const char *tag, devic
 //-------------------------------------------------
 
 c1571cr_device::c1571cr_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: c1571_device(mconfig, C1571CR, "C1571CR", tag, owner, clock, TYPE_1571CR, "c1571cr", __FILE__)
+	: c1571_device(mconfig, C1571CR, "C1571CR", tag, owner, clock, "c1571cr", __FILE__)
 		//m_floppy(*this, WD1770_TAG":0:525dd")
 {
 }
@@ -930,7 +977,7 @@ c1571cr_device::c1571cr_device(const machine_config &mconfig, const char *tag, d
 //-------------------------------------------------
 
 mini_chief_device::mini_chief_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: c1571_device(mconfig, MINI_CHIEF, "ICT Mini Chief", tag, owner, clock, TYPE_MINI_CHIEF, "minichif", __FILE__)
+	: c1571_device(mconfig, MINI_CHIEF, "ICT Mini Chief", tag, owner, clock, "minichif", __FILE__)
 		//m_floppy(*this, WD1770_TAG":0:525dd")
 {
 }

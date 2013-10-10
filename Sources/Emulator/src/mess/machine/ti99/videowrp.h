@@ -87,8 +87,8 @@ struct ti_sound_config
 class ti_sound_system_device : public bus8z_device
 {
 public:
-	ti_sound_system_device(const machine_config &mconfig, device_type type, const char *tag, const char *name, device_t *owner, UINT32 clock)
-	: bus8z_device(mconfig, type, name, tag, owner, clock, "ti99_ss", __FILE__) { };
+	ti_sound_system_device(const machine_config &mconfig, device_type type, const char *tag, const char *name, device_t *owner, UINT32 clock, const char *shortname, const char *source)
+	: bus8z_device(mconfig, type, name, tag, owner, clock, shortname, source) { };
 
 	// Cannot read from sound; just ignore silently
 	DECLARE_READ8Z_MEMBER(readz) { };
@@ -110,8 +110,7 @@ private:
 class ti_sound_sn94624_device : public ti_sound_system_device
 {
 public:
-	ti_sound_sn94624_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ti_sound_system_device(mconfig, TISOUND_94624, tag, "Onboard sound (SN94624)", owner, clock) { }
+	ti_sound_sn94624_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 protected:
 	virtual machine_config_constructor device_mconfig_additions() const;
@@ -123,8 +122,7 @@ protected:
 class ti_sound_sn76496_device : public ti_sound_system_device
 {
 public:
-	ti_sound_sn76496_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: ti_sound_system_device(mconfig, TISOUND_76496, tag, "Onboard sound (SN76496)", owner, clock) { }
+	ti_sound_sn76496_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 protected:
 	virtual machine_config_constructor device_mconfig_additions() const;
@@ -167,8 +165,7 @@ protected:
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(_blank))                    \
 	MCFG_SCREEN_SIZE(_x, _y)                                                \
 	MCFG_SCREEN_VISIBLE_AREA(0, _x - 1, 0, _y - 1)                          \
-	MCFG_PALETTE_LENGTH(512)                                                \
-	MCFG_PALETTE_INIT(v9938)
+	MCFG_PALETTE_LENGTH(512)
 
 #define MCFG_TI_SOUND_94624_ADD(_tag, _conf)            \
 	MCFG_DEVICE_ADD(_tag, TISOUND_94624, 0) \

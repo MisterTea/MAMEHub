@@ -1,3 +1,5 @@
+#include "machine/buggychl.h"
+
 class bking_state : public driver_device
 {
 public:
@@ -5,14 +7,15 @@ public:
 		: driver_device(mconfig, type, tag),
 		m_playfield_ram(*this, "playfield_ram"),
 		m_audiocpu(*this, "audiocpu"),
-		m_mcu(*this, "mcu"){ }
+		m_mcu(*this, "mcu"),
+		m_bmcu(*this, "bmcu") { }
 
 	/* memory pointers */
 	required_shared_ptr<UINT8> m_playfield_ram;
 
 	/* video-related */
-	bitmap_ind16    m_tmp_bitmap1;
-	bitmap_ind16    m_tmp_bitmap2;
+	bitmap_ind16    m_colmap_bg;
+	bitmap_ind16    m_colmap_ball;
 	tilemap_t     *m_bg_tilemap;
 	int         m_pc3259_output[4];
 	int         m_pc3259_mask;
@@ -41,6 +44,7 @@ public:
 	/* devices */
 	required_device<cpu_device> m_audiocpu;
 	optional_device<cpu_device> m_mcu;
+	optional_device<buggychl_mcu_device> m_bmcu;
 
 #if 0
 	/* 68705 */

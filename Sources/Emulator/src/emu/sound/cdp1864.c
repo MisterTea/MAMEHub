@@ -22,8 +22,6 @@
 
 */
 
-
-#include "emu.h"
 #include "cdp1864.h"
 
 
@@ -38,54 +36,16 @@
 #define CDP1864_CYCLES_DMA_ACTIVE   8*8
 #define CDP1864_CYCLES_DMA_WAIT     6*8
 
-static const int CDP1864_BACKGROUND_COLOR_SEQUENCE[] = { 2, 0, 1, 4 };
+const int cdp1864_device::bckgnd[] = { 2, 0, 4, 1 };
 
 
 
 //**************************************************************************
-//  GLOBAL VARIABLES
+//  DEVICE DEFINITIONS
 //**************************************************************************
 
 // devices
 const device_type CDP1864 = &device_creator<cdp1864_device>;
-
-
-
-//**************************************************************************
-//  INLINE HELPERS
-//**************************************************************************
-
-//-------------------------------------------------
-//  initialize_palette -
-//-------------------------------------------------
-
-inline void cdp1864_device::initialize_palette()
-{
-	double res_total = m_chr_r + m_chr_g + m_chr_b + m_chr_bkg;
-
-	int weight_r = (m_chr_r / res_total) * 100;
-	int weight_g = (m_chr_g / res_total) * 100;
-	int weight_b = (m_chr_b / res_total) * 100;
-	int weight_bkg = (m_chr_bkg / res_total) * 100;
-
-	for (int i = 0; i < 16; i++)
-	{
-		int luma = 0;
-
-		luma += (i & 4) ? weight_r : 0;
-		luma += (i & 1) ? weight_g : 0;
-		luma += (i & 2) ? weight_b : 0;
-		luma += (i & 8) ? 0 : weight_bkg;
-
-		luma = (luma * 0xff) / 100;
-
-		int r = (i & 4) ? luma : 0;
-		int g = (i & 1) ? luma : 0;
-		int b = (i & 2) ? luma : 0;
-
-		m_palette[i] = MAKE_RGB(r, g, b);
-	}
-}
 
 
 
@@ -98,8 +58,9 @@ inline void cdp1864_device::initialize_palette()
 //-------------------------------------------------
 
 cdp1864_device::cdp1864_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, CDP1864, "CDP1864", tag, owner, clock),
+	: device_t(mconfig, CDP1864, "CDP1864", tag, owner, clock, "cdp1864", __FILE__),
 		device_sound_interface(mconfig, *this),
+		device_video_interface(mconfig, *this),
 		m_read_inlace(*this),
 		m_read_rdata(*this),
 		m_read_bdata(*this),
@@ -147,7 +108,6 @@ void cdp1864_device::device_start()
 	m_hsync_timer = timer_alloc(TIMER_HSYNC);
 
 	// find devices
-	m_screen = machine().device<screen_device>(m_screen_tag);
 	m_screen->register_screen_bitmap(m_bitmap);
 
 	// register for state saving
@@ -358,11 +318,7 @@ WRITE8_MEMBER( cdp1864_device::step_bgcolor_w )
 	m_disp = 1;
 
 	m_bgcolor++;
-
-	if (m_bgcolor > 3)
-	{
-		m_bgcolor = 0;
-	}
+	m_bgcolor &= 0x03;
 }
 
 
@@ -395,7 +351,7 @@ WRITE8_MEMBER( cdp1864_device::dma_w )
 
 	for (int x = 0; x < 8; x++)
 	{
-		int color = CDP1864_BACKGROUND_COLOR_SEQUENCE[m_bgcolor] + 8;
+		int color = bckgnd[m_bgcolor] + 8;
 
 		if (BIT(data, 7))
 		{
@@ -455,11 +411,58 @@ UINT32 cdp1864_device::screen_update(screen_device &screen, bitmap_rgb32 &bitmap
 	if (m_disp)
 	{
 		copybitmap(bitmap, m_bitmap, 0, 0, 0, 0, cliprect);
-		m_bitmap.fill(CDP1864_BACKGROUND_COLOR_SEQUENCE[m_bgcolor] + 8, cliprect);
+		m_bitmap.fill(m_palette[bckgnd[m_bgcolor] + 8], cliprect);
 	}
 	else
 	{
-		bitmap.fill(get_black_pen(machine()), cliprect);
+		bitmap.fill(RGB_BLACK, cliprect);
 	}
+
 	return 0;
+}
+
+
+//-------------------------------------------------
+//  initialize_palette -
+//-------------------------------------------------
+
+void cdp1864_device::initialize_palette()
+{
+	const int resistances_r[] = { m_chr_r };
+	const int resistances_g[] = { m_chr_g };
+	const int resistances_b[] = { m_chr_b };
+
+	double color_weights_r[1], color_weights_g[1], color_weights_b[1];
+	double color_weights_bkg_r[1], color_weights_bkg_g[1], color_weights_bkg_b[1];
+
+	compute_resistor_weights(0, 0xff, -1.0,
+								1, resistances_r, color_weights_r, 0, m_chr_bkg,
+								1, resistances_g, color_weights_g, 0, m_chr_bkg,
+								1, resistances_b, color_weights_b, 0, m_chr_bkg);
+
+	compute_resistor_weights(0, 0xff, -1.0,
+								1, resistances_r, color_weights_bkg_r, m_chr_bkg, 0,
+								1, resistances_g, color_weights_bkg_g, m_chr_bkg, 0,
+								1, resistances_b, color_weights_bkg_b, m_chr_bkg, 0);
+
+	for (int i = 0; i < 8; i++)
+	{
+		// foreground colors
+		UINT8 r = 0, g = 0, b = 0;
+
+		if (m_chr_r != RES_INF) r = combine_1_weights(color_weights_r, BIT(i, 0));
+		if (m_chr_b != RES_INF) b = combine_1_weights(color_weights_b, BIT(i, 1));
+		if (m_chr_g != RES_INF) g = combine_1_weights(color_weights_g, BIT(i, 2));
+
+		m_palette[i] = MAKE_RGB(r, g, b);
+
+		// background colors
+		r = 0, g = 0, b = 0;
+
+		if (m_chr_r != RES_INF) r = combine_1_weights(color_weights_bkg_r, BIT(i, 0));
+		if (m_chr_b != RES_INF) b = combine_1_weights(color_weights_bkg_b, BIT(i, 1));
+		if (m_chr_g != RES_INF) g = combine_1_weights(color_weights_bkg_g, BIT(i, 2));
+
+		m_palette[i + 8] = MAKE_RGB(r, g, b);
+	}
 }

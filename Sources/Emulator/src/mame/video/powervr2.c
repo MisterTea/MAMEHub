@@ -1,6 +1,5 @@
 /*
-    dc.c - Dreamcast video emulation
-
+  Dreamcast video emulation
 */
 
 #include "emu.h"
@@ -13,122 +12,101 @@
 
 const device_type POWERVR2 = &device_creator<powervr2_device>;
 
+DEVICE_ADDRESS_MAP_START(ta_map, 32, powervr2_device)
+	AM_RANGE(0x0000, 0x0003) AM_READ(     id_r)
+	AM_RANGE(0x0004, 0x0007) AM_READ(     revision_r)
+	AM_RANGE(0x0008, 0x000b) AM_READWRITE(softreset_r,        softreset_w)
+	AM_RANGE(0x0014, 0x0017) AM_WRITE(    startrender_w)
+// 18 = test select
+	AM_RANGE(0x0020, 0x0023) AM_READWRITE(param_base_r,       param_base_w)
+	AM_RANGE(0x002c, 0x002f) AM_READWRITE(region_base_r,      region_base_w)
+// 30 = span sort cfg
+	AM_RANGE(0x0040, 0x0043) AM_READWRITE(vo_border_col_r,    vo_border_col_w)
+	AM_RANGE(0x0044, 0x0047) AM_READWRITE(fb_r_ctrl_r,        fb_r_ctrl_w)
+	AM_RANGE(0x0048, 0x004b) AM_READWRITE(fb_w_ctrl_r,        fb_w_ctrl_w)
+	AM_RANGE(0x004c, 0x004f) AM_READWRITE(fb_w_linestride_r,  fb_w_linestride_w)
+	AM_RANGE(0x0050, 0x0053) AM_READWRITE(fb_r_sof1_r,        fb_r_sof1_w)
+	AM_RANGE(0x0054, 0x0057) AM_READWRITE(fb_r_sof2_r,        fb_r_sof2_w)
+	AM_RANGE(0x005c, 0x005f) AM_READWRITE(fb_r_size_r,        fb_r_size_w)
+	AM_RANGE(0x0060, 0x0063) AM_READWRITE(fb_w_sof1_r,        fb_w_sof1_w)
+	AM_RANGE(0x0064, 0x0067) AM_READWRITE(fb_w_sof2_r,        fb_w_sof2_w)
+	AM_RANGE(0x0068, 0x006b) AM_READWRITE(fb_x_clip_r,        fb_x_clip_w)
+	AM_RANGE(0x006c, 0x006f) AM_READWRITE(fb_y_clip_r,        fb_y_clip_w)
+// 74 = fpu_shad_scale
+// 78 = fpu_cull_val
+	AM_RANGE(0x007c, 0x007f) AM_READWRITE(fpu_param_cfg_r,    fpu_param_cfg_w)
+// 80 = half_offset
+// 84 = fpu_perp_val
+// 88 = isp_backgnd_d
+	AM_RANGE(0x008c, 0x008f) AM_READWRITE(isp_backgnd_t_r,    isp_backgnd_t_w)
+// 98 = isp_feed_cfg
+// a0 = sdram_refresh
+// a4 = sdram_arb_cfg
+// a8 = sdram_cfg
+// b0 = fog_col_ram
+// b4 = fog_col_vert
+// b8 = fog_density
+// bc = fog_clamp_max
+// c0 = fog_clamp_min
+// c4 = spg_trigger_pos
+	AM_RANGE(0x00c8, 0x00cb) AM_READWRITE(spg_hblank_int_r,   spg_hblank_int_w)
+	AM_RANGE(0x00cc, 0x00cf) AM_READWRITE(spg_vblank_int_r,   spg_vblank_int_w)
+	AM_RANGE(0x00d0, 0x00d3) AM_READWRITE(spg_control_r,      spg_control_w)
+	AM_RANGE(0x00d4, 0x00d7) AM_READWRITE(spg_hblank_r,       spg_hblank_w)
+	AM_RANGE(0x00d8, 0x00db) AM_READWRITE(spg_load_r,         spg_load_w)
+	AM_RANGE(0x00dc, 0x00df) AM_READWRITE(spg_vblank_r,       spg_vblank_w)
+	AM_RANGE(0x00e0, 0x00e3) AM_READWRITE(spg_width_r,        spg_width_w)
+	AM_RANGE(0x00e4, 0x00e7) AM_READWRITE(text_control_r,     text_control_w)
+	AM_RANGE(0x00e8, 0x00eb) AM_READWRITE(vo_control_r,       vo_control_w)
+	AM_RANGE(0x00ec, 0x00ef) AM_READWRITE(vo_startx_r,        vo_startx_w)
+	AM_RANGE(0x00f0, 0x00f3) AM_READWRITE(vo_starty_r,        vo_starty_w)
+// f4 = scaler_ctl
+	AM_RANGE(0x0108, 0x010b) AM_READWRITE(pal_ram_ctrl_r,     pal_ram_ctrl_w)
+	AM_RANGE(0x010c, 0x010f) AM_READ(     spg_status_r)
+// 110 = fb_burstctrl
+// 118 = y_coeff
+// 11c = pt_alpha_ref
+
+	AM_RANGE(0x0124, 0x0127) AM_READWRITE(ta_ol_base_r,       ta_ol_base_w)
+	AM_RANGE(0x0128, 0x012b) AM_READWRITE(ta_isp_base_r,      ta_isp_base_w)
+	AM_RANGE(0x012c, 0x012f) AM_READWRITE(ta_ol_limit_r,      ta_ol_limit_w)
+	AM_RANGE(0x0130, 0x0133) AM_READWRITE(ta_isp_limit_r,     ta_isp_limit_w)
+	AM_RANGE(0x0134, 0x0137) AM_READ(     ta_next_opb_r)
+	AM_RANGE(0x0138, 0x013b) AM_READ(     ta_itp_current_r)
+// 13c = ta_glob_tile_clip
+	AM_RANGE(0x0140, 0x0143) AM_READWRITE(ta_alloc_ctrl_r,    ta_alloc_ctrl_w)
+	AM_RANGE(0x0144, 0x0147) AM_READWRITE(ta_list_init_r,     ta_list_init_w)
+	AM_RANGE(0x0148, 0x014b) AM_READWRITE(ta_yuv_tex_base_r,  ta_yuv_tex_base_w)
+	AM_RANGE(0x014c, 0x014f) AM_READWRITE(ta_yuv_tex_ctrl_r,  ta_yuv_tex_ctrl_w)
+	AM_RANGE(0x0150, 0x0153) AM_READWRITE(ta_yuv_tex_cnt_r,   ta_yuv_tex_cnt_w)
+	AM_RANGE(0x0160, 0x0163) AM_WRITE(    ta_list_cont_w)
+	AM_RANGE(0x0164, 0x0167) AM_READWRITE(ta_next_opb_init_r, ta_next_opb_init_w)
+
+	AM_RANGE(0x0200, 0x03ff) AM_READWRITE(fog_table_r,        fog_table_w)
+	AM_RANGE(0x1000, 0x1fff) AM_READWRITE(palette_r,          palette_w)
+ADDRESS_MAP_END
+
+DEVICE_ADDRESS_MAP_START(pd_dma_map, 32, powervr2_device)
+	AM_RANGE(0x00,   0x03)   AM_READWRITE(sb_pdstap_r,        sb_pdstap_w)
+	AM_RANGE(0x04,   0x07)   AM_READWRITE(sb_pdstar_r,        sb_pdstar_w)
+	AM_RANGE(0x08,   0x0b)   AM_READWRITE(sb_pdlen_r,         sb_pdlen_w)
+	AM_RANGE(0x0c,   0x0f)   AM_READWRITE(sb_pddir_r,         sb_pddir_w)
+	AM_RANGE(0x10,   0x13)   AM_READWRITE(sb_pdtsel_r,        sb_pdtsel_w)
+	AM_RANGE(0x14,   0x17)   AM_READWRITE(sb_pden_r,          sb_pden_w)
+	AM_RANGE(0x18,   0x1b)   AM_READWRITE(sb_pdst_r,          sb_pdst_w)
+	AM_RANGE(0x80,   0x83)   AM_READWRITE(sb_pdapro_r,        sb_pdapro_w)
+ADDRESS_MAP_END
+
 const int powervr2_device::pvr_parconfseq[] = {1,2,3,2,3,4,5,6,5,6,7,8,9,10,11,12,13,14,13,14,15,16,17,16,17,0,0,0,0,0,18,19,20,19,20,21,22,23,22,23};
 const int powervr2_device::pvr_wordsvertex[24]  = {8,8,8,8,8,16,16,8,8,8, 8, 8,8,8,8,8,16,16, 8,16,16,8,16,16};
 const int powervr2_device::pvr_wordspolygon[24] = {8,8,8,8,8, 8, 8,8,8,8,16,16,8,8,8,8, 8, 8,16,16,16,8, 8, 8};
 
 #define DEBUG_FIFO_POLY (0)
-#define DEBUG_PVRTA (0)
-#define DEBUG_PVRTA_REGS (0)
+#define DEBUG_PVRTA 0
 #define DEBUG_PVRDLIST  (0)
-#define DEBUG_PALRAM (1)
+#define DEBUG_PALRAM (0)
 #define DEBUG_PVRCTRL   (0)
 
-/* PVR TA macro defines */
-/*
-SPG_HBLANK_INT
----- --xx xxxx xxxx ---- ---- ---- ---- hblank_in_interrupt
----- ---- ---- ---- --xx ---- ---- ---- hblank_int_mode
----- ---- ---- ---- ---- --xx xxxx xxxx line_comp_val
-*/
-#define spg_hblank_in_irq   ((pvrta_regs[SPG_HBLANK_INT] & 0x03ff0000) >> 16)
-#define spg_hblank_in_irq_new   ((pvrta_regs[SPG_HBLANK_INT] & 0x03ff0000) >> 16)
-#define spg_hblank_int_mode ((pvrta_regs[SPG_HBLANK_INT] & 0x00003000) >> 12)
-#define spg_line_comp_val   ((pvrta_regs[SPG_HBLANK_INT] & 0x000003ff) >> 0)
-
-/*
-SPG_VBLANK_INT
----- --xx xxxx xxxx ---- ---- ---- ---- vblank_out_interrupt_line_number
----- ---- ---- ---- ---- --xx xxxx xxxx vblank_in_interrupt_line_number
-*/
-#define spg_vblank_out_irq_line_num ((pvrta_regs[SPG_VBLANK_INT] & 0x03ff0000) >> 16)
-#define spg_vblank_in_irq_line_num  ((pvrta_regs[SPG_VBLANK_INT] & 0x000003ff) >> 0)
-#define spg_vblank_out_irq_line_num_new ((pvrta_regs[SPG_VBLANK_INT] & 0x03ff0000) >> 16)
-#define spg_vblank_in_irq_line_num_new  ((pvrta_regs[SPG_VBLANK_INT] & 0x000003ff) >> 0)
-
-
-/*
-VO_BORDER_COL
----- ---x ---- ---- ---- ---- ---- ---- Chroma ;suchie3 sets 0xff there, maybe it's 8 bits too?
----- ---- xxxx xxxx ---- ---- ---- ---- Red
----- ---- ---- ---- xxxx xxxx ---- ---- Green
----- ---- ---- ---- ---- ---- xxxx xxxx Blue
-*/
-#define vo_border_K ((pvrta_regs[VO_BORDER_COL] & 0x01000000) >> 24)
-#define vo_border_R ((pvrta_regs[VO_BORDER_COL] & 0x00ff0000) >> 16)
-#define vo_border_G ((pvrta_regs[VO_BORDER_COL] & 0x0000ff00) >> 8)
-#define vo_border_B ((pvrta_regs[VO_BORDER_COL] & 0x000000ff) >> 0)
-
-/*
-SPG_HBLANK
----- ---- --xx xxxx xxxx ---- ---- ---- hbend
----- ---- ---- ---- ---- --xx xxxx xxxx hbstart
-*/
-#define spg_hbend    ((pvrta_regs[SPG_HBLANK] & 0x03ff0000) >> 16)
-#define spg_hbstart  ((pvrta_regs[SPG_HBLANK] & 0x000003ff) >> 0)
-
-
-/*
-SPG_LOAD
----- ---- --xx xxxx xxxx ---- ---- ---- vcount
----- ---- ---- ---- ---- --xx xxxx xxxx hcount
-*/
-#define spg_vcount   ((pvrta_regs[SPG_LOAD] & 0x03ff0000) >> 16)
-#define spg_hcount   ((pvrta_regs[SPG_LOAD] & 0x000003ff) >> 0)
-
-/*
-SPG_VBLANK
----- ---- --xx xxxx xxxx ---- ---- ---- vbend
----- ---- ---- ---- ---- --xx xxxx xxxx vbstart
-*/
-#define spg_vbend    ((pvrta_regs[SPG_VBLANK] & 0x03ff0000) >> 16)
-#define spg_vbstart  ((pvrta_regs[SPG_VBLANK] & 0x000003ff) >> 0)
-
-
-/*
-VO_CONTROL
----- ---- --xx xxxx ---- ---- ---- ---- pclk_delay
----- ---- ---- ---- ---- ---x ---- ---- pixel_double ;used in test mode
----- ---- ---- ---- ---- ---- xxxx ---- field_mode
----- ---- ---- ---- ---- ---- ---- x--- blank_video
----- ---- ---- ---- ---- ---- ---- -x-- blank_pol
----- ---- ---- ---- ---- ---- ---- --x- vsync_pol
----- ---- ---- ---- ---- ---- ---- ---x hsync_pol
-*/
-#define spg_pclk_delay   ((pvrta_regs[VO_CONTROL] & 0x003f0000) >> 16)
-#define spg_pixel_double ((pvrta_regs[VO_CONTROL] & 0x00000100) >> 8)
-#define spg_field_mode   ((pvrta_regs[VO_CONTROL] & 0x000000f0) >> 4)
-#define spg_blank_video  ((pvrta_regs[VO_CONTROL] & 0x00000008) >> 3)
-#define spg_blank_pol    ((pvrta_regs[VO_CONTROL] & 0x00000004) >> 2)
-#define spg_vsync_pol    ((pvrta_regs[VO_CONTROL] & 0x00000002) >> 1)
-#define spg_hsync_pol    ((pvrta_regs[VO_CONTROL] & 0x00000001) >> 0)
-
-/*
-VO_STARTX
----- ---- ---- ---- ---- ---x xxxx xxxx horzontal start position
-*/
-#define vo_horz_start_pos ((pvrta_regs[VO_STARTX] & 0x000003ff) >> 0)
-
-/*
-VO_STARTY
----- ---x xxxx xxxx ---- ---- ---- ---- vertical start position on field 2
----- ---- ---- ---- ---- ---x xxxx xxxx vertical start position on field 1
-*/
-
-#define vo_vert_start_pos_f2 ((pvrta_regs[VO_STARTY] & 0x03ff0000) >> 16)
-#define vo_vert_start_pos_f1 ((pvrta_regs[VO_STARTY] & 0x000003ff) >> 0)
-
-/*
-SPG_STATUS
----- ---- ---- ---- --x- ---- ---- ---- vsync
----- ---- ---- ---- ---x ---- ---- ---- hsync
----- ---- ---- ---- ---- x--- ---- ---- blank
----- ---- ---- ---- ---- -x-- ---- ---- field number
----- ---- ---- ---- ---- --xx xxxx xxxx scanline
-*/
-
-
-// Perform a standard bilinear filter across four pixels
 inline INT32 powervr2_device::clamp(INT32 in, INT32 min, INT32 max)
 {
 	if(in < min) return min;
@@ -136,6 +114,7 @@ inline INT32 powervr2_device::clamp(INT32 in, INT32 min, INT32 max)
 	return in;
 }
 
+// Perform a standard bilinear filter across four pixels
 inline UINT32 powervr2_device::bilinear_filter(UINT32 c0, UINT32 c1, UINT32 c2, UINT32 c3, float u, float v)
 {
 	UINT32 ui = (u * 256.0);
@@ -162,12 +141,12 @@ inline UINT32 powervr2_device::blc(UINT32 c1, UINT32 c2)
 {
 	UINT32 cr =
 		(((c1 & 0x000000ff)*(c2 & 0x000000ff) & 0x0000ff00) >> 8)  |
-		(((c1 & 0x0000ff00)*(c2 & 0x0000ff00) & 0x00ff0000) >> 8);
+		(((c1 & 0x0000ff00)*(c2 & 0x0000ff00) & 0xff000000) >> 16);
 	c1 >>= 16;
 	c2 >>= 16;
 	cr |=
 		(((c1 & 0x000000ff)*(c2 & 0x000000ff) & 0x0000ff00) << 8)  |
-		(((c1 & 0x0000ff00)*(c2 & 0x0000ff00) & 0x00ff0000) << 8);
+		(((c1 & 0x0000ff00)*(c2 & 0x0000ff00) & 0xff000000));
 	return cr;
 }
 
@@ -176,12 +155,12 @@ inline UINT32 powervr2_device::blic(UINT32 c1, UINT32 c2)
 {
 	UINT32 cr =
 		(((c1 & 0x000000ff)*(0x00100-(c2 & 0x000000ff)) & 0x0000ff00) >> 8)  |
-		(((c1 & 0x0000ff00)*(0x10000-(c2 & 0x0000ff00)) & 0x00ff0000) >> 8);
+		(((c1 & 0x0000ff00)*(0x10000-(c2 & 0x0000ff00)) & 0xff000000) >> 16);
 	c1 >>= 16;
 	c2 >>= 16;
 	cr |=
 		(((c1 & 0x000000ff)*(0x00100-(c2 & 0x000000ff)) & 0x0000ff00) << 8)  |
-		(((c1 & 0x0000ff00)*(0x10000-(c2 & 0x0000ff00)) & 0x00ff0000) << 8);
+		(((c1 & 0x0000ff00)*(0x10000-(c2 & 0x0000ff00)) & 0xff000000));
 	return cr;
 }
 
@@ -348,7 +327,6 @@ inline UINT32 powervr2_device::cv_yuv(UINT16 c1, UINT16 c2, int x)
 	return 0xff000000 | (r << 16) | (g << 8) | b;
 }
 
-
 UINT32 powervr2_device::tex_r_yuv_n(texinfo *t, float x, float y)
 {
 	int xt = ((int)x) & (t->sizex-1);
@@ -358,6 +336,29 @@ UINT32 powervr2_device::tex_r_yuv_n(texinfo *t, float x, float y)
 	UINT16 c2 = *(UINT16 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + WORD_XOR_LE(addrp+2));
 	return cv_yuv(c1, c2, xt);
 }
+
+UINT32 powervr2_device::tex_r_yuv_tw(texinfo *t, float x, float y)
+{
+	int xt = ((int)x) & (t->sizex-1);
+	int yt = ((int)y) & (t->sizey-1);
+	int addrp = t->address + (dilated1[t->cd][xt & ~1] + dilated0[t->cd][yt])*2;
+	UINT16 c1 = *(UINT16 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + WORD_XOR_LE(addrp));
+	UINT16 c2 = *(UINT16 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + WORD_XOR_LE(addrp+4));
+	return cv_yuv(c1, c2, xt);
+}
+
+#if 0
+UINT32 powervr2_device::tex_r_yuv_vq(texinfo *t, float x, float y)
+{
+	int xt = ((int)x) & (t->sizex-1);
+	int yt = ((int)y) & (t->sizey-1);
+	int idx = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(t->address + dilated1[t->cd][xt >> 1] + dilated0[t->cd][yt >> 1])];
+	int addrp = t->vqbase + 8*idx + (dilated1[t->cd][xt & 1] + dilated0[t->cd][yt & 1])*2;
+	UINT16 c1 = *(UINT16 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + WORD_XOR_LE(addrp));
+	UINT16 c2 = *(UINT16 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + WORD_XOR_LE(addrp+4));
+	return cv_yuv(c1, c2, xt);
+}
+#endif
 
 UINT32 powervr2_device::tex_r_1555_n(texinfo *t, float x, float y)
 {
@@ -434,6 +435,16 @@ UINT32 powervr2_device::tex_r_4444_vq(texinfo *t, float x, float y)
 	return cv_4444(*(UINT16 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + WORD_XOR_LE(addrp)));
 }
 
+UINT32 powervr2_device::tex_r_nt_palint(texinfo *t, float x, float y)
+{
+	return t->nontextured_pal_int;
+}
+
+UINT32 powervr2_device::tex_r_nt_palfloat(texinfo *t, float x, float y)
+{
+	return (t->nontextured_fpal_a << 24) | (t->nontextured_fpal_r << 16) | (t->nontextured_fpal_g << 8) | (t->nontextured_fpal_b);
+}
+
 UINT32 powervr2_device::tex_r_p4_1555_tw(texinfo *t, float x, float y)
 {
 	int xt = ((int)x) & (t->sizex-1);
@@ -441,7 +452,7 @@ UINT32 powervr2_device::tex_r_p4_1555_tw(texinfo *t, float x, float y)
 	int off = dilated1[t->cd][xt] + dilated0[t->cd][yt];
 	int addrp = t->address + (off >> 1);
 	int c = ((reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)] >> ((off & 1) << 2)) & 0xf;
-	return cv_1555(pvrta_regs[t->palbase + c]);
+	return cv_1555(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p4_1555_vq(texinfo *t, float x, float y)
@@ -451,7 +462,7 @@ UINT32 powervr2_device::tex_r_p4_1555_vq(texinfo *t, float x, float y)
 	int idx = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(t->address + dilated1[t->cd][xt >> 1] + dilated0[t->cd][yt >> 1])];
 	int addrp = t->vqbase + 8*idx + dilated1[t->cd][xt & 1] + dilated0[t->cd][yt & 3];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)] & 0xf;
-	return cv_1555(pvrta_regs[t->palbase + c]);
+	return cv_1555(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p4_565_tw(texinfo *t, float x, float y)
@@ -461,7 +472,7 @@ UINT32 powervr2_device::tex_r_p4_565_tw(texinfo *t, float x, float y)
 	int off = dilated1[t->cd][xt] + dilated0[t->cd][yt];
 	int addrp = t->address + (off >> 1);
 	int c = ((reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)] >> ((off & 1) << 2)) & 0xf;
-	return cv_565(pvrta_regs[t->palbase + c]);
+	return cv_565(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p4_565_vq(texinfo *t, float x, float y)
@@ -471,7 +482,7 @@ UINT32 powervr2_device::tex_r_p4_565_vq(texinfo *t, float x, float y)
 	int idx = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(t->address + dilated1[t->cd][xt >> 1] + dilated0[t->cd][yt >> 1])];
 	int addrp = t->vqbase + 8*idx + dilated1[t->cd][xt & 1] + dilated0[t->cd][yt & 3];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)] & 0xf;
-	return cv_565(pvrta_regs[t->palbase + c]);
+	return cv_565(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p4_4444_tw(texinfo *t, float x, float y)
@@ -481,7 +492,7 @@ UINT32 powervr2_device::tex_r_p4_4444_tw(texinfo *t, float x, float y)
 	int off = dilated1[t->cd][xt] + dilated0[t->cd][yt];
 	int addrp = t->address + (off >> 1);
 	int c = ((reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)] >> ((off & 1) << 2)) & 0xf;
-	return cv_4444(pvrta_regs[t->palbase + c]);
+	return cv_4444(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p4_4444_vq(texinfo *t, float x, float y)
@@ -491,7 +502,7 @@ UINT32 powervr2_device::tex_r_p4_4444_vq(texinfo *t, float x, float y)
 	int idx = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(t->address + dilated1[t->cd][xt >> 1] + dilated0[t->cd][yt >> 1])];
 	int addrp = t->vqbase + 8*idx + dilated1[t->cd][xt & 1] + dilated0[t->cd][yt & 3];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)] & 0xf;
-	return cv_4444(pvrta_regs[t->palbase + c]);
+	return cv_4444(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p4_8888_tw(texinfo *t, float x, float y)
@@ -501,7 +512,7 @@ UINT32 powervr2_device::tex_r_p4_8888_tw(texinfo *t, float x, float y)
 	int off = dilated1[t->cd][xt] + dilated0[t->cd][yt];
 	int addrp = t->address + (off >> 1);
 	int c = ((reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)] >> ((off & 1) << 2)) & 0xf;
-	return pvrta_regs[t->palbase + c];
+	return palette[t->palbase + c];
 }
 
 UINT32 powervr2_device::tex_r_p4_8888_vq(texinfo *t, float x, float y)
@@ -511,7 +522,7 @@ UINT32 powervr2_device::tex_r_p4_8888_vq(texinfo *t, float x, float y)
 	int idx = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(t->address + dilated1[t->cd][xt >> 1] + dilated0[t->cd][yt >> 1])];
 	int addrp = t->vqbase + 8*idx + dilated1[t->cd][xt & 1] + dilated0[t->cd][yt & 3];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)] & 0xf;
-	return pvrta_regs[t->palbase + c];
+	return palette[t->palbase + c];
 }
 
 UINT32 powervr2_device::tex_r_p8_1555_tw(texinfo *t, float x, float y)
@@ -520,7 +531,7 @@ UINT32 powervr2_device::tex_r_p8_1555_tw(texinfo *t, float x, float y)
 	int yt = ((int)y) & (t->sizey-1);
 	int addrp = t->address + dilated1[t->cd][xt] + dilated0[t->cd][yt];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)];
-	return cv_1555(pvrta_regs[t->palbase + c]);
+	return cv_1555(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p8_1555_vq(texinfo *t, float x, float y)
@@ -530,7 +541,7 @@ UINT32 powervr2_device::tex_r_p8_1555_vq(texinfo *t, float x, float y)
 	int idx = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(t->address + dilated1[t->cd][xt >> 1] + dilated0[t->cd][yt >> 1])];
 	int addrp = t->vqbase + 8*idx + dilated1[t->cd][xt & 1] + dilated0[t->cd][yt & 3];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)];
-	return cv_1555(pvrta_regs[t->palbase + c]);
+	return cv_1555(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p8_565_tw(texinfo *t, float x, float y)
@@ -539,7 +550,7 @@ UINT32 powervr2_device::tex_r_p8_565_tw(texinfo *t, float x, float y)
 	int yt = ((int)y) & (t->sizey-1);
 	int addrp = t->address + dilated1[t->cd][xt] + dilated0[t->cd][yt];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)];
-	return cv_565(pvrta_regs[t->palbase + c]);
+	return cv_565(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p8_565_vq(texinfo *t, float x, float y)
@@ -549,7 +560,7 @@ UINT32 powervr2_device::tex_r_p8_565_vq(texinfo *t, float x, float y)
 	int idx = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(t->address + dilated1[t->cd][xt >> 1] + dilated0[t->cd][yt >> 1])];
 	int addrp = t->vqbase + 8*idx + dilated1[t->cd][xt & 1] + dilated0[t->cd][yt & 3];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)];
-	return cv_565(pvrta_regs[t->palbase + c]);
+	return cv_565(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p8_4444_tw(texinfo *t, float x, float y)
@@ -558,7 +569,7 @@ UINT32 powervr2_device::tex_r_p8_4444_tw(texinfo *t, float x, float y)
 	int yt = ((int)y) & (t->sizey-1);
 	int addrp = t->address + dilated1[t->cd][xt] + dilated0[t->cd][yt];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)];
-	return cv_4444(pvrta_regs[t->palbase + c]);
+	return cv_4444(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p8_4444_vq(texinfo *t, float x, float y)
@@ -568,7 +579,7 @@ UINT32 powervr2_device::tex_r_p8_4444_vq(texinfo *t, float x, float y)
 	int idx = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(t->address + dilated1[t->cd][xt >> 1] + dilated0[t->cd][yt >> 1])];
 	int addrp = t->vqbase + 8*idx + dilated1[t->cd][xt & 1] + dilated0[t->cd][yt & 3];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)];
-	return cv_4444(pvrta_regs[t->palbase + c]);
+	return cv_4444(palette[t->palbase + c]);
 }
 
 UINT32 powervr2_device::tex_r_p8_8888_tw(texinfo *t, float x, float y)
@@ -577,7 +588,7 @@ UINT32 powervr2_device::tex_r_p8_8888_tw(texinfo *t, float x, float y)
 	int yt = ((int)y) & (t->sizey-1);
 	int addrp = t->address + dilated1[t->cd][xt] + dilated0[t->cd][yt];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)];
-	return pvrta_regs[t->palbase + c];
+	return palette[t->palbase + c];
 }
 
 UINT32 powervr2_device::tex_r_p8_8888_vq(texinfo *t, float x, float y)
@@ -587,7 +598,7 @@ UINT32 powervr2_device::tex_r_p8_8888_vq(texinfo *t, float x, float y)
 	int idx = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(t->address + dilated1[t->cd][xt >> 1] + dilated0[t->cd][yt >> 1])];
 	int addrp = t->vqbase + 8*idx + dilated1[t->cd][xt & 1] + dilated0[t->cd][yt & 3];
 	int c = (reinterpret_cast<UINT8 *>(dc_texture_ram))[BYTE_XOR_LE(addrp)];
-	return pvrta_regs[t->palbase + c];
+	return palette[t->palbase + c];
 }
 
 
@@ -603,7 +614,7 @@ void powervr2_device::tex_get_info(texinfo *t)
 	t->textured    = texture;
 
 	// not textured, abort.
-	if (!t->textured) return;
+//  if (!t->textured) return;
 
 	t->address     = textureaddress;
 	t->pf          = pixelformat;
@@ -640,7 +651,7 @@ void powervr2_device::tex_get_info(texinfo *t)
 
 
 	/* Stride select is used only in the non-twiddled case */
-	t->stride = (t->mode & 1) && strideselect ? (pvrta_regs[TEXT_CONTROL] & 0x1f) << 5 : t->sizex;
+	t->stride = (t->mode & 1) && strideselect ? (text_control & 0x1f) << 5 : t->sizex;
 
 	t->blend_mode  = blend_mode;
 	t->filter_mode = filtermode;
@@ -653,8 +664,27 @@ void powervr2_device::tex_get_info(texinfo *t)
 	t->vqbase = t->address;
 	t->blend = use_alpha ? blend_functions[t->blend_mode] : bl10;
 
-	//  fprintf(stderr, "tex %d %d %d %d\n", t->pf, t->mode, pvrta_regs[PAL_RAM_CTRL], t->mipmapped);
-
+//  fprintf(stderr, "tex %d %d %d %d\n", t->pf, t->mode, pal_ram_ctrl, t->mipmapped);
+	if(!t->textured)
+	{
+		t->coltype = coltype;
+		switch(t->coltype) {
+			case 0: // packed color
+				t->nontextured_pal_int = nontextured_pal_int;
+				t->r = &powervr2_device::tex_r_nt_palint;
+				break;
+			case 1: // floating color
+				/* TODO: might be converted even earlier I believe */
+				t->nontextured_fpal_a = (UINT8)(nontextured_fpal_a * 255.0);
+				t->nontextured_fpal_r = (UINT8)(nontextured_fpal_r * 255.0);
+				t->nontextured_fpal_g = (UINT8)(nontextured_fpal_g * 255.0);
+				t->nontextured_fpal_b = (UINT8)(nontextured_fpal_b * 255.0);
+				t->r = &powervr2_device::tex_r_nt_palfloat;
+				break;
+		}
+	}
+	else
+	{
 	switch(t->pf) {
 	case 0: // 1555
 		switch(t->mode) {
@@ -697,9 +727,9 @@ void powervr2_device::tex_get_info(texinfo *t)
 
 	case 3: // yuv422
 		switch(t->mode) {
-		case 0:  /*t->r = &powervr2_device::tex_r_yuv_tw*/; miptype = -1; break;
+		case 0:  t->r = &powervr2_device::tex_r_yuv_tw; miptype = -1; break;
 		case 1:  t->r = &powervr2_device::tex_r_yuv_n; miptype = -1; break;
-		default: /*t->r = &powervr2_device::tex_r_yuv_vq*/; miptype = -1; break;
+		//default: t->r = &powervr2_device::tex_r_yuv_vq; miptype = -1; break;
 		}
 		break;
 
@@ -707,12 +737,12 @@ void powervr2_device::tex_get_info(texinfo *t)
 		break;
 
 	case 5: // 4bpp palette
-		t->palbase = 0x400 | ((t->palette & 0x3f) << 4);
+		t->palbase = (t->palette & 0x3f) << 4;
 		switch(t->mode) {
 		case 0: case 1:
 			miptype = 0;
 
-			switch(pvrta_regs[PAL_RAM_CTRL]) {
+			switch(pal_ram_ctrl) {
 			case 0: t->r = &powervr2_device::tex_r_p4_1555_tw; break;
 			case 1: t->r = &powervr2_device::tex_r_p4_565_tw;  break;
 			case 2: t->r = &powervr2_device::tex_r_p4_4444_tw; break;
@@ -721,7 +751,7 @@ void powervr2_device::tex_get_info(texinfo *t)
 			break;
 		case 2: case 3:
 			miptype = 3; // ?
-			switch(pvrta_regs[PAL_RAM_CTRL]) {
+			switch(pal_ram_ctrl) {
 			case 0: t->r = &powervr2_device::tex_r_p4_1555_vq; t->address += 0x800; break;
 			case 1: t->r = &powervr2_device::tex_r_p4_565_vq;  t->address += 0x800; break;
 			case 2: t->r = &powervr2_device::tex_r_p4_4444_vq; t->address += 0x800; break;
@@ -736,12 +766,12 @@ void powervr2_device::tex_get_info(texinfo *t)
 		break;
 
 	case 6: // 8bpp palette
-		t->palbase = 0x400 | ((t->palette & 0x30) << 4);
+		t->palbase = (t->palette & 0x30) << 4;
 		switch(t->mode) {
 		case 0: case 1:
 			miptype = 1;
 
-			switch(pvrta_regs[PAL_RAM_CTRL]) {
+			switch(pal_ram_ctrl) {
 			case 0: t->r = &powervr2_device::tex_r_p8_1555_tw; break;
 			case 1: t->r = &powervr2_device::tex_r_p8_565_tw; break;
 			case 2: t->r = &powervr2_device::tex_r_p8_4444_tw; break;
@@ -750,7 +780,7 @@ void powervr2_device::tex_get_info(texinfo *t)
 			break;
 		case 2: case 3:
 			miptype = 3; // ?
-			switch(pvrta_regs[PAL_RAM_CTRL]) {
+			switch(pal_ram_ctrl) {
 			case 0: t->r = &powervr2_device::tex_r_p8_1555_vq; t->address += 0x800; break;
 			case 1: t->r = &powervr2_device::tex_r_p8_565_vq;  t->address += 0x800; break;
 			case 2: t->r = &powervr2_device::tex_r_p8_4444_vq; t->address += 0x800; break;
@@ -766,6 +796,7 @@ void powervr2_device::tex_get_info(texinfo *t)
 
 	case 9: // reserved
 		break;
+	}
 	}
 
 	if (t->mipmapped)
@@ -860,325 +891,801 @@ void powervr2_device::tex_get_info(texinfo *t)
 
 }
 
-READ32_MEMBER( powervr2_device::pvr_ta_r )
+READ32_MEMBER( powervr2_device::id_r )
 {
-	switch (offset)
-	{
-	case SPG_STATUS:
-		{
-			UINT8 fieldnum,vsync,hsync,blank;
-
-			fieldnum = (space.machine().primary_screen->frame_number() & 1) ? 1 : 0;
-
-			vsync = space.machine().primary_screen->vblank() ? 1 : 0;
-			if(spg_vsync_pol) { vsync^=1; }
-
-			hsync = space.machine().primary_screen->hblank() ? 1 : 0;
-			if(spg_hsync_pol) { hsync^=1; }
-
-			/* FIXME: following is just a wild guess */
-			blank = (space.machine().primary_screen->vblank() | space.machine().primary_screen->hblank()) ? 0 : 1;
-			if(spg_blank_pol) { blank^=1; }
-
-			pvrta_regs[offset] = (vsync << 13) | (hsync << 12) | (blank << 11) | (fieldnum << 10) | (space.machine().primary_screen->vpos() & 0x3ff);
-			break;
-		}
-	case SPG_TRIGGER_POS:
-		printf("Warning: read at h/v counter ext latches\n");
-		break;
-	case TA_LIST_INIT:
-		return 0; //bit 31 always return 0, a probable left-over in Crazy Taxi reads this and discards the read (?)
-	}
-
-	#if DEBUG_PVRTA_REGS
-	if (reg != 0x43)
-		mame_printf_verbose("PVRTA: [%08x] read %x @ %x (reg %x), mask %" I64FMT "x (PC=%x)\n", 0x5f8000+reg*4, pvrta_regs[reg], offset, reg, mem_mask, space.device().safe_pc());
-	#endif
-	return (UINT64)pvrta_regs[offset];
+	return 0x17fd11db;
 }
 
-WRITE32_MEMBER( powervr2_device::pvr_ta_w )
+READ32_MEMBER( powervr2_device::revision_r )
 {
-	UINT32 sizera,offsetra;
-	int a;
-	int sanitycount;
+	return 0x00000011;
+}
 
-	// Dreamcast BIOS attempts to set PVRID to zero and then dies
-	// if it succeeds.  Don't allow.
-	if ((offset != PVRID) && (offset != REVISION))
-	{
-		pvrta_regs[offset] = data; // 5f8000+reg*4=dat
+READ32_MEMBER( powervr2_device::softreset_r )
+{
+	return softreset;
+}
+
+WRITE32_MEMBER( powervr2_device::softreset_w )
+{
+	COMBINE_DATA(&softreset);
+	if (softreset & 1) {
+#if DEBUG_PVRTA
+		logerror("%s: TA soft reset\n", tag());
+#endif
+		listtype_used=0;
 	}
-
-	switch (offset)
-	{
-	case SOFTRESET:
-		if (data & 1)
-		{
-			#if DEBUG_PVRTA
-			mame_printf_verbose("pvr_ta_w:  TA soft reset\n");
-			#endif
-			listtype_used=0;
+	if (softreset & 2) {
+#if DEBUG_PVRTA
+		logerror("%s: Core Pipeline soft reset\n", tag());
+#endif
+		if (start_render_received == 1) {
+			for (int a=0;a < NUM_BUFFERS;a++)
+				if (grab[a].busy == 1)
+					grab[a].busy = 0;
+			start_render_received = 0;
 		}
-		if (data & 2)
-		{
-			#if DEBUG_PVRTA
-			mame_printf_verbose("pvr_ta_w:  Core Pipeline soft reset\n");
-			#endif
-			if (start_render_received == 1)
-			{
-				for (a=0;a < NUM_BUFFERS;a++)
-					if (grab[a].busy == 1)
-						grab[a].busy = 0;
-				start_render_received = 0;
-			}
-		}
-		if (data & 4)
-		{
-			#if DEBUG_PVRTA
-			mame_printf_verbose("pvr_ta_w:  sdram I/F soft reset\n");
-			#endif
-		}
-		break;
-	case STARTRENDER:
-		g_profiler.start(PROFILER_USER1);
-		#if DEBUG_PVRTA
-		mame_printf_verbose("Start Render Received:\n");
-		mame_printf_verbose("  Region Array at %08x\n",pvrta_regs[REGION_BASE]);
-		mame_printf_verbose("  ISP/TSP Parameters at %08x\n",pvrta_regs[PARAM_BASE]);
+	}
+	if (softreset & 4) {
+#if DEBUG_PVRTA
+		logerror("%s: sdram I/F soft reset\n", tag());
+#endif
+	}
+}
 
-		#endif
-		// select buffer to draw using PARAM_BASE
-		for (a=0;a < NUM_BUFFERS;a++)
-		{
-			if ((grab[a].ispbase == pvrta_regs[PARAM_BASE]) && (grab[a].valid == 1) && (grab[a].busy == 0))
-			{
-				grab[a].busy = 1;
-				renderselect = a;
-				start_render_received=1;
+WRITE32_MEMBER( powervr2_device::startrender_w )
+{
+	dc_state *state = machine().driver_data<dc_state>();
+	g_profiler.start(PROFILER_USER1);
+#if DEBUG_PVRTA
+	logerror("%s: Start render, region=%08x, params=%08x\n", tag(), region_base, param_base);
+#endif
+
+	// select buffer to draw using param_base
+	for (int a=0;a < NUM_BUFFERS;a++) {
+		if ((grab[a].ispbase == param_base) && (grab[a].valid == 1) && (grab[a].busy == 0)) {
+			grab[a].busy = 1;
+			renderselect = a;
+			start_render_received=1;
 
 
-				grab[a].fbwsof1=pvrta_regs[FB_W_SOF1];
-				grab[a].fbwsof2=pvrta_regs[FB_W_SOF2];
+			grab[a].fbwsof1 = fb_w_sof1;
+			grab[a].fbwsof2 = fb_w_sof2;
 
-				rectangle clip(0, 1023, 0, 1023);
+			rectangle clip(0, 1023, 0, 1023);
 
-				// we've got a request to draw, so, draw to the accumulation buffer!
-				// this should really be done for each tile!
-				render_to_accumulation_buffer(*fake_accumulationbuffer_bitmap,clip);
+			// we've got a request to draw, so, draw to the accumulation buffer!
+			// this should really be done for each tile!
+			render_to_accumulation_buffer(*fake_accumulationbuffer_bitmap,clip);
 
-				endofrender_timer_isp->adjust(attotime::from_usec(4000) ); // hack, make sure render takes some amount of time
+			/* copy the tiles to the framebuffer (really the rendering should be in this loop too) */
+			int sizera = fpu_param_cfg & 0x200000 ? 6 : 5;
+			int offsetra=region_base;
 
-				/* copy the tiles to the framebuffer (really the rendering should be in this loop too) */
-				if (pvrta_regs[FPU_PARAM_CFG] & 0x200000)
-					sizera=6;
-				else
-					sizera=5;
-				offsetra=pvrta_regs[REGION_BASE];
+			//printf("base is %08x\n", offsetra);
 
-				//printf("base is %08x\n", offsetra);
+			// sanity
+			int sanitycount = 0;
+			for (;;) {
+				UINT32 st[6];
 
-				// sanity
-				sanitycount = 0;
-				for (;;)
-				{
-					UINT32 st[6];
+				st[0]=space.read_dword((0x05000000+offsetra));
+				st[1]=space.read_dword((0x05000004+offsetra)); // Opaque List Pointer
+				st[2]=space.read_dword((0x05000008+offsetra)); // Opaque Modifier Volume List Pointer
+				st[3]=space.read_dword((0x0500000c+offsetra)); // Translucent List Pointer
+				st[4]=space.read_dword((0x05000010+offsetra)); // Translucent Modifier Volume List Pointer
 
-					st[0]=space.read_dword((0x05000000+offsetra));
-					st[1]=space.read_dword((0x05000004+offsetra)); // Opaque List Pointer
-					st[2]=space.read_dword((0x05000008+offsetra)); // Opaque Modifier Volume List Pointer
-					st[3]=space.read_dword((0x0500000c+offsetra)); // Translucent List Pointer
-					st[4]=space.read_dword((0x05000010+offsetra)); // Translucent Modifier Volume List Pointer
-
-					if (sizera == 6)
-					{
-						st[5] = space.read_dword((0x05000014+offsetra)); // Punch Through List Pointer
-						offsetra+=0x18;
-					}
-					else
-					{
-						st[5] = 0;
-						offsetra+=0x14;
-					}
-
-					{
-						int x = ((st[0]&0x000000fc)>>2)*32;
-						int y = ((st[0]&0x00003f00)>>8)*32;
-						//printf("tiledata %08x %d %d - %08x %08x %08x %08x %08x\n",st[0],x,y,st[1],st[2],st[3],st[4],st[5]);
-
-						// should render to the accumulation buffer here using pointers we filled in when processing the data
-						// sent to the TA.  HOWEVER, we don't process the TA data and create the real format object lists, so
-						// instead just use these co-ordinates to copy data from our fake full-screnen accumnulation buffer into
-						// the framebuffer
-
-						pvr_accumulationbuffer_to_framebuffer(space, x,y);
-					}
-
-					if (st[0] & 0x80000000)
-						break;
-
-					// prevent infinite loop if asked to process invalid data
-					if(sanitycount>2000)
-						break;
+				if (sizera == 6) {
+					st[5] = space.read_dword((0x05000014+offsetra)); // Punch Through List Pointer
+					offsetra+=0x18;
+				} else  {
+					st[5] = 0;
+					offsetra+=0x14;
 				}
 
+				{
+					int x = ((st[0]&0x000000fc)>>2)*32;
+					int y = ((st[0]&0x00003f00)>>8)*32;
+					//printf("tiledata %08x %d %d - %08x %08x %08x %08x %08x\n",st[0],x,y,st[1],st[2],st[3],st[4],st[5]);
+
+					// should render to the accumulation buffer here using pointers we filled in when processing the data
+					// sent to the TA.  HOWEVER, we don't process the TA data and create the real format object lists, so
+					// instead just use these co-ordinates to copy data from our fake full-screnen accumnulation buffer into
+					// the framebuffer
+
+					pvr_accumulationbuffer_to_framebuffer(space, x,y);
+				}
+
+				if (st[0] & 0x80000000)
+					break;
+
+				sanitycount++;
+				// prevent infinite loop if asked to process invalid data
+				//if(sanitycount>2000)
+				//  break;
+			}
+//          printf("ISP START %d %d\n",sanitycount,m_screen->vpos());
+			/* Fire ISP irq after a set amount of time TODO: timing of this */
+			endofrender_timer_isp->adjust(state->m_maincpu->cycles_to_attotime(sanitycount*25));
+			break;
+		}
+	}
+}
 
 
+READ32_MEMBER( powervr2_device::param_base_r )
+{
+	return param_base;
+}
 
+WRITE32_MEMBER( powervr2_device::param_base_w )
+{
+	COMBINE_DATA(&param_base);
+}
+
+READ32_MEMBER( powervr2_device::region_base_r )
+{
+	return region_base;
+}
+
+WRITE32_MEMBER( powervr2_device::region_base_w )
+{
+	COMBINE_DATA(&region_base);
+}
+
+READ32_MEMBER( powervr2_device::vo_border_col_r )
+{
+	return vo_border_col;
+}
+
+WRITE32_MEMBER( powervr2_device::vo_border_col_w )
+{
+	COMBINE_DATA(&vo_border_col);
+}
+
+READ32_MEMBER( powervr2_device::fb_r_ctrl_r )
+{
+	return fb_r_ctrl;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_r_ctrl_w )
+{
+	COMBINE_DATA(&fb_r_ctrl);
+}
+
+READ32_MEMBER( powervr2_device::fb_w_ctrl_r )
+{
+	return fb_w_ctrl;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_w_ctrl_w )
+{
+	COMBINE_DATA(&fb_w_ctrl);
+}
+
+READ32_MEMBER( powervr2_device::fb_w_linestride_r )
+{
+	return fb_w_linestride;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_w_linestride_w )
+{
+	COMBINE_DATA(&fb_w_linestride);
+}
+
+READ32_MEMBER( powervr2_device::fb_r_sof1_r )
+{
+	return fb_r_sof1;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_r_sof1_w )
+{
+	COMBINE_DATA(&fb_r_sof1);
+}
+
+READ32_MEMBER( powervr2_device::fb_r_sof2_r )
+{
+	return fb_r_sof2;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_r_sof2_w )
+{
+	COMBINE_DATA(&fb_r_sof2);
+}
+
+READ32_MEMBER( powervr2_device::fb_r_size_r )
+{
+	return fb_r_size;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_r_size_w )
+{
+	COMBINE_DATA(&fb_r_size);
+}
+
+READ32_MEMBER( powervr2_device::fb_w_sof1_r )
+{
+	return fb_w_sof1;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_w_sof1_w )
+{
+	COMBINE_DATA(&fb_w_sof1);
+}
+
+READ32_MEMBER( powervr2_device::fb_w_sof2_r )
+{
+	return fb_w_sof2;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_w_sof2_w )
+{
+	COMBINE_DATA(&fb_w_sof2);
+}
+
+READ32_MEMBER( powervr2_device::fb_x_clip_r )
+{
+	return fb_x_clip;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_x_clip_w )
+{
+	COMBINE_DATA(&fb_x_clip);
+}
+
+READ32_MEMBER( powervr2_device::fb_y_clip_r )
+{
+	return fb_y_clip;
+}
+
+WRITE32_MEMBER( powervr2_device::fb_y_clip_w )
+{
+	COMBINE_DATA(&fb_y_clip);
+}
+
+READ32_MEMBER( powervr2_device::fpu_param_cfg_r )
+{
+	return fpu_param_cfg;
+}
+
+WRITE32_MEMBER( powervr2_device::fpu_param_cfg_w )
+{
+	COMBINE_DATA(&fpu_param_cfg);
+}
+
+READ32_MEMBER( powervr2_device::isp_backgnd_t_r )
+{
+	return isp_backgnd_t;
+}
+
+WRITE32_MEMBER( powervr2_device::isp_backgnd_t_w )
+{
+	COMBINE_DATA(&isp_backgnd_t);
+}
+
+READ32_MEMBER( powervr2_device::spg_hblank_int_r )
+{
+	return spg_hblank_int;
+}
+
+WRITE32_MEMBER( powervr2_device::spg_hblank_int_w )
+{
+	COMBINE_DATA(&spg_hblank_int);
+	/* TODO: timer adjust */
+}
+
+READ32_MEMBER( powervr2_device::spg_vblank_int_r )
+{
+	return spg_vblank_int;
+}
+
+WRITE32_MEMBER( powervr2_device::spg_vblank_int_w )
+{
+	COMBINE_DATA(&spg_vblank_int);
+
+	/* clear pending irqs and modify them with the updated ones */
+//  vbin_timer->adjust(attotime::never);
+//  vbout_timer->adjust(attotime::never);
+
+//  vbin_timer->adjust(m_screen->time_until_pos(spg_vblank_int & 0x3ff));
+//  vbout_timer->adjust(m_screen->time_until_pos((spg_vblank_int >> 16) & 0x3ff));
+}
+
+READ32_MEMBER( powervr2_device::spg_control_r )
+{
+	return spg_control;
+}
+
+WRITE32_MEMBER( powervr2_device::spg_control_w )
+{
+	COMBINE_DATA(&spg_control);
+	update_screen_format();
+
+	if((spg_control & 0xc0) == 0xc0)
+		popmessage("SPG undocumented pixel clock mode 11, contact MAME/MESSdev");
+
+	if((spg_control & 0xd0) == 0x10)
+		popmessage("SPG enabled VGA mode with interlace, contact MAME/MESSdev");
+}
+
+READ32_MEMBER( powervr2_device::spg_hblank_r )
+{
+	return spg_hblank;
+}
+
+WRITE32_MEMBER( powervr2_device::spg_hblank_w )
+{
+	COMBINE_DATA(&spg_hblank);
+	update_screen_format();
+}
+
+READ32_MEMBER( powervr2_device::spg_load_r )
+{
+	return spg_load;
+}
+
+WRITE32_MEMBER( powervr2_device::spg_load_w )
+{
+	COMBINE_DATA(&spg_load);
+	update_screen_format();
+}
+
+READ32_MEMBER( powervr2_device::spg_vblank_r )
+{
+	return spg_vblank;
+}
+
+WRITE32_MEMBER( powervr2_device::spg_vblank_w )
+{
+	COMBINE_DATA(&spg_vblank);
+	update_screen_format();
+}
+
+READ32_MEMBER( powervr2_device::spg_width_r )
+{
+	return spg_width;
+}
+
+WRITE32_MEMBER( powervr2_device::spg_width_w )
+{
+	COMBINE_DATA(&spg_width);
+	update_screen_format();
+}
+
+READ32_MEMBER( powervr2_device::text_control_r )
+{
+	return text_control;
+}
+
+WRITE32_MEMBER( powervr2_device::text_control_w )
+{
+	COMBINE_DATA(&text_control);
+}
+
+READ32_MEMBER( powervr2_device::vo_control_r )
+{
+	return vo_control;
+}
+
+WRITE32_MEMBER( powervr2_device::vo_control_w )
+{
+	COMBINE_DATA(&vo_control);
+}
+
+READ32_MEMBER( powervr2_device::vo_startx_r )
+{
+	return vo_startx;
+}
+
+WRITE32_MEMBER( powervr2_device::vo_startx_w )
+{
+	COMBINE_DATA(&vo_startx);
+	update_screen_format();
+}
+
+READ32_MEMBER( powervr2_device::vo_starty_r )
+{
+	return vo_starty;
+}
+
+WRITE32_MEMBER( powervr2_device::vo_starty_w )
+{
+	COMBINE_DATA(&vo_starty);
+	update_screen_format();
+}
+
+READ32_MEMBER( powervr2_device::pal_ram_ctrl_r )
+{
+	return pal_ram_ctrl;
+}
+
+WRITE32_MEMBER( powervr2_device::pal_ram_ctrl_w )
+{
+	COMBINE_DATA(&pal_ram_ctrl);
+}
+
+READ32_MEMBER( powervr2_device::spg_status_r )
+{
+	UINT32 fieldnum = (m_screen->frame_number() & 1) ? 1 : 0;
+	INT32 spg_hbstart = spg_hblank & 0x3ff;
+	INT32 spg_hbend = (spg_hblank >> 16) & 0x3ff;
+	INT32 spg_vbstart = spg_vblank & 0x3ff;
+	INT32 spg_vbend = (spg_vblank >> 16) & 0x3ff;
+
+	UINT32 vsync = ((m_screen->vpos() >= spg_vbstart) || (m_screen->vpos() < spg_vbend)) ? 0 : 1;
+	UINT32 hsync = ((m_screen->hpos() >= spg_hbstart) || (m_screen->hpos() < spg_hbend)) ? 0 : 1;
+	/* FIXME: following is just a wild guess */
+	UINT32 blank = ((m_screen->vpos() >= spg_vbstart) || (m_screen->vpos() < spg_vbend) |
+					(m_screen->hpos() >= spg_hbstart) || (m_screen->hpos() < spg_hbend)) ? 0 : 1;
+	if(vo_control & 4) { blank^=1; }
+	if(vo_control & 2) { vsync^=1; }
+	if(vo_control & 1) { hsync^=1; }
+
+	return (vsync << 13) | (hsync << 12) | (blank << 11) | (fieldnum << 10) | (m_screen->vpos() & 0x3ff);
+}
+
+
+READ32_MEMBER( powervr2_device::ta_ol_base_r )
+{
+	return ta_ol_base;
+}
+
+WRITE32_MEMBER( powervr2_device::ta_ol_base_w )
+{
+	COMBINE_DATA(&ta_ol_base);
+}
+
+READ32_MEMBER( powervr2_device::ta_isp_base_r )
+{
+	return ta_isp_base;
+}
+
+WRITE32_MEMBER( powervr2_device::ta_isp_base_w )
+{
+	COMBINE_DATA(&ta_isp_base);
+}
+
+READ32_MEMBER( powervr2_device::ta_ol_limit_r )
+{
+	return ta_ol_limit;
+}
+
+WRITE32_MEMBER( powervr2_device::ta_ol_limit_w )
+{
+	COMBINE_DATA(&ta_ol_limit);
+}
+
+READ32_MEMBER( powervr2_device::ta_isp_limit_r )
+{
+	return ta_isp_limit;
+}
+
+WRITE32_MEMBER( powervr2_device::ta_isp_limit_w )
+{
+	COMBINE_DATA(&ta_isp_limit);
+}
+
+READ32_MEMBER( powervr2_device::ta_next_opb_r )
+{
+	return ta_next_opb;
+}
+
+READ32_MEMBER( powervr2_device::ta_itp_current_r )
+{
+	return ta_itp_current;
+}
+
+READ32_MEMBER( powervr2_device::ta_alloc_ctrl_r )
+{
+	return ta_alloc_ctrl;
+}
+
+WRITE32_MEMBER( powervr2_device::ta_alloc_ctrl_w )
+{
+	COMBINE_DATA(&ta_alloc_ctrl);
+}
+
+READ32_MEMBER( powervr2_device::ta_list_init_r )
+{
+	return 0; //bit 31 always return 0, a probable left-over in Crazy Taxi reads this and discards the read (?)
+}
+
+WRITE32_MEMBER( powervr2_device::ta_list_init_w )
+{
+	if(data & 0x80000000) {
+		tafifo_pos=0;
+		tafifo_mask=7;
+		tafifo_vertexwords=8;
+		tafifo_listtype= -1;
+#if DEBUG_PVRTA
+		logerror("%s: list init ol=(%08x, %08x) isp=(%08x, %08x), alloc=%08x obp=%08x\n",
+					tag(), ta_ol_base, ta_ol_limit, ta_isp_base, ta_isp_limit, ta_alloc_ctrl, ta_next_opb_init);
+#endif
+		ta_next_opb = ta_next_opb_init;
+		ta_itp_current = ta_isp_base;
+		alloc_ctrl_OPB_Mode = ta_alloc_ctrl & 0x100000; // 0 up 1 down
+		alloc_ctrl_PT_OPB = (4 << ((ta_alloc_ctrl >> 16) & 3)) & 0x38; // number of 32 bit words (0,8,16,32)
+		alloc_ctrl_TM_OPB = (4 << ((ta_alloc_ctrl >> 12) & 3)) & 0x38;
+		alloc_ctrl_T_OPB = (4 << ((ta_alloc_ctrl >> 8) & 3)) & 0x38;
+		alloc_ctrl_OM_OPB = (4 << ((ta_alloc_ctrl >> 4) & 3)) & 0x38;
+		alloc_ctrl_O_OPB = (4 << ((ta_alloc_ctrl >> 0) & 3)) & 0x38;
+		listtype_used |= (1+4);
+		// use ta_isp_base and select buffer for grab data
+		grabsel = -1;
+		// try to find already used buffer but not busy
+		for (int a=0;a < NUM_BUFFERS;a++)
+			if ((grab[a].ispbase == ta_isp_base) && (grab[a].busy == 0) && (grab[a].valid == 1)) {
+				grabsel=a;
 				break;
 			}
-		}
-		if (a != NUM_BUFFERS)
-			break;
-		assert_always(0, "TA grabber error A!\n");
-		break;
-	case TA_LIST_INIT:
-		if(data & 0x80000000)
-		{
-			tafifo_pos=0;
-			tafifo_mask=7;
-			tafifo_vertexwords=8;
-			tafifo_listtype= -1;
-	#if DEBUG_PVRTA
-			mame_printf_verbose("TA_OL_BASE       %08x TA_OL_LIMIT  %08x\n", pvrta_regs[TA_OL_BASE], pvrta_regs[TA_OL_LIMIT]);
-			mame_printf_verbose("TA_ISP_BASE      %08x TA_ISP_LIMIT %08x\n", pvrta_regs[TA_ISP_BASE], pvrta_regs[TA_ISP_LIMIT]);
-			mame_printf_verbose("TA_ALLOC_CTRL    %08x\n", pvrta_regs[TA_ALLOC_CTRL]);
-			mame_printf_verbose("TA_NEXT_OPB_INIT %08x\n", pvrta_regs[TA_NEXT_OPB_INIT]);
-	#endif
-			pvrta_regs[TA_NEXT_OPB] = pvrta_regs[TA_NEXT_OPB_INIT];
-			pvrta_regs[TA_ITP_CURRENT] = pvrta_regs[TA_ISP_BASE];
-			alloc_ctrl_OPB_Mode = pvrta_regs[TA_ALLOC_CTRL] & 0x100000; // 0 up 1 down
-			alloc_ctrl_PT_OPB = (4 << ((pvrta_regs[TA_ALLOC_CTRL] >> 16) & 3)) & 0x38; // number of 32 bit words (0,8,16,32)
-			alloc_ctrl_TM_OPB = (4 << ((pvrta_regs[TA_ALLOC_CTRL] >> 12) & 3)) & 0x38;
-			alloc_ctrl_T_OPB = (4 << ((pvrta_regs[TA_ALLOC_CTRL] >> 8) & 3)) & 0x38;
-			alloc_ctrl_OM_OPB = (4 << ((pvrta_regs[TA_ALLOC_CTRL] >> 4) & 3)) & 0x38;
-			alloc_ctrl_O_OPB = (4 << ((pvrta_regs[TA_ALLOC_CTRL] >> 0) & 3)) & 0x38;
-			listtype_used |= (1+4);
-			// use TA_ISP_BASE and select buffer for grab data
-			grabsel = -1;
-			// try to find already used buffer but not busy
-			for (a=0;a < NUM_BUFFERS;a++)
-			{
-				if ((grab[a].ispbase == pvrta_regs[TA_ISP_BASE]) && (grab[a].busy == 0) && (grab[a].valid == 1))
-				{
+
+		// try a buffer not used yet
+		if (grabsel < 0)
+			for (int a=0;a < NUM_BUFFERS;a++)
+				if (grab[a].valid == 0) {
 					grabsel=a;
 					break;
 				}
-			}
-			// try a buffer not used yet
-			if (grabsel < 0)
-			{
-				for (a=0;a < NUM_BUFFERS;a++)
-				{
-					if (grab[a].valid == 0)
-					{
-						grabsel=a;
-						break;
-					}
+
+		// find a non busy buffer starting from the last one used
+		if (grabsel < 0)
+			for (int a=0;a < 3;a++)
+				if (grab[(grabsellast+1+a) & 3].busy == 0) {
+					grabsel=a;
+					break;
 				}
-			}
-			// find a non busy buffer starting from the last one used
-			if (grabsel < 0)
-			{
-				for (a=0;a < 3;a++)
-				{
-					if (grab[(grabsellast+1+a) & 3].busy == 0)
-					{
-						grabsel=a;
-						break;
-					}
-				}
-			}
-			if (grabsel < 0)
-				assert_always(0, "TA grabber error B!\n");
-			grabsellast=grabsel;
-			grab[grabsel].ispbase=pvrta_regs[TA_ISP_BASE];
-			grab[grabsel].busy=0;
-			grab[grabsel].valid=1;
-			grab[grabsel].verts_size=0;
-			grab[grabsel].strips_size=0;
 
-			g_profiler.stop();
-		}
-		break;
-//#define TA_YUV_TEX_BASE       ((0x005f8148-0x005f8000)/4)
-	case TA_YUV_TEX_BASE:
-		printf("TA_YUV_TEX_BASE initialized to %08x\n", data);
+		if (grabsel < 0)
+			assert_always(0, "TA grabber error B!\n");
+		grabsellast=grabsel;
+		grab[grabsel].ispbase=ta_isp_base;
+		grab[grabsel].busy=0;
+		grab[grabsel].valid=1;
+		grab[grabsel].verts_size=0;
+		grab[grabsel].strips_size=0;
 
-		// hack, this interrupt is generated after transfering a set amount of data
-		//irq_cb(EOXFER_YUV_IRQ);
-
-		break;
-	case TA_YUV_TEX_CTRL:
-		printf("TA_YUV_TEX_CTRL initialized to %08x\n", data);
-		break;
-
-	case SPG_VBLANK_INT:
-		/* clear pending irqs and modify them with the updated ones */
-		vbin_timer->adjust(attotime::never);
-		vbout_timer->adjust(attotime::never);
-
-		vbin_timer->adjust(space.machine().primary_screen->time_until_pos(spg_vblank_in_irq_line_num));
-		vbout_timer->adjust(space.machine().primary_screen->time_until_pos(spg_vblank_out_irq_line_num));
-		break;
-	/* TODO: timer adjust for SPG_HBLANK_INT too */
-	case TA_LIST_CONT:
-	#if DEBUG_PVRTA
-		mame_printf_verbose("List continuation processing\n");
-	#endif
-		if(data & 0x80000000)
-		{
-			tafifo_listtype= -1; // no list being received
-			listtype_used |= (1+4);
-		}
-		break;
-	case SPG_VBLANK:
-	case SPG_HBLANK:
-	case SPG_LOAD:
-	case VO_STARTX:
-	case VO_STARTY:
-		{
-			rectangle visarea = space.machine().primary_screen->visible_area();
-			/* FIXME: right visible area calculations aren't known yet*/
-			visarea.min_x = 0;
-			visarea.max_x = ((spg_hbstart - spg_hbend - vo_horz_start_pos) <= 0x180 ? 320 : 640) - 1;
-			visarea.min_y = 0;
-			visarea.max_y = ((spg_vbstart - spg_vbend - vo_vert_start_pos_f1) <= 0x100 ? 240 : 480) - 1;
-
-
-			space.machine().primary_screen->configure(spg_hbstart, spg_vbstart, visarea, space.machine().primary_screen->frame_period().attoseconds );
-		}
-		break;
+		g_profiler.stop();
 	}
-
-	#if DEBUG_PVRTA_REGS
-	if ((offset != 0x14) && (offset != 0x15))
-		mame_printf_verbose("PVRTA: [%08x=%x] write %x to %x %x, mask %x\n", 0x5f8000+reg*4, data, offset, (reg*4)+0x8000, mem_mask);
-	#endif
 }
+
+
+READ32_MEMBER( powervr2_device::ta_yuv_tex_base_r )
+{
+	return ta_yuv_tex_base;
+}
+
+WRITE32_MEMBER( powervr2_device::ta_yuv_tex_base_w )
+{
+	COMBINE_DATA(&ta_yuv_tex_base);
+	logerror("%s: ta_yuv_tex_base = %08x\n", tag(), ta_yuv_tex_base);
+
+	ta_yuv_index = 0;
+	ta_yuv_x = 0;
+	ta_yuv_y = 0;
+
+}
+
+READ32_MEMBER( powervr2_device::ta_yuv_tex_ctrl_r )
+{
+	return ta_yuv_tex_ctrl;
+}
+
+WRITE32_MEMBER( powervr2_device::ta_yuv_tex_ctrl_w )
+{
+	COMBINE_DATA(&ta_yuv_tex_ctrl);
+	ta_yuv_x_size = ((ta_yuv_tex_ctrl & 0x3f)+1)*16;
+	ta_yuv_y_size = (((ta_yuv_tex_ctrl>>8) & 0x3f)+1)*16;
+	logerror("%s: ta_yuv_tex_ctrl = %08x\n", tag(), ta_yuv_tex_ctrl);
+	if(ta_yuv_tex_ctrl & 0x01010000)
+		fatalerror("YUV with setting %08x",ta_yuv_tex_ctrl);
+}
+
+#include "debugger.h"
+/* TODO */
+READ32_MEMBER( powervr2_device::ta_yuv_tex_cnt_r )
+{
+	debugger_break(machine());
+	return ta_yuv_tex_cnt;
+}
+
+WRITE32_MEMBER( powervr2_device::ta_yuv_tex_cnt_w )
+{
+	debugger_break(machine());
+	COMBINE_DATA(&ta_yuv_tex_cnt);
+}
+
+WRITE32_MEMBER( powervr2_device::ta_list_cont_w )
+{
+	if(data & 0x80000000) {
+		tafifo_listtype= -1; // no list being received
+		listtype_used |= (1+4);
+	}
+}
+
+READ32_MEMBER( powervr2_device::ta_next_opb_init_r )
+{
+	return ta_next_opb_init;
+}
+
+WRITE32_MEMBER( powervr2_device::ta_next_opb_init_w )
+{
+	COMBINE_DATA(&ta_next_opb_init);
+}
+
+
+READ32_MEMBER( powervr2_device::fog_table_r )
+{
+	return fog_table[offset];
+}
+
+WRITE32_MEMBER( powervr2_device::fog_table_w )
+{
+	COMBINE_DATA(fog_table+offset);
+}
+
+READ32_MEMBER( powervr2_device::palette_r )
+{
+	return palette[offset];
+}
+
+WRITE32_MEMBER( powervr2_device::palette_w )
+{
+	COMBINE_DATA(palette+offset);
+}
+
+void powervr2_device::update_screen_format()
+{
+	/*                        00=VGA    01=NTSC   10=PAL,   11=illegal/undocumented */
+	const int spg_clks[4] = { 26944080, 13458568, 13462800, 26944080 };
+	INT32 spg_hsize = spg_load & 0x3ff;
+	INT32 spg_vsize = (spg_load >> 16) & 0x3ff;
+	INT32 spg_hbstart = spg_hblank & 0x3ff;
+	INT32 spg_hbend = (spg_hblank >> 16) & 0x3ff;
+	INT32 spg_vbstart = spg_vblank & 0x3ff;
+	INT32 spg_vbend = (spg_vblank >> 16) & 0x3ff;
+	//INT32 vo_horz_start_pos = vo_startx & 0x3ff;
+	//INT32 vo_vert_start_pos_f1 = vo_starty & 0x3ff;
+	int pclk = spg_clks[(spg_control >> 6) & 3] * (((spg_control & 0x10) >> 4)+1);
+
+	attoseconds_t refresh = HZ_TO_ATTOSECONDS(pclk) * spg_hsize * spg_vsize;
+
+	rectangle visarea = m_screen->visible_area();
+	/* FIXME: fix if spg_*bend > spg_*bstart */
+	visarea.min_x = spg_hbend;
+	visarea.max_x = spg_hbstart - 1;
+	visarea.min_y = spg_vbend;
+	visarea.max_y = spg_vbstart - 1;
+	//printf("%d %d %d\n",spg_vbstart,spg_vbend,vo_vert_start_pos_f1);
+
+	m_screen->configure(spg_hsize, spg_vsize, visarea, refresh );
+}
+
+
+READ32_MEMBER( powervr2_device::sb_pdstap_r )
+{
+	return sb_pdstap;
+}
+
+WRITE32_MEMBER( powervr2_device::sb_pdstap_w )
+{
+	COMBINE_DATA(&sb_pdstap);
+	m_pvr_dma.pvr_addr = sb_pdstap;
+}
+
+READ32_MEMBER( powervr2_device::sb_pdstar_r )
+{
+	return sb_pdstar;
+}
+
+WRITE32_MEMBER( powervr2_device::sb_pdstar_w )
+{
+	COMBINE_DATA(&sb_pdstar);
+	m_pvr_dma.sys_addr = sb_pdstar;
+}
+
+READ32_MEMBER( powervr2_device::sb_pdlen_r )
+{
+	return sb_pdlen;
+}
+
+WRITE32_MEMBER( powervr2_device::sb_pdlen_w )
+{
+	COMBINE_DATA(&sb_pdlen);
+	m_pvr_dma.size = sb_pdlen;
+}
+
+READ32_MEMBER( powervr2_device::sb_pddir_r )
+{
+	return sb_pddir;
+}
+
+WRITE32_MEMBER( powervr2_device::sb_pddir_w )
+{
+	COMBINE_DATA(&sb_pddir);
+	m_pvr_dma.dir = sb_pddir;
+}
+
+READ32_MEMBER( powervr2_device::sb_pdtsel_r )
+{
+	return sb_pdtsel;
+}
+
+WRITE32_MEMBER( powervr2_device::sb_pdtsel_w )
+{
+	COMBINE_DATA(&sb_pdtsel);
+	m_pvr_dma.sel = sb_pdtsel & 1;
+}
+
+READ32_MEMBER( powervr2_device::sb_pden_r )
+{
+	return sb_pden;
+}
+
+WRITE32_MEMBER( powervr2_device::sb_pden_w )
+{
+	COMBINE_DATA(&sb_pden);
+	m_pvr_dma.flag = sb_pden & 1;
+}
+
+READ32_MEMBER( powervr2_device::sb_pdst_r )
+{
+	return sb_pdst;
+}
+
+WRITE32_MEMBER( powervr2_device::sb_pdst_w )
+{
+	COMBINE_DATA(&sb_pdst);
+
+	UINT32 old = m_pvr_dma.start & 1;
+	m_pvr_dma.start = sb_pdst & 1;
+
+	if(((old & 1) == 0) && m_pvr_dma.flag && m_pvr_dma.start && ((m_pvr_dma.sel & 1) == 0)) // 0 -> 1
+		pvr_dma_execute(space);
+}
+
+READ32_MEMBER( powervr2_device::sb_pdapro_r )
+{
+	return sb_pdapro;
+}
+
+WRITE32_MEMBER( powervr2_device::sb_pdapro_w )
+{
+	COMBINE_DATA(&sb_pdapro);
+}
+
 
 TIMER_CALLBACK_MEMBER(powervr2_device::transfer_opaque_list_irq)
 {
+//  printf("OPLST %d\n",m_screen->vpos());
+
 	irq_cb(EOXFER_OPLST_IRQ);
 }
 
 TIMER_CALLBACK_MEMBER(powervr2_device::transfer_opaque_modifier_volume_list_irq)
 {
+//  printf("OPMV %d\n",m_screen->vpos());
+
 	irq_cb(EOXFER_OPMV_IRQ);
 }
 
 TIMER_CALLBACK_MEMBER(powervr2_device::transfer_translucent_list_irq)
 {
+//  printf("TRLST %d\n",m_screen->vpos());
+
 	irq_cb(EOXFER_TRLST_IRQ);
 }
 
 TIMER_CALLBACK_MEMBER(powervr2_device::transfer_translucent_modifier_volume_list_irq)
 {
+//  printf("TRMV %d\n",m_screen->vpos());
+
 	irq_cb(EOXFER_TRMV_IRQ);
 }
 
 TIMER_CALLBACK_MEMBER(powervr2_device::transfer_punch_through_list_irq)
 {
+//  printf("PTLST %d\n",m_screen->vpos());
+
 	irq_cb(EOXFER_PTLST_IRQ);
 }
 
@@ -1266,6 +1773,7 @@ void powervr2_device::process_ta_fifo()
 		#endif
 		/* Process transfer FIFO done irqs here */
 		/* FIXME: timing of these */
+		//printf("%d %d\n",tafifo_listtype,m_screen->vpos());
 		switch (tafifo_listtype)
 		{
 		case 0: machine().scheduler().timer_set(attotime::from_usec(100), timer_expired_delegate(FUNC(powervr2_device::transfer_opaque_list_irq), this)); break;
@@ -1455,7 +1963,18 @@ void powervr2_device::process_ta_fifo()
 					tv->w=u2f(tafifo_buff[3]);
 					tv->u=u2f(tafifo_buff[4]);
 					tv->v=u2f(tafifo_buff[5]);
-
+					if (texture == 0)
+					{
+						if(coltype == 0)
+							nontextured_pal_int=tafifo_buff[6];
+						else if(coltype == 1)
+						{
+							nontextured_fpal_a=u2f(tafifo_buff[4]);
+							nontextured_fpal_r=u2f(tafifo_buff[5]);
+							nontextured_fpal_g=u2f(tafifo_buff[6]);
+							nontextured_fpal_b=u2f(tafifo_buff[7]);
+						}
+					}
 
 					if((!rd->strips_size) ||
 						rd->strips[rd->strips_size-1].evert != -1)
@@ -1498,14 +2017,70 @@ WRITE64_MEMBER( powervr2_device::ta_fifo_poly_w )
 
 }
 
-WRITE64_MEMBER( powervr2_device::ta_fifo_yuv_w )
+TIMER_CALLBACK_MEMBER(powervr2_device::yuv_convert_end)
 {
+	irq_cb(EOXFER_YUV_IRQ);
+	yuv_timer_end->adjust(attotime::never);
+}
+
+
+WRITE8_MEMBER( powervr2_device::ta_fifo_yuv_w )
+{
+	dc_state *state = machine().driver_data<dc_state>();
+	//printf("%08x %08x\n",ta_yuv_index++,ta_yuv_tex_ctrl);
+
+	//popmessage("YUV fifo write %08x %08x",ta_yuv_index,ta_yuv_tex_ctrl);
+
+	yuv_fifo[ta_yuv_index] = data;
+	ta_yuv_index++;
+
+	if(ta_yuv_index == 0x180)
+	{
+		ta_yuv_index = 0;
+		for(int y=0;y<16;y++)
+		{
+			for(int x=0;x<16;x+=2)
+			{
+				int dst_addr;
+				int u,v,y0,y1;
+
+				dst_addr = ta_yuv_tex_base;
+				dst_addr+= (ta_yuv_x+x)*2;
+				dst_addr+= ((ta_yuv_y+y)*320*2);
+
+				u = yuv_fifo[0x00+(x>>1)+((y>>1)*8)];
+				v = yuv_fifo[0x40+(x>>1)+((y>>1)*8)];
+				y0 = yuv_fifo[0x80+((x&8) ? 0x40 : 0x00)+((y&8) ? 0x80 : 0x00)+(x&6)+((y&7)*8)];
+				y1 = yuv_fifo[0x80+((x&8) ? 0x40 : 0x00)+((y&8) ? 0x80 : 0x00)+(x&6)+((y&7)*8)+1];
+
+				*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + BYTE8_XOR_LE(dst_addr)) = u;
+				*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + BYTE8_XOR_LE(dst_addr+1)) = y0;
+				*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + BYTE8_XOR_LE(dst_addr+2)) = v;
+				*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_texture_ram)) + BYTE8_XOR_LE(dst_addr+3)) = y1;
+			}
+		}
+
+		ta_yuv_x+=16;
+		if(ta_yuv_x == ta_yuv_x_size)
+		{
+			ta_yuv_x = 0;
+			ta_yuv_y+=16;
+			if(ta_yuv_y == ta_yuv_y_size)
+			{
+				ta_yuv_y = 0;
+				/* TODO: timing */
+				yuv_timer_end->adjust(state->m_maincpu->cycles_to_attotime((ta_yuv_x_size/16)*(ta_yuv_y_size/16)*0x180));
+			}
+		}
+	}
 }
 
 // SB_LMMODE0
 WRITE64_MEMBER(powervr2_device::ta_texture_directpath0_w )
 {
-	int mode = pvrctrl_regs[SB_LMMODE0]&1;
+	// That's not in the pvr control address space, it's in g2's
+	//  int mode = pvrctrl_regs[SB_LMMODE0]&1;
+	int mode = 0;
 	if (mode&1)
 	{
 		printf("ta_texture_directpath0_w 32-bit access!\n");
@@ -1520,7 +2095,9 @@ WRITE64_MEMBER(powervr2_device::ta_texture_directpath0_w )
 // SB_LMMODE1
 WRITE64_MEMBER(powervr2_device::ta_texture_directpath1_w )
 {
-	int mode = pvrctrl_regs[SB_LMMODE1]&1;
+	// That's not in the pvr control address space, it's in g2's
+	//  int mode = pvrctrl_regs[SB_LMMODE1]&1;
+	int mode = 0;
 	if (mode&1)
 	{
 		printf("ta_texture_directpath1_w 32-bit access!\n");
@@ -1587,7 +2164,7 @@ void powervr2_device::render_hline(bitmap_rgb32 &bitmap, texinfo *ti, int y, flo
 	float *wbufline;
 
 	// untextured cases aren't handled
-	if (!ti->textured) return;
+//  if (!ti->textured) return;
 
 	if(xr < 0 || xl >= 640)
 		return;
@@ -1838,8 +2415,6 @@ void powervr2_device::render_to_accumulation_buffer(bitmap_rgb32 &bitmap,const r
 {
 	dc_state *state = machine().driver_data<dc_state>();
 	address_space &space = state->m_maincpu->space(AS_PROGRAM);
-	int cs,rs,ns;
-	UINT32 c;
 #if 0
 	int stride;
 	UINT16 *bmpaddr16;
@@ -1852,17 +2427,16 @@ void powervr2_device::render_to_accumulation_buffer(bitmap_rgb32 &bitmap,const r
 
 	//printf("drawtest!\n");
 
-	rs=renderselect;
-	c=pvrta_regs[ISP_BACKGND_T];
-	c=space.read_dword(0x05000000+((c&0xfffff8)>>1)+(3+3)*4);
+	int rs=renderselect;
+	UINT32 c=space.read_dword(0x05000000+((isp_backgnd_t & 0xfffff8)>>1)+(3+3)*4);
 	bitmap.fill(c, cliprect);
 
 
-	ns=grab[rs].strips_size;
+	int ns=grab[rs].strips_size;
 	if(ns)
 		memset(wbuffer, 0x00, sizeof(wbuffer));
 
-	for (cs=0;cs < ns;cs++)
+	for (int cs=0;cs < ns;cs++)
 	{
 		strip *ts = &grab[rs].strips[cs];
 		int sv = ts->svert;
@@ -1894,6 +2468,423 @@ void powervr2_device::render_to_accumulation_buffer(bitmap_rgb32 &bitmap,const r
 // also can specify dither etc.
 // basically, just a crude implementation!
 
+/* 0555KRGB = 0 */
+void powervr2_device::fb_convert_0555krgb_to_555rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000f800) >> 11)) << 5)  |
+							((((data & 0x00f80000) >> 19)) << 10);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_0555krgb_to_565rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000f800) >> 11)) << 5)  |
+							((((data & 0x00f80000) >> 19)) << 11);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_0555krgb_to_888rgb24(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*3);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xf8f8f8);
+
+			space.write_byte(realwriteoffs+xcnt*3+0, newdat >> 0);
+			space.write_byte(realwriteoffs+xcnt*3+1, newdat >> 8);
+			space.write_byte(realwriteoffs+xcnt*3+2, newdat >> 16);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_0555krgb_to_888rgb32(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*4);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xf8f8f8);
+
+			space.write_dword(realwriteoffs+xcnt*4, newdat);
+		}
+	}
+}
+
+/* 0565RGB = 1 */
+void powervr2_device::fb_convert_0565rgb_to_555rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000fc00) >> 10)) << 5)  |
+							((((data & 0x00f80000) >> 19)) << 10);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_0565rgb_to_565rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000fc00) >> 10)) << 5)  |
+							((((data & 0x00f80000) >> 19)) << 11);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_0565rgb_to_888rgb24(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*3);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xf8fcf8);
+
+			space.write_byte(realwriteoffs+xcnt*3+0, newdat >> 0);
+			space.write_byte(realwriteoffs+xcnt*3+1, newdat >> 8);
+			space.write_byte(realwriteoffs+xcnt*3+2, newdat >> 16);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_0565rgb_to_888rgb32(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*4);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xf8fcf8);
+
+			space.write_dword(realwriteoffs+xcnt*4, newdat);
+		}
+	}
+}
+
+/* 1555ARGB = 3 */
+void powervr2_device::fb_convert_1555argb_to_555rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000f800) >> 11)) << 5)  |
+							((((data & 0x00f80000) >> 19)) << 10);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_1555argb_to_565rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000f800) >> 11)) << 5)  |
+							((((data & 0x00f80000) >> 19)) << 11);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_1555argb_to_888rgb24(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*3);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xf8f8f8);
+
+			space.write_byte(realwriteoffs+xcnt*3+0, newdat >> 0);
+			space.write_byte(realwriteoffs+xcnt*3+1, newdat >> 8);
+			space.write_byte(realwriteoffs+xcnt*3+2, newdat >> 16);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_1555argb_to_888rgb32(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*4);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xf8f8f8);
+
+			space.write_dword(realwriteoffs+xcnt*4, newdat);
+		}
+	}
+}
+
+/* 888RGB = 4 */
+void powervr2_device::fb_convert_888rgb_to_555rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000f800) >> 11)) << 5)  |
+							((((data & 0x00f80000) >> 16)) << 10);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_888rgb_to_565rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000fc00) >> 11)) << 5)  |
+							((((data & 0x00f80000) >> 16)) << 11);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_888rgb_to_888rgb24(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*3);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xffffff);
+
+			space.write_byte(realwriteoffs+xcnt*3+0, newdat >> 0);
+			space.write_byte(realwriteoffs+xcnt*3+1, newdat >> 8);
+			space.write_byte(realwriteoffs+xcnt*3+2, newdat >> 16);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_888rgb_to_888rgb32(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*4);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xffffff);
+
+			space.write_dword(realwriteoffs+xcnt*4, newdat);
+		}
+	}
+}
+
+
+/* 8888ARGB = 6 */
+void powervr2_device::fb_convert_8888argb_to_555rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000f800) >> 11)) << 5)  |
+							((((data & 0x00f80000) >> 16)) << 10);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_8888argb_to_565rgb(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*2);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
+							((((data & 0x0000fc00) >> 11)) << 5)  |
+							((((data & 0x00f80000) >> 16)) << 11);
+
+			space.write_word(realwriteoffs+xcnt*2, newdat);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_8888argb_to_888rgb24(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*3);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xffffff);
+
+			space.write_byte(realwriteoffs+xcnt*3+0, newdat >> 0);
+			space.write_byte(realwriteoffs+xcnt*3+1, newdat >> 8);
+			space.write_byte(realwriteoffs+xcnt*3+2, newdat >> 16);
+		}
+	}
+}
+
+void powervr2_device::fb_convert_8888argb_to_888rgb32(address_space &space, int x,int y)
+{
+	int xcnt,ycnt;
+	for (ycnt=0;ycnt<32;ycnt++)
+	{
+		UINT32 realwriteoffs = 0x05000000 + fb_w_sof1 + (y+ycnt) * (fb_w_linestride<<3) + (x*4);
+		UINT32 *src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
+
+		for (xcnt=0;xcnt<32;xcnt++)
+		{
+			// data starts in 8888 format, downsample it
+			UINT32 data = src[xcnt];
+			UINT32 newdat = (data & 0xffffff);
+
+			space.write_dword(realwriteoffs+xcnt*4, newdat);
+		}
+	}
+}
+
+
 /*
 
 0x0 0555 KRGB 16 bit (default) Bit 15 is the value of fb_kval 7.
@@ -1914,37 +2905,22 @@ void powervr2_device::pvr_accumulationbuffer_to_framebuffer(address_space &space
 	// the standard format for the framebuffer appears to be 565
 	// yes, this means colour data is lost in the conversion
 
-	UINT32 wc = pvrta_regs[FB_W_CTRL];
-	UINT32 stride = pvrta_regs[FB_W_LINESTRIDE];
-	UINT32 writeoffs = pvrta_regs[FB_W_SOF1];
+	UINT8 packmode = fb_w_ctrl & 0x7;
+	UINT8 unpackmode = (fb_r_ctrl & 0x0000000c) >>2;  // aka fb_depth
 
-	UINT32* src;
-
-
-	UINT8 packmode = wc & 0x7;
+//  popmessage("%02x %02x",packmode,unpackmode);
 
 	switch (packmode)
 	{
 		// used by ringout
 		case 0x00: //0555 KRGB
 		{
-			int xcnt,ycnt;
-			for (ycnt=0;ycnt<32;ycnt++)
+			switch(unpackmode)
 			{
-				UINT32 realwriteoffs = 0x05000000 + writeoffs + (y+ycnt) * (stride<<3) + (x*2);
-				src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
-
-
-				for (xcnt=0;xcnt<32;xcnt++)
-				{
-					// data starts in 8888 format, downsample it
-					UINT32 data = src[xcnt];
-					UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
-									((((data & 0x0000f800) >> 11)) << 5)  |
-									((((data & 0x00f80000) >> 19)) << 10);
-
-					space.write_word(realwriteoffs+xcnt*2, newdat);
-				}
+				case 0x00: fb_convert_0555krgb_to_555rgb(space,x,y); break;
+				case 0x01: fb_convert_0555krgb_to_565rgb(space,x,y); break;
+				case 0x02: fb_convert_0555krgb_to_888rgb24(space,x,y); break;
+				case 0x03: fb_convert_0555krgb_to_888rgb32(space,x,y); break;
 			}
 		}
 		break;
@@ -1952,23 +2928,12 @@ void powervr2_device::pvr_accumulationbuffer_to_framebuffer(address_space &space
 		// used by cleoftp
 		case 0x01: //565 RGB 16 bit
 		{
-			int xcnt,ycnt;
-			for (ycnt=0;ycnt<32;ycnt++)
+			switch(unpackmode)
 			{
-				UINT32 realwriteoffs = 0x05000000 + writeoffs + (y+ycnt) * (stride<<3) + (x*2);
-				src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
-
-
-				for (xcnt=0;xcnt<32;xcnt++)
-				{
-					// data starts in 8888 format, downsample it
-					UINT32 data = src[xcnt];
-					UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
-									((((data & 0x0000fc00) >> 10)) << 5)  |
-									((((data & 0x00f80000) >> 19)) << 11);
-
-					space.write_word(realwriteoffs+xcnt*2, newdat);
-				}
+				case 0x00: fb_convert_0565rgb_to_555rgb(space,x,y); break;
+				case 0x01: fb_convert_0565rgb_to_565rgb(space,x,y); break;
+				case 0x02: fb_convert_0565rgb_to_888rgb24(space,x,y); break;
+				case 0x03: fb_convert_0565rgb_to_888rgb32(space,x,y); break;
 			}
 		}
 		break;
@@ -1979,48 +2944,25 @@ void powervr2_device::pvr_accumulationbuffer_to_framebuffer(address_space &space
 
 		case 0x03: // 1555 ARGB 16 bit
 		{
-			int xcnt,ycnt;
-			for (ycnt=0;ycnt<32;ycnt++)
+			switch(unpackmode)
 			{
-				UINT32 realwriteoffs = 0x05000000 + writeoffs + (y+ycnt) * (stride<<3) + (x*2);
-				src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
-
-
-				for (xcnt=0;xcnt<32;xcnt++)
-				{
-					// data starts in 8888 format, downsample it
-					UINT32 data = src[xcnt];
-					UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
-									((((data & 0x0000f800) >> 11)) << 5)  |
-									((((data & 0x00f80000) >> 19)) << 10);
-					// alpha?
-
-					space.write_word(realwriteoffs+xcnt*2, newdat);
-				}
+				case 0x00: fb_convert_1555argb_to_555rgb(space,x,y); break;
+				case 0x01: fb_convert_1555argb_to_565rgb(space,x,y); break;
+				case 0x02: fb_convert_1555argb_to_888rgb24(space,x,y); break;
+				case 0x03: fb_convert_1555argb_to_888rgb32(space,x,y); break;
 			}
 		}
 		break;
 
 		// used by Suchie3
-		case 0x04: // 888 RGB 24-bit (HACK! should not downconvert and pvr_drawframebuffer should change accordingly)
+		case 0x04: // 888 RGB 24-bit
 		{
-			int xcnt,ycnt;
-			for (ycnt=0;ycnt<32;ycnt++)
+			switch(unpackmode)
 			{
-				UINT32 realwriteoffs = 0x05000000 + writeoffs + (y+ycnt) * (stride<<3) + (x*2);
-				src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
-
-
-				for (xcnt=0;xcnt<32;xcnt++)
-				{
-					// data is 8888 format
-					UINT32 data = src[xcnt];
-					UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
-									((((data & 0x0000fc00) >> 10)) << 5)  |
-									((((data & 0x00f80000) >> 19)) << 11);
-
-					space.write_word(realwriteoffs+xcnt*2, newdat);
-				}
+				case 0x00: fb_convert_888rgb_to_555rgb(space,x,y); break;
+				case 0x01: fb_convert_888rgb_to_565rgb(space,x,y); break;
+				case 0x02: fb_convert_888rgb_to_888rgb24(space,x,y); break;
+				case 0x03: fb_convert_888rgb_to_888rgb32(space,x,y); break;
 			}
 		}
 		break;
@@ -2029,25 +2971,14 @@ void powervr2_device::pvr_accumulationbuffer_to_framebuffer(address_space &space
 			printf("pvr_accumulationbuffer_to_framebuffer buffer to tile at %d,%d - unsupported pack mode %02x (0888 KGB 32-bit)\n",x,y,packmode);
 			break;
 
-		case 0x06: // 8888 ARGB 32 bit (HACK! should not downconvert and pvr_drawframebuffer should change accordingly)
+		case 0x06: // 8888 ARGB 32 bit
 		{
-			int xcnt,ycnt;
-			for (ycnt=0;ycnt<32;ycnt++)
+			switch(unpackmode)
 			{
-				UINT32 realwriteoffs = 0x05000000 + writeoffs + (y+ycnt) * (stride<<3) + (x*2);
-				src = &fake_accumulationbuffer_bitmap->pix32(y+ycnt, x);
-
-
-				for (xcnt=0;xcnt<32;xcnt++)
-				{
-					// data is 8888 format
-					UINT32 data = src[xcnt];
-					UINT16 newdat = ((((data & 0x000000f8) >> 3)) << 0)   |
-									((((data & 0x0000fc00) >> 10)) << 5)  |
-									((((data & 0x00f80000) >> 19)) << 11);
-
-					space.write_word(realwriteoffs+xcnt*2, newdat);
-				}
+				case 0x00: fb_convert_8888argb_to_555rgb(space,x,y); break;
+				case 0x01: fb_convert_8888argb_to_565rgb(space,x,y); break;
+				case 0x02: fb_convert_8888argb_to_888rgb24(space,x,y); break;
+				case 0x03: fb_convert_8888argb_to_888rgb32(space,x,y); break;
 			}
 		}
 		break;
@@ -2067,20 +2998,36 @@ void powervr2_device::pvr_drawframebuffer(bitmap_rgb32 &bitmap,const rectangle &
 	UINT32 *fbaddr;
 	UINT32 c;
 	UINT32 r,g,b;
+	UINT8 interlace_on = ((spg_control & 0x10) >> 4);
+	INT32 ystart_f1 = (vo_starty & 0x3ff) << interlace_on;
+	//INT32 ystart_f2 = (vo_starty >> 16) & 0x3ff;
+	INT32 hstart = (vo_startx & 0x3ff);
+	int res_x,res_y;
+//  rectangle fbclip;
 
-	UINT32 wc = pvrta_regs[FB_R_CTRL];
-	UINT8 unpackmode = (wc & 0x0000000c) >>2;  // aka fb_depth
-	UINT8 enable = (wc & 0x00000001);
+	UINT8 unpackmode = (fb_r_ctrl & 0x0000000c) >>2;  // aka fb_depth
+	UINT8 enable = (fb_r_ctrl & 0x00000001);
 
 	// ??
 	if (!enable) return;
 
 	// only for rgb565 framebuffer
-	xi=((pvrta_regs[FB_R_SIZE] & 0x3ff)+1) << 1;
-	dy=((pvrta_regs[FB_R_SIZE] >> 10) & 0x3ff)+1;
+	xi=((fb_r_size & 0x3ff)+1) << 1;
+	dy=((fb_r_size >> 10) & 0x3ff)+1;
 
 	dy++;
 	dy*=2; // probably depends on interlace mode, fields etc...
+
+//  popmessage("%d %d %d %d %d",ystart_f1,ystart_f2,interlace_on,spg_vblank & 0x3ff,(spg_vblank >> 16) & 0x3ff);
+
+#if 0
+	fbclip.min_x = hstart;
+	fbclip.min_y = ystart_f1;
+	fbclip.max_x = hstart + (xi << ((vo_control & 0x100) >> 8));
+	fbclip.max_y = ystart_f1 + dy;
+
+	popmessage("%d %d %d %d",fbclip.min_x,fbclip.min_y,fbclip.max_x,fbclip.max_y);
+#endif
 
 	switch (unpackmode)
 	{
@@ -2088,23 +3035,28 @@ void powervr2_device::pvr_drawframebuffer(bitmap_rgb32 &bitmap,const rectangle &
 			// should upsample back to 8-bit output using fb_concat
 			for (y=0;y <= dy;y++)
 			{
-				addrp=pvrta_regs[FB_R_SOF1]+y*xi*2;
-				if(spg_pixel_double)
+				addrp = fb_r_sof1+y*xi*2;
+				if(vo_control & 0x100)
 				{
 					for (x=0;x < xi;x++)
 					{
-						fbaddr=&bitmap.pix32(y, x*2+0);
+						res_x = x*2+0 + hstart;
+						res_y = y + ystart_f1;
+
+						fbaddr=&bitmap.pix32(res_y, res_x);
 						c=*((reinterpret_cast<UINT16 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 1));
 
 						b = (c & 0x001f) << 3;
 						g = (c & 0x03e0) >> 2;
 						r = (c & 0x7c00) >> 7;
 
-						if (y<=cliprect.max_y)
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
 
-						fbaddr=&bitmap.pix32(y, x*2+1);
-						if (y<=cliprect.max_y)
+						res_x = x*2+1 + hstart;
+
+						fbaddr=&bitmap.pix32(res_y, res_x);
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
 						addrp+=2;
 					}
@@ -2113,14 +3065,17 @@ void powervr2_device::pvr_drawframebuffer(bitmap_rgb32 &bitmap,const rectangle &
 				{
 					for (x=0;x < xi;x++)
 					{
-						fbaddr=&bitmap.pix32(y, x);
+						res_x = x + hstart;
+						res_y = y + ystart_f1;
+
+						fbaddr=&bitmap.pix32(res_y, res_x);
 						c=*((reinterpret_cast<UINT16 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 1));
 
 						b = (c & 0x001f) << 3;
 						g = (c & 0x03e0) >> 2;
 						r = (c & 0x7c00) >> 7;
 
-						if (y<=cliprect.max_y)
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
 						addrp+=2;
 					}
@@ -2132,24 +3087,28 @@ void powervr2_device::pvr_drawframebuffer(bitmap_rgb32 &bitmap,const rectangle &
 			// should upsample back to 8-bit output using fb_concat
 			for (y=0;y <= dy;y++)
 			{
-				addrp=pvrta_regs[FB_R_SOF1]+y*xi*2;
-				if(spg_pixel_double)
+				addrp = fb_r_sof1+y*xi*2;
+				if(vo_control & 0x100)
 				{
 					for (x=0;x < xi;x++)
 					{
-						fbaddr=&bitmap.pix32(y, x*2+0);
+						res_x = x*2+0 + hstart;
+						res_y = y + ystart_f1;
+						fbaddr=&bitmap.pix32(res_y, res_x);
 						c=*((reinterpret_cast<UINT16 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 1));
 
 						b = (c & 0x001f) << 3;
 						g = (c & 0x07e0) >> 3;
 						r = (c & 0xf800) >> 8;
 
-						if (y<=cliprect.max_y)
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
 
-						fbaddr=&bitmap.pix32(y, x*2+1);
+						res_x = x*2+1 + hstart;
+						//res_y = y + ystart_f1;
+						fbaddr=&bitmap.pix32(res_y, res_x);
 
-						if (y<=cliprect.max_y)
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
 
 						addrp+=2;
@@ -2159,14 +3118,16 @@ void powervr2_device::pvr_drawframebuffer(bitmap_rgb32 &bitmap,const rectangle &
 				{
 					for (x=0;x < xi;x++)
 					{
-						fbaddr=&bitmap.pix32(y, x);
+						res_x = x + hstart;
+						res_y = y + ystart_f1;
+						fbaddr=&bitmap.pix32(res_y, res_x);
 						c=*((reinterpret_cast<UINT16 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 1));
 
 						b = (c & 0x001f) << 3;
 						g = (c & 0x07e0) >> 3;
 						r = (c & 0xf800) >> 8;
 
-						if (y<=cliprect.max_y)
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
 						addrp+=2;
 					}
@@ -2174,89 +3135,115 @@ void powervr2_device::pvr_drawframebuffer(bitmap_rgb32 &bitmap,const rectangle &
 			}
 			break;
 
-		case 0x02: ; // 888 RGB 24-bit - suchie3 - HACKED, see pvr_accumulationbuffer_to_framebuffer!
+		case 0x02: ; // 888 RGB 24-bit - suchie3, Soul Calibur
 			for (y=0;y <= dy;y++)
 			{
-				addrp=pvrta_regs[FB_R_SOF1]+y*xi*2;
-				if(spg_pixel_double)
+				addrp = fb_r_sof1+y*xi*2;
+
+				if(vo_control & 0x100)
 				{
 					for (x=0;x < xi;x++)
 					{
-						fbaddr=&bitmap.pix32(y, x*2+0);
-						c=*((reinterpret_cast<UINT16 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 1));
+						res_x = x*2+0 + hstart;
+						res_y = y + ystart_f1;
 
-						b = (c & 0x001f) << 3;
-						g = (c & 0x07e0) >> 3;
-						r = (c & 0xf800) >> 8;
+						fbaddr=&bitmap.pix32(res_y, res_x);
 
-						if (y<=cliprect.max_y)
+						c =*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_framebuffer_ram)) + BYTE8_XOR_LE(addrp));
+						b = c;
+
+						c =*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_framebuffer_ram)) + BYTE8_XOR_LE(addrp+1));
+						g = c;
+
+						c =*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_framebuffer_ram)) + BYTE8_XOR_LE(addrp+2));
+						r = c;
+
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
 
-						fbaddr=&bitmap.pix32(y, x*2+1);
+						res_x = x*2+1 + hstart;
 
-						if (y<=cliprect.max_y)
+						fbaddr=&bitmap.pix32(res_y, res_x);
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
-						addrp+=2;
+
+						addrp+=3;
 					}
 				}
 				else
 				{
 					for (x=0;x < xi;x++)
 					{
-						fbaddr=&bitmap.pix32(y, x);
-						c=*((reinterpret_cast<UINT16 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 1));
+						res_x = x + hstart;
+						res_y = y + ystart_f1;
+						fbaddr=&bitmap.pix32(res_y, res_x);
 
-						b = (c & 0x001f) << 3;
-						g = (c & 0x07e0) >> 3;
-						r = (c & 0xf800) >> 8;
+						c =*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_framebuffer_ram)) + BYTE8_XOR_LE(addrp));
+						b = c;
 
-						if (y<=cliprect.max_y)
+						c =*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_framebuffer_ram)) + BYTE8_XOR_LE(addrp+1));
+						g = c;
+
+						c =*(UINT8 *)((reinterpret_cast<UINT8 *>(dc_framebuffer_ram)) + BYTE8_XOR_LE(addrp+2));
+						r = c;
+
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
-						addrp+=2;
+
+						addrp+=3;
 					}
 				}
 			}
 			break;
 
-		case 0x03:        // 0888 ARGB 32-bit - HACKED, see pvr_accumulationbuffer_to_framebuffer!
+		case 0x03:        // 0888 ARGB 32-bit
 			for (y=0;y <= dy;y++)
 			{
-				addrp=pvrta_regs[FB_R_SOF1]+y*xi*2;
-				if(spg_pixel_double)
+				addrp = fb_r_sof1+y*xi*2;
+
+				if(vo_control & 0x100)
 				{
 					for (x=0;x < xi;x++)
 					{
-						fbaddr=&bitmap.pix32(y, x*2+0);
-						c=*((reinterpret_cast<UINT16 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 1));
+						res_x = x*2+0 + hstart;
+						res_y = y + ystart_f1;
 
-						b = (c & 0x001f) << 3;
-						g = (c & 0x07e0) >> 3;
-						r = (c & 0xf800) >> 8;
+						fbaddr=&bitmap.pix32(res_y, res_x);
+						c =*((reinterpret_cast<UINT32 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 2));
 
-						if (y<=cliprect.max_y)
+						b = (c & 0x0000ff) >> 0;
+						g = (c & 0x00ff00) >> 8;
+						r = (c & 0xff0000) >> 16;
+
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
 
-						fbaddr=&bitmap.pix32(y, x*2+1);
-						if (y<=cliprect.max_y)
+						res_x = x*2+1 + hstart;
+
+						fbaddr=&bitmap.pix32(res_y, res_x);
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
 
-						addrp+=2;
+						addrp+=4;
 					}
 				}
 				else
 				{
 					for (x=0;x < xi;x++)
 					{
-						fbaddr=&bitmap.pix32(y, x);
-						c=*((reinterpret_cast<UINT16 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 1));
+						res_x = x + hstart;
+						res_y = y + ystart_f1;
+						fbaddr=&bitmap.pix32(res_y, res_x);
+						c =*((reinterpret_cast<UINT32 *>(dc_framebuffer_ram)) + (WORD2_XOR_LE(addrp) >> 2));
 
-						b = (c & 0x001f) << 3;
-						g = (c & 0x07e0) >> 3;
-						r = (c & 0xf800) >> 8;
+						b = (c & 0x0000ff) >> 0;
+						g = (c & 0x00ff00) >> 8;
+						r = (c & 0xff0000) >> 16;
 
-						if (y<=cliprect.max_y)
+						if (cliprect.contains(res_x, res_y))
 							*fbaddr = b | (g<<8) | (r<<16);
-						addrp+=2;
+
+						addrp+=4;
 					}
 				}
 			}
@@ -2272,12 +3259,12 @@ void powervr2_device::debug_paletteram()
 	UINT32 r,g,b;
 	int i;
 
-	//popmessage("%02x",pvrta_regs[PAL_RAM_CTRL]);
+	//popmessage("%02x",pal_ram_ctrl);
 
 	for(i=0;i<0x400;i++)
 	{
-		pal = pvrta_regs[((0x005F9000-0x005F8000)/4)+i];
-		switch(pvrta_regs[PAL_RAM_CTRL])
+		pal = palette[i];
+		switch(pal_ram_ctrl)
 		{
 			case 0: //argb1555 <- guilty gear uses this mode
 			{
@@ -2357,27 +3344,28 @@ TIMER_CALLBACK_MEMBER(powervr2_device::vbin)
 {
 	irq_cb(VBL_IN_IRQ);
 
-	vbin_timer->adjust(machine().primary_screen->time_until_pos(spg_vblank_in_irq_line_num));
+	//popmessage("VII %d VOI %d VI %d VO %d VS %d",spg_vblank_int & 0x3ff,(spg_vblank_int >> 16) & 0x3ff,spg_vblank & 0x3ff,(spg_vblank >> 16) & 0x3ff,(spg_load >> 16) & 0x3ff);
+//  vbin_timer->adjust(m_screen->time_until_pos(spg_vblank_int & 0x3ff));
 }
 
 TIMER_CALLBACK_MEMBER(powervr2_device::vbout)
 {
 	irq_cb(VBL_OUT_IRQ);
 
-	vbout_timer->adjust(machine().primary_screen->time_until_pos(spg_vblank_out_irq_line_num));
+//  vbout_timer->adjust(m_screen->time_until_pos((spg_vblank_int >> 16) & 0x3ff));
 }
 
 TIMER_CALLBACK_MEMBER(powervr2_device::hbin)
 {
-	if(spg_hblank_int_mode & 1)
+	if(spg_hblank_int & 0x1000)
 	{
 		if(scanline == next_y)
 		{
 			irq_cb(HBL_IN_IRQ);
-			next_y+=spg_line_comp_val;
+			next_y += spg_hblank_int & 0x3ff;
 		}
 	}
-	else if((scanline == spg_line_comp_val) || (spg_hblank_int_mode & 2))
+	else if((scanline == (spg_hblank_int & 0x3ff)) || (spg_hblank_int & 0x2000))
 	{
 		irq_cb(HBL_IN_IRQ);
 	}
@@ -2386,37 +3374,41 @@ TIMER_CALLBACK_MEMBER(powervr2_device::hbin)
 
 	scanline++;
 
-	if(scanline >= spg_vblank_in_irq_line_num)
+	if(scanline >= ((spg_load >> 16) & 0x3ff))
 	{
 		scanline = 0;
-		next_y = spg_line_comp_val;
+		next_y = spg_hblank_int & 0x3ff;
 	}
 
-	hbin_timer->adjust(machine().primary_screen->time_until_pos(scanline, spg_hblank_in_irq-1));
+	hbin_timer->adjust(m_screen->time_until_pos(scanline, ((spg_hblank_int >> 16) & 0x3ff)-1));
 }
 
 
 
 TIMER_CALLBACK_MEMBER(powervr2_device::endofrender_video)
 {
-	irq_cb(EOR_VIDEO_IRQ); // VIDEO end of render
-	endofrender_timer_video->adjust(attotime::never);
+	printf("VIDEO END %d\n",m_screen->vpos());
+//  endofrender_timer_video->adjust(attotime::never);
 }
 
 TIMER_CALLBACK_MEMBER(powervr2_device::endofrender_tsp)
 {
-	irq_cb(EOR_TSP_IRQ); // TSP end of render
+	printf("TSP END %d\n",m_screen->vpos());
 
-	endofrender_timer_tsp->adjust(attotime::never);
-	endofrender_timer_video->adjust(attotime::from_usec(500) );
+//  endofrender_timer_tsp->adjust(attotime::never);
+//  endofrender_timer_video->adjust(attotime::from_usec(500) );
 }
 
 TIMER_CALLBACK_MEMBER(powervr2_device::endofrender_isp)
 {
 	irq_cb(EOR_ISP_IRQ); // ISP end of render
+	irq_cb(EOR_TSP_IRQ); // TSP end of render
+	irq_cb(EOR_VIDEO_IRQ); // VIDEO end of render
+
+//  printf("ISP END %d\n",m_screen->vpos());
 
 	endofrender_timer_isp->adjust(attotime::never);
-	endofrender_timer_tsp->adjust(attotime::from_usec(500) );
+//  endofrender_timer_tsp->adjust(attotime::from_usec(500) );
 }
 
 UINT32 powervr2_device::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
@@ -2455,9 +3447,12 @@ UINT32 powervr2_device::screen_update(screen_device &screen, bitmap_rgb32 &bitma
 	}
 #endif
 
-	bitmap.fill(MAKE_ARGB(0xff,vo_border_R,vo_border_G,vo_border_B), cliprect); //FIXME: Chroma bit?
+	bitmap.fill(MAKE_ARGB(0xff,
+							(vo_border_col >> 16) & 0xff,
+							(vo_border_col >> 8 ) & 0xff,
+							(vo_border_col      ) & 0xff), cliprect); //FIXME: Chroma bit?
 
-	if(!spg_blank_video)
+	if(!(vo_control & 8))
 		pvr_drawframebuffer(bitmap, cliprect);
 
 	// update this here so we only do string lookup once per frame
@@ -2532,69 +3527,41 @@ WRITE32_MEMBER( powervr2_device::elan_regs_w )
 
 WRITE32_MEMBER( powervr2_device::pvrs_ta_w )
 {
-	pvr_ta_w(space,offset,data,mem_mask);
-	pvr2_ta_w(space,offset,data,mem_mask);
+	//  pvr_ta_w(space,offset,data,mem_mask);
+	//  pvr2_ta_w(space,offset,data,mem_mask);
 	//printf("PVR2 %08x %08x\n",reg,dat);
 }
 
 TIMER_CALLBACK_MEMBER(powervr2_device::pvr_dma_irq)
 {
-	m_pvr_dma.start = pvrctrl_regs[SB_PDST] = 0;
+	m_pvr_dma.start = sb_pdst = 0;
 	irq_cb(DMA_PVR_IRQ);
-}
-
-READ32_MEMBER(powervr2_device::pvr_ctrl_r)
-{
-	#if DEBUG_PVRCTRL
-	mame_printf_verbose("PVRCTRL: [%08x] read %x @ %x, mask %x (PC=%x)\n", 0x5f7c00+reg*4, pvrctrl_regs[offset], offset, mem_mask, space.device().safe_pc());
-	#endif
-
-	return (UINT64)pvrctrl_regs[offset];
-}
-
-WRITE32_MEMBER(powervr2_device::pvr_ctrl_w)
-{
-	UINT8 old;
-
-	switch (offset)
-	{
-		case SB_PDSTAP: m_pvr_dma.pvr_addr = data; break;
-		case SB_PDSTAR: m_pvr_dma.sys_addr = data; break;
-		case SB_PDLEN: m_pvr_dma.size = data; break;
-		case SB_PDDIR: m_pvr_dma.dir = data & 1; break;
-		case SB_PDTSEL:
-			m_pvr_dma.sel = data & 1;
-			//if(m_pvr_dma.sel & 1)
-			//  printf("Warning: Unsupported irq mode trigger PVR-DMA\n");
-			break;
-		case SB_PDEN: m_pvr_dma.flag = data & 1; break;
-		case SB_PDST:
-			old = m_pvr_dma.start & 1;
-			m_pvr_dma.start = data & 1;
-
-			if(((old & 1) == 0) && m_pvr_dma.flag && m_pvr_dma.start && ((m_pvr_dma.sel & 1) == 0)) // 0 -> 1
-				pvr_dma_execute(space);
-			break;
-	}
-
-	#if DEBUG_PVRCTRL
-	mame_printf_verbose("PVRCTRL: [%08x=%x] write %x to %x (reg %x), mask %x\n", 0x5f7c00+reg*4, data, offset, mem_mask);
-	#endif
-
-	pvrctrl_regs[offset] = data;
 }
 
 void powervr2_device::pvr_dma_execute(address_space &space)
 {
+	dc_state *state = machine().driver_data<dc_state>();
 	UINT32 src,dst,size;
 	dst = m_pvr_dma.pvr_addr;
 	src = m_pvr_dma.sys_addr;
 	size = 0;
 
 	/* used so far by usagui and sprtjam*/
-	//printf("PVR-DMA start\n");
-	//printf("%08x %08x %08x\n",m_pvr_dma.pvr_addr,m_pvr_dma.sys_addr,m_pvr_dma.size);
-	//printf("src %s dst %08x\n",m_pvr_dma.dir ? "->" : "<-",m_pvr_dma.sel);
+	printf("PVR-DMA start\n");
+	printf("%08x %08x %08x\n",m_pvr_dma.pvr_addr,m_pvr_dma.sys_addr,m_pvr_dma.size);
+	printf("src %s dst %08x\n",m_pvr_dma.dir ? "->" : "<-",m_pvr_dma.sel);
+
+	/* Throw illegal address set */
+	#if 0
+	if((m_pvr_dma.sys_addr & 0x1c000000) != 0x0c000000)
+	{
+		/* TODO: timing */
+		irq_cb(ERR_PVRIF_ILL_ADDR_IRQ);
+		m_pvr_dma.start = sb_pdst = 0;
+		printf("Illegal PVR DMA set\n");
+		return;
+	}
+	#endif
 
 	/* 0 rounding size = 16 Mbytes */
 	if(m_pvr_dma.size == 0) { m_pvr_dma.size = 0x100000; }
@@ -2619,11 +3586,12 @@ void powervr2_device::pvr_dma_execute(address_space &space)
 	}
 	/* Note: do not update the params, since this DMA type doesn't support it. */
 	/* TODO: timing of this */
-	machine().scheduler().timer_set(attotime::from_usec(250), timer_expired_delegate(FUNC(powervr2_device::pvr_dma_irq), this));
+	machine().scheduler().timer_set(state->m_maincpu->cycles_to_attotime(m_pvr_dma.size/4), timer_expired_delegate(FUNC(powervr2_device::pvr_dma_irq), this));
 }
 
 powervr2_device::powervr2_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, POWERVR2, "PowerVR 2", tag, owner, clock),
+	: device_t(mconfig, POWERVR2, "PowerVR 2", tag, owner, clock, "powervr2", __FILE__),
+		device_video_interface(mconfig, *this),
 		irq_cb(*this)
 {
 }
@@ -2632,22 +3600,121 @@ void powervr2_device::device_start()
 {
 	irq_cb.resolve_safe();
 
-	memset(pvrctrl_regs, 0, sizeof(pvrctrl_regs));
-	memset(pvrta_regs, 0, sizeof(pvrta_regs));
 	memset(grab, 0, sizeof(grab));
 	pvr_build_parameterconfig();
 
 	computedilated();
 
-	vbout_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(powervr2_device::vbout),this));
-	vbin_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(powervr2_device::vbin),this));
+//  vbout_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(powervr2_device::vbout),this));
+//  vbin_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(powervr2_device::vbin),this));
 	hbin_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(powervr2_device::hbin),this));
+	yuv_timer_end = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(powervr2_device::yuv_convert_end),this));
 
 	endofrender_timer_isp = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(powervr2_device::endofrender_isp),this));
 	endofrender_timer_tsp = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(powervr2_device::endofrender_tsp),this));
 	endofrender_timer_video = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(powervr2_device::endofrender_video),this));
 
-	fake_accumulationbuffer_bitmap = auto_bitmap_rgb32_alloc(machine(),1024,1024);
+	fake_accumulationbuffer_bitmap = auto_bitmap_rgb32_alloc(machine(),2048,2048);
+
+	softreset = 0;
+	param_base = 0;
+	region_base = 0;
+	vo_border_col = 0;
+	fb_r_ctrl = 0;
+	fb_w_ctrl = 0;
+	fb_w_linestride = 0;
+	fb_r_sof1 = 0;
+	fb_r_sof2 = 0;
+	fb_r_size = 0;
+	fb_w_sof1 = 0;
+	fb_w_sof2 = 0;
+	fb_x_clip = 0;
+	fb_y_clip = 0;
+	fpu_param_cfg = 0;
+	isp_backgnd_t = 0;
+	spg_hblank_int = 0;
+	spg_vblank_int = 0;
+	spg_hblank = 0;
+	spg_load = 0;
+	spg_vblank = 0;
+	spg_width = 0;
+	vo_control = 0;
+	vo_startx = 0;
+	vo_starty = 0;
+	text_control = 0;
+	pal_ram_ctrl = 0;
+	ta_ol_base = 0;
+	ta_ol_limit = 0;
+	ta_isp_base = 0;
+	ta_isp_limit = 0;
+	ta_next_opb = 0;
+	ta_itp_current = 0;
+	ta_alloc_ctrl = 0;
+	ta_next_opb_init = 0;
+	ta_yuv_tex_base = 0;
+	ta_yuv_tex_ctrl = 0;
+	ta_yuv_tex_cnt = 0;
+	memset(fog_table, 0, sizeof(fog_table));
+	memset(palette, 0, sizeof(palette));
+
+	sb_pdstap = 0;
+	sb_pdstar = 0;
+	sb_pdlen = 0;
+	sb_pddir = 0;
+	sb_pdtsel = 0;
+	sb_pden = 0;
+	sb_pdst = 0;
+	sb_pdapro = 0;
+
+	save_item(NAME(softreset));
+	save_item(NAME(param_base));
+	save_item(NAME(region_base));
+	save_item(NAME(vo_border_col));
+	save_item(NAME(fb_r_ctrl));
+	save_item(NAME(fb_w_ctrl));
+	save_item(NAME(fb_w_linestride));
+	save_item(NAME(fb_r_sof1));
+	save_item(NAME(fb_r_sof2));
+	save_item(NAME(fb_r_size));
+	save_item(NAME(fb_w_sof1));
+	save_item(NAME(fb_w_sof2));
+	save_item(NAME(fb_x_clip));
+	save_item(NAME(fb_y_clip));
+	save_item(NAME(fpu_param_cfg));
+	save_item(NAME(isp_backgnd_t));
+	save_item(NAME(spg_hblank_int));
+	save_item(NAME(spg_vblank_int));
+	save_item(NAME(spg_hblank));
+	save_item(NAME(spg_load));
+	save_item(NAME(spg_vblank));
+	save_item(NAME(spg_width));
+	save_item(NAME(vo_control));
+	save_item(NAME(vo_startx));
+	save_item(NAME(vo_starty));
+	save_item(NAME(text_control));
+	save_item(NAME(pal_ram_ctrl));
+	save_item(NAME(ta_ol_base));
+	save_item(NAME(ta_ol_limit));
+	save_item(NAME(ta_isp_base));
+	save_item(NAME(ta_isp_limit));
+	save_item(NAME(ta_next_opb));
+	save_item(NAME(ta_itp_current));
+	save_item(NAME(ta_alloc_ctrl));
+	save_item(NAME(ta_next_opb_init));
+	save_item(NAME(ta_yuv_tex_base));
+	save_item(NAME(ta_yuv_tex_ctrl));
+	save_item(NAME(ta_yuv_tex_cnt));
+	save_pointer(NAME(fog_table), 0x80);
+	save_pointer(NAME(palette), 0x400);
+
+	save_item(NAME(sb_pdstap));
+	save_item(NAME(sb_pdstar));
+	save_item(NAME(sb_pdlen));
+	save_item(NAME(sb_pddir));
+	save_item(NAME(sb_pdtsel));
+	save_item(NAME(sb_pden));
+	save_item(NAME(sb_pdst));
+	save_item(NAME(sb_pdapro));
 
 	save_item(NAME(m_pvr_dma.pvr_addr));
 	save_item(NAME(m_pvr_dma.sys_addr));
@@ -2656,8 +3723,6 @@ void powervr2_device::device_start()
 	save_item(NAME(m_pvr_dma.dir));
 	save_item(NAME(m_pvr_dma.flag));
 	save_item(NAME(m_pvr_dma.start));
-	save_pointer(NAME(pvrta_regs),0x2000/4);
-	save_pointer(NAME(pvrctrl_regs),0x100/4);
 	save_item(NAME(debug_dip_status));
 	save_pointer(NAME(tafifo_buff),32);
 	save_item(NAME(scanline));
@@ -2666,19 +3731,15 @@ void powervr2_device::device_start()
 
 void powervr2_device::device_reset()
 {
-	pvrta_regs[VO_CONTROL]=     0x00000108;
-	pvrta_regs[SOFTRESET]=      0x00000007;
-	pvrta_regs[VO_STARTX]=      0x0000009d;
-	pvrta_regs[VO_STARTY]=      0x00150015;
-	pvrta_regs[SPG_HBLANK]=     0x007e0345;
-	pvrta_regs[SPG_LOAD]=       0x01060359;
-	pvrta_regs[SPG_VBLANK]=     0x01500104;
-	pvrta_regs[SPG_HBLANK_INT]= 0x031d0000;
-	pvrta_regs[SPG_VBLANK_INT]= 0x01500104;
-
-	// if the next 2 registers do not have the correct values, the naomi bios will hang
-	pvrta_regs[PVRID]=0x17fd11db;
-	pvrta_regs[REVISION]=0x11;
+	softreset =                 0x00000007;
+	vo_control =                0x00000108;
+	vo_startx =                 0x0000009d;
+	vo_starty =                 0x00150015;
+	spg_hblank =                0x007e0345;
+	spg_load =                  0x01060359;
+	spg_vblank =                0x01500104;
+	spg_hblank_int =            0x031d0000;
+	spg_vblank_int =            0x01500104;
 
 	tafifo_pos=0;
 	tafifo_mask=7;
@@ -2688,9 +3749,9 @@ void powervr2_device::device_reset()
 	renderselect= -1;
 	grabsel=0;
 
-	vbout_timer->adjust(machine().primary_screen->time_until_pos(spg_vblank_out_irq_line_num_new));
-	vbin_timer->adjust(machine().primary_screen->time_until_pos(spg_vblank_in_irq_line_num_new));
-	hbin_timer->adjust(machine().primary_screen->time_until_pos(0, spg_hblank_in_irq_new-1));
+//  vbout_timer->adjust(m_screen->time_until_pos((spg_vblank_int >> 16) & 0x3ff));
+//  vbin_timer->adjust(m_screen->time_until_pos(spg_vblank_int & 0x3ff));
+	hbin_timer->adjust(m_screen->time_until_pos(0, ((spg_hblank_int >> 16) & 0x3ff)-1));
 
 	scanline = 0;
 	next_y = 0;
@@ -2698,8 +3759,30 @@ void powervr2_device::device_reset()
 	endofrender_timer_isp->adjust(attotime::never);
 	endofrender_timer_tsp->adjust(attotime::never);
 	endofrender_timer_video->adjust(attotime::never);
+	yuv_timer_end->adjust(attotime::never);
 
 	dc_state *state = machine().driver_data<dc_state>();
 	dc_texture_ram = state->dc_texture_ram.target();
 	dc_framebuffer_ram = state->dc_framebuffer_ram.target();
+}
+
+/* called by TIMER_ADD_PERIODIC, in driver sections (controlled by SPG, that's a PVR sub-device) */
+void powervr2_device::pvr_scanline_timer(int vpos)
+{
+	int vbin_line = spg_vblank_int & 0x3ff;
+	int vbout_line = (spg_vblank_int >> 16) & 0x3ff;
+	UINT8 interlace_on = ((spg_control & 0x10) >> 4);
+	dc_state *state = machine().driver_data<dc_state>();
+
+	vbin_line <<= interlace_on;
+	vbout_line <<= interlace_on;
+
+	if(vbin_line-(1+interlace_on) == vpos)
+		state->m_maple->maple_hw_trigger();
+
+	if(vbin_line == vpos)
+		irq_cb(VBL_IN_IRQ);
+
+	if(vbout_line == vpos)
+		irq_cb(VBL_OUT_IRQ);
 }

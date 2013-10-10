@@ -3,6 +3,13 @@
 #include "sound/k007232.h"
 #include "sound/k053260.h"
 #include "sound/k054539.h"
+#include "video/k053244_k053245.h"
+#include "video/k052109.h"
+#include "video/k051960.h"
+#include "video/k053251.h"
+#include "video/k053936.h"
+#include "video/k054000.h"
+#include "video/konami_helper.h"
 
 class tmnt_state : public driver_device
 {

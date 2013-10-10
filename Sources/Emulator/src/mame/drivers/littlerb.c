@@ -285,7 +285,7 @@ protected:
 const device_type LITTLERBVDP = &device_creator<littlerb_vdp_device>;
 
 littlerb_vdp_device::littlerb_vdp_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, LITTLERBVDP, "LITTLERBVDP", tag, owner, clock),
+	: device_t(mconfig, LITTLERBVDP, "LITTLERBVDP", tag, owner, clock, "littlerb_vdp", __FILE__),
 		device_memory_interface(mconfig, *this),
 		m_space_config("littlerb_vdp", ENDIANNESS_LITTLE, 16,32, 0, NULL, *ADDRESS_MAP_NAME(littlerb_vdp_map8))
 {
@@ -432,7 +432,7 @@ WRITE16_MEMBER(littlerb_state::littlerb_vdp_w)
 /* could be slightly different (timing wise, directly related to the irqs), but certainly they smoked some bad pot for this messy way ... */
 UINT8 littlerb_state::sound_data_shift()
 {
-	return ((machine().primary_screen->frame_number() % 16) == 0) ? 8 : 0;
+	return ((m_screen->frame_number() % 16) == 0) ? 8 : 0;
 }
 
 /* l is SFX, r is BGM (they doesn't seem to share the same data ROM) */
@@ -469,7 +469,7 @@ ADDRESS_MAP_END
 /* guess according to DASM code and checking the gameplay speed, could be different */
 CUSTOM_INPUT_MEMBER(littlerb_state::littlerb_frame_step_r)
 {
-	UINT32 ret = machine().primary_screen->frame_number();
+	UINT32 ret = m_screen->frame_number();
 
 	return (ret) & 7;
 }
@@ -593,8 +593,8 @@ TIMER_DEVICE_CALLBACK_MEMBER(littlerb_state::littlerb_scanline)
 
 void littlerb_state::video_start()
 {
-//  machine().primary_screen->register_screen_bitmap(m_temp_bitmap_sprites_back);
-//  machine().primary_screen->register_screen_bitmap(m_temp_bitmap_sprites);
+//  m_screen->register_screen_bitmap(m_temp_bitmap_sprites_back);
+//  m_screen->register_screen_bitmap(m_temp_bitmap_sprites);
 
 	m_temp_bitmap_sprites_back = auto_bitmap_ind16_alloc(machine(),512,512);
 	m_temp_bitmap_sprites = auto_bitmap_ind16_alloc(machine(),512,512);

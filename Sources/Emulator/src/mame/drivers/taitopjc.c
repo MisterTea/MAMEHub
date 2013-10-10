@@ -81,8 +81,6 @@ public:
 	DECLARE_WRITE8_MEMBER(tlcs_common_w);
 	DECLARE_READ8_MEMBER(tlcs_sound_r);
 	DECLARE_WRITE8_MEMBER(tlcs_sound_w);
-	DECLARE_WRITE8_MEMBER(taitopjc_tlcs900_to1);
-	DECLARE_WRITE8_MEMBER(taitopjc_tlcs900_to3);
 	virtual void video_start();
 	UINT32 screen_update_taitopjc(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	required_device<cpu_device> m_maincpu;
@@ -378,22 +376,13 @@ WRITE8_MEMBER(taitopjc_state::tlcs_sound_w)
 // 0xfc0fb5: INTRX1
 // 0xfc0f41: INTTX1
 
-static ADDRESS_MAP_START( tlcs900h_mem, AS_PROGRAM, 8, taitopjc_state )
+static ADDRESS_MAP_START( tlcs900h_mem, AS_PROGRAM, 16, taitopjc_state )
 	AM_RANGE(0x010000, 0x02ffff) AM_RAM     // Work RAM
-	AM_RANGE(0x040000, 0x0400ff) AM_READWRITE(tlcs_sound_r, tlcs_sound_w)
-	AM_RANGE(0x060000, 0x061fff) AM_READWRITE(tlcs_common_r, tlcs_common_w)
+	AM_RANGE(0x040000, 0x0400ff) AM_READWRITE8(tlcs_sound_r, tlcs_sound_w, 0xffff)
+	AM_RANGE(0x060000, 0x061fff) AM_READWRITE8(tlcs_common_r, tlcs_common_w, 0xffff)
 	AM_RANGE(0xfc0000, 0xffffff) AM_ROM AM_REGION("io_cpu", 0)
 ADDRESS_MAP_END
 
-
-
-WRITE8_MEMBER(taitopjc_state::taitopjc_tlcs900_to1)
-{
-}
-
-WRITE8_MEMBER(taitopjc_state::taitopjc_tlcs900_to3)
-{
-}
 
 
 static INPUT_PORTS_START( taitopjc )
@@ -407,11 +396,6 @@ static const powerpc_config ppc603e_config =
 	NULL
 };
 
-static const tlcs900_interface taitopjc_tlcs900_interface =
-{
-	DEVCB_DRIVER_MEMBER(taitopjc_state,taitopjc_tlcs900_to1 ),
-	DEVCB_DRIVER_MEMBER(taitopjc_state,taitopjc_tlcs900_to3 )
-};
 
 static MACHINE_CONFIG_START( taitopjc, taitopjc_state )
 	MCFG_CPU_ADD("maincpu", PPC603E, 100000000)
@@ -419,8 +403,7 @@ static MACHINE_CONFIG_START( taitopjc, taitopjc_state )
 	MCFG_CPU_PROGRAM_MAP(ppc603e_mem)
 
 	/* TMP95C063F I/O CPU */
-	MCFG_CPU_ADD("iocpu", TLCS900H, 25000000)
-	MCFG_CPU_CONFIG(taitopjc_tlcs900_interface)
+	MCFG_CPU_ADD("iocpu", TMP95C063, 25000000)
 	MCFG_CPU_PROGRAM_MAP(tlcs900h_mem)
 
 	/* TMS320C53 DSP */

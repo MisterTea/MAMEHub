@@ -36,24 +36,34 @@ public:
 
 private:
 
-	inline UINT8 var_length_read(address_space &space, UINT32 offset);
+	UINT8 var_length_read(address_space &space, UINT32 offset);
+	void dma_transfer(address_space &space);
+	void dma_cctype1_transfer(address_space &space);
+	void dma_cctype2_transfer(address_space &space);
 
 	UINT8 read_regs(address_space &space, UINT32 offset);
 	UINT8 read_iram(UINT32 offset);
 	UINT8 read_bwram(UINT32 offset);
-	void write_regs(UINT32 offset, UINT8 data);
+	void write_regs(address_space &space, UINT32 offset, UINT8 data);
 	void write_iram(UINT32 offset, UINT8 data);
 	void write_bwram(UINT32 offset, UINT8 data);
+	void recalc_irqs();
 
-	required_device<_5a22_device> m_sa1;
+	required_device<g65816_device> m_sa1;
 
 	UINT8 m_internal_ram[0x800];
 
 	// register related
 	// $2200
 	UINT8 m_sa1_ctrl;
+	// $2201
+	UINT8 m_scpu_sie;
+	// $2203-$2208
+	UINT16 m_sa1_reset, m_sa1_nmi, m_sa1_irq;
 	// $2209
 	UINT8 m_scpu_ctrl;
+	// $220a
+	UINT8 m_sa1_sie;
 	// $200c-$200d - S-CPU vectors
 	UINT16 m_irq_vector, m_nmi_vector;
 	// $2012-$2015
@@ -72,8 +82,12 @@ private:
 	UINT32 m_bwpa_sa1;
 	// $2229-$222a
 	UINT8 m_iram_write_snes, m_iram_write_sa1;
+	// $2230-$2231
+	UINT8 m_dma_ctrl, m_dma_ccparam;
 	// $2232-$2237
 	UINT32 m_src_addr, m_dst_addr;
+	// $2238-$2239
+	UINT16 m_dma_cnt;
 	// $2240-$224f
 	UINT8 m_brf_reg[0x10];
 	// $2250-$2254
@@ -84,6 +98,8 @@ private:
 	UINT32 m_vda;
 	UINT8 m_vbit, m_vlen;
 	int m_drm;
+	// $2300-$2301
+	UINT8 m_scpu_flags, m_sa1_flags;
 	// $2302-$2305
 	UINT16 m_hcr, m_vcr;
 };

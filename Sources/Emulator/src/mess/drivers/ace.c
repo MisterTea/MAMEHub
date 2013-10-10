@@ -488,10 +488,6 @@ TIMER_DEVICE_CALLBACK_MEMBER(ace_state::clear_irq)
 }
 
 
-//-------------------------------------------------
-//  SCREEN_UPDATE_IND16( ace )
-//-------------------------------------------------
-
 UINT32 ace_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	UINT8 y,ra,chr,gfx;
@@ -742,7 +738,7 @@ static MACHINE_CONFIG_START( ace, ace_state )
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("clear_irq", ace_state, clear_irq, SCREEN_TAG, 32*8, 264)
 
 	MCFG_PALETTE_LENGTH(2)
-	MCFG_PALETTE_INIT(black_and_white)
+	MCFG_PALETTE_INIT_OVERRIDE(driver_device, black_and_white)
 
 	MCFG_GFXDECODE(ace)
 

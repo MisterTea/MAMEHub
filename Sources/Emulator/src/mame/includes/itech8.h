@@ -15,14 +15,18 @@ class itech8_state : public driver_device
 public:
 	itech8_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_tlc34076(*this, "tlc34076"),
-			m_visarea(0, 0, 0, 0),
 		m_maincpu(*this, "maincpu"),
 		m_soundcpu(*this, "soundcpu"),
-		m_subcpu(*this, "sub") { }
+		m_subcpu(*this, "sub"),
+		m_tms34061(*this, "tms34061"),
+		m_tlc34076(*this, "tlc34076"),
+		m_visarea(0, 0, 0, 0) { }
 
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_soundcpu;
+	optional_device<cpu_device> m_subcpu;
+	required_device<tms34061_device> m_tms34061;
 	required_device<tlc34076_device> m_tlc34076;
-
 	rectangle m_visarea;
 	UINT8 m_grom_bank;
 
@@ -61,6 +65,8 @@ public:
 	UINT8 m_grmatch_palcontrol;
 	UINT8 m_grmatch_xscroll;
 	rgb_t m_grmatch_palette[2][16];
+	static void static_generate_interrupt(running_machine &machine, int state_num);
+	void generate_interrupt(int state_num);
 	DECLARE_WRITE8_MEMBER(itech8_nmi_ack_w);
 	DECLARE_WRITE8_MEMBER(blitter_w);
 	DECLARE_WRITE8_MEMBER(rimrockn_bank_w);
@@ -135,7 +141,4 @@ public:
 							UINT16 *sens0, UINT16 *sens1, UINT16 *sens2, UINT16 *sens3);
 	void compute_sensors();
 	TIMER_CALLBACK_MEMBER( delayed_z80_control_w );
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_soundcpu;
-	optional_device<cpu_device> m_subcpu;
 };

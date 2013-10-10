@@ -88,26 +88,17 @@
 
 ****************************************************************************/
 
-
-#include <time.h>
-
 #include "emu.h"
-#include "machine/6522via.h"
-#include "machine/8530scc.h"
-#include "cpu/m68000/m68000.h"
+#include "includes/mac.h"
 #include "machine/applefdc.h"
 #include "machine/sonydriv.h"
-#include "machine/ncr5380.h"
-#include "sound/asc.h"
-#include "includes/mac.h"
 #include "debug/debugcpu.h"
-#include "machine/ram.h"
 #include "debugger.h"
 
 #define AUDIO_IS_CLASSIC (m_model <= MODEL_MAC_CLASSIC)
 #define MAC_HAS_VIA2    ((m_model >= MODEL_MAC_II) && (m_model != MODEL_MAC_IIFX))
 
-#define ASC_INTS_RBV    ((mac->m_model >= MODEL_MAC_IICI) && (mac->m_model <= MODEL_MAC_IIVI)) || ((mac->m_model >= MODEL_MAC_LC) && (mac->m_model <= MODEL_MAC_COLOR_CLASSIC))
+#define INTS_RBV    ((m_model >= MODEL_MAC_IICI) && (m_model <= MODEL_MAC_IIVI)) || ((m_model >= MODEL_MAC_LC) && (m_model <= MODEL_MAC_LC_580))
 
 #ifdef MAME_DEBUG
 #define LOG_ADB         0
@@ -134,7 +125,12 @@ const via6522_interface mac_via6522_intf =
 {
 	DEVCB_DRIVER_MEMBER(mac_state,mac_via_in_a), DEVCB_DRIVER_MEMBER(mac_state,mac_via_in_b),
 	DEVCB_NULL, DEVCB_NULL,
+
+#ifdef MAC_USE_EMULATED_KBD
+	DEVCB_NULL, DEVCB_DRIVER_MEMBER(mac_state,mac_via_in_cb2),
+#else
 	DEVCB_NULL, DEVCB_NULL,
+#endif
 	DEVCB_DRIVER_MEMBER(mac_state,mac_via_out_a), DEVCB_DRIVER_MEMBER(mac_state,mac_via_out_b),
 	DEVCB_NULL, DEVCB_NULL,
 	DEVCB_NULL, DEVCB_DRIVER_MEMBER(mac_state,mac_via_out_cb2),
@@ -303,31 +299,29 @@ void mac_state::set_via2_interrupt(int value)
 	this->field_interrupts();
 }
 
-void mac_asc_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(mac_state::mac_asc_irq)
 {
-	mac_state *mac = device->machine().driver_data<mac_state>();
-
-	if (ASC_INTS_RBV)
+	if (INTS_RBV)
 	{
-		if (state)
+		if (state == ASSERT_LINE)
 		{
-			mac->m_rbv_regs[3] |= 0x10; // any VIA 2 interrupt | sound interrupt
-			mac->rbv_recalc_irqs();
+			m_rbv_regs[3] |= 0x10; // any VIA 2 interrupt | sound interrupt
+			rbv_recalc_irqs();
 		}
 		else
 		{
-			mac->m_rbv_regs[3] &= ~0x10;
-			mac->rbv_recalc_irqs();
+			m_rbv_regs[3] &= ~0x10;
+			rbv_recalc_irqs();
 		}
 	}
-	else if ((mac->m_model == MODEL_MAC_PORTABLE) || (mac->m_model == MODEL_MAC_PB100))
+	else if ((m_model == MODEL_MAC_PORTABLE) || (m_model == MODEL_MAC_PB100))
 	{
 //      m_asc_interrupt = state;
-//      mac->field_interrupts();
+//      field_interrupts();
 	}
-	else if ((mac->m_model >= MODEL_MAC_II) && (mac->m_model != MODEL_MAC_IIFX))
+	else if ((m_model >= MODEL_MAC_II) && (m_model != MODEL_MAC_IIFX))
 	{
-		mac->m_via2->write_cb1(state^1);
+		m_via2->write_cb1(state^1);
 	}
 }
 
@@ -547,7 +541,7 @@ void mac_state::set_memory_overlay(int overlay)
 
     scan the keyboard, and returns key transition code (or NULL ($7B) if none)
 */
-
+#ifndef MAC_USE_EMULATED_KBD
 int mac_state::scan_keyboard()
 {
 	int i, j;
@@ -673,8 +667,30 @@ void mac_state::keyboard_init()
 	/* purge transmission buffer */
 	m_keycode_buf_index = 0;
 }
+#endif
 
 /******************* Keyboard <-> VIA communication ***********************/
+
+WRITE_LINE_MEMBER(mac_state::mac_kbd_clk_in)
+{
+	printf("CLK: %d\n", state^1);
+	m_via1->write_cb1(state ? 0 : 1);
+}
+
+#ifdef MAC_USE_EMULATED_KBD
+READ8_MEMBER(mac_state::mac_via_in_cb2)
+{
+	printf("Read %d from keyboard (PC=%x)\n", (m_mackbd->data_r() == ASSERT_LINE) ? 1 : 0, m_maincpu->pc());
+	return (m_mackbd->data_r() == ASSERT_LINE) ? 1 : 0;
+}
+
+WRITE8_MEMBER(mac_state::mac_via_out_cb2)
+{
+	printf("Sending %d to kbd (PC=%x)\n", data, m_maincpu->pc());
+	m_mackbd->data_w((data & 1) ? ASSERT_LINE : CLEAR_LINE);
+}
+
+#else   // keyboard HLE
 
 TIMER_CALLBACK_MEMBER(mac_state::kbd_clock)
 {
@@ -815,6 +831,7 @@ void mac_state::keyboard_receive(int val)
 		break;
 	}
 }
+#endif
 
 /* *************************************************************************
  * Mouse
@@ -1131,7 +1148,7 @@ READ16_MEMBER ( mac_state::mac_iwm_r )
 	result = fdc->read(offset >> 8);
 
 	if (LOG_MAC_IWM)
-		printf("mac_iwm_r: offset=0x%08x mem_mask %04x = %02x (PC %x)\n", offset, mem_mask, result, m_maincpu->pc());
+		printf("mac_iwm_r: offset=0x%08x mem_mask %04x = %02x (PC %x)\n", offset, mem_mask, result, space.device().safe_pc());
 
 	return (result << 8) | result;
 }
@@ -1141,7 +1158,7 @@ WRITE16_MEMBER ( mac_state::mac_iwm_w )
 	applefdc_base_device *fdc = space.machine().device<applefdc_base_device>("fdc");
 
 	if (LOG_MAC_IWM)
-		printf("mac_iwm_w: offset=0x%08x data=0x%04x mask %04x (PC=%x)\n", offset, data, mem_mask, m_maincpu->pc());
+		printf("mac_iwm_w: offset=0x%08x data=0x%04x mask %04x (PC=%x)\n", offset, data, mem_mask, space.device().safe_pc());
 
 	if (ACCESSING_BITS_0_7)
 		fdc->write((offset >> 8), data & 0xff);
@@ -1500,7 +1517,7 @@ WRITE8_MEMBER(mac_state::mac_via_out_b)
 	else if (ADB_IS_EGRET)
 	{
 		#if LOG_ADB
-		printf("68K: New Egret state: SS %d VF %d (PC %x)\n", (data>>5)&1, (data>>4)&1, m_maincpu->pc());
+		printf("68K: New Egret state: SS %d VF %d (PC %x)\n", (data>>5)&1, (data>>4)&1, space.device().safe_pc());
 		#endif
 		m_egret->set_via_full((data&0x10) ? 1 : 0);
 		m_egret->set_sys_session((data&0x20) ? 1 : 0);
@@ -1508,7 +1525,7 @@ WRITE8_MEMBER(mac_state::mac_via_out_b)
 	else if (ADB_IS_CUDA)
 	{
 		#if LOG_ADB
-		printf("68K: New Cuda state: TIP %d BYTEACK %d (PC %x)\n", (data>>5)&1, (data>>4)&1, m_maincpu->pc());
+		printf("68K: New Cuda state: TIP %d BYTEACK %d (PC %x)\n", (data>>5)&1, (data>>4)&1, space.device().safe_pc());
 		#endif
 		m_cuda->set_byteack((data&0x10) ? 1 : 0);
 		m_cuda->set_tip((data&0x20) ? 1 : 0);
@@ -1578,7 +1595,7 @@ READ16_MEMBER ( mac_state::mac_via2_r )
 	data = m_via2->read(space, offset);
 
 	if (LOG_VIA)
-		logerror("mac_via2_r: offset=0x%02x = %02x (PC=%x)\n", offset*2, data, m_maincpu->pc());
+		logerror("mac_via2_r: offset=0x%02x = %02x (PC=%x)\n", offset*2, data, space.device().safe_pc());
 
 	return (data & 0xff) | (data << 8);
 }
@@ -1589,7 +1606,7 @@ WRITE16_MEMBER ( mac_state::mac_via2_w )
 	offset &= 0x0f;
 
 	if (LOG_VIA)
-		logerror("mac_via2_w: offset=%x data=0x%08x mask=%x (PC=%x)\n", offset, data, mem_mask, m_maincpu->pc());
+		logerror("mac_via2_w: offset=%x data=0x%08x mask=%x (PC=%x)\n", offset, data, mem_mask, space.device().safe_pc());
 
 	if (ACCESSING_BITS_0_7)
 		m_via2->write(space, offset, data & 0xff);
@@ -1726,7 +1743,8 @@ WRITE8_MEMBER(mac_state::mac_via2_out_b)
 
 	if (m_model == MODEL_MAC_II)
 	{
-		m68k_set_hmmu_enable(m_maincpu, (data & 0x8) ? M68K_HMMU_DISABLE : M68K_HMMU_ENABLE_II);
+		m68000_base_device *m68k = downcast<m68000_base_device *>(m_maincpu.target());
+		m68k_set_hmmu_enable(m68k, (data & 0x8) ? M68K_HMMU_DISABLE : M68K_HMMU_ENABLE_II);
 	}
 }
 
@@ -1841,7 +1859,8 @@ void mac_state::machine_reset()
 	// default to 32-bit mode on LC
 	if (m_model == MODEL_MAC_LC)
 	{
-		m68k_set_hmmu_enable(m_maincpu, M68K_HMMU_DISABLE);
+		m68000_base_device *m68k = downcast<m68000_base_device *>(m_maincpu.target());
+		m68k_set_hmmu_enable(m68k, M68K_HMMU_DISABLE);
 	}
 
 	m_last_taken_interrupt = -1;
@@ -1891,11 +1910,13 @@ void mac_state::machine_reset()
 	m_via2_vbl = 0;
 	m_se30_vbl_enable = 0;
 	m_nubus_irq_state = 0xff;
+#ifndef MAC_USE_EMULATED_KBD
 	m_keyboard_reply = 0;
 	m_kbd_comm = 0;
 	m_kbd_receive = 0;
 	m_kbd_shift_reg = 0;
 	m_kbd_shift_count = 0;
+#endif
 	m_mouse_bit_x = m_mouse_bit_y = 0;
 	m_pm_data_send = m_pm_data_recv = m_pm_ack = m_pm_req = m_pm_dptr = 0;
 	m_pm_state = 0;
@@ -2053,9 +2074,16 @@ void mac_state::mac_driver_init(model_t model)
 	}
 
 	/* setup keyboard */
+#ifndef MAC_USE_EMULATED_KBD
 	keyboard_init();
-
 	m_inquiry_timeout = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(mac_state::inquiry_timeout_func),this));
+#else
+	/* clear key matrix for macadb */
+	for (int i=0; i<7; i++)
+	{
+		m_key_matrix[i] = 0;
+	}
+#endif
 
 	/* save state stuff */
 	machine().save().register_postload(save_prepost_delegate(FUNC(mac_state::mac_state_load), this));
@@ -2120,7 +2148,7 @@ void mac_state::nubus_slot_interrupt(UINT8 slot, UINT32 state)
 		m_nubus_irq_state |= masks[slot];
 	}
 
-	if ((m_model != MODEL_MAC_IIFX) && (m_model != MODEL_MAC_IICI) && (m_model != MODEL_MAC_IISI))
+	if ((m_model != MODEL_MAC_IIFX) && (!INTS_RBV))
 	{
 		if ((m_nubus_irq_state & mask) != mask)
 		{
@@ -2137,7 +2165,7 @@ void mac_state::nubus_slot_interrupt(UINT8 slot, UINT32 state)
 		}
 	}
 
-	if ((m_model == MODEL_MAC_IICI) || (m_model == MODEL_MAC_IISI) || (m_model == MODEL_MAC_IIVX) || (m_model == MODEL_MAC_IIVI))
+	if (INTS_RBV)
 	{
 		m_rbv_regs[2] &= ~0x38;
 		m_rbv_regs[2] |= (m_nubus_irq_state & 0x38);
@@ -2153,6 +2181,7 @@ void mac_state::vblank_irq()
 		this->adb_vblank();
 	}
 
+#ifndef MAC_USE_EMULATED_KBD
 	/* handle keyboard */
 	if (m_kbd_comm == TRUE)
 	{
@@ -2168,6 +2197,7 @@ void mac_state::vblank_irq()
 			kbd_shift_out(keycode);
 		}
 	}
+#endif
 
 	/* signal VBlank on CA1 input on the VIA */
 	if ((m_model < MODEL_MAC_II) || (m_model == MODEL_MAC_PB140) || (m_model == MODEL_MAC_PB160) || (m_model == MODEL_MAC_QUADRA_700))

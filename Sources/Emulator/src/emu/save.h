@@ -227,6 +227,7 @@ private:
 
 
 // template specializations to enumerate the fundamental atomic types you are allowed to save
+ALLOW_SAVE_TYPE(char);
 ALLOW_SAVE_TYPE(bool);
 ALLOW_SAVE_TYPE(INT8);
 ALLOW_SAVE_TYPE(UINT8);
@@ -307,6 +308,12 @@ template<>
 inline void save_manager::save_item(const char *module, const char *tag, int index, dynamic_array<UINT16> &value, const char *name)
 {
 	save_memory(module, tag, index, name, &value[0], sizeof(UINT16), value.count());
+}
+
+template<>
+inline void save_manager::save_item(const char *module, const char *tag, int index, dynamic_array<INT32> &value, const char *name)
+{
+	save_memory(module, tag, index, name, &value[0], sizeof(INT32), value.count());
 }
 
 template<>

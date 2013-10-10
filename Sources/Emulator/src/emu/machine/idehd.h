@@ -1,53 +1,97 @@
-#include "emu.h"
+/***************************************************************************
+
+    idehd.h
+
+    IDE Harddisk
+
+    Copyright Nicola Salmoria and the MAME Team.
+    Visit http://mamedev.org for licensing and usage restrictions.
+
+***************************************************************************/
+
+#pragma once
+
+#ifndef __IDEHD_H__
+#define __IDEHD_H__
+
+#include "atahle.h"
+#include "harddisk.h"
 #include "imagedev/harddriv.h"
 
-#define IDE_DISK_SECTOR_SIZE            512
-
-// ======================> ide_device_interface
-
-class ide_device_interface : public device_slot_card_interface
+class ata_mass_storage_device : public ata_hle_device
 {
 public:
-	ide_device_interface(const machine_config &mconfig, device_t &device);
-public:
-	virtual int  read_sector(UINT32 lba, void *buffer) = 0;
-	virtual int  write_sector(UINT32 lba, const void *buffer) = 0;
+	ata_mass_storage_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock,const char *shortname, const char *source);
 
-	UINT8 *get_features() { return m_features;}
+	UINT16 *identify_device_buffer() { return m_identify_buffer; }
 
-	UINT16 get_cylinders() { return m_num_cylinders; }
-	UINT16 get_sectors() { return m_num_sectors; }
-	UINT16 get_heads() { return m_num_heads; }
-	void set_geometry(UINT8 sectors, UINT8 heads) { m_num_sectors= sectors; m_num_heads=heads; }
-	UINT32 lba_address();
-	virtual bool is_ready() { return true; }
-	virtual void read_key(UINT8 key[]) { }
-	UINT16          cur_cylinder;
-	UINT8           cur_sector;
-	UINT8           cur_head;
-	UINT8           cur_head_reg;
-	UINT32          cur_lba;
+	void set_master_password(const UINT8 *password)
+	{
+		m_master_password = password;
+		m_master_password_enable = (password != NULL);
+	}
+
+	void set_user_password(const UINT8 *password)
+	{
+		m_user_password = password;
+		m_user_password_enable = (password != NULL);
+	}
 
 protected:
-	UINT8           m_features[IDE_DISK_SECTOR_SIZE];
+	virtual void device_start();
+
+	virtual int read_sector(UINT32 lba, void *buffer) = 0;
+	virtual int write_sector(UINT32 lba, const void *buffer) = 0;
+
+	void ide_build_identify_device();
+
+	static const int IDE_DISK_SECTOR_SIZE = 512;
+	virtual int sector_length() { return IDE_DISK_SECTOR_SIZE; }
+	virtual void process_buffer();
+	virtual void fill_buffer();
+	virtual bool is_ready() { return true; }
+	virtual void process_command();
+	virtual void finished_command();
+	virtual void perform_diagnostic();
+	virtual void signature();
+
+	int m_can_identify_device;
 	UINT16          m_num_cylinders;
 	UINT8           m_num_sectors;
 	UINT8           m_num_heads;
+
+private:
+	UINT32 lba_address();
+	void set_geometry(UINT8 sectors, UINT8 heads) { m_num_sectors = sectors; m_num_heads = heads; }
+	void finished_read();
+	void finished_write();
+	void next_sector();
+	void security_error();
+	void read_first_sector();
+	void soft_reset();
+
+	UINT32          m_cur_lba;
+	UINT16          m_block_count;
+	UINT16          m_sectors_until_int;
+
+	UINT8           m_master_password_enable;
+	UINT8           m_user_password_enable;
+	const UINT8 *   m_master_password;
+	const UINT8 *   m_user_password;
 };
 
 // ======================> ide_hdd_device
 
-class ide_hdd_device : public device_t,
-						public ide_device_interface
+class ide_hdd_device : public ata_mass_storage_device
 {
 public:
 	// construction/destruction
 	ide_hdd_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	ide_hdd_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
-	virtual int  read_sector(UINT32 lba, void *buffer) { return hard_disk_read(m_disk, lba, buffer); }
-	virtual int  write_sector(UINT32 lba, const void *buffer) { return hard_disk_write(m_disk, lba, buffer); }
-	virtual void read_key(UINT8 key[]);
+	virtual int read_sector(UINT32 lba, void *buffer) { if (m_disk == NULL) return 0; return hard_disk_read(m_disk, lba, buffer); }
+	virtual int write_sector(UINT32 lba, const void *buffer) { if (m_disk == NULL) return 0; return hard_disk_write(m_disk, lba, buffer); }
+
 protected:
 	// device-level overrides
 	virtual void device_start();
@@ -56,11 +100,23 @@ protected:
 	// optional information overrides
 	virtual machine_config_constructor device_mconfig_additions() const;
 
-	void ide_build_features();
-	virtual bool is_ready() { return (m_disk != NULL); }
-protected:
+	virtual UINT8 calculate_status();
+
 	chd_file       *m_handle;
 	hard_disk_file *m_disk;
+
+	enum
+	{
+		TID_NULL = TID_BUSY + 1,
+	};
+
+private:
+	required_device<harddisk_image_device> m_image;
+
+	emu_timer *     m_last_status_timer;
 };
+
 // device type definition
 extern const device_type IDE_HARDDISK;
+
+#endif

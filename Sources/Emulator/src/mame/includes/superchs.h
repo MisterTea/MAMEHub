@@ -1,4 +1,7 @@
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
+#include "video/tc0480scp.h"
+
+
 struct tempsprite
 {
 	int gfx;
@@ -19,6 +22,7 @@ public:
 		m_shared_ram(*this,"shared_ram"),
 		m_maincpu(*this, "maincpu"),
 		m_subcpu(*this, "sub"),
+		m_tc0480scp(*this, "tc0480scp"),
 		m_eeprom(*this, "eeprom") { }
 
 	UINT16 m_coin_word;
@@ -42,8 +46,9 @@ public:
 	DECLARE_DRIVER_INIT(superchs);
 	virtual void video_start();
 	UINT32 screen_update_superchs(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void draw_sprites(bitmap_ind16 &bitmap,const rectangle &cliprect,const int *primasks,int x_offs,int y_offs);
+	void draw_sprites(screen_device &screen, bitmap_ind16 &bitmap,const rectangle &cliprect,const int *primasks,int x_offs,int y_offs);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_subcpu;
-	required_device<eeprom_device> m_eeprom;
+	required_device<tc0480scp_device> m_tc0480scp;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 };

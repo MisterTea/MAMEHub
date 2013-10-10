@@ -352,7 +352,7 @@ To Do / Unknowns:
 #include "cpu/nec/nec.h"
 #include "cpu/z80/z80.h"
 #include "cpu/z180/z180.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/2151intf.h"
 #include "sound/3812intf.h"
 #include "sound/okim6295.h"
@@ -487,7 +487,7 @@ void toaplan2_state::device_timer(emu_timer &timer, device_timer_id id, int para
 void toaplan2_state::toaplan2_vblank_irq(int irq_line)
 {
 	// the IRQ appears to fire at line 0xe6
-	timer_set(machine().primary_screen->time_until_pos(0xe6), TIMER_RAISE_IRQ, irq_line);
+	timer_set(m_screen->time_until_pos(0xe6), TIMER_RAISE_IRQ, irq_line);
 }
 
 INTERRUPT_GEN_MEMBER(toaplan2_state::toaplan2_vblank_irq1){ toaplan2_vblank_irq(1); }
@@ -503,8 +503,8 @@ READ16_MEMBER(toaplan2_state::video_count_r)
 	/* +---------+---------+--------+---------------------------+ */
 	/*************** Control Signals are active low ***************/
 
-	int hpos = machine().primary_screen->hpos();
-	int vpos = machine().primary_screen->vpos();
+	int hpos = m_screen->hpos();
+	int vpos = m_screen->vpos();
 
 	m_video_status = 0xff00;    // Set signals inactive
 
@@ -526,7 +526,7 @@ READ16_MEMBER(toaplan2_state::video_count_r)
 	else
 		m_video_status |= 0xff;
 
-//  logerror("VC: vpos=%04x hpos=%04x VBL=%04x\n",vpos,hpos,machine().primary_screen->vblank());
+//  logerror("VC: vpos=%04x hpos=%04x VBL=%04x\n",vpos,hpos,m_screen->vblank());
 
 	return m_video_status;
 }
@@ -946,23 +946,6 @@ WRITE8_MEMBER(toaplan2_state::batrider_clear_nmi_w)
 }
 
 
-static const eeprom_interface bbakraid_93C66_intf =
-{
-	// Pin 6 of the 93C66 is connected to Gnd!
-	// So it's configured for 512 bytes
-
-	9,          // address bits
-	8,          // data bits
-	"*110",     // read         110 aaaaaaaaa
-	"*101",     // write        101 aaaaaaaaa dddddddd
-	"*111",     // erase        111 aaaaaaaaa
-	"*10000xxxxxxx",// lock         100x 00xxxx
-	"*10011xxxxxxx",// unlock       100x 11xxxx
-//  "*10001xxxx",   // write all    1 00 01xxxx dddddddd
-//  "*10010xxxx"    // erase all    1 00 10xxxx
-};
-
-
 READ16_MEMBER(toaplan2_state::bbakraid_eeprom_r)
 {
 	// Bit 0x01 returns the status of BUSAK from the Z80.
@@ -971,7 +954,7 @@ READ16_MEMBER(toaplan2_state::bbakraid_eeprom_r)
 	// ROM code. Failure to return the correct status incurrs a Sound Error.
 
 	int data;
-	data  = ((m_eeprom->read_bit() & 0x01) << 4);
+	data  = ((m_eeprom->do_read() & 0x01) << 4);
 	data |= ((m_z80_busreq >> 4) & 0x01);   // Loop BUSRQ to BUSAK
 
 	return data;
@@ -2087,10 +2070,10 @@ static INPUT_PORTS_START( fixeight )
 	PORT_BIT( 0xff00, IP_ACTIVE_HIGH, IPT_UNKNOWN ) // Unknown/Unused
 
 	PORT_START("EEPROM")
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
-	PORT_BIT( 0x0040, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x0040, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 INPUT_PORTS_END
 
 
@@ -2561,13 +2544,13 @@ static INPUT_PORTS_START( bgaregga )
 	PORT_DIPSETTING(        0x0080, "1000k and 2000k" )     PORT_CONDITION("JMPR",0x0003,EQUALS,0x0000) // Japan
 	PORT_DIPSETTING(        0x0000, "Every 1000k" )         PORT_CONDITION("JMPR",0x0003,EQUALS,0x0000) // Japan
 
-	PORT_START("JMPR")
-	PORT_CONFNAME( 0x0008,  0x0000, "Stage Edit" )  //PORT_CONFLOCATION("SW3:!1")
-	PORT_CONFSETTING(       0x0000, DEF_STR( Off ) )
-	PORT_CONFSETTING(       0x0008, DEF_STR( On ) )
-	PORT_CONFNAME( 0x0004,  0x0000, DEF_STR( Allow_Continue ) ) //PORT_CONFLOCATION("SW3:!2")
-	PORT_CONFSETTING(       0x0004, DEF_STR( No ) )
-	PORT_CONFSETTING(       0x0000, DEF_STR( Yes ) )
+	PORT_START("JMPR") // DSW3 and jumper
+	PORT_DIPNAME( 0x0008,  0x0000, "Stage Edit" ) PORT_DIPLOCATION("SW3:!1")
+	PORT_DIPSETTING(       0x0000, DEF_STR( Off ) )
+	PORT_DIPSETTING(       0x0008, DEF_STR( On ) )
+	PORT_DIPNAME( 0x0004,  0x0000, DEF_STR( Allow_Continue ) ) PORT_DIPLOCATION("SW3:!2")
+	PORT_DIPSETTING(       0x0004, DEF_STR( No ) )
+	PORT_DIPSETTING(       0x0000, DEF_STR( Yes ) )
 	PORT_CONFNAME( 0x0003,  0x0001, DEF_STR( Region ) ) //PORT_CONFLOCATION("JP:!2,!1")
 	PORT_CONFSETTING(       0x0001, "Europe (Tuning)" )
 	PORT_CONFSETTING(       0x0002, "USA (Fabtek)" )
@@ -2745,104 +2728,16 @@ INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( bbakraid )
-	PORT_START("IN")        // Player Inputs
-	PORT_BIT( 0x0001, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x0002, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x0004, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x0008, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(1)
-	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_PLAYER(1)
-	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_PLAYER(1)
-	PORT_BIT( 0x0040, IP_ACTIVE_HIGH, IPT_BUTTON3 ) PORT_PLAYER(1)
-	PORT_BIT( 0x0100, IP_ACTIVE_HIGH, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x0200, IP_ACTIVE_HIGH, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x0400, IP_ACTIVE_HIGH, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x0800, IP_ACTIVE_HIGH, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(2)
-	PORT_BIT( 0x1000, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_PLAYER(2)
-	PORT_BIT( 0x2000, IP_ACTIVE_HIGH, IPT_BUTTON2 ) PORT_PLAYER(2)
-	PORT_BIT( 0x4000, IP_ACTIVE_HIGH, IPT_BUTTON3 ) PORT_PLAYER(2)
-	PORT_BIT( 0x8080, IP_ACTIVE_HIGH, IPT_UNKNOWN )
+	PORT_INCLUDE( batrider )
 
-	PORT_START("DSW")       // DSWA and DSWB
-	PORT_SERVICE_DIPLOC(0x0001, IP_ACTIVE_HIGH, "SW1:!1")
-	PORT_DIPNAME( 0x0002,   0x0000, "Credits to Start" )    PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)    PORT_DIPLOCATION("SW1:!2")
-	PORT_DIPSETTING(        0x0000, "1" )                   PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0002, "2" )                   PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-	PORT_DIPNAME( 0x0002,   0x0000, "Joystick Mode" )       PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)       PORT_DIPLOCATION("SW1:!2")
-	PORT_DIPSETTING(        0x0000, DEF_STR( Normal ) )     PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0002, "90 degrees ACW" )      PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)
-	PORT_DIPNAME( 0x001c,   0x0000, DEF_STR( Coin_A ) )     PORT_DIPLOCATION("SW1:!3,!4,!5")
-	PORT_DIPSETTING(        0x0018, DEF_STR( 4C_1C ) )
-	PORT_DIPSETTING(        0x0014, DEF_STR( 3C_1C ) )
-	PORT_DIPSETTING(        0x0010, DEF_STR( 2C_1C ) )
-	PORT_DIPSETTING(        0x0000, DEF_STR( 1C_1C ) )
-	PORT_DIPSETTING(        0x0004, DEF_STR( 1C_2C ) )
-	PORT_DIPSETTING(        0x0008, DEF_STR( 1C_3C ) )
-	PORT_DIPSETTING(        0x000c, DEF_STR( 1C_4C ) )
-	PORT_DIPSETTING(        0x001c, DEF_STR( Free_Play ) )
-	PORT_DIPNAME( 0x00e0,   0x0000, DEF_STR( Coin_B ) )     PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)    PORT_DIPLOCATION("SW1:!6,!7,!8")
-	PORT_DIPSETTING(        0x00c0, DEF_STR( 4C_1C ) )      PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-	PORT_DIPSETTING(        0x00a0, DEF_STR( 3C_1C ) )      PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0080, DEF_STR( 2C_1C ) )      PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0000, DEF_STR( 1C_1C ) )      PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-//  PORT_DIPSETTING(        0x00e0, DEF_STR( 1C_1C ) )      PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0020, DEF_STR( 1C_2C ) )      PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0040, DEF_STR( 1C_3C ) )      PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0060, DEF_STR( 1C_4C ) )      PORT_CONDITION("DSW", 0x001c, NOTEQUALS, 0x001c)
-	// When Coin_A is set to Free_Play, Coin_A becomes Coin_A and Coin_B, and the following dips occur
-	PORT_DIPNAME( 0x0020,   0x0000, "Hit Score" )           PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)   PORT_DIPLOCATION("SW1:!6")
-	PORT_DIPSETTING(        0x0000, DEF_STR( Off ) )        PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0020, DEF_STR( On ) )         PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)
-	PORT_DIPNAME( 0x0040,   0x0000, "Sound Effect" )        PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)   PORT_DIPLOCATION("SW1:!7")
-	PORT_DIPSETTING(        0x0000, DEF_STR( Off ) )        PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0040, DEF_STR( On ) )         PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)
-	PORT_DIPNAME( 0x0080,   0x0000, "Music" )               PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)   PORT_DIPLOCATION("SW1:!8")
-	PORT_DIPSETTING(        0x0000, DEF_STR( Off ) )        PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)
-	PORT_DIPSETTING(        0x0080, DEF_STR( On ) )         PORT_CONDITION("DSW", 0x001c, EQUALS, 0x001c)
-	PORT_DIPNAME( 0x0300,   0x0000, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("SW2:!1,!2")
-	PORT_DIPSETTING(        0x0100, DEF_STR( Easy ) )
-	PORT_DIPSETTING(        0x0000, DEF_STR( Normal ) )
-	PORT_DIPSETTING(        0x0200, DEF_STR( Hard ) )
-	PORT_DIPSETTING(        0x0300, DEF_STR( Very_Hard ) )
-	PORT_DIPNAME( 0x0c00,   0x0000, "Timer" )               PORT_DIPLOCATION("SW2:!3,!4")
-	PORT_DIPSETTING(        0x0c00, DEF_STR( Highest ) )
-	PORT_DIPSETTING(        0x0800, DEF_STR( High ) )
-	PORT_DIPSETTING(        0x0000, DEF_STR( Normal ) )
-	PORT_DIPSETTING(        0x0400, DEF_STR( Low ) )
-	PORT_DIPNAME( 0x3000,   0x0000, DEF_STR( Lives ) )      PORT_DIPLOCATION("SW2:!5,!6")
-	PORT_DIPSETTING(        0x3000, "1" )
-	PORT_DIPSETTING(        0x2000, "2" )
-	PORT_DIPSETTING(        0x0000, "3" )
-	PORT_DIPSETTING(        0x1000, "4" )
+	PORT_MODIFY("DSW")       // DSWA and DSWB
 	PORT_DIPNAME( 0xc000,   0x0000, DEF_STR( Bonus_Life ) ) PORT_DIPLOCATION("SW2:!7,!8")
 	PORT_DIPSETTING(        0xc000, DEF_STR( None ) )
 	PORT_DIPSETTING(        0x8000, "Every 4000k" )
 	PORT_DIPSETTING(        0x4000, "Every 3000k" )
 	PORT_DIPSETTING(        0x0000, "Every 2000k" )
 
-	PORT_START("SYS-DSW")   // Coin/System and DSW-3
-	PORT_BIT( 0x0001, IP_ACTIVE_HIGH, IPT_SERVICE1 )
-	PORT_BIT( 0x0002, IP_ACTIVE_HIGH, IPT_UNKNOWN)
-	TOAPLAN_TEST_SWITCH( 0x04, IP_ACTIVE_HIGH )
-	PORT_BIT( 0x0008, IP_ACTIVE_HIGH, IPT_COIN1 )
-	PORT_BIT( 0x0010, IP_ACTIVE_HIGH, IPT_COIN2 )
-	PORT_BIT( 0x0020, IP_ACTIVE_HIGH, IPT_START1 )
-	PORT_BIT( 0x0040, IP_ACTIVE_HIGH, IPT_START2 )
-	PORT_BIT( 0x0080, IP_ACTIVE_HIGH, IPT_UNKNOWN)
-	PORT_DIPNAME( 0x0100,   0x0000, DEF_STR( Flip_Screen ) )    PORT_DIPLOCATION("SW3:!1")
-	PORT_DIPSETTING(        0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(        0x0100, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0200,   0x0000, DEF_STR( Demo_Sounds ) )    PORT_DIPLOCATION("SW3:!2")
-	PORT_DIPSETTING(        0x0200, DEF_STR( Off ) )
-	PORT_DIPSETTING(        0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0400,   0x0000, "Stage Edit" )              PORT_DIPLOCATION("SW3:!3")
-	PORT_DIPSETTING(        0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(        0x0400, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0800,   0x0000, DEF_STR( Allow_Continue ) ) PORT_DIPLOCATION("SW3:!4")
-	PORT_DIPSETTING(        0x0800, DEF_STR( No ) )
-	PORT_DIPSETTING(        0x0000, DEF_STR( Yes ) )
-	PORT_DIPNAME( 0x1000,   0x0000, "Invulnerability (Cheat)" )         PORT_DIPLOCATION("SW3:!5")
-	PORT_DIPSETTING(        0x0000, DEF_STR( Off ) )
-	PORT_DIPSETTING(        0x1000, DEF_STR( On ) )
+	PORT_MODIFY("SYS-DSW")   // Coin/System and DSW-3
 	PORT_DIPNAME( 0x2000,   0x0000, "Save Scores" )             PORT_DIPLOCATION("SW3:!6")
 	PORT_DIPSETTING(        0x2000, DEF_STR( Off ) )
 	PORT_DIPSETTING(        0x0000, DEF_STR( On ) )
@@ -2854,9 +2749,9 @@ static INPUT_PORTS_START( bbakraid )
 	PORT_DIPSETTING(        0x8000, DEF_STR( On ) )
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x0004, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x0008, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x0001, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x0004, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x0008, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
 INPUT_PORTS_END
 
 
@@ -3421,7 +3316,7 @@ static MACHINE_CONFIG_START( fixeight, toaplan2_state )
 
 	MCFG_MACHINE_START_OVERRIDE(toaplan2_state,toaplan2)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
@@ -3815,7 +3710,7 @@ static MACHINE_CONFIG_START( bbakraid, toaplan2_state )
 	MCFG_MACHINE_START_OVERRIDE(toaplan2_state,toaplan2)
 	MCFG_MACHINE_RESET_OVERRIDE(toaplan2_state,toaplan2)
 
-	MCFG_EEPROM_ADD("eeprom", bbakraid_93C66_intf)
+	MCFG_EEPROM_SERIAL_93C66_8BIT_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
@@ -4134,28 +4029,7 @@ ROM_END
 	ROM_LOAD( "tp-026-3", 0x000000, 0x200000, CRC(e5578d98) SHA1(280d2b716d955e767d311fc9596823852435b6d7) ) \
 	ROM_LOAD( "tp-026-4", 0x200000, 0x200000, CRC(b760cb53) SHA1(bc9c5e49e45cdda0f774be0038aa4deb21d4d285) ) \
 	ROM_REGION( 0x40000, "oki", 0 ) \
-	ROM_LOAD( "tp-026-2", 0x00000, 0x40000, CRC(85063f1f) SHA1(1bf4d77494de421c98f6273b9876e60d827a6826) ) \
-	ROM_REGION( 0x80, "eepromdumped", 0 ) \
-	ROM_LOAD16_WORD_SWAP( "93c45.u21", 0x00, 0x80, CRC(40d75df0) SHA1(a22f1cc74ce9bc9bfe53f48f6a43ab60e921052b) )
-// eeprom dumped can't be accepted by the code, but the values can't be a simple bad dump (not fixed bits and the values are present three times)
-// robiza's note: probably between sound cpu and EEPROM there's something that modify the values (PAL?)
-// we can get the eeprom with a value in [00004] address (1XXX dcba) -> then we need a different value in [00004] address (0XXX XXXX)
-// dcba = 0 -> korea
-// dcba = 1 -> korea (taito license)
-// dcba = 2 -> hong kong
-// dcba = 3 -> hong kong (taito license)
-// dcba = 4 -> taiwan
-// dcba = 5 -> taiwan (taito license)
-// dcba = 6 -> southeast asia
-// dcba = 7 -> southeast asia (taito license)
-// dcba = 8 -> europe
-// dcba = 9 -> europe (taito license)
-// dcba = a -> u.s.a.
-// dcba = b -> u.s.a. (taito license)
-// dcba = c -> NO COUNTRY
-// dcba = d -> NO COUNTRY (taito license)
-// dcba = e -> japan
-// dcba = f -> japan (taito license)
+	ROM_LOAD( "tp-026-2", 0x00000, 0x40000, CRC(85063f1f) SHA1(1bf4d77494de421c98f6273b9876e60d827a6826) )
 
 ROM_START( fixeightkt )
 	ROMS_FIXEIGHT

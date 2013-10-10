@@ -19,8 +19,6 @@
 
 #include "emu.h"
 #include "cpu/m68000/m68000.h"
-#include "audio/atarijsa.h"
-#include "video/atarimo.h"
 #include "includes/offtwall.h"
 
 
@@ -48,27 +46,6 @@ void offtwall_state::update_interrupts()
 MACHINE_RESET_MEMBER(offtwall_state,offtwall)
 {
 	atarigen_state::machine_reset();
-	atarivc_reset(*machine().primary_screen, m_atarivc_eof_data, 1);
-	atarijsa_reset(machine());
-}
-
-
-
-/*************************************
- *
- *  Video controller access
- *
- *************************************/
-
-READ16_MEMBER(offtwall_state::offtwall_atarivc_r)
-{
-	return atarivc_r(*machine().primary_screen, offset);
-}
-
-
-WRITE16_MEMBER(offtwall_state::offtwall_atarivc_w)
-{
-	atarivc_w(*machine().primary_screen, offset, data, mem_mask);
 }
 
 
@@ -79,22 +56,15 @@ WRITE16_MEMBER(offtwall_state::offtwall_atarivc_w)
  *
  *************************************/
 
-READ16_MEMBER(offtwall_state::special_port3_r)
-{
-	int result = ioport("260010")->read();
-	if (m_cpu_to_sound_ready) result ^= 0x0020;
-	return result;
-}
-
-
 WRITE16_MEMBER(offtwall_state::io_latch_w)
 {
 	/* lower byte */
 	if (ACCESSING_BITS_0_7)
 	{
 		/* bit 4 resets the sound CPU */
-		m_jsacpu->set_input_line(INPUT_LINE_RESET, (data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
-		if (!(data & 0x10)) atarijsa_reset(machine());
+		m_jsa->soundcpu().set_input_line(INPUT_LINE_RESET, (data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
+		if (!(data & 0x10))
+			m_jsa->reset();
 	}
 
 	logerror("sound control = %04X\n", data);
@@ -262,27 +232,27 @@ READ16_MEMBER(offtwall_state::unknown_verify_r)
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, offtwall_state )
 	AM_RANGE(0x000000, 0x037fff) AM_ROM
 	AM_RANGE(0x038000, 0x03ffff) AM_READ(bankrom_r) AM_REGION("maincpu", 0x38000) AM_SHARE("bankrom_base")
-	AM_RANGE(0x120000, 0x120fff) AM_READWRITE(eeprom_r, eeprom_w) AM_SHARE("eeprom")
+	AM_RANGE(0x120000, 0x120fff) AM_DEVREADWRITE8("eeprom", atari_eeprom_device, read, write, 0x00ff)
 	AM_RANGE(0x260000, 0x260001) AM_READ_PORT("260000")
 	AM_RANGE(0x260002, 0x260003) AM_READ_PORT("260002")
-	AM_RANGE(0x260010, 0x260011) AM_READ(special_port3_r)
+	AM_RANGE(0x260010, 0x260011) AM_READ_PORT("260010")
 	AM_RANGE(0x260012, 0x260013) AM_READ_PORT("260012")
 	AM_RANGE(0x260020, 0x260021) AM_READ_PORT("260020")
 	AM_RANGE(0x260022, 0x260023) AM_READ_PORT("260022")
 	AM_RANGE(0x260024, 0x260025) AM_READ_PORT("260024")
-	AM_RANGE(0x260030, 0x260031) AM_READ8(sound_r, 0x00ff)
-	AM_RANGE(0x260040, 0x260041) AM_WRITE8(sound_w, 0x00ff)
+	AM_RANGE(0x260030, 0x260031) AM_DEVREAD8("jsa", atari_jsa_iii_device, main_response_r, 0x00ff)
+	AM_RANGE(0x260040, 0x260041) AM_DEVWRITE8("jsa", atari_jsa_iii_device, main_command_w, 0x00ff)
 	AM_RANGE(0x260050, 0x260051) AM_WRITE(io_latch_w)
-	AM_RANGE(0x260060, 0x260061) AM_WRITE(eeprom_enable_w)
+	AM_RANGE(0x260060, 0x260061) AM_DEVWRITE("eeprom", atari_eeprom_device, unlock_write)
 	AM_RANGE(0x2a0000, 0x2a0001) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x3e0000, 0x3e0fff) AM_RAM_WRITE(paletteram_666_w) AM_SHARE("paletteram")
-	AM_RANGE(0x3effc0, 0x3effff) AM_READWRITE(offtwall_atarivc_r, offtwall_atarivc_w) AM_SHARE("atarivc_data")
-	AM_RANGE(0x3f4000, 0x3f5eff) AM_RAM_WRITE(playfield_latched_msb_w) AM_SHARE("playfield")
-	AM_RANGE(0x3f5f00, 0x3f5f7f) AM_RAM AM_SHARE("atarivc_eof")
-	AM_RANGE(0x3f5f80, 0x3f5fff) AM_READWRITE_LEGACY(atarimo_0_slipram_r, atarimo_0_slipram_w)
-	AM_RANGE(0x3f6000, 0x3f7fff) AM_RAM_WRITE(playfield_upper_w) AM_SHARE("playfield_up")
+	AM_RANGE(0x3effc0, 0x3effff) AM_DEVREADWRITE("vad", atari_vad_device, control_read, control_write)
+	AM_RANGE(0x3f4000, 0x3f5eff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield_latched_msb_w) AM_SHARE("vad:playfield")
+	AM_RANGE(0x3f5f00, 0x3f5f7f) AM_RAM AM_SHARE("vad:eof")
+	AM_RANGE(0x3f5f80, 0x3f5fff) AM_RAM AM_SHARE("vad:mob:slip")
+	AM_RANGE(0x3f6000, 0x3f7fff) AM_RAM_DEVWRITE("vad", atari_vad_device, playfield_upper_w) AM_SHARE("vad:playfield_ext")
 	AM_RANGE(0x3f8000, 0x3fcfff) AM_RAM
-	AM_RANGE(0x3fd000, 0x3fd7ff) AM_READWRITE_LEGACY(atarimo_0_spriteram_r, atarimo_0_spriteram_w)
+	AM_RANGE(0x3fd000, 0x3fd7ff) AM_RAM AM_SHARE("vad:mob")
 	AM_RANGE(0x3fd800, 0x3fffff) AM_RAM
 ADDRESS_MAP_END
 
@@ -332,7 +302,7 @@ static INPUT_PORTS_START( offtwall )
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_UNUSED )   /* tested at a454 */
 	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_UNUSED )   /* tested at a466 */
 	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNUSED )   /* tested before writing to 260040 */
+	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_ATARI_JSA_MAIN_TO_SOUND_READY("jsa")  /* tested before writing to 260040 */
 	PORT_SERVICE( 0x0040, IP_ACTIVE_LOW )
 	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen")
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
@@ -351,8 +321,6 @@ static INPUT_PORTS_START( offtwall )
 	PORT_START("260024")
 	PORT_BIT( 0xff, 0, IPT_DIAL_V ) PORT_SENSITIVITY(50) PORT_KEYDELTA(10) PORT_REVERSE PORT_PLAYER(3)
 	PORT_BIT( 0xff00, IP_ACTIVE_LOW, IPT_UNUSED )
-
-	PORT_INCLUDE( atarijsa_iii )        /* audio board port */
 INPUT_PORTS_END
 
 
@@ -394,12 +362,17 @@ static MACHINE_CONFIG_START( offtwall, offtwall_state )
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	MCFG_MACHINE_RESET_OVERRIDE(offtwall_state,offtwall)
-	MCFG_NVRAM_ADD_1FILL("eeprom")
+
+	MCFG_ATARI_EEPROM_2816_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_UPDATE_BEFORE_VBLANK)
 	MCFG_GFXDECODE(offtwall)
 	MCFG_PALETTE_LENGTH(2048)
+
+	MCFG_ATARI_VAD_ADD("vad", "screen", WRITELINE(atarigen_state, scanline_int_write_line))
+	MCFG_ATARI_VAD_PLAYFIELD(offtwall_state, get_playfield_tile_info)
+	MCFG_ATARI_VAD_MOB(offtwall_state::s_mob_config)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	/* note: these parameters are from published specs, not derived */
@@ -410,7 +383,12 @@ static MACHINE_CONFIG_START( offtwall, offtwall_state )
 	MCFG_VIDEO_START_OVERRIDE(offtwall_state,offtwall)
 
 	/* sound hardware */
-	MCFG_FRAGMENT_ADD(jsa_iii_mono_noadpcm)
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+
+	MCFG_ATARI_JSA_III_ADD("jsa", WRITELINE(atarigen_state, sound_int_write_line))
+	MCFG_ATARI_JSA_TEST_PORT("260010", 6)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+	MCFG_DEVICE_REMOVE("jsa:oki1")
 MACHINE_CONFIG_END
 
 
@@ -426,7 +404,7 @@ ROM_START( offtwall )
 	ROM_LOAD16_BYTE( "otw2012.bin", 0x00000, 0x20000, CRC(d08d81eb) SHA1(5a72aa2e4fc6455b94aa59a7719d0ddc8bcc80f2) )
 	ROM_LOAD16_BYTE( "otw2013.bin", 0x00001, 0x20000, CRC(61c2553d) SHA1(343d39f9b75fd236e9769ec21ab65310f85e31ca) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "otw1020.bin", 0x10000, 0x4000, CRC(488112a5) SHA1(55e84855daacfa303d1031de8c9adb992a846e21) )
 	ROM_CONTINUE(            0x04000, 0xc000 )
 
@@ -438,8 +416,8 @@ ROM_START( offtwall )
 	ROM_LOAD( "otw1017.bin", 0x080000, 0x20000, CRC(7f7f8012) SHA1(1123ea3c6cd2c73617a87d6a5bbb26fca8941af3) )
 	ROM_LOAD( "otw1019.bin", 0x0a0000, 0x20000, CRC(9efe511b) SHA1(db1f1d8792bf497bc9ad652b0b7d78c3abf0e817) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "offtwall-eeprom.bin", 0x0000, 0x1000, CRC(73dc2139) SHA1(28ee9be4b5a65708a4f3e7d88e98af15cd9badca) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "offtwall-eeprom.bin", 0x0000, 0x800, CRC(5eaf2d5b) SHA1(934a76a23960e6ed2cc33c359f9735caee762145) )
 ROM_END
 
 
@@ -448,7 +426,7 @@ ROM_START( offtwallc )
 	ROM_LOAD16_BYTE( "090-2612.rom", 0x00000, 0x20000, CRC(fc891a3f) SHA1(027815a20fbc6c0c9242768581b97362b39941c2) )
 	ROM_LOAD16_BYTE( "090-2613.rom", 0x00001, 0x20000, CRC(805d79d4) SHA1(943ec9f408ba875bdf1794ce7d24803043480401) )
 
-	ROM_REGION( 0x14000, "jsa", 0 ) /* 64k for 6502 code */
+	ROM_REGION( 0x14000, "jsa:cpu", 0 ) /* 64k for 6502 code */
 	ROM_LOAD( "otw1020.bin", 0x10000, 0x4000, CRC(488112a5) SHA1(55e84855daacfa303d1031de8c9adb992a846e21) )
 	ROM_CONTINUE(            0x04000, 0xc000 )
 
@@ -460,8 +438,8 @@ ROM_START( offtwallc )
 	ROM_LOAD( "090-1617.rom", 0x080000, 0x20000, CRC(15208a89) SHA1(124484ab54959a1e6d9022a4f3ee4288a79c768b) )
 	ROM_LOAD( "090-1619.rom", 0x0a0000, 0x20000, CRC(8a5d79b3) SHA1(0a202d20e6c86989ce2223e10eadf9009dd6ca8e) )
 
-	ROM_REGION( 0x1000, "eeprom", 0 )
-	ROM_LOAD( "offtwall-eeprom.bin", 0x0000, 0x1000, CRC(73dc2139) SHA1(28ee9be4b5a65708a4f3e7d88e98af15cd9badca) )
+	ROM_REGION( 0x800, "eeprom:eeprom", 0 )
+	ROM_LOAD( "offtwall-eeprom.bin", 0x0000, 0x800, CRC(5eaf2d5b) SHA1(934a76a23960e6ed2cc33c359f9735caee762145) )
 ROM_END
 
 
@@ -474,8 +452,6 @@ ROM_END
 
 DRIVER_INIT_MEMBER(offtwall_state,offtwall)
 {
-	atarijsa_init(machine(), "260010", 0x0040);
-
 	/* install son-of-slapstic workarounds */
 	m_spritecache_count = m_maincpu->space(AS_PROGRAM).install_read_handler(0x3fde42, 0x3fde43, read16_delegate(FUNC(offtwall_state::spritecache_count_r),this));
 	m_bankswitch_base = m_maincpu->space(AS_PROGRAM).install_read_handler(0x037ec2, 0x037f39, read16_delegate(FUNC(offtwall_state::bankswitch_r),this));
@@ -485,8 +461,6 @@ DRIVER_INIT_MEMBER(offtwall_state,offtwall)
 
 DRIVER_INIT_MEMBER(offtwall_state,offtwalc)
 {
-	atarijsa_init(machine(), "260010", 0x0040);
-
 	/* install son-of-slapstic workarounds */
 	m_spritecache_count = m_maincpu->space(AS_PROGRAM).install_read_handler(0x3fde42, 0x3fde43, read16_delegate(FUNC(offtwall_state::spritecache_count_r),this));
 	m_bankswitch_base = m_maincpu->space(AS_PROGRAM).install_read_handler(0x037eca, 0x037f43, read16_delegate(FUNC(offtwall_state::bankswitch_r),this));

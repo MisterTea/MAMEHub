@@ -36,7 +36,7 @@ To do:
 
 #include "emu.h"
 #include "cpu/h83002/h8.h"
-#include "cpu/i86/i86.h"
+#include "cpu/i86/i186.h"
 #include "cpu/z180/z180.h"
 #include "sound/3812intf.h"
 #include "sound/okim6295.h"
@@ -172,6 +172,9 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(h8_timer_irq);
 	required_device<cpu_device> m_maincpu;
 	optional_device<okim6295_device> m_oki;
+
+private:
+	inline void ss9601_get_tile_info(layer_t *l, tile_data &tileinfo, tilemap_memory_index tile_index);
 };
 
 
@@ -180,7 +183,7 @@ public:
                               Tilemaps Access
 ***************************************************************************/
 
-INLINE void ss9601_get_tile_info(layer_t *l, running_machine &machine, tile_data &tileinfo, tilemap_memory_index tile_index, void *param)
+inline void subsino2_state::ss9601_get_tile_info(layer_t *l, tile_data &tileinfo, tilemap_memory_index tile_index)
 {
 	int addr;
 	UINT16 offs;
@@ -191,19 +194,19 @@ INLINE void ss9601_get_tile_info(layer_t *l, running_machine &machine, tile_data
 		case TILE_8x32:     addr = tile_index & (~0x180);   offs = (tile_index/0x80) & 3;                           break;
 		case TILE_64x32:    addr = tile_index & (~0x187);   offs = ((tile_index/0x80) & 3) + (tile_index & 7) * 4;  break;
 	}
-	SET_TILE_INFO(0, (l->videorams[VRAM_HI][addr] << 8) + l->videorams[VRAM_LO][addr] + offs, 0, 0);
+	SET_TILE_INFO_MEMBER(0, (l->videorams[VRAM_HI][addr] << 8) + l->videorams[VRAM_LO][addr] + offs, 0, 0);
 }
 
 // Layer 0
 TILE_GET_INFO_MEMBER(subsino2_state::ss9601_get_tile_info_0)
 {
-	ss9601_get_tile_info(&m_layers[0], machine(), tileinfo, tile_index, param);
+	ss9601_get_tile_info(&m_layers[0], tileinfo, tile_index);
 }
 
 // Layer 1
 TILE_GET_INFO_MEMBER(subsino2_state::ss9601_get_tile_info_1)
 {
-	ss9601_get_tile_info(&m_layers[1], machine(), tileinfo, tile_index, param);
+	ss9601_get_tile_info(&m_layers[1], tileinfo, tile_index);
 }
 
 
@@ -730,7 +733,7 @@ UINT32 subsino2_state::screen_update_subsino2(screen_device &screen, bitmap_ind1
 						if ( reelwrap_y-1 <= visible.max_y )
 							tmp.max_y = reelwrap_y-1;
 						l->tmap->set_scrolly(0, reelscroll_y);
-						l->tmap->draw(bitmap, tmp, 0, 0);
+						l->tmap->draw(screen, bitmap, tmp, 0, 0);
 						tmp.max_y = visible.max_y;
 					}
 
@@ -740,7 +743,7 @@ UINT32 subsino2_state::screen_update_subsino2(screen_device &screen, bitmap_ind1
 						if ( reelwrap_y >= visible.min_y )
 							tmp.min_y = reelwrap_y;
 						l->tmap->set_scrolly(0, -((reelwrap_y &0xff) | (reelscroll_y & 0x100)));
-						l->tmap->draw(bitmap, tmp, 0, 0);
+						l->tmap->draw(screen, bitmap, tmp, 0, 0);
 						tmp.min_y = visible.min_y;
 					}
 				}
@@ -748,11 +751,11 @@ UINT32 subsino2_state::screen_update_subsino2(screen_device &screen, bitmap_ind1
 		}
 		else
 		{
-			l->tmap->draw(bitmap, cliprect, 0, 0);
+			l->tmap->draw(screen, bitmap, cliprect, 0, 0);
 		}
 	}
 
-	if (layers_ctrl & 2)    m_layers[1].tmap->draw(bitmap, cliprect, 0, 0);
+	if (layers_ctrl & 2)    m_layers[1].tmap->draw(screen, bitmap, cliprect, 0, 0);
 
 //  popmessage("scrl: %03x,%03x - %03x,%03x dis: %02x siz: %02x ctrl: %02x", m_layers[0].scroll_x,m_layers[0].scroll_y, m_layers[1].scroll_x,m_layers[1].scroll_y, m_ss9601_disable, m_ss9601_tilesize, m_ss9601_scrollctrl);
 
@@ -812,11 +815,11 @@ READ8_MEMBER(subsino2_state::dsw_r)
 
 READ8_MEMBER(subsino2_state::vblank_bit2_r)
 {
-	return machine().primary_screen->vblank() ? 0x04 : 0x00;
+	return m_screen->vblank() ? 0x04 : 0x00;
 }
 READ8_MEMBER(subsino2_state::vblank_bit6_r)
 {
-	return machine().primary_screen->vblank() ? 0x40 : 0x00;
+	return m_screen->vblank() ? 0x40 : 0x00;
 }
 
 WRITE8_MEMBER(subsino2_state::oki_bank_bit0_w)
@@ -914,7 +917,7 @@ READ16_MEMBER(subsino2_state::bishjan_serial_r)
 		(machine().rand() & 0x9800) |   // bit 7 - serial communication
 		(((m_bishjan_sel==0x12) ? 0x40:0x00) << 8) |
 //      (machine.rand() & 0xff);
-//      (((machine().primary_screen->frame_number()%60)==0)?0x18:0x00);
+//      (((m_screen->frame_number()%60)==0)?0x18:0x00);
 		0x18;
 }
 

@@ -69,8 +69,8 @@ static ADDRESS_MAP_START( mtx_io, AS_IO, 8, mtx_state )
 	AM_RANGE(0x30, 0x31) AM_WRITE(hrx_address_w)
 	AM_RANGE(0x32, 0x32) AM_READWRITE(hrx_data_r, hrx_data_w)
 	AM_RANGE(0x33, 0x33) AM_READWRITE(hrx_attr_r, hrx_attr_w)
-//  AM_RANGE(0x38, 0x38) AM_DEVWRITE_LEGACY(MC6845_TAG, mc6845_address_w)
-//  AM_RANGE(0x39, 0x39) AM_DEVWRITE_LEGACY(MC6845_TAG, mc6845_register_r, mc6845_register_w)
+//  AM_RANGE(0x38, 0x38) AM_DEVWRITE(MC6845_TAG, mc6845_device, address_w)
+//  AM_RANGE(0x39, 0x39) AM_DEVWRITE(MC6845_TAG, mc6845_device, register_r, register_w)
 /*  AM_RANGE(0x40, 0x43) AM_DEVREADWRITE_LEGACY(FD1791_TAG, wd17xx_r, wd17xx_w)
     AM_RANGE(0x44, 0x44) AM_READWRITE(fdx_status_r, fdx_control_w)
     AM_RANGE(0x45, 0x45) AM_WRITE(fdx_drv_sel_w)
@@ -323,7 +323,6 @@ WRITE_LINE_MEMBER(mtx_state::mtx_tms9929a_interrupt)
 
 static TMS9928A_INTERFACE(mtx_tms9928a_interface)
 {
-	"screen",
 	0x4000,
 	DEVCB_DRIVER_LINE_MEMBER(mtx_state,mtx_tms9929a_interrupt)
 };
@@ -372,7 +371,7 @@ static MACHINE_CONFIG_START( mtx512, mtx_state )
 	MCFG_Z80CTC_ADD(Z80CTC_TAG, XTAL_4MHz, ctc_intf )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("z80ctc_timer", mtx_state, ctc_tick, attotime::from_hz(XTAL_4MHz/13))
 	MCFG_CENTRONICS_PRINTER_ADD(CENTRONICS_TAG, standard_centronics)
-	MCFG_SNAPSHOT_ADD("snapshot", mtx_state, mtx, "mtb", 0.5)
+	MCFG_SNAPSHOT_ADD("snapshot", mtx_state, mtx, "mtx", 1)
 	MCFG_CASSETTE_ADD("cassette", mtx_cassette_interface)
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("cassette_timer", mtx_state, cassette_tick, attotime::from_hz(44100))
 
@@ -451,3 +450,37 @@ ROM_END
 COMP( 1983, mtx512,   0,        0,      mtx512,   mtx512, driver_device,   0,       "Memotech Ltd", "MTX 512", 0 )
 COMP( 1983, mtx500,   mtx512,   0,      mtx500,   mtx512, driver_device,   0,       "Memotech Ltd", "MTX 500", 0 )
 COMP( 1984, rs128,    mtx512,   0,      rs128,    mtx512, driver_device,   0,       "Memotech Ltd", "RS 128",  0 )
+
+
+/*
+The following roms are available should they be considered useful:
+
+ROM_START( mtx_roms )
+    ROM_LOAD( "assem.rom",    CRC(599d5b6b) SHA1(3ec1f7f476a21ca3206012ded22198c020b47f7d) )
+    ROM_LOAD( "basic.rom",    CRC(d1e9ff36) SHA1(e89ae3a627716e6cee7e35054be8a2472bdd49d4) )
+    ROM_LOAD( "boot.rom",     CRC(ed98d6dd) SHA1(4671ee49bb96262b0468f7122a49bf2588170903) )
+    ROM_LOAD( "mtx3-an.rom",  CRC(54c9eca2) SHA1(3e628beaa360e635264c8c2c3a5b8312951a220b) )
+    ROM_LOAD( "nboot.rom",    CRC(9caea81c) SHA1(93fca6e7ffbc7ae3283b8bda9f01c36b2bed1c54) )
+ROM_END
+
+BASIC.ROM   this contains the monitor ROM plus the BASIC ROM.
+        It's good to view them as one, because the monitor
+        ROM contains a good deal of BASIC code and the machine
+        code just runs from the monitor ROM into the BASIC ROM.
+        It's also handy if you want to disassemble it (which
+        you don't need because it's already done).
+
+MTX3-AN.ROM the monitor ROM, but slightly modified
+        While detecting memory size, the startup code destroys
+        RAM content. When you have a lot of RAM it is convenient
+        to have a ramdisk for CP/M, but it is a nuisance if the
+        ramdisk is trashed at each reset. The modification simply
+        prevents RAM trashing.
+
+ASSEM.ROM   assembler ROM
+
+BOOT.ROM    FDX floppy boot ROM
+
+NBOOT.ROM   replacement FDX boot ROM written by M. Kessler (supports
+        booting from different disk formats and different drives)
+*/

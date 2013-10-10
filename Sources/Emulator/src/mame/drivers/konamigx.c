@@ -98,11 +98,10 @@
 #include "cpu/m68000/m68000.h"
 #include "cpu/z80/z80.h"
 #include "cpu/tms57002/tms57002.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/k054539.h"
 #include "includes/konamigx.h"
 #include "machine/adc083x.h"
-#include "video/konamiic.h"
 #include "rendlay.h"
 
 #define GX_DEBUG     0
@@ -319,17 +318,20 @@ static void generate_sprites(address_space &space, UINT32 src, UINT32 spr, int c
 
 static void tkmmpzdm_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
 {
-	konamigx_esc_alert(space.machine().driver_data<konamigx_state>()->m_workram, 0x0142, 0x100, 0);
+	konamigx_state* state = space.machine().driver_data<konamigx_state>();
+	state->konamigx_esc_alert(space.machine().driver_data<konamigx_state>()->m_workram, 0x0142, 0x100, 0);
 }
 
 static void dragoonj_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
 {
-	konamigx_esc_alert(space.machine().driver_data<konamigx_state>()->m_workram, 0x5c00, 0x100, 0);
+	konamigx_state* state = space.machine().driver_data<konamigx_state>();
+	state->konamigx_esc_alert(space.machine().driver_data<konamigx_state>()->m_workram, 0x5c00, 0x100, 0);
 }
 
 static void sal2_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
 {
-	konamigx_esc_alert(space.machine().driver_data<konamigx_state>()->m_workram, 0x1c8c, 0x172, 1);
+	konamigx_state* state = space.machine().driver_data<konamigx_state>();
+	state->konamigx_esc_alert(space.machine().driver_data<konamigx_state>()->m_workram, 0x1c8c, 0x172, 1);
 }
 
 static void sexyparo_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
@@ -515,7 +517,7 @@ WRITE32_MEMBER(konamigx_state::control_w)
 			m_soundcpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
 		}
 
-		K053246_set_OBJCHA_line((data&0x100000) ? ASSERT_LINE : CLEAR_LINE);
+		m_k055673->k053246_set_objcha_line((data&0x100000) ? ASSERT_LINE : CLEAR_LINE);
 
 		konamigx_wrport2 = (data>>16)&0xff;
 	}
@@ -616,13 +618,13 @@ TIMER_CALLBACK_MEMBER(konamigx_state::dmaend_callback)
 	}
 }
 
-static void dmastart_callback(int data)
+void konamigx_state::dmastart_callback(int data)
 {
 	// raise the DMA busy flag
 	gx_rdport1_3 |= 2;
 
 	// begin transfer if DMAEN(bit4 of OBJSET1) is set (see p.48)
-	if (K053246_read_register(5) & 0x10)
+	if (m_k055673->k053246_read_register(5) & 0x10)
 	{
 		// disabled by default since it doesn't work too well in MAME
 		konamigx_objdma();
@@ -668,7 +670,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(konamigx_state::konamigx_hbinterrupt)
 
 		// maybe this interrupt should only be every 30fps, or maybe there are flags to prevent the game running too fast
 		// the real hardware should output the display for each screen on alternate frames
-		//  if(device->machine().primary_screen->frame_number() & 1)
+		//  if(device->m_screen->frame_number() & 1)
 		if (1) // gx_syncen & 0x20)
 		{
 			gx_syncen &= ~0x20;
@@ -905,12 +907,12 @@ READ32_MEMBER(konamigx_state::le2_gun_V_r)
 
 READ32_MEMBER(konamigx_state::gx5bppspr_r)
 {
-	return (K055673_rom_word_r(space, offset*2+1, 0xffff) | K055673_rom_word_r(space, offset*2, 0xffff)<<16);
+	return (m_k055673->k055673_rom_word_r(space, offset*2+1, 0xffff) | m_k055673->k055673_rom_word_r(space, offset*2, 0xffff)<<16);
 }
 
 READ32_MEMBER(konamigx_state::gx6bppspr_r)
 {
-	return (K055673_GX6bpp_rom_word_r(space, offset*2+1, 0xffff) | K055673_GX6bpp_rom_word_r(space, offset*2, 0xffff)<<16);
+	return (m_k055673->k055673_GX6bpp_rom_word_r(space, offset*2+1, 0xffff) | m_k055673->k055673_GX6bpp_rom_word_r(space, offset*2, 0xffff)<<16);
 }
 
 READ32_MEMBER(konamigx_state::type1_roz_r1)
@@ -1150,16 +1152,16 @@ static ADDRESS_MAP_START( gx_base_memmap, AS_PROGRAM, 32, konamigx_state )
 	AM_RANGE(0x200000, 0x3fffff) AM_ROM // main program ROM
 	AM_RANGE(0x400000, 0x7fffff) AM_ROM // data ROM
 	AM_RANGE(0xc00000, 0xc1ffff) AM_RAM AM_SHARE("workram") // work RAM
-	AM_RANGE(0xd00000, 0xd01fff) AM_READ_LEGACY(K056832_5bpp_rom_long_r)
-	AM_RANGE(0xd20000, 0xd20fff) AM_READWRITE_LEGACY(K053247_long_r, K053247_long_w)
+	AM_RANGE(0xd00000, 0xd01fff) AM_DEVREAD("k056832", k056832_device, k_5bpp_rom_long_r)
+	AM_RANGE(0xd20000, 0xd20fff) AM_DEVREADWRITE("k055673", k055673_device, k053247_long_r, k053247_long_w)
 	AM_RANGE(0xd21000, 0xd23fff) AM_RAM
-	AM_RANGE(0xd40000, 0xd4003f) AM_WRITE_LEGACY(K056832_long_w)
+	AM_RANGE(0xd40000, 0xd4003f) AM_DEVWRITE("k056832", k056832_device, long_w)
 	AM_RANGE(0xd44000, 0xd4400f) AM_WRITE(konamigx_tilebank_w)
-	AM_RANGE(0xd48000, 0xd48007) AM_WRITE_LEGACY(K053246_long_w)
-	AM_RANGE(0xd4a010, 0xd4a01f) AM_WRITE_LEGACY(K053247_reg_long_w)
+	AM_RANGE(0xd48000, 0xd48007) AM_DEVWRITE("k055673", k055673_device, k053246_long_w)
+	AM_RANGE(0xd4a010, 0xd4a01f) AM_DEVWRITE("k055673", k055673_device, k053247_reg_long_w)
 	AM_RANGE(0xd4c000, 0xd4c01f) AM_READWRITE(ccu_r, ccu_w)
 	AM_RANGE(0xd4e000, 0xd4e01f) AM_WRITENOP
-	AM_RANGE(0xd50000, 0xd500ff) AM_WRITE_LEGACY(K055555_long_w)
+	AM_RANGE(0xd50000, 0xd500ff) AM_DEVWRITE("k055555", k055555_device, K055555_long_w)
 	AM_RANGE(0xd52000, 0xd5200f) AM_WRITE(sound020_w)
 	AM_RANGE(0xd52010, 0xd5201f) AM_READ(sound020_r)
 	AM_RANGE(0xd56000, 0xd56003) AM_WRITE(eeprom_w)
@@ -1168,12 +1170,12 @@ static ADDRESS_MAP_START( gx_base_memmap, AS_PROGRAM, 32, konamigx_state )
 	AM_RANGE(0xd5c000, 0xd5c003) AM_READ_PORT("INPUTS")
 	AM_RANGE(0xd5e000, 0xd5e003) AM_READ_PORT("SERVICE")
 	AM_RANGE(0xd80000, 0xd8001f) AM_WRITE_LEGACY(K054338_long_w)
-	AM_RANGE(0xda0000, 0xda1fff) AM_READWRITE_LEGACY(K056832_ram_long_r, K056832_ram_long_w)
-	AM_RANGE(0xda2000, 0xda3fff) AM_READWRITE_LEGACY(K056832_ram_long_r, K056832_ram_long_w)
+	AM_RANGE(0xda0000, 0xda1fff) AM_DEVREADWRITE("k056832", k056832_device, ram_long_r, ram_long_w)
+	AM_RANGE(0xda2000, 0xda3fff) AM_DEVREADWRITE("k056832", k056832_device, ram_long_r, ram_long_w)
 #if GX_DEBUG
-	AM_RANGE(0xd40000, 0xd4003f) AM_READ_LEGACY(K056832_long_r)
-	AM_RANGE(0xd50000, 0xd500ff) AM_READ_LEGACY(K055555_long_r)
-	AM_RANGE(0xd4a010, 0xd4a01f) AM_READ_LEGACY(K053247_reg_long_r)
+	AM_RANGE(0xd40000, 0xd4003f) AM_DEVREAD("k056832", k056832_device, long_r)
+	AM_RANGE(0xd50000, 0xd500ff) AM_DEVREAD("k055555", k055555_device, k055555_long_r)
+	AM_RANGE(0xd4a010, 0xd4a01f) AM_DEVREAD("k055673", k055673_device, k053247_reg_long_r)
 #endif
 ADDRESS_MAP_END
 
@@ -1359,7 +1361,7 @@ static INPUT_PORTS_START( common )
 	//      excpuint stat, objdma stat, eeprom do
 
 	// note: racin' force expects bit 1 of the eeprom port to toggle
-	PORT_BIT( 0x00000001, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_device, read_bit)
+	PORT_BIT( 0x00000001, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
 	PORT_BIT( 0x000000fe, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, konamigx_state,gx_rdport1_3_r, NULL)
 	PORT_BIT( 0x00000100, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x00000200, IP_ACTIVE_LOW, IPT_COIN2 )
@@ -1372,9 +1374,9 @@ static INPUT_PORTS_START( common )
 	PORT_BIT( 0xffff0000, IP_ACTIVE_LOW, IPT_UNUSED )   /* DIP#1 & DIP#2 */
 
 	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, write_bit)
-	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_cs_line)
-	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_device, set_clock_line)
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
 INPUT_PORTS_END
 
 
@@ -1775,7 +1777,7 @@ static MACHINE_CONFIG_START( konamigx, konamigx_state )
 	MCFG_MACHINE_START_OVERRIDE(konamigx_state,konamigx)
 	MCFG_MACHINE_RESET_OVERRIDE(konamigx_state,konamigx)
 
-	MCFG_EEPROM_93C46_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	/* video hardware */
 	MCFG_VIDEO_ATTRIBUTES(VIDEO_HAS_SHADOWS | VIDEO_HAS_HIGHLIGHTS | VIDEO_UPDATE_AFTER_VBLANK)
@@ -1791,6 +1793,12 @@ static MACHINE_CONFIG_START( konamigx, konamigx_state )
 	MCFG_SCREEN_UPDATE_DRIVER(konamigx_state, screen_update_konamigx)
 
 	MCFG_PALETTE_LENGTH(8192)
+
+	MCFG_K056832_ADD_NOINTF("k056832"/*, konamigx_k056832_intf*/)
+	MCFG_K055555_ADD("k055555")
+
+	MCFG_K055673_ADD_NOINTF("k055673")
+	MCFG_K055673_SET_SCREEN("screen")
 
 	MCFG_VIDEO_START_OVERRIDE(konamigx_state,konamigx_5bpp)
 
@@ -3715,6 +3723,10 @@ static const GXGameInfoT gameDefs[] =
 	{ "",         -1, -1, -1, -1 },
 };
 
+READ32_MEMBER( konamigx_state::k_6bpp_rom_long_r )
+{
+	return m_k056832->k_6bpp_rom_long_r(space,offset,mem_mask);
+}
 
 DRIVER_INIT_MEMBER(konamigx_state,konamigx)
 {
@@ -3804,7 +3816,7 @@ DRIVER_INIT_MEMBER(konamigx_state,konamigx)
 		break;
 
 		case BPP66:
-			m_maincpu->space(AS_PROGRAM).install_legacy_read_handler(0xd00000, 0xd01fff, FUNC(K056832_6bpp_rom_long_r));
+			m_maincpu->space(AS_PROGRAM).install_read_handler(0xd00000, 0xd01fff, read32_delegate(FUNC(konamigx_state::k_6bpp_rom_long_r), this));
 
 		case BPP6:
 			m_maincpu->space(AS_PROGRAM).install_read_handler(0xd4a000, 0xd4a00f, read32_delegate(FUNC(konamigx_state::gx6bppspr_r),this));

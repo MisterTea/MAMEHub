@@ -91,8 +91,16 @@ public:
 	void receive_register_update_bit(int bit);
 	void receive_register_extract();
 
-	void set_rcv_rate(int baud);
-	void set_tra_rate(int baud);
+	void set_rcv_rate(attotime rate);
+	void set_tra_rate(attotime rate);
+	void set_rcv_rate(UINT32 clock, int div) { set_rcv_rate((clock && div) ? (attotime::from_hz(clock) * div) : attotime::never); }
+	void set_tra_rate(UINT32 clock, int div) { set_tra_rate((clock && div) ? (attotime::from_hz(clock) * div) : attotime::never); }
+	void set_rcv_rate(int baud) { set_rcv_rate(baud ? attotime::from_hz(baud) : attotime::never); }
+	void set_tra_rate(int baud) { set_tra_rate(baud ? attotime::from_hz(baud) : attotime::never); }
+	void set_rate(attotime rate) { set_rcv_rate(rate); set_tra_rate(rate); }
+	void set_rate(UINT32 clock, int div) { set_rcv_rate(clock, div); set_tra_rate(clock, div); }
+	void set_rate(int baud) { set_rcv_rate(baud); set_tra_rate(baud); }
+
 	void tra_clock();
 	void rcv_clock();
 
@@ -117,7 +125,7 @@ public:
 	void set_other_connection(device_serial_interface *other_connection);
 
 	void connect(device_serial_interface *other_connection);
-	UINT8 check_for_start(UINT8 bit);
+	DECLARE_WRITE_LINE_MEMBER(rx_w);
 protected:
 	UINT8 m_input_state;
 	UINT8 m_connection_state;
@@ -166,8 +174,8 @@ private:
 
 	emu_timer *m_rcv_clock;
 	emu_timer *m_tra_clock;
-	int m_rcv_baud;
-	int m_tra_baud;
+	attotime m_rcv_rate;
+	attotime m_tra_rate;
 	UINT8 m_rcv_line;
 
 	device_serial_interface *m_other_connection;

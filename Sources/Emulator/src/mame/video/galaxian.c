@@ -253,6 +253,10 @@ void galaxian_state::palette_init()
 	            -- 470 ohm resistor  -- RED
 	      bit 0 -- 1  kohm resistor  -- RED
 
+	    Note that not all boards have this configuration. Namco PCBs may
+	    have 330 ohm resistors instead of 220, but the default setup has
+	    also been used by Namco.
+
 	    In parallel with these resistors are a pair of 150 ohm and 100 ohm
 	    resistors on each R,G,B component that are connected to the star
 	    generator.
@@ -437,7 +441,7 @@ UINT32 galaxian_state::screen_update_galaxian(screen_device &screen, bitmap_rgb3
 	(this->*m_draw_background_ptr)(bitmap, cliprect);
 
 	/* draw the tilemap characters over top */
-	m_bg_tilemap->draw(bitmap, cliprect, 0, 0);
+	m_bg_tilemap->draw(screen, bitmap, cliprect, 0, 0);
 
 	/* render the sprites next. Some custom pcbs (eg. zigzag, fantastc) have more than one sprite generator (ideally, this should be rendered in parallel) */
 	for (int i = 0; i < m_numspritegens; i++)
@@ -478,7 +482,7 @@ WRITE8_MEMBER(galaxian_state::galaxian_videoram_w)
 {
 	UINT8 *videoram = m_videoram;
 	/* update any video up to the current scanline */
-	machine().primary_screen->update_now();
+	m_screen->update_now();
 
 	/* store the data and mark the corresponding tile dirty */
 	videoram[offset] = data;
@@ -489,7 +493,7 @@ WRITE8_MEMBER(galaxian_state::galaxian_videoram_w)
 WRITE8_MEMBER(galaxian_state::galaxian_objram_w)
 {
 	/* update any video up to the current scanline */
-	machine().primary_screen->update_now();
+	m_screen->update_now();
 
 	/* store the data */
 	m_spriteram[offset] = data;
@@ -639,7 +643,7 @@ WRITE8_MEMBER(galaxian_state::galaxian_flip_screen_x_w)
 {
 	if (m_flipscreen_x != (data & 0x01))
 	{
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 
 		/* when the direction changes, we count a different number of clocks */
 		/* per frame, so we need to reset the origin of the stars to the current */
@@ -655,7 +659,7 @@ WRITE8_MEMBER(galaxian_state::galaxian_flip_screen_y_w)
 {
 	if (m_flipscreen_y != (data & 0x01))
 	{
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 		m_flipscreen_y = data & 0x01;
 		m_bg_tilemap->set_flip((m_flipscreen_x ? TILEMAP_FLIPX : 0) | (m_flipscreen_y ? TILEMAP_FLIPY : 0));
 	}
@@ -678,15 +682,15 @@ WRITE8_MEMBER(galaxian_state::galaxian_flip_screen_xy_w)
 WRITE8_MEMBER(galaxian_state::galaxian_stars_enable_w)
 {
 	if ((m_stars_enabled ^ data) & 0x01)
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 
 	if (!m_stars_enabled && (data & 0x01))
 	{
 		/* on the rising edge of this, the CLR on the shift registers is released */
 		/* this resets the "origin" of this frame to 0 minus the number of clocks */
 		/* we have counted so far */
-		m_star_rng_origin = STAR_RNG_PERIOD - (machine().primary_screen->vpos() * 512 + machine().primary_screen->hpos());
-		m_star_rng_origin_frame = machine().primary_screen->frame_number();
+		m_star_rng_origin = STAR_RNG_PERIOD - (m_screen->vpos() * 512 + m_screen->hpos());
+		m_star_rng_origin_frame = m_screen->frame_number();
 	}
 	m_stars_enabled = data & 0x01;
 }
@@ -695,7 +699,7 @@ WRITE8_MEMBER(galaxian_state::galaxian_stars_enable_w)
 WRITE8_MEMBER(galaxian_state::scramble_background_enable_w)
 {
 	if ((m_background_enable ^ data) & 0x01)
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 
 	m_background_enable = data & 0x01;
 }
@@ -704,7 +708,7 @@ WRITE8_MEMBER(galaxian_state::scramble_background_enable_w)
 WRITE8_MEMBER(galaxian_state::scramble_background_red_w)
 {
 	if ((m_background_red ^ data) & 0x01)
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 
 	m_background_red = data & 0x01;
 }
@@ -713,7 +717,7 @@ WRITE8_MEMBER(galaxian_state::scramble_background_red_w)
 WRITE8_MEMBER(galaxian_state::scramble_background_green_w)
 {
 	if ((m_background_green ^ data) & 0x01)
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 
 	m_background_green = data & 0x01;
 }
@@ -722,7 +726,7 @@ WRITE8_MEMBER(galaxian_state::scramble_background_green_w)
 WRITE8_MEMBER(galaxian_state::scramble_background_blue_w)
 {
 	if ((m_background_blue ^ data) & 0x01)
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 
 	m_background_blue = data & 0x01;
 }
@@ -739,7 +743,7 @@ WRITE8_MEMBER(galaxian_state::galaxian_gfxbank_w)
 {
 	if (m_gfxbank[offset] != data)
 	{
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 		m_gfxbank[offset] = data;
 		m_bg_tilemap->mark_all_dirty();
 	}
@@ -791,7 +795,7 @@ void galaxian_state::stars_init()
 
 void galaxian_state::stars_update_origin()
 {
-	int curframe = machine().primary_screen->frame_number();
+	int curframe = m_screen->frame_number();
 
 	/* only update on a different frame */
 	if (curframe != m_star_rng_origin_frame)

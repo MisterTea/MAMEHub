@@ -148,22 +148,22 @@ void sns_rom_bugs_device::device_reset()
 
 void sns_rom_mcpirate1_device::device_start()
 {
+	m_base_bank = 0;
 	save_item(NAME(m_base_bank));
 }
 
 void sns_rom_mcpirate1_device::device_reset()
 {
-	m_base_bank = 0;
 }
 
 void sns_rom_mcpirate2_device::device_start()
 {
+	m_base_bank = 0;
 	save_item(NAME(m_base_bank));
 }
 
 void sns_rom_mcpirate2_device::device_reset()
 {
-	m_base_bank = 0;
 }
 
 void sns_rom_20col_device::device_start()

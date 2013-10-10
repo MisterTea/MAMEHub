@@ -90,8 +90,8 @@
            Capable of running TV, SV, CV, UV or PV romsets.
 
        * The following Romsets are known:
-         TV0H, TV02, TV03, TV04 (w/test mode) - sitv
-         TV01, TV02, TV03, TV04 (w/o test mode) - undumped, tv01 has crc32 of 9F37B146
+         TV0H, TV02, TV03, TV04 (newer, w/bug fixes) - sitv
+         TV01, TV02, TV03, TV04 (older) - sitvo
          SV0H, SV11, SV12, SV04, SV13, SV14 - undumped? roms called sv0h exist in mame...
          SV01, SV11, SV12, SV04, SV13, SV14 - sisv2
          SV01, SV02, SV10, SV04, SV09, SV06 - sisv
@@ -175,7 +175,6 @@
 #include "emu.h"
 #include "cpu/m6800/m6800.h"
 #include "cpu/i8085/i8085.h"
-#include "machine/eeprom.h"
 #include "sound/ay8910.h"
 #include "sound/speaker.h"
 #include "includes/8080bw.h"
@@ -1199,7 +1198,7 @@ static ADDRESS_MAP_START( rollingc_map, AS_PROGRAM, 8, _8080bw_state )
 	AM_RANGE(0x2000, 0x3fff) AM_RAM AM_SHARE("main_ram")
 	AM_RANGE(0x4000, 0x5fff) AM_ROM
 	AM_RANGE(0xa000, 0xbfff) AM_MIRROR(0x00e0) AM_RAM AM_SHARE("colorram")
-	AM_RANGE(0xe400, 0xffff) AM_RAM
+	AM_RANGE(0xe000, 0xffff) AM_MIRROR(0x00e0) AM_RAM AM_SHARE("colorram2")
 ADDRESS_MAP_END
 
 
@@ -1241,6 +1240,9 @@ static MACHINE_CONFIG_DERIVED_CLASS( rollingc, mw8080bw_root, _8080bw_state )
 	/* video hardware */
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DRIVER(_8080bw_state, screen_update_rollingc)
+
+	MCFG_PALETTE_LENGTH(16)
+	MCFG_PALETTE_INIT_OVERRIDE(_8080bw_state, rollingc)
 
 	/* sound hardware */
 	MCFG_FRAGMENT_ADD(invaders_samples_audio)
@@ -1467,7 +1469,7 @@ MACHINE_CONFIG_END
 
 CUSTOM_INPUT_MEMBER(_8080bw_state::sflush_80_r)
 {
-	return (machine().primary_screen->vpos() & 0x80) ? 1 : 0;
+	return (m_screen->vpos() & 0x80) ? 1 : 0;
 }
 
 static ADDRESS_MAP_START( sflush_map, AS_PROGRAM, 8, _8080bw_state )
@@ -2942,42 +2944,13 @@ Regarding release data, not much information is available online.
 ROM dump came from a collection of old 5 1/4 disks (Apple II) that used to be in the
  possession of an arcade operator in the early 80s.
 
-TODO sound to be verified.
+TODO:
+- correct sound (currently same as invaders)
+  * sound mutes when a few aliens are left?
+  * port 7 write is used too, looks like it's for music similar to indianbt
+  Note that bass background hum and sound effects are already basically correct.
 
 ***************************************************************************************/
-
-static ADDRESS_MAP_START( galactic_io_map, AS_IO, 8, _8080bw_state )
-	AM_RANGE(0x00, 0x00) AM_READ_PORT("IN0")
-	AM_RANGE(0x01, 0x01) AM_READ_PORT("IN1")
-	AM_RANGE(0x02, 0x02) AM_READ_PORT("IN2") AM_DEVWRITE("mb14241", mb14241_device, shift_count_w)
-	AM_RANGE(0x03, 0x03) AM_DEVREAD("mb14241", mb14241_device, shift_result_r) AM_WRITE(galactic_sh_port_1_w)
-	AM_RANGE(0x04, 0x04) AM_DEVWRITE("mb14241", mb14241_device, shift_data_w)
-	AM_RANGE(0x05, 0x05) AM_WRITE(galactic_sh_port_2_w)
-	AM_RANGE(0x06, 0x06) AM_WRITE(watchdog_reset_w)
-	AM_RANGE(0x07, 0x07) AM_WRITE(galactic_07_w)
-ADDRESS_MAP_END
-
-
-static MACHINE_CONFIG_DERIVED_CLASS( galactic, mw8080bw_root, _8080bw_state )
-
-	/* basic machine hardware */
-	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_IO_MAP(galactic_io_map)
-	MCFG_MACHINE_START_OVERRIDE(_8080bw_state,extra_8080bw)
-
-	/* add shifter */
-	MCFG_MB14241_ADD("mb14241")
-
-	/* sound hardware */
-	MCFG_FRAGMENT_ADD(invaders_samples_audio)
-	MCFG_DISCRETE_ADD("discrete", 0, galactic)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-
-	/* video hardware */
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_UPDATE_DRIVER(_8080bw_state, screen_update_invaders)
-MACHINE_CONFIG_END
-
 
 static INPUT_PORTS_START( galactic )
 	PORT_START("IN0")
@@ -3024,19 +2997,26 @@ INPUT_PORTS_END
   Not much information is available for this game.
   It may have had an amber monitor?
 
-  XTAL 20MHz
+  20MHz XTAL, 2MHz CPU
+  video: 15625Hz
 
   TODO: sound
+  PORT 02 : 10 while your missile is on-screen
+  PORT 04 : 01 while game is playing. Sound enable.
+  PORT 05 : Watchdog?
+  PORT 06 : 01=Helicopter; 02=Tank; 03=Motorcycle
+            08=Explosion; 10=Walking
+
 
 *****************************************************/
 
 static ADDRESS_MAP_START( attackfc_io_map, AS_IO, 8, _8080bw_state )
 	AM_RANGE(0x00, 0x00) AM_READ_PORT("IN0")
-	AM_RANGE(0x02, 0x02) AM_WRITENOP
+	AM_RANGE(0x02, 0x02) AM_WRITENOP // lamp?
 	AM_RANGE(0x03, 0x03) AM_DEVREADWRITE("mb14241", mb14241_device, shift_result_r, shift_data_w)
-	AM_RANGE(0x04, 0x04) AM_WRITENOP
-	AM_RANGE(0x05, 0x05) AM_WRITENOP
-	AM_RANGE(0x06, 0x06) AM_WRITENOP
+	AM_RANGE(0x04, 0x04) AM_WRITENOP // sound enable?
+	AM_RANGE(0x05, 0x05) AM_WRITENOP // watchdog?
+	AM_RANGE(0x06, 0x06) AM_WRITENOP // sound?
 	AM_RANGE(0x07, 0x07) AM_DEVWRITE("mb14241", mb14241_device, shift_count_w)
 ADDRESS_MAP_END
 
@@ -3170,19 +3150,19 @@ ADDRESS_MAP_END
 
 READ8_MEMBER(_8080bw_state::invmulti_eeprom_r)
 {
-	return m_eeprom->read_bit();
+	return m_eeprom->do_read();
 }
 
 WRITE8_MEMBER(_8080bw_state::invmulti_eeprom_w)
 {
 	// d0: latch bit
-	m_eeprom->write_bit(data & 1);
+	m_eeprom->di_write(data & 1);
 
 	// d6: reset
-	m_eeprom->set_cs_line((data & 0x40) ? CLEAR_LINE : ASSERT_LINE);
+	m_eeprom->cs_write((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 
 	// d4: write latch or select next bit to read
-	m_eeprom->set_clock_line((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->clk_write((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 WRITE8_MEMBER(_8080bw_state::invmulti_bank_w)
@@ -3206,7 +3186,7 @@ MACHINE_CONFIG_DERIVED_CLASS( invmulti, invaders, _8080bw_state )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(invmulti_map)
 
-	MCFG_EEPROM_93C46_8BIT_ADD("eeprom")
+	MCFG_EEPROM_SERIAL_93C46_8BIT_ADD("eeprom")
 
 	MCFG_MACHINE_RESET_OVERRIDE(_8080bw_state,invmulti)
 MACHINE_CONFIG_END
@@ -3257,10 +3237,7 @@ ROM_END
 
 ROM_START( invadrmr )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	/* yes, this rom is really on the PCB twice?! */
-	ROM_LOAD( "11.1s",       0x0000, 0x0400, CRC(389d44b6) SHA1(5d2581b8bc0da918ce57cf319e06b5b31989c681) )
 	ROM_LOAD( "11.1t",       0x0000, 0x0400, CRC(389d44b6) SHA1(5d2581b8bc0da918ce57cf319e06b5b31989c681) )
-
 	ROM_LOAD( "sv02.1p",     0x0400, 0x0400, CRC(0e159534) SHA1(94b2015a9d38ca738705b8d024a79fd2f9855b98) )
 	ROM_LOAD( "20.1n",       0x0800, 0x0400, CRC(805b04f0) SHA1(209f42dfde1593699ccf3755e9267d425416d910) )
 	ROM_LOAD( "sv04.1j",     0x1400, 0x0400, CRC(1293b826) SHA1(165cd5d08a19eadbe954145b12807f10df9e691a) )
@@ -3369,7 +3346,15 @@ ROM_START( alieninvp2 )
 	ROM_LOAD( "1e.bin",       0x1800, 0x0800, CRC(0449cb52) SHA1(8adcb7cd4492fa6649d9ee81172d8dff56621d64) )
 ROM_END
 
-ROM_START( sitv )
+ROM_START( sitvo )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "tv01.s1",      0x0000, 0x0800, CRC(9f37b146) SHA1(0b7ef79dbc3de3beeae3bf222d086b60249d429f) )
+	ROM_LOAD( "tv02.rp1",     0x0800, 0x0800, CRC(3c759a90) SHA1(d847d592dee592b1d3a575c21d89eaf3f7f6ae1b) )
+	ROM_LOAD( "tv03.n1",      0x1000, 0x0800, CRC(0ad3657f) SHA1(a501f316535c50f7d7a20ef8e6dede1526a3f2a8) )
+	ROM_LOAD( "tv04.m1",      0x1800, 0x0800, CRC(cd2c67f6) SHA1(60f9d8fe2d36ff589277b607f07c1edc917c755c) )
+ROM_END
+
+ROM_START( sitv ) // minor bug fixes of sitvo; delay when writing to sound latch 0x05, and another unknown change
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "tv0h.s1",      0x0000, 0x0800, CRC(fef18aad) SHA1(043edeefe6a6d4934bd384eafea19326de1dbeec) )
 	ROM_LOAD( "tv02.rp1",     0x0800, 0x0800, CRC(3c759a90) SHA1(d847d592dee592b1d3a575c21d89eaf3f7f6ae1b) )
@@ -4566,6 +4551,7 @@ ROM_END
 
 // Taito games (+clones), starting with Space Invaders
 GAMEL(1978, sitv,       invaders, invaders,  sitv,      driver_device, 0, ROT270, "Taito", "Space Invaders (TV Version)", GAME_SUPPORTS_SAVE, layout_invaders )
+GAMEL(1978, sitvo,      invaders, invaders,  sitv,      driver_device, 0, ROT270, "Taito", "Space Invaders (TV Version, older)", GAME_SUPPORTS_SAVE, layout_invaders )
 GAME( 1979, sicv,       invaders, invadpt2,  sicv,      driver_device, 0, ROT270, "Taito", "Space Invaders (CV Version)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1978, sisv,       invaders, invadpt2,  sicv,      driver_device, 0, ROT270, "Taito", "Space Invaders (SV Version)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1978, sisv2,      invaders, invadpt2,  sicv,      driver_device, 0, ROT270, "Taito", "Space Invaders (SV Version 2)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
@@ -4632,8 +4618,8 @@ GAME( 1980, ballbomb,   0,        ballbomb,  ballbomb,  driver_device, 0, ROT270
 GAME( 1980, indianbt,   0,        indianbt,  indianbt,  driver_device, 0, ROT270, "Taito", "Indian Battle", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND )
 GAME( 1983, indianbtbr, indianbt, indianbtbr,indianbtbr,driver_device, 0, ROT270, "Taito do Brasil", "Indian Battle (Brazil)", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND )
 GAME( 1980, steelwkr,   0,        steelwkr,  steelwkr,  driver_device, 0, ROT0  , "Taito", "Steel Worker", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND )
-GAMEL(1980?,galactic,   0,        galactic,  galactic,  driver_device, 0, ROT270, "Taito do Brasil", "Galactica - Batalha Espacial", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND, layout_galactic )
-GAMEL(1980?,spacmiss,   galactic, galactic,  galactic,  driver_device, 0, ROT270, "bootleg?", "Space Missile - Space Fighting Game", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND, layout_galactic )
+GAMEL(1980?,galactic,   0,        invaders,  galactic,  driver_device, 0, ROT270, "Taito do Brasil", "Galactica - Batalha Espacial", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND, layout_galactic )
+GAMEL(1980?,spacmiss,   galactic, invaders,  galactic,  driver_device, 0, ROT270, "bootleg?", "Space Missile - Space Fighting Game", GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND, layout_galactic )
 
 // Misc. manufacturers
 GAME( 1979, galxwars,   0,        invadpt2,  galxwars,  driver_device, 0, ROT270, "Universal", "Galaxy Wars (Universal set 1)", GAME_WRONG_COLORS | GAME_SUPPORTS_SAVE )
@@ -4648,7 +4634,7 @@ GAME( 1980?,invrvngeb,  invrvnge, invrvnge,  invrvnge,  driver_device, 0, ROT270
 GAME( 1980?,invrvngedu, invrvnge, invrvnge,  invrvnge,  driver_device, 0, ROT270, "Zenitone-Microsec Ltd. (Dutchford license)", "Invader's Revenge (Dutchford, single PCB)", GAME_SUPPORTS_SAVE | GAME_NO_SOUND )
 GAME( 1980?,invrvngegw, invrvnge, invrvnge,  invrvnge,  driver_device, 0, ROT270, "Zenitone-Microsec Ltd. (Game World license)", "Invader's Revenge (Game World, single PCB)", GAME_SUPPORTS_SAVE | GAME_NO_SOUND )
 GAME( 1980, vortex,     0,        vortex,    vortex,    _8080bw_state, vortex, ROT270, "Zilec Electronics", "Vortex", GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND ) /* Encrypted 8080/IO */
-GAME( 1979, rollingc,   0,        rollingc,  rollingc,  driver_device, 0, ROT270, "Nichibutsu", "Rolling Crash / Moon Base", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME( 1979, rollingc,   0,        rollingc,  rollingc,  driver_device, 0, ROT270, "Nichibutsu", "Rolling Crash / Moon Base", GAME_IMPERFECT_SOUND | GAME_IMPERFECT_COLORS | GAME_SUPPORTS_SAVE )
 GAME( 1979, ozmawars,   0,        invaders,  ozmawars,  driver_device, 0, ROT270, "SNK", "Ozma Wars (set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1979, ozmawars2,  ozmawars, invaders,  ozmawars,  driver_device, 0, ROT270, "SNK", "Ozma Wars (set 2)", GAME_SUPPORTS_SAVE ) /* Uses Taito's three board color version of Space Invaders PCB */
 GAME( 1979, spaceph,    ozmawars, invaders,  spaceph,   driver_device, 0, ROT270, "bootleg? (Zilec Games)", "Space Phantoms (bootleg of Ozma Wars)", GAME_SUPPORTS_SAVE )

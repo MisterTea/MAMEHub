@@ -17,18 +17,22 @@
     - Src B and Src NOTE bits
     - statusreg Busy and End bits
     - timer register 0x11
+    - ch2/ch3 (4 speakers)
+    - PFM (FM using external PCM waveform)
+    - detune (should be same as on other Yamaha chips)
+    - Acc On bit (some sound effects in viprp1?). The documentation says
+      "determines if slot output is accumulated(1), or output directly(0)"
     - Is memory handling 100% correct? At the moment, seibuspi.c is the only
       hardware currently emulated that uses external handlers.
-    - oh, and a lot more...
 */
 
 #include "emu.h"
 #include "ymf271.h"
 
-#define VERBOSE     (1)
+#define STD_CLOCK       (16934400)
 
-#define MAXOUT      (+32767)
-#define MINOUT      (-32768)
+#define MAXOUT          (+32767)
+#define MINOUT          (-32768)
 
 #define SIN_BITS        10
 #define SIN_LEN         (1<<SIN_BITS)
@@ -41,26 +45,19 @@
 #define ALFO_MAX        (+65536)
 #define ALFO_MIN        (0)
 
-//#define log2(n) (log((float) n)/log((float) 2))
-
-// slot mapping assists
-static const int fm_tab[] = { 0, 1, 2, -1, 3, 4, 5, -1, 6, 7, 8, -1, 9, 10, 11, -1 };
-static const int pcm_tab[] = { 0, 4, 8, -1, 12, 16, 20, -1, 24, 28, 32, -1, 36, 40, 44, -1 };
-
-static INT16 *wavetable[8];
-static double plfo_table[4][8][LFO_LENGTH];
-static int alfo_table[4][LFO_LENGTH];
-
 #define ENV_ATTACK      0
 #define ENV_DECAY1      1
 #define ENV_DECAY2      2
 #define ENV_RELEASE     3
 
+#define OP_INPUT_FEEDBACK   -1
+#define OP_INPUT_NONE       -2
+
 #define ENV_VOLUME_SHIFT    16
 
-#define INF     100000000.0
+#define INF     -1.0
 
-static const double ARTime[] =
+static const double ARTime[64] =
 {
 	INF,        INF,        INF,        INF,        6188.12,    4980.68,    4144.76,    3541.04,
 	3094.06,    2490.34,    2072.38,    1770.52,    1547.03,    1245.17,    1036.19,    885.26,
@@ -72,7 +69,7 @@ static const double ARTime[] =
 	0.88,       0.70,       0.57,       0.48,       0.43,       0.43,       0.43,       0.07
 };
 
-static const double DCTime[] =
+static const double DCTime[64] =
 {
 	INF,        INF,        INF,        INF,        93599.64,   74837.91,   62392.02,   53475.56,
 	46799.82,   37418.96,   31196.01,   26737.78,   23399.91,   18709.48,   15598.00,   13368.89,
@@ -186,6 +183,12 @@ static const int RKS_Table[32][8] =
 	{  0,  3,  7, 15, 31, 31, 31, 31 },
 };
 
+static const double multiple_table[16] = { 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+
+static const double pow_table[16] = { 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 0.5, 1, 2, 4, 8, 16, 32, 64 };
+
+static const double fs_frequency[4] = { 1.0/1.0, 1.0/2.0, 1.0/4.0, 1.0/8.0 };
+
 static const double channel_attenuation_table[16] =
 {
 	0.0, 2.5, 6.0, 8.5, 12.0, 14.5, 18.1, 20.6, 24.1, 26.6, 30.1, 32.6, 36.1, 96.1, 96.1, 96.1
@@ -196,107 +199,54 @@ static const int modulation_level[8] = { 16, 8, 4, 2, 1, 32, 64, 128 };
 // feedback_level * 16
 static const int feedback_level[8] = { 0, 1, 2, 4, 8, 16, 32, 64 };
 
-static int channel_attenuation[16];
-static int total_level[128];
-static int env_volume_table[256];
+// slot mapping assists
+static const int fm_tab[16] = { 0, 1, 2, -1, 3, 4, 5, -1, 6, 7, 8, -1, 9, 10, 11, -1 };
+static const int pcm_tab[16] = { 0, 4, 8, -1, 12, 16, 20, -1, 24, 28, 32, -1, 36, 40, 44, -1 };
 
 
-INLINE int GET_KEYSCALED_RATE(int rate, int keycode, int keyscale)
-{
-	int newrate = rate + RKS_Table[keycode][keyscale];
-
-	if (newrate > 63)
-	{
-		newrate = 63;
-	}
-	if (newrate < 0)
-	{
-		newrate = 0;
-	}
-	return newrate;
-}
-
-INLINE int GET_INTERNAL_KEYCODE(int block, int fns)
-{
-	int n43;
-	if (fns < 0x780)
-	{
-		n43 = 0;
-	}
-	else if (fns < 0x900)
-	{
-		n43 = 1;
-	}
-	else if (fns < 0xa80)
-	{
-		n43 = 2;
-	}
-	else
-	{
-		n43 = 3;
-	}
-
-	return ((block & 7) * 4) + n43;
-}
-
-INLINE int GET_EXTERNAL_KEYCODE(int block, int fns)
-{
-	/* TODO: SrcB and SrcNote !? */
-	int n43;
-	if (fns < 0x100)
-	{
-		n43 = 0;
-	}
-	else if (fns < 0x300)
-	{
-		n43 = 1;
-	}
-	else if (fns < 0x500)
-	{
-		n43 = 2;
-	}
-	else
-	{
-		n43 = 3;
-	}
-
-	return ((block & 7) * 4) + n43;
-}
-
-static const double multiple_table[16] = { 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
-
-static const double pow_table[16] = { 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 0.5, 1, 2, 4, 8, 16, 32, 64 };
-
-static const double fs_frequency[4] = { 1.0/1.0, 1.0/2.0, 1.0/4.0, 1.0/8.0 };
+/*****************************************************************************/
 
 void ymf271_device::calculate_step(YMF271Slot *slot)
 {
 	double st;
 
-	if (slot->waveform == 7)    // external waveform (PCM)
+	if (slot->waveform == 7)
 	{
+		// external waveform (PCM)
 		st = (double)(2 * (slot->fns | 2048)) * pow_table[slot->block] * fs_frequency[slot->fs];
 		st = st * multiple_table[slot->multiple];
 
 		// LFO phase modulation
 		st *= slot->lfo_phasemod;
 
-		st /= (double)(524288/65536);       // pre-multiply with 65536
+		st /= (double)(524288/65536); // pre-multiply with 65536
 
-		slot->step = (UINT64)st;
+		slot->step = (UINT32)st;
 	}
-	else                        // internal waveform (FM)
+	else
 	{
+		// internal waveform (FM)
 		st = (double)(2 * slot->fns) * pow_table[slot->block];
 		st = st * multiple_table[slot->multiple] * (double)(SIN_LEN);
 
 		// LFO phase modulation
 		st *= slot->lfo_phasemod;
 
-		st /= (double)(536870912/65536);    // pre-multiply with 65536
+		st /= (double)(536870912/65536); // pre-multiply with 65536
 
-		slot->step = (UINT64)st;
+		slot->step = (UINT32)st;
 	}
+}
+
+inline bool ymf271_device::check_envelope_end(YMF271Slot *slot)
+{
+	if (slot->volume <= 0)
+	{
+		slot->active = 0;
+		slot->volume = 0;
+		return true;
+	}
+	return false;
 }
 
 void ymf271_device::update_envelope(YMF271Slot *slot)
@@ -320,7 +270,7 @@ void ymf271_device::update_envelope(YMF271Slot *slot)
 			int decay_level = 255 - (slot->decay1lvl << 4);
 			slot->volume -= slot->env_decay1_step;
 
-			if ((slot->volume >> (ENV_VOLUME_SHIFT)) <= decay_level)
+			if (!check_envelope_end(slot) && (slot->volume >> ENV_VOLUME_SHIFT) <= decay_level)
 			{
 				slot->env_state = ENV_DECAY2;
 			}
@@ -330,74 +280,112 @@ void ymf271_device::update_envelope(YMF271Slot *slot)
 		case ENV_DECAY2:
 		{
 			slot->volume -= slot->env_decay2_step;
-
-			if (slot->volume < 0)
-			{
-				slot->volume = 0;
-			}
+			check_envelope_end(slot);
 			break;
 		}
 
 		case ENV_RELEASE:
 		{
 			slot->volume -= slot->env_release_step;
-
-			if (slot->volume <= (0 << ENV_VOLUME_SHIFT))
-			{
-				slot->active = 0;
-				slot->volume = 0;
-			}
+			check_envelope_end(slot);
 			break;
 		}
 	}
 }
 
-void ymf271_device::init_envelope(YMF271Slot *slot)
+inline int ymf271_device::get_keyscaled_rate(int rate, int keycode, int keyscale)
 {
-	int keycode, rate;
-	int attack_length, decay1_length, decay2_length, release_length;
-	int decay_level = 255 - (slot->decay1lvl << 4);
+	int newrate = rate + RKS_Table[keycode][keyscale];
 
-	double time;
-
-	if (slot->waveform != 7)
+	if (newrate > 63)
 	{
-		keycode = GET_INTERNAL_KEYCODE(slot->block, slot->fns);
+		newrate = 63;
+	}
+	if (newrate < 0)
+	{
+		newrate = 0;
+	}
+	return newrate;
+}
+
+inline int ymf271_device::get_internal_keycode(int block, int fns)
+{
+	int n43;
+	if (fns < 0x780)
+	{
+		n43 = 0;
+	}
+	else if (fns < 0x900)
+	{
+		n43 = 1;
+	}
+	else if (fns < 0xa80)
+	{
+		n43 = 2;
 	}
 	else
 	{
-		keycode = GET_EXTERNAL_KEYCODE(slot->block, slot->fns);
+		n43 = 3;
+	}
+
+	return ((block & 7) * 4) + n43;
+}
+
+inline int ymf271_device::get_external_keycode(int block, int fns)
+{
+	int n43;
+	if (fns < 0x100)
+	{
+		n43 = 0;
+	}
+	else if (fns < 0x300)
+	{
+		n43 = 1;
+	}
+	else if (fns < 0x500)
+	{
+		n43 = 2;
+	}
+	else
+	{
+		n43 = 3;
+	}
+
+	return ((block & 7) * 4) + n43;
+}
+
+void ymf271_device::init_envelope(YMF271Slot *slot)
+{
+	int keycode, rate;
+	int decay_level = 255 - (slot->decay1lvl << 4);
+
+	if (slot->waveform != 7)
+	{
+		keycode = get_internal_keycode(slot->block, slot->fns);
+	}
+	else
+	{
+		keycode = get_external_keycode(slot->block, slot->fns & 0x7ff);
+		/* keycode = (keycode + slot->srcb * 4 + slot->srcnote) / 2; */ // not sure
 	}
 
 	// init attack state
-	rate = GET_KEYSCALED_RATE(slot->ar * 2, keycode, slot->keyscale);
-	time = ARTime[rate];
-
-	attack_length = (UINT32)((time * 44100.0) / 1000.0);        // attack end time in samples
-	slot->env_attack_step = (int)(((double)(160-0) / (double)(attack_length)) * 65536.0);
+	rate = get_keyscaled_rate(slot->ar * 2, keycode, slot->keyscale);
+	slot->env_attack_step = (rate < 4) ? 0 : (int)(((double)(255-0) / m_lut_ar[rate]) * 65536.0);
 
 	// init decay1 state
-	rate = GET_KEYSCALED_RATE(slot->decay1rate * 2, keycode, slot->keyscale);
-	time = DCTime[rate];
-
-	decay1_length = (UINT32)((time * 44100.0) / 1000.0);
-	slot->env_decay1_step = (int)(((double)(255-decay_level) / (double)(decay1_length)) * 65536.0);
+	rate = get_keyscaled_rate(slot->decay1rate * 2, keycode, slot->keyscale);
+	slot->env_decay1_step = (rate < 4) ? 0 : (int)(((double)(255-decay_level) / m_lut_dc[rate]) * 65536.0);
 
 	// init decay2 state
-	rate = GET_KEYSCALED_RATE(slot->decay2rate * 2, keycode, slot->keyscale);
-	time = DCTime[rate];
-
-	decay2_length = (UINT32)((time * 44100.0) / 1000.0);
-	slot->env_decay2_step = (int)(((double)(255-0) / (double)(decay2_length)) * 65536.0);
+	rate = get_keyscaled_rate(slot->decay2rate * 2, keycode, slot->keyscale);
+	slot->env_decay2_step = (rate < 4) ? 0 : (int)(((double)(255-0) / m_lut_dc[rate]) * 65536.0);
 
 	// init release state
-	rate = GET_KEYSCALED_RATE(slot->relrate * 4, keycode, slot->keyscale);
-	time = ARTime[rate];
+	rate = get_keyscaled_rate(slot->relrate * 4, keycode, slot->keyscale);
+	slot->env_release_step = (rate < 4) ? 0 : (int)(((double)(255-0) / m_lut_ar[rate]) * 65536.0);
 
-	release_length = (UINT32)((time * 44100.0) / 1000.0);
-	slot->env_release_step = (int)(((double)(255-0) / (double)(release_length)) * 65536.0);
-
-	slot->volume = (255-160) << ENV_VOLUME_SHIFT;       // -60db
+	slot->volume = (255-160) << ENV_VOLUME_SHIFT; // -60db
 	slot->env_state = ENV_ATTACK;
 }
 
@@ -407,36 +395,36 @@ void ymf271_device::init_lfo(YMF271Slot *slot)
 	slot->lfo_amplitude = 0;
 	slot->lfo_phasemod = 0;
 
-	slot->lfo_step = (int)((((double)LFO_LENGTH * LFO_frequency_table[slot->lfoFreq]) / 44100.0) * 256.0);
+	slot->lfo_step = (int)((((double)LFO_LENGTH * m_lut_lfo[slot->lfoFreq]) / 44100.0) * 256.0);
 }
 
 void ymf271_device::update_lfo(YMF271Slot *slot)
 {
 	slot->lfo_phase += slot->lfo_step;
 
-	slot->lfo_amplitude = alfo_table[slot->lfowave][(slot->lfo_phase >> LFO_SHIFT) & (LFO_LENGTH-1)];
-	slot->lfo_phasemod = plfo_table[slot->lfowave][slot->pms][(slot->lfo_phase >> LFO_SHIFT) & (LFO_LENGTH-1)];
+	slot->lfo_amplitude = m_lut_alfo[slot->lfowave][(slot->lfo_phase >> LFO_SHIFT) & (LFO_LENGTH-1)];
+	slot->lfo_phasemod = m_lut_plfo[slot->lfowave][slot->pms][(slot->lfo_phase >> LFO_SHIFT) & (LFO_LENGTH-1)];
 
 	calculate_step(slot);
 }
 
-int ymf271_device::calculate_slot_volume(YMF271Slot *slot)
+INT64 ymf271_device::calculate_slot_volume(YMF271Slot *slot)
 {
-	UINT64 volume;
-	UINT64 env_volume;
-	UINT64 lfo_volume = 65536;
+	INT64 volume;
+	INT64 env_volume;
+	INT64 lfo_volume = 65536;
 
 	switch (slot->ams)
 	{
 		case 0: lfo_volume = 65536; break;  // 0dB
-		case 1: lfo_volume = 65536 - (((UINT64)slot->lfo_amplitude * 33124) >> 16); break;  // 5.90625dB
-		case 2: lfo_volume = 65536 - (((UINT64)slot->lfo_amplitude * 16742) >> 16); break;  // 11.8125dB
-		case 3: lfo_volume = 65536 - (((UINT64)slot->lfo_amplitude * 4277) >> 16); break;   // 23.625dB
+		case 1: lfo_volume = 65536 - ((slot->lfo_amplitude * 33124) >> 16); break;  // 5.90625dB
+		case 2: lfo_volume = 65536 - ((slot->lfo_amplitude * 16742) >> 16); break;  // 11.8125dB
+		case 3: lfo_volume = 65536 - ((slot->lfo_amplitude * 4277) >> 16); break;   // 23.625dB
 	}
 
-	env_volume = ((UINT64)env_volume_table[255 - (slot->volume >> ENV_VOLUME_SHIFT)] * (UINT64)lfo_volume) >> 16;
+	env_volume = (m_lut_env_volume[255 - (slot->volume >> ENV_VOLUME_SHIFT)] * lfo_volume) >> 16;
 
-	volume = ((UINT64)env_volume * (UINT64)total_level[slot->tl]) >> 16;
+	volume = (env_volume * m_lut_total_level[slot->tl]) >> 16;
 
 	return volume;
 }
@@ -444,7 +432,7 @@ int ymf271_device::calculate_slot_volume(YMF271Slot *slot)
 void ymf271_device::update_pcm(int slotnum, INT32 *mixp, int length)
 {
 	int i;
-	int final_volume;
+	INT64 final_volume;
 	INT16 sample;
 	INT64 ch0_vol, ch1_vol; //, ch2_vol, ch3_vol;
 
@@ -462,6 +450,24 @@ void ymf271_device::update_pcm(int slotnum, INT32 *mixp, int length)
 
 	for (i = 0; i < length; i++)
 	{
+		// loop
+		if ((slot->stepptr>>16) > slot->endaddr)
+		{
+			slot->stepptr = slot->stepptr - ((UINT64)slot->endaddr<<16) + ((UINT64)slot->loopaddr<<16);
+			if ((slot->stepptr>>16) > slot->endaddr)
+			{
+				// overflow
+				slot->stepptr &= 0xffff;
+				slot->stepptr |= ((UINT64)slot->loopaddr<<16);
+				if ((slot->stepptr>>16) > slot->endaddr)
+				{
+					// still overflow? (triggers in rdft2, rarely)
+					slot->stepptr &= 0xffff;
+					slot->stepptr |= ((UINT64)slot->endaddr<<16);
+				}
+			}
+		}
+
 		if (slot->bits == 8)
 		{
 			// 8bit
@@ -481,10 +487,10 @@ void ymf271_device::update_pcm(int slotnum, INT32 *mixp, int length)
 
 		final_volume = calculate_slot_volume(slot);
 
-		ch0_vol = ((UINT64)final_volume * (UINT64)channel_attenuation[slot->ch0_level]) >> 16;
-		ch1_vol = ((UINT64)final_volume * (UINT64)channel_attenuation[slot->ch1_level]) >> 16;
-//      ch2_vol = ((UINT64)final_volume * (UINT64)channel_attenuation[slot->ch2_level]) >> 16;
-//      ch3_vol = ((UINT64)final_volume * (UINT64)channel_attenuation[slot->ch3_level]) >> 16;
+		ch0_vol = (final_volume * m_lut_attenuation[slot->ch0_level]) >> 16;
+		ch1_vol = (final_volume * m_lut_attenuation[slot->ch1_level]) >> 16;
+//      ch2_vol = (final_volume * m_lut_attenuation[slot->ch2_level]) >> 16;
+//      ch3_vol = (final_volume * m_lut_attenuation[slot->ch3_level]) >> 16;
 
 		if (ch0_vol > 65536) ch0_vol = 65536;
 		if (ch1_vol > 65536) ch1_vol = 65536;
@@ -492,136 +498,44 @@ void ymf271_device::update_pcm(int slotnum, INT32 *mixp, int length)
 		*mixp++ += (sample * ch0_vol) >> 16;
 		*mixp++ += (sample * ch1_vol) >> 16;
 
+		// go to next step
 		slot->stepptr += slot->step;
-		if ((slot->stepptr>>16) > slot->endaddr)
-		{
-			// kill non-frac
-			slot->stepptr &= 0xffff;
-			slot->stepptr |= (slot->loopaddr<<16);
-		}
 	}
 }
 
-// calculates 2 operator FM using algorithm 0
-// <--------|
-// +--[S1]--+--[S3]-->
-INT32 ymf271_device::calculate_2op_fm_0(int slotnum1, int slotnum2)
-{
-	YMF271Slot *slot1 = &m_slots[slotnum1];
-	YMF271Slot *slot2 = &m_slots[slotnum2];
-	INT64 env1, env2;
-	INT64 slot1_output, slot2_output;
-	INT64 phase_mod;
-	INT64 feedback;
-
-	update_envelope(slot1);
-	update_lfo(slot1);
-	env1 = calculate_slot_volume(slot1);
-	update_envelope(slot2);
-	update_lfo(slot2);
-	env2 = calculate_slot_volume(slot2);
-
-	feedback = (slot1->feedback_modulation0 + slot1->feedback_modulation1) / 2;
-	slot1->feedback_modulation0 = slot1->feedback_modulation1;
-
-	slot1_output = wavetable[slot1->waveform][((slot1->stepptr + feedback) >> 16) & SIN_MASK];
-	slot1_output = (slot1_output * env1) >> 16;
-
-	phase_mod = ((slot1_output << (SIN_BITS-2)) * modulation_level[slot2->feedback]);
-	slot2_output = wavetable[slot2->waveform][((slot2->stepptr + phase_mod) >> 16) & SIN_MASK];
-	slot2_output = (slot2_output * env2) >> 16;
-
-	slot1->feedback_modulation1 = (((slot1_output << (SIN_BITS-2)) * feedback_level[slot1->feedback]) / 16);
-
-	slot1->stepptr += slot1->step;
-	slot2->stepptr += slot2->step;
-
-	return slot2_output;
-}
-
-// calculates 2 operator FM using algorithm 1
-// <-----------------|
-// +--[S1]--+--[S3]--|-->
-INT32 ymf271_device::calculate_2op_fm_1(int slotnum1, int slotnum2)
-{
-	YMF271Slot *slot1 = &m_slots[slotnum1];
-	YMF271Slot *slot2 = &m_slots[slotnum2];
-	INT64 env1, env2;
-	INT64 slot1_output, slot2_output;
-	INT64 phase_mod;
-	INT64 feedback;
-
-	update_envelope(slot1);
-	update_lfo(slot1);
-	env1 = calculate_slot_volume(slot1);
-	update_envelope(slot2);
-	update_lfo(slot2);
-	env2 = calculate_slot_volume(slot2);
-
-	feedback = (slot1->feedback_modulation0 + slot1->feedback_modulation1) / 2;
-	slot1->feedback_modulation0 = slot1->feedback_modulation1;
-
-	slot1_output = wavetable[slot1->waveform][((slot1->stepptr + feedback) >> 16) & SIN_MASK];
-	slot1_output = (slot1_output * env1) >> 16;
-
-	phase_mod = ((slot1_output << (SIN_BITS-2)) * modulation_level[slot2->feedback]);
-	slot2_output = wavetable[slot2->waveform][((slot2->stepptr + phase_mod) >> 16) & SIN_MASK];
-	slot2_output = (slot2_output * env2) >> 16;
-
-	slot1->feedback_modulation1 = (((slot2_output << (SIN_BITS-2)) * feedback_level[slot1->feedback]) / 16);
-
-	slot1->stepptr += slot1->step;
-	slot2->stepptr += slot2->step;
-
-	return slot2_output;
-}
-
 // calculates the output of one FM operator
-INT32 ymf271_device::calculate_1op_fm_0(int slotnum, int phase_modulation)
+INT64 ymf271_device::calculate_op(int slotnum, INT64 inp)
 {
 	YMF271Slot *slot = &m_slots[slotnum];
-	INT64 env;
-	INT64 slot_output;
-	INT64 phase_mod = phase_modulation;
+	INT64 env, slot_output, slot_input = 0;
 
 	update_envelope(slot);
 	update_lfo(slot);
 	env = calculate_slot_volume(slot);
 
-	phase_mod = ((phase_mod << (SIN_BITS-2)) * modulation_level[slot->feedback]);
+	if (inp == OP_INPUT_FEEDBACK)
+	{
+		// from own feedback
+		slot_input = (slot->feedback_modulation0 + slot->feedback_modulation1) / 2;
+		slot->feedback_modulation0 = slot->feedback_modulation1;
+	}
+	else if (inp != OP_INPUT_NONE)
+	{
+		// from previous slot output
+		slot_input = ((inp << (SIN_BITS-2)) * modulation_level[slot->feedback]);
+	}
 
-	slot_output = wavetable[slot->waveform][((slot->stepptr + phase_mod) >> 16) & SIN_MASK];
-	slot->stepptr += slot->step;
-
+	slot_output = m_lut_waves[slot->waveform][((slot->stepptr + slot_input) >> 16) & SIN_MASK];
 	slot_output = (slot_output * env) >> 16;
+	slot->stepptr += slot->step;
 
 	return slot_output;
 }
 
-// calculates the output of one FM operator with feedback modulation
-// <--------|
-// +--[S1]--|
-INT32 ymf271_device::calculate_1op_fm_1(int slotnum)
+void ymf271_device::set_feedback(int slotnum, INT64 inp)
 {
 	YMF271Slot *slot = &m_slots[slotnum];
-	INT64 env;
-	INT64 slot_output;
-	INT64 feedback;
-
-	update_envelope(slot);
-	update_lfo(slot);
-	env = calculate_slot_volume(slot);
-
-	feedback = slot->feedback_modulation0 + slot->feedback_modulation1;
-	slot->feedback_modulation0 = slot->feedback_modulation1;
-
-	slot_output = wavetable[slot->waveform][((slot->stepptr + feedback) >> 16) & SIN_MASK];
-	slot_output = (slot_output * env) >> 16;
-
-	slot->feedback_modulation1 = (((slot_output << (SIN_BITS-2)) * feedback_level[slot->feedback]) / 16);
-	slot->stepptr += slot->step;
-
-	return slot_output;
+	slot->feedback_modulation1 = (((inp << (SIN_BITS-2)) * feedback_level[slot->feedback]) / 16);
 }
 
 //-------------------------------------------------
@@ -633,359 +547,429 @@ void ymf271_device::sound_stream_update(sound_stream &stream, stream_sample_t **
 	int i, j;
 	int op;
 	INT32 *mixp;
-	INT32 mix[48000*2];
 
-	memset(mix, 0, sizeof(mix[0])*samples*2);
+	memset(m_mix_buffer, 0, sizeof(m_mix_buffer[0])*samples*2);
 
 	for (j = 0; j < 12; j++)
 	{
 		YMF271Group *slot_group = &m_groups[j];
-		mixp = &mix[0];
+		mixp = m_mix_buffer;
 
 		if (slot_group->pfm && slot_group->sync != 3)
 		{
-			mame_printf_debug("Group %d: PFM, Sync = %d, Waveform Slot1 = %d, Slot2 = %d, Slot3 = %d, Slot4 = %d\n",
+			popmessage("ymf271 PFM, contact MAMEdev");
+			logerror("ymf271 Group %d: PFM, Sync = %d, Waveform Slot1 = %d, Slot2 = %d, Slot3 = %d, Slot4 = %d\n",
 				j, slot_group->sync, m_slots[j+0].waveform, m_slots[j+12].waveform, m_slots[j+24].waveform, m_slots[j+36].waveform);
 		}
 
 		switch (slot_group->sync)
 		{
-			case 0:     // 4 operator FM
+			// 4 operator FM
+			case 0:
 			{
 				int slot1 = j + (0*12);
 				int slot2 = j + (1*12);
 				int slot3 = j + (2*12);
 				int slot4 = j + (3*12);
-				mixp = &mix[0];
+				mixp = m_mix_buffer;
 
 				if (m_slots[slot1].active)
 				{
 					for (i = 0; i < samples; i++)
 					{
-						INT64 output1 = 0, output2 = 0, output3 = 0, output4 = 0, phase_mod1 = 0, phase_mod2 = 0;
+						INT64 output1 = 0, output2 = 0, output3 = 0, output4 = 0;
+						INT64 phase_mod1 = 0, phase_mod2 = 0, phase_mod3 = 0;
 						switch (m_slots[slot1].algorithm)
 						{
 							// <--------|
-							// +--[S1]--+--[S3]--+--[S2]--+--[S4]-->
+							// +--[S1]--|--+--[S3]--+--[S2]--+--[S4]-->
 							case 0:
-								phase_mod1 = calculate_2op_fm_0(slot1, slot3);
-								phase_mod2 = calculate_1op_fm_0(slot2, phase_mod1);
-								output4 = calculate_1op_fm_0(slot4, phase_mod2);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								phase_mod3 = calculate_op(slot3, phase_mod1);
+								phase_mod2 = calculate_op(slot2, phase_mod3);
+								output4 = calculate_op(slot4, phase_mod2);
 								break;
 
 							// <-----------------|
-							// +--[S1]--+--[S3]--+--[S2]--+--[S4]-->
+							// +--[S1]--+--[S3]--|--+--[S2]--+--[S4]-->
 							case 1:
-								phase_mod1 = calculate_2op_fm_1(slot1, slot3);
-								phase_mod2 = calculate_1op_fm_0(slot2, phase_mod1);
-								output4 = calculate_1op_fm_0(slot4, phase_mod2);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								phase_mod3 = calculate_op(slot3, phase_mod1);
+								set_feedback(slot1, phase_mod3);
+								phase_mod2 = calculate_op(slot2, phase_mod3);
+								output4 = calculate_op(slot4, phase_mod2);
 								break;
 
 							// <--------|
 							// +--[S1]--|
-							// ---[S3]--+--[S2]--+--[S4]-->
+							//          |
+							//  --[S3]--+--[S2]--+--[S4]-->
 							case 2:
-								phase_mod1 = (calculate_1op_fm_1(slot1) + calculate_1op_fm_0(slot3, 0)) / 2;
-								phase_mod2 = calculate_1op_fm_0(slot2, phase_mod1);
-								output4 = calculate_1op_fm_0(slot4, phase_mod2);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								phase_mod3 = calculate_op(slot3, OP_INPUT_NONE);
+								phase_mod2 = calculate_op(slot2, (phase_mod1 + phase_mod3) / 1);
+								output4 = calculate_op(slot4, phase_mod2);
 								break;
 
 							//          <--------|
 							//          +--[S1]--|
-							// ---[S3]--+--[S2]--+--[S4]-->
+							//                   |
+							//  --[S3]--+--[S2]--+--[S4]-->
 							case 3:
-								phase_mod1 = calculate_1op_fm_0(slot3, 0);
-								phase_mod2 = (calculate_1op_fm_0(slot2, phase_mod1) + calculate_1op_fm_1(slot1)) / 2;
-								output4 = calculate_1op_fm_0(slot4, phase_mod2);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								phase_mod3 = calculate_op(slot3, OP_INPUT_NONE);
+								phase_mod2 = calculate_op(slot2, phase_mod3);
+								output4 = calculate_op(slot4, (phase_mod1 + phase_mod2) / 1);
 								break;
 
-							// <--------|  --[S2]--|
-							// ---[S1]--|-+--[S3]--+--[S4]-->
+							//              --[S2]--|
+							// <--------|           |
+							// +--[S1]--|--+--[S3]--+--[S4]-->
 							case 4:
-								phase_mod1 = (calculate_2op_fm_0(slot1, slot3) + calculate_1op_fm_0(slot2, 0)) / 2;
-								output4 = calculate_1op_fm_0(slot4, phase_mod1);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								phase_mod3 = calculate_op(slot3, phase_mod1);
+								phase_mod2 = calculate_op(slot2, OP_INPUT_NONE);
+								output4 = calculate_op(slot4, (phase_mod3 + phase_mod2) / 1);
 								break;
 
 							//           --[S2]-----|
 							// <-----------------|  |
-							// ---[S1]--+--[S3]--|--+--[S4]-->
+							// +--[S1]--+--[S3]--|--+--[S4]-->
 							case 5:
-								phase_mod1 = (calculate_2op_fm_1(slot1, slot3) + calculate_1op_fm_0(slot2, 0)) / 2;
-								output4 = calculate_1op_fm_0(slot4, phase_mod1);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								phase_mod3 = calculate_op(slot3, phase_mod1);
+								set_feedback(slot1, phase_mod3);
+								phase_mod2 = calculate_op(slot2, OP_INPUT_NONE);
+								output4 = calculate_op(slot4, (phase_mod3 + phase_mod2) / 1);
 								break;
 
-							// ---[S2]-----+--[S4]--|
+							//  --[S2]-----+--[S4]--|
 							//                      |
 							// <--------|           |
 							// +--[S1]--|--+--[S3]--+-->
 							case 6:
-								output3 = calculate_2op_fm_0(slot1, slot3);
-								phase_mod1 = calculate_1op_fm_0(slot2, 0);
-								output4 = calculate_1op_fm_0(slot4, phase_mod1);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output3 = calculate_op(slot3, phase_mod1);
+								phase_mod2 = calculate_op(slot2, OP_INPUT_NONE);
+								output4 = calculate_op(slot4, phase_mod2);
 								break;
 
-							// ---[S2]--+--[S4]-----|
+							//  --[S2]--+--[S4]-----|
 							//                      |
 							// <-----------------|  |
 							// +--[S1]--+--[S3]--|--+-->
 							case 7:
-								output3 = calculate_2op_fm_1(slot1, slot3);
-								phase_mod1 = calculate_1op_fm_0(slot2, 0);
-								output4 = calculate_1op_fm_0(slot4, phase_mod1);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								phase_mod3 = calculate_op(slot3, phase_mod1);
+								set_feedback(slot1, phase_mod3);
+								output3 = phase_mod3;
+								phase_mod2 = calculate_op(slot2, OP_INPUT_NONE);
+								output4 = calculate_op(slot4, phase_mod2);
 								break;
 
-							// ---[S3]--+--[S2]--+--[S4]--|
+							//  --[S3]--+--[S2]--+--[S4]--|
 							//                            |
 							// <--------|                 |
 							// +--[S1]--|-----------------+-->
 							case 8:
-								output1 = calculate_1op_fm_1(slot1);
-								phase_mod1 = calculate_1op_fm_0(slot3, 0);
-								phase_mod2 = calculate_1op_fm_0(slot2, phase_mod1);
-								output4 = calculate_1op_fm_0(slot4, phase_mod2);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output1 = phase_mod1;
+								phase_mod3 = calculate_op(slot3, OP_INPUT_NONE);
+								phase_mod2 = calculate_op(slot2, phase_mod3);
+								output4 = calculate_op(slot4, phase_mod2);
 								break;
 
-							//         <--------|
-							// -----------[S1]--|
-							//                  |
-							// --[S3]--|        |
-							// --[S2]--+--[S4]--+-->
+							//          <--------|
+							//          +--[S1]--|
+							//                   |
+							//  --[S3]--|        |
+							//  --[S2]--+--[S4]--+-->
 							case 9:
-								phase_mod1 = (calculate_1op_fm_0(slot2, 0) + calculate_1op_fm_0(slot3, 0)) / 2;
-								output4 = calculate_1op_fm_0(slot4, phase_mod1);
-								output1 = calculate_1op_fm_1(slot1);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output1 = phase_mod1;
+								phase_mod3 = calculate_op(slot3, OP_INPUT_NONE);
+								phase_mod2 = calculate_op(slot2, OP_INPUT_NONE);
+								output4 = calculate_op(slot4, (phase_mod3 + phase_mod2) / 1);
 								break;
 
-							//           --[S4]--|
-							//           --[S2]--+
-							// <--------|        |
-							// +--[S1]--+--[S3]--+-->
+							//              --[S4]--|
+							//              --[S2]--|
+							// <--------|           |
+							// +--[S1]--|--+--[S3]--+-->
 							case 10:
-								output3 = calculate_2op_fm_0(slot1, slot3);
-								output2 = calculate_1op_fm_0(slot2, 0);
-								output4 = calculate_1op_fm_0(slot4, 0);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output3 = calculate_op(slot3, phase_mod1);
+								output2 = calculate_op(slot2, OP_INPUT_NONE);
+								output4 = calculate_op(slot4, OP_INPUT_NONE);
 								break;
 
 							//           --[S4]-----|
-							//           --[S2]-----+
+							//           --[S2]-----|
 							// <-----------------|  |
 							// +--[S1]--+--[S3]--|--+-->
 							case 11:
-								output3 = calculate_2op_fm_1(slot1, slot3);
-								output2 = calculate_1op_fm_0(slot2, 0);
-								output4 = calculate_1op_fm_0(slot4, 0);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								phase_mod3 = calculate_op(slot3, phase_mod1);
+								set_feedback(slot1, phase_mod3);
+								output3 = phase_mod3;
+								output2 = calculate_op(slot2, OP_INPUT_NONE);
+								output4 = calculate_op(slot4, OP_INPUT_NONE);
 								break;
 
-							//            |--+--[S4]--+
-							// <--------| |--+--[S3]--+
-							// +--[S1]--+-|--+--[S2]--+-->
+							//             |--+--[S4]--|
+							// <--------|  |--+--[S3]--|
+							// +--[S1]--|--|--+--[S2]--+-->
 							case 12:
-								phase_mod1 = calculate_1op_fm_1(slot1);
-								output2 = calculate_1op_fm_0(slot2, phase_mod1);
-								output3 = calculate_1op_fm_0(slot3, phase_mod1);
-								output4 = calculate_1op_fm_0(slot4, phase_mod1);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output3 = calculate_op(slot3, phase_mod1);
+								output2 = calculate_op(slot2, phase_mod1);
+								output4 = calculate_op(slot4, phase_mod1);
 								break;
 
-							// ---[S3]--+--[S2]--+
+							//  --[S3]--+--[S2]--|
 							//                   |
-							// ---[S4]-----------+
+							//  --[S4]-----------|
 							// <--------|        |
 							// +--[S1]--|--------+-->
 							case 13:
-								output1 = calculate_1op_fm_1(slot1);
-								phase_mod1 = calculate_1op_fm_0(slot3, 0);
-								output2 = calculate_1op_fm_0(slot2, phase_mod1);
-								output4 = calculate_1op_fm_0(slot4, 0);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output1 = phase_mod1;
+								phase_mod3 = calculate_op(slot3, OP_INPUT_NONE);
+								output2 = calculate_op(slot2, phase_mod3);
+								output4 = calculate_op(slot4, OP_INPUT_NONE);
 								break;
 
-							// ---[S2]----+--[S4]--+
-							//                     |
-							// <--------| +--[S3]--|
-							// +--[S1]--+-|--------+-->
+							//  --[S2]-----+--[S4]--|
+							//                      |
+							// <--------|  +--[S3]--|
+							// +--[S1]--|--|--------+-->
 							case 14:
-								output1 = calculate_1op_fm_1(slot1);
-								phase_mod1 = output1;
-								output3 = calculate_1op_fm_0(slot3, phase_mod1);
-								phase_mod2 = calculate_1op_fm_0(slot2, 0);
-								output4 = calculate_1op_fm_0(slot4, phase_mod2);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output1 = phase_mod1;
+								output3 = calculate_op(slot3, phase_mod1);
+								phase_mod2 = calculate_op(slot2, OP_INPUT_NONE);
+								output4 = calculate_op(slot4, phase_mod2);
 								break;
 
-							//  --[S4]-----+
-							//  --[S2]-----+
-							//  --[S3]-----+
+							//  --[S4]-----|
+							//  --[S2]-----|
+							//  --[S3]-----|
 							// <--------|  |
 							// +--[S1]--|--+-->
 							case 15:
-								output1 = calculate_1op_fm_1(slot1);
-								output2 = calculate_1op_fm_0(slot2, 0);
-								output3 = calculate_1op_fm_0(slot3, 0);
-								output4 = calculate_1op_fm_0(slot4, 0);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output1 = phase_mod1;
+								output3 = calculate_op(slot3, OP_INPUT_NONE);
+								output2 = calculate_op(slot2, OP_INPUT_NONE);
+								output4 = calculate_op(slot4, OP_INPUT_NONE);
 								break;
 						}
 
-						*mixp++ += ((output1 * channel_attenuation[m_slots[slot1].ch0_level]) +
-									(output2 * channel_attenuation[m_slots[slot2].ch0_level]) +
-									(output3 * channel_attenuation[m_slots[slot3].ch0_level]) +
-									(output4 * channel_attenuation[m_slots[slot4].ch0_level])) >> 16;
-						*mixp++ += ((output1 * channel_attenuation[m_slots[slot1].ch1_level]) +
-									(output2 * channel_attenuation[m_slots[slot2].ch1_level]) +
-									(output3 * channel_attenuation[m_slots[slot3].ch1_level]) +
-									(output4 * channel_attenuation[m_slots[slot4].ch1_level])) >> 16;
+						*mixp++ += ((output1 * m_lut_attenuation[m_slots[slot1].ch0_level]) +
+									(output2 * m_lut_attenuation[m_slots[slot2].ch0_level]) +
+									(output3 * m_lut_attenuation[m_slots[slot3].ch0_level]) +
+									(output4 * m_lut_attenuation[m_slots[slot4].ch0_level])) >> 16;
+						*mixp++ += ((output1 * m_lut_attenuation[m_slots[slot1].ch1_level]) +
+									(output2 * m_lut_attenuation[m_slots[slot2].ch1_level]) +
+									(output3 * m_lut_attenuation[m_slots[slot3].ch1_level]) +
+									(output4 * m_lut_attenuation[m_slots[slot4].ch1_level])) >> 16;
 					}
 				}
 				break;
 			}
 
-			case 1:     // 2x 2 operator FM
+			// 2x 2 operator FM
+			case 1:
 			{
 				for (op = 0; op < 2; op++)
 				{
 					int slot1 = j + ((op + 0) * 12);
-					int slot2 = j + ((op + 2) * 12);
+					int slot3 = j + ((op + 2) * 12);
 
-					mixp = &mix[0];
+					mixp = m_mix_buffer;
 					if (m_slots[slot1].active)
 					{
 						for (i = 0; i < samples; i++)
 						{
-							INT64 output1 = 0, output2 = 0, phase_mod = 0;
+							INT64 output1 = 0, output3 = 0;
+							INT64 phase_mod1, phase_mod3 = 0;
 							switch (m_slots[slot1].algorithm & 3)
 							{
 								// <--------|
-								// +--[S1]--+--[S3]-->
+								// +--[S1]--|--+--[S3]-->
 								case 0:
-									output2 = calculate_2op_fm_0(slot1, slot2);
+									phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+									set_feedback(slot1, phase_mod1);
+									output3 = calculate_op(slot3, phase_mod1);
 									break;
 
 								// <-----------------|
 								// +--[S1]--+--[S3]--|-->
 								case 1:
-									output2 = calculate_2op_fm_1(slot1, slot2);
+									phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+									phase_mod3 = calculate_op(slot3, phase_mod1);
+									set_feedback(slot1, phase_mod3);
+									output3 = phase_mod3;
 									break;
 
-								// ---[S3]-----|
+								//  --[S3]-----|
 								// <--------|  |
 								// +--[S1]--|--+-->
 								case 2:
-									output1 = calculate_1op_fm_1(slot1);
-									output2 = calculate_1op_fm_0(slot2, 0);
+									phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+									set_feedback(slot1, phase_mod1);
+									output1 = phase_mod1;
+									output3 = calculate_op(slot3, OP_INPUT_NONE);
 									break;
 								//
-								// <--------| +--[S3]--|
-								// +--[S1]--|-|--------+-->
+								// <--------|  +--[S3]--|
+								// +--[S1]--|--|--------+-->
 								case 3:
-									output1 = calculate_1op_fm_1(slot1);
-									phase_mod = output1;
-									output2 = calculate_1op_fm_0(slot2, phase_mod);
+									phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+									set_feedback(slot1, phase_mod1);
+									output1 = phase_mod1;
+									output3 = calculate_op(slot3, phase_mod1);
 									break;
 							}
 
-							*mixp++ += ((output1 * channel_attenuation[m_slots[slot1].ch0_level]) +
-										(output2 * channel_attenuation[m_slots[slot2].ch0_level])) >> 16;
-							*mixp++ += ((output1 * channel_attenuation[m_slots[slot1].ch1_level]) +
-										(output2 * channel_attenuation[m_slots[slot2].ch1_level])) >> 16;
+							*mixp++ += ((output1 * m_lut_attenuation[m_slots[slot1].ch0_level]) +
+										(output3 * m_lut_attenuation[m_slots[slot3].ch0_level])) >> 16;
+							*mixp++ += ((output1 * m_lut_attenuation[m_slots[slot1].ch1_level]) +
+										(output3 * m_lut_attenuation[m_slots[slot3].ch1_level])) >> 16;
 						}
 					}
 				}
 				break;
 			}
 
-			case 2:     // 3 operator FM + PCM
+			// 3 operator FM + PCM
+			case 2:
 			{
 				int slot1 = j + (0*12);
 				int slot2 = j + (1*12);
 				int slot3 = j + (2*12);
-				mixp = &mix[0];
+				mixp = m_mix_buffer;
 
 				if (m_slots[slot1].active)
 				{
 					for (i = 0; i < samples; i++)
 					{
-						INT64 output1 = 0, output2 = 0, output3 = 0, phase_mod = 0;
+						INT64 output1 = 0, output2 = 0, output3 = 0;
+						INT64 phase_mod1 = 0, phase_mod3 = 0;
 						switch (m_slots[slot1].algorithm & 7)
 						{
 							// <--------|
-							// +--[S1]--+--[S3]--+--[S2]-->
+							// +--[S1]--|--+--[S3]--+--[S2]-->
 							case 0:
-								phase_mod = calculate_2op_fm_0(slot1, slot3);
-								output2 = calculate_1op_fm_0(slot2, phase_mod);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								phase_mod3 = calculate_op(slot3, phase_mod1);
+								output2 = calculate_op(slot2, phase_mod3);
 								break;
 
 							// <-----------------|
-							// +--[S1]--+--[S3]--+--[S2]-->
+							// +--[S1]--+--[S3]--|--+--[S2]-->
 							case 1:
-								phase_mod = calculate_2op_fm_1(slot1, slot3);
-								output2 = calculate_1op_fm_0(slot2, phase_mod);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								phase_mod3 = calculate_op(slot3, phase_mod1);
+								set_feedback(slot1, phase_mod3);
+								output2 = calculate_op(slot2, phase_mod3);
 								break;
 
-							// ---[S3]-----|
+							//  --[S3]-----|
 							// <--------|  |
-							// +--[S1]--+--+--[S2]-->
+							// +--[S1]--|--+--[S2]-->
 							case 2:
-								phase_mod = (calculate_1op_fm_1(slot1) + calculate_1op_fm_0(slot3, 0)) / 2;
-								output2 = calculate_1op_fm_0(slot2, phase_mod);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								phase_mod3 = calculate_op(slot3, OP_INPUT_NONE);
+								output2 = calculate_op(slot2, (phase_mod1 + phase_mod3) / 1);
 								break;
 
-							// ---[S3]--+--[S2]--|
+							//  --[S3]--+--[S2]--|
 							// <--------|        |
 							// +--[S1]--|--------+-->
 							case 3:
-								phase_mod = calculate_1op_fm_0(slot3, 0);
-								output2 = calculate_1op_fm_0(slot2, phase_mod);
-								output1 = calculate_1op_fm_1(slot1);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output1 = phase_mod1;
+								phase_mod3 = calculate_op(slot3, OP_INPUT_NONE);
+								output2 = calculate_op(slot2, phase_mod3);
 								break;
 
-							// ------------[S2]--|
-							// <--------|        |
-							// +--[S1]--+--[S3]--+-->
+							//              --[S2]--|
+							// <--------|           |
+							// +--[S1]--|--+--[S3]--+-->
 							case 4:
-								output3 = calculate_2op_fm_0(slot1, slot3);
-								output2 = calculate_1op_fm_0(slot2, 0);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output3 = calculate_op(slot3, phase_mod1);
+								output2 = calculate_op(slot2, OP_INPUT_NONE);
 								break;
 
-							// ------------[S2]--|
-							// <-----------------|
-							// +--[S1]--+--[S3]--+-->
+							//              --[S2]--|
+							// <-----------------|  |
+							// +--[S1]--+--[S3]--|--+-->
 							case 5:
-								output3 = calculate_2op_fm_1(slot1, slot3);
-								output2 = calculate_1op_fm_0(slot2, 0);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								phase_mod3 = calculate_op(slot3, phase_mod1);
+								set_feedback(slot1, phase_mod3);
+								output3 = phase_mod3;
+								output2 = calculate_op(slot2, OP_INPUT_NONE);
 								break;
 
-							// ---[S2]-----|
-							// ---[S3]-----+
+							//  --[S2]-----|
+							//  --[S3]-----|
 							// <--------|  |
-							// +--[S1]--+--+-->
+							// +--[S1]--|--+-->
 							case 6:
-								output1 = calculate_1op_fm_1(slot1);
-								output3 = calculate_1op_fm_0(slot3, 0);
-								output2 = calculate_1op_fm_0(slot2, 0);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output1 = phase_mod1;
+								output3 = calculate_op(slot3, OP_INPUT_NONE);
+								output2 = calculate_op(slot2, OP_INPUT_NONE);
 								break;
 
-							// --------------[S2]--+
-							// <--------| +--[S3]--|
-							// +--[S1]--+-|--------+-->
+							//              --[S2]--|
+							// <--------|  +--[S3]--|
+							// +--[S1]--|--|--------+-->
 							case 7:
-								output1 = calculate_1op_fm_1(slot1);
-								phase_mod = output1;
-								output3 = calculate_1op_fm_0(slot3, phase_mod);
-								output2 = calculate_1op_fm_0(slot2, 0);
+								phase_mod1 = calculate_op(slot1, OP_INPUT_FEEDBACK);
+								set_feedback(slot1, phase_mod1);
+								output1 = phase_mod1;
+								output3 = calculate_op(slot3, phase_mod1);
+								output2 = calculate_op(slot2, OP_INPUT_NONE);
 								break;
 						}
 
-						*mixp++ += ((output1 * channel_attenuation[m_slots[slot1].ch0_level]) +
-									(output2 * channel_attenuation[m_slots[slot2].ch0_level]) +
-									(output3 * channel_attenuation[m_slots[slot3].ch0_level])) >> 16;
-						*mixp++ += ((output1 * channel_attenuation[m_slots[slot1].ch1_level]) +
-									(output2 * channel_attenuation[m_slots[slot2].ch1_level]) +
-									(output3 * channel_attenuation[m_slots[slot3].ch1_level])) >> 16;
+						*mixp++ += ((output1 * m_lut_attenuation[m_slots[slot1].ch0_level]) +
+									(output2 * m_lut_attenuation[m_slots[slot2].ch0_level]) +
+									(output3 * m_lut_attenuation[m_slots[slot3].ch0_level])) >> 16;
+						*mixp++ += ((output1 * m_lut_attenuation[m_slots[slot1].ch1_level]) +
+									(output2 * m_lut_attenuation[m_slots[slot2].ch1_level]) +
+									(output3 * m_lut_attenuation[m_slots[slot3].ch1_level])) >> 16;
 					}
 				}
 
+				mixp = m_mix_buffer;
 				update_pcm(j + (3*12), mixp, samples);
 				break;
 			}
 
-			case 3:     // PCM
+			// PCM
+			case 3:
 			{
 				update_pcm(j + (0*12), mixp, samples);
 				update_pcm(j + (1*12), mixp, samples);
@@ -993,12 +977,10 @@ void ymf271_device::sound_stream_update(sound_stream &stream, stream_sample_t **
 				update_pcm(j + (3*12), mixp, samples);
 				break;
 			}
-
-			default: break;
 		}
 	}
 
-	mixp = &mix[0];
+	mixp = m_mix_buffer;
 	for (i = 0; i < samples; i++)
 	{
 		outputs[0][i] = (*mixp++)>>2;
@@ -1006,14 +988,13 @@ void ymf271_device::sound_stream_update(sound_stream &stream, stream_sample_t **
 	}
 }
 
-void ymf271_device::write_register(int slotnum, int reg, int data)
+void ymf271_device::write_register(int slotnum, int reg, UINT8 data)
 {
 	YMF271Slot *slot = &m_slots[slotnum];
 
 	switch (reg)
 	{
-		case 0:
-		{
+		case 0x0:
 			slot->ext_en = (data & 0x80) ? 1 : 0;
 			slot->ext_out = (data>>3)&0xf;
 
@@ -1039,126 +1020,92 @@ void ymf271_device::write_register(int slotnum, int reg, int data)
 				}
 			}
 			break;
-		}
 
-		case 1:
-		{
+		case 0x1:
 			slot->lfoFreq = data;
 			break;
-		}
 
-		case 2:
-		{
+		case 0x2:
 			slot->lfowave = data & 3;
 			slot->pms = (data >> 3) & 0x7;
 			slot->ams = (data >> 6) & 0x3;
 			break;
-		}
 
-		case 3:
-		{
+		case 0x3:
 			slot->multiple = data & 0xf;
 			slot->detune = (data >> 4) & 0x7;
 			break;
-		}
 
-		case 4:
-		{
+		case 0x4:
 			slot->tl = data & 0x7f;
 			break;
-		}
 
-		case 5:
-		{
+		case 0x5:
 			slot->ar = data & 0x1f;
-			slot->keyscale = (data>>5)&0x7;
+			slot->keyscale = (data >> 5) & 0x7;
 			break;
-		}
 
-		case 6:
-		{
+		case 0x6:
 			slot->decay1rate = data & 0x1f;
 			break;
-		}
 
-		case 7:
-		{
+		case 0x7:
 			slot->decay2rate = data & 0x1f;
 			break;
-		}
 
-		case 8:
-		{
+		case 0x8:
 			slot->relrate = data & 0xf;
 			slot->decay1lvl = (data >> 4) & 0xf;
 			break;
-		}
 
-		case 9:
-		{
-			slot->fns &= ~0xff;
-			slot->fns |= data;
+		case 0x9:
+			// write frequency and block here
+			slot->fns = (slot->fns_hi << 8 & 0x0f00) | data;
+			slot->block = slot->fns_hi >> 4 & 0xf;
 			break;
-		}
 
-		case 10:
-		{
-			slot->fns &= ~0xff00;
-			slot->fns |= (data & 0xf)<<8;
-			slot->block = (data>>4)&0xf;
+		case 0xa:
+			slot->fns_hi = data;
 			break;
-		}
 
-		case 11:
-		{
+		case 0xb:
 			slot->waveform = data & 0x7;
 			slot->feedback = (data >> 4) & 0x7;
 			slot->accon = (data & 0x80) ? 1 : 0;
 			break;
-		}
 
-		case 12:
-		{
+		case 0xc:
 			slot->algorithm = data & 0xf;
 			break;
-		}
 
-		case 13:
-		{
+		case 0xd:
 			slot->ch0_level = data >> 4;
 			slot->ch1_level = data & 0xf;
 			break;
-		}
 
-		case 14:
-		{
+		case 0xe:
 			slot->ch2_level = data >> 4;
 			slot->ch3_level = data & 0xf;
 			break;
-		}
 
 		default:
 			break;
 	}
 }
 
-void ymf271_device::ymf271_write_fm(int grp, int adr, int data)
+void ymf271_device::ymf271_write_fm(int bank, UINT8 address, UINT8 data)
 {
-	int reg;
-	//int slotnum;
-	int slot_group;
-	int sync_mode, sync_reg;
-	//YMF271Slot *slot;
+	int groupnum = fm_tab[address & 0xf];
+	if (groupnum == -1)
+	{
+		logerror("ymf271_write_fm invalid group %02X %02X\n", address, data);
+		return;
+	}
 
-	//slotnum = 12*grp;
-	//slotnum += fm_tab[adr & 0xf];
-	//slot = &m_slots[slotnum];
-	slot_group = fm_tab[adr & 0xf];
-
-	reg = (adr >> 4) & 0xf;
+	int reg = (address >> 4) & 0xf;
 
 	// check if the register is a synchronized register
-	sync_reg = 0;
+	int sync_reg = 0;
 	switch (reg)
 	{
 		case 0:
@@ -1175,129 +1122,142 @@ void ymf271_device::ymf271_write_fm(int grp, int adr, int data)
 	}
 
 	// check if the slot is key on slot for synchronizing
-	sync_mode = 0;
-	switch (m_groups[slot_group].sync)
+	int sync_mode = 0;
+	switch (m_groups[groupnum].sync)
 	{
-		case 0:     // 4 slot mode
-		{
-			if (grp == 0)
+		// 4 slot mode
+		case 0:
+			if (bank == 0)
 				sync_mode = 1;
 			break;
-		}
-		case 1:     // 2x 2 slot mode
-		{
-			if (grp == 0 || grp == 1)
+
+		// 2x 2 slot mode
+		case 1:
+			if (bank == 0 || bank == 1)
 				sync_mode = 1;
 			break;
-		}
-		case 2:     // 3 slot + 1 slot mode
-		{
-			if (grp == 0)
+
+		// 3 slot + 1 slot mode
+		case 2:
+			if (bank == 0)
 				sync_mode = 1;
 			break;
-		}
 
 		default:
 			break;
 	}
 
-	if (sync_mode && sync_reg)      // key-on slot & synced register
+	// key-on slot & synced register
+	if (sync_mode && sync_reg)
 	{
-		switch (m_groups[slot_group].sync)
+		switch (m_groups[groupnum].sync)
 		{
-			case 0:     // 4 slot mode
-			{
-				write_register((12 * 0) + slot_group, reg, data);
-				write_register((12 * 1) + slot_group, reg, data);
-				write_register((12 * 2) + slot_group, reg, data);
-				write_register((12 * 3) + slot_group, reg, data);
+			// 4 slot mode
+			case 0:
+				write_register((12 * 0) + groupnum, reg, data);
+				write_register((12 * 1) + groupnum, reg, data);
+				write_register((12 * 2) + groupnum, reg, data);
+				write_register((12 * 3) + groupnum, reg, data);
 				break;
-			}
-			case 1:     // 2x 2 slot mode
-			{
-				if (grp == 0)       // Slot 1 - Slot 3
+
+			// 2x 2 slot mode
+			case 1:
+				if (bank == 0)
 				{
-					write_register((12 * 0) + slot_group, reg, data);
-					write_register((12 * 2) + slot_group, reg, data);
+					// Slot 1 - Slot 3
+					write_register((12 * 0) + groupnum, reg, data);
+					write_register((12 * 2) + groupnum, reg, data);
 				}
-				else                // Slot 2 - Slot 4
+				else
 				{
-					write_register((12 * 1) + slot_group, reg, data);
-					write_register((12 * 3) + slot_group, reg, data);
+					// Slot 2 - Slot 4
+					write_register((12 * 1) + groupnum, reg, data);
+					write_register((12 * 3) + groupnum, reg, data);
 				}
 				break;
-			}
-			case 2:     // 3 slot + 1 slot mode
-			{
-				// 1 slot is handled normally
-				write_register((12 * 0) + slot_group, reg, data);
-				write_register((12 * 1) + slot_group, reg, data);
-				write_register((12 * 2) + slot_group, reg, data);
-				break;
-			}
-			default:
+
+			// 3 slot + 1 slot mode (1 slot is handled normally)
+			case 2:
+				write_register((12 * 0) + groupnum, reg, data);
+				write_register((12 * 1) + groupnum, reg, data);
+				write_register((12 * 2) + groupnum, reg, data);
 				break;
 		}
 	}
-	else        // write register normally
+	else
 	{
-		write_register((12 * grp) + slot_group, reg, data);
+		// write register normally
+		write_register((12 * bank) + groupnum, reg, data);
 	}
 }
 
-void ymf271_device::ymf271_write_pcm(int data)
+void ymf271_device::ymf271_write_pcm(UINT8 address, UINT8 data)
 {
-	int slotnum;
-	YMF271Slot *slot;
-
-	slotnum = pcm_tab[m_pcmreg&0xf];
-	slot = &m_slots[slotnum];
-
-	switch ((m_pcmreg>>4)&0xf)
+	int slotnum = pcm_tab[address & 0xf];
+	if (slotnum == -1)
 	{
-		case 0:
+		logerror("ymf271_write_pcm invalid slot %02X %02X\n", address, data);
+		return;
+	}
+	YMF271Slot *slot = &m_slots[slotnum];
+
+	switch (address >> 4 & 0xf)
+	{
+		case 0x0:
 			slot->startaddr &= ~0xff;
 			slot->startaddr |= data;
 			break;
-		case 1:
+
+		case 0x1:
 			slot->startaddr &= ~0xff00;
 			slot->startaddr |= data<<8;
 			break;
-		case 2:
+
+		case 0x2:
 			slot->startaddr &= ~0xff0000;
 			slot->startaddr |= (data & 0x7f)<<16;
 			slot->altloop = (data & 0x80) ? 1 : 0;
+			if (slot->altloop)
+				popmessage("ymf271 A/L, contact MAMEdev");
 			break;
-		case 3:
+
+		case 0x3:
 			slot->endaddr &= ~0xff;
 			slot->endaddr |= data;
 			break;
-		case 4:
+
+		case 0x4:
 			slot->endaddr &= ~0xff00;
 			slot->endaddr |= data<<8;
 			break;
-		case 5:
+
+		case 0x5:
 			slot->endaddr &= ~0xff0000;
 			slot->endaddr |= (data & 0x7f)<<16;
 			break;
-		case 6:
+
+		case 0x6:
 			slot->loopaddr &= ~0xff;
 			slot->loopaddr |= data;
 			break;
-		case 7:
+
+		case 0x7:
 			slot->loopaddr &= ~0xff00;
 			slot->loopaddr |= data<<8;
 			break;
-		case 8:
+
+		case 0x8:
 			slot->loopaddr &= ~0xff0000;
 			slot->loopaddr |= (data & 0x7f)<<16;
 			break;
-		case 9:
+
+		case 0x9:
 			slot->fs = data & 0x3;
 			slot->bits = (data & 0x4) ? 12 : 8;
 			slot->srcnote = (data >> 3) & 0x3;
 			slot->srcb = (data >> 5) & 0x7;
 			break;
+
 		default:
 			break;
 	}
@@ -1307,37 +1267,41 @@ void ymf271_device::device_timer(emu_timer &timer, device_timer_id id, int param
 {
 	switch(id)
 	{
-	case 0:
-		m_status |= 1;
+		case 0:
+			m_status |= 1;
 
-		// assert IRQ
-		if (m_enable & 4)
-		{
-			m_irqstate |= 1;
+			// assert IRQ
+			if (m_enable & 4)
+			{
+				m_irqstate |= 1;
 
-			if (!m_irq_handler.isnull())
-				m_irq_handler(1);
-		}
+				if (!m_irq_handler.isnull())
+					m_irq_handler(1);
+			}
 
-		// reload timer
-		m_timA->adjust(attotime::from_hz(m_clock) * (384 * 4 * (256 - m_timerA)), 0);
-		break;
+			// reload timer
+			m_timA->adjust(attotime::from_hz(m_clock) * (384 * 4 * (256 - m_timerA)), 0);
+			break;
 
-	case 1:
-		m_status |= 2;
+		case 1:
+			m_status |= 2;
 
-		// assert IRQ
-		if (m_enable & 8)
-		{
-			m_irqstate |= 2;
+			// assert IRQ
+			if (m_enable & 8)
+			{
+				m_irqstate |= 2;
 
-			if (!m_irq_handler.isnull())
-				m_irq_handler(1);
-		}
+				if (!m_irq_handler.isnull())
+					m_irq_handler(1);
+			}
 
-		// reload timer
-		m_timB->adjust(attotime::from_hz(m_clock) * (384 * 16 * (256 - m_timerB)), 0);
-		break;
+			// reload timer
+			m_timB->adjust(attotime::from_hz(m_clock) * (384 * 16 * (256 - m_timerB)), 0);
+			break;
+
+		default:
+			assert_always(FALSE, "Unknown id in ymf271_device::device_timer");
+			break;
 	}
 }
 
@@ -1359,22 +1323,24 @@ UINT8 ymf271_device::ymf271_read_memory(UINT32 offset)
 		return m_ext_read_handler(offset);
 }
 
-void ymf271_device::ymf271_write_timer(int data)
+void ymf271_device::ymf271_write_timer(UINT8 address, UINT8 data)
 {
-	int slotnum;
-	YMF271Group *group;
-
-	slotnum = fm_tab[m_timerreg & 0xf];
-	group = &m_groups[slotnum];
-
-	if ((m_timerreg & 0xf0) == 0)
+	if ((address & 0xf0) == 0)
 	{
+		int groupnum = fm_tab[address & 0xf];
+		if (groupnum == -1)
+		{
+			logerror("ymf271_write_timer invalid group %02X %02X\n", address, data);
+			return;
+		}
+		YMF271Group *group = &m_groups[groupnum];
+
 		group->sync = data & 0x3;
 		group->pfm = data >> 7;
 	}
 	else
 	{
-		switch (m_timerreg)
+		switch (address)
 		{
 			case 0x10:
 				m_timerA = data;
@@ -1433,19 +1399,28 @@ void ymf271_device::ymf271_write_timer(int data)
 				m_ext_address &= ~0xff;
 				m_ext_address |= data;
 				break;
+
 			case 0x15:
 				m_ext_address &= ~0xff00;
 				m_ext_address |= data << 8;
 				break;
+
 			case 0x16:
 				m_ext_address &= ~0xff0000;
 				m_ext_address |= (data & 0x7f) << 16;
 				m_ext_rw = (data & 0x80) ? 1 : 0;
 				break;
+
 			case 0x17:
 				m_ext_address = (m_ext_address + 1) & 0x7fffff;
 				if (!m_ext_rw && !m_ext_write_handler.isnull())
 					m_ext_write_handler(m_ext_address, data);
+				break;
+
+			case 0x20:
+			case 0x21:
+			case 0x22:
+				// test
 				break;
 
 			default:
@@ -1458,44 +1433,43 @@ WRITE8_MEMBER( ymf271_device::write )
 {
 	m_stream->update();
 
-	switch (offset)
+	m_regs_main[offset & 0xf] = data;
+
+	switch (offset & 0xf)
 	{
-		case 0:
-			m_reg0 = data;
-			break;
-		case 1:
-			ymf271_write_fm(0, m_reg0, data);
-			break;
-		case 2:
-			m_reg1 = data;
-			break;
-		case 3:
-			ymf271_write_fm(1, m_reg1, data);
-			break;
-		case 4:
-			m_reg2 = data;
-			break;
-		case 5:
-			ymf271_write_fm(2, m_reg2, data);
-			break;
-		case 6:
-			m_reg3 = data;
-			break;
-		case 7:
-			ymf271_write_fm(3, m_reg3, data);
-			break;
-		case 8:
-			m_pcmreg = data;
-			break;
-		case 9:
-			ymf271_write_pcm(data);
-			break;
+		case 0x0:
+		case 0x2:
+		case 0x4:
+		case 0x6:
+		case 0x8:
 		case 0xc:
-			m_timerreg = data;
+			// address regs
 			break;
+
+		case 0x1:
+			ymf271_write_fm(0, m_regs_main[0x0], data);
+			break;
+
+		case 0x3:
+			ymf271_write_fm(1, m_regs_main[0x2], data);
+			break;
+
+		case 0x5:
+			ymf271_write_fm(2, m_regs_main[0x4], data);
+			break;
+
+		case 0x7:
+			ymf271_write_fm(3, m_regs_main[0x6], data);
+			break;
+
+		case 0x9:
+			ymf271_write_pcm(m_regs_main[0x8], data);
+			break;
+
 		case 0xd:
-			ymf271_write_timer(data);
+			ymf271_write_timer(m_regs_main[0xc], data);
 			break;
+
 		default:
 			break;
 	}
@@ -1503,12 +1477,16 @@ WRITE8_MEMBER( ymf271_device::write )
 
 READ8_MEMBER( ymf271_device::read )
 {
-	switch(offset)
+	switch (offset & 0xf)
 	{
-		case 0:
+		case 0x0:
 			return m_status;
 
-		case 2:
+		case 0x1:
+			// statusreg 2
+			return 0;
+
+		case 0x2:
 		{
 			if (!m_ext_rw)
 				return 0xff;
@@ -1518,50 +1496,57 @@ READ8_MEMBER( ymf271_device::read )
 			m_ext_readlatch = ymf271_read_memory(m_ext_address);
 			return ret;
 		}
+
+		default:
+			break;
 	}
 
-	return 0;
+	return 0xff;
 }
 
-static void init_tables(running_machine &machine)
+void ymf271_device::init_tables()
 {
-	int i,j;
+	int i, j;
 
-	for (i=0; i < ARRAY_LENGTH(wavetable); i++)
-	{
-		wavetable[i] = auto_alloc_array(machine, INT16, SIN_LEN);
-	}
+	for (i = 0; i < 8; i++)
+		m_lut_waves[i] = auto_alloc_array(machine(), INT16, SIN_LEN);
 
-	for (i=0; i < SIN_LEN; i++)
+	for (i = 0; i < 4*8; i++)
+		m_lut_plfo[i>>3][i&7] = auto_alloc_array(machine(), double, LFO_LENGTH);
+
+	for (i = 0; i < 4; i++)
+		m_lut_alfo[i] = auto_alloc_array(machine(), int, LFO_LENGTH);
+
+	for (i = 0; i < SIN_LEN; i++)
 	{
 		double m = sin( ((i*2)+1) * M_PI / SIN_LEN );
 		double m2 = sin( ((i*4)+1) * M_PI / SIN_LEN );
 
 		// Waveform 0: sin(wt)    (0 <= wt <= 2PI)
-		wavetable[0][i] = (INT16)(m * MAXOUT);
+		m_lut_waves[0][i] = (INT16)(m * MAXOUT);
 
 		// Waveform 1: sin?(wt)   (0 <= wt <= PI)     -sin?(wt)  (PI <= wt <= 2PI)
-		wavetable[1][i] = (i < (SIN_LEN/2)) ? (INT16)((m * m) * MAXOUT) : (INT16)((m * m) * MINOUT);
+		m_lut_waves[1][i] = (i < (SIN_LEN/2)) ? (INT16)((m * m) * MAXOUT) : (INT16)((m * m) * MINOUT);
 
 		// Waveform 2: sin(wt)    (0 <= wt <= PI)     -sin(wt)   (PI <= wt <= 2PI)
-		wavetable[2][i] = (i < (SIN_LEN/2)) ? (INT16)(m * MAXOUT) : (INT16)(-m * MAXOUT);
+		m_lut_waves[2][i] = (i < (SIN_LEN/2)) ? (INT16)(m * MAXOUT) : (INT16)(-m * MAXOUT);
 
 		// Waveform 3: sin(wt)    (0 <= wt <= PI)     0
-		wavetable[3][i] = (i < (SIN_LEN/2)) ? (INT16)(m * MAXOUT) : 0;
+		m_lut_waves[3][i] = (i < (SIN_LEN/2)) ? (INT16)(m * MAXOUT) : 0;
 
 		// Waveform 4: sin(2wt)   (0 <= wt <= PI)     0
-		wavetable[4][i] = (i < (SIN_LEN/2)) ? (INT16)(m2 * MAXOUT) : 0;
+		m_lut_waves[4][i] = (i < (SIN_LEN/2)) ? (INT16)(m2 * MAXOUT) : 0;
 
 		// Waveform 5: |sin(2wt)| (0 <= wt <= PI)     0
-		wavetable[5][i] = (i < (SIN_LEN/2)) ? (INT16)(fabs(m2) * MAXOUT) : 0;
+		m_lut_waves[5][i] = (i < (SIN_LEN/2)) ? (INT16)(fabs(m2) * MAXOUT) : 0;
 
 		// Waveform 6:     1      (0 <= wt <= 2PI)
-		wavetable[6][i] = (INT16)(1 * MAXOUT);
+		m_lut_waves[6][i] = (INT16)(1 * MAXOUT);
 
-		wavetable[7][i] = 0;
+		m_lut_waves[7][i] = 0;
 	}
 
-	for (i=0; i < LFO_LENGTH; i++)
+	for (i = 0; i < LFO_LENGTH; i++)
 	{
 		int tri_wave;
 		double ftri_wave, fsaw_wave;
@@ -1582,30 +1567,63 @@ static void init_tables(running_machine &machine)
 			case 1: plfo[3] = PLFO_MAX - ftri_wave; break;
 			case 2: plfo[3] = 0 - ftri_wave; break;
 			case 3: plfo[3] = 0 - (PLFO_MAX - ftri_wave); break;
-			default: plfo[3]=0; assert(0); break;
+			default: plfo[3] = 0; assert(0); break;
 		}
 
-		for (j=0; j < 4; j++)
+		for (j = 0; j < 4; j++)
 		{
-			plfo_table[j][0][i] = pow(2.0, 0.0);
-			plfo_table[j][1][i] = pow(2.0, (3.378 * plfo[j]) / 1200.0);
-			plfo_table[j][2][i] = pow(2.0, (5.0646 * plfo[j]) / 1200.0);
-			plfo_table[j][3][i] = pow(2.0, (6.7495 * plfo[j]) / 1200.0);
-			plfo_table[j][4][i] = pow(2.0, (10.1143 * plfo[j]) / 1200.0);
-			plfo_table[j][5][i] = pow(2.0, (20.1699 * plfo[j]) / 1200.0);
-			plfo_table[j][6][i] = pow(2.0, (40.1076 * plfo[j]) / 1200.0);
-			plfo_table[j][7][i] = pow(2.0, (79.307 * plfo[j]) / 1200.0);
+			m_lut_plfo[j][0][i] = pow(2.0, 0.0);
+			m_lut_plfo[j][1][i] = pow(2.0, (3.378 * plfo[j]) / 1200.0);
+			m_lut_plfo[j][2][i] = pow(2.0, (5.0646 * plfo[j]) / 1200.0);
+			m_lut_plfo[j][3][i] = pow(2.0, (6.7495 * plfo[j]) / 1200.0);
+			m_lut_plfo[j][4][i] = pow(2.0, (10.1143 * plfo[j]) / 1200.0);
+			m_lut_plfo[j][5][i] = pow(2.0, (20.1699 * plfo[j]) / 1200.0);
+			m_lut_plfo[j][6][i] = pow(2.0, (40.1076 * plfo[j]) / 1200.0);
+			m_lut_plfo[j][7][i] = pow(2.0, (79.307 * plfo[j]) / 1200.0);
 		}
 
 		// LFO amplitude modulation
-		alfo_table[0][i] = 0;
+		m_lut_alfo[0][i] = 0;
 
-		alfo_table[1][i] = ALFO_MAX - ((i * ALFO_MAX) / LFO_LENGTH);
+		m_lut_alfo[1][i] = ALFO_MAX - ((i * ALFO_MAX) / LFO_LENGTH);
 
-		alfo_table[2][i] = (i < (LFO_LENGTH/2)) ? ALFO_MAX : ALFO_MIN;
+		m_lut_alfo[2][i] = (i < (LFO_LENGTH/2)) ? ALFO_MAX : ALFO_MIN;
 
 		tri_wave = ((i % (LFO_LENGTH/2)) * ALFO_MAX) / (LFO_LENGTH/2);
-		alfo_table[3][i] = (i < (LFO_LENGTH/2)) ? ALFO_MAX-tri_wave : tri_wave;
+		m_lut_alfo[3][i] = (i < (LFO_LENGTH/2)) ? ALFO_MAX-tri_wave : tri_wave;
+	}
+
+	for (i = 0; i < 256; i++)
+	{
+		m_lut_env_volume[i] = (int)(65536.0 / pow(10.0, ((double)i / (256.0 / 96.0)) / 20.0));
+	}
+
+	for (i = 0; i < 16; i++)
+	{
+		m_lut_attenuation[i] = (int)(65536.0 / pow(10.0, channel_attenuation_table[i] / 20.0));
+	}
+	for (i = 0; i < 128; i++)
+	{
+		double db = 0.75 * (double)i;
+		m_lut_total_level[i] = (int)(65536.0 / pow(10.0, db / 20.0));
+	}
+
+	// timing may use a non-standard XTAL
+	double clock_correction = (double)(STD_CLOCK) / (double)(m_clock);
+	for (i = 0; i < 256; i++)
+	{
+		m_lut_lfo[i] = LFO_frequency_table[i] * clock_correction;
+	}
+
+	for (i = 0; i < 64; i++)
+	{
+		// attack/release rate in number of samples
+		m_lut_ar[i] = (ARTime[i] * clock_correction * 44100.0) / 1000.0;
+	}
+	for (i = 0; i < 64; i++)
+	{
+		// decay rate in number of samples
+		m_lut_dc[i] = (DCTime[i] * clock_correction * 44100.0) / 1000.0;
 	}
 }
 
@@ -1629,8 +1647,9 @@ void ymf271_device::init_state()
 		save_item(NAME(m_slots[i].decay2rate), i);
 		save_item(NAME(m_slots[i].decay1lvl), i);
 		save_item(NAME(m_slots[i].relrate), i);
-		save_item(NAME(m_slots[i].fns), i);
 		save_item(NAME(m_slots[i].block), i);
+		save_item(NAME(m_slots[i].fns_hi), i);
+		save_item(NAME(m_slots[i].fns), i);
 		save_item(NAME(m_slots[i].feedback), i);
 		save_item(NAME(m_slots[i].waveform), i);
 		save_item(NAME(m_slots[i].accon), i);
@@ -1663,23 +1682,18 @@ void ymf271_device::init_state()
 		save_item(NAME(m_slots[i].lfo_amplitude), i);
 	}
 
-	for (i = 0; i < sizeof(m_groups) / sizeof(m_groups[0]); i++)
+	for (i = 0; i < ARRAY_LENGTH(m_groups); i++)
 	{
 		save_item(NAME(m_groups[i].sync), i);
 		save_item(NAME(m_groups[i].pfm), i);
 	}
 
+	save_item(NAME(m_regs_main));
 	save_item(NAME(m_timerA));
 	save_item(NAME(m_timerB));
 	save_item(NAME(m_irqstate));
 	save_item(NAME(m_status));
 	save_item(NAME(m_enable));
-	save_item(NAME(m_reg0));
-	save_item(NAME(m_reg1));
-	save_item(NAME(m_reg2));
-	save_item(NAME(m_reg3));
-	save_item(NAME(m_pcmreg));
-	save_item(NAME(m_timerreg));
 	save_item(NAME(m_ext_address));
 	save_item(NAME(m_ext_rw));
 	save_item(NAME(m_ext_readlatch));
@@ -1691,8 +1705,6 @@ void ymf271_device::init_state()
 
 void ymf271_device::device_start()
 {
-	int i;
-
 	m_clock = clock();
 
 	m_timA = timer_alloc(0);
@@ -1705,25 +1717,11 @@ void ymf271_device::device_start()
 	m_ext_read_handler.resolve();
 	m_ext_write_handler.resolve();
 
-	init_tables(machine());
+	init_tables();
 	init_state();
 
 	m_stream = machine().sound().stream_alloc(*this, 0, 2, clock()/384);
-
-	for (i = 0; i < 256; i++)
-	{
-		env_volume_table[i] = (int)(65536.0 / pow(10.0, ((double)i / (256.0 / 96.0)) / 20.0));
-	}
-
-	for (i = 0; i < 16; i++)
-	{
-		channel_attenuation[i] = (int)(65536.0 / pow(10.0, channel_attenuation_table[i] / 20.0));
-	}
-	for (i = 0; i < 128; i++)
-	{
-		double db = 0.75 * (double)i;
-		total_level[i] = (int)(65536.0 / pow(10.0, db / 20.0));
-	}
+	m_mix_buffer = auto_alloc_array(machine(), INT32, 44100*2);
 }
 
 //-------------------------------------------------
@@ -1753,19 +1751,13 @@ void ymf271_device::device_reset()
 const device_type YMF271 = &device_creator<ymf271_device>;
 
 ymf271_device::ymf271_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, YMF271, "YMF271", tag, owner, clock),
+	: device_t(mconfig, YMF271, "YMF271", tag, owner, clock, "ymf271", __FILE__),
 		device_sound_interface(mconfig, *this),
 		m_timerA(0),
 		m_timerB(0),
 		m_irqstate(0),
 		m_status(0),
 		m_enable(0),
-		m_reg0(0),
-		m_reg1(0),
-		m_reg2(0),
-		m_reg3(0),
-		m_pcmreg(0),
-		m_timerreg(0),
 		m_ext_address(0),
 		m_ext_rw(0),
 		m_ext_readlatch(0),
@@ -1775,6 +1767,7 @@ ymf271_device::ymf271_device(const machine_config &mconfig, const char *tag, dev
 {
 	memset(m_slots, 0, sizeof(m_slots));
 	memset(m_groups, 0, sizeof(m_groups));
+	memset(m_regs_main, 0, sizeof(m_regs_main));
 }
 
 //-------------------------------------------------

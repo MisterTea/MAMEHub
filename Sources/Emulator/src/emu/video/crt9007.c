@@ -44,7 +44,7 @@ const device_type CRT9007 = &device_creator<crt9007_device>;
 //  MACROS / CONSTANTS
 //**************************************************************************
 
-#define LOG 1
+#define LOG 0
 
 #define HAS_VALID_PARAMETERS \
 	(m_reg[0x00] && m_reg[0x01] && m_reg[0x07] && m_reg[0x08] && m_reg[0x09])
@@ -446,8 +446,9 @@ inline void crt9007_device::recompute_parameters()
 //-------------------------------------------------
 
 crt9007_device::crt9007_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, CRT9007, "SMC CRT9007", tag, owner, clock),
+	: device_t(mconfig, CRT9007, "SMC CRT9007", tag, owner, clock, "crt9007", __FILE__),
 		device_memory_interface(mconfig, *this),
+		device_video_interface(mconfig, *this),
 		m_space_config("videoram", ENDIANNESS_LITTLE, 8, 14, 0, NULL, *ADDRESS_MAP_NAME(crt9007))
 {
 	for (int i = 0; i < 0x3d; i++)
@@ -510,10 +511,6 @@ void crt9007_device::device_start()
 	m_out_cblank_func.resolve(m_out_cblank_cb, *this);
 	m_out_slg_func.resolve(m_out_slg_cb, *this);
 	m_out_sld_func.resolve(m_out_sld_cb, *this);
-
-	// get the screen device
-	m_screen = machine().device<screen_device>(m_screen_tag);
-	assert(m_screen != NULL);
 
 	// set horizontal pixels per column
 	m_hpixels_per_column = hpixels_per_column;

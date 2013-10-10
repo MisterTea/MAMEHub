@@ -7,8 +7,6 @@
 #ifndef __VIC4567_H__
 #define __VIC4567_H__
 
-#include "devcb.h"
-
 
 /***************************************************************************
     TYPE DEFINITIONS
@@ -22,7 +20,6 @@ enum vic3_type
 
 struct vic3_interface
 {
-	const char         *screen_tag;
 	const char         *cpu_tag;
 
 	vic3_type          vic_type;
@@ -142,6 +139,7 @@ struct vic3_sprite
 ***************************************************************************/
 
 class vic3_device : public device_t,
+					public device_video_interface,
 					public vic3_interface
 {
 public:
@@ -187,8 +185,6 @@ private:
 
 	vic3_type  m_type;
 
-	screen_device *m_main_screen;         // screen which sets bitmap properties
-
 	device_t *m_cpu;
 
 	UINT8 m_reg[0x80];
@@ -210,7 +206,7 @@ private:
 	int m_columns, m_rows;
 
 	/* background/foreground for sprite collision */
-	UINT8 *m_screen[216], m_shift[216];
+	UINT8 *m_screenptr[216], m_shift[216];
 
 	/* convert multicolor byte to background/foreground for sprite collision */
 	UINT8 m_foreground[256];

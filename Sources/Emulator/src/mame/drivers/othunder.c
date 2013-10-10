@@ -235,9 +235,7 @@ TODO:
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "cpu/m68000/m68000.h"
-#include "machine/eeprom.h"
-#include "video/taitoic.h"
-#include "machine/taitoio.h"
+#include "machine/eepromser.h"
 #include "audio/taitosnd.h"
 #include "sound/2610intf.h"
 #include "sound/flt_vol.h"
@@ -299,17 +297,6 @@ The eeprom unlock command is different, and the write/clock/reset
 bits are different.
 ******************************************************************/
 
-static const eeprom_interface eeprom_intf =
-{
-	6,              /* address bits */
-	16,             /* data bits */
-	"0110",         /* read command */
-	"0101",         /* write command */
-	"0111",         /* erase command */
-	"0100000000",   /* lock command */
-	"0100111111"    /* unlock command */
-};
-
 WRITE16_MEMBER(othunder_state::othunder_tc0220ioc_w)
 {
 	if (ACCESSING_BITS_0_7)
@@ -334,9 +321,9 @@ WRITE16_MEMBER(othunder_state::othunder_tc0220ioc_w)
 				if (data & 4)
 					popmessage("OBPRI SET!");
 
-				m_eeprom->write_bit(data & 0x40);
-				m_eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
-				m_eeprom->set_cs_line((data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
+				m_eeprom->di_write((data & 0x40) >> 6);
+				m_eeprom->clk_write((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+				m_eeprom->cs_write((data & 0x10) ? ASSERT_LINE : CLEAR_LINE);
 				break;
 
 			default:
@@ -355,7 +342,7 @@ READ16_MEMBER(othunder_state::othunder_tc0220ioc_r)
 	switch (offset)
 	{
 		case 0x03:
-			return (m_eeprom->read_bit() & 1) << 7;
+			return (m_eeprom->do_read() & 1) << 7;
 
 		default:
 			return m_tc0220ioc->read(space, offset);
@@ -456,9 +443,9 @@ static ADDRESS_MAP_START( othunder_map, AS_PROGRAM, 16, othunder_state )
 	AM_RANGE(0x090000, 0x09000f) AM_READWRITE(othunder_tc0220ioc_r, othunder_tc0220ioc_w)
 //  AM_RANGE(0x090006, 0x090007) AM_WRITE(eeprom_w)
 //  AM_RANGE(0x09000c, 0x09000d) AM_WRITENOP   /* ?? (keeps writing 0x77) */
-	AM_RANGE(0x100000, 0x100007) AM_DEVREADWRITE_LEGACY("tc0110pcr", tc0110pcr_word_r, tc0110pcr_step1_rbswap_word_w)   /* palette */
-	AM_RANGE(0x200000, 0x20ffff) AM_DEVREADWRITE_LEGACY("tc0100scn", tc0100scn_word_r, tc0100scn_word_w)    /* tilemaps */
-	AM_RANGE(0x220000, 0x22000f) AM_DEVREADWRITE_LEGACY("tc0100scn", tc0100scn_ctrl_word_r, tc0100scn_ctrl_word_w)
+	AM_RANGE(0x100000, 0x100007) AM_DEVREADWRITE("tc0110pcr", tc0110pcr_device, word_r, step1_rbswap_word_w)   /* palette */
+	AM_RANGE(0x200000, 0x20ffff) AM_DEVREADWRITE("tc0100scn", tc0100scn_device, word_r, word_w)    /* tilemaps */
+	AM_RANGE(0x220000, 0x22000f) AM_DEVREADWRITE("tc0100scn", tc0100scn_device, ctrl_word_r, ctrl_word_w)
 	AM_RANGE(0x300000, 0x300003) AM_READWRITE(othunder_sound_r, othunder_sound_w)
 	AM_RANGE(0x400000, 0x4005ff) AM_RAM AM_SHARE("spriteram")
 	AM_RANGE(0x500000, 0x500007) AM_READWRITE(othunder_lightgun_r, othunder_lightgun_w)
@@ -638,7 +625,6 @@ WRITE_LINE_MEMBER(othunder_state::irqhandler)
 
 static const tc0100scn_interface othunder_tc0100scn_intf =
 {
-	"screen",
 	1, 2,       /* gfxnum, txnum */
 	4, 0,       /* x_offset, y_offset */
 	0, 0,       /* flip_xoff, flip_yoff */
@@ -691,7 +677,7 @@ static MACHINE_CONFIG_START( othunder, othunder_state )
 	MCFG_CPU_ADD("audiocpu", Z80,16000000/4 )   /* 4 MHz */
 	MCFG_CPU_PROGRAM_MAP(z80_sound_map)
 
-	MCFG_EEPROM_ADD("eeprom", eeprom_intf)
+	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 
 	MCFG_TC0220IOC_ADD("tc0220ioc", othunder_io_intf)

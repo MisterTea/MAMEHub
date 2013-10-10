@@ -8,7 +8,7 @@
 
 #include "emu.h"
 #include "cpu/i86/i86.h"
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "cpu/z80/z80.h"
 #include "includes/leland.h"
 #include "sound/ay8910.h"
@@ -90,7 +90,7 @@ READ8_MEMBER(leland_state::cerberus_dial_1_r)
 
 READ8_MEMBER(leland_state::cerberus_dial_2_r)
 {
-	int original = ioport("IN0")->read();
+	int original = ioport("IN2")->read();
 	int modified = dial_compute_value(ioport("AN1")->read(), 1);
 	return (original & 0xc0) | ((modified & 0x80) >> 2) | (modified & 0x1f);
 }
@@ -326,7 +326,7 @@ MACHINE_START_MEMBER(leland_state,leland)
 
 MACHINE_RESET_MEMBER(leland_state,leland)
 {
-	m_master_int_timer->adjust(machine().primary_screen->time_until_pos(8), 8);
+	m_master_int_timer->adjust(m_screen->time_until_pos(8), 8);
 
 	/* reset globals */
 	m_gfx_control = 0x00;
@@ -377,7 +377,7 @@ MACHINE_START_MEMBER(leland_state,ataxx)
 MACHINE_RESET_MEMBER(leland_state,ataxx)
 {
 	memset(m_extra_tram, 0, ATAXX_EXTRA_TRAM_SIZE);
-	m_master_int_timer->adjust(machine().primary_screen->time_until_pos(8), 8);
+	m_master_int_timer->adjust(m_screen->time_until_pos(8), 8);
 
 	/* initialize the XROM */
 	m_xrom_length = memregion("user1")->bytes();
@@ -426,7 +426,7 @@ TIMER_CALLBACK_MEMBER(leland_state::leland_interrupt_callback)
 	scanline += 16;
 	if (scanline > 248)
 		scanline = 8;
-	m_master_int_timer->adjust(machine().primary_screen->time_until_pos(scanline), scanline);
+	m_master_int_timer->adjust(m_screen->time_until_pos(scanline), scanline);
 }
 
 
@@ -438,7 +438,7 @@ TIMER_CALLBACK_MEMBER(leland_state::ataxx_interrupt_callback)
 	m_master->set_input_line(0, HOLD_LINE);
 
 	/* set a timer for the next one */
-	m_master_int_timer->adjust(machine().primary_screen->time_until_pos(scanline), scanline);
+	m_master_int_timer->adjust(m_screen->time_until_pos(scanline), scanline);
 }
 
 
@@ -467,7 +467,7 @@ WRITE8_MEMBER(leland_state::leland_master_alt_bankswitch_w)
 	(this->*m_update_master_bank)();
 
 	/* sound control is in the rest */
-	leland_80186_control_w(machine().device("custom"), space, offset, data);
+	m_sound->leland_80186_control_w(space, offset, data);
 }
 
 
@@ -820,9 +820,9 @@ WRITE8_MEMBER(leland_state::ataxx_eeprom_w)
 {
 	if (LOG_EEPROM) logerror("%s:EE write %d%d%d\n", machine().describe_context(),
 			(data >> 6) & 1, (data >> 5) & 1, (data >> 4) & 1);
-	m_eeprom->write_bit     ((data & 0x10) >> 4);
-	m_eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
-	m_eeprom->set_cs_line   ((~data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->di_write ((data & 0x10) >> 4);
+	m_eeprom->clk_write((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->cs_write ((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -1122,9 +1122,9 @@ WRITE8_MEMBER(leland_state::leland_master_output_w)
 
 			if (LOG_EEPROM) logerror("%04X:EE write %d%d%d\n", space.device().safe_pc(),
 					(data >> 6) & 1, (data >> 5) & 1, (data >> 4) & 1);
-			m_eeprom->write_bit     ((data & 0x10) >> 4);
-			m_eeprom->set_clock_line((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
-			m_eeprom->set_cs_line   ((~data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
+			m_eeprom->di_write ((data & 0x10) >> 4);
+			m_eeprom->clk_write((data & 0x20) ? ASSERT_LINE : CLEAR_LINE);
+			m_eeprom->cs_write ((data & 0x40) ? ASSERT_LINE : CLEAR_LINE);
 			break;
 
 		case 0x0a:  /* /OGIA */
@@ -1196,7 +1196,7 @@ WRITE8_MEMBER(leland_state::ataxx_master_output_w)
 			break;
 
 		case 0x08:  /*  */
-			m_master_int_timer->adjust(machine().primary_screen->time_until_pos(data + 1), data + 1);
+			m_master_int_timer->adjust(m_screen->time_until_pos(data + 1), data + 1);
 			break;
 
 		default:
@@ -1381,7 +1381,7 @@ WRITE8_MEMBER(leland_state::ataxx_slave_banksw_w)
 
 READ8_MEMBER(leland_state::leland_raster_r)
 {
-	return machine().primary_screen->vpos();
+	return m_screen->vpos();
 }
 
 

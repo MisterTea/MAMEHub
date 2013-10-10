@@ -4,7 +4,7 @@
 
 *************************************************************************/
 
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "sound/okim6295.h"
 #include "video/deco16ic.h"
 #include "video/decospr.h"
@@ -26,7 +26,7 @@ public:
 	/* devices */
 	required_device<cpu_device> m_maincpu;
 	required_device<deco16ic_device> m_deco_tilegen1;
-	required_device<eeprom_device> m_eeprom;
+	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	required_device<okim6295_device> m_okimusic;
 	/* memory pointers */
 	UINT16 *  m_pf1_rowscroll;

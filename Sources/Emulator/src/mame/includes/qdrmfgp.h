@@ -1,5 +1,8 @@
-#include "machine/idectrl.h"
+#include "machine/ataintf.h"
 #include "sound/k054539.h"
+#include "machine/k053252.h"
+#include "video/konami_helper.h"
+#include "video/k054156_k054157_k056832.h"
 
 class qdrmfgp_state : public driver_device
 {
@@ -11,7 +14,8 @@ public:
 		m_workram(*this, "workram"),
 		m_k056832(*this, "k056832"),
 		m_k054539(*this, "k054539"),
-		m_ide(*this, "ide")
+		m_k053252(*this, "k053252"),
+		m_ata(*this, "ata")
 	{
 	}
 
@@ -21,7 +25,8 @@ public:
 	required_shared_ptr<UINT16> m_workram;
 	required_device<k056832_device> m_k056832;
 	required_device<k054539_device> m_k054539;
-	required_device<ide_controller_device> m_ide;
+	required_device<k053252_device> m_k053252;
+	required_device<ata_interface_device> m_ata;
 	UINT16 m_control;
 	INT32 m_gp2_irq_control;
 	INT32 m_pal;

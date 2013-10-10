@@ -156,7 +156,7 @@ void *malloc_file_line(size_t size, const char *file, int line)
 	memory_entry::allocate(size, result, file, line);
 #endif
 
-#ifdef MAME_DEBUG
+#if !__has_feature(memory_sanitizer) && defined(MAME_DEBUG)
 	memset(result, 0xdd, size);
 #endif
 
@@ -186,7 +186,7 @@ void *malloc_array_file_line(size_t size, const char *file, int line)
 	memory_entry::allocate(size, result, file, line);
 #endif
 
-#ifdef MAME_DEBUG
+#if !__has_feature(memory_sanitizer) && defined(MAME_DEBUG)
 	memset(result, 0xdd, size);
 #endif
 

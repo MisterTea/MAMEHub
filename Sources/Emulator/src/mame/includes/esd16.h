@@ -4,7 +4,7 @@
 
 ***************************************************************************/
 
-#include "machine/eeprom.h"
+#include "machine/eepromser.h"
 #include "video/decospr.h"
 
 class esd16_state : public driver_device
@@ -49,7 +49,7 @@ public:
 	int           m_tilemap1_color;
 
 	/* devices */
-	optional_device<eeprom_device> m_eeprom;
+	optional_device<eeprom_serial_93cxx_device> m_eeprom;
 	DECLARE_WRITE16_MEMBER(esd16_sound_command_w);
 	DECLARE_WRITE16_MEMBER(hedpanic_platform_w);
 	DECLARE_READ16_MEMBER(esd_eeprom_r);

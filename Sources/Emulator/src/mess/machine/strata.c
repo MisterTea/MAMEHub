@@ -13,6 +13,7 @@
 
 #include "emu.h"
 #include "strata.h"
+#include "devlegcy.h"
 
 #define MAX_STRATA  1
 
@@ -102,7 +103,7 @@ static DEVICE_START( strataflash )
 const device_type STRATAFLASH = &device_creator<strataflash_device>;
 
 strataflash_device::strataflash_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, STRATAFLASH, "Intel 28F640J5", tag, owner, clock)
+	: device_t(mconfig, STRATAFLASH, "Intel 28F640J5", tag, owner, clock, "strataflash", __FILE__)
 {
 	m_token = global_alloc_clear(strata_t);
 }

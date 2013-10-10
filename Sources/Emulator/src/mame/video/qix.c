@@ -115,7 +115,7 @@ WRITE8_MEMBER(qix_state::qix_videoram_w)
 {
 	/* update the screen in case the game is writing "behind" the beam -
 	   Zookeeper likes to do this */
-	machine().primary_screen->update_now();
+	m_screen->update_now();
 
 	/* add in the upper bit of the address latch */
 	offset += (m_videoram_address[0] & 0x80) << 8;
@@ -129,7 +129,7 @@ WRITE8_MEMBER(qix_state::slither_videoram_w)
 {
 	/* update the screen in case the game is writing "behind" the beam -
 	   Zookeeper likes to do this */
-	machine().primary_screen->update_now();
+	m_screen->update_now();
 
 	/* add in the upper bit of the address latch */
 	offset += (m_videoram_address[0] & 0x80) << 8;
@@ -166,7 +166,7 @@ READ8_MEMBER(qix_state::qix_addresslatch_r)
 WRITE8_MEMBER(qix_state::qix_addresslatch_w)
 {
 	/* update the screen in case the game is writing "behind" the beam */
-	machine().primary_screen->update_now();
+	m_screen->update_now();
 
 	/* compute the value at the address latch */
 	offset = (m_videoram_address[0] << 8) | m_videoram_address[1];
@@ -179,7 +179,7 @@ WRITE8_MEMBER(qix_state::qix_addresslatch_w)
 WRITE8_MEMBER(qix_state::slither_addresslatch_w)
 {
 	/* update the screen in case the game is writing "behind" the beam */
-	machine().primary_screen->update_now();
+	m_screen->update_now();
 
 	/* compute the value at the address latch */
 	offset = (m_videoram_address[0] << 8) | m_videoram_address[1];
@@ -207,7 +207,7 @@ WRITE8_MEMBER(qix_state::qix_paletteram_w)
 	/* trigger an update if a currently visible pen has changed */
 	if (((offset >> 8) == m_palette_bank) &&
 		(old_data != data))
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 }
 
 
@@ -216,7 +216,7 @@ WRITE8_MEMBER(qix_state::qix_palettebank_w)
 	/* set the bank value */
 	if (m_palette_bank != (data & 3))
 	{
-		machine().primary_screen->update_now();
+		m_screen->update_now();
 		m_palette_bank = data & 3;
 	}
 
@@ -384,7 +384,6 @@ ADDRESS_MAP_END
 
 static MC6845_INTERFACE( mc6845_intf )
 {
-	"screen",                           /* screen we are acting on */
 	false,                              /* show border area */
 	8,                                  /* number of pixels per video memory address */
 	begin_update,                       /* before pixel update callback */
@@ -404,7 +403,7 @@ MACHINE_CONFIG_FRAGMENT( qix_video )
 
 	MCFG_VIDEO_START_OVERRIDE(qix_state,qix)
 
-	MCFG_MC6845_ADD(MC6845_TAG, MC6845, QIX_CHARACTER_CLOCK, mc6845_intf)
+	MCFG_MC6845_ADD(MC6845_TAG, MC6845, "screen", QIX_CHARACTER_CLOCK, mc6845_intf)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(QIX_CHARACTER_CLOCK*8, 0x148, 0, 0x100, 0x111, 0, 0x100) /* from CRTC */

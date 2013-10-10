@@ -201,13 +201,13 @@ UINT32 galaxi_state::screen_update_galaxi(screen_device &screen, bitmap_ind16 &b
 	}
 #endif
 
-	if (layers_ctrl & 1)    m_bg1_tmap->draw(bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
+	if (layers_ctrl & 1)    m_bg1_tmap->draw(screen, bitmap, cliprect, TILEMAP_DRAW_OPAQUE, 0);
 	else                bitmap.fill(get_black_pen(machine()), cliprect);
-	if (layers_ctrl & 2)    m_bg2_tmap->draw(bitmap, cliprect, 0, 0);
-	if (layers_ctrl & 4)    m_bg3_tmap->draw(bitmap, cliprect, 0, 0);
-	if (layers_ctrl & 8)    m_bg4_tmap->draw(bitmap, cliprect, 0, 0);
+	if (layers_ctrl & 2)    m_bg2_tmap->draw(screen, bitmap, cliprect, 0, 0);
+	if (layers_ctrl & 4)    m_bg3_tmap->draw(screen, bitmap, cliprect, 0, 0);
+	if (layers_ctrl & 8)    m_bg4_tmap->draw(screen, bitmap, cliprect, 0, 0);
 
-	if (layers_ctrl & 16)   m_fg_tmap->draw(bitmap, cliprect, 0, 0);
+	if (layers_ctrl & 16)   m_fg_tmap->draw(screen, bitmap, cliprect, 0, 0);
 
 	return 0;
 }
@@ -270,12 +270,12 @@ WRITE16_MEMBER(galaxi_state::galaxi_500004_w)
 
 CUSTOM_INPUT_MEMBER(galaxi_state::ticket_r)
 {
-	return m_ticket && !(machine().primary_screen->frame_number() % 10);
+	return m_ticket && !(m_screen->frame_number() % 10);
 }
 
 CUSTOM_INPUT_MEMBER(galaxi_state::hopper_r)
 {
-	return m_hopper && !(machine().primary_screen->frame_number() % 10);
+	return m_hopper && !(m_screen->frame_number() % 10);
 }
 
 

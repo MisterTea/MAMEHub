@@ -23,6 +23,7 @@
     - Find out about graphics mode and how it is selected
     - Fix Keyboard so that the Enter key tells BASIC to do something
     - Find out how to make 2nd teletext screen to display
+    - Banking
 
 ****************************************************************************/
 
@@ -47,16 +48,13 @@ public:
 			m_maincpu(*this, "maincpu"),
 			m_pia0(*this, "pia0"),
 			m_pia1(*this, "pia1"),
-			m_speaker(*this, "speaker"),
 			m_videoram(*this, "videoram")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<pia6821_device> m_pia0;
 	required_device<pia6821_device> m_pia1;
-	required_device<speaker_sound_device> m_speaker;
 	required_shared_ptr<UINT8> m_videoram;
-	DECLARE_WRITE_LINE_MEMBER(speaker_w);
 	DECLARE_WRITE8_MEMBER(kbd_put);
 	DECLARE_READ8_MEMBER(pia1_b_in);
 	DECLARE_READ_LINE_MEMBER(pia1_cb1_in);
@@ -147,18 +145,13 @@ static const pia6821_interface poly_pia1_intf=
 	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE)
 };
 
-WRITE_LINE_MEMBER( poly_state::speaker_w )
-{
-	m_speaker->level_w(state);
-}
-
 static const ptm6840_interface poly_ptm_intf =
 {
 	XTAL_12MHz / 3,
 	{ 0, 0, 0 },
 	{ DEVCB_NULL,
 		DEVCB_DEVICE_LINE_MEMBER("ptm", ptm6840_device, set_c1),
-		DEVCB_DRIVER_LINE_MEMBER(poly_state, speaker_w) },
+		DEVCB_DEVICE_LINE_MEMBER("speaker", speaker_sound_device, level_w) },
 	DEVCB_CPU_INPUT_LINE("maincpu", M6809_IRQ_LINE)
 };
 
@@ -242,7 +235,6 @@ ROM_START( poly1 )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_SYSTEM_BIOS(0, "bios0", "Standalone")
 	ROMX_LOAD( "v3bas1.bin", 0xa000, 0x1000, CRC(2c5276cb) SHA1(897cb9c2456ddb0f316a8c3b8aa56706056cc1dd), ROM_BIOS(1) )
-	// next 3 roms could be at the wrong location
 	ROMX_LOAD( "v3bas2.bin", 0xb000, 0x1000, CRC(30f99447) SHA1(a26170113a968ccd8df7db1b0f256a2198054037), ROM_BIOS(1) )
 	ROMX_LOAD( "v3bas3.bin", 0xc000, 0x1000, CRC(89ea5b27) SHA1(e37a61d3dd78fb40bc43c70af9714ce3f75fd895), ROM_BIOS(1) )
 	ROMX_LOAD( "v3bas4.bin", 0x9000, 0x1000, CRC(c16c1209) SHA1(42f3b0bce32aafab14bc0500fb13bd456730875c), ROM_BIOS(1) )

@@ -48,7 +48,7 @@ TILE_GET_INFO_MEMBER(ultratnk_state::ultratnk_tile_info)
 
 void ultratnk_state::video_start()
 {
-	machine().primary_screen->register_screen_bitmap(m_helper);
+	m_screen->register_screen_bitmap(m_helper);
 
 	m_playfield = &machine().tilemap().create(tilemap_get_info_delegate(FUNC(ultratnk_state::ultratnk_tile_info),this), TILEMAP_SCAN_ROWS, 8, 8, 32, 32);
 }
@@ -59,7 +59,7 @@ UINT32 ultratnk_state::screen_update_ultratnk(screen_device &screen, bitmap_ind1
 	UINT8 *videoram = m_videoram;
 	int i;
 
-	m_playfield->draw(bitmap, cliprect, 0, 0);
+	m_playfield->draw(screen, bitmap, cliprect, 0, 0);
 
 	for (i = 0; i < 4; i++)
 	{
@@ -117,9 +117,9 @@ void ultratnk_state::screen_eof_ultratnk(screen_device &screen, bool state)
 			rect.max_x = horz - 15 + machine().gfx[1]->width() - 1;
 			rect.max_y = vert - 15 + machine().gfx[1]->height() - 1;
 
-			rect &= machine().primary_screen->visible_area();
+			rect &= m_screen->visible_area();
 
-			m_playfield->draw(m_helper, rect, 0, 0);
+			m_playfield->draw(screen, m_helper, rect, 0, 0);
 
 			if (code & 4)
 				bank = 32;
