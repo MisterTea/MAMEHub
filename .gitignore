@@ -7,7 +7,12 @@ Client/ume.ini
 *.class
 target
 
+# Mac system file
+.DS_Store
+
 # Package Files #
-*.jar
 *.war
 *.ear
+
+# Updater (downloaded manually)
+Binaries/Tools/Updater.jar
