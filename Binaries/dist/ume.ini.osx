@@ -1,4 +1,4 @@
-   #
+﻿#
 # CORE CONFIGURATION OPTIONS
 #
 readconfig                1
@@ -7,12 +7,12 @@ writeconfig               0
 #
 # CORE SEARCH PATH OPTIONS
 #
-rompath                   ../roms;/Users/jgauci/Roms/NES
+rompath                   ../roms
 hashpath                  ../hash
 samplepath                ../samples
 artpath                   ../artwork
 ctrlrpath                 ../ctrlr
-inipath                   .;../ini
+inipath                   .;ini
 fontpath                  .
 cheatpath                 ../cheat
 crosshairpath             ../crosshair
@@ -116,6 +116,8 @@ joystick_map              auto
 joystick_deadzone         0.3
 joystick_saturation       0.85
 natural                   0
+joystick_contradictory    0
+coin_impulse              0
 
 #
 # CORE INPUT AUTOMATIC ENABLE OPTIONS
@@ -143,114 +145,81 @@ debug_internal            0
 # CORE MISC OPTIONS
 #
 bios                      
-cheat                     1
-skip_gameinfo             1
+cheat                     0
+skip_gameinfo             0
 uifont                    default
 ramsize                   
 confirm_quit              0
 username                  Player
 server                    0
 client                    0
-upnp                      0
 hostname                  127.0.0.1
 port                      5805
 selfport                  5805
 secondsbetweensync        30
-synctransferseconds       5
+synctransferseconds       10
 
 #
-# WINDOWS DEBUGGING OPTIONS
+# DEBUGGING OPTIONS
 #
 oslog                     0
 watchdog                  0
-debugger_font             "Lucida Console"
-debugger_font_size        9
 
 #
-# WINDOWS PERFORMANCE OPTIONS
+# PERFORMANCE OPTIONS
 #
-priority                  0
 multithreading            0
 numprocessors             auto
-profile                   0
+sdlvideofps               0
 bench                     0
 
 #
-# WINDOWS VIDEO OPTIONS
+# VIDEO OPTIONS
 #
-video                     d3d
+video                     opengl
 numscreens                1
 window                    1
 maximize                  0
 keepaspect                1
-prescale                  1
+unevenstretch             1
+centerh                   1
+centerv                   1
 waitvsync                 0
 syncrefresh               0
-menu                      0
+scalemode                 none
 
 #
-# DIRECTDRAW-SPECIFIC OPTIONS
+# OpenGL-SPECIFIC OPTIONS
 #
-hwstretch                 1
-
-#
-# DIRECT3D-SPECIFIC OPTIONS
-#
-d3dversion                9
 filter                    1
-
-#
-# DIRECT3D POST-PROCESSING OPTIONS
-#
-hlsl_enable               0
-hlslini                   %g
-hlslpath                  ../hlsl
-hlsl_prescale_x           0
-hlsl_prescale_y           0
-hlsl_preset               -1
-hlsl_write                
-hlsl_snap_width           2048
-hlsl_snap_height          1536
-shadow_mask_alpha         0.0
-shadow_mask_texture       aperture.png
-shadow_mask_x_count       320
-shadow_mask_y_count       240
-shadow_mask_usize         0.09375
-shadow_mask_vsize         0.109375
-curvature                 0.0
-pincushion                0.0
-scanline_alpha            0.0
-scanline_size             1.0
-scanline_height           0.7
-scanline_bright_scale     1.0
-scanline_bright_offset    0.0
-scanline_jitter           0.0
-defocus                   0.0,0.0
-converge_x                0.0,0.0,0.0
-converge_y                0.0,0.0,0.0
-radial_converge_x         0.0,0.0,0.0
-radial_converge_y         0.0,0.0,0.0
-red_ratio                 1.0,0.0,0.0
-grn_ratio                 0.0,1.0,0.0
-blu_ratio                 0.0,0.0,1.0
-saturation                1.0
-offset                    0.0,0.0,0.0
-scale                     1.0,1.0,1.0
-power                     1.0,1.0,1.0
-floor                     0.0,0.0,0.0
-phosphor_life             0.0,0.0,0.0
-yiq_enable                0
-yiq_cc                    3.59754545
-yiq_a                     0.5
-yiq_b                     0.5
-yiq_o                     0.0
-yiq_p                     1.0
-yiq_n                     1.0
-yiq_y                     6.0
-yiq_i                     1.2
-yiq_q                     0.6
-yiq_scan_time             52.6
-yiq_phase_count           2
+prescale                  1
+gl_forcepow2texture       0
+gl_notexturerect          0
+gl_vbo                    1
+gl_pbo                    1
+gl_glsl                   0
+gl_glsl_filter            1
+glsl_shader_mame0         none
+glsl_shader_mame1         none
+glsl_shader_mame2         none
+glsl_shader_mame3         none
+glsl_shader_mame4         none
+glsl_shader_mame5         none
+glsl_shader_mame6         none
+glsl_shader_mame7         none
+glsl_shader_mame8         none
+glsl_shader_mame9         none
+glsl_shader_screen0       none
+glsl_shader_screen1       none
+glsl_shader_screen2       none
+glsl_shader_screen3       none
+glsl_shader_screen4       none
+glsl_shader_screen5       none
+glsl_shader_screen6       none
+glsl_shader_screen7       none
+glsl_shader_screen8       none
+glsl_shader_screen9       none
+gl_glsl_vid_attr          1
 
 #
 # PER-WINDOW VIDEO OPTIONS
@@ -279,18 +248,36 @@ view3                     auto
 #
 # FULL SCREEN OPTIONS
 #
-triplebuffer              0
 switchres                 0
-full_screen_brightness    1.0
-full_screen_contrast      1.0
-full_screen_gamma         1.0
 
 #
-# WINDOWS SOUND OPTIONS
+# SOUND OPTIONS
 #
 audio_latency             2
 
 #
-# INPUT DEVICE OPTIONS
+# SDL KEYBOARD MAPPING
 #
-dual_lightgun             0
+keymap                    0
+keymap_file               keymap.dat
+uimodekey                 DELETE
+
+#
+# SDL JOYSTICK MAPPING
+#
+joy_idx1                  auto
+joy_idx2                  auto
+joy_idx3                  auto
+joy_idx4                  auto
+joy_idx5                  auto
+joy_idx6                  auto
+joy_idx7                  auto
+joy_idx8                  auto
+sixaxis                   0
+
+#
+# SDL LOWLEVEL DRIVER OPTIONS
+#
+videodriver               auto
+audiodriver               auto
+gl_lib                    /System/Library/Frameworks/OpenGL.framework/Libraries/libGL.dylib
