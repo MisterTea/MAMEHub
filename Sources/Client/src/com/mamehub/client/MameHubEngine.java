@@ -90,10 +90,9 @@ public class MameHubEngine implements Runnable {
 			this.romFileName = romOrCartFileName;
 			this.cartFileName = null;
 		} else {
-			this.romFileName = getMessRomInfo(systemName).filename;
-			if(this.romFileName == null) {
-				this.romFileName = systemName;
-			}
+			// Before we passed the bios path to ume, now we need to pass the system name.
+			// this.romFileName = getMessRomInfo(systemName).filename;
+			this.romFileName = systemName;
 			this.cartFileName = romOrCartFileName;
 		}
 		
