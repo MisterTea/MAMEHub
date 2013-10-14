@@ -98,13 +98,16 @@ public class Main {
 		UIUtils.setPreferredLookAndFeel();
 		NativeInterface.open();
 
-		// make ume.ini from mame.ini if it doesn't exist
+		// make ume.ini if it doesn't exist
 		if (!new File("ume.ini").exists()) {
-			FileUtils.copyFile(new File("mame.ini"), new File("ume.ini"));
+				if (Utils.isMac()) {
+						FileUtils.copyFile(new File("ume.ini.osx"), new File("ume.ini"));
+				} else if (Utils.isUnix()) {
+						FileUtils.copyFile(new File("ume.ini.unix"), new File("ume.ini"));
+				} else {
+						FileUtils.copyFile(new File("ume.ini.win"), new File("ume.ini"));
+				}
 		}
-		// Delete mame/mess inis if they exist
-		new File("mame.ini").delete();
-		new File("mess.ini").delete();
 
 		try {
 			portOpenerThread = new Thread(new PortOpener(Utils.getApplicationSettings().basePort, Utils.getApplicationSettings().secondaryPort));
