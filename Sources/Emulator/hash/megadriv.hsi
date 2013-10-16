@@ -1,0 +1,794 @@
+<hashfile>
+
+	<!-- [megadriv] hash - based on GoodGen 3.00 from Cowering's GoodTools -->
+	<!-- created by Jaku on January 7th, 2012 for use with MAMEHub -->
+	<!-- You have 783 of 5871 known Sega Genesis/Mega Drive/32X ROMS (V3.00) -->
+	<!-- Greets to the current MAMEHub Test Crew: Krusty, Jaku, Prinygod, BigBangBlitz. Guest Starring: Valnar22 -->
+	<!-- note: These are (E) Genesis ROMs only. All BIOS were removed. Look for 32X ROMs in 32x.hsi -->
+	<!-- for the exclusive use of MESS.  Keep this notice intact if editing this file  -->
+
+	<hash crc32="b906b992" sha1="b7f138e7658a0151ad154ddaed18aea10e114c46" name="Addams Family Values (E) (M3) [!]" />
+	<hash crc32="a74ecef2" sha1="71f038fde38e84182e8c2ba78db2a02a9cd19df0" name="Addams Family Values (E) (M3) [h1C]" />
+	<hash crc32="355e8c39" sha1="c08c48236c38263df8ea38a5820d16644bddb1a2" name="Adventures of Batman and Robin, The (E) [!]" />
+	<hash crc32="3bd02ea0" sha1="9431388fc8922372bebf96b59afe09d8c35aaaa7" name="Adventures of Batman and Robin, The (E) [f1]" />
+	<hash crc32="eb3ad92f" sha1="d1466aa716525ef28b095aaa7a17caeddce7b2ff" name="Adventures of Mighty Max, The (E) [b1]" />
+	<hash crc32="482457ad" sha1="a4e9847425716756c5c34377141c5931596566b2" name="Adventures of Mighty Max, The (E) [f1+C]" />
+	<hash crc32="837efffa" sha1="16d3ca39c70a38d7ce4737519cb093853ab5ff75" name="Adventures of Mighty Max, The (E) [f1]" />
+	<hash crc32="00e73f71" sha1="ff6083974256caed4fffabbc4716905d79fffdc4" name="Adventures of Mighty Max, The (E) [f2]" />
+	<hash crc32="24f1a3bb" sha1="e60eec1d39b32ce5cc2125cffd3016b4070a65c3" name="Adventures of Mighty Max, The (E)" />
+	<hash crc32="a451f9a1" sha1="529200d5cea7a5560debd42b547631e7cef38b8b" name="Aero the Acro-Bat 2 (E) [!]" />
+	<hash crc32="1037d3a6" sha1="b660d4f8d5335178b3c043e060f1136a6d8524b9" name="Aero the Acro-Bat 2 (E) [b1]" />
+	<hash crc32="11ae7697" sha1="ca76eb327409ebc99c07d5295648bc005972e691" name="Aero the Acro-Bat 2 (E) [f1+1C]" />
+	<hash crc32="7d9262fe" sha1="e647590f7e03645ae4977f04cefe006a8a31d3f2" name="Aero the Acro-Bat 2 (E) [f1+2C]" />
+	<hash crc32="5b01e60d" sha1="a96ea981c8c662c309428aba7c4ee12ba03f8326" name="Aero the Acro-Bat 2 (E) [f1]" />
+	<hash crc32="aaa351c0" sha1="9b444d481ccd954173aef5e82cb1e0eb4fee8ff9" name="Aero the Acro-Bat 2 (E) [f2]" />
+	<hash crc32="778a0f00" sha1="b7e96b33ab1715fe265ed0de81a26dde969698d5" name="Alex Kidd in the Enchanted Castle (E) (MD Bundle) [!]" />
+	<hash crc32="c3a52529" sha1="fd033ad9bd60d57adf52fa8cd0c1a5968d083f46" name="Alex Kidd in the Enchanted Castle (E) [!]" />
+	<hash crc32="0a78d02d" sha1="a1ce84d9a9d65488355bcb4fb79ea87abe5ff122" name="Alex Kidd in the Enchanted Castle (E) [h1C]" />
+	<hash crc32="12ef9e20" sha1="475a80c008f44c99c4c8c7889923ecff44c807e3" name="Alex Kidd in the Enchanted Castle (E) [h2C]" />
+	<hash crc32="0496e06c" sha1="fa141778bd6540775194d77318f27d2a934e1ac1" name="Alien Soldier (E) [!]" />
+	<hash crc32="c4eb3f76" sha1="426cbeb947e5a9fe9aac2d3288572cf439d45c4a" name="Alien Soldier (E) [b1]" />
+	<hash crc32="3db10c48" sha1="d95a87992705e041d89abcbe9c26194070fcc4c9" name="Alien Soldier (E) [b2]" />
+	<hash crc32="a32d6e8a" sha1="8f74ece3543718e42f7e19911b71f78990c1b972" name="Alien Soldier (E) [f1+C]" />
+	<hash crc32="3f5746ba" sha1="316dbce9d6d17606d01498b5bd7a5e28dba72f7e" name="Alien Soldier (E) [f1]" />
+	<hash crc32="b5cb1ceb" sha1="cd29bb5b9a727148d9e3601507187db2dd02cd2d" name="Alien Soldier (E) [f2]" />
+	<hash crc32="e5e614a5" sha1="3ee5cb67602632cf1c60727c3d2c0bae53493cfc" name="Alien Soldier (E) [T+Ita]" />
+	<hash crc32="28165bd1" sha1="c8a3667631fdbd4d0073e42ada9f7199d09c0cfa" name="Alisia Dragoon (E) [!]" />
+	<hash crc32="224256c7" sha1="70fa6185a4ebbbc9a6b2c7428c489ba5303859b0" name="Andre Agassi Tennis (E) (REV01) [c][!]" />
+	<hash crc32="ec4bbaf3" sha1="b3fd7616a8a7b230ba26e57d561b8748eac05a73" name="Andre Agassi Tennis (E) (REV01) [h1C]" />
+	<hash crc32="92b6f255" sha1="c474d13afb04bfdb291cfabe43ffc0931be42dbc" name="Animaniacs (E) [!]" />
+	<hash crc32="c95dd592" sha1="d1f7af6895e42d158e2342cb417b44fe0bd8dca2" name="Animaniacs (E) [f1+1C]" />
+	<hash crc32="e08da2a1" sha1="55aa1024ad5102a11e67f14fa1d232030bdf2524" name="Animaniacs (E) [f1+2C]" />
+	<hash crc32="843e0ee0" sha1="687270279d4c23c0fdc24c93c039ceff1cf19251" name="Animaniacs (E) [f1+3C]" />
+	<hash crc32="aea133ef" sha1="1f938576389e1a7523ec51e2efedaca65e28e36b" name="Animaniacs (E) [f1+4C]" />
+	<hash crc32="79ea625a" sha1="cdee62730deb17afad3ed7093c7cdc452be126e3" name="Animaniacs (E) [f1+5C]" />
+	<hash crc32="47055150" sha1="9f6ff61afe746992c40b30cee601dbe9ca520c62" name="Animaniacs (E) [f1]" />
+	<hash crc32="34ce93b8" sha1="1f1bf7d0470fa5de7eef0180de15c7a5bb5a747b" name="Animaniacs (E) [p1][!]" />
+	<hash crc32="e9742041" sha1="9d98d6817b3e3651837bb2692f7a2a60a608c055" name="Another World (E) [!]" />
+	<hash crc32="b7cfb8f5" sha1="66807e346e7c8f843b14c1b3eaabc53f7625b05a" name="Another World (E) [b1]" />
+	<hash crc32="e7c793cd" sha1="35ccc4885cfdfee49f66d47945f958b5fbf7c636" name="Another World (E) [b2]" />
+	<hash crc32="52efee1b" sha1="3012cc60755ef99b2ec904db3bd1af9ba81a1514" name="Another World (E) [h1C]" />
+	<hash crc32="e1b27590" sha1="6cc1b9c88ec95777c4af3be9cacf448bd6cad4dd" name="Another World (E) [T+Rus]" />
+	<hash crc32="9970c422" sha1="a58b1efbbdfa8c4ee6f3d06d474c3771ebe36ca4" name="Art of Fighting (E) [!]" />
+	<hash crc32="04f3b247" sha1="4f3e91b78834c70b1ad77476303fea075026c4b3" name="Art of Fighting (E) [b1]" />
+	<hash crc32="4735fee6" sha1="e6353362ba261f1f8efb31e624250e74e1ca0da1" name="Asterix and the Great Rescue (E) (M5) [c][!]" />
+	<hash crc32="4ff1d83f" sha1="189c1e7dd280d0d621eb9e895831fb8109e3e3ab" name="Asterix and the Power of The Gods (E) (M4) [!]" />
+	<hash crc32="2df554c0" sha1="776ae485022b3cba024fac5e1813be6c04380e09" name="Asterix and the Power of The Gods (E) (M4) [f1+1C]" />
+	<hash crc32="33bd23a0" sha1="53d99248418868ddb707c36230954ae7803a6765" name="Asterix and the Power of The Gods (E) (M4) [f1+2C]" />
+	<hash crc32="a90d70f0" sha1="b8f7c3754f8e4222e5f9409530ddc31afcfa70a7" name="Asterix and the Power of The Gods (E) (M4) [f1]" />
+	<hash crc32="45c8b5b7" sha1="0905252a58dc5ce0aaa06f1129516fefbda65ddb" name="Asterix and the Power of The Gods (E) (M5) [x]" />
+	<hash crc32="b3c05418" sha1="ab84274bc98a1f8f808bee3f41645884c95cc840" name="Atomic Runner (E) [!]" />
+	<hash crc32="5d73eabd" sha1="4c0324910b1ea6d11543bdaaa43d76a1226c44b3" name="Atomic Runner (E) [b1+1C]" />
+	<hash crc32="61e38a9f" sha1="d8037570cd1da1593878544be131afe9013656db" name="Atomic Runner (E) [b1+2C]" />
+	<hash crc32="4a7df58d" sha1="81740aac26dfaf620a3f2280af47e01618fa58de" name="Atomic Runner (E) [b1]" />
+	<hash crc32="3ff215fb" sha1="b3919a69bb6fa356e7c3ab00765bcf67b579bfec" name="Atomic Runner (E) [T+Fre]" />
+	<hash crc32="6e53eb6d" sha1="d90e4c4cca6dd5cefa13dad09228b4bc36b3f950" name="ATP Tour Championship Tennis (E) [b1]" />
+	<hash crc32="f99f3a7a" sha1="34dbe1d8712bc9e47b9e43ee13c1f1f3eded9999" name="ATP Tour Championship Tennis (E) [b2]" />
+	<hash crc32="3c2069ac" sha1="29cf790c57ef978e93357130925095ede4fff3ff" name="ATP Tour Championship Tennis (E) [b3]" />
+	<hash crc32="f44af6ac" sha1="e5f6b908b7696e5cc296b651b643722d4ab50d03" name="ATP Tour Championship Tennis (E) [f1+1C]" />
+	<hash crc32="cfb3d8f5" sha1="36a5f9248ccfe5503e4c5a23e6b4d3bd90f50d89" name="ATP Tour Championship Tennis (E) [f1+2C]" />
+	<hash crc32="3e116f38" sha1="553e0613fa84cfc60e4cfcc490bda945a5cdf913" name="ATP Tour Championship Tennis (E) [f1+3C]" />
+	<hash crc32="9fc9e645" sha1="9c284d7542577c85fe8652dc97c4c73e5b2a0413" name="ATP Tour Championship Tennis (E) [f1]" />
+	<hash crc32="1a3da8c5" sha1="c5fe0fe967369e9d9e855fd3c7826c8f583c49e3" name="ATP Tour Championship Tennis (E)" />
+	<hash crc32="ac5bc26a" sha1="b54754180f22d52fc56bab3aeb7a1edd64c13fef" name="Australian Rugby League (E) [!]" />
+	<hash crc32="b1084ce1" sha1="eae21c3937fa1d7070610191cc4b78ffca6f1e93" name="Australian Rugby League (E) [b1]" />
+	<hash crc32="dc37e9dc" sha1="4110e4682dee32a798dbbcfe932f0335f174b8e4" name="Australian Rugby League (E) [h1C]" />
+	<hash crc32="5df975a7" sha1="10d50cc3b55598e97fc2bdcd40f7c67d90082fce" name="Australian Rugby League (E) [h2C]" />
+	<hash crc32="60af0f76" sha1="373fb1744170a114ef99802db987bc9aae009032" name="Ayrton Senna's Super Monaco GP II (JE) [!]" />
+	<hash crc32="c5c315f2" sha1="ffc67660b003f38eef8fcd8e9e53f48773517525" name="Ayrton Senna's Super Monaco GP II (JE) [h1C]" />
+	<hash crc32="2737f92e" sha1="c808ee7f6f61c096ab73b68dd181e25fdcfde243" name="Back to the Future Part III (E) [!]" />
+	<hash crc32="20737a75" sha1="26d649d81600a35968c2128391da7642a480e2c6" name="Ball Jacks (JE) [b1]" />
+	<hash crc32="f5c3c54f" sha1="c8aa71c5632a5cc59da430ca3870cffb37fbd30f" name="Ball Jacks (JE) [c][!]" />
+	<hash crc32="17ea531f" sha1="acf6df2f7cf7885f1ce3aaded6f1188f372bc477" name="Ball Jacks (JE) [h1C]" />
+	<hash crc32="e5aa7987" sha1="61a54641ac2c700e95dd3eb275ddde4a5afe5e07" name="Ball Jacks (JE) [h2C]" />
+	<hash crc32="7243338e" sha1="17ab2b31e214090895ddcff19809c51e60c0204b" name="Ball Jacks (JE) [h3C]" />
+	<hash crc32="0783efd7" sha1="4d653296e729ad1e638722222d3e9a749a95ea5d" name="Ball Jacks (JE) [h4C]" />
+	<hash crc32="61c60c35" sha1="c7279c6d45e6533f9de14f65098c289b7534beb3" name="Batman (E)" />
+	<hash crc32="c7b6435e" sha1="0d132afbc76589b95a0c617d39122f0715eab2c6" name="Beavis and Butt-head (E) [!]" />
+	<hash crc32="630d7765" sha1="1283e764b81e0a92b326d40d0388c79abd7f867d" name="Best of the Best - Championship Karate (Beta) [b1]" />
+	<hash crc32="7c5a1a74" sha1="c704efddd537710d2b84f23c1b0e012487a8e6e4" name="Best of the Best - Championship Karate (Beta) [h1C]" />
+	<hash crc32="6d9b34a9" sha1="6bb367f8658873ca24c416c162a8a54a46d9a2e1" name="Best of the Best - Championship Karate (Beta) [o1+1C]" />
+	<hash crc32="481ecc3e" sha1="110f954f1cd7b8cab20d4a5dba4bcafaa0aae73b" name="Best of the Best - Championship Karate (Beta) [o1+2C]" />
+	<hash crc32="08b21a77" sha1="851207af544a769d93da0fac6a412f68fb7792ad" name="Best of the Best - Championship Karate (Beta) [o1+3C]" />
+	<hash crc32="2d37e2e0" sha1="700a08274578043101a4cda4f0fa15994f8c7016" name="Best of the Best - Championship Karate (Beta) [o1]" />
+	<hash crc32="f842240b" sha1="c7ffaa2af35d0365340075555b6a5c3f252d33b3" name="Best of the Best - Championship Karate (Beta)" />
+	<hash crc32="f9f2bceb" sha1="513005efd123539a905986130d15125085837559" name="Blood Shot (E) (M4) [!]" />
+	<hash crc32="105133bf" sha1="41e884340ae7bdb6dd652a655444b3a28da1f1e0" name="Blood Shot (E) (M4) [b1]" />
+	<hash crc32="9da1c051" sha1="50af3a622d702e149ffca4585a8784cd3d4535ea" name="Blood Shot (E) (M4) [b2]" />
+	<hash crc32="07de778b" sha1="becb61b734ab25cc9ed222c22f92bc77d0232aa2" name="Blood Shot (E) (M4) [b3]" />
+	<hash crc32="aadf9d9d" sha1="5ca549c6f05e7250f305f00b97bfb691fc90d38d" name="Blood Shot (E) (M4) [f1]" />
+	<hash crc32="289296f0" sha1="fd0e8ea230287a580c528c2aea6ee23e887bd34f" name="Blood Shot (E) (M4) [h1C]" />
+	<hash crc32="aee0a2f6" sha1="5a49d2b6950b9b0b30682e30c62f99d0302820d6" name="Blood Shot (E) (M4) [h2C]" />
+	<hash crc32="de8eb731" sha1="d0f32ff1ef872983163f65b6c04e393e79bfb0e8" name="Blood Shot (E) (M4) [h3C]" />
+	<hash crc32="c8328931" sha1="1fe7c13d0f634b375abcb31ffdf73e14c7cb16c2" name="Blood Shot (E) (M4) [h4C]" />
+	<hash crc32="b4ffb6ce" sha1="a01971cdce4d98e770d9c083a5accb8cb5260112" name="Body Count (Beta) (M5)" />
+	<hash crc32="3575a030" sha1="3098f3c7ea9e25bf86219d7ed0795bf363338714" name="Body Count (E) (M5) [!]" />
+	<hash crc32="ed15661d" sha1="0aefa2c5cd88f53638b6fd6124d6345931f66243" name="Body Count (E) (M5) [b1+1C]" />
+	<hash crc32="b95d425e" sha1="3ce50e4e673a94964f1806c2c4ca01eafc7084d0" name="Body Count (E) (M5) [b1+2C]" />
+	<hash crc32="0e7420d1" sha1="c808aa05b69f098789c0e75ca421b4d76a0f33be" name="Body Count (E) (M5) [b1+3C]" />
+	<hash crc32="453ea97d" sha1="4477090e593531bbee09589ba3c6d67cb7a9a592" name="Body Count (E) (M5) [b1+4C]" />
+	<hash crc32="1bb3a94d" sha1="9790ebafffe9606490025ac4c448b9005e41abde" name="Body Count (E) (M5) [b1]" />
+	<hash crc32="ca2ce71b" sha1="05164a70f2628d5d0202a3837c457b01b5a3e835" name="Body Count (E) (M5) [b2]" />
+	<hash crc32="d56c62ee" sha1="3727f8b9463c3e07c4fa15bfa8c0fb96a45e79f5" name="Body Count (E) (M5) [f1]" />
+	<hash crc32="16b1a935" sha1="2b6c7969d9951b650186cac5d3a6c6b1e9401e48" name="Body Count (E) (M5) [t1]" />
+	<hash crc32="adf6476c" sha1="ce46f2b53988f06e0bdfaad1b0dc3e9ca936e1e8" name="Bonanza Bros. (JE) (REV00) [!]" />
+	<hash crc32="0d39d2d9" sha1="ff8fbfad82d167b288c3b08257c56fe36b6dbbd8" name="Bonanza Bros. (JE) (REV00) [b1]" />
+	<hash crc32="a235090d" sha1="29db3c8bcb91eb861584e526842fdc2b2d3089d6" name="Bonanza Bros. (JE) (REV00) [b2]" />
+	<hash crc32="de650e0f" sha1="c3035303165d11c7675d8d03594cdd81d134ff35" name="Bonanza Bros. (JE) (REV00) [b3]" />
+	<hash crc32="23353d23" sha1="fbc96a028423d08a9cdf9e52475c1334f415389f" name="Bonanza Bros. (JE) (REV00) [h1C]" />
+	<hash crc32="c8381811" sha1="bc926517c033fe14b3d41700d56e24c7f1418f3f" name="Bonanza Bros. (JE) (REV00) [h2C]" />
+	<hash crc32="1023a89b" sha1="458f4c8280c02eb7da71c06801d9001cf78246b3" name="Bonanza Bros. (JE) (REV00) [h3C]" />
+	<hash crc32="c6aac589" sha1="f7313ecaf7143873597e3a6ebf58d542d06c3ef3" name="Bonanza Bros. (JE) (REV01) [!]" />
+	<hash crc32="dbc4340c" sha1="4fd33eeaf1e804d005793a6e1185122fd7e9a751" name="Boogerman (E) [!]" />
+	<hash crc32="9ba5a063" sha1="d1e2bb4febf973e3510118d2ea71b4c6594480a9" name="Bram Stoker's Dracula (E) [!]" />
+	<hash crc32="97ed3d3b" sha1="47f031772597bf78e3267acc979ac7c3b7d15ff6" name="Brian Lara Cricket (Beta) [h1C]" />
+	<hash crc32="90f5c2b7" sha1="0f4bec98af08027fc034b9801c28bb299a04be35" name="Brian Lara Cricket (Beta)" />
+	<hash crc32="408cf5c3" sha1="032eb1a15c95540b392b52ee17eef7eee6ac436d" name="Brian Lara Cricket (E) [c][!]" />
+	<hash crc32="61957df2" sha1="73a4c715c4ccbe973cf10aabba0d9938a2c06fa6" name="Brian Lara Cricket 96 (E) [a1][b1]" />
+	<hash crc32="d49b7c17" sha1="9ede513bb33c1f96b82c04c352ede29a6176d0a6" name="Brian Lara Cricket 96 (E) [a1][h1C]" />
+	<hash crc32="6620b235" sha1="f0de57ad9d170b86b5b9aa879d21f41f9ea92fd5" name="Brian Lara Cricket 96 (E) [a1][h2C]" />
+	<hash crc32="7e2a359a" sha1="1d3f5f51248839a5f7ccea055acc3327ebaae69a" name="Brian Lara Cricket 96 (E) [a1][h3C]" />
+	<hash crc32="fe52f7e1" sha1="3e1ef39e9008a4a55fd57b25948668c8c52ba9e3" name="Brian Lara Cricket 96 (E) [a1][x]" />
+	<hash crc32="fa3024af" sha1="0b08788a0f8214c5d07b8e2293f0b954dd05bef5" name="Brian Lara Cricket 96 (E) [c][!]" />
+	<hash crc32="627800b8" sha1="e269b725f4ea9523bf6e481f20b4f25d9780c62c" name="Brutal - Paws of Fury (E) [b1]" />
+	<hash crc32="391c9de4" sha1="85a5f56dd8801c12f39423cc95c1b2f8bbdd4522" name="Brutal - Paws of Fury (E) [b2]" />
+	<hash crc32="3078bcee" sha1="0ffd99557b99a7b1d24e17f90938d0ac918f664f" name="Brutal - Paws of Fury (E) [f1]" />
+	<hash crc32="8f383aff" sha1="b2f0afc0489872ebf531b1c121f476e49bfa7d9c" name="Brutal - Paws of Fury (E) [h1C]" />
+	<hash crc32="2e72990e" sha1="175db805b59d8bacaa56c72448a5e70aa3f84e2b" name="Brutal - Paws of Fury (E) [h2C]" />
+	<hash crc32="7e9a8d32" sha1="8667fa820e90911f12b682fcd1ac870b84b6b60b" name="Brutal - Paws of Fury (E)" />
+	<hash crc32="b467432e" sha1="4039dfb41c08d17047d2acf90d0ab8bb7932cabd" name="Bubba N Stix (E) [c][!]" />
+	<hash crc32="2c57ea98" sha1="ce51ccb49d4826ac6e2aaaef3f97e1a48b4da30d" name="Bubba N Stix (E) [h1C]" />
+	<hash crc32="97add5bd" sha1="004f3d6f333795315a072f3f0661ce4e5e91a4ae" name="Budokan - The Martial Spirit (E) [!]" />
+	<hash crc32="776ff6ff" sha1="a25930ee55a2d88838e3999fb5939d9392fd0efa" name="Burning Force (E)" />
+	<hash crc32="ad217654" sha1="ced5f0967e30c3b4c4c2a81007a7db2910b1885d" name="Cannon Fodder (E) [!]" />
+	<hash crc32="b4695a47" sha1="026a701eba3ad9af2382de09d14fea1731876993" name="Cannon Fodder (E) [b1]" />
+	<hash crc32="2b1112b8" sha1="48c5cd8994d912e662ba2ffb8135ee93856b2642" name="Cannon Fodder (E) [b2]" />
+	<hash crc32="3f440d3f" sha1="4092643d84f6fea976902efff42855cc8a731846" name="Cannon Fodder (E) [o1]" />
+	<hash crc32="75bfa036" sha1="1c817cfd43200a46f2a9dd26c58f1317bb8046d8" name="Cannon Fodder (E) [o1][b1]" />
+	<hash crc32="c7b4ca68" sha1="22e1d482153768460d4b4d6273eb2b9606af8d39" name="Cannon Fodder (E) [o1][h1C]" />
+	<hash crc32="cee6baf2" sha1="73bf361d372b8f526c73acc0a7761e3cbc6bb050" name="Cannon Fodder (E) [o1][h2C]" />
+	<hash crc32="76e6d20d" sha1="6e0344aace03b703cb05a9a0e10c47ebe404a247" name="Capt'n Havoc (E) [!]" />
+	<hash crc32="8a85392e" sha1="dd7a9c45ff2041ca776c06fb81a93ab851e1556f" name="Capt'n Havoc (E) [h1C]" />
+	<hash crc32="43225612" sha1="66ec647175251d8c109c6c21440d415e13e14001" name="Captain America and the Avengers (E)" />
+	<hash crc32="7672efa5" sha1="b048f922db83802a4a78d1e8197a5ec52b73a89f" name="Captain Planet and the Planeteers (E) [!]" />
+	<hash crc32="a99702e5" sha1="fc92d861d2a44c15e5dc00f7409207df3c5c3009" name="Castlevania - The New Generation (Beta) [b1]" />
+	<hash crc32="b0ccf040" sha1="5e9177b49779a98c79434d285345c47ec29ed8e3" name="Castlevania - The New Generation (Beta) [h1C]" />
+	<hash crc32="84cd103a" sha1="8c4004c0d8cbe211ffa3919fd609653221a0078b" name="Castlevania - The New Generation (Beta)" />
+	<hash crc32="4dd4e4a5" sha1="61aabb1053f090fb6c13968c86170357c5df4eba" name="Castlevania - The New Generation (E) [!]" />
+	<hash crc32="a97605b2" sha1="51235a03226424680a33bb104dcc2f1d103f2df1" name="Censor Movie Trailer Demo (PD) [h1C]" />
+	<hash crc32="96ae5e1e" sha1="75bbd7abdf175216dfce64997a0febe5feae2fd1" name="Censor Movie Trailer Demo (PD)" />
+	<hash crc32="e2336231" sha1="daf96b96cea3869087d6fdd75e4b3150e0b35f6c" name="Chaos Engine, The (Beta) [b1]" />
+	<hash crc32="1015a99c" sha1="5eb8be1d556ff82bf6951d34f59082bfe33a50ae" name="Chaos Engine, The (Beta) [h1C]" />
+	<hash crc32="2cee2d23" sha1="e3186eb87a7d4d3cefd0fcb932d561af9ac2e102" name="Chaos Engine, The (Beta) [h3C]" />
+	<hash crc32="d5050490" sha1="96fbcf32ffd26f20a73dbb61455b8ce6d859f5a0" name="Chaos Engine, The (Beta) [h4C]" />
+	<hash crc32="ebfe1ac3" sha1="feb931386f559ab2b6d8dbfc6917c897f35320af" name="Chaos Engine, The (Beta) [h5C]" />
+	<hash crc32="3fb045c2" sha1="9e2e12e90b60e6ca28af6a5afb213cafe1868a95" name="Chaos Engine, The (Beta)" />
+	<hash crc32="bd9eecf4" sha1="b72d36565e13ab04dc20c547e0dcee1f67bcdb42" name="Chaos Engine, The (E) [!]" />
+	<hash crc32="2ca20081" sha1="d79fbc5d895c7dd5c6dd82634a9e109c0eb8b0a1" name="Chaos Engine, The (E) [b1]" />
+	<hash crc32="a6e1d401" sha1="9e379384d948263c12dde8a8163a344f032a53af" name="Chaos Engine, The (E) [o1]" />
+	<hash crc32="aa33e4db" sha1="f6f19cbbeca939831aada9f702b64560488aa2d9" name="Chaos Engine, The (E) [o1][b1]" />
+	<hash crc32="574363cc" sha1="ef4ff61841aa3da7c345ac3a4ab42d5da9ae6362" name="Chaos Engine, The (E) [o1][h1C]" />
+	<hash crc32="ff634b28" sha1="12bb0d838c675b34cecc9041d3560fe35145ec39" name="Cheese Cat-Astrophe Starring Speedy Gonzales (E) (M4) [!]" />
+	<hash crc32="ee206c69" sha1="bde3a26ed484310ada601c40f19674960c70d338" name="Cheese Cat-Astrophe Starring Speedy Gonzales (E) (M4) [b1]" />
+	<hash crc32="1a0f4cd4" sha1="64ff0c4031750bdbdc7d46d22b672e38f8c9c178" name="Cheese Cat-Astrophe Starring Speedy Gonzales (E) (M4) [b2]" />
+	<hash crc32="b356fbae" sha1="34fa6cda5eb0ac4b4737b49dce94e7fae26752ed" name="Cheese Cat-Astrophe Starring Speedy Gonzales (E) (M4) [f1]" />
+	<hash crc32="326f1819" sha1="e7f3805847cd910c1d387be777bcd63cf572203d" name="Cheese Cat-Astrophe Starring Speedy Gonzales (E) (M4) [f2]" />
+	<hash crc32="1ade9488" sha1="f57ed0e6201b706abd5e837d9043723a1b3b4de5" name="Chuck II - Son of Chuck (E) [c][!]" />
+	<hash crc32="7cd40bea" sha1="832a18eb028630e31b5bacd05f9694f4a827268b" name="Chuck Rock (E) [c][!]" />
+	<hash crc32="35bff1fd" sha1="c453130b2789fa5682367f9c071206e06952b951" name="Cliffhanger (E)" />
+	<hash crc32="1318e923" sha1="9523cf8e485a3246027f5a02ecbcee3c5ba690f0" name="Comix Zone (E) (M4) [!]" />
+	<hash crc32="0f59fd3f" sha1="3160298f3ca0caf37efefcda3aeafc257045923e" name="Comix Zone (E) (M4) [h1C]" />
+	<hash crc32="5f09fa41" sha1="b6dc5d4c29b2161f7252828cf267117e726d8e82" name="Cool Spot (E) [!]" />
+	<hash crc32="a80d18aa" sha1="520e01abe76120dbd680b9fc34eb1303c780b069" name="Corporation (E) [c][!]" />
+	<hash crc32="9637097a" sha1="8a2cc2b643a7a6856b240a2f9963965eb55ac85c" name="Corporation (E) [h1C]" />
+	<hash crc32="09310f1c" sha1="87b906b870e15e116c3f1ca835375fba4971eb76" name="Corporation (E) [h2C]" />
+	<hash crc32="eadcdf06" sha1="9ad5b809c9cf8c8afba45d2dbbd0f7595b413ea1" name="Corporation (E) [h3C]" />
+	<hash crc32="c593d31c" sha1="95a3eb13e5d28db8c8ea5ff3e95b0d3e614def69" name="Cosmic Spacehead (E) (M4) [c][!]" />
+	<hash crc32="23cb9cea" sha1="9e62f0cf836949178372a90d5cc9500a23e4824c" name="Cosmic Spacehead (E) (M4) [h1C]" />
+	<hash crc32="ace08469" sha1="c5b4fb8f68497d50396a2b5850722a7c21e6fdcd" name="Cosmic Spacehead (E) (M4) [h2C]" />
+	<hash crc32="83bb53f9" sha1="2920f1e9f35463cdcc32032e93ee71ce37c6be61" name="Cosmic Spacehead (E) (M4) [h3C]" />
+	<hash crc32="98b6a25b" sha1="37ff99da31f62407e99b2912a9766d14435d7972" name="Cosmic Spacehead (E) (M4) [h4C]" />
+	<hash crc32="39f0383f" sha1="df4e284663b2d523c5cb70952b23f1f8150d47b2" name="Cosmic Spacehead (E) (M4) [h5C]" />
+	<hash crc32="d012a47a" sha1="7c146c24216bb333eaa3b08e358582e4465b145e" name="Crack Down (E) [!]" />
+	<hash crc32="24cf3df0" sha1="38054a89dc0692d96ff592b189e02a55aca2106e" name="Crack Down (E) [h1C]" />
+	<hash crc32="036174fb" sha1="9c3537266c023b5fdce764532bb1cc718ffe54dc" name="Crack Down (E) [h2C]" />
+	<hash crc32="1106a07d" sha1="d498fbdc18c5d108b9ac6fc56b0d373b3cb41724" name="Crack Down (E) [h3C]" />
+	<hash crc32="991ad207" sha1="1cb719a20581cc67725f754eabc5fbd7079cb946" name="Crack Down (E) [h4C]" />
+	<hash crc32="1fdc66b0" sha1="67cc61b724d4ccb94dc2b59cc8ea1b0eb9a8cf4e" name="Daffy Duck in Hollywood (E) (M5) [!]" />
+	<hash crc32="7088e961" sha1="18ea376fe5a45ab783d6a3ee6b716cb0b906f9c2" name="Daffy Duck in Hollywood (E) (M5) [h1C]" />
+	<hash crc32="45532427" sha1="d74e1f797524107da0b6b38401ca784895945c98" name="Daffy Duck in Hollywood (E) (M5) [t1]" />
+	<hash crc32="51c839e7" sha1="84acc02428bde2ffce48467a433445c01c42bf59" name="Davis Cup World Tour Tennis 2 (Beta 1) [h1C]" />
+	<hash crc32="6f4183c0" sha1="3c8527d1a01a4c7ab97b2664046f9c11283e3332" name="Davis Cup World Tour Tennis 2 (Beta 1)" />
+	<hash crc32="b95e25c9" sha1="240c0d9487d7659a4b2999e0394d552ab17bee8a" name="Daze Before Christmas, The (E) [!]" />
+	<hash crc32="79987d46" sha1="5ef3ea328fbbce176e46d3b6c34aae47ff4f1f45" name="Dino Dini's Soccer (E) [f1]" />
+	<hash crc32="4608f53a" sha1="49d4a654dd2f393e43a363ed171e73cd4c8ff4f4" name="Dino Dini's Soccer (E)" />
+	<hash crc32="adfde883" sha1="991e22d7f258cba94306d16d5dd37172a34da9d3" name="Disney Collection - Castle of Illusion &amp; Quack Shot (E) [!]" />
+	<hash crc32="d1845e8f" sha1="42debba01ba3555f61d1e9b445542a05d01451dd" name="Disney's Aladdin (E) [!]" />
+	<hash crc32="860e749a" sha1="d2f111c240d0165a231c236e9ae6e62e73ca9caa" name="DJ Boy (E) [!]" />
+	<hash crc32="b2dd857f" sha1="cd3c50b7f9c2f97d7bb0042e4239a05066ae72e0" name="Donald in Maui Mallard (E) [!]" />
+	<hash crc32="a0c88224" sha1="9a1aff2858a8c360779c9faa8bbb5ae955ba7afa" name="Donald in Maui Mallard (E) [b1]" />
+	<hash crc32="f5a0150e" sha1="87268858de20721417e050c1097955eefdbd5298" name="Donald in Maui Mallard (E) [f1]" />
+	<hash crc32="eb0dd423" sha1="1974e4dd107356a62f2d1cb58f88fb0d514be884" name="Donald in Maui Mallard (E) [T+Rus]" />
+	<hash crc32="d98c623c" sha1="e19905cfcf74185e56fa94ae292f78451c8f4e2e" name="Double Clutch (E) [c][!]" />
+	<hash crc32="4c584a39" sha1="b01700f42bea6fd4aa157d2c6e35570fefaf828b" name="Double Clutch (E) [h1C]" />
+	<hash crc32="43e7a117" sha1="0d2abd1a9fe84a77d18f8921fb0709b083140dde" name="Double Clutch (E) [p1][!]" />
+	<hash crc32="af6145e3" sha1="190f2f754e13526994b1a8ad88f139d137d7ef66" name="Double Clutch (E) [p1][h1C]" />
+	<hash crc32="70680706" sha1="8cdaca024585aab557e9a09732a298e5112ee15b" name="Dr. Robotnik's Mean Bean Machine (E) [!]" />
+	<hash crc32="dcf87db9" sha1="c4dcc7618669def954e51f95fa01e0bb82e382bb" name="Dr. Robotnik's Mean Bean Machine (E) [b1]" />
+	<hash crc32="94d75e42" sha1="174b4479a1e2843fa6fbd3f0d30eeeeb37e4c16d" name="Dragon - The Bruce Lee Story (E) [b1]" />
+	<hash crc32="5da56333" sha1="4a135c653cae2f501d16a89940baac5838f7cb97" name="Dragon - The Bruce Lee Story (E) [f1]" />
+	<hash crc32="0c4c62d0" sha1="e1dfd0eaa7b50e4fdc2c3cc27cc9e42ea0f18b53" name="Dragon - The Bruce Lee Story (E) [h1C]" />
+	<hash crc32="fdeed51d" sha1="d6fb86d73e1abc7b7f1aecf77a52fa3f759aedb1" name="Dragon - The Bruce Lee Story (E)" />
+	<hash crc32="f035c737" sha1="5ff71986f4911b5dfd16598a5a3a9ba398c92c60" name="Dragon Ball Z - L'Appel du Destin (F) [!]" />
+	<hash crc32="8c3db455" sha1="642077a4aa395f7b870d1e37d9f54e4aaa44f788" name="Dragon Ball Z - L'Appel du Destin (F) [h1C]" />
+	<hash crc32="877b4e2a" sha1="cf7be325e6387e7d27c853a018139db1833434d2" name="Dragon Ball Z - L'Appel du Destin (F) [T+Eng95%_DBZGameTran]" />
+	<hash crc32="e901e0c0" sha1="9de6be7d46f2caacfde27305137974266687b752" name="Dune - Der Kampf um den Wuestenplaneten (G) [f1]" />
+	<hash crc32="39790728" sha1="55996cd262df518e92271bceee4d2a657cd7e02c" name="Dune - Der Kampf um den Wuestenplaneten (G)" />
+	<hash crc32="6b81d053" sha1="cbf64bfec8bc1cb521fec42093f434995bd667d5" name="Dune - The Battle for Arrakis (E) [b1]" />
+	<hash crc32="9a08b7b7" sha1="a4547282482285f7e490acaa5fac453495cd1813" name="Dune - The Battle for Arrakis (E) [b2]" />
+	<hash crc32="963edb15" sha1="2e8172c1767bf45ddde09fde50f2e1cff9b55a51" name="Dune - The Battle for Arrakis (E) [f1]" />
+	<hash crc32="40a7f5a1" sha1="192cfea4b7ae9723962ad5e32131a08dfe14e120" name="Dune - The Battle for Arrakis (E) [f1][T+Rus]" />
+	<hash crc32="aed5c1c1" sha1="15af84a38fa8841b6d7eae8676442470f9150b9b" name="Dune - The Battle for Arrakis (E) [f2]" />
+	<hash crc32="bcd0ad60" sha1="570bd83ddd37043a33d55221645af8483a8d14df" name="Dune - The Battle for Arrakis (E) [f2][T+Rus]" />
+	<hash crc32="56f1ee59" sha1="d779a4889356e62971aabc1e2568aa7aec039bbe" name="Dune - The Battle for Arrakis (E) [hI+C]" />
+	<hash crc32="dfb2c34f" sha1="3d507261140515763586bbe66e101a2c266f1333" name="Dune - The Battle for Arrakis (E) [hI]" />
+	<hash crc32="125d7416" sha1="f18990e7abd5a5ec549e2477bd56e4e3a29cc470" name="Dune - The Battle for Arrakis (E) [T+Rus]" />
+	<hash crc32="6c8abd58" sha1="534d6ce1f358828d0c8895e91f9f6c783ec869dd" name="Dune - The Battle for Arrakis (E) [T-Rus]" />
+	<hash crc32="b58ae71d" sha1="133cc86b43afe133fc9c9142b448340c17fa668e" name="Dune - The Battle for Arrakis (E)" />
+	<hash crc32="9bfc279c" sha1="118419e596bf07047a18d1828290019fbc4afc45" name="EA Hockey (E) [!]" />
+	<hash crc32="a0b54cbc" sha1="499047852b5892fcdaca191a5aab19257d6a85a8" name="EA Sports Double Header (E) [!]" />
+	<hash crc32="5cd6a79f" sha1="18e78d2f77cf82e65b358a8410440255ec19d28c" name="EA Sports Double Header (E) [h1C]" />
+	<hash crc32="096c5541" sha1="1c67a1ac5fdeabce483772c2bffa294e53faa5bf" name="EA Sports Double Header (E) [h2C]" />
+	<hash crc32="1c07b337" sha1="d5dc11009e3a5cc2381dd2a75cb81ce2e7428342" name="Earthworm Jim (E) [!]" />
+	<hash crc32="263b2fd7" sha1="5b93f598980418312d33014a4aba948fee3b2d2e" name="Earthworm Jim (E) [t1]" />
+	<hash crc32="af235fdf" sha1="b8e93ea8b42c688a218b83797e4a18eda659f3e0" name="Earthworm Jim 2 (E) [!]" />
+	<hash crc32="93801ee2" sha1="32525500ddd6b03beb772b5074322fe6d0b6bfa2" name="Earthworm Jim 2 (E) [b1]" />
+	<hash crc32="813a6094" sha1="0a0fc0c341566e799cf4fcc8ba673f131ef29e73" name="Earthworm Jim 2 (E) [b2]" />
+	<hash crc32="2d88013f" sha1="a171bccc079cca02ef8031119a1e75d2df609f35" name="Earthworm Jim 2 (E) [b3]" />
+	<hash crc32="98aaad36" sha1="4e1729bdf9c840ee32dace5c1bf31ea1b55654b3" name="Earthworm Jim 2 (E) [b4]" />
+	<hash crc32="0377b8bc" sha1="9ce0bbbaf76834d5c9295bf048ba68b9c4d15cd6" name="Earthworm Jim 2 (E) [b5]" />
+	<hash crc32="fe6cc474" sha1="396a80a64b9f4008f23be3b55e306fbe136fe68a" name="Earthworm Jim 2 (E) [f1+1C]" />
+	<hash crc32="bb4924fc" sha1="105c7caf6755c2fe57113d818561def6f3f5b0fd" name="Earthworm Jim 2 (E) [f1+2C]" />
+	<hash crc32="3092be6a" sha1="2a69da6362ced2da13634ee16de79d70f499dea9" name="Earthworm Jim 2 (E) [f1]" />
+	<hash crc32="d7cdccaa" sha1="3c8c2d791afee7352275ee744655767c5a6f068d" name="Earthworm Jim 2 (E) [h1C]" />
+	<hash crc32="7b1bf89c" sha1="cb7d44a40992cff6c31d685866814d6cb85add59" name="ECCO - The Tides of Time (E) [!]" />
+	<hash crc32="9a0b03c1" sha1="909fc58a5e04c1fedf6242de06a91e3016100292" name="Elite Demo - Game (PD)" />
+	<hash crc32="c393ebef" sha1="930ced331058311b19ad7b03b3b689252a02c8e8" name="Elite Demo - Soaker (PD)" />
+	<hash crc32="4a6a7da3" sha1="9efbc5778e0c2e90c0b2a0497ff836f2343fc592" name="Elite Demo - Viewer (PD)" />
+	<hash crc32="62100099" sha1="1edd44d9f9d1d410b6a9ec37647a04d9b50b549e" name="Escape From Mars Starring Taz (E) [!]" />
+	<hash crc32="8368dae1" sha1="f9c4d7dd5740be011eafbc62810b588ba15fe8a3" name="Eternal Champions (Beta) [f1]" />
+	<hash crc32="e0665f06" sha1="c06f2d9ff29b6e6ec2dbec06eab2eac21e80e423" name="Eternal Champions (Beta)" />
+	<hash crc32="b9512f5e" sha1="578475a736bef8c76ba158110cebadf495c2f252" name="Eternal Champions (E) [!]" />
+	<hash crc32="e362545d" sha1="19878efcc14d81d20560273df80cd70916811e87" name="Eternal Champions (E) [f1]" />
+	<hash crc32="6a5cf104" sha1="03e1a6c7fb8003e196c0f0bf787276a14daa313e" name="European Club Soccer (E) [!]" />
+	<hash crc32="004c9b6d" sha1="e02f7d90641cc25ea83b4458e2b1c94941eef9d8" name="European Club Soccer (E) [h1C]" />
+	<hash crc32="25ce1469" sha1="701bb6f13e8e754f53c66ed9932a0658b1e3acbc" name="European Club Soccer (E) [h2C]" />
+	<hash crc32="a8c5d95f" sha1="32c4468770da4bb5779073fb66130bda23211a23" name="Exo-Squad (Beta) [f1]" />
+	<hash crc32="62e6a4c4" sha1="e2fcaae3809c5b9b1dd38c7b3f3777af166577f2" name="Exo-Squad (Beta) [o1][f1]" />
+	<hash crc32="19fefd50" sha1="6cbebecfad49b4c89d3a86c81e1bcd88c9312090" name="Exo-Squad (Beta) [o1][h1C]" />
+	<hash crc32="e98ee370" sha1="190508c5fe65c47f289d85768f7d79b1a235f3d5" name="F-15 Strike Eagle II (E) [!]" />
+	<hash crc32="fbdd4520" sha1="a8327157f6537f4cd5daaff648864e8e0bf945f1" name="F1 World Championship (E) [!]" />
+	<hash crc32="a156aebf" sha1="7df6b488a0b4600552e880af4808e9b0c7376b81" name="F1 World Championship Edition (Beta) [b1]" />
+	<hash crc32="2269ed6b" sha1="6b9984e92eee0044ac245ea534ed667425747e7b" name="F1 World Championship Edition (Beta)" />
+	<hash crc32="74cee0a7" sha1="c50f66c7a220c58ae29a4610faa9ea6e39a54dfe" name="F1 World Championship Edition (E) [!]" />
+	<hash crc32="8ffd372e" sha1="8afdd05fa58148c21cf79aea9becff1cc96fb63f" name="F1 World Championship Edition (E) [b1]" />
+	<hash crc32="cb0b3176" sha1="2f18cc677390a077e7f65f4f0e01d3e8ca8ddb93" name="F1 World Championship Edition (E) [h1C]" />
+	<hash crc32="d351b242" sha1="ce0f0813878700e78b3819ff0db49bd297add09e" name="Fantasia (E) [!]" />
+	<hash crc32="6b484fdb" sha1="a5f62f268cb8471f778aea9dfb706b15478ed0ae" name="Fantasia (E) [h1C]" />
+	<hash crc32="3da9a4f2" sha1="3f8a5a090a1b0601ba38d4706ac834f683f806b7" name="Fatal Fury (E) [o1]" />
+	<hash crc32="2e730a91" sha1="e0a74238cd4592d900f88d033314c668d1522b72" name="Fatal Fury (E)" />
+	<hash crc32="fac29677" sha1="e3489b80a4b21049170fedee7630111773fe592c" name="Fever Pitch Soccer (E) (M5) [!]" />
+	<hash crc32="df4fff0a" sha1="db1be2e2c9a1d9c8eeeee1af992ddaec98e88a1f" name="Fever Pitch Soccer (E) (M5) [h1C]" />
+	<hash crc32="3e0ac214" sha1="d0cfec7559d76f971a2f20f1ff70121923e46af3" name="Fever Pitch Soccer (E) (M5) [h2C]" />
+	<hash crc32="96947f57" sha1="6613f13da5494aaaba3222ed5e730ec9ce3c09a7" name="FIFA Soccer 98 - Road to the World Cup (E) (M5) [!]" />
+	<hash crc32="2351ce61" sha1="54b9060699187bf32048c005a3379fda72c0fb96" name="Fire Shark (E) [!]" />
+	<hash crc32="6f311c83" sha1="31372b2c056eacb747de0a706de3899d224f2c92" name="Flashback - The Quest for Identity (E) [!]" />
+	<hash crc32="fc38606d" sha1="c9ba765556db6ce403f4bc1008aa43512102912c" name="Flashback - The Quest for Identity (E) [b1]" />
+	<hash crc32="ede60e88" sha1="e9508e7d178d5a6de6a4a78032d97837f37db560" name="Flashback - The Quest for Identity (E) [o1]" />
+	<hash crc32="21845d61" sha1="6350da9fa81a84a7a73d0238be135b1331147599" name="Flintstones, The (E) [c][!]" />
+	<hash crc32="2a1da08c" sha1="6357f38db012278bc889c77c5780a82d535760fd" name="Flux for Mega-CD (E) [!]" />
+	<hash crc32="da4ab3cd" sha1="3677dfe5450c0800d29cfff31f226389696bfb32" name="Fun-N-Games (E)" />
+	<hash crc32="bd556381" sha1="c93298ee3ad6164ce497bd49d0ab6638854acb79" name="George Foreman's KO Boxing (E) [!]" />
+	<hash crc32="6c415016" sha1="404bc6e67cd4942615ccb7bd894d780278ec6da7" name="Gods (E) [!]" />
+	<hash crc32="8c2670de" sha1="4fd5ce8207c4568da07bb28c6ab38a23084c801a" name="Grand Slam Tennis (E) [!]" />
+	<hash crc32="dafbba95" sha1="77fc2236924bcba2cba52a73e7fa6208e4b26c15" name="Greatest Heavyweights of the Ring (Beta) [f1+2C]" />
+	<hash crc32="6a598ff0" sha1="eb4987e9cc25d28734ab30b87a3e6fb1fd118f3f" name="Greatest Heavyweights of the Ring (Beta) [h1C]" />
+	<hash crc32="da1440c9" sha1="3820eac00b888b17c02f271fab5fd08af99d5ef9" name="Gunship (E) [c][!]" />
+	<hash crc32="bc2f3243" sha1="0ce6c46c9f2ab6665f953f9d7ea4c76916c738ab" name="Gunship (E) [h1C]" />
+	<hash crc32="b87d6d38" sha1="793e9fe505f28f8a95915015935fbd49e5171618" name="Gunship (E) [h2C]" />
+	<hash crc32="b8d9b7df" sha1="29d9f422cdd49c955700e662b7db51e91f2905d0" name="Gunship (E) [h3C]" />
+	<hash crc32="b8ccdf1d" sha1="4c72510167f86693e6f6cef9dc8ef660c049c122" name="Gunship (E) [h4C]" />
+	<hash crc32="866ed9d0" sha1="a7b265f49ec74f7febb8463c64535ceda15c8398" name="Gunstar Heroes (E) [!]" />
+	<hash crc32="03405102" sha1="fada42bed3a97e1d1b0c6128ddb1f202a50cb1b0" name="Gynoug (E) [!]" />
+	<hash crc32="6c07ef09" sha1="75e55f1af27dfc29002c4bc14874384942cd39e9" name="Gynoug (E) [h1C]" />
+	<hash crc32="4cd2b46f" sha1="0aee7c136f02f9a22797214a8b4bd9a9eeb1faba" name="Gynoug (E) [h2C]" />
+	<hash crc32="cf30acec" sha1="3cee325f4e8d12157b20c4ca7093bf806f5f9148" name="Hellfire (E)" />
+	<hash crc32="deccc874" sha1="87ea7e663a0573f02440f9c5661b1df91b4d3ffb" name="Hurricanes (E) [!]" />
+	<hash crc32="ab3e2ca9" sha1="34579d9bab7cb3705855a31b87ca6723e59fb49d" name="Hurricanes (E) [b1]" />
+	<hash crc32="cdc66fa2" sha1="be6f56575d1ab233fb6025aed98746f13cc11df5" name="Hurricanes (E) [b2]" />
+	<hash crc32="f27c576a" sha1="91560ddf53f50bb5b9f4b48be906ce27e9c05742" name="Hyper Dunk - The Playoff Edition (E) [!]" />
+	<hash crc32="952bb30f" sha1="369cd501fe99e5fb7b0306c7c89fd225064d65c6" name="Indiana Jones and the Last Crusade (E) [b1]" />
+	<hash crc32="eb8f4374" sha1="70b5b4bc3f6d7ee7fbc77489bcfa4a96a831b88d" name="Indiana Jones and the Last Crusade (E) [c][!]" />
+	<hash crc32="3141c49a" sha1="e4fc5e30ec6ceff6ad733c4246cfb05da94963bd" name="Indiana Jones and the Last Crusade (E) [h1C]" />
+	<hash crc32="5b38f4bc" sha1="49f74c26425dc732eaef65e9ee01893d251ffaee" name="Indiana Jones and the Last Crusade (E) [h2C]" />
+	<hash crc32="d97d1699" sha1="8cea50f668fbfba7dd10244a001172c1e648c352" name="International Rugby (E) [c][!]" />
+	<hash crc32="3e6fa7c9" sha1="c05ec0a27b8f79312645f77d1d66e3ef0733cfbe" name="International Rugby (E) [h1C]" />
+	<hash crc32="60f539f7" sha1="7288ae3ba82907c3f6051b8944c06919fac3dfa9" name="International Rugby (E) [h2C]" />
+	<hash crc32="9bb3b180" sha1="ccc60352b43f8c3d536267dd05a8f2c0f3b73df6" name="International Superstar Soccer Deluxe (E) [!]" />
+	<hash crc32="606b56ff" sha1="382fab0c1c3a5a6606e811f204de0fc4a085c646" name="International Superstar Soccer Deluxe (E) [h1C]" />
+	<hash crc32="0aef5b1f" sha1="040c810ccbe6310d369aa147471213d898ec2ad5" name="Jimmy White's Whirlwind Snooker (E) [c][!]" />
+	<hash crc32="0af964c8" sha1="371b646172a450f47c61ecd1d24d71204413933f" name="Jimmy White's Whirlwind Snooker (E) [f1]" />
+	<hash crc32="c1e33c27" sha1="0b8f466ab2caa22f5c35df833382e04a0a5a3dfd" name="Jimmy White's Whirlwind Snooker (E) [h1C]" />
+	<hash crc32="e7849c8f" sha1="e40ad7a3f62b2f71c01a898da7062e393ac2856b" name="Jimmy White's Whirlwind Snooker (E) [h2C]" />
+	<hash crc32="f56ddeb9" sha1="d3afd96e9b6ffcbfbe95e7f9c2a84b8a47dea105" name="Jimmy White's Whirlwind Snooker (E) [h3C]" />
+	<hash crc32="b9709a99" sha1="b96dcaf595a713eeec54257e8cee6306d7748baf" name="Jungle Book, The (E) [!]" />
+	<hash crc32="4d7c01a4" sha1="df7e069d7829890730b743251766d747382bfbd2" name="Jungle Book, The (E) [b1]" />
+	<hash crc32="8ac1c24b" sha1="b0ec3be1c57758a76a8a9711b48ca8cbf4202f65" name="Jungle Book, The (E) [b2]" />
+	<hash crc32="d8f87f0d" sha1="4f545b764278e9a4e9cc9ac322d5fd7f568a78e4" name="Jungle Book, The (E) [b3]" />
+	<hash crc32="48d22d54" sha1="7b611c29eb5ec506cb40c4dc6eaf74306d4278e3" name="Jungle Book, The (E) [h1C]" />
+	<hash crc32="448341f6" sha1="2dca183ddb79805b6300d8fcca1163fce88dd9db" name="Jurassic Park (E) [!]" />
+	<hash crc32="e58c3c85" sha1="df3eed78abea1e8e652b4becf8338de773f50af5" name="Jurassic Park (E) [b1]" />
+	<hash crc32="bc37401a" sha1="e449cfd4f9d59cf28b4842d465022a399964d0d6" name="Kick Off 3 - European Challenge (E) [!]" />
+	<hash crc32="33f6c4a6" sha1="6dfccec50d2745244759b45820a6a7305c3fc3f2" name="Kick Off 3 - European Challenge (E) [f1+C]" />
+	<hash crc32="5d5101ca" sha1="e23ca4a5243019a2477329427ea1c05fdc0cd1a4" name="Kick Off 3 - European Challenge (E) [f1]" />
+	<hash crc32="9aeddbfc" sha1="c7fa4e6135b3e0b902564c7133666cdf2a4e4be0" name="Kick Off 3 - European Challenge (E) [f2+C]" />
+	<hash crc32="2bb0b787" sha1="78063bc063fbe3c1c2cf44d1eafa8a6498599900" name="Kick Off 3 - European Challenge (E) [f2]" />
+	<hash crc32="7a94fd49" sha1="46dc75f1e4d79fd159fcb4a256881375b63d9a2b" name="King of the Monsters (E) [!]" />
+	<hash crc32="e3c65277" sha1="9fbadc86319936855831ecd096d82d716b304215" name="Landstalker - The Treasures of King Nole (E) [!]" />
+	<hash crc32="5de7d917" sha1="86db4b22b54e8583e35717927ad66b7535bf33b4" name="Landstalker - The Treasures of King Nole (F)" />
+	<hash crc32="10fedb8f" sha1="b0b447158cabb562e6bf4c0b829ed938b34afb52" name="Landstalker - The Treasures of King Nole (G) [!]" />
+	<hash crc32="6a1a4579" sha1="f4b86031e348edb4dcffaf969998f368955828ce" name="Lemmings (E) [!]" />
+	<hash crc32="741eb624" sha1="b56f9e78dee0186c8f8103c7d125e8b497eb0196" name="Lemmings 2 - The Tribes (E) [!]" />
+	<hash crc32="1c6664b7" sha1="a9fedcec378fc9ad115b8cf0f5328d15dea11a04" name="Lemmings 2 - The Tribes (E) [b1]" />
+	<hash crc32="f4480037" sha1="c174a5b9d20c301d8901ae976b6310b7b4eba3c9" name="Lemmings 2 - The Tribes (E) [b2]" />
+	<hash crc32="aebffeea" sha1="2d7b36a26eee2afac6e97d6669013115a1a322fa" name="Lemmings 2 - The Tribes (E) [b3]" />
+	<hash crc32="f4142206" sha1="459d3f5c0120cc51eb369c0419c2dfbfeb08e326" name="Lemmings 2 - The Tribes (E) [b4]" />
+	<hash crc32="77bbb218" sha1="ee2435f009c2d80ec9d3bd3c46e55416e0869b92" name="Lemmings 2 - The Tribes (E) [f1]" />
+	<hash crc32="ca2bf99d" sha1="b9cc7ff3c6a50b2624358785bcadd1451e23993e" name="Lethal Enforcers (E) [!]" />
+	<hash crc32="4bfe045c" sha1="0c99f93ef90d6242b198c99a1e940be432ec861f" name="Lethal Enforcers II - Gun Fighters (E) [!]" />
+	<hash crc32="8de619f8" sha1="79fcfda208c828c909ff4378eab9a0f33a996086" name="Lethal Enforcers II - Gun Fighters (E) [h1C]" />
+	<hash crc32="52c7252b" sha1="4352ae7ba1316e4384c4632be80f2fe277443f51" name="Light Crusader (E) (M4) [!]" />
+	<hash crc32="8b034406" sha1="124d59e60670b9ec337e44eceedb249e5a3b9f2b" name="Light Crusader (E) (M4) [b1]" />
+	<hash crc32="9b07fd11" sha1="cd41bc937e50daa49c2f2146e73652036b1201f1" name="Light Crusader (E) (M4) [f1]" />
+	<hash crc32="f14325db" sha1="4383811ca8c048ae0573f0a570a4d3aabc94d129" name="Light Crusader (E) (M4) [h1C]" />
+	<hash crc32="3aabd1c2" sha1="bd1d39bff3a70fad6c8334454b781652d0215435" name="Lost Vikings, The (Beta) [b1]" />
+	<hash crc32="bfc5a64e" sha1="1dcaa50714335ca8555193c983cbf29cb091b997" name="Lost Vikings, The (Beta) [h1C]" />
+	<hash crc32="2c3ebbd0" sha1="7aed6ff576f963b917ba49585dfa51eb75be402f" name="Lost Vikings, The (Beta) [h1C][T+Ser_Mad Fox]" />
+	<hash crc32="cbdf319f" sha1="8fa03b8fe8faee5d1f20276d77fe445a7303e741" name="Lost Vikings, The (Beta) [hI]" />
+	<hash crc32="d61d8c1c" sha1="183acf33676cc55b3f11f3427dffd92da75b3770" name="Lost Vikings, The (Beta) [hI][T+Ser_Mad Fox]" />
+	<hash crc32="a950cc5c" sha1="ba5612f36fecd43d4d63173d8126cdd9855ea894" name="Lost Vikings, The (Beta) [T+Ser_Mad Fox]" />
+	<hash crc32="012bb84d" sha1="beefa778e5afd9c98f9ea598269bffe7869561cc" name="Lost Vikings, The (Beta) [T-Ser_Mad Fox]" />
+	<hash crc32="17bed25f" sha1="375eaa9845692db4fdbd0b51985aa0892a8fe425" name="Lost Vikings, The (Beta)" />
+	<hash crc32="ea3e44b6" sha1="375b51f994e7f8df735c9754397f7a7910518708" name="Lost Vikings, The (E) [T+Ser_Mad Fox]" />
+	<hash crc32="1f14efc6" sha1="c977a21d287187c3931202b3501063d71fcaf714" name="Lost Vikings, The (E)" />
+	<hash crc32="cae0e3a6" sha1="36c66a1cbf44f4019b84538a6bf452c369239bc9" name="Man Overboard! - S.S. Lucifer (E) [c][!]" />
+	<hash crc32="896ae548" sha1="0a5ce278c2df7f03ae77f5cd9e5bac271d43c031" name="Man Overboard! - S.S. Lucifer (E) [f1]" />
+	<hash crc32="6f4fb1f9" sha1="4ffdf94deaccd5bca4adc1965a06f73beee4406e" name="Man Overboard! - S.S. Lucifer (E) [f2]" />
+	<hash crc32="7fa84276" sha1="685f9bdc0918aafe674af66eddd268aebcc6fa20" name="Man Overboard! - S.S. Lucifer (E) [h1C]" />
+	<hash crc32="ee937d67" sha1="fadba03bc709e09aec0909d9f9c7091876554261" name="Man Overboard! - S.S. Lucifer (E) [h2C]" />
+	<hash crc32="2307b905" sha1="717e924db1ac7cfd099adb6031a08606fcb30219" name="Marko's Magic Football (E) (M4) [!]" />
+	<hash crc32="e09bbd70" sha1="d2b8358ef261f8b5ad54a58e89f3999312d0cec9" name="Marsupilami (E) (M5) [!]" />
+	<hash crc32="5d651544" sha1="3fd12946ea95e61450d4990a6944decccd298896" name="Marsupilami (E) (M5) [b1]" />
+	<hash crc32="aff49ad5" sha1="6612edbc41c5e27fb11d2c77dd0147e8c84cb928" name="Marsupilami (E) (M5) [b2]" />
+	<hash crc32="5b8de6de" sha1="2fdefee8f5eac6c8f6b9700600f144f3c1557ed9" name="Marsupilami (E) (M5) [h1C]" />
+	<hash crc32="4b07a105" sha1="40e48ce531ed013d5a4a6f689e70781df3e0095c" name="Mazin Wars (E) [!]" />
+	<hash crc32="525ed0a2" sha1="19602acd04604e6bcd73f54bbc79c723c542c1b3" name="McDonald's Treasure Land Adventure (E) [b1]" />
+	<hash crc32="6ab6a8da" sha1="f6178018102df3c92d05a48ff5949db9416acd5c" name="McDonald's Treasure Land Adventure (E)" />
+	<hash crc32="30d59f2f" sha1="1cf425556de9352c1efe60b07e592b610e78cfbd" name="Mega Games 2 (E) [!]" />
+	<hash crc32="c17728e2" sha1="c67157c6d1241d3dddb617ef9d6a01da09c4c5ba" name="Mega Games 2 (E) [h1C]" />
+	<hash crc32="1480df8c" sha1="530a1ad05e73cbdc94df3bb5b1dc079695782049" name="Mega Games 2 (E) [h2C]" />
+	<hash crc32="b4247d98" sha1="4329d7fa2c4b8e6ed0b4adfc64dca474d0ee5a51" name="Mega Games 3 (E) [!]" />
+	<hash crc32="b66fb80d" sha1="42f29050e071c3086be35452d917debf25648b23" name="Mega Games 6 (Vol 1) (E) [!]" />
+	<hash crc32="9004b5ce" sha1="c5726b2b7d031f6b03ddc819ebaf36ac54af325c" name="Mega Games 6 (Vol 1) (E) [h1C]" />
+	<hash crc32="e8d10db9" sha1="1fc777b946874216add624414ef6f5878bab202b" name="Mega Games 6 (Vol 2) (E) [!]" />
+	<hash crc32="fe3e7e4f" sha1="cca818d624e95c2d07cfc1b22c44eb53e4bdcd02" name="Mega Games 6 (Vol 3) (E) [!]" />
+	<hash crc32="90de7237" sha1="99e57741f709c5bd5dc47c6a70f0bfa8d79afc08" name="Mega Games 6 (Vol 3) (E) [h1C]" />
+	<hash crc32="baf58dca" sha1="d03b6099a16393749d5163412b7852fb9b4a5684" name="Mega Games 6 (Vol 3) (E) [h2C]" />
+	<hash crc32="db753224" sha1="076df34a01094ce0893f32600e24323567e2a23b" name="Mega Games I (E) [!]" />
+	<hash crc32="85d11262" sha1="ebb10ea6fc2a55dd8ae55cf0618e100eedcb65ea" name="Mega Games I (E) [b1]" />
+	<hash crc32="2716d907" sha1="df44117e292d1c360fb2058ea069ab2369e5bdcd" name="Mega Games I (E) [h1C]" />
+	<hash crc32="570939cc" sha1="1d4ef81cf5ddd04902222e5815e60848097a8aec" name="Mega Games I (E) [h2C]" />
+	<hash crc32="79b2f941" sha1="a01f7c24238f011b26f941e66d5fda125f3578ce" name="Mega Games I (E) [h3C]" />
+	<hash crc32="2148d56d" sha1="e861551edabe55181ed1b7260169e953af903b5e" name="Mega Lo Mania (E) (REV00) [c][!]" />
+	<hash crc32="dd151395" sha1="54a2bd219232f09b220b455fc06a1155031cdd38" name="Mega Lo Mania (E) (REV01) [hI+C]" />
+	<hash crc32="72e74abe" sha1="d3ce02119bbdde1b8318666952088ef76b7efd2d" name="Mega Lo Mania (E) (REV01) [hI]" />
+	<hash crc32="ab9fed30" sha1="3794cb708b1f54675eb6fb272cfee01e6dbcecc1" name="Mega Lo Mania (E) (REV01)" />
+	<hash crc32="52fd938e" sha1="02f2616459b6cccbf57c6496d515cd8bb10d2c90" name="Mega SWIV (E) [b1]" />
+	<hash crc32="cdf87288" sha1="a85c3676517cfcf3ae03c9415ad5e9e987ba133c" name="Mega SWIV (E) [f1+C]" />
+	<hash crc32="fc9309de" sha1="b2cadd146554cb628ea7466c858cb8c6a6105ef7" name="Mega SWIV (E) [f1]" />
+	<hash crc32="1ec66bf7" sha1="6afc7c86dd9f03d24ca976437d1f70e742a7928d" name="Mega SWIV (E) [p1][!]" />
+	<hash crc32="78c2f046" sha1="6396fb0f204c9f23d0af0b39d069ff0883e191aa" name="Mega SWIV (E)" />
+	<hash crc32="b1d15d0f" sha1="00ad2cf231bedbd373253b169e170e8b0db4c86a" name="Mega Turrican (E) [!]" />
+	<hash crc32="66db8c2f" sha1="bcb911e16d17172033027034fbc6fe450779a9c7" name="Megaman - The Wily Wars (E) [f1]" />
+	<hash crc32="0afccdd5" sha1="78979480bee91944a50529d79e0fa811458a8056" name="Megaman - The Wily Wars (E) [f2]" />
+	<hash crc32="dcf6e8b2" sha1="ea9ae2043c97db716a8d31ee90e581c3d75f4e3e" name="Megaman - The Wily Wars (E)" />
+	<hash crc32="98dee72b" sha1="8dd576063dba6ac145636130fe121ac47df89989" name="MegaNet BIOS (E) [o1]" />
+	<hash crc32="fab33cc2" sha1="7969fe1b43d29b65a1e24e118f4a6fea27437e9c" name="MegaNet BIOS (E)" />
+	<hash crc32="5c218c6a" sha1="daf1ded2439c626c0fd227550be6563cd1b09612" name="Mick &amp; Mack as the Global Gladiators (E) [!]" />
+	<hash crc32="cb5a8b85" sha1="6bcbf683a5d0e9f67b9ed8f79bc593fab594d84a" name="Mickey Mania - Timeless Adventures of Mickey Mouse (E) [!]" />
+	<hash crc32="54e4cff1" sha1="0d4d023a1f9dc8b794bd60bf6e70465b712ffded" name="Micro Machines (C)" />
+	<hash crc32="23319d0d" sha1="e8ff759679a0df2b3f9ece37ef686f248d3cf37b" name="Micro Machines - Turbo Tournament '96 (V1.1) (E) (J-Cart) [c][!]" />
+	<hash crc32="74ff1139" sha1="54166f859fcaf11427ca564c9e497b59ea9cb106" name="Micro Machines - Turbo Tournament '96 (V1.1) (E) (J-Cart) [h1C]" />
+	<hash crc32="9e5840a5" sha1="c303a15916bcc8d35643960e7aaf881958c18bd7" name="Micro Machines - Turbo Tournament '96 (V1.1) (E) (J-Cart) [h2C]" />
+	<hash crc32="66f93ff0" sha1="80b16244730385435884f82b1eaa3964f7abb320" name="Micro Machines - Turbo Tournament '96 (V1.1) (E) [h1C]" />
+	<hash crc32="bf3bbeee" sha1="27e3111cf3eeae2afe683aea856c1fff9258edd5" name="Micro Machines - Turbo Tournament '96 (V1.1) (E) [h2C]" />
+	<hash crc32="3137b3c4" sha1="7e59fc5800137cea3d4526ee549f7caef150dcaa" name="Micro Machines - Turbo Tournament '96 (V1.1) (E)" />
+	<hash crc32="42bfb7eb" sha1="ab29077a6a5c2ccc777b0bf22f4d5908401f4d47" name="Micro Machines 2 - Turbo Tournament (E) (J-Cart) [c][!]" />
+	<hash crc32="01c22a5d" sha1="cb5fb33212592809639b37c2babd72a7953fa102" name="Micro Machines 2 - Turbo Tournament (E) [c][!]" />
+	<hash crc32="42482cb3" sha1="b643c796fee486c58be792b5388cd2c4469fcbf0" name="Micro Machines 2 - Turbo Tournament (E) [h1C]" />
+	<hash crc32="a2d138a0" sha1="7ebccfb71eac1503bb60727200e29920a21f16d3" name="Micro Machines 2 - Turbo Tournament (E) [h2C]" />
+	<hash crc32="b1759d95" sha1="55b6122669ce8a424c88650c8d947bd351f5b986" name="Micro Machines 2 - Turbo Tournament (E) [h3C]" />
+	<hash crc32="b3abb15e" sha1="6d3df64ab8bb0b559f216adca62d1cdd74704a26" name="Micro Machines Military - It's a Blast! (E) (J-Cart) [c][!]" />
+	<hash crc32="e2279979" sha1="c9d8229b5e365f5e8b20a00ffb5d424fdcf2e7b4" name="Micro Machines Military - It's a Blast! (E) [h1C]" />
+	<hash crc32="72491c7e" sha1="c4f190cefc0ecdab18ff78f89255474491eaec27" name="Micro Machines Military - It's a Blast! (E) [h2C]" />
+	<hash crc32="a1ad9f97" sha1="e58572080a6a7918b60a65461f6432582ef1641c" name="Micro Machines Military - It's a Blast! (E) [x]" />
+	<hash crc32="70b0a5d7" sha1="5a2e7f8c752dfd8b301d2c044619c003a15894aa" name="Mig-29 Fighter Pilot (E) [!]" />
+	<hash crc32="53e1af08" sha1="cf56c3edf53e4d36cea2f36d72bdb99e46c5a641" name="Mig-29 Fighter Pilot (E) [f1]" />
+	<hash crc32="7f96e663" sha1="7bad0db9a96eafa413562b6631487ca847b02466" name="Mighty Morphin Power Rangers (E) [!]" />
+	<hash crc32="254a4972" sha1="b3d105d9f7a8d2fd92015e1ac98d13a4094de5ef" name="Mighty Morphin Power Rangers - The Movie (E) [!]" />
+	<hash crc32="bef9a4f4" sha1="f37518380d3e41598cbff16519ca15fcb751de57" name="Misadventures of Flink, The (E) [!]" />
+	<hash crc32="23a62d98" sha1="59c6e743ea0afc5a9cc18a621d71cc78b608c86d" name="Misadventures of Flink, The (E) [b1]" />
+	<hash crc32="ef664c17" sha1="1e37c29c4faa03c7144bdba5e50b022235a02442" name="Misadventures of Flink, The (E) [h1C]" />
+	<hash crc32="af6de3e8" sha1="7f555d647972fee4e86b66e840848e91082f9c2d" name="Mortal Kombat 3 (E) [!]" />
+	<hash crc32="61279e52" sha1="af07b828a8768ec3fbbf0ef001eea0926b5e4d46" name="Mortal Kombat 3 (E) [b1]" />
+	<hash crc32="1fa39028" sha1="88612b7fc6cb6b4fbdb51ba28ad34eae31041efc" name="Mortal Kombat 3 (E) [f1]" />
+	<hash crc32="0786ea0b" sha1="318ff3a44554b75260d5b9b9e7b81a3cfd07581a" name="Mr. Nutz (E) [!]" />
+	<hash crc32="9cc5c4b6" sha1="67ed8e9a7a484ff6abdc88cfd69479d35496debb" name="Mr. Nutz (E) [f1+1C]" />
+	<hash crc32="44d63a3e" sha1="a05e5b46f9343c95fcf11db01c893eed97c9d175" name="Mr. Nutz (E) [f1+2C]" />
+	<hash crc32="2c72737e" sha1="5407b9f7d11a775b814d754f4986494944cbc47e" name="Mr. Nutz (E) [f1+3C]" />
+	<hash crc32="e6d309ba" sha1="0196055833c49dae879efa2cb690555ab9c3b3ea" name="Mr. Nutz (E) [f1+4C]" />
+	<hash crc32="ad725881" sha1="eb77d8d1a566d78c8986d09313d89aaf5e438b65" name="Mr. Nutz (E) [f1]" />
+	<hash crc32="8ea4717b" sha1="d79218ef96d2f1d9763dec2a9e6ad7c2907d024b" name="Muhammad Ali Heavyweight Boxing (E)" />
+	<hash crc32="edb4d4aa" sha1="4594ba338a07dd79639c11b5b96c7f1a6e283d0c" name="NBA Hang Time (E) [!]" />
+	<hash crc32="a7b571ef" sha1="a6835433c67a6d22574234cbaa1b10099f6ff5ed" name="NBA Hang Time (E) [b1+C]" />
+	<hash crc32="4e3bf0fe" sha1="f0b871353458b6e19bb2f52fa850ca8994e2de17" name="NBA Hang Time (E) [b1]" />
+	<hash crc32="320f534d" sha1="efc16a7695064158a6a99d85c2b8fb682816f5e9" name="NBA Hang Time (E) [b2]" />
+	<hash crc32="e10a25c0" sha1="5f2c8303099ce13fe1e5760b7ef598a2967bfa8d" name="NHL 95 Elitserien (E) [c][!]" />
+	<hash crc32="d4e9b320" sha1="d03637eec11a511655ceb1c1db3c2d59fe853bb4" name="NHL 95 Elitserien (E) [o1]" />
+	<hash crc32="eb516cb1" sha1="1acd151a9881a30b140636e91793ebcfc954ef59" name="NHL 96 Elitserien (E) [b1]" />
+	<hash crc32="ac22224a" sha1="284839baca980d312136bfee9017566fd7abd48c" name="NHL 96 Elitserien (E) [f1+C]" />
+	<hash crc32="ca12be86" sha1="4fe8a28c997487e00742b4d85860cf1f3a5be380" name="NHL 96 Elitserien (E) [f1]" />
+	<hash crc32="45326727" sha1="60a0a823919a529a5a7e9a63a7ab4938bc8b88d7" name="NHL 96 Elitserien (E) [h1C]" />
+	<hash crc32="9821d0a3" sha1="085fb8e6f0d2ff0f399de5c57eb13d9c9325dbae" name="NHL 96 Elitserien (E)" />
+	<hash crc32="da11aa35" sha1="c2e9a5d35e08ccd82519c520a90aca0672e2347b" name="Nigel Mansell's World Championship (E) [h1C]" />
+	<hash crc32="3fe3d63b" sha1="81b6d231998c0dd90caa9325b9cc6e50c6e622bb" name="Nigel Mansell's World Championship (E)" />
+	<hash crc32="924e57d3" sha1="55702a7dee0cd2092a751b19c04d81694b0c0d0f" name="Olympic Gold - Barcelona 92 (E) (M8) [c][!]" />
+	<hash crc32="fa537a45" sha1="84528efaf0729637167774d59a00694deadd5d6d" name="Olympic Winter Games - Lillehammer 94 (E) [c][!]" />
+	<hash crc32="e16b102c" sha1="0e45b84e875aa4e27bf003cbc0f857f2e5659625" name="Ooze, The (E) [!]" />
+	<hash crc32="dd6de6f0" sha1="58ee08b809e9ed1925bfeb9723c0095ba5087004" name="Ottifants, The (Beta) [h1C]" />
+	<hash crc32="c6e3dd23" sha1="76d2606d12a94b10208324ad1ff3e295ef89f5f4" name="Ottifants, The (Beta)" />
+	<hash crc32="41ac8003" sha1="4bb7cfc41ea7eaaed79ec402ec0d551c1e5c5bb6" name="Ottifants, The (E) (M5) [!]" />
+	<hash crc32="0789ade8" sha1="98129f7530ffe14124e7f51fd40155ccebdab095" name="Ottifants, The (E) (M5) [f1]" />
+	<hash crc32="5cb3536a" sha1="f1a26bd827e9a674cf1dde74dc2c36f61c827c76" name="OutRun 2019 (E) [!]" />
+	<hash crc32="79a180e2" sha1="c4cf7695127b7ec5e003b5e7e15fdbfb172d1fcb" name="Pagemaster, The (E) [!]" />
+	<hash crc32="a402ad17" sha1="113270310da7e7d6e48f814469cbe68e3de07a69" name="Paperboy II (E) [b1+C]" />
+	<hash crc32="cdd8e7fc" sha1="efe9daf8d73b69e026b8b4747f657135086b2a35" name="Paperboy II (E) [b1]" />
+	<hash crc32="7a567f8d" sha1="7fa30f0268feaf2fc7df6713a18ac2ed034e6a6f" name="Pebble Beach Golf Links (E) [b1]" />
+	<hash crc32="8bf1aac8" sha1="3ef64f36238688c3a32c446fbc2e90621e7b5544" name="Pebble Beach Golf Links (E) [f1]" />
+	<hash crc32="0298bb39" sha1="5540605c8142c8ad807265bd11886a6e9fc6a0f7" name="Pebble Beach Golf Links (E) [f2]" />
+	<hash crc32="f71faa8f" sha1="5857bcab596e59a9bea3d69fb9663abd5c20dc0b" name="Pebble Beach Golf Links (E) [h1C]" />
+	<hash crc32="9d5ec55a" sha1="aa4f46b7edc0f3798211759cf1a9c4d0e79c7f07" name="Pebble Beach Golf Links (E) [h2C]" />
+	<hash crc32="6cfc7297" sha1="53e8e8f11fb9950732409b770b7d9c8dabe85a19" name="Pebble Beach Golf Links (E)" />
+	<hash crc32="aa8b19bc" sha1="3f73dcabcdf0d781834fcc673533301b82f0e91b" name="Pete Sampras Tennis (E) (REV03) (J-Cart) [!]" />
+	<hash crc32="14e3fb7b" sha1="139b9cea418c7c932033ddff87bf10466828cbfa" name="Pete Sampras Tennis 96 (E) [c][!]" />
+	<hash crc32="cb0fee78" sha1="4c4ba952e1643febcb26cbe2e7039e6aaf962e92" name="Pete Sampras Tennis 96 (E) [f1]" />
+	<hash crc32="47744d9a" sha1="b3de5efbe66b62f352e52cc981d2d46551957fb5" name="Pete Sampras Tennis 96 (E) [h1C]" />
+	<hash crc32="b024882e" sha1="6d588fac0fed0e2303082e29cde12d94719cca32" name="Phantom 2040 (E) [!]" />
+	<hash crc32="13abc2b2" sha1="5b95529dd491266648134f1808f4da55a2ab9296" name="Phelios (E) [c][!]" />
+	<hash crc32="d4fb7440" sha1="80b000f909e34e1d022cecc901c8372fb363aa05" name="Pinocchio (E) [f1+C]" />
+	<hash crc32="3f5aef18" sha1="2dc9ad61650440a158bc1523d1eb665a6099903e" name="Pinocchio (E) [f1]" />
+	<hash crc32="28014bdc" sha1="7b6c9fdd201341f5319be85b5042870a84e82ae0" name="Pinocchio (E)" />
+	<hash crc32="c9198e19" sha1="b7c5f6e5f422c7bb5ec3177328d963c9beace24f" name="Pitfall - The Mayan Adventure (E) [!]" />
+	<hash crc32="171a250a" sha1="d51ea30bdc28fb2809b4122de801ab2b94aed60b" name="Pitfall - The Mayan Adventure (E) [b1]" />
+	<hash crc32="165e7987" sha1="5ffcdc3e01151837e707ae225a3a845a8b6d3394" name="Pocahontas (E) [!]" />
+	<hash crc32="83d56f64" sha1="fe388caefbad7c08b699ed2d0e8a62ff1d697a16" name="Populous (E) [!]" />
+	<hash crc32="ee988bd9" sha1="556a79febff1fe4beb41e4e8a2629ff02b20c38f" name="Populous II - Two Tribes (E) [!]" />
+	<hash crc32="b3865067" sha1="808a2dbcde42d1b4dd8ab022b910ed25f38b8e60" name="Populous II - Two Tribes (E) [b1]" />
+	<hash crc32="2d9992b8" sha1="7c1e99b8f7d7a2f3f9ae702d08d38aba1f9fedb3" name="Populous II - Two Tribes (E) [b2]" />
+	<hash crc32="51b7579c" sha1="dd178b30b701d1b3103c52b1f9a34172de8eb729" name="Populous II - Two Tribes (E) [b3]" />
+	<hash crc32="bac53700" sha1="629f49eede05822c6e1655e8c00f7e5dafac5cae" name="Populous II - Two Tribes (E) [f1+1C]" />
+	<hash crc32="d49e6c84" sha1="6982ea0ec5bfc1ab51aebacb4fcaee79df4e8004" name="Populous II - Two Tribes (E) [f1+2C]" />
+	<hash crc32="28fd87a7" sha1="fdc672b22a0ea04c59e7350f846fbc19382c7daf" name="Populous II - Two Tribes (E) [f1+3C]" />
+	<hash crc32="5e2ab916" sha1="6a231eb3974f22820876a4d29e61f2bbd4b030b8" name="Populous II - Two Tribes (E) [f1]" />
+	<hash crc32="3babf2e9" sha1="427c06e0b666b72ee7c049de87fdc10ff2b9763b" name="Populous II - Two Tribes (E) [f2]" />
+	<hash crc32="12fb60fa" sha1="799179e27ec654603c1881c02b60ff9d1a8b1841" name="Populous II - Two Tribes (E) [h1C]" />
+	<hash crc32="8c00ad61" sha1="6ffaaac637fb41a2f94912c382385a9cb17639a9" name="Power Drive (E) (M5) [!]" />
+	<hash crc32="9bc0c97d" sha1="ce3845045b592fadb82f32a31330008dc5aba36b" name="Power Drive (E) (M5) [b1]" />
+	<hash crc32="602fdfc2" sha1="4f690dc1bfb450eb1cc25a5c2e0e9b9ee3dbd9cc" name="Power Drive (E) (M5) [b2]" />
+	<hash crc32="577473e4" sha1="d140a69dec44507bcbf9b365705ea4c3f0c039e4" name="Power Drive (E) (M5) [h1C]" />
+	<hash crc32="303b889f" sha1="2916e5ef628e077cde87be873e0ea2507ef5c844" name="Premier Manager (E) [!]" />
+	<hash crc32="fccbf69b" sha1="e2df3b48170e1a7bde46af2adbf939803e267e13" name="Premier Manager 97 (E) [!]" />
+	<hash crc32="81da5ea2" sha1="ef4d25417b6d79dc99d1dd2bc959a3a8a2c69209" name="Premier Manager 97 (E) [f1+C]" />
+	<hash crc32="828350ae" sha1="3f65e860c39babb79c2c421a4919b5d14f7bb108" name="Premier Manager 97 (E) [f1]" />
+	<hash crc32="a6940650" sha1="152a7e4461060392ac6b418a9e251771ef91d794" name="Prince of Persia (Beta 2) [f1+1C]" />
+	<hash crc32="454c97d3" sha1="2de3fbb974cedb207e97ed9e312ebf23f91ba513" name="Prince of Persia (Beta 2) [f1+1C][T+Rus]" />
+	<hash crc32="430cdaee" sha1="a3d590247325b95d2208cef25c3e820562301c52" name="Prince of Persia (Beta 2) [f1+2C]" />
+	<hash crc32="98cf741c" sha1="9534e9c5ed7f1d2496571b05d26935bd8e08fb3b" name="Prince of Persia (Beta 2) [f1+2C][T+Rus]" />
+	<hash crc32="9e8f3921" sha1="6759729a19bab7f83a2d3b041a786389629cce5e" name="Prince of Persia (Beta 2) [f1+3C]" />
+	<hash crc32="fa7f3a98" sha1="90c5f45f95ee2adf5eb7025711104d27bf40b172" name="Prince of Persia (Beta 2) [f1+3C][T+Rus]" />
+	<hash crc32="21bc946a" sha1="2b06a65dfcada5f4993f856c04d49d3caf2f30dc" name="Prince of Persia (Beta 2) [f1]" />
+	<hash crc32="7d57a8a2" sha1="d5ccaae92c15645847282ebf1efc81ce92ababc2" name="Prince of Persia (Beta 2) [f1][T+Rus]" />
+	<hash crc32="b5cbc808" sha1="145f8987027520c100c153ab7281a7045794e978" name="Prince of Persia (Beta 2) [h1C]" />
+	<hash crc32="8b90ba44" sha1="549420266d6080e518b8bd8b96c2cd111de2d249" name="Prince of Persia (Beta 2) [T+Rus]" />
+	<hash crc32="505314b6" sha1="addd33ce2f9c022433be1c3ea803371e7f6b694b" name="Prince of Persia (Beta 2)" />
+	<hash crc32="61de6fe0" sha1="6e645b791e6e2b84a206dca6cf47e8f955e60a72" name="Prince of Persia (E)" />
+	<hash crc32="bc597d48" sha1="69d905751ffa6a921586767263e45ddeb73333c2" name="Probotector (E) [!]" />
+	<hash crc32="5dccc529" sha1="0b6471eabfe1b711d6b76e5aab164f06b7c66383" name="Probotector (E) [b1]" />
+	<hash crc32="d704784b" sha1="699db175ab8a6abdd941b8a3d81cf203e01053f5" name="Psycho Pinball (E) (Oct 1994) (M5) [c][!]" />
+	<hash crc32="11e9c3f2" sha1="2ea7befb7e52334111385667030ceb647157a397" name="Psycho Pinball (E) (Sep 1994) (M5) [c][!]" />
+	<hash crc32="2a672408" sha1="9ab165834ff41bad0217278143b4d27e54911650" name="Psycho Pinball (E) (Sep 1994) (M5) [h1C]" />
+	<hash crc32="75ec7e70" sha1="21b9825683a1952781e3f3720659b1a32b0a2de5" name="Psycho Pinball (E) (Sep 1994) (M5) [o1][h1C]" />
+	<hash crc32="1ab8f1a1" sha1="810688f1ffb736ae1790803e1c6804caaa24c15a" name="Psycho Pinball (E) (Sep 1994) (M5) [o1][h2C]" />
+	<hash crc32="5d5c9ade" sha1="89a347f35c4d0d364c284f2f32f708d0378b8735" name="Puggsy (E) [!]" />
+	<hash crc32="6151c83a" sha1="06ed7bda76566031bb0158ad8aeb5c9860aa8c74" name="Puggsy (E) [h1C]" />
+	<hash crc32="729edd17" sha1="d11ec72726498e4608eefc1ef2b8a3cadb025394" name="Punisher, The (E)" />
+	<hash crc32="d02d3282" sha1="c8dc73b7cabf43813f9cf09370a4437af4f1573f" name="Radical Rex (E)" />
+	<hash crc32="b8c04804" sha1="53908ee1c47f0d9d49e81fc295379552e2198948" name="Ranger-X (E) [!]" />
+	<hash crc32="c276c220" sha1="34d520d8a835e386c26793f216b1dc8f78d8f67a" name="Ren and Stimpy Show, The - Stimpy's Invention (E) [!]" />
+	<hash crc32="5650780b" sha1="646bf23a13a4c2ad249ca3cc58ff3cd3244e5dff" name="Rise of the Robots (E) [!]" />
+	<hash crc32="31d17557" sha1="395b8f41f1c0fe972330216bcadbe03118ef5a1f" name="Rise of the Robots (E) [b1]" />
+	<hash crc32="2487049f" sha1="a1625783cf1b42d808ad4f56dde5ce1b1884218a" name="Robocop Versus The Terminator (Beta 2)" />
+	<hash crc32="04e23a59" sha1="19e9544f65cecaf0e860009ef52fd357f190852c" name="Robocop Versus The Terminator (E) [b1]" />
+	<hash crc32="85a93f8d" sha1="21348f50ccb0031108ce3fb999026688e9bef4ed" name="Robocop Versus The Terminator (E)" />
+	<hash crc32="bc5a0562" sha1="c4d84425c007711f006a67d6577fd90f421605e5" name="Rock n' Roll Racing (E) [!]" />
+	<hash crc32="8eedfd51" sha1="cb741f868b0eba17819a27e37cda96f33674c342" name="Rocket Knight Adventures (E) [!]" />
+	<hash crc32="78b91324" sha1="737160ed23a7663496e2fa6f6b0fd75a1437208b" name="Rocket Knight Adventures (E) [hI]" />
+	<hash crc32="8e52f046" sha1="82fede6467c476135287ae049c24d65e149233d5" name="Rocket Knight Adventures (E) [T+FreRC1_Terminus]" />
+	<hash crc32="c440f292" sha1="e8ae09b2945eac555d6f0d39a1f768724b221357" name="Rolling Thunder 2 (E) [c][!]" />
+	<hash crc32="c972014f" sha1="86384123c49c05b6f90cffd7327c11882f01e9c0" name="Samurai Shodown (E) [c][!]" />
+	<hash crc32="8c8013a4" sha1="c2c8b20d8377f95bfd83f3b9485b1172dc33356e" name="Samurai Shodown (E) [h1C]" />
+	<hash crc32="08fa5a3f" sha1="f67f324165abdf148f80aabb319375dc3a504e17" name="Saturday Night Slam Masters (E)" />
+	<hash crc32="5b871aaf" sha1="bce8c899d2803f72178e85f7cfff6c8ea5ea682b" name="Scrabble (Beta) [h1C]" />
+	<hash crc32="360b2610" sha1="b2a06070eda30eb2ef745dcb2676dc25d39a07ed" name="Scrabble (Beta)" />
+	<hash crc32="0bb511bd" sha1="e0324a23bc26b40f7e564ae864afb8ede1776f6e" name="SeaQuest DSV (E)" />
+	<hash crc32="c99e479a" sha1="d4ff13222ad6dd776df8fd2d0cf2690befa2e6d5" name="Second Samurai, The (E) [b1]" />
+	<hash crc32="12a32d1d" sha1="e9d2a2a8ec6cdb84079f8520ae5eda85bf48373b" name="Second Samurai, The (E) [b2]" />
+	<hash crc32="78e92143" sha1="72bfe0d4c56d9600a39fae00399fef157eb1fe6f" name="Second Samurai, The (E)" />
+	<hash crc32="07fedaf1" sha1="ff03bb2aced48c82de0ddfb048b114ec84daf16a" name="Sega Sports 1 (Wimbledon, Ult.Soccer, Super Monaco) (E) [!]" />
+	<hash crc32="7309380e" sha1="53d53d1b4e8d323c120f6e56716829a66a9332e3" name="Sega Sports 1 (Wimbledon, Ult.Soccer, Super Monaco) (E) [b1]" />
+	<hash crc32="d94f6eeb" sha1="cebecdbff4e203957f769f51cbab7f457e5d4194" name="Sensible Soccer (Beta) [f1+1C]" />
+	<hash crc32="c5919d16" sha1="30017c1e4f9f939f9fc5715f04478cbabc39eab8" name="Sensible Soccer (Beta) [f1+2C]" />
+	<hash crc32="38179b63" sha1="638b684ef680d27f06359761054271ffc826c67d" name="Sensible Soccer (Beta) [f1]" />
+	<hash crc32="d6e21f4f" sha1="03621dd7e9f86a10782b3dd09d5dea6de098fc8d" name="Sensible Soccer (Beta) [f2]" />
+	<hash crc32="e1fe8545" sha1="97b6dd690481d6300020184cd9728da2f09ff1f0" name="Sensible Soccer (Beta) [f3]" />
+	<hash crc32="3c61d755" sha1="1cf8772048b93da1dc776d07105c018abdb63d89" name="Sensible Soccer (Beta) [hIR]" />
+	<hash crc32="ef52664d" sha1="c12a644cf81886050a4ae108b17b3c742055f5c3" name="Sensible Soccer (Beta)" />
+	<hash crc32="f9b396b8" sha1="2ee1ad4aac354b6d227b16976f0875f4625ff604" name="Sensible Soccer (E) (M4) [!]" />
+	<hash crc32="04e3bcca" sha1="b88833ba92e084d4433e2b22eeb67e71ed36cd5c" name="Sensible Soccer - International Edition (E) (M4) [!]" />
+	<hash crc32="68865f6f" sha1="4264625be91c3d96edca9c5bfe6259d00ca8b737" name="Shane Warne Cricket (E) [c][!]" />
+	<hash crc32="273da63f" sha1="4359fcc063b9c904d52a9adcadf4f11d0b74bb49" name="Shane Warne Cricket (E) [h1C]" />
+	<hash crc32="83cb46d1" sha1="a2ba86f4d756f98886f8f9a56f20cbf8c3b2945e" name="Shining Force II (E) [!]" />
+	<hash crc32="30c573a5" sha1="a3f299756dda26da6da8d60df11d4227d42113dc" name="Shining Force II (E) [f1]" />
+	<hash crc32="622a5b9f" sha1="947cadcb78dea261062d93a7db947675e9b2d7ba" name="Shining Force II (E) [o1]" />
+	<hash crc32="0b6d3eb5" sha1="23579c8f7e2396080b478b113aff36d2382395a3" name="Shinobi III - Return of the Ninja Master (E) [c][!]" />
+	<hash crc32="36e08145" sha1="a19cd561397dfda55942cf4f9771b0e815f95f65" name="Side Pocket (E) [!]" />
+	<hash crc32="4570f308" sha1="add3862bf19155b765fc8a99caae8aface49d70e" name="Skeleton Krew (E) [f1+C]" />
+	<hash crc32="6a20bc28" sha1="446e4dca2b8ec292798f70b8e54ec347f1ef1580" name="Skeleton Krew (E) [f1]" />
+	<hash crc32="5f872737" sha1="9752fbd8508492dae252ae749393281ed9527de0" name="Skeleton Krew (E)" />
+	<hash crc32="b28bdd69" sha1="b4368369e1d5b9a60bc565fe09a9c5fff6b79fd4" name="Smurfs 2, The (E) (M4) [!]" />
+	<hash crc32="c6883646" sha1="ecd7201612387ee674d95f01ea34301a0d3a011d" name="Smurfs 2, The (E) (M4) [b1]" />
+	<hash crc32="d8c6747c" sha1="0896ab7c3249bcd325bce581ffab538e10a8c9f6" name="Smurfs 2, The (E) (M4) [f1+C]" />
+	<hash crc32="24a59f5f" sha1="3d4108e20e490ff8c39d1123da9dcf48472f79fd" name="Smurfs 2, The (E) (M4) [f1]" />
+	<hash crc32="d58513e6" sha1="d0a283ace7917bf89ab15266014aa57e2a87839b" name="Smurfs 2, The (E) (M4) [f2]" />
+	<hash crc32="9d0b5631" sha1="19ebc181b9939144e4c773eb06110326c9fdeb9c" name="Smurfs 2, The (E) (M4) [h1C]" />
+	<hash crc32="88b30eff" sha1="0da7e621e05dc9160122d728e1fca645ff11e670" name="Smurfs, The (E) (M5) [!]" />
+	<hash crc32="292d874d" sha1="4fc044580aa276476ff50a27005d40f1dbb371bf" name="Smurfs, The (E) (M5) [f1]" />
+	<hash crc32="74d0e5dc" sha1="82a7224a055f2c09c6f5b6f47703b4a9b5b5adca" name="Smurfs, The (E) (M5) [h1C]" />
+	<hash crc32="543bed30" sha1="0773ae487319b68695e9a6c3dcd0223695c02609" name="Snake Rattle 'n' Roll (E) [c][!]" />
+	<hash crc32="c8af432b" sha1="5cb380ff787b6f1f353e0f61d53157487299f64d" name="Snake Rattle 'n' Roll (E) [h1C]" />
+	<hash crc32="a30ebdb1" sha1="110a61671b83fe17fba768ab85b535ca1cc6d7ea" name="Soleil (E) [!]" />
+	<hash crc32="83e484f8" sha1="4f2406ee9baa2271be1cce96252ec563e69b6f32" name="Soleil (E) [b1]" />
+	<hash crc32="93d51c1a" sha1="dc6858a7bad976508638b4ea78def73f41aef503" name="Soleil (E) [f1+C]" />
+	<hash crc32="6ae5c8cc" sha1="81b0d7d31c478b93ef0e57fed5e8dcf29821eeb4" name="Soleil (E) [f1]" />
+	<hash crc32="7f685ab9" sha1="8ead369a5c24265212d400464f88ffa1e7143e1a" name="Soleil (E) [f1][T+Ita0.5_TRAP]" />
+	<hash crc32="b6832fc4" sha1="08cb1c1447163858ac0beb7945d4647bebe895ed" name="Soleil (E) [T+Ita0.5_TRAP]" />
+	<hash crc32="08dc1ead" sha1="7890074018f165eeb1281d81039fb07ccde7d197" name="Soleil (F) [!]" />
+	<hash crc32="f14112f9" sha1="5eb2b9bb34ca6af95b4ccb4b1e5c71b212857f0a" name="Soleil (F) [b1]" />
+	<hash crc32="332b9ecd" sha1="65c8b7ab94b05812d009b4bebda3c49891a6bfbe" name="Soleil (G) [!]" />
+	<hash crc32="b9f58453" sha1="ecbb45e94e4f4ce76b38a624a0a4c6f738aa1ced" name="Soleil (G) [b1]" />
+	<hash crc32="ef8173e9" sha1="7baf778f9432032b72629dced17c2c818f7552d0" name="Soleil (G) [b2]" />
+	<hash crc32="ba37c71d" sha1="e7e3cd194bab035ad84f225458be1d217b20a655" name="Soleil (S) [b1]" />
+	<hash crc32="9138c25f" sha1="c283618f964d331e85211aa97d20418014039a52" name="Soleil (S) [T+Fre]" />
+	<hash crc32="9ed4c323" sha1="95ae529cecb7dbca281df25c3c4e7cb8f48d936c" name="Soleil (S)" />
+	<hash crc32="fee8b2ab" sha1="6dc800b9f639e76d6b3d344a7384eedd783d0d15" name="Sonic Classics (Compilation) (E) (REV00) - Skip to Dr.R by Leon (Hack)" />
+	<hash crc32="729efc08" sha1="b25c1ccf6f8d2105bc5371601b9ccd7055f4f9af" name="Sonic Classics (Compilation) (E) (REV00) - Skip to Sonic 1 by Leon (Hack)" />
+	<hash crc32="e427876e" sha1="60715e6ed40d3418de6830a2f9f8745a3363e963" name="Sonic Classics (Compilation) (E) (REV00) - Skip to Sonic 2 by Leon (Hack)" />
+	<hash crc32="8c70b84e" sha1="109e6d7b31d00fbdb9d4ecb304d4ea19e96c8607" name="Sonic Classics (Compilation) (E) (REV00) [!]" />
+	<hash crc32="72f3eb94" sha1="4c43a5413211842287d59a13516bdd1d44219846" name="Sonic Classics (Compilation) (E) (REV00) [f1+C]" />
+	<hash crc32="7e3ca805" sha1="962f2ae7081aa1a5b691b22a9da342e6a012b07c" name="Sonic Classics (Compilation) (E) (REV00) [f1]" />
+	<hash crc32="aea0786d" sha1="f61a568314133b60de82ac162b5b52473adc9e1c" name="Sonic Spinball (E) [!]" />
+	<hash crc32="6a632503" sha1="2ff45bb056ede0f745e52f8d02c54b4ca724ca4c" name="Sonic The Hedgehog 3 (E) [!]" />
+	<hash crc32="d63e9f2d" sha1="91057f22c5cea9bf08edf62862c56b939d570770" name="Sparkster (E) [!]" />
+	<hash crc32="adf7fe0d" sha1="126cb26374304498f5995d738f073ac6107399c4" name="Sparkster (E) [f1+C]" />
+	<hash crc32="5194152e" sha1="b1c2d8c122d57e29256e66c206f2aecc628bae1f" name="Sparkster (E) [f1]" />
+	<hash crc32="7711fe3c" sha1="0b148ae978b6eda22bcfa494dc0a7061d613597b" name="Sparkster (E) [h1C]" />
+	<hash crc32="c3f916b1" sha1="2dd61d41a864d9115d4879a3e5c928afe80b480c" name="Sparkster (E) [h2C]" />
+	<hash crc32="a70c16a1" sha1="5e73710860de545c2ee9c92329dfb84797698d1e" name="Sparkster (E) [t1]" />
+	<hash crc32="056a6e03" sha1="9c989b31de7de38bc488f825575b7f6c1db9dbee" name="Speed Ball 2 - Brutal Deluxe (E) [!]" />
+	<hash crc32="6634b130" sha1="5f18db9c85df4eaf4647a0519c9dc966aee583fa" name="Spirou (E) [!]" />
+	<hash crc32="7f86f97d" sha1="179e05cf410b57e3be132b592c01c1ee4e3df916" name="Spirou (E) [b1+C]" />
+	<hash crc32="856bcd1d" sha1="1f2ba1982909b64df0f647a39ae7753b7101a16e" name="Spirou (E) [b1]" />
+	<hash crc32="2559e03c" sha1="e01940808006a346b8711a74fbfa173ec872624f" name="Splatterhouse 2 (E) [c][!]" />
+	<hash crc32="fbe254ea" sha1="be1144c3d9d49dce2d5e1ab598ef0e2b730950b7" name="Spot Goes to Hollywood (E) [!]" />
+	<hash crc32="a3aaf6b4" sha1="798d4e972d9e077f5a3bccc1fed0f462a910e1ec" name="Spot Goes to Hollywood (E) [b1]" />
+	<hash crc32="a302f46e" sha1="9d75d39eb7785dc594108e9d15862b967cebc893" name="Spot Goes to Hollywood (E) [f1+1C]" />
+	<hash crc32="aa271ed9" sha1="3a073c9d1f2c8a3eb91839d592bb38aad2f387d4" name="Spot Goes to Hollywood (E) [f1+2C]" />
+	<hash crc32="addf4455" sha1="ffb40668f3bcc38a9c299b6a6ac023a002632e54" name="Spot Goes to Hollywood (E) [f1+3C]" />
+	<hash crc32="f271b1d8" sha1="cca6093306b582c83d9ee0ad560959da111124e1" name="Spot Goes to Hollywood (E) [f1+4C]" />
+	<hash crc32="28d96ef8" sha1="9b6696be4280dd3d1c592a3370a72239c8fcba81" name="Spot Goes to Hollywood (E) [f1+5C]" />
+	<hash crc32="50b13a8f" sha1="3d5209dacf64b3bb5b565329adc414b23a1d25ab" name="Spot Goes to Hollywood (E) [f1]" />
+	<hash crc32="b45950aa" sha1="8395d43563e37781555d937dcd06240566d7dd43" name="Spot Goes to Hollywood (E) [h1C]" />
+	<hash crc32="d4b122f9" sha1="efc96336ccd83c31ab48ab48fe1e262c3ebcf0be" name="Star Trek - Deep Space 9 - Crossroads of Time (E)" />
+	<hash crc32="7928c30a" sha1="bac28b37140368dab030de2316393bef18412e63" name="Stargate (Beta) [b1]" />
+	<hash crc32="5c36f75a" sha1="1f98085244e168aa98fc10f7b7e58996ebacb6f0" name="Stargate (Beta) [b2]" />
+	<hash crc32="8ba9436d" sha1="fc876c4c27c8386d33972a4a2b2c76c09629f12e" name="Stargate (Beta) [b3]" />
+	<hash crc32="8dc8ab23" sha1="95a0dab802a313281d74fe66b21c7877078c57e9" name="Stargate (Beta)" />
+	<hash crc32="3945fd0e" sha1="3dd1cc6a13683f1713223513a55f86d9ec6b5e38" name="Story of Thor, The - A Successor of The Light (Beta) [b1]" />
+	<hash crc32="7dedffeb" sha1="628e259de0435c102e38c7e79e4e555d5bd57a8a" name="Story of Thor, The - A Successor of The Light (Beta) [b2]" />
+	<hash crc32="223ee2fe" sha1="1166aa0f4c5197a07215ad23fb9b16a634dbcac9" name="Story of Thor, The - A Successor of The Light (Beta) [hI+1C]" />
+	<hash crc32="33ad3d2b" sha1="1ba6c9b9e0d27f8badccc8c32c504bcb8a3e29c1" name="Story of Thor, The - A Successor of The Light (Beta) [hI+2C]" />
+	<hash crc32="798f71ea" sha1="ac6aeb779d565a927b23dc9cd4182c394b85e25d" name="Story of Thor, The - A Successor of The Light (Beta) [hI]" />
+	<hash crc32="58ae0fd9" sha1="3f662c0e479dce70360356f41cbbb3880230d768" name="Story of Thor, The - A Successor of The Light (Beta) [hI][b1]" />
+	<hash crc32="227ef9db" sha1="8ac8b19a0d5bb90d48095c844e33e3efaf358e55" name="Story of Thor, The - A Successor of The Light (Beta) [hI][o1]" />
+	<hash crc32="59256158" sha1="cbaf0bf2174a8a3f4f1d03cb49a72c522163f68d" name="Story of Thor, The - A Successor of The Light (Beta) [hIR]" />
+	<hash crc32="c0b92af1" sha1="f26f5539ab1b316320738c2b675f2ecf76ab3fd2" name="Story of Thor, The - A Successor of The Light (Beta) [hIR][o1]" />
+	<hash crc32="bfc11649" sha1="ac1952f2f7cd4109561376f3097c4daec2ae64ae" name="Story of Thor, The - A Successor of The Light (Beta)" />
+	<hash crc32="1110b0db" sha1="178ef742dad227d4128fa81dddb116bad0cabe1d" name="Story of Thor, The - A Successor of The Light (E) [!]" />
+	<hash crc32="72ab04d7" sha1="06bfdd8cfb6f2b0ce27f69bf0f94997d169f589e" name="Story of Thor, The - A Successor of The Light (E) [T+Rus]" />
+	<hash crc32="a4d167d6" sha1="d9ce2fcf8f334ad4187494eb88c03b5a2c22ae19" name="Story of Thor, The - A Successor of The Light (E) [T+Rus][b1]" />
+	<hash crc32="b97cca1c" sha1="677e1fbf2f6f90dd5a016f3bd5f305547249205a" name="Story of Thor, The - A Successor of The Light (F)" />
+	<hash crc32="931720b6" sha1="1925f497f426deda9d63d7b18abd1ad0de032393" name="Story of Thor, The - A Successor of The Light (G) [b1]" />
+	<hash crc32="c997e158" sha1="682dc9254ba62212a5e052f728d47d304881ff47" name="Story of Thor, The - A Successor of The Light (G) [b2]" />
+	<hash crc32="3cd5f640" sha1="6fcc7ff350fd7983828aebf02a4add1cc498b1ee" name="Story of Thor, The - A Successor of The Light (G) [o1]" />
+	<hash crc32="fa20d011" sha1="a82ffb7c4bf4b0f89f42a9cdc6600bc5bac1c854" name="Story of Thor, The - A Successor of The Light (G)" />
+	<hash crc32="35f73fa2" sha1="c144692f551f33c9d9e62e24751ff9ed40993391" name="Story of Thor, The - A Successor of The Light (S) [T+Por_Raptor_Z]" />
+	<hash crc32="4631f941" sha1="0fcc02355176e1c96043f4d827a3ff88d2d272df" name="Story of Thor, The - A Successor of The Light (S)" />
+	<hash crc32="56d41136" sha1="2a406e2e4743de98785c85322f858abfb8221ae0" name="Street Fighter II' - Special Champion Edition (E) [!]" />
+	<hash crc32="ceac7639" sha1="b09868c30769c76f2b869766a1c3952aafd8d63d" name="Street Racer (E) [b1]" />
+	<hash crc32="c2a1592f" sha1="1e5577d0ff8f95c62edc89a8d6d3202df2b48038" name="Street Racer (E) [b2]" />
+	<hash crc32="1a58d5fe" sha1="95aa250ea47d14d60da9f0fed5b1aad1ff2c1862" name="Street Racer (E) [c][!]" />
+	<hash crc32="01870509" sha1="19d459d28b4cee052216e08ac06283264db1e65c" name="Street Racer (E) [h1C]" />
+	<hash crc32="9d1a2cff" sha1="c1f4f06b3bfe66609179a27411ea5a73d2ae34ef" name="Street Racer (E) [h2C]" />
+	<hash crc32="42e3efdc" sha1="a0d3a216278aef5564dcbed83df0dd59222812c8" name="Streets of Rage 2 (JE) [!]" />
+	<hash crc32="91a46962" sha1="932ab74edca3b30f8158a62ff7daf62c1d0803e5" name="Streets of Rage 2 (JE) [b1]" />
+	<hash crc32="3b78135f" sha1="5419f5eaf12201a662f03a79298a1b661005f73a" name="Streets of Rage 3 (E) (Apr 1994) [!]" />
+	<hash crc32="7522b9de" sha1="133c2c0d5bd2148213fdcdf6ff2ad6a3cfbcf9bc" name="Streets of Rage 3 (E) (Apr 1994) [T+Fre]" />
+	<hash crc32="90ef991e" sha1="8c0bc5b66703efbdeef2d6ede5745aad89bd8a44" name="Streets of Rage 3 (E) (May 1994) [!]" />
+	<hash crc32="39a73bd1" sha1="6a18f7b9641bc65b12e2aaa6432a12d9dbcf1c90" name="Strider II (E) [b1]" />
+	<hash crc32="5a15a6c5" sha1="26ad5ced52712f2a96bfe031ffad18a44afac405" name="Strider II (E) [b2]" />
+	<hash crc32="e85e5270" sha1="c048bf092745654bb60a437ef1543abfd407093c" name="Strider II (E) [c][!]" />
+	<hash crc32="b9cbde78" sha1="4b547ba9fafa5a40976a234d24c51a80ed4e2093" name="Strider II (E) [h1C]" />
+	<hash crc32="ef32fbc3" sha1="5cc2ff1b0cf92ce3347b6284767baf31fecada0e" name="Strider II (E) [h2C]" />
+	<hash crc32="71e9c7fb" sha1="c6cbdb354270e69ae8749d9766f5966cceef683a" name="Strider II (E) [h3C]" />
+	<hash crc32="289fa863" sha1="4aaacd7e7d68402d3a298443205c7a9f3d3183c4" name="Strider II (E) [t1]" />
+	<hash crc32="f8dda238" sha1="0ac127cebc61332be3ad23b2774584d5266dca56" name="Striker (Beta) [o1]" />
+	<hash crc32="1ecef704" sha1="a535f2cd0b8fa9f6a60bb5efa7177b1bd77699ee" name="Striker (Beta) [o1][h1C]" />
+	<hash crc32="6cde29db" sha1="d4a0d96b65e7d8813b5d9a1222668b3c722830e1" name="Striker (Beta) [o2]" />
+	<hash crc32="dd4dfc05" sha1="d01e0bbaf6592876688da42245ee6eb728fbb085" name="Striker (Beta) [o3]" />
+	<hash crc32="c10b270e" sha1="128395e635e948005e89c7f4a6cd5b209be1ffbc" name="Striker (Beta)" />
+	<hash crc32="cc5d7ab2" sha1="9917c35a263cc9bd922d55bf59d01bc2733b4e24" name="Striker (E) (M5) [!]" />
+	<hash crc32="a7676d97" sha1="e5db3a9430ecf8788b29570a38856e45527fce1e" name="Striker (E) (M5) [f1]" />
+	<hash crc32="25893a23" sha1="5431ebe107b6633e170a6d1695728858a61e1d5b" name="Striker (E) (M5) [o1]" />
+	<hash crc32="e8ced28d" sha1="23c6a0616f170f6616bc8214f3d45f1f293bba9f" name="Sub-Terrania (E) [!]" />
+	<hash crc32="3a0fb66f" sha1="74a3d422e728bc32abc73e116228e7c9488f3155" name="Sub-Terrania (E) [b1]" />
+	<hash crc32="0ff33054" sha1="4a4f2cf397ade091e83e07bb3ffc7aa5862aeedd" name="Sunset Riders (E) [!]" />
+	<hash crc32="927975be" sha1="ed4f8a98eed7838d29fa31a6f34d11f6d8887c7f" name="Super Fantasy Zone (E) [!]" />
+	<hash crc32="1fe2d90b" sha1="6c0a4b72b90ecfe8c324691bc6e54243746043c1" name="Super Hydlide (E) [!]" />
+	<hash crc32="8826cb18" sha1="174e7dc16b7b5ed7ef746e4ba07a92773f33ea34" name="Super Kick Off (E) [b1]" />
+	<hash crc32="f43793ff" sha1="4e270b13a399d78d919157e50ab11f4645aa6d32" name="Super Kick Off (E) [c][!]" />
+	<hash crc32="355076da" sha1="33afb14886e80d2745285e9c57267b5cb924ee77" name="Super Kick Off (E) [h1C]" />
+	<hash crc32="55baec6e" sha1="fefc7abc2f9fbcc7992b1420b62eb3eb3d5ad1bb" name="Super League (E)" />
+	<hash crc32="f04765ba" sha1="0197df59951085dc7078c4ec66c75be84566530a" name="Super Real Basketball (E) [c][!]" />
+	<hash crc32="74db1377" sha1="c34e53dd957d177d7c044b88d0d33c1a4990971c" name="Super Real Basketball (E) [p1][!]" />
+	<hash crc32="4a9c62f9" sha1="957850ce688dcf9c5966f6712b4804f0a5b7457d" name="Super Skidmarks (E) (J-Cart) [!]" />
+	<hash crc32="a61a0f0c" sha1="1ec5fb1e7c8adfaf147271bd40454826fffed13e" name="Super Skidmarks (E) [a1]" />
+	<hash crc32="6932f67c" sha1="a2d5515bd571da349100cbd6b21c1719411f4f5c" name="Super Skidmarks (E) [h1C]" />
+	<hash crc32="e43a360f" sha1="d41adb561e1da1b0bff01f2573e3949f19bc5e92" name="Super Street Fighter II - The New Challengers (E) [b1]" />
+	<hash crc32="682c192f" sha1="56768a0524fa13fcd76474c8bb89b995bb471847" name="Super Street Fighter II - The New Challengers (E) [c][!]" />
+	<hash crc32="7db434ba" sha1="c956730af44b737ee3d0c1e83c147f32e3504383" name="Superman (E) [!]" />
+	<hash crc32="05dc3ffc" sha1="be80f96bee64bab159614d29f882442abef9de76" name="Talmit's Adventure (E) [!]" />
+	<hash crc32="aec4cda5" sha1="d96403f9876ad0df29e77bde43deb4c9bb1f4967" name="Talmit's Adventure (E) [hI]" />
+	<hash crc32="efd42b91" sha1="ba4baf9b13d64f18f471cee5ae73555f4859e74e" name="Teenage Mutant Hero Turtles - The Hyperstone Heist (E) [h1C]" />
+	<hash crc32="966d5286" sha1="ed6c32cae0813cbcf590fad715fa045fbeab6d78" name="Teenage Mutant Hero Turtles - The Hyperstone Heist (E)" />
+	<hash crc32="cdc95773" sha1="0b82d2dc05b8434211261eb72a04961dc9a7fb17" name="Teenage Mutant Hero Turtles - Tournament Fighters (E) [b1]" />
+	<hash crc32="3d7981e0" sha1="307afbefea593af5164caa2efa83e5a88ae09f11" name="Teenage Mutant Hero Turtles - Tournament Fighters (E) [b2]" />
+	<hash crc32="eb9ebe20" sha1="93ee11702e0fed5c5cebe2307e336f98b4a1fc1f" name="Teenage Mutant Hero Turtles - Tournament Fighters (E) [b3]" />
+	<hash crc32="d5714df4" sha1="afef404ce070d0dcaf6d985a9a859f15257dfe84" name="Teenage Mutant Hero Turtles - Tournament Fighters (E) [b4]" />
+	<hash crc32="032ef004" sha1="c0f2e1e127607ad0c8a53d4b27812bbc9243458c" name="Teenage Mutant Hero Turtles - Tournament Fighters (E) [b5]" />
+	<hash crc32="9bfb7dfe" sha1="830641260327493b17633cee19af4e984afd0b61" name="Teenage Mutant Hero Turtles - Tournament Fighters (E) [b6]" />
+	<hash crc32="6ccafac9" sha1="a79e628355a211b822e8829edfc42466d47bf7a8" name="Teenage Mutant Hero Turtles - Tournament Fighters (E) [f1]" />
+	<hash crc32="01cb118c" sha1="c0f985cbd40a4ea807894b30270c929f32798191" name="Teenage Mutant Hero Turtles - Tournament Fighters (E) [h1C]" />
+	<hash crc32="3cd2b7e6" sha1="6a6c4ae9d944ad1d459d46ae40d3af09e60b5d7d" name="Teenage Mutant Hero Turtles - Tournament Fighters (E)" />
+	<hash crc32="15f4d302" sha1="c8ee275f2e30aaf6ad713c6cd915a4ede65328e0" name="Terminator, The (E) [c][!]" />
+	<hash crc32="e7e3c05b" sha1="ecbc2bfc4f3d8bbd46b398274ed2f5cc3db68454" name="Thunder Force IV (E) [c][!]" />
+	<hash crc32="a4f48a1a" sha1="5bc883edd092602aac162b42462442e462d3c881" name="Time Killers (E) [!]" />
+	<hash crc32="4243caf3" sha1="54fb11f601be37418b5bba3e0762d8b87068177a" name="Tintin Au Tibet (E) (M6) [!]" />
+	<hash crc32="78ac4eab" sha1="95e73964c4628700cb0317b611c3d815c92749e9" name="Tintin Au Tibet (E) (M6) [p1][!]" />
+	<hash crc32="ef125030" sha1="b7cb0c9a6fef7c3ecd87ba4ed31be9db38d3fd48" name="Tiny Toon Adventures - Acme All-Stars (E) [f1+1C]" />
+	<hash crc32="7275bd28" sha1="797e573257cc4de80e08d6494feba5b073a261f1" name="Tiny Toon Adventures - Acme All-Stars (E) [f1+2C]" />
+	<hash crc32="aa66adb4" sha1="59a8306932b0f7fedc67efd96652c9337a463e5c" name="Tiny Toon Adventures - Acme All-Stars (E) [f1]" />
+	<hash crc32="1227b2b2" sha1="2672018d9e005a9a3b5006fa8f61e08f2d1909aa" name="Tiny Toon Adventures - Acme All-Stars (E)" />
+	<hash crc32="d10fba51" sha1="9e63b150cc2ec0ef141e68ffda862aa8db604441" name="Tiny Toon Adventures - Buster's Hidden Treasure (E) [!]" />
+	<hash crc32="6a2458aa" sha1="0d377c7ce641229da0c9aada99b0fe640209d8fe" name="Tiny Toon Adventures - Buster's Hidden Treasure (E) [f1]" />
+	<hash crc32="47b0a871" sha1="ac05701d86ba8957adb8fe0b67d8b4bb51328d98" name="Toejam &amp; Earl in Panic on Funkotron (E) [!]" />
+	<hash crc32="77c55884" sha1="2f9a281a36d115dc9d2c7501d4222eaeb9d11918" name="Toejam &amp; Earl in Panic on Funkotron (E) [b1]" />
+	<hash crc32="fa27535a" sha1="506c1e2ca460e5d2d44996ac3ea593abb0b2f048" name="Toejam &amp; Earl in Panic on Funkotron (E) [f1]" />
+	<hash crc32="e15a0d6a" sha1="085dde71d5e1fcf6852bb80eeb0fb55b6dae0b82" name="Toejam &amp; Earl in Panic on Funkotron (E) [f2]" />
+	<hash crc32="4081b9f2" sha1="9d4e4b358147ab913c3fcff2811558eac7b8b466" name="Toejam &amp; Earl in Panic on Funkotron (G) [!]" />
+	<hash crc32="8360b66a" sha1="271b13e1c0697d17ad702e97297ed1ea09ddb53b" name="Total Football (E) [!]" />
+	<hash crc32="8e89a9f3" sha1="6e7bb9b191389973922a5ab9978205bb9d2664cc" name="Toy Story (E) [!]" />
+	<hash crc32="0c661369" sha1="3e4b9881dde758ef7bb090b39d3556d9bc0d9f1e" name="Turbo Outrun (JE) [c][!]" />
+	<hash crc32="ad4ff4be" sha1="e8a52cfbb08a3db3a69b222ed3d5e01bd4e20152" name="Turbo Outrun (JE) [h1C]" />
+	<hash crc32="a2ec8c67" sha1="f884f2a41dd50f4c1a17c26da7f2d31093bb36b6" name="Twin Hawk (JE) [!]" />
+	<hash crc32="3a99ddc7" sha1="f1f004b7b7833cb2ec9285419a7ad2358720302e" name="Two Crude Dudes (E) [b1]" />
+	<hash crc32="b6d90a10" sha1="babf6ec6dac62e7563c4fe9cb278179dc4343ea4" name="Two Crude Dudes (E)" />
+	<hash crc32="ecfb5cb4" sha1="044bfdb3761df7c4d54a25898353fabcd3f604a3" name="Ultimate Mortal Kombat 3 (E) [!]" />
+	<hash crc32="83db6e58" sha1="91781d0561f84de0d304221bbc26f4035f62010f" name="Ultimate Soccer (E) [!]" />
+	<hash crc32="41597f76" sha1="ff48b5ca50b6591bf8486acfb54a2602f2157e49" name="Ultimate Soccer (E) [b1]" />
+	<hash crc32="9624d4ef" sha1="2c3812f8a010571e51269a33a989598787d27c2d" name="Virtua Racing (E) [!]" />
+	<hash crc32="5a943df9" sha1="2c08ea556c79d48e88ff5202944c161ae1b41c63" name="Virtua Racing (E) [a1]" />
+	<hash crc32="79cadf6e" sha1="7b20041c3c808125bdd35076932d4ce085286710" name="Virtua Racing (E) [a1][h1C]" />
+	<hash crc32="059efc83" sha1="ff83ea1c8abe24c8922f88e7c3e7710a137e78c5" name="Wang-Yu-Yen Fighter Demo (PD)" />
+	<hash crc32="81d4ce1e" sha1="da2dfa61e4e205534293967f48abaa3e98eeda28" name="Waterworld (Beta) [h1C]" />
+	<hash crc32="51c80498" sha1="35e4186654a677a43d16861f9832199c5cb5e0ef" name="Waterworld (Beta)" />
+	<hash crc32="8c1a2610" sha1="54a2a35422b6da55043e148437a0cf17552fa6a1" name="Where in the World is Carmen Sandiego (E) (M5) [b1]" />
+	<hash crc32="0c420ed0" sha1="5f0c96e0cda7e8d9539d348ac7c493e9d6897278" name="Where in the World is Carmen Sandiego (E) (M5) [h1C]" />
+	<hash crc32="eef372e8" sha1="97c1f36e375ac33fbc5724bbb4bb296d974b114f" name="Where in the World is Carmen Sandiego (E) (M5)" />
+	<hash crc32="aefacec5" sha1="88645bbb9fab5b6b9e9ccfa15f8bda17800a49b1" name="Williams Arcade's Greatest Hits (E) [h1C]" />
+	<hash crc32="c0dce0e5" sha1="97e35e8fbe1546b9cf075ab75c8f790edcd9db93" name="Williams Arcade's Greatest Hits (E)" />
+	<hash crc32="b791a435" sha1="6b7d8aa9d4b9d10c26dc079ab78e11766982cef2" name="Wimbledon Championship Tennis (E) [!]" />
+	<hash crc32="ade557a1" sha1="509895d538c9067b2481b8f1d169159faad7592f" name="Wimbledon Championship Tennis (E) [b1]" />
+	<hash crc32="f7a5290b" sha1="ec30a13435a64c4491c1d6bc156ab5bec6436322" name="Wimbledon Championship Tennis (E) [b2]" />
+	<hash crc32="2d28ee67" sha1="708d4a8a62674eaf418299f3804783cb35cd6cb1" name="Wimbledon Championship Tennis (E) [b3]" />
+	<hash crc32="c27c13dd" sha1="fe47f47a74353a0a8059663ef97355c1cb88abcf" name="Wimbledon Championship Tennis (E) [h1I+C]" />
+	<hash crc32="72cba415" sha1="87807897121d5074e1340a768e13bbcf638b5cf9" name="Wimbledon Championship Tennis (E) [h1I]" />
+	<hash crc32="0d7c713c" sha1="4f21e238d50dc5231fab2d5e716e10a5a7384094" name="Wimbledon Championship Tennis (E) [h2I]" />
+	<hash crc32="4507a884" sha1="b8dcd07d722010b46e72dc951c29efa1ed163c3f" name="Wimbledon Championship Tennis (E) [h3I]" />
+	<hash crc32="f09353b4" sha1="2e7a1724a72e89a3f9a66720d9a7c6f293263798" name="Wiz 'n' Liz - The Frantic Wabbit Wescue (E) [!]" />
+	<hash crc32="46041d81" sha1="86d16aa80fea140af49b2dfa0061668641f41fa1" name="Wiz 'n' Liz - The Frantic Wabbit Wescue (E) [h1C]" />
+	<hash crc32="700bc0e0" sha1="793976bdf8e8cb3fa874fd309b591e155220d8e4" name="Wiz 'n' Liz - The Frantic Wabbit Wescue (E) [h2C]" />
+	<hash crc32="ba4b8264" sha1="7cd74ac03c472abf597154f6cc1c25e49e02eab8" name="Wiz 'n' Liz - The Frantic Wabbit Wescue (E) [hI]" />
+	<hash crc32="e5ff7565" sha1="404532a4cc6bfad4993103cf0616179b1d387625" name="Wonder Boy III - Monster Lair (JE) [b1]" />
+	<hash crc32="c24bc5e4" sha1="1fd3f77a2223ebeda547b81e49f3dfc9d0197439" name="Wonder Boy III - Monster Lair (JE) [c][!]" />
+	<hash crc32="09da8664" sha1="aff8f41b1037103aa36afd0b7a78ed0b4c958482" name="Wonder Boy III - Monster Lair (JE) [f1]" />
+	<hash crc32="daca01c3" sha1="c307a731763c7f858ef27058b4f46017868749d6" name="World Class Leaderboard Golf (E) [x]" />
+	<hash crc32="dd95f829" sha1="c233313214418300a39afc446e8426cc11f99c6c" name="World Cup Italia 90 (E) [!]" />
+	<hash crc32="07f034ad" sha1="c55a905ccdb962ea9a1796d5dd87706341c2c4ce" name="World Cup Italia 90 (E) [h1C]" />
+	<hash crc32="121c6a49" sha1="4b7aa8de517516edd9ee5288124f77238fc9ba6b" name="World of Illusion Starring Mickey Mouse &amp; Donald Duck (E) [!]" />
+	<hash crc32="46350f95" sha1="035ef16bbdef87c7a85346e7a1dd9a8c1b21ad94" name="World of Illusion Starring Mickey Mouse &amp; Donald Duck (E) [T+Spa]" />
+	<hash crc32="1d191694" sha1="23127e9b3a98eea13fb97bed2d8e206adb495d97" name="Worms (E) (Prototype) [c][!]" />
+	<hash crc32="b9a8b299" sha1="1a15447a4a791c02b6ad0a609f788d39fe6c3aa6" name="Worms (E) [!]" />
+	<hash crc32="7e67819d" sha1="9545c0104a99621c4fc92a7234e003b02668486b" name="Worms (E) [T+Rus]" />
+	<hash crc32="1cdee87b" sha1="65c4815c6271bb7d526d84dac1bf177741e35364" name="Wrestle War (Beta)" />
+	<hash crc32="a803830f" sha1="c5839d5088db52e2cd8020853a2ade0390e212cd" name="Wrestle War (JE) [b1]" />
+	<hash crc32="2d162a85" sha1="1eac51029fd7fb1da1c5546cbd959220244cf3e5" name="Wrestle War (JE) [c][!]" />
+	<hash crc32="a32f90aa" sha1="53cd0d3fd2935ad4811921f50c8db8a826b84cff" name="Wrestle War (JE) [h1C]" />
+	<hash crc32="90c3c572" sha1="82efdad73ab705dd3a3f1499ebdebd7ce55e5124" name="Wrestle War (JE) [h2C]" />
+	<hash crc32="b186097f" sha1="7e136a398817bdb1d110e7941b09105c275420d0" name="Wrestle War (JE) [p1][!]" />
+	<hash crc32="0b78ca97" sha1="111d696b317ad5b57bc66e037a935d3f123d41c2" name="X-Men (E) [!]" />
+	<hash crc32="272ebf33" sha1="ddb40ec37d500b226c77a8220fd81f170c85cb95" name="Xenon 2 - Megablast (E) [b1]" />
+	<hash crc32="8b105c8d" sha1="5701e9b1f4bb01e952e9c2369c52ffefce4e63c3" name="Xenon 2 - Megablast (E) [b2]" />
+	<hash crc32="59abe7f9" sha1="055b554f7d61ed671eddc385bce950b2baa32249" name="Xenon 2 - Megablast (E) [c][!]" />
+	<hash crc32="e129c15c" sha1="7bb76fe830fda76323ab677d609670d3fdbacbf7" name="Xenon 2 - Megablast (E) [f1]" />
+	<hash crc32="99f9345b" sha1="8dd8778b895a8ad1e4d55d58d1d1a792fbef8d13" name="Xenon 2 - Megablast (E) [h1C]" />
+	<hash crc32="c250fdbc" sha1="f418ca39844b7e75970fd8fea46546b97b8b3a34" name="Xenon 2 - Megablast (E) [hI]" />
+	<hash crc32="204f97d8" sha1="9f235fd4ac2612fb398ecbe423f40c901be8f564" name="Yogi Bear's Cartoon Capers (E) [!]" />
+	<hash crc32="01650301" sha1="d975e5d539cc1a9ada5e89aff6b9dc5d33fdcf16" name="Yogi Bear's Cartoon Capers (E) [b1]" />
+	<hash crc32="e8571b62" sha1="4a468315408cf7c356b7e71b95ad4d48c88499f6" name="Yogi Bear's Cartoon Capers (E) [f1]" />
+	<hash crc32="45ff0b4b" sha1="11a501f5dbde889edcc14e366b67bb75b0c5bc13" name="Zero the Kamikaze Squirrel (E) [!]" />
+	<hash crc32="65b31036" sha1="b42b742a688c0fa7e2b53f4fd94083feb3052c61" name="Zero the Kamikaze Squirrel (E) [f1]" />
+	<hash crc32="a3e72afb" sha1="077331298346ec086f3644dbb542072910d309ea" name="Zero the Kamikaze Squirrel (E) [p1][!]" />
+	<hash crc32="4742aac7" sha1="38ac994397ee6e7df8dc9a42e92bc8584e297bfd" name="Zero Wing (E) [b1]" />
+	<hash crc32="404d3dcd" sha1="0dbade05dc21604a489b10130de4bdb4748a0e02" name="Zero Wing (E) [b2]" />
+	<hash crc32="89b744a3" sha1="98335b97c5e21f7f8c5436427621836660b91075" name="Zero Wing (E) [c][!]" />
+	<hash crc32="57e9e9e2" sha1="202e849317efc665add45b053b8c2b5063535000" name="Zero Wing (E) [h1C]" />
+	<hash crc32="6c2f981d" sha1="88adfa6c63966ca36dcba21076399209a6d7edc4" name="Zero Wing (E) [h2C]" />
+	<hash crc32="75d4af80" sha1="09a9a89f7d5e5b69cfd6c24d4af5eedfd2a67325" name="Zero Wing (E) [h3C]" />
+	<hash crc32="f7fa5d14" sha1="32831bc1ce3fa27c420107c7798f80d6fe49dfce" name="Zero Wing (E) [T+Pol]" />
+	<hash crc32="179a1aa2" sha1="f0b447196d648b282050a52bdfdd9bf0d8f3d57e" name="Zombies (E) [!]" />
+	<hash crc32="1ee58b03" sha1="cab14f63b7d00b35a11a3a7f60cf231199121dc8" name="Zool (E) [!]" />
+	<hash crc32="dce747d5" sha1="96989e92220c191b836ea8c7cdc1c59277a7ebd6" name="Zool (E) [b1]" />
+	<hash crc32="c683b127" sha1="e6a6fd0f783dea9e5f8707fbe6bc65cdb99a2fc1" name="Zool (E) [b2]" />
+	<hash crc32="2fdac6ab" sha1="9914956f974b71d24b65e82ae3c980d0eb23c2e5" name="Zoop (E) [!]" />
+
+</hashfile>
