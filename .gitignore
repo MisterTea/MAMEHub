@@ -35,3 +35,7 @@ Sources/Emulator/csume64.sym
 # Build objects
 Sources/Emulator/obj
 
+# Eclipse Project Files
+.settings
+.project
+.classpath
