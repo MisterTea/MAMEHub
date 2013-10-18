@@ -1,3 +1,2 @@
-make -j4 TARGET=ume NOWERROR=1
-echo make -j4 TARGET=ume DEBUG=1 SYMBOLS=1 NOWERROR=1
-scp csume www-data@10ghost.net:/var/www/MAMEHubDownloads/Emulators/Linux32/
+make -j8 TARGET=ume NOWERROR=1
+make -j8 TARGET=ume DEBUG=1 SYMBOLS=1 SYMLEVEL=1 NOWERROR=1
