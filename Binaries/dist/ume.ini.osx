@@ -12,7 +12,7 @@ hashpath                  ../hash
 samplepath                ../samples
 artpath                   ../artwork
 ctrlrpath                 ../ctrlr
-inipath                   .;ini
+inipath                   ../ini
 fontpath                  .
 cheatpath                 ../cheat
 crosshairpath             ../crosshair
