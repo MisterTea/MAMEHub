@@ -1,3 +1,0 @@
-make -j4 NOWERROR=1 OSD="sdl" PTR64=0 TARGET=mame
-make -j4 NOWERROR=1 OSD="sdl" PTR64=0 TARGET=mame DEBUG=1 SYMBOLS=1
-
