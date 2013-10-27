@@ -1809,7 +1809,7 @@ static UINT32 handler_ingame(running_machine &machine, render_container *contain
                         if(chatString.size())
                             chatString.pop_back();
 					}
-					else
+					else if(event.ch>31)
 					{
 						chatString.push_back(event.ch);
 					}
