@@ -95,7 +95,16 @@ public class PeerMonitor implements Runnable {
 						logger.debug("Could not get from " + player.name);
 						continue;
 					}
-					File file = new File("../roms/" + fileInfo.filename);
+					File file = null;
+					if (systemRomPair.system.equalsIgnoreCase("arcade") || systemRomPair.system.equalsIgnoreCase("bios")) {
+						file = new File("../roms/" + fileInfo.filename);
+					} else {
+						File dir = new File("../roms/" + systemRomPair.system);
+						if (!dir.exists()) {
+							dir.mkdirs();
+						}
+						file = new File("../roms/" + systemRomPair.system + "/" + fileInfo.filename);
+					}
 					FileOutputStream outputStream = new FileOutputStream(file);
 
 					offset = 0L;
