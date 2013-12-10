@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.LogManager;
@@ -36,7 +37,7 @@ public class Utils {
 	private static ClientDatabaseEngine auditDatabaseEngine;
 	private static ClientDatabaseEngine applicationDatabaseEngine;
 
-	public static final int AUDIT_DATABASE_VERSION = 10;
+	public static final int AUDIT_DATABASE_VERSION = 12;
 	public static final int APPLICATION_DATABASE_VERSION = 6;
 
 	private static PlayerProfile playerProfile = null;
@@ -100,6 +101,20 @@ public class Utils {
 			}
 		}
 	}
+	
+	public static synchronized void deleteAuditDatabaseEngine() {
+		if (Utils.applicationDatabaseEngine != null) {
+			Utils.applicationDatabaseEngine.close();
+		}
+		Utils.applicationDatabaseEngine = null;
+		String dbDirectory = "./";// System.getProperty( "user.home" );
+		try {
+			FileUtils.deleteDirectory(new File(dbDirectory, "MAMEHubAuditDB" + AUDIT_DATABASE_VERSION));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 
 	public static synchronized ClientDatabaseEngine getAuditDatabaseEngine() {
 		String dbDirectory = "./";// System.getProperty( "user.home" );
@@ -132,7 +147,14 @@ public class Utils {
 	}
 
 	public static void shutdownDatabaseEngine() {
-		Utils.auditDatabaseEngine.database.close();
+		if (Utils.auditDatabaseEngine != null) {
+			Utils.auditDatabaseEngine.close();
+		}
+		if (Utils.applicationDatabaseEngine != null) {
+			Utils.applicationDatabaseEngine.close();
+		}
+		Utils.auditDatabaseEngine = null;
+		Utils.applicationDatabaseEngine = null;
 	}
 
 	public static boolean isWindows() {

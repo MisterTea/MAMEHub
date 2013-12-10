@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -36,7 +37,6 @@ public class MameHubEngine implements Runnable {
 	}
 	EmulatorHandler handler;
 	private String romFileName;
-	private String cartFileName;
 	private boolean quit = false;
 
 	public class ExitMameShutdownHook implements Runnable {
@@ -81,40 +81,40 @@ public class MameHubEngine implements Runnable {
 		return gameAuditor.startAudit(runScanner);
 	}
 
-	public boolean launchGame(String username, String systemName, String romOrCartFileName, boolean isServer, String ipAddress, int selfport, int port) throws IOException {
+	public boolean launchGame(String username, String systemName, RomInfo romOrCart, boolean isServer, String ipAddress, int selfport, int port) throws IOException {
 		if(isGameRunning()) {
 			return false;
-		}
-		
-		if(systemName.equalsIgnoreCase("arcade")) {
-			this.romFileName = romOrCartFileName;
-			this.cartFileName = null;
-		} else {
-			// Before we passed the bios path to ume, now we need to pass the system name.
-			// this.romFileName = getMessRomInfo(systemName).filename;
-			this.romFileName = systemName;
-			this.cartFileName = romOrCartFileName;
 		}
 		
 		List<String> cmdList = new ArrayList<String>();
 		if(new File("./csume64").exists() || new File("./csume64.exe").exists()) {
 			if(OSValidator.isWindows()) {
-				cmdList.add("csume64");
+				cmdList.add("csume64.exe");
 			} else {
 				cmdList.add("./csume64");
 			}
 		} else {
 			if(OSValidator.isWindows()) {
-				cmdList.add("csume");
+				cmdList.add("csume.exe");
 			} else {
 				cmdList.add("./csume");
 			}
 		}
-		cmdList.add("\"" + romFileName + "\"");
-		if(cartFileName != null) {
-			cmdList.add("-" + mediaCommandFetcher.getMediaName(systemName, cartFileName));
-			cmdList.add("\"" + cartFileName + "\"");
+		
+		if(systemName.equalsIgnoreCase("arcade")) {
+			this.romFileName = romOrCart.filename;
+			cmdList.add("\"" + romFileName + "\"");
+		} else {
+			// Before we passed the bios path to ume, now we need to pass the system name.
+			// this.romFileName = getMessRomInfo(systemName).filename;
+			this.romFileName = systemName;
+			cmdList.add(romFileName);
+			for (Entry<String, String> interfaceTypeNamePair : romOrCart.interfaceFileMap.entrySet()) {
+				cmdList.add("-" + interfaceTypeNamePair.getKey());
+				cmdList.add(interfaceTypeNamePair.getValue());
+			}
 		}
+
 		cmdList.add("-port");
 		cmdList.add(Integer.toString(port));
 		if(isServer) {

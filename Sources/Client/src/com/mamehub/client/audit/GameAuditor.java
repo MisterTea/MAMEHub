@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import com.mamehub.client.Utils;
 import com.mamehub.thrift.FileInfo;
-import com.mamehub.thrift.FileNameLocationPair;
+import com.mamehub.thrift.RomHashEntryValue;
 import com.mamehub.thrift.RomInfo;
 
 public class GameAuditor implements Runnable {
@@ -64,7 +64,7 @@ public class GameAuditor implements Runnable {
 	public boolean runScanner;
 	public Thread gameAuditorThread;
 	private HashScanner hashScanner;
-	private ConcurrentMap<String, ArrayList<FileNameLocationPair>> hashEntryMap = null;
+	private ConcurrentMap<String, ArrayList<RomHashEntryValue>> hashEntryMap = null;
 	private ConcurrentMap<String, String> chdMap = null;
 	ConcurrentMap<String, RomInfo> mameRoms = getMameRomInfoMap();
 	ConcurrentMap<String, RomInfo> messRoms = getMessRomInfoMap();
@@ -123,6 +123,7 @@ public class GameAuditor implements Runnable {
 		} catch (Exception e) {
 			logger.error("Audit error!", e);
 			GameAuditor.abort = true;
+			Utils.deleteAuditDatabaseEngine();
 			if (handler != null) {
 				handler.auditError(new IOException(e));
 			}
@@ -135,8 +136,13 @@ public class GameAuditor implements Runnable {
 	}
 
 	private void scan() throws Exception {
+		List<String> systemNames = new ArrayList<String>();
+		for(File softlist_file : new File("../hash").listFiles()) {
+			systemNames.add(softlist_file.getName().split("\\.")[0]);
+		}
+
 		List<File> paths = new IniParser().getRomPaths();
-		hashScanner = new HashScanner(handler, hashEntryMap, chdMap);
+		hashScanner = new HashScanner(handler, hashEntryMap, chdMap, systemNames);
 		hashScanner.scan(paths);
 		hashScanner = null;
 		if (GameAuditor.abort) {
@@ -148,7 +154,7 @@ public class GameAuditor implements Runnable {
 		try {
 			logger.info("AUDIT: Creating in-memory hash entry map.");
 			handler.updateAuditStatus("AUDIT: Creating in-memory hash entry map.");
-			Map<String, ArrayList<FileNameLocationPair>> inMemoryHashEntryMap = new ConcurrentHashMap<String, ArrayList<FileNameLocationPair>>(
+			Map<String, ArrayList<RomHashEntryValue>> inMemoryHashEntryMap = new ConcurrentHashMap<String, ArrayList<RomHashEntryValue>>(
 					hashEntryMap);
 			handler.updateAuditStatus("AUDIT: Parsing MAME Roms");
 			logger.info("Parsing MAME roms");
@@ -157,7 +163,7 @@ public class GameAuditor implements Runnable {
 							false, false);
 			Utils.getAuditDatabaseEngine().commit();
 
-			handler.updateAuditStatus("AUDIT: Parsing MESS Roms");
+			handler.updateAuditStatus("AUDIT: Parsing MESS Systems");
 			// MESS Systems can't come from CHDs, so put a null here
 			new RomParser("../hash/messROMs.xml.gz").process(
 					inMemoryHashEntryMap, null, messRoms, true, true, true);
@@ -181,7 +187,7 @@ public class GameAuditor implements Runnable {
 				if (messRoms.get(system).isSetMissingReason()) {
 					missingSystem = true;
 				}
-				File file = new File("../hash/" + system + ".hsi");
+				File file = new File("../hash/" + system + ".xml");
 				if (file.exists()) {
 					Map<String, RomInfo> systemCarts = systemRomMaps
 							.get(system);
@@ -255,18 +261,15 @@ public class GameAuditor implements Runnable {
 		{
 			handler.updateAuditStatus("AUDIT: Indexing Arcade roms");
 			for (RomInfo ri : mameRoms.values()) {
-				addIndexEntry(writer, "Arcade", ri.description, ri.romName);
+				addIndexEntry(writer, "Arcade", ri.description, ri.id);
 			}
 		}
 
 		for (String system : messRoms.keySet()) {
 			handler.updateAuditStatus("AUDIT: Indexing " + system);
-			File file = new File("../hash/" + system + ".hsi");
-			if (file.exists()) {
-				Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
-				for (RomInfo ri : systemCarts.values()) {
-					addIndexEntry(writer, system, ri.romName, ri.romName);
-				}
+			Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
+			for (RomInfo ri : systemCarts.values()) {
+				addIndexEntry(writer, system, ri.description, ri.id);
 			}
 		}
 
@@ -305,13 +308,10 @@ public class GameAuditor implements Runnable {
 		}
 
 		for (String system : messRoms.keySet()) {
-			File file = new File("../hash/" + system + ".hsi");
-			if (file.exists()) {
-				Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
-				for (Map.Entry<String, RomInfo> entry : systemCarts.entrySet()) {
-					if (entry.getKey().equals(romId)) {
-						return system;
-					}
+			Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
+			for (Map.Entry<String, RomInfo> entry : systemCarts.entrySet()) {
+				if (entry.getKey().equals(romId)) {
+					return system;
 				}
 			}
 		}
@@ -432,18 +432,18 @@ public class GameAuditor implements Runnable {
 					romInfo = getMameRomInfoMap().get(romid);
 				} else {
 					romInfo = getSystemRomInfoMap(system).get(romid);
-				}
-				// System.out.println(system + " : " + romid + " : " + romInfo);
-				if (romInfo.missingReason != null
-						&& (cloudRoms == null
-								|| !cloudRoms.containsKey(romInfo.system) || !cloudRoms
-								.get(romInfo.system).contains(romInfo.romName))) {
-					continue;
-				}
-				// System.out.println("GOT ROM: " + romInfo);
-				queryResult.add(new RomQueryResult(scoreDoc.score, romInfo));
-				if (queryResult.size() >= 1000) {
-					break;
+					}
+					// System.out.println(system + " : " + romid + " : " + romInfo);
+					if (romInfo.missingReason != null
+							&& (cloudRoms == null
+									|| !cloudRoms.containsKey(romInfo.system) || !cloudRoms
+								.get(romInfo.system).contains(romInfo.id))) {
+						continue;
+					}
+					// System.out.println("GOT ROM: " + romInfo);
+					queryResult.add(new RomQueryResult(scoreDoc.score, romInfo));
+					if (queryResult.size() >= 1000) {
+						break;
 				}
 			}
 			logger.info("Finished query");

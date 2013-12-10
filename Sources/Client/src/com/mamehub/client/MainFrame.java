@@ -360,13 +360,13 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			if (romInfo.missingReason == null) {
 				retval.add(noErrorsIcon);
 			} else if (cloudRoms.containsKey(machine)
-					&& cloudRoms.get(machine).contains(romInfo.romName)) {
+					&& cloudRoms.get(machine).contains(romInfo.id)) {
 				retval.add(downloadIcon);
 			} else {
 				retval.add(errorsIcon);
 			}
 			if (romInfo.description == null) {
-				retval.add(romInfo.romName);
+				retval.add(romInfo.id);
 			} else {
 				retval.add(romInfo.description);
 			}
@@ -618,10 +618,10 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 								} else {
 									Player myself = rpcEngine.getMyself();
 									rpcEngine.hostGame(systemName,
-											gameRomInfo.romName, null);
+											gameRomInfo.id, null);
 									boolean success = mameHubEngine.launchGame(
 											myself.name, systemName,
-											gameRomInfo.filename, true, null,
+											gameRomInfo, true, null,
 											myself.basePort, myself.basePort);
 									if (!success) {
 										JOptionPane
@@ -1089,6 +1089,20 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		});
 		mnHelp.add(mntmForum);
 
+		JMenuItem mntmGetRoms = new JMenuItem("Get Roms and Software");
+		mntmGetRoms.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				try {
+					Utils.openWebpage(new URI(
+							"http://www.pleasuredome.org.uk/"));
+				} catch (URISyntaxException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		});
+		mnHelp.add(mntmGetRoms);
+		
 		JMenu mnDonate = new JMenu("MAMEHub ROCKS!!!");
 		menuBar.add(mnDonate);
 
@@ -1220,7 +1234,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					if (errorMessage.length() == 0) {
 						Player myself = rpcEngine.getMyself();
 						boolean success = mameHubEngine.launchGame(myself.name,
-								game.system, gameRomInfo.filename, false,
+								game.system, gameRomInfo, false,
 								game.hostPlayerIpAddress, myself.basePort,
 								game.hostPlayerPort);
 						if (!success) {
@@ -1264,7 +1278,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		if (romInfo != null && romInfo.missingReason != null) {
 			// This is a bios we don't own, start the download process
 			Set<String> romsNeeded = new HashSet<String>();
-			romsNeeded.add(romInfo.romName);
+			romsNeeded.add(romInfo.id);
 			if (romInfo.cloneRom != null) {
 				romsNeeded.add(romInfo.cloneRom);
 			}
@@ -1287,7 +1301,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		}
 
 		Set<String> romsNeeded = new HashSet<String>();
-		romsNeeded.add(gameRomInfo.romName);
+		romsNeeded.add(gameRomInfo.id);
 		if (gameRomInfo.parentRom != null) {
 			romsNeeded.add(gameRomInfo.parentRom);
 		}
@@ -1415,7 +1429,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 				if (romInfo.missingReason == null) {
 					gamesFound.put(romInfo.description, romInfo);
 				} else if (cloudRoms.containsKey("Arcade")
-						&& cloudRoms.get("Arcade").contains(romInfo.romName)) {
+						&& cloudRoms.get("Arcade").contains(romInfo.id)) {
 					gamesCloud.put(romInfo.description, romInfo);
 				} else {
 					gamesMissing.put(romInfo.description, romInfo);

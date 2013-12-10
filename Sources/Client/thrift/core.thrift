@@ -21,15 +21,17 @@ struct SoftwareList
 struct RomInfo
 {
 	1:string id,
-    2:string cloneRom,
-    3:string parentRom,
-    4:string filename,
-    5:string description,
-    6:string romName,
-    7:MR missingReason,
-    8:string chdFilename;
-    9:string system,
-    10:list<SoftwareList> softwareLists = [];
+  2:string cloneRom,
+  3:string parentRom,
+  4:string filename,
+  5:string description,
+  6:MR missingReason,
+  7:string chdFilename;
+  8:list<SoftwareList> softwareLists = [];
+	9:string system,
+
+	// The following are for software ROMs
+	10:map<string,string> interfaceFileMap = {},
 }
 
 struct FileInfo {
@@ -38,7 +40,8 @@ struct FileInfo {
 	3:string crc32,
 	4:i64 length,
 	5:map<string,string> contentsCrc32 = {},
-	6:string chdname,
+	6:string chdName,
+	7:string systemName,
 }
 
 struct MediaType
@@ -48,9 +51,9 @@ struct MediaType
 }
 
 enum ChatStatus {
-     ONLINE,
-     QUIET,
-     AWAY,
+  ONLINE,
+  QUIET,
+  AWAY,
 }
 
 enum OperatingSystem {
@@ -73,12 +76,12 @@ struct Player
 	5:bool loggedIn = true,
 	6:bool moderator = false,
 	7:string inGame = "",
-    8:bool portsOpen = false,
-    //9:string emailAddress = "",
-    //10:string status,
-    11:PlayerStatus status,
-    12:i32 basePort = 6805,
-    13:i32 secondaryPort = 6806,
+  8:bool portsOpen = false,
+  //9:string emailAddress = "",
+  //10:string status,
+  11:PlayerStatus status,
+  12:i32 basePort = 6805,
+  13:i32 secondaryPort = 6806,
 }
 
 struct PlayerRomProfile
@@ -90,35 +93,35 @@ struct PlayerRomProfile
 
 struct PlayerProfile
 {
-    1:string id,
-    2:map<string, PlayerRomProfile> romProfiles = {};
+  1:string id,
+  2:map<string, PlayerRomProfile> romProfiles = {};
 }
 
 struct ApplicationSettings
 {
-    1:string id = "1",
+  1:string id = "1",
 
-    // Chat Settings
-    2:bool chatAudio = true,
-    3:ChatStatus chatStatus = ChatStatus.ONLINE,
+  // Chat Settings
+  2:bool chatAudio = true,
+  3:ChatStatus chatStatus = ChatStatus.ONLINE,
 
-    // Login Settings
-    4:string lastInternalLoginId = "",
-    
-    5:bool allowUploading = true,
-    6:bool showEmulatorLog = false,
-    
-    7:i32 basePort = 6805,
-    8:i32 secondaryPort = 6806,
+  // Login Settings
+  4:string lastInternalLoginId = "",
+  
+  5:bool allowUploading = true,
+  6:bool showEmulatorLog = false,
+  
+  7:i32 basePort = 6805,
+  8:i32 secondaryPort = 6806,
 }
 
 struct PlayerInternalPassword
 {
 	1:string id,
 	2:string password,
-    3:string emailAddress = "",
-    4:string facbeookId,
-    5:string googleId,
+  3:string emailAddress = "",
+  4:string facbeookId,
+  5:string googleId,
 }
 
 struct Game
@@ -143,11 +146,11 @@ struct ArchivedGame
 
 struct UserSession
 {
-    1:string id,
-    2:string userId,
-    3:i64 createTime,
-    4:map<string, string> data,
-    5:i64 expirationTime = 0,
+  1:string id,
+  2:string userId,
+  3:i64 createTime,
+  4:map<string, string> data,
+  5:i64 expirationTime = 0,
 }
 
 struct Message
@@ -181,8 +184,8 @@ struct FileRequest
 {
 	1:string requestRom,
 	2:string requestSystem,
-    3:i64 byteOffset = 0,
-    4:i32 chunkSize = 16384,
+  3:i64 byteOffset = 0,
+  4:i32 chunkSize = 16384,
 }
 
 enum FileResponseCode
@@ -206,8 +209,8 @@ struct FileResponse
 
 struct ServerState
 {
-    1:map<string,Player> loggedInPlayers,
-    2:map<string,Game> games,
+  1:map<string,Player> loggedInPlayers,
+  2:map<string,Game> games,
 }
 
 struct PeerState
@@ -224,10 +227,11 @@ struct SystemRomPair
 	2:string rom,
 }
 
-struct FileNameLocationPair
+struct RomHashEntryValue
 {
 	1:string filename,
 	2:string location,
+	3:string system,
 }
 
 struct PlayerFeedback
@@ -237,7 +241,7 @@ struct PlayerFeedback
 	3:string log,
 	4:string playerId,
 }
-	
+
 struct DownloadableRomState
 {
 	1:map<string, set<string>> roms = {},

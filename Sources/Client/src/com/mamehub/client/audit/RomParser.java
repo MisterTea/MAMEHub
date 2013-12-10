@@ -1,5 +1,6 @@
 package com.mamehub.client.audit;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,7 +22,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.mamehub.client.Utils;
-import com.mamehub.thrift.FileNameLocationPair;
+import com.mamehub.thrift.RomHashEntryValue;
 import com.mamehub.thrift.MR;
 import com.mamehub.thrift.RomInfo;
 import com.mamehub.thrift.SoftwareList;
@@ -38,7 +39,7 @@ public class RomParser extends DefaultHandler {
 	private int romsWithNoHash;
 	private Set<String> possibleEntries;
 
-	private Map<String, ArrayList<FileNameLocationPair>> hashEntryMap;
+	private Map<String, ArrayList<RomHashEntryValue>> hashEntryMap;
 	private ConcurrentMap<String, RomInfo> roms;
 	private boolean allowZeroFileRoms;
 	private ConcurrentMap<String, String> chdMap;
@@ -47,7 +48,6 @@ public class RomParser extends DefaultHandler {
 	private boolean verbose = false;
 	private int count = 0;
 
-	private String baseName;
 	private boolean mess;
 
 	private List<RomInfo> systems;
@@ -58,8 +58,7 @@ public class RomParser extends DefaultHandler {
 		this.xmlFile = xmlFile;
 	}
 
-	void process(
-			Map<String, ArrayList<FileNameLocationPair>> hashEntryMap2,
+	void process(Map<String, ArrayList<RomHashEntryValue>> hashEntryMap2,
 			ConcurrentMap<String, String> chdMap,
 			ConcurrentMap<String, RomInfo> roms, boolean allowZeroFileRoms,
 			boolean matchFileName, boolean mess) throws IOException {
@@ -68,11 +67,7 @@ public class RomParser extends DefaultHandler {
 		this.hashEntryMap = hashEntryMap2;
 		this.chdMap = chdMap;
 		this.allowZeroFileRoms = allowZeroFileRoms;
-		this.baseName = mess ? "B" : "A";
 		this.mess = mess;
-		if (baseName.length() != 1 || !baseName.equals(baseName.toUpperCase())) {
-			throw new RuntimeException("Invalid basename length");
-		}
 		systems = new ArrayList<RomInfo>();
 
 		SAXParserFactory factory = SAXParserFactory.newInstance();
@@ -112,8 +107,8 @@ public class RomParser extends DefaultHandler {
 			romInfo = new RomInfo();
 			romInfo.parentRom = attributes.getValue("romof");
 			romInfo.cloneRom = attributes.getValue("cloneof");
-			romInfo.id = baseName + attributes.getValue("name");
-			romInfo.romName = attributes.getValue("name");
+			romInfo.id = attributes.getValue("name");
+			verbose = romInfo.id.equals("alien");
 			gameFailed = false;
 			chdFailed = false;
 			romsWithNoHash = goodRoms = 0;
@@ -121,11 +116,16 @@ public class RomParser extends DefaultHandler {
 		} else if (qName.equals("description")) {
 			nextDataIsDescription = true;
 		} else if (qName.equals("disk")) {
-			if (chdMap != null
-					&& chdMap.containsKey(attributes.getValue("name"))) {
-				romInfo.chdFilename = chdMap.get(attributes.getValue("name"));
-			} else {
+			if (attributes.getValue("sha1") == null) {
 				chdFailed = true;
+			} else {
+				if (chdMap != null
+						&& chdMap.containsKey(attributes.getValue("sha1"))) {
+					romInfo.chdFilename = chdMap.get(attributes.getValue("sha1"));
+				} else {
+					//System.out.println("MISSING CHD: " + attributes.getValue("name") + " " + attributes.getValue("sha1"));
+					chdFailed = true;
+				}
 			}
 		} else if (qName.equals("softwarelist")) {
 			romInfo.softwareLists.add(new SoftwareList().setName(
@@ -157,7 +157,7 @@ public class RomParser extends DefaultHandler {
 
 			String name = attributes.getValue("name");
 
-			List<FileNameLocationPair> entries = hashEntryMap.get(crc32);
+			List<RomHashEntryValue> entries = hashEntryMap.get(crc32);
 
 			if (entries == null) {
 				gameFailed = true;
@@ -170,13 +170,13 @@ public class RomParser extends DefaultHandler {
 			}
 
 			if (matchFileName) {
-				for (FileNameLocationPair f : entries) {
+				for (RomHashEntryValue f : entries) {
 					if (verbose) {
 						logger.info("" + f.location + " "
-								+ romInfo.romName.toLowerCase() + ".zip");
+								+ romInfo.id.toLowerCase());
 					}
-					if (f.location.toLowerCase().endsWith(
-							romInfo.romName.toLowerCase() + ".zip")) {
+					if (new File(f.location).getName().toLowerCase()
+							.startsWith(romInfo.id.toLowerCase())) {
 						if (possibleEntries == null) {
 							possibleEntries = new HashSet<String>();
 						}
@@ -188,8 +188,12 @@ public class RomParser extends DefaultHandler {
 				}
 			} else {
 				Set<String> newEntries = new HashSet<String>();
-				for (FileNameLocationPair f : entries) {
-					newEntries.add(f.location);
+				for (RomHashEntryValue f : entries) {
+					if (f.system == null) {
+						// Do not add any MESS software as roms. Software is
+						// processed by the cart parser.
+						newEntries.add(f.location);
+					}
 				}
 				if (possibleEntries == null) {
 					possibleEntries = new HashSet<String>(newEntries);
@@ -257,7 +261,7 @@ public class RomParser extends DefaultHandler {
 			if (chdFailed) {
 				romInfo.missingReason = MR.MISSING_CHD;
 			}
-			roms.put(romInfo.romName, romInfo);
+			roms.put(romInfo.id, romInfo);
 			count++;
 			if (count % 5000 == 0) {
 				Utils.getAuditDatabaseEngine().commit();

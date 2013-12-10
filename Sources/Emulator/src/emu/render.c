@@ -1315,7 +1315,6 @@ void render_target::compute_minimum_size(INT32 &minwidth, INT32 &minheight)
 	// round up
 	minwidth = render_round_nearest(maxxscale);
 	minheight = render_round_nearest(maxyscale);
-
 }
 
 
