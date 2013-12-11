@@ -121,7 +121,7 @@ public class RomParser extends DefaultHandler {
 			} else {
 				if (chdMap != null
 						&& chdMap.containsKey(attributes.getValue("sha1"))) {
-					romInfo.chdFilename = chdMap.get(attributes.getValue("sha1"));
+					romInfo.chdFilenames.add(chdMap.get(attributes.getValue("sha1")));
 				} else {
 					//System.out.println("MISSING CHD: " + attributes.getValue("name") + " " + attributes.getValue("sha1"));
 					chdFailed = true;
@@ -241,11 +241,8 @@ public class RomParser extends DefaultHandler {
 				romInfo.missingReason = MR.BAD_FILES;
 			} else {
 				if (possibleEntries != null && !possibleEntries.isEmpty()) {
-					if (possibleEntries.size() > 1) {
-						romInfo.filename = possibleEntries.iterator().next();
-					}
 					if (!possibleEntries.isEmpty()) {
-						romInfo.filename = possibleEntries.iterator().next();
+						romInfo.filenames.add(possibleEntries.iterator().next());
 					} else {
 						romInfo.missingReason = MR.MISSING_FILES;
 					}
@@ -255,6 +252,8 @@ public class RomParser extends DefaultHandler {
 			}
 			if (!mess) {
 				romInfo.system = "Arcade";
+			} else {
+				romInfo.system = "Bios";
 			}
 			if (verbose)
 				logger.info("ROM INFO: " + romInfo);

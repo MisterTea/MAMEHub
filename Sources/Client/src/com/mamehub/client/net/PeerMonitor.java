@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -42,6 +43,7 @@ import com.mamehub.thrift.FileResponseCode;
 import com.mamehub.thrift.PeerFileInfo;
 import com.mamehub.thrift.PeerState;
 import com.mamehub.thrift.Player;
+import com.mamehub.thrift.RomInfo;
 import com.mamehub.thrift.SystemRomPair;
 
 public class PeerMonitor implements Runnable {
@@ -52,14 +54,13 @@ public class PeerMonitor implements Runnable {
 		private ArrayList<Player> playersWithRom;
 		public boolean failed = false;
 		public boolean finished = false;
-		private SystemRomPair systemRomPair;
+		private RomInfo romInfo;
 		public PeerFileInfo fileInfo;
 		long offset = 0L;
 		public boolean cancel = false;
 
-		public RomDownloadState(SystemRomPair systemRomPair,
-				Set<Player> playersWithRom) {
-			this.systemRomPair = systemRomPair;
+		public RomDownloadState(RomInfo romInfo, Set<Player> playersWithRom) {
+			this.romInfo = romInfo;
 			this.playersWithRom = new ArrayList<Player>(playersWithRom);
 			Collections.shuffle(this.playersWithRom);
 			new Thread(this).start();
@@ -69,8 +70,7 @@ public class PeerMonitor implements Runnable {
 		public void run() {
 			for (Player player : playersWithRom) {
 				fileInfo = null;
-				logger.debug("TRYING TO GET " + systemRomPair + " FROM "
-						+ player);
+				logger.debug("TRYING TO GET " + romInfo + " FROM " + player);
 				THttpClient gameTransport = null;
 				try {
 					// set the connection timeout value to 3 seconds (3000
@@ -89,103 +89,115 @@ public class PeerMonitor implements Runnable {
 					MameHubClientRpc.Client gameClient = new MameHubClientRpc.Client(
 							gameProtocol);
 
-					fileInfo = gameClient.getFileInfo(systemRomPair.system,
-							systemRomPair.rom);
-					if (fileInfo.length == 0) {
-						logger.debug("Could not get from " + player.name);
-						continue;
-					}
-					File file = null;
-					if (systemRomPair.system.equalsIgnoreCase("arcade") || systemRomPair.system.equalsIgnoreCase("bios")) {
-						file = new File("../roms/" + fileInfo.filename);
-					} else {
-						File dir = new File("../roms/" + systemRomPair.system);
-						if (!dir.exists()) {
-							dir.mkdirs();
-						}
-						file = new File("../roms/" + systemRomPair.system + "/" + fileInfo.filename);
-					}
-					FileOutputStream outputStream = new FileOutputStream(file);
-
-					offset = 0L;
-					int chunkSize = 4096;
-					long curTime = System.currentTimeMillis();
 					boolean transferFailed = false;
-					byte[] b = new byte[128 * 1024];
-					while (!cancel) {
-						curTime = System.currentTimeMillis();
-						FileResponse fr = gameClient
-								.getFileChunk(new FileRequest(
-										systemRomPair.rom,
-										systemRomPair.system, offset, chunkSize));
-						if (fr.code == FileResponseCode.ERROR) {
-							transferFailed = true;
-							break;
+					int numFiles = gameClient.getFileCount(romInfo.system,
+							romInfo.id);
+					for (int a = 0; a < numFiles; a++) {
+						fileInfo = gameClient.getFileInfo(romInfo.system,
+								romInfo.id, a);
+						if (fileInfo.length == 0) {
+							logger.debug("Could not get from " + player.name);
+							continue;
 						}
-						HexStringInputStream hsis = new HexStringInputStream(
-								fr.dataHex);
-						while (true) {
-							int bytesRead = hsis.read(b);
-							logger.debug("BYTES READ: " + bytesRead);
-							if (bytesRead < 0)
-								break;
-							offset += bytesRead;
-							outputStream.write(b, 0, bytesRead);
+						File file = null;
+						if (romInfo.system.equalsIgnoreCase("arcade")
+								|| romInfo.system.equalsIgnoreCase("bios")) {
+							file = new File("../roms/" + fileInfo.filename);
+						} else {
+							File dir = new File("../roms/" + romInfo.system);
+							if (!dir.exists()) {
+								dir.mkdirs();
+							}
+							file = new File("../roms/" + romInfo.system + "/"
+									+ fileInfo.filename);
 						}
-						if (fr.code == FileResponseCode.EOF) {
-							break;
-						}
-						if (curTime + 1000 < System.currentTimeMillis()
-								&& chunkSize > 1024) {
-							// Took longer than a second, cut back
-							chunkSize /= 2;
-						} else if (curTime + 500 > System.currentTimeMillis()) {
-							// Finished too soon, speed up
-							chunkSize *= 2;
-						}
-						hsis.close();
-						updateUI(false);
-						Thread.sleep(500);
-					}
-					outputStream.close();
-					if (cancel || transferFailed) {
-					} else {
-						if (file.getName().toLowerCase().endsWith(".zip")) {
-							try {
-								// Make sure download was successful
-								ZipFile zf = new ZipFile(file);
-								for (Enumeration<? extends ZipEntry> e = zf
-										.entries(); e.hasMoreElements();) {
-									ZipEntry ze = e.nextElement();
+						FileOutputStream outputStream = new FileOutputStream(
+								file);
 
-									long expectedCrc = ze.getCrc();
-
-									byte[] data = new byte[1 * 1024 * 1024];
-									CRC32 crc32 = new CRC32();
-
-									int nRead;
-
-									InputStream is = zf.getInputStream(ze);
-									while ((nRead = is.read(data, 0,
-											data.length)) != -1) {
-										crc32.update(data, 0, nRead);
-									}
-									is.close();
-
-									if (expectedCrc != crc32.getValue()) {
-										transferFailed = true;
-									}
-								}
-							} catch (IOException e) {
+						offset = 0L;
+						int chunkSize = 4096;
+						long curTime = System.currentTimeMillis();
+						byte[] b = new byte[128 * 1024];
+						while (!cancel) {
+							curTime = System.currentTimeMillis();
+							FileResponse fr = gameClient
+									.getFileChunk(new FileRequest(
+											romInfo.system,
+											romInfo.id, offset,
+											chunkSize, a));
+							if (fr.code == FileResponseCode.ERROR) {
 								transferFailed = true;
+								break;
+							}
+							HexStringInputStream hsis = new HexStringInputStream(
+									fr.dataHex);
+							while (true) {
+								int bytesRead = hsis.read(b);
+								logger.debug("BYTES READ: " + bytesRead);
+								if (bytesRead < 0)
+									break;
+								offset += bytesRead;
+								outputStream.write(b, 0, bytesRead);
+							}
+							if (fr.code == FileResponseCode.EOF) {
+								break;
+							}
+							if (curTime + 1000 < System.currentTimeMillis()
+									&& chunkSize > 1024) {
+								// Took longer than a second, cut back
+								chunkSize /= 2;
+							} else if (curTime + 500 > System
+									.currentTimeMillis()) {
+								// Finished too soon, speed up
+								chunkSize *= 2;
+							}
+							hsis.close();
+							updateUI(false);
+							Thread.sleep(500);
+						}
+						outputStream.close();
+						if (cancel || transferFailed) {
+						} else {
+							if (file.getName().toLowerCase().endsWith(".zip")) {
+								try {
+									// Make sure download was successful
+									ZipFile zf = new ZipFile(file);
+									for (Enumeration<? extends ZipEntry> e = zf
+											.entries(); e.hasMoreElements();) {
+										ZipEntry ze = e.nextElement();
+
+										long expectedCrc = ze.getCrc();
+
+										byte[] data = new byte[1 * 1024 * 1024];
+										CRC32 crc32 = new CRC32();
+
+										int nRead;
+
+										InputStream is = zf.getInputStream(ze);
+										while ((nRead = is.read(data, 0,
+												data.length)) != -1) {
+											crc32.update(data, 0, nRead);
+										}
+										is.close();
+
+										if (expectedCrc != crc32.getValue()) {
+											transferFailed = true;
+										}
+									}
+								} catch (IOException e) {
+									transferFailed = true;
+								}
 							}
 						}
+						if (cancel || transferFailed) {
+							file.renameTo(new File(file.getAbsolutePath()
+									+ ".bad"));
+						}
+						if (cancel)
+							return;
+						if (transferFailed)
+							break; // Try another host
 					}
-					if (cancel || transferFailed) {
-						file.renameTo(new File(file.getAbsolutePath() + ".bad"));
-					}
-					if (cancel)
-						return;
 					if (transferFailed)
 						continue; // Try another host
 					finished = true;
@@ -199,7 +211,7 @@ public class PeerMonitor implements Runnable {
 					}
 				}
 			}
-			logger.debug("FAILED TO GET " + systemRomPair);
+			logger.debug("FAILED TO GET " + romInfo);
 			failed = true;
 			updateUI(false);
 		}
@@ -234,7 +246,7 @@ public class PeerMonitor implements Runnable {
 	}
 
 	private ConcurrentMap<String, PeerState> idStateMap = new ConcurrentHashMap<String, PeerState>();
-	private ConcurrentMap<SystemRomPair, RomDownloadState> requests = new ConcurrentHashMap<SystemRomPair, RomDownloadState>();
+	private ConcurrentMap<RomInfo, RomDownloadState> requests = new ConcurrentHashMap<RomInfo, RomDownloadState>();
 	private Thread thread;
 	private PeerMonitorListener listener;
 	private boolean gotNewRoms;
@@ -336,7 +348,8 @@ public class PeerMonitor implements Runnable {
 		if (player == null) {
 			return;
 		}
-		if (MainFrame.myPlayerId != null && player.id.equals(MainFrame.myPlayerId)) {
+		if (MainFrame.myPlayerId != null
+				&& player.id.equals(MainFrame.myPlayerId)) {
 			// Don't try to connect to yourself
 			return;
 		}
@@ -399,20 +412,19 @@ public class PeerMonitor implements Runnable {
 
 	}
 
-	public boolean requestRoms(String system, Set<String> romsNeeded,
-			String chdName, Player fallbackPlayer) {
-		Map<String, Set<Player>> romPlayerMap = new HashMap<String, Set<Player>>();
-		for (String romNeeded : romsNeeded) {
+	public boolean requestRoms(List<RomInfo> romsNeeded, Player fallbackPlayer) {
+		Map<RomInfo, Set<Player>> romPlayerMap = new HashMap<RomInfo, Set<Player>>();
+		for (RomInfo romNeeded : romsNeeded) {
 			romPlayerMap.put(romNeeded, new HashSet<Player>());
 			synchronized (idStateMap) {
 				for (Entry<String, PeerState> entry : idStateMap.entrySet()) {
 					Player p = MainFrame.knownPlayers.get(entry.getKey());
 					PeerState ps = entry.getValue();
-					logger.debug(ps.toString() + " " + system + " "
-							+ ps.downloadableRoms.containsKey(system));
-					if (ps.downloadableRoms.containsKey(system)
-							&& ps.downloadableRoms.get(system).contains(
-									romNeeded)) {
+					logger.info(ps.toString() + " " + romNeeded + " "
+							+ ps.downloadableRoms.containsKey(romNeeded.system));
+					if (ps.downloadableRoms.containsKey(romNeeded.system)
+							&& ps.downloadableRoms.get(romNeeded.system)
+									.contains(romNeeded.id)) {
 						romPlayerMap.get(romNeeded).add(p);
 					}
 				}
@@ -427,20 +439,12 @@ public class PeerMonitor implements Runnable {
 		}
 
 		// Take action (start requesting pieces)
-		for (String romNeeded : romsNeeded) {
-			SystemRomPair srp = new SystemRomPair(system, romNeeded);
-			if (!requests.containsKey(srp) || requests.get(srp).failed
-					|| requests.get(srp).cancel) {
-				requests.put(srp,
-						new RomDownloadState(srp, romPlayerMap.get(romNeeded)));
-			}
-		}
-
-		if (chdName != null) {
-			SystemRomPair srp = new SystemRomPair(system, chdName + "_chd");
-			if (!requests.containsKey(srp)) {
-				requests.put(srp,
-						new RomDownloadState(srp, romPlayerMap.get(chdName)));
+		for (RomInfo romNeeded : romsNeeded) {
+			if (!requests.containsKey(romNeeded)
+					|| requests.get(romNeeded).failed
+					|| requests.get(romNeeded).cancel) {
+				requests.put(romNeeded, new RomDownloadState(romNeeded,
+						romPlayerMap.get(romNeeded)));
 			}
 		}
 

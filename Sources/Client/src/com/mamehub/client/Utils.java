@@ -37,7 +37,7 @@ public class Utils {
 	private static ClientDatabaseEngine auditDatabaseEngine;
 	private static ClientDatabaseEngine applicationDatabaseEngine;
 
-	public static final int AUDIT_DATABASE_VERSION = 12;
+	public static final int AUDIT_DATABASE_VERSION = 13;
 	public static final int APPLICATION_DATABASE_VERSION = 6;
 
 	private static PlayerProfile playerProfile = null;

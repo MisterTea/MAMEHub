@@ -36,6 +36,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({"cast", "rawtypes", "serial", "unchecked"})
 public class coreConstants {
 
-  public static final int MAMEHUB_VERSION = 8;
+  public static final int MAMEHUB_VERSION = 9;
 
 }

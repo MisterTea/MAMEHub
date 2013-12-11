@@ -609,7 +609,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 									logger.info("Trying to download");
 									// This is a game we don't own, start the
 									// download process
-									tryToDownload(systemName, gameRomInfo, null);
+									tryToDownload(gameRomInfo, null);
 								} else if (mameHubEngine.isGameRunning()) {
 									JOptionPane
 											.showMessageDialog(
@@ -1093,8 +1093,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		mntmGetRoms.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				try {
-					Utils.openWebpage(new URI(
-							"http://www.pleasuredome.org.uk/"));
+					Utils.openWebpage(new URI("http://www.pleasuredome.org.uk/"));
 				} catch (URISyntaxException e1) {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
@@ -1102,7 +1101,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			}
 		});
 		mnHelp.add(mntmGetRoms);
-		
+
 		JMenu mnDonate = new JMenu("MAMEHub ROCKS!!!");
 		menuBar.add(mnDonate);
 
@@ -1207,17 +1206,9 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 					System.out.println("GAME ROM INFO " + gameRomInfo);
 				}
 
-				if (systemRomInfo != null
-						&& systemRomInfo.missingReason != null) {
-					// This is a bios we don't own, start the download process
-					tryToDownload(system, gameRomInfo,
-							knownPlayers.get(game.hostPlayerId));
-					return;
-				}
-
 				if (gameRomInfo.missingReason != null) {
 					// This is a game we don't own, start the download process
-					tryToDownload(system, gameRomInfo,
+					tryToDownload(gameRomInfo,
 							knownPlayers.get(game.hostPlayerId));
 					return;
 				}
@@ -1264,8 +1255,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		return true;
 	}
 
-	protected void tryToDownload(String systemName, RomInfo gameRomInfo,
-			Player fallbackPlayer) {
+	protected void tryToDownload(RomInfo gameRomInfo, Player fallbackPlayer) {
 		if (JOptionPane
 				.showConfirmDialog(
 						MainFrame.this,
@@ -1274,47 +1264,37 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 			return;
 		}
 
-		RomInfo romInfo = mameHubEngine.getMessRomInfo(systemName);
-		if (romInfo != null && romInfo.missingReason != null) {
-			// This is a bios we don't own, start the download process
-			Set<String> romsNeeded = new HashSet<String>();
-			romsNeeded.add(romInfo.id);
-			if (romInfo.cloneRom != null) {
-				romsNeeded.add(romInfo.cloneRom);
+		List<RomInfo> romsNeeded = new ArrayList<RomInfo>();
+		if (!gameRomInfo.system.equalsIgnoreCase("arcade")) {
+			RomInfo romInfo = mameHubEngine.getMessRomInfo(gameRomInfo.system);
+			if (romInfo != null && romInfo.missingReason != null) {
+				// This is a bios we don't own, start the download process
+				romsNeeded.add(romInfo);
+				if (romInfo.cloneRom != null) {
+					romsNeeded.add(mameHubEngine
+							.getMessRomInfo(romInfo.cloneRom));
+				}
+				if (romInfo.parentRom != null) {
+					romsNeeded.add(mameHubEngine
+							.getMessRomInfo(romInfo.parentRom));
+				}
 			}
-			if (romInfo.parentRom != null) {
-				romsNeeded.add(romInfo.parentRom);
-			}
-			boolean requestGranted = peerMonitor.requestRoms("Bios",
-					romsNeeded, null, fallbackPlayer);
-			mainTabbedPane.setSelectedIndex(1);
-			if (requestGranted) {
-				JOptionPane
-						.showMessageDialog(
-								MainFrame.this,
-								"Downloading BIOS from peers.  Once audit is complete, you will have to download the game if you don't already have it.");
-			} else {
-				JOptionPane.showMessageDialog(MainFrame.this,
-						"Server could not find peers with BIOS.");
-			}
-			return;
 		}
 
-		Set<String> romsNeeded = new HashSet<String>();
-		romsNeeded.add(gameRomInfo.id);
-		if (gameRomInfo.parentRom != null) {
-			romsNeeded.add(gameRomInfo.parentRom);
-		}
-		if (gameRomInfo.cloneRom != null) {
-			romsNeeded.add(gameRomInfo.cloneRom);
-		}
-		String chdName = null;
-		if (gameRomInfo.chdFilename != null) {
-			chdName = gameRomInfo.id;
+		romsNeeded.add(gameRomInfo);
+		if (gameRomInfo.system.equalsIgnoreCase("arcade")) {
+			if (gameRomInfo.parentRom != null) {
+				romsNeeded.add(mameHubEngine
+						.getMameRomInfo(gameRomInfo.parentRom));
+			}
+			if (gameRomInfo.cloneRom != null) {
+				romsNeeded.add(mameHubEngine
+						.getMameRomInfo(gameRomInfo.cloneRom));
+			}
 		}
 		logger.info("Requesting roms: " + romsNeeded);
-		boolean requestGranted = peerMonitor.requestRoms(systemName,
-				romsNeeded, chdName, fallbackPlayer);
+		boolean requestGranted = peerMonitor.requestRoms(romsNeeded,
+				fallbackPlayer);
 		mainTabbedPane.setSelectedIndex(1);
 		logger.info("Request granted: " + requestGranted);
 		if (requestGranted) {

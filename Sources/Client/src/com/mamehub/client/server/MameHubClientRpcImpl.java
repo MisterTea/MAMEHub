@@ -69,29 +69,36 @@ public class MameHubClientRpcImpl implements MameHubClientRpc.Iface {
 		return response;
 	}
 
-	private File getFile(String system, String romName) {
+	private File getFile(String system, String romName, int index) {
 		if(!canUpload()) {
 			return null;
 		}
 		if(system.equalsIgnoreCase("arcade")) {
-			if(romName.endsWith("_chd")) {
-				return new File(mameHubEngine.getMameRomInfo(romName.substring(0,romName.length()-4)).chdFilename);
-			} else {
-				return new File(mameHubEngine.getMameRomInfo(romName).filename);
-			}
+			return new File(mameHubEngine.getMameRomInfo(romName).filenames.get(index));
 		} else if(system.equalsIgnoreCase("bios")) {
-			return new File(mameHubEngine.getMessRomInfo(romName).filename);
+			return new File(mameHubEngine.getMessRomInfo(romName).filenames.get(index));
 		} else {
-			return new File(mameHubEngine.getCart(system, romName).filename);
+			return new File(mameHubEngine.getCart(system, romName).filenames.get(index));
 		}
 	}
 
 	@Override
-	public PeerFileInfo getFileInfo(String system, String romName) throws TException {
+	public int getFileCount(String system, String romName) throws TException {
+		if(system.equalsIgnoreCase("arcade")) {
+			return mameHubEngine.getMameRomInfo(romName).filenames.size();
+		} else if(system.equalsIgnoreCase("bios")) {
+			return mameHubEngine.getMessRomInfo(romName).filenames.size();
+		} else {
+			return mameHubEngine.getCart(system, romName).filenames.size();
+		}
+	}
+	
+	@Override
+	public PeerFileInfo getFileInfo(String system, String romName, int index) throws TException {
 		if(!canUpload()) {
 			return new PeerFileInfo();
 		}
-		File f = getFile(system, romName);
+		File f = getFile(system, romName, index);
 		return new PeerFileInfo(f.getName(), f.length());
 	}
 
@@ -104,7 +111,7 @@ public class MameHubClientRpcImpl implements MameHubClientRpc.Iface {
 		FileInputStream fis = null;
 		try {
 			System.out.println("Sending file chunk...");
-			File file = getFile(request.requestSystem,request.requestRom);
+			File file = getFile(request.requestSystem,request.requestRom,request.fileIndex);
 			logger.info("Sending chunk of file " + file);
 			fis = new FileInputStream(file);
 			if(request.byteOffset != fis.skip(request.byteOffset)) {

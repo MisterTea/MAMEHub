@@ -105,6 +105,8 @@ public class CartParser extends DefaultHandler implements Runnable {
 						String chdSha1 = ((Element)diskAreaNode).getElementsByTagName("disk").item(0).getAttributes().getNamedItem("sha1").getTextContent();
 						if (!chdMap.containsKey(chdSha1)) {
 							romInfo.missingReason = MR.MISSING_CHD;
+						} else {
+							romInfo.filenames.add(chdMap.get(chdSha1));
 						}
 					}
 					
@@ -134,6 +136,7 @@ public class CartParser extends DefaultHandler implements Runnable {
 										}
 										if (v.system != null && v.system.equalsIgnoreCase(systemName)) {
 											gotRom=true;
+											romInfo.filenames.add(v.filename);
 											break;
 										}
 									}
