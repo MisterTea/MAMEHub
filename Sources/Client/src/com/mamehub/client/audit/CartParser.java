@@ -96,10 +96,11 @@ public class CartParser extends DefaultHandler implements Runnable {
 					Node childNode = childList.item(t2);
 					
 					String interfaceType = childNode.getAttributes().getNamedItem("name").getTextContent();
-					String interfaceName = childNode.getAttributes().getNamedItem("interface").getTextContent().split("_")[0] + ":" + romInfo.id;
-					romInfo.interfaceFileMap.put(interfaceType, interfaceName);
+					String interfaceName = childNode.getAttributes().getNamedItem("interface").getTextContent().split("_")[0];
 					
 					NodeList diskAreaList = ((Element)childNode).getElementsByTagName("diskarea");
+					NodeList dataAreaList = ((Element)childNode).getElementsByTagName("dataarea");
+					
 					for (int diskAreaI=0;diskAreaI<diskAreaList.getLength();diskAreaI++) {
 						Node diskAreaNode = diskAreaList.item(diskAreaI);
 						String chdSha1 = ((Element)diskAreaNode).getElementsByTagName("disk").item(0).getAttributes().getNamedItem("sha1").getTextContent();
@@ -107,10 +108,10 @@ public class CartParser extends DefaultHandler implements Runnable {
 							romInfo.missingReason = MR.MISSING_CHD;
 						} else {
 							romInfo.filenames.add(chdMap.get(chdSha1));
+							romInfo.interfaceFileMap.put(interfaceType, interfaceName + ":" + chdMap.get(chdSha1));
 						}
 					}
 					
-					NodeList dataAreaList = ((Element)childNode).getElementsByTagName("dataarea");
 					if (verbose) {
 						System.out.println("NUM DATA: " + dataAreaList.getLength());
 					}
@@ -136,7 +137,10 @@ public class CartParser extends DefaultHandler implements Runnable {
 										}
 										if (v.system != null && v.system.equalsIgnoreCase(systemName)) {
 											gotRom=true;
-											romInfo.filenames.add(v.filename);
+											if (!romInfo.filenames.contains(v.location)) {
+												romInfo.filenames.add(v.location);
+											}
+											romInfo.interfaceFileMap.put(interfaceType, interfaceName + ":" + v.location);
 											break;
 										}
 									}

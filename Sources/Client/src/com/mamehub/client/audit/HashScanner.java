@@ -263,7 +263,7 @@ public class HashScanner {
 
 	public void scan(List<File> paths) throws IOException {
 		handler.updateAuditStatus("AUDIT: Clearing old reverse-map");
-		logger.info("Cleaing old reverse-map");
+		logger.info("Clearing old reverse-map");
 
 		Utils.stagedClear(hashEntryMap, Utils.getAuditDatabaseEngine());
 		Utils.stagedClear(chdMap, Utils.getAuditDatabaseEngine());
