@@ -38,6 +38,7 @@ import com.mamehub.client.server.ClientHttpServer;
 import com.mamehub.client.server.UDPReflectionServer;
 import com.mamehub.thrift.ApplicationSettings;
 import com.mamehub.thrift.Player;
+import javax.swing.SwingConstants;
 
 public class LoginDialog extends JFrame implements FacebookLoginCallback, GoogleLoginCallback {
 	private static final long serialVersionUID = 1L;
@@ -115,7 +116,8 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 		getContentPane().add(contentPanel);
 		contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
 		{
-			lblWelcomeToMamehub = new JLabel("Welcome to MAMEHub 2.0!");
+			lblWelcomeToMamehub = new JLabel("<html>Welcome to <a href=\"www.mamehub.info\">MAMEHub 3.0</a>!</html>");
+			lblWelcomeToMamehub.setHorizontalAlignment(SwingConstants.CENTER);
 			lblWelcomeToMamehub.setAlignmentX(Component.CENTER_ALIGNMENT);
 			contentPanel.add(lblWelcomeToMamehub);
 		}
