@@ -114,7 +114,7 @@ public class MameHubEngine implements Runnable {
 			cmdList.add(romFileName);
 			for (Entry<String, String> interfaceTypeNamePair : romOrCart.interfaceFileMap.entrySet()) {
 				cmdList.add("-" + interfaceTypeNamePair.getKey());
-				cmdList.add("\"" + interfaceTypeNamePair.getValue() + "\"");
+				cmdList.add(interfaceTypeNamePair.getValue());
 			}
 		}
 
@@ -146,8 +146,8 @@ public class MameHubEngine implements Runnable {
 
 	@Override
 	public void run() {
-		if(!new File("./logs").exists()) {
-			new File("./logs").mkdir();
+		if(!new File("../logs").exists()) {
+			new File("../logs").mkdir();
 		}
 		File outputFile = new File("../logs/"+new File(romFileName).getName()+"_"+(System.currentTimeMillis()/1000)%(60*24*365)+".txt")
 				.getAbsoluteFile();

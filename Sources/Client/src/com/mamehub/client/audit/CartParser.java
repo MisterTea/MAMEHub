@@ -108,7 +108,7 @@ public class CartParser extends DefaultHandler implements Runnable {
 							romInfo.missingReason = MR.MISSING_CHD;
 						} else {
 							romInfo.filenames.add(chdMap.get(chdSha1));
-							romInfo.interfaceFileMap.put(interfaceType, interfaceName + ":" + chdMap.get(chdSha1));
+							romInfo.interfaceFileMap.put(interfaceType, chdMap.get(chdSha1));
 						}
 					}
 					
@@ -140,7 +140,7 @@ public class CartParser extends DefaultHandler implements Runnable {
 											if (!romInfo.filenames.contains(v.location)) {
 												romInfo.filenames.add(v.location);
 											}
-											romInfo.interfaceFileMap.put(interfaceType, interfaceName + ":" + v.location);
+											romInfo.interfaceFileMap.put(interfaceType, v.location);
 											break;
 										}
 									}
