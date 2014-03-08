@@ -188,6 +188,7 @@ prescale                  1
 waitvsync                 0
 syncrefresh               0
 menu                      0
+unevenstretch             0
 
 #
 # DIRECTDRAW-SPECIFIC OPTIONS
@@ -198,7 +199,7 @@ hwstretch                 1
 # DIRECT3D-SPECIFIC OPTIONS
 #
 d3dversion                9
-filter                    1
+filter                    0
 
 #
 # DIRECT3D POST-PROCESSING OPTIONS
