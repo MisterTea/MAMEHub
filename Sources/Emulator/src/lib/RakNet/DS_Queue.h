@@ -35,6 +35,7 @@ namespace DataStructures
 		inline queue_type Peek( void ) const;
 		inline queue_type PeekTail( void ) const;
 		inline queue_type Pop( void );
+		inline queue_type PopTail( void );
 		// Debug: Set pointer to 0, for memory leak detection
 		inline queue_type PopDeref( void );
 		inline unsigned int Size( void ) const;
@@ -42,7 +43,7 @@ namespace DataStructures
 		inline unsigned int AllocationSize( void ) const;
 		inline void Clear( const char *file, unsigned int line );
 		void Compress( const char *file, unsigned int line );
-		bool Find ( queue_type q );
+		bool Find ( const queue_type& q );
 		void ClearAndForceAllocation( int size, const char *file, unsigned int line ); // Force a memory allocation to a certain larger size
 
 	private:
@@ -107,6 +108,24 @@ namespace DataStructures
 			return ( queue_type ) array[ allocation_size -1 ];
 
 		return ( queue_type ) array[ head -1 ];
+	}
+
+	template <class queue_type>
+	inline queue_type Queue<queue_type>::PopTail( void )
+	{
+#ifdef _DEBUG
+		RakAssert( head != tail );
+#endif
+		if (tail!=0)
+		{
+			--tail;
+			return ( queue_type ) array[ tail ];
+		}
+		else
+		{
+			tail=allocation_size-1;
+			return ( queue_type ) array[ tail ];
+		}
 	}
 
 	template <class queue_type>
@@ -217,7 +236,7 @@ namespace DataStructures
 
 			// Need to allocate more memory.
 			queue_type * new_array;
-			new_array = RakNet::OP_NEW_ARRAY<queue_type>(allocation_size * 2, file, line );
+			new_array = RakNet::OP_NEW_ARRAY<queue_type>((int)allocation_size * 2, file, line );
 #ifdef _DEBUG
 			RakAssert( new_array );
 #endif
@@ -340,7 +359,7 @@ namespace DataStructures
 	}
 
 	template <class queue_type>
-		bool Queue<queue_type>::Find ( queue_type q )
+		bool Queue<queue_type>::Find ( const queue_type &q )
 	{
 		if ( allocation_size == 0 )
 			return false;
@@ -362,7 +381,10 @@ namespace DataStructures
 	void Queue<queue_type>::ClearAndForceAllocation( int size, const char *file, unsigned int line )
 	{
 		RakNet::OP_DELETE_ARRAY(array, file, line);
-		array = RakNet::OP_NEW_ARRAY<queue_type>(size, file, line );
+		if (size>0)
+			array = RakNet::OP_NEW_ARRAY<queue_type>(size, file, line );
+		else
+			array=0;
 		allocation_size = size;
 		head = 0;
 		tail = 0;

@@ -34,7 +34,7 @@ class PacketLogger;
 /// \ingroup PLUGINS_GROUP
 
 /// \ingroup NAT_PUNCHTHROUGH_GROUP
-struct NatPunchthroughServerDebugInterface
+struct RAK_DLL_EXPORT NatPunchthroughServerDebugInterface
 {
 	NatPunchthroughServerDebugInterface() {}
 	virtual ~NatPunchthroughServerDebugInterface() {}
@@ -42,14 +42,14 @@ struct NatPunchthroughServerDebugInterface
 };
 
 /// \ingroup NAT_PUNCHTHROUGH_GROUP
-struct NatPunchthroughServerDebugInterface_Printf : public NatPunchthroughServerDebugInterface
+struct RAK_DLL_EXPORT NatPunchthroughServerDebugInterface_Printf : public NatPunchthroughServerDebugInterface
 {
 	virtual void OnServerMessage(const char *msg);
 };
 
 #if _RAKNET_SUPPORT_PacketLogger==1
 /// \ingroup NAT_PUNCHTHROUGH_GROUP
-struct NatPunchthroughServerDebugInterface_PacketLogger : public NatPunchthroughServerDebugInterface
+struct RAK_DLL_EXPORT NatPunchthroughServerDebugInterface_PacketLogger : public NatPunchthroughServerDebugInterface
 {
 	// Set to non-zero to write to the packetlogger!
 	PacketLogger *pl;
@@ -90,8 +90,8 @@ public:
 	virtual PluginReceiveResult OnReceive(Packet *packet);
 
 	/// \internal For plugin handling
-	virtual void OnClosedConnection(SystemAddress systemAddress, RakNetGUID rakNetGUID, PI2_LostConnectionReason lostConnectionReason );
-	virtual void OnNewConnection(SystemAddress systemAddress, RakNetGUID rakNetGUID, bool isIncoming);
+	virtual void OnClosedConnection(const SystemAddress &systemAddress, RakNetGUID rakNetGUID, PI2_LostConnectionReason lostConnectionReason );
+	virtual void OnNewConnection(const SystemAddress &systemAddress, RakNetGUID rakNetGUID, bool isIncoming);
 
 	// Each connected user has a ready state. Ready means ready for nat punchthrough.
 	struct User;
@@ -113,6 +113,7 @@ public:
 		SystemAddress systemAddress;
 		unsigned short mostRecentPort;
 		bool isReady;
+		DataStructures::OrderedList<RakNetGUID,RakNetGUID> groupPunchthroughRequests;
 
 		DataStructures::List<ConnectionAttempt *> connectionAttempts;
 		bool HasConnectionAttemptToUser(User *user);
@@ -134,6 +135,9 @@ protected:
 	void StartPunchthroughForUser(User*user);
 	uint16_t sessionId;
 	NatPunchthroughServerDebugInterface *natPunchthroughServerDebugInterface;
+
+	SystemAddress boundAddresses[MAXIMUM_NUMBER_OF_INTERNAL_IDS];
+	unsigned char boundAddressCount;
 
 };
 

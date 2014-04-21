@@ -40,11 +40,11 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\speex-1.1.12\include\speex&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\speex-1.1.12\include&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\bzip2-1.0.3&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\AutopatcherPostgreRepository&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\CrashReporter&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0&quot;"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\speex-1.1.12\include\speex&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\speex-1.1.12\include&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\bzip2-1.0.6&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\AutopatcherPostgreRepository&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\CrashReporter&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0&quot;"
 				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="1"
+				RuntimeLibrary="3"
 				BufferSecurityCheck="false"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -105,9 +105,9 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\speex-1.1.12\include\speex&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\speex-1.1.12\include&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\bzip2-1.0.3&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\AutopatcherPostgreRepository&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\CrashReporter&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0&quot;"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\speex-1.1.12\include\speex&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\speex-1.1.12\include&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\bzip2-1.0.6&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions\AutopatcherPostgreRepository&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\DependentExtensions&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0\CrashReporter&quot;;&quot;$(SolutionDir)Source\Engine\RakNet3.0&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;_CRT_SECURE_NO_DEPRECATE"
-				RuntimeLibrary="0"
+				RuntimeLibrary="2"
 				BufferSecurityCheck="false"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
@@ -345,7 +345,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\SHA1.cpp"
+				RelativePath=".\DR_SHA1.cpp"
 				>
 			</File>
 			<File
@@ -719,7 +719,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\SHA1.h"
+				RelativePath=".\DR_SHA1.h"
 				>
 			</File>
 			<File

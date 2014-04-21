@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
-//////#include <memory.h>
+//#include <memory.h>
 #include "RakAssert.h"
 #include "RakAlloca.h"
 
@@ -227,6 +227,11 @@ bool CCRakNetUDT::ShouldSendACKs(CCTimeType curTime, CCTimeType estimatedTimeToN
 // ----------------------------------------------------------------------------------------------------------------------------
 DatagramSequenceNumberType CCRakNetUDT::GetNextDatagramSequenceNumber(void)
 {
+	return nextDatagramSequenceNumber;
+}
+// ----------------------------------------------------------------------------------------------------------------------------
+DatagramSequenceNumberType CCRakNetUDT::GetAndIncrementNextDatagramSequenceNumber(void)
+{
 	DatagramSequenceNumberType dsnt=nextDatagramSequenceNumber;
 	nextDatagramSequenceNumber++;
 	return dsnt;
@@ -353,10 +358,10 @@ CCTimeType CCRakNetUDT::GetSenderRTOForACK(void) const
 	return (CCTimeType)(RTT + RTTVarMultiple * RTTVar + SYN);
 }
 // ----------------------------------------------------------------------------------------------------------------------------
-CCTimeType CCRakNetUDT::GetRTOForRetransmission(void) const
+CCTimeType CCRakNetUDT::GetRTOForRetransmission(unsigned char timesSent) const
 {
 #if CC_TIME_TYPE_BYTES==4
-	const CCTimeType maxThreshold=1000;
+	const CCTimeType maxThreshold=10000;
 	const CCTimeType minThreshold=100;
 #else
 	const CCTimeType maxThreshold=1000000;
@@ -377,7 +382,7 @@ CCTimeType CCRakNetUDT::GetRTOForRetransmission(void) const
 	return ret;
 }
 // ----------------------------------------------------------------------------------------------------------------------------
-void CCRakNetUDT::OnResend(CCTimeType curTime)
+void CCRakNetUDT::OnResend(CCTimeType curTime, RakNet::TimeUS nextActionTime)
 {
 	(void) curTime;
 
@@ -715,7 +720,7 @@ void CCRakNetUDT::PrintLowBandwidthWarning(void)
 	printf("Pipe from packet pair = %f megabytes per second\n", B);
 	printf("RTT=%f milliseconds\n", RTT/1000.0);
 	printf("RTT Variance=%f milliseconds\n", RTTVar/1000.0);
-	printf("Retransmission=%i milliseconds\n", GetRTOForRetransmission()/1000);
+	printf("Retransmission=%i milliseconds\n", GetRTOForRetransmission(1)/1000);
 	printf("Packet arrival rate on the remote system=%f megabytes per second\n", AS);
 	printf("Packet arrival rate on our system=%f megabytes per second\n", ReceiverCalculateDataArrivalRate());
 	printf("isInSlowStart=%i\n", isInSlowStart);

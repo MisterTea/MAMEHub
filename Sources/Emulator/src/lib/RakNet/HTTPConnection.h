@@ -16,7 +16,7 @@
 /// option) any later version.
 
 #include "NativeFeatureIncludes.h"
-#if _RAKNET_SUPPORT_HTTPConnection==1
+#if _RAKNET_SUPPORT_HTTPConnection==1 && _RAKNET_SUPPORT_TCPInterface==1
 
 #ifndef __HTTP_CONNECTION
 #define __HTTP_CONNECTION
@@ -40,6 +40,7 @@ struct SystemAddress;
 /// This class will handle connecting and reconnecting as necessary.
 ///
 /// Note that only one Post() can be handled at a time. 
+/// \deprecated, use HTTPConnection2
 class RAK_DLL_EXPORT HTTPConnection
 {
 public:

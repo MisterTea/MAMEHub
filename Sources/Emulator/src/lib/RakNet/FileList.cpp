@@ -1,19 +1,31 @@
 #include "FileList.h"
+
+#if _RAKNET_SUPPORT_FileOperations==1
+
 #include <stdio.h> // RAKNET_DEBUG_PRINTF
 #include "RakAssert.h"
-#if defined(_WIN32) || defined(__CYGWIN__)
-	#include <io.h>
-#elif !defined ( __APPLE__ ) && !defined ( __APPLE_CC__ ) && !defined ( __PPC__ ) && !defined ( __FreeBSD__ )
-	#include <sys/io.h>
+#if defined(ANDROID)
+#include <asm/io.h>
+#elif defined(_WIN32) || defined(__CYGWIN__)
+#include <io.h>
+
+
+#elif !defined ( __APPLE__ ) && !defined ( __APPLE_CC__ ) && !defined ( __PPC__ ) && !defined ( __FreeBSD__ ) && !defined ( __S3E__ )
+#include <sys/io.h>
 #endif
-#include "DS_Queue.h"
+
+
 #ifdef _WIN32 
 // For mkdir
 #include <direct.h>
+
+
 #else
 #include <sys/stat.h>
 #endif
-//#include "SHA1.h"
+
+//#include "DR_SHA1.h"
+#include "DS_Queue.h"
 #include "StringCompressor.h"
 #include "BitStream.h"
 #include "FileOperations.h"
@@ -22,18 +34,20 @@
 #include "LinuxStrings.h"
 
 #define MAX_FILENAME_LENGTH 512
-static const unsigned HASH_LENGTH=sizeof(unsigned int);
+static const unsigned HASH_LENGTH=4;
 
 using namespace RakNet;
 
 // alloca
-#if defined(_XBOX) || defined(X360)
-#elif defined(_WIN32)
+
+#if   defined(_WIN32)
 #include <malloc.h>
+
+
 #else
-#if !defined ( __FreeBSD__ )
-#include <alloca.h>
-#endif
+	#if !defined ( __FreeBSD__ )
+	#include <alloca.h>
+	#endif
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -66,10 +80,22 @@ void FLP_Printf::OnAddFilesFromDirectoryStarted(FileList *fileList, char *dir) {
 void FLP_Printf::OnDirectory(FileList *fileList, char *dir, unsigned int directoriesRemaining) {
 	(void) fileList;
 	RAKNET_DEBUG_PRINTF("Adding %s. %i remaining.\n", dir, directoriesRemaining);}	
+void FLP_Printf::OnFilePushesComplete( SystemAddress systemAddress, unsigned short setID )
+{
+	(void) setID;
 
+	char str[32];
+	systemAddress.ToString(true, (char*) str);
+	RAKNET_DEBUG_PRINTF("File pushes complete to %s\n", str);	
+}
+void FLP_Printf::OnSendAborted( SystemAddress systemAddress )
+{
+	char str[32];
+	systemAddress.ToString(true, (char*) str);
+	RAKNET_DEBUG_PRINTF("Send aborted to %s\n", str);
+}
 FileList::FileList()
 {
-	callback=0;
 }
 FileList::~FileList()
 {
@@ -100,7 +126,7 @@ void FileList::AddFile(const char *filepath, const char *filename, FileListNodeC
 	}
 
 
-#if !defined(_XBOX) && !defined(_X360)
+#if USE_ALLOCA==1
 	bool usedAlloca=false;
 	if (length < MAX_ALLOCA_STACK_ALLOCATION)
 	{
@@ -111,19 +137,20 @@ void FileList::AddFile(const char *filepath, const char *filename, FileListNodeC
 #endif
 	{
 		data = (char*) rakMalloc_Ex( length, _FILE_AND_LINE_ );
+		RakAssert(data);
 	}
 
 	fread(data, 1, length, fp);
 	AddFile(filename, filepath, data, length, length, context);
 	fclose(fp);
 
-#if !defined(_XBOX) && !defined(_X360)
+#if USE_ALLOCA==1
 	if (usedAlloca==false)
 #endif
 		rakFree_Ex(data, _FILE_AND_LINE_ );
 
 }
-void FileList::AddFile(const char *filename, const char *fullPathToFile, const char *data, const unsigned dataLength, const unsigned fileLength, FileListNodeContext context, bool isAReference)
+void FileList::AddFile(const char *filename, const char *fullPathToFile, const char *data, const unsigned dataLength, const unsigned fileLength, FileListNodeContext context, bool isAReference, bool takeDataPointer)
 {
 	if (filename==0)
 		return;
@@ -159,8 +186,16 @@ void FileList::AddFile(const char *filename, const char *fullPathToFile, const c
 //	size_t fileNameLen = strlen(filename);
 	if (dataLength && data)
 	{
-		n.data=(char*) rakMalloc_Ex( dataLength, _FILE_AND_LINE_ );
-		memcpy(n.data, data, dataLength);
+		if (takeDataPointer)
+		{
+			n.data=(char*) data;
+		}
+		else
+		{
+			n.data=(char*) rakMalloc_Ex( dataLength, _FILE_AND_LINE_ );
+			RakAssert(n.data);
+			memcpy(n.data, data, dataLength);
+		}
 	}
 	else
 		n.data=0;
@@ -168,6 +203,10 @@ void FileList::AddFile(const char *filename, const char *fullPathToFile, const c
 	n.fileLengthBytes=fileLength;
 	n.isAReference=isAReference;
 	n.context=context;
+	if (n.context.dataPtr==0)
+		n.context.dataPtr=n.data;
+	if (n.context.dataLength==0)
+		n.context.dataLength=dataLength;
 	n.filename=filename;
 	n.fullPathToFile=fullPathToFile;
 		
@@ -175,6 +214,9 @@ void FileList::AddFile(const char *filename, const char *fullPathToFile, const c
 }
 void FileList::AddFilesFromDirectory(const char *applicationDirectory, const char *subDirectory, bool writeHash, bool writeData, bool recursive, FileListNodeContext context)
 {
+
+
+
 	DataStructures::Queue<char*> dirList;
 	char root[260];
 	char fullPath[520];
@@ -183,6 +225,7 @@ void FileList::AddFilesFromDirectory(const char *applicationDirectory, const cha
 	FILE *fp;
 	char *dirSoFar, *fileData;
 	dirSoFar=(char*) rakMalloc_Ex( 520, _FILE_AND_LINE_ );
+	RakAssert(dirSoFar);
 
 	if (applicationDirectory)
 		strcpy(root, applicationDirectory);
@@ -204,8 +247,8 @@ void FileList::AddFilesFromDirectory(const char *applicationDirectory, const cha
 		strcat(dirSoFar, subDirectory);
 		FixEndingSlash(dirSoFar);
 	}
-	if (callback)
-		callback->OnAddFilesFromDirectoryStarted(this, dirSoFar);
+	for (unsigned int flpcIndex=0; flpcIndex < fileListProgressCallbacks.Size(); flpcIndex++)
+		fileListProgressCallbacks[flpcIndex]->OnAddFilesFromDirectoryStarted(this, dirSoFar);
 	// RAKNET_DEBUG_PRINTF("Adding files from directory %s\n",dirSoFar);
 	dirList.Push(dirSoFar, _FILE_AND_LINE_ );
 	while (dirList.Size())
@@ -228,10 +271,10 @@ void FileList::AddFilesFromDirectory(const char *applicationDirectory, const cha
 		}
 
 //		RAKNET_DEBUG_PRINTF("Adding %s. %i remaining.\n", fullPath, dirList.Size());
-		if (callback)
-			callback->OnDirectory(this, fullPath, dirList.Size());
+		for (unsigned int flpcIndex=0; flpcIndex < fileListProgressCallbacks.Size(); flpcIndex++)
+			fileListProgressCallbacks[flpcIndex]->OnDirectory(this, fullPath, dirList.Size());
 
-                do
+        do
 		{
                     // no guarantee these entries are first...
                     if (strcmp("." , fileInfo.name) == 0 ||
@@ -246,32 +289,36 @@ void FileList::AddFilesFromDirectory(const char *applicationDirectory, const cha
 				strcat(fullPath, fileInfo.name);
 				fileData=0;
 
-				if (callback)
-					callback->OnFile(this, dirSoFar, fileInfo.name, fileInfo.size);
+				for (unsigned int flpcIndex=0; flpcIndex < fileListProgressCallbacks.Size(); flpcIndex++)
+					fileListProgressCallbacks[flpcIndex]->OnFile(this, dirSoFar, fileInfo.name, fileInfo.size);
 
 				if (writeData && writeHash)
 				{
-					fileData= (char*) rakMalloc_Ex( fileInfo.size+HASH_LENGTH, _FILE_AND_LINE_ );
 					fp = fopen(fullPath, "rb");
-					fread(fileData+HASH_LENGTH, fileInfo.size, 1, fp);
-					fclose(fp);
+					if (fp)
+					{
+						fileData= (char*) rakMalloc_Ex( fileInfo.size+HASH_LENGTH, _FILE_AND_LINE_ );
+						RakAssert(fileData);
+						fread(fileData+HASH_LENGTH, fileInfo.size, 1, fp);
+						fclose(fp);
 
-					unsigned int hash = SuperFastHash(fileData+HASH_LENGTH, fileInfo.size);
-					if (RakNet::BitStream::DoEndianSwap())
-						RakNet::BitStream::ReverseBytesInPlace((unsigned char*) &hash, sizeof(hash));
-					memcpy(fileData, &hash, HASH_LENGTH);
+						unsigned int hash = SuperFastHash(fileData+HASH_LENGTH, fileInfo.size);
+						if (RakNet::BitStream::DoEndianSwap())
+							RakNet::BitStream::ReverseBytesInPlace((unsigned char*) &hash, sizeof(hash));
+						memcpy(fileData, &hash, HASH_LENGTH);
 
-//					sha1.Reset();
-//					sha1.Update( ( unsigned char* ) fileData+HASH_LENGTH, fileInfo.size );
-//					sha1.Final();
-//					memcpy(fileData, sha1.GetHash(), HASH_LENGTH);
-					// File data and hash
-					AddFile((const char*)fullPath+rootLen, fullPath, fileData, fileInfo.size+HASH_LENGTH, fileInfo.size, context);
+						//					sha1.Reset();
+						//					sha1.Update( ( unsigned char* ) fileData+HASH_LENGTH, fileInfo.size );
+						//					sha1.Final();
+						//					memcpy(fileData, sha1.GetHash(), HASH_LENGTH);
+						// File data and hash
+						AddFile((const char*)fullPath+rootLen, fullPath, fileData, fileInfo.size+HASH_LENGTH, fileInfo.size, context);
+					}					
 				}
 				else if (writeHash)
 				{
 //					sha1.Reset();
-//					sha1.HashFile((char*)fullPath);
+//					DR_SHA1.hashFile((char*)fullPath);
 //					sha1.Final();
 
 					unsigned int hash = SuperFastHashFile(fullPath);
@@ -285,6 +332,7 @@ void FileList::AddFilesFromDirectory(const char *applicationDirectory, const cha
 				else if (writeData)
 				{
 					fileData= (char*) rakMalloc_Ex( fileInfo.size, _FILE_AND_LINE_ );
+					RakAssert(fileData);
 					fp = fopen(fullPath, "rb");
 					fread(fileData, fileInfo.size, 1, fp);
 					fclose(fp);
@@ -304,6 +352,7 @@ void FileList::AddFilesFromDirectory(const char *applicationDirectory, const cha
 			else if ((fileInfo.attrib & _A_SUBDIR) && (fileInfo.attrib & (_A_HIDDEN | _A_SYSTEM))==0 && recursive)
 			{
 				char *newDir=(char*) rakMalloc_Ex( 520, _FILE_AND_LINE_ );
+				RakAssert(newDir);
 				strcpy(newDir, dirSoFar);
 				strcat(newDir, fileInfo.name);
 				strcat(newDir, "/");
@@ -315,6 +364,7 @@ void FileList::AddFilesFromDirectory(const char *applicationDirectory, const cha
 		_findclose(dir);
 		rakFree_Ex(dirSoFar, _FILE_AND_LINE_ );
 	}
+
 }
 void FileList::Clear(void)
 {
@@ -332,10 +382,13 @@ void FileList::Serialize(RakNet::BitStream *outBitStream)
 	for (i=0; i < fileList.Size(); i++)
 	{
 		outBitStream->WriteCompressed(fileList[i].context.op);
-		outBitStream->WriteCompressed(fileList[i].context.fileId);
+		outBitStream->WriteCompressed(fileList[i].context.flnc_extraData1);
+		outBitStream->WriteCompressed(fileList[i].context.flnc_extraData2);
 		StringCompressor::Instance()->EncodeString(fileList[i].filename.C_String(), MAX_FILENAME_LENGTH, outBitStream);
-		outBitStream->Write((bool)(fileList[i].dataLengthBytes>0==true));
-		if (fileList[i].dataLengthBytes>0)
+
+		bool writeFileData = (fileList[i].dataLengthBytes>0)==true;
+		outBitStream->Write(writeFileData);
+		if (writeFileData)
 		{
 			outBitStream->WriteCompressed(fileList[i].dataLengthBytes);
 			outBitStream->Write(fileList[i].data, fileList[i].dataLengthBytes);
@@ -350,7 +403,7 @@ bool FileList::Deserialize(RakNet::BitStream *inBitStream)
 {
 	bool b, dataLenNonZero=false, fileLenMatchesDataLen=false;
 	char filename[512];
-	unsigned int fileListSize;
+	uint32_t fileListSize;
 	FileListNode n;
 	b=inBitStream->ReadCompressed(fileListSize);
 #ifdef _DEBUG
@@ -364,7 +417,8 @@ bool FileList::Deserialize(RakNet::BitStream *inBitStream)
 	for (i=0; i < fileListSize; i++)
 	{
 		inBitStream->ReadCompressed(n.context.op);
-		inBitStream->ReadCompressed(n.context.fileId);
+		inBitStream->ReadCompressed(n.context.flnc_extraData1);
+		inBitStream->ReadCompressed(n.context.flnc_extraData2);
 		StringCompressor::Instance()->DecodeString((char*)filename, MAX_FILENAME_LENGTH, inBitStream);
 		inBitStream->Read(dataLenNonZero);
 		if (dataLenNonZero)
@@ -379,6 +433,7 @@ bool FileList::Deserialize(RakNet::BitStream *inBitStream)
 				return false;
 			}
 			n.data=(char*) rakMalloc_Ex( (size_t) n.dataLengthBytes, _FILE_AND_LINE_ );
+			RakAssert(n.data);
 			inBitStream->Read(n.data, n.dataLengthBytes);
 		}
 		else
@@ -464,7 +519,7 @@ void FileList::GetDeltaToCurrent(FileList *input, FileList *output, const char *
 				else
 				{
 					// File exists on both machines and is not the same.
-					output->AddFile(fileList[thisIndex].filename, fileList[thisIndex].fullPathToFile, 0,0, fileList[thisIndex].fileLengthBytes, FileListNodeContext(0,0), false);
+					output->AddFile(fileList[thisIndex].filename, fileList[thisIndex].fullPathToFile, 0,0, fileList[thisIndex].fileLengthBytes, FileListNodeContext(0,0,0,0), false);
 					break;
 				}
 			}
@@ -472,7 +527,7 @@ void FileList::GetDeltaToCurrent(FileList *input, FileList *output, const char *
 		if (match==false)
 		{
             // Other system does not have the file at all
-			output->AddFile(fileList[thisIndex].filename, fileList[thisIndex].fullPathToFile, 0,0, fileList[thisIndex].fileLengthBytes, FileListNodeContext(0,0), false);
+			output->AddFile(fileList[thisIndex].filename, fileList[thisIndex].fullPathToFile, 0,0, fileList[thisIndex].fileLengthBytes, FileListNodeContext(0,0,0,0), false);
 		}
 	}
 }
@@ -493,7 +548,7 @@ void FileList::ListMissingOrChangedFiles(const char *applicationDirectory, FileL
 		fp=fopen(fullPath, "rb");
 		if (fp==0)
 		{
-			missingOrChangedFiles->AddFile(fileList[i].filename, fileList[i].fullPathToFile, 0, 0, 0, FileListNodeContext(0,0), false);
+			missingOrChangedFiles->AddFile(fileList[i].filename, fileList[i].fullPathToFile, 0, 0, 0, FileListNodeContext(0,0,0,0), false);
 		}
 		else
 		{
@@ -503,7 +558,7 @@ void FileList::ListMissingOrChangedFiles(const char *applicationDirectory, FileL
 
 			if (fileLength != fileList[i].fileLengthBytes && alwaysWriteHash==false)
 			{
-				missingOrChangedFiles->AddFile(fileList[i].filename, fileList[i].fullPathToFile, 0, 0, fileLength, FileListNodeContext(0,0), false);
+				missingOrChangedFiles->AddFile(fileList[i].filename, fileList[i].fullPathToFile, 0, 0, fileLength, FileListNodeContext(0,0,0,0), false);
 			}
 			else
 			{
@@ -526,9 +581,9 @@ void FileList::ListMissingOrChangedFiles(const char *applicationDirectory, FileL
 				{
 					if (neverWriteHash==false)
 					//	missingOrChangedFiles->AddFile((const char*)fileList[i].filename, (const char*)sha1.GetHash(), HASH_LENGTH, fileLength, 0);
-						missingOrChangedFiles->AddFile((const char*)fileList[i].filename, (const char*)fileList[i].fullPathToFile, (const char *) &hash, HASH_LENGTH, fileLength, FileListNodeContext(0,0), false);
+						missingOrChangedFiles->AddFile((const char*)fileList[i].filename, (const char*)fileList[i].fullPathToFile, (const char *) &hash, HASH_LENGTH, fileLength, FileListNodeContext(0,0,0,0), false);
 					else
-						missingOrChangedFiles->AddFile((const char*)fileList[i].filename, (const char*)fileList[i].fullPathToFile, 0, 0, fileLength, FileListNodeContext(0,0), false);
+						missingOrChangedFiles->AddFile((const char*)fileList[i].filename, (const char*)fileList[i].fullPathToFile, 0, 0, fileLength, FileListNodeContext(0,0,0,0), false);
 				}
 			}
 			fclose(fp);
@@ -563,6 +618,7 @@ void FileList::PopulateDataFromDisk(const char *applicationDirectory, bool write
 					{
 						// Hash + data so offset the data by HASH_LENGTH
 						fileList[i].data=(char*) rakMalloc_Ex( fileList[i].fileLengthBytes+HASH_LENGTH, _FILE_AND_LINE_ );
+						RakAssert(fileList[i].data);
 						fread(fileList[i].data+HASH_LENGTH, fileList[i].fileLengthBytes, 1, fp);
 //						sha1.Reset();
 //						sha1.Update((unsigned char*)fileList[i].data+HASH_LENGTH, fileList[i].fileLength);
@@ -581,6 +637,7 @@ void FileList::PopulateDataFromDisk(const char *applicationDirectory, bool write
 							fileList[i].data=(char*) rakMalloc_Ex( HASH_LENGTH, _FILE_AND_LINE_ );
 						else
 							fileList[i].data=(char*) rakMalloc_Ex( fileList[i].fileLengthBytes, _FILE_AND_LINE_ );
+						RakAssert(fileList[i].data);
 						fread(fileList[i].data, fileList[i].fileLengthBytes, 1, fp);
 				//		sha1.Reset();
 				//		sha1.Update((unsigned char*)fileList[i].data, fileList[i].fileLength);
@@ -597,6 +654,7 @@ void FileList::PopulateDataFromDisk(const char *applicationDirectory, bool write
 					// Data only
 					fileList[i].dataLengthBytes=fileList[i].fileLengthBytes;
 					fileList[i].data=(char*) rakMalloc_Ex( fileList[i].fileLengthBytes, _FILE_AND_LINE_ );
+					RakAssert(fileList[i].data);
 					fread(fileList[i].data, fileList[i].fileLengthBytes, 1, fp);
 				}
 
@@ -657,10 +715,13 @@ void FileList::WriteDataToDisk(const char *applicationDirectory)
 }
 
 #ifdef _MSC_VER
-#pragma warning( disable : 4966 ) // unlink declared deprecated by Microsoft in order to make it harder to be cross platform.  I don't agree it's deprecated.
+#pragma warning( disable : 4996 ) // unlink declared deprecated by Microsoft in order to make it harder to be cross platform.  I don't agree it's deprecated.
 #endif
 void FileList::DeleteFiles(const char *applicationDirectory)
 {
+
+
+
 	char fullPath[512];
 	unsigned i,j;
 
@@ -682,22 +743,44 @@ void FileList::DeleteFiles(const char *applicationDirectory)
 		strcpy(fullPath, applicationDirectory);
 		FixEndingSlash(fullPath);
 		strcat(fullPath, fileList[i].filename.C_String());
-
-#ifdef _MSC_VER
-#pragma warning( disable : 4966 ) // unlink declared deprecated by Microsoft in order to make it harder to be cross platform.  I don't agree it's deprecated.
-#endif
+	
+		// Do not rename to _unlink as linux uses unlink
+#if defined(WINDOWS_PHONE_8) || defined(WINDOWS_STORE_RT)
+		int result = _unlink(fullPath);
+#else
         int result = unlink(fullPath);
+#endif
 		if (result!=0)
 		{
 			RAKNET_DEBUG_PRINTF("FileList::DeleteFiles: unlink (%s) failed.\n", fullPath);
 		}
 	}
+
 }
 
-void FileList::SetCallback(FileListProgress *cb)
+void FileList::AddCallback(FileListProgress *cb)
 {
-	callback=cb;
+	if (cb==0)
+		return;
+
+	if ((unsigned int) fileListProgressCallbacks.GetIndexOf(cb)==(unsigned int)-1)
+		fileListProgressCallbacks.Push(cb, _FILE_AND_LINE_);
 }
+void FileList::RemoveCallback(FileListProgress *cb)
+{
+	unsigned int idx = fileListProgressCallbacks.GetIndexOf(cb);
+	if (idx!=(unsigned int) -1)
+		fileListProgressCallbacks.RemoveAtIndex(idx);
+}
+void FileList::ClearCallbacks(void)
+{
+	fileListProgressCallbacks.Clear(true, _FILE_AND_LINE_);
+}
+void FileList::GetCallbacks(DataStructures::List<FileListProgress*> &callbacks)
+{
+	callbacks = fileListProgressCallbacks;
+}
+
 
 bool FileList::FixEndingSlash(char *str)
 {
@@ -721,3 +804,5 @@ bool FileList::FixEndingSlash(char *str)
 #ifdef _MSC_VER
 #pragma warning( pop )
 #endif
+
+#endif // _RAKNET_SUPPORT_FileOperations

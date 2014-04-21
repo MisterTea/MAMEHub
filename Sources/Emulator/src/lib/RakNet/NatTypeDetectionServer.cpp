@@ -3,13 +3,15 @@
 
 #include "NatTypeDetectionServer.h"
 #include "SocketLayer.h"
-#include "RakNetSocket.h"
 #include "RakNetSmartPtr.h"
 #include "SocketIncludes.h"
 #include "RakPeerInterface.h"
 #include "MessageIdentifiers.h"
 #include "GetTime.h"
 #include "BitStream.h"
+#include "SocketDefines.h"
+
+// #define NTDS_VERBOSE
 
 using namespace RakNet;
 
@@ -17,7 +19,7 @@ STATIC_FACTORY_DEFINITIONS(NatTypeDetectionServer,NatTypeDetectionServer);
 
 NatTypeDetectionServer::NatTypeDetectionServer()
 {
-	s1p2=s2p3=s3p4=s4p5=INVALID_SOCKET;
+	s1p2=s2p3=s3p4=s4p5=0;
 }
 NatTypeDetectionServer::~NatTypeDetectionServer()
 {
@@ -26,44 +28,84 @@ NatTypeDetectionServer::~NatTypeDetectionServer()
 void NatTypeDetectionServer::Startup(
 									 const char *nonRakNetIP2,
 									 const char *nonRakNetIP3,
-									 const char *nonRakNetIP4)
+									 const char *nonRakNetIP4
+#ifdef __native_client__
+									 ,_PP_Instance_ chromeInstance
+#endif
+									 )
 {
-	DataStructures::List<RakNetSmartPtr<RakNetSocket> > sockets;
+	DataStructures::List<RakNetSocket2* > sockets;
 	rakPeerInterface->GetSockets(sockets);
 	char str[64];
-	sockets[0]->boundAddress.ToString(false,str);
-	s1p2=CreateNonblockingBoundSocket(str);
-	s1p2Port=SocketLayer::GetLocalPort(s1p2);
-	s2p3=CreateNonblockingBoundSocket(nonRakNetIP2);
-	s2p3Port=SocketLayer::GetLocalPort(s2p3);
-	s3p4=CreateNonblockingBoundSocket(nonRakNetIP3);
-	s3p4Port=SocketLayer::GetLocalPort(s3p4);
-	s4p5=CreateNonblockingBoundSocket(nonRakNetIP4);
-	s4p5Port=SocketLayer::GetLocalPort(s4p5);
+	sockets[0]->GetBoundAddress().ToString(false,str);
+	s1p2=
+		CreateNonblockingBoundSocket(str,
+#ifdef __native_client__
+		chromeInstance, 
+#endif
+		this);
+
+	s2p3=
+		CreateNonblockingBoundSocket(nonRakNetIP2,
+#ifdef __native_client__
+		chromeInstance, 
+#endif
+		this);
+
+
+	s3p4=
+		CreateNonblockingBoundSocket(nonRakNetIP3,
+#ifdef __native_client__
+		chromeInstance, 
+#endif
+		this);
+
+	s4p5=
+		CreateNonblockingBoundSocket(nonRakNetIP4,
+#ifdef __native_client__
+		chromeInstance, 
+#endif
+		this);
+
 	strcpy(s3p4Address, nonRakNetIP3);
+
+
+	#if !defined(__native_client__) && !defined(WINDOWS_STORE_RT)
+	if (s3p4->IsBerkleySocket())
+		((RNS2_Berkley*) s3p4)->CreateRecvPollingThread(0);
+	#endif
 }
 void NatTypeDetectionServer::Shutdown()
 {
-	if (s1p2!=INVALID_SOCKET)
+	if (s1p2!=0)
 	{
-		closesocket(s1p2);
-		s1p2=INVALID_SOCKET;
+		RakNet::OP_DELETE(s1p2,_FILE_AND_LINE_);
+		s1p2=0;
 	}
-	if (s2p3!=INVALID_SOCKET)
+	if (s2p3!=0)
 	{
-		closesocket(s2p3);
-		s2p3=INVALID_SOCKET;
+		RakNet::OP_DELETE(s2p3,_FILE_AND_LINE_);
+		s2p3=0;
 	}
-	if (s3p4!=INVALID_SOCKET)
+	if (s3p4!=0)
 	{
-		closesocket(s3p4);
-		s3p4=INVALID_SOCKET;
+#if !defined(__native_client__) && !defined(WINDOWS_STORE_RT)
+		if (s3p4->IsBerkleySocket())
+			((RNS2_Berkley *)s3p4)->BlockOnStopRecvPollingThread();
+#endif
+
+		RakNet::OP_DELETE(s3p4,_FILE_AND_LINE_);
+		s3p4=0;
 	}
-	if (s4p5!=INVALID_SOCKET)
+	if (s4p5!=0)
 	{
-		closesocket(s4p5);
-		s4p5=INVALID_SOCKET;
+		RakNet::OP_DELETE(s4p5,_FILE_AND_LINE_);
+		s4p5=0;
 	}
+	bufferedPacketsMutex.Lock();
+	while (bufferedPackets.Size())
+		RakNet::OP_DELETE(bufferedPackets.Pop(), _FILE_AND_LINE_);
+	bufferedPacketsMutex.Unlock();
 }
 void NatTypeDetectionServer::Update(void)
 {
@@ -71,6 +113,77 @@ void NatTypeDetectionServer::Update(void)
 	RakNet::TimeMS time = RakNet::GetTimeMS();
 	RakNet::BitStream bs;
 	SystemAddress boundAddress;
+
+	RNS2RecvStruct *recvStruct;
+	bufferedPacketsMutex.Lock();
+	if (bufferedPackets.Size()>0)
+		recvStruct=bufferedPackets.Pop();
+	else
+		recvStruct=0;
+	bufferedPacketsMutex.Unlock();
+	while (recvStruct)
+	{
+		SystemAddress senderAddr = recvStruct->systemAddress;
+		char *data = recvStruct->data;
+		if (data[0]==NAT_TYPE_PORT_RESTRICTED && recvStruct->socket==s3p4)
+		{
+			RakNet::BitStream bsIn((unsigned char*) data,recvStruct->bytesRead,false);
+			RakNetGUID senderGuid;
+			bsIn.IgnoreBytes(sizeof(MessageID));
+			bool readSuccess = bsIn.Read(senderGuid);
+			RakAssert(readSuccess);
+			if (readSuccess)
+			{
+				unsigned int i = GetDetectionAttemptIndex(senderGuid);
+				if (i!=(unsigned int)-1)
+				{
+					bs.Reset();
+					bs.Write((unsigned char) ID_NAT_TYPE_DETECTION_RESULT);
+					// If different, then symmetric
+					if (senderAddr!=natDetectionAttempts[i].systemAddress)
+					{
+
+#ifdef NTDS_VERBOSE
+						printf("Determined client is symmetric\n");
+#endif
+						bs.Write((unsigned char) NAT_TYPE_SYMMETRIC);
+					}
+					else
+					{
+						// else port restricted
+#ifdef NTDS_VERBOSE
+
+						printf("Determined client is port restricted\n");
+#endif
+						bs.Write((unsigned char) NAT_TYPE_PORT_RESTRICTED);
+					}
+
+					rakPeerInterface->Send(&bs,HIGH_PRIORITY,RELIABLE,0,natDetectionAttempts[i].systemAddress,false);
+
+					// Done
+					natDetectionAttempts.RemoveAtIndexFast(i);
+				}
+				else
+				{
+					//		RakAssert("i==0 in Update when looking up GUID in NatTypeDetectionServer.cpp. Either a bug or a late resend" && 0);
+				}
+			}
+			else
+			{
+				//	RakAssert("Didn't read GUID in Update in NatTypeDetectionServer.cpp. Message format error" && 0);
+			}
+		}
+
+		DeallocRNS2RecvStruct(recvStruct, _FILE_AND_LINE_);
+		bufferedPacketsMutex.Lock();
+		if (bufferedPackets.Size()>0)
+			recvStruct=bufferedPackets.Pop();
+		else
+			recvStruct=0;
+		bufferedPacketsMutex.Unlock();
+	}
+
+	/*
 
 	// Only socket that receives messages is s3p4, to see if the external address is different than that of the connection to rakPeerInterface
 	char data[ MAXIMUM_MTU_SIZE ];
@@ -95,13 +208,19 @@ void NatTypeDetectionServer::Update(void)
 				// If different, then symmetric
 				if (senderAddr!=natDetectionAttempts[i].systemAddress)
 				{
+
+				#ifdef NTDS_VERBOSE
 					printf("Determined client is symmetric\n");
+				#endif
 					bs.Write((unsigned char) NAT_TYPE_SYMMETRIC);
 				}
 				else
 				{
 					// else port restricted
+
+					#ifdef NTDS_VERBOSE
 					printf("Determined client is port restricted\n");
+					#endif
 					bs.Write((unsigned char) NAT_TYPE_PORT_RESTRICTED);
 				}
 
@@ -112,24 +231,27 @@ void NatTypeDetectionServer::Update(void)
 			}
 			else
 			{
-				RakAssert("i==0 in Update when looking up GUID in NatTypeDetectionServer.cpp. Either a bug or a late resend" && 0);
+		//		RakAssert("i==0 in Update when looking up GUID in NatTypeDetectionServer.cpp. Either a bug or a late resend" && 0);
 			}
 		}
 		else
 		{
-			RakAssert("Didn't read GUID in Update in NatTypeDetectionServer.cpp. Message format error" && 0);
+		//	RakAssert("Didn't read GUID in Update in NatTypeDetectionServer.cpp. Message format error" && 0);
 		}
 
 		len=NatTypeRecvFrom(data, s3p4, senderAddr);
 	}
+	*/
 
 
 	while (i < (int) natDetectionAttempts.Size())
 	{
 		if (time > natDetectionAttempts[i].nextStateTime)
 		{
+			RNS2_SendParameters bsp;
 			natDetectionAttempts[i].detectionState=(NATDetectionState)((int)natDetectionAttempts[i].detectionState+1);
 			natDetectionAttempts[i].nextStateTime=time+natDetectionAttempts[i].timeBetweenAttempts;
+			SystemAddress saOut;
 			unsigned char c;
 			bs.Reset();
 			switch (natDetectionAttempts[i].detectionState)
@@ -137,39 +259,72 @@ void NatTypeDetectionServer::Update(void)
 			case STATE_TESTING_NONE_1:
 			case STATE_TESTING_NONE_2:
 				c = NAT_TYPE_NONE;
+
+#ifdef NTDS_VERBOSE
 				printf("Testing NAT_TYPE_NONE\n");
+#endif
 				// S4P5 sends to C2. If arrived, no NAT. Done. (Else S4P5 potentially banned, do not use again).
-				SocketLayer::SendTo_PC( s4p5, (const char*) &c, 1, natDetectionAttempts[i].systemAddress.binaryAddress, natDetectionAttempts[i].c2Port, __FILE__, __LINE__  );
+				saOut=natDetectionAttempts[i].systemAddress;
+				saOut.SetPortHostOrder(natDetectionAttempts[i].c2Port);
+				// SocketLayer::SendTo_PC( s4p5, (const char*) &c, 1, saOut, __FILE__, __LINE__  );
+				bsp.data = (char*) &c;
+				bsp.length = 1;
+				bsp.systemAddress = saOut;
+				s4p5->Send(&bsp, _FILE_AND_LINE_);
 				break;
 			case STATE_TESTING_FULL_CONE_1:
 			case STATE_TESTING_FULL_CONE_2:
+
+#ifdef NTDS_VERBOSE
 				printf("Testing NAT_TYPE_FULL_CONE\n");
+#endif
 				rakPeerInterface->WriteOutOfBandHeader(&bs);
 				bs.Write((unsigned char) ID_NAT_TYPE_DETECT);
 				bs.Write((unsigned char) NAT_TYPE_FULL_CONE);
 				// S2P3 sends to C1 (Different address, different port, to previously used port on client). If received, Full-cone nat. Done.  (Else S2P3 potentially banned, do not use again).
-				SocketLayer::SendTo_PC( s2p3, (const char*) bs.GetData(), bs.GetNumberOfBytesUsed(), natDetectionAttempts[i].systemAddress.binaryAddress, natDetectionAttempts[i].systemAddress.port, __FILE__, __LINE__  );
+				saOut=natDetectionAttempts[i].systemAddress;
+				saOut.SetPortHostOrder(natDetectionAttempts[i].systemAddress.GetPort());
+				// SocketLayer::SendTo_PC( s2p3, (const char*) bs.GetData(), bs.GetNumberOfBytesUsed(), saOut, __FILE__, __LINE__  );
+				bsp.data = (char*) bs.GetData();
+				bsp.length = bs.GetNumberOfBytesUsed();
+				bsp.systemAddress = saOut;
+				s2p3->Send(&bsp, _FILE_AND_LINE_);
 				break;
 			case STATE_TESTING_ADDRESS_RESTRICTED_1:
 			case STATE_TESTING_ADDRESS_RESTRICTED_2:
+
+#ifdef NTDS_VERBOSE
 				printf("Testing NAT_TYPE_ADDRESS_RESTRICTED\n");
+#endif
 				rakPeerInterface->WriteOutOfBandHeader(&bs);
 				bs.Write((unsigned char) ID_NAT_TYPE_DETECT);
 				bs.Write((unsigned char) NAT_TYPE_ADDRESS_RESTRICTED);
 				// S1P2 sends to C1 (Same address, different port, to previously used port on client). If received, address-restricted cone nat. Done.
-				SocketLayer::SendTo_PC( s1p2, (const char*) bs.GetData(), bs.GetNumberOfBytesUsed(), natDetectionAttempts[i].systemAddress.binaryAddress, natDetectionAttempts[i].systemAddress.port, __FILE__, __LINE__  );
+				saOut=natDetectionAttempts[i].systemAddress;
+				saOut.SetPortHostOrder(natDetectionAttempts[i].systemAddress.GetPort());
+				//SocketLayer::SendTo_PC( s1p2, (const char*) bs.GetData(), bs.GetNumberOfBytesUsed(), saOut, __FILE__, __LINE__  );
+				bsp.data = (char*) bs.GetData();
+				bsp.length = bs.GetNumberOfBytesUsed();
+				bsp.systemAddress = saOut;
+				s1p2->Send(&bsp, _FILE_AND_LINE_);
 				break;
 			case STATE_TESTING_PORT_RESTRICTED_1:
 			case STATE_TESTING_PORT_RESTRICTED_2:
 				// C1 sends to S3P4. If address of C1 as seen by S3P4 is the same as the address of C1 as seen by S1P1, then port-restricted cone nat. Done
+
+#ifdef NTDS_VERBOSE
 				printf("Testing NAT_TYPE_PORT_RESTRICTED\n");
+#endif
 				bs.Write((unsigned char) ID_NAT_TYPE_DETECTION_REQUEST);
 				bs.Write(RakString::NonVariadic(s3p4Address));
-				bs.Write(s3p4Port);
+				bs.Write(s3p4->GetBoundAddress().GetPort());
 				rakPeerInterface->Send(&bs,HIGH_PRIORITY,RELIABLE,0,natDetectionAttempts[i].systemAddress,false);
 				break;
 			default:
+
+#ifdef NTDS_VERBOSE
 				printf("Warning, exceeded final check STATE_TESTING_PORT_RESTRICTED_2.\nExpected that client would have sent NAT_TYPE_PORT_RESTRICTED on s3p4.\nDefaulting to Symmetric\n");
+#endif
 				bs.Write((unsigned char) ID_NAT_TYPE_DETECTION_RESULT);
 				bs.Write((unsigned char) NAT_TYPE_SYMMETRIC);
 				rakPeerInterface->Send(&bs,HIGH_PRIORITY,RELIABLE,0,natDetectionAttempts[i].systemAddress,false);
@@ -192,7 +347,7 @@ PluginReceiveResult NatTypeDetectionServer::OnReceive(Packet *packet)
 	}
 	return RR_CONTINUE_PROCESSING;
 }
-void NatTypeDetectionServer::OnClosedConnection(SystemAddress systemAddress, RakNetGUID rakNetGUID, PI2_LostConnectionReason lostConnectionReason )
+void NatTypeDetectionServer::OnClosedConnection(const SystemAddress &systemAddress, RakNetGUID rakNetGUID, PI2_LostConnectionReason lostConnectionReason )
 {
 	(void) lostConnectionReason;
 	(void) rakNetGUID;
@@ -208,7 +363,7 @@ void NatTypeDetectionServer::OnDetectionRequest(Packet *packet)
 
 	RakNet::BitStream bsIn(packet->data, packet->length, false);
 	bsIn.IgnoreBytes(1);
-	bool isRequest;
+	bool isRequest=false;
 	bsIn.Read(isRequest);
 	if (isRequest)
 	{
@@ -233,7 +388,7 @@ void NatTypeDetectionServer::OnDetectionRequest(Packet *packet)
 	}
 
 }
-unsigned int NatTypeDetectionServer::GetDetectionAttemptIndex(SystemAddress sa)
+unsigned int NatTypeDetectionServer::GetDetectionAttemptIndex(const SystemAddress &sa)
 {
 	for (unsigned int i=0; i < natDetectionAttempts.Size(); i++)
 	{
@@ -250,6 +405,24 @@ unsigned int NatTypeDetectionServer::GetDetectionAttemptIndex(RakNetGUID guid)
 			return i;
 	}
 	return (unsigned int) -1;
+}
+
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+void NatTypeDetectionServer::DeallocRNS2RecvStruct(RNS2RecvStruct *s, const char *file, unsigned int line)
+{
+	RakNet::OP_DELETE(s, file, line);
+}
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+RNS2RecvStruct *NatTypeDetectionServer::AllocRNS2RecvStruct(const char *file, unsigned int line)
+{
+	return RakNet::OP_NEW<RNS2RecvStruct>(file,line);
+}
+
+void NatTypeDetectionServer::OnRNS2Recv(RNS2RecvStruct *recvStruct)
+{
+	bufferedPacketsMutex.Lock();
+	bufferedPackets.Push(recvStruct,_FILE_AND_LINE_);
+	bufferedPacketsMutex.Unlock();
 }
 
 #endif // _RAKNET_SUPPORT_*

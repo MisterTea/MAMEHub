@@ -278,7 +278,7 @@ int Common::getLargestPing()
     int largestPing=1;
     for(int a=0; a<rakInterface->NumberOfConnections(); a++)
     {
-        largestPing = max(rakInterface->GetHighestPing(rakInterface->GetSystemAddressFromIndex(a)),largestPing);
+        largestPing = max(rakInterface->GetAveragePing(rakInterface->GetSystemAddressFromIndex(a)),largestPing);
     }
     return largestPing;
 }
@@ -311,7 +311,7 @@ string Common::getLatencyString(int peerID)
         if(it->second==peerID)
         {
             char buf[4096];
-            sprintf(buf,"Peer %d: %d ms", peerID, rakInterface->GetHighestPing(it->first));
+            sprintf(buf,"Peer %d: %d ms", peerID, rakInterface->GetAveragePing(it->first));
             return string(buf);
         }
     }

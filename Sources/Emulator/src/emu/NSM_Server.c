@@ -332,12 +332,12 @@ bool Server::initializeConnection()
       return false;
     }
 
-  DataStructures::List<RakNet::RakNetSmartPtr < RakNet::RakNetSocket> > sockets;
+  DataStructures::List<RakNet::RakNetSocket2*> sockets;
   rakInterface->GetSockets(sockets);
   printf("Ports used by RakNet:\n");
   for (unsigned int i=0; i < sockets.Size(); i++)
     {
-      printf("%i. %i\n", i+1, sockets[i]->boundAddress.port);
+      printf("%i. %i\n", i+1, sockets[i]->GetBoundAddress().GetPort());
     }
   return true;
 }
@@ -965,7 +965,7 @@ void Server::popSyncQueue()
   if(syncPacketQueue.size())
     {
       pair<unsigned char *,int> syncPacket = syncPacketQueue.front();
-      printf("Sending sync message of size %d (%d packets left)\n",syncPacket.second,syncPacketQueue.size());
+      printf("Sending sync message of size %d (%lu packets left)\n",syncPacket.second,syncPacketQueue.size());
       syncPacketQueue.pop_front();
 
       rakInterface->Send(

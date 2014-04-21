@@ -16,7 +16,7 @@
 /// option) any later version.
 
 #include "NativeFeatureIncludes.h"
-#if _RAKNET_SUPPORT_HTTPConnection==1
+#if _RAKNET_SUPPORT_HTTPConnection==1 && _RAKNET_SUPPORT_TCPInterface==1
 
 #include "TCPInterface.h"
 #include "HTTPConnection.h"
@@ -171,9 +171,17 @@ void HTTPConnection::Update(void)
 			}
 			else
 			{
-				request.Set("GET %s\r\n", host.C_String());
+				// request.Set("GET %s\r\n", host.C_String());
+				// http://www.jenkinssoftware.com/forum/index.php?topic=4601.0;topicseen
+				request.Set("GET %s HTTP/1.0\r\n"
+					"Host: %s:%i\r\n"
+					"\r\n",
+					currentProcessingCommand.remotePath.C_String(),
+					host.C_String(),
+					port);
 			}
 			
+		//	printf(request.C_String());
 	//		request.URLEncode();
 			tcp->Send(request.C_String(), (unsigned int) request.GetLength(), server,false);
 			connectionState=CS_PROCESSING;

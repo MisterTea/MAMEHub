@@ -17,19 +17,25 @@
 #include "SocketIncludes.h"
 #include "RakNetDefines.h"
 
-#if defined(_XBOX) || defined(X360)
-                            
-#elif defined(_WIN32)
-#include <winsock2.h> // htonl
-////#include <memory.h>
+
+
+#if   defined(_WIN32)
+#include "WindowsIncludes.h"
+#include <memory.h>
 #include <cmath>
 #include <float.h>
-#elif defined(_PS3) || defined(__PS3__) || defined(SN_TARGET_PS3)
-                        
+
+
+
+
 #else
 #include <arpa/inet.h>
-////#include <memory.h>
+#include <memory.h>
+#if defined(ANDROID)
+#include <math.h>
+#else
 #include <cmath>
+#endif
 #include <float.h>
 #endif
 
@@ -174,7 +180,7 @@ void BitStream::Write( const char* inputByteArray, const unsigned int numberOfBy
 }
 void BitStream::Write( BitStream *bitStream)
 {
-	Write(bitStream, bitStream->GetNumberOfBitsUsed());
+	Write(bitStream, bitStream->GetNumberOfBitsUsed()-bitStream->GetReadOffset());
 }
 void BitStream::Write( BitStream *bitStream, BitSize_t numberOfBits )
 {
@@ -653,7 +659,7 @@ bool BitStream::ReadCompressed( unsigned char* inOutByteArray,
 	if ( readOffset + 1 > numberOfBitsUsed )
 		return false;
 
-	bool b;
+	bool b=false;
 
 	if ( Read( b ) == false )
 		return false;
@@ -703,6 +709,7 @@ void BitStream::AddBitsAndReallocate( const BitSize_t numberOfBitsToWrite )
 			if (amountToAllocate > BITSTREAM_STACK_ALLOCATION_SIZE)
 			{
 				data = ( unsigned char* ) rakMalloc_Ex( (size_t) amountToAllocate, _FILE_AND_LINE_ );
+				RakAssert(data);
 
 				// need to copy the stack data over to our new memory area too
 				memcpy ((void *)data, (void *)stackData, (size_t) BITS_TO_BYTES( numberOfBitsAllocated )); 
@@ -863,7 +870,7 @@ void BitStream::PrintBits( void ) const
 {
 	char out[2048];
 	PrintBits(out);
-	RAKNET_DEBUG_PRINTF("%s",out);
+	RAKNET_DEBUG_PRINTF("%s", out);
 }
 void BitStream::PrintHex( char *out ) const
 {
@@ -877,7 +884,7 @@ void BitStream::PrintHex( void ) const
 {
 	char out[2048];
 	PrintHex(out);
-	RAKNET_DEBUG_PRINTF("%s",out);
+	RAKNET_DEBUG_PRINTF("%s", out);
 }
 
 // Exposes the data for you to look at, like PrintBits does.
@@ -979,12 +986,14 @@ void BitStream::AssertCopyData( void )
 }
 bool BitStream::IsNetworkOrderInternal(void)
 {
-#if defined(_PS3) || defined(__PS3__) || defined(SN_TARGET_PS3)
-             
-#else
+
+
+
+
+
 	static const bool isNetworkOrder=(htonl(12345) == 12345);
 	return isNetworkOrder;
-#endif
+
 }
 void BitStream::ReverseBytes(unsigned char *inByteArray, unsigned char *inOutByteArray, const unsigned int length)
 {

@@ -460,21 +460,27 @@ $(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.cpp | $(OSPREBUILD)
 	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
 
 RAKNETOBJS = \
+$(LIBOBJ)/RakNet/_FindFirst.o \
+$(LIBOBJ)/RakNet/Base64Encoder.o \
 $(LIBOBJ)/RakNet/BitStream.o \
 $(LIBOBJ)/RakNet/CCRakNetSlidingWindow.o \
 $(LIBOBJ)/RakNet/CCRakNetUDT.o \
 $(LIBOBJ)/RakNet/CheckSum.o \
+$(LIBOBJ)/RakNet/CloudClient.o \
+$(LIBOBJ)/RakNet/CloudCommon.o \
+$(LIBOBJ)/RakNet/CloudServer.o \
 $(LIBOBJ)/RakNet/CommandParserInterface.o \
 $(LIBOBJ)/RakNet/ConnectionGraph2.o \
 $(LIBOBJ)/RakNet/ConsoleServer.o \
 $(LIBOBJ)/RakNet/DataCompressor.o \
 $(LIBOBJ)/RakNet/DirectoryDeltaTransfer.o \
+$(LIBOBJ)/RakNet/DR_SHA1.o \
 $(LIBOBJ)/RakNet/DS_BytePool.o \
 $(LIBOBJ)/RakNet/DS_ByteQueue.o \
 $(LIBOBJ)/RakNet/DS_HuffmanEncodingTree.o \
 $(LIBOBJ)/RakNet/DS_Table.o \
+$(LIBOBJ)/RakNet/DynDNS.o \
 $(LIBOBJ)/RakNet/EmailSender.o \
-$(LIBOBJ)/RakNet/EncodeClassName.o \
 $(LIBOBJ)/RakNet/EpochTimeToString.o \
 $(LIBOBJ)/RakNet/FileList.o \
 $(LIBOBJ)/RakNet/FileListTransfer.o \
@@ -487,9 +493,11 @@ $(LIBOBJ)/RakNet/GetTime.o \
 $(LIBOBJ)/RakNet/gettimeofday.o \
 $(LIBOBJ)/RakNet/GridSectorizer.o \
 $(LIBOBJ)/RakNet/HTTPConnection.o \
+$(LIBOBJ)/RakNet/HTTPConnection2.o \
 $(LIBOBJ)/RakNet/IncrementalReadInterface.o \
 $(LIBOBJ)/RakNet/Itoa.o \
 $(LIBOBJ)/RakNet/LinuxStrings.o \
+$(LIBOBJ)/RakNet/LocklessTypes.o \
 $(LIBOBJ)/RakNet/LogCommandParser.o \
 $(LIBOBJ)/RakNet/MessageFilter.o \
 $(LIBOBJ)/RakNet/NatPunchthroughClient.o \
@@ -505,9 +513,22 @@ $(LIBOBJ)/RakNet/PacketizedTCP.o \
 $(LIBOBJ)/RakNet/PacketLogger.o \
 $(LIBOBJ)/RakNet/PacketOutputWindowLogger.o \
 $(LIBOBJ)/RakNet/PluginInterface2.o \
+$(LIBOBJ)/RakNet/PS4Includes.o \
+$(LIBOBJ)/RakNet/Rackspace.o \
 $(LIBOBJ)/RakNet/RakMemoryOverride.o \
 $(LIBOBJ)/RakNet/RakNetCommandParser.o \
 $(LIBOBJ)/RakNet/RakNetSocket.o \
+$(LIBOBJ)/RakNet/RakNetSocket2.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_360_720.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_Berkley.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_Berkley_NativeClient.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_NativeClient.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_PS3_PS4.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_PS4.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_Vita.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_Windows_Linux.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_Windows_Linux_360.o \
+$(LIBOBJ)/RakNet/RakNetSocket2_WindowsStore8.o \
 $(LIBOBJ)/RakNet/RakNetStatistics.o \
 $(LIBOBJ)/RakNet/RakNetTransport2.o \
 $(LIBOBJ)/RakNet/RakNetTypes.o \
@@ -515,27 +536,31 @@ $(LIBOBJ)/RakNet/RakPeer.o \
 $(LIBOBJ)/RakNet/RakSleep.o \
 $(LIBOBJ)/RakNet/RakString.o \
 $(LIBOBJ)/RakNet/RakThread.o \
+$(LIBOBJ)/RakNet/RakWString.o \
 $(LIBOBJ)/RakNet/Rand.o \
-$(LIBOBJ)/RakNet/rdlmalloc.o \
+$(LIBOBJ)/RakNet/RandSync.o \
 $(LIBOBJ)/RakNet/ReadyEvent.o \
+$(LIBOBJ)/RakNet/RelayPlugin.o \
 $(LIBOBJ)/RakNet/ReliabilityLayer.o \
 $(LIBOBJ)/RakNet/ReplicaManager3.o \
 $(LIBOBJ)/RakNet/Router2.o \
 $(LIBOBJ)/RakNet/RPC4Plugin.o \
 $(LIBOBJ)/RakNet/SecureHandshake.o \
 $(LIBOBJ)/RakNet/SendToThread.o \
-$(LIBOBJ)/RakNet/SHA1.o \
 $(LIBOBJ)/RakNet/SignaledEvent.o \
 $(LIBOBJ)/RakNet/SimpleMutex.o \
 $(LIBOBJ)/RakNet/SocketLayer.o \
+$(LIBOBJ)/RakNet/StatisticsHistory.o \
 $(LIBOBJ)/RakNet/StringCompressor.o \
 $(LIBOBJ)/RakNet/StringTable.o \
 $(LIBOBJ)/RakNet/SuperFastHash.o \
 $(LIBOBJ)/RakNet/TableSerializer.o \
 $(LIBOBJ)/RakNet/TCPInterface.o \
 $(LIBOBJ)/RakNet/TeamBalancer.o \
+$(LIBOBJ)/RakNet/TeamManager.o \
 $(LIBOBJ)/RakNet/TelnetTransport.o \
 $(LIBOBJ)/RakNet/ThreadsafePacketLogger.o \
+$(LIBOBJ)/RakNet/TwoWayAuthentication.o \
 $(LIBOBJ)/RakNet/UDPForwarder.o \
 $(LIBOBJ)/RakNet/UDPProxyClient.o \
 $(LIBOBJ)/RakNet/UDPProxyCoordinator.o \
@@ -543,8 +568,8 @@ $(LIBOBJ)/RakNet/UDPProxyServer.o \
 $(LIBOBJ)/RakNet/VariableDeltaSerializer.o \
 $(LIBOBJ)/RakNet/VariableListDeltaTracker.o \
 $(LIBOBJ)/RakNet/VariadicSQLParser.o \
-$(LIBOBJ)/RakNet/WSAStartupSingleton.o \
-$(LIBOBJ)/RakNet/_FindFirst.o
+$(LIBOBJ)/RakNet/VitaIncludes.o \
+$(LIBOBJ)/RakNet/WSAStartupSingleton.o
 
 $(OBJ)/libraknet.a: $(RAKNETOBJS)
 

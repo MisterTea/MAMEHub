@@ -10,6 +10,8 @@
 #include "CCRakNetSlidingWindow.h"
 #endif
 
+using namespace RakNet;
+
 int SendToThread::refCount=0;
 DataStructures::ThreadsafeAllocatingQueue<SendToThread::SendToThreadBlock> SendToThread::objectQueue;
 ThreadPool<SendToThread::SendToThreadBlock*,SendToThread::SendToThreadBlock*> SendToThread::threadPool;
@@ -18,9 +20,9 @@ SendToThread::SendToThreadBlock* SendToWorkerThread(SendToThread::SendToThreadBl
 {
 	(void) perThreadData;
 	*returnOutput=false;
-	RakNet::TimeUS *mostRecentTime=(RakNet::TimeUS *)input->data;
-	*mostRecentTime=RakNet::GetTimeUS();
-	SocketLayer::SendTo(input->s, input->data, input->dataWriteOffset, input->binaryAddress, input->port, input->remotePortRakNetWasStartedOn_PS3);
+//	RakNet::TimeUS *mostRecentTime=(RakNet::TimeUS *)input->data;
+//	*mostRecentTime=RakNet::GetTimeUS();
+	SocketLayer::SendTo(input->s, input->data, input->dataWriteOffset, input->systemAddress, _FILE_AND_LINE_);
 	SendToThread::objectQueue.Push(input);
 	return 0;
 }
@@ -61,7 +63,11 @@ void SendToThread::Deref(void)
 }
 SendToThread::SendToThreadBlock* SendToThread::AllocateBlock(void)
 {
-	return objectQueue.PopOrAllocate();
+	SendToThread::SendToThreadBlock *b;
+	b=objectQueue.Pop();
+	if (b==0)
+		b=objectQueue.Allocate(_FILE_AND_LINE_);
+	return b;
 }
 void SendToThread::ProcessBlock(SendToThread::SendToThreadBlock* threadedSend)
 {

@@ -672,7 +672,7 @@ bool Client::update(running_machine *machine)
             inNegotiation=true;
             RakNet::SystemAddress sa;
             sa.SetBinaryAddress(((char*)p->data)+1);
-            RakNet::SystemAddress sa2 = ConnectBlocking(sa.ToString(false),sa.port,false);
+            RakNet::SystemAddress sa2 = ConnectBlocking(sa.ToString(false),sa.GetPort(),false);
             if(sa2 != RakNet::UNASSIGNED_SYSTEM_ADDRESS)
             {
                 cout << "Sending ID\n";
@@ -691,8 +691,6 @@ bool Client::update(running_machine *machine)
                 tmpbuf += username.length()+1;
                 rakInterface->Send(buf,int(tmpbuf-buf),HIGH_PRIORITY,RELIABLE_ORDERED,0,sa2,false);
             }
-            cout << sa.binaryAddress << ':' << sa.port << endl;
-            cout << sa2.binaryAddress << ':' << sa2.port << endl;
             if(sa2==RakNet::UNASSIGNED_SYSTEM_ADDRESS)
             {
                 //Tell the boss that you can't accept this guy

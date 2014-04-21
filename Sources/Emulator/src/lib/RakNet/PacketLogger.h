@@ -40,17 +40,17 @@ public:
 	// Translate the supplied parameters into an output line - overloaded version that takes a MessageIdentifier
 	// and translates it into a string (numeric or textual representation based on printId); this calls the
 	// second version which takes a const char* argument for the messageIdentifier
-	virtual void FormatLine(char* into, const char* dir, const char* type, unsigned int packet, unsigned int frame
+	virtual void FormatLine(char* into, const char* dir, const char* type, unsigned int reliableMessageNumber, unsigned int frame
 		, unsigned char messageIdentifier, const BitSize_t bitLen, unsigned long long time, const SystemAddress& local, const SystemAddress& remote,
 		unsigned int splitPacketId, unsigned int splitPacketIndex, unsigned int splitPacketCount, unsigned int orderingIndex);
-	virtual void FormatLine(char* into, const char* dir, const char* type, unsigned int packet, unsigned int frame
+	virtual void FormatLine(char* into, const char* dir, const char* type, unsigned int reliableMessageNumber, unsigned int frame
 		, const char* idToPrint, const BitSize_t bitLen, unsigned long long time, const SystemAddress& local, const SystemAddress& remote,
 		unsigned int splitPacketId, unsigned int splitPacketIndex, unsigned int splitPacketCount, unsigned int orderingIndex);
 
 	/// Events on low level sends and receives.  These functions may be called from different threads at the same time.
 	virtual void OnDirectSocketSend(const char *data, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress);
 	virtual void OnDirectSocketReceive(const char *data, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress);
-	virtual void OnReliabilityLayerPacketError(const char *errorMessage, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress);
+	virtual void OnReliabilityLayerNotification(const char *errorMessage, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress, bool isError);
 	virtual void OnInternalPacket(InternalPacket *internalPacket, unsigned frameNumber, SystemAddress remoteSystemAddress, RakNet::TimeMS time, int isSend);
 	virtual void OnAck(unsigned int messageNumber, SystemAddress remoteSystemAddress, RakNet::TimeMS time);
 	virtual void OnPushBackPacket(const char *data, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress);
@@ -80,6 +80,8 @@ public:
 	/// Log the direct sends and receives or not. Default true
 	void SetLogDirectMessages(bool send);
 protected:
+
+	virtual bool UsesReliabilityLayer(void) const {return true;}
 	const char* IDTOString(unsigned char Id);
 	virtual void AddToLog(const char *str);
 	// Users should override this

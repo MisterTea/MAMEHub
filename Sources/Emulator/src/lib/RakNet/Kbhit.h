@@ -7,8 +7,8 @@ You can do whatever you want with it.
 *****************************************************************************/
 #if defined(_WIN32)
 #include <conio.h> /* kbhit(), getch() */
-#elif defined(_XBOX) || defined(X360)
-#elif !defined(_PS3) && !defined(__PS3__) && !defined(SN_TARGET_PS3)
+
+#else
 #include <sys/time.h> /* struct timeval, select() */
 /* ICANON, ECHO, TCSANOW, struct termios */
 #include <termios.h> /* tcgetattr(), tcsetattr() */
@@ -37,7 +37,7 @@ static void raw(void)
 /* put keyboard (stdin, actually) in raw, unbuffered mode */
 	tcgetattr(0, &g_old_kbd_mode);
 	memcpy(&new_kbd_mode, &g_old_kbd_mode, sizeof(struct termios));
-	new_kbd_mode.c_lflag &= ~(ICANON | ECHO);
+	new_kbd_mode.c_lflag &= ~(ICANON /*| ECHO */ );
 	new_kbd_mode.c_cc[VTIME] = 0;
 	new_kbd_mode.c_cc[VMIN] = 1;
 	tcsetattr(0, TCSANOW, &new_kbd_mode);

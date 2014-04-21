@@ -49,7 +49,7 @@ typedef double MicrosecondsPerByte;
 /// Requirements:
 /// <OL>
 /// <LI>Each datagram is no more than MAXIMUM_MTU_SIZE, after accounting for the UDP header
-/// <LI>Each datagram containing a user message has a sequence number which is set after calling OnSendBytes(). Set it by calling GetNextDatagramSequenceNumber()
+/// <LI>Each datagram containing a user message has a sequence number which is set after calling OnSendBytes(). Set it by calling GetAndIncrementNextDatagramSequenceNumber()
 /// <LI>System is designed to be used from a single thread.
 /// <LI>Each packet should have a timeout time based on GetSenderRTOForACK(). If this time elapses, add the packet to the head of the send list for retransmission.
 /// </OL>
@@ -97,6 +97,7 @@ class CCRakNetUDT
 
 	/// Every data packet sent must contain a sequence number
 	/// Call this function to get it. The sequence number is passed into OnGotPacketPair()
+	DatagramSequenceNumberType GetAndIncrementNextDatagramSequenceNumber(void);
 	DatagramSequenceNumberType GetNextDatagramSequenceNumber(void);
 
 	/// Call this when you send packets
@@ -116,7 +117,7 @@ class CCRakNetUDT
 
 	/// Call when you get a NAK, with the sequence number of the lost message
 	/// Affects the congestion control
-	void OnResend(CCTimeType curTime);
+	void OnResend(CCTimeType curTime, RakNet::TimeUS nextActionTime);
 	void OnNAK(CCTimeType curTime, DatagramSequenceNumberType nakSequenceNumber);
 
 	/// Call this when an ACK arrives.
@@ -146,7 +147,7 @@ class CCRakNetUDT
 	/// If we have been continuously sending for the last RTO, and no ACK or NAK at all, SND*=2;
 	/// This is per message, which is different from UDT, but RakNet supports packetloss with continuing data where UDT is only RELIABLE_ORDERED
 	/// Minimum value is 100 milliseconds
-	CCTimeType GetRTOForRetransmission(void) const;
+	CCTimeType GetRTOForRetransmission(unsigned char timesSent) const;
 
 	/// Set the maximum amount of data that can be sent in one datagram
 	/// Default to MAXIMUM_MTU_SIZE-UDP_HEADER_SIZE
@@ -176,7 +177,6 @@ class CCRakNetUDT
 	static bool LessThan(DatagramSequenceNumberType a, DatagramSequenceNumberType b);
 //	void SetTimeBetweenSendsLimit(unsigned int bitsPerSecond);
 	uint64_t GetBytesPerSecondLimitByCongestionControl(void) const;
-
 
 	protected:
 	// --------------------------- PROTECTED VARIABLES ---------------------------

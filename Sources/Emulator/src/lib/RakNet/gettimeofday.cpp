@@ -1,6 +1,6 @@
-#if defined(_XBOX) || defined(X360)
-                            
-#endif
+
+
+
 
 #if defined(_WIN32) && !defined(__GNUC__)  &&!defined(__GCCXML__)
 
@@ -18,6 +18,12 @@
 
 int gettimeofday(struct timeval *tv, struct timezone *tz)
 {
+#if defined(WINDOWS_PHONE_8) || defined(WINDOWS_STORE_RT)
+	// _tzset not supported
+	(void) tv;
+	(void) tz;
+#else
+
   FILETIME ft;
   unsigned __int64 tmpres = 0;
   static int tzflag;
@@ -47,6 +53,8 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
     tz->tz_minuteswest = _timezone / 60;
     tz->tz_dsttime = _daylight;
   }
+
+#endif
 
   return 0;
 }
