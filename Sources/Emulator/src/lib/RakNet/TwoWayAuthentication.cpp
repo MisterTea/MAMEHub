@@ -1,3 +1,7 @@
+#ifdef WIN32
+#include "WindowsIncludes.h"
+#endif
+
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_TwoWayAuthentication==1
 
