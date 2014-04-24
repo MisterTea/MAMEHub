@@ -57,6 +57,11 @@ public class ClientDatabaseEngine {
 			bais.close();
 			return (T)o;
 		}
+
+    @Override
+    public int fixedSize() {
+      return -1;
+    }
 		
 	}
 	
@@ -105,6 +110,11 @@ public class ClientDatabaseEngine {
 				throw new IOException(e);
 			}
 		}
+
+    @Override
+    public int fixedSize() {
+      return -1;
+    }
 		
 	}
 
@@ -136,7 +146,7 @@ public class ClientDatabaseEngine {
 		dbDirectory.mkdirs();
 		DBMaker dbMaker = null;
 		if(inMemory) {
-			dbMaker = DBMaker.newDirectMemoryDB();
+			dbMaker = DBMaker.newMemoryDirectDB();
 		} else {
 			dbMaker = DBMaker.newFileDB(new File(dbFileName));
 		}
@@ -167,7 +177,7 @@ public class ClientDatabaseEngine {
 		if(dbMap == null) {
 			dbMap = database.getTreeMap(className);
 			if (dbMap == null) {
-				dbMap = database.createTreeMap(className, 120, false, true, null, new ThriftSerializer<T>(inClass), null);
+				dbMap = database.createTreeMap(className).nodeSize(120).counterEnable().valueSerializer(new ThriftSerializer<T>(inClass)).makeStringMap();
 			}
 		}
 		return dbMap;
@@ -178,7 +188,7 @@ public class ClientDatabaseEngine {
 		if(dbMap == null) {
 			dbMap = database.getTreeMap(className);
 			if (dbMap == null) {
-				dbMap = database.createTreeMap(className, 120, false, true, null, null, null);
+        dbMap = database.createTreeMap(className).nodeSize(120).counterEnable().makeStringMap();
 			}
 		}
 		return dbMap;

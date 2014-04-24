@@ -137,7 +137,7 @@ public class GameAuditor implements Runnable {
 
 	private void scan() throws Exception {
 		List<String> systemNames = new ArrayList<String>();
-		for(File softlist_file : new File("../hash").listFiles()) {
+		for(File softlist_file : Utils.getHashDirectory().listFiles()) {
 			systemNames.add(softlist_file.getName().split("\\.")[0]);
 		}
 
@@ -158,14 +158,14 @@ public class GameAuditor implements Runnable {
 					hashEntryMap);
 			handler.updateAuditStatus("AUDIT: Parsing MAME Roms");
 			logger.info("Parsing MAME roms");
-			new RomParser("../hash/mameROMs.xml.gz")
+			new RomParser(Utils.getHashDirectory().getPath()+"/mameROMs.xml.gz")
 					.process(inMemoryHashEntryMap, chdMap, mameRoms, false,
 							false, false);
 			Utils.getAuditDatabaseEngine().commit();
 
 			handler.updateAuditStatus("AUDIT: Parsing MESS Systems");
 			// MESS Systems can't come from CHDs, so put a null here
-			new RomParser("../hash/messROMs.xml.gz").process(
+			new RomParser(Utils.getHashDirectory().getPath()+"/messROMs.xml.gz").process(
 					inMemoryHashEntryMap, null, messRoms, true, true, true);
 			Utils.getAuditDatabaseEngine().commit();
 
@@ -187,7 +187,7 @@ public class GameAuditor implements Runnable {
 				if (messRoms.get(system).isSetMissingReason()) {
 					missingSystem = true;
 				}
-				File file = new File("../hash/" + system + ".xml");
+				File file = new File(Utils.getHashDirectory().getPath()+"/" + system + ".xml");
 				if (file.exists()) {
 					Map<String, RomInfo> systemCarts = systemRomMaps
 							.get(system);
