@@ -59,7 +59,6 @@ public class GameAuditor implements Runnable {
 	}
 
 	private AuditHandler handler;
-	public ConcurrentMap<String, FileInfo> scanData = null;
 	public static boolean abort = false;
 	public boolean runScanner;
 	public Thread gameAuditorThread;
@@ -84,14 +83,12 @@ public class GameAuditor implements Runnable {
 		indexDir = new File("AuditIndex" + Utils.AUDIT_DATABASE_VERSION);
 
 		runScanner = true;
-		scanData = Utils.getAuditDatabaseEngine().getOrCreateMap(
-				FileInfo.class, "RomHash");
 		hashEntryMap = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
 				"HashEntryMap2");
 		chdMap = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
 				"ChdMap");
 
-		if (!scanData.isEmpty() && !hashEntryMap.isEmpty() && indexDir.exists()) {
+		if (!hashEntryMap.isEmpty() && indexDir.exists()) {
 			runScanner = false;
 		}
 
