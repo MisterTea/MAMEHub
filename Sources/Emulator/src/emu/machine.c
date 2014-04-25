@@ -538,7 +538,7 @@ int running_machine::run(bool firstrun)
         static int firstTimeAtSecond=0;
         if(timeNow.seconds>10 && netClient && !firstTimeAtSecond && netClient->getSecondsBetweenSync()) {
           if (!m_scheduler.can_save()) {
-            cout << "CANT RESYNC\n";
+            //cout << "CANT RESYNC\n";
           } else {
             if(doCatchup==1)
               cout << "RESYNCING FOR CATCHUP\n";
