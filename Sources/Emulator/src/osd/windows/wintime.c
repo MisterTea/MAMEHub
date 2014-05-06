@@ -139,5 +139,8 @@ void osd_sleep(osd_ticks_t duration)
 		SetThreadPriority(current_thread, THREAD_PRIORITY_TIME_CRITICAL);
 		Sleep(msec);
 		SetThreadPriority(current_thread, old_priority);
-	}
+	} else {
+    // Yield the processor
+		Sleep(0);
+  }
 }
