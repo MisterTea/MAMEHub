@@ -383,19 +383,10 @@ void nvram_load(running_machine &machine)
 	{
 		astring filename;
 		emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
-		if (file.open(nvram_filename(filename, nvram->device())) == FILERR_NONE)
-		{
-			astring filename;
-			emu_file file(machine.options().nvram_directory(), OPEN_FLAG_READ);
-			if (!overrideNVram && file.open(nvram_filename(filename, nvram->device())) == FILERR_NONE)
+		if (!overrideNVram && file.open(nvram_filename(filename, nvram->device())) == FILERR_NONE)
 		{
 			nvram->nvram_load(file);
 			file.close();
-		}
-		else
-			{
-				nvram->nvram_reset();
-			}
 		}
 		else
 			nvram->nvram_reset();
