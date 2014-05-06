@@ -153,7 +153,10 @@ void osd_sleep(osd_ticks_t duration)
 		// take a couple of msecs off the top for good measure
 		msec -= 2;
 		Sleep(msec);
-	}
+	} else {
+    // Yield the processor
+    Sleep(0);
+  }
 }
 
 //============================================================
