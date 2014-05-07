@@ -3493,7 +3493,7 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curti
     {
       if(it==playerInputData[player].rend())
       {
-        throw emu_fatalerror("OOPS");
+        throw emu_fatalerror("OOPS: INVALID PLAYER INPUT");
       }
       else if(it->first<=curtime)
       {
@@ -3505,8 +3505,8 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curti
           retval.push_back(NULL);
         } else {
           retval.push_back(&(itold->second));
-          break;
         }
+        break;
       }
 
       itold = it;
