@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch4jConfig>
+  <dontWrapJar>true</dontWrapJar>
+  <headerType>console</headerType>
+  <jar>MAMEHubClient.jar</jar>
+  <outfile>C:\github\MAMEHub\Binaries\dist\MAMEHubClient.exe</outfile>
+  <errTitle></errTitle>
+  <cmdLine></cmdLine>
+  <chdir></chdir>
+  <priority>normal</priority>
+  <downloadUrl>http://java.com/download</downloadUrl>
+  <supportUrl></supportUrl>
+  <stayAlive>false</stayAlive>
+  <manifest></manifest>
+  <icon>C:\github\MAMEHub\Sources\Client\data\MAMEHub.ico</icon>
+  <singleInstance>
+    <mutexName>MAMEHubClient</mutexName>
+    <windowTitle>MAMEHubClient</windowTitle>
+  </singleInstance>
+  <jre>
+    <path></path>
+    <bundledJre64Bit>false</bundledJre64Bit>
+    <minVersion>1.7.0</minVersion>
+    <maxVersion></maxVersion>
+    <jdkPreference>preferJdk</jdkPreference>
+    <runtimeBits>64/32</runtimeBits>
+    <maxHeapSize>1024</maxHeapSize>
+    <opt>-XX:-UseGCOverheadLimit</opt>
+  </jre>
+</launch4jConfig>
