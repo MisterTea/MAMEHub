@@ -185,7 +185,7 @@ public class RpcEngine implements Runnable {
 						failCount++;
 						logger.error(failCount + ") GOT A TRANSPORT ERROR: "
 								+ e);
-						if (failCount >= 10) {
+						if (failCount >= 3) {
 							throw e;
 						} else {
 							Thread.sleep(3 * 1000);

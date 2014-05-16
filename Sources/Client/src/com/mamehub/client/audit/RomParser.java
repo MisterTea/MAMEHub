@@ -121,7 +121,7 @@ public class RomParser extends DefaultHandler {
 			} else {
 				if (chdMap != null
 						&& chdMap.containsKey(attributes.getValue("sha1"))) {
-					romInfo.chdFilenames.add(chdMap.get(attributes.getValue("sha1")));
+					romInfo.filenames.add(chdMap.get(attributes.getValue("sha1")));
 				} else {
 					//System.out.println("MISSING CHD: " + attributes.getValue("name") + " " + attributes.getValue("sha1"));
 					chdFailed = true;

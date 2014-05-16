@@ -20,6 +20,7 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.http.impl.client.ContentEncodingHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
@@ -88,6 +89,9 @@ public class PeerMonitor implements Runnable {
 
           boolean transferFailed = false;
           int numFiles = gameClient.getFileCount(romInfo.system, romInfo.id);
+          if (numFiles==0) {
+            continue;
+          }
           for (int a = 0; a < numFiles; a++) {
             fileInfo = gameClient.getFileInfo(romInfo.system, romInfo.id, a);
             if (fileInfo.length == 0) {
@@ -99,14 +103,27 @@ public class PeerMonitor implements Runnable {
             File file = null;
             if (romInfo.system.equalsIgnoreCase("arcade")
                 || romInfo.system.equalsIgnoreCase("bios")) {
-              file = new File("../roms/" + fileInfo.filename);
+              if (fileInfo.filename.toLowerCase().endsWith(".chd")) {
+                String chdName = romInfo.id;
+                new File("../roms/" + chdName).mkdirs();
+                file = new File("../roms/" + chdName + "/" + fileInfo.filename);
+              } else {
+                file = new File("../roms/" + fileInfo.filename);
+              }
             } else {
               File dir = new File("../roms/" + romInfo.system);
               if (!dir.exists()) {
                 dir.mkdirs();
               }
-              file = new File("../roms/" + romInfo.system + "/"
-                  + fileInfo.filename);
+
+              if (fileInfo.filename.toLowerCase().endsWith(".chd")) {
+                String chdName = romInfo.id;
+                new File("../roms/" + romInfo.system + "/" + chdName).mkdirs();
+                file = new File("../roms/" + romInfo.system + "/" + chdName + "/" + fileInfo.filename);
+              } else {
+                file = new File("../roms/" + romInfo.system + "/"
+                    + fileInfo.filename);
+              }
             }
             FileOutputStream outputStream = new FileOutputStream(file);
 

@@ -31,141 +31,157 @@ import com.mamehub.thrift.RomHashEntryValue;
 import com.mamehub.thrift.RomInfo;
 
 public class CartParser extends DefaultHandler implements Runnable {
-	final Logger logger = LoggerFactory.getLogger(CartParser.class);
+  final Logger logger = LoggerFactory.getLogger(CartParser.class);
 
-	private String systemName;
-	private File xmlFile;
+  private String systemName;
+  private File xmlFile;
 
-	private Map<String, ArrayList<RomHashEntryValue>> hashEntryMap;
+  private Map<String, ArrayList<RomHashEntryValue>> hashEntryMap;
 
-	private Map<String, RomInfo> roms;
+  private Map<String, RomInfo> roms;
 
-	private ConcurrentMap<String, String> chdMap;
-	private int count = 0;
+  private ConcurrentMap<String, String> chdMap;
+  private int count = 0;
 
-	private boolean debug;
+  private boolean debug;
 
-	private boolean missingSystem;
-	private boolean verbose=false;
+  private boolean missingSystem;
+  private boolean verbose = false;
 
-	public CartParser(String systemName, File xmlFile,
-			Map<String, ArrayList<RomHashEntryValue>> hashEntryMap,
-			Map<String, RomInfo> roms, ConcurrentMap<String, String> chdMap,
-			boolean missingSystem) {
-		this.systemName = systemName;
-		this.hashEntryMap = hashEntryMap;
-		this.roms = roms;
-		this.chdMap = chdMap;
-		this.missingSystem = missingSystem;
-		if (!systemName.equals(systemName.toLowerCase())) {
-			throw new RuntimeException("System names must be lower case");
-		}
-		this.xmlFile = xmlFile;
-		logger.info("Parsing carts for system: " + systemName + " ("
-				+ xmlFile.getName() + ")");
-	}
+  public CartParser(String systemName, File xmlFile,
+      Map<String, ArrayList<RomHashEntryValue>> hashEntryMap,
+      Map<String, RomInfo> roms, ConcurrentMap<String, String> chdMap,
+      boolean missingSystem) {
+    this.systemName = systemName;
+    this.hashEntryMap = hashEntryMap;
+    this.roms = roms;
+    this.chdMap = chdMap;
+    this.missingSystem = missingSystem;
+    if (!systemName.equals(systemName.toLowerCase())) {
+      throw new RuntimeException("System names must be lower case");
+    }
+    this.xmlFile = xmlFile;
+    logger.info("Parsing carts for system: " + systemName + " ("
+        + xmlFile.getName() + ")");
+  }
 
-	@Override
-	public void run() {
-		try {
-			if (systemName.contains(":")) {
-				throw new RuntimeException("Colons not allowed in system names");
-			}
-			
-			DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-			DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-			Document doc = dBuilder.parse(xmlFile);
-			doc.getDocumentElement().normalize();
-			
-			NodeList nList = doc.getElementsByTagName("software");
-			for (int temp = 0; temp < nList.getLength(); temp++) {
-				Node node = nList.item(temp);
-				
-				RomInfo romInfo = new RomInfo();
-                romInfo.id = node.getAttributes().getNamedItem("name").getTextContent();
-				romInfo.description = ((Element)node).getElementsByTagName("description").item(0).getTextContent();
-				romInfo.system = systemName;
-				
-				verbose = (romInfo.id.equals("10yard"));
-				
-				NodeList childList = ((Element)node).getElementsByTagName("part");
-				if (verbose) {
-					System.out.println("NUM PARTS: " + childList.getLength());
-				}
-				for (int t2=0;t2<childList.getLength();t2++) {
-					Node childNode = childList.item(t2);
-					
-					String interfaceType = childNode.getAttributes().getNamedItem("name").getTextContent();
-					String interfaceName = childNode.getAttributes().getNamedItem("interface").getTextContent().split("_")[0];
-					
-					NodeList diskAreaList = ((Element)childNode).getElementsByTagName("diskarea");
-					NodeList dataAreaList = ((Element)childNode).getElementsByTagName("dataarea");
-					
-					for (int diskAreaI=0;diskAreaI<diskAreaList.getLength();diskAreaI++) {
-						Node diskAreaNode = diskAreaList.item(diskAreaI);
-						String chdSha1 = ((Element)diskAreaNode).getElementsByTagName("disk").item(0).getAttributes().getNamedItem("sha1").getTextContent();
-						if (!chdMap.containsKey(chdSha1)) {
-							romInfo.missingReason = MR.MISSING_CHD;
-						} else {
-							romInfo.filenames.add(chdMap.get(chdSha1));
-							romInfo.interfaceFileMap.put(interfaceType, chdMap.get(chdSha1));
-						}
-					}
-					
-					if (verbose) {
-						System.out.println("NUM DATA: " + dataAreaList.getLength());
-					}
-					for (int diskAreaI=0;diskAreaI<dataAreaList.getLength();diskAreaI++) {
-						Node dataAreaNode = dataAreaList.item(diskAreaI);
-						NodeList romNodeList = ((Element)dataAreaNode).getElementsByTagName("rom");
-						for (int romI=0;romI<romNodeList.getLength();romI++) {
-							Node romNode = romNodeList.item(romI);
-							if (romNode.getAttributes().getNamedItem("name") != null &&
-									romNode.getAttributes().getNamedItem("crc") != null) {
-								String softwareName = romNode.getAttributes().getNamedItem("name").getTextContent();
-								String romCrc = romNode.getAttributes().getNamedItem("crc").getTextContent();
-								if (verbose) {
-									System.out.println("ROM INFO: " + softwareName + "/" + romCrc);
-								}
-								List<RomHashEntryValue> hashEntries = hashEntryMap.get(romCrc);
+  @Override
+  public void run() {
+    try {
+      if (systemName.contains(":")) {
+        throw new RuntimeException("Colons not allowed in system names");
+      }
 
-								boolean gotRom=false;
-								if (hashEntries != null) {
-									for (RomHashEntryValue v : hashEntries) {
-										if (verbose) {
-											System.out.println("HASH INFO: " + v + " " + systemName);
-										}
-										if (v.system != null && v.system.equalsIgnoreCase(systemName)) {
-											gotRom=true;
-											if (!romInfo.filenames.contains(v.location)) {
-												romInfo.filenames.add(v.location);
-											}
-											romInfo.interfaceFileMap.put(interfaceType, v.location);
-											break;
-										}
-									}
-								}
-								if (!gotRom) {
-									romInfo.missingReason = MR.MISSING_FILES;
-								}
-							}
-						}
-					}
-				}
-				
-				if (missingSystem && romInfo.missingReason == null) {
-					romInfo.missingReason = MR.MISSING_SYSTEM;
-				}
-				if (verbose) {
-					System.out.println("FINAL RESULT: " + romInfo);
-				}
-				roms.put(romInfo.id, romInfo);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+      DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+      DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+      Document doc = dBuilder.parse(xmlFile);
+      doc.getDocumentElement().normalize();
 
-		this.hashEntryMap = null;
-		this.roms = null;
-	}
+      NodeList nList = doc.getElementsByTagName("software");
+      for (int temp = 0; temp < nList.getLength(); temp++) {
+        Node node = nList.item(temp);
+
+        RomInfo romInfo = new RomInfo();
+        romInfo.id = node.getAttributes().getNamedItem("name").getTextContent();
+        romInfo.description = ((Element) node)
+            .getElementsByTagName("description").item(0).getTextContent();
+        romInfo.system = systemName;
+
+        verbose = (/* romInfo.id.equals("tomjerry") && */systemName
+            .equalsIgnoreCase("nes"));
+        if (verbose) {
+          int breakmenow = 0;
+        }
+
+        NodeList childList = ((Element) node).getElementsByTagName("part");
+        if (verbose) {
+          System.out.println("NUM PARTS: " + childList.getLength());
+        }
+        for (int t2 = 0; t2 < childList.getLength(); t2++) {
+          Node childNode = childList.item(t2);
+
+          String interfaceType = childNode.getAttributes().getNamedItem("name")
+              .getTextContent();
+          String interfaceName = childNode.getAttributes()
+              .getNamedItem("interface").getTextContent().split("_")[0];
+
+          NodeList diskAreaList = ((Element) childNode)
+              .getElementsByTagName("diskarea");
+          NodeList dataAreaList = ((Element) childNode)
+              .getElementsByTagName("dataarea");
+
+          for (int diskAreaI = 0; diskAreaI < diskAreaList.getLength(); diskAreaI++) {
+            Node diskAreaNode = diskAreaList.item(diskAreaI);
+            String chdSha1 = ((Element) diskAreaNode)
+                .getElementsByTagName("disk").item(0).getAttributes()
+                .getNamedItem("sha1").getTextContent();
+            if (!chdMap.containsKey(chdSha1)) {
+              romInfo.missingReason = MR.MISSING_CHD;
+            } else {
+              romInfo.filenames.add(chdMap.get(chdSha1));
+              romInfo.interfaceFileMap.put(interfaceType, chdMap.get(chdSha1));
+            }
+          }
+
+          if (verbose) {
+            System.out.println("NUM DATA: " + dataAreaList.getLength());
+          }
+          for (int dataAreaI = 0; dataAreaI < dataAreaList.getLength(); dataAreaI++) {
+            Node dataAreaNode = dataAreaList.item(dataAreaI);
+            NodeList romNodeList = ((Element) dataAreaNode)
+                .getElementsByTagName("rom");
+            for (int romI = 0; romI < romNodeList.getLength(); romI++) {
+              Node romNode = romNodeList.item(romI);
+              if (romNode.getAttributes().getNamedItem("name") != null
+                  && romNode.getAttributes().getNamedItem("crc") != null) {
+                String softwareName = romNode.getAttributes()
+                    .getNamedItem("name").getTextContent();
+                String romCrc = romNode.getAttributes().getNamedItem("crc")
+                    .getTextContent();
+                if (verbose) {
+                  System.out
+                      .println("ROM INFO: " + softwareName + "/" + romCrc);
+                }
+                List<RomHashEntryValue> hashEntries = hashEntryMap.get(romCrc);
+
+                boolean gotRom = false;
+                if (hashEntries != null) {
+                  for (RomHashEntryValue v : hashEntries) {
+                    if (verbose) {
+                      System.out.println("HASH INFO: " + v + " " + systemName);
+                    }
+                    if (v.system != null
+                        && v.system.equalsIgnoreCase(systemName)) {
+                      gotRom = true;
+                      if (!romInfo.filenames.contains(v.location)) {
+                        romInfo.filenames.add(v.location);
+                      }
+                      romInfo.interfaceFileMap.put(interfaceType, v.location);
+                      break;
+                    }
+                  }
+                }
+                if (!gotRom) {
+                  romInfo.missingReason = MR.MISSING_FILES;
+                }
+              }
+            }
+          }
+        }
+
+        if (missingSystem && romInfo.missingReason == null) {
+          romInfo.missingReason = MR.MISSING_SYSTEM;
+        }
+        if (verbose) {
+          System.out.println("FINAL RESULT: " + romInfo);
+        }
+        roms.put(romInfo.id, romInfo);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    this.hashEntryMap = null;
+    this.roms = null;
+  }
 }

@@ -20,13 +20,12 @@ struct SoftwareList
 
 struct RomInfo
 {
-  1:string id,
+  1:string id, // id is the same as the shortname
   2:string cloneRom,
   3:string parentRom,
   4:list<string> filenames = [],
   5:string description,
   6:MR missingReason,
-  7:list<string> chdFilenames = [];
   8:list<SoftwareList> softwareLists = [];
   9:string system,
 

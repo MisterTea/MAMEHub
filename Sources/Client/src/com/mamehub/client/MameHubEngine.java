@@ -102,10 +102,13 @@ public class MameHubEngine implements Runnable {
 		}
 		
 		if(systemName.equalsIgnoreCase("arcade")) {
-			if (romOrCart.filenames.size()!=1) {
-				throw new RuntimeException("Invalid number of roms for arcade machine");
-			}
-			this.romFileName = romOrCart.filenames.get(0);
+		  // Pick the first non-CHD file
+		  for (String s : romOrCart.filenames) {
+		    if (!s.toLowerCase().endsWith(".chd")) {
+		      romFileName = s;
+		      break;
+		    }
+		  }
 			cmdList.add("\"" + romFileName + "\"");
 		} else {
 			// Before we passed the bios path to ume, now we need to pass the system name.
