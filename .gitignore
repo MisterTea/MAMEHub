@@ -17,6 +17,9 @@ target
 # Updater (downloaded manually)
 Binaries/Tools/Updater.jar
 
+# Frontend (downloaded manually)
+Binaries/dist/MAMEHubClient.jar
+
 # Windows Files
 INSTALL.bat
 INSTALLXP.bat
