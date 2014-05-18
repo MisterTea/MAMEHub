@@ -1048,7 +1048,21 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		JMenu mnHelp = new JMenu("Help");
 		menuBar.add(mnHelp);
 
-		JMenuItem mntmFileABug = new JMenuItem("File a Bug");
+    JMenuItem mntnGettingStarted = new JMenuItem("Getting Started");
+    mntnGettingStarted.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent e) {
+        try {
+          Utils.openWebpage(new URI(
+              "https://github.com/MisterTea/MAMEHub/wiki/Getting-Started"));
+        } catch (URISyntaxException e1) {
+          // TODO Auto-generated catch block
+          e1.printStackTrace();
+        }
+      }
+    });
+    mnHelp.add(mntnGettingStarted);
+
+    JMenuItem mntmFileABug = new JMenuItem("File a Bug");
 		mntmFileABug.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				try {
@@ -1150,7 +1164,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		MainFrame.this.requestFocus();
 		MainFrame.this.repaint();
 		
-		setTitle("MAMEHub 3.1 (Based on UME 0.152)");
+		setTitle("MAMEHub 3.1 (Based on UME 0.150)");
 	}
 
 	protected void updateGameList() {
