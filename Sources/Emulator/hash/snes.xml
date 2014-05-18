@@ -1,5 +1,376 @@
 ﻿<?xml version="1.0"?>
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
+<<<<<<< HEAD
+=======
+
+<!--
+  Credits:
+  - Maintainers : Fabio Priuli, Yakushi~Kabuto
+  - Cart profiles : Yakushi~Kabuto
+  - Documentation and redump (significant contributors):
+  - - d4s (extremely rare material)
+  - - Yakushi~Kabuto (~1160 carts)
+  - - byuu (210 carts)
+  - - badinsults (~350 carts)
+  - - JohnDie (~180 carts)
+  - - Zidanax (~130 carts)
+  - - Ecco and RedScorpion (72 carts)
+-->
+
+<!--
+Undumped
+
+ Confirmed?   Source     Title
+
+  <Japan>
+          o   PCB pic    Clock Tower / Prototype with 3 sample games
+          o   PCB pic    Dai-3-Ji Super Robot Taisen / Revision C / C2941881
+          o   PCB pic    Doraemon - Nobita to Yousei no Kuni / Revision A / 55E44983
+          ?              Dragon Slayer - Eiyuu Densetsu II / Prototype
+          x   n/a        Eiga Shoukai Soft - Mizu no Tabinin
+          o   Wii VC     Gakkou de Atta Kowai Hanashi / Revision A
+          o   Cart pic   GAMARS Genuine Taiwan Mahjong 16 / Unlicensed
+          o   Cart pic   GAMARS Taiwan Chess / Unlicensed
+          o   Inter rev  Ganbare Goemon - Yuki Hime Kyuushutsu Emaki / Revision A
+          o   Inter rev  Ganbare Goemon Kirakira Douchuu - Boku ga Dancer ni Natta Riyuu / Revision A
+          o   PCB pic    Ganbare Goemon 3 - Shishi Juurokubei no Karakuri Manjigatame / Revision A / 458C473B
+          o   PCB pic    Ganbare Goemon 3 - Shishi Juurokubei no Karakuri Manjigatame / Revision B / AF984BC1
+          x   n/a        J.League Excite Stage '96 / Sample
+          o   Cart pic   Kunio-kun no Dodge Ball dayo Zenin Shuugou! Sample ROM くにおくんのドッジボールだよ 全員集合! サンプルロム / Not for sale
+          ?              Lethal Enforcers Famitsu Edition リーサルエンフォーサーズ　ファミ通版 / Not for sale
+          x   n/a        Little Master - Nijiiro no Maseki / Sample
+          o   Cart pic   Magical Drop 2 - Bunka Housou Special Version / SHVC-AOQJ-JPN / Not for sale
+          ?              Naughts &amp; Crosses / Prototype
+          o   Wii VC     Panel de Pon / Revision A
+          o   PCB pic    Pilotwings / Prototype 19901025
+          ?              Pro Action Replay - High Tech Option Series / Unlicensed
+          x   n/a        Pro Yakyuu Nettou Puzzle Stadium / Sample
+          ?              Saikyou - Takada Nobuhiko - Ucchan Nanchan Version
+          o   Inter rev  Satellaview BS-X (Japan) / Initial release prior to Rev A
+          o   PCB pic    Shin Chou Kouki / Revision A / 1A77CF3B
+          o   PCB pic    Shin Megami Tensei II / Revision A / 84268A75
+          o   PCB pic    Shodai Nekketsu Kouha Kunio-kun / Revision A / 5DF55465
+          o   Inter rev  Super Jinsei Game 2 / Revision A
+          o   Inter rev  Super Mahjong Taikai / Revision B
+          o   Wii VC     Super Nobunaga no Yabou - Zenkoku Ban / Revision A
+          o   PCB pic    Super Soukoban / Japan? Prototype
+          x   n/a        Super Street Fighter II / Sample
+          o   PCB pic    Tsukikomori (v1.1, NP) / F37C6726
+          o   PCB pic    Ultraman / Prototype
+          ?              Wild Trax / Demo
+
+  <USA>
+          o   PCB pic    1992 Nintendo Challenge / Competition, Japan, USA and Europe?
+          o   Screen pic 1992 Nintendo Campus Challenge / Competition, title screen variation of the former
+          o   PCB pic    Bio Metal / Prototype 19930716 | Activision
+          o   PCB pic    The Brainies / Prototype 19930522
+          o   Video      Burn-In/Test Cartridge Rev D / Not for sale, final
+          ?              Fatal Fury / Prototype 19921224
+          o   Inter rev  Fighter's History / Initial release prior to Rev A
+          ?              Ignition Factor, The / Prototype
+          o   PCB pic    Jammit / Prototype 19940301 | GTE Entertainment
+          o   PCB pic    Mickey's Ultimate Challenge / Prototype 19931103
+          o   PCB pic    Natsume Championship Wrestling / Prototype
+          o   PCB pic    NFL Quarterback Club 96 / Alternate Prototype?
+          ?              PGA Tour Golf / Revision A
+          o   PCB pic    Speedy Gonzales in Los Gatos Bandidos / Prototype 19950125
+          o   Inter rev  Star Fox / Revision A
+          o   PCB pic    Sterling Sharpe - End 2 End / Prototype
+          o   Cart pic   Stunt Race FX / DIS-SNS-QC-USA Not for sale - Demo Only
+          o   PCB pic    Super Mario Kart / Earlier Prototype
+          o   PCB pic    Super Pinball - Behind the Mask / Prototype
+          o   Wii VC     Super Street Fighter II / Revision A
+          ?              Theme Park / USA? Prototype
+          o   Cart pic   X Band / Prototype
+
+  <Europe>
+          ?              Biker Mice From Mars / Prototype
+          o   Inter rev  Donkey Kong Country 2 - Diddy's Kong Quest / Initial release prior to Rev A
+          o   PCB pic    Soccer Kid / Prototype
+
+  <Unknown region>
+          o   PCB pic    Adventures of Dr. Franken / Prototype
+          ?              Plok! / Prototype 19930403
+
+  Cancelled (most of these titles are probably lost forever)
+
+  - Asterix - USA, for 1993, Electro Brain
+  - Beastball - USA, for 1993, Millennium Interactive
+  - Boo! - Europe, for 1994, Micropose
+  - Bulls Vs. Lakers - USA, for 1992, Electronic Arts
+  - College Football - USA, for 1993, HAL America
+  - Comanche - USA, for 199?, Novalogic
+  - Daze Before Christmas - USA, for 1994, Funcom Productions
+  - Dominus - USA, for 1993, Visual Concepts
+  - Dream Probe - USA, for 1993, Riot
+  - Fables & Fiends: The Legend of Kyrandia - Europe, for 1992, Virgin Games
+  - Fido Dido - USA, for 1993, Kaneko
+  - Firehawk - USA, for 1993 or later, Sony
+  - Freeway Flyboys - USA, for 199?, unknown dev
+  - Future Zone - USA, for 1994, Electro Brain
+  - FX Fighter - USA, for 199?, Argonaut Software
+  - Gearheads - USA, for 1996, Philips Media
+  - Green Lantern - USA, 199?, Ocean Software
+  - Jaguar XJ220 - USA, for 199?, JVC
+  - Joe vs. The Wall - USA, 1992 or later, Ocean
+  - Lost Mission - USA, for 1993 or later, Vic Tokai
+  - Mountain Sports - USA, for 1993 or later, DTMC
+  - Moto-X - USA, for 1994, Software Creations
+  - Operation Alien - USA, for 1993 or later, THQ
+  - Pele! - USA, for 1993 or later, Accolade
+  - Pocahontas - USA, for 1996 or later, Funcom
+  - Popeye - USA, for 1993 or later, Technos
+  - Railroad Tycoon - USA, for 1993, MicroProse
+  - SGT. Saunder's Combat - USA, for 199?, Play Avenue/Chickenhead
+  - Shadowhawk - USA, for 1995 or later, Shadowline Studios
+  - Smurfs, The - USA, for 199?, Infogrames
+  - Socks the Cat Rocks the Hill - USA, for 1994, Kaneko
+  - Sound Fantasy - USA & Japan, for 1993 or later, Nintendo
+  - Spanky no Orifuru Puzzle - Japan, for 1995, Natsume
+  - Spot Goes To Hollywood - Europ, for 199?, Virgin
+  - Superman - USA, for 1993, Sunsoft
+  - Super Baseball Simulator 1.000 2 - USA, for 199?, unknown dev
+  - Super Hustler - Japan, for 199?, Opera House
+  - Taloon's Mystery Dungeon - USA, for 199?, Squaresoft
+  - Targa - Europe, for 1995, Virgin Interactive
+  - Tarzan - Unknown region, for 1993 or later, Gametek
+  - Thunder in Paradise - USA, for 1994 or later, Software Toolworks
+  - Time Killer - USA, for 1993 or later, T*HQ
+  - Tom and Jerry 2 - USA, for 199?, Hi Tech
+  - Toxic Crusaders - USA, for 1992 or later, Bandai
+  - Tweety and Sylvester - USA, for 1993 or later, TecMagik
+  - Ultrabots: Sanction Earth - USA, for 1992 or later, NovaLogic
+  - Warrior of Rome III - USA, for 1993 or later, Extreme
+  - Waterworld - USA, for 199?, unknown dev
+  - Whirlo - USA, for 199?, Namco
+  - Wile E Coyote's Revenge (later prototype) - USA, for 199?, Sunsoft
+-->
+
+<!--
+Documentation of Super Famicom PCB labels
+
+The labels printed on the PCB can be analysed as four parts: [Code 1]-[Code 2]-[Code 3]-[Code 4]
+The "[Code 2]" part can also be analyzed as four (or sometimes five) subparts which will be detailed below.
+
+Code 1
+======
+BSC  : "Broadcast Satellaview-X Cassette", on BS-X slotted cartridges that were "Made in Japan".
+EA   : "Electronic Arts", on standard cartridges that were manufactured by EA.
+MAXI : "Maxis", on standard cartridges that were "Assembled in Mexico".
+MJSC : "Majesco", on standard cartridges that were "Assembled in Mexico".
+SHVC : "Super Home Video Computer", on standard cartridges that were "Made in Japan" or "Made in Mexico".
+SNSP : "Super Nintendo System PAL", on standard cartridges that were "Assembled in Japan".
+WEI  : "Williams Entertainment Inc.", on standard cartridges that were "Assembled in Mexico".
+
+Code 2
+======
+1***   : 1 ROM chip (2Mb, 4Mb, 8Mb, 16Mb, 24 Mb or 32Mb)
+Y***   : 2 ROM chips, the largest being  4Mb
+2***   : 2 ROM chips, the largest being  8Mb
+B***   : 2 ROM chips, the largest being 16Mb
+L***   : 2 ROM chips, the largest being 32Mb
+3***   : 3 ROM chips
+4****  : 4 ROM chips
+8****  : 8 ROM chips
+
+*A***  : Commercial board with no special chip (LoROM)
+*B***  : Commercial board with "DSP-1," "DSP-2," "DSP-3," or "DSP-4" special chip (LoROM)
+*C***  : Commercial board with "Mario Chip 1" also known as "Super FX" special chip (LoROM)
+*CA**  : Commercial board with "GSU-1" also known as "Super FX" special chip (LoROM)
+*CB**  : Commercial board with "GSU-2" also known as "Super FX2" special chip (LoROM)
+*DC**  : Commercial board with "C4" special chip (LoROM)
+*DE**  : Commercial board with "ST018" special chip (LoROM)
+*DH**  : Commercial board with "SPC7110" special chip (HiROM)
+*DS**  : Commercial board with "ST010" or "ST011" special chip (LoROM)
+*E***  : Commercial board with "OBC1" special chip (LoROM)
+*J***  : Commercial board with no special chip (HiROM)
+*K***  : Commercial board with "DSP-1", "DSB-1 B", "DSP-2", "DSP-3", or "DSP-4" special chip (HiROM)
+*L***  : Commercial board with "SA1" special chip (LoROM)
+*N***  : Commercial board with "S-DD1" special chip (LoROM)
+*P***  : Evaluation board with no special chip (LoROM)
+*PV**  : Evaluation board with no special chip (HiROM)
+*Q***  : Evaluation board with "DSP-1", "DSP-2", "DSP-3", or "DSP-4", special chip (LoROM)
+*QW**  : Evaluation board with "DSP-1", "DSP-2", "DSP-3", or "DSP-4", special chip (HiROM)
+*RA**  : Evaluation board with "GSU1" or "GSU1A" also known as "Super FX" special chip (LoROM)
+*RB**  : Evaluation board with "GSU2" also known as "Super FX2" special chip (LoROM)
+*X***  : Evaluation board with "SA1" special chip
+
+**0*   :  No SRAM chip
+**1*   : 1 SRAM chip (16 Kibit)
+**2*   : 1 SRAM chip (32 Kibit)
+**3*   : 1 SRAM chip (64 Kibit)
+**4*   : 1 SRAM chip (128 Kibit)
+**5*   : 1 SRAM chip (256 Kibit)
+**6*   : 1 SRAM chip (512 Kibit)
+**7*   : 1 SRAM chip (512 Kibit or 1 Mibit)
+**8*   : 1 FLASH chip (2 Mibit)
+**9*   : 1 FLASH chip (1 Mibit)
+
+***B   : "74LS139" or "74LS157" memory address decoder chip for SRAM (often 74F139 in evaluation boards)
+***C   : "RTC" memory address decoder chip for SRAM
+***F   : "74ALS139" or "74AC139" memory address decoder chip for flash memory
+***M   : "MAD-1" memory address decoder chip for SRAM
+***N   : No memory address decoder chip for SRAM
+***R   : "S-RTC" memory address decoder chip for SRAM
+***X   : "MAD-2" memory address decoder chip for SRAM
+
+****3S : 1 SRAM chip (64Kb) dedicated for SA1 (todo: see if partially or entirely dedicated)
+****5S : 1 SRAM chip (256Kb) partially dedicated for SuperFX framebuffer storage
+****6S : 1 SRAM chip (512Kb) partially dedicated for SuperFX framebuffer storage
+****7S : 1 SRAM chip (512Kb) partially dedicated for SuperFX2 framebuffer storage
+****9P : 1 PSRAM chip dedicated for BS-X temporary storage
+
+Code 3
+======
+Two digits (01, 02, 03, 10, 20, 30...): PCB revision
+SP1: Service Pack 1
+
+Code 4 (This suffix only appears on "EA," "MAXI," and "WEI" PCBs.)
+======
+-1 : PCB revision 1
+-2 : PCB revision 2
+
+Miscellaneous Labels
+====================
+BSMC-AF-1   : On "Broadcast Satellaview-X" media cartridge.
+BSMC-CR-1   : On "Broadcast Satellaview-X" media cartridge.
+GPC-RAMC-S1 : Game Processing Cassette
+SGB-N-10    : On "Super Game Boy" interface cartridge.
+SGB-R-10    : On "Super Game Boy" interface cartridge.
+SHVC-MMSA-1 : On "Nintendo Power" flash cartridge.
+SHVC-SGB2-1 : On "Super Game Boy 2" interface cartridge.
+
+CIC Chips (W.I.P)
+=========
+Nintendo CIC are anti copy protection lockout chips,
+they are present in almost every single licensed cartridge, sometimes built into another chip.
+There are also several CIC clones used in unlicensed cartridges.
+
+CIC types:
+
+-D411 : NTSC
+-F411 : NTSC and processing chip
+-D413 : PAL
+-F413 : PAL and processing chip
+
+Known revisions and their timeline approximaions (W.I.P):
+
+-[1990/36,1992/21] ⊆ t(D411)
+-[1992/31,1995/03] ⊆ t(D411A)
+-[1995/03,1998/43] ⊆ t(D411B)
+
+-?                 ⊆ t(F411)  //maybe used in star fox early protoypes
+-[1993/03,1994/33] ⊆ t(F411A)
+-[1995/20,2000/13] ⊆ t(F411B)
+
+-[1992/18,1992/22] ⊆ t(D413)
+-[1992/24,1994/50] ⊆ t(D413A)
+-[1995/06,1997/35] ⊆ t(D413B)
+
+-?                 ⊆ t(F413)
+-?                 ⊆ t(F413A)
+-[1995/42,1995/42] ⊆ t(F413B)
+-->
+
+<!--
+Cartridges labels (W.I.P)
+
+- Japan catalogue product code:
+  From 1990 to 1994 Sept: the product code is SHVC-xy
+  x and y can be any letter or number, except 0 and 1 (to avoid confusion with O and I respectively)
+  From 1994 Sept onward: the product code is: SHVC-zxyJ-JPN
+  z = A, Non specific retail and demo releases
+  z = B, Nintendo Power specific releases, could be re-released on retail cartridges
+  z = T, NTT (Nippon Telegraph and Telephone) releases requiring a modem (serial: NDM24)
+  z = Z, BSX slotted cartridge (model SHVC-028 or SHVC-040)
+
+- US catalogue product code:
+  SNS-xy-USA, and later, SNS-AxyE-USA
+  Prefix M/ : Made in mexico ('made', not just 'assembled')
+  Prefix DIS- or suffix -DIS : Display (not for sale)
+
+- Europe catalogue product code:
+  SNSP-xy-suffix, and later, SNSP-AxyP-suffix
+
+Front sticker suffix:
+-JPN      : Japan
+-USA      : USA
+-EUR      : Europe
+-AUS      : Australia
+-CAN      : Canada
+-ESP      : Spain
+-ESP/SESP : Spain, translated to Spanish
+-FAH      : France and Holland
+-FAH/SFRA : France and Holland, translated to French
+-FRA      : France
+-FRA/SFRA : France, translated to French
+-FRG      : Germany, Austria and Switzerland
+-FRG/SFRG : Germany, translated to German
+-HKG      : Hong Kong
+-HOL      : Holland
+-ITA      : Italy
+-ITA/SITA : Italy, translated to Italian
+-KOR      : Korea
+-LTN      : Latin America
+-NOE      : Nintendo of Europe (usually found in Germany)
+-NOE/SFRG : Nintendo of Europe (usually found in Germany), translated to German
+-SCN      : Scandinavia
+-UKV      : United Kingdom
+
+Notes: Front sticker labels can have the suffix -1, -2, etc... which indicates a label revision.
+       Label revisions are independant from cartridge or ROM revisions.
+       In the USA, PCMS (Players Choice Million Seller) re-releases come with a label update.
+
+Back sticker:
+901121               : Japan (first batch)
+920214               : Japan (second batch)
+G741832 SHVC-JPN-1   : Japan (third batch)
+G728389              : Japan, BS (first batch)
+G736879 BSC-JPN      : Japan, BS (second batch)
+G744238 BSC-JPN-1    : Japan, BS (third batch)
+G749559 SHVC-SFN-JPN : Japan, NTT
+SNS-USA              : USA
+SNS-USA/CAN          : USA and Canada (first batch)
+SNS-USA/CAN-1        : USA and Canada (second batch)
+M/SNS-USA/CAN-1      : USA and Canada (Made in Mexico)
+SNS-USA/CAN-1-M      : USA and Canada (Majesco re-release)
+SNSP-EUR             : Europe
+SNSP-FAH             : France and Holland
+SNSP-ESP             : Spain
+SNSP-NOE             : Nintendo of Europe (usually Germany)
+SNSP-UKV             : United Kingdom
+SNSN-HKG             : Hong Kong
+
+Cartridge Models:
+SNSP-006 : Standard PAL cartridge, very similar to Japanese ones
+SNSP-027 : PAL Super Game Boy cartridge
+SNS-006  : Standard North American cartridge, shape differs from Japanese ones and constitutes the only region protection between North America and Japan
+SNS-011  : (To be confirmed) Cleaning
+SNS-027  : North American Super Game Boy cartridge
+SNSN-006 : Standard Honk Kong cartridge
+SHVC-006 : Standard Japanese cartridge
+SHVC-027 : Japanese Super Game Boy cartridge
+SHVC-028 : Broadcast Satellaview-X cassette (衛星放送対応カセット), large cartridge with a slot for a BS-X memory pak
+SHVC-031 : Broadcast Satellaview-X memory pak, small cartridges hosting a 8Mbit Flash ROM for downloadable titles from the BS-X library
+SHVC-039 : (To be confirmed) Broadcast Satellaview-X ROM pak, unlike memory paks, these cartridges host a permanent ROM and can not be flashed
+SHVC-040 : Broadcast Satellaview-X cassette (衛星放送対応カセット), later revision although the difference is unclear
+SHVC-041 : Super Famicom memory cassette (SFメモリカセット), white cartridges hosting flashed titles from the 'Nintendo Power' library
+SHVC-042 : Super Game Boy 2 cartridge, only released in Japan
+-->
+
+<!--
+The software list will be divided in the following categories:
+1. Documented non retail cartridges: Dumps from confirmed non retail cartridges
+2. Pirates cartridges
+3. No confirmed cartridge: roms which are not confirmed to exist on a cartridge at this time
+4. Bad dumps: Known bad dumps, need redumps
+5. Perfect retail dumps: Matching dumps from two different retail cartridges
+6. Verified retail dumps: Dumps from a single confirmed retail cartridge
+7. Unconfirmed retail dumps: Retail cartridge roms which are not confirmed and/or not documented
+Beyond that last category are the roms waiting to be classified.
+-->
+
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 <softwarelist name="snes" description="Nintendo SNES cartridges">
 
 <!-- Custom ROMs and hacks added for MAMEHub -->
@@ -536,10 +907,19 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="7th Saga, The (U) [T+Spa020%_PaladinKnights]">
 		<description>7th Saga, The (U) [T+Spa020%_PaladinKnights]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="ppersia2p" cloneof="ppersia2">
+		<!-- legrospixel.com -->
+		<description>Prince of Persia 2 - The Shadow &amp; The Flame (Euro, Prototype 19950417)</description>
+		<year>1995</year>
+		<publisher>Titus</publisher>
+		<info name="serial" value="12634" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="7th Saga, The (U) [T+Spa020%_PaladinKnights].smc" crc="b8e9b31c" sha1="bf91694e3cf2ac56287cf3d574ec98ba8c80741d" offset="0" />
@@ -646,10 +1026,18 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="AAAHH!!! Real Monsters (U) [h1C]">
 		<description>AAAHH!!! Real Monsters (U) [h1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="sdf1gpp" cloneof="sdf1gp">
+		<!-- John Weidman -->
+		<description>SD F-1 Grand Prix (Jpn, Prototype)</description>
+		<year>1995</year>
+		<publisher>Video System</publisher>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="AAAHH!!! Real Monsters (U) [h1C].smc" crc="fbc0ff50" sha1="1b3e38fe3d63c1d0985f03d561a953ca4405acc9" offset="0" />
@@ -756,10 +1144,49 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Accele Brid (J) [t1+1C]">
 		<description>Accele Brid (J) [t1+1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="fireprw2p" cloneof="fireprw2">
+		<!-- snescentral.com -->
+		<!-- Notes: 99% identical to the final release -->
+		<description>Super Fire Pro Wrestling 2 (Jpn, Final Prototype)</description>
+		<year>1992</year>
+		<publisher>Human Entertainment</publisher>
+		<info name="serial" value="HUMAN No. 138" />
+		<info name="alt_title" value="スーパーファイヤープロレスリング2" />
+		<part name="cart" interface="snes_cart">
+			<feature name="pcb" value="SHVC-2P3B-01" />
+			<feature name="u1" value="U1 EPROM(J)" />
+			<feature name="u2" value="U2 EPROM(J)" />
+			<feature name="u3" value="U3 SRAM" />
+			<feature name="u4" value="U4 74F139" /> <!-- HD74LS139P -->
+			<feature name="u5" value="U5 CIC" />
+			<feature name="lockout" value="D411 C126 06B" />
+			<feature name="battery" value="BATT CR2032" />
+			<feature name="cart_model" value="unknown" />
+			<feature name="slot" value="lorom" />
+			<dataarea name="rom" size="1048576">
+				<rom name="u1" size="524288" crc="f4274ab3" sha1="8a420aa508d876508aa14878f2d5c77c4248a5c5" offset="0x000000" />
+				<rom name="u2" size="524288" crc="a6de134a" sha1="f2359829253b258e842f6a8f921c3272efd24d61" offset="0x080000" />
+			</dataarea>
+			<dataarea name="nvram" size="8192">
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="fireprw3p" cloneof="fireprw3">
+		<!-- snescentral.com -->
+		<description>Super Fire Pro Wrestling III - Final Bout (Jpn, Prototype)</description>
+		<year>1993</year>
+		<publisher>Human Entertainment</publisher>
+		<info name="serial" value="HUMAN No. 10113" />
+		<info name="alt_title" value="スーパーファイヤープロレスリング3 ファイナルバウト" />
+		<sharedfeat name="compatibility" value="NTSC"/>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Accele Brid (J) [t1+1C].smc" crc="437ae5b0" sha1="1cab7112021a7aee29ebac329927e03d5f944ee0" offset="0" />
@@ -3858,10 +4285,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Angelique Voice Fantasy (J)">
 		<description>Angelique Voice Fantasy (J)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="bsxsore" supported="partial">
+		<description>BS-X - Sore wa Namae o Nusumareta Machi no Monogatari (Jpn, Rev. AB)</description>
+		<year>1995</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SHVC-ZBSJ-JPN" />
+		<info name="release" value="19950423" />
+		<info name="alt_title" value="BS-X　それは名前を盗まれた街の物語" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Angelique Voice Fantasy (J).smc" crc="ea6ae8a9" sha1="e48ab2ea6c673cf8170ac8f41625482524f3406e" offset="0" />
@@ -4980,10 +5417,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Arkanoid - Doh It Again (J)">
 		<description>Arkanoid - Doh It Again (J)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="dstall96" supported="partial">
+		<description>Derby Stallion 96 (Jpn)</description>
+		<year>1996</year>
+		<publisher>ASCII Entertainment</publisher>
+		<info name="serial" value="SHVC-ZDBJ-JPN" />
+		<info name="release" value="19960315" />
+		<info name="alt_title" value="ダービースタリオン96" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Arkanoid - Doh It Again (J).smc" crc="7a8bbafa" sha1="03f839819a253eed9a928d8d7cc80fcc245ab23d" offset="0" />
@@ -7092,10 +7539,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Battle Jockey (J) [h1C]">
 		<description>Battle Jockey (J) [h1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="kirbysdb" cloneof="kirbyfun">
+		<description>Hoshi no Kirby - Super Deluxe (Jpn)</description>
+		<year>1996</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SHVC-AKFJ-JPN / G744105" />
+		<info name="release" value="19960321" />
+		<info name="alt_title" value="星のカービィ スーパーデラック ス" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Battle Jockey (J) [h1C].smc" crc="d2b5bcd7" sha1="daee9c710d9453da07cb693886b4b80ee785cd60" offset="0" />
@@ -7356,10 +7813,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Battle Soccer 2 (J) [a]">
 		<description>Battle Soccer 2 (J) [a]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="itoibass" supported="partial"> <!-- unemulated additional hardware (BSX) -->
+		<description>Itoi Shigesato no Bass Tsuri No. 1 (Jpn)</description>
+		<year>1997</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SHVC-ZBPJ-JPN" />
+		<info name="release" value="19970221" />
+		<info name="alt_title" value="糸井重里のバス釣りNo.1" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Battle Soccer 2 (J) [a].smc" crc="7f2bab00" sha1="e3ecc8d06840584c8b2447c6294a1c11028b7d4a" offset="0" />
@@ -7377,11 +7844,22 @@
 			</dataarea>
 		</part>
 	</software>
+<<<<<<< HEAD
 
 	<software name="Battle Submarine (J) [h1C]">
 		<description>Battle Submarine (J) [h1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+<!-- wip-j -->
+	<software name="jl96drem" supported="partial">
+		<description>J.League '96 Dream Stadium (Jpn)</description>
+		<year>1996</year>
+		<publisher>Hudson</publisher>
+		<info name="serial" value="SHVC-AJ6J-JPN" />
+		<info name="release" value="19960601" />
+		<info name="alt_title" value="Jリーグ'96 ドリームスタジアム" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Battle Submarine (J) [h1C].smc" crc="3f5220aa" sha1="9922efb314d9c43f0c59f1f71c4b553efc894b2c" offset="0" />
@@ -7741,10 +8219,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Battletoads in Battlemaniacs (U) [f1]">
 		<description>Battletoads in Battlemaniacs (U) [f1]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="joushomj" supported="partial">
+		<description>Joushou Mahjong Tenpai (Jpn)</description>
+		<year>1995</year>
+		<publisher>Enix</publisher>
+		<info name="serial" value="SHVC-ZTMJ-JPN" />
+		<info name="release" value="19950929" />
+		<info name="alt_title" value="常勝麻雀 天牌" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Battletoads in Battlemaniacs (U) [f1].smc" crc="21f43a96" sha1="9d4c4cf8df24aff7d2a52105c399976ba1d52c61" offset="0" />
@@ -8170,10 +8658,19 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Benkei Gaiden - Suna no Shou (J)">
 		<description>Benkei Gaiden - Suna no Shou (J)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="kirbyss" cloneof="kirbyfun">
+		<description>Kirby Super Star (USA)</description>
+		<year>1996</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SNS-AKFE-USA, M/SNS-AKFE-USA" />
+		<info name="release" value="199609xx" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Benkei Gaiden - Suna no Shou (J).smc" crc="8737e580" sha1="2da1287ffbf845eb034b438fd43ffa463f264479" offset="0" />
@@ -8203,10 +8700,18 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Benkei Gaiden - Suna no Shou (J) [a2]">
 		<description>Benkei Gaiden - Suna no Shou (J) [a2]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="kirbyfun">
+		<description>Kirby's Fun Pak (Euro)</description>
+		<year>1996</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SNSP-AKFP-EUR" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Benkei Gaiden - Suna no Shou (J) [a2].smc" crc="2743017d" sha1="05a71b38a66f285564ec8447ff4877db74387860" offset="0" />
@@ -8907,10 +9412,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Bishoujo Senshi Sailor Moon (J) [h1C]">
 		<description>Bishoujo Senshi Sailor Moon (J) [h1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="haruaug3a" cloneof="haruaug3" supported="partial">
+		<description>Masters New - Harukanaru Augusta 3 (Jpn)</description>
+		<year>1995</year>
+		<publisher>T&amp;E Soft</publisher>
+		<info name="serial" value="SHVC-AO3J-JPN" />
+		<info name="release" value="19951208" />
+		<info name="alt_title" value="遥かなるオーガスタ3 マスターズ ニュー" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Bishoujo Senshi Sailor Moon (J) [h1C].smc" crc="f58439dd" sha1="2ec0f13c59e9eac907410128aa5e77ce1c1d30dc" offset="0" />
@@ -9138,10 +9653,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Bishoujo Senshi Sailor Moon S - Kondo ha Puzzle de Oshiokiyo! (J) [h1C]">
 		<description>Bishoujo Senshi Sailor Moon S - Kondo ha Puzzle de Oshiokiyo! (J) [h1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="miniyonk">
+		<description>Mini Yonku Shining Scorpion - Let's &amp; Go!! (Jpn)</description>
+		<year>1996</year>
+		<publisher>ASCII Entertainment</publisher>
+		<info name="serial" value="SHVC-A4WJ-JPN" />
+		<info name="release" value="19961220" />
+		<info name="alt_title" value="ミニ四駆 シャイニング スコーピオ ン レッツ&amp;ゴー!!" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Bishoujo Senshi Sailor Moon S - Kondo ha Puzzle de Oshiokiyo! (J) [h1C].smc" crc="5bd6ee57" sha1="9961ba8700d3576d4d908542eebda77870e5c019" offset="0" />
@@ -9842,10 +10367,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Blues Brothers, The (U) [hI]">
 		<description>Blues Brothers, The (U) [hI]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="ongaku" supported="partial">
+		<description>Ongaku Tsukuru Kanadeeru (Jpn)</description>
+		<year>1996</year>
+		<publisher>ASCII Entertainment</publisher>
+		<info name="serial" value="SHVC-ZMCJ-JPN" />
+		<info name="release" value="19960412" />
+		<info name="alt_title" value="音楽ツクールかなでーる" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Blues Brothers, The (U) [hI].smc" crc="4141ac2b" sha1="9abd7d9ebdd8d118b28bae7f133f00792bd1a10c" offset="0" />
@@ -10161,10 +10696,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Boogerman - A Pick and Flick Adventure (U)">
 		<description>Boogerman - A Pick and Flick Adventure (U)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="pebble" supported="partial">
+		<description>Pebble Beach no Hatou New - Tournament Edition (Jpn)</description>
+		<year>1996</year>
+		<publisher>T&amp;E Soft</publisher>
+		<info name="serial" value="SHVC-AONJ-JPN" />
+		<info name="release" value="19960913" />
+		<info name="alt_title" value="ペブルビーチの波濤 トーナメン ト・エディション" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Boogerman - A Pick and Flick Adventure (U).smc" crc="1899aaff" sha1="aa6afbec0c111943df266f93143aa1082659070e" offset="0" />
@@ -10172,10 +10717,18 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Boogerman - A Pick and Flick Adventure (U) [f1]">
 		<description>Boogerman - A Pick and Flick Adventure (U) [f1]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="pgaeuro">
+		<description>PGA European Tour (Euro)</description>
+		<year>1996</year>
+		<publisher>Black Pearl</publisher>
+		<info name="serial" value="SNSP-AEPP-EUR" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Boogerman - A Pick and Flick Adventure (U) [f1].smc" crc="6f665be2" sha1="15b38869c8518ea4bfdc26c28b76b2dfa0324f2a" offset="0" />
@@ -10183,10 +10736,19 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Boogerman - A Pick and Flick Adventure (U) [h1C]">
 		<description>Boogerman - A Pick and Flick Adventure (U) [h1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="pgaeurou" cloneof="pgaeuro">
+		<description>PGA European Tour (USA)</description>
+		<year>1996</year>
+		<publisher>Black Pearl</publisher>
+		<info name="serial" value="SNS-AEPE-USA" />
+		<info name="release" value="199609xx" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Boogerman - A Pick and Flick Adventure (U) [h1C].smc" crc="3893dbda" sha1="3819d79e1bc2be1e4478c71801f825c8f9d7b81f" offset="0" />
@@ -10370,10 +10932,18 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Boy's Soccer Team 5 (Captain Tsubasa V Hack)">
 		<description>Boy's Soccer Team 5 (Captain Tsubasa V Hack)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="przeo">
+		<description>Power Rangers Zeo - Battle Racers (Euro)</description>
+		<year>1996</year>
+		<publisher>Bandai</publisher>
+		<info name="serial" value="SNSP-A4RP-EUR" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Boy's Soccer Team 5 (Captain Tsubasa V Hack).smc" crc="424b6e4f" sha1="5e45937b1271029a4ecba3768b1ec92be65eb9a6" offset="0" />
@@ -11063,10 +11633,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Breath of Fire II (U) [T-Fre][a1]">
 		<description>Breath of Fire II (U) [T-Fre][a1]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="rpgtsuk2" supported="partial">
+		<description>RPG Tsukuru 2 (Jpn)</description>
+		<year>1996</year>
+		<publisher>ASCII Entertainment</publisher>
+		<info name="serial" value="SHVC-ZR2J-JPN" />
+		<info name="release" value="19960131" />
+		<info name="alt_title" value="RPGツクール2" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Breath of Fire II (U) [T-Fre][a1].smc" crc="842d1202" sha1="821736fa8db6821672cb5d1b9b0cd7d3c8eb99fb" offset="0" />
@@ -11151,10 +11731,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Breath of Fire II (U) [t1][T-Fre]">
 		<description>Breath of Fire II (U) [t1][T-Fre]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="samegame">
+		<description>Same Game (Jpn)</description>
+		<year>1996</year>
+		<publisher>Hudson</publisher>
+		<info name="serial" value="SHVC-ZS5J-JPN" />
+		<info name="release" value="19960301" />
+		<info name="alt_title" value="鮫亀" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Breath of Fire II (U) [t1][T-Fre].smc" crc="ee6322bc" sha1="c14ac897f5571ecf0529530f8226ba0cf429cec7" offset="0" />
@@ -11261,10 +11851,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Brett Hull Hockey '95 (U) [h1C]">
 		<description>Brett Hull Hockey '95 (U) [h1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="sdgungnx">
+		<description>SD Gundam G Next (Jpn)</description>
+		<year>1995</year>
+		<publisher>Bandai</publisher>
+		<info name="serial" value="SHVC-ZX3J-JPN" />
+		<info name="release" value="19951222" />
+		<info name="alt_title" value="SDガンダム ジーネクスト" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Brett Hull Hockey '95 (U) [h1C].smc" crc="16726fc6" sha1="d6657f3ba2aefec0850019920be194498f67e189" offset="0" />
@@ -12042,10 +12642,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="BS Dokapon Gaiden - Honoo no Audition (J)">
 		<description>BS Dokapon Gaiden - Honoo no Audition (J)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="soundtsu" supported="partial">
+		<description>Sound Novel Tsukuru (Jpn)</description>
+		<year>1996</year>
+		<publisher>ASCII Entertainment</publisher>
+		<info name="serial" value="SHVC-ZSNJ-JPN" />
+		<info name="release" value="19960531" />
+		<info name="alt_title" value="サウンドノベルツクール" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="BS Dokapon Gaiden - Honoo no Audition (J).smc" crc="c436031e" sha1="ef350fbcb1c43e970742552c29ea48d68ba445e8" offset="0" />
@@ -12372,10 +12982,21 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="BS F-ZERO Grand Prix 2 (J) [h2C]">
 		<description>BS F-ZERO Grand Prix 2 (J) [h2C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+<!-- Even if S-DD1 is supported (see sfa2 & sfa2j), this game is not working... -->
+	<software name="sfa2u" cloneof="sfa2" supported="no">
+		<description>Street Fighter Alpha 2 (USA)</description>
+		<year>1996</year>
+		<publisher>Capcom</publisher>
+		<info name="serial" value="SNS-AUZE-USA" />
+		<info name="release" value="199611xx" />
+		<sharedfeat name="compatibility" value="NTSC"/>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="BS F-ZERO Grand Prix 2 (J) [h2C].smc" crc="9b7b037a" sha1="c8909bce88ab430c356b40bf1032e8166fb1c539" offset="0" />
@@ -12779,10 +13400,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="BS Fire Emblem Akaneia Senki 4 - Hajimari no Toki (J)">
 		<description>BS Fire Emblem Akaneia Senki 4 - Hajimari no Toki (J)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="panicbw">
+		<description>Super Bomberman - Panic Bomber W (Jpn)</description>
+		<year>1995</year>
+		<publisher>Hudson</publisher>
+		<info name="serial" value="SHVC-APBJ-JPN" />
+		<info name="release" value="19950301" />
+		<info name="alt_title" value="スーパー ボンバーマン ぱにっくボンバーW" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="BS Fire Emblem Akaneia Senki 4 - Hajimari no Toki (J).smc" crc="f5c19c84" sha1="e02963097da96d80c278513bed6ee49b5e508c99" offset="0" />
@@ -14132,10 +14763,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="BS Spriggan Powered (J)">
 		<description>BS Spriggan Powered (J)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="smrpgj" cloneof="smrpg" supported="partial">
+		<description>Super Mario RPG (Jpn)</description>
+		<year>1996</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SHVC-ARWJ-JPN" />
+		<info name="release" value="19960309" />
+		<info name="alt_title" value="スーパーマリオRPG" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="BS Spriggan Powered (J).smc" crc="65b4280a" sha1="1f2e0b09116c401b6f63bb3f04729636792a71b7" offset="0" />
@@ -14143,10 +14784,19 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="BS St.Giga 10 Gatsu Gou (J) [h1]">
 		<description>BS St.Giga 10 Gatsu Gou (J) [h1]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="smrpg" supported="partial">
+		<description>Super Mario RPG - Legend of the Seven Stars (USA)</description>
+		<year>1996</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SNS-ARWE-USA" />
+		<info name="release" value="199605xx" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="BS St.Giga 10 Gatsu Gou (J) [h1].smc" crc="8dabd48a" sha1="572018f28976681013aad5428ebab00c4c9ec794" offset="0" />
@@ -16959,10 +17609,21 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Captain Tsubasa IV - Pro no Rival Tachi (J) [T+Spa_TegPeru]">
 		<description>Captain Tsubasa IV - Pro no Rival Tachi (J) [T+Spa_TegPeru]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="kirbysd" cloneof="kirbyfun">
+		<!-- single cartridge source: The Dumper (supplier: Y~K) -->
+		<description>Hoshi no Kirby - Super Deluxe (Jpn, Rev. B)</description>
+		<year>1996</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SHVC-AKFJ-JPN / G744105" />
+		<info name="release" value="19960321" />
+		<info name="alt_title" value="星のカービィ スーパーデラック ス" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Captain Tsubasa IV - Pro no Rival Tachi (J) [T+Spa_TegPeru].smc" crc="f9800156" sha1="3d6bc0dd1af33e56bd0769c2a4e58d85a1bc9608" offset="0" />
@@ -17179,10 +17840,21 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Caravan Shooting Collection (J) [h2C]">
 		<description>Caravan Shooting Collection (J) [h2C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="haruaug3" supported="partial">
+		<!-- single cartridge source: The Dumper (supplier: Y~K) -->
+		<description>Masters New - Harukanaru Augusta 3 (Jpn, Rev. A)</description>
+		<year>1993</year>
+		<publisher>T&amp;E Soft</publisher>
+		<info name="serial" value="SHVC-AO3J-JPN" />
+		<info name="release" value="19951208" />
+		<info name="alt_title" value="遥かなるオーガスタ3 マスターズ ニュー" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Caravan Shooting Collection (J) [h2C].smc" crc="1f8e04be" sha1="7c6946fa491f3b70daf7a00c5cbd5a397de42d54" offset="0" />
@@ -18323,6 +18995,7 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Chou Makaimura (J) [t1]">
 		<description>Chou Makaimura (J) [t1]</description>
 		<year>19??</year>
@@ -18330,6 +19003,22 @@
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Chou Makaimura (J) [t1].smc" crc="39f2b86c" sha1="f61521ab947c74738b0d3d852c6d7bbcb918b4ac" offset="0" />
+=======
+	<software name="asahishi">
+		<description>Asahi Shinbun Rensai - Katou Hifumi Kudan Shougi - Shingiryuu (Jpn)</description>
+		<year>1995</year>
+		<publisher>Varie</publisher>
+		<info name="serial" value="SHVC-A23J-JPN" />
+		<info name="release" value="19950922" />
+		<info name="alt_title" value="朝日新聞連載 加藤一二三九段将棋 心技流" />
+		<part name="cart" interface="snes_cart">
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
+			<dataarea name="rom" size="1048576">
+				<rom name="asahi shinbun rensai - katou hifumi kudan shougi - shingiryuu (japan).sfc" size="1048576" crc="506a8f77" sha1="eb1f8139d1490c268eb2c2cca3634bf1676e1c48" offset="0x000000" />
+			</dataarea>
+			<dataarea name="nvram" size="32768">
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 			</dataarea>
 		</part>
 	</software>
@@ -20116,10 +20805,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Commodore 64 Collection PAL (PD) [h1C]">
 		<description>Commodore 64 Collection PAL (PD) [h1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="daisenx2">
+		<description>Daisenryaku Expert WWII - War in Europe (Jpn)</description>
+		<year>1997</year>
+		<publisher>ASCII Entertainment</publisher>
+		<info name="serial" value="SHVC-AEVJ-JPN" />
+		<info name="release" value="19960830" />
+		<info name="alt_title" value="大戦略エキスパートWW II WAR IN EUROPE" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Commodore 64 Collection PAL (PD) [h1C].smc" crc="7b8de20f" sha1="ca3c95afd3151d2d70df913eb1fc1ce1992ae944" offset="0" />
@@ -20380,10 +21079,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Contra III - The Alien Wars (U) [h2C]">
 		<description>Contra III - The Alien Wars (U) [h2C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="derbyjo2" supported="partial">
+		<description>Derby Jockey 2 (Jpn)</description>
+		<year>1995</year>
+		<publisher>Asmik</publisher>
+		<info name="serial" value="SHVC-A2DJ-JPN" />
+		<info name="release" value="19950929" />
+		<info name="alt_title" value="ダービージョッキー2" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Contra III - The Alien Wars (U) [h2C].smc" crc="a21a40e2" sha1="9fcffd6f1008257e5b005cc90fce1e2114986304" offset="0" />
@@ -20831,10 +21540,17 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Cosmo Police Galivan II - Arrow of Justice (J) [h1C]">
 		<description>Cosmo Police Galivan II - Arrow of Justice (J) [h1C]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="dbzhypd">
+		<description>Dragon Ball Z - Hyper Dimension (Fra)</description>
+		<year>1996</year>
+		<publisher>Bandai</publisher>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Cosmo Police Galivan II - Arrow of Justice (J) [h1C].smc" crc="8588e5b9" sha1="be6337d8707afda62a972c5fd67507a4abe78c41" offset="0" />
@@ -20842,10 +21558,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Cosmo Police Galivan II - Arrow of Justice (J) [t1]">
 		<description>Cosmo Police Galivan II - Arrow of Justice (J) [t1]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="dbzhypdj" cloneof="dbzhypd">
+		<description>Dragon Ball Z - Hyper Dimension (Jpn)</description>
+		<year>1996</year>
+		<publisher>Bandai</publisher>
+		<info name="serial" value="SHVC-AZIJ-JPN" />
+		<info name="release" value="19960329" />
+		<info name="alt_title" value="ドラゴンボールZ ハイパーディメンション" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Cosmo Police Galivan II - Arrow of Justice (J) [t1].smc" crc="a04c3f45" sha1="9f818bcc922792f9c3b2a298c665a2ccfebca024" offset="0" />
@@ -24087,10 +24813,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Der Langrisser (J) (V1.1) [T+Eng_DL Team][au]">
 		<description>Der Langrisser (J) (V1.1) [T+Eng_DL Team][au]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="kirbysda" cloneof="kirbyfun">
+		<description>Hoshi no Kirby - Super Deluxe (Jpn, Rev. A)</description>
+		<year>1996</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SHVC-AKFJ-JPN / G744105" />
+		<info name="release" value="19960321" />
+		<info name="alt_title" value="星のカービィ スーパーデラック ス" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Der Langrisser (J) (V1.1) [T+Eng_DL Team][au].smc" crc="43e6dad2" sha1="b2a8389f9b7e32451d17e5a0cad90cb8a0b23e56" offset="0" />
@@ -24098,10 +24834,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Der Langrisser (J) (V1.1) [T+Eng_DL Team][av]">
 		<description>Der Langrisser (J) (V1.1) [T+Eng_DL Team][av]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="kirby3j" cloneof="kirby3" supported="partial">
+		<description>Hoshi no Kirby 3 (Jpn)</description>
+		<year>1998</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SHVC-AFJJ-JPN" />
+		<info name="release" value="19980327" />
+		<info name="alt_title" value="星のカービィ3" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Der Langrisser (J) (V1.1) [T+Eng_DL Team][av].smc" crc="bd4e026b" sha1="5b64fb42572b9e8d034f1c780b6b1e11279943b9" offset="0" />
@@ -24901,10 +25647,21 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Diver, The (PD) [a]">
 		<description>Diver, The (PD) [a]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="jikkparo">
+		<description>Jikkyou Oshaberi Parodius (Jpn)</description>
+		<year>1995</year>
+		<publisher>Konami</publisher>
+		<info name="serial" value="SHVC-AJOJ-JPN" />
+		<info name="release" value="19951215" />
+		<info name="alt_title" value="実況おしゃべりパロディウス" />
+		<sharedfeat name="compatibility" value="NTSC"/>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Diver, The (PD) [a].smc" crc="901078f9" sha1="b0d0c2e9568387140791841da69e6dd4d0ebc4db" offset="0" />
@@ -25308,10 +26065,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Donkey Kong Country (U) (V1.2)">
 		<description>Donkey Kong Country (U) (V1.2)</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="jumpind" supported="partial">
+		<description>Jumpin' Derby (Jpn)</description>
+		<year>1996</year>
+		<publisher>Naxat Soft</publisher>
+		<info name="serial" value="SHVC-AJUJ-JPN" />
+		<info name="release" value="19960426" />
+		<info name="alt_title" value="ジャンピンダービー" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Donkey Kong Country (U) (V1.2).smc" crc="762af827" sha1="cd606e77ab2034438e06891cd2d067dad69b4d1a" offset="0" />
@@ -25627,10 +26394,20 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Donkey Kong Country 3 - Dixie Kong's Double Trouble (U) (M2) [f1]">
 		<description>Donkey Kong Country 3 - Dixie Kong's Double Trouble (U) (M2) [f1]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="kakinoki" supported="partial">
+		<description>Kakinoki Shougi (Jpn)</description>
+		<year>1995</year>
+		<publisher>ASCII Entertainment</publisher>
+		<info name="serial" value="SHVC-AKAJ-JPN" />
+		<info name="release" value="19950901" />
+		<info name="alt_title" value="柿木将棋" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Donkey Kong Country 3 - Dixie Kong's Double Trouble (U) (M2) [f1].smc" crc="340f23e5" sha1="b8f782068f5745c787e96caf968260d51bfe872c" offset="0" />
@@ -26166,10 +26943,18 @@
 		</part>
 	</software>
 
+<<<<<<< HEAD
 	<software name="Dr. Mario World Demo (SMW1 Hack) [a1]">
 		<description>Dr. Mario World Demo (SMW1 Hack) [a1]</description>
 		<year>19??</year>
 		<publisher>&lt;unknown&gt;</publisher>
+=======
+	<software name="kirby3" supported="partial">
+		<description>Kirby's Dream Land 3 (USA)</description>
+		<year>1997</year>
+		<publisher>Nintendo</publisher>
+		<info name="release" value="199711xx" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<dataarea name="rom">
 				<rom name="Dr. Mario World Demo (SMW1 Hack) [a1].smc" crc="6748db0b" sha1="78aee6916164a7008a07c0e845179a13d4dff825" offset="0" />
@@ -160347,6 +161132,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="sangoku2" cloneof="roman3k2">
 		<description>Super Sangokushi II (Jpn, Rev. A)</description>
@@ -160355,6 +161141,15 @@
 		<info name="serial" value="SHVC-XL / SHVC-XL-1" />
 		<info name="release" value="19910915" />
 		<info name="alt_title" value="スーパー 三国志II" />
+=======
+	<software name="marvelou" supported="partial">
+		<description>Marvelous - Mou Hitotsu no Takarajima (Jpn)</description>
+		<year>1996</year>
+		<publisher>Nintendo</publisher>
+		<info name="serial" value="SHVC-AVRJ-JPN" />
+		<info name="release" value="19961026" />
+		<info name="alt_title" value="マーヴェラス ~もうひとつの宝島~" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<feature name="pcb" value="SHVC-1A5B-03" />
 			<feature name="u1" value="U1 MASK ROM(N)" />
@@ -165441,6 +166236,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="classrod">
 		<description>Classic Road (Jpn)</description>
@@ -165449,6 +166245,12 @@
 		<info name="serial" value="SHVC-V7" />
 		<info name="release" value="19931029" />
 		<info name="alt_title" value="クラシック・ロード" />
+=======
+	<software name="pga96">
+		<description>PGA Tour 96 (Euro)</description>
+		<year>1996</year>
+		<publisher>Black Pearl</publisher>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<feature name="slot" value="lorom" />
 			<dataarea name="rom" size="1048576">
@@ -165460,6 +166262,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="classro2" cloneof="classrod">
 		<description>Classic Road II (Jpn)</description>
@@ -165468,6 +166271,13 @@
 		<info name="serial" value="SHVC-AV5J-JPN" />
 		<info name="release" value="19950224" />
 		<info name="alt_title" value="クラシックロードII" />
+=======
+	<software name="pga96u" cloneof="pga96">
+		<description>PGA Tour 96 (USA)</description>
+		<year>1996</year>
+		<publisher>Black Pearl</publisher>
+		<info name="release" value="199601xx" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<feature name="slot" value="lorom" />
 			<dataarea name="rom" size="2097152">
@@ -165479,6 +166289,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="clocktow">
 		<description>Clock Tower (Jpn)</description>
@@ -165488,6 +166299,12 @@
 		<info name="release" value="19950914" />
 		<info name="alt_title" value="クロックタワー" />
 		<sharedfeat name="compatibility" value="NTSC"/>
+=======
+	<software name="pga">
+		<description>PGA Tour Golf (Euro)</description>
+		<year>1992</year>
+		<publisher>Electronic Arts</publisher>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<feature name="slot" value="hirom" />
 			<dataarea name="rom" size="3145728">
@@ -166735,9 +167552,14 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="earthlun">
 		<description>Earth Light - Luna Strike (Jpn)</description>
+=======
+	<software name="przeou" cloneof="przeo">
+		<description>Power Rangers Zeo - Battle Racers (USA)</description>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<year>1996</year>
 		<publisher>Hudson</publisher>
 		<info name="serial" value="SHVC-AE5J-JPN" />
@@ -166976,6 +167798,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="f1gp">
 		<description>F-1 Grand Prix (Jpn)</description>
@@ -166984,8 +167807,18 @@
 		<info name="serial" value="SHVC-FG" />
 		<info name="release" value="19920428" />
 		<info name="alt_title" value="F1グランプリ" />
+=======
+	<software name="prokishi">
+		<description>Pro Kishi Jinsei Simulation - Shougi no Hanamichi (Jpn)</description>
+		<year>1996</year>
+		<publisher>Atlus</publisher>
+		<info name="serial" value="SHVC-AARJ-JPN" />
+		<info name="release" value="19960216" />
+		<info name="alt_title" value="プロ棋士人生シミュレーション 将棋の 花道" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
-			<feature name="slot" value="lorom" />
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
 			<dataarea name="rom" size="1048576">
 				<rom name="f-1 grand prix (japan).sfc" size="1048576" crc="1608ea1a" sha1="ecef210e73553f314c30f8234d8ee1d9d72000c3" offset="0x000000" />
 			</dataarea>
@@ -168000,6 +168833,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="gdleen">
 		<description>Gdleen (Jpn, Rev. A)</description>
@@ -168012,6 +168846,20 @@
 			<feature name="slot" value="lorom" />
 			<dataarea name="rom" size="1048576">
 				<rom name="gdleen (japan) (rev 1).sfc" size="1048576" crc="09692c77" sha1="af203cdeca2163a25411818103b7b34e966fee58" offset="0x000000" />
+=======
+	<software name="rinkaiho">
+		<description>Rin Kaihou Kudan no Igo Taidou (Jpn)</description>
+		<year>1996</year>
+		<publisher>ASK Kodansha</publisher>
+		<info name="serial" value="SHVC-AIDJ-JPN" />
+		<info name="release" value="19960322" />
+		<info name="alt_title" value="林海峯九段の囲碁大道" />
+		<part name="cart" interface="snes_cart">
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
+			<dataarea name="rom" size="1572864">
+				<rom name="rin kaihou kudan no igo taidou (japan).sfc" size="1572864" crc="b56ec084" sha1="1dbc6af7bb19a5e704955967955409c1eb1eb1f6" offset="0x000000" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 			</dataarea>
 			<dataarea name="nvram" size="8192">
 			</dataarea>
@@ -168544,6 +169392,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="hakpro93">
 		<description>Hakunetsu Pro Yakyuu '93 - Ganba League (Jpn)</description>
@@ -168556,6 +169405,20 @@
 			<feature name="slot" value="lorom" />
 			<dataarea name="rom" size="1572864">
 				<rom name="hakunetsu pro yakyuu '93 - ganba league (japan).sfc" size="1572864" crc="a539cbc8" sha1="392b250b6bf51a4cea5bfec674b31cc2a5e1d3bb" offset="0x000000" />
+=======
+	<software name="saikouso">
+		<description>Saikousoku Shikou Shougi Mahjong (Jpn)</description>
+		<year>1995</year>
+		<publisher>Varie</publisher>
+		<info name="serial" value="SHVC-ASYJ-JPN" />
+		<info name="release" value="19950331" />
+		<info name="alt_title" value="最高速思考 将棋麻雀" />
+		<part name="cart" interface="snes_cart">
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
+			<dataarea name="rom" size="524288">
+				<rom name="saikousoku shikou shougi mahjong (japan).sfc" size="524288" crc="a16cc0a7" sha1="d6d22bfdbb821b18bb0859e545355d0919424496" offset="0x000000" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 			</dataarea>
 			<dataarea name="nvram" size="8192">
 			</dataarea>
@@ -168777,9 +169640,14 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="heianfuu">
 		<description>Heian Fuuunden (Jpn)</description>
+=======
+	<software name="sdf1gp">
+		<description>SD F-1 Grand Prix (Jpn)</description>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<year>1995</year>
 		<publisher>KSS</publisher>
 		<info name="serial" value="SHVC-AKHJ " />
@@ -169657,6 +170525,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="illvania">
 		<description>Illvanian no Shiro (Jpn)</description>
@@ -169665,6 +170534,15 @@
 		<info name="serial" value="SHVC-ARIJ-JPN" />
 		<info name="release" value="19941028" />
 		<info name="alt_title" value="イルバニアンの城" />
+=======
+	<software name="shinshog">
+		<description>Shin Shougi Club (Jpn)</description>
+		<year>1995</year>
+		<publisher>Hect</publisher>
+		<info name="serial" value="SHVC-AHJJ-JPN" />
+		<info name="release" value="19950922" />
+		<info name="alt_title" value="新・将棋倶楽部" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<feature name="slot" value="lorom" />
 			<dataarea name="rom" size="2097152">
@@ -169965,6 +170843,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="jigsaw" cloneof="pieces">
 		<description>Jigsaw Party (Jpn)</description>
@@ -169973,6 +170852,15 @@
 		<info name="serial" value="SHVC-Z5" />
 		<info name="release" value="19940722" />
 		<info name="alt_title" value="ジグソーパ～ティ～" />
+=======
+	<software name="shogisai">
+		<description>Shougi Saikyou (Jpn)</description>
+		<year>1995</year>
+		<publisher>Magical</publisher>
+		<info name="serial" value="SHVC-AMSJ-JPN" />
+		<info name="release" value="19950721" />
+		<info name="alt_title" value="将棋最強" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<feature name="slot" value="hirom" />
 			<dataarea name="rom" size="1048576">
@@ -169982,6 +170870,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="jikkparo">
 		<description>Jikkyou Oshaberi Parodius (Jpn)</description>
@@ -169991,6 +170880,15 @@
 		<info name="release" value="19951215" />
 		<info name="alt_title" value="実況おしゃべりパロディウス" />
 		<sharedfeat name="compatibility" value="NTSC"/>
+=======
+	<software name="shogisa2">
+		<description>Shougi Saikyou II - Jissen Taikyoku Hen (Jpn)</description>
+		<year>1996</year>
+		<publisher>Magical</publisher>
+		<info name="serial" value="SHVC-AX2J-JPN" />
+		<info name="release" value="19960209" />
+		<info name="alt_title" value="将棋最強II 実戦対局編" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<feature name="enhancement" value="SA1" />
 			<feature name="slot" value="lorom_sa1" />
@@ -174897,6 +175795,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="ranmaran">
 		<description>Ranma ½ - Chougi Ranbu Hen (Jpn)</description>
@@ -174905,6 +175804,15 @@
 		<info name="serial" value="SHVC-5K" />
 		<info name="release" value="19940428" />
 		<info name="alt_title" value="らんま1/2 超技乱舞篇" />
+=======
+	<software name="srobotg" supported="partial">
+		<description>Super Robot Taisen Gaiden - Masou Kishin - The Lord of Elemental (Jpn)</description>
+		<year>1996</year>
+		<publisher>Banpresto</publisher>
+		<info name="serial" value="SHVC-ALXJ-JPN" />
+		<info name="release" value="19960322" />
+		<info name="alt_title" value="スーパーロボット大戦外伝 魔装機神 THE LORD OF ELEMENTAL" />
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<part name="cart" interface="snes_cart">
 			<feature name="slot" value="hirom" />
 			<dataarea name="rom" size="2621440">
@@ -174994,9 +175902,18 @@
 		<info name="alt_title" value="レボリューションX" />
 		<sharedfeat name="compatibility" value="NTSC"/>
 		<part name="cart" interface="snes_cart">
+<<<<<<< HEAD
 			<feature name="slot" value="lorom" />
 			<dataarea name="rom" size="2097152">
 				<rom name="revolution x (japan).sfc" size="2097152" crc="b5939fdc" sha1="7310659d93d6f3e96f6465f47c72e4b11b11c13d" offset="0x000000" />
+=======
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
+			<dataarea name="rom" size="1572864">
+				<rom name="super shougi 3 - kitaihei (japan).sfc" size="1572864" crc="323c6265" sha1="43745f23d0e8a42c68f36c318894cab143bc3aae" offset="0x000000" />
+			</dataarea>
+			<dataarea name="nvram" size="32768">
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 			</dataarea>
 		</part>
 	</software>
@@ -176257,16 +177174,22 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="shogizan">
 		<description>Shougi Zanmai (Jpn)</description>
+=======
+	<software name="taikyoid">
+		<description>Taikyoku Igo - Idaten (Jpn)</description>
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		<year>1995</year>
 		<publisher>Virgin Interactive</publisher>
 		<info name="serial" value="SHVC-AVEJ-JPN" />
 		<info name="release" value="19951222" />
 		<info name="alt_title" value="将棋三昧" />
 		<part name="cart" interface="snes_cart">
-			<feature name="slot" value="lorom" />
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
 			<dataarea name="rom" size="1048576">
 				<rom name="shougi zanmai (japan).sfc" size="1048576" crc="3ba30cc5" sha1="cc8173746380b8bda938bc1ed979804061a6740f" offset="0x000000" />
 			</dataarea>
@@ -176331,6 +177254,7 @@
 	</software>
 			DOUBLE ENTRY	-->
 
+<<<<<<< HEAD
 <!--	DOUBLE ENTRY
 	<software name="bartnighj" cloneof="bartnigh">
 		<description>The Simpsons - Bart no Fushigi na Yume no Daibouken (Jpn)</description>
@@ -176343,6 +177267,22 @@
 			<feature name="slot" value="lorom" />
 			<dataarea name="rom" size="1048576">
 				<rom name="simpsons, the - bart no fushigi na yume no daibouken (japan).sfc" size="1048576" crc="6598790a" sha1="9098e80122eae6503a5c15169a48993302242eb6" offset="0x000000" />
+=======
+	<software name="takemiya">
+		<description>Takemiya Masaki Kudan no Igo Taishou (Jpn)</description>
+		<year>1995</year>
+		<publisher>KSS</publisher>
+		<info name="serial" value="SHVC-AITJ-JPN" />
+		<info name="release" value="19950811" />
+		<info name="alt_title" value="武宮正樹九段の囲碁大将" />
+		<part name="cart" interface="snes_cart">
+			<feature name="enhancement" value="SA1" />
+			<feature name="slot" value="lorom_sa1" />
+			<dataarea name="rom" size="524288">
+				<rom name="takemiya masaki kudan no igo taishou (japan).sfc" size="524288" crc="639022ab" sha1="4f396648c9c60cd92769c1789f37b06cd1cfcd13" offset="0x000000" />
+			</dataarea>
+			<dataarea name="nvram" size="8192">
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 			</dataarea>
 		</part>
 	</software>

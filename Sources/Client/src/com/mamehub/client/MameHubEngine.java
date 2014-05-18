@@ -86,6 +86,19 @@ public class MameHubEngine implements Runnable {
 			return false;
 		}
 		
+<<<<<<< HEAD
+=======
+		if(systemName.equalsIgnoreCase("arcade")) {
+			this.romFileName = romOrCartFileName;
+			this.cartFileName = null;
+		} else {
+			// Before we passed the bios path to ume, now we need to pass the system name.
+			// this.romFileName = getMessRomInfo(systemName).filename;
+			this.romFileName = systemName;
+			this.cartFileName = romOrCartFileName;
+		}
+		
+>>>>>>> 321f16a3c44f12e5936c1e8ec2dc22931d574892
 		List<String> cmdList = new ArrayList<String>();
 		if(new File("./csume64").exists() || new File("./csume64.exe").exists()) {
 			if(OSValidator.isWindows()) {
