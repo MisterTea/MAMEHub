@@ -87,8 +87,7 @@ public class CartParser extends DefaultHandler implements Runnable {
             .getElementsByTagName("description").item(0).getTextContent();
         romInfo.system = systemName;
 
-        verbose = (/* romInfo.id.equals("tomjerry") && */systemName
-            .equalsIgnoreCase("nes"));
+        verbose = false;
         if (verbose) {
           int breakmenow = 0;
         }
