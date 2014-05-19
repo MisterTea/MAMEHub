@@ -191,10 +191,10 @@ bench                     0
 #
 video                     d3d
 numscreens                1
-window                    0
-maximize                  1
+window                    1
+maximize                  0
 keepaspect                1
-unevenstretch             1
+unevenstretch             0
 prescale                  1
 waitvsync                 0
 syncrefresh               0
