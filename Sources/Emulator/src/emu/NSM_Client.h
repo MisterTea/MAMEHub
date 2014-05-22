@@ -27,6 +27,10 @@ class Client : public Common
 
   RakNet::TimeUS timeBeforeSync;
 
+  int syncGeneration;
+  int syncSeconds;
+  INT64 syncAttoseconds;
+
  public:
   Client(std::string _username);
 
@@ -47,6 +51,7 @@ class Client : public Common
   bool update(running_machine *machine);
 
   void loadInitialData(unsigned char *data,int size,running_machine *machine);
+  void createInitialBlocks(running_machine *machine);
 
   bool resync(unsigned char *data,int size,running_machine *machine);
 

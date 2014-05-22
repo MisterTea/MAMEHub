@@ -206,6 +206,7 @@ class Common
   z_stream outputStream;
 
   int selfPeerID;
+  int generation=1;
 
   std::map<RakNet::RakNetGUID,int> peerIDs;
 
@@ -295,6 +296,8 @@ class Common
   int getPlayer() { return player; }
 
   void setPlayer(int newPlayer) { player = newPlayer; }
+
+  inline int getInputCounter() { return globalInputCounter; }
 
  protected:
   void sendInputs(const nsm::PeerInputData &peerInputData);

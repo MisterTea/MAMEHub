@@ -71,12 +71,10 @@ extern unsigned char *GetPacketData(RakNet::Packet *p);
 extern int GetPacketSize(RakNet::Packet *p);
 
 #define INITIAL_BUFFER_SIZE (1024*1024*32)
-unsigned char *compressedBuffer = (unsigned char*)malloc(INITIAL_BUFFER_SIZE);
-int compressedBufferSize = INITIAL_BUFFER_SIZE;
 unsigned char *syncBuffer = (unsigned char*)malloc(INITIAL_BUFFER_SIZE);
 int syncBufferSize = INITIAL_BUFFER_SIZE;
-unsigned char *uncompressedBuffer = (unsigned char*)malloc(INITIAL_BUFFER_SIZE);
-int uncompressedBufferSize = INITIAL_BUFFER_SIZE;
+//unsigned char *uncompressedBuffer = (unsigned char*)malloc(INITIAL_BUFFER_SIZE);
+//int uncompressedBufferSize = INITIAL_BUFFER_SIZE;
 
 class MameHubServerHandler : public MameHubRpcIf {
 public:
@@ -214,7 +212,7 @@ void Server::acceptPeer(RakNet::RakNetGUID guidToAccept,running_machine *machine
     }
     assignID = lastUsedPeerID;
   }
-  upsertPeer(guidToAccept,assignID,candidateNames[guidToAccept],machine->time());
+  upsertPeer(guidToAccept,assignID,candidateNames[guidToAccept],machine->machine_time());
   candidateNames.erase(candidateNames.find(guidToAccept));
 
   printf("ASSIGNING ID %d TO NEW CLIENT\n",assignID);
@@ -391,13 +389,17 @@ extern int nvram_size(running_machine &machine);
 
 void Server::initialSync(const RakNet::RakNetGUID &guid,running_machine *machine)
 {
-  cout << "INITIAL SYNC WITH GUID: " << guid.ToString() << endl;
+  cout << "INITIAL SYNC WITH GUID: " << guid.ToString() << " AT TIME " << staleTime.seconds << "." << staleTime.attoseconds << endl;
   unsigned char checksum = 0;
 
   waitingForClientCatchup=true;
   machine->osd().pauseAudio(true);
 
   nsm::InitialSync initial_sync;
+  initial_sync.set_generation(staleGeneration);
+  nsm::Attotime* global_time = initial_sync.mutable_global_time();
+  global_time->set_seconds(staleTime.seconds);
+  global_time->set_attoseconds(staleTime.attoseconds);
 
   if(getSecondsBetweenSync())
   {
@@ -718,16 +720,17 @@ bool Server::update(running_machine *machine)
 class SyncProcessor
 {
 public:
-  int uncompressedSize;
+  nsm::Sync* sync;
   std::list<std::pair<unsigned char *,int> >* syncPacketQueue;
   int syncTransferSeconds;
   bool* syncReadyPtr;
+  string compressedSync;
 
-  SyncProcessor(int _uncompressedSize,
+  SyncProcessor(nsm::Sync* _sync,
                 std::list<std::pair<unsigned char *,int> >* _syncPacketQueue,
                 int _syncTransferSeconds,
                 bool* _syncReadyPtr) :
-    uncompressedSize(_uncompressedSize),
+    sync(_sync),
     syncPacketQueue(_syncPacketQueue),
     syncTransferSeconds(_syncTransferSeconds),
     syncReadyPtr(_syncReadyPtr) {
@@ -735,38 +738,29 @@ public:
   }
 
   void operator()() {
-    if(compressedBufferSize <= zlibGetMaxCompressedSize(uncompressedSize) + 128)
     {
-      compressedBufferSize = zlibGetMaxCompressedSize(uncompressedSize)+128;
-      compressedBuffer = (unsigned char*)realloc(compressedBuffer,compressedBufferSize);
-      if(!compressedBuffer)
+      StringOutputStream sos(&compressedSync);
       {
-        cout << __FILE__ << ":" << __LINE__ << " OUT OF MEMORY\n";
-        exit(1);
+        LzmaOutputStream los(&sos);
+        los.ChangeEncodingOptions(4);
+        sync->SerializeToZeroCopyStream(&los);
+        los.Flush();
       }
     }
-    uLongf compressedSizeLong = compressedBufferSize;
 
-    printf("COMPRESSING...\n");
-    if(compress2(
-         compressedBuffer,
-         &compressedSizeLong,
-         uncompressedBuffer,
-         uncompressedSize,9
-         )!=Z_OK)
-    {
-      cout << "ERROR COMPRESSING ZLIB STREAM\n";
-      exit(1);
-    }
-    int compressedSize = (int)compressedSizeLong;
-    printf("SYNC SIZE: %d (compressed: %d)\n",uncompressedSize,compressedSize);
+    unsigned char* compressedBuffer = (unsigned char*)&compressedSync[0];
+    int compressedSize = (int)compressedSync.length();
+    printf("SYNC SIZE: %d\n",compressedSize);
     if(compressedSize > 16*1024*1024) { // If bigger than 16MB, don't even bother.
       netServer->syncOverride = true;
       return;
     }
 
-    int SYNC_PACKET_SIZE=1024*1024*64;
-    if(syncTransferSeconds)
+    int SYNC_PACKET_SIZE=1024*1024;
+
+    // If the sync is less than 16KB or syncTransferSeconds is 0, send
+    // it all at once.
+    if(compressedSize > 16*1024 && syncTransferSeconds)
     {
       int actualSyncTransferSeconds=max(1,syncTransferSeconds);
       while(true)
@@ -787,7 +781,7 @@ public:
       }
     }
 
-    int sendMessageSize = 1+sizeof(int)+sizeof(int)+min(SYNC_PACKET_SIZE,compressedSize);
+    int sendMessageSize = 1+sizeof(int)+min(SYNC_PACKET_SIZE,compressedSize);
     int totalSendSizeEstimate = sendMessageSize*(compressedSize/SYNC_PACKET_SIZE + 2);
     if(syncBufferSize <= totalSendSizeEstimate)
     {
@@ -803,9 +797,8 @@ public:
     sendMessage[0] = ID_RESYNC_PARTIAL;
     if(compressedSize<=SYNC_PACKET_SIZE)
       sendMessage[0] = ID_RESYNC_COMPLETE;
-    memcpy(sendMessage+1,&uncompressedSize,sizeof(int));
-    memcpy(sendMessage+1+sizeof(int),&compressedSize,sizeof(int));
-    memcpy(sendMessage+1+sizeof(int)+sizeof(int),compressedBuffer,min(SYNC_PACKET_SIZE,compressedSize) );
+    memcpy(sendMessage+1,&compressedSize,sizeof(int));
+    memcpy(sendMessage+1+sizeof(int),compressedBuffer,min(SYNC_PACKET_SIZE,compressedSize) );
 
     syncPacketQueue->push_back(make_pair(sendMessage,sendMessageSize));
     sendMessage += sendMessageSize;
@@ -814,7 +807,7 @@ public:
 
     while(compressedSize>0)
     {
-      sendMessageSize = 1+min(SYNC_PACKET_SIZE,compressedSize);
+      int thisMessageSize = 1+min(SYNC_PACKET_SIZE,compressedSize);
       sendMessage[0] = ID_RESYNC_PARTIAL;
       if(compressedSize<=SYNC_PACKET_SIZE)
         sendMessage[0] = ID_RESYNC_COMPLETE;
@@ -822,8 +815,8 @@ public:
       compressedSize -= SYNC_PACKET_SIZE;
       atIndex += SYNC_PACKET_SIZE;
 
-      syncPacketQueue->push_back(make_pair(sendMessage,sendMessageSize));
-      sendMessage += sendMessageSize;
+      syncPacketQueue->push_back(make_pair(sendMessage,thisMessageSize));
+      sendMessage += thisMessageSize;
     }
 
     if(int(sendMessage-syncBuffer) >= totalSendSizeEstimate)
@@ -832,21 +825,40 @@ public:
       exit(1);
     }
     cout << "FINISHED QUEUEING SYNC\n";
+
+    // HACK: The server could send sync info to the client before the
+    // client has done his own sync, to preventthis, jsut sleep for a
+    // second.
+    RakSleep(1000);
+
     *syncReadyPtr = true;
   }
 };
 
-void Server::sync()
+void Server::sync(running_machine *machine)
 {
+  // Finish any old sync thread
+  syncThread.join();
+
+  cout << "SYNCING (count): " << syncCount << endl;
+
+  //if (syncCount>0) {
+    machine->save().doPreSave();
+    //}
+
   if(syncOverride)
     return;
 
-  syncCount++;
+  syncProto.set_generation(generation);
+  nsm::Attotime* global_time = syncProto.mutable_global_time();
+  global_time->set_seconds(machine->machine_time().seconds);
+  global_time->set_attoseconds(machine->machine_time().attoseconds);
+  syncProto.clear_block();
 
-  nsm::InitialSync initial_sync;
+  staleGeneration = generation;
+  staleTime = machine->machine_time();
 
   cout << "IN CRITICAL SECTION\n";
-  cout << "SERVER: Sending initial snapshot\n";
     
   int bytesSynched=0;
   //cout << "IN CRITICAL SECTION\n";
@@ -856,7 +868,6 @@ void Server::sync()
   unsigned char xorChecksum=0;
   unsigned char staleChecksum=0;
   unsigned char allStaleChecksum=0;
-  unsigned char *uncompressedPtr = uncompressedBuffer;
   for(int blockIndex=0; blockIndex<int(blocks.size()); blockIndex++)
   {
     MemoryBlock &block = blocks[blockIndex];
@@ -881,7 +892,7 @@ void Server::sync()
       }
     }
     //dirty=true;
-    if(syncCount==1)
+    if(syncCount==0)
     {
       memcpy(initialBlock.data,block.data,block.size);
     }
@@ -894,31 +905,15 @@ void Server::sync()
     if(dirty)
     {
       bytesSynched += block.size;
-      int bytesUsed = uncompressedPtr-uncompressedBuffer;
-      while(bytesUsed+sizeof(int)+block.size >= uncompressedBufferSize)
-      {
-        cout << "REALLOCATING BUFFER FROM " << uncompressedBufferSize
-             << " TO " << uncompressedBufferSize*3/2 << endl;
-        uncompressedBufferSize *= 1.5;
-        uncompressedBuffer = (unsigned char*)realloc(uncompressedBuffer,uncompressedBufferSize);
-        uncompressedPtr = uncompressedBuffer + bytesUsed;
-        if(!uncompressedBuffer)
-        {
-          cout << __FILE__ << ":" << __LINE__ << " OUT OF MEMORY\n";
-          exit(1);
-        }
-      }
-      memcpy(
-        uncompressedPtr,
-        &blockIndex,
-        sizeof(int)
-        );
-      uncompressedPtr += sizeof(int);
+      nsm::SyncBlock* syncBlock = syncProto.add_block();
+      syncBlock->set_index(blockIndex);
+      string* s = syncBlock->mutable_data();
       for(int a=0;a<block.size;a++)
       {
-        *uncompressedPtr = block.data[a] ^ staleBlock.data[a];
-        uncompressedPtr++;
+        s->append(1, block.data[a] ^ staleBlock.data[a]);
       }
+
+      // Put the current block into stale blocks
       memcpy(staleBlock.data,block.data,block.size);
     }
     //cout << "BLOCK " << blockIndex << ": ";
@@ -928,34 +923,47 @@ void Server::sync()
     }
     //cout << int(allStaleChecksum) << endl;
   }
-  if(anyDirty && syncCount>1) // The first sync is not sent to clients
+
+  //if(syncCount>0) // The first sync is not sent to clients
   {
     printf("BLOCK CHECKSUM: %d\n",int(blockChecksum));
     printf("XOR CHECKSUM: %d\n",int(xorChecksum));
     printf("STALE CHECKSUM (dirty): %d\n",int(staleChecksum));
     printf("STALE CHECKSUM (all): %d\n",int(allStaleChecksum));
-    int finishIndex = -1;
-    memcpy(
-      uncompressedPtr,
-      &finishIndex,
-      sizeof(int)
-      );
-    uncompressedPtr += sizeof(int);
-    int uncompressedSize = uncompressedPtr-uncompressedBuffer;
-    SyncProcessor syncProcessor(uncompressedSize, &syncPacketQueue,
+    SyncProcessor syncProcessor(&syncProto, &syncPacketQueue,
                                 syncTransferSeconds, &syncReady);
-    syncThread.join();
     syncThread = boost::thread(syncProcessor);
 
 
   }
-  else
+  //else
   {
-    printf("No dirty blocks found\n");
+    //printf("No dirty blocks found\n");
   }
   //if(runTimes%1==0) cout << "BYTES SYNCED: " << bytesSynched << endl;
   //cout << "OUT OF CRITICAL AREA\n";
   //cout.flush();
+
+  //if (syncCount>0) {
+    machine->save().doPostLoad();
+    //}
+
+  {
+    unsigned char blockChecksum=0;
+    for(int blockIndex=0; blockIndex<int(blocks.size()); blockIndex++)
+    {
+      MemoryBlock &block = blocks[blockIndex];
+      
+      for(int a=0; a<block.size; a++)
+      {
+        blockChecksum = blockChecksum ^ block.data[a];
+      }
+    }
+
+    printf("BLOCK CHECKSUM POST LOAD: %d\n",int(blockChecksum));
+  }
+
+  syncCount++;
 }
 
 void Server::popSyncQueue()

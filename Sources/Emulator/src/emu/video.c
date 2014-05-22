@@ -262,7 +262,7 @@ void video_manager::frame_update(bool debug)
 	debugint_update_during_game(machine());
 
 	// if we're throttling, synchronize before rendering
-	attotime current_time = machine().time();
+	attotime current_time = machine().machine_time();
 	//Don't throttle if you are a network client
 	if (!netClient && !debug && !skipped_it && effective_throttle())
 		update_throttle(current_time);
@@ -420,7 +420,7 @@ void video_manager::begin_recording(const char *name, movie_format format)
 
 	// reset the state
 	m_movie_frame = 0;
-	m_movie_next_frame_time = machine().time();
+	m_movie_next_frame_time = machine().machine_time();
 
 	// start up an AVI recording
 	if (format == MF_AVI)
@@ -635,7 +635,7 @@ void video_manager::screenless_update_callback(void *ptr, int param)
 
 void video_manager::postload()
 {
-	m_movie_next_frame_time = machine().time();
+	m_movie_next_frame_time = machine().machine_time();
 }
 
 
@@ -1307,7 +1307,7 @@ void video_manager::record_frame()
 
 	// start the profiler and get the current time
 	g_profiler.start(PROFILER_MOVIE_REC);
-	attotime curtime = machine().time();
+	attotime curtime = machine().machine_time();
 
 	// create the bitmap
 	create_snapshot_bitmap(NULL);

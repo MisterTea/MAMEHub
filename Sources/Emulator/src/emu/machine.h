@@ -245,6 +245,7 @@ public:
 	// additional helpers
 	emu_options &options() const { return m_config.options(); }
 	attotime time() const { return m_scheduler.time(); }
+  attotime &machine_time() { return m_machine_time; }
 	bool scheduled_event_pending() const { return m_exit_pending || m_hard_reset_pending; }
 
 	// fetch items by name
@@ -426,6 +427,9 @@ private:
 	device_scheduler        m_scheduler;            // scheduler object
 	emu_timer               *m_autoboot_timer;      // autoboot timer
 	lua_engine              m_lua_engine;           // LUA engine
+
+  // strictly-increasing machine time
+  attotime m_machine_time;
 };
 
 

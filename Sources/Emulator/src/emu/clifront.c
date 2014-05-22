@@ -255,6 +255,7 @@ int cli_frontend::execute(int argc, char **argv)
 			m_result = mame_execute(m_options, m_osd);
 		}
 	}
+
 	// handle exceptions of various types
 	catch (emu_fatalerror &fatal)
 	{

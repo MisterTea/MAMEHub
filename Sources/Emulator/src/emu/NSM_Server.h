@@ -37,6 +37,8 @@ class Server : public Common
 
  protected:
   std::vector<MemoryBlock> initialBlocks;
+  attotime staleTime;
+  int staleGeneration;
 
   int port;
 
@@ -56,6 +58,7 @@ class Server : public Common
 
   boost::thread syncThread;
   bool syncReady;
+  nsm::Sync syncProto;
 
   MameHubServerProcessor mameHubServerProcessor;
   boost::thread serverThread;
@@ -83,7 +86,7 @@ class Server : public Common
 
   bool update(running_machine *machine);
 
-  void sync();
+  void sync(running_machine *machine);
 
   void popSyncQueue();
 
