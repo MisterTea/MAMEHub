@@ -805,9 +805,9 @@ RAKNET = $(OBJ)/libraknet.a
 # add boost thread library
 INCPATH += -I$(SRC)/lib/boost_thread
 ifeq ($(TARGETOS),win32)
-BOOST_THREAD = $(OBJ)/libboostthreadwindows.a
+BOOST_THREAD = $(OBJ)/libboostthreadwindows.a $(OBJ)/libboostsystem.a
 else
-BOOST_THREAD = $(OBJ)/libboostthreadposix.a
+BOOST_THREAD = $(OBJ)/libboostthreadposix.a $(OBJ)/libboostsystem.a
 endif
 
 #-------------------------------------------------

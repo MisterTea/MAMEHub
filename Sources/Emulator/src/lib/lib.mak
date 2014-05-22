@@ -38,8 +38,12 @@ OBJDIRS += \
 	$(LIBOBJ)/boost_thread \
 	$(LIBOBJ)/boost_thread/libs \
 	$(LIBOBJ)/boost_thread/libs/thread \
-	$(LIBOBJ)/boost_thread/libs/thread/pthread \
-	$(LIBOBJ)/boost_thread/libs/thread/win32 \
+	$(LIBOBJ)/boost_thread/libs/thread/src \
+	$(LIBOBJ)/boost_thread/libs/thread/src/pthread \
+	$(LIBOBJ)/boost_thread/libs/thread/src/win32 \
+	$(LIBOBJ)/boost_thread/libs \
+	$(LIBOBJ)/boost_thread/libs/system \
+	$(LIBOBJ)/boost_thread/libs/system/src \
 	$(LIBOBJ)/webm \
 	$(LIBOBJ)/webm/libmkv \
 	$(LIBOBJ)/webm/ogg \
@@ -580,25 +584,35 @@ $(LIBOBJ)/RakNet/%.o: $(LIBSRC)/RakNet/%.cpp | $(OSPREBUILD)
 	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
 
 BOOSTTHREADWINDOWSOBJS = \
-$(LIBOBJ)/boost_thread/libs/thread/win32/tss_dll.o \
-$(LIBOBJ)/boost_thread/libs/thread/win32/tss_pe.o \
-$(LIBOBJ)/boost_thread/libs/thread/win32/thread.o
+$(LIBOBJ)/boost_thread/libs/thread/src/win32/tss_dll.o \
+$(LIBOBJ)/boost_thread/libs/thread/src/win32/tss_pe.o \
+$(LIBOBJ)/boost_thread/libs/thread/src/win32/thread.o
 
 BOOSTTHREADPOSIXOBJS = \
-$(LIBOBJ)/boost_thread/libs/thread/pthread/once.o \
-$(LIBOBJ)/boost_thread/libs/thread/pthread/thread.o
+$(LIBOBJ)/boost_thread/libs/thread/src/pthread/once.o \
+$(LIBOBJ)/boost_thread/libs/thread/src/pthread/once_atomic.o \
+$(LIBOBJ)/boost_thread/libs/thread/src/pthread/thread.o
 
 $(OBJ)/libboostthreadwindows.a: $(BOOSTTHREADWINDOWSOBJS)
 
 $(OBJ)/libboostthreadposix.a: $(BOOSTTHREADPOSIXOBJS)
 
-$(LIBOBJ)/boost_thread/libs/thread/pthread/%.o: $(LIBSRC)/boost_thread/libs/thread/pthread/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/boost_thread/libs/thread/src/pthread/%.o: $(LIBSRC)/boost_thread/libs/thread/src/pthread/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
 	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
 
-$(LIBOBJ)/boost_thread/libs/thread/win32/%.o: $(LIBSRC)/boost_thread/libs/thread/win32/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/boost_thread/libs/thread/src/win32/%.o: $(LIBSRC)/boost_thread/libs/thread/src/win32/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
 	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
+BOOSTSYSTEMOBJS = \
+$(LIBOBJ)/boost_thread/libs/system/src/error_code.o 
+
+$(LIBOBJ)/boost_thread/libs/system/src/%.o: $(LIBSRC)/boost_thread/libs/system/src/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+
+$(OBJ)/libboostsystem.a: $(BOOSTSYSTEMOBJS)
 
 #-------------------------------------------------
 # expat library objects
