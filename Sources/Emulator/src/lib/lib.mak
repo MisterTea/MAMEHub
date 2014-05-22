@@ -140,6 +140,7 @@ PROTOBUFOBJS = \
 	$(LIBOBJ)/protobuf/google/protobuf/io/zero_copy_stream_impl.o\
 	$(LIBOBJ)/protobuf/google/protobuf/io/zero_copy_stream_impl_lite.o\
 \
+	$(LIBOBJ)/protobuf/google/protobuf/stubs/atomicops_internals_x86_gcc.o\
 	$(LIBOBJ)/protobuf/google/protobuf/stubs/common.o\
 	$(LIBOBJ)/protobuf/google/protobuf/stubs/once.o\
 	$(LIBOBJ)/protobuf/google/protobuf/stubs/stringprintf.o\
