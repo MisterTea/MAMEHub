@@ -96,7 +96,7 @@
 #define PACKAGE_NAME "Protocol Buffers"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Protocol Buffers 2.4.1"
+#define PACKAGE_STRING "Protocol Buffers 2.5.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "protobuf"
@@ -105,7 +105,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.4.1"
+#define PACKAGE_VERSION "2.5.0"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
@@ -137,7 +137,7 @@
 
 
 /* Version number of package */
-#define VERSION "2.4.1"
+#define VERSION "2.5.0"
 
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */

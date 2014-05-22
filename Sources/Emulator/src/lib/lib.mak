@@ -142,6 +142,7 @@ PROTOBUFOBJS = \
 \
 	$(LIBOBJ)/protobuf/google/protobuf/stubs/common.o\
 	$(LIBOBJ)/protobuf/google/protobuf/stubs/once.o\
+	$(LIBOBJ)/protobuf/google/protobuf/stubs/stringprintf.o\
 	$(LIBOBJ)/protobuf/google/protobuf/stubs/structurally_valid.o\
 	$(LIBOBJ)/protobuf/google/protobuf/stubs/strutil.o\
 	$(LIBOBJ)/protobuf/google/protobuf/stubs/substitute.o\
