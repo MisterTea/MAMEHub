@@ -3501,7 +3501,10 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMa
     {
       if(it==playerInputData[player].rend())
       {
-        throw emu_fatalerror("OOPS: INVALID PLAYER INPUT");
+        cout << "MISSING PLAYER INPUT IN THE PAST " << playerInputData[player].size() << endl;
+        //throw emu_fatalerror("OOPS: INVALID PLAYER INPUT");
+        retval.push_back(NULL);
+        break;
       }
       else if(it->first<=curMachineTime)
       {
@@ -3509,12 +3512,15 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMa
         {
           //throw emu_fatalerror("OOPS");
 
-          // This can happen for a few frames aftersomeone disconnects but before hte server takes over.
+          // This can happen for a few frames after someone
+          // disconnects but before the server takes over.
           retval.push_back(NULL);
         } else {
           retval.push_back(&(itold->second));
         }
         break;
+      } else {
+        //cout << "GOT INPUT BUT TOO NEW: " << it->first.seconds << "." << it->first.attoseconds << " " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl; 
       }
 
       itold = it;
