@@ -131,6 +131,7 @@ Common::Common(string _username) :
   secondsBetweenSync(0),
   globalInputCounter(0),
   selfPeerID(0),
+  generation(1),
   username(_username),
   player(0)
 {

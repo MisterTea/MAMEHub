@@ -206,7 +206,7 @@ class Common
   z_stream outputStream;
 
   int selfPeerID;
-  int generation=1;
+  int generation;
 
   std::map<RakNet::RakNetGUID,int> peerIDs;
 

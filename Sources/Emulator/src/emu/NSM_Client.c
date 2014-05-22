@@ -872,8 +872,9 @@ bool Client::resync(unsigned char *data,int size,running_machine *machine)
   int badByteCount=0;
   int totalByteCount=0;
 
-  for (nsm::SyncBlock syncBlock : syncProto.block())
+  for (int i=0;i<syncProto.block_size();i++)
   {
+    const nsm::SyncBlock& syncBlock = syncProto.block(i);
     int blockIndex = syncBlock.index();
     unsigned char *syncBlockData = (unsigned char*)(&syncBlock.data()[0]);
 
