@@ -3274,6 +3274,10 @@ void ioport_manager::frame_update()
     } else if(futureInputTime < lastFutureInputTime) {
       // This input would occur in the past, ignore it.
     } else {
+      if (lastFutureInputTime < inputStartTime) {
+        // Make sure that the first input is exactly on the input start time.
+        futureInputTime = inputStartTime;
+      }
       lastFutureInputTime = futureInputTime;
 
       //cout << "SENDING INPUTS AT TIME " << futureInputTime.seconds << "." << futureInputTime.attoseconds << endl;
@@ -3502,9 +3506,7 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMa
       if(it==playerInputData[player].rend())
       {
         cout << "MISSING PLAYER INPUT IN THE PAST " << playerInputData[player].size() << endl;
-        //throw emu_fatalerror("OOPS: INVALID PLAYER INPUT");
-        retval.push_back(NULL);
-        break;
+        throw emu_fatalerror("OOPS: INVALID PLAYER INPUT");
       }
       else if(it->first<=curMachineTime)
       {
