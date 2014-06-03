@@ -4,7 +4,9 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 
 import org.fourthline.cling.DefaultUpnpServiceConfiguration;
 import org.fourthline.cling.UpnpService;
@@ -132,12 +134,15 @@ public class PortOpener implements Runnable {
 			}
 		};
 
-		// Get internal IP address
-		String ipAddress = null;
-		try {
+    List<PortMapping> mappings = new ArrayList<>();
+
+    try {
 			Enumeration<NetworkInterface> interfaces = NetworkInterface
 					.getNetworkInterfaces();
 			while (interfaces.hasMoreElements()) {
+		    // Get IP addresses
+		    String ipAddress = null;
+		    
 				NetworkInterface current = interfaces.nextElement();
 				if (!current.isUp() || current.isLoopback()
 						|| current.isVirtual())
@@ -152,31 +157,35 @@ public class PortOpener implements Runnable {
 					if (current_addr.isLoopbackAddress())
 						continue;
 					ipAddress = current_addr.getHostAddress();
+
+		      logger.info("ONE HOST IP ADDRESS IS " + ipAddress);
+
+		      int port1 = input_port_1;
+		      int port2 = input_port_2;
+		      logger.info("FORWARDING PORTS: " + input_port_1 + " AND "
+		          + input_port_2);
+		      mappings.add(
+		          new PortMapping(port1, ipAddress, PortMapping.Protocol.TCP,
+		              "MAMEHub TCP Port Mapping 1"));
+		      mappings.add(
+		          new PortMapping(port2, ipAddress, PortMapping.Protocol.TCP,
+		              "MAMEHub TCP Port Mapping 2"));
+		              mappings.add(
+		          new PortMapping(port1, ipAddress, PortMapping.Protocol.UDP,
+		              "MAMEHub UDP Port Mapping 1"));
+		              mappings.add(
+		          new PortMapping(port2, ipAddress, PortMapping.Protocol.UDP,
+		              "MAMEHub UDP Port Mapping 2"));
 				}
 			}
-			logger.info("HOST IP ADDRESS IS " + ipAddress);
 		} catch (SocketException se) {
 			throw new RuntimeException(se);
 		}
 
-		int port1 = input_port_1;
-		int port2 = input_port_2;
-		logger.info("FORWARDING PORTS: " + input_port_1 + " AND "
-				+ input_port_2);
-		PortMapping[] mappings = {
-				new PortMapping(port1, ipAddress, PortMapping.Protocol.TCP,
-						"MAMEHub TCP Port Mapping 1"),
-				new PortMapping(port2, ipAddress, PortMapping.Protocol.TCP,
-						"MAMEHub TCP Port Mapping 2"),
-				new PortMapping(port1, ipAddress, PortMapping.Protocol.UDP,
-						"MAMEHub UDP Port Mapping 1"),
-				new PortMapping(port2, ipAddress, PortMapping.Protocol.UDP,
-						"MAMEHub UDP Port Mapping 2") };
-
 		// This will create necessary network resources for UPnP right away
 		logger.info("Starting Cling...");
 		upnpService = new UpnpServiceImpl(registryListener,
-				new PortMappingListener(mappings));
+				new PortMappingListener(mappings.toArray(new PortMapping[0])));
 
 		// Send a search message to all devices and services, they should
 		// respond soon
