@@ -253,7 +253,7 @@ useallheads               0
 #
 # SOUND OPTIONS
 #
-audio_latency             2
+audio_latency             1
 
 #
 # SDL KEYBOARD MAPPING
