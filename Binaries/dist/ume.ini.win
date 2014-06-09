@@ -329,7 +329,7 @@ full_screen_gamma         0.9
 #
 # WINDOWS SOUND OPTIONS
 #
-audio_latency             2
+audio_latency             1
 
 #
 # INPUT DEVICE OPTIONS
