@@ -40,7 +40,7 @@
 //============================================================
 
 // For testing purposes: force DirectInput
-#define FORCE_DIRECTINPUT   0
+#define FORCE_DIRECTINPUT   1
 
 // standard windows headers
 #define WIN32_LEAN_AND_MEAN
