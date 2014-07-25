@@ -119,7 +119,8 @@ private:
 		global_free_array(oldarray);
 	}
 
-#ifdef __GNUC__
+//#ifdef __GNUC__
+#if 0  // Clang defines __GNUC__ but doesn't support this operation.
 	void clear_internal(UINT32 start, UINT32 count, UINT8 data) { assert(__is_pod(_ElementType)); memset(&m_array[start], data, count * sizeof(*m_array)); }
 #else
 	void clear_internal(UINT32 start, UINT32 count, UINT8 data) { memset(&m_array[start], data, count * sizeof(*m_array)); }
